@@ -1,0 +1,429 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { ClipboardList, LogOut, RefreshCw, UserPlus, Users } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
+import {
+  LOCAL_DATA_CHANGED,
+  listLocalClients,
+  listTrainingsForTrainer,
+  pullClientsForTrainer,
+} from '../../lib/dataAccess'
+import { formatIsoRu, getDateRange, isDateInRange } from '../../lib/period'
+import { getDb } from '../../lib/localDb'
+import { flushSyncQueue, saveLocalWithSync } from '../../lib/syncService'
+import { formatDateRu } from '../../lib/dateRu'
+import { pickUsableMembershipForDate } from '../../lib/membershipRules'
+
+function membershipDot(list, today) {
+  const active = pickUsableMembershipForDate(list ?? [], today)
+  if (!active) return { color: '#f87171', label: 'нет активного' }
+
+  const total = Number(active.total_trainings ?? 0)
+  const used = Number(active.used_trainings ?? 0)
+  const remaining = Number.isFinite(total) && Number.isFinite(used) ? Math.max(0, total - used) : null
+  if (remaining === 0) return { color: '#f87171', label: 'лимит 0' }
+
+  const end = new Date(active.end_date)
+  const d0 = new Date(today)
+  const days = Math.ceil((end - d0) / 86400000)
+  if (days <= 3) return { color: '#eab308', label: `≤${days}д` }
+  return { color: '#22c55e', label: 'активен' }
+}
+
+function lastTrainingDate(trainings, clientId) {
+  const ts = trainings.filter((t) => t.client_id === clientId).map((t) => t.date || t.created_at?.slice(0, 10))
+  if (!ts.length) return '—'
+  return formatDateRu(ts.sort((a, b) => String(b).localeCompare(String(a)))[0])
+}
+
+export function TrainerDashboard() {
+  const { user, supabaseReady, signOut } = useAuth()
+  const trainerClubId = user?.club_id ?? null
+  const [online, setOnline] = useState(typeof navigator !== 'undefined' && navigator.onLine)
+  const [clients, setClients] = useState([])
+  const [trainings, setTrainings] = useState([])
+  const [memByClient, setMemByClient] = useState({})
+  const [busy, setBusy] = useState(false)
+  const [period, setPeriod] = useState('7d')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
+  const [showNewClient, setShowNewClient] = useState(false)
+  const [newClientForm, setNewClientForm] = useState({ name: '', phone: '', birth_date: '' })
+  const formatClientName = (raw) => {
+    const s = String(raw ?? '').trim().replace(/\s+/g, ' ')
+    if (!s) return ''
+    const parts = s.split(' ').filter(Boolean)
+    const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+
+    const last = cap(parts[0])
+    const rest = parts.slice(1)
+
+    // "АЮ" -> "А.Ю." / "А" -> "А."
+    const toInitials = (x) => {
+      const t = String(x ?? '').replace(/\./g, '').trim()
+      if (!t) return ''
+      if (t.length >= 2 && /^[A-Za-zА-Яа-я]+$/.test(t) && t === t.toUpperCase()) {
+        return t
+          .slice(0, 2)
+          .split('')
+          .map((ch) => `${ch}.`)
+          .join('')
+      }
+      if (t.length === 1) return `${t.toUpperCase()}.`
+      return cap(t)
+    }
+
+    if (rest.length === 0) return last
+    if (rest.length === 1) return `${last} ${toInitials(rest[0])}`.trim()
+    if (rest.length >= 2) return `${last} ${toInitials(rest[0])}${toInitials(rest[1])}`.trim()
+    return s
+  }
+
+  const reload = useCallback(async () => {
+    if (!user?.id) return
+    setBusy(true)
+    try {
+      if (supabaseReady && navigator.onLine) {
+        try {
+          await pullClientsForTrainer(user.id)
+        } catch (e) {
+          console.warn('pullClients', e)
+        }
+        await flushSyncQueue()
+      }
+      const [c, t] = await Promise.all([listLocalClients(user.id, trainerClubId), listTrainingsForTrainer(user.id, trainerClubId)])
+      setClients(c)
+      setTrainings(t)
+      const db = await getDb()
+      const allM = await db.getAll('memberships')
+      const map = {}
+      for (const m of allM) {
+        if (!map[m.client_id]) map[m.client_id] = []
+        map[m.client_id].push(m)
+      }
+      setMemByClient(map)
+    } finally {
+      setBusy(false)
+    }
+  }, [user?.id, trainerClubId, supabaseReady])
+
+  useEffect(() => {
+    reload()
+  }, [reload])
+
+  useEffect(() => {
+    const fn = () => {
+      reload()
+    }
+    window.addEventListener(LOCAL_DATA_CHANGED, fn)
+    return () => window.removeEventListener(LOCAL_DATA_CHANGED, fn)
+  }, [reload])
+
+  useEffect(() => {
+    const fn = () => setOnline(navigator.onLine)
+    window.addEventListener('online', fn)
+    window.addEventListener('offline', fn)
+    return () => {
+      window.removeEventListener('online', fn)
+      window.removeEventListener('offline', fn)
+    }
+  }, [])
+
+  const range = useMemo(() => getDateRange(period, customFrom, customTo), [period, customFrom, customTo])
+  const today = new Date().toISOString().slice(0, 10)
+
+  const stats = useMemo(() => {
+    const inP = (d) => isDateInRange(d, range.start, range.end)
+    const done = trainings.filter((t) => t.trainer_id === user?.id && t.status === 'completed' && inP(t.date))
+    let starsSum = 0
+    let starsN = 0
+    for (const t of done) {
+      const s = Number(t.data?.stars)
+      if (!Number.isNaN(s) && s > 0) {
+        starsSum += s
+        starsN += 1
+      }
+    }
+    return {
+      workouts: done.length,
+      clients: clients.length,
+      avgStars: starsN ? (starsSum / starsN).toFixed(1) : '—',
+    }
+  }, [trainings, clients, user?.id, range])
+
+  const draftTrainings = useMemo(() => trainings.filter((t) => t.status === 'draft'), [trainings])
+
+  const createClient = async (e) => {
+    e.preventDefault()
+    if (!newClientForm.name.trim()) {
+      alert('Укажите имя')
+      return
+    }
+    const clubId = trainerClubId
+    if (!clubId) {
+      alert('Тренер не привязан к клубу. Попросите администратора назначить вам клуб в разделе «Клубы и тренеры».')
+      return
+    }
+    const id = crypto.randomUUID()
+    const now = new Date().toISOString()
+    const row = {
+      id,
+      trainer_id: user.id,
+      club_id: clubId,
+      name: formatClientName(newClientForm.name),
+      phone: newClientForm.phone.trim() || null,
+      birth_date: newClientForm.birth_date || null,
+      created_at: now,
+    }
+    try {
+      await saveLocalWithSync('clients', row, { table_name: 'clients', operation: 'insert', remote_id: null })
+    } catch (err) {
+      alert(err?.message ?? 'Ошибка создания клиента')
+      return
+    }
+    setShowNewClient(false)
+    setNewClientForm({ name: '', phone: '', birth_date: '' })
+    await reload()
+  }
+
+  return (
+    <div className="grid stagger td-grid">
+      <div className="row td-top">
+        <div className="u-grow u-minw-0 td-top__grow">
+          <h1 className="section-title td-top__title">
+            Главная тренера
+          </h1>
+          <p className="section-sub td-top__sub">
+            <span className="pill-offline" data-on={online}>
+              {online ? 'Онлайн' : 'Офлайн'}
+            </span>
+            <span>
+              <strong>{user?.name ?? user?.email ?? 'Тренер'}</strong>
+              {' · '}статистика за период
+            </span>
+          </p>
+        </div>
+        <div className="row td-actions">
+          <button type="button" className="btn btn-ghost btn-touch" disabled={busy} onClick={() => reload()}>
+            <RefreshCw size={18} className={busy ? 'icon-spin' : undefined} aria-hidden />
+            Обновить
+          </button>
+          <button type="button" className="btn btn-ghost btn-touch" onClick={() => signOut()}>
+            <LogOut size={18} aria-hidden />
+            Выйти
+          </button>
+        </div>
+      </div>
+
+      <section className="card">
+        <h2 className="section-title td-period__title">
+          Период
+        </h2>
+        <div className="row td-period__buttons">
+          {[
+            { id: 'today', label: 'Сегодня' },
+            { id: 'yesterday', label: 'Вчера' },
+            { id: '7d', label: '7 дней' },
+            { id: '30d', label: '30 дней' },
+            { id: 'custom', label: 'Свой' },
+          ].map((p) => (
+            <button key={p.id} type="button" className={`btn ${period === p.id ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setPeriod(p.id)}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+        {period === 'custom' && (
+          <div className="grid grid-2 td-period__custom">
+            <div className="field td-period__field">
+              <label className="label">С</label>
+              <input className="input" type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} required />
+            </div>
+            <div className="field td-period__field">
+              <label className="label">По</label>
+              <input className="input" type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} required />
+            </div>
+          </div>
+        )}
+        <p className="muted td-range">
+          {range.start && range.end ? (
+            <>
+              Диапазон: {formatIsoRu(range.start)} — {formatIsoRu(range.end)}
+            </>
+          ) : period === 'custom' ? (
+            <span className="admin-inline-note">Укажите даты «с» и «по» для своего периода.</span>
+          ) : (
+            <>Диапазон: —</>
+          )}
+        </p>
+      </section>
+
+      <section className="grid grid-3">
+        <div className="card stat-card">
+          <div className="stat-card__top">
+            <h3 className="td-stat-title">Тренировок за период</h3>
+            <ClipboardList className="stat-card__icon" size={22} aria-hidden />
+          </div>
+          <p className="stat-card__value">{stats.workouts}</p>
+        </div>
+        <div className="card stat-card">
+          <div className="stat-card__top">
+            <h3 className="td-stat-title">Всего клиентов</h3>
+            <Users className="stat-card__icon" size={22} aria-hidden />
+          </div>
+          <p className="stat-card__value">{stats.clients}</p>
+        </div>
+        <div className="card stat-card">
+          <div className="stat-card__top">
+            <h3 className="td-stat-title">Средняя оценка</h3>
+          </div>
+          <p className="stat-card__value td-avg">
+            {stats.avgStars}
+            <span className="muted td-avg-note">
+              {' '}
+              (звёзды из формы)
+            </span>
+          </p>
+        </div>
+      </section>
+
+      <section id="drafts" className="card">
+        <div className="row">
+          <h2 className="section-title td-section-title">
+            Активные тренировки
+          </h2>
+          <span className="badge badge-warn">{draftTrainings.length}</span>
+        </div>
+        <p className="muted">Черновики — нажмите карточку, чтобы продолжить.</p>
+        <ul className="list">
+          {draftTrainings.map((t) => (
+            <li key={t.id}>
+              <Link to={`/trainer/workouts/${t.id}`} className="list-item td-draft-link">
+                <div>
+                  <strong>Черновик</strong>
+                  <div className="muted td-muted-13">
+                    {formatDateRu(t.date)} · {t.type ?? '—'}
+                  </div>
+                </div>
+                <span className="btn btn-primary btn-touch td-no-pointer">
+                  Открыть
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section id="clients" className="card">
+        <div className="row">
+          <h2 className="section-title td-section-title">
+            Клиенты
+          </h2>
+          <button type="button" className="btn btn-primary btn-touch" onClick={() => setShowNewClient(true)}>
+            <UserPlus size={18} aria-hidden />
+            Новый клиент
+          </button>
+        </div>
+        <ul className="list">
+          {clients.map((c) => {
+            const mlist = memByClient[c.id] ?? []
+            const active = pickUsableMembershipForDate(mlist, today)
+            const dot = membershipDot(mlist, today)
+            const last = lastTrainingDate(trainings, c.id)
+            return (
+              <li key={c.id} className="list-item td-client-item">
+                <div className="row td-client-row">
+                  <div className="td-client-left">
+                    <span title={dot.label} className="td-client-dot" style={{ background: dot.color }} />
+                    <div>
+                      <strong>{c.name}</strong>
+                      <div className="muted td-muted-13">
+                        {c.phone ?? '—'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="row td-client-actions">
+                    {active ? (
+                      <Link to={`/trainer/workouts/new?clientId=${c.id}`} className="btn btn-ghost btn-touch u-no-decoration">
+                        Тренировка
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-touch u-opacity-55 u-pointer-auto"
+                        aria-disabled="true"
+                        title="Нет действующего абонемента"
+                        onClick={() => alert('Нет действующего абонемента')}
+                      >
+                        Тренировка
+                      </button>
+                    )}
+                    <Link to={`/trainer/clients/${c.id}`} className="btn btn-primary btn-touch u-no-decoration">
+                      Карточка
+                    </Link>
+                  </div>
+                </div>
+                <div className="muted td-muted-row">
+                  {active ? (
+                    <>
+                      <span>
+                        Абонемент до <strong>{formatDateRu(active.end_date)}</strong>
+                      </span>
+                      <span>
+                        Использовано:{' '}
+                        <strong>
+                          {active.used_trainings ?? 0}/{active.total_trainings ?? '—'}
+                        </strong>
+                      </span>
+                    </>
+                  ) : (
+                    <span>Абонемент: нет активного</span>
+                  )}
+                  <span>
+                    Последняя тренировка: <strong>{last}</strong>
+                  </span>
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      </section>
+
+      {showNewClient && (
+        <div className="modal-overlay" onClick={() => setShowNewClient(false)}>
+          <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+            <h2 className="section-title">Новый клиент</h2>
+            <form onSubmit={createClient} className="grid td-modal-form">
+              <div className="field">
+                <label className="label">ФИО *</label>
+                <input
+                  className="input"
+                  required
+                  value={newClientForm.name}
+                  onChange={(e) => setNewClientForm((f) => ({ ...f, name: e.target.value }))}
+                  onBlur={() => setNewClientForm((f) => ({ ...f, name: formatClientName(f.name) }))}
+                  placeholder="Фамилия И.О. (или Фамилия Имя)"
+                />
+              </div>
+              <div className="field">
+                <label className="label">Телефон</label>
+                <input className="input" value={newClientForm.phone} onChange={(e) => setNewClientForm((f) => ({ ...f, phone: e.target.value }))} />
+              </div>
+              <div className="field">
+                <label className="label">Дата рождения</label>
+                <input className="input" type="date" value={newClientForm.birth_date} onChange={(e) => setNewClientForm((f) => ({ ...f, birth_date: e.target.value }))} />
+              </div>
+              <div className="row td-modal-actions">
+                <button type="button" className="btn btn-ghost" onClick={() => setShowNewClient(false)}>
+                  Отмена
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Создать
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

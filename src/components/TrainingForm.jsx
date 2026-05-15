@@ -1,0 +1,701 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Info, List, X } from 'lucide-react'
+import { listExercises } from '../lib/dataAccess'
+import { stripDirectionControls } from '../lib/textInput'
+
+function newEmptyExerciseRow() {
+  return {
+    id: crypto.randomUUID(),
+    name: '',
+    /** UUID из таблицы exercises; только выбор из справочника, при наборе текста без совпадения — null */
+    catalog_exercise_id: null,
+    muscle_focus: '',
+    sets: [{ reps: '', weight_kg: '', tut_sec: '', load: '', rpe: '', hr_after: '' }],
+  }
+}
+
+const steps = [
+  { id: 'survey', title: 'Опрос' },
+  { id: 'warmup', title: 'Разминка' },
+  { id: 'main', title: 'Упражнения' },
+  { id: 'cooldown', title: 'Заминка' },
+  { id: 'summary', title: 'Итог' },
+]
+
+const MOODS = [
+  { v: 1, label: '😫' },
+  { v: 2, label: '😕' },
+  { v: 3, label: '😐' },
+  { v: 4, label: '🙂' },
+  { v: 5, label: '😄' },
+]
+
+function normExerciseName(s) {
+  return String(s ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+}
+
+function filterExerciseCatalog(catalog, query) {
+  const q = normExerciseName(query)
+  const sorted = [...catalog].sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''), 'ru'))
+  if (!q) return sorted
+  return sorted.filter((row) => {
+    const hay = `${row.name ?? ''} ${row.muscle_group ?? ''} ${row.primary_muscles ?? ''}`.toLowerCase()
+    return hay.includes(q)
+  })
+}
+
+function resolveCatalogExercise(catalog, typedName) {
+  const cand = normExerciseName(typedName)
+  if (!cand) return null
+  return catalog.find((r) => normExerciseName(r.name) === cand) ?? null
+}
+
+export function TrainingForm({ value, onChange, trainingType, onTrainingTypeChange }) {
+  const [step, setStep] = useState(0)
+  const [focusExerciseIdx, setFocusExerciseIdx] = useState(null)
+  const [pickExerciseIdx, setPickExerciseIdx] = useState(null)
+  const [pickSearch, setPickSearch] = useState('')
+  const catalogSearchRef = useRef(null)
+  const [catalogList, setCatalogList] = useState([])
+  const [suggestOpenId, setSuggestOpenId] = useState(null)
+  const exercisesRef = useRef([])
+  /** Пока в родителе exercises: [], нельзя каждый рендер создавать новый id — иначе input размонтируется и ввод «не печатается». */
+  const emptyExercisePlaceholderRef = useRef(null)
+  const current = steps[step]
+  const workout = value
+
+  const setWorkout = (patch) => {
+    onChange((prev) => ({ ...prev, ...patch }))
+  }
+
+  const exercises = useMemo(() => {
+    if (Array.isArray(workout.exercises) && workout.exercises.length > 0) {
+      emptyExercisePlaceholderRef.current = null
+      return workout.exercises
+    }
+    if (!emptyExercisePlaceholderRef.current) {
+      emptyExercisePlaceholderRef.current = newEmptyExerciseRow()
+    }
+    return [emptyExercisePlaceholderRef.current]
+  }, [workout.exercises])
+
+  const syncExercises = (next) => setWorkout({ exercises: next })
+  const addExercise = () => syncExercises([...exercises, newEmptyExerciseRow()])
+  const removeExercise = (idx) => {
+    const next = exercises.filter((_, i) => i !== idx)
+    syncExercises(next.length ? next : [newEmptyExerciseRow()])
+  }
+
+  const patchExercise = (idx, ex) => {
+    const next = exercises.slice()
+    next[idx] = ex
+    syncExercises(next)
+  }
+
+  exercisesRef.current = exercises
+
+  const addSet = (exIdx) => {
+    const ex = exercises[exIdx]
+    const sets = [...ex.sets, { reps: '', weight_kg: '', tut_sec: '', load: '', rpe: '', hr_after: '' }]
+    patchExercise(exIdx, { ...ex, sets })
+  }
+
+  const removeSet = (exIdx, setIdx) => {
+    const ex = exercises[exIdx]
+    const sets = ex.sets.filter((_, i) => i !== setIdx)
+    patchExercise(exIdx, { ...ex, sets })
+  }
+
+  const summaryText = useMemo(() => {
+    const names = exercises.map((e) => e.name).filter(Boolean)
+    return names.length ? names.join(', ') : 'Упражнения не названы'
+  }, [exercises])
+
+  const focusEx = focusExerciseIdx != null ? exercises[focusExerciseIdx] : null
+  const isCardio = trainingType === 'Кардио'
+  const withSetHr = trainingType === 'Функциональная' || isCardio
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const rows = await listExercises()
+        if (!cancelled) setCatalogList(Array.isArray(rows) ? rows : [])
+      } catch {
+        if (!cancelled) setCatalogList([])
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const catalogFiltered = useMemo(() => {
+    const q = pickSearch.trim().toLowerCase()
+    const sorted = [...catalogList].sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''), 'ru'))
+    if (!q) return sorted
+    return sorted.filter((row) => {
+      const hay = `${row.name ?? ''} ${row.muscle_group ?? ''} ${row.primary_muscles ?? ''}`.toLowerCase()
+      return hay.includes(q)
+    })
+  }, [pickSearch, catalogList])
+
+  useEffect(() => {
+    if (pickExerciseIdx == null) return
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        setPickExerciseIdx(null)
+        setSuggestOpenId(null)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [pickExerciseIdx])
+
+  useEffect(() => {
+    if (pickExerciseIdx == null) return
+    const t = window.setTimeout(() => catalogSearchRef.current?.focus(), 0)
+    return () => window.clearTimeout(t)
+  }, [pickExerciseIdx])
+
+  useEffect(() => {
+    setPickExerciseIdx(null)
+    setSuggestOpenId(null)
+  }, [step])
+
+  return (
+    <div className="steps">
+      <div className="step-nav tabs" role="tablist">
+        {steps.map((s, i) => (
+          <button key={s.id} type="button" className="tab" aria-selected={i === step} onClick={() => setStep(i)}>
+            {i + 1}. {s.title}
+          </button>
+        ))}
+      </div>
+
+      {current.id === 'survey' && (
+        <section className="card">
+          <h3 style={{ marginTop: 0 }}>Опрос перед тренировкой</h3>
+          <div className="field">
+            <span className="label">Самочувствие (1–5)</span>
+            <div className="row" style={{ flexWrap: 'wrap', justifyContent: 'flex-start', gap: 8 }}>
+              {MOODS.map((m) => (
+                <button
+                  key={m.v}
+                  type="button"
+                  className={`btn ${Number(workout.mood) === m.v ? 'btn-primary' : 'btn-ghost'}`}
+                  style={{ fontSize: '1.35rem', minWidth: 48 }}
+                  onClick={() => setWorkout({ mood: String(m.v) })}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="field">
+            <span className="label">Желание тренироваться (1–5)</span>
+            <div className="row" style={{ flexWrap: 'wrap', justifyContent: 'flex-start', gap: 8 }}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className={`btn ${Number(workout.desire) === n ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setWorkout({ desire: String(n) })}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="grid grid-2">
+            <div className="field">
+              <label className="label">Сон, часы</label>
+              <input className="input" type="number" min={0} max={24} step={0.5} value={workout.sleep_hours ?? ''} onChange={(e) => setWorkout({ sleep_hours: e.target.value })} />
+            </div>
+            <div className="field">
+              <label className="label">Часов после еды</label>
+              <input className="input" type="number" min={0} value={workout.hours_after_meal ?? ''} onChange={(e) => setWorkout({ hours_after_meal: e.target.value })} />
+            </div>
+          </div>
+        </section>
+      )}
+
+      {current.id === 'warmup' && (
+        <section className="card">
+          <h3 style={{ marginTop: 0 }}>Разминка</h3>
+          <div className="field">
+            <label className="label">Что делали</label>
+            <textarea className="textarea" placeholder="Суставная гимнастика, лёгкий кардио…" value={workout.warmup ?? ''} onChange={(e) => setWorkout({ warmup: e.target.value })} />
+          </div>
+          <div className="field">
+            <label className="label">Длительность, мин</label>
+            <input className="input" type="number" min={0} value={workout.warmup_duration_min ?? ''} onChange={(e) => setWorkout({ warmup_duration_min: e.target.value })} />
+          </div>
+        </section>
+      )}
+
+      {current.id === 'main' && (
+        <section className="card">
+          <div className="row">
+            <h3 style={{ margin: 0 }}>Упражнения</h3>
+            <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
+              <div className="row" style={{ gap: 6, justifyContent: 'flex-start' }}>
+                <span className="muted" style={{ fontSize: 12 }}>
+                  Шаблон
+                </span>
+                {['Силовая', 'Функциональная', 'Кардио'].map((t, i) => (
+                  <button
+                    key={t}
+                    type="button"
+                    className={`btn ${trainingType === t ? 'btn-primary' : 'btn-ghost'} btn-icon-square btn-icon-xs`}
+                    onClick={() => onTrainingTypeChange?.(t)}
+                    title={`Шаблон ${i + 1}: ${t}`}
+                    aria-label={`Шаблон ${i + 1}: ${t}`}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+              </div>
+              <button type="button" className="btn btn-ghost" onClick={addExercise} title="Добавить упражнение">
+                + Упражнение
+              </button>
+            </div>
+          </div>
+          {exercises.map((ex, exIdx) => (
+            <div key={ex.id} style={{ marginTop: 14, paddingTop: 14, borderTop: exIdx ? '1px solid var(--border)' : 'none' }}>
+              <div className="row" style={{ alignItems: 'flex-end', flexWrap: 'wrap', gap: 8 }}>
+                <div className="field exercise-name-field exercise-catalog-combo" style={{ flex: '1 1 240px', marginBottom: 0 }}>
+                  <label className="label">Упражнение (только справочник админа)</label>
+                  <div className="exercise-name-row">
+                    <input
+                      className="input"
+                      value={ex.name}
+                      disabled={!catalogList.length}
+                      onChange={(e) => {
+                        patchExercise(exIdx, {
+                          ...ex,
+                          name: stripDirectionControls(e.target.value),
+                          catalog_exercise_id: null,
+                        })
+                        setSuggestOpenId(ex.id)
+                      }}
+                      onFocus={() => {
+                        if (catalogList.length) setSuggestOpenId(ex.id)
+                      }}
+                      onBlur={() => {
+                        const idx = exIdx
+                        window.setTimeout(() => {
+                          setSuggestOpenId((open) => (open === ex.id ? null : open))
+                          const cur = exercisesRef.current[idx]
+                          if (!cur) return
+                          const row = resolveCatalogExercise(catalogList, cur.name)
+                          const q = normExerciseName(cur.name)
+                          if (!q) {
+                            patchExercise(idx, { ...cur, name: '', catalog_exercise_id: null })
+                            return
+                          }
+                          if (row) {
+                            patchExercise(idx, { ...cur, name: String(row.name).trim(), catalog_exercise_id: row.id })
+                            return
+                          }
+                          patchExercise(idx, { ...cur, name: '', catalog_exercise_id: null })
+                        }, 180)
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          const list = filterExerciseCatalog(catalogList, ex.name)
+                          const first = list[0]
+                          if (first) {
+                            patchExercise(exIdx, { ...ex, name: String(first.name).trim(), catalog_exercise_id: first.id })
+                            setSuggestOpenId(null)
+                          }
+                        }
+                        if (e.key === 'Escape') setSuggestOpenId(null)
+                      }}
+                      placeholder={catalogList.length ? 'Печать — подсказки или кнопка списка' : 'Справочник пуст — админ добавит упражнения'}
+                      aria-label="Упражнение: поиск по справочнику"
+                      aria-expanded={suggestOpenId === ex.id}
+                      aria-controls={suggestOpenId === ex.id ? `exercise-suggest-${ex.id}` : undefined}
+                      autoComplete="off"
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-ghost exercise-catalog-open-btn"
+                      onClick={() => {
+                        setSuggestOpenId(null)
+                        setPickSearch((exercises[exIdx]?.name ?? '').trim())
+                        setPickExerciseIdx(exIdx)
+                      }}
+                      disabled={!catalogList.length}
+                      aria-label="Открыть справочник в окне"
+                      title="Справочник в окне"
+                    >
+                      <List size={18} aria-hidden />
+                    </button>
+                  </div>
+                  {suggestOpenId === ex.id && catalogList.length > 0 ? (
+                    <div id={`exercise-suggest-${ex.id}`} className="exercise-catalog-suggest" role="listbox">
+                      {filterExerciseCatalog(catalogList, ex.name).length === 0 ? (
+                        <div className="exercise-catalog-suggest__empty">Нет совпадений — уточните запрос или откройте список</div>
+                      ) : (
+                        filterExerciseCatalog(catalogList, ex.name)
+                          .slice(0, 50)
+                          .map((row) => (
+                            <button
+                              key={row.id}
+                              type="button"
+                              role="option"
+                              className="exercise-catalog-suggest__item"
+                              onMouseDown={(ev) => ev.preventDefault()}
+                              onClick={() => {
+                                patchExercise(exIdx, { ...ex, name: String(row.name ?? '').trim(), catalog_exercise_id: row.id })
+                                setSuggestOpenId(null)
+                              }}
+                            >
+                              <span className="training-exercise-catalog__opt-title">{row.name}</span>
+                              {row.muscle_group ? <span className="training-exercise-catalog__opt-meta">{row.muscle_group}</span> : null}
+                            </button>
+                          ))
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+                <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon-square"
+                    onClick={() => setFocusExerciseIdx(exIdx)}
+                    title="Направленность / группа"
+                    aria-label="Направленность / группа"
+                  >
+                    <Info size={18} aria-hidden />
+                  </button>
+                  <button type="button" className="btn btn-ghost btn-touch" onClick={() => removeExercise(exIdx)} disabled={exercises.length < 2}>
+                    Удалить
+                  </button>
+                </div>
+              </div>
+              {ex.sets.map((st, setIdx) => (
+                <div key={setIdx} className={`set-row-compact${withSetHr ? ' set-row-compact--functional' : ''}`}>
+                  <span className="set-row-compact__idx">{setIdx + 1}</span>
+                  {isCardio ? (
+                    <>
+                      <div className="field">
+                        <label className="label">Время под нагрузкой</label>
+                        <input
+                          className="input"
+                          inputMode="numeric"
+                          placeholder="мин"
+                          title="Сколько минут длился отрезок/подход"
+                          value={st.tut_sec ?? ''}
+                          onChange={(e) => {
+                            const sets = ex.sets.slice()
+                            sets[setIdx] = { ...st, tut_sec: e.target.value }
+                            patchExercise(exIdx, { ...ex, sets })
+                          }}
+                        />
+                      </div>
+                      <div className="field">
+                        <label className="label">Нагрузка</label>
+                        <input
+                          className="input"
+                          inputMode="decimal"
+                          placeholder="уровень/кг/км"
+                          title="Например: уровень дорожки/эллипса, скорость, сопротивление или кг"
+                          value={st.load ?? ''}
+                          onChange={(e) => {
+                            const sets = ex.sets.slice()
+                            sets[setIdx] = { ...st, load: e.target.value }
+                            patchExercise(exIdx, { ...ex, sets })
+                          }}
+                        />
+                      </div>
+                      <div className="field">
+                        <label className="label">Пульс</label>
+                        <input
+                          className="input"
+                          inputMode="numeric"
+                          title="Пульс после отрезка/подхода (уд/мин)"
+                          value={st.hr_after ?? ''}
+                          onChange={(e) => {
+                            const sets = ex.sets.slice()
+                            sets[setIdx] = { ...st, hr_after: e.target.value }
+                            patchExercise(exIdx, { ...ex, sets })
+                          }}
+                        />
+                      </div>
+                      <div className="field">
+                        <label className="label">RPE</label>
+                        <input
+                          className="input"
+                          type="number"
+                          min={1}
+                          max={10}
+                          value={st.rpe ?? ''}
+                          onChange={(e) => {
+                            const sets = ex.sets.slice()
+                            sets[setIdx] = { ...st, rpe: e.target.value }
+                            patchExercise(exIdx, { ...ex, sets })
+                          }}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="field">
+                        <label className="label">Повт.</label>
+                        <input
+                          className="input"
+                          inputMode="numeric"
+                          value={st.reps}
+                          onChange={(e) => {
+                            const sets = ex.sets.slice()
+                            sets[setIdx] = { ...st, reps: e.target.value }
+                            patchExercise(exIdx, { ...ex, sets })
+                          }}
+                        />
+                      </div>
+                      <div className="field">
+                        <label className="label">Вес, кг</label>
+                        <input
+                          className="input"
+                          inputMode="decimal"
+                          value={st.weight_kg}
+                          onChange={(e) => {
+                            const sets = ex.sets.slice()
+                            sets[setIdx] = { ...st, weight_kg: e.target.value }
+                            patchExercise(exIdx, { ...ex, sets })
+                          }}
+                        />
+                      </div>
+                      <div className="field">
+                        <label className="label">RPE</label>
+                        <input
+                          className="input"
+                          type="number"
+                          min={1}
+                          max={10}
+                          value={st.rpe ?? ''}
+                          onChange={(e) => {
+                            const sets = ex.sets.slice()
+                            sets[setIdx] = { ...st, rpe: e.target.value }
+                            patchExercise(exIdx, { ...ex, sets })
+                          }}
+                        />
+                      </div>
+                      {withSetHr && (
+                        <div className="field">
+                          <label className="label">Пульс</label>
+                          <input
+                            className="input"
+                            inputMode="numeric"
+                            value={st.hr_after ?? ''}
+                            onChange={(e) => {
+                              const sets = ex.sets.slice()
+                              sets[setIdx] = { ...st, hr_after: e.target.value }
+                              patchExercise(exIdx, { ...ex, sets })
+                            }}
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
+                  <button type="button" className="btn btn-ghost" style={{ marginBottom: 2, minHeight: 42 }} onClick={() => removeSet(exIdx, setIdx)} disabled={ex.sets.length < 2} aria-label="Удалить подход">
+                    <X size={18} />
+                  </button>
+                </div>
+              ))}
+              <button type="button" className="btn" style={{ marginTop: 8 }} onClick={() => addSet(exIdx)}>
+                + Подход
+              </button>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {current.id === 'cooldown' && (
+        <section className="card">
+          <h3 style={{ marginTop: 0 }}>Заминка</h3>
+          <div className="field">
+            <label className="label">Что делали</label>
+            <textarea className="textarea" value={workout.cooldown ?? ''} onChange={(e) => setWorkout({ cooldown: e.target.value })} />
+          </div>
+          <div className="field">
+            <label className="label">Длительность, мин</label>
+            <input className="input" type="number" min={0} value={workout.cooldown_duration_min ?? ''} onChange={(e) => setWorkout({ cooldown_duration_min: e.target.value })} />
+          </div>
+        </section>
+      )}
+
+      {current.id === 'summary' && (
+        <section className="card">
+          <h3 style={{ marginTop: 0 }}>Итог</h3>
+          <p className="muted">Ключевые упражнения: {summaryText}</p>
+          <div className="field">
+            <span className="label">Оценка (1–5 звёзд)</span>
+            <div className="row" style={{ flexWrap: 'wrap', justifyContent: 'flex-start', gap: 8 }}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className={`btn ${Number(workout.stars) === n ? 'btn-primary' : 'btn-ghost'}`}
+                  onClick={() => setWorkout({ stars: String(n) })}
+                  aria-label={`${n} звёзд`}
+                >
+                  {'★'.repeat(n)}
+                  {'☆'.repeat(5 - n)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="field">
+            <label className="label">Комментарий</label>
+            <textarea className="textarea" value={workout.trainer_comment ?? ''} onChange={(e) => setWorkout({ trainer_comment: e.target.value })} />
+          </div>
+        </section>
+      )}
+
+      {pickExerciseIdx != null && exercises[pickExerciseIdx] && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="exercise-catalog-title"
+          onClick={() => {
+            setPickExerciseIdx(null)
+            setSuggestOpenId(null)
+          }}
+        >
+          <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="grid" style={{ gap: 12 }}>
+              <div className="row" style={{ justifyContent: 'space-between', gap: 10 }}>
+                <h3 id="exercise-catalog-title" style={{ margin: 0 }}>
+                  Справочник упражнений
+                </h3>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-icon-square"
+                  aria-label="Закрыть"
+                  title="Закрыть"
+                  onClick={() => {
+                    setPickExerciseIdx(null)
+                    setSuggestOpenId(null)
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+              <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+                Список задаёт администратор. Можно выбрать здесь или подобрать по буквам в поле на форме — сохраняется только упражнение из справочника.
+              </p>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <label className="label" htmlFor="exercise-catalog-search">
+                  Поиск
+                </label>
+                <input
+                  ref={catalogSearchRef}
+                  id="exercise-catalog-search"
+                  className="input"
+                  value={pickSearch}
+                  onChange={(e) => setPickSearch(stripDirectionControls(e.target.value))}
+                  placeholder="Начните вводить название…"
+                  autoComplete="off"
+                />
+              </div>
+              <div className="training-exercise-catalog-scroll">
+                {catalogList.length === 0 ? (
+                  <p className="muted" style={{ margin: '12px 8px', fontSize: 14 }}>
+                    В справочнике пока нет упражнений — их добавляет администратор (раздел «Упражнения»).
+                  </p>
+                ) : catalogFiltered.length === 0 ? (
+                  <p className="muted" style={{ margin: '12px 8px', fontSize: 14 }}>
+                    Ничего не найдено — измените поиск.
+                  </p>
+                ) : (
+                  <ul className="training-exercise-catalog-list">
+                    {catalogFiltered.map((row) => (
+                      <li key={row.id}>
+                        <button
+                          type="button"
+                          className="training-exercise-catalog__opt"
+                          onClick={() => {
+                            const ex = exercises[pickExerciseIdx]
+                            patchExercise(pickExerciseIdx, {
+                              ...ex,
+                              name: String(row.name ?? '').trim(),
+                              catalog_exercise_id: row.id,
+                            })
+                            setPickExerciseIdx(null)
+                            setSuggestOpenId(null)
+                          }}
+                        >
+                          <span className="training-exercise-catalog__opt-title">{row.name}</span>
+                          {row.muscle_group ? (
+                            <span className="training-exercise-catalog__opt-meta">{row.muscle_group}</span>
+                          ) : null}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {focusEx != null && focusExerciseIdx != null && (
+        <div
+          className="modal-overlay"
+          style={{ alignItems: 'center' }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="focus-pop-title"
+          onClick={() => setFocusExerciseIdx(null)}
+        >
+          <div className="training-focus-pop" onClick={(e) => e.stopPropagation()}>
+            <div className="training-focus-pop__head">
+              <h4 id="focus-pop-title" className="training-focus-pop__title">
+                Направленность / группа
+              </h4>
+              <button type="button" className="btn btn-ghost" onClick={() => setFocusExerciseIdx(null)} aria-label="Закрыть">
+                <X size={22} />
+              </button>
+            </div>
+            <p className="muted" style={{ margin: '0 0 10px', fontSize: 13 }}>
+              {focusEx.name?.trim() ? `Упражнение: ${focusEx.name}` : 'Без названия'}
+            </p>
+            <textarea
+              className="textarea"
+              placeholder="Например: квадрицепс, силовой акцент…"
+              value={focusEx.muscle_focus ?? ''}
+              onChange={(e) => patchExercise(focusExerciseIdx, { ...focusEx, muscle_focus: e.target.value })}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function emptyTrainingData() {
+  return {
+    pre_weight_kg: '',
+    mood: '',
+    desire: '',
+    sleep_hours: '',
+    hours_after_meal: '',
+    warmup: '',
+    warmup_duration_min: '',
+    training_focus: '',
+    exercises: [newEmptyExerciseRow()],
+    cooldown: '',
+    cooldown_duration_min: '',
+    trainer_comment: '',
+    stars: '',
+  }
+}

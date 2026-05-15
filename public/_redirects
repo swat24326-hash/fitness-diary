@@ -1,0 +1,2 @@
+# Cloudflare Pages: SPA fallback (Vite кладёт public/* в корень dist)
+/*    /index.html   200
