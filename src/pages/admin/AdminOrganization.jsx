@@ -1,21 +1,33 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useOutletContext, useSearchParams } from 'react-router-dom'
 import { Pencil, RefreshCw, Trash2, UserPlus } from 'lucide-react'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import {
   countClientsByTrainer,
   deleteClubForAdmin,
+  removeClubFromLocalCache,
   deleteTrainerForAdmin,
   getClientCountsByTrainerId,
   getClubDeletionBlockers,
   listClubsLocal,
   listTrainersWithClubForAdmin,
   pullClubsFromSupabase,
+  saveClubForAdmin,
   updateAllLocalClientsClubForTrainer,
   updateTrainerClubForAdmin,
 } from '../../lib/dataAccess'
-import { saveLocalWithSync } from '../../lib/syncService'
-import { supabase } from '../../lib/supabase'
+import { createTrainerForAdmin } from '../../lib/admin/createTrainerService'
+import { humanizeNetworkError } from '../../lib/supabaseRetry'
+
+const CREATE_TRAINER_TIMEOUT_MS = 55_000
+
+function raceWithTimeout(promise, ms, timeoutMessage) {
+  let id
+  const timeout = new Promise((_, reject) => {
+    id = setTimeout(() => reject(new Error(timeoutMessage)), ms)
+  })
+  return Promise.race([promise.finally(() => clearTimeout(id)), timeout])
+}
 
 const initialTrainerForm = () => ({
   name: '',
@@ -33,13 +45,16 @@ export function AdminOrganization({ mode = 'both' } = {}) {
 
   const [syncClientsClub, setSyncClientsClub] = useState(true)
   const [clubDeleteBusyId, setClubDeleteBusyId] = useState(null)
+  const [clubDeleteConfirm, setClubDeleteConfirm] = useState(null)
   const [trainerDeleteBusyId, setTrainerDeleteBusyId] = useState(null)
 
   const [clubs, setClubs] = useState([])
   const [clubForm, setClubForm] = useState({ name: '', address: '', phone: '' })
   const [clubEdit, setClubEdit] = useState(null)
   const [clubMsg, setClubMsg] = useState('')
-  const [clubBusy, setClubBusy] = useState(false)
+  const [clubPullBusy, setClubPullBusy] = useState(false)
+  const [clubSaveBusy, setClubSaveBusy] = useState(false)
+  const clubSubmitInFlight = useRef(false)
 
   const [trainers, setTrainers] = useState([])
   const [clubColumn, setClubColumn] = useState(true)
@@ -55,18 +70,26 @@ export function AdminOrganization({ mode = 'both' } = {}) {
   const [trainerForm, setTrainerForm] = useState(initialTrainerForm)
   const [trainerActionNote, setTrainerActionNote] = useState('')
 
-  const reloadClubsList = useCallback(async () => {
-    setClubMsg('')
-    setClubBusy(true)
+  const reloadClubsList = useCallback(async (opts = {}) => {
+    if (!opts.keepMsg) setClubMsg('')
+    setClubPullBusy(true)
     try {
-      if (isSupabaseConfigured() && typeof navigator !== 'undefined' && navigator.onLine) {
-        const r = await pullClubsFromSupabase()
-        if (!r.ok && r.error) setClubMsg(r.error)
+      if (opts.forcePull && isSupabaseConfigured() && typeof navigator !== 'undefined' && navigator.onLine) {
+        const r = await pullClubsFromSupabase({ force: true })
+        if (!r.ok && r.error && !opts.keepMsg) {
+          setClubMsg(`${r.error} Показан кэш на устройстве — нажмите ↻ позже.`)
+        } else if (r.pruned > 0 && !opts.keepMsg) {
+          setClubMsg(
+            r.pruned === 1
+              ? 'Убран 1 клуб из кэша устройства — в облаке его уже нет.'
+              : `Убрано ${r.pruned} клубов из кэша — в облаке их уже нет.`,
+          )
+        }
         await reloadClubs?.()
       }
       setClubs(await listClubsLocal())
     } finally {
-      setClubBusy(false)
+      setClubPullBusy(false)
     }
   }, [reloadClubs])
 
@@ -83,19 +106,34 @@ export function AdminOrganization({ mode = 'both' } = {}) {
         setClientCountsSource(source)
         return
       }
-      const { trainers: list, clubColumn: hasCol } = await listTrainersWithClubForAdmin()
+      const { trainers: list, clubColumn: hasCol, listSource, fromCache } = await listTrainersWithClubForAdmin()
       setTrainers(list)
       setClubColumn(hasCol)
-      const { counts, source } = await getClientCountsByTrainerId()
+      const { counts, source } = await getClientCountsByTrainerId({
+        skipRemote: listSource === 'admin_api',
+      })
       setClientCounts(counts)
       setClientCountsSource(source)
       if (!hasCol) {
         setTrainerMsg(
           'В таблице users ещё нет колонки club_id. Выполните миграцию в Supabase (файл supabase/migrations/20260210120000_users_club_id.sql), затем обновите страницу.',
         )
+      } else if (list.length === 0) {
+        setTrainerMsg(
+          'Сервер вернул 0 тренеров. Проверьте в Vercel: SUPABASE_SERVICE_ROLE_KEY и URL — тот же проект, что в Table Editor (hrylzinyasucjecltxpc). Выйдите и войдите снова, затем Ctrl+F5.',
+        )
+      } else if (fromCache) {
+        setTrainerMsg(`Показан сохранённый список (${list.length} трен.). Обновите ↻ — проверьте ответ /api/list-trainers в Network.`)
+      } else if (listSource === 'admin_api') {
+        setTrainerMsg(
+          `Загружено тренеров: ${list.length}. ` +
+            (source === 'local'
+              ? 'Клиентов у каждого — по кэшу на устройстве.'
+              : 'Данные из облака.'),
+        )
       }
     } catch (e) {
-      setTrainerMsg(e?.message ?? 'Ошибка загрузки тренеров')
+      setTrainerMsg(humanizeNetworkError(e) || e?.message || 'Ошибка загрузки тренеров')
       setTrainers([])
       const { counts, source } = await getClientCountsByTrainerId()
       setClientCounts(counts)
@@ -106,45 +144,85 @@ export function AdminOrganization({ mode = 'both' } = {}) {
   }, [])
 
   const reloadAll = useCallback(async () => {
-    await reloadClubsList()
+    setClubs(await listClubsLocal())
     await loadTrainers()
-  }, [reloadClubsList, loadTrainers])
+  }, [loadTrainers])
 
   useEffect(() => {
-    void reloadAll()
-  }, [reloadAll])
+    let cancelled = false
+    void (async () => {
+      setClubs(await listClubsLocal())
+      if (!isSupabaseConfigured() || typeof navigator === 'undefined' || !navigator.onLine) {
+        await loadTrainers()
+        return
+      }
+      void loadTrainers()
+      const r = await pullClubsFromSupabase({ force: false })
+      if (cancelled) return
+      setClubs(await listClubsLocal())
+      if (!r.ok && r.error) {
+        setClubMsg(`${r.error} Показан кэш на устройстве.`)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [loadTrainers])
 
   const clubSubmit = async (e) => {
     e.preventDefault()
+    if (clubSubmitInFlight.current) return
+    clubSubmitInFlight.current = true
     setClubMsg('')
+    setClubSaveBusy(true)
     const now = new Date().toISOString()
     try {
+      let row
+      let isNew = false
       if (clubEdit) {
-        const row = {
+        row = {
           ...clubEdit,
           name: clubForm.name.trim(),
           address: clubForm.address.trim() || null,
           phone: clubForm.phone.trim() || null,
         }
-        await saveLocalWithSync('clubs', row, { table_name: 'clubs', operation: 'update', remote_id: clubEdit.id })
       } else {
-        const id = crypto.randomUUID()
-        const row = {
-          id,
+        isNew = true
+        row = {
+          id: crypto.randomUUID(),
           name: clubForm.name.trim(),
           address: clubForm.address.trim() || null,
           phone: clubForm.phone.trim() || null,
           is_active: true,
           created_at: now,
         }
-        await saveLocalWithSync('clubs', row, { table_name: 'clubs', operation: 'insert', remote_id: null })
       }
+      const { remoteOk, recoveredAfterNetwork } = await saveClubForAdmin(row, { isNew })
       setClubForm({ name: '', address: '', phone: '' })
       setClubEdit(null)
-      await reloadClubsList()
+      setClubs(await listClubsLocal())
+      if (remoteOk) {
+        setClubMsg(
+          recoveredAfterNetwork
+            ? `Клуб «${row.name}» в облаке (сеть оборвалась, запись проверена). Ошибки 409/RESET в консоли можно игнорировать.`
+            : isNew
+              ? `Клуб «${row.name}» создан в облаке.`
+              : `Клуб «${row.name}» сохранён.`,
+        )
+        await reloadClubsList({ keepMsg: true, forcePull: true })
+      } else {
+        setClubMsg(
+          `Клуб «${row.name}» в кэше. Сеть оборвалась — откройте меню → «Синхронизировать» или нажмите ↻ через минуту.`,
+        )
+        await reloadClubsList({ keepMsg: true, forcePull: false })
+      }
       await reloadClubs?.()
     } catch (err) {
-      setClubMsg(err?.message ?? 'Ошибка сохранения клуба')
+      const msg = err?.message ?? 'Ошибка сохранения клуба'
+      setClubMsg(msg.includes('Supabase') || msg.includes('403') ? msg : `${msg}. Проверьте интернет и повторите.`)
+    } finally {
+      clubSubmitInFlight.current = false
+      setClubSaveBusy(false)
     }
   }
 
@@ -163,6 +241,7 @@ export function AdminOrganization({ mode = 'both' } = {}) {
         await updateAllLocalClientsClubForTrainer(trainerId, newClubIdStr || null)
       }
       await loadTrainers()
+      setTrainerMsg('Клуб тренера сохранён в Supabase. Тренеру: выйти и войти снова (или Ctrl+F5), чтобы подтянуть клуб.')
     } catch (e) {
       setTrainerMsg(e?.message ?? 'Не удалось сменить клуб. Проверьте RLS (update users для админа) и миграцию.')
     } finally {
@@ -170,30 +249,74 @@ export function AdminOrganization({ mode = 'both' } = {}) {
     }
   }
 
-  const onDeleteClub = async (c) => {
+  const runRemoveClubFromCache = async (c) => {
     if (!c?.id) return
-    setClubMsg('')
+    if (
+      !window.confirm(
+        `Убрать «${c.name}» только из списка на этом устройстве? В Supabase ничего не меняется — используйте, если клуб уже удалён в Table Editor.`,
+      )
+    ) {
+      return
+    }
+    setClubDeleteConfirm(null)
     setClubDeleteBusyId(c.id)
+    setClubMsg('')
     try {
-      const b = await getClubDeletionBlockers(c.id)
-      if (b.blocked) {
-        setClubMsg(
-          `Клуб «${c.name}» нельзя удалить: клиентов ${b.clients}, тренеров в users ${b.trainers}, абонементов ${b.memberships}, тренировок ${b.trainings}. Освободите привязки.`,
-        )
-        return
-      }
-      if (!window.confirm(`Удалить клуб «${c.name}» безвозвратно (локальный кэш + очередь синхронизации с облаком)?`)) return
-      await deleteClubForAdmin(c.id)
-      setClubMsg('Клуб удалён.')
+      await removeClubFromLocalCache(c.id)
+      setClubs(await listClubsLocal())
       if (defaultClubFromUrl === c.id) {
         const next = new URLSearchParams(searchParams)
         next.delete('club')
         setSearchParams(next, { replace: true })
       }
-      await reloadClubsList()
+      setClubMsg(`Клуб «${c.name}» убран из кэша на устройстве.`)
       await loadTrainers()
     } catch (e) {
-      setClubMsg(e?.message ?? 'Не удалось удалить клуб')
+      setClubMsg(e?.message ?? 'Не удалось убрать клуб из кэша')
+    } finally {
+      setClubDeleteBusyId(null)
+    }
+  }
+
+  const runDeleteClub = async (c) => {
+    if (!c?.id) return
+    setClubDeleteConfirm(null)
+    setClubDeleteBusyId(c.id)
+    setClubMsg('Проверяем привязки…')
+    try {
+      const b = await getClubDeletionBlockers(c.id)
+      if (b.blocked) {
+        setClubMsg(
+          `Клуб «${c.name}» нельзя удалить: клиентов ${b.clients}, тренеров ${b.trainers}, абонементов ${b.memberships}, тренировок ${b.trainings}. Освободите привязки.`,
+        )
+        return
+      }
+      setClubMsg('Удаляем клуб…')
+      const { remoteOk, alreadyGoneRemote } = await deleteClubForAdmin(c.id)
+      setClubs(await listClubsLocal())
+      if (defaultClubFromUrl === c.id) {
+        const next = new URLSearchParams(searchParams)
+        next.delete('club')
+        setSearchParams(next, { replace: true })
+      }
+      if (remoteOk && alreadyGoneRemote) {
+        setClubMsg(`Клуб «${c.name}» уже был удалён в облаке — убрали из списка на устройстве.`)
+      } else if (remoteOk) {
+        setClubMsg(`Клуб «${c.name}» удалён в облаке и на этом устройстве.`)
+      } else {
+        setClubMsg(
+          `Не удалось удалить в Supabase — клуб остался в списке. Меню → «Синхронизировать» или повторите удаление; не используйте «Убрать из кэша», пока строка есть в Table Editor.`,
+        )
+      }
+      try {
+        await reloadClubsList({ keepMsg: true, forcePull: remoteOk })
+      } catch {
+        setClubs(await listClubsLocal())
+      }
+      await loadTrainers()
+    } catch (e) {
+      const msg = e?.message ?? 'Не удалось удалить клуб'
+      setClubMsg(msg.includes('Supabase') || msg.includes('связи') ? msg : `${msg}. Проверьте интернет и повторите.`)
     } finally {
       setClubDeleteBusyId(null)
     }
@@ -272,32 +395,28 @@ export function AdminOrganization({ mode = 'both' } = {}) {
 
     setCreateBusy(true)
     try {
-      const { data, error } = await supabase.functions.invoke('create-trainer', { body })
+      const { data, error } = await raceWithTimeout(
+        createTrainerForAdmin(body),
+        CREATE_TRAINER_TIMEOUT_MS,
+        'Сервер не ответил за минуту. На Vercel проверьте SUPABASE_SERVICE_ROLE_KEY и сделайте Redeploy.',
+      )
       if (error) {
-        let detail = error.message
-        try {
-          const res = error.context
-          if (res && typeof res.json === 'function') {
-            const blob = await res.json()
-            if (blob?.error) detail = String(blob.error)
-          }
-        } catch {
-          /* ignore */
-        }
-        if (detail?.includes('Failed to fetch') || detail?.includes('404') || error.message?.includes('non-2xx')) {
-          setCreateErr('Функция create-trainer не развёрнута. Команда: supabase functions deploy create-trainer')
-        } else {
-          setCreateErr(detail || 'Не удалось создать тренера')
-        }
+        const detail = error.message || 'Не удалось создать тренера'
+        setCreateErr(detail)
         return
       }
-      if (data && typeof data === 'object' && 'error' in data && data.error) {
-        setCreateErr(String(data.error))
-        return
+      const created = data?.trainer
+      if (created?.id) {
+        setTrainers((prev) => {
+          if (prev.some((t) => t.id === created.id)) return prev
+          return [...prev, created].sort((a, b) => String(a.name).localeCompare(String(b.name), 'ru'))
+        })
+        setClubColumn(true)
+        setTrainerMsg(`Тренер «${name}» создан и сохранён в Supabase.`)
       }
       setCreateOpen(false)
       setTrainerForm(initialTrainerForm())
-      await loadTrainers()
+      void loadTrainers()
     } catch (err) {
       setCreateErr(err?.message ?? 'Ошибка сети')
     } finally {
@@ -429,16 +548,30 @@ export function AdminOrganization({ mode = 'both' } = {}) {
             <button
               type="button"
               className="btn btn-primary btn-icon-square btn-touch"
-              disabled={clubBusy}
-              onClick={() => void reloadClubsList()}
+              disabled={clubPullBusy}
+              onClick={() => void reloadClubsList({ forcePull: true })}
               aria-label="Обновить клубы"
               title="Обновить"
             >
-              <RefreshCw size={20} className={clubBusy ? 'icon-spin' : undefined} aria-hidden />
+              <RefreshCw size={20} className={clubPullBusy ? 'icon-spin' : undefined} aria-hidden />
             </button>
           </div>
         </div>
-        {clubMsg ? <p className="muted">{clubMsg}</p> : null}
+        {clubMsg ? (
+          <p
+            className="admin-inline-note"
+            role="status"
+            style={{
+              margin: '0 0 12px',
+              color:
+                clubMsg.includes('удалён') || clubMsg.includes('облаке') || clubMsg.includes('сохранён')
+                  ? 'var(--accent-bright, #4ade80)'
+                  : 'var(--danger, #f87171)',
+            }}
+          >
+            {clubMsg}
+          </p>
+        ) : null}
         <p className="muted" style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.45 }}>
           Администратор ведёт справочник залов: от него зависят фильтры «Клиенты» и «Статистика» в шапке (параметр <code className="muted">?club=</code>
           ), привязка тренеров и club_id у новых клиентов. Удалить клуб можно только если нет связанных клиентов, тренеров, абонементов и тренировок.
@@ -456,8 +589,8 @@ export function AdminOrganization({ mode = 'both' } = {}) {
             <input className="input" placeholder="Телефон" value={clubForm.phone} onChange={(e) => setClubForm((f) => ({ ...f, phone: e.target.value }))} />
           </div>
           <div className="row" style={{ gap: 8 }}>
-            <button type="submit" className="btn btn-primary btn-touch">
-              {clubEdit ? 'Сохранить клуб' : 'Создать клуб'}
+            <button type="submit" className="btn btn-primary btn-touch" disabled={clubSaveBusy}>
+              {clubSaveBusy ? 'Сохраняем…' : clubEdit ? 'Сохранить клуб' : 'Создать клуб'}
             </button>
             {clubEdit ? (
               <button
@@ -491,8 +624,8 @@ export function AdminOrganization({ mode = 'both' } = {}) {
                   className="btn btn-ghost btn-icon-square btn-touch td-client-delete"
                   aria-label="Удалить клуб"
                   title="Удалить клуб"
-                  disabled={clubDeleteBusyId === c.id || clubBusy}
-                  onClick={() => void onDeleteClub(c)}
+                  disabled={clubDeleteBusyId === c.id}
+                  onClick={() => setClubDeleteConfirm({ id: c.id, name: c.name ?? 'клуб' })}
                 >
                   <Trash2 size={16} aria-hidden />
                 </button>
@@ -547,12 +680,61 @@ export function AdminOrganization({ mode = 'both' } = {}) {
           <p className="muted">Нет тренеров с ролью trainer в users.</p>
         ) : null}
 
+        {trainers.length > 0 ? (
+          <TrainerTable rows={trainers} title={`Все тренеры (${trainers.length})`} />
+        ) : null}
+
         {clubs.map((c) => (
           <TrainerTable key={c.id} rows={trainersByClub.byId.get(c) ?? []} title={c.name} />
         ))}
 
         <TrainerTable rows={trainersByClub.unassigned} title="Без привязки к клубу" />
       </section>
+      ) : null}
+
+      {clubDeleteConfirm ? (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="org-delete-club-title"
+          onClick={() => !clubDeleteBusyId && setClubDeleteConfirm(null)}
+        >
+          <div className="modal-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <h2 id="org-delete-club-title" className="section-title td-section-title" style={{ marginTop: 0 }}>
+              Удалить клуб?
+            </h2>
+            <p style={{ margin: '0 0 16px', lineHeight: 1.5 }}>
+              Клуб <strong>{clubDeleteConfirm.name}</strong> будет удалён в Supabase и в кэше браузера. Действие необратимо.
+            </p>
+            <div className="row" style={{ gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-touch"
+                disabled={!!clubDeleteBusyId}
+                onClick={() => setClubDeleteConfirm(null)}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-touch"
+                disabled={!!clubDeleteBusyId}
+                onClick={() => void runRemoveClubFromCache(clubDeleteConfirm)}
+              >
+                Убрать из кэша
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-touch td-client-delete"
+                disabled={!!clubDeleteBusyId}
+                onClick={() => void runDeleteClub(clubDeleteConfirm)}
+              >
+                {clubDeleteBusyId ? 'Удаление…' : 'Удалить'}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {showTrainers && createOpen ? (
@@ -568,7 +750,8 @@ export function AdminOrganization({ mode = 'both' } = {}) {
             ) : (
               <form className="grid td-modal-form" onSubmit={submitCreateTrainer} style={{ gap: 12 }}>
                 <p className="muted" style={{ margin: '0 0 4px', fontSize: 13 }}>
-                  Создаётся пользователь в Auth и запись в <code>users</code>. Edge Function <code>create-trainer</code> должна быть развёрнута.
+                  Создаётся пользователь в Auth и запись в <code>users</code>. На продакшене нужен{' '}
+                  <code>SUPABASE_SERVICE_ROLE_KEY</code> в настройках Vercel (без префикса VITE_).
                 </p>
                 <div className="field">
                   <label className="label">Клуб при создании</label>

@@ -42,11 +42,8 @@ export default defineConfig(({ mode }) => ({
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,
         runtimeCaching: [
-          {
-            /* PostgREST / Auth / Edge — не кэшировать в SW (сессия и ответы API) */
-            urlPattern: ({ url }) => /\.supabase\.co$/i.test(url.hostname),
-            handler: 'NetworkOnly',
-          },
+          /* Supabase (PostgREST / Auth) — не регистрировать в SW: иначе при сбое сети Workbox
+             отдаёт no-response вместо нормальной ошибки fetch, и приложение «висит» на загрузке. */
           {
             urlPattern: ({ request }) =>
               request.destination === 'script' ||

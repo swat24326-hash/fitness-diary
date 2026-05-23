@@ -1,8 +1,17 @@
+import { todayLocalIso } from './dateRu'
+
+function fmtLocal(d) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 /** @returns {{ start: string, end: string }} ISO date yyyy-mm-dd; для «свой» без дат — пустые строки (без подстановки 7 дней). */
 export function getDateRange(period, customStart, customEnd) {
   const today = new Date()
-  const fmt = (d) => d.toISOString().slice(0, 10)
-  const end = fmt(today)
+  const end = todayLocalIso()
+  const fmt = fmtLocal
 
   if (period === 'custom') {
     const a = String(customStart ?? '').trim()

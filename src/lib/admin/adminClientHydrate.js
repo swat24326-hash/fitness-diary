@@ -1,64 +1,127 @@
 /**
- * Подтягивает данные клиента с Supabase в IndexedDB (для админской карточки).
+ * Подтягивает данные клиента в IndexedDB (для админской карточки).
+ * Сначала /api/get-client на Vercel, иначе прямой Supabase из браузера.
  */
 
 import { supabase, isSupabaseConfigured } from '../supabase'
-import { putStore } from '../localDb'
+import { buildPendingSyncKeysByTable, putStore, putStoreUnlessPendingSync } from '../localDb'
+import { normalizeBodyMeasurementRow } from '../bodyMeasures'
 import { ADMIN_SYNC_BATCH_SIZE } from './adminConstants'
+import { fetchClientWorkspaceViaAdminApi } from './adminApiClient'
 
-export async function hydrateAdminClientWorkspace(clientId) {
+function notifyLocalDataChanged(detail = {}) {
+  if (typeof window === 'undefined') return
+  try {
+    window.dispatchEvent(new CustomEvent('fitness-diary-storage', { detail }))
+  } catch {
+    /* ignore */
+  }
+}
+
+async function cacheWorkspace({ client, memberships, health_card, body_measurements, trainings }, opts = {}) {
+  const pending = opts.respectSyncQueue ? await buildPendingSyncKeysByTable() : null
+  const save = (store, row) =>
+    pending ? putStoreUnlessPendingSync(store, row, pending) : putStore(store, row)
+
+  if (client) await save('clients', client)
+  for (const m of memberships ?? []) await save('memberships', m)
+  if (health_card) await save('health_cards', health_card)
+  for (const row of body_measurements ?? []) await save('body_measurements', normalizeBodyMeasurementRow(row))
+  for (const t of trainings ?? []) await save('trainings', t)
+  notifyLocalDataChanged({ client_id: client?.id })
+}
+
+async function hydrateViaBrowserSupabase(clientId) {
+  const { data: client, error: ce } = await supabase.from('clients').select('*').eq('id', clientId).maybeSingle()
+  if (ce) throw ce
+  if (!client) return { ok: false, reason: 'not_found' }
+
+  const { data: memberships, error: me } = await supabase.from('memberships').select('*').eq('client_id', clientId)
+  if (me) throw me
+
+  const { data: hc, error: he } = await supabase.from('health_cards').select('*').eq('client_id', clientId).maybeSingle()
+  if (he) throw he
+
+  const body_measurements = []
+  let mFrom = 0
+  for (;;) {
+    const { data: mRows, error: be } = await supabase
+      .from('body_measurements')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('date', { ascending: false })
+      .order('id', { ascending: false })
+      .range(mFrom, mFrom + ADMIN_SYNC_BATCH_SIZE - 1)
+    if (be) throw be
+    const chunk = mRows ?? []
+    body_measurements.push(...chunk)
+    if (!chunk.length || chunk.length < ADMIN_SYNC_BATCH_SIZE) break
+    mFrom += ADMIN_SYNC_BATCH_SIZE
+  }
+
+  const trainings = []
+  let from = 0
+  for (;;) {
+    const { data: trains, error: te } = await supabase
+      .from('trainings')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('date', { ascending: false })
+      .order('id', { ascending: false })
+      .range(from, from + ADMIN_SYNC_BATCH_SIZE - 1)
+    if (te) throw te
+    const rows = trains ?? []
+    trainings.push(...rows)
+    if (!rows.length || rows.length < ADMIN_SYNC_BATCH_SIZE) break
+    from += ADMIN_SYNC_BATCH_SIZE
+  }
+
+  await cacheWorkspace(
+    {
+      client,
+      memberships: memberships ?? [],
+      health_card: hc ?? null,
+      body_measurements,
+      trainings,
+    },
+    { respectSyncQueue: false },
+  )
+  return { ok: true, source: 'browser' }
+}
+
+/**
+ * @param {string} clientId
+ * @param {{ allowBrowserFallback?: boolean }} [opts] — для тренера: false (только API)
+ */
+export async function hydrateAdminClientWorkspace(clientId, opts = {}) {
+  const allowBrowserFallback = opts.allowBrowserFallback !== false
   if (!clientId || !isSupabaseConfigured()) {
     return { ok: false, reason: 'no_client_or_supabase' }
   }
+
   try {
-    const { data: client, error: ce } = await supabase.from('clients').select('*').eq('id', clientId).maybeSingle()
-    if (ce) throw ce
-    if (!client) return { ok: false, reason: 'not_found' }
-    await putStore('clients', client)
-
-    const { data: memberships, error: me } = await supabase.from('memberships').select('*').eq('client_id', clientId)
-    if (me) throw me
-    for (const m of memberships ?? []) await putStore('memberships', m)
-
-    const { data: hc, error: he } = await supabase.from('health_cards').select('*').eq('client_id', clientId).maybeSingle()
-    if (he) throw he
-    if (hc) await putStore('health_cards', hc)
-
-    let mFrom = 0
-    for (;;) {
-      const { data: mRows, error: be } = await supabase
-        .from('body_measurements')
-        .select('*')
-        .eq('client_id', clientId)
-        .order('date', { ascending: false })
-        .order('id', { ascending: false })
-        .range(mFrom, mFrom + ADMIN_SYNC_BATCH_SIZE - 1)
-      if (be) throw be
-      const chunk = mRows ?? []
-      if (!chunk.length) break
-      for (const row of chunk) await putStore('body_measurements', row)
-      if (chunk.length < ADMIN_SYNC_BATCH_SIZE) break
-      mFrom += ADMIN_SYNC_BATCH_SIZE
+    const viaApi = await fetchClientWorkspaceViaAdminApi(clientId)
+    if (viaApi?.notFound) return { ok: false, reason: 'not_found' }
+    if (viaApi?.client) {
+      await cacheWorkspace(viaApi, { respectSyncQueue: !allowBrowserFallback })
+      return { ok: true, source: 'admin_api' }
     }
-
-    let from = 0
-    for (;;) {
-      const { data: trains, error: te } = await supabase
-        .from('trainings')
-        .select('*')
-        .eq('client_id', clientId)
-        .order('date', { ascending: false })
-        .order('id', { ascending: false })
-        .range(from, from + ADMIN_SYNC_BATCH_SIZE - 1)
-      if (te) throw te
-      const rows = trains ?? []
-      if (!rows.length) break
-      for (const t of rows) await putStore('trainings', t)
-      if (rows.length < ADMIN_SYNC_BATCH_SIZE) break
-      from += ADMIN_SYNC_BATCH_SIZE
+  } catch (e) {
+    const msg = String(e?.message ?? e ?? '')
+    if (!/failed to fetch|connection reset|timeout|сеть/i.test(msg)) {
+      return { ok: false, error: msg }
     }
+    if (!allowBrowserFallback) {
+      return { ok: false, error: msg || 'Нет связи с сервером' }
+    }
+  }
 
-    return { ok: true }
+  if (!allowBrowserFallback) {
+    return { ok: false, reason: 'offline' }
+  }
+
+  try {
+    return await hydrateViaBrowserSupabase(clientId)
   } catch (e) {
     return { ok: false, error: e?.message ? String(e.message) : String(e) }
   }

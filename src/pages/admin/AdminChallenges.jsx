@@ -4,13 +4,13 @@ import { Plus, RefreshCw, Trash2, Trophy } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import {
-  LOCAL_DATA_CHANGED,
   dispatchLocalDataChanged,
   listChallengesForClub,
   listExercises,
-  pullExercisesFromSupabase,
+  ensureExercisesCached,
   buildChallengeLeaderboard,
   loadContextForChallengeLeaderboard,
+  pullChallengeTrainingsForClubChallenges,
   saveNewChallenge,
   validateChallengeDraft,
   deleteChallengeById,
@@ -18,7 +18,8 @@ import {
   formatChallengeValueRu,
   CHALLENGE_METRICS,
 } from '../../lib/dataAccess'
-import { formatDateRu } from '../../lib/dateRu'
+import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
+import { useDebouncedStorageReload, shouldReloadAdminChallengesPage } from '../../lib/useDebouncedStorageReload'
 import { stripDirectionControls } from '../../lib/textInput'
 
 const TABS = [
@@ -68,36 +69,39 @@ export function AdminChallenges() {
   const [deleteBusyId, setDeleteBusyId] = useState(null)
 
   const loadExercises = useCallback(async () => {
-    if (isSupabaseConfigured() && typeof navigator !== 'undefined' && navigator.onLine) {
-      const r = await pullExercisesFromSupabase()
-      if (!r.ok && r.error) {
-        /* не блокируем: покажем локальный кэш */
-      }
-    }
+    await ensureExercisesCached()
     const list = await listExercises()
     setExercises(Array.isArray(list) ? list : [])
     return Array.isArray(list) ? list : []
   }, [])
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async ({ pullRemote = false, silent = false } = {}) => {
     if (!clubId) {
       setChallenges([])
       setPreviews({})
       setPullNote('')
       return
     }
-    setBusy(true)
+    if (!silent) setBusy(true)
     setPullNote('')
     try {
-      const { challenges: rows, pull } = await listChallengesForClub(clubId, { pullRemote: true })
+      const { challenges: rows, pull } = await listChallengesForClub(clubId, { pullRemote })
       setChallenges(rows ?? [])
       if (pull && !pull.ok && pull.error) setPullNote(String(pull.error))
       else if (pull && !pull.ok && pull.reason === 'no_club_or_supabase') setPullNote('')
       await loadExercises()
 
-      const lbCtx = await loadContextForChallengeLeaderboard(clubId)
+      if (pullRemote && (rows ?? []).length > 0) {
+        try {
+          await pullChallengeTrainingsForClubChallenges(clubId, rows, { notify: false })
+        } catch (e) {
+          console.warn('[admin] challenge trainings pull', e)
+        }
+      }
+
       const next = {}
       for (const ch of rows ?? []) {
+        const lbCtx = await loadContextForChallengeLeaderboard(clubId, { challenge: ch, pullRemote: false, notifyPull: false })
         const { rows: r } = buildChallengeLeaderboard(ch, lbCtx)
         const leader = r[0]
         next[ch.id] = {
@@ -111,7 +115,7 @@ export function AdminChallenges() {
       setChallenges([])
       setPreviews({})
     } finally {
-      setBusy(false)
+      if (!silent) setBusy(false)
     }
   }, [clubId, loadExercises])
 
@@ -119,11 +123,7 @@ export function AdminChallenges() {
     void reload()
   }, [reload])
 
-  useEffect(() => {
-    const onData = () => void reload()
-    window.addEventListener(LOCAL_DATA_CHANGED, onData)
-    return () => window.removeEventListener(LOCAL_DATA_CHANGED, onData)
-  }, [reload])
+  useDebouncedStorageReload(() => reload({ silent: true, pullRemote: false }), { shouldRun: shouldReloadAdminChallengesPage })
 
   const filtered = useMemo(() => {
     return (challenges ?? []).filter((c) => {
@@ -159,7 +159,7 @@ export function AdminChallenges() {
     setSaveMsg('')
     setExercisesModalBusy(true)
     setModal(true)
-    const today = new Date().toISOString().slice(0, 10)
+    const today = todayLocalIso()
     try {
       const list = await loadExercises()
       setForm({
@@ -205,12 +205,19 @@ export function AdminChallenges() {
       start_date: String(form.start_date).slice(0, 10),
       end_date: String(form.end_date).slice(0, 10),
       status: 'active',
-      created_by: user?.id ?? null,
+      created_by: null,
       created_at: now,
     }
     try {
-      await saveNewChallenge(row)
+      const cloud = await saveNewChallenge(row)
       dispatchLocalDataChanged({ reason: 'challenge-created' })
+      if (!cloud.cloudOk) {
+        setSaveMsg(
+          `Челлендж сохранён на этом устройстве, но в облако не ушёл: ${cloud.cloudError ?? 'ошибка'}. Нажмите Sync в шапке; затем Sync у тренера.`,
+        )
+        await reload()
+        return
+      }
       setModal(false)
       await reload()
     } catch (err) {
@@ -245,7 +252,7 @@ export function AdminChallenges() {
           <p className="muted challenge-admin__lead">Соревнования по упражнению за период — рейтинг из завершённых тренировок.</p>
         </div>
         <div className="challenge-admin__actions">
-          <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => void reload()} title="Обновить">
+          <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => void reload({ pullRemote: true })} title="Обновить с сервера">
             <RefreshCw size={18} className={busy ? 'spin' : ''} aria-hidden />
           </button>
           <button type="button" className="btn btn-primary" onClick={() => void openCreate()}>

@@ -9,7 +9,7 @@ import { isSupabaseConfigured } from '../../lib/supabase'
 import { hasUsableMembershipOnDate } from '../../lib/membershipRules'
 import { saveLocalWithSync } from '../../lib/syncService'
 import { useAuth } from '../../context/AuthContext'
-import { formatDateRu } from '../../lib/dateRu'
+import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 
 function formatClientName(raw) {
   const s = String(raw ?? '').trim().replace(/\s+/g, ' ')
@@ -43,7 +43,7 @@ function formatClientName(raw) {
 export function ClientCard() {
   const { id } = useParams()
   const [searchParams] = useSearchParams()
-  const { isAdmin } = useAuth()
+  const { isAdmin, isTrainer } = useAuth()
   const adminClientsListHref = useMemo(() => {
     const c = searchParams.get('club')
     return `/admin/clients${c ? `?club=${encodeURIComponent(c)}` : ''}`
@@ -59,30 +59,67 @@ export function ClientCard() {
   const [editForm, setEditForm] = useState({ name: '', phone: '', birth_date: '', card_number: '' })
   const [hydrateError, setHydrateError] = useState(null)
 
-  const reload = useCallback(async () => {
+  const reloadLocal = useCallback(async () => {
+    const local = await getLocalClient(id)
+    setClient(local ?? null)
+    setMemberships(local ? await listMemberships(id) : [])
+  }, [id])
+
+  const hydrateFromCloudInBackground = useCallback(async () => {
+    if (!isSupabaseConfigured() || !navigator.onLine) return
     setHydrateError(null)
+    const h = await hydrateAdminClientWorkspace(id, { allowBrowserFallback: false })
+    if (h.ok) {
+      await reloadLocal()
+      return
+    }
+    if (h.reason === 'not_found') {
+      const local = await getLocalClient(id)
+      if (!local) {
+        setClient(null)
+        setMemberships([])
+      }
+      return
+    }
+    if (!h.ok && h.reason !== 'not_found') {
+      setHydrateError(h.error ?? h.reason ?? 'Ошибка загрузки с сервера')
+    }
+  }, [id, reloadLocal])
+
+  const reloadFromCloud = useCallback(async () => {
+    await reloadLocal()
     if (isAdmin && isSupabaseConfigured()) {
+      setHydrateError(null)
       const h = await hydrateAdminClientWorkspace(id)
-      if (!h.ok) {
-        if (h.reason === 'not_found') {
+      if (h.ok) {
+        await reloadLocal()
+      } else if (h.reason === 'not_found') {
+        const local = await getLocalClient(id)
+        if (!local) {
           setClient(null)
           setMemberships([])
-          return
         }
+      } else if (!h.ok && h.reason !== 'not_found') {
         setHydrateError(h.error ?? h.reason ?? 'Ошибка загрузки с сервера')
       }
     }
-    setClient(await getLocalClient(id))
-    setMemberships(await listMemberships(id))
-  }, [id, isAdmin])
+  }, [id, isAdmin, reloadLocal])
+
   const hasActiveMembership = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10)
+    const today = todayLocalIso()
     return hasUsableMembershipOnDate(memberships, today)
   }, [memberships])
 
   useEffect(() => {
-    reload()
-  }, [reload])
+    if (isTrainer && !isAdmin) {
+      void reloadLocal()
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        void hydrateFromCloudInBackground()
+      }
+      return
+    }
+    void reloadFromCloud()
+  }, [isTrainer, isAdmin, reloadLocal, reloadFromCloud, hydrateFromCloudInBackground])
 
   const openEdit = () => {
     setEditForm({
@@ -112,7 +149,7 @@ export function ClientCard() {
       return
     }
     setEditOpen(false)
-    await reload()
+    await reloadLocal()
   }
 
   if (!client) {
@@ -238,10 +275,10 @@ export function ClientCard() {
         ))}
       </div>
 
-      {tab === 'health' && <ClientOverview client={client} onReload={reload} section="health" />}
-      {tab === 'memberships' && <ClientOverview client={client} onReload={reload} section="memberships" />}
+      {tab === 'health' && <ClientOverview client={client} onReload={reloadLocal} section="health" />}
+      {tab === 'memberships' && <ClientOverview client={client} onReload={reloadLocal} section="memberships" />}
       {tab === 'stats' && <Statistics clientId={client.id} />}
-      {tab === 'diaries' && <ClientDiaries client={client} onDataChange={reload} clubQs={isAdmin ? adminClubQs : ''} />}
+      {tab === 'diaries' && <ClientDiaries client={client} onDataChange={reloadLocal} clubQs={isAdmin ? adminClubQs : ''} />}
     </div>
   )
 }

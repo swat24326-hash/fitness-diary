@@ -24,6 +24,14 @@ const FALLBACKS = {
   calf_l: ['calf'],
 }
 
+/** Нормализация даты и полей после ответа API / Supabase. */
+export function normalizeBodyMeasurementRow(row) {
+  if (!row || typeof row !== 'object') return row
+  const r = { ...row }
+  if (r.date != null) r.date = String(r.date).slice(0, 10)
+  return r
+}
+
 export function getMeasureValue(row, key) {
   if (!row) return null
   const v = row[key]

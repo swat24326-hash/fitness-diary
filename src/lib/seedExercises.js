@@ -1,4 +1,5 @@
 import { getDb } from './localDb'
+import { isSupabaseConfigured } from './supabase'
 import { saveLocalWithSync } from './syncService'
 
 /** Демо-строки в том же формате, что и в админке «Упражнения». */
@@ -22,6 +23,9 @@ const DEMO_EXERCISES = [
  * (как через админку: локальная запись + очередь синка).
  */
 export async function ensureDemoExercisesSeeded() {
+  /* С Supabase справочник с сервера; демо-insert даёт 409 (name UNIQUE). */
+  if (isSupabaseConfigured()) return
+
   const db = await getDb()
   const existing = await db.getAll('exercises')
   if (existing.length > 0) return

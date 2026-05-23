@@ -7,13 +7,14 @@ import {
   getLocalClient,
   listAdminClientsForClub,
   listTrainerSummariesForAdmin,
-  LOCAL_DATA_CHANGED,
 } from '../../lib/dataAccess'
+import { loadAdminClubWorkspaceExtras } from '../../lib/admin/adminClubWorkspaceCache'
+import { useDebouncedStorageReload, shouldReloadAdminClientsPage } from '../../lib/useDebouncedStorageReload'
 import { ADMIN_CLIENTS_REMOTE_LIMIT } from '../../lib/admin/adminConstants'
 import { isSupabaseConfigured, supabase } from '../../lib/supabase'
-import { getDb } from '../../lib/localDb'
+import { USERS_TRAINER_ROLES } from '../../lib/userRoleConstants'
 import { saveLocalWithSync } from '../../lib/syncService'
-import { formatDateRu } from '../../lib/dateRu'
+import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 import { membershipHasRemaining, pickUsableMembershipForDate } from '../../lib/membershipRules'
 
 function pickExpiredMembershipWithRemaining(list, todayIso) {
@@ -83,8 +84,8 @@ export function AdminClients() {
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
 
-  const reload = useCallback(async () => {
-    setBusy(true)
+  const reload = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setBusy(true)
     try {
       const [{ clients: list, source: src, fallbackReason, cloudNeedsClub: need, truncated: trunc }, trainers] = await Promise.all([
         listAdminClientsForClub({ clubId: club || '' }),
@@ -104,25 +105,11 @@ export function AdminClients() {
       const arr = Array.isArray(list) ? list : []
       setClients(arr)
 
-      const idSet = new Set(arr.map((c) => c.id))
-      const db = await getDb()
-      const allM = await db.getAll('memberships')
-      const map = {}
-      for (const m of allM) {
-        if (!idSet.has(m.client_id)) continue
-        if (!map[m.client_id]) map[m.client_id] = []
-        map[m.client_id].push(m)
-      }
+      const { memByClient: map, trainings: tFiltered } = await loadAdminClubWorkspaceExtras(
+        club || '',
+        arr.map((c) => c.id),
+      )
       setMemByClient(map)
-
-      const clubFilter = club || ''
-      const allT = await db.getAll('trainings')
-      const tFiltered = []
-      for (const t of allT) {
-        if (!idSet.has(t.client_id)) continue
-        if (clubFilter && t.club_id !== clubFilter) continue
-        tFiltered.push(t)
-      }
       setTrainings(tFiltered)
     } catch {
       setClients([])
@@ -134,7 +121,7 @@ export function AdminClients() {
       setCloudNeedsClub(false)
       setListTruncated(false)
     } finally {
-      setBusy(false)
+      if (!silent) setBusy(false)
     }
   }, [club])
 
@@ -142,13 +129,9 @@ export function AdminClients() {
     void reload()
   }, [reload])
 
-  useEffect(() => {
-    const fn = () => void reload()
-    window.addEventListener(LOCAL_DATA_CHANGED, fn)
-    return () => window.removeEventListener(LOCAL_DATA_CHANGED, fn)
-  }, [reload])
+  useDebouncedStorageReload(() => reload({ silent: true }), { shouldRun: shouldReloadAdminClientsPage })
 
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocalIso()
 
   const filteredClients = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -256,7 +239,12 @@ export function AdminClients() {
       if (trainerOptions.length > 0 && picked) {
         nextClubId = picked.club_id ?? null
       } else if (isSupabaseConfigured()) {
-        const { data: trRow } = await supabase.from('users').select('club_id').eq('id', tid).eq('role', 'trainer').maybeSingle()
+        const { data: trRow } = await supabase
+          .from('users')
+          .select('club_id')
+          .eq('id', tid)
+          .in('role', USERS_TRAINER_ROLES)
+          .maybeSingle()
         if (trRow) nextClubId = trRow.club_id ?? nextClubId
       }
       const row = { ...full, trainer_id: tid, club_id: nextClubId }
@@ -360,7 +348,7 @@ export function AdminClients() {
               type="button"
               className="btn btn-primary btn-icon-square btn-touch"
               disabled={busy}
-              onClick={() => reload()}
+              onClick={() => void reload()}
               aria-label="Обновить список"
               title="Обновить"
             >
@@ -374,17 +362,21 @@ export function AdminClients() {
           </p>
         ) : (
           <p className="muted" style={{ margin: '0 0 12px', fontSize: 13, lineHeight: 1.45 }}>
-            {source === 'remote' ? (
-              <>Данные из <strong>Supabase</strong>.</>
+            {source === 'remote' || source === 'admin_api' ? (
+              <>Данные из <strong>Supabase</strong>{source === 'admin_api' ? ' (через сервер приложения)' : ''}.</>
             ) : (
               <>
                 С <strong>устройства</strong> (IndexedDB).
-                {!club ? ' Показаны клиенты всех клубов (локально).' : null}
+                {!club ? ' Выберите клуб в шапке, чтобы отфильтровать список.' : null}
               </>
             )}
           </p>
         )}
-        {fallback ? <p className="muted admin-inline-note">Резерв: локальный кэш. Причина: {fallback}</p> : null}
+        {fallback ? (
+          <p className="admin-inline-note" style={{ color: 'var(--danger)', margin: '0 0 12px' }} role="alert">
+            Не удалось загрузить с сервера: {fallback}
+          </p>
+        ) : null}
         {listTruncated ? (
           <p className="muted admin-inline-note" role="status">
             С сервера загружено не более <strong>{ADMIN_CLIENTS_REMOTE_LIMIT}</strong> клиентов по алфавиту — список мог быть обрезан, в клубе может быть больше людей.

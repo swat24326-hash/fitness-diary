@@ -1,9 +1,25 @@
 import { supabase } from './supabase'
+import { USERS_TRAINER_ROLES } from './userRoleConstants'
 import { isSupabaseConfigured } from './supabase'
-import { getDb, listSyncQueue, putStore, removeSyncItem } from './localDb'
-import { deleteHealthCardByClientId, deleteLocalWithSync, saveLocalWithSync } from './syncService'
+import {
+  assertSupabaseOk,
+  humanizeNetworkError,
+  isRetryableNetworkError,
+  sleep,
+  withFastTimeout,
+  withSupabaseRetry,
+} from './supabaseRetry'
+import { enqueueSync, getDb, listSyncQueue, putStore, removeClientFromLocalCacheOnly, removeSyncItem } from './localDb'
+import {
+  deleteHealthCardByClientId,
+  deleteLocalWithSync,
+  flushSyncQueue,
+  isDuplicateInsertError,
+  saveLocalWithSync,
+} from './syncService'
 import { DEMO_SEED_CLIENT_ID, DEMO_SEED_MEMBERSHIP_ID, DEMO_SEED_TRAINING_ID } from './seedDemo'
 import { ADMIN_CLIENT_COUNT_BATCH, ADMIN_SYNC_BATCH_SIZE } from './admin/adminConstants'
+import { fetchClubsViaAdminApi, fetchTrainersViaAdminApi } from './admin/adminApiClient'
 
 export { loadAdminJournalPage } from './admin/adminJournalService'
 export { loadClubTrainingStats } from './admin/adminClubStatsService'
@@ -27,27 +43,32 @@ export {
   formatChallengeMetricRu,
   formatChallengeValueRu,
   isChallengeActiveByCalendar,
+  isChallengeVisibleForTrainerHome,
   buildChallengeLeaderboard,
   loadContextForChallengeLeaderboard,
+  pullChallengeTrainingsForPeriod,
+  pullChallengeTrainingsForClubChallenges,
+  challengePeriodBounds,
+  resolveTrainerClubId,
+  collectTrainerClubIds,
+  listChallengesForTrainer,
   getChallengeByIdLocal,
   listChallengesForClub,
   pullChallengesForClub,
   saveNewChallenge,
+  pushChallengeToCloud,
   updateChallengeRecord,
   deleteChallengeById,
   validateChallengeDraft,
 } from './challengeService'
 
+import { pullTrainerWorkspaceFromCloud as pullTrainerWorkspace } from './trainerPullService'
+
+export { pullTrainerWorkspaceFromCloud } from './trainerPullService'
+
+/** @deprecated Используйте pullTrainerWorkspaceFromCloud */
 export async function pullClientsForTrainer(trainerId) {
-  if (!isSupabaseConfigured() || !trainerId) return
-  const { data, error } = await supabase.from('clients').select('*').eq('trainer_id', trainerId)
-  if (error || !data) return
-  const db = await getDb()
-  const tx = db.transaction('clients', 'readwrite')
-  for (const row of data) {
-    await tx.store.put(row)
-  }
-  await tx.done
+  return pullTrainerWorkspace(trainerId)
 }
 
 /**
@@ -91,14 +112,15 @@ export async function listTrainingsForTrainer(trainerId, trainerClubId = null) {
 }
 
 export async function listExercises() {
-  const db = await getDb()
-  return db.getAll('exercises')
+  const { listExercisesCached } = await import('./exerciseCatalog')
+  return listExercisesCached()
 }
 
 export async function listMeasurements(clientId) {
   const db = await getDb()
   const all = await db.getAll('body_measurements')
-  return all.filter((m) => m.client_id === clientId).sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
+  const cid = String(clientId ?? '')
+  return all.filter((m) => String(m.client_id ?? '') === cid).sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
 }
 
 export async function getHealthCard(clientId) {
@@ -108,11 +130,19 @@ export async function getHealthCard(clientId) {
 
 export async function upsertExercise(exercise) {
   await putStore('exercises', exercise)
+  const { invalidateExerciseCatalogCache } = await import('./exerciseCatalog')
+  invalidateExerciseCatalogCache()
 }
 
 export async function listClubsLocal() {
   const db = await getDb()
-  return db.getAll('clubs')
+  const all = await db.getAll('clubs')
+  const byId = new Map()
+  for (const c of all) {
+    const id = String(c?.id ?? '')
+    if (id) byId.set(id, c)
+  }
+  return [...byId.values()]
 }
 
 export async function listAllTrainings() {
@@ -122,8 +152,9 @@ export async function listAllTrainings() {
 
 /**
  * Сколько клиентов у каждого тренера: из Supabase, если доступно иначе из IndexedDB на устройстве.
+ * @param {{ skipRemote?: boolean }} [opts] — не ходить в Supabase (например список тренеров уже с сервера Vercel).
  */
-export async function getClientCountsByTrainerId() {
+export async function getClientCountsByTrainerId(opts = {}) {
   async function fromLocal() {
     const db = await getDb()
     const all = await db.getAll('clients')
@@ -133,16 +164,18 @@ export async function getClientCountsByTrainerId() {
     }
     return { counts, source: 'local' }
   }
-  if (!isSupabaseConfigured()) return fromLocal()
+  if (!isSupabaseConfigured() || opts.skipRemote === true) return fromLocal()
   try {
     const counts = {}
     let from = 0
     for (;;) {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('trainer_id')
-        .order('id', { ascending: true })
-        .range(from, from + ADMIN_CLIENT_COUNT_BATCH - 1)
+      const { data, error } = await withSupabaseRetry(() =>
+        supabase
+          .from('clients')
+          .select('trainer_id')
+          .order('id', { ascending: true })
+          .range(from, from + ADMIN_CLIENT_COUNT_BATCH - 1),
+      )
       if (error) throw error
       const rows = data ?? []
       if (!rows.length) break
@@ -159,80 +192,336 @@ export async function getClientCountsByTrainerId() {
   }
 }
 
-/** Список тренеров для админки (имя + id + club_id при наличии колонки). Пусто без Supabase или при ошибке. */
-export async function listTrainerSummariesForAdmin() {
-  if (!isSupabaseConfigured()) return []
+function readAdminTrainersSessionCache() {
+  if (typeof sessionStorage === 'undefined') return null
   try {
-    const { data, error } = await supabase.from('users').select('id, name, club_id').eq('role', 'trainer').order('name')
-    if (error) {
-      const m = String(error.message ?? '').toLowerCase()
-      if (m.includes('club_id')) {
-        const { data: d2, error: e2 } = await supabase.from('users').select('id, name').eq('role', 'trainer').order('name')
-        if (e2) throw e2
-        return (d2 ?? []).map((u) => ({ ...u, club_id: null }))
-      }
-      throw error
-    }
-    return data ?? []
+    const raw = sessionStorage.getItem('fit-admin-trainers-cache')
+    if (!raw) return null
+    const cached = JSON.parse(raw)
+    return Array.isArray(cached) ? cached : null
   } catch {
-    return []
+    return null
   }
 }
 
-/** Подтянуть справочник упражнений из Supabase в локальный IndexedDB. */
-export async function pullExercisesFromSupabase() {
-  if (!isSupabaseConfigured()) return { ok: false, reason: 'no_supabase' }
+function mapTrainerSummaries(rows) {
+  return (rows ?? []).map((u) => ({
+    id: u.id,
+    name: u.name,
+    club_id: u.club_id ?? null,
+  }))
+}
+
+/** Список тренеров для админки — через /api/list-trainers, без прямых запросов в Supabase из браузера. */
+export async function listTrainerSummariesForAdmin() {
+  if (!isSupabaseConfigured()) return []
+  try {
+    const viaApi = await fetchTrainersViaAdminApi()
+    if (viaApi) {
+      return mapTrainerSummaries(viaApi.trainers)
+    }
+  } catch {
+    /* ниже — кэш с прошлой успешной загрузки */
+  }
+  const cached = readAdminTrainersSessionCache()
+  if (cached?.length) return mapTrainerSummaries(cached)
+  return []
+}
+
+/** @param {{ force?: boolean }} [opts] — force: явное «Обновить» в админке */
+export async function pullExercisesFromSupabase(opts = {}) {
+  const { pullExercisesFromCloud } = await import('./exerciseCatalog')
+  return pullExercisesFromCloud(opts)
+}
+
+export { ensureExercisesCached, markExercisesSyncMetaDirty, invalidateExerciseCatalogCache } from './exerciseCatalog'
+
+export { insertExercise, updateExercise, removeExercise } from './exerciseService'
+
+/** Подтянуть клиентов клуба из Supabase в IndexedDB. */
+export async function pullClientsForClub(clubId) {
+  const cid = String(clubId ?? '').trim()
+  if (!isSupabaseConfigured() || !cid) return { ok: false, reason: 'no_club' }
   try {
     let total = 0
     let from = 0
     for (;;) {
-      const { data, error } = await supabase
-        .from('exercises')
-        .select('*')
-        .order('id', { ascending: true })
-        .range(from, from + ADMIN_SYNC_BATCH_SIZE - 1)
+      const { data, error } = await withSupabaseRetry(() =>
+        supabase
+          .from('clients')
+          .select('*')
+          .eq('club_id', cid)
+          .order('name', { ascending: true })
+          .range(from, from + ADMIN_SYNC_BATCH_SIZE - 1),
+      )
       if (error) throw error
       const rows = data ?? []
       if (!rows.length) break
       for (const row of rows) {
-        await putStore('exercises', row)
+        await putStore('clients', row)
       }
       total += rows.length
       if (rows.length < ADMIN_SYNC_BATCH_SIZE) break
       from += ADMIN_SYNC_BATCH_SIZE
     }
+    dispatchLocalDataChanged()
     return { ok: true, count: total }
   } catch (e) {
-    return { ok: false, error: e?.message ?? 'Ошибка загрузки упражнений' }
+    return { ok: false, error: e?.message ?? 'Ошибка загрузки клиентов' }
+  }
+}
+
+let clubsPulledAt = 0
+let clubsPullInFlight = null
+const CLUBS_PULL_TTL_MS = 45_000
+
+async function pendingClubInsertIds() {
+  const queue = await listSyncQueue()
+  const ids = new Set()
+  for (const item of queue) {
+    if (item.table_name === 'clubs' && item.operation === 'insert' && item.data?.id) {
+      ids.add(String(item.data.id))
+    }
+  }
+  return ids
+}
+
+async function clearClubSyncQueueForId(clubId) {
+  const cid = String(clubId)
+  for (const item of await listSyncQueue()) {
+    if (item.table_name === 'clubs' && String(item.remote_id ?? item.data?.id) === cid) {
+      await removeSyncItem(item.local_id)
+    }
+  }
+}
+
+const CLUB_REMOTE_MS = 7000
+const CLUB_VERIFY_MS = 4000
+
+async function clubExistsInSupabase(clubId, timeoutMs = CLUB_VERIFY_MS) {
+  const cid = String(clubId ?? '').trim()
+  if (!cid || !isSupabaseConfigured()) return false
+  try {
+    const res = await withFastTimeout(supabase.from('clubs').select('id').eq('id', cid).maybeSingle(), timeoutMs)
+    assertSupabaseOk(res)
+    return !!res.data?.id
+  } catch {
+    return false
+  }
+}
+
+/** Несколько коротких проверок — insert мог пройти, а ответ оборвался (CONNECTION_RESET). */
+async function verifyClubInSupabaseWithRetry(clubId, attempts = 5) {
+  for (let i = 0; i < attempts; i++) {
+    if (await clubExistsInSupabase(clubId)) return true
+    if (i < attempts - 1) await sleep(800)
+  }
+  return false
+}
+
+/** Клуб точно удалён в облаке — только при успешном SELECT без строки (ошибка сети ≠ удалён). */
+async function verifyClubAbsentFromSupabase(clubId, attempts = 5) {
+  const cid = String(clubId ?? '').trim()
+  if (!cid || !isSupabaseConfigured()) return false
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await withFastTimeout(supabase.from('clubs').select('id').eq('id', cid).maybeSingle(), CLUB_VERIFY_MS)
+      assertSupabaseOk(res)
+      if (!res.data) return true
+    } catch {
+      /* сеть — не считаем удалённым */
+    }
+    if (i < attempts - 1) await sleep(800)
+  }
+  return false
+}
+
+async function runClubRemoteOnce(fn, timeoutMs = CLUB_REMOTE_MS) {
+  return withFastTimeout(fn(), timeoutMs)
+}
+
+/** Два шанса на insert/update (пауза между ними), без длинной цепочки retry. */
+async function runClubRemoteTwice(fn) {
+  try {
+    return await runClubRemoteOnce(fn)
+  } catch (e1) {
+    if (!isRetryableNetworkError(e1) && !/timeout/i.test(String(e1?.message ?? ''))) throw e1
+    await sleep(700)
+    return await runClubRemoteOnce(fn)
+  }
+}
+
+async function finishClubRemoteSuccess(row, cid, persistLocal) {
+  await persistLocal()
+  await clearClubSyncQueueForId(cid)
+  return { remoteOk: true }
+}
+
+async function tryFlushPendingClubToCloud() {
+  try {
+    const r = await flushSyncQueue({ force: true, maxMs: 14_000 })
+    return r?.ok === true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Создание/обновление клуба админом: сначала Supabase, затем IndexedDB.
+ * @returns {Promise<{ remoteOk: boolean, recoveredAfterNetwork?: boolean }>}
+ */
+export async function saveClubForAdmin(row, { isNew = false } = {}) {
+  const cid = String(row?.id ?? '').trim()
+  if (!cid) throw new Error('Не указан id клуба')
+
+  if (!isSupabaseConfigured()) {
+    await putStore('clubs', row)
+    clubsPulledAt = 0
+    dispatchLocalDataChanged()
+    return { remoteOk: true }
+  }
+
+  const persistLocal = async () => {
+    await putStore('clubs', row)
+    clubsPulledAt = 0
+    dispatchLocalDataChanged()
+  }
+
+  const runRemote = async () => {
+    if (isNew) {
+      const res = await supabase.from('clubs').insert(row).select().single()
+      if (res.error && (res.error.status === 409 || res.error.code === '23505')) {
+        if (await clubExistsInSupabase(cid)) return { data: { id: cid }, error: null }
+      }
+      assertSupabaseOk(res)
+      return res
+    }
+    const res = await supabase.from('clubs').update(row).eq('id', cid).select().single()
+    assertSupabaseOk(res)
+    if (!res.data) {
+      throw new Error('Клуб не найден в Supabase — обновите список (↻).')
+    }
+    return res
+  }
+
+  try {
+    await runClubRemoteTwice(() => runRemote())
+    return finishClubRemoteSuccess(row, cid, persistLocal)
+  } catch (e) {
+    const msg = String(e?.message ?? '')
+    const status = Number(e?.status ?? 0)
+    if (
+      status === 409 ||
+      isDuplicateInsertError(e) ||
+      /duplicate key|unique constraint|23505|409/i.test(msg)
+    ) {
+      if (await verifyClubInSupabaseWithRetry(cid, 3)) {
+        return { ...(await finishClubRemoteSuccess(row, cid, persistLocal)), recoveredAfterNetwork: true }
+      }
+    }
+    if (
+      status === 403 ||
+      status === 401 ||
+      /403|forbidden|permission denied|permission|policy|42501|row-level security/i.test(msg)
+    ) {
+      throw new Error(
+        'Supabase отклонил запись (403): RLS не считает вас админом. В SQL Editor выполните миграцию 20260519120000_fit_auth_admin_by_email.sql или: UPDATE public.users SET id = (SELECT auth.uid()) WHERE email ILIKE \'admin@fit-city.ru\'; UID — в Authentication → Users.',
+      )
+    }
+    if (isRetryableNetworkError(e) || /timeout|failed to fetch/i.test(msg)) {
+      if (await verifyClubInSupabaseWithRetry(cid)) {
+        return { ...(await finishClubRemoteSuccess(row, cid, persistLocal)), recoveredAfterNetwork: true }
+      }
+      await putStore('clubs', row)
+      await enqueueSync({
+        table_name: 'clubs',
+        operation: isNew ? 'insert' : 'update',
+        remote_id: isNew ? null : cid,
+        data: row,
+      })
+      clubsPulledAt = 0
+      dispatchLocalDataChanged()
+      await tryFlushPendingClubToCloud()
+      if (await verifyClubInSupabaseWithRetry(cid, 3)) {
+        return { ...(await finishClubRemoteSuccess(row, cid, persistLocal)), recoveredAfterNetwork: true }
+      }
+      return { remoteOk: false }
+    }
+    throw new Error(humanizeNetworkError(e))
   }
 }
 
 /** Подтянуть клубы из Supabase в локальный IndexedDB. */
-export async function pullClubsFromSupabase() {
+export async function pullClubsFromSupabase(opts = {}) {
   if (!isSupabaseConfigured()) return { ok: false, reason: 'no_supabase' }
-  try {
-    let total = 0
-    let from = 0
-    for (;;) {
-      const { data, error } = await supabase
-        .from('clubs')
-        .select('*')
-        .order('id', { ascending: true })
-        .range(from, from + ADMIN_SYNC_BATCH_SIZE - 1)
-      if (error) throw error
-      const rows = data ?? []
-      if (!rows.length) break
-      for (const row of rows) {
-        await putStore('clubs', row)
+  const force = opts.force === true
+  if (!force && Date.now() - clubsPulledAt < CLUBS_PULL_TTL_MS) {
+    return { ok: true, count: 0, cached: true }
+  }
+  if (!force && clubsPullInFlight) return clubsPullInFlight
+  clubsPullInFlight = pullClubsFromSupabaseInner().finally(() => {
+    clubsPullInFlight = null
+  })
+  return clubsPullInFlight
+}
+
+async function mergeClubsIntoLocalCache(rows) {
+  const remoteIds = new Set()
+  const list = Array.isArray(rows) ? rows : []
+  for (const row of list) {
+    remoteIds.add(String(row.id))
+    await putStore('clubs', row)
+  }
+  let pruned = 0
+  /* Не удаляем весь локальный кэш при пустом ответе (обрыв/сбой может выглядеть как 0 строк). */
+  if (remoteIds.size > 0) {
+    const keepLocal = await pendingClubInsertIds()
+    const db = await getDb()
+    for (const c of await db.getAll('clubs')) {
+      const id = String(c.id)
+      if (!remoteIds.has(id) && !keepLocal.has(id)) {
+        await db.delete('clubs', id)
+        pruned++
       }
-      total += rows.length
-      if (rows.length < ADMIN_SYNC_BATCH_SIZE) break
-      from += ADMIN_SYNC_BATCH_SIZE
     }
-    return { ok: true, count: total }
+  }
+  dispatchLocalDataChanged()
+  clubsPulledAt = Date.now()
+  return { ok: true, count: list.length, pruned }
+}
+
+async function pullClubsFromSupabaseInner() {
+  try {
+    const viaApi = await fetchClubsViaAdminApi()
+    if (viaApi) {
+      return { ...(await mergeClubsIntoLocalCache(viaApi.clubs)), source: 'admin_api' }
+    }
+
+    const res = await runClubRemoteOnce(() =>
+      supabase.from('clubs').select('*').order('id', { ascending: true }),
+    )
+    if (res.error) throw res.error
+    const merged = await mergeClubsIntoLocalCache(res.data ?? [])
+    return { ...merged, source: 'supabase' }
   } catch (e) {
     return { ok: false, error: e?.message ?? 'Ошибка загрузки клубов' }
   }
+}
+
+/** Убрать клуб только из IndexedDB (уже удалён в Supabase или нет сети). */
+export async function removeClubFromLocalCache(clubId) {
+  const cid = String(clubId ?? '').trim()
+  if (!cid) return
+  const db = await getDb()
+  await db.delete('clubs', cid)
+  const queue = await listSyncQueue()
+  for (const item of queue) {
+    if (item.table_name === 'clubs' && String(item.remote_id) === cid) {
+      await removeSyncItem(item.local_id)
+    }
+  }
+  clubsPulledAt = 0
+  dispatchLocalDataChanged({ reason: 'club-deleted', clubId: cid })
 }
 
 export async function listTrainingsForClient(clientId) {
@@ -270,23 +559,55 @@ export async function getClubDeletionBlockers(clubId) {
     (t) => String(t.club_id) === cid && String(t.id) !== DEMO_SEED_TRAINING_ID && String(t.client_id) !== DEMO_SEED_CLIENT_ID,
   ).length
   let trainers = 0
-  if (isSupabaseConfigured()) {
+  let remoteClients = 0
+  let remoteTrainings = 0
+  const localBlocked = clients > 0 || memberships > 0 || trainings > 0
+  if (isSupabaseConfigured() && !localBlocked) {
     try {
-      const { count, error } = await supabase
-        .from('users')
-        .select('id', { count: 'exact', head: true })
-        .eq('role', 'trainer')
-        .eq('club_id', cid)
-      if (!error && typeof count === 'number') trainers = count
+      const res = await withFastTimeout(
+        supabase
+          .from('users')
+          .select('id', { count: 'exact', head: true })
+          .in('role', USERS_TRAINER_ROLES)
+          .eq('club_id', cid),
+        3000,
+      )
+      trainers = typeof res.count === 'number' ? res.count : 0
     } catch {
       trainers = 0
     }
+  } else if (isSupabaseConfigured() && localBlocked) {
+    const remoteCount = async (table, extraFilter) => {
+      try {
+        let q = supabase.from(table).select('id', { count: 'exact', head: true }).eq('club_id', cid)
+        if (extraFilter) q = extraFilter(q)
+        const res = await withFastTimeout(q, 3000)
+        return typeof res.count === 'number' ? res.count : 0
+      } catch {
+        return 0
+      }
+    }
+    trainers = await remoteCount('users', (q) => q.in('role', USERS_TRAINER_ROLES))
+    remoteClients = await remoteCount('clients')
+    remoteTrainings = await remoteCount('trainings')
   }
-  const blocked = clients > 0 || trainers > 0 || memberships > 0 || trainings > 0
-  return { blocked, clients, trainers, memberships, trainings }
+  const totalClients = Math.max(clients, remoteClients)
+  const totalTrainings = Math.max(trainings, remoteTrainings)
+  const blocked = totalClients > 0 || trainers > 0 || memberships > 0 || totalTrainings > 0
+  return {
+    blocked,
+    clients: totalClients,
+    trainers,
+    memberships,
+    trainings: totalTrainings,
+    remoteChecked: isSupabaseConfigured(),
+  }
 }
 
-/** Удаление клуба из локального кэша и постановка delete в очередь синхронизации. */
+/**
+ * Удаление клуба: сразу из IndexedDB (список обновляется), затем DELETE в Supabase (короткий таймаут).
+ * @returns {Promise<{ remoteOk: boolean }>}
+ */
 export async function deleteClubForAdmin(clubId) {
   const cid = String(clubId ?? '').trim()
   if (!cid) throw new Error('Не указан клуб')
@@ -296,8 +617,78 @@ export async function deleteClubForAdmin(clubId) {
       `Клуб нельзя удалить: клиентов ${st.clients}, тренеров ${st.trainers}, абонементов по клубу ${st.memberships}, тренировок ${st.trainings}. Освободите привязки и повторите.`,
     )
   }
-  await deleteLocalWithSync('clubs', cid, 'clubs')
+
+  if (!isSupabaseConfigured()) {
+    const db = await getDb()
+    await db.delete('clubs', cid)
+    clubsPulledAt = 0
+    dispatchLocalDataChanged({ reason: 'club-deleted', clubId: cid })
+    return { remoteOk: true, alreadyGoneRemote: false }
+  }
+
+  const runDeleteRemote = async () => {
+    const res = await supabase.from('clubs').delete().eq('id', cid).select('id')
+    assertSupabaseOk(res)
+    if (res.data?.length) return res
+    if (await verifyClubAbsentFromSupabase(cid, 2)) {
+      return res
+    }
+    throw new Error(
+      'Клуб не удалён в Supabase (0 строк). Проверьте RLS и что users.id совпадает с Auth UID.',
+    )
+  }
+
+  let remoteOk = false
+  let alreadyGoneRemote = false
+  try {
+    await runClubRemoteTwice(() => runDeleteRemote())
+    remoteOk = true
+  } catch (e) {
+    const msg = String(e?.message ?? '')
+    if (/foreign key|violates|23503/i.test(msg)) {
+      throw new Error('Клуб связан с данными в облаке (клиенты, челленджи, тренировки). Сначала удалите или перенесите их.')
+    }
+    if (/permission|policy|42501|row-level security|0 строк/i.test(msg)) {
+      throw new Error(
+        msg.includes('0 строк')
+          ? msg
+          : 'Нет прав на удаление в Supabase. Проверьте RLS (20260518120000_clubs_rls_admin.sql) и users.id = Auth UID.',
+      )
+    }
+    if (isRetryableNetworkError(e) || /timeout|failed to fetch/i.test(msg)) {
+      if (await verifyClubAbsentFromSupabase(cid)) {
+        remoteOk = true
+        alreadyGoneRemote = true
+      } else {
+        await enqueueSync({
+          table_name: 'clubs',
+          operation: 'delete',
+          remote_id: cid,
+          data: {},
+        })
+        await tryFlushPendingClubToCloud()
+        if (await verifyClubAbsentFromSupabase(cid, 3)) {
+          remoteOk = true
+        } else {
+          return { remoteOk: false, alreadyGoneRemote: false }
+        }
+      }
+    } else {
+      throw new Error(humanizeNetworkError(e))
+    }
+  }
+
+  const db = await getDb()
+  await db.delete('clubs', cid)
+  const queue = await listSyncQueue()
+  for (const item of queue) {
+    if (item.table_name === 'clubs' && String(item.remote_id) === cid) {
+      await removeSyncItem(item.local_id)
+    }
+  }
+  clubsPulledAt = 0
   dispatchLocalDataChanged({ reason: 'club-deleted', clubId: cid })
+  return { remoteOk, alreadyGoneRemote }
 }
 
 /**

@@ -1,3 +1,5 @@
+import { formatDateRu } from './dateRu'
+
 export function membershipCoversDate(m, dateIso) {
   if (!m || !dateIso) return false
   const d = String(dateIso)
@@ -28,6 +30,37 @@ export function pickUsableMembershipForDate(memberships, dateIso) {
 /** Есть ли абонемент, по которому можно провести тренировку в указанную дату (поле status в Row не используется). */
 export function hasUsableMembershipOnDate(memberships, dateIso) {
   return pickUsableMembershipForDate(memberships, dateIso) != null
+}
+
+/** Пояснение, почему нет «действующего» абонемента на дату (для подписи в UI). */
+export function explainInactiveMembership(memberships, dateIso) {
+  const list = memberships ?? []
+  if (!list.length) return 'Нет записей об абонементе — добавьте новый.'
+  const d = String(dateIso ?? '')
+  const withDates = list.filter((m) => m?.start_date && m?.end_date)
+  if (!withDates.length) return 'У абонемента не заданы даты начала и окончания.'
+
+  const future = withDates
+    .filter((m) => String(m.start_date) > d)
+    .sort((a, b) => String(a.start_date).localeCompare(String(b.start_date)))[0]
+  if (future) {
+    return `Абонемент ещё не начался: старт ${formatDateRu(future.start_date)}. Укажите дату начала не позже сегодня (${formatDateRu(d)}).`
+  }
+
+  const inWindow = withDates.filter((m) => membershipCoversDate(m, d))
+  const depleted = inWindow.find((m) => !membershipHasRemaining(m))
+  if (depleted) {
+    return 'Срок действует, но лимит тренировок исчерпан (0 из пакета).'
+  }
+
+  const expired = withDates
+    .filter((m) => String(m.end_date) < d)
+    .sort((a, b) => String(b.end_date).localeCompare(String(a.end_date)))[0]
+  if (expired) {
+    return `Срок абонемента истёк ${formatDateRu(expired.end_date)}. Продлите дату окончания.`
+  }
+
+  return 'Нет действующего абонемента (по датам и остатку тренировок).'
 }
 
 /** По дате, затем по created_at — для номера тренировки по абонементу */

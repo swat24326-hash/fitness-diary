@@ -1,6 +1,9 @@
-import { supabase, isSupabaseConfigured } from './supabase'
+import { isSupabaseConfigured } from './supabase'
 import { getDb, getAllStore, putStore } from './localDb'
+import { todayLocalIso } from './dateRu'
 import { saveLocalWithSync, deleteLocalWithSync } from './syncService'
+import { pushRecordViaApi } from './syncApiClient'
+import { fetchChallengeTrainingsViaApi, fetchTrainersViaAdminApi } from './admin/adminApiClient'
 
 /** Допустимые метрики при создании/редактировании челленджа */
 export const CHALLENGE_METRICS = ['max_weight', 'max_reps', 'max_time_sec', 'max_distance_m']
@@ -33,12 +36,25 @@ export function formatChallengeValueRu(metric, value) {
 }
 
 export function isChallengeActiveByCalendar(ch) {
-  if (!ch || ch.status !== 'active') return false
-  const today = new Date().toISOString().slice(0, 10)
+  if (!ch || !isChallengeStatusActive(ch)) return false
+  const today = todayLocalIso()
   const a = String(ch.start_date ?? '').slice(0, 10)
   const b = String(ch.end_date ?? '').slice(0, 10)
   if (!a || !b) return false
   return today >= a && today <= b
+}
+
+function isChallengeStatusActive(ch) {
+  const st = String(ch?.status ?? '').trim().toLowerCase()
+  return st === 'active' || st === 'активен'
+}
+
+/** Для главной тренера: челлендж ещё не закончился (можно показать до старта периода). */
+export function isChallengeVisibleForTrainerHome(ch) {
+  if (!ch || !isChallengeStatusActive(ch)) return false
+  const today = todayLocalIso()
+  const b = String(ch.end_date ?? '').slice(0, 10)
+  return !!b && today <= b
 }
 
 export function normExerciseName(s) {
@@ -127,10 +143,12 @@ export function buildChallengeLeaderboard(challenge, ctx) {
   const bestByClient = new Map()
 
   for (const t of trainings ?? []) {
-    if (String(t.club_id) !== String(challenge.club_id)) continue
+    const cid = t.client_id
+    const clientRow = cid ? clientById.get(cid) : null
+    const tClub = String(t.club_id ?? clientRow?.club_id ?? '')
+    if (tClub !== String(challenge.club_id)) continue
     if (String(t.status ?? '').toLowerCase() !== 'completed') continue
     if (!trainingDateInRange(t.date, challenge.start_date, challenge.end_date)) continue
-    const cid = t.client_id
     if (!cid) continue
 
     const data = safeParseData(t.data)
@@ -180,29 +198,158 @@ export function buildChallengeLeaderboard(challenge, ctx) {
   return { rows, exerciseName, error: null }
 }
 
+/** Кэш имён тренеров на сессию — не дергать /api/list-trainers на каждый челлендж. */
+let trainerNameMapCache = null
+let trainerNameMapCacheAt = 0
+const TRAINER_NAME_MAP_TTL_MS = 5 * 60 * 1000
+
 async function buildTrainerNameMap() {
+  if (trainerNameMapCache && Date.now() - trainerNameMapCacheAt < TRAINER_NAME_MAP_TTL_MS) {
+    return trainerNameMapCache
+  }
   const map = new Map()
-  if (!isSupabaseConfigured()) return map
   try {
-    const { data, error } = await supabase.from('users').select('id, name').eq('role', 'trainer').order('name')
-    if (error) throw error
-    for (const u of data ?? []) {
+    const viaApi = await fetchTrainersViaAdminApi()
+    for (const u of viaApi?.trainers ?? []) {
       if (u?.id) map.set(u.id, String(u.name ?? '').trim() || '—')
     }
   } catch {
-    /* offline / stub */
+    /* офлайн — имена в рейтинге необязательны */
   }
+  trainerNameMapCache = map
+  trainerNameMapCacheAt = Date.now()
   return map
 }
 
-export async function loadContextForChallengeLeaderboard(clubId) {
+function notifyLocalDataChanged() {
+  if (typeof window === 'undefined') return
+  try {
+    window.dispatchEvent(new CustomEvent('fitness-diary-storage', { detail: { reason: 'challenge-trainings' } }))
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Подтянуть тренировки клуба за период челленджа (Vercel API → IndexedDB). */
+export async function pullChallengeTrainingsForPeriod(clubId, dateFrom, dateTo, opts = {}) {
+  const cid = String(clubId ?? '').trim()
+  const from = String(dateFrom ?? '').slice(0, 10)
+  const to = String(dateTo ?? '').slice(0, 10)
+  if (!cid || !from || !to || !isSupabaseConfigured()) return { ok: false, reason: 'no_params' }
+
+  try {
+    const viaApi = await fetchChallengeTrainingsViaApi(cid, from, to)
+    if (viaApi) {
+      for (const row of viaApi.trainings) {
+        await putStore('trainings', row)
+      }
+      if (opts.notify !== false) notifyLocalDataChanged()
+      return { ok: true, count: viaApi.trainings.length, source: 'api' }
+    }
+  } catch (e) {
+    const msg = String(e?.message ?? e ?? '')
+    if (!/failed to fetch|connection reset|timeout/i.test(msg)) {
+      return { ok: false, error: msg }
+    }
+  }
+
+  return { ok: false, error: 'Нет связи с сервером' }
+}
+
+/** Мин/макс даты по списку челленджей (YYYY-MM-DD). */
+export function challengePeriodBounds(challenges) {
+  let from = ''
+  let to = ''
+  for (const ch of challenges ?? []) {
+    const a = String(ch.start_date ?? '').slice(0, 10)
+    const b = String(ch.end_date ?? '').slice(0, 10)
+    if (a && (!from || a < from)) from = a
+    if (b && (!to || b > to)) to = b
+  }
+  return { from, to }
+}
+
+/** Один pull тренировок клуба на весь диапазон челленджей (для списка админа). */
+export async function pullChallengeTrainingsForClubChallenges(clubId, challenges, opts = {}) {
+  const cid = String(clubId ?? '').trim()
+  const { from, to } = challengePeriodBounds(challenges)
+  if (!cid || !from || !to) return { ok: false, reason: 'no_dates' }
+  return pullChallengeTrainingsForPeriod(cid, from, to, { notify: opts.notify ?? false })
+}
+
+/** Клуб тренера: из профиля или из его клиентов в кэше. */
+export async function resolveTrainerClubId(trainerId, profileClubId) {
+  const ids = await collectTrainerClubIds(trainerId, profileClubId)
+  return ids[0] ?? ''
+}
+
+/** Все клубы, где у тренера есть клиенты (и клуб из профиля). */
+export async function collectTrainerClubIds(trainerId, profileClubId) {
+  const out = new Set()
+  const fromProfile = String(profileClubId ?? '').trim()
+  if (fromProfile) out.add(fromProfile)
+  const tid = String(trainerId ?? '').trim()
+  if (!tid) return [...out]
+  const clients = await getAllStore('clients')
+  for (const c of clients ?? []) {
+    if (String(c.trainer_id) === tid && c.club_id) out.add(String(c.club_id))
+  }
+  return [...out]
+}
+
+/**
+ * Челленджи для тренера: pull по каждому клубу из клиентов, список из IndexedDB.
+ */
+export async function listChallengesForTrainer(trainerId, profileClubId, { pullRemote = true } = {}) {
+  const clubIds = await collectTrainerClubIds(trainerId, profileClubId)
+  if (!clubIds.length) return { challenges: [], pull: null, clubIds: [] }
+
+  let pull = null
+  if (pullRemote && isSupabaseConfigured() && typeof navigator !== 'undefined' && navigator.onLine) {
+    for (const cid of clubIds) {
+      pull = await pullChallengesForClub(cid)
+    }
+  }
+
+  const all = await getAllStore('challenges')
+  const idSet = new Set(clubIds)
+  const challenges = (all ?? [])
+    .filter((c) => idSet.has(String(c.club_id ?? '')))
+    .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
+
+  return { challenges, pull, clubIds }
+}
+
+/**
+ * @param {string} clubId
+ * @param {{ challenge?: object, pullRemote?: boolean }} [opts]
+ */
+export async function loadContextForChallengeLeaderboard(clubId, opts = {}) {
+  const cid = String(clubId ?? '').trim()
+  const ch = opts.challenge
+  if (ch && opts.pullRemote !== false && cid && isSupabaseConfigured() && typeof navigator !== 'undefined' && navigator.onLine) {
+    const from = String(ch.start_date ?? '').slice(0, 10)
+    const to = String(ch.end_date ?? '').slice(0, 10)
+    if (from && to) {
+      try {
+        await pullChallengeTrainingsForPeriod(cid, from, to, { notify: opts.notifyPull !== false })
+      } catch (e) {
+        console.warn('[challenge] pull trainings', e)
+      }
+    }
+  }
+
   const [trainings, clients, exercises] = await Promise.all([
     getAllStore('trainings'),
     getAllStore('clients'),
     getAllStore('exercises'),
   ])
-  const clubTrainings = (trainings ?? []).filter((t) => String(t.club_id) === String(clubId))
-  const clubClients = (clients ?? []).filter((c) => String(c.club_id) === String(clubId))
+  const clubClients = (clients ?? []).filter((c) => String(c.club_id) === cid)
+  const clientIds = new Set(clubClients.map((c) => c.id))
+  const clubTrainings = (trainings ?? []).filter((t) => {
+    if (String(t.club_id) === cid) return true
+    return t.client_id && clientIds.has(t.client_id)
+  })
   const trainerNameById = await buildTrainerNameMap()
   return { trainings: clubTrainings, clients: clubClients, exercises: exercises ?? [], trainerNameById }
 }
@@ -222,21 +369,8 @@ export async function listChallengesLocalForClub(clubId) {
 }
 
 export async function pullChallengesForClub(clubId) {
-  if (!clubId || !isSupabaseConfigured()) return { ok: false, reason: 'no_club_or_supabase' }
-  try {
-    const { data, error } = await supabase
-      .from('challenges')
-      .select('*')
-      .eq('club_id', clubId)
-      .order('created_at', { ascending: false })
-    if (error) throw error
-    for (const row of data ?? []) {
-      await putStore('challenges', row)
-    }
-    return { ok: true, count: (data ?? []).length }
-  } catch (e) {
-    return { ok: false, error: e?.message ?? 'Ошибка загрузки челленджей' }
-  }
+  const { pullChallengesForClubFromCloud } = await import('./pullReferenceData')
+  return pullChallengesForClubFromCloud(clubId)
 }
 
 export async function listChallengesForClub(clubId, { pullRemote = true } = {}) {
@@ -249,12 +383,41 @@ export async function listChallengesForClub(clubId, { pullRemote = true } = {}) 
   return { challenges, pull }
 }
 
+/**
+ * @returns {Promise<{ cloudOk: boolean, cloudError?: string }>}
+ */
 export async function saveNewChallenge(row) {
-  await saveLocalWithSync('challenges', row, {
+  const payload = { ...row, created_by: row.created_by ?? null }
+  await saveLocalWithSync('challenges', payload, {
     table_name: 'challenges',
     operation: 'insert',
     remote_id: null,
   })
+  if (!isSupabaseConfigured() || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+    return { cloudOk: false, cloudError: 'Нет сети — челлендж только на этом устройстве. Нажмите Sync позже.' }
+  }
+  const push = await pushRecordViaApi({
+    table_name: 'challenges',
+    operation: 'insert',
+    data: payload,
+    remote_id: null,
+    local_id: null,
+  })
+  return push.ok ? { cloudOk: true } : { cloudOk: false, cloudError: push.error ?? 'Не удалось отправить в облако' }
+}
+
+/** Повторная отправка челленджа в Supabase (если остался только в IndexedDB). */
+export async function pushChallengeToCloud(row) {
+  if (!row?.id) return { cloudOk: false, cloudError: 'Нет id челленджа' }
+  const payload = { ...row, created_by: row.created_by ?? null }
+  const push = await pushRecordViaApi({
+    table_name: 'challenges',
+    operation: 'insert',
+    data: payload,
+    remote_id: null,
+    local_id: null,
+  })
+  return push.ok ? { cloudOk: true } : { cloudOk: false, cloudError: push.error }
 }
 
 export async function updateChallengeRecord(row) {

@@ -4,7 +4,10 @@
  */
 
 import { supabase, isSupabaseConfigured } from '../supabase'
+import { isRetryableNetworkError } from '../supabaseRetry'
 import { getDb } from '../localDb'
+import { USERS_TRAINER_ROLES } from '../userRoleConstants'
+import { fetchTrainersViaAdminApi, searchClientsViaAdminApi } from './adminApiClient'
 import { ADMIN_CLIENT_SEARCH_LIMIT } from './adminConstants'
 
 const CLIENT_BRIEF_FIELDS = 'id, name, phone, email, trainer_id, club_id'
@@ -30,25 +33,36 @@ export function clearAdminClientSearchLocalCache() {
   trainerNameByIdCacheAt = 0
 }
 
+function readTrainersSessionCache() {
+  if (typeof sessionStorage === 'undefined') return null
+  try {
+    const raw = sessionStorage.getItem('fit-admin-trainers-cache')
+    if (!raw) return null
+    const cached = JSON.parse(raw)
+    return Array.isArray(cached) ? cached : null
+  } catch {
+    return null
+  }
+}
+
 async function getTrainerNameByIdMap() {
   const now = Date.now()
   if (trainerNameByIdCache && now - trainerNameByIdCacheAt < TRAINER_NAME_CACHE_MS) {
     return trainerNameByIdCache
   }
   const m = new Map()
-  if (!isSupabaseConfigured()) {
-    trainerNameByIdCache = m
-    trainerNameByIdCacheAt = now
-    return m
-  }
-  try {
-    const { data, error } = await supabase.from('users').select('id, name').eq('role', 'trainer')
-    if (error) throw error
-    for (const u of data ?? []) {
-      if (u?.id) m.set(u.id, String(u.name ?? '').trim())
+  if (isSupabaseConfigured()) {
+    try {
+      const viaApi = await fetchTrainersViaAdminApi()
+      const rows = viaApi?.trainers ?? readTrainersSessionCache() ?? []
+      for (const u of rows) {
+        if (u?.id) m.set(u.id, String(u.name ?? '').trim())
+      }
+    } catch {
+      for (const u of readTrainersSessionCache() ?? []) {
+        if (u?.id) m.set(u.id, String(u.name ?? '').trim())
+      }
     }
-  } catch {
-    /* без имён тренеров поиск только по клиенту */
   }
   trainerNameByIdCache = m
   trainerNameByIdCacheAt = now
@@ -102,7 +116,7 @@ export async function searchAdminClientsRemote({ query, clubId, limit = ADMIN_CL
 
   let qName = supabase.from('clients').select(CLIENT_BRIEF_FIELDS).ilike('name', pattern).limit(part)
   let qPhone = supabase.from('clients').select(CLIENT_BRIEF_FIELDS).ilike('phone', pattern).limit(part)
-  const qTrainerUsers = supabase.from('users').select('id').eq('role', 'trainer').ilike('name', pattern).limit(part)
+  const qTrainerUsers = supabase.from('users').select('id').in('role', USERS_TRAINER_ROLES).ilike('name', pattern).limit(part)
   if (clubId) {
     qName = qName.eq('club_id', clubId)
     qPhone = qPhone.eq('club_id', clubId)
@@ -140,6 +154,16 @@ export async function searchAdminClientsForJournal(p) {
   const { query, clubId = '' } = p
   if (!isSupabaseConfigured()) {
     return searchAdminClientsLocal({ query, clubId })
+  }
+  try {
+    const viaApi = await searchClientsViaAdminApi({ query, clubId })
+    if (viaApi) return viaApi.clients
+  } catch (apiErr) {
+    if (!isRetryableNetworkError(apiErr)) {
+      console.warn('[admin] search-clients api', apiErr)
+    } else {
+      return searchAdminClientsLocal({ query, clubId })
+    }
   }
   try {
     return await searchAdminClientsRemote({ query, clubId })

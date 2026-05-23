@@ -51,12 +51,18 @@ export function DraftTabsBar() {
       }
     }
     run()
+    let debounceTimer = null
     const onStorage = () => {
-      run()
+      if (debounceTimer) clearTimeout(debounceTimer)
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null
+        void run()
+      }, 280)
     }
     window.addEventListener(LOCAL_DATA_CHANGED, onStorage)
     return () => {
       alive = false
+      if (debounceTimer) clearTimeout(debounceTimer)
       window.removeEventListener(LOCAL_DATA_CHANGED, onStorage)
     }
   }, [user?.id, isAdmin, adminClubId, loc.pathname])

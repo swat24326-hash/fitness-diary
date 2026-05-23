@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, Clock, RefreshCw, Search, Trash2, UserPlus } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { deleteClientAndAllData, listClubsLocal, listLocalClients, listTrainingsForTrainer } from '../../lib/dataAccess'
-import { getDb } from '../../lib/localDb'
-import { saveLocalWithSync } from '../../lib/syncService'
-import { formatDateRu } from '../../lib/dateRu'
+import { deleteClientAndAllData, listClubsLocal } from '../../lib/dataAccess'
+import { loadTrainerWorkspaceSnapshot } from '../../lib/trainerWorkspaceCache'
+import { useDebouncedStorageReload, shouldReloadTrainerClientList } from '../../lib/useDebouncedStorageReload'
+import { flushSyncQueue, saveLocalWithSync } from '../../lib/syncService'
+import { isSupabaseConfigured } from '../../lib/supabase'
+import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 import { membershipHasRemaining, pickUsableMembershipForDate } from '../../lib/membershipRules'
 
 function pickExpiredMembershipWithRemaining(list, todayIso) {
@@ -47,8 +49,12 @@ function lastTrainingDate(trainings, clientId) {
 }
 
 export function TrainerClients() {
-  const { user } = useAuth()
+  const { user, refreshUserProfile } = useAuth()
   const trainerClubId = user?.club_id ?? null
+
+  useEffect(() => {
+    if (user?.id && !user?.club_id) void refreshUserProfile()
+  }, [user?.id, user?.club_id, refreshUserProfile])
   const [clients, setClients] = useState([])
   const [trainings, setTrainings] = useState([])
   const [memByClient, setMemByClient] = useState({})
@@ -89,32 +95,27 @@ export function TrainerClients() {
     return s
   }
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async ({ silent = false } = {}) => {
     if (!user?.id) return
-    setBusy(true)
+    if (!silent) setBusy(true)
     try {
-      const [c, t] = await Promise.all([listLocalClients(user.id, trainerClubId), listTrainingsForTrainer(user.id, trainerClubId)])
+      const { clients: c, trainings: t, memByClient: map } = await loadTrainerWorkspaceSnapshot(user.id, trainerClubId)
       setClients(c)
       setTrainings(t)
-      const db = await getDb()
-      const allM = await db.getAll('memberships')
-      const map = {}
-      for (const m of allM) {
-        if (!map[m.client_id]) map[m.client_id] = []
-        map[m.client_id].push(m)
-      }
       setMemByClient(map)
       setClubs(await listClubsLocal())
     } finally {
-      setBusy(false)
+      if (!silent) setBusy(false)
     }
   }, [user?.id, trainerClubId])
 
   useEffect(() => {
-    reload()
+    void reload()
   }, [reload])
 
-  const today = new Date().toISOString().slice(0, 10)
+  useDebouncedStorageReload(() => reload({ silent: true }), { shouldRun: shouldReloadTrainerClientList })
+
+  const today = todayLocalIso()
 
   const myClubName = useMemo(() => {
     if (!trainerClubId) return null
@@ -163,9 +164,15 @@ export function TrainerClients() {
       alert('Укажите имя')
       return
     }
-    const clubId = trainerClubId
+    let clubId = trainerClubId
     if (!clubId) {
-      alert('Тренер не привязан к клубу. Попросите администратора назначить вам клуб в разделе «Клубы и тренеры».')
+      const profile = await refreshUserProfile()
+      clubId = profile?.club_id ?? null
+    }
+    if (!clubId) {
+      alert(
+        'Тренер не привязан к клубу. Админ: Структура → Тренеры → выберите клуб. Затем выйдите и войдите снова (или Ctrl+F5).',
+      )
       return
     }
     const id = crypto.randomUUID()
@@ -182,6 +189,9 @@ export function TrainerClients() {
     }
     try {
       await saveLocalWithSync('clients', row, { table_name: 'clients', operation: 'insert', remote_id: null })
+      if (isSupabaseConfigured()) {
+        await flushSyncQueue({ force: true, maxMs: 20_000 })
+      }
     } catch (err) {
       alert(err?.message ?? 'Ошибка создания клиента')
       return

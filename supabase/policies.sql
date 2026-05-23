@@ -26,9 +26,15 @@ AS $$
   SELECT EXISTS (
     SELECT 1
     FROM public.users u
-    WHERE u.id = auth.uid()
-      AND u.role = 'admin'
+    WHERE u.role IN ('admin', 'администратор')
       AND COALESCE(u.is_active, true)
+      AND (
+        u.id = auth.uid()
+        OR (
+          NULLIF(trim(lower(u.email)), '') IS NOT NULL
+          AND lower(u.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+        )
+      )
   );
 $$;
 
@@ -43,7 +49,7 @@ AS $$
     SELECT 1
     FROM public.users u
     WHERE u.id = auth.uid()
-      AND u.role = 'trainer'
+      AND u.role IN ('trainer', 'тренер')
       AND COALESCE(u.is_active, true)
   );
 $$;

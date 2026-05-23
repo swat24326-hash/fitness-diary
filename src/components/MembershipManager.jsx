@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { listMemberships, listTrainingsForClient } from '../lib/dataAccess'
 import { getDb } from '../lib/localDb'
 import { deleteLocalWithSync, saveLocalWithSync } from '../lib/syncService'
-import { formatDateRu, formatDateTimeRu } from '../lib/dateRu'
+import { addDaysToIso, formatDateRu, formatDateTimeRu, todayLocalIso } from '../lib/dateRu'
 import { CheckCircle2, Eye, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
@@ -86,7 +86,7 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
   const [viewOpenId, setViewOpenId] = useState(null)
   const [confirmCancel, setConfirmCancel] = useState(null) // { t, membership }
 
-  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), [])
+  const todayIso = useMemo(() => todayLocalIso(), [])
 
   const computeMembershipTrainings = useCallback(
     (m, allTrainings) => {
@@ -181,12 +181,13 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
     }
     const id = newId()
     const now = new Date().toISOString()
+    const today = todayLocalIso()
     const row = {
       id,
       client_id: clientId,
       club_id: clubId,
-      start_date: form.start_date || now.slice(0, 10),
-      end_date: form.end_date || now.slice(0, 10),
+      start_date: form.start_date || today,
+      end_date: form.end_date || addDaysToIso(today, 30),
       total_trainings: Number(form.total_trainings) || 0,
       used_trainings: 0,
       created_at: now,

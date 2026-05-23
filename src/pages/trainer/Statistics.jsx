@@ -11,8 +11,9 @@ import {
 } from 'chart.js'
 import { Line } from 'react-chartjs-2'
 import { listMeasurements, listTrainingsForClient } from '../../lib/dataAccess'
+import { useDebouncedStorageReload, shouldReloadTrainerClientStats } from '../../lib/useDebouncedStorageReload'
 import { BODY_MEASURE_FIELDS, getMeasureValue } from '../../lib/bodyMeasures'
-import { formatDateRu } from '../../lib/dateRu'
+import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend)
 
@@ -75,9 +76,12 @@ export function Statistics({ clientId }) {
   const [dateFrom, setDateFrom] = useState(() => {
     const d = new Date()
     d.setDate(d.getDate() - 30)
-    return d.toISOString().slice(0, 10)
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
   })
-  const [dateTo, setDateTo] = useState(() => new Date().toISOString().slice(0, 10))
+  const [dateTo, setDateTo] = useState(() => todayLocalIso())
   const [measurements, setMeasurements] = useState([])
   const [trainings, setTrainings] = useState([])
 
@@ -107,8 +111,10 @@ export function Statistics({ clientId }) {
   }, [clientId])
 
   useEffect(() => {
-    load()
+    void load()
   }, [load])
+
+  useDebouncedStorageReload(() => void load(), { shouldRun: shouldReloadTrainerClientStats })
 
   useEffect(() => {
     // страхуемся от пустого выбора

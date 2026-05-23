@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, Trash2, Trophy } from 'lucide-react'
 import {
-  LOCAL_DATA_CHANGED,
   dispatchLocalDataChanged,
   getChallengeByIdLocal,
   loadContextForChallengeLeaderboard,
@@ -14,6 +13,7 @@ import {
   listTrainerSummariesForAdmin,
 } from '../../lib/dataAccess'
 import { formatDateRu } from '../../lib/dateRu'
+import { useDebouncedStorageReload } from '../../lib/useDebouncedStorageReload'
 
 function medalForRank(rank) {
   if (rank === 1) return '🥇'
@@ -50,41 +50,62 @@ export function AdminChallengeDetail() {
     return [...m.values()]
   }, [trainers, rows])
 
-  const load = useCallback(async () => {
-    if (!challengeId) return
-    setBusy(true)
-    try {
-      const ch = await getChallengeByIdLocal(challengeId)
-      setChallenge(ch ?? null)
-      if (!ch?.club_id) {
-        setRows([])
-        setExerciseName('—')
-        return
+  const load = useCallback(
+    async ({ silent = false, pullRemote = true } = {}) => {
+      if (!challengeId) return
+      if (!silent) setBusy(true)
+      try {
+        const ch = await getChallengeByIdLocal(challengeId)
+        setChallenge(ch ?? null)
+        if (!ch?.club_id) {
+          setRows([])
+          setExerciseName('—')
+          return
+        }
+        const lbCtx = await loadContextForChallengeLeaderboard(ch.club_id, {
+          challenge: ch,
+          pullRemote,
+          notifyPull: false,
+        })
+        const built = buildChallengeLeaderboard(ch, lbCtx)
+        setRows(built.rows ?? [])
+        setExerciseName(built.exerciseName ?? '—')
+      } catch {
+        if (!silent) {
+          setChallenge(null)
+          setRows([])
+        }
+      } finally {
+        if (!silent) setBusy(false)
       }
-      const lbCtx = await loadContextForChallengeLeaderboard(ch.club_id)
-      const built = buildChallengeLeaderboard(ch, lbCtx)
-      setRows(built.rows ?? [])
-      setExerciseName(built.exerciseName ?? '—')
+    },
+    [challengeId],
+  )
 
-      const t = await listTrainerSummariesForAdmin()
-      setTrainers(Array.isArray(t) ? t.filter((u) => String(u.club_id ?? '') === String(ch.club_id)) : [])
-    } catch {
-      setChallenge(null)
-      setRows([])
-    } finally {
-      setBusy(false)
+  useEffect(() => {
+    void load({ pullRemote: true })
+  }, [load])
+
+  useDebouncedStorageReload(() => load({ silent: true, pullRemote: false }))
+
+  useEffect(() => {
+    if (!challengeId) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const ch = await getChallengeByIdLocal(challengeId)
+        if (cancelled || !ch?.club_id) return
+        const t = await listTrainerSummariesForAdmin()
+        if (cancelled) return
+        setTrainers(Array.isArray(t) ? t.filter((u) => String(u.club_id ?? '') === String(ch.club_id)) : [])
+      } catch {
+        if (!cancelled) setTrainers([])
+      }
+    })()
+    return () => {
+      cancelled = true
     }
   }, [challengeId])
-
-  useEffect(() => {
-    void load()
-  }, [load])
-
-  useEffect(() => {
-    const onData = () => void load()
-    window.addEventListener(LOCAL_DATA_CHANGED, onData)
-    return () => window.removeEventListener(LOCAL_DATA_CHANGED, onData)
-  }, [load])
 
   const filteredRows = useMemo(() => {
     const q = searchClient.trim().toLowerCase()
@@ -109,7 +130,7 @@ export function AdminChallengeDetail() {
     try {
       await updateChallengeRecord({ ...challenge, status: 'completed' })
       dispatchLocalDataChanged({ reason: 'challenge-completed' })
-      await load()
+      await load({ silent: true, pullRemote: false })
     } finally {
       setFinishing(false)
     }
@@ -156,9 +177,9 @@ export function AdminChallengeDetail() {
         </Link>
       </div>
 
-      {busy ? (
+      {busy && !challenge ? (
         <p className="muted">Загрузка…</p>
-      ) : (
+      ) : challenge ? (
         <>
           <header className="challenge-detail__hero">
             <div className="challenge-detail__hero-icon" aria-hidden>
@@ -287,7 +308,7 @@ export function AdminChallengeDetail() {
             Учитываются только тренировки со статусом «завершена» в периоде. Для каждого клиента — лучший результат за все подходы.
           </p>
         </>
-      )}
+      ) : null}
     </div>
   )
 }

@@ -3,8 +3,10 @@
  */
 
 import { supabase, isSupabaseConfigured } from '../supabase'
+import { withSupabaseRetry } from '../supabaseRetry'
 import { getDb } from '../localDb'
 import { hasUsableMembershipOnDate } from '../membershipRules'
+import { fetchClubTrainingStatsViaApi } from './adminApiClient'
 import { ADMIN_SYNC_BATCH_SIZE } from './adminConstants'
 
 function aggregateTrainings(rows) {
@@ -69,15 +71,17 @@ async function fetchTrainingsForClubRangeRemote(clubId, dateFrom, dateTo) {
   const rows = []
   let from = 0
   for (;;) {
-    const { data, error } = await supabase
-      .from('trainings')
-      .select('id, trainer_id, client_id, date, status')
-      .eq('club_id', clubId)
-      .gte('date', dateFrom)
-      .lte('date', dateTo)
-      .order('date', { ascending: true })
-      .order('id', { ascending: true })
-      .range(from, from + ADMIN_SYNC_BATCH_SIZE - 1)
+    const { data, error } = await withSupabaseRetry(() =>
+      supabase
+        .from('trainings')
+        .select('id, trainer_id, client_id, date, status')
+        .eq('club_id', clubId)
+        .gte('date', dateFrom)
+        .lte('date', dateTo)
+        .order('date', { ascending: true })
+        .order('id', { ascending: true })
+        .range(from, from + ADMIN_SYNC_BATCH_SIZE - 1),
+    )
     if (error) throw error
     const chunk = data ?? []
     if (!chunk.length) break
@@ -102,12 +106,14 @@ async function fetchClientsForClubRemote(clubId) {
   const rows = []
   let from = 0
   for (;;) {
-    const { data, error } = await supabase
-      .from('clients')
-      .select('id')
-      .eq('club_id', clubId)
-      .order('id', { ascending: true })
-      .range(from, from + ADMIN_SYNC_BATCH_SIZE - 1)
+    const { data, error } = await withSupabaseRetry(() =>
+      supabase
+        .from('clients')
+        .select('id')
+        .eq('club_id', clubId)
+        .order('id', { ascending: true })
+        .range(from, from + ADMIN_SYNC_BATCH_SIZE - 1),
+    )
     if (error) throw error
     const chunk = data ?? []
     if (!chunk.length) break
@@ -224,6 +230,32 @@ export async function loadClubTrainingStats(p) {
       ...aggregateTrainings(rows),
       ...clientSlice(clients, memberships),
       source: 'local',
+    }
+  }
+
+  try {
+    const viaApi = await fetchClubTrainingStatsViaApi({ clubId, dateFrom, dateTo })
+    if (viaApi) {
+      return {
+        ...base,
+        totalCompleted: viaApi.totalCompleted ?? 0,
+        totalDraft: viaApi.totalDraft ?? 0,
+        uniqueClients: viaApi.uniqueClients ?? 0,
+        totalRows: viaApi.totalRows ?? 0,
+        byDay: viaApi.byDay ?? [],
+        byTrainer: viaApi.byTrainer ?? [],
+        totalClients: viaApi.totalClients ?? 0,
+        activeWithMembership: viaApi.activeWithMembership ?? 0,
+        notRenewedInPeriod: viaApi.notRenewedInPeriod ?? 0,
+        source: 'admin_api',
+        fallbackReason: null,
+        error: null,
+      }
+    }
+  } catch (apiErr) {
+    const msg = String(apiErr?.message ?? '')
+    if (!/failed to fetch|connection reset|timeout/i.test(msg)) {
+      console.warn('[admin] club-training-stats api', apiErr)
     }
   }
 

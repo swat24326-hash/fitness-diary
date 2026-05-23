@@ -17,6 +17,12 @@ function json(status: number, body: Record<string, unknown>) {
   })
 }
 
+const TRAINER_ROLES = ['trainer', 'тренер']
+
+function isTrainerRole(role: string | null | undefined) {
+  return role != null && TRAINER_ROLES.includes(role)
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -91,11 +97,15 @@ Deno.serve(async (req) => {
   if (vErr) {
     return json(400, { error: vErr.message })
   }
-  if (!victim || victim.role !== 'trainer') {
+  if (!victim || !isTrainerRole(victim.role)) {
     return json(404, { error: 'Тренер не найден' })
   }
 
-  const { error: delUserRow } = await supabaseAdmin.from('users').delete().eq('id', trainerId).eq('role', 'trainer')
+  const { error: delUserRow } = await supabaseAdmin
+    .from('users')
+    .delete()
+    .eq('id', trainerId)
+    .in('role', TRAINER_ROLES)
   if (delUserRow) {
     return json(400, { error: delUserRow.message })
   }

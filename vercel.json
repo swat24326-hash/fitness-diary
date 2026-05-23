@@ -1,9 +1,5 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
-  "build": {
-    "env": {
-      "VITE_SUPABASE_URL": "https://hrylzinyasucjecltxpc.supabase.co",
-      "VITE_SUPABASE_ANON_KEY": "sb_publishable_Oop_12cmvuUYFCwexkERfQ_hNg3laFB"
-    }
-  }
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }]
 }

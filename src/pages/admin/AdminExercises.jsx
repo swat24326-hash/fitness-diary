@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pencil, RefreshCw, X } from 'lucide-react'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { listExercises, pullExercisesFromSupabase } from '../../lib/dataAccess'
-import { deleteLocalWithSync, saveLocalWithSync } from '../../lib/syncService'
+import { insertExercise, updateExercise, removeExercise } from '../../lib/exerciseService'
 
 export function AdminExercises() {
   const [exercises, setExercises] = useState([])
@@ -17,23 +17,29 @@ export function AdminExercises() {
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
 
-  const reload = useCallback(async () => {
+  const loadLocal = useCallback(async () => {
+    setExercises(await listExercises())
+  }, [])
+
+  /** Кнопка «Обновить» — pull с сервера (force). */
+  const refreshFromCloud = useCallback(async () => {
     setMsg('')
     setBusy(true)
     try {
       if (isSupabaseConfigured() && typeof navigator !== 'undefined' && navigator.onLine) {
-        const r = await pullExercisesFromSupabase()
+        const r = await pullExercisesFromSupabase({ force: true })
         if (!r.ok && r.error) setMsg(r.error)
+        else if (r.skipped) setMsg('Кэш уже совпадает с облаком.')
       }
-      setExercises(await listExercises())
+      await loadLocal()
     } finally {
       setBusy(false)
     }
-  }, [])
+  }, [loadLocal])
 
   useEffect(() => {
-    reload()
-  }, [reload])
+    void loadLocal()
+  }, [loadLocal])
 
   const groups = useMemo(() => {
     const s = new Set()
@@ -67,9 +73,14 @@ export function AdminExercises() {
       created_at: now,
     }
     try {
-      await saveLocalWithSync('exercises', row, { table_name: 'exercises', operation: 'insert', remote_id: null })
+      const cloud = await insertExercise(row)
+      if (!cloud.cloudOk) {
+        setMsg(`Сохранено локально, в облако не ушло: ${cloud.cloudError}. Нажмите Sync в шапке.`)
+      } else if (cloud.merged) {
+        setMsg('В облаке уже было упражнение с таким названием — подставлена запись с сервера.')
+      }
       setExForm({ name: '', muscle_group: '', primary_muscles: '', comment: '' })
-      await reload()
+      await loadLocal()
     } catch (err) {
       setMsg(err?.message ?? 'Ошибка сохранения')
     }
@@ -88,10 +99,13 @@ export function AdminExercises() {
       created_at: exercises.find((x) => x.id === editId)?.created_at ?? new Date().toISOString(),
     }
     try {
-      await saveLocalWithSync('exercises', row, { table_name: 'exercises', operation: 'update', remote_id: editId })
+      const cloud = await updateExercise(row)
+      if (!cloud.cloudOk) {
+        setMsg(`Изменения локально, в облако не ушли: ${cloud.cloudError}. Нажмите Sync.`)
+      }
       setEditId(null)
       setExForm({ name: '', muscle_group: '', primary_muscles: '', comment: '' })
-      await reload()
+      await loadLocal()
     } catch (err) {
       setMsg(err?.message ?? 'Ошибка сохранения')
     }
@@ -112,9 +126,13 @@ export function AdminExercises() {
     setDeleteBusy(true)
     setMsg('')
     try {
-      await deleteLocalWithSync('exercises', confirmDelete.id, 'exercises')
+      const cloud = await removeExercise(confirmDelete.id)
+      if (!cloud.cloudOk) {
+        setMsg(cloud.cloudError ?? 'Не удалось удалить в облаке')
+        return
+      }
       setConfirmDelete(null)
-      await reload()
+      await loadLocal()
     } catch (err) {
       setMsg(err?.message ?? 'Ошибка удаления')
     } finally {
@@ -130,24 +148,28 @@ export function AdminExercises() {
       return
     }
     const now = new Date().toISOString()
+    let failed = 0
     try {
       for (const line of lines) {
         const parts = line.split(',').map((p) => p.trim())
         const [name, muscle_group, primary_muscles, comment] = [parts[0], parts[1], parts[2], parts[3]]
         if (!name || !muscle_group) continue
-        const id = crypto.randomUUID()
         const row = {
-          id,
+          id: crypto.randomUUID(),
           name,
           muscle_group,
           primary_muscles: primary_muscles || null,
           comment: comment || null,
           created_at: now,
         }
-        await saveLocalWithSync('exercises', row, { table_name: 'exercises', operation: 'insert', remote_id: null })
+        const cloud = await insertExercise(row)
+        if (!cloud.cloudOk) failed += 1
       }
       setBulkText('')
-      await reload()
+      if (failed > 0) {
+        setMsg(`${failed} строк не ушли в облако — проверьте сеть и Sync, или дубликаты названий.`)
+      }
+      await loadLocal()
     } catch (err) {
       setMsg(err?.message ?? 'Ошибка быстрой загрузки')
     }
@@ -165,7 +187,7 @@ export function AdminExercises() {
               type="button"
               className="btn btn-primary btn-icon-square btn-touch"
               disabled={busy}
-              onClick={() => void reload()}
+              onClick={() => void refreshFromCloud()}
               aria-label="Обновить список"
               title="Обновить"
             >
@@ -175,7 +197,7 @@ export function AdminExercises() {
         </div>
         {msg && <p className="muted">{msg}</p>}
         <p className="muted" style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.45 }}>
-          «Обновить» при онлайне подтягивает справочник из Supabase в кэш; изменения сохраняются локально и отправляются через очередь синхронизации.
+          Список из кэша (быстро). «Обновить» — подтянуть с Supabase. Новые записи сразу уходят в облако; на другом устройстве — Sync в шапке.
         </p>
 
         <h3 className="section-title td-period__title" style={{ margin: '16px 0 8px' }}>

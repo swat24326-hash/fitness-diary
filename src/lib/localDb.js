@@ -103,6 +103,73 @@ export async function putStore(storeName, record) {
   await db.put(storeName, record)
 }
 
+const PULL_MERGE_GUARD_STORES = new Set([
+  'clients',
+  'memberships',
+  'trainings',
+  'health_cards',
+  'body_measurements',
+])
+
+function syncQueueItemKey(tableName, item) {
+  if (tableName === 'health_cards') {
+    return String(item.data?.client_id ?? item.remote_id ?? item.data?.id ?? '').trim()
+  }
+  return String(item.remote_id ?? item.data?.id ?? '').trim()
+}
+
+function recordKeyForStore(storeName, record) {
+  if (storeName === 'health_cards') {
+    return String(record?.client_id ?? record?.id ?? '').trim()
+  }
+  return String(record?.id ?? '').trim()
+}
+
+/** id записей, ожидающих отправку в sync_queue — pull не должен их перезаписывать. */
+export async function buildPendingSyncKeysByTable() {
+  const queue = await listSyncQueue()
+  const keys = {
+    clients: new Set(),
+    memberships: new Set(),
+    trainings: new Set(),
+    health_cards: new Set(),
+    body_measurements: new Set(),
+  }
+  for (const item of queue) {
+    const op = item.operation
+    if (op !== 'insert' && op !== 'update') continue
+    const t = item.table_name
+    if (!keys[t]) continue
+    const k = syncQueueItemKey(t, item)
+    if (k) keys[t].add(k)
+  }
+  return keys
+}
+
+/**
+ * putStore, но не затирает локальные правки, ещё не ушедшие в облако.
+ * @returns {Promise<boolean>} false если запись пропущена из‑за очереди
+ */
+export async function putStoreUnlessPendingSync(storeName, record, pending) {
+  if (!PULL_MERGE_GUARD_STORES.has(storeName)) {
+    await putStore(storeName, record)
+    return true
+  }
+  const key = recordKeyForStore(storeName, record)
+  if (!key) {
+    await putStore(storeName, record)
+    return true
+  }
+  if (pending?.[storeName]?.has(key)) {
+    const db = await getDb()
+    const existing =
+      storeName === 'health_cards' ? await db.get('health_cards', key) : await db.get(storeName, key)
+    if (existing) return false
+  }
+  await putStore(storeName, record)
+  return true
+}
+
 export async function getAllStore(storeName) {
   const db = await getDb()
   return db.getAll(storeName)
@@ -111,4 +178,26 @@ export async function getAllStore(storeName) {
 export async function deleteFromStore(storeName, key) {
   const db = await getDb()
   await db.delete(storeName, key)
+}
+
+/** Убрать клиента из IndexedDB без очереди (после pull: на сервере уже удалён). */
+export async function removeClientFromLocalCacheOnly(clientId) {
+  const cid = String(clientId ?? '').trim()
+  if (!cid) return
+  const db = await getDb()
+  for (const t of await db.getAll('trainings')) {
+    if (String(t.client_id) === cid) await db.delete('trainings', t.id)
+  }
+  for (const m of await db.getAll('memberships')) {
+    if (String(m.client_id) === cid) await db.delete('memberships', m.id)
+  }
+  for (const b of await db.getAll('body_measurements')) {
+    if (String(b.client_id) === cid) await db.delete('body_measurements', b.id)
+  }
+  try {
+    await db.delete('health_cards', cid)
+  } catch {
+    /* ignore */
+  }
+  await db.delete('clients', cid)
 }

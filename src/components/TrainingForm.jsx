@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Info, List, X } from 'lucide-react'
-import { listExercises } from '../lib/dataAccess'
+import { listExercises, LOCAL_DATA_CHANGED } from '../lib/dataAccess'
 import { stripDirectionControls } from '../lib/textInput'
 
 function newEmptyExerciseRow() {
@@ -120,16 +120,22 @@ export function TrainingForm({ value, onChange, trainingType, onTrainingTypeChan
 
   useEffect(() => {
     let cancelled = false
-    void (async () => {
+    const loadCatalog = async () => {
       try {
         const rows = await listExercises()
         if (!cancelled) setCatalogList(Array.isArray(rows) ? rows : [])
       } catch {
         if (!cancelled) setCatalogList([])
       }
-    })()
+    }
+    void loadCatalog()
+    const onStorage = (e) => {
+      if (e?.detail?.reason === 'exercises') void loadCatalog()
+    }
+    window.addEventListener(LOCAL_DATA_CHANGED, onStorage)
     return () => {
       cancelled = true
+      window.removeEventListener(LOCAL_DATA_CHANGED, onStorage)
     }
   }, [])
 

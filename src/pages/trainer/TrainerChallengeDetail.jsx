@@ -3,7 +3,6 @@ import { Link, Navigate, useParams } from 'react-router-dom'
 import { ChevronLeft, Trophy } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import {
-  LOCAL_DATA_CHANGED,
   getChallengeByIdLocal,
   loadContextForChallengeLeaderboard,
   buildChallengeLeaderboard,
@@ -12,6 +11,7 @@ import {
 } from '../../lib/dataAccess'
 import { getAllStore } from '../../lib/localDb'
 import { formatDateRu } from '../../lib/dateRu'
+import { useDebouncedStorageReload } from '../../lib/useDebouncedStorageReload'
 
 function medalForRank(rank) {
   if (rank === 1) return '🥇'
@@ -31,44 +31,51 @@ export function TrainerChallengeDetail() {
   const [busy, setBusy] = useState(true)
   const [myClientIds, setMyClientIds] = useState(() => new Set())
 
-  const load = useCallback(async () => {
-    if (!challengeId) return
-    setBusy(true)
-    try {
-      const ch = await getChallengeByIdLocal(challengeId)
-      setChallenge(ch ?? null)
-      if (!ch?.club_id) {
-        setRows([])
-        setExerciseName('—')
-        return
+  const load = useCallback(
+    async ({ silent = false, pullRemote = true } = {}) => {
+      if (!challengeId) return
+      if (!silent) setBusy(true)
+      try {
+        const ch = await getChallengeByIdLocal(challengeId)
+        setChallenge(ch ?? null)
+        if (!ch?.club_id) {
+          setRows([])
+          setExerciseName('—')
+          return
+        }
+        const clients = await getAllStore('clients')
+        const mine = new Set(
+          (clients ?? [])
+            .filter((c) => String(c.trainer_id) === String(myTrainerId) && String(c.club_id) === String(ch.club_id))
+            .map((c) => c.id),
+        )
+        setMyClientIds(mine)
+
+        const lbCtx = await loadContextForChallengeLeaderboard(ch.club_id, {
+          challenge: ch,
+          pullRemote,
+          notifyPull: false,
+        })
+        const built = buildChallengeLeaderboard(ch, lbCtx)
+        setRows(built.rows ?? [])
+        setExerciseName(built.exerciseName ?? '—')
+      } catch {
+        if (!silent) {
+          setChallenge(null)
+          setRows([])
+        }
+      } finally {
+        if (!silent) setBusy(false)
       }
-      const clients = await getAllStore('clients')
-      const mine = new Set(
-        (clients ?? []).filter((c) => String(c.trainer_id) === String(myTrainerId) && String(c.club_id) === String(ch.club_id)).map((c) => c.id),
-      )
-      setMyClientIds(mine)
-
-      const lbCtx = await loadContextForChallengeLeaderboard(ch.club_id)
-      const built = buildChallengeLeaderboard(ch, lbCtx)
-      setRows(built.rows ?? [])
-      setExerciseName(built.exerciseName ?? '—')
-    } catch {
-      setChallenge(null)
-      setRows([])
-    } finally {
-      setBusy(false)
-    }
-  }, [challengeId, myTrainerId])
+    },
+    [challengeId, myTrainerId],
+  )
 
   useEffect(() => {
-    void load()
+    void load({ pullRemote: true })
   }, [load])
 
-  useEffect(() => {
-    const onData = () => void load()
-    window.addEventListener(LOCAL_DATA_CHANGED, onData)
-    return () => window.removeEventListener(LOCAL_DATA_CHANGED, onData)
-  }, [load])
+  useDebouncedStorageReload(() => load({ silent: true, pullRemote: false }))
 
   const maxVal = useMemo(() => {
     let m = 0
@@ -104,9 +111,9 @@ export function TrainerChallengeDetail() {
         </Link>
       </div>
 
-      {busy ? (
+      {busy && !challenge ? (
         <p className="muted">Загрузка…</p>
-      ) : (
+      ) : challenge ? (
         <>
           <header className="challenge-detail__hero">
             <div className="challenge-detail__hero-icon" aria-hidden>
@@ -201,7 +208,7 @@ export function TrainerChallengeDetail() {
             </table>
           </div>
         </>
-      )}
+      ) : null}
     </div>
   )
 }

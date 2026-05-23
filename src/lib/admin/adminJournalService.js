@@ -5,6 +5,7 @@
 
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { getDb } from '../localDb'
+import { fetchAdminJournalViaApi } from './adminApiClient'
 import { ADMIN_JOURNAL_MAX_PAGE_SIZE } from './adminConstants'
 
 const CHUNK = 120
@@ -104,6 +105,24 @@ export async function loadAdminJournalPage({ page = 0, pageSize = 50, filters = 
 
   if (!isSupabaseConfigured()) {
     return loadLocalJournalPage(page, pageSize, f)
+  }
+
+  try {
+    const viaApi = await fetchAdminJournalViaApi({ page, pageSize, filters: f })
+    if (viaApi) {
+      return {
+        trainings: viaApi.trainings,
+        clientsById: viaApi.clientsById,
+        totalCount: viaApi.totalCount,
+        source: 'admin_api',
+        fallbackReason: null,
+      }
+    }
+  } catch (apiErr) {
+    const msg = String(apiErr?.message ?? '')
+    if (!/failed to fetch|connection reset|timeout/i.test(msg)) {
+      console.warn('[admin] admin-journal api', apiErr)
+    }
   }
 
   try {

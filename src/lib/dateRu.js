@@ -1,3 +1,23 @@
+/** Сегодня по локальному календарю устройства (не UTC), формат YYYY-MM-DD */
+export function todayLocalIso() {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+/** @param {string} iso YYYY-MM-DD @param {number} days */
+export function addDaysToIso(iso, days) {
+  const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number)
+  const dt = new Date(y, (m || 1) - 1, d || 1)
+  dt.setDate(dt.getDate() + days)
+  const yy = dt.getFullYear()
+  const mm = String(dt.getMonth() + 1).padStart(2, '0')
+  const dd = String(dt.getDate()).padStart(2, '0')
+  return `${yy}-${mm}-${dd}`
+}
+
 export function formatDateRu(isoLike) {
   if (!isoLike) return '—'
   const s = String(isoLike)

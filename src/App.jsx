@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
-import { ensureDemoExercisesSeeded } from './lib/seedExercises'
+import { isSupabaseConfigured } from './lib/supabase'
+import { clearPoisonedSyncQueue } from './lib/syncService'
+import { initTrainerWorkspaceCacheInvalidation } from './lib/trainerWorkspaceCache'
 import { AppHeader } from './components/AppHeader'
 import { DraftTabsBar } from './components/DraftTabsBar'
 import { BreadcrumbsBar } from './components/BreadcrumbsBar'
@@ -20,8 +22,17 @@ import { TrainerChallengeDetail } from './pages/trainer/TrainerChallengeDetail'
 import { TrainingPage } from './pages/trainer/TrainingPage'
 
 function LoggedInLayout() {
-  const { user, loading } = useAuth()
-  if (loading) {
+  const { user, role, loading } = useAuth()
+
+  useEffect(() => {
+    if (!loading && user && isSupabaseConfigured()) {
+      void clearPoisonedSyncQueue()
+    }
+  }, [user, loading])
+
+  useEffect(() => initTrainerWorkspaceCacheInvalidation(), [])
+
+  if (loading || (user && role == null)) {
     return (
       <div className="app-loading-shell">
         <div className="app-loading" role="status" aria-live="polite">
@@ -57,13 +68,6 @@ function RoleOutlet({ roles }) {
 function HomeRedirect() {
   const { role } = useAuth()
   return <Navigate to={role === 'admin' ? '/admin' : '/trainer'} replace />
-}
-
-function SeedExercisesOnBoot() {
-  useEffect(() => {
-    void ensureDemoExercisesSeeded().catch(() => {})
-  }, [])
-  return null
 }
 
 function AdminDiariesRedirect() {
@@ -103,7 +107,6 @@ function AdminLegacyStatisticsRedirect() {
 export default function App() {
   return (
     <AuthProvider>
-      <SeedExercisesOnBoot />
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />

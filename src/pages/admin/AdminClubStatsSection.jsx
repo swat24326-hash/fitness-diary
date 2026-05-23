@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ClipboardList, Info, RefreshCw, Trophy, UserCheck, UserX, Users } from 'lucide-react'
 import { isSupabaseConfigured } from '../../lib/supabase'
-import { loadClubTrainingStats, listTrainerSummariesForAdmin, listClubsLocal, LOCAL_DATA_CHANGED } from '../../lib/dataAccess'
+import { loadClubTrainingStats, listTrainerSummariesForAdmin, listClubsLocal } from '../../lib/dataAccess'
+import { useDebouncedStorageReload, shouldReloadAdminStatsPage } from '../../lib/useDebouncedStorageReload'
 import { formatIsoRu, getDateRange } from '../../lib/period'
 import { formatDateRu } from '../../lib/dateRu'
 
@@ -50,8 +51,12 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange }) {
   }, [])
 
   useEffect(() => {
+    if (!clubId) {
+      setTrainerNameById({})
+      return
+    }
     void reloadNames()
-  }, [reloadNames])
+  }, [clubId, reloadNames])
 
   useEffect(() => {
     setStatsHelpOpen(false)
@@ -94,12 +99,12 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange }) {
     }
   }, [clubId])
 
-  const loadStats = useCallback(async () => {
+  const loadStats = useCallback(async ({ silent = false } = {}) => {
     if (!clubId || !range.start || !range.end || range.start > range.end) {
       setStats(null)
       return
     }
-    setBusy(true)
+    if (!silent) setBusy(true)
     try {
       const s = await loadClubTrainingStats({
         clubId,
@@ -110,7 +115,7 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange }) {
     } catch {
       setStats(null)
     } finally {
-      setBusy(false)
+      if (!silent) setBusy(false)
     }
   }, [clubId, range.start, range.end])
 
@@ -118,11 +123,7 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange }) {
     void loadStats()
   }, [loadStats])
 
-  useEffect(() => {
-    const fn = () => void loadStats()
-    window.addEventListener(LOCAL_DATA_CHANGED, fn)
-    return () => window.removeEventListener(LOCAL_DATA_CHANGED, fn)
-  }, [loadStats])
+  useDebouncedStorageReload(() => void loadStats({ silent: true }), { shouldRun: shouldReloadAdminStatsPage })
 
   const maxDayTotal = useMemo(() => {
     if (!stats?.byDay?.length) return 1

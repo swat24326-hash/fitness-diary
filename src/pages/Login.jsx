@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { Dumbbell, Lock, User } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { getSupabaseSetupMessage } from '../lib/supabase'
 
 export function Login() {
   const { user, role, signIn, loading } = useAuth()
@@ -12,6 +13,7 @@ export function Login() {
   const [error, setError] = useState('')
   const [deferredPrompt, setDeferredPrompt] = useState(null)
   const [showInstallButton, setShowInstallButton] = useState(false)
+  const setupMessage = getSupabaseSetupMessage()
 
   useEffect(() => {
     const onBip = (e) => {
@@ -33,7 +35,7 @@ export function Login() {
     setDeferredPrompt(null)
   }
 
-  if (!loading && user) {
+  if (!loading && user && role) {
     const dest = from && from !== '/login' ? from : role === 'admin' ? '/admin' : '/trainer'
     return <Navigate to={dest} replace />
   }
@@ -54,6 +56,11 @@ export function Login() {
           </span>
         </div>
         <h1 className="login-title">Вход</h1>
+        {setupMessage && (
+          <p className="login-setup-warn" role="alert">
+            {setupMessage}
+          </p>
+        )}
         <form onSubmit={onSubmit}>
           <div className="field">
             <label className="label" htmlFor="login" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

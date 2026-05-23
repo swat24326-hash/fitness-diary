@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Plus, Pencil } from 'lucide-react'
+import { hydrateAdminClientWorkspace } from '../../lib/admin/adminClientHydrate'
 import { getHealthCard, listMeasurements, listMemberships } from '../../lib/dataAccess'
+import { useDebouncedStorageReload } from '../../lib/useDebouncedStorageReload'
+import { isSupabaseConfigured } from '../../lib/supabase'
 import { stripDirectionControls } from '../../lib/textInput'
 import { saveLocalWithSync } from '../../lib/syncService'
 import { MembershipManager } from '../../components/MembershipManager'
 import { BODY_MEASURE_FIELDS, getMeasureValue } from '../../lib/bodyMeasures'
-import { formatDateRu } from '../../lib/dateRu'
-import { pickUsableMembershipForDate } from '../../lib/membershipRules'
+import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
+import { explainInactiveMembership, pickUsableMembershipForDate } from '../../lib/membershipRules'
 
 export function ClientOverview({ client, onReload, section = 'all' }) {
   const [memberships, setMemberships] = useState([])
@@ -26,7 +29,7 @@ export function ClientOverview({ client, onReload, section = 'all' }) {
   const [editingMeasureId, setEditingMeasureId] = useState(null)
   const [showMeasureHistory, setShowMeasureHistory] = useState(false)
   const [measureForm, setMeasureForm] = useState({
-    date: new Date().toISOString().slice(0, 10),
+    date: todayLocalIso(),
     neck: '',
     chest: '',
     arm_r: '',
@@ -40,7 +43,7 @@ export function ClientOverview({ client, onReload, section = 'all' }) {
     calf_l: '',
   })
 
-  const reload = useCallback(async () => {
+  const reloadLocal = useCallback(async () => {
     const m = await listMemberships(client.id)
     setMemberships(m)
     const hc = await getHealthCard(client.id)
@@ -58,11 +61,35 @@ export function ClientOverview({ client, onReload, section = 'all' }) {
   }, [client.id])
 
   useEffect(() => {
-    reload()
-  }, [reload])
+    void reloadLocal()
+  }, [reloadLocal])
 
-  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), [])
+  useDebouncedStorageReload(() => reloadLocal(), {
+    shouldRun: (d) => d?.reason !== 'exercises' && d?.reason !== 'challenge-trainings',
+  })
+
+  useEffect(() => {
+    if (section !== 'health' && section !== 'all') return
+    let cancelled = false
+    ;(async () => {
+      if (!isSupabaseConfigured() || !navigator.onLine) return
+      const existing = await listMeasurements(client.id)
+      const hc = await getHealthCard(client.id)
+      if (cancelled || existing.length > 0 || hc) return
+      const h = await hydrateAdminClientWorkspace(client.id, { allowBrowserFallback: false })
+      if (!cancelled && h.ok) await reloadLocal()
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [client.id, section, reloadLocal])
+
+  const todayIso = useMemo(() => todayLocalIso(), [])
   const active = useMemo(() => pickUsableMembershipForDate(memberships, todayIso), [memberships, todayIso])
+  const inactiveHint = useMemo(
+    () => (active ? null : explainInactiveMembership(memberships, todayIso)),
+    [active, memberships, todayIso],
+  )
 
   const progressPct = useMemo(() => {
     if (!active?.total_trainings) return 0
@@ -128,7 +155,7 @@ export function ClientOverview({ client, onReload, section = 'all' }) {
       return
     }
     setHealthEditing(false)
-    await reload()
+    await reloadLocal()
     onReload?.()
   }
 
@@ -166,7 +193,7 @@ export function ClientOverview({ client, onReload, section = 'all' }) {
     }
     setShowMeasure(false)
     setEditingMeasureId(null)
-    await reload()
+    await reloadLocal()
     onReload?.()
   }
 
@@ -179,7 +206,7 @@ export function ClientOverview({ client, onReload, section = 'all' }) {
   const openNewMeasurement = () => {
     setEditingMeasureId(null)
     setMeasureForm({
-      date: new Date().toISOString().slice(0, 10),
+      date: todayLocalIso(),
       neck: '',
       chest: '',
       arm_r: '',
@@ -198,10 +225,11 @@ export function ClientOverview({ client, onReload, section = 'all' }) {
   const openEditMeasurement = (m) => {
     setEditingMeasureId(m.id)
     const next = {
-      date: m.date ?? new Date().toISOString().slice(0, 10),
+      date: m.date ?? todayLocalIso(),
     }
     for (const f of BODY_MEASURE_FIELDS) {
-      next[f.id] = m[f.id] != null && m[f.id] !== '' ? String(m[f.id]) : ''
+      const v = getMeasureValue(m, f.id)
+      next[f.id] = v != null && v !== '' ? String(v) : ''
     }
     setMeasureForm((prevF) => ({ ...prevF, ...next }))
     setShowMeasure(true)
@@ -214,7 +242,7 @@ export function ClientOverview({ client, onReload, section = 'all' }) {
         <h2 className="section-title" style={{ fontSize: '1.05rem' }}>
           Абонемент
         </h2>
-        {!active && <p className="muted">Нет действующего абонемента (по датам и остатку тренировок).</p>}
+        {!active && <p className="muted">{inactiveHint}</p>}
         {active && (
           <>
             <p className="muted" style={{ marginTop: 0 }}>
@@ -245,7 +273,15 @@ export function ClientOverview({ client, onReload, section = 'all' }) {
             </p>
           </>
         )}
-        <MembershipManager clientId={client.id} clubId={client.club_id} recordTrainerId={client.trainer_id} onChanged={onReload} />
+        <MembershipManager
+          clientId={client.id}
+          clubId={client.club_id}
+          recordTrainerId={client.trainer_id}
+          onChanged={() => {
+            void reloadLocal()
+            void onReload?.()
+          }}
+        />
         </section>
       )}
 

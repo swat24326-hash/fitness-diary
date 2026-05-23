@@ -3,16 +3,16 @@ import { Link } from 'react-router-dom'
 import { User, Users, Trophy } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import {
-  LOCAL_DATA_CHANGED,
-  listChallengesForClub,
   loadContextForChallengeLeaderboard,
   buildChallengeLeaderboard,
-  isChallengeActiveByCalendar,
+  isChallengeVisibleForTrainerHome,
+  listChallengesForTrainer,
   formatChallengeValueRu,
   formatChallengeMetricRu,
 } from '../../lib/dataAccess'
 import { getAllStore } from '../../lib/localDb'
 import { formatDateRu } from '../../lib/dateRu'
+import { useDebouncedStorageReload, shouldReloadTrainerChallenges } from '../../lib/useDebouncedStorageReload'
 
 function daysLeftRu(endDate) {
   const end = String(endDate ?? '').slice(0, 10)
@@ -34,23 +34,39 @@ export function TrainerHome() {
   const trainerId = user?.id ?? ''
 
   const [challengeBlock, setChallengeBlock] = useState({ loading: true, items: [] })
+  const [challengeHint, setChallengeHint] = useState('')
 
   const loadChallenges = useCallback(async () => {
-    if (!clubId) {
-      setChallengeBlock({ loading: false, items: [] })
-      return
-    }
     setChallengeBlock((s) => ({ ...s, loading: true }))
+    setChallengeHint('')
     try {
-      const { challenges } = await listChallengesForClub(clubId, { pullRemote: true })
-      const active = (challenges ?? []).filter((c) => isChallengeActiveByCalendar(c))
+      const { challenges, pull, clubIds } = await listChallengesForTrainer(trainerId, clubId, { pullRemote: false })
+      if (!clubIds.length) {
+        setChallengeBlock({ loading: false, items: [] })
+        setChallengeHint('Не определён клуб: в админке привяжите тренера к клубу или нажмите Sync после загрузки клиентов.')
+        return
+      }
+      if (pull && !pull.ok && pull.error) {
+        setChallengeHint(`Не удалось обновить с сервера: ${pull.error}`)
+      } else if ((challenges ?? []).length === 0) {
+        setChallengeHint(
+          'В облаке пока нет челленджей для вашего клуба. Админ: после создания челленджа нажмите Sync; затем Sync у тренера.',
+        )
+      }
+      const active = (challenges ?? []).filter((c) => isChallengeVisibleForTrainerHome(c))
+      if ((challenges ?? []).length > 0 && active.length === 0) {
+        setChallengeHint('Челленджи есть, но период уже завершён или статус не «активен».')
+      }
       const clients = await getAllStore('clients')
-      const myClientIds = new Set(
-        (clients ?? []).filter((c) => String(c.trainer_id) === String(trainerId) && String(c.club_id) === String(clubId)).map((c) => c.id),
-      )
-      const lbCtx = await loadContextForChallengeLeaderboard(clubId)
       const items = []
       for (const ch of active) {
+        const chClub = String(ch.club_id ?? '')
+        const myClientIds = new Set(
+          (clients ?? [])
+            .filter((c) => String(c.trainer_id) === String(trainerId) && String(c.club_id) === chClub)
+            .map((c) => c.id),
+        )
+        const lbCtx = await loadContextForChallengeLeaderboard(chClub, { challenge: ch, pullRemote: false, notifyPull: false })
         const { rows } = buildChallengeLeaderboard(ch, lbCtx)
         const mine = rows
           .filter((r) => myClientIds.has(r.client_id))
@@ -61,6 +77,7 @@ export function TrainerHome() {
       setChallengeBlock({ loading: false, items })
     } catch {
       setChallengeBlock({ loading: false, items: [] })
+      setChallengeHint('Ошибка загрузки челленджей. Проверьте интернет и нажмите Sync.')
     }
   }, [clubId, trainerId])
 
@@ -68,11 +85,7 @@ export function TrainerHome() {
     void loadChallenges()
   }, [loadChallenges])
 
-  useEffect(() => {
-    const fn = () => void loadChallenges()
-    window.addEventListener(LOCAL_DATA_CHANGED, fn)
-    return () => window.removeEventListener(LOCAL_DATA_CHANGED, fn)
-  }, [loadChallenges])
+  useDebouncedStorageReload(() => loadChallenges({ silent: true }), { shouldRun: shouldReloadTrainerChallenges })
 
   const hasChallenges = challengeBlock.items.length > 0
 
@@ -99,8 +112,7 @@ export function TrainerHome() {
         </div>
       </section>
 
-      {clubId ? (
-        <section className="trainer-challenges" aria-labelledby="trainer-challenges-title">
+      <section className="trainer-challenges" aria-labelledby="trainer-challenges-title">
           <div className="trainer-challenges__head">
             <h2 id="trainer-challenges-title" className="trainer-challenges__title">
               <Trophy size={22} aria-hidden className="trainer-challenges__title-icon" />
@@ -110,7 +122,10 @@ export function TrainerHome() {
           {challengeBlock.loading ? (
             <p className="muted trainer-challenges__muted">Загрузка…</p>
           ) : !hasChallenges ? (
-            <p className="muted trainer-challenges__muted">Сейчас нет активных челленджей по календарю для вашего клуба.</p>
+            <p className="muted trainer-challenges__muted">
+              {challengeHint ||
+                'Нет активных челленджей для вашего клуба (статус «активен», период ещё не закончился).'}
+            </p>
           ) : (
             <ul className="trainer-challenges__list">
               {challengeCards.map(({ challenge: ch, mine, totalRanked }) => (
@@ -152,7 +167,6 @@ export function TrainerHome() {
             </ul>
           )}
         </section>
-      ) : null}
 
       <section className="trainer-home__tiles" aria-labelledby="trainer-home-sections">
         <h2 id="trainer-home-sections" className="trainer-home__tiles-heading">

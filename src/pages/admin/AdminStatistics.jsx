@@ -6,8 +6,8 @@ import {
   loadAdminJournalPage,
   loadAdminHealthCardsByClientIds,
   listTrainerSummariesForAdmin,
-  LOCAL_DATA_CHANGED,
 } from '../../lib/dataAccess'
+import { useDebouncedStorageReload, shouldReloadAdminStatsPage } from '../../lib/useDebouncedStorageReload'
 import {
   ADMIN_JOURNAL_DEFAULT_PAGE_SIZE,
   ADMIN_JOURNAL_PAGE_SIZE_OPTIONS,
@@ -112,7 +112,7 @@ export function AdminStatistics() {
   const [journalSource, setJournalSource] = useState('local')
   const [journalFallback, setJournalFallback] = useState(null)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async ({ silent = false } = {}) => {
     if (!club || !statsRange.start || !statsRange.end) {
       setRows([])
       setClients({})
@@ -124,7 +124,7 @@ export function AdminStatistics() {
       setJournalFallback(null)
       return
     }
-    setBusy(true)
+    if (!silent) setBusy(true)
     try {
       const j = await loadAdminJournalPage({
         page,
@@ -172,7 +172,7 @@ export function AdminStatistics() {
       setHealthByClientId({})
       setHealthCardsFallback(null)
     } finally {
-      setBusy(false)
+      if (!silent) setBusy(false)
     }
   }, [page, pageSize, club, statsRange.start, statsRange.end])
 
@@ -184,11 +184,7 @@ export function AdminStatistics() {
     setPage(0)
   }, [club])
 
-  useEffect(() => {
-    const fn = () => void load()
-    window.addEventListener(LOCAL_DATA_CHANGED, fn)
-    return () => window.removeEventListener(LOCAL_DATA_CHANGED, fn)
-  }, [load])
+  useDebouncedStorageReload(() => void load({ silent: true }), { shouldRun: shouldReloadAdminStatsPage })
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize) || 1)
   const rangeFrom = totalCount === 0 ? 0 : page * pageSize + 1

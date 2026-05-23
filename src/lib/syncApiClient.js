@@ -1,0 +1,174 @@
+import { supabase, isSupabaseConfigured } from './supabase'
+import { getAccessTokenForAdminApi } from './admin/adminApiClient'
+import { removeSyncItem } from './localDb'
+
+function apiOrigin() {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin
+  }
+  return ''
+}
+
+async function parseJson(res) {
+  const text = await res.text()
+  if (!text) return {}
+  try {
+    return JSON.parse(text)
+  } catch {
+    return {}
+  }
+}
+
+const PUSH_TABLES = new Set([
+  'clients',
+  'memberships',
+  'trainings',
+  'health_cards',
+  'body_measurements',
+  'challenges',
+  'exercises',
+])
+
+let pushTimer = null
+/** @type {Array<{ table_name: string, operation: string, data: object, remote_id: string | null, local_id: string }>} */
+const pushQueue = []
+
+/**
+ * Отправка одной записи на /api/push-record (обход ERR_CONNECTION_RESET в браузере).
+ * @returns {Promise<{ ok: boolean, error?: string }>}
+ */
+export async function pushRecordViaApi({ table_name, operation, data, remote_id, local_id }) {
+  if (!PUSH_TABLES.has(table_name) || !isSupabaseConfigured() || !navigator.onLine) {
+    return { ok: false, error: 'Нет сети или Supabase не настроен' }
+  }
+
+  let token
+  try {
+    token = await getAccessTokenForAdminApi()
+  } catch {
+    return { ok: false, error: 'Нет сессии — войдите снова' }
+  }
+  if (!token) return { ok: false, error: 'Нет токена авторизации' }
+
+  let res
+  try {
+    res = await fetch(`${apiOrigin()}/api/push-record`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'same-origin',
+      cache: 'no-store',
+      body: JSON.stringify({ table_name, operation, data, remote_id }),
+    })
+  } catch (e) {
+    return { ok: false, error: e?.message ? String(e.message) : 'Сеть недоступна' }
+  }
+
+  const body = await parseJson(res)
+  if (res.ok && body.ok !== false) {
+    if (local_id) {
+      try {
+        await removeSyncItem(local_id)
+      } catch {
+        /* ignore */
+      }
+    }
+    return {
+      ok: true,
+      duplicate: !!body.duplicate,
+      record: body.record && typeof body.record === 'object' ? body.record : undefined,
+    }
+  }
+  const err = body.error || body.message || `HTTP ${res.status}`
+  return { ok: false, error: String(err) }
+}
+
+/** Debounced push после saveLocalWithSync */
+export function schedulePushRecordViaApi(item) {
+  if (!PUSH_TABLES.has(item.table_name)) return
+  pushQueue.push(item)
+  clearTimeout(pushTimer)
+  pushTimer = setTimeout(() => {
+    void flushPushQueue()
+  }, 900)
+}
+
+async function flushPushQueue() {
+  const batch = pushQueue.splice(0, pushQueue.length)
+  for (const item of batch) {
+    await pushRecordViaApi(item)
+  }
+}
+
+/** Pull тренера: клиенты + абонементы + health_cards */
+export async function fetchTrainerPullViaApi() {
+  if (!isSupabaseConfigured()) return null
+
+  let token
+  try {
+    token = await getAccessTokenForAdminApi()
+  } catch {
+    return null
+  }
+  if (!token) return null
+
+  let res
+  try {
+    res = await fetch(`${apiOrigin()}/api/trainer-pull`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'same-origin',
+      cache: 'no-store',
+    })
+  } catch {
+    return null
+  }
+
+  const ct = res.headers.get('content-type') || ''
+  const data = await parseJson(res)
+  if (!res.ok) return null
+  if (ct.includes('text/html')) return null
+
+  return {
+    clients: Array.isArray(data.clients) ? data.clients : [],
+    memberships: Array.isArray(data.memberships) ? data.memberships : [],
+    health_cards: Array.isArray(data.health_cards) ? data.health_cards : [],
+    body_measurements: Array.isArray(data.body_measurements) ? data.body_measurements : [],
+    trainings: Array.isArray(data.trainings) ? data.trainings : [],
+  }
+}
+
+export async function fetchHealthCardsForClubViaApi(clubId) {
+  const cid = String(clubId ?? '').trim()
+  if (!cid) return null
+
+  let token
+  try {
+    token = await getAccessTokenForAdminApi()
+  } catch {
+    return null
+  }
+  if (!token) return null
+
+  let res
+  try {
+    res = await fetch(`${apiOrigin()}/api/admin-data?action=health-cards&club_id=${encodeURIComponent(cid)}`, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'same-origin',
+      cache: 'no-store',
+    })
+  } catch {
+    return null
+  }
+
+  const data = await parseJson(res)
+  if (!res.ok) return null
+  return {
+    health_cards: Array.isArray(data.health_cards) ? data.health_cards : [],
+    body_measurements: Array.isArray(data.body_measurements) ? data.body_measurements : [],
+    count: typeof data.count === 'number' ? data.count : 0,
+  }
+}

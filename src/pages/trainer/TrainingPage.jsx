@@ -5,7 +5,7 @@ import { TrainingForm, emptyTrainingData } from '../../components/TrainingForm'
 import { ContraindicationsToggle } from '../../components/ContraindicationsToggle'
 import { useAuth } from '../../context/AuthContext'
 import { getHealthCard, getLocalClient, listClubsLocal, listMemberships } from '../../lib/dataAccess'
-import { formatDateRu } from '../../lib/dateRu'
+import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 import { getDb } from '../../lib/localDb'
 import { pickUsableMembershipForDate } from '../../lib/membershipRules'
 import { saveLocalWithSync } from '../../lib/syncService'
@@ -38,7 +38,7 @@ function sanitizeWorkoutData(w, opts = {}) {
 async function activeMembershipSummary(clientId) {
   if (!clientId) return null
   const mems = await listMemberships(clientId)
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayLocalIso()
   const active = pickUsableMembershipForDate(mems, today)
   if (!active) return null
   const total = Number(active.total_trainings)
@@ -90,7 +90,7 @@ export function TrainingPage() {
   }, [search])
   const isNew = id === 'new'
   const dateInputRef = useRef(null)
-  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), [])
+  const todayIso = useMemo(() => todayLocalIso(), [])
 
   const [client, setClient] = useState(null)
   const [workoutState, setWorkoutState] = useState(emptyTrainingData)
