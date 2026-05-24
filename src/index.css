@@ -1609,6 +1609,11 @@ tr:last-child td {
   min-height: 42px;
 }
 
+.exercise-format-row {
+  margin: 8px 0 6px;
+  justify-content: flex-start;
+}
+
 .training-page-date-row {
   display: flex;
   flex-wrap: wrap;

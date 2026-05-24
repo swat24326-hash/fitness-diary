@@ -82,34 +82,30 @@ export async function pullAdminClientsFromCloud(clubId) {
   const cid = String(clubId ?? '').trim()
   if (!cid || !isSupabaseConfigured()) return { ok: false, reason: 'no_club' }
 
-  try {
-    const viaApi = await fetchClientsForClubViaAdminApi(cid)
-    if (viaApi) {
-      await mergeClientsIntoCache(viaApi.clients)
-      try {
-        const viaMem = await fetchMembershipsForClubViaAdminApi(cid)
-        if (viaMem?.memberships?.length) {
-          await mergeMembershipsIntoCache(viaMem.memberships)
-        }
-      } catch (memErr) {
-        console.warn('[admin] list-memberships', memErr)
+  const viaApi = await fetchClientsForClubViaAdminApi(cid)
+  if (viaApi) {
+    await mergeClientsIntoCache(viaApi.clients)
+    try {
+      const viaMem = await fetchMembershipsForClubViaAdminApi(cid)
+      if (viaMem?.memberships?.length) {
+        await mergeMembershipsIntoCache(viaMem.memberships)
       }
-      try {
-        const viaHc = await fetchHealthCardsForClubViaApi(cid)
-        if (viaHc?.health_cards?.length) {
-          await mergeHealthCardsIntoCache(viaHc.health_cards)
-        }
-        if (viaHc?.body_measurements?.length) {
-          await mergeBodyMeasurementsIntoCache(viaHc.body_measurements)
-        }
-      } catch (hcErr) {
-        console.warn('[admin] list-health-cards', hcErr)
-      }
-      notifyAdminClientsCacheUpdated()
-      return { ok: true, count: viaApi.count, source: 'admin_api' }
+    } catch (memErr) {
+      console.warn('[admin] list-memberships', memErr)
     }
-  } catch (e) {
-    throw e
+    try {
+      const viaHc = await fetchHealthCardsForClubViaApi(cid)
+      if (viaHc?.health_cards?.length) {
+        await mergeHealthCardsIntoCache(viaHc.health_cards)
+      }
+      if (viaHc?.body_measurements?.length) {
+        await mergeBodyMeasurementsIntoCache(viaHc.body_measurements)
+      }
+    } catch (hcErr) {
+      console.warn('[admin] list-health-cards', hcErr)
+    }
+    notifyAdminClientsCacheUpdated()
+    return { ok: true, count: viaApi.count, source: 'admin_api' }
   }
 
   const pulled = await pullClientsForClubIntoCache(cid)

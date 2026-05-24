@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import { loadTrainerWorkspaceSnapshot } from '../../lib/trainerWorkspaceCache'
 import { useDebouncedStorageReload, shouldReloadTrainerClientList } from '../../lib/useDebouncedStorageReload'
 import { formatIsoRu, getDateRange, isDateInRange } from '../../lib/period'
-import { saveLocalWithSync } from '../../lib/syncService'
+import { flushSyncQueue, saveLocalWithSync } from '../../lib/syncService'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 import { pickUsableMembershipForDate } from '../../lib/membershipRules'
 

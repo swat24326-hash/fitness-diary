@@ -19,33 +19,29 @@ export async function listTrainersWithClubForAdmin() {
     return { trainers: [], clubColumn: false, listSource: 'none' }
   }
 
-  try {
-    const viaApi = await fetchTrainersViaAdminApi()
-    if (viaApi) {
-      if (viaApi.trainers.length === 0 && typeof sessionStorage !== 'undefined') {
-        try {
-          const raw = sessionStorage.getItem('fit-admin-trainers-cache')
-          if (raw) {
-            const cached = JSON.parse(raw)
-            if (Array.isArray(cached) && cached.length > 0) {
-              return {
-                trainers: cached,
-                clubColumn: true,
-                listSource: 'admin_api',
-                fromCache: true,
-              }
+  const viaApi = await fetchTrainersViaAdminApi()
+  if (viaApi) {
+    if (viaApi.trainers.length === 0 && typeof sessionStorage !== 'undefined') {
+      try {
+        const raw = sessionStorage.getItem('fit-admin-trainers-cache')
+        if (raw) {
+          const cached = JSON.parse(raw)
+          if (Array.isArray(cached) && cached.length > 0) {
+            return {
+              trainers: cached,
+              clubColumn: true,
+              listSource: 'admin_api',
+              fromCache: true,
             }
           }
-        } catch {
-          /* ignore */
         }
+      } catch {
+        /* ignore */
       }
-      return { ...viaApi, listSource: 'admin_api' }
     }
-    /* null = нет GET /api/list-trainers (старый деплой или только vite dev без Vercel). */
-  } catch (e) {
-    throw e
+    return { ...viaApi, listSource: 'admin_api' }
   }
+  /* null = нет GET /api/list-trainers (старый деплой или только vite dev без Vercel). */
 
   const tryFull = await withSupabaseRetry(() =>
     supabase.from('users').select(TRAINER_FIELDS).in('role', USERS_TRAINER_ROLES).order('name', { ascending: true }),
