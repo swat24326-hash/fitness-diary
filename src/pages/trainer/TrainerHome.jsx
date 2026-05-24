@@ -115,7 +115,7 @@ export function TrainerHome() {
       <section className="trainer-challenges" aria-labelledby="trainer-challenges-title">
           <div className="trainer-challenges__head">
             <h2 id="trainer-challenges-title" className="trainer-challenges__title">
-              <Trophy size={22} aria-hidden className="trainer-challenges__title-icon" />
+              <Trophy size={18} aria-hidden className="trainer-challenges__title-icon" />
               Активные челленджи
             </h2>
           </div>
@@ -175,14 +175,14 @@ export function TrainerHome() {
         <div className="tile-grid trainer-home__tile-grid">
           <Link to="/trainer/clients" className="feature-tile u-no-decoration">
             <div className="feature-tile__icon">
-              <Users size={44} aria-hidden />
+              <Users size={36} aria-hidden />
             </div>
             <p className="feature-tile__title">Клиенты</p>
           </Link>
 
           <Link to="/trainer/profile" className="feature-tile u-no-decoration">
             <div className="feature-tile__icon">
-              <User size={44} aria-hidden />
+              <User size={36} aria-hidden />
             </div>
             <p className="feature-tile__title">Профиль</p>
           </Link>

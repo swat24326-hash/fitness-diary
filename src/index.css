@@ -2297,16 +2297,117 @@ tr:last-child td {
   margin-top: 0;
 }
 
-@media (max-width: 720px) {
+/* Узкий планшет / портрет: пропорционально компактнее, hero в 2 колонки (не stack — экономит высоту) */
+@media (max-width: 960px) {
+  .app-main:has(.trainer-home) {
+    padding-top: clamp(8px, 1.6vh, 16px);
+    padding-bottom: clamp(8px, 1.6vh, 14px);
+  }
+
+  .trainer-home {
+    gap: clamp(10px, 2vh, 18px);
+  }
+
+  .trainer-home__hero {
+    grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.72fr);
+    gap: clamp(8px, 2vw, 14px);
+    padding: clamp(12px, 2.2vh, 22px) clamp(14px, 3vw, 20px);
+  }
+
+  .trainer-home__hero-text {
+    gap: clamp(6px, 1.2vh, 12px);
+  }
+
+  .trainer-home__title-eyebrow {
+    font-size: clamp(0.62rem, 1.35vw, 0.82rem);
+    letter-spacing: 0.3em;
+  }
+
+  .trainer-home__title-display {
+    font-size: clamp(1.55rem, 5vw, 2.4rem);
+  }
+
+  .trainer-home__lead {
+    font-size: clamp(0.76rem, 1.65vw, 0.92rem);
+    line-height: 1.4;
+  }
+
+  .trainer-home__hero-visual {
+    min-height: 0;
+    align-self: center;
+  }
+
+  .trainer-home__hero-dumbbell-fa {
+    font-size: clamp(40px, 11vw, 86px);
+  }
+
+  .trainer-home__hero-glow {
+    filter: blur(18px);
+  }
+
+  .trainer-home__tiles-heading {
+    margin-bottom: clamp(6px, 1vh, 10px);
+    font-size: 0.62rem;
+  }
+
+  .trainer-home .tile-grid {
+    gap: clamp(8px, 2vw, 14px);
+  }
+
+  .trainer-home .feature-tile {
+    min-height: clamp(92px, 15vh, 132px);
+    padding: clamp(10px, 2vh, 18px) clamp(10px, 3vw, 16px);
+    gap: clamp(6px, 1.2vh, 12px);
+  }
+
+  .trainer-home .feature-tile__icon {
+    width: clamp(48px, 12vw, 68px);
+    height: clamp(48px, 12vw, 68px);
+    border-radius: 14px;
+  }
+
+  .trainer-home .feature-tile__icon svg {
+    width: clamp(24px, 6vw, 34px);
+    height: clamp(24px, 6vw, 34px);
+  }
+
+  .trainer-home .feature-tile__title {
+    font-size: clamp(0.88rem, 2.6vw, 1.05rem);
+  }
+}
+
+@media (max-width: 960px) and (max-height: 780px) {
+  .trainer-home {
+    gap: clamp(6px, 1.2vh, 12px);
+  }
+
+  .trainer-home__hero {
+    padding: clamp(10px, 1.6vh, 16px) clamp(12px, 2.5vw, 16px);
+  }
+
+  .trainer-home__title-display {
+    font-size: clamp(1.28rem, 4.2vw, 1.75rem);
+  }
+
+  .trainer-home__hero-dumbbell-fa {
+    font-size: clamp(34px, 9vw, 58px);
+  }
+
+  .trainer-home .feature-tile {
+    min-height: clamp(80px, 13vh, 108px);
+  }
+}
+
+@media (max-width: 480px) {
   .trainer-home__hero {
     grid-template-columns: 1fr;
-    padding: clamp(22px, 5vw, 36px) clamp(18px, 4vw, 24px);
+    padding: clamp(16px, 4vw, 24px) clamp(14px, 3.5vw, 20px);
     text-align: center;
   }
 
   .trainer-home__hero-visual {
     order: -1;
-    min-height: min(58vw, 220px);
+    min-height: min(36vw, 120px);
   }
 
   .trainer-home__hero-text {
@@ -2315,10 +2416,6 @@ tr:last-child td {
 
   .trainer-home__lead {
     max-width: 40ch;
-  }
-
-  .trainer-home__hero-dumbbell-fa {
-    font-size: clamp(56px, 22vw, 160px);
   }
 }
 
@@ -4332,6 +4429,79 @@ tr:last-child td {
 
 .trainer-challenge-card__client-name {
   font-weight: 600;
+}
+
+@media (max-width: 960px) {
+  .trainer-challenges {
+    margin-bottom: clamp(6px, 1.2vh, 12px);
+    padding: 0 clamp(6px, 1.5vw, 12px);
+  }
+
+  .trainer-challenges__head {
+    margin-bottom: clamp(6px, 1vh, 10px);
+  }
+
+  .trainer-challenges__title {
+    font-size: 0.66rem;
+    gap: 6px;
+    letter-spacing: 0.18em;
+  }
+
+  .trainer-challenges__title-icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .trainer-challenges__list {
+    gap: clamp(8px, 1.4vh, 10px);
+  }
+
+  .trainer-challenge-card {
+    padding: clamp(10px, 1.6vh, 14px) clamp(12px, 2.5vw, 14px);
+    border-radius: 12px;
+  }
+
+  .trainer-challenge-card__name {
+    font-size: 0.9rem;
+  }
+
+  .trainer-challenge-card__desc {
+    margin-top: 4px;
+    font-size: 0.76rem;
+    -webkit-line-clamp: 2;
+  }
+
+  .trainer-challenge-card__meta {
+    margin-top: 4px;
+    font-size: 0.74rem;
+  }
+
+  .trainer-challenge-card__clients {
+    margin-top: clamp(6px, 1vh, 8px);
+    gap: 4px;
+  }
+
+  .trainer-challenge-card__clients li {
+    padding: 5px 8px;
+    font-size: 0.78rem;
+    gap: 4px;
+  }
+
+  .trainer-challenge-card__top .btn-sm {
+    padding: 5px 10px;
+    font-size: 0.76rem;
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 960px) and (max-height: 780px) {
+  .trainer-challenge-card__desc {
+    display: none;
+  }
+
+  .trainer-challenge-card__clients li + li {
+    display: none;
+  }
 }
 
 .challenge-modal .form-error,
