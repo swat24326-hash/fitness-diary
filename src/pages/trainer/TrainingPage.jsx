@@ -11,26 +11,21 @@ import { pickUsableMembershipForDate } from '../../lib/membershipRules'
 import { saveLocalWithSync } from '../../lib/syncService'
 import { stripDirectionControls } from '../../lib/textInput'
 import { getTrainingCompletionIssues } from '../../lib/trainingCompletionValidation'
+import {
+  TRAINING_EXERCISE_FORMATS,
+  TRAINING_SESSION_TYPES,
+  deriveTrainingTypeFromExercises,
+  normalizeExerciseFormat,
+  normalizeExercisesForStorage,
+} from '../../lib/trainingExerciseFormat'
 
-const TRAINING_TYPES = ['Силовая', 'Функциональная', 'Кардио']
+const TRAINING_TYPES = TRAINING_SESSION_TYPES
 
 function sanitizeWorkoutData(w, opts = {}) {
   if (!w || typeof w !== 'object') return {}
   const { pre_hr: _dropHr, meal_note: _mn, survey_notes: _sn, readiness: _rd, ...rest } = w
-  const includeSetHr = opts.includeSetHr === true
-  const exercises = Array.isArray(w.exercises)
-    ? w.exercises.map((e) => ({
-        ...e,
-        sets: (e.sets ?? []).map((s) => ({
-          reps: s.reps ?? '',
-          weight_kg: s.weight_kg ?? '',
-          tut_sec: s.tut_sec ?? '',
-          load: s.load ?? '',
-          rpe: s.rpe ?? '',
-          ...(includeSetHr ? { hr_after: s.hr_after ?? '' } : {}),
-        })),
-      }))
-    : []
+  const sessionFallback = normalizeExerciseFormat(opts.sessionFallback, 'Силовая')
+  const exercises = normalizeExercisesForStorage(w.exercises, sessionFallback)
   return { ...rest, exercises }
 }
 
@@ -66,12 +61,13 @@ function calendarDaysUntil(refIso, endIso) {
 
 /** Снимок содержимого формы для автосэйва (без id — иначе смена tid после первого save ломает debounce). */
 function trainingContentFingerprint({ clientId, trainingType, trainingDate, status, workoutState }) {
+  const derivedType = deriveTrainingTypeFromExercises(workoutState?.exercises, trainingType)
   return JSON.stringify({
     cid: clientId,
-    type: trainingType,
+    type: derivedType,
     date: trainingDate,
     draft: status !== 'completed',
-    data: sanitizeWorkoutData(workoutState, { includeSetHr: trainingType === 'Функциональная' || trainingType === 'Кардио' }),
+    data: sanitizeWorkoutData(workoutState, { sessionFallback: trainingType }),
   })
 }
 
@@ -164,9 +160,10 @@ export function TrainingPage() {
     setMeta({ status: t.status, trainingId: t.id })
     const c = await getLocalClient(t.client_id)
     setClient(c)
-    const w = typeof t.data === 'object' && t.data ? sanitizeWorkoutData(t.data, { includeSetHr: true }) : {}
+    const sessionType = t.type && TRAINING_TYPES.includes(t.type) ? t.type : 'Силовая'
+    const w = typeof t.data === 'object' && t.data ? sanitizeWorkoutData(t.data, { sessionFallback: sessionType }) : {}
     setWorkoutState({ ...emptyTrainingData(), ...w })
-    setTrainingType(t.type && TRAINING_TYPES.includes(t.type) ? t.type : 'Силовая')
+    setTrainingType(sessionType)
     setTrainingDate(t.date ?? todayIso)
     const hc = await getHealthCard(t.client_id)
     setContra((hc?.contraindications ?? '').trim())
@@ -263,7 +260,7 @@ export function TrainingPage() {
     const cm = parseInt(String(workoutState.cooldown_duration_min ?? ''), 10) || 0
 
     const dataPayload = {
-      ...sanitizeWorkoutData(workoutState, { includeSetHr: trainingType === 'Функциональная' || trainingType === 'Кардио' }),
+      ...sanitizeWorkoutData(workoutState, { sessionFallback: trainingType }),
       duration_min: wm + cm > 0 ? wm + cm : workoutState.duration_min ?? '',
     }
 
@@ -306,7 +303,7 @@ export function TrainingPage() {
       trainer_id: trainerIdForRow,
       club_id,
       date: nextStatus === 'completed' ? effectiveDate : trainingDate,
-      type: trainingType,
+      type: deriveTrainingTypeFromExercises(dataPayload.exercises, trainingType),
       status: nextStatus,
       data: dataPayload,
       created_at: prev?.created_at ?? now,

@@ -14,6 +14,7 @@ import {
 } from '../../lib/admin/adminConstants'
 import { formatDateRu } from '../../lib/dateRu'
 import { formatTrainingStatusRu } from '../../lib/trainingStatusRu'
+import { TrainingExercisesReadonly } from '../../components/TrainingExercisesReadonly'
 import { AdminClubStatsSection } from './AdminClubStatsSection'
 
 function bmiFromHealthRow(health) {
@@ -402,9 +403,25 @@ export function AdminStatistics() {
             <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 8px' }}>
               Данные тренировки
             </h3>
-            <pre style={{ fontSize: 12, overflow: 'auto', maxHeight: 320, color: 'var(--text-muted)', margin: 0 }}>
-              {JSON.stringify(previewTraining.data, null, 2)}
-            </pre>
+            <p className="muted" style={{ margin: '0 0 8px', fontSize: 13 }}>
+              Тип: <strong>{previewTraining.type ?? '—'}</strong>
+            </p>
+            {previewTraining.data?.exercises?.length ? (
+              <div style={{ marginBottom: 12 }}>
+                <TrainingExercisesReadonly
+                  exercises={previewTraining.data.exercises}
+                  sessionType={previewTraining.type}
+                />
+              </div>
+            ) : null}
+            <details style={{ marginTop: 8 }}>
+              <summary className="muted" style={{ cursor: 'pointer', fontSize: 13 }}>
+                JSON (отладка)
+              </summary>
+              <pre style={{ fontSize: 12, overflow: 'auto', maxHeight: 240, color: 'var(--text-muted)', margin: '8px 0 0' }}>
+                {JSON.stringify(previewTraining.data, null, 2)}
+              </pre>
+            </details>
           </div>
         </div>
       )}

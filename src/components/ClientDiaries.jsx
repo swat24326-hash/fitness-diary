@@ -26,6 +26,7 @@ import {
 import { getDb } from '../lib/localDb'
 import { deleteLocalWithSync, saveLocalWithSync } from '../lib/syncService'
 import { formatDateRu } from '../lib/dateRu'
+import { TrainingExercisesReadonly } from './TrainingExercisesReadonly'
 
 const RU_WEEKDAYS = ['ВС', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ']
 
@@ -246,20 +247,7 @@ function TrainingViewModal({ training, clientName, trainerName, memberships, all
         {data.exercises?.length ? (
           <div className="modal-section">
             <h3>Упражнения</h3>
-            {data.exercises.map((ex, i) => (
-              <div key={ex.id ?? i} className="u-mb-10">
-                <p className="modal-kv u-mb-4">
-                  <strong>{ex.name || 'Упражнение'}</strong>
-                </p>
-                {(ex.sets ?? []).map((st, j) => (
-                  <p key={j} className="modal-kv u-ml-8">
-                    Подход {j + 1}: {st.weight_kg ? `${st.weight_kg} кг` : ''}
-                    {st.reps ? ` × ${st.reps} повт.` : ''}
-                    {st.comment ? ` — ${st.comment}` : ''}
-                  </p>
-                ))}
-              </div>
-            ))}
+            <TrainingExercisesReadonly exercises={data.exercises} sessionType={training.type} />
           </div>
         ) : null}
         {data.cooldown ? (
