@@ -18,6 +18,8 @@ export async function reconcileChallengesForClub(clubId, remoteChallenges) {
   const pendingIds = new Set()
   for (const item of await listSyncQueue()) {
     if (item.table_name !== 'challenges') continue
+    const op = item.operation
+    if (op !== 'insert' && op !== 'update') continue
     const id = String(item.remote_id ?? item.data?.id ?? '').trim()
     if (id) pendingIds.add(id)
   }
@@ -52,6 +54,11 @@ export async function pullChallengesForClubFromCloud(clubId) {
       await putStore('challenges', row)
     }
     const { pruned } = await reconcileChallengesForClub(cid, rows)
+    if (pruned > 0 && typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('fitness-diary-storage', { detail: { reason: 'challenge-deleted' } }),
+      )
+    }
     return { ok: true, count: viaApi.count, source: 'api', pruned }
   } catch (e) {
     return { ok: false, error: String(e?.message ?? e ?? 'Ошибка загрузки челленджей') }
