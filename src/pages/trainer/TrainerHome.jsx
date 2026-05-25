@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { User, Users, Trophy, Swords } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
@@ -29,72 +29,147 @@ function daysLeftRu(endDate) {
   return `осталось ${d} дней`
 }
 
+/** Один баннер: загрузка (вращение) → готово (свечение) или короткое сообщение */
+function ChallengesPlaceholder({ phase, tone, message }) {
+  const loading = phase === 'loading'
+  const ready = phase === 'ready'
+  const showBattle = ready && tone === 'soon'
+
+  const mod = loading ? 'loading' : tone === 'message' ? 'message' : 'ready'
+
+  return (
+    <div
+      className={`trainer-challenges__soon trainer-challenges__soon--${mod}`}
+      role="status"
+      aria-live="polite"
+      aria-busy={loading}
+    >
+      {ready && tone === 'soon' ? <span className="trainer-challenges__soon-glow" aria-hidden /> : null}
+      <span className="trainer-challenges__soon-icon" aria-hidden>
+        <Swords size={34} strokeWidth={1.75} />
+      </span>
+      {loading ? (
+        <p className="trainer-challenges__soon-text trainer-challenges__soon-text--loading">Загрузка…</p>
+      ) : showBattle ? (
+        <p className="trainer-challenges__soon-text">Скоро начнётся сражение</p>
+      ) : (
+        <p className="trainer-challenges__soon-text trainer-challenges__soon-text--message">{message}</p>
+      )}
+    </div>
+  )
+}
+
+const INITIAL_CHALLENGES_VIEW = { phase: 'loading', tone: 'soon', message: '', items: [] }
+
 export function TrainerHome() {
   const { user } = useAuth()
   const clubId = user?.club_id ?? ''
   const trainerId = user?.id ?? ''
 
-  const [challengeBlock, setChallengeBlock] = useState({ loading: true, items: [] })
-  /** none | soon — «Скоро начнётся сражение»; message — короткая служебная подсказка */
-  const [challengeEmpty, setChallengeEmpty] = useState({ kind: 'none', message: '' })
+  const [challengesView, setChallengesView] = useState(INITIAL_CHALLENGES_VIEW)
+  const loadGenRef = useRef(0)
 
-  const loadChallenges = useCallback(async () => {
-    setChallengeBlock((s) => ({ ...s, loading: true }))
-    setChallengeEmpty({ kind: 'none', message: '' })
-    try {
-      const { challenges, pull, clubIds } = await listChallengesForTrainer(trainerId, clubId, {
-        pullRemote: isAppOnline(),
-      })
-      if (!clubIds.length) {
-        setChallengeBlock({ loading: false, items: [] })
-        setChallengeEmpty({
-          kind: 'message',
-          message: 'Не определён клуб: в админке привяжите тренера к клубу или нажмите Sync.',
+  const loadChallenges = useCallback(
+    async (opts = {}) => {
+      const silent = opts.silent === true
+      const gen = ++loadGenRef.current
+
+      if (!silent) {
+        setChallengesView((v) => ({
+          phase: 'loading',
+          tone: 'soon',
+          message: '',
+          items: v.items ?? [],
+        }))
+      }
+
+      try {
+        const { challenges, pull, clubIds } = await listChallengesForTrainer(trainerId, clubId, {
+          pullRemote: isAppOnline(),
         })
-        return
+        if (gen !== loadGenRef.current) return
+
+        if (!clubIds.length) {
+          setChallengesView({
+            phase: 'ready',
+            tone: 'message',
+            message: 'Клуб пока не привязан. Нажмите Sync или обратитесь к администратору.',
+            items: [],
+          })
+          return
+        }
+
+        let tone = 'soon'
+        let message = ''
+        if (pull && !pull.ok && pull.error) {
+          tone = 'message'
+          message = `Не удалось обновить: ${pull.error}`
+        }
+
+        const active = (challenges ?? []).filter((c) => isChallengeVisibleForTrainerHome(c))
+
+        if (active.length === 0 && tone !== 'message') {
+          tone = 'soon'
+          message = ''
+        }
+
+        const clients = await getAllStore('clients')
+        if (gen !== loadGenRef.current) return
+
+        const items = []
+        for (const ch of active) {
+          const chClub = String(ch.club_id ?? '')
+          const myClientIds = new Set(
+            (clients ?? [])
+              .filter((c) => String(c.trainer_id) === String(trainerId) && String(c.club_id) === chClub)
+              .map((c) => c.id),
+          )
+          const lbCtx = await loadContextForChallengeLeaderboard(chClub, {
+            challenge: ch,
+            pullRemote: false,
+            notifyPull: false,
+          })
+          const { rows } = buildChallengeLeaderboard(ch, lbCtx)
+          const mine = rows
+            .filter((r) => myClientIds.has(r.client_id))
+            .sort((a, b) => a.rank - b.rank)
+            .slice(0, 5)
+          items.push({ challenge: ch, mine, totalRanked: rows.length })
+        }
+
+        if (gen !== loadGenRef.current) return
+
+        if (items.length > 0) {
+          setChallengesView({ phase: 'ready', tone: 'soon', message: '', items })
+        } else {
+          setChallengesView({ phase: 'ready', tone, message, items: [] })
+        }
+      } catch {
+        if (gen !== loadGenRef.current) return
+        setChallengesView({
+          phase: 'ready',
+          tone: 'message',
+          message: 'Не удалось загрузить. Проверьте сеть и нажмите Sync.',
+          items: [],
+        })
       }
-      let empty = { kind: 'none', message: '' }
-      if (pull && !pull.ok && pull.error) {
-        empty = { kind: 'message', message: `Не удалось обновить: ${pull.error}` }
-      }
-      const active = (challenges ?? []).filter((c) => isChallengeVisibleForTrainerHome(c))
-      if (active.length === 0 && empty.kind !== 'message') {
-        empty = { kind: 'soon', message: '' }
-      }
-      setChallengeEmpty(empty)
-      const clients = await getAllStore('clients')
-      const items = []
-      for (const ch of active) {
-        const chClub = String(ch.club_id ?? '')
-        const myClientIds = new Set(
-          (clients ?? [])
-            .filter((c) => String(c.trainer_id) === String(trainerId) && String(c.club_id) === chClub)
-            .map((c) => c.id),
-        )
-        const lbCtx = await loadContextForChallengeLeaderboard(chClub, { challenge: ch, pullRemote: false, notifyPull: false })
-        const { rows } = buildChallengeLeaderboard(ch, lbCtx)
-        const mine = rows
-          .filter((r) => myClientIds.has(r.client_id))
-          .sort((a, b) => a.rank - b.rank)
-          .slice(0, 5)
-        items.push({ challenge: ch, mine, totalRanked: rows.length })
-      }
-      setChallengeBlock({ loading: false, items })
-    } catch {
-      setChallengeBlock({ loading: false, items: [] })
-      setChallengeEmpty({ kind: 'message', message: 'Не удалось загрузить. Проверьте сеть и нажмите Sync.' })
-    }
-  }, [clubId, trainerId])
+    },
+    [clubId, trainerId],
+  )
 
   useEffect(() => {
     void loadChallenges()
+    return () => {
+      loadGenRef.current += 1
+    }
   }, [loadChallenges])
 
   useDebouncedStorageReload(() => loadChallenges({ silent: true }), { shouldRun: shouldReloadTrainerChallenges })
 
-  const hasChallenges = challengeBlock.items.length > 0
+  const hasList = challengesView.items.length > 0
+  const showPlaceholder = challengesView.phase === 'loading' || !hasList
 
-  const challengeCards = useMemo(() => challengeBlock.items, [challengeBlock.items])
+  const challengeCards = useMemo(() => challengesView.items, [challengesView.items])
 
   return (
     <div className="trainer-home">
@@ -118,67 +193,61 @@ export function TrainerHome() {
       </section>
 
       <section className="trainer-challenges" aria-labelledby="trainer-challenges-title">
-          <div className="trainer-challenges__head">
-            <h2 id="trainer-challenges-title" className="trainer-challenges__title">
-              <Trophy size={18} aria-hidden className="trainer-challenges__title-icon" />
-              Активные челленджи
-            </h2>
-          </div>
-          {challengeBlock.loading ? (
-            <p className="muted trainer-challenges__muted">Загрузка…</p>
-          ) : !hasChallenges ? (
-            challengeEmpty.kind === 'message' ? (
-              <p className="muted trainer-challenges__muted">{challengeEmpty.message}</p>
-            ) : (
-              <div className="trainer-challenges__soon" role="status" aria-live="polite">
-                <span className="trainer-challenges__soon-glow" aria-hidden />
-                <span className="trainer-challenges__soon-icon" aria-hidden>
-                  <Swords size={34} strokeWidth={1.75} />
-                </span>
-                <p className="trainer-challenges__soon-text">Скоро начнётся сражение</p>
-              </div>
-            )
-          ) : (
-            <ul className="trainer-challenges__list">
-              {challengeCards.map(({ challenge: ch, mine, totalRanked }) => (
-                <li key={ch.id} className="trainer-challenge-card">
-                  <div className="trainer-challenge-card__top">
-                    <h3 className="trainer-challenge-card__name">{ch.name}</h3>
-                    <Link to={`/trainer/challenges/${ch.id}`} className="btn btn-sm btn-primary">
-                      Подробнее
-                    </Link>
-                  </div>
-                  {ch.description?.trim() ? <p className="trainer-challenge-card__desc">{ch.description.trim()}</p> : null}
-                  <p className="trainer-challenge-card__meta muted">
-                    {formatChallengeMetricRu(ch.metric)} · до {formatDateRu(ch.end_date)} ({daysLeftRu(ch.end_date)})
+        <div className="trainer-challenges__head">
+          <h2 id="trainer-challenges-title" className="trainer-challenges__title">
+            <Trophy size={18} aria-hidden className="trainer-challenges__title-icon" />
+            Активные челленджи
+          </h2>
+        </div>
+        {showPlaceholder ? (
+          <ChallengesPlaceholder
+            phase={challengesView.phase}
+            tone={challengesView.tone}
+            message={challengesView.message}
+          />
+        ) : (
+          <ul className="trainer-challenges__list">
+            {challengeCards.map(({ challenge: ch, mine, totalRanked }) => (
+              <li key={ch.id} className="trainer-challenge-card">
+                <div className="trainer-challenge-card__top">
+                  <h3 className="trainer-challenge-card__name">{ch.name}</h3>
+                  <Link to={`/trainer/challenges/${ch.id}`} className="btn btn-sm btn-primary">
+                    Подробнее
+                  </Link>
+                </div>
+                {ch.description?.trim() ? (
+                  <p className="trainer-challenge-card__desc">{ch.description.trim()}</p>
+                ) : null}
+                <p className="trainer-challenge-card__meta muted">
+                  {formatChallengeMetricRu(ch.metric)} · до {formatDateRu(ch.end_date)} ({daysLeftRu(ch.end_date)})
+                </p>
+                {mine.length === 0 ? (
+                  <p className="trainer-challenge-card__empty muted" style={{ margin: 0 }}>
+                    Ваши клиенты пока не в рейтинге по этому упражнению.
                   </p>
-                  {mine.length === 0 ? (
-                    <p className="trainer-challenge-card__empty muted" style={{ margin: 0 }}>
-                      Ваши клиенты пока не в рейтинге по этому упражнению.
-                    </p>
-                  ) : (
-                    <ul className="trainer-challenge-card__clients">
-                      {mine.map((r) => (
-                        <li key={r.client_id}>
-                          <span className="trainer-challenge-card__client-name">{r.client_name}</span>
-                          <span className="trainer-challenge-card__client-res">
-                            {formatChallengeValueRu(ch.metric, r.value)}
-                            {totalRanked > 0 ? (
-                              <span className="muted">
-                                {' '}
-                                ({r.rank} место из {totalRanked})
-                              </span>
-                            ) : null}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+                ) : (
+                  <ul className="trainer-challenge-card__clients">
+                    {mine.map((r) => (
+                      <li key={r.client_id}>
+                        <span className="trainer-challenge-card__client-name">{r.client_name}</span>
+                        <span className="trainer-challenge-card__client-res">
+                          {formatChallengeValueRu(ch.metric, r.value)}
+                          {totalRanked > 0 ? (
+                            <span className="muted">
+                              {' '}
+                              ({r.rank} место из {totalRanked})
+                            </span>
+                          ) : null}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section className="trainer-home__tiles" aria-labelledby="trainer-home-sections">
         <h2 id="trainer-home-sections" className="trainer-home__tiles-heading">

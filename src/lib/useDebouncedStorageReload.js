@@ -15,8 +15,14 @@ export function shouldReloadTrainerClientList(detail = {}) {
 /** Блок челленджей на главной тренера */
 export function shouldReloadTrainerChallenges(detail = {}) {
   const reason = String(detail?.reason ?? '')
+  if (!reason) return false
   if (reason === 'exercises') return false
-  return true
+  if (reason === 'sync-complete') return true
+  if (reason === 'challenge-deleted' || reason === 'challenge-created' || reason === 'challenge-completed') {
+    return true
+  }
+  if (reason === 'client-deleted' || reason === 'trainer-club-cascade') return true
+  return false
 }
 
 /** Админ: список клиентов — не дергать API из‑за чужих справочников */

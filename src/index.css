@@ -4483,6 +4483,12 @@ tr:last-child td {
   height: 120px;
   background: radial-gradient(ellipse at center, rgba(52, 211, 153, 0.28), transparent 68%);
   pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.trainer-challenges__soon--ready .trainer-challenges__soon-glow {
+  opacity: 1;
 }
 
 .trainer-challenges__soon-icon {
@@ -4495,7 +4501,35 @@ tr:last-child td {
   border-radius: 50%;
   color: #6ee7b7;
   background: rgba(16, 185, 129, 0.12);
-  box-shadow: 0 0 28px rgba(52, 211, 153, 0.35);
+  transition:
+    opacity 0.3s ease,
+    box-shadow 0.35s ease,
+    transform 0.3s ease;
+}
+
+.trainer-challenges__soon--loading .trainer-challenges__soon-icon {
+  opacity: 0.42;
+  color: rgba(167, 243, 208, 0.75);
+  box-shadow: none;
+  animation: trainer-challenges-soon-spin 1.15s linear infinite;
+}
+
+.trainer-challenges__soon--ready .trainer-challenges__soon-icon {
+  opacity: 1;
+  box-shadow: 0 0 28px rgba(52, 211, 153, 0.45);
+  animation: none;
+}
+
+.trainer-challenges__soon--message .trainer-challenges__soon-icon {
+  opacity: 0.5;
+  box-shadow: none;
+  animation: none;
+}
+
+@keyframes trainer-challenges-soon-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .trainer-challenges__soon-text {
@@ -4505,6 +4539,21 @@ tr:last-child td {
   font-weight: 700;
   letter-spacing: 0.04em;
   color: rgba(236, 253, 245, 0.92);
+}
+
+.trainer-challenges__soon-text--loading {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: rgba(200, 210, 205, 0.75);
+}
+
+.trainer-challenges__soon-text--message {
+  font-size: 0.88rem;
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+  color: rgba(200, 210, 205, 0.88);
+  max-width: 28rem;
 }
 
 .trainer-challenges__list {
