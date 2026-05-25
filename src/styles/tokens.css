@@ -1,27 +1,59 @@
+/**
+ * Premium emerald theme — глобальные токены.
+ * Семантика: --premium-* (источник) → --bg, --accent, … (используются в UI).
+ */
 :root {
   color-scheme: dark;
-  --bg: #070908;
-  --bg-subtle: #0b0f0c;
-  --bg-card: rgba(16, 22, 18, 0.94);
-  --bg-elevated: rgba(20, 28, 22, 0.98);
-  --bg-muted: rgba(255, 255, 255, 0.065);
-  --border: rgba(255, 255, 255, 0.12);
-  --border-soft: rgba(255, 255, 255, 0.06);
-  --border-strong: rgba(34, 197, 94, 0.35);
-  --text: #f1f5f3;
-  --text-muted: #94a097;
-  --accent: #22c55e;
-  --accent-bright: #5ee884;
-  --accent-dim: #15803d;
-  --accent-glow: rgba(34, 197, 94, 0.26);
-  --accent-soft: rgba(34, 197, 94, 0.12);
+
+  /* ── Premium palette (source of truth) ── */
+  --premium-bg: #030806;
+  --premium-bg-subtle: #061210;
+  --premium-accent-neon: #2effb8;
+  --premium-card-bg: rgba(8, 32, 24, 0.52);
+  --premium-card-elevated: rgba(12, 40, 30, 0.62);
+  --premium-text: #f6f4ef;
+  --premium-text-muted: #a8b2ac;
+
+  /* Frosted glass */
+  --premium-glass-blur: 20px;
+  --premium-glass-saturate: 165%;
+  --premium-glass-highlight: rgba(255, 255, 255, 0.06);
+  --premium-glass-border: rgba(46, 255, 184, 0.14);
+
+  /* Glow layers (for shadows / ambient) */
+  --premium-glow-soft: rgba(46, 255, 184, 0.22);
+  --premium-glow-mid: rgba(46, 255, 184, 0.38);
+  --premium-glow-ambient: rgba(46, 255, 184, 0.1);
+  --premium-bg-radial: rgba(46, 255, 184, 0.14);
+
+  /* ── App aliases (existing components) ── */
+  --bg: var(--premium-bg);
+  --bg-subtle: var(--premium-bg-subtle);
+  --bg-card: var(--premium-card-bg);
+  --bg-elevated: var(--premium-card-elevated);
+  --bg-muted: rgba(255, 255, 255, 0.055);
+  --border: var(--premium-glass-border);
+  --border-soft: rgba(255, 255, 255, 0.05);
+  --border-strong: rgba(46, 255, 184, 0.32);
+  --text: var(--premium-text);
+  --text-muted: var(--premium-text-muted);
+  --accent: #14d89a;
+  --accent-bright: var(--premium-accent-neon);
+  --accent-dim: #0a7d5c;
+  --accent-glow: var(--premium-glow-soft);
+  --accent-soft: var(--premium-glow-ambient);
+  --glass-blur: var(--premium-glass-blur);
+  --glass-saturate: var(--premium-glass-saturate);
   --danger: #f87171;
   --warning: #fbbf24;
   --radius: 22px;
   --radius-md: 16px;
   --radius-sm: 12px;
-  --shadow: 0 22px 56px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.04);
-  --shadow-soft: 0 10px 32px rgba(0, 0, 0, 0.4);
+  --shadow:
+    0 24px 60px rgba(0, 0, 0, 0.62),
+    0 0 0 1px var(--border-soft),
+    0 0 40px rgba(46, 255, 184, 0.04);
+  --shadow-soft: 0 12px 36px rgba(0, 0, 0, 0.48);
   --font:
     'Inter',
     ui-sans-serif,
@@ -39,7 +71,37 @@
 }
 
 ::selection {
-  background: rgba(34, 197, 94, 0.32);
-  color: #fff;
+  background: var(--premium-glow-mid);
+  color: var(--premium-text);
 }
 
+/* Мягкое изумрудное свечение (кнопки, иконки, акцентные блоки) */
+.premium-glow {
+  box-shadow:
+    0 0 18px var(--premium-glow-soft),
+    0 0 36px var(--premium-glow-ambient),
+    0 0 1px var(--premium-accent-neon);
+}
+
+.premium-glow--strong {
+  box-shadow:
+    0 0 24px var(--premium-glow-mid),
+    0 0 48px var(--premium-glow-soft),
+    0 0 2px var(--premium-accent-neon);
+}
+
+/* Для SVG/иконок внутри обёртки */
+.premium-glow--drop {
+  filter: drop-shadow(0 0 10px var(--premium-glow-soft))
+    drop-shadow(0 0 22px var(--premium-glow-ambient));
+}
+
+/* Матовое стекло для кастомных блоков (карточки уже используют --bg-card) */
+.premium-glass {
+  background:
+    linear-gradient(180deg, var(--premium-glass-highlight) 0%, transparent 40%),
+    var(--premium-card-bg);
+  backdrop-filter: blur(var(--premium-glass-blur)) saturate(var(--premium-glass-saturate));
+  -webkit-backdrop-filter: blur(var(--premium-glass-blur)) saturate(var(--premium-glass-saturate));
+  border: 1px solid var(--premium-glass-border);
+}
