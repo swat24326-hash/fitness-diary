@@ -3778,6 +3778,10 @@ tr:last-child td {
   color: var(--accent-bright);
 }
 
+.modal-panel--bulk {
+  width: min(720px, 100%);
+}
+
 .modal-section {
   margin-top: 14px;
   padding-top: 14px;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Pencil, RefreshCw, X } from 'lucide-react'
+import { FileUp, Pencil, RefreshCw, X } from 'lucide-react'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { listExercises, pullExercisesFromSupabase } from '../../lib/dataAccess'
 import { insertExercise, updateExercise, removeExercise } from '../../lib/exerciseService'
@@ -17,6 +17,8 @@ export function AdminExercises() {
   /** { id, name } — подтверждение удаления */
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const [bulkBusy, setBulkBusy] = useState(false)
 
   const loadLocal = useCallback(async () => {
     setExercises(await listExercises())
@@ -41,6 +43,15 @@ export function AdminExercises() {
   useEffect(() => {
     void loadLocal()
   }, [loadLocal])
+
+  useEffect(() => {
+    if (!bulkOpen) return
+    const onKey = (e) => {
+      if (e.key === 'Escape' && !bulkBusy) setBulkOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [bulkOpen, bulkBusy])
 
   const groups = useMemo(() => {
     const s = new Set()
@@ -144,21 +155,16 @@ export function AdminExercises() {
   }
 
   const bulkLoad = async () => {
-    setMsg('')
-    const { exercises, errors, warnings } = bulkPreview
-    if (errors.length) {
-      setMsg(errors.join(' '))
-      return
-    }
-    if (!exercises.length) {
-      setMsg('Не распознано ни одного упражнения. Проверьте формат ниже.')
-      return
-    }
+    const { exercises: parsed, errors, warnings } = bulkPreview
+    if (errors.length) return
+    if (!parsed.length) return
+
+    setBulkBusy(true)
     const now = new Date().toISOString()
     let failed = 0
     let saved = 0
     try {
-      for (const ex of exercises) {
+      for (const ex of parsed) {
         const row = {
           id: crypto.randomUUID(),
           name: ex.name,
@@ -172,15 +178,18 @@ export function AdminExercises() {
         else saved += 1
       }
       setBulkText('')
+      setBulkOpen(false)
       const warn = warnings.length ? ` ${warnings[0]}` : ''
       if (failed > 0) {
-        setMsg(`Сохранено ${saved} из ${exercises.length}. ${failed} не ушли в облако — Sync или дубликат названия.${warn}`)
+        setMsg(`Сохранено ${saved} из ${parsed.length}. ${failed} не ушли в облако — Sync или дубликат названия.${warn}`)
       } else {
         setMsg(`Добавлено упражнений: ${saved}.${warn}`)
       }
       await loadLocal()
     } catch (err) {
       setMsg(err?.message ?? 'Ошибка быстрой загрузки')
+    } finally {
+      setBulkBusy(false)
     }
   }
 
@@ -191,7 +200,17 @@ export function AdminExercises() {
           <h2 className="section-title td-section-title" style={{ margin: 0 }}>
             Упражнения
           </h2>
-          <div className="row td-actions">
+          <div className="row td-actions" style={{ gap: 8 }}>
+            <button
+              type="button"
+              className="btn btn-ghost btn-touch row"
+              style={{ gap: 6 }}
+              onClick={() => setBulkOpen(true)}
+              title="Вставить несколько упражнений из текста"
+            >
+              <FileUp size={18} aria-hidden />
+              <span>Быстрая загрузка</span>
+            </button>
             <button
               type="button"
               className="btn btn-primary btn-icon-square btn-touch"
@@ -246,60 +265,6 @@ export function AdminExercises() {
             )}
           </div>
         </form>
-
-        <h3 className="section-title td-period__title" style={{ margin: '16px 0 8px' }}>
-          Быстрая загрузка
-        </h3>
-        <p className="muted" style={{ fontSize: 13, marginTop: 0, lineHeight: 1.5 }}>
-          <strong>Формат (рекомендуется):</strong> одно упражнение — блок из 4 строк с подписями. Между упражнениями — пустая
-          строка.
-          <br />
-          <code style={{ display: 'block', marginTop: 8, whiteSpace: 'pre-wrap', fontSize: 12 }}>
-            {`Название: …\nНаправленность: …\nОсновные мышцы: …\nПримечание: …`}
-          </code>
-          <span style={{ display: 'block', marginTop: 8 }}>
-            Альтернатива — одна строка на упражнение, поля через <strong>|</strong> (не запятую):{' '}
-            <code>Название | Направленность | Мышцы | Примечание</code>
-          </span>
-        </p>
-        <textarea
-          className="input"
-          rows={8}
-          value={bulkText}
-          onChange={(e) => setBulkText(e.target.value)}
-          placeholder={`Название: Присед со штангой\nНаправленность: Ноги / Ягодицы\nОсновные мышцы: Квадрицепсы, ягодичные\nПримечание: Колени не выходят за носки`}
-          style={{ resize: 'vertical', fontFamily: 'inherit' }}
-        />
-        {bulkText.trim() && (
-          <p className="muted" style={{ fontSize: 13, margin: '8px 0 0' }}>
-            {bulkPreview.errors.length > 0 ? (
-              <span style={{ color: '#fecaca' }}>{bulkPreview.errors.join(' ')}</span>
-            ) : (
-              <>
-                Распознано: <strong style={{ color: 'var(--text)' }}>{bulkPreview.exercises.length}</strong>
-                {bulkPreview.exercises.length > 0 && (
-                  <span>
-                    {' '}
-                    — {bulkPreview.exercises.map((e) => e.name).slice(0, 5).join(', ')}
-                    {bulkPreview.exercises.length > 5 ? '…' : ''}
-                  </span>
-                )}
-              </>
-            )}
-            {bulkPreview.warnings.length > 0 && (
-              <span style={{ display: 'block', marginTop: 4, color: '#fde68a' }}>{bulkPreview.warnings[0]}</span>
-            )}
-          </p>
-        )}
-        <button
-          type="button"
-          className="btn btn-primary btn-touch"
-          style={{ marginTop: 8 }}
-          disabled={!bulkPreview.exercises.length || bulkPreview.errors.length > 0}
-          onClick={bulkLoad}
-        >
-          Загрузить ({bulkPreview.exercises.length || 0})
-        </button>
 
         <h3 className="section-title td-period__title" style={{ margin: '22px 0 10px' }}>
           Список
@@ -368,6 +333,85 @@ export function AdminExercises() {
           </table>
         </div>
       </section>
+
+      {bulkOpen && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="bulk-ex-title"
+          onClick={() => !bulkBusy && setBulkOpen(false)}
+        >
+          <div className="modal-panel modal-panel--bulk" onClick={(e) => e.stopPropagation()}>
+            <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 4 }}>
+              <h2 id="bulk-ex-title" className="section-title" style={{ margin: 0 }}>
+                Быстрая загрузка
+              </h2>
+              <button
+                type="button"
+                className="btn btn-ghost btn-icon-square btn-touch"
+                aria-label="Закрыть"
+                disabled={bulkBusy}
+                onClick={() => setBulkOpen(false)}
+              >
+                <X size={18} aria-hidden />
+              </button>
+            </div>
+            <p className="muted" style={{ fontSize: 13, marginTop: 0, lineHeight: 1.5 }}>
+              <strong>Формат:</strong> блок из 4 строк с подписями; между упражнениями — пустая строка.
+              <code style={{ display: 'block', marginTop: 8, whiteSpace: 'pre-wrap', fontSize: 12 }}>
+                {`Название: …\nНаправленность: …\nОсновные мышцы: …\nПримечание: …`}
+              </code>
+              <span style={{ display: 'block', marginTop: 8 }}>
+                Или одна строка через <strong>|</strong>: <code>Название | Направленность | Мышцы | Примечание</code>
+              </span>
+            </p>
+            <textarea
+              className="input"
+              rows={10}
+              autoFocus
+              value={bulkText}
+              onChange={(e) => setBulkText(e.target.value)}
+              placeholder={`Название: Присед со штангой\nНаправленность: Ноги / Ягодицы\nОсновные мышцы: Квадрицепсы, ягодичные\nПримечание: Колени не выходят за носки`}
+              style={{ resize: 'vertical', fontFamily: 'inherit', width: '100%' }}
+            />
+            {bulkText.trim() && (
+              <p className="muted" style={{ fontSize: 13, margin: '8px 0 0' }}>
+                {bulkPreview.errors.length > 0 ? (
+                  <span style={{ color: '#fecaca' }}>{bulkPreview.errors.join(' ')}</span>
+                ) : (
+                  <>
+                    Распознано: <strong style={{ color: 'var(--text)' }}>{bulkPreview.exercises.length}</strong>
+                    {bulkPreview.exercises.length > 0 && (
+                      <span>
+                        {' '}
+                        — {bulkPreview.exercises.map((e) => e.name).slice(0, 5).join(', ')}
+                        {bulkPreview.exercises.length > 5 ? '…' : ''}
+                      </span>
+                    )}
+                  </>
+                )}
+                {bulkPreview.warnings.length > 0 && (
+                  <span style={{ display: 'block', marginTop: 4, color: '#fde68a' }}>{bulkPreview.warnings[0]}</span>
+                )}
+              </p>
+            )}
+            <div className="row td-modal-actions" style={{ marginTop: 16 }}>
+              <button type="button" className="btn btn-ghost btn-touch" disabled={bulkBusy} onClick={() => setBulkOpen(false)}>
+                Отмена
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-touch premium-glow"
+                disabled={bulkBusy || !bulkPreview.exercises.length || bulkPreview.errors.length > 0}
+                onClick={() => void bulkLoad()}
+              >
+                {bulkBusy ? 'Сохранение…' : `Загрузить (${bulkPreview.exercises.length || 0})`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {confirmDelete && (
         <div
