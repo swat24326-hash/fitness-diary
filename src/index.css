@@ -531,17 +531,17 @@ button {
 }
 
 .app-brand-mark--offline .app-brand-mark__fa-icon {
-  color: rgba(255, 255, 255, 0.92);
+  color: rgba(246, 244, 239, 0.45);
   filter: none;
 }
 
 .app-brand-mark--offline {
-  background: linear-gradient(155deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+  border: 1px solid rgba(255, 255, 255, 0.1);
   box-shadow:
     0 10px 28px rgba(0, 0, 0, 0.42),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.92);
+  color: rgba(246, 244, 239, 0.45);
 }
 
 .app-brand:hover .app-brand-mark--online {

@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase'
+import { initNetworkReachability, getNetworkReachable } from './networkReachability'
 import { getDb, listSyncQueue, removeSyncItem, enqueueSync, setOnlineFlag } from './localDb'
 import { pushRecordViaApi, schedulePushRecordViaApi } from './syncApiClient'
 import { invalidateTrainerWorkspaceCache } from './trainerWorkspaceCache'
@@ -30,18 +31,16 @@ const ALLOWED_TABLES = new Set([
 ])
 
 export function initConnectivityListeners() {
-  const onOnline = () => {
-    setOnlineFlag(true)
-    scheduleFlushSyncQueue({ force: true })
-  }
-  const onOffline = () => setOnlineFlag(false)
-  window.addEventListener('online', onOnline)
-  window.addEventListener('offline', onOffline)
-  setOnlineFlag(navigator.onLine)
-  return () => {
-    window.removeEventListener('online', onOnline)
-    window.removeEventListener('offline', onOffline)
-  }
+  return initNetworkReachability((online) => {
+    void setOnlineFlag(online)
+    if (online) scheduleFlushSyncQueue({ force: true })
+  })
+}
+
+/** Учитывает реальную доступность Supabase, не только navigator.onLine. */
+export function isAppOnline() {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return false
+  return getNetworkReachable()
 }
 
 const DEMO_EXERCISE_NAMES = new Set(['Приседания со штангой', 'Жим штанги лёжа'])
@@ -168,7 +167,7 @@ export async function flushSyncQueue(opts = {}) {
 }
 
 async function flushSyncQueueInner() {
-  if (!navigator.onLine || !isSupabaseConfigured()) return { ok: false, reason: 'offline_or_stub' }
+  if (!isAppOnline() || !isSupabaseConfigured()) return { ok: false, reason: 'offline_or_stub' }
 
   await clearPoisonedSyncQueue()
   await pruneStaleSyncInserts({ aggressive: true })

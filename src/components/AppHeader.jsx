@@ -3,7 +3,8 @@ import { useAuth } from '../context/AuthContext'
 import { pullAdminClientsFromCloud } from '../lib/admin/adminClientsListService'
 import { pullTrainerWorkspaceFromCloud } from '../lib/trainerPullService'
 import { listSyncQueue } from '../lib/localDb'
-import { flushSyncQueue } from '../lib/syncService'
+import { flushSyncQueue, isAppOnline } from '../lib/syncService'
+import { subscribeNetworkStatus } from '../lib/networkReachability'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, User, UserCircle, BookOpen, Building2 } from 'lucide-react'
@@ -28,7 +29,7 @@ export function AppHeader() {
   const { user, signOut, isAdmin, supabaseReady } = useAuth()
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [online, setOnline] = useState(navigator.onLine)
+  const [online, setOnline] = useState(() => (typeof navigator !== 'undefined' ? isAppOnline() : true))
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRootRef = useRef(null)
   const [adminClubs, setAdminClubs] = useState([])
@@ -119,21 +120,13 @@ export function AppHeader() {
     setSearchParams(next, { replace: true })
   }, [showAdminClubSelect, adminClubs, searchParams, setSearchParams])
 
+  useEffect(() => subscribeNetworkStatus(setOnline), [])
+
   useEffect(() => {
     void refreshPendingSync()
-    const fn = () => {
-      setOnline(navigator.onLine)
-      void refreshPendingSync()
-    }
-    window.addEventListener('online', fn)
-    window.addEventListener('offline', fn)
     const onData = () => void refreshPendingSync()
     window.addEventListener(LOCAL_DATA_CHANGED, onData)
-    return () => {
-      window.removeEventListener('online', fn)
-      window.removeEventListener('offline', fn)
-      window.removeEventListener(LOCAL_DATA_CHANGED, onData)
-    }
+    return () => window.removeEventListener(LOCAL_DATA_CHANGED, onData)
   }, [])
 
   useEffect(() => {
@@ -182,7 +175,7 @@ export function AppHeader() {
     let hadError = false
 
     try {
-      if (!navigator.onLine) {
+      if (!isAppOnline()) {
         showSyncFeedback('Нет сети — синхронизация отложена.', 'warn')
         return
       }

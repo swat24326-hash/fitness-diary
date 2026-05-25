@@ -6,6 +6,8 @@ import { loadTrainerWorkspaceSnapshot } from '../../lib/trainerWorkspaceCache'
 import { useDebouncedStorageReload, shouldReloadTrainerClientList } from '../../lib/useDebouncedStorageReload'
 import { formatIsoRu, getDateRange, isDateInRange } from '../../lib/period'
 import { flushSyncQueue, saveLocalWithSync } from '../../lib/syncService'
+import { subscribeNetworkStatus } from '../../lib/networkReachability'
+import { subscribeNetworkStatus } from '../../lib/networkReachability'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 import { pickUsableMembershipForDate } from '../../lib/membershipRules'
 
@@ -39,6 +41,8 @@ export function TrainerDashboard() {
     if (user?.id && !user?.club_id) void refreshUserProfile()
   }, [user?.id, user?.club_id, refreshUserProfile])
   const [online, setOnline] = useState(typeof navigator !== 'undefined' && navigator.onLine)
+
+  useEffect(() => subscribeNetworkStatus(setOnline), [])
   const [clients, setClients] = useState([])
   const [trainings, setTrainings] = useState([])
   const [memByClient, setMemByClient] = useState({})
@@ -96,16 +100,6 @@ export function TrainerDashboard() {
   }, [reload])
 
   useDebouncedStorageReload(() => reload({ silent: true }), { shouldRun: shouldReloadTrainerClientList })
-
-  useEffect(() => {
-    const fn = () => setOnline(navigator.onLine)
-    window.addEventListener('online', fn)
-    window.addEventListener('offline', fn)
-    return () => {
-      window.removeEventListener('online', fn)
-      window.removeEventListener('offline', fn)
-    }
-  }, [])
 
   const range = useMemo(() => getDateRange(period, customFrom, customTo), [period, customFrom, customTo])
   const today = todayLocalIso()
