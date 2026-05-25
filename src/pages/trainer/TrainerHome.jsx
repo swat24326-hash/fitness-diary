@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { User, Users, Trophy } from 'lucide-react'
+import { User, Users, Trophy, Swords } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import {
   loadContextForChallengeLeaderboard,
@@ -35,31 +35,33 @@ export function TrainerHome() {
   const trainerId = user?.id ?? ''
 
   const [challengeBlock, setChallengeBlock] = useState({ loading: true, items: [] })
-  const [challengeHint, setChallengeHint] = useState('')
+  /** none | soon — «Скоро начнётся сражение»; message — короткая служебная подсказка */
+  const [challengeEmpty, setChallengeEmpty] = useState({ kind: 'none', message: '' })
 
   const loadChallenges = useCallback(async () => {
     setChallengeBlock((s) => ({ ...s, loading: true }))
-    setChallengeHint('')
+    setChallengeEmpty({ kind: 'none', message: '' })
     try {
       const { challenges, pull, clubIds } = await listChallengesForTrainer(trainerId, clubId, {
         pullRemote: isAppOnline(),
       })
       if (!clubIds.length) {
         setChallengeBlock({ loading: false, items: [] })
-        setChallengeHint('Не определён клуб: в админке привяжите тренера к клубу или нажмите Sync после загрузки клиентов.')
+        setChallengeEmpty({
+          kind: 'message',
+          message: 'Не определён клуб: в админке привяжите тренера к клубу или нажмите Sync.',
+        })
         return
       }
+      let empty = { kind: 'none', message: '' }
       if (pull && !pull.ok && pull.error) {
-        setChallengeHint(`Не удалось обновить с сервера: ${pull.error}`)
-      } else if ((challenges ?? []).length === 0) {
-        setChallengeHint(
-          'В облаке пока нет челленджей для вашего клуба. Админ: после создания челленджа нажмите Sync; затем Sync у тренера.',
-        )
+        empty = { kind: 'message', message: `Не удалось обновить: ${pull.error}` }
       }
       const active = (challenges ?? []).filter((c) => isChallengeVisibleForTrainerHome(c))
-      if ((challenges ?? []).length > 0 && active.length === 0) {
-        setChallengeHint('Челленджи есть, но период уже завершён или статус не «активен».')
+      if (active.length === 0 && empty.kind !== 'message') {
+        empty = { kind: 'soon', message: '' }
       }
+      setChallengeEmpty(empty)
       const clients = await getAllStore('clients')
       const items = []
       for (const ch of active) {
@@ -80,7 +82,7 @@ export function TrainerHome() {
       setChallengeBlock({ loading: false, items })
     } catch {
       setChallengeBlock({ loading: false, items: [] })
-      setChallengeHint('Ошибка загрузки челленджей. Проверьте интернет и нажмите Sync.')
+      setChallengeEmpty({ kind: 'message', message: 'Не удалось загрузить. Проверьте сеть и нажмите Sync.' })
     }
   }, [clubId, trainerId])
 
@@ -125,10 +127,17 @@ export function TrainerHome() {
           {challengeBlock.loading ? (
             <p className="muted trainer-challenges__muted">Загрузка…</p>
           ) : !hasChallenges ? (
-            <p className="muted trainer-challenges__muted">
-              {challengeHint ||
-                'Нет активных челленджей для вашего клуба (статус «активен», период ещё не закончился).'}
-            </p>
+            challengeEmpty.kind === 'message' ? (
+              <p className="muted trainer-challenges__muted">{challengeEmpty.message}</p>
+            ) : (
+              <div className="trainer-challenges__soon" role="status" aria-live="polite">
+                <span className="trainer-challenges__soon-glow" aria-hidden />
+                <span className="trainer-challenges__soon-icon" aria-hidden>
+                  <Swords size={34} strokeWidth={1.75} />
+                </span>
+                <p className="trainer-challenges__soon-text">Скоро начнётся сражение</p>
+              </div>
+            )
           ) : (
             <ul className="trainer-challenges__list">
               {challengeCards.map(({ challenge: ch, mine, totalRanked }) => (

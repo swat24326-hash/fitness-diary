@@ -4462,6 +4462,51 @@ tr:last-child td {
   font-size: 0.9rem;
 }
 
+.trainer-challenges__soon {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 28px 20px 32px;
+  border-radius: 14px;
+  border: 1px solid rgba(52, 211, 153, 0.22);
+  background: linear-gradient(165deg, rgba(16, 28, 24, 0.92), rgba(8, 12, 11, 0.98));
+  text-align: center;
+  overflow: hidden;
+}
+
+.trainer-challenges__soon-glow {
+  position: absolute;
+  inset: -40% 10% auto;
+  height: 120px;
+  background: radial-gradient(ellipse at center, rgba(52, 211, 153, 0.28), transparent 68%);
+  pointer-events: none;
+}
+
+.trainer-challenges__soon-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.12);
+  box-shadow: 0 0 28px rgba(52, 211, 153, 0.35);
+}
+
+.trainer-challenges__soon-text {
+  position: relative;
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: rgba(236, 253, 245, 0.92);
+}
+
 .trainer-challenges__list {
   list-style: none;
   margin: 0;
