@@ -1,9 +1,7 @@
 /**
  * Реальная доступность сети (не только navigator.onLine — на планшетах часто врёт).
- * Индикатор гантельки и sync используют этот статус.
+ * Проверка через тот же домен приложения — без запросов к Supabase (нет 401 в консоли).
  */
-import { isSupabaseConfigured } from './supabase'
-
 export const NETWORK_STATUS_EVENT = 'fitness-diary-network-status'
 
 let reachable = typeof navigator !== 'undefined' ? navigator.onLine : true
@@ -27,6 +25,23 @@ export function getNetworkReachable() {
   return reachable
 }
 
+async function fetchOriginReachable(origin, signal) {
+  let res = await fetch(`${origin}/`, {
+    method: 'HEAD',
+    cache: 'no-store',
+    signal,
+    credentials: 'same-origin',
+  })
+  if (res.ok || res.status === 405) return true
+  res = await fetch(`${origin}/`, {
+    method: 'GET',
+    cache: 'no-store',
+    signal,
+    credentials: 'same-origin',
+  })
+  return res.ok
+}
+
 async function probeOnce() {
   if (typeof navigator === 'undefined') return
   if (!navigator.onLine) {
@@ -34,14 +49,9 @@ async function probeOnce() {
     return
   }
 
-  if (!isSupabaseConfigured()) {
+  const origin = typeof window !== 'undefined' ? window.location?.origin : ''
+  if (!origin) {
     setReachable(true)
-    return
-  }
-
-  const base = String(import.meta.env.VITE_SUPABASE_URL ?? '').replace(/\/$/, '')
-  if (!base) {
-    setReachable(false)
     return
   }
 
@@ -49,15 +59,10 @@ async function probeOnce() {
   try {
     const ctrl = new AbortController()
     const timeout = setTimeout(() => ctrl.abort(), 6000)
-    /* Публичный health — без anon key, без 401 в консоли */
-    const res = await fetch(`${base}/auth/v1/health`, {
-      method: 'GET',
-      cache: 'no-store',
-      signal: ctrl.signal,
-    })
+    const ok = await fetchOriginReachable(origin, ctrl.signal)
     clearTimeout(timeout)
     if (gen !== probeGen) return
-    setReachable(res.ok)
+    setReachable(ok)
   } catch {
     if (gen !== probeGen) return
     setReachable(false)

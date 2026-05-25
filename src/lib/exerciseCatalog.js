@@ -3,7 +3,7 @@
  */
 import { isSupabaseConfigured } from './supabase'
 import { getDb, putStore } from './localDb'
-import { fetchExercisesViaApi, fetchExercisesMetaViaApi } from './admin/adminApiClient'
+import { fetchExercisesViaApi, fetchExercisesMetaViaApi, getAccessTokenForAdminApi } from './admin/adminApiClient'
 import { supabase } from './supabase'
 import { withSupabaseRetry } from './supabaseRetry'
 import { ADMIN_SYNC_BATCH_SIZE } from './admin/adminConstants'
@@ -139,6 +139,19 @@ export async function pullExercisesFromCloud(opts = {}) {
     const msg = String(e?.message ?? e ?? '')
     if (!/failed to fetch|connection reset|timeout/i.test(msg)) {
       return { ok: false, error: msg }
+    }
+  }
+
+  const token = await getAccessTokenForAdminApi()
+  if (!token) {
+    const db = await getDb()
+    const local = await db.getAll('exercises')
+    return {
+      ok: local.length > 0,
+      skipped: true,
+      count: local.length,
+      reason: 'no_session',
+      error: 'Нет сессии — войдите снова, затем Sync (без прямых запросов к Supabase).',
     }
   }
 

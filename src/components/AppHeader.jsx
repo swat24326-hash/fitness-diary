@@ -211,8 +211,15 @@ export function AppHeader() {
                 }
                 parts.push(msg)
               }
-              await pullChallengesForClubFromCloud(club)
-              parts.push('челленджи')
+              const chPull = await pullChallengesForClubFromCloud(club)
+              if (!chPull?.ok) {
+                hadError = true
+                parts.push(`челленджи: ${chPull.error ?? 'ошибка'}`)
+              } else {
+                let chMsg = `челленджи (${chPull.count ?? 0})`
+                if ((chPull.pruned ?? 0) > 0) chMsg += `, убрано ${chPull.pruned}`
+                parts.push(chMsg)
+              }
             } else {
               parts.push('клиенты: выберите клуб')
             }
@@ -227,10 +234,25 @@ export function AppHeader() {
               parts.push(`тренер: ${pull.error}`)
             }
             const clubIds = await collectTrainerClubIds(user.id, user?.club_id)
+            let chTotal = 0
+            let chPruned = 0
+            let chFailed = false
             for (const cid of clubIds) {
-              await pullChallengesForClubFromCloud(cid)
+              const chPull = await pullChallengesForClubFromCloud(cid)
+              if (!chPull?.ok) {
+                chFailed = true
+                hadError = true
+                parts.push(`челленджи: ${chPull.error ?? 'ошибка'}`)
+                break
+              }
+              chTotal += chPull.count ?? 0
+              chPruned += chPull.pruned ?? 0
             }
-            parts.push('челленджи')
+            if (!chFailed) {
+              let chMsg = `челленджи (${chTotal})`
+              if (chPruned > 0) chMsg += `, убрано ${chPruned}`
+              parts.push(chMsg)
+            }
           }
         } catch (e) {
           hadError = true

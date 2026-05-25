@@ -366,7 +366,9 @@ export async function fetchChallengesForClubViaApi(clubId) {
   if (!cid) return null
 
   const token = await getAccessTokenForAdminApi()
-  if (!token) return null
+  if (!token) {
+    throw new Error('Нет сессии — выйдите и войдите снова, затем нажмите Sync.')
+  }
 
   const { data, routeMissing } = await adminApiGet(
     `/api/admin-data?action=challenges&club_id=${encodeURIComponent(cid)}`,

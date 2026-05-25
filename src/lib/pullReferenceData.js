@@ -40,17 +40,20 @@ export async function pullChallengesForClubFromCloud(clubId) {
 
   try {
     const viaApi = await fetchChallengesForClubViaApi(cid)
-    if (viaApi) {
-      const rows = viaApi.challenges ?? []
-      for (const row of rows) {
-        await putStore('challenges', row)
+    if (!viaApi) {
+      return {
+        ok: false,
+        reason: 'no_api',
+        error: 'Сервер челленджей недоступен — обновите страницу (Ctrl+F5) и повторите Sync.',
       }
-      const { pruned } = await reconcileChallengesForClub(cid, rows)
-      return { ok: true, count: viaApi.count, source: 'api', pruned }
     }
+    const rows = viaApi.challenges ?? []
+    for (const row of rows) {
+      await putStore('challenges', row)
+    }
+    const { pruned } = await reconcileChallengesForClub(cid, rows)
+    return { ok: true, count: viaApi.count, source: 'api', pruned }
   } catch (e) {
     return { ok: false, error: String(e?.message ?? e ?? 'Ошибка загрузки челленджей') }
   }
-
-  return { ok: false, error: 'Нет связи с сервером приложения — челленджи не обновлены' }
 }

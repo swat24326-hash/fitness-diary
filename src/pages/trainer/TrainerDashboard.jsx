@@ -39,7 +39,7 @@ export function TrainerDashboard() {
   useEffect(() => {
     if (user?.id && !user?.club_id) void refreshUserProfile()
   }, [user?.id, user?.club_id, refreshUserProfile])
-  const [online, setOnline] = useState(typeof navigator !== 'undefined' && navigator.onLine)
+  const [online, setOnline] = useState(() => (typeof navigator !== 'undefined' ? navigator.onLine : true))
 
   useEffect(() => subscribeNetworkStatus(setOnline), [])
   const [clients, setClients] = useState([])

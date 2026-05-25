@@ -1,7 +1,7 @@
 import { isSupabaseConfigured } from './supabase'
 import { getDb, getAllStore, putStore } from './localDb'
 import { todayLocalIso } from './dateRu'
-import { saveLocalWithSync, deleteLocalWithSync } from './syncService'
+import { isAppOnline, saveLocalWithSync, deleteLocalWithSync } from './syncService'
 import { pushRecordViaApi } from './syncApiClient'
 import { fetchChallengeTrainingsViaApi, fetchTrainersViaAdminApi } from './admin/adminApiClient'
 
@@ -305,7 +305,7 @@ export async function listChallengesForTrainer(trainerId, profileClubId, { pullR
   if (!clubIds.length) return { challenges: [], pull: null, clubIds: [] }
 
   let pull = null
-  if (pullRemote && isSupabaseConfigured() && typeof navigator !== 'undefined' && navigator.onLine) {
+  if (pullRemote && isSupabaseConfigured() && isAppOnline()) {
     for (const cid of clubIds) {
       pull = await pullChallengesForClub(cid)
     }
@@ -376,7 +376,7 @@ export async function pullChallengesForClub(clubId) {
 export async function listChallengesForClub(clubId, { pullRemote = true } = {}) {
   if (!clubId) return { challenges: [], pull: null }
   let pull = null
-  if (pullRemote && isSupabaseConfigured() && typeof navigator !== 'undefined' && navigator.onLine) {
+  if (pullRemote && isSupabaseConfigured() && isAppOnline()) {
     pull = await pullChallengesForClub(clubId)
   }
   const challenges = await listChallengesLocalForClub(clubId)

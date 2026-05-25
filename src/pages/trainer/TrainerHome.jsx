@@ -12,6 +12,7 @@ import {
 } from '../../lib/dataAccess'
 import { getAllStore } from '../../lib/localDb'
 import { formatDateRu } from '../../lib/dateRu'
+import { isAppOnline } from '../../lib/syncService'
 import { useDebouncedStorageReload, shouldReloadTrainerChallenges } from '../../lib/useDebouncedStorageReload'
 
 function daysLeftRu(endDate) {
@@ -40,7 +41,9 @@ export function TrainerHome() {
     setChallengeBlock((s) => ({ ...s, loading: true }))
     setChallengeHint('')
     try {
-      const { challenges, pull, clubIds } = await listChallengesForTrainer(trainerId, clubId, { pullRemote: false })
+      const { challenges, pull, clubIds } = await listChallengesForTrainer(trainerId, clubId, {
+        pullRemote: isAppOnline(),
+      })
       if (!clubIds.length) {
         setChallengeBlock({ loading: false, items: [] })
         setChallengeHint('Не определён клуб: в админке привяжите тренера к клубу или нажмите Sync после загрузки клиентов.')
