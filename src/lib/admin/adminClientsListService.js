@@ -5,7 +5,8 @@
 
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { isRetryableNetworkError } from '../supabaseRetry'
-import { buildPendingSyncKeysByTable, getDb, putStore, putStoreUnlessPendingSync } from '../localDb'
+import { buildPendingSyncKeysByTable, getDb, putStore, putStoreUnlessPendingSync, removeClientFromLocalCacheOnly } from '../localDb'
+import { invalidateAdminClubWorkspaceCache } from './adminClubWorkspaceCache'
 import { fetchClientsForClubViaAdminApi, fetchMembershipsForClubViaAdminApi } from './adminApiClient'
 import { fetchHealthCardsForClubViaApi } from '../syncApiClient'
 import { normalizeBodyMeasurementRow } from '../bodyMeasures'
@@ -51,6 +52,46 @@ async function mergeClientsIntoCache(rows) {
   for (const row of rows) {
     await putStore('clients', row)
   }
+}
+
+/**
+ * Удаляет из IndexedDB клиентов клуба и «висячие» тренировки, которых нет в облаке
+ * (иначе после удаления тренером админ видит черновики из старого кэша).
+ */
+export async function reconcileAdminClubCache(clubId, remoteClients) {
+  const cid = String(clubId ?? '').trim()
+  if (!cid) return { pruned_clients: 0, pruned_trainings: 0 }
+
+  const remoteIds = new Set((remoteClients ?? []).map((c) => String(c.id)).filter(Boolean))
+  const pending = await buildPendingSyncKeysByTable()
+  const db = await getDb()
+  let pruned_clients = 0
+  let pruned_trainings = 0
+
+  for (const c of await db.getAll('clients')) {
+    if (String(c.club_id) !== cid) continue
+    const id = String(c.id)
+    if (remoteIds.has(id)) continue
+    if (pending.clients.has(id)) continue
+    await removeClientFromLocalCacheOnly(id)
+    pruned_clients++
+  }
+
+  for (const t of await db.getAll('trainings')) {
+    if (t.club_id != null && String(t.club_id) !== cid) continue
+    const clientId = String(t.client_id ?? '')
+    if (!clientId) continue
+    if (remoteIds.has(clientId)) continue
+    if (pending.trainings.has(String(t.id))) continue
+    await db.delete('trainings', t.id)
+    pruned_trainings++
+  }
+
+  if (pruned_clients > 0 || pruned_trainings > 0) {
+    invalidateAdminClubWorkspaceCache()
+  }
+
+  return { pruned_clients, pruned_trainings }
 }
 
 async function mergeMembershipsIntoCache(rows) {
@@ -104,12 +145,25 @@ export async function pullAdminClientsFromCloud(clubId) {
     } catch (hcErr) {
       console.warn('[admin] list-health-cards', hcErr)
     }
+    const pruned = await reconcileAdminClubCache(cid, viaApi.clients)
     notifyAdminClientsCacheUpdated()
-    return { ok: true, count: viaApi.count, source: 'admin_api' }
+    return {
+      ok: true,
+      count: viaApi.count,
+      source: 'admin_api',
+      clients: viaApi.clients,
+      pruned_clients: pruned.pruned_clients,
+      pruned_trainings: pruned.pruned_trainings,
+    }
   }
 
   const pulled = await pullClientsForClubIntoCache(cid)
-  if (pulled.ok) notifyAdminClientsCacheUpdated()
+  if (pulled.ok) {
+    const { clients } = await listAdminClientsFromLocalCache(cid)
+    const pruned = await reconcileAdminClubCache(cid, clients)
+    notifyAdminClientsCacheUpdated()
+    return { ...pulled, pruned_clients: pruned.pruned_clients, pruned_trainings: pruned.pruned_trainings }
+  }
   return pulled
 }
 
@@ -165,6 +219,7 @@ export async function listAdminClientsForClub(p) {
       const viaApi = await fetchClientsForClubViaAdminApi(clubId)
       if (viaApi) {
         await mergeClientsIntoCache(viaApi.clients)
+        await reconcileAdminClubCache(clubId, viaApi.clients)
         try {
           const viaMem = await fetchMembershipsForClubViaAdminApi(clubId)
           if (viaMem?.memberships?.length) {

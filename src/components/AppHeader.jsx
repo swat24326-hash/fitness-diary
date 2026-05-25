@@ -33,6 +33,9 @@ export function AppHeader() {
   const menuRootRef = useRef(null)
   const [adminClubs, setAdminClubs] = useState([])
   const [pendingSync, setPendingSync] = useState(0)
+  const [syncBusy, setSyncBusy] = useState(false)
+  const [syncFeedback, setSyncFeedback] = useState(null)
+  const syncFeedbackTimerRef = useRef(null)
 
   const refreshPendingSync = async () => {
     if (!isSupabaseConfigured()) {
@@ -153,44 +156,110 @@ export function AppHeader() {
     }
   }, [menuOpen])
 
+  const showSyncFeedback = (text, tone = 'ok') => {
+    if (syncFeedbackTimerRef.current) clearTimeout(syncFeedbackTimerRef.current)
+    setSyncFeedback({ text, tone })
+    syncFeedbackTimerRef.current = setTimeout(() => {
+      setSyncFeedback(null)
+      syncFeedbackTimerRef.current = null
+    }, 6000)
+  }
+
+  useEffect(
+    () => () => {
+      if (syncFeedbackTimerRef.current) clearTimeout(syncFeedbackTimerRef.current)
+    },
+    [],
+  )
+
   const syncNow = async () => {
+    if (syncBusy) return
     setMenuOpen(false)
-    /* Сначала отдаём локальную очередь, потом подтягиваем с сервера — иначе pull затирает неотправленное. */
-    await flushSyncQueue({ force: true })
-    if (isSupabaseConfigured()) {
-      try {
-        const { pullExercisesFromCloud, pullChallengesForClubFromCloud } = await import('../lib/pullReferenceData')
-        await pullExercisesFromCloud({ force: false })
-        if (isAdmin) {
-          const club = searchParams.get('club')?.trim()
-          if (club) {
-            try {
+    setSyncBusy(true)
+    setSyncFeedback(null)
+
+    const parts = []
+    let hadError = false
+
+    try {
+      if (!navigator.onLine) {
+        showSyncFeedback('Нет сети — синхронизация отложена.', 'warn')
+        return
+      }
+
+      const flush = await flushSyncQueue({ force: true })
+      if (flush?.ok) parts.push('очередь отправлена')
+      else if (flush?.reason === 'offline_or_stub') {
+        showSyncFeedback('Облако недоступно или вы офлайн.', 'warn')
+        return
+      } else if (flush?.reason === 'timeout') {
+        parts.push('очередь: таймаут')
+        hadError = true
+      }
+
+      if (isSupabaseConfigured()) {
+        try {
+          const { pullExercisesFromCloud, pullChallengesForClubFromCloud } = await import('../lib/pullReferenceData')
+          await pullExercisesFromCloud({ force: false })
+          parts.push('справочник')
+
+          if (isAdmin) {
+            const club = searchParams.get('club')?.trim()
+            if (club) {
               const { listChallengesLocalForClub, pushChallengeToCloud } = await import('../lib/challengeService')
               for (const ch of await listChallengesLocalForClub(club)) {
                 await pushChallengeToCloud(ch)
               }
-              await pullAdminClientsFromCloud(club)
+              const pull = await pullAdminClientsFromCloud(club)
+              if (pull?.ok) {
+                let msg = `клиенты (${pull.count ?? 0})`
+                if ((pull.pruned_clients ?? 0) > 0 || (pull.pruned_trainings ?? 0) > 0) {
+                  msg += `, очищено кэша: ${pull.pruned_clients ?? 0} кл. / ${pull.pruned_trainings ?? 0} черн.`
+                }
+                parts.push(msg)
+              }
               await pullChallengesForClubFromCloud(club)
-            } catch (e) {
-              console.warn('[sync] admin pull', e)
+              parts.push('челленджи')
+            } else {
+              parts.push('клиенты: выберите клуб')
             }
-          }
-        } else if (user?.id) {
-          try {
-            await pullTrainerWorkspaceFromCloud(user.id)
+          } else if (user?.id) {
+            const pull = await pullTrainerWorkspaceFromCloud(user.id)
+            if (pull?.ok) {
+              let msg = `рабочая область (${pull.count ?? 0} кл.)`
+              if ((pull.pruned_clients ?? 0) > 0) msg += `, убрано из кэша: ${pull.pruned_clients}`
+              parts.push(msg)
+            } else if (pull?.error) {
+              hadError = true
+              parts.push(`тренер: ${pull.error}`)
+            }
             const clubIds = await collectTrainerClubIds(user.id, user?.club_id)
             for (const cid of clubIds) {
               await pullChallengesForClubFromCloud(cid)
             }
-          } catch (e) {
-            console.warn('[sync] trainer pull', e)
+            parts.push('челленджи')
           }
+        } catch (e) {
+          hadError = true
+          console.warn('[sync] pull', e)
+          parts.push('ошибка загрузки')
         }
-      } catch (e) {
-        console.warn('[sync] reference pull', e)
       }
+
+      await refreshPendingSync()
+      dispatchLocalDataChanged({ reason: 'sync-complete' })
+
+      if (hadError) {
+        showSyncFeedback(`Синхронизация с замечаниями: ${parts.join(' · ')}.`, 'warn')
+      } else {
+        showSyncFeedback(parts.length ? `Готово: ${parts.join(' · ')}.` : 'Синхронизация завершена.', 'ok')
+      }
+    } catch (e) {
+      console.warn('[sync]', e)
+      showSyncFeedback(e?.message ?? 'Ошибка синхронизации', 'err')
+    } finally {
+      setSyncBusy(false)
     }
-    dispatchLocalDataChanged({ reason: 'sync-complete' })
   }
 
   const doSignOut = () => {
@@ -208,7 +277,23 @@ export function AppHeader() {
     setSearchParams(next, { replace: true })
   }
 
+  const showTrainerHeaderSync = !isAdmin && supabaseReady
+  const syncHasPending = pendingSync > 0
+  const syncBtnClass = [
+    'btn',
+    'btn-ghost',
+    'app-header__action',
+    'app-header__sync-btn',
+    syncBusy ? 'app-header__sync-btn--busy' : syncHasPending ? 'app-header__sync-btn--pending' : 'app-header__sync-btn--idle',
+  ].join(' ')
+  const syncBtnTitle = syncBusy
+    ? 'Синхронизация…'
+    : syncHasPending
+      ? `Отправить в облако (${pendingSync} в очереди)`
+      : 'Синхронизировать с облаком'
+
   return (
+    <>
     <header className="app-header">
       <div className="app-header__brand-slot">
         <Link
@@ -293,6 +378,23 @@ export function AppHeader() {
             ))}
           </select>
         ) : null}
+        {showTrainerHeaderSync ? (
+          <button
+            type="button"
+            className={syncBtnClass}
+            disabled={syncBusy}
+            onClick={() => void syncNow()}
+            title={syncBtnTitle}
+            aria-label={syncBtnTitle}
+          >
+            <RefreshCw size={20} className={syncBusy ? 'icon-spin' : undefined} aria-hidden />
+            {syncHasPending && !syncBusy ? (
+              <span className="app-header__sync-badge" aria-hidden>
+                {pendingSync > 99 ? '99+' : pendingSync}
+              </span>
+            ) : null}
+          </button>
+        ) : null}
         <button
           type="button"
           className="btn btn-ghost app-header__action app-header__burger"
@@ -346,15 +448,20 @@ export function AppHeader() {
                   {user?.name ?? user?.email ?? '—'}
                   {!supabaseReady && ' · локально'}
                   {!isAdmin && !online && ' · офлайн'}
-                  {!isAdmin && pendingSync > 0 && ` · ${pendingSync} не отправлено`}
                 </span>
               </div>
             </div>
-            <button type="button" className="app-header__menu-item" onClick={() => void syncNow()}>
-              <RefreshCw size={18} aria-hidden />
-              Синхронизировать
-              {!isAdmin && pendingSync > 0 ? ` (${pendingSync})` : ''}
-            </button>
+            {isAdmin ? (
+              <button
+                type="button"
+                className="app-header__menu-item"
+                disabled={syncBusy}
+                onClick={() => void syncNow()}
+              >
+                <RefreshCw size={18} className={syncBusy ? 'icon-spin' : undefined} aria-hidden />
+                {syncBusy ? 'Синхронизация…' : 'Синхронизировать'}
+              </button>
+            ) : null}
             <button type="button" className="app-header__menu-item app-header__menu-item--danger" onClick={doSignOut}>
               <LogOut size={18} aria-hidden />
               Выйти
@@ -363,5 +470,15 @@ export function AppHeader() {
         )}
       </div>
     </header>
+    {syncFeedback && (
+      <div
+        className={`sync-feedback sync-feedback--${syncFeedback.tone}`}
+        role="status"
+        aria-live="polite"
+      >
+        {syncFeedback.text}
+      </div>
+    )}
+    </>
   )
 }

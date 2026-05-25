@@ -410,6 +410,68 @@ button {
   background: rgba(34, 197, 94, 0.08);
 }
 
+.app-header__sync-btn {
+  position: relative;
+  width: 42px;
+  min-width: 42px;
+  padding: 9px;
+  justify-content: center;
+  transition:
+    color 0.2s var(--ease-out),
+    border-color 0.2s var(--ease-out),
+    background 0.2s var(--ease-out),
+    box-shadow 0.2s var(--ease-out);
+}
+
+.app-header__sync-btn--idle {
+  color: rgba(246, 244, 239, 0.52);
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.app-header__sync-btn--idle:hover:not(:disabled) {
+  color: rgba(246, 244, 239, 0.82);
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.app-header__sync-btn--pending {
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.55);
+  background: rgba(251, 191, 36, 0.1);
+  box-shadow: 0 0 16px rgba(251, 191, 36, 0.15);
+}
+
+.app-header__sync-btn--pending:hover:not(:disabled) {
+  color: #fde68a;
+  border-color: rgba(251, 191, 36, 0.7);
+  background: rgba(251, 191, 36, 0.16);
+}
+
+.app-header__sync-btn--busy {
+  color: var(--accent-bright);
+  border-color: rgba(46, 255, 184, 0.4);
+  background: rgba(46, 255, 184, 0.08);
+}
+
+.app-header__sync-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 17px;
+  text-align: center;
+  color: #0a0f0c;
+  background: #fbbf24;
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.45);
+  pointer-events: none;
+}
+
 .app-brand {
   font-weight: 700;
   letter-spacing: -0.03em;
@@ -3780,6 +3842,36 @@ tr:last-child td {
 
 .modal-panel--bulk {
   width: min(720px, 100%);
+}
+
+.sync-feedback {
+  position: sticky;
+  top: var(--header-h);
+  z-index: 9;
+  margin: 0;
+  padding: 10px clamp(16px, 4vw, 28px);
+  font-size: 13px;
+  line-height: 1.45;
+  border-bottom: 1px solid var(--border-soft);
+  animation: fade-in-up 0.3s var(--ease-out) backwards;
+}
+
+.sync-feedback--ok {
+  background: rgba(46, 255, 184, 0.1);
+  color: var(--premium-text);
+  border-bottom-color: rgba(46, 255, 184, 0.22);
+}
+
+.sync-feedback--warn {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fde68a;
+  border-bottom-color: rgba(251, 191, 36, 0.28);
+}
+
+.sync-feedback--err {
+  background: rgba(248, 113, 113, 0.14);
+  color: #fecaca;
+  border-bottom-color: rgba(248, 113, 113, 0.3);
 }
 
 .modal-section {

@@ -9,6 +9,7 @@ import {
   listTrainerSummariesForAdmin,
 } from '../../lib/dataAccess'
 import { loadAdminClubWorkspaceExtras } from '../../lib/admin/adminClubWorkspaceCache'
+import { pullAdminClientsFromCloud } from '../../lib/admin/adminClientsListService'
 import { useDebouncedStorageReload, shouldReloadAdminClientsPage } from '../../lib/useDebouncedStorageReload'
 import { ADMIN_CLIENTS_REMOTE_LIMIT } from '../../lib/admin/adminConstants'
 import { isSupabaseConfigured, supabase } from '../../lib/supabase'
@@ -83,6 +84,7 @@ export function AdminClients() {
 
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
+  const [refreshMsg, setRefreshMsg] = useState('')
 
   const reload = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setBusy(true)
@@ -130,6 +132,37 @@ export function AdminClients() {
   }, [reload])
 
   useDebouncedStorageReload(() => reload({ silent: true }), { shouldRun: shouldReloadAdminClientsPage })
+
+  const refreshFromCloud = useCallback(async () => {
+    if (!club?.trim()) {
+      setRefreshMsg('Выберите клуб в панели сверху.')
+      return
+    }
+    setBusy(true)
+    setRefreshMsg('')
+    try {
+      if (isSupabaseConfigured() && navigator.onLine) {
+        const r = await pullAdminClientsFromCloud(club)
+        if (r.ok) {
+          const extra =
+            (r.pruned_clients ?? 0) > 0 || (r.pruned_trainings ?? 0) > 0
+              ? ` Очищено из кэша: клиентов ${r.pruned_clients ?? 0}, черновиков ${r.pruned_trainings ?? 0}.`
+              : ''
+          setRefreshMsg(`Список обновлён из облака (${r.count ?? 0} клиентов).${extra}`)
+        } else if (r.reason === 'no_club') {
+          setRefreshMsg('Выберите клуб.')
+        } else {
+          setRefreshMsg('Не удалось загрузить с сервера — показан локальный кэш.')
+        }
+      }
+      await reload({ silent: true })
+    } catch (e) {
+      setRefreshMsg(e?.message ?? 'Ошибка обновления')
+      await reload({ silent: true })
+    } finally {
+      setBusy(false)
+    }
+  }, [club, reload])
 
   const today = todayLocalIso()
 
@@ -348,14 +381,19 @@ export function AdminClients() {
               type="button"
               className="btn btn-primary btn-icon-square btn-touch"
               disabled={busy}
-              onClick={() => void reload()}
-              aria-label="Обновить список"
-              title="Обновить"
+              onClick={() => void refreshFromCloud()}
+              aria-label="Обновить список из облака"
+              title="Обновить из Supabase"
             >
               <RefreshCw size={20} className={busy ? 'icon-spin' : undefined} aria-hidden />
             </button>
           </div>
         </div>
+        {refreshMsg && (
+          <p className="sync-feedback sync-feedback--ok" style={{ margin: '0 0 12px' }}>
+            {refreshMsg}
+          </p>
+        )}
         {cloudNeedsClub ? (
           <p className="muted" style={{ margin: '0 0 12px', fontSize: 14, lineHeight: 1.5 }}>
             В облачном режиме выберите <strong>клуб</strong> в панели выше — иначе список клиентов не загружается (избегаем выгрузки всей базы).
