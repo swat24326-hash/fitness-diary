@@ -10,6 +10,7 @@ import { invalidateAdminClubWorkspaceCache } from './adminClubWorkspaceCache'
 import { fetchClientsForClubViaAdminApi, fetchMembershipsForClubViaAdminApi } from './adminApiClient'
 import { fetchHealthCardsForClubViaApi } from '../syncApiClient'
 import { normalizeBodyMeasurementRow } from '../bodyMeasures'
+import { purgeSyncQueueForMissingClients } from '../syncQueueOrphans'
 import { ADMIN_CLIENTS_REMOTE_LIMIT, ADMIN_SYNC_BATCH_SIZE } from './adminConstants'
 
 const LOCAL_DATA_CHANGED = 'fitness-diary-storage'
@@ -90,6 +91,8 @@ export async function reconcileAdminClubCache(clubId, remoteClients) {
   if (pruned_clients > 0 || pruned_trainings > 0) {
     invalidateAdminClubWorkspaceCache()
   }
+
+  await purgeSyncQueueForMissingClients((remoteClients ?? []).map((c) => c.id))
 
   return { pruned_clients, pruned_trainings }
 }

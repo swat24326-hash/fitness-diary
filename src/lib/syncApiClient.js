@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured } from './supabase'
 import { getAccessTokenForAdminApi } from './admin/adminApiClient'
 import { removeSyncItem } from './localDb'
+import { handlePushApiFailure, isUnrecoverablePushError } from './syncQueueOrphans'
 
 function apiOrigin() {
   if (typeof window !== 'undefined' && window.location?.origin) {
@@ -81,8 +82,16 @@ export async function pushRecordViaApi({ table_name, operation, data, remote_id,
       record: body.record && typeof body.record === 'object' ? body.record : undefined,
     }
   }
-  const err = body.error || body.message || `HTTP ${res.status}`
-  return { ok: false, error: String(err) }
+  const err = String(body.error || body.message || `HTTP ${res.status}`)
+  if (isUnrecoverablePushError(res.status, err)) {
+    return handlePushApiFailure({
+      status: res.status,
+      error: err,
+      local_id,
+      item: { table_name, operation, data, remote_id },
+    })
+  }
+  return { ok: false, status: res.status, error: err }
 }
 
 /** Debounced push после saveLocalWithSync */

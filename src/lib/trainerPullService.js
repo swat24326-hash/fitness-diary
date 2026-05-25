@@ -7,6 +7,7 @@ import { isRetryableNetworkError } from './supabaseRetry'
 import { normalizeBodyMeasurementRow } from './bodyMeasures'
 import { buildPendingSyncKeysByTable, getDb, putStoreUnlessPendingSync, removeClientFromLocalCacheOnly } from './localDb'
 import { fetchTrainerPullViaApi } from './syncApiClient'
+import { purgeSyncQueueForMissingClients } from './syncQueueOrphans'
 import { invalidateTrainerWorkspaceCache } from './trainerWorkspaceCache'
 
 const LOCAL_DATA_CHANGED = 'fitness-diary-storage'
@@ -48,6 +49,7 @@ async function cacheTrainerPull(trainerId, { clients, memberships, health_cards,
   }
   for (const row of trainings ?? []) await putStoreUnlessPendingSync('trainings', row, pending)
   const pruned = await pruneOrphanTrainerClients(trainerId, clients)
+  await purgeSyncQueueForMissingClients((clients ?? []).map((c) => c.id))
   invalidateTrainerWorkspaceCache()
   notifyLocalDataChanged()
   return pruned

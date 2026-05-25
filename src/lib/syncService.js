@@ -2,6 +2,11 @@ import { supabase, isSupabaseConfigured } from './supabase'
 import { initNetworkReachability, getNetworkReachable } from './networkReachability'
 import { getDb, listSyncQueue, removeSyncItem, enqueueSync, setOnlineFlag } from './localDb'
 import { pushRecordViaApi, schedulePushRecordViaApi } from './syncApiClient'
+import {
+  dropLocalOrphanForSyncItem,
+  isUnrecoverablePushError,
+  purgeSyncQueueAgainstLocalClients,
+} from './syncQueueOrphans'
 import { invalidateTrainerWorkspaceCache } from './trainerWorkspaceCache'
 import { invalidateAdminClubWorkspaceCache } from './admin/adminClubWorkspaceCache'
 
@@ -103,7 +108,7 @@ export async function clearPoisonedSyncQueue() {
   }
 }
 
-const SYNC_QUEUE_RESET_KEY = 'fitness-diary-sync-reset-v5'
+const SYNC_QUEUE_RESET_KEY = 'fitness-diary-sync-reset-v6'
 
 /** Один раз после обновления сайта — сброс всей очереди (убирает 409 в консоли). */
 export async function resetSyncQueueOnceAfterDeploy() {
@@ -171,6 +176,7 @@ async function flushSyncQueueInner() {
 
   await clearPoisonedSyncQueue()
   await pruneStaleSyncInserts({ aggressive: true })
+  await purgeSyncQueueAgainstLocalClients()
 
   const queue = await listSyncQueue()
   for (const item of queue) {
@@ -188,6 +194,12 @@ async function flushSyncQueueInner() {
         local_id: item.local_id,
       })
       if (pushedViaApi.ok) continue
+      if (pushedViaApi.dropped) continue
+      if (isUnrecoverablePushError(pushedViaApi.status, pushedViaApi.error)) {
+        await removeSyncItem(item.local_id)
+        await dropLocalOrphanForSyncItem(item)
+        continue
+      }
 
       const attempt = async (payload) => {
         if (item.operation === 'insert') {

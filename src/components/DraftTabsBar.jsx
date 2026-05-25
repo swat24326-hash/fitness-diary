@@ -40,6 +40,7 @@ export function DraftTabsBar() {
         setClientById(cmap)
         const draftRows = allTrainings
           .filter((t) => t.status === 'draft')
+          .filter((t) => cmap[t.client_id])
           .filter((t) => (isAdmin ? (adminClubId ? t.club_id === adminClubId : false) : t.trainer_id === user.id))
           .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
         const capped = isAdmin ? draftRows.slice(0, 25) : draftRows
