@@ -40,8 +40,7 @@ async function probeOnce() {
   }
 
   const base = String(import.meta.env.VITE_SUPABASE_URL ?? '').replace(/\/$/, '')
-  const key = String(import.meta.env.VITE_SUPABASE_ANON_KEY ?? '').trim()
-  if (!base || !key) {
+  if (!base) {
     setReachable(false)
     return
   }
@@ -50,16 +49,15 @@ async function probeOnce() {
   try {
     const ctrl = new AbortController()
     const timeout = setTimeout(() => ctrl.abort(), 6000)
-    const res = await fetch(`${base}/rest/v1/`, {
-      method: 'HEAD',
-      headers: { apikey: key, Authorization: `Bearer ${key}` },
+    /* Публичный health — без anon key, без 401 в консоли */
+    const res = await fetch(`${base}/auth/v1/health`, {
+      method: 'GET',
       cache: 'no-store',
       signal: ctrl.signal,
     })
     clearTimeout(timeout)
     if (gen !== probeGen) return
-    /* Любой ответ сервера = интернет есть; сеть оборвана = fetch throw */
-    setReachable(res.status < 500)
+    setReachable(res.ok)
   } catch {
     if (gen !== probeGen) return
     setReachable(false)

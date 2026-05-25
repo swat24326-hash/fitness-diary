@@ -7,7 +7,6 @@ import { useDebouncedStorageReload, shouldReloadTrainerClientList } from '../../
 import { formatIsoRu, getDateRange, isDateInRange } from '../../lib/period'
 import { flushSyncQueue, saveLocalWithSync } from '../../lib/syncService'
 import { subscribeNetworkStatus } from '../../lib/networkReachability'
-import { subscribeNetworkStatus } from '../../lib/networkReachability'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 import { pickUsableMembershipForDate } from '../../lib/membershipRules'
 
