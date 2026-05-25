@@ -3,6 +3,7 @@ import { Pencil, RefreshCw, X } from 'lucide-react'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { listExercises, pullExercisesFromSupabase } from '../../lib/dataAccess'
 import { insertExercise, updateExercise, removeExercise } from '../../lib/exerciseService'
+import { parseBulkExercises } from '../../lib/parseBulkExercises'
 
 export function AdminExercises() {
   const [exercises, setExercises] = useState([])
@@ -48,6 +49,8 @@ export function AdminExercises() {
     }
     return [...s].sort()
   }, [exercises])
+
+  const bulkPreview = useMemo(() => parseBulkExercises(bulkText), [bulkText])
 
   const filtered = useMemo(() => {
     const qq = q.trim().toLowerCase()
@@ -142,32 +145,38 @@ export function AdminExercises() {
 
   const bulkLoad = async () => {
     setMsg('')
-    const lines = bulkText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
-    if (!lines.length) {
-      setMsg('Введите строки в формате: Название,Направленность,Основные мышцы,Примечание')
+    const { exercises, errors, warnings } = bulkPreview
+    if (errors.length) {
+      setMsg(errors.join(' '))
+      return
+    }
+    if (!exercises.length) {
+      setMsg('Не распознано ни одного упражнения. Проверьте формат ниже.')
       return
     }
     const now = new Date().toISOString()
     let failed = 0
+    let saved = 0
     try {
-      for (const line of lines) {
-        const parts = line.split(',').map((p) => p.trim())
-        const [name, muscle_group, primary_muscles, comment] = [parts[0], parts[1], parts[2], parts[3]]
-        if (!name || !muscle_group) continue
+      for (const ex of exercises) {
         const row = {
           id: crypto.randomUUID(),
-          name,
-          muscle_group,
-          primary_muscles: primary_muscles || null,
-          comment: comment || null,
+          name: ex.name,
+          muscle_group: ex.muscle_group,
+          primary_muscles: ex.primary_muscles,
+          comment: ex.comment,
           created_at: now,
         }
         const cloud = await insertExercise(row)
         if (!cloud.cloudOk) failed += 1
+        else saved += 1
       }
       setBulkText('')
+      const warn = warnings.length ? ` ${warnings[0]}` : ''
       if (failed > 0) {
-        setMsg(`${failed} строк не ушли в облако — проверьте сеть и Sync, или дубликаты названий.`)
+        setMsg(`Сохранено ${saved} из ${exercises.length}. ${failed} не ушли в облако — Sync или дубликат названия.${warn}`)
+      } else {
+        setMsg(`Добавлено упражнений: ${saved}.${warn}`)
       }
       await loadLocal()
     } catch (err) {
@@ -241,12 +250,55 @@ export function AdminExercises() {
         <h3 className="section-title td-period__title" style={{ margin: '16px 0 8px' }}>
           Быстрая загрузка
         </h3>
-        <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-          Каждая строка: <code>Название,Направленность,Основные мышцы,Примечание</code>
+        <p className="muted" style={{ fontSize: 13, marginTop: 0, lineHeight: 1.5 }}>
+          <strong>Формат (рекомендуется):</strong> одно упражнение — блок из 4 строк с подписями. Между упражнениями — пустая
+          строка.
+          <br />
+          <code style={{ display: 'block', marginTop: 8, whiteSpace: 'pre-wrap', fontSize: 12 }}>
+            {`Название: …\nНаправленность: …\nОсновные мышцы: …\nПримечание: …`}
+          </code>
+          <span style={{ display: 'block', marginTop: 8 }}>
+            Альтернатива — одна строка на упражнение, поля через <strong>|</strong> (не запятую):{' '}
+            <code>Название | Направленность | Мышцы | Примечание</code>
+          </span>
         </p>
-        <textarea className="input" rows={5} value={bulkText} onChange={(e) => setBulkText(e.target.value)} style={{ resize: 'vertical', fontFamily: 'inherit' }} />
-        <button type="button" className="btn btn-primary btn-touch" style={{ marginTop: 8 }} onClick={bulkLoad}>
-          Загрузить строки
+        <textarea
+          className="input"
+          rows={8}
+          value={bulkText}
+          onChange={(e) => setBulkText(e.target.value)}
+          placeholder={`Название: Присед со штангой\nНаправленность: Ноги / Ягодицы\nОсновные мышцы: Квадрицепсы, ягодичные\nПримечание: Колени не выходят за носки`}
+          style={{ resize: 'vertical', fontFamily: 'inherit' }}
+        />
+        {bulkText.trim() && (
+          <p className="muted" style={{ fontSize: 13, margin: '8px 0 0' }}>
+            {bulkPreview.errors.length > 0 ? (
+              <span style={{ color: '#fecaca' }}>{bulkPreview.errors.join(' ')}</span>
+            ) : (
+              <>
+                Распознано: <strong style={{ color: 'var(--text)' }}>{bulkPreview.exercises.length}</strong>
+                {bulkPreview.exercises.length > 0 && (
+                  <span>
+                    {' '}
+                    — {bulkPreview.exercises.map((e) => e.name).slice(0, 5).join(', ')}
+                    {bulkPreview.exercises.length > 5 ? '…' : ''}
+                  </span>
+                )}
+              </>
+            )}
+            {bulkPreview.warnings.length > 0 && (
+              <span style={{ display: 'block', marginTop: 4, color: '#fde68a' }}>{bulkPreview.warnings[0]}</span>
+            )}
+          </p>
+        )}
+        <button
+          type="button"
+          className="btn btn-primary btn-touch"
+          style={{ marginTop: 8 }}
+          disabled={!bulkPreview.exercises.length || bulkPreview.errors.length > 0}
+          onClick={bulkLoad}
+        >
+          Загрузить ({bulkPreview.exercises.length || 0})
         </button>
 
         <h3 className="section-title td-period__title" style={{ margin: '22px 0 10px' }}>

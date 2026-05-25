@@ -33,6 +33,7 @@ function check(cond, label) {
 
 run('build', 'npm', ['run', 'build'])
 run('exercise formats', 'node', ['scripts/verify-exercise-format.mjs'])
+run('bulk exercises parser', 'node', ['scripts/verify-bulk-exercises.mjs'])
 
 if (!skipLint) {
   run('lint', 'npm', ['run', 'lint'])
