@@ -29,37 +29,28 @@ function daysLeftRu(endDate) {
   return `осталось ${d} дней`
 }
 
-/** Один баннер: загрузка (вращение) → готово (свечение) или короткое сообщение */
-function ChallengesPlaceholder({ phase, tone, message }) {
+/** Один баннер: загрузка — только вращение; готово — свечение и «Скоро начнётся сражение». */
+function ChallengesPlaceholder({ phase }) {
   const loading = phase === 'loading'
-  const ready = phase === 'ready'
-  const showBattle = ready && tone === 'soon'
-
-  const mod = loading ? 'loading' : tone === 'message' ? 'message' : 'ready'
 
   return (
     <div
-      className={`trainer-challenges__soon trainer-challenges__soon--${mod}`}
+      className={`trainer-challenges__soon trainer-challenges__soon--${loading ? 'loading' : 'ready'}`}
       role="status"
       aria-live="polite"
       aria-busy={loading}
+      aria-label={loading ? 'Загрузка' : 'Скоро начнётся сражение'}
     >
-      {ready && tone === 'soon' ? <span className="trainer-challenges__soon-glow" aria-hidden /> : null}
+      {!loading ? <span className="trainer-challenges__soon-glow" aria-hidden /> : null}
       <span className="trainer-challenges__soon-icon" aria-hidden>
         <Swords size={34} strokeWidth={1.75} />
       </span>
-      {loading ? (
-        <p className="trainer-challenges__soon-text trainer-challenges__soon-text--loading">Загрузка…</p>
-      ) : showBattle ? (
-        <p className="trainer-challenges__soon-text">Скоро начнётся сражение</p>
-      ) : (
-        <p className="trainer-challenges__soon-text trainer-challenges__soon-text--message">{message}</p>
-      )}
+      {!loading ? <p className="trainer-challenges__soon-text">Скоро начнётся сражение</p> : null}
     </div>
   )
 }
 
-const INITIAL_CHALLENGES_VIEW = { phase: 'loading', tone: 'soon', message: '', items: [] }
+const INITIAL_CHALLENGES_VIEW = { phase: 'loading', items: [] }
 
 export function TrainerHome() {
   const { user } = useAuth()
@@ -77,8 +68,6 @@ export function TrainerHome() {
       if (!silent) {
         setChallengesView((v) => ({
           phase: 'loading',
-          tone: 'soon',
-          message: '',
           items: v.items ?? [],
         }))
       }
@@ -89,29 +78,12 @@ export function TrainerHome() {
         })
         if (gen !== loadGenRef.current) return
 
+        const active = (challenges ?? []).filter((c) => isChallengeVisibleForTrainerHome(c))
         if (!clubIds.length) {
-          setChallengesView({
-            phase: 'ready',
-            tone: 'message',
-            message: 'Клуб пока не привязан. Нажмите Sync или обратитесь к администратору.',
-            items: [],
-          })
+          setChallengesView({ phase: 'ready', items: [] })
           return
         }
-
-        let tone = 'soon'
-        let message = ''
-        if (pull && !pull.ok && pull.error) {
-          tone = 'message'
-          message = `Не удалось обновить: ${pull.error}`
-        }
-
-        const active = (challenges ?? []).filter((c) => isChallengeVisibleForTrainerHome(c))
-
-        if (active.length === 0 && tone !== 'message') {
-          tone = 'soon'
-          message = ''
-        }
+        void pull
 
         const clients = await getAllStore('clients')
         if (gen !== loadGenRef.current) return
@@ -139,19 +111,10 @@ export function TrainerHome() {
 
         if (gen !== loadGenRef.current) return
 
-        if (items.length > 0) {
-          setChallengesView({ phase: 'ready', tone: 'soon', message: '', items })
-        } else {
-          setChallengesView({ phase: 'ready', tone, message, items: [] })
-        }
+        setChallengesView({ phase: 'ready', items })
       } catch {
         if (gen !== loadGenRef.current) return
-        setChallengesView({
-          phase: 'ready',
-          tone: 'message',
-          message: 'Не удалось загрузить. Проверьте сеть и нажмите Sync.',
-          items: [],
-        })
+        setChallengesView({ phase: 'ready', items: [] })
       }
     },
     [clubId, trainerId],
@@ -200,11 +163,7 @@ export function TrainerHome() {
           </h2>
         </div>
         {showPlaceholder ? (
-          <ChallengesPlaceholder
-            phase={challengesView.phase}
-            tone={challengesView.tone}
-            message={challengesView.message}
-          />
+          <ChallengesPlaceholder phase={challengesView.phase} />
         ) : (
           <ul className="trainer-challenges__list">
             {challengeCards.map(({ challenge: ch, mine, totalRanked }) => (
