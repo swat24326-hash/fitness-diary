@@ -26,7 +26,7 @@ async function parseJson(res) {
   }
 }
 
-const PUSH_TABLES = new Set([
+export const PUSH_TABLES = new Set([
   'clients',
   'memberships',
   'trainings',
@@ -35,6 +35,24 @@ const PUSH_TABLES = new Set([
   'challenges',
   'exercises',
 ])
+
+const PUSH_RECORD_TIMEOUT_MS = 28_000
+const PUSH_BATCH_TIMEOUT_MS = 52_000
+
+async function fetchPushApi(url, init, timeoutMs) {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal })
+  } catch (e) {
+    if (e?.name === 'AbortError') {
+      throw new Error(`Таймаут ${Math.round(timeoutMs / 1000)} с — сервер не ответил`)
+    }
+    throw e
+  } finally {
+    clearTimeout(timer)
+  }
+}
 
 let pushTimer = null
 /** @type {Array<{ table_name: string, operation: string, data: object, remote_id: string | null, local_id: string }>} */
@@ -59,16 +77,20 @@ export async function pushRecordViaApi({ table_name, operation, data, remote_id,
 
   let res
   try {
-    res = await fetch(`${apiOrigin()}/api/push-record`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+    res = await fetchPushApi(
+      `${apiOrigin()}/api/push-record`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin',
+        cache: 'no-store',
+        body: JSON.stringify({ table_name, operation, data, remote_id }),
       },
-      credentials: 'same-origin',
-      cache: 'no-store',
-      body: JSON.stringify({ table_name, operation, data, remote_id }),
-    })
+      PUSH_RECORD_TIMEOUT_MS,
+    )
   } catch (e) {
     return { ok: false, error: e?.message ? String(e.message) : 'Сеть недоступна' }
   }
@@ -140,18 +162,28 @@ export async function pushRecordsBatchViaApi(items) {
 
   let res
   try {
-    res = await fetch(`${apiOrigin()}/api/push-records`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+    res = await fetchPushApi(
+      `${apiOrigin()}/api/push-records`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin',
+        cache: 'no-store',
+        body: JSON.stringify({ records }),
       },
-      credentials: 'same-origin',
-      cache: 'no-store',
-      body: JSON.stringify({ records }),
-    })
+      PUSH_BATCH_TIMEOUT_MS,
+    )
   } catch (e) {
-    return { ok: false, error: e?.message ? String(e.message) : 'Сеть недоступна' }
+    const msg = e?.message ? String(e.message) : 'Сеть недоступна'
+    return {
+      ok: false,
+      error: msg,
+      timedOut: /таймаут/i.test(msg),
+      failed: items.map((item) => ({ item, result: { ok: false, error: msg } })),
+    }
   }
 
   const body = await parseJson(res)

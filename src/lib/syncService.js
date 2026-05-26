@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from './supabase'
+import { isSupabaseConfigured } from './supabase'
 import { initNetworkReachability, isAppOnline } from './networkReachability'
 import { getDb, listSyncQueue, removeSyncItem, enqueueSync, setOnlineFlag } from './localDb'
 import {
@@ -6,6 +6,7 @@ import {
   pushRecordsBatchViaApi,
   PUSH_BATCH_SIZE,
   PUSH_PARALLEL,
+  PUSH_TABLES,
   schedulePushRecordViaApi,
 } from './syncApiClient'
 import { mapWithConcurrency } from './syncConcurrency'
@@ -34,19 +35,6 @@ const AUTO_PUSH_TABLES = new Set([
   'body_measurements',
   'challenges',
   'exercises',
-])
-
-const ALLOWED_TABLES = new Set([
-  'clients',
-  'memberships',
-  'trainings',
-  'exercises',
-  'body_measurements',
-  'health_cards',
-  'clubs',
-  'users',
-  'challenges',
-  'sync_queue',
 ])
 
 /** Порядок отправки: сначала сущности, от которых зависят остальные. */
@@ -368,15 +356,31 @@ async function flushSyncQueueInner() {
 
 async function processOneSyncQueueItem(item) {
   const table = item.table_name
-  if (!table || !ALLOWED_TABLES.has(table)) {
+  if (!table || !PUSH_TABLES.has(table)) {
     await removeSyncItem(item.local_id)
     return { ok: true }
+  }
+
+  if ((item.operation === 'update' || item.operation === 'delete') && !item.remote_id) {
+    await removeSyncItem(item.local_id)
+    return { ok: true }
+  }
+
+  let payload = item.data
+  if (
+    table === 'health_cards' &&
+    payload &&
+    typeof payload === 'object' &&
+    Object.prototype.hasOwnProperty.call(payload, 'goal')
+  ) {
+    const { goal: _g, ...rest } = payload
+    payload = rest
   }
 
   const pushedViaApi = await pushRecordViaApi({
     table_name: item.table_name,
     operation: item.operation,
-    data: item.data,
+    data: payload,
     remote_id: item.remote_id,
     local_id: item.local_id,
   })
@@ -387,51 +391,13 @@ async function processOneSyncQueueItem(item) {
     return { ok: true }
   }
 
-  const attempt = async (payload) => {
-    if (item.operation === 'insert') {
-      const { error } = await supabase.from(table).insert(payload)
-      if (error) throw error
-      return
-    }
-    if (item.operation === 'update' && item.remote_id) {
-      const { error } = await supabase.from(table).update(payload).eq('id', item.remote_id)
-      if (error) throw error
-      return
-    }
-    if (item.operation === 'delete' && item.remote_id) {
-      const { error } = await supabase.from(table).delete().eq('id', item.remote_id)
-      if (error) throw error
-    }
-  }
-
-  try {
-    if ((item.operation === 'update' || item.operation === 'delete') && !item.remote_id) {
-      throw new Error('missing remote_id')
-    }
-    await attempt(item.data)
+  const err = String(pushedViaApi.error ?? 'Ошибка отправки')
+  if (item.operation === 'insert' && isDuplicateInsertError({ message: err, status: pushedViaApi.status })) {
     await removeSyncItem(item.local_id)
     return { ok: true }
-  } catch (e) {
-    const msg = String(e?.message ?? '')
-    const needStripGoal =
-      table === 'health_cards' &&
-      item.data &&
-      Object.prototype.hasOwnProperty.call(item.data, 'goal') &&
-      msg.toLowerCase().includes('goal') &&
-      (msg.toLowerCase().includes('column') || msg.toLowerCase().includes('could not find'))
-    if (needStripGoal) {
-      const nextData = { ...item.data }
-      delete nextData.goal
-      await attempt(nextData)
-      await removeSyncItem(item.local_id)
-      return { ok: true }
-    }
-    if (item.operation === 'insert' && isDuplicateInsertError(e)) {
-      await removeSyncItem(item.local_id)
-      return { ok: true }
-    }
-    throw e
   }
+
+  throw new Error(err)
 }
 
 async function bumpSyncItemRetry(item) {
@@ -456,20 +422,25 @@ async function flushSyncQueueInnerWork() {
   }
 
   let processed = 0
-  const reportStep = () => {
-    reportQueueFlushProgress(
-      processed,
-      total,
-      total > 0 ? `Запись ${Math.min(processed, total)} из ${total}` : 'Отправка…',
-    )
+  let pruned = 0
+  const reportStep = (label) => {
+    const done = Math.min(processed + pruned, total)
+    const text =
+      label ??
+      (pruned > 0 && processed === 0
+        ? `Подготовка… (убрано ${pruned})`
+        : total > 0
+          ? `Запись ${done} из ${total}`
+          : 'Отправка…')
+    reportQueueFlushProgress(done, total, text)
   }
 
   const validQueue = []
   for (const item of queue) {
     const table = item.table_name
-    if (!table || !ALLOWED_TABLES.has(table)) {
+    if (!table || !PUSH_TABLES.has(table)) {
       await removeSyncItem(item.local_id)
-      processed++
+      pruned++
       continue
     }
     validQueue.push(item)
@@ -492,12 +463,15 @@ async function flushSyncQueueInnerWork() {
 
   for (let offset = 0; offset < validQueue.length; offset += PUSH_BATCH_SIZE) {
     const chunk = validQueue.slice(offset, offset + PUSH_BATCH_SIZE)
+    reportStep(`Пачка ${Math.floor(offset / PUSH_BATCH_SIZE) + 1}…`)
+
     let batchResult = await pushRecordsBatchViaApi(chunk)
 
-    if (!batchResult.results && chunk.length > 6) {
+    if (!batchResult.results && chunk.length > 2) {
       const half = Math.ceil(chunk.length / 2)
       const left = chunk.slice(0, half)
       const right = chunk.slice(half)
+      reportStep(`Повтор меньшими частями…`)
       const r1 = await pushRecordsBatchViaApi(left)
       const r2 = await pushRecordsBatchViaApi(right)
       const mergedFailed = [...(r1.failed ?? []), ...(r2.failed ?? [])]
