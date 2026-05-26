@@ -17,6 +17,7 @@ import {
 } from '../lib/dataAccess'
 import { DEMO_CLUB_ID } from '../lib/seedDemo'
 import { HeaderStopwatch } from './HeaderStopwatch'
+import { clearSyncErrors, getRecentSyncErrors } from '../lib/syncApiClient'
 
 function headerNavClass({ isActive }) {
   return `app-header__nav-link${isActive ? ' app-header__nav-link--active' : ''}`
@@ -160,6 +161,23 @@ export function AppHeader() {
     }, 6000)
   }
 
+  const showSyncErrorsDialog = () => {
+    const errs = getRecentSyncErrors(20)
+    if (!errs.length) {
+      alert('Ошибок синхронизации не найдено.')
+      return
+    }
+    const lines = errs.map((e) => {
+      const at = e.at ? String(e.at).replace('T', ' ').slice(0, 19) : ''
+      const st = e.status != null ? `HTTP ${e.status}` : ''
+      const op = e.operation ? String(e.operation) : ''
+      const tbl = e.table_name ? String(e.table_name) : ''
+      const msg = String(e.error ?? '').slice(0, 240)
+      return `${at}  ${st}  ${tbl} ${op}\n${msg}`
+    })
+    alert(`Ошибки синхронизации (последние ${lines.length}):\n\n${lines.join('\n\n')}`)
+  }
+
   useEffect(
     () => () => {
       if (syncFeedbackTimerRef.current) clearTimeout(syncFeedbackTimerRef.current)
@@ -203,6 +221,12 @@ export function AppHeader() {
       if (flushDesc.offline) {
         showSyncFeedback(flushDesc.message, 'warn')
         return
+      }
+      if (flush?.reason === 'pending_items' && (flush?.remaining ?? 0) > 0) {
+        const top = getRecentSyncErrors(1)[0]
+        if (top?.error) {
+          parts.push(`ошибка: ${String(top.error).slice(0, 80)}`)
+        }
       }
       if (flushDesc.part) parts.push(flushDesc.part)
       if (flushDesc.hadError) hadError = true
@@ -548,6 +572,19 @@ export function AppHeader() {
                   : 'Синхронизировать'}
               </button>
             ) : null}
+            <button type="button" className="app-header__menu-item" onClick={showSyncErrorsDialog}>
+              Ошибки синхронизации
+            </button>
+            <button
+              type="button"
+              className="app-header__menu-item"
+              onClick={() => {
+                clearSyncErrors()
+                showSyncFeedback('Ошибки синхронизации очищены', 'ok')
+              }}
+            >
+              Очистить ошибки
+            </button>
             <button type="button" className="app-header__menu-item app-header__menu-item--danger" onClick={doSignOut}>
               <LogOut size={18} aria-hidden />
               Выйти
