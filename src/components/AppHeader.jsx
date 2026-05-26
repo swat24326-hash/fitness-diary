@@ -606,7 +606,7 @@ export function AppHeader() {
               className="app-header__menu-item app-header__menu-item--journal"
               onClick={openErrorJournal}
             >
-              <span>Журнал ошибок</span>
+              <span>{isAdmin ? 'Журнал ошибок' : 'Помощь'}</span>
               {appErrorCount > 0 ? (
                 <span className="app-header__error-badge" aria-label={`Ошибок: ${appErrorCount}`}>
                   {appErrorCount > 99 ? '99+' : appErrorCount}
@@ -629,6 +629,7 @@ export function AppHeader() {
       context={journalContext}
       onSyncNow={() => void syncNow()}
       syncBusy={syncBusy}
+      onSignOut={doSignOut}
     />
     {syncFeedback && (
       <div

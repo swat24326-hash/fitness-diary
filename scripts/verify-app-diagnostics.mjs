@@ -10,6 +10,7 @@ import {
   filterAppErrors,
   suggestErrorHint,
   formatSyncQueueLine,
+  resolveQuickFixes,
 } from '../src/lib/appDiagnostics.js'
 
 const system = buildSystemState({
@@ -43,5 +44,13 @@ const report = buildDiagnosticReport({ system, errors, queue })
 assert.ok(report.includes('=== Фитнес-дневник'))
 assert.ok(report.includes('Очередь синхронизации'))
 assert.ok(report.includes('Подсказка:'))
+
+const fixes = resolveQuickFixes({
+  errors: [{ source: 'sync', error: 'fail', status: 500 }],
+  queue: [{ table_name: 'trainings', operation: 'insert' }],
+  system: { online: true, errorCount: 1, queueCount: 1 },
+})
+assert.ok(fixes.some((f) => f.action === 'sync'))
+assert.ok(fixes.some((f) => f.action === 'share'))
 
 console.log('verify-app-diagnostics: OK')

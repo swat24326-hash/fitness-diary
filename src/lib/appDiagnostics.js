@@ -156,4 +156,146 @@ export function errorFilterLabel(filterId) {
   return ERROR_FILTERS.find((f) => f.id === filterId)?.label ?? 'Все'
 }
 
+const TABLE_LABELS_RU = {
+  trainings: 'Тренировка',
+  clients: 'Клиент',
+  memberships: 'Абонемент',
+  health_cards: 'Медкарта',
+  body_measurements: 'Замеры',
+  challenges: 'Челлендж',
+  exercises: 'Упражнение',
+}
+
+const OPERATION_LABELS_RU = {
+  insert: 'создание',
+  update: 'изменение',
+  delete: 'удаление',
+}
+
+/**
+ * @param {object} item
+ * @param {number} index
+ * @param {{ clientNames?: Record<string, string> }} [meta]
+ */
+export function formatSyncQueueLineHuman(item, index, meta = {}) {
+  const n = index + 1
+  const table = TABLE_LABELS_RU[item?.table_name] ?? item?.table_name ?? '?'
+  const op = OPERATION_LABELS_RU[item?.operation] ?? item?.operation ?? '?'
+  const clientId = item?.data?.client_id ?? item?.data?.id
+  const clientName = clientId ? meta.clientNames?.[String(clientId)] : null
+  const clientNote = clientName ? ` · ${clientName}` : ''
+  const retries = item?.retry_count ?? 0
+  const retryNote = retries > 0 ? ` · попыток ${retries}` : ''
+  return `${n}. ${table}: ${op}${clientNote}${retryNote}`
+}
+
+/**
+ * @param {{ errors?: object[], queue?: object[], system?: ReturnType<typeof buildSystemState> }} payload
+ */
+export function resolveQuickFixes({ errors = [], queue = [], system = {} }) {
+  /** @type {Array<{ id: string, title: string, detail: string, action?: string, tone?: string }>} */
+  const fixes = []
+  const list = Array.isArray(errors) ? errors : []
+  const q = Array.isArray(queue) ? queue : []
+  const online = system.online !== false
+
+  if (!online) {
+    fixes.push({
+      id: 'network',
+      tone: 'warn',
+      title: 'Нет интернета',
+      detail: 'Подключите Wi‑Fi или мобильную сеть, затем нажмите «Синхронизировать».',
+      action: 'sync',
+    })
+  }
+
+  const needsRelogin = list.some(
+    (e) => e.status === 401 || /unauthorized|не авториз|jwt|session/i.test(String(e.error ?? '')),
+  )
+  if (needsRelogin) {
+    fixes.push({
+      id: 'relogin',
+      tone: 'warn',
+      title: 'Сессия истекла',
+      detail: 'Выйдите из аккаунта и войдите снова — это часто снимает ошибки sync и входа.',
+      action: 'relogin',
+    })
+  }
+
+  const needsReload = list.some((e) => /trainings_type_check|type_check/i.test(String(e.error ?? '')))
+  if (needsReload) {
+    fixes.push({
+      id: 'reload',
+      tone: 'warn',
+      title: 'Нужно обновить приложение',
+      detail: 'Перезагрузите страницу (или закройте и откройте PWA), затем снова нажмите «Синхронизировать».',
+      action: 'reload',
+    })
+  }
+
+  if (q.length > 0 && online) {
+    fixes.push({
+      id: 'sync',
+      tone: 'warn',
+      title: `В очереди ${q.length} ${q.length === 1 ? 'запись' : q.length < 5 ? 'записи' : 'записей'}`,
+      detail: 'Нажмите «Синхронизировать» и дождитесь завершения. Данные на устройстве уже сохранены.',
+      action: 'sync',
+    })
+  } else if (list.some((e) => e.source === 'sync') && online) {
+    fixes.push({
+      id: 'sync',
+      tone: 'warn',
+      title: 'Повторить синхронизацию',
+      detail: 'Были ошибки отправки в облако — попробуйте Sync ещё раз.',
+      action: 'sync',
+    })
+  }
+
+  if (q.length > 0) {
+    fixes.push({
+      id: 'clean_queue',
+      tone: 'info',
+      title: 'Очистить битые записи в очереди',
+      detail: 'Удалит заведомо испорченные или устаревшие элементы очереди (без удаления ваших тренировок).',
+      action: 'clean_queue',
+    })
+  }
+
+  if (list.length > 0) {
+    fixes.push({
+      id: 'share',
+      tone: 'info',
+      title: 'Сообщить администратору',
+      detail: 'Отправьте отчёт в Telegram или WhatsApp — так проще найти причину, если шаги выше не помогли.',
+      action: 'share',
+    })
+  }
+
+  if (!fixes.length) {
+    fixes.push({
+      id: 'ok',
+      tone: 'ok',
+      title: 'Всё в порядке',
+      detail: 'Ошибок нет, очередь синхронизации пуста.',
+    })
+  }
+
+  return fixes
+}
+
+/** Короткий текст для мессенджера (Telegram / WhatsApp). */
+export function buildShortShareText({ system, errors, queue: _queue }) {
+  const last = Array.isArray(errors) && errors[0] ? errors[0] : null
+  const lines = [
+    'Фитнес-дневник — нужна помощь',
+    `${system.userName} · ${system.role} · ${system.clubName}`,
+    `Сеть: ${system.online ? 'OK' : 'нет'} · очередь: ${system.queueCount} · ошибок: ${system.errorCount}`,
+  ]
+  if (last) {
+    lines.push(`Последняя: ${sourceLabel(last.source)} — ${String(last.error).slice(0, 120)}`)
+  }
+  lines.push('', 'Полный отчёт ниже ↓')
+  return lines.join('\n')
+}
+
 export { APP_ERROR_SOURCE_LABELS, formatAppErrorTime, sourceLabel }

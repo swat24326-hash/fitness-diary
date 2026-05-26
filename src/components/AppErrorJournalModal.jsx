@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { DiagnosticsPanel } from './DiagnosticsPanel'
 
-export function AppErrorJournalModal({ open, onClose, onCleared, onCopyFeedback, context, onSyncNow, syncBusy }) {
+export function AppErrorJournalModal({ open, onClose, onCleared, onCopyFeedback, context, onSyncNow, syncBusy, onSignOut }) {
   useEffect(() => {
     if (!open) return
     const onKey = (e) => {
@@ -30,6 +30,7 @@ export function AppErrorJournalModal({ open, onClose, onCleared, onCopyFeedback,
           onCleared={onCleared}
           onClose={onClose}
           onCopyFeedback={onCopyFeedback}
+          onSignOut={onSignOut}
         />
       </div>
     </div>
