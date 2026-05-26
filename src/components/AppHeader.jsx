@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { pullAdminClientsFromCloud } from '../lib/admin/adminClientsListService'
 import { pullTrainerWorkspaceFromCloud } from '../lib/trainerPullService'
 import { listSyncQueue } from '../lib/localDb'
-import { describeFlushQueueResult, flushSyncQueue, isAppOnline } from '../lib/syncService'
+import { describeFlushQueueResult, flushSyncQueue, getFlushInFlightPromise, isAppOnline } from '../lib/syncService'
 import { subscribeNetworkStatus } from '../lib/networkReachability'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -181,7 +181,9 @@ export function AppHeader() {
         return
       }
 
-      const flush = await flushSyncQueue({ force: true })
+      const queueLen = pendingSync > 0 ? pendingSync : (await listSyncQueue()).length
+      const flushMaxMs = Math.min(180_000, 40_000 + queueLen * 900)
+      const flush = await flushSyncQueue({ force: true, maxMs: flushMaxMs })
       const flushDesc = describeFlushQueueResult(flush)
       if (flushDesc.offline) {
         showSyncFeedback(flushDesc.message, 'warn')
@@ -189,6 +191,15 @@ export function AppHeader() {
       }
       if (flushDesc.part) parts.push(flushDesc.part)
       if (flushDesc.hadError) hadError = true
+      if (flush?.reason === 'timeout' && flush.stillRunning) {
+        const bg = getFlushInFlightPromise()
+        if (bg) {
+          void bg.finally(() => {
+            void refreshPendingSync()
+            dispatchLocalDataChanged({ reason: 'sync-queue-finished' })
+          })
+        }
+      }
 
       if (isSupabaseConfigured()) {
         try {

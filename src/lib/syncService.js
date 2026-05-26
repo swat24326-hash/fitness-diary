@@ -76,7 +76,12 @@ export async function pruneStaleSyncInserts(_opts = {}) {
 
 let flushTimer
 let backgroundSyncPaused = false
-let flushInFlight = false
+/** @type {Promise<{ ok: boolean, reason?: string, remaining?: number }> | null} */
+let flushInFlightPromise = null
+
+export function getFlushInFlightPromise() {
+  return flushInFlightPromise
+}
 
 /** На время входа не шлём очередь в Supabase (иначе 409 и «Загрузка…»). */
 export function setBackgroundSyncPaused(paused) {
@@ -137,6 +142,16 @@ export function scheduleFlushSyncQueue(opts = {}) {
  * Отправка локальной очереди в Supabase (прямые insert/update/delete в целевые таблицы).
  * @param {{ maxMs?: number }} [opts] — общий лимит времени, чтобы не блокировать UI.
  */
+async function defaultFlushMaxMs(force) {
+  if (!force) return 25_000
+  try {
+    const qLen = (await listSyncQueue()).length
+    return Math.min(180_000, 35_000 + qLen * 800)
+  } catch {
+    return 90_000
+  }
+}
+
 export async function flushSyncQueue(opts = {}) {
   /* Без «Синхронизировать» в меню — не шлём ничего (старая очередь давала 409). */
   if (!opts.force) {
@@ -146,9 +161,10 @@ export async function flushSyncQueue(opts = {}) {
   if (backgroundSyncPaused && !opts.force) {
     return { ok: false, reason: 'paused' }
   }
-  const maxMs = opts.maxMs ?? 25_000
+  const maxMs = opts.maxMs ?? (await defaultFlushMaxMs(true))
+  const work = flushSyncQueueInner()
   const result = await Promise.race([
-    flushSyncQueueInner(),
+    work,
     new Promise((resolve) => {
       setTimeout(() => resolve({ ok: false, reason: 'timeout' }), maxMs)
     }),
@@ -156,7 +172,12 @@ export async function flushSyncQueue(opts = {}) {
   if (result?.reason === 'timeout') {
     try {
       const remaining = (await listSyncQueue()).length
-      return { ok: false, reason: 'timeout', remaining }
+      return {
+        ok: false,
+        reason: 'timeout',
+        remaining,
+        stillRunning: flushInFlightPromise != null,
+      }
     } catch {
       /* ignore */
     }
@@ -166,13 +187,17 @@ export async function flushSyncQueue(opts = {}) {
 
 async function flushSyncQueueInner() {
   if (!isAppOnline() || !isSupabaseConfigured()) return { ok: false, reason: 'offline_or_stub' }
-  if (flushInFlight) return { ok: false, reason: 'busy' }
-  flushInFlight = true
-  try {
-    return await flushSyncQueueInnerWork()
-  } finally {
-    flushInFlight = false
-  }
+  if (flushInFlightPromise) return flushInFlightPromise
+
+  flushInFlightPromise = (async () => {
+    try {
+      return await flushSyncQueueInnerWork()
+    } finally {
+      flushInFlightPromise = null
+    }
+  })()
+
+  return flushInFlightPromise
 }
 
 async function flushSyncQueueInnerWork() {

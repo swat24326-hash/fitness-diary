@@ -81,15 +81,16 @@ export function describeFlushQueueResult(flush) {
   }
   if (flush.reason === 'timeout') {
     const n = flush.remaining
-    const tail = typeof n === 'number' && n > 0 ? `, в очереди: ${n}` : ''
-    return { part: `очередь: таймаут${tail}`, hadError: true }
+    const tail = typeof n === 'number' && n > 0 ? `, осталось ${n}` : ''
+    const bg = flush.stillRunning ? ' (отправка продолжается)' : ''
+    return { part: `очередь: не всё успело за отведённое время${tail}${bg}`, hadError: true }
   }
   if (flush.reason === 'pending_items') {
     const n = flush.remaining ?? 0
     return { part: `в очереди: ${n}`, hadError: true }
   }
   if (flush.reason === 'busy') {
-    return { part: 'очередь: уже отправляется', hadError: false }
+    return { part: 'очередь: отправка…', hadError: true }
   }
   return { part: flush.reason ? `очередь: ${flush.reason}` : null, hadError: true }
 }

@@ -52,7 +52,7 @@ assert(!isDuplicateInsertError(null), 'null not duplicate')
 }
 {
   const t = describeFlushQueueResult({ ok: false, reason: 'timeout', remaining: 2 })
-  assert(t.hadError && t.part.includes('таймаут') && t.part.includes('2'), 'timeout + remaining')
+  assert(t.hadError && t.part.includes('осталось 2'), 'timeout + remaining')
 }
 {
   const manual = describeFlushQueueResult({ ok: false, reason: 'manual_only' })
@@ -60,7 +60,11 @@ assert(!isDuplicateInsertError(null), 'null not duplicate')
 }
 {
   const busy = describeFlushQueueResult({ ok: false, reason: 'busy' })
-  assert(!busy.hadError && busy.part.includes('отправляется'), 'busy not error')
+  assert(busy.hadError && busy.part.includes('отправ'), 'busy is warning')
+}
+{
+  const tBg = describeFlushQueueResult({ ok: false, reason: 'timeout', remaining: 5, stillRunning: true })
+  assert(tBg.hadError && tBg.part.includes('продолжается'), 'timeout still running hint')
 }
 
 /* --- orphan purge (офлайн insert не трогаем) --- */
