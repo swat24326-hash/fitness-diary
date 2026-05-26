@@ -36,6 +36,7 @@ export function AppHeader() {
   const [adminClubs, setAdminClubs] = useState([])
   const [pendingSync, setPendingSync] = useState(0)
   const [syncBusy, setSyncBusy] = useState(false)
+  const [syncProgress, setSyncProgress] = useState({ percent: 0, label: '' })
   const [syncFeedback, setSyncFeedback] = useState(null)
   const syncFeedbackTimerRef = useRef(null)
 
@@ -166,11 +167,20 @@ export function AppHeader() {
     [],
   )
 
+  const bumpSyncProgress = (percent, label) => {
+    const pct = Math.min(100, Math.max(0, Math.round(percent)))
+    const text = String(label ?? '')
+    setSyncProgress({ percent: pct, label: text })
+    if (syncFeedbackTimerRef.current) clearTimeout(syncFeedbackTimerRef.current)
+    setSyncFeedback({ text: text ? `${pct}% — ${text}` : `${pct}%`, tone: 'ok' })
+  }
+
   const syncNow = async () => {
     if (syncBusy) return
     setMenuOpen(false)
     setSyncBusy(true)
     setSyncFeedback(null)
+    bumpSyncProgress(0, 'Старт…')
 
     const parts = []
     let hadError = false
@@ -183,7 +193,14 @@ export function AppHeader() {
 
       const queueLen = pendingSync > 0 ? pendingSync : (await listSyncQueue()).length
       const flushMaxMs = Math.min(180_000, 40_000 + queueLen * 900)
-      const flush = await flushSyncQueue({ force: true, maxMs: flushMaxMs })
+      const flush = await flushSyncQueue({
+        force: true,
+        maxMs: flushMaxMs,
+        onProgress: ({ done, total }) => {
+          const queueShare = total > 0 ? Math.round((done / total) * 72) : 72
+          bumpSyncProgress(4 + queueShare, total > 0 ? `Отправка ${done} из ${total}` : 'Отправка очереди…')
+        },
+      })
       const flushDesc = describeFlushQueueResult(flush)
       if (flushDesc.offline) {
         showSyncFeedback(flushDesc.message, 'warn')
@@ -204,12 +221,14 @@ export function AppHeader() {
       if (isSupabaseConfigured()) {
         try {
           const { pullExercisesFromCloud, pullChallengesForClubFromCloud } = await import('../lib/pullReferenceData')
+          bumpSyncProgress(76, 'Справочник упражнений…')
           await pullExercisesFromCloud({ force: false })
           parts.push('справочник')
 
           if (isAdmin) {
             const club = searchParams.get('club')?.trim()
             if (club) {
+              bumpSyncProgress(82, 'Клиенты клуба…')
               const { listChallengesLocalForClub, pushChallengeToCloud } = await import('../lib/challengeService')
               for (const ch of await listChallengesLocalForClub(club)) {
                 await pushChallengeToCloud(ch)
@@ -222,6 +241,7 @@ export function AppHeader() {
                 }
                 parts.push(msg)
               }
+              bumpSyncProgress(92, 'Челленджи…')
               const chPull = await pullChallengesForClubFromCloud(club)
               if (!chPull?.ok) {
                 hadError = true
@@ -235,6 +255,7 @@ export function AppHeader() {
               parts.push('клиенты: выберите клуб')
             }
           } else if (user?.id) {
+            bumpSyncProgress(84, 'Клиенты и тренировки…')
             const pull = await pullTrainerWorkspaceFromCloud(user.id)
             if (pull?.ok) {
               let msg = `рабочая область (${pull.count ?? 0} кл.)`
@@ -248,7 +269,14 @@ export function AppHeader() {
             let chTotal = 0
             let chPruned = 0
             let chFailed = false
-            for (const cid of clubIds) {
+            const clubList = [...clubIds]
+            for (let ci = 0; ci < clubList.length; ci++) {
+              const cid = clubList[ci]
+              if (clubList.length > 1) {
+                bumpSyncProgress(90 + Math.round(((ci + 1) / clubList.length) * 8), 'Челленджи…')
+              } else {
+                bumpSyncProgress(94, 'Челленджи…')
+              }
               const chPull = await pullChallengesForClubFromCloud(cid)
               if (!chPull?.ok) {
                 chFailed = true
@@ -274,6 +302,7 @@ export function AppHeader() {
 
       const { pruneRedundantSyncQueue } = await import('../lib/syncQueueOrphans')
       await pruneRedundantSyncQueue()
+      bumpSyncProgress(100, 'Готово')
       await refreshPendingSync()
       dispatchLocalDataChanged({ reason: 'sync-complete' })
 
@@ -287,6 +316,7 @@ export function AppHeader() {
       showSyncFeedback(e?.message ?? 'Ошибка синхронизации', 'err')
     } finally {
       setSyncBusy(false)
+      window.setTimeout(() => setSyncProgress({ percent: 0, label: '' }), 800)
     }
   }
 
@@ -315,7 +345,9 @@ export function AppHeader() {
     syncBusy ? 'app-header__sync-btn--busy' : syncHasPending ? 'app-header__sync-btn--pending' : 'app-header__sync-btn--idle',
   ].join(' ')
   const syncBtnTitle = syncBusy
-    ? 'Синхронизация…'
+    ? syncProgress.label
+      ? `${syncProgress.percent}% — ${syncProgress.label}`
+      : `Синхронизация… ${syncProgress.percent}%`
     : syncHasPending
       ? `Отправить в облако (${pendingSync} в очереди)`
       : 'Синхронизировать с облаком'
@@ -408,21 +440,40 @@ export function AppHeader() {
         ) : null}
         {user ? <HeaderStopwatch /> : null}
         {showTrainerHeaderSync ? (
-          <button
-            type="button"
-            className={syncBtnClass}
-            disabled={syncBusy}
-            onClick={() => void syncNow()}
-            title={syncBtnTitle}
-            aria-label={syncBtnTitle}
-          >
-            <RefreshCw size={20} className={syncBusy ? 'icon-spin' : undefined} aria-hidden />
-            {syncHasPending && !syncBusy ? (
-              <span className="app-header__sync-badge" aria-hidden>
-                {pendingSync > 99 ? '99+' : pendingSync}
-              </span>
+          <div className="app-header__sync-wrap">
+            <button
+              type="button"
+              className={syncBtnClass}
+              disabled={syncBusy}
+              onClick={() => void syncNow()}
+              title={syncBtnTitle}
+              aria-label={syncBtnTitle}
+              aria-busy={syncBusy}
+            >
+              <RefreshCw size={20} className={syncBusy ? 'icon-spin' : undefined} aria-hidden />
+              {syncBusy ? (
+                <span className="app-header__sync-badge app-header__sync-badge--progress" aria-hidden>
+                  {syncProgress.percent}%
+                </span>
+              ) : syncHasPending ? (
+                <span className="app-header__sync-badge" aria-hidden>
+                  {pendingSync > 99 ? '99+' : pendingSync}
+                </span>
+              ) : null}
+            </button>
+            {syncBusy ? (
+              <div
+                className="app-header__sync-progress"
+                role="progressbar"
+                aria-valuenow={syncProgress.percent}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={syncProgress.label || 'Синхронизация'}
+              >
+                <div className="app-header__sync-progress-bar" style={{ width: `${syncProgress.percent}%` }} />
+              </div>
             ) : null}
-          </button>
+          </div>
         ) : null}
         <button
           type="button"
@@ -488,7 +539,11 @@ export function AppHeader() {
                 onClick={() => void syncNow()}
               >
                 <RefreshCw size={18} className={syncBusy ? 'icon-spin' : undefined} aria-hidden />
-                {syncBusy ? 'Синхронизация…' : 'Синхронизировать'}
+                {syncBusy
+                  ? syncProgress.label
+                    ? `${syncProgress.percent}% — ${syncProgress.label}`
+                    : `Синхронизация… ${syncProgress.percent}%`
+                  : 'Синхронизировать'}
               </button>
             ) : null}
             <button type="button" className="app-header__menu-item app-header__menu-item--danger" onClick={doSignOut}>

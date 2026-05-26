@@ -11,6 +11,7 @@ import {
 import { invalidateTrainerWorkspaceCache } from './trainerWorkspaceCache'
 import { invalidateAdminClubWorkspaceCache } from './admin/adminClubWorkspaceCache'
 import { isDuplicateInsertError } from './syncFlushResult'
+import { reportQueueFlushProgress, setQueueFlushProgressReporter } from './syncProgress'
 
 export { isDuplicateInsertError, describeFlushQueueResult } from './syncFlushResult'
 
@@ -162,13 +163,19 @@ export async function flushSyncQueue(opts = {}) {
     return { ok: false, reason: 'paused' }
   }
   const maxMs = opts.maxMs ?? (await defaultFlushMaxMs(true))
+  if (opts.onProgress) setQueueFlushProgressReporter(opts.onProgress)
   const work = flushSyncQueueInner()
-  const result = await Promise.race([
+  let result
+  try {
+    result = await Promise.race([
     work,
     new Promise((resolve) => {
       setTimeout(() => resolve({ ok: false, reason: 'timeout' }), maxMs)
     }),
-  ])
+    ])
+  } finally {
+    if (opts.onProgress) setQueueFlushProgressReporter(null)
+  }
   if (result?.reason === 'timeout') {
     try {
       const remaining = (await listSyncQueue()).length
@@ -207,7 +214,12 @@ async function flushSyncQueueInnerWork() {
   await pruneRedundantSyncQueue()
 
   const queue = await listSyncQueue()
-  for (const item of queue) {
+  const total = queue.length
+  reportQueueFlushProgress(0, total, total > 0 ? 'Подготовка…' : 'Очередь пуста')
+
+  for (let i = 0; i < queue.length; i++) {
+    const item = queue[i]
+    try {
     const table = item.table_name
     if (!table || !ALLOWED_TABLES.has(table)) {
       await removeSyncItem(item.local_id)
@@ -276,6 +288,10 @@ async function flushSyncQueueInnerWork() {
       const db = await getDb()
       const next = { ...item, retry_count: (item.retry_count ?? 0) + 1 }
       await db.put('sync_queue', next)
+    }
+    } finally {
+      const processed = i + 1
+      reportQueueFlushProgress(processed, total, total > 0 ? `Отправка ${processed} из ${total}` : 'Отправка…')
     }
   }
   await pruneRedundantSyncQueue()

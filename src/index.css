@@ -410,6 +410,14 @@ button {
   background: rgba(34, 197, 94, 0.08);
 }
 
+.app-header__sync-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
 .app-header__sync-btn {
   position: relative;
   width: 42px;
@@ -590,6 +598,29 @@ button {
   background: #fbbf24;
   box-shadow: 0 0 8px rgba(251, 191, 36, 0.45);
   pointer-events: none;
+}
+
+.app-header__sync-badge--progress {
+  min-width: 28px;
+  font-size: 9px;
+  background: var(--accent-bright);
+  color: #0a0f0c;
+  box-shadow: 0 0 10px rgba(46, 255, 184, 0.45);
+}
+
+.app-header__sync-progress {
+  width: 42px;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.app-header__sync-progress-bar {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.85), var(--accent-bright));
+  transition: width 0.25s var(--ease-out);
 }
 
 .app-brand {
