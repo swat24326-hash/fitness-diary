@@ -3461,10 +3461,47 @@ tr:last-child td {
 }
 
 .td-client-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
   flex-shrink: 0;
+  box-shadow:
+    0 0 0 2px rgba(7, 9, 8, 0.95),
+    0 0 0 3px rgba(255, 255, 255, 0.65),
+    0 4px 10px rgba(0, 0, 0, 0.35);
+}
+
+/* Цвет + форма, чтобы различалось не только по цвету. */
+.td-client-dot--active {
+  background: #00d46a; /* ярче, чем стандартный green */
+}
+
+/* Жёлтый: ромб */
+.td-client-dot--expiring {
+  background: #ffd000;
+  border-radius: 3px;
+  transform: rotate(45deg);
+}
+
+/* Жёлто-оранжевый: треугольник */
+.td-client-dot--expired_remaining {
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 14px solid #ff9f1a;
+  border-radius: 0;
+  box-shadow:
+    0 0 0 2px rgba(7, 9, 8, 0.95),
+    0 0 0 3px rgba(255, 255, 255, 0.65),
+    0 4px 10px rgba(0, 0, 0, 0.35);
+}
+
+/* Красный: квадрат */
+.td-client-dot--none,
+.td-client-dot--limit0 {
+  background: #ff3b3b;
+  border-radius: 2px;
 }
 
 .td-client-actions {

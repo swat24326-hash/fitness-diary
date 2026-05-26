@@ -33,21 +33,21 @@ function membershipSignal(list, today) {
       const total = Number(expiredLeft.total_trainings ?? 0)
       const used = Number(expiredLeft.used_trainings ?? 0)
       const remaining = Number.isFinite(total) && Number.isFinite(used) ? Math.max(0, total - used) : null
-      return { key: 'expired_remaining', color: '#f59e0b', label: `срок истёк, осталось ${remaining ?? '—'}` }
+      return { key: 'expired_remaining', label: `срок истёк, осталось ${remaining ?? '—'}` }
     }
-    return { key: 'none', color: '#f87171', label: 'нет активного' }
+    return { key: 'none', label: 'нет активного' }
   }
 
   const total = Number(active.total_trainings ?? 0)
   const used = Number(active.used_trainings ?? 0)
   const remaining = Number.isFinite(total) && Number.isFinite(used) ? Math.max(0, total - used) : null
-  if (remaining === 0) return { key: 'limit0', color: '#f87171', label: 'лимит 0' }
+  if (remaining === 0) return { key: 'limit0', label: 'лимит 0' }
 
   const end = new Date(active.end_date)
   const d0 = new Date(today)
   const days = Math.ceil((end - d0) / 86400000)
-  if (days <= 3) return { key: 'expiring', color: '#eab308', label: `≤${days}д` }
-  return { key: 'active', color: '#22c55e', label: 'активен' }
+  if (days <= 3) return { key: 'expiring', label: `≤${days}д` }
+  return { key: 'active', label: 'активен' }
 }
 
 function lastTrainingDate(trainings, clientId) {
@@ -341,7 +341,12 @@ export function TrainerClients() {
                   <li key={c.id} className="list-item td-client-item">
                 <div className="row td-client-row">
                   <div className="td-client-left">
-                    <span title={sig.label} className="td-client-dot" style={{ background: sig.color }} />
+                    <span
+                      title={sig.label}
+                      className={`td-client-dot td-client-dot--${sig.key}`}
+                      aria-label={sig.label}
+                      role="img"
+                    />
                     <div>
                       <strong>{c.name}</strong>
                       <div className="muted td-muted-13">{c.phone ?? '—'}</div>
