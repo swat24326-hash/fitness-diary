@@ -61,7 +61,8 @@ function resolveCatalogExercise(catalog, typedName) {
   return catalog.find((r) => normExerciseName(r.name) === cand) ?? null
 }
 
-export function TrainingForm({ value, onChange, trainingType, onTrainingTypeChange }) {
+/** @param {string} [trainingType] — fallback при пустом списке (тип сессии из trainings.type) */
+export function TrainingForm({ value, onChange, trainingType = 'Силовая' }) {
   const [step, setStep] = useState(0)
   const [focusExerciseIdx, setFocusExerciseIdx] = useState(null)
   const [pickExerciseIdx, setPickExerciseIdx] = useState(null)
@@ -79,7 +80,7 @@ export function TrainingForm({ value, onChange, trainingType, onTrainingTypeChan
     onChange((prev) => ({ ...prev, ...patch }))
   }
 
-  const defaultFormat = normalizeExerciseFormat(trainingType)
+  const sessionFallback = normalizeExerciseFormat(trainingType)
 
   const exercises = useMemo(() => {
     if (Array.isArray(workout.exercises) && workout.exercises.length > 0) {
@@ -87,16 +88,22 @@ export function TrainingForm({ value, onChange, trainingType, onTrainingTypeChan
       return workout.exercises
     }
     if (!emptyExercisePlaceholderRef.current) {
-      emptyExercisePlaceholderRef.current = newEmptyExerciseRow(defaultFormat)
+      emptyExercisePlaceholderRef.current = newEmptyExerciseRow(sessionFallback)
     }
     return [emptyExercisePlaceholderRef.current]
-  }, [workout.exercises, defaultFormat])
+  }, [workout.exercises, sessionFallback])
+
+  const formatForNewExercise = () => {
+    if (!exercises.length) return sessionFallback
+    const last = exercises[exercises.length - 1]
+    return normalizeExerciseFormat(last?.format, sessionFallback)
+  }
 
   const syncExercises = (next) => setWorkout({ exercises: next })
-  const addExercise = () => syncExercises([...exercises, newEmptyExerciseRow(defaultFormat)])
+  const addExercise = () => syncExercises([...exercises, newEmptyExerciseRow(formatForNewExercise())])
   const removeExercise = (idx) => {
     const next = exercises.filter((_, i) => i !== idx)
-    syncExercises(next.length ? next : [newEmptyExerciseRow(defaultFormat)])
+    syncExercises(next.length ? next : [newEmptyExerciseRow(sessionFallback)])
   }
 
   const patchExercise = (idx, ex) => {
@@ -132,7 +139,7 @@ export function TrainingForm({ value, onChange, trainingType, onTrainingTypeChan
         Формат
       </span>
       {TRAINING_EXERCISE_FORMATS.map((t, i) => {
-        const active = normalizeExerciseFormat(ex.format, trainingType) === t
+        const active = normalizeExerciseFormat(ex.format, sessionFallback) === t
         return (
           <button
             key={t}
@@ -279,29 +286,13 @@ export function TrainingForm({ value, onChange, trainingType, onTrainingTypeChan
         <section className="card">
           <div className="row">
             <h3 style={{ margin: 0 }}>Упражнения</h3>
-            <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
-              <div className="row" style={{ gap: 6, justifyContent: 'flex-start' }}>
-                <span className="muted" style={{ fontSize: 12 }}>
-                  Шаблон для новых
-                </span>
-                {TRAINING_EXERCISE_FORMATS.map((t, i) => (
-                  <button
-                    key={t}
-                    type="button"
-                    className={`btn ${trainingType === t ? 'btn-primary' : 'btn-ghost'} btn-icon-square btn-icon-xs`}
-                    onClick={() => onTrainingTypeChange?.(t)}
-                    title={`Шаблон ${i + 1} для новых упражнений: ${t}`}
-                    aria-label={`Шаблон ${i + 1} для новых упражнений: ${t}`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-              </div>
-              <button type="button" className="btn btn-ghost" onClick={addExercise} title="Добавить упражнение">
-                + Упражнение
-              </button>
-            </div>
+            <button type="button" className="btn btn-ghost" onClick={addExercise} title="Добавить упражнение">
+              + Упражнение
+            </button>
           </div>
+          <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
+            Формат подходов у каждого упражнения: 1 — силовая, 2 — функциональная, 3 — кардио
+          </p>
           {exercises.map((ex, exIdx) => (
             <div key={ex.id} style={{ marginTop: 14, paddingTop: 14, borderTop: exIdx ? '1px solid var(--border)' : 'none' }}>
               <div className="row" style={{ alignItems: 'flex-end', flexWrap: 'wrap', gap: 8 }}>
@@ -419,7 +410,7 @@ export function TrainingForm({ value, onChange, trainingType, onTrainingTypeChan
               </div>
               {exerciseFormatButtons(ex, exIdx)}
               {ex.sets.map((st, setIdx) => {
-                const exFormat = normalizeExerciseFormat(ex.format, trainingType)
+                const exFormat = normalizeExerciseFormat(ex.format, sessionFallback)
                 const isCardio = exerciseFormatIsCardio(exFormat)
                 const withSetHr = exerciseFormatWithSetHr(exFormat)
                 return (

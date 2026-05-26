@@ -599,7 +599,7 @@ export function TrainingPage() {
         </div>
       </div>
 
-      <TrainingForm value={workoutState} onChange={setWorkoutState} trainingType={trainingType} onTrainingTypeChange={setTrainingType} />
+      <TrainingForm value={workoutState} onChange={setWorkoutState} trainingType={trainingType} />
 
       {saveError ? (
         <p className="muted" style={{ color: 'var(--danger)', margin: 0 }}>
