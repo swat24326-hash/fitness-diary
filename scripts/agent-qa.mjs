@@ -35,6 +35,7 @@ run('build', 'npm', ['run', 'build'])
 run('exercise formats', 'node', ['scripts/verify-exercise-format.mjs'])
 run('sync offline-first', 'node', ['scripts/verify-sync-offline.mjs'])
 run('bulk exercises parser', 'node', ['scripts/verify-bulk-exercises.mjs'])
+run('client birthdays', 'node', ['scripts/verify-client-birthdays.mjs'])
 
 if (!skipLint) {
   run('lint', 'npm', ['run', 'lint'])

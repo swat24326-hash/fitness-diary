@@ -1,14 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, Clock, RefreshCw, Search, Trash2, UserPlus } from 'lucide-react'
+import { AlertTriangle, Cake, Clock, Search, Trash2, UserPlus } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { deleteClientAndAllData, listClubsLocal } from '../../lib/dataAccess'
-import { invalidateTrainerWorkspaceCache, loadTrainerWorkspaceSnapshot } from '../../lib/trainerWorkspaceCache'
+import { loadTrainerWorkspaceSnapshot } from '../../lib/trainerWorkspaceCache'
 import { pullTrainerWorkspaceFromCloud } from '../../lib/trainerPullService'
 import { isAppOnline } from '../../lib/syncService'
 import { useDebouncedStorageReload, shouldReloadTrainerClientList } from '../../lib/useDebouncedStorageReload'
 import { flushSyncQueue, saveLocalWithSync } from '../../lib/syncService'
 import { isSupabaseConfigured } from '../../lib/supabase'
+import {
+  BIRTHDAY_WINDOW_DAYS,
+  compareByUpcomingBirthday,
+  formatUpcomingBirthdayLabel,
+  isBirthdayWithinNextDays,
+} from '../../lib/clientBirthdays'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 import { membershipHasRemaining, pickUsableMembershipForDate } from '../../lib/membershipRules'
 
@@ -62,10 +68,12 @@ export function TrainerClients() {
   const [memByClient, setMemByClient] = useState({})
   const [busy, setBusy] = useState(false)
   const [query, setQuery] = useState('')
-  const [quickFilter, setQuickFilter] = useState('all') // all | expiring | expired_remaining
+  const [quickFilter, setQuickFilter] = useState('all') // all | expiring | expired_remaining | birthdays
   const [showNewClient, setShowNewClient] = useState(false)
   const [newClientForm, setNewClientForm] = useState({ name: '', phone: '', birth_date: '', card_number: '' })
   const [clubs, setClubs] = useState([])
+  /** false до первой загрузки снимка — не показываем «клуб не назначен» и пустой список */
+  const [workspaceReady, setWorkspaceReady] = useState(false)
   /** { id, name } — модалка подтверждения удаления клиента */
   const [confirmDelete, setConfirmDelete] = useState(null)
 
@@ -108,18 +116,23 @@ export function TrainerClients() {
       setClubs(await listClubsLocal())
     } finally {
       if (!silent) setBusy(false)
+      setWorkspaceReady(true)
     }
   }, [user?.id, trainerClubId])
 
   useEffect(() => {
-    if (!user?.id) return
+    if (!user?.id) {
+      setWorkspaceReady(false)
+      return
+    }
     let cancelled = false
+    setWorkspaceReady(false)
     void (async () => {
       if (isSupabaseConfigured() && isAppOnline()) {
         await pullTrainerWorkspaceFromCloud(user.id)
         if (cancelled) return
-        invalidateTrainerWorkspaceCache()
       }
+      if (cancelled) return
       await reload({ silent: true })
     })()
     return () => {
@@ -147,8 +160,13 @@ export function TrainerClients() {
           return name.includes(q) || phone.includes(q) || card.includes(q)
         })
 
-    if (quickFilter === 'all') return base
-    return base.filter((c) => {
+    let list = base
+    if (quickFilter === 'birthdays') {
+      list = base.filter((c) => isBirthdayWithinNextDays(c.birth_date, today, BIRTHDAY_WINDOW_DAYS))
+      return [...list].sort((a, b) => compareByUpcomingBirthday(a, b, today))
+    }
+    if (quickFilter === 'all') return list
+    return list.filter((c) => {
       const sig = membershipSignal(memByClient[c.id] ?? [], today)
       return sig.key === quickFilter
     })
@@ -158,12 +176,14 @@ export function TrainerClients() {
     const all = clients.length
     let expiring = 0
     let expired_remaining = 0
+    let birthdays = 0
     for (const c of clients) {
       const sig = membershipSignal(memByClient[c.id] ?? [], today)
       if (sig.key === 'expiring') expiring++
       if (sig.key === 'expired_remaining') expired_remaining++
+      if (isBirthdayWithinNextDays(c.birth_date, today, BIRTHDAY_WINDOW_DAYS)) birthdays++
     }
-    return { all, expiring, expired_remaining }
+    return { all, expiring, expired_remaining, birthdays }
   }, [clients, memByClient, today])
 
   const filterBtnClass = (id) => `btn ${quickFilter === id ? 'btn-primary' : 'btn-ghost'} btn-icon-square`
@@ -258,6 +278,15 @@ export function TrainerClients() {
               >
                 <AlertTriangle size={20} aria-hidden />
               </button>
+              <button
+                type="button"
+                className={filterBtnClass('birthdays')}
+                onClick={() => applyFilter('birthdays')}
+                aria-label={`Фильтр: дни рождения в ближайшие ${BIRTHDAY_WINDOW_DAYS} дней`}
+                title={`ДР ${BIRTHDAY_WINDOW_DAYS} дн. (${filterCounts.birthdays})`}
+              >
+                <Cake size={20} aria-hidden />
+              </button>
             </div>
           </div>
         </div>
@@ -272,16 +301,6 @@ export function TrainerClients() {
             <button
               type="button"
               className="btn btn-primary btn-icon-square btn-touch"
-              disabled={busy}
-              onClick={() => reload()}
-              aria-label="Обновить список"
-              title="Обновить"
-            >
-              <RefreshCw size={20} aria-hidden />
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary btn-icon-square btn-touch"
               onClick={() => setShowNewClient(true)}
               aria-label="Добавить нового клиента"
               title="Новый клиент"
@@ -290,24 +309,36 @@ export function TrainerClients() {
             </button>
           </div>
         </div>
-        <p className="muted" style={{ fontSize: 13, margin: '6px 0 10px', lineHeight: 1.45 }}>
-          {myClubName ? (
-            <>
-              Клуб: <strong>{myClubName}</strong>. Вы видите только своих клиентов этого клуба.
-            </>
-          ) : (
-            <>Клуб не назначен. Клиенты скрыты, создание тренировки/клиентов недоступно — попросите админа назначить клуб.</>
-          )}
-        </p>
-        <ul className="list">
-          {filteredClients.map((c) => {
-            const mlist = memByClient[c.id] ?? []
-            const active = pickUsableMembershipForDate(mlist, today)
-            const sig = membershipSignal(mlist, today)
-            const expiredLeft = active ? null : pickExpiredMembershipWithRemaining(mlist, today)
-            const last = lastTrainingDate(trainings, c.id)
-            return (
-              <li key={c.id} className="list-item td-client-item">
+        {!workspaceReady ? (
+          <div className="td-list-loading" role="status" aria-live="polite" aria-busy="true">
+            <span className="app-loading__ring app-loading__ring--sm" aria-hidden />
+            <p className="muted td-list-loading__text">Загрузка клиентов…</p>
+          </div>
+        ) : (
+          <>
+            <p className="muted" style={{ fontSize: 13, margin: '6px 0 10px', lineHeight: 1.45 }}>
+              {trainerClubId ? (
+                <>
+                  Клуб: <strong>{myClubName ?? 'ваш клуб'}</strong>. Вы видите только своих клиентов этого клуба.
+                </>
+              ) : (
+                <>
+                  Клуб не назначен. Клиенты скрыты, создание тренировки/клиентов недоступно — попросите админа
+                  назначить клуб.
+                </>
+              )}
+            </p>
+            <ul className="list">
+              {filteredClients.map((c) => {
+                const mlist = memByClient[c.id] ?? []
+                const active = pickUsableMembershipForDate(mlist, today)
+                const sig = membershipSignal(mlist, today)
+                const expiredLeft = active ? null : pickExpiredMembershipWithRemaining(mlist, today)
+                const last = lastTrainingDate(trainings, c.id)
+                const birthdayLabel =
+                  quickFilter === 'birthdays' ? formatUpcomingBirthdayLabel(c.birth_date, today) : null
+                return (
+                  <li key={c.id} className="list-item td-client-item">
                 <div className="row td-client-row">
                   <div className="td-client-left">
                     <span title={sig.label} className="td-client-dot" style={{ background: sig.color }} />
@@ -379,12 +410,27 @@ export function TrainerClients() {
                   <span>
                     Последняя тренировка: <strong>{last}</strong>
                   </span>
+                  {birthdayLabel ? (
+                    <span>
+                      День рождения: <strong>{birthdayLabel}</strong>
+                    </span>
+                  ) : null}
                 </div>
-              </li>
-            )
-          })}
-        </ul>
-        {filteredClients.length === 0 && <p className="muted">Ничего не найдено.</p>}
+                  </li>
+                )
+              })}
+            </ul>
+            {filteredClients.length === 0 && (
+              <p className="muted">
+                {quickFilter === 'birthdays'
+                  ? `В ближайшие ${BIRTHDAY_WINDOW_DAYS} дней дней рождения нет (укажите дату в карточке клиента).`
+                  : clients.length === 0 && !query.trim() && quickFilter === 'all'
+                    ? 'Пока нет клиентов. Нажмите «+», чтобы добавить.'
+                    : 'Ничего не найдено.'}
+              </p>
+            )}
+          </>
+        )}
       </section>
 
       {confirmDelete && (

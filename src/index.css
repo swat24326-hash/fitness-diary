@@ -3392,6 +3392,27 @@ tr:last-child td {
   pointer-events: none;
 }
 
+.td-list-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 120px;
+  padding: 24px 16px;
+}
+
+.td-list-loading__text {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.app-loading__ring--sm {
+  width: 28px;
+  height: 28px;
+  border-width: 2px;
+  flex-shrink: 0;
+}
+
 .td-client-item {
   flex-direction: column;
   align-items: stretch;
