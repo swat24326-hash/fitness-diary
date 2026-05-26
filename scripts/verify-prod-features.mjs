@@ -9,6 +9,7 @@ const t = await fetch(`${origin}/assets/${m[1]}`).then((r) => r.text())
 console.log('bundle:', m[1])
 const checks = [
   ['header sync', 'app-header__sync-btn'],
+  ['header stopwatch', 'app-header__stopwatch'],
   ['sync done msg', 'Готово:'],
   ['admin cache prune msg', 'очищено кэша'],
   ['bulk upload', 'Быстрая загрузка'],

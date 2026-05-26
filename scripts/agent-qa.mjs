@@ -66,10 +66,16 @@ if (!skipProd) {
     const html = await fetch(`${ORIGIN}/`).then((r) => r.text())
     const m = html.match(/\/assets\/(index-[^"]+\.js)/)
     check(Boolean(m), 'prod bundle hash in index.html')
+    const cssM = html.match(/\/assets\/(index-[^"]+\.css)/)
     if (m) {
       const js = await fetch(`${ORIGIN}/assets/${m[1]}`).then((r) => r.text())
       check(js.includes('Выберите клуб'), 'prod bundle has current admin UI string')
       check(!js.includes('Все клубы'), 'prod bundle has no stale "Все клубы" string')
+      check(js.includes('очередь отправлена') || js.includes('в очереди:'), 'prod sync feedback strings')
+    }
+    if (cssM) {
+      const css = await fetch(`${ORIGIN}/assets/${cssM[1]}`).then((r) => r.text())
+      check(css.includes('app-header__stopwatch'), 'prod bundle has header stopwatch styles')
     }
   } catch (e) {
     console.error('✗ prod smoke:', e.message)

@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
+    "dev:vercel": "vercel dev",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint .",
@@ -15,7 +16,8 @@
     "db:migrate": "npx supabase db query --linked --file supabase/policies.sql",
     "gen:icons": "node scripts/generate-icons.mjs",
     "qa": "node scripts/agent-qa.mjs",
-    "qa:local": "node scripts/agent-qa.mjs --skip-prod"
+    "qa:local": "node scripts/agent-qa.mjs --skip-prod",
+    "qa:deep": "node scripts/deep-qa.mjs"
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.2.0",
