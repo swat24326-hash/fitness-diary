@@ -4,8 +4,11 @@
  */
 import { requireAuthUser, sendJson, setCors } from './lib/adminSupabase.js'
 import { executePushRecord } from './lib/pushRecordCore.js'
+import { runPool } from './lib/runPool.js'
 
 const MAX_BATCH = 50
+/** Параллельные записи в одном запросе (укладываемся в лимит времени serverless). */
+const POOL = 8
 
 export default async function handler(req, res) {
   setCors(res, 'POST, OPTIONS')
@@ -53,17 +56,16 @@ export default async function handler(req, res) {
     return
   }
 
-  const results = []
-  for (let index = 0; index < records.length; index++) {
-    const rec = records[index] ?? {}
-    const table_name = String(rec.table_name ?? '').trim()
-    const operation = String(rec.operation ?? '').trim()
-    const data = rec.data
-    const remote_id = rec.remote_id != null ? String(rec.remote_id) : null
-    const local_id = rec.local_id != null ? String(rec.local_id) : null
+  const results = await runPool(records, POOL, async (rec, index) => {
+    const row = rec ?? {}
+    const table_name = String(row.table_name ?? '').trim()
+    const operation = String(row.operation ?? '').trim()
+    const data = row.data
+    const remote_id = row.remote_id != null ? String(row.remote_id) : null
+    const local_id = row.local_id != null ? String(row.local_id) : null
 
     const out = await executePushRecord(ctx, { table_name, operation, data, remote_id })
-    results.push({
+    return {
       index,
       local_id,
       ok: out.ok,
@@ -71,8 +73,8 @@ export default async function handler(req, res) {
       record: out.record,
       error: out.error,
       status: out.status,
-    })
-  }
+    }
+  })
 
   const allOk = results.every((r) => r.ok)
   sendJson(res, allOk ? 200 : 207, { ok: allOk, results })

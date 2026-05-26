@@ -492,7 +492,22 @@ async function flushSyncQueueInnerWork() {
 
   for (let offset = 0; offset < validQueue.length; offset += PUSH_BATCH_SIZE) {
     const chunk = validQueue.slice(offset, offset + PUSH_BATCH_SIZE)
-    const batchResult = await pushRecordsBatchViaApi(chunk)
+    let batchResult = await pushRecordsBatchViaApi(chunk)
+
+    if (!batchResult.results && chunk.length > 6) {
+      const half = Math.ceil(chunk.length / 2)
+      const left = chunk.slice(0, half)
+      const right = chunk.slice(half)
+      const r1 = await pushRecordsBatchViaApi(left)
+      const r2 = await pushRecordsBatchViaApi(right)
+      const mergedFailed = [...(r1.failed ?? []), ...(r2.failed ?? [])]
+      const mergedOk = (r1.results || r2.results) && mergedFailed.length === 0
+      batchResult = {
+        ok: mergedOk,
+        results: [...(r1.results ?? []), ...(r2.results ?? [])],
+        failed: mergedFailed.length ? mergedFailed : undefined,
+      }
+    }
 
     if (!batchResult.results) {
       await runChunkFallback(chunk)

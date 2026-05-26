@@ -5,8 +5,9 @@ import { removeSyncItem } from './localDb'
 import { handlePushApiFailure, isUnrecoverablePushError } from './syncQueueOrphans'
 import { mapWithConcurrency } from './syncConcurrency'
 
-export const PUSH_BATCH_SIZE = 30
-export const PUSH_PARALLEL = 8
+/** Меньшие пачки — иначе serverless (10–60 с) обрывает запрос, клиент уходит в медленный retry. */
+export const PUSH_BATCH_SIZE = 12
+export const PUSH_PARALLEL = 10
 
 function apiOrigin() {
   if (typeof window !== 'undefined' && window.location?.origin) {
