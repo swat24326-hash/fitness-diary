@@ -3,6 +3,10 @@ import { isAppOnline } from './networkReachability'
 import { getAccessTokenForAdminApi } from './admin/adminApiClient'
 import { removeSyncItem } from './localDb'
 import { handlePushApiFailure, isUnrecoverablePushError } from './syncQueueOrphans'
+import { mapWithConcurrency } from './syncConcurrency'
+
+export const PUSH_BATCH_SIZE = 30
+export const PUSH_PARALLEL = 8
 
 function apiOrigin() {
   if (typeof window !== 'undefined' && window.location?.origin) {
@@ -108,6 +112,102 @@ export async function pushRecordViaApi({ table_name, operation, data, remote_id,
   return { ok: false, status: res.status, error: err }
 }
 
+/**
+ * Пакетная отправка на /api/push-records.
+ * @param {Array<{ table_name: string, operation: string, data: object, remote_id: string | null, local_id: string }>} items
+ */
+export async function pushRecordsBatchViaApi(items) {
+  if (!items.length || !isSupabaseConfigured() || !isAppOnline()) {
+    return { ok: false, error: 'Нет сети или пустой пакет' }
+  }
+
+  let token
+  try {
+    token = await getAccessTokenForAdminApi()
+  } catch {
+    return { ok: false, error: 'Нет сессии — войдите снова' }
+  }
+  if (!token) return { ok: false, error: 'Нет токена авторизации' }
+
+  const records = items.map((item) => ({
+    table_name: item.table_name,
+    operation: item.operation,
+    data: item.data,
+    remote_id: item.remote_id,
+    local_id: item.local_id,
+  }))
+
+  let res
+  try {
+    res = await fetch(`${apiOrigin()}/api/push-records`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'same-origin',
+      cache: 'no-store',
+      body: JSON.stringify({ records }),
+    })
+  } catch (e) {
+    return { ok: false, error: e?.message ? String(e.message) : 'Сеть недоступна' }
+  }
+
+  const body = await parseJson(res)
+  if (!Array.isArray(body.results)) {
+    const err = String(body.error || body.message || `HTTP ${res.status}`)
+    return { ok: false, status: res.status, error: err, failed: items.map((item) => ({ item, result: { ok: false, error: err } })) }
+  }
+
+  /** @type {Array<{ item: typeof items[0], result: { ok?: boolean, duplicate?: boolean, error?: string, status?: number } }>} */
+  const perItem = []
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]
+    const row = body.results.find((r) => r.index === i) ?? body.results[i]
+    if (!row) {
+      perItem.push({ item, result: { ok: false, error: 'Нет ответа по записи' } })
+      continue
+    }
+    if (row.ok) {
+      if (item.local_id) {
+        try {
+          await removeSyncItem(item.local_id)
+        } catch {
+          /* ignore */
+        }
+      }
+      perItem.push({ item, result: { ok: true, duplicate: !!row.duplicate } })
+      continue
+    }
+    const err = String(row.error ?? 'Ошибка')
+    if (row.status === 409 || row.duplicate === true) {
+      if (item.local_id) {
+        try {
+          await removeSyncItem(item.local_id)
+        } catch {
+          /* ignore */
+        }
+      }
+      perItem.push({ item, result: { ok: true, duplicate: true } })
+      continue
+    }
+    if (isUnrecoverablePushError(row.status, err)) {
+      const dropped = await handlePushApiFailure({
+        status: row.status,
+        error: err,
+        local_id: item.local_id,
+        item,
+      })
+      perItem.push({ item, result: dropped })
+      continue
+    }
+    perItem.push({ item, result: { ok: false, status: row.status, error: err } })
+  }
+
+  const failed = perItem.filter((x) => !x.result.ok && !x.result.dropped)
+  return { ok: failed.length === 0, results: perItem, failed }
+}
+
 /** Debounced push после saveLocalWithSync */
 export function schedulePushRecordViaApi(item) {
   if (!PUSH_TABLES.has(item.table_name) || !isAppOnline()) return
@@ -115,13 +215,22 @@ export function schedulePushRecordViaApi(item) {
   clearTimeout(pushTimer)
   pushTimer = setTimeout(() => {
     void flushPushQueue()
-  }, 900)
+  }, 400)
 }
 
 async function flushPushQueue() {
   const batch = pushQueue.splice(0, pushQueue.length)
-  for (const item of batch) {
-    await pushRecordViaApi(item)
+  for (let i = 0; i < batch.length; i += PUSH_BATCH_SIZE) {
+    const chunk = batch.slice(i, i + PUSH_BATCH_SIZE)
+    const pushed = await pushRecordsBatchViaApi(chunk)
+    if (pushed.ok || !pushed.failed?.length) continue
+    await mapWithConcurrency(pushed.failed.map((x) => x.item), PUSH_PARALLEL, (item) => pushRecordViaApi(item))
+  }
+  try {
+    const { scheduleBackgroundSyncDrain } = await import('./syncService.js')
+    scheduleBackgroundSyncDrain()
+  } catch {
+    /* ignore */
   }
 }
 

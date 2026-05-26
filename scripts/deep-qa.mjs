@@ -92,6 +92,7 @@ if (distCss && distJs) {
   const markers = [
     ['stopwatch CSS', 'app-header__stopwatch', css],
     ['sync flush UX', 'очередь отправлена', js],
+    ['batch sync client', 'push-records', js],
     ['admin club select', 'Выберите клуб', js],
     ['no stale filter', 'Все клубы', js, true],
   ]
@@ -123,6 +124,7 @@ if (!skipProd) {
       console.log(`  prod css: ${cssM[1]}`)
       check(css.includes('app-header__stopwatch'), 'prod stopwatch CSS')
       check(js.includes('очередь отправлена') || js.includes('в очереди:'), 'prod sync UX strings')
+      check(js.includes('push-records') || js.includes('pushRecordsBatchViaApi'), 'prod batch sync API client')
       check(js.includes('Выберите клуб'), 'prod admin UI')
       check(!js.includes('Все клубы'), 'prod no stale "Все клубы"')
       check(js.includes('app-header__sync-btn'), 'prod header sync')
@@ -137,6 +139,7 @@ if (!skipProd) {
       ['POST auth-sign-in empty', `${ORIGIN}/api/auth-sign-in`, 'POST', 400],
       ['GET me-profile', `${ORIGIN}/api/me-profile`, 'GET', 401],
       ['GET create-trainer', `${ORIGIN}/api/create-trainer`, 'GET', 405],
+      ['POST push-records', `${ORIGIN}/api/push-records`, 'POST', 401],
     ]
     for (const [name, url, method, expected] of apiExtra) {
       const r = await fetch(url, {

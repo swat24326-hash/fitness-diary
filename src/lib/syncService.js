@@ -1,8 +1,17 @@
 import { supabase, isSupabaseConfigured } from './supabase'
 import { initNetworkReachability, isAppOnline } from './networkReachability'
 import { getDb, listSyncQueue, removeSyncItem, enqueueSync, setOnlineFlag } from './localDb'
-import { pushRecordViaApi, schedulePushRecordViaApi } from './syncApiClient'
 import {
+  pushRecordViaApi,
+  pushRecordsBatchViaApi,
+  PUSH_BATCH_SIZE,
+  PUSH_PARALLEL,
+  schedulePushRecordViaApi,
+} from './syncApiClient'
+import { mapWithConcurrency } from './syncConcurrency'
+import {
+  collapseDuplicateQueueInserts,
+  collapseRedundantQueueItems,
   dropLocalOrphanForSyncItem,
   isUnrecoverablePushError,
   purgeSyncQueueAgainstLocalClients,
@@ -40,10 +49,31 @@ const ALLOWED_TABLES = new Set([
   'sync_queue',
 ])
 
+/** Порядок отправки: сначала сущности, от которых зависят остальные. */
+const SYNC_TABLE_PRIORITY = {
+  clients: 10,
+  memberships: 20,
+  trainings: 30,
+  health_cards: 40,
+  body_measurements: 50,
+  challenges: 60,
+  exercises: 70,
+}
+
+function syncQueueSortKey(item) {
+  const op = item.operation
+  const opRank = op === 'delete' ? 0 : op === 'insert' ? 1 : 2
+  const tableRank = SYNC_TABLE_PRIORITY[item.table_name] ?? 99
+  return opRank * 1000 + tableRank
+}
+
 export function initConnectivityListeners() {
   return initNetworkReachability((online) => {
     void setOnlineFlag(online)
-    if (online) scheduleFlushSyncQueue({ force: true })
+    if (online) {
+      scheduleFlushSyncQueue({ force: true, background: true })
+      scheduleBackgroundSyncDrain()
+    }
   })
 }
 
@@ -80,6 +110,32 @@ let backgroundSyncPaused = false
 /** @type {Promise<{ ok: boolean, reason?: string, remaining?: number }> | null} */
 let flushInFlightPromise = null
 
+let backgroundDrainTimer = null
+let backgroundIntervalId = null
+let backgroundOnVis = null
+let backgroundOnData = null
+let backgroundDrainStarted = false
+
+const BG_DRAIN_DEBOUNCE_MS = 2_500
+const BG_DRAIN_INTERVAL_MS = 45_000
+
+async function notifySyncQueueChanged() {
+  try {
+    const { dispatchLocalDataChanged } = await import('./dataAccess.js')
+    dispatchLocalDataChanged({ reason: 'sync-queue' })
+  } catch {
+    /* ignore */
+  }
+}
+
+export async function getPendingSyncQueueLength() {
+  try {
+    return (await listSyncQueue()).length
+  } catch {
+    return 0
+  }
+}
+
 export function getFlushInFlightPromise() {
   return flushInFlightPromise
 }
@@ -87,6 +143,14 @@ export function getFlushInFlightPromise() {
 /** На время входа не шлём очередь в Supabase (иначе 409 и «Загрузка…»). */
 export function setBackgroundSyncPaused(paused) {
   backgroundSyncPaused = paused
+  if (paused) {
+    stopBackgroundSyncDrain()
+    return
+  }
+  if (isAppOnline() && isSupabaseConfigured()) {
+    startBackgroundSyncDrain()
+    scheduleBackgroundSyncDrain(1_500)
+  }
 }
 
 /**
@@ -135,8 +199,76 @@ export function scheduleFlushSyncQueue(opts = {}) {
   if (backgroundSyncPaused || !isAppOnline() || !isSupabaseConfigured()) return
   clearTimeout(flushTimer)
   flushTimer = setTimeout(() => {
-    void flushSyncQueue(opts)
-  }, 1200)
+    void flushSyncQueue({ ...opts, force: opts.force ?? true, background: opts.background ?? true })
+  }, 800)
+}
+
+/** Фоновая догонка очереди без кнопки «Синхронизировать». */
+export function scheduleBackgroundSyncDrain(delayMs = BG_DRAIN_DEBOUNCE_MS) {
+  if (backgroundSyncPaused || !isAppOnline() || !isSupabaseConfigured()) return
+  clearTimeout(backgroundDrainTimer)
+  backgroundDrainTimer = setTimeout(() => {
+    backgroundDrainTimer = null
+    void drainSyncQueueInBackground()
+  }, delayMs)
+}
+
+export function startBackgroundSyncDrain() {
+  if (backgroundDrainStarted || typeof window === 'undefined') return
+  backgroundDrainStarted = true
+
+  backgroundOnVis = () => {
+    if (document.visibilityState === 'visible') scheduleBackgroundSyncDrain(600)
+  }
+  document.addEventListener('visibilitychange', backgroundOnVis)
+
+  backgroundOnData = () => scheduleBackgroundSyncDrain()
+  window.addEventListener('fitness-diary-storage', backgroundOnData)
+
+  backgroundIntervalId = window.setInterval(() => {
+    void drainSyncQueueInBackground()
+  }, BG_DRAIN_INTERVAL_MS)
+
+  scheduleBackgroundSyncDrain(1200)
+}
+
+export function stopBackgroundSyncDrain() {
+  backgroundDrainStarted = false
+  clearTimeout(backgroundDrainTimer)
+  backgroundDrainTimer = null
+  if (backgroundIntervalId != null) {
+    clearInterval(backgroundIntervalId)
+    backgroundIntervalId = null
+  }
+  if (backgroundOnVis) {
+    document.removeEventListener('visibilitychange', backgroundOnVis)
+    backgroundOnVis = null
+  }
+  if (backgroundOnData) {
+    window.removeEventListener('fitness-diary-storage', backgroundOnData)
+    backgroundOnData = null
+  }
+}
+
+export async function drainSyncQueueInBackground() {
+  if (backgroundSyncPaused || !isAppOnline() || !isSupabaseConfigured()) return { ok: false, reason: 'skipped' }
+  if (flushInFlightPromise) return { ok: false, reason: 'busy' }
+
+  const pending = await getPendingSyncQueueLength()
+  if (pending === 0) return { ok: true, remaining: 0 }
+
+  const maxMs = Math.min(120_000, 22_000 + pending * 300)
+  const result = await flushSyncQueue({ force: true, background: true, maxMs })
+
+  void notifySyncQueueChanged()
+
+  const left = result?.remaining ?? (await getPendingSyncQueueLength())
+  if (left > 0 && result?.reason !== 'paused' && result?.reason !== 'offline_or_stub') {
+    const retryMs = result?.reason === 'timeout' ? 10_000 : 5_000
+    scheduleBackgroundSyncDrain(retryMs)
+  }
+
+  return result
 }
 
 /**
@@ -153,9 +285,27 @@ async function defaultFlushMaxMs(force) {
   }
 }
 
+async function flushUntilQueueDrained(maxPasses = 8) {
+  let result = { ok: false, reason: 'pending_items', remaining: 1 }
+  for (let pass = 0; pass < maxPasses; pass++) {
+    if (pass > 0) {
+      await collapseRedundantQueueItems()
+      await collapseDuplicateQueueInserts()
+      await pruneRedundantSyncQueue()
+    }
+    const before = await getPendingSyncQueueLength()
+    result = await flushSyncQueueInner()
+    if (result.ok) return result
+    const after = result.remaining ?? (await getPendingSyncQueueLength())
+    if (after === 0) return { ok: true, remaining: 0 }
+    if (pass > 0 && after >= before) break
+  }
+  return result
+}
+
 export async function flushSyncQueue(opts = {}) {
-  /* Без «Синхронизировать» в меню — не шлём ничего (старая очередь давала 409). */
-  if (!opts.force) {
+  /* Без force/background — только очистка яда; отправка по кнопке или фону. */
+  if (!opts.force && !opts.background) {
     await clearPoisonedSyncQueue()
     return { ok: false, reason: 'manual_only' }
   }
@@ -166,18 +316,12 @@ export async function flushSyncQueue(opts = {}) {
   if (opts.onProgress) setQueueFlushProgressReporter(opts.onProgress)
   try {
     if (opts.waitUntilDone) {
-      let result = await flushSyncQueueInner()
-      for (let attempt = 0; attempt < 2 && result?.reason === 'pending_items'; attempt++) {
-        const before = result.remaining ?? (await listSyncQueue()).length
-        await pruneRedundantSyncQueue()
-        result = await flushSyncQueueInner()
-        const after = result.remaining ?? (await listSyncQueue()).length
-        if (after >= before) break
-      }
+      const result = await flushUntilQueueDrained(8)
+      void notifySyncQueueChanged()
       return result
     }
 
-    const maxMs = opts.maxMs ?? (await defaultFlushMaxMs(true))
+    const maxMs = opts.maxMs ?? (await defaultFlushMaxMs(opts.force || opts.background))
     const work = flushSyncQueueInner()
     const result = await Promise.race([
       work,
@@ -197,6 +341,9 @@ export async function flushSyncQueue(opts = {}) {
       } catch {
         /* ignore */
       }
+    }
+    if (!result?.ok && (opts.background || opts.force)) {
+      void notifySyncQueueChanged()
     }
     return result
   } finally {
@@ -219,93 +366,148 @@ async function flushSyncQueueInner() {
   return flushInFlightPromise
 }
 
+async function processOneSyncQueueItem(item) {
+  const table = item.table_name
+  if (!table || !ALLOWED_TABLES.has(table)) {
+    await removeSyncItem(item.local_id)
+    return { ok: true }
+  }
+
+  const pushedViaApi = await pushRecordViaApi({
+    table_name: item.table_name,
+    operation: item.operation,
+    data: item.data,
+    remote_id: item.remote_id,
+    local_id: item.local_id,
+  })
+  if (pushedViaApi.ok || pushedViaApi.dropped) return { ok: true }
+  if (isUnrecoverablePushError(pushedViaApi.status, pushedViaApi.error)) {
+    await removeSyncItem(item.local_id)
+    await dropLocalOrphanForSyncItem(item)
+    return { ok: true }
+  }
+
+  const attempt = async (payload) => {
+    if (item.operation === 'insert') {
+      const { error } = await supabase.from(table).insert(payload)
+      if (error) throw error
+      return
+    }
+    if (item.operation === 'update' && item.remote_id) {
+      const { error } = await supabase.from(table).update(payload).eq('id', item.remote_id)
+      if (error) throw error
+      return
+    }
+    if (item.operation === 'delete' && item.remote_id) {
+      const { error } = await supabase.from(table).delete().eq('id', item.remote_id)
+      if (error) throw error
+    }
+  }
+
+  try {
+    if ((item.operation === 'update' || item.operation === 'delete') && !item.remote_id) {
+      throw new Error('missing remote_id')
+    }
+    await attempt(item.data)
+    await removeSyncItem(item.local_id)
+    return { ok: true }
+  } catch (e) {
+    const msg = String(e?.message ?? '')
+    const needStripGoal =
+      table === 'health_cards' &&
+      item.data &&
+      Object.prototype.hasOwnProperty.call(item.data, 'goal') &&
+      msg.toLowerCase().includes('goal') &&
+      (msg.toLowerCase().includes('column') || msg.toLowerCase().includes('could not find'))
+    if (needStripGoal) {
+      const nextData = { ...item.data }
+      delete nextData.goal
+      await attempt(nextData)
+      await removeSyncItem(item.local_id)
+      return { ok: true }
+    }
+    if (item.operation === 'insert' && isDuplicateInsertError(e)) {
+      await removeSyncItem(item.local_id)
+      return { ok: true }
+    }
+    throw e
+  }
+}
+
+async function bumpSyncItemRetry(item) {
+  const db = await getDb()
+  const next = { ...item, retry_count: (item.retry_count ?? 0) + 1 }
+  await db.put('sync_queue', next)
+}
+
 async function flushSyncQueueInnerWork() {
   await clearPoisonedSyncQueue()
   await pruneStaleSyncInserts({ aggressive: true })
   await purgeSyncQueueAgainstLocalClients()
+  await collapseRedundantQueueItems()
+  await collapseDuplicateQueueInserts()
   await pruneRedundantSyncQueue()
 
-  const queue = await listSyncQueue()
+  let queue = await listSyncQueue()
   const total = queue.length
   reportQueueFlushProgress(0, total, total > 0 ? 'Подготовка…' : 'Очередь пуста')
+  if (total === 0) {
+    return { ok: true, remaining: 0 }
+  }
 
-  for (let i = 0; i < queue.length; i++) {
-    const item = queue[i]
-    try {
+  let processed = 0
+  const reportStep = () => {
+    reportQueueFlushProgress(
+      processed,
+      total,
+      total > 0 ? `Запись ${Math.min(processed, total)} из ${total}` : 'Отправка…',
+    )
+  }
+
+  const validQueue = []
+  for (const item of queue) {
     const table = item.table_name
     if (!table || !ALLOWED_TABLES.has(table)) {
       await removeSyncItem(item.local_id)
+      processed++
       continue
     }
-    try {
-      const pushedViaApi = await pushRecordViaApi({
-        table_name: item.table_name,
-        operation: item.operation,
-        data: item.data,
-        remote_id: item.remote_id,
-        local_id: item.local_id,
-      })
-      if (pushedViaApi.ok) continue
-      if (pushedViaApi.dropped) continue
-      if (isUnrecoverablePushError(pushedViaApi.status, pushedViaApi.error)) {
-        await removeSyncItem(item.local_id)
-        await dropLocalOrphanForSyncItem(item)
-        continue
-      }
+    validQueue.push(item)
+  }
+  validQueue.sort((a, b) => syncQueueSortKey(a) - syncQueueSortKey(b))
+  reportStep()
 
-      const attempt = async (payload) => {
-        if (item.operation === 'insert') {
-          const { error } = await supabase.from(table).insert(payload)
-          if (error) throw error
-          return
-        }
-        if (item.operation === 'update' && item.remote_id) {
-          const { error } = await supabase.from(table).update(payload).eq('id', item.remote_id)
-          if (error) throw error
-          return
-        }
-        if (item.operation === 'delete' && item.remote_id) {
-          const { error } = await supabase.from(table).delete().eq('id', item.remote_id)
-          if (error) throw error
-        }
-      }
-
+  const runChunkFallback = async (items) => {
+    await mapWithConcurrency(items, PUSH_PARALLEL, async (item) => {
       try {
-        if ((item.operation === 'update' || item.operation === 'delete') && !item.remote_id) {
-          throw new Error('missing remote_id')
-        }
-        await attempt(item.data)
-        await removeSyncItem(item.local_id)
-      } catch (e) {
-        // Совместимость: если на сервере нет колонки `goal` в health_cards,
-        // не блокируем синк — повторяем без неё.
-        const msg = String(e?.message ?? '')
-        const needStripGoal =
-          table === 'health_cards' &&
-          item.data &&
-          Object.prototype.hasOwnProperty.call(item.data, 'goal') &&
-          (msg.toLowerCase().includes('goal') && (msg.toLowerCase().includes('column') || msg.toLowerCase().includes('could not find')))
-        if (needStripGoal) {
-          const nextData = { ...item.data }
-          delete nextData.goal
-          await attempt(nextData)
-          await removeSyncItem(item.local_id)
-        } else if (item.operation === 'insert' && isDuplicateInsertError(e)) {
-          await removeSyncItem(item.local_id)
-        } else {
-          throw e
-        }
+        await processOneSyncQueueItem(item)
+      } catch {
+        await bumpSyncItemRetry(item)
+      } finally {
+        processed++
+        reportStep()
       }
-    } catch {
-      const db = await getDb()
-      const next = { ...item, retry_count: (item.retry_count ?? 0) + 1 }
-      await db.put('sync_queue', next)
+    })
+  }
+
+  for (let offset = 0; offset < validQueue.length; offset += PUSH_BATCH_SIZE) {
+    const chunk = validQueue.slice(offset, offset + PUSH_BATCH_SIZE)
+    const batchResult = await pushRecordsBatchViaApi(chunk)
+
+    if (!batchResult.results) {
+      await runChunkFallback(chunk)
+      continue
     }
-    } finally {
-      const processed = i + 1
-      reportQueueFlushProgress(processed, total, total > 0 ? `Отправка ${processed} из ${total}` : 'Отправка…')
+
+    const retryItems = batchResult.failed?.map((x) => x.item) ?? []
+    processed += chunk.length - retryItems.length
+    reportStep()
+
+    if (retryItems.length) {
+      await runChunkFallback(retryItems)
     }
   }
+
   await pruneRedundantSyncQueue()
   const remaining = (await listSyncQueue()).length
   return remaining === 0 ? { ok: true, remaining: 0 } : { ok: false, reason: 'pending_items', remaining }
@@ -333,6 +535,7 @@ export async function saveLocalWithSync(storeName, record, { table_name, operati
       data: record,
       local_id: queueRow.local_id,
     })
+    scheduleBackgroundSyncDrain()
   }
   return queueRow.local_id
 }
@@ -358,6 +561,7 @@ export async function deleteLocalWithSync(storeName, key, table_name) {
       data: {},
       local_id: queueRow.local_id,
     })
+    scheduleBackgroundSyncDrain()
   }
 }
 
@@ -381,5 +585,6 @@ export async function deleteHealthCardByClientId(clientId) {
       data: {},
       local_id: queueRow.local_id,
     })
+    scheduleBackgroundSyncDrain()
   }
 }

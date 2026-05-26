@@ -53,6 +53,7 @@ if (!skipProd) {
       ['GET list-trainers', `${ORIGIN}/api/list-trainers`, 'GET', 401],
       ['GET admin-data', `${ORIGIN}/api/admin-data?action=clubs`, 'GET', 401],
       ['POST push-record', `${ORIGIN}/api/push-record`, 'POST', 401],
+      ['POST push-records', `${ORIGIN}/api/push-records`, 'POST', 401],
     ]
 
     for (const [name, url, method, expected] of apiChecks) {

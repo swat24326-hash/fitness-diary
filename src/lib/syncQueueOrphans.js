@@ -81,6 +81,81 @@ export async function pruneRedundantSyncQueue() {
   return { removed }
 }
 
+function entityIdForQueueItem(item) {
+  const d = item.data && typeof item.data === 'object' ? item.data : {}
+  return String(item.remote_id ?? d.id ?? '').trim()
+}
+
+/**
+ * Схлопнуть лишние update/delete по одной сущности (оставить последнюю операцию).
+ * Убирает «хвост» из десятков update одного клиента перед отправкой.
+ */
+export async function collapseRedundantQueueItems() {
+  const queue = await listSyncQueue()
+  /** @type {Map<string, { keep: typeof queue[0], drop: string[] }>} */
+  const byEntity = new Map()
+  let removed = 0
+
+  for (const item of queue) {
+    const op = item.operation
+    if (op !== 'update' && op !== 'delete') continue
+    const entityId = entityIdForQueueItem(item)
+    if (!entityId) continue
+    const key = `${item.table_name}:${entityId}`
+    const prev = byEntity.get(key)
+    if (!prev) {
+      byEntity.set(key, { keep: item, drop: [] })
+      continue
+    }
+    prev.drop.push(prev.keep.local_id)
+    prev.keep = item
+  }
+
+  for (const { keep, drop } of byEntity.values()) {
+    for (const localId of drop) {
+      if (localId === keep.local_id) continue
+      await removeSyncItem(localId)
+      removed++
+    }
+    if (keep.operation === 'delete') {
+      for (const other of queue) {
+        if (other.local_id === keep.local_id) continue
+        if (other.table_name !== keep.table_name) continue
+        if (entityIdForQueueItem(other) !== entityIdForQueueItem(keep)) continue
+        if (other.operation === 'insert' || other.operation === 'update') {
+          await removeSyncItem(other.local_id)
+          removed++
+        }
+      }
+    }
+  }
+
+  return { removed }
+}
+
+/** Несколько insert одной сущности — оставить последний. */
+export async function collapseDuplicateQueueInserts() {
+  const queue = await listSyncQueue()
+  /** @type {Map<string, string>} */
+  const lastLocalIdByKey = new Map()
+  let removed = 0
+
+  for (const item of queue) {
+    if (item.operation !== 'insert') continue
+    const entityId = entityIdForQueueItem(item)
+    if (!entityId) continue
+    const key = `${item.table_name}:${entityId}`
+    const prevLocalId = lastLocalIdByKey.get(key)
+    if (prevLocalId) {
+      await removeSyncItem(prevLocalId)
+      removed++
+    }
+    lastLocalIdByKey.set(key, item.local_id)
+  }
+
+  return { removed }
+}
+
 /**
  * Обработать ответ push-record: снять очередь и локальный хвост, чтобы не спамить 403.
  * @returns {Promise<{ ok: boolean, dropped?: boolean, error?: string, status?: number }>}
