@@ -314,7 +314,7 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
         trainer_id: trainerIdForTraining,
         club_id: clubId ?? null,
         date,
-        type: 'Списание',
+        type: 'Силовая',
         status: 'completed',
         data: {
           membership_id: membership.id,

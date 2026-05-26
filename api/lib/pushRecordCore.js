@@ -2,6 +2,7 @@
  * Одна запись очереди → Supabase (используется push-record и push-records).
  */
 import { authorizePush } from './mutationAuth.js'
+import { normalizeTrainingPayload } from './normalizeTrainingPayload.js'
 
 export const PUSH_ALLOWED_TABLES = new Set([
   'clients',
@@ -83,6 +84,9 @@ export async function executePushRecord(ctx, item) {
         }
         payload = prep.data
       }
+      if (table_name === 'trainings') {
+        payload = normalizeTrainingPayload(payload)
+      }
       const { error } = await supabaseAdmin.from(table_name).insert(payload)
       if (error) {
         if (error.code === '23505') {
@@ -115,7 +119,8 @@ export async function executePushRecord(ctx, item) {
     }
 
     if (operation === 'update' && remote_id) {
-      const { error } = await supabaseAdmin.from(table_name).update(data).eq('id', remote_id)
+      const payload = table_name === 'trainings' ? normalizeTrainingPayload(data) : data
+      const { error } = await supabaseAdmin.from(table_name).update(payload).eq('id', remote_id)
       if (error) {
         const errMsg = table_name === 'exercises' ? friendlyExerciseDbError(error, 'update') : error.message
         return { ok: false, status: 400, error: errMsg }

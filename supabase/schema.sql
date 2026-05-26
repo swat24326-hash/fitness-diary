@@ -92,7 +92,7 @@ CREATE TABLE trainings (
   trainer_id UUID NOT NULL REFERENCES users (id),
   club_id UUID NOT NULL REFERENCES clubs (id),
   date DATE NOT NULL,
-  type TEXT CHECK (type IN ('Силовая', 'Функциональная', 'Кардио', 'Смешанная')),
+  type TEXT CHECK (type IN ('Силовая', 'Функциональная', 'Кардио', 'Смешанная', 'Списание')),
   status TEXT DEFAULT 'completed' CHECK (status IN ('draft', 'completed')),
   data JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ DEFAULT NOW(),
