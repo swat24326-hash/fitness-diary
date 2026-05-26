@@ -356,6 +356,21 @@ export function AppHeader() {
 
   const homeTo = isAdmin ? `/admin${adminQs}` : '/trainer'
 
+  const journalContext = useMemo(() => {
+    const clubId = isAdmin ? adminClubValue : String(user?.club_id ?? '').trim()
+    const club = adminClubs.find((c) => String(c.id) === clubId)
+    return {
+      user,
+      role: isAdmin ? 'admin' : 'trainer',
+      isAdmin,
+      online,
+      supabaseReady: supabaseReady && isSupabaseConfigured(),
+      clubId: clubId || '—',
+      clubName: club?.name ?? (clubId || '—'),
+      pathname: location.pathname + location.search,
+    }
+  }, [user, isAdmin, online, supabaseReady, adminClubValue, adminClubs, location.pathname, location.search])
+
   const onAdminClubChange = (e) => {
     const v = e.target.value
     const next = new URLSearchParams(searchParams)
@@ -467,7 +482,7 @@ export function AppHeader() {
             ))}
           </select>
         ) : null}
-        {user ? <HeaderStopwatch /> : null}
+        {!isAdmin && user ? <HeaderStopwatch /> : null}
         {showTrainerHeaderSync ? (
           <div className="app-header__sync-wrap">
             <button
@@ -610,6 +625,10 @@ export function AppHeader() {
       open={errorJournalOpen}
       onClose={() => setErrorJournalOpen(false)}
       onCleared={() => showSyncFeedback('Журнал ошибок очищен', 'ok')}
+      onCopyFeedback={(msg, tone) => showSyncFeedback(msg, tone ?? 'ok')}
+      context={journalContext}
+      onSyncNow={() => void syncNow()}
+      syncBusy={syncBusy}
     />
     {syncFeedback && (
       <div

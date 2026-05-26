@@ -13,6 +13,7 @@ import { AdminExercises } from './pages/admin/AdminExercises'
 import { AdminStructure } from './pages/admin/AdminStructure'
 import { AdminChallenges } from './pages/admin/AdminChallenges'
 import { AdminChallengeDetail } from './pages/admin/AdminChallengeDetail'
+import { AdminDiagnostics } from './pages/admin/AdminDiagnostics'
 import { Login } from './pages/Login'
 import { ClientCard } from './pages/trainer/ClientCard'
 import { TrainerHome } from './pages/trainer/TrainerHome'
@@ -48,7 +49,7 @@ function LoggedInLayout() {
   return (
     <div className="app-shell">
       <AppHeader />
-      <DraftTabsBar />
+      {role === 'trainer' ? <DraftTabsBar /> : null}
       <BreadcrumbsBar />
       <main className="app-main">
         <Outlet />
@@ -134,6 +135,7 @@ export default function App() {
                 <Route path="exercises" element={<AdminExercises />} />
                 <Route path="challenges" element={<AdminChallenges />} />
                 <Route path="challenges/:challengeId" element={<AdminChallengeDetail />} />
+                <Route path="diagnostics" element={<AdminDiagnostics />} />
                 <Route path="clubs" element={<AdminLegacyClubsRedirect />} />
               </Route>
             </Route>

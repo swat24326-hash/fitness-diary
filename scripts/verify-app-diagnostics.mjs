@@ -1,0 +1,47 @@
+/**
+ * Smoke-test диагностики (Node).
+ * node scripts/verify-app-diagnostics.mjs
+ */
+
+import assert from 'node:assert/strict'
+import {
+  buildDiagnosticReport,
+  buildSystemState,
+  filterAppErrors,
+  suggestErrorHint,
+  formatSyncQueueLine,
+} from '../src/lib/appDiagnostics.js'
+
+const system = buildSystemState({
+  user: { name: 'Test', email: 't@x.com', id: 'u1' },
+  isAdmin: true,
+  online: true,
+  supabaseReady: true,
+  clubId: 'c1',
+  clubName: 'Club',
+  pathname: '/admin/diagnostics',
+  errorCount: 1,
+  queueCount: 2,
+})
+
+assert.equal(system.role, 'admin')
+assert.equal(system.clubName, 'Club')
+
+const errors = [
+  { at: '2025-01-01T12:00:00.000Z', source: 'sync', error: 'violates check constraint trainings_type_check', status: 400, context: 'trainings · insert' },
+  { at: '2025-01-01T11:00:00.000Z', source: 'network', error: 'Failed to fetch' },
+]
+
+assert.equal(filterAppErrors(errors, 'sync').length, 1)
+assert.ok(suggestErrorHint(errors[0]).includes('Обновите'))
+assert.ok(suggestErrorHint(errors[1]).includes('сет'))
+
+const queue = [{ table_name: 'trainings', operation: 'insert', local_id: 'abc', retry_count: 1 }]
+assert.ok(formatSyncQueueLine(queue[0], 0).includes('trainings'))
+
+const report = buildDiagnosticReport({ system, errors, queue })
+assert.ok(report.includes('=== Фитнес-дневник'))
+assert.ok(report.includes('Очередь синхронизации'))
+assert.ok(report.includes('Подсказка:'))
+
+console.log('verify-app-diagnostics: OK')
