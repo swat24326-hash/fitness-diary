@@ -87,7 +87,10 @@ export function describeFlushQueueResult(flush) {
   }
   if (flush.reason === 'pending_items') {
     const n = flush.remaining ?? 0
-    return { part: `в очереди: ${n}`, hadError: true }
+    return {
+      part: `не отправлено: ${n} (данные на устройстве сохранены)`,
+      hadError: true,
+    }
   }
   if (flush.reason === 'busy') {
     return { part: 'очередь: отправка…', hadError: true }

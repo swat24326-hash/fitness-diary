@@ -44,7 +44,7 @@ assert(!isDuplicateInsertError(null), 'null not duplicate')
 }
 {
   const pending = describeFlushQueueResult({ ok: false, reason: 'pending_items', remaining: 3 })
-  assert(pending.hadError && pending.part.includes('3'), 'pending_items shows count')
+  assert(pending.hadError && pending.part.includes('не отправлено') && pending.part.includes('3'), 'pending_items shows count')
 }
 {
   const off = describeFlushQueueResult({ ok: false, reason: 'offline_or_stub' })

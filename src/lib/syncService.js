@@ -162,34 +162,46 @@ export async function flushSyncQueue(opts = {}) {
   if (backgroundSyncPaused && !opts.force) {
     return { ok: false, reason: 'paused' }
   }
-  const maxMs = opts.maxMs ?? (await defaultFlushMaxMs(true))
+
   if (opts.onProgress) setQueueFlushProgressReporter(opts.onProgress)
-  const work = flushSyncQueueInner()
-  let result
   try {
-    result = await Promise.race([
-    work,
-    new Promise((resolve) => {
-      setTimeout(() => resolve({ ok: false, reason: 'timeout' }), maxMs)
-    }),
+    if (opts.waitUntilDone) {
+      let result = await flushSyncQueueInner()
+      for (let attempt = 0; attempt < 2 && result?.reason === 'pending_items'; attempt++) {
+        const before = result.remaining ?? (await listSyncQueue()).length
+        await pruneRedundantSyncQueue()
+        result = await flushSyncQueueInner()
+        const after = result.remaining ?? (await listSyncQueue()).length
+        if (after >= before) break
+      }
+      return result
+    }
+
+    const maxMs = opts.maxMs ?? (await defaultFlushMaxMs(true))
+    const work = flushSyncQueueInner()
+    const result = await Promise.race([
+      work,
+      new Promise((resolve) => {
+        setTimeout(() => resolve({ ok: false, reason: 'timeout' }), maxMs)
+      }),
     ])
+    if (result?.reason === 'timeout') {
+      try {
+        const remaining = (await listSyncQueue()).length
+        return {
+          ok: false,
+          reason: 'timeout',
+          remaining,
+          stillRunning: flushInFlightPromise != null,
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    return result
   } finally {
     if (opts.onProgress) setQueueFlushProgressReporter(null)
   }
-  if (result?.reason === 'timeout') {
-    try {
-      const remaining = (await listSyncQueue()).length
-      return {
-        ok: false,
-        reason: 'timeout',
-        remaining,
-        stillRunning: flushInFlightPromise != null,
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-  return result
 }
 
 async function flushSyncQueueInner() {

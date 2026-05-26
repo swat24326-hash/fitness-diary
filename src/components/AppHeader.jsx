@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { pullAdminClientsFromCloud } from '../lib/admin/adminClientsListService'
 import { pullTrainerWorkspaceFromCloud } from '../lib/trainerPullService'
 import { listSyncQueue } from '../lib/localDb'
-import { describeFlushQueueResult, flushSyncQueue, getFlushInFlightPromise, isAppOnline } from '../lib/syncService'
+import { describeFlushQueueResult, flushSyncQueue, isAppOnline } from '../lib/syncService'
 import { subscribeNetworkStatus } from '../lib/networkReachability'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -191,11 +191,9 @@ export function AppHeader() {
         return
       }
 
-      const queueLen = pendingSync > 0 ? pendingSync : (await listSyncQueue()).length
-      const flushMaxMs = Math.min(180_000, 40_000 + queueLen * 900)
       const flush = await flushSyncQueue({
         force: true,
-        maxMs: flushMaxMs,
+        waitUntilDone: true,
         onProgress: ({ done, total }) => {
           const queueShare = total > 0 ? Math.round((done / total) * 72) : 72
           bumpSyncProgress(4 + queueShare, total > 0 ? `Отправка ${done} из ${total}` : 'Отправка очереди…')
@@ -208,17 +206,12 @@ export function AppHeader() {
       }
       if (flushDesc.part) parts.push(flushDesc.part)
       if (flushDesc.hadError) hadError = true
-      if (flush?.reason === 'timeout' && flush.stillRunning) {
-        const bg = getFlushInFlightPromise()
-        if (bg) {
-          void bg.finally(() => {
-            void refreshPendingSync()
-            dispatchLocalDataChanged({ reason: 'sync-queue-finished' })
-          })
-        }
+
+      if (flush?.ok) {
+        bumpSyncProgress(74, 'Очередь отправлена')
       }
 
-      if (isSupabaseConfigured()) {
+      if (isSupabaseConfigured() && !flushDesc.offline) {
         try {
           const { pullExercisesFromCloud, pullChallengesForClubFromCloud } = await import('../lib/pullReferenceData')
           bumpSyncProgress(76, 'Справочник упражнений…')
@@ -302,13 +295,22 @@ export function AppHeader() {
 
       const { pruneRedundantSyncQueue } = await import('../lib/syncQueueOrphans')
       await pruneRedundantSyncQueue()
-      bumpSyncProgress(100, 'Готово')
       await refreshPendingSync()
+      const queueLeft = (await listSyncQueue()).length
       dispatchLocalDataChanged({ reason: 'sync-complete' })
 
-      if (hadError) {
+      if (queueLeft > 0) {
+        hadError = true
+        bumpSyncProgress(98, `В очереди: ${queueLeft}`)
+        showSyncFeedback(
+          `Не всё ушло в облако: в очереди ${queueLeft} ${queueLeft === 1 ? 'запись' : 'записей'}. Данные на устройстве сохранены — проверьте сеть и нажмите Sync снова.`,
+          'warn',
+        )
+      } else if (hadError) {
+        bumpSyncProgress(100, 'Готово с замечаниями')
         showSyncFeedback(`Синхронизация с замечаниями: ${parts.join(' · ')}.`, 'warn')
       } else {
+        bumpSyncProgress(100, 'Готово')
         showSyncFeedback(parts.length ? `Готово: ${parts.join(' · ')}.` : 'Синхронизация завершена.', 'ok')
       }
     } catch (e) {
