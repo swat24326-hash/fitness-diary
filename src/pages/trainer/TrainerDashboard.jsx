@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ClipboardList, LogOut, RefreshCw, UserPlus, Users } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { loadTrainerWorkspaceSnapshot } from '../../lib/trainerWorkspaceCache'
+import { invalidateTrainerWorkspaceCache, loadTrainerWorkspaceSnapshot } from '../../lib/trainerWorkspaceCache'
+import { pullTrainerWorkspaceFromCloud } from '../../lib/trainerPullService'
+import { isSupabaseConfigured } from '../../lib/supabase'
+import { isAppOnline } from '../../lib/syncService'
 import { useDebouncedStorageReload, shouldReloadTrainerClientList } from '../../lib/useDebouncedStorageReload'
 import { formatIsoRu, getDateRange, isDateInRange } from '../../lib/period'
 import { flushSyncQueue, saveLocalWithSync } from '../../lib/syncService'
@@ -95,8 +98,20 @@ export function TrainerDashboard() {
   }, [user?.id, trainerClubId])
 
   useEffect(() => {
-    void reload()
-  }, [reload])
+    if (!user?.id) return
+    let cancelled = false
+    void (async () => {
+      if (isSupabaseConfigured() && isAppOnline()) {
+        await pullTrainerWorkspaceFromCloud(user.id)
+        if (cancelled) return
+        invalidateTrainerWorkspaceCache()
+      }
+      await reload({ silent: true })
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [user?.id, trainerClubId, reload])
 
   useDebouncedStorageReload(() => reload({ silent: true }), { shouldRun: shouldReloadTrainerClientList })
 

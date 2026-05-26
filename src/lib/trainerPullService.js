@@ -5,9 +5,16 @@
 import { isSupabaseConfigured } from './supabase'
 import { isRetryableNetworkError } from './supabaseRetry'
 import { normalizeBodyMeasurementRow } from './bodyMeasures'
-import { buildPendingSyncKeysByTable, getDb, putStoreUnlessPendingSync, removeClientFromLocalCacheOnly } from './localDb'
+import {
+  buildPendingSyncKeysByTable,
+  getDb,
+  listSyncQueue,
+  putStoreUnlessPendingSync,
+  removeClientFromLocalCacheOnly,
+  removeSyncItem,
+} from './localDb'
 import { fetchTrainerPullViaApi } from './syncApiClient'
-import { purgeSyncQueueForMissingClients } from './syncQueueOrphans'
+import { pruneRedundantSyncQueue, purgeSyncQueueForMissingClients } from './syncQueueOrphans'
 import { invalidateTrainerWorkspaceCache } from './trainerWorkspaceCache'
 
 const LOCAL_DATA_CHANGED = 'fitness-diary-storage'
@@ -28,6 +35,15 @@ async function pruneOrphanTrainerClients(trainerId, remoteClients) {
   const pending = await buildPendingSyncKeysByTable()
   const db = await getDb()
   let pruned = 0
+  for (const item of await listSyncQueue()) {
+    if (item.table_name === 'clients' && item.operation === 'insert') {
+      const id = String(item.data?.id ?? item.remote_id ?? '').trim()
+      if (id && remoteIds.has(id)) {
+        await removeSyncItem(item.local_id)
+      }
+    }
+  }
+
   for (const c of await db.getAll('clients')) {
     if (String(c.trainer_id) !== tid) continue
     const id = String(c.id)
@@ -50,6 +66,7 @@ async function cacheTrainerPull(trainerId, { clients, memberships, health_cards,
   for (const row of trainings ?? []) await putStoreUnlessPendingSync('trainings', row, pending)
   const pruned = await pruneOrphanTrainerClients(trainerId, clients)
   await purgeSyncQueueForMissingClients((clients ?? []).map((c) => c.id))
+  await pruneRedundantSyncQueue()
   invalidateTrainerWorkspaceCache()
   notifyLocalDataChanged()
   return pruned

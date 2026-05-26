@@ -261,6 +261,8 @@ export function AppHeader() {
         }
       }
 
+      const { pruneRedundantSyncQueue } = await import('../lib/syncQueueOrphans')
+      await pruneRedundantSyncQueue()
       await refreshPendingSync()
       dispatchLocalDataChanged({ reason: 'sync-complete' })
 

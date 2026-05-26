@@ -24,18 +24,25 @@ function buildMemMap(memberships, clientIds) {
   return map
 }
 
+/** Клуб из профиля + клубы из клиентов тренера в кэше (как collectTrainerClubIds). */
+function trainerClubIds(allClients, trainerId, trainerClubId) {
+  const tid = String(trainerId ?? '').trim()
+  const out = new Set()
+  const fromProfile = String(trainerClubId ?? '').trim()
+  if (fromProfile) out.add(fromProfile)
+  for (const c of allClients ?? []) {
+    if (String(c.trainer_id) === tid && c.club_id) out.add(String(c.club_id))
+  }
+  return out
+}
+
 /**
  * @param {string} trainerId
  * @param {string | null} trainerClubId
  */
 export async function loadTrainerWorkspaceSnapshot(trainerId, trainerClubId) {
   const tid = String(trainerId ?? '').trim()
-  const cid = String(trainerClubId ?? '').trim()
-  const key = `${tid}:${cid}`
-  if (snapshot?.key === key) {
-    return { clients: snapshot.clients, trainings: snapshot.trainings, memByClient: snapshot.memByClient }
-  }
-  if (!tid || !cid) {
+  if (!tid) {
     return { clients: [], trainings: [], memByClient: {} }
   }
 
@@ -46,9 +53,27 @@ export async function loadTrainerWorkspaceSnapshot(trainerId, trainerClubId) {
     db.getAll('memberships'),
   ])
 
-  const clients = (allClients ?? []).filter((c) => c.trainer_id === tid && c.club_id === cid)
+  const clubIds = trainerClubIds(allClients, tid, trainerClubId)
+  const key = `${tid}:${[...clubIds].sort().join(',')}`
+  if (snapshot?.key === key) {
+    return { clients: snapshot.clients, trainings: snapshot.trainings, memByClient: snapshot.memByClient }
+  }
+
+  let clients = (allClients ?? []).filter((c) => String(c.trainer_id) === tid)
+  if (clubIds.size > 0) {
+    clients = clients.filter((c) => clubIds.has(String(c.club_id ?? '')))
+  }
+
   const clientIds = clients.map((c) => c.id)
-  const trainings = (allTrainings ?? []).filter((t) => t.trainer_id === tid && t.club_id === cid)
+  const clientIdSet = new Set(clientIds)
+
+  const trainings = (allTrainings ?? []).filter((t) => {
+    if (String(t.trainer_id) !== tid) return false
+    if (t.client_id && clientIdSet.has(t.client_id)) return true
+    if (clubIds.size === 0) return true
+    return clubIds.has(String(t.club_id ?? ''))
+  })
+
   const memByClient = buildMemMap(allMemberships, clientIds)
 
   snapshot = { key, clients, trainings, memByClient }

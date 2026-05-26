@@ -6,6 +6,7 @@ import {
   dropLocalOrphanForSyncItem,
   isUnrecoverablePushError,
   purgeSyncQueueAgainstLocalClients,
+  pruneRedundantSyncQueue,
 } from './syncQueueOrphans'
 import { invalidateTrainerWorkspaceCache } from './trainerWorkspaceCache'
 import { invalidateAdminClubWorkspaceCache } from './admin/adminClubWorkspaceCache'
@@ -177,6 +178,7 @@ async function flushSyncQueueInner() {
   await clearPoisonedSyncQueue()
   await pruneStaleSyncInserts({ aggressive: true })
   await purgeSyncQueueAgainstLocalClients()
+  await pruneRedundantSyncQueue()
 
   const queue = await listSyncQueue()
   for (const item of queue) {
@@ -247,6 +249,7 @@ async function flushSyncQueueInner() {
       await db.put('sync_queue', next)
     }
   }
+  await pruneRedundantSyncQueue()
   return { ok: true }
 }
 

@@ -75,6 +75,9 @@ export async function pushRecordViaApi({ table_name, operation, data, remote_id,
       } catch {
         /* ignore */
       }
+    } else if (body.duplicate) {
+      const { pruneRedundantSyncQueue } = await import('./syncQueueOrphans')
+      await pruneRedundantSyncQueue()
     }
     return {
       ok: true,

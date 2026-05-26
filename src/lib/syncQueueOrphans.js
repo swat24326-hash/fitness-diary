@@ -83,6 +83,53 @@ export async function purgeSyncQueueAgainstLocalClients() {
   return purgeSyncQueueForMissingClients(localIds)
 }
 
+const INSERT_STORE_BY_TABLE = {
+  clients: 'clients',
+  trainings: 'trainings',
+  memberships: 'memberships',
+  health_cards: 'health_cards',
+}
+
+/**
+ * Снять «залипшие» insert: запись уже в IndexedDB (после pull с другого устройства), очередь не нужна.
+ */
+export async function pruneRedundantSyncQueue() {
+  const queue = await listSyncQueue()
+  const db = await getDb()
+  let removed = 0
+
+  for (const item of queue) {
+    if ((item.retry_count ?? 0) >= 8) {
+      await removeSyncItem(item.local_id)
+      removed++
+      continue
+    }
+
+    if (item.operation !== 'insert') continue
+    const storeName = INSERT_STORE_BY_TABLE[item.table_name]
+    if (!storeName) continue
+
+    const d = item.data && typeof item.data === 'object' ? item.data : {}
+    const key =
+      item.table_name === 'health_cards'
+        ? String(d.client_id ?? item.remote_id ?? '').trim()
+        : String(item.remote_id ?? d.id ?? '').trim()
+    if (!key) continue
+
+    try {
+      const existing = await db.get(storeName, key)
+      if (existing) {
+        await removeSyncItem(item.local_id)
+        removed++
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return { removed }
+}
+
 /**
  * Обработать ответ push-record: снять очередь и локальный хвост, чтобы не спамить 403.
  * @returns {Promise<{ ok: boolean, dropped?: boolean, error?: string, status?: number }>}
