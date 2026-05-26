@@ -7,7 +7,7 @@ import { describeFlushQueueResult, flushSyncQueue, isAppOnline } from '../lib/sy
 import { subscribeNetworkStatus } from '../lib/networkReachability'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, User, UserCircle, BookOpen, Building2 } from 'lucide-react'
+import { AlertTriangle, CircleHelp, LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, User, UserCircle, BookOpen, Building2 } from 'lucide-react'
 import {
   listClubsLocal,
   LOCAL_DATA_CHANGED,
@@ -606,7 +606,14 @@ export function AppHeader() {
               className="app-header__menu-item app-header__menu-item--journal"
               onClick={openErrorJournal}
             >
-              <span>{isAdmin ? 'Журнал ошибок' : 'Помощь'}</span>
+              <span className="app-header__menu-item-main">
+                {isAdmin ? (
+                  <AlertTriangle size={18} aria-hidden />
+                ) : (
+                  <CircleHelp size={18} aria-hidden />
+                )}
+                {isAdmin ? 'Журнал ошибок' : 'Помощь'}
+              </span>
               {appErrorCount > 0 ? (
                 <span className="app-header__error-badge" aria-label={`Ошибок: ${appErrorCount}`}>
                   {appErrorCount > 99 ? '99+' : appErrorCount}

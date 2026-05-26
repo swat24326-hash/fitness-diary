@@ -286,6 +286,13 @@ button {
   gap: 10px;
 }
 
+.app-header__menu-item-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
 .app-header__error-badge {
   flex-shrink: 0;
   min-width: 24px;
