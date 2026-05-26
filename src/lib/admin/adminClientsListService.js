@@ -5,7 +5,12 @@
 
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { isRetryableNetworkError } from '../supabaseRetry'
-import { buildPendingSyncKeysByTable, getDb, putStore, putStoreUnlessPendingSync, removeClientFromLocalCacheOnly } from '../localDb'
+import {
+  buildPendingSyncKeysByTable,
+  getDb,
+  putStoreUnlessPendingSync,
+  removeClientFromLocalCacheOnly,
+} from '../localDb'
 import { invalidateAdminClubWorkspaceCache } from './adminClubWorkspaceCache'
 import { fetchClientsForClubViaAdminApi, fetchMembershipsForClubViaAdminApi } from './adminApiClient'
 import { fetchHealthCardsForClubViaApi } from '../syncApiClient'
@@ -39,8 +44,9 @@ async function pullClientsForClubIntoCache(clubId) {
     if (error) throw error
     const rows = data ?? []
     if (!rows.length) break
+    const pending = await buildPendingSyncKeysByTable()
     for (const row of rows) {
-      await putStore('clients', row)
+      await putStoreUnlessPendingSync('clients', row, pending)
     }
     total += rows.length
     if (rows.length < ADMIN_SYNC_BATCH_SIZE) break
@@ -50,8 +56,9 @@ async function pullClientsForClubIntoCache(clubId) {
 }
 
 async function mergeClientsIntoCache(rows) {
+  const pending = await buildPendingSyncKeysByTable()
   for (const row of rows) {
-    await putStore('clients', row)
+    await putStoreUnlessPendingSync('clients', row, pending)
   }
 }
 
@@ -98,14 +105,16 @@ export async function reconcileAdminClubCache(clubId, remoteClients) {
 }
 
 async function mergeMembershipsIntoCache(rows) {
+  const pending = await buildPendingSyncKeysByTable()
   for (const row of rows) {
-    await putStore('memberships', row)
+    await putStoreUnlessPendingSync('memberships', row, pending)
   }
 }
 
 async function mergeHealthCardsIntoCache(rows) {
+  const pending = await buildPendingSyncKeysByTable()
   for (const row of rows) {
-    await putStore('health_cards', row)
+    await putStoreUnlessPendingSync('health_cards', row, pending)
   }
 }
 

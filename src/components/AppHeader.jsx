@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { pullAdminClientsFromCloud } from '../lib/admin/adminClientsListService'
 import { pullTrainerWorkspaceFromCloud } from '../lib/trainerPullService'
 import { listSyncQueue } from '../lib/localDb'
-import { flushSyncQueue, isAppOnline } from '../lib/syncService'
+import { describeFlushQueueResult, flushSyncQueue, isAppOnline } from '../lib/syncService'
 import { subscribeNetworkStatus } from '../lib/networkReachability'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -16,6 +16,7 @@ import {
   dispatchLocalDataChanged,
 } from '../lib/dataAccess'
 import { DEMO_CLUB_ID } from '../lib/seedDemo'
+import { HeaderStopwatch } from './HeaderStopwatch'
 
 function headerNavClass({ isActive }) {
   return `app-header__nav-link${isActive ? ' app-header__nav-link--active' : ''}`
@@ -181,14 +182,13 @@ export function AppHeader() {
       }
 
       const flush = await flushSyncQueue({ force: true })
-      if (flush?.ok) parts.push('очередь отправлена')
-      else if (flush?.reason === 'offline_or_stub') {
-        showSyncFeedback('Облако недоступно или вы офлайн.', 'warn')
+      const flushDesc = describeFlushQueueResult(flush)
+      if (flushDesc.offline) {
+        showSyncFeedback(flushDesc.message, 'warn')
         return
-      } else if (flush?.reason === 'timeout') {
-        parts.push('очередь: таймаут')
-        hadError = true
       }
+      if (flushDesc.part) parts.push(flushDesc.part)
+      if (flushDesc.hadError) hadError = true
 
       if (isSupabaseConfigured()) {
         try {
@@ -395,6 +395,7 @@ export function AppHeader() {
             ))}
           </select>
         ) : null}
+        {user ? <HeaderStopwatch /> : null}
         {showTrainerHeaderSync ? (
           <button
             type="button"

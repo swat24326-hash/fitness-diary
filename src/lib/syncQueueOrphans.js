@@ -2,20 +2,13 @@
  * Очередь sync после удаления клиента в облаке: снять insert/update и убрать локальные «хвосты».
  */
 import { getDb, listSyncQueue, removeSyncItem } from './localDb'
+import {
+  isSyncQueueOrphanForCloudClients,
+  isUnrecoverablePushError,
+  pendingClientInsertIdsFromQueue,
+} from './syncFlushResult'
 
-export function isUnrecoverablePushError(status, message) {
-  const code = Number(status)
-  const msg = String(message ?? '').toLowerCase()
-  if (code !== 403 && code !== 404) return false
-  return (
-    msg.includes('нет доступа к клиенту') ||
-    msg.includes('тренировка не найдена') ||
-    msg.includes('абонемент не найден') ||
-    msg.includes('закреплён за другим') ||
-    msg.includes('нет доступа') ||
-    msg.includes('не найден')
-  )
-}
+export { isUnrecoverablePushError } from './syncFlushResult'
 
 /** Удалить локальную запись, которую сервер больше не примет. */
 export async function dropLocalOrphanForSyncItem(item) {
@@ -51,23 +44,10 @@ export async function purgeSyncQueueForMissingClients(remoteClientIds) {
   if (!ids.size) return { removed: 0 }
 
   const queue = await listSyncQueue()
+  const pendingClients = pendingClientInsertIdsFromQueue(queue)
   let removed = 0
   for (const item of queue) {
-    const op = item.operation
-    if (op !== 'insert' && op !== 'update') continue
-    const tbl = item.table_name
-    if (!['trainings', 'memberships', 'health_cards', 'body_measurements', 'clients'].includes(tbl)) continue
-
-    const d = item.data && typeof item.data === 'object' ? item.data : {}
-    let orphan = false
-    if (tbl === 'clients') {
-      const recordId = String(d.id ?? item.remote_id ?? '').trim()
-      orphan = !!recordId && !ids.has(recordId)
-    } else {
-      const clientId = String(d.client_id ?? '').trim()
-      orphan = !!clientId && !ids.has(clientId)
-    }
-    if (!orphan) continue
+    if (!isSyncQueueOrphanForCloudClients(item, ids, pendingClients)) continue
 
     await removeSyncItem(item.local_id)
     await dropLocalOrphanForSyncItem(item)
@@ -83,47 +63,18 @@ export async function purgeSyncQueueAgainstLocalClients() {
   return purgeSyncQueueForMissingClients(localIds)
 }
 
-const INSERT_STORE_BY_TABLE = {
-  clients: 'clients',
-  trainings: 'trainings',
-  memberships: 'memberships',
-  health_cards: 'health_cards',
-}
-
 /**
- * Снять «залипшие» insert: запись уже в IndexedDB (после pull с другого устройства), очередь не нужна.
+ * Снять только безнадёжные insert в справочник упражнений (много ошибок).
+ * Не снимаем insert клиентов/тренировок по факту наличия в IndexedDB — это нормальный офлайн-сценарий.
  */
 export async function pruneRedundantSyncQueue() {
   const queue = await listSyncQueue()
-  const db = await getDb()
   let removed = 0
 
   for (const item of queue) {
-    if ((item.retry_count ?? 0) >= 8) {
+    if ((item.retry_count ?? 0) >= 8 && item.table_name === 'exercises' && item.operation === 'insert') {
       await removeSyncItem(item.local_id)
       removed++
-      continue
-    }
-
-    if (item.operation !== 'insert') continue
-    const storeName = INSERT_STORE_BY_TABLE[item.table_name]
-    if (!storeName) continue
-
-    const d = item.data && typeof item.data === 'object' ? item.data : {}
-    const key =
-      item.table_name === 'health_cards'
-        ? String(d.client_id ?? item.remote_id ?? '').trim()
-        : String(item.remote_id ?? d.id ?? '').trim()
-    if (!key) continue
-
-    try {
-      const existing = await db.get(storeName, key)
-      if (existing) {
-        await removeSyncItem(item.local_id)
-        removed++
-      }
-    } catch {
-      /* ignore */
     }
   }
 

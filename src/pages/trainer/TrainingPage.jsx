@@ -12,7 +12,6 @@ import { saveLocalWithSync } from '../../lib/syncService'
 import { stripDirectionControls } from '../../lib/textInput'
 import { getTrainingCompletionIssues } from '../../lib/trainingCompletionValidation'
 import {
-  TRAINING_EXERCISE_FORMATS,
   TRAINING_SESSION_TYPES,
   deriveTrainingTypeFromExercises,
   normalizeExerciseFormat,

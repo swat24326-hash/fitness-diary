@@ -25,6 +25,12 @@ export function getNetworkReachable() {
   return reachable
 }
 
+/** Офлайн-first: и navigator.onLine, и реальная доступность origin (не Supabase). */
+export function isAppOnline() {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return false
+  return getNetworkReachable()
+}
+
 async function fetchOriginReachable(origin, signal) {
   let res = await fetch(`${origin}/`, {
     method: 'HEAD',

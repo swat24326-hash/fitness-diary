@@ -9,7 +9,15 @@ import {
   withFastTimeout,
   withSupabaseRetry,
 } from './supabaseRetry'
-import { enqueueSync, getDb, listSyncQueue, putStore, removeClientFromLocalCacheOnly, removeSyncItem } from './localDb'
+import {
+  buildPendingSyncKeysByTable,
+  enqueueSync,
+  getDb,
+  listSyncQueue,
+  putStore,
+  putStoreUnlessPendingSync,
+  removeSyncItem,
+} from './localDb'
 import {
   deleteHealthCardByClientId,
   deleteLocalWithSync,
@@ -257,8 +265,9 @@ export async function pullClientsForClub(clubId) {
       if (error) throw error
       const rows = data ?? []
       if (!rows.length) break
+      const pending = await buildPendingSyncKeysByTable()
       for (const row of rows) {
-        await putStore('clients', row)
+        await putStoreUnlessPendingSync('clients', row, pending)
       }
       total += rows.length
       if (rows.length < ADMIN_SYNC_BATCH_SIZE) break

@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase'
-import { initNetworkReachability, getNetworkReachable } from './networkReachability'
+import { initNetworkReachability, isAppOnline } from './networkReachability'
 import { getDb, listSyncQueue, removeSyncItem, enqueueSync, setOnlineFlag } from './localDb'
 import { pushRecordViaApi, schedulePushRecordViaApi } from './syncApiClient'
 import {
@@ -10,6 +10,9 @@ import {
 } from './syncQueueOrphans'
 import { invalidateTrainerWorkspaceCache } from './trainerWorkspaceCache'
 import { invalidateAdminClubWorkspaceCache } from './admin/adminClubWorkspaceCache'
+import { isDuplicateInsertError } from './syncFlushResult'
+
+export { isDuplicateInsertError, describeFlushQueueResult } from './syncFlushResult'
 
 const TRAINER_CACHE_STORES = new Set(['clients', 'memberships', 'trainings', 'health_cards', 'body_measurements'])
 
@@ -43,11 +46,7 @@ export function initConnectivityListeners() {
   })
 }
 
-/** Учитывает реальную доступность Supabase, не только navigator.onLine. */
-export function isAppOnline() {
-  if (typeof navigator !== 'undefined' && !navigator.onLine) return false
-  return getNetworkReachable()
-}
+export { isAppOnline }
 
 const DEMO_EXERCISE_NAMES = new Set(['Приседания со штангой', 'Жим штанги лёжа'])
 const DEMO_CLUB_ID = '00000000-0000-4000-8000-000000000010'
@@ -56,12 +55,10 @@ const DEMO_CLUB_ID = '00000000-0000-4000-8000-000000000010'
  * Убирает из очереди «застрявшие» insert в exercises/clubs (демо и повторные 409).
  * @param {{ aggressive?: boolean }} [opts] — после входа: снять все insert в справочниках (сервер — источник правды).
  */
-export async function pruneStaleSyncInserts(opts = {}) {
-  const aggressive = opts.aggressive === true
+export async function pruneStaleSyncInserts(_opts = {}) {
   const queue = await listSyncQueue()
   for (const item of queue) {
     if (item.operation !== 'insert') continue
-    const retries = item.retry_count ?? 0
     if (item.table_name === 'exercises') {
       const name = item.data?.name
       if (DEMO_EXERCISE_NAMES.has(name)) {
@@ -79,6 +76,7 @@ export async function pruneStaleSyncInserts(opts = {}) {
 
 let flushTimer
 let backgroundSyncPaused = false
+let flushInFlight = false
 
 /** На время входа не шлём очередь в Supabase (иначе 409 и «Загрузка…»). */
 export function setBackgroundSyncPaused(paused) {
@@ -90,7 +88,7 @@ export function setBackgroundSyncPaused(paused) {
  * Чтобы другой пользователь на том же устройстве не отправил чужие записи.
  */
 export async function clearSyncQueueForSignOut() {
-  if (typeof navigator !== 'undefined' && navigator.onLine && isSupabaseConfigured()) {
+  if (isAppOnline() && isSupabaseConfigured()) {
     await flushSyncQueue({ force: true, maxMs: 12_000 })
   }
   const queue = await listSyncQueue()
@@ -128,25 +126,11 @@ export async function resetSyncQueueOnceAfterDeploy() {
 
 /** Не дергаем Supabase десятком POST подряд — одна очередь, один flush. */
 export function scheduleFlushSyncQueue(opts = {}) {
-  if (backgroundSyncPaused || !navigator.onLine || !isSupabaseConfigured()) return
+  if (backgroundSyncPaused || !isAppOnline() || !isSupabaseConfigured()) return
   clearTimeout(flushTimer)
   flushTimer = setTimeout(() => {
     void flushSyncQueue(opts)
   }, 1200)
-}
-
-/** Вставка уже есть на сервере (тот же id / unique) — очередь можно снять. */
-export function isDuplicateInsertError(err) {
-  if (!err) return false
-  const status = err.status ?? err.statusCode ?? err?.context?.response?.status
-  if (status === 409) return true
-  const code = String(err.code ?? '')
-  if (code === '23505' || code === 'PGRST116' || code === '409') return true
-  const msg = String(err.message ?? '').toLowerCase()
-  const details = String(err.details ?? '').toLowerCase()
-  if (msg.includes('duplicate key') || msg.includes('unique constraint')) return true
-  if (msg.includes('already exists') || details.includes('already exists')) return true
-  return msg.includes('409') || details.includes('duplicate')
 }
 
 /**
@@ -169,12 +153,29 @@ export async function flushSyncQueue(opts = {}) {
       setTimeout(() => resolve({ ok: false, reason: 'timeout' }), maxMs)
     }),
   ])
+  if (result?.reason === 'timeout') {
+    try {
+      const remaining = (await listSyncQueue()).length
+      return { ok: false, reason: 'timeout', remaining }
+    } catch {
+      /* ignore */
+    }
+  }
   return result
 }
 
 async function flushSyncQueueInner() {
   if (!isAppOnline() || !isSupabaseConfigured()) return { ok: false, reason: 'offline_or_stub' }
+  if (flushInFlight) return { ok: false, reason: 'busy' }
+  flushInFlight = true
+  try {
+    return await flushSyncQueueInnerWork()
+  } finally {
+    flushInFlight = false
+  }
+}
 
+async function flushSyncQueueInnerWork() {
   await clearPoisonedSyncQueue()
   await pruneStaleSyncInserts({ aggressive: true })
   await purgeSyncQueueAgainstLocalClients()
@@ -221,6 +222,9 @@ async function flushSyncQueueInner() {
       }
 
       try {
+        if ((item.operation === 'update' || item.operation === 'delete') && !item.remote_id) {
+          throw new Error('missing remote_id')
+        }
         await attempt(item.data)
         await removeSyncItem(item.local_id)
       } catch (e) {
@@ -250,7 +254,8 @@ async function flushSyncQueueInner() {
     }
   }
   await pruneRedundantSyncQueue()
-  return { ok: true }
+  const remaining = (await listSyncQueue()).length
+  return remaining === 0 ? { ok: true, remaining: 0 } : { ok: false, reason: 'pending_items', remaining }
 }
 
 export async function saveLocalWithSync(storeName, record, { table_name, operation, remote_id }) {
@@ -267,7 +272,7 @@ export async function saveLocalWithSync(storeName, record, { table_name, operati
     data: record,
   })
   /* Сначала push через Vercel API; при сбое остаётся в очереди для «Синхронизировать». */
-  if (AUTO_PUSH_TABLES.has(table_name) && !backgroundSyncPaused && navigator.onLine) {
+  if (AUTO_PUSH_TABLES.has(table_name) && !backgroundSyncPaused && isAppOnline()) {
     schedulePushRecordViaApi({
       table_name,
       operation,
@@ -276,6 +281,7 @@ export async function saveLocalWithSync(storeName, record, { table_name, operati
       local_id: queueRow.local_id,
     })
   }
+  return queueRow.local_id
 }
 
 export async function deleteLocalWithSync(storeName, key, table_name) {
@@ -291,7 +297,7 @@ export async function deleteLocalWithSync(storeName, key, table_name) {
     remote_id: key,
     data: {},
   })
-  if (AUTO_PUSH_TABLES.has(table_name) && !backgroundSyncPaused && navigator.onLine) {
+  if (AUTO_PUSH_TABLES.has(table_name) && !backgroundSyncPaused && isAppOnline()) {
     schedulePushRecordViaApi({
       table_name,
       operation: 'delete',
@@ -314,7 +320,7 @@ export async function deleteHealthCardByClientId(clientId) {
     remote_id: hc.id ?? null,
     data: {},
   })
-  if (!backgroundSyncPaused && navigator.onLine) {
+  if (!backgroundSyncPaused && isAppOnline()) {
     schedulePushRecordViaApi({
       table_name: 'health_cards',
       operation: 'delete',

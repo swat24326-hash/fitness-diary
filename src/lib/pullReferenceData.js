@@ -2,7 +2,8 @@
  * Подтягивание справочников (упражнения, челленджи) через Vercel API.
  */
 
-import { getDb, listSyncQueue, putStore } from './localDb'
+import { buildPendingSyncKeysByTable, getDb, listSyncQueue, putStore } from './localDb'
+import { shouldPreserveLocalRowOnPull } from './syncFlushResult'
 import { isSupabaseConfigured } from './supabase'
 import { fetchChallengesForClubViaApi } from './admin/adminApiClient'
 import { pullExercisesFromCloud } from './exerciseCatalog'
@@ -50,7 +51,12 @@ export async function pullChallengesForClubFromCloud(clubId) {
       }
     }
     const rows = viaApi.challenges ?? []
+    const pending = await buildPendingSyncKeysByTable()
+    const db = await getDb()
     for (const row of rows) {
+      const id = String(row?.id ?? '').trim()
+      const existing = id ? await db.get('challenges', id) : null
+      if (shouldPreserveLocalRowOnPull(pending.challenges, id, existing)) continue
       await putStore('challenges', row)
     }
     const { pruned } = await reconcileChallengesForClub(cid, rows)

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
 import { Plus, RefreshCw, Trash2, Trophy } from 'lucide-react'
-import { useAuth } from '../../context/AuthContext'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import {
   dispatchLocalDataChanged,
@@ -43,7 +42,6 @@ function statusClass(status) {
 export function AdminChallenges() {
   const ctx = useOutletContext()
   const [search] = useSearchParams()
-  const { user } = useAuth()
   const clubIdCtx = ctx?.clubId ?? ''
   const clubId = search.get('club') ?? clubIdCtx ?? ''
 

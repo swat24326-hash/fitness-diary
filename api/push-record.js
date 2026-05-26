@@ -133,6 +133,17 @@ export default async function handler(req, res) {
               return
             }
           }
+          if (payload?.id) {
+            const { data: existingById } = await supabaseAdmin
+              .from(table_name)
+              .select('*')
+              .eq('id', payload.id)
+              .maybeSingle()
+            if (existingById) {
+              sendJson(res, 200, { ok: true, duplicate: true, record: existingById })
+              return
+            }
+          }
           sendJson(res, 200, { ok: true, duplicate: true })
           return
         }

@@ -143,11 +143,6 @@ export function AdminOrganization({ mode = 'both' } = {}) {
     }
   }, [])
 
-  const reloadAll = useCallback(async () => {
-    setClubs(await listClubsLocal())
-    await loadTrainers()
-  }, [loadTrainers])
-
   useEffect(() => {
     let cancelled = false
     void (async () => {

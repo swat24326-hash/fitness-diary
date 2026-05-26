@@ -1,4 +1,5 @@
-import { supabase, isSupabaseConfigured } from './supabase'
+import { isSupabaseConfigured } from './supabase'
+import { isAppOnline } from './networkReachability'
 import { getAccessTokenForAdminApi } from './admin/adminApiClient'
 import { removeSyncItem } from './localDb'
 import { handlePushApiFailure, isUnrecoverablePushError } from './syncQueueOrphans'
@@ -39,7 +40,7 @@ const pushQueue = []
  * @returns {Promise<{ ok: boolean, error?: string }>}
  */
 export async function pushRecordViaApi({ table_name, operation, data, remote_id, local_id }) {
-  if (!PUSH_TABLES.has(table_name) || !isSupabaseConfigured() || !navigator.onLine) {
+  if (!PUSH_TABLES.has(table_name) || !isSupabaseConfigured() || !isAppOnline()) {
     return { ok: false, error: 'Нет сети или Supabase не настроен' }
   }
 
@@ -86,6 +87,16 @@ export async function pushRecordViaApi({ table_name, operation, data, remote_id,
     }
   }
   const err = String(body.error || body.message || `HTTP ${res.status}`)
+  if (res.status === 409 || body.duplicate === true) {
+    if (local_id) {
+      try {
+        await removeSyncItem(local_id)
+      } catch {
+        /* ignore */
+      }
+    }
+    return { ok: true, duplicate: true }
+  }
   if (isUnrecoverablePushError(res.status, err)) {
     return handlePushApiFailure({
       status: res.status,
@@ -99,7 +110,7 @@ export async function pushRecordViaApi({ table_name, operation, data, remote_id,
 
 /** Debounced push после saveLocalWithSync */
 export function schedulePushRecordViaApi(item) {
-  if (!PUSH_TABLES.has(item.table_name)) return
+  if (!PUSH_TABLES.has(item.table_name) || !isAppOnline()) return
   pushQueue.push(item)
   clearTimeout(pushTimer)
   pushTimer = setTimeout(() => {

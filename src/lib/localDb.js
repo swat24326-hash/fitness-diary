@@ -134,6 +134,8 @@ export async function buildPendingSyncKeysByTable() {
     trainings: new Set(),
     health_cards: new Set(),
     body_measurements: new Set(),
+    challenges: new Set(),
+    exercises: new Set(),
   }
   for (const item of queue) {
     const op = item.operation

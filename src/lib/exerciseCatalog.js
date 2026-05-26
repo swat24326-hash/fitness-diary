@@ -2,7 +2,8 @@
  * Справочник упражнений: локальный кэш (IDB), условный pull, кэш в памяти на сессию.
  */
 import { isSupabaseConfigured } from './supabase'
-import { getDb, putStore } from './localDb'
+import { buildPendingSyncKeysByTable, getDb, putStore } from './localDb'
+import { shouldPreserveLocalRowOnPull } from './syncFlushResult'
 import { fetchExercisesViaApi, fetchExercisesMetaViaApi, getAccessTokenForAdminApi } from './admin/adminApiClient'
 import { supabase } from './supabase'
 import { withSupabaseRetry } from './supabaseRetry'
@@ -126,7 +127,12 @@ export async function pullExercisesFromCloud(opts = {}) {
   try {
     const viaApi = await fetchExercisesViaApi()
     if (viaApi) {
+      const pending = await buildPendingSyncKeysByTable()
+      const db = await getDb()
       for (const row of viaApi.exercises) {
+        const id = String(row?.id ?? '').trim()
+        const existing = id ? await db.get('exercises', id) : null
+        if (shouldPreserveLocalRowOnPull(pending.exercises, id, existing)) continue
         await putStore('exercises', row)
       }
       const maxCa = maxCreatedAtFromRows(viaApi.exercises) ?? viaApi.max_created_at ?? null
@@ -159,6 +165,8 @@ export async function pullExercisesFromCloud(opts = {}) {
     let total = 0
     let from = 0
     const all = []
+    const pending = await buildPendingSyncKeysByTable()
+    const db = await getDb()
     for (;;) {
       const { data, error } = await withSupabaseRetry(() =>
         supabase
@@ -171,6 +179,9 @@ export async function pullExercisesFromCloud(opts = {}) {
       const rows = data ?? []
       if (!rows.length) break
       for (const row of rows) {
+        const id = String(row?.id ?? '').trim()
+        const existing = id ? await db.get('exercises', id) : null
+        if (shouldPreserveLocalRowOnPull(pending.exercises, id, existing)) continue
         await putStore('exercises', row)
         all.push(row)
       }

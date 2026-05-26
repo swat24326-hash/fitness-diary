@@ -1,5 +1,5 @@
 import { isSupabaseConfigured } from './supabase'
-import { getDb, getAllStore, putStore } from './localDb'
+import { buildPendingSyncKeysByTable, getDb, getAllStore, putStoreUnlessPendingSync } from './localDb'
 import { todayLocalIso } from './dateRu'
 import { isAppOnline, saveLocalWithSync, deleteLocalWithSync } from './syncService'
 import { pushRecordViaApi } from './syncApiClient'
@@ -240,8 +240,9 @@ export async function pullChallengeTrainingsForPeriod(clubId, dateFrom, dateTo, 
   try {
     const viaApi = await fetchChallengeTrainingsViaApi(cid, from, to)
     if (viaApi) {
+      const pending = await buildPendingSyncKeysByTable()
       for (const row of viaApi.trainings) {
-        await putStore('trainings', row)
+        await putStoreUnlessPendingSync('trainings', row, pending)
       }
       if (opts.notify !== false) notifyLocalDataChanged()
       return { ok: true, count: viaApi.trainings.length, source: 'api' }
@@ -327,7 +328,7 @@ export async function listChallengesForTrainer(trainerId, profileClubId, { pullR
 export async function loadContextForChallengeLeaderboard(clubId, opts = {}) {
   const cid = String(clubId ?? '').trim()
   const ch = opts.challenge
-  if (ch && opts.pullRemote !== false && cid && isSupabaseConfigured() && typeof navigator !== 'undefined' && navigator.onLine) {
+  if (ch && opts.pullRemote !== false && cid && isSupabaseConfigured() && isAppOnline()) {
     const from = String(ch.start_date ?? '').slice(0, 10)
     const to = String(ch.end_date ?? '').slice(0, 10)
     if (from && to) {
@@ -388,12 +389,12 @@ export async function listChallengesForClub(clubId, { pullRemote = true } = {}) 
  */
 export async function saveNewChallenge(row) {
   const payload = { ...row, created_by: row.created_by ?? null }
-  await saveLocalWithSync('challenges', payload, {
+  const local_id = await saveLocalWithSync('challenges', payload, {
     table_name: 'challenges',
     operation: 'insert',
     remote_id: null,
   })
-  if (!isSupabaseConfigured() || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+  if (!isSupabaseConfigured() || !isAppOnline()) {
     return { cloudOk: false, cloudError: 'Нет сети — челлендж только на этом устройстве. Нажмите Sync позже.' }
   }
   const push = await pushRecordViaApi({
@@ -401,7 +402,7 @@ export async function saveNewChallenge(row) {
     operation: 'insert',
     data: payload,
     remote_id: null,
-    local_id: null,
+    local_id,
   })
   return push.ok ? { cloudOk: true } : { cloudOk: false, cloudError: push.error ?? 'Не удалось отправить в облако' }
 }
@@ -410,12 +411,20 @@ export async function saveNewChallenge(row) {
 export async function pushChallengeToCloud(row) {
   if (!row?.id) return { cloudOk: false, cloudError: 'Нет id челленджа' }
   const payload = { ...row, created_by: row.created_by ?? null }
+  const { listSyncQueue } = await import('./localDb')
+  let local_id = null
+  for (const item of await listSyncQueue()) {
+    if (item.table_name !== 'challenges') continue
+    if (String(item.data?.id ?? item.remote_id ?? '') !== String(row.id)) continue
+    local_id = item.local_id
+    break
+  }
   const push = await pushRecordViaApi({
     table_name: 'challenges',
     operation: 'insert',
     data: payload,
     remote_id: null,
-    local_id: null,
+    local_id,
   })
   return push.ok ? { cloudOk: true } : { cloudOk: false, cloudError: push.error }
 }
