@@ -17,7 +17,8 @@ import {
 } from '../lib/dataAccess'
 import { DEMO_CLUB_ID } from '../lib/seedDemo'
 import { HeaderStopwatch } from './HeaderStopwatch'
-import { clearSyncErrors, getRecentSyncErrors } from '../lib/syncApiClient'
+import { getRecentSyncErrors, recordAppError, subscribeAppErrors } from '../lib/appErrorJournal'
+import { AppErrorJournalModal } from './AppErrorJournalModal'
 
 function headerNavClass({ isActive }) {
   return `app-header__nav-link${isActive ? ' app-header__nav-link--active' : ''}`
@@ -40,6 +41,8 @@ export function AppHeader() {
   const [syncProgress, setSyncProgress] = useState({ percent: 0, label: '' })
   const [syncFeedback, setSyncFeedback] = useState(null)
   const syncFeedbackTimerRef = useRef(null)
+  const [errorJournalOpen, setErrorJournalOpen] = useState(false)
+  const [appErrorCount, setAppErrorCount] = useState(0)
 
   const refreshPendingSync = async () => {
     if (!isSupabaseConfigured()) {
@@ -125,6 +128,8 @@ export function AppHeader() {
 
   useEffect(() => subscribeNetworkStatus(setOnline), [])
 
+  useEffect(() => subscribeAppErrors(setAppErrorCount), [])
+
   useEffect(() => {
     void refreshPendingSync()
     const onData = () => void refreshPendingSync()
@@ -161,21 +166,9 @@ export function AppHeader() {
     }, 6000)
   }
 
-  const showSyncErrorsDialog = () => {
-    const errs = getRecentSyncErrors(20)
-    if (!errs.length) {
-      alert('Ошибок синхронизации не найдено.')
-      return
-    }
-    const lines = errs.map((e) => {
-      const at = e.at ? String(e.at).replace('T', ' ').slice(0, 19) : ''
-      const st = e.status != null ? `HTTP ${e.status}` : ''
-      const op = e.operation ? String(e.operation) : ''
-      const tbl = e.table_name ? String(e.table_name) : ''
-      const msg = String(e.error ?? '').slice(0, 240)
-      return `${at}  ${st}  ${tbl} ${op}\n${msg}`
-    })
-    alert(`Ошибки синхронизации (последние ${lines.length}):\n\n${lines.join('\n\n')}`)
+  const openErrorJournal = () => {
+    setMenuOpen(false)
+    setErrorJournalOpen(true)
   }
 
   useEffect(
@@ -205,6 +198,7 @@ export function AppHeader() {
 
     try {
       if (!isAppOnline()) {
+        recordAppError({ source: 'network', error: 'Нет сети — синхронизация отложена' })
         showSyncFeedback('Нет сети — синхронизация отложена.', 'warn')
         return
       }
@@ -313,6 +307,7 @@ export function AppHeader() {
         } catch (e) {
           hadError = true
           console.warn('[sync] pull', e)
+          recordAppError({ source: 'pull', error: e?.message ?? 'Ошибка загрузки данных' })
           parts.push('ошибка загрузки')
         }
       }
@@ -325,6 +320,13 @@ export function AppHeader() {
 
       if (queueLeft > 0) {
         hadError = true
+        const top = getRecentSyncErrors(1)[0]
+        recordAppError({
+          source: 'sync',
+          error: top?.error ?? `В очереди осталось ${queueLeft} записей`,
+          context: top?.context,
+          status: top?.status,
+        })
         bumpSyncProgress(98, `В очереди: ${queueLeft}`)
         showSyncFeedback(
           `Не всё ушло в облако: в очереди ${queueLeft} ${queueLeft === 1 ? 'запись' : 'записей'}. Данные на устройстве сохранены — проверьте сеть и нажмите Sync снова.`,
@@ -339,6 +341,7 @@ export function AppHeader() {
       }
     } catch (e) {
       console.warn('[sync]', e)
+      recordAppError({ source: 'sync', error: e?.message ?? 'Ошибка синхронизации' })
       showSyncFeedback(e?.message ?? 'Ошибка синхронизации', 'err')
     } finally {
       setSyncBusy(false)
@@ -503,13 +506,24 @@ export function AppHeader() {
         ) : null}
         <button
           type="button"
-          className="btn btn-ghost app-header__action app-header__burger"
+          className={[
+            'btn',
+            'btn-ghost',
+            'app-header__action',
+            'app-header__burger',
+            appErrorCount > 0 && !menuOpen ? 'app-header__burger--has-errors' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
           aria-expanded={menuOpen}
           aria-haspopup="true"
           aria-controls="app-header-account-menu"
           onClick={() => setMenuOpen((o) => !o)}
         >
           <Menu size={22} aria-hidden />
+          {appErrorCount > 0 && !menuOpen ? (
+            <span className="app-header__error-dot" aria-hidden title="Есть ошибки в журнале" />
+          ) : null}
           <span className="sr-only">Меню аккаунта</span>
         </button>
         {menuOpen && (
@@ -572,18 +586,17 @@ export function AppHeader() {
                   : 'Синхронизировать'}
               </button>
             ) : null}
-            <button type="button" className="app-header__menu-item" onClick={showSyncErrorsDialog}>
-              Ошибки синхронизации
-            </button>
             <button
               type="button"
-              className="app-header__menu-item"
-              onClick={() => {
-                clearSyncErrors()
-                showSyncFeedback('Ошибки синхронизации очищены', 'ok')
-              }}
+              className="app-header__menu-item app-header__menu-item--journal"
+              onClick={openErrorJournal}
             >
-              Очистить ошибки
+              <span>Журнал ошибок</span>
+              {appErrorCount > 0 ? (
+                <span className="app-header__error-badge" aria-label={`Ошибок: ${appErrorCount}`}>
+                  {appErrorCount > 99 ? '99+' : appErrorCount}
+                </span>
+              ) : null}
             </button>
             <button type="button" className="app-header__menu-item app-header__menu-item--danger" onClick={doSignOut}>
               <LogOut size={18} aria-hidden />
@@ -593,6 +606,11 @@ export function AppHeader() {
         )}
       </div>
     </header>
+    <AppErrorJournalModal
+      open={errorJournalOpen}
+      onClose={() => setErrorJournalOpen(false)}
+      onCleared={() => showSyncFeedback('Журнал ошибок очищен', 'ok')}
+    />
     {syncFeedback && (
       <div
         className={`sync-feedback sync-feedback--${syncFeedback.tone}`}

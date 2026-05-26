@@ -39,64 +39,9 @@ export const PUSH_TABLES = new Set([
 const PUSH_RECORD_TIMEOUT_MS = 28_000
 const PUSH_BATCH_TIMEOUT_MS = 52_000
 
-const SYNC_ERRORS_KEY = 'fitness-diary-sync-errors-v1'
-const SYNC_ERRORS_LIMIT = 40
+import { clearSyncErrors, getRecentSyncErrors, recordSyncError } from './appErrorJournal'
 
-function safeNowIso() {
-  try {
-    return new Date().toISOString()
-  } catch {
-    return ''
-  }
-}
-
-function readSyncErrors() {
-  try {
-    const raw = localStorage.getItem(SYNC_ERRORS_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
-function writeSyncErrors(list) {
-  try {
-    localStorage.setItem(SYNC_ERRORS_KEY, JSON.stringify(list.slice(0, SYNC_ERRORS_LIMIT)))
-  } catch {
-    /* ignore */
-  }
-}
-
-export function recordSyncError(e) {
-  const item = e && typeof e === 'object' ? e : { error: String(e ?? '') }
-  const next = [
-    {
-      at: safeNowIso(),
-      status: typeof item.status === 'number' ? item.status : undefined,
-      error: String(item.error ?? ''),
-      table_name: item.table_name ? String(item.table_name) : undefined,
-      operation: item.operation ? String(item.operation) : undefined,
-      local_id: item.local_id ? String(item.local_id) : undefined,
-    },
-    ...readSyncErrors(),
-  ]
-  writeSyncErrors(next)
-}
-
-export function getRecentSyncErrors(limit = 12) {
-  const n = Math.max(1, Math.min(50, Number(limit) || 12))
-  return readSyncErrors().slice(0, n)
-}
-
-export function clearSyncErrors() {
-  try {
-    localStorage.removeItem(SYNC_ERRORS_KEY)
-  } catch {
-    /* ignore */
-  }
-}
+export { clearSyncErrors, getRecentSyncErrors, recordSyncError }
 
 async function fetchPushApi(url, init, timeoutMs) {
   const ctrl = new AbortController()

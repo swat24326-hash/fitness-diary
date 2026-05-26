@@ -256,8 +256,50 @@ button {
 }
 
 .app-header__burger {
+  position: relative;
   min-width: 44px;
   padding-inline: 12px;
+}
+
+.app-header__burger--has-errors {
+  outline: 2px solid #ff5252;
+  outline-offset: 2px;
+}
+
+.app-header__error-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 11px;
+  height: 11px;
+  background: #ff5252;
+  border: 2px solid #fff;
+  border-radius: 2px;
+  pointer-events: none;
+  box-shadow: 0 0 0 1px #0a0f0c;
+}
+
+.app-header__menu-item--journal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.app-header__error-badge {
+  flex-shrink: 0;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 20px;
+  text-align: center;
+  color: #fff;
+  background: #e53935;
+  border: 2px solid #fff;
+  border-radius: 4px;
+  box-shadow: 0 0 0 1px #0a0f0c;
 }
 
 .app-header__dropdown {
@@ -4047,6 +4089,135 @@ tr:last-child td {
   margin: 0 0 12px;
   font-size: 1.1rem;
   color: var(--accent-bright);
+}
+
+.app-error-journal {
+  width: min(560px, 100%);
+}
+
+.app-error-journal__head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.app-error-journal__icon {
+  flex-shrink: 0;
+  color: #ffb74d;
+  filter: drop-shadow(0 0 6px rgba(255, 183, 77, 0.5));
+}
+
+.app-error-journal__sub {
+  margin: 4px 0 0;
+  font-size: 13px;
+}
+
+.app-error-journal__empty {
+  margin: 8px 0 16px;
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--border);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.app-error-journal__list {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.app-error-journal__item {
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.app-error-journal__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.app-error-journal__tag {
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 2px solid #fff;
+  color: #0a0f0c;
+}
+
+.app-error-journal__tag--sync {
+  background: #ffb74d;
+}
+
+.app-error-journal__tag--network {
+  background: #64b5f6;
+}
+
+.app-error-journal__tag--auth {
+  background: #ce93d8;
+}
+
+.app-error-journal__tag--pull {
+  background: #81c784;
+}
+
+.app-error-journal__tag--api {
+  background: #ff8a80;
+}
+
+.app-error-journal__tag--app {
+  background: #e0e0e0;
+}
+
+.app-error-journal__status {
+  font-weight: 700;
+  color: #ff8a80;
+}
+
+.app-error-journal__time {
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.app-error-journal__ctx {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.app-error-journal__msg {
+  font-size: 14px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.app-error-journal__detail {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: ui-monospace, monospace;
+}
+
+.app-error-journal__actions {
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.app-error-journal__clear:not(:disabled) {
+  color: #ff8a80;
+  border-color: rgba(255, 138, 128, 0.45);
 }
 
 .modal-panel--bulk {
