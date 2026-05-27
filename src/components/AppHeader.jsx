@@ -233,7 +233,9 @@ export function AppHeader() {
         try {
           const { pullExercisesFromCloud, pullChallengesForClubFromCloud } = await import('../lib/pullReferenceData')
           bumpSyncProgress(76, 'Справочник упражнений…')
-          await pullExercisesFromCloud({ force: false })
+          // Sync нажимают вручную, и ожидают увидеть свежие правки админа сразу.
+          // `exercises-meta` основан на created_at и не ловит правки без новой записи, поэтому тут форсим pull.
+          await pullExercisesFromCloud({ force: true })
           parts.push('справочник')
 
           if (isAdmin) {
