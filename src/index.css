@@ -138,7 +138,8 @@ button {
   display: flex;
   align-items: center;
   min-width: 0;
-  max-width: min(16rem, 40vw);
+  flex-shrink: 0;
+  max-width: none;
 }
 
 .app-header__brand-slot .app-brand {
@@ -147,8 +148,8 @@ button {
 }
 
 .app-header__brand-slot .app-brand-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -3173,11 +3174,11 @@ tr:last-child td {
 /* Не прячем название слишком рано — иначе у тренера/админа плохо видно бренд. */
 @media (max-width: 1050px) {
   .app-header__brand-slot {
-    max-width: min(10rem, 26vw);
+    max-width: none;
   }
 }
 
-/* На самых узких экранах не скрываем текст, просто режем многоточием. */
+/* На самых узких экранах не скрываем текст. */
 
 @media (max-width: 720px) {
   .admin-home__hero {
