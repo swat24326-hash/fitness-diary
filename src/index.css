@@ -3159,7 +3159,15 @@ tr:last-child td {
   }
 }
 
+/* Не прячем название слишком рано — иначе у тренера/админа плохо видно бренд. */
 @media (max-width: 1050px) {
+  .app-header__brand-slot {
+    max-width: min(10rem, 26vw);
+  }
+}
+
+/* На очень узких экранах оставляем только иконку, чтобы уместились селект/кнопки. */
+@media (max-width: 420px) {
   .app-header__brand-slot .app-brand-text {
     display: none;
   }
