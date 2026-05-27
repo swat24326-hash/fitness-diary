@@ -447,7 +447,7 @@ export function AdminOrganization({ mode = 'both' } = {}) {
           {title}
         </h3>
         <div className="table-wrap">
-          <table>
+          <table className="admin-trainers-table">
             <thead>
               <tr>
                 <th>Имя</th>
@@ -456,22 +456,33 @@ export function AdminOrganization({ mode = 'both' } = {}) {
                 <th>Статус</th>
                 <th>Клиентов</th>
                 {clubColumn ? <th>Клуб</th> : null}
-                <th />
+                <th>Действия</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((tr) => (
                 <tr key={tr.id}>
-                  <td>{tr.name ?? '—'}</td>
+                  <td>
+                    <strong>{tr.name ?? '—'}</strong>
+                  </td>
                   <td>{tr.phone ?? '—'}</td>
-                  <td className="muted">{tr.login ?? '—'}</td>
-                  <td>{tr.is_active === false ? 'заблокирован' : 'активен'}</td>
+                  <td className="admin-trainers-table__login">{tr.login ?? '—'}</td>
+                  <td>
+                    <span
+                      className={
+                        tr.is_active === false
+                          ? 'admin-trainers-table__status--blocked'
+                          : 'admin-trainers-table__status--active'
+                      }
+                    >
+                      {tr.is_active === false ? 'заблокирован' : 'активен'}
+                    </span>
+                  </td>
                   <td>{clientCounts[tr.id] ?? 0}</td>
                   {clubColumn ? (
                     <td>
                       <select
-                        className="select"
-                        style={{ minWidth: 160, maxWidth: 220 }}
+                        className="select admin-trainers-table__club-select"
                         value={tr.club_id ?? ''}
                         disabled={!!reassigningId || trainerBusy}
                         onChange={(e) => {
@@ -498,11 +509,11 @@ export function AdminOrganization({ mode = 'both' } = {}) {
                     </td>
                   ) : null}
                   <td>
-                    <div className="row" style={{ gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                      <button type="button" className="btn btn-ghost btn-touch" style={{ fontSize: 13 }} onClick={() => showTrainerStub('Сброс пароля')}>
+                    <div className="admin-trainers-table__actions">
+                      <button type="button" className="btn btn-ghost btn-touch" onClick={() => showTrainerStub('Сброс пароля')}>
                         Сбросить пароль
                       </button>
-                      <button type="button" className="btn btn-ghost btn-touch" style={{ fontSize: 13 }} onClick={() => showTrainerStub('Блокировка')}>
+                      <button type="button" className="btn btn-ghost btn-touch" onClick={() => showTrainerStub('Блокировка')}>
                         {tr.is_active === false ? 'Разблокировать' : 'Заблокировать'}
                       </button>
                       {isSupabaseConfigured() ? (
