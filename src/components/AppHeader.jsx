@@ -398,7 +398,15 @@ export function AppHeader() {
 
   return (
     <>
-    <header className="app-header">
+    <header
+      className={[
+        'app-header',
+        isAdmin ? 'app-header--admin' : 'app-header--trainer',
+        showAdminClubSelect ? 'app-header--with-club' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       <div className="app-header__brand-slot">
         <Link
           to={homeTo}
