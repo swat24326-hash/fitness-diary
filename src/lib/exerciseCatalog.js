@@ -110,6 +110,22 @@ function maxCreatedAtFromRows(rows) {
   return max || null
 }
 
+async function pruneLocalExercisesNotInRemote(remoteIds, pendingIds) {
+  const keep = remoteIds instanceof Set ? remoteIds : new Set((remoteIds ?? []).map(String).filter(Boolean))
+  const pending = pendingIds instanceof Set ? pendingIds : new Set((pendingIds ?? []).map(String).filter(Boolean))
+  const db = await getDb()
+  let pruned = 0
+  for (const row of await db.getAll('exercises')) {
+    const id = String(row?.id ?? '').trim()
+    if (!id) continue
+    if (keep.has(id)) continue
+    if (pending.has(id)) continue
+    await db.delete('exercises', id)
+    pruned++
+  }
+  return pruned
+}
+
 /**
  * @param {{ force?: boolean }} [opts] — force: кнопка «Обновить» в админке
  * @returns {Promise<{ ok: boolean, skipped?: boolean, count?: number, source?: string, error?: string, reason?: string }>}
@@ -129,16 +145,19 @@ export async function pullExercisesFromCloud(opts = {}) {
     if (viaApi) {
       const pending = await buildPendingSyncKeysByTable()
       const db = await getDb()
+      const remoteIds = new Set()
       for (const row of viaApi.exercises) {
         const id = String(row?.id ?? '').trim()
+        if (id) remoteIds.add(id)
         const existing = id ? await db.get('exercises', id) : null
         if (shouldPreserveLocalRowOnPull(pending.exercises, id, existing)) continue
         await putStore('exercises', row)
       }
+      const pruned = await pruneLocalExercisesNotInRemote(remoteIds, pending.exercises)
       const maxCa = maxCreatedAtFromRows(viaApi.exercises) ?? viaApi.max_created_at ?? null
       await applyRemoteMetaAfterPull(viaApi.count ?? viaApi.exercises.length, maxCa)
       invalidateExerciseCatalogCache()
-      notifyExercisesChanged({ source: 'pull' })
+      notifyExercisesChanged({ source: 'pull', pruned })
       return { ok: true, count: viaApi.count ?? viaApi.exercises.length, source: 'api' }
     }
   } catch (e) {
@@ -167,6 +186,7 @@ export async function pullExercisesFromCloud(opts = {}) {
     const all = []
     const pending = await buildPendingSyncKeysByTable()
     const db = await getDb()
+    const remoteIds = new Set()
     for (;;) {
       const { data, error } = await withSupabaseRetry(() =>
         supabase
@@ -180,6 +200,7 @@ export async function pullExercisesFromCloud(opts = {}) {
       if (!rows.length) break
       for (const row of rows) {
         const id = String(row?.id ?? '').trim()
+        if (id) remoteIds.add(id)
         const existing = id ? await db.get('exercises', id) : null
         if (shouldPreserveLocalRowOnPull(pending.exercises, id, existing)) continue
         await putStore('exercises', row)
@@ -189,9 +210,10 @@ export async function pullExercisesFromCloud(opts = {}) {
       if (rows.length < ADMIN_SYNC_BATCH_SIZE) break
       from += ADMIN_SYNC_BATCH_SIZE
     }
+    const pruned = await pruneLocalExercisesNotInRemote(remoteIds, pending.exercises)
     await applyRemoteMetaAfterPull(total, maxCreatedAtFromRows(all))
     invalidateExerciseCatalogCache()
-    notifyExercisesChanged({ source: 'pull' })
+    notifyExercisesChanged({ source: 'pull', pruned })
     return { ok: true, count: total, source: 'browser' }
   } catch (e) {
     return { ok: false, error: e?.message ?? 'Ошибка загрузки упражнений' }
