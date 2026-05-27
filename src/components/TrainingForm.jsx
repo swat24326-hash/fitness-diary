@@ -45,11 +45,14 @@ function normExerciseName(s) {
     .replace(/\s+/g, ' ')
 }
 
-function filterExerciseCatalog(catalog, query) {
+function filterExerciseCatalog(catalog, query, filterGroup = '') {
   const q = normExerciseName(query)
-  const sorted = [...catalog].sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''), 'ru'))
-  if (!q) return sorted
-  return sorted.filter((row) => {
+  let list = [...catalog].sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''), 'ru'))
+  if (filterGroup) {
+    list = list.filter((row) => (row.muscle_group ?? '') === filterGroup)
+  }
+  if (!q) return list
+  return list.filter((row) => {
     const hay = `${row.name ?? ''} ${row.muscle_group ?? ''} ${row.primary_muscles ?? ''}`.toLowerCase()
     return hay.includes(q)
   })
@@ -67,6 +70,7 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
   const [focusExerciseIdx, setFocusExerciseIdx] = useState(null)
   const [pickExerciseIdx, setPickExerciseIdx] = useState(null)
   const [pickSearch, setPickSearch] = useState('')
+  const [pickFilterGroup, setPickFilterGroup] = useState('')
   const catalogSearchRef = useRef(null)
   const [catalogList, setCatalogList] = useState([])
   const [suggestOpenId, setSuggestOpenId] = useState(null)
@@ -178,15 +182,18 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
     }
   }, [])
 
-  const catalogFiltered = useMemo(() => {
-    const q = pickSearch.trim().toLowerCase()
-    const sorted = [...catalogList].sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''), 'ru'))
-    if (!q) return sorted
-    return sorted.filter((row) => {
-      const hay = `${row.name ?? ''} ${row.muscle_group ?? ''} ${row.primary_muscles ?? ''}`.toLowerCase()
-      return hay.includes(q)
-    })
-  }, [pickSearch, catalogList])
+  const catalogGroups = useMemo(() => {
+    const s = new Set()
+    for (const ex of catalogList) {
+      if (ex.muscle_group) s.add(ex.muscle_group)
+    }
+    return [...s].sort()
+  }, [catalogList])
+
+  const catalogFiltered = useMemo(
+    () => filterExerciseCatalog(catalogList, pickSearch, pickFilterGroup),
+    [pickSearch, pickFilterGroup, catalogList],
+  )
 
   useEffect(() => {
     if (pickExerciseIdx == null) return
@@ -356,6 +363,7 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
                       className="btn btn-ghost exercise-catalog-open-btn"
                       onClick={() => {
                         setSuggestOpenId(null)
+                        setPickFilterGroup('')
                         setPickSearch((exercises[exIdx]?.name ?? '').trim())
                         setPickExerciseIdx(exIdx)
                       }}
@@ -627,19 +635,39 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
               <p className="muted" style={{ margin: 0, fontSize: 13 }}>
                 Список задаёт администратор. Можно выбрать здесь или подобрать по буквам в поле на форме — сохраняется только упражнение из справочника.
               </p>
-              <div className="field" style={{ marginBottom: 0 }}>
-                <label className="label" htmlFor="exercise-catalog-search">
-                  Поиск
-                </label>
-                <input
-                  ref={catalogSearchRef}
-                  id="exercise-catalog-search"
-                  className="input"
-                  value={pickSearch}
-                  onChange={(e) => setPickSearch(stripDirectionControls(e.target.value))}
-                  placeholder="Начните вводить название…"
-                  autoComplete="off"
-                />
+              <div className="row" style={{ flexWrap: 'wrap', gap: 10 }}>
+                <div className="field" style={{ marginBottom: 0, flex: '1 1 200px' }}>
+                  <label className="label" htmlFor="exercise-catalog-search">
+                    Поиск
+                  </label>
+                  <input
+                    ref={catalogSearchRef}
+                    id="exercise-catalog-search"
+                    className="input"
+                    value={pickSearch}
+                    onChange={(e) => setPickSearch(stripDirectionControls(e.target.value))}
+                    placeholder="Начните вводить название…"
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="field" style={{ marginBottom: 0, minWidth: 180 }}>
+                  <label className="label" htmlFor="exercise-catalog-group">
+                    Направленность
+                  </label>
+                  <select
+                    id="exercise-catalog-group"
+                    className="select"
+                    value={pickFilterGroup}
+                    onChange={(e) => setPickFilterGroup(e.target.value)}
+                  >
+                    <option value="">Все</option>
+                    {catalogGroups.map((g) => (
+                      <option key={g} value={g}>
+                        {g}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="training-exercise-catalog-scroll">
                 {catalogList.length === 0 ? (
@@ -648,7 +676,7 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
                   </p>
                 ) : catalogFiltered.length === 0 ? (
                   <p className="muted" style={{ margin: '12px 8px', fontSize: 14 }}>
-                    Ничего не найдено — измените поиск.
+                    Ничего не найдено — измените поиск или направленность.
                   </p>
                 ) : (
                   <ul className="training-exercise-catalog-list">
