@@ -136,6 +136,13 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
   }, [exercises])
 
   const focusEx = focusExerciseIdx != null ? exercises[focusExerciseIdx] : null
+  const focusCatalogRow = useMemo(() => {
+    if (!focusEx) return null
+    const cid = String(focusEx.catalog_exercise_id ?? '').trim()
+    if (cid) return catalogList.find((r) => String(r?.id ?? '').trim() === cid) ?? null
+    if (focusEx.name?.trim()) return resolveCatalogExercise(catalogList, focusEx.name)
+    return null
+  }, [focusEx, catalogList])
 
   const exerciseFormatButtons = (ex, exIdx) => (
     <div className="row exercise-format-row" style={{ gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -297,14 +304,11 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
               + Упражнение
             </button>
           </div>
-          <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
-            Формат подходов у каждого упражнения: 1 — силовая, 2 — функциональная, 3 — кардио
-          </p>
           {exercises.map((ex, exIdx) => (
             <div key={ex.id} style={{ marginTop: 14, paddingTop: 14, borderTop: exIdx ? '1px solid var(--border)' : 'none' }}>
               <div className="row" style={{ alignItems: 'flex-end', flexWrap: 'wrap', gap: 8 }}>
                 <div className="field exercise-name-field exercise-catalog-combo" style={{ flex: '1 1 240px', marginBottom: 0 }}>
-                  <label className="label">Упражнение (только справочник админа)</label>
+                  <label className="label">Упражнение</label>
                   <div className="exercise-name-row">
                     <input
                       className="input"
@@ -732,6 +736,32 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
             <p className="muted" style={{ margin: '0 0 10px', fontSize: 13 }}>
               {focusEx.name?.trim() ? `Упражнение: ${focusEx.name}` : 'Без названия'}
             </p>
+            {focusCatalogRow ? (
+              <div style={{ margin: '0 0 10px' }}>
+                {focusCatalogRow.muscle_group ? (
+                  <div className="muted" style={{ fontSize: 13, marginBottom: 6 }}>
+                    Направленность: <span style={{ color: 'var(--text)' }}>{focusCatalogRow.muscle_group}</span>
+                  </div>
+                ) : null}
+                {focusCatalogRow.primary_muscles ? (
+                  <div className="muted" style={{ fontSize: 13, marginBottom: 6 }}>
+                    Основные мышцы: <span style={{ color: 'var(--text)' }}>{focusCatalogRow.primary_muscles}</span>
+                  </div>
+                ) : null}
+                {focusCatalogRow.comment ? (
+                  <div className="muted" style={{ fontSize: 13 }}>
+                    Примечание: <span style={{ color: 'var(--text)' }}>{focusCatalogRow.comment}</span>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <p className="muted" style={{ margin: '0 0 10px', fontSize: 13 }}>
+                В справочнике нет описания для этого упражнения (выберите из списка справочника).
+              </p>
+            )}
+            <label className="label" style={{ marginBottom: 6 }}>
+              Заметка тренера (направленность / акцент)
+            </label>
             <textarea
               className="textarea"
               placeholder="Например: квадрицепс, силовой акцент…"

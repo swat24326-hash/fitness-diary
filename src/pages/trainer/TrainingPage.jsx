@@ -519,7 +519,7 @@ export function TrainingPage() {
         <div className="training-head">
           <div className="training-head__top">
             <div className="training-tiles" role="group" aria-label="Параметры тренировки">
-              <div className="training-tile training-tile--clickable" aria-label="Дата тренировки">
+              <div className="training-tile training-tile--date training-tile--clickable" aria-label="Дата тренировки">
                 <div className="training-tile__label">Дата</div>
                 <div className="training-tile__value">{formatDateRu(trainingDate)}</div>
                 <button

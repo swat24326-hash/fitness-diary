@@ -1984,12 +1984,12 @@ tr:last-child td {
 }
 
 .training-tile {
-  height: 86px;
+  height: 76px;
   position: relative;
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.04);
-  padding: 12px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.035);
+  padding: 10px 10px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -1998,7 +1998,7 @@ tr:last-child td {
 .training-tile__label {
   position: relative;
   z-index: 1;
-  font-size: 12px;
+  font-size: 11px;
   color: rgba(255, 255, 255, 0.7);
   letter-spacing: 0.02em;
   white-space: nowrap;
@@ -2008,7 +2008,7 @@ tr:last-child td {
   position: relative;
   z-index: 1;
   font-weight: 800;
-  font-size: clamp(22px, 2.35vw, 32px);
+  font-size: clamp(18px, 2.1vw, 28px);
   color: #fff;
   line-height: 1;
   font-variant-numeric: tabular-nums;
@@ -2024,7 +2024,7 @@ tr:last-child td {
   color: #fff;
   padding: 0;
   font-weight: 800;
-  font-size: clamp(22px, 2.35vw, 32px);
+  font-size: clamp(18px, 2.1vw, 28px);
   line-height: 1;
   outline: none;
   font-variant-numeric: tabular-nums;
@@ -2048,11 +2048,11 @@ tr:last-child td {
 
 .training-tile__icon-btn {
   position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 22px;
-  height: 22px;
-  border-radius: 8px;
+  top: 7px;
+  right: 7px;
+  width: 20px;
+  height: 20px;
+  border-radius: 7px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(0, 0, 0, 0.18);
   color: rgba(255, 255, 255, 0.85);
@@ -2061,6 +2061,20 @@ tr:last-child td {
   justify-content: center;
   padding: 0;
   z-index: 3;
+}
+
+.training-tile--date .training-tile__value {
+  font-size: clamp(16px, 1.8vw, 24px);
+  letter-spacing: -0.01em;
+}
+
+@media (max-width: 560px) {
+  .training-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .training-tile--date {
+    grid-column: 1 / -1;
+  }
 }
 
 .training-tile__icon-btn:hover {
