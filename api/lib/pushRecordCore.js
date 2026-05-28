@@ -12,6 +12,7 @@ export const PUSH_ALLOWED_TABLES = new Set([
   'body_measurements',
   'challenges',
   'exercises',
+  'membership_types',
 ])
 
 function friendlyExerciseDbError(error, operation) {
@@ -52,6 +53,35 @@ async function prepareChallengePayload(supabaseAdmin, data) {
   return { ok: true, data: row }
 }
 
+function friendlyMembershipTypeDbError(error) {
+  const msg = String(error?.message ?? '')
+  const code = String(error?.code ?? '')
+  if (code === '23505' || /unique|duplicate/i.test(msg)) {
+    return 'Тип с таким названием уже есть в этом клубе'
+  }
+  return msg || 'Ошибка базы данных'
+}
+
+async function validateMembershipTypeLink(supabaseAdmin, payload, operation) {
+  const typeId = String(payload?.membership_type_id ?? '').trim()
+  if (!typeId) return { ok: true, data: payload }
+  const clubId = String(payload?.club_id ?? '').trim()
+  const { data: mt, error } = await supabaseAdmin
+    .from('membership_types')
+    .select('id, club_id, is_active')
+    .eq('id', typeId)
+    .maybeSingle()
+  if (error) return { ok: false, error: error.message }
+  if (!mt) return { ok: false, error: 'Тип абонемента не найден' }
+  if (clubId && String(mt.club_id) !== clubId) {
+    return { ok: false, error: 'Тип абонемента принадлежит другому клубу' }
+  }
+  if (operation === 'insert' && mt.is_active === false) {
+    return { ok: false, error: 'Этот тип абонемента отключён — выберите другой' }
+  }
+  return { ok: true, data: payload }
+}
+
 /**
  * @param {object} ctx — requireAuthUser result
  * @param {{ table_name: string, operation: string, data: object, remote_id?: string | null }} item
@@ -87,6 +117,22 @@ export async function executePushRecord(ctx, item) {
       if (table_name === 'trainings') {
         payload = normalizeTrainingPayload(payload)
       }
+      if (table_name === 'memberships') {
+        const link = await validateMembershipTypeLink(supabaseAdmin, payload, 'insert')
+        if (!link.ok) return { ok: false, status: 400, error: link.error }
+        payload = link.data
+      }
+      if (table_name === 'membership_types') {
+        payload = {
+          ...payload,
+          code: String(payload?.code ?? '').trim().slice(0, 12),
+          club_id: String(payload?.club_id ?? '').trim(),
+          is_active: payload?.is_active !== false,
+        }
+        if (!payload.code || !payload.club_id) {
+          return { ok: false, status: 400, error: 'Укажите клуб и название типа' }
+        }
+      }
       const { error } = await supabaseAdmin.from(table_name).insert(payload)
       if (error) {
         if (error.code === '23505') {
@@ -112,17 +158,39 @@ export async function executePushRecord(ctx, item) {
           }
           return { ok: true, duplicate: true }
         }
-        const errMsg = table_name === 'exercises' ? friendlyExerciseDbError(error, 'insert') : error.message
+        const errMsg =
+          table_name === 'exercises'
+            ? friendlyExerciseDbError(error, 'insert')
+            : table_name === 'membership_types'
+              ? friendlyMembershipTypeDbError(error)
+              : error.message
         return { ok: false, status: 400, error: errMsg }
       }
       return { ok: true }
     }
 
     if (operation === 'update' && remote_id) {
-      const payload = table_name === 'trainings' ? normalizeTrainingPayload(data) : data
+      let payload = table_name === 'trainings' ? normalizeTrainingPayload(data) : data
+      if (table_name === 'memberships') {
+        const link = await validateMembershipTypeLink(supabaseAdmin, payload, 'update')
+        if (!link.ok) return { ok: false, status: 400, error: link.error }
+        payload = link.data
+      }
+      if (table_name === 'membership_types') {
+        payload = {
+          ...payload,
+          code: String(payload?.code ?? '').trim().slice(0, 12),
+          is_active: payload?.is_active !== false,
+        }
+      }
       const { error } = await supabaseAdmin.from(table_name).update(payload).eq('id', remote_id)
       if (error) {
-        const errMsg = table_name === 'exercises' ? friendlyExerciseDbError(error, 'update') : error.message
+        const errMsg =
+          table_name === 'exercises'
+            ? friendlyExerciseDbError(error, 'update')
+            : table_name === 'membership_types'
+              ? friendlyMembershipTypeDbError(error)
+              : error.message
         return { ok: false, status: 400, error: errMsg }
       }
       return { ok: true }

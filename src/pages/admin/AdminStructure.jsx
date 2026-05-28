@@ -2,12 +2,14 @@ import { useCallback, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AdminOrganization } from './AdminOrganization'
 import { AdminStatistics } from './AdminStatistics'
+import { AdminMembershipTypes } from './AdminMembershipTypes'
 
-const TAB_IDS = ['clubs', 'trainers', 'statistics']
+const TAB_IDS = ['clubs', 'trainers', 'membership-types', 'statistics']
 
 const TABS = [
   { id: 'clubs', label: 'Клубы' },
   { id: 'trainers', label: 'Тренеры' },
+  { id: 'membership-types', label: 'Типы абон.' },
   { id: 'statistics', label: 'Статистика' },
 ]
 
@@ -71,6 +73,15 @@ export function AdminStructure() {
           className="admin-structure__panel"
         >
           {tab === 'trainers' ? <AdminOrganization mode="trainers" /> : null}
+        </div>
+        <div
+          id="admin-structure-panel-membership-types"
+          role="tabpanel"
+          aria-labelledby="admin-structure-tab-membership-types"
+          hidden={tab !== 'membership-types'}
+          className="admin-structure__panel"
+        >
+          {tab === 'membership-types' ? <AdminMembershipTypes /> : null}
         </div>
         <div
           id="admin-structure-panel-statistics"

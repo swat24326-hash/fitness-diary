@@ -394,6 +394,27 @@ export async function fetchClubsViaAdminApi() {
   }
 }
 
+/** GET /api/admin-data?action=membership-types&club_id=… */
+export async function fetchMembershipTypesForClubViaApi(clubId) {
+  const cid = String(clubId ?? '').trim()
+  if (!cid) return null
+
+  const token = await getAccessTokenForAdminApi()
+  if (!token) {
+    throw new Error('Нет сессии — выйдите и войдите снова, затем нажмите Sync.')
+  }
+
+  const { data, routeMissing } = await adminApiGet(
+    `/api/admin-data?action=membership-types&club_id=${encodeURIComponent(cid)}`,
+    token,
+  )
+  if (routeMissing) return null
+  return {
+    membership_types: Array.isArray(data.membership_types) ? data.membership_types : [],
+    count: typeof data.count === 'number' ? data.count : 0,
+  }
+}
+
 /** GET /api/admin-data?action=exercises-meta — лёгкая проверка «нужен ли pull». */
 export async function fetchExercisesMetaViaApi() {
   const token = await getAccessTokenForAdminApi()

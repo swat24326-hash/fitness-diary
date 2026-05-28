@@ -1,5 +1,35 @@
 import { supabase } from './supabase'
 
+/** Тот же порядок, что в /api/auth-sign-in (без service role в браузере). */
+export async function resolveLoginEmailFromDb(raw) {
+  const trimmed = String(raw ?? '').trim()
+  if (!trimmed) return { email: null, isActive: true, error: null }
+  if (trimmed.includes('@')) return { email: trimmed, isActive: true, error: null }
+
+  const loginLower = trimmed.toLowerCase()
+  const { data: byExact, error: e1 } = await supabase
+    .from('users')
+    .select('email, is_active')
+    .eq('login', loginLower)
+    .maybeSingle()
+  if (e1) return { email: null, isActive: true, error: e1 }
+  if (byExact?.email) {
+    return { email: String(byExact.email).trim(), isActive: byExact.is_active !== false, error: null }
+  }
+
+  const { data: byIlike, error: e2 } = await supabase
+    .from('users')
+    .select('email, is_active')
+    .ilike('login', trimmed)
+    .maybeSingle()
+  if (e2) return { email: null, isActive: true, error: e2 }
+  if (byIlike?.email) {
+    return { email: String(byIlike.email).trim(), isActive: byIlike.is_active !== false, error: null }
+  }
+
+  return { email: null, isActive: true, error: null }
+}
+
 async function parseJson(res) {
   const text = await res.text()
   if (!text) return {}

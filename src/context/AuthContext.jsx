@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
-import { signInViaServerApi } from '../lib/authSignInService'
+import { resolveLoginEmailFromDb, signInViaServerApi } from '../lib/authSignInService'
 import { fetchMyProfileViaApi } from '../lib/profileApiClient'
 import { withSupabaseRetry } from '../lib/supabaseRetry'
 import {
@@ -358,20 +358,49 @@ export function AuthProvider({ children }) {
     let emailForAuth = raw
     if (!raw.includes('@')) {
       try {
-        const { data: row, error: qErr } = await withSupabaseRetry(() =>
-          supabase.from('users').select('email').ilike('login', raw).maybeSingle(),
-        )
-        if (qErr) throw qErr
-        if (row?.email) emailForAuth = row.email
-        else return { error: { message: 'Пользователь с таким логином не найден' } }
+        const resolved = await withSupabaseRetry(() => resolveLoginEmailFromDb(raw))
+        if (resolved.error) throw resolved.error
+        if (!resolved.isActive) {
+          return { error: { message: 'Учётная запись заблокирована' } }
+        }
+        if (resolved.email) {
+          emailForAuth = resolved.email
+        } else if (import.meta.env.DEV) {
+          const loginLower = raw.toLowerCase()
+          const { data: devAuth, error: devErr } = await signInWithPasswordRetry(
+            `${loginLower}@trainer.local`,
+            password,
+          )
+          if (!devErr && devAuth?.user) {
+            await clearPoisonedSyncQueue()
+            const profile = await withTimeout(
+              refreshProfile(devAuth.user.id, devAuth.user.email),
+              8_000,
+              'profile',
+            ).catch(() => null)
+            setUser(applyUserFromSession({ user: devAuth.user }, profile))
+            setRole(resolveRole(profile, devAuth.user))
+            setBackgroundSyncPaused(false)
+            return { error: null }
+          }
+        }
+        if (!resolved.email && !emailForAuth.includes('@')) {
+          const devHint = import.meta.env.DEV
+            ? ' Локально: скопируйте .env с Vercel (как на сайте) или запустите npx vercel dev; можно войти по email.'
+            : ''
+          return { error: { message: `Пользователь с таким логином не найден.${devHint}` } }
+        }
       } catch (e) {
         const msg = humanizeNetworkError(e)
+        const devHint = import.meta.env.DEV
+          ? ' Локально для входа по логину нужен npx vercel dev или файл .env с ключами Supabase.'
+          : ''
         return {
           error: {
             message:
               msg.includes('timeout') || /connection reset|failed to fetch/i.test(msg)
-                ? `${msg} Попробуйте Ctrl+F5 — вход через сервер сайта (/api/auth-sign-in).`
-                : msg,
+                ? `${msg} Попробуйте Ctrl+F5 — вход через сервер сайта (/api/auth-sign-in).${devHint}`
+                : `${msg}${devHint}`,
           },
         }
       }

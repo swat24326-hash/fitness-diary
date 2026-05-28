@@ -40,6 +40,7 @@ const AUTO_PUSH_TABLES = new Set([
 /** Порядок отправки: сначала сущности, от которых зависят остальные. */
 const SYNC_TABLE_PRIORITY = {
   clients: 10,
+  membership_types: 15,
   memberships: 20,
   trainings: 30,
   health_cards: 40,

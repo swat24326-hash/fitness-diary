@@ -147,6 +147,31 @@ CREATE POLICY fit_memberships_trainer_rw
   );
 
 -- -----------------------------------------------------------------------------
+-- membership_types (справочник клуба; правки — админ, чтение — тренер своего клуба)
+-- -----------------------------------------------------------------------------
+ALTER TABLE public.membership_types ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS fit_membership_types_admin_all ON public.membership_types;
+DROP POLICY IF EXISTS fit_membership_types_trainer_read ON public.membership_types;
+
+CREATE POLICY fit_membership_types_admin_all
+  ON public.membership_types
+  FOR ALL
+  TO authenticated
+  USING (public.fit_auth_is_admin())
+  WITH CHECK (public.fit_auth_is_admin());
+
+CREATE POLICY fit_membership_types_trainer_read
+  ON public.membership_types
+  FOR SELECT
+  TO authenticated
+  USING (
+    public.fit_auth_is_trainer()
+    AND club_id = public.fit_auth_trainer_club_id()
+    AND public.fit_auth_trainer_club_id() IS NOT NULL
+  );
+
+-- -----------------------------------------------------------------------------
 -- trainings
 -- -----------------------------------------------------------------------------
 ALTER TABLE public.trainings ENABLE ROW LEVEL SECURITY;

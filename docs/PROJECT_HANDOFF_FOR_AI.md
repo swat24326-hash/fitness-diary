@@ -65,6 +65,9 @@ supabase/
 docs/
   DEPLOY.md               — первый деплой в интернет
   PROJECT_HANDOFF_FOR_AI.md — этот файл
+.cursor/rules/
+  fitness-diary-architecture.mdc  — всегда: слои, офлайн, без костылей
+  fitness-diary-split-files.mdc     — при правках src/api: когда дробить файлы
 public/                   — иконки PWA, _redirects (Cloudflare)
 netlify.toml, vercel.json — SPA fallback для хостинга
 .env.example              — VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
@@ -209,6 +212,8 @@ UI: вкладки/карточки, пояснения в popover по кноп
 Пользователь предпочитает **русский** язык в ответах. Даты в UI часто через **`formatDateRu`** / периоды через **`src/lib/period.js`**.
 
 Файл можно копировать целиком в системный промпт или первое сообщение новому ассистенту вместе с указанием корня репозитория: `fitness-diary`.
+
+**Правила для Cursor (агент подхватывает автоматически):** `.cursor/rules/fitness-diary-architecture.mdc` (всегда) и `fitness-diary-split-files.mdc` (при работе с `src/**`, `api/**`). Принцип: новую логику сразу в правильный слой/файл, без отложенного «раздувания» монолитов.
 
 ---
 

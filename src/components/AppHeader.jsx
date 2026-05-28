@@ -231,7 +231,8 @@ export function AppHeader() {
 
       if (isSupabaseConfigured() && !flushDesc.offline) {
         try {
-          const { pullExercisesFromCloud, pullChallengesForClubFromCloud } = await import('../lib/pullReferenceData')
+          const { pullExercisesFromCloud, pullChallengesForClubFromCloud, pullMembershipTypesForClubFromCloud } =
+            await import('../lib/pullReferenceData')
           bumpSyncProgress(76, 'Справочник упражнений…')
           // Sync нажимают вручную, и ожидают увидеть свежие правки админа сразу.
           // `exercises-meta` основан на created_at и не ловит правки без новой записи, поэтому тут форсим pull.
@@ -263,6 +264,14 @@ export function AppHeader() {
                 let chMsg = `челленджи (${chPull.count ?? 0})`
                 if ((chPull.pruned ?? 0) > 0) chMsg += `, убрано ${chPull.pruned}`
                 parts.push(chMsg)
+              }
+              bumpSyncProgress(94, 'Типы абонементов…')
+              const mtPull = await pullMembershipTypesForClubFromCloud(club)
+              if (!mtPull?.ok) {
+                hadError = true
+                parts.push(`типы абон.: ${mtPull.error ?? 'ошибка'}`)
+              } else {
+                parts.push(`типы абон. (${mtPull.count ?? 0})`)
               }
             } else {
               parts.push('клиенты: выберите клуб')
@@ -299,6 +308,13 @@ export function AppHeader() {
               }
               chTotal += chPull.count ?? 0
               chPruned += chPull.pruned ?? 0
+              const mtPull = await pullMembershipTypesForClubFromCloud(cid)
+              if (!mtPull?.ok) {
+                chFailed = true
+                hadError = true
+                parts.push(`типы абон.: ${mtPull.error ?? 'ошибка'}`)
+                break
+              }
             }
             if (!chFailed) {
               let chMsg = `челленджи (${chTotal})`

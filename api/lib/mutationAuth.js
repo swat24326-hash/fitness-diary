@@ -41,12 +41,17 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
     'body_measurements',
     'challenges',
     'exercises',
+    'membership_types',
   ])
   if (!allowed.has(table_name)) {
     return { ok: false, error: 'Таблица не поддерживается для синхронизации' }
   }
 
   if (isAdmin) return { ok: true }
+
+  if (table_name === 'membership_types') {
+    return { ok: false, error: 'Типы абонементов может менять только администратор' }
+  }
 
   if (!isTrainer) {
     return { ok: false, error: 'Нет доступа' }

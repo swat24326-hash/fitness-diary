@@ -54,6 +54,24 @@ CREATE INDEX IF NOT EXISTS idx_clients_trainer_id ON clients (trainer_id);
 CREATE INDEX IF NOT EXISTS idx_clients_club_id ON clients (club_id);
 
 -- ------------------------------------------------------------
+-- Типы абонементов (справочник клуба)
+-- ------------------------------------------------------------
+CREATE TABLE membership_types (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  club_id UUID NOT NULL REFERENCES clubs (id) ON DELETE CASCADE,
+  code TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT membership_types_code_len CHECK (char_length(trim(code)) >= 1 AND char_length(trim(code)) <= 12)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_membership_types_club_code_lower
+  ON membership_types (club_id, lower(trim(code)));
+
+CREATE INDEX IF NOT EXISTS idx_membership_types_club_id ON membership_types (club_id);
+
+-- ------------------------------------------------------------
 -- Абонементы
 -- ------------------------------------------------------------
 CREATE TABLE memberships (
@@ -65,11 +83,14 @@ CREATE TABLE memberships (
   used_trainings INTEGER DEFAULT 0,
   status TEXT DEFAULT 'active' CHECK (status IN ('active', 'expired', 'closed')),
   club_id UUID NOT NULL REFERENCES clubs (id),
+  membership_type_id UUID REFERENCES membership_types (id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_memberships_client_id ON memberships (client_id);
 CREATE INDEX IF NOT EXISTS idx_memberships_club_id ON memberships (club_id);
+CREATE INDEX IF NOT EXISTS idx_memberships_membership_type_id ON memberships (membership_type_id)
+  WHERE membership_type_id IS NOT NULL;
 
 -- ------------------------------------------------------------
 -- Справочник упражнений

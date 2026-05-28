@@ -1736,6 +1736,15 @@ td {
   flex-wrap: nowrap;
 }
 
+.mem-col-type {
+  width: 3.5rem;
+  max-width: 4.5rem;
+  white-space: nowrap;
+  text-align: center;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
 th {
   color: var(--text-muted);
   font-weight: 600;

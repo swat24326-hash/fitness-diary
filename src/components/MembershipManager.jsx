@@ -3,6 +3,7 @@ import { listMemberships, listTrainingsForClient } from '../lib/dataAccess'
 import { getDb } from '../lib/localDb'
 import { deleteLocalWithSync, saveLocalWithSync } from '../lib/syncService'
 import { addDaysToIso, formatDateRu, formatDateTimeRu, todayLocalIso } from '../lib/dateRu'
+import { listMembershipTypesForClub, membershipTypeCode } from '../lib/membershipTypesService'
 import { CheckCircle2, Eye, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
@@ -78,15 +79,58 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
   const { user } = useAuth()
   const [items, setItems] = useState([])
   const [selectedId, setSelectedId] = useState(null)
-  const [form, setForm] = useState({ start_date: '', end_date: '', total_trainings: 12 })
-  const [edit, setEdit] = useState({ start_date: '', end_date: '', total_trainings: 0 })
+  const [form, setForm] = useState({ start_date: '', end_date: '', total_trainings: 12, membership_type_id: '' })
+  const [edit, setEdit] = useState({ start_date: '', end_date: '', total_trainings: 0, membership_type_id: '' })
   const [editOpenId, setEditOpenId] = useState(null)
   const [newOpen, setNewOpen] = useState(false)
+  const [membershipTypes, setMembershipTypes] = useState([])
   const [trainings, setTrainings] = useState([])
   const [viewOpenId, setViewOpenId] = useState(null)
   const [confirmCancel, setConfirmCancel] = useState(null) // { t, membership }
 
   const todayIso = useMemo(() => todayLocalIso(), [])
+
+  const reloadTypes = useCallback(async () => {
+    if (!clubId) {
+      setMembershipTypes([])
+      return
+    }
+    setMembershipTypes(await listMembershipTypesForClub(clubId))
+  }, [clubId])
+
+  useEffect(() => {
+    void reloadTypes()
+  }, [reloadTypes])
+
+  useEffect(() => {
+    const onStorage = () => void reloadTypes()
+    window.addEventListener('fitness-diary-storage', onStorage)
+    return () => window.removeEventListener('fitness-diary-storage', onStorage)
+  }, [reloadTypes])
+
+  const typesById = useMemo(() => new Map(membershipTypes.map((t) => [t.id, t])), [membershipTypes])
+
+  const typeOptionsForSelect = useCallback(
+    (selectedTypeId) => {
+      const sid = String(selectedTypeId ?? '').trim()
+      const active = membershipTypes.filter((t) => t.is_active !== false)
+      if (!sid) return active
+      const cur = membershipTypes.find((t) => String(t.id) === sid)
+      if (cur && cur.is_active === false && !active.some((t) => t.id === cur.id)) {
+        return [...active, cur]
+      }
+      return active
+    },
+    [membershipTypes],
+  )
+
+  const formatTypeCell = useCallback(
+    (typeId) => {
+      const code = membershipTypeCode(typesById, typeId)
+      return code || '—'
+    },
+    [typesById],
+  )
 
   const computeMembershipTrainings = useCallback(
     (m, allTrainings) => {
@@ -190,11 +234,12 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
       end_date: form.end_date || addDaysToIso(today, 30),
       total_trainings: Number(form.total_trainings) || 0,
       used_trainings: 0,
+      membership_type_id: form.membership_type_id?.trim() || null,
       created_at: now,
     }
     await saveLocalWithSync('memberships', row, { table_name: 'memberships', operation: 'insert', remote_id: null })
     setSelectedId(id)
-    setForm({ start_date: '', end_date: '', total_trainings: 12 })
+    setForm({ start_date: '', end_date: '', total_trainings: 12, membership_type_id: '' })
     await notify()
     setNewOpen(false)
   }
@@ -218,6 +263,7 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
       start_date: selected.start_date ?? '',
       end_date: selected.end_date ?? '',
       total_trainings: Number(selected.total_trainings ?? 0),
+      membership_type_id: selected.membership_type_id ?? '',
     })
   }, [selectedId, selected])
 
@@ -228,6 +274,7 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
       start_date: edit.start_date || null,
       end_date: edit.end_date || null,
       total_trainings: Number(edit.total_trainings) || 0,
+      membership_type_id: edit.membership_type_id?.trim() || null,
     }
     await patchMembership(selected.id, patch)
     setEditOpenId(null)
@@ -368,6 +415,24 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
                 value={form.total_trainings}
                 onChange={(e) => setForm((f) => ({ ...f, total_trainings: e.target.value }))}
               />
+              <div className="field" style={{ margin: 0 }}>
+                <label className="label" htmlFor="membership-new-type">
+                  Тип абонемента
+                </label>
+                <select
+                  id="membership-new-type"
+                  className="input"
+                  value={form.membership_type_id}
+                  onChange={(e) => setForm((f) => ({ ...f, membership_type_id: e.target.value }))}
+                >
+                  <option value="">—</option>
+                  {typeOptionsForSelect(form.membership_type_id).map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.code}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
                 <button type="button" className="btn btn-ghost btn-touch" onClick={() => setNewOpen(false)}>
                   Отмена
@@ -399,6 +464,25 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
               <div className="field" style={{ margin: 0 }}>
                 <label className="label">Всего тренировок</label>
                 <input className="input" type="number" min={0} value={edit.total_trainings} onChange={(e) => setEdit((s) => ({ ...s, total_trainings: e.target.value }))} />
+              </div>
+
+              <div className="field" style={{ margin: 0 }}>
+                <label className="label" htmlFor="membership-edit-type">
+                  Тип абонемента
+                </label>
+                <select
+                  id="membership-edit-type"
+                  className="input"
+                  value={edit.membership_type_id}
+                  onChange={(e) => setEdit((s) => ({ ...s, membership_type_id: e.target.value }))}
+                >
+                  <option value="">—</option>
+                  {typeOptionsForSelect(edit.membership_type_id).map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.code}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="muted" style={{ fontSize: 13 }}>
@@ -552,6 +636,7 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
             <thead>
               <tr>
                 <th>Период</th>
+                <th className="mem-col-type">Тип</th>
                 <th>Статус</th>
                 <th>Использовано</th>
                 <th>Создан</th>
@@ -563,6 +648,9 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
                 <tr key={m.id}>
                   <td>
                     {formatDateRu(m.start_date)} — {formatDateRu(m.end_date)}
+                  </td>
+                  <td className="mem-col-type" title={membershipTypeCode(typesById, m.membership_type_id) || undefined}>
+                    {formatTypeCell(m.membership_type_id)}
                   </td>
                   <td style={{ width: 56 }}>
                     <MembershipStatusIcon kind={membershipVisualKind(m, todayIso)} />

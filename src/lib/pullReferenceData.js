@@ -10,6 +10,29 @@ import { pullExercisesFromCloud } from './exerciseCatalog'
 
 export { pullExercisesFromCloud }
 
+export async function pullMembershipTypesForClubFromCloud(clubId) {
+  const cid = String(clubId ?? '').trim()
+  if (!cid || !isSupabaseConfigured()) return { ok: false, reason: 'no_club_or_supabase' }
+
+  try {
+    const { fetchMembershipTypesForClubViaApi } = await import('./admin/adminApiClient')
+    const { mergeMembershipTypesForClub } = await import('./membershipTypesService')
+    const viaApi = await fetchMembershipTypesForClubViaApi(cid)
+    if (!viaApi) {
+      return {
+        ok: false,
+        reason: 'no_api',
+        error: 'Сервер типов абонементов недоступен — обновите страницу (Ctrl+F5) и повторите Sync.',
+      }
+    }
+    const rows = viaApi.membership_types ?? []
+    const { count } = await mergeMembershipTypesForClub(cid, rows)
+    return { ok: true, count, source: 'api' }
+  } catch (e) {
+    return { ok: false, error: String(e?.message ?? e ?? 'Ошибка загрузки типов абонементов') }
+  }
+}
+
 /** Удалить из IndexedDB челленджи клуба, которых уже нет в облаке (после удаления админом). */
 export async function reconcileChallengesForClub(clubId, remoteChallenges) {
   const cid = String(clubId ?? '').trim()

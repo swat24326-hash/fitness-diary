@@ -311,6 +311,52 @@ async function handleClubs(ctx, res) {
   sendJson(res, 200, { clubs: data ?? [], count: (data ?? []).length })
 }
 
+async function handleMembershipTypes(authCtx, req, res) {
+  const clubId = String(req.query?.club_id ?? req.query?.clubId ?? '').trim()
+  if (!clubId) {
+    sendJson(res, 400, { error: 'Укажите club_id' })
+    return
+  }
+
+  if (!authCtx.isAdmin) {
+    const { data: prof } = await authCtx.supabaseAdmin
+      .from('users')
+      .select('club_id')
+      .eq('id', authCtx.user.id)
+      .maybeSingle()
+    const trainerClub = String(prof?.club_id ?? '').trim()
+    if (trainerClub && trainerClub !== clubId) {
+      sendJson(res, 403, { error: 'Типы другого клуба недоступны' })
+      return
+    }
+    if (!trainerClub) {
+      const { data: sample } = await authCtx.supabaseAdmin
+        .from('clients')
+        .select('id')
+        .eq('trainer_id', authCtx.user.id)
+        .eq('club_id', clubId)
+        .limit(1)
+      if (!(sample ?? []).length) {
+        sendJson(res, 403, { error: 'Нет доступа к типам этого клуба' })
+        return
+      }
+    }
+  }
+
+  const { data, error } = await authCtx.supabaseAdmin
+    .from('membership_types')
+    .select('*')
+    .eq('club_id', clubId)
+    .order('sort_order', { ascending: true })
+    .order('code', { ascending: true })
+  if (error) {
+    sendJson(res, 400, { error: error.message })
+    return
+  }
+  const rows = data ?? []
+  sendJson(res, 200, { membership_types: rows, count: rows.length, club_id: clubId })
+}
+
 async function handleExercisesMeta(authCtx, res) {
   const { count, error: countErr } = await authCtx.supabaseAdmin
     .from('exercises')
@@ -371,7 +417,13 @@ export default async function handler(req, res) {
   }
 
   const action = String(req.query?.action ?? '').trim().toLowerCase()
-  const trainerActions = new Set(['challenges', 'challenge-trainings', 'exercises', 'exercises-meta'])
+  const trainerActions = new Set([
+    'challenges',
+    'challenge-trainings',
+    'exercises',
+    'exercises-meta',
+    'membership-types',
+  ])
 
   if (trainerActions.has(action)) {
     const authCtx = await requireAuthUser(req, res)
@@ -384,6 +436,7 @@ export default async function handler(req, res) {
     if (action === 'challenge-trainings') return handleChallengeTrainings(authCtx, req, res)
     if (action === 'exercises-meta') return handleExercisesMeta(authCtx, res)
     if (action === 'exercises') return handleExercises(authCtx, res)
+    if (action === 'membership-types') return handleMembershipTypes(authCtx, req, res)
   }
 
   const ctx = await requireAdmin(req, res)
@@ -402,7 +455,7 @@ export default async function handler(req, res) {
       return handleClubs(ctx, res)
     default:
       sendJson(res, 400, {
-        error: 'Укажите action: search, journal, club-stats, health-cards, challenges, challenge-trainings, exercises, clubs',
+        error: 'Укажите action: search, journal, club-stats, health-cards, challenges, challenge-trainings, exercises, membership-types, clubs',
       })
   }
 }

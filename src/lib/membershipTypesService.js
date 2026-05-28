@@ -1,0 +1,140 @@
+/**
+ * Справочник типов абонементов (клуб): локальный кэш + push в облако (админ).
+ */
+
+import { isSupabaseConfigured } from './supabase'
+import { getDb, putStore, listSyncQueue } from './localDb'
+import { saveLocalWithSync } from './syncService'
+import { pushRecordViaApi } from './syncApiClient'
+
+export function normalizeMembershipTypeCode(raw) {
+  return String(raw ?? '').trim().slice(0, 12)
+}
+
+function normalizeRow(row) {
+  return {
+    ...row,
+    code: normalizeMembershipTypeCode(row.code),
+    club_id: String(row.club_id ?? '').trim(),
+    sort_order: Number(row.sort_order) || 0,
+    is_active: row.is_active !== false,
+  }
+}
+
+async function pushTypeOp(operation, row, remoteId) {
+  if (!isSupabaseConfigured() || (typeof navigator !== 'undefined' && !navigator.onLine)) {
+    return { cloudOk: false, cloudError: 'Нет сети — тип только на этом устройстве. Нажмите Sync позже.' }
+  }
+  const push = await pushRecordViaApi({
+    table_name: 'membership_types',
+    operation,
+    data: row,
+    remote_id: remoteId ?? row.id ?? null,
+    local_id: null,
+  })
+  return push.ok
+    ? { cloudOk: true, record: push.record }
+    : { cloudOk: false, cloudError: push.error ?? 'Не удалось отправить в облако' }
+}
+
+/** @param {string} clubId @param {{ activeOnly?: boolean }} [opts] */
+export async function listMembershipTypesForClub(clubId, opts = {}) {
+  const cid = String(clubId ?? '').trim()
+  if (!cid) return []
+  const db = await getDb()
+  const all = await db.getAll('membership_types')
+  let list = all.filter((t) => String(t.club_id) === cid)
+  if (opts.activeOnly) list = list.filter((t) => t.is_active !== false)
+  return list.sort(
+    (a, b) =>
+      (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0) ||
+      String(a.code ?? '').localeCompare(String(b.code ?? ''), 'ru'),
+  )
+}
+
+/** @param {Map<string, object>|object[]} typesOrMap @param {string|null|undefined} typeId */
+export function membershipTypeCode(typesOrMap, typeId) {
+  const id = String(typeId ?? '').trim()
+  if (!id) return ''
+  if (typesOrMap instanceof Map) {
+    return typesOrMap.get(id)?.code ?? ''
+  }
+  const hit = (typesOrMap ?? []).find((t) => String(t.id) === id)
+  return hit?.code ?? ''
+}
+
+/** @returns {Promise<{ cloudOk: boolean, cloudError?: string }>} */
+export async function insertMembershipType({ club_id, code, sort_order = 0 }) {
+  const cid = String(club_id ?? '').trim()
+  const normalizedCode = normalizeMembershipTypeCode(code)
+  if (!cid || !normalizedCode) {
+    return { cloudOk: false, cloudError: 'Укажите клуб и короткое название типа' }
+  }
+  const id = crypto.randomUUID()
+  const now = new Date().toISOString()
+  const row = normalizeRow({
+    id,
+    club_id: cid,
+    code: normalizedCode,
+    sort_order,
+    is_active: true,
+    created_at: now,
+  })
+  await saveLocalWithSync('membership_types', row, {
+    table_name: 'membership_types',
+    operation: 'insert',
+    remote_id: null,
+  })
+  return pushTypeOp('insert', row, null)
+}
+
+/** Мягкое удаление: is_active = false. */
+export async function deactivateMembershipType(id) {
+  const tid = String(id ?? '').trim()
+  if (!tid) return { cloudOk: false, cloudError: 'Нет id типа' }
+
+  const db = await getDb()
+  const prev = await db.get('membership_types', tid)
+  if (!prev) return { cloudOk: false, cloudError: 'Тип не найден' }
+
+  const row = normalizeRow({ ...prev, is_active: false })
+  await saveLocalWithSync('membership_types', row, {
+    table_name: 'membership_types',
+    operation: 'update',
+    remote_id: tid,
+  })
+  return pushTypeOp('update', row, tid)
+}
+
+/** @param {string} clubId @param {object[]} remoteRows */
+export async function mergeMembershipTypesForClub(clubId, remoteRows) {
+  const cid = String(clubId ?? '').trim()
+  if (!cid) return { count: 0 }
+
+  const pendingIds = new Set()
+  for (const item of await listSyncQueue()) {
+    if (item.table_name !== 'membership_types') continue
+    if (item.operation !== 'insert' && item.operation !== 'update') continue
+    const id = String(item.remote_id ?? item.data?.id ?? '').trim()
+    if (id) pendingIds.add(id)
+  }
+
+  const remoteIds = new Set()
+  for (const row of remoteRows ?? []) {
+    const id = String(row?.id ?? '').trim()
+    if (!id || String(row.club_id) !== cid) continue
+    remoteIds.add(id)
+    if (pendingIds.has(id)) continue
+    await putStore('membership_types', normalizeRow(row))
+  }
+
+  const db = await getDb()
+  for (const local of await db.getAll('membership_types')) {
+    if (String(local.club_id) !== cid) continue
+    const id = String(local.id ?? '')
+    if (!id || remoteIds.has(id) || pendingIds.has(id)) continue
+    await db.delete('membership_types', id)
+  }
+
+  return { count: remoteIds.size }
+}
