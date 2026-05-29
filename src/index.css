@@ -3454,6 +3454,65 @@ tr:last-child td {
   opacity: 1;
 }
 
+.admin-club-stat-card--active {
+  border-color: rgba(74, 222, 128, 0.55);
+  box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.28);
+}
+
+.admin-mem-type-table-wrap {
+  overflow-x: auto;
+}
+
+.admin-mem-type-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.admin-mem-type-table th,
+.admin-mem-type-table td {
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.admin-mem-type-table th {
+  background: rgba(74, 222, 128, 0.08);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.admin-mem-type-table__trainer-col {
+  text-align: left;
+  min-width: 120px;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--bg-card);
+}
+
+.admin-mem-type-table thead .admin-mem-type-table__trainer-col {
+  background: rgba(74, 222, 128, 0.12);
+}
+
+.admin-mem-type-table__type-col {
+  min-width: 72px;
+}
+
+.admin-mem-type-table__sum-col {
+  min-width: 56px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.admin-mem-type-table__num {
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-mem-type-table__club-row td {
+  background: rgba(74, 222, 128, 0.06);
+}
+
 .admin-stat-drilldown__panel {
   max-width: 520px;
   width: min(100%, 520px);
@@ -3479,6 +3538,10 @@ tr:last-child td {
   margin: 0;
   max-height: min(50vh, 420px);
   overflow-y: auto;
+}
+
+#admin-not-renewed-panel .admin-stat-drilldown__list {
+  max-height: none;
 }
 
 .admin-stat-drilldown__row {
