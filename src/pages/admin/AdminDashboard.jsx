@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 import { useCallback, useMemo } from 'react'
-import { BookOpen, Building2, Stethoscope, Trophy, UserCircle } from 'lucide-react'
+import { BarChart3, Building2, Stethoscope, Trophy, UserCircle } from 'lucide-react'
 import { dispatchLocalDataChanged } from '../../lib/dataAccess'
 
 function adminTileClass({ isActive }) {
@@ -49,11 +49,11 @@ export function AdminDashboard() {
                 </div>
                 <p className="feature-tile__title">Клиенты</p>
               </NavLink>
-              <NavLink to={tab('exercises')} className={adminTileClass}>
+              <NavLink to={tab('statistics')} className={adminTileClass}>
                 <div className="feature-tile__icon">
-                  <BookOpen size={44} aria-hidden />
+                  <BarChart3 size={44} aria-hidden />
                 </div>
-                <p className="feature-tile__title">Упражнения</p>
+                <p className="feature-tile__title">Статистика</p>
               </NavLink>
               <NavLink to={tab('challenges')} className={adminTileClass}>
                 <div className="feature-tile__icon">

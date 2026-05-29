@@ -7,7 +7,7 @@ import { describeFlushQueueResult, flushSyncQueue, isAppOnline } from '../lib/sy
 import { subscribeNetworkStatus } from '../lib/networkReachability'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, CircleHelp, LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, User, UserCircle, BookOpen, Building2 } from 'lucide-react'
+import { AlertTriangle, BarChart3, CircleHelp, LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, User, UserCircle, Building2 } from 'lucide-react'
 import {
   listClubsLocal,
   LOCAL_DATA_CHANGED,
@@ -460,10 +460,10 @@ export function AppHeader() {
                 Клиенты
               </span>
             </NavLink>
-            <NavLink to={`/admin/exercises${adminQs}`} className={headerNavClass}>
+            <NavLink to={`/admin/statistics${adminQs}`} className={headerNavClass}>
               <span className="app-header__nav-with-icon">
-                <BookOpen size={18} aria-hidden />
-                Упражнения
+                <BarChart3 size={18} aria-hidden />
+                Статистика
               </span>
             </NavLink>
             <NavLink to={`/admin/challenges${adminQs}`} className={headerNavClass}>
@@ -583,8 +583,8 @@ export function AppHeader() {
                   <NavLink to={`/admin/clients${adminQs}`} className={menuNavClass} onClick={() => setMenuOpen(false)}>
                     Клиенты
                   </NavLink>
-                  <NavLink to={`/admin/exercises${adminQs}`} className={menuNavClass} onClick={() => setMenuOpen(false)}>
-                    Упражнения
+                  <NavLink to={`/admin/statistics${adminQs}`} className={menuNavClass} onClick={() => setMenuOpen(false)}>
+                    Статистика
                   </NavLink>
                   <NavLink to={`/admin/challenges${adminQs}`} className={menuNavClass} onClick={() => setMenuOpen(false)}>
                     Челленджи

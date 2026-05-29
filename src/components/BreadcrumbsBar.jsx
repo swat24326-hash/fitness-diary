@@ -38,13 +38,20 @@ function buildCrumbs(pathname, search) {
     } catch {
       /* ignore */
     }
-    const sub = tab === 'trainers' ? 'Тренеры' : tab === 'statistics' ? 'Статистика' : 'Клубы'
+    const sub =
+      tab === 'trainers'
+        ? 'Тренеры'
+        : tab === 'membership-types'
+          ? 'Типы абон.'
+          : tab === 'exercises'
+            ? 'Упражнения'
+            : 'Клубы'
     const structureBase = `/admin/structure${clubQs}`
     const full = `${p}${search || ''}`
     return [...admin, { label: 'Структура', to: structureBase }, { label: sub, to: full }]
   }
   if (p === '/admin/clients') return [...admin, { label: 'Клиенты', to: `/admin/clients${clubQs}` }]
-  if (p === '/admin/exercises') return [...admin, { label: 'Упражнения', to: `/admin/exercises${clubQs}` }]
+  if (p === '/admin/statistics') return [...admin, { label: 'Статистика', to: `/admin/statistics${clubQs}` }]
   if (p === '/admin/challenges') return [...admin, { label: 'Челленджи', to: `/admin/challenges${clubQs}` }]
   if (matchPath('/admin/challenges/:challengeId', p)) {
     const full = `${p}${search || ''}`

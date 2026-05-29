@@ -400,7 +400,11 @@ export function AdminChallenges() {
                 {!exercisesModalBusy && exercises.length === 0 ? (
                   <p className="muted" style={{ margin: '8px 0 0', fontSize: 13, lineHeight: 1.45 }}>
                     Сначала заведите упражнения в разделе{' '}
-                    <Link to={`/admin/exercises${clubQs}`} className="u-no-decoration" style={{ color: 'var(--accent-bright, #00a651)' }}>
+                    <Link
+                      to={`/admin/structure${clubQs ? `${clubQs}&` : '?'}tab=exercises`}
+                      className="u-no-decoration"
+                      style={{ color: 'var(--accent-bright, #00a651)' }}
+                    >
                       Упражнения
                     </Link>
                     {isSupabaseConfigured() ? ' (при онлайне список подтягивается из Supabase).' : ' (локально — добавьте вручную).'}

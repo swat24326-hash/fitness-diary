@@ -9,8 +9,8 @@ import { BreadcrumbsBar } from './components/BreadcrumbsBar'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { AdminDashboard } from './pages/admin/AdminDashboard'
 import { AdminClients } from './pages/admin/AdminClients'
-import { AdminExercises } from './pages/admin/AdminExercises'
 import { AdminStructure } from './pages/admin/AdminStructure'
+import { AdminStatistics } from './pages/admin/AdminStatistics'
 import { AdminChallenges } from './pages/admin/AdminChallenges'
 import { AdminChallengeDetail } from './pages/admin/AdminChallengeDetail'
 import { AdminDiagnostics } from './pages/admin/AdminDiagnostics'
@@ -98,11 +98,22 @@ function AdminLegacyOrganizationRedirect() {
   return <Navigate to={`/admin/structure?${sp.toString()}`} replace />
 }
 
-function AdminLegacyStatisticsRedirect() {
+function AdminLegacyExercisesRedirect() {
   const loc = useLocation()
   const sp = new URLSearchParams(loc.search || '')
-  sp.set('tab', 'statistics')
+  sp.set('tab', 'exercises')
   return <Navigate to={`/admin/structure?${sp.toString()}`} replace />
+}
+
+function AdminLegacyStructureStatisticsTabRedirect() {
+  const loc = useLocation()
+  const sp = new URLSearchParams(loc.search || '')
+  if (sp.get('tab') === 'statistics') {
+    sp.delete('tab')
+    const qs = sp.toString()
+    return <Navigate to={`/admin/statistics${qs ? `?${qs}` : ''}`} replace />
+  }
+  return <AdminStructure />
 }
 
 export default function App() {
@@ -125,14 +136,14 @@ export default function App() {
               <Route path="/admin/workouts/:id" element={<TrainingPage />} />
               <Route path="/admin" element={<AdminDashboard />}>
                 <Route index element={null} />
-                <Route path="structure" element={<AdminStructure />} />
+                <Route path="structure" element={<AdminLegacyStructureStatisticsTabRedirect />} />
                 <Route path="organization" element={<AdminLegacyOrganizationRedirect />} />
                 <Route path="trainers" element={<AdminLegacyTrainersRedirect />} />
-                <Route path="statistics" element={<AdminLegacyStatisticsRedirect />} />
+                <Route path="statistics" element={<AdminStatistics />} />
                 <Route path="clients" element={<AdminClients />} />
                 <Route path="clients/:id" element={<ClientCard />} />
                 <Route path="diaries" element={<AdminDiariesRedirect />} />
-                <Route path="exercises" element={<AdminExercises />} />
+                <Route path="exercises" element={<AdminLegacyExercisesRedirect />} />
                 <Route path="challenges" element={<AdminChallenges />} />
                 <Route path="challenges/:challengeId" element={<AdminChallengeDetail />} />
                 <Route path="diagnostics" element={<AdminDiagnostics />} />

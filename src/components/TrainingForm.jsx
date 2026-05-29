@@ -676,7 +676,7 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
               <div className="training-exercise-catalog-scroll">
                 {catalogList.length === 0 ? (
                   <p className="muted" style={{ margin: '12px 8px', fontSize: 14 }}>
-                    В справочнике пока нет упражнений — их добавляет администратор (раздел «Упражнения»).
+                    В справочнике пока нет упражнений — их добавляет администратор (Структура → Упражнения).
                   </p>
                 ) : catalogFiltered.length === 0 ? (
                   <p className="muted" style={{ margin: '12px 8px', fontSize: 14 }}>
