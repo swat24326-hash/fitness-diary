@@ -53,9 +53,9 @@ const BAR_PALETTE = [
 ]
 
 /**
- * @param {{ rows: Array<{ month: string, count: number }> }} props
+ * @param {{ rows: Array<{ month: string, count: number }>, year?: number }} props
  */
-export function AdminClubMonthlyChart({ rows }) {
+export function AdminClubMonthlyChart({ rows, year }) {
   const list = Array.isArray(rows) ? rows : []
 
   const { chartMax, ticks, total, hasAny } = useMemo(() => {
@@ -82,8 +82,8 @@ export function AdminClubMonthlyChart({ rows }) {
     <div className="admin-monthly-chart">
       {!hasAny ? (
         <p className="muted admin-monthly-chart__empty-hint">
-          За 12 месяцев нет завершённых тренировок <strong>с типом карты</strong> (см. подпись ниже). Столбцы показаны для
-          ориентира.
+          За {year ? `${year} год` : '12 месяцев'} нет завершённых тренировок <strong>с типом карты</strong> (см. подпись ниже).
+          Столбцы показаны для ориентира.
         </p>
       ) : null}
 
@@ -146,7 +146,7 @@ export function AdminClubMonthlyChart({ rows }) {
 
       {hasAny ? (
         <p className="muted admin-monthly-chart__sum">
-          Всего за период на графике: <strong>{total}</strong>
+          Всего за {year ? `${year} год` : 'период'} на графике: <strong>{total}</strong>
         </p>
       ) : null}
 

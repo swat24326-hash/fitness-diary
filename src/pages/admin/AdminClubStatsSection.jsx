@@ -3,13 +3,13 @@ import { BarChart3, ClipboardList, Info, LayoutGrid, LineChart, RefreshCw, Troph
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { loadClubTrainingStats, listTrainerSummariesForAdmin, listClubsLocal } from '../../lib/dataAccess'
 import { loadTrainerPeriodStats } from '../../lib/trainer/trainerPeriodStatsService'
-import { loadTrainerMonthlyStats } from '../../lib/trainer/trainerMonthlyStatsService'
+import { loadTrainerMonthlyStatsForYear } from '../../lib/trainer/trainerMonthlyStatsService'
 import { useDebouncedStorageReload, shouldReloadAdminStatsPage, shouldReloadTrainerClientList } from '../../lib/useDebouncedStorageReload'
 import { formatIsoRu, getDateRange, PERIOD_PRESETS } from '../../lib/period'
 import { AdminClubDayChart } from '../../components/AdminClubDayChart'
 import { AdminClubMonthlyChart } from '../../components/AdminClubMonthlyChart'
 import { MembershipTypeStatsTable } from '../../components/MembershipTypeStatsTable'
-import { loadClubMonthlyStats } from '../../lib/admin/adminClubMonthlyService'
+import { loadClubMonthlyStatsForYear, MONTHS_PER_CALENDAR_YEAR } from '../../lib/admin/adminClubMonthlyService'
 
 function rankMedal(i) {
   if (i === 0) return '🥇'
@@ -53,9 +53,18 @@ export function AdminClubStatsSection({
   const [inlinePanel, setInlinePanel] = useState(null)
   const [clubMonthly, setClubMonthly] = useState([])
   const [clubMonthlyBusy, setClubMonthlyBusy] = useState(false)
+  const [monthlyChartYear, setMonthlyChartYear] = useState(() => new Date().getFullYear())
+  const [monthlyYears, setMonthlyYears] = useState(() => [new Date().getFullYear()])
+  const monthlyCacheRef = useRef(new Map())
   const statsHelpRef = useRef(null)
 
   const range = useMemo(() => getDateRange(period, customFrom, customTo), [period, customFrom, customTo])
+
+  const defaultChartYear = useMemo(() => {
+    const end = String(range.end ?? '').slice(0, 10)
+    const y = Number(end.slice(0, 4))
+    return Number.isFinite(y) && y >= 2000 ? y : new Date().getFullYear()
+  }, [range.end])
 
   useEffect(() => {
     if (!range.start || !range.end || range.start > range.end) {
@@ -91,23 +100,44 @@ export function AdminClubStatsSection({
     setInlinePanel(null)
     setClubMonthly([])
     setClubMonthlyBusy(false)
-  }, [clubId, scopeClubId, isTrainerScope, range.start, range.end])
+    setMonthlyChartYear(defaultChartYear)
+    setMonthlyYears([defaultChartYear])
+    monthlyCacheRef.current.clear()
+  }, [clubId, scopeClubId, isTrainerScope, range.start, range.end, defaultChartYear])
 
-  /** Итог по 12 месяцам — сразу с остальной сводкой (данные из того же кэша workspace), график по клику. */
+  /** Итог по календарному году — только при открытии графика. */
   useEffect(() => {
-    if (!range.end) return
+    if (inlinePanel !== 'clubMonthly') return
     if (!isTrainerScope && !clubId) return
     if (isTrainerScope && !scopeTrainerId) return
 
+    const cacheKey = `${isTrainerScope ? scopeTrainerId : clubId}:${monthlyChartYear}`
+    const cached = monthlyCacheRef.current.get(cacheKey)
+    if (cached) {
+      setClubMonthly(cached.months)
+      setMonthlyYears(cached.years)
+      setClubMonthlyBusy(false)
+      return
+    }
+
     let cancelled = false
     const run = async () => {
+      setClubMonthly([])
       setClubMonthlyBusy(true)
       try {
         const res = isTrainerScope
-          ? await loadTrainerMonthlyStats({ trainerId: scopeTrainerId, clubId: scopeClubId, anchorTo: range.end, months: 12 })
-          : await loadClubMonthlyStats({ clubId, anchorTo: range.end, months: 12 })
+          ? await loadTrainerMonthlyStatsForYear({
+              trainerId: scopeTrainerId,
+              clubId: scopeClubId,
+              year: monthlyChartYear,
+            })
+          : await loadClubMonthlyStatsForYear({ clubId, year: monthlyChartYear })
         if (cancelled) return
-        setClubMonthly(Array.isArray(res?.months) ? res.months : [])
+        const months = Array.isArray(res?.months) ? res.months : []
+        const years = Array.isArray(res?.years)?.length ? res.years : [monthlyChartYear]
+        monthlyCacheRef.current.set(cacheKey, { months, years })
+        setClubMonthly(months)
+        setMonthlyYears(years)
       } catch {
         if (!cancelled) setClubMonthly([])
       } finally {
@@ -115,14 +145,11 @@ export function AdminClubStatsSection({
       }
     }
 
-    const id = requestAnimationFrame(() => {
-      void run()
-    })
+    void run()
     return () => {
       cancelled = true
-      cancelAnimationFrame(id)
     }
-  }, [clubId, scopeClubId, scopeTrainerId, isTrainerScope, range.end])
+  }, [inlinePanel, monthlyChartYear, clubId, scopeClubId, scopeTrainerId, isTrainerScope])
 
   useEffect(() => {
     if (!statsHelpOpen) return
@@ -221,8 +248,6 @@ export function AdminClubStatsSection({
   }
 
   const clubMonthlySum = useMemo(() => clubMonthly.reduce((sum, r) => sum + (Number(r?.count) || 0), 0), [clubMonthly])
-  const clubMonthlyValue =
-    clubMonthlyBusy && !clubMonthly.length ? '…' : clubMonthly.length || !clubMonthlyBusy ? String(clubMonthlySum) : '…'
 
   if (!isTrainerScope && !clubId) {
     return (
@@ -254,7 +279,11 @@ export function AdminClubStatsSection({
   const totalCounted = s?.totalCounted ?? 0
 
   const toggleInlinePanel = (panel) => {
-    setInlinePanel((cur) => (cur === panel ? null : panel))
+    setInlinePanel((cur) => {
+      const next = cur === panel ? null : panel
+      if (next === 'clubMonthly') setMonthlyChartYear(defaultChartYear)
+      return next
+    })
   }
 
   const statCardClass = (active) =>
@@ -377,6 +406,9 @@ export function AdminClubStatsSection({
               </li>
               <li>
                 <strong>По типам карт</strong> — таблица по типам; «Итого» без «Без типа».
+              </li>
+              <li>
+                <strong>{isTrainerScope ? 'Итог' : 'Итог по клубу'}</strong> — 12 календарных месяцев выбранного года; график по клику, без «Без типа».
               </li>
               {!isTrainerScope ? (
                 <li>
@@ -528,23 +560,21 @@ export function AdminClubStatsSection({
             disabled={!range.end}
             aria-label={
               range.end
-                ? `Итог за 12 месяцев: ${clubMonthlyBusy ? 'загрузка' : clubMonthlySum}. Нажмите для графика`
+                ? `Итог: ${MONTHS_PER_CALENDAR_YEAR} месяцев, ${defaultChartYear} год. Нажмите для графика`
                 : 'Итоговая статистика недоступна'
             }
-            title={range.end ? 'График по месяцам' : undefined}
+            title={range.end ? `График по месяцам · ${defaultChartYear}` : undefined}
             onClick={() => toggleInlinePanel('clubMonthly')}
           >
             <div className="stat-card__top admin-club-stat-card__head">
               <h3 className="td-stat-title admin-club-stat-card__title">{isTrainerScope ? 'Итог' : 'Итог по клубу'}</h3>
               <LineChart className="stat-card__icon" size={22} aria-hidden />
             </div>
-            <p className="stat-card__value admin-club-stat-card__value">{clubMonthlyValue}</p>
+            <p className="stat-card__value admin-club-stat-card__value">{MONTHS_PER_CALENDAR_YEAR}</p>
             <p className="admin-club-stat-card__foot">
               {inlinePanel === 'clubMonthly'
-                ? 'скрыть график'
-                : clubMonthlyBusy
-                  ? 'загрузка 12 мес.…'
-                  : '12 мес. · нажмите для графика'}
+                ? `скрыть · ${monthlyChartYear}`
+                : `${defaultChartYear} · нажмите для графика`}
             </p>
           </button>
           {!isTrainerScope ? (
@@ -590,7 +620,9 @@ export function AdminClubStatsSection({
       {inlinePanel === 'clubMonthly' ? (
         <section className="card admin-club-stats-detail" style={{ marginBottom: 20, padding: 14 }}>
           <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 10px' }}>
-            {isTrainerScope ? 'Итоговая статистика (по месяцам, мои клиенты)' : 'Итоговая статистика по клубу (по месяцам)'}
+            {isTrainerScope
+              ? `Итоговая статистика · ${monthlyChartYear}`
+              : `Итоговая статистика по клубу · ${monthlyChartYear}`}
           </h3>
           {clubMonthlyBusy && !clubMonthly.length ? (
             <p className="muted" style={{ margin: 0, fontSize: 13 }}>Загрузка…</p>
@@ -598,13 +630,34 @@ export function AdminClubStatsSection({
             <>
               {!clubMonthlySum && totalCompleted > 0 ? (
                 <p className="muted admin-inline-note" style={{ margin: '0 0 10px' }}>
-                  За выбранный период завершённых тренировок: <strong>{totalCompleted}</strong>, но с указанным типом карты —{' '}
-                  <strong>0</strong>. В итоговый отчёт по месяцам «Без типа» не входят.
+                  За {monthlyChartYear} год завершённых с типом карты нет (в периоде сводки — <strong>{totalCompleted}</strong>). «Без типа» в
+                  итог не входят.
                 </p>
               ) : null}
-              <AdminClubMonthlyChart rows={clubMonthly} />
+              <AdminClubMonthlyChart rows={clubMonthly} year={monthlyChartYear} />
             </>
           )}
+          {monthlyYears.length ? (
+            <div
+              className="row td-period__buttons admin-monthly-year-tabs"
+              style={{ flexWrap: 'wrap', gap: 8, marginTop: 14, justifyContent: 'center' }}
+            >
+              {monthlyYears.map((y) => (
+                <button
+                  key={y}
+                  type="button"
+                  className={`btn ${monthlyChartYear === y ? 'btn-primary' : 'btn-ghost'}`}
+                  aria-pressed={monthlyChartYear === y}
+                  disabled={clubMonthlyBusy && monthlyChartYear === y}
+                  onClick={() => {
+                    if (y !== monthlyChartYear) setMonthlyChartYear(y)
+                  }}
+                >
+                  {y}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </section>
       ) : null}
 

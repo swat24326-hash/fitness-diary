@@ -1,5 +1,8 @@
 import { loadTrainerWorkspaceSnapshot } from '../trainerWorkspaceCache'
-import { aggregateMonthlyTypedCompleted } from '../admin/adminClubMonthlyService'
+import {
+  aggregateMonthlyForCalendarYear,
+  discoverMonthlyChartYears,
+} from '../admin/adminClubMonthlyService'
 
 function flattenMemberships(memByClient) {
   const out = []
@@ -9,56 +12,38 @@ function flattenMemberships(memByClient) {
   return out
 }
 
-function monthStartIso(year, month1) {
-  return `${year}-${String(month1).padStart(2, '0')}-01`
-}
-
-function buildMonthKeys(anchorToIso, months) {
-  const end = String(anchorToIso ?? '').slice(0, 10)
-  const y = Number(end.slice(0, 4))
-  const m1 = Number(end.slice(5, 7))
-  if (!Number.isFinite(y) || !Number.isFinite(m1)) return []
-  const out = []
-  for (let i = months - 1; i >= 0; i--) {
-    const d = new Date(y, m1 - 1 - i, 1)
-    out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
-  }
-  return out
+function trainerTrainings(trainings, trainerId) {
+  const tid = String(trainerId ?? '').trim()
+  return (trainings ?? []).filter((t) => String(t.trainer_id) === tid)
 }
 
 /**
- * @param {{ trainerId: string, clubId: string | null, anchorTo: string, months?: number }} p
+ * Итог по календарному году (12 месяцев, только типизированные карты).
+ * @param {{ trainerId: string, clubId: string | null, year: number }} p
  */
-export async function loadTrainerMonthlyStats(p) {
+export async function loadTrainerMonthlyStatsForYear(p) {
   const trainerId = String(p.trainerId ?? '').trim()
   const clubId = String(p.clubId ?? '').trim()
-  const to = String(p.anchorTo ?? '').slice(0, 10)
-  const n = Math.max(3, Math.min(36, Number(p.months) || 12))
-  if (!trainerId || !to) return { months: [] }
-
-  const keys = buildMonthKeys(to, n)
-  if (!keys.length) return { months: [] }
+  const year = Number(p.year)
+  if (!trainerId || !Number.isFinite(year)) return { months: [], years: [] }
 
   const { trainings, memByClient } = await loadTrainerWorkspaceSnapshot(trainerId, clubId || null)
   const memberships = flattenMemberships(memByClient)
-
-  const first = keys[0]
-  const [fy, fm] = first.split('-').map((x) => Number(x))
-  const dateFrom = monthStartIso(fy, fm)
-  const dateTo = to
-
-  const inRange = (trainings ?? []).filter((t) => {
-    if (String(t.trainer_id) !== trainerId) return false
-    const d = String(t.date ?? '').slice(0, 10)
-    return d && d >= dateFrom && d <= dateTo
-  })
+  const mine = trainerTrainings(trainings, trainerId)
 
   return {
-    months: aggregateMonthlyTypedCompleted({
-      trainings: inRange,
-      memberships,
-      anchorTo: to,
-      months: n,
-    }),
+    months: aggregateMonthlyForCalendarYear({ trainings: mine, memberships, year }),
+    years: discoverMonthlyChartYears(mine, { anchorYear: year }),
   }
+}
+
+/** @deprecated используйте loadTrainerMonthlyStatsForYear */
+export async function loadTrainerMonthlyStats(p) {
+  const to = String(p.anchorTo ?? '').slice(0, 10)
+  const y = Number(to.slice(0, 4)) || new Date().getFullYear()
+  return loadTrainerMonthlyStatsForYear({
+    trainerId: p.trainerId,
+    clubId: p.clubId,
+    year: y,
+  })
 }
