@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { pullAdminClientsFromCloud } from '../lib/admin/adminClientsListService'
 import { pullTrainerWorkspaceFromCloud } from '../lib/trainerPullService'
 import { listSyncQueue } from '../lib/localDb'
-import { describeFlushQueueResult, flushSyncQueue, isAppOnline } from '../lib/syncService'
+import { describeFlushQueueResult, flushSyncQueue, getSyncOutboundSummary, isAppOnline } from '../lib/syncService'
 import { subscribeNetworkStatus } from '../lib/networkReachability'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -45,6 +45,7 @@ export function AppHeader() {
   const menuRootRef = useRef(null)
   const [adminClubs, setAdminClubs] = useState([])
   const [pendingSync, setPendingSync] = useState(0)
+  const [unsyncedLocal, setUnsyncedLocal] = useState(0)
   const [syncBusy, setSyncBusy] = useState(false)
   const [syncProgress, setSyncProgress] = useState({ percent: 0, label: '' })
   const [syncFeedback, setSyncFeedback] = useState(null)
@@ -54,16 +55,22 @@ export function AppHeader() {
   const [persistentErrorCount, setPersistentErrorCount] = useState(0)
   const pendingSyncRef = useRef(0)
 
-  const refreshPendingSync = async () => {
+  const refreshSyncOutbound = async () => {
     if (!isSupabaseConfigured()) {
       setPendingSync(0)
+      setUnsyncedLocal(0)
+      pendingSyncRef.current = 0
       return
     }
     try {
-      const q = await listSyncQueue()
-      setPendingSync(q.length)
+      const s = await getSyncOutboundSummary()
+      setPendingSync(s.queue)
+      setUnsyncedLocal(s.localOnly)
+      pendingSyncRef.current = s.total
     } catch {
       setPendingSync(0)
+      setUnsyncedLocal(0)
+      pendingSyncRef.current = 0
     }
   }
 
@@ -154,14 +161,14 @@ export function AppHeader() {
   }, [refreshAttention])
 
   useEffect(() => {
-    void refreshPendingSync()
-    const onData = () => void refreshPendingSync()
+    void refreshSyncOutbound()
+    const onData = () => void refreshSyncOutbound()
     window.addEventListener(LOCAL_DATA_CHANGED, onData)
     return () => window.removeEventListener(LOCAL_DATA_CHANGED, onData)
   }, [])
 
   useEffect(() => {
-    if (menuOpen) void refreshPendingSync()
+    if (menuOpen) void refreshSyncOutbound()
   }, [menuOpen])
 
   useEffect(() => {
@@ -248,6 +255,9 @@ export function AppHeader() {
         }
       }
       if (flushDesc.part) parts.push(flushDesc.part)
+      if ((flush.requeued ?? 0) > 0) {
+        parts.unshift(`в очередь +${flush.requeued}`)
+      }
       if (flushDesc.hadError) hadError = true
 
       if (flush?.ok) {
@@ -357,7 +367,7 @@ export function AppHeader() {
 
       const { pruneRedundantSyncQueue } = await import('../lib/syncQueueOrphans')
       await pruneRedundantSyncQueue()
-      await refreshPendingSync()
+      await refreshSyncOutbound()
       const queueLeft = (await listSyncQueue()).length
       dispatchLocalDataChanged({ reason: 'sync-complete' })
 
@@ -430,8 +440,9 @@ export function AppHeader() {
     setSearchParams(next, { replace: true })
   }
 
-  const showTrainerHeaderSync = !isAdmin && supabaseReady
-  const syncHasPending = pendingSync > 0
+  const showHeaderSync = supabaseReady
+  const syncOutboundTotal = pendingSync + unsyncedLocal
+  const syncHasPending = syncOutboundTotal > 0
   const syncBtnClass = [
     'btn',
     'btn-ghost',
@@ -444,7 +455,11 @@ export function AppHeader() {
       ? `${syncProgress.percent}% — ${syncProgress.label}`
       : `Синхронизация… ${syncProgress.percent}%`
     : syncHasPending
-      ? `Отправить в облако (${pendingSync} в очереди)`
+      ? unsyncedLocal > 0 && pendingSync === 0
+        ? `Только на устройстве: ${unsyncedLocal} — отправить в облако`
+        : unsyncedLocal > 0
+          ? `Очередь ${pendingSync}, ещё ${unsyncedLocal} только на устройстве`
+          : `Отправить в облако (${pendingSync} в очереди)`
       : 'Синхронизировать с облаком'
 
   return (
@@ -543,7 +558,7 @@ export function AppHeader() {
           </select>
         ) : null}
         {!isAdmin && user ? <HeaderStopwatch /> : null}
-        {showTrainerHeaderSync ? (
+        {showHeaderSync ? (
           <div className="app-header__sync-wrap">
             <button
               type="button"
@@ -561,7 +576,7 @@ export function AppHeader() {
                 </span>
               ) : syncHasPending ? (
                 <span className="app-header__sync-badge" aria-hidden>
-                  {pendingSync > 99 ? '99+' : pendingSync}
+                  {syncOutboundTotal > 99 ? '99+' : syncOutboundTotal}
                 </span>
               ) : null}
             </button>
@@ -647,7 +662,7 @@ export function AppHeader() {
                 </span>
               </div>
             </div>
-            {isAdmin ? (
+            {supabaseReady ? (
               <button
                 type="button"
                 className="app-header__menu-item"
@@ -659,7 +674,9 @@ export function AppHeader() {
                   ? syncProgress.label
                     ? `${syncProgress.percent}% — ${syncProgress.label}`
                     : `Синхронизация… ${syncProgress.percent}%`
-                  : 'Синхронизировать'}
+                  : syncHasPending
+                    ? `Синхронизировать (${syncOutboundTotal})`
+                    : 'Синхронизировать'}
               </button>
             ) : null}
             <button

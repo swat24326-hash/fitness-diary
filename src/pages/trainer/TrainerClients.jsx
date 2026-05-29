@@ -16,7 +16,7 @@ import {
   isBirthdayWithinNextDays,
 } from '../../lib/clientBirthdays'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
-import { membershipHasRemaining, pickUsableMembershipForDate } from '../../lib/membershipRules'
+import { membershipHasRemaining, membershipUsageLabel, pickUsableMembershipForDate } from '../../lib/membershipRules'
 
 function pickExpiredMembershipWithRemaining(list, todayIso) {
   const d = String(todayIso ?? '')
@@ -331,6 +331,7 @@ export function TrainerClients() {
             <ul className="list">
               {filteredClients.map((c) => {
                 const mlist = memByClient[c.id] ?? []
+                const clientTrainings = trainings.filter((t) => t.client_id === c.id)
                 const active = pickUsableMembershipForDate(mlist, today)
                 const sig = membershipSignal(mlist, today)
                 const expiredLeft = active ? null : pickExpiredMembershipWithRemaining(mlist, today)
@@ -392,9 +393,7 @@ export function TrainerClients() {
                       </span>
                       <span>
                         Использовано:{' '}
-                        <strong>
-                          {active.used_trainings ?? 0}/{active.total_trainings ?? '—'}
-                        </strong>
+                        <strong>{membershipUsageLabel(active, clientTrainings)}</strong>
                       </span>
                     </>
                   ) : expiredLeft ? (
@@ -404,9 +403,7 @@ export function TrainerClients() {
                       </span>
                       <span>
                         Использовано:{' '}
-                        <strong>
-                          {expiredLeft.used_trainings ?? 0}/{expiredLeft.total_trainings ?? '—'}
-                        </strong>
+                        <strong>{membershipUsageLabel(expiredLeft, clientTrainings)}</strong>
                       </span>
                     </>
                   ) : (

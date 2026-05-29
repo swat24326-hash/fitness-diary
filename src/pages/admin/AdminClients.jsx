@@ -16,7 +16,7 @@ import { isSupabaseConfigured, supabase } from '../../lib/supabase'
 import { USERS_TRAINER_ROLES } from '../../lib/userRoleConstants'
 import { saveLocalWithSync } from '../../lib/syncService'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
-import { membershipHasRemaining, pickUsableMembershipForDate } from '../../lib/membershipRules'
+import { countedUsedTrainingsOnMembership, membershipHasRemaining, membershipUsageLabel, pickUsableMembershipForDate } from '../../lib/membershipRules'
 
 function pickExpiredMembershipWithRemaining(list, todayIso) {
   const d = String(todayIso ?? '')
@@ -431,6 +431,7 @@ export function AdminClients() {
           <ul className="list">
             {filteredClients.map((c) => {
               const mlist = memByClient[c.id] ?? []
+              const clientTrainings = trainings.filter((t) => t.client_id === c.id)
               const active = pickUsableMembershipForDate(mlist, today)
               const sig = membershipSignal(mlist, today)
               const expiredLeft = active ? null : pickExpiredMembershipWithRemaining(mlist, today)
@@ -484,6 +485,9 @@ export function AdminClients() {
                         <span>
                           Абонемент до <strong>{formatDateRu(active.end_date)}</strong>
                         </span>
+                        <span>
+                          Использовано: <strong>{membershipUsageLabel(active, clientTrainings)}</strong>
+                        </span>
                         <span className="td-muted-sep">·</span>
                       </>
                     ) : expiredLeft ? (
@@ -493,8 +497,15 @@ export function AdminClients() {
                           <strong>
                             {(() => {
                               const total = Number(expiredLeft.total_trainings ?? 0)
-                              const used = Number(expiredLeft.used_trainings ?? 0)
-                              return Number.isFinite(total) && Number.isFinite(used) ? Math.max(0, total - used) : '—'
+                              const used = Math.max(
+                                0,
+                                total - countedUsedTrainingsOnMembership(expiredLeft, clientTrainings),
+                              )
+                              const usedStored = Number(expiredLeft.used_trainings ?? 0)
+                              const remaining = Number.isFinite(total)
+                                ? Math.max(0, total - Math.max(used, usedStored))
+                                : null
+                              return remaining ?? '—'
                             })()}
                           </strong>
                         </span>

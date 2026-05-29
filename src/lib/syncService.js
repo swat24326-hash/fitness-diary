@@ -18,7 +18,7 @@ import {
   purgeSyncQueueAgainstLocalClients,
   pruneRedundantSyncQueue,
 } from './syncQueueOrphans'
-import { enqueueUnsyncedLocalRecords, recordForPush } from './syncLocalRecords'
+import { enqueueUnsyncedLocalRecords, recordForPush, countUnsyncedLocalRecords } from './syncLocalRecords'
 import { reportSyncOutcome } from './appErrorJournal'
 import { invalidateTrainerWorkspaceCache } from './trainerWorkspaceCache'
 import { invalidateAdminClubWorkspaceCache } from './admin/adminClubWorkspaceCache'
@@ -126,6 +126,15 @@ export async function getPendingSyncQueueLength() {
   } catch {
     return 0
   }
+}
+
+export { countUnsyncedLocalRecords } from './syncLocalRecords'
+
+/** Очередь + записи только на устройстве (ещё не в sync_queue). */
+export async function getSyncOutboundSummary() {
+  const queue = await getPendingSyncQueueLength()
+  const { total: localOnly } = await countUnsyncedLocalRecords()
+  return { queue, localOnly, total: queue + localOnly }
 }
 
 export function getFlushInFlightPromise() {
@@ -435,13 +444,13 @@ async function flushSyncQueueInnerWork() {
   await collapseRedundantQueueItems()
   await collapseDuplicateQueueInserts()
   await pruneRedundantSyncQueue()
-  await enqueueUnsyncedLocalRecords()
+  const requeued = await enqueueUnsyncedLocalRecords()
 
   let queue = await listSyncQueue()
   const total = queue.length
-  reportQueueFlushProgress(0, total, total > 0 ? 'Подготовка…' : 'Очередь пуста')
+  reportQueueFlushProgress(0, total, requeued > 0 ? `В очередь: +${requeued}…` : total > 0 ? 'Подготовка…' : 'Очередь пуста')
   if (total === 0) {
-    return { ok: true, remaining: 0 }
+    return { ok: true, remaining: 0, requeued }
   }
 
   let processed = 0
@@ -522,7 +531,9 @@ async function flushSyncQueueInnerWork() {
 
   await pruneRedundantSyncQueue()
   const remaining = (await listSyncQueue()).length
-  return remaining === 0 ? { ok: true, remaining: 0 } : { ok: false, reason: 'pending_items', remaining }
+  return remaining === 0
+    ? { ok: true, remaining: 0, requeued }
+    : { ok: false, reason: 'pending_items', remaining, requeued }
 }
 
 export async function saveLocalWithSync(storeName, record, { table_name, operation, remote_id }) {

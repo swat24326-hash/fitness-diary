@@ -30,9 +30,10 @@ const rows = [
 
 assert(shouldEnqueueUnsyncedRecord(rows[0], new Set(), 'trainings'), 'unsynced training')
 assert(!shouldEnqueueUnsyncedRecord(rows[1], new Set(), 'trainings'), 'synced training skip')
-assert(!shouldEnqueueUnsyncedRecord(rows[2], new Set(), 'trainings'), 'undefined synced skip')
+assert(shouldEnqueueUnsyncedRecord(rows[2], new Set(), 'trainings'), 'legacy missing synced enqueue')
+assert(!shouldEnqueueUnsyncedRecord(rows[2], new Set(['t3']), 'trainings'), 'legacy skip when pending')
 assert(!shouldEnqueueUnsyncedRecord(rows[3], pendingMemberships, 'memberships'), 'already pending skip')
-assert(pickUnsyncedRecordsForEnqueue(rows.slice(0, 3), new Set(), 'trainings').length === 1, 'pick one training')
+assert(pickUnsyncedRecordsForEnqueue(rows.slice(0, 3), new Set(), 'trainings').length === 2, 'pick two trainings')
 assert(pickUnsyncedRecordsForEnqueue(rows.slice(3), pendingMemberships, 'memberships').length === 1, 'pick m2 only')
 
 const push = recordForPush({ id: 't1', synced: false, __sync: { operation: 'insert' }, date: '2026-05-01' })

@@ -8,8 +8,18 @@ const STORAGE_EVENT = 'fitness-diary-storage'
 /** @type {null | { key: string, clients: object[], trainings: object[], memByClient: Record<string, object[]> }} */
 let snapshot = null
 
+let invalidateTimer = null
+
 export function invalidateTrainerWorkspaceCache() {
-  snapshot = null
+  if (typeof window === 'undefined') {
+    snapshot = null
+    return
+  }
+  if (invalidateTimer) clearTimeout(invalidateTimer)
+  invalidateTimer = setTimeout(() => {
+    invalidateTimer = null
+    snapshot = null
+  }, 900)
 }
 
 function buildMemMap(memberships, clientIds) {

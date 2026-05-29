@@ -72,6 +72,64 @@ export function compareTrainingsChronological(a, b) {
 }
 
 /**
+ * Завершённые тренировки, списанные на абонемент (как в MembershipManager).
+ * @returns {object[]}
+ */
+export function completedTrainingsOnMembership(membership, allTrainings) {
+  if (!membership?.id) return []
+  const s = String(membership.start_date ?? '')
+  const e = String(membership.end_date ?? '')
+  const listSrc = Array.isArray(allTrainings) ? allTrainings : []
+
+  const byId = listSrc.filter((t) => t?.status === 'completed' && t?.data?.membership_id === membership.id)
+  const hasAnyById = byId.length > 0
+
+  const legacyByRange = listSrc.filter((t) => {
+    if (t?.status !== 'completed') return false
+    const mid = t?.data?.membership_id
+    if (mid) return false
+    const d = String(t?.date ?? '').slice(0, 10)
+    if (!d || !s || !e) return false
+    return d >= s && d <= e
+  })
+
+  const list = hasAnyById
+    ? [...byId, ...legacyByRange]
+    : listSrc.filter((t) => {
+        if (t?.status !== 'completed') return false
+        const mid = t?.data?.membership_id
+        if (mid && mid !== membership.id) return false
+        const d = String(t?.date ?? '').slice(0, 10)
+        if (!d || !s || !e) return false
+        return d >= s && d <= e
+      })
+
+  const seen = new Set()
+  const out = []
+  for (const t of list) {
+    if (!t?.id || seen.has(t.id)) continue
+    seen.add(t.id)
+    out.push(t)
+  }
+
+  out.sort(compareTrainingsChronological)
+  return out
+}
+
+/** Сколько тренировок реально списано на абонемент (по дневнику), не только поле used_trainings. */
+export function countedUsedTrainingsOnMembership(membership, clientTrainings) {
+  return completedTrainingsOnMembership(membership, clientTrainings).length
+}
+
+/** Текст «used/total» для списка клиентов. */
+export function membershipUsageLabel(membership, clientTrainings) {
+  if (!membership) return '—'
+  const used = countedUsedTrainingsOnMembership(membership, clientTrainings)
+  const total = membership.total_trainings
+  return `${used}/${total ?? '—'}`
+}
+
+/**
  * Номер завершённой тренировки по абонементу (1…total_trainings).
  * Если в данных тренировки есть membership_id — считаем только среди записей с тем же id.
  * Иначе — среди завершённых тренировок в датах [start_date…end_date] этого абонемента (хронология).

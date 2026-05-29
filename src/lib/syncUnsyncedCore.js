@@ -36,7 +36,7 @@ export function defaultSyncOperation(table_name, record) {
 }
 
 export function shouldEnqueueUnsyncedRecord(record, pendingKeys, table_name) {
-  if (!record || record.synced !== false) return false
+  if (!record || record.synced === true) return false
   const key = recordKeyForTable(table_name, record)
   if (!key) return false
   if (pendingKeys?.has(key)) return false

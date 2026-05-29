@@ -3,6 +3,7 @@ import { listMemberships, listTrainingsForClient } from '../lib/dataAccess'
 import { getDb } from '../lib/localDb'
 import { deleteLocalWithSync, saveLocalWithSync } from '../lib/syncService'
 import { addDaysToIso, formatDateRu, formatDateTimeRu, todayLocalIso } from '../lib/dateRu'
+import { completedTrainingsOnMembership } from '../lib/membershipRules'
 import { listMembershipTypesForClub, membershipTypeCode } from '../lib/membershipTypesService'
 import { CheckCircle2, Eye, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
@@ -132,55 +133,7 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
     [typesById],
   )
 
-  const computeMembershipTrainings = useCallback(
-    (m, allTrainings) => {
-      if (!m?.id) return []
-      const s = String(m.start_date ?? '')
-      const e = String(m.end_date ?? '')
-      const listSrc = Array.isArray(allTrainings) ? allTrainings : []
-
-      const byId = listSrc.filter((t) => t?.status === 'completed' && t?.data?.membership_id === m.id)
-      const hasAnyById = byId.length > 0
-
-      const legacyByRange = listSrc.filter((t) => {
-        if (t?.status !== 'completed') return false
-        const mid = t?.data?.membership_id
-        if (mid) return false
-        const d = String(t?.date ?? '').slice(0, 10)
-        if (!d || !s || !e) return false
-        return d >= s && d <= e
-      })
-
-      const list = hasAnyById
-        ? [...byId, ...legacyByRange]
-        : listSrc.filter((t) => {
-            if (t?.status !== 'completed') return false
-            const mid = t?.data?.membership_id
-            if (mid && mid !== m.id) return false
-            const d = String(t?.date ?? '').slice(0, 10)
-            if (!d || !s || !e) return false
-            return d >= s && d <= e
-          })
-
-      // uniq by id
-      const seen = new Set()
-      const out = []
-      for (const t of list) {
-        if (!t?.id || seen.has(t.id)) continue
-        seen.add(t.id)
-        out.push(t)
-      }
-
-      out.sort((a, b) => {
-        const da = String(a?.date ?? '').slice(0, 10)
-        const db = String(b?.date ?? '').slice(0, 10)
-        if (da !== db) return da.localeCompare(db)
-        return String(a?.created_at ?? '').localeCompare(String(b?.created_at ?? ''))
-      })
-      return out
-    },
-    [],
-  )
+  const computeMembershipTrainings = useCallback((m, allTrainings) => completedTrainingsOnMembership(m, allTrainings), [])
 
   const onChangedRef = useRef(onChanged)
   onChangedRef.current = onChanged

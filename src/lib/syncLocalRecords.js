@@ -63,6 +63,24 @@ export async function markRecordSynced(table_name, data) {
   await putStore(store, { ...rest, synced: true })
 }
 
+/** @returns {Promise<{ total: number, byTable: Record<string, number> }>} */
+export async function countUnsyncedLocalRecords() {
+  const db = await getDb()
+  const pending = await buildPendingSyncKeysByTable()
+  const byTable = {}
+  let total = 0
+
+  for (const { store, table, table_name } of UNSYNCED_SCAN) {
+    const rows = await db.getAll(store)
+    const pendingKeys = pending[table] ?? new Set()
+    const n = pickUnsyncedRecordsForEnqueue(rows, pendingKeys, table_name).length
+    if (n > 0) byTable[table_name] = n
+    total += n
+  }
+
+  return { total, byTable }
+}
+
 /** @returns {Promise<number>} */
 export async function enqueueUnsyncedLocalRecords() {
   const db = await getDb()

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Plus, Pencil } from 'lucide-react'
 import { hydrateAdminClientWorkspace } from '../../lib/admin/adminClientHydrate'
-import { getHealthCard, listMeasurements, listMemberships } from '../../lib/dataAccess'
+import { getHealthCard, listMeasurements, listMemberships, listTrainingsForClient } from '../../lib/dataAccess'
 import { useDebouncedStorageReload } from '../../lib/useDebouncedStorageReload'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { stripDirectionControls } from '../../lib/textInput'
@@ -9,10 +9,11 @@ import { saveLocalWithSync } from '../../lib/syncService'
 import { MembershipManager } from '../../components/MembershipManager'
 import { BODY_MEASURE_FIELDS, getMeasureValue } from '../../lib/bodyMeasures'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
-import { explainInactiveMembership, pickUsableMembershipForDate } from '../../lib/membershipRules'
+import { explainInactiveMembership, pickUsableMembershipForDate, countedUsedTrainingsOnMembership } from '../../lib/membershipRules'
 
 export function ClientOverview({ client, onReload, section = 'all' }) {
   const [memberships, setMemberships] = useState([])
+  const [clientTrainings, setClientTrainings] = useState([])
   const [health, setHealth] = useState(null)
   const [healthForm, setHealthForm] = useState({
     height_cm: '',
@@ -46,6 +47,7 @@ export function ClientOverview({ client, onReload, section = 'all' }) {
   const reloadLocal = useCallback(async () => {
     const m = await listMemberships(client.id)
     setMemberships(m)
+    setClientTrainings(await listTrainingsForClient(client.id))
     const hc = await getHealthCard(client.id)
     setHealth(hc)
     setHealthForm({
@@ -93,10 +95,15 @@ export function ClientOverview({ client, onReload, section = 'all' }) {
 
   const progressPct = useMemo(() => {
     if (!active?.total_trainings) return 0
-    const u = active.used_trainings ?? 0
+    const u = countedUsedTrainingsOnMembership(active, clientTrainings)
     const t = active.total_trainings
     return Math.min(100, Math.round((u / t) * 100))
-  }, [active])
+  }, [active, clientTrainings])
+
+  const activeUsedCount = useMemo(
+    () => (active ? countedUsedTrainingsOnMembership(active, clientTrainings) : 0),
+    [active, clientTrainings],
+  )
 
   const bmi = useMemo(() => {
     const h = Number(String(healthForm.height_cm ?? '').replace(',', '.'))
@@ -251,7 +258,7 @@ export function ClientOverview({ client, onReload, section = 'all' }) {
             <p style={{ margin: '4px 0 10px' }}>
               Использовано тренировок:{' '}
               <strong>
-                {active.used_trainings ?? 0} / {active.total_trainings ?? '—'}
+                {activeUsedCount} / {active.total_trainings ?? '—'}
               </strong>
             </p>
             <div
