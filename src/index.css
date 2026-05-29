@@ -3081,6 +3081,87 @@ tr:last-child td {
   display: none !important;
 }
 
+/* Админ: типы абонементов — каталог уже добавленных */
+.admin-mt-catalog {
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-muted);
+}
+
+.admin-mt-catalog__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 10px;
+}
+
+.admin-mt-catalog__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.admin-mt-catalog__count {
+  font-size: 0.85rem;
+}
+
+.admin-mt-catalog__empty {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.admin-mt-catalog__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-mt-chip {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+}
+
+.admin-mt-chip--active {
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.admin-mt-chip--inactive {
+  opacity: 0.65;
+  font-weight: 600;
+  text-decoration: line-through;
+}
+
+.admin-mt-catalog__inactive {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+
+.admin-mt-catalog__inactive-label {
+  display: block;
+  font-size: 0.8rem;
+  margin-bottom: 6px;
+}
+
+.admin-mt-table__caption {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+}
+
 .admin-org--tab {
   grid-template-columns: 1fr;
 }

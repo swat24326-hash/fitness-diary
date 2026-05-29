@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { RefreshCw, Trash2 } from 'lucide-react'
 import { isSupabaseConfigured } from '../../lib/supabase'
@@ -65,6 +65,17 @@ export function AdminMembershipTypes() {
       setMsg('Введите короткое название типа.')
       return
     }
+    const duplicate = items.find(
+      (t) => String(t.code ?? '').toLowerCase() === normalized.toLowerCase(),
+    )
+    if (duplicate) {
+      setMsg(
+        duplicate.is_active === false
+          ? `Тип «${duplicate.code}» уже был — он отключён. Включите снова через повторное добавление или обновите список.`
+          : `Тип «${duplicate.code}» уже в списке.`,
+      )
+      return
+    }
     setMsg('')
     setBusy(true)
     try {
@@ -80,6 +91,16 @@ export function AdminMembershipTypes() {
       setBusy(false)
     }
   }
+
+  const { activeItems, inactiveItems } = useMemo(() => {
+    const active = []
+    const inactive = []
+    for (const t of items) {
+      if (t.is_active === false) inactive.push(t)
+      else active.push(t)
+    }
+    return { activeItems: active, inactiveItems: inactive }
+  }, [items])
 
   const runDeactivate = async () => {
     if (!confirmId) return
@@ -131,6 +152,48 @@ export function AdminMembershipTypes() {
         ) : null}
       </div>
 
+      <section className="admin-mt-catalog" aria-labelledby="admin-mt-catalog-title">
+        <div className="admin-mt-catalog__head">
+          <h3 id="admin-mt-catalog-title" className="admin-mt-catalog__title">
+            Добавленные типы
+          </h3>
+          <span className="muted admin-mt-catalog__count">
+            {items.length === 0
+              ? 'пока нет'
+              : `активных ${activeItems.length}${inactiveItems.length ? ` · отключённых ${inactiveItems.length}` : ''}`}
+          </span>
+        </div>
+        {items.length === 0 ? (
+          <p className="muted admin-mt-catalog__empty">Список пуст — добавьте типы ниже.</p>
+        ) : (
+          <>
+            {activeItems.length > 0 ? (
+              <ul className="admin-mt-catalog__chips" aria-label="Активные типы">
+                {activeItems.map((t) => (
+                  <li key={t.id}>
+                    <span className="admin-mt-chip admin-mt-chip--active">{t.code}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="muted admin-mt-catalog__empty">Нет активных типов — тренер не сможет выбрать тип в новых абонементах.</p>
+            )}
+            {inactiveItems.length > 0 ? (
+              <div className="admin-mt-catalog__inactive">
+                <span className="muted admin-mt-catalog__inactive-label">Отключённые:</span>
+                <ul className="admin-mt-catalog__chips" aria-label="Отключённые типы">
+                  {inactiveItems.map((t) => (
+                    <li key={t.id}>
+                      <span className="admin-mt-chip admin-mt-chip--inactive">{t.code}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </>
+        )}
+      </section>
+
       <form onSubmit={addType} className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div className="field" style={{ margin: 0, minWidth: 120, flex: '1 1 140px' }}>
           <label className="label" htmlFor="membership-type-code">
@@ -151,12 +214,9 @@ export function AdminMembershipTypes() {
         </button>
       </form>
 
-      {items.length === 0 ? (
-        <p className="muted" style={{ margin: 0 }}>
-          Пока нет типов — добавьте первый.
-        </p>
-      ) : (
-        <div className="table-wrap">
+      {items.length > 0 ? (
+        <div className="table-wrap admin-mt-table">
+          <p className="muted admin-mt-table__caption">Управление: отключить тип</p>
           <table>
             <thead>
               <tr>
@@ -191,7 +251,7 @@ export function AdminMembershipTypes() {
             </tbody>
           </table>
         </div>
-      )}
+      ) : null}
 
       {confirmId ? (
         <div className="modal-overlay" role="dialog" aria-modal="true" onClick={() => setConfirmId(null)}>
