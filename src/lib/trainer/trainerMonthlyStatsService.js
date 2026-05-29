@@ -2,6 +2,7 @@ import { loadTrainerWorkspaceSnapshot } from '../trainerWorkspaceCache'
 import {
   aggregateMonthlyForCalendarYear,
   discoverMonthlyChartYears,
+  summarizeCalendarYearMonthlyEligibility,
 } from '../admin/adminClubMonthlyService'
 
 function flattenMemberships(memByClient) {
@@ -31,9 +32,11 @@ export async function loadTrainerMonthlyStatsForYear(p) {
   const memberships = flattenMemberships(memByClient)
   const mine = trainerTrainings(trainings, trainerId)
 
+  const inYear = mine.filter((t) => String(t?.date ?? '').slice(0, 4) === String(year))
   return {
     months: aggregateMonthlyForCalendarYear({ trainings: mine, memberships, year }),
     years: discoverMonthlyChartYears(mine, { anchorYear: year }),
+    yearSummary: summarizeCalendarYearMonthlyEligibility({ trainings: inYear, memberships, year }),
   }
 }
 

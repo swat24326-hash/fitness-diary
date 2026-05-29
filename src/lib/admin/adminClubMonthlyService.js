@@ -1,6 +1,6 @@
 import { isSupabaseConfigured } from '../supabase'
 import { getDb } from '../localDb'
-import { fetchClubMonthlyStatsViaApi } from './adminApiClient'
+import { fetchClubMonthlyStatsViaApi, fetchClubMonthlyStatsForYearViaApi } from './adminApiClient'
 
 function monthStartIso(year, month1) {
   const y = String(year)
@@ -104,6 +104,38 @@ export function aggregateMonthlyForCalendarYear({ trainings, memberships, year }
 }
 
 /**
+ * Сводка за календарный год: все завершённые vs попадающие в помесячный график (с типом карты).
+ * @param {{ trainings: object[], memberships: object[], year: number }} input
+ */
+export function summarizeCalendarYearMonthlyEligibility({ trainings, memberships, year }) {
+  const y = Number(year)
+  if (!Number.isFinite(y)) return { completedInYear: 0, typedInYear: 0 }
+
+  const membershipTypeById = new Map()
+  for (const m of memberships ?? []) {
+    const id = String(m?.id ?? '').trim()
+    if (!id) continue
+    const tid = String(m?.membership_type_id ?? '').trim()
+    membershipTypeById.set(id, tid || null)
+  }
+
+  const prefix = `${y}-`
+  let completedInYear = 0
+  let typedInYear = 0
+
+  for (const t of trainings ?? []) {
+    if (t?.status !== 'completed') continue
+    if (!String(t?.date ?? '').slice(0, 7).startsWith(prefix)) continue
+    completedInYear++
+    const mid = String(t?.data?.membership_id ?? '').trim()
+    if (!mid) continue
+    if (membershipTypeById.get(mid)) typedInYear++
+  }
+
+  return { completedInYear, typedInYear }
+}
+
+/**
  * Годы для переключателей: от текущего календарного до первого года с завершёнными тренировками.
  * @param {object[]} trainings
  * @param {{ anchorYear?: number }} [opts]
@@ -138,6 +170,21 @@ export async function loadClubMonthlyStatsForYear({ clubId, year }) {
   const dateFrom = `${y}-01-01`
   const dateTo = `${y}-12-31`
 
+  if (isSupabaseConfigured()) {
+    try {
+      const via = await fetchClubMonthlyStatsForYearViaApi({ clubId: cid, year: y })
+      if (via && Array.isArray(via.months)) {
+        return {
+          months: via.months,
+          years: Array.isArray(via.years)?.length ? via.years : [y],
+          yearSummary: via.yearSummary ?? { completedInYear: 0, typedInYear: 0 },
+        }
+      }
+    } catch {
+      // локальный кэш ниже
+    }
+  }
+
   try {
     const db = await getDb()
     const [trainingsAll, membershipsAll] = await Promise.all([db.getAll('trainings'), db.getAll('memberships')])
@@ -146,12 +193,14 @@ export async function loadClubMonthlyStatsForYear({ clubId, year }) {
     )
     const memberships = membershipsAll.filter((m) => m.club_id === cid)
     const clubTrainings = trainingsAll.filter((t) => t.club_id === cid)
+    const yearSummary = summarizeCalendarYearMonthlyEligibility({ trainings, memberships, year: y })
     return {
       months: aggregateMonthlyForCalendarYear({ trainings, memberships, year: y }),
       years: discoverMonthlyChartYears(clubTrainings, { anchorYear: y }),
+      yearSummary,
     }
   } catch {
-    return { months: [], years: [y] }
+    return { months: [], years: [y], yearSummary: { completedInYear: 0, typedInYear: 0 } }
   }
 }
 

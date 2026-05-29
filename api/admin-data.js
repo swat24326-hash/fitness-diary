@@ -5,7 +5,12 @@
 import { requireAdmin, requireAuthUser, sendJson, setCors } from './lib/adminSupabase.js'
 import { aggregateTrainings, aggregateClubClientPeriod } from './lib/clubStatsAgg.js'
 import { aggregateMembershipTypeStats } from './lib/membershipTypeStatsAgg.js'
-import { aggregateMonthlyTypedCompleted } from './lib/clubMonthlyAgg.js'
+import {
+  aggregateMonthlyTypedCompleted,
+  aggregateMonthlyForCalendarYear,
+  discoverMonthlyChartYears,
+  summarizeCalendarYearMonthlyEligibility,
+} from './lib/clubMonthlyAgg.js'
 
 const PAGE = 400
 const IN_CHUNK = 80
@@ -410,10 +415,40 @@ async function handleExercises(authCtx, res) {
 
 async function handleClubMonthly(ctx, req, res) {
   const clubId = String(req.query?.club_id ?? '').trim()
+  const yearOnly = String(req.query?.year ?? '').trim()
+
+  if (yearOnly) {
+    const y = Number(yearOnly)
+    if (!clubId || !Number.isFinite(y) || y < 2000) {
+      sendJson(res, 400, { error: 'Укажите club_id и year' })
+      return
+    }
+    try {
+      const { supabaseAdmin } = ctx
+      const dateFrom = `${y}-01-01`
+      const dateTo = `${y}-12-31`
+      const [trainings, memberships, allTrainings] = await Promise.all([
+        fetchPaged(supabaseAdmin, 'trainings', 'id, date, status, data', clubId, dateFrom, dateTo),
+        fetchPaged(supabaseAdmin, 'memberships', 'id, membership_type_id', clubId, null, null),
+        fetchPaged(supabaseAdmin, 'trainings', 'id, date, status', clubId, null, null),
+      ])
+      sendJson(res, 200, {
+        months: aggregateMonthlyForCalendarYear({ trainings, memberships, year: y }),
+        years: discoverMonthlyChartYears(allTrainings, { anchorYear: y }),
+        yearSummary: summarizeCalendarYearMonthlyEligibility({ trainings, memberships, year: y }),
+        club_id: clubId,
+        year: y,
+      })
+    } catch (e) {
+      sendJson(res, 400, { error: e?.message ? String(e.message) : 'Ошибка' })
+    }
+    return
+  }
+
   const anchorTo = String(req.query?.anchor_to ?? '').slice(0, 10)
   const months = Math.max(3, Math.min(36, Number(req.query?.months ?? 12) || 12))
   if (!clubId || !anchorTo) {
-    sendJson(res, 400, { error: 'Укажите club_id, anchor_to' })
+    sendJson(res, 400, { error: 'Укажите club_id, anchor_to или year' })
     return
   }
   try {

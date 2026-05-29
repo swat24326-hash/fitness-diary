@@ -55,6 +55,7 @@ export function AdminClubStatsSection({
   const [clubMonthlyBusy, setClubMonthlyBusy] = useState(false)
   const [monthlyChartYear, setMonthlyChartYear] = useState(() => new Date().getFullYear())
   const [monthlyYears, setMonthlyYears] = useState(() => [new Date().getFullYear()])
+  const [monthlyYearSummary, setMonthlyYearSummary] = useState(null)
   const monthlyCacheRef = useRef(new Map())
   const statsHelpRef = useRef(null)
 
@@ -102,6 +103,7 @@ export function AdminClubStatsSection({
     setClubMonthlyBusy(false)
     setMonthlyChartYear(defaultChartYear)
     setMonthlyYears([defaultChartYear])
+    setMonthlyYearSummary(null)
     monthlyCacheRef.current.clear()
   }, [clubId, scopeClubId, isTrainerScope, range.start, range.end, defaultChartYear])
 
@@ -116,6 +118,7 @@ export function AdminClubStatsSection({
     if (cached) {
       setClubMonthly(cached.months)
       setMonthlyYears(cached.years)
+      setMonthlyYearSummary(cached.yearSummary ?? null)
       setClubMonthlyBusy(false)
       return
     }
@@ -135,11 +138,16 @@ export function AdminClubStatsSection({
         if (cancelled) return
         const months = Array.isArray(res?.months) ? res.months : []
         const years = Array.isArray(res?.years)?.length ? res.years : [monthlyChartYear]
-        monthlyCacheRef.current.set(cacheKey, { months, years })
+        const yearSummary = res?.yearSummary ?? null
+        monthlyCacheRef.current.set(cacheKey, { months, years, yearSummary })
         setClubMonthly(months)
         setMonthlyYears(years)
+        setMonthlyYearSummary(yearSummary)
       } catch {
-        if (!cancelled) setClubMonthly([])
+        if (!cancelled) {
+          setClubMonthly([])
+          setMonthlyYearSummary(null)
+        }
       } finally {
         if (!cancelled) setClubMonthlyBusy(false)
       }
@@ -570,7 +578,10 @@ export function AdminClubStatsSection({
               <h3 className="td-stat-title admin-club-stat-card__title">{isTrainerScope ? 'Итог' : 'Итог по клубу'}</h3>
               <LineChart className="stat-card__icon" size={22} aria-hidden />
             </div>
-            <p className="stat-card__value admin-club-stat-card__value">{MONTHS_PER_CALENDAR_YEAR}</p>
+            <p className="stat-card__value admin-club-stat-card__value admin-club-stat-card__value--months">
+              {MONTHS_PER_CALENDAR_YEAR}
+              <span className="admin-club-stat-card__value-unit">месяцев</span>
+            </p>
             <p className="admin-club-stat-card__foot">
               {inlinePanel === 'clubMonthly'
                 ? `скрыть · ${monthlyChartYear}`
@@ -628,10 +639,12 @@ export function AdminClubStatsSection({
             <p className="muted" style={{ margin: 0, fontSize: 13 }}>Загрузка…</p>
           ) : (
             <>
-              {!clubMonthlySum && totalCompleted > 0 ? (
-                <p className="muted admin-inline-note" style={{ margin: '0 0 10px' }}>
-                  За {monthlyChartYear} год завершённых с типом карты нет (в периоде сводки — <strong>{totalCompleted}</strong>). «Без типа» в
-                  итог не входят.
+              {!clubMonthlySum &&
+              (monthlyYearSummary?.completedInYear ?? 0) > 0 &&
+              (monthlyYearSummary?.typedInYear ?? 0) === 0 ? (
+                <p className="muted admin-inline-note" style={{ margin: '0 0 10px', lineHeight: 1.45 }}>
+                  За {monthlyChartYear} год завершено <strong>{monthlyYearSummary.completedInYear}</strong> тренировок, но со <strong>типом карты</strong>{' '}
+                  на абонементе — 0 (как «Без типа» в таблице). Назначьте тип в абонементе клиента или обновите данные (Sync).
                 </p>
               ) : null}
               <AdminClubMonthlyChart rows={clubMonthly} year={monthlyChartYear} />
