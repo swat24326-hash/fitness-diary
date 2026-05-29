@@ -65,6 +65,9 @@ export async function markRecordSynced(table_name, data) {
 
 /** @returns {Promise<{ total: number, byTable: Record<string, number> }>} */
 export async function countUnsyncedLocalRecords() {
+  const { reconcileMembershipTypesFromCloudCache } = await import('./membershipTypesService')
+  await reconcileMembershipTypesFromCloudCache()
+
   const db = await getDb()
   const pending = await buildPendingSyncKeysByTable()
   const byTable = {}
@@ -83,6 +86,9 @@ export async function countUnsyncedLocalRecords() {
 
 /** @returns {Promise<number>} */
 export async function enqueueUnsyncedLocalRecords() {
+  const { reconcileMembershipTypesFromCloudCache } = await import('./membershipTypesService')
+  await reconcileMembershipTypesFromCloudCache()
+
   const db = await getDb()
   const pending = await buildPendingSyncKeysByTable()
   let enqueued = 0

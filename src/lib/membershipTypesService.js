@@ -3,9 +3,10 @@
  */
 
 import { isSupabaseConfigured } from './supabase'
-import { getDb, putStore, listSyncQueue } from './localDb'
+import { getDb, putStore, listSyncQueue, buildPendingSyncKeysByTable } from './localDb'
 import { saveLocalWithSync } from './syncService'
 import { pushRecordViaApi } from './syncApiClient'
+import { markRecordFromCloud } from './syncUnsyncedCore'
 
 export function normalizeMembershipTypeCode(raw) {
   return String(raw ?? '').trim().slice(0, 12)
@@ -126,7 +127,7 @@ export async function mergeMembershipTypesForClub(clubId, remoteRows) {
     if (!id || String(row.club_id) !== cid) continue
     remoteIds.add(id)
     if (pendingIds.has(id)) continue
-    await putStore('membership_types', normalizeRow(row))
+    await putStore('membership_types', markRecordFromCloud(normalizeRow(row)))
   }
 
   /* Пустой ответ облака не удаляем локально — иначе Sync стирает типы, если push ещё не дошёл. */
@@ -143,4 +144,27 @@ export async function mergeMembershipTypesForClub(clubId, remoteRows) {
   }
 
   return { count: remoteIds.size }
+}
+
+/**
+ * Типы с pull приходят без synced — не считать их «ожидающими отправку», если нет локальной правки (__sync).
+ * @returns {Promise<number>}
+ */
+export async function reconcileMembershipTypesFromCloudCache() {
+  const pending = await buildPendingSyncKeysByTable()
+  const pendingKeys = pending.membership_types ?? new Set()
+  const db = await getDb()
+  let fixed = 0
+
+  for (const row of await db.getAll('membership_types')) {
+    if (row.synced === true) continue
+    const id = String(row.id ?? '').trim()
+    if (!id || pendingKeys.has(id)) continue
+    if (row.__sync && typeof row.__sync === 'object') continue
+    const { __sync: _m, ...rest } = row
+    await putStore('membership_types', { ...rest, synced: true })
+    fixed++
+  }
+
+  return fixed
 }

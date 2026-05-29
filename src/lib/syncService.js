@@ -133,8 +133,8 @@ export { countUnsyncedLocalRecords } from './syncLocalRecords'
 /** Очередь + записи только на устройстве (ещё не в sync_queue). */
 export async function getSyncOutboundSummary() {
   const queue = await getPendingSyncQueueLength()
-  const { total: localOnly } = await countUnsyncedLocalRecords()
-  return { queue, localOnly, total: queue + localOnly }
+  const { total: localOnly, byTable } = await countUnsyncedLocalRecords()
+  return { queue, localOnly, total: queue + localOnly, byTable: byTable ?? {} }
 }
 
 export function getFlushInFlightPromise() {

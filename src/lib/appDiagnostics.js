@@ -161,6 +161,12 @@ export function errorFilterLabel(filterId) {
   return ERROR_FILTERS.find((f) => f.id === filterId)?.label ?? 'Все'
 }
 
+export function formatLocalOnlyBreakdown(byTable) {
+  const entries = Object.entries(byTable ?? {}).filter(([, n]) => Number(n) > 0)
+  if (!entries.length) return ''
+  return entries.map(([table, n]) => `${TABLE_LABELS_RU[table] ?? table}: ${n}`).join(', ')
+}
+
 const TABLE_LABELS_RU = {
   trainings: 'Тренировка',
   clients: 'Клиент',
@@ -169,6 +175,7 @@ const TABLE_LABELS_RU = {
   body_measurements: 'Замеры',
   challenges: 'Челлендж',
   exercises: 'Упражнение',
+  membership_types: 'Типы абонементов',
 }
 
 const OPERATION_LABELS_RU = {

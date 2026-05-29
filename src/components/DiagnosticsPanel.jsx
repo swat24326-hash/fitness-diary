@@ -18,6 +18,7 @@ import {
   formatAppErrorTime,
   formatSyncQueueLine,
   formatSyncQueueLineHuman,
+  formatLocalOnlyBreakdown,
   loadDiagnosticsErrors,
   resolveQuickFixes,
   sourceLabel,
@@ -71,6 +72,7 @@ export function DiagnosticsPanel({
   const [errors, setErrors] = useState([])
   const [queue, setQueue] = useState([])
   const [localOnlyCount, setLocalOnlyCount] = useState(0)
+  const [localOnlyByTable, setLocalOnlyByTable] = useState({})
   const [clientNames, setClientNames] = useState({})
   const [queueLoading, setQueueLoading] = useState(true)
   const [copyBusy, setCopyBusy] = useState(false)
@@ -111,10 +113,12 @@ export function DiagnosticsPanel({
       setClientNames(cmap)
       setQueue(Array.isArray(rows) ? rows : [])
       setLocalOnlyCount(outbound.localOnly ?? 0)
+      setLocalOnlyByTable(outbound.byTable ?? {})
     } catch {
       setClientNames({})
       setQueue([])
       setLocalOnlyCount(0)
+      setLocalOnlyByTable({})
     } finally {
       setQueueLoading(false)
     }
@@ -221,6 +225,8 @@ export function DiagnosticsPanel({
     onCleared?.()
   }
 
+  const localOnlyHint = useMemo(() => formatLocalOnlyBreakdown(localOnlyByTable), [localOnlyByTable])
+
   const outboundTotal = queue.length + localOnlyCount
   const statusTone =
     needsAttention && (queue.length > 0 || localOnlyCount > 0 || !system.online) ? 'warn' : system.online ? 'ok' : 'warn'
@@ -264,6 +270,7 @@ export function DiagnosticsPanel({
               <>
                 {queue.length > 0 ? ', ' : ''}
                 только на устройстве <strong>{localOnlyCount}</strong>
+                {localOnlyHint ? <> ({localOnlyHint})</> : null}
               </>
             ) : null}
             {persistentErrorCount > 0 ? (
