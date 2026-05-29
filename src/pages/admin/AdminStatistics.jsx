@@ -13,7 +13,10 @@ import {
   ADMIN_JOURNAL_PAGE_SIZE_OPTIONS,
 } from '../../lib/admin/adminConstants'
 import { formatDateRu } from '../../lib/dateRu'
-import { formatTrainingStatusRu } from '../../lib/trainingStatusRu'
+import { fetchMembershipsForClubViaAdminApi } from '../../lib/admin/adminApiClient'
+import { membershipCardTypeLabelForTraining } from '../../lib/admin/membershipTypeStatsAgg'
+import { getDb } from '../../lib/localDb'
+import { listMembershipTypesForClub } from '../../lib/membershipTypesService'
 import { TrainingExercisesReadonly } from '../../components/TrainingExercisesReadonly'
 import { AdminClubStatsSection } from './AdminClubStatsSection'
 
@@ -91,8 +94,10 @@ export function AdminStatistics() {
   const club = search.get('club') ?? clubIdCtx ?? ''
 
   const [statsRange, setStatsRange] = useState({ start: '', end: '' })
+  const [journalOpen, setJournalOpen] = useState(false)
   const onStatsRange = useCallback((r) => {
     setPage(0)
+    setJournalOpen(false)
     if (!r?.start || !r?.end) {
       setStatsRange({ start: '', end: '' })
       return
@@ -112,9 +117,60 @@ export function AdminStatistics() {
   const [trainerNameById, setTrainerNameById] = useState({})
   const [journalSource, setJournalSource] = useState('local')
   const [journalFallback, setJournalFallback] = useState(null)
+  const [memberships, setMemberships] = useState([])
+  const [membershipTypes, setMembershipTypes] = useState([])
+
+  const membershipById = useMemo(() => {
+    const m = new Map()
+    for (const row of memberships) {
+      const id = String(row?.id ?? '').trim()
+      if (id) m.set(id, row)
+    }
+    return m
+  }, [memberships])
+
+  const typeCodeById = useMemo(() => {
+    const m = new Map()
+    for (const t of membershipTypes) {
+      const id = String(t?.id ?? '').trim()
+      if (!id) continue
+      m.set(id, String(t.code ?? t.name ?? '').trim() || '—')
+    }
+    return m
+  }, [membershipTypes])
+
+  const loadMembershipContext = useCallback(async () => {
+    if (!club) {
+      setMemberships([])
+      setMembershipTypes([])
+      return
+    }
+    try {
+      const types = await listMembershipTypesForClub(club)
+      setMembershipTypes(types)
+    } catch {
+      setMembershipTypes([])
+    }
+    try {
+      const via = await fetchMembershipsForClubViaAdminApi(club)
+      if (via?.memberships?.length) {
+        setMemberships(via.memberships)
+        return
+      }
+    } catch {
+      /* локальный кэш */
+    }
+    try {
+      const db = await getDb()
+      const all = await db.getAll('memberships')
+      setMemberships(all.filter((m) => m.club_id === club))
+    } catch {
+      setMemberships([])
+    }
+  }, [club])
 
   const load = useCallback(async ({ silent = false } = {}) => {
-    if (!club || !statsRange.start || !statsRange.end) {
+    if (!journalOpen || !club || !statsRange.start || !statsRange.end) {
       setRows([])
       setClients({})
       setTotalCount(0)
@@ -175,15 +231,29 @@ export function AdminStatistics() {
     } finally {
       if (!silent) setBusy(false)
     }
-  }, [page, pageSize, club, statsRange.start, statsRange.end])
+  }, [page, pageSize, club, statsRange.start, statsRange.end, journalOpen])
 
   useEffect(() => {
     void load()
   }, [load])
 
   useEffect(() => {
+    if (!journalOpen) return
+    void loadMembershipContext()
+    requestAnimationFrame(() => {
+      document.getElementById('admin-completed-trainings-journal')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }, [journalOpen, loadMembershipContext])
+
+  useEffect(() => {
     setPage(0)
+    setJournalOpen(false)
   }, [club])
+
+  const openCompletedJournal = useCallback(() => {
+    setJournalOpen(true)
+    setPage(0)
+  }, [])
 
   useDebouncedStorageReload(() => void load({ silent: true }), { shouldRun: shouldReloadAdminStatsPage })
 
@@ -204,19 +274,27 @@ export function AdminStatistics() {
         <div className="u-grow u-minw-0 td-top__grow">
           <h1 className="section-title td-top__title">Статистика клуба</h1>
           <p className="section-sub td-top__sub muted" style={{ fontSize: 14, margin: '6px 0 0', lineHeight: 1.45 }}>
-            Показатели по залу и список <strong>завершённых</strong> тренировок за выбранный период (тот же диапазон, что и в блоке сводки).
+            Показатели по залу за период. Список завершённых тренировок открывается по нажатию на карточку <strong>«Проведено тренировок»</strong> в сводке.
           </p>
         </div>
       </div>
 
-      <AdminClubStatsSection clubId={club} onActiveRangeChange={onStatsRange} />
+      <AdminClubStatsSection clubId={club} onActiveRangeChange={onStatsRange} onOpenCompletedJournal={openCompletedJournal} />
 
-      <section className="card">
+      {journalOpen ? (
+      <section className="card" id="admin-completed-trainings-journal">
         <div className="td-section-head">
           <h2 className="section-title td-section-title" style={{ margin: 0 }}>
             Проведённые тренировки
           </h2>
           <div className="row td-actions">
+            <button
+              type="button"
+              className="btn btn-ghost btn-touch"
+              onClick={() => setJournalOpen(false)}
+            >
+              Скрыть
+            </button>
             <button
               type="button"
               className="btn btn-primary btn-icon-square btn-touch"
@@ -236,7 +314,7 @@ export function AdminStatistics() {
         ) : (
           <>
             <p className="muted" style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.45 }}>
-              Только статус «завершена» за период из блока «Период» выше ({statsRange.start && statsRange.end ? `${formatDateRu(statsRange.start)} — ${formatDateRu(statsRange.end)}` : '…'}).{' '}
+              Завершённые тренировки за период из блока «Период» выше ({statsRange.start && statsRange.end ? `${formatDateRu(statsRange.start)} — ${formatDateRu(statsRange.end)}` : '…'}).{' '}
               {journalSource === 'remote' ? (
                 <>Данные из <strong>Supabase</strong>.</>
               ) : (
@@ -257,10 +335,10 @@ export function AdminStatistics() {
                 <thead>
                   <tr>
                     <th>Клиент</th>
+                    <th>№ карты</th>
                     <th>Тренер</th>
                     <th>Дата</th>
-                    <th>Тип</th>
-                    <th>Статус</th>
+                    <th>Тип карты</th>
                     <th title="Просмотр" />
                     <th title="Карточка клиента" />
                   </tr>
@@ -269,12 +347,12 @@ export function AdminStatistics() {
                   {rows.map((t) => (
                     <tr key={t.id}>
                       <td>{clients[t.client_id]?.name ?? t.client_id}</td>
+                      <td className="muted">{String(clients[t.client_id]?.card_number ?? '').trim() || '—'}</td>
                       <td className="muted" title={t.trainer_id}>
                         {trainerCell(t.trainer_id)}
                       </td>
                       <td>{formatDateRu(t.date)}</td>
-                      <td>{t.type ?? '—'}</td>
-                      <td>{formatTrainingStatusRu(t.status)}</td>
+                      <td>{membershipCardTypeLabelForTraining(t, membershipById, typeCodeById)}</td>
                       <td>
                         <button
                           type="button"
@@ -363,6 +441,7 @@ export function AdminStatistics() {
           </>
         )}
       </section>
+      ) : null}
 
       {previewTraining && (
         <div

@@ -89,3 +89,14 @@ export function aggregateMembershipTypeStats(input) {
 
   return { byType, byTrainerByType, totalCounted }
 }
+
+function labelForMembershipTypeKey(typeKey, typeCodeById) {
+  if (typeKey === MEMBERSHIP_TYPE_UNLABELED) return 'Без типа'
+  return typeCodeById.get(typeKey) || '—'
+}
+
+/** Подпись типа абонемента для строки журнала завершённых тренировок. */
+export function membershipCardTypeLabelForTraining(training, membershipById, typeCodeById) {
+  const typeKey = resolveTrainingMembershipTypeKey(training, membershipById)
+  return labelForMembershipTypeKey(typeKey, typeCodeById)
+}

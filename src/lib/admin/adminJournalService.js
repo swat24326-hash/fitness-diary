@@ -11,7 +11,7 @@ import { ADMIN_JOURNAL_MAX_PAGE_SIZE } from './adminConstants'
 const CHUNK = 120
 
 /** Поля клиента для журнала и фильтра (не тянем лишние колонки). */
-const CLIENT_BRIEF_FIELDS = 'id, name, phone, email, trainer_id, club_id'
+const CLIENT_BRIEF_FIELDS = 'id, name, phone, email, trainer_id, club_id, card_number'
 
 export async function fetchClientsMapByIds(clientIds) {
   const map = {}

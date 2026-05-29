@@ -16,9 +16,9 @@ function rankMedal(i) {
 }
 
 /**
- * @param {{ clubId: string, onActiveRangeChange?: (r: { start: string, end: string } | null) => void }} props
+ * @param {{ clubId: string, onActiveRangeChange?: (r: { start: string, end: string } | null) => void, onOpenCompletedJournal?: () => void }} props
  */
-export function AdminClubStatsSection({ clubId, onActiveRangeChange }) {
+export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompletedJournal }) {
   const [period, setPeriod] = useState('month')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
@@ -270,7 +270,7 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange }) {
                 <strong>Не продлилось</strong> — дата окончания абонемента попадает в выбранный диапазон, а на конец периода действующего абонемента уже нет.
               </li>
               <li>
-                <strong>Проведено тренировок</strong> — тренировки со статусом «завершена» за период по этому клубу.
+                <strong>Проведено тренировок</strong> — завершённые тренировки за период; нажмите на карточку, чтобы открыть список.
               </li>
             </ul>
             <p className="admin-club-stats-board__popover-note">
@@ -320,14 +320,27 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange }) {
               {notRenewedInPeriod > 0 ? 'нажмите для списка' : 'за выбранный период'}
             </p>
           </button>
-          <div className="card stat-card admin-club-stat-card">
+          <button
+            type="button"
+            className="card stat-card admin-club-stat-card admin-club-stat-card--clickable"
+            disabled={totalCompleted === 0}
+            aria-label={
+              totalCompleted > 0
+                ? `Проведено тренировок: ${totalCompleted}. Нажмите, чтобы открыть список`
+                : 'Проведено тренировок: нет за период'
+            }
+            title={totalCompleted > 0 ? 'Показать список тренировок' : undefined}
+            onClick={() => onOpenCompletedJournal?.()}
+          >
             <div className="stat-card__top admin-club-stat-card__head">
               <h3 className="td-stat-title admin-club-stat-card__title">Проведено тренировок</h3>
               <ClipboardList className="stat-card__icon" size={22} aria-hidden />
             </div>
             <p className="stat-card__value admin-club-stat-card__value">{totalCompleted}</p>
-            <p className="admin-club-stat-card__foot">статус «завершена»</p>
-          </div>
+            <p className="admin-club-stat-card__foot">
+              {totalCompleted > 0 ? 'нажмите для списка' : 'за выбранный период'}
+            </p>
+          </button>
         </div>
       </div>
 

@@ -8,7 +8,7 @@ import { aggregateMembershipTypeStats } from './lib/membershipTypeStatsAgg.js'
 
 const PAGE = 400
 const IN_CHUNK = 80
-const CLIENT_BRIEF = 'id, name, phone, email, trainer_id, club_id'
+const CLIENT_BRIEF = 'id, name, phone, email, trainer_id, club_id, card_number'
 const TRAINER_ROLES = ['trainer', 'тренер']
 const MAX_JOURNAL_PAGE = 100
 
