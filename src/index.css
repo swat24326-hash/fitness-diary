@@ -3162,6 +3162,65 @@ tr:last-child td {
   font-size: 0.85rem;
 }
 
+/* Статистика по типам абонементов */
+.mem-type-stats__subtitle {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.mem-type-stats__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mem-type-stats__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-muted);
+  font-size: 0.9rem;
+}
+
+.mem-type-stats__chip--sm {
+  padding: 4px 10px;
+  font-size: 0.85rem;
+}
+
+.mem-type-stats__chip-code {
+  font-weight: 700;
+}
+
+.mem-type-stats__chip-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-bright);
+  font-weight: 700;
+}
+
+.mem-type-stats__trainers {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.mem-type-stats__trainer-card {
+  padding: 12px;
+  margin: 0;
+}
+
+.mem-type-stats__trainer-name {
+  margin: 0 0 4px;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
 .admin-org--tab {
   grid-template-columns: 1fr;
 }

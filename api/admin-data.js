@@ -4,6 +4,7 @@
  */
 import { requireAdmin, requireAuthUser, sendJson, setCors } from './lib/adminSupabase.js'
 import { aggregateTrainings, aggregateClubClientPeriod } from './lib/clubStatsAgg.js'
+import { aggregateMembershipTypeStats } from './lib/membershipTypeStatsAgg.js'
 
 const PAGE = 400
 const IN_CHUNK = 80
@@ -138,21 +139,23 @@ async function handleClubStats(ctx, req, res) {
   }
   try {
     const { supabaseAdmin } = ctx
-    const [trainings, clients, memberships] = await Promise.all([
-      fetchPaged(supabaseAdmin, 'trainings', 'id, trainer_id, client_id, date, status', clubId, dateFrom, dateTo),
+    const [trainings, clients, memberships, membershipTypes] = await Promise.all([
+      fetchPaged(supabaseAdmin, 'trainings', 'id, trainer_id, client_id, date, status, data', clubId, dateFrom, dateTo),
       fetchPaged(supabaseAdmin, 'clients', 'id', clubId, null, null),
       fetchPaged(
         supabaseAdmin,
         'memberships',
-        'id, client_id, start_date, end_date, total_trainings, used_trainings',
+        'id, client_id, start_date, end_date, total_trainings, used_trainings, membership_type_id',
         clubId,
         null,
         null,
       ),
+      fetchPaged(supabaseAdmin, 'membership_types', 'id, code, sort_order, is_active', clubId, null, null),
     ])
     sendJson(res, 200, {
       ...aggregateTrainings(trainings),
       ...aggregateClubClientPeriod(clients, memberships, dateFrom, dateTo),
+      ...aggregateMembershipTypeStats({ trainings, memberships, membershipTypes }),
       source: 'admin_api',
     })
   } catch (e) {

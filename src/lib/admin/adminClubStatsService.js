@@ -8,6 +8,8 @@ import { getDb } from '../localDb'
 import { hasUsableMembershipOnDate } from '../membershipRules'
 import { fetchClubTrainingStatsViaApi } from './adminApiClient'
 import { ADMIN_SYNC_BATCH_SIZE } from './adminConstants'
+import { aggregateMembershipTypeStats } from './membershipTypeStatsAgg'
+import { listMembershipTypesForClub } from '../membershipTypesService'
 
 function aggregateTrainings(rows) {
   const dayMap = new Map()
@@ -74,7 +76,7 @@ async function fetchTrainingsForClubRangeRemote(clubId, dateFrom, dateTo) {
     const { data, error } = await withSupabaseRetry(() =>
       supabase
         .from('trainings')
-        .select('id, trainer_id, client_id, date, status')
+        .select('id, trainer_id, client_id, date, status, data')
         .eq('club_id', clubId)
         .gte('date', dateFrom)
         .lte('date', dateTo)
@@ -136,7 +138,7 @@ async function fetchMembershipsForClubRemote(clubId) {
   for (;;) {
     const { data, error } = await supabase
       .from('memberships')
-      .select('id, client_id, start_date, end_date, total_trainings, used_trainings')
+      .select('id, client_id, start_date, end_date, total_trainings, used_trainings, membership_type_id')
       .eq('club_id', clubId)
       .order('id', { ascending: true })
       .range(from, from + ADMIN_SYNC_BATCH_SIZE - 1)
@@ -193,6 +195,11 @@ function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, dateTo)
   return { totalClients, activeWithMembership, notRenewedInPeriod }
 }
 
+async function membershipTypeStatsSlice(clubId, trainings, memberships) {
+  const membershipTypes = await listMembershipTypesForClub(clubId)
+  return aggregateMembershipTypeStats({ trainings, memberships, membershipTypes })
+}
+
 /**
  * @param {{ clubId: string, dateFrom: string, dateTo: string }} p — даты ISO yyyy-mm-dd
  */
@@ -205,6 +212,9 @@ export async function loadClubTrainingStats(p) {
     totalRows: 0,
     byDay: [],
     byTrainer: [],
+    byType: [],
+    byTrainerByType: [],
+    totalCounted: 0,
     totalClients: 0,
     activeWithMembership: 0,
     notRenewedInPeriod: 0,
@@ -229,6 +239,7 @@ export async function loadClubTrainingStats(p) {
       ...base,
       ...aggregateTrainings(rows),
       ...clientSlice(clients, memberships),
+      ...(await membershipTypeStatsSlice(clubId, rows, memberships)),
       source: 'local',
     }
   }
@@ -244,6 +255,9 @@ export async function loadClubTrainingStats(p) {
         totalRows: viaApi.totalRows ?? 0,
         byDay: viaApi.byDay ?? [],
         byTrainer: viaApi.byTrainer ?? [],
+        byType: viaApi.byType ?? [],
+        byTrainerByType: viaApi.byTrainerByType ?? [],
+        totalCounted: viaApi.totalCounted ?? 0,
         totalClients: viaApi.totalClients ?? 0,
         activeWithMembership: viaApi.activeWithMembership ?? 0,
         notRenewedInPeriod: viaApi.notRenewedInPeriod ?? 0,
@@ -269,6 +283,7 @@ export async function loadClubTrainingStats(p) {
       ...base,
       ...aggregateTrainings(rows),
       ...clientSlice(clients, memberships),
+      ...(await membershipTypeStatsSlice(clubId, rows, memberships)),
       source: 'remote',
     }
   } catch (e) {
@@ -281,6 +296,7 @@ export async function loadClubTrainingStats(p) {
       ...base,
       ...aggregateTrainings(rows),
       ...clientSlice(clients, memberships),
+      ...(await membershipTypeStatsSlice(clubId, rows, memberships)),
       source: 'local',
       fallbackReason: e?.message ? String(e.message) : 'Статистика с сервера недоступна',
     }

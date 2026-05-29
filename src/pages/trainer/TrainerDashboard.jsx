@@ -12,6 +12,9 @@ import { flushSyncQueue, saveLocalWithSync } from '../../lib/syncService'
 import { subscribeNetworkStatus } from '../../lib/networkReachability'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 import { pickUsableMembershipForDate } from '../../lib/membershipRules'
+import { aggregateMembershipTypeStats } from '../../lib/admin/membershipTypeStatsAgg'
+import { listMembershipTypesForClub } from '../../lib/membershipTypesService'
+import { MembershipTypeStatsBlock } from '../../components/MembershipTypeStatsBlock'
 
 function membershipDot(list, today) {
   const active = pickUsableMembershipForDate(list ?? [], today)
@@ -54,6 +57,7 @@ export function TrainerDashboard() {
   const [customTo, setCustomTo] = useState('')
   const [showNewClient, setShowNewClient] = useState(false)
   const [newClientForm, setNewClientForm] = useState({ name: '', phone: '', birth_date: '' })
+  const [membershipTypes, setMembershipTypes] = useState([])
   const formatClientName = (raw) => {
     const s = String(raw ?? '').trim().replace(/\s+/g, ' ')
     if (!s) return ''
@@ -115,8 +119,38 @@ export function TrainerDashboard() {
 
   useDebouncedStorageReload(() => reload({ silent: true }), { shouldRun: shouldReloadTrainerClientList })
 
+  useEffect(() => {
+    if (!trainerClubId) {
+      setMembershipTypes([])
+      return
+    }
+    void listMembershipTypesForClub(trainerClubId).then(setMembershipTypes)
+  }, [trainerClubId])
+
   const range = useMemo(() => getDateRange(period, customFrom, customTo), [period, customFrom, customTo])
   const today = todayLocalIso()
+
+  const membershipsFlat = useMemo(() => {
+    const out = []
+    for (const list of Object.values(memByClient)) {
+      if (Array.isArray(list)) out.push(...list)
+    }
+    return out
+  }, [memByClient])
+
+  const typeStats = useMemo(() => {
+    if (!user?.id || !range.start || !range.end) {
+      return { byType: [], byTrainerByType: [], totalCounted: 0 }
+    }
+    const inP = (d) => isDateInRange(d, range.start, range.end)
+    const inRange = trainings.filter((t) => inP(t.date))
+    return aggregateMembershipTypeStats({
+      trainings: inRange,
+      memberships: membershipsFlat,
+      membershipTypes,
+      trainerIdFilter: user.id,
+    })
+  }, [trainings, membershipsFlat, membershipTypes, user?.id, range.start, range.end])
 
   const stats = useMemo(() => {
     const inP = (d) => isDateInRange(d, range.start, range.end)
@@ -279,6 +313,11 @@ export function TrainerDashboard() {
             </span>
           </p>
         </div>
+      </section>
+
+      <section className="card">
+        <h2 className="section-title td-section-title">По типам абонементов</h2>
+        <MembershipTypeStatsBlock byType={typeStats.byType} showTrainerBreakdown={false} />
       </section>
 
       <section id="drafts" className="card">

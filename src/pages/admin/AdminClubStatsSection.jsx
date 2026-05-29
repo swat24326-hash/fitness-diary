@@ -5,6 +5,7 @@ import { loadClubTrainingStats, listTrainerSummariesForAdmin, listClubsLocal } f
 import { useDebouncedStorageReload, shouldReloadAdminStatsPage } from '../../lib/useDebouncedStorageReload'
 import { formatIsoRu, getDateRange } from '../../lib/period'
 import { formatDateRu } from '../../lib/dateRu'
+import { MembershipTypeStatsBlock } from '../../components/MembershipTypeStatsBlock'
 
 function rankMedal(i) {
   if (i === 0) return '🥇'
@@ -162,6 +163,8 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange }) {
   const notRenewedInPeriod = s?.notRenewedInPeriod ?? 0
   const byDay = s?.byDay ?? []
   const byTrainer = s?.byTrainer ?? []
+  const byType = s?.byType ?? []
+  const byTrainerByType = s?.byTrainerByType ?? []
 
   return (
     <section className="card">
@@ -385,7 +388,17 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange }) {
         </div>
       )}
 
-      <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 10px' }}>
+      <h3 className="section-title" style={{ fontSize: '1rem', margin: '24px 0 10px' }}>
+        По типам абонементов
+      </h3>
+      <MembershipTypeStatsBlock
+        byType={byType}
+        byTrainerByType={byTrainerByType}
+        trainerLabel={trainerLabel}
+        showTrainerBreakdown
+      />
+
+      <h3 className="section-title" style={{ fontSize: '1rem', margin: '24px 0 10px' }}>
         Тренеры — рейтинг по завершённым
       </h3>
       {byTrainer.length === 0 ? (
