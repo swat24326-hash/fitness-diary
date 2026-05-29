@@ -2,6 +2,7 @@
  * Очередь sync после удаления клиента в облаке: снять insert/update и убрать локальные «хвосты».
  */
 import { getDb, listSyncQueue, removeSyncItem } from './localDb'
+import { markRecordSynced } from './syncLocalRecords'
 import {
   isSyncQueueOrphanForCloudClients,
   isUnrecoverablePushError,
@@ -172,6 +173,16 @@ export async function handlePushApiFailure({ status, error, local_id, item }) {
       /* ignore */
     }
   }
-  if (item) await dropLocalOrphanForSyncItem(item)
+  if (item?.data) {
+    try {
+      await markRecordSynced(item.table_name, item.data)
+    } catch {
+      /* ignore */
+    }
+    // Локальный insert, который сервер отклонил — убрать «призрак», update/delete только помечаем synced.
+    if (item.operation === 'insert') {
+      await dropLocalOrphanForSyncItem(item)
+    }
+  }
   return { ok: false, dropped: true, status, error: err }
 }

@@ -54,6 +54,12 @@ export function isUnrecoverablePushError(status, message) {
     msg.includes('тренировка не найдена') ||
     msg.includes('абонемент не найден') ||
     msg.includes('закреплён за другим') ||
+    msg.includes('закреплён за вами') ||
+    msg.includes('должен быть вашей') ||
+    msg.includes('должен быть закреплён') ||
+    msg.includes('нельзя переназначить') ||
+    msg.includes('только администратор') ||
+    msg.includes('другого клуба') ||
     msg.includes('нет доступа') ||
     msg.includes('не найден')
   )

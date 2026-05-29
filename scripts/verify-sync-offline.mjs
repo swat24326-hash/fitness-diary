@@ -24,6 +24,7 @@ function assert(cond, msg) {
 
 /* --- push: безвозвратные vs повторяемые --- */
 assert(isUnrecoverablePushError(403, 'Нет доступа к клиенту'), '403 client access -> drop queue')
+assert(isUnrecoverablePushError(403, 'Типы абонементов может менять только администратор'), '403 admin-only types')
 assert(isUnrecoverablePushError(404, 'Тренировка не найдена'), '404 training -> drop')
 assert(!isUnrecoverablePushError(401, 'JWT'), '401 -> retry (session)')
 assert(!isUnrecoverablePushError(500, 'internal'), '500 -> retry')
