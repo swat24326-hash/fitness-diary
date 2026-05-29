@@ -3162,6 +3162,173 @@ tr:last-child td {
   font-size: 0.85rem;
 }
 
+/* Итог по месяцам — столбчатый график */
+.admin-monthly-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-monthly-chart__empty-hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.admin-monthly-chart__plot {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  min-height: 220px;
+}
+
+.admin-monthly-chart__y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex-shrink: 0;
+  width: 36px;
+  padding-bottom: 52px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-monthly-chart__y-label {
+  line-height: 1;
+}
+
+.admin-monthly-chart__scroll {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
+}
+
+.admin-monthly-chart__cols {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--monthly-cols, 12), minmax(44px, 1fr));
+  gap: 6px;
+  min-width: min(100%, calc(var(--monthly-cols, 12) * 48px));
+  height: 200px;
+  padding: 0 4px 0 0;
+}
+
+.admin-monthly-chart__grid-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--border);
+  opacity: 0.65;
+  pointer-events: none;
+  transform: translateY(50%);
+}
+
+.admin-monthly-chart__col-wrap {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  height: 100%;
+}
+
+.admin-monthly-chart__col-area {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+.admin-monthly-chart__col-value {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-bright);
+  margin-bottom: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-monthly-chart__col {
+  position: relative;
+  width: min(100%, 36px);
+  min-height: 0;
+  border-radius: 6px 6px 4px 4px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  transition: height 0.35s ease;
+}
+
+.admin-monthly-chart__col--filled {
+  border-color: rgba(34, 197, 94, 0.35);
+  box-shadow: 0 4px 14px var(--accent-glow);
+}
+
+.admin-monthly-chart__col-face,
+.admin-monthly-chart__col-shade {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.admin-monthly-chart__col-face {
+  background: var(--bar-face, var(--accent-bright));
+  border-radius: 5px 0 0 5px;
+  right: 28%;
+}
+
+.admin-monthly-chart__col-shade {
+  left: auto;
+  width: 28%;
+  right: 0;
+  background: var(--bar-shade, rgba(16, 120, 72, 0.95));
+  border-radius: 0 5px 5px 0;
+  box-shadow: inset 4px 0 8px rgba(0, 0, 0, 0.22);
+}
+
+.admin-monthly-chart__col-label {
+  margin-top: 8px;
+  font-size: 10px;
+  line-height: 1.2;
+  text-align: center;
+  color: var(--text-muted);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-monthly-chart__sum {
+  margin: 0;
+  font-size: 13px;
+}
+
+.admin-monthly-chart__foot {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+@media (max-width: 520px) {
+  .admin-monthly-chart__cols {
+    min-width: calc(var(--monthly-cols, 12) * 40px);
+  }
+
+  .admin-monthly-chart__col {
+    width: min(100%, 30px);
+  }
+}
+
 /* Статистика по типам абонементов */
 .mem-type-stats__subtitle {
   margin: 0 0 8px;
