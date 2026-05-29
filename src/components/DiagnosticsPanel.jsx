@@ -6,6 +6,7 @@ import {
   clearAppErrors,
   computeNeedsUserAttention,
   getPersistentErrorCount,
+  pruneRecoverableAppErrors,
   subscribeSyncAttention,
 } from '../lib/appErrorJournal'
 import {
@@ -77,6 +78,7 @@ export function DiagnosticsPanel({
   const [showDetails, setShowDetails] = useState(!simpleMode)
 
   const refreshErrors = useCallback(() => {
+    pruneRecoverableAppErrors()
     const list = loadDiagnosticsErrors(50)
     setErrors(list)
     setPersistentErrorCount(getPersistentErrorCount())
@@ -204,7 +206,7 @@ export function DiagnosticsPanel({
     onCleared?.()
   }
 
-  const statusTone = needsAttention ? 'warn' : system.online ? 'ok' : 'warn'
+  const statusTone = needsAttention ? (queue.length > 0 || !system.online ? 'warn' : 'ok') : system.online ? 'ok' : 'warn'
 
   const panelTitle = simpleMode ? 'Помощь при проблемах' : 'Журнал ошибок и диагностика'
   const panelSub = simpleMode
@@ -224,10 +226,15 @@ export function DiagnosticsPanel({
       </div>
 
       <div className={`diagnostics-panel__status diagnostics-panel__status--${statusTone}`} role="status">
-        {statusTone === 'ok' ? (
+        {queue.length === 0 && !needsAttention ? (
           <>
             Всё работает: очередь sync {queue.length}
             {persistentErrorCount > 0 ? `, в журнале ${persistentErrorCount} (архив)` : ''}
+          </>
+        ) : queue.length === 0 && persistentErrorCount > 0 ? (
+          <>
+            Очередь sync пуста — данные отправлены. В журнале <strong>{persistentErrorCount}</strong> старых
+            записей об ошибках (можно очистить).
           </>
         ) : (
           <>

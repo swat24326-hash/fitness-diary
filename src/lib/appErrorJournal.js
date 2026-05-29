@@ -68,7 +68,13 @@ export function isRecoverableTransientError(row) {
   if (status === 409) return true
 
   if (source === 'sync' || source === 'pull') {
-    return RECOVERABLE_TEXT.test(text)
+    if (RECOVERABLE_TEXT.test(text)) return true
+    // Отклонённые push (403): очередь уже снята — не держать «требует внимания».
+    if (source === 'sync' && status === 403) {
+      return /нет доступа|не найден|закрепл|администратор|другого клуба|должен быть|нельзя переназначить/i.test(
+        text,
+      )
+    }
   }
 
   return false
@@ -109,10 +115,20 @@ export function subscribeSyncAttention(fn) {
   }
 }
 
+/** Убрать из localStorage уже неактуальные (сеть, 403 после снятия с очереди). */
+export function pruneRecoverableAppErrors() {
+  migrateLegacySyncErrors()
+  const list = readRaw()
+  const kept = list.filter((r) => !isRecoverableTransientError(r))
+  if (kept.length !== list.length) writeRaw(kept)
+  syncNeedsAttention = getPersistentErrorCount() > 0
+  notifyChanged()
+  notifySyncAttention()
+}
+
 /** После старта: флаг «нужно внимание» только если в журнале остались серьёзные записи. */
 export function initSyncAttentionFromJournal() {
-  syncNeedsAttention = getPersistentErrorCount() > 0
-  notifySyncAttention()
+  pruneRecoverableAppErrors()
 }
 
 /**

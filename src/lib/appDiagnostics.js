@@ -2,8 +2,13 @@ import {
   APP_ERROR_SOURCE_LABELS,
   formatAppErrorTime,
   getAppErrors,
+  isRecoverableTransientError,
   sourceLabel,
 } from './appErrorJournal.js'
+
+function isRecoverableSyncErrorForFixes(e) {
+  return isRecoverableTransientError(e)
+}
 
 export const APP_VERSION = '0.1.0'
 
@@ -241,7 +246,9 @@ export function resolveQuickFixes({ errors = [], queue = [], system = {} }) {
       detail: 'Нажмите «Синхронизировать» и дождитесь завершения. Данные на устройстве уже сохранены.',
       action: 'sync',
     })
-  } else if (list.some((e) => e.source === 'sync') && online) {
+  } else if (
+    list.some((e) => e.source === 'sync' && !isRecoverableSyncErrorForFixes(e)) && online
+  ) {
     fixes.push({
       id: 'sync',
       tone: 'warn',
