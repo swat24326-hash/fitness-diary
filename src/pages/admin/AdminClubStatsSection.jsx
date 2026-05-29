@@ -90,15 +90,17 @@ export function AdminClubStatsSection({
     setStatsHelpOpen(false)
     setInlinePanel(null)
     setClubMonthly([])
+    setClubMonthlyBusy(false)
   }, [clubId, scopeClubId, isTrainerScope, range.start, range.end])
 
+  /** Итог по 12 месяцам — сразу с остальной сводкой (данные из того же кэша workspace), график по клику. */
   useEffect(() => {
-    if (inlinePanel !== 'clubMonthly') return
     if (!range.end) return
     if (!isTrainerScope && !clubId) return
     if (isTrainerScope && !scopeTrainerId) return
+
     let cancelled = false
-    ;(async () => {
+    const run = async () => {
       setClubMonthlyBusy(true)
       try {
         const res = isTrainerScope
@@ -111,11 +113,16 @@ export function AdminClubStatsSection({
       } finally {
         if (!cancelled) setClubMonthlyBusy(false)
       }
-    })()
+    }
+
+    const id = requestAnimationFrame(() => {
+      void run()
+    })
     return () => {
       cancelled = true
+      cancelAnimationFrame(id)
     }
-  }, [inlinePanel, clubId, scopeClubId, scopeTrainerId, isTrainerScope, range.end])
+  }, [clubId, scopeClubId, scopeTrainerId, isTrainerScope, range.end])
 
   useEffect(() => {
     if (!statsHelpOpen) return
@@ -214,6 +221,8 @@ export function AdminClubStatsSection({
   }
 
   const clubMonthlySum = useMemo(() => clubMonthly.reduce((sum, r) => sum + (Number(r?.count) || 0), 0), [clubMonthly])
+  const clubMonthlyValue =
+    clubMonthlyBusy && !clubMonthly.length ? '…' : clubMonthly.length || !clubMonthlyBusy ? String(clubMonthlySum) : '…'
 
   if (!isTrainerScope && !clubId) {
     return (
@@ -517,7 +526,11 @@ export function AdminClubStatsSection({
             type="button"
             className={statCardClass(inlinePanel === 'clubMonthly')}
             disabled={!range.end}
-            aria-label={range.end ? 'Итоговая статистика по клубу. Нажмите для графика по месяцам' : 'Итоговая статистика по клубу недоступна'}
+            aria-label={
+              range.end
+                ? `Итог за 12 месяцев: ${clubMonthlyBusy ? 'загрузка' : clubMonthlySum}. Нажмите для графика`
+                : 'Итоговая статистика недоступна'
+            }
             title={range.end ? 'График по месяцам' : undefined}
             onClick={() => toggleInlinePanel('clubMonthly')}
           >
@@ -525,9 +538,13 @@ export function AdminClubStatsSection({
               <h3 className="td-stat-title admin-club-stat-card__title">{isTrainerScope ? 'Итог' : 'Итог по клубу'}</h3>
               <LineChart className="stat-card__icon" size={22} aria-hidden />
             </div>
-            <p className="stat-card__value admin-club-stat-card__value">{clubMonthlyBusy ? '…' : clubMonthlySum}</p>
+            <p className="stat-card__value admin-club-stat-card__value">{clubMonthlyValue}</p>
             <p className="admin-club-stat-card__foot">
-              {inlinePanel === 'clubMonthly' ? 'скрыть график' : '12 мес. · без «Без типа»'}
+              {inlinePanel === 'clubMonthly'
+                ? 'скрыть график'
+                : clubMonthlyBusy
+                  ? 'загрузка 12 мес.…'
+                  : '12 мес. · нажмите для графика'}
             </p>
           </button>
           {!isTrainerScope ? (
@@ -575,7 +592,7 @@ export function AdminClubStatsSection({
           <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 10px' }}>
             {isTrainerScope ? 'Итоговая статистика (по месяцам, мои клиенты)' : 'Итоговая статистика по клубу (по месяцам)'}
           </h3>
-          {clubMonthlyBusy ? (
+          {clubMonthlyBusy && !clubMonthly.length ? (
             <p className="muted" style={{ margin: 0, fontSize: 13 }}>Загрузка…</p>
           ) : (
             <>
