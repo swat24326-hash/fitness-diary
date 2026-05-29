@@ -5,7 +5,9 @@
 
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { buildPendingSyncKeysByTable, putStore, putStoreUnlessPendingSync } from '../localDb'
+import { markRecordFromCloud } from '../syncLocalRecords'
 import { normalizeBodyMeasurementRow } from '../bodyMeasures'
+import { pruneOrphanTrainingsForClient } from '../clientTrainingsCache'
 import { ADMIN_SYNC_BATCH_SIZE } from './adminConstants'
 import { fetchClientWorkspaceViaAdminApi } from './adminApiClient'
 
@@ -21,14 +23,22 @@ function notifyLocalDataChanged(detail = {}) {
 async function cacheWorkspace({ client, memberships, health_card, body_measurements, trainings }, opts = {}) {
   const pending = opts.respectSyncQueue ? await buildPendingSyncKeysByTable() : null
   const save = (store, row) =>
-    pending ? putStoreUnlessPendingSync(store, row, pending) : putStore(store, row)
+    pending ? putStoreUnlessPendingSync(store, row, pending) : putStore(store, markRecordFromCloud(row))
 
   if (client) await save('clients', client)
   for (const m of memberships ?? []) await save('memberships', m)
   if (health_card) await save('health_cards', health_card)
   for (const row of body_measurements ?? []) await save('body_measurements', normalizeBodyMeasurementRow(row))
   for (const t of trainings ?? []) await save('trainings', t)
-  notifyLocalDataChanged({ client_id: client?.id })
+
+  const cid = String(client?.id ?? '').trim()
+  let pruned_trainings = 0
+  if (cid) {
+    pruned_trainings = await pruneOrphanTrainingsForClient(cid, trainings ?? [], pending?.trainings ?? null)
+  }
+
+  notifyLocalDataChanged({ client_id: client?.id, pruned_trainings })
+  return { pruned_trainings }
 }
 
 async function hydrateViaBrowserSupabase(clientId) {

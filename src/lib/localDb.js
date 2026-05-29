@@ -153,18 +153,25 @@ export async function buildPendingSyncKeysByTable() {
   return keys
 }
 
+function cloudCachedRecord(record) {
+  if (!record || typeof record !== 'object') return record
+  const { __sync: _m, synced: _s, ...rest } = record
+  return { ...rest, synced: true }
+}
+
 /**
  * putStore, но не затирает локальные правки, ещё не ушедшие в облако.
  * @returns {Promise<boolean>} false если запись пропущена из‑за очереди
  */
 export async function putStoreUnlessPendingSync(storeName, record, pending) {
+  const fromCloud = cloudCachedRecord(record)
   if (!PULL_MERGE_GUARD_STORES.has(storeName)) {
-    await putStore(storeName, record)
+    await putStore(storeName, fromCloud)
     return true
   }
   const key = recordKeyForStore(storeName, record)
   if (!key) {
-    await putStore(storeName, record)
+    await putStore(storeName, fromCloud)
     return true
   }
   if (pending?.[storeName]?.has(key)) {
@@ -173,7 +180,7 @@ export async function putStoreUnlessPendingSync(storeName, record, pending) {
       storeName === 'health_cards' ? await db.get('health_cards', key) : await db.get(storeName, key)
     if (existing) return false
   }
-  await putStore(storeName, record)
+  await putStore(storeName, fromCloud)
   return true
 }
 

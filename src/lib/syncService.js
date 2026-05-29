@@ -18,6 +18,7 @@ import {
   purgeSyncQueueAgainstLocalClients,
   pruneRedundantSyncQueue,
 } from './syncQueueOrphans'
+import { enqueueUnsyncedLocalRecords, recordForPush } from './syncLocalRecords'
 import { reportSyncOutcome } from './appErrorJournal'
 import { invalidateTrainerWorkspaceCache } from './trainerWorkspaceCache'
 import { invalidateAdminClubWorkspaceCache } from './admin/adminClubWorkspaceCache'
@@ -170,15 +171,10 @@ export async function clearPoisonedSyncQueue() {
 
 const SYNC_QUEUE_RESET_KEY = 'fitness-diary-sync-reset-v6'
 
-/** Один раз после обновления сайта — сброс всей очереди (убирает 409 в консоли). */
+/** @deprecated Больше не сбрасываем очередь — enqueueUnsyncedLocalRecords восстанавливает synced:false. */
 export async function resetSyncQueueOnceAfterDeploy() {
   if (!isSupabaseConfigured()) return
   try {
-    if (localStorage.getItem(SYNC_QUEUE_RESET_KEY) === '1') return
-    const queue = await listSyncQueue()
-    for (const item of queue) {
-      await removeSyncItem(item.local_id)
-    }
     localStorage.setItem(SYNC_QUEUE_RESET_KEY, '1')
   } catch {
     /* ignore */
@@ -439,6 +435,7 @@ async function flushSyncQueueInnerWork() {
   await collapseRedundantQueueItems()
   await collapseDuplicateQueueInserts()
   await pruneRedundantSyncQueue()
+  await enqueueUnsyncedLocalRecords()
 
   let queue = await listSyncQueue()
   const total = queue.length
@@ -530,7 +527,14 @@ async function flushSyncQueueInnerWork() {
 
 export async function saveLocalWithSync(storeName, record, { table_name, operation, remote_id }) {
   const db = await getDb()
-  await db.put(storeName, record)
+  const remoteId = remote_id === undefined ? record.id : remote_id
+  const row = {
+    ...record,
+    synced: false,
+    __sync: { operation, remote_id: remoteId },
+  }
+  const payload = recordForPush(row)
+  await db.put(storeName, row)
   if (TRAINER_CACHE_STORES.has(storeName)) {
     invalidateTrainerWorkspaceCache()
     invalidateAdminClubWorkspaceCache()
@@ -538,16 +542,16 @@ export async function saveLocalWithSync(storeName, record, { table_name, operati
   const queueRow = await enqueueSync({
     table_name,
     operation,
-    remote_id: remote_id === undefined ? record.id : remote_id,
-    data: record,
+    remote_id: remoteId,
+    data: payload,
   })
   /* Сначала push через Vercel API; при сбое остаётся в очереди для «Синхронизировать». */
   if (AUTO_PUSH_TABLES.has(table_name) && !backgroundSyncPaused && isAppOnline()) {
     schedulePushRecordViaApi({
       table_name,
       operation,
-      remote_id: remote_id === undefined ? record.id : remote_id,
-      data: record,
+      remote_id: remoteId,
+      data: payload,
       local_id: queueRow.local_id,
     })
     scheduleBackgroundSyncDrain()

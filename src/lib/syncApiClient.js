@@ -3,6 +3,7 @@ import { isAppOnline } from './networkReachability'
 import { getAccessTokenForAdminApi } from './admin/adminApiClient'
 import { removeSyncItem } from './localDb'
 import { handlePushApiFailure, isUnrecoverablePushError } from './syncQueueOrphans'
+import { markRecordSynced } from './syncLocalRecords'
 import { mapWithConcurrency } from './syncConcurrency'
 
 /** Меньшие пачки — иначе serverless (10–60 с) обрывает запрос, клиент уходит в медленный retry. */
@@ -113,6 +114,11 @@ export async function pushRecordViaApi({ table_name, operation, data, remote_id,
       const { pruneRedundantSyncQueue } = await import('./syncQueueOrphans')
       await pruneRedundantSyncQueue()
     }
+    try {
+      await markRecordSynced(table_name, data)
+    } catch {
+      /* ignore */
+    }
     return {
       ok: true,
       duplicate: !!body.duplicate,
@@ -127,6 +133,11 @@ export async function pushRecordViaApi({ table_name, operation, data, remote_id,
       } catch {
         /* ignore */
       }
+    }
+    try {
+      await markRecordSynced(table_name, data)
+    } catch {
+      /* ignore */
     }
     return { ok: true, duplicate: true }
   }
@@ -235,6 +246,11 @@ export async function pushRecordsBatchViaApi(items) {
           /* ignore */
         }
       }
+      try {
+        await markRecordSynced(item.table_name, item.data)
+      } catch {
+        /* ignore */
+      }
       perItem.push({ item, result: { ok: true, duplicate: !!row.duplicate } })
       continue
     }
@@ -246,6 +262,11 @@ export async function pushRecordsBatchViaApi(items) {
         } catch {
           /* ignore */
         }
+      }
+      try {
+        await markRecordSynced(item.table_name, item.data)
+      } catch {
+        /* ignore */
       }
       perItem.push({ item, result: { ok: true, duplicate: true } })
       continue

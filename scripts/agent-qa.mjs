@@ -34,6 +34,8 @@ function check(cond, label) {
 run('build', 'npm', ['run', 'build'])
 run('exercise formats', 'node', ['scripts/verify-exercise-format.mjs'])
 run('sync offline-first', 'node', ['scripts/verify-sync-offline.mjs'])
+run('sync unsynced re-queue', 'node', ['scripts/verify-sync-unsynced.mjs'])
+run('client trainings prune', 'node', ['scripts/verify-client-trainings-prune.mjs'])
 run('bulk exercises parser', 'node', ['scripts/verify-bulk-exercises.mjs'])
 run('client birthdays', 'node', ['scripts/verify-client-birthdays.mjs'])
 run('membership type stats', 'node', ['scripts/verify-membership-type-stats.mjs'])

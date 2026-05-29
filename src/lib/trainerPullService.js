@@ -15,6 +15,7 @@ import {
 } from './localDb'
 import { fetchTrainerPullViaApi } from './syncApiClient'
 import { pruneRedundantSyncQueue, purgeSyncQueueForMissingClients } from './syncQueueOrphans'
+import { pruneOrphanTrainingsForTrainerClients } from './clientTrainingsCache'
 import { invalidateTrainerWorkspaceCache } from './trainerWorkspaceCache'
 
 const LOCAL_DATA_CHANGED = 'fitness-diary-storage'
@@ -64,12 +65,13 @@ async function cacheTrainerPull(trainerId, { clients, memberships, health_cards,
     await putStoreUnlessPendingSync('body_measurements', normalizeBodyMeasurementRow(row), pending)
   }
   for (const row of trainings ?? []) await putStoreUnlessPendingSync('trainings', row, pending)
+  const pruned_trainings = await pruneOrphanTrainingsForTrainerClients(clients, trainings, pending?.trainings ?? null)
   const pruned = await pruneOrphanTrainerClients(trainerId, clients)
   await purgeSyncQueueForMissingClients((clients ?? []).map((c) => c.id))
   await pruneRedundantSyncQueue()
   invalidateTrainerWorkspaceCache()
   notifyLocalDataChanged()
-  return pruned
+  return { pruned, pruned_trainings }
 }
 
 /** @returns {Promise<{ ok: boolean, source?: string, count?: number, error?: string }>} */
@@ -88,7 +90,8 @@ export async function pullTrainerWorkspaceFromCloud(trainerId) {
         memberships: viaApi.memberships.length,
         body_measurements: viaApi.body_measurements?.length ?? 0,
         trainings: viaApi.trainings?.length ?? 0,
-        pruned_clients: pruned,
+        pruned_clients: pruned.pruned,
+        pruned_trainings: pruned.pruned_trainings,
       }
     }
   } catch (e) {
