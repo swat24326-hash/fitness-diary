@@ -3781,15 +3781,15 @@ tr:last-child td {
   min-height: 2.5rem;
 }
 
-.admin-club-stat-card__value--months {
-  align-items: baseline;
+.admin-club-stat-card__value.stat-card__value.admin-club-stat-card__value--months {
+  align-items: flex-end;
   gap: 6px;
 }
 
 .admin-club-stat-card__value-unit {
   font-size: 11px;
   font-weight: 500;
-  line-height: 1.2;
+  line-height: 1;
   color: var(--text-muted);
   letter-spacing: 0;
 }
