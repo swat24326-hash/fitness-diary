@@ -65,7 +65,8 @@ export function MembershipTypeStatsTable({ byType = [], byTrainerByType = [], tr
     <div className="mem-type-stats">
       <p className="muted mem-type-stats__note" style={{ margin: '0 0 10px', fontSize: 13, lineHeight: 1.45 }}>
         Учитываются только <strong>завершённые</strong> тренировки и <strong>списания</strong>. Тип берётся с абонемента
-        сейчас (если тип меняли — пересчёт по новому).
+        сейчас (если тип меняли — пересчёт по новому). Колонка <strong>«Без типа»</strong> видна в таблице; в столбце{' '}
+        <strong>«Итого»</strong> она не суммируется.
       </p>
       <div className="table-wrap admin-mem-type-table-wrap">
         <table className="admin-mem-type-table">

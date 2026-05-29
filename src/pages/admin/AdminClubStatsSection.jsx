@@ -212,10 +212,7 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
   const byType = s?.byType ?? []
   const byTrainerByType = s?.byTrainerByType ?? []
   const totalCounted = s?.totalCounted ?? 0
-  const totalCountedTyped = useMemo(
-    () => (byType ?? []).filter((x) => x?.typeId != null).reduce((sum, x) => sum + (x.count ?? 0), 0),
-    [byType],
-  )
+  const clubMonthlySum = useMemo(() => clubMonthly.reduce((sum, r) => sum + (Number(r?.count) || 0), 0), [clubMonthly])
 
   const toggleInlinePanel = (panel) => {
     setInlinePanel((cur) => (cur === panel ? null : panel))
@@ -455,22 +452,26 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
           <button
             type="button"
             className={statCardClass(inlinePanel === 'byTypes')}
-            disabled={totalCountedTyped === 0}
+            disabled={totalCounted === 0}
             aria-label={
-              totalCountedTyped > 0
-                ? `По типам карт: ${totalCountedTyped}. Нажмите для таблицы`
+              totalCounted > 0
+                ? `По типам карт: ${totalCounted} записей. Нажмите для таблицы`
                 : 'По типам карт: нет данных за период'
             }
-            title={totalCountedTyped > 0 ? 'Таблица по типам' : undefined}
+            title={totalCounted > 0 ? 'Таблица по типам' : undefined}
             onClick={() => toggleInlinePanel('byTypes')}
           >
             <div className="stat-card__top admin-club-stat-card__head">
               <h3 className="td-stat-title admin-club-stat-card__title">По типам карт</h3>
               <LayoutGrid className="stat-card__icon" size={22} aria-hidden />
             </div>
-            <p className="stat-card__value admin-club-stat-card__value">{totalCountedTyped}</p>
+            <p className="stat-card__value admin-club-stat-card__value">{totalCounted}</p>
             <p className="admin-club-stat-card__foot">
-              {totalCountedTyped > 0 ? (inlinePanel === 'byTypes' ? 'скрыть таблицу' : 'нажмите для таблицы') : 'за выбранный период'}
+              {totalCounted > 0
+                ? inlinePanel === 'byTypes'
+                  ? 'скрыть таблицу'
+                  : 'нажмите для таблицы · «Итого» без «Без типа»'
+                : 'за выбранный период'}
             </p>
           </button>
           <button
@@ -485,9 +486,9 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
               <h3 className="td-stat-title admin-club-stat-card__title">Итог по клубу</h3>
               <LineChart className="stat-card__icon" size={22} aria-hidden />
             </div>
-            <p className="stat-card__value admin-club-stat-card__value">{clubMonthlyBusy ? '…' : clubMonthly.length ? clubMonthly[clubMonthly.length - 1]?.count ?? 0 : '—'}</p>
+            <p className="stat-card__value admin-club-stat-card__value">{clubMonthlyBusy ? '…' : clubMonthlySum}</p>
             <p className="admin-club-stat-card__foot">
-              {inlinePanel === 'clubMonthly' ? 'скрыть график' : 'по месяцам (12)'}
+              {inlinePanel === 'clubMonthly' ? 'скрыть график' : '12 мес. · без «Без типа»'}
             </p>
           </button>
           <button
@@ -536,7 +537,15 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
           {clubMonthlyBusy ? (
             <p className="muted" style={{ margin: 0, fontSize: 13 }}>Загрузка…</p>
           ) : (
-            <AdminClubMonthlyChart rows={clubMonthly} />
+            <>
+              {!clubMonthlySum && totalCompleted > 0 ? (
+                <p className="muted admin-inline-note" style={{ margin: '0 0 10px' }}>
+                  За выбранный период завершённых тренировок: <strong>{totalCompleted}</strong>, но с указанным типом карты —{' '}
+                  <strong>0</strong>. В итоговый отчёт по месяцам «Без типа» не входят.
+                </p>
+              ) : null}
+              <AdminClubMonthlyChart rows={clubMonthly} />
+            </>
           )}
         </section>
       ) : null}
