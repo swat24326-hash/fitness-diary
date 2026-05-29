@@ -4,6 +4,8 @@ function typeKey(row) {
   return row?.typeId ?? '__none__'
 }
 
+const NONE_KEY = '__none__'
+
 /**
  * Таблица: строки — тренеры, столбцы — типы карт, ячейки — количество.
  * @param {{ byType: object[], byTrainerByType: object[], trainerLabel: (id: string) => string }} props
@@ -31,7 +33,10 @@ export function MembershipTypeStatsTable({ byType = [], byTrainerByType = [], tr
     return cols
   }, [byType, byTrainerByType])
 
-  const clubTotal = useMemo(() => byType.reduce((s, x) => s + (x.count ?? 0), 0), [byType])
+  const clubTotalTyped = useMemo(
+    () => byType.filter((x) => typeKey(x) !== NONE_KEY).reduce((s, x) => s + (x.count ?? 0), 0),
+    [byType],
+  )
 
   if (!columns.length && !byTrainerByType.length) {
     return (
@@ -44,6 +49,11 @@ export function MembershipTypeStatsTable({ byType = [], byTrainerByType = [], tr
   const countForTrainer = (tr, colKey) => {
     const row = (tr.byType ?? []).find((x) => typeKey(x) === colKey)
     return row?.count ?? 0
+  }
+
+  const typedTotalForTrainer = (tr) => {
+    const list = tr?.byType ?? []
+    return list.filter((x) => typeKey(x) !== NONE_KEY).reduce((s, x) => s + (x.count ?? 0), 0)
   }
 
   const countForClub = (colKey) => {
@@ -80,7 +90,7 @@ export function MembershipTypeStatsTable({ byType = [], byTrainerByType = [], tr
                   </td>
                 ))}
                 <td className="admin-mem-type-table__num admin-mem-type-table__sum-col">
-                  <strong>{tr.total ?? 0}</strong>
+                  <strong>{typedTotalForTrainer(tr)}</strong>
                 </td>
               </tr>
             ))}
@@ -94,7 +104,7 @@ export function MembershipTypeStatsTable({ byType = [], byTrainerByType = [], tr
                 </td>
               ))}
               <td className="admin-mem-type-table__num admin-mem-type-table__sum-col">
-                <strong>{clubTotal}</strong>
+                <strong>{clubTotalTyped}</strong>
               </td>
             </tr>
           </tbody>

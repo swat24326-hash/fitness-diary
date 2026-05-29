@@ -336,6 +336,21 @@ export async function fetchClubTrainingStatsViaApi({ clubId, dateFrom, dateTo })
   return data
 }
 
+/** GET /api/admin-data?action=club-monthly */
+export async function fetchClubMonthlyStatsViaApi({ clubId, anchorTo, months = 12 }) {
+  const token = await getAccessTokenForAdminApi()
+  if (!token) throw new Error('Нет сессии администратора')
+
+  const params = new URLSearchParams({
+    club_id: clubId,
+    anchor_to: String(anchorTo ?? '').slice(0, 10),
+    months: String(months),
+  })
+  const { data, routeMissing } = await adminApiGet(`/api/admin-data?action=club-monthly&${params}`, token)
+  if (routeMissing) return null
+  return data
+}
+
 /** GET /api/admin-data?action=challenge-trainings — тренировки клуба за период (для рейтинга челленджа). */
 export async function fetchChallengeTrainingsViaApi(clubId, dateFrom, dateTo) {
   const cid = String(clubId ?? '').trim()

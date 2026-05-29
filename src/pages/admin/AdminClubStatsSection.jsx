@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BarChart3, ClipboardList, Info, LayoutGrid, RefreshCw, Trophy, UserCheck, UserMinus, UserX, Users } from 'lucide-react'
+import { BarChart3, ClipboardList, Info, LayoutGrid, LineChart, RefreshCw, Trophy, UserCheck, UserMinus, UserX, Users } from 'lucide-react'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { loadClubTrainingStats, listTrainerSummariesForAdmin, listClubsLocal } from '../../lib/dataAccess'
 import { useDebouncedStorageReload, shouldReloadAdminStatsPage } from '../../lib/useDebouncedStorageReload'
 import { formatIsoRu, getDateRange, PERIOD_PRESETS } from '../../lib/period'
 import { formatDateRu } from '../../lib/dateRu'
 import { AdminClubDayChart } from '../../components/AdminClubDayChart'
+import { AdminClubMonthlyChart } from '../../components/AdminClubMonthlyChart'
 import { MembershipTypeStatsTable } from '../../components/MembershipTypeStatsTable'
+import { loadClubMonthlyStats } from '../../lib/admin/adminClubMonthlyService'
 
 function rankMedal(i) {
   if (i === 0) return '🥇'
@@ -15,7 +17,7 @@ function rankMedal(i) {
   return `${i + 1}.`
 }
 
-/** @typedef {'byDay' | 'byTypes' | 'rating'} AdminStatsInlinePanel */
+/** @typedef {'byDay' | 'byTypes' | 'rating' | 'clubMonthly'} AdminStatsInlinePanel */
 
 /**
  * @param {{
@@ -37,6 +39,8 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
   const [statsHelpOpen, setStatsHelpOpen] = useState(false)
   /** @type {[AdminStatsInlinePanel | null, Function]} */
   const [inlinePanel, setInlinePanel] = useState(null)
+  const [clubMonthly, setClubMonthly] = useState([])
+  const [clubMonthlyBusy, setClubMonthlyBusy] = useState(false)
   const statsHelpRef = useRef(null)
 
   const range = useMemo(() => getDateRange(period, customFrom, customTo), [period, customFrom, customTo])
@@ -73,7 +77,29 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
   useEffect(() => {
     setStatsHelpOpen(false)
     setInlinePanel(null)
+    setClubMonthly([])
   }, [clubId, range.start, range.end])
+
+  useEffect(() => {
+    if (inlinePanel !== 'clubMonthly') return
+    if (!clubId || !range.end) return
+    let cancelled = false
+    ;(async () => {
+      setClubMonthlyBusy(true)
+      try {
+        const res = await loadClubMonthlyStats({ clubId, anchorTo: range.end, months: 12 })
+        if (cancelled) return
+        setClubMonthly(Array.isArray(res?.months) ? res.months : [])
+      } catch {
+        if (!cancelled) setClubMonthly([])
+      } finally {
+        if (!cancelled) setClubMonthlyBusy(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [inlinePanel, clubId, range.end])
 
   useEffect(() => {
     if (!statsHelpOpen) return
@@ -186,6 +212,10 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
   const byType = s?.byType ?? []
   const byTrainerByType = s?.byTrainerByType ?? []
   const totalCounted = s?.totalCounted ?? 0
+  const totalCountedTyped = useMemo(
+    () => (byType ?? []).filter((x) => x?.typeId != null).reduce((sum, x) => sum + (x.count ?? 0), 0),
+    [byType],
+  )
 
   const toggleInlinePanel = (panel) => {
     setInlinePanel((cur) => (cur === panel ? null : panel))
@@ -425,22 +455,39 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
           <button
             type="button"
             className={statCardClass(inlinePanel === 'byTypes')}
-            disabled={totalCounted === 0}
+            disabled={totalCountedTyped === 0}
             aria-label={
-              totalCounted > 0
-                ? `По типам карт: ${totalCounted}. Нажмите для таблицы`
+              totalCountedTyped > 0
+                ? `По типам карт: ${totalCountedTyped}. Нажмите для таблицы`
                 : 'По типам карт: нет данных за период'
             }
-            title={totalCounted > 0 ? 'Таблица по типам' : undefined}
+            title={totalCountedTyped > 0 ? 'Таблица по типам' : undefined}
             onClick={() => toggleInlinePanel('byTypes')}
           >
             <div className="stat-card__top admin-club-stat-card__head">
               <h3 className="td-stat-title admin-club-stat-card__title">По типам карт</h3>
               <LayoutGrid className="stat-card__icon" size={22} aria-hidden />
             </div>
-            <p className="stat-card__value admin-club-stat-card__value">{totalCounted}</p>
+            <p className="stat-card__value admin-club-stat-card__value">{totalCountedTyped}</p>
             <p className="admin-club-stat-card__foot">
-              {totalCounted > 0 ? (inlinePanel === 'byTypes' ? 'скрыть таблицу' : 'нажмите для таблицы') : 'за выбранный период'}
+              {totalCountedTyped > 0 ? (inlinePanel === 'byTypes' ? 'скрыть таблицу' : 'нажмите для таблицы') : 'за выбранный период'}
+            </p>
+          </button>
+          <button
+            type="button"
+            className={statCardClass(inlinePanel === 'clubMonthly')}
+            disabled={!range.end}
+            aria-label={range.end ? 'Итоговая статистика по клубу. Нажмите для графика по месяцам' : 'Итоговая статистика по клубу недоступна'}
+            title={range.end ? 'График по месяцам' : undefined}
+            onClick={() => toggleInlinePanel('clubMonthly')}
+          >
+            <div className="stat-card__top admin-club-stat-card__head">
+              <h3 className="td-stat-title admin-club-stat-card__title">Итог по клубу</h3>
+              <LineChart className="stat-card__icon" size={22} aria-hidden />
+            </div>
+            <p className="stat-card__value admin-club-stat-card__value">{clubMonthlyBusy ? '…' : clubMonthly.length ? clubMonthly[clubMonthly.length - 1]?.count ?? 0 : '—'}</p>
+            <p className="admin-club-stat-card__foot">
+              {inlinePanel === 'clubMonthly' ? 'скрыть график' : 'по месяцам (12)'}
             </p>
           </button>
           <button
@@ -478,6 +525,19 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
             По типам абонементов
           </h3>
           <MembershipTypeStatsTable byType={byType} byTrainerByType={byTrainerByType} trainerLabel={trainerLabel} />
+        </section>
+      ) : null}
+
+      {inlinePanel === 'clubMonthly' ? (
+        <section className="card admin-club-stats-detail" style={{ marginBottom: 20, padding: 14 }}>
+          <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 10px' }}>
+            Итоговая статистика по клубу (по месяцам)
+          </h3>
+          {clubMonthlyBusy ? (
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>Загрузка…</p>
+          ) : (
+            <AdminClubMonthlyChart rows={clubMonthly} />
+          )}
         </section>
       ) : null}
 

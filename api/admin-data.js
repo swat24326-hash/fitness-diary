@@ -5,6 +5,7 @@
 import { requireAdmin, requireAuthUser, sendJson, setCors } from './lib/adminSupabase.js'
 import { aggregateTrainings, aggregateClubClientPeriod } from './lib/clubStatsAgg.js'
 import { aggregateMembershipTypeStats } from './lib/membershipTypeStatsAgg.js'
+import { aggregateMonthlyTypedCompleted } from './lib/clubMonthlyAgg.js'
 
 const PAGE = 400
 const IN_CHUNK = 80
@@ -407,6 +408,35 @@ async function handleExercises(authCtx, res) {
   sendJson(res, 200, { exercises: all, count: all.length, max_created_at: maxCreatedAt })
 }
 
+async function handleClubMonthly(ctx, req, res) {
+  const clubId = String(req.query?.club_id ?? '').trim()
+  const anchorTo = String(req.query?.anchor_to ?? '').slice(0, 10)
+  const months = Math.max(3, Math.min(36, Number(req.query?.months ?? 12) || 12))
+  if (!clubId || !anchorTo) {
+    sendJson(res, 400, { error: 'Укажите club_id, anchor_to' })
+    return
+  }
+  try {
+    const { supabaseAdmin } = ctx
+    const y = Number(anchorTo.slice(0, 4))
+    const m1 = Number(anchorTo.slice(5, 7))
+    const start = new Date(y, m1 - 1 - (months - 1), 1)
+    const end = new Date(y, m1, 0) // последний день месяца anchorTo
+    const dateFrom = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-01`
+    const dateTo = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`
+
+    const [trainings, memberships] = await Promise.all([
+      fetchPaged(supabaseAdmin, 'trainings', 'id, date, status, data', clubId, dateFrom, dateTo),
+      fetchPaged(supabaseAdmin, 'memberships', 'id, membership_type_id', clubId, null, null),
+    ])
+
+    const rows = aggregateMonthlyTypedCompleted({ trainings, memberships, anchorTo, months })
+    sendJson(res, 200, { months: rows, club_id: clubId, anchor_to: anchorTo })
+  } catch (e) {
+    sendJson(res, 400, { error: e?.message ? String(e.message) : 'Ошибка' })
+  }
+}
+
 export default async function handler(req, res) {
   setCors(res, 'GET, OPTIONS')
   if (req.method === 'OPTIONS') {
@@ -452,13 +482,15 @@ export default async function handler(req, res) {
       return handleJournal(ctx, req, res)
     case 'club-stats':
       return handleClubStats(ctx, req, res)
+    case 'club-monthly':
+      return handleClubMonthly(ctx, req, res)
     case 'health-cards':
       return handleHealthCards(ctx, req, res)
     case 'clubs':
       return handleClubs(ctx, res)
     default:
       sendJson(res, 400, {
-        error: 'Укажите action: search, journal, club-stats, health-cards, challenges, challenge-trainings, exercises, membership-types, clubs',
+        error: 'Укажите action: search, journal, club-stats, club-monthly, health-cards, challenges, challenge-trainings, exercises, membership-types, clubs',
       })
   }
 }
