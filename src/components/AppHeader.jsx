@@ -162,9 +162,19 @@ export function AppHeader() {
 
   useEffect(() => {
     void refreshSyncOutbound()
-    const onData = () => void refreshSyncOutbound()
+    let debounce = null
+    const onData = () => {
+      if (debounce) clearTimeout(debounce)
+      debounce = setTimeout(() => {
+        debounce = null
+        void refreshSyncOutbound()
+      }, 900)
+    }
     window.addEventListener(LOCAL_DATA_CHANGED, onData)
-    return () => window.removeEventListener(LOCAL_DATA_CHANGED, onData)
+    return () => {
+      if (debounce) clearTimeout(debounce)
+      window.removeEventListener(LOCAL_DATA_CHANGED, onData)
+    }
   }, [])
 
   useEffect(() => {
@@ -696,8 +706,6 @@ export function AppHeader() {
                 <span className="app-header__error-badge" aria-label={`Записей в журнале: ${persistentErrorCount}`}>
                   {persistentErrorCount > 99 ? '99+' : persistentErrorCount}
                 </span>
-              ) : needsAttention ? (
-                <span className="app-header__error-dot" aria-hidden title="Очередь синхронизации не пуста" />
               ) : null}
             </button>
             <button type="button" className="app-header__menu-item app-header__menu-item--danger" onClick={doSignOut}>

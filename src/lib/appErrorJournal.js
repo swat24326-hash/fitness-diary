@@ -120,10 +120,13 @@ export function pruneRecoverableAppErrors() {
   migrateLegacySyncErrors()
   const list = readRaw()
   const kept = list.filter((r) => !isRecoverableTransientError(r))
-  if (kept.length !== list.length) writeRaw(kept)
-  syncNeedsAttention = getPersistentErrorCount() > 0
-  notifyChanged()
-  notifySyncAttention()
+  const listChanged = kept.length !== list.length
+  if (listChanged) writeRaw(kept)
+  const nextAttention = getPersistentErrorCount() > 0
+  const attentionChanged = syncNeedsAttention !== nextAttention
+  syncNeedsAttention = nextAttention
+  if (listChanged) notifyChanged()
+  if (listChanged || attentionChanged) notifySyncAttention()
 }
 
 /** После старта: флаг «нужно внимание» только если в журнале остались серьёзные записи. */
@@ -257,7 +260,9 @@ export function clearAppErrors() {
   } catch {
     /* ignore */
   }
+  syncNeedsAttention = false
   notifyChanged()
+  notifySyncAttention()
 }
 
 /** @param {(count: number) => void} fn */

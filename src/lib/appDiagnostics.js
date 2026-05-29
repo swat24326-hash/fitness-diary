@@ -197,11 +197,12 @@ export function formatSyncQueueLineHuman(item, index, meta = {}) {
 /**
  * @param {{ errors?: object[], queue?: object[], system?: ReturnType<typeof buildSystemState> }} payload
  */
-export function resolveQuickFixes({ errors = [], queue = [], system = {} }) {
+export function resolveQuickFixes({ errors = [], queue = [], localOnly = 0, system = {} }) {
   /** @type {Array<{ id: string, title: string, detail: string, action?: string, tone?: string }>} */
   const fixes = []
   const list = Array.isArray(errors) ? errors : []
   const q = Array.isArray(queue) ? queue : []
+  const pendingOutbound = q.length + Math.max(0, Number(localOnly) || 0)
   const online = system.online !== false
 
   if (!online) {
@@ -238,12 +239,15 @@ export function resolveQuickFixes({ errors = [], queue = [], system = {} }) {
     })
   }
 
-  if (q.length > 0 && online) {
+  if (pendingOutbound > 0 && online) {
+    const parts = []
+    if (q.length > 0) parts.push(`в очереди ${q.length}`)
+    if (localOnly > 0) parts.push(`на устройстве ${localOnly}`)
     fixes.push({
       id: 'sync',
       tone: 'warn',
-      title: `В очереди ${q.length} ${q.length === 1 ? 'запись' : q.length < 5 ? 'записи' : 'записей'}`,
-      detail: 'Нажмите «Синхронизировать» и дождитесь завершения. Данные на устройстве уже сохранены.',
+      title: `Отправить в облако (${pendingOutbound})`,
+      detail: `Нажмите «Синхронизировать» и дождитесь завершения${parts.length ? `: ${parts.join(', ')}` : ''}. Данные на устройстве сохранены.`,
       action: 'sync',
     })
   } else if (

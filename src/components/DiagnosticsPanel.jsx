@@ -23,7 +23,7 @@ import {
   sourceLabel,
   suggestErrorHint,
 } from '../lib/appDiagnostics'
-import { clearPoisonedSyncQueue } from '../lib/syncService'
+import { clearPoisonedSyncQueue, getSyncOutboundSummary } from '../lib/syncService'
 import { pruneRedundantSyncQueue } from '../lib/syncQueueOrphans'
 
 async function copyText(text) {
@@ -70,6 +70,7 @@ export function DiagnosticsPanel({
   const [needsAttention, setNeedsAttention] = useState(false)
   const [errors, setErrors] = useState([])
   const [queue, setQueue] = useState([])
+  const [localOnlyCount, setLocalOnlyCount] = useState(0)
   const [clientNames, setClientNames] = useState({})
   const [queueLoading, setQueueLoading] = useState(true)
   const [copyBusy, setCopyBusy] = useState(false)
@@ -78,11 +79,15 @@ export function DiagnosticsPanel({
   const [showDetails, setShowDetails] = useState(!simpleMode)
 
   const refreshErrors = useCallback(() => {
-    pruneRecoverableAppErrors()
     const list = loadDiagnosticsErrors(50)
     setErrors(list)
     setPersistentErrorCount(getPersistentErrorCount())
   }, [])
+
+  useEffect(() => {
+    pruneRecoverableAppErrors()
+    refreshErrors()
+  }, [refreshErrors])
 
   const refreshAttention = useCallback(
     (queueLen) => {
@@ -96,14 +101,20 @@ export function DiagnosticsPanel({
     setQueueLoading(true)
     try {
       const db = await getDb()
-      const [rows, clients] = await Promise.all([listSyncQueue(), db.getAll('clients')])
+      const [rows, clients, outbound] = await Promise.all([
+        listSyncQueue(),
+        db.getAll('clients'),
+        getSyncOutboundSummary(),
+      ])
       const cmap = {}
       for (const c of clients) cmap[String(c.id)] = String(c.name ?? c.full_name ?? '').trim() || 'Клиент'
       setClientNames(cmap)
       setQueue(Array.isArray(rows) ? rows : [])
+      setLocalOnlyCount(outbound.localOnly ?? 0)
     } catch {
       setClientNames({})
       setQueue([])
+      setLocalOnlyCount(0)
     } finally {
       setQueueLoading(false)
     }
@@ -126,8 +137,8 @@ export function DiagnosticsPanel({
   }, [refreshAll])
 
   useEffect(() => {
-    refreshAttention(queue.length)
-  }, [queue.length, errors, refreshAttention])
+    refreshAttention(queue.length + localOnlyCount)
+  }, [queue.length, localOnlyCount, errors, refreshAttention])
 
   const system = useMemo(
     () =>
@@ -140,7 +151,10 @@ export function DiagnosticsPanel({
   )
 
   const filteredErrors = useMemo(() => filterAppErrors(errors, filterId), [errors, filterId])
-  const quickFixes = useMemo(() => resolveQuickFixes({ errors, queue, system }), [errors, queue, system])
+  const quickFixes = useMemo(
+    () => resolveQuickFixes({ errors, queue, localOnly: localOnlyCount, system }),
+    [errors, queue, localOnlyCount, system],
+  )
 
   const queuePreview = showAllQueue ? queue : queue.slice(0, 10)
   const queueHidden = queue.length > 10 && !showAllQueue
@@ -203,10 +217,13 @@ export function DiagnosticsPanel({
   const handleClear = () => {
     clearAppErrors()
     refreshErrors()
+    refreshAttention(queue.length + localOnlyCount)
     onCleared?.()
   }
 
-  const statusTone = needsAttention ? (queue.length > 0 || !system.online ? 'warn' : 'ok') : system.online ? 'ok' : 'warn'
+  const outboundTotal = queue.length + localOnlyCount
+  const statusTone =
+    needsAttention && (queue.length > 0 || localOnlyCount > 0 || !system.online) ? 'warn' : system.online ? 'ok' : 'warn'
 
   const panelTitle = simpleMode ? 'Помощь при проблемах' : 'Журнал ошибок и диагностика'
   const panelSub = simpleMode
@@ -226,22 +243,33 @@ export function DiagnosticsPanel({
       </div>
 
       <div className={`diagnostics-panel__status diagnostics-panel__status--${statusTone}`} role="status">
-        {queue.length === 0 && !needsAttention ? (
+        {outboundTotal === 0 && !needsAttention ? (
           <>
-            Всё работает: очередь sync {queue.length}
-            {persistentErrorCount > 0 ? `, в журнале ${persistentErrorCount} (архив)` : ''}
+            Всё работает: нечего отправлять в облако
+            {persistentErrorCount > 0 ? ` · в журнале ${persistentErrorCount} (архив)` : ''}
           </>
-        ) : queue.length === 0 && persistentErrorCount > 0 ? (
+        ) : outboundTotal === 0 && persistentErrorCount > 0 ? (
           <>
-            Очередь sync пуста — данные отправлены. В журнале <strong>{persistentErrorCount}</strong> старых
-            записей об ошибках (можно очистить).
+            Отправка в облако завершена. В журнале <strong>{persistentErrorCount}</strong> старых записей (можно
+            очистить).
           </>
         ) : (
           <>
-            Требует внимания: в очереди sync <strong>{queue.length}</strong>
+            {queue.length > 0 ? (
+              <>
+                В очереди sync <strong>{queue.length}</strong>
+              </>
+            ) : null}
+            {localOnlyCount > 0 ? (
+              <>
+                {queue.length > 0 ? ', ' : ''}
+                только на устройстве <strong>{localOnlyCount}</strong>
+              </>
+            ) : null}
             {persistentErrorCount > 0 ? (
               <>
-                , в журнале <strong>{persistentErrorCount}</strong>
+                {outboundTotal > 0 ? ' · ' : ''}
+                в журнале ошибок <strong>{persistentErrorCount}</strong>
               </>
             ) : null}
             {!system.online ? ' · нет сети' : ''}

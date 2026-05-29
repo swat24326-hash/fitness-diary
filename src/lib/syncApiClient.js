@@ -142,7 +142,6 @@ export async function pushRecordViaApi({ table_name, operation, data, remote_id,
     return { ok: true, duplicate: true }
   }
   if (isUnrecoverablePushError(res.status, err)) {
-    recordSyncError({ status: res.status, error: err, table_name, operation, local_id })
     return handlePushApiFailure({
       status: res.status,
       error: err,
@@ -272,13 +271,6 @@ export async function pushRecordsBatchViaApi(items) {
       continue
     }
     if (isUnrecoverablePushError(row.status, err)) {
-      recordSyncError({
-        status: row.status,
-        error: err,
-        table_name: item.table_name,
-        operation: item.operation,
-        local_id: item.local_id,
-      })
       const dropped = await handlePushApiFailure({
         status: row.status,
         error: err,

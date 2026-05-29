@@ -18,7 +18,7 @@ import {
   purgeSyncQueueAgainstLocalClients,
   pruneRedundantSyncQueue,
 } from './syncQueueOrphans'
-import { enqueueUnsyncedLocalRecords, recordForPush, countUnsyncedLocalRecords } from './syncLocalRecords'
+import { enqueueUnsyncedLocalRecords, recordForPush, countUnsyncedLocalRecords, markRecordSynced } from './syncLocalRecords'
 import { reportSyncOutcome } from './appErrorJournal'
 import { invalidateTrainerWorkspaceCache } from './trainerWorkspaceCache'
 import { invalidateAdminClubWorkspaceCache } from './admin/adminClubWorkspaceCache'
@@ -418,7 +418,12 @@ async function processOneSyncQueueItem(item) {
   if (pushedViaApi.ok || pushedViaApi.dropped) return { ok: true }
   if (isUnrecoverablePushError(pushedViaApi.status, pushedViaApi.error)) {
     await removeSyncItem(item.local_id)
-    await dropLocalOrphanForSyncItem(item)
+    try {
+      await markRecordSynced(item.table_name, payload)
+    } catch {
+      /* ignore */
+    }
+    if (item.operation === 'insert') await dropLocalOrphanForSyncItem(item)
     return { ok: true }
   }
 
