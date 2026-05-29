@@ -9,6 +9,7 @@ import { isSupabaseConfigured } from '../../lib/supabase'
 import { hasUsableMembershipOnDate } from '../../lib/membershipRules'
 import { saveLocalWithSync } from '../../lib/syncService'
 import { useAuth } from '../../context/AuthContext'
+import { useDebouncedStorageReload, shouldReloadTrainerClientStats } from '../../lib/useDebouncedStorageReload'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 
 function formatClientName(raw) {
@@ -120,6 +121,23 @@ export function ClientCard() {
     }
     void reloadFromCloud()
   }, [isTrainer, isAdmin, reloadLocal, reloadFromCloud, hydrateFromCloudInBackground])
+
+  useDebouncedStorageReload(
+    () => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        void reloadLocal()
+        return
+      }
+      if (isTrainer && !isAdmin) {
+        void hydrateFromCloudInBackground()
+        return
+      }
+      if (isAdmin) {
+        void reloadFromCloud()
+      }
+    },
+    { shouldRun: shouldReloadTrainerClientStats },
+  )
 
   const openEdit = () => {
     setEditForm({

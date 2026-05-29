@@ -24,6 +24,7 @@ import {
   resolveMembershipForDiaryTraining,
 } from '../lib/membershipRules'
 import { getDb } from '../lib/localDb'
+import { useDebouncedStorageReload, shouldReloadTrainerClientStats } from '../lib/useDebouncedStorageReload'
 import { deleteLocalWithSync, saveLocalWithSync } from '../lib/syncService'
 import { formatDateRu } from '../lib/dateRu'
 import { TrainingExercisesReadonly } from './TrainingExercisesReadonly'
@@ -304,6 +305,8 @@ export function ClientDiaries({ client, onDataChange, clubQs = '' }) {
   useEffect(() => {
     load()
   }, [load])
+
+  useDebouncedStorageReload(() => load(), { shouldRun: shouldReloadTrainerClientStats })
 
   const notify = useCallback(() => {
     load()

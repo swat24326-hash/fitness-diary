@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { listMemberships, listTrainingsForClient } from '../lib/dataAccess'
 import { getDb } from '../lib/localDb'
 import { deleteLocalWithSync, saveLocalWithSync } from '../lib/syncService'
@@ -182,6 +182,9 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
     [],
   )
 
+  const onChangedRef = useRef(onChanged)
+  onChangedRef.current = onChanged
+
   const reload = useCallback(async () => {
     const [m0, t0] = await Promise.all([listMemberships(clientId), listTrainingsForClient(clientId)])
     setTrainings(t0)
@@ -206,7 +209,10 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
 
     setItems(next)
     setSelectedId((cur) => cur ?? (next[0]?.id ?? null))
-  }, [clientId])
+    if (next.some((m, i) => Number(m?.used_trainings ?? 0) !== Number(m0[i]?.used_trainings ?? 0))) {
+      onChangedRef.current?.()
+    }
+  }, [clientId, computeMembershipTrainings])
 
   useEffect(() => {
     reload()
