@@ -11,7 +11,7 @@ import { ADMIN_SYNC_BATCH_SIZE } from './adminConstants'
 import { aggregateMembershipTypeStats } from './membershipTypeStatsAgg'
 import { listMembershipTypesForClub } from '../membershipTypesService'
 
-function aggregateTrainings(rows) {
+export function aggregateTrainings(rows) {
   const dayMap = new Map()
   const trainerMap = new Map()
   const clientSet = new Set()
@@ -170,7 +170,7 @@ async function fetchMembershipsForClubLocal(clubId) {
  * @param {string} dateFrom yyyy-mm-dd
  * @param {string} dateTo yyyy-mm-dd
  */
-function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, dateTo) {
+export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, dateTo) {
   const totalClients = clientRows.length
   const clientIdSet = new Set(clientRows.map((c) => c.id).filter(Boolean))
   const clientById = new Map()

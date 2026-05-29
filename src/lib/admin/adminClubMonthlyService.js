@@ -30,7 +30,7 @@ function buildMonthKeys(anchorToIso, months) {
   return out
 }
 
-function aggregateMonthlyTypedCompleted({ trainings, memberships, anchorTo, months }) {
+export function aggregateMonthlyTypedCompleted({ trainings, memberships, anchorTo, months }) {
   const membershipTypeById = new Map()
   for (const m of memberships ?? []) {
     const id = String(m?.id ?? '').trim()

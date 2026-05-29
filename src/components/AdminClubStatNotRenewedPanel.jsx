@@ -7,17 +7,20 @@ import { formatIsoRu } from '../lib/period'
  *   clients: Array<{ id: string, name: string, phone?: string|null, membershipEnded?: string|null }>,
  *   dateFrom: string,
  *   dateTo: string,
- *   clubId: string,
+ *   clubId?: string,
+ *   clientLinkTo?: (clientId: string) => string,
+ *   scopeLabel?: 'club' | 'trainer',
  * }} props
  */
-export function AdminClubStatNotRenewedPanel({ clients, dateFrom, dateTo, clubId }) {
+export function AdminClubStatNotRenewedPanel({ clients, dateFrom, dateTo, clubId = '', clientLinkTo, scopeLabel = 'club' }) {
   const clubQs = clubId ? `?club=${encodeURIComponent(clubId)}` : ''
+  const linkFor = clientLinkTo ?? ((id) => `/admin/clients/${id}${clubQs}`)
 
   return (
     <>
       <p className="muted admin-stat-drilldown__hint" style={{ margin: '0 0 12px', fontSize: 13, lineHeight: 1.45 }}>
-        Абонемент <strong>закончился</strong> в периоде {formatIsoRu(dateFrom)} — {formatIsoRu(dateTo)}, а на{' '}
-        <strong>конец периода</strong> действующего абонемента с остатком тренировок нет.
+        {scopeLabel === 'trainer' ? 'У ваших клиентов абонемент' : 'Абонемент'} <strong>закончился</strong> в периоде {formatIsoRu(dateFrom)} —{' '}
+        {formatIsoRu(dateTo)}, а на <strong>конец периода</strong> действующего абонемента с остатком тренировок нет.
       </p>
 
       {clients.length === 0 ? (
@@ -40,7 +43,7 @@ export function AdminClubStatNotRenewedPanel({ clients, dateFrom, dateTo, clubId
                   ) : null}
                 </div>
               </div>
-              <Link to={`/admin/clients/${c.id}${clubQs}`} className="btn btn-primary btn-touch u-no-decoration">
+              <Link to={linkFor(c.id)} className="btn btn-primary btn-touch u-no-decoration">
                 Карточка
               </Link>
             </li>

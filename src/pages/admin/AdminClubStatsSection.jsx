@@ -2,9 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BarChart3, ClipboardList, Info, LayoutGrid, LineChart, RefreshCw, Trophy, UserCheck, UserMinus, UserX, Users } from 'lucide-react'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { loadClubTrainingStats, listTrainerSummariesForAdmin, listClubsLocal } from '../../lib/dataAccess'
-import { useDebouncedStorageReload, shouldReloadAdminStatsPage } from '../../lib/useDebouncedStorageReload'
+import { loadTrainerPeriodStats } from '../../lib/trainer/trainerPeriodStatsService'
+import { loadTrainerMonthlyStats } from '../../lib/trainer/trainerMonthlyStatsService'
+import { useDebouncedStorageReload, shouldReloadAdminStatsPage, shouldReloadTrainerClientList } from '../../lib/useDebouncedStorageReload'
 import { formatIsoRu, getDateRange, PERIOD_PRESETS } from '../../lib/period'
-import { formatDateRu } from '../../lib/dateRu'
 import { AdminClubDayChart } from '../../components/AdminClubDayChart'
 import { AdminClubMonthlyChart } from '../../components/AdminClubMonthlyChart'
 import { MembershipTypeStatsTable } from '../../components/MembershipTypeStatsTable'
@@ -22,13 +23,24 @@ function rankMedal(i) {
 /**
  * @param {{
  *   clubId: string,
+ *   trainerScope?: { trainerId: string, clubId?: string | null, selfLabel?: string },
  *   onActiveRangeChange?: (r: { start: string, end: string } | null) => void,
  *   onOpenCompletedJournal?: () => void,
  *   onOpenNotRenewed?: (clients: object[]) => void,
  *   onOpenInactive?: (clients: object[]) => void,
  * }} props
  */
-export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompletedJournal, onOpenNotRenewed, onOpenInactive }) {
+export function AdminClubStatsSection({
+  clubId,
+  trainerScope,
+  onActiveRangeChange,
+  onOpenCompletedJournal,
+  onOpenNotRenewed,
+  onOpenInactive,
+}) {
+  const isTrainerScope = Boolean(trainerScope?.trainerId)
+  const scopeTrainerId = trainerScope?.trainerId ?? ''
+  const scopeClubId = trainerScope?.clubId ?? clubId ?? ''
   const [period, setPeriod] = useState('month')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
@@ -67,27 +79,31 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
   }, [])
 
   useEffect(() => {
-    if (!clubId) {
+    if (isTrainerScope || !clubId) {
       setTrainerNameById({})
       return
     }
     void reloadNames()
-  }, [clubId, reloadNames])
+  }, [clubId, isTrainerScope, reloadNames])
 
   useEffect(() => {
     setStatsHelpOpen(false)
     setInlinePanel(null)
     setClubMonthly([])
-  }, [clubId, range.start, range.end])
+  }, [clubId, scopeClubId, isTrainerScope, range.start, range.end])
 
   useEffect(() => {
     if (inlinePanel !== 'clubMonthly') return
-    if (!clubId || !range.end) return
+    if (!range.end) return
+    if (!isTrainerScope && !clubId) return
+    if (isTrainerScope && !scopeTrainerId) return
     let cancelled = false
     ;(async () => {
       setClubMonthlyBusy(true)
       try {
-        const res = await loadClubMonthlyStats({ clubId, anchorTo: range.end, months: 12 })
+        const res = isTrainerScope
+          ? await loadTrainerMonthlyStats({ trainerId: scopeTrainerId, clubId: scopeClubId, anchorTo: range.end, months: 12 })
+          : await loadClubMonthlyStats({ clubId, anchorTo: range.end, months: 12 })
         if (cancelled) return
         setClubMonthly(Array.isArray(res?.months) ? res.months : [])
       } catch {
@@ -99,7 +115,7 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
     return () => {
       cancelled = true
     }
-  }, [inlinePanel, clubId, range.end])
+  }, [inlinePanel, clubId, scopeClubId, scopeTrainerId, isTrainerScope, range.end])
 
   useEffect(() => {
     if (!statsHelpOpen) return
@@ -120,7 +136,7 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      if (!clubId) {
+      if (isTrainerScope || !clubId) {
         setClubLabel('')
         return
       }
@@ -136,33 +152,43 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
     return () => {
       cancelled = true
     }
-  }, [clubId])
+  }, [clubId, isTrainerScope])
 
   const loadStats = useCallback(async ({ silent = false } = {}) => {
-    if (!clubId || !range.start || !range.end || range.start > range.end) {
+    const canLoad = isTrainerScope ? scopeTrainerId : clubId
+    if (!canLoad || !range.start || !range.end || range.start > range.end) {
       setStats(null)
       return
     }
     if (!silent) setBusy(true)
     try {
-      const s = await loadClubTrainingStats({
-        clubId,
-        dateFrom: range.start,
-        dateTo: range.end,
-      })
+      const s = isTrainerScope
+        ? await loadTrainerPeriodStats({
+            trainerId: scopeTrainerId,
+            clubId: scopeClubId || null,
+            dateFrom: range.start,
+            dateTo: range.end,
+          })
+        : await loadClubTrainingStats({
+            clubId,
+            dateFrom: range.start,
+            dateTo: range.end,
+          })
       setStats(s)
     } catch {
       setStats(null)
     } finally {
       if (!silent) setBusy(false)
     }
-  }, [clubId, range.start, range.end])
+  }, [clubId, scopeClubId, scopeTrainerId, isTrainerScope, range.start, range.end])
 
   useEffect(() => {
     void loadStats()
   }, [loadStats])
 
-  useDebouncedStorageReload(() => void loadStats({ silent: true }), { shouldRun: shouldReloadAdminStatsPage })
+  useDebouncedStorageReload(() => void loadStats({ silent: true }), {
+    shouldRun: isTrainerScope ? shouldReloadTrainerClientList : shouldReloadAdminStatsPage,
+  })
 
   const maxDayTotal = useMemo(() => {
     if (!stats?.byDay?.length) return 1
@@ -181,10 +207,15 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
 
   const trainerLabel = (id) => {
     if (!id) return '—'
-    return trainerNameById[id] ?? (String(id).length > 10 ? `Тренер ${String(id).slice(0, 8)}…` : id)
+    if (isTrainerScope && id === scopeTrainerId) {
+      return trainerScope?.selfLabel?.trim() || 'Вы'
+    }
+    return trainerNameById[id] ?? (String(id).length > 10 ? `Tренер ${String(id).slice(0, 8)}…` : id)
   }
 
-  if (!clubId) {
+  const clubMonthlySum = useMemo(() => clubMonthly.reduce((sum, r) => sum + (Number(r?.count) || 0), 0), [clubMonthly])
+
+  if (!isTrainerScope && !clubId) {
     return (
       <section className="card">
         <h2 className="section-title td-section-title" style={{ margin: '0 0 8px' }}>
@@ -212,7 +243,6 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
   const byType = s?.byType ?? []
   const byTrainerByType = s?.byTrainerByType ?? []
   const totalCounted = s?.totalCounted ?? 0
-  const clubMonthlySum = useMemo(() => clubMonthly.reduce((sum, r) => sum + (Number(r?.count) || 0), 0), [clubMonthly])
 
   const toggleInlinePanel = (panel) => {
     setInlinePanel((cur) => (cur === panel ? null : panel))
@@ -227,7 +257,7 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
     <section className="card">
       <div className="td-section-head">
         <h2 className="section-title td-section-title" style={{ margin: 0 }}>
-          Статистика клуба
+          {isTrainerScope ? 'Статистика' : 'Статистика клуба'}
         </h2>
         <div className="row td-actions">
           <button
@@ -235,7 +265,7 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
             className="btn btn-primary btn-icon-square btn-touch"
             disabled={busy}
             onClick={() => {
-              void reloadNames()
+              if (!isTrainerScope) void reloadNames()
               void loadStats()
             }}
             aria-label="Обновить статистику"
@@ -246,10 +276,14 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
         </div>
       </div>
       <p className="muted" style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.45 }}>
-        {clubLabel ? (
+        {isTrainerScope ? (
+          <>
+            Сводка по <strong>вашим клиентам</strong> за выбранный период (данные с устройства, IndexedDB). Те же показатели, что у админа по клубу, но только ваша база.
+          </>
+        ) : clubLabel ? (
           <>
             Клуб: <strong>{clubLabel}</strong>
-            {s?.source === 'remote' ? (
+            {s?.source === 'remote' || s?.source === 'admin_api' ? (
               <> · данные из <strong>Supabase</strong>.</>
             ) : (
               <>
@@ -315,7 +349,7 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
           <div id="admin-club-stats-help" className="admin-club-stats-board__popover" role="region" aria-label="Пояснения к показателям">
             <ul className="admin-club-stats-board__popover-list">
               <li>
-                <strong>Всего клиентов</strong> — записи клиентов, привязанные к выбранному клубу.
+                <strong>Всего клиентов</strong> — {isTrainerScope ? 'ваши клиенты в базе.' : 'записи клиентов, привязанные к выбранному клубу.'}
               </li>
               <li>
                 <strong>Действующие</strong> — на последний день периода есть абонемент в сроке с оставшимися тренировками.
@@ -333,8 +367,13 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
                 <strong>По дням</strong> — график завершённых и черновиков по датам.
               </li>
               <li>
-                <strong>По типам карт</strong> — таблица: тренеры и типы абонементов.
+                <strong>По типам карт</strong> — таблица по типам; «Итого» без «Без типа».
               </li>
+              {!isTrainerScope ? (
+                <li>
+                  <strong>Рейтинг тренеров</strong> — сравнение тренеров клуба.
+                </li>
+              ) : null}
             </ul>
             <p className="admin-club-stats-board__popover-note">
               По тренировкам в периоде: черновиков <strong>{totalDraft}</strong>, уникальных клиентов в записях (завершена или черновик) —{' '}
@@ -346,7 +385,7 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
         <div className="admin-club-stats-board__grid">
           <div className="card stat-card admin-club-stat-card">
             <div className="stat-card__top admin-club-stat-card__head">
-              <h3 className="td-stat-title admin-club-stat-card__title">Всего клиентов</h3>
+              <h3 className="td-stat-title admin-club-stat-card__title">{isTrainerScope ? 'Мои клиенты' : 'Всего клиентов'}</h3>
               <Users className="stat-card__icon" size={22} aria-hidden />
             </div>
             <p className="stat-card__value admin-club-stat-card__value">{totalClients}</p>
@@ -483,7 +522,7 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
             onClick={() => toggleInlinePanel('clubMonthly')}
           >
             <div className="stat-card__top admin-club-stat-card__head">
-              <h3 className="td-stat-title admin-club-stat-card__title">Итог по клубу</h3>
+              <h3 className="td-stat-title admin-club-stat-card__title">{isTrainerScope ? 'Итог' : 'Итог по клубу'}</h3>
               <LineChart className="stat-card__icon" size={22} aria-hidden />
             </div>
             <p className="stat-card__value admin-club-stat-card__value">{clubMonthlyBusy ? '…' : clubMonthlySum}</p>
@@ -491,30 +530,32 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
               {inlinePanel === 'clubMonthly' ? 'скрыть график' : '12 мес. · без «Без типа»'}
             </p>
           </button>
-          <button
-            type="button"
-            className={statCardClass(inlinePanel === 'rating')}
-            disabled={!byTrainer.length}
-            aria-label={byTrainer.length ? `Рейтинг тренеров: ${byTrainer.length}. Нажмите для раскрытия` : 'Рейтинг тренеров: нет данных'}
-            title={byTrainer.length ? 'Рейтинг тренеров' : undefined}
-            onClick={() => toggleInlinePanel('rating')}
-          >
-            <div className="stat-card__top admin-club-stat-card__head">
-              <h3 className="td-stat-title admin-club-stat-card__title">Рейтинг тренеров</h3>
-              <Trophy className="stat-card__icon" size={22} aria-hidden />
-            </div>
-            <p className="stat-card__value admin-club-stat-card__value">{byTrainer.length}</p>
-            <p className="admin-club-stat-card__foot">
-              {byTrainer.length ? (inlinePanel === 'rating' ? 'скрыть рейтинг' : 'нажмите для рейтинга') : 'за выбранный период'}
-            </p>
-          </button>
+          {!isTrainerScope ? (
+            <button
+              type="button"
+              className={statCardClass(inlinePanel === 'rating')}
+              disabled={!byTrainer.length}
+              aria-label={byTrainer.length ? `Рейтинг тренеров: ${byTrainer.length}. Нажмите для раскрытия` : 'Рейтинг тренеров: нет данных'}
+              title={byTrainer.length ? 'Рейтинг тренеров' : undefined}
+              onClick={() => toggleInlinePanel('rating')}
+            >
+              <div className="stat-card__top admin-club-stat-card__head">
+                <h3 className="td-stat-title admin-club-stat-card__title">Рейтинг тренеров</h3>
+                <Trophy className="stat-card__icon" size={22} aria-hidden />
+              </div>
+              <p className="stat-card__value admin-club-stat-card__value">{byTrainer.length}</p>
+              <p className="admin-club-stat-card__foot">
+                {byTrainer.length ? (inlinePanel === 'rating' ? 'скрыть рейтинг' : 'нажмите для рейтинга') : 'за выбранный период'}
+              </p>
+            </button>
+          ) : null}
         </div>
       </div>
 
       {inlinePanel === 'byDay' ? (
         <section className="card admin-club-stats-detail" style={{ marginBottom: 20, padding: 14 }}>
           <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 10px' }}>
-            По дням (клуб)
+            {isTrainerScope ? 'По дням' : 'По дням (клуб)'}
           </h3>
           <AdminClubDayChart byDay={byDay} maxDayTotal={maxDayTotal} />
         </section>
@@ -532,7 +573,7 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
       {inlinePanel === 'clubMonthly' ? (
         <section className="card admin-club-stats-detail" style={{ marginBottom: 20, padding: 14 }}>
           <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 10px' }}>
-            Итоговая статистика по клубу (по месяцам)
+            {isTrainerScope ? 'Итоговая статистика (по месяцам, мои клиенты)' : 'Итоговая статистика по клубу (по месяцам)'}
           </h3>
           {clubMonthlyBusy ? (
             <p className="muted" style={{ margin: 0, fontSize: 13 }}>Загрузка…</p>

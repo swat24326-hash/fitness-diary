@@ -6,17 +6,20 @@ import { formatIsoRu } from '../lib/period'
  *   clients: Array<{ id: string, name: string, phone?: string|null }>,
  *   dateFrom: string,
  *   dateTo: string,
- *   clubId: string,
+ *   clubId?: string,
+ *   clientLinkTo?: (clientId: string) => string,
+ *   scopeLabel?: 'club' | 'trainer',
  * }} props
  */
-export function AdminInactiveClientsPanel({ clients, dateFrom, dateTo, clubId }) {
+export function AdminInactiveClientsPanel({ clients, dateFrom, dateTo, clubId = '', clientLinkTo, scopeLabel = 'club' }) {
   const clubQs = clubId ? `?club=${encodeURIComponent(clubId)}` : ''
+  const linkFor = clientLinkTo ?? ((id) => `/admin/clients/${id}${clubQs}`)
 
   return (
     <>
       <p className="muted admin-stat-drilldown__hint" style={{ margin: '0 0 12px', fontSize: 13, lineHeight: 1.45 }}>
-        Клиенты клуба, которые на <strong>конец периода</strong> ({formatIsoRu(dateTo)}) не имеют действующего абонемента с остатком тренировок и не попали
-        в «Не продлилось» в периоде {formatIsoRu(dateFrom)} — {formatIsoRu(dateTo)}.
+        {scopeLabel === 'trainer' ? 'Ваши клиенты, которые' : 'Клиенты клуба, которые'} на <strong>конец периода</strong> ({formatIsoRu(dateTo)}) не имеют
+        действующего абонемента с остатком тренировок и не попали в «Не продлилось» в периоде {formatIsoRu(dateFrom)} — {formatIsoRu(dateTo)}.
       </p>
 
       {clients.length === 0 ? (
@@ -31,7 +34,7 @@ export function AdminInactiveClientsPanel({ clients, dateFrom, dateTo, clubId })
                 <strong>{c.name}</strong>
                 <div className="muted admin-stat-drilldown__meta">{c.phone ? <span>{c.phone}</span> : null}</div>
               </div>
-              <Link to={`/admin/clients/${c.id}${clubQs}`} className="btn btn-primary btn-touch u-no-decoration">
+              <Link to={linkFor(c.id)} className="btn btn-primary btn-touch u-no-decoration">
                 Карточка
               </Link>
             </li>
