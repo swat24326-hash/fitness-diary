@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BarChart3, ClipboardList, Info, LayoutGrid, RefreshCw, Trophy, UserCheck, UserX, Users } from 'lucide-react'
+import { BarChart3, ClipboardList, Info, LayoutGrid, RefreshCw, Trophy, UserCheck, UserMinus, UserX, Users } from 'lucide-react'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { loadClubTrainingStats, listTrainerSummariesForAdmin, listClubsLocal } from '../../lib/dataAccess'
 import { useDebouncedStorageReload, shouldReloadAdminStatsPage } from '../../lib/useDebouncedStorageReload'
@@ -178,6 +178,7 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
   const activeWithMembership = s?.activeWithMembership ?? 0
   const notRenewedInPeriod = s?.notRenewedInPeriod ?? 0
   const notRenewedClients = s?.notRenewedClients ?? []
+  const inactiveOther = Math.max(0, totalClients - activeWithMembership - notRenewedInPeriod)
   const byDay = s?.byDay ?? []
   const byTrainer = s?.byTrainer ?? []
   const byType = s?.byType ?? []
@@ -294,6 +295,9 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
                 <strong>Не продлилось</strong> — абонемент закончился в периоде, на конец периода продления нет; нажмите карточку для списка внизу страницы.
               </li>
               <li>
+                <strong>Не активные</strong> — прочие клиенты: на конец периода нет действующего абонемента с остатком, и в «Не продлилось» за этот период они не попали.
+              </li>
+              <li>
                 <strong>Проведено тренировок</strong> — завершённые за период; список внизу страницы.
               </li>
               <li>
@@ -328,6 +332,14 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
             </div>
             <p className="stat-card__value admin-club-stat-card__value">{activeWithMembership}</p>
             <p className="admin-club-stat-card__foot">с абонементом на конец периода</p>
+          </div>
+          <div className="card stat-card admin-club-stat-card">
+            <div className="stat-card__top admin-club-stat-card__head">
+              <h3 className="td-stat-title admin-club-stat-card__title">Не активные</h3>
+              <UserMinus className="stat-card__icon" size={22} aria-hidden />
+            </div>
+            <p className="stat-card__value admin-club-stat-card__value">{inactiveOther}</p>
+            <p className="admin-club-stat-card__foot">прочие за период</p>
           </div>
           <button
             type="button"
