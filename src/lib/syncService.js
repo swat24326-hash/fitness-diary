@@ -29,6 +29,7 @@ const TRAINER_CACHE_STORES = new Set(['clients', 'memberships', 'trainings', 'he
 
 const AUTO_PUSH_TABLES = new Set([
   'clients',
+  'membership_types',
   'memberships',
   'trainings',
   'health_cards',

@@ -12,9 +12,10 @@ export function normalizeMembershipTypeCode(raw) {
 }
 
 function normalizeRow(row) {
+  const codeRaw = row.code ?? row.name
   return {
     ...row,
-    code: normalizeMembershipTypeCode(row.code),
+    code: normalizeMembershipTypeCode(codeRaw),
     club_id: String(row.club_id ?? '').trim(),
     sort_order: Number(row.sort_order) || 0,
     is_active: row.is_active !== false,
@@ -126,6 +127,11 @@ export async function mergeMembershipTypesForClub(clubId, remoteRows) {
     remoteIds.add(id)
     if (pendingIds.has(id)) continue
     await putStore('membership_types', normalizeRow(row))
+  }
+
+  /* Пустой ответ облака не удаляем локально — иначе Sync стирает типы, если push ещё не дошёл. */
+  if (remoteIds.size === 0) {
+    return { count: 0 }
   }
 
   const db = await getDb()
