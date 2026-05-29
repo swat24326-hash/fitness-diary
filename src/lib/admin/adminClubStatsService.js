@@ -188,6 +188,7 @@ function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, dateTo)
 
   let activeWithMembership = 0
   const notRenewedClients = []
+  const inactiveClients = []
 
   for (const id of clientIdSet) {
     const mems = byClient.get(id) ?? []
@@ -212,6 +213,20 @@ function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, dateTo)
     })
   }
 
+  const notRenewedSet = new Set(notRenewedClients.map((c) => c.id))
+  for (const id of clientIdSet) {
+    if (notRenewedSet.has(id)) continue
+    const mems = byClient.get(id) ?? []
+    if (hasUsableMembershipOnDate(mems, dateTo)) continue
+    const client = clientById.get(id)
+    inactiveClients.push({
+      id,
+      name: String(client?.name ?? '').trim() || '—',
+      phone: client?.phone ? String(client.phone).trim() : null,
+    })
+  }
+  inactiveClients.sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+
   notRenewedClients.sort((a, b) => a.name.localeCompare(b.name, 'ru'))
 
   return {
@@ -219,6 +234,7 @@ function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, dateTo)
     activeWithMembership,
     notRenewedInPeriod: notRenewedClients.length,
     notRenewedClients,
+    inactiveClients,
   }
 }
 
@@ -246,6 +262,7 @@ export async function loadClubTrainingStats(p) {
     activeWithMembership: 0,
     notRenewedInPeriod: 0,
     notRenewedClients: [],
+    inactiveClients: [],
     source: 'local',
     fallbackReason: null,
     error: null,
@@ -290,6 +307,7 @@ export async function loadClubTrainingStats(p) {
         activeWithMembership: viaApi.activeWithMembership ?? 0,
         notRenewedInPeriod: viaApi.notRenewedInPeriod ?? 0,
         notRenewedClients: viaApi.notRenewedClients ?? [],
+        inactiveClients: viaApi.inactiveClients ?? [],
         source: 'admin_api',
         fallbackReason: null,
         error: null,

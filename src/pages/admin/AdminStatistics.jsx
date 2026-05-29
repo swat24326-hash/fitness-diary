@@ -18,6 +18,7 @@ import { membershipCardTypeLabelForTraining } from '../../lib/admin/membershipTy
 import { getDb } from '../../lib/localDb'
 import { listMembershipTypesForClub } from '../../lib/membershipTypesService'
 import { AdminClubStatNotRenewedPanel } from '../../components/AdminClubStatNotRenewedPanel'
+import { AdminInactiveClientsPanel } from '../../components/AdminInactiveClientsPanel'
 import { TrainingExercisesReadonly } from '../../components/TrainingExercisesReadonly'
 import { AdminClubStatsSection } from './AdminClubStatsSection'
 
@@ -98,10 +99,13 @@ export function AdminStatistics() {
   const [journalOpen, setJournalOpen] = useState(false)
   const [notRenewedOpen, setNotRenewedOpen] = useState(false)
   const [notRenewedClients, setNotRenewedClients] = useState([])
+  const [inactiveOpen, setInactiveOpen] = useState(false)
+  const [inactiveClients, setInactiveClients] = useState([])
   const onStatsRange = useCallback((r) => {
     setPage(0)
     setJournalOpen(false)
     setNotRenewedOpen(false)
+    setInactiveOpen(false)
     if (!r?.start || !r?.end) {
       setStatsRange({ start: '', end: '' })
       return
@@ -253,18 +257,28 @@ export function AdminStatistics() {
     setPage(0)
     setJournalOpen(false)
     setNotRenewedOpen(false)
+    setInactiveOpen(false)
   }, [club])
 
   const openCompletedJournal = useCallback(() => {
     setNotRenewedOpen(false)
+    setInactiveOpen(false)
     setJournalOpen(true)
     setPage(0)
   }, [])
 
   const openNotRenewed = useCallback((clients) => {
     setJournalOpen(false)
+    setInactiveOpen(false)
     setNotRenewedClients(Array.isArray(clients) ? clients : [])
     setNotRenewedOpen(true)
+  }, [])
+
+  const openInactive = useCallback((clients) => {
+    setJournalOpen(false)
+    setNotRenewedOpen(false)
+    setInactiveClients(Array.isArray(clients) ? clients : [])
+    setInactiveOpen(true)
   }, [])
 
   useEffect(() => {
@@ -273,6 +287,13 @@ export function AdminStatistics() {
       document.getElementById('admin-not-renewed-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
   }, [notRenewedOpen])
+
+  useEffect(() => {
+    if (!inactiveOpen) return
+    requestAnimationFrame(() => {
+      document.getElementById('admin-inactive-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }, [inactiveOpen])
 
   useDebouncedStorageReload(() => void load({ silent: true }), { shouldRun: shouldReloadAdminStatsPage })
 
@@ -303,6 +324,7 @@ export function AdminStatistics() {
         onActiveRangeChange={onStatsRange}
         onOpenCompletedJournal={openCompletedJournal}
         onOpenNotRenewed={openNotRenewed}
+        onOpenInactive={openInactive}
       />
 
       {notRenewedOpen ? (
@@ -322,6 +344,26 @@ export function AdminStatistics() {
               dateTo={statsRange.end}
               clubId={club}
             />
+          ) : (
+            <p className="muted" style={{ margin: 0, fontSize: 14 }}>
+              Выберите клуб и период в сводке выше.
+            </p>
+          )}
+        </section>
+      ) : null}
+
+      {inactiveOpen ? (
+        <section className="card" id="admin-inactive-panel">
+          <div className="td-section-head">
+            <h2 className="section-title td-section-title" style={{ margin: 0 }}>
+              Не активные — {inactiveClients.length}
+            </h2>
+            <button type="button" className="btn btn-ghost btn-touch" onClick={() => setInactiveOpen(false)}>
+              Скрыть
+            </button>
+          </div>
+          {club && statsRange.start && statsRange.end ? (
+            <AdminInactiveClientsPanel clients={inactiveClients} dateFrom={statsRange.start} dateTo={statsRange.end} clubId={club} />
           ) : (
             <p className="muted" style={{ margin: 0, fontSize: 14 }}>
               Выберите клуб и период в сводке выше.

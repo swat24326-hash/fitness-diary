@@ -94,6 +94,7 @@ export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, 
 
   let activeWithMembership = 0
   const notRenewedClients = []
+  const inactiveClients = []
 
   for (const id of clientIdSet) {
     const mems = byClient.get(id) ?? []
@@ -119,6 +120,22 @@ export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, 
     })
   }
 
+  for (const id of clientIdSet) {
+    // Не активные = не действующие на dateTo и не попали в notRenewed за период
+    const inNotRenewed = notRenewedClients.some((c) => c.id === id)
+    if (inNotRenewed) continue
+    const mems = byClient.get(id) ?? []
+    const active = hasUsableMembershipOnDate(mems, dateTo)
+    if (active) continue
+    const client = clientById.get(id)
+    inactiveClients.push({
+      id,
+      name: String(client?.name ?? '').trim() || '—',
+      phone: client?.phone ? String(client.phone).trim() : null,
+    })
+  }
+  inactiveClients.sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+
   notRenewedClients.sort((a, b) => a.name.localeCompare(b.name, 'ru'))
 
   return {
@@ -126,5 +143,6 @@ export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, 
     activeWithMembership,
     notRenewedInPeriod: notRenewedClients.length,
     notRenewedClients,
+    inactiveClients,
   }
 }

@@ -15,7 +15,7 @@ function rankMedal(i) {
   return `${i + 1}.`
 }
 
-/** @typedef {'byDay' | 'byTypes'} AdminStatsInlinePanel */
+/** @typedef {'byDay' | 'byTypes' | 'rating'} AdminStatsInlinePanel */
 
 /**
  * @param {{
@@ -23,9 +23,10 @@ function rankMedal(i) {
  *   onActiveRangeChange?: (r: { start: string, end: string } | null) => void,
  *   onOpenCompletedJournal?: () => void,
  *   onOpenNotRenewed?: (clients: object[]) => void,
+ *   onOpenInactive?: (clients: object[]) => void,
  * }} props
  */
-export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompletedJournal, onOpenNotRenewed }) {
+export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompletedJournal, onOpenNotRenewed, onOpenInactive }) {
   const [period, setPeriod] = useState('month')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
@@ -178,6 +179,7 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
   const activeWithMembership = s?.activeWithMembership ?? 0
   const notRenewedInPeriod = s?.notRenewedInPeriod ?? 0
   const notRenewedClients = s?.notRenewedClients ?? []
+  const inactiveClients = s?.inactiveClients ?? []
   const inactiveOther = Math.max(0, totalClients - activeWithMembership - notRenewedInPeriod)
   const byDay = s?.byDay ?? []
   const byTrainer = s?.byTrainer ?? []
@@ -333,14 +335,24 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
             <p className="stat-card__value admin-club-stat-card__value">{activeWithMembership}</p>
             <p className="admin-club-stat-card__foot">с абонементом на конец периода</p>
           </div>
-          <div className="card stat-card admin-club-stat-card">
+          <button
+            type="button"
+            className="card stat-card admin-club-stat-card admin-club-stat-card--clickable"
+            disabled={inactiveOther === 0}
+            aria-label={inactiveOther > 0 ? `Не активные: ${inactiveOther}. Нажмите, чтобы открыть список` : 'Не активные: нет за период'}
+            title={inactiveOther > 0 ? 'Показать список' : undefined}
+            onClick={() => {
+              setInlinePanel(null)
+              onOpenInactive?.(inactiveClients)
+            }}
+          >
             <div className="stat-card__top admin-club-stat-card__head">
               <h3 className="td-stat-title admin-club-stat-card__title">Не активные</h3>
               <UserMinus className="stat-card__icon" size={22} aria-hidden />
             </div>
             <p className="stat-card__value admin-club-stat-card__value">{inactiveOther}</p>
-            <p className="admin-club-stat-card__foot">прочие за период</p>
-          </div>
+            <p className="admin-club-stat-card__foot">{inactiveOther > 0 ? 'нажмите для списка' : 'за выбранный период'}</p>
+          </button>
           <button
             type="button"
             className="card stat-card admin-club-stat-card admin-club-stat-card--clickable"
@@ -431,6 +443,23 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
               {totalCounted > 0 ? (inlinePanel === 'byTypes' ? 'скрыть таблицу' : 'нажмите для таблицы') : 'за выбранный период'}
             </p>
           </button>
+          <button
+            type="button"
+            className={statCardClass(inlinePanel === 'rating')}
+            disabled={!byTrainer.length}
+            aria-label={byTrainer.length ? `Рейтинг тренеров: ${byTrainer.length}. Нажмите для раскрытия` : 'Рейтинг тренеров: нет данных'}
+            title={byTrainer.length ? 'Рейтинг тренеров' : undefined}
+            onClick={() => toggleInlinePanel('rating')}
+          >
+            <div className="stat-card__top admin-club-stat-card__head">
+              <h3 className="td-stat-title admin-club-stat-card__title">Рейтинг тренеров</h3>
+              <Trophy className="stat-card__icon" size={22} aria-hidden />
+            </div>
+            <p className="stat-card__value admin-club-stat-card__value">{byTrainer.length}</p>
+            <p className="admin-club-stat-card__foot">
+              {byTrainer.length ? (inlinePanel === 'rating' ? 'скрыть рейтинг' : 'нажмите для рейтинга') : 'за выбранный период'}
+            </p>
+          </button>
         </div>
       </div>
 
@@ -452,39 +481,43 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange, onOpenCompl
         </section>
       ) : null}
 
-      <h3 className="section-title" style={{ fontSize: '1rem', margin: '24px 0 10px' }}>
-        Тренеры — рейтинг по завершённым
-      </h3>
-      {byTrainer.length === 0 ? (
-        <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-          Нет данных по тренерам за период.
-        </p>
-      ) : (
-        <div className="grid grid-2" style={{ gap: 10 }}>
-          {byTrainer.map((tr, idx) => (
-            <div key={tr.trainerId} className="card" style={{ padding: 12, margin: 0 }}>
-              <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
-                <span style={{ fontSize: 18 }} aria-hidden>
-                  {rankMedal(idx)}
-                </span>
-                <Trophy size={18} className="muted" style={{ opacity: 0.5 }} aria-hidden />
-              </div>
-              <p style={{ margin: '0 0 8px', fontWeight: 600, fontSize: 15, lineHeight: 1.3 }}>{trainerLabel(tr.trainerId)}</p>
-              <div className="row" style={{ flexWrap: 'wrap', gap: 12, fontSize: 13 }}>
-                <span>
-                  <span className="muted">Завершено:</span> <strong>{tr.completed}</strong>
-                </span>
-                <span>
-                  <span className="muted">Черновики:</span> <strong>{tr.draft}</strong>
-                </span>
-                <span>
-                  <span className="muted">Клиентов:</span> <strong>{tr.uniqueClients}</strong>
-                </span>
-              </div>
+      {inlinePanel === 'rating' ? (
+        <section className="card admin-club-stats-detail" style={{ marginBottom: 20, padding: 14 }}>
+          <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 10px' }}>
+            Тренеры — рейтинг по завершённым
+          </h3>
+          {byTrainer.length === 0 ? (
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+              Нет данных по тренерам за период.
+            </p>
+          ) : (
+            <div className="grid grid-2" style={{ gap: 10 }}>
+              {byTrainer.map((tr, idx) => (
+                <div key={tr.trainerId} className="card" style={{ padding: 12, margin: 0 }}>
+                  <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
+                    <span style={{ fontSize: 18 }} aria-hidden>
+                      {rankMedal(idx)}
+                    </span>
+                    <Trophy size={18} className="muted" style={{ opacity: 0.5 }} aria-hidden />
+                  </div>
+                  <p style={{ margin: '0 0 8px', fontWeight: 600, fontSize: 15, lineHeight: 1.3 }}>{trainerLabel(tr.trainerId)}</p>
+                  <div className="row" style={{ flexWrap: 'wrap', gap: 12, fontSize: 13 }}>
+                    <span>
+                      <span className="muted">Завершено:</span> <strong>{tr.completed}</strong>
+                    </span>
+                    <span>
+                      <span className="muted">Черновики:</span> <strong>{tr.draft}</strong>
+                    </span>
+                    <span>
+                      <span className="muted">Клиентов:</span> <strong>{tr.uniqueClients}</strong>
+                    </span>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          )}
+        </section>
+      ) : null}
 
     </section>
   )
