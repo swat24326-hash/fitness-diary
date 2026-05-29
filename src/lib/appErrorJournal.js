@@ -1,6 +1,12 @@
 /** Журнал ошибок всего приложения (localStorage + событие для UI). */
 
 export const APP_ERRORS_CHANGED = 'fitness-diary-app-errors'
+export const SYNC_ATTENTION_CHANGED = 'fitness-diary-sync-attention'
+
+const RECOVERABLE_TEXT =
+  /нет сети|синхронизац\w* отложен|failed to fetch|fetch failed|network|offline|недоступн|timeout|timed out|aborted|в очереди осталось/i
+
+let syncNeedsAttention = false
 
 const STORAGE_KEY = 'fitness-diary-app-errors-v1'
 const LEGACY_SYNC_KEY = 'fitness-diary-sync-errors-v1'
@@ -34,6 +40,109 @@ function notifyChanged() {
   } catch {
     /* ignore */
   }
+}
+
+function notifySyncAttention() {
+  if (typeof window === 'undefined') return
+  try {
+    window.dispatchEvent(
+      new CustomEvent(SYNC_ATTENTION_CHANGED, { detail: { needsAttention: syncNeedsAttention } }),
+    )
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Транзиентные сбои (сеть, офлайн) — снимаются после успешного Sync с пустой очередью.
+ * @param {{ source?: string, error?: string, context?: string, status?: number }} row
+ */
+export function isRecoverableTransientError(row) {
+  if (!row) return false
+  const source = String(row.source ?? '')
+  const text = `${row.error ?? ''} ${row.context ?? ''}`
+  const status = row.status
+
+  if (source === 'network') return true
+  if (status === 0) return true
+  if (status === 409) return true
+
+  if (source === 'sync' || source === 'pull') {
+    return RECOVERABLE_TEXT.test(text)
+  }
+
+  return false
+}
+
+/** Ошибки в журнале, которые не считаются «уже решёнными» после успешного Sync. */
+export function getPersistentErrorCount() {
+  migrateLegacySyncErrors()
+  return readRaw().filter((r) => !isRecoverableTransientError(r)).length
+}
+
+export function getSyncNeedsAttention() {
+  return syncNeedsAttention
+}
+
+/**
+ * Нужно ли показывать предупреждение (точка на меню): очередь, последний сбой Sync или серьёзные ошибки в журнале.
+ * @param {number} [queueCount]
+ */
+export function computeNeedsUserAttention(queueCount = 0) {
+  if (queueCount > 0) return true
+  if (syncNeedsAttention) return true
+  if (getPersistentErrorCount() > 0) return true
+  return false
+}
+
+/** @param {(needsAttention: boolean) => void} fn */
+export function subscribeSyncAttention(fn) {
+  if (typeof window === 'undefined') return () => {}
+  migrateLegacySyncErrors()
+  const handler = () => fn(computeNeedsUserAttention(0))
+  window.addEventListener(SYNC_ATTENTION_CHANGED, handler)
+  window.addEventListener(APP_ERRORS_CHANGED, handler)
+  fn(computeNeedsUserAttention(0))
+  return () => {
+    window.removeEventListener(SYNC_ATTENTION_CHANGED, handler)
+    window.removeEventListener(APP_ERRORS_CHANGED, handler)
+  }
+}
+
+/** После старта: флаг «нужно внимание» только если в журнале остались серьёзные записи. */
+export function initSyncAttentionFromJournal() {
+  syncNeedsAttention = getPersistentErrorCount() > 0
+  notifySyncAttention()
+}
+
+/**
+ * Итог попытки синхронизации: при успехе (очередь 0, без замечаний) убираем транзиентные записи журнала.
+ * @param {{ queueCount: number, hadError?: boolean }} outcome
+ */
+export function reportSyncOutcome({ queueCount, hadError = false }) {
+  const queue = Math.max(0, Number(queueCount) || 0)
+  const err = Boolean(hadError)
+
+  if (queue === 0 && !err) {
+    const list = readRaw()
+    const kept = list.filter((r) => !isRecoverableTransientError(r))
+    if (kept.length !== list.length) writeRaw(kept)
+    syncNeedsAttention = false
+  } else {
+    syncNeedsAttention = true
+  }
+
+  notifyChanged()
+  notifySyncAttention()
+}
+
+/** Удалить из журнала записи о сети/временных сбоях sync (ручная очистка или успешный Sync). */
+export function clearRecoverableAppErrors() {
+  migrateLegacySyncErrors()
+  const kept = readRaw().filter((r) => !isRecoverableTransientError(r))
+  writeRaw(kept)
+  notifyChanged()
+  notifySyncAttention()
 }
 
 function readRaw() {

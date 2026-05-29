@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, ChevronDown, ChevronUp, ClipboardCopy, LogOut, RefreshCw, Share2, Wrench } from 'lucide-react'
 import { getDb, listSyncQueue } from '../lib/localDb'
-import { APP_ERRORS_CHANGED, clearAppErrors, subscribeAppErrors } from '../lib/appErrorJournal'
+import {
+  APP_ERRORS_CHANGED,
+  clearAppErrors,
+  computeNeedsUserAttention,
+  getPersistentErrorCount,
+  subscribeSyncAttention,
+} from '../lib/appErrorJournal'
 import {
   buildDiagnosticReport,
   buildShortShareText,
@@ -59,7 +65,8 @@ export function DiagnosticsPanel({
 }) {
   const simpleMode = context?.isAdmin !== true
   const [filterId, setFilterId] = useState('all')
-  const [errorCount, setErrorCount] = useState(0)
+  const [persistentErrorCount, setPersistentErrorCount] = useState(0)
+  const [needsAttention, setNeedsAttention] = useState(false)
   const [errors, setErrors] = useState([])
   const [queue, setQueue] = useState([])
   const [clientNames, setClientNames] = useState({})
@@ -72,8 +79,16 @@ export function DiagnosticsPanel({
   const refreshErrors = useCallback(() => {
     const list = loadDiagnosticsErrors(50)
     setErrors(list)
-    setErrorCount(list.length)
+    setPersistentErrorCount(getPersistentErrorCount())
   }, [])
+
+  const refreshAttention = useCallback(
+    (queueLen) => {
+      setPersistentErrorCount(getPersistentErrorCount())
+      setNeedsAttention(computeNeedsUserAttention(queueLen))
+    },
+    [],
+  )
 
   const refreshQueue = useCallback(async () => {
     setQueueLoading(true)
@@ -99,23 +114,27 @@ export function DiagnosticsPanel({
 
   useEffect(() => {
     refreshAll()
-    const unsubCount = subscribeAppErrors(setErrorCount)
+    const unsubAttention = subscribeSyncAttention(refreshErrors)
     const onChanged = () => refreshAll()
     window.addEventListener(APP_ERRORS_CHANGED, onChanged)
     return () => {
-      unsubCount()
+      unsubAttention()
       window.removeEventListener(APP_ERRORS_CHANGED, onChanged)
     }
   }, [refreshAll])
+
+  useEffect(() => {
+    refreshAttention(queue.length)
+  }, [queue.length, errors, refreshAttention])
 
   const system = useMemo(
     () =>
       buildSystemState({
         ...context,
-        errorCount,
+        errorCount: persistentErrorCount,
         queueCount: queue.length,
       }),
-    [context, errorCount, queue.length],
+    [context, persistentErrorCount, queue.length],
   )
 
   const filteredErrors = useMemo(() => filterAppErrors(errors, filterId), [errors, filterId])
@@ -185,8 +204,7 @@ export function DiagnosticsPanel({
     onCleared?.()
   }
 
-  const statusTone =
-    errorCount > 0 || queue.length > 0 ? 'warn' : system.online ? 'ok' : 'warn'
+  const statusTone = needsAttention ? 'warn' : system.online ? 'ok' : 'warn'
 
   const panelTitle = simpleMode ? 'Помощь при проблемах' : 'Журнал ошибок и диагностика'
   const panelSub = simpleMode
@@ -207,10 +225,18 @@ export function DiagnosticsPanel({
 
       <div className={`diagnostics-panel__status diagnostics-panel__status--${statusTone}`} role="status">
         {statusTone === 'ok' ? (
-          <>Всё работает: ошибок {errorCount}, в очереди {queue.length}</>
+          <>
+            Всё работает: очередь sync {queue.length}
+            {persistentErrorCount > 0 ? `, в журнале ${persistentErrorCount} (архив)` : ''}
+          </>
         ) : (
           <>
-            Требует внимания: ошибок <strong>{errorCount}</strong>, в очереди sync <strong>{queue.length}</strong>
+            Требует внимания: в очереди sync <strong>{queue.length}</strong>
+            {persistentErrorCount > 0 ? (
+              <>
+                , в журнале <strong>{persistentErrorCount}</strong>
+              </>
+            ) : null}
             {!system.online ? ' · нет сети' : ''}
           </>
         )}
@@ -314,7 +340,7 @@ export function DiagnosticsPanel({
               <div>
                 <dt>Ошибок / очередь</dt>
                 <dd>
-                  <span className={errorCount > 0 ? 'diagnostics-warn' : 'diagnostics-ok'}>{errorCount}</span>
+                  <span className={persistentErrorCount > 0 ? 'diagnostics-warn' : 'diagnostics-ok'}>{persistentErrorCount}</span>
                   {' / '}
                   <span className={queue.length > 0 ? 'diagnostics-warn' : 'diagnostics-ok'}>{queue.length}</span>
                 </dd>

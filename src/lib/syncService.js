@@ -18,6 +18,7 @@ import {
   purgeSyncQueueAgainstLocalClients,
   pruneRedundantSyncQueue,
 } from './syncQueueOrphans'
+import { reportSyncOutcome } from './appErrorJournal'
 import { invalidateTrainerWorkspaceCache } from './trainerWorkspaceCache'
 import { invalidateAdminClubWorkspaceCache } from './admin/adminClubWorkspaceCache'
 import { isDuplicateInsertError } from './syncFlushResult'
@@ -293,6 +294,28 @@ async function flushUntilQueueDrained(maxPasses = 8) {
   return result
 }
 
+async function reportFlushOutcomeToJournal(result, opts) {
+  if (opts.waitUntilDone) return
+  if (!opts.force && !opts.background) return
+  const skipped = result?.reason === 'manual_only' || result?.reason === 'paused' || result?.reason === 'offline_or_stub'
+  if (skipped) return
+
+  let left = typeof result?.remaining === 'number' ? result.remaining : null
+  if (left == null) {
+    try {
+      left = await getPendingSyncQueueLength()
+    } catch {
+      left = 0
+    }
+  }
+
+  const queueFailed = left > 0 && result?.reason !== 'timeout'
+  reportSyncOutcome({
+    queueCount: left,
+    hadError: queueFailed || (result?.ok === false && left === 0),
+  })
+}
+
 export async function flushSyncQueue(opts = {}) {
   /* Без force/background — только очистка яда; отправка по кнопке или фону. */
   if (!opts.force && !opts.background) {
@@ -313,7 +336,7 @@ export async function flushSyncQueue(opts = {}) {
 
     const maxMs = opts.maxMs ?? (await defaultFlushMaxMs(opts.force || opts.background))
     const work = flushSyncQueueInner()
-    const result = await Promise.race([
+    let result = await Promise.race([
       work,
       new Promise((resolve) => {
         setTimeout(() => resolve({ ok: false, reason: 'timeout' }), maxMs)
@@ -322,7 +345,7 @@ export async function flushSyncQueue(opts = {}) {
     if (result?.reason === 'timeout') {
       try {
         const remaining = (await listSyncQueue()).length
-        return {
+        result = {
           ok: false,
           reason: 'timeout',
           remaining,
@@ -335,6 +358,7 @@ export async function flushSyncQueue(opts = {}) {
     if (!result?.ok && (opts.background || opts.force)) {
       void notifySyncQueueChanged()
     }
+    await reportFlushOutcomeToJournal(result, opts)
     return result
   } finally {
     if (opts.onProgress) setQueueFlushProgressReporter(null)

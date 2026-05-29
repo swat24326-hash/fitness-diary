@@ -6,7 +6,7 @@ import { listSyncQueue } from '../lib/localDb'
 import { describeFlushQueueResult, flushSyncQueue, isAppOnline } from '../lib/syncService'
 import { subscribeNetworkStatus } from '../lib/networkReachability'
 import { isSupabaseConfigured } from '../lib/supabase'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, BarChart3, CircleHelp, LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, User, UserCircle, Building2 } from 'lucide-react'
 import {
   listClubsLocal,
@@ -17,7 +17,15 @@ import {
 } from '../lib/dataAccess'
 import { DEMO_CLUB_ID } from '../lib/seedDemo'
 import { HeaderStopwatch } from './HeaderStopwatch'
-import { getRecentSyncErrors, recordAppError, subscribeAppErrors } from '../lib/appErrorJournal'
+import {
+  computeNeedsUserAttention,
+  getPersistentErrorCount,
+  getRecentSyncErrors,
+  initSyncAttentionFromJournal,
+  recordAppError,
+  reportSyncOutcome,
+  subscribeSyncAttention,
+} from '../lib/appErrorJournal'
 import { AppErrorJournalModal } from './AppErrorJournalModal'
 
 function headerNavClass({ isActive }) {
@@ -42,7 +50,9 @@ export function AppHeader() {
   const [syncFeedback, setSyncFeedback] = useState(null)
   const syncFeedbackTimerRef = useRef(null)
   const [errorJournalOpen, setErrorJournalOpen] = useState(false)
-  const [appErrorCount, setAppErrorCount] = useState(0)
+  const [needsAttention, setNeedsAttention] = useState(false)
+  const [persistentErrorCount, setPersistentErrorCount] = useState(0)
+  const pendingSyncRef = useRef(0)
 
   const refreshPendingSync = async () => {
     if (!isSupabaseConfigured()) {
@@ -128,7 +138,20 @@ export function AppHeader() {
 
   useEffect(() => subscribeNetworkStatus(setOnline), [])
 
-  useEffect(() => subscribeAppErrors(setAppErrorCount), [])
+  const refreshAttention = useCallback(() => {
+    setPersistentErrorCount(getPersistentErrorCount())
+    setNeedsAttention(computeNeedsUserAttention(pendingSyncRef.current))
+  }, [])
+
+  useEffect(() => {
+    pendingSyncRef.current = pendingSync
+    refreshAttention()
+  }, [pendingSync, refreshAttention])
+
+  useEffect(() => {
+    initSyncAttentionFromJournal()
+    return subscribeSyncAttention(refreshAttention)
+  }, [refreshAttention])
 
   useEffect(() => {
     void refreshPendingSync()
@@ -200,6 +223,7 @@ export function AppHeader() {
       if (!isAppOnline()) {
         recordAppError({ source: 'network', error: 'Нет сети — синхронизация отложена' })
         showSyncFeedback('Нет сети — синхронизация отложена.', 'warn')
+        reportSyncOutcome({ queueCount: pendingSyncRef.current, hadError: true })
         return
       }
 
@@ -214,6 +238,7 @@ export function AppHeader() {
       const flushDesc = describeFlushQueueResult(flush)
       if (flushDesc.offline) {
         showSyncFeedback(flushDesc.message, 'warn')
+        reportSyncOutcome({ queueCount: pendingSyncRef.current, hadError: true })
         return
       }
       if (flush?.reason === 'pending_items' && (flush?.remaining ?? 0) > 0) {
@@ -357,10 +382,18 @@ export function AppHeader() {
         bumpSyncProgress(100, 'Готово')
         showSyncFeedback(parts.length ? `Готово: ${parts.join(' · ')}.` : 'Синхронизация завершена.', 'ok')
       }
+
+      reportSyncOutcome({ queueCount: queueLeft, hadError })
     } catch (e) {
       console.warn('[sync]', e)
       recordAppError({ source: 'sync', error: e?.message ?? 'Ошибка синхронизации' })
       showSyncFeedback(e?.message ?? 'Ошибка синхронизации', 'err')
+      try {
+        const q = await listSyncQueue()
+        reportSyncOutcome({ queueCount: q.length, hadError: true })
+      } catch {
+        reportSyncOutcome({ queueCount: pendingSyncRef.current, hadError: true })
+      }
     } finally {
       setSyncBusy(false)
       window.setTimeout(() => setSyncProgress({ percent: 0, label: '' }), 800)
@@ -553,7 +586,7 @@ export function AppHeader() {
             'btn-ghost',
             'app-header__action',
             'app-header__burger',
-            appErrorCount > 0 && !menuOpen ? 'app-header__burger--has-errors' : '',
+            needsAttention && !menuOpen ? 'app-header__burger--has-errors' : '',
           ]
             .filter(Boolean)
             .join(' ')}
@@ -563,8 +596,8 @@ export function AppHeader() {
           onClick={() => setMenuOpen((o) => !o)}
         >
           <Menu size={22} aria-hidden />
-          {appErrorCount > 0 && !menuOpen ? (
-            <span className="app-header__error-dot" aria-hidden title="Есть ошибки в журнале" />
+          {needsAttention && !menuOpen ? (
+            <span className="app-header__error-dot" aria-hidden title="Требует внимания: очередь sync или ошибка" />
           ) : null}
           <span className="sr-only">Меню аккаунта</span>
         </button>
@@ -642,10 +675,12 @@ export function AppHeader() {
                 )}
                 {isAdmin ? 'Журнал ошибок' : 'Помощь'}
               </span>
-              {appErrorCount > 0 ? (
-                <span className="app-header__error-badge" aria-label={`Ошибок: ${appErrorCount}`}>
-                  {appErrorCount > 99 ? '99+' : appErrorCount}
+              {persistentErrorCount > 0 ? (
+                <span className="app-header__error-badge" aria-label={`Записей в журнале: ${persistentErrorCount}`}>
+                  {persistentErrorCount > 99 ? '99+' : persistentErrorCount}
                 </span>
+              ) : needsAttention ? (
+                <span className="app-header__error-dot" aria-hidden title="Очередь синхронизации не пуста" />
               ) : null}
             </button>
             <button type="button" className="app-header__menu-item app-header__menu-item--danger" onClick={doSignOut}>

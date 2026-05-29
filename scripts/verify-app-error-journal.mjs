@@ -24,6 +24,11 @@ const {
   getAppErrorCount,
   clearAppErrors,
   recordSyncError,
+  isRecoverableTransientError,
+  clearRecoverableAppErrors,
+  reportSyncOutcome,
+  getPersistentErrorCount,
+  computeNeedsUserAttention,
 } = await import('../src/lib/appErrorJournal.js')
 
 clearAppErrors()
@@ -51,6 +56,27 @@ const legacy = getAppErrors(20).some((r) => r.error === 'legacy')
 assert.ok(legacy, 'legacy sync errors migrated')
 
 clearAppErrors()
+assert.equal(getAppErrorCount(), 0)
+
+recordAppError({ source: 'network', error: 'Нет сети — синхронизация отложена' })
+recordSyncError({ status: 0, error: 'Сеть недоступна', table_name: 'trainings', operation: 'insert' })
+assert.equal(getAppErrorCount(), 2)
+assert.ok(isRecoverableTransientError(getAppErrors(1)[0]))
+
+reportSyncOutcome({ queueCount: 0, hadError: false })
+assert.equal(getAppErrorCount(), 0, 'recoverable cleared after successful sync')
+assert.equal(computeNeedsUserAttention(0), false)
+
+recordSyncError({ status: 400, error: 'HTTP fail', table_name: 'trainings', operation: 'insert' })
+reportSyncOutcome({ queueCount: 0, hadError: false })
+assert.equal(getPersistentErrorCount(), 1, 'server errors stay after sync ok')
+assert.equal(computeNeedsUserAttention(0), true)
+
+clearAppErrors()
+reportSyncOutcome({ queueCount: 3, hadError: true })
+assert.equal(computeNeedsUserAttention(3), true)
+
+clearRecoverableAppErrors()
 assert.equal(getAppErrorCount(), 0)
 
 console.log('verify-app-error-journal: OK')

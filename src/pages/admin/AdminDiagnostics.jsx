@@ -3,7 +3,7 @@ import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { listSyncQueue } from '../../lib/localDb'
-import { subscribeAppErrors } from '../../lib/appErrorJournal'
+import { getPersistentErrorCount, subscribeSyncAttention } from '../../lib/appErrorJournal'
 import { formatAppErrorTime, loadDiagnosticsErrors, suggestErrorHint, sourceLabel } from '../../lib/appDiagnostics'
 import { subscribeNetworkStatus } from '../../lib/networkReachability'
 import { isSupabaseConfigured } from '../../lib/supabase'
@@ -20,13 +20,20 @@ export function AdminDiagnostics() {
 
   const [online, setOnline] = useState(() => (typeof navigator !== 'undefined' ? isAppOnline() : true))
   const [clubName, setClubName] = useState('—')
-  const [errorCount, setErrorCount] = useState(0)
+  const [persistentErrorCount, setPersistentErrorCount] = useState(0)
   const [queueCount, setQueueCount] = useState(0)
   const [syncBusy, setSyncBusy] = useState(false)
   const [toast, setToast] = useState(null)
 
   useEffect(() => subscribeNetworkStatus(setOnline), [])
-  useEffect(() => subscribeAppErrors(setErrorCount), [])
+  const refreshAttention = useCallback(() => {
+    setPersistentErrorCount(getPersistentErrorCount())
+  }, [])
+
+  useEffect(() => {
+    refreshAttention()
+    return subscribeSyncAttention(refreshAttention)
+  }, [refreshAttention])
 
   useEffect(() => {
     let alive = true
@@ -61,7 +68,11 @@ export function AdminDiagnostics() {
     return () => window.clearInterval(t)
   }, [refreshQueueCount])
 
-  const lastError = useMemo(() => loadDiagnosticsErrors(1)[0] ?? null, [errorCount])
+  useEffect(() => {
+    refreshAttention()
+  }, [queueCount, refreshAttention])
+
+  const lastError = useMemo(() => loadDiagnosticsErrors(1)[0] ?? null, [persistentErrorCount])
 
   const panelContext = useMemo(
     () => ({
@@ -118,9 +129,9 @@ export function AdminDiagnostics() {
       </header>
 
       <div className="admin-diagnostics__summary" aria-label="Краткая сводка">
-        <div className={`admin-diagnostics__stat${errorCount > 0 ? ' admin-diagnostics__stat--warn' : ''}`}>
-          <span className="admin-diagnostics__stat-value">{errorCount}</span>
-          <span className="admin-diagnostics__stat-label">ошибок в журнале</span>
+        <div className={`admin-diagnostics__stat${persistentErrorCount > 0 ? ' admin-diagnostics__stat--warn' : ''}`}>
+          <span className="admin-diagnostics__stat-value">{persistentErrorCount}</span>
+          <span className="admin-diagnostics__stat-label">важных в журнале</span>
         </div>
         <div className={`admin-diagnostics__stat${queueCount > 0 ? ' admin-diagnostics__stat--warn' : ''}`}>
           <span className="admin-diagnostics__stat-value">{queueCount}</span>
