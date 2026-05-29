@@ -32,6 +32,25 @@ export function hasUsableMembershipOnDate(memberships, dateIso) {
   return pickUsableMembershipForDate(memberships, dateIso) != null
 }
 
+/** @returns {'depleted'|'expired'|'not_started'|'no_membership'} */
+export function inactiveMembershipReason(memberships, dateIso) {
+  if (hasUsableMembershipOnDate(memberships, dateIso)) return null
+  const list = memberships ?? []
+  if (!list.length) return 'no_membership'
+  const d = String(dateIso ?? '')
+  const covering = list.filter((m) => membershipCoversDate(m, d))
+  if (covering.some((m) => !membershipHasRemaining(m))) return 'depleted'
+  if (list.every((m) => String(m.start_date ?? '') > d)) return 'not_started'
+  return 'expired'
+}
+
+export const INACTIVE_MEMBERSHIP_REASON_LABELS = {
+  depleted: 'тренировки закончились',
+  expired: 'срок абонемента прошёл',
+  not_started: 'абонемент ещё не начался',
+  no_membership: 'нет абонемента',
+}
+
 /** Пояснение, почему нет «действующего» абонемента на дату (для подписи в UI). */
 export function explainInactiveMembership(memberships, dateIso) {
   const list = memberships ?? []

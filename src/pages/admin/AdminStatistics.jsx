@@ -17,7 +17,6 @@ import { fetchMembershipsForClubViaAdminApi } from '../../lib/admin/adminApiClie
 import { membershipCardTypeLabelForTraining } from '../../lib/admin/membershipTypeStatsAgg'
 import { getDb } from '../../lib/localDb'
 import { listMembershipTypesForClub } from '../../lib/membershipTypesService'
-import { AdminClubStatNotRenewedPanel } from '../../components/AdminClubStatNotRenewedPanel'
 import { AdminInactiveClientsPanel } from '../../components/AdminInactiveClientsPanel'
 import { TrainingExercisesReadonly } from '../../components/TrainingExercisesReadonly'
 import { AdminClubStatsSection } from './AdminClubStatsSection'
@@ -97,14 +96,11 @@ export function AdminStatistics() {
 
   const [statsRange, setStatsRange] = useState({ start: '', end: '' })
   const [journalOpen, setJournalOpen] = useState(false)
-  const [notRenewedOpen, setNotRenewedOpen] = useState(false)
-  const [notRenewedClients, setNotRenewedClients] = useState([])
   const [inactiveOpen, setInactiveOpen] = useState(false)
   const [inactiveClients, setInactiveClients] = useState([])
   const onStatsRange = useCallback((r) => {
     setPage(0)
     setJournalOpen(false)
-    setNotRenewedOpen(false)
     setInactiveOpen(false)
     if (!r?.start || !r?.end) {
       setStatsRange({ start: '', end: '' })
@@ -262,37 +258,20 @@ export function AdminStatistics() {
   useEffect(() => {
     setPage(0)
     setJournalOpen(false)
-    setNotRenewedOpen(false)
     setInactiveOpen(false)
   }, [club])
 
   const openCompletedJournal = useCallback(() => {
-    setNotRenewedOpen(false)
     setInactiveOpen(false)
     setJournalOpen(true)
     setPage(0)
   }, [])
 
-  const openNotRenewed = useCallback((clients) => {
-    setJournalOpen(false)
-    setInactiveOpen(false)
-    setNotRenewedClients(Array.isArray(clients) ? clients : [])
-    setNotRenewedOpen(true)
-  }, [])
-
   const openInactive = useCallback((clients) => {
     setJournalOpen(false)
-    setNotRenewedOpen(false)
     setInactiveClients(Array.isArray(clients) ? clients : [])
     setInactiveOpen(true)
   }, [])
-
-  useEffect(() => {
-    if (!notRenewedOpen) return
-    requestAnimationFrame(() => {
-      document.getElementById('admin-not-renewed-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    })
-  }, [notRenewedOpen])
 
   useEffect(() => {
     if (!inactiveOpen) return
@@ -325,7 +304,7 @@ export function AdminStatistics() {
         <div className="u-grow u-minw-0 td-top__grow">
           <h1 className="section-title td-top__title">Статистика клуба</h1>
           <p className="section-sub td-top__sub muted" style={{ fontSize: 14, margin: '6px 0 0', lineHeight: 1.45 }}>
-            Показатели по залу за период. Списки <strong>«Не продлилось»</strong> и <strong>«Проведено тренировок»</strong> — по нажатию на карточки в сводке; график по дням и таблица типов — там же.
+            Показатели по залу за период. Списки <strong>«Не активные»</strong> и <strong>«Проведено тренировок»</strong> — по нажатию на карточки в сводке; график по дням и таблица типов — там же.
           </p>
         </div>
       </div>
@@ -334,34 +313,8 @@ export function AdminStatistics() {
         clubId={club}
         onActiveRangeChange={onStatsRange}
         onOpenCompletedJournal={openCompletedJournal}
-        onOpenNotRenewed={openNotRenewed}
         onOpenInactive={openInactive}
       />
-
-      {notRenewedOpen ? (
-        <section className="card" id="admin-not-renewed-panel">
-          <div className="td-section-head">
-            <h2 className="section-title td-section-title" style={{ margin: 0 }}>
-              Не продлилось — {notRenewedClients.length}
-            </h2>
-            <button type="button" className="btn btn-ghost btn-touch" onClick={() => setNotRenewedOpen(false)}>
-              Скрыть
-            </button>
-          </div>
-          {club && statsRange.start && statsRange.end ? (
-            <AdminClubStatNotRenewedPanel
-              clients={notRenewedClients}
-              dateFrom={statsRange.start}
-              dateTo={statsRange.end}
-              clubId={club}
-            />
-          ) : (
-            <p className="muted" style={{ margin: 0, fontSize: 14 }}>
-              Выберите клуб и период в сводке выше.
-            </p>
-          )}
-        </section>
-      ) : null}
 
       {inactiveOpen ? (
         <section className="card" id="admin-inactive-panel">

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BarChart3, ClipboardList, Info, LayoutGrid, LineChart, RefreshCw, Trophy, UserCheck, UserMinus, UserX, Users } from 'lucide-react'
+import { BarChart3, ClipboardList, Info, LayoutGrid, LineChart, RefreshCw, Trophy, UserCheck, UserMinus, Users } from 'lucide-react'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { loadClubTrainingStats, listTrainerSummariesForAdmin, listClubsLocal } from '../../lib/dataAccess'
 import { loadTrainerPeriodStats } from '../../lib/trainer/trainerPeriodStatsService'
@@ -26,7 +26,6 @@ function rankMedal(i) {
  *   trainerScope?: { trainerId: string, clubId?: string | null, selfLabel?: string },
  *   onActiveRangeChange?: (r: { start: string, end: string } | null) => void,
  *   onOpenCompletedJournal?: () => void,
- *   onOpenNotRenewed?: (clients: object[]) => void,
  *   onOpenInactive?: (clients: object[]) => void,
  * }} props
  */
@@ -35,7 +34,6 @@ export function AdminClubStatsSection({
   trainerScope,
   onActiveRangeChange,
   onOpenCompletedJournal,
-  onOpenNotRenewed,
   onOpenInactive,
 }) {
   const isTrainerScope = Boolean(trainerScope?.trainerId)
@@ -283,10 +281,8 @@ export function AdminClubStatsSection({
   const uniqueClients = s?.uniqueClients ?? 0
   const totalClients = s?.totalClients ?? 0
   const activeWithMembership = s?.activeWithMembership ?? 0
-  const notRenewedInPeriod = s?.notRenewedInPeriod ?? 0
-  const notRenewedClients = s?.notRenewedClients ?? []
   const inactiveClients = s?.inactiveClients ?? []
-  const inactiveOther = Math.max(0, totalClients - activeWithMembership - notRenewedInPeriod)
+  const inactiveInPeriod = s?.inactiveInPeriod ?? inactiveClients.length
   const byDay = s?.byDay ?? []
   const byTrainer = s?.byTrainer ?? []
   const byType = s?.byType ?? []
@@ -408,10 +404,7 @@ export function AdminClubStatsSection({
                 <strong>Действующие</strong> — на последний день периода есть абонемент в сроке с оставшимися тренировками.
               </li>
               <li>
-                <strong>Не продлилось</strong> — абонемент закончился в периоде, на конец периода продления нет; нажмите карточку для списка внизу страницы.
-              </li>
-              <li>
-                <strong>Не активные</strong> — прочие клиенты: на конец периода нет действующего абонемента с остатком, и в «Не продлилось» за этот период они не попали.
+                <strong>Не активные</strong> — на последний день периода нет действующего абонемента: закончились тренировки, истёк срок или абонемент ещё не начался; нажмите карточку для списка.
               </li>
               <li>
                 <strong>Проведено тренировок</strong> — завершённые за период; список внизу страницы.
@@ -460,9 +453,9 @@ export function AdminClubStatsSection({
           <button
             type="button"
             className="card stat-card admin-club-stat-card admin-club-stat-card--clickable"
-            disabled={inactiveOther === 0}
-            aria-label={inactiveOther > 0 ? `Не активные: ${inactiveOther}. Нажмите, чтобы открыть список` : 'Не активные: нет за период'}
-            title={inactiveOther > 0 ? 'Показать список' : undefined}
+            disabled={inactiveInPeriod === 0}
+            aria-label={inactiveInPeriod > 0 ? `Не активные: ${inactiveInPeriod}. Нажмите, чтобы открыть список` : 'Не активные: нет за период'}
+            title={inactiveInPeriod > 0 ? 'Показать список' : undefined}
             onClick={() => {
               setInlinePanel(null)
               onOpenInactive?.(inactiveClients)
@@ -472,32 +465,8 @@ export function AdminClubStatsSection({
               <h3 className="td-stat-title admin-club-stat-card__title">Не активные</h3>
               <UserMinus className="stat-card__icon" size={22} aria-hidden />
             </div>
-            <p className="stat-card__value admin-club-stat-card__value">{inactiveOther}</p>
-            <p className="admin-club-stat-card__foot">{inactiveOther > 0 ? 'нажмите для списка' : 'за выбранный период'}</p>
-          </button>
-          <button
-            type="button"
-            className="card stat-card admin-club-stat-card admin-club-stat-card--clickable"
-            disabled={notRenewedInPeriod === 0}
-            aria-label={
-              notRenewedInPeriod > 0
-                ? `Не продлилось: ${notRenewedInPeriod}. Нажмите, чтобы увидеть список клиентов`
-                : 'Не продлилось: нет клиентов за период'
-            }
-            title={notRenewedInPeriod > 0 ? 'Показать список клиентов' : undefined}
-            onClick={() => {
-              setInlinePanel(null)
-              onOpenNotRenewed?.(notRenewedClients)
-            }}
-          >
-            <div className="stat-card__top admin-club-stat-card__head">
-              <h3 className="td-stat-title admin-club-stat-card__title">Не продлилось</h3>
-              <UserX className="stat-card__icon" size={22} aria-hidden />
-            </div>
-            <p className="stat-card__value admin-club-stat-card__value">{notRenewedInPeriod}</p>
-            <p className="admin-club-stat-card__foot">
-              {notRenewedInPeriod > 0 ? 'нажмите для списка' : 'за выбранный период'}
-            </p>
+            <p className="stat-card__value admin-club-stat-card__value">{inactiveInPeriod}</p>
+            <p className="admin-club-stat-card__foot">{inactiveInPeriod > 0 ? 'нажмите для списка' : 'на конец периода'}</p>
           </button>
           <button
             type="button"

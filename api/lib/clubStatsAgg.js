@@ -76,7 +76,19 @@ function hasUsableMembershipOnDate(memberships, dateIso) {
   return (memberships ?? []).some((m) => membershipCoversDate(m, dateIso) && membershipHasRemaining(m))
 }
 
+function inactiveMembershipReason(memberships, dateIso) {
+  if (hasUsableMembershipOnDate(memberships, dateIso)) return null
+  const list = memberships ?? []
+  if (!list.length) return 'no_membership'
+  const d = String(dateIso ?? '')
+  const covering = list.filter((m) => membershipCoversDate(m, d))
+  if (covering.some((m) => !membershipHasRemaining(m))) return 'depleted'
+  if (list.every((m) => String(m.start_date ?? '') > d)) return 'not_started'
+  return 'expired'
+}
+
 export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, dateTo) {
+  void dateFrom
   const totalClients = clientRows.length
   const clientIdSet = new Set(clientRows.map((c) => c.id).filter(Boolean))
   const clientById = new Map()
@@ -93,56 +105,31 @@ export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, 
   }
 
   let activeWithMembership = 0
-  const notRenewedClients = []
   const inactiveClients = []
 
   for (const id of clientIdSet) {
     const mems = byClient.get(id) ?? []
-    const active = hasUsableMembershipOnDate(mems, dateTo)
-    if (active) {
+    if (hasUsableMembershipOnDate(mems, dateTo)) {
       activeWithMembership++
       continue
     }
-    const endsInRange = []
-    for (const m of mems) {
-      const e = String(m.end_date ?? '').slice(0, 10)
-      if (e && e >= dateFrom && e <= dateTo) endsInRange.push(e)
-    }
-    if (!endsInRange.length) continue
-
-    endsInRange.sort((a, b) => a.localeCompare(b))
     const client = clientById.get(id)
-    notRenewedClients.push({
-      id,
-      name: String(client?.name ?? '').trim() || '—',
-      phone: client?.phone ? String(client.phone).trim() : null,
-      membershipEnded: endsInRange[endsInRange.length - 1],
-    })
-  }
-
-  for (const id of clientIdSet) {
-    // Не активные = не действующие на dateTo и не попали в notRenewed за период
-    const inNotRenewed = notRenewedClients.some((c) => c.id === id)
-    if (inNotRenewed) continue
-    const mems = byClient.get(id) ?? []
-    const active = hasUsableMembershipOnDate(mems, dateTo)
-    if (active) continue
-    const client = clientById.get(id)
+    const reason = inactiveMembershipReason(mems, dateTo)
     inactiveClients.push({
       id,
       name: String(client?.name ?? '').trim() || '—',
       phone: client?.phone ? String(client.phone).trim() : null,
+      inactiveReason: reason ?? 'expired',
     })
   }
   inactiveClients.sort((a, b) => a.name.localeCompare(b.name, 'ru'))
 
-  notRenewedClients.sort((a, b) => a.name.localeCompare(b.name, 'ru'))
-
   return {
     totalClients,
     activeWithMembership,
-    notRenewedInPeriod: notRenewedClients.length,
-    notRenewedClients,
+    inactiveInPeriod: inactiveClients.length,
     inactiveClients,
+    notRenewedInPeriod: 0,
+    notRenewedClients: [],
   }
 }

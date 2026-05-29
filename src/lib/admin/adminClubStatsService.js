@@ -5,7 +5,7 @@
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { withSupabaseRetry } from '../supabaseRetry'
 import { getDb } from '../localDb'
-import { hasUsableMembershipOnDate } from '../membershipRules'
+import { hasUsableMembershipOnDate, inactiveMembershipReason } from '../membershipRules'
 import { fetchClubTrainingStatsViaApi } from './adminApiClient'
 import { ADMIN_SYNC_BATCH_SIZE } from './adminConstants'
 import { aggregateMembershipTypeStats } from './membershipTypeStatsAgg'
@@ -171,6 +171,7 @@ async function fetchMembershipsForClubLocal(clubId) {
  * @param {string} dateTo yyyy-mm-dd
  */
 export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, dateTo) {
+  void dateFrom
   const totalClients = clientRows.length
   const clientIdSet = new Set(clientRows.map((c) => c.id).filter(Boolean))
   const clientById = new Map()
@@ -187,7 +188,6 @@ export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, 
   }
 
   let activeWithMembership = 0
-  const notRenewedClients = []
   const inactiveClients = []
 
   for (const id of clientIdSet) {
@@ -196,45 +196,25 @@ export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, 
       activeWithMembership++
       continue
     }
-    const endsInRange = []
-    for (const m of mems) {
-      const e = String(m.end_date ?? '').slice(0, 10)
-      if (e && e >= dateFrom && e <= dateTo) endsInRange.push(e)
-    }
-    if (!endsInRange.length) continue
-
-    endsInRange.sort((a, b) => a.localeCompare(b))
     const client = clientById.get(id)
-    notRenewedClients.push({
-      id,
-      name: String(client?.name ?? '').trim() || '—',
-      phone: client?.phone ? String(client.phone).trim() : null,
-      membershipEnded: endsInRange[endsInRange.length - 1],
-    })
-  }
-
-  const notRenewedSet = new Set(notRenewedClients.map((c) => c.id))
-  for (const id of clientIdSet) {
-    if (notRenewedSet.has(id)) continue
-    const mems = byClient.get(id) ?? []
-    if (hasUsableMembershipOnDate(mems, dateTo)) continue
-    const client = clientById.get(id)
+    const reason = inactiveMembershipReason(mems, dateTo)
     inactiveClients.push({
       id,
       name: String(client?.name ?? '').trim() || '—',
       phone: client?.phone ? String(client.phone).trim() : null,
+      inactiveReason: reason ?? 'expired',
     })
   }
   inactiveClients.sort((a, b) => a.name.localeCompare(b.name, 'ru'))
 
-  notRenewedClients.sort((a, b) => a.name.localeCompare(b.name, 'ru'))
-
   return {
     totalClients,
     activeWithMembership,
-    notRenewedInPeriod: notRenewedClients.length,
-    notRenewedClients,
+    inactiveInPeriod: inactiveClients.length,
     inactiveClients,
+    /** @deprecated объединено с inactiveClients */
+    notRenewedInPeriod: 0,
+    notRenewedClients: [],
   }
 }
 
@@ -260,9 +240,10 @@ export async function loadClubTrainingStats(p) {
     totalCounted: 0,
     totalClients: 0,
     activeWithMembership: 0,
+    inactiveInPeriod: 0,
+    inactiveClients: [],
     notRenewedInPeriod: 0,
     notRenewedClients: [],
-    inactiveClients: [],
     source: 'local',
     fallbackReason: null,
     error: null,
@@ -305,9 +286,10 @@ export async function loadClubTrainingStats(p) {
         totalCounted: viaApi.totalCounted ?? 0,
         totalClients: viaApi.totalClients ?? 0,
         activeWithMembership: viaApi.activeWithMembership ?? 0,
+        inactiveInPeriod: viaApi.inactiveInPeriod ?? (viaApi.inactiveClients ?? []).length,
+        inactiveClients: viaApi.inactiveClients ?? [],
         notRenewedInPeriod: viaApi.notRenewedInPeriod ?? 0,
         notRenewedClients: viaApi.notRenewedClients ?? [],
-        inactiveClients: viaApi.inactiveClients ?? [],
         source: 'admin_api',
         fallbackReason: null,
         error: null,
