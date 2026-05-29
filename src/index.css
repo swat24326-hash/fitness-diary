@@ -1715,6 +1715,16 @@ svg.stats-params-arm {
   border: 1px solid var(--border);
 }
 
+.journal-pagination .btn {
+  touch-action: manipulation;
+  min-height: 44px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.journal-pagination .btn:disabled {
+  opacity: 0.45;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

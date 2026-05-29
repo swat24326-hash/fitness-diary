@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Eye, RefreshCw, UserCircle, X } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { loadAdminHealthCardsByClientIds } from '../../lib/dataAccess'
-import { loadTrainerJournalPage } from '../../lib/trainer/trainerJournalService'
+import { loadTrainerJournalFiltered } from '../../lib/trainer/trainerJournalService'
 import { useDebouncedStorageReload, shouldReloadTrainerClientList } from '../../lib/useDebouncedStorageReload'
 import {
   ADMIN_JOURNAL_DEFAULT_PAGE_SIZE,
@@ -88,16 +88,22 @@ export function TrainerStatisticsSection() {
   const [inactiveOpen, setInactiveOpen] = useState(false)
   const [inactiveClients, setInactiveClients] = useState([])
 
-  const [rows, setRows] = useState([])
+  const [filteredTrainings, setFilteredTrainings] = useState([])
   const [clients, setClients] = useState({})
   const [page, setPage] = useState(0)
   const [pageSize, setPageSize] = useState(ADMIN_JOURNAL_DEFAULT_PAGE_SIZE)
-  const [totalCount, setTotalCount] = useState(0)
   const [previewTraining, setPreviewTraining] = useState(null)
   const [healthByClientId, setHealthByClientId] = useState({})
   const [busy, setBusy] = useState(false)
   const [memberships, setMemberships] = useState([])
   const [membershipTypes, setMembershipTypes] = useState([])
+  const loadSeqRef = useRef(0)
+
+  const totalCount = filteredTrainings.length
+  const rows = useMemo(() => {
+    const start = page * pageSize
+    return filteredTrainings.slice(start, start + pageSize)
+  }, [filteredTrainings, page, pageSize])
 
   const clientLinkTo = useCallback((id) => `/trainer/clients/${id}`, [])
 
@@ -154,42 +160,50 @@ export function TrainerStatisticsSection() {
 
   const load = useCallback(async ({ silent = false } = {}) => {
     if (!journalOpen || !trainerId || !statsRange.start || !statsRange.end) {
-      setRows([])
+      setFilteredTrainings([])
       setClients({})
-      setTotalCount(0)
       setHealthByClientId({})
       return
     }
+    const seq = ++loadSeqRef.current
     if (!silent) setBusy(true)
     try {
-      const j = await loadTrainerJournalPage({
+      const j = await loadTrainerJournalFiltered({
         trainerId,
         clubId: trainerClubId,
-        page,
-        pageSize,
         dateFrom: statsRange.start,
         dateTo: statsRange.end,
       })
+      if (seq !== loadSeqRef.current) return
       setClients(j.clientsById)
-      setRows(j.trainings)
-      setTotalCount(typeof j.totalCount === 'number' ? j.totalCount : j.trainings.length)
-
-      const clientIdsOnPage = [...new Set(j.trainings.map((t) => t.client_id).filter(Boolean))]
-      const hc = await loadAdminHealthCardsByClientIds(clientIdsOnPage)
-      setHealthByClientId(hc.healthByClientId ?? {})
+      setFilteredTrainings(j.trainings)
     } catch {
-      setRows([])
+      if (seq !== loadSeqRef.current) return
+      setFilteredTrainings([])
       setClients({})
-      setTotalCount(0)
-      setHealthByClientId({})
     } finally {
-      if (!silent) setBusy(false)
+      if (seq === loadSeqRef.current && !silent) setBusy(false)
     }
-  }, [journalOpen, trainerId, trainerClubId, page, pageSize, statsRange.start, statsRange.end])
+  }, [journalOpen, trainerId, trainerClubId, statsRange.start, statsRange.end])
 
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    if (!rows.length) {
+      setHealthByClientId({})
+      return
+    }
+    let cancelled = false
+    const clientIds = [...new Set(rows.map((t) => t.client_id).filter(Boolean))]
+    void loadAdminHealthCardsByClientIds(clientIds).then((hc) => {
+      if (!cancelled) setHealthByClientId(hc.healthByClientId ?? {})
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [rows])
 
   useEffect(() => {
     if (!journalOpen) return
@@ -236,11 +250,16 @@ export function TrainerStatisticsSection() {
 
   useDebouncedStorageReload(() => void load({ silent: true }), { shouldRun: shouldReloadTrainerClientList })
 
+  useEffect(() => {
+    const maxPage = Math.max(0, Math.ceil(totalCount / pageSize) - 1)
+    if (page > maxPage) setPage(maxPage)
+  }, [totalCount, pageSize, page])
+
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize) || 1)
   const rangeFrom = totalCount === 0 ? 0 : page * pageSize + 1
   const rangeTo = totalCount === 0 ? 0 : Math.min((page + 1) * pageSize, totalCount)
-  const canPrev = page > 0 && !busy
-  const canNext = !busy && (page + 1) * pageSize < totalCount
+  const canPrev = page > 0
+  const canNext = (page + 1) * pageSize < totalCount
 
   if (!trainerId) return null
 
@@ -412,7 +431,7 @@ export function TrainerStatisticsSection() {
                   ))}
                 </select>
               </label>
-              <div className="row" style={{ gap: 6 }}>
+              <div className="row journal-pagination" style={{ gap: 6 }}>
                 <button
                   type="button"
                   className="btn btn-ghost btn-touch"

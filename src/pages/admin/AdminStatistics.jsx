@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Eye, RefreshCw, UserCircle, X } from 'lucide-react'
 import { isSupabaseConfigured } from '../../lib/supabase'
@@ -122,6 +122,7 @@ export function AdminStatistics() {
   const [healthByClientId, setHealthByClientId] = useState({})
   const [healthCardsFallback, setHealthCardsFallback] = useState(null)
   const [busy, setBusy] = useState(false)
+  const loadSeqRef = useRef(0)
   const [trainerNameById, setTrainerNameById] = useState({})
   const [journalSource, setJournalSource] = useState('local')
   const [journalFallback, setJournalFallback] = useState(null)
@@ -190,6 +191,7 @@ export function AdminStatistics() {
       return
     }
     if (!silent) setBusy(true)
+    const seq = ++loadSeqRef.current
     try {
       const j = await loadAdminJournalPage({
         page,
@@ -203,6 +205,7 @@ export function AdminStatistics() {
           dateTo: statsRange.end,
         },
       })
+      if (seq !== loadSeqRef.current) return
       setClients(j.clientsById)
       setRows(j.trainings)
       setTotalCount(typeof j.totalCount === 'number' ? j.totalCount : j.trainings.length)
@@ -210,6 +213,7 @@ export function AdminStatistics() {
       setJournalFallback(j.fallbackReason ?? null)
 
       const fromApi = await listTrainerSummariesForAdmin()
+      if (seq !== loadSeqRef.current) return
       const nameById = {}
       for (const u of fromApi) {
         nameById[u.id] = u.name?.trim() || '—'
@@ -225,9 +229,11 @@ export function AdminStatistics() {
 
       const clientIdsOnPage = [...new Set(pageRows.map((t) => t.client_id).filter(Boolean))]
       const hc = await loadAdminHealthCardsByClientIds(clientIdsOnPage)
+      if (seq !== loadSeqRef.current) return
       setHealthByClientId(hc.healthByClientId ?? {})
       setHealthCardsFallback(hc.fallbackReason ?? null)
     } catch {
+      if (seq !== loadSeqRef.current) return
       setRows([])
       setClients({})
       setTotalCount(0)
@@ -237,7 +243,7 @@ export function AdminStatistics() {
       setHealthByClientId({})
       setHealthCardsFallback(null)
     } finally {
-      if (!silent) setBusy(false)
+      if (seq === loadSeqRef.current && !silent) setBusy(false)
     }
   }, [page, pageSize, club, statsRange.start, statsRange.end, journalOpen])
 
@@ -297,11 +303,16 @@ export function AdminStatistics() {
 
   useDebouncedStorageReload(() => void load({ silent: true }), { shouldRun: shouldReloadAdminStatsPage })
 
+  useEffect(() => {
+    const maxPage = Math.max(0, Math.ceil(totalCount / pageSize) - 1)
+    if (page > maxPage) setPage(maxPage)
+  }, [totalCount, pageSize, page])
+
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize) || 1)
   const rangeFrom = totalCount === 0 ? 0 : page * pageSize + 1
   const rangeTo = totalCount === 0 ? 0 : Math.min((page + 1) * pageSize, totalCount)
-  const canPrev = page > 0 && !busy
-  const canNext = !busy && (page + 1) * pageSize < totalCount
+  const canPrev = page > 0
+  const canNext = (page + 1) * pageSize < totalCount
 
   const trainerCell = (tid) => {
     if (!tid) return '—'
@@ -505,7 +516,7 @@ export function AdminStatistics() {
                     ))}
                   </select>
                 </label>
-                <div className="row" style={{ gap: 6 }}>
+                <div className="row journal-pagination" style={{ gap: 6 }}>
                   <button
                     type="button"
                     className="btn btn-ghost btn-touch"
