@@ -73,9 +73,12 @@ export function buildCalendarYearMonthKeys(year) {
  * Завершённые тренировки с типом карты — по календарным месяцам одного года (янв–дек).
  * @param {{ trainings: object[], memberships: object[], year: number }} input
  */
-export function aggregateMonthlyForCalendarYear({ trainings, memberships, year }) {
+export function aggregateMonthlyForCalendarYear({ trainings, memberships, year, clipFrom, clipTo }) {
   const y = Number(year)
   if (!Number.isFinite(y)) return []
+
+  const clipStart = clipFrom ? String(clipFrom).slice(0, 10) : ''
+  const clipEnd = clipTo ? String(clipTo).slice(0, 10) : ''
 
   const membershipTypeById = new Map()
   for (const m of memberships ?? []) {
@@ -91,6 +94,9 @@ export function aggregateMonthlyForCalendarYear({ trainings, memberships, year }
 
   for (const t of trainings ?? []) {
     if (t?.status !== 'completed') continue
+    const day = String(t?.date ?? '').slice(0, 10)
+    if (clipStart && day && day < clipStart) continue
+    if (clipEnd && day && day > clipEnd) continue
     const mid = String(t?.data?.membership_id ?? '').trim()
     if (!mid) continue
     const tid = membershipTypeById.get(mid)
@@ -107,9 +113,12 @@ export function aggregateMonthlyForCalendarYear({ trainings, memberships, year }
  * Сводка за календарный год: все завершённые vs попадающие в помесячный график (с типом карты).
  * @param {{ trainings: object[], memberships: object[], year: number }} input
  */
-export function summarizeCalendarYearMonthlyEligibility({ trainings, memberships, year }) {
+export function summarizeCalendarYearMonthlyEligibility({ trainings, memberships, year, clipFrom, clipTo }) {
   const y = Number(year)
   if (!Number.isFinite(y)) return { completedInYear: 0, typedInYear: 0 }
+
+  const clipStart = clipFrom ? String(clipFrom).slice(0, 10) : ''
+  const clipEnd = clipTo ? String(clipTo).slice(0, 10) : ''
 
   const membershipTypeById = new Map()
   for (const m of memberships ?? []) {
@@ -125,7 +134,10 @@ export function summarizeCalendarYearMonthlyEligibility({ trainings, memberships
 
   for (const t of trainings ?? []) {
     if (t?.status !== 'completed') continue
-    if (!String(t?.date ?? '').slice(0, 7).startsWith(prefix)) continue
+    const day = String(t?.date ?? '').slice(0, 10)
+    if (!day.slice(0, 7).startsWith(prefix)) continue
+    if (clipStart && day < clipStart) continue
+    if (clipEnd && day > clipEnd) continue
     completedInYear++
     const mid = String(t?.data?.membership_id ?? '').trim()
     if (!mid) continue
@@ -162,17 +174,27 @@ export function discoverMonthlyChartYears(trainings, opts = {}) {
 /**
  * @param {{ clubId: string, year: number }} p
  */
-export async function loadClubMonthlyStatsForYear({ clubId, year }) {
+export async function loadClubMonthlyStatsForYear({ clubId, year, clipFrom, clipTo }) {
   const cid = String(clubId ?? '').trim()
   const y = Number(year)
   if (!cid || !Number.isFinite(y)) return { months: [], years: [] }
 
-  const dateFrom = `${y}-01-01`
-  const dateTo = `${y}-12-31`
+  const yearStart = `${y}-01-01`
+  const yearEnd = `${y}-12-31`
+  const clipStart = clipFrom ? String(clipFrom).slice(0, 10) : ''
+  const clipEnd = clipTo ? String(clipTo).slice(0, 10) : ''
+  const dateFrom =
+    clipStart && clipStart > yearStart ? clipStart : yearStart
+  const dateTo = clipEnd && clipEnd < yearEnd ? clipEnd : yearEnd
 
   if (isSupabaseConfigured()) {
     try {
-      const via = await fetchClubMonthlyStatsForYearViaApi({ clubId: cid, year: y })
+      const via = await fetchClubMonthlyStatsForYearViaApi({
+        clubId: cid,
+        year: y,
+        clipFrom: clipStart || undefined,
+        clipTo: clipEnd || undefined,
+      })
       if (via && Array.isArray(via.months)) {
         return {
           months: via.months,
@@ -193,9 +215,21 @@ export async function loadClubMonthlyStatsForYear({ clubId, year }) {
     )
     const memberships = membershipsAll.filter((m) => m.club_id === cid)
     const clubTrainings = trainingsAll.filter((t) => t.club_id === cid)
-    const yearSummary = summarizeCalendarYearMonthlyEligibility({ trainings, memberships, year: y })
+    const yearSummary = summarizeCalendarYearMonthlyEligibility({
+      trainings,
+      memberships,
+      year: y,
+      clipFrom: clipStart,
+      clipTo: clipEnd,
+    })
     return {
-      months: aggregateMonthlyForCalendarYear({ trainings, memberships, year: y }),
+      months: aggregateMonthlyForCalendarYear({
+        trainings,
+        memberships,
+        year: y,
+        clipFrom: clipStart,
+        clipTo: clipEnd,
+      }),
       years: discoverMonthlyChartYears(clubTrainings, { anchorYear: y }),
       yearSummary,
     }

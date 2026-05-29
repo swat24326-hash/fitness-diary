@@ -348,11 +348,16 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
       )
       if (!ok) return
 
+      const today = todayLocalIso()
+      const s = String(membership.start_date ?? '').slice(0, 10)
+      const e = String(membership.end_date ?? '').slice(0, 10)
+      if (s && today < s) {
+        alert('Абонемент ещё не начался — списание на будущую дату невозможно.')
+        return
+      }
+      // Сегодня в сроке — дата сегодня; после окончания — последний день абонемента (как раньше).
+      const date = e && today > e ? e : today
       const now = new Date().toISOString()
-      const today = now.slice(0, 10)
-      const s = String(membership.start_date ?? '')
-      const e = String(membership.end_date ?? '')
-      const date = s && today < s ? s : e && today > e ? e : today
 
       const trainingId = crypto.randomUUID()
       const row = {

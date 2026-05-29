@@ -5,7 +5,7 @@ import { TrainingForm, emptyTrainingData } from '../../components/TrainingForm'
 import { ContraindicationsToggle } from '../../components/ContraindicationsToggle'
 import { useAuth } from '../../context/AuthContext'
 import { getHealthCard, getLocalClient, listClubsLocal, listMemberships } from '../../lib/dataAccess'
-import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
+import { clampIsoDateToToday, formatDateRu, isIsoDateAfterToday, todayLocalIso } from '../../lib/dateRu'
 import { getDb } from '../../lib/localDb'
 import { pickUsableMembershipForDate } from '../../lib/membershipRules'
 import { saveLocalWithSync } from '../../lib/syncService'
@@ -85,12 +85,10 @@ export function TrainingPage() {
   }, [search])
   const isNew = id === 'new'
   const dateInputRef = useRef(null)
-  const todayIso = useMemo(() => todayLocalIso(), [])
-
   const [client, setClient] = useState(null)
   const [workoutState, setWorkoutState] = useState(emptyTrainingData)
   const [trainingType, setTrainingType] = useState('Силовая')
-  const [trainingDate, setTrainingDate] = useState(() => todayIso)
+  const [trainingDate, setTrainingDate] = useState(() => todayLocalIso())
   const [contra, setContra] = useState('')
   const [meta, setMeta] = useState({ status: 'draft', trainingId: null })
   const [loadState, setLoadState] = useState('loading')
@@ -126,7 +124,7 @@ export function TrainingPage() {
       setClient(c ?? null)
       setWorkoutState(emptyTrainingData())
       setTrainingType('Силовая')
-      setTrainingDate(todayIso)
+      setTrainingDate(todayLocalIso())
       setMeta({ status: 'draft', trainingId: null })
       const hc = await getHealthCard(clientIdParam)
       setContra((hc?.contraindications ?? '').trim())
@@ -163,14 +161,16 @@ export function TrainingPage() {
     const w = typeof t.data === 'object' && t.data ? sanitizeWorkoutData(t.data, { sessionFallback: sessionType }) : {}
     setWorkoutState({ ...emptyTrainingData(), ...w })
     setTrainingType(sessionType)
-    setTrainingDate(t.date ?? todayIso)
+    const today = todayLocalIso()
+    const loaded = t.date ?? today
+    setTrainingDate(isAdmin ? loaded : clampIsoDateToToday(loaded))
     const hc = await getHealthCard(t.client_id)
     setContra((hc?.contraindications ?? '').trim())
     setMembershipSummary(await activeMembershipSummary(t.client_id))
     draftTrainingIdRef.current = t.id
     setLoadState('ok')
     bumpHydrateVersion((v) => v + 1)
-  }, [user?.id, isNew, clientIdParam, id])
+  }, [user?.id, isNew, clientIdParam, id, isAdmin])
 
   useEffect(() => {
     if (isNew && isAdmin) return
@@ -219,10 +219,13 @@ export function TrainingPage() {
       }
     }
 
-    // Для тренера: тренировка проводится "в моменте".
-    // Если черновик завершили на следующий день — считаем датой завершения "сегодня"
-    // (и списываем по сегодняшнему абонементу).
-    const effectiveDate = isAdmin ? trainingDate : todayIso
+    // Для тренера: дата завершения — всегда актуальное «сегодня» (не дата открытия формы).
+    const today = todayLocalIso()
+    const effectiveDate = isAdmin ? trainingDate : today
+    if (nextStatus === 'completed' && !silent && isIsoDateAfterToday(effectiveDate)) {
+      setSaveError('Нельзя завершить тренировку датой в будущем. Проверьте дату на устройстве.')
+      return
+    }
     const now = new Date().toISOString()
     const db = await getDb()
     let prev = id && id !== 'new' ? await db.get('trainings', id) : null
@@ -301,7 +304,12 @@ export function TrainingPage() {
       client_id: cid,
       trainer_id: trainerIdForRow,
       club_id,
-      date: nextStatus === 'completed' ? effectiveDate : trainingDate,
+      date:
+        nextStatus === 'completed'
+          ? effectiveDate
+          : isAdmin
+            ? trainingDate
+            : today,
       type: deriveTrainingTypeFromExercises(dataPayload.exercises, trainingType),
       status: nextStatus,
       data: dataPayload,
@@ -545,6 +553,7 @@ export function TrainingPage() {
                   className="training-tile__input training-tile__input--overlay"
                   type="date"
                   value={trainingDate}
+                  max={todayLocalIso()}
                   onChange={(e) => setTrainingDate(e.target.value)}
                   required
                   aria-label="Дата тренировки"

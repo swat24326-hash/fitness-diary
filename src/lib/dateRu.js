@@ -7,6 +7,21 @@ export function todayLocalIso() {
   return `${y}-${m}-${day}`
 }
 
+/** @param {string} iso yyyy-mm-dd */
+export function isIsoDateAfterToday(iso) {
+  const d = String(iso ?? '').slice(0, 10)
+  if (!d) return false
+  return d > todayLocalIso()
+}
+
+/** Не позже сегодня (для тренера и проверок при сохранении). */
+export function clampIsoDateToToday(iso) {
+  const d = String(iso ?? '').slice(0, 10)
+  const today = todayLocalIso()
+  if (!d || d > today) return today
+  return d
+}
+
 /** @param {string} iso YYYY-MM-DD @param {number} days */
 export function addDaysToIso(iso, days) {
   const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number)

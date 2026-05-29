@@ -425,19 +425,37 @@ async function handleClubMonthly(ctx, req, res) {
     }
     try {
       const { supabaseAdmin } = ctx
-      const dateFrom = `${y}-01-01`
-      const dateTo = `${y}-12-31`
+      const yearStart = `${y}-01-01`
+      const yearEnd = `${y}-12-31`
+      const clipFrom = String(req.query?.date_from ?? '').slice(0, 10)
+      const clipTo = String(req.query?.date_to ?? '').slice(0, 10)
+      const dateFrom = clipFrom && clipFrom > yearStart ? clipFrom : yearStart
+      const dateTo = clipTo && clipTo < yearEnd ? clipTo : yearEnd
       const [trainings, memberships, allTrainings] = await Promise.all([
         fetchPaged(supabaseAdmin, 'trainings', 'id, date, status, data', clubId, dateFrom, dateTo),
         fetchPaged(supabaseAdmin, 'memberships', 'id, membership_type_id', clubId, null, null),
         fetchPaged(supabaseAdmin, 'trainings', 'id, date, status', clubId, null, null),
       ])
       sendJson(res, 200, {
-        months: aggregateMonthlyForCalendarYear({ trainings, memberships, year: y }),
+        months: aggregateMonthlyForCalendarYear({
+          trainings,
+          memberships,
+          year: y,
+          clipFrom: clipFrom || undefined,
+          clipTo: clipTo || undefined,
+        }),
         years: discoverMonthlyChartYears(allTrainings, { anchorYear: y }),
-        yearSummary: summarizeCalendarYearMonthlyEligibility({ trainings, memberships, year: y }),
+        yearSummary: summarizeCalendarYearMonthlyEligibility({
+          trainings,
+          memberships,
+          year: y,
+          clipFrom: clipFrom || undefined,
+          clipTo: clipTo || undefined,
+        }),
         club_id: clubId,
         year: y,
+        date_from: clipFrom || null,
+        date_to: clipTo || null,
       })
     } catch (e) {
       sendJson(res, 400, { error: e?.message ? String(e.message) : 'Ошибка' })
