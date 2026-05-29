@@ -6,6 +6,7 @@ import { useDebouncedStorageReload, shouldReloadAdminStatsPage } from '../../lib
 import { formatIsoRu, getDateRange, PERIOD_PRESETS } from '../../lib/period'
 import { formatDateRu } from '../../lib/dateRu'
 import { MembershipTypeStatsBlock } from '../../components/MembershipTypeStatsBlock'
+import { AdminClubStatNotRenewedModal } from '../../components/AdminClubStatNotRenewedModal'
 
 function rankMedal(i) {
   if (i === 0) return '🥇'
@@ -26,6 +27,7 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange }) {
   const [trainerNameById, setTrainerNameById] = useState({})
   const [clubLabel, setClubLabel] = useState('')
   const [statsHelpOpen, setStatsHelpOpen] = useState(false)
+  const [notRenewedOpen, setNotRenewedOpen] = useState(false)
   const statsHelpRef = useRef(null)
 
   const range = useMemo(() => getDateRange(period, customFrom, customTo), [period, customFrom, customTo])
@@ -161,6 +163,7 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange }) {
   const totalClients = s?.totalClients ?? 0
   const activeWithMembership = s?.activeWithMembership ?? 0
   const notRenewedInPeriod = s?.notRenewedInPeriod ?? 0
+  const notRenewedClients = s?.notRenewedClients ?? []
   const byDay = s?.byDay ?? []
   const byTrainer = s?.byTrainer ?? []
   const byType = s?.byType ?? []
@@ -296,14 +299,27 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange }) {
             <p className="stat-card__value admin-club-stat-card__value">{activeWithMembership}</p>
             <p className="admin-club-stat-card__foot">с абонементом на конец периода</p>
           </div>
-          <div className="card stat-card admin-club-stat-card">
+          <button
+            type="button"
+            className="card stat-card admin-club-stat-card admin-club-stat-card--clickable"
+            disabled={notRenewedInPeriod === 0}
+            aria-label={
+              notRenewedInPeriod > 0
+                ? `Не продлилось: ${notRenewedInPeriod}. Нажмите, чтобы увидеть список клиентов`
+                : 'Не продлилось: нет клиентов за период'
+            }
+            title={notRenewedInPeriod > 0 ? 'Показать список клиентов' : undefined}
+            onClick={() => setNotRenewedOpen(true)}
+          >
             <div className="stat-card__top admin-club-stat-card__head">
               <h3 className="td-stat-title admin-club-stat-card__title">Не продлилось</h3>
               <UserX className="stat-card__icon" size={22} aria-hidden />
             </div>
             <p className="stat-card__value admin-club-stat-card__value">{notRenewedInPeriod}</p>
-            <p className="admin-club-stat-card__foot">за выбранный период</p>
-          </div>
+            <p className="admin-club-stat-card__foot">
+              {notRenewedInPeriod > 0 ? 'нажмите для списка' : 'за выбранный период'}
+            </p>
+          </button>
           <div className="card stat-card admin-club-stat-card">
             <div className="stat-card__top admin-club-stat-card__head">
               <h3 className="td-stat-title admin-club-stat-card__title">Проведено тренировок</h3>
@@ -425,6 +441,15 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange }) {
           ))}
         </div>
       )}
+
+      <AdminClubStatNotRenewedModal
+        open={notRenewedOpen}
+        onClose={() => setNotRenewedOpen(false)}
+        clients={notRenewedClients}
+        dateFrom={range.start}
+        dateTo={range.end}
+        clubId={clubId}
+      />
     </section>
   )
 }

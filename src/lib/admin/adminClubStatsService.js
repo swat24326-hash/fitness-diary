@@ -111,7 +111,7 @@ async function fetchClientsForClubRemote(clubId) {
     const { data, error } = await withSupabaseRetry(() =>
       supabase
         .from('clients')
-        .select('id')
+        .select('id, name, phone')
         .eq('club_id', clubId)
         .order('id', { ascending: true })
         .range(from, from + ADMIN_SYNC_BATCH_SIZE - 1),
@@ -129,7 +129,13 @@ async function fetchClientsForClubRemote(clubId) {
 async function fetchClientsForClubLocal(clubId) {
   const db = await getDb()
   const all = await db.getAll('clients')
-  return all.filter((c) => c.club_id === clubId).map((c) => ({ id: c.id }))
+  return all
+    .filter((c) => c.club_id === clubId)
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      phone: c.phone,
+    }))
 }
 
 async function fetchMembershipsForClubRemote(clubId) {
@@ -167,6 +173,11 @@ async function fetchMembershipsForClubLocal(clubId) {
 function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, dateTo) {
   const totalClients = clientRows.length
   const clientIdSet = new Set(clientRows.map((c) => c.id).filter(Boolean))
+  const clientById = new Map()
+  for (const c of clientRows ?? []) {
+    const id = String(c?.id ?? '').trim()
+    if (id) clientById.set(id, c)
+  }
   const byClient = new Map()
   for (const id of clientIdSet) byClient.set(id, [])
   for (const m of membershipRows) {
@@ -176,23 +187,39 @@ function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, dateTo)
   }
 
   let activeWithMembership = 0
-  for (const id of clientIdSet) {
-    const mems = byClient.get(id) ?? []
-    if (hasUsableMembershipOnDate(mems, dateTo)) activeWithMembership++
-  }
+  const notRenewedClients = []
 
-  let notRenewedInPeriod = 0
   for (const id of clientIdSet) {
     const mems = byClient.get(id) ?? []
-    if (hasUsableMembershipOnDate(mems, dateTo)) continue
-    const endedInRange = mems.some((m) => {
+    if (hasUsableMembershipOnDate(mems, dateTo)) {
+      activeWithMembership++
+      continue
+    }
+    const endsInRange = []
+    for (const m of mems) {
       const e = String(m.end_date ?? '').slice(0, 10)
-      return e && e >= dateFrom && e <= dateTo
+      if (e && e >= dateFrom && e <= dateTo) endsInRange.push(e)
+    }
+    if (!endsInRange.length) continue
+
+    endsInRange.sort((a, b) => a.localeCompare(b))
+    const client = clientById.get(id)
+    notRenewedClients.push({
+      id,
+      name: String(client?.name ?? '').trim() || '—',
+      phone: client?.phone ? String(client.phone).trim() : null,
+      membershipEnded: endsInRange[endsInRange.length - 1],
     })
-    if (endedInRange) notRenewedInPeriod++
   }
 
-  return { totalClients, activeWithMembership, notRenewedInPeriod }
+  notRenewedClients.sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+
+  return {
+    totalClients,
+    activeWithMembership,
+    notRenewedInPeriod: notRenewedClients.length,
+    notRenewedClients,
+  }
 }
 
 async function membershipTypeStatsSlice(clubId, trainings, memberships) {
@@ -218,6 +245,7 @@ export async function loadClubTrainingStats(p) {
     totalClients: 0,
     activeWithMembership: 0,
     notRenewedInPeriod: 0,
+    notRenewedClients: [],
     source: 'local',
     fallbackReason: null,
     error: null,
@@ -261,6 +289,7 @@ export async function loadClubTrainingStats(p) {
         totalClients: viaApi.totalClients ?? 0,
         activeWithMembership: viaApi.activeWithMembership ?? 0,
         notRenewedInPeriod: viaApi.notRenewedInPeriod ?? 0,
+        notRenewedClients: viaApi.notRenewedClients ?? [],
         source: 'admin_api',
         fallbackReason: null,
         error: null,

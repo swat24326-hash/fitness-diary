@@ -37,6 +37,7 @@ run('sync offline-first', 'node', ['scripts/verify-sync-offline.mjs'])
 run('bulk exercises parser', 'node', ['scripts/verify-bulk-exercises.mjs'])
 run('client birthdays', 'node', ['scripts/verify-client-birthdays.mjs'])
 run('membership type stats', 'node', ['scripts/verify-membership-type-stats.mjs'])
+run('club client period', 'node', ['scripts/verify-club-client-period.mjs'])
 
 if (!skipLint) {
   run('lint', 'npm', ['run', 'lint'])

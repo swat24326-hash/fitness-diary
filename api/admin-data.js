@@ -141,7 +141,7 @@ async function handleClubStats(ctx, req, res) {
     const { supabaseAdmin } = ctx
     const [trainings, clients, memberships, membershipTypes] = await Promise.all([
       fetchPaged(supabaseAdmin, 'trainings', 'id, trainer_id, client_id, date, status, data', clubId, dateFrom, dateTo),
-      fetchPaged(supabaseAdmin, 'clients', 'id', clubId, null, null),
+      fetchPaged(supabaseAdmin, 'clients', 'id, name, phone', clubId, null, null),
       fetchPaged(
         supabaseAdmin,
         'memberships',

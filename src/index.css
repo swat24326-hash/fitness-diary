@@ -3436,6 +3436,67 @@ tr:last-child td {
   color: var(--text-muted);
 }
 
+.admin-club-stat-card--clickable {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.admin-club-stat-card--clickable:not(:disabled):hover {
+  border-color: rgba(74, 222, 128, 0.45);
+  box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.2);
+}
+
+.admin-club-stat-card--clickable:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.admin-stat-drilldown__panel {
+  max-width: 520px;
+  width: min(100%, 520px);
+  max-height: min(80vh, 640px);
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-stat-drilldown__head {
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.admin-stat-drilldown__hint {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.admin-stat-drilldown__list {
+  margin: 0;
+  max-height: min(50vh, 420px);
+  overflow-y: auto;
+}
+
+.admin-stat-drilldown__row {
+  align-items: center;
+  gap: 12px;
+}
+
+.admin-stat-drilldown__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-stat-drilldown__meta {
+  font-size: 12px;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
 .admin-club-stats-board__grid {
   display: grid;
   gap: 12px;
