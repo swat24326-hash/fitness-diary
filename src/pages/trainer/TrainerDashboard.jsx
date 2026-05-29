@@ -7,7 +7,7 @@ import { pullTrainerWorkspaceFromCloud } from '../../lib/trainerPullService'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { isAppOnline } from '../../lib/syncService'
 import { useDebouncedStorageReload, shouldReloadTrainerClientList } from '../../lib/useDebouncedStorageReload'
-import { formatIsoRu, getDateRange, isDateInRange } from '../../lib/period'
+import { formatIsoRu, getDateRange, isDateInRange, PERIOD_PRESETS } from '../../lib/period'
 import { flushSyncQueue, saveLocalWithSync } from '../../lib/syncService'
 import { subscribeNetworkStatus } from '../../lib/networkReachability'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
@@ -52,7 +52,7 @@ export function TrainerDashboard() {
   const [trainings, setTrainings] = useState([])
   const [memByClient, setMemByClient] = useState({})
   const [busy, setBusy] = useState(false)
-  const [period, setPeriod] = useState('7d')
+  const [period, setPeriod] = useState('month')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
   const [showNewClient, setShowNewClient] = useState(false)
@@ -249,13 +249,7 @@ export function TrainerDashboard() {
           Период
         </h2>
         <div className="row td-period__buttons">
-          {[
-            { id: 'today', label: 'Сегодня' },
-            { id: 'yesterday', label: 'Вчера' },
-            { id: '7d', label: '7 дней' },
-            { id: '30d', label: '30 дней' },
-            { id: 'custom', label: 'Свой' },
-          ].map((p) => (
+          {PERIOD_PRESETS.map((p) => (
             <button key={p.id} type="button" className={`btn ${period === p.id ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setPeriod(p.id)}>
               {p.label}
             </button>

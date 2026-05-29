@@ -7,10 +7,17 @@ function fmtLocal(d) {
   return `${y}-${m}-${day}`
 }
 
-/** @returns {{ start: string, end: string }} ISO date yyyy-mm-dd; для «свой» без дат — пустые строки (без подстановки 7 дней). */
+/** Кнопки периода в статистике (админ / тренер). */
+export const PERIOD_PRESETS = [
+  { id: 'month', label: 'Календарный месяц' },
+  { id: 'today', label: 'Сегодня' },
+  { id: 'custom', label: 'Свой' },
+]
+
+/** @returns {{ start: string, end: string }} ISO date yyyy-mm-dd; для «свой» без дат — пустые строки. */
 export function getDateRange(period, customStart, customEnd) {
   const today = new Date()
-  const end = todayLocalIso()
+  const todayIso = todayLocalIso()
   const fmt = fmtLocal
 
   if (period === 'custom') {
@@ -22,28 +29,17 @@ export function getDateRange(period, customStart, customEnd) {
   }
 
   if (period === 'today') {
-    return { start: end, end }
+    return { start: todayIso, end: todayIso }
   }
 
-  if (period === 'yesterday') {
-    const y = new Date(today)
-    y.setDate(y.getDate() - 1)
-    const s = fmt(y)
-    return { start: s, end: s }
+  if (period === 'month') {
+    const start = fmt(new Date(today.getFullYear(), today.getMonth(), 1))
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0)
+    const end = fmt(lastDay)
+    return { start, end }
   }
 
-  const d = new Date(today)
-  if (period === '7d') {
-    d.setDate(d.getDate() - 6)
-    return { start: fmt(d), end }
-  }
-  if (period === '30d') {
-    d.setDate(d.getDate() - 29)
-    return { start: fmt(d), end }
-  }
-
-  d.setDate(d.getDate() - 6)
-  return { start: fmt(d), end }
+  return { start: '', end: '' }
 }
 
 export function isDateInRange(dateStr, start, end) {

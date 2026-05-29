@@ -2,14 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { ClipboardList, Users } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { listLocalClients, listTrainingsForTrainer } from '../../lib/dataAccess'
-import { formatIsoRu, getDateRange, isDateInRange } from '../../lib/period'
+import { formatIsoRu, getDateRange, isDateInRange, PERIOD_PRESETS } from '../../lib/period'
 
 export function TrainerProfile() {
   const { user } = useAuth()
   const trainerClubId = user?.club_id ?? null
   const [clients, setClients] = useState([])
   const [trainings, setTrainings] = useState([])
-  const [period, setPeriod] = useState('7d')
+  const [period, setPeriod] = useState('month')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
 
@@ -52,13 +52,7 @@ export function TrainerProfile() {
       <section className="card">
         <h2 className="section-title td-period__title">Период</h2>
         <div className="row td-period__buttons">
-          {[
-            { id: 'today', label: 'Сегодня' },
-            { id: 'yesterday', label: 'Вчера' },
-            { id: '7d', label: '7 дней' },
-            { id: '30d', label: '30 дней' },
-            { id: 'custom', label: 'Свой' },
-          ].map((p) => (
+          {PERIOD_PRESETS.map((p) => (
             <button key={p.id} type="button" className={`btn ${period === p.id ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setPeriod(p.id)}>
               {p.label}
             </button>

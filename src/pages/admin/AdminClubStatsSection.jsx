@@ -3,7 +3,7 @@ import { ClipboardList, Info, RefreshCw, Trophy, UserCheck, UserX, Users } from 
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { loadClubTrainingStats, listTrainerSummariesForAdmin, listClubsLocal } from '../../lib/dataAccess'
 import { useDebouncedStorageReload, shouldReloadAdminStatsPage } from '../../lib/useDebouncedStorageReload'
-import { formatIsoRu, getDateRange } from '../../lib/period'
+import { formatIsoRu, getDateRange, PERIOD_PRESETS } from '../../lib/period'
 import { formatDateRu } from '../../lib/dateRu'
 import { MembershipTypeStatsBlock } from '../../components/MembershipTypeStatsBlock'
 
@@ -18,7 +18,7 @@ function rankMedal(i) {
  * @param {{ clubId: string, onActiveRangeChange?: (r: { start: string, end: string } | null) => void }} props
  */
 export function AdminClubStatsSection({ clubId, onActiveRangeChange }) {
-  const [period, setPeriod] = useState('7d')
+  const [period, setPeriod] = useState('month')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
   const [busy, setBusy] = useState(false)
@@ -213,13 +213,7 @@ export function AdminClubStatsSection({ clubId, onActiveRangeChange }) {
         Период
       </h3>
       <div className="row td-period__buttons" style={{ flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
-        {[
-          { id: 'today', label: 'Сегодня' },
-          { id: 'yesterday', label: 'Вчера' },
-          { id: '7d', label: '7 дней' },
-          { id: '30d', label: '30 дней' },
-          { id: 'custom', label: 'Свой' },
-        ].map((p) => (
+        {PERIOD_PRESETS.map((p) => (
           <button key={p.id} type="button" className={`btn ${period === p.id ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setPeriod(p.id)}>
             {p.label}
           </button>
