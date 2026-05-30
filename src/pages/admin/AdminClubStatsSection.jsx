@@ -626,10 +626,7 @@ export function AdminClubStatsSection({
             </>
           )}
           {monthlyYears.length ? (
-            <div
-              className="row td-period__buttons admin-monthly-year-tabs"
-              style={{ flexWrap: 'wrap', gap: 8, marginTop: 14, justifyContent: 'center' }}
-            >
+            <div className="row td-period__buttons admin-monthly-year-tabs" style={{ flexWrap: 'wrap', gap: 8, marginTop: 12, justifyContent: 'center' }}>
               {monthlyYears.map((y) => (
                 <button
                   key={y}

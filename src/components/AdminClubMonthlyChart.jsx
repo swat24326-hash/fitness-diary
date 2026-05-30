@@ -10,7 +10,7 @@ function monthLabelRu(ym) {
   return new Intl.DateTimeFormat('ru-RU', { month: 'short', year: 'numeric' }).format(d)
 }
 
-function monthLabelShort(ym) {
+function monthLabelAxis(ym, chartYear) {
   const s = String(ym ?? '')
   const [y, m] = s.split('-')
   const yy = Number(y)
@@ -18,6 +18,7 @@ function monthLabelShort(ym) {
   if (!Number.isFinite(yy) || !Number.isFinite(mm) || mm < 1 || mm > 12) return s
   const d = new Date(yy, mm - 1, 1)
   const mon = new Intl.DateTimeFormat('ru-RU', { month: 'short' }).format(d).replace('.', '')
+  if (chartYear && yy === chartYear) return mon
   const yr = String(yy).slice(-2)
   return `${mon} ’${yr}`
 }
@@ -43,31 +44,28 @@ function yTicks(chartMax, steps = 5) {
   return out
 }
 
-const BAR_PALETTE = [
-  { face: 'var(--accent-bright)', shade: 'rgba(16, 120, 72, 0.95)' },
-  { face: 'rgba(52, 211, 153, 0.92)', shade: 'rgba(14, 100, 62, 0.95)' },
-  { face: 'rgba(74, 222, 128, 0.88)', shade: 'rgba(12, 88, 56, 0.95)' },
-  { face: 'rgba(34, 197, 94, 0.9)', shade: 'rgba(10, 76, 48, 0.95)' },
-  { face: 'rgba(22, 163, 74, 0.92)', shade: 'rgba(8, 64, 40, 0.95)' },
-  { face: 'rgba(21, 128, 61, 0.9)', shade: 'rgba(6, 52, 34, 0.95)' },
-]
-
 /**
  * @param {{ rows: Array<{ month: string, count: number }>, year?: number }} props
  */
 export function AdminClubMonthlyChart({ rows, year }) {
   const list = Array.isArray(rows) ? rows : []
 
-  const { chartMax, ticks, total, hasAny } = useMemo(() => {
+  const { chartMax, ticks, total, hasAny, peakMonth } = useMemo(() => {
     let max = 0
     let sum = 0
+    let peak = null
+    let peakN = 0
     for (const r of list) {
       const n = Number(r?.count ?? 0) || 0
       sum += n
       if (n > max) max = n
+      if (n > peakN) {
+        peakN = n
+        peak = r.month
+      }
     }
     const cm = chartMaxValue(max)
-    return { chartMax: cm, ticks: yTicks(cm), total: sum, hasAny: sum > 0 }
+    return { chartMax: cm, ticks: yTicks(cm), total: sum, hasAny: sum > 0, peakMonth: peakN > 0 ? peak : null }
   }, [list])
 
   if (!list.length) {
@@ -87,66 +85,76 @@ export function AdminClubMonthlyChart({ rows, year }) {
         </p>
       ) : null}
 
-      <div className="admin-monthly-chart__plot" role="img" aria-label="График завершённых тренировок по месяцам">
-        <div className="admin-monthly-chart__y-axis" aria-hidden>
-          {ticks.map((t) => (
-            <span key={t} className="admin-monthly-chart__y-label">
-              {t}
-            </span>
-          ))}
-        </div>
-
-        <div className="admin-monthly-chart__scroll">
-          <div
-            className="admin-monthly-chart__cols"
-            style={{ '--monthly-chart-max': String(chartMax), '--monthly-cols': String(list.length) }}
-          >
+      <div className="admin-monthly-chart__canvas">
+        <div className="admin-monthly-chart__plot" role="img" aria-label="График завершённых тренировок по месяцам">
+          <div className="admin-monthly-chart__y-axis" aria-hidden>
             {ticks.map((t) => (
-              <div
-                key={`grid-${t}`}
-                className="admin-monthly-chart__grid-line"
-                style={{ bottom: `${chartMax ? (t / chartMax) * 100 : 0}%` }}
-              />
+              <span key={t} className="admin-monthly-chart__y-label">
+                {t}
+              </span>
             ))}
+          </div>
 
-            {list.map((r, idx) => {
-              const n = Number(r?.count ?? 0) || 0
-              const hPct = chartMax ? Math.min(100, (n / chartMax) * 100) : 0
-              const pal = BAR_PALETTE[idx % BAR_PALETTE.length]
-              const title = `${monthLabelRu(r.month)}: ${n}`
-              return (
-                <div key={r.month} className="admin-monthly-chart__col-wrap" title={title}>
-                  <div className="admin-monthly-chart__col-area">
-                    {n > 0 ? (
-                      <span className="admin-monthly-chart__col-value" aria-hidden>
-                        {n}
-                      </span>
-                    ) : null}
-                    <div
-                      className={`admin-monthly-chart__col${n > 0 ? ' admin-monthly-chart__col--filled' : ''}`}
-                      style={{
-                        height: `${Math.max(hPct, n > 0 ? 4 : 0)}%`,
-                        '--bar-face': pal.face,
-                        '--bar-shade': pal.shade,
-                      }}
-                    >
-                      <span className="admin-monthly-chart__col-face" />
-                      <span className="admin-monthly-chart__col-shade" />
+          <div className="admin-monthly-chart__scroll">
+            <div
+              className="admin-monthly-chart__cols"
+              style={{ '--monthly-chart-max': String(chartMax), '--monthly-cols': String(list.length) }}
+            >
+              {ticks.map((t) => (
+                <div
+                  key={`grid-${t}`}
+                  className="admin-monthly-chart__grid-line"
+                  style={{ bottom: `${chartMax ? (t / chartMax) * 100 : 0}%` }}
+                />
+              ))}
+
+              {list.map((r) => {
+                const n = Number(r?.count ?? 0) || 0
+                const hPct = chartMax ? Math.min(100, (n / chartMax) * 100) : 0
+                const isPeak = peakMonth === r.month && n > 0
+                const title = `${monthLabelRu(r.month)}: ${n}`
+                const colClass = [
+                  'admin-monthly-chart__col',
+                  n > 0 ? 'admin-monthly-chart__col--filled' : 'admin-monthly-chart__col--zero',
+                  isPeak ? 'admin-monthly-chart__col--peak' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')
+
+                return (
+                  <div
+                    key={r.month}
+                    className={`admin-monthly-chart__col-wrap${n > 0 ? ' admin-monthly-chart__col-wrap--active' : ''}`}
+                    title={title}
+                  >
+                    <div className="admin-monthly-chart__col-area">
+                      {n > 0 ? (
+                        <span className="admin-monthly-chart__col-value" aria-hidden>
+                          {n}
+                        </span>
+                      ) : null}
+                      <div
+                        className={colClass}
+                        style={{ height: `${Math.max(hPct, n > 0 ? 6 : 0)}%` }}
+                      />
                     </div>
+                    <span
+                      className={`admin-monthly-chart__col-label${n > 0 ? ' admin-monthly-chart__col-label--active' : ''}${isPeak ? ' admin-monthly-chart__col-label--peak' : ''}`}
+                      title={monthLabelRu(r.month)}
+                    >
+                      {monthLabelAxis(r.month, year)}
+                    </span>
                   </div>
-                  <span className="admin-monthly-chart__col-label" title={monthLabelRu(r.month)}>
-                    {monthLabelShort(r.month)}
-                  </span>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
         </div>
       </div>
 
       {hasAny ? (
         <p className="muted admin-monthly-chart__sum">
-          Всего за {year ? `${year} год` : 'период'} на графике: <strong>{total}</strong>
+          Всего за {year ? `${year} год` : 'период'} на графике: <strong className="admin-monthly-chart__sum-val">{total}</strong>
         </p>
       ) : null}
 
