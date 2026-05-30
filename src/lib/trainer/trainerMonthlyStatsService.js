@@ -20,14 +20,13 @@ function trainerTrainings(trainings, trainerId) {
 
 /**
  * Итог по календарному году (12 месяцев, только типизированные карты).
+ * Не зависит от периода сводки — всегда полный календарный год.
  * @param {{ trainerId: string, clubId: string | null, year: number }} p
  */
 export async function loadTrainerMonthlyStatsForYear(p) {
   const trainerId = String(p.trainerId ?? '').trim()
   const clubId = String(p.clubId ?? '').trim()
   const year = Number(p.year)
-  const clipFrom = p.clipFrom ? String(p.clipFrom).slice(0, 10) : ''
-  const clipTo = p.clipTo ? String(p.clipTo).slice(0, 10) : ''
   if (!trainerId || !Number.isFinite(year)) return { months: [], years: [] }
 
   const { trainings, memByClient } = await loadTrainerWorkspaceSnapshot(trainerId, clubId || null)
@@ -36,11 +35,9 @@ export async function loadTrainerMonthlyStatsForYear(p) {
 
   const yearStart = `${year}-01-01`
   const yearEnd = `${year}-12-31`
-  const dateFrom = clipFrom && clipFrom > yearStart ? clipFrom : yearStart
-  const dateTo = clipTo && clipTo < yearEnd ? clipTo : yearEnd
-  const inRange = mine.filter((t) => {
+  const inYear = mine.filter((t) => {
     const d = String(t?.date ?? '').slice(0, 10)
-    return d && d >= dateFrom && d <= dateTo
+    return d && d >= yearStart && d <= yearEnd
   })
 
   return {
@@ -48,16 +45,12 @@ export async function loadTrainerMonthlyStatsForYear(p) {
       trainings: mine,
       memberships,
       year,
-      clipFrom: clipFrom || undefined,
-      clipTo: clipTo || undefined,
     }),
     years: discoverMonthlyChartYears(mine, { anchorYear: year }),
     yearSummary: summarizeCalendarYearMonthlyEligibility({
-      trainings: inRange,
+      trainings: inYear,
       memberships,
       year,
-      clipFrom: clipFrom || undefined,
-      clipTo: clipTo || undefined,
     }),
   }
 }

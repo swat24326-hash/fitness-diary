@@ -103,7 +103,7 @@ export function AdminClubStatsSection({
     setMonthlyYears([defaultChartYear])
     setMonthlyYearSummary(null)
     monthlyCacheRef.current.clear()
-  }, [clubId, scopeClubId, isTrainerScope, range.start, range.end, defaultChartYear])
+  }, [clubId, scopeClubId, isTrainerScope, defaultChartYear])
 
   /** Итог по календарному году — только при открытии графика. */
   useEffect(() => {
@@ -111,7 +111,7 @@ export function AdminClubStatsSection({
     if (!isTrainerScope && !clubId) return
     if (isTrainerScope && !scopeTrainerId) return
 
-    const cacheKey = `${isTrainerScope ? scopeTrainerId : clubId}:${monthlyChartYear}:${range.start}:${range.end}`
+    const cacheKey = `${isTrainerScope ? scopeTrainerId : clubId}:${monthlyChartYear}`
     const cached = monthlyCacheRef.current.get(cacheKey)
     if (cached) {
       setClubMonthly(cached.months)
@@ -131,14 +131,10 @@ export function AdminClubStatsSection({
               trainerId: scopeTrainerId,
               clubId: scopeClubId,
               year: monthlyChartYear,
-              clipFrom: range.start,
-              clipTo: range.end,
             })
           : await loadClubMonthlyStatsForYear({
               clubId,
               year: monthlyChartYear,
-              clipFrom: range.start,
-              clipTo: range.end,
             })
         if (cancelled) return
         const months = Array.isArray(res?.months) ? res.months : []
@@ -162,7 +158,7 @@ export function AdminClubStatsSection({
     return () => {
       cancelled = true
     }
-  }, [inlinePanel, monthlyChartYear, range.start, range.end, clubId, scopeClubId, scopeTrainerId, isTrainerScope])
+  }, [inlinePanel, monthlyChartYear, clubId, scopeClubId, scopeTrainerId, isTrainerScope])
 
   useEffect(() => {
     if (!statsHelpOpen) return
@@ -611,12 +607,9 @@ export function AdminClubStatsSection({
               ? `Итоговая статистика · ${monthlyChartYear}`
               : `Итоговая статистика по клубу · ${monthlyChartYear}`}
           </h3>
-          {range.start && range.end ? (
-            <p className="muted" style={{ margin: '0 0 10px', fontSize: 12, lineHeight: 1.4 }}>
-              Столбцы — по месяцам {monthlyChartYear}, только даты из периода сводки ({formatIsoRu(range.start)} —{' '}
-              {formatIsoRu(range.end)}).
-            </p>
-          ) : null}
+          <p className="muted" style={{ margin: '0 0 10px', fontSize: 12, lineHeight: 1.4 }}>
+            Столбцы — по всем календарным месяцам {monthlyChartYear} года (янв–дек), независимо от периода сводки выше.
+          </p>
           {clubMonthlyBusy && !clubMonthly.length ? (
             <p className="muted" style={{ margin: 0, fontSize: 13 }}>Загрузка…</p>
           ) : (

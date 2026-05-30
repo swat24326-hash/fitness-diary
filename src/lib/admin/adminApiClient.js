@@ -352,7 +352,7 @@ export async function fetchClubMonthlyStatsViaApi({ clubId, anchorTo, months = 1
 }
 
 /** GET /api/admin-data?action=club-monthly&year=2026 — календарный год (янв–дек). */
-export async function fetchClubMonthlyStatsForYearViaApi({ clubId, year, clipFrom, clipTo }) {
+export async function fetchClubMonthlyStatsForYearViaApi({ clubId, year }) {
   const token = await getAccessTokenForAdminApi()
   if (!token) throw new Error('Нет сессии администратора')
 
@@ -360,10 +360,6 @@ export async function fetchClubMonthlyStatsForYearViaApi({ clubId, year, clipFro
     club_id: clubId,
     year: String(year),
   })
-  const from = clipFrom ? String(clipFrom).slice(0, 10) : ''
-  const to = clipTo ? String(clipTo).slice(0, 10) : ''
-  if (from) params.set('date_from', from)
-  if (to) params.set('date_to', to)
   const { data, routeMissing } = await adminApiGet(`/api/admin-data?action=club-monthly&${params}`, token)
   if (routeMissing) return null
   return data

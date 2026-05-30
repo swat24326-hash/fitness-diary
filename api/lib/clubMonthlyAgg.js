@@ -54,12 +54,9 @@ export function buildCalendarYearMonthKeys(year) {
   return out
 }
 
-export function aggregateMonthlyForCalendarYear({ trainings, memberships, year, clipFrom, clipTo }) {
+export function aggregateMonthlyForCalendarYear({ trainings, memberships, year }) {
   const y = Number(year)
   if (!Number.isFinite(y)) return []
-
-  const clipStart = clipFrom ? String(clipFrom).slice(0, 10) : ''
-  const clipEnd = clipTo ? String(clipTo).slice(0, 10) : ''
 
   const membershipTypeById = new Map()
   for (const m of memberships ?? []) {
@@ -75,9 +72,6 @@ export function aggregateMonthlyForCalendarYear({ trainings, memberships, year, 
 
   for (const t of trainings ?? []) {
     if (t?.status !== 'completed') continue
-    const day = String(t?.date ?? '').slice(0, 10)
-    if (clipStart && day && day < clipStart) continue
-    if (clipEnd && day && day > clipEnd) continue
     const mid = String(t?.data?.membership_id ?? '').trim()
     if (!mid) continue
     const tid = membershipTypeById.get(mid)
@@ -90,12 +84,9 @@ export function aggregateMonthlyForCalendarYear({ trainings, memberships, year, 
   return keys.map((k) => ({ month: k, count: counts.get(k) || 0 }))
 }
 
-export function summarizeCalendarYearMonthlyEligibility({ trainings, memberships, year, clipFrom, clipTo }) {
+export function summarizeCalendarYearMonthlyEligibility({ trainings, memberships, year }) {
   const y = Number(year)
   if (!Number.isFinite(y)) return { completedInYear: 0, typedInYear: 0 }
-
-  const clipStart = clipFrom ? String(clipFrom).slice(0, 10) : ''
-  const clipEnd = clipTo ? String(clipTo).slice(0, 10) : ''
 
   const membershipTypeById = new Map()
   for (const m of memberships ?? []) {
@@ -113,8 +104,6 @@ export function summarizeCalendarYearMonthlyEligibility({ trainings, memberships
     if (t?.status !== 'completed') continue
     const day = String(t?.date ?? '').slice(0, 10)
     if (!day.slice(0, 7).startsWith(prefix)) continue
-    if (clipStart && day < clipStart) continue
-    if (clipEnd && day > clipEnd) continue
     completedInYear++
     const mid = String(t?.data?.membership_id ?? '').trim()
     if (!mid) continue
