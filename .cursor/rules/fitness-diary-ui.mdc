@@ -1,0 +1,32 @@
+---
+description: UI — русский, планшет, стили, даты
+globs: src/pages/**,src/components/**,src/index.css,src/styles/**
+alwaysApply: false
+---
+
+# UI и UX
+
+Аудитория: **тренер на планшете** и **админ клуба**. Язык интерфейса — **русский**.
+
+## Даты и периоды
+
+- Отображение: `formatDateRu`, `formatIsoRu`, `getDateRange` из `src/lib/period.js`.
+- Не изобретать парсинг дат в компонентах.
+
+## Стили
+
+- Новые блоки — секция с комментарием в `src/index.css` (не inline, если повторяется).
+- Тема: переменные из `src/styles/tokens.css` (emerald/neon).
+- Модификаторы BEM-классов — **достаточная специфичность** (`.base.modifier`, не только `.modifier` если базовый класс сильнее).
+- Touch: `btn-touch`, читаемые зоны клика.
+
+## Компоненты
+
+- Страница не знает про IndexedDB напрямую — через `dataAccess` / `*Service`.
+- Тяжёлая логика → хук `use*.js` или сервис в `lib/`.
+- Статистика: переиспользовать `AdminClubStatsSection`, `MembershipTypeStatsTable`, `AdminClubMonthlyChart`.
+
+## PWA
+
+- Dev: SW отключён — не «чинить» включением SW в dev.
+- После деплоя пользователь может видеть старый кэш — учитывать `PwaUpdatePrompt`.

@@ -1,0 +1,43 @@
+---
+description: When and how to split large JS/JSX/API files in Fitness Diary
+globs: src/**/*.{js,jsx},api/**/*.js
+alwaysApply: false
+---
+
+# Разбиение файлов — сразу, не потом
+
+Если фича **увеличивает** файл или добавляет вторую ответственность — **в той же задаче** выносим код, не откладываем.
+
+## Пороги
+
+| Строк (прибл.) | Действие |
+|----------------|----------|
+| **400–500** + 2 роли (UI + sync, форма + каталог) | Вынести подкомпонент / сервис / хук в этом PR |
+| **600+** | Обязательно разбить в рамках задачи |
+| **index.css** | Новые стили — блок с комментарием-секцией; не раздувать без нужды; полное дробление CSS — отдельная задача |
+
+## Шаблоны разбиения
+
+**Страница** (`pages/…`): `Page.jsx` + `PageSection.jsx` + `usePageData.js` или `*Service.js`.
+
+**Большая форма** (`TrainingForm`): основной компонент + `TrainingExerciseCatalog.jsx` + `trainingSetFields.js` / хелперы форматов.
+
+**Шапка** (`AppHeader`): layout + `useHeaderSync.js` (flush, pull, прогресс, journal props).
+
+**dataAccess:** новое — в `src/lib/admin/` или `trainerPullService.js` и т.п.; в `dataAccess.js` только реэкспорт при необходимости совместимости.
+
+**API:** `api/lib/featureCore.js` + `api/feature.js` (10–30 строк handler).
+
+**Диагностика / журнал:** `appErrorJournal.js` (storage) + `appDiagnostics.js` (логика) + `DiagnosticsPanel.jsx` (UI).
+
+## Проверки после разбиения
+
+- Нет циклов: `lib/` не импортирует `pages/` или `components/`.
+- Публичный API страницы не меняется без нужды (или обновлены все импорты).
+- Поведение офлайн/Sync то же; тесты/verify-скрипты зелёные.
+
+## Не делать ради «рефакторинга»
+
+- Массово резать `index.css` или стабильные мелкие файлы без фичи.
+- Дробить `api/admin-data.js` на 6 endpoints без учёта лимита Vercel.
+- Трогать `AuthContext` / RLS без явного запроса.

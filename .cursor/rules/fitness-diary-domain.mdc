@@ -1,0 +1,28 @@
+---
+description: Абонементы, статистика, списание — доменные правила (не ломать)
+globs: src/lib/membershipRules.js,src/lib/**/*Stats*.js,src/lib/admin/adminClub*.js,src/lib/admin/adminClubMonthlyService.js,src/lib/trainer/trainerPeriodStatsService.js,src/lib/trainer/trainerMonthlyStatsService.js,src/lib/periodStats/**,api/lib/*Agg.js,api/lib/clubMonthlyAgg.js,scripts/verify-club*.mjs,scripts/verify-membership*.mjs
+alwaysApply: false
+---
+
+# Домен: абонементы и статистика
+
+Коммерческий продукт: ошибка в цифрах = потеря доверия клуба. Логика **одна**, проверяемая.
+
+## Абонемент
+
+- **Действующий на дату:** `membershipCoversDate` + `membershipHasRemaining` (`used < total`). Поле `status` в Row **не** используем.
+- **UI-счётчик** «N/M»: `countedUsedTrainingsOnMembership` / `membershipUsageLabel` — по завершённым тренировкам дневника, не только `used_trainings`.
+- **Списание при `completed`:** `pickUsableMembershipForDate`; дата — тренер **сегодня**, админ **`trainingDate`** (`TrainingPage`).
+- Причины неактивности: `inactiveMembershipReason` + `INACTIVE_MEMBERSHIP_REASON_LABELS`.
+
+## Статистика клуба / тренера
+
+- **Период сводки** (`dateFrom`–`dateTo`): карточки «клиенты», «активные», «не активные», «проведено», «по дням», «по типам».
+- **«Не активные»** на **`dateTo`**: нет действующего абонемента; в списке — причина. Отдельной «Не продлилось» **нет** (API: `notRenewed*` = 0 для совместимости).
+- **Итоговый годовой график** («Итог по клубу»): **всегда полный календарный год** (янв–дек), **не** обрезается периодом сводки. Только тренировки **с типом карты** на абонементе.
+- Агрегация: `src/lib/admin/*` + зеркало `api/lib/*Agg.js`. Изменил одно — **обязательно** второе + `scripts/verify-*.mjs` + строка в `agent-qa.mjs`.
+
+## Перед merge
+
+- Запустить релевантный verify (`verify-club-client-period`, `verify-club-monthly-year`, `verify-membership-type-stats`).
+- Не дублировать формулы в JSX — только вызов сервиса/agg.

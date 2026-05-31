@@ -1,0 +1,45 @@
+---
+description: Fitness Diary — offline-first architecture, layers, no temporary hacks
+alwaysApply: true
+---
+
+# Fitness Diary — архитектура (без костылей)
+
+PWA для тренера (планшет, офлайн) и админа. **Не наращивать «временные» патчи** — сразу правильный слой и файлы.
+
+## Поток данных (не ломать)
+
+1. **Запись:** UI → `saveLocalWithSync` → IndexedDB + `sync_queue` → при online `/api/push-record` или `push-records`.
+2. **Ручной Sync:** сначала **flush очереди**, потом **pull** (`trainer-pull`, `admin-data`, reference pull).
+3. **Чтение UI:** из IndexedDB; облако только дополняет кэш. Pull не затирает строки с pending в очереди (`putStoreUnlessPendingSync`, `shouldPreserveLocalRowOnPull`).
+
+## Куда класть код
+
+| Задача | Путь |
+|--------|------|
+| Админ: журнал, статистика, клиенты, организация | `src/lib/admin/*.js` (не в `dataAccess.js`) |
+| Sync, очередь, сохранение | `syncService.js` + при необходимости `syncApiClient.js`, `syncFlushResult.js`, `syncQueueOrphans.js` |
+| Pull упражнений/челленджей | `exerciseCatalog.js`, `pullReferenceData.js` |
+| Чистая логика без React/IDB | отдельный `src/lib/*.js` (тестируется из `scripts/verify-*.mjs`) |
+| UI | `components/` или `pages/`; тяжёлую логику — в хук `use*.js` или сервис |
+| API Vercel | общее → `api/lib/`; handler → тонкий `api/*.js` (как `pushRecordCore` + `push-record`) |
+
+## Сеть
+
+- **Тренер / нестабильная сеть:** предпочитать `/api/*`, не новый прямой `supabase.from` из компонентов.
+- **Vercel Hobby ≤12 functions:** перед новым `api/*.js` — считать лимит; расширять `admin-data?action=` или удалять дубликат endpoint.
+- **Auth:** только `eyJ…` anon key, не `sb_publishable_…`.
+
+## Запрещённые «костыли»
+
+- +200 строк в `AppHeader`, `TrainingForm`, `dataAccess` «потом разберём».
+- Дублировать push/pull в JSX вместо сервиса.
+- `navigate(0)` после Sync вместо события обновления данных.
+- Обход офлайн-правил ради «быстрого фикса» на проде.
+
+## Перед завершением задачи
+
+- `npm run lint`; при затронутом sync/offline — `npm run qa:local` или релевантный `verify-*.mjs`.
+- Минимальный diff; не рефакторить несвязанные файлы.
+
+Подробнее: `fitness-diary-split-files.mdc`, `fitness-diary-scale.mdc`, `fitness-diary-ship.mdc`, `fitness-diary-domain.mdc`. Контекст: `docs/PROJECT_HANDOFF_FOR_AI.md`.

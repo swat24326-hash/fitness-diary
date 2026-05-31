@@ -1,0 +1,34 @@
+---
+description: Supabase — миграции, RLS, секреты, схема
+globs: supabase/**,api/**/*.js
+alwaysApply: false
+---
+
+# Supabase и API
+
+Прод = реальные клубы и персональные данные клиентов.
+
+## Секреты и ключи
+
+- **Service role** — только `api/` (serverless), **никогда** во фронт / `VITE_*`.
+- Anon key — JWT `eyJ…`, **не** `sb_publishable_…`.
+- `public.users.id` **=** Auth UID (иначе RLS и админка ломаются).
+
+## Миграции и схема
+
+- Одна фича → один файл `supabase/migrations/YYYYMMDDHHMMSS_*.sql`, **идемпотентный** (`IF NOT EXISTS`, `DROP POLICY IF EXISTS`).
+- Эталон: `schema.sql`; политики: `policies.sql` + migration при изменении RLS.
+- Не править прод «руками в Editor» без отражения в репозитории.
+
+## API Vercel
+
+- Hobby **≤12 functions** — новый `api/*.js` только если нельзя расширить `admin-data?action=`.
+- Handler тонкий; логика в `api/lib/*Core.js` / `*Agg.js`.
+- Тренер / нестабильная сеть: `/api/*`, не новый `supabase.from` из UI.
+
+## Новая таблица в продукте
+
+1. Migration + RLS policy.
+2. Push allowlist + sync flush.
+3. Pull path (trainer-pull / admin-data) при необходимости.
+4. Локальный store в `localDb.js` если офлайн-кэш.

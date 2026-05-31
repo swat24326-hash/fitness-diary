@@ -1,0 +1,40 @@
+---
+description: Sync, очередь, pull — офлайн без потери данных
+globs: src/lib/sync*.js,src/lib/trainerPull*.js,src/lib/syncLocalRecords.js,src/lib/pullReferenceData.js,api/push*.js,api/lib/pushRecordCore.js,api/trainer-pull.js,scripts/verify-sync*.mjs
+alwaysApply: false
+---
+
+# Sync и очередь
+
+Планшет тренера может быть офлайн часами. **Потеря или дубль записи недопустимы.**
+
+## Поток (не нарушать)
+
+1. Запись: `saveLocalWithSync` → IndexedDB + `sync_queue`.
+2. Ручной Sync: **сначала flush**, потом pull.
+3. UI читает IndexedDB; pull **не затирает** строки с pending (`putStoreUnlessPendingSync`, `shouldPreserveLocalRowOnPull`).
+
+## Ответы сервера
+
+| Код | Действие |
+|-----|----------|
+| 403 нет доступа к клиенту/типам | `markRecordSynced`, **не** re-enqueue |
+| 404 training | drop из очереди |
+| 401 / 5xx / сеть | retry, запись в очереди |
+| 409 duplicate | считать synced |
+
+## Запрещено
+
+- `navigate(0)` после Sync — событие обновления данных.
+- Сброс/очистка очереди «чтобы починить UI».
+- Delete из очереди purge-ом.
+- Push/pull логика в компонентах.
+
+## Новая синхронизируемая таблица
+
+- `PUSH_ALLOWED_TABLES` в `api/lib/pushRecordCore.js` + путь flush в `syncService` / `syncApiClient`.
+- Verify: `verify-sync-offline.mjs`, при re-queue — `verify-sync-unsynced.mjs`.
+
+## Перед завершением
+
+`npm run qa:local` (минимум verify-sync-* + lint).

@@ -145,14 +145,19 @@ netlify.toml, vercel.json — SPA fallback для хостинга
 
 ## 8. Статистика клуба (`adminClubStatsService.js` + `AdminClubStatsSection`)
 
-При выбранном `clubId` и диапазоне дат:
+При выбранном `clubId` и диапазоне дат (**период сводки**):
 
 - всего клиентов клуба;
 - «действующие» — `hasUsableMembershipOnDate(..., dateTo)`;
-- «не продлилось» — был абонемент с `end_date` в диапазоне, на `dateTo` нет действующего;
-- проведённые тренировки — `status === 'completed'` в диапазоне.
+- «не активные» — на `dateTo` нет действующего абонемента (причина: `inactiveMembershipReason`);
+- проведённые тренировки — `status === 'completed'` в диапазоне;
+- по типам карт, по дням, рейтинг тренеров — в том же периоде.
 
-UI: вкладки/карточки, пояснения в popover по кнопке Info.
+**Итоговый годовой график** («Итог по клубу»): **полный календарный год** (янв–дек), **не зависит** от периода сводки; только завершённые со **типом карты** на абонементе.
+
+Доменные правила: `membershipRules.js`, agg: `api/lib/clubStatsAgg.js`, `clubMonthlyAgg.js`. Verify: `verify-club-client-period.mjs`, `verify-club-monthly-year.mjs`.
+
+UI: карточки, drill-down, пояснения в popover (Info).
 
 ---
 
@@ -181,6 +186,8 @@ UI: вкладки/карточки, пояснения в popover по кноп
 | `npm run build` | Артефакт в `dist/` |
 | `npm run preview` | Локальный просмотр production-сборки |
 | `npm run lint` | ESLint |
+| `npm run qa:local` | build + verify-скрипты + lint (без prod smoke) |
+| `npm run qa` | qa:local + prod smoke |
 | `npm run gen:icons` | Регенерация `public/icons` |
 
 Деплой статики и Supabase: **`docs/DEPLOY.md`**. Конфиги: `netlify.toml`, `vercel.json`, `public/_redirects`.
@@ -202,8 +209,8 @@ UI: вкладки/карточки, пояснения в popover по кноп
 1. Прочитать этот файл и при необходимости **`docs/DEPLOY.md`**.  
 2. Для изменений UI/логики — искать по `src/pages`, `src/components`, `src/lib`.  
 3. Для схемы БД — `supabase/schema.sql` и `supabase/migrations/`.  
-4. После правок: **`npm run build`** и **`npm run lint`**.  
-5. Не добавлять секреты сервисной роли во фронт; для новых таблиц синка — расширить `ALLOWED_TABLES` и путь в `flushSyncQueue`, если таблица должна синхронизироваться.
+4. После правок: **`npm run lint`**; при sync/статистике/абонементах — **`npm run qa:local`**.  
+5. Не добавлять секреты сервисной роли во фронт; для новых таблиц синка — расширить `PUSH_ALLOWED_TABLES` (`api/lib/pushRecordCore.js`) и путь в `flushSyncQueue`, если таблица должна синхронизироваться.
 
 ---
 
@@ -213,7 +220,20 @@ UI: вкладки/карточки, пояснения в popover по кноп
 
 Файл можно копировать целиком в системный промпт или первое сообщение новому ассистенту вместе с указанием корня репозитория: `fitness-diary`.
 
-**Правила для Cursor (агент подхватывает автоматически):** `.cursor/rules/fitness-diary-architecture.mdc` (всегда) и `fitness-diary-split-files.mdc` (при работе с `src/**`, `api/**`). Принцип: новую логику сразу в правильный слой/файл, без отложенного «раздувания» монолитов.
+**Правила для Cursor (агент подхватывает автоматически):** каталог `.cursor/rules/`
+
+| Файл | Когда |
+|------|--------|
+| `fitness-diary-architecture.mdc` | всегда — офлайн, слои |
+| `fitness-diary-scale.mdc` | всегда — масштаб, verify |
+| `fitness-diary-ship.mdc` | всегда — QA, деплой, коммит |
+| `fitness-diary-split-files.mdc` | `src/**`, `api/**` |
+| `fitness-diary-domain.mdc` | абонементы, статистика, agg |
+| `fitness-diary-sync.mdc` | sync, очередь, pull |
+| `fitness-diary-supabase.mdc` | `supabase/**`, API |
+| `fitness-diary-ui.mdc` | pages, components, CSS |
+
+Принцип: новую логику сразу в правильный слой/файл, без отложенного «раздувания» монолитов.
 
 ---
 
