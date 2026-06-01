@@ -2,8 +2,8 @@
 
 import {
   hasUsableMembershipForPeriodStats,
+  inactiveMembershipDetail,
   inactiveMembershipReferenceDate,
-  inactiveMembershipReason,
 } from '../membershipRules.js'
 
 /**
@@ -42,12 +42,15 @@ export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, 
     }
     const client = clientById.get(id)
     const ref = inactiveMembershipReferenceDate(from, to, asOf)
-    const reason = inactiveMembershipReason(mems, ref)
+    const { reason, inactiveDetail, membershipEndDate, membershipStartDate } = inactiveMembershipDetail(mems, ref)
     inactiveClients.push({
       id,
       name: String(client?.name ?? '').trim() || '—',
       phone: client?.phone ? String(client.phone).trim() : null,
-      inactiveReason: reason ?? 'expired',
+      inactiveReason: reason,
+      inactiveDetail,
+      membershipEndDate: membershipEndDate ?? null,
+      membershipStartDate: membershipStartDate ?? null,
     })
   }
   inactiveClients.sort((a, b) => a.name.localeCompare(b.name, 'ru'))

@@ -37,7 +37,15 @@ ok(r.activeWithMembership === 1, 'c2 active on end of may')
 ok(r.inactiveInPeriod === 3, 'c1 expired/depleted, c3 not started, c4 depleted')
 ok(r.inactiveClients.length === 3, 'inactive list size')
 ok(r.inactiveClients.some((c) => c.id === 'c1' && c.inactiveReason === 'expired'), 'c1 end in may -> expired on 31.05')
+ok(
+  r.inactiveClients.some((c) => c.id === 'c1' && c.inactiveDetail?.includes('15.05.2026')),
+  'c1 detail has end date',
+)
 ok(r.inactiveClients.some((c) => c.id === 'c4' && c.inactiveReason === 'depleted'), 'c4 depleted but june end -> inactive')
+ok(
+  r.inactiveClients.some((c) => c.id === 'c4' && c.inactiveDetail?.includes('12/12')),
+  'c4 detail has usage',
+)
 ok(r.inactiveClients.some((c) => c.id === 'c3' && c.inactiveReason === 'not_started'), 'c3 not started')
 ok(r.notRenewedInPeriod === 0, 'notRenewed deprecated empty')
 

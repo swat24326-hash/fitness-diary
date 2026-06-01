@@ -122,6 +122,79 @@ function inactiveMembershipReason(memberships, dateIso) {
   return 'expired'
 }
 
+function formatDateRu(isoLike) {
+  const s = String(isoLike ?? '').slice(0, 10)
+  const parts = s.split('-')
+  if (parts.length !== 3) return s
+  const [y, m, d] = parts
+  return `${d}.${m}.${y}`
+}
+
+function inactiveMembershipDetail(memberships, dateIso) {
+  const reason = inactiveMembershipReason(memberships, dateIso) ?? 'expired'
+  const list = memberships ?? []
+  const d = String(dateIso ?? '')
+  const withDates = list.filter((m) => m?.start_date && m?.end_date)
+  const labels = {
+    depleted: 'тренировки закончились',
+    expired: 'срок абонемента прошёл',
+    not_started: 'абонемент ещё не начался',
+    no_membership: 'нет абонемента',
+  }
+
+  if (reason === 'no_membership') {
+    return { reason, inactiveDetail: labels.no_membership }
+  }
+  if (reason === 'not_started') {
+    const future = withDates
+      .filter((m) => String(m.start_date) > d)
+      .sort((a, b) => String(a.start_date).localeCompare(String(b.start_date)))[0]
+    const startRu = future ? formatDateRu(future.start_date) : null
+    return {
+      reason,
+      inactiveDetail: startRu ? `абонемент начнётся ${startRu}` : labels.not_started,
+      membershipStartDate: future?.start_date ?? null,
+    }
+  }
+  if (reason === 'depleted') {
+    const covering = withDates.filter((m) => membershipCoversDate(m, d))
+    const depleted =
+      covering
+        .filter((m) => !membershipHasRemaining(m))
+        .sort((a, b) => String(b.end_date).localeCompare(String(a.end_date)))[0] ??
+      withDates
+        .filter((m) => !membershipHasRemaining(m))
+        .sort((a, b) => String(b.end_date).localeCompare(String(a.end_date)))[0]
+    if (depleted) {
+      const used = Number(depleted.used_trainings ?? 0)
+      const total = Number(depleted.total_trainings ?? 0)
+      return {
+        reason,
+        inactiveDetail: `тренировки закончились (${used}/${total}), срок до ${formatDateRu(depleted.end_date)}`,
+        membershipEndDate: depleted.end_date,
+      }
+    }
+    return { reason, inactiveDetail: labels.depleted }
+  }
+  const expired = withDates
+    .filter((m) => String(m.end_date) < d)
+    .sort((a, b) => String(b.end_date).localeCompare(String(a.end_date)))[0]
+  if (expired) {
+    const used = Number(expired.used_trainings ?? 0)
+    const total = Number(expired.total_trainings ?? 0)
+    const remain =
+      Number.isFinite(total) && total > 0 && Number.isFinite(used) && used < total
+        ? `, осталось ${total - used}/${total}`
+        : ''
+    return {
+      reason,
+      inactiveDetail: `срок абонемента закончился ${formatDateRu(expired.end_date)}${remain}`,
+      membershipEndDate: expired.end_date,
+    }
+  }
+  return { reason, inactiveDetail: labels.expired }
+}
+
 export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, dateTo, asOf) {
   const from = String(dateFrom ?? '').slice(0, 10)
   const to = String(dateTo ?? '').slice(0, 10)
@@ -151,12 +224,15 @@ export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, 
     }
     const client = clientById.get(id)
     const ref = inactiveMembershipReferenceDate(from, to, asOf)
-    const reason = inactiveMembershipReason(mems, ref)
+    const { reason, inactiveDetail, membershipEndDate, membershipStartDate } = inactiveMembershipDetail(mems, ref)
     inactiveClients.push({
       id,
       name: String(client?.name ?? '').trim() || '—',
       phone: client?.phone ? String(client.phone).trim() : null,
-      inactiveReason: reason ?? 'expired',
+      inactiveReason: reason,
+      inactiveDetail,
+      membershipEndDate: membershipEndDate ?? null,
+      membershipStartDate: membershipStartDate ?? null,
     })
   }
   inactiveClients.sort((a, b) => a.name.localeCompare(b.name, 'ru'))

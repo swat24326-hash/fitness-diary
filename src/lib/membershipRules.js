@@ -87,6 +87,83 @@ export const INACTIVE_MEMBERSHIP_REASON_LABELS = {
   no_membership: 'нет абонемента',
 }
 
+/**
+ * Подпись для списка «Не активные»: причина + даты/остаток по релевантному абонементу.
+ * @returns {{ reason: string, inactiveDetail: string, membershipEndDate?: string, membershipStartDate?: string }}
+ */
+export function inactiveMembershipDetail(memberships, dateIso) {
+  const reason = inactiveMembershipReason(memberships, dateIso) ?? 'expired'
+  const list = memberships ?? []
+  const d = String(dateIso ?? '').slice(0, 10)
+  const withDates = list.filter((m) => m?.start_date && m?.end_date)
+
+  if (reason === 'no_membership') {
+    return { reason, inactiveDetail: INACTIVE_MEMBERSHIP_REASON_LABELS.no_membership }
+  }
+
+  if (reason === 'not_started') {
+    const future = withDates
+      .filter((m) => String(m.start_date) > d)
+      .sort((a, b) => String(a.start_date).localeCompare(String(b.start_date)))[0]
+    const startRu = future ? formatDateRu(future.start_date) : null
+    return {
+      reason,
+      inactiveDetail: startRu ? `абонемент начнётся ${startRu}` : INACTIVE_MEMBERSHIP_REASON_LABELS.not_started,
+      membershipStartDate: future?.start_date ?? null,
+    }
+  }
+
+  if (reason === 'depleted') {
+    const covering = withDates.filter((m) => membershipCoversDate(m, d))
+    const depleted =
+      covering
+        .filter((m) => !membershipHasRemaining(m))
+        .sort((a, b) => String(b.end_date).localeCompare(String(a.end_date)))[0] ??
+      withDates
+        .filter((m) => !membershipHasRemaining(m))
+        .sort((a, b) => String(b.end_date).localeCompare(String(a.end_date)))[0]
+    if (depleted) {
+      const used = Number(depleted.used_trainings ?? 0)
+      const total = Number(depleted.total_trainings ?? 0)
+      const endRu = formatDateRu(depleted.end_date)
+      return {
+        reason,
+        inactiveDetail: `тренировки закончились (${used}/${total}), срок до ${endRu}`,
+        membershipEndDate: depleted.end_date,
+      }
+    }
+    return { reason, inactiveDetail: INACTIVE_MEMBERSHIP_REASON_LABELS.depleted }
+  }
+
+  const expired = withDates
+    .filter((m) => String(m.end_date) < d)
+    .sort((a, b) => String(b.end_date).localeCompare(String(a.end_date)))[0]
+  if (expired) {
+    const endRu = formatDateRu(expired.end_date)
+    const used = Number(expired.used_trainings ?? 0)
+    const total = Number(expired.total_trainings ?? 0)
+    const remain =
+      Number.isFinite(total) && total > 0 && Number.isFinite(used) && used < total
+        ? `, осталось ${total - used}/${total}`
+        : ''
+    return {
+      reason,
+      inactiveDetail: `срок абонемента закончился ${endRu}${remain}`,
+      membershipEndDate: expired.end_date,
+    }
+  }
+
+  return { reason, inactiveDetail: INACTIVE_MEMBERSHIP_REASON_LABELS.expired }
+}
+
+/** Подпись в списке (новые API-поля или fallback по reason). */
+export function formatInactiveClientListLabel(client) {
+  const detail = String(client?.inactiveDetail ?? '').trim()
+  if (detail) return detail
+  const reason = client?.inactiveReason
+  return reason ? INACTIVE_MEMBERSHIP_REASON_LABELS[reason] ?? null : null
+}
+
 /** Пояснение, почему нет «действующего» абонемента на дату (для подписи в UI). */
 export function explainInactiveMembership(memberships, dateIso) {
   const list = memberships ?? []

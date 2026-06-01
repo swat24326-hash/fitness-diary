@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom'
 import { formatIsoRu } from '../lib/period'
-import { INACTIVE_MEMBERSHIP_REASON_LABELS } from '../lib/membershipRules'
+import { formatInactiveClientListLabel } from '../lib/membershipRules'
 
 /**
  * @param {{
- *   clients: Array<{ id: string, name: string, phone?: string|null, inactiveReason?: string }>,
+ *   clients: Array<{ id: string, name: string, phone?: string|null, inactiveReason?: string, inactiveDetail?: string }>,
  *   dateFrom: string,
  *   dateTo: string,
  *   clubId?: string,
@@ -32,7 +32,7 @@ export function AdminInactiveClientsPanel({ clients, dateFrom, dateTo, clubId = 
       ) : (
         <ul className="list admin-stat-drilldown__list">
           {clients.map((c) => {
-            const reasonLabel = INACTIVE_MEMBERSHIP_REASON_LABELS[c.inactiveReason] ?? null
+            const reasonLabel = formatInactiveClientListLabel(c)
             return (
               <li key={c.id} className="list-item admin-stat-drilldown__row">
                 <div className="admin-stat-drilldown__info">
