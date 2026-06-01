@@ -66,6 +66,8 @@ docs/
   DEPLOY.md               — первый деплой в интернет
   RELEASE.md              — чеклист релиза на production
   RUNBOOK.md              — типовые инциденты (sync, PWA, статистика)
+  SUPABASE_PROD_CHECKLIST.md — Auth, RLS, users.id перед крупным клубом
+  PAID_TIER_MIGRATION.md  — переход Vercel/Supabase на платные тарифы
   PROJECT_HANDOFF_FOR_AI.md — этот файл
 .cursor/rules/
   fitness-diary-architecture.mdc  — всегда: слои, офлайн, без костылей
@@ -190,7 +192,7 @@ UI: карточки, drill-down, пояснения в popover (Info).
 | `npm run lint` | ESLint |
 | `npm run qa:local` | build + verify-скрипты + lint (без prod smoke) |
 | `npm run qa` | qa:local + prod smoke |
-| CI | GitHub Actions `.github/workflows/qa.yml` — `qa:local` на push/PR в `main` |
+| CI | `.github/workflows/qa.yml` — `qa:local` на push/PR; `qa-prod-weekly.yml` — prod smoke по понедельникам |
 | `npm run gen:icons` | Регенерация `public/icons` |
 
 Деплой статики и Supabase: **`docs/DEPLOY.md`**. Конфиги: `netlify.toml`, `vercel.json`, `public/_redirects`.

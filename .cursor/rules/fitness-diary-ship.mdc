@@ -35,4 +35,4 @@ alwaysApply: true
 
 - Перечитать `.cursor/rules/fitness-diary-architecture.mdc` и доменное правило.
 - Контекст продукта: `docs/PROJECT_HANDOFF_FOR_AI.md`.
-- Чеклист релиза: `docs/RELEASE.md`. Инциденты: `docs/RUNBOOK.md`.
+- Чеклист релиза: `docs/RELEASE.md`. Инциденты: `docs/RUNBOOK.md`. Supabase: `docs/SUPABASE_PROD_CHECKLIST.md`.

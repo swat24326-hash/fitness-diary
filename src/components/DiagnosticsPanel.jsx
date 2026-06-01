@@ -380,6 +380,16 @@ export function DiagnosticsPanel({
                 </>
               ) : null}
               <div>
+                <dt>Сборка</dt>
+                <dd className="diagnostics-state-grid__mono" title="Сверьте с Vercel после деплоя">
+                  {system.bundleId}
+                </dd>
+              </div>
+              <div>
+                <dt>PWA</dt>
+                <dd>{system.pwaSw}</dd>
+              </div>
+              <div>
                 <dt>Ошибок / очередь</dt>
                 <dd>
                   <span className={persistentErrorCount > 0 ? 'diagnostics-warn' : 'diagnostics-ok'}>{persistentErrorCount}</span>

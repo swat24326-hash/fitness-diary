@@ -5,6 +5,7 @@ import {
   isRecoverableTransientError,
   sourceLabel,
 } from './appErrorJournal.js'
+import { getClientBundleId, getPwaControllerState } from './appBuildInfo.js'
 
 function isRecoverableSyncErrorForFixes(e) {
   return isRecoverableTransientError(e)
@@ -30,6 +31,8 @@ export function buildSystemState(ctx) {
   return {
     at: new Date().toISOString(),
     appVersion: APP_VERSION,
+    bundleId: getClientBundleId() ?? '—',
+    pwaSw: getPwaControllerState(),
     userName: user?.name ?? user?.email ?? '—',
     userEmail: user?.email ?? '—',
     userId: user?.id ?? '—',
@@ -111,7 +114,8 @@ export function buildDiagnosticReport({ system, errors, queue, filterId = 'all' 
 
   lines.push('=== Фитнес-дневник — диагностика ===')
   lines.push(`Сформировано: ${formatAppErrorTime(system.at)}`)
-  lines.push(`Приложение: v${system.appVersion}`)
+  lines.push(`Приложение: v${system.appVersion} (сборка ${system.bundleId})`)
+  lines.push(`PWA service worker: ${system.pwaSw}`)
   lines.push(`Пользователь: ${system.userName} (${system.userEmail})`)
   lines.push(`ID: ${system.userId}`)
   lines.push(`Роль: ${system.role}`)
