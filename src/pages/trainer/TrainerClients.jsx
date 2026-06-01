@@ -127,14 +127,14 @@ export function TrainerClients() {
     }
     let cancelled = false
     setWorkspaceReady(false)
-    void (async () => {
-      if (isSupabaseConfigured() && isAppOnline()) {
+    void reload({ silent: true })
+    if (isSupabaseConfigured() && isAppOnline()) {
+      void (async () => {
         await pullTrainerWorkspaceFromCloud(user.id)
         if (cancelled) return
-      }
-      if (cancelled) return
-      await reload({ silent: true })
-    })()
+        await reload({ silent: true })
+      })()
+    }
     return () => {
       cancelled = true
     }

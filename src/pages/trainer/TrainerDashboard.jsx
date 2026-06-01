@@ -104,14 +104,15 @@ export function TrainerDashboard() {
   useEffect(() => {
     if (!user?.id) return
     let cancelled = false
-    void (async () => {
-      if (isSupabaseConfigured() && isAppOnline()) {
+    void reload({ silent: true })
+    if (isSupabaseConfigured() && isAppOnline()) {
+      void (async () => {
         await pullTrainerWorkspaceFromCloud(user.id)
         if (cancelled) return
         invalidateTrainerWorkspaceCache()
-      }
-      await reload({ silent: true })
-    })()
+        await reload({ silent: true })
+      })()
+    }
     return () => {
       cancelled = true
     }

@@ -4,6 +4,7 @@ import { isSupabaseConfigured } from './lib/supabase'
 import { clearPoisonedSyncQueue } from './lib/syncService'
 import { initTrainerWorkspaceCacheInvalidation } from './lib/trainerWorkspaceCache'
 import { AppHeader } from './components/AppHeader'
+import { AppWelcomeSplash } from './components/AppWelcomeSplash'
 import { DraftTabsBar } from './components/DraftTabsBar'
 import { BreadcrumbsBar } from './components/BreadcrumbsBar'
 import { AuthProvider, useAuth } from './context/AuthContext'
@@ -34,14 +35,7 @@ function LoggedInLayout() {
   useEffect(() => initTrainerWorkspaceCacheInvalidation(), [])
 
   if (loading || (user && role == null)) {
-    return (
-      <div className="app-loading-shell">
-        <div className="app-loading" role="status" aria-live="polite">
-          <span className="app-loading__ring" aria-hidden />
-          <p className="app-loading__text">Загрузка…</p>
-        </div>
-      </div>
-    )
+    return <AppWelcomeSplash />
   }
   if (!user) {
     return <Navigate to="/login" replace />

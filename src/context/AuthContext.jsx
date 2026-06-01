@@ -222,17 +222,16 @@ export function AuthProvider({ children }) {
         setRole(null)
         return
       }
+      const uid = session.user.id
       const quickRole = resolveRole(null, session.user)
       setUser(applyUserFromSession(session, null))
       setRole(quickRole)
-
-      await new Promise((r) => setTimeout(r, 350))
-      const profile = await withTimeout(refreshProfile(session.user.id, session.user.email), 18_000, 'profile').catch(
-        () => null,
-      )
-      setUser(applyUserFromSession(session, profile))
-      setRole(resolveRole(profile, session.user))
       setBackgroundSyncPaused(false)
+
+      const profile = await withTimeout(refreshProfile(uid, session.user.email), 18_000, 'profile').catch(() => null)
+      if (!profile) return
+      setUser((prev) => (prev?.id === uid ? applyUserFromSession(session, profile) : prev))
+      setRole(resolveRole(profile, session.user))
     },
     [refreshProfile],
   )
@@ -435,15 +434,13 @@ export function AuthProvider({ children }) {
 
   const signOut = useCallback(async () => {
     setBackgroundSyncPaused(true)
-    try {
-      await clearSyncQueueForSignOut()
-    } catch (e) {
-      console.warn('[auth] clear sync queue on signOut', e)
-    }
     writeFallback(null)
     setUser(null)
     setRole(null)
-    if (isSupabaseConfigured()) await supabase.auth.signOut()
+    if (isSupabaseConfigured()) void supabase.auth.signOut()
+    void clearSyncQueueForSignOut().catch((e) => {
+      console.warn('[auth] clear sync queue on signOut', e)
+    })
   }, [])
 
   const refreshUserProfile = useCallback(async () => {
