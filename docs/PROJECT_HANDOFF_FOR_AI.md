@@ -12,7 +12,7 @@
 - **медкарта** (карта здоровья), **обмеры**, **цель** клиента;
 - **справочник упражнений** (админ);
 - **организация**: клубы, тренеры (в т.ч. Edge Functions создания/удаления тренера);
-- **статистика по клубу** (админ, при выбранном клубе): клиенты, абонементы, непродления, тренировки;
+- **статистика по клубу** (админ, при выбранном клубе): клиенты, действующие/не активные абонементы, тренировки, итог по году;
 - офлайн-ориентированность: **IndexedDB** как кэш + **очередь синхронизации** в браузере; при наличии **Supabase** — обмен с облаком.
 
 ---
@@ -64,6 +64,8 @@ supabase/
   policies_admin_example.sql — пример RLS (не автоприменяется)
 docs/
   DEPLOY.md               — первый деплой в интернет
+  RELEASE.md              — чеклист релиза на production
+  RUNBOOK.md              — типовые инциденты (sync, PWA, статистика)
   PROJECT_HANDOFF_FOR_AI.md — этот файл
 .cursor/rules/
   fitness-diary-architecture.mdc  — всегда: слои, офлайн, без костылей
@@ -188,6 +190,7 @@ UI: карточки, drill-down, пояснения в popover (Info).
 | `npm run lint` | ESLint |
 | `npm run qa:local` | build + verify-скрипты + lint (без prod smoke) |
 | `npm run qa` | qa:local + prod smoke |
+| CI | GitHub Actions `.github/workflows/qa.yml` — `qa:local` на push/PR в `main` |
 | `npm run gen:icons` | Регенерация `public/icons` |
 
 Деплой статики и Supabase: **`docs/DEPLOY.md`**. Конфиги: `netlify.toml`, `vercel.json`, `public/_redirects`.
