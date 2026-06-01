@@ -44,6 +44,8 @@ export function AppHeader() {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRootRef = useRef(null)
   const [adminClubs, setAdminClubs] = useState([])
+  /** Название клуба тренера (adminClubs грузится только на /admin). */
+  const [trainerClubLabel, setTrainerClubLabel] = useState(null)
   const [pendingSync, setPendingSync] = useState(0)
   const [unsyncedLocal, setUnsyncedLocal] = useState(0)
   const [syncBusy, setSyncBusy] = useState(false)
@@ -120,6 +122,38 @@ export function AppHeader() {
       window.removeEventListener(LOCAL_DATA_CHANGED, onData)
     }
   }, [showAdminClubSelect, supabaseReady])
+
+  useEffect(() => {
+    if (isAdmin) {
+      setTrainerClubLabel(null)
+      return
+    }
+    const cid = String(user?.club_id ?? '').trim()
+    if (!cid) {
+      setTrainerClubLabel('—')
+      return
+    }
+    let alive = true
+    const resolve = async () => {
+      try {
+        const rows = await listClubsLocal()
+        if (!alive) return
+        const c = rows.find((x) => String(x.id) === cid)
+        setTrainerClubLabel(c?.name?.trim() || cid)
+      } catch {
+        if (alive) setTrainerClubLabel(cid)
+      }
+    }
+    void resolve()
+    const onData = () => {
+      void resolve()
+    }
+    window.addEventListener(LOCAL_DATA_CHANGED, onData)
+    return () => {
+      alive = false
+      window.removeEventListener(LOCAL_DATA_CHANGED, onData)
+    }
+  }, [isAdmin, user?.club_id])
 
   /** Один зал — сразу в URL; несколько — без «все клубы», только явный выбор. */
   useEffect(() => {
@@ -437,10 +471,24 @@ export function AppHeader() {
       online,
       supabaseReady: supabaseReady && isSupabaseConfigured(),
       clubId: clubId || '—',
-      clubName: club?.name ?? (clubId || '—'),
+      clubName: isAdmin
+        ? (club?.name?.trim() || (clubId && clubId !== '—' ? clubId : '—'))
+        : trainerClubLabel === null
+          ? '…'
+          : trainerClubLabel,
       pathname: location.pathname + location.search,
     }
-  }, [user, isAdmin, online, supabaseReady, adminClubValue, adminClubs, location.pathname, location.search])
+  }, [
+    user,
+    isAdmin,
+    online,
+    supabaseReady,
+    adminClubValue,
+    adminClubs,
+    trainerClubLabel,
+    location.pathname,
+    location.search,
+  ])
 
   const onAdminClubChange = (e) => {
     const v = e.target.value

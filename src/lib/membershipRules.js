@@ -1,4 +1,4 @@
-import { formatDateRu } from './dateRu'
+import { formatDateRu, todayLocalIso } from './dateRu.js'
 
 export function membershipCoversDate(m, dateIso) {
   if (!m || !dateIso) return false
@@ -30,6 +30,42 @@ export function pickUsableMembershipForDate(memberships, dateIso) {
 /** Есть ли абонемент, по которому можно провести тренировку в указанную дату (поле status в Row не используется). */
 export function hasUsableMembershipOnDate(memberships, dateIso) {
   return pickUsableMembershipForDate(memberships, dateIso) != null
+}
+
+/**
+ * Отчётная дата для «активных / не активных» в сводке за период:
+ * сегодня, если период текущий; иначе последний день периода.
+ * @param {string} [asOf] yyyy-mm-dd (для тестов; по умолчанию — сегодня на устройстве)
+ */
+export function inactiveMembershipReferenceDate(dateFrom, dateTo, asOf = todayLocalIso()) {
+  const from = String(dateFrom ?? '').slice(0, 10)
+  const to = String(dateTo ?? '').slice(0, 10)
+  const today = String(asOf ?? '').slice(0, 10)
+  if (!from || !to || from > to) return to || today
+  if (today < from) return from
+  if (today > to) return to
+  return today
+}
+
+/**
+ * Есть ли действующий абонемент в рамках сводки за период.
+ * Учитывает абонементы, заканчивающиеся до последнего календарного дня месяца (напр. 29.06 при периоде до 30.06).
+ */
+export function hasUsableMembershipForPeriodStats(memberships, dateFrom, dateTo, asOf = todayLocalIso()) {
+  const from = String(dateFrom ?? '').slice(0, 10)
+  const to = String(dateTo ?? '').slice(0, 10)
+  const ref = inactiveMembershipReferenceDate(from, to, asOf)
+  if (hasUsableMembershipOnDate(memberships, ref)) return true
+  if (ref !== to) return false
+  for (const m of memberships ?? []) {
+    const s = String(m.start_date ?? '').slice(0, 10)
+    const e = String(m.end_date ?? '').slice(0, 10)
+    if (!s || !e || e < from || s > to) continue
+    if (e >= ref) continue
+    const lastDay = e
+    if (lastDay >= from && membershipIsUsableOn(m, lastDay)) return true
+  }
+  return false
 }
 
 /** @returns {'depleted'|'expired'|'not_started'|'no_membership'} */

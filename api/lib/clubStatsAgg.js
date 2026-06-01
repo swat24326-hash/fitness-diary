@@ -76,6 +76,41 @@ function hasUsableMembershipOnDate(memberships, dateIso) {
   return (memberships ?? []).some((m) => membershipCoversDate(m, dateIso) && membershipHasRemaining(m))
 }
 
+function todayLocalIso() {
+  const d = new Date()
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function inactiveMembershipReferenceDate(dateFrom, dateTo, asOf = todayLocalIso()) {
+  const from = String(dateFrom ?? '').slice(0, 10)
+  const to = String(dateTo ?? '').slice(0, 10)
+  const today = String(asOf ?? '').slice(0, 10)
+  if (!from || !to || from > to) return to || today
+  if (today < from) return from
+  if (today > to) return to
+  return today
+}
+
+function hasUsableMembershipForPeriodStats(memberships, dateFrom, dateTo, asOf = todayLocalIso()) {
+  const from = String(dateFrom ?? '').slice(0, 10)
+  const to = String(dateTo ?? '').slice(0, 10)
+  const ref = inactiveMembershipReferenceDate(from, to, asOf)
+  if (hasUsableMembershipOnDate(memberships, ref)) return true
+  if (ref !== to) return false
+  for (const m of memberships ?? []) {
+    const s = String(m.start_date ?? '').slice(0, 10)
+    const e = String(m.end_date ?? '').slice(0, 10)
+    if (!s || !e || e < from || s > to) continue
+    if (e >= ref) continue
+    const lastDay = e
+    if (lastDay >= from && membershipCoversDate(m, lastDay) && membershipHasRemaining(m)) return true
+  }
+  return false
+}
+
 function inactiveMembershipReason(memberships, dateIso) {
   if (hasUsableMembershipOnDate(memberships, dateIso)) return null
   const list = memberships ?? []
@@ -87,8 +122,9 @@ function inactiveMembershipReason(memberships, dateIso) {
   return 'expired'
 }
 
-export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, dateTo) {
-  void dateFrom
+export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, dateTo, asOf) {
+  const from = String(dateFrom ?? '').slice(0, 10)
+  const to = String(dateTo ?? '').slice(0, 10)
   const totalClients = clientRows.length
   const clientIdSet = new Set(clientRows.map((c) => c.id).filter(Boolean))
   const clientById = new Map()
@@ -109,12 +145,13 @@ export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, 
 
   for (const id of clientIdSet) {
     const mems = byClient.get(id) ?? []
-    if (hasUsableMembershipOnDate(mems, dateTo)) {
+    if (hasUsableMembershipForPeriodStats(mems, from, to, asOf)) {
       activeWithMembership++
       continue
     }
     const client = clientById.get(id)
-    const reason = inactiveMembershipReason(mems, dateTo)
+    const ref = inactiveMembershipReferenceDate(from, to, asOf)
+    const reason = inactiveMembershipReason(mems, ref)
     inactiveClients.push({
       id,
       name: String(client?.name ?? '').trim() || '—',

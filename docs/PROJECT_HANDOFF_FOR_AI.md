@@ -68,6 +68,8 @@ docs/
   RUNBOOK.md              — типовые инциденты (sync, PWA, статистика)
   SUPABASE_PROD_CHECKLIST.md — Auth, RLS, users.id перед крупным клубом
   PAID_TIER_MIGRATION.md  — переход Vercel/Supabase на платные тарифы
+  COMMERCIAL_ROADMAP.md   — фазы 0–4, что сделано / ongoing
+  DATA_VOLUME.md          — SQL оценка объёма, пороги для pull-by-period
   PROJECT_HANDOFF_FOR_AI.md — этот файл
 .cursor/rules/
   fitness-diary-architecture.mdc  — всегда: слои, офлайн, без костылей

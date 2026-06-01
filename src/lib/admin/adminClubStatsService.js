@@ -5,7 +5,7 @@
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { withSupabaseRetry } from '../supabaseRetry'
 import { getDb } from '../localDb'
-import { hasUsableMembershipOnDate, inactiveMembershipReason } from '../membershipRules'
+import { aggregateClubClientPeriod } from './clubClientPeriodAgg'
 import { fetchClubTrainingStatsViaApi } from './adminApiClient'
 import { ADMIN_SYNC_BATCH_SIZE } from './adminConstants'
 import { aggregateMembershipTypeStats } from './membershipTypeStatsAgg'
@@ -164,59 +164,7 @@ async function fetchMembershipsForClubLocal(clubId) {
   return all.filter((m) => m.club_id === clubId)
 }
 
-/**
- * @param {{ id: string }[]} clientRows
- * @param {Array<{ client_id?: string, start_date?: string, end_date?: string, total_trainings?: number, used_trainings?: number }>} membershipRows
- * @param {string} dateFrom yyyy-mm-dd
- * @param {string} dateTo yyyy-mm-dd
- */
-export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, dateTo) {
-  void dateFrom
-  const totalClients = clientRows.length
-  const clientIdSet = new Set(clientRows.map((c) => c.id).filter(Boolean))
-  const clientById = new Map()
-  for (const c of clientRows ?? []) {
-    const id = String(c?.id ?? '').trim()
-    if (id) clientById.set(id, c)
-  }
-  const byClient = new Map()
-  for (const id of clientIdSet) byClient.set(id, [])
-  for (const m of membershipRows) {
-    const cid = m.client_id
-    if (!cid || !clientIdSet.has(cid)) continue
-    byClient.get(cid).push(m)
-  }
-
-  let activeWithMembership = 0
-  const inactiveClients = []
-
-  for (const id of clientIdSet) {
-    const mems = byClient.get(id) ?? []
-    if (hasUsableMembershipOnDate(mems, dateTo)) {
-      activeWithMembership++
-      continue
-    }
-    const client = clientById.get(id)
-    const reason = inactiveMembershipReason(mems, dateTo)
-    inactiveClients.push({
-      id,
-      name: String(client?.name ?? '').trim() || '—',
-      phone: client?.phone ? String(client.phone).trim() : null,
-      inactiveReason: reason ?? 'expired',
-    })
-  }
-  inactiveClients.sort((a, b) => a.name.localeCompare(b.name, 'ru'))
-
-  return {
-    totalClients,
-    activeWithMembership,
-    inactiveInPeriod: inactiveClients.length,
-    inactiveClients,
-    /** @deprecated объединено с inactiveClients */
-    notRenewedInPeriod: 0,
-    notRenewedClients: [],
-  }
-}
+export { aggregateClubClientPeriod } from './clubClientPeriodAgg'
 
 async function membershipTypeStatsSlice(clubId, trainings, memberships) {
   const membershipTypes = await listMembershipTypesForClub(clubId)

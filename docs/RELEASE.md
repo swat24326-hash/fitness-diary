@@ -9,7 +9,7 @@ Production: **https://fitness-diary-bice.vercel.app**
 - [ ] Изменения понятны и минимальны (без «заодно» рефакторинга).
 - [ ] Локально: `npm run qa:local` — всё зелёное.
 - [ ] Если трогали **sync / очередь / pull**: `verify-sync-offline.mjs`, `verify-sync-unsynced.mjs` + сценарий на планшете (офлайн → запись → Sync).
-- [ ] Если трогали **статистику / абонементы**: `verify-club-client-period.mjs`, `verify-club-monthly-year.mjs`, `verify-membership-type-stats.mjs`.
+- [ ] Если трогали **статистику / абонементы**: `verify-club-client-period.mjs`, `verify-club-monthly-year.mjs`, `verify-membership-type-stats.mjs`, `verify-stats-agg-parity.mjs`.
 - [ ] Если трогали **SQL / RLS**: миграция в `supabase/migrations/`, обновлён `policies.sql`, план отката SQL записан.
 - [ ] CI (GitHub Actions **QA**) на PR — зелёный.
 - [ ] Если новый клуб / смена Supabase: [SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md).
