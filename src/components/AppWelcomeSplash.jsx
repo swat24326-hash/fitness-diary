@@ -1,10 +1,11 @@
 import { Dumbbell } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
-/** Экран при старте сессии вместо сухого «Загрузка…». */
-export function AppWelcomeSplash() {
+/** Экран при старте сессии / во время входа вместо сухого «Загрузка…». */
+export function AppWelcomeSplash({ displayName: displayNameProp } = {}) {
   const { user } = useAuth()
-  const rawName = String(user?.name ?? '').trim()
+  const fromProp = String(displayNameProp ?? '').trim()
+  const rawName = fromProp || String(user?.name ?? '').trim()
   const name = rawName || (user?.email ? String(user.email).split('@')[0] : '')
 
   return (

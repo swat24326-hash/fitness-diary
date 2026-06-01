@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { Dumbbell, Lock, User } from 'lucide-react'
+import { AppWelcomeSplash } from '../components/AppWelcomeSplash'
 import { useAuth } from '../context/AuthContext'
 import { getSupabaseSetupMessage } from '../lib/supabase'
 
 export function Login() {
-  const { user, role, signIn, loading } = useAuth()
+  const { user, role, signIn, loading, signingIn } = useAuth()
   const loc = useLocation()
   const from = loc.state?.from
   const [login, setLogin] = useState('')
@@ -38,6 +39,11 @@ export function Login() {
   if (!loading && user && role) {
     const dest = from && from !== '/login' ? from : role === 'admin' ? '/admin' : '/trainer'
     return <Navigate to={dest} replace />
+  }
+
+  if (signingIn) {
+    const hint = login.trim()
+    return <AppWelcomeSplash displayName={hint.includes('@') ? hint.split('@')[0] : hint} />
   }
 
   const onSubmit = async (e) => {
@@ -98,8 +104,8 @@ export function Login() {
               {error}
             </p>
           )}
-          <button type="submit" className="btn btn-primary btn-touch" style={{ width: '100%', marginTop: 8 }} disabled={loading}>
-            {loading ? '…' : 'Войти'}
+          <button type="submit" className="btn btn-primary btn-touch" style={{ width: '100%', marginTop: 8 }} disabled={loading || signingIn}>
+            {signingIn ? '…' : loading ? '…' : 'Войти'}
           </button>
         </form>
         {showInstallButton && (

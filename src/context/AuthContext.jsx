@@ -161,6 +161,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [role, setRole] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [signingIn, setSigningIn] = useState(false)
 
   const queryUserRow = useCallback(async (applyFilter) => {
     const fields = 'role, name, email, phone, login, club_id'
@@ -311,101 +312,99 @@ export function AuthProvider({ children }) {
     if (!raw) return { error: { message: 'Введите логин' } }
     if (password == null || password === '') return { error: { message: 'Введите пароль' } }
 
-    if (!isSupabaseConfigured()) {
-      const lower = raw.toLowerCase()
-      const isAdmin = lower === 'admin'
-      const id = isAdmin ? crypto.randomUUID() : demoTrainerId
-      const email = raw.includes('@') ? raw : `${raw}@local.fitness`
-      const session = {
-        id,
-        email,
-        name: raw.includes('@') ? raw.split('@')[0] : raw,
-        role: isAdmin ? 'admin' : 'trainer',
-        club_id: isAdmin ? null : DEMO_CLUB_ID,
+    setSigningIn(true)
+    const finishSignIn = (authUser, profile) => {
+      void clearPoisonedSyncQueue()
+      setUser(applyUserFromSession({ user: authUser }, profile))
+      setRole(resolveRole(profile, authUser))
+      setBackgroundSyncPaused(false)
+      if (!profile?.role && authUser?.id) {
+        void withTimeout(refreshProfile(authUser.id, authUser.email), 8_000, 'profile')
+          .then((p) => {
+            if (!p) return
+            setUser((prev) => (prev?.id === authUser.id ? applyUserFromSession({ user: authUser }, p) : prev))
+            setRole(resolveRole(p, authUser))
+          })
+          .catch(() => {})
       }
-      writeFallback(session)
-      setUser({ id, email: session.email, name: session.name, club_id: session.club_id ?? null })
-      setRole(session.role)
-      await ensureDemoData()
-      return { error: null }
     }
 
     try {
-      const viaServer = await signInViaServerApi({ login: raw, password })
-      if (viaServer.error) {
-        return { error: { message: viaServer.error.message } }
-      }
-      if (viaServer.user) {
-        await clearPoisonedSyncQueue()
-        let profile = viaServer.profile
-        if (!profile?.role) {
-          profile = await withTimeout(
-            refreshProfile(viaServer.user.id, viaServer.user.email),
-            8_000,
-            'profile',
-          ).catch(() => profile)
+      if (!isSupabaseConfigured()) {
+        const lower = raw.toLowerCase()
+        const isAdmin = lower === 'admin'
+        const id = isAdmin ? crypto.randomUUID() : demoTrainerId
+        const email = raw.includes('@') ? raw : `${raw}@local.fitness`
+        const session = {
+          id,
+          email,
+          name: raw.includes('@') ? raw.split('@')[0] : raw,
+          role: isAdmin ? 'admin' : 'trainer',
+          club_id: isAdmin ? null : DEMO_CLUB_ID,
         }
-        setUser(applyUserFromSession({ user: viaServer.user }, profile))
-        setRole(resolveRole(profile, viaServer.user))
-        setBackgroundSyncPaused(false)
+        writeFallback(session)
+        setUser({ id, email: session.email, name: session.name, club_id: session.club_id ?? null })
+        setRole(session.role)
+        await ensureDemoData()
         return { error: null }
       }
-    } catch (e) {
-      return { error: { message: humanizeNetworkError(e) } }
-    }
 
-    let emailForAuth = raw
-    if (!raw.includes('@')) {
       try {
-        const resolved = await withSupabaseRetry(() => resolveLoginEmailFromDb(raw))
-        if (resolved.error) throw resolved.error
-        if (!resolved.isActive) {
-          return { error: { message: 'Учётная запись заблокирована' } }
+        const viaServer = await signInViaServerApi({ login: raw, password })
+        if (viaServer.error) {
+          return { error: { message: viaServer.error.message } }
         }
-        if (resolved.email) {
-          emailForAuth = resolved.email
-        } else if (import.meta.env.DEV) {
-          const loginLower = raw.toLowerCase()
-          const { data: devAuth, error: devErr } = await signInWithPasswordRetry(
-            `${loginLower}@trainer.local`,
-            password,
-          )
-          if (!devErr && devAuth?.user) {
-            await clearPoisonedSyncQueue()
-            const profile = await withTimeout(
-              refreshProfile(devAuth.user.id, devAuth.user.email),
-              8_000,
-              'profile',
-            ).catch(() => null)
-            setUser(applyUserFromSession({ user: devAuth.user }, profile))
-            setRole(resolveRole(profile, devAuth.user))
-            setBackgroundSyncPaused(false)
-            return { error: null }
-          }
-        }
-        if (!resolved.email && !emailForAuth.includes('@')) {
-          const devHint = import.meta.env.DEV
-            ? ' Локально: скопируйте .env с Vercel (как на сайте) или запустите npx vercel dev; можно войти по email.'
-            : ''
-          return { error: { message: `Пользователь с таким логином не найден.${devHint}` } }
+        if (viaServer.user) {
+          finishSignIn(viaServer.user, viaServer.profile ?? null)
+          return { error: null }
         }
       } catch (e) {
-        const msg = humanizeNetworkError(e)
-        const devHint = import.meta.env.DEV
-          ? ' Локально для входа по логину нужен npx vercel dev или файл .env с ключами Supabase.'
-          : ''
-        return {
-          error: {
-            message:
-              msg.includes('timeout') || /connection reset|failed to fetch/i.test(msg)
-                ? `${msg} Попробуйте Ctrl+F5 — вход через сервер сайта (/api/auth-sign-in).${devHint}`
-                : `${msg}${devHint}`,
-          },
+        return { error: { message: humanizeNetworkError(e) } }
+      }
+
+      let emailForAuth = raw
+      if (!raw.includes('@')) {
+        try {
+          const resolved = await withSupabaseRetry(() => resolveLoginEmailFromDb(raw))
+          if (resolved.error) throw resolved.error
+          if (!resolved.isActive) {
+            return { error: { message: 'Учётная запись заблокирована' } }
+          }
+          if (resolved.email) {
+            emailForAuth = resolved.email
+          } else if (import.meta.env.DEV) {
+            const loginLower = raw.toLowerCase()
+            const { data: devAuth, error: devErr } = await signInWithPasswordRetry(
+              `${loginLower}@trainer.local`,
+              password,
+            )
+            if (!devErr && devAuth?.user) {
+              finishSignIn(devAuth.user, null)
+              return { error: null }
+            }
+          }
+          if (!resolved.email && !emailForAuth.includes('@')) {
+            const devHint = import.meta.env.DEV
+              ? ' Локально: скопируйте .env с Vercel (как на сайте) или запустите npx vercel dev; можно войти по email.'
+              : ''
+            return { error: { message: `Пользователь с таким логином не найден.${devHint}` } }
+          }
+        } catch (e) {
+          const msg = humanizeNetworkError(e)
+          const devHint = import.meta.env.DEV
+            ? ' Локально для входа по логину нужен npx vercel dev или файл .env с ключами Supabase.'
+            : ''
+          return {
+            error: {
+              message:
+                msg.includes('timeout') || /connection reset|failed to fetch/i.test(msg)
+                  ? `${msg} Попробуйте Ctrl+F5 — вход через сервер сайта (/api/auth-sign-in).${devHint}`
+                  : `${msg}${devHint}`,
+            },
+          }
         }
       }
-    }
 
-    try {
       const { data, error } = await signInWithPasswordRetry(emailForAuth, password)
       if (error) {
         const msg = String(error.message ?? '')
@@ -419,16 +418,12 @@ export function AuthProvider({ children }) {
         }
         return { error: { message: humanizeNetworkError(error) } }
       }
-      await clearPoisonedSyncQueue()
-      const profile = await withTimeout(refreshProfile(data.user.id, data.user.email), 8_000, 'profile').catch(
-        () => null,
-      )
-      setUser(applyUserFromSession({ user: data.user }, profile))
-      setRole(resolveRole(profile, data.user))
-      setBackgroundSyncPaused(false)
+      finishSignIn(data.user, null)
       return { error: null }
     } catch (e) {
       return { error: { message: humanizeNetworkError(e) } }
+    } finally {
+      setSigningIn(false)
     }
   }, [refreshProfile])
 
@@ -459,6 +454,7 @@ export function AuthProvider({ children }) {
       user,
       role,
       loading,
+      signingIn,
       signIn,
       signOut,
       refreshUserProfile,
@@ -466,7 +462,7 @@ export function AuthProvider({ children }) {
       isTrainer: role === 'trainer',
       supabaseReady: isSupabaseConfigured(),
     }),
-    [user, role, loading, signIn, signOut, refreshUserProfile],
+    [user, role, loading, signingIn, signIn, signOut, refreshUserProfile],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
