@@ -11,7 +11,6 @@ import {
 } from './supabaseRetry'
 import {
   buildPendingSyncKeysByTable,
-  enqueueSync,
   getDb,
   listSyncQueue,
   putStore,
@@ -21,7 +20,6 @@ import {
 import {
   deleteHealthCardByClientId,
   deleteLocalWithSync,
-  flushSyncQueue,
   isDuplicateInsertError,
   saveLocalWithSync,
 } from './syncService'
@@ -350,11 +348,21 @@ async function runClubRemoteOnce(fn, timeoutMs = CLUB_REMOTE_MS) {
 }
 
 /** Два шанса на insert/update (пауза между ними), без длинной цепочки retry. */
-async function runClubRemoteTwice(fn) {
+/**
+ * @param {() => Promise<unknown>} fn
+ * @param {{ skipSecondAttemptIf?: () => Promise<boolean> }} [opts]
+ */
+async function runClubRemoteTwice(fn, opts = {}) {
   try {
     return await runClubRemoteOnce(fn)
   } catch (e1) {
+    if (opts.skipSecondAttemptIf && (await opts.skipSecondAttemptIf())) {
+      return null
+    }
     if (!isRetryableNetworkError(e1) && !/timeout/i.test(String(e1?.message ?? ''))) throw e1
+    if (opts.skipSecondAttemptIf && (await opts.skipSecondAttemptIf())) {
+      return null
+    }
     await sleep(700)
     return await runClubRemoteOnce(fn)
   }
@@ -366,13 +374,26 @@ async function finishClubRemoteSuccess(row, cid, persistLocal) {
   return { remoteOk: true }
 }
 
-async function tryFlushPendingClubToCloud() {
-  try {
-    const r = await flushSyncQueue({ force: true, maxMs: 14_000 })
-    return r?.ok === true
-  } catch {
-    return false
+/** После сохранения клуба: если в UI «ошибка», но строка уже в Supabase — считать успехом. */
+export async function reconcileClubSaveForAdmin(clubId, result) {
+  if (result?.remoteOk) return result
+  const cid = String(clubId ?? '').trim()
+  if (!cid || !isSupabaseConfigured()) return result
+  if (await verifyClubInSupabaseWithRetry(cid, 8)) {
+    return { remoteOk: true, recoveredAfterNetwork: true }
   }
+  return result
+}
+
+/** После удаления: если в UI «ошибка», но в Supabase клуба уже нет — считать успехом. */
+export async function reconcileClubDeleteForAdmin(clubId, result) {
+  if (result?.remoteOk) return result
+  const cid = String(clubId ?? '').trim()
+  if (!cid || !isSupabaseConfigured()) return result
+  if (await verifyClubAbsentFromSupabase(cid, 6)) {
+    return { remoteOk: true, alreadyGoneRemote: true }
+  }
+  return result
 }
 
 /**
@@ -413,8 +434,10 @@ export async function saveClubForAdmin(row, { isNew = false } = {}) {
     return res
   }
 
+  const skipDuplicateInsert = async () => isNew && (await clubExistsInSupabase(cid))
+
   try {
-    await runClubRemoteTwice(() => runRemote())
+    await runClubRemoteTwice(() => runRemote(), { skipSecondAttemptIf: skipDuplicateInsert })
     return finishClubRemoteSuccess(row, cid, persistLocal)
   } catch (e) {
     const msg = String(e?.message ?? '')
@@ -438,20 +461,13 @@ export async function saveClubForAdmin(row, { isNew = false } = {}) {
       )
     }
     if (isRetryableNetworkError(e) || /timeout|failed to fetch/i.test(msg)) {
-      if (await verifyClubInSupabaseWithRetry(cid)) {
+      if (await verifyClubInSupabaseWithRetry(cid, 6)) {
         return { ...(await finishClubRemoteSuccess(row, cid, persistLocal)), recoveredAfterNetwork: true }
       }
       await putStore('clubs', row)
-      await enqueueSync({
-        table_name: 'clubs',
-        operation: isNew ? 'insert' : 'update',
-        remote_id: isNew ? null : cid,
-        data: row,
-      })
       clubsPulledAt = 0
       dispatchLocalDataChanged()
-      await tryFlushPendingClubToCloud()
-      if (await verifyClubInSupabaseWithRetry(cid, 3)) {
+      if (await verifyClubInSupabaseWithRetry(cid, 8)) {
         return { ...(await finishClubRemoteSuccess(row, cid, persistLocal)), recoveredAfterNetwork: true }
       }
       return { remoteOk: false }
@@ -649,8 +665,10 @@ export async function deleteClubForAdmin(clubId) {
 
   let remoteOk = false
   let alreadyGoneRemote = false
+  const skipSecondDelete = async () => verifyClubAbsentFromSupabase(cid, 2)
+
   try {
-    await runClubRemoteTwice(() => runDeleteRemote())
+    await runClubRemoteTwice(() => runDeleteRemote(), { skipSecondAttemptIf: skipSecondDelete })
     remoteOk = true
   } catch (e) {
     const msg = String(e?.message ?? '')
@@ -668,19 +686,11 @@ export async function deleteClubForAdmin(clubId) {
       if (await verifyClubAbsentFromSupabase(cid)) {
         remoteOk = true
         alreadyGoneRemote = true
+      } else if (await verifyClubAbsentFromSupabase(cid, 6)) {
+        remoteOk = true
+        alreadyGoneRemote = true
       } else {
-        await enqueueSync({
-          table_name: 'clubs',
-          operation: 'delete',
-          remote_id: cid,
-          data: {},
-        })
-        await tryFlushPendingClubToCloud()
-        if (await verifyClubAbsentFromSupabase(cid, 3)) {
-          remoteOk = true
-        } else {
-          return { remoteOk: false, alreadyGoneRemote: false }
-        }
+        return { remoteOk: false, alreadyGoneRemote: false }
       }
     } else {
       throw new Error(humanizeNetworkError(e))

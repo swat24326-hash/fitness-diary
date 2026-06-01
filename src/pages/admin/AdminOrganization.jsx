@@ -12,6 +12,8 @@ import {
   listClubsLocal,
   listTrainersWithClubForAdmin,
   pullClubsFromSupabase,
+  reconcileClubDeleteForAdmin,
+  reconcileClubSaveForAdmin,
   saveClubForAdmin,
   updateAllLocalClientsClubForTrainer,
   updateTrainerClubForAdmin,
@@ -192,14 +194,15 @@ export function AdminOrganization({ mode = 'both' } = {}) {
           created_at: now,
         }
       }
-      const { remoteOk, recoveredAfterNetwork } = await saveClubForAdmin(row, { isNew })
+      let { remoteOk, recoveredAfterNetwork } = await saveClubForAdmin(row, { isNew })
+      ;({ remoteOk, recoveredAfterNetwork } = await reconcileClubSaveForAdmin(row.id, { remoteOk, recoveredAfterNetwork }))
       setClubForm({ name: '', address: '', phone: '' })
       setClubEdit(null)
       setClubs(await listClubsLocal())
       if (remoteOk) {
         setClubMsg(
           recoveredAfterNetwork
-            ? `Клуб «${row.name}» в облаке (сеть оборвалась, запись проверена). Ошибки 409/RESET в консоли можно игнорировать.`
+            ? `Клуб «${row.name}» сохранён в облаке (ответ сервера задержался — это нормально при нестабильной сети).`
             : isNew
               ? `Клуб «${row.name}» создан в облаке.`
               : `Клуб «${row.name}» сохранён.`,
@@ -207,7 +210,7 @@ export function AdminOrganization({ mode = 'both' } = {}) {
         await reloadClubsList({ keepMsg: true, forcePull: true })
       } else {
         setClubMsg(
-          `Клуб «${row.name}» в кэше. Сеть оборвалась — откройте меню → «Синхронизировать» или нажмите ↻ через минуту.`,
+          `Клуб «${row.name}» пока только на этом устройстве. Проверьте интернет и нажмите «Создать клуб» ещё раз или ↻ — не используйте «Убрать из кэша», если клуб нужен.`,
         )
         await reloadClubsList({ keepMsg: true, forcePull: false })
       }
@@ -287,7 +290,8 @@ export function AdminOrganization({ mode = 'both' } = {}) {
         return
       }
       setClubMsg('Удаляем клуб…')
-      const { remoteOk, alreadyGoneRemote } = await deleteClubForAdmin(c.id)
+      let { remoteOk, alreadyGoneRemote } = await deleteClubForAdmin(c.id)
+      ;({ remoteOk, alreadyGoneRemote } = await reconcileClubDeleteForAdmin(c.id, { remoteOk, alreadyGoneRemote }))
       setClubs(await listClubsLocal())
       if (defaultClubFromUrl === c.id) {
         const next = new URLSearchParams(searchParams)
