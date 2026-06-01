@@ -64,7 +64,7 @@
 
 | Проблема | Статус |
 |----------|--------|
-| В «Помощь» у тренера UUID вместо названия клуба | ✅ `listClubsLocal` в AppHeader |
+| В «Помощь» у тренера UUID вместо названия клуба | ✅ `resolveClubDisplayName` (кэш + Supabase) |
 | Создание клуба / CONNECTION_RESET (§15 handoff) | открыто |
 
 ---

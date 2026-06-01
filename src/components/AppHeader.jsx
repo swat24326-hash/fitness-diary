@@ -12,6 +12,7 @@ import {
   listClubsLocal,
   LOCAL_DATA_CHANGED,
   pullClubsFromSupabase,
+  resolveClubDisplayName,
   collectTrainerClubIds,
   dispatchLocalDataChanged,
 } from '../lib/dataAccess'
@@ -136,10 +137,8 @@ export function AppHeader() {
     let alive = true
     const resolve = async () => {
       try {
-        const rows = await listClubsLocal()
-        if (!alive) return
-        const c = rows.find((x) => String(x.id) === cid)
-        setTrainerClubLabel(c?.name?.trim() || cid)
+        const name = await resolveClubDisplayName(cid)
+        if (alive) setTrainerClubLabel(name)
       } catch {
         if (alive) setTrainerClubLabel(cid)
       }

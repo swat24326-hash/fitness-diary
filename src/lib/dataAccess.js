@@ -151,6 +151,33 @@ export async function listClubsLocal() {
   return [...byId.values()]
 }
 
+const CLUB_REMOTE_MS = 7000
+const CLUB_VERIFY_MS = 4000
+
+/** Название клуба для UI (кэш → один запрос в Supabase). Тренеру не нужен полный pullClubs. */
+export async function resolveClubDisplayName(clubId) {
+  const cid = String(clubId ?? '').trim()
+  if (!cid) return '—'
+  const local = (await listClubsLocal()).find((c) => String(c.id) === cid)
+  const localName = local?.name?.trim()
+  if (localName) return localName
+  if (!isSupabaseConfigured()) return cid
+  try {
+    const res = await withFastTimeout(
+      supabase.from('clubs').select('*').eq('id', cid).maybeSingle(),
+      CLUB_VERIFY_MS,
+    )
+    if (!res.error && res.data?.name) {
+      await putStore('clubs', res.data)
+      clubsPulledAt = 0
+      return String(res.data.name).trim()
+    }
+  } catch {
+    /* сеть — покажем id */
+  }
+  return cid
+}
+
 export async function listAllTrainings() {
   const db = await getDb()
   return db.getAll('trainings')
@@ -302,9 +329,6 @@ async function clearClubSyncQueueForId(clubId) {
   }
 }
 
-const CLUB_REMOTE_MS = 7000
-const CLUB_VERIFY_MS = 4000
-
 async function clubExistsInSupabase(clubId, timeoutMs = CLUB_VERIFY_MS) {
   const cid = String(clubId ?? '').trim()
   if (!cid || !isSupabaseConfigured()) return false
@@ -420,6 +444,7 @@ export async function saveClubForAdmin(row, { isNew = false } = {}) {
   const runRemote = async () => {
     if (isNew) {
       const res = await supabase.from('clubs').insert(row).select().single()
+      if (!res.error && res.data) return res
       if (res.error && (res.error.status === 409 || res.error.code === '23505')) {
         if (await clubExistsInSupabase(cid)) return { data: { id: cid }, error: null }
       }
@@ -437,7 +462,18 @@ export async function saveClubForAdmin(row, { isNew = false } = {}) {
   const skipDuplicateInsert = async () => isNew && (await clubExistsInSupabase(cid))
 
   try {
-    await runClubRemoteTwice(() => runRemote(), { skipSecondAttemptIf: skipDuplicateInsert })
+    if (isNew) {
+      try {
+        await runClubRemoteOnce(() => runRemote())
+      } catch (insertErr) {
+        if (await verifyClubInSupabaseWithRetry(cid, 8)) {
+          return finishClubRemoteSuccess(row, cid, persistLocal)
+        }
+        throw insertErr
+      }
+    } else {
+      await runClubRemoteTwice(() => runRemote(), { skipSecondAttemptIf: skipDuplicateInsert })
+    }
     return finishClubRemoteSuccess(row, cid, persistLocal)
   } catch (e) {
     const msg = String(e?.message ?? '')
