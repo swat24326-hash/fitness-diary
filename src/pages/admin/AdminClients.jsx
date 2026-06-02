@@ -215,6 +215,10 @@ export function AdminClients() {
 
   const updateClientArchiveFlag = async (clientRow, archived) => {
     if (!clientRow?.id) return
+    if (archived) {
+      const ok = window.confirm(`Убрать клиента в архив?\n\n${clientRow.name ?? 'Клиент'}\n\nВ архиве доступен просмотр карточки. Все действия — только после «Вернуть».`)
+      if (!ok) return
+    }
     const full = await getLocalClient(clientRow.id)
     if (!full) {
       alert('Клиент не найден в локальном кэше. Обновите список.')

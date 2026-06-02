@@ -174,6 +174,10 @@ export function TrainerClients() {
 
   const updateClientArchiveFlag = async (clientRow, archived) => {
     if (!clientRow?.id) return
+    if (archived) {
+      const ok = window.confirm(`Убрать клиента в архив?\n\n${clientRow.name ?? 'Клиент'}\n\nВ архиве доступен просмотр карточки. Все действия — только после «Вернуть».`)
+      if (!ok) return
+    }
     setBusy(true)
     const now = new Date().toISOString()
     const row = { ...clientRow, archived_at: archived ? now : null }
