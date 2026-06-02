@@ -2,10 +2,11 @@
  * Один проход по IndexedDB для дашборда/списка клиентов тренера (вместо 3× getAll подряд).
  */
 import { getDb } from './localDb'
+import { buildLastTrainingDateByClientId, buildTrainingsByClientId } from './trainerWorkspaceIndexes'
 
 const STORAGE_EVENT = 'fitness-diary-storage'
 
-/** @type {null | { key: string, clients: object[], trainings: object[], memByClient: Record<string, object[]> }} */
+/** @type {null | { key: string, clients: object[], trainings: object[], memByClient: Record<string, object[]>, trainingsByClientId: Record<string, object[]>, lastTrainingDateByClientId: Record<string, string> }} */
 let snapshot = null
 
 let invalidateTimer = null
@@ -53,7 +54,13 @@ function trainerClubIds(allClients, trainerId, trainerClubId) {
 export async function loadTrainerWorkspaceSnapshot(trainerId, trainerClubId) {
   const tid = String(trainerId ?? '').trim()
   if (!tid) {
-    return { clients: [], trainings: [], memByClient: {} }
+    return {
+      clients: [],
+      trainings: [],
+      memByClient: {},
+      trainingsByClientId: {},
+      lastTrainingDateByClientId: {},
+    }
   }
 
   const db = await getDb()
@@ -66,15 +73,24 @@ export async function loadTrainerWorkspaceSnapshot(trainerId, trainerClubId) {
   const clubIds = trainerClubIds(allClients, tid, trainerClubId)
   const key = `${tid}:${[...clubIds].sort().join(',')}`
   if (snapshot?.key === key) {
-    return { clients: snapshot.clients, trainings: snapshot.trainings, memByClient: snapshot.memByClient }
+    return {
+      clients: snapshot.clients,
+      trainings: snapshot.trainings,
+      memByClient: snapshot.memByClient,
+      trainingsByClientId: snapshot.trainingsByClientId,
+      lastTrainingDateByClientId: snapshot.lastTrainingDateByClientId,
+    }
   }
 
-  let clients = (allClients ?? []).filter((c) => String(c.trainer_id) === tid)
+  let clientsAll = (allClients ?? []).filter((c) => String(c.trainer_id) === tid)
   if (clubIds.size > 0) {
-    clients = clients.filter((c) => clubIds.has(String(c.club_id ?? '')))
+    clientsAll = clientsAll.filter((c) => clubIds.has(String(c.club_id ?? '')))
   }
 
-  const clientIds = clients.map((c) => c.id)
+  const archivedClients = clientsAll.filter((c) => Boolean(c?.archived_at))
+  const activeClients = clientsAll.filter((c) => !c?.archived_at)
+
+  const clientIds = clientsAll.map((c) => c.id)
   const clientIdSet = new Set(clientIds)
 
   const trainings = (allTrainings ?? []).filter((t) => {
@@ -85,9 +101,26 @@ export async function loadTrainerWorkspaceSnapshot(trainerId, trainerClubId) {
   })
 
   const memByClient = buildMemMap(allMemberships, clientIds)
+  const trainingsByClientId = buildTrainingsByClientId(trainings)
+  const lastTrainingDateByClientId = buildLastTrainingDateByClientId(trainings)
 
-  snapshot = { key, clients, trainings, memByClient }
-  return { clients, trainings, memByClient }
+  snapshot = {
+    key,
+    clients: activeClients,
+    archivedClients,
+    trainings,
+    memByClient,
+    trainingsByClientId,
+    lastTrainingDateByClientId,
+  }
+  return {
+    clients: activeClients,
+    archivedClients,
+    trainings,
+    memByClient,
+    trainingsByClientId,
+    lastTrainingDateByClientId,
+  }
 }
 
 export function initTrainerWorkspaceCacheInvalidation() {

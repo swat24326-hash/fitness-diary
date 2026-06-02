@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
-import { AlertTriangle, Clock, RefreshCw, Search, Trash2, UserCog, UserSearch } from 'lucide-react'
+import { AlertTriangle, Archive, Clock, RefreshCw, RotateCcw, Search, Trash2, UserCog, UserSearch } from 'lucide-react'
 import {
   deleteClientAndAllData,
   dispatchLocalDataChanged,
@@ -70,6 +70,7 @@ export function AdminClients() {
   const [query, setQuery] = useState('')
   const [trainerQuery, setTrainerQuery] = useState('')
   const [quickFilter, setQuickFilter] = useState('all')
+  const [clientsTab, setClientsTab] = useState('active') // active | archive
   const [source, setSource] = useState('local')
   const [fallback, setFallback] = useState(null)
   const [cloudNeedsClub, setCloudNeedsClub] = useState(false)
@@ -170,7 +171,8 @@ export function AdminClients() {
     const q = query.trim().toLowerCase()
     const tq = trainerQuery.trim().toLowerCase()
 
-    let base = clients
+    const tabBase = clientsTab === 'archive' ? clients.filter((c) => Boolean(c?.archived_at)) : clients.filter((c) => !c?.archived_at)
+    let base = tabBase
     if (q) {
       base = base.filter((c) => {
         const name = String(c.name ?? '').toLowerCase()
@@ -191,23 +193,45 @@ export function AdminClients() {
       const sig = membershipSignal(memByClient[c.id] ?? [], today)
       return sig.key === quickFilter
     })
-  }, [clients, query, trainerQuery, quickFilter, memByClient, today, trainerNameById])
+  }, [clients, clientsTab, query, trainerQuery, quickFilter, memByClient, today, trainerNameById])
 
   const filterCounts = useMemo(() => {
+    const tabBase = clientsTab === 'archive' ? clients.filter((c) => Boolean(c?.archived_at)) : clients.filter((c) => !c?.archived_at)
     let expiring = 0
     let expired_remaining = 0
-    for (const c of clients) {
+    for (const c of tabBase) {
       const sig = membershipSignal(memByClient[c.id] ?? [], today)
       if (sig.key === 'expiring') expiring++
       if (sig.key === 'expired_remaining') expired_remaining++
     }
-    return { all: clients.length, expiring, expired_remaining }
-  }, [clients, memByClient, today])
+    return { all: tabBase.length, expiring, expired_remaining }
+  }, [clients, clientsTab, memByClient, today])
 
   const filterBtnClass = (id) => `btn ${quickFilter === id ? 'btn-primary' : 'btn-ghost'} btn-icon-square`
 
   const applyFilter = (id) => {
     setQuickFilter((cur) => (cur === id ? 'all' : id))
+  }
+
+  const updateClientArchiveFlag = async (clientRow, archived) => {
+    if (!clientRow?.id) return
+    const full = await getLocalClient(clientRow.id)
+    if (!full) {
+      alert('Клиент не найден в локальном кэше. Обновите список.')
+      return
+    }
+    setBusy(true)
+    const now = new Date().toISOString()
+    const row = { ...full, archived_at: archived ? now : null }
+    try {
+      await saveLocalWithSync('clients', row, { table_name: 'clients', operation: 'update', remote_id: full.id })
+      dispatchLocalDataChanged({ reason: 'client-archive-changed', clientId: full.id })
+      await reload({ silent: true })
+    } catch (err) {
+      alert(err?.message ?? 'Не удалось обновить архив')
+    } finally {
+      setBusy(false)
+    }
   }
 
   const trainerLabel = (tid) => {
@@ -389,6 +413,14 @@ export function AdminClients() {
             </button>
           </div>
         </div>
+        <div className="tabs" role="tablist" style={{ marginTop: 10 }}>
+          <button type="button" className="tab" aria-selected={clientsTab === 'active'} onClick={() => setClientsTab('active')}>
+            Активные ({clients.filter((c) => !c?.archived_at).length})
+          </button>
+          <button type="button" className="tab" aria-selected={clientsTab === 'archive'} onClick={() => setClientsTab('archive')}>
+            Архив ({clients.filter((c) => Boolean(c?.archived_at)).length})
+          </button>
+        </div>
         {refreshMsg && (
           <p className="sync-feedback sync-feedback--ok" style={{ margin: '0 0 12px' }}>
             {refreshMsg}
@@ -456,6 +488,29 @@ export function AdminClients() {
                         Карточка
                       </Link>
                       <div className="row" style={{ gap: 8, justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
+                        {clientsTab === 'active' ? (
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-icon-square btn-touch"
+                            disabled={busy}
+                            onClick={() => void updateClientArchiveFlag(c, true)}
+                            aria-label={`В архив: ${c.name ?? c.id}`}
+                            title="В архив"
+                          >
+                            <Archive size={20} aria-hidden />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-icon-square btn-touch"
+                            disabled={busy}
+                            onClick={() => void updateClientArchiveFlag(c, false)}
+                            aria-label={`Вернуть из архива: ${c.name ?? c.id}`}
+                            title="Вернуть"
+                          >
+                            <RotateCcw size={20} aria-hidden />
+                          </button>
+                        )}
                         <button
                           type="button"
                           className="btn btn-ghost btn-icon-square btn-touch"

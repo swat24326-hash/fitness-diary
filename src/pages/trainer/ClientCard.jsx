@@ -59,6 +59,7 @@ export function ClientCard() {
   const [editOpen, setEditOpen] = useState(false)
   const [editForm, setEditForm] = useState({ name: '', phone: '', birth_date: '', card_number: '' })
   const [hydrateError, setHydrateError] = useState(null)
+  const [archiveBusy, setArchiveBusy] = useState(false)
 
   const reloadLocal = useCallback(async () => {
     const local = await getLocalClient(id)
@@ -111,6 +112,22 @@ export function ClientCard() {
     return hasUsableMembershipOnDate(memberships, today)
   }, [memberships])
 
+  const isArchived = Boolean(client?.archived_at)
+
+  const restoreFromArchive = useCallback(async () => {
+    if (!client?.id) return
+    setArchiveBusy(true)
+    try {
+      const row = { ...client, archived_at: null }
+      await saveLocalWithSync('clients', row, { table_name: 'clients', operation: 'update', remote_id: client.id })
+      await reloadLocal()
+    } catch (err) {
+      alert(err?.message ?? 'Не удалось вернуть из архива')
+    } finally {
+      setArchiveBusy(false)
+    }
+  }, [client, reloadLocal])
+
   useEffect(() => {
     if (isTrainer && !isAdmin) {
       void reloadLocal()
@@ -140,6 +157,10 @@ export function ClientCard() {
   )
 
   const openEdit = () => {
+    if (isArchived) {
+      alert('Клиент в архиве. Чтобы редактировать и вести тренировки — сначала нажмите «Вернуть из архива».')
+      return
+    }
     setEditForm({
       name: client.name ?? '',
       phone: client.phone ?? '',
@@ -151,6 +172,10 @@ export function ClientCard() {
 
   const saveClient = async (e) => {
     e.preventDefault()
+    if (isArchived) {
+      alert('Клиент в архиве. Чтобы редактировать — сначала нажмите «Вернуть из архива».')
+      return
+    }
     const name = formatClientName(editForm.name)
     if (!name) return
     const row = {
@@ -192,6 +217,16 @@ export function ClientCard() {
       {hydrateError ? (
         <p className="muted admin-inline-note" role="alert">
           Данные с сервера подгрузились не полностью: {hydrateError}. Показано из локального кэша.
+        </p>
+      ) : null}
+      {isArchived ? (
+        <p className="admin-inline-note" style={{ margin: 0 }} role="status">
+          Клиент в <strong>архиве</strong>. Просмотр доступен, но все действия (редактирование, абонементы, тренировки) — только после «Вернуть».
+          <span style={{ display: 'inline-block', marginLeft: 10 }}>
+            <button type="button" className="btn btn-primary btn-touch btn-xs" disabled={archiveBusy} onClick={() => void restoreFromArchive()}>
+              {archiveBusy ? '…' : 'Вернуть из архива'}
+            </button>
+          </span>
         </p>
       ) : null}
       {editOpen && (
@@ -239,7 +274,7 @@ export function ClientCard() {
         <div className="td-client-left u-grow u-minw-0">
           <div className="row" style={{ alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <h1 style={{ margin: 0, fontSize: '1.35rem' }}>{client.name}</h1>
-            <button type="button" className="btn btn-ghost btn-icon-square" aria-label="Редактировать данные клиента" title="Редактировать" onClick={openEdit}>
+            <button type="button" className="btn btn-ghost btn-icon-square" aria-label="Редактировать данные клиента" title="Редактировать" onClick={openEdit} disabled={isArchived}>
               <Pencil size={16} aria-hidden />
             </button>
           </div>
@@ -255,7 +290,11 @@ export function ClientCard() {
         </div>
         {!isAdmin ? (
           <div className="row td-client-actions" style={{ flexShrink: 0, alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            {hasActiveMembership ? (
+            {isArchived ? (
+              <button type="button" className="btn btn-primary btn-touch btn-xs" style={{ opacity: 0.55, pointerEvents: 'auto' }} aria-disabled="true" onClick={() => alert('Клиент в архиве — сначала «Вернуть из архива».')}>
+                Новая тренировка
+              </button>
+            ) : hasActiveMembership ? (
               <Link to={`/trainer/workouts/new?clientId=${client.id}`} className="btn btn-primary btn-touch btn-xs" style={{ textDecoration: 'none' }}>
                 Новая тренировка
               </Link>
@@ -293,10 +332,10 @@ export function ClientCard() {
         ))}
       </div>
 
-      {tab === 'health' && <ClientOverview client={client} onReload={reloadLocal} section="health" />}
-      {tab === 'memberships' && <ClientOverview client={client} onReload={reloadLocal} section="memberships" />}
+      {tab === 'health' && <ClientOverview client={client} onReload={reloadLocal} section="health" readOnly={isArchived} />}
+      {tab === 'memberships' && <ClientOverview client={client} onReload={reloadLocal} section="memberships" readOnly={isArchived} />}
       {tab === 'stats' && <Statistics clientId={client.id} />}
-      {tab === 'diaries' && <ClientDiaries client={client} onDataChange={reloadLocal} clubQs={isAdmin ? adminClubQs : ''} />}
+      {tab === 'diaries' && <ClientDiaries client={client} onDataChange={reloadLocal} clubQs={isAdmin ? adminClubQs : ''} readOnly={isArchived} />}
     </div>
   )
 }

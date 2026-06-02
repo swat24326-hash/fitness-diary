@@ -11,7 +11,7 @@ import { BODY_MEASURE_FIELDS, getMeasureValue } from '../../lib/bodyMeasures'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 import { explainInactiveMembership, pickUsableMembershipForDate, countedUsedTrainingsOnMembership } from '../../lib/membershipRules'
 
-export function ClientOverview({ client, onReload, section = 'all' }) {
+export function ClientOverview({ client, onReload, section = 'all', readOnly = false }) {
   const [memberships, setMemberships] = useState([])
   const [clientTrainings, setClientTrainings] = useState([])
   const [health, setHealth] = useState(null)
@@ -135,6 +135,10 @@ export function ClientOverview({ client, onReload, section = 'all' }) {
 
   const saveHealth = async (e) => {
     e.preventDefault()
+    if (readOnly) {
+      alert('Клиент в архиве — изменения недоступны. Нажмите «Вернуть из архива».')
+      return
+    }
     const toNumOrNull = (v) => {
       const n = Number(String(v ?? '').replace(',', '.'))
       return Number.isFinite(n) ? n : null
@@ -168,6 +172,10 @@ export function ClientOverview({ client, onReload, section = 'all' }) {
 
   const saveMeasurement = async (e) => {
     e.preventDefault()
+    if (readOnly) {
+      alert('Клиент в архиве — изменения недоступны. Нажмите «Вернуть из архива».')
+      return
+    }
     const id = editingMeasureId ?? crypto.randomUUID()
     const now = new Date().toISOString()
     const prev = editingMeasureId ? measurements.find((m) => m.id === editingMeasureId) : null
@@ -211,6 +219,10 @@ export function ClientOverview({ client, onReload, section = 'all' }) {
   )
 
   const openNewMeasurement = () => {
+    if (readOnly) {
+      alert('Клиент в архиве — изменения недоступны. Нажмите «Вернуть из архива».')
+      return
+    }
     setEditingMeasureId(null)
     setMeasureForm({
       date: todayLocalIso(),
@@ -280,15 +292,21 @@ export function ClientOverview({ client, onReload, section = 'all' }) {
             </p>
           </>
         )}
-        <MembershipManager
-          clientId={client.id}
-          clubId={client.club_id}
-          recordTrainerId={client.trainer_id}
-          onChanged={() => {
-            void reloadLocal()
-            void onReload?.()
-          }}
-        />
+        {!readOnly ? (
+          <MembershipManager
+            clientId={client.id}
+            clubId={client.club_id}
+            recordTrainerId={client.trainer_id}
+            onChanged={() => {
+              void reloadLocal()
+              void onReload?.()
+            }}
+          />
+        ) : (
+          <p className="muted" style={{ margin: '10px 0 0' }}>
+            Клиент в архиве — абонементы можно менять только после «Вернуть из архива».
+          </p>
+        )}
         </section>
       )}
 
@@ -298,7 +316,7 @@ export function ClientOverview({ client, onReload, section = 'all' }) {
           <h2 className="section-title" style={{ fontSize: '1.05rem', margin: 0 }}>
             Карта здоровья
           </h2>
-          {!healthEditing ? (
+          {!healthEditing && !readOnly ? (
             <button
               type="button"
               className="btn btn-ghost btn-icon-square"
@@ -455,15 +473,17 @@ export function ClientOverview({ client, onReload, section = 'all' }) {
                 История ({measurements.length})
               </button>
             ) : null}
-            <button
-              type="button"
-              className="btn btn-primary btn-icon-square"
-              onClick={openNewMeasurement}
-              aria-label="Новый замер"
-              title="Новый замер"
-            >
-              <Plus size={20} aria-hidden />
-            </button>
+            {!readOnly ? (
+              <button
+                type="button"
+                className="btn btn-primary btn-icon-square"
+                onClick={openNewMeasurement}
+                aria-label="Новый замер"
+                title="Новый замер"
+              >
+                <Plus size={20} aria-hidden />
+              </button>
+            ) : null}
           </div>
         </div>
         {!lastM && <p className="muted">Нет замеров.</p>}
@@ -473,15 +493,17 @@ export function ClientOverview({ client, onReload, section = 'all' }) {
               <div className="muted" style={{ margin: 0 }}>
                 Дата: <strong style={{ color: 'var(--text)' }}>{formatDateRu(lastM.date)}</strong>
               </div>
-              <button
-                type="button"
-                className="btn btn-ghost btn-icon-square"
-                aria-label="Редактировать замер"
-                title="Редактировать"
-                onClick={() => openEditMeasurement(lastM)}
-              >
-                <Pencil size={16} aria-hidden />
-              </button>
+              {!readOnly ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-icon-square"
+                  aria-label="Редактировать замер"
+                  title="Редактировать"
+                  onClick={() => openEditMeasurement(lastM)}
+                >
+                  <Pencil size={16} aria-hidden />
+                </button>
+              ) : null}
             </div>
             <div className="measure-grid">
               {measureSummaryFields.map((f) => (

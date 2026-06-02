@@ -65,6 +65,8 @@
 | Проблема | Статус |
 |----------|--------|
 | В «Помощь» у тренера UUID вместо названия клуба | ✅ `resolveClubDisplayName` (кэш + Supabase) |
+| Список клиентов: пагинация + индексы тренировок | ✅ фаза A, см. [CLIENT_ARCHIVE.md](./CLIENT_ARCHIVE.md) |
+| Ручной архив клиентов (тренер + админ) | 📋 фаза B, [CLIENT_ARCHIVE.md](./CLIENT_ARCHIVE.md) |
 | Создание клуба / CONNECTION_RESET (§15 handoff) | открыто |
 
 ---

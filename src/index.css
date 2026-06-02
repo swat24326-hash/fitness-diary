@@ -4398,6 +4398,20 @@ tr:last-child td {
   font-size: 0.9rem;
 }
 
+/* Список клиентов: пагинация «Показать ещё» */
+.client-list-meta {
+  font-size: 0.8125rem;
+  margin: 0 0 8px;
+  line-height: 1.4;
+}
+
+.client-list-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+  padding-bottom: 4px;
+}
+
 .app-loading__ring--sm {
   width: 28px;
   height: 28px;

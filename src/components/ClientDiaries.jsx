@@ -279,7 +279,7 @@ function TrainingViewModal({ training, clientName, trainerName, memberships, all
 /**
  * Вкладка «Дневники»: список тренировок клиента с поиском, фильтрами и карточками.
  */
-export function ClientDiaries({ client, onDataChange, clubQs = '' }) {
+export function ClientDiaries({ client, onDataChange, clubQs = '', readOnly = false }) {
   const { user, isAdmin } = useAuth()
   const workoutPrefix = isAdmin ? '/admin/workouts' : '/trainer/workouts'
   const [trainings, setTrainings] = useState([])
@@ -342,6 +342,10 @@ export function ClientDiaries({ client, onDataChange, clubQs = '' }) {
   }, [trainings, dateSearch, focusSearch, filterStatus])
 
   const copyTraining = async (t) => {
+    if (readOnly) {
+      alert('Клиент в архиве — изменения недоступны. Нажмите «Вернуть из архива».')
+      return
+    }
     const now = new Date().toISOString()
     const today = now.slice(0, 10)
     const newId = crypto.randomUUID()
@@ -362,6 +366,10 @@ export function ClientDiaries({ client, onDataChange, clubQs = '' }) {
   }
 
   const deleteTraining = async (id) => {
+    if (readOnly) {
+      alert('Клиент в архиве — изменения недоступны. Нажмите «Вернуть из архива».')
+      return
+    }
     if (!window.confirm('Удалить черновик тренировки?')) return
     await deleteLocalWithSync('trainings', id, 'trainings')
     notify()
@@ -437,25 +445,27 @@ export function ClientDiaries({ client, onDataChange, clubQs = '' }) {
                   >
                     <Eye size={16} aria-hidden />
                   </button>
-                  <>
-                    <Link
-                      to={`${workoutPrefix}/${t.id}${clubQs}`}
-                      className="diary-btn diary-btn--icon u-no-decoration"
-                      aria-label="Редактировать тренировку"
-                      title="Редактировать"
-                    >
-                      <Pencil size={16} aria-hidden />
-                    </Link>
-                    <button
-                      type="button"
-                      className="diary-btn diary-btn--icon"
-                      title="Копировать как новый черновик"
-                      aria-label="Копировать как новый черновик"
-                      onClick={() => copyTraining(t)}
-                    >
-                      <Copy size={13} aria-hidden />
-                    </button>
-                  </>
+                  {!readOnly ? (
+                    <>
+                      <Link
+                        to={`${workoutPrefix}/${t.id}${clubQs}`}
+                        className="diary-btn diary-btn--icon u-no-decoration"
+                        aria-label="Редактировать тренировку"
+                        title="Редактировать"
+                      >
+                        <Pencil size={16} aria-hidden />
+                      </Link>
+                      <button
+                        type="button"
+                        className="diary-btn diary-btn--icon"
+                        title="Копировать как новый черновик"
+                        aria-label="Копировать как новый черновик"
+                        onClick={() => copyTraining(t)}
+                      >
+                        <Copy size={13} aria-hidden />
+                      </button>
+                    </>
+                  ) : null}
                 </div>
               </div>
 
@@ -485,7 +495,7 @@ export function ClientDiaries({ client, onDataChange, clubQs = '' }) {
 
               <div className="diary-card__footer">
                 <div className="diary-card__footer-left">
-                  {isDraft && (
+                  {isDraft && !readOnly && (
                     <>
                       <Link to={`${workoutPrefix}/${t.id}${clubQs}`} className="diary-btn diary-btn--primary u-no-decoration">
                         <Play size={16} aria-hidden />
