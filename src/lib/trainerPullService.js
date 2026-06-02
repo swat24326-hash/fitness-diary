@@ -29,9 +29,10 @@ function notifyLocalDataChanged() {
   }
 }
 
-async function pruneOrphanTrainerClients(trainerId, remoteClients) {
+async function pruneOrphanTrainerClients(trainerId, remoteClients, opts = {}) {
   const tid = String(trainerId ?? '').trim()
   if (!tid) return 0
+  const preserveArchived = opts?.preserveArchived === true
   const remoteIds = new Set((remoteClients ?? []).map((c) => String(c.id)).filter(Boolean))
   const pending = await buildPendingSyncKeysByTable()
   const db = await getDb()
@@ -47,6 +48,7 @@ async function pruneOrphanTrainerClients(trainerId, remoteClients) {
 
   for (const c of await db.getAll('clients')) {
     if (String(c.trainer_id) !== tid) continue
+    if (preserveArchived && c?.archived_at) continue
     const id = String(c.id)
     if (remoteIds.has(id)) continue
     if (pending.clients.has(id)) continue
@@ -56,7 +58,9 @@ async function pruneOrphanTrainerClients(trainerId, remoteClients) {
   return pruned
 }
 
-async function cacheTrainerPull(trainerId, { clients, memberships, health_cards, body_measurements, trainings }) {
+async function cacheTrainerPull(trainerId, { clients, memberships, health_cards, body_measurements, trainings }, opts = {}) {
+  const mode = String(opts?.mode ?? 'active')
+  const preserveArchived = mode === 'active'
   const pending = await buildPendingSyncKeysByTable()
   for (const row of clients ?? []) await putStoreUnlessPendingSync('clients', row, pending)
   for (const row of memberships ?? []) await putStoreUnlessPendingSync('memberships', row, pending)
@@ -65,9 +69,12 @@ async function cacheTrainerPull(trainerId, { clients, memberships, health_cards,
     await putStoreUnlessPendingSync('body_measurements', normalizeBodyMeasurementRow(row), pending)
   }
   for (const row of trainings ?? []) await putStoreUnlessPendingSync('trainings', row, pending)
-  const pruned_trainings = await pruneOrphanTrainingsForTrainerClients(clients, trainings, pending?.trainings ?? null)
-  const pruned = await pruneOrphanTrainerClients(trainerId, clients)
-  await purgeSyncQueueForMissingClients((clients ?? []).map((c) => c.id))
+  const pruned_trainings =
+    mode === 'active' ? 0 : await pruneOrphanTrainingsForTrainerClients(clients, trainings, pending?.trainings ?? null)
+  const pruned = await pruneOrphanTrainerClients(trainerId, clients, { preserveArchived })
+  if (mode !== 'active') {
+    await purgeSyncQueueForMissingClients((clients ?? []).map((c) => c.id))
+  }
   await pruneRedundantSyncQueue()
   invalidateTrainerWorkspaceCache()
   notifyLocalDataChanged()
@@ -75,14 +82,18 @@ async function cacheTrainerPull(trainerId, { clients, memberships, health_cards,
 }
 
 /** @returns {Promise<{ ok: boolean, source?: string, count?: number, error?: string }>} */
-export async function pullTrainerWorkspaceFromCloud(trainerId) {
+export async function pullTrainerWorkspaceFromCloud(trainerId, opts = {}) {
   const tid = String(trainerId ?? '').trim()
   if (!tid || !isSupabaseConfigured()) return { ok: false, reason: 'no_trainer' }
+  const mode = String(opts?.mode ?? 'active') // active | archive | all
 
   try {
-    const viaApi = await fetchTrainerPullViaApi()
+    const viaApi = await fetchTrainerPullViaApi({
+      includeArchived: mode === 'all',
+      archivedOnly: mode === 'archive',
+    })
     if (viaApi) {
-      const pruned = await cacheTrainerPull(tid, viaApi)
+      const pruned = await cacheTrainerPull(tid, viaApi, { mode })
       return {
         ok: true,
         source: 'api',

@@ -35,16 +35,18 @@ export default async function handler(req, res) {
 
   const trainerId = ctx.user.id
   const { supabaseAdmin } = ctx
+  const includeArchived = String(req.query?.include_archived ?? req.query?.includeArchived ?? '').trim() === '1'
+  const archivedOnly = String(req.query?.archived ?? '').trim() === '1'
 
   const clients = []
   let from = 0
   for (;;) {
-    const { data, error } = await supabaseAdmin
-      .from('clients')
-      .select('*')
-      .eq('trainer_id', trainerId)
-      .order('name', { ascending: true })
-      .range(from, from + PAGE - 1)
+    let q = supabaseAdmin.from('clients').select('*').eq('trainer_id', trainerId)
+    if (!includeArchived) {
+      if (archivedOnly) q = q.not('archived_at', 'is', null)
+      else q = q.is('archived_at', null)
+    }
+    const { data, error } = await q.order('name', { ascending: true }).range(from, from + PAGE - 1)
     if (error) {
       sendJson(res, 400, { error: error.message })
       return

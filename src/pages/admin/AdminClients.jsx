@@ -134,6 +134,19 @@ export function AdminClients() {
 
   useDebouncedStorageReload(() => reload({ silent: true }), { shouldRun: shouldReloadAdminClientsPage })
 
+  // Архив с сервера тянем только когда открыли вкладку «Архив».
+  useEffect(() => {
+    if (clientsTab !== 'archive') return
+    if (!club?.trim()) return
+    if (!isSupabaseConfigured() || !navigator.onLine) return
+    // Если архивных уже нет/есть в кэше — не дёргаем сеть зря.
+    if (clients.some((c) => Boolean(c?.archived_at))) return
+    void (async () => {
+      await pullAdminClientsFromCloud(club, { mode: 'archive' })
+      await reload({ silent: true })
+    })()
+  }, [clientsTab, club, clients, reload])
+
   const refreshFromCloud = useCallback(async () => {
     if (!club?.trim()) {
       setRefreshMsg('Выберите клуб в панели сверху.')

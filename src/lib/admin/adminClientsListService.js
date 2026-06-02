@@ -66,11 +66,12 @@ async function mergeClientsIntoCache(rows) {
  * Удаляет из IndexedDB клиентов клуба и «висячие» тренировки, которых нет в облаке
  * (иначе после удаления тренером админ видит черновики из старого кэша).
  */
-export async function reconcileAdminClubCache(clubId, remoteClients) {
+export async function reconcileAdminClubCache(clubId, remoteClients, opts = {}) {
   const cid = String(clubId ?? '').trim()
   if (!cid) return { pruned_clients: 0, pruned_trainings: 0 }
 
   const remoteIds = new Set((remoteClients ?? []).map((c) => String(c.id)).filter(Boolean))
+  const preserveArchived = opts?.preserveArchived === true
   const pending = await buildPendingSyncKeysByTable()
   const db = await getDb()
   let pruned_clients = 0
@@ -78,6 +79,7 @@ export async function reconcileAdminClubCache(clubId, remoteClients) {
 
   for (const c of await db.getAll('clients')) {
     if (String(c.club_id) !== cid) continue
+    if (preserveArchived && c?.archived_at) continue
     const id = String(c.id)
     if (remoteIds.has(id)) continue
     if (pending.clients.has(id)) continue
@@ -99,7 +101,9 @@ export async function reconcileAdminClubCache(clubId, remoteClients) {
     invalidateAdminClubWorkspaceCache()
   }
 
-  await purgeSyncQueueForMissingClients((remoteClients ?? []).map((c) => c.id))
+  if (!preserveArchived) {
+    await purgeSyncQueueForMissingClients((remoteClients ?? []).map((c) => c.id))
+  }
 
   return { pruned_clients, pruned_trainings }
 }
@@ -131,11 +135,12 @@ function notifyAdminClientsCacheUpdated() {
 }
 
 /** Подтянуть клиентов клуба из облака в IndexedDB (сначала API на Vercel). */
-export async function pullAdminClientsFromCloud(clubId) {
+export async function pullAdminClientsFromCloud(clubId, opts = {}) {
   const cid = String(clubId ?? '').trim()
   if (!cid || !isSupabaseConfigured()) return { ok: false, reason: 'no_club' }
+  const mode = String(opts?.mode ?? 'active') // active | archive | all
 
-  const viaApi = await fetchClientsForClubViaAdminApi(cid)
+  const viaApi = await fetchClientsForClubViaAdminApi(cid, { mode })
   if (viaApi) {
     await mergeClientsIntoCache(viaApi.clients)
     try {
@@ -157,13 +162,14 @@ export async function pullAdminClientsFromCloud(clubId) {
     } catch (hcErr) {
       console.warn('[admin] list-health-cards', hcErr)
     }
-    const pruned = await reconcileAdminClubCache(cid, viaApi.clients)
+    const pruned = mode === 'active' ? await reconcileAdminClubCache(cid, viaApi.clients, { preserveArchived: true }) : { pruned_clients: 0, pruned_trainings: 0 }
     notifyAdminClientsCacheUpdated()
+    const { clients } = await listAdminClientsFromLocalCache(cid)
     return {
       ok: true,
       count: viaApi.count,
       source: 'admin_api',
-      clients: viaApi.clients,
+      clients,
       pruned_clients: pruned.pruned_clients,
       pruned_trainings: pruned.pruned_trainings,
     }
@@ -228,10 +234,10 @@ export async function listAdminClientsForClub(p) {
 
   try {
     try {
-      const viaApi = await fetchClientsForClubViaAdminApi(clubId)
+      const viaApi = await fetchClientsForClubViaAdminApi(clubId, { mode: 'active' })
       if (viaApi) {
         await mergeClientsIntoCache(viaApi.clients)
-        await reconcileAdminClubCache(clubId, viaApi.clients)
+        await reconcileAdminClubCache(clubId, viaApi.clients, { preserveArchived: true })
         try {
           const viaMem = await fetchMembershipsForClubViaAdminApi(clubId)
           if (viaMem?.memberships?.length) {
@@ -251,11 +257,7 @@ export async function listAdminClientsForClub(p) {
         } catch (hcErr) {
           console.warn('[admin] list-health-cards', hcErr)
         }
-        const sorted = [...viaApi.clients].sort((a, b) =>
-          String(a.name ?? '').localeCompare(String(b.name ?? ''), 'ru'),
-        )
-        const truncated = sorted.length >= ADMIN_CLIENTS_REMOTE_LIMIT
-        const clients = truncated ? sorted.slice(0, ADMIN_CLIENTS_REMOTE_LIMIT) : sorted
+        const { clients, truncated } = await listAdminClientsFromLocalCache(clubId)
         return {
           clients,
           source: 'admin_api',

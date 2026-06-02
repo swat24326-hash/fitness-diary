@@ -115,16 +115,21 @@ export async function fetchTrainersViaAdminApi() {
  * GET /api/list-clients?club_id=… — null если маршрута нет.
  * @returns {Promise<{ clients: object[], count: number } | null>}
  */
-export async function fetchClientsForClubViaAdminApi(clubId) {
+export async function fetchClientsForClubViaAdminApi(clubId, opts = {}) {
   const cid = String(clubId ?? '').trim()
   if (!cid) return null
+  const mode = String(opts?.mode ?? 'active') // active | archive | all
 
   const token = await getAccessTokenForAdminApi()
   if (!token) {
     throw new Error('Нет сессии администратора — войдите снова.')
   }
 
-  const url = `${apiOrigin()}/api/list-clients?club_id=${encodeURIComponent(cid)}`
+  const qs = new URLSearchParams()
+  qs.set('club_id', cid)
+  if (mode === 'archive') qs.set('archived', '1')
+  if (mode === 'all') qs.set('include_archived', '1')
+  const url = `${apiOrigin()}/api/list-clients?${qs.toString()}`
   const headers = { Authorization: `Bearer ${token}` }
   let lastErr
 

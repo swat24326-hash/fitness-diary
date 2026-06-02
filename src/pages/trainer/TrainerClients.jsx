@@ -108,6 +108,19 @@ export function TrainerClients() {
     }
   }, [user?.id, trainerClubId, reload])
 
+  // Архивные клиенты с сервера подгружаем только при открытии вкладки «Архив».
+  useEffect(() => {
+    if (clientsTab !== 'archive') return
+    if (!user?.id) return
+    if (!isSupabaseConfigured() || !isAppOnline()) return
+    // Если в локальном кэше архива нет — подтянем один раз.
+    if (archivedClients.length > 0) return
+    void (async () => {
+      await pullTrainerWorkspaceFromCloud(user.id, { mode: 'archive' })
+      await reload({ silent: true })
+    })()
+  }, [clientsTab, archivedClients.length, user?.id, reload])
+
   useDebouncedStorageReload(() => reload({ silent: true }), { shouldRun: shouldReloadTrainerClientList })
 
   const today = todayLocalIso()
