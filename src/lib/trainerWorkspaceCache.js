@@ -6,7 +6,7 @@ import { buildLastTrainingDateByClientId, buildTrainingsByClientId } from './tra
 
 const STORAGE_EVENT = 'fitness-diary-storage'
 
-/** @type {null | { key: string, clients: object[], trainings: object[], memByClient: Record<string, object[]>, trainingsByClientId: Record<string, object[]>, lastTrainingDateByClientId: Record<string, string> }} */
+/** @type {null | { key: string, clients: object[], archivedClients: object[], trainings: object[], memByClient: Record<string, object[]>, trainingsByClientId: Record<string, object[]>, lastTrainingDateByClientId: Record<string, string> }} */
 let snapshot = null
 
 let invalidateTimer = null
@@ -75,6 +75,7 @@ export async function loadTrainerWorkspaceSnapshot(trainerId, trainerClubId) {
   if (snapshot?.key === key) {
     return {
       clients: snapshot.clients,
+      archivedClients: snapshot.archivedClients ?? [],
       trainings: snapshot.trainings,
       memByClient: snapshot.memByClient,
       trainingsByClientId: snapshot.trainingsByClientId,
