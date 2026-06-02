@@ -47,6 +47,14 @@ function trainerClubIds(allClients, trainerId, trainerClubId) {
   return out
 }
 
+function clientNameSortKey(c) {
+  return String(c?.name ?? '').trim().toLowerCase()
+}
+
+function sortClientsByName(list) {
+  return [...(list ?? [])].sort((a, b) => clientNameSortKey(a).localeCompare(clientNameSortKey(b), 'ru'))
+}
+
 /**
  * @param {string} trainerId
  * @param {string | null} trainerClubId
@@ -88,8 +96,8 @@ export async function loadTrainerWorkspaceSnapshot(trainerId, trainerClubId) {
     clientsAll = clientsAll.filter((c) => clubIds.has(String(c.club_id ?? '')))
   }
 
-  const archivedClients = clientsAll.filter((c) => Boolean(c?.archived_at))
-  const activeClients = clientsAll.filter((c) => !c?.archived_at)
+  const archivedClients = sortClientsByName(clientsAll.filter((c) => Boolean(c?.archived_at)))
+  const activeClients = sortClientsByName(clientsAll.filter((c) => !c?.archived_at))
 
   const clientIds = clientsAll.map((c) => c.id)
   const clientIdSet = new Set(clientIds)
