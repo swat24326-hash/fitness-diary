@@ -178,7 +178,7 @@ export function TrainerHome() {
                   <p className="trainer-challenge-card__desc">{ch.description.trim()}</p>
                 ) : null}
                 <p className="trainer-challenge-card__meta muted">
-                  {formatChallengeMetricRu(ch.metric)} · до {formatDateRu(ch.end_date)} ({daysLeftRu(ch.end_date)})
+                  {formatChallengeMetricRu(ch.metric, ch.reference_weight_kg)} · до {formatDateRu(ch.end_date)} ({daysLeftRu(ch.end_date)})
                 </p>
                 {mine.length === 0 ? (
                   <p className="trainer-challenge-card__empty muted" style={{ margin: 0 }}>

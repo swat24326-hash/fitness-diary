@@ -15,6 +15,7 @@ import {
   deleteChallengeById,
   formatChallengeMetricRu,
   formatChallengeValueRu,
+  normalizeChallengeReferenceWeight,
   CHALLENGE_METRICS,
 } from '../../lib/dataAccess'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
@@ -59,6 +60,8 @@ export function AdminChallenges() {
     description: '',
     exercise_id: '',
     metric: 'max_weight',
+    useReferenceWeight: false,
+    reference_weight_kg: '',
     start_date: '',
     end_date: '',
   })
@@ -165,6 +168,8 @@ export function AdminChallenges() {
         description: '',
         exercise_id: list[0]?.id ?? '',
         metric: 'max_weight',
+        useReferenceWeight: false,
+        reference_weight_kg: '',
         start_date: today,
         end_date: today,
       })
@@ -176,12 +181,21 @@ export function AdminChallenges() {
   const submitCreate = async (e) => {
     e.preventDefault()
     setSaveMsg('')
+    const reference_weight_kg =
+      form.metric === 'max_reps' && form.useReferenceWeight
+        ? normalizeChallengeReferenceWeight(form.metric, form.reference_weight_kg)
+        : null
+    if (form.metric === 'max_reps' && form.useReferenceWeight && reference_weight_kg == null) {
+      setSaveMsg('Укажите вес для зачёта (кг)')
+      return
+    }
     const draft = {
       name: form.name,
       description: form.description,
       club_id: clubId,
       exercise_id: form.exercise_id,
       metric: form.metric,
+      reference_weight_kg,
       start_date: form.start_date,
       end_date: form.end_date,
     }
@@ -200,6 +214,7 @@ export function AdminChallenges() {
       description: desc || null,
       exercise_id: form.exercise_id,
       metric: form.metric,
+      reference_weight_kg,
       start_date: String(form.start_date).slice(0, 10),
       end_date: String(form.end_date).slice(0, 10),
       status: 'active',
@@ -324,7 +339,7 @@ export function AdminChallenges() {
                   <span className="challenge-list-card__dot" aria-hidden>
                     ·
                   </span>
-                  <span>{formatChallengeMetricRu(ch.metric)}</span>
+                  <span>{formatChallengeMetricRu(ch.metric, ch.reference_weight_kg)}</span>
                 </p>
                 <p className="muted challenge-list-card__dates">
                   {formatDateRu(ch.start_date)} — {formatDateRu(ch.end_date)}
@@ -413,7 +428,18 @@ export function AdminChallenges() {
               </label>
               <label className="field">
                 <span className="field__label">Показатель</span>
-                <select className="input" value={form.metric} onChange={(e) => setForm((f) => ({ ...f, metric: e.target.value }))}>
+                <select
+                  className="input"
+                  value={form.metric}
+                  onChange={(e) => {
+                    const metric = e.target.value
+                    setForm((f) => ({
+                      ...f,
+                      metric,
+                      ...(metric !== 'max_reps' ? { useReferenceWeight: false, reference_weight_kg: '' } : {}),
+                    }))
+                  }}
+                >
                   {CHALLENGE_METRICS.map((id) => (
                     <option key={id} value={id}>
                       {formatChallengeMetricRu(id)}
@@ -421,6 +447,44 @@ export function AdminChallenges() {
                   ))}
                 </select>
               </label>
+              {form.metric === 'max_reps' ? (
+                <div className="challenge-modal__reps-weight">
+                  <label className="challenge-modal__check">
+                    <input
+                      type="checkbox"
+                      checked={form.useReferenceWeight}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          useReferenceWeight: e.target.checked,
+                          ...(e.target.checked ? {} : { reference_weight_kg: '' }),
+                        }))
+                      }
+                    />
+                    <span>Зачёт только при заданном весе (жим, присед и т.п.)</span>
+                  </label>
+                  {form.useReferenceWeight ? (
+                    <label className="field">
+                      <span className="field__label">Вес для зачёта, кг</span>
+                      <input
+                        className="input"
+                        type="number"
+                        min="0.5"
+                        step="0.5"
+                        inputMode="decimal"
+                        placeholder="100"
+                        value={form.reference_weight_kg}
+                        onChange={(e) => setForm((f) => ({ ...f, reference_weight_kg: e.target.value }))}
+                        required={form.useReferenceWeight}
+                      />
+                    </label>
+                  ) : (
+                    <p className="muted challenge-modal__reps-hint">
+                      Без галочки — лучший подход по числу повторений при любом весе (подтягивания, отжимания со своим весом).
+                    </p>
+                  )}
+                </div>
+              ) : null}
               <div className="challenge-modal__row">
                 <label className="field">
                   <span className="field__label">Начало</span>
@@ -433,7 +497,7 @@ export function AdminChallenges() {
               </div>
               {saveMsg ? <p className="form-error">{saveMsg}</p> : null}
               <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-                После сохранения рейтинг считается автоматически из завершённых тренировок за период.
+                Рейтинг строится из завершённых тренировок за период. Для «макс. повторений» с весом учитываются только подходы с этим весом (±0,5 кг).
               </p>
               <div className="challenge-modal__footer">
                 <button type="button" className="btn btn-ghost" onClick={() => setModal(false)}>

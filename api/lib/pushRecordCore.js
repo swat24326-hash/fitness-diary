@@ -50,6 +50,14 @@ async function prepareChallengePayload(supabaseAdmin, data) {
         'Упражнение не найдено в облаке. В админке: Sync в шапке (подтянуть упражнения), затем создайте челлендж снова или нажмите Sync.',
     }
   }
+  if (String(row.metric ?? '') !== 'max_reps') {
+    row.reference_weight_kg = null
+  } else if (row.reference_weight_kg != null && row.reference_weight_kg !== '') {
+    const w = Number(String(row.reference_weight_kg).replace(',', '.'))
+    row.reference_weight_kg = Number.isFinite(w) && w > 0 ? Math.round(w * 100) / 100 : null
+  } else {
+    row.reference_weight_kg = null
+  }
   return { ok: true, data: row }
 }
 

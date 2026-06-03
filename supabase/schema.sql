@@ -176,6 +176,7 @@ CREATE TABLE challenges (
   description TEXT,
   exercise_id UUID NOT NULL REFERENCES exercises (id) ON DELETE RESTRICT,
   metric TEXT NOT NULL DEFAULT 'max_weight' CHECK (metric IN ('max_weight', 'max_reps', 'max_time_sec', 'max_distance_m', 'max_rpe', 'max_points')),
+  reference_weight_kg NUMERIC(8, 2) CHECK (reference_weight_kg IS NULL OR reference_weight_kg > 0),
   start_date DATE NOT NULL,
   end_date DATE NOT NULL,
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'completed', 'cancelled')),

@@ -5837,6 +5837,32 @@ tr:last-child td {
   resize: vertical;
 }
 
+.challenge-modal__reps-weight {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.challenge-modal__check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.45;
+  cursor: pointer;
+}
+
+.challenge-modal__check input[type='checkbox'] {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+.challenge-modal__reps-hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .challenge-modal__row {
   display: grid;
   grid-template-columns: 1fr 1fr;

@@ -6,7 +6,7 @@ import {
   getChallengeByIdLocal,
   loadContextForChallengeLeaderboard,
   buildChallengeLeaderboard,
-  formatChallengeMetricRu,
+  formatChallengeMetricLabel,
   formatChallengeValueRu,
   updateChallengeRecord,
   deleteChallengeById,
@@ -190,7 +190,7 @@ export function AdminChallengeDetail() {
               <p className="challenge-detail__subtitle">
                 <span>{exerciseName}</span>
                 <span className="challenge-list-card__dot">·</span>
-                <span>{formatChallengeMetricRu(challenge.metric)}</span>
+                <span>{formatChallengeMetricLabel(challenge)}</span>
                 <span className="challenge-list-card__dot">·</span>
                 <span>
                   {formatDateRu(challenge.start_date)} — {formatDateRu(challenge.end_date)}

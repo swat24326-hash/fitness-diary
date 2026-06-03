@@ -47,7 +47,10 @@ export { hydrateAdminClientWorkspace } from './admin/adminClientHydrate'
 export {
   CHALLENGE_METRICS,
   formatChallengeMetricRu,
+  formatChallengeMetricLabel,
   formatChallengeValueRu,
+  parseReferenceWeightKg,
+  normalizeChallengeReferenceWeight,
   isChallengeActiveByCalendar,
   isChallengeVisibleForTrainerHome,
   buildChallengeLeaderboard,

@@ -4,19 +4,34 @@ import { todayLocalIso } from './dateRu'
 import { isAppOnline, saveLocalWithSync, deleteLocalWithSync } from './syncService'
 import { pushRecordViaApi } from './syncApiClient'
 import { fetchChallengeTrainingsViaApi, fetchTrainersViaAdminApi } from './admin/adminApiClient'
+import {
+  CHALLENGE_METRICS,
+  CHALLENGE_REF_WEIGHT_TOLERANCE_KG,
+  buildChallengeLeaderboard,
+  bestMaxRepsFromSets,
+  normExerciseName,
+  normalizeChallengeReferenceWeight,
+  parseReferenceWeightKg,
+  weightMatchesReferenceKg,
+} from './challengeLeaderboardCore'
 
-/** Допустимые метрики при создании/редактировании челленджа */
-export const CHALLENGE_METRICS = ['max_weight', 'max_reps', 'max_time_sec', 'max_distance_m']
-
-/** Устаревшие значения в старых данных — рейтинг считаем, в форме не предлагаем */
-const LEGACY_METRICS = ['max_rpe', 'max_points']
-
-function isKnownChallengeMetric(metric) {
-  return CHALLENGE_METRICS.includes(metric) || LEGACY_METRICS.includes(metric)
+export {
+  CHALLENGE_METRICS,
+  CHALLENGE_REF_WEIGHT_TOLERANCE_KG,
+  buildChallengeLeaderboard,
+  bestMaxRepsFromSets,
+  normExerciseName,
+  normalizeChallengeReferenceWeight,
+  parseReferenceWeightKg,
+  weightMatchesReferenceKg,
 }
 
-export function formatChallengeMetricRu(metric) {
-  if (metric === 'max_reps') return 'Макс. повторения'
+export function formatChallengeMetricRu(metric, referenceWeightKg = null) {
+  if (metric === 'max_reps') {
+    const ref = parseReferenceWeightKg(referenceWeightKg)
+    if (ref != null) return `Макс. повторения @ ${ref} кг`
+    return 'Макс. повторения'
+  }
   if (metric === 'max_time_sec') return 'Макс. время (сек.)'
   if (metric === 'max_distance_m') return 'Макс. расстояние (м)'
   if (metric === 'max_points') return 'Максимум (устар.)'
@@ -24,10 +39,15 @@ export function formatChallengeMetricRu(metric) {
   return 'Макс. вес'
 }
 
+/** Подпись метрики из строки челленджа. */
+export function formatChallengeMetricLabel(challenge) {
+  return formatChallengeMetricRu(challenge?.metric, challenge?.reference_weight_kg)
+}
+
 export function formatChallengeValueRu(metric, value) {
   if (value == null || !Number.isFinite(value)) return '—'
   if (metric === 'max_weight') return `${Math.round(value * 10) / 10} кг`
-  if (metric === 'max_reps') return `${Math.round(value)}`
+  if (metric === 'max_reps') return `${Math.round(value)} повт.`
   if (metric === 'max_time_sec') return `${Math.round(value * 10) / 10} с`
   if (metric === 'max_distance_m') return `${Math.round(value * 10) / 10} м`
   if (metric === 'max_points') return `${Math.round(value * 10) / 10}`
@@ -55,147 +75,6 @@ export function isChallengeVisibleForTrainerHome(ch) {
   const today = todayLocalIso()
   const b = String(ch.end_date ?? '').slice(0, 10)
   return !!b && today <= b
-}
-
-export function normExerciseName(s) {
-  return String(s ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-}
-
-function parseNum(v) {
-  const n = Number(String(v ?? '').replace(',', '.'))
-  return Number.isFinite(n) ? n : null
-}
-
-function safeParseData(raw) {
-  if (raw == null) return {}
-  if (typeof raw === 'string') {
-    try {
-      return JSON.parse(raw)
-    } catch {
-      return {}
-    }
-  }
-  if (typeof raw === 'object') return raw
-  return {}
-}
-
-function exerciseMatchesChallenge(ex, exerciseId, catalogNameNorm) {
-  const cid = ex?.catalog_exercise_id
-  if (cid && String(cid) === String(exerciseId)) return true
-  const n = normExerciseName(ex?.name)
-  if (catalogNameNorm && n && n === catalogNameNorm) return true
-  return false
-}
-
-function bestMetricInExercise(ex, metric) {
-  const sets = Array.isArray(ex?.sets) ? ex.sets : []
-  let best = null
-  for (const set of sets) {
-    if (metric === 'max_weight') {
-      const v = parseNum(set?.weight_kg)
-      if (v != null && v > 0) best = best == null ? v : Math.max(best, v)
-    } else if (metric === 'max_reps') {
-      const v = parseNum(set?.reps)
-      if (v != null && v >= 1) best = best == null ? v : Math.max(best, v)
-    } else if (metric === 'max_time_sec') {
-      const v = parseNum(set?.tut_sec)
-      if (v != null && v > 0) best = best == null ? v : Math.max(best, v)
-    } else if (metric === 'max_distance_m') {
-      const v = parseNum(set?.distance_m)
-      if (v != null && v > 0) best = best == null ? v : Math.max(best, v)
-    } else if (metric === 'max_points') {
-      const v = parseNum(set?.points)
-      if (v != null && v > 0) best = best == null ? v : Math.max(best, v)
-    } else if (metric === 'max_rpe') {
-      const v = parseNum(set?.rpe)
-      if (v != null && v > 0) best = best == null ? v : Math.max(best, v)
-    }
-  }
-  return best
-}
-
-function trainingDateInRange(dateStr, start, end) {
-  const d = String(dateStr ?? '').slice(0, 10)
-  const a = String(start ?? '').slice(0, 10)
-  const b = String(end ?? '').slice(0, 10)
-  if (!d || !a || !b) return false
-  return d >= a && d <= b
-}
-
-/**
- * Рейтинг по завершённым тренировкам: для каждого клиента — лучшее значение метрики
- * по всем подходам выбранного упражнения за период (совпадение по catalog_exercise_id или по имени из справочника).
- */
-export function buildChallengeLeaderboard(challenge, ctx) {
-  const { trainings, clients, exercises } = ctx
-  if (!challenge?.club_id || !challenge?.exercise_id || !isKnownChallengeMetric(challenge.metric)) {
-    return { rows: [], exerciseName: '—', error: 'invalid_challenge' }
-  }
-
-  const exRow = (exercises ?? []).find((e) => String(e.id) === String(challenge.exercise_id))
-  const exerciseName = exRow?.name?.trim() || 'Упражнение'
-  const nameNorm = normExerciseName(exRow?.name)
-
-  const clientById = new Map((clients ?? []).filter((c) => c?.id).map((c) => [c.id, c]))
-  const bestByClient = new Map()
-
-  for (const t of trainings ?? []) {
-    const cid = t.client_id
-    const clientRow = cid ? clientById.get(cid) : null
-    const tClub = String(t.club_id ?? clientRow?.club_id ?? '')
-    if (tClub !== String(challenge.club_id)) continue
-    if (String(t.status ?? '').toLowerCase() !== 'completed') continue
-    if (!trainingDateInRange(t.date, challenge.start_date, challenge.end_date)) continue
-    if (!cid) continue
-
-    const data = safeParseData(t.data)
-    const workoutExercises = Array.isArray(data.exercises) ? data.exercises : []
-
-    let sessionBest = null
-    for (const ex of workoutExercises) {
-      if (!exerciseMatchesChallenge(ex, challenge.exercise_id, nameNorm)) continue
-      const v = bestMetricInExercise(ex, challenge.metric)
-      if (v == null) continue
-      sessionBest = sessionBest == null ? v : Math.max(sessionBest, v)
-    }
-    if (sessionBest == null) continue
-
-    const prev = bestByClient.get(cid)
-    bestByClient.set(cid, prev == null ? sessionBest : Math.max(prev, sessionBest))
-  }
-
-  const trainerNameById = ctx.trainerNameById instanceof Map ? ctx.trainerNameById : new Map(Object.entries(ctx.trainerNameById ?? {}))
-
-  const rows = []
-  for (const [clientId, value] of bestByClient) {
-    const c = clientById.get(clientId)
-    const trainerId = c?.trainer_id ?? null
-    rows.push({
-      client_id: clientId,
-      client_name: c?.name?.trim() || 'Клиент',
-      trainer_id: trainerId,
-      trainer_name: trainerId ? trainerNameById.get(trainerId) || `Тренер ${String(trainerId).slice(0, 8)}…` : '—',
-      value,
-    })
-  }
-
-  rows.sort((a, b) => b.value - a.value)
-
-  let rank = 1
-  let i = 0
-  while (i < rows.length) {
-    const val = rows[i].value
-    let j = i + 1
-    while (j < rows.length && rows[j].value === val) j += 1
-    for (let k = i; k < j; k++) rows[k].rank = rank
-    rank += j - i
-    i = j
-  }
-
-  return { rows, exerciseName, error: null }
 }
 
 /** Кэш имён тренеров на сессию — не дергать /api/list-trainers на каждый челлендж. */
@@ -448,6 +327,12 @@ export function validateChallengeDraft(d) {
   if (!d.club_id) return { ok: false, message: 'Выберите клуб' }
   if (!d.exercise_id) return { ok: false, message: 'Выберите упражнение' }
   if (!CHALLENGE_METRICS.includes(d.metric)) return { ok: false, message: 'Некорректный показатель' }
+  if (d.metric !== 'max_reps' && d.reference_weight_kg != null) {
+    return { ok: false, message: 'Вес зачёта только для «Макс. повторения»' }
+  }
+  if (d.metric === 'max_reps' && d.reference_weight_kg != null && parseReferenceWeightKg(d.reference_weight_kg) == null) {
+    return { ok: false, message: 'Укажите вес для зачёта (кг) или снимите галочку' }
+  }
   const a = String(d.start_date ?? '').slice(0, 10)
   const b = String(d.end_date ?? '').slice(0, 10)
   if (!a || !b) return { ok: false, message: 'Укажите период' }

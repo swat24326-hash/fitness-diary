@@ -42,6 +42,7 @@ run('membership type stats', 'node', ['scripts/verify-membership-type-stats.mjs'
 run('club client period', 'node', ['scripts/verify-club-client-period.mjs'])
 run('club monthly year', 'node', ['scripts/verify-club-monthly-year.mjs'])
 run('stats agg parity', 'node', ['scripts/verify-stats-agg-parity.mjs'])
+run('challenge max reps', 'node', ['scripts/verify-challenge-max-reps.mjs'])
 
 if (!skipLint) {
   run('lint', 'npm', ['run', 'lint'])
