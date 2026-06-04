@@ -179,6 +179,13 @@ export async function executePushRecord(ctx, item) {
 
     if (operation === 'update' && remote_id) {
       let payload = table_name === 'trainings' ? normalizeTrainingPayload(data) : data
+      if (table_name === 'challenges') {
+        const prep = await prepareChallengePayload(supabaseAdmin, data)
+        if (!prep.ok) {
+          return { ok: false, status: 400, error: prep.error }
+        }
+        payload = prep.data
+      }
       if (table_name === 'memberships') {
         const link = await validateMembershipTypeLink(supabaseAdmin, payload, 'update')
         if (!link.ok) return { ok: false, status: 400, error: link.error }

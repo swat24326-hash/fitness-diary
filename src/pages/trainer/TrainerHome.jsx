@@ -7,6 +7,7 @@ import {
   buildChallengeLeaderboard,
   isChallengeVisibleForTrainerHome,
   listChallengesForTrainer,
+  pullChallengeTrainingsForClubChallenges,
   formatChallengeValueRu,
   formatChallengeMetricRu,
 } from '../../lib/dataAccess'
@@ -84,6 +85,24 @@ export function TrainerHome() {
           return
         }
         void pull
+
+        if (isAppOnline() && active.length) {
+          const byClub = new Map()
+          for (const ch of active) {
+            const cid = String(ch.club_id ?? '').trim()
+            if (!cid) continue
+            if (!byClub.has(cid)) byClub.set(cid, [])
+            byClub.get(cid).push(ch)
+          }
+          for (const [cid, clubChallenges] of byClub) {
+            try {
+              await pullChallengeTrainingsForClubChallenges(cid, clubChallenges, { notify: false })
+            } catch (e) {
+              console.warn('[trainer-home] challenge trainings pull', e)
+            }
+            if (gen !== loadGenRef.current) return
+          }
+        }
 
         const clients = await getAllStore('clients')
         if (gen !== loadGenRef.current) return

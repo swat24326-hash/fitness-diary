@@ -6,6 +6,7 @@ import {
   getChallengeByIdLocal,
   loadContextForChallengeLeaderboard,
   buildChallengeLeaderboard,
+  collectTrainerClubIds,
   formatChallengeMetricLabel,
   formatChallengeValueRu,
 } from '../../lib/dataAccess'
@@ -30,6 +31,7 @@ export function TrainerChallengeDetail() {
   const [exerciseName, setExerciseName] = useState('—')
   const [busy, setBusy] = useState(true)
   const [myClientIds, setMyClientIds] = useState(() => new Set())
+  const [accessDenied, setAccessDenied] = useState(false)
 
   const load = useCallback(
     async ({ silent = false, pullRemote = true } = {}) => {
@@ -39,10 +41,13 @@ export function TrainerChallengeDetail() {
         const ch = await getChallengeByIdLocal(challengeId)
         setChallenge(ch ?? null)
         if (!ch?.club_id) {
+          setAccessDenied(false)
           setRows([])
           setExerciseName('—')
           return
         }
+        const trainerClubIds = await collectTrainerClubIds(myTrainerId, user?.club_id ?? '')
+        setAccessDenied(!trainerClubIds.includes(String(ch.club_id)))
         const clients = await getAllStore('clients')
         const mine = new Set(
           (clients ?? [])
@@ -68,7 +73,7 @@ export function TrainerChallengeDetail() {
         if (!silent) setBusy(false)
       }
     },
-    [challengeId, myTrainerId],
+    [challengeId, myTrainerId, user?.club_id],
   )
 
   useEffect(() => {
@@ -87,7 +92,7 @@ export function TrainerChallengeDetail() {
 
   if (!challengeId) return <p className="muted">Не указан челлендж.</p>
 
-  if (user?.club_id && challenge && String(challenge.club_id) !== String(user.club_id)) {
+  if (accessDenied && challenge) {
     return <Navigate to="/trainer" replace />
   }
 

@@ -4,6 +4,7 @@ import {
   parseReferenceWeightKg,
   weightMatchesReferenceKg,
 } from '../src/lib/challengeLeaderboardCore.js'
+import { isClientArchived } from '../src/lib/clientArchive.js'
 
 let failed = 0
 
@@ -113,6 +114,17 @@ const lb2 = buildChallengeLeaderboard(pullups, {
   ],
 })
 ok(lb2.rows[0]?.value === 20, 'bodyweight challenge max reps any weight')
+
+const archivedCtx = {
+  ...ctx,
+  clients: [
+    { id: 'c1', club_id: 'club-1', name: 'Архивный', trainer_id: 't1', archived_at: '2026-06-01T00:00:00Z' },
+    { id: 'c2', club_id: 'club-1', name: 'Боря', trainer_id: 't1' },
+  ],
+}
+const lbArch = buildChallengeLeaderboard({ ...challenge, reference_weight_kg: null }, archivedCtx)
+ok(lbArch.rows.length === 1 && lbArch.rows[0].client_id === 'c2', 'archived client excluded from leaderboard')
+ok(isClientArchived(archivedCtx.clients[0]), 'fixture archived')
 
 if (failed) process.exit(1)
 console.log('verify-challenge-max-reps: all passed')

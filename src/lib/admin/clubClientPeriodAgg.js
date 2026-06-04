@@ -5,6 +5,7 @@ import {
   inactiveMembershipDetail,
   inactiveMembershipReferenceDate,
 } from '../membershipRules.js'
+import { filterOperationalClients } from '../clientArchive.js'
 
 /**
  * @param {{ id: string, name?: string, phone?: string }[]} clientRows
@@ -16,10 +17,11 @@ import {
 export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, dateTo, asOf) {
   const from = String(dateFrom ?? '').slice(0, 10)
   const to = String(dateTo ?? '').slice(0, 10)
-  const totalClients = clientRows.length
-  const clientIdSet = new Set(clientRows.map((c) => c.id).filter(Boolean))
+  const operational = filterOperationalClients(clientRows)
+  const totalClients = operational.length
+  const clientIdSet = new Set(operational.map((c) => c.id).filter(Boolean))
   const clientById = new Map()
-  for (const c of clientRows ?? []) {
+  for (const c of operational) {
     const id = String(c?.id ?? '').trim()
     if (id) clientById.set(id, c)
   }

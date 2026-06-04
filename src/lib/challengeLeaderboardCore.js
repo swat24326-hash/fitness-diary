@@ -1,5 +1,7 @@
 /** Чистая логика рейтинга челленджей (без React / IDB / Supabase). */
 
+import { isClientArchived } from './clientArchive.js'
+
 export const CHALLENGE_METRICS = ['max_weight', 'max_reps', 'max_time_sec', 'max_distance_m']
 
 const LEGACY_METRICS = ['max_rpe', 'max_points']
@@ -135,6 +137,7 @@ export function buildChallengeLeaderboard(challenge, ctx) {
   for (const t of trainings ?? []) {
     const cid = t.client_id
     const clientRow = cid ? clientById.get(cid) : null
+    if (clientRow && isClientArchived(clientRow)) continue
     const tClub = String(t.club_id ?? clientRow?.club_id ?? '')
     if (tClub !== String(challenge.club_id)) continue
     if (String(t.status ?? '').toLowerCase() !== 'completed') continue

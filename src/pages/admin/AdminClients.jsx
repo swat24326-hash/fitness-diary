@@ -139,8 +139,6 @@ export function AdminClients() {
     if (clientsTab !== 'archive') return
     if (!club?.trim()) return
     if (!isSupabaseConfigured() || !navigator.onLine) return
-    // Если архивных уже нет/есть в кэше — не дёргаем сеть зря.
-    if (clients.some((c) => Boolean(c?.archived_at))) return
     void (async () => {
       await pullAdminClientsFromCloud(club, { mode: 'archive' })
       await reload({ silent: true })

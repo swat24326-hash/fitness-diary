@@ -49,6 +49,14 @@ ok(
 ok(r.inactiveClients.some((c) => c.id === 'c3' && c.inactiveReason === 'not_started'), 'c3 not started')
 ok(r.notRenewedInPeriod === 0, 'notRenewed deprecated empty')
 
+const withArchived = [
+  ...clients,
+  { id: 'c5', name: 'Архивный', archived_at: '2026-06-01T00:00:00Z' },
+]
+const rArch = aggregateClubClientPeriod(withArchived, memberships, '2026-05-01', '2026-05-31', '2026-05-31')
+ok(rArch.totalClients === 4, 'archived excluded from totalClients')
+ok(!rArch.inactiveClients.some((c) => c.id === 'c5'), 'archived not in inactive list')
+
 const juneClient = [{ id: 'maria', name: 'Шах Мария' }]
 const juneMem = [
   { client_id: 'maria', start_date: '2026-05-29', end_date: '2026-06-29', total_trainings: 8, used_trainings: 2 },

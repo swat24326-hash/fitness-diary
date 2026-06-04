@@ -66,6 +66,13 @@ assertParity(
   aggSrcClub(juneClient, juneMem, '2026-06-01', '2026-06-30', '2026-06-30'),
 )
 
+const withArchived = [...clients, { id: 'c5', name: 'Архив', archived_at: '2026-06-01' }]
+assertParity(
+  'aggregateClubClientPeriod excludes archived',
+  aggApiClub(withArchived, memberships, dateFrom, dateTo, asOf),
+  aggSrcClub(withArchived, memberships, dateFrom, dateTo, asOf),
+)
+
 const membershipRows = [
   { id: 'm1', membership_type_id: 't12' },
   { id: 'm2', membership_type_id: null },

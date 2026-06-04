@@ -113,8 +113,6 @@ export function TrainerClients() {
     if (clientsTab !== 'archive') return
     if (!user?.id) return
     if (!isSupabaseConfigured() || !isAppOnline()) return
-    // Если в локальном кэше архива нет — подтянем один раз.
-    if (archivedClients.length > 0) return
     void (async () => {
       await pullTrainerWorkspaceFromCloud(user.id, { mode: 'archive' })
       await reload({ silent: true })
