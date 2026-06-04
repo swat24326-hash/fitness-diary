@@ -325,6 +325,7 @@ export async function fetchTrainerPullViaApi(opts = {}) {
   if (!isSupabaseConfigured()) return null
   const includeArchived = opts?.includeArchived === true
   const archivedOnly = opts?.archivedOnly === true
+  const skipTrainings = opts?.skipTrainings === true
 
   let token
   try {
@@ -339,6 +340,7 @@ export async function fetchTrainerPullViaApi(opts = {}) {
     const qs = new URLSearchParams()
     if (includeArchived) qs.set('include_archived', '1')
     if (archivedOnly) qs.set('archived', '1')
+    if (skipTrainings) qs.set('skip_trainings', '1')
     const url = `${apiOrigin()}/api/trainer-pull${qs.toString() ? `?${qs.toString()}` : ''}`
     res = await fetch(url, {
       method: 'GET',

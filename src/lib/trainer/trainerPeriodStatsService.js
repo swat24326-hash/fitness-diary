@@ -1,4 +1,4 @@
-import { loadTrainerWorkspaceSnapshot } from '../trainerWorkspaceCache'
+import { clearTrainerWorkspaceSnapshotSync, loadTrainerWorkspaceSnapshot } from '../trainerWorkspaceCache'
 import { buildScopePeriodStats } from '../periodStats/buildScopePeriodStats'
 
 /**
@@ -31,6 +31,7 @@ export async function loadTrainerPeriodStats(p) {
     }
   }
 
+  clearTrainerWorkspaceSnapshotSync()
   const { clients, trainings, memByClient } = await loadTrainerWorkspaceSnapshot(trainerId, clubId || null)
   return buildScopePeriodStats({
     clients,

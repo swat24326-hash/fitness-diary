@@ -11,6 +11,15 @@ let snapshot = null
 
 let invalidateTimer = null
 
+/** Сброс до чтения IDB (статистика, refresh абонементов) — иначе Sync «обновил», а snapshot ещё старый. */
+export function clearTrainerWorkspaceSnapshotSync() {
+  if (invalidateTimer) {
+    clearTimeout(invalidateTimer)
+    invalidateTimer = null
+  }
+  snapshot = null
+}
+
 export function invalidateTrainerWorkspaceCache() {
   if (typeof window === 'undefined') {
     snapshot = null
@@ -137,6 +146,10 @@ export function initTrainerWorkspaceCacheInvalidation() {
   const onStorage = (e) => {
     const reason = e?.detail?.reason
     if (reason === 'exercises') return
+    if (reason === 'client-hydrated' || reason === 'memberships-refreshed' || reason === 'sync-complete') {
+      clearTrainerWorkspaceSnapshotSync()
+      return
+    }
     invalidateTrainerWorkspaceCache()
   }
   window.addEventListener(STORAGE_EVENT, onStorage)

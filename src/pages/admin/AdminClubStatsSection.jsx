@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BarChart3, ClipboardList, Info, LayoutGrid, LineChart, RefreshCw, Trophy, UserCheck, UserMinus, Users } from 'lucide-react'
 import { isSupabaseConfigured } from '../../lib/supabase'
+import { isAppOnline } from '../../lib/syncService'
+import { refreshMembershipsForStats } from '../../lib/membershipCacheRefresh'
 import { loadClubTrainingStats, listTrainerSummariesForAdmin, listClubsLocal } from '../../lib/dataAccess'
 import { loadTrainerPeriodStats } from '../../lib/trainer/trainerPeriodStatsService'
 import { loadTrainerMonthlyStatsForYear } from '../../lib/trainer/trainerMonthlyStatsService'
@@ -205,6 +207,13 @@ export function AdminClubStatsSection({
     }
     if (!silent) setBusy(true)
     try {
+      if (isSupabaseConfigured() && isAppOnline()) {
+        await refreshMembershipsForStats({
+          clubId: isTrainerScope ? scopeClubId : clubId,
+          trainerId: isTrainerScope ? scopeTrainerId : null,
+          notify: false,
+        })
+      }
       const s = isTrainerScope
         ? await loadTrainerPeriodStats({
             trainerId: scopeTrainerId,

@@ -10,11 +10,19 @@ import { normalizeBodyMeasurementRow } from '../bodyMeasures'
 import { pruneOrphanTrainingsForClient } from '../clientTrainingsCache'
 import { ADMIN_SYNC_BATCH_SIZE } from './adminConstants'
 import { fetchClientWorkspaceViaAdminApi } from './adminApiClient'
+import { invalidateAdminClubWorkspaceCache } from './adminClubWorkspaceCache'
+import { invalidateTrainerWorkspaceCache } from '../trainerWorkspaceCache'
 
-function notifyLocalDataChanged(detail = {}) {
+function notifyHydrated(clientId, pruned_trainings = 0) {
+  invalidateTrainerWorkspaceCache()
+  invalidateAdminClubWorkspaceCache()
   if (typeof window === 'undefined') return
   try {
-    window.dispatchEvent(new CustomEvent('fitness-diary-storage', { detail }))
+    window.dispatchEvent(
+      new CustomEvent('fitness-diary-storage', {
+        detail: { reason: 'client-hydrated', client_id: clientId, pruned_trainings },
+      }),
+    )
   } catch {
     /* ignore */
   }
@@ -37,7 +45,7 @@ async function cacheWorkspace({ client, memberships, health_card, body_measureme
     pruned_trainings = await pruneOrphanTrainingsForClient(cid, trainings ?? [], pending?.trainings ?? null)
   }
 
-  notifyLocalDataChanged({ client_id: client?.id, pruned_trainings })
+  notifyHydrated(client?.id, pruned_trainings)
   return { pruned_trainings }
 }
 

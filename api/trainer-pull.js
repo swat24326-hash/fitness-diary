@@ -37,6 +37,7 @@ export default async function handler(req, res) {
   const { supabaseAdmin } = ctx
   const includeArchived = String(req.query?.include_archived ?? req.query?.includeArchived ?? '').trim() === '1'
   const archivedOnly = String(req.query?.archived ?? '').trim() === '1'
+  const skipTrainings = String(req.query?.skip_trainings ?? '').trim() === '1'
 
   const clients = []
   let from = 0
@@ -98,25 +99,27 @@ export default async function handler(req, res) {
   }
 
   const trainings = []
-  const dateFrom = new Date()
-  dateFrom.setDate(dateFrom.getDate() - 90)
-  const dateFromIso = dateFrom.toISOString().slice(0, 10)
+  if (!skipTrainings) {
+    const dateFrom = new Date()
+    dateFrom.setDate(dateFrom.getDate() - 90)
+    const dateFromIso = dateFrom.toISOString().slice(0, 10)
 
-  for (let i = 0; i < clientIds.length; i += IN_CHUNK) {
-    const chunk = clientIds.slice(i, i + IN_CHUNK)
-    if (!chunk.length) continue
+    for (let i = 0; i < clientIds.length; i += IN_CHUNK) {
+      const chunk = clientIds.slice(i, i + IN_CHUNK)
+      if (!chunk.length) continue
 
-    const { data: tr, error: te } = await supabaseAdmin
-      .from('trainings')
-      .select('*')
-      .in('client_id', chunk)
-      .gte('date', dateFromIso)
-      .order('date', { ascending: false })
-    if (te) {
-      sendJson(res, 400, { error: te.message })
-      return
+      const { data: tr, error: te } = await supabaseAdmin
+        .from('trainings')
+        .select('*')
+        .in('client_id', chunk)
+        .gte('date', dateFromIso)
+        .order('date', { ascending: false })
+      if (te) {
+        sendJson(res, 400, { error: te.message })
+        return
+      }
+      trainings.push(...(tr ?? []))
     }
-    trainings.push(...(tr ?? []))
   }
 
   sendJson(res, 200, {

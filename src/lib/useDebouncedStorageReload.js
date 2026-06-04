@@ -7,6 +7,7 @@ export function shouldReloadTrainerClientList(detail = {}) {
   if (!reason) return true
   if (reason === 'sync-complete') return true
   if (reason === 'client-deleted' || reason === 'trainer-club-cascade') return true
+  if (reason === 'client-hydrated' || reason === 'memberships-refreshed') return true
   return !['exercises', 'challenge-trainings', 'challenge-created', 'challenge-deleted', 'challenge-completed'].includes(
     reason,
   )
@@ -31,6 +32,7 @@ export function shouldReloadAdminClientsPage(detail = {}) {
   if (!reason) return true
   if (reason === 'sync-complete' || reason === 'admin-clients-cache') return true
   if (reason === 'client-deleted' || reason === 'trainer-club-cascade') return true
+  if (reason === 'client-hydrated' || reason === 'memberships-refreshed') return true
   return !['exercises', 'challenge-trainings', 'challenge-created', 'challenge-deleted', 'challenge-completed'].includes(
     reason,
   )
@@ -47,6 +49,7 @@ export function shouldReloadTrainerClientStats(detail = {}) {
   const reason = String(detail?.reason ?? '')
   if (!reason) return true
   if (reason === 'sync-complete') return true
+  if (reason === 'client-hydrated' || reason === 'memberships-refreshed') return true
   return ![
     'exercises',
     'challenge-trainings',
