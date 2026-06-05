@@ -8,6 +8,14 @@ import {
   exerciseFormatWithSetHr,
   normalizeExerciseFormat,
 } from '../lib/trainingExerciseFormat'
+import {
+  SUPERSET_MAX_SIZE,
+  cleanupSupersetGroups,
+  isJoinedWithPrevious,
+  supersetChainBounds,
+  supersetRailRole,
+  toggleSupersetWithPrevious,
+} from '../lib/trainingSuperset'
 
 function newEmptyExerciseRow(format = 'Силовая') {
   return {
@@ -19,6 +27,8 @@ function newEmptyExerciseRow(format = 'Силовая') {
     /** Силовая | Функциональная | Кардио — формат подходов для этого упражнения */
     format: normalizeExerciseFormat(format),
     sets: [{ reps: '', weight_kg: '', tut_sec: '', load: '', rpe: '', hr_after: '' }],
+    /** A–Z: соседние упражнения с той же буквой — суперсет (2–3 подряд). */
+    superset_group: null,
   }
 }
 
@@ -74,8 +84,6 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
   const catalogSearchRef = useRef(null)
   const [catalogList, setCatalogList] = useState([])
   const [suggestOpenId, setSuggestOpenId] = useState(null)
-  /** Какое упражнение меняют кнопки «Формат» в шапке (фокус в поле названия). */
-  const [activeExerciseIdx, setActiveExerciseIdx] = useState(0)
   const exercisesRef = useRef([])
   /** Пока в родителе exercises: [], нельзя каждый рендер создавать новый id — иначе input размонтируется и ввод «не печатается». */
   const emptyExercisePlaceholderRef = useRef(null)
@@ -105,12 +113,8 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
     return normalizeExerciseFormat(last?.format, sessionFallback)
   }
 
-  const syncExercises = (next) => setWorkout({ exercises: next })
-  const addExercise = () => {
-    const nextIdx = exercises.length
-    syncExercises([...exercises, newEmptyExerciseRow(formatForNewExercise())])
-    setActiveExerciseIdx(nextIdx)
-  }
+  const syncExercises = (next) => setWorkout({ exercises: cleanupSupersetGroups(next) })
+  const addExercise = () => syncExercises([...exercises, newEmptyExerciseRow(formatForNewExercise())])
   const removeExercise = (idx) => {
     const next = exercises.filter((_, i) => i !== idx)
     syncExercises(next.length ? next : [newEmptyExerciseRow(sessionFallback)])
@@ -150,24 +154,29 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
     return null
   }, [focusEx, catalogList])
 
-  useEffect(() => {
-    setActiveExerciseIdx((i) => Math.min(Math.max(0, i), Math.max(0, exercises.length - 1)))
-  }, [exercises.length])
-
-  const activeExercise = exercises[activeExerciseIdx] ?? exercises[exercises.length - 1] ?? null
-  const activeFormat = normalizeExerciseFormat(activeExercise?.format, sessionFallback)
-
-  const patchActiveExerciseFormat = (format) => {
-    const idx = Math.min(activeExerciseIdx, exercises.length - 1)
-    if (idx < 0 || !exercises[idx]) return
-    patchExercise(idx, { ...exercises[idx], format })
-  }
-
-  const formatIndex = (format) => {
-    const f = normalizeExerciseFormat(format, sessionFallback)
-    const i = TRAINING_EXERCISE_FORMATS.indexOf(f)
-    return i >= 0 ? i + 1 : 1
-  }
+  const exerciseFormatButtons = (ex, exIdx) => (
+    <div className="row exercise-format-row" style={{ gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+      <span className="muted" style={{ fontSize: 12 }}>
+        Формат
+      </span>
+      {TRAINING_EXERCISE_FORMATS.map((t, i) => {
+        const active = normalizeExerciseFormat(ex.format, sessionFallback) === t
+        return (
+          <button
+            key={t}
+            type="button"
+            className={`btn ${active ? 'btn-primary' : 'btn-ghost'} btn-icon-square btn-icon-xs`}
+            onClick={() => patchExercise(exIdx, { ...ex, format: t })}
+            title={`Формат ${i + 1}: ${t}`}
+            aria-label={`Формат ${i + 1}: ${t}`}
+            aria-pressed={active}
+          >
+            {i + 1}
+          </button>
+        )
+      })}
+    </div>
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -301,55 +310,37 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
         <section className="card">
           <div className="training-exercises-head">
             <h3 style={{ margin: 0 }}>Упражнения</h3>
-            <div className="training-exercises-toolbar" role="group" aria-label="Формат и добавление упражнения">
-              <span className="training-exercises-toolbar__label muted" aria-hidden>
-                Формат
-              </span>
-              {TRAINING_EXERCISE_FORMATS.map((t, i) => {
-                const active = activeFormat === t
-                return (
-                  <button
-                    key={t}
-                    type="button"
-                    className={`btn ${active ? 'btn-primary' : 'btn-ghost'} btn-icon-square btn-icon-xs`}
-                    onClick={() => patchActiveExerciseFormat(t)}
-                    title={`Формат ${i + 1}: ${t}${activeExercise?.name?.trim() ? ` · ${activeExercise.name.trim()}` : ''}`}
-                    aria-label={`Формат ${i + 1}: ${t}`}
-                    aria-pressed={active}
-                  >
-                    {i + 1}
-                  </button>
-                )
-              })}
-              <button
-                type="button"
-                className="btn btn-primary btn-icon-square btn-touch training-exercises-add"
-                onClick={addExercise}
-                title="Добавить упражнение"
-                aria-label="Добавить упражнение"
-              >
-                <Plus size={20} aria-hidden />
-              </button>
-            </div>
+            <button
+              type="button"
+              className="btn btn-primary btn-icon-square btn-touch training-exercises-add"
+              onClick={addExercise}
+              title="Добавить упражнение"
+              aria-label="Добавить упражнение"
+            >
+              <Plus size={20} aria-hidden />
+            </button>
           </div>
-          {exercises.map((ex, exIdx) => (
+          {exercises.map((ex, exIdx) => {
+            const railRole = supersetRailRole(exercises, exIdx)
+            const inSuperset = Boolean(railRole)
+            const joinedPrev = isJoinedWithPrevious(exercises, exIdx)
+            const prevChain = exIdx > 0 ? supersetChainBounds(exercises, exIdx - 1) : null
+            const canJoinSuperset = exIdx > 0 && (joinedPrev || !prevChain || prevChain.size < SUPERSET_MAX_SIZE)
+
+            return (
             <div
               key={ex.id}
-              className={`training-exercise-block${exIdx === activeExerciseIdx ? ' training-exercise-block--active' : ''}`}
+              className={`training-exercise-block${inSuperset ? ` training-exercise-block--superset training-exercise-block--superset-${railRole}` : ''}`}
               style={{ marginTop: 14, paddingTop: 14, borderTop: exIdx ? '1px solid var(--border)' : 'none' }}
             >
+              {inSuperset ? (
+                <span className="training-superset-rail" title={`Суперсет ${ex.superset_group}`}>
+                  {railRole === 'start' ? `СС ${ex.superset_group}` : ''}
+                </span>
+              ) : null}
               <div className="row" style={{ alignItems: 'flex-end', flexWrap: 'wrap', gap: 8 }}>
                 <div className="field exercise-name-field exercise-catalog-combo" style={{ flex: '1 1 240px', marginBottom: 0 }}>
-                  <label className="label exercise-name-label">
-                    Упражнение
-                    <span
-                      className="exercise-format-badge"
-                      title={normalizeExerciseFormat(ex.format, sessionFallback)}
-                      aria-label={`Формат ${formatIndex(ex.format)}`}
-                    >
-                      {formatIndex(ex.format)}
-                    </span>
-                  </label>
+                  <label className="label">Упражнение</label>
                   <div className="exercise-name-row">
                     <input
                       className="input"
@@ -364,7 +355,6 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
                         setSuggestOpenId(ex.id)
                       }}
                       onFocus={() => {
-                        setActiveExerciseIdx(exIdx)
                         if (catalogList.length) setSuggestOpenId(ex.id)
                       }}
                       onBlur={() => {
@@ -448,6 +438,23 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
                   ) : null}
                 </div>
                 <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+                  {exIdx > 0 ? (
+                    <button
+                      type="button"
+                      className={`btn ${joinedPrev ? 'btn-primary' : 'btn-ghost'} btn-touch training-superset-toggle`}
+                      onClick={() => syncExercises(toggleSupersetWithPrevious(exercises, exIdx))}
+                      disabled={!canJoinSuperset && !joinedPrev}
+                      title={
+                        joinedPrev
+                          ? 'Убрать из суперсета с предыдущим'
+                          : `Суперсет с предыдущим (до ${SUPERSET_MAX_SIZE} подряд)`
+                      }
+                      aria-label={joinedPrev ? 'Убрать из суперсета' : 'Суперсет с предыдущим'}
+                      aria-pressed={joinedPrev}
+                    >
+                      СС
+                    </button>
+                  ) : null}
                   <button
                     type="button"
                     className="btn btn-ghost btn-icon-square"
@@ -462,6 +469,7 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
                   </button>
                 </div>
               </div>
+              {exerciseFormatButtons(ex, exIdx)}
               {ex.sets.map((st, setIdx) => {
                 const exFormat = normalizeExerciseFormat(ex.format, sessionFallback)
                 const isCardio = exerciseFormatIsCardio(exFormat)
@@ -601,7 +609,8 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
                 + Подход
               </button>
             </div>
-          ))}
+            )
+          })}
         </section>
       )}
 

@@ -1,3 +1,5 @@
+import { cleanupSupersetGroups, normalizeSupersetGroup } from './trainingSuperset.js'
+
 /** Формат заполнения подходов в одном упражнении (шаблон 1–3). */
 export const TRAINING_EXERCISE_FORMATS = ['Силовая', 'Функциональная', 'Кардио']
 
@@ -34,9 +36,11 @@ export function deriveTrainingTypeFromExercises(exercises, fallback = 'Сило�
 }
 
 export function normalizeExercisesForStorage(exercises, sessionFallback = 'Силовая') {
-  return (Array.isArray(exercises) ? exercises : []).map((e) => ({
+  const cleaned = cleanupSupersetGroups(Array.isArray(exercises) ? exercises : [])
+  return cleaned.map((e) => ({
     ...e,
     format: normalizeExerciseFormat(e?.format, sessionFallback),
+    superset_group: normalizeSupersetGroup(e?.superset_group),
     sets: (e?.sets ?? []).map((s) => ({
       reps: s?.reps ?? '',
       weight_kg: s?.weight_kg ?? '',
