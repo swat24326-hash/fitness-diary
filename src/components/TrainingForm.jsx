@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Info, List, Plus, X } from 'lucide-react'
+import { Info, List, Paperclip, Plus, Trash2, X } from 'lucide-react'
 import { listExercises, LOCAL_DATA_CHANGED } from '../lib/dataAccess'
 import { stripDirectionControls } from '../lib/textInput'
 import {
@@ -335,7 +335,12 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
             >
               {inSuperset ? (
                 <span className="training-superset-rail" title={`Суперсет ${ex.superset_group}`}>
-                  {railRole === 'start' ? `СС ${ex.superset_group}` : ''}
+                  {railRole === 'start' ? (
+                    <span className="training-superset-rail__label">
+                      <Paperclip size={13} aria-hidden />
+                      <span>{ex.superset_group}</span>
+                    </span>
+                  ) : null}
                 </span>
               ) : null}
               <div className="row" style={{ alignItems: 'flex-end', flexWrap: 'wrap', gap: 8 }}>
@@ -441,7 +446,7 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
                   {exIdx > 0 ? (
                     <button
                       type="button"
-                      className={`btn ${joinedPrev ? 'btn-primary' : 'btn-ghost'} btn-touch training-superset-toggle`}
+                      className={`btn ${joinedPrev ? 'btn-primary' : 'btn-ghost'} btn-icon-square btn-touch`}
                       onClick={() => syncExercises(toggleSupersetWithPrevious(exercises, exIdx))}
                       disabled={!canJoinSuperset && !joinedPrev}
                       title={
@@ -452,7 +457,7 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
                       aria-label={joinedPrev ? 'Убрать из суперсета' : 'Суперсет с предыдущим'}
                       aria-pressed={joinedPrev}
                     >
-                      СС
+                      <Paperclip size={18} aria-hidden />
                     </button>
                   ) : null}
                   <button
@@ -464,8 +469,15 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
                   >
                     <Info size={18} aria-hidden />
                   </button>
-                  <button type="button" className="btn btn-ghost btn-touch" onClick={() => removeExercise(exIdx)} disabled={exercises.length < 2}>
-                    Удалить
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon-square btn-touch"
+                    onClick={() => removeExercise(exIdx)}
+                    disabled={exercises.length < 2}
+                    title="Удалить упражнение"
+                    aria-label="Удалить упражнение"
+                  >
+                    <Trash2 size={18} aria-hidden />
                   </button>
                 </div>
               </div>
@@ -605,8 +617,14 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
                 </div>
                 )
               })}
-              <button type="button" className="btn" style={{ marginTop: 8 }} onClick={() => addSet(exIdx)}>
-                + Подход
+              <button
+                type="button"
+                className="btn btn-ghost btn-icon-square training-add-set-btn"
+                onClick={() => addSet(exIdx)}
+                title="Добавить подход"
+                aria-label="Добавить подход"
+              >
+                <Plus size={18} aria-hidden />
               </button>
             </div>
             )

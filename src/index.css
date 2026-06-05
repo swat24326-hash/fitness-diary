@@ -2154,8 +2154,15 @@ tr:last-child td {
   font-weight: 700;
   line-height: 1.2;
   color: var(--accent-bright);
-  padding: 2px 0 0 6px;
+  padding: 2px 0 0 4px;
   letter-spacing: 0.02em;
+}
+
+.training-superset-rail__label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
 }
 
 .training-exercise-block--superset-mid .training-superset-rail,
@@ -2172,13 +2179,8 @@ tr:last-child td {
   border-top-left-radius: 6px;
 }
 
-.training-superset-toggle {
-  min-width: 42px;
-  padding-left: 10px;
-  padding-right: 10px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+.training-add-set-btn {
+  margin-top: 8px;
 }
 
 .training-exercises-readonly__superset {
