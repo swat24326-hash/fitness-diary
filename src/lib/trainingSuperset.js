@@ -93,6 +93,22 @@ export function supersetRailRole(exercises, idx) {
   return 'mid'
 }
 
+/** Текст для шага «Итог»: одиночные и «СС A: жим + тяга». */
+export function formatExercisesSummaryText(exercises) {
+  const groups = groupExercisesForDisplay(exercises ?? [])
+  const parts = []
+  for (const g of groups) {
+    if (g.kind === 'superset') {
+      const names = g.items.map((e) => String(e?.name ?? '').trim()).filter(Boolean)
+      if (names.length) parts.push(`СС ${g.group}: ${names.join(' + ')}`)
+    } else {
+      const n = String(g.items[0]?.name ?? '').trim()
+      if (n) parts.push(n)
+    }
+  }
+  return parts.length ? parts.join('; ') : 'Упражнения не названы'
+}
+
 /** Для просмотра дневника: блоки «суперсет» и одиночные упражнения. */
 export function groupExercisesForDisplay(exercises) {
   const list = exercises ?? []

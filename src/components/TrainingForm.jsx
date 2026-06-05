@@ -11,6 +11,7 @@ import {
 import {
   SUPERSET_MAX_SIZE,
   cleanupSupersetGroups,
+  formatExercisesSummaryText,
   isJoinedWithPrevious,
   supersetChainBounds,
   supersetRailRole,
@@ -140,10 +141,7 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
     patchExercise(exIdx, { ...ex, sets })
   }
 
-  const summaryText = useMemo(() => {
-    const names = exercises.map((e) => e.name).filter(Boolean)
-    return names.length ? names.join(', ') : 'Упражнения не названы'
-  }, [exercises])
+  const summaryText = useMemo(() => formatExercisesSummaryText(exercises), [exercises])
 
   const focusEx = focusExerciseIdx != null ? exercises[focusExerciseIdx] : null
   const focusCatalogRow = useMemo(() => {

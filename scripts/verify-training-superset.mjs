@@ -1,9 +1,11 @@
 import {
   cleanupSupersetGroups,
+  formatExercisesSummaryText,
   groupExercisesForDisplay,
   isJoinedWithPrevious,
   toggleSupersetWithPrevious,
 } from '../src/lib/trainingSuperset.js'
+import { normalizeExercisesForStorage } from '../src/lib/trainingExerciseFormat.js'
 
 let failed = 0
 
@@ -39,6 +41,19 @@ ok(!cleaned[0].superset_group, 'orphan group removed')
 
 const grouped = groupExercisesForDisplay([ex('1', 'A'), ex('2', 'A'), ex('3')])
 ok(grouped.length === 2 && grouped[0].kind === 'superset' && grouped[0].items.length === 2, 'display grouping')
+
+const summary = formatExercisesSummaryText([
+  { name: 'Жим', superset_group: 'A' },
+  { name: 'Тяга', superset_group: 'A' },
+  { name: 'Планка' },
+])
+ok(summary.includes('СС A') && summary.includes('Жим') && summary.includes('Планка'), 'summary text')
+
+const stored = normalizeExercisesForStorage([
+  { name: 'Жим', superset_group: 'A', format: 'Силовая', sets: [] },
+  { name: 'Тяга', superset_group: 'A', format: 'Силовая', sets: [] },
+])
+ok(stored[0].superset_group === 'A' && stored[1].superset_group === 'A', 'normalize keeps superset_group')
 
 if (failed) process.exit(1)
 console.log('verify-training-superset: all passed')

@@ -1,3 +1,4 @@
+import { Paperclip } from 'lucide-react'
 import { formatSetSummary, normalizeExerciseFormat } from '../lib/trainingExerciseFormat'
 import { groupExercisesForDisplay } from '../lib/trainingSuperset'
 
@@ -34,6 +35,7 @@ export function TrainingExercisesReadonly({ exercises, sessionType = 'Силов
         g.kind === 'superset' ? (
           <div key={`ss-${g.group}-${gi}`} className="training-exercises-readonly__superset">
             <p className="training-exercises-readonly__superset-label muted" style={{ margin: '0 0 8px', fontSize: 13 }}>
+              <Paperclip size={14} aria-hidden style={{ verticalAlign: '-2px', marginRight: 4 }} />
               Суперсет {g.group}
             </p>
             {g.items.map((ex, i) => (
