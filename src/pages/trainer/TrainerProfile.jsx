@@ -13,9 +13,6 @@ export function TrainerProfile() {
         <p className="section-sub" style={{ margin: 0 }}>
           {user?.name ?? user?.email ?? 'Тренер'}
         </p>
-        <p className="muted" style={{ margin: '8px 0 0', fontSize: 14, lineHeight: 1.45 }}>
-          Сводка и списки ниже — только по <strong>вашим клиентам</strong>. Показатели и карточки совпадают со статистикой клуба у админа.
-        </p>
       </section>
 
       <TrainerStatisticsSection />

@@ -329,29 +329,27 @@ export function AdminClubStatsSection({
           </button>
         </div>
       </div>
-      <p className="muted" style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.45 }}>
-        {isTrainerScope ? (
-          <>
-            Сводка по <strong>вашим клиентам</strong> за выбранный период (данные с устройства, IndexedDB). Те же показатели, что у админа по клубу, но только ваша база.
-          </>
-        ) : clubLabel ? (
-          <>
-            Клуб: <strong>{clubLabel}</strong>
-            {s?.source === 'remote' || s?.source === 'admin_api' ? (
-              <> · данные из <strong>Supabase</strong>.</>
-            ) : (
-              <>
-                · сейчас с <strong>устройства</strong> (IndexedDB).
-                {!isSupabaseConfigured()
-                  ? ' Добавьте Supabase в .env для облака.'
-                  : ' Если сервер недоступен, проверьте сеть и RLS.'}
-              </>
-            )}
-          </>
-        ) : (
-          <>Сводка по клубу: клиенты и абонементы на конец периода, непродления в диапазоне, проведённые тренировки, график по дням и рейтинг тренеров.</>
-        )}
-      </p>
+      {!isTrainerScope ? (
+        <p className="muted" style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.45 }}>
+          {clubLabel ? (
+            <>
+              Клуб: <strong>{clubLabel}</strong>
+              {s?.source === 'remote' || s?.source === 'admin_api' ? (
+                <> · данные из <strong>Supabase</strong>.</>
+              ) : (
+                <>
+                  · сейчас с <strong>устройства</strong> (IndexedDB).
+                  {!isSupabaseConfigured()
+                    ? ' Добавьте Supabase в .env для облака.'
+                    : ' Если сервер недоступен, проверьте сеть и RLS.'}
+                </>
+              )}
+            </>
+          ) : (
+            <>Сводка по клубу: клиенты и абонементы на конец периода, непродления в диапазоне, проведённые тренировки, график по дням и рейтинг тренеров.</>
+          )}
+        </p>
+      ) : null}
       {s?.fallbackReason ? <p className="muted admin-inline-note">Резерв: локальный кэш. Причина: {s.fallbackReason}</p> : null}
 
       <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 8px' }}>
