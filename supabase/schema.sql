@@ -47,11 +47,13 @@ CREATE TABLE clients (
   card_number TEXT,
   trainer_id UUID NOT NULL REFERENCES users (id),
   club_id UUID NOT NULL REFERENCES clubs (id),
+  archived_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_clients_trainer_id ON clients (trainer_id);
 CREATE INDEX IF NOT EXISTS idx_clients_club_id ON clients (club_id);
+CREATE INDEX IF NOT EXISTS idx_clients_club_archived_at ON clients (club_id, archived_at);
 
 -- ------------------------------------------------------------
 -- Типы абонементов (справочник клуба)

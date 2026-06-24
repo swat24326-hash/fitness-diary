@@ -25,13 +25,21 @@
 
 **Итог:** архив = не в ежедневной работе; прошлая статистика клуба не пересчитывается задним числом.
 
-## Фаза B — ручной архив (следующий релиз)
+## Фаза B — ручной архив ✅ (код + миграция в репо)
 
-1. Миграция: `clients.archived_at TIMESTAMPTZ NULL`, индекс `(club_id, archived_at)`.
+1. Миграция: `clients.archived_at TIMESTAMPTZ NULL`, индекс `(club_id, archived_at)` — `20260602120000_clients_archive.sql`.
 2. Sync: поле в push/pull (`clients` уже в очереди).
-3. `loadTrainerWorkspaceSnapshot`: по умолчанию без архивных; отдельный запрос для вкладки «Архив».
-4. UI тренера и админа: вкладки **Активные** | **Архив**; действия «В архив» / «Вернуть»; read-only карточка в архиве.
-5. Агрегация «Не активные»: исключить `archived_at IS NOT NULL` в `clubStatsAgg` / `trainerPeriodStats` для **текущего** среза.
+3. `loadTrainerWorkspaceSnapshot`: по умолчанию без архивных; отдельный pull для вкладки «Архив».
+4. UI тренера и админа: вкладки **Активные** | **Архив**; «В архив» / «Вернуть»; read-only карточка в архиве.
+5. Агрегация «Не активные»: `filterOperationalClients` в `clubStatsAgg` / `clubClientPeriodAgg`.
+
+**Перед prod:** в Supabase SQL Editor выполнить миграцию (если ещё не применялась):
+
+```sql
+-- из supabase/migrations/20260602120000_clients_archive.sql
+ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_clients_club_archived_at ON public.clients (club_id, archived_at);
+```
 
 ## Фаза C — при >5k клиентов клуба
 
