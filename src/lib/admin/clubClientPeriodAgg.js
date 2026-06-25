@@ -8,7 +8,7 @@ import {
 import { filterOperationalClients } from '../clientArchive.js'
 
 /**
- * @param {{ id: string, name?: string, phone?: string }[]} clientRows
+ * @param {{ id: string, name?: string, phone?: string, trainer_id?: string }[]} clientRows
  * @param {Array<{ client_id?: string, start_date?: string, end_date?: string, total_trainings?: number, used_trainings?: number }>} membershipRows
  * @param {string} dateFrom yyyy-mm-dd
  * @param {string} dateTo yyyy-mm-dd
@@ -49,6 +49,7 @@ export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, 
       id,
       name: String(client?.name ?? '').trim() || '—',
       phone: client?.phone ? String(client.phone).trim() : null,
+      trainerId: client?.trainer_id ? String(client.trainer_id).trim() : null,
       inactiveReason: reason,
       inactiveDetail,
       membershipEndDate: membershipEndDate ?? null,

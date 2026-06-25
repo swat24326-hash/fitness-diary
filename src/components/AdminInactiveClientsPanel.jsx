@@ -4,17 +4,32 @@ import { formatInactiveClientListLabel } from '../lib/membershipRules'
 
 /**
  * @param {{
- *   clients: Array<{ id: string, name: string, phone?: string|null, inactiveReason?: string, inactiveDetail?: string }>,
+ *   clients: Array<{ id: string, name: string, phone?: string|null, trainerId?: string|null, inactiveReason?: string, inactiveDetail?: string }>,
  *   dateFrom: string,
  *   dateTo: string,
  *   clubId?: string,
  *   clientLinkTo?: (clientId: string) => string,
  *   scopeLabel?: 'club' | 'trainer',
+ *   trainerNameById?: Record<string, string>,
  * }} props
  */
-export function AdminInactiveClientsPanel({ clients, dateFrom, dateTo, clubId = '', clientLinkTo, scopeLabel = 'club' }) {
+export function AdminInactiveClientsPanel({
+  clients,
+  dateFrom,
+  dateTo,
+  clubId = '',
+  clientLinkTo,
+  scopeLabel = 'club',
+  trainerNameById = {},
+}) {
   const clubQs = clubId ? `?club=${encodeURIComponent(clubId)}` : ''
   const linkFor = clientLinkTo ?? ((id) => `/admin/clients/${id}${clubQs}`)
+
+  const trainerLabel = (trainerId) => {
+    const tid = String(trainerId ?? '').trim()
+    if (!tid) return '—'
+    return trainerNameById[tid]?.trim() || (tid.length > 10 ? `${tid.slice(0, 8)}…` : tid)
+  }
 
   return (
     <>
@@ -33,13 +48,17 @@ export function AdminInactiveClientsPanel({ clients, dateFrom, dateTo, clubId = 
         <ul className="list admin-stat-drilldown__list">
           {clients.map((c) => {
             const reasonLabel = formatInactiveClientListLabel(c)
+            const trainerName = scopeLabel === 'club' ? trainerLabel(c.trainerId) : null
+            const metaParts = []
+            if (reasonLabel) metaParts.push(reasonLabel)
+            if (trainerName != null) metaParts.push(`Тренер: ${trainerName}`)
+            if (c.phone) metaParts.push(c.phone)
             return (
               <li key={c.id} className="list-item admin-stat-drilldown__row">
                 <div className="admin-stat-drilldown__info">
                   <strong>{c.name}</strong>
                   <div className="muted admin-stat-drilldown__meta">
-                    {reasonLabel ? <span>{reasonLabel}</span> : null}
-                    {c.phone ? <span>{reasonLabel ? ' · ' : ''}{c.phone}</span> : null}
+                    {metaParts.length > 0 ? <span>{metaParts.join(' · ')}</span> : null}
                   </div>
                 </div>
                 <Link to={linkFor(c.id)} className="btn btn-primary btn-touch u-no-decoration">

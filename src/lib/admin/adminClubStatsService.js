@@ -111,7 +111,7 @@ async function fetchClientsForClubRemote(clubId) {
     const { data, error } = await withSupabaseRetry(() =>
       supabase
         .from('clients')
-        .select('id, name, phone')
+        .select('id, name, phone, trainer_id, archived_at')
         .eq('club_id', clubId)
         .order('id', { ascending: true })
         .range(from, from + ADMIN_SYNC_BATCH_SIZE - 1),
@@ -135,6 +135,8 @@ async function fetchClientsForClubLocal(clubId) {
       id: c.id,
       name: c.name,
       phone: c.phone,
+      trainer_id: c.trainer_id,
+      archived_at: c.archived_at,
     }))
 }
 

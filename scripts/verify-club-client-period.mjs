@@ -49,6 +49,16 @@ ok(
 ok(r.inactiveClients.some((c) => c.id === 'c3' && c.inactiveReason === 'not_started'), 'c3 not started')
 ok(r.notRenewedInPeriod === 0, 'notRenewed deprecated empty')
 
+const withTrainer = [
+  { id: 'c1', name: 'Иванов', trainer_id: 'trainer-a' },
+  { id: 'c2', name: 'Петров', trainer_id: 'trainer-b' },
+  { id: 'c3', name: 'Сидоров' },
+  { id: 'c4', name: 'Лазутко', trainer_id: 'trainer-a' },
+]
+const rTr = aggregateClubClientPeriod(withTrainer, memberships, '2026-05-01', '2026-05-31', '2026-05-31')
+ok(rTr.inactiveClients.find((c) => c.id === 'c1')?.trainerId === 'trainer-a', 'inactive carries trainerId')
+ok(rTr.inactiveClients.find((c) => c.id === 'c3')?.trainerId == null, 'inactive without trainer')
+
 const withArchived = [
   ...clients,
   { id: 'c5', name: 'Архивный', archived_at: '2026-06-01T00:00:00Z' },

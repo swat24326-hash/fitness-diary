@@ -280,6 +280,34 @@ export function AdminStatistics() {
     })
   }, [inactiveOpen])
 
+  useEffect(() => {
+    if (!inactiveOpen || !club) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const fromApi = await listTrainerSummariesForAdmin()
+        if (cancelled) return
+        const nameById = {}
+        for (const u of fromApi) {
+          const id = String(u?.id ?? '').trim()
+          if (id) nameById[id] = u.name?.trim() || '—'
+        }
+        for (const c of inactiveClients) {
+          const tid = String(c?.trainerId ?? '').trim()
+          if (tid && !nameById[tid]) {
+            nameById[tid] = `Тренер ${tid.slice(0, 8)}…`
+          }
+        }
+        setTrainerNameById(nameById)
+      } catch {
+        if (!cancelled) setTrainerNameById({})
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [inactiveOpen, club, inactiveClients])
+
   useDebouncedStorageReload(() => void load({ silent: true }), { shouldRun: shouldReloadAdminStatsPage })
 
   useEffect(() => {
@@ -327,7 +355,13 @@ export function AdminStatistics() {
             </button>
           </div>
           {club && statsRange.start && statsRange.end ? (
-            <AdminInactiveClientsPanel clients={inactiveClients} dateFrom={statsRange.start} dateTo={statsRange.end} clubId={club} />
+            <AdminInactiveClientsPanel
+              clients={inactiveClients}
+              dateFrom={statsRange.start}
+              dateTo={statsRange.end}
+              clubId={club}
+              trainerNameById={trainerNameById}
+            />
           ) : (
             <p className="muted" style={{ margin: 0, fontSize: 14 }}>
               Выберите клуб и период в сводке выше.
