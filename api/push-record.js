@@ -2,8 +2,8 @@
  * Одна запись из очереди синхронизации → Supabase (service role, проверка прав).
  * POST { table_name, operation, data, remote_id? }
  */
-import { requireAuthUser, sendJson, setCors } from './lib/adminSupabase.js'
-import { executePushRecord } from './lib/pushRecordCore.js'
+import { requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
+import { executePushRecord } from './_lib/pushRecordCore.js'
 
 export default async function handler(req, res) {
   setCors(res, 'POST, OPTIONS')

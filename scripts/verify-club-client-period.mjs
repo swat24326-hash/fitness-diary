@@ -1,4 +1,4 @@
-import { aggregateClubClientPeriod } from '../api/lib/clubStatsAgg.js'
+import { aggregateClubClientPeriod } from '../api/_lib/clubStatsAgg.js'
 
 let failed = 0
 

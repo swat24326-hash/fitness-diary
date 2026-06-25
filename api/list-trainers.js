@@ -1,7 +1,7 @@
 /**
  * Vercel: список тренеров для админки (обход ERR_CONNECTION_RESET браузер → Supabase).
  */
-import { canAccessTrainerOrAdminApis, requireAuthUser, sendJson, setCors } from './lib/adminSupabase.js'
+import { canAccessTrainerOrAdminApis, requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
 
 const TRAINER_FIELDS = 'id, name, phone, email, login, is_active, role, club_id'
 

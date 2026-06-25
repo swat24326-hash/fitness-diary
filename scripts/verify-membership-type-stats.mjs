@@ -1,7 +1,7 @@
 /**
  * Проверка агрегации статистики по типам абонементов.
  */
-import { aggregateMembershipTypeStats, MEMBERSHIP_TYPE_UNLABELED } from '../api/lib/membershipTypeStatsAgg.js'
+import { aggregateMembershipTypeStats, MEMBERSHIP_TYPE_UNLABELED } from '../api/_lib/membershipTypeStatsAgg.js'
 
 let failed = 0
 

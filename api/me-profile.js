@@ -2,7 +2,7 @@
  * Профиль текущего пользователя из public.users (обход ERR_CONNECTION_RESET).
  */
 import { createClient } from '@supabase/supabase-js'
-import { readEnv, sendJson, setCors } from './lib/adminSupabase.js'
+import { readEnv, sendJson, setCors } from './_lib/adminSupabase.js'
 
 export default async function handler(req, res) {
   setCors(res, 'GET, OPTIONS')

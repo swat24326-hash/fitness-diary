@@ -2,9 +2,9 @@
  * Паритет агрегаций: api/lib/*Agg.js vs src/lib/admin/*Agg.js
  * Ловит расхождение формул между сервером и офлайн-статистикой.
  */
-import { aggregateClubClientPeriod as aggApiClub } from '../api/lib/clubStatsAgg.js'
+import { aggregateClubClientPeriod as aggApiClub } from '../api/_lib/clubStatsAgg.js'
 import { aggregateClubClientPeriod as aggSrcClub } from '../src/lib/admin/clubClientPeriodAgg.js'
-import { aggregateMembershipTypeStats as aggApiType } from '../api/lib/membershipTypeStatsAgg.js'
+import { aggregateMembershipTypeStats as aggApiType } from '../api/_lib/membershipTypeStatsAgg.js'
 import { aggregateMembershipTypeStats as aggSrcType } from '../src/lib/admin/membershipTypeStatsAgg.js'
 
 let failed = 0

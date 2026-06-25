@@ -3,7 +3,7 @@
  * POST { login, password } — login может быть email или логин из users.login.
  */
 import { createClient } from '@supabase/supabase-js'
-import { readEnv, sendJson, setCors } from './lib/adminSupabase.js'
+import { readEnv, sendJson, setCors } from './_lib/adminSupabase.js'
 
 async function resolveEmail(supabaseAdmin, raw) {
   const trimmed = String(raw ?? '').trim()

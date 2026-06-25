@@ -1,7 +1,7 @@
 import {
   aggregateMonthlyForCalendarYear,
   summarizeCalendarYearMonthlyEligibility,
-} from '../api/lib/clubMonthlyAgg.js'
+} from '../api/_lib/clubMonthlyAgg.js'
 
 let failed = 0
 

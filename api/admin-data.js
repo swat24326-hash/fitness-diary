@@ -2,15 +2,15 @@
  * Объединённый GET API админки/тренера (лимит Vercel Hobby: 12 functions).
  * ?action=search|journal|club-stats|health-cards|challenges|challenge-trainings|exercises|clubs
  */
-import { requireAdmin, requireAuthUser, sendJson, setCors } from './lib/adminSupabase.js'
-import { aggregateTrainings, aggregateClubClientPeriod } from './lib/clubStatsAgg.js'
-import { aggregateMembershipTypeStats } from './lib/membershipTypeStatsAgg.js'
+import { requireAdmin, requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
+import { aggregateTrainings, aggregateClubClientPeriod } from './_lib/clubStatsAgg.js'
+import { aggregateMembershipTypeStats } from './_lib/membershipTypeStatsAgg.js'
 import {
   aggregateMonthlyTypedCompleted,
   aggregateMonthlyForCalendarYear,
   discoverMonthlyChartYears,
   summarizeCalendarYearMonthlyEligibility,
-} from './lib/clubMonthlyAgg.js'
+} from './_lib/clubMonthlyAgg.js'
 
 const PAGE = 400
 const IN_CHUNK = 80

@@ -2,7 +2,7 @@
  * Данные клиента для карточки (админ — любой клиент; тренер — только свои).
  * GET ?client_id=<uuid>
  */
-import { requireAuthUser, sendJson, setCors } from './lib/adminSupabase.js'
+import { requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
 
 const PAGE = 500
 

@@ -2,9 +2,9 @@
  * Пакетная отправка очереди синхронизации → Supabase.
  * POST { records: [{ table_name, operation, data, remote_id?, local_id? }] }
  */
-import { requireAuthUser, sendJson, setCors } from './lib/adminSupabase.js'
-import { executePushRecord } from './lib/pushRecordCore.js'
-import { runPool } from './lib/runPool.js'
+import { requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
+import { executePushRecord } from './_lib/pushRecordCore.js'
+import { runPool } from './_lib/runPool.js'
 
 const MAX_BATCH = 50
 /** Параллельные записи в одном запросе (укладываемся в лимит времени serverless). */

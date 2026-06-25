@@ -2,7 +2,7 @@
  * Снимок данных тренера: клиенты, абонементы, карты здоровья, тренировки за 90 дней (service role).
  * GET — только для role=trainer
  */
-import { requireAuthUser, sendJson, setCors } from './lib/adminSupabase.js'
+import { requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
 
 const PAGE = 500
 const IN_CHUNK = 80

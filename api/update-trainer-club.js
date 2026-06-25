@@ -1,7 +1,7 @@
 /**
  * Админ: привязать тренера к клубу (users.club_id) через service role.
  */
-import { requireAdmin, sendJson, setCors } from './lib/adminSupabase.js'
+import { requireAdmin, sendJson, setCors } from './_lib/adminSupabase.js'
 
 const TRAINER_ROLES = ['trainer', 'тренер']
 

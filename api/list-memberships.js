@@ -2,7 +2,7 @@
  * Абонементы всех клиентов клуба (для админки, service role).
  * GET ?club_id=<uuid>
  */
-import { requireAdmin, sendJson, setCors } from './lib/adminSupabase.js'
+import { requireAdmin, sendJson, setCors } from './_lib/adminSupabase.js'
 
 const PAGE = 500
 const IN_CHUNK = 80
