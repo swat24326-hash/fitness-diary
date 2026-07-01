@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import { listSyncQueue } from '../../lib/localDb'
 import { getPersistentErrorCount, subscribeSyncAttention } from '../../lib/appErrorJournal'
 import { formatAppErrorTime, loadDiagnosticsErrors, suggestErrorHint, sourceLabel } from '../../lib/appDiagnostics'
-import { subscribeNetworkStatus } from '../../lib/networkReachability'
+import { subscribeNetworkStatus, probeNetworkNow } from '../../lib/networkReachability'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { listClubsLocal, pullClubsFromSupabase } from '../../lib/dataAccess'
 import { DiagnosticsPanel } from '../../components/DiagnosticsPanel'
@@ -97,6 +97,7 @@ export function AdminDiagnostics() {
     if (syncBusy) return
     setSyncBusy(true)
     try {
+      await probeNetworkNow()
       if (!isAppOnline()) {
         showToast('Нет сети — синхронизация отложена', 'warn')
         return

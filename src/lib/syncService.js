@@ -1,5 +1,5 @@
 import { isSupabaseConfigured } from './supabase'
-import { initNetworkReachability, isAppOnline } from './networkReachability'
+import { initNetworkReachability, isAppOnline, probeNetworkNow } from './networkReachability'
 import { getDb, listSyncQueue, removeSyncItem, enqueueSync, setOnlineFlag } from './localDb'
 import {
   pushRecordViaApi,
@@ -371,6 +371,7 @@ export async function flushSyncQueue(opts = {}) {
 }
 
 async function flushSyncQueueInner() {
+  await probeNetworkNow()
   if (!isAppOnline() || !isSupabaseConfigured()) return { ok: false, reason: 'offline_or_stub' }
   if (flushInFlightPromise) return flushInFlightPromise
 
@@ -562,7 +563,7 @@ export async function saveLocalWithSync(storeName, record, { table_name, operati
     data: payload,
   })
   /* Сначала push через Vercel API; при сбое остаётся в очереди для «Синхронизировать». */
-  if (AUTO_PUSH_TABLES.has(table_name) && !backgroundSyncPaused && isAppOnline()) {
+  if (AUTO_PUSH_TABLES.has(table_name) && !backgroundSyncPaused) {
     schedulePushRecordViaApi({
       table_name,
       operation,
@@ -588,7 +589,7 @@ export async function deleteLocalWithSync(storeName, key, table_name) {
     remote_id: key,
     data: {},
   })
-  if (AUTO_PUSH_TABLES.has(table_name) && !backgroundSyncPaused && isAppOnline()) {
+  if (AUTO_PUSH_TABLES.has(table_name) && !backgroundSyncPaused) {
     schedulePushRecordViaApi({
       table_name,
       operation: 'delete',
@@ -612,7 +613,7 @@ export async function deleteHealthCardByClientId(clientId) {
     remote_id: hc.id ?? null,
     data: {},
   })
-  if (!backgroundSyncPaused && isAppOnline()) {
+  if (!backgroundSyncPaused) {
     schedulePushRecordViaApi({
       table_name: 'health_cards',
       operation: 'delete',

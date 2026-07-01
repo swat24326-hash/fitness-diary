@@ -1,5 +1,5 @@
 import { isSupabaseConfigured } from './supabase'
-import { isAppOnline } from './networkReachability'
+import { noteAppNetworkResponse } from './networkReachability'
 import { getAccessTokenForAdminApi } from './admin/adminApiClient'
 import { removeSyncItem } from './localDb'
 import { handlePushApiFailure, isUnrecoverablePushError } from './syncQueueOrphans'
@@ -49,7 +49,9 @@ async function fetchPushApi(url, init, timeoutMs) {
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(), timeoutMs)
   try {
-    return await fetch(url, { ...init, signal: ctrl.signal })
+    const res = await fetch(url, { ...init, signal: ctrl.signal })
+    noteAppNetworkResponse(res)
+    return res
   } catch (e) {
     if (e?.name === 'AbortError') {
       throw new Error(`Таймаут ${Math.round(timeoutMs / 1000)} с — сервер не ответил`)
@@ -69,8 +71,8 @@ const pushQueue = []
  * @returns {Promise<{ ok: boolean, error?: string }>}
  */
 export async function pushRecordViaApi({ table_name, operation, data, remote_id, local_id }) {
-  if (!PUSH_TABLES.has(table_name) || !isSupabaseConfigured() || !isAppOnline()) {
-    return { ok: false, error: 'Нет сети или Supabase не настроен' }
+  if (!PUSH_TABLES.has(table_name) || !isSupabaseConfigured()) {
+    return { ok: false, error: 'Supabase не настроен' }
   }
 
   let token
@@ -158,8 +160,8 @@ export async function pushRecordViaApi({ table_name, operation, data, remote_id,
  * @param {Array<{ table_name: string, operation: string, data: object, remote_id: string | null, local_id: string }>} items
  */
 export async function pushRecordsBatchViaApi(items) {
-  if (!items.length || !isSupabaseConfigured() || !isAppOnline()) {
-    return { ok: false, error: 'Нет сети или пустой пакет' }
+  if (!items.length || !isSupabaseConfigured()) {
+    return { ok: false, error: 'Пустой пакет или Supabase не настроен' }
   }
 
   let token
@@ -296,7 +298,7 @@ export async function pushRecordsBatchViaApi(items) {
 
 /** Debounced push после saveLocalWithSync */
 export function schedulePushRecordViaApi(item) {
-  if (!PUSH_TABLES.has(item.table_name) || !isAppOnline()) return
+  if (!PUSH_TABLES.has(item.table_name)) return
   pushQueue.push(item)
   clearTimeout(pushTimer)
   pushTimer = setTimeout(() => {
@@ -348,6 +350,7 @@ export async function fetchTrainerPullViaApi(opts = {}) {
       credentials: 'same-origin',
       cache: 'no-store',
     })
+    noteAppNetworkResponse(res)
   } catch {
     return null
   }

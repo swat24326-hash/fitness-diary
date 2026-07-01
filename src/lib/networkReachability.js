@@ -1,10 +1,13 @@
 /**
- * Реальная доступность сети (не только navigator.onLine — на планшетах часто врёт).
- * Проверка через тот же домен приложения — без запросов к Supabase (нет 401 в консоли).
+ * Реальная доступность сети (navigator.onLine на PWA/Android часто врёт).
+ * Probe: manifest.json + /api/me-profile (401 = origin доступен), не только navigator.
  */
 export const NETWORK_STATUS_EVENT = 'fitness-diary-network-status'
 
-let reachable = typeof navigator !== 'undefined' ? navigator.onLine : true
+const PROBE_INTERVAL_MS = 22_000
+const PROBE_TIMEOUT_MS = 6000
+
+let reachable = typeof navigator !== 'undefined' ? navigator.onLine !== false : true
 let probeTimer = null
 let probeGen = 0
 
@@ -25,35 +28,67 @@ export function getNetworkReachable() {
   return reachable
 }
 
-/** Офлайн-first: и navigator.onLine, и реальная доступность origin (не Supabase). */
+/** Любой HTTP-ответ сервера приложения = сеть до origin есть. */
+export function isHttpResponseReachable(status) {
+  return typeof status === 'number' && status >= 100 && status < 600
+}
+
+/** Офлайн-first: probe + успешные API, не navigator.onLine (PWA часто «офлайн» при Wi‑Fi). */
 export function isAppOnline() {
-  if (typeof navigator !== 'undefined' && !navigator.onLine) return false
   return getNetworkReachable()
 }
 
-async function fetchOriginReachable(origin, signal) {
-  let res = await fetch(`${origin}/`, {
-    method: 'HEAD',
-    cache: 'no-store',
-    signal,
-    credentials: 'same-origin',
-  })
-  if (res.ok || res.status === 405) return true
-  res = await fetch(`${origin}/`, {
-    method: 'GET',
-    cache: 'no-store',
-    signal,
-    credentials: 'same-origin',
-  })
-  return res.ok
+/** После успешного fetch к /api/* — считаем сеть онлайн. */
+export function noteAppNetworkResponse(response) {
+  if (response && isHttpResponseReachable(response.status)) {
+    setReachable(true)
+  }
+}
+
+/** Ручная проверка (Диагностика, Sync перед flush). @returns {Promise<boolean>} */
+export async function probeNetworkNow() {
+  await probeOnce()
+  return getNetworkReachable()
+}
+
+async function fetchProbeReachable(origin, signal) {
+  const urls = [`${origin}/manifest.json`, `${origin}/api/me-profile`]
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, {
+        method: 'GET',
+        cache: 'no-store',
+        signal,
+        credentials: 'same-origin',
+      })
+      if (isHttpResponseReachable(res.status)) return true
+    } catch {
+      /* следующий URL */
+    }
+  }
+
+  try {
+    let res = await fetch(`${origin}/`, {
+      method: 'HEAD',
+      cache: 'no-store',
+      signal,
+      credentials: 'same-origin',
+    })
+    if (isHttpResponseReachable(res.status) || res.status === 405) return true
+    res = await fetch(`${origin}/`, {
+      method: 'GET',
+      cache: 'no-store',
+      signal,
+      credentials: 'same-origin',
+    })
+    return isHttpResponseReachable(res.status)
+  } catch {
+    return false
+  }
 }
 
 async function probeOnce() {
   if (typeof navigator === 'undefined') return
-  if (!navigator.onLine) {
-    setReachable(false)
-    return
-  }
 
   const origin = typeof window !== 'undefined' ? window.location?.origin : ''
   if (!origin) {
@@ -64,8 +99,8 @@ async function probeOnce() {
   const gen = ++probeGen
   try {
     const ctrl = new AbortController()
-    const timeout = setTimeout(() => ctrl.abort(), 6000)
-    const ok = await fetchOriginReachable(origin, ctrl.signal)
+    const timeout = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS)
+    const ok = await fetchProbeReachable(origin, ctrl.signal)
     clearTimeout(timeout)
     if (gen !== probeGen) return
     setReachable(ok)
@@ -93,7 +128,7 @@ export function initNetworkReachability(onChange) {
   const onStatus = (e) => notify(e.detail?.online ?? reachable)
   window.addEventListener(NETWORK_STATUS_EVENT, onStatus)
 
-  const onOffline = () => setReachable(false)
+  const onOffline = () => scheduleProbe()
   const onOnline = () => scheduleProbe()
   const onVisible = () => {
     if (document.visibilityState === 'visible') scheduleProbe()
@@ -110,7 +145,7 @@ export function initNetworkReachability(onChange) {
   if (probeTimer) clearInterval(probeTimer)
   probeTimer = setInterval(() => {
     if (document.visibilityState === 'visible') scheduleProbe()
-  }, 22_000)
+  }, PROBE_INTERVAL_MS)
 
   return () => {
     probeGen++

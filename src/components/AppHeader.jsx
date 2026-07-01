@@ -4,7 +4,7 @@ import { pullAdminClientsFromCloud } from '../lib/admin/adminClientsListService'
 import { pullTrainerWorkspaceFromCloud } from '../lib/trainerPullService'
 import { listSyncQueue } from '../lib/localDb'
 import { describeFlushQueueResult, flushSyncQueue, getSyncOutboundSummary, isAppOnline } from '../lib/syncService'
-import { subscribeNetworkStatus } from '../lib/networkReachability'
+import { probeNetworkNow, subscribeNetworkStatus } from '../lib/networkReachability'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, BarChart3, CircleHelp, LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, User, UserCircle, Building2 } from 'lucide-react'
@@ -270,6 +270,7 @@ export function AppHeader() {
     let hadError = false
 
     try {
+      await probeNetworkNow()
       if (!isAppOnline()) {
         recordAppError({ source: 'network', error: 'Нет сети — синхронизация отложена' })
         showSyncFeedback('Нет сети — синхронизация отложена.', 'warn')

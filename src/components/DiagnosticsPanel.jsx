@@ -25,6 +25,7 @@ import {
   suggestErrorHint,
 } from '../lib/appDiagnostics'
 import { clearPoisonedSyncQueue, getSyncOutboundSummary } from '../lib/syncService'
+import { probeNetworkNow } from '../lib/networkReachability'
 import { pruneRedundantSyncQueue } from '../lib/syncQueueOrphans'
 
 async function copyText(text) {
@@ -77,6 +78,7 @@ export function DiagnosticsPanel({
   const [queueLoading, setQueueLoading] = useState(true)
   const [copyBusy, setCopyBusy] = useState(false)
   const [repairBusy, setRepairBusy] = useState(false)
+  const [probeBusy, setProbeBusy] = useState(false)
   const [showAllQueue, setShowAllQueue] = useState(false)
   const [showDetails, setShowDetails] = useState(!simpleMode)
 
@@ -218,6 +220,18 @@ export function DiagnosticsPanel({
     }
   }
 
+  const handleProbeNetwork = async () => {
+    setProbeBusy(true)
+    try {
+      const ok = await probeNetworkNow()
+      onCopyFeedback?.(ok ? 'Сеть доступна' : 'Сеть недоступна — проверьте Wi‑Fi', ok ? 'ok' : 'warn')
+    } catch {
+      onCopyFeedback?.('Не удалось проверить сеть', 'warn')
+    } finally {
+      setProbeBusy(false)
+    }
+  }
+
   const handleClear = () => {
     clearAppErrors()
     refreshErrors()
@@ -347,6 +361,15 @@ export function DiagnosticsPanel({
                 <dt>Сеть</dt>
                 <dd className={system.online ? 'diagnostics-ok' : 'diagnostics-warn'}>
                   {system.online ? 'Онлайн' : 'Офлайн'}
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm diagnostics-probe-network"
+                    disabled={probeBusy}
+                    onClick={() => void handleProbeNetwork()}
+                  >
+                    <RefreshCw size={14} aria-hidden />
+                    {probeBusy ? 'Проверка…' : 'Проверить'}
+                  </button>
                 </dd>
               </div>
               <div>
