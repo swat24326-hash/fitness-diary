@@ -68,6 +68,8 @@
 | Список клиентов: пагинация + индексы тренировок | ✅ фаза A, см. [CLIENT_ARCHIVE.md](./CLIENT_ARCHIVE.md) |
 | Ручной архив клиентов (тренер + админ) | ✅ фаза B, [CLIENT_ARCHIVE.md](./CLIENT_ARCHIVE.md) — миграция `20260602120000`, UI, sync, agg |
 | Создание клуба / CONNECTION_RESET (§15 handoff) | открыто |
+| **Управляющий** (supervisor, один на клуб) | 📋 ТЗ: [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md), реализация позже |
+| Менеджер по продажам | 📋 отдельная роль, позже |
 
 ---
 
