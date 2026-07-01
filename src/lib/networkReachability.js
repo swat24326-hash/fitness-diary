@@ -1,19 +1,20 @@
 /**
  * Реальная доступность сети (navigator.onLine на PWA/Android часто врёт).
- * Probe: manifest.json + /api/me-profile (401 = origin доступен), не только navigator.
+ * Probe: /api/me-profile (401 = origin доступен), manifest без no-store (не ломать SW).
  */
 export const NETWORK_STATUS_EVENT = 'fitness-diary-network-status'
 
 const PROBE_INTERVAL_MS = 22_000
-const PROBE_TIMEOUT_MS = 6000
+const PROBE_TIMEOUT_MS = 8000
 
-let reachable = typeof navigator !== 'undefined' ? navigator.onLine !== false : true
+/** Оптимистично true — probe/API уточняют; ложный offline хуже ложного online. */
+let reachable = true
 let probeTimer = null
 let probeGen = 0
 
 function emit() {
   if (typeof window === 'undefined') return
-  window.dispatchEvent(new CustomEvent(NETWORK_STATUS_EVENT, { detail: { online: reachable } }))
+  window.dispatchEvent(new CustomEvent(NETWORK_STATUS_EVENT, { detail: { online: isAppOnline() } }))
 }
 
 function setReachable(next) {
@@ -33,57 +34,83 @@ export function isHttpResponseReachable(status) {
   return typeof status === 'number' && status >= 100 && status < 600
 }
 
-/** Офлайн-first: probe + успешные API, не navigator.onLine (PWA часто «офлайн» при Wi‑Fi). */
-export function isAppOnline() {
-  return getNetworkReachable()
+/** @param {boolean} reachableFlag @param {boolean} [navigatorOnline] */
+export function computeIsAppOnline(reachableFlag, navigatorOnline = true) {
+  if (reachableFlag) return true
+  if (navigatorOnline !== false) return true
+  return false
 }
 
-/** После успешного fetch к /api/* — считаем сеть онлайн. */
+/**
+ * Офлайн-first, но без ложного «нет сети»:
+ * - probe/API → reachable
+ * - navigator.onLine — запасной сигнал на десктопе
+ */
+export function isAppOnline() {
+  const navOnline = typeof navigator !== 'undefined' ? navigator.onLine !== false : true
+  return computeIsAppOnline(getNetworkReachable(), navOnline)
+}
+
+/** После HTTP-ответа приложения — сеть точно есть. */
 export function noteAppNetworkResponse(response) {
   if (response && isHttpResponseReachable(response.status)) {
     setReachable(true)
   }
 }
 
-/** Ручная проверка (Диагностика, Sync перед flush). @returns {Promise<boolean>} */
+/** Ручная проверка (Диагностика, Sync). @returns {Promise<boolean>} */
 export async function probeNetworkNow() {
   await probeOnce()
-  return getNetworkReachable()
+  return isAppOnline()
 }
 
-async function fetchProbeReachable(origin, signal) {
-  const urls = [`${origin}/manifest.json`, `${origin}/api/me-profile`]
-  for (const url of urls) {
+async function fetchUrlReachable(url, signal) {
+  const res = await fetch(url, {
+    method: 'GET',
+    signal,
+    credentials: 'same-origin',
+  })
+  return isHttpResponseReachable(res.status)
+}
+
+async function fetchProbeReachable(origin) {
+  const attempts = [`${origin}/api/me-profile`, `${origin}/manifest.json`]
+
+  for (const url of attempts) {
+    const ctrl = new AbortController()
+    const timeout = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS)
     try {
-      const res = await fetch(url, {
-        method: 'GET',
-        cache: 'no-store',
-        signal,
-        credentials: 'same-origin',
-      })
-      if (isHttpResponseReachable(res.status)) return true
+      if (await fetchUrlReachable(url, ctrl.signal)) {
+        clearTimeout(timeout)
+        return true
+      }
     } catch {
       /* следующий URL */
+    } finally {
+      clearTimeout(timeout)
     }
   }
 
+  const ctrl = new AbortController()
+  const timeout = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS)
   try {
-    let res = await fetch(`${origin}/`, {
+    let ok = await fetch(`${origin}/`, {
       method: 'HEAD',
-      cache: 'no-store',
-      signal,
+      signal: ctrl.signal,
       credentials: 'same-origin',
-    })
-    if (isHttpResponseReachable(res.status) || res.status === 405) return true
-    res = await fetch(`${origin}/`, {
-      method: 'GET',
-      cache: 'no-store',
-      signal,
-      credentials: 'same-origin',
-    })
-    return isHttpResponseReachable(res.status)
+    }).then((res) => isHttpResponseReachable(res.status) || res.status === 405)
+    if (!ok) {
+      ok = await fetch(`${origin}/`, {
+        method: 'GET',
+        signal: ctrl.signal,
+        credentials: 'same-origin',
+      }).then((res) => isHttpResponseReachable(res.status))
+    }
+    return ok
   } catch {
     return false
+  } finally {
+    clearTimeout(timeout)
   }
 }
 
@@ -98,15 +125,20 @@ async function probeOnce() {
 
   const gen = ++probeGen
   try {
-    const ctrl = new AbortController()
-    const timeout = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS)
-    const ok = await fetchProbeReachable(origin, ctrl.signal)
-    clearTimeout(timeout)
+    const ok = await fetchProbeReachable(origin)
     if (gen !== probeGen) return
-    setReachable(ok)
+    if (ok) {
+      setReachable(true)
+      return
+    }
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setReachable(false)
+    }
   } catch {
     if (gen !== probeGen) return
-    setReachable(false)
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setReachable(false)
+    }
   }
 }
 
@@ -121,15 +153,18 @@ function scheduleProbe() {
 export function initNetworkReachability(onChange) {
   if (typeof window === 'undefined') return () => {}
 
-  const notify = (online) => {
-    onChange?.(online)
+  const notify = () => {
+    onChange?.(isAppOnline())
   }
 
-  const onStatus = (e) => notify(e.detail?.online ?? reachable)
+  const onStatus = () => notify()
   window.addEventListener(NETWORK_STATUS_EVENT, onStatus)
 
   const onOffline = () => scheduleProbe()
-  const onOnline = () => scheduleProbe()
+  const onOnline = () => {
+    setReachable(true)
+    scheduleProbe()
+  }
   const onVisible = () => {
     if (document.visibilityState === 'visible') scheduleProbe()
   }
@@ -139,7 +174,7 @@ export function initNetworkReachability(onChange) {
   document.addEventListener('visibilitychange', onVisible)
   window.addEventListener('focus', onVisible)
 
-  notify(reachable)
+  notify()
   scheduleProbe()
 
   if (probeTimer) clearInterval(probeTimer)
@@ -164,8 +199,8 @@ export function initNetworkReachability(onChange) {
 /** @param {(online: boolean) => void} fn */
 export function subscribeNetworkStatus(fn) {
   if (typeof window === 'undefined') return () => {}
-  const handler = (e) => fn(e.detail?.online ?? reachable)
+  const handler = () => fn(isAppOnline())
   window.addEventListener(NETWORK_STATUS_EVENT, handler)
-  fn(reachable)
+  fn(isAppOnline())
   return () => window.removeEventListener(NETWORK_STATUS_EVENT, handler)
 }

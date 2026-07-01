@@ -1,5 +1,6 @@
 import { supabase } from './supabase'
 import { getAccessTokenForAdminApi } from './admin/adminApiClient'
+import { noteAppNetworkResponse } from './networkReachability'
 
 async function parseJson(res) {
   const text = await res.text()
@@ -54,6 +55,8 @@ export async function fetchMyProfileViaApi() {
     return { profile: null, error: new Error(e?.message ?? 'Сеть') }
   }
 
+  noteAppNetworkResponse(res)
+
   const data = await parseJson(res)
   if (!res.ok) {
     return { profile: null, error: new Error(data?.error ? String(data.error) : `Ошибка ${res.status}`) }
@@ -83,6 +86,8 @@ export async function updateTrainerClubViaApi(trainerId, clubId) {
   } catch (e) {
     return { trainer: null, error: new Error(e?.message ?? 'Сеть'), usedApi: false }
   }
+
+  noteAppNetworkResponse(res)
 
   const ct = res.headers.get('content-type') || ''
   if (res.status === 404 || res.status === 405 || ct.includes('text/html')) {
