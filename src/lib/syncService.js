@@ -1,5 +1,5 @@
 import { isSupabaseConfigured } from './supabase'
-import { initNetworkReachability, isAppOnline, probeNetworkNow } from './networkReachability'
+import { initNetworkReachability, isAppOnline } from './networkReachability'
 import { getDb, listSyncQueue, removeSyncItem, enqueueSync, setOnlineFlag } from './localDb'
 import {
   pushRecordViaApi,
@@ -371,7 +371,6 @@ export async function flushSyncQueue(opts = {}) {
 }
 
 async function flushSyncQueueInner() {
-  await probeNetworkNow()
   if (!isAppOnline() || !isSupabaseConfigured()) return { ok: false, reason: 'offline_or_stub' }
   if (flushInFlightPromise) return flushInFlightPromise
 

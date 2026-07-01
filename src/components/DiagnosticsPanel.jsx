@@ -25,7 +25,7 @@ import {
   suggestErrorHint,
 } from '../lib/appDiagnostics'
 import { clearPoisonedSyncQueue, getSyncOutboundSummary } from '../lib/syncService'
-import { probeNetworkNow } from '../lib/networkReachability'
+import { probeCloudNow } from '../lib/networkReachability'
 import { pruneRedundantSyncQueue } from '../lib/syncQueueOrphans'
 
 async function copyText(text) {
@@ -223,8 +223,11 @@ export function DiagnosticsPanel({
   const handleProbeNetwork = async () => {
     setProbeBusy(true)
     try {
-      const ok = await probeNetworkNow()
-      onCopyFeedback?.(ok ? 'Сеть доступна' : 'Сеть недоступна — проверьте Wi‑Fi', ok ? 'ok' : 'warn')
+      const ok = await probeCloudNow()
+      onCopyFeedback?.(
+        ok ? 'Облако доступно' : 'Облако недоступно — Wi‑Fi может быть, но сервер не отвечает',
+        ok ? 'ok' : 'warn',
+      )
     } catch {
       onCopyFeedback?.('Не удалось проверить сеть', 'warn')
     } finally {

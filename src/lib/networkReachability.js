@@ -1,149 +1,98 @@
 /**
- * Реальная доступность сети (navigator.onLine на PWA/Android часто врёт).
- * Probe: /api/me-profile (401 = origin доступен), manifest без no-store (не ломать SW).
+ * «Сеть» в UI = Wi‑Fi/интернет устройства (navigator.onLine).
+ * «Облако» = отдельная проверка origin/API (Vercel может быть недоступен при живом Wi‑Fi).
  */
 export const NETWORK_STATUS_EVENT = 'fitness-diary-network-status'
+export const CLOUD_STATUS_EVENT = 'fitness-diary-cloud-status'
 
-const PROBE_INTERVAL_MS = 22_000
-const PROBE_TIMEOUT_MS = 8000
+let cloudReachable = true
+let cloudCheckedAt = 0
 
-/** Оптимистично true — probe/API уточняют; ложный offline хуже ложного online. */
-let reachable = true
-let probeTimer = null
-let probeGen = 0
-
-function emit() {
+function emitCloud() {
   if (typeof window === 'undefined') return
-  window.dispatchEvent(new CustomEvent(NETWORK_STATUS_EVENT, { detail: { online: isAppOnline() } }))
+  window.dispatchEvent(new CustomEvent(CLOUD_STATUS_EVENT, { detail: { reachable: isCloudReachable() } }))
 }
 
-function setReachable(next) {
-  const v = !!next
-  if (reachable === v) return
-  reachable = v
-  emit()
-}
-
-/** @returns {boolean} */
-export function getNetworkReachable() {
-  return reachable
-}
-
-/** Любой HTTP-ответ сервера приложения = сеть до origin есть. */
+/** Любой HTTP-ответ сервера приложения = origin доступен. */
 export function isHttpResponseReachable(status) {
   return typeof status === 'number' && status >= 100 && status < 600
 }
 
-/** @param {boolean} reachableFlag @param {boolean} [navigatorOnline] */
-export function computeIsAppOnline(reachableFlag, navigatorOnline = true) {
-  if (reachableFlag) return true
-  if (navigatorOnline !== false) return true
-  return false
+/** Wi‑Fi / интернет на устройстве (индикатор, локальная работа). */
+export function isBrowserOnline() {
+  if (typeof navigator === 'undefined') return true
+  return navigator.onLine !== false
 }
 
-/**
- * Офлайн-first, но без ложного «нет сети»:
- * - probe/API → reachable
- * - navigator.onLine — запасной сигнал на десктопе
- */
+/** @deprecated alias — UI «онлайн» = браузер, не probe к Vercel */
 export function isAppOnline() {
-  const navOnline = typeof navigator !== 'undefined' ? navigator.onLine !== false : true
-  return computeIsAppOnline(getNetworkReachable(), navOnline)
+  return isBrowserOnline()
 }
 
-/** После HTTP-ответа приложения — сеть точно есть. */
+export function getNetworkReachable() {
+  return isCloudReachable()
+}
+
+/** Сервер приложения отвечает (sync, профиль). */
+export function isCloudReachable() {
+  if (!isBrowserOnline()) return false
+  if (cloudReachable) return true
+  return Date.now() - cloudCheckedAt < 45_000
+}
+
 export function noteAppNetworkResponse(response) {
   if (response && isHttpResponseReachable(response.status)) {
-    setReachable(true)
+    cloudReachable = true
+    cloudCheckedAt = Date.now()
+    emitCloud()
   }
 }
 
-/** Ручная проверка (Диагностика, Sync). @returns {Promise<boolean>} */
-export async function probeNetworkNow() {
-  await probeOnce()
-  return isAppOnline()
+/** @param {boolean} browserOnline @param {boolean} [cloudOk] — для verify-скрипта */
+export function computeIsAppOnline(browserOnline, cloudOk = true) {
+  void cloudOk
+  return browserOnline !== false
 }
 
-async function fetchUrlReachable(url, signal) {
-  const res = await fetch(url, {
-    method: 'GET',
-    signal,
-    credentials: 'same-origin',
-  })
-  return isHttpResponseReachable(res.status)
-}
-
-async function fetchProbeReachable(origin) {
-  const attempts = [`${origin}/api/me-profile`, `${origin}/manifest.json`]
-
-  for (const url of attempts) {
-    const ctrl = new AbortController()
-    const timeout = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS)
-    try {
-      if (await fetchUrlReachable(url, ctrl.signal)) {
-        clearTimeout(timeout)
-        return true
-      }
-    } catch {
-      /* следующий URL */
-    } finally {
-      clearTimeout(timeout)
-    }
-  }
-
-  const ctrl = new AbortController()
-  const timeout = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS)
-  try {
-    let ok = await fetch(`${origin}/`, {
-      method: 'HEAD',
-      signal: ctrl.signal,
-      credentials: 'same-origin',
-    }).then((res) => isHttpResponseReachable(res.status) || res.status === 405)
-    if (!ok) {
-      ok = await fetch(`${origin}/`, {
-        method: 'GET',
-        signal: ctrl.signal,
-        credentials: 'same-origin',
-      }).then((res) => isHttpResponseReachable(res.status))
-    }
-    return ok
-  } catch {
+/** Проверка облака (Диагностика). Не трогает индикатор Wi‑Fi. */
+export async function probeCloudNow() {
+  if (!isBrowserOnline()) {
+    cloudReachable = false
+    cloudCheckedAt = Date.now()
+    emitCloud()
     return false
-  } finally {
-    clearTimeout(timeout)
   }
-}
-
-async function probeOnce() {
-  if (typeof navigator === 'undefined') return
 
   const origin = typeof window !== 'undefined' ? window.location?.origin : ''
   if (!origin) {
-    setReachable(true)
-    return
+    cloudReachable = true
+    cloudCheckedAt = Date.now()
+    emitCloud()
+    return true
   }
 
-  const gen = ++probeGen
+  const ctrl = new AbortController()
+  const timeout = setTimeout(() => ctrl.abort(), 5000)
   try {
-    const ok = await fetchProbeReachable(origin)
-    if (gen !== probeGen) return
-    if (ok) {
-      setReachable(true)
-      return
-    }
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      setReachable(false)
-    }
+    const res = await fetch(`${origin}/manifest.json`, {
+      method: 'GET',
+      signal: ctrl.signal,
+      credentials: 'same-origin',
+    })
+    cloudReachable = isHttpResponseReachable(res.status)
   } catch {
-    if (gen !== probeGen) return
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      setReachable(false)
-    }
+    cloudReachable = false
+  } finally {
+    clearTimeout(timeout)
   }
+  cloudCheckedAt = Date.now()
+  emitCloud()
+  return cloudReachable
 }
 
-function scheduleProbe() {
-  void probeOnce()
+/** @deprecated — используйте probeCloudNow */
+export async function probeNetworkNow() {
+  return probeCloudNow()
 }
 
 /**
@@ -153,54 +102,28 @@ function scheduleProbe() {
 export function initNetworkReachability(onChange) {
   if (typeof window === 'undefined') return () => {}
 
-  const notify = () => {
-    onChange?.(isAppOnline())
-  }
+  const notify = () => onChange?.(isAppOnline())
 
-  const onStatus = () => notify()
-  window.addEventListener(NETWORK_STATUS_EVENT, onStatus)
-
-  const onOffline = () => scheduleProbe()
-  const onOnline = () => {
-    setReachable(true)
-    scheduleProbe()
-  }
-  const onVisible = () => {
-    if (document.visibilityState === 'visible') scheduleProbe()
-  }
-
-  window.addEventListener('offline', onOffline)
-  window.addEventListener('online', onOnline)
-  document.addEventListener('visibilitychange', onVisible)
-  window.addEventListener('focus', onVisible)
+  window.addEventListener('online', notify)
+  window.addEventListener('offline', notify)
 
   notify()
-  scheduleProbe()
-
-  if (probeTimer) clearInterval(probeTimer)
-  probeTimer = setInterval(() => {
-    if (document.visibilityState === 'visible') scheduleProbe()
-  }, PROBE_INTERVAL_MS)
 
   return () => {
-    probeGen++
-    window.removeEventListener(NETWORK_STATUS_EVENT, onStatus)
-    window.removeEventListener('offline', onOffline)
-    window.removeEventListener('online', onOnline)
-    document.removeEventListener('visibilitychange', onVisible)
-    window.removeEventListener('focus', onVisible)
-    if (probeTimer) {
-      clearInterval(probeTimer)
-      probeTimer = null
-    }
+    window.removeEventListener('online', notify)
+    window.removeEventListener('offline', notify)
   }
 }
 
 /** @param {(online: boolean) => void} fn */
 export function subscribeNetworkStatus(fn) {
   if (typeof window === 'undefined') return () => {}
-  const handler = () => fn(isAppOnline())
-  window.addEventListener(NETWORK_STATUS_EVENT, handler)
+  const onBrowser = () => fn(isAppOnline())
+  window.addEventListener('online', onBrowser)
+  window.addEventListener('offline', onBrowser)
   fn(isAppOnline())
-  return () => window.removeEventListener(NETWORK_STATUS_EVENT, handler)
+  return () => {
+    window.removeEventListener('online', onBrowser)
+    window.removeEventListener('offline', onBrowser)
+  }
 }

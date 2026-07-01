@@ -1,5 +1,5 @@
 /**
- * Проверка правил определения сети (PWA / ложный offline).
+ * Проверка правил определения сети (PWA / облако).
  * node scripts/verify-network-reachability.mjs
  */
 import { computeIsAppOnline, isHttpResponseReachable } from '../src/lib/networkReachability.js'
@@ -25,10 +25,9 @@ ok(!isHttpResponseReachable(undefined), 'undefined = not reachable')
 ok(!isHttpResponseReachable(99), '99 = not HTTP response')
 ok(!isHttpResponseReachable(600), '600 = out of range')
 
-ok(computeIsAppOnline(true, false), 'reachable → online')
-ok(computeIsAppOnline(false, true), 'navigator.onLine → online (десктоп)')
-ok(!computeIsAppOnline(false, false), 'probe fail + navigator offline → offline')
-ok(computeIsAppOnline(false, true), 'PWA: probe fail но navigator true → online (запасной)')
+ok(computeIsAppOnline(true), 'Wi‑Fi есть → online в UI')
+ok(!computeIsAppOnline(false), 'navigator offline → offline в UI')
+ok(computeIsAppOnline(true, false), 'облако недоступно, Wi‑Fi есть → всё равно online в UI')
 
 if (failed) {
   console.error(`\n${failed} check(s) failed`)
