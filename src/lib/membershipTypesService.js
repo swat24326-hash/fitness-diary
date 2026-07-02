@@ -6,7 +6,7 @@ import { isSupabaseConfigured } from './supabase'
 import { getDb, putStore, listSyncQueue, buildPendingSyncKeysByTable } from './localDb'
 import { saveLocalWithSync } from './syncService'
 import { pushRecordViaApi } from './syncApiClient'
-import { markRecordFromCloud } from './syncUnsyncedCore'
+import { markRecordFromCloud, recordForPush } from './syncUnsyncedCore'
 import { parseTrainerPayRate } from './admin/trainerPayrollCore.js'
 
 export function normalizeMembershipTypeCode(raw) {
@@ -34,7 +34,7 @@ async function pushTypeOp(operation, row, remoteId) {
   const push = await pushRecordViaApi({
     table_name: 'membership_types',
     operation,
-    data: row,
+    data: recordForPush(row),
     remote_id: remoteId ?? row.id ?? null,
     local_id: null,
   })

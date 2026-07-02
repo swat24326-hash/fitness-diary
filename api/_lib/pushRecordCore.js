@@ -68,7 +68,49 @@ function friendlyMembershipTypeDbError(error) {
   if (code === '23505' || /unique|duplicate/i.test(msg)) {
     return 'Тип с таким названием уже есть в этом клубе'
   }
+  if (/trainer_pay_per_session/i.test(msg) && /schema cache|could not find/i.test(msg)) {
+    return 'Колонка оплаты не создана в Supabase — выполните миграцию trainer_pay_per_session'
+  }
   return msg || 'Ошибка базы данных'
+}
+
+const MEMBERSHIP_TYPE_DB_FIELDS = new Set([
+  'id',
+  'club_id',
+  'code',
+  'sort_order',
+  'is_active',
+  'trainer_pay_per_session',
+  'created_at',
+])
+
+function pickMembershipTypeDbFields(obj) {
+  const out = {}
+  for (const key of MEMBERSHIP_TYPE_DB_FIELDS) {
+    if (Object.prototype.hasOwnProperty.call(obj ?? {}, key) && obj[key] !== undefined) {
+      out[key] = obj[key]
+    }
+  }
+  return out
+}
+
+function normalizeMembershipTypePushPayload(payload, { insert = false } = {}) {
+  const payRaw = payload?.trainer_pay_per_session
+  const pay = payRaw == null || payRaw === '' ? 0 : parseTrainerPayRate(payRaw)
+  if (Number.isNaN(pay)) {
+    return { ok: false, error: 'Оплата за тренировку: неотрицательное число' }
+  }
+  const next = pickMembershipTypeDbFields({
+    ...payload,
+    code: String(payload?.code ?? '').trim().slice(0, 12),
+    club_id: String(payload?.club_id ?? '').trim(),
+    is_active: payload?.is_active !== false,
+    trainer_pay_per_session: pay,
+  })
+  if (insert && (!next.code || !next.club_id)) {
+    return { ok: false, error: 'Укажите клуб и название типа' }
+  }
+  return { ok: true, data: next }
 }
 
 async function validateMembershipTypeLink(supabaseAdmin, payload, operation) {
@@ -132,22 +174,9 @@ export async function executePushRecord(ctx, item) {
         payload = link.data
       }
       if (table_name === 'membership_types') {
-        const payRaw = payload?.trainer_pay_per_session
-        const pay =
-          payRaw == null || payRaw === '' ? 0 : parseTrainerPayRate(payRaw)
-        if (Number.isNaN(pay)) {
-          return { ok: false, status: 400, error: 'Оплата за тренировку: неотрицательное число' }
-        }
-        payload = {
-          ...payload,
-          code: String(payload?.code ?? '').trim().slice(0, 12),
-          club_id: String(payload?.club_id ?? '').trim(),
-          is_active: payload?.is_active !== false,
-          trainer_pay_per_session: pay,
-        }
-        if (!payload.code || !payload.club_id) {
-          return { ok: false, status: 400, error: 'Укажите клуб и название типа' }
-        }
+        const prep = normalizeMembershipTypePushPayload(payload, { insert: true })
+        if (!prep.ok) return { ok: false, status: 400, error: prep.error }
+        payload = prep.data
       }
       const { error } = await supabaseAdmin.from(table_name).insert(payload)
       if (error) {
@@ -200,21 +229,9 @@ export async function executePushRecord(ctx, item) {
         payload = link.data
       }
       if (table_name === 'membership_types') {
-        const next = {
-          ...payload,
-          code: String(payload?.code ?? '').trim().slice(0, 12),
-          is_active: payload?.is_active !== false,
-        }
-        if (Object.prototype.hasOwnProperty.call(payload, 'trainer_pay_per_session')) {
-          const payRaw = payload.trainer_pay_per_session
-          const pay =
-            payRaw == null || payRaw === '' ? 0 : parseTrainerPayRate(payRaw)
-          if (Number.isNaN(pay)) {
-            return { ok: false, status: 400, error: 'Оплата за тренировку: неотрицательное число' }
-          }
-          next.trainer_pay_per_session = pay
-        }
-        payload = next
+        const prep = normalizeMembershipTypePushPayload(payload)
+        if (!prep.ok) return { ok: false, status: 400, error: prep.error }
+        payload = prep.data
       }
       const { error } = await supabaseAdmin.from(table_name).update(payload).eq('id', remote_id)
       if (error) {
