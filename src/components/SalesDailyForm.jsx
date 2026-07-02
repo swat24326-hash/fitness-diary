@@ -67,18 +67,17 @@ export function SalesDailyForm({
         <button type="button" className="sales-report__date-btn" onClick={onPrevDay} aria-label="Предыдущий день">
           <ChevronLeft size={18} />
         </button>
-        <div className="sales-report__date-pill">
+        <label className="sales-report__date-pill">
           <Calendar size={16} aria-hidden />
+          <span className="sales-report__date-text">{dateLabel}</span>
           <input
             type="date"
+            className="sales-report__date-input-overlay"
             value={reportDate}
             onChange={(e) => onDateChange(e.target.value)}
             aria-label="Дата отчёта"
           />
-          <span className="muted" style={{ fontSize: '0.85rem' }}>
-            {dateLabel}
-          </span>
-        </div>
+        </label>
         <button type="button" className="sales-report__date-btn" onClick={onNextDay} aria-label="Следующий день">
           <ChevronRight size={18} />
         </button>

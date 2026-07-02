@@ -32,73 +32,174 @@
   padding: 0.5rem 0 0.25rem;
 }
 
-.sales-report__vessel {
+/* —— Банка с монетами —— */
+.sales-report__jar-scene {
   position: relative;
-  width: min(140px, 28vw);
-  height: min(200px, 40vw);
+  width: min(150px, 32vw);
+  height: min(190px, 42vw);
+  margin: 0 auto;
 }
 
-.sales-report__vessel-glass {
+.sales-report__jar-svg {
   position: absolute;
   inset: 0;
-  border: 2px solid rgba(148, 163, 184, 0.35);
-  border-radius: 8px 8px 20px 20px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.06), transparent 50%);
-  box-shadow: inset 0 -8px 24px rgba(0, 0, 0, 0.35);
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.sales-report__jar-outline {
+  fill: rgba(15, 23, 42, 0.25);
+  stroke: rgba(148, 163, 184, 0.45);
+  stroke-width: 2;
+}
+
+.sales-report__jar-fill-glass {
+  opacity: 0.85;
+}
+
+.sales-report__jar-shine {
+  fill: rgba(255, 255, 255, 0.12);
+}
+
+.sales-report__jar-coins-clip {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 22%;
+  bottom: 4%;
   overflow: hidden;
+  border-radius: 0 0 36% 36%;
+  z-index: 1;
 }
 
-.sales-report__vessel-liquid {
+.sales-report__coin {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(180deg, rgba(74, 222, 128, 0.95), rgba(22, 163, 74, 0.9));
-  transition: height 1s ease-out;
-  border-radius: 0 0 18px 18px;
-}
-
-.sales-report__vessel-liquid::after {
-  content: '';
-  position: absolute;
-  top: 4px;
-  left: 15%;
-  right: 40%;
-  height: 8px;
+  width: 18%;
+  aspect-ratio: 1;
+  margin-left: -9%;
+  margin-top: -9%;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.35);
-  filter: blur(1px);
+  background:
+    radial-gradient(circle at 32% 28%, #fff7cc 0%, #fde68a 22%, #f59e0b 55%, #b45309 100%);
+  border: 1px solid rgba(251, 191, 36, 0.85);
+  box-shadow:
+    inset 0 2px 4px rgba(255, 255, 255, 0.45),
+    inset 0 -2px 3px rgba(120, 53, 15, 0.35),
+    0 3px 6px rgba(0, 0, 0, 0.35);
+  transform: rotate(var(--coin-rot, 0deg)) scale(0.4);
+  opacity: 0;
+  transition:
+    transform 0.55s cubic-bezier(0.34, 1.2, 0.64, 1),
+    opacity 0.35s ease-out;
+  transition-delay: var(--coin-delay, 0ms);
 }
 
-.sales-report__vessel--overflow .sales-report__vessel-liquid {
-  background: linear-gradient(180deg, rgba(134, 239, 172, 0.95), rgba(34, 197, 94, 0.95));
-  box-shadow: 0 0 20px rgba(34, 197, 94, 0.35);
+.sales-report__coin::after {
+  content: '₽';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(7px, 2.2vw, 10px);
+  font-weight: 700;
+  color: rgba(92, 45, 8, 0.75);
 }
 
-.sales-report__vessel--pulse .sales-report__vessel-liquid {
-  animation: sales-vessel-pulse 0.6s ease-out;
+.sales-report__coin--in {
+  transform: rotate(var(--coin-rot, 0deg)) scale(1);
+  opacity: 1;
 }
 
-@keyframes sales-vessel-pulse {
+.sales-report__coin--rim {
+  z-index: 4;
+  width: 16%;
+}
+
+.sales-report__coin--spill {
+  z-index: 0;
+  width: 14%;
+}
+
+.sales-report__coin--rim.sales-report__coin--in,
+.sales-report__coin--spill.sales-report__coin--in {
+  transform: rotate(var(--coin-rot, 0deg)) scale(1);
+  opacity: 1;
+}
+
+.sales-report__jar-scene--overflow .sales-report__jar-coins-clip {
+  box-shadow: inset 0 -4px 12px rgba(251, 191, 36, 0.15);
+}
+
+.sales-report__jar-scene--overflow .sales-report__coin--rim {
+  animation: sales-coin-settle 0.7s ease-out both;
+  animation-delay: var(--coin-delay, 0ms);
+}
+
+.sales-report__jar-scene--overflow .sales-report__coin--spill {
+  animation: sales-coin-spill 0.85s cubic-bezier(0.34, 1.3, 0.64, 1) both;
+  animation-delay: var(--coin-delay, 0ms);
+}
+
+.sales-report__jar-scene--pulse {
+  animation: sales-jar-pulse 0.75s ease-out;
+}
+
+@keyframes sales-coin-settle {
   0% {
-    filter: brightness(1);
-  }
-  40% {
-    filter: brightness(1.25);
+    transform: rotate(var(--coin-rot, 0deg)) translateY(-18px) scale(0.6);
+    opacity: 0;
   }
   100% {
-    filter: brightness(1);
+    transform: rotate(var(--coin-rot, 0deg)) translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes sales-coin-spill {
+  0% {
+    transform: rotate(var(--coin-rot, 0deg)) translateY(-28px) scale(0.5);
+    opacity: 0;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    transform: rotate(var(--coin-rot, 0deg)) translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes sales-jar-pulse {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sales-report__vessel-liquid {
+  .sales-report__coin {
     transition: none;
+    transform: rotate(var(--coin-rot, 0deg)) scale(1);
+    opacity: 1;
   }
-  .sales-report__vessel--pulse .sales-report__vessel-liquid {
+  .sales-report__coin--rim,
+  .sales-report__coin--spill {
+    animation: none;
+  }
+  .sales-report__jar-scene--pulse {
     animation: none;
   }
 }
+
+/* legacy vessel aliases removed — jar replaces liquid vessel */
 
 .sales-report__vessel-stats {
   text-align: center;
@@ -131,6 +232,7 @@
 }
 
 .sales-report__date-pill {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
@@ -138,6 +240,25 @@
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.8);
   border: 1px solid rgba(148, 163, 184, 0.25);
+  cursor: pointer;
+}
+
+.sales-report__date-text {
+  font-size: 0.88rem;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.sales-report__date-input-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .sales-report__date-pill input[type='date'] {
@@ -146,7 +267,6 @@
   color: inherit;
   font: inherit;
   padding: 0;
-  min-width: 9rem;
 }
 
 .sales-report__date-btn {

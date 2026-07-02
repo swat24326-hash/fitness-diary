@@ -46,7 +46,8 @@ function isMonthAfterCurrent(year, month) {
 }
 
 function monthLabelRu(year, month) {
-  const name = MONTH_NAMES[(Number(month) || 1) - 1] ?? ''
+  const raw = MONTH_NAMES[(Number(month) || 1) - 1] ?? ''
+  const name = raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : ''
   return `${name} ${year}`
 }
 
@@ -222,17 +223,18 @@ export function TrainerPayrollPanel({ trainerId, clubId, membershipTypes, member
             >
               <ChevronLeft size={18} />
             </button>
-            <div className="trainer-payroll__date-pill">
+            <label className="trainer-payroll__date-pill">
               <Calendar size={15} aria-hidden />
+              <span className="trainer-payroll__date-text">{formatDateRu(selectedDay)}</span>
               <input
                 type="date"
+                className="trainer-payroll__date-input-overlay"
                 value={selectedDay}
                 max={todayLocalIso()}
                 onChange={(e) => onDayChange(e.target.value)}
                 aria-label="День расчёта"
               />
-              <span className="muted">{formatDateRu(selectedDay)}</span>
-            </div>
+            </label>
             <button
               type="button"
               className="trainer-payroll__date-btn"
@@ -256,17 +258,18 @@ export function TrainerPayrollPanel({ trainerId, clubId, membershipTypes, member
             >
               <ChevronLeft size={18} />
             </button>
-            <div className="trainer-payroll__date-pill">
+            <label className="trainer-payroll__date-pill">
               <Calendar size={15} aria-hidden />
+              <span className="trainer-payroll__date-text">{monthCaption}</span>
               <input
                 type="month"
+                className="trainer-payroll__date-input-overlay"
                 value={monthIsoValue(selectedMonth.year, selectedMonth.month)}
                 max={monthIsoValue(currentMonthParts().year, currentMonthParts().month)}
                 onChange={(e) => onMonthInput(e.target.value)}
                 aria-label="Месяц расчёта"
               />
-              <span className="muted">{monthCaption}</span>
-            </div>
+            </label>
             <button
               type="button"
               className="trainer-payroll__date-btn"
