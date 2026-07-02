@@ -52,6 +52,7 @@ function buildCrumbs(pathname, search) {
   }
   if (p === '/admin/clients') return [...admin, { label: 'Клиенты', to: `/admin/clients${clubQs}` }]
   if (p === '/admin/statistics') return [...admin, { label: 'Статистика', to: `/admin/statistics${clubQs}` }]
+  if (p === '/admin/sales') return [...admin, { label: 'Продажи', to: `/admin/sales${clubQs}` }]
   if (p === '/admin/challenges') return [...admin, { label: 'Челленджи', to: `/admin/challenges${clubQs}` }]
   if (matchPath('/admin/challenges/:challengeId', p)) {
     const full = `${p}${search || ''}`

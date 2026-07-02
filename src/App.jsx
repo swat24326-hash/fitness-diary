@@ -12,6 +12,7 @@ import { AdminDashboard } from './pages/admin/AdminDashboard'
 import { AdminClients } from './pages/admin/AdminClients'
 import { AdminStructure } from './pages/admin/AdminStructure'
 import { AdminStatistics } from './pages/admin/AdminStatistics'
+import { AdminSales } from './pages/admin/AdminSales'
 import { AdminChallenges } from './pages/admin/AdminChallenges'
 import { AdminChallengeDetail } from './pages/admin/AdminChallengeDetail'
 import { AdminDiagnostics } from './pages/admin/AdminDiagnostics'
@@ -134,6 +135,7 @@ export default function App() {
                 <Route path="organization" element={<AdminLegacyOrganizationRedirect />} />
                 <Route path="trainers" element={<AdminLegacyTrainersRedirect />} />
                 <Route path="statistics" element={<AdminStatistics />} />
+                <Route path="sales" element={<AdminSales />} />
                 <Route path="clients" element={<AdminClients />} />
                 <Route path="clients/:id" element={<ClientCard />} />
                 <Route path="diaries" element={<AdminDiariesRedirect />} />

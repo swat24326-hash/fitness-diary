@@ -14,6 +14,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "db:migrate": "npx supabase db query --linked --file supabase/policies.sql",
+    "db:migrate:sales": "node scripts/apply-club-sales-migration.mjs",
     "gen:icons": "node scripts/generate-icons.mjs",
     "qa": "node scripts/agent-qa.mjs",
     "qa:local": "node scripts/agent-qa.mjs --skip-prod",

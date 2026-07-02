@@ -11,6 +11,15 @@ import {
   discoverMonthlyChartYears,
   summarizeCalendarYearMonthlyEligibility,
 } from './_lib/clubMonthlyAgg.js'
+import {
+  aggregateMonthFromDailyRows,
+  computeNetProfit,
+  dailyFormToPayload,
+  expenseFormToPayload,
+  monthDateRange,
+  monthPartsFromIso,
+  planFormToPayload,
+} from '../src/lib/admin/salesReportCore.js'
 
 const PAGE = 400
 const IN_CHUNK = 80
@@ -413,6 +422,186 @@ async function handleExercises(authCtx, res) {
   sendJson(res, 200, { exercises: all, count: all.length, max_created_at: maxCreatedAt })
 }
 
+const SALES_DAILY_SELECT =
+  'id, club_id, report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, updated_at'
+
+function parseJsonBody(req) {
+  let body = req.body
+  if (typeof body === 'string') {
+    try {
+      body = JSON.parse(body)
+    } catch {
+      return null
+    }
+  }
+  return body && typeof body === 'object' ? body : null
+}
+
+async function handleSalesGet(ctx, req, res) {
+  const clubId = String(req.query?.club_id ?? '').trim()
+  const reportDate = String(req.query?.report_date ?? '').slice(0, 10)
+  const parts = monthPartsFromIso(reportDate)
+  if (!clubId || !parts) {
+    sendJson(res, 400, { error: 'Укажите club_id и report_date (YYYY-MM-DD)' })
+    return
+  }
+  const { year, month } = parts
+  const { start, end } = monthDateRange(year, month)
+  const { supabaseAdmin } = ctx
+
+  const [dailyRes, monthRes, planRes, expenseRes] = await Promise.all([
+    supabaseAdmin
+      .from('club_sales_daily')
+      .select(SALES_DAILY_SELECT)
+      .eq('club_id', clubId)
+      .eq('report_date', reportDate)
+      .maybeSingle(),
+    supabaseAdmin
+      .from('club_sales_daily')
+      .select('report_date, profit_nk, profit_dk, profit_uk, profit_day, trainings_count')
+      .eq('club_id', clubId)
+      .gte('report_date', start)
+      .lte('report_date', end)
+      .order('report_date', { ascending: true }),
+    supabaseAdmin
+      .from('club_sales_plan')
+      .select('plan_total, plan_pz, plan_tz, plan_az, updated_at')
+      .eq('club_id', clubId)
+      .eq('year', year)
+      .eq('month', month)
+      .maybeSingle(),
+    supabaseAdmin
+      .from('club_supervisor_expense')
+      .select('amount, updated_at')
+      .eq('club_id', clubId)
+      .eq('year', year)
+      .eq('month', month)
+      .maybeSingle(),
+  ])
+
+  const err = dailyRes.error || monthRes.error || planRes.error || expenseRes.error
+  if (err) {
+    sendJson(res, 400, { error: err.message })
+    return
+  }
+
+  const monthRows = monthRes.data ?? []
+  const monthSummary = aggregateMonthFromDailyRows(monthRows)
+  const expenseAmount = Number(expenseRes.data?.amount) || 0
+  monthSummary.expense = expenseAmount
+  monthSummary.netProfit = computeNetProfit(monthSummary.profitTotal, expenseAmount)
+
+  sendJson(res, 200, {
+    club_id: clubId,
+    year,
+    month,
+    report_date: reportDate,
+    daily: dailyRes.data ?? null,
+    month_days: monthRows,
+    plan: planRes.data ?? null,
+    expense: expenseRes.data ?? null,
+    month_summary: monthSummary,
+  })
+}
+
+async function handleSalesDailyPost(ctx, req, res, body) {
+  const clubId = String(body?.club_id ?? '').trim()
+  const reportDate = String(body?.report_date ?? '').slice(0, 10)
+  if (!clubId || !reportDate) {
+    sendJson(res, 400, { error: 'Укажите club_id и report_date' })
+    return
+  }
+  const parsed = dailyFormToPayload(body?.form ?? body)
+  if (!parsed.ok) {
+    sendJson(res, 400, { error: parsed.error })
+    return
+  }
+  const { supabaseAdmin, user } = ctx
+  const row = {
+    club_id: clubId,
+    report_date: reportDate,
+    ...parsed.payload,
+    updated_at: new Date().toISOString(),
+    updated_by: user?.id ?? null,
+  }
+  const { data, error } = await supabaseAdmin
+    .from('club_sales_daily')
+    .upsert(row, { onConflict: 'club_id,report_date' })
+    .select(SALES_DAILY_SELECT)
+    .single()
+  if (error) {
+    sendJson(res, 400, { error: error.message })
+    return
+  }
+  sendJson(res, 200, { daily: data })
+}
+
+async function handleSalesPlanPost(ctx, req, res, body) {
+  const clubId = String(body?.club_id ?? '').trim()
+  const year = Number(body?.year)
+  const month = Number(body?.month)
+  if (!clubId || !Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+    sendJson(res, 400, { error: 'Укажите club_id, year, month' })
+    return
+  }
+  const parsed = planFormToPayload(body?.form ?? body)
+  if (!parsed.ok) {
+    sendJson(res, 400, { error: parsed.error })
+    return
+  }
+  const { supabaseAdmin } = ctx
+  const row = {
+    club_id: clubId,
+    year,
+    month,
+    ...parsed.payload,
+    updated_at: new Date().toISOString(),
+  }
+  const { data, error } = await supabaseAdmin
+    .from('club_sales_plan')
+    .upsert(row, { onConflict: 'club_id,year,month' })
+    .select('plan_total, plan_pz, plan_tz, plan_az, updated_at')
+    .single()
+  if (error) {
+    sendJson(res, 400, { error: error.message })
+    return
+  }
+  sendJson(res, 200, { plan: data })
+}
+
+async function handleSalesFinancePost(ctx, req, res, body) {
+  const clubId = String(body?.club_id ?? '').trim()
+  const year = Number(body?.year)
+  const month = Number(body?.month)
+  if (!clubId || !Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) {
+    sendJson(res, 400, { error: 'Укажите club_id, year, month' })
+    return
+  }
+  const parsed = expenseFormToPayload(body?.form ?? body)
+  if (!parsed.ok) {
+    sendJson(res, 400, { error: parsed.error })
+    return
+  }
+  const { supabaseAdmin } = ctx
+  const row = {
+    club_id: clubId,
+    year,
+    month,
+    amount: parsed.payload.amount,
+    updated_at: new Date().toISOString(),
+  }
+  const { data, error } = await supabaseAdmin
+    .from('club_supervisor_expense')
+    .upsert(row, { onConflict: 'club_id,year,month' })
+    .select('amount, updated_at')
+    .single()
+  if (error) {
+    sendJson(res, 400, { error: error.message })
+    return
+  }
+  sendJson(res, 200, { expense: data })
+}
+
 async function handleClubMonthly(ctx, req, res) {
   const clubId = String(req.query?.club_id ?? '').trim()
   const yearOnly = String(req.query?.year ?? '').trim()
@@ -481,18 +670,37 @@ async function handleClubMonthly(ctx, req, res) {
 }
 
 export default async function handler(req, res) {
-  setCors(res, 'GET, OPTIONS')
+  setCors(res, 'GET, POST, OPTIONS')
   if (req.method === 'OPTIONS') {
     res.statusCode = 204
     res.end()
     return
   }
+
+  const action = String(req.query?.action ?? '').trim().toLowerCase()
+
+  if (req.method === 'POST') {
+    const salesPostActions = new Set(['sales-daily', 'sales-plan', 'sales-finance'])
+    if (!salesPostActions.has(action)) {
+      sendJson(res, 405, { error: 'Method not allowed' })
+      return
+    }
+    const ctx = await requireAdmin(req, res)
+    if (!ctx) return
+    const body = parseJsonBody(req)
+    if (!body) {
+      sendJson(res, 400, { error: 'Invalid JSON' })
+      return
+    }
+    if (action === 'sales-daily') return handleSalesDailyPost(ctx, req, res, body)
+    if (action === 'sales-plan') return handleSalesPlanPost(ctx, req, res, body)
+    if (action === 'sales-finance') return handleSalesFinancePost(ctx, req, res, body)
+  }
+
   if (req.method !== 'GET') {
     sendJson(res, 405, { error: 'Method not allowed' })
     return
   }
-
-  const action = String(req.query?.action ?? '').trim().toLowerCase()
   const trainerActions = new Set([
     'challenges',
     'challenge-trainings',
@@ -531,9 +739,12 @@ export default async function handler(req, res) {
       return handleHealthCards(ctx, req, res)
     case 'clubs':
       return handleClubs(ctx, res)
+    case 'sales':
+      return handleSalesGet(ctx, req, res)
     default:
       sendJson(res, 400, {
-        error: 'Укажите action: search, journal, club-stats, club-monthly, health-cards, challenges, challenge-trainings, exercises, membership-types, clubs',
+        error:
+          'Укажите action: search, journal, club-stats, club-monthly, health-cards, sales, challenges, challenge-trainings, exercises, membership-types, clubs',
       })
   }
 }

@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 import { useCallback, useMemo } from 'react'
-import { BarChart3, Building2, Stethoscope, Trophy, UserCircle } from 'lucide-react'
+import { BarChart3, Building2, Stethoscope, TrendingUp, Trophy, UserCircle } from 'lucide-react'
 import { dispatchLocalDataChanged } from '../../lib/dataAccess'
 
 function adminTileClass({ isActive }) {
@@ -54,6 +54,12 @@ export function AdminDashboard() {
                   <BarChart3 size={44} aria-hidden />
                 </div>
                 <p className="feature-tile__title">Статистика</p>
+              </NavLink>
+              <NavLink to={tab('sales')} className={adminTileClass}>
+                <div className="feature-tile__icon">
+                  <TrendingUp size={44} aria-hidden />
+                </div>
+                <p className="feature-tile__title">Продажи</p>
               </NavLink>
               <NavLink to={tab('challenges')} className={adminTileClass}>
                 <div className="feature-tile__icon">
