@@ -1,0 +1,174 @@
+/* Блок «Моя зарплата» — тренер */
+
+.trainer-payroll {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 80% 60% at 100% 0%, rgba(74, 222, 128, 0.08), transparent 55%),
+    rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(74, 222, 128, 0.18);
+}
+
+.trainer-payroll__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin-bottom: 0.35rem;
+}
+
+.trainer-payroll__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 10px;
+  background: rgba(74, 222, 128, 0.12);
+  color: var(--accent-bright, #4ade80);
+  flex-shrink: 0;
+}
+
+.trainer-payroll__note {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--muted, #94a3b8);
+}
+
+.trainer-payroll__filters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+  margin-bottom: 1.1rem;
+}
+
+@media (max-width: 640px) {
+  .trainer-payroll__filters {
+    grid-template-columns: 1fr;
+  }
+}
+
+.trainer-payroll__filter-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.trainer-payroll__filter-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted, #94a3b8);
+}
+
+.trainer-payroll__date-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.trainer-payroll__date-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: 1;
+  min-width: 0;
+  justify-content: center;
+  padding: 0.4rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.trainer-payroll__date-pill input[type='date'],
+.trainer-payroll__date-pill input[type='month'] {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  min-width: 0;
+  flex: 1;
+  max-width: 8.5rem;
+}
+
+.trainer-payroll__date-pill span {
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.trainer-payroll__date-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 50%;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(2, 6, 23, 0.45);
+  color: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.trainer-payroll__date-btn:hover:not(:disabled) {
+  border-color: var(--accent-bright, #4ade80);
+  color: var(--accent-bright, #4ade80);
+}
+
+.trainer-payroll__date-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.trainer-payroll__kpi-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+@media (max-width: 480px) {
+  .trainer-payroll__kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.trainer-payroll__kpi {
+  padding: 0.95rem 1rem;
+  border-radius: var(--radius-md, 12px);
+  background: rgba(2, 6, 23, 0.45);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.trainer-payroll__kpi--accent {
+  border-color: rgba(74, 222, 128, 0.28);
+  background: linear-gradient(145deg, rgba(74, 222, 128, 0.1), rgba(2, 6, 23, 0.5));
+  box-shadow: 0 0 24px rgba(74, 222, 128, 0.06);
+}
+
+.trainer-payroll__kpi-label {
+  font-size: 0.8rem;
+  color: var(--muted, #94a3b8);
+}
+
+.trainer-payroll__kpi-value {
+  font-size: clamp(1.35rem, 3.5vw, 1.75rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.trainer-payroll__kpi-sub {
+  font-size: 0.78rem;
+  color: var(--muted, #94a3b8);
+}
+
+.trainer-payroll__kpi--loading .trainer-payroll__kpi-value {
+  opacity: 0.5;
+}

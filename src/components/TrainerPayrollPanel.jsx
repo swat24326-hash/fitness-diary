@@ -1,9 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Wallet } from 'lucide-react'
+import { Calendar, ChevronLeft, ChevronRight, Wallet } from 'lucide-react'
 import { formatRub, monthDateRange } from '../lib/admin/salesReportCore.js'
-import { todayLocalIso } from '../lib/dateRu.js'
+import {
+  addDaysToIso,
+  clampIsoDateToToday,
+  formatDateRu,
+  todayLocalIso,
+} from '../lib/dateRu.js'
 import { loadTrainerJournalFiltered } from '../lib/trainer/trainerJournalService.js'
 import { computeTrainerSelfPayroll } from '../lib/trainer/trainerSelfPayroll.js'
+import '../styles/trainer-payroll.css'
 
 const MONTH_NAMES = [
   'январь',
@@ -20,6 +26,30 @@ const MONTH_NAMES = [
   'декабрь',
 ]
 
+function currentMonthParts() {
+  const now = new Date()
+  return { year: now.getFullYear(), month: now.getMonth() + 1 }
+}
+
+function addMonths(year, month, delta) {
+  const dt = new Date(Number(year), Number(month) - 1 + delta, 1)
+  return { year: dt.getFullYear(), month: dt.getMonth() + 1 }
+}
+
+function monthIsoValue(year, month) {
+  return `${year}-${String(month).padStart(2, '0')}`
+}
+
+function isMonthAfterCurrent(year, month) {
+  const cur = currentMonthParts()
+  return year > cur.year || (year === cur.year && month > cur.month)
+}
+
+function monthLabelRu(year, month) {
+  const name = MONTH_NAMES[(Number(month) || 1) - 1] ?? ''
+  return `${name} ${year}`
+}
+
 /**
  * @param {{
  *   trainerId: string,
@@ -29,26 +59,38 @@ const MONTH_NAMES = [
  * }} props
  */
 export function TrainerPayrollPanel({ trainerId, clubId, membershipTypes, memberships }) {
-  const [todayPay, setTodayPay] = useState(0)
+  const [selectedDay, setSelectedDay] = useState(() => todayLocalIso())
+  const [selectedMonth, setSelectedMonth] = useState(() => currentMonthParts())
+  const [dayPay, setDayPay] = useState(0)
   const [monthPay, setMonthPay] = useState(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
 
-  const { todayIso, monthStart, monthEnd, monthLabel } = useMemo(() => {
-    const today = todayLocalIso()
-    const now = new Date()
-    const year = now.getFullYear()
-    const month = now.getMonth() + 1
-    const range = monthDateRange(year, month)
-    const name = MONTH_NAMES[month - 1] ?? ''
-    return {
-      todayIso: today,
-      monthStart: range.start,
-      monthEnd: range.end,
-      monthLabel: `${name} ${year}`,
-    }
-  }, [])
+  const monthRange = useMemo(
+    () => monthDateRange(selectedMonth.year, selectedMonth.month),
+    [selectedMonth.year, selectedMonth.month],
+  )
+
+  const monthCaption = useMemo(
+    () => monthLabelRu(selectedMonth.year, selectedMonth.month),
+    [selectedMonth.year, selectedMonth.month],
+  )
+
+  const loadRange = useMemo(() => {
+    const from = selectedDay < monthRange.start ? selectedDay : monthRange.start
+    const to = selectedDay > monthRange.end ? selectedDay : monthRange.end
+    return { start: from, end: to }
+  }, [selectedDay, monthRange.start, monthRange.end])
+
+  const atCurrentMonth = useMemo(
+    () =>
+      selectedMonth.year === currentMonthParts().year &&
+      selectedMonth.month === currentMonthParts().month,
+    [selectedMonth.year, selectedMonth.month],
+  )
+
+  const atToday = selectedDay === todayLocalIso()
 
   useEffect(() => {
     const onStorage = () => setReloadKey((k) => k + 1)
@@ -58,7 +100,7 @@ export function TrainerPayrollPanel({ trainerId, clubId, membershipTypes, member
 
   useEffect(() => {
     if (!trainerId || !clubId) {
-      setTodayPay(0)
+      setDayPay(0)
       setMonthPay(0)
       return
     }
@@ -72,8 +114,8 @@ export function TrainerPayrollPanel({ trainerId, clubId, membershipTypes, member
         const journal = await loadTrainerJournalFiltered({
           trainerId,
           clubId,
-          dateFrom: monthStart,
-          dateTo: monthEnd,
+          dateFrom: loadRange.start,
+          dateTo: loadRange.end,
         })
         if (cancelled) return
 
@@ -84,24 +126,24 @@ export function TrainerPayrollPanel({ trainerId, clubId, membershipTypes, member
           trainerId,
         }
 
-        setTodayPay(
+        setDayPay(
           computeTrainerSelfPayroll({
             ...ctx,
-            dateFrom: todayIso,
-            dateTo: todayIso,
+            dateFrom: selectedDay,
+            dateTo: selectedDay,
           }),
         )
         setMonthPay(
           computeTrainerSelfPayroll({
             ...ctx,
-            dateFrom: monthStart,
-            dateTo: monthEnd,
+            dateFrom: monthRange.start,
+            dateTo: monthRange.end,
           }),
         )
       } catch (e) {
         if (!cancelled) {
           setError(e?.message ?? 'Ошибка расчёта')
-          setTodayPay(0)
+          setDayPay(0)
           setMonthPay(0)
         }
       } finally {
@@ -112,21 +154,52 @@ export function TrainerPayrollPanel({ trainerId, clubId, membershipTypes, member
     return () => {
       cancelled = true
     }
-  }, [trainerId, clubId, memberships, membershipTypes, todayIso, monthStart, monthEnd, reloadKey])
+  }, [
+    trainerId,
+    clubId,
+    memberships,
+    membershipTypes,
+    selectedDay,
+    monthRange.start,
+    monthRange.end,
+    loadRange.start,
+    loadRange.end,
+    reloadKey,
+  ])
+
+  const onDayChange = (iso) => setSelectedDay(clampIsoDateToToday(iso))
+
+  const onMonthInput = (value) => {
+    const s = String(value ?? '').slice(0, 7)
+    if (!s) return
+    const year = Number(s.slice(0, 4))
+    const month = Number(s.slice(5, 7))
+    if (!Number.isFinite(year) || !Number.isFinite(month) || month < 1 || month > 12) return
+    if (isMonthAfterCurrent(year, month)) {
+      setSelectedMonth(currentMonthParts())
+      return
+    }
+    setSelectedMonth({ year, month })
+  }
 
   return (
-    <section className="card" aria-labelledby="trainer-payroll-title">
-      <h2 className="section-title td-section-title" id="trainer-payroll-title" style={{ margin: '0 0 8px' }}>
-        <Wallet size={20} style={{ verticalAlign: -3, marginRight: 8 }} aria-hidden />
-        Моя зарплата
-      </h2>
-      <p className="muted" style={{ margin: '0 0 12px', fontSize: 13, lineHeight: 1.45 }}>
-        По вашим <strong>завершённым тренировкам</strong> на планшете × ставки типов карт клуба. Отчёт
-        отдела продаж сюда не подтягивается. «Без типа» не оплачивается.
-      </p>
+    <section className="card trainer-payroll" aria-labelledby="trainer-payroll-title">
+      <div className="trainer-payroll__head">
+        <span className="trainer-payroll__icon" aria-hidden>
+          <Wallet size={20} />
+        </span>
+        <div>
+          <h2 className="section-title td-section-title" id="trainer-payroll-title" style={{ margin: 0 }}>
+            Моя зарплата
+          </h2>
+          <p className="trainer-payroll__note" style={{ margin: '0.35rem 0 0' }}>
+            По вашим завершённым тренировкам × ставки типов карт.
+          </p>
+        </div>
+      </div>
 
       {!clubId ? (
-        <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+        <p className="muted" style={{ margin: '0 0 1rem', fontSize: 13 }}>
           Клуб не указан в профиле — обратитесь к администратору.
         </p>
       ) : null}
@@ -137,17 +210,88 @@ export function TrainerPayrollPanel({ trainerId, clubId, membershipTypes, member
         </p>
       ) : null}
 
-      <div className="health-mini__top" style={{ marginTop: 0 }}>
-        <div className="health-mini__metric">
-          <span className="muted">Заработал сегодня</span>
-          <strong>{busy ? '…' : formatRub(todayPay)}</strong>
+      <div className="trainer-payroll__filters">
+        <div className="trainer-payroll__filter-block">
+          <span className="trainer-payroll__filter-label">День</span>
+          <div className="trainer-payroll__date-stepper">
+            <button
+              type="button"
+              className="trainer-payroll__date-btn"
+              aria-label="Предыдущий день"
+              onClick={() => onDayChange(addDaysToIso(selectedDay, -1))}
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <div className="trainer-payroll__date-pill">
+              <Calendar size={15} aria-hidden />
+              <input
+                type="date"
+                value={selectedDay}
+                max={todayLocalIso()}
+                onChange={(e) => onDayChange(e.target.value)}
+                aria-label="День расчёта"
+              />
+              <span className="muted">{formatDateRu(selectedDay)}</span>
+            </div>
+            <button
+              type="button"
+              className="trainer-payroll__date-btn"
+              aria-label="Следующий день"
+              disabled={atToday}
+              onClick={() => onDayChange(addDaysToIso(selectedDay, 1))}
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
         </div>
-        <div className="health-mini__metric">
-          <span className="muted">В этом месяце</span>
-          <strong>{busy ? '…' : formatRub(monthPay)}</strong>
-          <span className="muted" style={{ fontSize: 12 }}>
-            {monthLabel}
-          </span>
+
+        <div className="trainer-payroll__filter-block">
+          <span className="trainer-payroll__filter-label">Месяц</span>
+          <div className="trainer-payroll__date-stepper">
+            <button
+              type="button"
+              className="trainer-payroll__date-btn"
+              aria-label="Предыдущий месяц"
+              onClick={() => setSelectedMonth((m) => addMonths(m.year, m.month, -1))}
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <div className="trainer-payroll__date-pill">
+              <Calendar size={15} aria-hidden />
+              <input
+                type="month"
+                value={monthIsoValue(selectedMonth.year, selectedMonth.month)}
+                max={monthIsoValue(currentMonthParts().year, currentMonthParts().month)}
+                onChange={(e) => onMonthInput(e.target.value)}
+                aria-label="Месяц расчёта"
+              />
+              <span className="muted">{monthCaption}</span>
+            </div>
+            <button
+              type="button"
+              className="trainer-payroll__date-btn"
+              aria-label="Следующий месяц"
+              disabled={atCurrentMonth}
+              onClick={() => setSelectedMonth((m) => addMonths(m.year, m.month, 1))}
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="trainer-payroll__kpi-grid">
+        <div className={`trainer-payroll__kpi${busy ? ' trainer-payroll__kpi--loading' : ''}`}>
+          <span className="trainer-payroll__kpi-label">За день</span>
+          <span className="trainer-payroll__kpi-value">{busy ? '…' : formatRub(dayPay)}</span>
+          <span className="trainer-payroll__kpi-sub">{formatDateRu(selectedDay)}</span>
+        </div>
+        <div
+          className={`trainer-payroll__kpi trainer-payroll__kpi--accent${busy ? ' trainer-payroll__kpi--loading' : ''}`}
+        >
+          <span className="trainer-payroll__kpi-label">За месяц</span>
+          <span className="trainer-payroll__kpi-value">{busy ? '…' : formatRub(monthPay)}</span>
+          <span className="trainer-payroll__kpi-sub">{monthCaption}</span>
         </div>
       </div>
     </section>
