@@ -369,3 +369,33 @@
   margin: 0;
   font-size: 0.85rem;
 }
+
+.sales-trainings-matrix__note {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.sales-trainings-matrix__input {
+  width: 100%;
+  min-width: 2.5rem;
+  text-align: center;
+  border-radius: 8px;
+  padding: 0.35rem 0.25rem;
+}
+
+.sales-trainings-matrix__hint {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.sales-trainings-matrix__hint-summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  user-select: none;
+}
+
+.sales-trainings-matrix__table .admin-mem-type-table__num {
+  vertical-align: middle;
+}

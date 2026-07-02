@@ -80,17 +80,34 @@ export async function fetchClubSalesBundle({ clubId, reportDate }) {
     plan: data.plan ?? null,
     expense: data.expense ?? null,
     monthSummary: data.month_summary ?? null,
+    membershipTypes: Array.isArray(data.membership_types) ? data.membership_types : [],
+    trainers: Array.isArray(data.trainers) ? data.trainers : [],
+    fitCityTypeStats: data.fit_city_type_stats ?? null,
   }
 }
 
 /** POST /api/admin-data?action=sales-daily */
-export async function saveClubSalesDaily({ clubId, reportDate, form }) {
+export async function saveClubSalesDaily({
+  clubId,
+  reportDate,
+  form,
+  trainingsMatrixInput,
+  trainerIds,
+  membershipTypes,
+}) {
   const token = await getAccessTokenForAdminApi()
   if (!token) throw new Error('Нет сессии администратора')
   const { data, routeMissing } = await adminApiPost(
     '/api/admin-data?action=sales-daily',
     token,
-    { club_id: clubId, report_date: reportDate, form },
+    {
+      club_id: clubId,
+      report_date: reportDate,
+      form,
+      trainings_matrix_input: trainingsMatrixInput,
+      trainer_ids: trainerIds,
+      membership_types: membershipTypes,
+    },
   )
   if (routeMissing) return null
   return data.daily ?? null

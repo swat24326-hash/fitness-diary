@@ -12,6 +12,11 @@ import {
   planRowToForm,
 } from '../../lib/admin/salesReportCore'
 import {
+  buildTrainingsMatrixColumns,
+  matrixRowsToInputMap,
+  normalizeMatrixRowsFromDb,
+} from '../../lib/admin/salesTrainingsMatrix'
+import {
   fetchClubSalesBundle,
   saveClubSalesDaily,
   saveClubSalesFinance,
@@ -57,6 +62,15 @@ export function AdminSales() {
   const [vesselPulse, setVesselPulse] = useState(0)
   const [toast, setToast] = useState(null)
   const [yearMonth, setYearMonth] = useState({ year: new Date().getFullYear(), month: new Date().getMonth() + 1 })
+  const [membershipTypes, setMembershipTypes] = useState([])
+  const [trainers, setTrainers] = useState([])
+  const [fitCityTypeStats, setFitCityTypeStats] = useState(null)
+  const [trainingsMatrix, setTrainingsMatrix] = useState({})
+
+  const membershipTypeColumns = useMemo(
+    () => buildTrainingsMatrixColumns(membershipTypes),
+    [membershipTypes],
+  )
 
   const showToast = useCallback((text, tone = 'ok') => {
     setToast({ text, tone })
@@ -80,6 +94,11 @@ export function AdminSales() {
       setMonthSummary(bundle.monthSummary)
       setPlanTotal(Number(bundle.plan?.plan_total) || 0)
       setYearMonth({ year: bundle.year, month: bundle.month })
+      setMembershipTypes(bundle.membershipTypes ?? [])
+      setTrainers(bundle.trainers ?? [])
+      setFitCityTypeStats(bundle.fitCityTypeStats ?? null)
+      const matrixRows = normalizeMatrixRowsFromDb(bundle.daily?.trainings_matrix)
+      setTrainingsMatrix(matrixRowsToInputMap(matrixRows))
     } catch (e) {
       setError(e?.message ?? 'Ошибка загрузки')
     } finally {
@@ -103,12 +122,20 @@ export function AdminSales() {
     setSavingDaily(true)
     setError('')
     try {
-      const row = await saveClubSalesDaily({ clubId, reportDate, form: dailyForm })
+      const row = await saveClubSalesDaily({
+        clubId,
+        reportDate,
+        form: dailyForm,
+        trainingsMatrixInput: trainingsMatrix,
+        trainerIds: trainers.map((t) => t.id),
+        membershipTypes,
+      })
       if (!row) {
         setError('API продаж недоступен')
         return
       }
       setDailyForm(dailyRowToForm(row))
+      setTrainingsMatrix(matrixRowsToInputMap(normalizeMatrixRowsFromDb(row?.trainings_matrix)))
       await loadBundle()
       setVesselPulse((k) => k + 1)
       showToast('Отчёт сохранён')
@@ -227,6 +254,11 @@ export function AdminSales() {
         onSave={() => void handleSaveDaily()}
         saving={savingDaily}
         canEdit
+        trainers={trainers}
+        membershipTypeColumns={membershipTypeColumns}
+        trainingsMatrix={trainingsMatrix}
+        onTrainingsMatrixChange={setTrainingsMatrix}
+        fitCityTypeStats={fitCityTypeStats}
       />
 
       <SalesFinancePanel

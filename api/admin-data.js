@@ -20,6 +20,7 @@ import {
   monthPartsFromIso,
   planFormToPayload,
 } from '../src/lib/admin/salesReportCore.js'
+import { normalizeMatrixRowsFromDb } from '../src/lib/admin/salesTrainingsMatrix.js'
 
 const PAGE = 400
 const IN_CHUNK = 80
@@ -423,7 +424,22 @@ async function handleExercises(authCtx, res) {
 }
 
 const SALES_DAILY_SELECT =
-  'id, club_id, report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, updated_at'
+  'id, club_id, report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, updated_at'
+
+const TRAINER_ROLES_SALES = new Set(TRAINER_ROLES)
+
+async function fetchClubTrainersForSales(supabaseAdmin, clubId) {
+  const { data, error } = await supabaseAdmin
+    .from('users')
+    .select('id, name, email, login, is_active, role, club_id')
+    .eq('club_id', clubId)
+    .order('name', { ascending: true })
+  if (error) throw error
+  return (data ?? []).filter((u) => {
+    if (u?.is_active === false) return false
+    return TRAINER_ROLES_SALES.has(String(u?.role ?? '').trim().toLowerCase())
+  })
+}
 
 function parseJsonBody(req) {
   let body = req.body
@@ -449,7 +465,8 @@ async function handleSalesGet(ctx, req, res) {
   const { start, end } = monthDateRange(year, month)
   const { supabaseAdmin } = ctx
 
-  const [dailyRes, monthRes, planRes, expenseRes] = await Promise.all([
+  const [dailyRes, monthRes, planRes, expenseRes, typesRes, trainers, trainingsDay, memberships] =
+    await Promise.all([
     supabaseAdmin
       .from('club_sales_daily')
       .select(SALES_DAILY_SELECT)
@@ -477,9 +494,31 @@ async function handleSalesGet(ctx, req, res) {
       .eq('year', year)
       .eq('month', month)
       .maybeSingle(),
+    supabaseAdmin
+      .from('membership_types')
+      .select('id, code, sort_order, is_active')
+      .eq('club_id', clubId)
+      .order('sort_order', { ascending: true }),
+    fetchClubTrainersForSales(supabaseAdmin, clubId),
+    fetchPaged(
+      supabaseAdmin,
+      'trainings',
+      'id, trainer_id, client_id, date, status, data',
+      clubId,
+      reportDate,
+      reportDate,
+    ),
+    fetchPaged(
+      supabaseAdmin,
+      'memberships',
+      'id, client_id, membership_type_id',
+      clubId,
+      null,
+      null,
+    ),
   ])
 
-  const err = dailyRes.error || monthRes.error || planRes.error || expenseRes.error
+  const err = dailyRes.error || monthRes.error || planRes.error || expenseRes.error || typesRes.error
   if (err) {
     sendJson(res, 400, { error: err.message })
     return
@@ -491,16 +530,31 @@ async function handleSalesGet(ctx, req, res) {
   monthSummary.expense = expenseAmount
   monthSummary.netProfit = computeNetProfit(monthSummary.profitTotal, expenseAmount)
 
+  const membershipTypes = typesRes.data ?? []
+  const fitCityTypeStats = aggregateMembershipTypeStats({
+    trainings: trainingsDay,
+    memberships,
+    membershipTypes,
+  })
+
+  const daily = dailyRes.data ?? null
+  if (daily && daily.trainings_matrix != null) {
+    daily.trainings_matrix = normalizeMatrixRowsFromDb(daily.trainings_matrix)
+  }
+
   sendJson(res, 200, {
     club_id: clubId,
     year,
     month,
     report_date: reportDate,
-    daily: dailyRes.data ?? null,
+    daily,
     month_days: monthRows,
     plan: planRes.data ?? null,
     expense: expenseRes.data ?? null,
     month_summary: monthSummary,
+    membership_types: membershipTypes,
+    trainers,
+    fit_city_type_stats: fitCityTypeStats,
   })
 }
 
@@ -511,7 +565,11 @@ async function handleSalesDailyPost(ctx, req, res, body) {
     sendJson(res, 400, { error: 'Укажите club_id и report_date' })
     return
   }
-  const parsed = dailyFormToPayload(body?.form ?? body)
+  const parsed = dailyFormToPayload(body?.form ?? body, {
+    matrixInput: body?.trainings_matrix_input ?? null,
+    trainerIds: Array.isArray(body?.trainer_ids) ? body.trainer_ids.map((x) => String(x)) : [],
+    membershipTypes: Array.isArray(body?.membership_types) ? body.membership_types : [],
+  })
   if (!parsed.ok) {
     sendJson(res, 400, { error: parsed.error })
     return

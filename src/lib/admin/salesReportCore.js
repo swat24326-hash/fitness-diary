@@ -1,5 +1,7 @@
 /** Чистая логика отчётов продаж (без React / IDB). */
 
+import { inputMapToMatrixRows, sumMatrixRows } from './salesTrainingsMatrix.js'
+
 export const SALES_MATRIX_KEYS = [
   'pz_nk',
   'pz_dk',
@@ -113,9 +115,10 @@ export function dailyRowToForm(row) {
 
 /**
  * @param {Record<string, string>} form
+ * @param {{ trainerIds?: string[], membershipTypes?: object[], matrixInput?: Record<string, string> } | null} opts
  * @returns {{ ok: true, payload: object } | { ok: false, error: string }}
  */
-export function dailyFormToPayload(form) {
+export function dailyFormToPayload(form, opts = null) {
   const profit_nk = parseSalesMoney(form.profit_nk)
   const profit_dk = parseSalesMoney(form.profit_dk)
   const profit_uk = parseSalesMoney(form.profit_uk)
@@ -123,16 +126,36 @@ export function dailyFormToPayload(form) {
     return { ok: false, error: 'Прибыль: укажите неотрицательные суммы' }
   }
   const pnk_total = parseSalesCount(form.pnk_total)
-  const trainings_count = parseSalesCount(form.trainings_count)
-  if (Number.isNaN(pnk_total) || Number.isNaN(trainings_count)) {
-    return { ok: false, error: 'ПНК и тренировки: целые числа ≥ 0' }
+  if (Number.isNaN(pnk_total)) {
+    return { ok: false, error: 'ПНК: целое число ≥ 0' }
   }
+
+  let trainings_count
+  let trainings_matrix = []
+
+  if (opts?.matrixInput && Array.isArray(opts.trainerIds)) {
+    const parsedMatrix = inputMapToMatrixRows(
+      opts.matrixInput,
+      opts.trainerIds,
+      opts.membershipTypes ?? [],
+    )
+    if (!parsedMatrix.ok) return parsedMatrix
+    trainings_matrix = parsedMatrix.rows
+    trainings_count = sumMatrixRows(trainings_matrix)
+  } else {
+    trainings_count = parseSalesCount(form.trainings_count)
+    if (Number.isNaN(trainings_count)) {
+      return { ok: false, error: 'Тренировки: целое число ≥ 0' }
+    }
+  }
+
   const payload = {
     profit_nk,
     profit_dk,
     profit_uk,
     pnk_total,
     trainings_count,
+    trainings_matrix,
   }
   for (const key of SALES_MATRIX_KEYS) {
     const n = parseSalesCount(form[key])

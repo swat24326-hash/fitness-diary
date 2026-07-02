@@ -1,0 +1,162 @@
+/** Матрица тренировок в отчёте продаж: тренер × тип абонемента. */
+
+export const SALES_TRAINING_TYPE_NONE = '__none__'
+
+export function salesTrainingCellKey(trainerId, typeId) {
+  const tid = String(trainerId ?? '').trim()
+  const typeKey = typeId == null || typeId === '' ? SALES_TRAINING_TYPE_NONE : String(typeId).trim()
+  return `${tid}|${typeKey}`
+}
+
+/** @param {Array<{ trainer_id?: string, membership_type_id?: string | null, count?: number }>} rows */
+export function matrixRowsToInputMap(rows) {
+  const map = {}
+  for (const row of rows ?? []) {
+    const trainerId = String(row?.trainer_id ?? '').trim()
+    if (!trainerId) continue
+    const typeId = row?.membership_type_id == null ? null : String(row.membership_type_id).trim()
+    const key = salesTrainingCellKey(trainerId, typeId)
+    map[key] = String(Math.trunc(Number(row?.count) || 0))
+  }
+  return map
+}
+
+/**
+ * @param {Record<string, string>} inputMap
+ * @param {string[]} trainerIds
+ * @param {Array<{ id: string }>} membershipTypes active types only
+ */
+export function inputMapToMatrixRows(inputMap, trainerIds, membershipTypes) {
+  const rows = []
+  const typeIds = [
+    ...(membershipTypes ?? []).map((t) => String(t.id ?? '').trim()).filter(Boolean),
+    null,
+  ]
+  for (const trainerId of trainerIds ?? []) {
+    const tid = String(trainerId ?? '').trim()
+    if (!tid) continue
+    for (const typeId of typeIds) {
+      const key = salesTrainingCellKey(tid, typeId)
+      const raw = inputMap?.[key]
+      if (raw == null || raw === '') continue
+      const count = Math.floor(Number(String(raw).replace(/\s/g, '').replace(',', '.')))
+      if (!Number.isFinite(count) || count < 0) {
+        return { ok: false, error: 'Тренировки по картам: целые числа ≥ 0' }
+      }
+      if (count === 0) continue
+      rows.push({
+        trainer_id: tid,
+        membership_type_id: typeId,
+        count,
+      })
+    }
+  }
+  return { ok: true, rows }
+}
+
+/** @param {Array<{ count?: number }>} rows */
+export function sumMatrixRows(rows) {
+  return (rows ?? []).reduce((s, r) => s + (Number(r.count) || 0), 0)
+}
+
+/** Итого без «Без типа» — как столбец «Итого» в админ-таблице. */
+export function sumTypedMatrixRows(rows) {
+  return (rows ?? [])
+    .filter((r) => r?.membership_type_id != null && String(r.membership_type_id).trim())
+    .reduce((s, r) => s + (Number(r.count) || 0), 0)
+}
+
+/**
+ * @param {Array<{ id: string, code?: string, sort_order?: number, is_active?: boolean }>} membershipTypes
+ */
+export function buildTrainingsMatrixColumns(membershipTypes) {
+  const cols = (membershipTypes ?? [])
+    .filter((t) => t?.is_active !== false)
+    .sort(
+      (a, b) =>
+        (Number(a?.sort_order) || 0) - (Number(b?.sort_order) || 0) ||
+        String(a?.code ?? '').localeCompare(String(b?.code ?? ''), 'ru'),
+    )
+    .map((t) => ({
+      typeId: String(t.id),
+      code: String(t.code ?? '—').trim() || '—',
+    }))
+  cols.push({ typeId: SALES_TRAINING_TYPE_NONE, code: 'Без типа' })
+  return cols
+}
+
+/**
+ * Преобразовать сохранённую матрицу в формат MembershipTypeStatsTable.
+ * @param {Array<{ trainer_id: string, membership_type_id: string | null, count: number }>} rows
+ * @param {Array<{ id: string, code?: string }>} membershipTypes
+ */
+export function matrixRowsToMembershipStats(rows, membershipTypes) {
+  const codeById = new Map()
+  for (const t of membershipTypes ?? []) {
+    const id = String(t?.id ?? '').trim()
+    if (id) codeById.set(id, String(t.code ?? '—').trim() || '—')
+  }
+
+  const clubTypeMap = new Map()
+  const trainerTypeMap = new Map()
+
+  for (const row of rows ?? []) {
+    const trainerId = String(row.trainer_id ?? '').trim()
+    const typeKey =
+      row.membership_type_id == null || row.membership_type_id === ''
+        ? SALES_TRAINING_TYPE_NONE
+        : String(row.membership_type_id).trim()
+    const count = Number(row.count) || 0
+    if (!trainerId || count <= 0) continue
+
+    clubTypeMap.set(typeKey, (clubTypeMap.get(typeKey) || 0) + count)
+    if (!trainerTypeMap.has(trainerId)) trainerTypeMap.set(trainerId, new Map())
+    const tm = trainerTypeMap.get(trainerId)
+    tm.set(typeKey, (tm.get(typeKey) || 0) + count)
+  }
+
+  const label = (typeKey) => {
+    if (typeKey === SALES_TRAINING_TYPE_NONE) return 'Без типа'
+    return codeById.get(typeKey) || '—'
+  }
+
+  const byType = [...clubTypeMap.entries()]
+    .map(([typeKey, count]) => ({
+      typeId: typeKey === SALES_TRAINING_TYPE_NONE ? null : typeKey,
+      code: label(typeKey),
+      count,
+    }))
+    .sort((a, b) => b.count - a.count || String(a.code).localeCompare(String(b.code), 'ru'))
+
+  const byTrainerByType = [...trainerTypeMap.entries()]
+    .map(([trainerId, typeMap]) => {
+      const types = [...typeMap.entries()].map(([typeKey, count]) => ({
+        typeId: typeKey === SALES_TRAINING_TYPE_NONE ? null : typeKey,
+        code: label(typeKey),
+        count,
+      }))
+      const total = types
+        .filter((x) => x.typeId != null)
+        .reduce((s, x) => s + x.count, 0)
+      return { trainerId, total, byType: types }
+    })
+    .filter((row) => row.total > 0 || (row.byType ?? []).some((x) => x.count > 0))
+    .sort((a, b) => b.total - a.total)
+
+  return { byType, byTrainerByType, totalCounted: sumMatrixRows(rows) }
+}
+
+/** @param {unknown} raw */
+export function normalizeMatrixRowsFromDb(raw) {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .map((row) => ({
+      trainer_id: String(row?.trainer_id ?? '').trim(),
+      membership_type_id:
+        row?.membership_type_id == null || row?.membership_type_id === ''
+          ? null
+          : String(row.membership_type_id).trim(),
+      count: Math.trunc(Number(row?.count) || 0),
+    }))
+    .filter((row) => row.trainer_id && row.count > 0)
+}

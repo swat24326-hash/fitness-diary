@@ -1,5 +1,6 @@
-import { Calendar, ChevronLeft, ChevronRight, Dumbbell, Save, Users } from 'lucide-react'
+import { Calendar, ChevronLeft, ChevronRight, Save, Users } from 'lucide-react'
 import { computeProfitDay, formatRub } from '../lib/admin/salesReportCore.js'
+import { SalesTrainingsMatrix } from './SalesTrainingsMatrix.jsx'
 
 const MATRIX_ROWS = [
   { key: 'pz', label: 'ПЗ' },
@@ -24,6 +25,11 @@ const MATRIX_COLS = [
  *   onSave: () => void,
  *   saving?: boolean,
  *   canEdit?: boolean,
+ *   trainers?: object[],
+ *   membershipTypeColumns?: Array<{ typeId: string, code: string }>,
+ *   trainingsMatrix?: Record<string, string>,
+ *   onTrainingsMatrixChange?: (next: Record<string, string>) => void,
+ *   fitCityTypeStats?: object | null,
  * }} props
  */
 export function SalesDailyForm({
@@ -37,6 +43,11 @@ export function SalesDailyForm({
   onSave,
   saving = false,
   canEdit = true,
+  trainers = [],
+  membershipTypeColumns = [],
+  trainingsMatrix = {},
+  onTrainingsMatrixChange,
+  fitCityTypeStats = null,
 }) {
   const profitTotal = computeProfitDay(form.profit_nk, form.profit_dk, form.profit_uk)
 
@@ -126,20 +137,20 @@ export function SalesDailyForm({
             />
           </div>
         </div>
-        <div className="sales-report__mini-card">
-          <Dumbbell size={22} aria-hidden />
-          <div className="sales-report__metric" style={{ flex: 1 }}>
-            <label htmlFor="sales-trainings">Тренировок за день (клуб)</label>
-            <input
-              id="sales-trainings"
-              type="text"
-              inputMode="numeric"
-              value={form.trainings_count}
-              onChange={(e) => setField('trainings_count', e.target.value)}
-              disabled={!canEdit}
-            />
-          </div>
-        </div>
+      </div>
+
+      <div style={{ marginTop: '1rem' }}>
+        <h3 className="sales-report__section-title" style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>
+          Тренировки по типам карт
+        </h3>
+        <SalesTrainingsMatrix
+          trainers={trainers}
+          columns={membershipTypeColumns}
+          matrix={trainingsMatrix}
+          onMatrixChange={onTrainingsMatrixChange ?? (() => {})}
+          fitCityStats={fitCityTypeStats}
+          canEdit={canEdit}
+        />
       </div>
 
       <p className="muted" style={{ margin: '1rem 0 0.5rem', fontSize: '0.85rem' }}>
