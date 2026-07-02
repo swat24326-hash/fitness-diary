@@ -43,22 +43,12 @@ export function SalesPlanVessel({ fact, planTotal, pulseKey = 0 }) {
           ))}
         </div>
         <div
-          className={`sales-report__plan-fill${visual.overflow ? ' sales-report__plan-fill--overflow' : ''}${pulse ? ' sales-report__plan-fill--pulse' : ''}${mounted ? ' sales-report__plan-fill--ready' : ''}`}
+          className={`sales-report__plan-fill${visual.overflow ? ' sales-report__plan-fill--overflow' : ''}${pulse ? ' sales-report__plan-fill--pulse' : ''}${mounted ? ' sales-report__plan-fill--ready' : ''}${visual.fillPercent > 0 ? ' sales-report__plan-fill--active' : ''}`}
           style={{ width: mounted ? `${visual.fillPercent}%` : '0%' }}
         >
           <span className="sales-report__plan-shimmer" />
-          {visual.markers.map((marker) => (
-            <span
-              key={marker.id}
-              className="sales-report__plan-coin"
-              style={{
-                left: `${marker.x}%`,
-                '--coin-delay': `${marker.delayMs}ms`,
-              }}
-            />
-          ))}
+          <span className="sales-report__plan-edge" />
         </div>
-        {visual.overflow ? <span className="sales-report__plan-spark" /> : null}
       </div>
 
       <p className="sales-report__plan-fraction">
