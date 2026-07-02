@@ -249,6 +249,13 @@ export function TrainerStatisticsSection() {
 
   return (
     <>
+      <TrainerPayrollPanel
+        trainerId={trainerId}
+        clubId={trainerClubId}
+        membershipTypes={membershipTypes}
+        memberships={memberships}
+      />
+
       <AdminClubStatsSection
         clubId={trainerClubId ?? ''}
         trainerScope={{
@@ -259,15 +266,6 @@ export function TrainerStatisticsSection() {
         onActiveRangeChange={onStatsRange}
         onOpenCompletedJournal={openCompletedJournal}
         onOpenInactive={openInactive}
-      />
-
-      <TrainerPayrollPanel
-        trainerId={trainerId}
-        clubId={trainerClubId}
-        dateFrom={statsRange.start}
-        dateTo={statsRange.end}
-        membershipTypes={membershipTypes}
-        memberships={memberships}
       />
 
       {inactiveOpen ? (

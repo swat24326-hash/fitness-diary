@@ -7,6 +7,8 @@ import {
   parseTrainerPayRate,
 } from '../src/lib/admin/trainerPayrollCore.js'
 
+import { computeTrainerSelfPayroll } from '../src/lib/trainer/trainerSelfPayroll.js'
+
 let failed = 0
 
 function ok(cond, msg) {
@@ -61,5 +63,34 @@ const fitStats = {
 }
 const fitPay = computePayrollFromMembershipStats(fitStats, rateMap, { trainerIdFilter: 'tr1' })
 ok(fitPay.clubTotal === 3200, 'fit-city payroll skips untyped')
+
+const selfPay = computeTrainerSelfPayroll({
+  trainerId: 'tr1',
+  dateFrom: '2026-06-15',
+  dateTo: '2026-06-15',
+  membershipTypes: types,
+  memberships: [{ id: 'm1', membership_type_id: 't1' }],
+  trainings: [
+    {
+      trainer_id: 'tr1',
+      status: 'completed',
+      date: '2026-06-15',
+      data: { membership_id: 'm1' },
+    },
+    {
+      trainer_id: 'tr1',
+      status: 'completed',
+      date: '2026-06-15',
+      data: {},
+    },
+    {
+      trainer_id: 'tr2',
+      status: 'completed',
+      date: '2026-06-15',
+      data: { membership_id: 'm1' },
+    },
+  ],
+})
+ok(selfPay === 800, 'trainer self payroll one completed typed training')
 
 process.exit(failed > 0 ? 1 : 0)
