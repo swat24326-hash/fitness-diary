@@ -3,6 +3,7 @@
  */
 import { authorizePush } from './mutationAuth.js'
 import { normalizeTrainingPayload } from './normalizeTrainingPayload.js'
+import { parseTrainerPayRate } from '../../src/lib/admin/trainerPayrollCore.js'
 
 export const PUSH_ALLOWED_TABLES = new Set([
   'clients',
@@ -131,11 +132,18 @@ export async function executePushRecord(ctx, item) {
         payload = link.data
       }
       if (table_name === 'membership_types') {
+        const payRaw = payload?.trainer_pay_per_session
+        const pay =
+          payRaw == null || payRaw === '' ? 0 : parseTrainerPayRate(payRaw)
+        if (Number.isNaN(pay)) {
+          return { ok: false, status: 400, error: 'Оплата за тренировку: неотрицательное число' }
+        }
         payload = {
           ...payload,
           code: String(payload?.code ?? '').trim().slice(0, 12),
           club_id: String(payload?.club_id ?? '').trim(),
           is_active: payload?.is_active !== false,
+          trainer_pay_per_session: pay,
         }
         if (!payload.code || !payload.club_id) {
           return { ok: false, status: 400, error: 'Укажите клуб и название типа' }
@@ -192,11 +200,21 @@ export async function executePushRecord(ctx, item) {
         payload = link.data
       }
       if (table_name === 'membership_types') {
-        payload = {
+        const next = {
           ...payload,
           code: String(payload?.code ?? '').trim().slice(0, 12),
           is_active: payload?.is_active !== false,
         }
+        if (Object.prototype.hasOwnProperty.call(payload, 'trainer_pay_per_session')) {
+          const payRaw = payload.trainer_pay_per_session
+          const pay =
+            payRaw == null || payRaw === '' ? 0 : parseTrainerPayRate(payRaw)
+          if (Number.isNaN(pay)) {
+            return { ok: false, status: 400, error: 'Оплата за тренировку: неотрицательное число' }
+          }
+          next.trainer_pay_per_session = pay
+        }
+        payload = next
       }
       const { error } = await supabaseAdmin.from(table_name).update(payload).eq('id', remote_id)
       if (error) {

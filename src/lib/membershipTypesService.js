@@ -7,6 +7,7 @@ import { getDb, putStore, listSyncQueue, buildPendingSyncKeysByTable } from './l
 import { saveLocalWithSync } from './syncService'
 import { pushRecordViaApi } from './syncApiClient'
 import { markRecordFromCloud } from './syncUnsyncedCore'
+import { parseTrainerPayRate } from './admin/trainerPayrollCore.js'
 
 export function normalizeMembershipTypeCode(raw) {
   return String(raw ?? '').trim().slice(0, 12)
@@ -14,12 +15,15 @@ export function normalizeMembershipTypeCode(raw) {
 
 function normalizeRow(row) {
   const codeRaw = row.code ?? row.name
+  const payRaw = row.trainer_pay_per_session
+  const payParsed = payRaw == null || payRaw === '' ? 0 : parseTrainerPayRate(payRaw)
   return {
     ...row,
     code: normalizeMembershipTypeCode(codeRaw),
     club_id: String(row.club_id ?? '').trim(),
     sort_order: Number(row.sort_order) || 0,
     is_active: row.is_active !== false,
+    trainer_pay_per_session: Number.isNaN(payParsed) ? 0 : payParsed,
   }
 }
 
@@ -80,6 +84,7 @@ export async function insertMembershipType({ club_id, code, sort_order = 0 }) {
     code: normalizedCode,
     sort_order,
     is_active: true,
+    trainer_pay_per_session: 0,
     created_at: now,
   })
   await saveLocalWithSync('membership_types', row, {
@@ -100,6 +105,28 @@ export async function deactivateMembershipType(id) {
   if (!prev) return { cloudOk: false, cloudError: 'Тип не найден' }
 
   const row = normalizeRow({ ...prev, is_active: false })
+  await saveLocalWithSync('membership_types', row, {
+    table_name: 'membership_types',
+    operation: 'update',
+    remote_id: tid,
+  })
+  return pushTypeOp('update', row, tid)
+}
+
+/** @param {string} id @param {string|number} rawPay */
+export async function updateMembershipTypePay(id, rawPay) {
+  const tid = String(id ?? '').trim()
+  if (!tid) return { cloudOk: false, cloudError: 'Нет id типа' }
+  const pay = parseTrainerPayRate(rawPay)
+  if (Number.isNaN(pay)) {
+    return { cloudOk: false, cloudError: 'Оплата: неотрицательное число' }
+  }
+
+  const db = await getDb()
+  const prev = await db.get('membership_types', tid)
+  if (!prev) return { cloudOk: false, cloudError: 'Тип не найден' }
+
+  const row = normalizeRow({ ...prev, trainer_pay_per_session: pay })
   await saveLocalWithSync('membership_types', row, {
     table_name: 'membership_types',
     operation: 'update',

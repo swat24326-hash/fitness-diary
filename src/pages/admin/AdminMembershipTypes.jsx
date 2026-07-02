@@ -7,6 +7,7 @@ import {
   insertMembershipType,
   listMembershipTypesForClub,
   normalizeMembershipTypeCode,
+  updateMembershipTypePay,
 } from '../../lib/membershipTypesService'
 import { pullMembershipTypesForClubFromCloud } from '../../lib/pullReferenceData'
 
@@ -20,6 +21,8 @@ export function AdminMembershipTypes() {
   const [busy, setBusy] = useState(false)
   const [pullBusy, setPullBusy] = useState(false)
   const [confirmId, setConfirmId] = useState(null)
+  const [payDraft, setPayDraft] = useState({})
+  const [paySavingId, setPaySavingId] = useState(null)
 
   const reloadLocal = useCallback(async () => {
     if (!clubId) {
@@ -38,6 +41,33 @@ export function AdminMembershipTypes() {
     window.addEventListener('fitness-diary-storage', onStorage)
     return () => window.removeEventListener('fitness-diary-storage', onStorage)
   }, [reloadLocal])
+
+  useEffect(() => {
+    const draft = {}
+    for (const t of items) {
+      const pay = t.trainer_pay_per_session
+      draft[t.id] = pay == null || pay === '' ? '' : String(pay)
+    }
+    setPayDraft(draft)
+  }, [items])
+
+  const savePay = async (typeId) => {
+    const id = String(typeId ?? '').trim()
+    if (!id) return
+    setMsg('')
+    setPaySavingId(id)
+    try {
+      const cloud = await updateMembershipTypePay(id, payDraft[id] ?? '')
+      if (!cloud.cloudOk) {
+        setMsg(`Ставка сохранена локально, в облако не ушла: ${cloud.cloudError}. Нажмите Sync.`)
+      }
+      await reloadLocal()
+    } catch (err) {
+      setMsg(err?.message ?? 'Ошибка сохранения ставки')
+    } finally {
+      setPaySavingId(null)
+    }
+  }
 
   const refreshFromCloud = async () => {
     if (!clubId) return
@@ -132,6 +162,7 @@ export function AdminMembershipTypes() {
     <div className="admin-membership-types grid" style={{ gap: 16 }}>
       <p className="muted admin-inline-note" style={{ margin: 0 }}>
         Короткие обозначения типов абонементов для этого клуба. Тренер выбирает тип при создании абонемента.
+        <strong> Оплата за тренировку</strong> — ставка для расчёта ЗП и ФОТ (одна на тип, «Без типа» не оплачивается).
         Отключённый тип нельзя выбрать в новых абонементах; уже созданные остаются.
       </p>
 
@@ -216,11 +247,12 @@ export function AdminMembershipTypes() {
 
       {items.length > 0 ? (
         <div className="table-wrap admin-mt-table">
-          <p className="muted admin-mt-table__caption">Управление: отключить тип</p>
+          <p className="muted admin-mt-table__caption">Ставки и управление типами</p>
           <table>
             <thead>
               <tr>
                 <th>Тип</th>
+                <th>Оплата за трен. (₽)</th>
                 <th>Статус</th>
                 <th style={{ width: 56 }} />
               </tr>
@@ -230,6 +262,19 @@ export function AdminMembershipTypes() {
                 <tr key={t.id} className={t.is_active === false ? 'muted' : undefined}>
                   <td>
                     <strong>{t.code}</strong>
+                  </td>
+                  <td>
+                    <input
+                      className="input"
+                      type="text"
+                      inputMode="decimal"
+                      style={{ maxWidth: 120, minWidth: 88 }}
+                      aria-label={`Оплата за тренировку ${t.code}`}
+                      value={payDraft[t.id] ?? ''}
+                      disabled={busy || paySavingId === t.id}
+                      onChange={(e) => setPayDraft((prev) => ({ ...prev, [t.id]: e.target.value }))}
+                      onBlur={() => void savePay(t.id)}
+                    />
                   </td>
                   <td>{t.is_active === false ? 'Отключён' : 'Активен'}</td>
                   <td>

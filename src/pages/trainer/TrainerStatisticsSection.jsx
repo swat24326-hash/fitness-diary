@@ -16,6 +16,7 @@ import { listMembershipTypesForClub } from '../../lib/membershipTypesService'
 import { AdminInactiveClientsPanel } from '../../components/AdminInactiveClientsPanel'
 import { TrainingExercisesReadonly } from '../../components/TrainingExercisesReadonly'
 import { AdminClubStatsSection } from '../admin/AdminClubStatsSection'
+import { TrainerPayrollPanel } from '../../components/TrainerPayrollPanel'
 
 function bmiFromHealthRow(health) {
   const hCm = Number(String(health?.height_cm ?? '').replace(',', '.'))
@@ -202,12 +203,15 @@ export function TrainerStatisticsSection() {
   }, [rows])
 
   useEffect(() => {
-    if (!journalOpen) return
     void loadMembershipContext()
+  }, [loadMembershipContext])
+
+  useEffect(() => {
+    if (!journalOpen) return
     requestAnimationFrame(() => {
       document.getElementById('trainer-completed-trainings-journal')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
-  }, [journalOpen, loadMembershipContext])
+  }, [journalOpen])
 
   const openCompletedJournal = useCallback(() => {
     setInactiveOpen(false)
@@ -255,6 +259,15 @@ export function TrainerStatisticsSection() {
         onActiveRangeChange={onStatsRange}
         onOpenCompletedJournal={openCompletedJournal}
         onOpenInactive={openInactive}
+      />
+
+      <TrainerPayrollPanel
+        trainerId={trainerId}
+        clubId={trainerClubId}
+        dateFrom={statsRange.start}
+        dateTo={statsRange.end}
+        membershipTypes={membershipTypes}
+        memberships={memberships}
       />
 
       {inactiveOpen ? (

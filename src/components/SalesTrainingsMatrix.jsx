@@ -1,10 +1,22 @@
+import { useMemo } from 'react'
+import { formatRub } from '../lib/admin/salesReportCore.js'
+import {
+  inputMapToMatrixRows,
+  SALES_TRAINING_TYPE_NONE,
+  salesTrainingCellKey,
+} from '../lib/admin/salesTrainingsMatrix.js'
+import {
+  buildTrainerPayRateMap,
+  computePayrollFromMatrixRows,
+  trainerPayrollTotalFor,
+} from '../lib/admin/trainerPayrollCore.js'
 import { MembershipTypeStatsTable } from './MembershipTypeStatsTable.jsx'
-import { SALES_TRAINING_TYPE_NONE, salesTrainingCellKey } from '../lib/admin/salesTrainingsMatrix.js'
 
 /**
  * @param {{
  *   trainers: Array<{ id: string, name?: string, email?: string }>,
  *   columns: Array<{ typeId: string, code: string }>,
+ *   membershipTypes?: Array<{ id: string, trainer_pay_per_session?: number | string }>,
  *   matrix: Record<string, string>,
  *   onMatrixChange: (next: Record<string, string>) => void,
  *   fitCityStats?: { byType?: object[], byTrainerByType?: object[] } | null,
@@ -14,11 +26,24 @@ import { SALES_TRAINING_TYPE_NONE, salesTrainingCellKey } from '../lib/admin/sal
 export function SalesTrainingsMatrix({
   trainers = [],
   columns = [],
+  membershipTypes = [],
   matrix = {},
   onMatrixChange,
   fitCityStats = null,
   canEdit = true,
 }) {
+  const rateMap = useMemo(() => buildTrainerPayRateMap(membershipTypes), [membershipTypes])
+
+  const dayPayroll = useMemo(() => {
+    const parsed = inputMapToMatrixRows(
+      matrix,
+      trainers.map((t) => t.id),
+      membershipTypes.filter((t) => t?.is_active !== false),
+    )
+    if (!parsed.ok) return { clubTotal: 0, byTrainer: new Map() }
+    return computePayrollFromMatrixRows(parsed.rows, rateMap)
+  }, [matrix, trainers, membershipTypes, rateMap])
+
   const trainerLabel = (id) => {
     const tr = trainers.find((t) => String(t.id) === String(id))
     if (!tr) return id || '—'
@@ -77,7 +102,8 @@ export function SalesTrainingsMatrix({
     <div className="sales-trainings-matrix">
       <p className="muted sales-trainings-matrix__note">
         Распределение <strong>тренировок за день</strong> по типам карт клуба. Итого в отчёте:{' '}
-        <strong>{clubAllTotal}</strong> (типизировано: {clubTypedTotal}).
+        <strong>{clubAllTotal}</strong> (типизировано: {clubTypedTotal}). ФОТ за день:{' '}
+        <strong>{formatRub(dayPayroll.clubTotal)}</strong> — «Без типа» в оплату не входит.
       </p>
 
       <div className="table-wrap admin-mem-type-table-wrap">
@@ -91,6 +117,7 @@ export function SalesTrainingsMatrix({
                 </th>
               ))}
               <th className="admin-mem-type-table__sum-col">Итого</th>
+              <th className="admin-mem-type-table__sum-col">ЗП (₽)</th>
             </tr>
           </thead>
           <tbody>
@@ -117,11 +144,14 @@ export function SalesTrainingsMatrix({
                   <td className="admin-mem-type-table__num admin-mem-type-table__sum-col">
                     <strong>{typedTotalForTrainer(tr.id)}</strong>
                   </td>
+                  <td className="admin-mem-type-table__num admin-mem-type-table__sum-col">
+                    <strong>{formatRub(trainerPayrollTotalFor(dayPayroll.byTrainer, tr.id))}</strong>
+                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={columns.length + 2} className="muted" style={{ padding: '0.75rem' }}>
+                <td colSpan={columns.length + 3} className="muted" style={{ padding: '0.75rem' }}>
                   Нет тренеров в клубе.
                 </td>
               </tr>
@@ -137,6 +167,9 @@ export function SalesTrainingsMatrix({
               ))}
               <td className="admin-mem-type-table__num admin-mem-type-table__sum-col">
                 <strong>{clubTypedTotal}</strong>
+              </td>
+              <td className="admin-mem-type-table__num admin-mem-type-table__sum-col">
+                <strong>{formatRub(dayPayroll.clubTotal)}</strong>
               </td>
             </tr>
           </tbody>

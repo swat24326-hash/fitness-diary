@@ -255,6 +255,7 @@ export function AdminSales() {
         saving={savingDaily}
         canEdit
         trainers={trainers}
+        membershipTypes={membershipTypes}
         membershipTypeColumns={membershipTypeColumns}
         trainingsMatrix={trainingsMatrix}
         onTrainingsMatrixChange={setTrainingsMatrix}

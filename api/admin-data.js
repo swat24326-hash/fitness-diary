@@ -13,7 +13,6 @@ import {
 } from './_lib/clubMonthlyAgg.js'
 import {
   aggregateMonthFromDailyRows,
-  computeNetProfit,
   dailyFormToPayload,
   expenseFormToPayload,
   monthDateRange,
@@ -21,6 +20,11 @@ import {
   planFormToPayload,
 } from '../src/lib/admin/salesReportCore.js'
 import { normalizeMatrixRowsFromDb } from '../src/lib/admin/salesTrainingsMatrix.js'
+import {
+  aggregatePayrollFromDailyRows,
+  buildTrainerPayRateMap,
+  computeNetProfitWithPayroll,
+} from '../src/lib/admin/trainerPayrollCore.js'
 
 const PAGE = 400
 const IN_CHUNK = 80
@@ -475,7 +479,7 @@ async function handleSalesGet(ctx, req, res) {
       .maybeSingle(),
     supabaseAdmin
       .from('club_sales_daily')
-      .select('report_date, profit_nk, profit_dk, profit_uk, profit_day, trainings_count')
+      .select('report_date, profit_nk, profit_dk, profit_uk, profit_day, trainings_count, trainings_matrix')
       .eq('club_id', clubId)
       .gte('report_date', start)
       .lte('report_date', end)
@@ -496,7 +500,7 @@ async function handleSalesGet(ctx, req, res) {
       .maybeSingle(),
     supabaseAdmin
       .from('membership_types')
-      .select('id, code, sort_order, is_active')
+      .select('id, code, sort_order, is_active, trainer_pay_per_session')
       .eq('club_id', clubId)
       .order('sort_order', { ascending: true }),
     fetchClubTrainersForSales(supabaseAdmin, clubId),
@@ -527,10 +531,17 @@ async function handleSalesGet(ctx, req, res) {
   const monthRows = monthRes.data ?? []
   const monthSummary = aggregateMonthFromDailyRows(monthRows)
   const expenseAmount = Number(expenseRes.data?.amount) || 0
-  monthSummary.expense = expenseAmount
-  monthSummary.netProfit = computeNetProfit(monthSummary.profitTotal, expenseAmount)
-
   const membershipTypes = typesRes.data ?? []
+  const payRateMap = buildTrainerPayRateMap(membershipTypes)
+  const monthPayroll = aggregatePayrollFromDailyRows(monthRows, payRateMap)
+  monthSummary.expense = expenseAmount
+  monthSummary.trainerPayroll = monthPayroll.clubTotal
+  monthSummary.netProfit = computeNetProfitWithPayroll(
+    monthSummary.profitTotal,
+    monthPayroll.clubTotal,
+    expenseAmount,
+  )
+
   const fitCityTypeStats = aggregateMembershipTypeStats({
     trainings: trainingsDay,
     memberships,

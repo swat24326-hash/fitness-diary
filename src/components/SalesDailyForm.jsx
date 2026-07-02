@@ -26,6 +26,7 @@ const MATRIX_COLS = [
  *   saving?: boolean,
  *   canEdit?: boolean,
  *   trainers?: object[],
+ *   membershipTypes?: object[],
  *   membershipTypeColumns?: Array<{ typeId: string, code: string }>,
  *   trainingsMatrix?: Record<string, string>,
  *   onTrainingsMatrixChange?: (next: Record<string, string>) => void,
@@ -44,6 +45,7 @@ export function SalesDailyForm({
   saving = false,
   canEdit = true,
   trainers = [],
+  membershipTypes = [],
   membershipTypeColumns = [],
   trainingsMatrix = {},
   onTrainingsMatrixChange,
@@ -146,6 +148,7 @@ export function SalesDailyForm({
         <SalesTrainingsMatrix
           trainers={trainers}
           columns={membershipTypeColumns}
+          membershipTypes={membershipTypes}
           matrix={trainingsMatrix}
           onMatrixChange={onTrainingsMatrixChange ?? (() => {})}
           fitCityStats={fitCityTypeStats}

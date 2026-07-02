@@ -43,6 +43,7 @@ run('membership type stats', 'node', ['scripts/verify-membership-type-stats.mjs'
 run('club client period', 'node', ['scripts/verify-club-client-period.mjs'])
 run('club monthly year', 'node', ['scripts/verify-club-monthly-year.mjs'])
 run('club sales profit', 'node', ['scripts/verify-club-sales-profit.mjs'])
+run('trainer payroll', 'node', ['scripts/verify-trainer-payroll.mjs'])
 run('stats agg parity', 'node', ['scripts/verify-stats-agg-parity.mjs'])
 run('challenge max reps', 'node', ['scripts/verify-challenge-max-reps.mjs'])
 run('membership stats refresh', 'node', ['scripts/verify-membership-stats-refresh.mjs'])
