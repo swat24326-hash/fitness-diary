@@ -66,6 +66,8 @@ ok(noFinance.finance === undefined, 'finance hidden')
 
 ok(GEMINI_ANALYTICS_MODEL === 'gemini-2.5-flash-lite', 'default model lite')
 ok(isGeminiRetryableError('models/gemini-1.5-flash is not found'), 'retry on missing model')
+ok(isGeminiRetryableError('This model is currently experiencing high demand'), 'retry on overload')
+ok(formatGeminiUserError('This model is currently experiencing high demand').includes('перегружен'), 'overload error ru')
 ok(formatGeminiUserError('You exceeded your current quota').includes('Лимит'), 'quota error ru')
 ok(formatGeminiUserError('x'.repeat(300)).length <= 220, 'long error trimmed')
 

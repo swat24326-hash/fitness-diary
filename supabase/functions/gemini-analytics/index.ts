@@ -12,7 +12,7 @@ const corsHeaders: Record<string, string> = {
 }
 
 const MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-3.1-flash-lite']
-const rateLimitMs = 8000
+const rateLimitMs = 12000
 const lastByUser = new Map<string, number>()
 
 function json(status: number, body: Record<string, unknown>) {
@@ -71,11 +71,28 @@ function buildContents(body: Record<string, unknown>, gender: string) {
   return [{ role: 'user', parts: [{ text: textParts.join('\n\n') }] }]
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function isOverloadError(message: string) {
+  const s = message.toLowerCase()
+  return (
+    s.includes('high demand') ||
+    s.includes('overloaded') ||
+    s.includes('try again later') ||
+    s.includes('temporarily unavailable') ||
+    s.includes('service unavailable') ||
+    s.includes('503')
+  )
+}
+
 function isRetryableError(message: string) {
   const s = message.toLowerCase()
   if (s.includes('quota') || s.includes('rate limit') || s.includes('429') || s.includes('resource_exhausted')) {
     return true
   }
+  if (isOverloadError(s)) return true
   return (
     s.includes('not found') ||
     s.includes('not supported') ||
@@ -88,7 +105,11 @@ function isRetryableError(message: string) {
 function formatUserError(message: string) {
   const raw = String(message ?? '').trim()
   if (!raw) return 'Не удалось получить ответ от Gemini'
-  if (isRetryableError(raw)) {
+  if (isOverloadError(raw)) {
+    return 'Gemini перегружен — подождите 10–20 сек и спросите снова.'
+  }
+  const s = raw.toLowerCase()
+  if (s.includes('quota') || s.includes('rate limit') || s.includes('429') || s.includes('resource_exhausted')) {
     const retry = raw.match(/retry in ([\d.]+)s/i)
     const waitSec = retry ? Math.ceil(Number(retry[1])) : 0
     const wait = waitSec > 0 ? ` Подождите ~${waitSec} сек.` : ' Подождите минуту.'
@@ -100,28 +121,36 @@ function formatUserError(message: string) {
 
 async function callGemini(apiKey: string, systemPrompt: string, contents: object[]) {
   let lastErr = 'Gemini error'
-  for (const model of MODELS) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        contents,
-        generationConfig: { temperature: 0.85, maxOutputTokens: 1024 },
-      }),
-    })
-    const data = await res.json().catch(() => ({}))
-    if (!res.ok) {
-      lastErr = String((data as { error?: { message?: string } })?.error?.message ?? res.statusText)
-      if (isRetryableError(lastErr)) continue
-      throw new Error(formatUserError(lastErr))
+  for (let i = 0; i < MODELS.length; i++) {
+    const model = MODELS[i]
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0) await sleep(1500)
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents,
+          generationConfig: { temperature: 0.85, maxOutputTokens: 1024 },
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        lastErr = String((data as { error?: { message?: string } })?.error?.message ?? res.statusText)
+        if (isRetryableError(lastErr)) {
+          if (attempt === 0 && isOverloadError(lastErr)) continue
+          break
+        }
+        throw new Error(formatUserError(lastErr))
+      }
+      const parts = (data as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> })?.candidates?.[0]
+        ?.content?.parts
+      const text = Array.isArray(parts) ? parts.map((p) => String(p?.text ?? '')).join('').trim() : ''
+      if (!text) throw new Error('Пустой ответ Gemini')
+      return text
     }
-    const parts = (data as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> })?.candidates?.[0]
-      ?.content?.parts
-    const text = Array.isArray(parts) ? parts.map((p) => String(p?.text ?? '')).join('').trim() : ''
-    if (!text) throw new Error('Пустой ответ Gemini')
-    return text
+    if (i + 1 < MODELS.length) await sleep(800)
   }
   throw new Error(formatUserError(lastErr))
 }

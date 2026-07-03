@@ -7,7 +7,7 @@ import {
 import { buildPersona, formatGeminiUserError } from '../../src/lib/admin/geminiAnalyticsPrompt.js'
 import { trimChatHistory } from '../../src/lib/admin/geminiAnalyticsSnapshot.js'
 
-const rateLimitMs = 8000
+const rateLimitMs = 12000
 const lastByUser = new Map()
 
 function parseYearMonth(body) {

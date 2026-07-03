@@ -22,10 +22,23 @@ export function isGeminiQuotaError(message) {
   )
 }
 
-/** Перебор следующей модели: квота, модель снята или неверное имя. */
+export function isGeminiOverloadError(message) {
+  const s = String(message ?? '').toLowerCase()
+  return (
+    s.includes('high demand') ||
+    s.includes('overloaded') ||
+    s.includes('try again later') ||
+    s.includes('temporarily unavailable') ||
+    s.includes('service unavailable') ||
+    s.includes('503')
+  )
+}
+
+/** Перебор следующей модели: квота, перегруз, модель снята или неверное имя. */
 export function isGeminiRetryableError(message) {
   const s = String(message ?? '').toLowerCase()
   if (isGeminiQuotaError(s)) return true
+  if (isGeminiOverloadError(s)) return true
   return (
     s.includes('not found') ||
     s.includes('not supported') ||
@@ -39,6 +52,9 @@ export function isGeminiRetryableError(message) {
 export function formatGeminiUserError(message) {
   const raw = String(message ?? '').trim()
   if (!raw) return 'Не удалось получить ответ от Gemini'
+  if (isGeminiOverloadError(raw)) {
+    return 'Gemini перегружен — подождите 10–20 сек и спросите снова. Ответ уже пробовали получить через другую модель.'
+  }
   if (isGeminiQuotaError(raw)) {
     const retry = raw.match(/retry in ([\d.]+)s/i)
     const waitSec = retry ? Math.ceil(Number(retry[1])) : 0
