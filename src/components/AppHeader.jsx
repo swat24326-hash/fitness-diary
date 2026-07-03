@@ -28,6 +28,7 @@ import {
   subscribeSyncAttention,
 } from '../lib/appErrorJournal'
 import { AppErrorJournalModal } from './AppErrorJournalModal'
+import { GeminiAnalyticsPanel } from './GeminiAnalyticsPanel'
 
 function headerNavClass({ isActive }) {
   return `app-header__nav-link${isActive ? ' app-header__nav-link--active' : ''}`
@@ -43,6 +44,7 @@ export function AppHeader() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [online, setOnline] = useState(() => (typeof navigator !== 'undefined' ? isAppOnline() : true))
   const [menuOpen, setMenuOpen] = useState(false)
+  const [geminiOpen, setGeminiOpen] = useState(false)
   const menuRootRef = useRef(null)
   const [adminClubs, setAdminClubs] = useState([])
   /** Название клуба тренера (adminClubs грузится только на /admin). */
@@ -497,6 +499,11 @@ export function AppHeader() {
     setSearchParams(next, { replace: true })
   }
 
+  const adminClubName = useMemo(() => {
+    const club = adminClubs.find((c) => String(c.id) === String(adminClubValue))
+    return club?.name?.trim() || ''
+  }, [adminClubs, adminClubValue])
+
   const showHeaderSync = supabaseReady
   const syncOutboundTotal = pendingSync + unsyncedLocal
   const syncHasPending = syncOutboundTotal > 0
@@ -613,6 +620,17 @@ export function AppHeader() {
               </option>
             ))}
           </select>
+        ) : null}
+        {showAdminClubSelect ? (
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm app-header__vasya-btn"
+            disabled={!adminClubValue}
+            title={adminClubValue ? 'Спросить аналитика по клубу' : 'Сначала выберите клуб'}
+            onClick={() => setGeminiOpen(true)}
+          >
+            ✨ Че там по базе, Вась?
+          </button>
         ) : null}
         {!isAdmin && user ? <HeaderStopwatch /> : null}
         {showHeaderSync ? (
@@ -772,6 +790,12 @@ export function AppHeader() {
       onSyncNow={() => void syncNow()}
       syncBusy={syncBusy}
       onSignOut={doSignOut}
+    />
+    <GeminiAnalyticsPanel
+      open={geminiOpen}
+      onClose={() => setGeminiOpen(false)}
+      clubId={adminClubValue}
+      clubName={adminClubName}
     />
     {syncFeedback && (
       <div

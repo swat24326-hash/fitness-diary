@@ -25,6 +25,7 @@ import {
   buildTrainerPayRateMap,
   computeNetProfitWithPayroll,
 } from '../src/lib/admin/trainerPayrollCore.js'
+import { handleGeminiAnalyticsPost } from './_lib/geminiAnalyticsHandler.js'
 
 const PAGE = 400
 const IN_CHUNK = 80
@@ -749,8 +750,8 @@ export default async function handler(req, res) {
   const action = String(req.query?.action ?? '').trim().toLowerCase()
 
   if (req.method === 'POST') {
-    const salesPostActions = new Set(['sales-daily', 'sales-plan', 'sales-finance'])
-    if (!salesPostActions.has(action)) {
+    const postActions = new Set(['sales-daily', 'sales-plan', 'sales-finance', 'gemini-analytics'])
+    if (!postActions.has(action)) {
       sendJson(res, 405, { error: 'Method not allowed' })
       return
     }
@@ -761,6 +762,7 @@ export default async function handler(req, res) {
       sendJson(res, 400, { error: 'Invalid JSON' })
       return
     }
+    if (action === 'gemini-analytics') return handleGeminiAnalyticsPost(ctx, req, res, body)
     if (action === 'sales-daily') return handleSalesDailyPost(ctx, req, res, body)
     if (action === 'sales-plan') return handleSalesPlanPost(ctx, req, res, body)
     if (action === 'sales-finance') return handleSalesFinancePost(ctx, req, res, body)
