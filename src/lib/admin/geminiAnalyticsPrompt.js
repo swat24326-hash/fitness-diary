@@ -2,8 +2,12 @@
 
 import { trimChatHistory } from './geminiAnalyticsSnapshot.js'
 
-/** Сначала lite — стабильнее на free tier Google AI Studio. */
-export const GEMINI_ANALYTICS_MODELS = ['gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-2.0-flash']
+/** Сначала lite — дешевле и стабильнее на free tier Google AI Studio (2026). */
+export const GEMINI_ANALYTICS_MODELS = [
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-flash',
+  'gemini-3.1-flash-lite',
+]
 
 export const GEMINI_ANALYTICS_MODEL = GEMINI_ANALYTICS_MODELS[0]
 
@@ -15,6 +19,19 @@ export function isGeminiQuotaError(message) {
     s.includes('rate-limit') ||
     s.includes('resource_exhausted') ||
     s.includes('429')
+  )
+}
+
+/** Перебор следующей модели: квота, модель снята или неверное имя. */
+export function isGeminiRetryableError(message) {
+  const s = String(message ?? '').toLowerCase()
+  if (isGeminiQuotaError(s)) return true
+  return (
+    s.includes('not found') ||
+    s.includes('not supported') ||
+    s.includes('is not found for api version') ||
+    s.includes('has been shut down') ||
+    s.includes('deprecated')
   )
 }
 

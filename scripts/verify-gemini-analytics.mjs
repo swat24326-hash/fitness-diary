@@ -5,7 +5,7 @@ import {
   sumMatrixTotalsFromDailyRows,
   trimChatHistory,
 } from '../src/lib/admin/geminiAnalyticsSnapshot.js'
-import { buildPersona, buildSystemPrompt, formatGeminiUserError, GEMINI_ANALYTICS_MODEL } from '../src/lib/admin/geminiAnalyticsPrompt.js'
+import { buildPersona, buildSystemPrompt, formatGeminiUserError, GEMINI_ANALYTICS_MODEL, isGeminiRetryableError } from '../src/lib/admin/geminiAnalyticsPrompt.js'
 
 let failed = 0
 
@@ -64,7 +64,8 @@ const noFinance = buildGeminiSnapshot({
 })
 ok(noFinance.finance === undefined, 'finance hidden')
 
-ok(GEMINI_ANALYTICS_MODEL === 'gemini-2.0-flash-lite', 'default model lite')
+ok(GEMINI_ANALYTICS_MODEL === 'gemini-2.5-flash-lite', 'default model lite')
+ok(isGeminiRetryableError('models/gemini-1.5-flash is not found'), 'retry on missing model')
 ok(formatGeminiUserError('You exceeded your current quota').includes('Лимит'), 'quota error ru')
 ok(formatGeminiUserError('x'.repeat(300)).length <= 220, 'long error trimmed')
 

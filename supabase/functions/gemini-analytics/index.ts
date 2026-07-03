@@ -11,7 +11,7 @@ const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-const MODELS = ['gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-2.0-flash']
+const MODELS = ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-3.1-flash-lite']
 const rateLimitMs = 8000
 const lastByUser = new Map<string, number>()
 
@@ -71,15 +71,24 @@ function buildContents(body: Record<string, unknown>, gender: string) {
   return [{ role: 'user', parts: [{ text: textParts.join('\n\n') }] }]
 }
 
-function isQuotaError(message: string) {
+function isRetryableError(message: string) {
   const s = message.toLowerCase()
-  return s.includes('quota') || s.includes('rate limit') || s.includes('429') || s.includes('resource_exhausted')
+  if (s.includes('quota') || s.includes('rate limit') || s.includes('429') || s.includes('resource_exhausted')) {
+    return true
+  }
+  return (
+    s.includes('not found') ||
+    s.includes('not supported') ||
+    s.includes('is not found for api version') ||
+    s.includes('has been shut down') ||
+    s.includes('deprecated')
+  )
 }
 
 function formatUserError(message: string) {
   const raw = String(message ?? '').trim()
   if (!raw) return 'Не удалось получить ответ от Gemini'
-  if (isQuotaError(raw)) {
+  if (isRetryableError(raw)) {
     const retry = raw.match(/retry in ([\d.]+)s/i)
     const waitSec = retry ? Math.ceil(Number(retry[1])) : 0
     const wait = waitSec > 0 ? ` Подождите ~${waitSec} сек.` : ' Подождите минуту.'
@@ -105,7 +114,7 @@ async function callGemini(apiKey: string, systemPrompt: string, contents: object
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
       lastErr = String((data as { error?: { message?: string } })?.error?.message ?? res.statusText)
-      if (isQuotaError(lastErr)) continue
+      if (isRetryableError(lastErr)) continue
       throw new Error(formatUserError(lastErr))
     }
     const parts = (data as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> })?.candidates?.[0]

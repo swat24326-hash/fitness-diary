@@ -4,7 +4,7 @@ import {
   formatGeminiUserError,
   GEMINI_ANALYTICS_MODEL,
   GEMINI_ANALYTICS_MODELS,
-  isGeminiQuotaError,
+  isGeminiRetryableError,
 } from '../../src/lib/admin/geminiAnalyticsPrompt.js'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
@@ -57,7 +57,7 @@ export async function callGeminiGenerateContent(apiKey, payload) {
       return await callGeminiModel(key, payload, model)
     } catch (e) {
       lastErr = e
-      if (!isGeminiQuotaError(e?.message)) {
+      if (!isGeminiRetryableError(e?.message)) {
         throw new Error(formatGeminiUserError(e?.message))
       }
     }
