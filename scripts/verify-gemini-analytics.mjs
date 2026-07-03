@@ -5,8 +5,14 @@ import {
   sumMatrixTotalsFromDailyRows,
   trimChatHistory,
 } from '../src/lib/admin/geminiAnalyticsSnapshot.js'
-import { buildPersona, buildSystemPrompt, formatGeminiUserError, GEMINI_ANALYTICS_MODEL, GEMINI_GENERATION_CONFIG, isGeminiRetryableError } from '../src/lib/admin/geminiAnalyticsPrompt.js'
+import { buildPersona, buildSystemPrompt, formatGeminiUserError, GEMINI_ANALYTICS_MODEL, GEMINI_GENERATION_CONFIG, isGeminiRetryableError, resolveGeminiComparePrevious, shouldComparePreviousMonth } from '../src/lib/admin/geminiAnalyticsPrompt.js'
 import { prepareTextForSpeech } from '../src/lib/geminiAnalyticsSpeech.js'
+import {
+  clearGeminiSnapshotCacheForTests,
+  getCachedGeminiSnapshot,
+  setCachedGeminiSnapshot,
+} from '../api/_lib/geminiAnalyticsCache.js'
+import { buildGeminiPanelKpi, reportDateForMonth } from '../src/lib/admin/geminiPanelKpi.js'
 
 let failed = 0
 
@@ -74,5 +80,30 @@ ok(isGeminiRetryableError('This model is currently experiencing high demand'), '
 ok(formatGeminiUserError('This model is currently experiencing high demand').includes('перегружен'), 'overload error ru')
 ok(formatGeminiUserError('You exceeded your current quota').includes('Лимит'), 'quota error ru')
 ok(formatGeminiUserError('x'.repeat(300)).length <= 220, 'long error trimmed')
+
+ok(shouldComparePreviousMonth('Сравни с прошлым месяцем'), 'compare phrase')
+ok(!shouldComparePreviousMonth('че по плану'), 'no compare phrase')
+ok(resolveGeminiComparePrevious({ userMessage: 'динамика за месяц', comparePrevious: false }), 'resolve compare text')
+ok(resolveGeminiComparePrevious({ userMessage: 'x', comparePrevious: true }), 'resolve compare flag')
+
+clearGeminiSnapshotCacheForTests()
+setCachedGeminiSnapshot('c1', 2026, 6, { ok: true })
+ok(getCachedGeminiSnapshot('c1', 2026, 6)?.ok === true, 'snapshot cache hit')
+ok(getCachedGeminiSnapshot('c1', 2026, 7) === null, 'snapshot cache miss')
+clearGeminiSnapshotCacheForTests()
+
+ok(/^\d{4}-\d{2}-\d{2}$/.test(reportDateForMonth(2026, 1) ?? ''), 'report date iso')
+const kpi = buildGeminiPanelKpi(
+  {
+    monthSummary: { profitTotal: 50000, dayCount: 10 },
+    plan: { plan_total: 100000 },
+    fitCityTypeStats: { totalCounted: 38 },
+  },
+  2026,
+  6,
+)
+ok(kpi?.planPct === 50, 'kpi plan pct')
+ok(kpi?.reportsLabel === '10/30', 'kpi reports label')
+ok(kpi?.fitCity === 38, 'kpi fit city')
 
 process.exit(failed > 0 ? 1 : 0)

@@ -4,7 +4,7 @@ import {
   buildGeminiGeneratePayload,
   callGeminiGenerateContent,
 } from './geminiApiClient.js'
-import { buildPersona, formatGeminiUserError } from '../../src/lib/admin/geminiAnalyticsPrompt.js'
+import { buildPersona, formatGeminiUserError, resolveGeminiComparePrevious } from '../../src/lib/admin/geminiAnalyticsPrompt.js'
 import { trimChatHistory } from '../../src/lib/admin/geminiAnalyticsSnapshot.js'
 
 const rateLimitMs = 12000
@@ -52,7 +52,10 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
   const ym = parseYearMonth(body)
   const gender = body?.gender === 'female' ? 'female' : 'male'
   const userMessage = String(body?.user_message ?? '').trim()
-  const comparePrevious = body?.compare_previous === true
+  const comparePrevious = resolveGeminiComparePrevious({
+    userMessage,
+    comparePrevious: body?.compare_previous === true,
+  })
   const includeFinance = body?.include_finance !== false
 
   if (!clubId) {
@@ -71,8 +74,12 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
   const userId = String(ctx.user?.id ?? '')
   const now = Date.now()
   const last = lastByUser.get(userId) || 0
-  if (now - last < rateLimitMs) {
-    sendJson(res, 429, { error: 'Подождите несколько секунд перед следующим вопросом' })
+  const waitMs = last + rateLimitMs - now
+  if (waitMs > 0) {
+    sendJson(res, 429, {
+      error: 'Подождите несколько секунд перед следующим вопросом',
+      retry_after_sec: Math.ceil(waitMs / 1000),
+    })
     return
   }
   lastByUser.set(userId, now)
@@ -129,6 +136,7 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
       year: ym.year,
       month: ym.month,
       source,
+      compare_previous: comparePrevious,
     })
   } catch (e) {
     const msg = formatGeminiUserError(e?.message ?? 'Ошибка аналитики')

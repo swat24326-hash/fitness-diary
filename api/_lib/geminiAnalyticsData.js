@@ -6,6 +6,7 @@ import {
   buildTrainerPayRateMap,
 } from '../../src/lib/admin/trainerPayrollCore.js'
 import { buildGeminiSnapshot, previousMonthParts } from '../../src/lib/admin/geminiAnalyticsSnapshot.js'
+import { getCachedGeminiSnapshot, setCachedGeminiSnapshot } from './geminiAnalyticsCache.js'
 
 const SALES_MONTH_SELECT =
   'report_date, profit_nk, profit_dk, profit_uk, profit_day, trainings_count, trainings_matrix, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk'
@@ -93,6 +94,10 @@ async function loadMonthRaw(supabaseAdmin, clubId, year, month) {
  * @param {{ clubName?: string, includeFinance?: boolean }} opts
  */
 export async function loadGeminiSnapshotForMonth(supabaseAdmin, clubId, year, month, opts = {}) {
+  const includeFinance = opts.includeFinance !== false
+  const cached = getCachedGeminiSnapshot(clubId, year, month, includeFinance)
+  if (cached) return cached
+
   let clubName = String(opts.clubName ?? '').trim()
   if (!clubName) {
     const { data: club } = await supabaseAdmin.from('clubs').select('name').eq('id', clubId).maybeSingle()
@@ -100,7 +105,7 @@ export async function loadGeminiSnapshotForMonth(supabaseAdmin, clubId, year, mo
   }
 
   const raw = await loadMonthRaw(supabaseAdmin, clubId, year, month)
-  return buildGeminiSnapshot({
+  const snapshot = buildGeminiSnapshot({
     clubName,
     year,
     month,
@@ -112,8 +117,10 @@ export async function loadGeminiSnapshotForMonth(supabaseAdmin, clubId, year, mo
     inactiveInPeriod: raw.inactiveInPeriod,
     trainingCompleted: raw.trainingAgg.totalCompleted,
     trainingDraft: raw.trainingAgg.totalDraft,
-    includeFinance: opts.includeFinance !== false,
+    includeFinance,
   })
+  setCachedGeminiSnapshot(clubId, year, month, snapshot, includeFinance)
+  return snapshot
 }
 
 /**

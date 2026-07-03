@@ -20,6 +20,28 @@ export const GEMINI_GENERATION_CONFIG = {
 export const GEMINI_RESPONSE_BRIEF_RULE =
   'Ответ: 2–4 коротких предложения, до 70 слов — как живой голосовой комментарий. Без markdown, списков и воды. Одна главная цифра и чёткий вывод.'
 
+/** Явный флаг или формулировка вопроса про прошлый месяц / динамику. */
+export function shouldComparePreviousMonth(userMessage) {
+  const s = String(userMessage ?? '')
+    .toLowerCase()
+    .replace(/ё/g, 'е')
+  if (!s.trim()) return false
+  return (
+    /прошл(ый|ом|ая|ую|ие|ей)\s*месяц/.test(s) ||
+    /с\s+прошл/.test(s) ||
+    /к\s+прошл/.test(s) ||
+    /динамик/.test(s) ||
+    /(лучше|хуже|рост|падени|просел|поднял)/.test(s) && /месяц|период|было/.test(s) ||
+    /месяц\s+к\s+месяц/.test(s) ||
+    /mom|month.over.month/.test(s)
+  )
+}
+
+export function resolveGeminiComparePrevious({ userMessage, comparePrevious = false }) {
+  if (comparePrevious === true) return true
+  return shouldComparePreviousMonth(userMessage)
+}
+
 export function isGeminiQuotaError(message) {
   const s = String(message ?? '').toLowerCase()
   return (

@@ -2,23 +2,61 @@
   position: fixed;
   inset: 0;
   z-index: 1200;
-  background: rgba(2, 6, 23, 0.55);
-  backdrop-filter: blur(4px);
+  background: rgba(2, 6, 23, 0.45);
+  backdrop-filter: blur(6px);
   display: flex;
   justify-content: flex-end;
   padding: 0;
+  opacity: 0;
+  transition: opacity 0.28s var(--ease-out, ease);
+}
+
+.gemini-panel-backdrop--open {
+  opacity: 1;
 }
 
 .gemini-panel {
-  width: min(420px, 100vw);
+  position: relative;
+  width: min(440px, 100vw);
   height: 100%;
   display: flex;
   flex-direction: column;
   background:
-    linear-gradient(165deg, rgba(15, 23, 42, 0.92), rgba(2, 6, 23, 0.96));
-  border-left: 1px solid rgba(148, 163, 184, 0.2);
-  box-shadow: -12px 0 40px rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(16px);
+    radial-gradient(ellipse 90% 45% at 50% 0%, rgba(46, 255, 184, 0.1), transparent 58%),
+    linear-gradient(165deg, rgba(8, 32, 24, 0.94), rgba(3, 8, 6, 0.98));
+  border-left: 1px solid var(--premium-glass-border, rgba(46, 255, 184, 0.14));
+  box-shadow:
+    -16px 0 48px rgba(0, 0, 0, 0.45),
+    0 0 60px rgba(46, 255, 184, 0.06);
+  backdrop-filter: blur(20px) saturate(165%);
+  transform: translateX(100%);
+  transition: transform 0.32s var(--ease-out, cubic-bezier(0.22, 1, 0.36, 1));
+  overflow: hidden;
+}
+
+.gemini-panel--open {
+  transform: translateX(0);
+}
+
+.gemini-panel--female {
+  --gemini-accent: #f472b6;
+  --gemini-accent-soft: rgba(244, 114, 182, 0.18);
+  --gemini-accent-glow: rgba(244, 114, 182, 0.35);
+}
+
+.gemini-panel--male {
+  --gemini-accent: var(--accent-bright, #2effb8);
+  --gemini-accent-soft: rgba(46, 255, 184, 0.16);
+  --gemini-accent-glow: rgba(46, 255, 184, 0.35);
+}
+
+.gemini-panel__glow {
+  position: absolute;
+  inset: -30% -20% auto;
+  height: 45%;
+  background: radial-gradient(ellipse at 50% 0%, var(--gemini-accent-glow), transparent 68%);
+  opacity: 0.45;
+  pointer-events: none;
 }
 
 .gemini-panel__head {
@@ -26,40 +64,179 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 1rem 1rem 0.75rem;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  padding: 1rem 1rem 0.65rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  position: relative;
+  z-index: 1;
+}
+
+.gemini-panel__head-main {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.gemini-panel__avatar {
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gemini-accent-soft);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--gemini-accent);
+  box-shadow:
+    0 0 24px var(--gemini-accent-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .gemini-panel__title {
   margin: 0;
-  font-size: 1.15rem;
-  font-weight: 700;
+  font-size: 1.12rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
 }
 
 .gemini-panel__sub {
-  margin: 0.2rem 0 0;
+  margin: 0.15rem 0 0;
+  font-size: 0.78rem;
+}
+
+/* —— KPI strip —— */
+.gemini-panel__kpi {
+  margin: 0.65rem 1rem 0;
+  padding: 0.65rem 0.7rem;
+  border-radius: var(--radius-sm, 12px);
+  background:
+    radial-gradient(ellipse 80% 80% at 100% 0%, var(--gemini-accent-soft), transparent 55%),
+    rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.gemini-panel__kpi--loading {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.45rem;
+  min-height: 72px;
+}
+
+.gemini-panel__kpi--loading span {
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.08),
+    rgba(148, 163, 184, 0.22),
+    rgba(148, 163, 184, 0.08)
+  );
+  background-size: 200% 100%;
+  animation: gemini-shimmer 1.4s linear infinite;
+}
+
+.gemini-panel__kpi-plan {
+  margin-bottom: 0.55rem;
+}
+
+.gemini-panel__kpi-plan-head {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.gemini-panel__kpi-plan-head strong {
+  margin-left: auto;
+  color: var(--gemini-accent);
   font-size: 0.82rem;
+}
+
+.gemini-panel__kpi-track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  overflow: hidden;
+}
+
+.gemini-panel__kpi-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent-dim, #0a7d5c), var(--gemini-accent));
+  box-shadow: 0 0 12px var(--gemini-accent-glow);
+  transition: width 0.85s var(--ease-out, ease);
+}
+
+.gemini-panel__kpi-fill--ready {
+  transition-duration: 1s;
+}
+
+.gemini-panel__kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.gemini-panel__kpi-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.35rem 0.4rem;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  min-width: 0;
+}
+
+.gemini-panel__kpi-card svg {
+  color: var(--gemini-accent);
+  opacity: 0.9;
+}
+
+.gemini-panel__kpi-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.gemini-panel__kpi-card strong {
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .gemini-panel__controls {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
-  padding: 0.75rem 1rem;
+  padding: 0.65rem 1rem 0.5rem;
 }
 
 .gemini-panel__month {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.45rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .gemini-panel__month-label {
   min-width: 9rem;
   text-align: center;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: capitalize;
+  font-size: 0.88rem;
 }
 
 .gemini-panel__gender {
@@ -69,19 +246,27 @@
 }
 
 .gemini-panel__gender-btn {
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.55);
   color: inherit;
   border-radius: 999px;
-  padding: 0.3rem 0.65rem;
-  font-size: 0.78rem;
+  padding: 0.32rem 0.7rem;
+  font-size: 0.76rem;
   cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.gemini-panel__gender-btn:hover {
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .gemini-panel__gender-btn--active {
-  border-color: rgba(52, 211, 153, 0.45);
-  background: rgba(16, 185, 129, 0.15);
-  color: #6ee7b7;
+  border-color: var(--gemini-accent);
+  background: var(--gemini-accent-soft);
+  color: var(--gemini-accent);
 }
 
 .gemini-panel__speak-toggle {
@@ -92,55 +277,75 @@
   height: 34px;
   padding: 0;
   border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.55);
   color: rgba(148, 163, 184, 0.85);
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .gemini-panel__speak-toggle--on {
-  border-color: rgba(52, 211, 153, 0.45);
-  background: rgba(16, 185, 129, 0.12);
-  color: #6ee7b7;
+  border-color: var(--gemini-accent);
+  background: var(--gemini-accent-soft);
+  color: var(--gemini-accent);
 }
 
 .gemini-panel__chips {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-  padding: 0 1rem 0.75rem;
+  padding: 0 1rem 0.65rem;
 }
 
 .gemini-panel__chip {
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  background: rgba(30, 41, 59, 0.65);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.5);
   color: inherit;
   border-radius: 999px;
-  padding: 0.28rem 0.6rem;
-  font-size: 0.74rem;
+  padding: 0.32rem 0.62rem;
+  font-size: 0.72rem;
   cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.gemini-panel__chip:hover:not(:disabled) {
+  border-color: var(--gemini-accent);
+  background: var(--gemini-accent-soft);
+  transform: translateY(-1px);
+}
+
+.gemini-panel__chip svg {
+  color: var(--gemini-accent);
+  opacity: 0.85;
 }
 
 .gemini-panel__chip:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
 
 .gemini-panel__messages {
   flex: 1;
   overflow-y: auto;
-  padding: 0.5rem 1rem 1rem;
+  padding: 0.35rem 1rem 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 0.75rem;
+  scroll-behavior: smooth;
 }
 
 .gemini-panel__msg {
-  position: relative;
-  padding: 0.65rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.88rem;
-  line-height: 1.45;
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  max-width: 100%;
+  animation: gemini-msg-in 0.28s var(--ease-out, ease) both;
 }
 
 .gemini-panel__msg p {
@@ -148,77 +353,175 @@
 }
 
 .gemini-panel__msg--user {
+  flex-direction: row-reverse;
   align-self: flex-end;
   max-width: 92%;
-  background: rgba(16, 185, 129, 0.16);
-  border: 1px solid rgba(52, 211, 153, 0.25);
 }
 
 .gemini-panel__msg--assistant {
   align-self: flex-start;
-  max-width: 95%;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  max-width: 96%;
 }
 
 .gemini-panel__msg--system {
   align-self: center;
-  font-size: 0.75rem;
+  justify-content: center;
+  font-size: 0.72rem;
   color: rgba(148, 163, 184, 0.85);
-  background: transparent;
-  border: none;
-  padding: 0.2rem 0;
+  padding: 0.15rem 0;
+}
+
+.gemini-panel__msg--system p {
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.gemini-panel__msg-avatar {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.gemini-panel__msg-avatar--male,
+.gemini-panel__msg-avatar--female {
+  background: var(--gemini-accent-soft);
+  color: var(--gemini-accent);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.gemini-panel__msg-avatar--user {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.gemini-panel__msg-body {
+  position: relative;
+  padding: 0.55rem 0.7rem;
+  border-radius: 14px;
+  font-size: 0.86rem;
+  line-height: 1.45;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  min-width: 0;
+}
+
+.gemini-panel__msg-body--user {
+  background: var(--gemini-accent-soft);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.gemini-panel__msg-name {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--gemini-accent);
+  margin-bottom: 0.25rem;
+  letter-spacing: 0.02em;
 }
 
 .gemini-panel__msg-actions {
-  position: absolute;
-  top: 0.35rem;
-  right: 0.25rem;
+  margin-top: 0.35rem;
 }
 
-.gemini-panel__skeleton {
+.gemini-panel__msg-actions .btn {
+  padding: 0.15rem 0.35rem;
+  min-height: 0;
+  opacity: 0.75;
+}
+
+.gemini-panel__msg-actions .btn:hover {
+  opacity: 1;
+}
+
+.gemini-panel__typing {
+  display: flex;
+  gap: 0.28rem;
+  padding-top: 0.15rem;
+}
+
+.gemini-panel__typing span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gemini-accent);
+  opacity: 0.45;
+  animation: gemini-dot 1.2s ease-in-out infinite;
+}
+
+.gemini-panel__typing span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.gemini-panel__typing span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.gemini-panel__error-wrap {
+  margin: 0 1rem 0.35rem;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
-  padding: 0.75rem;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
-  animation: gemini-pulse 1.2s ease-in-out infinite;
-}
-
-.gemini-panel__skeleton span {
-  display: block;
-  height: 10px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, rgba(148, 163, 184, 0.15), rgba(148, 163, 184, 0.35), rgba(148, 163, 184, 0.15));
-  background-size: 200% 100%;
-  animation: gemini-shimmer 1.4s linear infinite;
-}
-
-.gemini-panel__skeleton span:nth-child(1) {
-  width: 92%;
-}
-.gemini-panel__skeleton span:nth-child(2) {
-  width: 78%;
-}
-.gemini-panel__skeleton span:nth-child(3) {
-  width: 55%;
+  align-items: flex-start;
+  gap: 0.35rem;
 }
 
 .gemini-panel__error {
-  margin: 0 1rem;
+  margin: 0;
+  width: 100%;
   padding: 0.45rem 0.65rem;
-  border-radius: 8px;
+  border-radius: 10px;
   background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.2);
   color: #fca5a5;
   font-size: 0.82rem;
 }
 
+.gemini-panel__error-hint {
+  margin: 0;
+  font-size: 0.75rem;
+}
+
+.gemini-panel__retry {
+  margin-top: 0.15rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .gemini-panel__form {
+  position: relative;
   display: flex;
   gap: 0.5rem;
   padding: 0.75rem 1rem 0.35rem;
-  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.18));
+}
+
+.gemini-panel__rate-bar {
+  position: absolute;
+  top: 0;
+  left: 1rem;
+  right: 1rem;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.gemini-panel__rate-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--warning, #fbbf24), #f97316);
+  transition: width 1s linear;
 }
 
 .gemini-panel__mic {
@@ -237,12 +540,64 @@
   animation: gemini-mic-pulse 1.2s ease-in-out infinite;
 }
 
+.gemini-panel__input {
+  flex: 1;
+  min-width: 0;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.75);
+  color: inherit;
+  padding: 0.58rem 0.75rem;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.gemini-panel__input:focus {
+  outline: none;
+  border-color: var(--gemini-accent);
+  box-shadow: 0 0 0 3px var(--gemini-accent-soft);
+}
+
+.gemini-panel__send {
+  flex-shrink: 0;
+  width: 42px;
+  padding-inline: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .gemini-panel__voice-hint {
   margin: 0;
   padding: 0 1rem 0.85rem;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   line-height: 1.35;
   text-align: center;
+}
+
+@keyframes gemini-msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gemini-dot {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  40% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
 }
 
 @keyframes gemini-mic-pulse {
@@ -255,32 +610,12 @@
   }
 }
 
-.gemini-panel__input {
-  flex: 1;
-  min-width: 0;
-  border-radius: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  background: rgba(15, 23, 42, 0.85);
-  color: inherit;
-  padding: 0.55rem 0.75rem;
-}
-
 @keyframes gemini-shimmer {
   0% {
     background-position: 200% 0;
   }
   100% {
     background-position: -200% 0;
-  }
-}
-
-@keyframes gemini-pulse {
-  0%,
-  100% {
-    opacity: 0.85;
-  }
-  50% {
-    opacity: 1;
   }
 }
 
@@ -292,18 +627,31 @@
 
   .gemini-panel {
     width: 100%;
-    height: min(92vh, 720px);
+    height: min(94vh, 760px);
     border-left: none;
-    border-top: 1px solid rgba(148, 163, 184, 0.2);
-    border-radius: 16px 16px 0 0;
+    border-top: 1px solid var(--premium-glass-border, rgba(46, 255, 184, 0.14));
+    border-radius: 18px 18px 0 0;
+    transform: translateY(100%);
+  }
+
+  .gemini-panel--open {
+    transform: translateY(0);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .gemini-panel__skeleton,
-  .gemini-panel__skeleton span {
+  .gemini-panel,
+  .gemini-panel-backdrop {
+    transition: none;
+  }
+
+  .gemini-panel__msg,
+  .gemini-panel__kpi-fill,
+  .gemini-panel__typing span,
+  .gemini-panel__kpi--loading span {
     animation: none;
   }
+
   .gemini-panel__mic--active {
     animation: none;
   }
@@ -320,4 +668,27 @@
   justify-content: center;
   font-size: 1rem;
   line-height: 1;
+  border-color: rgba(46, 255, 184, 0.28);
+  background:
+    radial-gradient(circle at 50% 35%, rgba(46, 255, 184, 0.18), rgba(15, 23, 42, 0.85));
+  box-shadow:
+    0 0 16px rgba(46, 255, 184, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.app-header__vasya-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(46, 255, 184, 0.45);
+  box-shadow:
+    0 0 22px rgba(46, 255, 184, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.app-header__vasya-btn:disabled {
+  opacity: 0.45;
+  box-shadow: none;
 }

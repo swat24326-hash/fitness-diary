@@ -13,6 +13,15 @@ async function parseJsonResponse(res) {
   }
 }
 
+export class GeminiAnalyticsError extends Error {
+  /** @param {string} message @param {{ retryAfterSec?: number }} [meta] */
+  constructor(message, meta = {}) {
+    super(message)
+    this.name = 'GeminiAnalyticsError'
+    this.retryAfterSec = Number(meta.retryAfterSec) || 0
+  }
+}
+
 /**
  * @param {{
  *   clubId: string,
@@ -26,7 +35,7 @@ async function parseJsonResponse(res) {
  */
 export async function postGeminiAnalytics(opts) {
   const token = await getAccessTokenForAdminApi()
-  if (!token) throw new Error('Нет сессии администратора')
+  if (!token) throw new GeminiAnalyticsError('Нет сессии администратора')
 
   const res = await fetch(`${apiOrigin()}/api/admin-data?action=gemini-analytics`, {
     method: 'POST',
@@ -49,7 +58,10 @@ export async function postGeminiAnalytics(opts) {
 
   const data = await parseJsonResponse(res)
   if (!res.ok) {
-    throw new Error(formatGeminiUserError(data?.error ?? `Ошибка сервера (${res.status})`))
+    const retryAfterSec = Number(data?.retry_after_sec) || (res.status === 429 ? 12 : 0)
+    throw new GeminiAnalyticsError(formatGeminiUserError(data?.error ?? `Ошибка сервера (${res.status})`), {
+      retryAfterSec,
+    })
   }
   return data
 }
