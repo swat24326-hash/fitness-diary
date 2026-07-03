@@ -2,7 +2,22 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+const devApiProxyTarget =
+  process.env.VITE_DEV_API_PROXY?.trim() || 'https://fitness-diary-bice.vercel.app'
+
 export default defineConfig(({ mode }) => ({
+  server:
+    mode === 'development'
+      ? {
+          proxy: {
+            '/api': {
+              target: devApiProxyTarget,
+              changeOrigin: true,
+              secure: true,
+            },
+          },
+        }
+      : undefined,
   plugins: [
     react(),
     VitePWA({

@@ -1,4 +1,5 @@
 import { getAccessTokenForAdminApi } from './adminApiClient.js'
+import { formatGeminiUserError } from './geminiAnalyticsPrompt.js'
 
 const apiOrigin = () => (typeof window !== 'undefined' ? window.location.origin : '')
 
@@ -48,7 +49,7 @@ export async function postGeminiAnalytics(opts) {
 
   const data = await parseJsonResponse(res)
   if (!res.ok) {
-    throw new Error(data?.error ? String(data.error) : `Ошибка сервера (${res.status})`)
+    throw new Error(formatGeminiUserError(data?.error ?? `Ошибка сервера (${res.status})`))
   }
   return data
 }

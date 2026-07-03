@@ -415,16 +415,20 @@ export async function fetchChallengesForClubViaApi(clubId) {
   }
 }
 
-/** GET /api/admin-data?action=clubs */
+/** GET /api/admin-data?action=clubs — null при отсутствии api/ или сетевой ошибке (fallback в dataAccess). */
 export async function fetchClubsViaAdminApi() {
   const token = await getAccessTokenForAdminApi()
   if (!token) return null
 
-  const { data, routeMissing } = await adminApiGet('/api/admin-data?action=clubs', token)
-  if (routeMissing) return null
-  return {
-    clubs: Array.isArray(data.clubs) ? data.clubs : [],
-    count: typeof data.count === 'number' ? data.count : 0,
+  try {
+    const { data, routeMissing } = await adminApiGet('/api/admin-data?action=clubs', token)
+    if (routeMissing) return null
+    return {
+      clubs: Array.isArray(data.clubs) ? data.clubs : [],
+      count: typeof data.count === 'number' ? data.count : 0,
+    }
+  } catch {
+    return null
   }
 }
 

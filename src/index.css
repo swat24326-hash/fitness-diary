@@ -252,7 +252,7 @@ button {
   -webkit-appearance: none;
   width: auto;
   flex: 0 1 auto;
-  max-width: min(168px, 38vw);
+  max-width: min(148px, 32vw);
   min-width: 0;
   padding: 8px 26px 8px 10px;
   font-size: 0.8rem;

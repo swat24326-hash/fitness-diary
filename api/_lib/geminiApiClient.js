@@ -1,20 +1,22 @@
 import {
   buildGeminiGeneratePayload,
   extractGeminiText,
+  formatGeminiUserError,
   GEMINI_ANALYTICS_MODEL,
+  GEMINI_ANALYTICS_MODELS,
+  isGeminiQuotaError,
 } from '../../src/lib/admin/geminiAnalyticsPrompt.js'
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
 
-/**
- * @param {string} apiKey
- * @param {object} payload from buildGeminiGeneratePayload
- */
-export async function callGeminiGenerateContent(apiKey, payload) {
-  const key = String(apiKey ?? '').trim()
-  if (!key) throw new Error('GEMINI_API_KEY не задан')
+function modelsToTry() {
+  const fromEnv = String(process.env.GEMINI_MODEL ?? process.env.GEMINI_ANALYTICS_MODEL ?? '').trim()
+  if (fromEnv) return [fromEnv, ...GEMINI_ANALYTICS_MODELS.filter((m) => m !== fromEnv)]
+  return [...GEMINI_ANALYTICS_MODELS]
+}
 
-  const url = `${GEMINI_API_BASE}/models/${GEMINI_ANALYTICS_MODEL}:generateContent?key=${encodeURIComponent(key)}`
+async function callGeminiModel(apiKey, payload, model) {
+  const url = `${GEMINI_API_BASE}/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -36,7 +38,32 @@ export async function callGeminiGenerateContent(apiKey, payload) {
 
   const text = extractGeminiText(data)
   if (!text) throw new Error('Пустой ответ Gemini')
-  return { text, raw: data }
+  return { text, raw: data, model }
 }
 
-export { buildGeminiGeneratePayload, extractGeminiText, GEMINI_ANALYTICS_MODEL }
+/**
+ * @param {string} apiKey
+ * @param {object} payload from buildGeminiGeneratePayload
+ */
+export async function callGeminiGenerateContent(apiKey, payload) {
+  const key = String(apiKey ?? '').trim()
+  if (!key) throw new Error('GEMINI_API_KEY не задан')
+
+  const models = modelsToTry()
+  let lastErr = null
+
+  for (const model of models) {
+    try {
+      return await callGeminiModel(key, payload, model)
+    } catch (e) {
+      lastErr = e
+      if (!isGeminiQuotaError(e?.message)) {
+        throw new Error(formatGeminiUserError(e?.message))
+      }
+    }
+  }
+
+  throw new Error(formatGeminiUserError(lastErr?.message ?? 'Gemini quota'))
+}
+
+export { buildGeminiGeneratePayload, extractGeminiText, GEMINI_ANALYTICS_MODEL, GEMINI_ANALYTICS_MODELS }

@@ -2,7 +2,38 @@
 
 import { trimChatHistory } from './geminiAnalyticsSnapshot.js'
 
-export const GEMINI_ANALYTICS_MODEL = 'gemini-2.0-flash'
+/** Сначала lite — стабильнее на free tier Google AI Studio. */
+export const GEMINI_ANALYTICS_MODELS = ['gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-2.0-flash']
+
+export const GEMINI_ANALYTICS_MODEL = GEMINI_ANALYTICS_MODELS[0]
+
+export function isGeminiQuotaError(message) {
+  const s = String(message ?? '').toLowerCase()
+  return (
+    s.includes('quota') ||
+    s.includes('rate limit') ||
+    s.includes('rate-limit') ||
+    s.includes('resource_exhausted') ||
+    s.includes('429')
+  )
+}
+
+/** Короткое сообщение для UI вместо простыни от Google API. */
+export function formatGeminiUserError(message) {
+  const raw = String(message ?? '').trim()
+  if (!raw) return 'Не удалось получить ответ от Gemini'
+  if (isGeminiQuotaError(raw)) {
+    const retry = raw.match(/retry in ([\d.]+)s/i)
+    const waitSec = retry ? Math.ceil(Number(retry[1])) : 0
+    const wait = waitSec > 0 ? ` Подождите ~${waitSec} сек.` : ' Подождите минуту.'
+    return (
+      `Лимит бесплатного Gemini исчерпан.${wait} ` +
+      'Если повторяется — новый ключ на aistudio.google.com или биллинг в Google AI.'
+    )
+  }
+  if (raw.length > 220) return `${raw.slice(0, 217)}…`
+  return raw
+}
 
 /**
  * @param {'male'|'female'|string} gender

@@ -568,6 +568,10 @@ async function pullClubsFromSupabaseInner() {
     const merged = await mergeClubsIntoLocalCache(res.data ?? [])
     return { ...merged, source: 'supabase' }
   } catch (e) {
+    const cached = await listClubsLocal().catch(() => [])
+    if (Array.isArray(cached) && cached.length > 0) {
+      return { ok: true, count: cached.length, cached: true, source: 'local', warn: e?.message ?? 'api_unavailable' }
+    }
     return { ok: false, error: e?.message ?? 'Ошибка загрузки клубов' }
   }
 }

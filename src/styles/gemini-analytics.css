@@ -293,4 +293,19 @@
   white-space: nowrap;
   font-size: 0.78rem;
   padding: 0.35rem 0.65rem;
+  flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .app-header__vasya-btn {
+    font-size: 0;
+    padding: 0.4rem 0.45rem;
+    min-width: 36px;
+  }
+
+  .app-header__vasya-btn::before {
+    content: '✨';
+    font-size: 0.95rem;
+    line-height: 1;
+  }
 }

@@ -4,7 +4,7 @@ import {
   buildGeminiGeneratePayload,
   callGeminiGenerateContent,
 } from './geminiApiClient.js'
-import { buildPersona } from '../../src/lib/admin/geminiAnalyticsPrompt.js'
+import { buildPersona, formatGeminiUserError } from '../../src/lib/admin/geminiAnalyticsPrompt.js'
 import { trimChatHistory } from '../../src/lib/admin/geminiAnalyticsSnapshot.js'
 
 const rateLimitMs = 8000
@@ -33,8 +33,9 @@ async function tryEdgeGemini(authHeader, payload) {
       body: JSON.stringify(payload),
     })
     const data = await res.json().catch(() => ({}))
-    if (res.ok && data?.text) return data
-    return null
+    if (res.ok && data?.text) return { ok: true, data }
+    if (data?.error) return { ok: false, error: String(data.error) }
+    return { ok: false, error: null }
   } catch {
     return null
   }
@@ -110,13 +111,14 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
     let source = 'vercel'
 
     const edgeResult = await tryEdgeGemini(authHeader, edgeBody)
-    if (edgeResult?.text) {
-      text = String(edgeResult.text)
+    if (edgeResult?.ok && edgeResult.data?.text) {
+      text = String(edgeResult.data.text)
       source = 'edge'
     } else {
       const apiKey = process.env.GEMINI_API_KEY || ''
       const gemini = await callGeminiGenerateContent(apiKey, geminiPayload)
       text = gemini.text
+      if (edgeResult?.error) source = 'vercel'
     }
 
     const persona = buildPersona(gender)
@@ -129,7 +131,7 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
       source,
     })
   } catch (e) {
-    const msg = e?.message ? String(e.message) : 'Ошибка аналитики'
+    const msg = formatGeminiUserError(e?.message ?? 'Ошибка аналитики')
     sendJson(res, 400, { error: msg })
   }
 }

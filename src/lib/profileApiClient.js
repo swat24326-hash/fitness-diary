@@ -34,25 +34,37 @@ export async function fetchMyProfileViaApi() {
     return { profile: null, error: new Error('Нет сессии') }
   }
 
-  const doFetch = async (accessToken) => {
+  const doFetch = async (accessToken, signal) => {
     return fetch(`${origin()}/api/me-profile`, {
       method: 'GET',
       headers: { Authorization: `Bearer ${accessToken}` },
       credentials: 'same-origin',
       cache: 'no-store',
+      signal,
     })
   }
 
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null
+  const timer =
+    controller &&
+    setTimeout(() => {
+      controller.abort()
+    }, 12_000)
+
   let res
   try {
-    res = await doFetch(token)
+    res = await doFetch(token, controller?.signal)
     if (res.status === 401) {
       const refreshed = await supabase.auth.refreshSession()
       const retryToken = refreshed.data?.session?.access_token
-      if (retryToken) res = await doFetch(retryToken)
+      if (retryToken) res = await doFetch(retryToken, controller?.signal)
     }
   } catch (e) {
-    return { profile: null, error: new Error(e?.message ?? 'Сеть') }
+    const msg =
+      e?.name === 'AbortError' ? 'Таймаут /api/me-profile — профиль через Supabase' : e?.message ?? 'Сеть'
+    return { profile: null, error: new Error(msg) }
+  } finally {
+    if (timer) clearTimeout(timer)
   }
 
   noteAppNetworkResponse(res)

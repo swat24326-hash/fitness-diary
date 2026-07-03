@@ -11,7 +11,7 @@ const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-const MODEL = 'gemini-2.0-flash'
+const MODELS = ['gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-2.0-flash']
 const rateLimitMs = 8000
 const lastByUser = new Map<string, number>()
 
@@ -71,26 +71,50 @@ function buildContents(body: Record<string, unknown>, gender: string) {
   return [{ role: 'user', parts: [{ text: textParts.join('\n\n') }] }]
 }
 
-async function callGemini(apiKey: string, systemPrompt: string, contents: object[]) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: systemPrompt }] },
-      contents,
-      generationConfig: { temperature: 0.85, maxOutputTokens: 1024 },
-    }),
-  })
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) {
-    throw new Error(String((data as { error?: { message?: string } })?.error?.message ?? res.statusText))
+function isQuotaError(message: string) {
+  const s = message.toLowerCase()
+  return s.includes('quota') || s.includes('rate limit') || s.includes('429') || s.includes('resource_exhausted')
+}
+
+function formatUserError(message: string) {
+  const raw = String(message ?? '').trim()
+  if (!raw) return 'Не удалось получить ответ от Gemini'
+  if (isQuotaError(raw)) {
+    const retry = raw.match(/retry in ([\d.]+)s/i)
+    const waitSec = retry ? Math.ceil(Number(retry[1])) : 0
+    const wait = waitSec > 0 ? ` Подождите ~${waitSec} сек.` : ' Подождите минуту.'
+    return `Лимит бесплатного Gemini исчерпан.${wait} Новый ключ: aistudio.google.com`
   }
-  const parts = (data as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> })?.candidates?.[0]
-    ?.content?.parts
-  const text = Array.isArray(parts) ? parts.map((p) => String(p?.text ?? '')).join('').trim() : ''
-  if (!text) throw new Error('Пустой ответ Gemini')
-  return text
+  if (raw.length > 220) return `${raw.slice(0, 217)}…`
+  return raw
+}
+
+async function callGemini(apiKey: string, systemPrompt: string, contents: object[]) {
+  let lastErr = 'Gemini error'
+  for (const model of MODELS) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        contents,
+        generationConfig: { temperature: 0.85, maxOutputTokens: 1024 },
+      }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      lastErr = String((data as { error?: { message?: string } })?.error?.message ?? res.statusText)
+      if (isQuotaError(lastErr)) continue
+      throw new Error(formatUserError(lastErr))
+    }
+    const parts = (data as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> })?.candidates?.[0]
+      ?.content?.parts
+    const text = Array.isArray(parts) ? parts.map((p) => String(p?.text ?? '')).join('').trim() : ''
+    if (!text) throw new Error('Пустой ответ Gemini')
+    return text
+  }
+  throw new Error(formatUserError(lastErr))
 }
 
 Deno.serve(async (req) => {
@@ -174,6 +198,6 @@ Deno.serve(async (req) => {
     const persona = buildPersona(gender)
     return json(200, { text, persona: persona.name, club_name: clubName, source: 'edge' })
   } catch (e) {
-    return json(400, { error: e instanceof Error ? e.message : 'Gemini error' })
+    return json(400, { error: e instanceof Error ? formatUserError(e.message) : 'Gemini error' })
   }
 })
