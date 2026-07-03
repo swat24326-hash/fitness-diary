@@ -39,7 +39,7 @@ function buildSystemPrompt(gender: string, clubName: string) {
     `Анализируй ТОЛЬКО филиал «${club}» — называй его по имени в ответе.`,
     `Опирайся ТОЛЬКО на JSON-данные в сообщении пользователя. Не выдумывай цифры.`,
     `Если данных мало или отчёты пустые — скажи прямо, что база не забита.`,
-    `Ответ: один абзац на русском, 4–8 предложений, без markdown и списков.`,
+    `Ответ: 2–4 коротких предложения, до 70 слов — как живой голосовой комментарий. Без markdown, списков и воды. Одна главная цифра и чёткий вывод.`,
   ].join('\n')
 }
 
@@ -132,7 +132,7 @@ async function callGemini(apiKey: string, systemPrompt: string, contents: object
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: systemPrompt }] },
           contents,
-          generationConfig: { temperature: 0.85, maxOutputTokens: 1024 },
+          generationConfig: { temperature: 0.72, maxOutputTokens: 320 },
         }),
       })
       const data = await res.json().catch(() => ({}))

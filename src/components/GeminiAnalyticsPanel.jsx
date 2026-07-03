@@ -3,7 +3,10 @@ import { ChevronLeft, ChevronRight, Mic, Volume2, X } from 'lucide-react'
 import { postGeminiAnalytics } from '../lib/admin/geminiAnalyticsService.js'
 import {
   isSpeechRecognitionSupported,
+  loadGeminiAutoSpeak,
   loadGeminiGender,
+  previewGeminiVoice,
+  saveGeminiAutoSpeak,
   saveGeminiGender,
   speakGeminiText,
   startGeminiSpeechRecognition,
@@ -70,6 +73,7 @@ export function GeminiAnalyticsPanel({
   const [year, setYear] = useState(initialYear ?? now.getFullYear())
   const [month, setMonth] = useState(initialMonth ?? now.getMonth() + 1)
   const [gender, setGender] = useState(() => loadGeminiGender())
+  const [autoSpeak, setAutoSpeak] = useState(() => loadGeminiAutoSpeak())
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -145,7 +149,7 @@ export function GeminiAnalyticsPanel({
         })
         const reply = String(data?.text ?? '').trim()
         setMessages((prev) => [...prev, { role: 'assistant', content: reply }])
-        speakGeminiText(reply, gender)
+        if (autoSpeak) void speakGeminiText(reply, gender)
       } catch (e) {
         const msg = e?.message ? String(e.message) : 'Не удалось получить ответ'
         setError(msg)
@@ -154,7 +158,7 @@ export function GeminiAnalyticsPanel({
         setInput('')
       }
     },
-    [clubId, year, month, gender, chatHistory, loading, stopListening],
+    [clubId, year, month, gender, chatHistory, loading, stopListening, autoSpeak],
   )
 
   const toggleVoiceInput = useCallback(() => {
@@ -251,6 +255,7 @@ export function GeminiAnalyticsPanel({
               onClick={() => {
                 setGender('male')
                 saveGeminiGender('male')
+                previewGeminiVoice('male')
               }}
             >
               ♂ Василий
@@ -261,9 +266,28 @@ export function GeminiAnalyticsPanel({
               onClick={() => {
                 setGender('female')
                 saveGeminiGender('female')
+                previewGeminiVoice('female')
               }}
             >
               ♀ Василиса
+            </button>
+            <button
+              type="button"
+              className={`gemini-panel__speak-toggle${autoSpeak ? ' gemini-panel__speak-toggle--on' : ''}`}
+              aria-pressed={autoSpeak}
+              aria-label={autoSpeak ? 'Автоозвучка включена' : 'Автоозвучка выключена'}
+              title={autoSpeak ? 'Ответы озвучиваются' : 'Только текст, без автоозвучки'}
+              onClick={() => {
+                setAutoSpeak((on) => {
+                  const next = !on
+                  saveGeminiAutoSpeak(next)
+                  if (next) previewGeminiVoice(gender)
+                  else stopGeminiSpeech()
+                  return next
+                })
+              }}
+            >
+              <Volume2 size={16} aria-hidden />
             </button>
           </div>
         </div>
@@ -294,7 +318,7 @@ export function GeminiAnalyticsPanel({
                     type="button"
                     className="btn btn-ghost btn-sm"
                     aria-label="Озвучить"
-                    onClick={() => speakGeminiText(msg.content, gender)}
+                    onClick={() => void speakGeminiText(msg.content, gender)}
                   >
                     <Volume2 size={14} />
                   </button>
@@ -351,7 +375,7 @@ export function GeminiAnalyticsPanel({
         </form>
         {voiceSupported ? (
           <p className="gemini-panel__voice-hint muted">
-            {listening ? 'Слушаю… нажмите микрофон, чтобы остановить' : 'Микрофон — спросить голосом, ответ озвучится'}
+            {listening ? 'Слушаю… нажмите микрофон, чтобы остановить' : 'Микрофон — спросить голосом · 🔊 — автоозвучка · ♂/♀ — проверить голос'}
           </p>
         ) : (
           <p className="gemini-panel__voice-hint muted">Голосовой ввод: Chrome или Edge на Android. Ответ можно озвучить 🔊</p>

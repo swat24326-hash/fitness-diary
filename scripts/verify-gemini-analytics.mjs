@@ -5,7 +5,8 @@ import {
   sumMatrixTotalsFromDailyRows,
   trimChatHistory,
 } from '../src/lib/admin/geminiAnalyticsSnapshot.js'
-import { buildPersona, buildSystemPrompt, formatGeminiUserError, GEMINI_ANALYTICS_MODEL, isGeminiRetryableError } from '../src/lib/admin/geminiAnalyticsPrompt.js'
+import { buildPersona, buildSystemPrompt, formatGeminiUserError, GEMINI_ANALYTICS_MODEL, GEMINI_GENERATION_CONFIG, isGeminiRetryableError } from '../src/lib/admin/geminiAnalyticsPrompt.js'
+import { prepareTextForSpeech } from '../src/lib/geminiAnalyticsSpeech.js'
 
 let failed = 0
 
@@ -65,6 +66,9 @@ const noFinance = buildGeminiSnapshot({
 ok(noFinance.finance === undefined, 'finance hidden')
 
 ok(GEMINI_ANALYTICS_MODEL === 'gemini-2.5-flash-lite', 'default model lite')
+ok(buildSystemPrompt('male', 'X').includes('70 слов'), 'brief prompt rule')
+ok(GEMINI_GENERATION_CONFIG.maxOutputTokens <= 400, 'short token limit')
+ok(prepareTextForSpeech('**жирный**  текст').includes('жирный'), 'speech text clean')
 ok(isGeminiRetryableError('models/gemini-1.5-flash is not found'), 'retry on missing model')
 ok(isGeminiRetryableError('This model is currently experiencing high demand'), 'retry on overload')
 ok(formatGeminiUserError('This model is currently experiencing high demand').includes('перегружен'), 'overload error ru')

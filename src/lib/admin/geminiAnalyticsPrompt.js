@@ -11,6 +11,15 @@ export const GEMINI_ANALYTICS_MODELS = [
 
 export const GEMINI_ANALYTICS_MODEL = GEMINI_ANALYTICS_MODELS[0]
 
+/** Лимит длины ответа для чата и озвучки. */
+export const GEMINI_GENERATION_CONFIG = {
+  temperature: 0.72,
+  maxOutputTokens: 320,
+}
+
+export const GEMINI_RESPONSE_BRIEF_RULE =
+  'Ответ: 2–4 коротких предложения, до 70 слов — как живой голосовой комментарий. Без markdown, списков и воды. Одна главная цифра и чёткий вывод.'
+
 export function isGeminiQuotaError(message) {
   const s = String(message ?? '').toLowerCase()
   return (
@@ -99,7 +108,7 @@ export function buildSystemPrompt(gender, clubName) {
     `Анализируй ТОЛЬКО филиал «${club}» — называй его по имени в ответе.`,
     `Опирайся ТОЛЬКО на JSON-данные в сообщении пользователя. Не выдумывай цифры.`,
     `Если данных мало или отчёты пустые — скажи прямо, что база не забита.`,
-    `Ответ: один абзац на русском, 4–8 предложений, без markdown и списков.`,
+    GEMINI_RESPONSE_BRIEF_RULE,
   ].join('\n')
 }
 

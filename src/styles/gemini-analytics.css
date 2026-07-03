@@ -84,6 +84,26 @@
   color: #6ee7b7;
 }
 
+.gemini-panel__speak-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(15, 23, 42, 0.6);
+  color: rgba(148, 163, 184, 0.85);
+  cursor: pointer;
+}
+
+.gemini-panel__speak-toggle--on {
+  border-color: rgba(52, 211, 153, 0.45);
+  background: rgba(16, 185, 129, 0.12);
+  color: #6ee7b7;
+}
+
 .gemini-panel__chips {
   display: flex;
   flex-wrap: wrap;
@@ -290,22 +310,14 @@
 }
 
 .app-header__vasya-btn {
-  white-space: nowrap;
-  font-size: 0.78rem;
-  padding: 0.35rem 0.65rem;
   flex-shrink: 0;
-}
-
-@media (max-width: 720px) {
-  .app-header__vasya-btn {
-    font-size: 0;
-    padding: 0.4rem 0.45rem;
-    min-width: 36px;
-  }
-
-  .app-header__vasya-btn::before {
-    content: '✨';
-    font-size: 0.95rem;
-    line-height: 1;
-  }
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  line-height: 1;
 }

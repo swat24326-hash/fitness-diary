@@ -53,7 +53,11 @@ export function ClientCard() {
     const c = searchParams.get('club')
     return c ? `?club=${encodeURIComponent(c)}` : ''
   }, [searchParams])
-  const [tab, setTab] = useState('health')
+  const [tab, setTab] = useState(() => {
+    const t = searchParams.get('tab')
+    if (t === 'health' || t === 'memberships' || t === 'diaries' || t === 'stats') return t
+    return 'health'
+  })
   const [client, setClient] = useState(null)
   const [memberships, setMemberships] = useState([])
   const [editOpen, setEditOpen] = useState(false)
@@ -66,6 +70,13 @@ export function ClientCard() {
     setClient(local ?? null)
     setMemberships(local ? await listMemberships(id) : [])
   }, [id])
+
+  useEffect(() => {
+    const t = searchParams.get('tab')
+    if (t === 'health' || t === 'memberships' || t === 'diaries' || t === 'stats') {
+      setTab(t)
+    }
+  }, [searchParams])
 
   const hydrateFromCloudInBackground = useCallback(async () => {
     if (!isSupabaseConfigured() || !navigator.onLine) return

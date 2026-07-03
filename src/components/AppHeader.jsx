@@ -627,9 +627,10 @@ export function AppHeader() {
             className="btn btn-secondary btn-sm app-header__vasya-btn"
             disabled={!adminClubValue}
             title={adminClubValue ? 'Спросить аналитика по клубу' : 'Сначала выберите клуб'}
+            aria-label={adminClubValue ? 'Спросить аналитика по клубу' : 'Сначала выберите клуб'}
             onClick={() => setGeminiOpen(true)}
           >
-            ✨ Че там по базе, Вась?
+            <span aria-hidden>✨</span>
           </button>
         ) : null}
         {!isAdmin && user ? <HeaderStopwatch /> : null}

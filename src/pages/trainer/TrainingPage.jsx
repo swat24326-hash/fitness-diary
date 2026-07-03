@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Calendar, Info, Save } from 'lucide-react'
+import { Calendar, ClipboardList, Info, Save } from 'lucide-react'
 import { TrainingForm, emptyTrainingData } from '../../components/TrainingForm'
 import { ContraindicationsToggle } from '../../components/ContraindicationsToggle'
 import { useAuth } from '../../context/AuthContext'
@@ -454,6 +454,17 @@ export function TrainingPage() {
     return client.name
   }, [client])
 
+  const clientCardTrainingsHref = useMemo(() => {
+    const cid = client?.id ?? clientIdParam
+    if (!cid) return null
+    const params = new URLSearchParams()
+    const club = search.get('club')
+    if (isAdmin && club) params.set('club', club)
+    params.set('tab', 'diaries')
+    const qs = params.toString()
+    return `${clientsBase}/${cid}${qs ? `?${qs}` : ''}`
+  }, [client?.id, clientIdParam, clientsBase, isAdmin, search])
+
   const daysUntilMembershipEnd = useMemo(() => {
     if (!membershipSummary?.endDate || !trainingDate) return null
     return calendarDaysUntil(trainingDate, membershipSummary.endDate)
@@ -519,8 +530,20 @@ export function TrainingPage() {
   return (
     <div className="grid" style={{ gap: 16 }}>
       <div className="training-page-head-title">
-        <h1 className="training-page-head-name">{title}</h1>
-        {contra ? <ContraindicationsToggle text={contra} size="sm" mode="modal" /> : null}
+        <div className="training-page-head-title__left">
+          <h1 className="training-page-head-name">{title}</h1>
+          {contra ? <ContraindicationsToggle text={contra} size="sm" mode="modal" /> : null}
+        </div>
+        {clientCardTrainingsHref ? (
+          <Link
+            to={clientCardTrainingsHref}
+            className="btn btn-secondary btn-sm training-page-head-card-link"
+            title="Карточка клиента — все тренировки"
+          >
+            <ClipboardList size={16} aria-hidden />
+            <span>Карточка</span>
+          </Link>
+        ) : null}
       </div>
 
       <div className="card">
