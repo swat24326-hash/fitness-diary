@@ -47,11 +47,28 @@ function apiUrl() {
   return '/api/auth-sign-in'
 }
 
+/** Vercel /api недоступен — можно войти напрямую через Supabase Auth. */
+export function isAuthApiTransportError(message) {
+  const msg = String(message ?? '')
+  return /failed to fetch|networkerror|network request failed|connection reset|err_connection|timed out|timeout|load failed|abort/i.test(
+    msg,
+  )
+}
+
+const AUTH_API_TIMEOUT_MS = 8_000
+
 /**
  * Вход через /api/auth-sign-in (сервер → Supabase), затем setSession в браузере.
  * @returns {Promise<{ user: object, profile: object | null, error: Error | null }>}
  */
 export async function signInViaServerApi({ login, password }) {
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null
+  const timer =
+    controller &&
+    setTimeout(() => {
+      controller.abort()
+    }, AUTH_API_TIMEOUT_MS)
+
   let res
   try {
     res = await fetch(apiUrl(), {
@@ -59,16 +76,22 @@ export async function signInViaServerApi({ login, password }) {
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
       cache: 'no-store',
+      signal: controller?.signal,
       body: JSON.stringify({ login, password }),
     })
   } catch (e) {
+    const msg =
+      e?.name === 'AbortError'
+        ? 'Таймаут сервера входа'
+        : String(e?.message ?? 'Failed to fetch')
     return {
       user: null,
       profile: null,
-      error: new Error(
-        `Не удалось связаться с сервером входа. ${e?.message ?? ''} Обновите страницу (Ctrl+F5) или попробуйте Chrome без VPN.`,
-      ),
+      transportError: true,
+      error: new Error(`Не удалось связаться с сервером входа. ${msg}`),
     }
+  } finally {
+    if (timer) clearTimeout(timer)
   }
 
   const data = await parseJson(res)

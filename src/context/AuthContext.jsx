@@ -1,6 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
-import { resolveLoginEmailFromDb, signInViaServerApi } from '../lib/authSignInService'
+import {
+  isAuthApiTransportError,
+  resolveLoginEmailFromDb,
+  signInViaServerApi,
+} from '../lib/authSignInService'
 import { fetchMyProfileViaApi } from '../lib/profileApiClient'
 import { withSupabaseRetry } from '../lib/supabaseRetry'
 import {
@@ -351,15 +355,21 @@ export function AuthProvider({ children }) {
 
       try {
         const viaServer = await signInViaServerApi({ login: raw, password })
-        if (viaServer.error) {
-          return { error: { message: viaServer.error.message } }
-        }
         if (viaServer.user) {
           finishSignIn(viaServer.user, viaServer.profile ?? null)
           return { error: null }
         }
+        if (viaServer.error && !isAuthApiTransportError(viaServer.error.message)) {
+          return { error: { message: viaServer.error.message } }
+        }
+        if (viaServer.error) {
+          console.warn('[auth] /api/auth-sign-in недоступен, пробуем Supabase напрямую', viaServer.error.message)
+        }
       } catch (e) {
-        return { error: { message: humanizeNetworkError(e) } }
+        if (!isAuthApiTransportError(e?.message)) {
+          return { error: { message: humanizeNetworkError(e) } }
+        }
+        console.warn('[auth] /api/auth-sign-in недоступен, пробуем Supabase напрямую', e)
       }
 
       let emailForAuth = raw
