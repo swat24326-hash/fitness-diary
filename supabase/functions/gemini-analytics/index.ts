@@ -230,7 +230,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const systemPrompt = buildSystemPrompt(gender, clubName)
+    const fallbackPrompt = buildSystemPrompt(gender, clubName)
+    const systemPrompt =
+      typeof body.system_prompt === 'string' && body.system_prompt.trim()
+        ? String(body.system_prompt).trim()
+        : fallbackPrompt
     const contents = buildContents(body, gender)
     const text = await callGemini(geminiKey, systemPrompt, contents)
     const persona = buildPersona(gender)

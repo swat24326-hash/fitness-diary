@@ -8,6 +8,7 @@ import {
   SALES_MATRIX_KEYS,
 } from './salesReportCore.js'
 import { computeNetProfitWithPayroll } from './trainerPayrollCore.js'
+import { buildGeminiDataSourcesMeta } from './geminiAnalyticsDomain.js'
 
 export const MONTH_LABELS_RU = [
   'январь',
@@ -87,6 +88,10 @@ export function buildGeminiSnapshot(opts) {
   const avgDay = summary.dayCount > 0
     ? Math.round((summary.profitTotal / summary.dayCount) * 100) / 100
     : 0
+  const daysInMonth = new Date(year, month, 0).getDate()
+  const reportCoveragePct =
+    daysInMonth > 0 ? Math.round((summary.dayCount / daysInMonth) * 1000) / 10 : 0
+  const trainingsGap = manualTrainings - fitCity
 
   const snapshot = {
     club_name: String(opts.clubName ?? '').trim() || 'клуб',
@@ -96,9 +101,11 @@ export function buildGeminiSnapshot(opts) {
       label: periodLabelRu(year, month),
       from: monthDateRange(year, month).start,
       to: monthDateRange(year, month).end,
+      days_in_month: daysInMonth,
     },
     sales: {
       days_with_reports: summary.dayCount,
+      report_coverage_pct: reportCoveragePct,
       profit_total: summary.profitTotal,
       profit_nk: summary.profitNk,
       profit_dk: summary.profitDk,
@@ -115,13 +122,24 @@ export function buildGeminiSnapshot(opts) {
       plan_az: Number(opts.plan?.plan_az) || 0,
       plan_progress_pct: progressPct,
     },
+    trainings: {
+      manager_report_total: manualTrainings,
+      fit_city_tablets_only: fitCity,
+      gap_manager_minus_fit_city: trainingsGap,
+    },
     operations: {
       fit_city_completed_trainings: fitCity,
-      manual_vs_fit_city_gap: manualTrainings - fitCity,
+      manual_vs_fit_city_gap: trainingsGap,
       inactive_clients_in_period: Number(opts.inactiveInPeriod) || 0,
       completed_trainings_in_period: Number(opts.trainingCompleted) || 0,
       draft_trainings_in_period: Number(opts.trainingDraft) || 0,
     },
+    data_sources: buildGeminiDataSourcesMeta({
+      managerReportTotal: manualTrainings,
+      fitCityTotal: fitCity,
+      dayCount: summary.dayCount,
+      daysInMonth,
+    }),
   }
 
   if (includeFinance) {

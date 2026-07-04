@@ -58,7 +58,7 @@ const QUICK_PROMPTS = [
   },
   {
     label: 'FIT-CITY vs отчёт',
-    message: 'Сходятся ли ручной отчёт и FIT-CITY по тренировкам?',
+    message: 'Сходятся ли ручной отчёт и FIT-CITY? Помни — в системе только тренеры с планшетом.',
     compare: false,
     icon: Dumbbell,
   },

@@ -6,6 +6,7 @@ import {
   trimChatHistory,
 } from '../src/lib/admin/geminiAnalyticsSnapshot.js'
 import { buildPersona, buildSystemPrompt, formatGeminiUserError, GEMINI_ANALYTICS_MODEL, GEMINI_GENERATION_CONFIG, isGeminiRetryableError, resolveGeminiComparePrevious, shouldComparePreviousMonth } from '../src/lib/admin/geminiAnalyticsPrompt.js'
+import { buildTrainingsGapHint } from '../src/lib/admin/geminiAnalyticsDomain.js'
 import { prepareTextForSpeech } from '../src/lib/geminiAnalyticsSpeech.js'
 import {
   clearGeminiSnapshotCacheForTests,
@@ -47,6 +48,10 @@ ok(snap.sales.profit_total === 3600, 'profit total')
 ok(snap.sales.plan_progress_pct === 36, 'plan progress')
 ok(snap.finance?.net_profit === 600, 'net profit with payroll')
 ok(snap.operations.fit_city_completed_trainings === 15, 'fit city count')
+ok(snap.trainings?.manager_report_total === 18, 'manager trainings total')
+ok(snap.trainings?.gap_manager_minus_fit_city === 3, 'trainings gap')
+ok(Array.isArray(snap.data_sources?.analysis_hints), 'data source hints')
+ok(snap.sales.report_coverage_pct > 0, 'report coverage')
 ok(periodLabelRu(2026, 6).includes('июнь'), 'period label')
 
 const matrix = sumMatrixTotalsFromDailyRows(rows)
@@ -73,6 +78,10 @@ ok(noFinance.finance === undefined, 'finance hidden')
 
 ok(GEMINI_ANALYTICS_MODEL === 'gemini-2.5-flash-lite', 'default model lite')
 ok(buildSystemPrompt('male', 'X').includes('70 слов'), 'brief prompt rule')
+ok(buildSystemPrompt('male', 'Север').includes('планшет'), 'prompt tablets rule')
+ok(buildSystemPrompt('female', 'X').includes('красава'), 'prompt lexicon')
+const gapHints = buildTrainingsGapHint(20, 5, 2, 30)
+ok(gapHints.length > 0, 'gap hints')
 ok(GEMINI_GENERATION_CONFIG.maxOutputTokens <= 400, 'short token limit')
 ok(prepareTextForSpeech('**жирный**  текст').includes('жирный'), 'speech text clean')
 ok(isGeminiRetryableError('models/gemini-1.5-flash is not found'), 'retry on missing model')

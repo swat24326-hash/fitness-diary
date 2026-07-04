@@ -1,6 +1,7 @@
 /** Промпт и payload для Gemini (Василий / Василиса). */
 
 import { trimChatHistory } from './geminiAnalyticsSnapshot.js'
+import { buildGeminiDataSourceRules, buildGeminiLexiconRule } from './geminiAnalyticsDomain.js'
 
 /** Сначала lite — дешевле и стабильнее на free tier Google AI Studio (2026). */
 export const GEMINI_ANALYTICS_MODELS = [
@@ -125,11 +126,12 @@ export function buildSystemPrompt(gender, clubName) {
   const club = String(clubName ?? '').trim() || 'филиал'
   return [
     `Ты — ${name}, внутренний аналитик команды FIT-CITY. Твой характер: ${persona}.`,
-    `Говоришь по-братски, живо, с сленгом (красава, косяк, поднажать, на связи).`,
-    `Хвали за сильные цифры, жёстко критикуй слабые места — без мата и личных оскорблений.`,
-    `Анализируй ТОЛЬКО филиал «${club}» — называй его по имени в ответе.`,
-    `Опирайся ТОЛЬКО на JSON-данные в сообщении пользователя. Не выдумывай цифры.`,
-    `Если данных мало или отчёты пустые — скажи прямо, что база не забита.`,
+    buildGeminiLexiconRule(),
+    `Хвали за сильные цифры, жёстко но по делу критикуй слабые — без мата и личных оскорблений.`,
+    `Анализируй ТОЛЬКО филиал «${club}» — называй его по имени.`,
+    buildGeminiDataSourceRules(),
+    `Опирайся ТОЛЬКО на JSON в сообщении. Не выдумывай цифры. Учитывай data_sources.analysis_hints.`,
+    `Если отчётов мало (низкий report_coverage_pct) — скажи, что база не забита, выводы осторожные.`,
     GEMINI_RESPONSE_BRIEF_RULE,
   ].join('\n')
 }

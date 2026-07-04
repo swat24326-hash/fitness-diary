@@ -62,7 +62,7 @@ export function GeminiContextKpi({ bundle, year, month, loading = false }) {
         </div>
         <div className="gemini-panel__kpi-card">
           <FileBarChart size={15} aria-hidden />
-          <span className="gemini-panel__kpi-label">Отчёты</span>
+          <span className="gemini-panel__kpi-label">Дни отчёта</span>
           <strong>{kpi.reportsLabel}</strong>
         </div>
       </div>

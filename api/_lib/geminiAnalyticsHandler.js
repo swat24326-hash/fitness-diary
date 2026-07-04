@@ -112,6 +112,7 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
       snapshot,
       previous_snapshot: previousSnapshot,
       compare_previous: comparePrevious,
+      system_prompt: geminiPayload.systemInstruction.parts[0].text,
     }
 
     let text = ''
