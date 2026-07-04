@@ -1,18 +1,40 @@
 import {
   buildGeminiSnapshot,
+  compactSnapshotForPrompt,
   periodLabelRu,
   previousMonthParts,
   sumMatrixTotalsFromDailyRows,
   trimChatHistory,
 } from '../src/lib/admin/geminiAnalyticsSnapshot.js'
-import { buildPersona, buildSystemPrompt, formatGeminiUserError, GEMINI_ANALYTICS_MODEL, GEMINI_GENERATION_CONFIG, isGeminiRetryableError, resolveGeminiComparePrevious, shouldComparePreviousMonth } from '../src/lib/admin/geminiAnalyticsPrompt.js'
+import {
+  buildGeminiPromptDataBlock,
+  buildPersona,
+  buildSystemPrompt,
+  formatGeminiUserError,
+  GEMINI_ANALYTICS_MODEL,
+  GEMINI_GENERATION_CONFIG,
+  isGeminiReplyIncomplete,
+  isGeminiRetryableError,
+  resolveGeminiComparePrevious,
+  shouldComparePreviousMonth,
+} from '../src/lib/admin/geminiAnalyticsPrompt.js'
 import { buildTrainingsGapHint } from '../src/lib/admin/geminiAnalyticsDomain.js'
+import {
+  buildGeminiInstantReply,
+  matchGeminiInstantChip,
+  GEMINI_QUICK_CHIPS,
+} from '../src/lib/admin/geminiInstantReplies.js'
 import { prepareTextForSpeech } from '../src/lib/geminiAnalyticsSpeech.js'
 import {
   clearGeminiSnapshotCacheForTests,
   getCachedGeminiSnapshot,
   setCachedGeminiSnapshot,
 } from '../api/_lib/geminiAnalyticsCache.js'
+import {
+  clearGeminiResponseCacheForTests,
+  getCachedGeminiResponse,
+  setCachedGeminiResponse,
+} from '../api/_lib/geminiAnalyticsResponseCache.js'
 import { buildGeminiPanelKpi, reportDateForMonth } from '../src/lib/admin/geminiPanelKpi.js'
 
 let failed = 0
@@ -78,11 +100,18 @@ ok(noFinance.finance === undefined, 'finance hidden')
 
 ok(GEMINI_ANALYTICS_MODEL === 'gemini-2.5-flash-lite', 'default model lite')
 ok(buildSystemPrompt('male', 'X').includes('70 слов'), 'brief prompt rule')
+ok(buildSystemPrompt('male', 'X').includes('current_period.period.label'), 'prompt period anchor')
 ok(buildSystemPrompt('male', 'Север').includes('планшет'), 'prompt tablets rule')
 ok(buildSystemPrompt('female', 'X').includes('красава'), 'prompt lexicon')
+const compact = compactSnapshotForPrompt(snap)
+ok(compact?.period?.label && !compact.operations, 'compact snapshot drops noise')
+const dataBlock = buildGeminiPromptDataBlock(snap, null)
+ok(dataBlock.analysis_period && dataBlock.current_period && dataBlock.previous_period === undefined, 'prompt block no prev')
+ok(isGeminiReplyIncomplete('FIT-CITY Клинцы, июль 202', 'MAX_TOKENS'), 'truncated reply detected')
+ok(!isGeminiReplyIncomplete('План на 45%, поднажми — иначе косяк по выручке.', 'STOP'), 'complete reply ok')
 const gapHints = buildTrainingsGapHint(20, 5, 2, 30)
 ok(gapHints.length > 0, 'gap hints')
-ok(GEMINI_GENERATION_CONFIG.maxOutputTokens <= 400, 'short token limit')
+ok(GEMINI_GENERATION_CONFIG.maxOutputTokens >= 512, 'enough output tokens')
 ok(prepareTextForSpeech('**жирный**  текст').includes('жирный'), 'speech text clean')
 ok(isGeminiRetryableError('models/gemini-1.5-flash is not found'), 'retry on missing model')
 ok(isGeminiRetryableError('This model is currently experiencing high demand'), 'retry on overload')
@@ -114,5 +143,21 @@ const kpi = buildGeminiPanelKpi(
 ok(kpi?.planPct === 50, 'kpi plan pct')
 ok(kpi?.reportsLabel === '10/30', 'kpi reports label')
 ok(kpi?.fitCity === 38, 'kpi fit city')
+
+ok(matchGeminiInstantChip(GEMINI_QUICK_CHIPS[0].message) === 'plan', 'instant chip plan')
+ok(matchGeminiInstantChip('случайный текст') === null, 'instant chip miss')
+const instantPlan = buildGeminiInstantReply('plan', { snapshot: snap, gender: 'male' })
+ok(instantPlan?.includes('36%') && instantPlan.endsWith('.'), 'instant plan reply')
+const instantCompare = buildGeminiInstantReply('compare', {
+  snapshot: snap,
+  previousSnapshot: { ...snap, period: { label: 'май 2026' }, sales: { ...snap.sales, profit_total: 2000, plan_progress_pct: 20 } },
+})
+ok(instantCompare?.includes('май'), 'instant compare reply')
+
+clearGeminiResponseCacheForTests()
+setCachedGeminiResponse('c1', 2026, 6, 'male', false, 'test q', 'cached answer')
+ok(getCachedGeminiResponse('c1', 2026, 6, 'male', false, 'test q') === 'cached answer', 'response cache hit')
+ok(getCachedGeminiResponse('c1', 2026, 6, 'male', false, 'other') === null, 'response cache miss')
+clearGeminiResponseCacheForTests()
 
 process.exit(failed > 0 ? 1 : 0)

@@ -25,7 +25,7 @@ import {
   buildTrainerPayRateMap,
   computeNetProfitWithPayroll,
 } from '../src/lib/admin/trainerPayrollCore.js'
-import { handleGeminiAnalyticsPost } from './_lib/geminiAnalyticsHandler.js'
+import { handleGeminiAnalyticsPost, handleGeminiAnalyticsPrefetchGet } from './_lib/geminiAnalyticsHandler.js'
 
 const PAGE = 400
 const IN_CHUNK = 80
@@ -812,10 +812,12 @@ export default async function handler(req, res) {
       return handleClubs(ctx, res)
     case 'sales':
       return handleSalesGet(ctx, req, res)
+    case 'gemini-analytics-prefetch':
+      return handleGeminiAnalyticsPrefetchGet(ctx, req, res)
     default:
       sendJson(res, 400, {
         error:
-          'Укажите action: search, journal, club-stats, club-monthly, health-cards, sales, challenges, challenge-trainings, exercises, membership-types, clubs',
+          'Укажите action: search, journal, club-stats, club-monthly, health-cards, sales, gemini-analytics-prefetch, challenges, challenge-trainings, exercises, membership-types, clubs',
       })
   }
 }

@@ -1,21 +1,43 @@
 import { readEnv, sendJson } from './adminSupabase.js'
-import { loadGeminiAnalyticsContext } from './geminiAnalyticsData.js'
+import { getCachedGeminiSnapshot } from './geminiAnalyticsCache.js'
+import { loadGeminiAnalyticsContext, loadGeminiSnapshotForMonth } from './geminiAnalyticsData.js'
 import {
   buildGeminiGeneratePayload,
   callGeminiGenerateContent,
 } from './geminiApiClient.js'
-import { buildPersona, formatGeminiUserError, resolveGeminiComparePrevious } from '../../src/lib/admin/geminiAnalyticsPrompt.js'
-import { trimChatHistory } from '../../src/lib/admin/geminiAnalyticsSnapshot.js'
+import {
+  getCachedGeminiResponse,
+  setCachedGeminiResponse,
+} from './geminiAnalyticsResponseCache.js'
+import {
+  buildPersona,
+  buildGeminiPromptDataBlock,
+  formatGeminiUserError,
+  isGeminiReplyIncomplete,
+  resolveGeminiComparePrevious,
+} from '../../src/lib/admin/geminiAnalyticsPrompt.js'
+import {
+  buildGeminiInstantReply,
+  matchGeminiInstantChip,
+} from '../../src/lib/admin/geminiInstantReplies.js'
+import { periodLabelRu, trimChatHistory } from '../../src/lib/admin/geminiAnalyticsSnapshot.js'
 
 const rateLimitMs = 12000
 const lastByUser = new Map()
 
-function parseYearMonth(body) {
-  const year = Math.trunc(Number(body?.year))
-  const month = Math.trunc(Number(body?.month))
+function parseYearMonth(input) {
+  const year = Math.trunc(Number(input?.year))
+  const month = Math.trunc(Number(input?.month))
   if (!Number.isFinite(year) || year < 2000 || year > 2100) return null
   if (!Number.isFinite(month) || month < 1 || month > 12) return null
   return { year, month }
+}
+
+function parseClubYearMonth(bodyOrQuery) {
+  const clubId = String(bodyOrQuery?.club_id ?? '').trim()
+  const ym = parseYearMonth(bodyOrQuery)
+  if (!clubId || !ym) return null
+  return { clubId, ...ym }
 }
 
 async function tryEdgeGemini(authHeader, payload) {
@@ -41,6 +63,62 @@ async function tryEdgeGemini(authHeader, payload) {
   }
 }
 
+async function callGeminiForReply(authHeader, geminiPayload, edgeBody, apiKey) {
+  let text = ''
+  let source = 'vercel'
+
+  const edgeResult = await tryEdgeGemini(authHeader, edgeBody)
+  if (edgeResult?.ok && edgeResult.data?.text) {
+    const edgeText = String(edgeResult.data.text)
+    if (!isGeminiReplyIncomplete(edgeText)) {
+      text = edgeText
+      source = 'edge'
+    }
+  }
+
+  if (!text) {
+    const gemini = await callGeminiGenerateContent(apiKey, geminiPayload)
+    text = gemini.text
+    if (edgeResult?.ok || edgeResult?.error) source = 'vercel'
+  }
+
+  return { text, source }
+}
+
+/**
+ * GET — прогрев snapshot-кэша (без Gemini).
+ * @param {object} ctx
+ * @param {object} req
+ * @param {object} res
+ */
+export async function handleGeminiAnalyticsPrefetchGet(ctx, req, res) {
+  const parsed = parseClubYearMonth(req.query)
+  if (!parsed) {
+    sendJson(res, 400, { error: 'Укажите club_id, year и month' })
+    return
+  }
+
+  try {
+    const snapshot = await loadGeminiSnapshotForMonth(
+      ctx.supabaseAdmin,
+      parsed.clubId,
+      parsed.year,
+      parsed.month,
+      {},
+    )
+    sendJson(res, 200, {
+      ok: true,
+      warmed: true,
+      club_id: parsed.clubId,
+      year: parsed.year,
+      month: parsed.month,
+      period: snapshot.period?.label ?? periodLabelRu(parsed.year, parsed.month),
+    })
+  } catch (e) {
+    sendJson(res, 400, { error: e?.message ? String(e.message) : 'Ошибка prefetch' })
+  }
+}
+
 /**
  * @param {object} ctx from requireAdmin
  * @param {object} req
@@ -57,6 +135,8 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
     comparePrevious: body?.compare_previous === true,
   })
   const includeFinance = body?.include_finance !== false
+  const skipCache = body?.skip_cache === true || body?.force_gemini === true
+  const completionRetry = body?.completion_retry === true
 
   if (!clubId) {
     sendJson(res, 400, { error: 'Укажите club_id' })
@@ -73,18 +153,46 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
 
   const userId = String(ctx.user?.id ?? '')
   const now = Date.now()
-  const last = lastByUser.get(userId) || 0
-  const waitMs = last + rateLimitMs - now
-  if (waitMs > 0) {
-    sendJson(res, 429, {
-      error: 'Подождите несколько секунд перед следующим вопросом',
-      retry_after_sec: Math.ceil(waitMs / 1000),
-    })
-    return
+  if (!completionRetry) {
+    const last = lastByUser.get(userId) || 0
+    const waitMs = last + rateLimitMs - now
+    if (waitMs > 0) {
+      sendJson(res, 429, {
+        error: 'Подождите несколько секунд перед следующим вопросом',
+        retry_after_sec: Math.ceil(waitMs / 1000),
+      })
+      return
+    }
+    lastByUser.set(userId, now)
   }
-  lastByUser.set(userId, now)
 
   try {
+    if (!skipCache) {
+      const cached = getCachedGeminiResponse(
+        clubId,
+        ym.year,
+        ym.month,
+        gender,
+        comparePrevious,
+        userMessage,
+      )
+      if (cached) {
+        const persona = buildPersona(gender)
+        const snap = getCachedGeminiSnapshot(clubId, ym.year, ym.month, includeFinance)
+        sendJson(res, 200, {
+          text: cached,
+          persona: persona.name,
+          club_name: snap?.club_name ?? '',
+          year: ym.year,
+          month: ym.month,
+          source: 'cache',
+          compare_previous: comparePrevious,
+          cached: true,
+        })
+        return
+      }
+    }
+
     const { snapshot, previousSnapshot, clubName } = await loadGeminiAnalyticsContext(
       ctx.supabaseAdmin,
       clubId,
@@ -93,7 +201,39 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
       { comparePrevious, includeFinance },
     )
 
-    const messages = trimChatHistory(body?.messages, 10)
+    const chipId = body?.force_gemini === true ? null : matchGeminiInstantChip(userMessage, comparePrevious)
+    if (chipId) {
+      const instantText = buildGeminiInstantReply(chipId, {
+        snapshot,
+        previousSnapshot,
+        gender,
+      })
+      if (instantText) {
+        setCachedGeminiResponse(
+          clubId,
+          ym.year,
+          ym.month,
+          gender,
+          comparePrevious,
+          userMessage,
+          instantText,
+        )
+        const persona = buildPersona(gender)
+        sendJson(res, 200, {
+          text: instantText,
+          persona: persona.name,
+          club_name: clubName,
+          year: ym.year,
+          month: ym.month,
+          source: 'instant',
+          compare_previous: comparePrevious,
+          chip_id: chipId,
+        })
+        return
+      }
+    }
+
+    const messages = trimChatHistory(body?.messages, 6)
     const geminiPayload = buildGeminiGeneratePayload({
       gender,
       clubName,
@@ -104,30 +244,35 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
     })
 
     const authHeader = String(req.headers.authorization || req.headers.Authorization || '')
+    const dataBlock = buildGeminiPromptDataBlock(snapshot, previousSnapshot)
     const edgeBody = {
       gender,
       club_name: clubName,
       user_message: userMessage,
       messages,
-      snapshot,
-      previous_snapshot: previousSnapshot,
+      prompt_data_block: dataBlock,
       compare_previous: comparePrevious,
       system_prompt: geminiPayload.systemInstruction.parts[0].text,
     }
 
-    let text = ''
-    let source = 'vercel'
+    const apiKey = process.env.GEMINI_API_KEY || ''
+    const { text, source } = await callGeminiForReply(authHeader, geminiPayload, edgeBody, apiKey)
 
-    const edgeResult = await tryEdgeGemini(authHeader, edgeBody)
-    if (edgeResult?.ok && edgeResult.data?.text) {
-      text = String(edgeResult.data.text)
-      source = 'edge'
-    } else {
-      const apiKey = process.env.GEMINI_API_KEY || ''
-      const gemini = await callGeminiGenerateContent(apiKey, geminiPayload)
-      text = gemini.text
-      if (edgeResult?.error) source = 'vercel'
+    if (isGeminiReplyIncomplete(text)) {
+      sendJson(res, 200, {
+        text,
+        persona: buildPersona(gender).name,
+        club_name: clubName,
+        year: ym.year,
+        month: ym.month,
+        source,
+        compare_previous: comparePrevious,
+        incomplete: true,
+      })
+      return
     }
+
+    setCachedGeminiResponse(clubId, ym.year, ym.month, gender, comparePrevious, userMessage, text)
 
     const persona = buildPersona(gender)
     sendJson(res, 200, {

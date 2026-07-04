@@ -155,6 +155,34 @@ export function buildGeminiSnapshot(opts) {
   return snapshot
 }
 
+/** Урезанный snapshot для Gemini — меньше токенов, меньше путаницы с периодами. */
+export function compactSnapshotForPrompt(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object') return null
+  const compact = {
+    club_name: snapshot.club_name,
+    period: snapshot.period,
+    sales: {
+      days_with_reports: snapshot.sales?.days_with_reports,
+      report_coverage_pct: snapshot.sales?.report_coverage_pct,
+      profit_total: snapshot.sales?.profit_total,
+      plan_total: snapshot.sales?.plan_total,
+      plan_progress_pct: snapshot.sales?.plan_progress_pct,
+      manual_trainings_total: snapshot.sales?.manual_trainings_total,
+    },
+    trainings: snapshot.trainings,
+  }
+  if (snapshot.finance) {
+    compact.finance = {
+      net_profit: snapshot.finance.net_profit,
+      trainer_payroll: snapshot.finance.trainer_payroll,
+    }
+  }
+  if (snapshot.data_sources?.analysis_hints?.length) {
+    compact.data_sources = { analysis_hints: snapshot.data_sources.analysis_hints }
+  }
+  return compact
+}
+
 /**
  * @param {Array<{ role?: string, content?: string }>} messages
  * @param {number} [maxTurns]

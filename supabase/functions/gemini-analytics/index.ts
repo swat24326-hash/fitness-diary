@@ -38,8 +38,9 @@ function buildSystemPrompt(gender: string, clubName: string) {
     `Хвали за сильные цифры, жёстко критикуй слабые места — без мата и личных оскорблений.`,
     `Анализируй ТОЛЬКО филиал «${club}» — называй его по имени в ответе.`,
     `Опирайся ТОЛЬКО на JSON-данные в сообщении пользователя. Не выдумывай цифры.`,
+    `Месяц в ответе = analysis_period / current_period.period.label из JSON. Не называй другой месяц или год.`,
     `Если данных мало или отчёты пустые — скажи прямо, что база не забита.`,
-    `Ответ: 2–4 коротких предложения, до 70 слов — как живой голосовой комментарий. Без markdown, списков и воды. Одна главная цифра и чёткий вывод.`,
+    `Ответ: 2–4 коротких предложения, до 70 слов — как живой голосовой комментарий. Без markdown, списков и воды. Одна главная цифра и чёткий вывод. Закончи полным предложением с точкой.`,
   ].join('\n')
 }
 
@@ -53,9 +54,14 @@ function trimMessages(raw: unknown) {
 function buildContents(body: Record<string, unknown>, gender: string) {
   const history = trimMessages(body.messages)
   const userMessage = String(body.user_message ?? '').trim()
+  const promptBlock = body.prompt_data_block as Record<string, unknown> | undefined
   const snapshot = body.snapshot ?? {}
   const previous = body.previous_snapshot ?? null
-  const dataBlock = { current_period: snapshot, previous_period: previous }
+  const dataBlock =
+    promptBlock && typeof promptBlock === 'object'
+      ? promptBlock
+      : { current_period: snapshot, previous_period: previous }
+  const periodLabel = String((dataBlock as { analysis_period?: string }).analysis_period ?? '').trim() || 'период не задан'
   const personaName = buildPersona(gender).name
 
   const textParts: string[] = []
@@ -65,7 +71,7 @@ function buildContents(body: Record<string, unknown>, gender: string) {
   }
   const prefix = history.length ? 'Актуальные данные' : 'Данные для анализа'
   textParts.push(
-    `${prefix} (JSON):\n${JSON.stringify(dataBlock, null, 2)}\n\n${history.length ? 'Новый вопрос' : 'Вопрос'}: ${userMessage}`,
+    `Период анализа (только он): ${periodLabel}\n\n${prefix} (JSON):\n${JSON.stringify(dataBlock)}\n\n${history.length ? 'Новый вопрос' : 'Вопрос'}: ${userMessage}`,
   )
 
   return [{ role: 'user', parts: [{ text: textParts.join('\n\n') }] }]
@@ -119,6 +125,15 @@ function formatUserError(message: string) {
   return raw
 }
 
+function isReplyIncomplete(text: string, finishReason: string) {
+  const t = String(text ?? '').trim()
+  if (!t) return true
+  if (finishReason === 'MAX_TOKENS') return true
+  if (t.length < 35) return true
+  if (/[а-яa-z0-9)]$/i.test(t) && !/[.!?…]$/.test(t)) return true
+  return false
+}
+
 async function callGemini(apiKey: string, systemPrompt: string, contents: object[]) {
   let lastErr = 'Gemini error'
   for (let i = 0; i < MODELS.length; i++) {
@@ -126,29 +141,37 @@ async function callGemini(apiKey: string, systemPrompt: string, contents: object
     for (let attempt = 0; attempt < 2; attempt++) {
       if (attempt > 0) await sleep(1500)
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemPrompt }] },
-          contents,
-          generationConfig: { temperature: 0.72, maxOutputTokens: 320 },
-        }),
-      })
-      const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        lastErr = String((data as { error?: { message?: string } })?.error?.message ?? res.statusText)
-        if (isRetryableError(lastErr)) {
-          if (attempt === 0 && isOverloadError(lastErr)) continue
-          break
+      for (const genConfig of [
+        { temperature: 0.65, maxOutputTokens: 512 },
+        { temperature: 0.6, maxOutputTokens: 768 },
+      ]) {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            contents,
+            generationConfig: genConfig,
+          }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          lastErr = String((data as { error?: { message?: string } })?.error?.message ?? res.statusText)
+          if (isRetryableError(lastErr)) {
+            if (attempt === 0 && isOverloadError(lastErr)) continue
+            break
+          }
+          throw new Error(formatUserError(lastErr))
         }
-        throw new Error(formatUserError(lastErr))
+        const candidate = (data as {
+          candidates?: Array<{ content?: { parts?: Array<{ text?: string }> }; finishReason?: string }>
+        })?.candidates?.[0]
+        const parts = candidate?.content?.parts
+        const text = Array.isArray(parts) ? parts.map((p) => String(p?.text ?? '')).join('').trim() : ''
+        const finishReason = String(candidate?.finishReason ?? '').trim()
+        if (!text) throw new Error('Пустой ответ Gemini')
+        if (!isReplyIncomplete(text, finishReason)) return text
       }
-      const parts = (data as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> })?.candidates?.[0]
-        ?.content?.parts
-      const text = Array.isArray(parts) ? parts.map((p) => String(p?.text ?? '')).join('').trim() : ''
-      if (!text) throw new Error('Пустой ответ Gemini')
-      return text
     }
     if (i + 1 < MODELS.length) await sleep(800)
   }

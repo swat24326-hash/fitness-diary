@@ -1,6 +1,6 @@
 /** Промпт и payload для Gemini (Василий / Василиса). */
 
-import { trimChatHistory } from './geminiAnalyticsSnapshot.js'
+import { trimChatHistory, compactSnapshotForPrompt } from './geminiAnalyticsSnapshot.js'
 import { buildGeminiDataSourceRules, buildGeminiLexiconRule } from './geminiAnalyticsDomain.js'
 
 /** Сначала lite — дешевле и стабильнее на free tier Google AI Studio (2026). */
@@ -14,12 +14,17 @@ export const GEMINI_ANALYTICS_MODEL = GEMINI_ANALYTICS_MODELS[0]
 
 /** Лимит длины ответа для чата и озвучки. */
 export const GEMINI_GENERATION_CONFIG = {
-  temperature: 0.72,
-  maxOutputTokens: 320,
+  temperature: 0.65,
+  maxOutputTokens: 512,
+}
+
+export const GEMINI_GENERATION_CONFIG_RETRY = {
+  temperature: 0.6,
+  maxOutputTokens: 768,
 }
 
 export const GEMINI_RESPONSE_BRIEF_RULE =
-  'Ответ: 2–4 коротких предложения, до 70 слов — как живой голосовой комментарий. Без markdown, списков и воды. Одна главная цифра и чёткий вывод.'
+  'Ответ: 2–4 коротких предложения, до 70 слов — как живой голосовой комментарий. Без markdown, списков и воды. Одна главная цифра и чёткий вывод. Закончи полным предложением с точкой.'
 
 /** Явный флаг или формулировка вопроса про прошлый месяц / динамику. */
 export function shouldComparePreviousMonth(userMessage) {
@@ -131,9 +136,33 @@ export function buildSystemPrompt(gender, clubName) {
     `Анализируй ТОЛЬКО филиал «${club}» — называй его по имени.`,
     buildGeminiDataSourceRules(),
     `Опирайся ТОЛЬКО на JSON в сообщении. Не выдумывай цифры. Учитывай data_sources.analysis_hints.`,
+    `Месяц в ответе = current_period.period.label из JSON. Не называй другой месяц/год. previous_period — только если явно сравниваешь с прошлым месяцем.`,
     `Если отчётов мало (низкий report_coverage_pct) — скажи, что база не забита, выводы осторожные.`,
     GEMINI_RESPONSE_BRIEF_RULE,
   ].join('\n')
+}
+
+/** Компактный блок данных для промпта (меньше шума для модели). */
+export function buildGeminiPromptDataBlock(snapshot, previousSnapshot = null) {
+  const current = compactSnapshotForPrompt(snapshot)
+  const block = {
+    analysis_period: current?.period?.label ?? '',
+    current_period: current,
+  }
+  if (previousSnapshot) {
+    block.previous_period = compactSnapshotForPrompt(previousSnapshot)
+  }
+  return block
+}
+
+/** @param {string} text @param {string} [finishReason] */
+export function isGeminiReplyIncomplete(text, finishReason) {
+  const t = String(text ?? '').trim()
+  if (!t) return true
+  if (finishReason === 'MAX_TOKENS') return true
+  if (t.length < 35) return true
+  if (/[а-яa-z0-9)]$/i.test(t) && !/[.!?…]$/.test(t)) return true
+  return false
 }
 
 /**
@@ -145,18 +174,13 @@ export function buildGeminiGeneratePayload(opts) {
   const clubName = String(opts.clubName ?? opts.snapshot?.club_name ?? '').trim()
   const history = trimChatHistory(opts.messages, 10)
   const userMessage = String(opts.userMessage ?? '').trim()
-  const snapshot = opts.snapshot ?? {}
-  const previous = opts.previousSnapshot ?? null
-
-  const dataBlock = {
-    current_period: snapshot,
-    previous_period: previous,
-  }
+  const dataBlock = buildGeminiPromptDataBlock(opts.snapshot, opts.previousSnapshot)
+  const periodLabel = dataBlock.analysis_period || 'период не задан'
 
   const parts = []
   if (history.length === 0) {
     parts.push({
-      text: `Данные для анализа (JSON):\n${JSON.stringify(dataBlock, null, 2)}\n\nВопрос: ${userMessage}`,
+      text: `Период анализа (только он): ${periodLabel}\n\nДанные (JSON):\n${JSON.stringify(dataBlock)}\n\nВопрос: ${userMessage}`,
     })
   } else {
     for (const msg of history) {
@@ -165,7 +189,7 @@ export function buildGeminiGeneratePayload(opts) {
       })
     }
     parts.push({
-      text: `Актуальные данные (JSON):\n${JSON.stringify(dataBlock, null, 2)}\n\nНовый вопрос: ${userMessage}`,
+      text: `Период анализа (только он): ${periodLabel}\n\nАктуальные данные (JSON):\n${JSON.stringify(dataBlock)}\n\nНовый вопрос: ${userMessage}`,
     })
   }
 
@@ -187,4 +211,9 @@ export function extractGeminiText(apiResponse) {
   const parts = apiResponse?.candidates?.[0]?.content?.parts
   if (!Array.isArray(parts)) return ''
   return parts.map((p) => String(p?.text ?? '')).join('').trim()
+}
+
+/** @param {object} apiResponse */
+export function extractGeminiFinishReason(apiResponse) {
+  return String(apiResponse?.candidates?.[0]?.finishReason ?? '').trim()
 }
