@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useOutletContext, useSearchParams } from 'react-router-dom'
-import { CalendarDays, ClipboardList, RefreshCw, TrendingUp } from 'lucide-react'
+import { RefreshCw, TrendingUp } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { addDaysToIso, clampIsoDateToToday, formatDateRu, todayLocalIso } from '../../lib/dateRu'
@@ -60,9 +60,17 @@ export function AdminSales({ accessMode = 'admin' }) {
     ? String(user?.club_id ?? '').trim()
     : searchParams.get('club') ?? clubIdCtx ?? ''
   const salesTabParam = searchParams.get('tab')
-  const salesTabRaw =
-    salesTabParam === 'finance' ? 'finance' : salesTabParam === 'stats' ? 'stats' : 'daily'
-  const salesTab = isSalesManager && salesTabRaw === 'finance' ? 'daily' : salesTabRaw
+  const salesTab = useMemo(() => {
+    if (isSalesManager) {
+      if (salesTabParam === 'stats') return 'stats'
+      if (salesTabParam === 'report') return 'report'
+      return 'home'
+    }
+    if (salesTabParam === 'finance') return 'finance'
+    if (salesTabParam === 'stats') return 'stats'
+    return 'daily'
+  }, [isSalesManager, salesTabParam])
+  const showSalesHero = !isSalesManager || salesTab === 'home'
   const showFinanceTab = !isSalesManager
   const showInternalTabs = !isSalesManager
 
@@ -102,7 +110,6 @@ export function AdminSales({ accessMode = 'admin' }) {
   const [trainers, setTrainers] = useState([])
   const [fitCityTypeStats, setFitCityTypeStats] = useState(null)
   const [trainingsMatrix, setTrainingsMatrix] = useState({})
-  const [salesHomeSection, setSalesHomeSection] = useState('report')
 
   const membershipTypeColumns = useMemo(
     () => buildTrainingsMatrixColumns(membershipTypes),
@@ -210,14 +217,21 @@ export function AdminSales({ accessMode = 'admin' }) {
     })
   }, [])
 
-  const openDayReport = useCallback((iso) => {
-    setReportDate(clampIsoDateToToday(iso))
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev)
-      next.delete('tab')
-      return next
-    }, { replace: true })
-  }, [setSearchParams])
+  const openDayReport = useCallback(
+    (iso) => {
+      setReportDate(clampIsoDateToToday(iso))
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          if (isSalesManager) next.set('tab', 'report')
+          else next.delete('tab')
+          return next
+        },
+        { replace: true },
+      )
+    },
+    [isSalesManager, setSearchParams],
+  )
 
   const handleSaveDaily = async () => {
     if (!clubId) return
@@ -359,57 +373,37 @@ export function AdminSales({ accessMode = 'admin' }) {
   }
 
   return (
-    <div className={`sales-report${busy ? ' sales-report__busy' : ''}`}>
-      <div className="sales-report__hero">
-        <div className="sales-report__hero-head">
-          <div>
-            {!isSalesManager ? (
-              <>
-                <h1 className="section-title sales-report__page-title">Продажи</h1>
+    <div className={`sales-report${busy ? ' sales-report__busy' : ''}${isSalesManager ? ' sales-report--manager' : ''}`}>
+      {showSalesHero ? (
+        <div className="sales-report__hero">
+          <div className="sales-report__hero-head">
+            <div>
+              {!isSalesManager ? (
+                <>
+                  <h1 className="section-title sales-report__page-title">Продажи</h1>
+                  <p className="sales-report__month-label muted">{monthLabel}</p>
+                </>
+              ) : (
                 <p className="sales-report__month-label muted">{monthLabel}</p>
-              </>
-            ) : (
-              <p className="sales-report__month-label muted">{monthLabel}</p>
-            )}
+              )}
+            </div>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void loadBundle()} disabled={busy}>
+              <RefreshCw size={16} aria-hidden className="sales-report__btn-icon" />
+              Обновить
+            </button>
           </div>
+          <SalesPlanVessel fact={factMonth} planLevels={planLevels} pulseKey={vesselPulse} />
+        </div>
+      ) : null}
+
+      {isSalesManager && salesTab !== 'home' ? (
+        <div className="sales-report__toolbar">
+          <p className="sales-report__month-label muted">{monthLabel}</p>
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => void loadBundle()} disabled={busy}>
             <RefreshCw size={16} aria-hidden className="sales-report__btn-icon" />
             Обновить
           </button>
         </div>
-        <SalesPlanVessel fact={factMonth} planLevels={planLevels} pulseKey={vesselPulse} />
-      </div>
-
-      {isSalesManager && salesTab === 'daily' ? (
-        <section className="trainer-home__tiles sales-report__sections" aria-labelledby="sales-home-sections">
-          <h2 id="sales-home-sections" className="trainer-home__tiles-heading">
-            Разделы
-          </h2>
-          <div className="tile-grid trainer-home__tile-grid">
-            <button
-              type="button"
-              className={`feature-tile${salesHomeSection === 'report' ? ' feature-tile--active' : ''}`}
-              aria-pressed={salesHomeSection === 'report'}
-              onClick={() => setSalesHomeSection('report')}
-            >
-              <div className="feature-tile__icon">
-                <CalendarDays size={36} aria-hidden />
-              </div>
-              <p className="feature-tile__title">Отчёт за день</p>
-            </button>
-            <button
-              type="button"
-              className={`feature-tile${salesHomeSection === 'plan' ? ' feature-tile--active' : ''}`}
-              aria-pressed={salesHomeSection === 'plan'}
-              onClick={() => setSalesHomeSection('plan')}
-            >
-              <div className="feature-tile__icon">
-                <ClipboardList size={36} aria-hidden />
-              </div>
-              <p className="feature-tile__title">План</p>
-            </button>
-          </div>
-        </section>
       ) : null}
 
       {error ? (
@@ -464,68 +458,82 @@ export function AdminSales({ accessMode = 'admin' }) {
         </div>
       ) : null}
 
-      {salesTab === 'daily' ? (
-        <div id="sales-panel-daily" role="tabpanel" aria-labelledby="sales-tab-daily">
-          {isSalesManager ? (
-            salesHomeSection === 'plan' ? (
-              <SalesPlanDirectionsForm
-                planForm={planForm}
-                onPlanChange={setPlanForm}
-                onSave={() => void handleSavePlanDirections()}
-                saving={savingPlan}
-              />
-            ) : (
-              <SalesDailyForm
-                reportDate={reportDate}
-                dateLabel={formatDateRu(reportDate)}
-                form={dailyForm}
-                onFormChange={setDailyForm}
-                onPrevDay={() => setReportDate((d) => addDaysToIso(d, -1))}
-                onNextDay={() => setReportDate((d) => clampIsoDateToToday(addDaysToIso(d, 1)))}
-                onDateChange={(iso) => setReportDate(clampIsoDateToToday(iso))}
-                onSave={() => void handleSaveDaily()}
-                saving={savingDaily}
-                canEdit
-                trainers={trainers}
-                membershipTypes={membershipTypes}
-                membershipTypeColumns={membershipTypeColumns}
-                trainingsMatrix={trainingsMatrix}
-                onTrainingsMatrixChange={setTrainingsMatrix}
-                fitCityTypeStats={fitCityTypeStats}
-                clubId={clubId}
-              />
-            )
-          ) : (
-            <>
-              <SalesPlanDirectionsForm
-                planForm={planForm}
-                onPlanChange={setPlanForm}
-                onSave={() => void handleSavePlanDirections()}
-                saving={savingPlan}
-              />
-              <SalesDailyForm
-                reportDate={reportDate}
-                dateLabel={formatDateRu(reportDate)}
-                form={dailyForm}
-                onFormChange={setDailyForm}
-                onPrevDay={() => setReportDate((d) => addDaysToIso(d, -1))}
-                onNextDay={() => setReportDate((d) => clampIsoDateToToday(addDaysToIso(d, 1)))}
-                onDateChange={(iso) => setReportDate(clampIsoDateToToday(iso))}
-                onSave={() => void handleSaveDaily()}
-                saving={savingDaily}
-                canEdit
-                trainers={trainers}
-                membershipTypes={membershipTypes}
-                membershipTypeColumns={membershipTypeColumns}
-                trainingsMatrix={trainingsMatrix}
-                onTrainingsMatrixChange={setTrainingsMatrix}
-                fitCityTypeStats={fitCityTypeStats}
-                clubId={clubId}
-              />
-            </>
-          )}
+      {isSalesManager && salesTab === 'report' ? (
+        <div id="sales-panel-report" className="sales-report__panel">
+          <SalesDailyForm
+            reportDate={reportDate}
+            dateLabel={formatDateRu(reportDate)}
+            form={dailyForm}
+            onFormChange={setDailyForm}
+            onPrevDay={() => setReportDate((d) => addDaysToIso(d, -1))}
+            onNextDay={() => setReportDate((d) => clampIsoDateToToday(addDaysToIso(d, 1)))}
+            onDateChange={(iso) => setReportDate(clampIsoDateToToday(iso))}
+            onSave={() => void handleSaveDaily()}
+            saving={savingDaily}
+            canEdit
+            trainers={trainers}
+            membershipTypes={membershipTypes}
+            membershipTypeColumns={membershipTypeColumns}
+            trainingsMatrix={trainingsMatrix}
+            onTrainingsMatrixChange={setTrainingsMatrix}
+            fitCityTypeStats={fitCityTypeStats}
+            clubId={clubId}
+          />
         </div>
-      ) : salesTab === 'stats' ? (
+      ) : null}
+
+      {isSalesManager && salesTab === 'stats' ? (
+        <div id="sales-panel-stats" className="sales-report__panel">
+          <SalesPlanDirectionsForm
+            planForm={planForm}
+            onPlanChange={setPlanForm}
+            onSave={() => void handleSavePlanDirections()}
+            saving={savingPlan}
+          />
+          <SalesManagerStatsPanel
+            monthLabel={monthLabel}
+            year={yearMonth.year}
+            month={yearMonth.month}
+            monthRows={monthDays}
+            planLevels={planLevels}
+            membershipTypes={membershipTypes}
+            trainers={trainers}
+            onPrevMonth={() => shiftReportMonth(-1)}
+            onNextMonth={() => shiftReportMonth(1)}
+            onOpenDay={openDayReport}
+          />
+        </div>
+      ) : null}
+
+      {!isSalesManager && salesTab === 'daily' ? (
+        <div id="sales-panel-daily" role="tabpanel" aria-labelledby="sales-tab-daily">
+          <SalesPlanDirectionsForm
+            planForm={planForm}
+            onPlanChange={setPlanForm}
+            onSave={() => void handleSavePlanDirections()}
+            saving={savingPlan}
+          />
+          <SalesDailyForm
+            reportDate={reportDate}
+            dateLabel={formatDateRu(reportDate)}
+            form={dailyForm}
+            onFormChange={setDailyForm}
+            onPrevDay={() => setReportDate((d) => addDaysToIso(d, -1))}
+            onNextDay={() => setReportDate((d) => clampIsoDateToToday(addDaysToIso(d, 1)))}
+            onDateChange={(iso) => setReportDate(clampIsoDateToToday(iso))}
+            onSave={() => void handleSaveDaily()}
+            saving={savingDaily}
+            canEdit
+            trainers={trainers}
+            membershipTypes={membershipTypes}
+            membershipTypeColumns={membershipTypeColumns}
+            trainingsMatrix={trainingsMatrix}
+            onTrainingsMatrixChange={setTrainingsMatrix}
+            fitCityTypeStats={fitCityTypeStats}
+            clubId={clubId}
+          />
+        </div>
+      ) : !isSalesManager && salesTab === 'stats' ? (
         <div id="sales-panel-stats" role="tabpanel" aria-labelledby="sales-tab-stats">
           <SalesManagerStatsPanel
             monthLabel={monthLabel}
@@ -540,7 +548,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             onOpenDay={openDayReport}
           />
         </div>
-      ) : (
+      ) : !isSalesManager ? (
         <div id="sales-panel-finance" role="tabpanel" aria-labelledby="sales-tab-finance">
           <SalesFinancePanel
             monthLabel={monthLabel}
@@ -555,7 +563,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             savingFinance={savingFinance}
           />
         </div>
-      )}
+      ) : null}
 
       {toast ? (
         <div

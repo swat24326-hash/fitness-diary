@@ -85,7 +85,9 @@ export function AppHeader() {
   const showAdminClubSelect = isAdmin && location.pathname.startsWith('/admin')
   const adminClubValue = searchParams.get('club') ?? ''
   const adminQs = useMemo(() => (adminClubValue ? `?club=${encodeURIComponent(adminClubValue)}` : ''), [adminClubValue])
+  const salesReportActive = searchParams.get('tab') === 'report'
   const salesStatsActive = searchParams.get('tab') === 'stats'
+  const salesHomeActive = location.pathname === '/sales' && !salesReportActive && !salesStatsActive
 
   useEffect(() => {
     if (!showAdminClubSelect) return
@@ -629,17 +631,13 @@ export function AppHeader() {
           </>
         ) : isSalesManager ? (
           <>
-            <NavLink
-              to="/sales"
-              end
-              className={({ isActive }) => headerNavClass({ isActive: isActive && !salesStatsActive })}
-            >
+            <NavLink to="/sales" end className={() => headerNavClass({ isActive: salesHomeActive })}>
               Главная
             </NavLink>
-            <NavLink
-              to="/sales?tab=stats"
-              className={({ isActive }) => headerNavClass({ isActive: isActive || salesStatsActive })}
-            >
+            <NavLink to="/sales?tab=report" className={() => headerNavClass({ isActive: salesReportActive })}>
+              Отчёт
+            </NavLink>
+            <NavLink to="/sales?tab=stats" className={() => headerNavClass({ isActive: salesStatsActive })}>
               Статистика
             </NavLink>
           </>
@@ -776,6 +774,9 @@ export function AppHeader() {
                 <>
                   <NavLink to="/sales" end className={menuNavClass} onClick={() => setMenuOpen(false)}>
                     Главная
+                  </NavLink>
+                  <NavLink to="/sales?tab=report" className={menuNavClass} onClick={() => setMenuOpen(false)}>
+                    Отчёт
                   </NavLink>
                   <NavLink to="/sales?tab=stats" className={menuNavClass} onClick={() => setMenuOpen(false)}>
                     Статистика
