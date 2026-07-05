@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useOutletContext, useSearchParams } from 'react-router-dom'
-import { RefreshCw, TrendingUp } from 'lucide-react'
+import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
+import { BarChart3, CalendarDays, RefreshCw, TrendingUp } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { addDaysToIso, clampIsoDateToToday, formatDateRu, todayLocalIso } from '../../lib/dateRu'
@@ -373,18 +373,23 @@ export function AdminSales({ accessMode = 'admin' }) {
   }
 
   return (
-    <div className={`sales-report${busy ? ' sales-report__busy' : ''}${isSalesManager ? ' sales-report--manager' : ''}`}>
+    <div
+      className={`sales-report${busy ? ' sales-report__busy' : ''}${isSalesManager ? ' sales-report--manager sales-home' : ''}`}
+    >
       {showSalesHero ? (
-        <div className="sales-report__hero">
+        <div className="sales-report__hero sales-home__hero">
           <div className="sales-report__hero-head">
-            <div>
-              {!isSalesManager ? (
+            <div className="sales-home__hero-text">
+              {isSalesManager ? (
+                <>
+                  <p className="sales-home__eyebrow">{monthLabel}</p>
+                  <h1 className="sales-home__title">План продаж</h1>
+                </>
+              ) : (
                 <>
                   <h1 className="section-title sales-report__page-title">Продажи</h1>
                   <p className="sales-report__month-label muted">{monthLabel}</p>
                 </>
-              ) : (
-                <p className="sales-report__month-label muted">{monthLabel}</p>
               )}
             </div>
             <button type="button" className="btn btn-secondary btn-sm" onClick={() => void loadBundle()} disabled={busy}>
@@ -396,9 +401,34 @@ export function AdminSales({ accessMode = 'admin' }) {
         </div>
       ) : null}
 
+      {isSalesManager && salesTab === 'home' ? (
+        <section className="trainer-home__tiles sales-home__tiles" aria-labelledby="sales-home-sections">
+          <h2 id="sales-home-sections" className="trainer-home__tiles-heading">
+            Разделы
+          </h2>
+          <div className="tile-grid trainer-home__tile-grid">
+            <Link to="/sales?tab=report" className="feature-tile u-no-decoration">
+              <div className="feature-tile__icon">
+                <CalendarDays size={36} aria-hidden />
+              </div>
+              <p className="feature-tile__title">Отчёт</p>
+            </Link>
+            <Link to="/sales?tab=stats" className="feature-tile u-no-decoration">
+              <div className="feature-tile__icon">
+                <BarChart3 size={36} aria-hidden />
+              </div>
+              <p className="feature-tile__title">Статистика</p>
+            </Link>
+          </div>
+        </section>
+      ) : null}
+
       {isSalesManager && salesTab !== 'home' ? (
         <div className="sales-report__toolbar">
-          <p className="sales-report__month-label muted">{monthLabel}</p>
+          <div className="sales-home__hero-text">
+            <p className="sales-home__eyebrow">{monthLabel}</p>
+            <h1 className="sales-page__title">{salesTab === 'report' ? 'Отчёт за день' : 'Статистика'}</h1>
+          </div>
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => void loadBundle()} disabled={busy}>
             <RefreshCw size={16} aria-hidden className="sales-report__btn-icon" />
             Обновить
