@@ -10,6 +10,7 @@ import {
   emptyPlanForm,
   expenseRowToForm,
   planRowToForm,
+  monthPartsFromIso,
 } from '../../lib/admin/salesReportCore'
 import {
   buildTrainingsMatrixColumns,
@@ -30,6 +31,7 @@ import { SalesPlanVessel } from '../../components/SalesPlanVessel'
 import { SalesDailyForm } from '../../components/SalesDailyForm'
 import { SalesFinancePanel } from '../../components/SalesFinancePanel'
 import { SalesPlanDirectionsForm } from '../../components/SalesPlanDirectionsForm'
+import { SalesManagerStatsPanel } from '../../components/SalesManagerStatsPanel'
 import '../../styles/sales-report.css'
 
 const MONTH_NAMES = [
@@ -52,12 +54,14 @@ export function AdminSales() {
   const clubIdCtx = ctx?.clubId ?? ''
   const [searchParams, setSearchParams] = useSearchParams()
   const clubId = searchParams.get('club') ?? clubIdCtx ?? ''
-  const salesTab = searchParams.get('tab') === 'finance' ? 'finance' : 'daily'
+  const salesTabParam = searchParams.get('tab')
+  const salesTab =
+    salesTabParam === 'finance' ? 'finance' : salesTabParam === 'stats' ? 'stats' : 'daily'
 
   const setSalesTab = (tab) => {
     const next = new URLSearchParams(searchParams)
-    if (tab === 'finance') next.set('tab', 'finance')
-    else next.delete('tab')
+    if (tab === 'daily') next.delete('tab')
+    else next.set('tab', tab)
     setSearchParams(next, { replace: true })
   }
 
@@ -66,6 +70,7 @@ export function AdminSales() {
   const [planForm, setPlanForm] = useState(emptyPlanForm)
   const [expenseForm, setExpenseForm] = useState(emptyExpenseForm)
   const [monthSummary, setMonthSummary] = useState(null)
+  const [monthDays, setMonthDays] = useState([])
   const [busy, setBusy] = useState(false)
   const [savingDaily, setSavingDaily] = useState(false)
   const [savingPlan, setSavingPlan] = useState(false)
@@ -108,6 +113,7 @@ export function AdminSales() {
       setPlanForm(planRowToForm(bundle.plan))
       setExpenseForm(expenseRowToForm(bundle.expense))
       setMonthSummary(bundle.monthSummary)
+      setMonthDays(bundle.monthDays ?? [])
       setYearMonth({ year: bundle.year, month: bundle.month })
 
       const types =
@@ -164,6 +170,35 @@ export function AdminSales() {
     }),
     [planForm],
   )
+
+  const shiftReportMonth = useCallback((delta) => {
+    setReportDate((current) => {
+      const parts = monthPartsFromIso(current)
+      if (!parts) return current
+      let { year, month } = parts
+      month += delta
+      while (month < 1) {
+        month += 12
+        year -= 1
+      }
+      while (month > 12) {
+        month -= 12
+        year += 1
+      }
+      const day = Math.min(Number(String(current).slice(8, 10)) || 1, new Date(year, month, 0).getDate())
+      const iso = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+      return clampIsoDateToToday(iso)
+    })
+  }, [])
+
+  const openDayReport = useCallback((iso) => {
+    setReportDate(clampIsoDateToToday(iso))
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.delete('tab')
+      return next
+    }, { replace: true })
+  }, [setSearchParams])
 
   const handleSaveDaily = async () => {
     if (!clubId) return
@@ -346,6 +381,17 @@ export function AdminSales() {
           type="button"
           className="tab"
           role="tab"
+          id="sales-tab-stats"
+          aria-selected={salesTab === 'stats'}
+          aria-controls="sales-panel-stats"
+          onClick={() => setSalesTab('stats')}
+        >
+          Статистика
+        </button>
+        <button
+          type="button"
+          className="tab"
+          role="tab"
           id="sales-tab-finance"
           aria-selected={salesTab === 'finance'}
           aria-controls="sales-panel-finance"
@@ -381,6 +427,19 @@ export function AdminSales() {
             onTrainingsMatrixChange={setTrainingsMatrix}
             fitCityTypeStats={fitCityTypeStats}
             clubId={clubId}
+          />
+        </div>
+      ) : salesTab === 'stats' ? (
+        <div id="sales-panel-stats" role="tabpanel" aria-labelledby="sales-tab-stats">
+          <SalesManagerStatsPanel
+            monthLabel={monthLabel}
+            year={yearMonth.year}
+            month={yearMonth.month}
+            monthRows={monthDays}
+            planLevels={planLevels}
+            onPrevMonth={() => shiftReportMonth(-1)}
+            onNextMonth={() => shiftReportMonth(1)}
+            onOpenDay={openDayReport}
           />
         </div>
       ) : (
