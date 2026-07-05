@@ -40,16 +40,19 @@ export async function getAccessTokenForAdminApi() {
 
 /**
  * GET /api/list-trainers — null только если маршрута нет (старый деплой без api/).
- * Сеть / 401 / 500 — бросаем ошибку (не откатываемся в браузерный Supabase).
+ * @param {{ role?: 'trainer'|'sales_manager' }} [opts]
  * @returns {Promise<{ trainers: object[], clubColumn: boolean } | null>}
  */
-export async function fetchTrainersViaAdminApi() {
+export async function fetchTrainersViaAdminApi(opts = {}) {
   const token = await getAccessTokenForAdminApi()
   if (!token) {
-    throw new Error('Нет сессии — выйдите и войдите снова как администратор, затем обновите страницу (Ctrl+F5).')
+    throw new Error('Нет сессии — выйдите и войдите снова, затем обновите страницу (Ctrl+F5).')
   }
 
-  const url = `${apiOrigin()}/api/list-trainers`
+  const params = new URLSearchParams()
+  if (opts.role === 'sales_manager') params.set('role', 'sales_manager')
+  const qs = params.toString()
+  const url = `${apiOrigin()}/api/list-trainers${qs ? `?${qs}` : ''}`
   const headers = { Authorization: `Bearer ${token}` }
   let lastErr
 

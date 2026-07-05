@@ -13,6 +13,7 @@ import { AdminClients } from './pages/admin/AdminClients'
 import { AdminStructure } from './pages/admin/AdminStructure'
 import { AdminStatistics } from './pages/admin/AdminStatistics'
 import { AdminSales } from './pages/admin/AdminSales'
+import { SalesHeader } from './components/SalesHeader'
 import { AdminChallenges } from './pages/admin/AdminChallenges'
 import { AdminChallengeDetail } from './pages/admin/AdminChallengeDetail'
 import { AdminDiagnostics } from './pages/admin/AdminDiagnostics'
@@ -25,7 +26,7 @@ import { TrainerChallengeDetail } from './pages/trainer/TrainerChallengeDetail'
 import { TrainingPage } from './pages/trainer/TrainingPage'
 
 function LoggedInLayout() {
-  const { user, role, loading } = useAuth()
+  const { user, role, loading, isSalesManager } = useAuth()
 
   useEffect(() => {
     if (!loading && user && isSupabaseConfigured()) {
@@ -41,6 +42,18 @@ function LoggedInLayout() {
   if (!user) {
     return <Navigate to="/login" replace />
   }
+
+  if (isSalesManager) {
+    return (
+      <div className="app-shell app-shell--sales">
+        <SalesHeader />
+        <main className="app-main">
+          <Outlet />
+        </main>
+      </div>
+    )
+  }
+
   return (
     <div className="app-shell">
       <AppHeader />
@@ -53,17 +66,23 @@ function LoggedInLayout() {
   )
 }
 
+function roleHomePath(role) {
+  if (role === 'admin') return '/admin'
+  if (role === 'sales_manager') return '/sales'
+  return '/trainer'
+}
+
 function RoleOutlet({ roles }) {
   const { role } = useAuth()
   if (!roles.includes(role)) {
-    return <Navigate to={role === 'admin' ? '/admin' : '/trainer'} replace />
+    return <Navigate to={roleHomePath(role)} replace />
   }
   return <Outlet />
 }
 
 function HomeRedirect() {
   const { role } = useAuth()
-  return <Navigate to={role === 'admin' ? '/admin' : '/trainer'} replace />
+  return <Navigate to={roleHomePath(role)} replace />
 }
 
 function AdminDiariesRedirect() {
@@ -126,6 +145,9 @@ export default function App() {
               <Route path="/trainer/clients/:id" element={<ClientCard />} />
               <Route path="/trainer/workouts/:id" element={<TrainingPage />} />
               <Route path="/trainer/challenges/:challengeId" element={<TrainerChallengeDetail />} />
+            </Route>
+            <Route element={<RoleOutlet roles={['sales_manager']} />}>
+              <Route path="/sales" element={<AdminSales accessMode="sales_manager" />} />
             </Route>
             <Route element={<RoleOutlet roles={['admin']} />}>
               <Route path="/admin/workouts/:id" element={<TrainingPage />} />

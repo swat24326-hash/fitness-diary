@@ -1,0 +1,50 @@
+/** Права менеджера по продажам (чистая логика, без React). */
+
+import { USERS_SALES_MANAGER_ROLES } from '../userRoleConstants.js'
+
+/** @param {string} [role] */
+export function normalizeAppRole(role) {
+  const r = String(role ?? '').trim().toLowerCase()
+  if (r === 'admin' || r === 'администратор') return 'admin'
+  if (r === 'trainer' || r === 'тренер') return 'trainer'
+  if (USERS_SALES_MANAGER_ROLES.includes(r)) return 'sales_manager'
+  return r || 'trainer'
+}
+
+/** @param {string} [role] */
+export function isSalesManagerRole(role) {
+  return normalizeAppRole(role) === 'sales_manager'
+}
+
+/** @param {string} [profileClubId] @param {string} [requestedClubId] */
+export function canSalesManagerAccessClub(profileClubId, requestedClubId) {
+  const club = String(profileClubId ?? '').trim()
+  const req = String(requestedClubId ?? '').trim()
+  if (!club || !req) return false
+  return club === req
+}
+
+/**
+ * @param {'levels'|'directions'|'all'|string} scope
+ * @param {boolean} isSalesManager
+ */
+export function assertSalesPlanScopeForRole(scope, isSalesManager) {
+  if (!isSalesManager) return { ok: true }
+  if (scope === 'directions') return { ok: true }
+  return { ok: false, error: 'Только администратор может менять уровни плана и финансы' }
+}
+
+/** @param {boolean} isSalesManagerUser */
+export function stripSalesBundleForManager(bundle, isSalesManagerUser) {
+  if (!isSalesManagerUser || !bundle || typeof bundle !== 'object') return bundle
+  const next = { ...bundle }
+  delete next.expense
+  if (next.month_summary && typeof next.month_summary === 'object') {
+    const ms = { ...next.month_summary }
+    delete ms.expense
+    delete ms.trainerPayroll
+    delete ms.netProfit
+    next.month_summary = ms
+  }
+  return next
+}

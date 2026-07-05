@@ -94,7 +94,7 @@ async function adminApiPost(path, token, body) {
 /** GET /api/admin-data?action=sales — Supabase first, API если облако Supabase недоступно */
 export async function fetchClubSalesBundle({ clubId, reportDate }) {
   const token = await getAccessTokenForAdminApi()
-  if (!token) throw new Error('Нет сессии администратора')
+  if (!token) throw new Error('Нет сессии — войдите снова')
 
   const params = new URLSearchParams({
     action: 'sales',
@@ -143,7 +143,7 @@ export async function saveClubSalesDaily({
   membershipTypes,
 }) {
   const token = await getAccessTokenForAdminApi()
-  if (!token) throw new Error('Нет сессии администратора')
+  if (!token) throw new Error('Нет сессии — войдите снова')
 
   const body = {
     club_id: clubId,
@@ -176,7 +176,7 @@ export async function saveClubSalesDaily({
 /** POST /api/admin-data?action=sales-plan */
 export async function saveClubSalesPlan({ clubId, year, month, form, scope }) {
   const token = await getAccessTokenForAdminApi()
-  if (!token) throw new Error('Нет сессии администратора')
+  if (!token) throw new Error('Нет сессии — войдите снова')
 
   try {
     if (isCloudReachable()) {
@@ -199,7 +199,7 @@ export async function saveClubSalesPlan({ clubId, year, month, form, scope }) {
 /** POST /api/admin-data?action=sales-finance */
 export async function saveClubSalesFinance({ clubId, year, month, form }) {
   const token = await getAccessTokenForAdminApi()
-  if (!token) throw new Error('Нет сессии администратора')
+  if (!token) throw new Error('Нет сессии — войдите снова')
 
   try {
     if (isCloudReachable()) {

@@ -130,6 +130,7 @@ function normalizeRole(role) {
   const r = String(role ?? '').trim().toLowerCase()
   if (r === 'admin' || r === 'администратор') return 'admin'
   if (r === 'trainer' || r === 'тренер') return 'trainer'
+  if (r === 'sales_manager' || r === 'менеджер по продажам') return 'sales_manager'
   return 'trainer'
 }
 
@@ -484,6 +485,7 @@ export function AuthProvider({ children }) {
       refreshUserProfile,
       isAdmin: role === 'admin',
       isTrainer: role === 'trainer',
+      isSalesManager: role === 'sales_manager',
       supabaseReady: isSupabaseConfigured(),
     }),
     [user, role, loading, signingIn, signIn, signOut, refreshUserProfile],

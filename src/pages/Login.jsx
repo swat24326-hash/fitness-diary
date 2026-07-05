@@ -37,7 +37,7 @@ export function Login() {
   }
 
   if (!loading && user && role) {
-    const dest = from && from !== '/login' ? from : role === 'admin' ? '/admin' : '/trainer'
+    const dest = from && from !== '/login' ? from : role === 'admin' ? '/admin' : role === 'sales_manager' ? '/sales' : '/trainer'
     return <Navigate to={dest} replace />
   }
 

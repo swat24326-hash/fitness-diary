@@ -2,7 +2,8 @@
  * Объединённый GET API админки/тренера (лимит Vercel Hobby: 12 functions).
  * ?action=search|journal|club-stats|health-cards|challenges|challenge-trainings|exercises|clubs
  */
-import { requireAdmin, requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
+import { requireAdmin, requireAdminOrSalesManager, requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
+import { assertSalesPlanScopeForRole, stripSalesBundleForManager } from '../src/lib/admin/salesAccessCore.js'
 import { aggregateTrainings, aggregateClubClientPeriod } from './_lib/clubStatsAgg.js'
 import { aggregateMembershipTypeStats } from './_lib/membershipTypeStatsAgg.js'
 import {
@@ -554,7 +555,7 @@ async function handleSalesGet(ctx, req, res) {
     daily.trainings_matrix = normalizeMatrixRowsFromDb(daily.trainings_matrix)
   }
 
-  sendJson(res, 200, {
+  sendJson(res, 200, stripSalesBundleForManager({
     club_id: clubId,
     year,
     month,
@@ -567,7 +568,7 @@ async function handleSalesGet(ctx, req, res) {
     membership_types: membershipTypes,
     trainers,
     fit_city_type_stats: fitCityTypeStats,
-  })
+  }, ctx.isSalesManager === true))
 }
 
 async function handleSalesDailyPost(ctx, req, res, body) {
@@ -741,6 +742,84 @@ async function handleClubMonthly(ctx, req, res) {
   }
 }
 
+async function handleCreateSalesManagerPost(ctx, res, body) {
+  const { supabaseAdmin } = ctx
+
+  const name = String(body.name ?? '').trim()
+  const login = String(body.login ?? '').trim().toLowerCase()
+  const phone = String(body.phone ?? '').trim() || null
+  const password = String(body.password ?? '')
+  let email = String(body.email ?? '').trim()
+  const rawClub = body.club_id != null ? String(body.club_id).trim() : ''
+  const club_id =
+    rawClub && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(rawClub)
+      ? rawClub
+      : null
+
+  if (!name || !login || !password) {
+    sendJson(res, 400, { error: 'Укажите имя, логин и пароль' })
+    return
+  }
+  if (password.length < 6) {
+    sendJson(res, 400, { error: 'Пароль не короче 6 символов' })
+    return
+  }
+  if (!club_id) {
+    sendJson(res, 400, { error: 'Выберите клуб — менеджер привязан к одному клубу' })
+    return
+  }
+  if (!email) {
+    email = `${login}@sales.local`
+  }
+
+  const { data: existingManagers } = await supabaseAdmin
+    .from('users')
+    .select('id, name, login')
+    .eq('club_id', club_id)
+    .in('role', ['sales_manager', 'менеджер по продажам'])
+
+  const existingCount = (existingManagers ?? []).length
+  let warning = null
+  if (existingCount > 0) {
+    warning = `В клубе уже ${existingCount} менедж(ер/еров) по продажам — учётка всё равно будет создана.`
+  }
+
+  const { data: created, error: auErr } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  })
+
+  if (auErr || !created?.user) {
+    sendJson(res, 400, { error: auErr?.message ?? 'Не удалось создать пользователя в Auth' })
+    return
+  }
+
+  const uid = created.user.id
+
+  const insertRow = {
+    id: uid,
+    name,
+    phone,
+    email,
+    login,
+    role: 'sales_manager',
+    password_hash: 'supabase-auth',
+    is_active: true,
+    club_id,
+  }
+
+  const { error: insErr } = await supabaseAdmin.from('users').insert(insertRow)
+
+  if (insErr) {
+    await supabaseAdmin.auth.admin.deleteUser(uid)
+    sendJson(res, 400, { error: insErr.message })
+    return
+  }
+
+  sendJson(res, 200, { ok: true, id: uid, manager: insertRow, warning })
+}
+
 export default async function handler(req, res) {
   setCors(res, 'GET, POST, OPTIONS')
   if (req.method === 'OPTIONS') {
@@ -752,22 +831,51 @@ export default async function handler(req, res) {
   const action = String(req.query?.action ?? '').trim().toLowerCase()
 
   if (req.method === 'POST') {
-    const postActions = new Set(['sales-daily', 'sales-plan', 'sales-finance', 'gemini-analytics'])
+    const postActions = new Set([
+      'sales-daily',
+      'sales-plan',
+      'sales-finance',
+      'gemini-analytics',
+      'create-sales-manager',
+    ])
     if (!postActions.has(action)) {
       sendJson(res, 405, { error: 'Method not allowed' })
       return
     }
-    const ctx = await requireAdmin(req, res)
-    if (!ctx) return
     const body = parseJsonBody(req)
     if (!body) {
       sendJson(res, 400, { error: 'Invalid JSON' })
       return
     }
-    if (action === 'gemini-analytics') return handleGeminiAnalyticsPost(ctx, req, res, body)
+    if (action === 'gemini-analytics') {
+      const ctx = await requireAdmin(req, res)
+      if (!ctx) return
+      return handleGeminiAnalyticsPost(ctx, req, res, body)
+    }
+    if (action === 'sales-finance') {
+      const ctx = await requireAdmin(req, res)
+      if (!ctx) return
+      return handleSalesFinancePost(ctx, req, res, body)
+    }
+    if (action === 'create-sales-manager') {
+      const ctx = await requireAdmin(req, res)
+      if (!ctx) return
+      return handleCreateSalesManagerPost(ctx, res, body)
+    }
+    const clubId = String(body?.club_id ?? '').trim()
+    const ctx = await requireAdminOrSalesManager(req, res, clubId)
+    if (!ctx) return
     if (action === 'sales-daily') return handleSalesDailyPost(ctx, req, res, body)
-    if (action === 'sales-plan') return handleSalesPlanPost(ctx, req, res, body)
-    if (action === 'sales-finance') return handleSalesFinancePost(ctx, req, res, body)
+    if (action === 'sales-plan') {
+      const scope =
+        body?.scope === 'levels' || body?.scope === 'directions' ? body.scope : 'all'
+      const scopeCheck = assertSalesPlanScopeForRole(scope, ctx.isSalesManager === true)
+      if (!scopeCheck.ok) {
+        sendJson(res, 403, { error: scopeCheck.error })
+        return
+      }
+      return handleSalesPlanPost(ctx, req, res, body)
+    }
   }
 
   if (req.method !== 'GET') {
@@ -796,6 +904,13 @@ export default async function handler(req, res) {
     if (action === 'membership-types') return handleMembershipTypes(authCtx, req, res)
   }
 
+  if (action === 'sales') {
+    const clubId = String(req.query?.club_id ?? '').trim()
+    const ctx = await requireAdminOrSalesManager(req, res, clubId)
+    if (!ctx) return
+    return handleSalesGet(ctx, req, res)
+  }
+
   const ctx = await requireAdmin(req, res)
   if (!ctx) return
 
@@ -812,8 +927,6 @@ export default async function handler(req, res) {
       return handleHealthCards(ctx, req, res)
     case 'clubs':
       return handleClubs(ctx, res)
-    case 'sales':
-      return handleSalesGet(ctx, req, res)
     case 'gemini-analytics-prefetch':
       return handleGeminiAnalyticsPrefetchGet(ctx, req, res)
     default:

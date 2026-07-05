@@ -1578,3 +1578,131 @@
     width: min(100%, 14px);
   }
 }
+
+/* ——— Шапка менеджера по продажам (/sales) ——— */
+.sales-header.app-header {
+  border-bottom: 1px solid var(--premium-glass-border, rgba(148, 163, 184, 0.18));
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.96));
+}
+
+.sales-header__inner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0.65rem 1rem;
+}
+
+.sales-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.sales-header__brand-icon {
+  color: var(--accent-bright, #2effb8);
+  flex-shrink: 0;
+}
+
+.sales-header__title {
+  display: block;
+  font-weight: 700;
+  font-size: 1.05rem;
+  line-height: 1.2;
+}
+
+.sales-header__club {
+  display: inline-block;
+  margin-top: 0.15rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  color: var(--accent-bright, #2effb8);
+  background: rgba(46, 255, 184, 0.12);
+  border: 1px solid rgba(46, 255, 184, 0.25);
+}
+
+.sales-header__nav {
+  display: flex;
+  gap: 0.35rem;
+  flex: 1;
+  justify-content: center;
+}
+
+.sales-header__nav-link {
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  color: var(--text-muted, #94a3b8);
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+
+.sales-header__nav-link:hover {
+  color: #e2e8f0;
+  background: rgba(148, 163, 184, 0.1);
+}
+
+.sales-header__nav-link--active {
+  color: #0f172a;
+  background: var(--accent-bright, #2effb8);
+  font-weight: 600;
+}
+
+.sales-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.sales-header__journal {
+  position: relative;
+}
+
+.sales-header__journal--alert {
+  color: #fbbf24;
+}
+
+.sales-header__badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+  background: #ef4444;
+  color: #fff;
+}
+
+.sales-header__logout-label {
+  margin-left: 0.35rem;
+}
+
+@media (max-width: 640px) {
+  .sales-header__logout-label {
+    display: none;
+  }
+
+  .sales-header__nav {
+    order: 3;
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .sales-header__nav-link {
+    flex: 1;
+    text-align: center;
+  }
+}
+
+.app-shell--sales .app-main {
+  padding-top: 0.75rem;
+}

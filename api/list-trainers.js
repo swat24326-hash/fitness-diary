@@ -2,6 +2,7 @@
  * Vercel: список тренеров для админки (обход ERR_CONNECTION_RESET браузер → Supabase).
  */
 import { canAccessTrainerOrAdminApis, requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
+import { isSalesManagerRole } from '../src/lib/admin/salesAccessCore.js'
 
 const TRAINER_FIELDS = 'id, name, phone, email, login, is_active, role, club_id'
 
@@ -26,7 +27,16 @@ export default async function handler(req, res) {
 
   const ctx = await requireAuthUser(req, res)
   if (!ctx) return
-  if (!canAccessTrainerOrAdminApis(ctx)) {
+
+  const roleFilter = String(req.query?.role ?? '').trim().toLowerCase()
+  const wantSalesManagers = roleFilter === 'sales_manager'
+
+  if (wantSalesManagers) {
+    if (!ctx.isAdmin) {
+      sendJson(res, 403, { error: 'Только администратор' })
+      return
+    }
+  } else if (!canAccessTrainerOrAdminApis(ctx)) {
     sendJson(res, 403, { error: 'Только администратор или тренер' })
     return
   }
@@ -39,7 +49,9 @@ export default async function handler(req, res) {
     .order('name', { ascending: true })
 
   if (!full.error) {
-    const trainers = (full.data ?? []).filter((u) => isTrainerRole(u.role))
+    const trainers = (full.data ?? []).filter((u) =>
+      wantSalesManagers ? isSalesManagerRole(u.role) : isTrainerRole(u.role),
+    )
     sendJson(res, 200, {
       trainers,
       clubColumn: true,
@@ -65,7 +77,7 @@ export default async function handler(req, res) {
   }
 
   const trainers = (basic.data ?? [])
-    .filter((u) => isTrainerRole(u.role))
+    .filter((u) => (wantSalesManagers ? isSalesManagerRole(u.role) : isTrainerRole(u.role)))
     .map((u) => ({ ...u, club_id: null }))
   sendJson(res, 200, { trainers, clubColumn: false, count: trainers.length })
 }

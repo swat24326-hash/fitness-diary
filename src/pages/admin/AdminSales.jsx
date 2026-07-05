@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useOutletContext, useSearchParams } from 'react-router-dom'
 import { RefreshCw, TrendingUp } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { addDaysToIso, clampIsoDateToToday, formatDateRu, todayLocalIso } from '../../lib/dateRu'
 import {
@@ -49,14 +50,31 @@ const MONTH_NAMES = [
   'декабрь',
 ]
 
-export function AdminSales() {
+export function AdminSales({ accessMode = 'admin' }) {
+  const isSalesManager = accessMode === 'sales_manager'
+  const { user } = useAuth()
   const ctx = useOutletContext()
   const clubIdCtx = ctx?.clubId ?? ''
   const [searchParams, setSearchParams] = useSearchParams()
-  const clubId = searchParams.get('club') ?? clubIdCtx ?? ''
+  const clubId = isSalesManager
+    ? String(user?.club_id ?? '').trim()
+    : searchParams.get('club') ?? clubIdCtx ?? ''
   const salesTabParam = searchParams.get('tab')
-  const salesTab =
+  const salesTabRaw =
     salesTabParam === 'finance' ? 'finance' : salesTabParam === 'stats' ? 'stats' : 'daily'
+  const salesTab = isSalesManager && salesTabRaw === 'finance' ? 'daily' : salesTabRaw
+  const showFinanceTab = !isSalesManager
+  const showInternalTabs = !isSalesManager
+
+  useEffect(() => {
+    if (isSalesManager && salesTabParam === 'finance') {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete('tab')
+        return next
+      }, { replace: true })
+    }
+  }, [isSalesManager, salesTabParam, setSearchParams])
 
   const setSalesTab = (tab) => {
     const next = new URLSearchParams(searchParams)
@@ -326,9 +344,13 @@ export function AdminSales() {
       <div className="challenge-empty-card challenge-empty-card--inline">
         <TrendingUp className="challenge-empty-card__icon" size={40} aria-hidden />
         <div>
-          <p className="challenge-empty-card__title">Выберите клуб в шапке</p>
+          <p className="challenge-empty-card__title">
+            {isSalesManager ? 'Клуб не привязан к учётке' : 'Выберите клуб в шапке'}
+          </p>
           <p className="muted" style={{ margin: '0.35rem 0 0' }}>
-            Отчёты продаж привязаны к одному клубу.
+            {isSalesManager
+              ? 'Обратитесь к администратору — в профиле должен быть указан club_id.'
+              : 'Отчёты продаж привязаны к одному клубу.'}
           </p>
         </div>
       </div>
@@ -340,8 +362,14 @@ export function AdminSales() {
       <div className="sales-report__hero">
         <div className="sales-report__hero-head">
           <div>
-            <h1 className="section-title sales-report__page-title">Продажи</h1>
-            <p className="sales-report__month-label muted">{monthLabel}</p>
+            {!isSalesManager ? (
+              <>
+                <h1 className="section-title sales-report__page-title">Продажи</h1>
+                <p className="sales-report__month-label muted">{monthLabel}</p>
+              </>
+            ) : (
+              <p className="sales-report__month-label muted">{monthLabel}</p>
+            )}
           </div>
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => void loadBundle()} disabled={busy}>
             <RefreshCw size={16} aria-hidden className="sales-report__btn-icon" />
@@ -363,41 +391,45 @@ export function AdminSales() {
         </p>
       ) : null}
 
-      <div className="tabs sales-report__tabs" role="tablist" aria-label="Разделы продаж">
-        <button
-          type="button"
-          className="tab"
-          role="tab"
-          id="sales-tab-daily"
-          aria-selected={salesTab === 'daily'}
-          aria-controls="sales-panel-daily"
-          onClick={() => setSalesTab('daily')}
-        >
-          Отчёт за день
-        </button>
-        <button
-          type="button"
-          className="tab"
-          role="tab"
-          id="sales-tab-stats"
-          aria-selected={salesTab === 'stats'}
-          aria-controls="sales-panel-stats"
-          onClick={() => setSalesTab('stats')}
-        >
-          Статистика
-        </button>
-        <button
-          type="button"
-          className="tab"
-          role="tab"
-          id="sales-tab-finance"
-          aria-selected={salesTab === 'finance'}
-          aria-controls="sales-panel-finance"
-          onClick={() => setSalesTab('finance')}
-        >
-          Финансы клуба
-        </button>
-      </div>
+      {showInternalTabs ? (
+        <div className="tabs sales-report__tabs" role="tablist" aria-label="Разделы продаж">
+          <button
+            type="button"
+            className="tab"
+            role="tab"
+            id="sales-tab-daily"
+            aria-selected={salesTab === 'daily'}
+            aria-controls="sales-panel-daily"
+            onClick={() => setSalesTab('daily')}
+          >
+            Отчёт за день
+          </button>
+          <button
+            type="button"
+            className="tab"
+            role="tab"
+            id="sales-tab-stats"
+            aria-selected={salesTab === 'stats'}
+            aria-controls="sales-panel-stats"
+            onClick={() => setSalesTab('stats')}
+          >
+            Статистика
+          </button>
+          {showFinanceTab ? (
+            <button
+              type="button"
+              className="tab"
+              role="tab"
+              id="sales-tab-finance"
+              aria-selected={salesTab === 'finance'}
+              aria-controls="sales-panel-finance"
+              onClick={() => setSalesTab('finance')}
+            >
+              Финансы клуба
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {salesTab === 'daily' ? (
         <div id="sales-panel-daily" role="tabpanel" aria-labelledby="sales-tab-daily">

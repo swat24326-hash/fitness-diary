@@ -3,12 +3,14 @@ import { useSearchParams } from 'react-router-dom'
 import { AdminOrganization } from './AdminOrganization'
 import { AdminExercises } from './AdminExercises'
 import { AdminMembershipTypes } from './AdminMembershipTypes'
+import { AdminSalesManagers } from './AdminSalesManagers'
 
-const TAB_IDS = ['clubs', 'trainers', 'membership-types', 'exercises']
+const TAB_IDS = ['clubs', 'trainers', 'sales-managers', 'membership-types', 'exercises']
 
 const TABS = [
   { id: 'clubs', label: 'Клубы' },
   { id: 'trainers', label: 'Тренеры' },
+  { id: 'sales-managers', label: 'Менеджеры' },
   { id: 'membership-types', label: 'Типы абон.' },
   { id: 'exercises', label: 'Упражнения' },
 ]
@@ -73,6 +75,15 @@ export function AdminStructure() {
           className="admin-structure__panel"
         >
           {tab === 'trainers' ? <AdminOrganization mode="trainers" /> : null}
+        </div>
+        <div
+          id="admin-structure-panel-sales-managers"
+          role="tabpanel"
+          aria-labelledby="admin-structure-tab-sales-managers"
+          hidden={tab !== 'sales-managers'}
+          className="admin-structure__panel"
+        >
+          {tab === 'sales-managers' ? <AdminSalesManagers /> : null}
         </div>
         <div
           id="admin-structure-panel-membership-types"

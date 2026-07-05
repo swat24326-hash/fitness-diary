@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { isSalesManagerRole } from '../../src/lib/admin/salesAccessCore.js'
 
 export function readEnv() {
   const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').replace(/\/$/, '')
@@ -21,6 +22,7 @@ export function setCors(res, methods = 'GET, POST, OPTIONS') {
 
 const ADMIN_ROLES = new Set(['admin', 'администратор'])
 const TRAINER_ROLES = new Set(['trainer', 'тренер'])
+const SALES_MANAGER_ROLES = new Set(['sales_manager', 'менеджер по продажам'])
 
 function normalizeRole(role) {
   return String(role ?? '').trim().toLowerCase()
@@ -35,8 +37,12 @@ function isTrainerRole(roleNorm) {
   return TRAINER_ROLES.has(roleNorm)
 }
 
+function isSalesManagerRoleNorm(roleNorm) {
+  return SALES_MANAGER_ROLES.has(roleNorm) || isSalesManagerRole(roleNorm)
+}
+
 /**
- * @returns {Promise<{ supabaseAdmin: import('@supabase/supabase-js').SupabaseClient, user: object, profile: object | null, roleNorm: string, isAdmin: boolean, isTrainer: boolean } | null>}
+ * @returns {Promise<{ supabaseAdmin: import('@supabase/supabase-js').SupabaseClient, user: object, profile: object | null, roleNorm: string, isAdmin: boolean, isTrainer: boolean, isSalesManager: boolean } | null>}
  */
 export async function requireAuthUser(req, res) {
   const { url, serviceKey, anonKey } = readEnv()
@@ -73,19 +79,21 @@ export async function requireAuthUser(req, res) {
     .trim()
     .toLowerCase()
   let profile = (
-    await supabaseAdmin.from('users').select('role, email').eq('id', user.id).maybeSingle()
+    await supabaseAdmin.from('users').select('role, email, club_id, name').eq('id', user.id).maybeSingle()
   ).data
   if (!profile?.role && callerEmail) {
     profile = (
-      await supabaseAdmin.from('users').select('role, email').ilike('email', callerEmail).maybeSingle()
+      await supabaseAdmin.from('users').select('role, email, club_id, name').ilike('email', callerEmail).maybeSingle()
     ).data
   }
   const roleNorm = normalizeRole(profile?.role)
   const isAdmin = isAdminRole(roleNorm, callerEmail)
+  const isSalesManager = isSalesManagerRoleNorm(roleNorm)
   /** Пустая role у не-админа — типичный тренер (в Table Editor не заполнили). */
-  const isTrainer = isTrainerRole(roleNorm) || (!isAdmin && !!profile && !roleNorm)
+  const isTrainer =
+    isTrainerRole(roleNorm) || (!isAdmin && !isSalesManager && !!profile && !roleNorm)
 
-  return { supabaseAdmin, user, profile, roleNorm, isAdmin, isTrainer }
+  return { supabaseAdmin, user, profile, roleNorm, isAdmin, isTrainer, isSalesManager }
 }
 
 /** Доступ к list-trainers и trainer-pull: админ или тренер (в т.ч. без role в users). */
@@ -93,6 +101,30 @@ export function canAccessTrainerOrAdminApis(ctx) {
   if (!ctx) return false
   if (ctx.isAdmin || ctx.isTrainer) return true
   return false
+}
+
+/** @returns {Promise<(typeof ctx & { isSalesManager?: boolean, salesClubId?: string }) | null>} */
+export async function requireAdminOrSalesManager(req, res, clubId) {
+  const ctx = await requireAuthUser(req, res)
+  if (!ctx) return null
+  if (ctx.isAdmin) {
+    return { ...ctx, isSalesManager: false }
+  }
+  if (!ctx.isSalesManager) {
+    sendJson(res, 403, { error: 'Нет доступа' })
+    return null
+  }
+  const profileClub = String(ctx.profile?.club_id ?? '').trim()
+  const requested = String(clubId ?? '').trim()
+  if (!profileClub) {
+    sendJson(res, 403, { error: 'У менеджера не задан club_id — обратитесь к администратору' })
+    return null
+  }
+  if (requested && requested !== profileClub) {
+    sendJson(res, 403, { error: 'Нет доступа к этому клубу' })
+    return null
+  }
+  return { ...ctx, isSalesManager: true, salesClubId: profileClub }
 }
 
 /** @returns {Promise<{ supabaseAdmin: import('@supabase/supabase-js').SupabaseClient, user: object } | null>} */

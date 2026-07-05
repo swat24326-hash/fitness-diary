@@ -4,3 +4,4 @@
  */
 export const USERS_TRAINER_ROLES = ['trainer', 'тренер']
 export const USERS_ADMIN_ROLES = ['admin', 'администратор']
+export const USERS_SALES_MANAGER_ROLES = ['sales_manager', 'менеджер по продажам']
