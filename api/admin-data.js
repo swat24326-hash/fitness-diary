@@ -480,7 +480,7 @@ async function handleSalesGet(ctx, req, res) {
       .maybeSingle(),
     supabaseAdmin
       .from('club_sales_daily')
-      .select('report_date, profit_nk, profit_dk, profit_uk, profit_day, trainings_count, trainings_matrix')
+      .select('report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix')
       .eq('club_id', clubId)
       .gte('report_date', start)
       .lte('report_date', end)

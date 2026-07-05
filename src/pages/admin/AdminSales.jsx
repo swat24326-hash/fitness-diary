@@ -338,15 +338,13 @@ export function AdminSales() {
   return (
     <div className={`sales-report${busy ? ' sales-report__busy' : ''}`}>
       <div className="sales-report__hero">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
+        <div className="sales-report__hero-head">
           <div>
-            <h1 className="section-title" style={{ margin: 0 }}>
-              Продажи
-            </h1>
+            <h1 className="section-title sales-report__page-title">Продажи</h1>
             <p className="sales-report__month-label muted">{monthLabel}</p>
           </div>
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => void loadBundle()} disabled={busy}>
-            <RefreshCw size={16} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
+            <RefreshCw size={16} aria-hidden className="sales-report__btn-icon" />
             Обновить
           </button>
         </div>
@@ -437,6 +435,8 @@ export function AdminSales() {
             month={yearMonth.month}
             monthRows={monthDays}
             planLevels={planLevels}
+            membershipTypes={membershipTypes}
+            trainers={trainers}
             onPrevMonth={() => shiftReportMonth(-1)}
             onNextMonth={() => shiftReportMonth(1)}
             onOpenDay={openDayReport}

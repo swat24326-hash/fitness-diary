@@ -2,6 +2,11 @@
 
 import { sumMatrixTotalsFromDailyRows } from './geminiAnalyticsSnapshot.js'
 import {
+  matrixRowsToMembershipStats,
+  normalizeMatrixRowsFromDb,
+  sumTypedMatrixRows,
+} from './salesTrainingsMatrix.js'
+import {
   aggregateMonthFromDailyRows,
   computeProfitDay,
   monthDateRange,
@@ -73,6 +78,53 @@ export function buildDailyProfitSeries(rows, year, month) {
   return series
 }
 
+/**
+ * @param {Array<Record<string, unknown>>} rows
+ * @param {number} year
+ * @param {number} month 1–12
+ * @param {'pnk_total' | 'trainings_count'} field
+ */
+export function buildDailyCountSeries(rows, year, month, field) {
+  const y = Number(year)
+  const m = Number(month)
+  const lastDay = new Date(y, m, 0).getDate()
+  /** @type {Map<string, number>} */
+  const byDate = new Map()
+  for (const r of rows ?? []) {
+    const iso = String(r.report_date ?? '').slice(0, 10)
+    if (!iso) continue
+    byDate.set(iso, Math.trunc(Number(r[field]) || 0))
+  }
+
+  /** @type {Array<{ date: string, value: number | null, hasReport: boolean }>} */
+  const series = []
+  for (let day = 1; day <= lastDay; day += 1) {
+    const iso = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    const hasReport = byDate.has(iso)
+    series.push({
+      date: iso,
+      value: hasReport ? byDate.get(iso) : null,
+      hasReport,
+    })
+  }
+  return series
+}
+
+/** @param {Array<Record<string, unknown>>} rows */
+export function mergeTrainingsMatrixFromDailyRows(rows) {
+  const merged = []
+  for (const r of rows ?? []) {
+    merged.push(...normalizeMatrixRowsFromDb(r.trainings_matrix))
+  }
+  return merged
+}
+
+/** @param {Array<Record<string, unknown>>} rows @param {Array<{ id: string, code?: string }>} membershipTypes */
+export function aggregateTrainingsByMembershipTypes(rows, membershipTypes) {
+  const matrixRows = mergeTrainingsMatrixFromDailyRows(rows)
+  return matrixRowsToMembershipStats(matrixRows, membershipTypes)
+}
+
 /** @param {Array<Record<string, unknown>>} rows */
 export function buildSalesDayTableRows(rows) {
   return [...(rows ?? [])]
@@ -100,6 +152,7 @@ export function buildSalesDayTableRows(rows) {
  * @param {{
  *   monthRows?: Array<Record<string, unknown>>,
  *   planLevels?: { level1?: number, level2?: number, level3?: number },
+ *   membershipTypes?: Array<{ id: string, code?: string }>,
  *   year: number,
  *   month: number,
  * }} opts
@@ -128,6 +181,17 @@ export function buildSalesManagerMonthStats(opts) {
   const dailySeries = buildDailyProfitSeries(monthRows, year, month)
   const reportedProfits = dailySeries.filter((d) => d.profit != null).map((d) => d.profit)
   const maxDayProfit = reportedProfits.length ? Math.max(...reportedProfits) : 0
+
+  const dailyPnkSeries = buildDailyCountSeries(monthRows, year, month, 'pnk_total')
+  const reportedPnk = dailyPnkSeries.filter((d) => d.value != null).map((d) => d.value)
+  const maxDayPnk = reportedPnk.length ? Math.max(...reportedPnk) : 0
+
+  const dailyTrainingsSeries = buildDailyCountSeries(monthRows, year, month, 'trainings_count')
+  const reportedTrainings = dailyTrainingsSeries.filter((d) => d.value != null).map((d) => d.value)
+  const maxDayTrainings = reportedTrainings.length ? Math.max(...reportedTrainings) : 0
+
+  const trainingsStats = aggregateTrainingsByMembershipTypes(monthRows, opts.membershipTypes ?? [])
+  const trainingsTypedTotal = sumTypedMatrixRows(mergeTrainingsMatrixFromDailyRows(monthRows))
 
   const profitTotal = summary.profitTotal || 0
   const structure = [
@@ -161,6 +225,12 @@ export function buildSalesManagerMonthStats(opts) {
     matrixByHall: sumMatrixTotalsFromDailyRows(monthRows),
     dailySeries,
     maxDayProfit,
+    dailyPnkSeries,
+    maxDayPnk,
+    dailyTrainingsSeries,
+    maxDayTrainings,
+    trainingsStats,
+    trainingsTypedTotal,
     dayTable: buildSalesDayTableRows(monthRows),
   }
 }

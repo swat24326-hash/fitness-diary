@@ -29,7 +29,7 @@ const SALES_DAILY_SELECT_BASE =
   'id, club_id, report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, updated_at'
 
 const MONTH_DAILY_SELECT =
-  'report_date, profit_nk, profit_dk, profit_uk, profit_day, trainings_count, trainings_matrix'
+  'report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix'
 
 const MIGRATION_HINT =
   'Таблицы продаж (club_sales) не найдены в Supabase — выполните миграцию supabase/migrations/20260624120000_club_sales.sql в SQL Editor.'

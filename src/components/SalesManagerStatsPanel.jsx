@@ -2,6 +2,9 @@ import { useMemo } from 'react'
 import { BarChart3, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { buildSalesManagerMonthStats } from '../lib/admin/salesManagerStatsAgg.js'
 import { formatRub, SALES_MATRIX_COLS, SALES_MATRIX_ROWS } from '../lib/admin/salesReportCore.js'
+import { SALES_TRAINING_CLUB_ID } from '../lib/admin/salesTrainingsMatrix.js'
+import { MembershipTypeStatsTable } from './MembershipTypeStatsTable.jsx'
+import { SalesDayBarChart } from './SalesDayBarChart.jsx'
 import { SalesProfitDayChart } from './SalesProfitDayChart.jsx'
 
 /**
@@ -11,6 +14,8 @@ import { SalesProfitDayChart } from './SalesProfitDayChart.jsx'
  *   month: number,
  *   monthRows: Array<Record<string, unknown>>,
  *   planLevels: { level1?: number, level2?: number, level3?: number },
+ *   membershipTypes?: Array<{ id: string, code?: string }>,
+ *   trainers?: Array<{ id: string, full_name?: string, name?: string }>,
  *   onPrevMonth: () => void,
  *   onNextMonth: () => void,
  *   onOpenDay: (iso: string) => void,
@@ -22,22 +27,48 @@ export function SalesManagerStatsPanel({
   month,
   monthRows,
   planLevels,
+  membershipTypes = [],
+  trainers = [],
   onPrevMonth,
   onNextMonth,
   onOpenDay,
 }) {
+  const trainerLabel = useMemo(() => {
+    const byId = new Map(
+      (trainers ?? []).map((t) => [String(t.id ?? ''), String(t.full_name ?? t.name ?? '').trim() || '—']),
+    )
+    return (id) => {
+      if (id === SALES_TRAINING_CLUB_ID) return 'По клубу'
+      return byId.get(String(id ?? '')) ?? (id || '—')
+    }
+  }, [trainers])
+
   const stats = useMemo(
     () =>
       buildSalesManagerMonthStats({
         monthRows,
         planLevels,
+        membershipTypes,
         year,
         month,
       }),
-    [monthRows, planLevels, year, month],
+    [monthRows, planLevels, membershipTypes, year, month],
   )
 
-  const { summary, plan, structure, matrix3x3, dailySeries, maxDayProfit, dayTable } = stats
+  const {
+    summary,
+    plan,
+    structure,
+    matrix3x3,
+    dailySeries,
+    dailyPnkSeries,
+    maxDayPnk,
+    dailyTrainingsSeries,
+    maxDayTrainings,
+    trainingsStats,
+    trainingsTypedTotal,
+    dayTable,
+  } = stats
 
   return (
     <section className="sales-report__stats" aria-labelledby="sales-stats-title">
@@ -75,10 +106,12 @@ export function SalesManagerStatsPanel({
           </span>
         </div>
         <div className="sales-report__kpi">
-          <span className="sales-report__kpi-label">Тренировок · ПНК</span>
-          <span className="sales-report__kpi-value">
-            {summary.trainingsTotal} · {summary.pnkTotal}
-          </span>
+          <span className="sales-report__kpi-label">ПНК за месяц</span>
+          <span className="sales-report__kpi-value">{summary.pnkTotal}</span>
+        </div>
+        <div className="sales-report__kpi">
+          <span className="sales-report__kpi-label">Тренировок</span>
+          <span className="sales-report__kpi-value">{summary.trainingsTotal}</span>
         </div>
       </div>
 
@@ -87,10 +120,47 @@ export function SalesManagerStatsPanel({
         <p className="muted sales-report__stats-block-note">
           Нажмите на день с отчётом — откроется вкладка «Отчёт за день».
         </p>
-        <SalesProfitDayChart
-          series={dailySeries}
-          maxProfit={maxDayProfit}
-          onDayClick={onOpenDay}
+        <SalesProfitDayChart series={dailySeries} onDayClick={onOpenDay} />
+      </div>
+
+      <div className="sales-report__stats-duo">
+        <div className="sales-report__card sales-report__stats-block">
+          <h3 className="sales-report__stats-block-title">ПНК по дням</h3>
+          <SalesDayBarChart
+            series={dailyPnkSeries}
+            maxValue={maxDayPnk}
+            onDayClick={onOpenDay}
+            formatValue={(n) => String(n)}
+            ariaLabel="ПНК по дням месяца"
+            barClassName="sales-report__profit-chart-bar--pnk"
+          />
+        </div>
+        <div className="sales-report__card sales-report__stats-block">
+          <h3 className="sales-report__stats-block-title">Тренировок по дням</h3>
+          <SalesDayBarChart
+            series={dailyTrainingsSeries}
+            maxValue={maxDayTrainings}
+            onDayClick={onOpenDay}
+            formatValue={(n) => String(n)}
+            ariaLabel="Тренировки по дням месяца"
+            barClassName="sales-report__profit-chart-bar--trainings"
+          />
+        </div>
+      </div>
+
+      <div className="sales-report__card sales-report__stats-block">
+        <h3 className="sales-report__stats-block-title">Тренировки по типам карт</h3>
+        <p className="muted sales-report__stats-block-note">
+          Сумма из ежедневных отчётов менеджера. Итого по типам: <strong>{trainingsTypedTotal}</strong>
+          {summary.trainingsTotal !== trainingsTypedTotal ? (
+            <span> · в отчётах указано {summary.trainingsTotal}</span>
+          ) : null}
+        </p>
+        <MembershipTypeStatsTable
+          byType={trainingsStats.byType}
+          byTrainerByType={trainingsStats.byTrainerByType}
+          trainerLabel={trainerLabel}
+          note="Сумма тренировок из сохранённых отчётов продаж. «Без типа» в итог по типам не входит."
         />
       </div>
 
@@ -116,7 +186,7 @@ export function SalesManagerStatsPanel({
       </div>
 
       <div className="sales-report__card sales-report__stats-block">
-        <h3 className="sales-report__stats-block-title">Матрица за месяц (шт.)</h3>
+        <h3 className="sales-report__stats-block-title">Матрица залов за месяц (шт.)</h3>
         <div className="sales-report__matrix-scroll">
           <table className="sales-report__matrix sales-report__stats-matrix">
             <thead>

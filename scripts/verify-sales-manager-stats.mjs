@@ -1,6 +1,8 @@
 import {
   buildSalesManagerMonthStats,
   buildDailyProfitSeries,
+  buildDailyCountSeries,
+  aggregateTrainingsByMembershipTypes,
   sumMatrix3x3FromDailyRows,
 } from '../src/lib/admin/salesManagerStatsAgg.js'
 
@@ -23,6 +25,7 @@ const rows = [
     profit_day: 160000,
     pnk_total: 3,
     trainings_count: 12,
+    trainings_matrix: [{ trainer_id: '__club__', membership_type_id: 't1', count: 5 }],
     pz_nk: 2,
     tz_nk: 1,
     az_nk: 0,
@@ -70,6 +73,12 @@ ok(stats.dailySeries[0].profit === 160000, 'day 1 profit')
 ok(stats.dailySeries[1].profit === null && !stats.dailySeries[1].hasReport, 'day 2 empty')
 ok(stats.dayTable.length === 2, 'day table rows')
 ok(sumMatrix3x3FromDailyRows(rows).pz_nk === 3, 'matrix cell sum')
+
+const pnkSeries = buildDailyCountSeries(rows, 2026, 6, 'pnk_total')
+ok(pnkSeries[0].value === 3, 'pnk day 1 from month rows')
+
+const trainingsAgg = aggregateTrainingsByMembershipTypes(rows, [{ id: 't1', code: 'NK' }])
+ok(trainingsAgg.byType.some((x) => x.count === 5), 'trainings by type from matrix')
 
 const series = buildDailyProfitSeries(rows, 2026, 6)
 ok(series.filter((d) => d.hasReport).length === 2, 'series reported count')
