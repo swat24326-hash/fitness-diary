@@ -1,6 +1,11 @@
 import { useMemo } from 'react'
 import { Save } from 'lucide-react'
-import { evaluatePlanDirectionsForm, formatRub } from '../lib/admin/salesReportCore.js'
+import {
+  evaluatePlanDirectionsForm,
+  formatRub,
+  parseSalesMoney,
+} from '../lib/admin/salesReportCore.js'
+import { SalesPlanLevelsSummary } from './SalesPlanLevelsSummary.jsx'
 
 const DIRECTION_FIELDS = [
   { key: 'plan_pz', label: 'ПЗ', hint: 'персональный зал' },
@@ -22,6 +27,15 @@ export function SalesPlanDirectionsForm({ planForm, onPlanChange, onSave, saving
   const directions = useMemo(() => evaluatePlanDirectionsForm(planForm), [planForm])
   const { finalTarget, directionSum, noFinal, directionsMismatch, exactMatch, canSave } = directions
 
+  const planLevels = useMemo(
+    () => ({
+      level1: parseSalesMoney(planForm.plan_level_1),
+      level2: parseSalesMoney(planForm.plan_level_2),
+      level3: parseSalesMoney(planForm.plan_level_3),
+    }),
+    [planForm],
+  )
+
   return (
     <section
       className="sales-report__card sales-report__plan-card"
@@ -31,20 +45,17 @@ export function SalesPlanDirectionsForm({ planForm, onPlanChange, onSave, saving
       <h2 className="sales-report__section-title" id="sales-plan-directions-title" style={{ fontSize: '1rem' }}>
         План по направлениям
       </h2>
-      <p className="muted sales-report__plan-card-note">
-        Менеджер раскидывает <strong>финальный план</strong> (уровень 3) по залам: ПЗ + ТЗ + АЗ. Сумма должна{' '}
-        <strong>ровно</strong> совпадать с финалом — ни больше, ни меньше.
-      </p>
+      <SalesPlanLevelsSummary
+        level1={planLevels.level1}
+        level2={planLevels.level2}
+        level3={planLevels.level3}
+      />
       {noFinal ? (
         <p className="sales-report__plan-sum-hint sales-report__plan-sum-hint--warn" role="status">
-          Финал (ур. 3) ещё не задан — управляющий заполняет уровни во вкладке «Финансы клуба».
+          План 3 не задан — управляющий заполняет уровни во вкладке «Финансы клуба».
         </p>
-      ) : (
-        <p className="muted sales-report__plan-card-note" role="status">
-          Финал (ур. 3): <strong>{formatRub(finalTarget)}</strong>
-        </p>
-      )}
-      <div className="sales-report__plan-row">
+      ) : null}
+      <div className="sales-report__plan-row" style={{ marginTop: '0.85rem' }}>
         {DIRECTION_FIELDS.map(({ key, label, hint }) => (
           <div className="sales-report__metric" key={key}>
             <label htmlFor={key}>
@@ -69,8 +80,8 @@ export function SalesPlanDirectionsForm({ planForm, onPlanChange, onSave, saving
         role="status"
       >
         Сумма направлений: {directionSum > 0 ? formatRub(directionSum) : '—'}
-        {finalTarget > 0 ? ` · финал ${formatRub(finalTarget)}` : ''}
-        {directionsMismatch ? ' · не совпадает с финалом' : ''}
+        {finalTarget > 0 && !exactMatch ? ` · нужно ${formatRub(finalTarget)}` : ''}
+        {directionsMismatch ? ' · не совпадает' : ''}
         {exactMatch ? ' · совпадает' : ''}
       </p>
       <div className="sales-report__actions" style={{ marginTop: '1rem' }}>

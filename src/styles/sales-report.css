@@ -35,15 +35,20 @@
 }
 
 .sales-report__plan-chart {
-  max-width: min(440px, 100%);
+  max-width: min(560px, 100%);
   margin: 0 auto;
+  gap: 0.65rem;
+}
+
+.sales-report__plan-track-wrap {
+  width: 100%;
 }
 
 /* —— График плана с анимацией —— */
 .sales-report__plan-track {
   position: relative;
   width: 100%;
-  height: 16px;
+  height: 18px;
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.85);
   border: 1px solid rgba(148, 163, 184, 0.22);
@@ -156,10 +161,27 @@
   align-items: baseline;
   flex-wrap: wrap;
   gap: 0.35rem;
-  margin: 0.85rem 0 0;
+  margin: 0;
   font-size: clamp(1.15rem, 3.2vw, 1.45rem);
   font-weight: 700;
   line-height: 1.2;
+}
+
+.sales-report__plan-stats {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  width: 100%;
+  margin-top: 0.15rem;
+}
+
+.sales-report__plan-stats-label {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .sales-report__plan-fact {
@@ -671,7 +693,48 @@
 }
 
 .sales-report__plan-track--milestones {
-  margin-bottom: 2.25rem;
+  margin-bottom: 0;
+}
+
+.sales-report__plan-milestone-ruler {
+  position: relative;
+  height: 1.35rem;
+  margin-top: 0.4rem;
+  width: 100%;
+}
+
+.sales-report__plan-milestone-tag {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  width: 1.2rem;
+  height: 1.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #94a3b8;
+  background: rgba(15, 23, 42, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.sales-report__plan-milestone-tag.is-reached {
+  color: #78350f;
+  background: #fbbf24;
+  border-color: #fbbf24;
+}
+
+.sales-report__plan-milestone-tag.is-final {
+  border-color: rgba(250, 204, 21, 0.55);
+}
+
+.sales-report__plan-milestone-tag.is-final.is-reached {
+  background: #fde047;
+  box-shadow: 0 0 10px rgba(253, 224, 71, 0.35);
 }
 
 .sales-report__plan-milestone {
@@ -703,6 +766,81 @@
 .sales-report__plan-milestone--final.sales-report__plan-milestone--reached {
   background: #fde047;
   box-shadow: 0 0 14px rgba(253, 224, 71, 0.55);
+}
+
+.sales-report__plan-levels-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  width: 100%;
+  margin-top: 0.35rem;
+}
+
+.sales-report__plan-level-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  min-height: 3.25rem;
+  padding: 0.5rem 0.35rem;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  text-align: center;
+}
+
+.sales-report__plan-level-chip.is-reached {
+  border-color: rgba(251, 191, 36, 0.45);
+  background: rgba(251, 191, 36, 0.07);
+}
+
+.sales-report__plan-level-chip.is-final {
+  border-color: rgba(250, 204, 21, 0.28);
+  background: rgba(250, 204, 21, 0.04);
+}
+
+.sales-report__plan-level-chip.is-final.is-reached {
+  border-color: rgba(253, 224, 71, 0.55);
+  background: rgba(253, 224, 71, 0.1);
+  box-shadow: 0 0 18px rgba(253, 224, 71, 0.12);
+}
+
+.sales-report__plan-level-chip-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted, #94a3b8);
+}
+
+.sales-report__plan-level-chip-value {
+  font-size: clamp(0.72rem, 2vw, 0.88rem);
+  font-weight: 700;
+  line-height: 1.25;
+  color: #e2e8f0;
+  word-break: break-word;
+}
+
+.sales-report__plan-level-chip.is-reached .sales-report__plan-level-chip-value {
+  color: #fde68a;
+}
+
+.sales-report__plan-level-chip.is-final .sales-report__plan-level-chip-label {
+  color: rgba(253, 224, 71, 0.85);
+}
+
+@media (max-width: 420px) {
+  .sales-report__plan-levels-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sales-report__plan-level-chip {
+    flex-direction: row;
+    justify-content: space-between;
+    min-height: auto;
+    padding: 0.55rem 0.75rem;
+  }
 }
 
 .sales-report__plan-milestone-labels {
