@@ -144,8 +144,17 @@ ok(agg.dayCount === 2, 'month days')
 
 
 
-const planOk = planFormToPayload({ plan_total: '2 000 000', plan_pz: '0', plan_tz: '0', plan_az: '0' })
-
+const planOk = planFormToPayload(
+  {
+    plan_level_1: '1 000 000',
+    plan_level_2: '1 500 000',
+    plan_level_3: '2 000 000',
+    plan_pz: '0',
+    plan_tz: '0',
+    plan_az: '0',
+  },
+  { scope: 'levels' },
+)
 ok(planOk.ok && planOk.payload.plan_total === 2000000, 'plan parse')
 
 

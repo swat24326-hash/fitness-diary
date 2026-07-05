@@ -1,12 +1,13 @@
 /**
  * Автопроверка для агента/CI: build, форматы упражнений, lint, prod smoke.
- * node scripts/agent-qa.mjs [--skip-prod] [--skip-lint]
+ * node scripts/agent-qa.mjs [--skip-prod] [--skip-prod-roles] [--skip-lint]
  */
 import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 
 const ORIGIN = process.env.QA_ORIGIN ?? 'https://fitness-diary-bice.vercel.app'
 const skipProd = process.argv.includes('--skip-prod')
+const skipProdRoles = process.argv.includes('--skip-prod-roles')
 const skipLint = process.argv.includes('--skip-lint')
 
 let failed = 0
@@ -97,6 +98,10 @@ if (!skipProd) {
     if (cssM) {
       const css = await fetch(`${ORIGIN}/assets/${cssM[1]}`).then((r) => r.text())
       check(css.includes('app-header__stopwatch'), 'prod bundle has header stopwatch styles')
+    }
+
+    if (!skipProdRoles) {
+      run('prod roles API', 'node', ['scripts/qa-roles-prod.mjs'])
     }
   } catch (e) {
     console.error('✗ prod smoke:', e.message)
