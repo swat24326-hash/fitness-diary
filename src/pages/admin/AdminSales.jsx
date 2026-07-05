@@ -29,6 +29,7 @@ import {
 import { SalesPlanVessel } from '../../components/SalesPlanVessel'
 import { SalesDailyForm } from '../../components/SalesDailyForm'
 import { SalesFinancePanel } from '../../components/SalesFinancePanel'
+import { SalesPlanDirectionsForm } from '../../components/SalesPlanDirectionsForm'
 import '../../styles/sales-report.css'
 
 const MONTH_NAMES = [
@@ -200,7 +201,7 @@ export function AdminSales() {
     }
   }
 
-  const handleSavePlan = async () => {
+  const handleSavePlanLevels = async () => {
     if (!clubId) return
     setSavingPlan(true)
     setError('')
@@ -210,6 +211,7 @@ export function AdminSales() {
         year: yearMonth.year,
         month: yearMonth.month,
         form: planForm,
+        scope: 'levels',
       })
       if (!plan) {
         setError('API продаж недоступен')
@@ -217,7 +219,33 @@ export function AdminSales() {
       }
       setPlanForm(planRowToForm(plan))
       await loadBundle()
-      showToast('План сохранён')
+      showToast('Уровни плана сохранены')
+    } catch (e) {
+      setError(e?.message ?? 'Ошибка сохранения уровней')
+    } finally {
+      setSavingPlan(false)
+    }
+  }
+
+  const handleSavePlanDirections = async () => {
+    if (!clubId) return
+    setSavingPlan(true)
+    setError('')
+    try {
+      const plan = await saveClubSalesPlan({
+        clubId,
+        year: yearMonth.year,
+        month: yearMonth.month,
+        form: planForm,
+        scope: 'directions',
+      })
+      if (!plan) {
+        setError('API продаж недоступен')
+        return
+      }
+      setPlanForm(planRowToForm(plan))
+      await loadBundle()
+      showToast('План по направлениям сохранён')
     } catch (e) {
       setError(e?.message ?? 'Ошибка сохранения плана')
     } finally {
@@ -329,6 +357,12 @@ export function AdminSales() {
 
       {salesTab === 'daily' ? (
         <div id="sales-panel-daily" role="tabpanel" aria-labelledby="sales-tab-daily">
+          <SalesPlanDirectionsForm
+            planForm={planForm}
+            onPlanChange={setPlanForm}
+            onSave={() => void handleSavePlanDirections()}
+            saving={savingPlan}
+          />
           <SalesDailyForm
             reportDate={reportDate}
             dateLabel={formatDateRu(reportDate)}
@@ -358,7 +392,7 @@ export function AdminSales() {
             expenseForm={expenseForm}
             onExpenseChange={setExpenseForm}
             monthSummary={monthSummary}
-            onSavePlan={() => void handleSavePlan()}
+            onSavePlan={() => void handleSavePlanLevels()}
             onSaveFinance={() => void handleSaveFinance()}
             savingPlan={savingPlan}
             savingFinance={savingFinance}

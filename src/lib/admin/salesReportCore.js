@@ -775,7 +775,38 @@ export function resolveAchievedPlanLevel(fact, levels) {
 }
 
 /** @param {Record<string, string>} form */
-export function planFormToPayload(form) {
+export function evaluatePlanDirectionsForm(form) {
+  const plan_level_3 = parseSalesMoney(form.plan_level_3)
+  const plan_pz = parseSalesMoney(form.plan_pz)
+  const plan_tz = parseSalesMoney(form.plan_tz)
+  const plan_az = parseSalesMoney(form.plan_az)
+  const invalid =
+    [plan_level_3, plan_pz, plan_tz, plan_az].some((n) => Number.isNaN(n)) ||
+    [plan_pz, plan_tz, plan_az].some((n) => n < 0)
+  const finalTarget = Number.isNaN(plan_level_3) ? 0 : Math.round(plan_level_3 * 100) / 100
+  const directionSum = Number.isNaN(plan_pz + plan_tz + plan_az)
+    ? 0
+    : Math.round((plan_pz + plan_tz + plan_az) * 100) / 100
+  const noFinal = finalTarget <= 0
+  const exactMatch = !noFinal && Math.abs(directionSum - finalTarget) <= 0.009
+  const directionsMismatch = !noFinal && directionSum > 0 && !exactMatch
+  return {
+    invalid,
+    finalTarget,
+    directionSum,
+    noFinal,
+    exactMatch,
+    directionsMismatch,
+    canSave: !invalid && !noFinal && exactMatch && directionSum > 0,
+  }
+}
+
+/**
+ * @param {Record<string, string>} form
+ * @param {{ scope?: 'all' | 'levels' | 'directions' }} [opts]
+ */
+export function planFormToPayload(form, opts = {}) {
+  const scope = opts.scope ?? 'all'
   const plan_level_1 = parseSalesMoney(form.plan_level_1)
   const plan_level_2 = parseSalesMoney(form.plan_level_2)
   const plan_level_3 = parseSalesMoney(form.plan_level_3)
@@ -787,23 +818,41 @@ export function planFormToPayload(form) {
     return { ok: false, error: 'План: неотрицательные суммы' }
   }
 
-  if (plan_level_1 > 0 && plan_level_2 > 0 && plan_level_2 + 0.009 < plan_level_1) {
-    return { ok: false, error: 'Уровень 2 не может быть ниже уровня 1' }
-  }
-  if (plan_level_2 > 0 && plan_level_3 > 0 && plan_level_3 + 0.009 < plan_level_2) {
-    return { ok: false, error: 'Уровень 3 (финал) не может быть ниже уровня 2' }
-  }
-  if (plan_level_1 > 0 && plan_level_3 > 0 && plan_level_2 <= 0 && plan_level_3 + 0.009 < plan_level_1) {
-    return { ok: false, error: 'Уровень 3 не может быть ниже уровня 1' }
+  if (scope === 'levels' || scope === 'all') {
+    if (plan_level_1 > 0 && plan_level_2 > 0 && plan_level_2 + 0.009 < plan_level_1) {
+      return { ok: false, error: 'Уровень 2 не может быть ниже уровня 1' }
+    }
+    if (plan_level_2 > 0 && plan_level_3 > 0 && plan_level_3 + 0.009 < plan_level_2) {
+      return { ok: false, error: 'Уровень 3 (финал) не может быть ниже уровня 2' }
+    }
+    if (plan_level_1 > 0 && plan_level_3 > 0 && plan_level_2 <= 0 && plan_level_3 + 0.009 < plan_level_1) {
+      return { ok: false, error: 'Уровень 3 не может быть ниже уровня 1' }
+    }
   }
 
   const plan_total = plan_level_3 > 0 ? plan_level_3 : Math.max(plan_level_1, plan_level_2, 0)
   const directionSum = Math.round((plan_pz + plan_tz + plan_az) * 100) / 100
 
-  if (plan_total > 0 && directionSum > 0 && Math.abs(directionSum - plan_total) > 0.009) {
+  if (scope === 'directions') {
+    if (plan_level_3 <= 0) {
+      return {
+        ok: false,
+        error: 'Сначала управляющий задаёт уровень 3 (финал) во вкладке «Финансы клуба»',
+      }
+    }
+    if (directionSum <= 0) {
+      return { ok: false, error: 'Распределите план по залам ПЗ, ТЗ и АЗ' }
+    }
+    if (Math.abs(directionSum - plan_level_3) > 0.009) {
+      return {
+        ok: false,
+        error: `Сумма направлений (${formatRub(directionSum)}) должна быть ровно ${formatRub(plan_level_3)} — финал уровня 3`,
+      }
+    }
+  } else if (scope === 'all' && plan_total > 0 && directionSum > 0 && Math.abs(directionSum - plan_total) > 0.009) {
     return {
       ok: false,
-      error: `План по направлениям (${directionSum} ₽) должен совпадать с уровнем 3 — финалом (${plan_total} ₽)`,
+      error: `План по направлениям (${formatRub(directionSum)}) должен совпадать с уровнем 3 — финалом (${formatRub(plan_total)})`,
     }
   }
 

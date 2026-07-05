@@ -784,6 +784,10 @@
   color: #fbbf24;
 }
 
+.sales-report__plan-sum-hint--ok {
+  color: var(--accent-bright, #4ade80);
+}
+
 .sales-report__plan-levels {
   display: grid;
   gap: 0.55rem;

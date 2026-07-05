@@ -614,7 +614,9 @@ async function handleSalesPlanPost(ctx, req, res, body) {
     sendJson(res, 400, { error: 'Укажите club_id, year, month' })
     return
   }
-  const parsed = planFormToPayload(body?.form ?? body)
+  const scope =
+    body?.scope === 'levels' || body?.scope === 'directions' ? body.scope : 'all'
+  const parsed = planFormToPayload(body?.form ?? body, { scope })
   if (!parsed.ok) {
     sendJson(res, 400, { error: parsed.error })
     return

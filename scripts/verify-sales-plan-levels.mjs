@@ -1,6 +1,7 @@
 import { buildPlanMilestoneVisual, buildPlanProgressVisual } from '../src/lib/admin/salesPlanProgress.js'
 import {
   planFormToPayload,
+  evaluatePlanDirectionsForm,
   resolveAchievedPlanLevel,
   resolvePlanFinalTarget,
   resolvePlanTotal,
@@ -42,6 +43,53 @@ const badOrder = planFormToPayload({
   plan_level_3: '1100000',
 })
 ok(badOrder.ok === false, 'reject level 2 below level 1')
+
+ok(
+  planFormToPayload(
+    {
+      plan_level_1: '1000000',
+      plan_level_2: '1100000',
+      plan_level_3: '1200000',
+      plan_pz: '500000',
+      plan_tz: '400000',
+      plan_az: '400000',
+    },
+    { scope: 'levels' },
+  ).ok === true,
+  'levels scope ignores direction mismatch',
+)
+
+const badDirections = planFormToPayload(
+  {
+    plan_level_3: '1200000',
+    plan_pz: '500000',
+    plan_tz: '400000',
+    plan_az: '400000',
+  },
+  { scope: 'directions' },
+)
+ok(badDirections.ok === false, 'directions scope rejects sum not equal level 3')
+
+const goodDirections = planFormToPayload(
+  {
+    plan_level_3: '1200000',
+    plan_pz: '400000',
+    plan_tz: '400000',
+    plan_az: '400000',
+  },
+  { scope: 'directions' },
+)
+ok(goodDirections.ok === true, 'directions scope accepts exact match')
+
+ok(
+  evaluatePlanDirectionsForm({
+    plan_level_3: '1200000',
+    plan_pz: '400000',
+    plan_tz: '400000',
+    plan_az: '400000',
+  }).canSave === true,
+  'evaluatePlanDirectionsForm canSave when exact',
+)
 
 const milestone = buildPlanMilestoneVisual(1_050_000, {
   level1: 1_000_000,

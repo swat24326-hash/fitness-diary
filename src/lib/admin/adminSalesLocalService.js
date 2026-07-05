@@ -363,8 +363,8 @@ export async function saveClubSalesDailyViaSupabase({
   return res.data
 }
 
-export async function saveClubSalesPlanViaSupabase({ clubId, year, month, form }) {
-  const parsed = planFormToPayload(form)
+export async function saveClubSalesPlanViaSupabase({ clubId, year, month, form, scope }) {
+  const parsed = planFormToPayload(form, { scope })
   if (!parsed.ok) throw new Error(parsed.error)
   const { data, error } = await withSupabaseRetry(() =>
     supabase

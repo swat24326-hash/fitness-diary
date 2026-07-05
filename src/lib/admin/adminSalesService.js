@@ -174,7 +174,7 @@ export async function saveClubSalesDaily({
 }
 
 /** POST /api/admin-data?action=sales-plan */
-export async function saveClubSalesPlan({ clubId, year, month, form }) {
+export async function saveClubSalesPlan({ clubId, year, month, form, scope }) {
   const token = await getAccessTokenForAdminApi()
   if (!token) throw new Error('Нет сессии администратора')
 
@@ -185,6 +185,7 @@ export async function saveClubSalesPlan({ clubId, year, month, form }) {
         year,
         month,
         form,
+        scope,
       })
       if (!routeMissing && data?.plan) return data.plan
     }
@@ -192,7 +193,7 @@ export async function saveClubSalesPlan({ clubId, year, month, form }) {
     if (!isApiTransportError(e)) throw e
   }
 
-  return saveClubSalesPlanViaSupabase({ clubId, year, month, form })
+  return saveClubSalesPlanViaSupabase({ clubId, year, month, form, scope })
 }
 
 /** POST /api/admin-data?action=sales-finance */

@@ -1,18 +1,5 @@
-import { useMemo } from 'react'
 import { Save, Wallet } from 'lucide-react'
-import {
-  PLAN_LEVEL_KEYS,
-  PLAN_LEVEL_LABELS,
-  formatRub,
-  resolvePlanFinalTarget,
-  sumPlanDirections,
-} from '../lib/admin/salesReportCore.js'
-
-const DIRECTION_FIELDS = [
-  { key: 'plan_pz', label: 'ПЗ', hint: 'персональный зал' },
-  { key: 'plan_tz', label: 'ТЗ', hint: 'тренажёрный зал' },
-  { key: 'plan_az', label: 'АЗ', hint: 'аэробный зал' },
-]
+import { PLAN_LEVEL_KEYS, PLAN_LEVEL_LABELS, formatRub } from '../lib/admin/salesReportCore.js'
 
 /**
  * @param {{
@@ -53,11 +40,6 @@ export function SalesFinancePanel({
   const setPlan = (key, value) => onPlanChange({ ...planForm, [key]: value })
   const setExpense = (value) => onExpenseChange({ expense_month: value })
 
-  const planFinal = useMemo(() => resolvePlanFinalTarget(planForm), [planForm])
-  const directionSum = useMemo(() => sumPlanDirections(planForm), [planForm])
-  const directionsMismatch =
-    planFinal > 0 && directionSum > 0 && Math.abs(directionSum - planFinal) > 0.009
-
   return (
     <section className="sales-report__finance" aria-labelledby="sales-finance-title">
       <h2 className="sales-report__section-title" id="sales-finance-title">
@@ -92,44 +74,10 @@ export function SalesFinancePanel({
             </div>
           ))}
         </div>
-      </div>
-
-      <div className="sales-report__card sales-report__plan-card" style={{ marginTop: '0.75rem' }}>
-        <h3 className="sales-report__section-title" style={{ fontSize: '1rem' }}>
-          План по направлениям
-        </h3>
-        <p className="muted sales-report__plan-card-note">
-          Менеджер раскидывает <strong>финальный план</strong> (уровень 3) по залам: ПЗ + ТЗ + АЗ.
-        </p>
-        <div className="sales-report__plan-row">
-          {DIRECTION_FIELDS.map(({ key, label, hint }) => (
-            <div className="sales-report__metric" key={key}>
-              <label htmlFor={key}>
-                {label} <span className="muted">({hint})</span>
-              </label>
-              <input
-                id={key}
-                type="text"
-                inputMode="decimal"
-                value={planForm[key] ?? ''}
-                onChange={(e) => setPlan(key, e.target.value)}
-                placeholder="0"
-              />
-            </div>
-          ))}
-        </div>
-        <p
-          className={`sales-report__plan-sum-hint${directionsMismatch ? ' sales-report__plan-sum-hint--warn' : ''}`}
-          role="status"
-        >
-          Сумма направлений: {directionSum > 0 ? formatRub(directionSum) : '—'}
-          {planFinal > 0 ? ` · финал (ур. 3) ${formatRub(planFinal)}` : ''}
-          {directionsMismatch ? ' · не совпадает с финалом' : ''}
-        </p>
         <div className="sales-report__actions" style={{ marginTop: '1rem' }}>
           <button type="button" className="btn btn-secondary" onClick={onSavePlan} disabled={savingPlan}>
             <Save size={16} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
-            {savingPlan ? 'Сохранение…' : 'Сохранить план'}
+            {savingPlan ? 'Сохранение…' : 'Сохранить уровни'}
           </button>
         </div>
       </div>
