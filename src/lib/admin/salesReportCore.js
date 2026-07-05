@@ -2,6 +2,18 @@
 
 import { inputMapToMatrixRows, sumMatrixRows } from './salesTrainingsMatrix.js'
 
+export const SALES_MATRIX_ROWS = [
+  { key: 'pz', label: 'ПЗ' },
+  { key: 'tz', label: 'ТЗ' },
+  { key: 'az', label: 'АЗ' },
+]
+
+export const SALES_MATRIX_COLS = [
+  { suffix: 'nk', label: 'НК' },
+  { suffix: 'dk', label: 'ДК' },
+  { suffix: 'uk', label: 'УК' },
+]
+
 export const SALES_MATRIX_KEYS = [
   'pz_nk',
   'pz_dk',
@@ -13,6 +25,90 @@ export const SALES_MATRIX_KEYS = [
   'az_dk',
   'az_uk',
 ]
+
+export const SALES_AVG_CHECK_KEYS = ['avg_check_nk', 'avg_check_dk', 'avg_check_uk']
+
+/** @param {Record<string, string>} form */
+export function salesMatrixColumnTotals(form) {
+  const totals = { nk: 0, dk: 0, uk: 0 }
+  for (const row of SALES_MATRIX_ROWS) {
+    for (const col of SALES_MATRIX_COLS) {
+      totals[col.suffix] += parseSalesCount(form[`${row.key}_${col.suffix}`]) || 0
+    }
+  }
+  return totals
+}
+
+/** @param {Record<string, string>} form @param {string} rowKey pz|tz|az */
+export function salesMatrixRowMembershipTotal(form, rowKey) {
+  let sum = 0
+  for (const col of SALES_MATRIX_COLS) {
+    sum += parseSalesCount(form[`${rowKey}_${col.suffix}`]) || 0
+  }
+  return sum
+}
+
+/** @param {Record<string, string>} form */
+export function salesMatrixAvgCheckByColumn(form) {
+  const result = { nk: null, dk: null, uk: null }
+  for (const col of SALES_MATRIX_COLS) {
+    const raw = form[`avg_check_${col.suffix}`]
+    if (raw == null || raw === '') continue
+    const avg = parseSalesMoney(raw)
+    if (Number.isNaN(avg)) continue
+    result[col.suffix] = avg
+  }
+  return result
+}
+
+/**
+ * Прибыль по категориям клиентов из матрицы × средний чек.
+ * @param {Record<string, string>} form
+ * @returns {{ ok: true, profit_nk: number, profit_dk: number, profit_uk: number, profit_day: number } | { ok: false, error: string }}
+ */
+export function computeProfitFromMatrix(form) {
+  const totals = salesMatrixColumnTotals(form)
+  const profit = { profit_nk: 0, profit_dk: 0, profit_uk: 0 }
+
+  for (const col of SALES_MATRIX_COLS) {
+    const avgRaw = form[`avg_check_${col.suffix}`]
+    const count = totals[col.suffix]
+    if (count <= 0) continue
+    if (avgRaw == null || avgRaw === '') {
+      return { ok: false, error: `Ср. чек ${col.label}: укажите сумму — продано ${count} абон.` }
+    }
+    const avg = parseSalesMoney(avgRaw)
+    if (Number.isNaN(avg)) {
+      return { ok: false, error: `Ср. чек ${col.label}: неотрицательная сумма` }
+    }
+    profit[`profit_${col.suffix}`] = Math.round(count * avg * 100) / 100
+  }
+
+  return {
+    ok: true,
+    ...profit,
+    profit_day: computeProfitDay(profit.profit_nk, profit.profit_dk, profit.profit_uk),
+  }
+}
+
+/**
+ * Средний чек по направлению (ПЗ/ТЗ/АЗ): взвешенное по НК/ДК/УК.
+ * @param {Record<string, string>} form
+ * @param {string} rowKey
+ */
+export function salesMatrixRowAvgCheck(form, rowKey) {
+  const rowSum = salesMatrixRowMembershipTotal(form, rowKey)
+  if (rowSum <= 0) return null
+  const avgs = salesMatrixAvgCheckByColumn(form)
+  let weighted = 0
+  for (const col of SALES_MATRIX_COLS) {
+    const count = parseSalesCount(form[`${rowKey}_${col.suffix}`]) || 0
+    const avg = avgs[col.suffix]
+    if (count > 0 && avg != null) weighted += count * avg
+  }
+  if (weighted <= 0) return null
+  return Math.round((weighted / rowSum) * 100) / 100
+}
 
 /** @param {string} iso YYYY-MM-DD */
 export function monthPartsFromIso(iso) {
@@ -81,11 +177,11 @@ export function formatRub(amount) {
 
 export function emptyDailyForm() {
   return {
-    profit_nk: '',
-    profit_dk: '',
-    profit_uk: '',
     pnk_total: '',
     trainings_count: '',
+    avg_check_nk: '',
+    avg_check_dk: '',
+    avg_check_uk: '',
     pz_nk: '',
     pz_dk: '',
     pz_uk: '',
@@ -102,13 +198,16 @@ export function emptyDailyForm() {
 export function dailyRowToForm(row) {
   if (!row) return emptyDailyForm()
   const f = emptyDailyForm()
-  for (const k of ['profit_nk', 'profit_dk', 'profit_uk']) {
-    const v = row[k]
-    f[k] = v == null || v === '' ? '' : String(v)
-  }
   for (const k of ['pnk_total', 'trainings_count', ...SALES_MATRIX_KEYS]) {
     const v = row[k]
     f[k] = v == null || v === '' ? '' : String(Math.trunc(Number(v) || 0))
+  }
+  const totals = salesMatrixColumnTotals(f)
+  for (const col of SALES_MATRIX_COLS) {
+    const profit = parseSalesMoney(row[`profit_${col.suffix}`]) || 0
+    const count = totals[col.suffix]
+    f[`avg_check_${col.suffix}`] =
+      count > 0 && profit > 0 ? String(Math.round((profit / count) * 100) / 100) : ''
   }
   return f
 }
@@ -119,12 +218,15 @@ export function dailyRowToForm(row) {
  * @returns {{ ok: true, payload: object } | { ok: false, error: string }}
  */
 export function dailyFormToPayload(form, opts = null) {
-  const profit_nk = parseSalesMoney(form.profit_nk)
-  const profit_dk = parseSalesMoney(form.profit_dk)
-  const profit_uk = parseSalesMoney(form.profit_uk)
-  if ([profit_nk, profit_dk, profit_uk].some((n) => Number.isNaN(n))) {
-    return { ok: false, error: 'Прибыль: укажите неотрицательные суммы' }
+  for (const key of SALES_MATRIX_KEYS) {
+    const n = parseSalesCount(form[key])
+    if (Number.isNaN(n)) return { ok: false, error: 'Матрица: целые числа ≥ 0' }
   }
+
+  const profitCalc = computeProfitFromMatrix(form)
+  if (!profitCalc.ok) return profitCalc
+  const { profit_nk, profit_dk, profit_uk } = profitCalc
+
   const pnk_total = parseSalesCount(form.pnk_total)
   if (Number.isNaN(pnk_total)) {
     return { ok: false, error: 'ПНК: целое число ≥ 0' }
@@ -158,9 +260,7 @@ export function dailyFormToPayload(form, opts = null) {
     trainings_matrix,
   }
   for (const key of SALES_MATRIX_KEYS) {
-    const n = parseSalesCount(form[key])
-    if (Number.isNaN(n)) return { ok: false, error: 'Матрица: целые числа ≥ 0' }
-    payload[key] = n
+    payload[key] = parseSalesCount(form[key]) || 0
   }
   return { ok: true, payload }
 }

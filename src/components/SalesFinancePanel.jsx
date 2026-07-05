@@ -41,7 +41,7 @@ export function SalesFinancePanel({
   const setExpense = (value) => onExpenseChange({ expense_month: value })
 
   return (
-    <section className="sales-report__finance-divider" aria-labelledby="sales-finance-title">
+    <section className="sales-report__finance" aria-labelledby="sales-finance-title">
       <h2 className="sales-report__section-title" id="sales-finance-title">
         <Wallet size={20} style={{ verticalAlign: -3, marginRight: 8 }} aria-hidden />
         Финансы клуба

@@ -1,6 +1,8 @@
 /** Матрица тренировок в отчёте продаж: тренер × тип абонемента. */
 
 export const SALES_TRAINING_TYPE_NONE = '__none__'
+/** Синтетический id для ввода «по клубу» без разбивки по тренерам (менеджер). */
+export const SALES_TRAINING_CLUB_ID = '__club__'
 
 export function salesTrainingCellKey(trainerId, typeId) {
   const tid = String(trainerId ?? '').trim()
@@ -52,6 +54,46 @@ export function inputMapToMatrixRows(inputMap, trainerIds, membershipTypes) {
     }
   }
   return { ok: true, rows }
+}
+
+function parseMatrixCellCount(raw) {
+  if (raw == null || raw === '') return 0
+  const n = Math.floor(Number(String(raw).replace(/\s/g, '').replace(',', '.')))
+  return Number.isFinite(n) && n > 0 ? n : 0
+}
+
+/**
+ * Свести per-trainer карту к одной строке «по клубу» для UI менеджера.
+ * @param {Record<string, string>} inputMap
+ * @param {string[]} trainerIds
+ * @param {Array<{ typeId: string }>} columns
+ */
+export function clubAggregateInputMap(inputMap, trainerIds, columns) {
+  const typeIds = (columns ?? []).map((c) => c.typeId)
+  const result = {}
+  let hasClubRows = false
+  for (const typeId of typeIds) {
+    const clubKey = salesTrainingCellKey(SALES_TRAINING_CLUB_ID, typeId === SALES_TRAINING_TYPE_NONE ? null : typeId)
+    const clubRaw = inputMap?.[clubKey]
+    if (clubRaw != null && clubRaw !== '') {
+      hasClubRows = true
+      result[clubKey] = clubRaw
+    }
+  }
+  if (hasClubRows) return result
+
+  for (const typeId of typeIds) {
+    let sum = 0
+    for (const trainerId of trainerIds ?? []) {
+      const key = salesTrainingCellKey(trainerId, typeId === SALES_TRAINING_TYPE_NONE ? null : typeId)
+      sum += parseMatrixCellCount(inputMap?.[key])
+    }
+    if (sum > 0) {
+      const clubKey = salesTrainingCellKey(SALES_TRAINING_CLUB_ID, typeId === SALES_TRAINING_TYPE_NONE ? null : typeId)
+      result[clubKey] = String(sum)
+    }
+  }
+  return result
 }
 
 /** @param {Array<{ count?: number }>} rows */

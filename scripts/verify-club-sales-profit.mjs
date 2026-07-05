@@ -2,12 +2,21 @@ import {
   aggregateMonthFromDailyRows,
   computeNetProfit,
   computeProfitDay,
+  computeProfitFromMatrix,
   dailyFormToPayload,
   monthDateRange,
   monthPartsFromIso,
   planProgressPercent,
   planFormToPayload,
+  salesMatrixRowAvgCheck,
+  salesMatrixRowMembershipTotal,
 } from '../src/lib/admin/salesReportCore.js'
+import {
+  clubAggregateInputMap,
+  SALES_TRAINING_CLUB_ID,
+  SALES_TRAINING_TYPE_NONE,
+  salesTrainingCellKey,
+} from '../src/lib/admin/salesTrainingsMatrix.js'
 
 let failed = 0
 
@@ -30,11 +39,11 @@ const range = monthDateRange(2026, 6)
 ok(range.start === '2026-06-01' && range.end === '2026-06-30', 'june range')
 
 const formOk = dailyFormToPayload({
-  profit_nk: '1 000',
-  profit_dk: '500,5',
-  profit_uk: '0',
   pnk_total: '3',
   trainings_count: '12',
+  avg_check_nk: '500',
+  avg_check_dk: '200',
+  avg_check_uk: '0',
   pz_nk: '1',
   pz_dk: '0',
   pz_uk: '0',
@@ -45,8 +54,9 @@ const formOk = dailyFormToPayload({
   az_dk: '0',
   az_uk: '1',
 })
-ok(formOk.ok && formOk.payload.profit_nk === 1000, 'parse money nk')
-ok(formOk.ok && formOk.payload.profit_dk === 500.5, 'parse money dk')
+ok(formOk.ok && formOk.payload.profit_nk === 500, 'profit nk from matrix')
+ok(formOk.ok && formOk.payload.profit_dk === 400, 'profit dk from matrix')
+ok(formOk.ok && formOk.payload.profit_uk === 0, 'profit uk zero count')
 ok(formOk.ok && formOk.payload.tz_dk === 2, 'matrix count')
 
 const agg = aggregateMonthFromDailyRows([
@@ -63,10 +73,10 @@ ok(planOk.ok && planOk.payload.plan_total === 2000000, 'plan parse')
 
 const matrixOk = dailyFormToPayload(
   {
-    profit_nk: '0',
-    profit_dk: '0',
-    profit_uk: '0',
     pnk_total: '0',
+    avg_check_nk: '0',
+    avg_check_dk: '0',
+    avg_check_uk: '0',
     pz_nk: '0',
     pz_dk: '0',
     pz_uk: '0',
@@ -85,6 +95,39 @@ const matrixOk = dailyFormToPayload(
 )
 ok(matrixOk.ok && matrixOk.payload.trainings_count === 6, 'matrix sum trainings_count')
 ok(matrixOk.ok && matrixOk.payload.trainings_matrix.length === 3, 'matrix rows stored')
+
+const matrixForm = {
+  avg_check_nk: '500',
+  avg_check_dk: '200',
+  avg_check_uk: '0',
+  pz_nk: '2',
+  pz_dk: '1',
+  pz_uk: '0',
+  tz_nk: '0',
+  tz_dk: '2',
+  tz_uk: '0',
+  az_nk: '0',
+  az_dk: '0',
+  az_uk: '0',
+}
+ok(salesMatrixRowMembershipTotal(matrixForm, 'pz') === 3, 'matrix row membership total')
+ok(salesMatrixRowAvgCheck(matrixForm, 'pz') === 400, 'matrix row avg check')
+
+const profitCalc = computeProfitFromMatrix(matrixForm)
+ok(profitCalc.ok && profitCalc.profit_nk === 1000, 'compute profit nk')
+ok(profitCalc.ok && profitCalc.profit_dk === 600, 'compute profit dk')
+ok(profitCalc.ok && profitCalc.profit_day === 1600, 'compute profit day')
+
+const cols = [{ typeId: 't1', code: 'Br' }, { typeId: SALES_TRAINING_TYPE_NONE, code: 'Без типа' }]
+const aggMap = clubAggregateInputMap(
+  {
+    [salesTrainingCellKey('tr1', 't1')]: '2',
+    [salesTrainingCellKey('tr2', 't1')]: '3',
+  },
+  ['tr1', 'tr2'],
+  cols,
+)
+ok(aggMap[salesTrainingCellKey(SALES_TRAINING_CLUB_ID, 't1')] === '5', 'club aggregate from trainers')
 
 if (failed > 0) {
   console.error(`\n${failed} check(s) failed`)

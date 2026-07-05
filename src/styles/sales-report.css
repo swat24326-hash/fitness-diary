@@ -445,6 +445,37 @@
   border-radius: 8px;
 }
 
+.sales-report__matrix-computed {
+  text-align: center;
+  font-size: 0.85rem;
+  vertical-align: middle;
+  min-width: 4.5rem;
+}
+
+.sales-report__matrix-computed strong {
+  color: var(--accent-bright, #4ade80);
+  font-weight: 600;
+}
+
+.sales-report__matrix-avg-row td:first-child,
+.sales-report__matrix-profit-row td:first-child {
+  font-weight: 600;
+  color: var(--text, #e2e8f0);
+}
+
+.sales-report__matrix-profit-row {
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.sales-report__matrix-profit-total {
+  text-align: right;
+  padding-right: 0.5rem;
+}
+
+.sales-report__matrix-profit-total strong {
+  font-size: 1rem;
+}
+
 .sales-report__actions {
   display: flex;
   gap: 0.75rem;
@@ -538,6 +569,14 @@
 .sales-report__month-label {
   margin: 0;
   font-size: 0.85rem;
+}
+
+.sales-report__tabs {
+  margin: 1rem 0 0.75rem;
+}
+
+.sales-report__finance {
+  margin-top: 0.25rem;
 }
 
 .sales-trainings-matrix__note {

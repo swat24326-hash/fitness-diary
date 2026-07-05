@@ -13,8 +13,10 @@ import {
 } from '../../lib/admin/salesReportCore'
 import {
   buildTrainingsMatrixColumns,
+  clubAggregateInputMap,
   matrixRowsToInputMap,
   normalizeMatrixRowsFromDb,
+  SALES_TRAINING_CLUB_ID,
 } from '../../lib/admin/salesTrainingsMatrix'
 import {
   fetchClubSalesBundle,
@@ -45,8 +47,16 @@ const MONTH_NAMES = [
 export function AdminSales() {
   const ctx = useOutletContext()
   const clubIdCtx = ctx?.clubId ?? ''
-  const [search] = useSearchParams()
-  const clubId = search.get('club') ?? clubIdCtx ?? ''
+  const [searchParams, setSearchParams] = useSearchParams()
+  const clubId = searchParams.get('club') ?? clubIdCtx ?? ''
+  const salesTab = searchParams.get('tab') === 'finance' ? 'finance' : 'daily'
+
+  const setSalesTab = (tab) => {
+    const next = new URLSearchParams(searchParams)
+    if (tab === 'finance') next.set('tab', 'finance')
+    else next.delete('tab')
+    setSearchParams(next, { replace: true })
+  }
 
   const [reportDate, setReportDate] = useState(() => todayLocalIso())
   const [dailyForm, setDailyForm] = useState(emptyDailyForm)
@@ -98,7 +108,14 @@ export function AdminSales() {
       setTrainers(bundle.trainers ?? [])
       setFitCityTypeStats(bundle.fitCityTypeStats ?? null)
       const matrixRows = normalizeMatrixRowsFromDb(bundle.daily?.trainings_matrix)
-      setTrainingsMatrix(matrixRowsToInputMap(matrixRows))
+      const cols = buildTrainingsMatrixColumns(bundle.membershipTypes ?? [])
+      setTrainingsMatrix(
+        clubAggregateInputMap(
+          matrixRowsToInputMap(matrixRows),
+          (bundle.trainers ?? []).map((t) => t.id),
+          cols,
+        ),
+      )
     } catch (e) {
       setError(e?.message ?? 'Ошибка загрузки')
     } finally {
@@ -127,7 +144,7 @@ export function AdminSales() {
         reportDate,
         form: dailyForm,
         trainingsMatrixInput: trainingsMatrix,
-        trainerIds: trainers.map((t) => t.id),
+        trainerIds: [SALES_TRAINING_CLUB_ID],
         membershipTypes,
       })
       if (!row) {
@@ -135,7 +152,14 @@ export function AdminSales() {
         return
       }
       setDailyForm(dailyRowToForm(row))
-      setTrainingsMatrix(matrixRowsToInputMap(normalizeMatrixRowsFromDb(row?.trainings_matrix)))
+      const cols = buildTrainingsMatrixColumns(membershipTypes)
+      setTrainingsMatrix(
+        clubAggregateInputMap(
+          matrixRowsToInputMap(normalizeMatrixRowsFromDb(row?.trainings_matrix)),
+          trainers.map((t) => t.id),
+          cols,
+        ),
+      )
       await loadBundle()
       setVesselPulse((k) => k + 1)
       showToast('Отчёт сохранён')
@@ -243,37 +267,68 @@ export function AdminSales() {
         </p>
       ) : null}
 
-      <SalesDailyForm
-        reportDate={reportDate}
-        dateLabel={formatDateRu(reportDate)}
-        form={dailyForm}
-        onFormChange={setDailyForm}
-        onPrevDay={() => setReportDate((d) => addDaysToIso(d, -1))}
-        onNextDay={() => setReportDate((d) => clampIsoDateToToday(addDaysToIso(d, 1)))}
-        onDateChange={(iso) => setReportDate(clampIsoDateToToday(iso))}
-        onSave={() => void handleSaveDaily()}
-        saving={savingDaily}
-        canEdit
-        trainers={trainers}
-        membershipTypes={membershipTypes}
-        membershipTypeColumns={membershipTypeColumns}
-        trainingsMatrix={trainingsMatrix}
-        onTrainingsMatrixChange={setTrainingsMatrix}
-        fitCityTypeStats={fitCityTypeStats}
-      />
+      <div className="tabs sales-report__tabs" role="tablist" aria-label="Разделы продаж">
+        <button
+          type="button"
+          className="tab"
+          role="tab"
+          id="sales-tab-daily"
+          aria-selected={salesTab === 'daily'}
+          aria-controls="sales-panel-daily"
+          onClick={() => setSalesTab('daily')}
+        >
+          Отчёт за день
+        </button>
+        <button
+          type="button"
+          className="tab"
+          role="tab"
+          id="sales-tab-finance"
+          aria-selected={salesTab === 'finance'}
+          aria-controls="sales-panel-finance"
+          onClick={() => setSalesTab('finance')}
+        >
+          Финансы клуба
+        </button>
+      </div>
 
-      <SalesFinancePanel
-        monthLabel={monthLabel}
-        planForm={planForm}
-        onPlanChange={setPlanForm}
-        expenseForm={expenseForm}
-        onExpenseChange={setExpenseForm}
-        monthSummary={monthSummary}
-        onSavePlan={() => void handleSavePlan()}
-        onSaveFinance={() => void handleSaveFinance()}
-        savingPlan={savingPlan}
-        savingFinance={savingFinance}
-      />
+      {salesTab === 'daily' ? (
+        <div id="sales-panel-daily" role="tabpanel" aria-labelledby="sales-tab-daily">
+          <SalesDailyForm
+            reportDate={reportDate}
+            dateLabel={formatDateRu(reportDate)}
+            form={dailyForm}
+            onFormChange={setDailyForm}
+            onPrevDay={() => setReportDate((d) => addDaysToIso(d, -1))}
+            onNextDay={() => setReportDate((d) => clampIsoDateToToday(addDaysToIso(d, 1)))}
+            onDateChange={(iso) => setReportDate(clampIsoDateToToday(iso))}
+            onSave={() => void handleSaveDaily()}
+            saving={savingDaily}
+            canEdit
+            trainers={trainers}
+            membershipTypes={membershipTypes}
+            membershipTypeColumns={membershipTypeColumns}
+            trainingsMatrix={trainingsMatrix}
+            onTrainingsMatrixChange={setTrainingsMatrix}
+            fitCityTypeStats={fitCityTypeStats}
+          />
+        </div>
+      ) : (
+        <div id="sales-panel-finance" role="tabpanel" aria-labelledby="sales-tab-finance">
+          <SalesFinancePanel
+            monthLabel={monthLabel}
+            planForm={planForm}
+            onPlanChange={setPlanForm}
+            expenseForm={expenseForm}
+            onExpenseChange={setExpenseForm}
+            monthSummary={monthSummary}
+            onSavePlan={() => void handleSavePlan()}
+            onSaveFinance={() => void handleSaveFinance()}
+            savingPlan={savingPlan}
+            savingFinance={savingFinance}
+          />
+        </div>
+      )}
 
       {toast ? (
         <div
