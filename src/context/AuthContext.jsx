@@ -6,6 +6,7 @@ import {
   signInViaServerApi,
 } from '../lib/authSignInService'
 import { fetchMyProfileViaApi } from '../lib/profileApiClient'
+import { firstSuccessfulPromise, isCloudReachable } from '../lib/networkReachability'
 import { withSupabaseRetry } from '../lib/supabaseRetry'
 import {
   initConnectivityListeners,
@@ -189,13 +190,8 @@ export function AuthProvider({ children }) {
   const refreshProfile = useCallback(
     async (uid, email) => {
       if (!isSupabaseConfigured() || !uid) return null
-      try {
-        const viaApi = await fetchMyProfileViaApi()
-        if (viaApi.profile) return viaApi.profile
-      } catch {
-        /* fallback ниже */
-      }
-      try {
+
+      const loadDirect = async () => {
         let row = await queryUserRow((q) => q.eq('id', uid))
         if (!row?.role && email) {
           const em = String(email).trim().toLowerCase()
@@ -209,12 +205,30 @@ export function AuthProvider({ children }) {
           }
         }
         return row
+      }
+
+      try {
+        if (!isCloudReachable()) {
+          return await loadDirect()
+        }
+        return await firstSuccessfulPromise([
+          async () => {
+            const viaApi = await fetchMyProfileViaApi()
+            if (!viaApi.profile) throw viaApi.error ?? new Error('empty profile')
+            return viaApi.profile
+          },
+          loadDirect,
+        ])
       } catch (e) {
         const m = String(e?.message ?? '')
-        if (!/timeout/i.test(m)) {
+        if (!/timeout|таймаут/i.test(m)) {
           console.warn('[auth] profile load failed', e)
         }
-        return null
+        try {
+          return await loadDirect()
+        } catch {
+          return null
+        }
       }
     },
     [queryUserRow],
@@ -233,7 +247,7 @@ export function AuthProvider({ children }) {
       setRole(quickRole)
       setBackgroundSyncPaused(false)
 
-      const profile = await withTimeout(refreshProfile(uid, session.user.email), 18_000, 'profile').catch(() => null)
+      const profile = await withTimeout(refreshProfile(uid, session.user.email), 8_000, 'profile').catch(() => null)
       if (!profile) return
       setUser((prev) => (prev?.id === uid ? applyUserFromSession(session, profile) : prev))
       setRole(resolveRole(profile, session.user))
@@ -278,7 +292,7 @@ export function AuthProvider({ children }) {
         if (s?.user) {
           setUser(applyUserFromSession(s, null))
           setRole(resolveRole(null, s.user))
-          await applySession(s)
+          void applySession(s)
         }
       } catch (e) {
         console.warn('[auth] init failed', e)

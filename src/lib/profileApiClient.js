@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 import { getAccessTokenForAdminApi } from './admin/adminApiClient'
-import { noteAppNetworkResponse } from './networkReachability'
+import { ADMIN_FETCH_TIMEOUT_MS, fetchWithAppTimeout, noteAppNetworkResponse } from './networkReachability'
 
 async function parseJson(res) {
   const text = await res.text()
@@ -34,37 +34,40 @@ export async function fetchMyProfileViaApi() {
     return { profile: null, error: new Error('Нет сессии') }
   }
 
-  const doFetch = async (accessToken, signal) => {
-    return fetch(`${origin()}/api/me-profile`, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${accessToken}` },
-      credentials: 'same-origin',
-      cache: 'no-store',
-      signal,
-    })
-  }
-
-  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null
-  const timer =
-    controller &&
-    setTimeout(() => {
-      controller.abort()
-    }, 12_000)
-
   let res
   try {
-    res = await doFetch(token, controller?.signal)
+    res = await fetchWithAppTimeout(
+      `${origin()}/api/me-profile`,
+      {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'same-origin',
+        cache: 'no-store',
+      },
+      ADMIN_FETCH_TIMEOUT_MS,
+    )
     if (res.status === 401) {
       const refreshed = await supabase.auth.refreshSession()
       const retryToken = refreshed.data?.session?.access_token
-      if (retryToken) res = await doFetch(retryToken, controller?.signal)
+      if (retryToken) {
+        res = await fetchWithAppTimeout(
+          `${origin()}/api/me-profile`,
+          {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${retryToken}` },
+            credentials: 'same-origin',
+            cache: 'no-store',
+          },
+          ADMIN_FETCH_TIMEOUT_MS,
+        )
+      }
     }
   } catch (e) {
     const msg =
-      e?.name === 'AbortError' ? 'Таймаут /api/me-profile — профиль через Supabase' : e?.message ?? 'Сеть'
+      /таймаут/i.test(String(e?.message ?? ''))
+        ? 'Таймаут /api/me-profile — профиль через Supabase'
+        : e?.message ?? 'Сеть'
     return { profile: null, error: new Error(msg) }
-  } finally {
-    if (timer) clearTimeout(timer)
   }
 
   noteAppNetworkResponse(res)

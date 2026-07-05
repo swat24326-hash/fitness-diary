@@ -7,7 +7,8 @@ export const CLOUD_STATUS_EVENT = 'fitness-diary-cloud-status'
 
 let cloudReachable = true
 let cloudCheckedAt = 0
-const ADMIN_FETCH_TIMEOUT_MS = 12_000
+/** Таймаут /api/* — короткий, чтобы быстрее уйти в Supabase direct. */
+export const ADMIN_FETCH_TIMEOUT_MS = 5_000
 
 function emitCloud() {
   if (typeof window === 'undefined') return
@@ -47,6 +48,33 @@ export function noteAppNetworkResponse(response) {
     cloudCheckedAt = Date.now()
     emitCloud()
   }
+}
+
+/**
+ * Первый успешно завершившийся промис (остальные игнорируются).
+ * @template T
+ * @param {Array<() => Promise<T>>} tasks
+ * @returns {Promise<T>}
+ */
+export function firstSuccessfulPromise(tasks) {
+  return new Promise((resolve, reject) => {
+    if (!tasks.length) {
+      reject(new Error('no tasks'))
+      return
+    }
+    let pending = tasks.length
+    let lastErr = null
+    for (const task of tasks) {
+      Promise.resolve()
+        .then(task)
+        .then(resolve)
+        .catch((e) => {
+          lastErr = e
+          pending -= 1
+          if (pending === 0) reject(lastErr ?? new Error('all failed'))
+        })
+    }
+  })
 }
 
 /** Обрывает зависшие fetch после сна ноутбука (без бесконечного ожидания). */

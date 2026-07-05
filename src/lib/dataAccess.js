@@ -26,6 +26,7 @@ import {
 import { DEMO_SEED_CLIENT_ID, DEMO_SEED_MEMBERSHIP_ID, DEMO_SEED_TRAINING_ID } from './seedDemo'
 import { ADMIN_CLIENT_COUNT_BATCH, ADMIN_SYNC_BATCH_SIZE } from './admin/adminConstants'
 import { fetchClubsViaAdminApi, fetchTrainersViaAdminApi } from './admin/adminApiClient'
+import { firstSuccessfulPromise, isCloudReachable } from './networkReachability'
 
 export { loadAdminJournalPage } from './admin/adminJournalService'
 export { loadClubTrainingStats } from './admin/adminClubStatsService'
@@ -555,24 +556,39 @@ async function mergeClubsIntoLocalCache(rows) {
 }
 
 async function pullClubsFromSupabaseInner() {
-  try {
+  const mergeFromApi = async () => {
     const viaApi = await fetchClubsViaAdminApi()
-    if (viaApi) {
-      return { ...(await mergeClubsIntoLocalCache(viaApi.clubs)), source: 'admin_api' }
-    }
+    if (!viaApi) throw new Error('api_unavailable')
+    return { ...(await mergeClubsIntoLocalCache(viaApi.clubs)), source: 'admin_api' }
+  }
 
+  const mergeFromDirect = async () => {
     const res = await runClubRemoteOnce(() =>
       supabase.from('clubs').select('*').order('id', { ascending: true }),
     )
     if (res.error) throw res.error
-    const merged = await mergeClubsIntoLocalCache(res.data ?? [])
-    return { ...merged, source: 'supabase' }
-  } catch (e) {
+    return { ...(await mergeClubsIntoLocalCache(res.data ?? [])), source: 'supabase' }
+  }
+
+  const fallbackLocal = async (e) => {
     const cached = await listClubsLocal().catch(() => [])
     if (Array.isArray(cached) && cached.length > 0) {
       return { ok: true, count: cached.length, cached: true, source: 'local', warn: e?.message ?? 'api_unavailable' }
     }
     return { ok: false, error: e?.message ?? 'Ошибка загрузки клубов' }
+  }
+
+  try {
+    if (!isCloudReachable()) {
+      return await mergeFromDirect()
+    }
+    return await firstSuccessfulPromise([mergeFromApi, mergeFromDirect])
+  } catch (e) {
+    try {
+      return await mergeFromDirect()
+    } catch (directErr) {
+      return fallbackLocal(directErr ?? e)
+    }
   }
 }
 

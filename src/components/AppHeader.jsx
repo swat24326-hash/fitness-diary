@@ -91,12 +91,18 @@ export function AppHeader() {
     let alive = true
     const load = async () => {
       try {
-        if (supabaseReady) {
-          await pullClubsFromSupabase()
-        }
         let rows = await listClubsLocal()
         if (supabaseReady && rows.length > 1) {
           rows = rows.filter((c) => String(c.id) !== DEMO_CLUB_ID)
+        }
+        if (alive && rows.length) setAdminClubs(Array.isArray(rows) ? rows : [])
+
+        if (supabaseReady) {
+          await pullClubsFromSupabase()
+          rows = await listClubsLocal()
+          if (supabaseReady && rows.length > 1) {
+            rows = rows.filter((c) => String(c.id) !== DEMO_CLUB_ID)
+          }
         }
         if (alive) setAdminClubs(Array.isArray(rows) ? rows : [])
       } catch {
