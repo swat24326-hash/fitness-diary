@@ -5,7 +5,8 @@ import {
   saveClubSalesFinanceViaSupabase,
   saveClubSalesPlanViaSupabase,
 } from './adminSalesLocalService.js'
-import { firstSuccessfulPromise, isCloudReachable, fetchWithAppTimeout } from '../networkReachability.js'
+import { isCloudReachable, fetchWithAppTimeout } from '../networkReachability.js'
+import { humanizeNetworkError } from '../supabaseRetry.js'
 
 const apiOrigin = () => (typeof window !== 'undefined' ? window.location.origin : '')
 
@@ -90,7 +91,7 @@ async function adminApiPost(path, token, body) {
   throw new Error(data?.error ? String(data.error) : `Ошибка сервера (${res.status})`)
 }
 
-/** GET /api/admin-data?action=sales — API параллельно с Supabase direct */
+/** GET /api/admin-data?action=sales — Supabase first, API если облако Supabase недоступно */
 export async function fetchClubSalesBundle({ clubId, reportDate }) {
   const token = await getAccessTokenForAdminApi()
   if (!token) throw new Error('Нет сессии администратора')
@@ -107,28 +108,29 @@ export async function fetchClubSalesBundle({ clubId, reportDate }) {
     return mapApiSalesBundle(data, clubId, reportDate)
   }
 
-  const loadViaSupabase = () => fetchClubSalesBundleViaSupabase({ clubId, reportDate })
-
-  if (!isCloudReachable()) {
-    return loadViaSupabase()
+  let supabaseErr = null
+  try {
+    return await fetchClubSalesBundleViaSupabase({ clubId, reportDate })
+  } catch (e) {
+    supabaseErr = e
   }
 
-  try {
-    return await firstSuccessfulPromise([loadViaApi, loadViaSupabase])
-  } catch (apiErr) {
+  if (isCloudReachable()) {
     try {
-      return await loadViaSupabase()
-    } catch (directErr) {
-      if (isApiTransportError(apiErr)) {
-        throw new Error(
-          directErr?.message
-            ? `Сервер приложения недоступен. Supabase: ${directErr.message}`
-            : 'Сервер приложения недоступен — проверьте интернет и VPN',
-        )
-      }
-      throw apiErr
+      return await loadViaApi()
+    } catch (apiErr) {
+      const directMsg = humanizeNetworkError(supabaseErr) || String(supabaseErr?.message ?? '')
+      const apiMsg = humanizeNetworkError(apiErr) || String(apiErr?.message ?? '')
+      throw new Error(
+        [directMsg && `Supabase: ${directMsg}`, apiMsg && `API: ${apiMsg}`].filter(Boolean).join(' ') ||
+          'Не удалось загрузить отчёт продаж',
+      )
     }
   }
+
+  throw new Error(
+    humanizeNetworkError(supabaseErr) || String(supabaseErr?.message ?? 'Не удалось загрузить отчёт продаж'),
+  )
 }
 
 /** POST /api/admin-data?action=sales-daily */

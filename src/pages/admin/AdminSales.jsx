@@ -18,7 +18,8 @@ import {
   normalizeMatrixRowsFromDb,
   SALES_TRAINING_CLUB_ID,
 } from '../../lib/admin/salesTrainingsMatrix'
-import { ensureMembershipTypesForClub } from '../../lib/membershipTypesService'
+import { ensureMembershipTypesForClub, listMembershipTypesForClub } from '../../lib/membershipTypesService'
+import { humanizeNetworkError } from '../../lib/supabaseRetry'
 import {
   fetchClubSalesBundle,
   saveClubSalesDaily,
@@ -96,7 +97,10 @@ export function AdminSales() {
     setError('')
     setLoadHint('')
     try {
-      const typesPromise = ensureMembershipTypesForClub(clubId)
+      const cachedTypes = await listMembershipTypesForClub(clubId)
+      if (cachedTypes.length) setMembershipTypes(cachedTypes)
+
+      const typesPromise = ensureMembershipTypesForClub(clubId, { force: !cachedTypes.length })
       const bundle = await fetchClubSalesBundle({ clubId, reportDate })
       const ensured = await typesPromise
 
@@ -126,14 +130,20 @@ export function AdminSales() {
       )
 
       if (bundle.source === 'supabase') {
-        setLoadHint('Данные загружены через Supabase — сервер /api временно недоступен.')
+        setLoadHint('Данные через Supabase (сервер /api недоступен).')
+      }
+      if (bundle.warnings?.length) {
+        setLoadHint((prev) => [prev, ...bundle.warnings].filter(Boolean).join(' '))
       }
     } catch (e) {
-      const ensured = await ensureMembershipTypesForClub(clubId).catch(() => ({ types: [] }))
+      const ensured = await ensureMembershipTypesForClub(clubId, { force: true }).catch(() => ({ types: [] }))
       if (ensured.types?.length) {
         setMembershipTypes(ensured.types)
+      } else {
+        const cached = await listMembershipTypesForClub(clubId)
+        if (cached.length) setMembershipTypes(cached)
       }
-      setError(e?.message ?? 'Ошибка загрузки')
+      setError(humanizeNetworkError(e) || e?.message || 'Ошибка загрузки')
     } finally {
       setBusy(false)
     }

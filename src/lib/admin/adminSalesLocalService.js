@@ -2,7 +2,8 @@
  * Загрузка/сохранение отчётов продаж через Supabase (fallback когда /api недоступен).
  */
 import { supabase } from '../supabase.js'
-import { withSupabaseRetry } from '../supabaseRetry.js'
+import { humanizeNetworkError, withSupabaseRetry } from '../supabaseRetry.js'
+import { listMembershipTypesForClub } from '../membershipTypesService.js'
 import { USERS_TRAINER_ROLES } from '../userRoleConstants.js'
 import { ADMIN_SYNC_BATCH_SIZE } from './adminConstants.js'
 import { aggregateMembershipTypeStats } from './membershipTypeStatsAgg.js'
@@ -30,9 +31,23 @@ const SALES_DAILY_SELECT_BASE =
 const MONTH_DAILY_SELECT =
   'report_date, profit_nk, profit_dk, profit_uk, profit_day, trainings_count, trainings_matrix'
 
+const MIGRATION_HINT =
+  'Таблицы продаж (club_sales) не найдены в Supabase — выполните миграцию supabase/migrations/20260624120000_club_sales.sql в SQL Editor.'
+
 function isMissingColumnError(err) {
   const m = String(err?.message ?? err ?? '').toLowerCase()
   return m.includes('matrix_amounts') || m.includes('does not exist') || m.includes('column')
+}
+
+function isMissingTableError(err) {
+  const m = String(err?.message ?? err ?? '').toLowerCase()
+  return (
+    isMissingColumnError(err) ||
+    m.includes('schema cache') ||
+    m.includes('relation') ||
+    m.includes('42p01') ||
+    m.includes('club_sales')
+  )
 }
 
 async function querySalesDaily(select, clubId, reportDate) {
@@ -110,6 +125,23 @@ async function fetchClubTrainers(clubId) {
   })
 }
 
+async function loadMembershipTypes(clubId, warnings) {
+  try {
+    const typesRes = await withSupabaseRetry(() =>
+      supabase
+        .from('membership_types')
+        .select('id, code, sort_order, is_active, trainer_pay_per_session')
+        .eq('club_id', clubId)
+        .order('sort_order', { ascending: true }),
+    )
+    if (typesRes.error) throw typesRes.error
+    if ((typesRes.data ?? []).length) return typesRes.data ?? []
+  } catch (e) {
+    warnings.push(`типы карт (облако): ${humanizeNetworkError(e) || e?.message || 'ошибка'}`)
+  }
+  return listMembershipTypesForClub(clubId)
+}
+
 function mapBundle({
   clubId,
   reportDate,
@@ -123,6 +155,7 @@ function mapBundle({
   membershipTypes,
   trainers,
   fitCityTypeStats,
+  warnings = [],
 }) {
   return {
     clubId,
@@ -137,6 +170,7 @@ function mapBundle({
     membershipTypes,
     trainers,
     fitCityTypeStats,
+    warnings,
     source: 'supabase',
   }
 }
@@ -150,11 +184,38 @@ export async function fetchClubSalesBundleViaSupabase({ clubId, reportDate }) {
 
   const { year, month } = parts
   const { start, end } = monthDateRange(year, month)
+  const warnings = []
 
-  const [dailyRes, monthRes, planRes, expenseRes, typesRes, trainers, trainingsDay, memberships] =
-    await Promise.all([
-      querySalesDaily(SALES_DAILY_SELECT_FULL, cid, date),
-      withSupabaseRetry(() =>
+  const membershipTypes = await loadMembershipTypes(cid, warnings)
+
+  let trainers = []
+  try {
+    trainers = await fetchClubTrainers(cid)
+  } catch (e) {
+    warnings.push(`тренеры: ${humanizeNetworkError(e) || e?.message || 'ошибка'}`)
+  }
+
+  let daily = null
+  let monthRows = []
+  let plan = null
+  let expense = null
+  let salesTablesOk = true
+
+  try {
+    const dailyRes = await querySalesDaily(SALES_DAILY_SELECT_FULL, cid, date)
+    if (dailyRes.error) {
+      if (isMissingTableError(dailyRes.error)) {
+        salesTablesOk = false
+        warnings.push(MIGRATION_HINT)
+      } else {
+        throw dailyRes.error
+      }
+    } else {
+      daily = dailyRes.data ?? null
+    }
+
+    if (salesTablesOk) {
+      const monthRes = await withSupabaseRetry(() =>
         supabase
           .from('club_sales_daily')
           .select(MONTH_DAILY_SELECT)
@@ -162,8 +223,11 @@ export async function fetchClubSalesBundleViaSupabase({ clubId, reportDate }) {
           .gte('report_date', start)
           .lte('report_date', end)
           .order('report_date', { ascending: true }),
-      ),
-      withSupabaseRetry(() =>
+      )
+      if (monthRes.error) throw monthRes.error
+      monthRows = monthRes.data ?? []
+
+      const planRes = await withSupabaseRetry(() =>
         supabase
           .from('club_sales_plan')
           .select('plan_total, plan_pz, plan_tz, plan_az, updated_at')
@@ -171,8 +235,11 @@ export async function fetchClubSalesBundleViaSupabase({ clubId, reportDate }) {
           .eq('year', year)
           .eq('month', month)
           .maybeSingle(),
-      ),
-      withSupabaseRetry(() =>
+      )
+      if (planRes.error) throw planRes.error
+      plan = planRes.data ?? null
+
+      const expenseRes = await withSupabaseRetry(() =>
         supabase
           .from('club_supervisor_expense')
           .select('amount, updated_at')
@@ -180,27 +247,20 @@ export async function fetchClubSalesBundleViaSupabase({ clubId, reportDate }) {
           .eq('year', year)
           .eq('month', month)
           .maybeSingle(),
-      ),
-      withSupabaseRetry(() =>
-        supabase
-          .from('membership_types')
-          .select('id, code, sort_order, is_active, trainer_pay_per_session')
-          .eq('club_id', cid)
-          .order('sort_order', { ascending: true }),
-      ),
-      fetchClubTrainers(cid),
-      fetchPagedTrainings(cid, date, date),
-      fetchPagedMemberships(cid),
-    ])
+      )
+      if (expenseRes.error) throw expenseRes.error
+      expense = expenseRes.data ?? null
+    }
+  } catch (e) {
+    if (isMissingTableError(e)) {
+      warnings.push(MIGRATION_HINT)
+    } else {
+      throw e
+    }
+  }
 
-  const err =
-    dailyRes.error || monthRes.error || planRes.error || expenseRes.error || typesRes.error
-  if (err) throw err
-
-  const monthRows = monthRes.data ?? []
   const monthSummary = aggregateMonthFromDailyRows(monthRows)
-  const expenseAmount = Number(expenseRes.data?.amount) || 0
-  const membershipTypes = typesRes.data ?? []
+  const expenseAmount = Number(expense?.amount) || 0
   const payRateMap = buildTrainerPayRateMap(membershipTypes)
   const monthPayroll = aggregatePayrollFromDailyRows(monthRows, payRateMap)
   monthSummary.expense = expenseAmount
@@ -211,15 +271,27 @@ export async function fetchClubSalesBundleViaSupabase({ clubId, reportDate }) {
     expenseAmount,
   )
 
-  const fitCityTypeStats = aggregateMembershipTypeStats({
-    trainings: trainingsDay,
-    memberships,
-    membershipTypes,
-  })
+  let fitCityTypeStats = null
+  try {
+    const [trainingsDay, memberships] = await Promise.all([
+      fetchPagedTrainings(cid, date, date),
+      fetchPagedMemberships(cid),
+    ])
+    fitCityTypeStats = aggregateMembershipTypeStats({
+      trainings: trainingsDay,
+      memberships,
+      membershipTypes,
+    })
+  } catch {
+    /* справка FIT-CITY необязательна */
+  }
 
-  let daily = dailyRes.data ?? null
   if (daily?.trainings_matrix != null) {
     daily = { ...daily, trainings_matrix: normalizeMatrixRowsFromDb(daily.trainings_matrix) }
+  }
+
+  if (!membershipTypes.length && !salesTablesOk && warnings.length) {
+    throw new Error(warnings[0])
   }
 
   return mapBundle({
@@ -229,12 +301,13 @@ export async function fetchClubSalesBundleViaSupabase({ clubId, reportDate }) {
     month,
     daily,
     monthRows,
-    plan: planRes.data ?? null,
-    expense: expenseRes.data ?? null,
+    plan,
+    expense,
     monthSummary,
     membershipTypes,
     trainers,
     fitCityTypeStats,
+    warnings,
   })
 }
 
@@ -272,6 +345,9 @@ export async function saveClubSalesDailyViaSupabase({
   let res = await withSupabaseRetry(() =>
     supabase.from('club_sales_daily').upsert(row, { onConflict: 'club_id,report_date' }).select(SALES_DAILY_SELECT_FULL).single(),
   )
+  if (res.error && isMissingTableError(res.error)) {
+    throw new Error(MIGRATION_HINT)
+  }
   if (res.error && isMissingColumnError(res.error)) {
     const { matrix_amounts: _drop, ...rowWithoutAmounts } = row
     void _drop
@@ -300,7 +376,10 @@ export async function saveClubSalesPlanViaSupabase({ clubId, year, month, form }
       .select('plan_total, plan_pz, plan_tz, plan_az, updated_at')
       .single(),
   )
-  if (error) throw error
+  if (error) {
+    if (isMissingTableError(error)) throw new Error(MIGRATION_HINT)
+    throw error
+  }
   return data
 }
 
@@ -317,6 +396,9 @@ export async function saveClubSalesFinanceViaSupabase({ clubId, year, month, for
       .select('amount, updated_at')
       .single(),
   )
-  if (error) throw error
+  if (error) {
+    if (isMissingTableError(error)) throw new Error(MIGRATION_HINT)
+    throw error
+  }
   return data
 }
