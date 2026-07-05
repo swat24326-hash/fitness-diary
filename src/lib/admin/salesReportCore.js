@@ -728,26 +728,97 @@ export function aggregateMonthFromDailyRows(rows) {
 
 
 
+export const PLAN_LEVEL_KEYS = ['plan_level_1', 'plan_level_2', 'plan_level_3']
+
+export const PLAN_DIRECTION_KEYS = ['plan_pz', 'plan_tz', 'plan_az']
+
+export const PLAN_LEVEL_LABELS = ['Уровень 1', 'Уровень 2', 'Уровень 3']
+
+/** @param {Record<string, unknown> | null | undefined} rowOrForm */
+export function sumPlanDirections(rowOrForm) {
+  return PLAN_DIRECTION_KEYS.reduce((acc, key) => acc + (Number(rowOrForm?.[key]) || 0), 0)
+}
+
+/** @param {Record<string, unknown> | null | undefined} rowOrForm */
+export function readPlanLevels(rowOrForm) {
+  return {
+    level1: Number(rowOrForm?.plan_level_1) || 0,
+    level2: Number(rowOrForm?.plan_level_2) || 0,
+    level3: Number(rowOrForm?.plan_level_3) || 0,
+  }
+}
+
+/** Финальная цель месяца = уровень 3 (верхний порог), не сумма уровней. */
+export function resolvePlanFinalTarget(rowOrForm) {
+  const { level1, level2, level3 } = readPlanLevels(rowOrForm)
+  if (level3 > 0) return Math.round(level3 * 100) / 100
+  const maxLevel = Math.max(level1, level2, level3)
+  if (maxLevel > 0) return Math.round(maxLevel * 100) / 100
+  return Math.round((Number(rowOrForm?.plan_total) || 0) * 100) / 100
+}
+
+/** @deprecated alias — для сосуда и KPI: финальный порог (уровень 3). */
+export function resolvePlanTotal(rowOrForm) {
+  return resolvePlanFinalTarget(rowOrForm)
+}
+
+/** @param {number} fact @param {{ level1?: number, level2?: number, level3?: number }} levels */
+export function resolveAchievedPlanLevel(fact, levels) {
+  const f = Number(fact) || 0
+  const l3 = Number(levels?.level3) || 0
+  const l2 = Number(levels?.level2) || 0
+  const l1 = Number(levels?.level1) || 0
+  if (l3 > 0 && f >= l3 - 0.009) return 3
+  if (l2 > 0 && f >= l2 - 0.009) return 2
+  if (l1 > 0 && f >= l1 - 0.009) return 1
+  return 0
+}
+
 /** @param {Record<string, string>} form */
-
 export function planFormToPayload(form) {
-
-  const plan_total = parseSalesMoney(form.plan_total)
-
+  const plan_level_1 = parseSalesMoney(form.plan_level_1)
+  const plan_level_2 = parseSalesMoney(form.plan_level_2)
+  const plan_level_3 = parseSalesMoney(form.plan_level_3)
   const plan_pz = parseSalesMoney(form.plan_pz)
-
   const plan_tz = parseSalesMoney(form.plan_tz)
-
   const plan_az = parseSalesMoney(form.plan_az)
 
-  if ([plan_total, plan_pz, plan_tz, plan_az].some((n) => Number.isNaN(n))) {
-
+  if ([plan_level_1, plan_level_2, plan_level_3, plan_pz, plan_tz, plan_az].some((n) => Number.isNaN(n))) {
     return { ok: false, error: 'План: неотрицательные суммы' }
-
   }
 
-  return { ok: true, payload: { plan_total, plan_pz, plan_tz, plan_az } }
+  if (plan_level_1 > 0 && plan_level_2 > 0 && plan_level_2 + 0.009 < plan_level_1) {
+    return { ok: false, error: 'Уровень 2 не может быть ниже уровня 1' }
+  }
+  if (plan_level_2 > 0 && plan_level_3 > 0 && plan_level_3 + 0.009 < plan_level_2) {
+    return { ok: false, error: 'Уровень 3 (финал) не может быть ниже уровня 2' }
+  }
+  if (plan_level_1 > 0 && plan_level_3 > 0 && plan_level_2 <= 0 && plan_level_3 + 0.009 < plan_level_1) {
+    return { ok: false, error: 'Уровень 3 не может быть ниже уровня 1' }
+  }
 
+  const plan_total = plan_level_3 > 0 ? plan_level_3 : Math.max(plan_level_1, plan_level_2, 0)
+  const directionSum = Math.round((plan_pz + plan_tz + plan_az) * 100) / 100
+
+  if (plan_total > 0 && directionSum > 0 && Math.abs(directionSum - plan_total) > 0.009) {
+    return {
+      ok: false,
+      error: `План по направлениям (${directionSum} ₽) должен совпадать с уровнем 3 — финалом (${plan_total} ₽)`,
+    }
+  }
+
+  return {
+    ok: true,
+    payload: {
+      plan_total: Math.round(plan_total * 100) / 100,
+      plan_level_1,
+      plan_level_2,
+      plan_level_3,
+      plan_pz,
+      plan_tz,
+      plan_az,
+    },
+  }
 }
 
 
@@ -767,29 +838,32 @@ export function expenseFormToPayload(form) {
 
 
 export function emptyPlanForm() {
-
-  return { plan_total: '', plan_pz: '', plan_tz: '', plan_az: '' }
-
+  return {
+    plan_level_1: '',
+    plan_level_2: '',
+    plan_level_3: '',
+    plan_pz: '',
+    plan_tz: '',
+    plan_az: '',
+  }
 }
 
 
 
 export function planRowToForm(row) {
-
   const f = emptyPlanForm()
-
   if (!row) return f
-
-  for (const k of Object.keys(f)) {
-
-    const v = row[k]
-
-    f[k] = v == null || v === '' ? '' : String(v)
-
+  const src = {
+    ...row,
+    plan_level_1: row.plan_level_1 ?? row.plan_nk,
+    plan_level_2: row.plan_level_2 ?? row.plan_dk,
+    plan_level_3: row.plan_level_3 ?? row.plan_uk,
   }
-
+  for (const k of Object.keys(f)) {
+    const v = src[k]
+    f[k] = v == null || v === '' ? '' : String(v)
+  }
   return f
-
 }
 
 

@@ -42,7 +42,7 @@ async function loadMonthRaw(supabaseAdmin, clubId, year, month) {
       .order('report_date', { ascending: true }),
     supabaseAdmin
       .from('club_sales_plan')
-      .select('plan_total, plan_pz, plan_tz, plan_az')
+      .select('plan_total, plan_level_1, plan_level_2, plan_level_3, plan_pz, plan_tz, plan_az')
       .eq('club_id', clubId)
       .eq('year', year)
       .eq('month', month)

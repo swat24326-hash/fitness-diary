@@ -65,7 +65,6 @@ export function AdminSales() {
   const [planForm, setPlanForm] = useState(emptyPlanForm)
   const [expenseForm, setExpenseForm] = useState(emptyExpenseForm)
   const [monthSummary, setMonthSummary] = useState(null)
-  const [planTotal, setPlanTotal] = useState(0)
   const [busy, setBusy] = useState(false)
   const [savingDaily, setSavingDaily] = useState(false)
   const [savingPlan, setSavingPlan] = useState(false)
@@ -108,7 +107,6 @@ export function AdminSales() {
       setPlanForm(planRowToForm(bundle.plan))
       setExpenseForm(expenseRowToForm(bundle.expense))
       setMonthSummary(bundle.monthSummary)
-      setPlanTotal(Number(bundle.plan?.plan_total) || 0)
       setYearMonth({ year: bundle.year, month: bundle.month })
 
       const types =
@@ -129,11 +127,8 @@ export function AdminSales() {
         ),
       )
 
-      if (bundle.source === 'supabase') {
-        setLoadHint('Данные через Supabase (сервер /api недоступен).')
-      }
       if (bundle.warnings?.length) {
-        setLoadHint((prev) => [prev, ...bundle.warnings].filter(Boolean).join(' '))
+        setLoadHint(bundle.warnings.filter(Boolean).join(' '))
       }
     } catch (e) {
       const ensured = await ensureMembershipTypesForClub(clubId, { force: true }).catch(() => ({ types: [] }))
@@ -159,6 +154,15 @@ export function AdminSales() {
   }, [yearMonth])
 
   const factMonth = Number(monthSummary?.profitTotal) || 0
+
+  const planLevels = useMemo(
+    () => ({
+      level1: Number(planForm.plan_level_1) || 0,
+      level2: Number(planForm.plan_level_2) || 0,
+      level3: Number(planForm.plan_level_3) || 0,
+    }),
+    [planForm],
+  )
 
   const handleSaveDaily = async () => {
     if (!clubId) return
@@ -212,7 +216,6 @@ export function AdminSales() {
         return
       }
       setPlanForm(planRowToForm(plan))
-      setPlanTotal(Number(plan.plan_total) || 0)
       await loadBundle()
       showToast('План сохранён')
     } catch (e) {
@@ -284,7 +287,7 @@ export function AdminSales() {
             Обновить
           </button>
         </div>
-        <SalesPlanVessel fact={factMonth} planTotal={planTotal} pulseKey={vesselPulse} />
+        <SalesPlanVessel fact={factMonth} planLevels={planLevels} pulseKey={vesselPulse} />
       </div>
 
       {error ? (

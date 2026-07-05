@@ -670,6 +670,178 @@
   gap: 0.75rem;
 }
 
+.sales-report__plan-track--milestones {
+  margin-bottom: 2.25rem;
+}
+
+.sales-report__plan-milestone {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  width: 3px;
+  height: 22px;
+  margin-top: -11px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: rgba(148, 163, 184, 0.55);
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.8);
+}
+
+.sales-report__plan-milestone--reached {
+  background: #fbbf24;
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.45);
+}
+
+.sales-report__plan-milestone--final {
+  width: 4px;
+  height: 26px;
+  margin-top: -13px;
+  margin-left: -2px;
+  background: rgba(250, 204, 21, 0.85);
+}
+
+.sales-report__plan-milestone--final.sales-report__plan-milestone--reached {
+  background: #fde047;
+  box-shadow: 0 0 14px rgba(253, 224, 71, 0.55);
+}
+
+.sales-report__plan-milestone-labels {
+  position: relative;
+  height: 2.1rem;
+  margin-top: -1.85rem;
+  margin-bottom: 0.35rem;
+  pointer-events: none;
+}
+
+.sales-report__plan-milestone-label {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  min-width: 3rem;
+  font-size: 0.68rem;
+  color: rgba(148, 163, 184, 0.85);
+  text-align: center;
+}
+
+.sales-report__plan-milestone-label.is-reached {
+  color: #fbbf24;
+}
+
+.sales-report__plan-milestone-name {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sales-report__plan-milestone-sum {
+  font-size: 0.62rem;
+  opacity: 0.9;
+}
+
+.sales-report__plan-status {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  text-align: center;
+}
+
+.sales-report__plan-row--levels {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.sales-report__plan-card-note {
+  margin: 0.35rem 0 0.85rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.sales-report__metric--computed {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+.sales-report__metric-label {
+  font-size: 0.78rem;
+  color: var(--text-muted, #94a3b8);
+}
+
+.sales-report__plan-computed-total {
+  font-size: 1.05rem;
+  color: var(--accent-bright, #4ade80);
+}
+
+.sales-report__plan-sum-hint {
+  margin: 0.75rem 0 0;
+  font-size: 0.82rem;
+  color: var(--text-muted, #94a3b8);
+}
+
+.sales-report__plan-sum-hint--warn {
+  color: #fbbf24;
+}
+
+.sales-report__plan-levels {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.85rem;
+}
+
+.sales-report__plan-levels-caption {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+}
+
+.sales-report__plan-level-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+  font-size: 0.78rem;
+}
+
+.sales-report__plan-level-label {
+  font-weight: 600;
+  color: var(--accent-bright, #4ade80);
+}
+
+.sales-report__plan-level-track {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.sales-report__plan-level-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  transition: width 0.9s ease-out;
+}
+
+.sales-report__plan-level-fill--ready {
+  transition: width 1s ease-out;
+}
+
+.sales-report__plan-level-fill--1 {
+  background: linear-gradient(90deg, #22c55e, #4ade80);
+}
+
+.sales-report__plan-level-fill--2 {
+  background: linear-gradient(90deg, #16a34a, #86efac);
+}
+
+.sales-report__plan-level-fill--3 {
+  background: linear-gradient(90deg, #15803d, #bbf7d0);
+}
+
+.sales-report__plan-level-fill--overflow {
+  box-shadow: 0 0 8px rgba(74, 222, 128, 0.35);
+}
+
 @media (max-width: 720px) {
   .sales-report__plan-row {
     grid-template-columns: repeat(2, 1fr);

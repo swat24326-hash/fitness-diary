@@ -1,4 +1,4 @@
-import { monthDateRange, planProgressPercent } from './salesReportCore.js'
+import { monthDateRange, planProgressPercent, resolvePlanTotal } from './salesReportCore.js'
 
 /** @param {number} year @param {number} month 1–12 */
 export function reportDateForMonth(year, month) {
@@ -31,7 +31,7 @@ export function buildGeminiPanelKpi(bundle, year, month) {
   const summary = bundle.monthSummary ?? {}
   const profitTotal = Number(summary.profitTotal) || 0
   const dayCount = Number(summary.dayCount) || 0
-  const planTotal = Number(bundle.plan?.plan_total) || 0
+  const planTotal = resolvePlanTotal(bundle.plan)
   const planPct = planProgressPercent(profitTotal, planTotal)
   const fitCity = Number(bundle.fitCityTypeStats?.totalCounted) || 0
   const monthDays = daysInMonth(year, month)
