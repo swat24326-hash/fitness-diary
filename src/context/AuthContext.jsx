@@ -374,7 +374,7 @@ export function AuthProvider({ children }) {
           finishSignIn(viaServer.user, viaServer.profile ?? null)
           return { error: null }
         }
-        if (viaServer.error && !isAuthApiTransportError(viaServer.error.message)) {
+        if (viaServer.error && !viaServer.transportError && !isAuthApiTransportError(viaServer.error.message)) {
           return { error: { message: viaServer.error.message } }
         }
         if (viaServer.error) {

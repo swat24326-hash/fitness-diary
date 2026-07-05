@@ -1,5 +1,7 @@
 import { supabase } from './supabase'
 
+export { isAuthApiTransportError } from './authSignInTransport.js'
+
 /** Тот же порядок, что в /api/auth-sign-in (без service role в браузере). */
 export async function resolveLoginEmailFromDb(raw) {
   const trimmed = String(raw ?? '').trim()
@@ -47,19 +49,11 @@ function apiUrl() {
   return '/api/auth-sign-in'
 }
 
-/** Vercel /api недоступен — можно войти напрямую через Supabase Auth. */
-export function isAuthApiTransportError(message) {
-  const msg = String(message ?? '')
-  return /failed to fetch|networkerror|network request failed|connection reset|err_connection|timed out|timeout|load failed|abort/i.test(
-    msg,
-  )
-}
-
 const AUTH_API_TIMEOUT_MS = 8_000
 
 /**
  * Вход через /api/auth-sign-in (сервер → Supabase), затем setSession в браузере.
- * @returns {Promise<{ user: object, profile: object | null, error: Error | null }>}
+ * @returns {Promise<{ user: object, profile: object | null, error: Error | null, transportError?: boolean }>}
  */
 export async function signInViaServerApi({ login, password }) {
   const controller = typeof AbortController !== 'undefined' ? new AbortController() : null
