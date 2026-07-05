@@ -445,6 +445,49 @@
   border-radius: 8px;
 }
 
+.sales-report__matrix--cells {
+  min-width: 640px;
+}
+
+.sales-report__matrix-cell {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto auto;
+  gap: 0.2rem 0.35rem;
+  align-items: center;
+  min-width: 7.5rem;
+}
+
+.sales-report__matrix-cell-label {
+  font-size: 0.65rem;
+  color: var(--muted, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.sales-report__matrix-cell-input {
+  width: 100%;
+  min-width: 0;
+  text-align: center;
+  border-radius: 8px;
+  padding: 0.3rem 0.25rem;
+  font-size: 0.85rem;
+}
+
+.sales-report__matrix-cell-avg {
+  grid-column: 1 / -1;
+  font-size: 0.75rem;
+  color: var(--accent-bright, #4ade80);
+  text-align: center;
+  padding-top: 0.15rem;
+}
+
+.sales-report__matrix-row-sum {
+  display: block;
+  font-size: 0.7rem;
+  margin-top: 0.15rem;
+}
+
 .sales-report__matrix-computed {
   text-align: center;
   font-size: 0.85rem;
