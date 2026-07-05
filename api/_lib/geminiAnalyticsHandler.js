@@ -20,6 +20,10 @@ import {
   buildGeminiInstantReply,
   matchGeminiInstantChip,
 } from '../../src/lib/admin/geminiInstantReplies.js'
+import {
+  buildGeminiIntroReply,
+  matchGeminiIntroIntent,
+} from '../../src/lib/admin/geminiAssistantIntro.js'
 import { periodLabelRu, trimChatHistory } from '../../src/lib/admin/geminiAnalyticsSnapshot.js'
 
 const rateLimitMs = 12000
@@ -202,6 +206,41 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
     )
 
     const chipId = body?.force_gemini === true ? null : matchGeminiInstantChip(userMessage, comparePrevious)
+    const introKind = body?.force_gemini === true ? null : matchGeminiIntroIntent(userMessage)
+
+    if (introKind && !chipId) {
+      const introText = buildGeminiIntroReply(introKind, {
+        snapshot,
+        previousSnapshot,
+        gender,
+        clubName,
+        periodLabel: snapshot?.period?.label,
+      })
+      if (introText) {
+        setCachedGeminiResponse(
+          clubId,
+          ym.year,
+          ym.month,
+          gender,
+          comparePrevious,
+          userMessage,
+          introText,
+        )
+        const persona = buildPersona(gender)
+        sendJson(res, 200, {
+          text: introText,
+          persona: persona.name,
+          club_name: clubName,
+          year: ym.year,
+          month: ym.month,
+          source: 'instant',
+          compare_previous: comparePrevious,
+          intro_kind: introKind,
+        })
+        return
+      }
+    }
+
     if (chipId) {
       const instantText = buildGeminiInstantReply(chipId, {
         snapshot,

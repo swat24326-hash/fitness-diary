@@ -24,6 +24,12 @@ import {
   matchGeminiInstantChip,
   GEMINI_QUICK_CHIPS,
 } from '../src/lib/admin/geminiInstantReplies.js'
+import {
+  buildGeminiIntroReply,
+  buildGeminiMicroIntro,
+  matchGeminiIntroIntent,
+  resolveGeminiClubLabel,
+} from '../src/lib/admin/geminiAssistantIntro.js'
 import { prepareTextForSpeech } from '../src/lib/geminiAnalyticsSpeech.js'
 import {
   clearGeminiSnapshotCacheForTests,
@@ -144,7 +150,7 @@ ok(kpi?.planPct === 50, 'kpi plan pct')
 ok(kpi?.reportsLabel === '10/30', 'kpi reports label')
 ok(kpi?.fitCity === 38, 'kpi fit city')
 
-ok(matchGeminiInstantChip(GEMINI_QUICK_CHIPS[0].message) === 'plan', 'instant chip plan')
+ok(matchGeminiInstantChip(GEMINI_QUICK_CHIPS.find((c) => c.id === 'plan').message) === 'plan', 'instant chip plan')
 ok(matchGeminiInstantChip('случайный текст') === null, 'instant chip miss')
 const instantPlan = buildGeminiInstantReply('plan', { snapshot: snap, gender: 'male' })
 ok(instantPlan?.includes('36%') && instantPlan.endsWith('.'), 'instant plan reply')
@@ -159,5 +165,24 @@ setCachedGeminiResponse('c1', 2026, 6, 'male', false, 'test q', 'cached answer')
 ok(getCachedGeminiResponse('c1', 2026, 6, 'male', false, 'test q') === 'cached answer', 'response cache hit')
 ok(getCachedGeminiResponse('c1', 2026, 6, 'male', false, 'other') === null, 'response cache miss')
 clearGeminiResponseCacheForTests()
+
+ok(matchGeminiIntroIntent('Кто ты?') === 'standard', 'intro intent who')
+ok(matchGeminiIntroIntent('откуда цифры') === 'sources', 'intro intent sources')
+ok(matchGeminiIntroIntent('ты бот?') === 'identity', 'intro intent identity')
+ok(resolveGeminiClubLabel('') === 'филиал', 'club label fallback')
+const introClub = buildGeminiIntroReply('standard', {
+  snapshot: snap,
+  gender: 'male',
+  clubName: 'FIT-CITY Север',
+})
+ok(introClub.includes('FIT-CITY Север') && introClub.includes('Василий'), 'intro uses club name')
+const introOther = buildGeminiIntroReply('standard', {
+  snapshot: snap,
+  gender: 'female',
+  clubName: 'FIT-CITY Юг',
+})
+ok(introOther.includes('FIT-CITY Юг') && introOther.includes('Василиса'), 'intro other club female')
+const microNoClub = buildGeminiMicroIntro({ hasClub: false, gender: 'male' })
+ok(microNoClub.includes('филиал') || microNoClub.includes('шапке'), 'micro no club hint')
 
 process.exit(failed > 0 ? 1 : 0)

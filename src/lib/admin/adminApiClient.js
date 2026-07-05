@@ -1,5 +1,6 @@
 import { supabase } from '../supabase'
 import { sleep } from '../supabaseRetry'
+import { fetchWithAppTimeout } from '../networkReachability.js'
 
 async function parseJsonResponse(res) {
   const text = await res.text()
@@ -268,7 +269,7 @@ export async function fetchClientWorkspaceViaAdminApi(clientId) {
 async function adminApiGet(path, token) {
   let res
   try {
-    res = await fetch(`${apiOrigin()}${path}`, {
+    res = await fetchWithAppTimeout(`${apiOrigin()}${path}`, {
       method: 'GET',
       headers: { Authorization: `Bearer ${token}` },
       credentials: 'same-origin',

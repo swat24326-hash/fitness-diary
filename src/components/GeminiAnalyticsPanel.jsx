@@ -9,6 +9,7 @@ import {
   Sparkles,
   Target,
   TrendingUp,
+  CircleHelp,
   Volume2,
   Wallet,
   X,
@@ -17,6 +18,7 @@ import { fetchClubSalesBundle } from '../lib/admin/adminSalesService.js'
 import { postGeminiAnalytics, prefetchGeminiSnapshot } from '../lib/admin/geminiAnalyticsService.js'
 import { isGeminiReplyIncomplete, resolveGeminiComparePrevious } from '../lib/admin/geminiAnalyticsPrompt.js'
 import { GEMINI_QUICK_CHIPS } from '../lib/admin/geminiInstantReplies.js'
+import { buildGeminiMicroIntro } from '../lib/admin/geminiAssistantIntro.js'
 import { reportDateForMonth } from '../lib/admin/geminiPanelKpi.js'
 import { GeminiContextKpi } from './GeminiContextKpi.jsx'
 import {
@@ -49,6 +51,7 @@ const MONTH_NAMES = [
 ]
 
 const CHIP_ICONS = {
+  intro: CircleHelp,
   plan: Target,
   gap: Sparkles,
   compare: TrendingUp,
@@ -132,15 +135,20 @@ export function GeminiAnalyticsPanel({
     setInput('')
     setMessages([
       {
-        role: 'system',
-        content: `Смотрим ${periodLabelRu(year, month)} · ${clubName || 'клуб'}`,
+        role: 'assistant',
+        content: buildGeminiMicroIntro({
+          clubName,
+          periodLabel: periodLabelRu(year, month),
+          gender,
+          hasClub: !!clubId,
+        }),
       },
     ])
     return () => {
       stopGeminiSpeech()
       stopListening()
     }
-  }, [open, clubId, year, month, clubName, stopListening])
+  }, [open, clubId, year, month, clubName, gender, stopListening])
 
   useEffect(() => {
     if (!open || !clubId) {

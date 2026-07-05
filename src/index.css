@@ -2458,6 +2458,34 @@ tr:last-child td {
   margin-bottom: 0;
 }
 
+.training-focus-pop__last {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(74, 222, 128, 0.06);
+  border: 1px solid rgba(74, 222, 128, 0.18);
+}
+
+.training-focus-pop__last-title {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-bright);
+}
+
+.training-focus-pop__last-set {
+  margin: 0 0 4px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.training-focus-pop__last-focus,
+.training-focus-pop__last-empty {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 /* Справочник упражнений: поле + кнопка открытия */
 .exercise-name-row {
   display: flex;

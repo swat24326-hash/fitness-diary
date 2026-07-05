@@ -16,7 +16,7 @@ export async function pullMembershipTypesForClubFromCloud(clubId) {
 
   try {
     const { fetchMembershipTypesForClubViaApi } = await import('./admin/adminApiClient')
-    const { mergeMembershipTypesForClub } = await import('./membershipTypesService')
+    const { mergeMembershipTypesForClub, notifyMembershipTypesChanged } = await import('./membershipTypesService')
     const viaApi = await fetchMembershipTypesForClubViaApi(cid)
     if (!viaApi) {
       return {
@@ -27,6 +27,7 @@ export async function pullMembershipTypesForClubFromCloud(clubId) {
     }
     const rows = viaApi.membership_types ?? []
     const { count } = await mergeMembershipTypesForClub(cid, rows)
+    if (count > 0) notifyMembershipTypesChanged(cid, { count, source: 'pull' })
     return { ok: true, count, source: 'api' }
   } catch (e) {
     return { ok: false, error: String(e?.message ?? e ?? 'Ошибка загрузки типов абонементов') }

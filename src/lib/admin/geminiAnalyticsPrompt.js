@@ -2,6 +2,7 @@
 
 import { trimChatHistory, compactSnapshotForPrompt } from './geminiAnalyticsSnapshot.js'
 import { buildGeminiDataSourceRules, buildGeminiLexiconRule } from './geminiAnalyticsDomain.js'
+import { buildGeminiSelfPresentationRule } from './geminiAssistantIntro.js'
 
 /** Сначала lite — дешевле и стабильнее на free tier Google AI Studio (2026). */
 export const GEMINI_ANALYTICS_MODELS = [
@@ -138,6 +139,7 @@ export function buildSystemPrompt(gender, clubName) {
     `Опирайся ТОЛЬКО на JSON в сообщении. Не выдумывай цифры. Учитывай data_sources.analysis_hints.`,
     `Месяц в ответе = current_period.period.label из JSON. Не называй другой месяц/год. previous_period — только если явно сравниваешь с прошлым месяцем.`,
     `Если отчётов мало (низкий report_coverage_pct) — скажи, что база не забита, выводы осторожные.`,
+    buildGeminiSelfPresentationRule(),
     GEMINI_RESPONSE_BRIEF_RULE,
   ].join('\n')
 }

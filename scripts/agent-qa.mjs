@@ -40,6 +40,7 @@ run('client trainings prune', 'node', ['scripts/verify-client-trainings-prune.mj
 run('bulk exercises parser', 'node', ['scripts/verify-bulk-exercises.mjs'])
 run('client birthdays', 'node', ['scripts/verify-client-birthdays.mjs'])
 run('membership type stats', 'node', ['scripts/verify-membership-type-stats.mjs'])
+run('membership types pull', 'node', ['scripts/verify-membership-types-pull.mjs'])
 run('club client period', 'node', ['scripts/verify-club-client-period.mjs'])
 run('club monthly year', 'node', ['scripts/verify-club-monthly-year.mjs'])
 run('club sales profit', 'node', ['scripts/verify-club-sales-profit.mjs'])
@@ -50,6 +51,7 @@ run('stats agg parity', 'node', ['scripts/verify-stats-agg-parity.mjs'])
 run('challenge max reps', 'node', ['scripts/verify-challenge-max-reps.mjs'])
 run('membership stats refresh', 'node', ['scripts/verify-membership-stats-refresh.mjs'])
 run('training superset', 'node', ['scripts/verify-training-superset.mjs'])
+run('last exercise result', 'node', ['scripts/verify-last-exercise-result.mjs'])
 
 if (!skipLint) {
   run('lint', 'npm', ['run', 'lint'])

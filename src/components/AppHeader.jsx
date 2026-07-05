@@ -4,9 +4,9 @@ import { pullAdminClientsFromCloud } from '../lib/admin/adminClientsListService'
 import { pullTrainerWorkspaceFromCloud } from '../lib/trainerPullService'
 import { listSyncQueue } from '../lib/localDb'
 import { describeFlushQueueResult, flushSyncQueue, getSyncOutboundSummary, isAppOnline } from '../lib/syncService'
-import { subscribeNetworkStatus } from '../lib/networkReachability'
+import { subscribeNetworkStatus, initWakeNetworkRecovery } from '../lib/networkReachability'
 import { isSupabaseConfigured } from '../lib/supabase'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react'
 import { AlertTriangle, BarChart3, CircleHelp, LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, User, UserCircle, Building2 } from 'lucide-react'
 import {
   listClubsLocal,
@@ -28,7 +28,10 @@ import {
   subscribeSyncAttention,
 } from '../lib/appErrorJournal'
 import { AppErrorJournalModal } from './AppErrorJournalModal'
-import { GeminiAnalyticsPanel } from './GeminiAnalyticsPanel'
+
+const GeminiAnalyticsPanel = lazy(() =>
+  import('./GeminiAnalyticsPanel.jsx').then((m) => ({ default: m.GeminiAnalyticsPanel })),
+)
 
 function headerNavClass({ isActive }) {
   return `app-header__nav-link${isActive ? ' app-header__nav-link--active' : ''}`
@@ -179,6 +182,7 @@ export function AppHeader() {
   }, [showAdminClubSelect, adminClubs, searchParams, setSearchParams])
 
   useEffect(() => subscribeNetworkStatus(setOnline), [])
+  useEffect(() => initWakeNetworkRecovery(), [])
 
   const refreshAttention = useCallback(() => {
     setPersistentErrorCount(getPersistentErrorCount())
@@ -792,12 +796,16 @@ export function AppHeader() {
       syncBusy={syncBusy}
       onSignOut={doSignOut}
     />
-    <GeminiAnalyticsPanel
-      open={geminiOpen}
-      onClose={() => setGeminiOpen(false)}
-      clubId={adminClubValue}
-      clubName={adminClubName}
-    />
+    {geminiOpen ? (
+      <Suspense fallback={null}>
+        <GeminiAnalyticsPanel
+          open={geminiOpen}
+          onClose={() => setGeminiOpen(false)}
+          clubId={adminClubValue}
+          clubName={adminClubName}
+        />
+      </Suspense>
+    ) : null}
     {syncFeedback && (
       <div
         className={`sync-feedback sync-feedback--${syncFeedback.tone}`}

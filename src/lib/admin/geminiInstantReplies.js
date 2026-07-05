@@ -1,12 +1,14 @@
 /** Мгновенные ответы на chips — без вызова Gemini, только snapshot. */
 
 import { GEMINI_LEXICON_POOLS } from './geminiAnalyticsDomain.js'
+import { buildGeminiIntroReply, GEMINI_INTRO_CHIP } from './geminiAssistantIntro.js'
 import { formatRub } from './salesReportCore.js'
 import { periodLabelRu } from './geminiAnalyticsSnapshot.js'
 
-/** @typedef {'plan'|'gap'|'compare'|'fitcity'|'finance'} GeminiChipId */
+/** @typedef {'intro'|'plan'|'gap'|'compare'|'fitcity'|'finance'} GeminiChipId */
 
 export const GEMINI_QUICK_CHIPS = [
+  GEMINI_INTRO_CHIP,
   {
     id: 'plan',
     label: 'Че по плану?',
@@ -93,6 +95,14 @@ export function buildGeminiInstantReply(chipId, opts) {
   const closer = pickWord(GEMINI_LEXICON_POOLS.closers, seed + 3)
 
   switch (chipId) {
+    case 'intro':
+      return buildGeminiIntroReply('standard', {
+        snapshot,
+        previousSnapshot: opts.previousSnapshot,
+        gender: opts.gender,
+        clubName: snapshot?.club_name,
+        periodLabel: snapshot?.period?.label,
+      })
     case 'plan':
       return buildPlanReply(club, period, snapshot, opener, closer, seed)
     case 'gap':

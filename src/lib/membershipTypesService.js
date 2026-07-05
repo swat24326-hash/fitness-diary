@@ -2,6 +2,7 @@
  * Справочник типов абонементов (клуб): локальный кэш + push в облако (админ).
  */
 
+import { shouldPullMembershipTypes } from './membershipTypesPullCore.js'
 import { isSupabaseConfigured } from './supabase'
 import { getDb, putStore, listSyncQueue, buildPendingSyncKeysByTable } from './localDb'
 import { saveLocalWithSync } from './syncService'
@@ -56,6 +57,81 @@ export async function listMembershipTypesForClub(clubId, opts = {}) {
       (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0) ||
       String(a.code ?? '').localeCompare(String(b.code ?? ''), 'ru'),
   )
+}
+
+const MEMBERSHIP_TYPES_STORAGE_EVENT = 'fitness-diary-storage'
+const lastAutoPullByClub = new Map()
+const AUTO_PULL_COOLDOWN_MS = 30_000
+
+export function notifyMembershipTypesChanged(clubId, detail = {}) {
+  if (typeof window === 'undefined') return
+  try {
+    window.dispatchEvent(
+      new CustomEvent(MEMBERSHIP_TYPES_STORAGE_EVENT, {
+        detail: { reason: 'membership-types', club_id: String(clubId ?? '').trim(), ...detail },
+      }),
+    )
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Локальный кэш + pull с сервера, если типов ещё нет (не ждать ручной Sync).
+ * @param {string} clubId
+ * @param {{ force?: boolean, activeOnly?: boolean }} [opts]
+ */
+export async function ensureMembershipTypesForClub(clubId, opts = {}) {
+  const cid = String(clubId ?? '').trim()
+  if (!cid) return { types: [], pulled: false }
+
+  let types = await listMembershipTypesForClub(cid, opts)
+  const activeCount = types.filter((t) => t.is_active !== false).length
+  const offline =
+    !isSupabaseConfigured() || (typeof navigator !== 'undefined' && navigator.onLine === false)
+
+  const lastPull = lastAutoPullByClub.get(cid) ?? 0
+  const cooledDown = Date.now() - lastPull >= AUTO_PULL_COOLDOWN_MS
+  const needPull = shouldPullMembershipTypes({
+    localActiveCount: activeCount,
+    force: opts.force === true,
+    offline,
+  })
+
+  if (!needPull || (!cooledDown && activeCount > 0 && opts.force !== true)) {
+    return { types, pulled: false, offline }
+  }
+
+  try {
+    const { pullMembershipTypesForClubFromCloud } = await import('./pullReferenceData.js')
+    const result = await pullMembershipTypesForClubFromCloud(cid)
+    lastAutoPullByClub.set(cid, Date.now())
+    if (result?.ok) {
+      types = await listMembershipTypesForClub(cid, opts)
+      notifyMembershipTypesChanged(cid, { count: result.count ?? types.length })
+      return { types, pulled: true, count: result.count ?? types.length }
+    }
+    return {
+      types,
+      pulled: false,
+      offline,
+      error: result?.error ?? result?.reason ?? 'Не удалось загрузить типы абонементов',
+    }
+  } catch (e) {
+    return {
+      types,
+      pulled: false,
+      offline,
+      error: String(e?.message ?? e ?? 'Ошибка загрузки типов'),
+    }
+  }
+}
+
+/** @param {string} clubId @param {object[]} types */
+export function clearMembershipTypesAutoPullCooldownForTests(clubId, types = []) {
+  if (clubId) lastAutoPullByClub.delete(String(clubId))
+  else lastAutoPullByClub.clear()
+  void types
 }
 
 /** @param {Map<string, object>|object[]} typesOrMap @param {string|null|undefined} typeId */
@@ -195,3 +271,5 @@ export async function reconcileMembershipTypesFromCloudCache() {
 
   return fixed
 }
+
+export { shouldPullMembershipTypes } from './membershipTypesPullCore.js'

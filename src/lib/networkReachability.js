@@ -7,6 +7,7 @@ export const CLOUD_STATUS_EVENT = 'fitness-diary-cloud-status'
 
 let cloudReachable = true
 let cloudCheckedAt = 0
+const ADMIN_FETCH_TIMEOUT_MS = 12_000
 
 function emitCloud() {
   if (typeof window === 'undefined') return
@@ -46,6 +47,52 @@ export function noteAppNetworkResponse(response) {
     cloudCheckedAt = Date.now()
     emitCloud()
   }
+}
+
+/** Обрывает зависшие fetch после сна ноутбука (без бесконечного ожидания). */
+export async function fetchWithAppTimeout(url, init = {}, timeoutMs = ADMIN_FETCH_TIMEOUT_MS) {
+  const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null
+  const timer =
+    ctrl &&
+    setTimeout(() => {
+      ctrl.abort()
+    }, timeoutMs)
+  try {
+    const res = await fetch(url, { ...init, signal: ctrl?.signal })
+    noteAppNetworkResponse(res)
+    return res
+  } catch (e) {
+    if (e?.name === 'AbortError') {
+      cloudReachable = false
+      cloudCheckedAt = Date.now()
+      emitCloud()
+      throw new Error('Таймаут связи с сервером')
+    }
+    throw e
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
+}
+
+/** После долгого сна сбрасываем «мёртвое» облако и проверяем заново. */
+export function initWakeNetworkRecovery() {
+  if (typeof document === 'undefined') return () => {}
+  let hiddenAt = 0
+  const onVis = () => {
+    if (document.visibilityState === 'hidden') {
+      hiddenAt = Date.now()
+      return
+    }
+    if (document.visibilityState !== 'visible') return
+    const sleptMs = hiddenAt ? Date.now() - hiddenAt : 0
+    hiddenAt = 0
+    if (sleptMs < 30_000) return
+    cloudReachable = false
+    cloudCheckedAt = 0
+    void probeCloudNow()
+  }
+  document.addEventListener('visibilitychange', onVis)
+  return () => document.removeEventListener('visibilitychange', onVis)
 }
 
 /** @param {boolean} browserOnline @param {boolean} [cloudOk] — для verify-скрипта */

@@ -630,7 +630,13 @@ export function TrainingPage() {
         </div>
       </div>
 
-      <TrainingForm value={workoutState} onChange={setWorkoutState} trainingType={trainingType} />
+      <TrainingForm
+        value={workoutState}
+        onChange={setWorkoutState}
+        trainingType={trainingType}
+        clientId={client?.id ?? clientIdParam ?? ''}
+        currentTrainingId={meta.trainingId}
+      />
 
       {saveError ? (
         <p className="muted" style={{ color: 'var(--danger)', margin: 0 }}>

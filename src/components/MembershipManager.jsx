@@ -4,7 +4,7 @@ import { getDb } from '../lib/localDb'
 import { deleteLocalWithSync, saveLocalWithSync } from '../lib/syncService'
 import { addDaysToIso, formatDateRu, formatDateTimeRu, todayLocalIso } from '../lib/dateRu'
 import { completedTrainingsOnMembership } from '../lib/membershipRules'
-import { listMembershipTypesForClub, membershipTypeCode } from '../lib/membershipTypesService'
+import { ensureMembershipTypesForClub, membershipTypeCode } from '../lib/membershipTypesService'
 import { CheckCircle2, Eye, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
@@ -85,19 +85,43 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
   const [editOpenId, setEditOpenId] = useState(null)
   const [newOpen, setNewOpen] = useState(false)
   const [membershipTypes, setMembershipTypes] = useState([])
+  const [typesLoading, setTypesLoading] = useState(false)
+  const [typesLoadError, setTypesLoadError] = useState('')
   const [trainings, setTrainings] = useState([])
   const [viewOpenId, setViewOpenId] = useState(null)
   const [confirmCancel, setConfirmCancel] = useState(null) // { t, membership }
 
   const todayIso = useMemo(() => todayLocalIso(), [])
 
-  const reloadTypes = useCallback(async () => {
-    if (!clubId) {
-      setMembershipTypes([])
-      return
-    }
-    setMembershipTypes(await listMembershipTypesForClub(clubId))
-  }, [clubId])
+  const reloadTypes = useCallback(
+    async (opts = {}) => {
+      if (!clubId) {
+        setMembershipTypes([])
+        setTypesLoadError('')
+        return
+      }
+      setTypesLoading(true)
+      setTypesLoadError('')
+      try {
+        const { types, error } = await ensureMembershipTypesForClub(clubId, {
+          force: opts.force === true,
+        })
+        setMembershipTypes(types)
+        if (error) setTypesLoadError(String(error))
+      } catch (e) {
+        setTypesLoadError(String(e?.message ?? 'Не удалось загрузить типы'))
+      } finally {
+        setTypesLoading(false)
+      }
+    },
+    [clubId],
+  )
+
+  const openNewMembership = useCallback(() => {
+    setNewOpen(true)
+    const activeCount = membershipTypes.filter((t) => t.is_active !== false).length
+    if (activeCount === 0) void reloadTypes({ force: true })
+  }, [membershipTypes, reloadTypes])
 
   useEffect(() => {
     void reloadTypes()
@@ -108,6 +132,13 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
     window.addEventListener('fitness-diary-storage', onStorage)
     return () => window.removeEventListener('fitness-diary-storage', onStorage)
   }, [reloadTypes])
+
+  useEffect(() => {
+    if (!editOpenId || !clubId) return undefined
+    const activeCount = membershipTypes.filter((t) => t.is_active !== false).length
+    if (activeCount === 0) void reloadTypes({ force: true })
+    return undefined
+  }, [editOpenId, clubId, membershipTypes, reloadTypes])
 
   const typesById = useMemo(() => new Map(membershipTypes.map((t) => [t.id, t])), [membershipTypes])
 
@@ -387,15 +418,21 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
                   id="membership-new-type"
                   className="input"
                   value={form.membership_type_id}
+                  disabled={typesLoading}
                   onChange={(e) => setForm((f) => ({ ...f, membership_type_id: e.target.value }))}
                 >
-                  <option value="">—</option>
+                  <option value="">{typesLoading ? 'Загрузка типов…' : '—'}</option>
                   {typeOptionsForSelect(form.membership_type_id).map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.code}
                     </option>
                   ))}
                 </select>
+                {!typesLoading && typeOptionsForSelect(form.membership_type_id).length === 0 ? (
+                  <p className="muted" style={{ margin: '6px 0 0', fontSize: '0.85rem' }}>
+                    {typesLoadError || 'Типов нет в кэше. Проверьте сеть или нажмите Sync в шапке.'}
+                  </p>
+                ) : null}
               </div>
               <div className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
                 <button type="button" className="btn btn-ghost btn-touch" onClick={() => setNewOpen(false)}>
@@ -438,9 +475,10 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
                   id="membership-edit-type"
                   className="input"
                   value={edit.membership_type_id}
+                  disabled={typesLoading}
                   onChange={(e) => setEdit((s) => ({ ...s, membership_type_id: e.target.value }))}
                 >
-                  <option value="">—</option>
+                  <option value="">{typesLoading ? 'Загрузка типов…' : '—'}</option>
                   {typeOptionsForSelect(edit.membership_type_id).map((t) => (
                     <option key={t.id} value={t.id}>
                       {t.code}
@@ -578,7 +616,7 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
             className="btn btn-primary btn-icon-square"
             aria-label="Новый абонемент"
             title="Новый абонемент"
-            onClick={() => setNewOpen(true)}
+            onClick={openNewMembership}
           >
             <Plus size={16} aria-hidden />
           </button>

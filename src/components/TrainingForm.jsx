@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Info, List, Paperclip, Plus, Trash2, X } from 'lucide-react'
-import { listExercises, LOCAL_DATA_CHANGED } from '../lib/dataAccess'
+import { listExercises, listTrainingsForClient, LOCAL_DATA_CHANGED } from '../lib/dataAccess'
+import { formatDateRu } from '../lib/dateRu'
+import { findLastExerciseResult } from '../lib/lastExerciseResult'
 import { stripDirectionControls } from '../lib/textInput'
 import {
   TRAINING_EXERCISE_FORMATS,
   exerciseFormatIsCardio,
   exerciseFormatWithSetHr,
+  formatSetSummary,
   normalizeExerciseFormat,
 } from '../lib/trainingExerciseFormat'
 import {
@@ -76,7 +79,13 @@ function resolveCatalogExercise(catalog, typedName) {
 }
 
 /** @param {string} [trainingType] — fallback при пустом списке (тип сессии из trainings.type) */
-export function TrainingForm({ value, onChange, trainingType = 'Силовая' }) {
+export function TrainingForm({
+  value,
+  onChange,
+  trainingType = 'Силовая',
+  clientId = '',
+  currentTrainingId = null,
+}) {
   const [step, setStep] = useState(0)
   const [focusExerciseIdx, setFocusExerciseIdx] = useState(null)
   const [pickExerciseIdx, setPickExerciseIdx] = useState(null)
@@ -84,6 +93,7 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
   const [pickFilterGroup, setPickFilterGroup] = useState('')
   const catalogSearchRef = useRef(null)
   const [catalogList, setCatalogList] = useState([])
+  const [clientTrainings, setClientTrainings] = useState([])
   const [suggestOpenId, setSuggestOpenId] = useState(null)
   const exercisesRef = useRef([])
   /** Пока в родителе exercises: [], нельзя каждый рендер создавать новый id — иначе input размонтируется и ввод «не печатается». */
@@ -152,6 +162,18 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
     return null
   }, [focusEx, catalogList])
 
+  const lastExerciseResult = useMemo(() => {
+    if (!focusEx) return null
+    const catalogExerciseId = focusEx.catalog_exercise_id
+    const name = focusEx.name
+    if (!String(catalogExerciseId ?? '').trim() && !String(name ?? '').trim()) return null
+    return findLastExerciseResult(
+      clientTrainings,
+      { catalogExerciseId, name },
+      { excludeTrainingId: currentTrainingId },
+    )
+  }, [focusEx, clientTrainings, currentTrainingId])
+
   const exerciseFormatButtons = (ex, exIdx) => (
     <div className="row exercise-format-row" style={{ gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
       <span className="muted" style={{ fontSize: 12 }}>
@@ -196,6 +218,30 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
       window.removeEventListener(LOCAL_DATA_CHANGED, onStorage)
     }
   }, [])
+
+  useEffect(() => {
+    const cid = String(clientId ?? '').trim()
+    if (!cid) {
+      setClientTrainings([])
+      return undefined
+    }
+    let cancelled = false
+    const loadTrainings = async () => {
+      try {
+        const rows = await listTrainingsForClient(cid)
+        if (!cancelled) setClientTrainings(Array.isArray(rows) ? rows : [])
+      } catch {
+        if (!cancelled) setClientTrainings([])
+      }
+    }
+    void loadTrainings()
+    const onStorage = () => void loadTrainings()
+    window.addEventListener(LOCAL_DATA_CHANGED, onStorage)
+    return () => {
+      cancelled = true
+      window.removeEventListener(LOCAL_DATA_CHANGED, onStorage)
+    }
+  }, [clientId])
 
   const catalogGroups = useMemo(() => {
     const s = new Set()
@@ -825,6 +871,25 @@ export function TrainingForm({ value, onChange, trainingType = 'Силовая' 
                 В справочнике нет описания для этого упражнения (выберите из списка справочника).
               </p>
             )}
+            {lastExerciseResult ? (
+              <div className="training-focus-pop__last" aria-label="Результаты прошлой тренировки">
+                <p className="training-focus-pop__last-title">
+                  Прошлый раз · {formatDateRu(lastExerciseResult.date)}
+                </p>
+                {(lastExerciseResult.sets ?? []).map((st, setIdx) => (
+                  <p key={setIdx} className="training-focus-pop__last-set muted">
+                    {setIdx + 1}) {formatSetSummary(st, lastExerciseResult.format)}
+                  </p>
+                ))}
+                {lastExerciseResult.muscle_focus ? (
+                  <p className="training-focus-pop__last-focus muted">
+                    Акцент тогда: {lastExerciseResult.muscle_focus}
+                  </p>
+                ) : null}
+              </div>
+            ) : focusEx.name?.trim() || focusEx.catalog_exercise_id ? (
+              <p className="training-focus-pop__last-empty muted">Первый раз в дневнике по этому упражнению.</p>
+            ) : null}
             <label className="label" style={{ marginBottom: 6 }}>
               Заметка тренера (направленность / акцент)
             </label>

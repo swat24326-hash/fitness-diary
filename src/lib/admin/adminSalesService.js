@@ -1,4 +1,5 @@
 import { getAccessTokenForAdminApi } from './adminApiClient.js'
+import { fetchWithAppTimeout } from '../networkReachability.js'
 
 const apiOrigin = () => (typeof window !== 'undefined' ? window.location.origin : '')
 
@@ -19,7 +20,7 @@ function apiRouteMissing(res, contentType) {
 async function adminApiGet(path, token) {
   let res
   try {
-    res = await fetch(`${apiOrigin()}${path}`, {
+    res = await fetchWithAppTimeout(`${apiOrigin()}${path}`, {
       method: 'GET',
       headers: { Authorization: `Bearer ${token}` },
       credentials: 'same-origin',
