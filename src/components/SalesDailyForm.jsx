@@ -34,6 +34,7 @@ const MATRIX_COLS = SALES_MATRIX_COLS
  *   trainingsMatrix?: Record<string, string>,
  *   onTrainingsMatrixChange?: (next: Record<string, string>) => void,
  *   fitCityTypeStats?: object | null,
+ *   clubId?: string,
  * }} props
  */
 export function SalesDailyForm({
@@ -53,6 +54,7 @@ export function SalesDailyForm({
   trainingsMatrix = {},
   onTrainingsMatrixChange,
   fitCityTypeStats = null,
+  clubId = '',
 }) {
   const profit = useMemo(() => {
     const calc = computeProfitFromMatrix(form)
@@ -122,23 +124,46 @@ export function SalesDailyForm({
           fitCityStats={fitCityTypeStats}
           canEdit={canEdit}
           aggregateOnly
+          clubId={clubId}
         />
       </div>
 
-      <p className="muted" style={{ margin: '1rem 0 0.5rem', fontSize: '0.85rem' }}>
-        Матрица продаж: в каждой ячейке — количество абонементов и сумма продаж (₽). Средний чек = сумма ÷
-        количество. Прибыль по столбцу — сумма всех ячеек.
+      <h3 className="sales-report__section-title sales-report__matrix-heading">
+        Матрица продаж
+      </h3>
+      <p className="muted sales-report__matrix-note">
+        В каждом столбце (НК, ДК, УК): количество абонементов, сумма продаж и средний чек. Прибыль по столбцу —
+        сумма всех ячеек строк.
       </p>
-      <div className="table-wrap">
-        <table className="sales-report__matrix sales-report__matrix--cells">
+      <div className="table-wrap sales-report__matrix-wrap">
+        <table className="sales-report__matrix sales-report__matrix--flat">
           <thead>
             <tr>
-              <th />
+              <th rowSpan={2} className="sales-report__matrix-row-label" />
               {MATRIX_COLS.map((c) => (
-                <th key={c.suffix}>{c.label}</th>
+                <th key={c.suffix} colSpan={3} className="sales-report__matrix-group-head">
+                  {c.label}
+                </th>
               ))}
-              <th>Абон.</th>
-              <th>Ср. чек</th>
+              <th rowSpan={2} className="sales-report__matrix-summary-head">
+                Абон.
+              </th>
+              <th rowSpan={2} className="sales-report__matrix-summary-head">
+                Ср. чек
+              </th>
+            </tr>
+            <tr>
+              {MATRIX_COLS.flatMap((c) => [
+                <th key={`${c.suffix}-cnt`} className="sales-report__matrix-subhead">
+                  шт
+                </th>,
+                <th key={`${c.suffix}-sum`} className="sales-report__matrix-subhead">
+                  ₽
+                </th>,
+                <th key={`${c.suffix}-avg`} className="sales-report__matrix-subhead">
+                  ср.
+                </th>,
+              ])}
             </tr>
           </thead>
           <tbody>
@@ -148,39 +173,39 @@ export function SalesDailyForm({
               const rowSum = salesMatrixRowSumTotal(form, row.key)
               return (
                 <tr key={row.key}>
-                  <td>{row.label}</td>
-                  {MATRIX_COLS.map((col) => {
+                  <td className="sales-report__matrix-row-label">{row.label}</td>
+                  {MATRIX_COLS.flatMap((col) => {
                     const { countKey, sumKey } = salesMatrixCellKeys(row.key, col.suffix)
                     const cellAvg = salesMatrixCellAvgCheck(form, countKey)
-                    return (
-                      <td key={countKey}>
-                        <div className="sales-report__matrix-cell">
-                          <label className="sales-report__matrix-cell-label">шт</label>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            className="sales-report__matrix-cell-input"
-                            aria-label={`${row.label} ${col.label} количество`}
-                            value={form[countKey] ?? ''}
-                            onChange={(e) => setField(countKey, e.target.value)}
-                            disabled={!canEdit}
-                          />
-                          <label className="sales-report__matrix-cell-label">₽</label>
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            className="sales-report__matrix-cell-input"
-                            aria-label={`${row.label} ${col.label} сумма`}
-                            value={form[sumKey] ?? ''}
-                            onChange={(e) => setField(sumKey, e.target.value)}
-                            disabled={!canEdit}
-                          />
-                          <span className="sales-report__matrix-cell-avg" title="Средний чек">
-                            {cellAvg != null ? formatRub(cellAvg) : '—'}
-                          </span>
-                        </div>
-                      </td>
-                    )
+                    return [
+                      <td key={`${countKey}-cnt`} className="sales-report__matrix-field">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          className="sales-report__matrix-input"
+                          aria-label={`${row.label} ${col.label} количество`}
+                          value={form[countKey] ?? ''}
+                          onChange={(e) => setField(countKey, e.target.value)}
+                          disabled={!canEdit}
+                          placeholder="0"
+                        />
+                      </td>,
+                      <td key={`${countKey}-sum`} className="sales-report__matrix-field">
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          className="sales-report__matrix-input"
+                          aria-label={`${row.label} ${col.label} сумма`}
+                          value={form[sumKey] ?? ''}
+                          onChange={(e) => setField(sumKey, e.target.value)}
+                          disabled={!canEdit}
+                          placeholder="0"
+                        />
+                      </td>,
+                      <td key={`${countKey}-avg`} className="sales-report__matrix-computed sales-report__matrix-cell-avg">
+                        {cellAvg != null ? formatRub(cellAvg) : '—'}
+                      </td>,
+                    ]
                   })}
                   <td className="sales-report__matrix-computed">
                     <strong>{rowTotal > 0 ? rowTotal : '—'}</strong>
@@ -195,9 +220,9 @@ export function SalesDailyForm({
               )
             })}
             <tr className="sales-report__matrix-profit-row">
-              <td>Прибыль (₽)</td>
+              <td className="sales-report__matrix-row-label">Прибыль (₽)</td>
               {MATRIX_COLS.map((col) => (
-                <td key={col.suffix} className="sales-report__matrix-computed">
+                <td key={col.suffix} colSpan={3} className="sales-report__matrix-computed">
                   <strong>{formatRub(profit[`profit_${col.suffix}`])}</strong>
                 </td>
               ))}

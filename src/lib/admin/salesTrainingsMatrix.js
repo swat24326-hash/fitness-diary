@@ -110,10 +110,12 @@ export function sumTypedMatrixRows(rows) {
 
 /**
  * @param {Array<{ id: string, code?: string, sort_order?: number, is_active?: boolean }>} membershipTypes
+ * @param {{ includeInactive?: boolean }} [opts] — для отчёта продаж показываем все типы клуба
  */
-export function buildTrainingsMatrixColumns(membershipTypes) {
+export function buildTrainingsMatrixColumns(membershipTypes, opts = {}) {
+  const includeInactive = opts.includeInactive !== false
   const cols = (membershipTypes ?? [])
-    .filter((t) => t?.is_active !== false)
+    .filter((t) => includeInactive || t?.is_active !== false)
     .sort(
       (a, b) =>
         (Number(a?.sort_order) || 0) - (Number(b?.sort_order) || 0) ||
@@ -122,9 +124,15 @@ export function buildTrainingsMatrixColumns(membershipTypes) {
     .map((t) => ({
       typeId: String(t.id),
       code: String(t.code ?? '—').trim() || '—',
+      inactive: t?.is_active === false,
     }))
-  cols.push({ typeId: SALES_TRAINING_TYPE_NONE, code: 'Без типа' })
+  cols.push({ typeId: SALES_TRAINING_TYPE_NONE, code: 'Без типа', inactive: false })
   return cols
+}
+
+/** Столбцы типов абонементов без «Без типа». */
+export function typedTrainingsMatrixColumns(columns) {
+  return (columns ?? []).filter((c) => c.typeId !== SALES_TRAINING_TYPE_NONE)
 }
 
 /**

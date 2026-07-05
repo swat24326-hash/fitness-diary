@@ -18,6 +18,7 @@ import {
   normalizeMatrixRowsFromDb,
   SALES_TRAINING_CLUB_ID,
 } from '../../lib/admin/salesTrainingsMatrix'
+import { ensureMembershipTypesForClub } from '../../lib/membershipTypesService'
 import {
   fetchClubSalesBundle,
   saveClubSalesDaily,
@@ -104,11 +105,16 @@ export function AdminSales() {
       setMonthSummary(bundle.monthSummary)
       setPlanTotal(Number(bundle.plan?.plan_total) || 0)
       setYearMonth({ year: bundle.year, month: bundle.month })
-      setMembershipTypes(bundle.membershipTypes ?? [])
+      let types = bundle.membershipTypes ?? []
+      if (!types.length) {
+        const ensured = await ensureMembershipTypesForClub(clubId, { force: true })
+        types = ensured.types ?? []
+      }
+      setMembershipTypes(types)
       setTrainers(bundle.trainers ?? [])
       setFitCityTypeStats(bundle.fitCityTypeStats ?? null)
       const matrixRows = normalizeMatrixRowsFromDb(bundle.daily?.trainings_matrix)
-      const cols = buildTrainingsMatrixColumns(bundle.membershipTypes ?? [])
+      const cols = buildTrainingsMatrixColumns(types)
       setTrainingsMatrix(
         clubAggregateInputMap(
           matrixRowsToInputMap(matrixRows),
@@ -311,6 +317,7 @@ export function AdminSales() {
             trainingsMatrix={trainingsMatrix}
             onTrainingsMatrixChange={setTrainingsMatrix}
             fitCityTypeStats={fitCityTypeStats}
+            clubId={clubId}
           />
         </div>
       ) : (

@@ -449,6 +449,90 @@
   min-width: 640px;
 }
 
+.sales-report__matrix--flat {
+  min-width: 720px;
+  border-spacing: 0;
+  border-collapse: collapse;
+}
+
+.sales-report__matrix-wrap {
+  margin-top: 0.5rem;
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  overflow-x: auto;
+}
+
+.sales-report__matrix-heading {
+  font-size: 1rem;
+  margin: 1.25rem 0 0.35rem;
+}
+
+.sales-report__matrix-note {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.sales-report__matrix-group-head {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+  padding-bottom: 0.35rem !important;
+}
+
+.sales-report__matrix-subhead {
+  font-size: 0.65rem !important;
+  font-weight: 500 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding-top: 0 !important;
+}
+
+.sales-report__matrix-row-label {
+  font-size: 0.8rem;
+  color: var(--muted, #94a3b8);
+  padding: 0.5rem 0.75rem 0.5rem 0;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.sales-report__matrix-summary-head {
+  vertical-align: middle;
+  min-width: 4.5rem;
+}
+
+.sales-report__matrix-field {
+  padding: 0.35rem 0.25rem;
+  vertical-align: middle;
+  border-left: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.sales-report__matrix-field:first-of-type {
+  border-left-width: 2px;
+  border-left-color: rgba(148, 163, 184, 0.18);
+}
+
+.sales-report__matrix-input {
+  width: 100%;
+  min-width: 3.25rem;
+  text-align: center;
+  border-radius: 8px;
+  padding: 0.35rem 0.25rem;
+  font-size: 0.85rem;
+}
+
+.sales-report__matrix--flat .sales-report__matrix-cell-avg {
+  font-size: 0.8rem;
+  min-width: 4rem;
+  padding: 0.35rem 0.5rem;
+}
+
+.sales-report__matrix--flat tbody tr:not(.sales-report__matrix-profit-row) td {
+  border-top: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.sales-report__matrix--flat thead th {
+  padding: 0.5rem 0.35rem;
+}
+
 .sales-report__matrix-cell {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -626,6 +710,31 @@
   margin: 0 0 0.75rem;
   font-size: 0.85rem;
   line-height: 1.45;
+}
+
+.sales-trainings-matrix--empty {
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-md, 12px);
+  background: rgba(15, 23, 42, 0.45);
+  border: 1px dashed rgba(148, 163, 184, 0.25);
+}
+
+.sales-trainings-matrix__scroll {
+  overflow-x: auto;
+}
+
+.sales-trainings-matrix__none-col {
+  border-left: 2px solid rgba(148, 163, 184, 0.2);
+}
+
+.sales-trainings-matrix__inactive-col {
+  opacity: 0.65;
+}
+
+.sales-trainings-matrix__inactive-tag {
+  font-size: 0.65rem;
+  color: var(--muted, #94a3b8);
+  font-weight: 400;
 }
 
 .sales-trainings-matrix__input {
