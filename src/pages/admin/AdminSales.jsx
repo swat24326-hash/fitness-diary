@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useOutletContext, useSearchParams } from 'react-router-dom'
-import { RefreshCw, TrendingUp } from 'lucide-react'
+import { CalendarDays, ClipboardList, RefreshCw, TrendingUp } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { addDaysToIso, clampIsoDateToToday, formatDateRu, todayLocalIso } from '../../lib/dateRu'
@@ -102,6 +102,7 @@ export function AdminSales({ accessMode = 'admin' }) {
   const [trainers, setTrainers] = useState([])
   const [fitCityTypeStats, setFitCityTypeStats] = useState(null)
   const [trainingsMatrix, setTrainingsMatrix] = useState({})
+  const [salesHomeSection, setSalesHomeSection] = useState('report')
 
   const membershipTypeColumns = useMemo(
     () => buildTrainingsMatrixColumns(membershipTypes),
@@ -379,6 +380,38 @@ export function AdminSales({ accessMode = 'admin' }) {
         <SalesPlanVessel fact={factMonth} planLevels={planLevels} pulseKey={vesselPulse} />
       </div>
 
+      {isSalesManager && salesTab === 'daily' ? (
+        <section className="trainer-home__tiles sales-report__sections" aria-labelledby="sales-home-sections">
+          <h2 id="sales-home-sections" className="trainer-home__tiles-heading">
+            Разделы
+          </h2>
+          <div className="tile-grid trainer-home__tile-grid">
+            <button
+              type="button"
+              className={`feature-tile${salesHomeSection === 'report' ? ' feature-tile--active' : ''}`}
+              aria-pressed={salesHomeSection === 'report'}
+              onClick={() => setSalesHomeSection('report')}
+            >
+              <div className="feature-tile__icon">
+                <CalendarDays size={36} aria-hidden />
+              </div>
+              <p className="feature-tile__title">Отчёт за день</p>
+            </button>
+            <button
+              type="button"
+              className={`feature-tile${salesHomeSection === 'plan' ? ' feature-tile--active' : ''}`}
+              aria-pressed={salesHomeSection === 'plan'}
+              onClick={() => setSalesHomeSection('plan')}
+            >
+              <div className="feature-tile__icon">
+                <ClipboardList size={36} aria-hidden />
+              </div>
+              <p className="feature-tile__title">План</p>
+            </button>
+          </div>
+        </section>
+      ) : null}
+
       {error ? (
         <p className="sync-feedback sync-feedback--err" role="alert">
           {error}
@@ -433,31 +466,64 @@ export function AdminSales({ accessMode = 'admin' }) {
 
       {salesTab === 'daily' ? (
         <div id="sales-panel-daily" role="tabpanel" aria-labelledby="sales-tab-daily">
-          <SalesPlanDirectionsForm
-            planForm={planForm}
-            onPlanChange={setPlanForm}
-            onSave={() => void handleSavePlanDirections()}
-            saving={savingPlan}
-          />
-          <SalesDailyForm
-            reportDate={reportDate}
-            dateLabel={formatDateRu(reportDate)}
-            form={dailyForm}
-            onFormChange={setDailyForm}
-            onPrevDay={() => setReportDate((d) => addDaysToIso(d, -1))}
-            onNextDay={() => setReportDate((d) => clampIsoDateToToday(addDaysToIso(d, 1)))}
-            onDateChange={(iso) => setReportDate(clampIsoDateToToday(iso))}
-            onSave={() => void handleSaveDaily()}
-            saving={savingDaily}
-            canEdit
-            trainers={trainers}
-            membershipTypes={membershipTypes}
-            membershipTypeColumns={membershipTypeColumns}
-            trainingsMatrix={trainingsMatrix}
-            onTrainingsMatrixChange={setTrainingsMatrix}
-            fitCityTypeStats={fitCityTypeStats}
-            clubId={clubId}
-          />
+          {isSalesManager ? (
+            salesHomeSection === 'plan' ? (
+              <SalesPlanDirectionsForm
+                planForm={planForm}
+                onPlanChange={setPlanForm}
+                onSave={() => void handleSavePlanDirections()}
+                saving={savingPlan}
+              />
+            ) : (
+              <SalesDailyForm
+                reportDate={reportDate}
+                dateLabel={formatDateRu(reportDate)}
+                form={dailyForm}
+                onFormChange={setDailyForm}
+                onPrevDay={() => setReportDate((d) => addDaysToIso(d, -1))}
+                onNextDay={() => setReportDate((d) => clampIsoDateToToday(addDaysToIso(d, 1)))}
+                onDateChange={(iso) => setReportDate(clampIsoDateToToday(iso))}
+                onSave={() => void handleSaveDaily()}
+                saving={savingDaily}
+                canEdit
+                trainers={trainers}
+                membershipTypes={membershipTypes}
+                membershipTypeColumns={membershipTypeColumns}
+                trainingsMatrix={trainingsMatrix}
+                onTrainingsMatrixChange={setTrainingsMatrix}
+                fitCityTypeStats={fitCityTypeStats}
+                clubId={clubId}
+              />
+            )
+          ) : (
+            <>
+              <SalesPlanDirectionsForm
+                planForm={planForm}
+                onPlanChange={setPlanForm}
+                onSave={() => void handleSavePlanDirections()}
+                saving={savingPlan}
+              />
+              <SalesDailyForm
+                reportDate={reportDate}
+                dateLabel={formatDateRu(reportDate)}
+                form={dailyForm}
+                onFormChange={setDailyForm}
+                onPrevDay={() => setReportDate((d) => addDaysToIso(d, -1))}
+                onNextDay={() => setReportDate((d) => clampIsoDateToToday(addDaysToIso(d, 1)))}
+                onDateChange={(iso) => setReportDate(clampIsoDateToToday(iso))}
+                onSave={() => void handleSaveDaily()}
+                saving={savingDaily}
+                canEdit
+                trainers={trainers}
+                membershipTypes={membershipTypes}
+                membershipTypeColumns={membershipTypeColumns}
+                trainingsMatrix={trainingsMatrix}
+                onTrainingsMatrixChange={setTrainingsMatrix}
+                fitCityTypeStats={fitCityTypeStats}
+                clubId={clubId}
+              />
+            </>
+          )}
         </div>
       ) : salesTab === 'stats' ? (
         <div id="sales-panel-stats" role="tabpanel" aria-labelledby="sales-tab-stats">

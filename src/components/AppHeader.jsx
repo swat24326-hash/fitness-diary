@@ -7,7 +7,7 @@ import { describeFlushQueueResult, flushSyncQueue, getSyncOutboundSummary, isApp
 import { subscribeNetworkStatus, initWakeNetworkRecovery } from '../lib/networkReachability'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react'
-import { AlertTriangle, BarChart3, CircleHelp, LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, User, UserCircle, Building2 } from 'lucide-react'
+import { AlertTriangle, BarChart3, CircleHelp, LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, TrendingUp, User, UserCircle, Building2 } from 'lucide-react'
 import {
   listClubsLocal,
   LOCAL_DATA_CHANGED,
@@ -42,7 +42,7 @@ function menuNavClass({ isActive }) {
 }
 
 export function AppHeader() {
-  const { user, signOut, isAdmin, supabaseReady } = useAuth()
+  const { user, signOut, isAdmin, isSalesManager, supabaseReady } = useAuth()
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const [online, setOnline] = useState(() => (typeof navigator !== 'undefined' ? isAppOnline() : true))
@@ -85,6 +85,7 @@ export function AppHeader() {
   const showAdminClubSelect = isAdmin && location.pathname.startsWith('/admin')
   const adminClubValue = searchParams.get('club') ?? ''
   const adminQs = useMemo(() => (adminClubValue ? `?club=${encodeURIComponent(adminClubValue)}` : ''), [adminClubValue])
+  const salesStatsActive = searchParams.get('tab') === 'stats'
 
   useEffect(() => {
     if (!showAdminClubSelect) return
@@ -366,7 +367,17 @@ export function AppHeader() {
             } else {
               parts.push('клиенты: выберите клуб')
             }
-          } else if (user?.id) {
+            } else if (isSalesManager && user?.club_id) {
+              bumpSyncProgress(88, 'Типы абонементов…')
+              const mtPull = await pullMembershipTypesForClubFromCloud(String(user.club_id))
+              if (!mtPull?.ok) {
+                hadError = true
+                parts.push(`типы абон.: ${mtPull.error ?? 'ошибка'}`)
+              } else {
+                parts.push(`типы абон. (${mtPull.count ?? 0})`)
+              }
+              parts.push('отчёт продаж — нажмите «Обновить» на странице')
+            } else if (user?.id) {
             bumpSyncProgress(84, 'Клиенты и тренировки…')
             const pull = await pullTrainerWorkspaceFromCloud(user.id)
             if (pull?.ok) {
@@ -470,14 +481,14 @@ export function AppHeader() {
     signOut()
   }
 
-  const homeTo = isAdmin ? `/admin${adminQs}` : '/trainer'
+  const homeTo = isAdmin ? `/admin${adminQs}` : isSalesManager ? '/sales' : '/trainer'
 
   const journalContext = useMemo(() => {
     const clubId = isAdmin ? adminClubValue : String(user?.club_id ?? '').trim()
     const club = adminClubs.find((c) => String(c.id) === clubId)
     return {
       user,
-      role: isAdmin ? 'admin' : 'trainer',
+      role: isAdmin ? 'admin' : isSalesManager ? 'sales_manager' : 'trainer',
       isAdmin,
       online,
       supabaseReady: supabaseReady && isSupabaseConfigured(),
@@ -492,6 +503,7 @@ export function AppHeader() {
   }, [
     user,
     isAdmin,
+    isSalesManager,
     online,
     supabaseReady,
     adminClubValue,
@@ -548,18 +560,38 @@ export function AppHeader() {
         .join(' ')}
     >
       <div className="app-header__brand-slot">
-        <Link
-          to={homeTo}
-          className="app-brand u-no-decoration"
-          style={{ color: 'inherit' }}
-          title={online ? 'Сеть: онлайн' : 'Сеть: офлайн'}
-          aria-label={online ? 'Фитнес-дневник, подключение к сети есть' : 'Фитнес-дневник, нет подключения к сети'}
-        >
-          <span className={`app-brand-mark ${online ? 'app-brand-mark--online' : 'app-brand-mark--offline'}`} aria-hidden>
-            <i className="fas fa-dumbbell app-brand-mark__fa-icon" aria-hidden />
-          </span>
-          <span className="app-brand-text">Фитнес-дневник</span>
-        </Link>
+        {isSalesManager ? (
+          <Link
+            to="/sales"
+            className="sales-header__brand u-no-decoration"
+            style={{ color: 'inherit' }}
+            title={online ? 'Продажи — онлайн' : 'Продажи — офлайн'}
+            aria-label={online ? 'Продажи, подключение к сети есть' : 'Продажи, нет подключения к сети'}
+          >
+            <TrendingUp size={22} aria-hidden className="sales-header__brand-icon" />
+            <div>
+              <span className="sales-header__title">Продажи</span>
+              {user?.club_id ? (
+                <span className="sales-header__club" title="Ваш клуб">
+                  {trainerClubLabel === null ? '…' : trainerClubLabel || user.club_id}
+                </span>
+              ) : null}
+            </div>
+          </Link>
+        ) : (
+          <Link
+            to={homeTo}
+            className="app-brand u-no-decoration"
+            style={{ color: 'inherit' }}
+            title={online ? 'Сеть: онлайн' : 'Сеть: офлайн'}
+            aria-label={online ? 'Фитнес-дневник, подключение к сети есть' : 'Фитнес-дневник, нет подключения к сети'}
+          >
+            <span className={`app-brand-mark ${online ? 'app-brand-mark--online' : 'app-brand-mark--offline'}`} aria-hidden>
+              <i className="fas fa-dumbbell app-brand-mark__fa-icon" aria-hidden />
+            </span>
+            <span className="app-brand-text">Фитнес-дневник</span>
+          </Link>
+        )}
       </div>
       <nav className="app-header__nav" aria-label="Разделы">
         {isAdmin ? (
@@ -593,6 +625,22 @@ export function AppHeader() {
                 <Trophy size={18} aria-hidden />
                 Челленджи
               </span>
+            </NavLink>
+          </>
+        ) : isSalesManager ? (
+          <>
+            <NavLink
+              to="/sales"
+              end
+              className={({ isActive }) => headerNavClass({ isActive: isActive && !salesStatsActive })}
+            >
+              Главная
+            </NavLink>
+            <NavLink
+              to="/sales?tab=stats"
+              className={({ isActive }) => headerNavClass({ isActive: isActive || salesStatsActive })}
+            >
+              Статистика
             </NavLink>
           </>
         ) : (
@@ -643,7 +691,7 @@ export function AppHeader() {
             <span aria-hidden>✨</span>
           </button>
         ) : null}
-        {!isAdmin && user ? <HeaderStopwatch /> : null}
+        {!isAdmin && !isSalesManager && user ? <HeaderStopwatch /> : null}
         {showHeaderSync ? (
           <div className="app-header__sync-wrap">
             <button
@@ -722,6 +770,15 @@ export function AppHeader() {
                   </NavLink>
                   <NavLink to={`/admin/challenges${adminQs}`} className={menuNavClass} onClick={() => setMenuOpen(false)}>
                     Челленджи
+                  </NavLink>
+                </>
+              ) : isSalesManager ? (
+                <>
+                  <NavLink to="/sales" end className={menuNavClass} onClick={() => setMenuOpen(false)}>
+                    Главная
+                  </NavLink>
+                  <NavLink to="/sales?tab=stats" className={menuNavClass} onClick={() => setMenuOpen(false)}>
+                    Статистика
                   </NavLink>
                 </>
               ) : (

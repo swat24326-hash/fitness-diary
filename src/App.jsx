@@ -13,7 +13,6 @@ import { AdminClients } from './pages/admin/AdminClients'
 import { AdminStructure } from './pages/admin/AdminStructure'
 import { AdminStatistics } from './pages/admin/AdminStatistics'
 import { AdminSales } from './pages/admin/AdminSales'
-import { SalesHeader } from './components/SalesHeader'
 import { AdminChallenges } from './pages/admin/AdminChallenges'
 import { AdminChallengeDetail } from './pages/admin/AdminChallengeDetail'
 import { AdminDiagnostics } from './pages/admin/AdminDiagnostics'
@@ -43,19 +42,8 @@ function LoggedInLayout() {
     return <Navigate to="/login" replace />
   }
 
-  if (isSalesManager) {
-    return (
-      <div className="app-shell app-shell--sales">
-        <SalesHeader />
-        <main className="app-main">
-          <Outlet />
-        </main>
-      </div>
-    )
-  }
-
   return (
-    <div className="app-shell">
+    <div className={`app-shell${isSalesManager ? ' app-shell--sales' : ''}`}>
       <AppHeader />
       {role === 'trainer' ? <DraftTabsBar /> : null}
       <BreadcrumbsBar />
