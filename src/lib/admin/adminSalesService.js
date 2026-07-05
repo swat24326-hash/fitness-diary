@@ -1,5 +1,11 @@
 import { getAccessTokenForAdminApi } from './adminApiClient.js'
-import { fetchWithAppTimeout } from '../networkReachability.js'
+import {
+  fetchClubSalesBundleViaSupabase,
+  saveClubSalesDailyViaSupabase,
+  saveClubSalesFinanceViaSupabase,
+  saveClubSalesPlanViaSupabase,
+} from './adminSalesLocalService.js'
+import { firstSuccessfulPromise, isCloudReachable, fetchWithAppTimeout } from '../networkReachability.js'
 
 const apiOrigin = () => (typeof window !== 'undefined' ? window.location.origin : '')
 
@@ -15,6 +21,31 @@ async function parseJsonResponse(res) {
 
 function apiRouteMissing(res, contentType) {
   return res.status === 404 || (res.status === 200 && !contentType.includes('application/json'))
+}
+
+function mapApiSalesBundle(data, clubId, reportDate) {
+  return {
+    clubId: data.club_id ?? clubId,
+    year: data.year,
+    month: data.month,
+    reportDate: data.report_date ?? reportDate,
+    daily: data.daily ?? null,
+    monthDays: Array.isArray(data.month_days) ? data.month_days : [],
+    plan: data.plan ?? null,
+    expense: data.expense ?? null,
+    monthSummary: data.month_summary ?? null,
+    membershipTypes: Array.isArray(data.membership_types) ? data.membership_types : [],
+    trainers: Array.isArray(data.trainers) ? data.trainers : [],
+    fitCityTypeStats: data.fit_city_type_stats ?? null,
+    source: 'admin_api',
+  }
+}
+
+function isApiTransportError(err) {
+  const msg = String(err?.message ?? err ?? '')
+  return /failed to fetch|connection reset|connection refused|timeout|таймаут|err_connection|load failed|сеть/i.test(
+    msg,
+  )
 }
 
 async function adminApiGet(path, token) {
@@ -39,7 +70,7 @@ async function adminApiGet(path, token) {
 async function adminApiPost(path, token, body) {
   let res
   try {
-    res = await fetch(`${apiOrigin()}${path}`, {
+    res = await fetchWithAppTimeout(`${apiOrigin()}${path}`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -59,7 +90,7 @@ async function adminApiPost(path, token, body) {
   throw new Error(data?.error ? String(data.error) : `Ошибка сервера (${res.status})`)
 }
 
-/** GET /api/admin-data?action=sales */
+/** GET /api/admin-data?action=sales — API параллельно с Supabase direct */
 export async function fetchClubSalesBundle({ clubId, reportDate }) {
   const token = await getAccessTokenForAdminApi()
   if (!token) throw new Error('Нет сессии администратора')
@@ -69,21 +100,34 @@ export async function fetchClubSalesBundle({ clubId, reportDate }) {
     club_id: clubId,
     report_date: reportDate,
   })
-  const { data, routeMissing } = await adminApiGet(`/api/admin-data?${params}`, token)
-  if (routeMissing) return null
-  return {
-    clubId: data.club_id ?? clubId,
-    year: data.year,
-    month: data.month,
-    reportDate: data.report_date ?? reportDate,
-    daily: data.daily ?? null,
-    monthDays: Array.isArray(data.month_days) ? data.month_days : [],
-    plan: data.plan ?? null,
-    expense: data.expense ?? null,
-    monthSummary: data.month_summary ?? null,
-    membershipTypes: Array.isArray(data.membership_types) ? data.membership_types : [],
-    trainers: Array.isArray(data.trainers) ? data.trainers : [],
-    fitCityTypeStats: data.fit_city_type_stats ?? null,
+
+  const loadViaApi = async () => {
+    const { data, routeMissing } = await adminApiGet(`/api/admin-data?${params}`, token)
+    if (routeMissing) throw new Error('API продаж недоступен — обновите деплой')
+    return mapApiSalesBundle(data, clubId, reportDate)
+  }
+
+  const loadViaSupabase = () => fetchClubSalesBundleViaSupabase({ clubId, reportDate })
+
+  if (!isCloudReachable()) {
+    return loadViaSupabase()
+  }
+
+  try {
+    return await firstSuccessfulPromise([loadViaApi, loadViaSupabase])
+  } catch (apiErr) {
+    try {
+      return await loadViaSupabase()
+    } catch (directErr) {
+      if (isApiTransportError(apiErr)) {
+        throw new Error(
+          directErr?.message
+            ? `Сервер приложения недоступен. Supabase: ${directErr.message}`
+            : 'Сервер приложения недоступен — проверьте интернет и VPN',
+        )
+      }
+      throw apiErr
+    }
   }
 }
 
@@ -98,44 +142,75 @@ export async function saveClubSalesDaily({
 }) {
   const token = await getAccessTokenForAdminApi()
   if (!token) throw new Error('Нет сессии администратора')
-  const { data, routeMissing } = await adminApiPost(
-    '/api/admin-data?action=sales-daily',
-    token,
-    {
-      club_id: clubId,
-      report_date: reportDate,
-      form,
-      trainings_matrix_input: trainingsMatrixInput,
-      trainer_ids: trainerIds,
-      membership_types: membershipTypes,
-    },
-  )
-  if (routeMissing) return null
-  return data.daily ?? null
+
+  const body = {
+    club_id: clubId,
+    report_date: reportDate,
+    form,
+    trainings_matrix_input: trainingsMatrixInput,
+    trainer_ids: trainerIds,
+    membership_types: membershipTypes,
+  }
+
+  try {
+    if (isCloudReachable()) {
+      const { data, routeMissing } = await adminApiPost('/api/admin-data?action=sales-daily', token, body)
+      if (!routeMissing && data?.daily) return data.daily
+    }
+  } catch (e) {
+    if (!isApiTransportError(e)) throw e
+  }
+
+  return saveClubSalesDailyViaSupabase({
+    clubId,
+    reportDate,
+    form,
+    trainingsMatrixInput,
+    trainerIds,
+    membershipTypes,
+  })
 }
 
 /** POST /api/admin-data?action=sales-plan */
 export async function saveClubSalesPlan({ clubId, year, month, form }) {
   const token = await getAccessTokenForAdminApi()
   if (!token) throw new Error('Нет сессии администратора')
-  const { data, routeMissing } = await adminApiPost(
-    '/api/admin-data?action=sales-plan',
-    token,
-    { club_id: clubId, year, month, form },
-  )
-  if (routeMissing) return null
-  return data.plan ?? null
+
+  try {
+    if (isCloudReachable()) {
+      const { data, routeMissing } = await adminApiPost('/api/admin-data?action=sales-plan', token, {
+        club_id: clubId,
+        year,
+        month,
+        form,
+      })
+      if (!routeMissing && data?.plan) return data.plan
+    }
+  } catch (e) {
+    if (!isApiTransportError(e)) throw e
+  }
+
+  return saveClubSalesPlanViaSupabase({ clubId, year, month, form })
 }
 
 /** POST /api/admin-data?action=sales-finance */
 export async function saveClubSalesFinance({ clubId, year, month, form }) {
   const token = await getAccessTokenForAdminApi()
   if (!token) throw new Error('Нет сессии администратора')
-  const { data, routeMissing } = await adminApiPost(
-    '/api/admin-data?action=sales-finance',
-    token,
-    { club_id: clubId, year, month, form },
-  )
-  if (routeMissing) return null
-  return data.expense ?? null
+
+  try {
+    if (isCloudReachable()) {
+      const { data, routeMissing } = await adminApiPost('/api/admin-data?action=sales-finance', token, {
+        club_id: clubId,
+        year,
+        month,
+        form,
+      })
+      if (!routeMissing && data?.expense) return data.expense
+    }
+  } catch (e) {
+    if (!isApiTransportError(e)) throw e
+  }
+
+  return saveClubSalesFinanceViaSupabase({ clubId, year, month, form })
 }

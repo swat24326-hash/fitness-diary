@@ -14,21 +14,37 @@ export async function pullMembershipTypesForClubFromCloud(clubId) {
   const cid = String(clubId ?? '').trim()
   if (!cid || !isSupabaseConfigured()) return { ok: false, reason: 'no_club_or_supabase' }
 
+  const mergeRows = async (rows, source) => {
+    const { mergeMembershipTypesForClub, notifyMembershipTypesChanged } = await import('./membershipTypesService')
+    const { count } = await mergeMembershipTypesForClub(cid, rows)
+    if (count > 0) notifyMembershipTypesChanged(cid, { count, source })
+    return { ok: true, count, source }
+  }
+
   try {
     const { fetchMembershipTypesForClubViaApi } = await import('./admin/adminApiClient')
-    const { mergeMembershipTypesForClub, notifyMembershipTypesChanged } = await import('./membershipTypesService')
     const viaApi = await fetchMembershipTypesForClubViaApi(cid)
-    if (!viaApi) {
-      return {
-        ok: false,
-        reason: 'no_api',
-        error: 'Сервер типов абонементов недоступен — обновите страницу (Ctrl+F5) и повторите Sync.',
-      }
+    if (viaApi) {
+      return mergeRows(viaApi.membership_types ?? [], 'api')
     }
-    const rows = viaApi.membership_types ?? []
-    const { count } = await mergeMembershipTypesForClub(cid, rows)
-    if (count > 0) notifyMembershipTypesChanged(cid, { count, source: 'pull' })
-    return { ok: true, count, source: 'api' }
+  } catch (e) {
+    if (!/failed to fetch|connection|timeout|таймаут|сеть/i.test(String(e?.message ?? ''))) {
+      return { ok: false, error: String(e?.message ?? e ?? 'Ошибка загрузки типов абонементов') }
+    }
+  }
+
+  try {
+    const { supabase } = await import('./supabase')
+    const { withSupabaseRetry } = await import('./supabaseRetry')
+    const { data, error } = await withSupabaseRetry(() =>
+      supabase
+        .from('membership_types')
+        .select('id, club_id, code, sort_order, is_active, trainer_pay_per_session, created_at')
+        .eq('club_id', cid)
+        .order('sort_order', { ascending: true }),
+    )
+    if (error) throw error
+    return mergeRows(data ?? [], 'supabase')
   } catch (e) {
     return { ok: false, error: String(e?.message ?? e ?? 'Ошибка загрузки типов абонементов') }
   }

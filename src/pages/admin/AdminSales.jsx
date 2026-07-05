@@ -70,6 +70,7 @@ export function AdminSales() {
   const [savingPlan, setSavingPlan] = useState(false)
   const [savingFinance, setSavingFinance] = useState(false)
   const [error, setError] = useState('')
+  const [loadHint, setLoadHint] = useState('')
   const [vesselPulse, setVesselPulse] = useState(0)
   const [toast, setToast] = useState(null)
   const [yearMonth, setYearMonth] = useState({ year: new Date().getFullYear(), month: new Date().getMonth() + 1 })
@@ -93,28 +94,29 @@ export function AdminSales() {
     if (!clubId || !isSupabaseConfigured()) return
     setBusy(true)
     setError('')
+    setLoadHint('')
     try {
+      const typesPromise = ensureMembershipTypesForClub(clubId)
       const bundle = await fetchClubSalesBundle({ clubId, reportDate })
-      if (!bundle) {
-        setError('API продаж недоступен — обновите деплой')
-        return
-      }
+      const ensured = await typesPromise
+
       setDailyForm(dailyRowToForm(bundle.daily))
       setPlanForm(planRowToForm(bundle.plan))
       setExpenseForm(expenseRowToForm(bundle.expense))
       setMonthSummary(bundle.monthSummary)
       setPlanTotal(Number(bundle.plan?.plan_total) || 0)
       setYearMonth({ year: bundle.year, month: bundle.month })
-      let types = bundle.membershipTypes ?? []
-      if (!types.length) {
-        const ensured = await ensureMembershipTypesForClub(clubId, { force: true })
-        types = ensured.types ?? []
-      }
+
+      const types =
+        (bundle.membershipTypes?.length ? bundle.membershipTypes : null) ??
+        ensured.types ??
+        []
       setMembershipTypes(types)
       setTrainers(bundle.trainers ?? [])
       setFitCityTypeStats(bundle.fitCityTypeStats ?? null)
-      const matrixRows = normalizeMatrixRowsFromDb(bundle.daily?.trainings_matrix)
+
       const cols = buildTrainingsMatrixColumns(types)
+      const matrixRows = normalizeMatrixRowsFromDb(bundle.daily?.trainings_matrix)
       setTrainingsMatrix(
         clubAggregateInputMap(
           matrixRowsToInputMap(matrixRows),
@@ -122,7 +124,15 @@ export function AdminSales() {
           cols,
         ),
       )
+
+      if (bundle.source === 'supabase') {
+        setLoadHint('Данные загружены через Supabase — сервер /api временно недоступен.')
+      }
     } catch (e) {
+      const ensured = await ensureMembershipTypesForClub(clubId).catch(() => ({ types: [] }))
+      if (ensured.types?.length) {
+        setMembershipTypes(ensured.types)
+      }
       setError(e?.message ?? 'Ошибка загрузки')
     } finally {
       setBusy(false)
@@ -270,6 +280,12 @@ export function AdminSales() {
       {error ? (
         <p className="sync-feedback sync-feedback--err" role="alert">
           {error}
+        </p>
+      ) : null}
+
+      {loadHint ? (
+        <p className="sync-feedback sync-feedback--warn" role="status">
+          {loadHint}
         </p>
       ) : null}
 
