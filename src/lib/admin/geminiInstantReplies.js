@@ -5,7 +5,7 @@ import { buildGeminiIntroReply, GEMINI_INTRO_CHIP } from './geminiAssistantIntro
 import { formatRub } from './salesReportCore.js'
 import { periodLabelRu } from './geminiAnalyticsSnapshot.js'
 
-/** @typedef {'intro'|'plan'|'gap'|'compare'|'fitcity'|'finance'} GeminiChipId */
+/** @typedef {'intro'|'plan'|'gap'|'compare'|'fitcity'|'finance'|'pnk'|'bestday'} GeminiChipId */
 
 export const GEMINI_QUICK_CHIPS = [
   GEMINI_INTRO_CHIP,
@@ -13,6 +13,18 @@ export const GEMINI_QUICK_CHIPS = [
     id: 'plan',
     label: 'Че по плану?',
     message: 'Че там по плану продаж за этот месяц?',
+    compare: false,
+  },
+  {
+    id: 'pnk',
+    label: 'ПНК',
+    message: 'Сколько ПНК за месяц и как с этим?',
+    compare: false,
+  },
+  {
+    id: 'bestday',
+    label: 'Лучший день',
+    message: 'Какой день по прибыли был лучший в этом месяце?',
     compare: false,
   },
   {
@@ -113,6 +125,10 @@ export function buildGeminiInstantReply(chipId, opts) {
       return buildFitcityReply(club, period, snapshot, opener, closer, seed)
     case 'finance':
       return buildFinanceReply(club, period, snapshot, opener, closer, seed)
+    case 'pnk':
+      return buildPnkReply(club, period, snapshot, opener, closer, seed)
+    case 'bestday':
+      return buildBestDayReply(club, period, snapshot, opener, closer, seed)
     default:
       return null
   }
@@ -124,6 +140,7 @@ function buildPlanReply(club, period, snapshot, opener, closer, seed) {
   const pct = Number(snapshot.sales?.plan_progress_pct) || 0
   const coverage = Number(snapshot.sales?.report_coverage_pct) || 0
   const days = Number(snapshot.sales?.days_with_reports) || 0
+  const achieved = Number(snapshot.sales?.achieved_plan_level) || 0
 
   if (plan <= 0) {
     return `${club}, ${period}: ${opener}, план продаж на месяц не задан — сверь с менеджером. Отчётов ${days} дней, база ${coverage}%. ${closer}.`
@@ -136,8 +153,10 @@ function buildPlanReply(club, period, snapshot, opener, closer, seed) {
         ? 'идём нормально'
         : pickWord(GEMINI_LEXICON_POOLS.critique, seed)
   const push = pct < 70 ? ` ${pickWord(GEMINI_LEXICON_POOLS.push, seed + 1)}.` : ''
+  const levelLine =
+    achieved > 0 ? ` Закрыли порог уровня ${achieved}.` : ' Финальный порог ещё не закрыт.'
 
-  return `${club}, ${period}: ${opener}, план ${pct}% — ${formatRub(profit)} из ${formatRub(plan)}, ${tone}. Отчётов ${days} дней (${coverage}%).${push} ${closer}.`
+  return `${club}, ${period}: ${opener}, план ${pct}% — ${formatRub(profit)} из ${formatRub(plan)}, ${tone}.${levelLine} Отчётов ${days} дней (${coverage}%).${push} ${closer}.`
 }
 
 function buildGapReply(club, period, snapshot, opener, closer, seed) {
@@ -147,11 +166,17 @@ function buildGapReply(club, period, snapshot, opener, closer, seed) {
   const planTotal = Number(snapshot.sales?.plan_total) || 0
   const gap = Number(snapshot.trainings?.gap_manager_minus_fit_city) || 0
   const inactive = Number(snapshot.operations?.inactive_clients_in_period) || 0
+  const profitTotal = Number(snapshot.sales?.profit_total) || 0
+  const profitNk = Number(snapshot.sales?.profit_nk) || 0
+  const profitDk = Number(snapshot.sales?.profit_dk) || 0
 
   if (coverage < 35) issues.push({ w: 100 - coverage, text: `база отчётов ${coverage}% — цифры сырые` })
   if (planTotal > 0 && planPct < 50) issues.push({ w: 50 - planPct, text: `план продаж ${planPct}% — просадка` })
   if (gap > 5) issues.push({ w: gap, text: `расхождение отчёт/FIT-CITY ${gap} тренировок` })
   if (inactive >= 5) issues.push({ w: inactive, text: `${inactive} неактивных клиентов в периоде` })
+  if (profitTotal > 0 && profitNk / profitTotal < 0.15 && profitDk / profitTotal > 0.55) {
+    issues.push({ w: 30, text: 'слабая доля НК при опоре на ДК — просадка по новым' })
+  }
 
   if (!issues.length) {
     return `${club}, ${period}: ${opener}, явных дыр нет — ${pickWord(GEMINI_LEXICON_POOLS.praise, seed)}, держим темп. ${closer}.`
@@ -241,4 +266,35 @@ function buildFinanceReply(club, period, snapshot, opener, closer, seed) {
         : pickWord(GEMINI_LEXICON_POOLS.critique, seed)
 
   return `${club}, ${period}: ${opener}, чистая ${formatRub(net)}, ФОТ ${formatRub(payroll)} (${payrollShare}% от ${formatRub(gross)}) — ${tone}. ${closer}.`
+}
+
+function formatDayRu(iso) {
+  const m = String(iso ?? '').match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!m) return String(iso ?? '').trim() || '—'
+  return `${Number(m[3])}.${Number(m[2])}`
+}
+
+function buildPnkReply(club, period, snapshot, opener, closer, seed) {
+  const pnk = Number(snapshot.sales?.pnk_total) || 0
+  const days = Number(snapshot.sales?.days_with_reports) || 0
+  const coverage = Number(snapshot.sales?.report_coverage_pct) || 0
+
+  if (days <= 0) {
+    return `${club}, ${period}: ${opener}, отчётов нет — ПНК не считаю. ${closer}.`
+  }
+
+  const tone = pnk >= 20 ? pickWord(GEMINI_LEXICON_POOLS.praise, seed) : pnk >= 8 ? 'норм поток' : pickWord(GEMINI_LEXICON_POOLS.critique, seed)
+  return `${club}, ${period}: ${opener}, ПНК за месяц ${pnk} шт — ${tone}. База отчётов ${coverage}%. ${closer}.`
+}
+
+function buildBestDayReply(club, period, snapshot, opener, closer, seed) {
+  const highlights = snapshot.sales?.profit_day_highlights
+  const best = highlights?.best_day
+  if (!best?.date) {
+    return `${club}, ${period}: ${opener}, нет дней с отчётом — лучший день не определить. ${closer}.`
+  }
+
+  const dayLabel = formatDayRu(best.date)
+  const amount = formatRub(Number(best.profit) || 0)
+  return `${club}, ${period}: ${opener}, лучший день ${dayLabel} — ${amount}, ${pickWord(GEMINI_LEXICON_POOLS.praise, seed)}. ${closer}.`
 }

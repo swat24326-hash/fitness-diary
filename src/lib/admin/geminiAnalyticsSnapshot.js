@@ -5,8 +5,16 @@ import {
   computeNetProfit,
   monthDateRange,
   planProgressPercent,
+  readPlanLevels,
+  resolveAchievedPlanLevel,
+  resolvePlanTotal,
   SALES_MATRIX_KEYS,
 } from './salesReportCore.js'
+import {
+  aggregateTrainingsByMembershipTypes,
+  buildDailyProfitSeries,
+  sumPnkFromDailyRows,
+} from './salesManagerStatsAgg.js'
 import { computeNetProfitWithPayroll } from './trainerPayrollCore.js'
 import { buildGeminiDataSourcesMeta } from './geminiAnalyticsDomain.js'
 
@@ -56,6 +64,42 @@ export function sumMatrixTotalsFromDailyRows(rows) {
 }
 
 /**
+ * @param {Array<Record<string, unknown>>} rows
+ * @param {number} year
+ * @param {number} month
+ */
+export function buildProfitDayHighlights(rows, year, month) {
+  const series = buildDailyProfitSeries(rows, year, month)
+  const reported = series.filter((d) => d.hasReport && d.profit != null)
+  if (!reported.length) return null
+
+  let best = reported[0]
+  let worst = reported[0]
+  for (const day of reported) {
+    if (day.profit > best.profit) best = day
+    if (day.profit < worst.profit) worst = day
+  }
+
+  return {
+    best_day: { date: best.date, profit: best.profit },
+    worst_reported_day: { date: worst.date, profit: worst.profit },
+  }
+}
+
+/**
+ * @param {Array<Record<string, unknown>>} rows
+ * @param {Array<{ id: string, code?: string }>} membershipTypes
+ * @param {number} [limit]
+ */
+export function topTrainingsByCardType(rows, membershipTypes, limit = 5) {
+  const stats = aggregateTrainingsByMembershipTypes(rows, membershipTypes)
+  return (stats.byType ?? []).slice(0, limit).map((row) => ({
+    code: row.code,
+    count: row.count,
+  }))
+}
+
+/**
  * @param {{
  *   year: number,
  *   month: number,
@@ -69,6 +113,7 @@ export function sumMatrixTotalsFromDailyRows(rows) {
  *   inactiveInPeriod?: number,
  *   trainingCompleted?: number,
  *   trainingDraft?: number,
+ *   membershipTypes?: Array<{ id: string, code?: string }>,
  * }} opts
  */
 export function buildGeminiSnapshot(opts) {
@@ -76,14 +121,18 @@ export function buildGeminiSnapshot(opts) {
   const month = Number(opts.month)
   const monthRows = opts.monthRows ?? []
   const summary = aggregateMonthFromDailyRows(monthRows)
-  const planTotal = Number(opts.plan?.plan_total) || 0
+  const planLevels = readPlanLevels(opts.plan)
+  const planTotal = resolvePlanTotal(opts.plan)
   const progressPct = planProgressPercent(summary.profitTotal, planTotal)
+  const achievedPlanLevel = resolveAchievedPlanLevel(summary.profitTotal, planLevels)
   const matrix = sumMatrixTotalsFromDailyRows(monthRows)
+  const pnkTotal = sumPnkFromDailyRows(monthRows)
   const manualTrainings = Number(opts.manualTrainingsTotal ?? summary.trainingsTotal) || 0
   const fitCity = Number(opts.fitCityCompleted) || 0
   const expense = Number(opts.expenseAmount) || 0
   const payroll = Number(opts.payrollClubTotal) || 0
   const includeFinance = opts.includeFinance !== false
+  const membershipTypes = opts.membershipTypes ?? []
 
   const avgDay = summary.dayCount > 0
     ? Math.round((summary.profitTotal / summary.dayCount) * 100) / 100
@@ -92,6 +141,8 @@ export function buildGeminiSnapshot(opts) {
   const reportCoveragePct =
     daysInMonth > 0 ? Math.round((summary.dayCount / daysInMonth) * 1000) / 10 : 0
   const trainingsGap = manualTrainings - fitCity
+  const profitDayHighlights = buildProfitDayHighlights(monthRows, year, month)
+  const trainingsByCardType = topTrainingsByCardType(monthRows, membershipTypes, 5)
 
   const snapshot = {
     club_name: String(opts.clubName ?? '').trim() || 'клуб',
@@ -111,16 +162,27 @@ export function buildGeminiSnapshot(opts) {
       profit_dk: summary.profitDk,
       profit_uk: summary.profitUk,
       avg_profit_per_report_day: avgDay,
+      pnk_total: pnkTotal,
       manual_trainings_total: manualTrainings,
-      matrix_pz: matrix.pz,
-      matrix_tz: matrix.tz,
-      matrix_az: matrix.az,
-      matrix_all: matrix.all,
+      matrix_counts_pz_tz_az: {
+        pz: matrix.pz,
+        tz: matrix.tz,
+        az: matrix.az,
+        all: matrix.all,
+      },
       plan_total: planTotal,
-      plan_pz: Number(opts.plan?.plan_pz) || 0,
-      plan_tz: Number(opts.plan?.plan_tz) || 0,
-      plan_az: Number(opts.plan?.plan_az) || 0,
+      plan_level_1: planLevels.level1,
+      plan_level_2: planLevels.level2,
+      plan_level_3: planLevels.level3,
+      achieved_plan_level: achievedPlanLevel,
+      plan_direction_rub: {
+        pz: Number(opts.plan?.plan_pz) || 0,
+        tz: Number(opts.plan?.plan_tz) || 0,
+        az: Number(opts.plan?.plan_az) || 0,
+      },
       plan_progress_pct: progressPct,
+      profit_day_highlights: profitDayHighlights,
+      trainings_by_card_type: trainingsByCardType,
     },
     trainings: {
       manager_report_total: manualTrainings,
@@ -155,19 +217,32 @@ export function buildGeminiSnapshot(opts) {
   return snapshot
 }
 
-/** Урезанный snapshot для Gemini — меньше токенов, меньше путаницы с периодами. */
+/** Урезанный snapshot для Gemini — ключевые поля без шума. */
 export function compactSnapshotForPrompt(snapshot) {
   if (!snapshot || typeof snapshot !== 'object') return null
+  const sales = snapshot.sales ?? {}
   const compact = {
     club_name: snapshot.club_name,
     period: snapshot.period,
     sales: {
-      days_with_reports: snapshot.sales?.days_with_reports,
-      report_coverage_pct: snapshot.sales?.report_coverage_pct,
-      profit_total: snapshot.sales?.profit_total,
-      plan_total: snapshot.sales?.plan_total,
-      plan_progress_pct: snapshot.sales?.plan_progress_pct,
-      manual_trainings_total: snapshot.sales?.manual_trainings_total,
+      days_with_reports: sales.days_with_reports,
+      report_coverage_pct: sales.report_coverage_pct,
+      profit_total: sales.profit_total,
+      profit_nk: sales.profit_nk,
+      profit_dk: sales.profit_dk,
+      profit_uk: sales.profit_uk,
+      pnk_total: sales.pnk_total,
+      plan_total: sales.plan_total,
+      plan_level_1: sales.plan_level_1,
+      plan_level_2: sales.plan_level_2,
+      plan_level_3: sales.plan_level_3,
+      achieved_plan_level: sales.achieved_plan_level,
+      plan_progress_pct: sales.plan_progress_pct,
+      plan_direction_rub: sales.plan_direction_rub,
+      matrix_counts_pz_tz_az: sales.matrix_counts_pz_tz_az,
+      manual_trainings_total: sales.manual_trainings_total,
+      profit_day_highlights: sales.profit_day_highlights,
+      trainings_by_card_type: sales.trainings_by_card_type,
     },
     trainings: snapshot.trainings,
   }

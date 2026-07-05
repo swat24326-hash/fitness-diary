@@ -1,9 +1,11 @@
 import {
   buildGeminiSnapshot,
+  buildProfitDayHighlights,
   compactSnapshotForPrompt,
   periodLabelRu,
   previousMonthParts,
   sumMatrixTotalsFromDailyRows,
+  topTrainingsByCardType,
   trimChatHistory,
 } from '../src/lib/admin/geminiAnalyticsSnapshot.js'
 import {
@@ -54,8 +56,32 @@ function ok(cond, msg) {
 }
 
 const rows = [
-  { profit_nk: 1000, profit_dk: 500, profit_uk: 0, trainings_count: 10, pz_nk: 2, pz_dk: 1 },
-  { profit_nk: 2000, profit_dk: 0, profit_uk: 100, trainings_count: 8, tz_nk: 3 },
+  {
+    report_date: '2026-06-01',
+    profit_nk: 1000,
+    profit_dk: 500,
+    profit_uk: 0,
+    trainings_count: 10,
+    pnk_total: 5,
+    pz_nk: 2,
+    pz_dk: 1,
+    trainings_matrix: [{ trainer_id: '__club__', membership_type_id: 't1', count: 4 }],
+  },
+  {
+    report_date: '2026-06-15',
+    profit_nk: 5000,
+    profit_dk: 0,
+    profit_uk: 100,
+    trainings_count: 8,
+    pnk_total: 3,
+    tz_nk: 3,
+    trainings_matrix: [{ trainer_id: '__club__', membership_type_id: 't1', count: 2 }],
+  },
+]
+
+const membershipTypes = [
+  { id: 't1', code: 'VIP' },
+  { id: 't2', code: 'STAND' },
 ]
 
 const snap = buildGeminiSnapshot({
@@ -63,18 +89,24 @@ const snap = buildGeminiSnapshot({
   year: 2026,
   month: 6,
   monthRows: rows,
-  plan: { plan_total: 10000, plan_pz: 50 },
+  plan: { plan_total: 10000, plan_level_1: 3000, plan_level_2: 6000, plan_level_3: 10000, plan_pz: 4000 },
   expenseAmount: 1000,
   payrollClubTotal: 2000,
   fitCityCompleted: 15,
   inactiveInPeriod: 3,
   trainingCompleted: 40,
+  membershipTypes,
   includeFinance: true,
 })
 
-ok(snap.sales.profit_total === 3600, 'profit total')
-ok(snap.sales.plan_progress_pct === 36, 'plan progress')
-ok(snap.finance?.net_profit === 600, 'net profit with payroll')
+ok(snap.sales.profit_total === 6600, 'profit total')
+ok(snap.sales.pnk_total === 8, 'pnk total')
+ok(snap.sales.plan_progress_pct === 66, 'plan progress')
+ok(snap.sales.achieved_plan_level === 2, 'achieved plan level')
+ok(snap.sales.profit_day_highlights?.best_day?.profit === 5100, 'best day profit')
+ok(snap.sales.matrix_counts_pz_tz_az.pz === 3, 'matrix counts pz')
+ok(snap.sales.trainings_by_card_type?.[0]?.code === 'VIP', 'trainings by card type')
+ok(snap.finance?.net_profit === 3600, 'net profit with payroll')
 ok(snap.operations.fit_city_completed_trainings === 15, 'fit city count')
 ok(snap.trainings?.manager_report_total === 18, 'manager trainings total')
 ok(snap.trainings?.gap_manager_minus_fit_city === 3, 'trainings gap')
@@ -107,10 +139,15 @@ ok(noFinance.finance === undefined, 'finance hidden')
 ok(GEMINI_ANALYTICS_MODEL === 'gemini-2.5-flash-lite', 'default model lite')
 ok(buildSystemPrompt('male', 'X').includes('70 слов'), 'brief prompt rule')
 ok(buildSystemPrompt('male', 'X').includes('current_period.period.label'), 'prompt period anchor')
+ok(buildSystemPrompt('male', 'Север').includes('plan_level_3'), 'prompt plan levels rule')
 ok(buildSystemPrompt('male', 'Север').includes('планшет'), 'prompt tablets rule')
 ok(buildSystemPrompt('female', 'X').includes('красава'), 'prompt lexicon')
 const compact = compactSnapshotForPrompt(snap)
 ok(compact?.period?.label && !compact.operations, 'compact snapshot drops noise')
+ok(compact?.sales?.pnk_total === 8, 'compact pnk')
+ok(compact?.sales?.profit_nk === 6000, 'compact profit nk')
+ok(compact?.sales?.achieved_plan_level === 2, 'compact achieved level')
+ok(compact?.sales?.profit_day_highlights?.best_day?.date === '2026-06-15', 'compact best day')
 const dataBlock = buildGeminiPromptDataBlock(snap, null)
 ok(dataBlock.analysis_period && dataBlock.current_period && dataBlock.previous_period === undefined, 'prompt block no prev')
 ok(isGeminiReplyIncomplete('FIT-CITY Клинцы, июль 202', 'MAX_TOKENS'), 'truncated reply detected')
@@ -150,10 +187,31 @@ ok(kpi?.planPct === 50, 'kpi plan pct')
 ok(kpi?.reportsLabel === '10/30', 'kpi reports label')
 ok(kpi?.fitCity === 38, 'kpi fit city')
 
+const snapLevelOnly = buildGeminiSnapshot({
+  clubName: 'X',
+  year: 2026,
+  month: 6,
+  monthRows: rows,
+  plan: { plan_level_3: 10000 },
+})
+ok(snapLevelOnly.sales.plan_total === 10000, 'resolve plan from level 3')
+
+const highlights = buildProfitDayHighlights(rows, 2026, 6)
+ok(highlights?.best_day?.date === '2026-06-15', 'profit highlights helper')
+
+const byType = topTrainingsByCardType(rows, membershipTypes, 3)
+ok(byType[0]?.count === 6, 'top trainings by card type')
+
+ok(matchGeminiInstantChip(GEMINI_QUICK_CHIPS.find((c) => c.id === 'pnk').message) === 'pnk', 'instant chip pnk')
+const instantPnk = buildGeminiInstantReply('pnk', { snapshot: snap, gender: 'male' })
+ok(instantPnk?.includes('8') && instantPnk.endsWith('.'), 'instant pnk reply')
+const instantBest = buildGeminiInstantReply('bestday', { snapshot: snap, gender: 'male' })
+ok(instantBest?.includes('лучший день') && instantBest?.includes('15.6'), 'instant best day reply')
+
 ok(matchGeminiInstantChip(GEMINI_QUICK_CHIPS.find((c) => c.id === 'plan').message) === 'plan', 'instant chip plan')
 ok(matchGeminiInstantChip('случайный текст') === null, 'instant chip miss')
 const instantPlan = buildGeminiInstantReply('plan', { snapshot: snap, gender: 'male' })
-ok(instantPlan?.includes('36%') && instantPlan.endsWith('.'), 'instant plan reply')
+ok(instantPlan?.includes('66%') && instantPlan.includes('уровня 2') && instantPlan.endsWith('.'), 'instant plan reply')
 const instantCompare = buildGeminiInstantReply('compare', {
   snapshot: snap,
   previousSnapshot: { ...snap, period: { label: 'май 2026' }, sales: { ...snap.sales, profit_total: 2000, plan_progress_pct: 20 } },

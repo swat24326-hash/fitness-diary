@@ -20,7 +20,11 @@ export function buildGeminiLexiconRule() {
 
 export function buildGeminiDataSourceRules() {
   return [
-    'ИСТОЧНИК ИСТИНЫ ПО ЗАЛУ — ежедневный отчёт менеджера (sales.*, trainings.manager_report_total): прибыль НК/ДК/УК, план, матрица ПЗ/ТЗ/АЗ, тренировки клуба целиком.',
+    'ИСТОЧНИК ИСТИНЫ ПО ЗАЛУ — ежедневный отчёт менеджера (sales.*, trainings.manager_report_total): прибыль НК/ДК/УК, ПНК, план, тренировки клуба целиком.',
+    'План месяца: plan_level_1/2/3 — три порога в ₽ (не суммируются); plan_total = plan_level_3 (финал); achieved_plan_level = какой порог уже закрыт фактом.',
+    'plan_direction_rub (ПЗ/ТЗ/АЗ) — план по направлениям в ₽, сумма = plan_level_3. matrix_counts_pz_tz_az — количества из матрицы 3×3 (шт), не путай с рублями.',
+    'profit_day_highlights — лучший/худший день среди дней с отчётом; полной дневной серии в JSON нет — не выдумывай другие дни.',
+    'trainings_by_card_type — тренировки по типам абонементов из отчёта менеджера (не FIT-CITY).',
     'FIT-CITY (trainings.fit_city_tablets_only) — только завершённые тренировки тренеров С ПЛАНШЕТОМ. Это подмножество зала, НЕ полный клуб.',
     'Тренер без планшета в FIT-CITY не виден, но в отчёте менеджера его тренировки учтены — не путай «систему» и «весь зал».',
     'Если manager_report_total > fit_city_tablets_only — часто норма (нет планшета / отчёт полнее). Большой gap — мягко: сверить с менеджером, кто без планшета, догнать отчёты.',
@@ -75,8 +79,16 @@ export function buildGeminiDataSourcesMeta(opts) {
   return {
     authoritative: {
       source: 'manager_daily_sales_report',
-      description: 'Официальный отчёт менеджера по клубу — прибыль, план, тренировки всего зала',
-      fields: ['sales.profit_*', 'sales.plan_*', 'trainings.manager_report_total', 'sales.matrix_*'],
+      description: 'Официальный отчёт менеджера по клубу — прибыль, ПНК, план, матрица, тренировки всего зала',
+      fields: [
+        'sales.profit_*',
+        'sales.pnk_total',
+        'sales.plan_*',
+        'sales.matrix_counts_pz_tz_az',
+        'sales.profit_day_highlights',
+        'sales.trainings_by_card_type',
+        'trainings.manager_report_total',
+      ],
     },
     reference_partial: {
       source: 'fit_city_app_tablets',

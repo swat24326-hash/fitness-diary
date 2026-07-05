@@ -9,7 +9,7 @@ import { buildGeminiSnapshot, previousMonthParts } from '../../src/lib/admin/gem
 import { getCachedGeminiSnapshot, setCachedGeminiSnapshot } from './geminiAnalyticsCache.js'
 
 const SALES_MONTH_SELECT =
-  'report_date, profit_nk, profit_dk, profit_uk, profit_day, trainings_count, trainings_matrix, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk'
+  'report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk'
 
 async function fetchPaged(supabaseAdmin, table, select, clubId, dateFrom, dateTo) {
   const PAGE = 400
@@ -56,7 +56,7 @@ async function loadMonthRaw(supabaseAdmin, clubId, year, month) {
       .maybeSingle(),
     supabaseAdmin
       .from('membership_types')
-      .select('id, trainer_pay_per_session')
+      .select('id, code, trainer_pay_per_session')
       .eq('club_id', clubId),
     fetchPaged(supabaseAdmin, 'trainings', 'id, trainer_id, client_id, date, status, data', clubId, start, end),
     fetchPaged(supabaseAdmin, 'clients', 'id, name, archived_at, trainer_id', clubId, null, null),
@@ -83,6 +83,7 @@ async function loadMonthRaw(supabaseAdmin, clubId, year, month) {
     trainingAgg,
     inactiveInPeriod: clientPeriod.inactiveInPeriod ?? 0,
     fitCityCompleted,
+    membershipTypes: typesRes.data ?? [],
   }
 }
 
@@ -117,6 +118,7 @@ export async function loadGeminiSnapshotForMonth(supabaseAdmin, clubId, year, mo
     inactiveInPeriod: raw.inactiveInPeriod,
     trainingCompleted: raw.trainingAgg.totalCompleted,
     trainingDraft: raw.trainingAgg.totalDraft,
+    membershipTypes: raw.membershipTypes,
     includeFinance,
   })
   setCachedGeminiSnapshot(clubId, year, month, snapshot, includeFinance)
