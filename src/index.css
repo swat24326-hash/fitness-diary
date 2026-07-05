@@ -5142,6 +5142,19 @@ tr:last-child td {
   color: var(--accent-bright);
 }
 
+.modal-panel--form {
+  width: min(480px, 100%);
+  max-height: min(90vh, calc(100dvh - 32px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@media (min-width: 901px) {
+  .modal-overlay {
+    align-items: center;
+  }
+}
+
 .app-error-journal {
   width: min(680px, 100%);
 }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { RefreshCw, UserPlus } from 'lucide-react'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { fetchTrainersViaAdminApi } from '../../lib/admin/adminApiClient'
@@ -53,6 +54,20 @@ export function AdminSalesManagers() {
     void loadManagers()
   }, [loadClubs, loadManagers])
 
+  useEffect(() => {
+    if (!createOpen || saving) return
+    const onKey = (e) => {
+      if (e.key === 'Escape') setCreateOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [createOpen, saving])
+
+  const closeCreate = () => {
+    if (saving) return
+    setCreateOpen(false)
+  }
+
   const managersByClub = useMemo(() => {
     const map = new Map()
     for (const m of managers) {
@@ -86,6 +101,84 @@ export function AdminSalesManagers() {
       setSaving(false)
     }
   }
+
+  const createModal =
+    createOpen &&
+    createPortal(
+      <div
+        className="modal-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="sales-manager-create-title"
+        onClick={closeCreate}
+      >
+        <div className="modal-panel modal-panel--form" onClick={(e) => e.stopPropagation()}>
+          <div className="row" style={{ justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+            <h2 id="sales-manager-create-title" className="section-title td-section-title" style={{ margin: 0 }}>
+              Новый менеджер по продажам
+            </h2>
+            <button type="button" className="btn btn-ghost btn-icon-square" aria-label="Закрыть" title="Закрыть" onClick={closeCreate} disabled={saving}>
+              ✕
+            </button>
+          </div>
+          <form className="grid td-modal-form" onSubmit={submitCreate} style={{ gap: 12, marginTop: 12 }}>
+            <div className="field">
+              <label className="label" htmlFor="sm-club">
+                Клуб
+              </label>
+              <select
+                id="sm-club"
+                className="select"
+                required
+                value={form.club_id}
+                onChange={(e) => setForm((f) => ({ ...f, club_id: e.target.value }))}
+                disabled={saving}
+              >
+                <option value="">— выберите —</option>
+                {clubs.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label className="label" htmlFor="sm-name">
+                Имя
+              </label>
+              <input id="sm-name" className="input" required value={form.name} disabled={saving} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+            </div>
+            <div className="field">
+              <label className="label" htmlFor="sm-login">
+                Логин
+              </label>
+              <input id="sm-login" className="input" required value={form.login} disabled={saving} onChange={(e) => setForm((f) => ({ ...f, login: e.target.value }))} />
+            </div>
+            <div className="field">
+              <label className="label" htmlFor="sm-email">
+                Email <span className="muted">(необяз.)</span>
+              </label>
+              <input id="sm-email" className="input" type="email" value={form.email} disabled={saving} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
+            </div>
+            <div className="field">
+              <label className="label" htmlFor="sm-password">
+                Пароль
+              </label>
+              <input id="sm-password" className="input" type="password" required minLength={6} value={form.password} disabled={saving} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} />
+            </div>
+            <div className="row td-modal-actions" style={{ marginTop: 4 }}>
+              <button type="button" className="btn btn-ghost btn-touch" disabled={saving} onClick={closeCreate}>
+                Отмена
+              </button>
+              <button type="submit" className="btn btn-primary btn-touch" disabled={saving}>
+                {saving ? 'Создание…' : 'Создать'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>,
+      document.body,
+    )
 
   return (
     <section className="card">
@@ -172,57 +265,7 @@ export function AdminSalesManagers() {
         </div>
       ) : null}
 
-      {createOpen ? (
-        <div className="modal-overlay" role="dialog" aria-modal="true" onClick={() => !saving && setCreateOpen(false)}>
-          <div className="modal-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
-            <h2 className="section-title td-section-title" style={{ marginTop: 0 }}>
-              Новый менеджер по продажам
-            </h2>
-            <form className="grid td-modal-form" onSubmit={submitCreate} style={{ gap: 12 }}>
-              <div className="field">
-                <label className="label">Клуб</label>
-                <select
-                  className="select"
-                  required
-                  value={form.club_id}
-                  onChange={(e) => setForm((f) => ({ ...f, club_id: e.target.value }))}
-                >
-                  <option value="">— выберите —</option>
-                  {clubs.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="field">
-                <label className="label">Имя</label>
-                <input className="input" required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-              </div>
-              <div className="field">
-                <label className="label">Логин</label>
-                <input className="input" required value={form.login} onChange={(e) => setForm((f) => ({ ...f, login: e.target.value }))} />
-              </div>
-              <div className="field">
-                <label className="label">Email (необяз.)</label>
-                <input className="input" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
-              </div>
-              <div className="field">
-                <label className="label">Пароль</label>
-                <input className="input" type="password" required minLength={6} value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} />
-              </div>
-              <div className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
-                <button type="button" className="btn btn-ghost" disabled={saving} onClick={() => setCreateOpen(false)}>
-                  Отмена
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? 'Создание…' : 'Создать'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      ) : null}
+      {createModal}
     </section>
   )
 }
