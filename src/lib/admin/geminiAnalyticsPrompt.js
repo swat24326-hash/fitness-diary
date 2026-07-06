@@ -123,8 +123,10 @@ export function buildGeminiPromptDataBlock(snapshot, previousSnapshot = null, op
   const calendarContext =
     snapshot?.calendar_context ??
     buildGeminiMonthCalendarContext(snapshot?.period?.year, snapshot?.period?.month)
+  const analysisFocus = selectedTrainerId ? 'trainer' : 'sales'
   const block = {
     analysis_period: current?.period?.label ?? '',
+    analysis_focus: analysisFocus,
     calendar_context: calendarContext,
     sales_contour: current?.sales_contour ?? null,
     trainer_contour: current?.trainer_contour ?? null,
@@ -169,7 +171,10 @@ export function buildGeminiGeneratePayload(opts) {
     selectedTrainerId: opts.selectedTrainerId,
   })
   const periodLabel = dataBlock.analysis_period || 'период не задан'
-  const promptOpts = { promptAppend: opts.promptAppend }
+  const promptOpts = {
+    promptAppend: opts.promptAppend,
+    analysisFocus: opts.selectedTrainerId ? 'trainer' : 'sales',
+  }
 
   const parts = []
   if (history.length === 0) {

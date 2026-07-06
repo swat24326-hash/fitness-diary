@@ -164,9 +164,9 @@ export function GeminiAnalyticsPanel({
     setError('')
     setInput('')
     const focusLine = focusTrainerLabel
-      ? ` Фокус: тренер ${focusTrainerLabel}.`
+      ? ` Сейчас запрос по тренеру ${focusTrainerLabel} — продажи клуба по-прежнему в отчёте менеджера.`
       : selectedTrainerId && selectedTrainerName
-        ? ` Фокус: тренер ${selectedTrainerName}.`
+        ? ` Сейчас запрос по тренеру ${selectedTrainerName}.`
         : ''
     setMessages([
       {
@@ -428,7 +428,7 @@ export function GeminiAnalyticsPanel({
               onChange={(e) => setFocusTrainerId(e.target.value || null)}
               disabled={loading}
             >
-              <option value="">Весь клуб (продажи + сводка тренеров)</option>
+              <option value="">Продажи клуба</option>
               {trainers.map((t) => (
                 <option key={t.trainer_id} value={t.trainer_id}>
                   Тренер: {t.trainer_name || t.trainer_id}

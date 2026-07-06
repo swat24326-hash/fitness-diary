@@ -144,6 +144,7 @@ export function compactSnapshotForPrompt(snapshot, selectedTrainerId = null) {
       top_issue: insights.top_issue,
       highlights: insights.highlights,
       report: insights.report,
+      direction_plan: insights.direction_plan,
       finance: insights.finance,
       mom_comparison: insights.mom_comparison,
       payroll: insights.payroll,

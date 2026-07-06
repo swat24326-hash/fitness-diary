@@ -85,7 +85,9 @@ function coverageNote(kpi) {
 }
 
 const BUSINESS_CAPABILITIES =
-  'продажи и план, выручка, структура НК/ДК/УК, возвраты, маржа и зарплата зала, ПНК, лучший день, сравнение с прошлым месяцем, нагрузка и зарплата тренеров, неактивные клиенты'
+  'продажи и план, выручка, отставание по направлениям ПЗ/ТЗ/АЗ, структура НК/ДК/УК, возвраты, маржа и зарплата зала, ПНК, лучший день, сравнение с прошлым месяцем'
+const TRAINER_ON_REQUEST =
+  ' По конкретному тренеру — если спросите или выберете в фокусе анализа.'
 
 export function buildGeminiIntroReply(kind, opts = {}) {
   const kpi = opts.kpi ?? kpiHintsFromSnapshot(opts.snapshot) ?? null
@@ -133,7 +135,7 @@ function buildStandardIntro(ctx, tail, coverage) {
 
   return (
     `${name} на связи. ${fullName} по ${clubPhrase}, ${period}. ` +
-    `Помогаю руководителю держать руку на пульсе: ${BUSINESS_CAPABILITIES}. ` +
+    `Помогаю руководителю держать руку на пульсе: ${BUSINESS_CAPABILITIES}.${TRAINER_ON_REQUEST} ` +
     `Все цифры — по разрешённым источникам: отчёты менеджера и данные тренеров с планшетов, без выдумок.${tail}${coverage} ` +
     `Задайте вопрос текстом или нажмите кнопку ниже.`
   )

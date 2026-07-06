@@ -20,6 +20,7 @@ import {
   planToneWithCalendar,
   shouldFlagLowPlan,
 } from './geminiMonthCalendarContext.js'
+import { buildPlanDirectionInsights } from './geminiPlanDirections.js'
 
 export const MONTH_LABELS_RU = [
   'январь',
@@ -229,6 +230,7 @@ export function buildClubMonthInsights(opts) {
       rows: stats.structure,
       direction_rows: stats.directionStructure ?? [],
     },
+    direction_plan: buildPlanDirectionInsights(stats.directionStructure ?? [], calendarContext),
     fitcity: {
       manager_total: managerTotal,
       fit_city_total: fitCityTotal,

@@ -115,6 +115,7 @@ ok(snap.sales.profit_day_highlights?.best_day?.profit === 5100, 'best day profit
 ok(snap.sales.matrix_counts_pz_tz_az.pz === 3, 'matrix counts pz')
 ok(snap.sales.trainings_by_card_type?.[0]?.code === 'VIP', 'trainings by card type')
 ok(snap.insights?.plan?.pct === 66, 'insights plan pct')
+ok(snap.insights?.direction_plan?.has_direction_plans === true, 'direction plan insights')
 ok(snap.insights?.pnk?.total === 8, 'insights pnk')
 ok(snap.finance?.net_profit === 3600, 'net profit with payroll')
 ok(snap.operations.fit_city_completed_trainings === 15, 'fit city count')
@@ -262,6 +263,10 @@ ok(matchGeminiInstantChip('случайный текст') === null, 'instant ch
 const instantPlan = buildGeminiInstantReply('plan', { snapshot: snap, gender: 'male' })
 ok(instantPlan?.includes('66%') && instantPlan.includes('уровня 2') && instantPlan.endsWith('.'), 'instant plan reply')
 ok(!instantPlan?.includes('undefined'), 'instant plan no undefined')
+ok(
+  instantPlan?.includes('направлен') || instantPlan?.includes('ПЗ') || instantPlan?.includes('без критичного'),
+  'instant plan direction hint',
+)
 
 const julySnap = buildGeminiSnapshot({
   clubName: 'FIT-CITY Клинцы',

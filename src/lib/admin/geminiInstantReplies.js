@@ -8,6 +8,10 @@ import {
   formatCalendarContextLine,
   resolveCalendarContext,
 } from './geminiMonthCalendarContext.js'
+import {
+  formatPlanDirectionLagLine,
+  formatPlanDirectionsDetail,
+} from './geminiPlanDirections.js'
 import { formatRub } from './salesReportCore.js'
 import { periodLabelRu } from './geminiAnalyticsSnapshot.js'
 
@@ -230,8 +234,9 @@ function buildPlanReply(club, period, snapshot, insights, opener, closer, seed) 
   const push = planInsight.tone === 'weak' ? ` ${pickWord(GEMINI_LEXICON_POOLS.push, seed + 1)}.` : ''
   const levelLine =
     achieved > 0 ? ` Закрыт порог уровня ${achieved}.` : ' Финальный порог ещё не достигнут.'
+  const dirLine = formatPlanDirectionLagLine(insights)
 
-  return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: план ${pct}% — ${formatRub(profit)} из ${formatRub(plan)}, ${tone}.${levelLine}${calLine}${calendarNote} Отчётов ${days} дней (${coverage}%).${push} ${closer}.`
+  return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: план ${pct}% — ${formatRub(profit)} из ${formatRub(plan)}, ${tone}.${levelLine}${dirLine}${calLine}${calendarNote} Отчётов ${days} дней (${coverage}%).${push} ${closer}.`
 }
 
 function buildGapReply(club, period, insights, opener, closer, seed) {
@@ -413,12 +418,6 @@ function buildSalesRefundsReply(club, period, snapshot, insights, opener, closer
 
 function buildSalesDirectionsReply(club, period, insights, opener, closer) {
   const rows = insights.structure?.direction_rows ?? []
-  if (!rows.length) {
-    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: план по направлениям не задан или нет данных в отчётах. ${closer}.`
-  }
-  const parts = rows
-    .slice(0, 4)
-    .map((r) => `${r.label ?? r.key}: ${Number(r.planProgressPercent ?? r.plan_progress_pct) || 0}%`)
-    .join('; ')
-  return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: выполнение плана по направлениям — ${parts}. ${closer}.`
+  const detail = formatPlanDirectionsDetail(rows, insights.direction_plan)
+  return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: ${detail} ${closer}.`
 }
