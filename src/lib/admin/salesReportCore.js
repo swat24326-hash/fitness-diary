@@ -53,6 +53,20 @@ export const SALES_MATRIX_KEYS = [
 
 ]
 
+/** Поля club_sales_daily для агрегации месяца (статистика, матрица 3×3). */
+export const SALES_MONTH_DAILY_SELECT = [
+  'report_date',
+  'profit_nk',
+  'profit_dk',
+  'profit_uk',
+  'profit_day',
+  'pnk_total',
+  'trainings_count',
+  'trainings_matrix',
+  'aerobic_sales_matrix',
+  ...SALES_MATRIX_KEYS,
+].join(', ')
+
 /** @param {Array<Record<string, unknown>>} rows */
 export function sumMatrixTotalsFromDailyRows(rows) {
   const totals = { pz: 0, tz: 0, az: 0, all: 0 }

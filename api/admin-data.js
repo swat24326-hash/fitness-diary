@@ -19,6 +19,7 @@ import {
   monthDateRange,
   monthPartsFromIso,
   planFormToPayload,
+  SALES_MONTH_DAILY_SELECT,
 } from '../src/lib/admin/salesReportCore.js'
 import { normalizeMatrixRowsFromDb } from '../src/lib/admin/salesTrainingsMatrix.js'
 import { normalizeAerobicRowsFromDb } from '../src/lib/admin/aerobicSalesMatrix.js'
@@ -487,7 +488,7 @@ async function handleSalesGet(ctx, req, res) {
       .maybeSingle(),
     supabaseAdmin
       .from('club_sales_daily')
-      .select('report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, aerobic_sales_matrix')
+      .select(SALES_MONTH_DAILY_SELECT)
       .eq('club_id', clubId)
       .gte('report_date', start)
       .lte('report_date', end)
