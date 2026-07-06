@@ -3,7 +3,7 @@
  */
 import { authorizePush } from './mutationAuth.js'
 import { normalizeTrainingPayload } from './normalizeTrainingPayload.js'
-import { parseTrainerPayRate } from '../../src/lib/admin/trainerPayrollCore.js'
+import { normalizeMembershipTypePushPayload } from '../../src/lib/admin/membershipTypePushPayload.js'
 
 export const PUSH_ALLOWED_TABLES = new Set([
   'clients',
@@ -71,46 +71,10 @@ function friendlyMembershipTypeDbError(error) {
   if (/trainer_pay_per_session/i.test(msg) && /schema cache|could not find/i.test(msg)) {
     return 'Колонка оплаты не создана в Supabase — выполните миграцию trainer_pay_per_session'
   }
+  if (/aerobic_pay_amount|trainer_assignable/i.test(msg) && /schema cache|could not find/i.test(msg)) {
+    return 'Колонки АЗ не созданы в Supabase — выполните миграцию membership_types_aerobic'
+  }
   return msg || 'Ошибка базы данных'
-}
-
-const MEMBERSHIP_TYPE_DB_FIELDS = new Set([
-  'id',
-  'club_id',
-  'code',
-  'sort_order',
-  'is_active',
-  'trainer_pay_per_session',
-  'created_at',
-])
-
-function pickMembershipTypeDbFields(obj) {
-  const out = {}
-  for (const key of MEMBERSHIP_TYPE_DB_FIELDS) {
-    if (Object.prototype.hasOwnProperty.call(obj ?? {}, key) && obj[key] !== undefined) {
-      out[key] = obj[key]
-    }
-  }
-  return out
-}
-
-function normalizeMembershipTypePushPayload(payload, { insert = false } = {}) {
-  const payRaw = payload?.trainer_pay_per_session
-  const pay = payRaw == null || payRaw === '' ? 0 : parseTrainerPayRate(payRaw)
-  if (Number.isNaN(pay)) {
-    return { ok: false, error: 'Оплата за тренировку: неотрицательное число' }
-  }
-  const next = pickMembershipTypeDbFields({
-    ...payload,
-    code: String(payload?.code ?? '').trim().slice(0, 12),
-    club_id: String(payload?.club_id ?? '').trim(),
-    is_active: payload?.is_active !== false,
-    trainer_pay_per_session: pay,
-  })
-  if (insert && (!next.code || !next.club_id)) {
-    return { ok: false, error: 'Укажите клуб и название типа' }
-  }
-  return { ok: true, data: next }
 }
 
 async function validateMembershipTypeLink(supabaseAdmin, payload, operation) {
@@ -119,7 +83,7 @@ async function validateMembershipTypeLink(supabaseAdmin, payload, operation) {
   const clubId = String(payload?.club_id ?? '').trim()
   const { data: mt, error } = await supabaseAdmin
     .from('membership_types')
-    .select('id, club_id, is_active')
+    .select('id, club_id, is_active, trainer_assignable')
     .eq('id', typeId)
     .maybeSingle()
   if (error) return { ok: false, error: error.message }
@@ -127,8 +91,11 @@ async function validateMembershipTypeLink(supabaseAdmin, payload, operation) {
   if (clubId && String(mt.club_id) !== clubId) {
     return { ok: false, error: 'Тип абонемента принадлежит другому клубу' }
   }
-  if (operation === 'insert' && mt.is_active === false) {
+      if (operation === 'insert' && mt.is_active === false) {
     return { ok: false, error: 'Этот тип абонемента отключён — выберите другой' }
+  }
+  if (operation === 'insert' && mt.trainer_assignable === false) {
+    return { ok: false, error: 'Этот тип абонемента недоступен для оформления тренером' }
   }
   return { ok: true, data: payload }
 }

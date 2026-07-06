@@ -6,6 +6,7 @@ import {
 } from '../src/lib/admin/aerobicPayrollCore.js'
 import { aerobicInputMapToRows, normalizeAerobicRowsFromDb } from '../src/lib/admin/aerobicSalesMatrix.js'
 import { computeNetProfitWithPayroll } from '../src/lib/admin/trainerPayrollCore.js'
+import { normalizeMembershipTypePushPayload } from '../src/lib/admin/membershipTypePushPayload.js'
 import {
   filterAerobicSalesTypes,
   filterTrainerAssignableTypes,
@@ -57,5 +58,12 @@ const normalized = normalizeAerobicRowsFromDb([{ membership_type_id: 'az1', coun
 ok(normalized[0].count === 2, 'normalize aerobic rows')
 
 ok(computeNetProfitWithPayroll(10000, 3100, 2000, 1300) === 3600, 'net profit with aerobic payroll')
+
+const azPush = normalizeMembershipTypePushPayload(
+  { id: 'x', club_id: 'c', code: 'Бокс', trainer_assignable: false, aerobic_pay_amount: 200 },
+  { insert: true },
+)
+ok(azPush.ok && azPush.data.trainer_assignable === false, 'push payload keeps trainer_assignable false')
+ok(azPush.data.aerobic_pay_amount === 200, 'push payload keeps aerobic_pay_amount')
 
 process.exit(failed > 0 ? 1 : 0)
