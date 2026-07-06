@@ -53,7 +53,20 @@ export const SALES_MATRIX_KEYS = [
 
 ]
 
-
+/** @param {Array<Record<string, unknown>>} rows */
+export function sumMatrixTotalsFromDailyRows(rows) {
+  const totals = { pz: 0, tz: 0, az: 0, all: 0 }
+  for (const row of rows ?? []) {
+    for (const key of SALES_MATRIX_KEYS) {
+      const n = Math.trunc(Number(row[key]) || 0)
+      totals.all += n
+      if (key.startsWith('pz_')) totals.pz += n
+      else if (key.startsWith('tz_')) totals.tz += n
+      else if (key.startsWith('az_')) totals.az += n
+    }
+  }
+  return totals
+}
 
 /** @param {string} countKey e.g. pz_nk */
 

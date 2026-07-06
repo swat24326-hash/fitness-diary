@@ -25,6 +25,7 @@ import {
   matchGeminiIntroIntent,
 } from '../../src/lib/admin/geminiAssistantIntro.js'
 import { periodLabelRu, trimChatHistory } from '../../src/lib/admin/geminiAnalyticsSnapshot.js'
+import { buildPanelKpiFromAnalytics } from '../../src/lib/admin/clubMonthAnalyticsCore.js'
 
 const rateLimitMs = 12000
 const lastByUser = new Map()
@@ -117,6 +118,7 @@ export async function handleGeminiAnalyticsPrefetchGet(ctx, req, res) {
       year: parsed.year,
       month: parsed.month,
       period: snapshot.period?.label ?? periodLabelRu(parsed.year, parsed.month),
+      kpi: buildPanelKpiFromAnalytics(snapshot),
     })
   } catch (e) {
     sendJson(res, 400, { error: e?.message ? String(e.message) : 'Ошибка prefetch' })

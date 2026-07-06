@@ -300,7 +300,8 @@ export function AdminMembershipTypes() {
   return (
     <div className="admin-membership-types grid" style={{ gap: 16 }}>
       <p className="muted admin-inline-note" style={{ margin: 0 }}>
-        <strong>ПЗ</strong> — тренерский зал: тип видит тренер при оформлении абонемента, ставка идёт в ФОТ
+        <strong>ПЗ</strong> — тренерский зал: тип видит тренер при оформлении абонемента, ставка идёт в ЗП
+        персонального зала
         тренеров. <strong>АЗ</strong> — аэробный зал: только отчёт менеджера по продажам и ЗП АЗ, тренер не
         оформляет.
       </p>
@@ -358,7 +359,8 @@ export function AdminMembershipTypes() {
           <ZoneBadge zone="pz" /> ПЗ — тренерский зал
         </h3>
         <p className="muted admin-mt-zone__lead">
-          Тренер выбирает эти типы при создании абонемента. Колонка «Оплата за трен.» — ставка для расчёта ФОТ
+          Тренер выбирает эти типы при создании абонемента. Колонка «Оплата за трен.» — ставка для расчёта ЗП
+          персонального зала
           тренеров.
         </p>
 

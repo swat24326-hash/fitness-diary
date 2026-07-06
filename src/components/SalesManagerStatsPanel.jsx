@@ -118,7 +118,7 @@ export function SalesManagerStatsPanel({
         {showPayroll ? (
           <>
             <div className="sales-report__kpi">
-              <span className="sales-report__kpi-label">ФОТ персонального зала</span>
+              <span className="sales-report__kpi-label">ЗП персонального зала</span>
               <span className="sales-report__kpi-value">{formatRub(summary.trainerPayroll ?? 0)}</span>
             </div>
             <div className="sales-report__kpi">

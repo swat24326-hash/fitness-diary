@@ -1,4 +1,5 @@
 import { monthDateRange, planProgressPercent, resolvePlanTotal } from './salesReportCore.js'
+import { buildPanelKpiFromAnalytics } from './clubMonthAnalyticsCore.js'
 
 /** @param {number} year @param {number} month 1–12 */
 export function reportDateForMonth(year, month) {
@@ -13,11 +14,16 @@ export function reportDateForMonth(year, month) {
   return `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
 
-function daysInMonth(year, month) {
-  return new Date(Number(year), Number(month), 0).getDate()
+/**
+ * KPI из единого analytics snapshot (FIT-CITY за весь месяц).
+ * @param {object | null} analytics
+ */
+export function buildGeminiPanelKpiFromSnapshot(analytics) {
+  return buildPanelKpiFromAnalytics(analytics)
 }
 
 /**
+ * @deprecated Используй buildGeminiPanelKpiFromSnapshot — FIT-CITY там за весь месяц.
  * @param {{
  *   monthSummary?: { profitTotal?: number, dayCount?: number } | null,
  *   plan?: { plan_total?: number } | null,
@@ -34,7 +40,7 @@ export function buildGeminiPanelKpi(bundle, year, month) {
   const planTotal = resolvePlanTotal(bundle.plan)
   const planPct = planProgressPercent(profitTotal, planTotal)
   const fitCity = Number(bundle.fitCityTypeStats?.totalCounted) || 0
-  const monthDays = daysInMonth(year, month)
+  const monthDays = new Date(Number(year), Number(month), 0).getDate()
 
   return {
     profitTotal,

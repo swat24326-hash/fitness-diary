@@ -110,7 +110,7 @@ export function SalesFinancePanel({
           <span className="sales-report__kpi-value">{formatRub(summary.profitTotal ?? 0)}</span>
         </div>
         <div className="sales-report__kpi">
-          <span className="sales-report__kpi-label">ФОТ тренеров</span>
+          <span className="sales-report__kpi-label">ЗП персонального зала</span>
           <span className="sales-report__kpi-value">{formatRub(summary.trainerPayroll ?? 0)}</span>
         </div>
         <div className="sales-report__kpi">
@@ -129,7 +129,7 @@ export function SalesFinancePanel({
 
       <p className="muted" style={{ marginTop: '1rem', fontSize: '0.85rem' }}>
         НК {formatRub(summary.profitNk ?? 0)} · ДК {formatRub(summary.profitDk ?? 0)} · УК{' '}
-        {formatRub(summary.profitUk ?? 0)} · тренировок {summary.trainingsTotal ?? 0} · ФОТ тренеров и ЗП АЗ по
+        {formatRub(summary.profitUk ?? 0)} · тренировок {summary.trainingsTotal ?? 0} · ЗП персонального зала и ЗП АЗ по
         текущим ставкам типов
       </p>
     </section>

@@ -11,6 +11,7 @@ import {
 } from '../../src/lib/admin/aerobicPayrollCore.js'
 import { filterAerobicSalesTypes } from '../../src/lib/membershipTypesCore.js'
 import { buildGeminiSnapshot, previousMonthParts } from '../../src/lib/admin/geminiAnalyticsSnapshot.js'
+import { applyMonthComparisonInsights } from '../../src/lib/admin/clubMonthAnalyticsCore.js'
 import { getCachedGeminiSnapshot, setCachedGeminiSnapshot } from './geminiAnalyticsCache.js'
 
 const SALES_MONTH_SELECT =
@@ -150,6 +151,9 @@ export async function loadGeminiAnalyticsContext(supabaseAdmin, clubId, year, mo
     if (prev) {
       previousSnapshot = await loadGeminiSnapshotForMonth(supabaseAdmin, clubId, prev.year, prev.month, opts)
     }
+  }
+  if (previousSnapshot) {
+    applyMonthComparisonInsights(snapshot, previousSnapshot)
   }
   return { snapshot, previousSnapshot, clubName: snapshot.club_name }
 }

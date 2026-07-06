@@ -1,7 +1,7 @@
 /** Агрегаты статистики менеджера по продажам (без React / IDB). */
 
 import { aggregateAerobicPayrollFromDailyRows, buildAerobicPayRateMap } from './aerobicPayrollCore.js'
-import { sumMatrixTotalsFromDailyRows } from './geminiAnalyticsSnapshot.js'
+import { sumMatrixTotalsFromDailyRows } from './salesReportCore.js'
 import { filterAerobicSalesTypes, filterTrainerAssignableTypes } from '../membershipTypesCore.js'
 import { aggregatePayrollFromDailyRows, buildTrainerPayRateMap } from './trainerPayrollCore.js'
 import {

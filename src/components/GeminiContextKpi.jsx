@@ -1,18 +1,25 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Dumbbell, FileBarChart, Target, Wallet } from 'lucide-react'
 import { formatRub } from '../lib/admin/salesReportCore.js'
-import { buildGeminiPanelKpi } from '../lib/admin/geminiPanelKpi.js'
+import { buildGeminiPanelKpi, buildGeminiPanelKpiFromSnapshot } from '../lib/admin/geminiPanelKpi.js'
 
 /**
  * @param {{
- *   bundle: object | null,
+ *   kpi?: object | null,
+ *   analytics?: object | null,
+ *   bundle?: object | null,
  *   year: number,
  *   month: number,
  *   loading?: boolean,
  * }} props
  */
-export function GeminiContextKpi({ bundle, year, month, loading = false }) {
-  const kpi = useMemo(() => buildGeminiPanelKpi(bundle, year, month), [bundle, year, month])
+export function GeminiContextKpi({ kpi: kpiProp, analytics, bundle, year, month, loading = false }) {
+  const kpi = useMemo(() => {
+    if (kpiProp) return kpiProp
+    if (analytics) return buildGeminiPanelKpiFromSnapshot(analytics)
+    if (bundle) return buildGeminiPanelKpi(bundle, year, month)
+    return null
+  }, [kpiProp, analytics, bundle, year, month])
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {

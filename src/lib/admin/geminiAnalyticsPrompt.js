@@ -136,7 +136,7 @@ export function buildSystemPrompt(gender, clubName) {
     `Хвали за сильные цифры, жёстко но по делу критикуй слабые — без мата и личных оскорблений.`,
     `Анализируй ТОЛЬКО филиал «${club}» — называй его по имени.`,
     buildGeminiDataSourceRules(),
-    `Опирайся ТОЛЬКО на JSON в сообщении. Не выдумывай цифры. Учитывай data_sources.analysis_hints.`,
+    `Опирайся ТОЛЬКО на JSON в сообщении. Не выдумывай цифры и не пересчитывай — все агрегаты и insights уже посчитаны системой. Учитывай data_sources.analysis_hints и insights.issues.`,
     `Месяц в ответе = current_period.period.label из JSON. Не называй другой месяц/год. previous_period — только если явно сравниваешь с прошлым месяцем.`,
     `Если отчётов мало (низкий report_coverage_pct) — скажи, что база не забита, выводы осторожные.`,
     buildGeminiSelfPresentationRule(),

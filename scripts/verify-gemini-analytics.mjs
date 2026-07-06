@@ -44,6 +44,7 @@ import {
   setCachedGeminiResponse,
 } from '../api/_lib/geminiAnalyticsResponseCache.js'
 import { buildGeminiPanelKpi, reportDateForMonth } from '../src/lib/admin/geminiPanelKpi.js'
+import { applyMonthComparisonInsights } from '../src/lib/admin/clubMonthAnalyticsCore.js'
 
 let failed = 0
 
@@ -106,6 +107,8 @@ ok(snap.sales.achieved_plan_level === 2, 'achieved plan level')
 ok(snap.sales.profit_day_highlights?.best_day?.profit === 5100, 'best day profit')
 ok(snap.sales.matrix_counts_pz_tz_az.pz === 3, 'matrix counts pz')
 ok(snap.sales.trainings_by_card_type?.[0]?.code === 'VIP', 'trainings by card type')
+ok(snap.insights?.plan?.pct === 66, 'insights plan pct')
+ok(snap.insights?.pnk?.total === 8, 'insights pnk')
 ok(snap.finance?.net_profit === 3600, 'net profit with payroll')
 ok(snap.operations.fit_city_completed_trainings === 15, 'fit city count')
 ok(snap.trainings?.manager_report_total === 18, 'manager trainings total')
@@ -212,9 +215,15 @@ ok(matchGeminiInstantChip(GEMINI_QUICK_CHIPS.find((c) => c.id === 'plan').messag
 ok(matchGeminiInstantChip('случайный текст') === null, 'instant chip miss')
 const instantPlan = buildGeminiInstantReply('plan', { snapshot: snap, gender: 'male' })
 ok(instantPlan?.includes('66%') && instantPlan.includes('уровня 2') && instantPlan.endsWith('.'), 'instant plan reply')
+const prevSnap = {
+  ...snap,
+  period: { label: 'май 2026' },
+  sales: { ...snap.sales, profit_total: 2000, plan_progress_pct: 20 },
+}
+applyMonthComparisonInsights(snap, prevSnap)
 const instantCompare = buildGeminiInstantReply('compare', {
   snapshot: snap,
-  previousSnapshot: { ...snap, period: { label: 'май 2026' }, sales: { ...snap.sales, profit_total: 2000, plan_progress_pct: 20 } },
+  previousSnapshot: prevSnap,
 })
 ok(instantCompare?.includes('май'), 'instant compare reply')
 

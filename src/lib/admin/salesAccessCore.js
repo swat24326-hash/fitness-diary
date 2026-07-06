@@ -58,7 +58,7 @@ export function stripSalesBundleForManager(bundle, isSalesManagerUser) {
   return next
 }
 
-/** Менеджер по продажам не видит ЗП/ФОТ в UI и API bundle. */
+/** Менеджер по продажам не видит ЗП в UI и API bundle. */
 export function canViewSalesPayroll(roleOrMode) {
   const r = String(roleOrMode ?? '').trim()
   return r !== 'sales_manager'

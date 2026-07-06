@@ -1,4 +1,4 @@
-/** ФОТ тренеров: матрица отчёта × ставка типа абонемента (без «Без типа»). */
+/** ЗП персонального зала: матрица отчёта × ставка типа абонемента (без «Без типа»). */
 
 import { parseSalesMoney } from './salesReportCore.js'
 import { normalizeMatrixRowsFromDb } from './salesTrainingsMatrix.js'

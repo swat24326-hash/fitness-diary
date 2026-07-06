@@ -14,12 +14,10 @@ import {
   Wallet,
   X,
 } from 'lucide-react'
-import { fetchClubSalesBundle } from '../lib/admin/adminSalesService.js'
 import { postGeminiAnalytics, prefetchGeminiSnapshot } from '../lib/admin/geminiAnalyticsService.js'
 import { isGeminiReplyIncomplete, resolveGeminiComparePrevious } from '../lib/admin/geminiAnalyticsPrompt.js'
 import { GEMINI_QUICK_CHIPS } from '../lib/admin/geminiInstantReplies.js'
 import { buildGeminiMicroIntro } from '../lib/admin/geminiAssistantIntro.js'
-import { reportDateForMonth } from '../lib/admin/geminiPanelKpi.js'
 import { GeminiContextKpi } from './GeminiContextKpi.jsx'
 import {
   isSpeechRecognitionSupported,
@@ -98,7 +96,7 @@ export function GeminiAnalyticsPanel({
   const [listening, setListening] = useState(false)
   const [rateLimitSec, setRateLimitSec] = useState(0)
   const [lastRetry, setLastRetry] = useState(null)
-  const [kpiBundle, setKpiBundle] = useState(null)
+  const [kpi, setKpi] = useState(null)
   const [kpiLoading, setKpiLoading] = useState(false)
   const [entered, setEntered] = useState(false)
   const [voiceSupported] = useState(() => isSpeechRecognitionSupported())
@@ -152,20 +150,18 @@ export function GeminiAnalyticsPanel({
 
   useEffect(() => {
     if (!open || !clubId) {
-      setKpiBundle(null)
+      setKpi(null)
       return undefined
     }
     let cancelled = false
-    const reportDate = reportDateForMonth(year, month)
-    if (!reportDate) return undefined
 
     setKpiLoading(true)
-    void fetchClubSalesBundle({ clubId, reportDate })
-      .then((bundle) => {
-        if (!cancelled) setKpiBundle(bundle)
+    void prefetchGeminiSnapshot({ clubId, year, month })
+      .then((data) => {
+        if (!cancelled) setKpi(data?.kpi ?? null)
       })
       .catch(() => {
-        if (!cancelled) setKpiBundle(null)
+        if (!cancelled) setKpi(null)
       })
       .finally(() => {
         if (!cancelled) setKpiLoading(false)
@@ -174,12 +170,6 @@ export function GeminiAnalyticsPanel({
     return () => {
       cancelled = true
     }
-  }, [open, clubId, year, month])
-
-  useEffect(() => {
-    if (!open || !clubId) return undefined
-    void prefetchGeminiSnapshot({ clubId, year, month })
-    return undefined
   }, [open, clubId, year, month])
 
   useEffect(() => {
@@ -366,7 +356,7 @@ export function GeminiAnalyticsPanel({
           </button>
         </header>
 
-        <GeminiContextKpi bundle={kpiBundle} year={year} month={month} loading={kpiLoading} />
+        <GeminiContextKpi kpi={kpi} year={year} month={month} loading={kpiLoading} />
 
         <div className="gemini-panel__controls">
           <div className="gemini-panel__month">

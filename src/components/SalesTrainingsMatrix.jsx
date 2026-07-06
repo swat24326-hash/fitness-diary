@@ -120,7 +120,7 @@ export function SalesTrainingsMatrix({
       <p className="muted sales-trainings-matrix__note">
         Число <strong>тренировок за день</strong> по типу карты (Br, Vip, …). Одна строка «По клубу» — без
         разбивки по тренерам. Итого: <strong>{clubAllTotal}</strong> (типизировано:{' '}
-        <strong>{typedTotal(SALES_TRAINING_CLUB_ID)}</strong>). «Без типа» — в ФОТ не входит.
+        <strong>{typedTotal(SALES_TRAINING_CLUB_ID)}</strong>). «Без типа» — в ЗП персонального зала не входит.
         {showPayroll ? (
           <>
             {' '}
