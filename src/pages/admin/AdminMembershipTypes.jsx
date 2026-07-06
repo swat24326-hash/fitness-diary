@@ -95,8 +95,29 @@ export function AdminMembershipTypes() {
   }, [clubId])
 
   useEffect(() => {
-    void reloadLocal()
-  }, [reloadLocal])
+    if (!clubId) {
+      setItems([])
+      return
+    }
+    let cancelled = false
+    setPullBusy(true)
+    void (async () => {
+      try {
+        if (isSupabaseConfigured() && typeof navigator !== 'undefined' && navigator.onLine) {
+          const r = await pullMembershipTypesForClubFromCloud(clubId, { forceFromCloud: true })
+          if (!cancelled && !r.ok && r.error) {
+            setMsg(`Не удалось обновить с сервера: ${r.error}. Показан локальный кэш.`)
+          }
+        }
+        if (!cancelled) setItems(await listMembershipTypesForClub(clubId))
+      } finally {
+        if (!cancelled) setPullBusy(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [clubId])
 
   useEffect(() => {
     const onStorage = () => void reloadLocal()

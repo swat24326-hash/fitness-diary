@@ -4,7 +4,7 @@
 
 import { shouldPullMembershipTypes } from './membershipTypesPullCore.js'
 import { isSupabaseConfigured } from './supabase'
-import { getDb, putStore, listSyncQueue, buildPendingSyncKeysByTable } from './localDb'
+import { getDb, putStore, listSyncQueue, buildPendingSyncKeysByTable, removeSyncItem } from './localDb'
 import { saveLocalWithSync } from './syncService'
 import { pushRecordViaApi } from './syncApiClient'
 import { markRecordFromCloud, recordForPush } from './syncUnsyncedCore'
@@ -280,6 +280,21 @@ export async function insertAerobicMembershipType({ club_id, code, sort_order = 
   })
 }
 
+/** @param {Set<string>} remoteIds */
+async function clearMembershipTypesSyncQueueForRemoteIds(remoteIds) {
+  if (!remoteIds?.size) return 0
+  let cleared = 0
+  for (const item of await listSyncQueue()) {
+    if (item.table_name !== 'membership_types') continue
+    if (item.operation !== 'insert' && item.operation !== 'update') continue
+    const id = String(item.remote_id ?? item.data?.id ?? '').trim()
+    if (!id || !remoteIds.has(id)) continue
+    await removeSyncItem(item.local_id)
+    cleared++
+  }
+  return cleared
+}
+
 /** @param {string} clubId @param {object[]} remoteRows @param {{ forceFromCloud?: boolean }} [opts] */
 export async function mergeMembershipTypesForClub(clubId, remoteRows, opts = {}) {
   const cid = String(clubId ?? '').trim()
@@ -317,6 +332,10 @@ export async function mergeMembershipTypesForClub(clubId, remoteRows, opts = {})
     if (!id || remoteIds.has(id)) continue
     if (!forceFromCloud && pendingIds.has(id)) continue
     await db.delete('membership_types', id)
+  }
+
+  if (forceFromCloud && remoteIds.size > 0) {
+    await clearMembershipTypesSyncQueueForRemoteIds(remoteIds)
   }
 
   return { count: remoteIds.size }
