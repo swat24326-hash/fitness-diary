@@ -48,6 +48,8 @@ import { applyMonthComparisonInsights } from '../src/lib/admin/clubMonthAnalytic
 import {
   buildGeminiMonthCalendarContext,
   comparePlanToCalendar,
+  formatCalendarContextLine,
+  formatTodayDateRu,
   shouldFlagLowPlan,
 } from '../src/lib/admin/geminiMonthCalendarContext.js'
 
@@ -170,6 +172,14 @@ ok(comparePlanToCalendar(10, lateMonth) === 'behind', 'plan 10% behind late mont
 ok(!shouldFlagLowPlan(10, 10000, startMonth), 'no low plan flag at start for 10%')
 ok(shouldFlagLowPlan(10, 10000, lateMonth), 'low plan flag late month for 10%')
 
+const calLine = formatCalendarContextLine(midMonth)
+ok(!calLine.includes('undefined'), 'calendar line no undefined')
+ok(calLine.includes('15 июля'), 'calendar line has date ru')
+ok(formatTodayDateRu(midMonth) === '15 июля 2026', 'today date ru')
+
+const badLine = formatCalendarContextLine(snap)
+ok(badLine === '', 'calendar line rejects bare snapshot')
+
 const dataBlock = buildGeminiPromptDataBlock(snap)
 ok(dataBlock.calendar_context?.phase, 'prompt block calendar')
 const compact = compactSnapshotForPrompt(snap)
@@ -251,6 +261,23 @@ ok(matchGeminiInstantChip(GEMINI_QUICK_CHIPS.find((c) => c.id === 'plan').messag
 ok(matchGeminiInstantChip('случайный текст') === null, 'instant chip miss')
 const instantPlan = buildGeminiInstantReply('plan', { snapshot: snap, gender: 'male' })
 ok(instantPlan?.includes('66%') && instantPlan.includes('уровня 2') && instantPlan.endsWith('.'), 'instant plan reply')
+ok(!instantPlan?.includes('undefined'), 'instant plan no undefined')
+
+const julySnap = buildGeminiSnapshot({
+  clubName: 'FIT-CITY Клинцы',
+  year: 2026,
+  month: 7,
+  monthRows: rows,
+  plan: { plan_total: 1300000, plan_level_1: 300000, plan_level_2: 800000, plan_level_3: 1300000 },
+  fitCityCompleted: 10,
+  membershipTypes,
+  includeFinance: false,
+})
+const instantPlanJuly = buildGeminiInstantReply('plan', {
+  snapshot: julySnap,
+  gender: 'female',
+})
+ok(instantPlanJuly?.includes('июля') && !instantPlanJuly?.includes('undefined'), 'instant plan july calendar')
 const prevSnap = {
   ...snap,
   period: { label: 'май 2026' },

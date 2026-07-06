@@ -219,16 +219,63 @@ export function buildGeminiMonthCalendarContext(year, month, today = new Date())
 }
 
 /** Краткая строка для мгновенных ответов — язык бизнеса. */
+export function resolveCalendarContext(snapshot, today = new Date()) {
+  const embedded = snapshot?.calendar_context
+  if (embedded?.month_relation) return embedded
+
+  const year = Number(snapshot?.period?.year)
+  const month = Number(snapshot?.period?.month)
+  if (Number.isFinite(year) && Number.isFinite(month) && month >= 1 && month <= 12) {
+    return buildGeminiMonthCalendarContext(year, month, today)
+  }
+
+  return null
+}
+
+const MONTH_GENITIVE_RU = [
+  'января',
+  'февраля',
+  'марта',
+  'апреля',
+  'мая',
+  'июня',
+  'июля',
+  'августа',
+  'сентября',
+  'октября',
+  'ноября',
+  'декабря',
+]
+
+/** @param {ReturnType<typeof buildGeminiMonthCalendarContext> | null | undefined} calendarContext */
+export function formatTodayDateRu(calendarContext) {
+  const iso = String(calendarContext?.today_iso ?? '')
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!m) return null
+  const day = Number(m[3])
+  const month = Number(m[2])
+  const year = Number(m[1])
+  const label = MONTH_GENITIVE_RU[month - 1]
+  if (!label || !Number.isFinite(day) || day <= 0) return null
+  return `${day} ${label} ${year}`
+}
+
+/** Краткая строка для мгновенных ответов — язык бизнеса. */
 export function formatCalendarContextLine(calendarContext) {
-  if (!calendarContext) return ''
+  if (!calendarContext?.month_relation) return ''
   if (calendarContext.month_relation === 'past') {
     return ' Месяц завершён — оценка по итогу.'
   }
   if (calendarContext.month_relation === 'future') {
     return ' Месяц ещё не начался.'
   }
-  const day = calendarContext.calendar_day
-  const phase = calendarContext.phase_label_ru
+
+  const day = Number(calendarContext.calendar_day)
+  const phase = String(calendarContext.phase_label_ru ?? '').trim()
   const expected = calendarContext.expected_plan_progress_pct
-  return ` Сегодня ${day}-е число, ${phase}; ориентир плана к дате ~${expected}%.`
+  const dateRu = formatTodayDateRu(calendarContext)
+  if (!Number.isFinite(day) || day <= 0 || !phase || expected == null) return ''
+
+  const datePart = dateRu ? `Сегодня ${dateRu}` : `Сегодня ${day}-е число`
+  return ` ${datePart}, ${phase}; ориентир плана к дате ~${expected}%.`
 }
