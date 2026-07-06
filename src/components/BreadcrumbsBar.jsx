@@ -54,6 +54,8 @@ function buildCrumbs(pathname, search) {
   if (p === '/admin/statistics') return [...admin, { label: 'Статистика', to: `/admin/statistics${clubQs}` }]
   if (p === '/admin/sales') return [...admin, { label: 'Продажи', to: `/admin/sales${clubQs}` }]
   if (p === '/admin/challenges') return [...admin, { label: 'Челленджи', to: `/admin/challenges${clubQs}` }]
+  if (p === '/admin/diagnostics') return [...admin, { label: 'Диагностика', to: `/admin/diagnostics${clubQs}` }]
+  if (p === '/admin/iskra-settings') return [...admin, { label: 'ИСКРА', to: `/admin/iskra-settings${clubQs}` }]
   if (matchPath('/admin/challenges/:challengeId', p)) {
     const full = `${p}${search || ''}`
     return [...admin, { label: 'Челленджи', to: `/admin/challenges${clubQs}` }, { label: 'Рейтинг', to: full }]

@@ -16,6 +16,8 @@ import { AdminSales } from './pages/admin/AdminSales'
 import { AdminChallenges } from './pages/admin/AdminChallenges'
 import { AdminChallengeDetail } from './pages/admin/AdminChallengeDetail'
 import { AdminDiagnostics } from './pages/admin/AdminDiagnostics'
+import { AdminIskraSettings } from './pages/admin/AdminIskraSettings'
+import { IskraPanelProvider } from './context/IskraPanelContext'
 import { Login } from './pages/Login'
 import { ClientCard } from './pages/trainer/ClientCard'
 import { TrainerHome } from './pages/trainer/TrainerHome'
@@ -44,12 +46,14 @@ function LoggedInLayout() {
 
   return (
     <div className={`app-shell${isSalesManager ? ' app-shell--sales' : ''}`}>
-      <AppHeader />
-      {role === 'trainer' ? <DraftTabsBar /> : null}
-      <BreadcrumbsBar />
-      <main className="app-main">
-        <Outlet />
-      </main>
+      <IskraPanelProvider>
+        <AppHeader />
+        {role === 'trainer' ? <DraftTabsBar /> : null}
+        <BreadcrumbsBar />
+        <main className="app-main">
+          <Outlet />
+        </main>
+      </IskraPanelProvider>
     </div>
   )
 }
@@ -153,6 +157,7 @@ export default function App() {
                 <Route path="challenges" element={<AdminChallenges />} />
                 <Route path="challenges/:challengeId" element={<AdminChallengeDetail />} />
                 <Route path="diagnostics" element={<AdminDiagnostics />} />
+                <Route path="iskra-settings" element={<AdminIskraSettings />} />
                 <Route path="clubs" element={<AdminLegacyClubsRedirect />} />
               </Route>
             </Route>

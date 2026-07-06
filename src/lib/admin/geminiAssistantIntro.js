@@ -1,5 +1,6 @@
-/** Самопрезентация Василия / Василисы — универсальные шаблоны + подстановка филиала. */
+/** Самопрезентация ЭВС «ИСКРА» — два контура, без выдуманных цифр. */
 
+import { ISKRA_FULL_NAME, ISKRA_NAME } from './geminiIskraCore.js'
 import { periodLabelRu } from './geminiAnalyticsSnapshot.js'
 
 export const GEMINI_INTRO_CHIP = {
@@ -11,19 +12,11 @@ export const GEMINI_INTRO_CHIP = {
 
 /** @typedef {'micro'|'standard'|'capabilities'|'sources'|'identity'|'deep'} GeminiIntroKind */
 
-/**
- * @param {string} [clubName]
- * @returns {string}
- */
 export function resolveGeminiClubLabel(clubName) {
   const name = String(clubName ?? '').trim()
   return name || 'филиал'
 }
 
-/**
- * @param {object} [snapshot]
- * @returns {{ planPct: number, reportsLabel: string, hasPlan: boolean, fitCity: number, reportCoveragePct: number } | null}
- */
 export function kpiHintsFromSnapshot(snapshot) {
   if (!snapshot?.sales) return null
   const daysInMonth = Number(snapshot.period?.days_in_month) || 0
@@ -45,10 +38,6 @@ function normalizeIntroText(text) {
     .replace(/ё/g, 'е')
 }
 
-/**
- * @param {string} userMessage
- * @returns {GeminiIntroKind|null}
- */
 export function matchGeminiIntroIntent(userMessage) {
   const s = normalizeIntroText(userMessage)
   if (!s) return null
@@ -56,27 +45,17 @@ export function matchGeminiIntroIntent(userMessage) {
   if (normalizeIntroText(GEMINI_INTRO_CHIP.message) === s) return 'standard'
 
   if (/бот|нейросет|chatgpt|gemini|google|искусствен|нейронк|gpt/.test(s)) return 'identity'
-  if (/откуда\s+циф|источник|откуда\s+бер|fit-?city|планшет|отчет\s+менедж|ручн(ой|ого)\s+отч/.test(s)) {
+  if (/откуда\s+циф|источник|откуда\s+бер|fit-?city|планшет|отчет\s+менедж|ручн(ой|ого)\s+отч|контур/.test(s)) {
     return 'sources'
   }
-  if (/подробн|как\s+счита|как\s+работа/.test(s) && /ты|васил|аналит|помога/.test(s)) return 'deep'
+  if (/подробн|как\s+счита|как\s+работа/.test(s) && /ты|искр|аналит|помога/.test(s)) return 'deep'
   if (/чем\s+пом|что\s+уме|что\s+мож|чем\s+полез|help/.test(s)) return 'capabilities'
-  if (/кто\s+ты|ты\s+кто|представ|знаком|расскажи\s+о\s+себе|что\s+ты\s+за/.test(s)) return 'standard'
+  if (/кто\s+ты|ты\s+кто|представ|знаком|расскажи\s+о\s+себе|что\s+ты\s+за|искр/.test(s)) return 'standard'
 
   return null
 }
 
-function personaName(gender) {
-  return gender === 'female' ? 'Василиса' : 'Василий'
-}
-
-/**
- * @param {object} [opts]
- * @returns {{ name: string, club: string, period: string, clubPhrase: string }}
- */
 function introContext(opts = {}) {
-  const gender = opts.gender === 'female' ? 'female' : 'male'
-  const name = personaName(gender)
   const club = resolveGeminiClubLabel(opts.clubName ?? opts.snapshot?.club_name)
   const hasClub = opts.hasClub !== false && club !== 'филиал'
   const period =
@@ -84,7 +63,7 @@ function introContext(opts = {}) {
     periodLabelRu(opts.year, opts.month) ||
     'выбранный месяц'
   const clubPhrase = hasClub ? `«${club}»` : 'филиала'
-  return { name, club, period, clubPhrase, hasClub }
+  return { name: ISKRA_NAME, fullName: ISKRA_FULL_NAME, club, period, clubPhrase, hasClub }
 }
 
 function kpiTail(kpi) {
@@ -93,28 +72,14 @@ function kpiTail(kpi) {
   if (kpi.hasPlan) parts.push(`план ${kpi.planPct}%`)
   if (kpi.reportsLabel) parts.push(`отчётов ${kpi.reportsLabel}`)
   if (!parts.length) return ''
-  return ` Сейчас по базе: ${parts.join(', ')}.`
+  return ` По базе: ${parts.join(', ')}.`
 }
 
 function coverageNote(kpi) {
   if (!kpi || kpi.reportCoveragePct >= 30) return ''
-  return ' Отчётов пока мало — буду осторожен с выводами.'
+  return ' Отчётов мало — выводы предварительные.'
 }
 
-/**
- * @param {GeminiIntroKind} kind
- * @param {{
- *   clubName?: string,
- *   periodLabel?: string,
- *   year?: number,
- *   month?: number,
- *   gender?: string,
- *   hasClub?: boolean,
- *   kpi?: object | null,
- *   snapshot?: object | null,
- * }} opts
- * @returns {string}
- */
 export function buildGeminiIntroReply(kind, opts = {}) {
   const kpi = opts.kpi ?? kpiHintsFromSnapshot(opts.snapshot) ?? null
   const ctx = introContext(opts)
@@ -139,32 +104,32 @@ export function buildGeminiIntroReply(kind, opts = {}) {
 }
 
 function buildMicroIntro(ctx, kpi, tail, coverage) {
-  const { name, clubPhrase, period, hasClub } = ctx
+  const { name, fullName, clubPhrase, period, hasClub } = ctx
 
   if (!hasClub) {
-    return `${name} на связи. Выбери филиал в шапке — тогда разберу его цифры за ${period}.`
+    return `${fullName} на связи. Выберите филиал в шапке — подготовлю аналитику за ${period}.`
   }
 
   if (kpi && !kpi.hasPlan && (kpi.reportCoveragePct || 0) < 15) {
-    return `${name}, аналитик по ${clubPhrase}, ${period}. База ещё пустая — скажу, что есть, и где подтянуть отчёты.`
+    return `${name}, модуль аналитики по ${clubPhrase}, ${period}. База ещё не заполнена — покажу доступные данные и зоны риска.${coverage}`
   }
 
-  return `${name}, аналитик по ${clubPhrase}, ${period}. На связи — план, косяки, сравнение с прошлым месяцем.${tail}${coverage}`
+  return `${name}, ${fullName} по ${clubPhrase}, ${period}. Готова разобрать план продаж, финансы клуба и тренерский контур.${tail}${coverage}`
 }
 
 function buildStandardIntro(ctx, tail, coverage) {
-  const { name, clubPhrase, period, hasClub } = ctx
+  const { name, fullName, clubPhrase, period, hasClub } = ctx
 
   if (!hasClub) {
-    return `${name}, внутренний аналитик FIT-CITY. Работаю по одному филиалу за раз — выбери клуб в шапке, и разберём его цифры за ${period}. Не выдумываю данные: только отчёт менеджера и справка с планшетов.`
+    return `${fullName} — внутренний аналитический модуль FIT-CITY. Работаю по одному филиалу: выберите клуб в шапке. Цифры не вычисляю сама — только готовые поля из отчётов и синхронизации планшетов.`
   }
 
   return (
-    `${name}, твой аналитик по ${clubPhrase}, ${period}. ` +
-    `Опираюсь на **отчёт менеджера** — прибыль, план и тренировки всего зала, и на **FIT-CITY** — только то, что тренеры записали с планшета; это не весь клуб, и так задумано. ` +
-    `Могу: план продаж (уровни 1–3), ПНК, лучший день по прибыли, НК/ДК/УК, сравнение с прошлым месяцем, расхождение отчёт/планшеты, ЗП залов и маржа. Менеджера не заменяю, цифры не придумываю.${tail}${coverage} ` +
-    `Жми кнопки снизу или спроси своими словами — на связи.`
-  ).replace(/\*\*/g, '')
+    `${name}, ${fullName} по ${clubPhrase}, ${period}. ` +
+    `Два контура: sales_contour — отчёт менеджера (план, прибыль, ЗП залов из матрицы); trainer_contour — планшеты (завершённые тренировки, личная ЗП тренера, активные и неактивные клиенты). ` +
+    `Контуры не смешиваю. Могу: план и уровни, ПНК, лучший день, сравнение с прошлым месяцем, расхождение отчёт/FIT-CITY, маржа клуба, сводку по тренерам.${tail}${coverage} ` +
+    `Задайте вопрос текстом или кнопкой ниже.`
+  )
 }
 
 function buildCapabilitiesIntro(ctx, tail) {
@@ -172,9 +137,9 @@ function buildCapabilitiesIntro(ctx, tail) {
   const scope = hasClub ? `по ${clubPhrase}` : 'по выбранному филиалу'
 
   return (
-    `${name} ${scope}: ` +
-    `план и выручка (уровни 1–3), ПНК, лучший день, НК/ДК/УК, главный косяк, динамика к прошлому месяцу, FIT-CITY vs отчёт менеджера, ЗП залов и чистая прибыль. ` +
-    `Быстрые кнопки снизу — это готовые вопросы.${tail} Свободный текст тоже ок.`
+    `${name} ${scope}: план продаж, ПНК, лучший день по прибыли, структура НК/ДК/УК, риски месяца, динамика к прошлому месяцу, ` +
+    `FIT-CITY против отчёта менеджера, чистая прибыль и ЗП залов, неактивные клиенты тренеров, личная ЗП тренера.${tail} ` +
+    `Быстрые кнопки — готовые запросы.`
   )
 }
 
@@ -183,48 +148,45 @@ function buildSourcesIntro(ctx) {
   const who = hasClub ? `по ${clubPhrase}` : 'по филиалу'
 
   return (
-    `${name}: цифры ${who} из двух мест. ` +
-    `**Отчёт менеджера** — главный источник: прибыль НК/ДК/УК, ПНК, план (3 порога), матрица ПЗ/ТЗ/АЗ в штуках, тренировки всего зала и по типам карт. ` +
-    `**FIT-CITY на планшетах** — справка: только завершённые тренировки тренеров с планшетом. ` +
-    `Если в отчёте больше, чем в FIT-CITY — часто норма: часть зала без планшета. Не говорю «в системе должно совпадать».`
-  ).replace(/\*\*/g, '')
+    `${name}: данные ${who} из двух изолированных контуров. ` +
+    `Контур продаж — ежедневный отчёт менеджера: прибыль, план (возвраты не уменьшают план), матрица ПЗ/ТЗ/АЗ, ЗП залов для финансовой картины. ` +
+    `Контур тренеров — планшеты FIT-CITY: завершённые тренировки, personal_salary_month, активные и неактивные закреплённые клиенты. ` +
+    `finance.trainer_payroll и сумма personal_salary_month — разные алгоритмы; расхождение возможно.`
+  )
 }
 
 function buildIdentityIntro(ctx) {
-  const { name, clubPhrase, hasClub } = ctx
+  const { fullName, clubPhrase, hasClub } = ctx
   const scope = hasClub ? ` по ${clubPhrase}` : ''
 
   return (
-    `${name} — не внешний чат и не поисковик, а встроенный аналитик приложения FIT-CITY${scope}. ` +
-    `Читаю только агрегаты клуба из ваших отчётов, без выдуманных цифр. Спрашивай про план и цифры — это моя зона.`
+    `${fullName} — не внешний чат и не поисковик, а встроенный модуль аналитики FIT-CITY${scope}. ` +
+    `Читаю только агрегаты из JSON-снимка. Сама не считаю — интерпретирую готовые поля системы.`
   )
 }
 
 function buildDeepIntro(ctx, coverage) {
   const { name, clubPhrase, period, hasClub } = ctx
   if (!hasClub) {
-    return `${name}: после выбора филиала подтяну snapshot за ${period} — прибыль, plan_progress_pct, coverage отчётов, gap FIT-CITY vs менеджер. Пока клуб не выбран — данных нет.`
+    return `${name}: после выбора филиала подтяну snapshot за ${period} — plan_progress_pct, coverage, gap FIT-CITY, trainer_contour.club_roll_up. Пока клуб не выбран — данных нет.`
   }
 
   return (
-    `${name}, как считаю для ${clubPhrase}, ${period}: ` +
-    `план = profit_total / plan_level_3; achieved_plan_level = закрытый порог; coverage = дни с отчётом / дни месяца; gap = manager_report_total − fit_city_tablets_only; profit_day_highlights = лучший/худший день с отчётом. ` +
-    `Сравнение с прошлым месяцем — только если ты явно просишь.${coverage} ` +
-    `Всё это уже в JSON снимка — я не достраиваю от себя.`
+    `${name}, логика для ${clubPhrase}, ${period}: ` +
+    `план = plan_fact_gross / plan_level_3 (валовая, без вычета возвратов); profit_total — после возвратов; ` +
+    `trainer_contour.personal_salary_month — только завершённые × ставка типа карты; «Без типа» исключены; ` +
+    `finance.trainer_payroll — из матрицы продаж, не сумма личных ЗП.${coverage} Все поля уже в JSON — не достраиваю от себя.`
   )
 }
 
-/** Короткое приветствие при открытии панели (клиент). */
 export function buildGeminiMicroIntro(opts = {}) {
   return buildGeminiIntroReply('micro', opts)
 }
 
-/** Правило для system prompt — ответы «кто ты», не уходить в Gemini/Google. */
 export function buildGeminiSelfPresentationRule() {
   return [
-    'Если спрашивают кто ты, чем поможешь, откуда цифры, бот ли ты — представься как внутренний аналитик FIT-CITY (имя из persona), НЕ как Google/Gemini/ChatGPT.',
-    'Называй филиал по club_name / current_period из JSON — для каждого клуба свой контекст, без вымышленных названий.',
-    'Кратко: отчёт менеджера = истина по залу; FIT-CITY = только планшеты; не заменяешь менеджера; цифры не выдумываешь.',
-    'На вопросы о себе не уходи в анализ месяца, пока явно не попросят цифры.',
+    'Если спрашивают кто ты — представься как ЭВС «ИСКРА», внутренний модуль FIT-CITY, НЕ Google/Gemini/ChatGPT.',
+    'Два контура: sales_contour и trainer_contour — не смешивай в одном ответе без явного сравнения.',
+    'Цифры только из JSON; сама не считаешь.',
   ].join(' ')
 }

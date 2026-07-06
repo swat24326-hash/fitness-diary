@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useOutletContext, useSearchParams } from 'react-router-dom'
-import { Pencil, RefreshCw, Trash2, UserPlus } from 'lucide-react'
+import { Pencil, RefreshCw, Sparkles, Trash2, UserPlus } from 'lucide-react'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import {
   countClientsByTrainer,
@@ -20,6 +20,7 @@ import {
 } from '../../lib/dataAccess'
 import { createTrainerForAdmin } from '../../lib/admin/createTrainerService'
 import { humanizeNetworkError } from '../../lib/supabaseRetry'
+import { useIskraPanel } from '../../context/IskraPanelContext.jsx'
 
 const CREATE_TRAINER_TIMEOUT_MS = 55_000
 
@@ -44,6 +45,7 @@ export function AdminOrganization({ mode = 'both' } = {}) {
   const { reloadClubs } = useOutletContext() ?? {}
   const [searchParams, setSearchParams] = useSearchParams()
   const defaultClubFromUrl = searchParams.get('club') ?? ''
+  const { openIskra } = useIskraPanel()
 
   const [syncClientsClub, setSyncClientsClub] = useState(true)
   const [clubDeleteBusyId, setClubDeleteBusyId] = useState(null)
@@ -514,6 +516,22 @@ export function AdminOrganization({ mode = 'both' } = {}) {
                   ) : null}
                   <td>
                     <div className="admin-trainers-table__actions">
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        title="Спросить ИСКРУ по этому тренеру"
+                        onClick={() =>
+                          openIskra({
+                            trainerId: tr.id,
+                            trainerName: tr.name ?? '',
+                            clubId: tr.club_id || defaultClubFromUrl || '',
+                            initialMessage: `Искра, выведи сводку по тренеру ${tr.name ?? '—'} за этот месяц. Какая у него ситуация с клиентами?`,
+                          })
+                        }
+                      >
+                        <Sparkles size={14} aria-hidden />
+                        ИСКРА
+                      </button>
                       <button type="button" className="btn btn-ghost btn-touch" onClick={() => showTrainerStub('Сброс пароля')}>
                         Сбросить пароль
                       </button>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BarChart3, ClipboardList, Info, LayoutGrid, LineChart, RefreshCw, Trophy, UserCheck, UserMinus, Users } from 'lucide-react'
+import { BarChart3, ClipboardList, Info, LayoutGrid, LineChart, RefreshCw, Sparkles, Trophy, UserCheck, UserMinus, Users } from 'lucide-react'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { isAppOnline } from '../../lib/syncService'
 import { refreshMembershipsForStats } from '../../lib/membershipCacheRefresh'
@@ -12,6 +12,7 @@ import { AdminClubDayChart } from '../../components/AdminClubDayChart'
 import { AdminClubMonthlyChart } from '../../components/AdminClubMonthlyChart'
 import { MembershipTypeStatsTable } from '../../components/MembershipTypeStatsTable'
 import { loadClubMonthlyStatsForYear, MONTHS_PER_CALENDAR_YEAR } from '../../lib/admin/adminClubMonthlyService'
+import { useIskraPanel } from '../../context/IskraPanelContext.jsx'
 
 function rankMedal(i) {
   if (i === 0) return '🥇'
@@ -41,6 +42,7 @@ export function AdminClubStatsSection({
   const isTrainerScope = Boolean(trainerScope?.trainerId)
   const scopeTrainerId = trainerScope?.trainerId ?? ''
   const scopeClubId = trainerScope?.clubId ?? clubId ?? ''
+  const { openIskra } = useIskraPanel()
   const [period, setPeriod] = useState('month')
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
@@ -684,6 +686,24 @@ export function AdminClubStatsSection({
                       <span className="muted">Клиентов:</span> <strong>{tr.uniqueClients}</strong>
                     </span>
                   </div>
+                  {!isTrainerScope ? (
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      style={{ marginTop: 10 }}
+                      onClick={() =>
+                        openIskra({
+                          trainerId: tr.trainerId,
+                          trainerName: trainerLabel(tr.trainerId),
+                          clubId: scopeClubId,
+                          initialMessage: `Искра, сводка по тренеру ${trainerLabel(tr.trainerId)} за этот месяц.`,
+                        })
+                      }
+                    >
+                      <Sparkles size={14} aria-hidden />
+                      ИСКРА
+                    </button>
+                  ) : null}
                 </div>
               ))}
             </div>

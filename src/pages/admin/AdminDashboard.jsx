@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 import { useCallback, useMemo } from 'react'
-import { BarChart3, Building2, Stethoscope, TrendingUp, Trophy, UserCircle } from 'lucide-react'
+import { BarChart3, Building2, Sparkles, Stethoscope, TrendingUp, Trophy, UserCircle } from 'lucide-react'
 import { dispatchLocalDataChanged } from '../../lib/dataAccess'
 
 function adminTileClass({ isActive }) {
@@ -72,6 +72,12 @@ export function AdminDashboard() {
                   <Stethoscope size={44} aria-hidden />
                 </div>
                 <p className="feature-tile__title">Диагностика</p>
+              </NavLink>
+              <NavLink to={tab('iskra-settings')} className={adminTileClass}>
+                <div className="feature-tile__icon">
+                  <Sparkles size={44} aria-hidden />
+                </div>
+                <p className="feature-tile__title">ИСКРА</p>
               </NavLink>
             </div>
           </section>

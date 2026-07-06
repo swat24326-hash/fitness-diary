@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   ChevronLeft,
   ChevronRight,
@@ -6,6 +7,7 @@ import {
   Mic,
   RotateCcw,
   Send,
+  Settings,
   Sparkles,
   Target,
   TrendingUp,
@@ -18,6 +20,7 @@ import { postGeminiAnalytics, prefetchGeminiSnapshot } from '../lib/admin/gemini
 import { isGeminiReplyIncomplete, resolveGeminiComparePrevious } from '../lib/admin/geminiAnalyticsPrompt.js'
 import { GEMINI_QUICK_CHIPS } from '../lib/admin/geminiInstantReplies.js'
 import { buildGeminiMicroIntro } from '../lib/admin/geminiAssistantIntro.js'
+import { ISKRA_FULL_NAME, ISKRA_NAME } from '../lib/admin/geminiIskraCore.js'
 import { GeminiContextKpi } from './GeminiContextKpi.jsx'
 import {
   isSpeechRecognitionSupported,
@@ -55,6 +58,12 @@ const CHIP_ICONS = {
   compare: TrendingUp,
   fitcity: Dumbbell,
   finance: Wallet,
+  trainer_inactive: Dumbbell,
+  payroll_gap: Wallet,
+  sales_coverage: Target,
+  sales_structure: TrendingUp,
+  sales_refunds: Wallet,
+  sales_directions: Target,
 }
 
 function comparePreviousFromChip(userText) {
@@ -74,6 +83,9 @@ function shiftMonth(year, month, delta) {
  *   clubName?: string,
  *   initialYear?: number,
  *   initialMonth?: number,
+ *   selectedTrainerId?: string | null,
+ *   selectedTrainerName?: string,
+ *   initialMessage?: string | null,
  * }} props
  */
 export function GeminiAnalyticsPanel({
@@ -83,6 +95,9 @@ export function GeminiAnalyticsPanel({
   clubName = '',
   initialYear,
   initialMonth,
+  selectedTrainerId = null,
+  selectedTrainerName = '',
+  initialMessage = null,
 }) {
   const now = new Date()
   const [year, setYear] = useState(initialYear ?? now.getFullYear())
@@ -98,10 +113,20 @@ export function GeminiAnalyticsPanel({
   const [lastRetry, setLastRetry] = useState(null)
   const [kpi, setKpi] = useState(null)
   const [kpiLoading, setKpiLoading] = useState(false)
+  const [trainers, setTrainers] = useState([])
+  const [focusTrainerId, setFocusTrainerId] = useState(null)
   const [entered, setEntered] = useState(false)
   const [voiceSupported] = useState(() => isSpeechRecognitionSupported())
   const listRef = useRef(null)
   const recognitionRef = useRef(null)
+  const initialMessageSentRef = useRef(false)
+
+  const settingsHref = clubId ? `/admin/iskra-settings?club=${encodeURIComponent(clubId)}` : '/admin/iskra-settings'
+  const activeTrainerId = focusTrainerId || null
+  const focusTrainerLabel =
+    trainers.find((t) => t.trainer_id === activeTrainerId)?.trainer_name ||
+    (activeTrainerId && selectedTrainerName) ||
+    ''
 
   const stopListening = useCallback(() => {
     recognitionRef.current?.stop()
@@ -124,6 +149,13 @@ export function GeminiAnalyticsPanel({
   }, [initialYear, initialMonth, open])
 
   useEffect(() => {
+    if (open) {
+      setFocusTrainerId(selectedTrainerId || null)
+      initialMessageSentRef.current = false
+    }
+  }, [open, selectedTrainerId])
+
+  useEffect(() => {
     if (!open) {
       stopGeminiSpeech()
       stopListening()
@@ -131,26 +163,32 @@ export function GeminiAnalyticsPanel({
     }
     setError('')
     setInput('')
+    const focusLine = focusTrainerLabel
+      ? ` Фокус: тренер ${focusTrainerLabel}.`
+      : selectedTrainerId && selectedTrainerName
+        ? ` Фокус: тренер ${selectedTrainerName}.`
+        : ''
     setMessages([
       {
         role: 'assistant',
-        content: buildGeminiMicroIntro({
+        content: `${buildGeminiMicroIntro({
           clubName,
           periodLabel: periodLabelRu(year, month),
           gender,
           hasClub: !!clubId,
-        }),
+        })}${focusLine}`,
       },
     ])
     return () => {
       stopGeminiSpeech()
       stopListening()
     }
-  }, [open, clubId, year, month, clubName, gender, stopListening])
+  }, [open, clubId, year, month, clubName, gender, stopListening, focusTrainerLabel, selectedTrainerId, selectedTrainerName])
 
   useEffect(() => {
     if (!open || !clubId) {
       setKpi(null)
+      setTrainers([])
       return undefined
     }
     let cancelled = false
@@ -158,7 +196,9 @@ export function GeminiAnalyticsPanel({
     setKpiLoading(true)
     void prefetchGeminiSnapshot({ clubId, year, month })
       .then((data) => {
-        if (!cancelled) setKpi(data?.kpi ?? null)
+        if (cancelled) return
+        setKpi(data?.kpi ?? null)
+        setTrainers(Array.isArray(data?.trainers) ? data.trainers : [])
       })
       .catch(() => {
         if (!cancelled) setKpi(null)
@@ -178,8 +218,8 @@ export function GeminiAnalyticsPanel({
     }
   }, [messages, loading])
 
-  const personaLabel = gender === 'female' ? 'Василиса' : 'Василий'
-  const personaShort = gender === 'female' ? 'В' : 'В'
+  const personaLabel = ISKRA_NAME
+  const personaShort = 'И'
   const panelClass = `gemini-panel gemini-panel--${gender}${entered ? ' gemini-panel--open' : ''}`
 
   useEffect(() => {
@@ -229,6 +269,7 @@ export function GeminiAnalyticsPanel({
           skipCache: flags.skipCache,
           forceGemini: flags.forceGemini,
           completionRetry: flags.completionRetry,
+          selectedTrainerId: activeTrainerId || undefined,
         })
 
       try {
@@ -290,8 +331,16 @@ export function GeminiAnalyticsPanel({
         setInput('')
       }
     },
-    [clubId, year, month, gender, chatHistory, loading, stopListening, autoSpeak, rateLimitSec],
+    [clubId, year, month, gender, chatHistory, loading, stopListening, autoSpeak, rateLimitSec, activeTrainerId],
   )
+
+  useEffect(() => {
+    if (!open || !clubId || !initialMessage?.trim() || initialMessageSentRef.current) return
+    initialMessageSentRef.current = true
+    const t = window.setTimeout(() => {
+      void sendMessage(initialMessage, false)
+    }, 450)
+  }, [open, clubId, initialMessage])
 
   const toggleVoiceInput = useCallback(() => {
     if (!voiceSupported || loading || !clubId) return
@@ -336,7 +385,7 @@ export function GeminiAnalyticsPanel({
         className={panelClass}
         role="dialog"
         aria-modal="true"
-        aria-label={`Аналитик ${personaLabel}`}
+        aria-label={`${ISKRA_FULL_NAME}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="gemini-panel__glow" aria-hidden />
@@ -347,14 +396,47 @@ export function GeminiAnalyticsPanel({
               <Sparkles size={18} />
             </div>
             <div>
-              <h2 className="gemini-panel__title">{personaLabel}</h2>
+              <h2 className="gemini-panel__title">{ISKRA_FULL_NAME}</h2>
               <p className="gemini-panel__sub muted">{clubName || 'Выберите клуб в шапке'}</p>
             </div>
           </div>
-          <button type="button" className="btn btn-ghost btn-sm gemini-panel__close" onClick={onClose} aria-label="Закрыть">
-            <X size={18} />
-          </button>
+          <div className="gemini-panel__head-actions">
+            <Link
+              to={settingsHref}
+              className="btn btn-ghost btn-sm gemini-panel__settings"
+              aria-label="Настройки ИСКРА"
+              title="Настройки ИСКРА"
+              onClick={onClose}
+            >
+              <Settings size={18} />
+            </Link>
+            <button type="button" className="btn btn-ghost btn-sm gemini-panel__close" onClick={onClose} aria-label="Закрыть">
+              <X size={18} />
+            </button>
+          </div>
         </header>
+
+        {trainers.length > 0 ? (
+          <div className="gemini-panel__focus">
+            <label className="gemini-panel__focus-label" htmlFor="iskra-trainer-focus">
+              Фокус анализа
+            </label>
+            <select
+              id="iskra-trainer-focus"
+              className="select gemini-panel__focus-select"
+              value={activeTrainerId ?? ''}
+              onChange={(e) => setFocusTrainerId(e.target.value || null)}
+              disabled={loading}
+            >
+              <option value="">Весь клуб (продажи + сводка тренеров)</option>
+              {trainers.map((t) => (
+                <option key={t.trainer_id} value={t.trainer_id}>
+                  Тренер: {t.trainer_name || t.trainer_id}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
 
         <GeminiContextKpi kpi={kpi} year={year} month={month} loading={kpiLoading} />
 
@@ -389,7 +471,7 @@ export function GeminiAnalyticsPanel({
             </button>
           </div>
 
-          <div className="gemini-panel__gender" role="group" aria-label="Голос аналитика">
+          <div className="gemini-panel__gender" role="group" aria-label="Голос озвучки">
             <button
               type="button"
               className={`gemini-panel__gender-btn${gender === 'male' ? ' gemini-panel__gender-btn--active' : ''}`}
@@ -399,7 +481,7 @@ export function GeminiAnalyticsPanel({
                 previewGeminiVoice('male')
               }}
             >
-              ♂ Василий
+              ♂ Голос
             </button>
             <button
               type="button"
@@ -410,7 +492,7 @@ export function GeminiAnalyticsPanel({
                 previewGeminiVoice('female')
               }}
             >
-              ♀ Василиса
+              ♀ Голос
             </button>
             <button
               type="button"
@@ -521,7 +603,7 @@ export function GeminiAnalyticsPanel({
                 {personaShort}
               </div>
               <div className="gemini-panel__msg-body">
-                <span className="gemini-panel__msg-name">{personaLabel} думает…</span>
+                <span className="gemini-panel__msg-name">{personaLabel} анализирует…</span>
                 <div className="gemini-panel__typing" aria-label="Загрузка">
                   <span />
                   <span />
@@ -585,7 +667,7 @@ export function GeminiAnalyticsPanel({
             className="gemini-panel__input"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={listening ? 'Говорите…' : 'Спроси про цифры…'}
+            placeholder={listening ? 'Говорите…' : 'Спросите ИСКРУ про цифры…'}
             disabled={loading || !clubId}
             aria-label="Сообщение"
           />
@@ -596,7 +678,7 @@ export function GeminiAnalyticsPanel({
         </form>
         {voiceSupported ? (
           <p className="gemini-panel__voice-hint muted">
-            {listening ? 'Слушаю… нажмите микрофон, чтобы остановить' : 'Микрофон — спросить голосом · 🔊 — автоозвучка · ♂/♀ — проверить голос'}
+            {listening ? 'Слушаю… нажмите микрофон, чтобы остановить' : 'Микрофон — голосовой ввод · 🔊 — автоозвучка · ♂/♀ — голос TTS'}
           </p>
         ) : (
           <p className="gemini-panel__voice-hint muted">Голосовой ввод: Chrome или Edge на Android. Ответ можно озвучить 🔊</p>

@@ -1,4 +1,5 @@
 import { readEnv, sendJson } from './adminSupabase.js'
+import { loadClubIskraSettings } from './iskraSettingsHandler.js'
 import { getCachedGeminiSnapshot } from './geminiAnalyticsCache.js'
 import { loadGeminiAnalyticsContext, loadGeminiSnapshotForMonth } from './geminiAnalyticsData.js'
 import {
@@ -119,6 +120,10 @@ export async function handleGeminiAnalyticsPrefetchGet(ctx, req, res) {
       month: parsed.month,
       period: snapshot.period?.label ?? periodLabelRu(parsed.year, parsed.month),
       kpi: buildPanelKpiFromAnalytics(snapshot),
+      trainers: (snapshot.trainer_contour?.trainers ?? []).map((t) => ({
+        trainer_id: t.trainer_id,
+        trainer_name: t.trainer_name,
+      })),
     })
   } catch (e) {
     sendJson(res, 400, { error: e?.message ? String(e.message) : 'Ошибка prefetch' })
@@ -141,6 +146,7 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
     comparePrevious: body?.compare_previous === true,
   })
   const includeFinance = body?.include_finance !== false
+  const selectedTrainerId = String(body?.selected_trainer_id ?? '').trim() || null
   const skipCache = body?.skip_cache === true || body?.force_gemini === true
   const completionRetry = body?.completion_retry === true
 
@@ -206,6 +212,14 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
       ym.month,
       { comparePrevious, includeFinance },
     )
+
+    let promptAppend = ''
+    try {
+      const settings = await loadClubIskraSettings(ctx.supabaseAdmin, clubId)
+      promptAppend = settings.prompt_append
+    } catch {
+      promptAppend = ''
+    }
 
     const chipId = body?.force_gemini === true ? null : matchGeminiInstantChip(userMessage, comparePrevious)
     const introKind = body?.force_gemini === true ? null : matchGeminiIntroIntent(userMessage)
@@ -282,10 +296,12 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
       userMessage,
       snapshot,
       previousSnapshot,
+      selectedTrainerId,
+      promptAppend,
     })
 
     const authHeader = String(req.headers.authorization || req.headers.Authorization || '')
-    const dataBlock = buildGeminiPromptDataBlock(snapshot, previousSnapshot)
+    const dataBlock = buildGeminiPromptDataBlock(snapshot, previousSnapshot, { selectedTrainerId })
     const edgeBody = {
       gender,
       club_name: clubName,

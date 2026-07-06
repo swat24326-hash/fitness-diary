@@ -1,6 +1,6 @@
 /** Snapshot для Gemini-аналитика (без PII, только агрегаты). */
 
-import { SALES_MATRIX_KEYS } from './salesReportCore.js'
+import { SALES_MATRIX_KEYS, resolvePlanFactFromMonthSummary } from './salesReportCore.js'
 import {
   aggregateTrainingsByMembershipTypes,
   buildDailyProfitSeries,
@@ -11,6 +11,7 @@ import {
   periodLabelRu,
   previousMonthParts,
 } from './clubMonthAnalyticsCore.js'
+import { compactTrainerContourForPrompt } from './geminiTrainerContour.js'
 
 export { MONTH_LABELS_RU, periodLabelRu, previousMonthParts }
 
@@ -91,18 +92,25 @@ export function buildGeminiSnapshot(opts) {
   })
 }
 
-/** Урезанный snapshot для Gemini — ключевые поля + готовые insights. */
-export function compactSnapshotForPrompt(snapshot) {
+/** Урезанный snapshot для ИСКРА — sales_contour + trainer_contour раздельно. */
+export function compactSnapshotForPrompt(snapshot, selectedTrainerId = null) {
   if (!snapshot || typeof snapshot !== 'object') return null
   const sales = snapshot.sales ?? {}
   const insights = snapshot.insights ?? {}
-  const compact = {
+  const summaryLike = {
+    profitGrossTotal: sales.profit_gross_total,
+    profitTotal: sales.profit_total,
+  }
+  return {
     club_name: snapshot.club_name,
     period: snapshot.period,
-    sales: {
+    sales_contour: {
       days_with_reports: sales.days_with_reports,
       report_coverage_pct: sales.report_coverage_pct,
       profit_total: sales.profit_total,
+      profit_gross_total: sales.profit_gross_total ?? resolvePlanFactFromMonthSummary(summaryLike),
+      refunds_total: sales.refunds_total ?? 0,
+      plan_fact_gross: sales.plan_fact_gross ?? resolvePlanFactFromMonthSummary(summaryLike),
       profit_nk: sales.profit_nk,
       profit_dk: sales.profit_dk,
       profit_uk: sales.profit_uk,
@@ -120,7 +128,10 @@ export function compactSnapshotForPrompt(snapshot) {
       profit_day_highlights: sales.profit_day_highlights,
       trainings_by_card_type: sales.trainings_by_card_type,
       structure_shares: sales.structure_shares,
+      direction_structure: sales.direction_structure,
+      extra_sales_rub: sales.extra_sales_rub,
     },
+    trainer_contour: compactTrainerContourForPrompt(snapshot.trainer_contour, selectedTrainerId),
     trainings: snapshot.trainings,
     insights: {
       plan: insights.plan,
@@ -136,18 +147,19 @@ export function compactSnapshotForPrompt(snapshot) {
       mom_comparison: insights.mom_comparison,
       payroll: insights.payroll,
     },
+    finance: snapshot.finance
+      ? {
+          net_profit: snapshot.finance.net_profit,
+          gross_before_expense: snapshot.finance.gross_before_expense,
+          trainer_payroll: snapshot.finance.trainer_payroll,
+          aerobic_payroll: snapshot.finance.aerobic_payroll,
+          supervisor_expense: snapshot.finance.supervisor_expense,
+        }
+      : undefined,
+    data_sources: snapshot.data_sources?.analysis_hints?.length
+      ? { analysis_hints: snapshot.data_sources.analysis_hints }
+      : undefined,
   }
-  if (snapshot.finance) {
-    compact.finance = {
-      net_profit: snapshot.finance.net_profit,
-      trainer_payroll: snapshot.finance.trainer_payroll,
-      aerobic_payroll: snapshot.finance.aerobic_payroll,
-    }
-  }
-  if (snapshot.data_sources?.analysis_hints?.length) {
-    compact.data_sources = { analysis_hints: snapshot.data_sources.analysis_hints }
-  }
-  return compact
 }
 
 /**

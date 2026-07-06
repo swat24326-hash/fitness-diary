@@ -126,8 +126,8 @@ ok(previousMonthParts(2026, 6)?.month === 5, 'prev month jun')
 ok(trimChatHistory([{ role: 'user', content: 'a' }, { role: 'assistant', content: 'b' }]).length === 2, 'trim history')
 
 const prompt = buildSystemPrompt('male', 'Север')
-ok(prompt.includes('Василий') && prompt.includes('Север'), 'system prompt male')
-ok(buildPersona('female').name === 'Василиса', 'persona female')
+ok(prompt.includes('ИСКРА') && prompt.includes('Север'), 'system prompt iskra')
+ok(buildPersona('female').name === 'ИСКРА', 'persona iskra')
 
 const noFinance = buildGeminiSnapshot({
   clubName: 'X',
@@ -140,21 +140,20 @@ const noFinance = buildGeminiSnapshot({
 ok(noFinance.finance === undefined, 'finance hidden')
 
 ok(GEMINI_ANALYTICS_MODEL === 'gemini-2.5-flash-lite', 'default model lite')
-ok(buildSystemPrompt('male', 'X').includes('70 слов'), 'brief prompt rule')
-ok(buildSystemPrompt('male', 'X').includes('current_period.period.label'), 'prompt period anchor')
-ok(buildSystemPrompt('male', 'Север').includes('plan_level_3'), 'prompt plan levels rule')
-ok(buildSystemPrompt('male', 'Север').includes('планшет'), 'prompt tablets rule')
-ok(buildSystemPrompt('female', 'X').includes('красава'), 'prompt lexicon')
+ok(buildSystemPrompt('male', 'X').includes('90 слов'), 'brief prompt rule')
+ok(buildSystemPrompt('male', 'X').includes('sales_contour'), 'prompt sales contour')
+ok(buildSystemPrompt('male', 'Север').includes('trainer_contour'), 'prompt trainer contour')
+ok(buildSystemPrompt('male', 'X').includes('НИЧЕГО НЕ СЧИТАЕШЬ'), 'prompt no calc rule')
 const compact = compactSnapshotForPrompt(snap)
 ok(compact?.period?.label && !compact.operations, 'compact snapshot drops noise')
-ok(compact?.sales?.pnk_total === 8, 'compact pnk')
-ok(compact?.sales?.profit_nk === 6000, 'compact profit nk')
-ok(compact?.sales?.achieved_plan_level === 2, 'compact achieved level')
-ok(compact?.sales?.profit_day_highlights?.best_day?.date === '2026-06-15', 'compact best day')
+ok(compact?.sales_contour?.pnk_total === 8, 'compact pnk')
+ok(compact?.sales_contour?.profit_nk === 6000, 'compact profit nk')
+ok(compact?.sales_contour?.achieved_plan_level === 2, 'compact achieved level')
+ok(compact?.sales_contour?.profit_day_highlights?.best_day?.date === '2026-06-15', 'compact best day')
 const dataBlock = buildGeminiPromptDataBlock(snap, null)
 ok(dataBlock.analysis_period && dataBlock.current_period && dataBlock.previous_period === undefined, 'prompt block no prev')
-ok(isGeminiReplyIncomplete('FIT-CITY Клинцы, июль 202', 'MAX_TOKENS'), 'truncated reply detected')
-ok(!isGeminiReplyIncomplete('План на 45%, поднажми — иначе косяк по выручке.', 'STOP'), 'complete reply ok')
+ok(isGeminiReplyIncomplete('ЭВС ИСКРА, июль 202', 'MAX_TOKENS'), 'truncated reply detected')
+ok(!isGeminiReplyIncomplete('План на 45%, требуется усилить контроль по выручке.', 'STOP'), 'complete reply ok')
 const gapHints = buildTrainingsGapHint(20, 5, 2, 30)
 ok(gapHints.length > 0, 'gap hints')
 ok(GEMINI_GENERATION_CONFIG.maxOutputTokens >= 512, 'enough output tokens')
@@ -166,7 +165,7 @@ ok(formatGeminiUserError('You exceeded your current quota').includes('Лимит
 ok(formatGeminiUserError('x'.repeat(300)).length <= 220, 'long error trimmed')
 
 ok(shouldComparePreviousMonth('Сравни с прошлым месяцем'), 'compare phrase')
-ok(!shouldComparePreviousMonth('че по плану'), 'no compare phrase')
+ok(!shouldComparePreviousMonth('Как выполнен план продаж'), 'no compare phrase')
 ok(resolveGeminiComparePrevious({ userMessage: 'динамика за месяц', comparePrevious: false }), 'resolve compare text')
 ok(resolveGeminiComparePrevious({ userMessage: 'x', comparePrevious: true }), 'resolve compare flag')
 
@@ -211,6 +210,16 @@ ok(instantPnk?.includes('8') && instantPnk.endsWith('.'), 'instant pnk reply')
 const instantBest = buildGeminiInstantReply('bestday', { snapshot: snap, gender: 'male' })
 ok(instantBest?.includes('лучший день') && instantBest?.includes('15.6'), 'instant best day reply')
 
+const instantPayroll = buildGeminiInstantReply('payroll_gap', {
+  snapshot: {
+    ...snap,
+    trainer_contour: {
+      club_roll_up: { personal_salary_sum: 1800 },
+    },
+  },
+})
+ok(instantPayroll?.includes('finance.trainer_payroll') && instantPayroll?.includes('personal_salary'), 'instant payroll gap')
+
 ok(matchGeminiInstantChip(GEMINI_QUICK_CHIPS.find((c) => c.id === 'plan').message) === 'plan', 'instant chip plan')
 ok(matchGeminiInstantChip('случайный текст') === null, 'instant chip miss')
 const instantPlan = buildGeminiInstantReply('plan', { snapshot: snap, gender: 'male' })
@@ -242,13 +251,13 @@ const introClub = buildGeminiIntroReply('standard', {
   gender: 'male',
   clubName: 'FIT-CITY Север',
 })
-ok(introClub.includes('FIT-CITY Север') && introClub.includes('Василий'), 'intro uses club name')
+ok(introClub.includes('FIT-CITY Север') && introClub.includes('ИСКРА'), 'intro uses club name and iskra')
 const introOther = buildGeminiIntroReply('standard', {
   snapshot: snap,
   gender: 'female',
   clubName: 'FIT-CITY Юг',
 })
-ok(introOther.includes('FIT-CITY Юг') && introOther.includes('Василиса'), 'intro other club female')
+ok(introOther.includes('FIT-CITY Юг') && introOther.includes('trainer_contour'), 'intro other club contours')
 const microNoClub = buildGeminiMicroIntro({ hasClub: false, gender: 'male' })
 ok(microNoClub.includes('филиал') || microNoClub.includes('шапке'), 'micro no club hint')
 

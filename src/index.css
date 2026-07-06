@@ -5681,6 +5681,103 @@ tr:last-child td {
   z-index: 120;
 }
 
+.admin-iskra-settings {
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 0 0 32px;
+}
+
+.admin-iskra-settings__head {
+  margin-bottom: 16px;
+}
+
+.admin-iskra-settings__title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.admin-iskra-settings__title {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.admin-iskra-settings__sub {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+
+.admin-iskra-settings__section {
+  margin-bottom: 16px;
+  padding: 16px 18px;
+}
+
+.admin-iskra-settings__label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.admin-iskra-settings__textarea {
+  width: 100%;
+  min-height: 160px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2, rgba(0, 0, 0, 0.2));
+  color: inherit;
+  resize: vertical;
+}
+
+.admin-iskra-settings__actions {
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-iskra-settings__hints {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.admin-iskra-settings__hints li + li {
+  margin-top: 6px;
+}
+
+.admin-iskra-settings__preview summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.admin-iskra-settings__pre {
+  margin: 12px 0 0;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, 0.25);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.admin-iskra-settings__error {
+  color: #ef5350;
+  margin: 0 0 12px;
+}
+
+.admin-iskra-settings__ok {
+  color: var(--accent-bright, #2effb8);
+  margin: 0 0 12px;
+}
+
 .diagnostics-panel__status {
   margin-bottom: 14px;
   padding: 12px 14px;

@@ -7,6 +7,7 @@ import {
   computeNetProfit,
   monthDateRange,
   readPlanLevels,
+  resolvePlanFactFromMonthSummary,
   resolvePlanTotal,
   sumMatrixTotalsFromDailyRows,
 } from './salesReportCore.js'
@@ -200,6 +201,8 @@ export function buildClubMonthInsights(opts) {
       achieved_level: stats.plan.achievedLevel,
       has_plan: planTotal > 0,
       profit_total: profitTotal,
+      profit_gross_for_plan: resolvePlanFactFromMonthSummary(summary),
+      refunds_total: summary.refundsTotal ?? 0,
       plan_total: planTotal,
     },
     pnk: {
@@ -371,7 +374,7 @@ export function buildClubMonthAnalytics(opts) {
       trainer_payroll: payroll,
       aerobic_payroll: aerobicPayroll,
       net_profit: computeNetProfitWithPayroll(summary.profitTotal, payroll, expense, aerobicPayroll),
-      gross_before_expense: summary.profitTotal,
+      gross_before_expense: summary.profitGrossTotal ?? summary.profitTotal,
       net_without_payroll: computeNetProfit(summary.profitTotal, expense),
     }
   }
@@ -399,6 +402,9 @@ export function buildClubMonthAnalytics(opts) {
       days_with_reports: summary.dayCount,
       report_coverage_pct: insights.report.coverage_pct,
       profit_total: summary.profitTotal,
+      profit_gross_total: summary.profitGrossTotal ?? summary.profitTotal,
+      refunds_total: summary.refundsTotal ?? 0,
+      plan_fact_gross: resolvePlanFactFromMonthSummary(summary),
       profit_nk: summary.profitNk,
       profit_dk: summary.profitDk,
       profit_uk: summary.profitUk,

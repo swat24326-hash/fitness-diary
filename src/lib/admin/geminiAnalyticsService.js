@@ -69,6 +69,7 @@ export async function prefetchGeminiSnapshot(opts) {
  *   skipCache?: boolean,
  *   forceGemini?: boolean,
  *   completionRetry?: boolean,
+ *   selectedTrainerId?: string | null,
  * }} opts
  */
 export async function postGeminiAnalytics(opts) {
@@ -96,6 +97,7 @@ export async function postGeminiAnalytics(opts) {
         skip_cache: opts.skipCache === true,
         force_gemini: opts.forceGemini === true,
         completion_retry: opts.completionRetry === true,
+        selected_trainer_id: opts.selectedTrainerId ? String(opts.selectedTrainerId).trim() : undefined,
       }),
     },
     GEMINI_REQUEST_TIMEOUT_MS,

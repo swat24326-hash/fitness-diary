@@ -28,6 +28,7 @@ import {
   subscribeSyncAttention,
 } from '../lib/appErrorJournal'
 import { AppErrorJournalModal } from './AppErrorJournalModal'
+import { useIskraPanel } from '../context/IskraPanelContext.jsx'
 
 const GeminiAnalyticsPanel = lazy(() =>
   import('./GeminiAnalyticsPanel.jsx').then((m) => ({ default: m.GeminiAnalyticsPanel })),
@@ -47,7 +48,7 @@ export function AppHeader() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [online, setOnline] = useState(() => (typeof navigator !== 'undefined' ? isAppOnline() : true))
   const [menuOpen, setMenuOpen] = useState(false)
-  const [geminiOpen, setGeminiOpen] = useState(false)
+  const { open: geminiOpen, trainerId: geminiTrainerId, trainerName: geminiTrainerName, initialMessage: geminiInitialMessage, openIskra, closeIskra } = useIskraPanel()
   const menuRootRef = useRef(null)
   const [adminClubs, setAdminClubs] = useState([])
   /** Название клуба тренера (adminClubs грузится только на /admin). */
@@ -682,9 +683,9 @@ export function AppHeader() {
             type="button"
             className="btn btn-secondary btn-sm app-header__vasya-btn"
             disabled={!adminClubValue}
-            title={adminClubValue ? 'Спросить аналитика по клубу' : 'Сначала выберите клуб'}
-            aria-label={adminClubValue ? 'Спросить аналитика по клубу' : 'Сначала выберите клуб'}
-            onClick={() => setGeminiOpen(true)}
+            title={adminClubValue ? 'ЭВС «ИСКРА» — аналитика клуба' : 'Сначала выберите клуб'}
+            aria-label={adminClubValue ? 'ЭВС «ИСКРА» — аналитика клуба' : 'Сначала выберите клуб'}
+            onClick={() => openIskra({})}
           >
             <span aria-hidden>✨</span>
           </button>
@@ -864,9 +865,12 @@ export function AppHeader() {
       <Suspense fallback={null}>
         <GeminiAnalyticsPanel
           open={geminiOpen}
-          onClose={() => setGeminiOpen(false)}
+          onClose={closeIskra}
           clubId={adminClubValue}
           clubName={adminClubName}
+          selectedTrainerId={geminiTrainerId}
+          selectedTrainerName={geminiTrainerName}
+          initialMessage={geminiInitialMessage}
         />
       </Suspense>
     ) : null}

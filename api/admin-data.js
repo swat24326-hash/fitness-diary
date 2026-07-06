@@ -42,6 +42,7 @@ import {
 } from '../src/lib/admin/aerobicPayrollCore.js'
 import { filterAerobicSalesTypes } from '../src/lib/membershipTypesCore.js'
 import { handleGeminiAnalyticsPost, handleGeminiAnalyticsPrefetchGet } from './_lib/geminiAnalyticsHandler.js'
+import { handleIskraSettingsGet, handleIskraSettingsPost } from './_lib/iskraSettingsHandler.js'
 
 const PAGE = 400
 const IN_CHUNK = 80
@@ -872,6 +873,7 @@ export default async function handler(req, res) {
       'sales-finance',
       'gemini-analytics',
       'create-sales-manager',
+      'iskra-settings',
     ])
     if (!postActions.has(action)) {
       sendJson(res, 405, { error: 'Method not allowed' })
@@ -896,6 +898,11 @@ export default async function handler(req, res) {
       const ctx = await requireAdmin(req, res)
       if (!ctx) return
       return handleCreateSalesManagerPost(ctx, res, body)
+    }
+    if (action === 'iskra-settings') {
+      const ctx = await requireAdmin(req, res)
+      if (!ctx) return
+      return handleIskraSettingsPost(ctx, res, body)
     }
     const clubId = String(body?.club_id ?? '').trim()
     const ctx = await requireAdminOrSalesManager(req, res, clubId)
@@ -964,10 +971,12 @@ export default async function handler(req, res) {
       return handleClubs(ctx, res)
     case 'gemini-analytics-prefetch':
       return handleGeminiAnalyticsPrefetchGet(ctx, req, res)
+    case 'iskra-settings':
+      return handleIskraSettingsGet(ctx, req, res)
     default:
       sendJson(res, 400, {
         error:
-          'Укажите action: search, journal, club-stats, club-monthly, health-cards, sales, gemini-analytics-prefetch, challenges, challenge-trainings, exercises, membership-types, clubs',
+          'Укажите action: search, journal, club-stats, club-monthly, health-cards, sales, gemini-analytics-prefetch, iskra-settings, challenges, challenge-trainings, exercises, membership-types, clubs',
       })
   }
 }

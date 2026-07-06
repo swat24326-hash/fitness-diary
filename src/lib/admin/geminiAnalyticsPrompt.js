@@ -1,8 +1,9 @@
-/** Промпт и payload для Gemini (Василий / Василиса). */
+/** Промпт и payload для ЭВС «ИСКРА» (Gemini backend). */
 
 import { trimChatHistory, compactSnapshotForPrompt } from './geminiAnalyticsSnapshot.js'
-import { buildGeminiDataSourceRules, buildGeminiLexiconRule } from './geminiAnalyticsDomain.js'
-import { buildGeminiSelfPresentationRule } from './geminiAssistantIntro.js'
+import { buildIskraSystemPrompt, buildPersona } from './geminiIskraCore.js'
+
+export { buildPersona }
 
 /** Сначала lite — дешевле и стабильнее на free tier Google AI Studio (2026). */
 export const GEMINI_ANALYTICS_MODELS = [
@@ -25,7 +26,7 @@ export const GEMINI_GENERATION_CONFIG_RETRY = {
 }
 
 export const GEMINI_RESPONSE_BRIEF_RULE =
-  'Ответ: 2–4 коротких предложения, до 70 слов — как живой голосовой комментарий. Без markdown, списков и воды. Одна главная цифра и чёткий вывод. Закончи полным предложением с точкой.'
+  'Ответ: 2–5 коротких предложений, до 90 слов. Без markdown и списков. Закончи полным предложением с точкой.'
 
 /** Явный флаг или формулировка вопроса про прошлый месяц / динамику. */
 export function shouldComparePreviousMonth(userMessage) {
@@ -107,52 +108,35 @@ export function formatGeminiUserError(message) {
 }
 
 /**
- * @param {'male'|'female'|string} gender
- * @returns {{ name: string, persona: string }}
- */
-export function buildPersona(gender) {
-  if (gender === 'female') {
-    return {
-      name: 'Василиса',
-      persona: 'авторитетная старшая сестра команды',
-    }
-  }
-  return {
-    name: 'Василий',
-    persona: 'близкий кент и старший брат команды',
-  }
-}
-
-/**
- * @param {'male'|'female'|string} gender
+ * @param {'male'|'female'|string} _gender
  * @param {string} clubName
  */
-export function buildSystemPrompt(gender, clubName) {
-  const { name, persona } = buildPersona(gender)
-  const club = String(clubName ?? '').trim() || 'филиал'
-  return [
-    `Ты — ${name}, внутренний аналитик команды FIT-CITY. Твой характер: ${persona}.`,
-    buildGeminiLexiconRule(),
-    `Хвали за сильные цифры, жёстко но по делу критикуй слабые — без мата и личных оскорблений.`,
-    `Анализируй ТОЛЬКО филиал «${club}» — называй его по имени.`,
-    buildGeminiDataSourceRules(),
-    `Опирайся ТОЛЬКО на JSON в сообщении. Не выдумывай цифры и не пересчитывай — все агрегаты и insights уже посчитаны системой. Учитывай data_sources.analysis_hints и insights.issues.`,
-    `Месяц в ответе = current_period.period.label из JSON. Не называй другой месяц/год. previous_period — только если явно сравниваешь с прошлым месяцем.`,
-    `Если отчётов мало (низкий report_coverage_pct) — скажи, что база не забита, выводы осторожные.`,
-    buildGeminiSelfPresentationRule(),
-    GEMINI_RESPONSE_BRIEF_RULE,
-  ].join('\n')
+export function buildSystemPrompt(_gender, clubName, opts = {}) {
+  return buildIskraSystemPrompt(clubName, opts)
 }
 
 /** Компактный блок данных для промпта (меньше шума для модели). */
-export function buildGeminiPromptDataBlock(snapshot, previousSnapshot = null) {
-  const current = compactSnapshotForPrompt(snapshot)
+export function buildGeminiPromptDataBlock(snapshot, previousSnapshot = null, opts = {}) {
+  const selectedTrainerId = opts.selectedTrainerId ?? snapshot?.trainer_contour?.selected_trainer_id ?? null
+  const current = compactSnapshotForPrompt(snapshot, selectedTrainerId)
   const block = {
     analysis_period: current?.period?.label ?? '',
-    current_period: current,
+    sales_contour: current?.sales_contour ?? null,
+    trainer_contour: current?.trainer_contour ?? null,
+    finance: current?.finance ?? null,
+    trainings: current?.trainings ?? null,
+    insights: current?.insights ?? null,
+    data_sources: current?.data_sources ?? null,
+    current_period: current?.period ?? null,
   }
   if (previousSnapshot) {
-    block.previous_period = compactSnapshotForPrompt(previousSnapshot)
+    const prev = compactSnapshotForPrompt(previousSnapshot, selectedTrainerId)
+    block.previous_period = {
+      period: prev?.period ?? null,
+      sales_contour: prev?.sales_contour ?? null,
+      trainer_contour: prev?.trainer_contour ?? null,
+      insights: prev?.insights ?? null,
+    }
   }
   return block
 }
@@ -176,8 +160,11 @@ export function buildGeminiGeneratePayload(opts) {
   const clubName = String(opts.clubName ?? opts.snapshot?.club_name ?? '').trim()
   const history = trimChatHistory(opts.messages, 10)
   const userMessage = String(opts.userMessage ?? '').trim()
-  const dataBlock = buildGeminiPromptDataBlock(opts.snapshot, opts.previousSnapshot)
+  const dataBlock = buildGeminiPromptDataBlock(opts.snapshot, opts.previousSnapshot, {
+    selectedTrainerId: opts.selectedTrainerId,
+  })
   const periodLabel = dataBlock.analysis_period || 'период не задан'
+  const promptOpts = { promptAppend: opts.promptAppend }
 
   const parts = []
   if (history.length === 0) {
@@ -197,7 +184,7 @@ export function buildGeminiGeneratePayload(opts) {
 
   return {
     systemInstruction: {
-      parts: [{ text: buildSystemPrompt(gender, clubName) }],
+      parts: [{ text: buildSystemPrompt(gender, clubName, promptOpts) }],
     },
     contents: [
       {

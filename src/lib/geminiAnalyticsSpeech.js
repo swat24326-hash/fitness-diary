@@ -1,3 +1,5 @@
+import { ISKRA_NAME } from './admin/geminiIskraCore.js'
+
 const GENDER_STORAGE_KEY = 'fit_gemini_gender'
 
 const AUTO_SPEAK_KEY = 'fit_gemini_auto_speak'
@@ -216,12 +218,8 @@ export async function speakGeminiText(text, gender = 'male') {
 
 
 
-export function previewGeminiVoice(gender = 'male') {
-
-  const name = gender === 'female' ? 'Василиса' : 'Василий'
-
-  void speakGeminiText(`${name} на связи`, gender)
-
+export function previewGeminiVoice(_gender = 'male') {
+  void speakGeminiText(`${ISKRA_NAME} на связи`, _gender)
 }
 
 
