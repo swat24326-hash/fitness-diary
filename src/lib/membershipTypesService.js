@@ -15,6 +15,11 @@ import {
   filterTrainerAssignableTypes,
   isTrainerAssignableMembershipType,
 } from './membershipTypesCore.js'
+import {
+  buildPendingMembershipTypeKeys,
+  shouldApplyRemoteMembershipTypeRow,
+  shouldDeleteLocalMembershipTypeRow,
+} from './membershipTypesMergeCore.js'
 
 export {
   filterAerobicSalesTypes,
@@ -300,23 +305,24 @@ export async function mergeMembershipTypesForClub(clubId, remoteRows, opts = {})
   const cid = String(clubId ?? '').trim()
   if (!cid) return { count: 0 }
   const forceFromCloud = opts.forceFromCloud === true
-
-  const pendingIds = new Set()
-  if (!forceFromCloud) {
-    for (const item of await listSyncQueue()) {
-      if (item.table_name !== 'membership_types') continue
-      if (item.operation !== 'insert' && item.operation !== 'update') continue
-      const id = String(item.remote_id ?? item.data?.id ?? '').trim()
-      if (id) pendingIds.add(id)
-    }
-  }
+  const queueItems = await listSyncQueue()
+  const { pendingUpdates, pendingInserts } = buildPendingMembershipTypeKeys(queueItems)
 
   const remoteIds = new Set()
   for (const row of remoteRows ?? []) {
     const id = String(row?.id ?? '').trim()
     if (!id || String(row.club_id) !== cid) continue
     remoteIds.add(id)
-    if (!forceFromCloud && pendingIds.has(id)) continue
+    if (
+      !shouldApplyRemoteMembershipTypeRow({
+        id,
+        forceFromCloud,
+        pendingUpdates,
+        pendingInserts,
+      })
+    ) {
+      continue
+    }
     await putStore('membership_types', markRecordFromCloud(normalizeRow(row)))
   }
 
@@ -329,8 +335,17 @@ export async function mergeMembershipTypesForClub(clubId, remoteRows, opts = {})
   for (const local of await db.getAll('membership_types')) {
     if (String(local.club_id) !== cid) continue
     const id = String(local.id ?? '')
-    if (!id || remoteIds.has(id)) continue
-    if (!forceFromCloud && pendingIds.has(id)) continue
+    if (
+      !shouldDeleteLocalMembershipTypeRow({
+        id,
+        remoteIds,
+        forceFromCloud,
+        pendingUpdates,
+        pendingInserts,
+      })
+    ) {
+      continue
+    }
     await db.delete('membership_types', id)
   }
 
