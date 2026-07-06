@@ -74,6 +74,7 @@ ok(stats.structure.some((s) => s.key === 'dop' && s.amount === 4000), 'dop in ca
 ok(stats.directionStructure.find((s) => s.key === 'extra')?.planProgressPercent === 4, 'dop plan progress')
 ok(stats.directionStructure.find((s) => s.key === 'pz')?.amount === 80000, 'pz fact from matrix amounts')
 ok(stats.hallFinance?.pz?.netProfit === 80000 - 1000, 'pz net profit revenue minus payroll')
+ok(stats.hallFinance?.tz?.revenue === 40000, 'tz revenue from matrix amounts')
 ok(stats.hallFinance?.az?.netProfit === stats.hallFinance?.az?.revenue - (stats.summary.aerobicPayroll ?? 0), 'az net profit')
 ok(stats.aerobicStats?.total === 0, 'aerobic stats total from matrix')
 ok(stats.summary.pnkTotal === 4, 'pnk total')

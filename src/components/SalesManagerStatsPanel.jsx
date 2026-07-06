@@ -139,6 +139,10 @@ export function SalesManagerStatsPanel({
                   <span className="sales-report__kpi-value">{formatRub(hallFinance.pz?.netProfit ?? 0)}</span>
                 </div>
                 <div className="sales-report__kpi sales-report__kpi--supplement">
+                  <span className="sales-report__kpi-label">Продажи ТЗ</span>
+                  <span className="sales-report__kpi-value">{formatRub(hallFinance.tz?.revenue ?? 0)}</span>
+                </div>
+                <div className="sales-report__kpi sales-report__kpi--supplement">
                   <span className="sales-report__kpi-label">Чистая прибыль АЗ</span>
                   <span className="sales-report__kpi-value">{formatRub(hallFinance.az?.netProfit ?? 0)}</span>
                 </div>

@@ -987,6 +987,9 @@ export function buildHallFinanceSummary(monthRows, trainerPayroll, aerobicPayrol
       payroll: trainerPay,
       netProfit: Math.round((rub.pz - trainerPay) * 100) / 100,
     },
+    tz: {
+      revenue: rub.tz,
+    },
     az: {
       revenue: rub.az,
       payroll: aerobicPay,

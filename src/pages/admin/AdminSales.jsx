@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
 import { BarChart3, CalendarDays, RefreshCw, TrendingUp } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
@@ -12,6 +12,7 @@ import {
   expenseRowToForm,
   planRowToForm,
   monthPartsFromIso,
+  sumDirectionRubFromDailyRows,
 } from '../../lib/admin/salesReportCore'
 import {
   buildTrainingsMatrixColumns,
@@ -37,6 +38,24 @@ import {
   saveClubSalesFinance,
   saveClubSalesPlan,
 } from '../../lib/admin/adminSalesService'
+import {
+  buildDailyDraftPayload,
+  buildExpenseDraftPayload,
+  buildPlanDraftPayload,
+  clearSalesDraft,
+  fingerprintDailyDraft,
+  fingerprintExpenseDraft,
+  fingerprintPlanDraft,
+  readSalesDraft,
+  resolveDailyDraftAfterLoad,
+  resolveExpenseDraftAfterLoad,
+  resolvePlanDraftAfterLoad,
+  salesDailyDraftKey,
+  salesFinanceDraftKey,
+  salesPlanDraftKey,
+  shouldPersistSalesDraft,
+  writeSalesDraft,
+} from '../../lib/admin/adminSalesDraftStorage'
 import { SalesPlanVessel } from '../../components/SalesPlanVessel'
 import { SalesDailyForm } from '../../components/SalesDailyForm'
 import { SalesFinancePanel } from '../../components/SalesFinancePanel'
@@ -120,6 +139,9 @@ export function AdminSales({ accessMode = 'admin' }) {
   const [fitCityTypeStats, setFitCityTypeStats] = useState(null)
   const [trainingsMatrix, setTrainingsMatrix] = useState({})
   const [aerobicMatrix, setAerobicMatrix] = useState({})
+  const dailyBaselineFpRef = useRef('')
+  const planBaselineFpRef = useRef('')
+  const expenseBaselineFpRef = useRef('')
 
   const membershipTypeColumns = useMemo(
     () => buildTrainingsMatrixColumns(membershipTypes),
@@ -154,10 +176,9 @@ export function AdminSales({ accessMode = 'admin' }) {
       const typesPromise = ensureMembershipTypesForClub(clubId, { force: !cachedTypes.length })
       const bundle = await fetchClubSalesBundle({ clubId, reportDate })
       const ensured = await typesPromise
+      const cid = clubId
+      const date = reportDate
 
-      setDailyForm(dailyRowToForm(bundle.daily))
-      setPlanForm(planRowToForm(bundle.plan))
-      setExpenseForm(expenseRowToForm(bundle.expense))
       setMonthSummary(bundle.monthSummary)
       setMonthDays(bundle.monthDays ?? [])
       setYearMonth({ year: bundle.year, month: bundle.month })
@@ -172,17 +193,71 @@ export function AdminSales({ accessMode = 'admin' }) {
 
       const cols = buildTrainingsMatrixColumns(types)
       const matrixRows = normalizeMatrixRowsFromDb(bundle.daily?.trainings_matrix)
-      setTrainingsMatrix(
-        clubAggregateInputMap(
-          matrixRowsToInputMap(matrixRows),
-          (bundle.trainers ?? []).map((t) => t.id),
-          cols,
-        ),
+      let nextDailyForm = dailyRowToForm(bundle.daily)
+      let nextTrainingsMatrix = clubAggregateInputMap(
+        matrixRowsToInputMap(matrixRows),
+        (bundle.trainers ?? []).map((t) => t.id),
+        cols,
       )
-      setAerobicMatrix(aerobicRowsToInputMap(normalizeAerobicRowsFromDb(bundle.daily?.aerobic_sales_matrix)))
+      let nextAerobicMatrix = aerobicRowsToInputMap(normalizeAerobicRowsFromDb(bundle.daily?.aerobic_sales_matrix))
+      const dailyServerFp = fingerprintDailyDraft({
+        dailyForm: nextDailyForm,
+        trainingsMatrix: nextTrainingsMatrix,
+        aerobicMatrix: nextAerobicMatrix,
+      })
+      dailyBaselineFpRef.current = dailyServerFp
+      const dailyDraft = readSalesDraft(salesDailyDraftKey(cid, date))
+      const dailyResolved = resolveDailyDraftAfterLoad({
+        draft: dailyDraft,
+        serverFp: dailyServerFp,
+        dailyForm: nextDailyForm,
+        trainingsMatrix: nextTrainingsMatrix,
+        aerobicMatrix: nextAerobicMatrix,
+      })
+      nextDailyForm = dailyResolved.dailyForm
+      nextTrainingsMatrix = dailyResolved.trainingsMatrix
+      nextAerobicMatrix = dailyResolved.aerobicMatrix
+
+      let nextPlanForm = planRowToForm(bundle.plan)
+      const planServerFp = fingerprintPlanDraft(nextPlanForm)
+      planBaselineFpRef.current = planServerFp
+      const planDraft = readSalesDraft(salesPlanDraftKey(cid, bundle.year, bundle.month))
+      const planResolved = resolvePlanDraftAfterLoad({
+        draft: planDraft,
+        serverFp: planServerFp,
+        planForm: nextPlanForm,
+      })
+      nextPlanForm = planResolved.planForm
+
+      let nextExpenseForm = expenseRowToForm(bundle.expense)
+      const expenseServerFp = fingerprintExpenseDraft(nextExpenseForm)
+      expenseBaselineFpRef.current = expenseServerFp
+      const expenseDraft = readSalesDraft(salesFinanceDraftKey(cid, bundle.year, bundle.month))
+      const expenseResolved = resolveExpenseDraftAfterLoad({
+        draft: expenseDraft,
+        serverFp: expenseServerFp,
+        expenseForm: nextExpenseForm,
+      })
+      nextExpenseForm = expenseResolved.expenseForm
+
+      setDailyForm(nextDailyForm)
+      setPlanForm(nextPlanForm)
+      setExpenseForm(nextExpenseForm)
+      setTrainingsMatrix(nextTrainingsMatrix)
+      setAerobicMatrix(nextAerobicMatrix)
+
+      const draftHints = []
+      if (dailyResolved.restored) draftHints.push('дневной отчёт')
+      if (planResolved.restored) draftHints.push('план')
+      if (expenseResolved.restored) draftHints.push('расход')
+      if (draftHints.length) {
+        setLoadHint(`Восстановлен несохранённый черновик: ${draftHints.join(', ')}.`)
+      }
 
       if (bundle.warnings?.length) {
-        setLoadHint(bundle.warnings.filter(Boolean).join(' '))
+        setLoadHint((prev) =>
+          [prev, bundle.warnings.filter(Boolean).join(' ')].filter(Boolean).join(' '),
+        )
       }
     } catch (e) {
       const ensured = await ensureMembershipTypesForClub(clubId, { force: true }).catch(() => ({ types: [] }))
@@ -202,10 +277,83 @@ export function AdminSales({ accessMode = 'admin' }) {
     void loadBundle()
   }, [loadBundle])
 
+  const persistDailyDraft = useCallback(() => {
+    if (!clubId || !reportDate) return
+    const serverFp = dailyBaselineFpRef.current
+    const currentFp = fingerprintDailyDraft({ dailyForm, trainingsMatrix, aerobicMatrix })
+    const key = salesDailyDraftKey(clubId, reportDate)
+    if (!shouldPersistSalesDraft(serverFp, currentFp)) {
+      clearSalesDraft(key)
+      return
+    }
+    writeSalesDraft(
+      key,
+      buildDailyDraftPayload({
+        serverBaselineFp: serverFp,
+        dailyForm,
+        trainingsMatrix,
+        aerobicMatrix,
+      }),
+    )
+  }, [clubId, reportDate, dailyForm, trainingsMatrix, aerobicMatrix])
+
+  const persistPlanDraft = useCallback(() => {
+    if (!clubId) return
+    const serverFp = planBaselineFpRef.current
+    const currentFp = fingerprintPlanDraft(planForm)
+    const key = salesPlanDraftKey(clubId, yearMonth.year, yearMonth.month)
+    if (!shouldPersistSalesDraft(serverFp, currentFp)) {
+      clearSalesDraft(key)
+      return
+    }
+    writeSalesDraft(key, buildPlanDraftPayload({ serverBaselineFp: serverFp, planForm }))
+  }, [clubId, planForm, yearMonth.month, yearMonth.year])
+
+  const persistExpenseDraft = useCallback(() => {
+    if (!clubId) return
+    const serverFp = expenseBaselineFpRef.current
+    const currentFp = fingerprintExpenseDraft(expenseForm)
+    const key = salesFinanceDraftKey(clubId, yearMonth.year, yearMonth.month)
+    if (!shouldPersistSalesDraft(serverFp, currentFp)) {
+      clearSalesDraft(key)
+      return
+    }
+    writeSalesDraft(key, buildExpenseDraftPayload({ serverBaselineFp: serverFp, expenseForm }))
+  }, [clubId, expenseForm, yearMonth.month, yearMonth.year])
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      persistDailyDraft()
+      persistPlanDraft()
+      persistExpenseDraft()
+    }, 450)
+    return () => clearTimeout(timer)
+  }, [persistDailyDraft, persistPlanDraft, persistExpenseDraft])
+
+  useEffect(() => {
+    const flush = () => {
+      persistDailyDraft()
+      persistPlanDraft()
+      persistExpenseDraft()
+    }
+    const onHide = () => {
+      if (document.visibilityState === 'hidden') flush()
+    }
+    document.addEventListener('visibilitychange', onHide)
+    window.addEventListener('pagehide', flush)
+    return () => {
+      document.removeEventListener('visibilitychange', onHide)
+      window.removeEventListener('pagehide', flush)
+      flush()
+    }
+  }, [persistDailyDraft, persistPlanDraft, persistExpenseDraft])
+
   const monthLabel = useMemo(() => {
     const name = MONTH_NAMES[(yearMonth.month || 1) - 1] ?? ''
     return `${name} ${yearMonth.year}`
   }, [yearMonth])
+
+  const directionFactRub = useMemo(() => sumDirectionRubFromDailyRows(monthDays), [monthDays])
 
   const factMonth = Number(monthSummary?.profitTotal) || 0
 
@@ -293,6 +441,7 @@ export function AdminSales({ accessMode = 'admin' }) {
         ),
       )
       setAerobicMatrix(aerobicRowsToInputMap(normalizeAerobicRowsFromDb(row?.aerobic_sales_matrix)))
+      clearSalesDraft(salesDailyDraftKey(clubId, reportDate))
       await loadBundle()
       setVesselPulse((k) => k + 1)
       showToast('Отчёт сохранён')
@@ -320,6 +469,7 @@ export function AdminSales({ accessMode = 'admin' }) {
         return
       }
       setPlanForm(planRowToForm(plan))
+      clearSalesDraft(salesPlanDraftKey(clubId, yearMonth.year, yearMonth.month))
       await loadBundle()
       showToast('Уровни плана сохранены')
     } catch (e) {
@@ -346,6 +496,7 @@ export function AdminSales({ accessMode = 'admin' }) {
         return
       }
       setPlanForm(planRowToForm(plan))
+      clearSalesDraft(salesPlanDraftKey(clubId, yearMonth.year, yearMonth.month))
       await loadBundle()
       showToast('План по направлениям сохранён')
     } catch (e) {
@@ -371,6 +522,7 @@ export function AdminSales({ accessMode = 'admin' }) {
         return
       }
       setExpenseForm(expenseRowToForm(expense))
+      clearSalesDraft(salesFinanceDraftKey(clubId, yearMonth.year, yearMonth.month))
       await loadBundle()
       showToast('Расход сохранён')
     } catch (e) {
@@ -565,6 +717,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             onPlanChange={setPlanForm}
             onSave={() => void handleSavePlanDirections()}
             saving={savingPlan}
+            directionFactRub={directionFactRub}
           />
           <SalesManagerStatsPanel
             monthLabel={monthLabel}
@@ -590,6 +743,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             onPlanChange={setPlanForm}
             onSave={() => void handleSavePlanDirections()}
             saving={savingPlan}
+            directionFactRub={directionFactRub}
           />
           <SalesDailyForm
             reportDate={reportDate}

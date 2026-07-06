@@ -146,6 +146,11 @@ export function SalesFinancePanel({
               </span>
             </div>
             <div className="sales-report__kpi sales-report__kpi--supplement">
+              <span className="sales-report__kpi-label">Продажи ТЗ</span>
+              <span className="sales-report__kpi-value">{formatRub(summary.hallFinance.tz?.revenue ?? 0)}</span>
+              <span className="sales-report__kpi-note muted">выручка направления за месяц</span>
+            </div>
+            <div className="sales-report__kpi sales-report__kpi--supplement">
               <span className="sales-report__kpi-label">Чистая прибыль АЗ</span>
               <span className="sales-report__kpi-value">{formatRub(summary.hallFinance.az?.netProfit ?? 0)}</span>
               <span className="sales-report__kpi-note muted">

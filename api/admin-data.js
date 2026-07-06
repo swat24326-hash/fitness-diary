@@ -20,8 +20,14 @@ import {
   monthDateRange,
   monthPartsFromIso,
   planFormToPayload,
-  SALES_MONTH_DAILY_SELECT,
 } from '../src/lib/admin/salesReportCore.js'
+import {
+  querySalesDailyRow,
+  querySalesMonthRows,
+  querySalesPlanRow,
+  SALES_DAILY_SELECT_BASE,
+  SALES_DAILY_SELECT_FULL,
+} from '../src/lib/admin/adminSalesQueryResilience.js'
 import { normalizeMatrixRowsFromDb } from '../src/lib/admin/salesTrainingsMatrix.js'
 import { normalizeAerobicRowsFromDb } from '../src/lib/admin/aerobicSalesMatrix.js'
 import {
@@ -437,9 +443,6 @@ async function handleExercises(authCtx, res) {
   sendJson(res, 200, { exercises: all, count: all.length, max_created_at: maxCreatedAt })
 }
 
-const SALES_DAILY_SELECT =
-  'id, club_id, report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, aerobic_sales_matrix, matrix_amounts, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, dop_nk, dop_dk, dop_uk, updated_at'
-
 const TRAINER_ROLES_SALES = new Set(TRAINER_ROLES)
 
 async function fetchClubTrainersForSales(supabaseAdmin, clubId) {
@@ -481,26 +484,9 @@ async function handleSalesGet(ctx, req, res) {
 
   const [dailyRes, monthRes, planRes, expenseRes, typesRes, trainers, trainingsDay, memberships] =
     await Promise.all([
-    supabaseAdmin
-      .from('club_sales_daily')
-      .select(SALES_DAILY_SELECT)
-      .eq('club_id', clubId)
-      .eq('report_date', reportDate)
-      .maybeSingle(),
-    supabaseAdmin
-      .from('club_sales_daily')
-      .select(SALES_MONTH_DAILY_SELECT)
-      .eq('club_id', clubId)
-      .gte('report_date', start)
-      .lte('report_date', end)
-      .order('report_date', { ascending: true }),
-    supabaseAdmin
-      .from('club_sales_plan')
-      .select('plan_total, plan_level_1, plan_level_2, plan_level_3, plan_pz, plan_tz, plan_az, plan_extra, updated_at')
-      .eq('club_id', clubId)
-      .eq('year', year)
-      .eq('month', month)
-      .maybeSingle(),
+    querySalesDailyRow(supabaseAdmin, clubId, reportDate),
+    querySalesMonthRows(supabaseAdmin, clubId, start, end),
+    querySalesPlanRow(supabaseAdmin, clubId, year, month),
     supabaseAdmin
       .from('club_supervisor_expense')
       .select('amount, updated_at')
@@ -620,11 +606,22 @@ async function handleSalesDailyPost(ctx, req, res, body) {
     updated_at: new Date().toISOString(),
     updated_by: user?.id ?? null,
   }
-  const { data, error } = await supabaseAdmin
+  let { data, error } = await supabaseAdmin
     .from('club_sales_daily')
     .upsert(row, { onConflict: 'club_id,report_date' })
-    .select(SALES_DAILY_SELECT)
+    .select(SALES_DAILY_SELECT_FULL)
     .single()
+  if (error) {
+    const { matrix_amounts: _drop, ...rowWithoutAmounts } = row
+    void _drop
+    const retry = await supabaseAdmin
+      .from('club_sales_daily')
+      .upsert(rowWithoutAmounts, { onConflict: 'club_id,report_date' })
+      .select(SALES_DAILY_SELECT_BASE)
+      .single()
+    data = retry.data
+    error = retry.error
+  }
   if (error) {
     sendJson(res, 400, { error: error.message })
     return

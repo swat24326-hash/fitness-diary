@@ -15,8 +15,15 @@ import {
   monthDateRange,
   monthPartsFromIso,
   planFormToPayload,
-  SALES_MONTH_DAILY_SELECT,
 } from './salesReportCore.js'
+import {
+  isMissingSalesColumnError,
+  querySalesDailyRow,
+  querySalesMonthRows,
+  querySalesPlanRow,
+  SALES_DAILY_SELECT_BASE,
+  SALES_DAILY_SELECT_FULL,
+} from './adminSalesQueryResilience.js'
 import { normalizeMatrixRowsFromDb } from './salesTrainingsMatrix.js'
 import { normalizeAerobicRowsFromDb } from './aerobicSalesMatrix.js'
 import {
@@ -30,48 +37,18 @@ import {
 } from './aerobicPayrollCore.js'
 import { filterAerobicSalesTypes } from '../membershipTypesCore.js'
 
-const SALES_DAILY_SELECT_FULL =
-  'id, club_id, report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, aerobic_sales_matrix, matrix_amounts, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, dop_nk, dop_dk, dop_uk, updated_at'
-
-const SALES_DAILY_SELECT_BASE =
-  'id, club_id, report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, dop_nk, dop_dk, dop_uk, updated_at'
-
-const MONTH_DAILY_SELECT = SALES_MONTH_DAILY_SELECT
-
 const MIGRATION_HINT =
   'Таблицы продаж (club_sales) не найдены в Supabase — выполните миграцию supabase/migrations/20260624120000_club_sales.sql в SQL Editor.'
-
-function isMissingColumnError(err) {
-  const m = String(err?.message ?? err ?? '').toLowerCase()
-  return (
-    m.includes('matrix_amounts') ||
-    m.includes('aerobic_sales_matrix') ||
-    m.includes('does not exist') ||
-    m.includes('column')
-  )
-}
 
 function isMissingTableError(err) {
   const m = String(err?.message ?? err ?? '').toLowerCase()
   return (
-    isMissingColumnError(err) ||
+    isMissingSalesColumnError(err) ||
     m.includes('schema cache') ||
     m.includes('relation') ||
     m.includes('42p01') ||
     m.includes('club_sales')
   )
-}
-
-async function querySalesDaily(select, clubId, reportDate) {
-  const run = (cols) =>
-    withSupabaseRetry(() =>
-      supabase.from('club_sales_daily').select(cols).eq('club_id', clubId).eq('report_date', reportDate).maybeSingle(),
-    )
-  let res = await run(select)
-  if (res.error && select.includes('matrix_amounts') && isMissingColumnError(res.error)) {
-    res = await run(SALES_DAILY_SELECT_BASE)
-  }
-  return res
 }
 
 async function fetchPagedTrainings(clubId, dateFrom, dateTo) {
@@ -214,7 +191,7 @@ export async function fetchClubSalesBundleViaSupabase({ clubId, reportDate }) {
   let salesTablesOk = true
 
   try {
-    const dailyRes = await querySalesDaily(SALES_DAILY_SELECT_FULL, cid, date)
+    const dailyRes = await withSupabaseRetry(() => querySalesDailyRow(supabase, cid, date))
     if (dailyRes.error) {
       if (isMissingTableError(dailyRes.error)) {
         salesTablesOk = false
@@ -227,27 +204,11 @@ export async function fetchClubSalesBundleViaSupabase({ clubId, reportDate }) {
     }
 
     if (salesTablesOk) {
-      const monthRes = await withSupabaseRetry(() =>
-        supabase
-          .from('club_sales_daily')
-          .select(MONTH_DAILY_SELECT)
-          .eq('club_id', cid)
-          .gte('report_date', start)
-          .lte('report_date', end)
-          .order('report_date', { ascending: true }),
-      )
+      const monthRes = await withSupabaseRetry(() => querySalesMonthRows(supabase, cid, start, end))
       if (monthRes.error) throw monthRes.error
       monthRows = monthRes.data ?? []
 
-      const planRes = await withSupabaseRetry(() =>
-        supabase
-          .from('club_sales_plan')
-          .select('plan_total, plan_level_1, plan_level_2, plan_level_3, plan_pz, plan_tz, plan_az, plan_extra, updated_at')
-          .eq('club_id', cid)
-          .eq('year', year)
-          .eq('month', month)
-          .maybeSingle(),
-      )
+      const planRes = await withSupabaseRetry(() => querySalesPlanRow(supabase, cid, year, month))
       if (planRes.error) throw planRes.error
       plan = planRes.data ?? null
 
@@ -377,7 +338,7 @@ export async function saveClubSalesDailyViaSupabase({
   if (res.error && isMissingTableError(res.error)) {
     throw new Error(MIGRATION_HINT)
   }
-  if (res.error && isMissingColumnError(res.error)) {
+  if (res.error && isMissingSalesColumnError(res.error)) {
     const { matrix_amounts: _drop, ...rowWithoutAmounts } = row
     void _drop
     res = await withSupabaseRetry(() =>
