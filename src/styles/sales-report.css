@@ -641,6 +641,19 @@
   border-top: 1px solid rgba(148, 163, 184, 0.2);
 }
 
+.sales-report__matrix-dop-row td,
+.sales-report__matrix-dop-row th {
+  border-top: 1px dashed rgba(148, 163, 184, 0.15);
+}
+
+.sales-report__matrix-dop-field {
+  padding: 0.35rem 0.5rem;
+}
+
+.sales-report__matrix-input--dop {
+  max-width: 12rem;
+}
+
 .sales-report__matrix-profit-total {
   text-align: right;
   padding-right: 0.5rem;

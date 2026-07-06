@@ -3,8 +3,10 @@ import { Calendar, ChevronLeft, ChevronRight, Save, Users } from 'lucide-react'
 import {
   computeProfitFromMatrix,
   formatRub,
+  SALES_DOP_FORM_SUM_KEY,
+  SALES_DOP_ROW,
   SALES_MATRIX_COLS,
-  SALES_MATRIX_ROWS,
+  SALES_MATRIX_HALL_ROWS,
   salesMatrixCellAvgCheck,
   salesMatrixCellKeys,
   salesMatrixRowAvgCheck,
@@ -14,7 +16,7 @@ import {
 import { SalesTrainingsMatrix } from './SalesTrainingsMatrix.jsx'
 import { SalesAerobicMatrix } from './SalesAerobicMatrix.jsx'
 
-const MATRIX_ROWS = SALES_MATRIX_ROWS
+const MATRIX_HALL_ROWS = SALES_MATRIX_HALL_ROWS
 const MATRIX_COLS = SALES_MATRIX_COLS
 
 /**
@@ -159,8 +161,9 @@ export function SalesDailyForm({
         Матрица продаж
       </h3>
       <p className="muted sales-report__matrix-note">
-        В каждом столбце (НК, ДК, УК): количество абонементов, сумма продаж и средний чек. Прибыль по столбцу —
-        сумма всех ячеек строк.
+        В каждом столбце (НК, ДК, УК): количество абонементов, сумма продаж и средний чек. Доп. продажи — одной
+        суммой без разнесения по категориям. Прибыль по столбцу — сумма ячеек ПЗ/ТЗ/АЗ; итого за день включает доп.
+        продажи.
       </p>
       <div className="table-wrap sales-report__matrix-wrap">
         <table className="sales-report__matrix sales-report__matrix--flat">
@@ -194,7 +197,7 @@ export function SalesDailyForm({
             </tr>
           </thead>
           <tbody>
-            {MATRIX_ROWS.map((row) => {
+            {MATRIX_HALL_ROWS.map((row) => {
               const rowTotal = salesMatrixRowMembershipTotal(form, row.key)
               const rowAvg = salesMatrixRowAvgCheck(form, row.key)
               const rowSum = salesMatrixRowSumTotal(form, row.key)
@@ -246,6 +249,23 @@ export function SalesDailyForm({
                 </tr>
               )
             })}
+            <tr className="sales-report__matrix-dop-row">
+              <td className="sales-report__matrix-row-label">{SALES_DOP_ROW.label}</td>
+              <td colSpan={MATRIX_COLS.length * 3} className="sales-report__matrix-field sales-report__matrix-dop-field">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  className="sales-report__matrix-input sales-report__matrix-input--dop"
+                  aria-label="Доп. продажи сумма за день"
+                  value={form[SALES_DOP_FORM_SUM_KEY] ?? ''}
+                  onChange={(e) => setField(SALES_DOP_FORM_SUM_KEY, e.target.value)}
+                  disabled={!canEdit}
+                  placeholder="0"
+                />
+              </td>
+              <td className="sales-report__matrix-computed">—</td>
+              <td className="sales-report__matrix-computed">—</td>
+            </tr>
             <tr className="sales-report__matrix-profit-row">
               <td className="sales-report__matrix-row-label">Прибыль (₽)</td>
               {MATRIX_COLS.map((col) => (

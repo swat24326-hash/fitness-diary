@@ -22,7 +22,9 @@ export function buildGeminiDataSourceRules() {
   return [
     'ИСТОЧНИК ИСТИНЫ ПО ЗАЛУ — ежедневный отчёт менеджера (sales.*, trainings.manager_report_total): прибыль НК/ДК/УК, ПНК, план, тренировки клуба целиком.',
     'План месяца: plan_level_1/2/3 — три порога в ₽ (не суммируются); plan_total = plan_level_3 (финал); achieved_plan_level = какой порог уже закрыт фактом.',
-    'plan_direction_rub (ПЗ/ТЗ/АЗ) — план по направлениям в ₽, сумма = plan_level_3. matrix_counts_pz_tz_az — количества из матрицы 3×3 (шт), не путай с рублями.',
+    'plan_direction_rub (ПЗ/ТЗ/АЗ/доп. продажи) — план по направлениям в ₽, сумма = plan_level_3.',
+    'matrix_counts_pz_tz_az — количества абонементов из матрицы продаж (шт): pz/tz/az, не путай с рублями.',
+    'extra_sales_rub — доп. продажи за месяц (₽), одной суммой без разнесения по НК/ДК/УК.',
     'structure_shares — доли НК/ДК/УК в выручке (%), уже посчитаны в insights.structure.',
     'insights — готовые выводы системы: plan/pnk/finance (tone), issues (проблемы по весу), fitcity (status), mom_comparison (если есть). НЕ пересчитывай — только интерпретируй.',
     'insights.finance.payroll_share_pct — доля ЗП персонального зала от валовой (%). insights.finance.aerobic_payroll_share_pct — доля ЗП АЗ.',

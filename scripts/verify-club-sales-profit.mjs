@@ -249,6 +249,16 @@ ok(profitCalc.ok && profitCalc.profit_day === 1600, 'compute profit day')
 
 
 
+const withDop = computeProfitFromMatrix({ ...matrixForm, dop_sum: '500' })
+
+ok(withDop.ok && withDop.profit_dop === 500, 'dop sum flat')
+
+ok(withDop.ok && withDop.profit_day === 2100, 'profit day includes dop')
+
+ok(withDop.ok && withDop.profit_nk === 1000, 'dop does not affect nk column')
+
+
+
 const loaded = dailyRowToForm({
 
   pz_nk: 2,
@@ -260,6 +270,14 @@ const loaded = dailyRowToForm({
 })
 
 ok(loaded.pz_nk_sum === '1000', 'load matrix amounts from db')
+
+
+
+const loadedDop = dailyRowToForm({
+  matrix_amounts: { dop_total: 1500 },
+})
+
+ok(loadedDop.dop_sum === '1500', 'load dop flat sum from db')
 
 
 

@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { BarChart3, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { buildSalesManagerMonthStats } from '../lib/admin/salesManagerStatsAgg.js'
-import { formatRub, SALES_MATRIX_COLS, SALES_MATRIX_ROWS } from '../lib/admin/salesReportCore.js'
+import { formatRub, SALES_MATRIX_COLS, SALES_MATRIX_HALL_ROWS } from '../lib/admin/salesReportCore.js'
 import { SALES_TRAINING_CLUB_ID } from '../lib/admin/salesTrainingsMatrix.js'
 import { MembershipTypeStatsTable } from './MembershipTypeStatsTable.jsx'
 import { SalesDayBarChart } from './SalesDayBarChart.jsx'
@@ -70,6 +70,7 @@ export function SalesManagerStatsPanel({
     trainingsStats,
     trainingsTypedTotal,
     dayTable,
+    dopRubTotal,
   } = stats
 
   return (
@@ -214,7 +215,7 @@ export function SalesManagerStatsPanel({
               </tr>
             </thead>
             <tbody>
-              {SALES_MATRIX_ROWS.map((row) => (
+              {SALES_MATRIX_HALL_ROWS.map((row) => (
                 <tr key={row.key}>
                   <th scope="row">{row.label}</th>
                   {SALES_MATRIX_COLS.map((col) => {
@@ -227,6 +228,12 @@ export function SalesManagerStatsPanel({
                   })}
                 </tr>
               ))}
+              <tr className="sales-report__matrix-dop-row">
+                <th scope="row">Доп. продажи (₽)</th>
+                <td colSpan={SALES_MATRIX_COLS.length} className="sales-report__matrix-computed">
+                  <strong>{formatRub(dopRubTotal)}</strong>
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>

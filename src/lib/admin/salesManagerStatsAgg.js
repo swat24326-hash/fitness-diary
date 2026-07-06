@@ -17,14 +17,15 @@ import {
   resolveAchievedPlanLevel,
   resolvePlanFinalTarget,
   SALES_MATRIX_COLS,
-  SALES_MATRIX_ROWS,
+  SALES_MATRIX_HALL_ROWS,
+  sumDopRubFromDailyRows,
 } from './salesReportCore.js'
 
 /** @param {Array<Record<string, unknown>>} rows */
 export function sumMatrix3x3FromDailyRows(rows) {
   /** @type {Record<string, number>} */
   const grid = {}
-  for (const row of SALES_MATRIX_ROWS) {
+  for (const row of SALES_MATRIX_HALL_ROWS) {
     for (const col of SALES_MATRIX_COLS) {
       grid[`${row.key}_${col.suffix}`] = 0
     }
@@ -239,6 +240,7 @@ export function buildSalesManagerMonthStats(opts) {
     structure,
     matrix3x3: sumMatrix3x3FromDailyRows(monthRows),
     matrixByHall: sumMatrixTotalsFromDailyRows(monthRows),
+    dopRubTotal: sumDopRubFromDailyRows(monthRows),
     dailySeries,
     maxDayProfit,
     dailyPnkSeries,

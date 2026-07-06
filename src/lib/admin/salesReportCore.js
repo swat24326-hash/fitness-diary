@@ -7,7 +7,7 @@ import { aerobicInputMapToRows } from './aerobicSalesMatrix.js'
 
 
 
-export const SALES_MATRIX_ROWS = [
+export const SALES_MATRIX_HALL_ROWS = [
 
   { key: 'pz', label: 'ПЗ' },
 
@@ -15,9 +15,29 @@ export const SALES_MATRIX_ROWS = [
 
   { key: 'az', label: 'АЗ' },
 
-  { key: 'dop', label: 'Доп. продажи' },
-
 ]
+
+
+
+export const SALES_DOP_ROW = { key: 'dop', label: 'Доп. продажи' }
+
+
+
+/** ПЗ/ТЗ/АЗ (матрица НК/ДК/УК) + доп. продажи (одна сумма, без разнесения). */
+
+export const SALES_MATRIX_ROWS = [...SALES_MATRIX_HALL_ROWS, SALES_DOP_ROW]
+
+
+
+/** Поле формы: сумма доп. продаж за день (₽). */
+
+export const SALES_DOP_FORM_SUM_KEY = 'dop_sum'
+
+
+
+/** Ключ в matrix_amounts: сумма доп. продаж (₽). */
+
+export const SALES_DOP_AMOUNT_KEY = 'dop_total'
 
 
 
@@ -61,6 +81,10 @@ export const SALES_MATRIX_KEYS = [
 
 ]
 
+
+
+export const SALES_MATRIX_HALL_KEYS = SALES_MATRIX_KEYS.filter((k) => !k.startsWith('dop_'))
+
 /** Поля club_sales_daily для агрегации месяца (статистика, матрица 3×3). */
 export const SALES_MONTH_DAILY_SELECT = [
   'report_date',
@@ -72,6 +96,7 @@ export const SALES_MONTH_DAILY_SELECT = [
   'trainings_count',
   'trainings_matrix',
   'aerobic_sales_matrix',
+  'matrix_amounts',
   ...SALES_MATRIX_KEYS,
 ].join(', ')
 
@@ -119,7 +144,7 @@ export function salesMatrixColumnTotals(form) {
 
   const totals = { nk: 0, dk: 0, uk: 0 }
 
-  for (const row of SALES_MATRIX_ROWS) {
+  for (const row of SALES_MATRIX_HALL_ROWS) {
 
     for (const col of SALES_MATRIX_COLS) {
 
@@ -243,7 +268,7 @@ export function computeProfitFromMatrix(form) {
 
 
 
-  for (const row of SALES_MATRIX_ROWS) {
+  for (const row of SALES_MATRIX_HALL_ROWS) {
 
     for (const col of SALES_MATRIX_COLS) {
 
@@ -299,13 +324,39 @@ export function computeProfitFromMatrix(form) {
 
 
 
+  let profitDop = 0
+
+  const dopRaw = form[SALES_DOP_FORM_SUM_KEY]
+
+  if (dopRaw != null && dopRaw !== '') {
+
+    const dopSum = parseSalesMoney(dopRaw)
+
+    if (Number.isNaN(dopSum) || dopSum < 0) {
+
+      return { ok: false, error: 'Доп. продажи: сумма ≥ 0' }
+
+    }
+
+    profitDop = Math.round(dopSum * 100) / 100
+
+  }
+
+
+
+  const profitDayBase = computeProfitDay(profit.profit_nk, profit.profit_dk, profit.profit_uk)
+
+
+
   return {
 
     ok: true,
 
     ...profit,
 
-    profit_day: computeProfitDay(profit.profit_nk, profit.profit_dk, profit.profit_uk),
+    profit_dop: profitDop,
+
+    profit_day: Math.round((profitDayBase + profitDop) * 100) / 100,
 
   }
 
@@ -319,7 +370,7 @@ export function buildMatrixAmountsPayload(form) {
 
   const amounts = {}
 
-  for (const key of SALES_MATRIX_KEYS) {
+  for (const key of SALES_MATRIX_HALL_KEYS) {
 
     const sumKey = salesMatrixSumKey(key)
 
@@ -335,6 +386,22 @@ export function buildMatrixAmountsPayload(form) {
 
   }
 
+
+
+  const dopRaw = form[SALES_DOP_FORM_SUM_KEY]
+
+  if (dopRaw != null && dopRaw !== '') {
+
+    const sum = parseSalesMoney(dopRaw)
+
+    if (Number.isNaN(sum) || sum < 0) return { ok: false, error: 'Доп. продажи: сумма ≥ 0' }
+
+    if (sum > 0) amounts[SALES_DOP_AMOUNT_KEY] = Math.round(sum * 100) / 100
+
+  }
+
+
+
   return { ok: true, matrix_amounts: amounts }
 
 }
@@ -349,7 +416,7 @@ export function matrixAmountsFromDb(raw) {
 
   const out = {}
 
-  for (const key of SALES_MATRIX_KEYS) {
+  for (const key of SALES_MATRIX_HALL_KEYS) {
 
     const v = raw[key]
 
@@ -367,6 +434,56 @@ export function matrixAmountsFromDb(raw) {
 
 
 
+/** @param {unknown} raw matrix_amounts из БД */
+
+export function dopAmountFromMatrixAmounts(raw) {
+
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return 0
+
+  const direct = parseSalesMoney(raw[SALES_DOP_AMOUNT_KEY])
+
+  if (!Number.isNaN(direct) && direct > 0) return Math.round(direct * 100) / 100
+
+  let legacy = 0
+
+  for (const suffix of ['nk', 'dk', 'uk']) {
+
+    const n = parseSalesMoney(raw[`dop_${suffix}`])
+
+    if (!Number.isNaN(n) && n > 0) legacy += n
+
+  }
+
+  return Math.round(legacy * 100) / 100
+
+}
+
+
+
+/** @param {Record<string, unknown> | null | undefined} row */
+
+export function dopRubFromDailyRow(row) {
+
+  return dopAmountFromMatrixAmounts(row?.matrix_amounts)
+
+}
+
+
+
+/** @param {Array<Record<string, unknown>>} rows */
+
+export function sumDopRubFromDailyRows(rows) {
+
+  let total = 0
+
+  for (const r of rows ?? []) total += dopRubFromDailyRow(r)
+
+  return Math.round(total * 100) / 100
+
+}
+
+
+
 /** @param {Record<string, string>} f @param {Record<string, unknown> | null | undefined} row */
 
 function hydrateMatrixSums(f, row) {
@@ -375,13 +492,17 @@ function hydrateMatrixSums(f, row) {
 
   if (Object.keys(stored).length) {
 
-    for (const key of SALES_MATRIX_KEYS) {
+    for (const key of SALES_MATRIX_HALL_KEYS) {
 
       const sum = stored[key]
 
       f[salesMatrixSumKey(key)] = sum != null ? String(sum) : ''
 
     }
+
+    const dopRub = dopAmountFromMatrixAmounts(row?.matrix_amounts)
+
+    f[SALES_DOP_FORM_SUM_KEY] = dopRub > 0 ? String(dopRub) : ''
 
     return f
 
@@ -397,7 +518,7 @@ function hydrateMatrixSums(f, row) {
 
     if (colTotal <= 0 || colProfit <= 0) continue
 
-    for (const matrixRow of SALES_MATRIX_ROWS) {
+    for (const matrixRow of SALES_MATRIX_HALL_ROWS) {
 
       const countKey = `${matrixRow.key}_${col.suffix}`
 
@@ -412,6 +533,10 @@ function hydrateMatrixSums(f, row) {
     }
 
   }
+
+  const dopRub = dopRubFromDailyRow(row)
+
+  f[SALES_DOP_FORM_SUM_KEY] = dopRub > 0 ? String(dopRub) : ''
 
   return f
 
@@ -566,6 +691,8 @@ export function emptyDailyForm() {
     f[salesMatrixSumKey(key)] = ''
 
   }
+
+  f[SALES_DOP_FORM_SUM_KEY] = ''
 
   return f
 
