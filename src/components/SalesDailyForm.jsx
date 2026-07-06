@@ -4,6 +4,7 @@ import {
   computeProfitFromMatrix,
   formatRub,
   SALES_DOP_FORM_SUM_KEY,
+  SALES_REFUNDS_FORM_KEY,
   SALES_DOP_ROW,
   SALES_MATRIX_COLS,
   SALES_MATRIX_HALL_ROWS,
@@ -72,7 +73,7 @@ export function SalesDailyForm({
   const profit = useMemo(() => {
     const calc = computeProfitFromMatrix(form)
     if (!calc.ok) {
-      return { profit_nk: 0, profit_dk: 0, profit_uk: 0, profit_day: 0 }
+      return { profit_nk: 0, profit_dk: 0, profit_uk: 0, profit_day: 0, profit_day_gross: 0, refunds_amount: 0 }
     }
     return calc
   }, [form])
@@ -162,8 +163,8 @@ export function SalesDailyForm({
       </h3>
       <p className="muted sales-report__matrix-note">
         В каждом столбце (НК, ДК, УК): количество абонементов, сумма продаж и средний чек. Доп. продажи — одной
-        суммой без разнесения по категориям. Прибыль по столбцу — сумма ячеек ПЗ/ТЗ/АЗ; итого за день включает доп.
-        продажи.
+        суммой без разнесения по категориям. Возвраты — расход клуба, вычитаются из итога дня и чистой прибыли.
+        Прибыль по столбцу — сумма ячеек ПЗ/ТЗ/АЗ; итого без возвратов включает доп. продажи.
       </p>
       <div className="table-wrap sales-report__matrix-wrap">
         <table className="sales-report__matrix sales-report__matrix--flat">
@@ -266,6 +267,23 @@ export function SalesDailyForm({
               <td className="sales-report__matrix-computed">—</td>
               <td className="sales-report__matrix-computed">—</td>
             </tr>
+            <tr className="sales-report__matrix-refunds-row">
+              <td className="sales-report__matrix-row-label">Возвраты</td>
+              <td colSpan={MATRIX_COLS.length * 3} className="sales-report__matrix-field sales-report__matrix-dop-field">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  className="sales-report__matrix-input sales-report__matrix-input--refunds"
+                  aria-label="Возвраты за день"
+                  value={form[SALES_REFUNDS_FORM_KEY] ?? ''}
+                  onChange={(e) => setField(SALES_REFUNDS_FORM_KEY, e.target.value)}
+                  disabled={!canEdit}
+                  placeholder="0"
+                />
+              </td>
+              <td className="sales-report__matrix-computed">—</td>
+              <td className="sales-report__matrix-computed">—</td>
+            </tr>
             <tr className="sales-report__matrix-profit-row">
               <td className="sales-report__matrix-row-label">Прибыль (₽)</td>
               {MATRIX_COLS.map((col) => (
@@ -274,7 +292,8 @@ export function SalesDailyForm({
                 </td>
               ))}
               <td colSpan={2} className="sales-report__matrix-computed sales-report__matrix-profit-total">
-                <strong>{formatRub(profit.profit_day)}</strong>
+                <strong>{formatRub(profit.profit_day_gross ?? profit.profit_day)}</strong>
+                <span className="sales-report__matrix-profit-note muted">без возвратов</span>
               </td>
             </tr>
           </tbody>
@@ -282,6 +301,16 @@ export function SalesDailyForm({
       </div>
 
       <div className="sales-report__metric-total" style={{ marginTop: '1rem' }}>
+        <span>Итого без возвратов</span>
+        <strong>{formatRub(profit.profit_day_gross ?? profit.profit_day)}</strong>
+      </div>
+      {(Number(profit.refunds_amount) || 0) > 0 ? (
+        <div className="sales-report__metric-total sales-report__metric-total--refunds">
+          <span>Возвраты</span>
+          <strong>−{formatRub(profit.refunds_amount)}</strong>
+        </div>
+      ) : null}
+      <div className="sales-report__metric-total sales-report__metric-total--net">
         <span>Итого за день</span>
         <strong>{formatRub(profit.profit_day)}</strong>
       </div>

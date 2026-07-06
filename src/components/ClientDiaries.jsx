@@ -488,6 +488,11 @@ export function ClientDiaries({ client, onDataChange, clubQs = '', readOnly = fa
                       </>
                     )}
                   </div>
+                  {!isDraft && data.pre_weight_kg ? (
+                    <p className="diary-card__weight muted">
+                      <strong>Вес:</strong> {data.pre_weight_kg} кг
+                    </p>
+                  ) : null}
                 </div>
               </div>
 

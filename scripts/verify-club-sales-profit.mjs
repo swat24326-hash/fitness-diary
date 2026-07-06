@@ -147,10 +147,18 @@ ok(agg.dayCount === 2, 'month days')
 
 
 const aggWithDop = aggregateMonthFromDailyRows([
-  { profit_nk: 100, profit_dk: 50, profit_uk: 0, profit_day: 250, trainings_count: 1 },
+  { profit_nk: 100, profit_dk: 50, profit_uk: 0, matrix_amounts: { dop_total: 100 }, trainings_count: 1 },
 ])
 
-ok(aggWithDop.profitTotal === 250, 'month total uses profit_day with dop')
+ok(aggWithDop.profitTotal === 250, 'month total gross+dop without refunds')
+
+const aggWithRefunds = aggregateMonthFromDailyRows([
+  { profit_nk: 100, profit_dk: 0, profit_uk: 0, matrix_amounts: { dop_total: 50 }, refunds_amount: 30, trainings_count: 1 },
+])
+
+ok(aggWithRefunds.profitGrossTotal === 150, 'month gross includes dop')
+ok(aggWithRefunds.refundsTotal === 30, 'month refunds total')
+ok(aggWithRefunds.profitTotal === 120, 'month net after refunds')
 
 
 
@@ -272,6 +280,11 @@ ok(withDop.ok && withDop.profit_dop === 500, 'dop sum flat')
 ok(withDop.ok && withDop.profit_day === 2100, 'profit day includes dop')
 
 ok(withDop.ok && withDop.profit_nk === 1000, 'dop does not affect nk column')
+
+const withRefunds = computeProfitFromMatrix({ ...matrixForm, dop_sum: '500', refunds_amount: '200' })
+ok(withRefunds.ok && withRefunds.profit_day_gross === 2100, 'profit day gross before refunds')
+ok(withRefunds.ok && withRefunds.profit_day === 1900, 'profit day net after refunds')
+ok(withRefunds.ok && withRefunds.refunds_amount === 200, 'refunds parsed')
 
 
 

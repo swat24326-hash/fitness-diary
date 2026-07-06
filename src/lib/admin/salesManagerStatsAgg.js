@@ -15,10 +15,10 @@ import {
   buildCategoryStructure,
   buildDirectionStructure,
   buildHallFinanceSummary,
-  computeProfitDay,
   monthDateRange,
   planProgressPercent,
   resolveAchievedPlanLevel,
+  resolveDailyProfitFromRow,
   resolvePlanFinalTarget,
   SALES_MATRIX_COLS,
   SALES_MATRIX_HALL_ROWS,
@@ -65,11 +65,8 @@ export function buildDailyProfitSeries(rows, year, month) {
   for (const r of rows ?? []) {
     const iso = String(r.report_date ?? '').slice(0, 10)
     if (!iso) continue
-    const nk = Number(r.profit_nk) || 0
-    const dk = Number(r.profit_dk) || 0
-    const uk = Number(r.profit_uk) || 0
-    const profit = Number(r.profit_day) || computeProfitDay(nk, dk, uk)
-    byDate.set(iso, Math.round(profit * 100) / 100)
+    const { net } = resolveDailyProfitFromRow(r)
+    byDate.set(iso, Math.round(net * 100) / 100)
   }
 
   /** @type {Array<{ date: string, profit: number | null, hasReport: boolean }>} */
@@ -141,13 +138,15 @@ export function buildSalesDayTableRows(rows) {
       const profitNk = Number(r.profit_nk) || 0
       const profitDk = Number(r.profit_dk) || 0
       const profitUk = Number(r.profit_uk) || 0
-      const profitDay = Number(r.profit_day) || computeProfitDay(profitNk, profitDk, profitUk)
+      const { gross, refunds, net } = resolveDailyProfitFromRow(r)
       return {
         date,
         profitNk: Math.round(profitNk * 100) / 100,
         profitDk: Math.round(profitDk * 100) / 100,
         profitUk: Math.round(profitUk * 100) / 100,
-        profitDay: Math.round(profitDay * 100) / 100,
+        profitDayGross: Math.round(gross * 100) / 100,
+        refunds: Math.round(refunds * 100) / 100,
+        profitDay: Math.round(net * 100) / 100,
         trainings: Math.trunc(Number(r.trainings_count) || 0),
         pnk: Math.trunc(Number(r.pnk_total) || 0),
       }

@@ -69,7 +69,7 @@ const stats = buildSalesManagerMonthStats({
 
 ok(stats.summary.trainerPayroll === 1000, 'month trainer payroll from matrix')
 
-ok(stats.summary.profitTotal === 264000, 'month profit total includes dop')
+ok(stats.summary.profitTotal === 264000, 'month profit total includes dop net of refunds')
 ok(stats.structure.some((s) => s.key === 'dop' && s.amount === 4000), 'dop in category structure')
 ok(stats.directionStructure.find((s) => s.key === 'extra')?.planProgressPercent === 4, 'dop plan progress')
 ok(stats.directionStructure.find((s) => s.key === 'pz')?.amount === 80000, 'pz fact from matrix amounts')

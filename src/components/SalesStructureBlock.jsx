@@ -23,8 +23,11 @@ export function SalesStructureBlock({ title, items, showPlan = false }) {
                 {item.sharePercent}%
               </span>
               {showPlan ? (
-                <span className="sales-report__structure-plan-pct muted" title="Выполнение плана">
-                  {item.planTarget > 0 ? `план ${Math.round(item.planProgressPercent ?? 0)}%` : 'план —'}
+                <span
+                  className="sales-report__structure-plan-badge"
+                  title="Выполнение плана направления"
+                >
+                  {item.planTarget > 0 ? `${Math.round(item.planProgressPercent ?? 0)}% плана` : 'план —'}
                 </span>
               ) : null}
             </div>

@@ -33,6 +33,9 @@ export const SALES_MATRIX_ROWS = [...SALES_MATRIX_HALL_ROWS, SALES_DOP_ROW]
 
 export const SALES_DOP_FORM_SUM_KEY = 'dop_sum'
 
+/** Поле формы: возвраты за день (₽, расход клуба). */
+export const SALES_REFUNDS_FORM_KEY = 'refunds_amount'
+
 
 
 /** Ключ в matrix_amounts: сумма доп. продаж (₽). */
@@ -97,6 +100,7 @@ export const SALES_MONTH_DAILY_SELECT = [
   'trainings_matrix',
   'aerobic_sales_matrix',
   'matrix_amounts',
+  'refunds_amount',
   ...SALES_MATRIX_KEYS,
 ].join(', ')
 
@@ -346,7 +350,17 @@ export function computeProfitFromMatrix(form) {
 
   const profitDayBase = computeProfitDay(profit.profit_nk, profit.profit_dk, profit.profit_uk)
 
+  let refunds = 0
+  const refundsRaw = form[SALES_REFUNDS_FORM_KEY]
+  if (refundsRaw != null && refundsRaw !== '') {
+    const refundsSum = parseSalesMoney(refundsRaw)
+    if (Number.isNaN(refundsSum) || refundsSum < 0) {
+      return { ok: false, error: 'Возвраты: сумма ≥ 0' }
+    }
+    refunds = Math.round(refundsSum * 100) / 100
+  }
 
+  const profitDayGross = Math.round((profitDayBase + profitDop) * 100) / 100
 
   return {
 
@@ -356,7 +370,11 @@ export function computeProfitFromMatrix(form) {
 
     profit_dop: profitDop,
 
-    profit_day: Math.round((profitDayBase + profitDop) * 100) / 100,
+    refunds_amount: refunds,
+
+    profit_day_gross: profitDayGross,
+
+    profit_day: Math.round((profitDayGross - refunds) * 100) / 100,
 
   }
 
@@ -504,6 +522,9 @@ function hydrateMatrixSums(f, row) {
 
     f[SALES_DOP_FORM_SUM_KEY] = dopRub > 0 ? String(dopRub) : ''
 
+    const refunds = refundsFromDailyRow(row)
+    f[SALES_REFUNDS_FORM_KEY] = refunds > 0 ? String(refunds) : ''
+
     return f
 
   }
@@ -537,6 +558,9 @@ function hydrateMatrixSums(f, row) {
   const dopRub = dopRubFromDailyRow(row)
 
   f[SALES_DOP_FORM_SUM_KEY] = dopRub > 0 ? String(dopRub) : ''
+
+  const refunds = refundsFromDailyRow(row)
+  f[SALES_REFUNDS_FORM_KEY] = refunds > 0 ? String(refunds) : ''
 
   return f
 
@@ -632,6 +656,25 @@ export function computeProfitDay(profitNk, profitDk, profitUk) {
 
 }
 
+/** @param {Record<string, unknown> | null | undefined} row */
+export function refundsFromDailyRow(row) {
+  return Math.round((Number(row?.refunds_amount) || 0) * 100) / 100
+}
+
+/** @param {Record<string, unknown> | null | undefined} row */
+export function resolveDailyProfitFromRow(row) {
+  const nk = Number(row?.profit_nk) || 0
+  const dk = Number(row?.profit_dk) || 0
+  const uk = Number(row?.profit_uk) || 0
+  const gross = Math.round((computeProfitDay(nk, dk, uk) + dopRubFromDailyRow(row)) * 100) / 100
+  const refunds = refundsFromDailyRow(row)
+  return {
+    gross,
+    refunds,
+    net: Math.round((gross - refunds) * 100) / 100,
+  }
+}
+
 
 
 export function computeNetProfit(earnings, expense) {
@@ -694,6 +737,8 @@ export function emptyDailyForm() {
 
   f[SALES_DOP_FORM_SUM_KEY] = ''
 
+  f[SALES_REFUNDS_FORM_KEY] = ''
+
   return f
 
 }
@@ -752,7 +797,7 @@ export function dailyFormToPayload(form, opts = null) {
 
   if (!profitCalc.ok) return profitCalc
 
-  const { profit_nk, profit_dk, profit_uk } = profitCalc
+  const { profit_nk, profit_dk, profit_uk, refunds_amount } = profitCalc
 
 
 
@@ -834,6 +879,8 @@ export function dailyFormToPayload(form, opts = null) {
 
     profit_uk,
 
+    refunds_amount,
+
     pnk_total,
 
     trainings_count,
@@ -868,6 +915,10 @@ export function aggregateMonthFromDailyRows(rows) {
 
   let profitUk = 0
 
+  let profitGrossTotal = 0
+
+  let refundsTotal = 0
+
   let profitTotal = 0
 
   let trainingsTotal = 0
@@ -888,7 +939,13 @@ export function aggregateMonthFromDailyRows(rows) {
 
     profitUk += uk
 
-    profitTotal += Number(r.profit_day) || computeProfitDay(nk, dk, uk)
+    const { gross, refunds, net } = resolveDailyProfitFromRow(r)
+
+    profitGrossTotal += gross
+
+    refundsTotal += refunds
+
+    profitTotal += net
 
     trainingsTotal += Number(r.trainings_count) || 0
 
@@ -903,6 +960,10 @@ export function aggregateMonthFromDailyRows(rows) {
     profitDk: Math.round(profitDk * 100) / 100,
 
     profitUk: Math.round(profitUk * 100) / 100,
+
+    profitGrossTotal: Math.round(profitGrossTotal * 100) / 100,
+
+    refundsTotal: Math.round(refundsTotal * 100) / 100,
 
     profitTotal: Math.round(profitTotal * 100) / 100,
 

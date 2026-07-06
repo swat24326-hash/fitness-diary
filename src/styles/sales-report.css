@@ -432,6 +432,25 @@
   font-size: 1.2rem;
 }
 
+.sales-report__metric-total--refunds strong {
+  color: #f87171;
+}
+
+.sales-report__metric-total--net {
+  border-top: none;
+  padding-top: 0.35rem;
+}
+
+.sales-report__matrix-profit-note {
+  display: block;
+  font-size: 0.72rem;
+  margin-top: 0.15rem;
+}
+
+.sales-report__kpi-value--expense {
+  color: #f87171;
+}
+
 .sales-report__mini-row {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -1346,6 +1365,18 @@
 
 .sales-report__structure-pct {
   font-size: 0.78rem;
+  color: rgba(148, 163, 184, 0.95);
+}
+
+.sales-report__structure-plan-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.14);
+  border: 1px solid rgba(251, 191, 36, 0.38);
+  border-radius: 999px;
+  padding: 0.12rem 0.5rem;
+  white-space: nowrap;
 }
 
 .sales-report__structure-plan-pct {
@@ -1472,7 +1503,7 @@
   }
 
   .sales-report__structure-head--plan .sales-report__structure-pct,
-  .sales-report__structure-head--plan .sales-report__structure-plan-pct {
+  .sales-report__structure-head--plan .sales-report__structure-plan-badge {
     grid-column: 2;
     justify-self: start;
   }

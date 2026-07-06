@@ -102,6 +102,14 @@ export function SalesManagerStatsPanel({
           <span className="sales-report__kpi-label">Заработок</span>
           <span className="sales-report__kpi-value">{formatRub(summary.profitTotal)}</span>
         </div>
+        {(summary.refundsTotal ?? 0) > 0 ? (
+          <div className="sales-report__kpi">
+            <span className="sales-report__kpi-label">Возвраты</span>
+            <span className="sales-report__kpi-value sales-report__kpi-value--expense">
+              −{formatRub(summary.refundsTotal ?? 0)}
+            </span>
+          </div>
+        ) : null}
         <div className="sales-report__kpi">
           <span className="sales-report__kpi-label">План (ур. 3)</span>
           <span className="sales-report__kpi-value">
@@ -316,6 +324,7 @@ export function SalesManagerStatsPanel({
                   <th scope="col">НК</th>
                   <th scope="col">ДК</th>
                   <th scope="col">УК</th>
+                  {(summary.refundsTotal ?? 0) > 0 ? <th scope="col">Возвр.</th> : null}
                   <th scope="col">Итого</th>
                   <th scope="col">Трен.</th>
                   <th scope="col">ПНК</th>
@@ -332,6 +341,9 @@ export function SalesManagerStatsPanel({
                     <td>{formatRub(row.profitNk)}</td>
                     <td>{formatRub(row.profitDk)}</td>
                     <td>{formatRub(row.profitUk)}</td>
+                    {(summary.refundsTotal ?? 0) > 0 ? (
+                      <td>{row.refunds > 0 ? `−${formatRub(row.refunds)}` : '—'}</td>
+                    ) : null}
                     <td>
                       <strong>{formatRub(row.profitDay)}</strong>
                     </td>

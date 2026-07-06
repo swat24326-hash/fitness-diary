@@ -5057,6 +5057,17 @@ tr:last-child td {
   max-width: 100%;
 }
 
+.diary-card__weight {
+  margin: 0.15rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.diary-card__weight strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
 .diary-status--done {
   color: var(--accent-bright);
 }
