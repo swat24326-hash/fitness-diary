@@ -6,6 +6,7 @@ import { SALES_TRAINING_CLUB_ID } from '../lib/admin/salesTrainingsMatrix.js'
 import { MembershipTypeStatsTable } from './MembershipTypeStatsTable.jsx'
 import { SalesDayBarChart } from './SalesDayBarChart.jsx'
 import { SalesProfitDayChart } from './SalesProfitDayChart.jsx'
+import { SalesStructureBlock } from './SalesStructureBlock.jsx'
 
 /**
  * @param {{
@@ -14,6 +15,7 @@ import { SalesProfitDayChart } from './SalesProfitDayChart.jsx'
  *   month: number,
  *   monthRows: Array<Record<string, unknown>>,
  *   planLevels: { level1?: number, level2?: number, level3?: number },
+ *   planDirections?: { plan_pz?: number, plan_tz?: number, plan_az?: number, plan_extra?: number },
  *   membershipTypes?: Array<{ id: string, code?: string }>,
  *   trainers?: Array<{ id: string, full_name?: string, name?: string }>,
  *   onPrevMonth: () => void,
@@ -28,6 +30,7 @@ export function SalesManagerStatsPanel({
   month,
   monthRows,
   planLevels,
+  planDirections = {},
   membershipTypes = [],
   trainers = [],
   onPrevMonth,
@@ -50,17 +53,19 @@ export function SalesManagerStatsPanel({
       buildSalesManagerMonthStats({
         monthRows,
         planLevels,
+        planDirections,
         membershipTypes,
         year,
         month,
       }),
-    [monthRows, planLevels, membershipTypes, year, month],
+    [monthRows, planLevels, planDirections, membershipTypes, year, month],
   )
 
   const {
     summary,
     plan,
     structure,
+    directionStructure,
     matrix3x3,
     dailySeries,
     dailyPnkSeries,
@@ -70,7 +75,6 @@ export function SalesManagerStatsPanel({
     trainingsStats,
     trainingsTypedTotal,
     dayTable,
-    dopRubTotal,
   } = stats
 
   return (
@@ -180,24 +184,16 @@ export function SalesManagerStatsPanel({
       </div>
 
       <div className="sales-report__card sales-report__stats-block">
-        <h3 className="sales-report__stats-block-title">Структура НК / ДК / УК</h3>
-        <div className="sales-report__structure-list">
-          {structure.map((item) => (
-            <div className="sales-report__structure-row" key={item.key}>
-              <div className="sales-report__structure-head">
-                <span className="sales-report__structure-label">{item.label}</span>
-                <span className="sales-report__structure-sum">{formatRub(item.amount)}</span>
-                <span className="sales-report__structure-pct muted">{item.sharePercent}%</span>
-              </div>
-              <div className="sales-report__structure-track" aria-hidden>
-                <div
-                  className={`sales-report__structure-fill sales-report__structure-fill--${item.key}`}
-                  style={{ width: `${Math.min(100, item.sharePercent)}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
+        <h3 className="sales-report__stats-block-title">Структура продаж</h3>
+        <p className="muted sales-report__stats-block-note">
+          Доля — % от заработка за месяц; план — % выполнения по направлениям (ПЗ/ТЗ/АЗ/доп.).
+        </p>
+        <SalesStructureBlock title="Категории абонементов (НК / ДК / УК / доп.)" items={structure} />
+        <SalesStructureBlock
+          title="Направления (план)"
+          items={directionStructure}
+          showPlan
+        />
       </div>
 
       <div className="sales-report__card sales-report__stats-block">
@@ -228,12 +224,6 @@ export function SalesManagerStatsPanel({
                   })}
                 </tr>
               ))}
-              <tr className="sales-report__matrix-dop-row">
-                <th scope="row">Доп. продажи (₽)</th>
-                <td colSpan={SALES_MATRIX_COLS.length} className="sales-report__matrix-computed">
-                  <strong>{formatRub(dopRubTotal)}</strong>
-                </td>
-              </tr>
             </tbody>
           </table>
         </div>

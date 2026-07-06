@@ -68,7 +68,8 @@ ok(analytics.insights?.finance?.payroll_share_pct > 0, 'finance payroll share')
 ok(analytics.insights?.finance?.aerobic_payroll_share_pct > 0, 'finance aerobic share')
 ok(analytics.insights?.highlights?.best_day?.profit === 5100, 'insights best day')
 ok(Array.isArray(analytics.insights?.structure?.rows), 'structure rows')
-ok(analytics.sales.structure_shares?.length === 3, 'structure shares in sales')
+ok(analytics.sales.structure_shares?.length === 4, 'structure shares include dop')
+ok(Array.isArray(analytics.sales.direction_structure), 'direction structure in sales')
 
 const geminiSnap = buildGeminiSnapshot({
   clubName: 'FIT-CITY Север',

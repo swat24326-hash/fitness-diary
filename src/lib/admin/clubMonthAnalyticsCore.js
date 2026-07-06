@@ -143,6 +143,7 @@ export function buildClubMonthInsights(opts) {
   const nk = stats.structure.find((s) => s.key === 'nk')
   const dk = stats.structure.find((s) => s.key === 'dk')
   const uk = stats.structure.find((s) => s.key === 'uk')
+  const dopCat = stats.structure.find((s) => s.key === 'dop')
   const weakNkVsDk =
     profitTotal > 0 &&
     (Number(nk?.amount) || 0) / profitTotal < 0.15 &&
@@ -210,8 +211,10 @@ export function buildClubMonthInsights(opts) {
       nk_share_pct: nk?.sharePercent ?? 0,
       dk_share_pct: dk?.sharePercent ?? 0,
       uk_share_pct: uk?.sharePercent ?? 0,
+      dop_share_pct: dopCat?.sharePercent ?? 0,
       weak_nk_vs_dk: weakNkVsDk,
       rows: stats.structure,
+      direction_rows: stats.directionStructure ?? [],
     },
     fitcity: {
       manager_total: managerTotal,
@@ -334,6 +337,12 @@ export function buildClubMonthAnalytics(opts) {
   const stats = buildSalesManagerMonthStats({
     monthRows,
     planLevels,
+    planDirections: {
+      plan_pz: Number(opts.plan?.plan_pz) || 0,
+      plan_tz: Number(opts.plan?.plan_tz) || 0,
+      plan_az: Number(opts.plan?.plan_az) || 0,
+      plan_extra: Number(opts.plan?.plan_extra) || 0,
+    },
     membershipTypes,
     year,
     month,
@@ -419,6 +428,7 @@ export function buildClubMonthAnalytics(opts) {
       profit_day_highlights: profitDayHighlights,
       trainings_by_card_type: trainingsByCardType,
       structure_shares: stats.structure,
+      direction_structure: stats.directionStructure ?? [],
       pz_trainings_from_manager_reports: stats.trainingsTypedTotal,
     },
     trainings: {

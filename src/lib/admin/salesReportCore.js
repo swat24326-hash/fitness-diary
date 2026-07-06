@@ -888,7 +888,7 @@ export function aggregateMonthFromDailyRows(rows) {
 
     profitUk += uk
 
-    profitTotal += computeProfitDay(nk, dk, uk)
+    profitTotal += Number(r.profit_day) || computeProfitDay(nk, dk, uk)
 
     trainingsTotal += Number(r.trainings_count) || 0
 
@@ -919,6 +919,73 @@ export function aggregateMonthFromDailyRows(rows) {
 export const PLAN_LEVEL_KEYS = ['plan_level_1', 'plan_level_2', 'plan_level_3']
 
 export const PLAN_DIRECTION_KEYS = ['plan_pz', 'plan_tz', 'plan_az', 'plan_extra']
+
+/** Направления залов для плана и факта (₽ из matrix_amounts). */
+export const SALES_DIRECTION_DEFS = [
+  { key: 'pz', label: 'ПЗ', planKey: 'plan_pz' },
+  { key: 'tz', label: 'ТЗ', planKey: 'plan_tz' },
+  { key: 'az', label: 'АЗ', planKey: 'plan_az' },
+  { key: 'extra', label: 'Доп. продажи', planKey: 'plan_extra' },
+]
+
+/** @param {Array<Record<string, unknown>>} rows */
+export function sumDirectionRubFromDailyRows(rows) {
+  /** @type {Record<string, number>} */
+  const totals = { pz: 0, tz: 0, az: 0, extra: 0 }
+  for (const r of rows ?? []) {
+    const amounts = matrixAmountsFromDb(r?.matrix_amounts)
+    for (const hall of ['pz', 'tz', 'az']) {
+      for (const suffix of ['nk', 'dk', 'uk']) {
+        totals[hall] += Number(amounts[`${hall}_${suffix}`]) || 0
+      }
+    }
+    totals.extra += dopAmountFromMatrixAmounts(r?.matrix_amounts)
+  }
+  for (const key of Object.keys(totals)) {
+    totals[key] = Math.round(totals[key] * 100) / 100
+  }
+  return totals
+}
+
+/**
+ * @param {{ profitNk?: number, profitDk?: number, profitUk?: number, profitTotal?: number }} summary
+ * @param {number} dopRub
+ */
+export function buildCategoryStructure(summary, dopRub) {
+  const profitTotal = Number(summary?.profitTotal) || 0
+  const items = [
+    { key: 'nk', label: 'НК', amount: Number(summary?.profitNk) || 0 },
+    { key: 'dk', label: 'ДК', amount: Number(summary?.profitDk) || 0 },
+    { key: 'uk', label: 'УК', amount: Number(summary?.profitUk) || 0 },
+    { key: 'dop', label: 'Доп. продажи', amount: Number(dopRub) || 0 },
+  ]
+  return items.map((item) => ({
+    ...item,
+    amount: Math.round(item.amount * 100) / 100,
+    sharePercent: profitTotal > 0 ? Math.round((item.amount / profitTotal) * 1000) / 10 : 0,
+  }))
+}
+
+/**
+ * @param {Array<Record<string, unknown>>} monthRows
+ * @param {Record<string, number>} planDirections plan_pz, plan_tz, plan_az, plan_extra
+ * @param {number} profitTotal
+ */
+export function buildDirectionStructure(monthRows, planDirections, profitTotal) {
+  const rub = sumDirectionRubFromDailyRows(monthRows)
+  return SALES_DIRECTION_DEFS.map(({ key, label, planKey }) => {
+    const amount = rub[key] || 0
+    const planTarget = Number(planDirections?.[planKey]) || 0
+    return {
+      key,
+      label,
+      amount,
+      planTarget,
+      sharePercent: profitTotal > 0 ? Math.round((amount / profitTotal) * 1000) / 10 : 0,
+      planProgressPercent: planProgressPercent(amount, planTarget),
+    }
+  })
+}
 
 export const PLAN_LEVEL_LABELS = ['Уровень 1', 'Уровень 2', 'Уровень 3']
 

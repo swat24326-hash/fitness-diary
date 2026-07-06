@@ -23,10 +23,11 @@ const rows = [
     profit_nk: 100000,
     profit_dk: 50000,
     profit_uk: 10000,
-    profit_day: 160000,
+    profit_day: 164000,
     pnk_total: 3,
     trainings_count: 12,
     trainings_matrix: [{ trainer_id: '__club__', membership_type_id: 't1', count: 5 }],
+    matrix_amounts: { pz_nk: 80000, tz_dk: 40000, dop_total: 4000 },
     pz_nk: 2,
     tz_nk: 1,
     az_nk: 0,
@@ -60,6 +61,7 @@ const rows = [
 const stats = buildSalesManagerMonthStats({
   monthRows: rows,
   planLevels: { level1: 1_000_000, level2: 1_100_000, level3: 1_200_000 },
+  planDirections: { plan_pz: 500_000, plan_tz: 400_000, plan_az: 200_000, plan_extra: 100_000 },
   membershipTypes: [{ id: 't1', code: 'NK', trainer_pay_per_session: 200, trainer_assignable: true }],
   year: 2026,
   month: 6,
@@ -67,13 +69,16 @@ const stats = buildSalesManagerMonthStats({
 
 ok(stats.summary.trainerPayroll === 1000, 'month trainer payroll from matrix')
 
-ok(stats.summary.profitTotal === 260000, 'month profit total')
+ok(stats.summary.profitTotal === 264000, 'month profit total includes dop')
+ok(stats.structure.some((s) => s.key === 'dop' && s.amount === 4000), 'dop in category structure')
+ok(stats.directionStructure.find((s) => s.key === 'extra')?.planProgressPercent === 4, 'dop plan progress')
+ok(stats.directionStructure.find((s) => s.key === 'pz')?.amount === 80000, 'pz fact from matrix amounts')
 ok(stats.summary.pnkTotal === 4, 'pnk total')
 ok(stats.summary.dayCount === 2, 'reported days count')
 ok(stats.summary.daysInMonth === 30, 'days in june')
 ok(stats.plan.achievedLevel === 0, 'level 0 below 1M')
 ok(stats.dailySeries.length === 30, 'full month series')
-ok(stats.dailySeries[0].profit === 160000, 'day 1 profit')
+ok(stats.dailySeries[0].profit === 164000, 'day 1 profit includes dop')
 ok(stats.dailySeries[1].profit === null && !stats.dailySeries[1].hasReport, 'day 2 empty')
 ok(stats.dayTable.length === 2, 'day table rows')
 ok(sumMatrix3x3FromDailyRows(rows).pz_nk === 3, 'matrix cell sum')

@@ -218,6 +218,16 @@ export function AdminSales({ accessMode = 'admin' }) {
     [planForm],
   )
 
+  const planDirections = useMemo(
+    () => ({
+      plan_pz: Number(planForm.plan_pz) || 0,
+      plan_tz: Number(planForm.plan_tz) || 0,
+      plan_az: Number(planForm.plan_az) || 0,
+      plan_extra: Number(planForm.plan_extra) || 0,
+    }),
+    [planForm],
+  )
+
   const shiftReportMonth = useCallback((delta) => {
     setReportDate((current) => {
       const parts = monthPartsFromIso(current)
@@ -562,6 +572,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             month={yearMonth.month}
             monthRows={monthDays}
             planLevels={planLevels}
+            planDirections={planDirections}
             membershipTypes={membershipTypes}
             trainers={trainers}
             onPrevMonth={() => shiftReportMonth(-1)}
@@ -613,6 +624,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             month={yearMonth.month}
             monthRows={monthDays}
             planLevels={planLevels}
+            planDirections={planDirections}
             membershipTypes={membershipTypes}
             trainers={trainers}
             onPrevMonth={() => shiftReportMonth(-1)}

@@ -1272,6 +1272,21 @@
   gap: 0.75rem;
 }
 
+.sales-report__structure-group + .sales-report__structure-group {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.sales-report__structure-subtitle {
+  margin: 0 0 0.65rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: rgba(226, 232, 240, 0.75);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .sales-report__structure-row {
   display: flex;
   flex-direction: column;
@@ -1286,6 +1301,10 @@
   font-size: 0.88rem;
 }
 
+.sales-report__structure-head--plan {
+  grid-template-columns: 2rem 1fr auto auto;
+}
+
 .sales-report__structure-label {
   font-weight: 700;
 }
@@ -1298,11 +1317,21 @@
   font-size: 0.78rem;
 }
 
+.sales-report__structure-plan-pct {
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
 .sales-report__structure-track {
   height: 8px;
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.85);
   overflow: hidden;
+}
+
+.sales-report__structure-track--plan {
+  height: 5px;
+  opacity: 0.85;
 }
 
 .sales-report__structure-fill {
@@ -1321,6 +1350,30 @@
 
 .sales-report__structure-fill--uk {
   background: linear-gradient(90deg, #7c2d12, #fb923c);
+}
+
+.sales-report__structure-fill--dop {
+  background: linear-gradient(90deg, #6b21a8, #c084fc);
+}
+
+.sales-report__structure-fill--pz {
+  background: linear-gradient(90deg, #047857, #34d399);
+}
+
+.sales-report__structure-fill--tz {
+  background: linear-gradient(90deg, #1d4ed8, #60a5fa);
+}
+
+.sales-report__structure-fill--az {
+  background: linear-gradient(90deg, #7c2d12, #fb923c);
+}
+
+.sales-report__structure-fill--extra {
+  background: linear-gradient(90deg, #6b21a8, #c084fc);
+}
+
+.sales-report__structure-fill--plan {
+  opacity: 0.92;
 }
 
 .sales-report__stats-matrix td,
@@ -1380,6 +1433,17 @@
   .sales-report__structure-head {
     grid-template-columns: 2rem 1fr auto;
     font-size: 0.8rem;
+  }
+
+  .sales-report__structure-head--plan {
+    grid-template-columns: 2rem minmax(0, 1fr);
+    grid-template-rows: auto auto;
+  }
+
+  .sales-report__structure-head--plan .sales-report__structure-pct,
+  .sales-report__structure-head--plan .sales-report__structure-plan-pct {
+    grid-column: 2;
+    justify-self: start;
   }
 }
 

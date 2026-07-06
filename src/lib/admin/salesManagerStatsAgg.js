@@ -11,6 +11,8 @@ import {
 } from './salesTrainingsMatrix.js'
 import {
   aggregateMonthFromDailyRows,
+  buildCategoryStructure,
+  buildDirectionStructure,
   computeProfitDay,
   monthDateRange,
   planProgressPercent,
@@ -156,6 +158,7 @@ export function buildSalesDayTableRows(rows) {
  * @param {{
  *   monthRows?: Array<Record<string, unknown>>,
  *   planLevels?: { level1?: number, level2?: number, level3?: number },
+ *   planDirections?: { plan_pz?: number, plan_tz?: number, plan_az?: number, plan_extra?: number },
  *   membershipTypes?: Array<{ id: string, code?: string }>,
  *   year: number,
  *   month: number,
@@ -209,15 +212,13 @@ export function buildSalesManagerMonthStats(opts) {
   ).clubTotal
 
   const profitTotal = summary.profitTotal || 0
-  const structure = [
-    { key: 'nk', label: 'НК', amount: summary.profitNk, sharePercent: 0 },
-    { key: 'dk', label: 'ДК', amount: summary.profitDk, sharePercent: 0 },
-    { key: 'uk', label: 'УК', amount: summary.profitUk, sharePercent: 0 },
-  ].map((item) => ({
-    ...item,
-    sharePercent:
-      profitTotal > 0 ? Math.round((item.amount / profitTotal) * 1000) / 10 : 0,
-  }))
+  const dopRubTotal = sumDopRubFromDailyRows(monthRows)
+  const structure = buildCategoryStructure(summary, dopRubTotal)
+  const directionStructure = buildDirectionStructure(
+    monthRows,
+    opts.planDirections ?? {},
+    profitTotal,
+  )
 
   const { start, end } = monthDateRange(year, month)
 
@@ -238,9 +239,10 @@ export function buildSalesManagerMonthStats(opts) {
       progressPercent,
     },
     structure,
+    directionStructure,
     matrix3x3: sumMatrix3x3FromDailyRows(monthRows),
     matrixByHall: sumMatrixTotalsFromDailyRows(monthRows),
-    dopRubTotal: sumDopRubFromDailyRows(monthRows),
+    dopRubTotal,
     dailySeries,
     maxDayProfit,
     dailyPnkSeries,

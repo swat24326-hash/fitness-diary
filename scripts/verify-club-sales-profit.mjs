@@ -2,6 +2,8 @@ import {
 
   aggregateMonthFromDailyRows,
 
+  buildCategoryStructure,
+
   computeNetProfit,
 
   computeProfitDay,
@@ -141,6 +143,20 @@ ok(agg.profitNk === 300, 'month nk')
 ok(agg.trainingsTotal === 8, 'month trainings')
 
 ok(agg.dayCount === 2, 'month days')
+
+
+
+const aggWithDop = aggregateMonthFromDailyRows([
+  { profit_nk: 100, profit_dk: 50, profit_uk: 0, profit_day: 250, trainings_count: 1 },
+])
+
+ok(aggWithDop.profitTotal === 250, 'month total uses profit_day with dop')
+
+
+
+const catStruct = buildCategoryStructure(aggWithDop, 100)
+
+ok(catStruct.find((s) => s.key === 'dop')?.amount === 100, 'category structure dop row')
 
 
 
