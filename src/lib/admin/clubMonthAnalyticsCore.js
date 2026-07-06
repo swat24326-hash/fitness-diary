@@ -417,6 +417,7 @@ export function buildClubMonthAnalytics(opts) {
       profit_day_highlights: profitDayHighlights,
       trainings_by_card_type: trainingsByCardType,
       structure_shares: stats.structure,
+      pz_trainings_from_manager_reports: stats.trainingsTypedTotal,
     },
     trainings: {
       manager_report_total: manualTrainings,
@@ -441,7 +442,7 @@ export function buildClubMonthAnalytics(opts) {
   }
 }
 
-/** KPI-полоска панели Gemini — из того же snapshot, FIT-CITY за весь месяц. */
+/** KPI-полоска панели Gemini — тренировки ПЗ из отчётов менеджера за месяц. */
 export function buildPanelKpiFromAnalytics(analytics) {
   if (!analytics) return null
   const sales = analytics.sales ?? {}
@@ -450,14 +451,14 @@ export function buildPanelKpiFromAnalytics(analytics) {
   const profitTotal = Number(sales.profit_total) || 0
   const planTotal = Number(sales.plan_total) || 0
   const planPct = Number(sales.plan_progress_pct) || 0
-  const fitCity = Number(analytics.trainings?.fit_city_tablets_only) || 0
+  const pzTrainings = Number(sales.pz_trainings_from_manager_reports) || 0
 
   return {
     profitTotal,
     planTotal,
     planPct,
     planFillPercent: Math.min(100, Math.max(0, planPct)),
-    fitCity,
+    pzTrainings,
     reportsLabel: `${Number(report.days_with_reports) || 0}/${Number(report.days_in_month) || 0}`,
     hasPlan: planTotal > 0,
   }

@@ -105,7 +105,7 @@ ok(analytics.insights.mom_comparison?.profit_delta === 4600, 'mom profit delta')
 ok(analytics.insights.mom_comparison?.profit_direction === 'up', 'mom direction up')
 
 const kpi = buildPanelKpiFromAnalytics(analytics)
-ok(kpi?.fitCity === 15, 'panel kpi fit city month total')
+ok(kpi?.pzTrainings === 6, 'panel kpi pz trainings from manager matrix')
 ok(kpi?.reportsLabel === '2/30', 'panel kpi reports label')
 
 const lowCoverage = buildClubMonthInsights({

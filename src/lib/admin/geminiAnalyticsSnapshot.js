@@ -116,6 +116,7 @@ export function compactSnapshotForPrompt(snapshot) {
       plan_direction_rub: sales.plan_direction_rub,
       matrix_counts_pz_tz_az: sales.matrix_counts_pz_tz_az,
       manual_trainings_total: sales.manual_trainings_total,
+      pz_trainings_from_manager_reports: sales.pz_trainings_from_manager_reports,
       profit_day_highlights: sales.profit_day_highlights,
       trainings_by_card_type: sales.trainings_by_card_type,
       structure_shares: sales.structure_shares,

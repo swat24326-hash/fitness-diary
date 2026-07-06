@@ -64,8 +64,8 @@ export function GeminiContextKpi({ kpi: kpiProp, analytics, bundle, year, month,
         </div>
         <div className="gemini-panel__kpi-card">
           <Dumbbell size={15} aria-hidden />
-          <span className="gemini-panel__kpi-label">FIT-CITY</span>
-          <strong>{kpi.fitCity}</strong>
+          <span className="gemini-panel__kpi-label">Трен. ПЗ</span>
+          <strong title="Тренировки персонального зала из отчётов менеджера за месяц">{kpi.pzTrainings}</strong>
         </div>
         <div className="gemini-panel__kpi-card">
           <FileBarChart size={15} aria-hidden />

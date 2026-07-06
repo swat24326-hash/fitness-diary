@@ -39,7 +39,6 @@ export function buildGeminiPanelKpi(bundle, year, month) {
   const dayCount = Number(summary.dayCount) || 0
   const planTotal = resolvePlanTotal(bundle.plan)
   const planPct = planProgressPercent(profitTotal, planTotal)
-  const fitCity = Number(bundle.fitCityTypeStats?.totalCounted) || 0
   const monthDays = new Date(Number(year), Number(month), 0).getDate()
 
   return {
@@ -47,7 +46,7 @@ export function buildGeminiPanelKpi(bundle, year, month) {
     planTotal,
     planPct,
     planFillPercent: Math.min(100, Math.max(0, planPct)),
-    fitCity,
+    pzTrainings: 0,
     reportsLabel: `${dayCount}/${monthDays}`,
     hasPlan: planTotal > 0,
   }

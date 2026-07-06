@@ -188,7 +188,7 @@ const kpi = buildGeminiPanelKpi(
 )
 ok(kpi?.planPct === 50, 'kpi plan pct')
 ok(kpi?.reportsLabel === '10/30', 'kpi reports label')
-ok(kpi?.fitCity === 38, 'kpi fit city')
+ok(kpi?.pzTrainings === 0, 'kpi pz trainings fallback')
 
 const snapLevelOnly = buildGeminiSnapshot({
   clubName: 'X',
