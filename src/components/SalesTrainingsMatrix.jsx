@@ -5,8 +5,10 @@ import {
   SALES_TRAINING_TYPE_NONE,
   salesTrainingCellKey,
   typedTrainingsMatrixColumns,
+  computeClubTrainingsPayrollFromInputMap,
 } from '../lib/admin/salesTrainingsMatrix.js'
 import { MembershipTypeStatsTable } from './MembershipTypeStatsTable.jsx'
+import { formatRub } from '../lib/admin/salesReportCore.js'
 
 /**
  * @param {{
@@ -19,6 +21,7 @@ import { MembershipTypeStatsTable } from './MembershipTypeStatsTable.jsx'
  *   canEdit?: boolean,
  *   aggregateOnly?: boolean,
  *   clubId?: string,
+ *   showPayroll?: boolean,
  * }} props
  */
 export function SalesTrainingsMatrix({
@@ -31,6 +34,7 @@ export function SalesTrainingsMatrix({
   canEdit = true,
   aggregateOnly = true,
   clubId = '',
+  showPayroll = true,
 }) {
   const typedColumns = useMemo(() => typedTrainingsMatrixColumns(columns), [columns])
 
@@ -66,6 +70,11 @@ export function SalesTrainingsMatrix({
   const clubAllTotal = aggregateOnly
     ? columns.reduce((s, col) => s + countCell(SALES_TRAINING_CLUB_ID, col.typeId), 0)
     : 0
+
+  const dayPay = useMemo(
+    () => computeClubTrainingsPayrollFromInputMap(matrix, _membershipTypes),
+    [_membershipTypes, matrix],
+  )
 
   const typesHref = clubId ? `/admin/membership-types?club=${encodeURIComponent(clubId)}` : '/admin/membership-types'
 
@@ -112,6 +121,13 @@ export function SalesTrainingsMatrix({
         Число <strong>тренировок за день</strong> по типу карты (Br, Vip, …). Одна строка «По клубу» — без
         разбивки по тренерам. Итого: <strong>{clubAllTotal}</strong> (типизировано:{' '}
         <strong>{typedTotal(SALES_TRAINING_CLUB_ID)}</strong>). «Без типа» — в ФОТ не входит.
+        {showPayroll ? (
+          <>
+            {' '}
+            ЗП дня = тренировки × ставка типа из{' '}
+            <Link to={typesHref}>Структура → Типы абон.</Link> (ПЗ).
+          </>
+        ) : null}
       </p>
 
       <div className="table-wrap admin-mem-type-table-wrap sales-trainings-matrix__scroll">
@@ -127,6 +143,9 @@ export function SalesTrainingsMatrix({
               ))}
               <th className="admin-mem-type-table__type-col sales-trainings-matrix__none-col">Без типа</th>
               <th className="admin-mem-type-table__sum-col">Итого</th>
+              {showPayroll ? (
+                <th className="admin-mem-type-table__num sales-trainings-matrix__total-col">ЗП дня</th>
+              ) : null}
             </tr>
           </thead>
           <tbody>
@@ -139,6 +158,11 @@ export function SalesTrainingsMatrix({
               <td className="admin-mem-type-table__num admin-mem-type-table__sum-col">
                 <strong>{typedTotal(SALES_TRAINING_CLUB_ID)}</strong>
               </td>
+              {showPayroll ? (
+                <td className="admin-mem-type-table__num sales-trainings-matrix__total-col">
+                  <strong>{formatRub(dayPay)}</strong>
+                </td>
+              ) : null}
             </tr>
           </tbody>
         </table>

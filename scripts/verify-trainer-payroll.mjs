@@ -7,6 +7,12 @@ import {
   parseTrainerPayRate,
 } from '../src/lib/admin/trainerPayrollCore.js'
 
+import {
+  computeClubTrainingsPayrollFromInputMap,
+  salesTrainingCellKey,
+  SALES_TRAINING_CLUB_ID,
+} from '../src/lib/admin/salesTrainingsMatrix.js'
+
 import { computeTrainerSelfPayroll } from '../src/lib/trainer/trainerSelfPayroll.js'
 
 let failed = 0
@@ -92,5 +98,11 @@ const selfPay = computeTrainerSelfPayroll({
   ],
 })
 ok(selfPay === 800, 'trainer self payroll one completed typed training')
+
+const clubMap = {
+  [salesTrainingCellKey(SALES_TRAINING_CLUB_ID, 't1')]: '2',
+  [salesTrainingCellKey(SALES_TRAINING_CLUB_ID, 't2')]: '1',
+}
+ok(computeClubTrainingsPayrollFromInputMap(clubMap, types) === 2100, 'club day payroll from input map')
 
 process.exit(failed > 0 ? 1 : 0)

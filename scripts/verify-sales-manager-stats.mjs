@@ -59,9 +59,12 @@ const rows = [
 const stats = buildSalesManagerMonthStats({
   monthRows: rows,
   planLevels: { level1: 1_000_000, level2: 1_100_000, level3: 1_200_000 },
+  membershipTypes: [{ id: 't1', code: 'NK', trainer_pay_per_session: 200, trainer_assignable: true }],
   year: 2026,
   month: 6,
 })
+
+ok(stats.summary.trainerPayroll === 1000, 'month trainer payroll from matrix')
 
 ok(stats.summary.profitTotal === 260000, 'month profit total')
 ok(stats.summary.pnkTotal === 4, 'pnk total')

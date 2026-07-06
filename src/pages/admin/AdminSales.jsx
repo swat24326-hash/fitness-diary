@@ -543,6 +543,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             aerobicTypeColumns={aerobicTypeColumns}
             fitCityTypeStats={fitCityTypeStats}
             clubId={clubId}
+            showPayroll={!isSalesManager}
           />
         </div>
       ) : null}
@@ -566,6 +567,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             onPrevMonth={() => shiftReportMonth(-1)}
             onNextMonth={() => shiftReportMonth(1)}
             onOpenDay={openDayReport}
+            showPayroll={false}
           />
         </div>
       ) : null}
@@ -600,6 +602,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             aerobicTypeColumns={aerobicTypeColumns}
             fitCityTypeStats={fitCityTypeStats}
             clubId={clubId}
+            showPayroll
           />
         </div>
       ) : !isSalesManager && salesTab === 'stats' ? (
@@ -615,6 +618,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             onPrevMonth={() => shiftReportMonth(-1)}
             onNextMonth={() => shiftReportMonth(1)}
             onOpenDay={openDayReport}
+            showPayroll
           />
         </div>
       ) : !isSalesManager ? (

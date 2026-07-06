@@ -1,5 +1,7 @@
 /** Матрица тренировок в отчёте продаж: тренер × тип абонемента. */
 
+import { buildTrainerPayRateMap, computePayrollFromMatrixRows } from './trainerPayrollCore.js'
+
 export const SALES_TRAINING_TYPE_NONE = '__none__'
 /** Синтетический id для ввода «по клубу» без разбивки по тренерам (менеджер). */
 export const SALES_TRAINING_CLUB_ID = '__club__'
@@ -210,4 +212,22 @@ export function normalizeMatrixRowsFromDb(raw) {
       count: Math.trunc(Number(row?.count) || 0),
     }))
     .filter((row) => row.trainer_id && row.count > 0)
+}
+
+/**
+ * ФОТ персонального зала за день из строки «По клубу» × ставки типов ПЗ.
+ * @param {Record<string, string>} inputMap
+ * @param {Array<{ id: string, trainer_pay_per_session?: number | string }>} membershipTypes
+ */
+export function computeClubTrainingsPayrollFromInputMap(inputMap, membershipTypes) {
+  const rateMap = buildTrainerPayRateMap(membershipTypes)
+  const rows = []
+  for (const t of membershipTypes ?? []) {
+    const typeId = String(t?.id ?? '').trim()
+    if (!typeId) continue
+    const count = parseMatrixCellCount(inputMap?.[salesTrainingCellKey(SALES_TRAINING_CLUB_ID, typeId)])
+    if (count <= 0) continue
+    rows.push({ trainer_id: SALES_TRAINING_CLUB_ID, membership_type_id: typeId, count })
+  }
+  return computePayrollFromMatrixRows(rows, rateMap).clubTotal
 }

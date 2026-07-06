@@ -47,5 +47,19 @@ export function stripSalesBundleForManager(bundle, isSalesManagerUser) {
     delete ms.netProfit
     next.month_summary = ms
   }
+  if (next.monthSummary && typeof next.monthSummary === 'object') {
+    const ms = { ...next.monthSummary }
+    delete ms.expense
+    delete ms.trainerPayroll
+    delete ms.aerobicPayroll
+    delete ms.netProfit
+    next.monthSummary = ms
+  }
   return next
+}
+
+/** Менеджер по продажам не видит ЗП/ФОТ в UI и API bundle. */
+export function canViewSalesPayroll(roleOrMode) {
+  const r = String(roleOrMode ?? '').trim()
+  return r !== 'sales_manager'
 }

@@ -40,6 +40,7 @@ const MATRIX_COLS = SALES_MATRIX_COLS
  *   aerobicTypeColumns?: Array<{ typeId: string, code: string }>,
  *   fitCityTypeStats?: object | null,
  *   clubId?: string,
+ *   showPayroll?: boolean,
  * }} props
  */
 export function SalesDailyForm({
@@ -64,6 +65,7 @@ export function SalesDailyForm({
   aerobicTypeColumns = [],
   fitCityTypeStats = null,
   clubId = '',
+  showPayroll = true,
 }) {
   const profit = useMemo(() => {
     const calc = computeProfitFromMatrix(form)
@@ -134,6 +136,7 @@ export function SalesDailyForm({
           canEdit={canEdit}
           aggregateOnly
           clubId={clubId}
+          showPayroll={showPayroll}
         />
       </div>
 
@@ -148,6 +151,7 @@ export function SalesDailyForm({
           onMatrixChange={onAerobicMatrixChange ?? (() => {})}
           canEdit={canEdit}
           clubId={clubId}
+          showPayroll={showPayroll}
         />
       </div>
 

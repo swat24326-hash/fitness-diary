@@ -19,6 +19,7 @@ import { SalesProfitDayChart } from './SalesProfitDayChart.jsx'
  *   onPrevMonth: () => void,
  *   onNextMonth: () => void,
  *   onOpenDay: (iso: string) => void,
+ *   showPayroll?: boolean,
  * }} props
  */
 export function SalesManagerStatsPanel({
@@ -32,6 +33,7 @@ export function SalesManagerStatsPanel({
   onPrevMonth,
   onNextMonth,
   onOpenDay,
+  showPayroll = false,
 }) {
   const trainerLabel = useMemo(() => {
     const byId = new Map(
@@ -113,6 +115,18 @@ export function SalesManagerStatsPanel({
           <span className="sales-report__kpi-label">Тренировок</span>
           <span className="sales-report__kpi-value">{summary.trainingsTotal}</span>
         </div>
+        {showPayroll ? (
+          <>
+            <div className="sales-report__kpi">
+              <span className="sales-report__kpi-label">ФОТ персонального зала</span>
+              <span className="sales-report__kpi-value">{formatRub(summary.trainerPayroll ?? 0)}</span>
+            </div>
+            <div className="sales-report__kpi">
+              <span className="sales-report__kpi-label">ЗП аэробного зала</span>
+              <span className="sales-report__kpi-value">{formatRub(summary.aerobicPayroll ?? 0)}</span>
+            </div>
+          </>
+        ) : null}
       </div>
 
       <div className="sales-report__card sales-report__stats-block">

@@ -15,6 +15,7 @@ import { formatRub } from '../lib/admin/salesReportCore.js'
  *   onMatrixChange: (next: Record<string, string>) => void,
  *   canEdit?: boolean,
  *   clubId?: string,
+ *   showPayroll?: boolean,
  * }} props
  */
 export function SalesAerobicMatrix({
@@ -24,6 +25,7 @@ export function SalesAerobicMatrix({
   onMatrixChange,
   canEdit = true,
   clubId = '',
+  showPayroll = true,
 }) {
   const typedColumns = useMemo(() => buildAerobicSalesMatrixColumns(membershipTypes), [membershipTypes])
 
@@ -77,7 +79,9 @@ export function SalesAerobicMatrix({
                   {col.code}
                 </th>
               ))}
-              <th className="admin-mem-type-table__num sales-trainings-matrix__total-col">ЗП дня</th>
+              {showPayroll ? (
+                <th className="admin-mem-type-table__num sales-trainings-matrix__total-col">ЗП дня</th>
+              ) : null}
             </tr>
           </thead>
           <tbody>
@@ -103,9 +107,11 @@ export function SalesAerobicMatrix({
                   )}
                 </td>
               ))}
-              <td className="admin-mem-type-table__num sales-trainings-matrix__total-col">
-                <strong>{formatRub(dayPay.clubTotal)}</strong>
-              </td>
+              {showPayroll ? (
+                <td className="admin-mem-type-table__num sales-trainings-matrix__total-col">
+                  <strong>{formatRub(dayPay.clubTotal)}</strong>
+                </td>
+              ) : null}
             </tr>
           </tbody>
         </table>

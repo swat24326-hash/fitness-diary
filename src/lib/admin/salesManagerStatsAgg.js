@@ -1,6 +1,9 @@
 /** Агрегаты статистики менеджера по продажам (без React / IDB). */
 
+import { aggregateAerobicPayrollFromDailyRows, buildAerobicPayRateMap } from './aerobicPayrollCore.js'
 import { sumMatrixTotalsFromDailyRows } from './geminiAnalyticsSnapshot.js'
+import { filterAerobicSalesTypes, filterTrainerAssignableTypes } from '../membershipTypesCore.js'
+import { aggregatePayrollFromDailyRows, buildTrainerPayRateMap } from './trainerPayrollCore.js'
 import {
   matrixRowsToMembershipStats,
   normalizeMatrixRowsFromDb,
@@ -193,6 +196,17 @@ export function buildSalesManagerMonthStats(opts) {
   const trainingsStats = aggregateTrainingsByMembershipTypes(monthRows, opts.membershipTypes ?? [])
   const trainingsTypedTotal = sumTypedMatrixRows(mergeTrainingsMatrixFromDailyRows(monthRows))
 
+  const trainerTypes = filterTrainerAssignableTypes(opts.membershipTypes ?? [])
+  const aerobicTypes = filterAerobicSalesTypes(opts.membershipTypes ?? [])
+  const trainerPayrollTotal = aggregatePayrollFromDailyRows(
+    monthRows,
+    buildTrainerPayRateMap(trainerTypes),
+  ).clubTotal
+  const aerobicPayrollTotal = aggregateAerobicPayrollFromDailyRows(
+    monthRows,
+    buildAerobicPayRateMap(aerobicTypes),
+  ).clubTotal
+
   const profitTotal = summary.profitTotal || 0
   const structure = [
     { key: 'nk', label: 'НК', amount: summary.profitNk, sharePercent: 0 },
@@ -214,6 +228,8 @@ export function buildSalesManagerMonthStats(opts) {
       ...summary,
       pnkTotal,
       daysInMonth,
+      trainerPayroll: trainerPayrollTotal,
+      aerobicPayroll: aerobicPayrollTotal,
     },
     plan: {
       finalTarget,
