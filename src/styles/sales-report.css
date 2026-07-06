@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: clamp(1rem, 2.5vw, 1.75rem);
-  max-width: 960px;
+  max-width: min(1280px, 100%);
   margin: 0 auto;
   padding-bottom: 2rem;
 }
@@ -516,9 +516,11 @@
 }
 
 .sales-report__matrix--flat {
-  min-width: 720px;
+  min-width: 860px;
   border-spacing: 0;
   border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
 }
 
 .sales-report__matrix-wrap {
@@ -661,8 +663,38 @@
 }
 
 .sales-report__matrix-dop-row td,
-.sales-report__matrix-dop-row th {
+.sales-report__matrix-dop-row th,
+.sales-report__matrix-extra-row td {
   border-top: 1px dashed rgba(148, 163, 184, 0.15);
+}
+
+.sales-report__matrix-cell-empty {
+  padding: 0.35rem 0.25rem;
+}
+
+.sales-report__matrix-total-field {
+  padding: 0.35rem 0.5rem;
+  text-align: right;
+}
+
+.sales-report__matrix-total-field .sales-report__matrix-input {
+  max-width: none;
+  width: 100%;
+  text-align: right;
+}
+
+.sales-report__matrix-row-total {
+  text-align: right;
+  padding-right: 0.5rem;
+  font-weight: 600;
+}
+
+.sales-report__matrix-summary-head--total {
+  min-width: 5.5rem;
+}
+
+.sales-report__matrix-profit-row--net td {
+  border-top: 1px dashed rgba(148, 163, 184, 0.12);
 }
 
 .sales-report__matrix-dop-field {
@@ -1352,20 +1384,25 @@
 }
 
 .sales-report__structure-head--plan {
-  grid-template-columns: 2rem 1fr auto auto;
+  grid-template-columns: 2rem minmax(0, 1fr) auto auto;
+  gap: 0.5rem 1.25rem;
 }
 
 .sales-report__structure-label {
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .sales-report__structure-sum {
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .sales-report__structure-pct {
   font-size: 0.78rem;
   color: rgba(148, 163, 184, 0.95);
+  min-width: 3.25rem;
+  text-align: right;
 }
 
 .sales-report__structure-plan-badge {
@@ -1377,6 +1414,7 @@
   border-radius: 999px;
   padding: 0.12rem 0.5rem;
   white-space: nowrap;
+  justify-self: end;
 }
 
 .sales-report__structure-plan-pct {
@@ -1888,7 +1926,7 @@
   }
 
   .sales-report--manager {
-    max-width: min(1180px, 92vw);
+    max-width: min(1280px, 94vw);
   }
 
   .sales-home__board .sales-home__hero,
@@ -1916,7 +1954,11 @@
   }
 
   .sales-report--manager {
-    max-width: 1200px;
+    max-width: min(1320px, 96vw);
+  }
+
+  .sales-report:not(.sales-report--manager) {
+    max-width: min(1280px, 96vw);
   }
 }
 

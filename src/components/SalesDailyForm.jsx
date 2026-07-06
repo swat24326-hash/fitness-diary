@@ -20,6 +20,14 @@ import { SalesAerobicMatrix } from './SalesAerobicMatrix.jsx'
 const MATRIX_HALL_ROWS = SALES_MATRIX_HALL_ROWS
 const MATRIX_COLS = SALES_MATRIX_COLS
 
+function MatrixEmptyCells({ prefix }) {
+  return MATRIX_COLS.flatMap((col) => [
+    <td key={`${prefix}-${col.suffix}-cnt`} className="sales-report__matrix-computed sales-report__matrix-cell-empty" />,
+    <td key={`${prefix}-${col.suffix}-sum`} className="sales-report__matrix-computed sales-report__matrix-cell-empty" />,
+    <td key={`${prefix}-${col.suffix}-avg`} className="sales-report__matrix-computed sales-report__matrix-cell-empty" />,
+  ])
+}
+
 /**
  * @param {{
  *   reportDate: string,
@@ -78,9 +86,7 @@ export function SalesDailyForm({
     return calc
   }, [form])
 
-  const setField = (key, value) => {
-    onFormChange({ ...form, [key]: value })
-  }
+  const setField = (key, value) => onFormChange({ ...form, [key]: value })
 
   return (
     <section className="sales-report__card" aria-labelledby="sales-daily-title">
@@ -162,9 +168,8 @@ export function SalesDailyForm({
         Матрица продаж
       </h3>
       <p className="muted sales-report__matrix-note">
-        В каждом столбце (НК, ДК, УК): количество абонементов, сумма продаж и средний чек. Доп. продажи — одной
-        суммой без разнесения по категориям. Возвраты — расход клуба, вычитаются из итога дня и чистой прибыли.
-        Прибыль по столбцу — сумма ячеек ПЗ/ТЗ/АЗ; итого без возвратов включает доп. продажи.
+        В каждом столбце (НК, ДК, УК): количество абонементов, сумма продаж и средний чек. Доп. продажи и возвраты — сумма
+        в колонке «Итого». Возвраты вычитаются из итога дня и чистой прибыли.
       </p>
       <div className="table-wrap sales-report__matrix-wrap">
         <table className="sales-report__matrix sales-report__matrix--flat">
@@ -181,6 +186,9 @@ export function SalesDailyForm({
               </th>
               <th rowSpan={2} className="sales-report__matrix-summary-head">
                 Ср. чек
+              </th>
+              <th rowSpan={2} className="sales-report__matrix-summary-head sales-report__matrix-summary-head--total">
+                Итого
               </th>
             </tr>
             <tr>
@@ -243,20 +251,23 @@ export function SalesDailyForm({
                   </td>
                   <td className="sales-report__matrix-computed">
                     <strong>{rowAvg != null ? formatRub(rowAvg) : '—'}</strong>
-                    {rowSum > 0 ? (
-                      <span className="sales-report__matrix-row-sum muted">{formatRub(rowSum)}</span>
-                    ) : null}
+                  </td>
+                  <td className="sales-report__matrix-computed sales-report__matrix-row-total">
+                    <strong>{rowSum > 0 ? formatRub(rowSum) : '—'}</strong>
                   </td>
                 </tr>
               )
             })}
-            <tr className="sales-report__matrix-dop-row">
+            <tr className="sales-report__matrix-extra-row">
               <td className="sales-report__matrix-row-label">{SALES_DOP_ROW.label}</td>
-              <td colSpan={MATRIX_COLS.length * 3} className="sales-report__matrix-field sales-report__matrix-dop-field">
+              <MatrixEmptyCells prefix="dop" />
+              <td className="sales-report__matrix-computed sales-report__matrix-cell-empty" />
+              <td className="sales-report__matrix-computed sales-report__matrix-cell-empty" />
+              <td className="sales-report__matrix-field sales-report__matrix-total-field">
                 <input
                   type="text"
                   inputMode="decimal"
-                  className="sales-report__matrix-input sales-report__matrix-input--dop"
+                  className="sales-report__matrix-input"
                   aria-label="Доп. продажи сумма за день"
                   value={form[SALES_DOP_FORM_SUM_KEY] ?? ''}
                   onChange={(e) => setField(SALES_DOP_FORM_SUM_KEY, e.target.value)}
@@ -264,12 +275,13 @@ export function SalesDailyForm({
                   placeholder="0"
                 />
               </td>
-              <td className="sales-report__matrix-computed">—</td>
-              <td className="sales-report__matrix-computed">—</td>
             </tr>
-            <tr className="sales-report__matrix-refunds-row">
+            <tr className="sales-report__matrix-extra-row">
               <td className="sales-report__matrix-row-label">Возвраты</td>
-              <td colSpan={MATRIX_COLS.length * 3} className="sales-report__matrix-field sales-report__matrix-dop-field">
+              <MatrixEmptyCells prefix="refunds" />
+              <td className="sales-report__matrix-computed sales-report__matrix-cell-empty" />
+              <td className="sales-report__matrix-computed sales-report__matrix-cell-empty" />
+              <td className="sales-report__matrix-field sales-report__matrix-total-field">
                 <input
                   type="text"
                   inputMode="decimal"
@@ -281,8 +293,6 @@ export function SalesDailyForm({
                   placeholder="0"
                 />
               </td>
-              <td className="sales-report__matrix-computed">—</td>
-              <td className="sales-report__matrix-computed">—</td>
             </tr>
             <tr className="sales-report__matrix-profit-row">
               <td className="sales-report__matrix-row-label">Прибыль (₽)</td>
@@ -291,28 +301,26 @@ export function SalesDailyForm({
                   <strong>{formatRub(profit[`profit_${col.suffix}`])}</strong>
                 </td>
               ))}
-              <td colSpan={2} className="sales-report__matrix-computed sales-report__matrix-profit-total">
+              <td className="sales-report__matrix-computed sales-report__matrix-cell-empty" />
+              <td className="sales-report__matrix-computed sales-report__matrix-cell-empty" />
+              <td className="sales-report__matrix-computed sales-report__matrix-row-total">
                 <strong>{formatRub(profit.profit_day_gross ?? profit.profit_day)}</strong>
-                <span className="sales-report__matrix-profit-note muted">без возвратов</span>
               </td>
             </tr>
+            {(Number(profit.refunds_amount) || 0) > 0 ? (
+              <tr className="sales-report__matrix-profit-row sales-report__matrix-profit-row--net">
+                <td className="sales-report__matrix-row-label">Итого за день</td>
+                <MatrixEmptyCells prefix="net" />
+                <td className="sales-report__matrix-computed sales-report__matrix-cell-empty" />
+                <td className="sales-report__matrix-computed sales-report__matrix-cell-empty" />
+                <td className="sales-report__matrix-computed sales-report__matrix-row-total">
+                  <strong>{formatRub(profit.profit_day)}</strong>
+                  <span className="sales-report__matrix-profit-note muted">с учётом возвратов</span>
+                </td>
+              </tr>
+            ) : null}
           </tbody>
         </table>
-      </div>
-
-      <div className="sales-report__metric-total" style={{ marginTop: '1rem' }}>
-        <span>Итого без возвратов</span>
-        <strong>{formatRub(profit.profit_day_gross ?? profit.profit_day)}</strong>
-      </div>
-      {(Number(profit.refunds_amount) || 0) > 0 ? (
-        <div className="sales-report__metric-total sales-report__metric-total--refunds">
-          <span>Возвраты</span>
-          <strong>−{formatRub(profit.refunds_amount)}</strong>
-        </div>
-      ) : null}
-      <div className="sales-report__metric-total sales-report__metric-total--net">
-        <span>Итого за день</span>
-        <strong>{formatRub(profit.profit_day)}</strong>
       </div>
 
       {canEdit ? (

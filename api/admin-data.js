@@ -27,6 +27,7 @@ import {
   querySalesPlanRow,
   SALES_DAILY_SELECT_BASE,
   SALES_DAILY_SELECT_FULL,
+  SALES_DAILY_SELECT_WITHOUT_REFUNDS,
 } from '../src/lib/admin/adminSalesQueryResilience.js'
 import { normalizeMatrixRowsFromDb } from '../src/lib/admin/salesTrainingsMatrix.js'
 import { normalizeAerobicRowsFromDb } from '../src/lib/admin/aerobicSalesMatrix.js'
@@ -612,8 +613,20 @@ async function handleSalesDailyPost(ctx, req, res, body) {
     .select(SALES_DAILY_SELECT_FULL)
     .single()
   if (error) {
-    const { matrix_amounts: _drop, ...rowWithoutAmounts } = row
+    const { refunds_amount: _refunds, ...rowWithoutRefunds } = row
+    void _refunds
+    const retry = await supabaseAdmin
+      .from('club_sales_daily')
+      .upsert(rowWithoutRefunds, { onConflict: 'club_id,report_date' })
+      .select(SALES_DAILY_SELECT_WITHOUT_REFUNDS)
+      .single()
+    data = retry.data
+    error = retry.error
+  }
+  if (error) {
+    const { matrix_amounts: _drop, refunds_amount: _refunds2, ...rowWithoutAmounts } = row
     void _drop
+    void _refunds2
     const retry = await supabaseAdmin
       .from('club_sales_daily')
       .upsert(rowWithoutAmounts, { onConflict: 'club_id,report_date' })

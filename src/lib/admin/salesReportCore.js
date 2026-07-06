@@ -88,6 +88,21 @@ export const SALES_MATRIX_KEYS = [
 
 export const SALES_MATRIX_HALL_KEYS = SALES_MATRIX_KEYS.filter((k) => !k.startsWith('dop_'))
 
+/** Месячный SELECT без refunds_amount (колонка может быть не применена). */
+export const SALES_MONTH_DAILY_SELECT_WITHOUT_REFUNDS = [
+  'report_date',
+  'profit_nk',
+  'profit_dk',
+  'profit_uk',
+  'profit_day',
+  'pnk_total',
+  'trainings_count',
+  'trainings_matrix',
+  'aerobic_sales_matrix',
+  'matrix_amounts',
+  ...SALES_MATRIX_KEYS,
+].join(', ')
+
 /** Поля club_sales_daily для агрегации месяца (статистика, матрица 3×3). */
 export const SALES_MONTH_DAILY_SELECT = [
   'report_date',

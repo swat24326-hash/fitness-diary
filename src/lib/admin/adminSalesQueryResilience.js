@@ -3,12 +3,16 @@
  */
 import {
   SALES_MONTH_DAILY_SELECT,
+  SALES_MONTH_DAILY_SELECT_WITHOUT_REFUNDS,
   SALES_MATRIX_HALL_KEYS,
   SALES_MATRIX_KEYS,
 } from './salesReportCore.js'
 
 export const SALES_DAILY_SELECT_FULL =
   'id, club_id, report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, aerobic_sales_matrix, matrix_amounts, refunds_amount, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, dop_nk, dop_dk, dop_uk, updated_at'
+
+export const SALES_DAILY_SELECT_WITHOUT_REFUNDS =
+  'id, club_id, report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, aerobic_sales_matrix, matrix_amounts, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, dop_nk, dop_dk, dop_uk, updated_at'
 
 export const SALES_DAILY_SELECT_BASE =
   'id, club_id, report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, dop_nk, dop_dk, dop_uk, updated_at'
@@ -29,7 +33,6 @@ export const SALES_MONTH_DAILY_SELECT_NO_AMOUNTS = [
   'trainings_count',
   'trainings_matrix',
   'aerobic_sales_matrix',
-  'refunds_amount',
   ...SALES_MATRIX_KEYS,
 ].join(', ')
 
@@ -73,6 +76,9 @@ export async function querySalesDailyRow(client, clubId, reportDate) {
 
   let res = await run(SALES_DAILY_SELECT_FULL)
   if (res.error && isMissingSalesColumnError(res.error)) {
+    res = await run(SALES_DAILY_SELECT_WITHOUT_REFUNDS)
+  }
+  if (res.error && isMissingSalesColumnError(res.error)) {
     res = await run(SALES_DAILY_SELECT_BASE)
   }
   return res
@@ -85,7 +91,12 @@ export async function querySalesDailyRow(client, clubId, reportDate) {
  * @param {string} end
  */
 export async function querySalesMonthRows(client, clubId, start, end) {
-  const selects = [SALES_MONTH_DAILY_SELECT, SALES_MONTH_DAILY_SELECT_NO_AMOUNTS, SALES_MONTH_DAILY_SELECT_LEGACY]
+  const selects = [
+    SALES_MONTH_DAILY_SELECT,
+    SALES_MONTH_DAILY_SELECT_WITHOUT_REFUNDS,
+    SALES_MONTH_DAILY_SELECT_NO_AMOUNTS,
+    SALES_MONTH_DAILY_SELECT_LEGACY,
+  ]
   let lastError = null
   for (const select of selects) {
     const res = await client

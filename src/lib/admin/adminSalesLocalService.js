@@ -23,6 +23,7 @@ import {
   querySalesPlanRow,
   SALES_DAILY_SELECT_BASE,
   SALES_DAILY_SELECT_FULL,
+  SALES_DAILY_SELECT_WITHOUT_REFUNDS,
 } from './adminSalesQueryResilience.js'
 import { normalizeMatrixRowsFromDb } from './salesTrainingsMatrix.js'
 import { normalizeAerobicRowsFromDb } from './aerobicSalesMatrix.js'
@@ -339,8 +340,20 @@ export async function saveClubSalesDailyViaSupabase({
     throw new Error(MIGRATION_HINT)
   }
   if (res.error && isMissingSalesColumnError(res.error)) {
-    const { matrix_amounts: _drop, ...rowWithoutAmounts } = row
+    const { refunds_amount: _refunds, ...rowWithoutRefunds } = row
+    void _refunds
+    res = await withSupabaseRetry(() =>
+      supabase
+        .from('club_sales_daily')
+        .upsert(rowWithoutRefunds, { onConflict: 'club_id,report_date' })
+        .select(SALES_DAILY_SELECT_WITHOUT_REFUNDS)
+        .single(),
+    )
+  }
+  if (res.error && isMissingSalesColumnError(res.error)) {
+    const { matrix_amounts: _drop, refunds_amount: _refunds2, ...rowWithoutAmounts } = row
     void _drop
+    void _refunds2
     res = await withSupabaseRetry(() =>
       supabase
         .from('club_sales_daily')
