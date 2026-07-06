@@ -139,8 +139,10 @@ export async function saveClubSalesDaily({
   reportDate,
   form,
   trainingsMatrixInput,
+  aerobicMatrixInput,
   trainerIds,
   membershipTypes,
+  aerobicMembershipTypes,
 }) {
   const token = await getAccessTokenForAdminApi()
   if (!token) throw new Error('Нет сессии — войдите снова')
@@ -150,8 +152,10 @@ export async function saveClubSalesDaily({
     report_date: reportDate,
     form,
     trainings_matrix_input: trainingsMatrixInput,
+    aerobic_matrix_input: aerobicMatrixInput,
     trainer_ids: trainerIds,
     membership_types: membershipTypes,
+    aerobic_membership_types: aerobicMembershipTypes,
   }
 
   try {
@@ -168,8 +172,10 @@ export async function saveClubSalesDaily({
     reportDate,
     form,
     trainingsMatrixInput,
+    aerobicMatrixInput,
     trainerIds,
     membershipTypes,
+    aerobicMembershipTypes,
   })
 }
 

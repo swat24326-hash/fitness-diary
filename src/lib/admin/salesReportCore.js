@@ -3,6 +3,7 @@
 
 
 import { inputMapToMatrixRows, sumMatrixRows } from './salesTrainingsMatrix.js'
+import { aerobicInputMapToRows } from './aerobicSalesMatrix.js'
 
 
 
@@ -562,7 +563,7 @@ export function dailyRowToForm(row) {
 
  * @param {Record<string, string>} form
 
- * @param {{ trainerIds?: string[], membershipTypes?: object[], matrixInput?: Record<string, string> } | null} opts
+ * @param {{ trainerIds?: string[], membershipTypes?: object[], matrixInput?: Record<string, string>, aerobicMatrixInput?: Record<string, string>, aerobicMembershipTypes?: object[] } | null} opts
 
  */
 
@@ -610,13 +611,15 @@ export function dailyFormToPayload(form, opts = null) {
 
   if (opts?.matrixInput && Array.isArray(opts.trainerIds)) {
 
+    const trainerTypes = (opts.membershipTypes ?? []).filter((t) => t?.trainer_assignable !== false)
+
     const parsedMatrix = inputMapToMatrixRows(
 
       opts.matrixInput,
 
       opts.trainerIds,
 
-      opts.membershipTypes ?? [],
+      trainerTypes,
 
     )
 
@@ -640,6 +643,26 @@ export function dailyFormToPayload(form, opts = null) {
 
 
 
+  let aerobic_sales_matrix = []
+
+  if (opts?.aerobicMatrixInput) {
+
+    const parsedAerobic = aerobicInputMapToRows(
+
+      opts.aerobicMatrixInput,
+
+      opts.aerobicMembershipTypes ?? [],
+
+    )
+
+    if (!parsedAerobic.ok) return parsedAerobic
+
+    aerobic_sales_matrix = parsedAerobic.rows
+
+  }
+
+
+
   const payload = {
 
     profit_nk,
@@ -653,6 +676,8 @@ export function dailyFormToPayload(form, opts = null) {
     trainings_count,
 
     trainings_matrix,
+
+    aerobic_sales_matrix,
 
     matrix_amounts: amountsParsed.matrix_amounts,
 

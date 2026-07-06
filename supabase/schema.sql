@@ -65,9 +65,12 @@ CREATE TABLE membership_types (
   sort_order INTEGER NOT NULL DEFAULT 0,
   is_active BOOLEAN NOT NULL DEFAULT true,
   trainer_pay_per_session NUMERIC(10, 2) NOT NULL DEFAULT 0,
+  trainer_assignable BOOLEAN NOT NULL DEFAULT true,
+  aerobic_pay_amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT membership_types_code_len CHECK (char_length(trim(code)) >= 1 AND char_length(trim(code)) <= 12),
-  CONSTRAINT membership_types_trainer_pay_nonneg CHECK (trainer_pay_per_session >= 0)
+  CONSTRAINT membership_types_trainer_pay_nonneg CHECK (trainer_pay_per_session >= 0),
+  CONSTRAINT membership_types_aerobic_pay_nonneg CHECK (aerobic_pay_amount >= 0)
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_membership_types_club_code_lower

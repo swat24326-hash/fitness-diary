@@ -20,7 +20,16 @@ import {
   normalizeMatrixRowsFromDb,
   SALES_TRAINING_CLUB_ID,
 } from '../../lib/admin/salesTrainingsMatrix'
-import { ensureMembershipTypesForClub, listMembershipTypesForClub } from '../../lib/membershipTypesService'
+import {
+  aerobicRowsToInputMap,
+  buildAerobicSalesMatrixColumns,
+  normalizeAerobicRowsFromDb,
+} from '../../lib/admin/aerobicSalesMatrix'
+import {
+  ensureMembershipTypesForClub,
+  filterAerobicSalesTypes,
+  listMembershipTypesForClub,
+} from '../../lib/membershipTypesService'
 import { humanizeNetworkError } from '../../lib/supabaseRetry'
 import {
   fetchClubSalesBundle,
@@ -110,10 +119,21 @@ export function AdminSales({ accessMode = 'admin' }) {
   const [trainers, setTrainers] = useState([])
   const [fitCityTypeStats, setFitCityTypeStats] = useState(null)
   const [trainingsMatrix, setTrainingsMatrix] = useState({})
+  const [aerobicMatrix, setAerobicMatrix] = useState({})
 
   const membershipTypeColumns = useMemo(
     () => buildTrainingsMatrixColumns(membershipTypes),
     [membershipTypes],
+  )
+
+  const aerobicMembershipTypes = useMemo(
+    () => filterAerobicSalesTypes(membershipTypes),
+    [membershipTypes],
+  )
+
+  const aerobicTypeColumns = useMemo(
+    () => buildAerobicSalesMatrixColumns(aerobicMembershipTypes),
+    [aerobicMembershipTypes],
   )
 
   const showToast = useCallback((text, tone = 'ok') => {
@@ -159,6 +179,7 @@ export function AdminSales({ accessMode = 'admin' }) {
           cols,
         ),
       )
+      setAerobicMatrix(aerobicRowsToInputMap(normalizeAerobicRowsFromDb(bundle.daily?.aerobic_sales_matrix)))
 
       if (bundle.warnings?.length) {
         setLoadHint(bundle.warnings.filter(Boolean).join(' '))
@@ -243,8 +264,10 @@ export function AdminSales({ accessMode = 'admin' }) {
         reportDate,
         form: dailyForm,
         trainingsMatrixInput: trainingsMatrix,
+        aerobicMatrixInput: aerobicMatrix,
         trainerIds: [SALES_TRAINING_CLUB_ID],
         membershipTypes,
+        aerobicMembershipTypes,
       })
       if (!row) {
         setError('API продаж недоступен')
@@ -259,6 +282,7 @@ export function AdminSales({ accessMode = 'admin' }) {
           cols,
         ),
       )
+      setAerobicMatrix(aerobicRowsToInputMap(normalizeAerobicRowsFromDb(row?.aerobic_sales_matrix)))
       await loadBundle()
       setVesselPulse((k) => k + 1)
       showToast('Отчёт сохранён')
@@ -513,6 +537,10 @@ export function AdminSales({ accessMode = 'admin' }) {
             membershipTypeColumns={membershipTypeColumns}
             trainingsMatrix={trainingsMatrix}
             onTrainingsMatrixChange={setTrainingsMatrix}
+            aerobicMatrix={aerobicMatrix}
+            onAerobicMatrixChange={setAerobicMatrix}
+            aerobicMembershipTypes={aerobicMembershipTypes}
+            aerobicTypeColumns={aerobicTypeColumns}
             fitCityTypeStats={fitCityTypeStats}
             clubId={clubId}
           />
@@ -566,6 +594,10 @@ export function AdminSales({ accessMode = 'admin' }) {
             membershipTypeColumns={membershipTypeColumns}
             trainingsMatrix={trainingsMatrix}
             onTrainingsMatrixChange={setTrainingsMatrix}
+            aerobicMatrix={aerobicMatrix}
+            onAerobicMatrixChange={setAerobicMatrix}
+            aerobicMembershipTypes={aerobicMembershipTypes}
+            aerobicTypeColumns={aerobicTypeColumns}
             fitCityTypeStats={fitCityTypeStats}
             clubId={clubId}
           />

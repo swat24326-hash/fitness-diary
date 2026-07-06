@@ -115,6 +115,7 @@ export function sumTypedMatrixRows(rows) {
 export function buildTrainingsMatrixColumns(membershipTypes, opts = {}) {
   const includeInactive = opts.includeInactive !== false
   const cols = (membershipTypes ?? [])
+    .filter((t) => t?.trainer_assignable !== false)
     .filter((t) => includeInactive || t?.is_active !== false)
     .sort(
       (a, b) =>

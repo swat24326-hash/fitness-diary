@@ -21,11 +21,17 @@ import {
   planFormToPayload,
 } from '../src/lib/admin/salesReportCore.js'
 import { normalizeMatrixRowsFromDb } from '../src/lib/admin/salesTrainingsMatrix.js'
+import { normalizeAerobicRowsFromDb } from '../src/lib/admin/aerobicSalesMatrix.js'
 import {
   aggregatePayrollFromDailyRows,
   buildTrainerPayRateMap,
   computeNetProfitWithPayroll,
 } from '../src/lib/admin/trainerPayrollCore.js'
+import {
+  aggregateAerobicPayrollFromDailyRows,
+  buildAerobicPayRateMap,
+} from '../src/lib/admin/aerobicPayrollCore.js'
+import { filterAerobicSalesTypes } from '../src/lib/membershipTypesCore.js'
 import { handleGeminiAnalyticsPost, handleGeminiAnalyticsPrefetchGet } from './_lib/geminiAnalyticsHandler.js'
 
 const PAGE = 400
@@ -430,7 +436,7 @@ async function handleExercises(authCtx, res) {
 }
 
 const SALES_DAILY_SELECT =
-  'id, club_id, report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, matrix_amounts, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, updated_at'
+  'id, club_id, report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, aerobic_sales_matrix, matrix_amounts, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, updated_at'
 
 const TRAINER_ROLES_SALES = new Set(TRAINER_ROLES)
 
@@ -481,7 +487,7 @@ async function handleSalesGet(ctx, req, res) {
       .maybeSingle(),
     supabaseAdmin
       .from('club_sales_daily')
-      .select('report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix')
+      .select('report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, aerobic_sales_matrix')
       .eq('club_id', clubId)
       .gte('report_date', start)
       .lte('report_date', end)
@@ -502,7 +508,7 @@ async function handleSalesGet(ctx, req, res) {
       .maybeSingle(),
     supabaseAdmin
       .from('membership_types')
-      .select('id, code, sort_order, is_active, trainer_pay_per_session')
+      .select('id, code, sort_order, is_active, trainer_assignable, trainer_pay_per_session, aerobic_pay_amount')
       .eq('club_id', clubId)
       .order('sort_order', { ascending: true }),
     fetchClubTrainersForSales(supabaseAdmin, clubId),
@@ -534,14 +540,19 @@ async function handleSalesGet(ctx, req, res) {
   const monthSummary = aggregateMonthFromDailyRows(monthRows)
   const expenseAmount = Number(expenseRes.data?.amount) || 0
   const membershipTypes = typesRes.data ?? []
+  const aerobicTypes = filterAerobicSalesTypes(membershipTypes)
   const payRateMap = buildTrainerPayRateMap(membershipTypes)
+  const aerobicRateMap = buildAerobicPayRateMap(aerobicTypes)
   const monthPayroll = aggregatePayrollFromDailyRows(monthRows, payRateMap)
+  const monthAerobicPayroll = aggregateAerobicPayrollFromDailyRows(monthRows, aerobicRateMap)
   monthSummary.expense = expenseAmount
   monthSummary.trainerPayroll = monthPayroll.clubTotal
+  monthSummary.aerobicPayroll = monthAerobicPayroll.clubTotal
   monthSummary.netProfit = computeNetProfitWithPayroll(
     monthSummary.profitTotal,
     monthPayroll.clubTotal,
     expenseAmount,
+    monthAerobicPayroll.clubTotal,
   )
 
   const fitCityTypeStats = aggregateMembershipTypeStats({
@@ -553,6 +564,9 @@ async function handleSalesGet(ctx, req, res) {
   const daily = dailyRes.data ?? null
   if (daily && daily.trainings_matrix != null) {
     daily.trainings_matrix = normalizeMatrixRowsFromDb(daily.trainings_matrix)
+  }
+  if (daily && daily.aerobic_sales_matrix != null) {
+    daily.aerobic_sales_matrix = normalizeAerobicRowsFromDb(daily.aerobic_sales_matrix)
   }
 
   sendJson(res, 200, stripSalesBundleForManager({
@@ -582,6 +596,10 @@ async function handleSalesDailyPost(ctx, req, res, body) {
     matrixInput: body?.trainings_matrix_input ?? null,
     trainerIds: Array.isArray(body?.trainer_ids) ? body.trainer_ids.map((x) => String(x)) : [],
     membershipTypes: Array.isArray(body?.membership_types) ? body.membership_types : [],
+    aerobicMatrixInput: body?.aerobic_matrix_input ?? null,
+    aerobicMembershipTypes: Array.isArray(body?.aerobic_membership_types)
+      ? body.aerobic_membership_types
+      : [],
   })
   if (!parsed.ok) {
     sendJson(res, 400, { error: parsed.error })

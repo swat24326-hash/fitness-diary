@@ -107,6 +107,7 @@ export function topTrainingsByCardType(rows, membershipTypes, limit = 5) {
  *   plan: object | null,
  *   expenseAmount?: number,
  *   payrollClubTotal?: number,
+ *   aerobicPayrollClubTotal?: number,
  *   includeFinance?: boolean,
  *   manualTrainingsTotal?: number,
  *   fitCityCompleted?: number,
@@ -131,6 +132,7 @@ export function buildGeminiSnapshot(opts) {
   const fitCity = Number(opts.fitCityCompleted) || 0
   const expense = Number(opts.expenseAmount) || 0
   const payroll = Number(opts.payrollClubTotal) || 0
+  const aerobicPayroll = Number(opts.aerobicPayrollClubTotal) || 0
   const includeFinance = opts.includeFinance !== false
   const membershipTypes = opts.membershipTypes ?? []
 
@@ -208,7 +210,8 @@ export function buildGeminiSnapshot(opts) {
     snapshot.finance = {
       supervisor_expense: expense,
       trainer_payroll: payroll,
-      net_profit: computeNetProfitWithPayroll(summary.profitTotal, payroll, expense),
+      aerobic_payroll: aerobicPayroll,
+      net_profit: computeNetProfitWithPayroll(summary.profitTotal, payroll, expense, aerobicPayroll),
       gross_before_expense: summary.profitTotal,
       net_without_payroll: computeNetProfit(summary.profitTotal, expense),
     }

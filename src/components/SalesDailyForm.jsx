@@ -12,6 +12,7 @@ import {
   salesMatrixRowSumTotal,
 } from '../lib/admin/salesReportCore.js'
 import { SalesTrainingsMatrix } from './SalesTrainingsMatrix.jsx'
+import { SalesAerobicMatrix } from './SalesAerobicMatrix.jsx'
 
 const MATRIX_ROWS = SALES_MATRIX_ROWS
 const MATRIX_COLS = SALES_MATRIX_COLS
@@ -33,6 +34,10 @@ const MATRIX_COLS = SALES_MATRIX_COLS
  *   membershipTypeColumns?: Array<{ typeId: string, code: string }>,
  *   trainingsMatrix?: Record<string, string>,
  *   onTrainingsMatrixChange?: (next: Record<string, string>) => void,
+ *   aerobicMatrix?: Record<string, string>,
+ *   onAerobicMatrixChange?: (next: Record<string, string>) => void,
+ *   aerobicMembershipTypes?: object[],
+ *   aerobicTypeColumns?: Array<{ typeId: string, code: string }>,
  *   fitCityTypeStats?: object | null,
  *   clubId?: string,
  * }} props
@@ -53,6 +58,10 @@ export function SalesDailyForm({
   membershipTypeColumns = [],
   trainingsMatrix = {},
   onTrainingsMatrixChange,
+  aerobicMatrix = {},
+  onAerobicMatrixChange,
+  aerobicMembershipTypes = [],
+  aerobicTypeColumns = [],
   fitCityTypeStats = null,
   clubId = '',
 }) {
@@ -124,6 +133,20 @@ export function SalesDailyForm({
           fitCityStats={fitCityTypeStats}
           canEdit={canEdit}
           aggregateOnly
+          clubId={clubId}
+        />
+      </div>
+
+      <div style={{ marginTop: '1rem' }}>
+        <h3 className="sales-report__section-title" style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>
+          Абонементы аэробного зала
+        </h3>
+        <SalesAerobicMatrix
+          columns={aerobicTypeColumns}
+          membershipTypes={aerobicMembershipTypes}
+          matrix={aerobicMatrix}
+          onMatrixChange={onAerobicMatrixChange ?? (() => {})}
+          canEdit={canEdit}
           clubId={clubId}
         />
       </div>

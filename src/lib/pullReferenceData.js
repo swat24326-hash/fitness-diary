@@ -39,7 +39,7 @@ export async function pullMembershipTypesForClubFromCloud(clubId) {
     const { data, error } = await withSupabaseRetry(() =>
       supabase
         .from('membership_types')
-        .select('id, club_id, code, sort_order, is_active, trainer_pay_per_session, created_at')
+        .select('id, club_id, code, sort_order, is_active, trainer_assignable, trainer_pay_per_session, aerobic_pay_amount, created_at')
         .eq('club_id', cid)
         .order('sort_order', { ascending: true }),
     )

@@ -4,7 +4,7 @@ import { getDb } from '../lib/localDb'
 import { deleteLocalWithSync, saveLocalWithSync } from '../lib/syncService'
 import { addDaysToIso, formatDateRu, formatDateTimeRu, todayLocalIso } from '../lib/dateRu'
 import { completedTrainingsOnMembership } from '../lib/membershipRules'
-import { ensureMembershipTypesForClub, membershipTypeCode } from '../lib/membershipTypesService'
+import { ensureMembershipTypesForClub, isTrainerAssignableMembershipType, membershipTypeCode } from '../lib/membershipTypesService'
 import { CheckCircle2, Eye, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
@@ -145,7 +145,7 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
   const typeOptionsForSelect = useCallback(
     (selectedTypeId) => {
       const sid = String(selectedTypeId ?? '').trim()
-      const active = membershipTypes.filter((t) => t.is_active !== false)
+      const active = membershipTypes.filter((t) => t.is_active !== false && isTrainerAssignableMembershipType(t))
       if (!sid) return active
       const cur = membershipTypes.find((t) => String(t.id) === sid)
       if (cur && cur.is_active === false && !active.some((t) => t.id === cur.id)) {

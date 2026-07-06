@@ -40,8 +40,9 @@ async function handleTrainerPayrollGet(ctx, req, res) {
   const [typesRes, dailyRes] = await Promise.all([
     supabaseAdmin
       .from('membership_types')
-      .select('id, code, sort_order, is_active, trainer_pay_per_session')
+      .select('id, code, sort_order, is_active, trainer_assignable, trainer_pay_per_session')
       .eq('club_id', clubId)
+      .eq('trainer_assignable', true)
       .order('sort_order', { ascending: true }),
     supabaseAdmin
       .from('club_sales_daily')

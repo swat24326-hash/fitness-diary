@@ -81,6 +81,17 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
         return (await canAccessClient(ctx, m.client_id)) ? { ok: true } : { ok: false, error: 'Нет доступа' }
       }
       if (!(await canAccessClient(ctx, clientId))) return { ok: false, error: 'Нет доступа к клиенту' }
+      const typeId = payload.membership_type_id
+      if (typeId) {
+        const { data: mt } = await supabaseAdmin
+          .from('membership_types')
+          .select('trainer_assignable')
+          .eq('id', typeId)
+          .maybeSingle()
+        if (mt?.trainer_assignable === false) {
+          return { ok: false, error: 'Этот тип абонемента недоступен для оформления тренером' }
+        }
+      }
       return { ok: true }
     }
 

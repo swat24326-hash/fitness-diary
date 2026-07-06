@@ -43,6 +43,7 @@ export function stripSalesBundleForManager(bundle, isSalesManagerUser) {
     const ms = { ...next.month_summary }
     delete ms.expense
     delete ms.trainerPayroll
+    delete ms.aerobicPayroll
     delete ms.netProfit
     next.month_summary = ms
   }

@@ -5,9 +5,13 @@ import { isSupabaseConfigured } from '../../lib/supabase'
 import {
   deactivateMembershipType,
   insertMembershipType,
+  insertAerobicMembershipType,
   listMembershipTypesForClub,
   normalizeMembershipTypeCode,
   updateMembershipTypePay,
+  updateAerobicMembershipPay,
+  filterAerobicSalesTypes,
+  filterTrainerAssignableTypes,
 } from '../../lib/membershipTypesService'
 import { pullMembershipTypesForClubFromCloud } from '../../lib/pullReferenceData'
 
@@ -17,12 +21,15 @@ export function AdminMembershipTypes() {
 
   const [items, setItems] = useState([])
   const [code, setCode] = useState('')
+  const [aerobicCode, setAerobicCode] = useState('')
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
   const [pullBusy, setPullBusy] = useState(false)
   const [confirmId, setConfirmId] = useState(null)
   const [payDraft, setPayDraft] = useState({})
+  const [aerobicPayDraft, setAerobicPayDraft] = useState({})
   const [paySavingId, setPaySavingId] = useState(null)
+  const [aerobicPaySavingId, setAerobicPaySavingId] = useState(null)
 
   const reloadLocal = useCallback(async () => {
     if (!clubId) {
@@ -44,12 +51,19 @@ export function AdminMembershipTypes() {
 
   useEffect(() => {
     const draft = {}
+    const aerobicDraft = {}
     for (const t of items) {
       const pay = t.trainer_pay_per_session
       draft[t.id] = pay == null || pay === '' ? '' : String(pay)
+      const aerobicPay = t.aerobic_pay_amount
+      aerobicDraft[t.id] = aerobicPay == null || aerobicPay === '' ? '' : String(aerobicPay)
     }
     setPayDraft(draft)
+    setAerobicPayDraft(aerobicDraft)
   }, [items])
+
+  const trainerItems = useMemo(() => filterTrainerAssignableTypes(items), [items])
+  const aerobicItems = useMemo(() => filterAerobicSalesTypes(items), [items])
 
   const savePay = async (typeId) => {
     const id = String(typeId ?? '').trim()
@@ -66,6 +80,24 @@ export function AdminMembershipTypes() {
       setMsg(err?.message ?? 'Ошибка сохранения ставки')
     } finally {
       setPaySavingId(null)
+    }
+  }
+
+  const saveAerobicPay = async (typeId) => {
+    const id = String(typeId ?? '').trim()
+    if (!id) return
+    setMsg('')
+    setAerobicPaySavingId(id)
+    try {
+      const cloud = await updateAerobicMembershipPay(id, aerobicPayDraft[id] ?? '')
+      if (!cloud.cloudOk) {
+        setMsg(`Стоимость сохранена локально, в облако не ушла: ${cloud.cloudError}. Нажмите Sync.`)
+      }
+      await reloadLocal()
+    } catch (err) {
+      setMsg(err?.message ?? 'Ошибка сохранения стоимости')
+    } finally {
+      setAerobicPaySavingId(null)
     }
   }
 
@@ -122,15 +154,63 @@ export function AdminMembershipTypes() {
     }
   }
 
+  const addAerobicType = async (e) => {
+    e.preventDefault()
+    if (!clubId) {
+      setMsg('Выберите клуб в шапке (?club=).')
+      return
+    }
+    const normalized = normalizeMembershipTypeCode(aerobicCode)
+    if (!normalized) {
+      setMsg('Введите короткое название типа.')
+      return
+    }
+    const duplicate = items.find(
+      (t) => String(t.code ?? '').toLowerCase() === normalized.toLowerCase(),
+    )
+    if (duplicate) {
+      setMsg(
+        duplicate.is_active === false
+          ? `Тип «${duplicate.code}» уже был — он отключён.`
+          : `Тип «${duplicate.code}» уже в списке.`,
+      )
+      return
+    }
+    setMsg('')
+    setBusy(true)
+    try {
+      const cloud = await insertAerobicMembershipType({ club_id: clubId, code: normalized })
+      if (!cloud.cloudOk) {
+        setMsg(`Сохранено локально, в облако не ушло: ${cloud.cloudError}. Нажмите Sync.`)
+      }
+      setAerobicCode('')
+      await reloadLocal()
+    } catch (err) {
+      setMsg(err?.message ?? 'Ошибка сохранения')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const { activeItems, inactiveItems } = useMemo(() => {
     const active = []
     const inactive = []
-    for (const t of items) {
+    for (const t of trainerItems) {
       if (t.is_active === false) inactive.push(t)
       else active.push(t)
     }
     return { activeItems: active, inactiveItems: inactive }
-  }, [items])
+  }, [trainerItems])
+
+  const { activeAerobicItems, inactiveAerobicItems } = useMemo(() => {
+    const active = []
+    const inactive = []
+    for (const t of aerobicItems) {
+      if (t.is_active === false) inactive.push(t)
+      else active.push(t)
+    }
+    return { activeAerobicItems: active, inactiveAerobicItems: inactive }
+  }, [aerobicItems])
 
   const runDeactivate = async () => {
     if (!confirmId) return
@@ -162,8 +242,9 @@ export function AdminMembershipTypes() {
     <div className="admin-membership-types grid" style={{ gap: 16 }}>
       <p className="muted admin-inline-note" style={{ margin: 0 }}>
         Короткие обозначения типов абонементов для этого клуба. Тренер выбирает тип при создании абонемента.
-        <strong> Оплата за тренировку</strong> — ставка для расчёта ЗП и ФОТ (одна на тип, «Без типа» не оплачивается).
-        Отключённый тип нельзя выбрать в новых абонементах; уже созданные остаются.
+        <strong> Оплата за тренировку</strong> — ставка для расчёта ЗП тренеров (одна на тип, «Без типа» не
+        оплачивается). Отдельно — типы <strong>аэробного зала</strong>: только для отчёта продаж и расчёта ЗП АЗ,
+        тренер их не оформляет.
       </p>
 
       <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -189,12 +270,12 @@ export function AdminMembershipTypes() {
             Добавленные типы
           </h3>
           <span className="muted admin-mt-catalog__count">
-            {items.length === 0
+            {trainerItems.length === 0
               ? 'пока нет'
               : `активных ${activeItems.length}${inactiveItems.length ? ` · отключённых ${inactiveItems.length}` : ''}`}
           </span>
         </div>
-        {items.length === 0 ? (
+        {trainerItems.length === 0 ? (
           <p className="muted admin-mt-catalog__empty">Список пуст — добавьте типы ниже.</p>
         ) : (
           <>
@@ -245,9 +326,9 @@ export function AdminMembershipTypes() {
         </button>
       </form>
 
-      {items.length > 0 ? (
+      {trainerItems.length > 0 ? (
         <div className="table-wrap admin-mt-table">
-          <p className="muted admin-mt-table__caption">Ставки и управление типами</p>
+          <p className="muted admin-mt-table__caption">Ставки тренеров и управление типами</p>
           <table>
             <thead>
               <tr>
@@ -258,7 +339,7 @@ export function AdminMembershipTypes() {
               </tr>
             </thead>
             <tbody>
-              {items.map((t) => (
+              {trainerItems.map((t) => (
                 <tr key={t.id} className={t.is_active === false ? 'muted' : undefined}>
                   <td>
                     <strong>{t.code}</strong>
@@ -274,6 +355,113 @@ export function AdminMembershipTypes() {
                       disabled={busy || paySavingId === t.id}
                       onChange={(e) => setPayDraft((prev) => ({ ...prev, [t.id]: e.target.value }))}
                       onBlur={() => void savePay(t.id)}
+                    />
+                  </td>
+                  <td>{t.is_active === false ? 'Отключён' : 'Активен'}</td>
+                  <td>
+                    {t.is_active !== false ? (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-icon-square"
+                        aria-label={`Отключить тип ${t.code}`}
+                        title="Отключить"
+                        disabled={busy}
+                        onClick={() => setConfirmId(t.id)}
+                      >
+                        <Trash2 size={16} aria-hidden />
+                      </button>
+                    ) : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
+      <section className="admin-mt-catalog" aria-labelledby="admin-mt-aerobic-title" style={{ marginTop: 24 }}>
+        <div className="admin-mt-catalog__head">
+          <h3 id="admin-mt-aerobic-title" className="admin-mt-catalog__title">
+            Аэробный зал
+          </h3>
+          <span className="muted admin-mt-catalog__count">
+            {aerobicItems.length === 0
+              ? 'пока нет'
+              : `активных ${activeAerobicItems.length}${inactiveAerobicItems.length ? ` · отключённых ${inactiveAerobicItems.length}` : ''}`}
+          </span>
+        </div>
+        <p className="muted admin-inline-note" style={{ margin: '0 0 12px' }}>
+          Только для отчёта менеджера по продажам. <strong>Стоимость (₽)</strong> — сумма зарплаты за одну продажу
+          этого типа.
+        </p>
+        {aerobicItems.length === 0 ? (
+          <p className="muted admin-mt-catalog__empty">Список пуст — добавьте типы ниже.</p>
+        ) : (
+          <>
+            {activeAerobicItems.length > 0 ? (
+              <ul className="admin-mt-catalog__chips" aria-label="Активные типы АЗ">
+                {activeAerobicItems.map((t) => (
+                  <li key={t.id}>
+                    <span className="admin-mt-chip admin-mt-chip--active">{t.code}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="muted admin-mt-catalog__empty">Нет активных типов АЗ.</p>
+            )}
+          </>
+        )}
+      </section>
+
+      <form onSubmit={addAerobicType} className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div className="field" style={{ margin: 0, minWidth: 120, flex: '1 1 140px' }}>
+          <label className="label" htmlFor="aerobic-type-code">
+            Тип АЗ
+          </label>
+          <input
+            id="aerobic-type-code"
+            className="input"
+            maxLength={12}
+            placeholder="Напр. Гр"
+            value={aerobicCode}
+            onChange={(e) => setAerobicCode(e.target.value)}
+            disabled={busy}
+          />
+        </div>
+        <button type="submit" className="btn btn-primary btn-touch" disabled={busy || !aerobicCode.trim()}>
+          Добавить тип АЗ
+        </button>
+      </form>
+
+      {aerobicItems.length > 0 ? (
+        <div className="table-wrap admin-mt-table">
+          <p className="muted admin-mt-table__caption">Стоимость и управление типами АЗ</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Тип</th>
+                <th>Стоимость / ЗП (₽)</th>
+                <th>Статус</th>
+                <th style={{ width: 56 }} />
+              </tr>
+            </thead>
+            <tbody>
+              {aerobicItems.map((t) => (
+                <tr key={t.id} className={t.is_active === false ? 'muted' : undefined}>
+                  <td>
+                    <strong>{t.code}</strong>
+                  </td>
+                  <td>
+                    <input
+                      className="input"
+                      type="text"
+                      inputMode="decimal"
+                      style={{ maxWidth: 120, minWidth: 88 }}
+                      aria-label={`Стоимость ${t.code}`}
+                      value={aerobicPayDraft[t.id] ?? ''}
+                      disabled={busy || aerobicPaySavingId === t.id}
+                      onChange={(e) => setAerobicPayDraft((prev) => ({ ...prev, [t.id]: e.target.value }))}
+                      onBlur={() => void saveAerobicPay(t.id)}
                     />
                   </td>
                   <td>{t.is_active === false ? 'Отключён' : 'Активен'}</td>

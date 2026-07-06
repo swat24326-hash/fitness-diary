@@ -5,11 +5,16 @@ import {
   aggregatePayrollFromDailyRows,
   buildTrainerPayRateMap,
 } from '../../src/lib/admin/trainerPayrollCore.js'
+import {
+  aggregateAerobicPayrollFromDailyRows,
+  buildAerobicPayRateMap,
+} from '../../src/lib/admin/aerobicPayrollCore.js'
+import { filterAerobicSalesTypes } from '../../src/lib/membershipTypesCore.js'
 import { buildGeminiSnapshot, previousMonthParts } from '../../src/lib/admin/geminiAnalyticsSnapshot.js'
 import { getCachedGeminiSnapshot, setCachedGeminiSnapshot } from './geminiAnalyticsCache.js'
 
 const SALES_MONTH_SELECT =
-  'report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk'
+  'report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, aerobic_sales_matrix, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk'
 
 async function fetchPaged(supabaseAdmin, table, select, clubId, dateFrom, dateTo) {
   const PAGE = 400
@@ -56,7 +61,7 @@ async function loadMonthRaw(supabaseAdmin, clubId, year, month) {
       .maybeSingle(),
     supabaseAdmin
       .from('membership_types')
-      .select('id, code, trainer_pay_per_session')
+      .select('id, code, trainer_assignable, trainer_pay_per_session, aerobic_pay_amount')
       .eq('club_id', clubId),
     fetchPaged(supabaseAdmin, 'trainings', 'id, trainer_id, client_id, date, status, data', clubId, start, end),
     fetchPaged(supabaseAdmin, 'clients', 'id, name, archived_at, trainer_id', clubId, null, null),
@@ -68,8 +73,11 @@ async function loadMonthRaw(supabaseAdmin, clubId, year, month) {
 
   const monthRows = monthRes.data ?? []
   const membershipTypes = typesRes.data ?? []
+  const aerobicTypes = filterAerobicSalesTypes(membershipTypes)
   const payRateMap = buildTrainerPayRateMap(membershipTypes)
+  const aerobicRateMap = buildAerobicPayRateMap(aerobicTypes)
   const payroll = aggregatePayrollFromDailyRows(monthRows, payRateMap)
+  const aerobicPayroll = aggregateAerobicPayrollFromDailyRows(monthRows, aerobicRateMap)
   const trainingAgg = aggregateTrainings(trainings)
   const clientPeriod = aggregateClubClientPeriod(clients, memberships, start, end)
   const typeStats = aggregateMembershipTypeStats({ trainings, memberships, membershipTypes })
@@ -80,6 +88,7 @@ async function loadMonthRaw(supabaseAdmin, clubId, year, month) {
     plan: planRes.data,
     expenseAmount: Number(expenseRes.data?.amount) || 0,
     payrollClubTotal: payroll.clubTotal,
+    aerobicPayrollClubTotal: aerobicPayroll.clubTotal,
     trainingAgg,
     inactiveInPeriod: clientPeriod.inactiveInPeriod ?? 0,
     fitCityCompleted,
@@ -114,6 +123,7 @@ export async function loadGeminiSnapshotForMonth(supabaseAdmin, clubId, year, mo
     plan: raw.plan,
     expenseAmount: raw.expenseAmount,
     payrollClubTotal: raw.payrollClubTotal,
+    aerobicPayrollClubTotal: raw.aerobicPayrollClubTotal,
     fitCityCompleted: raw.fitCityCompleted,
     inactiveInPeriod: raw.inactiveInPeriod,
     trainingCompleted: raw.trainingAgg.totalCompleted,

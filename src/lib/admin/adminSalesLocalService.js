@@ -16,27 +16,38 @@ import {
   planFormToPayload,
 } from './salesReportCore.js'
 import { normalizeMatrixRowsFromDb } from './salesTrainingsMatrix.js'
+import { normalizeAerobicRowsFromDb } from './aerobicSalesMatrix.js'
 import {
   aggregatePayrollFromDailyRows,
   buildTrainerPayRateMap,
   computeNetProfitWithPayroll,
 } from './trainerPayrollCore.js'
+import {
+  aggregateAerobicPayrollFromDailyRows,
+  buildAerobicPayRateMap,
+} from './aerobicPayrollCore.js'
+import { filterAerobicSalesTypes } from '../membershipTypesCore.js'
 
 const SALES_DAILY_SELECT_FULL =
-  'id, club_id, report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, matrix_amounts, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, updated_at'
+  'id, club_id, report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, aerobic_sales_matrix, matrix_amounts, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, updated_at'
 
 const SALES_DAILY_SELECT_BASE =
   'id, club_id, report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, updated_at'
 
 const MONTH_DAILY_SELECT =
-  'report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix'
+  'report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, aerobic_sales_matrix'
 
 const MIGRATION_HINT =
   'Таблицы продаж (club_sales) не найдены в Supabase — выполните миграцию supabase/migrations/20260624120000_club_sales.sql в SQL Editor.'
 
 function isMissingColumnError(err) {
   const m = String(err?.message ?? err ?? '').toLowerCase()
-  return m.includes('matrix_amounts') || m.includes('does not exist') || m.includes('column')
+  return (
+    m.includes('matrix_amounts') ||
+    m.includes('aerobic_sales_matrix') ||
+    m.includes('does not exist') ||
+    m.includes('column')
+  )
 }
 
 function isMissingTableError(err) {
@@ -130,7 +141,7 @@ async function loadMembershipTypes(clubId, warnings) {
     const typesRes = await withSupabaseRetry(() =>
       supabase
         .from('membership_types')
-        .select('id, code, sort_order, is_active, trainer_pay_per_session')
+        .select('id, code, sort_order, is_active, trainer_assignable, trainer_pay_per_session, aerobic_pay_amount')
         .eq('club_id', clubId)
         .order('sort_order', { ascending: true }),
     )
@@ -261,14 +272,19 @@ export async function fetchClubSalesBundleViaSupabase({ clubId, reportDate }) {
 
   const monthSummary = aggregateMonthFromDailyRows(monthRows)
   const expenseAmount = Number(expense?.amount) || 0
+  const aerobicTypes = filterAerobicSalesTypes(membershipTypes)
   const payRateMap = buildTrainerPayRateMap(membershipTypes)
+  const aerobicRateMap = buildAerobicPayRateMap(aerobicTypes)
   const monthPayroll = aggregatePayrollFromDailyRows(monthRows, payRateMap)
+  const monthAerobicPayroll = aggregateAerobicPayrollFromDailyRows(monthRows, aerobicRateMap)
   monthSummary.expense = expenseAmount
   monthSummary.trainerPayroll = monthPayroll.clubTotal
+  monthSummary.aerobicPayroll = monthAerobicPayroll.clubTotal
   monthSummary.netProfit = computeNetProfitWithPayroll(
     monthSummary.profitTotal,
     monthPayroll.clubTotal,
     expenseAmount,
+    monthAerobicPayroll.clubTotal,
   )
 
   let fitCityTypeStats = null
@@ -288,6 +304,9 @@ export async function fetchClubSalesBundleViaSupabase({ clubId, reportDate }) {
 
   if (daily?.trainings_matrix != null) {
     daily = { ...daily, trainings_matrix: normalizeMatrixRowsFromDb(daily.trainings_matrix) }
+  }
+  if (daily?.aerobic_sales_matrix != null) {
+    daily = { ...daily, aerobic_sales_matrix: normalizeAerobicRowsFromDb(daily.aerobic_sales_matrix) }
   }
 
   if (!membershipTypes.length && !salesTablesOk && warnings.length) {
@@ -324,13 +343,17 @@ export async function saveClubSalesDailyViaSupabase({
   reportDate,
   form,
   trainingsMatrixInput,
+  aerobicMatrixInput,
   trainerIds,
   membershipTypes,
+  aerobicMembershipTypes,
 }) {
   const parsed = dailyFormToPayload(form, {
     matrixInput: trainingsMatrixInput,
     trainerIds,
     membershipTypes,
+    aerobicMatrixInput,
+    aerobicMembershipTypes,
   })
   if (!parsed.ok) throw new Error(parsed.error)
 

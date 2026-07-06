@@ -9,22 +9,41 @@ import { saveLocalWithSync } from './syncService'
 import { pushRecordViaApi } from './syncApiClient'
 import { markRecordFromCloud, recordForPush } from './syncUnsyncedCore'
 import { parseTrainerPayRate } from './admin/trainerPayrollCore.js'
+import { parseAerobicPayRate } from './admin/aerobicPayrollCore.js'
+import {
+  filterAerobicSalesTypes,
+  filterTrainerAssignableTypes,
+  isTrainerAssignableMembershipType,
+} from './membershipTypesCore.js'
+
+export {
+  filterAerobicSalesTypes,
+  filterTrainerAssignableTypes,
+  isAerobicSalesMembershipType,
+  isTrainerAssignableMembershipType,
+} from './membershipTypesCore.js'
 
 export function normalizeMembershipTypeCode(raw) {
   return String(raw ?? '').trim().slice(0, 12)
 }
 
+
 function normalizeRow(row) {
   const codeRaw = row.code ?? row.name
   const payRaw = row.trainer_pay_per_session
   const payParsed = payRaw == null || payRaw === '' ? 0 : parseTrainerPayRate(payRaw)
+  const aerobicRaw = row.aerobic_pay_amount
+  const aerobicParsed = aerobicRaw == null || aerobicRaw === '' ? 0 : parseAerobicPayRate(aerobicRaw)
+  const trainerAssignable = row.trainer_assignable !== false
   return {
     ...row,
     code: normalizeMembershipTypeCode(codeRaw),
     club_id: String(row.club_id ?? '').trim(),
     sort_order: Number(row.sort_order) || 0,
     is_active: row.is_active !== false,
+    trainer_assignable: trainerAssignable,
     trainer_pay_per_session: Number.isNaN(payParsed) ? 0 : payParsed,
+    aerobic_pay_amount: Number.isNaN(aerobicParsed) ? 0 : aerobicParsed,
   }
 }
 
@@ -44,7 +63,7 @@ async function pushTypeOp(operation, row, remoteId) {
     : { cloudOk: false, cloudError: push.error ?? 'Не удалось отправить в облако' }
 }
 
-/** @param {string} clubId @param {{ activeOnly?: boolean }} [opts] */
+/** @param {string} clubId @param {{ activeOnly?: boolean, trainerAssignableOnly?: boolean, aerobicOnly?: boolean }} [opts] */
 export async function listMembershipTypesForClub(clubId, opts = {}) {
   const cid = String(clubId ?? '').trim()
   if (!cid) return []
@@ -52,6 +71,8 @@ export async function listMembershipTypesForClub(clubId, opts = {}) {
   const all = await db.getAll('membership_types')
   let list = all.filter((t) => String(t.club_id) === cid)
   if (opts.activeOnly) list = list.filter((t) => t.is_active !== false)
+  if (opts.trainerAssignableOnly) list = filterTrainerAssignableTypes(list)
+  if (opts.aerobicOnly) list = filterAerobicSalesTypes(list)
   return list.sort(
     (a, b) =>
       (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0) ||
@@ -146,7 +167,12 @@ export function membershipTypeCode(typesOrMap, typeId) {
 }
 
 /** @returns {Promise<{ cloudOk: boolean, cloudError?: string }>} */
-export async function insertMembershipType({ club_id, code, sort_order = 0 }) {
+export async function insertMembershipType({
+  club_id,
+  code,
+  sort_order = 0,
+  trainer_assignable = true,
+}) {
   const cid = String(club_id ?? '').trim()
   const normalizedCode = normalizeMembershipTypeCode(code)
   if (!cid || !normalizedCode) {
@@ -160,7 +186,9 @@ export async function insertMembershipType({ club_id, code, sort_order = 0 }) {
     code: normalizedCode,
     sort_order,
     is_active: true,
+    trainer_assignable: trainer_assignable !== false,
     trainer_pay_per_session: 0,
+    aerobic_pay_amount: 0,
     created_at: now,
   })
   await saveLocalWithSync('membership_types', row, {
@@ -209,6 +237,41 @@ export async function updateMembershipTypePay(id, rawPay) {
     remote_id: tid,
   })
   return pushTypeOp('update', row, tid)
+}
+
+/** @param {string} id @param {string|number} rawPay */
+export async function updateAerobicMembershipPay(id, rawPay) {
+  const tid = String(id ?? '').trim()
+  if (!tid) return { cloudOk: false, cloudError: 'Нет id типа' }
+  const pay = parseAerobicPayRate(rawPay)
+  if (Number.isNaN(pay)) {
+    return { cloudOk: false, cloudError: 'Стоимость: неотрицательное число' }
+  }
+
+  const db = await getDb()
+  const prev = await db.get('membership_types', tid)
+  if (!prev) return { cloudOk: false, cloudError: 'Тип не найден' }
+  if (isTrainerAssignableMembershipType(prev)) {
+    return { cloudOk: false, cloudError: 'Тип не относится к аэробному залу' }
+  }
+
+  const row = normalizeRow({ ...prev, aerobic_pay_amount: pay })
+  await saveLocalWithSync('membership_types', row, {
+    table_name: 'membership_types',
+    operation: 'update',
+    remote_id: tid,
+  })
+  return pushTypeOp('update', row, tid)
+}
+
+/** @returns {Promise<{ cloudOk: boolean, cloudError?: string }>} */
+export async function insertAerobicMembershipType({ club_id, code, sort_order = 0 }) {
+  return insertMembershipType({
+    club_id,
+    code,
+    sort_order,
+    trainer_assignable: false,
+  })
 }
 
 /** @param {string} clubId @param {object[]} remoteRows */

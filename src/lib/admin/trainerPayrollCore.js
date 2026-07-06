@@ -112,11 +112,12 @@ export function aggregatePayrollFromDailyRows(dailyRows, rateMap, opts = {}) {
   return { clubTotal: roundRub(clubTotal), byTrainer }
 }
 
-export function computeNetProfitWithPayroll(earnings, trainerPayroll, expense) {
+export function computeNetProfitWithPayroll(earnings, trainerPayroll, expense, aerobicPayroll = 0) {
   const e = Number(earnings) || 0
   const p = Number(trainerPayroll) || 0
+  const a = Number(aerobicPayroll) || 0
   const x = Number(expense) || 0
-  return roundRub(e - p - x)
+  return roundRub(e - p - a - x)
 }
 
 /** @param {{ byTrainerByType?: Array<{ trainerId: string, byType?: Array<{ typeId: string | null, count: number }> }> }} stats */

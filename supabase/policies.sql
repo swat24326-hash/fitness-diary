@@ -169,6 +169,7 @@ CREATE POLICY fit_membership_types_trainer_read
     public.fit_auth_is_trainer()
     AND club_id = public.fit_auth_trainer_club_id()
     AND public.fit_auth_trainer_club_id() IS NOT NULL
+    AND trainer_assignable IS NOT DISTINCT FROM true
   );
 
 -- -----------------------------------------------------------------------------
