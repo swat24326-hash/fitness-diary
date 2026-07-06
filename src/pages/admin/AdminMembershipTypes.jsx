@@ -162,7 +162,7 @@ export function AdminMembershipTypes() {
     setPullBusy(true)
     try {
       if (isSupabaseConfigured() && typeof navigator !== 'undefined' && navigator.onLine) {
-        const r = await pullMembershipTypesForClubFromCloud(clubId)
+        const r = await pullMembershipTypesForClubFromCloud(clubId, { forceFromCloud: true })
         if (!r.ok && r.error) setMsg(r.error)
       }
       await reloadLocal()

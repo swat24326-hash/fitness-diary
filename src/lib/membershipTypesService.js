@@ -125,7 +125,10 @@ export async function ensureMembershipTypesForClub(clubId, opts = {}) {
 
   try {
     const { pullMembershipTypesForClubFromCloud } = await import('./pullReferenceData.js')
-    const result = await pullMembershipTypesForClubFromCloud(cid)
+    const result = await pullMembershipTypesForClubFromCloud(
+      cid,
+      opts.force === true ? { forceFromCloud: true } : {},
+    )
     lastAutoPullByClub.set(cid, Date.now())
     if (result?.ok) {
       types = await listMembershipTypesForClub(cid, opts)
@@ -229,6 +232,9 @@ export async function updateMembershipTypePay(id, rawPay) {
   const db = await getDb()
   const prev = await db.get('membership_types', tid)
   if (!prev) return { cloudOk: false, cloudError: 'Тип не найден' }
+  if (!isTrainerAssignableMembershipType(prev)) {
+    return { cloudOk: false, cloudError: 'Тип относится к АЗ — меняйте стоимость в разделе аэробного зала' }
+  }
 
   const row = normalizeRow({ ...prev, trainer_pay_per_session: pay })
   await saveLocalWithSync('membership_types', row, {
@@ -274,17 +280,20 @@ export async function insertAerobicMembershipType({ club_id, code, sort_order = 
   })
 }
 
-/** @param {string} clubId @param {object[]} remoteRows */
-export async function mergeMembershipTypesForClub(clubId, remoteRows) {
+/** @param {string} clubId @param {object[]} remoteRows @param {{ forceFromCloud?: boolean }} [opts] */
+export async function mergeMembershipTypesForClub(clubId, remoteRows, opts = {}) {
   const cid = String(clubId ?? '').trim()
   if (!cid) return { count: 0 }
+  const forceFromCloud = opts.forceFromCloud === true
 
   const pendingIds = new Set()
-  for (const item of await listSyncQueue()) {
-    if (item.table_name !== 'membership_types') continue
-    if (item.operation !== 'insert' && item.operation !== 'update') continue
-    const id = String(item.remote_id ?? item.data?.id ?? '').trim()
-    if (id) pendingIds.add(id)
+  if (!forceFromCloud) {
+    for (const item of await listSyncQueue()) {
+      if (item.table_name !== 'membership_types') continue
+      if (item.operation !== 'insert' && item.operation !== 'update') continue
+      const id = String(item.remote_id ?? item.data?.id ?? '').trim()
+      if (id) pendingIds.add(id)
+    }
   }
 
   const remoteIds = new Set()
@@ -292,7 +301,7 @@ export async function mergeMembershipTypesForClub(clubId, remoteRows) {
     const id = String(row?.id ?? '').trim()
     if (!id || String(row.club_id) !== cid) continue
     remoteIds.add(id)
-    if (pendingIds.has(id)) continue
+    if (!forceFromCloud && pendingIds.has(id)) continue
     await putStore('membership_types', markRecordFromCloud(normalizeRow(row)))
   }
 
@@ -305,7 +314,8 @@ export async function mergeMembershipTypesForClub(clubId, remoteRows) {
   for (const local of await db.getAll('membership_types')) {
     if (String(local.club_id) !== cid) continue
     const id = String(local.id ?? '')
-    if (!id || remoteIds.has(id) || pendingIds.has(id)) continue
+    if (!id || remoteIds.has(id)) continue
+    if (!forceFromCloud && pendingIds.has(id)) continue
     await db.delete('membership_types', id)
   }
 

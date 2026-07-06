@@ -151,7 +151,7 @@ export function AdminSales({ accessMode = 'admin' }) {
       const cachedTypes = await listMembershipTypesForClub(clubId)
       if (cachedTypes.length) setMembershipTypes(cachedTypes)
 
-      const typesPromise = ensureMembershipTypesForClub(clubId, { force: !cachedTypes.length })
+      const typesPromise = ensureMembershipTypesForClub(clubId, { force: true })
       const bundle = await fetchClubSalesBundle({ clubId, reportDate })
       const ensured = await typesPromise
 

@@ -10,13 +10,13 @@ import { pullExercisesFromCloud } from './exerciseCatalog'
 
 export { pullExercisesFromCloud }
 
-export async function pullMembershipTypesForClubFromCloud(clubId) {
+export async function pullMembershipTypesForClubFromCloud(clubId, opts = {}) {
   const cid = String(clubId ?? '').trim()
   if (!cid || !isSupabaseConfigured()) return { ok: false, reason: 'no_club_or_supabase' }
 
   const mergeRows = async (rows, source) => {
     const { mergeMembershipTypesForClub, notifyMembershipTypesChanged } = await import('./membershipTypesService')
-    const { count } = await mergeMembershipTypesForClub(cid, rows)
+    const { count } = await mergeMembershipTypesForClub(cid, rows, opts)
     if (count > 0) notifyMembershipTypesChanged(cid, { count, source })
     return { ok: true, count, source }
   }
