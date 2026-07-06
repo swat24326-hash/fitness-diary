@@ -474,17 +474,6 @@ export function GeminiAnalyticsPanel({
           <div className="gemini-panel__gender" role="group" aria-label="Голос озвучки">
             <button
               type="button"
-              className={`gemini-panel__gender-btn${gender === 'male' ? ' gemini-panel__gender-btn--active' : ''}`}
-              onClick={() => {
-                setGender('male')
-                saveGeminiGender('male')
-                previewGeminiVoice('male')
-              }}
-            >
-              ♂ Голос
-            </button>
-            <button
-              type="button"
               className={`gemini-panel__gender-btn${gender === 'female' ? ' gemini-panel__gender-btn--active' : ''}`}
               onClick={() => {
                 setGender('female')
@@ -493,6 +482,17 @@ export function GeminiAnalyticsPanel({
               }}
             >
               ♀ Голос
+            </button>
+            <button
+              type="button"
+              className={`gemini-panel__gender-btn${gender === 'male' ? ' gemini-panel__gender-btn--active' : ''}`}
+              onClick={() => {
+                setGender('male')
+                saveGeminiGender('male')
+                previewGeminiVoice('male')
+              }}
+            >
+              ♂ Голос
             </button>
             <button
               type="button"
@@ -678,7 +678,7 @@ export function GeminiAnalyticsPanel({
         </form>
         {voiceSupported ? (
           <p className="gemini-panel__voice-hint muted">
-            {listening ? 'Слушаю… нажмите микрофон, чтобы остановить' : 'Микрофон — голосовой ввод · 🔊 — автоозвучка · ♂/♀ — голос TTS'}
+            {listening ? 'Слушаю… нажмите микрофон, чтобы остановить' : 'Микрофон — голосовой ввод · 🔊 — автоозвучка · ♀/♂ — голос TTS (по умолчанию женский)'}
           </p>
         ) : (
           <p className="gemini-panel__voice-hint muted">Голосовой ввод: Chrome или Edge на Android. Ответ можно озвучить 🔊</p>

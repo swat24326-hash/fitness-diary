@@ -104,6 +104,7 @@ export function compactSnapshotForPrompt(snapshot, selectedTrainerId = null) {
   return {
     club_name: snapshot.club_name,
     period: snapshot.period,
+    calendar_context: snapshot.calendar_context ?? null,
     sales_contour: {
       days_with_reports: sales.days_with_reports,
       report_coverage_pct: sales.report_coverage_pct,

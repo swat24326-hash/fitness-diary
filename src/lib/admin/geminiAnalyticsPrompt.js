@@ -2,6 +2,7 @@
 
 import { trimChatHistory, compactSnapshotForPrompt } from './geminiAnalyticsSnapshot.js'
 import { buildIskraSystemPrompt, buildPersona } from './geminiIskraCore.js'
+import { buildGeminiMonthCalendarContext } from './geminiMonthCalendarContext.js'
 
 export { buildPersona }
 
@@ -26,7 +27,7 @@ export const GEMINI_GENERATION_CONFIG_RETRY = {
 }
 
 export const GEMINI_RESPONSE_BRIEF_RULE =
-  'Ответ: 2–5 коротких предложений, до 90 слов. Язык бизнеса, без названий полей JSON и без «контуров». Без markdown и списков. Закончи полным предложением с точкой.'
+  'Ответ: 2–5 коротких предложений, до 90 слов. Язык бизнеса, лёгкий советский колорит ЭВМ (на связи, сводка), без названий полей JSON и без «контуров». Без markdown и списков. Закончи полным предложением с точкой.'
 
 /** Явный флаг или формулировка вопроса про прошлый месяц / динамику. */
 export function shouldComparePreviousMonth(userMessage) {
@@ -119,8 +120,12 @@ export function buildSystemPrompt(_gender, clubName, opts = {}) {
 export function buildGeminiPromptDataBlock(snapshot, previousSnapshot = null, opts = {}) {
   const selectedTrainerId = opts.selectedTrainerId ?? snapshot?.trainer_contour?.selected_trainer_id ?? null
   const current = compactSnapshotForPrompt(snapshot, selectedTrainerId)
+  const calendarContext =
+    snapshot?.calendar_context ??
+    buildGeminiMonthCalendarContext(snapshot?.period?.year, snapshot?.period?.month)
   const block = {
     analysis_period: current?.period?.label ?? '',
+    calendar_context: calendarContext,
     sales_contour: current?.sales_contour ?? null,
     trainer_contour: current?.trainer_contour ?? null,
     finance: current?.finance ?? null,

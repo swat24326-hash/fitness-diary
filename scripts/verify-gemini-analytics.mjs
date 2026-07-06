@@ -45,6 +45,11 @@ import {
 } from '../api/_lib/geminiAnalyticsResponseCache.js'
 import { buildGeminiPanelKpi, reportDateForMonth } from '../src/lib/admin/geminiPanelKpi.js'
 import { applyMonthComparisonInsights } from '../src/lib/admin/clubMonthAnalyticsCore.js'
+import {
+  buildGeminiMonthCalendarContext,
+  comparePlanToCalendar,
+  shouldFlagLowPlan,
+} from '../src/lib/admin/geminiMonthCalendarContext.js'
 
 let failed = 0
 
@@ -115,6 +120,7 @@ ok(snap.trainings?.manager_report_total === 18, 'manager trainings total')
 ok(snap.trainings?.gap_manager_minus_fit_city === 3, 'trainings gap')
 ok(Array.isArray(snap.data_sources?.analysis_hints), 'data source hints')
 ok(snap.sales.report_coverage_pct > 0, 'report coverage')
+ok(snap.calendar_context?.month_relation, 'snapshot calendar context')
 ok(periodLabelRu(2026, 6).includes('июнь'), 'period label')
 
 const matrix = sumMatrixTotalsFromDailyRows(rows)
@@ -143,14 +149,35 @@ ok(GEMINI_ANALYTICS_MODEL === 'gemini-2.5-flash-lite', 'default model lite')
 ok(buildSystemPrompt('male', 'X').includes('90 слов'), 'brief prompt rule')
 ok(buildSystemPrompt('male', 'X').includes('ЯЗЫК ОТВЕТА'), 'prompt business language')
 ok(buildSystemPrompt('male', 'Север').includes('sales_contour'), 'prompt internal sales contour')
+ok(buildSystemPrompt('male', 'X').includes('советск'), 'prompt soviet tone')
 ok(buildSystemPrompt('male', 'X').includes('НИЧЕГО НЕ СЧИТАЕШЬ'), 'prompt no calc rule')
+ok(buildSystemPrompt('male', 'X').includes('calendar_context'), 'prompt calendar rule')
+
+const midMonth = buildGeminiMonthCalendarContext(2026, 7, new Date(2026, 6, 15))
+ok(midMonth.phase === 'middle', 'calendar middle july 15')
+ok(midMonth.expected_plan_progress_pct === 48.4, 'calendar expected mid july')
+
+const finalDays = buildGeminiMonthCalendarContext(2026, 7, new Date(2026, 6, 28))
+ok(finalDays.phase === 'final_days', 'calendar final days')
+ok(finalDays.days_remaining === 3, 'calendar days remaining')
+
+const startMonth = buildGeminiMonthCalendarContext(2026, 7, new Date(2026, 6, 3))
+ok(startMonth.phase === 'start', 'calendar start')
+ok(comparePlanToCalendar(10, startMonth) === 'on_track', 'plan 10% ok at start')
+
+const lateMonth = buildGeminiMonthCalendarContext(2026, 7, new Date(2026, 6, 25))
+ok(comparePlanToCalendar(10, lateMonth) === 'behind', 'plan 10% behind late month')
+ok(!shouldFlagLowPlan(10, 10000, startMonth), 'no low plan flag at start for 10%')
+ok(shouldFlagLowPlan(10, 10000, lateMonth), 'low plan flag late month for 10%')
+
+const dataBlock = buildGeminiPromptDataBlock(snap)
+ok(dataBlock.calendar_context?.phase, 'prompt block calendar')
 const compact = compactSnapshotForPrompt(snap)
 ok(compact?.period?.label && !compact.operations, 'compact snapshot drops noise')
 ok(compact?.sales_contour?.pnk_total === 8, 'compact pnk')
 ok(compact?.sales_contour?.profit_nk === 6000, 'compact profit nk')
 ok(compact?.sales_contour?.achieved_plan_level === 2, 'compact achieved level')
 ok(compact?.sales_contour?.profit_day_highlights?.best_day?.date === '2026-06-15', 'compact best day')
-const dataBlock = buildGeminiPromptDataBlock(snap, null)
 ok(dataBlock.analysis_period && dataBlock.current_period && dataBlock.previous_period === undefined, 'prompt block no prev')
 ok(isGeminiReplyIncomplete('ЭВС ИСКРА, июль 202', 'MAX_TOKENS'), 'truncated reply detected')
 ok(!isGeminiReplyIncomplete('План на 45%, требуется усилить контроль по выручке.', 'STOP'), 'complete reply ok')

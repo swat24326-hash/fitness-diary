@@ -3,6 +3,7 @@
 import { ISKRA_NAME } from './geminiIskraCore.js'
 import { GEMINI_LEXICON_POOLS } from './geminiAnalyticsDomain.js'
 import { buildGeminiIntroReply, GEMINI_INTRO_CHIP } from './geminiAssistantIntro.js'
+import { formatCalendarContextLine } from './geminiMonthCalendarContext.js'
 import { formatRub } from './salesReportCore.js'
 import { periodLabelRu } from './geminiAnalyticsSnapshot.js'
 
@@ -197,8 +198,19 @@ function buildPlanReply(club, period, snapshot, insights, opener, closer, seed) 
   const achieved = Number(planInsight.achieved_level ?? sales.achieved_plan_level) || 0
 
   if (!planInsight.has_plan && plan <= 0) {
-    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: план продаж на месяц не задан. Отчётов ${days} дней, покрытие ${coverage}%. ${closer}.`
+    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: план продаж на месяц не задан. Отчётов ${days} дней, покрытие ${coverage}%.${formatCalendarContextLine(snapshot)} ${closer}.`
   }
+
+  const calLine = formatCalendarContextLine(snapshot)
+  const vsCalendar = planInsight.calendar_vs_plan
+  const calendarNote =
+    vsCalendar === 'behind'
+      ? ' Отставание от ориентира по дате.'
+      : vsCalendar === 'ahead'
+        ? ' Опережает ориентир по дате.'
+        : vsCalendar === 'on_track'
+          ? ' В рабочем темпе относительно даты.'
+          : ''
 
   const tone =
     planInsight.tone === 'strong'
@@ -210,7 +222,7 @@ function buildPlanReply(club, period, snapshot, insights, opener, closer, seed) 
   const levelLine =
     achieved > 0 ? ` Закрыт порог уровня ${achieved}.` : ' Финальный порог ещё не достигнут.'
 
-  return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: план ${pct}% — ${formatRub(profit)} из ${formatRub(plan)}, ${tone}.${levelLine} Отчётов ${days} дней (${coverage}%).${push} ${closer}.`
+  return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: план ${pct}% — ${formatRub(profit)} из ${formatRub(plan)}, ${tone}.${levelLine}${calLine}${calendarNote} Отчётов ${days} дней (${coverage}%).${push} ${closer}.`
 }
 
 function buildGapReply(club, period, insights, opener, closer, seed) {
@@ -364,7 +376,7 @@ function buildSalesCoverageReply(club, period, snapshot, insights, opener, close
   const days = Number(report.days_with_reports ?? sales.days_with_reports) || 0
   const total = Number(report.days_in_month ?? snapshot.period?.days_in_month) || 0
   const coverage = Number(report.coverage_pct ?? sales.report_coverage_pct) || 0
-  return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: отчётов ${days} из ${total} дней (${coverage}%). Без дневных отчётов выводы по продажам предварительные. ${closer}.`
+  return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: отчётов ${days} из ${total} дней (${coverage}%).${formatCalendarContextLine(snapshot)} Без дневных отчётов выводы по продажам предварительные. ${closer}.`
 }
 
 function buildSalesStructureReply(club, period, insights, opener, closer) {

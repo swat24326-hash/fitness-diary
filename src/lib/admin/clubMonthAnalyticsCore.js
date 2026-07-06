@@ -14,6 +14,12 @@ import {
 import { buildSalesManagerMonthStats } from './salesManagerStatsAgg.js'
 import { computeNetProfitWithPayroll } from './trainerPayrollCore.js'
 import { buildGeminiDataSourcesMeta } from './geminiAnalyticsDomain.js'
+import {
+  buildGeminiMonthCalendarContext,
+  comparePlanToCalendar,
+  planToneWithCalendar,
+  shouldFlagLowPlan,
+} from './geminiMonthCalendarContext.js'
 
 export const MONTH_LABELS_RU = [
   'январь',
@@ -58,12 +64,6 @@ export const INACTIVE_ISSUE = 5
 
 function round1(n) {
   return Math.round(Number(n) * 10) / 10
-}
-
-function planTone(pct) {
-  if (pct >= PLAN_TONE_STRONG_PCT) return 'strong'
-  if (pct >= PLAN_TONE_OK_PCT) return 'ok'
-  return 'weak'
 }
 
 function pnkTone(total) {
@@ -124,6 +124,7 @@ function fitcityStatus(managerTotal, fitCityTotal) {
  *   inactiveInPeriod: number,
  *   finance?: object | null,
  *   includeFinance?: boolean,
+ *   calendarContext?: ReturnType<typeof buildGeminiMonthCalendarContext> | null,
  * }} opts
  */
 export function buildClubMonthInsights(opts) {
@@ -136,6 +137,7 @@ export function buildClubMonthInsights(opts) {
   const dayCount = summary.dayCount
   const daysInMonth = summary.daysInMonth
   const coveragePct = daysInMonth > 0 ? round1((dayCount / daysInMonth) * 100) : 0
+  const calendarContext = opts.calendarContext ?? null
   const managerTotal = Number(opts.managerTrainingsTotal) || 0
   const fitCityTotal = Number(opts.fitCityCompleted) || 0
   const gap = managerTotal - fitCityTotal
@@ -159,11 +161,17 @@ export function buildClubMonthInsights(opts) {
       text: `база отчётов ${coveragePct}% — цифры сырые`,
     })
   }
-  if (planTotal > 0 && planPct < PLAN_WEAK_PCT) {
+  if (planTotal > 0 && shouldFlagLowPlan(planPct, planTotal, calendarContext)) {
+    const vsCalendar = comparePlanToCalendar(planPct, calendarContext)
+    const expected = calendarContext?.expected_plan_progress_pct
+    const text =
+      calendarContext?.month_relation === 'current' && vsCalendar === 'behind' && expected != null
+        ? `план ${planPct}% при ориентире ~${expected}% к дате — отставание`
+        : `план продаж ${planPct}% — просадка`
     issues.push({
       id: 'low_plan',
       weight: 50 - planPct,
-      text: `план продаж ${planPct}% — просадка`,
+      text,
     })
   }
   if (gap > FITCITY_GAP_ISSUE) {
@@ -197,13 +205,15 @@ export function buildClubMonthInsights(opts) {
   const insights = {
     plan: {
       pct: planPct,
-      tone: planTone(planPct),
+      tone: planToneWithCalendar(planPct, calendarContext),
       achieved_level: stats.plan.achievedLevel,
       has_plan: planTotal > 0,
       profit_total: profitTotal,
       profit_gross_for_plan: resolvePlanFactFromMonthSummary(summary),
       refunds_total: summary.refundsTotal ?? 0,
       plan_total: planTotal,
+      calendar_expected_pct: calendarContext?.expected_plan_progress_pct ?? null,
+      calendar_vs_plan: comparePlanToCalendar(planPct, calendarContext),
     },
     pnk: {
       total: pnkTotal,
@@ -242,6 +252,10 @@ export function buildClubMonthInsights(opts) {
       coverage_pct: coveragePct,
       avg_profit_per_report_day:
         dayCount > 0 ? Math.round((profitTotal / dayCount) * 100) / 100 : 0,
+      calendar_phase: calendarContext?.phase_label_ru ?? null,
+      calendar_day: calendarContext?.calendar_day ?? null,
+      calendar_days_remaining: calendarContext?.days_remaining ?? null,
+      calendar_month_relation: calendarContext?.month_relation ?? null,
     },
     payroll: {
       trainer_total: summary.trainerPayroll,
@@ -365,6 +379,7 @@ export function buildClubMonthAnalytics(opts) {
   const profitDayHighlights = profitDayHighlightsFromSeries(stats.dailySeries)
   const { start, end } = monthDateRange(year, month)
   const daysInMonth = stats.summary.daysInMonth
+  const calendarContext = buildGeminiMonthCalendarContext(year, month)
 
   /** @type {Record<string, unknown> | undefined} */
   let finance
@@ -386,6 +401,7 @@ export function buildClubMonthAnalytics(opts) {
     inactiveInPeriod: Number(opts.inactiveInPeriod) || 0,
     finance,
     includeFinance,
+    calendarContext,
   })
 
   return {
@@ -398,6 +414,7 @@ export function buildClubMonthAnalytics(opts) {
       to: end,
       days_in_month: daysInMonth,
     },
+    calendar_context: calendarContext,
     sales: {
       days_with_reports: summary.dayCount,
       report_coverage_pct: insights.report.coverage_pct,

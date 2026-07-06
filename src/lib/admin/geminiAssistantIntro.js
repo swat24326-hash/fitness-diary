@@ -66,9 +66,13 @@ function introContext(opts = {}) {
   return { name: ISKRA_NAME, fullName: ISKRA_FULL_NAME, club, period, clubPhrase, hasClub }
 }
 
-function kpiTail(kpi) {
+function kpiTail(kpi, snapshot) {
   if (!kpi) return ''
   const parts = []
+  const cal = snapshot?.calendar_context
+  if (cal?.month_relation === 'current' && cal.calendar_day) {
+    parts.push(`сегодня ${cal.calendar_day}-е число`)
+  }
   if (kpi.hasPlan) parts.push(`план ${kpi.planPct}%`)
   if (kpi.reportsLabel) parts.push(`отчётов ${kpi.reportsLabel}`)
   if (!parts.length) return ''
@@ -77,7 +81,7 @@ function kpiTail(kpi) {
 
 function coverageNote(kpi) {
   if (!kpi || kpi.reportCoveragePct >= 30) return ''
-  return ' Отчётов пока мало — буду осторожна с выводами.'
+  return ' Отчётов пока мало — выводы предварительные, держу на контроле.'
 }
 
 const BUSINESS_CAPABILITIES =
@@ -86,7 +90,7 @@ const BUSINESS_CAPABILITIES =
 export function buildGeminiIntroReply(kind, opts = {}) {
   const kpi = opts.kpi ?? kpiHintsFromSnapshot(opts.snapshot) ?? null
   const ctx = introContext(opts)
-  const tail = kpiTail(kpi)
+  const tail = kpiTail(kpi, opts.snapshot)
   const coverage = coverageNote(kpi)
 
   switch (kind) {
@@ -110,28 +114,28 @@ function buildMicroIntro(ctx, kpi, tail, coverage) {
   const { name, fullName, clubPhrase, period, hasClub } = ctx
 
   if (!hasClub) {
-    return `${fullName} на связи. Выберите филиал в шапке — подготовлю аналитику за ${period}.`
+    return `${fullName} на связи. Выберите филиал в шапке — подготовлю сводку за ${period}.`
   }
 
   if (kpi && !kpi.hasPlan && (kpi.reportCoveragePct || 0) < 15) {
-    return `${name}, ваш аналитик по ${clubPhrase}, ${period}. База ещё не заполнена — покажу, что уже есть, и на что обратить внимание.${coverage}`
+    return `${name} на связи, ${fullName} по ${clubPhrase}, ${period}. База ещё не заполнена — покажу, что уже есть, и на что обратить внимание.${coverage}`
   }
 
-  return `${name}, ${fullName} по ${clubPhrase}, ${period}. Готова разобрать продажи, финансы и работу тренеров.${tail}${coverage}`
+  return `${name} на связи. ${fullName} по ${clubPhrase}, ${period}. Данные приняты — готова разобрать продажи, финансы и работу тренеров.${tail}${coverage}`
 }
 
 function buildStandardIntro(ctx, tail, coverage) {
   const { name, fullName, clubPhrase, period, hasClub } = ctx
 
   if (!hasClub) {
-    return `${fullName} — аналитика FIT-CITY для руководителя. Работаю по одному филиалу: выберите клуб в шапке. Цифры беру из ваших отчётов и системы, сама не пересчитываю.`
+    return `${fullName} на связи — аналитика FIT-CITY для руководителя. Работаю по одному филиалу: выберите клуб в шапке. Цифры беру из ваших отчётов и системы, сама не пересчитываю.`
   }
 
   return (
-    `${name}, ${fullName} по ${clubPhrase}, ${period}. ` +
+    `${name} на связи. ${fullName} по ${clubPhrase}, ${period}. ` +
     `Помогаю руководителю держать руку на пульсе: ${BUSINESS_CAPABILITIES}. ` +
-    `Все цифры — из отчётов менеджера и данных тренеров с планшетов, без выдумок.${tail}${coverage} ` +
-    `Спросите текстом или нажмите кнопку ниже.`
+    `Все цифры — по разрешённым источникам: отчёты менеджера и данные тренеров с планшетов, без выдумок.${tail}${coverage} ` +
+    `Задайте вопрос текстом или нажмите кнопку ниже.`
   )
 }
 
@@ -162,7 +166,7 @@ function buildIdentityIntro(ctx) {
   const scope = hasClub ? ` по ${clubPhrase}` : ''
 
   return (
-    `${fullName} — встроенный аналитик приложения FIT-CITY${scope}, не внешний чат. ` +
+    `${fullName} — встроенная советская ЭВМ приложения FIT-CITY${scope}, не внешний чат. ` +
     `Читаю ваши отчёты и агрегаты системы, помогаю принимать решения по цифрам клуба.`
   )
 }
@@ -187,8 +191,10 @@ export function buildGeminiMicroIntro(opts = {}) {
 
 export function buildGeminiSelfPresentationRule() {
   return [
-    'Если спрашивают кто ты — представься как ЭВС «ИСКРА», модуль FIT-CITY, НЕ Google/Gemini/ChatGPT.',
+    'Если спрашивают кто ты — представься как ЭВС «ИСКРА», советская ЭВМ FIT-CITY, НЕ Google/Gemini/ChatGPT.',
+    'Лёгкий советский колорит: на связи, сводка, данные приняты — без лозунгов и пародий.',
     'Говори языком бизнеса: чем полезна по продажам и тренерам. Без названий полей JSON и без «контуров».',
     'Цифры только из данных; сама не считаешь.',
+    'Учитывай calendar_context: фаза месяца и ориентир плана к сегодняшней дате.',
   ].join(' ')
 }

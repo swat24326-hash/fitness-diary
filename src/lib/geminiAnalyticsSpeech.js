@@ -16,11 +16,15 @@ export function loadGeminiGender() {
 
     const v = localStorage.getItem(GENDER_STORAGE_KEY)
 
-    return v === 'female' ? 'female' : 'male'
+    if (v === 'male') return 'male'
+
+    if (v === 'female') return 'female'
+
+    return 'female'
 
   } catch {
 
-    return 'male'
+    return 'female'
 
   }
 
@@ -150,7 +154,7 @@ function pickVoice(gender, voices) {
 
 
 
-  const preferFemale = [/milena/i, /google.*ru.*female/i, /katya/i, /anna/i, /жен/i, /female/i]
+  const preferFemale = [/Microsoft.*Irina/i, /Google.*русский/i, /irina/i, /milena/i, /svetlana/i, /katya/i, /anna/i, /жен/i, /female/i]
 
   const preferMale = [/dmitri/i, /google.*ru.*male/i, /pavel/i, /yuri/i, /муж/i, /male/i]
 
@@ -196,9 +200,9 @@ export async function speakGeminiText(text, gender = 'male') {
 
   utter.lang = 'ru-RU'
 
-  utter.rate = gender === 'female' ? 1.06 : 0.98
+  utter.rate = gender === 'female' ? 0.94 : 0.98
 
-  utter.pitch = gender === 'female' ? 1.07 : 0.93
+  utter.pitch = gender === 'female' ? 1.02 : 0.93
 
   utter.volume = 1
 
@@ -218,8 +222,8 @@ export async function speakGeminiText(text, gender = 'male') {
 
 
 
-export function previewGeminiVoice(_gender = 'male') {
-  void speakGeminiText(`${ISKRA_NAME} на связи`, _gender)
+export function previewGeminiVoice(_gender = 'female') {
+  void speakGeminiText(`${ISKRA_NAME} на связи. ЭВМ готова к работе`, _gender)
 }
 
 
