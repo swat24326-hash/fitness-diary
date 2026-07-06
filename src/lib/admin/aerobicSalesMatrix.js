@@ -71,3 +71,28 @@ export function buildAerobicSalesMatrixColumns(membershipTypes, opts = {}) {
 export function sumAerobicRows(rows) {
   return (rows ?? []).reduce((s, r) => s + (Number(r.count) || 0), 0)
 }
+
+/**
+ * Сумма тренировок/продаж АЗ за месяц по типам (из aerobic_sales_matrix в отчётах).
+ * @param {Array<Record<string, unknown>>} dailyRows
+ * @param {Array<{ id: string, code?: string, sort_order?: number, is_active?: boolean }>} membershipTypes
+ */
+export function aggregateAerobicSalesFromDailyRows(dailyRows, membershipTypes) {
+  /** @type {Map<string, number>} */
+  const byTypeId = new Map()
+  for (const day of dailyRows ?? []) {
+    for (const row of normalizeAerobicRowsFromDb(day?.aerobic_sales_matrix)) {
+      const id = row.membership_type_id
+      byTypeId.set(id, (byTypeId.get(id) || 0) + row.count)
+    }
+  }
+  const columns = buildAerobicSalesMatrixColumns(membershipTypes)
+  const byType = columns.map((col) => ({
+    typeId: col.typeId,
+    code: col.code,
+    inactive: col.inactive,
+    count: byTypeId.get(col.typeId) || 0,
+  }))
+  const total = byType.reduce((s, row) => s + row.count, 0)
+  return { byType, total }
+}

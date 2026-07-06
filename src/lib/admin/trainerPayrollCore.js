@@ -120,6 +120,11 @@ export function computeNetProfitWithPayroll(earnings, trainerPayroll, expense, a
   return roundRub(e - p - a - x)
 }
 
+/** Выручка направления − ЗП зала (ПЗ или АЗ). */
+export function computeHallNetProfit(revenue, payroll) {
+  return roundRub((Number(revenue) || 0) - (Number(payroll) || 0))
+}
+
 /** @param {{ byTrainerByType?: Array<{ trainerId: string, byType?: Array<{ typeId: string | null, count: number }> }> }} stats */
 export function computePayrollFromMembershipStats(stats, rateMap, opts = {}) {
   const filter = opts.trainerIdFilter ? String(opts.trainerIdFilter).trim() : null

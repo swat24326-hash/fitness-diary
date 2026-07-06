@@ -971,6 +971,30 @@ export function buildCategoryStructure(summary, dopRub) {
  * @param {Record<string, number>} planDirections plan_pz, plan_tz, plan_az, plan_extra
  * @param {number} profitTotal
  */
+/**
+ * Чистая прибыль зала: выручка направления (ПЗ/АЗ из matrix_amounts) − ЗП зала.
+ * @param {Array<Record<string, unknown>>} monthRows
+ * @param {number} trainerPayroll ЗП персонального зала за месяц
+ * @param {number} aerobicPayroll ЗП аэробного зала за месяц
+ */
+export function buildHallFinanceSummary(monthRows, trainerPayroll, aerobicPayroll) {
+  const rub = sumDirectionRubFromDailyRows(monthRows)
+  const trainerPay = Math.round((Number(trainerPayroll) || 0) * 100) / 100
+  const aerobicPay = Math.round((Number(aerobicPayroll) || 0) * 100) / 100
+  return {
+    pz: {
+      revenue: rub.pz,
+      payroll: trainerPay,
+      netProfit: Math.round((rub.pz - trainerPay) * 100) / 100,
+    },
+    az: {
+      revenue: rub.az,
+      payroll: aerobicPay,
+      netProfit: Math.round((rub.az - aerobicPay) * 100) / 100,
+    },
+  }
+}
+
 export function buildDirectionStructure(monthRows, planDirections, profitTotal) {
   const rub = sumDirectionRubFromDailyRows(monthRows)
   return SALES_DIRECTION_DEFS.map(({ key, label, planKey }) => {

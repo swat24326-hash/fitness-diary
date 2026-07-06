@@ -9,6 +9,7 @@ import { ADMIN_SYNC_BATCH_SIZE } from './adminConstants.js'
 import { aggregateMembershipTypeStats } from './membershipTypeStatsAgg.js'
 import {
   aggregateMonthFromDailyRows,
+  buildHallFinanceSummary,
   dailyFormToPayload,
   expenseFormToPayload,
   monthDateRange,
@@ -284,6 +285,11 @@ export async function fetchClubSalesBundleViaSupabase({ clubId, reportDate }) {
     monthSummary.profitTotal,
     monthPayroll.clubTotal,
     expenseAmount,
+    monthAerobicPayroll.clubTotal,
+  )
+  monthSummary.hallFinance = buildHallFinanceSummary(
+    monthRows,
+    monthPayroll.clubTotal,
     monthAerobicPayroll.clubTotal,
   )
 

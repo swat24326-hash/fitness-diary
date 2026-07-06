@@ -725,6 +725,37 @@
   color: var(--accent-bright, #4ade80);
 }
 
+.sales-report__kpi--supplement {
+  border-style: dashed;
+  opacity: 0.95;
+}
+
+.sales-report__kpi-note {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.sales-report__hall-finance {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed rgba(148, 163, 184, 0.15);
+}
+
+.sales-report__hall-finance-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: rgba(226, 232, 240, 0.75);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sales-report__kpi-grid--compact {
+  margin-top: 0.35rem;
+}
+
 .sales-report__plan-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

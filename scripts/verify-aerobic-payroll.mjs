@@ -4,7 +4,7 @@ import {
   computeAerobicPayrollFromRows,
   parseAerobicPayRate,
 } from '../src/lib/admin/aerobicPayrollCore.js'
-import { aerobicInputMapToRows, normalizeAerobicRowsFromDb } from '../src/lib/admin/aerobicSalesMatrix.js'
+import { aerobicInputMapToRows, aggregateAerobicSalesFromDailyRows, normalizeAerobicRowsFromDb } from '../src/lib/admin/aerobicSalesMatrix.js'
 import { computeNetProfitWithPayroll } from '../src/lib/admin/trainerPayrollCore.js'
 import { normalizeMembershipTypePushPayload } from '../src/lib/admin/membershipTypePushPayload.js'
 import {
@@ -65,5 +65,15 @@ const azPush = normalizeMembershipTypePushPayload(
 )
 ok(azPush.ok && azPush.data.trainer_assignable === false, 'push payload keeps trainer_assignable false')
 ok(azPush.data.aerobic_pay_amount === 200, 'push payload keeps aerobic_pay_amount')
+
+const monthAgg = aggregateAerobicSalesFromDailyRows(
+  [
+    { aerobic_sales_matrix: [{ membership_type_id: 'az1', count: 2 }] },
+    { aerobic_sales_matrix: [{ membership_type_id: 'az1', count: 1 }, { membership_type_id: 'az2', count: 4 }] },
+  ],
+  types,
+)
+ok(monthAgg.total === 7, 'aerobic month aggregate total')
+ok(monthAgg.byType.find((x) => x.typeId === 'az2')?.count === 4, 'aerobic month by type')
 
 process.exit(failed > 0 ? 1 : 0)

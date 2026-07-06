@@ -51,6 +51,11 @@ export function SalesAerobicMatrix({
     return computeAerobicPayrollFromRows(rows, rateMap)
   }, [membershipTypes, typedColumns, matrix])
 
+  const rowTotal = useMemo(
+    () => typedColumns.reduce((sum, col) => sum + countCell(col.typeId), 0),
+    [typedColumns, matrix],
+  )
+
   const typesHref = clubId ? `/admin/membership-types?club=${encodeURIComponent(clubId)}` : '/admin/membership-types'
 
   if (!typedColumns.length) {
@@ -79,6 +84,7 @@ export function SalesAerobicMatrix({
                   {col.code}
                 </th>
               ))}
+              <th className="admin-mem-type-table__sum-col">Итого</th>
               {showPayroll ? (
                 <th className="admin-mem-type-table__num sales-trainings-matrix__total-col">ЗП дня</th>
               ) : null}
@@ -107,6 +113,9 @@ export function SalesAerobicMatrix({
                   )}
                 </td>
               ))}
+              <td className="admin-mem-type-table__num admin-mem-type-table__sum-col">
+                <strong>{rowTotal > 0 ? rowTotal : '—'}</strong>
+              </td>
               {showPayroll ? (
                 <td className="admin-mem-type-table__num sales-trainings-matrix__total-col">
                   <strong>{formatRub(dayPay.clubTotal)}</strong>
@@ -117,7 +126,7 @@ export function SalesAerobicMatrix({
         </table>
       </div>
       <p className="muted" style={{ margin: '0.5rem 0 0', fontSize: 12 }}>
-        Количество проданных абонементов АЗ × стоимость типа = зарплата аэробного зала за день. Тренер не оформляет
+        Количество тренировок/продаж АЗ по типам × ставка = ЗП аэробного зала за день. Тренер не оформляет
         эти типы клиентам.
       </p>
     </div>

@@ -1,6 +1,7 @@
 /** Агрегаты статистики менеджера по продажам (без React / IDB). */
 
 import { aggregateAerobicPayrollFromDailyRows, buildAerobicPayRateMap } from './aerobicPayrollCore.js'
+import { aggregateAerobicSalesFromDailyRows } from './aerobicSalesMatrix.js'
 import { sumMatrixTotalsFromDailyRows } from './salesReportCore.js'
 import { filterAerobicSalesTypes, filterTrainerAssignableTypes } from '../membershipTypesCore.js'
 import { aggregatePayrollFromDailyRows, buildTrainerPayRateMap } from './trainerPayrollCore.js'
@@ -13,6 +14,7 @@ import {
   aggregateMonthFromDailyRows,
   buildCategoryStructure,
   buildDirectionStructure,
+  buildHallFinanceSummary,
   computeProfitDay,
   monthDateRange,
   planProgressPercent,
@@ -219,6 +221,12 @@ export function buildSalesManagerMonthStats(opts) {
     opts.planDirections ?? {},
     profitTotal,
   )
+  const hallFinance = buildHallFinanceSummary(
+    monthRows,
+    trainerPayrollTotal,
+    aerobicPayrollTotal,
+  )
+  const aerobicStats = aggregateAerobicSalesFromDailyRows(monthRows, aerobicTypes)
 
   const { start, end } = monthDateRange(year, month)
 
@@ -240,6 +248,8 @@ export function buildSalesManagerMonthStats(opts) {
     },
     structure,
     directionStructure,
+    hallFinance,
+    aerobicStats,
     matrix3x3: sumMatrix3x3FromDailyRows(monthRows),
     matrixByHall: sumMatrixTotalsFromDailyRows(monthRows),
     dopRubTotal,

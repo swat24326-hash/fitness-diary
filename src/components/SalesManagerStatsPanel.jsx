@@ -75,6 +75,8 @@ export function SalesManagerStatsPanel({
     trainingsStats,
     trainingsTypedTotal,
     dayTable,
+    hallFinance,
+    aerobicStats,
   } = stats
 
   return (
@@ -130,6 +132,18 @@ export function SalesManagerStatsPanel({
               <span className="sales-report__kpi-label">ЗП аэробного зала</span>
               <span className="sales-report__kpi-value">{formatRub(summary.aerobicPayroll ?? 0)}</span>
             </div>
+            {hallFinance ? (
+              <>
+                <div className="sales-report__kpi sales-report__kpi--supplement">
+                  <span className="sales-report__kpi-label">Чистая прибыль ПЗ</span>
+                  <span className="sales-report__kpi-value">{formatRub(hallFinance.pz?.netProfit ?? 0)}</span>
+                </div>
+                <div className="sales-report__kpi sales-report__kpi--supplement">
+                  <span className="sales-report__kpi-label">Чистая прибыль АЗ</span>
+                  <span className="sales-report__kpi-value">{formatRub(hallFinance.az?.netProfit ?? 0)}</span>
+                </div>
+              </>
+            ) : null}
           </>
         ) : null}
       </div>
@@ -182,6 +196,61 @@ export function SalesManagerStatsPanel({
           note="Сумма тренировок из сохранённых отчётов продаж. «Без типа» в итог по типам не входит."
         />
       </div>
+
+      {aerobicStats?.byType?.length ? (
+        <div className="sales-report__card sales-report__stats-block">
+          <h3 className="sales-report__stats-block-title">Тренировки в аэробном зале</h3>
+          <p className="muted sales-report__stats-block-note">
+            Сумма из ежедневных отчётов. Итого: <strong>{aerobicStats.total}</strong>
+            {showPayroll ? (
+              <span>
+                {' '}
+                · ЗП за месяц {formatRub(summary.aerobicPayroll ?? 0)}
+                {hallFinance ? (
+                  <span>
+                    {' '}
+                    · чистая прибыль АЗ {formatRub(hallFinance.az?.netProfit ?? 0)} (выручка АЗ − ЗП)
+                  </span>
+                ) : null}
+              </span>
+            ) : null}
+          </p>
+          <div className="sales-report__matrix-scroll">
+            <table className="sales-report__matrix sales-report__stats-matrix">
+              <thead>
+                <tr>
+                  <th scope="col" />
+                  {aerobicStats.byType.map((row) => (
+                    <th key={row.typeId} scope="col">
+                      {row.code}
+                    </th>
+                  ))}
+                  <th scope="col">Итого</th>
+                  {showPayroll ? <th scope="col">ЗП</th> : null}
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">Кол-во</th>
+                  {aerobicStats.byType.map((row) => (
+                    <td key={row.typeId} className="sales-report__matrix-computed">
+                      {row.count > 0 ? row.count : 0}
+                    </td>
+                  ))}
+                  <td className="sales-report__matrix-computed">
+                    <strong>{aerobicStats.total}</strong>
+                  </td>
+                  {showPayroll ? (
+                    <td className="sales-report__matrix-computed">
+                      <strong>{formatRub(summary.aerobicPayroll ?? 0)}</strong>
+                    </td>
+                  ) : null}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
 
       <div className="sales-report__card sales-report__stats-block">
         <h3 className="sales-report__stats-block-title">Структура продаж</h3>

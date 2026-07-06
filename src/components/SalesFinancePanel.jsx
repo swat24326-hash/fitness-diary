@@ -16,6 +16,12 @@ import { PLAN_LEVEL_KEYS, PLAN_LEVEL_LABELS, formatRub } from '../lib/admin/sale
  *     profitDk?: number,
  *     profitUk?: number,
  *     trainingsTotal?: number,
+ *     trainerPayroll?: number,
+ *     aerobicPayroll?: number,
+ *     hallFinance?: {
+ *       pz?: { revenue?: number, payroll?: number, netProfit?: number },
+ *       az?: { revenue?: number, payroll?: number, netProfit?: number },
+ *     },
  *   } | null,
  *   onSavePlan: () => void,
  *   onSaveFinance: () => void,
@@ -126,6 +132,30 @@ export function SalesFinancePanel({
           <span className="sales-report__kpi-value">{formatRub(summary.netProfit ?? 0)}</span>
         </div>
       </div>
+
+      {summary.hallFinance ? (
+        <div className="sales-report__hall-finance">
+          <h4 className="sales-report__hall-finance-title">По залам (доп.)</h4>
+          <div className="sales-report__kpi-grid sales-report__kpi-grid--compact">
+            <div className="sales-report__kpi sales-report__kpi--supplement">
+              <span className="sales-report__kpi-label">Чистая прибыль ПЗ</span>
+              <span className="sales-report__kpi-value">{formatRub(summary.hallFinance.pz?.netProfit ?? 0)}</span>
+              <span className="sales-report__kpi-note muted">
+                выручка ПЗ {formatRub(summary.hallFinance.pz?.revenue ?? 0)} − ЗП{' '}
+                {formatRub(summary.hallFinance.pz?.payroll ?? 0)}
+              </span>
+            </div>
+            <div className="sales-report__kpi sales-report__kpi--supplement">
+              <span className="sales-report__kpi-label">Чистая прибыль АЗ</span>
+              <span className="sales-report__kpi-value">{formatRub(summary.hallFinance.az?.netProfit ?? 0)}</span>
+              <span className="sales-report__kpi-note muted">
+                выручка АЗ {formatRub(summary.hallFinance.az?.revenue ?? 0)} − ЗП{' '}
+                {formatRub(summary.hallFinance.az?.payroll ?? 0)}
+              </span>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <p className="muted" style={{ marginTop: '1rem', fontSize: '0.85rem' }}>
         НК {formatRub(summary.profitNk ?? 0)} · ДК {formatRub(summary.profitDk ?? 0)} · УК{' '}

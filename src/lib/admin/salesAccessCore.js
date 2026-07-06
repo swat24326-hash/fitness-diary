@@ -45,6 +45,7 @@ export function stripSalesBundleForManager(bundle, isSalesManagerUser) {
     delete ms.trainerPayroll
     delete ms.aerobicPayroll
     delete ms.netProfit
+    delete ms.hallFinance
     next.month_summary = ms
   }
   if (next.monthSummary && typeof next.monthSummary === 'object') {
@@ -53,6 +54,7 @@ export function stripSalesBundleForManager(bundle, isSalesManagerUser) {
     delete ms.trainerPayroll
     delete ms.aerobicPayroll
     delete ms.netProfit
+    delete ms.hallFinance
     next.monthSummary = ms
   }
   return next

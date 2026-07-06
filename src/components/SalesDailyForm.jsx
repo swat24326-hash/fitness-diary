@@ -144,7 +144,7 @@ export function SalesDailyForm({
 
       <div style={{ marginTop: '1rem' }}>
         <h3 className="sales-report__section-title" style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>
-          Абонементы аэробного зала
+          Тренировки в аэробном зале
         </h3>
         <SalesAerobicMatrix
           columns={aerobicTypeColumns}

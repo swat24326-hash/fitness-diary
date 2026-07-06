@@ -14,6 +14,7 @@ import {
 } from './_lib/clubMonthlyAgg.js'
 import {
   aggregateMonthFromDailyRows,
+  buildHallFinanceSummary,
   dailyFormToPayload,
   expenseFormToPayload,
   monthDateRange,
@@ -553,6 +554,11 @@ async function handleSalesGet(ctx, req, res) {
     monthSummary.profitTotal,
     monthPayroll.clubTotal,
     expenseAmount,
+    monthAerobicPayroll.clubTotal,
+  )
+  monthSummary.hallFinance = buildHallFinanceSummary(
+    monthRows,
+    monthPayroll.clubTotal,
     monthAerobicPayroll.clubTotal,
   )
 
