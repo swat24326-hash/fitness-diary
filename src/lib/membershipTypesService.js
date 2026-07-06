@@ -127,7 +127,7 @@ export async function ensureMembershipTypesForClub(clubId, opts = {}) {
     const { pullMembershipTypesForClubFromCloud } = await import('./pullReferenceData.js')
     const result = await pullMembershipTypesForClubFromCloud(
       cid,
-      opts.force === true ? { forceFromCloud: true } : {},
+      opts.forceFromCloud === true ? { forceFromCloud: true } : {},
     )
     lastAutoPullByClub.set(cid, Date.now())
     if (result?.ok) {
