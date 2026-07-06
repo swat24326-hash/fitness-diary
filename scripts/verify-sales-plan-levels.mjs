@@ -30,9 +30,10 @@ const parsed = planFormToPayload({
   plan_level_1: '1000000',
   plan_level_2: '1100000',
   plan_level_3: '1200000',
-  plan_pz: '400000',
-  plan_tz: '400000',
-  plan_az: '400000',
+  plan_pz: '300000',
+  plan_tz: '300000',
+  plan_az: '300000',
+  plan_extra: '300000',
 })
 ok(parsed.ok === true, 'plan payload ok when directions match final')
 ok(parsed.payload.plan_total === 1200000, 'plan_total stored as level 3')
@@ -73,9 +74,10 @@ ok(badDirections.ok === false, 'directions scope rejects sum not equal level 3')
 const goodDirections = planFormToPayload(
   {
     plan_level_3: '1200000',
-    plan_pz: '400000',
-    plan_tz: '400000',
-    plan_az: '400000',
+    plan_pz: '300000',
+    plan_tz: '300000',
+    plan_az: '300000',
+    plan_extra: '300000',
   },
   { scope: 'directions' },
 )
@@ -84,9 +86,10 @@ ok(goodDirections.ok === true, 'directions scope accepts exact match')
 ok(
   evaluatePlanDirectionsForm({
     plan_level_3: '1200000',
-    plan_pz: '400000',
-    plan_tz: '400000',
-    plan_az: '400000',
+    plan_pz: '300000',
+    plan_tz: '300000',
+    plan_az: '300000',
+    plan_extra: '300000',
   }).canSave === true,
   'evaluatePlanDirectionsForm canSave when exact',
 )

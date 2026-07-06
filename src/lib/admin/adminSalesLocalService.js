@@ -30,10 +30,10 @@ import {
 import { filterAerobicSalesTypes } from '../membershipTypesCore.js'
 
 const SALES_DAILY_SELECT_FULL =
-  'id, club_id, report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, aerobic_sales_matrix, matrix_amounts, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, updated_at'
+  'id, club_id, report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, aerobic_sales_matrix, matrix_amounts, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, dop_nk, dop_dk, dop_uk, updated_at'
 
 const SALES_DAILY_SELECT_BASE =
-  'id, club_id, report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, updated_at'
+  'id, club_id, report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, dop_nk, dop_dk, dop_uk, updated_at'
 
 const MONTH_DAILY_SELECT = SALES_MONTH_DAILY_SELECT
 
@@ -241,7 +241,7 @@ export async function fetchClubSalesBundleViaSupabase({ clubId, reportDate }) {
       const planRes = await withSupabaseRetry(() =>
         supabase
           .from('club_sales_plan')
-          .select('plan_total, plan_level_1, plan_level_2, plan_level_3, plan_pz, plan_tz, plan_az, updated_at')
+          .select('plan_total, plan_level_1, plan_level_2, plan_level_3, plan_pz, plan_tz, plan_az, plan_extra, updated_at')
           .eq('club_id', cid)
           .eq('year', year)
           .eq('month', month)
@@ -396,7 +396,7 @@ export async function saveClubSalesPlanViaSupabase({ clubId, year, month, form, 
         { club_id: clubId, year, month, ...parsed.payload, updated_at: new Date().toISOString() },
         { onConflict: 'club_id,year,month' },
       )
-      .select('plan_total, plan_level_1, plan_level_2, plan_level_3, plan_pz, plan_tz, plan_az, updated_at')
+      .select('plan_total, plan_level_1, plan_level_2, plan_level_3, plan_pz, plan_tz, plan_az, plan_extra, updated_at')
       .single(),
   )
   if (error) {

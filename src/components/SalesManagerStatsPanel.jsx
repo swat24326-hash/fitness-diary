@@ -200,7 +200,7 @@ export function SalesManagerStatsPanel({
       </div>
 
       <div className="sales-report__card sales-report__stats-block">
-        <h3 className="sales-report__stats-block-title">Матрица залов за месяц (шт.)</h3>
+        <h3 className="sales-report__stats-block-title">Матрица продаж за месяц (шт.)</h3>
         <div className="sales-report__matrix-scroll">
           <table className="sales-report__matrix sales-report__stats-matrix">
             <thead>

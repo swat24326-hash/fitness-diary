@@ -15,7 +15,7 @@ import { applyMonthComparisonInsights } from '../../src/lib/admin/clubMonthAnaly
 import { getCachedGeminiSnapshot, setCachedGeminiSnapshot } from './geminiAnalyticsCache.js'
 
 const SALES_MONTH_SELECT =
-  'report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, aerobic_sales_matrix, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk'
+  'report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, aerobic_sales_matrix, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, dop_nk, dop_dk, dop_uk'
 
 async function fetchPaged(supabaseAdmin, table, select, clubId, dateFrom, dateTo) {
   const PAGE = 400
@@ -48,7 +48,7 @@ async function loadMonthRaw(supabaseAdmin, clubId, year, month) {
       .order('report_date', { ascending: true }),
     supabaseAdmin
       .from('club_sales_plan')
-      .select('plan_total, plan_level_1, plan_level_2, plan_level_3, plan_pz, plan_tz, plan_az')
+      .select('plan_total, plan_level_1, plan_level_2, plan_level_3, plan_pz, plan_tz, plan_az, plan_extra')
       .eq('club_id', clubId)
       .eq('year', year)
       .eq('month', month)

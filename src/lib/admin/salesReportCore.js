@@ -15,6 +15,8 @@ export const SALES_MATRIX_ROWS = [
 
   { key: 'az', label: 'АЗ' },
 
+  { key: 'dop', label: 'Доп. продажи' },
+
 ]
 
 
@@ -51,6 +53,12 @@ export const SALES_MATRIX_KEYS = [
 
   'az_uk',
 
+  'dop_nk',
+
+  'dop_dk',
+
+  'dop_uk',
+
 ]
 
 /** Поля club_sales_daily для агрегации месяца (статистика, матрица 3×3). */
@@ -69,7 +77,7 @@ export const SALES_MONTH_DAILY_SELECT = [
 
 /** @param {Array<Record<string, unknown>>} rows */
 export function sumMatrixTotalsFromDailyRows(rows) {
-  const totals = { pz: 0, tz: 0, az: 0, all: 0 }
+  const totals = { pz: 0, tz: 0, az: 0, dop: 0, all: 0 }
   for (const row of rows ?? []) {
     for (const key of SALES_MATRIX_KEYS) {
       const n = Math.trunc(Number(row[key]) || 0)
@@ -77,6 +85,7 @@ export function sumMatrixTotalsFromDailyRows(rows) {
       if (key.startsWith('pz_')) totals.pz += n
       else if (key.startsWith('tz_')) totals.tz += n
       else if (key.startsWith('az_')) totals.az += n
+      else if (key.startsWith('dop_')) totals.dop += n
     }
   }
   return totals
@@ -782,7 +791,7 @@ export function aggregateMonthFromDailyRows(rows) {
 
 export const PLAN_LEVEL_KEYS = ['plan_level_1', 'plan_level_2', 'plan_level_3']
 
-export const PLAN_DIRECTION_KEYS = ['plan_pz', 'plan_tz', 'plan_az']
+export const PLAN_DIRECTION_KEYS = ['plan_pz', 'plan_tz', 'plan_az', 'plan_extra']
 
 export const PLAN_LEVEL_LABELS = ['Уровень 1', 'Уровень 2', 'Уровень 3']
 
@@ -832,13 +841,14 @@ export function evaluatePlanDirectionsForm(form) {
   const plan_pz = parseSalesMoney(form.plan_pz)
   const plan_tz = parseSalesMoney(form.plan_tz)
   const plan_az = parseSalesMoney(form.plan_az)
+  const plan_extra = parseSalesMoney(form.plan_extra)
   const invalid =
-    [plan_level_3, plan_pz, plan_tz, plan_az].some((n) => Number.isNaN(n)) ||
-    [plan_pz, plan_tz, plan_az].some((n) => n < 0)
+    [plan_level_3, plan_pz, plan_tz, plan_az, plan_extra].some((n) => Number.isNaN(n)) ||
+    [plan_pz, plan_tz, plan_az, plan_extra].some((n) => n < 0)
   const finalTarget = Number.isNaN(plan_level_3) ? 0 : Math.round(plan_level_3 * 100) / 100
-  const directionSum = Number.isNaN(plan_pz + plan_tz + plan_az)
+  const directionSum = Number.isNaN(plan_pz + plan_tz + plan_az + plan_extra)
     ? 0
-    : Math.round((plan_pz + plan_tz + plan_az) * 100) / 100
+    : Math.round((plan_pz + plan_tz + plan_az + plan_extra) * 100) / 100
   const noFinal = finalTarget <= 0
   const exactMatch = !noFinal && Math.abs(directionSum - finalTarget) <= 0.009
   const directionsMismatch = !noFinal && directionSum > 0 && !exactMatch
@@ -865,8 +875,9 @@ export function planFormToPayload(form, opts = {}) {
   const plan_pz = parseSalesMoney(form.plan_pz)
   const plan_tz = parseSalesMoney(form.plan_tz)
   const plan_az = parseSalesMoney(form.plan_az)
+  const plan_extra = parseSalesMoney(form.plan_extra)
 
-  if ([plan_level_1, plan_level_2, plan_level_3, plan_pz, plan_tz, plan_az].some((n) => Number.isNaN(n))) {
+  if ([plan_level_1, plan_level_2, plan_level_3, plan_pz, plan_tz, plan_az, plan_extra].some((n) => Number.isNaN(n))) {
     return { ok: false, error: 'План: неотрицательные суммы' }
   }
 
@@ -883,7 +894,7 @@ export function planFormToPayload(form, opts = {}) {
   }
 
   const plan_total = plan_level_3 > 0 ? plan_level_3 : Math.max(plan_level_1, plan_level_2, 0)
-  const directionSum = Math.round((plan_pz + plan_tz + plan_az) * 100) / 100
+  const directionSum = Math.round((plan_pz + plan_tz + plan_az + plan_extra) * 100) / 100
 
   if (scope === 'directions') {
     if (plan_level_3 <= 0) {
@@ -893,7 +904,7 @@ export function planFormToPayload(form, opts = {}) {
       }
     }
     if (directionSum <= 0) {
-      return { ok: false, error: 'Распределите план по залам ПЗ, ТЗ и АЗ' }
+      return { ok: false, error: 'Распределите план: ПЗ, ТЗ, АЗ и доп. продажи' }
     }
     if (Math.abs(directionSum - plan_level_3) > 0.009) {
       return {
@@ -918,6 +929,7 @@ export function planFormToPayload(form, opts = {}) {
       plan_pz,
       plan_tz,
       plan_az,
+      plan_extra,
     },
   }
 }
@@ -946,6 +958,7 @@ export function emptyPlanForm() {
     plan_pz: '',
     plan_tz: '',
     plan_az: '',
+    plan_extra: '',
   }
 }
 

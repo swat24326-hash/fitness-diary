@@ -6,6 +6,7 @@ const DIRECTION_FIELDS = [
   { key: 'plan_pz', label: 'ПЗ', hint: 'персональный зал' },
   { key: 'plan_tz', label: 'ТЗ', hint: 'тренажёрный зал' },
   { key: 'plan_az', label: 'АЗ', hint: 'аэробный зал' },
+  { key: 'plan_extra', label: 'Доп. продажи', hint: 'доп. продажи' },
 ]
 
 /**
