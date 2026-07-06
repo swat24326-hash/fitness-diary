@@ -3491,6 +3491,103 @@ tr:last-child td {
   font-size: 0.85rem;
 }
 
+.admin-mt-zone {
+  padding: 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+
+.admin-mt-zone--pz {
+  border-color: rgba(59, 130, 246, 0.35);
+  box-shadow: inset 3px 0 0 rgba(59, 130, 246, 0.55);
+}
+
+.admin-mt-zone--az {
+  border-color: rgba(168, 85, 247, 0.35);
+  box-shadow: inset 3px 0 0 rgba(168, 85, 247, 0.55);
+}
+
+.admin-mt-zone__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.admin-mt-zone__lead {
+  margin: 0 0 12px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.admin-mt-overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.admin-mt-overview__col {
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px dashed var(--border);
+  background: var(--bg-muted);
+}
+
+.admin-mt-overview__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.admin-mt-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1.2;
+}
+
+.admin-mt-badge--pz {
+  background: rgba(59, 130, 246, 0.18);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+}
+
+.admin-mt-badge--az {
+  background: rgba(168, 85, 247, 0.18);
+  color: #d8b4fe;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+}
+
+.admin-mt-chip--pz.admin-mt-chip--active {
+  border-color: rgba(59, 130, 246, 0.45);
+}
+
+.admin-mt-chip--az.admin-mt-chip--active {
+  border-color: rgba(168, 85, 247, 0.45);
+}
+
+.admin-mt-chip__code {
+  margin-left: 6px;
+}
+
+.admin-mt-table__zone {
+  white-space: nowrap;
+}
+
 /* Итог по месяцам — столбчатый график */
 .admin-monthly-chart {
   display: flex;

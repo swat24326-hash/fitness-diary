@@ -15,6 +15,61 @@ import {
 } from '../../lib/membershipTypesService'
 import { pullMembershipTypesForClubFromCloud } from '../../lib/pullReferenceData'
 
+function splitActiveInactive(items) {
+  const active = []
+  const inactive = []
+  for (const t of items ?? []) {
+    if (t.is_active === false) inactive.push(t)
+    else active.push(t)
+  }
+  return { active, inactive }
+}
+
+function ZoneBadge({ zone }) {
+  const label = zone === 'az' ? 'АЗ' : 'ПЗ'
+  return <span className={`admin-mt-badge admin-mt-badge--${zone}`}>{label}</span>
+}
+
+function TypeChips({ items, zone, emptyLabel }) {
+  const { active, inactive } = splitActiveInactive(items)
+  if (!items?.length) {
+    return <p className="muted admin-mt-catalog__empty">{emptyLabel}</p>
+  }
+  return (
+    <>
+      {active.length > 0 ? (
+        <ul className="admin-mt-catalog__chips" aria-label={zone === 'az' ? 'Активные типы АЗ' : 'Активные типы ПЗ'}>
+          {active.map((t) => (
+            <li key={t.id}>
+              <span className={`admin-mt-chip admin-mt-chip--${zone} admin-mt-chip--active`}>
+                <ZoneBadge zone={zone} />
+                <span className="admin-mt-chip__code">{t.code}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="muted admin-mt-catalog__empty">Нет активных типов.</p>
+      )}
+      {inactive.length > 0 ? (
+        <div className="admin-mt-catalog__inactive">
+          <span className="muted admin-mt-catalog__inactive-label">Отключённые:</span>
+          <ul className="admin-mt-catalog__chips">
+            {inactive.map((t) => (
+              <li key={t.id}>
+                <span className={`admin-mt-chip admin-mt-chip--${zone} admin-mt-chip--inactive`}>
+                  <ZoneBadge zone={zone} />
+                  <span className="admin-mt-chip__code">{t.code}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </>
+  )
+}
+
 export function AdminMembershipTypes() {
   const [searchParams] = useSearchParams()
   const clubId = searchParams.get('club')?.trim() ?? ''
@@ -192,26 +247,6 @@ export function AdminMembershipTypes() {
     }
   }
 
-  const { activeItems, inactiveItems } = useMemo(() => {
-    const active = []
-    const inactive = []
-    for (const t of trainerItems) {
-      if (t.is_active === false) inactive.push(t)
-      else active.push(t)
-    }
-    return { activeItems: active, inactiveItems: inactive }
-  }, [trainerItems])
-
-  const { activeAerobicItems, inactiveAerobicItems } = useMemo(() => {
-    const active = []
-    const inactive = []
-    for (const t of aerobicItems) {
-      if (t.is_active === false) inactive.push(t)
-      else active.push(t)
-    }
-    return { activeAerobicItems: active, inactiveAerobicItems: inactive }
-  }, [aerobicItems])
-
   const runDeactivate = async () => {
     if (!confirmId) return
     setMsg('')
@@ -238,13 +273,15 @@ export function AdminMembershipTypes() {
     )
   }
 
+  const trainerCount = splitActiveInactive(trainerItems)
+  const aerobicCount = splitActiveInactive(aerobicItems)
+
   return (
     <div className="admin-membership-types grid" style={{ gap: 16 }}>
       <p className="muted admin-inline-note" style={{ margin: 0 }}>
-        Короткие обозначения типов абонементов для этого клуба. Тренер выбирает тип при создании абонемента.
-        <strong> Оплата за тренировку</strong> — ставка для расчёта ЗП тренеров (одна на тип, «Без типа» не
-        оплачивается). Отдельно — типы <strong>аэробного зала</strong>: только для отчёта продаж и расчёта ЗП АЗ,
-        тренер их не оформляет.
+        <strong>ПЗ</strong> — тренерский зал: тип видит тренер при оформлении абонемента, ставка идёт в ФОТ
+        тренеров. <strong>АЗ</strong> — аэробный зал: только отчёт менеджера по продажам и ЗП АЗ, тренер не
+        оформляет.
       </p>
 
       <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -264,227 +301,216 @@ export function AdminMembershipTypes() {
         ) : null}
       </div>
 
-      <section className="admin-mt-catalog" aria-labelledby="admin-mt-catalog-title">
+      <section className="admin-mt-catalog" aria-labelledby="admin-mt-overview-title">
         <div className="admin-mt-catalog__head">
-          <h3 id="admin-mt-catalog-title" className="admin-mt-catalog__title">
-            Добавленные типы
+          <h3 id="admin-mt-overview-title" className="admin-mt-catalog__title">
+            Сводка по залам
           </h3>
           <span className="muted admin-mt-catalog__count">
-            {trainerItems.length === 0
-              ? 'пока нет'
-              : `активных ${activeItems.length}${inactiveItems.length ? ` · отключённых ${inactiveItems.length}` : ''}`}
+            ПЗ {trainerCount.active.length}
+            {trainerCount.inactive.length ? ` + ${trainerCount.inactive.length} откл.` : ''}
+            {' · '}
+            АЗ {aerobicCount.active.length}
+            {aerobicCount.inactive.length ? ` + ${aerobicCount.inactive.length} откл.` : ''}
           </span>
         </div>
-        {trainerItems.length === 0 ? (
-          <p className="muted admin-mt-catalog__empty">Список пуст — добавьте типы ниже.</p>
-        ) : (
-          <>
-            {activeItems.length > 0 ? (
-              <ul className="admin-mt-catalog__chips" aria-label="Активные типы">
-                {activeItems.map((t) => (
-                  <li key={t.id}>
-                    <span className="admin-mt-chip admin-mt-chip--active">{t.code}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="muted admin-mt-catalog__empty">Нет активных типов — тренер не сможет выбрать тип в новых абонементах.</p>
-            )}
-            {inactiveItems.length > 0 ? (
-              <div className="admin-mt-catalog__inactive">
-                <span className="muted admin-mt-catalog__inactive-label">Отключённые:</span>
-                <ul className="admin-mt-catalog__chips" aria-label="Отключённые типы">
-                  {inactiveItems.map((t) => (
-                    <li key={t.id}>
-                      <span className="admin-mt-chip admin-mt-chip--inactive">{t.code}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </>
-        )}
+        <div className="admin-mt-overview">
+          <div className="admin-mt-overview__col">
+            <p className="admin-mt-overview__label">
+              <ZoneBadge zone="pz" />
+              ПЗ — тренеры
+            </p>
+            <TypeChips items={trainerItems} zone="pz" emptyLabel="Типов ПЗ пока нет." />
+          </div>
+          <div className="admin-mt-overview__col">
+            <p className="admin-mt-overview__label">
+              <ZoneBadge zone="az" />
+              АЗ — отчёт продаж
+            </p>
+            <TypeChips items={aerobicItems} zone="az" emptyLabel="Типов АЗ пока нет." />
+          </div>
+        </div>
       </section>
 
-      <form onSubmit={addType} className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <div className="field" style={{ margin: 0, minWidth: 120, flex: '1 1 140px' }}>
-          <label className="label" htmlFor="membership-type-code">
-            Название типа
-          </label>
-          <input
-            id="membership-type-code"
-            className="input"
-            maxLength={12}
-            placeholder="Напр. Dm"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            disabled={busy}
-          />
-        </div>
-        <button type="submit" className="btn btn-primary btn-touch" disabled={busy || !code.trim()}>
-          Добавить
-        </button>
-      </form>
-
-      {trainerItems.length > 0 ? (
-        <div className="table-wrap admin-mt-table">
-          <p className="muted admin-mt-table__caption">Ставки тренеров и управление типами</p>
-          <table>
-            <thead>
-              <tr>
-                <th>Тип</th>
-                <th>Оплата за трен. (₽)</th>
-                <th>Статус</th>
-                <th style={{ width: 56 }} />
-              </tr>
-            </thead>
-            <tbody>
-              {trainerItems.map((t) => (
-                <tr key={t.id} className={t.is_active === false ? 'muted' : undefined}>
-                  <td>
-                    <strong>{t.code}</strong>
-                  </td>
-                  <td>
-                    <input
-                      className="input"
-                      type="text"
-                      inputMode="decimal"
-                      style={{ maxWidth: 120, minWidth: 88 }}
-                      aria-label={`Оплата за тренировку ${t.code}`}
-                      value={payDraft[t.id] ?? ''}
-                      disabled={busy || paySavingId === t.id}
-                      onChange={(e) => setPayDraft((prev) => ({ ...prev, [t.id]: e.target.value }))}
-                      onBlur={() => void savePay(t.id)}
-                    />
-                  </td>
-                  <td>{t.is_active === false ? 'Отключён' : 'Активен'}</td>
-                  <td>
-                    {t.is_active !== false ? (
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-icon-square"
-                        aria-label={`Отключить тип ${t.code}`}
-                        title="Отключить"
-                        disabled={busy}
-                        onClick={() => setConfirmId(t.id)}
-                      >
-                        <Trash2 size={16} aria-hidden />
-                      </button>
-                    ) : null}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : null}
-
-      <section className="admin-mt-catalog" aria-labelledby="admin-mt-aerobic-title" style={{ marginTop: 24 }}>
-        <div className="admin-mt-catalog__head">
-          <h3 id="admin-mt-aerobic-title" className="admin-mt-catalog__title">
-            Аэробный зал
-          </h3>
-          <span className="muted admin-mt-catalog__count">
-            {aerobicItems.length === 0
-              ? 'пока нет'
-              : `активных ${activeAerobicItems.length}${inactiveAerobicItems.length ? ` · отключённых ${inactiveAerobicItems.length}` : ''}`}
-          </span>
-        </div>
-        <p className="muted admin-inline-note" style={{ margin: '0 0 12px' }}>
-          Только для отчёта менеджера по продажам. <strong>Стоимость (₽)</strong> — сумма зарплаты за одну продажу
-          этого типа.
+      <section className="admin-mt-zone admin-mt-zone--pz" aria-labelledby="admin-mt-pz-title">
+        <h3 id="admin-mt-pz-title" className="admin-mt-zone__title">
+          <ZoneBadge zone="pz" /> ПЗ — тренерский зал
+        </h3>
+        <p className="muted admin-mt-zone__lead">
+          Тренер выбирает эти типы при создании абонемента. Колонка «Оплата за трен.» — ставка для расчёта ФОТ
+          тренеров.
         </p>
-        {aerobicItems.length === 0 ? (
-          <p className="muted admin-mt-catalog__empty">Список пуст — добавьте типы ниже.</p>
-        ) : (
-          <>
-            {activeAerobicItems.length > 0 ? (
-              <ul className="admin-mt-catalog__chips" aria-label="Активные типы АЗ">
-                {activeAerobicItems.map((t) => (
-                  <li key={t.id}>
-                    <span className="admin-mt-chip admin-mt-chip--active">{t.code}</span>
-                  </li>
+
+        <form onSubmit={addType} className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 12 }}>
+          <div className="field" style={{ margin: 0, minWidth: 120, flex: '1 1 140px' }}>
+            <label className="label" htmlFor="membership-type-code">
+              Новый тип ПЗ
+            </label>
+            <input
+              id="membership-type-code"
+              className="input"
+              maxLength={12}
+              placeholder="Напр. Dm"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              disabled={busy}
+            />
+          </div>
+          <button type="submit" className="btn btn-primary btn-touch" disabled={busy || !code.trim()}>
+            Добавить тип ПЗ
+          </button>
+        </form>
+
+        {trainerItems.length > 0 ? (
+          <div className="table-wrap admin-mt-table">
+            <table>
+              <thead>
+                <tr>
+                  <th className="admin-mt-table__zone">Зал</th>
+                  <th>Тип</th>
+                  <th>Оплата за трен. (₽)</th>
+                  <th>Статус</th>
+                  <th style={{ width: 56 }} />
+                </tr>
+              </thead>
+              <tbody>
+                {trainerItems.map((t) => (
+                  <tr key={t.id} className={t.is_active === false ? 'muted' : undefined}>
+                    <td className="admin-mt-table__zone">
+                      <ZoneBadge zone="pz" />
+                    </td>
+                    <td>
+                      <strong>{t.code}</strong>
+                    </td>
+                    <td>
+                      <input
+                        className="input"
+                        type="text"
+                        inputMode="decimal"
+                        style={{ maxWidth: 120, minWidth: 88 }}
+                        aria-label={`Оплата за тренировку ${t.code}`}
+                        value={payDraft[t.id] ?? ''}
+                        disabled={busy || paySavingId === t.id}
+                        onChange={(e) => setPayDraft((prev) => ({ ...prev, [t.id]: e.target.value }))}
+                        onBlur={() => void savePay(t.id)}
+                      />
+                    </td>
+                    <td>{t.is_active === false ? 'Отключён' : 'Активен'}</td>
+                    <td>
+                      {t.is_active !== false ? (
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-icon-square"
+                          aria-label={`Отключить тип ${t.code}`}
+                          title="Отключить"
+                          disabled={busy}
+                          onClick={() => setConfirmId(t.id)}
+                        >
+                          <Trash2 size={16} aria-hidden />
+                        </button>
+                      ) : null}
+                    </td>
+                  </tr>
                 ))}
-              </ul>
-            ) : (
-              <p className="muted admin-mt-catalog__empty">Нет активных типов АЗ.</p>
-            )}
-          </>
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="muted admin-mt-catalog__empty">Список ПЗ пуст.</p>
         )}
       </section>
 
-      <form onSubmit={addAerobicType} className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <div className="field" style={{ margin: 0, minWidth: 120, flex: '1 1 140px' }}>
-          <label className="label" htmlFor="aerobic-type-code">
-            Тип АЗ
-          </label>
-          <input
-            id="aerobic-type-code"
-            className="input"
-            maxLength={12}
-            placeholder="Напр. Гр"
-            value={aerobicCode}
-            onChange={(e) => setAerobicCode(e.target.value)}
-            disabled={busy}
-          />
-        </div>
-        <button type="submit" className="btn btn-primary btn-touch" disabled={busy || !aerobicCode.trim()}>
-          Добавить тип АЗ
-        </button>
-      </form>
+      <section className="admin-mt-zone admin-mt-zone--az" aria-labelledby="admin-mt-az-title">
+        <h3 id="admin-mt-az-title" className="admin-mt-zone__title">
+          <ZoneBadge zone="az" /> АЗ — аэробный зал
+        </h3>
+        <p className="muted admin-mt-zone__lead">
+          Только для отчёта менеджера по продажам. «Стоимость / ЗП» — сумма зарплаты АЗ за одну продажу этого
+          типа. Тренер эти типы не видит.
+        </p>
 
-      {aerobicItems.length > 0 ? (
-        <div className="table-wrap admin-mt-table">
-          <p className="muted admin-mt-table__caption">Стоимость и управление типами АЗ</p>
-          <table>
-            <thead>
-              <tr>
-                <th>Тип</th>
-                <th>Стоимость / ЗП (₽)</th>
-                <th>Статус</th>
-                <th style={{ width: 56 }} />
-              </tr>
-            </thead>
-            <tbody>
-              {aerobicItems.map((t) => (
-                <tr key={t.id} className={t.is_active === false ? 'muted' : undefined}>
-                  <td>
-                    <strong>{t.code}</strong>
-                  </td>
-                  <td>
-                    <input
-                      className="input"
-                      type="text"
-                      inputMode="decimal"
-                      style={{ maxWidth: 120, minWidth: 88 }}
-                      aria-label={`Стоимость ${t.code}`}
-                      value={aerobicPayDraft[t.id] ?? ''}
-                      disabled={busy || aerobicPaySavingId === t.id}
-                      onChange={(e) => setAerobicPayDraft((prev) => ({ ...prev, [t.id]: e.target.value }))}
-                      onBlur={() => void saveAerobicPay(t.id)}
-                    />
-                  </td>
-                  <td>{t.is_active === false ? 'Отключён' : 'Активен'}</td>
-                  <td>
-                    {t.is_active !== false ? (
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-icon-square"
-                        aria-label={`Отключить тип ${t.code}`}
-                        title="Отключить"
-                        disabled={busy}
-                        onClick={() => setConfirmId(t.id)}
-                      >
-                        <Trash2 size={16} aria-hidden />
-                      </button>
-                    ) : null}
-                  </td>
+        <form
+          onSubmit={addAerobicType}
+          className="row"
+          style={{ gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 12 }}
+        >
+          <div className="field" style={{ margin: 0, minWidth: 120, flex: '1 1 140px' }}>
+            <label className="label" htmlFor="aerobic-type-code">
+              Новый тип АЗ
+            </label>
+            <input
+              id="aerobic-type-code"
+              className="input"
+              maxLength={12}
+              placeholder="Напр. Бокс"
+              value={aerobicCode}
+              onChange={(e) => setAerobicCode(e.target.value)}
+              disabled={busy}
+            />
+          </div>
+          <button type="submit" className="btn btn-primary btn-touch" disabled={busy || !aerobicCode.trim()}>
+            Добавить тип АЗ
+          </button>
+        </form>
+
+        {aerobicItems.length > 0 ? (
+          <div className="table-wrap admin-mt-table">
+            <table>
+              <thead>
+                <tr>
+                  <th className="admin-mt-table__zone">Зал</th>
+                  <th>Тип</th>
+                  <th>Стоимость / ЗП (₽)</th>
+                  <th>Статус</th>
+                  <th style={{ width: 56 }} />
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : null}
+              </thead>
+              <tbody>
+                {aerobicItems.map((t) => (
+                  <tr key={t.id} className={t.is_active === false ? 'muted' : undefined}>
+                    <td className="admin-mt-table__zone">
+                      <ZoneBadge zone="az" />
+                    </td>
+                    <td>
+                      <strong>{t.code}</strong>
+                    </td>
+                    <td>
+                      <input
+                        className="input"
+                        type="text"
+                        inputMode="decimal"
+                        style={{ maxWidth: 120, minWidth: 88 }}
+                        aria-label={`Стоимость ${t.code}`}
+                        value={aerobicPayDraft[t.id] ?? ''}
+                        disabled={busy || aerobicPaySavingId === t.id}
+                        onChange={(e) => setAerobicPayDraft((prev) => ({ ...prev, [t.id]: e.target.value }))}
+                        onBlur={() => void saveAerobicPay(t.id)}
+                      />
+                    </td>
+                    <td>{t.is_active === false ? 'Отключён' : 'Активен'}</td>
+                    <td>
+                      {t.is_active !== false ? (
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-icon-square"
+                          aria-label={`Отключить тип ${t.code}`}
+                          title="Отключить"
+                          disabled={busy}
+                          onClick={() => setConfirmId(t.id)}
+                        >
+                          <Trash2 size={16} aria-hidden />
+                        </button>
+                      ) : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="muted admin-mt-catalog__empty">Список АЗ пуст — добавьте типы выше.</p>
+        )}
+      </section>
 
       {confirmId ? (
         <div className="modal-overlay" role="dialog" aria-modal="true" onClick={() => setConfirmId(null)}>
