@@ -26,7 +26,7 @@ export const GEMINI_GENERATION_CONFIG_RETRY = {
 }
 
 export const GEMINI_RESPONSE_BRIEF_RULE =
-  'Ответ: 2–5 коротких предложений, до 90 слов. Без markdown и списков. Закончи полным предложением с точкой.'
+  'Ответ: 2–5 коротких предложений, до 90 слов. Язык бизнеса, без названий полей JSON и без «контуров». Без markdown и списков. Закончи полным предложением с точкой.'
 
 /** Явный флаг или формулировка вопроса про прошлый месяц / динамику. */
 export function shouldComparePreviousMonth(userMessage) {

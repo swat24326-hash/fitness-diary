@@ -85,7 +85,7 @@ export const GEMINI_QUICK_CHIPS = [
   },
   {
     id: 'payroll_gap',
-    label: 'ЗП ПЗ: два контура',
+    label: 'ЗП зала vs тренеры',
     message:
       'Почему в финансовом отчёте зарплата персонального зала одна сумма, а сумма личных зарплат тренеров может отличаться?',
     compare: false,
@@ -337,13 +337,13 @@ function buildTrainerInactiveReply(club, period, snapshot, opener, closer) {
   const trainersCount = Number(roll?.trainers_count) || 0
 
   if (!trainersCount) {
-    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: тренерский контур пуст — нет данных с планшетов или закреплённых тренеров. ${closer}.`
+    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: по тренерам пока нет данных с планшетов или закреплённых клиентов. ${closer}.`
   }
 
   return (
-    `${ISKRA_NAME}: ${club}, ${period}. ${opener}: по профилям тренеров зафиксировано ${inactive} неактивных клиентов ` +
-    `(без действующего абонемента на конец периода) у ${trainersCount} тренеров. ` +
-    `Метрика из trainer_contour, не пересекается с отчётностью менеджеров. Списки — в профиле каждого тренера. ${closer}.`
+    `${ISKRA_NAME}: ${club}, ${period}. ${opener}: у тренеров ${inactive} неактивных клиентов ` +
+    `(без действующего абонемента на конец периода) — по ${trainersCount} тренерам. ` +
+    `Это не продажи из отчёта менеджера, а картина по закреплённым клиентам; списки — в профиле каждого тренера. ${closer}.`
   )
 }
 
@@ -352,10 +352,9 @@ function buildPayrollGapReply(club, period, snapshot, insights, opener, closer) 
   const personalSum = Number(snapshot.trainer_contour?.club_roll_up?.personal_salary_sum) || 0
 
   return (
-    `${ISKRA_NAME}: ${opener}. В контуре продаж finance.trainer_payroll — ${formatRub(salesPayroll)} ` +
-    `(матрица менеджера, для чистой прибыли клуба). В контуре тренеров сумма personal_salary_month — ${formatRub(personalSum)} ` +
-    `(завершённые тренировки с планшетов × ставки типов карт). Алгоритмы разные: возможны расхождения из‑за несинхронизированных планшетов ` +
-    `или тренировок «Без типа», исключённых из личной ЗП. ${club}, ${period}. ${closer}.`
+    `${ISKRA_NAME}: ${opener}. В финансовом отчёте зарплата персонального зала — ${formatRub(salesPayroll)} ` +
+    `(как внесено менеджером для картины прибыли клуба). Сумма личных зарплат тренеров по факту тренировок с планшетов — ${formatRub(personalSum)}. ` +
+    `Цифры могут расходиться: часть тренировок ещё не синхронизирована или есть занятия «Без типа», которые не входят в личную ЗП. ${club}, ${period}. ${closer}.`
   )
 }
 
@@ -386,8 +385,8 @@ function buildSalesRefundsReply(club, period, snapshot, insights, opener, closer
   const refunds = Number(plan.refunds_total ?? sales.refunds_total) || 0
   return (
     `${ISKRA_NAME}: ${club}, ${period}. ${opener}: возвраты ${formatRub(refunds)}. ` +
-    `План считается по валовой ${formatRub(gross)} — возвраты план не уменьшают. ` +
-    `Чистый заработок месяца ${formatRub(net)}. ${closer}.`
+    `На план это не влияет — он считается по валовой выручке ${formatRub(gross)}. ` +
+    `Чистый заработок месяца после возвратов — ${formatRub(net)}. ${closer}.`
   )
 }
 

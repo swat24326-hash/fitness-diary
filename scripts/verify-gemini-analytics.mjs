@@ -141,8 +141,8 @@ ok(noFinance.finance === undefined, 'finance hidden')
 
 ok(GEMINI_ANALYTICS_MODEL === 'gemini-2.5-flash-lite', 'default model lite')
 ok(buildSystemPrompt('male', 'X').includes('90 слов'), 'brief prompt rule')
-ok(buildSystemPrompt('male', 'X').includes('sales_contour'), 'prompt sales contour')
-ok(buildSystemPrompt('male', 'Север').includes('trainer_contour'), 'prompt trainer contour')
+ok(buildSystemPrompt('male', 'X').includes('ЯЗЫК ОТВЕТА'), 'prompt business language')
+ok(buildSystemPrompt('male', 'Север').includes('sales_contour'), 'prompt internal sales contour')
 ok(buildSystemPrompt('male', 'X').includes('НИЧЕГО НЕ СЧИТАЕШЬ'), 'prompt no calc rule')
 const compact = compactSnapshotForPrompt(snap)
 ok(compact?.period?.label && !compact.operations, 'compact snapshot drops noise')
@@ -218,7 +218,7 @@ const instantPayroll = buildGeminiInstantReply('payroll_gap', {
     },
   },
 })
-ok(instantPayroll?.includes('finance.trainer_payroll') && instantPayroll?.includes('personal_salary'), 'instant payroll gap')
+ok(instantPayroll?.includes('финансовом отчёте') && instantPayroll?.includes('личных зарплат'), 'instant payroll gap business')
 
 ok(matchGeminiInstantChip(GEMINI_QUICK_CHIPS.find((c) => c.id === 'plan').message) === 'plan', 'instant chip plan')
 ok(matchGeminiInstantChip('случайный текст') === null, 'instant chip miss')
@@ -257,7 +257,7 @@ const introOther = buildGeminiIntroReply('standard', {
   gender: 'female',
   clubName: 'FIT-CITY Юг',
 })
-ok(introOther.includes('FIT-CITY Юг') && introOther.includes('trainer_contour'), 'intro other club contours')
+ok(introOther.includes('FIT-CITY Юг') && introOther.includes('продаж'), 'intro other club business')
 const microNoClub = buildGeminiMicroIntro({ hasClub: false, gender: 'male' })
 ok(microNoClub.includes('филиал') || microNoClub.includes('шапке'), 'micro no club hint')
 
