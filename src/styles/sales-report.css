@@ -1331,6 +1331,160 @@
   font-size: 0.85rem;
 }
 
+.sales-finance-forecast {
+  margin-top: 1.35rem;
+  padding: 1rem 1.05rem 1.1rem;
+  border-radius: 14px;
+  border: 1px solid rgba(96, 165, 250, 0.18);
+  background:
+    radial-gradient(ellipse 100% 80% at 100% 0%, rgba(96, 165, 250, 0.1), transparent 55%),
+    linear-gradient(165deg, rgba(15, 23, 42, 0.65), rgba(8, 12, 18, 0.88));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 8px 24px rgba(0, 0, 0, 0.16);
+}
+
+.sales-finance-forecast__head {
+  margin-bottom: 0.85rem;
+}
+
+.sales-finance-forecast__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.sales-finance-forecast__hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.sales-finance-forecast__note {
+  margin-top: 1.25rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.sales-finance-forecast__table-wrap {
+  overflow-x: auto;
+}
+
+.sales-finance-forecast__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.sales-finance-forecast__table th,
+.sales-finance-forecast__table td {
+  padding: 0.55rem 0.65rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  font-variant-numeric: tabular-nums;
+}
+
+.sales-finance-forecast__table thead th {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(226, 232, 240, 0.75);
+}
+
+.sales-finance-forecast__table tbody th[scope='row'] {
+  font-weight: 600;
+  color: rgba(226, 232, 240, 0.92);
+}
+
+.sales-finance-forecast__table td:last-child {
+  color: #93c5fd;
+  font-weight: 600;
+}
+
+.sales-finance-forecast__row--primary th,
+.sales-finance-forecast__row--primary td {
+  border-bottom: none;
+  padding-top: 0.75rem;
+}
+
+.sales-finance-forecast__row--primary th[scope='row'] {
+  color: var(--accent-bright, #4ade80);
+}
+
+.sales-finance-forecast__row--primary td:last-child {
+  color: var(--accent-bright, #4ade80);
+  font-size: 1rem;
+}
+
+.sales-finance-forecast__plan {
+  margin-bottom: 1rem;
+}
+
+.sales-finance-forecast__plan-title {
+  margin: 0 0 0.65rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.sales-finance-forecast__plan-summary {
+  display: grid;
+  gap: 0.55rem 1rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 10px;
+  background: rgba(2, 6, 23, 0.35);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.sales-finance-forecast__plan-summary--level3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.sales-finance-forecast__plan-kpi-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(226, 232, 240, 0.65);
+  margin-bottom: 0.2rem;
+}
+
+.sales-finance-forecast__reach {
+  grid-column: 1 / -1;
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.sales-finance-forecast__reach--strong {
+  color: var(--accent-bright, #4ade80);
+}
+
+.sales-finance-forecast__reach--ok {
+  color: #fde047;
+}
+
+.sales-finance-forecast__reach--weak {
+  color: #fca5a5;
+}
+
+.sales-finance-forecast__reach--muted {
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.sales-finance-forecast__table--plan td:last-child,
+.sales-finance-forecast__table--plan th:last-child {
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .sales-finance-forecast__plan-summary--level3 {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 720px) {
   .sales-finance-block__grid--levels {
     grid-template-columns: 1fr;

@@ -47,6 +47,7 @@ run('membership types merge', 'node', ['scripts/verify-membership-types-merge.mj
 run('club client period', 'node', ['scripts/verify-club-client-period.mjs'])
 run('club monthly year', 'node', ['scripts/verify-club-monthly-year.mjs'])
 run('club sales profit', 'node', ['scripts/verify-club-sales-profit.mjs'])
+run('club finance forecast', 'node', ['scripts/verify-club-finance-forecast.mjs'])
 run('trainer payroll', 'node', ['scripts/verify-trainer-payroll.mjs'])
 run('aerobic payroll', 'node', ['scripts/verify-aerobic-payroll.mjs'])
 run('sales plan progress', 'node', ['scripts/verify-sales-plan-progress.mjs'])

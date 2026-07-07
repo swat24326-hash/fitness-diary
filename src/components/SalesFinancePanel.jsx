@@ -1,15 +1,11 @@
-import { Save, Wallet } from 'lucide-react'
-import { PLAN_LEVEL_KEYS, PLAN_LEVEL_LABELS, formatRub } from '../lib/admin/salesReportCore.js'
-import { SalesFinanceBlock } from './SalesFinanceBlock.jsx'
-import { SalesPlanDirectionsForm } from './SalesPlanDirectionsForm.jsx'
+import { Wallet } from 'lucide-react'
+import { formatRub } from '../lib/admin/salesReportCore.js'
+import { SalesFinanceForecast } from './SalesFinanceForecast.jsx'
 
 /**
  * @param {{
  *   monthLabel: string,
  *   planForm: Record<string, string>,
- *   onPlanChange: (next: Record<string, string>) => void,
- *   expenseForm: Record<string, string>,
- *   onExpenseChange: (next: Record<string, string>) => void,
  *   monthSummary: {
  *     profitTotal?: number,
  *     expense?: number,
@@ -17,38 +13,33 @@ import { SalesPlanDirectionsForm } from './SalesPlanDirectionsForm.jsx'
  *     profitNk?: number,
  *     profitDk?: number,
  *     profitUk?: number,
+ *     profitGrossTotal?: number,
+ *     refundsTotal?: number,
  *     trainingsTotal?: number,
  *     trainerPayroll?: number,
  *     aerobicPayroll?: number,
  *     hallFinance?: {
  *       pz?: { revenue?: number, payroll?: number, netProfit?: number },
+ *       tz?: { revenue?: number },
  *       az?: { revenue?: number, payroll?: number, netProfit?: number },
  *     },
  *   } | null,
- *   onSavePlan: () => void,
- *   onSavePlanDirections: () => void,
- *   onSaveFinance: () => void,
- *   savingPlan?: boolean,
- *   savingFinance?: boolean,
+ *   year: number,
+ *   month: number,
+ *   monthRows?: Array<Record<string, unknown>>,
+ *   membershipTypes?: Array<Record<string, unknown>>,
  * }} props
  */
 export function SalesFinancePanel({
   monthLabel,
   planForm,
-  onPlanChange,
-  expenseForm,
-  onExpenseChange,
   monthSummary,
-  onSavePlan,
-  onSavePlanDirections,
-  onSaveFinance,
-  savingPlan = false,
-  savingFinance = false,
+  year,
+  month,
+  monthRows = [],
+  membershipTypes = [],
 }) {
   const summary = monthSummary ?? {}
-
-  const setPlan = (key, value) => onPlanChange({ ...planForm, [key]: value })
-  const setExpense = (value) => onExpenseChange({ expense_month: value })
 
   return (
     <section className="sales-report__finance" aria-labelledby="sales-finance-title">
@@ -58,80 +49,14 @@ export function SalesFinancePanel({
       </h2>
       <p className="sales-report__month-label muted">{monthLabel}</p>
 
-      <div className="sales-finance-settings">
-        <SalesFinanceBlock
-          step={1}
-          title="План по уровням"
-          hint="Три порога в ₽ — каждый выше предыдущего. Уровень 3 — финальная цель месяца."
-          footer={
-            <button type="button" className="btn btn-secondary" onClick={onSavePlan} disabled={savingPlan}>
-              <Save size={16} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
-              {savingPlan ? 'Сохранение…' : 'Сохранить уровни'}
-            </button>
-          }
-        >
-          <div className="sales-finance-block__grid sales-finance-block__grid--levels">
-            {PLAN_LEVEL_KEYS.map((key, idx) => (
-              <div className="sales-finance-block__field" key={key}>
-                <label htmlFor={key}>
-                  {PLAN_LEVEL_LABELS[idx]}
-                  {idx === 2 ? <span className="sales-finance-block__field-tag">финал</span> : null}
-                </label>
-                <input
-                  id={key}
-                  type="text"
-                  inputMode="decimal"
-                  className="sales-finance-block__input"
-                  value={planForm[key] ?? ''}
-                  onChange={(e) => setPlan(key, e.target.value)}
-                  placeholder="0"
-                />
-              </div>
-            ))}
-          </div>
-        </SalesFinanceBlock>
-
-        <SalesFinanceBlock
-          step={2}
-          title="План по направлениям"
-          hint="ПЗ, ТЗ, АЗ и доп. продажи — сумма должна совпасть с уровнем 3."
-        >
-          <SalesPlanDirectionsForm
-            embedded
-            planForm={planForm}
-            onPlanChange={onPlanChange}
-            onSave={onSavePlanDirections}
-            saving={savingPlan}
-          />
-        </SalesFinanceBlock>
-
-        <SalesFinanceBlock
-          step={3}
-          title="Расход управляющего"
-          hint="Фиксированный расход клуба за месяц — учитывается в чистой прибыли."
-          footer={
-            <button type="button" className="btn btn-secondary" onClick={onSaveFinance} disabled={savingFinance}>
-              <Save size={16} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
-              {savingFinance ? 'Сохранение…' : 'Сохранить расход'}
-            </button>
-          }
-        >
-          <div className="sales-finance-block__grid sales-finance-block__grid--single">
-            <div className="sales-finance-block__field">
-              <label htmlFor="expense-month">Сумма за месяц</label>
-              <input
-                id="expense-month"
-                type="text"
-                inputMode="decimal"
-                className="sales-finance-block__input"
-                value={expenseForm.expense_month}
-                onChange={(e) => setExpense(e.target.value)}
-                placeholder="0"
-              />
-            </div>
-          </div>
-        </SalesFinanceBlock>
-      </div>
+      <SalesFinanceForecast
+        year={year}
+        month={month}
+        monthRows={monthRows}
+        membershipTypes={membershipTypes}
+        planForm={planForm}
+        expense={summary.expense ?? 0}
+      />
 
       <div className="sales-report__kpi-grid sales-finance-summary">
         <div className="sales-report__kpi">

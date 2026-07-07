@@ -59,6 +59,7 @@ import {
 import { SalesPlanVessel } from '../../components/SalesPlanVessel'
 import { SalesDailyForm } from '../../components/SalesDailyForm'
 import { SalesFinancePanel } from '../../components/SalesFinancePanel'
+import { SalesPlanSettingsPanel } from '../../components/SalesPlanSettingsPanel'
 import { SalesManagerStatsPanel } from '../../components/SalesManagerStatsPanel'
 import '../../styles/sales-report.css'
 
@@ -94,6 +95,7 @@ export function AdminSales({ accessMode = 'admin' }) {
       return 'home'
     }
     if (salesTabParam === 'finance') return 'finance'
+    if (salesTabParam === 'plan') return 'plan'
     if (salesTabParam === 'stats') return 'stats'
     return 'daily'
   }, [isSalesManager, salesTabParam])
@@ -102,7 +104,7 @@ export function AdminSales({ accessMode = 'admin' }) {
   const showInternalTabs = !isSalesManager
 
   useEffect(() => {
-    if (isSalesManager && salesTabParam === 'finance') {
+    if (isSalesManager && (salesTabParam === 'finance' || salesTabParam === 'plan')) {
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev)
         next.delete('tab')
@@ -663,17 +665,30 @@ export function AdminSales({ accessMode = 'admin' }) {
             Статистика
           </button>
           {showFinanceTab ? (
-            <button
-              type="button"
-              className="tab"
-              role="tab"
-              id="sales-tab-finance"
-              aria-selected={salesTab === 'finance'}
-              aria-controls="sales-panel-finance"
-              onClick={() => setSalesTab('finance')}
-            >
-              Финансы клуба
-            </button>
+            <>
+              <button
+                type="button"
+                className="tab"
+                role="tab"
+                id="sales-tab-plan"
+                aria-selected={salesTab === 'plan'}
+                aria-controls="sales-panel-plan"
+                onClick={() => setSalesTab('plan')}
+              >
+                План месяца
+              </button>
+              <button
+                type="button"
+                className="tab"
+                role="tab"
+                id="sales-tab-finance"
+                aria-selected={salesTab === 'finance'}
+                aria-controls="sales-panel-finance"
+                onClick={() => setSalesTab('finance')}
+              >
+                Финансы клуба
+              </button>
+            </>
           ) : null}
         </div>
       ) : null}
@@ -770,20 +785,31 @@ export function AdminSales({ accessMode = 'admin' }) {
             showPayroll
           />
         </div>
-      ) : !isSalesManager ? (
-        <div id="sales-panel-finance" role="tabpanel" aria-labelledby="sales-tab-finance">
-          <SalesFinancePanel
+      ) : !isSalesManager && salesTab === 'plan' ? (
+        <div id="sales-panel-plan" role="tabpanel" aria-labelledby="sales-tab-plan">
+          <SalesPlanSettingsPanel
             monthLabel={monthLabel}
             planForm={planForm}
             onPlanChange={setPlanForm}
             expenseForm={expenseForm}
             onExpenseChange={setExpenseForm}
-            monthSummary={monthSummary}
             onSavePlan={() => void handleSavePlanLevels()}
             onSavePlanDirections={() => void handleSavePlanDirections()}
             onSaveFinance={() => void handleSaveFinance()}
             savingPlan={savingPlan}
             savingFinance={savingFinance}
+          />
+        </div>
+      ) : !isSalesManager && salesTab === 'finance' ? (
+        <div id="sales-panel-finance" role="tabpanel" aria-labelledby="sales-tab-finance">
+          <SalesFinancePanel
+            monthLabel={monthLabel}
+            planForm={planForm}
+            monthSummary={monthSummary}
+            year={yearMonth.year}
+            month={yearMonth.month}
+            monthRows={monthDays}
+            membershipTypes={membershipTypes}
           />
         </div>
       ) : null}
