@@ -16,7 +16,7 @@ import {
 import { formatRub } from './salesReportCore.js'
 import { periodLabelRu } from './geminiAnalyticsSnapshot.js'
 
-/** @typedef {'intro'|'plan'|'gap'|'compare'|'fitcity'|'finance'|'pnk'|'bestday'|'trainer_inactive'|'payroll_gap'|'sales_coverage'|'sales_structure'|'sales_refunds'|'sales_directions'} GeminiChipId */
+/** @typedef {'intro'|'plan'|'gap'|'compare'|'fitcity'|'finance'|'pnk'|'bestday'|'trainer_inactive'|'payroll_gap'|'sales_coverage'|'sales_structure'|'sales_refunds'|'sales_directions'|'month_forecast'} GeminiChipId */
 
 /** Все chip-id с мгновенным ответом (в т.ч. без кнопки в UI). */
 export const GEMINI_INSTANT_CHIPS = [
@@ -53,6 +53,13 @@ export const GEMINI_INSTANT_CHIPS = [
     id: 'finance',
     label: 'ЗП и маржа',
     message: 'ЗП залов и чистая прибыль — норм или давит?',
+    compare: false,
+    quick: true,
+  },
+  {
+    id: 'month_forecast',
+    label: 'Прогноз месяца',
+    message: 'Какой прогноз на месяц по выручке, плану и чистой прибыли?',
     compare: false,
     quick: true,
   },
@@ -219,6 +226,8 @@ export function buildGeminiInstantReply(chipId, opts) {
       return buildSalesRefundsReply(club, period, snapshot, insights, opener, closer)
     case 'sales_directions':
       return buildSalesDirectionsReply(club, period, insights, opener, closer)
+    case 'month_forecast':
+      return buildMonthForecastReply(club, period, snapshot, opener, closer, seed)
     default:
       return null
   }
@@ -440,4 +449,61 @@ function buildSalesDirectionsReply(club, period, insights, opener, closer) {
   const rows = insights.structure?.direction_rows ?? []
   const detail = formatPlanDirectionsDetail(rows, insights.direction_plan)
   return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: ${detail} ${closer}.`
+}
+
+function buildMonthForecastReply(club, period, snapshot, opener, closer, seed) {
+  const mf = snapshot?.month_forecast
+  if (!mf?.available) {
+    if (mf?.reason === 'not_current_month') {
+      return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: прогноз на конец месяца доступен только для текущего календарного месяца — выбранный период уже закрыт или ещё не начался. ${closer}.`
+    }
+    if (mf?.reason === 'insufficient_reports') {
+      const need = Number(mf.min_report_days) || 3
+      const have = Number(mf.report_days) || 0
+      return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: для прогноза нужно минимум ${need} дневных отчётов — сейчас ${have}. Данные приняты, сводка появится позже. ${closer}.`
+    }
+    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: прогноз на месяц пока недоступен — мало данных в отчётах. ${closer}.`
+  }
+
+  const gross = Number(mf.forecast_gross_total) || 0
+  const plan = Number(mf.plan_level_3) || 0
+  const pct = Number(mf.forecast_plan_pct) || 0
+  const shortfall = Number(mf.shortfall_rub) || 0
+  const surplus = Number(mf.surplus_rub) || 0
+  const netProfit = mf.forecast_net_profit
+  const reportDays = Number(mf.report_days) || 0
+  const daysInMonth = Number(mf.days_in_month) || 0
+
+  let planLine = ''
+  if (plan > 0) {
+    if (surplus > 0) {
+      planLine = ` К плану ур. 3 (${formatRub(plan)}) прогноз ${pct}% — переработаем на ${formatRub(surplus)}.`
+    } else if (shortfall > 0) {
+      planLine = ` К плану ур. 3 (${formatRub(plan)}) прогноз ${pct}% — не дотянем ${formatRub(shortfall)}.`
+      if (pct < 90) planLine += formatPushLine(seed + 2)
+    } else {
+      planLine = ` К плану ур. 3 (${formatRub(plan)}) прогноз ровно в цель — ${pct}%.`
+    }
+  } else {
+    planLine = ` План ур. 3 не задан — ориентир только по факту: прогноз вала ${formatRub(gross)}.`
+  }
+
+  let profitLine = ''
+  if (netProfit != null && Number.isFinite(Number(netProfit))) {
+    const net = Number(netProfit)
+    const tone =
+      net < 0
+        ? pickWord(GEMINI_LEXICON_POOLS.critique, seed)
+        : net > 0
+          ? pickWord(GEMINI_LEXICON_POOLS.praise, seed)
+          : 'на нуле'
+    profitLine = ` Чистая прибыль к концу месяца — ${formatRub(net)}, ${tone}.`
+  }
+
+  const basis =
+    reportDays > 0 && daysInMonth > 0
+      ? ` По ${reportDays} отчётам из ${daysInMonth} дней месяца.`
+      : ''
+
+  return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: прогноз вала на конец месяца — ${formatRub(gross)}.${planLine}${profitLine}${basis} ${closer}.`
 }

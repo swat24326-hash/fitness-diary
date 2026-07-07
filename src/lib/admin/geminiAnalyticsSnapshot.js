@@ -158,6 +158,7 @@ export function compactSnapshotForPrompt(snapshot, selectedTrainerId = null) {
           supervisor_expense: snapshot.finance.supervisor_expense,
         }
       : undefined,
+    month_forecast: snapshot.month_forecast ?? null,
     data_sources: snapshot.data_sources?.analysis_hints?.length
       ? { analysis_hints: snapshot.data_sources.analysis_hints }
       : undefined,

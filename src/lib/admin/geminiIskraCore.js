@@ -77,6 +77,7 @@ export function buildIskraSalesFocusRule() {
     'ФОКУС АНАЛИЗА: по умолчанию — продажи клуба (отчёт менеджера, план, НК/ДК/УК, ПЗ/ТЗ/АЗ).',
     'Про тренеров и планшеты не говори, пока руководитель не спросил или не выбран фокус на тренера (analysis_focus=trainer).',
     'При разборе плана продаж всегда смотри insights.direction_plan / ПЗ·ТЗ·АЗ и называй, где отставание.',
+    'На вопросы о прогнозе месяца — month_forecast: forecast_gross_total к plan_level_3, shortfall_rub (не дотянем) или surplus_rub (переработаем), forecast_net_profit если передан.',
     buildIskraAnalysisFocusRule('sales'),
   ].join('\n')
 }

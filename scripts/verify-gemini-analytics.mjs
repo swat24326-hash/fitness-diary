@@ -125,6 +125,8 @@ ok(snap.trainings?.gap_manager_minus_fit_city === 3, 'trainings gap')
 ok(Array.isArray(snap.data_sources?.analysis_hints), 'data source hints')
 ok(snap.sales.report_coverage_pct > 0, 'report coverage')
 ok(snap.calendar_context?.month_relation, 'snapshot calendar context')
+ok(snap.month_forecast?.available === false, 'month forecast on past month snapshot')
+ok(snap.month_forecast?.reason === 'not_current_month', 'month forecast reason past month')
 ok(periodLabelRu(2026, 6).includes('июнь'), 'period label')
 
 const matrix = sumMatrixTotalsFromDailyRows(rows)
@@ -156,6 +158,7 @@ ok(buildSystemPrompt('male', 'Север').includes('sales_contour'), 'prompt in
 ok(buildSystemPrompt('male', 'X').includes('советск'), 'prompt soviet tone')
 ok(buildSystemPrompt('male', 'X').includes('НИЧЕГО НЕ СЧИТАЕШЬ'), 'prompt no calc rule')
 ok(buildSystemPrompt('male', 'X').includes('calendar_context'), 'prompt calendar rule')
+ok(buildSystemPrompt('male', 'X').includes('month_forecast'), 'prompt month forecast rule')
 
 const midMonth = buildGeminiMonthCalendarContext(2026, 7, new Date(2026, 6, 15))
 ok(midMonth.phase === 'middle', 'calendar middle july 15')
@@ -190,6 +193,8 @@ ok(compact?.sales_contour?.pnk_total === 8, 'compact pnk')
 ok(compact?.sales_contour?.profit_nk === 6000, 'compact profit nk')
 ok(compact?.sales_contour?.achieved_plan_level === 2, 'compact achieved level')
 ok(compact?.sales_contour?.profit_day_highlights?.best_day?.date === '2026-06-15', 'compact best day')
+ok(compact?.month_forecast?.reason === 'not_current_month', 'compact month forecast')
+ok(dataBlock.month_forecast?.reason === 'not_current_month', 'prompt block month forecast')
 ok(dataBlock.analysis_period && dataBlock.current_period && dataBlock.previous_period === undefined, 'prompt block no prev')
 ok(isGeminiReplyIncomplete('ЭВС ИСКРА, июль 202', 'MAX_TOKENS'), 'truncated reply detected')
 ok(!isGeminiReplyIncomplete('План на 45%, требуется усилить контроль по выручке.', 'STOP'), 'complete reply ok')
@@ -243,8 +248,10 @@ ok(highlights?.best_day?.date === '2026-06-15', 'profit highlights helper')
 const byType = topTrainingsByCardType(rows, membershipTypes, 3)
 ok(byType[0]?.count === 6, 'top trainings by card type')
 
-ok(GEMINI_QUICK_CHIPS.length === 6, 'quick chips trimmed to six')
+ok(GEMINI_QUICK_CHIPS.length === 7, 'quick chips include month forecast')
 ok(GEMINI_INSTANT_CHIPS.length >= GEMINI_QUICK_CHIPS.length, 'instant chips cover quick chips')
+
+ok(matchGeminiInstantChip(GEMINI_INSTANT_CHIPS.find((c) => c.id === 'month_forecast').message) === 'month_forecast', 'instant chip month forecast')
 
 ok(matchGeminiInstantChip(GEMINI_INSTANT_CHIPS.find((c) => c.id === 'pnk').message) === 'pnk', 'instant chip pnk')
 const instantPnk = buildGeminiInstantReply('pnk', { snapshot: snap, gender: 'male' })
@@ -267,6 +274,27 @@ ok(matchGeminiInstantChip('случайный текст') === null, 'instant ch
 const instantPlan = buildGeminiInstantReply('plan', { snapshot: snap, gender: 'male' })
 ok(instantPlan?.includes('66%') && instantPlan.includes('уровня 2') && instantPlan.endsWith('.'), 'instant plan reply')
 ok(!instantPlan?.includes('undefined'), 'instant plan no undefined')
+
+const instantForecast = buildGeminiInstantReply('month_forecast', {
+  snapshot: {
+    ...snap,
+    month_forecast: {
+      available: true,
+      forecast_gross_total: 1200000,
+      plan_level_3: 1300000,
+      forecast_plan_pct: 92.3,
+      shortfall_rub: 100000,
+      surplus_rub: 0,
+      forecast_net_profit: 450000,
+      report_days: 10,
+      days_in_month: 30,
+    },
+  },
+})
+ok(instantForecast?.includes('прогноз вала на конец месяца'), 'instant forecast gross')
+ok(instantForecast?.includes('не дотянем') && instantForecast?.includes('92.3%'), 'instant forecast shortfall')
+ok(instantForecast?.includes('Чистая прибыль к концу месяца'), 'instant forecast net profit')
+ok(instantForecast?.endsWith('.'), 'instant forecast ends with dot')
 ok(
   (instantPlan?.match(/отстаём|отстающие|без критичного|в календарном темпе/gi) ?? []).length <= 2,
   'instant plan no redundant lag wording',

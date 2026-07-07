@@ -279,3 +279,66 @@ export function buildClubFinanceForecast(opts) {
     },
   }
 }
+
+/**
+ * Компактный прогноз месяца для ИСКРЫ — только готовые поля, без детализации направлений.
+ * @param {{
+ *   monthRows: Array<Record<string, unknown>>,
+ *   year: number,
+ *   month: number,
+ *   expense?: number,
+ *   membershipTypes?: Array<Record<string, unknown>>,
+ *   planForm?: Record<string, string | number | undefined> | null,
+ *   includeFinance?: boolean,
+ *   today?: Date,
+ * }} opts
+ */
+export function buildIskraMonthForecastSummary(opts) {
+  const includeFinance = opts.includeFinance !== false
+  const fc = buildClubFinanceForecast({
+    monthRows: opts.monthRows ?? [],
+    year: opts.year,
+    month: opts.month,
+    expense: opts.expense,
+    membershipTypes: opts.membershipTypes,
+    planForm: opts.planForm ?? undefined,
+    today: opts.today,
+  })
+
+  if (!fc.ok) {
+    return {
+      available: false,
+      reason: fc.reason,
+      report_days: fc.reportDays ?? 0,
+      min_report_days: fc.minReportDays ?? MIN_REPORT_DAYS_FOR_FORECAST,
+    }
+  }
+
+  const planLevel3 = fc.plan.level3
+  const forecastGross = fc.plan.forecastGross
+  const surplus =
+    planLevel3 > 0 && forecastGross > planLevel3 ? roundRub(forecastGross - planLevel3) : 0
+  const shortfall =
+    planLevel3 > 0 && forecastGross < planLevel3 ? roundRub(planLevel3 - forecastGross) : 0
+
+  /** @type {Record<string, unknown>} */
+  const summary = {
+    available: true,
+    method: 'avg_per_report_day_times_days_in_month',
+    report_days: fc.reportDays,
+    days_in_month: fc.daysInMonth,
+    plan_level_3: planLevel3,
+    forecast_gross_total: forecastGross,
+    forecast_earnings_net: fc.forecast.earnings,
+    forecast_plan_pct: fc.plan.forecastProgressPercent,
+    shortfall_rub: shortfall,
+    surplus_rub: surplus,
+    will_reach_plan: fc.plan.reach.willReach,
+  }
+
+  if (includeFinance) {
+    summary.forecast_net_profit = fc.forecast.netProfit
+  }
+
+  return summary
+}

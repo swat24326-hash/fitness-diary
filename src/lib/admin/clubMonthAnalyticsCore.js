@@ -21,6 +21,7 @@ import {
   shouldFlagLowPlan,
 } from './geminiMonthCalendarContext.js'
 import { buildPlanDirectionInsights } from './geminiPlanDirections.js'
+import { buildIskraMonthForecastSummary } from './clubFinanceForecastCore.js'
 
 export const MONTH_LABELS_RU = [
   'январь',
@@ -342,6 +343,7 @@ export function applyMonthComparisonInsights(snapshot, previousSnapshot) {
  *   trainingCompleted?: number,
  *   trainingDraft?: number,
  *   membershipTypes?: Array<{ id: string, code?: string }>,
+ *   today?: Date,
  * }} opts
  */
 export function buildClubMonthAnalytics(opts) {
@@ -404,6 +406,17 @@ export function buildClubMonthAnalytics(opts) {
     finance,
     includeFinance,
     calendarContext,
+  })
+
+  const monthForecast = buildIskraMonthForecastSummary({
+    monthRows,
+    year,
+    month,
+    expense,
+    membershipTypes,
+    planForm: opts.plan,
+    includeFinance,
+    today: opts.today,
   })
 
   return {
@@ -470,6 +483,7 @@ export function buildClubMonthAnalytics(opts) {
     },
     finance,
     insights,
+    month_forecast: monthForecast,
     data_sources: buildGeminiDataSourcesMeta({
       managerReportTotal: manualTrainings,
       fitCityTotal: fitCity,

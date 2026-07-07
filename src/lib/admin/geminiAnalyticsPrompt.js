@@ -133,6 +133,7 @@ export function buildGeminiPromptDataBlock(snapshot, previousSnapshot = null, op
     finance: current?.finance ?? null,
     trainings: current?.trainings ?? null,
     insights: current?.insights ?? null,
+    month_forecast: current?.month_forecast ?? snapshot?.month_forecast ?? null,
     data_sources: current?.data_sources ?? null,
     current_period: current?.period ?? null,
   }

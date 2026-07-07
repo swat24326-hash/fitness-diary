@@ -1,6 +1,7 @@
 import {
   MIN_REPORT_DAYS_FOR_FORECAST,
   buildClubFinanceForecast,
+  buildIskraMonthForecastSummary,
   daysInCalendarMonth,
   isCurrentCalendarMonth,
 } from '../src/lib/admin/clubFinanceForecastCore.js'
@@ -189,6 +190,40 @@ ok(
   fcTrain.plan.directions.find((d) => d.key === 'pz')?.forecast === Math.round(15 * (daysInMonth / 3)),
   'pz trainings forecast scaled',
 )
+
+const iskra = buildIskraMonthForecastSummary({
+  monthRows: rows3,
+  year,
+  month,
+  expense: 360000,
+  membershipTypes: [],
+  planForm: { plan_level_3: '1300000' },
+  includeFinance: true,
+  today,
+})
+ok(iskra.available, 'iskra forecast available')
+ok(iskra.forecast_gross_total === fc3.plan.forecastGross, 'iskra gross matches finance forecast')
+ok(iskra.shortfall_rub > 0 && iskra.surplus_rub === 0, 'iskra shortfall when below plan')
+ok(Number.isFinite(Number(iskra.forecast_net_profit)), 'iskra net profit when finance on')
+
+const iskraNoFinance = buildIskraMonthForecastSummary({
+  monthRows: rows3,
+  year,
+  month,
+  expense: 360000,
+  planForm: { plan_level_3: '1300000' },
+  includeFinance: false,
+  today,
+})
+ok(iskraNoFinance.available && iskraNoFinance.forecast_net_profit === undefined, 'iskra hides net profit without finance')
+
+const iskraPast = buildIskraMonthForecastSummary({
+  monthRows: rows3,
+  year: 2026,
+  month: 6,
+  today,
+})
+ok(!iskraPast.available && iskraPast.reason === 'not_current_month', 'iskra past month blocked')
 
 if (failed) process.exit(1)
 console.log('verify-club-finance-forecast: all passed')
