@@ -59,7 +59,6 @@ import {
 import { SalesPlanVessel } from '../../components/SalesPlanVessel'
 import { SalesDailyForm } from '../../components/SalesDailyForm'
 import { SalesFinancePanel } from '../../components/SalesFinancePanel'
-import { SalesPlanDirectionsForm } from '../../components/SalesPlanDirectionsForm'
 import { SalesManagerStatsPanel } from '../../components/SalesManagerStatsPanel'
 import '../../styles/sales-report.css'
 
@@ -710,12 +709,6 @@ export function AdminSales({ accessMode = 'admin' }) {
 
       {isSalesManager && salesTab === 'stats' ? (
         <div id="sales-panel-stats" className="sales-report__panel">
-          <SalesPlanDirectionsForm
-            planForm={planForm}
-            onPlanChange={setPlanForm}
-            onSave={() => void handleSavePlanDirections()}
-            saving={savingPlan}
-          />
           <SalesManagerStatsPanel
             monthLabel={monthLabel}
             year={yearMonth.year}
@@ -735,12 +728,6 @@ export function AdminSales({ accessMode = 'admin' }) {
 
       {!isSalesManager && salesTab === 'daily' ? (
         <div id="sales-panel-daily" role="tabpanel" aria-labelledby="sales-tab-daily">
-          <SalesPlanDirectionsForm
-            planForm={planForm}
-            onPlanChange={setPlanForm}
-            onSave={() => void handleSavePlanDirections()}
-            saving={savingPlan}
-          />
           <SalesDailyForm
             reportDate={reportDate}
             dateLabel={formatDateRu(reportDate)}
@@ -793,6 +780,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             onExpenseChange={setExpenseForm}
             monthSummary={monthSummary}
             onSavePlan={() => void handleSavePlanLevels()}
+            onSavePlanDirections={() => void handleSavePlanDirections()}
             onSaveFinance={() => void handleSaveFinance()}
             savingPlan={savingPlan}
             savingFinance={savingFinance}

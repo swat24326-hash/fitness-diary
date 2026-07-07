@@ -6,6 +6,7 @@ import {
   sumMatrix3x3FromDailyRows,
 } from '../src/lib/admin/salesManagerStatsAgg.js'
 import { SALES_MONTH_DAILY_SELECT, planProgressPercent } from '../src/lib/admin/salesReportCore.js'
+import { matrixRowsToMembershipStats, SALES_TRAINING_CLUB_ID } from '../src/lib/admin/salesTrainingsMatrix.js'
 
 let failed = 0
 
@@ -117,6 +118,19 @@ ok(pnkSeries[0].value === 3, 'pnk day 1 from month rows')
 
 const trainingsAgg = aggregateTrainingsByMembershipTypes(rows, [{ id: 't1', code: 'NK' }])
 ok(trainingsAgg.byType.some((x) => x.count === 5), 'trainings by type from matrix')
+
+const clubOnlyStats = matrixRowsToMembershipStats(
+  [
+    { trainer_id: SALES_TRAINING_CLUB_ID, membership_type_id: 't1', count: 58 },
+    { trainer_id: SALES_TRAINING_CLUB_ID, membership_type_id: 't2', count: 46 },
+  ],
+  [
+    { id: 't1', code: 'Vip 1' },
+    { id: 't2', code: 'Br' },
+  ],
+)
+ok(clubOnlyStats.byTrainerByType.length === 0, 'club row not listed as trainer breakdown')
+ok(clubOnlyStats.byType.reduce((s, x) => s + x.count, 0) === 104, 'club byType totals preserved')
 
 const series = buildDailyProfitSeries(rows, 2026, 6)
 ok(series.filter((d) => d.hasReport).length === 2, 'series reported count')

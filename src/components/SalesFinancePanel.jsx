@@ -1,5 +1,7 @@
 import { Save, Wallet } from 'lucide-react'
 import { PLAN_LEVEL_KEYS, PLAN_LEVEL_LABELS, formatRub } from '../lib/admin/salesReportCore.js'
+import { SalesFinanceBlock } from './SalesFinanceBlock.jsx'
+import { SalesPlanDirectionsForm } from './SalesPlanDirectionsForm.jsx'
 
 /**
  * @param {{
@@ -24,6 +26,7 @@ import { PLAN_LEVEL_KEYS, PLAN_LEVEL_LABELS, formatRub } from '../lib/admin/sale
  *     },
  *   } | null,
  *   onSavePlan: () => void,
+ *   onSavePlanDirections: () => void,
  *   onSaveFinance: () => void,
  *   savingPlan?: boolean,
  *   savingFinance?: boolean,
@@ -37,6 +40,7 @@ export function SalesFinancePanel({
   onExpenseChange,
   monthSummary,
   onSavePlan,
+  onSavePlanDirections,
   onSaveFinance,
   savingPlan = false,
   savingFinance = false,
@@ -54,59 +58,82 @@ export function SalesFinancePanel({
       </h2>
       <p className="sales-report__month-label muted">{monthLabel}</p>
 
-      <div className="sales-report__card sales-report__plan-card" style={{ marginTop: '1rem' }}>
-        <h3 className="sales-report__section-title" style={{ fontSize: '1rem' }}>
-          План по уровням
-        </h3>
-        <div className="sales-report__plan-row sales-report__plan-row--levels">
-          {PLAN_LEVEL_KEYS.map((key, idx) => (
-            <div className="sales-report__metric" key={key}>
-              <label htmlFor={key}>
-                {PLAN_LEVEL_LABELS[idx]}
-                {idx === 2 ? <span className="muted"> (финал)</span> : null}
-              </label>
+      <div className="sales-finance-settings">
+        <SalesFinanceBlock
+          step={1}
+          title="План по уровням"
+          hint="Три порога в ₽ — каждый выше предыдущего. Уровень 3 — финальная цель месяца."
+          footer={
+            <button type="button" className="btn btn-secondary" onClick={onSavePlan} disabled={savingPlan}>
+              <Save size={16} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
+              {savingPlan ? 'Сохранение…' : 'Сохранить уровни'}
+            </button>
+          }
+        >
+          <div className="sales-finance-block__grid sales-finance-block__grid--levels">
+            {PLAN_LEVEL_KEYS.map((key, idx) => (
+              <div className="sales-finance-block__field" key={key}>
+                <label htmlFor={key}>
+                  {PLAN_LEVEL_LABELS[idx]}
+                  {idx === 2 ? <span className="sales-finance-block__field-tag">финал</span> : null}
+                </label>
+                <input
+                  id={key}
+                  type="text"
+                  inputMode="decimal"
+                  className="sales-finance-block__input"
+                  value={planForm[key] ?? ''}
+                  onChange={(e) => setPlan(key, e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+            ))}
+          </div>
+        </SalesFinanceBlock>
+
+        <SalesFinanceBlock
+          step={2}
+          title="План по направлениям"
+          hint="ПЗ, ТЗ, АЗ и доп. продажи — сумма должна совпасть с уровнем 3."
+        >
+          <SalesPlanDirectionsForm
+            embedded
+            planForm={planForm}
+            onPlanChange={onPlanChange}
+            onSave={onSavePlanDirections}
+            saving={savingPlan}
+          />
+        </SalesFinanceBlock>
+
+        <SalesFinanceBlock
+          step={3}
+          title="Расход управляющего"
+          hint="Фиксированный расход клуба за месяц — учитывается в чистой прибыли."
+          footer={
+            <button type="button" className="btn btn-secondary" onClick={onSaveFinance} disabled={savingFinance}>
+              <Save size={16} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
+              {savingFinance ? 'Сохранение…' : 'Сохранить расход'}
+            </button>
+          }
+        >
+          <div className="sales-finance-block__grid sales-finance-block__grid--single">
+            <div className="sales-finance-block__field">
+              <label htmlFor="expense-month">Сумма за месяц</label>
               <input
-                id={key}
+                id="expense-month"
                 type="text"
                 inputMode="decimal"
-                value={planForm[key] ?? ''}
-                onChange={(e) => setPlan(key, e.target.value)}
+                className="sales-finance-block__input"
+                value={expenseForm.expense_month}
+                onChange={(e) => setExpense(e.target.value)}
                 placeholder="0"
               />
             </div>
-          ))}
-        </div>
-        <div className="sales-report__actions" style={{ marginTop: '1rem' }}>
-          <button type="button" className="btn btn-secondary" onClick={onSavePlan} disabled={savingPlan}>
-            <Save size={16} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
-            {savingPlan ? 'Сохранение…' : 'Сохранить уровни'}
-          </button>
-        </div>
+          </div>
+        </SalesFinanceBlock>
       </div>
 
-      <div className="sales-report__card" style={{ marginTop: '0.75rem' }}>
-        <h3 className="sales-report__section-title" style={{ fontSize: '1rem' }}>
-          Расход управляющего
-        </h3>
-        <div className="sales-report__metric" style={{ maxWidth: '16rem' }}>
-          <label htmlFor="expense-month">Сумма за месяц (₽)</label>
-          <input
-            id="expense-month"
-            type="text"
-            inputMode="decimal"
-            value={expenseForm.expense_month}
-            onChange={(e) => setExpense(e.target.value)}
-          />
-        </div>
-        <div className="sales-report__actions" style={{ marginTop: '1rem' }}>
-          <button type="button" className="btn btn-secondary" onClick={onSaveFinance} disabled={savingFinance}>
-            <Save size={16} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
-            {savingFinance ? 'Сохранение…' : 'Сохранить расход'}
-          </button>
-        </div>
-      </div>
-
-      <div className="sales-report__kpi-grid">
+      <div className="sales-report__kpi-grid sales-finance-summary">
         <div className="sales-report__kpi">
           <span className="sales-report__kpi-label">Заработок месяца</span>
           <span className="sales-report__kpi-value">{formatRub(summary.profitTotal ?? 0)}</span>
@@ -172,10 +199,9 @@ export function SalesFinancePanel({
         </div>
       ) : null}
 
-      <p className="muted" style={{ marginTop: '1rem', fontSize: '0.85rem' }}>
+      <p className="muted sales-finance-summary-note">
         НК {formatRub(summary.profitNk ?? 0)} · ДК {formatRub(summary.profitDk ?? 0)} · УК{' '}
-        {formatRub(summary.profitUk ?? 0)} · тренировок {summary.trainingsTotal ?? 0} · ЗП персонального зала и ЗП АЗ по
-        текущим ставкам типов
+        {formatRub(summary.profitUk ?? 0)} · тренировок {summary.trainingsTotal ?? 0}
       </p>
     </section>
   )

@@ -152,6 +152,10 @@ export function matrixRowsToMembershipStats(rows, membershipTypes) {
 
   const clubTypeMap = new Map()
   const trainerTypeMap = new Map()
+  const hasClubAggregate = (rows ?? []).some((row) => {
+    const tid = String(row?.trainer_id ?? '').trim()
+    return tid === SALES_TRAINING_CLUB_ID && (Number(row?.count) || 0) > 0
+  })
 
   for (const row of rows ?? []) {
     const trainerId = String(row.trainer_id ?? '').trim()
@@ -162,10 +166,15 @@ export function matrixRowsToMembershipStats(rows, membershipTypes) {
     const count = Number(row.count) || 0
     if (!trainerId || count <= 0) continue
 
-    clubTypeMap.set(typeKey, (clubTypeMap.get(typeKey) || 0) + count)
-    if (!trainerTypeMap.has(trainerId)) trainerTypeMap.set(trainerId, new Map())
-    const tm = trainerTypeMap.get(trainerId)
-    tm.set(typeKey, (tm.get(typeKey) || 0) + count)
+    const isClubRow = trainerId === SALES_TRAINING_CLUB_ID
+    if (isClubRow || !hasClubAggregate) {
+      clubTypeMap.set(typeKey, (clubTypeMap.get(typeKey) || 0) + count)
+    }
+    if (!isClubRow) {
+      if (!trainerTypeMap.has(trainerId)) trainerTypeMap.set(trainerId, new Map())
+      const tm = trainerTypeMap.get(trainerId)
+      tm.set(typeKey, (tm.get(typeKey) || 0) + count)
+    }
   }
 
   const label = (typeKey) => {
