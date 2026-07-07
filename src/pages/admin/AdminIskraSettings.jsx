@@ -231,6 +231,7 @@ export function AdminIskraSettings() {
             <p className="admin-iskra-settings__chips-meta muted">
               {quickChips.length} / {ISKRA_QUICK_CHIP_LIMITS.maxChips} кнопок
               {chipsCustom ? ' · настроено для клуба' : ' · стандартный набор'}
+              {dirty ? ' · есть несохранённые изменения' : ''}
             </p>
             <ul className="admin-iskra-settings__chips-list">
               {quickChips.map((chip, index) => (
@@ -323,6 +324,15 @@ export function AdminIskraSettings() {
             <div className="row admin-iskra-settings__actions">
               <button
                 type="button"
+                className="btn btn-primary"
+                disabled={!clubId || saving || !dirty}
+                onClick={() => void onSave()}
+              >
+                <Save size={16} aria-hidden />
+                Сохранить
+              </button>
+              <button
+                type="button"
                 className="btn btn-secondary"
                 disabled={!clubId || saving || quickChips.length >= ISKRA_QUICK_CHIP_LIMITS.maxChips}
                 onClick={addChip}
@@ -335,6 +345,11 @@ export function AdminIskraSettings() {
                 Стандартные кнопки
               </button>
             </div>
+            {dirty ? (
+              <p className="admin-iskra-settings__dirty-hint muted">
+                Изменения пока только на экране — нажмите «Сохранить», чтобы они появились в панели ✨.
+              </p>
+            ) : null}
           </>
         )}
       </section>

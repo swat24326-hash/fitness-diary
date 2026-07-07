@@ -5944,6 +5944,11 @@ tr:last-child td {
   color: #ef9a9a;
 }
 
+.admin-iskra-settings__dirty-hint {
+  margin: 10px 0 0;
+  font-size: 13px;
+}
+
 .diagnostics-panel__status {
   margin-bottom: 14px;
   padding: 12px 14px;
