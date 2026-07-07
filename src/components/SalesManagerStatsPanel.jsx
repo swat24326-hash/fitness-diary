@@ -73,7 +73,6 @@ export function SalesManagerStatsPanel({
     dailyTrainingsSeries,
     maxDayTrainings,
     trainingsStats,
-    trainingsTypedTotal,
     dayTable,
     hallFinance,
     aerobicStats,
@@ -195,68 +194,44 @@ export function SalesManagerStatsPanel({
 
       <div className="sales-report__card sales-report__stats-block">
         <h3 className="sales-report__stats-block-title">Тренировки по типам карт</h3>
-        <p className="muted sales-report__stats-block-note">
-          Сумма из ежедневных отчётов менеджера. Итого по типам: <strong>{trainingsTypedTotal}</strong>
-          {summary.trainingsTotal !== trainingsTypedTotal ? (
-            <span> · в отчётах указано {summary.trainingsTotal}</span>
-          ) : null}
-        </p>
         <MembershipTypeStatsTable
           byType={trainingsStats.byType}
           byTrainerByType={trainingsStats.byTrainerByType}
           trainerLabel={trainerLabel}
-          note="Сумма тренировок из сохранённых отчётов продаж. «Без типа» в итог по типам не входит."
         />
       </div>
 
       {aerobicStats?.byType?.length ? (
         <div className="sales-report__card sales-report__stats-block">
           <h3 className="sales-report__stats-block-title">Тренировки в аэробном зале</h3>
-          <p className="muted sales-report__stats-block-note">
-            Сумма из ежедневных отчётов. Итого: <strong>{aerobicStats.total}</strong>
-            {showPayroll ? (
-              <span>
-                {' '}
-                · ЗП за месяц {formatRub(summary.aerobicPayroll ?? 0)}
-                {hallFinance ? (
-                  <span>
-                    {' '}
-                    · чистая прибыль АЗ {formatRub(hallFinance.az?.netProfit ?? 0)} (выручка АЗ − ЗП)
-                  </span>
-                ) : null}
-              </span>
-            ) : null}
-          </p>
-          <div className="sales-report__matrix-scroll">
-            <table className="sales-report__matrix sales-report__stats-matrix">
+          <div className="table-wrap admin-mem-type-table-wrap">
+            <table className="admin-mem-type-table">
               <thead>
                 <tr>
-                  <th scope="col" />
+                  <th className="admin-mem-type-table__trainer-col" scope="col" />
                   {aerobicStats.byType.map((row) => (
-                    <th key={row.typeId} scope="col">
+                    <th key={row.typeId} className="admin-mem-type-table__type-col" scope="col">
                       {row.code}
                     </th>
                   ))}
-                  <th scope="col">Итого</th>
-                  {showPayroll ? <th scope="col">ЗП</th> : null}
+                  <th className="admin-mem-type-table__sum-col" scope="col">
+                    Итого
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <th scope="row">Кол-во</th>
+                <tr className="admin-mem-type-table__club-row">
+                  <th className="admin-mem-type-table__trainer-col" scope="row">
+                    Кол-во
+                  </th>
                   {aerobicStats.byType.map((row) => (
-                    <td key={row.typeId} className="sales-report__matrix-computed">
+                    <td key={row.typeId} className="admin-mem-type-table__num">
                       {row.count > 0 ? row.count : 0}
                     </td>
                   ))}
-                  <td className="sales-report__matrix-computed">
+                  <td className="admin-mem-type-table__num admin-mem-type-table__sum-col">
                     <strong>{aerobicStats.total}</strong>
                   </td>
-                  {showPayroll ? (
-                    <td className="sales-report__matrix-computed">
-                      <strong>{formatRub(summary.aerobicPayroll ?? 0)}</strong>
-                    </td>
-                  ) : null}
                 </tr>
               </tbody>
             </table>
@@ -266,9 +241,6 @@ export function SalesManagerStatsPanel({
 
       <div className="sales-report__card sales-report__stats-block">
         <h3 className="sales-report__stats-block-title">Структура продаж</h3>
-        <p className="muted sales-report__stats-block-note">
-          Доля — % от заработка за месяц; план — % выполнения по направлениям (ПЗ/ТЗ/АЗ/доп.).
-        </p>
         <SalesStructureBlock title="Категории абонементов (НК / ДК / УК / доп.)" items={structure} />
         <SalesStructureBlock
           title="Направления (план)"

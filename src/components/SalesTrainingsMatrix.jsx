@@ -67,10 +67,6 @@ export function SalesTrainingsMatrix({
     return sum
   }
 
-  const clubAllTotal = aggregateOnly
-    ? columns.reduce((s, col) => s + countCell(SALES_TRAINING_CLUB_ID, col.typeId), 0)
-    : 0
-
   const dayPay = useMemo(
     () => computeClubTrainingsPayrollFromInputMap(matrix, _membershipTypes),
     [_membershipTypes, matrix],
@@ -117,19 +113,6 @@ export function SalesTrainingsMatrix({
 
   return (
     <div className="sales-trainings-matrix">
-      <p className="muted sales-trainings-matrix__note">
-        Число <strong>тренировок за день</strong> по типу карты (Br, Vip, …). Одна строка «По клубу» — без
-        разбивки по тренерам. Итого: <strong>{clubAllTotal}</strong> (типизировано:{' '}
-        <strong>{typedTotal(SALES_TRAINING_CLUB_ID)}</strong>). «Без типа» — в ЗП персонального зала не входит.
-        {showPayroll ? (
-          <>
-            {' '}
-            ЗП дня = тренировки × ставка типа из{' '}
-            <Link to={typesHref}>Структура → Типы абон.</Link> (ПЗ).
-          </>
-        ) : null}
-      </p>
-
       <div className="table-wrap admin-mem-type-table-wrap sales-trainings-matrix__scroll">
         <table className="admin-mem-type-table sales-trainings-matrix__table">
           <thead>

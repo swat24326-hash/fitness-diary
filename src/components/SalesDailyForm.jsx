@@ -167,10 +167,6 @@ export function SalesDailyForm({
       <h3 className="sales-report__section-title sales-report__matrix-heading">
         Матрица продаж
       </h3>
-      <p className="muted sales-report__matrix-note">
-        В каждом столбце (НК, ДК, УК): количество абонементов, сумма продаж и средний чек. Доп. продажи и возвраты — сумма
-        в колонке «Итого». Возвраты вычитаются из итога дня и чистой прибыли.
-      </p>
       <div className="table-wrap sales-report__matrix-wrap">
         <table className="sales-report__matrix sales-report__matrix--flat">
           <thead>

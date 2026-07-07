@@ -425,6 +425,7 @@ export function GeminiAnalyticsPanel({
       >
         <div className="gemini-panel__glow" aria-hidden />
 
+        <div className="gemini-panel__chrome">
         <header className="gemini-panel__head">
           <div className="gemini-panel__head-main">
             <div className={`gemini-panel__avatar gemini-panel__avatar--${gender}`} aria-hidden>
@@ -576,7 +577,9 @@ export function GeminiAnalyticsPanel({
             )
           })}
         </div>
+        </div>
 
+        <div className="gemini-panel__chat">
         <div className="gemini-panel__messages" ref={listRef}>
           {messages.map((msg, i) => (
             <div
@@ -727,6 +730,7 @@ export function GeminiAnalyticsPanel({
         ) : (
           <p className="gemini-panel__voice-hint muted">Голосовой ввод: Chrome или Edge на Android. Ответ можно озвучить 🔊</p>
         )}
+        </div>
       </aside>
     </div>
   )

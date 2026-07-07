@@ -63,10 +63,11 @@ export function MembershipTypeStatsTable({ byType = [], byTrainerByType = [], tr
 
   return (
     <div className="mem-type-stats">
-      <p className="muted mem-type-stats__note" style={{ margin: '0 0 10px', fontSize: 13, lineHeight: 1.45 }}>
-        {note ??
-          'Учитываются только завершённые тренировки и списания. Тип берётся с абонемента сейчас (если тип меняли — пересчёт по новому). Колонка «Без типа» видна в таблице; в столбце «Итого» она не суммируется.'}
-      </p>
+      {note ? (
+        <p className="muted mem-type-stats__note" style={{ margin: '0 0 10px', fontSize: 13, lineHeight: 1.45 }}>
+          {note}
+        </p>
+      ) : null}
       <div className="table-wrap admin-mem-type-table-wrap">
         <table className="admin-mem-type-table">
           <thead>

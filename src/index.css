@@ -131,6 +131,8 @@ button {
   top: 0;
   z-index: 10;
   animation: fade-in-up 0.5s var(--ease-out) backwards;
+  container-type: inline-size;
+  container-name: app-header;
 }
 
 .app-header__brand-slot {
@@ -201,6 +203,66 @@ button {
 
   .app-header--with-club .app-header__menu-nav {
     display: flex;
+  }
+}
+
+/* Админ на узкой шапке: клуб + кнопки важнее подписи бренда */
+@container app-header (max-width: 760px) {
+  .app-header--admin.app-header--with-club .app-brand-text {
+    display: none;
+  }
+
+  .app-header--admin.app-header--with-club .app-header__brand-slot {
+    flex: 0 0 auto;
+    max-width: 2.75rem;
+  }
+
+  .app-header--admin.app-header--with-club .app-header__club-select {
+    max-width: min(176px, 46vw);
+  }
+}
+
+@supports not (container-type: inline-size) {
+  @media (max-width: 760px) {
+    .app-header--admin.app-header--with-club .app-brand-text {
+      display: none;
+    }
+
+    .app-header--admin.app-header--with-club .app-header__brand-slot {
+      flex: 0 0 auto;
+      max-width: 2.75rem;
+    }
+
+    .app-header--admin.app-header--with-club .app-header__club-select {
+      max-width: min(176px, 46vw);
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .app-header {
+    padding-left: 10px;
+    padding-right: 10px;
+    column-gap: 8px;
+  }
+
+  .app-header--admin .app-brand-text {
+    display: none;
+  }
+
+  .app-header--admin .app-header__brand-slot {
+    flex: 0 0 auto;
+    max-width: 2.75rem;
+  }
+
+  .app-header--admin .app-header__club-select {
+    max-width: min(156px, 40vw);
+    font-size: 0.72rem;
+    padding: 6px 22px 6px 8px;
+  }
+
+  .app-header--admin .app-header__tools {
+    gap: 6px;
   }
 }
 

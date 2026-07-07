@@ -1486,6 +1486,17 @@
   overflow-x: auto;
 }
 
+.sales-report__matrix-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+
+.sales-report__matrix-scroll .sales-report__stats-matrix {
+  width: max-content;
+  min-width: 100%;
+}
+
 .sales-report__stats-table {
   width: 100%;
   border-collapse: collapse;

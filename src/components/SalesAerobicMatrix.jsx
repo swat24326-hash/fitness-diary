@@ -125,10 +125,6 @@ export function SalesAerobicMatrix({
           </tbody>
         </table>
       </div>
-      <p className="muted" style={{ margin: '0.5rem 0 0', fontSize: 12 }}>
-        Количество тренировок/продаж АЗ по типам × ставка = ЗП аэробного зала за день. Тренер не оформляет
-        эти типы клиентам.
-      </p>
     </div>
   )
 }

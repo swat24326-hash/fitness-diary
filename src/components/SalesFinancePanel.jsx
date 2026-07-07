@@ -58,10 +58,6 @@ export function SalesFinancePanel({
         <h3 className="sales-report__section-title" style={{ fontSize: '1rem' }}>
           План по уровням
         </h3>
-        <p className="muted sales-report__plan-card-note">
-          Управляющий задаёт <strong>три порога</strong> (₽): каждый следующий выше предыдущего. Это{' '}
-          <strong>не сумма</strong>, а этапы повышения. Уровень 3 — финальная цель месяца.
-        </p>
         <div className="sales-report__plan-row sales-report__plan-row--levels">
           {PLAN_LEVEL_KEYS.map((key, idx) => (
             <div className="sales-report__metric" key={key}>
