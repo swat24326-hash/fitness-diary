@@ -215,7 +215,7 @@ export function normalizeMatrixRowsFromDb(raw) {
 }
 
 /**
- * ФОТ персонального зала за день из строки «По клубу» × ставки типов ПЗ.
+ * ЗП персонального зала за день из строки «По клубу» × ставки типов ПЗ.
  * @param {Record<string, string>} inputMap
  * @param {Array<{ id: string, trainer_pay_per_session?: number | string }>} membershipTypes
  */

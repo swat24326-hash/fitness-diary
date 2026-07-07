@@ -279,3 +279,40 @@ export function formatCalendarContextLine(calendarContext) {
   const datePart = dateRu ? `Сегодня ${dateRu}` : `Сегодня ${day}-е число`
   return ` ${datePart}, ${phase}; ориентир плана к дате ~${expected}%.`
 }
+
+/**
+ * Одна фраза: дата, ориентир и сравнение с фактом — без повтора «отставание».
+ * @param {ReturnType<typeof buildGeminiMonthCalendarContext> | null | undefined} calendarContext
+ * @param {number} planPct
+ * @param {'behind'|'ahead'|'on_track'|string|null|undefined} vsCalendar
+ */
+export function formatPlanPaceLine(calendarContext, planPct, vsCalendar) {
+  if (!calendarContext?.month_relation) return ''
+  if (calendarContext.month_relation === 'past') {
+    return ' Месяц завершён — оценка по итогу.'
+  }
+  if (calendarContext.month_relation === 'future') {
+    return ' Месяц ещё не начался.'
+  }
+
+  const expected = calendarContext.expected_plan_progress_pct
+  const phase = String(calendarContext.phase_label_ru ?? '').trim()
+  const dateRu = formatTodayDateRu(calendarContext)
+  const day = Number(calendarContext.calendar_day)
+  if (expected == null || !phase) return ''
+
+  const datePart = dateRu ? `Сегодня ${dateRu}` : `Сегодня ${day}-е число`
+  const benchmark = `${datePart}, ${phase}; ориентир ~${expected}%`
+  const pct = Number(planPct) || 0
+
+  if (vsCalendar === 'behind') {
+    return ` ${benchmark} — факт ${pct}%, отстаём от календарного темпа.`
+  }
+  if (vsCalendar === 'ahead') {
+    return ` ${benchmark} — факт ${pct}%, опережаем ориентир.`
+  }
+  if (vsCalendar === 'on_track') {
+    return ` ${benchmark} — факт ${pct}%, в календарном темпе.`
+  }
+  return ` ${benchmark}.`
+}

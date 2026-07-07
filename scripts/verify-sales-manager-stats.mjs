@@ -5,7 +5,7 @@ import {
   aggregateTrainingsByMembershipTypes,
   sumMatrix3x3FromDailyRows,
 } from '../src/lib/admin/salesManagerStatsAgg.js'
-import { SALES_MONTH_DAILY_SELECT } from '../src/lib/admin/salesReportCore.js'
+import { SALES_MONTH_DAILY_SELECT, planProgressPercent } from '../src/lib/admin/salesReportCore.js'
 
 let failed = 0
 
@@ -81,6 +81,30 @@ ok(stats.summary.pnkTotal === 4, 'pnk total')
 ok(stats.summary.dayCount === 2, 'reported days count')
 ok(stats.summary.daysInMonth === 30, 'days in june')
 ok(stats.plan.achievedLevel === 0, 'level 0 below 1M')
+
+const statsWithRefunds = buildSalesManagerMonthStats({
+  monthRows: [
+    {
+      report_date: '2026-06-01',
+      profit_nk: 555,
+      profit_dk: 0,
+      profit_uk: 0,
+      matrix_amounts: { pz_uk: 555 },
+      refunds_amount: 500000,
+      trainings_count: 0,
+      pnk_total: 0,
+    },
+  ],
+  planLevels: { level1: 1_100_000, level2: 1_200_000, level3: 1_300_000 },
+  planDirections: { plan_pz: 500_000, plan_tz: 400_000, plan_az: 300_000, plan_extra: 100_000 },
+  membershipTypes: [],
+  year: 2026,
+  month: 6,
+})
+ok(statsWithRefunds.summary.profitGrossTotal === 555, 'refunds row gross unchanged')
+ok(statsWithRefunds.summary.profitTotal === 555 - 500000, 'refunds row net after refunds')
+ok(statsWithRefunds.plan.progressPercent === planProgressPercent(555, 1_300_000), 'plan progress from gross not net')
+ok(statsWithRefunds.plan.progressPercent !== planProgressPercent(555 - 500000, 1_300_000), 'plan ignores refunds')
 ok(stats.dailySeries.length === 30, 'full month series')
 ok(stats.dailySeries[0].profit === 164000, 'day 1 profit includes dop')
 ok(stats.dailySeries[1].profit === null && !stats.dailySeries[1].hasReport, 'day 2 empty')

@@ -24,6 +24,7 @@ import { buildTrainingsGapHint } from '../src/lib/admin/geminiAnalyticsDomain.js
 import {
   buildGeminiInstantReply,
   matchGeminiInstantChip,
+  GEMINI_INSTANT_CHIPS,
   GEMINI_QUICK_CHIPS,
 } from '../src/lib/admin/geminiInstantReplies.js'
 import {
@@ -242,7 +243,10 @@ ok(highlights?.best_day?.date === '2026-06-15', 'profit highlights helper')
 const byType = topTrainingsByCardType(rows, membershipTypes, 3)
 ok(byType[0]?.count === 6, 'top trainings by card type')
 
-ok(matchGeminiInstantChip(GEMINI_QUICK_CHIPS.find((c) => c.id === 'pnk').message) === 'pnk', 'instant chip pnk')
+ok(GEMINI_QUICK_CHIPS.length === 6, 'quick chips trimmed to six')
+ok(GEMINI_INSTANT_CHIPS.length >= GEMINI_QUICK_CHIPS.length, 'instant chips cover quick chips')
+
+ok(matchGeminiInstantChip(GEMINI_INSTANT_CHIPS.find((c) => c.id === 'pnk').message) === 'pnk', 'instant chip pnk')
 const instantPnk = buildGeminiInstantReply('pnk', { snapshot: snap, gender: 'male' })
 ok(instantPnk?.includes('8') && instantPnk.endsWith('.'), 'instant pnk reply')
 const instantBest = buildGeminiInstantReply('bestday', { snapshot: snap, gender: 'male' })
@@ -258,13 +262,20 @@ const instantPayroll = buildGeminiInstantReply('payroll_gap', {
 })
 ok(instantPayroll?.includes('финансовом отчёте') && instantPayroll?.includes('личных зарплат'), 'instant payroll gap business')
 
-ok(matchGeminiInstantChip(GEMINI_QUICK_CHIPS.find((c) => c.id === 'plan').message) === 'plan', 'instant chip plan')
+ok(matchGeminiInstantChip(GEMINI_INSTANT_CHIPS.find((c) => c.id === 'plan').message) === 'plan', 'instant chip plan')
 ok(matchGeminiInstantChip('случайный текст') === null, 'instant chip miss')
 const instantPlan = buildGeminiInstantReply('plan', { snapshot: snap, gender: 'male' })
 ok(instantPlan?.includes('66%') && instantPlan.includes('уровня 2') && instantPlan.endsWith('.'), 'instant plan reply')
 ok(!instantPlan?.includes('undefined'), 'instant plan no undefined')
 ok(
-  instantPlan?.includes('направлен') || instantPlan?.includes('ПЗ') || instantPlan?.includes('без критичного'),
+  (instantPlan?.match(/отстаём|отстающие|без критичного|в календарном темпе/gi) ?? []).length <= 2,
+  'instant plan no redundant lag wording',
+)
+ok(
+  instantPlan?.includes('направлен') ||
+    instantPlan?.includes('ПЗ') ||
+    instantPlan?.includes('без критичного') ||
+    !instantPlan?.includes('Отстающие'),
   'instant plan direction hint',
 )
 

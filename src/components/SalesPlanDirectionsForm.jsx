@@ -4,7 +4,7 @@ import { evaluatePlanDirectionsForm, formatRub } from '../lib/admin/salesReportC
 
 const DIRECTION_FIELDS = [
   { key: 'plan_pz', label: 'ПЗ', hint: 'персональный зал' },
-  { key: 'plan_tz', label: 'ТЗ', hint: 'тренажёрный зал', factKey: 'tz' },
+  { key: 'plan_tz', label: 'ТЗ', hint: 'тренажёрный зал' },
   { key: 'plan_az', label: 'АЗ', hint: 'аэробный зал' },
   { key: 'plan_extra', label: 'Доп. продажи', hint: 'доп. продажи' },
 ]
@@ -15,7 +15,6 @@ const DIRECTION_FIELDS = [
  *   onPlanChange: (next: Record<string, string>) => void,
  *   onSave: () => void,
  *   saving?: boolean,
- *   directionFactRub?: Record<string, number>,
  * }} props
  */
 export function SalesPlanDirectionsForm({
@@ -23,7 +22,6 @@ export function SalesPlanDirectionsForm({
   onPlanChange,
   onSave,
   saving = false,
-  directionFactRub = {},
 }) {
   const setPlan = (key, value) => onPlanChange({ ...planForm, [key]: value })
 
@@ -45,9 +43,7 @@ export function SalesPlanDirectionsForm({
         </p>
       ) : null}
       <div className="sales-report__plan-row">
-        {DIRECTION_FIELDS.map(({ key, label, hint, factKey }) => {
-          const factRub = factKey ? Number(directionFactRub[factKey]) || 0 : 0
-          return (
+        {DIRECTION_FIELDS.map(({ key, label, hint }) => (
           <div className="sales-report__metric" key={key}>
             <label htmlFor={key}>
               {label} <span className="muted">({hint})</span>
@@ -61,14 +57,8 @@ export function SalesPlanDirectionsForm({
               placeholder="0"
               disabled={noFinal}
             />
-            {factKey ? (
-              <span className="sales-report__plan-fact muted" role="status">
-                Продажи за месяц: {formatRub(factRub)}
-              </span>
-            ) : null}
           </div>
-          )
-        })}
+        ))}
       </div>
       <p
         className={`sales-report__plan-sum-hint${

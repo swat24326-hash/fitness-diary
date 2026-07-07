@@ -67,17 +67,43 @@ export function buildPlanDirectionInsights(directionRows, calendarContext) {
   }
 }
 
+function joinOkDirectionLabels(ok) {
+  if (!ok?.length) return ''
+  if (ok.length === 1) return ok[0]
+  if (ok.length === 2) return `${ok[0]} и ${ok[1]}`
+  return `${ok.slice(0, -1).join(', ')} и ${ok[ok.length - 1]}`
+}
+
+/**
+ * Для ответа по общему плану: отстающие + явно «в рабочем темпе» по остальным.
+ * @param {{ direction_plan?: ReturnType<typeof buildPlanDirectionInsights>, structure?: { direction_rows?: unknown[] } }} insights
+ * @param {ReturnType<typeof buildPlanDirectionInsights>} [directionPlan]
+ */
+export function formatPlanDirectionStatusLine(insights, directionPlan) {
+  const block =
+    directionPlan ??
+    insights?.direction_plan ??
+    buildPlanDirectionInsights(insights?.structure?.direction_rows ?? [])
+  if (!block.has_direction_plans) return ''
+
+  const lagging = block.lagging ?? []
+  const ok = block.ok ?? []
+
+  if (!lagging.length) {
+    return ok.length ? ' Направления ПЗ/ТЗ/АЗ — без критичного отставания.' : ''
+  }
+
+  const lagText = lagging.map((r) => `${r.label} ${r.pct}%`).join(', ')
+  const okText = ok.length ? ` ${joinOkDirectionLabels(ok)} — в рабочем темпе.` : ''
+  return ` Отстающие направления: ${lagText}.${okText}`
+}
+
 /**
  * @param {{ direction_plan?: ReturnType<typeof buildPlanDirectionInsights>, structure?: { direction_rows?: unknown[] } }} insights
  * @param {ReturnType<typeof buildPlanDirectionInsights>} [directionPlan]
  */
 export function formatPlanDirectionLagLine(insights, directionPlan) {
-  const block =
-    directionPlan ??
-    insights?.direction_plan ??
-    buildPlanDirectionInsights(insights?.structure?.direction_rows ?? [])
-  const summary = String(block?.summary_ru ?? '').trim()
-  return summary ? ` ${summary}` : ''
+  return formatPlanDirectionStatusLine(insights, directionPlan)
 }
 
 /**

@@ -8,9 +8,9 @@ const NONE_KEY = '__none__'
 
 /**
  * Таблица: строки — тренеры, столбцы — типы карт, ячейки — количество.
- * @param {{ byType: object[], byTrainerByType: object[], trainerLabel: (id: string) => string }} props
+ * @param {{ byType: object[], byTrainerByType: object[], trainerLabel: (id: string) => string, note?: string }} props
  */
-export function MembershipTypeStatsTable({ byType = [], byTrainerByType = [], trainerLabel }) {
+export function MembershipTypeStatsTable({ byType = [], byTrainerByType = [], trainerLabel, note }) {
   const label = trainerLabel ?? ((id) => id || '—')
 
   const columns = useMemo(() => {
@@ -64,9 +64,8 @@ export function MembershipTypeStatsTable({ byType = [], byTrainerByType = [], tr
   return (
     <div className="mem-type-stats">
       <p className="muted mem-type-stats__note" style={{ margin: '0 0 10px', fontSize: 13, lineHeight: 1.45 }}>
-        Учитываются только <strong>завершённые</strong> тренировки и <strong>списания</strong>. Тип берётся с абонемента
-        сейчас (если тип меняли — пересчёт по новому). Колонка <strong>«Без типа»</strong> видна в таблице; в столбце{' '}
-        <strong>«Итого»</strong> она не суммируется.
+        {note ??
+          'Учитываются только завершённые тренировки и списания. Тип берётся с абонемента сейчас (если тип меняли — пересчёт по новому). Колонка «Без типа» видна в таблице; в столбце «Итого» она не суммируется.'}
       </p>
       <div className="table-wrap admin-mem-type-table-wrap">
         <table className="admin-mem-type-table">

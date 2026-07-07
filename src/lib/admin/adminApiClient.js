@@ -31,10 +31,22 @@ export async function getAccessTokenForAdminApi() {
   let {
     data: { session },
   } = await supabase.auth.getSession()
-  if (!session?.access_token) {
+
+  const refreshIfNeeded = async () => {
     const refreshed = await supabase.auth.refreshSession()
     session = refreshed.data?.session ?? null
   }
+
+  if (!session?.access_token) {
+    await refreshIfNeeded()
+    return session?.access_token ?? null
+  }
+
+  const expiresAtMs = session.expires_at ? session.expires_at * 1000 : 0
+  if (expiresAtMs > 0 && expiresAtMs - Date.now() < 5 * 60 * 1000) {
+    await refreshIfNeeded()
+  }
+
   return session?.access_token ?? null
 }
 

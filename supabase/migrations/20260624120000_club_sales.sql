@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS public.club_sales_daily (
   az_nk INTEGER NOT NULL DEFAULT 0 CHECK (az_nk >= 0),
   az_dk INTEGER NOT NULL DEFAULT 0 CHECK (az_dk >= 0),
   az_uk INTEGER NOT NULL DEFAULT 0 CHECK (az_uk >= 0),
+  dop_nk INTEGER NOT NULL DEFAULT 0 CHECK (dop_nk >= 0),
+  dop_dk INTEGER NOT NULL DEFAULT 0 CHECK (dop_dk >= 0),
+  dop_uk INTEGER NOT NULL DEFAULT 0 CHECK (dop_uk >= 0),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_by UUID REFERENCES auth.users (id) ON DELETE SET NULL,
   CONSTRAINT club_sales_daily_club_date UNIQUE (club_id, report_date)
@@ -34,6 +37,7 @@ CREATE TABLE IF NOT EXISTS public.club_sales_plan (
   plan_pz NUMERIC(14, 2) NOT NULL DEFAULT 0 CHECK (plan_pz >= 0),
   plan_tz NUMERIC(14, 2) NOT NULL DEFAULT 0 CHECK (plan_tz >= 0),
   plan_az NUMERIC(14, 2) NOT NULL DEFAULT 0 CHECK (plan_az >= 0),
+  plan_extra NUMERIC(14, 2) NOT NULL DEFAULT 0 CHECK (plan_extra >= 0),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT club_sales_plan_club_ym UNIQUE (club_id, year, month)
 );

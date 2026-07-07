@@ -12,7 +12,7 @@ import {
   expenseRowToForm,
   planRowToForm,
   monthPartsFromIso,
-  sumDirectionRubFromDailyRows,
+  resolvePlanFactFromMonthSummary,
 } from '../../lib/admin/salesReportCore'
 import {
   buildTrainingsMatrixColumns,
@@ -353,9 +353,7 @@ export function AdminSales({ accessMode = 'admin' }) {
     return `${name} ${yearMonth.year}`
   }, [yearMonth])
 
-  const directionFactRub = useMemo(() => sumDirectionRubFromDailyRows(monthDays), [monthDays])
-
-  const factMonth = Number(monthSummary?.profitTotal) || 0
+  const factMonth = resolvePlanFactFromMonthSummary(monthSummary)
 
   const planLevels = useMemo(
     () => ({
@@ -717,7 +715,6 @@ export function AdminSales({ accessMode = 'admin' }) {
             onPlanChange={setPlanForm}
             onSave={() => void handleSavePlanDirections()}
             saving={savingPlan}
-            directionFactRub={directionFactRub}
           />
           <SalesManagerStatsPanel
             monthLabel={monthLabel}
@@ -743,7 +740,6 @@ export function AdminSales({ accessMode = 'admin' }) {
             onPlanChange={setPlanForm}
             onSave={() => void handleSavePlanDirections()}
             saving={savingPlan}
-            directionFactRub={directionFactRub}
           />
           <SalesDailyForm
             reportDate={reportDate}

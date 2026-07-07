@@ -716,6 +716,13 @@ export function planProgressPercent(fact, planTotal) {
 
 }
 
+/** Факт для плана и уровней — валовая выручка месяца; возвраты не уменьшают план. */
+export function resolvePlanFactFromMonthSummary(summary) {
+  const gross = Number(summary?.profitGrossTotal)
+  if (Number.isFinite(gross)) return Math.round(gross * 100) / 100
+  return Math.round((Number(summary?.profitTotal) || 0) * 100) / 100
+}
+
 
 
 export function formatRub(amount) {
@@ -1028,7 +1035,7 @@ export function sumDirectionRubFromDailyRows(rows) {
  * @param {number} dopRub
  */
 export function buildCategoryStructure(summary, dopRub) {
-  const profitTotal = Number(summary?.profitTotal) || 0
+  const shareBase = resolvePlanFactFromMonthSummary(summary)
   const items = [
     { key: 'nk', label: 'НК', amount: Number(summary?.profitNk) || 0 },
     { key: 'dk', label: 'ДК', amount: Number(summary?.profitDk) || 0 },
@@ -1038,7 +1045,7 @@ export function buildCategoryStructure(summary, dopRub) {
   return items.map((item) => ({
     ...item,
     amount: Math.round(item.amount * 100) / 100,
-    sharePercent: profitTotal > 0 ? Math.round((item.amount / profitTotal) * 1000) / 10 : 0,
+    sharePercent: shareBase > 0 ? Math.round((item.amount / shareBase) * 1000) / 10 : 0,
   }))
 }
 
@@ -1074,8 +1081,9 @@ export function buildHallFinanceSummary(monthRows, trainerPayroll, aerobicPayrol
   }
 }
 
-export function buildDirectionStructure(monthRows, planDirections, profitTotal) {
+export function buildDirectionStructure(monthRows, planDirections, shareBase) {
   const rub = sumDirectionRubFromDailyRows(monthRows)
+  const base = Number(shareBase) || 0
   return SALES_DIRECTION_DEFS.map(({ key, label, planKey }) => {
     const amount = rub[key] || 0
     const planTarget = Number(planDirections?.[planKey]) || 0
@@ -1084,7 +1092,7 @@ export function buildDirectionStructure(monthRows, planDirections, profitTotal) 
       label,
       amount,
       planTarget,
-      sharePercent: profitTotal > 0 ? Math.round((amount / profitTotal) * 1000) / 10 : 0,
+      sharePercent: base > 0 ? Math.round((amount / base) * 1000) / 10 : 0,
       planProgressPercent: planProgressPercent(amount, planTarget),
     }
   })

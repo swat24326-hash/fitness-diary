@@ -6,10 +6,11 @@ import { buildGeminiIntroReply, GEMINI_INTRO_CHIP } from './geminiAssistantIntro
 import {
   comparePlanToCalendar,
   formatCalendarContextLine,
+  formatPlanPaceLine,
   resolveCalendarContext,
 } from './geminiMonthCalendarContext.js'
 import {
-  formatPlanDirectionLagLine,
+  formatPlanDirectionStatusLine,
   formatPlanDirectionsDetail,
 } from './geminiPlanDirections.js'
 import { formatRub } from './salesReportCore.js'
@@ -17,61 +18,78 @@ import { periodLabelRu } from './geminiAnalyticsSnapshot.js'
 
 /** @typedef {'intro'|'plan'|'gap'|'compare'|'fitcity'|'finance'|'pnk'|'bestday'|'trainer_inactive'|'payroll_gap'|'sales_coverage'|'sales_structure'|'sales_refunds'|'sales_directions'} GeminiChipId */
 
-export const GEMINI_QUICK_CHIPS = [
-  GEMINI_INTRO_CHIP,
+/** Все chip-id с мгновенным ответом (в т.ч. без кнопки в UI). */
+export const GEMINI_INSTANT_CHIPS = [
+  { ...GEMINI_INTRO_CHIP, quick: true },
   {
     id: 'plan',
     label: 'План продаж',
     message: 'Как выполнен план продаж за этот месяц?',
     compare: false,
-  },
-  {
-    id: 'sales_coverage',
-    label: 'Отчёты',
-    message: 'Насколько заполнена база дневных отчётов менеджера за месяц?',
-    compare: false,
-  },
-  {
-    id: 'sales_structure',
-    label: 'НК/ДК/УК',
-    message: 'Какая структура выручки НК, ДК, УК и доп. продаж за месяц?',
-    compare: false,
-  },
-  {
-    id: 'sales_refunds',
-    label: 'Возвраты',
-    message: 'Как возвраты повлияли на чистую прибыль и план продаж?',
-    compare: false,
-  },
-  {
-    id: 'sales_directions',
-    label: 'ПЗ/ТЗ/АЗ',
-    message: 'Как выполнен план по направлениям ПЗ, ТЗ и АЗ?',
-    compare: false,
-  },
-  {
-    id: 'pnk',
-    label: 'ПНК',
-    message: 'Сколько ПНК за месяц и как с этим?',
-    compare: false,
-  },
-  {
-    id: 'bestday',
-    label: 'Лучший день',
-    message: 'Какой день по прибыли был лучший в этом месяце?',
-    compare: false,
+    quick: true,
   },
   {
     id: 'gap',
     label: 'Риски месяца',
     message: 'Какие главные риски и отклонения в цифрах за месяц?',
     compare: false,
+    quick: true,
   },
   {
     id: 'compare',
     label: 'С прошлым месяцем',
     message: 'Сравни с прошлым месяцем — что лучше, что хуже?',
     compare: true,
+    quick: true,
+  },
+  {
+    id: 'sales_structure',
+    label: 'НК/ДК/УК',
+    message: 'Какая структура выручки НК, ДК, УК и доп. продаж за месяц?',
+    compare: false,
+    quick: true,
+  },
+  {
+    id: 'finance',
+    label: 'ЗП и маржа',
+    message: 'ЗП залов и чистая прибыль — норм или давит?',
+    compare: false,
+    quick: true,
+  },
+  {
+    id: 'sales_coverage',
+    label: 'Отчёты',
+    message: 'Насколько заполнена база дневных отчётов менеджера за месяц?',
+    compare: false,
+    quick: false,
+  },
+  {
+    id: 'sales_refunds',
+    label: 'Возвраты',
+    message: 'Как возвраты повлияли на чистую прибыль и план продаж?',
+    compare: false,
+    quick: false,
+  },
+  {
+    id: 'sales_directions',
+    label: 'ПЗ/ТЗ/АЗ',
+    message: 'Как выполнен план по направлениям ПЗ, ТЗ и АЗ?',
+    compare: false,
+    quick: false,
+  },
+  {
+    id: 'pnk',
+    label: 'ПНК',
+    message: 'Сколько ПНК за месяц и как с этим?',
+    compare: false,
+    quick: false,
+  },
+  {
+    id: 'bestday',
+    label: 'Лучший день',
+    message: 'Какой день по прибыли был лучший в этом месяце?',
+    compare: false,
+    quick: false,
   },
   {
     id: 'fitcity',
@@ -79,18 +97,14 @@ export const GEMINI_QUICK_CHIPS = [
     message:
       'Сходятся ли ручной отчёт и FIT-CITY? Помни — в системе только тренеры с планшетом.',
     compare: false,
-  },
-  {
-    id: 'finance',
-    label: 'ЗП и маржа',
-    message: 'ЗП залов и чистая прибыль — норм или давит?',
-    compare: false,
+    quick: false,
   },
   {
     id: 'trainer_inactive',
     label: 'Неактивные клиенты',
     message: 'Что у нас по неактивным клиентам у тренерского состава?',
     compare: false,
+    quick: false,
   },
   {
     id: 'payroll_gap',
@@ -98,8 +112,12 @@ export const GEMINI_QUICK_CHIPS = [
     message:
       'Почему в финансовом отчёте зарплата персонального зала одна сумма, а сумма личных зарплат тренеров может отличаться?',
     compare: false,
+    quick: false,
   },
 ]
+
+/** Кнопки в панели ИСКРЫ — только самые частые запросы. */
+export const GEMINI_QUICK_CHIPS = GEMINI_INSTANT_CHIPS.filter((chip) => chip.quick !== false)
 
 function salesFrom(snapshot) {
   return snapshot?.sales ?? {}
@@ -115,7 +133,7 @@ export function normalizeGeminiChipMessage(message) {
 
 export function matchGeminiInstantChip(userMessage, comparePrevious = false) {
   const normalized = normalizeGeminiChipMessage(userMessage)
-  for (const chip of GEMINI_QUICK_CHIPS) {
+  for (const chip of GEMINI_INSTANT_CHIPS) {
     if (normalizeGeminiChipMessage(chip.message) !== normalized) continue
     if (chip.compare && !comparePrevious) return null
     return chip.id
@@ -127,6 +145,18 @@ function pickWord(pool, seed) {
   if (!pool?.length) return ''
   const i = Math.abs(seed) % pool.length
   return pool[i]
+}
+
+function capitalizeSentence(text) {
+  const t = String(text ?? '').trim()
+  if (!t) return ''
+  return `${t.charAt(0).toUpperCase()}${t.slice(1)}`
+}
+
+function formatPushLine(seed) {
+  const raw = pickWord(GEMINI_LEXICON_POOLS.push, seed)
+  if (!raw) return ''
+  return ` ${capitalizeSentence(raw.endsWith('.') ? raw : `${raw}.`)}`
 }
 
 function replySeed(chipId, periodLabel) {
@@ -207,36 +237,26 @@ function buildPlanReply(club, period, snapshot, insights, opener, closer, seed) 
   const pct = Number(planInsight.pct ?? sales.plan_progress_pct) || 0
   const coverage = Number(report.coverage_pct ?? sales.report_coverage_pct) || 0
   const days = Number(report.days_with_reports ?? sales.days_with_reports) || 0
+  const total = Number(report.days_in_month ?? snapshot.period?.days_in_month) || 0
   const achieved = Number(planInsight.achieved_level ?? sales.achieved_plan_level) || 0
 
   if (!planInsight.has_plan && plan <= 0) {
     return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: план продаж на месяц не задан. Отчётов ${days} дней, покрытие ${coverage}%.${calendarLine(snapshot)} ${closer}.`
   }
 
-  const calLine = calendarLine(snapshot)
   const cal = resolveCalendarContext(snapshot)
   const vsCalendar = planInsight.calendar_vs_plan ?? comparePlanToCalendar(pct, cal)
-  const calendarNote =
-    vsCalendar === 'behind'
-      ? ' Отставание от ориентира по дате.'
-      : vsCalendar === 'ahead'
-        ? ' Опережает ориентир по дате.'
-        : vsCalendar === 'on_track'
-          ? ' В рабочем темпе относительно даты.'
-          : ''
-
-  const tone =
-    planInsight.tone === 'strong'
-      ? pickWord(GEMINI_LEXICON_POOLS.praise, seed)
-      : planInsight.tone === 'ok'
-        ? 'идём в рабочем темпе'
-        : pickWord(GEMINI_LEXICON_POOLS.critique, seed)
-  const push = planInsight.tone === 'weak' ? ` ${pickWord(GEMINI_LEXICON_POOLS.push, seed + 1)}.` : ''
+  const paceLine = formatPlanPaceLine(cal, pct, vsCalendar)
+  const dirLine = formatPlanDirectionStatusLine(insights)
   const levelLine =
     achieved > 0 ? ` Закрыт порог уровня ${achieved}.` : ' Финальный порог ещё не достигнут.'
-  const dirLine = formatPlanDirectionLagLine(insights)
+  const reportLine = total > 0 ? ` Отчёты ${days} из ${total} (${coverage}%).` : ` Отчёты ${days} дней (${coverage}%).`
+  const push =
+    planInsight.tone === 'weak' || vsCalendar === 'behind' ? formatPushLine(seed + 1) : ''
+  const praise =
+    planInsight.tone === 'strong' ? ` ${capitalizeSentence(pickWord(GEMINI_LEXICON_POOLS.praise, seed))}.` : ''
 
-  return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: план ${pct}% — ${formatRub(profit)} из ${formatRub(plan)}, ${tone}.${levelLine}${dirLine}${calLine}${calendarNote} Отчётов ${days} дней (${coverage}%).${push} ${closer}.`
+  return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: план ${pct}% — ${formatRub(profit)} из ${formatRub(plan)}.${paceLine}${dirLine}${reportLine}${levelLine}${push}${praise} ${closer}.`
 }
 
 function buildGapReply(club, period, insights, opener, closer, seed) {

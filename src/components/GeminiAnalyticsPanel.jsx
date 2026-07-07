@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   ChevronLeft,
   ChevronRight,
-  Dumbbell,
+  CircleHelp,
   Mic,
   RotateCcw,
   Send,
@@ -11,7 +11,6 @@ import {
   Sparkles,
   Target,
   TrendingUp,
-  CircleHelp,
   Volume2,
   Wallet,
   X,
@@ -56,14 +55,8 @@ const CHIP_ICONS = {
   plan: Target,
   gap: Sparkles,
   compare: TrendingUp,
-  fitcity: Dumbbell,
-  finance: Wallet,
-  trainer_inactive: Dumbbell,
-  payroll_gap: Wallet,
-  sales_coverage: Target,
   sales_structure: TrendingUp,
-  sales_refunds: Wallet,
-  sales_directions: Target,
+  finance: Wallet,
 }
 
 function comparePreviousFromChip(userText) {
@@ -113,6 +106,7 @@ export function GeminiAnalyticsPanel({
   const [lastRetry, setLastRetry] = useState(null)
   const [kpi, setKpi] = useState(null)
   const [kpiLoading, setKpiLoading] = useState(false)
+  const [kpiLoadError, setKpiLoadError] = useState('')
   const [trainers, setTrainers] = useState([])
   const [focusTrainerId, setFocusTrainerId] = useState(null)
   const [entered, setEntered] = useState(false)
@@ -185,32 +179,73 @@ export function GeminiAnalyticsPanel({
     }
   }, [open, clubId, year, month, clubName, gender, stopListening, focusTrainerLabel, selectedTrainerId, selectedTrainerName])
 
+  const reloadKpi = useCallback(async () => {
+    if (!clubId) {
+      setKpi(null)
+      setTrainers([])
+      setKpiLoadError('')
+      return
+    }
+    setKpiLoading(true)
+    setKpiLoadError('')
+    const data = await prefetchGeminiSnapshot({ clubId, year, month })
+    if (data.ok) {
+      setKpi(data.kpi ?? null)
+      setTrainers(Array.isArray(data.trainers) ? data.trainers : [])
+      setKpiLoadError('')
+    } else {
+      setKpi(null)
+      setTrainers([])
+      setKpiLoadError(data.error || 'Не удалось загрузить данные')
+    }
+    setKpiLoading(false)
+  }, [clubId, year, month])
+
   useEffect(() => {
     if (!open || !clubId) {
       setKpi(null)
       setTrainers([])
+      setKpiLoadError('')
       return undefined
     }
     let cancelled = false
-
-    setKpiLoading(true)
-    void prefetchGeminiSnapshot({ clubId, year, month })
-      .then((data) => {
-        if (cancelled) return
-        setKpi(data?.kpi ?? null)
-        setTrainers(Array.isArray(data?.trainers) ? data.trainers : [])
-      })
-      .catch(() => {
-        if (!cancelled) setKpi(null)
-      })
-      .finally(() => {
-        if (!cancelled) setKpiLoading(false)
-      })
-
+    void (async () => {
+      setKpiLoading(true)
+      setKpiLoadError('')
+      const data = await prefetchGeminiSnapshot({ clubId, year, month })
+      if (cancelled) return
+      if (data.ok) {
+        setKpi(data.kpi ?? null)
+        setTrainers(Array.isArray(data.trainers) ? data.trainers : [])
+        setKpiLoadError('')
+      } else {
+        setKpi(null)
+        setTrainers([])
+        setKpiLoadError(data.error || 'Не удалось загрузить данные')
+      }
+      setKpiLoading(false)
+    })()
     return () => {
       cancelled = true
     }
   }, [open, clubId, year, month])
+
+  useEffect(() => {
+    if (!open || !clubId) return undefined
+    let hiddenAt = 0
+    const onVis = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAt = Date.now()
+        return
+      }
+      if (document.visibilityState !== 'visible') return
+      const sleptMs = hiddenAt ? Date.now() - hiddenAt : 0
+      hiddenAt = 0
+      if (sleptMs >= 30_000) void reloadKpi()
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [open, clubId, reloadKpi])
 
   useEffect(() => {
     if (listRef.current) {
@@ -439,6 +474,15 @@ export function GeminiAnalyticsPanel({
         ) : null}
 
         <GeminiContextKpi kpi={kpi} year={year} month={month} loading={kpiLoading} />
+        {kpiLoadError ? (
+          <div className="gemini-panel__kpi-retry" role="status">
+            <p className="gemini-panel__kpi-retry-text muted">{kpiLoadError}</p>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void reloadKpi()} disabled={kpiLoading}>
+              <RotateCcw size={14} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
+              Загрузить снова
+            </button>
+          </div>
+        ) : null}
 
         <div className="gemini-panel__controls">
           <div className="gemini-panel__month">

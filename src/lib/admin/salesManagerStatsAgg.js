@@ -19,6 +19,7 @@ import {
   planProgressPercent,
   resolveAchievedPlanLevel,
   resolveDailyProfitFromRow,
+  resolvePlanFactFromMonthSummary,
   resolvePlanFinalTarget,
   SALES_MATRIX_COLS,
   SALES_MATRIX_HALL_ROWS,
@@ -179,12 +180,13 @@ export function buildSalesManagerMonthStats(opts) {
     plan_level_3: opts.planLevels?.level3,
   }
   const finalTarget = resolvePlanFinalTarget(planRow)
-  const achievedLevel = resolveAchievedPlanLevel(summary.profitTotal, {
+  const planFact = resolvePlanFactFromMonthSummary(summary)
+  const achievedLevel = resolveAchievedPlanLevel(planFact, {
     level1: Number(opts.planLevels?.level1) || 0,
     level2: Number(opts.planLevels?.level2) || 0,
     level3: Number(opts.planLevels?.level3) || 0,
   })
-  const progressPercent = planProgressPercent(summary.profitTotal, finalTarget)
+  const progressPercent = planProgressPercent(planFact, finalTarget)
 
   const dailySeries = buildDailyProfitSeries(monthRows, year, month)
   const reportedProfits = dailySeries.filter((d) => d.profit != null).map((d) => d.profit)
@@ -212,13 +214,12 @@ export function buildSalesManagerMonthStats(opts) {
     buildAerobicPayRateMap(aerobicTypes),
   ).clubTotal
 
-  const profitTotal = summary.profitTotal || 0
   const dopRubTotal = sumDopRubFromDailyRows(monthRows)
   const structure = buildCategoryStructure(summary, dopRubTotal)
   const directionStructure = buildDirectionStructure(
     monthRows,
     opts.planDirections ?? {},
-    profitTotal,
+    planFact,
   )
   const hallFinance = buildHallFinanceSummary(
     monthRows,

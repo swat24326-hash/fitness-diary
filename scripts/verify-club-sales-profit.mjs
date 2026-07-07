@@ -22,6 +22,8 @@ import {
 
   planFormToPayload,
 
+  resolvePlanFactFromMonthSummary,
+
   salesMatrixCellAvgCheck,
 
   salesMatrixRowAvgCheck,
@@ -159,6 +161,9 @@ const aggWithRefunds = aggregateMonthFromDailyRows([
 ok(aggWithRefunds.profitGrossTotal === 150, 'month gross includes dop')
 ok(aggWithRefunds.refundsTotal === 30, 'month refunds total')
 ok(aggWithRefunds.profitTotal === 120, 'month net after refunds')
+
+ok(resolvePlanFactFromMonthSummary(aggWithRefunds) === 150, 'plan fact uses gross not net')
+ok(resolvePlanFactFromMonthSummary(aggWithRefunds) === aggWithRefunds.profitGrossTotal, 'plan fact equals gross total')
 
 
 
