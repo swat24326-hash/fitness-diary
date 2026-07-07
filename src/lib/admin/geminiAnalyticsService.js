@@ -31,7 +31,7 @@ export class GeminiAnalyticsError extends Error {
 /**
  * @param {{ clubId: string, year: number, month: number }} opts
  * @param {{ attempts?: number, probeCloud?: boolean }} [retryOpts]
- * @returns {Promise<{ ok: boolean, kpi?: object | null, trainers?: object[], error?: string }>}
+ * @returns {Promise<{ ok: boolean, kpi?: object | null, trainers?: object[], quickChips?: unknown, error?: string }>}
  */
 export async function prefetchGeminiSnapshot(opts, retryOpts = {}) {
   const attempts = Math.max(1, Number(retryOpts.attempts) || GEMINI_PREFETCH_ATTEMPTS)
@@ -75,6 +75,7 @@ export async function prefetchGeminiSnapshot(opts, retryOpts = {}) {
           ok: true,
           kpi: data.kpi,
           trainers: Array.isArray(data.trainers) ? data.trainers : [],
+          quickChips: data.quick_chips ?? null,
         }
       }
       lastError =
@@ -115,7 +116,9 @@ export async function prefetchGeminiSnapshot(opts, retryOpts = {}) {
  *   skipCache?: boolean,
  *   forceGemini?: boolean,
  *   completionRetry?: boolean,
+ *   completionRetry?: boolean,
  *   selectedTrainerId?: string | null,
+ *   handlerId?: string | null,
  * }} opts
  */
 export async function postGeminiAnalytics(opts) {
@@ -144,6 +147,7 @@ export async function postGeminiAnalytics(opts) {
         force_gemini: opts.forceGemini === true,
         completion_retry: opts.completionRetry === true,
         selected_trainer_id: opts.selectedTrainerId ? String(opts.selectedTrainerId).trim() : undefined,
+        handler_id: opts.handlerId ? String(opts.handlerId).trim() : undefined,
       }),
     },
     GEMINI_REQUEST_TIMEOUT_MS,

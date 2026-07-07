@@ -17,7 +17,11 @@ import {
 } from 'lucide-react'
 import { postGeminiAnalytics, prefetchGeminiSnapshot } from '../lib/admin/geminiAnalyticsService.js'
 import { isGeminiReplyIncomplete, resolveGeminiComparePrevious } from '../lib/admin/geminiAnalyticsPrompt.js'
-import { GEMINI_QUICK_CHIPS } from '../lib/admin/geminiInstantReplies.js'
+import {
+  comparePreviousFromQuickChips,
+  defaultIskraQuickChips,
+  resolveIskraQuickChips,
+} from '../lib/admin/iskraQuickChipsCore.js'
 import { buildGeminiMicroIntro } from '../lib/admin/geminiAssistantIntro.js'
 import { ISKRA_FULL_NAME, ISKRA_NAME } from '../lib/admin/geminiIskraCore.js'
 import { GeminiContextKpi } from './GeminiContextKpi.jsx'
@@ -57,10 +61,12 @@ const CHIP_ICONS = {
   compare: TrendingUp,
   sales_structure: TrendingUp,
   finance: Wallet,
+  month_forecast: TrendingUp,
 }
 
-function comparePreviousFromChip(userText) {
-  return GEMINI_QUICK_CHIPS.some((chip) => chip.message === userText && chip.compare)
+function chipIconFor(chip) {
+  const handler = String(chip?.handler_id ?? chip?.id ?? '').trim()
+  return CHIP_ICONS[handler] ?? Sparkles
 }
 
 function shiftMonth(year, month, delta) {
@@ -107,6 +113,7 @@ export function GeminiAnalyticsPanel({
   const [kpi, setKpi] = useState(null)
   const [kpiLoading, setKpiLoading] = useState(false)
   const [kpiLoadError, setKpiLoadError] = useState('')
+  const [quickChips, setQuickChips] = useState(() => defaultIskraQuickChips())
   const [trainers, setTrainers] = useState([])
   const [focusTrainerId, setFocusTrainerId] = useState(null)
   const [entered, setEntered] = useState(false)
@@ -183,6 +190,7 @@ export function GeminiAnalyticsPanel({
     if (!clubId) {
       setKpi(null)
       setTrainers([])
+      setQuickChips(defaultIskraQuickChips())
       setKpiLoadError('')
       return
     }
@@ -192,10 +200,12 @@ export function GeminiAnalyticsPanel({
     if (data.ok) {
       setKpi(data.kpi ?? null)
       setTrainers(Array.isArray(data.trainers) ? data.trainers : [])
+      setQuickChips(resolveIskraQuickChips(data.quickChips))
       setKpiLoadError('')
     } else {
       setKpi(null)
       setTrainers([])
+      setQuickChips(defaultIskraQuickChips())
       setKpiLoadError(data.error || 'Не удалось загрузить данные')
     }
     setKpiLoading(false)
@@ -205,6 +215,7 @@ export function GeminiAnalyticsPanel({
     if (!open || !clubId) {
       setKpi(null)
       setTrainers([])
+      setQuickChips(defaultIskraQuickChips())
       setKpiLoadError('')
       return undefined
     }
@@ -217,10 +228,12 @@ export function GeminiAnalyticsPanel({
       if (data.ok) {
         setKpi(data.kpi ?? null)
         setTrainers(Array.isArray(data.trainers) ? data.trainers : [])
+        setQuickChips(resolveIskraQuickChips(data.quickChips))
         setKpiLoadError('')
       } else {
         setKpi(null)
         setTrainers([])
+        setQuickChips(defaultIskraQuickChips())
         setKpiLoadError(data.error || 'Не удалось загрузить данные')
       }
       setKpiLoading(false)
@@ -274,6 +287,7 @@ export function GeminiAnalyticsPanel({
     async (text, comparePrevious = false, opts = {}) => {
       const isRetry = opts.retry === true
       const completionRetry = opts.completionRetry === true
+      const handlerId = opts.handlerId ? String(opts.handlerId).trim() : undefined
       const userMessage = String(text ?? '').trim()
       if (!userMessage || !clubId || loading) return
       if (rateLimitSec > 0 && !completionRetry) return
@@ -305,6 +319,7 @@ export function GeminiAnalyticsPanel({
           forceGemini: flags.forceGemini,
           completionRetry: flags.completionRetry,
           selectedTrainerId: activeTrainerId || undefined,
+          handlerId,
         })
 
       try {
@@ -367,6 +382,11 @@ export function GeminiAnalyticsPanel({
       }
     },
     [clubId, year, month, gender, chatHistory, loading, stopListening, autoSpeak, rateLimitSec, activeTrainerId],
+  )
+
+  const comparePreviousFromChip = useCallback(
+    (userText) => comparePreviousFromQuickChips(quickChips, userText),
+    [quickChips],
   )
 
   useEffect(() => {
@@ -561,15 +581,19 @@ export function GeminiAnalyticsPanel({
         </div>
 
         <div className="gemini-panel__chips">
-          {GEMINI_QUICK_CHIPS.map((chip) => {
-            const ChipIcon = CHIP_ICONS[chip.id] ?? Sparkles
+          {quickChips.map((chip) => {
+            const ChipIcon = chipIconFor(chip)
             return (
               <button
                 key={chip.id}
                 type="button"
                 className="gemini-panel__chip"
                 disabled={loading || !clubId || rateLimitSec > 0}
-                onClick={() => void sendMessage(chip.message, chip.compare)}
+                onClick={() =>
+                  void sendMessage(chip.message, chip.compare === true, {
+                    handlerId: chip.handler_id || undefined,
+                  })
+                }
               >
                 <ChipIcon size={13} aria-hidden />
                 {chip.label}

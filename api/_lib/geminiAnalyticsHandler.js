@@ -19,8 +19,8 @@ import {
 } from '../../src/lib/admin/geminiAnalyticsPrompt.js'
 import {
   buildGeminiInstantReply,
-  matchGeminiInstantChip,
 } from '../../src/lib/admin/geminiInstantReplies.js'
+import { resolveInstantHandlerId } from '../../src/lib/admin/iskraQuickChipsCore.js'
 import {
   buildGeminiIntroReply,
   matchGeminiIntroIntent,
@@ -112,6 +112,13 @@ export async function handleGeminiAnalyticsPrefetchGet(ctx, req, res) {
       parsed.month,
       {},
     )
+    let quickChips = null
+    try {
+      const settings = await loadClubIskraSettings(ctx.supabaseAdmin, parsed.clubId)
+      quickChips = settings.quick_chips
+    } catch {
+      quickChips = null
+    }
     sendJson(res, 200, {
       ok: true,
       warmed: true,
@@ -124,6 +131,7 @@ export async function handleGeminiAnalyticsPrefetchGet(ctx, req, res) {
         trainer_id: t.trainer_id,
         trainer_name: t.trainer_name,
       })),
+      quick_chips: quickChips,
     })
   } catch (e) {
     sendJson(res, 400, { error: e?.message ? String(e.message) : 'Ошибка prefetch' })
@@ -214,14 +222,26 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
     )
 
     let promptAppend = ''
+    let quickChipsStored = null
     try {
       const settings = await loadClubIskraSettings(ctx.supabaseAdmin, clubId)
       promptAppend = settings.prompt_append
+      quickChipsStored = settings.quick_chips
     } catch {
       promptAppend = ''
+      quickChipsStored = null
     }
 
-    const chipId = body?.force_gemini === true ? null : matchGeminiInstantChip(userMessage, comparePrevious)
+    const explicitHandlerId = String(body?.handler_id ?? '').trim() || null
+    const chipId =
+      body?.force_gemini === true
+        ? null
+        : resolveInstantHandlerId({
+            userMessage,
+            comparePrevious,
+            quickChips: quickChipsStored,
+            handlerId: explicitHandlerId,
+          })
     const introKind = body?.force_gemini === true ? null : matchGeminiIntroIntent(userMessage)
 
     if (introKind && !chipId) {

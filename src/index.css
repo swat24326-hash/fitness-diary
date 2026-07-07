@@ -5840,6 +5840,110 @@ tr:last-child td {
   margin: 0 0 12px;
 }
 
+.admin-iskra-settings__chips-meta {
+  font-size: 13px;
+  margin: 0 0 12px;
+}
+
+.admin-iskra-settings__chips-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-iskra-settings__chip-row {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-2, rgba(0, 0, 0, 0.15));
+}
+
+.admin-iskra-settings__chip-order {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.admin-iskra-settings__chip-fields {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-iskra-settings__input {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.2);
+  color: inherit;
+}
+
+.admin-iskra-settings__chip-message {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.2);
+  color: inherit;
+  resize: vertical;
+  min-height: 56px;
+}
+
+.admin-iskra-settings__chip-row-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.admin-iskra-settings__handler {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  font-weight: 600;
+  gap: 4px;
+  min-width: 180px;
+}
+
+.admin-iskra-settings__select {
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.2);
+  color: inherit;
+}
+
+.admin-iskra-settings__compare {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.admin-iskra-settings__chip-delete {
+  margin-left: auto;
+  color: #ef9a9a;
+}
+
 .diagnostics-panel__status {
   margin-bottom: 14px;
   padding: 12px 14px;
