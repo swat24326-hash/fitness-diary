@@ -34,14 +34,14 @@ export function SalesFinanceForecast({ year, month, monthRows, membershipTypes, 
   if (!forecast.ok) {
     if (forecast.reason === 'not_current_month') {
       return (
-        <p className="sales-finance-forecast__note muted">
+        <p className="sales-finance-forecast__note sales-finance-forecast__note--info">
           Прогноз доступен только для текущего месяца — выбранный период уже закрыт или ещё не начался.
         </p>
       )
     }
     if (forecast.reason === 'insufficient_reports') {
       return (
-        <p className="sales-finance-forecast__note muted">
+        <p className="sales-finance-forecast__note sales-finance-forecast__note--info">
           Прогноз появится после {MIN_REPORT_DAYS_FOR_FORECAST} заполненных отчётов (сейчас{' '}
           {forecast.reportDays ?? 0}).
         </p>
@@ -73,11 +73,11 @@ export function SalesFinanceForecast({ year, month, monthRows, membershipTypes, 
 
   const formatReachLabel = (reach, planTarget) => {
     if (planTarget <= 0) return 'План не задан'
-    if (reach.willReach) return `выполним (${reach.forecastProgressPercent}%)`
+    if (reach.willReach) return `Прогноз: выполним план (${reach.forecastProgressPercent}%)`
     if (reach.gapRub > 0) {
-      return `не дотянем (${reach.forecastProgressPercent}%, −${formatRub(reach.gapRub)})`
+      return `Прогноз: не дотянем (${reach.forecastProgressPercent}%, не хватает ${formatRub(reach.gapRub)})`
     }
-    return `${reach.forecastProgressPercent}%`
+    return `Прогноз: ${reach.forecastProgressPercent}%`
   }
 
   const plan = forecast.plan
@@ -86,57 +86,66 @@ export function SalesFinanceForecast({ year, month, monthRows, membershipTypes, 
     <section className="sales-finance-forecast" aria-labelledby="sales-finance-forecast-title">
       <header className="sales-finance-forecast__head">
         <h3 className="sales-finance-forecast__title" id="sales-finance-forecast-title">
-          <TrendingUp size={18} aria-hidden style={{ verticalAlign: -3, marginRight: 8 }} />
+          <TrendingUp size={20} aria-hidden className="sales-finance-forecast__title-icon" />
           Прогноз на {monthEndLabel}
         </h3>
-        <p className="sales-finance-forecast__hint muted">
-          Среднее за {forecast.reportDays} отчёт{forecast.reportDays === 1 ? '' : forecast.reportDays < 5 ? 'а' : 'ов'}{' '}
-          × {forecast.daysInMonth} дн. месяца
+        <p className="sales-finance-forecast__hint">
+          Среднее за <strong>{forecast.reportDays}</strong> отчёт
+          {forecast.reportDays === 1 ? '' : forecast.reportDays < 5 ? 'а' : 'ов'} ×{' '}
+          <strong>{forecast.daysInMonth}</strong> дн. месяца
         </p>
       </header>
 
       {plan?.level3 > 0 ? (
-        <div className="sales-finance-forecast__plan">
-          <h4 className="sales-finance-forecast__plan-title">
-            <Target size={16} aria-hidden style={{ verticalAlign: -2, marginRight: 6 }} />
+        <div className="sales-finance-forecast__section">
+          <h4 className="sales-finance-forecast__section-title">
+            <Target size={17} aria-hidden className="sales-finance-forecast__section-icon" />
             План уровня 3
           </h4>
-          <div className="sales-finance-forecast__plan-summary sales-finance-forecast__plan-summary--level3">
-            <div>
-              <span className="sales-finance-forecast__plan-kpi-label">Цель</span>
-              <strong>{formatRub(plan.level3)}</strong>
-            </div>
-            <div>
-              <span className="sales-finance-forecast__plan-kpi-label">Факт</span>
-              <strong>{plan.factProgressPercent}%</strong>
-              <span className="muted"> · {formatRub(plan.factGross)}</span>
-            </div>
-            <div>
-              <span className="sales-finance-forecast__plan-kpi-label">Прогноз</span>
-              <strong className={`sales-finance-forecast__reach--${plan.reach.tone}`}>
+          <div className="sales-finance-forecast__plan-cards">
+            <article className="sales-finance-forecast__plan-card">
+              <span className="sales-finance-forecast__plan-kpi-label">Цель месяца</span>
+              <strong className="sales-finance-forecast__plan-kpi-value">{formatRub(plan.level3)}</strong>
+            </article>
+            <article className="sales-finance-forecast__plan-card">
+              <span className="sales-finance-forecast__plan-kpi-label">Факт сейчас</span>
+              <strong className="sales-finance-forecast__plan-kpi-value">{plan.factProgressPercent}%</strong>
+              <span className="sales-finance-forecast__plan-kpi-sub">{formatRub(plan.factGross)}</span>
+            </article>
+            <article className={`sales-finance-forecast__plan-card sales-finance-forecast__plan-card--${plan.reach.tone}`}>
+              <span className="sales-finance-forecast__plan-kpi-label">Прогноз на конец</span>
+              <strong className={`sales-finance-forecast__plan-kpi-value sales-finance-forecast__reach--${plan.reach.tone}`}>
                 {plan.forecastProgressPercent}%
               </strong>
-              <span className="muted"> · {formatRub(plan.forecastGross)}</span>
-            </div>
-            <p className={`sales-finance-forecast__reach sales-finance-forecast__reach--${plan.reach.tone}`}>
-              {formatReachLabel(plan.reach, plan.level3)}
-            </p>
+              <span className="sales-finance-forecast__plan-kpi-sub">{formatRub(plan.forecastGross)}</span>
+            </article>
           </div>
+          <p className={`sales-finance-forecast__verdict sales-finance-forecast__reach--${plan.reach.tone}`}>
+            {formatReachLabel(plan.reach, plan.level3)}
+          </p>
         </div>
       ) : null}
 
       {plan?.directions?.length ? (
-        <div className="sales-finance-forecast__plan">
-          <h4 className="sales-finance-forecast__plan-title">Прогноз по направлениям</h4>
+        <div className="sales-finance-forecast__section">
+          <h4 className="sales-finance-forecast__section-title">Прогноз по направлениям</h4>
           <div className="sales-finance-forecast__table-wrap">
             <table className="sales-finance-forecast__table sales-finance-forecast__table--plan">
               <thead>
                 <tr>
                   <th scope="col">Направление</th>
-                  <th scope="col">План</th>
-                  <th scope="col">Факт</th>
-                  <th scope="col">Прогноз</th>
-                  <th scope="col">% плана</th>
+                  <th scope="col" className="sales-finance-forecast__col-num">
+                    План
+                  </th>
+                  <th scope="col" className="sales-finance-forecast__col-num">
+                    Факт
+                  </th>
+                  <th scope="col" className="sales-finance-forecast__col-num sales-finance-forecast__col-forecast">
+                    Прогноз
+                  </th>
+                  <th scope="col" className="sales-finance-forecast__col-num">
+                    % плана
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -156,11 +165,13 @@ export function SalesFinanceForecast({ year, month, monthRows, membershipTypes, 
                   return (
                     <tr key={dir.key}>
                       <th scope="row">{dir.label}</th>
-                      <td>{planText}</td>
-                      <td>{factText}</td>
-                      <td>{forecastText}</td>
-                      <td>
-                        <span className={`sales-finance-forecast__reach--${dir.reach.tone}`}>{progressText}</span>
+                      <td className="sales-finance-forecast__col-num">{planText}</td>
+                      <td className="sales-finance-forecast__col-num sales-finance-forecast__col-fact">{factText}</td>
+                      <td className="sales-finance-forecast__col-num sales-finance-forecast__col-forecast">{forecastText}</td>
+                      <td className="sales-finance-forecast__col-num">
+                        <span className={`sales-finance-forecast__badge sales-finance-forecast__badge--${dir.reach.tone}`}>
+                          {progressText}
+                        </span>
                       </td>
                     </tr>
                   )
@@ -171,36 +182,43 @@ export function SalesFinanceForecast({ year, month, monthRows, membershipTypes, 
         </div>
       ) : null}
 
-      <div className="sales-finance-forecast__table-wrap">
-        <table className="sales-finance-forecast__table">
-          <thead>
-            <tr>
-              <th scope="col">Показатель</th>
-              <th scope="col">Факт</th>
-              <th scope="col">Прогноз</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => {
-              const factVal = forecast.fact[row.key]
-              const forecastVal = forecast.forecast[row.key]
-              const rowClass = row.primary ? 'sales-finance-forecast__row--primary' : undefined
-              return (
-                <tr key={row.key} className={rowClass}>
-                  <th scope="row">{row.label}</th>
-                  <td>{formatValue(row.kind, factVal, row.negative)}</td>
-                  <td>
-                    {row.static ? (
-                      <span className="muted">{formatValue(row.kind, forecastVal, row.negative)}</span>
-                    ) : (
-                      formatValue(row.kind, forecastVal, row.negative)
-                    )}
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+      <div className="sales-finance-forecast__section">
+        <h4 className="sales-finance-forecast__section-title">Финансы и нагрузка</h4>
+        <div className="sales-finance-forecast__table-wrap">
+          <table className="sales-finance-forecast__table">
+            <thead>
+              <tr>
+                <th scope="col">Показатель</th>
+                <th scope="col" className="sales-finance-forecast__col-num">
+                  Факт
+                </th>
+                <th scope="col" className="sales-finance-forecast__col-num sales-finance-forecast__col-forecast">
+                  Прогноз
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => {
+                const factVal = forecast.fact[row.key]
+                const forecastVal = forecast.forecast[row.key]
+                const rowClass = row.primary ? 'sales-finance-forecast__row--primary' : undefined
+                return (
+                  <tr key={row.key} className={rowClass}>
+                    <th scope="row">{row.label}</th>
+                    <td className="sales-finance-forecast__col-num sales-finance-forecast__col-fact">
+                      {formatValue(row.kind, factVal, row.negative)}
+                    </td>
+                    <td
+                      className={`sales-finance-forecast__col-num sales-finance-forecast__col-forecast${row.static ? ' sales-finance-forecast__col-static' : ''}`}
+                    >
+                      {formatValue(row.kind, forecastVal, row.negative)}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
   )

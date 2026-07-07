@@ -58,6 +58,7 @@ export function SalesFinancePanel({
         expense={summary.expense ?? 0}
       />
 
+      <h3 className="sales-finance-actual__title">Итоги месяца (факт)</h3>
       <div className="sales-report__kpi-grid sales-finance-summary">
         <div className="sales-report__kpi">
           <span className="sales-report__kpi-label">Заработок месяца</span>
