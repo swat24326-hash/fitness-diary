@@ -70,6 +70,11 @@ function trainingContentFingerprint({ clientId, trainingType, trainingDate, stat
   })
 }
 
+/** Тренер может менять дату только у уже завершённой тренировки; админ — всегда. */
+function canEditTrainingDate(isAdmin, trainingStatus) {
+  return isAdmin || trainingStatus === 'completed'
+}
+
 export function TrainingPage() {
   const { id } = useParams()
   const [search] = useSearchParams()
@@ -163,7 +168,7 @@ export function TrainingPage() {
     setTrainingType(sessionType)
     const today = todayLocalIso()
     const loaded = t.date ?? today
-    setTrainingDate(isAdmin ? loaded : clampIsoDateToToday(loaded))
+    setTrainingDate(canEditTrainingDate(isAdmin, t.status) ? loaded : clampIsoDateToToday(loaded))
     const hc = await getHealthCard(t.client_id)
     setContra((hc?.contraindications ?? '').trim())
     setMembershipSummary(await activeMembershipSummary(t.client_id))
@@ -221,7 +226,11 @@ export function TrainingPage() {
 
     // Для тренера: дата завершения — всегда актуальное «сегодня» (не дата открытия формы).
     const today = todayLocalIso()
-    const effectiveDate = isAdmin ? trainingDate : today
+    const saveWithChosenDate = canEditTrainingDate(
+      isAdmin,
+      prev?.status === 'completed' || meta.status === 'completed' ? 'completed' : 'draft',
+    )
+    const effectiveDate = saveWithChosenDate ? trainingDate : today
     if (nextStatus === 'completed' && !silent && isIsoDateAfterToday(effectiveDate)) {
       setSaveError('Нельзя завершить тренировку датой в будущем. Проверьте дату на устройстве.')
       return
@@ -490,6 +499,8 @@ export function TrainingPage() {
     return () => window.removeEventListener('keydown', onKey)
   }, [showCompletionHints])
 
+  const canChangeDate = canEditTrainingDate(isAdmin, meta.status)
+
   if (isNew && isAdmin) {
     return (
       <p className="muted">
@@ -568,7 +579,7 @@ export function TrainingPage() {
                       el.click()
                     }
                   }}
-                  disabled={!isAdmin}
+                  disabled={!canChangeDate}
                 >
                   <Calendar size={14} aria-hidden />
                 </button>
@@ -581,7 +592,7 @@ export function TrainingPage() {
                   required
                   aria-label="Дата тренировки"
                   ref={dateInputRef}
-                  disabled={!isAdmin}
+                  disabled={!canChangeDate}
                 />
               </div>
 
