@@ -224,8 +224,15 @@ export function TrainingPage() {
       }
     }
 
-    // Для тренера: дата завершения — всегда актуальное «сегодня» (не дата открытия формы).
     const today = todayLocalIso()
+    const now = new Date().toISOString()
+    const db = await getDb()
+    let prev = id && id !== 'new' ? await db.get('trainings', id) : null
+    if (!prev && meta.trainingId) {
+      prev = await db.get('trainings', meta.trainingId)
+    }
+
+    // Для тренера: при первом завершении — «сегодня»; у уже завершённой — выбранная дата.
     const saveWithChosenDate = canEditTrainingDate(
       isAdmin,
       prev?.status === 'completed' || meta.status === 'completed' ? 'completed' : 'draft',
@@ -234,12 +241,6 @@ export function TrainingPage() {
     if (nextStatus === 'completed' && !silent && isIsoDateAfterToday(effectiveDate)) {
       setSaveError('Нельзя завершить тренировку датой в будущем. Проверьте дату на устройстве.')
       return
-    }
-    const now = new Date().toISOString()
-    const db = await getDb()
-    let prev = id && id !== 'new' ? await db.get('trainings', id) : null
-    if (!prev && meta.trainingId) {
-      prev = await db.get('trainings', meta.trainingId)
     }
 
     // club_id обязателен для записи. В dev/локальном режиме можно восстановить его
