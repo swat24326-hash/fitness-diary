@@ -3,6 +3,7 @@
 import { trimChatHistory, compactSnapshotForPrompt } from './geminiAnalyticsSnapshot.js'
 import { buildIskraSystemPrompt, buildPersona } from './geminiIskraCore.js'
 import { buildGeminiMonthCalendarContext } from './geminiMonthCalendarContext.js'
+import { buildIskraDataAvailability } from './iskraDataAvailability.js'
 
 export { buildPersona }
 
@@ -135,6 +136,10 @@ export function buildGeminiPromptDataBlock(snapshot, previousSnapshot = null, op
     insights: current?.insights ?? null,
     month_forecast: current?.month_forecast ?? snapshot?.month_forecast ?? null,
     data_sources: current?.data_sources ?? null,
+    data_availability: buildIskraDataAvailability(snapshot, {
+      hasPreviousPeriod: !!previousSnapshot,
+      selectedTrainerId,
+    }),
     current_period: current?.period ?? null,
   }
   if (previousSnapshot) {

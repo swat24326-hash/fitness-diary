@@ -44,13 +44,10 @@ ok(fc3.ok, 'forecast ok with 3 reports')
 ok(fc3.reportDays === 3, 'report days = 3')
 ok(fc3.fact.earnings === 29400, 'fact earnings net of refunds')
 ok(fc3.fact.refunds === 600, 'fact refunds sum')
+ok(fc3.forecast.refunds === fc3.fact.refunds, 'forecast refunds static (fact sum)')
 ok(
-  fc3.forecast.earnings === Math.round(29400 * (daysInMonth / 3) * 100) / 100,
-  'forecast earnings scaled to month',
-)
-ok(
-  fc3.forecast.refunds === Math.round(600 * (daysInMonth / 3) * 100) / 100,
-  'forecast refunds scaled to month',
+  fc3.forecast.earnings === Math.round((30000 * (daysInMonth / 3) - 600) * 100) / 100,
+  'forecast earnings = scaled gross minus static refunds',
 )
 ok(fc3.forecast.netProfit === fc3.forecast.earnings - fc3.forecast.expense, 'net without payroll when empty types')
 

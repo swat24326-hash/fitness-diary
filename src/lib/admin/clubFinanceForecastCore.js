@@ -1,4 +1,4 @@
-/** Прогноз «Финансы клуба»: среднее по отчётам месяца × дней в месяце (только текущий месяц). */
+/** Прогноз «Финансы клуба»: среднее по отчётам месяца × дней в месяце (только текущий месяц). Возвраты в прогнозе — статическая сумма из отчётов. */
 
 import { filterAerobicSalesTypes, filterTrainerAssignableTypes } from '../membershipTypesCore.js'
 import { normalizeAerobicRowsFromDb, sumAerobicRows } from './aerobicSalesMatrix.js'
@@ -204,6 +204,16 @@ export function buildClubFinanceForecast(opts) {
 
   const factEarnings = roundRub(earningsTotal)
   const factRefunds = roundRub(refundsTotal)
+  const factGross = roundRub(earningsGrossTotal)
+  const forecastGross = roundRub(earningsGrossTotal * scale)
+  /** Возвраты в прогнозе — только факт из отчётов, без экстраполяции на конец месяца. */
+  const forecastRefunds = factRefunds
+  const forecastEarnings = roundRub(forecastGross - forecastRefunds)
+  const forecastPzTrainings = roundCount(pzTrainingsTotal * scale)
+  const forecastAzTrainings = roundCount(azTrainingsTotal * scale)
+  const forecastTrainerPayroll = roundRub(trainerPayrollFact * scale)
+  const forecastAerobicPayroll = roundRub(aerobicPayrollFact * scale)
+
   const factNetProfit = computeNetProfitWithPayroll(
     factEarnings,
     trainerPayrollFact,
@@ -211,12 +221,6 @@ export function buildClubFinanceForecast(opts) {
     aerobicPayrollFact,
   )
 
-  const forecastEarnings = roundRub(earningsTotal * scale)
-  const forecastRefunds = roundRub(refundsTotal * scale)
-  const forecastPzTrainings = roundCount(pzTrainingsTotal * scale)
-  const forecastAzTrainings = roundCount(azTrainingsTotal * scale)
-  const forecastTrainerPayroll = roundRub(trainerPayrollFact * scale)
-  const forecastAerobicPayroll = roundRub(aerobicPayrollFact * scale)
   const forecastNetProfit = computeNetProfitWithPayroll(
     forecastEarnings,
     forecastTrainerPayroll,
@@ -225,8 +229,6 @@ export function buildClubFinanceForecast(opts) {
   )
 
   const planTargets = readPlanTargetsFromForm(opts.planForm)
-  const factGross = roundRub(earningsGrossTotal)
-  const forecastGross = roundRub(earningsGrossTotal * scale)
   const planLevel3 = planTargets.level3
   const factPlanProgress = planProgressPercent(factGross, planLevel3)
   const forecastPlanProgress = planProgressPercent(forecastGross, planLevel3)

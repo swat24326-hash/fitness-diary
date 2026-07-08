@@ -55,7 +55,7 @@ export function SalesFinanceForecast({ year, month, monthRows, membershipTypes, 
 
   const rows = [
     { key: 'earnings', label: 'Заработок месяца', kind: 'money' },
-    { key: 'refunds', label: 'Возвраты', kind: 'money', negative: true },
+    { key: 'refunds', label: 'Возвраты', kind: 'money', negative: true, static: true },
     { key: 'pzTrainings', label: 'Тренировки ПЗ', kind: 'count' },
     { key: 'azTrainings', label: 'Тренировки АЗ', kind: 'count' },
     { key: 'trainerPayroll', label: 'ЗП персонального зала', kind: 'money', negative: true },

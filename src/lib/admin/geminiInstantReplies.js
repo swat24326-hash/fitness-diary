@@ -1,6 +1,7 @@
-/** Мгновенные ответы ИСКРЫ на chips — только готовые поля snapshot, без Gemini. */
+/** Мгновенные ответы ИСКРЫ на chips — только готовые поля snapshot, без Gemini и без оценок модели. */
 
 import { ISKRA_NAME } from './geminiIskraCore.js'
+import { buildIskraDataAvailability, iskraUnavailableHint } from './iskraDataAvailability.js'
 import { GEMINI_LEXICON_POOLS } from './geminiAnalyticsDomain.js'
 import { buildGeminiIntroReply, GEMINI_INTRO_CHIP } from './geminiAssistantIntro.js'
 import {
@@ -179,8 +180,18 @@ function toneWord(tone, seed, pools) {
 }
 
 export function buildGeminiInstantReply(chipId, opts) {
-  const snapshot = opts?.snapshot
-  if (!snapshot) return null
+  const rawSnapshot = opts?.snapshot
+  if (!rawSnapshot) return null
+
+  const snapshot = {
+    ...rawSnapshot,
+    data_availability:
+      rawSnapshot.data_availability ??
+      buildIskraDataAvailability(rawSnapshot, {
+        hasPreviousPeriod: !!opts?.previousSnapshot,
+        selectedTrainerId: rawSnapshot.trainer_contour?.selected_trainer_id,
+      }),
+  }
 
   const club = String(snapshot.club_name ?? '').trim() || 'клуб'
   const period =
@@ -209,7 +220,7 @@ export function buildGeminiInstantReply(chipId, opts) {
     case 'fitcity':
       return buildFitcityReply(club, period, insights, opener, closer, seed)
     case 'finance':
-      return buildFinanceReply(club, period, insights, opener, closer, seed)
+      return buildFinanceReply(club, period, insights, opener, closer, seed, snapshot)
     case 'pnk':
       return buildPnkReply(club, period, insights, opener, closer, seed)
     case 'bestday':
@@ -328,10 +339,14 @@ function buildFitcityReply(club, period, insights, opener, closer, seed) {
   return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: FIT-CITY (${fitCity}) больше отчёта (${manager}) — ${pickWord(GEMINI_LEXICON_POOLS.critique, seed)}, проверьте дневные отчёты. ${closer}.`
 }
 
-function buildFinanceReply(club, period, insights, opener, closer, seed) {
-  const fin = insights.finance
+function buildFinanceReply(club, period, insights, opener, closer, seed, snapshot) {
+  const fin = insights.finance ?? snapshot?.finance
   if (!fin) {
-    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: блок финансов не передан в этом запросе. ${closer}.`
+    const hint = iskraUnavailableHint(
+      snapshot?.data_availability,
+      'finance',
+    )
+    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: ${hint} Для этого ответа нужен блок финансов из отчёта. ${closer}.`
   }
 
   const net = Number(fin.net_profit) || 0

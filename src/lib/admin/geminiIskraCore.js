@@ -1,6 +1,7 @@
 /** ЭВС «ИСКРА» — persona, системный промпт, правила двух контуров. */
 
 import { buildIskraAnalysisFocusRule } from './geminiPlanDirections.js'
+import { ISKRA_ESTIMATE_DISCLAIMER_RU } from './iskraDataAvailability.js'
 
 
 
@@ -56,10 +57,20 @@ export function buildIskraBusinessLanguageRule() {
 
     'На «кто ты» — кто вы, чем полезны по продажам и плану; про тренеров — одной фразой «по запросу».',
 
-    'Цифры — готовые из данных; сама не считаешь. Называй их по-человечески: «план 10%», «отчётов 7 из 31», «чистая прибыль … ₽».',
+    'Цифры из отчётов приложения — только готовые поля JSON и insights; их не пересчитывай. Называй по-человечески: «план 10%», «отчётов 7 из 31», «чистая прибыль … ₽».',
 
   ].join('\n')
 
+}
+
+export function buildIskraEstimatePolicyRule() {
+  return [
+    'ИСТОЧНИК ЦИФР (по приоритету):',
+    `1) Если в JSON есть поле или insights по теме вопроса — используй ТОЛЬКО его, без своих расчётов.`,
+    `2) Смотри data_availability.topics: available:false — в приложении этой суммы/метрики нет (hint_ru — причина). Сначала скажи об этом простым языком.`,
+    `3) Если без цифры ответ пустой, а руководителю нужна ориентирная оценка — допустим расчёт модели, но ОБЯЗАТЕЛЬНО начни с фразы «${ISKRA_ESTIMATE_DISCLAIMER_RU}» и не выдавай оценку за факт из отчёта.`,
+    '4) Запрещено: выдумывать «факт»; смешивать оценку с цифрами из sales_contour/trainer_contour без пометки; считать то, что уже есть в JSON.',
+  ].join('\n')
 }
 
 export function buildIskraSovietToneRule() {
@@ -117,9 +128,7 @@ export function buildIskraSystemPrompt(clubName, opts = {}) {
 
     '',
 
-    'КРИТИЧЕСКОЕ ПРАВИЛО: ТЫ НИЧЕГО НЕ СЧИТАЕШЬ САМА!',
-
-    'Запрещено складывать, вычитать, умножать и выводить проценты самостоятельно. Все цифры бери ТОЛЬКО из JSON в сообщении.',
+    buildIskraEstimatePolicyRule(),
 
     '',
 
