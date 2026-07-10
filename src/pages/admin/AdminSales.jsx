@@ -587,19 +587,19 @@ export function AdminSales({ accessMode = 'admin' }) {
               <div className="sales-home__tile-grid">
                 <Link to="/sales?tab=report" className="sales-home__tile u-no-decoration">
                   <div className="sales-home__tile-icon">
-                    <CalendarDays size={36} aria-hidden />
+                    <CalendarDays size={44} aria-hidden />
                   </div>
                   <p className="sales-home__tile-title">Отчёт</p>
                 </Link>
                 <Link to="/sales?tab=stats" className="sales-home__tile u-no-decoration">
                   <div className="sales-home__tile-icon">
-                    <BarChart3 size={36} aria-hidden />
+                    <BarChart3 size={44} aria-hidden />
                   </div>
                   <p className="sales-home__tile-title">Статистика</p>
                 </Link>
                 <Link to="/sales?tab=analytics" className="sales-home__tile u-no-decoration">
                   <div className="sales-home__tile-icon">
-                    <TrendingUp size={36} aria-hidden />
+                    <TrendingUp size={44} aria-hidden />
                   </div>
                   <p className="sales-home__tile-title">Аналитика</p>
                 </Link>

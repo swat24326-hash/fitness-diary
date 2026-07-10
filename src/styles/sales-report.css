@@ -2590,7 +2590,7 @@
 }
 
 .sales-home--fill .sales-home__hero {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
@@ -2605,7 +2605,7 @@
 }
 
 .sales-home--fill .sales-home__hero .sales-report__plan-chart {
-  flex: 1;
+  flex: none;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -2687,51 +2687,52 @@
 }
 
 .sales-home--fill .sales-home__tiles {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: center;
+  min-height: clamp(220px, 38vh, 420px);
   padding: clamp(1rem, 2vh, 1.35rem) clamp(1.5rem, 3.5vw, 2.75rem) clamp(1.25rem, 2.2vh, 1.75rem);
 }
 
 .sales-home--fill .sales-home__tiles-heading {
   flex-shrink: 0;
   margin-top: 0;
-  margin-bottom: clamp(0.75rem, 1.5vh, 1rem);
-  font-size: clamp(0.68rem, 1vw, 0.74rem);
+  margin-bottom: clamp(0.85rem, 1.8vh, 1.25rem);
+  font-size: clamp(0.72rem, 1.1vw, 0.8rem);
 }
 
 .sales-home--fill .sales-home__tile-grid {
-  flex: none;
+  flex: 1;
+  min-height: 0;
   align-items: stretch;
 }
 
 .sales-home--fill .sales-home__tile {
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  gap: clamp(14px, 2vw, 22px);
-  min-height: clamp(84px, 9.5vh, 108px);
-  max-height: 116px;
-  height: auto;
-  padding: clamp(14px, 1.8vh, 20px) clamp(18px, 2.5vw, 28px);
+  justify-content: center;
+  gap: clamp(16px, 2.5vh, 28px);
+  min-height: clamp(168px, 19vh, 224px);
+  height: 100%;
+  padding: clamp(22px, 3vh, 36px) clamp(18px, 2.5vw, 28px);
 }
 
 .sales-home--fill .sales-home__tile-icon {
-  width: clamp(52px, 5.2vw, 64px);
-  height: clamp(52px, 5.2vw, 64px);
-  border-radius: 14px;
+  width: clamp(64px, 7vw, 88px);
+  height: clamp(64px, 7vw, 88px);
+  border-radius: 16px;
 }
 
 .sales-home--fill .sales-home__tile-icon svg {
-  width: clamp(28px, 3.2vw, 36px);
-  height: clamp(28px, 3.2vw, 36px);
+  width: clamp(36px, 4.5vw, 48px);
+  height: clamp(36px, 4.5vw, 48px);
 }
 
 .sales-home--fill .sales-home__tile-title {
-  font-size: clamp(1rem, 1.7vw, 1.22rem);
-  text-align: left;
-  flex: 1;
+  font-size: clamp(1.1rem, 2vw, 1.4rem);
+  text-align: center;
+  flex: none;
 }
 
 .sales-home__board {
@@ -2915,18 +2916,18 @@
   }
 
   .sales-home--fill .sales-home__tile {
-    min-height: clamp(90px, 9vh, 112px);
-    max-height: 118px;
+    min-height: clamp(180px, 20vh, 236px);
   }
 }
 
 @media (max-width: 600px) {
+  .sales-home--fill .sales-home__tiles {
+    min-height: clamp(280px, 42vh, 380px);
+  }
+
   .sales-home--fill .sales-home__tile {
-    flex-direction: column;
-    justify-content: center;
-    max-height: none;
-    min-height: 96px;
-    padding: clamp(14px, 2vh, 18px) clamp(12px, 3vw, 16px);
+    min-height: clamp(152px, 18vh, 192px);
+    padding: clamp(18px, 2.5vh, 24px) clamp(12px, 3vw, 16px);
   }
 
   .sales-home--fill .sales-home__tile-title {
