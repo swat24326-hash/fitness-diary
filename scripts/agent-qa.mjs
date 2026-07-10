@@ -120,8 +120,9 @@ if (!skipProd) {
     }
 
     if (!skipProdRoles) {
-      run('prod roles API', 'node', ['scripts/qa-roles-prod.mjs'])
+      run('prod roles API', 'node', ['scripts/qa-roles-prod.mjs', '--keep-users'])
       run('sales manager e2e', 'node', ['scripts/verify-sales-manager-e2e.mjs'])
+      run('cleanup QA users', 'node', ['scripts/qa-roles-cleanup.mjs'])
     }
     run('prod features', 'node', ['scripts/verify-prod-features.mjs'])
   } catch (e) {
