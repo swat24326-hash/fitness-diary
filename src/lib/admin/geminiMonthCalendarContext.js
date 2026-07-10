@@ -3,6 +3,8 @@
  * Учитывает: начало / середина / конец / осталось N дней, прошлый и будущий месяц.
  */
 
+import { phrasePlanBenchmark, phrasePlanFact } from './iskraReplyPhrasing.js'
+
 function round1(n) {
   return Math.round(Number(n) * 10) / 10
 }
@@ -277,7 +279,7 @@ export function formatCalendarContextLine(calendarContext) {
   if (!Number.isFinite(day) || day <= 0 || !phase || expected == null) return ''
 
   const datePart = dateRu ? `Сегодня ${dateRu}` : `Сегодня ${day}-е число`
-  return ` ${datePart}, ${phase}; ориентир плана к дате ~${expected}%.`
+  return ` ${datePart}, ${phase}. ${phrasePlanBenchmark(expected)}.`
 }
 
 /**
@@ -302,17 +304,17 @@ export function formatPlanPaceLine(calendarContext, planPct, vsCalendar) {
   if (expected == null || !phase) return ''
 
   const datePart = dateRu ? `Сегодня ${dateRu}` : `Сегодня ${day}-е число`
-  const benchmark = `${datePart}, ${phase}; ориентир ~${expected}%`
   const pct = Number(planPct) || 0
+  const base = ` ${datePart}, ${phase}. ${phrasePlanBenchmark(expected)}, ${phrasePlanFact(pct)}`
 
   if (vsCalendar === 'behind') {
-    return ` ${benchmark} — факт ${pct}%, отстаём от календарного темпа.`
+    return `${base} — отстаём от нормы.`
   }
   if (vsCalendar === 'ahead') {
-    return ` ${benchmark} — факт ${pct}%, опережаем ориентир.`
+    return `${base} — опережаем норму.`
   }
   if (vsCalendar === 'on_track') {
-    return ` ${benchmark} — факт ${pct}%, в календарном темпе.`
+    return `${base} — в темпе.`
   }
-  return ` ${benchmark}.`
+  return ` ${datePart}, ${phase}. ${phrasePlanBenchmark(expected)}.`
 }

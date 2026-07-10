@@ -2,6 +2,8 @@
  * План по направлениям ПЗ/ТЗ/АЗ для ЭВС «ИСКРА» — чистые функции.
  */
 
+import { phraseDirectionProgress } from './iskraReplyPhrasing.js'
+
 const CORE_DIRECTION_KEYS = new Set(['pz', 'tz', 'az'])
 
 /**
@@ -90,12 +92,12 @@ export function formatPlanDirectionStatusLine(insights, directionPlan) {
   const ok = block.ok ?? []
 
   if (!lagging.length) {
-    return ok.length ? ' Направления ПЗ/ТЗ/АЗ — без критичного отставания.' : ''
+    return ok.length ? ' ПЗ, ТЗ и АЗ — без критичного отставания.' : ''
   }
 
-  const lagText = lagging.map((r) => `${r.label} ${r.pct}%`).join(', ')
+  const lagText = lagging.map((r) => phraseDirectionProgress(r.label, r.pct)).join(', ')
   const okText = ok.length ? ` ${joinOkDirectionLabels(ok)} — в рабочем темпе.` : ''
-  return ` Отстающие направления: ${lagText}.${okText}`
+  return ` Отстающие: ${lagText}.${okText}`
 }
 
 /**
@@ -123,7 +125,7 @@ export function formatPlanDirectionsDetail(directionRows, directionPlan) {
     .map((r) => {
       const label = r.label ?? r.key
       const pct = Number(r.planProgressPercent) || 0
-      return `${label} ${pct}%`
+      return phraseDirectionProgress(label, pct)
     })
 
   if (!parts.length) return 'план по направлениям не задан'

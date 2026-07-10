@@ -2,6 +2,7 @@
 
 import { ISKRA_FULL_NAME, ISKRA_NAME } from './geminiIskraCore.js'
 import { periodLabelRu } from './geminiAnalyticsSnapshot.js'
+import { phrasePlanProgress } from './iskraReplyPhrasing.js'
 
 export const GEMINI_INTRO_CHIP = {
   id: 'intro',
@@ -73,10 +74,10 @@ function kpiTail(kpi, snapshot) {
   if (cal?.month_relation === 'current' && cal.calendar_day) {
     parts.push(`сегодня ${cal.calendar_day}-е число`)
   }
-  if (kpi.hasPlan) parts.push(`план ${kpi.planPct}%`)
+  if (kpi.hasPlan) parts.push(phrasePlanProgress(kpi.planPct))
   if (kpi.reportsLabel) parts.push(`отчётов ${kpi.reportsLabel}`)
   if (!parts.length) return ''
-  return ` Сейчас по базе: ${parts.join(', ')}.`
+  return ` Сейчас: ${parts.join(', ')}.`
 }
 
 function coverageNote(kpi) {
@@ -123,7 +124,7 @@ function buildMicroIntro(ctx, kpi, tail, coverage) {
     return `${name} на связи, ${fullName} по ${clubPhrase}, ${period}. База ещё не заполнена — покажу, что уже есть, и на что обратить внимание.${coverage}`
   }
 
-  return `${name} на связи. ${fullName} по ${clubPhrase}, ${period}. Данные приняты — готова разобрать продажи, финансы и работу тренеров.${tail}${coverage}`
+  return `${name} на связи. ${fullName} по ${clubPhrase}, ${period}. Готова разобрать продажи, финансы и тренеров.${tail}${coverage}`
 }
 
 function buildStandardIntro(ctx, tail, coverage) {

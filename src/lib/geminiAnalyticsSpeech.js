@@ -1,4 +1,5 @@
 import { ISKRA_NAME } from './admin/geminiIskraCore.js'
+import { polishIskraReplyText, expandAbbreviationsForSpeech } from './admin/iskraReplyPhrasing.js'
 
 const GENDER_STORAGE_KEY = 'fit_gemini_gender'
 const AUTO_SPEAK_KEY = 'fit_gemini_auto_speak'
@@ -161,7 +162,7 @@ function waitForVoices() {
 
 /** Текст для TTS: разговорная форма без символов, которые читаются коряво. */
 export function prepareTextForSpeech(text) {
-  let s = String(text ?? '')
+  let s = polishIskraReplyText(text)
     .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/https?:\/\/\S+/gi, ' ')
@@ -181,7 +182,7 @@ export function prepareTextForSpeech(text) {
     .replace(/\s+/g, ' ')
     .trim()
 
-  return s
+  return expandAbbreviationsForSpeech(s)
 }
 
 /** @typedef {{ name?: string, lang?: string, voiceURI?: string }} SpeechVoiceLike */

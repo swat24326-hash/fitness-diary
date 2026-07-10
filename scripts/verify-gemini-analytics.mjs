@@ -50,9 +50,15 @@ import {
   buildGeminiMonthCalendarContext,
   comparePlanToCalendar,
   formatCalendarContextLine,
+  formatPlanPaceLine,
   formatTodayDateRu,
   shouldFlagLowPlan,
 } from '../src/lib/admin/geminiMonthCalendarContext.js'
+import {
+  phrasePlanProgress,
+  polishIskraReplyText,
+  expandAbbreviationsForSpeech,
+} from '../src/lib/admin/iskraReplyPhrasing.js'
 
 let failed = 0
 
@@ -152,7 +158,7 @@ const noFinance = buildGeminiSnapshot({
 ok(noFinance.finance === undefined, 'finance hidden')
 
 ok(GEMINI_ANALYTICS_MODEL === 'gemini-2.5-flash-lite', 'default model lite')
-ok(buildSystemPrompt('male', 'X').includes('90 слов'), 'brief prompt rule')
+ok(buildSystemPrompt('male', 'X').includes('70 слов'), 'brief prompt rule')
 ok(buildSystemPrompt('male', 'X').includes('ЯЗЫК ОТВЕТА'), 'prompt business language')
 ok(buildSystemPrompt('male', 'Север').includes('sales_contour'), 'prompt internal sales contour')
 ok(buildSystemPrompt('male', 'X').includes('советск'), 'prompt soviet tone')
@@ -181,6 +187,7 @@ ok(shouldFlagLowPlan(10, 10000, lateMonth), 'low plan flag late month for 10%')
 const calLine = formatCalendarContextLine(midMonth)
 ok(!calLine.includes('undefined'), 'calendar line no undefined')
 ok(calLine.includes('15 июля'), 'calendar line has date ru')
+ok(calLine.includes('норма к дате'), 'calendar line speakable benchmark')
 ok(formatTodayDateRu(midMonth) === '15 июля 2026', 'today date ru')
 
 const badLine = formatCalendarContextLine(snap)
@@ -208,6 +215,12 @@ ok(!prepareTextForSpeech('~тест / пункт • список').includes('~'
 ok(!prepareTextForSpeech('~тест / пункт • список').includes('/'), 'speech strips slash')
 ok(prepareTextForSpeech('~тест / пункт • список').includes('тест'), 'speech keeps words')
 
+ok(phrasePlanProgress(29.2) === 'план выполнен на 29,2%', 'phrase plan progress')
+ok(polishIskraReplyText('план 29.2%').includes('план выполнен на 29.2%'), 'polish bare plan pct')
+
+const paceLine = formatPlanPaceLine(midMonth, 29.2, 'on_track')
+ok(paceLine.includes('норма к дате') && paceLine.includes('выполнено 29,2%') && paceLine.includes('в темпе'), 'pace line speakable')
+
 const iskraSample =
   'ИСКРА: FIT-CITY Клинцы, июль 2026. Данные приняты: план 29.2% — 369 999 ₽ из 1 300 000 ₽. Сегодня 10 июля 2026, первая треть месяца; ориентир ~32.3% — факт 29.2%, в календарном темпе. Направления ПЗ/ТЗ/АЗ — без критичного отставания. Отчёты 9 из 31 (29%).'
 const iskraSpeech = prepareTextForSpeech(iskraSample)
@@ -216,10 +229,21 @@ ok(!iskraSpeech.includes('/'), 'speech iskra sample no slash')
 ok(!iskraSpeech.includes('—'), 'speech iskra sample no em dash')
 ok(!iskraSpeech.includes('₽'), 'speech iskra sample no ruble sign')
 ok(!iskraSpeech.includes('%'), 'speech iskra sample no percent sign')
-ok(iskraSpeech.includes('около'), 'speech iskra sample tilde to okolo')
+ok(iskraSpeech.includes('план выполнен на'), 'speech iskra plan phrasing')
+ok(iskraSpeech.includes('норма к дате'), 'speech iskra benchmark phrasing')
 ok(iskraSpeech.includes('рублей'), 'speech iskra sample rubles word')
 ok(iskraSpeech.includes('процентов'), 'speech iskra sample percent word')
-ok(iskraSpeech.includes('ПЗ, ТЗ, АЗ'), 'speech iskra sample directions commas')
+ok(iskraSpeech.includes('персональный зал'), 'speech expands pz direction')
+ok(iskraSpeech.includes('тренажёрный зал'), 'speech expands tz direction')
+ok(iskraSpeech.includes('аэробный зал'), 'speech expands az direction')
+ok(!iskraSpeech.includes('ПЗ'), 'speech iskra sample no pz abbrev')
+ok(!iskraSpeech.includes('ТЗ'), 'speech iskra sample no tz abbrev')
+ok(!iskraSpeech.includes('АЗ'), 'speech iskra sample no az abbrev')
+
+ok(expandAbbreviationsForSpeech('Отстающие: ПЗ на 12%, ТЗ на 8%.').includes('персональный зал на'), 'speech expand direction progress')
+ok(expandAbbreviationsForSpeech('ПНК за месяц 8').includes('потенциальные новые клиенты'), 'speech expand pnk')
+ok(expandAbbreviationsForSpeech('FIT-CITY Клинцы').includes('фит сити'), 'speech expand fit city brand')
+ok(!prepareTextForSpeech('ИСКРА: FIT-CITY Клинцы').includes('FIT'), 'speech no latin fit city')
 
 const voiceMicrosoftFemale = { name: 'Microsoft Svetlana Online (Natural)', lang: 'ru-RU' }
 const voiceMicrosoftMale = { name: 'Microsoft Dmitry Online (Natural)', lang: 'ru-RU' }
@@ -316,7 +340,7 @@ ok(instantPayroll?.includes('финансовом отчёте') && instantPayro
 ok(matchGeminiInstantChip(GEMINI_INSTANT_CHIPS.find((c) => c.id === 'plan').message) === 'plan', 'instant chip plan')
 ok(matchGeminiInstantChip('случайный текст') === null, 'instant chip miss')
 const instantPlan = buildGeminiInstantReply('plan', { snapshot: snap, gender: 'male' })
-ok(instantPlan?.includes('66%') && instantPlan.includes('уровня 2') && instantPlan.endsWith('.'), 'instant plan reply')
+ok(instantPlan?.includes('выполнен на') && instantPlan?.includes('66%') && instantPlan.includes('уровня 2') && instantPlan.endsWith('.'), 'instant plan reply')
 ok(!instantPlan?.includes('undefined'), 'instant plan no undefined')
 
 const instantForecast = buildGeminiInstantReply('month_forecast', {
@@ -340,7 +364,7 @@ ok(instantForecast?.includes('не дотянем') && instantForecast?.includes
 ok(instantForecast?.includes('Чистая прибыль к концу месяца'), 'instant forecast net profit')
 ok(instantForecast?.endsWith('.'), 'instant forecast ends with dot')
 ok(
-  (instantPlan?.match(/отстаём|отстающие|без критичного|в календарном темпе/gi) ?? []).length <= 2,
+  (instantPlan?.match(/отстаём|отстающие|без критичного|в темпе/gi) ?? []).length <= 2,
   'instant plan no redundant lag wording',
 )
 ok(

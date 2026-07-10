@@ -14,6 +14,7 @@ import {
   formatPlanDirectionStatusLine,
   formatPlanDirectionsDetail,
 } from './geminiPlanDirections.js'
+import { phrasePlanProgress } from './iskraReplyPhrasing.js'
 import { formatRub } from './salesReportCore.js'
 import { periodLabelRu } from './geminiAnalyticsSnapshot.js'
 
@@ -261,7 +262,7 @@ function buildPlanReply(club, period, snapshot, insights, opener, closer, seed) 
   const achieved = Number(planInsight.achieved_level ?? sales.achieved_plan_level) || 0
 
   if (!planInsight.has_plan && plan <= 0) {
-    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: план продаж на месяц не задан. Отчётов ${days} дней, покрытие ${coverage}%.${calendarLine(snapshot)} ${closer}.`
+    return `${ISKRA_NAME}: ${club}, ${period}. План на месяц не задан. Отчётность ${coverage}%, ${days} дней.${calendarLine(snapshot)} ${closer}.`
   }
 
   const cal = resolveCalendarContext(snapshot)
@@ -270,13 +271,16 @@ function buildPlanReply(club, period, snapshot, insights, opener, closer, seed) 
   const dirLine = formatPlanDirectionStatusLine(insights)
   const levelLine =
     achieved > 0 ? ` Закрыт порог уровня ${achieved}.` : ' Финальный порог ещё не достигнут.'
-  const reportLine = total > 0 ? ` Отчёты ${days} из ${total} (${coverage}%).` : ` Отчёты ${days} дней (${coverage}%).`
+  const reportLine =
+    total > 0
+      ? ` Отчётность ${coverage}%, ${days} из ${total} дней.`
+      : ` Отчётность ${coverage}%, ${days} дней.`
   const push =
     planInsight.tone === 'weak' || vsCalendar === 'behind' ? formatPushLine(seed + 1) : ''
   const praise =
     planInsight.tone === 'strong' ? ` ${capitalizeSentence(pickWord(GEMINI_LEXICON_POOLS.praise, seed))}.` : ''
 
-  return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: план ${pct}% — ${formatRub(profit)} из ${formatRub(plan)}.${paceLine}${dirLine}${reportLine}${levelLine}${push}${praise} ${closer}.`
+  return `${ISKRA_NAME}: ${club}, ${period}. ${phrasePlanProgress(pct)}, ${formatRub(profit)} из ${formatRub(plan)}.${paceLine}${dirLine}${reportLine}${levelLine}${push}${praise} ${closer}.`
 }
 
 function buildGapReply(club, period, insights, opener, closer, seed) {
