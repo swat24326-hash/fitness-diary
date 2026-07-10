@@ -136,6 +136,19 @@ export function GeminiAnalyticsPanel({
     setListening(false)
   }, [])
 
+  const handleClose = useCallback(() => {
+    stopGeminiSpeech()
+    stopListening()
+    onClose()
+  }, [onClose, stopListening])
+
+  useEffect(() => {
+    return () => {
+      stopGeminiSpeech()
+      stopListening()
+    }
+  }, [stopListening])
+
   useEffect(() => {
     if (!open) {
       setEntered(false)
@@ -440,7 +453,7 @@ export function GeminiAnalyticsPanel({
   if (!open) return null
 
   return (
-    <div className={`gemini-panel-backdrop${entered ? ' gemini-panel-backdrop--open' : ''}`} role="presentation" onClick={onClose}>
+    <div className={`gemini-panel-backdrop${entered ? ' gemini-panel-backdrop--open' : ''}`} role="presentation" onClick={handleClose}>
       <aside
         className={panelClass}
         role="dialog"
@@ -467,11 +480,11 @@ export function GeminiAnalyticsPanel({
               className="btn btn-ghost btn-sm gemini-panel__settings"
               aria-label="Настройки ИСКРА"
               title="Настройки ИСКРА"
-              onClick={onClose}
+              onClick={handleClose}
             >
               <Settings size={18} />
             </Link>
-            <button type="button" className="btn btn-ghost btn-sm gemini-panel__close" onClick={onClose} aria-label="Закрыть">
+            <button type="button" className="btn btn-ghost btn-sm gemini-panel__close" onClick={handleClose} aria-label="Закрыть">
               <X size={18} />
             </button>
           </div>

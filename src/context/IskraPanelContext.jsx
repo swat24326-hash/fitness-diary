@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { stopGeminiSpeech } from '../lib/geminiAnalyticsSpeech.js'
 
 /** @typedef {{ trainerId?: string | null, trainerName?: string, clubId?: string | null, initialMessage?: string | null }} OpenIskraOpts */
 
@@ -30,6 +31,7 @@ export function IskraPanelProvider({ children }) {
   )
 
   const closeIskra = useCallback(() => {
+    stopGeminiSpeech()
     setOpen(false)
     setTrainerId(null)
     setTrainerName('')

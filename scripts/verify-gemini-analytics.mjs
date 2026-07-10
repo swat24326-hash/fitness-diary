@@ -204,17 +204,24 @@ const gapHints = buildTrainingsGapHint(20, 5, 2, 30)
 ok(gapHints.length > 0, 'gap hints')
 ok(GEMINI_GENERATION_CONFIG.maxOutputTokens >= 512, 'enough output tokens')
 ok(prepareTextForSpeech('**жирный**  текст').includes('жирный'), 'speech text clean')
+ok(!prepareTextForSpeech('~тест / пункт • список').includes('~'), 'speech strips tilde')
+ok(!prepareTextForSpeech('~тест / пункт • список').includes('/'), 'speech strips slash')
+ok(prepareTextForSpeech('~тест / пункт • список').includes('тест'), 'speech keeps words')
 
 const voiceMicrosoftFemale = { name: 'Microsoft Svetlana Online (Natural)', lang: 'ru-RU' }
 const voiceMicrosoftMale = { name: 'Microsoft Dmitry Online (Natural)', lang: 'ru-RU' }
 const voiceMicrosoftIrina = { name: 'Microsoft Irina Desktop', lang: 'ru-RU' }
+const voiceMicrosoftPavelDesktop = { name: 'Microsoft Pavel Desktop', lang: 'ru-RU' }
 const voiceGoogleRu = { name: 'Google русский', lang: 'ru-RU' }
+const voiceGoogleMale = { name: 'Google русский Male', lang: 'ru-RU' }
 const voiceEn = { name: 'Microsoft Zira', lang: 'en-US' }
 
 const edgeVoices = [voiceGoogleRu, voiceMicrosoftIrina, voiceMicrosoftFemale, voiceMicrosoftMale, voiceEn]
 ok(pickGeminiSpeechVoice('female', edgeVoices)?.name.includes('Svetlana Online'), 'tts female prefers Svetlana Online')
 ok(pickGeminiSpeechVoice('male', edgeVoices)?.name.includes('Dmitry Online'), 'tts male prefers Dmitry Online')
 ok(!/google/i.test(pickGeminiSpeechVoice('female', edgeVoices)?.name ?? ''), 'tts skips Google when Microsoft available')
+ok(pickGeminiSpeechVoice('male', [voiceGoogleRu, voiceMicrosoftPavelDesktop])?.name.includes('Pavel'), 'tts male prefers Pavel desktop over Google')
+ok(pickGeminiSpeechVoice('male', [voiceGoogleMale, voiceGoogleRu])?.name.includes('Google'), 'tts google male only when no Microsoft male')
 ok(pickGeminiSpeechVoice('female', [voiceGoogleRu, voiceEn])?.name.includes('Google'), 'tts google fallback when no Microsoft')
 ok(pickGeminiSpeechVoice('female', []) === null, 'tts empty voices')
 

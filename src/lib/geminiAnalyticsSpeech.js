@@ -4,6 +4,52 @@ const GENDER_STORAGE_KEY = 'fit_gemini_gender'
 const AUTO_SPEAK_KEY = 'fit_gemini_auto_speak'
 
 let resumeIntervalId = null
+let speechGeneration = 0
+
+/** @param {string} name */
+function isFemaleVoiceName(name) {
+  const lower = String(name).toLowerCase()
+  return /svetlana|irina|milena|katya|anna|elena|olga|female|жен/i.test(lower)
+}
+
+/** @param {string} name */
+function isMaleVoiceName(name) {
+  const lower = String(name).toLowerCase()
+  if (isFemaleVoiceName(name)) return false
+  return /dmitri|dmitry|pavel|yuri|male|муж/i.test(lower)
+}
+
+/** @param {SpeechVoiceLike} voice */
+function isRussianVoice(voice) {
+  const name = String(voice?.name ?? '')
+  const lang = String(voice?.lang ?? '')
+  return /^ru(-|$)/i.test(lang) || /рус|irina|pavel|svetlana|dmitri|dmitry/i.test(name)
+}
+
+/** @param {SpeechVoiceLike} voice */
+function isMicrosoftVoice(voice) {
+  return /microsoft/i.test(String(voice?.name ?? ''))
+}
+
+/** @param {SpeechVoiceLike} voice */
+function isGoogleVoice(voice) {
+  return /google/i.test(String(voice?.name ?? ''))
+}
+
+/** @param {SpeechVoiceLike[]} voices */
+function sortMicrosoftVoices(voices) {
+  return [...voices].sort((a, b) => {
+    const score = (v) => {
+      const name = String(v?.name ?? '')
+      let s = 0
+      if (/online/i.test(name)) s += 30
+      if (/natural/i.test(name)) s += 20
+      if (/desktop/i.test(name)) s += 5
+      return s
+    }
+    return score(b) - score(a)
+  })
+}
 
 /** @param {'male'|'female'|string} gender */
 function normalizeGender(gender) {
@@ -120,10 +166,17 @@ function waitForVoices() {
   })
 }
 
-/** Текст для TTS: без разметки, компактнее для уха. */
+/** Текст для TTS: без разметки и символов, которые озвучиваются как «тильда», «слеш». */
 export function prepareTextForSpeech(text) {
   return String(text ?? '')
-    .replace(/\*\*|__|`|#/g, '')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/https?:\/\/\S+/gi, ' ')
+    .replace(/[*_`#~|\\/>]+/g, ' ')
+    .replace(/[«»“”"()[\]{}]/g, ' ')
+    .replace(/^\s*[-–—•·▪►]+\s*/gm, '')
+    .replace(/\s+[-–—•·▪►]\s+/g, ', ')
+    .replace(/\s*\/\s*/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
 }
@@ -174,12 +227,32 @@ function scoreSpeechVoice(voice, gender) {
 export function pickGeminiSpeechVoice(gender, voices) {
   const normalized = normalizeGender(gender)
   const list = Array.isArray(voices) ? voices : []
-  const ru = list.filter((v) => /^ru(-|$)/i.test(String(v?.lang ?? '')))
+  const ru = list.filter((v) => isRussianVoice(v))
   const pool = ru.length ? ru : list
   if (!pool.length) return null
 
-  const hasMicrosoft = pool.some((v) => /microsoft/i.test(String(v?.name ?? '')))
-  const candidates = hasMicrosoft ? pool.filter((v) => !/google/i.test(String(v?.name ?? ''))) : pool
+  const microsoft = pool.filter((v) => isMicrosoftVoice(v))
+  const nonGoogle = pool.filter((v) => !isGoogleVoice(v))
+
+  if (normalized === 'male') {
+    const microsoftMale = sortMicrosoftVoices(microsoft.filter((v) => isMaleVoiceName(String(v?.name ?? ''))))
+    if (microsoftMale.length) return microsoftMale[0]
+
+    const anyMale = sortMicrosoftVoices(nonGoogle.filter((v) => isMaleVoiceName(String(v?.name ?? ''))))
+    if (anyMale.length) return anyMale[0]
+
+    const googleMale = pool.filter((v) => isGoogleVoice(v) && isMaleVoiceName(String(v?.name ?? '')))
+    if (googleMale.length) return googleMale[0]
+  } else {
+    const microsoftFemale = sortMicrosoftVoices(microsoft.filter((v) => isFemaleVoiceName(String(v?.name ?? ''))))
+    if (microsoftFemale.length) return microsoftFemale[0]
+
+    const anyFemale = sortMicrosoftVoices(nonGoogle.filter((v) => isFemaleVoiceName(String(v?.name ?? ''))))
+    if (anyFemale.length) return anyFemale[0]
+  }
+
+  const hasMicrosoft = microsoft.length > 0
+  const candidates = hasMicrosoft ? nonGoogle : pool
 
   let best = null
   let bestScore = -Infinity
@@ -229,20 +302,30 @@ export async function speakGeminiText(text, gender = 'female') {
   const clean = prepareTextForSpeech(text)
   if (!clean) return false
 
+  const generation = ++speechGeneration
   const normalized = normalizeGender(gender)
   const voices = await waitForVoices()
+  if (generation !== speechGeneration) return false
+
   const utter = new SpeechSynthesisUtterance(clean)
   utter.lang = 'ru-RU'
   utter.rate = normalized === 'female' ? 0.94 : 0.98
-  utter.pitch = normalized === 'female' ? 1.02 : 0.88
+  utter.pitch = normalized === 'female' ? 1.02 : 0.82
   utter.volume = 1
 
   bindVoice(utter, normalized, voices)
 
   const synth = window.speechSynthesis
   synth.cancel()
-  utter.onend = () => clearResumeInterval()
-  utter.onerror = () => clearResumeInterval()
+  utter.onend = () => {
+    if (generation !== speechGeneration) return
+    clearResumeInterval()
+  }
+  utter.onerror = () => {
+    if (generation !== speechGeneration) return
+    clearResumeInterval()
+  }
+  if (generation !== speechGeneration) return false
   synth.speak(utter)
   armChromeSpeechResume()
 
@@ -256,8 +339,21 @@ export function previewGeminiVoice(_gender = 'female') {
 
 export function stopGeminiSpeech() {
   if (typeof window === 'undefined' || !window.speechSynthesis) return
+  speechGeneration++
   clearResumeInterval()
-  window.speechSynthesis.cancel()
+  const synth = window.speechSynthesis
+  try {
+    synth.pause()
+  } catch {
+    /* ignore */
+  }
+  synth.cancel()
+  try {
+    synth.resume()
+    synth.cancel()
+  } catch {
+    /* ignore */
+  }
 }
 
 function getSpeechRecognitionCtor() {
