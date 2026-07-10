@@ -252,23 +252,43 @@ export function SalesManagerStatsPanel({
 
       <div className="sales-report__card sales-report__stats-block">
         <h3 className="sales-report__stats-block-title">Матрица продаж за месяц</h3>
-        <div className="sales-report__matrix-scroll">
+        <div className="sales-report__matrix-scroll sales-report__matrix-scroll--stats">
           <table className="sales-report__matrix sales-report__stats-matrix sales-report__matrix--flat">
+            <colgroup>
+              <col className="sales-report__stats-matrix-col-label" />
+              {SALES_MATRIX_COLS.flatMap((col) => [
+                <col key={`${col.suffix}-cnt`} className="sales-report__stats-matrix-col-cnt" />,
+                <col key={`${col.suffix}-sum`} className="sales-report__stats-matrix-col-sum" />,
+              ])}
+            </colgroup>
             <thead>
               <tr>
-                <th rowSpan={2} className="sales-report__matrix-row-label" scope="col" />
+                <th rowSpan={2} className="sales-report__matrix-row-label sales-report__stats-matrix-corner" scope="col" />
                 {SALES_MATRIX_COLS.map((col) => (
-                  <th key={col.suffix} colSpan={2} className="sales-report__matrix-group-head" scope="col">
+                  <th
+                    key={col.suffix}
+                    colSpan={2}
+                    className={`sales-report__matrix-group-head sales-report__stats-matrix-group sales-report__stats-matrix-group--${col.suffix}`}
+                    scope="col"
+                  >
                     {col.label}
                   </th>
                 ))}
               </tr>
               <tr>
                 {SALES_MATRIX_COLS.flatMap((col) => [
-                  <th key={`${col.suffix}-cnt`} className="sales-report__matrix-subhead" scope="col">
+                  <th
+                    key={`${col.suffix}-cnt`}
+                    className={`sales-report__matrix-subhead sales-report__stats-matrix-group sales-report__stats-matrix-group--${col.suffix} sales-report__stats-matrix-subhead--cnt`}
+                    scope="col"
+                  >
                     шт
                   </th>,
-                  <th key={`${col.suffix}-sum`} className="sales-report__matrix-subhead" scope="col">
+                  <th
+                    key={`${col.suffix}-sum`}
+                    className={`sales-report__matrix-subhead sales-report__stats-matrix-group sales-report__stats-matrix-group--${col.suffix} sales-report__stats-matrix-subhead--sum`}
+                    scope="col"
+                  >
                     ₽
                   </th>,
                 ])}
@@ -276,8 +296,8 @@ export function SalesManagerStatsPanel({
             </thead>
             <tbody>
               {SALES_MATRIX_HALL_ROWS.map((row) => (
-                <tr key={row.key}>
-                  <th className="sales-report__matrix-row-label" scope="row">
+                <tr key={row.key} className="sales-report__stats-matrix-row">
+                  <th className="sales-report__matrix-row-label sales-report__stats-matrix-row-label" scope="row">
                     {row.label}
                   </th>
                   {SALES_MATRIX_COLS.flatMap((col) => {
@@ -285,10 +305,16 @@ export function SalesManagerStatsPanel({
                     const count = matrix3x3[key] ?? 0
                     const amount = matrix3x3Amounts[key] ?? 0
                     return [
-                      <td key={`${key}-cnt`} className="sales-report__matrix-computed">
+                      <td
+                        key={`${key}-cnt`}
+                        className={`sales-report__matrix-computed sales-report__stats-matrix-cell sales-report__stats-matrix-group sales-report__stats-matrix-group--${col.suffix} sales-report__stats-matrix-cell--cnt`}
+                      >
                         {count > 0 ? count : 0}
                       </td>,
-                      <td key={`${key}-sum`} className="sales-report__matrix-computed sales-report__stats-matrix-sum">
+                      <td
+                        key={`${key}-sum`}
+                        className={`sales-report__matrix-computed sales-report__stats-matrix-cell sales-report__stats-matrix-group sales-report__stats-matrix-group--${col.suffix} sales-report__stats-matrix-cell--sum`}
+                      >
                         {amount > 0 ? formatRub(amount) : '—'}
                       </td>,
                     ]

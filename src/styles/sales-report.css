@@ -2134,10 +2134,134 @@
 .sales-report__stats-matrix td,
 .sales-report__stats-matrix th {
   text-align: center;
+  vertical-align: middle;
+}
+
+.sales-report__matrix-scroll--stats {
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(2, 6, 23, 0.55);
+  padding: 0.15rem;
+}
+
+.sales-report__matrix-scroll--stats .sales-report__stats-matrix {
+  width: 100%;
+  min-width: 640px;
+  table-layout: fixed;
+}
+
+.sales-report__stats-matrix-col-label {
+  width: 4.5rem;
+}
+
+.sales-report__stats-matrix-col-cnt {
+  width: 3.25rem;
+}
+
+.sales-report__stats-matrix-col-sum {
+  width: 6.5rem;
+}
+
+.sales-report__stats-matrix thead th {
+  padding: 0.55rem 0.4rem;
+}
+
+.sales-report__stats-matrix-corner,
+.sales-report__stats-matrix-row-label {
+  text-align: left !important;
+  padding-left: 0.85rem !important;
+  font-weight: 800;
+  color: #e2e8f0;
+  background: rgba(15, 23, 42, 0.92);
+  border-right: 2px solid rgba(148, 163, 184, 0.22);
+}
+
+.sales-report__stats-matrix-row-label {
+  font-size: 0.88rem;
+  letter-spacing: 0.02em;
+}
+
+.sales-report__stats-matrix .sales-report__matrix-group-head {
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #f8fafc;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.sales-report__stats-matrix-subhead--cnt,
+.sales-report__stats-matrix-subhead--sum {
+  font-size: 0.62rem !important;
+  font-weight: 700 !important;
+  color: rgba(226, 232, 240, 0.72) !important;
+}
+
+.sales-report__stats-matrix-subhead--sum {
+  border-left: 1px dashed rgba(148, 163, 184, 0.22);
+}
+
+.sales-report__stats-matrix-group--nk {
+  border-left: 2px solid rgba(74, 222, 128, 0.45);
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.sales-report__stats-matrix-group--dk {
+  border-left: 2px solid rgba(56, 189, 248, 0.45);
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.sales-report__stats-matrix-group--uk {
+  border-left: 2px solid rgba(251, 191, 36, 0.45);
+  background: rgba(251, 191, 36, 0.09);
+}
+
+.sales-report__stats-matrix-group--nk.sales-report__matrix-group-head {
+  color: #bbf7d0;
+}
+
+.sales-report__stats-matrix-group--dk.sales-report__matrix-group-head {
+  color: #bae6fd;
+}
+
+.sales-report__stats-matrix-group--uk.sales-report__matrix-group-head {
+  color: #fde68a;
+}
+
+.sales-report__stats-matrix-row td,
+.sales-report__stats-matrix-row th[scope='row'] {
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.sales-report__stats-matrix-row:nth-child(even) .sales-report__stats-matrix-group--nk {
+  background: rgba(34, 197, 94, 0.14);
+}
+
+.sales-report__stats-matrix-row:nth-child(even) .sales-report__stats-matrix-group--dk {
+  background: rgba(56, 189, 248, 0.14);
+}
+
+.sales-report__stats-matrix-row:nth-child(even) .sales-report__stats-matrix-group--uk {
+  background: rgba(251, 191, 36, 0.12);
+}
+
+.sales-report__stats-matrix-cell--cnt {
+  font-size: 1rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #f8fafc;
+}
+
+.sales-report__stats-matrix-cell--sum {
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: rgba(226, 232, 240, 0.88);
+  border-left: 1px dashed rgba(148, 163, 184, 0.22);
+  white-space: nowrap;
 }
 
 .sales-report__stats-matrix-sum {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   white-space: nowrap;
 }
 
@@ -2151,7 +2275,7 @@
   max-width: 100%;
 }
 
-.sales-report__matrix-scroll .sales-report__stats-matrix {
+.sales-report__matrix-scroll .sales-report__stats-matrix:not(.sales-report__matrix--flat) {
   width: max-content;
   min-width: 100%;
 }
@@ -2441,6 +2565,78 @@
   padding-bottom: clamp(2rem, 4vw, 3rem);
 }
 
+.sales-home--fill {
+  flex: 1;
+  gap: 0;
+  min-height: calc(100dvh - var(--header-h, 72px) - clamp(12px, 2.5vh, 28px));
+  padding-bottom: 0;
+}
+
+.app-shell--sales .app-main:has(.sales-home--fill) {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding-top: clamp(8px, 1.2vh, 14px);
+  padding-bottom: clamp(8px, 1.2vh, 14px);
+}
+
+.sales-home--fill .sales-home__board {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.sales-home--fill .sales-home__hero {
+  flex: 1 1 44%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
+  padding: clamp(1.1rem, 2.2vh, 1.85rem) clamp(1.25rem, 3vw, 2.5rem);
+}
+
+.sales-home--fill .sales-home__tiles {
+  flex: 1 1 56%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: clamp(0.85rem, 1.8vh, 1.35rem) clamp(1.25rem, 3vw, 2rem) clamp(1rem, 2vh, 1.5rem);
+}
+
+.sales-home--fill .sales-home__tiles-heading {
+  flex-shrink: 0;
+  margin-top: 0;
+  margin-bottom: clamp(0.65rem, 1.4vh, 1rem);
+}
+
+.sales-home--fill .sales-home__tile-grid {
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+}
+
+.sales-home--fill .sales-home__tile {
+  min-height: 0;
+  height: auto;
+  padding: clamp(16px, 2.5vh, 28px) clamp(12px, 2vw, 18px);
+}
+
+.sales-home--fill .sales-home__tile-icon {
+  width: clamp(48px, 6vh, 72px);
+  height: clamp(48px, 6vh, 72px);
+}
+
+.sales-home--fill .sales-home__tile-icon svg {
+  width: clamp(28px, 4vh, 40px);
+  height: clamp(28px, 4vh, 40px);
+}
+
+.sales-home--fill .sales-home__tile-title {
+  font-size: clamp(0.9rem, 1.8vh, 1.15rem);
+}
+
 .sales-home__board {
   width: 100%;
   border-radius: var(--radius-lg, 16px);
@@ -2632,6 +2828,10 @@
   max-width: none;
   width: 100%;
   padding-top: 0.75rem;
+}
+
+.app-shell--sales {
+  min-height: 100dvh;
 }
 
 /* Логотип менеджера по продажам в общей шапке */

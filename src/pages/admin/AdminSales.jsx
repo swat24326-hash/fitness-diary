@@ -561,7 +561,7 @@ export function AdminSales({ accessMode = 'admin' }) {
 
   return (
     <div
-      className={`sales-report${busy ? ' sales-report__busy' : ''}${isSalesManager ? ' sales-report--manager sales-home' : ''}`}
+      className={`sales-report${busy ? ' sales-report__busy' : ''}${isSalesManager ? ` sales-report--manager sales-home${salesTab === 'home' ? ' sales-home--fill' : ''}` : ''}`}
     >
       {showSalesHero && isSalesManager ? (
         <div className="sales-home__board">
