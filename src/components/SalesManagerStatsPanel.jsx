@@ -67,6 +67,7 @@ export function SalesManagerStatsPanel({
     structure,
     directionStructure,
     matrix3x3,
+    matrix3x3Amounts,
     dailySeries,
     dailyPnkSeries,
     maxDayPnk,
@@ -250,30 +251,47 @@ export function SalesManagerStatsPanel({
       </div>
 
       <div className="sales-report__card sales-report__stats-block">
-        <h3 className="sales-report__stats-block-title">Матрица продаж за месяц (шт.)</h3>
+        <h3 className="sales-report__stats-block-title">Матрица продаж за месяц</h3>
         <div className="sales-report__matrix-scroll">
-          <table className="sales-report__matrix sales-report__stats-matrix">
+          <table className="sales-report__matrix sales-report__stats-matrix sales-report__matrix--flat">
             <thead>
               <tr>
-                <th scope="col" />
+                <th rowSpan={2} className="sales-report__matrix-row-label" scope="col" />
                 {SALES_MATRIX_COLS.map((col) => (
-                  <th key={col.suffix} scope="col">
+                  <th key={col.suffix} colSpan={2} className="sales-report__matrix-group-head" scope="col">
                     {col.label}
                   </th>
                 ))}
+              </tr>
+              <tr>
+                {SALES_MATRIX_COLS.flatMap((col) => [
+                  <th key={`${col.suffix}-cnt`} className="sales-report__matrix-subhead" scope="col">
+                    шт
+                  </th>,
+                  <th key={`${col.suffix}-sum`} className="sales-report__matrix-subhead" scope="col">
+                    ₽
+                  </th>,
+                ])}
               </tr>
             </thead>
             <tbody>
               {SALES_MATRIX_HALL_ROWS.map((row) => (
                 <tr key={row.key}>
-                  <th scope="row">{row.label}</th>
-                  {SALES_MATRIX_COLS.map((col) => {
+                  <th className="sales-report__matrix-row-label" scope="row">
+                    {row.label}
+                  </th>
+                  {SALES_MATRIX_COLS.flatMap((col) => {
                     const key = `${row.key}_${col.suffix}`
-                    return (
-                      <td key={key} className="sales-report__matrix-computed">
-                        {matrix3x3[key] ?? 0}
-                      </td>
-                    )
+                    const count = matrix3x3[key] ?? 0
+                    const amount = matrix3x3Amounts[key] ?? 0
+                    return [
+                      <td key={`${key}-cnt`} className="sales-report__matrix-computed">
+                        {count > 0 ? count : 0}
+                      </td>,
+                      <td key={`${key}-sum`} className="sales-report__matrix-computed sales-report__stats-matrix-sum">
+                        {amount > 0 ? formatRub(amount) : '—'}
+                      </td>,
+                    ]
                   })}
                 </tr>
               ))}

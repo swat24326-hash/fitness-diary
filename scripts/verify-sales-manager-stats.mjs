@@ -5,7 +5,7 @@ import {
   aggregateTrainingsByMembershipTypes,
   sumMatrix3x3FromDailyRows,
 } from '../src/lib/admin/salesManagerStatsAgg.js'
-import { SALES_MONTH_DAILY_SELECT, planProgressPercent } from '../src/lib/admin/salesReportCore.js'
+import { SALES_MONTH_DAILY_SELECT, planProgressPercent, sumMatrix3x3AmountsFromDailyRows } from '../src/lib/admin/salesReportCore.js'
 import { matrixRowsToMembershipStats, SALES_TRAINING_CLUB_ID } from '../src/lib/admin/salesTrainingsMatrix.js'
 
 let failed = 0
@@ -111,6 +111,9 @@ ok(stats.dailySeries[0].profit === 164000, 'day 1 profit includes dop')
 ok(stats.dailySeries[1].profit === null && !stats.dailySeries[1].hasReport, 'day 2 empty')
 ok(stats.dayTable.length === 2, 'day table rows')
 ok(sumMatrix3x3FromDailyRows(rows).pz_nk === 3, 'matrix cell sum')
+ok(sumMatrix3x3AmountsFromDailyRows(rows).pz_nk === 80000, 'matrix cell amount sum')
+ok(sumMatrix3x3AmountsFromDailyRows(rows).tz_dk === 40000, 'matrix tz_dk amount')
+ok(stats.matrix3x3Amounts.pz_nk === 80000, 'stats exposes matrix amounts')
 ok(SALES_MONTH_DAILY_SELECT.includes('pz_nk'), 'month daily select includes matrix counts')
 
 const pnkSeries = buildDailyCountSeries(rows, 2026, 6, 'pnk_total')

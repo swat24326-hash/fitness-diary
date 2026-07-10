@@ -1012,16 +1012,37 @@ export const SALES_DIRECTION_DEFS = [
 ]
 
 /** @param {Array<Record<string, unknown>>} rows */
-export function sumDirectionRubFromDailyRows(rows) {
+export function sumMatrix3x3AmountsFromDailyRows(rows) {
   /** @type {Record<string, number>} */
-  const totals = { pz: 0, tz: 0, az: 0, extra: 0 }
+  const grid = {}
+  for (const row of SALES_MATRIX_HALL_ROWS) {
+    for (const col of SALES_MATRIX_COLS) {
+      grid[`${row.key}_${col.suffix}`] = 0
+    }
+  }
   for (const r of rows ?? []) {
     const amounts = matrixAmountsFromDb(r?.matrix_amounts)
-    for (const hall of ['pz', 'tz', 'az']) {
-      for (const suffix of ['nk', 'dk', 'uk']) {
-        totals[hall] += Number(amounts[`${hall}_${suffix}`]) || 0
-      }
+    for (const key of Object.keys(grid)) {
+      grid[key] += Number(amounts[key]) || 0
     }
+  }
+  for (const key of Object.keys(grid)) {
+    grid[key] = Math.round(grid[key] * 100) / 100
+  }
+  return grid
+}
+
+/** @param {Array<Record<string, unknown>>} rows */
+export function sumDirectionRubFromDailyRows(rows) {
+  const cellAmounts = sumMatrix3x3AmountsFromDailyRows(rows)
+  /** @type {Record<string, number>} */
+  const totals = { pz: 0, tz: 0, az: 0, extra: 0 }
+  for (const hall of ['pz', 'tz', 'az']) {
+    for (const suffix of ['nk', 'dk', 'uk']) {
+      totals[hall] += Number(cellAmounts[`${hall}_${suffix}`]) || 0
+    }
+  }
+  for (const r of rows ?? []) {
     totals.extra += dopAmountFromMatrixAmounts(r?.matrix_amounts)
   }
   for (const key of Object.keys(totals)) {

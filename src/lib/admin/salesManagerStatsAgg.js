@@ -24,6 +24,7 @@ import {
   SALES_MATRIX_COLS,
   SALES_MATRIX_HALL_ROWS,
   sumDopRubFromDailyRows,
+  sumMatrix3x3AmountsFromDailyRows,
 } from './salesReportCore.js'
 
 /** @param {Array<Record<string, unknown>>} rows */
@@ -251,6 +252,7 @@ export function buildSalesManagerMonthStats(opts) {
     hallFinance,
     aerobicStats,
     matrix3x3: sumMatrix3x3FromDailyRows(monthRows),
+    matrix3x3Amounts: sumMatrix3x3AmountsFromDailyRows(monthRows),
     matrixByHall: sumMatrixTotalsFromDailyRows(monthRows),
     dopRubTotal,
     dailySeries,

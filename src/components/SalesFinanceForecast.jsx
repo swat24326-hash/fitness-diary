@@ -53,23 +53,83 @@ export function SalesFinanceForecast({ year, month, monthRows, membershipTypes, 
   const endDay = daysInCalendarMonth(year, month)
   const monthEndLabel = `${String(endDay).padStart(2, '0')}.${String(month).padStart(2, '0')}.${year}`
 
-  const rows = [
+  const incomeRows = [
     { key: 'earnings', label: 'Заработок месяца', kind: 'money' },
-    { key: 'refunds', label: 'Возвраты', kind: 'money', negative: true, static: true },
     { key: 'pzTrainings', label: 'Тренировки ПЗ', kind: 'count' },
     { key: 'azTrainings', label: 'Тренировки АЗ', kind: 'count' },
-    { key: 'trainerPayroll', label: 'ЗП персонального зала', kind: 'money', negative: true },
-    { key: 'aerobicPayroll', label: 'ЗП аэробного зала', kind: 'money', negative: true },
-    { key: 'expense', label: 'Расход управляющего', kind: 'money', negative: true, static: true },
-    { key: 'netProfit', label: 'Чистая прибыль', kind: 'money', primary: true },
   ]
 
-  const formatValue = (kind, value, negative) => {
+  const deductionRows = [
+    { key: 'refunds', label: 'Возвраты', kind: 'money', static: true },
+    { key: 'trainerPayroll', label: 'ЗП персонального зала', kind: 'money' },
+    { key: 'aerobicPayroll', label: 'ЗП аэробного зала', kind: 'money' },
+    { key: 'expense', label: 'Расход управляющего', kind: 'money', static: true },
+  ]
+
+  const netProfitRow = { key: 'netProfit', label: 'Чистая прибыль', kind: 'money', primary: true, signed: true }
+
+  const formatValue = (kind, value, { signed = false } = {}) => {
     if (kind === 'count') return new Intl.NumberFormat('ru-RU').format(value ?? 0)
-    const n = Math.abs(Number(value) || 0)
-    const text = formatRub(n)
-    return negative ? `−${text}` : text
+    const n = Number(value) || 0
+    return formatRub(signed ? n : Math.abs(n))
   }
+
+  const renderForecastTable = (tableRows, { deduction = false } = {}) => (
+    <div className="sales-finance-forecast__table-wrap">
+      <table className="sales-finance-forecast__table">
+        <thead>
+          <tr>
+            <th scope="col">Показатель</th>
+            <th scope="col" className="sales-finance-forecast__col-num">
+              Факт
+            </th>
+            <th scope="col" className="sales-finance-forecast__col-num sales-finance-forecast__col-forecast">
+              Прогноз
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {tableRows.map((row) => {
+            const factVal = forecast.fact[row.key]
+            const forecastVal = forecast.forecast[row.key]
+            const signed = Boolean(row.signed)
+            const rowClass = [
+              row.primary ? 'sales-finance-forecast__row--primary' : undefined,
+              deduction ? 'sales-finance-forecast__row--deduction' : undefined,
+            ]
+              .filter(Boolean)
+              .join(' ') || undefined
+            const factClass = [
+              'sales-finance-forecast__col-num',
+              'sales-finance-forecast__col-fact',
+              signed && Number(factVal) < 0 ? 'sales-finance-forecast__col-negative' : undefined,
+            ]
+              .filter(Boolean)
+              .join(' ')
+            const forecastClass = [
+              'sales-finance-forecast__col-num',
+              'sales-finance-forecast__col-forecast',
+              row.static ? 'sales-finance-forecast__col-static' : undefined,
+              signed && Number(forecastVal) < 0 ? 'sales-finance-forecast__col-negative' : undefined,
+            ]
+              .filter(Boolean)
+              .join(' ')
+            return (
+              <tr key={row.key} className={rowClass}>
+                <th scope="row">{row.label}</th>
+                <td className={factClass}>
+                  {formatValue(row.kind, factVal, { signed })}
+                </td>
+                <td className={forecastClass}>
+                  {formatValue(row.kind, forecastVal, { signed })}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )
 
   const formatReachLabel = (reach, planTarget) => {
     if (planTarget <= 0) return 'План не задан'
@@ -151,10 +211,10 @@ export function SalesFinanceForecast({ year, month, monthRows, membershipTypes, 
               <tbody>
                 {plan.directions.map((dir) => {
                   const isMoney = dir.mode === 'revenue'
-                  const factText = isMoney ? formatRub(dir.fact) : `${formatValue('count', dir.fact, false)} трен.`
+                  const factText = isMoney ? formatRub(dir.fact) : `${formatValue('count', dir.fact)} трен.`
                   const forecastText = isMoney
                     ? formatRub(dir.forecast)
-                    : `${formatValue('count', dir.forecast, false)} трен.`
+                    : `${formatValue('count', dir.forecast)} трен.`
                   const planText = dir.planTarget > 0 ? formatRub(dir.planTarget) : '—'
                   const progressText =
                     dir.mode === 'revenue' && dir.planTarget > 0
@@ -184,40 +244,19 @@ export function SalesFinanceForecast({ year, month, monthRows, membershipTypes, 
 
       <div className="sales-finance-forecast__section">
         <h4 className="sales-finance-forecast__section-title">Финансы и нагрузка</h4>
-        <div className="sales-finance-forecast__table-wrap">
-          <table className="sales-finance-forecast__table">
-            <thead>
-              <tr>
-                <th scope="col">Показатель</th>
-                <th scope="col" className="sales-finance-forecast__col-num">
-                  Факт
-                </th>
-                <th scope="col" className="sales-finance-forecast__col-num sales-finance-forecast__col-forecast">
-                  Прогноз
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => {
-                const factVal = forecast.fact[row.key]
-                const forecastVal = forecast.forecast[row.key]
-                const rowClass = row.primary ? 'sales-finance-forecast__row--primary' : undefined
-                return (
-                  <tr key={row.key} className={rowClass}>
-                    <th scope="row">{row.label}</th>
-                    <td className="sales-finance-forecast__col-num sales-finance-forecast__col-fact">
-                      {formatValue(row.kind, factVal, row.negative)}
-                    </td>
-                    <td
-                      className={`sales-finance-forecast__col-num sales-finance-forecast__col-forecast${row.static ? ' sales-finance-forecast__col-static' : ''}`}
-                    >
-                      {formatValue(row.kind, forecastVal, row.negative)}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+
+        <div className="sales-finance-forecast__subsection">
+          <h5 className="sales-finance-forecast__subsection-title">Доходы и нагрузка</h5>
+          {renderForecastTable(incomeRows)}
+        </div>
+
+        <div className="sales-finance-forecast__subsection">
+          <h5 className="sales-finance-forecast__subsection-title">Вычитается</h5>
+          {renderForecastTable(deductionRows, { deduction: true })}
+        </div>
+
+        <div className="sales-finance-forecast__subsection sales-finance-forecast__subsection--total">
+          {renderForecastTable([netProfitRow])}
         </div>
       </div>
     </section>
