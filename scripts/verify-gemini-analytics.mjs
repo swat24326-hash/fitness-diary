@@ -218,6 +218,9 @@ ok(!/google/i.test(pickGeminiSpeechVoice('female', edgeVoices)?.name ?? ''), 'tt
 ok(pickGeminiSpeechVoice('female', [voiceGoogleRu, voiceEn])?.name.includes('Google'), 'tts google fallback when no Microsoft')
 ok(pickGeminiSpeechVoice('female', []) === null, 'tts empty voices')
 
+const voiceMicrosoftPavel = { name: 'Microsoft Pavel Online (Natural)', lang: 'ru-RU' }
+ok(pickGeminiSpeechVoice('male', [voiceMicrosoftFemale, voiceMicrosoftPavel])?.name.includes('Pavel'), 'tts male prefers Pavel when no Dmitry')
+
 ok(isGeminiRetryableError('models/gemini-1.5-flash is not found'), 'retry on missing model')
 ok(isGeminiRetryableError('This model is currently experiencing high demand'), 'retry on overload')
 ok(formatGeminiUserError('This model is currently experiencing high demand').includes('перегружен'), 'overload error ru')

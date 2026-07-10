@@ -30,6 +30,7 @@ import {
   loadGeminiAutoSpeak,
   loadGeminiGender,
   previewGeminiVoice,
+  primeGeminiSpeechPlayback,
   saveGeminiAutoSpeak,
   saveGeminiGender,
   speakGeminiText,
@@ -175,16 +176,15 @@ export function GeminiAnalyticsPanel({
         content: `${buildGeminiMicroIntro({
           clubName,
           periodLabel: periodLabelRu(year, month),
-          gender,
+          gender: loadGeminiGender(),
           hasClub: !!clubId,
         })}${focusLine}`,
       },
     ])
     return () => {
-      stopGeminiSpeech()
       stopListening()
     }
-  }, [open, clubId, year, month, clubName, gender, stopListening, focusTrainerLabel, selectedTrainerId, selectedTrainerName])
+  }, [open, clubId, year, month, clubName, stopListening, focusTrainerLabel, selectedTrainerId, selectedTrainerName])
 
   const reloadKpi = useCallback(async () => {
     if (!clubId) {
@@ -295,6 +295,7 @@ export function GeminiAnalyticsPanel({
       const compare = resolveGeminiComparePrevious({ userMessage, comparePrevious })
 
       stopListening()
+      primeGeminiSpeechPlayback()
       setError('')
       setLoading(true)
       if (isRetry && !completionRetry) {
@@ -358,7 +359,11 @@ export function GeminiAnalyticsPanel({
 
         setLastRetry(incomplete ? { text: userMessage, comparePrevious: compare, completionRetry: true } : null)
         setError('')
-        if (autoSpeak && reply && !incomplete) void speakGeminiText(reply, gender)
+        if (autoSpeak && reply && !incomplete) {
+          window.setTimeout(() => {
+            void speakGeminiText(reply, gender)
+          }, 80)
+        }
       } catch (e) {
         const msg = e?.message ? String(e.message) : 'Не удалось получить ответ'
         setError(msg)
@@ -543,6 +548,7 @@ export function GeminiAnalyticsPanel({
               onClick={() => {
                 setGender('female')
                 saveGeminiGender('female')
+                primeGeminiSpeechPlayback()
                 previewGeminiVoice('female')
               }}
             >
@@ -554,6 +560,7 @@ export function GeminiAnalyticsPanel({
               onClick={() => {
                 setGender('male')
                 saveGeminiGender('male')
+                primeGeminiSpeechPlayback()
                 previewGeminiVoice('male')
               }}
             >
@@ -569,8 +576,10 @@ export function GeminiAnalyticsPanel({
                 setAutoSpeak((on) => {
                   const next = !on
                   saveGeminiAutoSpeak(next)
-                  if (next) previewGeminiVoice(gender)
-                  else stopGeminiSpeech()
+                  if (next) {
+                    primeGeminiSpeechPlayback()
+                    previewGeminiVoice(gender)
+                  } else stopGeminiSpeech()
                   return next
                 })
               }}
@@ -647,7 +656,10 @@ export function GeminiAnalyticsPanel({
                         type="button"
                         className="btn btn-ghost btn-sm"
                         aria-label="Озвучить"
-                        onClick={() => void speakGeminiText(msg.content, gender)}
+                        onClick={() => {
+                          primeGeminiSpeechPlayback()
+                          void speakGeminiText(msg.content, gender)
+                        }}
                       >
                         <Volume2 size={14} />
                       </button>
@@ -749,7 +761,11 @@ export function GeminiAnalyticsPanel({
         </form>
         {voiceSupported ? (
           <p className="gemini-panel__voice-hint muted">
-            {listening ? 'Слушаю… нажмите микрофон, чтобы остановить' : 'Микрофон — голосовой ввод · 🔊 — автоозвучка · ♀/♂ — голос TTS (по умолчанию женский)'}
+            {listening
+              ? 'Слушаю… нажмите микрофон, чтобы остановить'
+              : autoSpeak
+                ? 'Микрофон — голосовой ввод · 🔊 автоозвучка вкл · ♀/♂ — голос TTS'
+                : 'Микрофон — голосовой ввод · включите 🔊 в шапке для автоозвучки · ♀/♂ — голос TTS'}
           </p>
         ) : (
           <p className="gemini-panel__voice-hint muted">Голосовой ввод: Chrome или Edge на Android. Ответ можно озвучить 🔊</p>
