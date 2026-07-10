@@ -129,7 +129,8 @@ export async function fetchTrainersViaAdminApi(opts = {}) {
 
 /**
  * GET /api/list-clients?club_id=… — null если маршрута нет.
- * @returns {Promise<{ clients: object[], count: number } | null>}
+ * Постраничная загрузка (offset/limit) — не держим 50k строк в одном ответе.
+ * @returns {Promise<{ clients: object[], count: number, truncated?: boolean } | null>}
  */
 export async function fetchClientsForClubViaAdminApi(clubId, opts = {}) {
   const cid = String(clubId ?? '').trim()
@@ -141,57 +142,73 @@ export async function fetchClientsForClubViaAdminApi(clubId, opts = {}) {
     throw new Error('Нет сессии администратора — войдите снова.')
   }
 
-  const qs = new URLSearchParams()
-  qs.set('club_id', cid)
-  if (mode === 'archive') qs.set('archived', '1')
-  if (mode === 'all') qs.set('include_archived', '1')
-  const url = `${apiOrigin()}/api/list-clients?${qs.toString()}`
+  const PAGE = 500
   const headers = { Authorization: `Bearer ${token}` }
+  const all = []
+  let offset = 0
+  let truncated = false
   let lastErr
 
-  for (let attempt = 0; attempt < 3; attempt++) {
-    let res
-    try {
-      res = await fetch(url, {
-        method: 'GET',
-        headers,
-        credentials: 'same-origin',
-        cache: 'no-store',
-      })
-    } catch (e) {
-      lastErr = e
-      if (attempt < 2) {
-        await sleep(400 * (attempt + 1))
+  for (;;) {
+    const qs = new URLSearchParams()
+    qs.set('club_id', cid)
+    qs.set('offset', String(offset))
+    qs.set('limit', String(PAGE))
+    if (mode === 'archive') qs.set('archived', '1')
+    if (mode === 'all') qs.set('include_archived', '1')
+    const url = `${apiOrigin()}/api/list-clients?${qs.toString()}`
+
+    let page = null
+    for (let attempt = 0; attempt < 3; attempt++) {
+      let res
+      try {
+        res = await fetch(url, {
+          method: 'GET',
+          headers,
+          credentials: 'same-origin',
+          cache: 'no-store',
+        })
+      } catch (e) {
+        lastErr = e
+        if (attempt < 2) {
+          await sleep(400 * (attempt + 1))
+          continue
+        }
+        throw new Error(e?.message ?? 'Сеть')
+      }
+
+      const contentType = res.headers.get('content-type') || ''
+      const data = await parseJsonResponse(res)
+
+      if (res.ok) {
+        page = data
+        break
+      }
+
+      if (apiRouteMissing(res, contentType)) return null
+
+      if (res.status === 401) {
+        throw new Error(data?.error ? String(data.error) : 'Сессия недействительна — войдите снова.')
+      }
+
+      if (attempt < 2 && (res.status === 502 || res.status === 503 || res.status === 504)) {
+        await sleep(500 * (attempt + 1))
         continue
       }
-      throw new Error(e?.message ?? 'Сеть')
+
+      throw new Error(data?.error ? String(data.error) : `Ошибка сервера (${res.status})`)
     }
 
-    const contentType = res.headers.get('content-type') || ''
-    const data = await parseJsonResponse(res)
+    if (!page) throw lastErr ?? new Error('Не удалось загрузить клиентов')
 
-    if (res.ok) {
-      return {
-        clients: Array.isArray(data.clients) ? data.clients : [],
-        count: typeof data.count === 'number' ? data.count : (data.clients?.length ?? 0),
-      }
-    }
-
-    if (apiRouteMissing(res, contentType)) return null
-
-    if (res.status === 401) {
-      throw new Error(data?.error ? String(data.error) : 'Сессия недействительна — войдите снова.')
-    }
-
-    if (attempt < 2 && (res.status === 502 || res.status === 503 || res.status === 504)) {
-      await sleep(500 * (attempt + 1))
-      continue
-    }
-
-    throw new Error(data?.error ? String(data.error) : `Ошибка сервера (${res.status})`)
+    const rows = Array.isArray(page.clients) ? page.clients : []
+    all.push(...rows)
+    if (page.truncated === true) truncated = true
+    if (!page.has_more || rows.length < PAGE || truncated) break
+    offset += PAGE
   }
 
-  throw lastErr ?? new Error('Не удалось загрузить клиентов')
+  return { clients: all, count: all.length, truncated }
 }
 
 /**

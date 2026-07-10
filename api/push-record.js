@@ -3,9 +3,10 @@
  * POST { table_name, operation, data, remote_id? }
  */
 import { requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
+import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 import { executePushRecord } from './_lib/pushRecordCore.js'
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   setCors(res, 'POST, OPTIONS')
 
   if (req.method === 'OPTIONS') {
@@ -58,3 +59,5 @@ export default async function handler(req, res) {
 
   sendJson(res, out.status ?? 400, { error: out.error ?? 'Ошибка' })
 }
+
+export default withSafeApiHandler(handler, { label: 'push-record' })

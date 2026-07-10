@@ -4,7 +4,11 @@
 
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { withSupabaseRetry } from '../supabaseRetry'
-import { getDb } from '../localDb'
+import {
+  listClientsByClubId,
+  listMembershipsByClubId,
+  listTrainingsByClubIdInRange,
+} from '../localDbClubQuery.js'
 import { aggregateClubClientPeriod } from './clubClientPeriodAgg'
 import { fetchClubTrainingStatsViaApi } from './adminApiClient'
 import { ADMIN_SYNC_BATCH_SIZE } from './adminConstants'
@@ -95,13 +99,22 @@ async function fetchTrainingsForClubRangeRemote(clubId, dateFrom, dateTo) {
 }
 
 async function fetchTrainingsForClubRangeLocal(clubId, dateFrom, dateTo) {
-  const db = await getDb()
-  const all = await db.getAll('trainings')
-  return all.filter((t) => {
-    if (t.club_id !== clubId) return false
-    const d = String(t.date ?? '').slice(0, 10)
-    return d && d >= dateFrom && d <= dateTo
-  })
+  return listTrainingsByClubIdInRange(clubId, dateFrom, dateTo)
+}
+
+async function fetchClientsForClubLocal(clubId) {
+  const rows = await listClientsByClubId(clubId)
+  return rows.map((c) => ({
+    id: c.id,
+    name: c.name,
+    phone: c.phone,
+    trainer_id: c.trainer_id,
+    archived_at: c.archived_at,
+  }))
+}
+
+async function fetchMembershipsForClubLocal(clubId) {
+  return listMembershipsByClubId(clubId)
 }
 
 async function fetchClientsForClubRemote(clubId) {
@@ -126,20 +139,6 @@ async function fetchClientsForClubRemote(clubId) {
   return rows
 }
 
-async function fetchClientsForClubLocal(clubId) {
-  const db = await getDb()
-  const all = await db.getAll('clients')
-  return all
-    .filter((c) => c.club_id === clubId)
-    .map((c) => ({
-      id: c.id,
-      name: c.name,
-      phone: c.phone,
-      trainer_id: c.trainer_id,
-      archived_at: c.archived_at,
-    }))
-}
-
 async function fetchMembershipsForClubRemote(clubId) {
   const rows = []
   let from = 0
@@ -158,12 +157,6 @@ async function fetchMembershipsForClubRemote(clubId) {
     from += ADMIN_SYNC_BATCH_SIZE
   }
   return rows
-}
-
-async function fetchMembershipsForClubLocal(clubId) {
-  const db = await getDb()
-  const all = await db.getAll('memberships')
-  return all.filter((m) => m.club_id === clubId)
 }
 
 export { aggregateClubClientPeriod } from './clubClientPeriodAgg'

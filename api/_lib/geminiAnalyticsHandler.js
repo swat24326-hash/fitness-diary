@@ -21,6 +21,7 @@ import {
   buildGeminiInstantReply,
 } from '../../src/lib/admin/geminiInstantReplies.js'
 import { resolveInstantHandlerId } from '../../src/lib/admin/iskraQuickChipsCore.js'
+import { applyTrainerFocusToSnapshot } from '../../src/lib/admin/geminiTrainerContour.js'
 import {
   buildGeminiIntroReply,
   matchGeminiIntroIntent,
@@ -283,8 +284,11 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
     }
 
     if (chipId) {
+      const focusedSnapshot = selectedTrainerId
+        ? applyTrainerFocusToSnapshot(snapshot, selectedTrainerId)
+        : snapshot
       const instantText = buildGeminiInstantReply(chipId, {
-        snapshot,
+        snapshot: focusedSnapshot,
         previousSnapshot,
         gender,
       })

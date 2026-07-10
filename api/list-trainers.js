@@ -2,16 +2,39 @@
  * Vercel: список тренеров для админки (обход ERR_CONNECTION_RESET браузер → Supabase).
  */
 import { canAccessTrainerOrAdminApis, requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
+import { withSafeApiHandler } from './_lib/safeApiHandler.js'
+import { LIST_TRAINERS_MAX_USERS } from './_lib/apiLimits.js'
 import { isSalesManagerRole } from '../src/lib/admin/salesAccessCore.js'
 
 const TRAINER_FIELDS = 'id, name, phone, email, login, is_active, role, club_id'
+const PAGE = 500
 
 function isTrainerRole(role) {
   const r = String(role ?? '').trim().toLowerCase()
   return r === 'trainer' || r === 'тренер'
 }
 
-export default async function handler(req, res) {
+async function fetchUsersPaged(supabaseAdmin, fields) {
+  const rows = []
+  let from = 0
+  for (;;) {
+    if (rows.length >= LIST_TRAINERS_MAX_USERS) break
+    const { data, error } = await supabaseAdmin
+      .from('users')
+      .select(fields)
+      .order('name', { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (error) return { error, rows: null }
+    const chunk = data ?? []
+    const room = LIST_TRAINERS_MAX_USERS - rows.length
+    rows.push(...chunk.slice(0, room))
+    if (chunk.length < PAGE || rows.length >= LIST_TRAINERS_MAX_USERS) break
+    from += PAGE
+  }
+  return { error: null, rows }
+}
+
+async function handler(req, res) {
   setCors(res, 'GET, OPTIONS')
 
   if (req.method === 'OPTIONS') {
@@ -43,19 +66,17 @@ export default async function handler(req, res) {
 
   const { supabaseAdmin } = ctx
 
-  const full = await supabaseAdmin
-    .from('users')
-    .select(TRAINER_FIELDS)
-    .order('name', { ascending: true })
+  const full = await fetchUsersPaged(supabaseAdmin, TRAINER_FIELDS)
 
   if (!full.error) {
-    const trainers = (full.data ?? []).filter((u) =>
+    const trainers = (full.rows ?? []).filter((u) =>
       wantSalesManagers ? isSalesManagerRole(u.role) : isTrainerRole(u.role),
     )
     sendJson(res, 200, {
       trainers,
       clubColumn: true,
       count: trainers.length,
+      truncated: (full.rows?.length ?? 0) >= LIST_TRAINERS_MAX_USERS,
     })
     return
   }
@@ -66,18 +87,22 @@ export default async function handler(req, res) {
     return
   }
 
-  const basic = await supabaseAdmin
-    .from('users')
-    .select('id, name, phone, email, login, is_active, role')
-    .order('name', { ascending: true })
+  const basic = await fetchUsersPaged(supabaseAdmin, 'id, name, phone, email, login, is_active, role')
 
   if (basic.error) {
     sendJson(res, 400, { error: basic.error.message })
     return
   }
 
-  const trainers = (basic.data ?? [])
+  const trainers = (basic.rows ?? [])
     .filter((u) => (wantSalesManagers ? isSalesManagerRole(u.role) : isTrainerRole(u.role)))
     .map((u) => ({ ...u, club_id: null }))
-  sendJson(res, 200, { trainers, clubColumn: false, count: trainers.length })
+  sendJson(res, 200, {
+    trainers,
+    clubColumn: false,
+    count: trainers.length,
+    truncated: (basic.rows?.length ?? 0) >= LIST_TRAINERS_MAX_USERS,
+  })
 }
+
+export default withSafeApiHandler(handler, { label: 'list-trainers' })

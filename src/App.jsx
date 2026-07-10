@@ -4,6 +4,7 @@ import { isSupabaseConfigured } from './lib/supabase'
 import { clearPoisonedSyncQueue } from './lib/syncService'
 import { initTrainerWorkspaceCacheInvalidation } from './lib/trainerWorkspaceCache'
 import { AppHeader } from './components/AppHeader'
+import { AppErrorBoundary } from './components/AppErrorBoundary'
 import { AppWelcomeSplash } from './components/AppWelcomeSplash'
 import { DraftTabsBar } from './components/DraftTabsBar'
 import { BreadcrumbsBar } from './components/BreadcrumbsBar'
@@ -51,7 +52,9 @@ function LoggedInLayout() {
         {role === 'trainer' ? <DraftTabsBar /> : null}
         <BreadcrumbsBar />
         <main className="app-main">
-          <Outlet />
+          <AppErrorBoundary>
+            <Outlet />
+          </AppErrorBoundary>
         </main>
       </IskraPanelProvider>
     </div>

@@ -105,6 +105,29 @@ applyMonthComparisonInsights(analytics, prev)
 ok(analytics.insights.mom_comparison?.profit_delta === 4600, 'mom profit delta')
 ok(analytics.insights.mom_comparison?.profit_direction === 'up', 'mom direction up')
 
+const emptyPrev = buildClubMonthAnalytics({
+  clubName: 'FIT-CITY Север',
+  year: 2026,
+  month: 5,
+  monthRows: [],
+  plan: { plan_total: 10000 },
+  membershipTypes,
+})
+const analyticsJuly = buildClubMonthAnalytics({
+  clubName: 'FIT-CITY Север',
+  year: 2026,
+  month: 7,
+  monthRows: rows,
+  plan: { plan_total: 10000, plan_level_3: 10000 },
+  membershipTypes,
+})
+applyMonthComparisonInsights(analyticsJuly, emptyPrev)
+const momEmpty = analyticsJuly.insights.mom_comparison
+ok(momEmpty?.profit_previous_missing, 'mom profit missing when prev empty')
+ok(momEmpty?.profit_delta_pct == null, 'mom no fake 100 pct')
+ok(momEmpty?.plan_previous_missing, 'mom plan missing when prev empty')
+ok(momEmpty?.plan_direction == null, 'mom no plan direction without base')
+
 const kpi = buildPanelKpiFromAnalytics(analytics)
 ok(kpi?.pzTrainings === 6, 'panel kpi pz trainings from manager matrix')
 ok(kpi?.reportsLabel === '2/30', 'panel kpi reports label')
@@ -117,6 +140,17 @@ const lowCoverage = buildClubMonthInsights({
   finance: analytics.finance,
   includeFinance: true,
 })
-ok(lowCoverage.issues.some((i) => i.id === 'low_coverage'), 'low coverage issue')
+ok(lowCoverage.report.coverage_pct > 0 && lowCoverage.report.coverage_pct < 15, 'sparse report coverage tracked')
+ok(!lowCoverage.issues.some((i) => i.id === 'low_coverage'), 'low_coverage issue removed from risk list')
+
+const inactiveIssue = buildClubMonthInsights({
+  stats,
+  managerTrainingsTotal: 18,
+  fitCityCompleted: 15,
+  inactiveInPeriod: 6,
+  finance: analytics.finance,
+  includeFinance: true,
+})
+ok(inactiveIssue.issues.some((i) => i.id === 'inactive_clients'), 'inactive clients issue')
 
 process.exit(failed > 0 ? 1 : 0)

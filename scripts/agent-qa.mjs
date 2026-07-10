@@ -66,6 +66,11 @@ run('challenge max reps', 'node', ['scripts/verify-challenge-max-reps.mjs'])
 run('membership stats refresh', 'node', ['scripts/verify-membership-stats-refresh.mjs'])
 run('training superset', 'node', ['scripts/verify-training-superset.mjs'])
 run('last exercise result', 'node', ['scripts/verify-last-exercise-result.mjs'])
+run('app diagnostics', 'node', ['scripts/verify-app-diagnostics.mjs'])
+run('app error journal', 'node', ['scripts/verify-app-error-journal.mjs'])
+run('project health', 'node', ['scripts/verify-project-health.mjs'])
+run('local db club query', 'node', ['scripts/verify-local-db-club-query.mjs'])
+run('trainer pull incremental', 'node', ['scripts/verify-trainer-pull-incremental.mjs'])
 
 if (!skipLint) {
   run('lint', 'npm', ['run', 'lint'])
@@ -112,7 +117,9 @@ if (!skipProd) {
 
     if (!skipProdRoles) {
       run('prod roles API', 'node', ['scripts/qa-roles-prod.mjs'])
+      run('sales manager e2e', 'node', ['scripts/verify-sales-manager-e2e.mjs'])
     }
+    run('prod features', 'node', ['scripts/verify-prod-features.mjs'])
   } catch (e) {
     console.error('✗ prod smoke:', e.message)
     failed++

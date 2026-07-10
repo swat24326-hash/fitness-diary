@@ -1,7 +1,10 @@
 /**
  * Абонементы и тренировки клуба из IndexedDB — один проход (админ «Клиенты»).
  */
-import { getDb } from '../localDb'
+import {
+  listMembershipsMapByClientIds,
+  listTrainingsForClientIds,
+} from '../localDbClubQuery'
 
 /** @type {null | { key: string, memByClient: Record<string, object[]>, trainings: object[] }} */
 let snapshot = null
@@ -21,24 +24,9 @@ export async function loadAdminClubWorkspaceExtras(clubId, clientIds) {
     return { memByClient: snapshot.memByClient, trainings: snapshot.trainings }
   }
 
-  const idSet = new Set(clientIds)
-  const db = await getDb()
-  const [allM, allT] = await Promise.all([db.getAll('memberships'), db.getAll('trainings')])
+  const memByClient = await listMembershipsMapByClientIds(clientIds)
+  const trainings = await listTrainingsForClientIds(clientIds, { clubId: cid })
 
-  const map = {}
-  for (const m of allM ?? []) {
-    if (!idSet.has(m.client_id)) continue
-    if (!map[m.client_id]) map[m.client_id] = []
-    map[m.client_id].push(m)
-  }
-
-  const trainings = []
-  for (const t of allT ?? []) {
-    if (!idSet.has(t.client_id)) continue
-    if (cid && t.club_id !== cid) continue
-    trainings.push(t)
-  }
-
-  snapshot = { key, memByClient: map, trainings }
-  return { memByClient: map, trainings }
+  snapshot = { key, memByClient, trainings }
+  return { memByClient, trainings }
 }

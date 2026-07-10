@@ -3,6 +3,7 @@
  * POST { records: [{ table_name, operation, data, remote_id?, local_id? }] }
  */
 import { requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
+import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 import { executePushRecord } from './_lib/pushRecordCore.js'
 import { runPool } from './_lib/runPool.js'
 
@@ -10,7 +11,7 @@ const MAX_BATCH = 50
 /** Параллельные записи в одном запросе (укладываемся в лимит времени serverless). */
 const POOL = 8
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   setCors(res, 'POST, OPTIONS')
 
   if (req.method === 'OPTIONS') {
@@ -79,3 +80,5 @@ export default async function handler(req, res) {
   const allOk = results.every((r) => r.ok)
   sendJson(res, allOk ? 200 : 207, { ok: allOk, results })
 }
+
+export default withSafeApiHandler(handler, { label: 'push-records' })

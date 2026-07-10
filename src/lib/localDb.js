@@ -2,31 +2,40 @@ import { openDB } from 'idb'
 
 const DB_NAME = 'fitness-diary'
 /** Повышать при схемных правках; клиенты уже на max version не получают upgrade без нового номера. */
-const DB_VERSION = 7
+const DB_VERSION = 9
 
 /**
  * Локальное хранилище: кэш сущностей + очередь синхронизации (поля как в sync_queue на сервере + local_id).
  */
 export async function getDb() {
   return openDB(DB_NAME, DB_VERSION, {
-    upgrade(db, oldVersion) {
+    upgrade(db, oldVersion, _newVersion, transaction) {
       if (!db.objectStoreNames.contains('meta')) {
         db.createObjectStore('meta')
       }
       if (!db.objectStoreNames.contains('clients')) {
-        db.createObjectStore('clients', { keyPath: 'id' })
+        const clients = db.createObjectStore('clients', { keyPath: 'id' })
+        clients.createIndex('by_club_id', 'club_id', { unique: false })
+        clients.createIndex('by_trainer_id', 'trainer_id', { unique: false })
       }
       if (!db.objectStoreNames.contains('memberships')) {
-        db.createObjectStore('memberships', { keyPath: 'id' })
+        const memberships = db.createObjectStore('memberships', { keyPath: 'id' })
+        memberships.createIndex('by_club_id', 'club_id', { unique: false })
+        memberships.createIndex('by_client_id', 'client_id', { unique: false })
       }
       if (!db.objectStoreNames.contains('trainings')) {
-        db.createObjectStore('trainings', { keyPath: 'id' })
+        const trainings = db.createObjectStore('trainings', { keyPath: 'id' })
+        trainings.createIndex('by_club_id', 'club_id', { unique: false })
+        trainings.createIndex('by_trainer_id', 'trainer_id', { unique: false })
+        trainings.createIndex('by_client_id', 'client_id', { unique: false })
+        trainings.createIndex('by_club_date', ['club_id', 'date'], { unique: false })
       }
       if (!db.objectStoreNames.contains('exercises')) {
         db.createObjectStore('exercises', { keyPath: 'id' })
       }
       if (!db.objectStoreNames.contains('body_measurements')) {
-        db.createObjectStore('body_measurements', { keyPath: 'id' })
+        const body = db.createObjectStore('body_measurements', { keyPath: 'id' })
+        body.createIndex('by_client_id', 'client_id', { unique: false })
       }
       if (!db.objectStoreNames.contains('health_cards')) {
         db.createObjectStore('health_cards', { keyPath: 'client_id' })
@@ -57,19 +66,70 @@ export async function getDb() {
       if (!db.objectStoreNames.contains('membership_types')) {
         db.createObjectStore('membership_types', { keyPath: 'id' })
       }
+
+      if (oldVersion < 8 && transaction) {
+        for (const storeName of ['clients', 'trainings', 'memberships']) {
+          if (!db.objectStoreNames.contains(storeName)) continue
+          const store = transaction.objectStore(storeName)
+          if (!store.indexNames.contains('by_club_id')) {
+            store.createIndex('by_club_id', 'club_id', { unique: false })
+          }
+        }
+      }
+
+      if (oldVersion < 9 && transaction) {
+        if (db.objectStoreNames.contains('clients')) {
+          const store = transaction.objectStore('clients')
+          if (!store.indexNames.contains('by_trainer_id')) {
+            store.createIndex('by_trainer_id', 'trainer_id', { unique: false })
+          }
+        }
+        if (db.objectStoreNames.contains('memberships')) {
+          const store = transaction.objectStore('memberships')
+          if (!store.indexNames.contains('by_client_id')) {
+            store.createIndex('by_client_id', 'client_id', { unique: false })
+          }
+        }
+        if (db.objectStoreNames.contains('trainings')) {
+          const store = transaction.objectStore('trainings')
+          if (!store.indexNames.contains('by_trainer_id')) {
+            store.createIndex('by_trainer_id', 'trainer_id', { unique: false })
+          }
+          if (!store.indexNames.contains('by_client_id')) {
+            store.createIndex('by_client_id', 'client_id', { unique: false })
+          }
+          if (!store.indexNames.contains('by_club_date')) {
+            store.createIndex('by_club_date', ['club_id', 'date'], { unique: false })
+          }
+        }
+        if (db.objectStoreNames.contains('body_measurements')) {
+          const store = transaction.objectStore('body_measurements')
+          if (!store.indexNames.contains('by_client_id')) {
+            store.createIndex('by_client_id', 'client_id', { unique: false })
+          }
+        }
+      }
     },
   })
 }
 
 export async function setOnlineFlag(online) {
-  const db = await getDb()
-  await db.put('meta', online, 'online')
+  await setMeta('online', online)
 }
 
 export async function getOnlineFlag() {
-  const db = await getDb()
-  const v = await db.get('meta', 'online')
+  const v = await getMeta('online')
   return v !== false
+}
+
+export async function getMeta(key) {
+  const db = await getDb()
+  return db.get('meta', key)
+}
+
+export async function setMeta(key, value) {
+  const db = await getDb()
+  await db.put('meta', value, key)
 }
 
 const newLocalId = () => crypto.randomUUID()
@@ -194,20 +254,39 @@ export async function deleteFromStore(storeName, key) {
   await db.delete(storeName, key)
 }
 
+async function deleteAllByIndexKey(storeName, indexName, key) {
+  const db = await getDb()
+  const tx = db.transaction(storeName, 'readwrite')
+  const store = tx.objectStore(storeName)
+  let rows = []
+  try {
+    if (store.indexNames.contains(indexName)) {
+      rows = await store.index(indexName).getAll(key)
+    } else {
+      rows = (await store.getAll()).filter((r) => String(r?.client_id ?? '') === key)
+    }
+    for (const row of rows) {
+      if (row?.id != null) await store.delete(row.id)
+    }
+    await tx.done
+  } catch {
+    await tx.done
+    rows = await db.getAll(storeName)
+    for (const row of rows) {
+      if (String(row?.client_id ?? '') !== key) continue
+      await db.delete(storeName, row.id)
+    }
+  }
+}
+
 /** Убрать клиента из IndexedDB без очереди (после pull: на сервере уже удалён). */
 export async function removeClientFromLocalCacheOnly(clientId) {
   const cid = String(clientId ?? '').trim()
   if (!cid) return
   const db = await getDb()
-  for (const t of await db.getAll('trainings')) {
-    if (String(t.client_id) === cid) await db.delete('trainings', t.id)
-  }
-  for (const m of await db.getAll('memberships')) {
-    if (String(m.client_id) === cid) await db.delete('memberships', m.id)
-  }
-  for (const b of await db.getAll('body_measurements')) {
-    if (String(b.client_id) === cid) await db.delete('body_measurements', b.id)
-  }
+  await deleteAllByIndexKey('trainings', 'by_client_id', cid)
+  await deleteAllByIndexKey('memberships', 'by_client_id', cid)
+  await deleteAllByIndexKey('body_measurements', 'by_client_id', cid)
   try {
     await db.delete('health_cards', cid)
   } catch {

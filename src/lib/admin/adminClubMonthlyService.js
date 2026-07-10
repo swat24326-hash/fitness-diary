@@ -1,5 +1,5 @@
 import { isSupabaseConfigured } from '../supabase'
-import { getDb } from '../localDb'
+import { listMembershipsByClubId, listTrainingsByClubIdInRange } from '../localDbClubQuery.js'
 import { fetchClubMonthlyStatsViaApi, fetchClubMonthlyStatsForYearViaApi } from './adminApiClient'
 
 function monthStartIso(year, month1) {
@@ -190,16 +190,11 @@ export async function loadClubMonthlyStatsForYear({ clubId, year }) {
   }
 
   try {
-    const db = await getDb()
-    const [trainingsAll, membershipsAll] = await Promise.all([db.getAll('trainings'), db.getAll('memberships')])
-    const trainings = trainingsAll.filter(
-      (t) =>
-        t.club_id === cid &&
-        String(t.date ?? '').slice(0, 10) >= yearStart &&
-        String(t.date ?? '').slice(0, 10) <= yearEnd,
-    )
-    const memberships = membershipsAll.filter((m) => m.club_id === cid)
-    const clubTrainings = trainingsAll.filter((t) => t.club_id === cid)
+    const [trainings, memberships] = await Promise.all([
+      listTrainingsByClubIdInRange(cid, yearStart, yearEnd),
+      listMembershipsByClubId(cid),
+    ])
+    const clubTrainings = trainings
     const yearSummary = summarizeCalendarYearMonthlyEligibility({
       trainings,
       memberships,
@@ -242,10 +237,10 @@ export async function loadClubMonthlyStats({ clubId, anchorTo, months = 12 }) {
   const dateTo = `${to.slice(0, 7)}-31`
 
   try {
-    const db = await getDb()
-    const [trainingsAll, membershipsAll] = await Promise.all([db.getAll('trainings'), db.getAll('memberships')])
-    const trainings = trainingsAll.filter((t) => t.club_id === cid && String(t.date ?? '').slice(0, 10) >= dateFrom && String(t.date ?? '').slice(0, 10) <= dateTo)
-    const memberships = membershipsAll.filter((m) => m.club_id === cid)
+    const [trainings, memberships] = await Promise.all([
+      listTrainingsByClubIdInRange(cid, dateFrom, dateTo),
+      listMembershipsByClubId(cid),
+    ])
     return { months: aggregateMonthlyTypedCompleted({ trainings, memberships, anchorTo: to, months: n }) }
   } catch {
     return { months: [] }

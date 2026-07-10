@@ -7,18 +7,25 @@ import { isRetryableNetworkError } from './supabaseRetry'
 import { normalizeBodyMeasurementRow } from './bodyMeasures'
 import {
   buildPendingSyncKeysByTable,
-  getDb,
+  getMeta,
   listSyncQueue,
   putStoreUnlessPendingSync,
   removeClientFromLocalCacheOnly,
   removeSyncItem,
+  setMeta,
 } from './localDb'
+import { listClientsByTrainerId } from './localDbClubQuery'
 import { fetchTrainerPullViaApi } from './syncApiClient'
+import {
+  resolveTrainerPullTrainingsSince,
+  shouldForceFullTrainerPull,
+} from './trainerPullIncremental'
 import { pruneRedundantSyncQueue, purgeSyncQueueForMissingClients } from './syncQueueOrphans'
 import { pruneOrphanTrainingsForTrainerClients } from './clientTrainingsCache'
 import { invalidateTrainerWorkspaceCache } from './trainerWorkspaceCache'
 
 const LOCAL_DATA_CHANGED = 'fitness-diary-storage'
+const META_TRAINER_PULL_AT = 'trainer_pull_at'
 
 function notifyLocalDataChanged() {
   if (typeof window === 'undefined') return
@@ -35,7 +42,6 @@ async function pruneOrphanTrainerClients(trainerId, remoteClients, opts = {}) {
   const preserveArchived = opts?.preserveArchived === true
   const remoteIds = new Set((remoteClients ?? []).map((c) => String(c.id)).filter(Boolean))
   const pending = await buildPendingSyncKeysByTable()
-  const db = await getDb()
   let pruned = 0
   for (const item of await listSyncQueue()) {
     if (item.table_name === 'clients' && item.operation === 'insert') {
@@ -46,8 +52,7 @@ async function pruneOrphanTrainerClients(trainerId, remoteClients, opts = {}) {
     }
   }
 
-  for (const c of await db.getAll('clients')) {
-    if (String(c.trainer_id) !== tid) continue
+  for (const c of await listClientsByTrainerId(tid)) {
     if (preserveArchived && c?.archived_at) continue
     const id = String(c.id)
     if (remoteIds.has(id)) continue
@@ -81,6 +86,33 @@ async function cacheTrainerPull(trainerId, { clients, memberships, health_cards,
   return { pruned, pruned_trainings }
 }
 
+async function fetchTrainerPullWithIncremental(tid, mode) {
+  const useIncremental = mode === 'active'
+  let fullPull = !useIncremental
+  let trainingsSince = useIncremental
+    ? resolveTrainerPullTrainingsSince({ lastPullAt: await getMeta(META_TRAINER_PULL_AT) })
+    : null
+
+  let viaApi = await fetchTrainerPullViaApi({
+    includeArchived: mode === 'all',
+    archivedOnly: mode === 'archive',
+    trainingsSince: trainingsSince ?? undefined,
+    fullPull,
+  })
+
+  if (viaApi && shouldForceFullTrainerPull(viaApi) && useIncremental && trainingsSince) {
+    fullPull = true
+    trainingsSince = null
+    viaApi = await fetchTrainerPullViaApi({
+      includeArchived: mode === 'all',
+      archivedOnly: mode === 'archive',
+      fullPull: true,
+    })
+  }
+
+  return viaApi
+}
+
 /** @returns {Promise<{ ok: boolean, source?: string, count?: number, error?: string }>} */
 export async function pullTrainerWorkspaceFromCloud(trainerId, opts = {}) {
   const tid = String(trainerId ?? '').trim()
@@ -88,12 +120,12 @@ export async function pullTrainerWorkspaceFromCloud(trainerId, opts = {}) {
   const mode = String(opts?.mode ?? 'active') // active | archive | all
 
   try {
-    const viaApi = await fetchTrainerPullViaApi({
-      includeArchived: mode === 'all',
-      archivedOnly: mode === 'archive',
-    })
+    const viaApi = await fetchTrainerPullWithIncremental(tid, mode)
     if (viaApi) {
       const pruned = await cacheTrainerPull(tid, viaApi, { mode })
+      if (mode === 'active') {
+        await setMeta(META_TRAINER_PULL_AT, Date.now())
+      }
       return {
         ok: true,
         source: 'api',
@@ -101,6 +133,8 @@ export async function pullTrainerWorkspaceFromCloud(trainerId, opts = {}) {
         memberships: viaApi.memberships.length,
         body_measurements: viaApi.body_measurements?.length ?? 0,
         trainings: viaApi.trainings?.length ?? 0,
+        trainings_truncated: viaApi.trainings_truncated === true,
+        incremental: viaApi.incremental === true,
         pruned_clients: pruned.pruned,
         pruned_trainings: pruned.pruned_trainings,
       }

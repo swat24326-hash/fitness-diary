@@ -3,8 +3,9 @@
  */
 import { createClient } from '@supabase/supabase-js'
 import { readEnv, sendJson, setCors } from './_lib/adminSupabase.js'
+import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   setCors(res, 'GET, OPTIONS')
 
   if (req.method === 'OPTIONS') {
@@ -67,3 +68,5 @@ export default async function handler(req, res) {
 
   sendJson(res, 200, { profile: basic.data ? { ...basic.data, club_id: null } : null })
 }
+
+export default withSafeApiHandler(handler, { label: 'me-profile' })

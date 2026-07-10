@@ -34,6 +34,7 @@ const baseSnapshot = {
     plan_level_3: 1_000_000,
   },
   trainer_contour: { trainers: [{ trainer_id: 't1', name: 'Иван' }] },
+  club_finance: { available: true, fact: { net_profit_rub: 50_000 } },
 }
 
 const full = buildIskraDataAvailability(baseSnapshot, { hasPreviousPeriod: true })
@@ -46,6 +47,7 @@ const noForecast = buildIskraDataAvailability(
   {
     ...baseSnapshot,
     month_forecast: { available: false, reason: 'insufficient_reports', min_report_days: 3, report_days: 1 },
+    club_finance: { available: false, reason: 'insufficient_reports', min_report_days: 3, report_days: 1 },
   },
   { hasPreviousPeriod: true },
 )

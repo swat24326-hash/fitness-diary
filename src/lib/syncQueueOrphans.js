@@ -64,6 +64,28 @@ export async function purgeSyncQueueAgainstLocalClients() {
   return purgeSyncQueueForMissingClients(localIds)
 }
 
+/** Максимум повторов отправки одной записи очереди — дальше снимаем и пишем в журнал. */
+export const SYNC_QUEUE_MAX_RETRIES = 12
+
+/**
+ * Снять записи, исчерпавшие лимит повторов.
+ * @param {{ onDrop?: (item: object) => void }} [opts]
+ */
+export async function pruneExhaustedSyncRetries(opts = {}) {
+  const onDrop = typeof opts.onDrop === 'function' ? opts.onDrop : () => {}
+  const queue = await listSyncQueue()
+  let removed = 0
+
+  for (const item of queue) {
+    if ((item.retry_count ?? 0) < SYNC_QUEUE_MAX_RETRIES) continue
+    await removeSyncItem(item.local_id)
+    onDrop(item)
+    removed++
+  }
+
+  return { removed }
+}
+
 /**
  * Снять только безнадёжные insert в справочник упражнений (много ошибок).
  * Не снимаем insert клиентов/тренировок по факту наличия в IndexedDB — это нормальный офлайн-сценарий.

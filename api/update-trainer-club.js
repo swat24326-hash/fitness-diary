@@ -2,6 +2,7 @@
  * Админ: привязать тренера к клубу (users.club_id) через service role.
  */
 import { requireAdmin, sendJson, setCors } from './_lib/adminSupabase.js'
+import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 
 const TRAINER_ROLES = ['trainer', 'тренер']
 
@@ -10,7 +11,7 @@ function isTrainerRole(role) {
   return TRAINER_ROLES.includes(r)
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   setCors(res, 'POST, OPTIONS')
 
   if (req.method === 'OPTIONS') {
@@ -78,3 +79,5 @@ export default async function handler(req, res) {
 
   sendJson(res, 200, { ok: true, trainer: data })
 }
+
+export default withSafeApiHandler(handler, { label: 'update-trainer-club' })

@@ -328,6 +328,8 @@ export async function fetchTrainerPullViaApi(opts = {}) {
   const includeArchived = opts?.includeArchived === true
   const archivedOnly = opts?.archivedOnly === true
   const skipTrainings = opts?.skipTrainings === true
+  const trainingsSince = String(opts?.trainingsSince ?? '').slice(0, 10)
+  const fullPull = opts?.fullPull === true
 
   let token
   try {
@@ -343,6 +345,7 @@ export async function fetchTrainerPullViaApi(opts = {}) {
     if (includeArchived) qs.set('include_archived', '1')
     if (archivedOnly) qs.set('archived', '1')
     if (skipTrainings) qs.set('skip_trainings', '1')
+    if (!fullPull && /^\d{4}-\d{2}-\d{2}$/.test(trainingsSince)) qs.set('trainings_since', trainingsSince)
     const url = `${apiOrigin()}/api/trainer-pull${qs.toString() ? `?${qs.toString()}` : ''}`
     res = await fetch(url, {
       method: 'GET',
@@ -366,6 +369,9 @@ export async function fetchTrainerPullViaApi(opts = {}) {
     health_cards: Array.isArray(data.health_cards) ? data.health_cards : [],
     body_measurements: Array.isArray(data.body_measurements) ? data.body_measurements : [],
     trainings: Array.isArray(data.trainings) ? data.trainings : [],
+    trainings_truncated: data.trainings_truncated === true,
+    trainings_since: data.trainings_since ?? null,
+    incremental: data.incremental === true,
   }
 }
 

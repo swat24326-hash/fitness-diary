@@ -2,7 +2,7 @@
  * Клубы + тренеры: чтение тренеров с club_id и смена клуба (Supabase).
  */
 
-import { getDb } from '../localDb'
+import { listClientsByTrainerId } from '../localDbClubQuery'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { withSupabaseRetry } from '../supabaseRetry'
 import { USERS_TRAINER_ROLES } from '../userRoleConstants'
@@ -89,8 +89,7 @@ export async function countClientsByTrainer(trainerId) {
   const tid = String(trainerId ?? '').trim()
   if (!tid) return 0
   if (!isSupabaseConfigured()) {
-    const db = await getDb()
-    return (await db.getAll('clients')).filter((c) => c.trainer_id === tid).length
+    return (await listClientsByTrainerId(tid)).length
   }
   const { count, error } = await withSupabaseRetry(() =>
     supabase.from('clients').select('id', { count: 'exact', head: false }).eq('trainer_id', tid).limit(0),

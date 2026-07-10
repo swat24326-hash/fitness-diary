@@ -4,6 +4,7 @@
  * (или VITE_* для URL/anon — service role без префикса VITE_).
  */
 import { createClient } from '@supabase/supabase-js'
+import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 
 function readEnv() {
   const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').replace(/\/$/, '')
@@ -18,7 +19,7 @@ function sendJson(res, status, body) {
   res.end(JSON.stringify(body))
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*')
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'authorization, content-type')
@@ -159,3 +160,5 @@ export default async function handler(req, res) {
 
   sendJson(res, 200, { ok: true, id: uid, trainer: insertRow })
 }
+
+export default withSafeApiHandler(handler, { label: 'create-trainer' })

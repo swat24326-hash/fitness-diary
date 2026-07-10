@@ -16,6 +16,7 @@ import { fetchClientsForClubViaAdminApi, fetchMembershipsForClubViaAdminApi } fr
 import { fetchHealthCardsForClubViaApi } from '../syncApiClient'
 import { normalizeBodyMeasurementRow } from '../bodyMeasures'
 import { purgeSyncQueueForMissingClients } from '../syncQueueOrphans'
+import { listClientsByClubId, listTrainingsByClubIdInRange } from '../localDbClubQuery.js'
 import { ADMIN_CLIENTS_REMOTE_LIMIT, ADMIN_SYNC_BATCH_SIZE } from './adminConstants'
 
 const LOCAL_DATA_CHANGED = 'fitness-diary-storage'
@@ -77,8 +78,8 @@ export async function reconcileAdminClubCache(clubId, remoteClients, opts = {}) 
   let pruned_clients = 0
   let pruned_trainings = 0
 
-  for (const c of await db.getAll('clients')) {
-    if (String(c.club_id) !== cid) continue
+  const clubClients = await listClientsByClubId(cid)
+  for (const c of clubClients) {
     if (preserveArchived && c?.archived_at) continue
     const id = String(c.id)
     if (remoteIds.has(id)) continue
@@ -87,8 +88,8 @@ export async function reconcileAdminClubCache(clubId, remoteClients, opts = {}) 
     pruned_clients++
   }
 
-  for (const t of await db.getAll('trainings')) {
-    if (t.club_id != null && String(t.club_id) !== cid) continue
+  const clubTrainings = await listTrainingsByClubIdInRange(cid, '1970-01-01', '2999-12-31')
+  for (const t of clubTrainings) {
     const clientId = String(t.client_id ?? '')
     if (!clientId) continue
     if (remoteIds.has(clientId)) continue
@@ -204,9 +205,7 @@ function formatRemoteError(e) {
 }
 
 async function listAdminClientsFromLocalCache(clubId) {
-  const db = await getDb()
-  let all = await db.getAll('clients')
-  all = all.filter((c) => String(c.club_id) === clubId)
+  let all = await listClientsByClubId(clubId)
   all.sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''), 'ru'))
   const truncated = all.length >= ADMIN_CLIENTS_REMOTE_LIMIT
   const clients = truncated ? all.slice(0, ADMIN_CLIENTS_REMOTE_LIMIT) : all
@@ -221,9 +220,7 @@ export async function listAdminClientsForClub(p) {
   const clubId = String(p?.clubId ?? '').trim()
 
   if (!isSupabaseConfigured()) {
-    const db = await getDb()
-    let all = await db.getAll('clients')
-    if (clubId) all = all.filter((c) => c.club_id === clubId)
+    let all = await listClientsByClubId(clubId)
     all.sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''), 'ru'))
     return { clients: all, source: 'local', fallbackReason: null, truncated: false }
   }
@@ -262,7 +259,7 @@ export async function listAdminClientsForClub(p) {
           clients,
           source: 'admin_api',
           fallbackReason: null,
-          truncated,
+          truncated: truncated || viaApi.truncated === true,
         }
       }
     } catch (apiErr) {

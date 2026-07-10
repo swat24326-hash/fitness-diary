@@ -4,6 +4,7 @@
  */
 import { createClient } from '@supabase/supabase-js'
 import { readEnv, sendJson, setCors } from './_lib/adminSupabase.js'
+import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 
 async function resolveEmail(supabaseAdmin, raw) {
   const trimmed = String(raw ?? '').trim()
@@ -28,7 +29,7 @@ async function resolveEmail(supabaseAdmin, raw) {
   return null
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   setCors(res, 'POST, OPTIONS')
 
   if (req.method === 'OPTIONS') {
@@ -134,3 +135,5 @@ export default async function handler(req, res) {
     profile,
   })
 }
+
+export default withSafeApiHandler(handler, { label: 'auth-sign-in' })

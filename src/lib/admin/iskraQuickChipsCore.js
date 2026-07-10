@@ -3,6 +3,7 @@
 import {
   GEMINI_INSTANT_CHIPS,
   GEMINI_QUICK_CHIPS,
+  GEMINI_TRAINER_QUICK_CHIPS,
   matchGeminiInstantChip,
   normalizeGeminiChipMessage,
 } from './geminiInstantReplies.js'
@@ -27,6 +28,28 @@ export const ISKRA_BUILTIN_HANDLER_IDS = new Set(GEMINI_INSTANT_CHIPS.map((c) =>
  *   handler_id?: string | null,
  * }} IskraQuickChip
  */
+
+/** @returns {IskraQuickChip[]} */
+export function defaultIskraTrainerQuickChips() {
+  return GEMINI_TRAINER_QUICK_CHIPS.map((chip) => ({
+    id: chip.id,
+    label: chip.label,
+    message: chip.message,
+    compare: chip.compare === true,
+    handler_id: chip.id,
+  }))
+}
+
+/**
+ * Кнопки панели: клуб/управляющий или фокус на тренере.
+ * @param {{ stored?: unknown, trainerId?: string | null }} opts
+ * @returns {IskraQuickChip[]}
+ */
+export function resolvePanelQuickChips(opts = {}) {
+  const trainerId = String(opts.trainerId ?? '').trim()
+  if (trainerId) return defaultIskraTrainerQuickChips()
+  return resolveIskraQuickChips(opts.stored)
+}
 
 /** @returns {IskraQuickChip[]} */
 export function defaultIskraQuickChips() {

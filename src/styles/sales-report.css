@@ -1523,21 +1523,21 @@
   width: 27%;
 }
 
-.sales-finance-forecast__row--income .sales-finance-forecast__col-fact,
-.sales-finance-forecast__row--income .sales-finance-forecast__col-forecast {
-  color: rgba(74, 222, 128, 0.95) !important;
+.sales-finance-forecast__row--income .sales-finance-forecast__col-fact {
+  color: #f8fafc !important;
 }
 
 .sales-finance-forecast__row--income .sales-finance-forecast__col-forecast {
+  color: rgba(74, 222, 128, 0.95) !important;
   background: rgba(46, 255, 184, 0.06) !important;
 }
 
-.sales-finance-forecast__row--deduction .sales-finance-forecast__col-fact,
-.sales-finance-forecast__row--deduction .sales-finance-forecast__col-forecast {
-  color: rgba(251, 191, 36, 0.92) !important;
+.sales-finance-forecast__row--deduction .sales-finance-forecast__col-fact {
+  color: #f8fafc !important;
 }
 
 .sales-finance-forecast__row--deduction .sales-finance-forecast__col-forecast {
+  color: rgba(251, 191, 36, 0.92) !important;
   background: rgba(251, 191, 36, 0.06) !important;
 }
 
@@ -1545,7 +1545,9 @@
   color: rgba(251, 191, 36, 0.82) !important;
 }
 
-.sales-finance-forecast__col-negative {
+.sales-finance-forecast__col-negative,
+.sales-finance-forecast__col-fact.sales-finance-forecast__col-negative,
+.sales-finance-forecast__row--primary .sales-finance-forecast__col-fact.sales-finance-forecast__col-negative {
   color: #fca5a5 !important;
 }
 
@@ -1710,7 +1712,7 @@
 
 .sales-finance-forecast__row--primary .sales-finance-forecast__col-fact {
   font-size: 1rem;
-  color: #ecfdf5;
+  color: #f8fafc !important;
 }
 
 .sales-finance-forecast__badge {

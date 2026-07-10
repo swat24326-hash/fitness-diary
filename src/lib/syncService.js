@@ -15,11 +15,12 @@ import {
   collapseRedundantQueueItems,
   dropLocalOrphanForSyncItem,
   isUnrecoverablePushError,
+  pruneExhaustedSyncRetries,
   purgeSyncQueueAgainstLocalClients,
   pruneRedundantSyncQueue,
 } from './syncQueueOrphans'
 import { enqueueUnsyncedLocalRecords, recordForPush, countUnsyncedLocalRecords, markRecordSynced } from './syncLocalRecords'
-import { reportSyncOutcome } from './appErrorJournal'
+import { reportSyncOutcome, recordSyncError } from './appErrorJournal'
 import { invalidateTrainerWorkspaceCache } from './trainerWorkspaceCache'
 import { invalidateAdminClubWorkspaceCache } from './admin/adminClubWorkspaceCache'
 import { isDuplicateInsertError } from './syncFlushResult'
@@ -449,6 +450,16 @@ async function flushSyncQueueInnerWork() {
   await collapseRedundantQueueItems()
   await collapseDuplicateQueueInserts()
   await pruneRedundantSyncQueue()
+  await pruneExhaustedSyncRetries({
+    onDrop: (item) => {
+      recordSyncError({
+        error: `Запись снята после ${item.retry_count ?? 0} неудачных попыток`,
+        table_name: item.table_name,
+        operation: item.operation,
+        context: String(item.local_id ?? '').slice(0, 64),
+      })
+    },
+  })
   const requeued = await enqueueUnsyncedLocalRecords()
 
   let queue = await listSyncQueue()

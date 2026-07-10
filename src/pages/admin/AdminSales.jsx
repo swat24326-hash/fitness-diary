@@ -62,6 +62,7 @@ import { SalesFinancePanel } from '../../components/SalesFinancePanel'
 import { SalesPlanSettingsPanel } from '../../components/SalesPlanSettingsPanel'
 import { SalesManagerStatsPanel } from '../../components/SalesManagerStatsPanel'
 import { SalesManagerAnalyticsPanel } from '../../components/SalesManagerAnalyticsPanel'
+import { SectionErrorBoundary } from '../../components/SectionErrorBoundary'
 import '../../styles/sales-report.css'
 
 const MONTH_NAMES = [
@@ -560,6 +561,7 @@ export function AdminSales({ accessMode = 'admin' }) {
   }
 
   return (
+    <SectionErrorBoundary section="admin_sales" title="Продажи и отчёты">
     <div
       className={`sales-report${busy ? ' sales-report__busy' : ''}${isSalesManager ? ` sales-report--manager sales-home${salesTab === 'home' ? ' sales-home--fill' : ''}` : ''}`}
     >
@@ -845,5 +847,6 @@ export function AdminSales({ accessMode = 'admin' }) {
         </div>
       ) : null}
     </div>
+    </SectionErrorBoundary>
   )
 }

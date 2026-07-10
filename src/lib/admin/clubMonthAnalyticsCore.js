@@ -279,6 +279,36 @@ export function buildClubMonthInsights(opts) {
 }
 
 /**
+ * 0 в сравнении с прошлым месяцем = данных нет, не «нулевой результат».
+ * @param {number} value
+ */
+export function isMomComparisonMetricMissing(value) {
+  const n = Number(value)
+  return !Number.isFinite(n) || n === 0
+}
+
+/**
+ * @param {number} curPlan
+ * @param {number} prevPlan
+ * @returns {'up'|'down'|'flat'|null}
+ */
+export function resolveMomPlanDirection(curPlan, prevPlan) {
+  if (isMomComparisonMetricMissing(prevPlan)) return null
+  const cur = Number(curPlan) || 0
+  const prev = Number(prevPlan) || 0
+  if (cur === prev) return 'flat'
+  return cur > prev ? 'up' : 'down'
+}
+
+/**
+ * @param {object} snapshot
+ */
+export function isMomSnapshotMonthEmpty(snapshot) {
+  const days = Number(snapshot?.sales?.days_with_reports) || 0
+  return days <= 0
+}
+
+/**
  * @param {object} snapshot
  * @param {object|null} previousSnapshot
  */
@@ -293,9 +323,20 @@ export function applyMonthComparisonInsights(snapshot, previousSnapshot) {
   const prevProfit = Number(previousSnapshot.sales?.profit_total) || 0
   const curPlan = Number(snapshot.sales?.plan_progress_pct) || 0
   const prevPlan = Number(previousSnapshot.sales?.plan_progress_pct) || 0
+  const prevMonthEmpty = isMomSnapshotMonthEmpty(previousSnapshot)
+  const profitPreviousMissing = prevMonthEmpty || isMomComparisonMetricMissing(prevProfit)
+  const planPreviousMissing = prevMonthEmpty || isMomComparisonMetricMissing(prevPlan)
   const delta = curProfit - prevProfit
-  const deltaPct =
-    prevProfit > 0 ? round1((delta / prevProfit) * 100) : curProfit > 0 ? 100 : 0
+  const deltaPct = profitPreviousMissing ? null : round1((delta / prevProfit) * 100)
+
+  let profitDirection = 'flat'
+  if (profitPreviousMissing) {
+    profitDirection = curProfit > 0 ? 'no_previous' : 'flat'
+  } else if (delta > 0) {
+    profitDirection = 'up'
+  } else if (delta < 0) {
+    profitDirection = 'down'
+  }
 
   snapshot.insights.mom_comparison = {
     previous_period_label: previousSnapshot.period?.label || 'прошлый месяц',
@@ -303,11 +344,12 @@ export function applyMonthComparisonInsights(snapshot, previousSnapshot) {
     profit_previous: prevProfit,
     profit_delta: delta,
     profit_delta_pct: deltaPct,
-    profit_direction: delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat',
+    profit_direction: profitDirection,
+    profit_previous_missing: profitPreviousMissing,
     plan_pct_current: curPlan,
     plan_pct_previous: prevPlan,
-    plan_direction:
-      curPlan === prevPlan ? 'flat' : curPlan > prevPlan ? 'up' : 'down',
+    plan_previous_missing: planPreviousMissing,
+    plan_direction: resolveMomPlanDirection(curPlan, prevPlan),
   }
   return snapshot
 }

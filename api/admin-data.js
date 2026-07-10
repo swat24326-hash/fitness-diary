@@ -3,6 +3,7 @@
  * ?action=search|journal|club-stats|health-cards|challenges|challenge-trainings|exercises|clubs
  */
 import { requireAdmin, requireAdminOrSalesManager, requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
+import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 import { assertSalesPlanScopeForRole, stripSalesBundleForManager } from '../src/lib/admin/salesAccessCore.js'
 import { aggregateTrainings, aggregateClubClientPeriod } from './_lib/clubStatsAgg.js'
 import { aggregateMembershipTypeStats } from './_lib/membershipTypeStatsAgg.js'
@@ -857,7 +858,7 @@ async function handleCreateSalesManagerPost(ctx, res, body) {
   sendJson(res, 200, { ok: true, id: uid, manager: insertRow, warning })
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   setCors(res, 'GET, POST, OPTIONS')
   if (req.method === 'OPTIONS') {
     res.statusCode = 204
@@ -993,3 +994,5 @@ export default async function handler(req, res) {
       })
   }
 }
+
+export default withSafeApiHandler(handler, { label: 'admin-data' })

@@ -3,6 +3,8 @@
  * GET — только для role=trainer
  */
 import { requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
+import { withSafeApiHandler } from './_lib/safeApiHandler.js'
+import { TRAINER_PULL_MAX_TRAININGS } from './_lib/apiLimits.js'
 import { normalizeMatrixRowsFromDb } from '../src/lib/admin/salesTrainingsMatrix.js'
 import {
   aggregatePayrollFromDailyRows,
@@ -88,7 +90,7 @@ async function handleTrainerPayrollGet(ctx, req, res) {
   })
 }
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   setCors(res, 'GET, OPTIONS')
 
   if (req.method === 'OPTIONS') {
@@ -123,6 +125,8 @@ export default async function handler(req, res) {
   const includeArchived = String(req.query?.include_archived ?? req.query?.includeArchived ?? '').trim() === '1'
   const archivedOnly = String(req.query?.archived ?? '').trim() === '1'
   const skipTrainings = String(req.query?.skip_trainings ?? '').trim() === '1'
+  const trainingsSinceRaw = String(req.query?.trainings_since ?? req.query?.trainingsSince ?? '').slice(0, 10)
+  const trainingsSince = /^\d{4}-\d{2}-\d{2}$/.test(trainingsSinceRaw) ? trainingsSinceRaw : ''
 
   const clients = []
   let from = 0
@@ -184,12 +188,13 @@ export default async function handler(req, res) {
   }
 
   const trainings = []
+  let trainingsTruncated = false
   if (!skipTrainings) {
     const dateFrom = new Date()
     dateFrom.setDate(dateFrom.getDate() - 90)
-    const dateFromIso = dateFrom.toISOString().slice(0, 10)
+    const dateFromIso = trainingsSince || dateFrom.toISOString().slice(0, 10)
 
-    for (let i = 0; i < clientIds.length; i += IN_CHUNK) {
+    outer: for (let i = 0; i < clientIds.length; i += IN_CHUNK) {
       const chunk = clientIds.slice(i, i + IN_CHUNK)
       if (!chunk.length) continue
 
@@ -203,7 +208,13 @@ export default async function handler(req, res) {
         sendJson(res, 400, { error: te.message })
         return
       }
-      trainings.push(...(tr ?? []))
+      for (const row of tr ?? []) {
+        if (trainings.length >= TRAINER_PULL_MAX_TRAININGS) {
+          trainingsTruncated = true
+          break outer
+        }
+        trainings.push(row)
+      }
     }
   }
 
@@ -213,6 +224,9 @@ export default async function handler(req, res) {
     health_cards,
     body_measurements,
     trainings,
+    trainings_truncated: trainingsTruncated,
+    trainings_since: trainingsSince || null,
+    incremental: Boolean(trainingsSince),
     count: {
       clients: clients.length,
       memberships: memberships.length,
@@ -222,3 +236,5 @@ export default async function handler(req, res) {
     },
   })
 }
+
+export default withSafeApiHandler(handler, { label: 'trainer-pull' })

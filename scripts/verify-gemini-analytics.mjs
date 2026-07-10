@@ -27,7 +27,9 @@ import {
   matchGeminiInstantChip,
   GEMINI_INSTANT_CHIPS,
   GEMINI_QUICK_CHIPS,
+  GEMINI_TRAINER_QUICK_CHIPS,
 } from '../src/lib/admin/geminiInstantReplies.js'
+import { applyTrainerFocusToSnapshot } from '../src/lib/admin/geminiTrainerContour.js'
 import {
   buildGeminiIntroReply,
   buildGeminiMicroIntro,
@@ -46,7 +48,7 @@ import {
   setCachedGeminiResponse,
 } from '../api/_lib/geminiAnalyticsResponseCache.js'
 import { buildGeminiPanelKpi, reportDateForMonth } from '../src/lib/admin/geminiPanelKpi.js'
-import { applyMonthComparisonInsights } from '../src/lib/admin/clubMonthAnalyticsCore.js'
+import { applyMonthComparisonInsights, buildClubMonthAnalytics } from '../src/lib/admin/clubMonthAnalyticsCore.js'
 import {
   buildGeminiMonthCalendarContext,
   comparePlanToCalendar,
@@ -365,7 +367,52 @@ const byType = topTrainingsByCardType(rows, membershipTypes, 3)
 ok(byType[0]?.count === 6, 'top trainings by card type')
 
 ok(GEMINI_QUICK_CHIPS.length === 7, 'quick chips include month forecast')
+ok(GEMINI_TRAINER_QUICK_CHIPS.length === 7, 'trainer quick chips count')
 ok(GEMINI_INSTANT_CHIPS.length >= GEMINI_QUICK_CHIPS.length, 'instant chips cover quick chips')
+ok(
+  matchGeminiInstantChip(GEMINI_TRAINER_QUICK_CHIPS.find((c) => c.id === 'trainer_trainings').message) ===
+    'trainer_trainings',
+  'instant chip trainer trainings',
+)
+
+const trainerSnap = applyTrainerFocusToSnapshot(
+  {
+    ...snap,
+    trainer_contour: {
+      trainers: [
+        {
+          trainer_id: 't1',
+          trainer_name: 'Анжелика',
+          completed_trainings: 42,
+          personal_salary_month: 85000,
+          active_clients_total: 30,
+          current_active_holders: 24,
+          inactive_clients_holders: 6,
+          no_type_trainings_ignored: 2,
+        },
+        {
+          trainer_id: 't2',
+          trainer_name: 'Иван',
+          completed_trainings: 30,
+          personal_salary_month: 60000,
+          active_clients_total: 20,
+          current_active_holders: 18,
+          inactive_clients_holders: 2,
+          no_type_trainings_ignored: 0,
+        },
+      ],
+      club_roll_up: { trainers_count: 2, inactive_clients_holders: 8 },
+    },
+  },
+  't1',
+)
+const instantTrainerTrainings = buildGeminiInstantReply('trainer_trainings', {
+  snapshot: trainerSnap,
+  gender: 'female',
+})
+ok(instantTrainerTrainings?.includes('42') && instantTrainerTrainings?.includes('Анжелика'), 'instant trainer trainings')
+const instantTrainerRank = buildGeminiInstantReply('trainer_rank', { snapshot: trainerSnap, gender: 'female' })
+ok(instantTrainerRank?.includes('1-е место') && instantTrainerRank?.includes('42'), 'instant trainer rank')
 
 ok(matchGeminiInstantChip(GEMINI_INSTANT_CHIPS.find((c) => c.id === 'month_forecast').message) === 'month_forecast', 'instant chip month forecast')
 
@@ -474,6 +521,31 @@ const instantCompare = buildGeminiInstantReply('compare', {
   previousSnapshot: prevSnap,
 })
 ok(instantCompare?.includes('май'), 'instant compare reply')
+
+const emptyPrevMonth = buildClubMonthAnalytics({
+  clubName: 'FIT-CITY Клинцы',
+  year: 2026,
+  month: 6,
+  monthRows: [],
+  plan: { plan_total: 1300000, plan_level_3: 1300000 },
+  membershipTypes,
+})
+const julyWithMom = buildGeminiSnapshot({
+  clubName: 'FIT-CITY Клинцы',
+  year: 2026,
+  month: 7,
+  monthRows: rows,
+  plan: { plan_total: 1300000, plan_level_3: 1300000 },
+  membershipTypes,
+})
+applyMonthComparisonInsights(julyWithMom, emptyPrevMonth)
+const instantCompareNoPrev = buildGeminiInstantReply('compare', {
+  snapshot: julyWithMom,
+  gender: 'female',
+})
+ok(instantCompareNoPrev?.includes('данных нет'), 'compare no prev data wording')
+ok(!instantCompareNoPrev?.includes('против 0%'), 'compare no zero pct plan')
+ok(!instantCompareNoPrev?.includes('+100%'), 'compare no fake profit pct')
 
 clearGeminiResponseCacheForTests()
 setCachedGeminiResponse('c1', 2026, 6, 'male', false, 'test q', 'cached answer')

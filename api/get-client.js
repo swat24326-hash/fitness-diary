@@ -3,10 +3,11 @@
  * GET ?client_id=<uuid>
  */
 import { requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
+import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 
 const PAGE = 500
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   setCors(res, 'GET, OPTIONS')
 
   if (req.method === 'OPTIONS') {
@@ -118,3 +119,5 @@ export default async function handler(req, res) {
     trainings,
   })
 }
+
+export default withSafeApiHandler(handler, { label: 'get-client' })

@@ -3,11 +3,12 @@
  * GET ?club_id=<uuid>
  */
 import { requireAdmin, sendJson, setCors } from './_lib/adminSupabase.js'
+import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 
 const PAGE = 500
 const IN_CHUNK = 80
 
-export default async function handler(req, res) {
+async function handler(req, res) {
   setCors(res, 'GET, OPTIONS')
 
   if (req.method === 'OPTIONS') {
@@ -69,3 +70,5 @@ export default async function handler(req, res) {
 
   sendJson(res, 200, { memberships, count: memberships.length, club_id: rawClub })
 }
+
+export default withSafeApiHandler(handler, { label: 'list-memberships' })

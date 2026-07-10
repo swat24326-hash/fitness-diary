@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleHelp,
+  Dumbbell,
   Mic,
   RotateCcw,
   Send,
@@ -11,6 +12,7 @@ import {
   Sparkles,
   Target,
   TrendingUp,
+  Users,
   Volume2,
   Wallet,
   X,
@@ -21,6 +23,7 @@ import {
   comparePreviousFromQuickChips,
   defaultIskraQuickChips,
   resolveIskraQuickChips,
+  resolvePanelQuickChips,
 } from '../lib/admin/iskraQuickChipsCore.js'
 import { buildGeminiMicroIntro } from '../lib/admin/geminiAssistantIntro.js'
 import { ISKRA_FULL_NAME, ISKRA_NAME } from '../lib/admin/geminiIskraCore.js'
@@ -62,6 +65,12 @@ const CHIP_ICONS = {
   sales_structure: TrendingUp,
   finance: Wallet,
   month_forecast: TrendingUp,
+  trainer_trainings: Dumbbell,
+  trainer_salary: Wallet,
+  trainer_clients: Users,
+  trainer_inactive: Sparkles,
+  trainer_no_type: Target,
+  trainer_rank: TrendingUp,
 }
 
 function chipIconFor(chip) {
@@ -127,6 +136,11 @@ export function GeminiAnalyticsPanel({
     trainers.find((t) => t.trainer_id === activeTrainerId)?.trainer_name ||
     (activeTrainerId && selectedTrainerName) ||
     ''
+
+  const panelQuickChips = useMemo(
+    () => resolvePanelQuickChips({ stored: quickChips, trainerId: activeTrainerId }),
+    [quickChips, activeTrainerId],
+  )
 
   const stopListening = useCallback(() => {
     recognitionRef.current?.stop()
@@ -401,16 +415,17 @@ export function GeminiAnalyticsPanel({
   )
 
   const comparePreviousFromChip = useCallback(
-    (userText) => comparePreviousFromQuickChips(quickChips, userText),
-    [quickChips],
+    (userText) => comparePreviousFromQuickChips(panelQuickChips, userText),
+    [panelQuickChips],
   )
 
   useEffect(() => {
     if (!open || !clubId || !initialMessage?.trim() || initialMessageSentRef.current) return
     initialMessageSentRef.current = true
-    const t = window.setTimeout(() => {
+    const timerId = window.setTimeout(() => {
       void sendMessage(initialMessage, false)
     }, 450)
+    return () => window.clearTimeout(timerId)
   }, [open, clubId, initialMessage])
 
   const toggleVoiceInput = useCallback(() => {
@@ -575,7 +590,7 @@ export function GeminiAnalyticsPanel({
         </div>
 
         <div className="gemini-panel__chips">
-          {quickChips.map((chip) => {
+          {panelQuickChips.map((chip) => {
             const ChipIcon = chipIconFor(chip)
             return (
               <button

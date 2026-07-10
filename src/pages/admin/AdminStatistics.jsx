@@ -20,6 +20,7 @@ import { listMembershipTypesForClub } from '../../lib/membershipTypesService'
 import { AdminInactiveClientsPanel } from '../../components/AdminInactiveClientsPanel'
 import { TrainingExercisesReadonly } from '../../components/TrainingExercisesReadonly'
 import { AdminClubStatsSection } from './AdminClubStatsSection'
+import { SectionErrorBoundary } from '../../components/SectionErrorBoundary'
 
 function bmiFromHealthRow(health) {
   const hCm = Number(String(health?.height_cm ?? '').replace(',', '.'))
@@ -327,6 +328,7 @@ export function AdminStatistics() {
   }
 
   return (
+    <SectionErrorBoundary section="admin_statistics" title="Статистика клуба">
     <div className="grid stagger td-grid">
       <div className="row td-top">
         <div className="u-grow u-minw-0 td-top__grow">
@@ -594,5 +596,6 @@ export function AdminStatistics() {
         </div>
       )}
     </div>
+    </SectionErrorBoundary>
   )
 }

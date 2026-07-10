@@ -6,6 +6,7 @@
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { isRetryableNetworkError } from '../supabaseRetry'
 import { getDb } from '../localDb'
+import { listClientsByClubId } from '../localDbClubQuery'
 import { USERS_TRAINER_ROLES } from '../userRoleConstants'
 import { fetchTrainersViaAdminApi, searchClientsViaAdminApi } from './adminApiClient'
 import { ADMIN_CLIENT_SEARCH_LIMIT } from './adminConstants'
@@ -69,11 +70,13 @@ async function getTrainerNameByIdMap() {
   return m
 }
 
-async function getLocalClientsSnapshot() {
-  if (localClientsSnapshot) return localClientsSnapshot
-  const db = await getDb()
-  localClientsSnapshot = await db.getAll('clients')
-  return localClientsSnapshot
+async function getLocalClientsSnapshot(clubId) {
+  const cid = String(clubId ?? '').trim()
+  const key = cid || '__all__'
+  if (localClientsSnapshot?.key === key) return localClientsSnapshot.rows
+  const rows = cid ? await listClientsByClubId(cid) : await (await getDb()).getAll('clients')
+  localClientsSnapshot = { key, rows }
+  return rows
 }
 
 /**
@@ -83,7 +86,7 @@ async function getLocalClientsSnapshot() {
 export async function searchAdminClientsLocal({ query, clubId, limit = ADMIN_CLIENT_SEARCH_LIMIT }) {
   const q = String(query ?? '').trim().toLowerCase()
   if (q.length < 2) return []
-  const [all, trainerMap] = await Promise.all([getLocalClientsSnapshot(), getTrainerNameByIdMap()])
+  const [all, trainerMap] = await Promise.all([getLocalClientsSnapshot(clubId), getTrainerNameByIdMap()])
   const out = []
   for (const c of all) {
     if (clubId && c.club_id !== clubId) continue

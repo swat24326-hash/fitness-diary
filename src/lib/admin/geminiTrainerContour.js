@@ -189,6 +189,30 @@ export function buildGeminiTrainerContour(opts) {
   }
 }
 
+/**
+ * Подставляет выбранного тренера в уже собранный snapshot (кэш месяца без привязки к фокусу).
+ * @param {object | null | undefined} snapshot
+ * @param {string | null | undefined} selectedTrainerId
+ */
+export function applyTrainerFocusToSnapshot(snapshot, selectedTrainerId) {
+  if (!snapshot?.trainer_contour) return snapshot
+  const sid = String(selectedTrainerId ?? '').trim()
+  if (!sid) return snapshot
+
+  const contour = snapshot.trainer_contour
+  const selected =
+    (contour.trainers ?? []).find((r) => r.trainer_id === sid) ?? contour.selected_trainer ?? null
+
+  return {
+    ...snapshot,
+    trainer_contour: {
+      ...contour,
+      selected_trainer_id: sid,
+      selected_trainer: selected,
+    },
+  }
+}
+
 /** @param {object | null | undefined} contour @param {string | null | undefined} selectedId */
 export function compactTrainerContourForPrompt(contour, selectedId = null) {
   if (!contour || typeof contour !== 'object') return null

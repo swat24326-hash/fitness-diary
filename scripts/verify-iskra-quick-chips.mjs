@@ -1,11 +1,13 @@
 import {
   comparePreviousFromQuickChips,
   defaultIskraQuickChips,
+  defaultIskraTrainerQuickChips,
   resolveInstantHandlerId,
   resolveIskraQuickChips,
+  resolvePanelQuickChips,
   validateIskraQuickChipsForSave,
 } from '../src/lib/admin/iskraQuickChipsCore.js'
-import { GEMINI_QUICK_CHIPS } from '../src/lib/admin/geminiInstantReplies.js'
+import { GEMINI_QUICK_CHIPS, GEMINI_TRAINER_QUICK_CHIPS } from '../src/lib/admin/geminiInstantReplies.js'
 
 let failed = 0
 
@@ -21,6 +23,14 @@ const defaults = defaultIskraQuickChips()
 ok(defaults.length === GEMINI_QUICK_CHIPS.length, 'defaults match quick chips count')
 ok(defaults[0]?.handler_id === 'intro', 'intro handler id')
 
+const trainerDefaults = defaultIskraTrainerQuickChips()
+ok(trainerDefaults.length === GEMINI_TRAINER_QUICK_CHIPS.length, 'trainer defaults match trainer quick chips')
+ok(trainerDefaults.some((c) => c.handler_id === 'trainer_trainings'), 'trainer chips include trainings')
+ok(!trainerDefaults.some((c) => c.handler_id === 'plan'), 'trainer chips exclude club plan')
+
+const managerPanel = resolvePanelQuickChips({ stored: null, trainerId: null })
+ok(managerPanel.length === defaults.length, 'manager panel uses club chips')
+
 ok(resolveIskraQuickChips(null).length === defaults.length, 'null uses defaults')
 ok(resolveIskraQuickChips([]).length === defaults.length, 'empty uses defaults')
 
@@ -28,6 +38,11 @@ const custom = [
   { id: 'c1', label: 'Мой план', message: 'Как дела с планом?', handler_id: 'plan', compare: false },
   { id: 'c2', label: 'Спросить', message: 'Расскажи про возвраты', compare: false },
 ]
+
+const trainerPanel = resolvePanelQuickChips({ stored: custom, trainerId: 'tr-1' })
+ok(trainerPanel.length === trainerDefaults.length, 'trainer panel ignores club custom chips')
+ok(trainerPanel[1]?.handler_id === 'trainer_trainings', 'trainer panel first metric chip')
+
 const resolved = resolveIskraQuickChips(custom)
 ok(resolved.length === 2, 'custom chips resolved')
 ok(resolved[0].label === 'Мой план', 'custom label kept')

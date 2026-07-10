@@ -18,7 +18,7 @@ import { phrasePlanSnapshotLine } from './iskraReplyPhrasing.js'
 import { formatRub } from './salesReportCore.js'
 import { periodLabelRu } from './geminiAnalyticsSnapshot.js'
 
-/** @typedef {'intro'|'plan'|'gap'|'compare'|'fitcity'|'finance'|'pnk'|'bestday'|'trainer_inactive'|'payroll_gap'|'sales_coverage'|'sales_structure'|'sales_refunds'|'sales_directions'|'month_forecast'} GeminiChipId */
+/** @typedef {'intro'|'plan'|'gap'|'compare'|'fitcity'|'finance'|'pnk'|'bestday'|'trainer_inactive'|'payroll_gap'|'sales_coverage'|'sales_structure'|'sales_refunds'|'sales_directions'|'month_forecast'|'trainer_trainings'|'trainer_salary'|'trainer_clients'|'trainer_no_type'|'trainer_rank'} GeminiChipId */
 
 /** Все chip-id с мгновенным ответом (в т.ч. без кнопки в UI). */
 export const GEMINI_INSTANT_CHIPS = [
@@ -123,13 +123,92 @@ export const GEMINI_INSTANT_CHIPS = [
     compare: false,
     quick: false,
   },
+  {
+    id: 'trainer_trainings',
+    label: 'Тренировки',
+    message: 'Сколько завершённых тренировок у этого тренера за месяц?',
+    compare: false,
+    quick: false,
+  },
+  {
+    id: 'trainer_salary',
+    label: 'Личная ЗП',
+    message: 'Какая личная зарплата тренера за месяц по планшетам?',
+    compare: false,
+    quick: false,
+  },
+  {
+    id: 'trainer_clients',
+    label: 'Клиенты',
+    message: 'Сколько активных и неактивных клиентов у тренера?',
+    compare: false,
+    quick: false,
+  },
+  {
+    id: 'trainer_inactive',
+    label: 'Неактивные',
+    message: 'Сколько неактивных клиентов у этого тренера и что с этим делать?',
+    compare: false,
+    quick: false,
+  },
+  {
+    id: 'trainer_no_type',
+    label: 'Без типа',
+    message: 'Есть ли у тренера тренировки без типа карты и как это влияет на ЗП?',
+    compare: false,
+    quick: false,
+  },
+  {
+    id: 'trainer_rank',
+    label: 'Место в клубе',
+    message: 'Как тренер выглядит на фоне других тренеров клуба по тренировкам?',
+    compare: false,
+    quick: false,
+  },
 ]
 
 /** Кнопки в панели ИСКРЫ — только самые частые запросы. */
 export const GEMINI_QUICK_CHIPS = GEMINI_INSTANT_CHIPS.filter((chip) => chip.quick !== false)
 
+/** Быстрые кнопки при фокусе на конкретном тренере. */
+const TRAINER_PANEL_CHIP_IDS = [
+  'trainer_trainings',
+  'trainer_salary',
+  'trainer_clients',
+  'trainer_inactive',
+  'trainer_no_type',
+  'trainer_rank',
+]
+
+export const GEMINI_TRAINER_QUICK_CHIPS = [
+  {
+    ...GEMINI_INTRO_CHIP,
+    message: 'Кто ты и что можешь по работе тренера за месяц?',
+    quick: true,
+  },
+  ...TRAINER_PANEL_CHIP_IDS.map((id) => {
+    const chip =
+      GEMINI_INSTANT_CHIPS.find((c) => c.id === id && c.message.includes('этого тренера')) ??
+      GEMINI_INSTANT_CHIPS.find((c) => c.id === id)
+    return { ...chip, quick: true }
+  }),
+]
+
 function salesFrom(snapshot) {
   return snapshot?.sales ?? {}
+}
+
+function selectedTrainerRow(snapshot) {
+  const contour = snapshot?.trainer_contour
+  if (!contour) return null
+  if (contour.selected_trainer?.trainer_id) return contour.selected_trainer
+  const sid = String(contour.selected_trainer_id ?? '').trim()
+  if (!sid) return null
+  return (contour.trainers ?? []).find((t) => t.trainer_id === sid) ?? null
+}
+
+function trainerNameFromRow(row, fallback = 'тренер') {
+  return String(row?.trainer_name ?? '').trim() || fallback
 }
 
 export function normalizeGeminiChipMessage(message) {
@@ -228,6 +307,16 @@ export function buildGeminiInstantReply(chipId, opts) {
       return buildBestDayReply(club, period, snapshot, insights, opener, closer, seed)
     case 'trainer_inactive':
       return buildTrainerInactiveReply(club, period, snapshot, opener, closer)
+    case 'trainer_trainings':
+      return buildTrainerTrainingsReply(club, period, snapshot, opener, closer)
+    case 'trainer_salary':
+      return buildTrainerSalaryReply(club, period, snapshot, opener, closer)
+    case 'trainer_clients':
+      return buildTrainerClientsReply(club, period, snapshot, opener, closer)
+    case 'trainer_no_type':
+      return buildTrainerNoTypeReply(club, period, snapshot, opener, closer)
+    case 'trainer_rank':
+      return buildTrainerRankReply(club, period, snapshot, opener, closer, seed)
     case 'payroll_gap':
       return buildPayrollGapReply(club, period, snapshot, insights, opener, closer)
     case 'sales_coverage':
@@ -309,31 +398,46 @@ function buildGapReply(club, period, insights, opener, closer, seed) {
 function buildCompareReply(club, period, insights, opener, closer, seed) {
   const mom = insights.mom_comparison
   if (!mom) {
-    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: прошлый месяц не подгружен — повторите запрос или проверьте отчёты. ${closer}.`
+    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: прошлый месяц не подгружен — повторите запрос или проверьте отчёты. На связи.`
   }
 
   const prevLabel = mom.previous_period_label || 'прошлый месяц'
   const delta = Number(mom.profit_delta) || 0
-  const deltaPct = Number(mom.profit_delta_pct) || 0
+  const deltaPct = mom.profit_delta_pct
   const curProfit = Number(mom.profit_current) || 0
+  const curPlan = formatPctPlain(mom.plan_pct_current)
 
   let profitLine
-  if (mom.profit_direction === 'up') {
-    profitLine = `выручка ${pickWord(GEMINI_LEXICON_POOLS.praise, seed)}: +${formatRub(delta)} (${deltaPct > 0 ? '+' : ''}${deltaPct}%) к ${prevLabel}`
+  if (mom.profit_previous_missing || mom.profit_direction === 'no_previous') {
+    profitLine =
+      curProfit > 0
+        ? `выручка ${formatRub(curProfit)}; за ${prevLabel} данных нет — сравнить нельзя`
+        : `за ${prevLabel} данных нет — сравнить не с чем`
+  } else if (mom.profit_direction === 'up') {
+    const pct =
+      deltaPct != null && Number.isFinite(Number(deltaPct))
+        ? ` (${deltaPct > 0 ? '+' : ''}${deltaPct}%)`
+        : ''
+    profitLine = `выручка ${pickWord(GEMINI_LEXICON_POOLS.praise, seed)}: +${formatRub(delta)}${pct} к ${prevLabel}`
   } else if (mom.profit_direction === 'down') {
-    profitLine = `выручка ${pickWord(GEMINI_LEXICON_POOLS.critique, seed)}: ${formatRub(delta)} (${deltaPct}%) к ${prevLabel}`
+    const pct = deltaPct != null && Number.isFinite(Number(deltaPct)) ? ` (${deltaPct}%)` : ''
+    profitLine = `выручка ${pickWord(GEMINI_LEXICON_POOLS.critique, seed)}: ${formatRub(delta)}${pct} к ${prevLabel}`
   } else {
     profitLine = `выручка на уровне ${prevLabel} — ${formatRub(curProfit)}`
   }
 
   let planLine = ''
-  if (mom.plan_direction === 'up') {
-    planLine = ` План ${mom.plan_pct_current}% против ${mom.plan_pct_previous}% — улучшение.`
+  if (mom.plan_previous_missing) {
+    if ((Number(mom.plan_pct_current) || 0) > 0) {
+      planLine = ` План ${curPlan}% — за ${prevLabel} данных нет.`
+    }
+  } else if (mom.plan_direction === 'up') {
+    planLine = ` План ${curPlan}% против ${formatPctPlain(mom.plan_pct_previous)}% — улучшение.`
   } else if (mom.plan_direction === 'down') {
-    planLine = ` План ${mom.plan_pct_current}% против ${mom.plan_pct_previous}% — снижение.`
+    planLine = ` План ${curPlan}% против ${formatPctPlain(mom.plan_pct_previous)}% — снижение.`
   }
 
-  return `${ISKRA_NAME}: ${club}, ${period}. ${opener}, ${profitLine}.${planLine} ${closer}.`
+  return `${ISKRA_NAME}: ${club}, ${period}. ${opener}, ${profitLine}.${planLine} На связи.`
 }
 
 function buildFitcityReply(club, period, insights, opener, closer, seed) {
@@ -422,6 +526,17 @@ function buildBestDayReply(club, period, snapshot, insights, opener, closer, see
 }
 
 function buildTrainerInactiveReply(club, period, snapshot, opener, closer) {
+  const row = selectedTrainerRow(snapshot)
+  if (row) {
+    const name = trainerNameFromRow(row)
+    const inactive = Number(row.inactive_clients_holders) || 0
+    const tail =
+      inactive > 0
+        ? 'Список — в карточках клиентов тренера.'
+        : 'Все закреплённые клиенты с действующим абонементом.'
+    return `${ISKRA_NAME}: ${name}, ${period}. ${opener}: неактивных клиентов — ${inactive} (без абонемента на конец периода). ${tail} На связи.`
+  }
+
   const roll = snapshot.trainer_contour?.club_roll_up
   const inactive = Number(roll?.inactive_clients_holders) || 0
   const trainersCount = Number(roll?.trainers_count) || 0
@@ -435,6 +550,83 @@ function buildTrainerInactiveReply(club, period, snapshot, opener, closer) {
     `(без действующего абонемента на конец периода) — по ${trainersCount} тренерам. ` +
     `Это не продажи из отчёта менеджера, а картина по закреплённым клиентам; списки — в профиле каждого тренера. ${closer}.`
   )
+}
+
+function buildTrainerTrainingsReply(club, period, snapshot, opener, closer) {
+  const row = selectedTrainerRow(snapshot)
+  if (!row) {
+    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: выберите тренера в фокусе анализа. ${closer}.`
+  }
+  const name = trainerNameFromRow(row)
+  const completed = Number(row.completed_trainings) || 0
+  return `${ISKRA_NAME}: ${name}, ${period}. Завершённых тренировок — ${completed}. На связи.`
+}
+
+function buildTrainerSalaryReply(club, period, snapshot, opener, closer) {
+  const row = selectedTrainerRow(snapshot)
+  if (!row) {
+    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: выберите тренера в фокусе анализа. ${closer}.`
+  }
+  const name = trainerNameFromRow(row)
+  const salary = Number(row.personal_salary_month) || 0
+  const noType = Number(row.no_type_trainings_ignored) || 0
+  const noTypeLine = noType > 0 ? ` Тренировки «Без типа» (${noType}) в ЗП не входят.` : ''
+  return `${ISKRA_NAME}: ${name}, ${period}. Личная ЗП по планшетам — ${formatRub(salary)}.${noTypeLine} На связи.`
+}
+
+function buildTrainerClientsReply(club, period, snapshot, opener, closer) {
+  const row = selectedTrainerRow(snapshot)
+  if (!row) {
+    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: выберите тренера в фокусе анализа. ${closer}.`
+  }
+  const name = trainerNameFromRow(row)
+  const total = Number(row.active_clients_total) || 0
+  const active = Number(row.current_active_holders) || 0
+  const inactive = Number(row.inactive_clients_holders) || 0
+  return `${ISKRA_NAME}: ${name}, ${period}. Клиентов ${total}: с абонементом ${active}, неактивных ${inactive}. На связи.`
+}
+
+function buildTrainerNoTypeReply(club, period, snapshot, opener, closer) {
+  const row = selectedTrainerRow(snapshot)
+  if (!row) {
+    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: выберите тренера в фокусе анализа. ${closer}.`
+  }
+  const name = trainerNameFromRow(row)
+  const noType = Number(row.no_type_trainings_ignored) || 0
+  if (!noType) {
+    return `${ISKRA_NAME}: ${name}, ${period}. Тренировок «Без типа» нет — личная ЗП считается по всем завершённым. На связи.`
+  }
+  return `${ISKRA_NAME}: ${name}, ${period}. Тренировок «Без типа» — ${noType}; они не входят в личную ЗП. На связи.`
+}
+
+function buildTrainerRankReply(club, period, snapshot, opener, closer, seed) {
+  const row = selectedTrainerRow(snapshot)
+  const trainers = snapshot.trainer_contour?.trainers ?? []
+  if (!row) {
+    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: выберите тренера в фокусе анализа. ${closer}.`
+  }
+  if (!trainers.length) {
+    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: по тренерам пока нет данных. ${closer}.`
+  }
+
+  const name = trainerNameFromRow(row)
+  const completed = Number(row.completed_trainings) || 0
+  const sorted = [...trainers].sort(
+    (a, b) =>
+      (Number(b.completed_trainings) || 0) - (Number(a.completed_trainings) || 0) ||
+      String(a.trainer_name).localeCompare(String(b.trainer_name), 'ru'),
+  )
+  const rank = sorted.findIndex((t) => t.trainer_id === row.trainer_id) + 1
+  const total = trainers.length
+  const clubSum = trainers.reduce((s, t) => s + (Number(t.completed_trainings) || 0), 0)
+  const clubAvg = total > 0 ? Math.round((clubSum / total) * 10) / 10 : 0
+  const vsAvg =
+    completed > clubAvg
+      ? pickWord(GEMINI_LEXICON_POOLS.praise, seed)
+      : completed < clubAvg
+        ? pickWord(GEMINI_LEXICON_POOLS.critique, seed)
+        : 'на уровне среднего'
+  return `${ISKRA_NAME}: ${name}, ${period}. ${completed} тренировок — ${rank}-е место из ${total}, среднее по клубу ${clubAvg}, ${vsAvg}. На связи.`
 }
 
 function buildPayrollGapReply(club, period, snapshot, insights, opener, closer) {
