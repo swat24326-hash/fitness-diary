@@ -13,8 +13,6 @@ import {
 } from '../localDb'
 import { invalidateAdminClubWorkspaceCache } from './adminClubWorkspaceCache'
 import { fetchClientsForClubViaAdminApi, fetchMembershipsForClubViaAdminApi } from './adminApiClient'
-import { fetchHealthCardsForClubViaApi } from '../syncApiClient'
-import { normalizeBodyMeasurementRow } from '../bodyMeasures'
 import { purgeSyncQueueForMissingClients } from '../syncQueueOrphans'
 import { listClientsByClubId, listTrainingsByClubIdInRange } from '../localDbClubQuery.js'
 import { ADMIN_CLIENTS_REMOTE_LIMIT, ADMIN_SYNC_BATCH_SIZE } from './adminConstants'
@@ -116,20 +114,6 @@ async function mergeMembershipsIntoCache(rows) {
   }
 }
 
-async function mergeHealthCardsIntoCache(rows) {
-  const pending = await buildPendingSyncKeysByTable()
-  for (const row of rows) {
-    await putStoreUnlessPendingSync('health_cards', row, pending)
-  }
-}
-
-async function mergeBodyMeasurementsIntoCache(rows) {
-  const pending = await buildPendingSyncKeysByTable()
-  for (const row of rows) {
-    await putStoreUnlessPendingSync('body_measurements', normalizeBodyMeasurementRow(row), pending)
-  }
-}
-
 /** Один раз после пакета merge — иначе админка перезагружается 3–4 раза подряд. */
 function notifyAdminClientsCacheUpdated() {
   notifyLocalDataChanged({ reason: 'admin-clients-cache' })
@@ -152,17 +136,7 @@ export async function pullAdminClientsFromCloud(clubId, opts = {}) {
     } catch (memErr) {
       console.warn('[admin] list-memberships', memErr)
     }
-    try {
-      const viaHc = await fetchHealthCardsForClubViaApi(cid)
-      if (viaHc?.health_cards?.length) {
-        await mergeHealthCardsIntoCache(viaHc.health_cards)
-      }
-      if (viaHc?.body_measurements?.length) {
-        await mergeBodyMeasurementsIntoCache(viaHc.body_measurements)
-      }
-    } catch (hcErr) {
-      console.warn('[admin] list-health-cards', hcErr)
-    }
+    /* health_cards и body_measurements — по запросу карточки клиента (hydrate), не bulk pull клуба */
     const pruned = mode === 'active' ? await reconcileAdminClubCache(cid, viaApi.clients, { preserveArchived: true }) : { pruned_clients: 0, pruned_trainings: 0 }
     notifyAdminClientsCacheUpdated()
     const { clients } = await listAdminClientsFromLocalCache(cid)
@@ -242,17 +216,6 @@ export async function listAdminClientsForClub(p) {
           }
         } catch (memErr) {
           console.warn('[admin] list-memberships', memErr)
-        }
-        try {
-          const viaHc = await fetchHealthCardsForClubViaApi(clubId)
-          if (viaHc?.health_cards?.length) {
-            await mergeHealthCardsIntoCache(viaHc.health_cards)
-          }
-          if (viaHc?.body_measurements?.length) {
-            await mergeBodyMeasurementsIntoCache(viaHc.body_measurements)
-          }
-        } catch (hcErr) {
-          console.warn('[admin] list-health-cards', hcErr)
         }
         const { clients, truncated } = await listAdminClientsFromLocalCache(clubId)
         return {

@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { FileText } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { LOCAL_DATA_CHANGED } from '../lib/dataAccess'
-import { getDb } from '../lib/localDb'
+import { loadDraftTrainingsForBar } from '../lib/draftTrainingsQuery'
 import { formatDateRu } from '../lib/dateRu'
 
 function surnameOnly(name) {
@@ -32,19 +32,15 @@ export function DraftTabsBar() {
     const run = async () => {
       if (!user?.id) return
       try {
-        const db = await getDb()
-        const [allTrainings, allClients] = await Promise.all([db.getAll('trainings'), db.getAll('clients')])
+        const { drafts: draftRows, clientById: cmap } = await loadDraftTrainingsForBar({
+          userId: user.id,
+          isAdmin,
+          adminClubId,
+          cap: 25,
+        })
         if (!alive) return
-        const cmap = {}
-        for (const c of allClients) cmap[c.id] = c
         setClientById(cmap)
-        const draftRows = allTrainings
-          .filter((t) => t.status === 'draft')
-          .filter((t) => cmap[t.client_id])
-          .filter((t) => (isAdmin ? (adminClubId ? t.club_id === adminClubId : false) : t.trainer_id === user.id))
-          .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
-        const capped = isAdmin ? draftRows.slice(0, 25) : draftRows
-        setDrafts(capped)
+        setDrafts(draftRows)
       } catch {
         if (!alive) return
         setDrafts([])
@@ -101,4 +97,3 @@ export function DraftTabsBar() {
     </div>
   )
 }
-

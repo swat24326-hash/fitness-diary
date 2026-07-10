@@ -4,7 +4,7 @@
  */
 import { requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
-import { TRAINER_PULL_MAX_TRAININGS } from './_lib/apiLimits.js'
+import { TRAINER_PULL_MAX_TRAININGS, TRAINER_PULL_BODY_MEASUREMENTS_MONTHS, TRAINER_PULL_MAX_BODY_MEASUREMENTS } from './_lib/apiLimits.js'
 import { normalizeMatrixRowsFromDb } from '../src/lib/admin/salesTrainingsMatrix.js'
 import {
   aggregatePayrollFromDailyRows,
@@ -171,6 +171,11 @@ async function handler(req, res) {
   }
 
   const body_measurements = []
+  const measurementsSince = new Date()
+  measurementsSince.setMonth(measurementsSince.getMonth() - TRAINER_PULL_BODY_MEASUREMENTS_MONTHS)
+  const measurementsSinceIso = measurementsSince.toISOString().slice(0, 10)
+  let bodyMeasurementsTruncated = false
+
   for (let i = 0; i < clientIds.length; i += IN_CHUNK) {
     const chunk = clientIds.slice(i, i + IN_CHUNK)
     if (!chunk.length) continue
@@ -179,12 +184,20 @@ async function handler(req, res) {
       .from('body_measurements')
       .select('*')
       .in('client_id', chunk)
+      .gte('date', measurementsSinceIso)
       .order('date', { ascending: false })
     if (bme) {
       sendJson(res, 400, { error: bme.message })
       return
     }
-    body_measurements.push(...(bm ?? []))
+    for (const row of bm ?? []) {
+      if (body_measurements.length >= TRAINER_PULL_MAX_BODY_MEASUREMENTS) {
+        bodyMeasurementsTruncated = true
+        break
+      }
+      body_measurements.push(row)
+    }
+    if (bodyMeasurementsTruncated) break
   }
 
   const trainings = []
@@ -225,6 +238,8 @@ async function handler(req, res) {
     body_measurements,
     trainings,
     trainings_truncated: trainingsTruncated,
+    body_measurements_truncated: bodyMeasurementsTruncated,
+    measurements_since: measurementsSinceIso,
     trainings_since: trainingsSince || null,
     incremental: Boolean(trainingsSince),
     count: {

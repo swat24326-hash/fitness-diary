@@ -11,7 +11,7 @@ import {
 } from '../../lib/admin/adminConstants'
 import { formatDateRu } from '../../lib/dateRu'
 import { membershipCardTypeLabelForTraining } from '../../lib/admin/membershipTypeStatsAgg'
-import { getDb } from '../../lib/localDb'
+import { listMembershipsByClubId } from '../../lib/localDbClubQuery'
 import { listMembershipTypesForClub } from '../../lib/membershipTypesService'
 import { AdminInactiveClientsPanel } from '../../components/AdminInactiveClientsPanel'
 import { TrainingExercisesReadonly } from '../../components/TrainingExercisesReadonly'
@@ -147,9 +147,7 @@ export function TrainerStatisticsSection() {
       setMembershipTypes([])
     }
     try {
-      const db = await getDb()
-      const all = await db.getAll('memberships')
-      setMemberships(all.filter((m) => m.club_id === trainerClubId))
+      setMemberships(await listMembershipsByClubId(trainerClubId))
     } catch {
       setMemberships([])
     }

@@ -11,7 +11,7 @@ import {
   formatChallengeValueRu,
   formatChallengeMetricRu,
 } from '../../lib/dataAccess'
-import { getAllStore } from '../../lib/localDb'
+import { listClientsByTrainerId } from '../../lib/localDbClubQuery'
 import { formatDateRu } from '../../lib/dateRu'
 import { isAppOnline } from '../../lib/syncService'
 import { useDebouncedStorageReload, shouldReloadTrainerChallenges } from '../../lib/useDebouncedStorageReload'
@@ -104,7 +104,7 @@ export function TrainerHome() {
           }
         }
 
-        const clients = await getAllStore('clients')
+        const clients = await listClientsByTrainerId(trainerId)
         if (gen !== loadGenRef.current) return
 
         const items = []

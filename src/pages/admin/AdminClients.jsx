@@ -8,10 +8,10 @@ import {
   listAdminClientsForClub,
   listTrainerSummariesForAdmin,
 } from '../../lib/dataAccess'
-import { loadAdminClubWorkspaceExtras } from '../../lib/admin/adminClubWorkspaceCache'
+import { loadAdminClubMembershipsMap, loadAdminClubTrainingsForClientIds } from '../../lib/admin/adminClubWorkspaceCache'
 import { pullAdminClientsFromCloud } from '../../lib/admin/adminClientsListService'
 import { useDebouncedStorageReload, shouldReloadAdminClientsPage } from '../../lib/useDebouncedStorageReload'
-import { ADMIN_CLIENTS_REMOTE_LIMIT } from '../../lib/admin/adminConstants'
+import { ADMIN_CLIENTS_PAGE_SIZE, ADMIN_CLIENTS_REMOTE_LIMIT } from '../../lib/admin/adminConstants'
 import { isSupabaseConfigured, supabase } from '../../lib/supabase'
 import { USERS_TRAINER_ROLES } from '../../lib/userRoleConstants'
 import { saveLocalWithSync } from '../../lib/syncService'
@@ -50,10 +50,21 @@ function membershipSignal(list, today) {
   return { key: 'active', color: '#22c55e', label: 'активен' }
 }
 
-function lastTrainingDate(trainings, clientId) {
-  const ts = trainings.filter((t) => t.client_id === clientId).map((t) => t.date || t.created_at?.slice(0, 10))
-  if (!ts.length) return '—'
-  return formatDateRu(ts.sort((a, b) => String(b).localeCompare(String(a)))[0])
+function lastTrainingDateFromMap(map, clientId) {
+  const d = map?.[clientId]
+  return d ? formatDateRu(d) : '—'
+}
+
+function buildLastTrainingMap(trainings) {
+  const out = {}
+  for (const t of trainings ?? []) {
+    const cid = String(t?.client_id ?? '')
+    if (!cid) continue
+    const d = String(t.date ?? t.created_at?.slice(0, 10) ?? '')
+    if (!d) continue
+    if (!out[cid] || d > out[cid]) out[cid] = d
+  }
+  return out
 }
 
 export function AdminClients() {
@@ -63,10 +74,13 @@ export function AdminClients() {
   const club = search.get('club') ?? clubIdCtx ?? ''
 
   const [clients, setClients] = useState([])
-  const [trainings, setTrainings] = useState([])
   const [memByClient, setMemByClient] = useState({})
+  const [lastTrainingByClient, setLastTrainingByClient] = useState({})
+  const [pageTrainings, setPageTrainings] = useState([])
   const [trainerNameById, setTrainerNameById] = useState({})
   const [busy, setBusy] = useState(false)
+  const [listPage, setListPage] = useState(0)
+  const [pageTrainingsBusy, setPageTrainingsBusy] = useState(false)
   const [query, setQuery] = useState('')
   const [trainerQuery, setTrainerQuery] = useState('')
   const [quickFilter, setQuickFilter] = useState('all')
@@ -107,17 +121,16 @@ export function AdminClients() {
 
       const arr = Array.isArray(list) ? list : []
       setClients(arr)
+      setLastTrainingByClient({})
+      setPageTrainings([])
 
-      const { memByClient: map, trainings: tFiltered } = await loadAdminClubWorkspaceExtras(
-        club || '',
-        arr.map((c) => c.id),
-      )
+      const map = club ? await loadAdminClubMembershipsMap(club) : {}
       setMemByClient(map)
-      setTrainings(tFiltered)
     } catch {
       setClients([])
-      setTrainings([])
       setMemByClient({})
+      setLastTrainingByClient({})
+      setPageTrainings([])
       setTrainerNameById({})
       setSource('local')
       setFallback(null)
@@ -205,6 +218,51 @@ export function AdminClients() {
       return sig.key === quickFilter
     })
   }, [clients, clientsTab, query, trainerQuery, quickFilter, memByClient, today, trainerNameById])
+
+  const totalPages = Math.max(1, Math.ceil(filteredClients.length / ADMIN_CLIENTS_PAGE_SIZE))
+
+  useEffect(() => {
+    setListPage(0)
+  }, [clientsTab, query, trainerQuery, quickFilter, club])
+
+  useEffect(() => {
+    if (listPage > totalPages - 1) setListPage(Math.max(0, totalPages - 1))
+  }, [listPage, totalPages])
+
+  const pagedClients = useMemo(() => {
+    const start = listPage * ADMIN_CLIENTS_PAGE_SIZE
+    return filteredClients.slice(start, start + ADMIN_CLIENTS_PAGE_SIZE)
+  }, [filteredClients, listPage])
+
+  useEffect(() => {
+    const ids = pagedClients.map((c) => c.id).filter(Boolean)
+    if (!club?.trim() || !ids.length) {
+      setLastTrainingByClient({})
+      setPageTrainings([])
+      return
+    }
+    let cancelled = false
+    setPageTrainingsBusy(true)
+    void (async () => {
+      try {
+        const rows = await loadAdminClubTrainingsForClientIds(club, ids)
+        if (!cancelled) {
+          setPageTrainings(rows)
+          setLastTrainingByClient(buildLastTrainingMap(rows))
+        }
+      } catch {
+        if (!cancelled) {
+          setLastTrainingByClient({})
+          setPageTrainings([])
+        }
+      } finally {
+        if (!cancelled) setPageTrainingsBusy(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [club, pagedClients])
 
   const filterCounts = useMemo(() => {
     const tabBase = clientsTab === 'archive' ? clients.filter((c) => Boolean(c?.archived_at)) : clients.filter((c) => !c?.archived_at)
@@ -476,13 +534,13 @@ export function AdminClients() {
 
         {!cloudNeedsClub && filteredClients.length > 0 ? (
           <ul className="list">
-            {filteredClients.map((c) => {
+            {pagedClients.map((c) => {
               const mlist = memByClient[c.id] ?? []
-              const clientTrainings = trainings.filter((t) => t.client_id === c.id)
+              const clientTrainings = pageTrainings.filter((t) => t.client_id === c.id)
               const active = pickUsableMembershipForDate(mlist, today)
               const sig = membershipSignal(mlist, today)
               const expiredLeft = active ? null : pickExpiredMembershipWithRemaining(mlist, today)
-              const last = lastTrainingDate(trainings, c.id)
+              const last = lastTrainingDateFromMap(lastTrainingByClient, c.id)
               return (
                 <li key={c.id} className="list-item td-client-item">
                   <div className="row td-client-row">
@@ -595,6 +653,39 @@ export function AdminClients() {
               )
             })}
           </ul>
+        ) : null}
+
+        {!cloudNeedsClub && filteredClients.length > ADMIN_CLIENTS_PAGE_SIZE ? (
+          <div className="row" style={{ marginTop: 12, justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+            <span className="muted" style={{ fontSize: 13 }}>
+              {pageTrainingsBusy ? 'Загрузка тренировок страницы…' : null}
+              {!pageTrainingsBusy ? (
+                <>
+                  Страница <strong>{listPage + 1}</strong> из <strong>{totalPages}</strong>
+                  {' · '}
+                  показано {pagedClients.length} из {filteredClients.length}
+                </>
+              ) : null}
+            </span>
+            <div className="row" style={{ gap: 8 }}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-touch"
+                disabled={listPage <= 0 || busy}
+                onClick={() => setListPage((p) => Math.max(0, p - 1))}
+              >
+                Назад
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-touch"
+                disabled={listPage >= totalPages - 1 || busy}
+                onClick={() => setListPage((p) => Math.min(totalPages - 1, p + 1))}
+              >
+                Вперёд
+              </button>
+            </div>
+          </div>
         ) : null}
       </section>
 

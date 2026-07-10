@@ -29,3 +29,6 @@ export const ADMIN_CLIENT_COUNT_BATCH = 5000
  * для очень больших баз лучше пагинация или отдельный поиск, а не один список.
  */
 export const ADMIN_CLIENTS_REMOTE_LIMIT = 50000
+
+/** Строк на странице списка клиентов (UI-пагинация). */
+export const ADMIN_CLIENTS_PAGE_SIZE = 50

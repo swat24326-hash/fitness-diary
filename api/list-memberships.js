@@ -4,6 +4,7 @@
  */
 import { requireAdmin, sendJson, setCors } from './_lib/adminSupabase.js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
+import { LIST_MEMBERSHIPS_MAX } from './_lib/apiLimits.js'
 
 const PAGE = 500
 const IN_CHUNK = 80
@@ -57,18 +58,30 @@ async function handler(req, res) {
   }
 
   const memberships = []
+  let truncated = false
   for (let i = 0; i < clientIds.length; i += IN_CHUNK) {
     const chunk = clientIds.slice(i, i + IN_CHUNK)
     if (!chunk.length) continue
+    if (memberships.length >= LIST_MEMBERSHIPS_MAX) {
+      truncated = true
+      break
+    }
     const { data, error } = await supabaseAdmin.from('memberships').select('*').in('client_id', chunk)
     if (error) {
       sendJson(res, 400, { error: error.message })
       return
     }
-    memberships.push(...(data ?? []))
+    for (const row of data ?? []) {
+      if (memberships.length >= LIST_MEMBERSHIPS_MAX) {
+        truncated = true
+        break
+      }
+      memberships.push(row)
+    }
+    if (truncated) break
   }
 
-  sendJson(res, 200, { memberships, count: memberships.length, club_id: rawClub })
+  sendJson(res, 200, { memberships, count: memberships.length, club_id: rawClub, truncated })
 }
 
 export default withSafeApiHandler(handler, { label: 'list-memberships' })

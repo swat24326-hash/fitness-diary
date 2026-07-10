@@ -71,6 +71,10 @@ run('app error journal', 'node', ['scripts/verify-app-error-journal.mjs'])
 run('project health', 'node', ['scripts/verify-project-health.mjs'])
 run('local db club query', 'node', ['scripts/verify-local-db-club-query.mjs'])
 run('trainer pull incremental', 'node', ['scripts/verify-trainer-pull-incremental.mjs'])
+run('club monthly years bounds', 'node', ['scripts/verify-club-monthly-years-bounds.mjs'])
+run('idb retention', 'node', ['scripts/verify-idb-retention.mjs'])
+run('draft trainings query', 'node', ['scripts/verify-draft-trainings-query.mjs'])
+run('challenges club query', 'node', ['scripts/verify-challenges-club-query.mjs'])
 
 if (!skipLint) {
   run('lint', 'npm', ['run', 'lint'])

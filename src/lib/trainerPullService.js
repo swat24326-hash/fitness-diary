@@ -21,6 +21,7 @@ import {
   shouldForceFullTrainerPull,
 } from './trainerPullIncremental'
 import { pruneRedundantSyncQueue, purgeSyncQueueForMissingClients } from './syncQueueOrphans'
+import { pruneLocalTrainingsForTrainer } from './idbRetention'
 import { pruneOrphanTrainingsForTrainerClients } from './clientTrainingsCache'
 import { invalidateTrainerWorkspaceCache } from './trainerWorkspaceCache'
 
@@ -125,6 +126,8 @@ export async function pullTrainerWorkspaceFromCloud(trainerId, opts = {}) {
       const pruned = await cacheTrainerPull(tid, viaApi, { mode })
       if (mode === 'active') {
         await setMeta(META_TRAINER_PULL_AT, Date.now())
+        const pending = await buildPendingSyncKeysByTable()
+        await pruneLocalTrainingsForTrainer(tid, { pendingTrainingIds: pending?.trainings ?? new Set() })
       }
       return {
         ok: true,

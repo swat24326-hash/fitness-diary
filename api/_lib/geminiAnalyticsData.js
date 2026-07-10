@@ -1,5 +1,6 @@
 import { aggregateTrainings, aggregateClubClientPeriod } from './clubStatsAgg.js'
 import { aggregateMembershipTypeStats } from './membershipTypeStatsAgg.js'
+import { fetchClubStatsRaw } from './clubStatsFetch.js'
 import { monthDateRange } from '../../src/lib/admin/salesReportCore.js'
 import {
   aggregatePayrollFromDailyRows,
@@ -21,28 +22,11 @@ import { getCachedGeminiSnapshot, setCachedGeminiSnapshot } from './geminiAnalyt
 const SALES_MONTH_SELECT =
   'report_date, profit_nk, profit_dk, profit_uk, profit_day, refunds_amount, pnk_total, trainings_count, trainings_matrix, aerobic_sales_matrix, matrix_amounts, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, dop_nk, dop_dk, dop_uk'
 
-async function fetchPaged(supabaseAdmin, table, select, clubId, dateFrom, dateTo) {
-  const PAGE = 400
-  const rows = []
-  let from = 0
-  for (;;) {
-    let q = supabaseAdmin.from(table).select(select).eq('club_id', clubId)
-    if (table === 'trainings' && dateFrom && dateTo) {
-      q = q.gte('date', dateFrom).lte('date', dateTo)
-    }
-    const { data, error } = await q.order('id', { ascending: true }).range(from, from + PAGE - 1)
-    if (error) throw error
-    const chunk = data ?? []
-    rows.push(...chunk)
-    if (chunk.length < PAGE) break
-    from += PAGE
-  }
-  return rows
-}
-
 async function loadMonthRaw(supabaseAdmin, clubId, year, month) {
   const { start, end } = monthDateRange(year, month)
-  const [monthRes, planRes, expenseRes, typesRes, trainings, clients, memberships, usersRes] = await Promise.all([
+  const membershipTypesSelect =
+    'id, code, trainer_assignable, trainer_pay_per_session, aerobic_pay_amount'
+  const [monthRes, planRes, expenseRes, clubStatsRaw, usersRes] = await Promise.all([
     supabaseAdmin
       .from('club_sales_daily')
       .select(SALES_MONTH_SELECT)
@@ -64,21 +48,25 @@ async function loadMonthRaw(supabaseAdmin, clubId, year, month) {
       .eq('year', year)
       .eq('month', month)
       .maybeSingle(),
-    supabaseAdmin
-      .from('membership_types')
-      .select('id, code, trainer_assignable, trainer_pay_per_session, aerobic_pay_amount')
-      .eq('club_id', clubId),
-    fetchPaged(supabaseAdmin, 'trainings', 'id, trainer_id, client_id, date, status, data', clubId, start, end),
-    fetchPaged(supabaseAdmin, 'clients', 'id, name, archived_at, trainer_id', clubId, null, null),
-    fetchPaged(supabaseAdmin, 'memberships', 'id, client_id, start_date, end_date, total_trainings, used_trainings, membership_type_id', clubId, null, null),
+    fetchClubStatsRaw(supabaseAdmin, {
+      clubId,
+      dateFrom: start,
+      dateTo: end,
+      membershipTypesSelect,
+    }),
     supabaseAdmin.from('users').select('id, name, role').eq('club_id', clubId),
   ])
 
-  const err = monthRes.error || planRes.error || expenseRes.error || typesRes.error || usersRes.error
+  const err = monthRes.error || planRes.error || expenseRes.error || usersRes.error
   if (err) throw err
 
+  const trainings = clubStatsRaw.trainings
+  const clients = clubStatsRaw.clients
+  const memberships = clubStatsRaw.memberships
+  const statsTruncated = clubStatsRaw.truncated
+
   const monthRows = monthRes.data ?? []
-  const membershipTypes = typesRes.data ?? []
+  const membershipTypes = clubStatsRaw.membershipTypes
   const aerobicTypes = filterAerobicSalesTypes(membershipTypes)
   const payRateMap = buildTrainerPayRateMap(membershipTypes)
   const aerobicRateMap = buildAerobicPayRateMap(aerobicTypes)
@@ -98,13 +86,14 @@ async function loadMonthRaw(supabaseAdmin, clubId, year, month) {
     trainingAgg,
     inactiveInPeriod: clientPeriod.inactiveInPeriod ?? 0,
     fitCityCompleted,
-    membershipTypes: typesRes.data ?? [],
+    membershipTypes,
     users: usersRes.data ?? [],
     clients,
     trainings,
     memberships,
     dateFrom: start,
     dateTo: end,
+    stats_truncated: statsTruncated,
   }
 }
 

@@ -1,7 +1,11 @@
 /**
- * Один проход по IndexedDB для дашборда/списка клиентов тренера (вместо 3× getAll подряд).
+ * Снимок рабочего места тренера из IndexedDB (индексы v9+, без getAll).
  */
-import { getDb } from './localDb'
+import {
+  listClientsByTrainerId,
+  listMembershipsMapByClientIds,
+  listTrainingsByTrainerId,
+} from './localDbClubQuery'
 import { buildLastTrainingDateByClientId, buildTrainingsByClientId } from './trainerWorkspaceIndexes'
 
 const STORAGE_EVENT = 'fitness-diary-storage'
@@ -32,25 +36,13 @@ export function invalidateTrainerWorkspaceCache() {
   }, 900)
 }
 
-function buildMemMap(memberships, clientIds) {
-  const ids = new Set(clientIds)
-  const map = {}
-  for (const m of memberships ?? []) {
-    const cid = m.client_id
-    if (!cid || !ids.has(cid)) continue
-    if (!map[cid]) map[cid] = []
-    map[cid].push(m)
-  }
-  return map
-}
 
-/** Клуб из профиля + клубы из клиентов тренера в кэше (как collectTrainerClubIds). */
-function trainerClubIds(allClients, trainerId, trainerClubId) {
+function trainerClubIds(clients, trainerId, trainerClubId) {
   const tid = String(trainerId ?? '').trim()
   const out = new Set()
   const fromProfile = String(trainerClubId ?? '').trim()
   if (fromProfile) out.add(fromProfile)
-  for (const c of allClients ?? []) {
+  for (const c of clients ?? []) {
     if (String(c.trainer_id) === tid && c.club_id) out.add(String(c.club_id))
   }
   return out
@@ -80,13 +72,7 @@ export async function loadTrainerWorkspaceSnapshot(trainerId, trainerClubId) {
     }
   }
 
-  const db = await getDb()
-  const [allClients, allTrainings, allMemberships] = await Promise.all([
-    db.getAll('clients'),
-    db.getAll('trainings'),
-    db.getAll('memberships'),
-  ])
-
+  const allClients = await listClientsByTrainerId(tid)
   const clubIds = trainerClubIds(allClients, tid, trainerClubId)
   const key = `${tid}:${[...clubIds].sort().join(',')}`
   if (snapshot?.key === key) {
@@ -100,7 +86,7 @@ export async function loadTrainerWorkspaceSnapshot(trainerId, trainerClubId) {
     }
   }
 
-  let clientsAll = (allClients ?? []).filter((c) => String(c.trainer_id) === tid)
+  let clientsAll = allClients
   if (clubIds.size > 0) {
     clientsAll = clientsAll.filter((c) => clubIds.has(String(c.club_id ?? '')))
   }
@@ -111,14 +97,15 @@ export async function loadTrainerWorkspaceSnapshot(trainerId, trainerClubId) {
   const clientIds = clientsAll.map((c) => c.id)
   const clientIdSet = new Set(clientIds)
 
-  const trainings = (allTrainings ?? []).filter((t) => {
-    if (String(t.trainer_id) !== tid) return false
+  const trainerTrainings = await listTrainingsByTrainerId(tid)
+  const trainings = trainerTrainings.filter((t) => {
     if (t.client_id && clientIdSet.has(t.client_id)) return true
     if (clubIds.size === 0) return true
     return clubIds.has(String(t.club_id ?? ''))
   })
 
-  const memByClient = buildMemMap(allMemberships, clientIds)
+  const memMap = await listMembershipsMapByClientIds(clientIds)
+  const memByClient = memMap
   const trainingsByClientId = buildTrainingsByClientId(trainings)
   const lastTrainingDateByClientId = buildLastTrainingDateByClientId(trainings)
 

@@ -132,3 +132,29 @@ export function discoverMonthlyChartYears(trainings, opts = {}) {
   return out.length ? out : [maxY]
 }
 
+/**
+ * Список годов для селектора без полного pull тренировок.
+ * @param {{ minYear?: number | null, maxYear?: number | null, anchorYear?: number }} bounds
+ */
+export function discoverMonthlyChartYearsFromBounds(bounds = {}) {
+  const now = new Date().getFullYear()
+  const anchor = Number(bounds.anchorYear)
+  let maxY = Math.max(now, Number.isFinite(anchor) ? anchor : now)
+  let minY = maxY
+
+  const minRaw = Number(bounds.minYear)
+  const maxRaw = Number(bounds.maxYear)
+  if (Number.isFinite(minRaw) && minRaw >= 2000 && minRaw <= now + 1) {
+    minY = Math.min(minY, minRaw)
+    maxY = Math.max(maxY, minRaw)
+  }
+  if (Number.isFinite(maxRaw) && maxRaw >= 2000 && maxRaw <= now + 1) {
+    minY = Math.min(minY, maxRaw)
+    maxY = Math.max(maxY, maxRaw)
+  }
+
+  const out = []
+  for (let y = maxY; y >= minY; y--) out.push(y)
+  return out.length ? out : [maxY]
+}
+

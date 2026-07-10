@@ -2,7 +2,7 @@ import { openDB } from 'idb'
 
 const DB_NAME = 'fitness-diary'
 /** Повышать при схемных правках; клиенты уже на max version не получают upgrade без нового номера. */
-const DB_VERSION = 9
+const DB_VERSION = 10
 
 /**
  * Локальное хранилище: кэш сущностей + очередь синхронизации (поля как в sync_queue на сервере + local_id).
@@ -60,7 +60,8 @@ export async function getDb() {
 
       /* Челленджи: в конце upgrade — если стора нет (старые v3/v4, сбой миграции), создаём */
       if (!db.objectStoreNames.contains('challenges')) {
-        db.createObjectStore('challenges', { keyPath: 'id' })
+        const challenges = db.createObjectStore('challenges', { keyPath: 'id' })
+        challenges.createIndex('by_club_id', 'club_id', { unique: false })
       }
 
       if (!db.objectStoreNames.contains('membership_types')) {
@@ -107,6 +108,13 @@ export async function getDb() {
           if (!store.indexNames.contains('by_client_id')) {
             store.createIndex('by_client_id', 'client_id', { unique: false })
           }
+        }
+      }
+
+      if (oldVersion < 10 && transaction && db.objectStoreNames.contains('challenges')) {
+        const store = transaction.objectStore('challenges')
+        if (!store.indexNames.contains('by_club_id')) {
+          store.createIndex('by_club_id', 'club_id', { unique: false })
         }
       }
     },
@@ -247,6 +255,11 @@ export async function putStoreUnlessPendingSync(storeName, record, pending) {
 export async function getAllStore(storeName) {
   const db = await getDb()
   return db.getAll(storeName)
+}
+
+export async function getAllKeysFromStore(storeName) {
+  const db = await getDb()
+  return db.getAllKeys(storeName)
 }
 
 export async function deleteFromStore(storeName, key) {

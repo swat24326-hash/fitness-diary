@@ -1,7 +1,7 @@
 /**
  * Очередь sync после удаления клиента в облаке: снять insert/update и убрать локальные «хвосты».
  */
-import { getDb, listSyncQueue, removeSyncItem } from './localDb'
+import { getDb, getAllKeysFromStore, listSyncQueue, removeSyncItem } from './localDb'
 import { markRecordSynced } from './syncLocalRecords'
 import {
   isSyncQueueOrphanForCloudClients,
@@ -59,8 +59,7 @@ export async function purgeSyncQueueForMissingClients(remoteClientIds) {
 
 /** Снять очередь по client_id, которых уже нет в IndexedDB (после reconcile на устройстве). */
 export async function purgeSyncQueueAgainstLocalClients() {
-  const db = await getDb()
-  const localIds = new Set((await db.getAll('clients')).map((c) => String(c.id)).filter(Boolean))
+  const localIds = new Set((await getAllKeysFromStore('clients')).map((id) => String(id)).filter(Boolean))
   return purgeSyncQueueForMissingClients(localIds)
 }
 

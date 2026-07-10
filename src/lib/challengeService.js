@@ -1,5 +1,12 @@
 import { isSupabaseConfigured } from './supabase'
-import { buildPendingSyncKeysByTable, getDb, getAllStore, putStoreUnlessPendingSync } from './localDb'
+import { buildPendingSyncKeysByTable, getDb, putStoreUnlessPendingSync } from './localDb'
+import {
+  listChallengesByClubId,
+  listClientsByClubId,
+  listClientsByTrainerId,
+  listTrainingsByClubIdInRange,
+} from './localDbClubQuery'
+import { mergeChallengeLists, sortChallengesByCreatedDesc } from './challengesClubQuery'
 import { todayLocalIso } from './dateRu'
 import { isAppOnline, saveLocalWithSync, deleteLocalWithSync } from './syncService'
 import { pushRecordViaApi } from './syncApiClient'
@@ -170,9 +177,9 @@ export async function collectTrainerClubIds(trainerId, profileClubId) {
   if (fromProfile) out.add(fromProfile)
   const tid = String(trainerId ?? '').trim()
   if (!tid) return [...out]
-  const clients = await getAllStore('clients')
+  const clients = await listClientsByTrainerId(tid)
   for (const c of clients ?? []) {
-    if (String(c.trainer_id) === tid && c.club_id) out.add(String(c.club_id))
+    if (c.club_id) out.add(String(c.club_id))
   }
   return [...out]
 }
@@ -191,11 +198,8 @@ export async function listChallengesForTrainer(trainerId, profileClubId, { pullR
     }
   }
 
-  const all = await getAllStore('challenges')
-  const idSet = new Set(clubIds)
-  const challenges = (all ?? [])
-    .filter((c) => idSet.has(String(c.club_id ?? '')))
-    .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
+  const lists = await Promise.all(clubIds.map((cid) => listChallengesByClubId(cid)))
+  const challenges = mergeChallengeLists(lists)
 
   return { challenges, pull, clubIds }
 }
@@ -207,29 +211,27 @@ export async function listChallengesForTrainer(trainerId, profileClubId, { pullR
 export async function loadContextForChallengeLeaderboard(clubId, opts = {}) {
   const cid = String(clubId ?? '').trim()
   const ch = opts.challenge
+  let dateFrom = ''
+  let dateTo = ''
   if (ch && opts.pullRemote !== false && cid && isSupabaseConfigured() && isAppOnline()) {
-    const from = String(ch.start_date ?? '').slice(0, 10)
-    const to = String(ch.end_date ?? '').slice(0, 10)
-    if (from && to) {
+    dateFrom = String(ch.start_date ?? '').slice(0, 10)
+    dateTo = String(ch.end_date ?? '').slice(0, 10)
+    if (dateFrom && dateTo) {
       try {
-        await pullChallengeTrainingsForPeriod(cid, from, to, { notify: opts.notifyPull !== false })
+        await pullChallengeTrainingsForPeriod(cid, dateFrom, dateTo, { notify: opts.notifyPull !== false })
       } catch (e) {
         console.warn('[challenge] pull trainings', e)
       }
     }
   }
 
-  const [trainings, clients, exercises] = await Promise.all([
-    getAllStore('trainings'),
-    getAllStore('clients'),
-    getAllStore('exercises'),
-  ])
-  const clubClients = (clients ?? []).filter((c) => String(c.club_id) === cid)
-  const clientIds = new Set(clubClients.map((c) => c.id))
-  const clubTrainings = (trainings ?? []).filter((t) => {
-    if (String(t.club_id) === cid) return true
-    return t.client_id && clientIds.has(t.client_id)
-  })
+  const clubClients = await listClientsByClubId(cid)
+  const from = dateFrom || String(ch?.start_date ?? '').slice(0, 10)
+  const to = dateTo || String(ch?.end_date ?? '').slice(0, 10)
+  const clubTrainings =
+    from && to ? await listTrainingsByClubIdInRange(cid, from, to) : []
+  const { listExercisesCached } = await import('./exerciseCatalog')
+  const exercises = await listExercisesCached()
   const trainerNameById = await buildTrainerNameMap()
   return { trainings: clubTrainings, clients: clubClients, exercises: exercises ?? [], trainerNameById }
 }
@@ -242,10 +244,8 @@ export async function getChallengeByIdLocal(id) {
 
 export async function listChallengesLocalForClub(clubId) {
   if (!clubId) return []
-  const rows = await getAllStore('challenges')
-  return (rows ?? [])
-    .filter((c) => String(c.club_id) === String(clubId))
-    .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
+  const rows = await listChallengesByClubId(clubId)
+  return sortChallengesByCreatedDesc(rows)
 }
 
 export async function pullChallengesForClub(clubId) {

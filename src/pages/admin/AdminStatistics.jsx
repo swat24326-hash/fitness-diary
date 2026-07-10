@@ -15,7 +15,7 @@ import {
 import { formatDateRu } from '../../lib/dateRu'
 import { fetchMembershipsForClubViaAdminApi } from '../../lib/admin/adminApiClient'
 import { membershipCardTypeLabelForTraining } from '../../lib/admin/membershipTypeStatsAgg'
-import { getDb } from '../../lib/localDb'
+import { listMembershipsByClubId } from '../../lib/localDbClubQuery'
 import { listMembershipTypesForClub } from '../../lib/membershipTypesService'
 import { AdminInactiveClientsPanel } from '../../components/AdminInactiveClientsPanel'
 import { TrainingExercisesReadonly } from '../../components/TrainingExercisesReadonly'
@@ -167,9 +167,7 @@ export function AdminStatistics() {
       /* локальный кэш */
     }
     try {
-      const db = await getDb()
-      const all = await db.getAll('memberships')
-      setMemberships(all.filter((m) => m.club_id === club))
+      setMemberships(await listMembershipsByClubId(club))
     } catch {
       setMemberships([])
     }

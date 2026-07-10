@@ -3,6 +3,7 @@
  */
 
 import { getDb } from './localDb'
+import { listTrainingsByClientId } from './localDbClubQuery'
 import { trainingIdsToPruneForClient } from './clientTrainingsPrune'
 import { invalidateAdminClubWorkspaceCache } from './admin/adminClubWorkspaceCache'
 import { invalidateTrainerWorkspaceCache } from './trainerWorkspaceCache'
@@ -23,7 +24,7 @@ function notifyTrainingsCachePruned(pruned) {
  */
 export async function pruneOrphanTrainingsForClient(clientId, remoteTrainings, pendingTrainingIds = null) {
   const db = await getDb()
-  const local = await db.getAll('trainings')
+  const local = await listTrainingsByClientId(clientId)
   const ids = trainingIdsToPruneForClient(clientId, local, remoteTrainings, pendingTrainingIds)
   for (const id of ids) {
     await db.delete('trainings', id)
@@ -50,9 +51,9 @@ export async function pruneOrphanTrainingsForTrainerClients(clients, remoteTrain
   }
 
   const db = await getDb()
-  const local = await db.getAll('trainings')
   let pruned = 0
   for (const cid of clientIds) {
+    const local = await listTrainingsByClientId(cid)
     const ids = trainingIdsToPruneForClient(cid, local, remoteByClient.get(cid) ?? [], pendingTrainingIds)
     for (const id of ids) {
       await db.delete('trainings', id)
