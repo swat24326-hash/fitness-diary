@@ -306,6 +306,13 @@
   font-size: 0.88rem;
 }
 
+.gemini-panel__speak-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
 .gemini-panel__gender {
   display: flex;
   gap: 0.45rem;

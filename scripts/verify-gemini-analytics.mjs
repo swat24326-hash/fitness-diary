@@ -59,6 +59,8 @@ import {
   polishIskraReplyText,
   expandAbbreviationsForSpeech,
 } from '../src/lib/admin/iskraReplyPhrasing.js'
+import { buildIskraClubFinanceBlock } from '../src/lib/admin/clubFinanceForecastCore.js'
+import { buildIskraIntroPitch } from '../src/lib/admin/iskraBusinessHighlights.js'
 
 let failed = 0
 
@@ -115,6 +117,7 @@ const snap = buildGeminiSnapshot({
 })
 
 ok(snap.sales.profit_total === 6600, 'profit total')
+ok(snap.club_finance?.available === false || snap.club_finance?.fact, 'snapshot club finance block')
 ok(snap.sales.pnk_total === 8, 'pnk total')
 ok(snap.sales.plan_progress_pct === 66, 'plan progress')
 ok(snap.sales.achieved_plan_level === 2, 'achieved plan level')
@@ -158,14 +161,15 @@ const noFinance = buildGeminiSnapshot({
 ok(noFinance.finance === undefined, 'finance hidden')
 
 ok(GEMINI_ANALYTICS_MODEL === 'gemini-2.5-flash-lite', 'default model lite')
-ok(buildSystemPrompt('male', 'X').includes('70 слов'), 'brief prompt rule')
+ok(buildSystemPrompt('male', 'X').includes('100 слов'), 'brief prompt rule')
+ok(buildSystemPrompt('male', 'X').includes('club_finance'), 'prompt club finance rule')
 ok(buildSystemPrompt('male', 'X').includes('ЯЗЫК ОТВЕТА'), 'prompt business language')
 ok(buildSystemPrompt('male', 'Север').includes('sales_contour'), 'prompt internal sales contour')
 ok(buildSystemPrompt('male', 'X').includes('советск'), 'prompt soviet tone')
 ok(buildSystemPrompt('male', 'X').includes('ИСТОЧНИК ЦИФР'), 'prompt estimate policy rule')
 ok(buildSystemPrompt('male', 'X').includes('Оценка ИСКРЫ'), 'prompt estimate disclaimer')
 ok(buildSystemPrompt('male', 'X').includes('calendar_context'), 'prompt calendar rule')
-ok(buildSystemPrompt('male', 'X').includes('month_forecast'), 'prompt month forecast rule')
+ok(buildSystemPrompt('male', 'X').includes('club_finance'), 'prompt club finance in focus rule')
 
 const midMonth = buildGeminiMonthCalendarContext(2026, 7, new Date(2026, 6, 15))
 ok(midMonth.phase === 'middle', 'calendar middle july 15')
@@ -357,12 +361,38 @@ const instantForecast = buildGeminiInstantReply('month_forecast', {
       report_days: 10,
       days_in_month: 30,
     },
+    club_finance: {
+      available: true,
+      forecast: {
+        gross_rub: 1200000,
+        plan_pct: 92.3,
+        shortfall_rub: 100000,
+        surplus_rub: 0,
+        net_profit_rub: 450000,
+        directions: [{ label: 'ПЗ', plan_target_rub: 400000, forecast_progress_pct: 85 }],
+      },
+      fact: { plan_target_rub: 1300000 },
+    },
   },
 })
-ok(instantForecast?.includes('прогноз вала на конец месяца'), 'instant forecast gross')
+ok(instantForecast?.includes('Прогноз вала на конец месяца'), 'instant forecast gross')
 ok(instantForecast?.includes('не дотянем') && instantForecast?.includes('92.3%'), 'instant forecast shortfall')
 ok(instantForecast?.includes('Чистая прибыль к концу месяца'), 'instant forecast net profit')
+ok(instantForecast?.includes('отстают: ПЗ'), 'instant forecast direction lag')
 ok(instantForecast?.endsWith('.'), 'instant forecast ends with dot')
+
+const cfBlock = buildIskraClubFinanceBlock({
+  monthRows: [
+    { report_date: '2026-07-01', profit_nk: 1000 },
+    { report_date: '2026-07-05', profit_nk: 1000 },
+    { report_date: '2026-07-10', profit_nk: 1000 },
+  ],
+  year: 2026,
+  month: 7,
+  planForm: { plan_level_3: 1300000, plan_pz: 400000, plan_tz: 300000, plan_az: 300000 },
+  today: new Date(2026, 6, 10),
+})
+ok(cfBlock?.available === true && cfBlock.forecast?.directions?.length === 3, 'club finance block directions')
 ok(
   (instantPlan?.match(/отстаём|отстающие|без критичного|в темпе/gi) ?? []).length <= 2,
   'instant plan no redundant lag wording',
@@ -418,12 +448,14 @@ const introClub = buildGeminiIntroReply('standard', {
   clubName: 'FIT-CITY Север',
 })
 ok(introClub.includes('FIT-CITY Север') && introClub.includes('ИСКРА'), 'intro uses club name and iskra')
+ok(introClub.includes('план') || introClub.includes('прогноз'), 'intro business pitch')
+ok(buildIskraIntroPitch(snap).includes('план'), 'intro pitch helper')
 const introOther = buildGeminiIntroReply('standard', {
   snapshot: snap,
   gender: 'female',
   clubName: 'FIT-CITY Юг',
 })
-ok(introOther.includes('FIT-CITY Юг') && introOther.includes('продаж'), 'intro other club business')
+ok(introOther.includes('FIT-CITY Юг') && (introOther.includes('план') || introOther.includes('прогноз')), 'intro other club business')
 const microNoClub = buildGeminiMicroIntro({ hasClub: false, gender: 'male' })
 ok(microNoClub.includes('филиал') || microNoClub.includes('шапке'), 'micro no club hint')
 

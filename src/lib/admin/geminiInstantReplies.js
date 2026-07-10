@@ -280,7 +280,17 @@ function buildPlanReply(club, period, snapshot, insights, opener, closer, seed) 
   const praise =
     planInsight.tone === 'strong' ? ` ${capitalizeSentence(pickWord(GEMINI_LEXICON_POOLS.praise, seed))}.` : ''
 
-  return `${ISKRA_NAME}: ${club}, ${period}. ${phrasePlanProgress(pct)}, ${formatRub(profit)} из ${formatRub(plan)}.${paceLine}${dirLine}${reportLine}${levelLine}${push}${praise} ${closer}.`
+  let forecastLine = ''
+  const cf = snapshot?.club_finance
+  if (cf?.available && cf.forecast?.plan_pct != null) {
+    forecastLine = ` Прогноз на конец месяца — ${cf.forecast.plan_pct}%`
+    if (cf.forecast.net_profit_rub != null) {
+      forecastLine += `, чистая прибыль ${formatRub(cf.forecast.net_profit_rub)}`
+    }
+    forecastLine += '.'
+  }
+
+  return `${ISKRA_NAME}: ${club}, ${period}. ${phrasePlanProgress(pct)}, ${formatRub(profit)} из ${formatRub(plan)}.${paceLine}${dirLine}${reportLine}${levelLine}${forecastLine}${push}${praise} ${closer}.`
 }
 
 function buildGapReply(club, period, insights, opener, closer, seed) {
@@ -344,31 +354,36 @@ function buildFitcityReply(club, period, insights, opener, closer, seed) {
 }
 
 function buildFinanceReply(club, period, insights, opener, closer, seed, snapshot) {
+  const cf = snapshot?.club_finance
   const fin = insights.finance ?? snapshot?.finance
-  if (!fin) {
-    const hint = iskraUnavailableHint(
-      snapshot?.data_availability,
-      'finance',
-    )
-    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: ${hint} Для этого ответа нужен блок финансов из отчёта. ${closer}.`
+  if (!fin && !cf?.available) {
+    const hint = iskraUnavailableHint(snapshot?.data_availability, 'finance')
+    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: ${hint} ${closer}.`
   }
 
-  const net = Number(fin.net_profit) || 0
-  const payroll = Number(fin.trainer_payroll) || 0
-  const payrollShare = Number(fin.payroll_share_pct) || 0
+  const net = Number(fin?.net_profit ?? cf?.fact?.net_profit_rub) || 0
+  const payroll = Number(fin?.trainer_payroll ?? cf?.fact?.trainer_payroll_rub) || 0
+  const expense = Number(fin?.supervisor_expense ?? cf?.fact?.supervisor_expense_rub) || 0
 
-  if (fin.margin_tone === 'negative') {
-    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: чистая прибыль ${formatRub(net)} — ${pickWord(GEMINI_LEXICON_POOLS.critique, seed)}; ЗП персонального зала ${formatRub(payroll)} (${payrollShare}% от валовой). ${pickWord(GEMINI_LEXICON_POOLS.push, seed)}. ${closer}.`
+  let forecastLine = ''
+  if (cf?.available && cf.forecast?.net_profit_rub != null) {
+    forecastLine = ` Прогноз чистой прибыли к концу месяца — ${formatRub(cf.forecast.net_profit_rub)}.`
+  }
+
+  let hallsLine = ''
+  const halls = cf?.fact?.halls
+  if (halls) {
+    hallsLine = ` По залам сейчас: ПЗ ${formatRub(halls.pz_net_profit_rub)}, ТЗ ${formatRub(halls.tz_revenue_rub)}, АЗ ${formatRub(halls.az_net_profit_rub)}.`
   }
 
   const tone =
-    fin.margin_tone === 'strong'
-      ? pickWord(GEMINI_LEXICON_POOLS.praise, seed)
-      : fin.margin_tone === 'ok'
-        ? 'терпимо'
-        : pickWord(GEMINI_LEXICON_POOLS.critique, seed)
+    net < 0
+      ? pickWord(GEMINI_LEXICON_POOLS.critique, seed)
+      : net > 0
+        ? pickWord(GEMINI_LEXICON_POOLS.praise, seed)
+        : 'на нуле'
 
-  return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: чистая ${formatRub(net)}, ЗП ПЗ ${formatRub(payroll)} (${payrollShare}% от ${formatRub(fin.gross)}) — ${tone}. ${closer}.`
+  return `${ISKRA_NAME}: ${club}, ${period}. Чистая прибыль ${formatRub(net)} — ${tone}. ЗП ПЗ ${formatRub(payroll)}, расход управляющего ${formatRub(expense)}.${hallsLine}${forecastLine} ${closer}.`
 }
 
 function formatDayRu(iso) {
@@ -471,40 +486,41 @@ function buildSalesDirectionsReply(club, period, insights, opener, closer) {
 }
 
 function buildMonthForecastReply(club, period, snapshot, opener, closer, seed) {
+  const cf = snapshot?.club_finance
   const mf = snapshot?.month_forecast
-  if (!mf?.available) {
-    if (mf?.reason === 'not_current_month') {
-      return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: прогноз на конец месяца доступен только для текущего календарного месяца — выбранный период уже закрыт или ещё не начался. ${closer}.`
+  const block = cf?.available ? cf : mf
+
+  if (!block?.available) {
+    if (block?.reason === 'not_current_month') {
+      return `${ISKRA_NAME}: ${club}, ${period}. Прогноз на конец месяца — только для текущего календарного месяца. ${closer}.`
     }
-    if (mf?.reason === 'insufficient_reports') {
-      const need = Number(mf.min_report_days) || 3
-      const have = Number(mf.report_days) || 0
-      return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: для прогноза нужно минимум ${need} дневных отчётов — сейчас ${have}. Данные приняты, сводка появится позже. ${closer}.`
+    if (block?.reason === 'insufficient_reports') {
+      const need = Number(block.min_report_days) || 3
+      const have = Number(block.report_days) || 0
+      return `${ISKRA_NAME}: ${club}, ${period}. Для прогноза нужно минимум ${need} отчётов — сейчас ${have}. ${closer}.`
     }
-    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: прогноз на месяц пока недоступен — мало данных в отчётах. ${closer}.`
+    return `${ISKRA_NAME}: ${club}, ${period}. Прогноз пока недоступен — мало данных. ${closer}.`
   }
 
-  const gross = Number(mf.forecast_gross_total) || 0
-  const plan = Number(mf.plan_level_3) || 0
-  const pct = Number(mf.forecast_plan_pct) || 0
-  const shortfall = Number(mf.shortfall_rub) || 0
-  const surplus = Number(mf.surplus_rub) || 0
-  const netProfit = mf.forecast_net_profit
-  const reportDays = Number(mf.report_days) || 0
-  const daysInMonth = Number(mf.days_in_month) || 0
+  const gross = Number(cf?.forecast?.gross_rub ?? mf?.forecast_gross_total) || 0
+  const plan = Number(cf?.fact?.plan_target_rub ?? mf?.plan_level_3) || 0
+  const pct = Number(cf?.forecast?.plan_pct ?? mf?.forecast_plan_pct) || 0
+  const shortfall = Number(cf?.forecast?.shortfall_rub ?? mf?.shortfall_rub) || 0
+  const surplus = Number(cf?.forecast?.surplus_rub ?? mf?.surplus_rub) || 0
+  const netProfit = cf?.forecast?.net_profit_rub ?? mf?.forecast_net_profit
 
   let planLine = ''
   if (plan > 0) {
     if (surplus > 0) {
-      planLine = ` К плану ур. 3 (${formatRub(plan)}) прогноз ${pct}% — переработаем на ${formatRub(surplus)}.`
+      planLine = ` План ${formatRub(plan)}: прогноз ${pct}% — переработаем на ${formatRub(surplus)}.`
     } else if (shortfall > 0) {
-      planLine = ` К плану ур. 3 (${formatRub(plan)}) прогноз ${pct}% — не дотянем ${formatRub(shortfall)}.`
+      planLine = ` План ${formatRub(plan)}: прогноз ${pct}% — не дотянем ${formatRub(shortfall)}.`
       if (pct < 90) planLine += formatPushLine(seed + 2)
     } else {
-      planLine = ` К плану ур. 3 (${formatRub(plan)}) прогноз ровно в цель — ${pct}%.`
+      planLine = ` План ${formatRub(plan)}: прогноз ${pct}% — в цель.`
     }
   } else {
-    planLine = ` План ур. 3 не задан — ориентир только по факту: прогноз вала ${formatRub(gross)}.`
+    planLine = ` План не задан — прогноз вала ${formatRub(gross)}.`
   }
 
   let profitLine = ''
@@ -519,10 +535,17 @@ function buildMonthForecastReply(club, period, snapshot, opener, closer, seed) {
     profitLine = ` Чистая прибыль к концу месяца — ${formatRub(net)}, ${tone}.`
   }
 
-  const basis =
-    reportDays > 0 && daysInMonth > 0
-      ? ` По ${reportDays} отчётам из ${daysInMonth} дней месяца.`
-      : ''
+  let dirLine = ''
+  const directions = cf?.forecast?.directions ?? []
+  const lagging = directions.filter(
+    (d) => (Number(d.plan_target_rub) || 0) > 0 && (Number(d.forecast_progress_pct) || 0) < 90,
+  )
+  if (lagging.length) {
+    const parts = lagging.map(
+      (d) => `${d.label} ${d.forecast_progress_pct}%`,
+    )
+    dirLine = ` По прогнозу отстают: ${parts.join(', ')}.`
+  }
 
-  return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: прогноз вала на конец месяца — ${formatRub(gross)}.${planLine}${profitLine}${basis} ${closer}.`
+  return `${ISKRA_NAME}: ${club}, ${period}. Прогноз вала на конец месяца — ${formatRub(gross)}.${planLine}${profitLine}${dirLine} ${closer}.`
 }

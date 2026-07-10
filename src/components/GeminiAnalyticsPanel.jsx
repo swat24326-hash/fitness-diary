@@ -28,11 +28,8 @@ import { GeminiContextKpi } from './GeminiContextKpi.jsx'
 import {
   isSpeechRecognitionSupported,
   loadGeminiAutoSpeak,
-  loadGeminiGender,
-  previewGeminiVoice,
   primeGeminiSpeechPlayback,
   saveGeminiAutoSpeak,
-  saveGeminiGender,
   speakGeminiText,
   startGeminiSpeechRecognition,
   stopGeminiSpeech,
@@ -54,6 +51,8 @@ const MONTH_NAMES = [
   'ноябрь',
   'декабрь',
 ]
+
+const ISKRA_TTS_GENDER = 'female'
 
 const CHIP_ICONS = {
   intro: CircleHelp,
@@ -102,7 +101,6 @@ export function GeminiAnalyticsPanel({
   const now = new Date()
   const [year, setYear] = useState(initialYear ?? now.getFullYear())
   const [month, setMonth] = useState(initialMonth ?? now.getMonth() + 1)
-  const [gender, setGender] = useState(() => loadGeminiGender())
   const [autoSpeak, setAutoSpeak] = useState(() => loadGeminiAutoSpeak())
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
@@ -189,7 +187,7 @@ export function GeminiAnalyticsPanel({
         content: `${buildGeminiMicroIntro({
           clubName,
           periodLabel: periodLabelRu(year, month),
-          gender: loadGeminiGender(),
+          gender: ISKRA_TTS_GENDER,
           hasClub: !!clubId,
         })}${focusLine}`,
       },
@@ -281,7 +279,7 @@ export function GeminiAnalyticsPanel({
 
   const personaLabel = ISKRA_NAME
   const personaShort = 'И'
-  const panelClass = `gemini-panel gemini-panel--${gender}${entered ? ' gemini-panel--open' : ''}`
+  const panelClass = `gemini-panel gemini-panel--female${entered ? ' gemini-panel--open' : ''}`
 
   useEffect(() => {
     if (rateLimitSec <= 0) return undefined
@@ -325,7 +323,7 @@ export function GeminiAnalyticsPanel({
           clubId,
           year,
           month,
-          gender,
+          gender: ISKRA_TTS_GENDER,
           userMessage,
           messages: chatHistory,
           comparePrevious: compare,
@@ -374,7 +372,7 @@ export function GeminiAnalyticsPanel({
         setError('')
         if (autoSpeak && reply && !incomplete) {
           window.setTimeout(() => {
-            void speakGeminiText(reply, gender)
+            void speakGeminiText(reply, ISKRA_TTS_GENDER)
           }, 80)
         }
       } catch (e) {
@@ -399,7 +397,7 @@ export function GeminiAnalyticsPanel({
         setInput('')
       }
     },
-    [clubId, year, month, gender, chatHistory, loading, stopListening, autoSpeak, rateLimitSec, activeTrainerId],
+    [clubId, year, month, chatHistory, loading, stopListening, autoSpeak, rateLimitSec, activeTrainerId],
   )
 
   const comparePreviousFromChip = useCallback(
@@ -466,7 +464,7 @@ export function GeminiAnalyticsPanel({
         <div className="gemini-panel__chrome">
         <header className="gemini-panel__head">
           <div className="gemini-panel__head-main">
-            <div className={`gemini-panel__avatar gemini-panel__avatar--${gender}`} aria-hidden>
+            <div className="gemini-panel__avatar gemini-panel__avatar--female" aria-hidden>
               <Sparkles size={18} />
             </div>
             <div>
@@ -554,31 +552,7 @@ export function GeminiAnalyticsPanel({
             </button>
           </div>
 
-          <div className="gemini-panel__gender" role="group" aria-label="Голос озвучки">
-            <button
-              type="button"
-              className={`gemini-panel__gender-btn${gender === 'female' ? ' gemini-panel__gender-btn--active' : ''}`}
-              onClick={() => {
-                setGender('female')
-                saveGeminiGender('female')
-                primeGeminiSpeechPlayback()
-                previewGeminiVoice('female')
-              }}
-            >
-              ♀ Голос
-            </button>
-            <button
-              type="button"
-              className={`gemini-panel__gender-btn${gender === 'male' ? ' gemini-panel__gender-btn--active' : ''}`}
-              onClick={() => {
-                setGender('male')
-                saveGeminiGender('male')
-                primeGeminiSpeechPlayback()
-                previewGeminiVoice('male')
-              }}
-            >
-              ♂ Голос
-            </button>
+          <div className="gemini-panel__speak-controls">
             <button
               type="button"
               className={`gemini-panel__speak-toggle${autoSpeak ? ' gemini-panel__speak-toggle--on' : ''}`}
@@ -589,10 +563,8 @@ export function GeminiAnalyticsPanel({
                 setAutoSpeak((on) => {
                   const next = !on
                   saveGeminiAutoSpeak(next)
-                  if (next) {
-                    primeGeminiSpeechPlayback()
-                    previewGeminiVoice(gender)
-                  } else stopGeminiSpeech()
+                  if (next) primeGeminiSpeechPlayback()
+                  else stopGeminiSpeech()
                   return next
                 })
               }}
@@ -634,7 +606,7 @@ export function GeminiAnalyticsPanel({
             >
               {msg.role === 'assistant' ? (
                 <>
-                  <div className={`gemini-panel__msg-avatar gemini-panel__msg-avatar--${gender}`} aria-hidden>
+                  <div className="gemini-panel__msg-avatar gemini-panel__msg-avatar--female" aria-hidden>
                     {personaShort}
                   </div>
                   <div className="gemini-panel__msg-body">
@@ -671,7 +643,7 @@ export function GeminiAnalyticsPanel({
                         aria-label="Озвучить"
                         onClick={() => {
                           primeGeminiSpeechPlayback()
-                          void speakGeminiText(msg.content, gender)
+                          void speakGeminiText(msg.content, ISKRA_TTS_GENDER)
                         }}
                       >
                         <Volume2 size={14} />
@@ -695,7 +667,7 @@ export function GeminiAnalyticsPanel({
           ))}
           {loading ? (
             <div className="gemini-panel__msg gemini-panel__msg--assistant gemini-panel__msg--typing" aria-busy="true">
-              <div className={`gemini-panel__msg-avatar gemini-panel__msg-avatar--${gender}`} aria-hidden>
+              <div className="gemini-panel__msg-avatar gemini-panel__msg-avatar--female" aria-hidden>
                 {personaShort}
               </div>
               <div className="gemini-panel__msg-body">

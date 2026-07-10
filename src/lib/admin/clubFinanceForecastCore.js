@@ -8,6 +8,7 @@ import {
   parseSalesMoney,
   resolveDailyProfitFromRow,
   sumDirectionRubFromDailyRows,
+  buildHallFinanceSummary,
 } from './salesReportCore.js'
 import { normalizeMatrixRowsFromDb, sumTypedMatrixRows } from './salesTrainingsMatrix.js'
 import {
@@ -343,4 +344,103 @@ export function buildIskraMonthForecastSummary(opts) {
   }
 
   return summary
+}
+
+/**
+ * Блок «Финансы клуба» для ИСКРЫ — тот же движок, что вкладка прогноза в отчёте менеджера.
+ * @param {{
+ *   monthRows: Array<Record<string, unknown>>,
+ *   year: number,
+ *   month: number,
+ *   expense?: number,
+ *   membershipTypes?: Array<Record<string, unknown>>,
+ *   planForm?: Record<string, string | number | undefined> | null,
+ *   includeFinance?: boolean,
+ *   today?: Date,
+ * }} opts
+ */
+export function buildIskraClubFinanceBlock(opts) {
+  const includeFinance = opts.includeFinance !== false
+  const fc = buildClubFinanceForecast({
+    monthRows: opts.monthRows ?? [],
+    year: opts.year,
+    month: opts.month,
+    expense: opts.expense,
+    membershipTypes: opts.membershipTypes,
+    planForm: opts.planForm ?? undefined,
+    today: opts.today,
+  })
+
+  if (!fc.ok) {
+    return {
+      available: false,
+      reason: fc.reason,
+      report_days: fc.reportDays ?? 0,
+      min_report_days: fc.minReportDays ?? MIN_REPORT_DAYS_FOR_FORECAST,
+    }
+  }
+
+  const hallFinance = buildHallFinanceSummary(
+    opts.monthRows ?? [],
+    fc.fact.trainerPayroll,
+    fc.fact.aerobicPayroll,
+  )
+
+  const planLevel3 = fc.plan.level3
+  const forecastGross = fc.plan.forecastGross
+  const surplus =
+    planLevel3 > 0 && forecastGross > planLevel3 ? roundRub(forecastGross - planLevel3) : 0
+  const shortfall =
+    planLevel3 > 0 && forecastGross < planLevel3 ? roundRub(planLevel3 - forecastGross) : 0
+
+  /** @type {Record<string, unknown>} */
+  const block = {
+    available: true,
+    method: 'avg_per_report_day_times_days_in_month',
+    report_days: fc.reportDays,
+    days_in_month: fc.daysInMonth,
+    fact: {
+      plan_gross_rub: fc.plan.factGross,
+      plan_target_rub: planLevel3,
+      plan_progress_pct: fc.plan.factProgressPercent,
+      earnings_rub: fc.fact.earnings,
+      refunds_rub: fc.fact.refunds,
+      net_profit_rub: fc.fact.netProfit,
+      trainer_payroll_rub: fc.fact.trainerPayroll,
+      aerobic_payroll_rub: fc.fact.aerobicPayroll,
+      supervisor_expense_rub: fc.fact.expense,
+      halls: {
+        pz_net_profit_rub: hallFinance.pz?.netProfit ?? 0,
+        pz_revenue_rub: hallFinance.pz?.revenue ?? 0,
+        tz_revenue_rub: hallFinance.tz?.revenue ?? 0,
+        az_net_profit_rub: hallFinance.az?.netProfit ?? 0,
+        az_revenue_rub: hallFinance.az?.revenue ?? 0,
+      },
+    },
+    forecast: {
+      gross_rub: forecastGross,
+      earnings_rub: fc.forecast.earnings,
+      plan_pct: fc.plan.forecastProgressPercent,
+      will_reach_plan: fc.plan.reach.willReach,
+      shortfall_rub: shortfall,
+      surplus_rub: surplus,
+      directions: (fc.plan.directions ?? []).map((d) => ({
+        key: d.key,
+        label: d.label,
+        mode: d.mode,
+        plan_target_rub: d.planTarget,
+        fact: d.fact,
+        forecast: d.forecast,
+        fact_progress_pct: d.factProgressPercent,
+        forecast_progress_pct: d.forecastProgressPercent,
+        will_reach: d.reach?.willReach === true,
+      })),
+    },
+  }
+
+  if (includeFinance) {
+    block.forecast.net_profit_rub = fc.forecast.netProfit
+  }
+
+  return block
 }

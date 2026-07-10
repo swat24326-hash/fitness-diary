@@ -21,7 +21,7 @@ import {
   shouldFlagLowPlan,
 } from './geminiMonthCalendarContext.js'
 import { buildPlanDirectionInsights } from './geminiPlanDirections.js'
-import { buildIskraMonthForecastSummary } from './clubFinanceForecastCore.js'
+import { buildIskraMonthForecastSummary, buildIskraClubFinanceBlock } from './clubFinanceForecastCore.js'
 
 export const MONTH_LABELS_RU = [
   'январь',
@@ -156,13 +156,6 @@ export function buildClubMonthInsights(opts) {
 
   /** @type {Array<{ id: string, weight: number, text: string }>} */
   const issues = []
-  if (coveragePct < COVERAGE_WEAK_PCT) {
-    issues.push({
-      id: 'low_coverage',
-      weight: 100 - coveragePct,
-      text: `база отчётов ${coveragePct}% — цифры сырые`,
-    })
-  }
   if (planTotal > 0 && shouldFlagLowPlan(planPct, planTotal, calendarContext)) {
     const vsCalendar = comparePlanToCalendar(planPct, calendarContext)
     const expected = calendarContext?.expected_plan_progress_pct
@@ -174,13 +167,6 @@ export function buildClubMonthInsights(opts) {
       id: 'low_plan',
       weight: 50 - planPct,
       text,
-    })
-  }
-  if (gap > FITCITY_GAP_ISSUE) {
-    issues.push({
-      id: 'fitcity_gap',
-      weight: gap,
-      text: `расхождение отчёт/FIT-CITY ${gap} тренировок`,
     })
   }
   if (inactive >= INACTIVE_ISSUE) {
@@ -419,6 +405,17 @@ export function buildClubMonthAnalytics(opts) {
     today: opts.today,
   })
 
+  const clubFinance = buildIskraClubFinanceBlock({
+    monthRows,
+    year,
+    month,
+    expense,
+    membershipTypes,
+    planForm: opts.plan,
+    includeFinance,
+    today: opts.today,
+  })
+
   return {
     club_name: String(opts.clubName ?? '').trim() || 'клуб',
     period: {
@@ -484,6 +481,7 @@ export function buildClubMonthAnalytics(opts) {
     finance,
     insights,
     month_forecast: monthForecast,
+    club_finance: clubFinance,
     data_sources: buildGeminiDataSourcesMeta({
       managerReportTotal: manualTrainings,
       fitCityTotal: fitCity,

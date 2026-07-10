@@ -45,11 +45,10 @@ export function buildIskraDataAvailability(snapshot, opts = {}) {
   const insights = snapshot?.insights ?? {}
   const finance = snapshot?.finance
   const monthForecast = snapshot?.month_forecast
+  const clubFinance = snapshot?.club_finance
   const trainerContour = snapshot?.trainer_contour
   const selectedTrainerId = String(opts.selectedTrainerId ?? trainerContour?.selected_trainer_id ?? '').trim()
-  const daysInMonth = Number(snapshot?.period?.days_in_month) || 0
   const reportDays = Number(sales.days_with_reports) || 0
-  const coveragePct = Number(sales.report_coverage_pct) || 0
 
   /** @type {Array<{ id: string, label_ru: string, available: boolean, reason: string | null, hint_ru: string | null }>} */
   const topics = []
@@ -66,9 +65,17 @@ export function buildIskraDataAvailability(snapshot, opts = {}) {
   pushTopic(topics, {
     id: 'month_forecast',
     label_ru: 'прогноз на конец месяца',
-    available: monthForecast?.available === true,
-    reason: String(monthForecast?.reason ?? 'missing'),
-    hint_ru: monthForecastHint(monthForecast),
+    available: monthForecast?.available === true || clubFinance?.available === true,
+    reason: String(monthForecast?.reason ?? clubFinance?.reason ?? 'missing'),
+    hint_ru: monthForecastHint(monthForecast ?? clubFinance),
+  })
+
+  pushTopic(topics, {
+    id: 'club_finance',
+    label_ru: 'финансы клуба (прогноз и залы)',
+    available: clubFinance?.available === true,
+    reason: String(clubFinance?.reason ?? 'missing'),
+    hint_ru: monthForecastHint(clubFinance),
   })
 
   pushTopic(topics, {
@@ -107,16 +114,12 @@ export function buildIskraDataAvailability(snapshot, opts = {}) {
       : 'Контур тренеров пуст — нет данных FIT-CITY за период.',
   })
 
-  const minReports = Number(monthForecast?.min_report_days) || 3
   pushTopic(topics, {
     id: 'report_coverage',
-    label_ru: 'достаточное покрытие отчётами',
-    available: reportDays >= minReports && coveragePct >= 30,
-    reason: reportDays < minReports ? 'insufficient_reports' : 'low_report_coverage',
-    hint_ru:
-      reportDays < minReports
-        ? `Мало дневных отчётов (${reportDays}) — сводка предварительная.`
-        : `Отчётов ${reportDays} из ${daysInMonth || '—'} (${coveragePct}%) — выводы предварительные.`,
+    label_ru: 'отчёт за сегодня внесён',
+    available: reportDays > 0,
+    reason: 'no_reports_yet',
+    hint_ru: 'Дневных отчётов в месяце пока нет — сводка появится после первого внесения.',
   })
 
   const unavailable = topics.filter((t) => !t.available)

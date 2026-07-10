@@ -159,6 +159,7 @@ export function compactSnapshotForPrompt(snapshot, selectedTrainerId = null) {
         }
       : undefined,
     month_forecast: snapshot.month_forecast ?? null,
+    club_finance: snapshot.club_finance ?? null,
     data_sources: snapshot.data_sources?.analysis_hints?.length
       ? { analysis_hints: snapshot.data_sources.analysis_hints }
       : undefined,

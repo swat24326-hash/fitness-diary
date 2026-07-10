@@ -28,7 +28,7 @@ export const GEMINI_GENERATION_CONFIG_RETRY = {
 }
 
 export const GEMINI_RESPONSE_BRIEF_RULE =
-  'Ответ: 2–4 коротких предложения, до 70 слов. План — «выполнен на N%», к дате — «норма N%», факт — «выполнено N%». Язык бизнеса, лёгкий советский колорит ЭВМ, без полей JSON и «контуров». Без markdown. Закончи точкой.'
+  'Ответ: 2–5 предложений, до 100 слов. Приоритет: план, суммы, прогноз club_finance, чистая прибыль. Связывай данные; свои выводы — с «Оценка ИСКРЫ». Без markdown. Закончи точкой.'
 
 /** Явный флаг или формулировка вопроса про прошлый месяц / динамику. */
 export function shouldComparePreviousMonth(userMessage) {
@@ -135,6 +135,7 @@ export function buildGeminiPromptDataBlock(snapshot, previousSnapshot = null, op
     trainings: current?.trainings ?? null,
     insights: current?.insights ?? null,
     month_forecast: current?.month_forecast ?? snapshot?.month_forecast ?? null,
+    club_finance: current?.club_finance ?? snapshot?.club_finance ?? null,
     data_sources: current?.data_sources ?? null,
     data_availability: buildIskraDataAvailability(snapshot, {
       hasPreviousPeriod: !!previousSnapshot,
