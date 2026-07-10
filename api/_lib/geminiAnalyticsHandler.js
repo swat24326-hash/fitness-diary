@@ -25,6 +25,7 @@ import {
   buildGeminiIntroReply,
   matchGeminiIntroIntent,
 } from '../../src/lib/admin/geminiAssistantIntro.js'
+import { isIskraOffTopicQuestion } from '../../src/lib/admin/iskraQuestionRouting.js'
 import { periodLabelRu, trimChatHistory } from '../../src/lib/admin/geminiAnalyticsSnapshot.js'
 import { buildPanelKpiFromAnalytics } from '../../src/lib/admin/clubMonthAnalyticsCore.js'
 
@@ -69,16 +70,19 @@ async function tryEdgeGemini(authHeader, payload) {
   }
 }
 
-async function callGeminiForReply(authHeader, geminiPayload, edgeBody, apiKey) {
+async function callGeminiForReply(authHeader, geminiPayload, edgeBody, apiKey, opts = {}) {
   let text = ''
   let source = 'vercel'
+  let edgeResult = null
 
-  const edgeResult = await tryEdgeGemini(authHeader, edgeBody)
-  if (edgeResult?.ok && edgeResult.data?.text) {
-    const edgeText = String(edgeResult.data.text)
-    if (!isGeminiReplyIncomplete(edgeText)) {
-      text = edgeText
-      source = 'edge'
+  if (!opts.skipEdge) {
+    edgeResult = await tryEdgeGemini(authHeader, edgeBody)
+    if (edgeResult?.ok && edgeResult.data?.text) {
+      const edgeText = String(edgeResult.data.text)
+      if (!isGeminiReplyIncomplete(edgeText)) {
+        text = edgeText
+        source = 'edge'
+      }
     }
   }
 
@@ -155,7 +159,8 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
   })
   const includeFinance = body?.include_finance !== false
   const selectedTrainerId = String(body?.selected_trainer_id ?? '').trim() || null
-  const skipCache = body?.skip_cache === true || body?.force_gemini === true
+  const offTopicQuestion = isIskraOffTopicQuestion(userMessage)
+  const skipCache = body?.skip_cache === true || body?.force_gemini === true || offTopicQuestion
   const completionRetry = body?.completion_retry === true
 
   if (!clubId) {
@@ -321,7 +326,9 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
     })
 
     const authHeader = String(req.headers.authorization || req.headers.Authorization || '')
-    const dataBlock = buildGeminiPromptDataBlock(snapshot, previousSnapshot, { selectedTrainerId })
+    const dataBlock = offTopicQuestion
+      ? { context: 'general_knowledge_question', club_name_for_role_reminder: clubName || 'филиала' }
+      : buildGeminiPromptDataBlock(snapshot, previousSnapshot, { selectedTrainerId })
     const edgeBody = {
       gender,
       club_name: clubName,
@@ -333,7 +340,9 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
     }
 
     const apiKey = process.env.GEMINI_API_KEY || ''
-    const { text, source } = await callGeminiForReply(authHeader, geminiPayload, edgeBody, apiKey)
+    const { text, source } = await callGeminiForReply(authHeader, geminiPayload, edgeBody, apiKey, {
+      skipEdge: offTopicQuestion,
+    })
 
     if (isGeminiReplyIncomplete(text)) {
       sendJson(res, 200, {
@@ -349,7 +358,9 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
       return
     }
 
-    setCachedGeminiResponse(clubId, ym.year, ym.month, gender, comparePrevious, userMessage, text)
+    if (!offTopicQuestion) {
+      setCachedGeminiResponse(clubId, ym.year, ym.month, gender, comparePrevious, userMessage, text)
+    }
 
     const persona = buildPersona(gender)
     sendJson(res, 200, {

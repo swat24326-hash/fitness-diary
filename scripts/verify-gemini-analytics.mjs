@@ -9,6 +9,7 @@ import {
   trimChatHistory,
 } from '../src/lib/admin/geminiAnalyticsSnapshot.js'
 import {
+  buildGeminiGeneratePayload,
   buildGeminiPromptDataBlock,
   buildPersona,
   buildSystemPrompt,
@@ -61,6 +62,11 @@ import {
 } from '../src/lib/admin/iskraReplyPhrasing.js'
 import { buildIskraClubFinanceBlock } from '../src/lib/admin/clubFinanceForecastCore.js'
 import { buildIskraIntroPitch } from '../src/lib/admin/iskraBusinessHighlights.js'
+import {
+  isIskraClubAnalyticsQuestion,
+  isIskraOffTopicQuestion,
+  buildIskraQuestionReplyHint,
+} from '../src/lib/admin/iskraQuestionRouting.js'
 
 let failed = 0
 
@@ -161,7 +167,22 @@ const noFinance = buildGeminiSnapshot({
 ok(noFinance.finance === undefined, 'finance hidden')
 
 ok(GEMINI_ANALYTICS_MODEL === 'gemini-2.5-flash-lite', 'default model lite')
-ok(buildSystemPrompt('male', 'X').includes('100 слов'), 'brief prompt rule')
+ok(buildSystemPrompt('male', 'X').includes('80 слов'), 'brief prompt rule')
+ok(buildSystemPrompt('male', 'X').includes('Не про клуб'), 'prompt off-topic rule')
+ok(!isIskraClubAnalyticsQuestion('Кто такой Путин?'), 'putin not club question')
+ok(isIskraClubAnalyticsQuestion('Как выполнен план продаж'), 'plan is club question')
+ok(buildIskraQuestionReplyHint('Кто такой Путин?', 'Клинцы').includes('краткий прямой ответ'), 'off-topic hint')
+ok(isIskraOffTopicQuestion('Кто такой Путин?'), 'putin is off-topic')
+const offTopicPayload = buildGeminiGeneratePayload({
+  gender: 'female',
+  clubName: 'Клинцы',
+  userMessage: 'Кто такой Путин?',
+  snapshot: snap,
+  messages: [],
+})
+const offTopicUserText = offTopicPayload.contents[0].parts[0].text
+ok(offTopicUserText.includes('краткий прямой ответ'), 'off-topic payload has hint')
+ok(!offTopicUserText.includes('sales_contour'), 'off-topic payload no club json')
 ok(buildSystemPrompt('male', 'X').includes('club_finance'), 'prompt club finance rule')
 ok(buildSystemPrompt('male', 'X').includes('ЯЗЫК ОТВЕТА'), 'prompt business language')
 ok(buildSystemPrompt('male', 'Север').includes('sales_contour'), 'prompt internal sales contour')

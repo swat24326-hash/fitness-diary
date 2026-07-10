@@ -4,6 +4,11 @@ import { trimChatHistory, compactSnapshotForPrompt } from './geminiAnalyticsSnap
 import { buildIskraSystemPrompt, buildPersona } from './geminiIskraCore.js'
 import { buildGeminiMonthCalendarContext } from './geminiMonthCalendarContext.js'
 import { buildIskraDataAvailability } from './iskraDataAvailability.js'
+import {
+  buildIskraOffTopicDataBlock,
+  buildIskraQuestionReplyHint,
+  isIskraOffTopicQuestion,
+} from './iskraQuestionRouting.js'
 
 export { buildPersona }
 
@@ -28,7 +33,7 @@ export const GEMINI_GENERATION_CONFIG_RETRY = {
 }
 
 export const GEMINI_RESPONSE_BRIEF_RULE =
-  'Ответ: 2–5 предложений, до 100 слов. Приоритет: план, суммы, прогноз club_finance, чистая прибыль. Связывай данные; свои выводы — с «Оценка ИСКРЫ». Без markdown. Закончи точкой.'
+  'Ответ: 2–4 предложения, до 80 слов. Не про клуб — сначала факт на вопрос, потом одна фраза о пользе ИСКРЫ. Про клуб — план, прогноз, прибыль из JSON. Без markdown. Точка в конце.'
 
 /** Явный флаг или формулировка вопроса про прошлый месяц / динамику. */
 export function shouldComparePreviousMonth(userMessage) {
@@ -114,7 +119,7 @@ export function formatGeminiUserError(message) {
  * @param {string} clubName
  */
 export function buildSystemPrompt(_gender, clubName, opts = {}) {
-  return buildIskraSystemPrompt(clubName, opts)
+  return `${buildIskraSystemPrompt(clubName, opts)}\n\n${GEMINI_RESPONSE_BRIEF_RULE}`
 }
 
 /** Компактный блок данных для промпта (меньше шума для модели). */
@@ -178,15 +183,23 @@ export function buildGeminiGeneratePayload(opts) {
     selectedTrainerId: opts.selectedTrainerId,
   })
   const periodLabel = dataBlock.analysis_period || 'период не задан'
+  const offTopic = isIskraOffTopicQuestion(userMessage)
+  const replyHint = buildIskraQuestionReplyHint(userMessage, clubName)
+  const questionBlock = replyHint
+    ? `Вопрос: ${userMessage}\n\n${replyHint}`
+    : `Вопрос: ${userMessage}`
   const promptOpts = {
     promptAppend: opts.promptAppend,
     analysisFocus: opts.selectedTrainerId ? 'trainer' : 'sales',
   }
+  const payloadDataBlock = offTopic ? buildIskraOffTopicDataBlock(clubName) : dataBlock
 
   const parts = []
   if (history.length === 0) {
     parts.push({
-      text: `Период анализа (только он): ${periodLabel}\n\nДанные (JSON):\n${JSON.stringify(dataBlock)}\n\nВопрос: ${userMessage}`,
+      text: offTopic
+        ? questionBlock
+        : `Период анализа (только он): ${periodLabel}\n\nДанные (JSON):\n${JSON.stringify(payloadDataBlock)}\n\n${questionBlock}`,
     })
   } else {
     for (const msg of history) {
@@ -195,7 +208,9 @@ export function buildGeminiGeneratePayload(opts) {
       })
     }
     parts.push({
-      text: `Период анализа (только он): ${periodLabel}\n\nАктуальные данные (JSON):\n${JSON.stringify(dataBlock)}\n\nНовый вопрос: ${userMessage}`,
+      text: offTopic
+        ? questionBlock
+        : `Период анализа (только он): ${periodLabel}\n\nАктуальные данные (JSON):\n${JSON.stringify(payloadDataBlock)}\n\n${questionBlock}`,
     })
   }
 
