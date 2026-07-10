@@ -2585,56 +2585,153 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   min-height: 0;
 }
 
 .sales-home--fill .sales-home__hero {
-  flex: 1 1 44%;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: clamp(0.85rem, 2vh, 1.75rem);
+  min-height: 0;
+  padding: clamp(1.25rem, 2.5vh, 2rem) clamp(1.5rem, 3.5vw, 2.75rem) clamp(0.75rem, 1.5vh, 1.35rem);
+}
+
+.sales-home--fill .sales-home__hero .sales-report__hero-head {
+  flex-shrink: 0;
+  margin-bottom: 0;
+}
+
+.sales-home--fill .sales-home__hero .sales-report__plan-chart {
+  flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  min-height: 0;
-  padding: clamp(1.1rem, 2.2vh, 1.85rem) clamp(1.25rem, 3vw, 2.5rem);
+  width: 100%;
+  max-width: min(840px, 100%);
+  margin: 0 auto;
+  gap: clamp(0.75rem, 1.6vh, 1.2rem);
+  padding: clamp(0.2rem, 0.7vh, 0.55rem) 0;
+}
+
+.sales-home--fill .sales-home__title {
+  font-size: clamp(1.45rem, 2.6vw, 1.95rem);
+}
+
+.sales-home--fill .sales-report__plan-track {
+  height: clamp(22px, 3.2vh, 32px);
+}
+
+.sales-home--fill .sales-report__plan-milestone {
+  height: clamp(26px, 3.8vh, 36px);
+  margin-top: calc(clamp(26px, 3.8vh, 36px) / -2);
+}
+
+.sales-home--fill .sales-report__plan-milestone-ruler {
+  height: clamp(1.35rem, 2.2vh, 1.75rem);
+  margin-top: clamp(0.35rem, 0.8vh, 0.55rem);
+}
+
+.sales-home--fill .sales-report__plan-milestone-tag {
+  width: clamp(1.25rem, 2vh, 1.5rem);
+  height: clamp(1.25rem, 2vh, 1.5rem);
+  font-size: clamp(0.62rem, 1vh, 0.74rem);
+}
+
+.sales-home--fill .sales-report__plan-fraction {
+  font-size: clamp(1.4rem, 3.8vw, 2.15rem);
+}
+
+.sales-home--fill .sales-report__plan-stats-label {
+  font-size: clamp(0.68rem, 1.1vw, 0.78rem);
+  letter-spacing: 0.1em;
+}
+
+.sales-home--fill .sales-report__plan-levels-grid {
+  gap: clamp(0.55rem, 1.2vw, 0.85rem);
+  margin-top: clamp(0.35rem, 1vh, 0.65rem);
+}
+
+.sales-home--fill .sales-report__plan-level-chip {
+  min-height: clamp(3.25rem, 5.5vh, 4rem);
+  padding: clamp(0.5rem, 1vh, 0.65rem) clamp(0.4rem, 0.8vw, 0.55rem);
+}
+
+.sales-home--fill .sales-report__plan-level-chip-value {
+  font-size: clamp(0.8rem, 1.6vw, 1rem);
+}
+
+.sales-home--fill .sales-home__hero .sales-report__plan-track-wrap {
+  position: relative;
+}
+
+.sales-home--fill .sales-home__hero .sales-report__plan-track-wrap::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  width: 110%;
+  height: 300%;
+  background: radial-gradient(ellipse, rgba(46, 255, 184, 0.09) 0%, transparent 68%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.sales-home--fill .sales-home__hero .sales-report__plan-track,
+.sales-home--fill .sales-home__hero .sales-report__plan-milestone-ruler {
+  position: relative;
+  z-index: 1;
 }
 
 .sales-home--fill .sales-home__tiles {
-  flex: 1 1 56%;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  padding: clamp(0.85rem, 1.8vh, 1.35rem) clamp(1.25rem, 3vw, 2rem) clamp(1rem, 2vh, 1.5rem);
+  justify-content: flex-end;
+  padding: clamp(1rem, 2vh, 1.35rem) clamp(1.5rem, 3.5vw, 2.75rem) clamp(1.25rem, 2.2vh, 1.75rem);
 }
 
 .sales-home--fill .sales-home__tiles-heading {
   flex-shrink: 0;
   margin-top: 0;
-  margin-bottom: clamp(0.65rem, 1.4vh, 1rem);
+  margin-bottom: clamp(0.75rem, 1.5vh, 1rem);
+  font-size: clamp(0.68rem, 1vw, 0.74rem);
 }
 
 .sales-home--fill .sales-home__tile-grid {
-  flex: 1;
-  min-height: 0;
+  flex: none;
   align-items: stretch;
 }
 
 .sales-home--fill .sales-home__tile {
-  min-height: 0;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: clamp(14px, 2vw, 22px);
+  min-height: clamp(84px, 9.5vh, 108px);
+  max-height: 116px;
   height: auto;
-  padding: clamp(16px, 2.5vh, 28px) clamp(12px, 2vw, 18px);
+  padding: clamp(14px, 1.8vh, 20px) clamp(18px, 2.5vw, 28px);
 }
 
 .sales-home--fill .sales-home__tile-icon {
-  width: clamp(48px, 6vh, 72px);
-  height: clamp(48px, 6vh, 72px);
+  width: clamp(52px, 5.2vw, 64px);
+  height: clamp(52px, 5.2vw, 64px);
+  border-radius: 14px;
 }
 
 .sales-home--fill .sales-home__tile-icon svg {
-  width: clamp(28px, 4vh, 40px);
-  height: clamp(28px, 4vh, 40px);
+  width: clamp(28px, 3.2vw, 36px);
+  height: clamp(28px, 3.2vw, 36px);
 }
 
 .sales-home--fill .sales-home__tile-title {
-  font-size: clamp(0.9rem, 1.8vh, 1.15rem);
+  font-size: clamp(1rem, 1.7vw, 1.22rem);
+  text-align: left;
+  flex: 1;
 }
 
 .sales-home__board {
@@ -2815,6 +2912,29 @@
 
   .sales-home__tile {
     min-height: clamp(120px, 14vh, 160px);
+  }
+
+  .sales-home--fill .sales-home__tile {
+    min-height: clamp(90px, 9vh, 112px);
+    max-height: 118px;
+  }
+}
+
+@media (max-width: 600px) {
+  .sales-home--fill .sales-home__tile {
+    flex-direction: column;
+    justify-content: center;
+    max-height: none;
+    min-height: 96px;
+    padding: clamp(14px, 2vh, 18px) clamp(12px, 3vw, 16px);
+  }
+
+  .sales-home--fill .sales-home__tile-title {
+    text-align: center;
+  }
+
+  .sales-home--fill .sales-report__plan-fraction {
+    font-size: clamp(1.2rem, 5.5vw, 1.55rem);
   }
 }
 
