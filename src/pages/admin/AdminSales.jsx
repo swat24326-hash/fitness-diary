@@ -573,9 +573,16 @@ export function AdminSales({ accessMode = 'admin' }) {
                 <p className="sales-home__eyebrow">{monthLabel}</p>
                 <h1 className="sales-home__title">План продаж</h1>
               </div>
-              <button type="button" className="btn btn-secondary btn-sm" onClick={() => void loadBundle()} disabled={busy}>
-                <RefreshCw size={16} aria-hidden className="sales-report__btn-icon" />
-                Обновить
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm btn-icon-square"
+                onClick={() => void loadBundle()}
+                disabled={busy}
+                aria-label="Обновить"
+                title="Обновить"
+                aria-busy={busy}
+              >
+                <RefreshCw size={16} aria-hidden className={busy ? 'icon-spin' : undefined} />
               </button>
             </div>
             <SalesPlanVessel fact={factMonth} planLevels={planLevels} pulseKey={vesselPulse} />
@@ -616,9 +623,16 @@ export function AdminSales({ accessMode = 'admin' }) {
               <h1 className="section-title sales-report__page-title">Продажи</h1>
               <p className="sales-report__month-label muted">{monthLabel}</p>
             </div>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => void loadBundle()} disabled={busy}>
-              <RefreshCw size={16} aria-hidden className="sales-report__btn-icon" />
-              Обновить
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm btn-icon-square"
+              onClick={() => void loadBundle()}
+              disabled={busy}
+              aria-label="Обновить"
+              title="Обновить"
+              aria-busy={busy}
+            >
+              <RefreshCw size={16} aria-hidden className={busy ? 'icon-spin' : undefined} />
             </button>
           </div>
           <SalesPlanVessel fact={factMonth} planLevels={planLevels} pulseKey={vesselPulse} />
@@ -633,9 +647,16 @@ export function AdminSales({ accessMode = 'admin' }) {
               {salesTab === 'report' ? 'Отчёт за день' : salesTab === 'analytics' ? 'Аналитика' : 'Статистика'}
             </h1>
           </div>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => void loadBundle()} disabled={busy}>
-            <RefreshCw size={16} aria-hidden className="sales-report__btn-icon" />
-            Обновить
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm btn-icon-square"
+            onClick={() => void loadBundle()}
+            disabled={busy}
+            aria-label="Обновить"
+            title="Обновить"
+            aria-busy={busy}
+          >
+            <RefreshCw size={16} aria-hidden className={busy ? 'icon-spin' : undefined} />
           </button>
         </div>
       ) : null}
