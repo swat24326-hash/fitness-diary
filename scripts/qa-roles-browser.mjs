@@ -31,6 +31,19 @@ async function login(page, loginName) {
   await page.waitForLoadState('networkidle').catch(() => null)
 }
 
+async function ensureAdminClub(page) {
+  await page.waitForSelector('.app-header__club-select', { timeout: 20000 })
+  const select = page.locator('.app-header__club-select')
+  const hasQa = await select.locator(`option[value="${QA_CLUB_ID}"]`).count()
+  if (hasQa > 0) {
+    await select.selectOption(QA_CLUB_ID)
+  } else {
+    const firstVal = await select.locator('option[value]:not([value=""])').first().getAttribute('value')
+    if (firstVal) await select.selectOption(firstVal)
+  }
+  await page.waitForTimeout(800)
+}
+
 async function testAdmin(page) {
   const role = 'admin'
   const obs = []
@@ -39,12 +52,23 @@ async function testAdmin(page) {
   if (!url.includes('/admin')) obs.push(fail(`expected /admin, got ${url}`, role))
   else obs.push('redirect /admin ok')
 
-  await page.goto(`${PROD_ORIGIN}/admin/clients`, { waitUntil: 'domcontentloaded' })
+  await ensureAdminClub(page)
+  const club = await page.locator('.app-header__club-select').inputValue()
+  if (!club) obs.push(fail('admin club not selected', role))
+
+  await page.goto(`${PROD_ORIGIN}/admin/clients?club=${encodeURIComponent(club)}`, { waitUntil: 'domcontentloaded' })
   obs.push(page.url().includes('/admin/clients') ? 'clients page ok' : fail('clients page', role))
 
-  await page.goto(`${PROD_ORIGIN}/admin/sales?club=${QA_CLUB_ID}`, { waitUntil: 'domcontentloaded' })
+  const salesLink = page.locator(`a[href="/admin/sales?club=${encodeURIComponent(club)}"], a[href*="/admin/sales"]`).first()
+  if ((await salesLink.count()) === 0) {
+    await page.goto(`${PROD_ORIGIN}/admin?club=${encodeURIComponent(club)}`, { waitUntil: 'domcontentloaded' })
+    await page.locator('a[href*="/admin/sales"]').first().click()
+  } else {
+    await salesLink.click()
+  }
   await page.waitForURL(/\/admin\/sales/, { timeout: 20000 })
-  await page.waitForSelector('.sales-report, .sales-report__hero', { timeout: 20000 }).catch(() => null)
+  await page.waitForSelector('.sales-report, .sales-report__hero, .sales-report__tabs', { timeout: 30000 }).catch(() => null)
+  await page.waitForSelector('#sales-tab-finance', { timeout: 30000 }).catch(() => null)
   await page.waitForTimeout(1500)
   const financeTab = await page.locator('#sales-tab-finance').count()
   obs.push(financeTab > 0 ? 'finance tab visible' : fail('finance tab missing for admin', role))
@@ -79,13 +103,23 @@ async function testSales(page) {
   await login(page, `${QA_PREFIX}sales`)
   obs.push(page.url().includes('/sales') && !page.url().includes('/admin') ? 'redirect /sales ok' : fail(`url ${page.url()}`, role))
 
-  await page.waitForSelector('.sales-header', { timeout: 15000 })
-  const financeNav = await page.locator('.sales-header').locator('text=Финансы').count()
+  const headerOk = await page
+    .waitForSelector('.sales-header__title, .app-header', { timeout: 20000 })
+    .then(() => true)
+    .catch(() => false)
+  obs.push(headerOk ? 'sales header ok' : fail('sales header missing', role))
+
+  const financeNav = await page.locator('a[href*="tab=finance"], #sales-tab-finance').count()
   obs.push(financeNav === 0 ? 'no finance in header' : fail('finance in header', role))
 
-  await page.click('a[href="/sales?tab=stats"]')
-  await page.waitForURL(/tab=stats/, { timeout: 10000 })
-  obs.push('stats tab ok')
+  const statsLink = page.locator('a[href="/sales?tab=stats"]')
+  if ((await statsLink.count()) === 0) {
+    obs.push(fail('stats nav link missing', role))
+  } else {
+    await statsLink.first().click()
+    await page.waitForURL(/tab=stats/, { timeout: 15000 }).catch(() => null)
+    obs.push(page.url().includes('tab=stats') ? 'stats tab ok' : fail('stats tab navigation', role))
+  }
 
   const dayBtn = page.locator('.sales-report__day-table tbody tr button, .sales-report__day-table tbody tr').first()
   if (await dayBtn.count()) {
