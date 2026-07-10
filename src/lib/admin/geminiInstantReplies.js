@@ -7,14 +7,14 @@ import { buildGeminiIntroReply, GEMINI_INTRO_CHIP } from './geminiAssistantIntro
 import {
   comparePlanToCalendar,
   formatCalendarContextLine,
-  formatPlanPaceLine,
+  formatPlanPaceLineCompact,
   resolveCalendarContext,
 } from './geminiMonthCalendarContext.js'
 import {
   formatPlanDirectionStatusLine,
   formatPlanDirectionsDetail,
 } from './geminiPlanDirections.js'
-import { phrasePlanProgress } from './iskraReplyPhrasing.js'
+import { phrasePlanSnapshotLine } from './iskraReplyPhrasing.js'
 import { formatRub } from './salesReportCore.js'
 import { periodLabelRu } from './geminiAnalyticsSnapshot.js'
 
@@ -258,7 +258,6 @@ function buildPlanReply(club, period, snapshot, insights, opener, closer, seed) 
   const pct = Number(planInsight.pct ?? sales.plan_progress_pct) || 0
   const coverage = Number(report.coverage_pct ?? sales.report_coverage_pct) || 0
   const days = Number(report.days_with_reports ?? sales.days_with_reports) || 0
-  const total = Number(report.days_in_month ?? snapshot.period?.days_in_month) || 0
   const achieved = Number(planInsight.achieved_level ?? sales.achieved_plan_level) || 0
 
   if (!planInsight.has_plan && plan <= 0) {
@@ -267,14 +266,9 @@ function buildPlanReply(club, period, snapshot, insights, opener, closer, seed) 
 
   const cal = resolveCalendarContext(snapshot)
   const vsCalendar = planInsight.calendar_vs_plan ?? comparePlanToCalendar(pct, cal)
-  const paceLine = formatPlanPaceLine(cal, pct, vsCalendar)
+  const paceLine = formatPlanPaceLineCompact(cal, vsCalendar)
   const dirLine = formatPlanDirectionStatusLine(insights)
-  const levelLine =
-    achieved > 0 ? ` Закрыт порог уровня ${achieved}.` : ' Финальный порог ещё не достигнут.'
-  const reportLine =
-    total > 0
-      ? ` Отчётность ${coverage}%, ${days} из ${total} дней.`
-      : ` Отчётность ${coverage}%, ${days} дней.`
+  const levelLine = achieved > 0 ? ` Уровень ${achieved} закрыт.` : ''
   const push =
     planInsight.tone === 'weak' || vsCalendar === 'behind' ? formatPushLine(seed + 1) : ''
   const praise =
@@ -283,14 +277,21 @@ function buildPlanReply(club, period, snapshot, insights, opener, closer, seed) 
   let forecastLine = ''
   const cf = snapshot?.club_finance
   if (cf?.available && cf.forecast?.plan_pct != null) {
-    forecastLine = ` Прогноз на конец месяца — ${cf.forecast.plan_pct}%`
+    forecastLine = ` Прогноз ${formatPctPlain(cf.forecast.plan_pct)}%`
     if (cf.forecast.net_profit_rub != null) {
-      forecastLine += `, чистая прибыль ${formatRub(cf.forecast.net_profit_rub)}`
+      forecastLine += `, прибыль ${formatRub(cf.forecast.net_profit_rub)}`
     }
     forecastLine += '.'
   }
 
-  return `${ISKRA_NAME}: ${club}, ${period}. ${phrasePlanProgress(pct)}, ${formatRub(profit)} из ${formatRub(plan)}.${paceLine}${dirLine}${reportLine}${levelLine}${forecastLine}${push}${praise} ${closer}.`
+  return `${ISKRA_NAME}: ${club}, ${period}. ${phrasePlanSnapshotLine(pct, profit, plan)}.${paceLine}${dirLine}${levelLine}${forecastLine}${push}${praise} На связи.`
+}
+
+function formatPctPlain(pct) {
+  const n = Number(pct)
+  if (!Number.isFinite(n)) return '0'
+  const rounded = Math.round(n * 10) / 10
+  return Number.isInteger(rounded) ? String(rounded) : String(rounded).replace('.', ',')
 }
 
 function buildGapReply(club, period, insights, opener, closer, seed) {

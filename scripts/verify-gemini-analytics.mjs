@@ -52,13 +52,18 @@ import {
   comparePlanToCalendar,
   formatCalendarContextLine,
   formatPlanPaceLine,
+  formatPlanPaceLineCompact,
   formatTodayDateRu,
   shouldFlagLowPlan,
 } from '../src/lib/admin/geminiMonthCalendarContext.js'
 import {
   phrasePlanProgress,
+  phrasePlanSnapshotLine,
   polishIskraReplyText,
   expandAbbreviationsForSpeech,
+  speakRubAmountForSpeech,
+  speakPercentForSpeech,
+  formatRubCompact,
 } from '../src/lib/admin/iskraReplyPhrasing.js'
 import { buildIskraClubFinanceBlock } from '../src/lib/admin/clubFinanceForecastCore.js'
 import { buildIskraIntroPitch } from '../src/lib/admin/iskraBusinessHighlights.js'
@@ -66,6 +71,11 @@ import {
   isIskraClubAnalyticsQuestion,
   isIskraOffTopicQuestion,
   buildIskraQuestionReplyHint,
+  buildIskraRoleReminderPhrase,
+  pickIskraOffTopicBridgePhrase,
+  formatIskraOffTopicReply,
+  normalizeIskraOffTopicReply,
+  ISKRA_OFF_TOPIC_BRIDGE_PHRASES,
 } from '../src/lib/admin/iskraQuestionRouting.js'
 
 let failed = 0
@@ -172,6 +182,19 @@ ok(buildSystemPrompt('male', 'X').includes('Не про клуб'), 'prompt off-
 ok(!isIskraClubAnalyticsQuestion('Кто такой Путин?'), 'putin not club question')
 ok(isIskraClubAnalyticsQuestion('Как выполнен план продаж'), 'plan is club question')
 ok(buildIskraQuestionReplyHint('Кто такой Путин?', 'Клинцы').includes('краткий прямой ответ'), 'off-topic hint')
+ok(buildIskraQuestionReplyHint('где США', 'Клинцы').includes('допишет система'), 'off-topic hint server tail')
+ok(!buildIskraRoleReminderPhrase('Клинцы').includes('ИСКРА — это'), 'role reminder no tautology')
+ok(ISKRA_OFF_TOPIC_BRIDGE_PHRASES.length >= 12, 'off-topic bridge pool')
+const tautologyReply =
+  'Соединённые Штаты Америки расположены в Северной Америке. ИСКРА — это бортовой аналитический модуль ЭВС «ИСКРА», специализирующийся на анализе плана и прибыли клуба «FIT-CITY Клинцы».'
+const fixedOffTopic = normalizeIskraOffTopicReply(tautologyReply, 'Клинцы', 'где США')
+ok(fixedOffTopic.includes('Северной Америке'), 'off-topic keeps answer')
+ok(!fixedOffTopic.includes('бортовой аналитический'), 'off-topic strips tautology')
+ok(fixedOffTopic.includes('По цифрам Клинцы'), 'off-topic adds role reminder')
+const bridgeUsed = pickIskraOffTopicBridgePhrase('где США', 'Клинцы')
+ok(fixedOffTopic.includes(bridgeUsed), 'off-topic inserts bridge phrase')
+const plainOffTopic = formatIskraOffTopicReply('США расположены в Северной Америке.', 'Клинцы', 'где сша')
+ok(plainOffTopic.includes('Северной Америке') && plainOffTopic.includes('По цифрам Клинцы'), 'off-topic format full tail')
 ok(isIskraOffTopicQuestion('Кто такой Путин?'), 'putin is off-topic')
 const offTopicPayload = buildGeminiGeneratePayload({
   gender: 'female',
@@ -240,30 +263,30 @@ ok(!prepareTextForSpeech('~тест / пункт • список').includes('~'
 ok(!prepareTextForSpeech('~тест / пункт • список').includes('/'), 'speech strips slash')
 ok(prepareTextForSpeech('~тест / пункт • список').includes('тест'), 'speech keeps words')
 
-ok(phrasePlanProgress(29.2) === 'план выполнен на 29,2%', 'phrase plan progress')
-ok(polishIskraReplyText('план 29.2%').includes('план выполнен на 29.2%'), 'polish bare plan pct')
+ok(phrasePlanProgress(29.2) === 'план 29,2%', 'phrase plan progress')
+ok(phrasePlanSnapshotLine(33.4, 424611, 1300000).includes('1,3 млн ₽'), 'plan snapshot compact plan rub')
+ok(formatRubCompact(1300000) === '1,3 млн ₽', 'rub compact millions')
+ok(speakRubAmountForSpeech(424611).includes('тысяч'), 'speech rub thousands')
+ok(speakPercentForSpeech('33,4').includes('целых'), 'speech percent decimal')
+ok(polishIskraReplyText('план 29.2%').includes('план 29.2%'), 'polish keeps compact plan pct')
 
 const paceLine = formatPlanPaceLine(midMonth, 29.2, 'on_track')
 ok(paceLine.includes('норма к дате') && paceLine.includes('выполнено 29,2%') && paceLine.includes('в темпе'), 'pace line speakable')
+const paceCompact = formatPlanPaceLineCompact(midMonth, 'on_track')
+ok(paceCompact.includes('норма 48,4%') && paceCompact.includes('в темпе') && !paceCompact.includes('Сегодня'), 'pace line compact')
 
 const iskraSample =
-  'ИСКРА: FIT-CITY Клинцы, июль 2026. Данные приняты: план 29.2% — 369 999 ₽ из 1 300 000 ₽. Сегодня 10 июля 2026, первая треть месяца; ориентир ~32.3% — факт 29.2%, в календарном темпе. Направления ПЗ/ТЗ/АЗ — без критичного отставания. Отчёты 9 из 31 (29%).'
+  'ИСКРА: FIT-CITY Клинцы, июль 2026. план 33,4% — 424 611 ₽ из 1,3 млн ₽. норма 32,3% — в темпе. Залы в норме.'
 const iskraSpeech = prepareTextForSpeech(iskraSample)
 ok(!iskraSpeech.includes('~'), 'speech iskra sample no tilde')
 ok(!iskraSpeech.includes('/'), 'speech iskra sample no slash')
 ok(!iskraSpeech.includes('—'), 'speech iskra sample no em dash')
 ok(!iskraSpeech.includes('₽'), 'speech iskra sample no ruble sign')
 ok(!iskraSpeech.includes('%'), 'speech iskra sample no percent sign')
-ok(iskraSpeech.includes('план выполнен на'), 'speech iskra plan phrasing')
-ok(iskraSpeech.includes('норма к дате'), 'speech iskra benchmark phrasing')
-ok(iskraSpeech.includes('рублей'), 'speech iskra sample rubles word')
-ok(iskraSpeech.includes('процентов'), 'speech iskra sample percent word')
-ok(iskraSpeech.includes('персональный зал'), 'speech expands pz direction')
-ok(iskraSpeech.includes('тренажёрный зал'), 'speech expands tz direction')
-ok(iskraSpeech.includes('аэробный зал'), 'speech expands az direction')
-ok(!iskraSpeech.includes('ПЗ'), 'speech iskra sample no pz abbrev')
-ok(!iskraSpeech.includes('ТЗ'), 'speech iskra sample no tz abbrev')
-ok(!iskraSpeech.includes('АЗ'), 'speech iskra sample no az abbrev')
+ok(iskraSpeech.includes('план'), 'speech iskra plan phrasing')
+ok(iskraSpeech.includes('целых'), 'speech iskra percent decimal')
+ok(iskraSpeech.includes('тысяч') || iskraSpeech.includes('миллион'), 'speech iskra money words')
+ok(iskraSpeech.includes('рубл'), 'speech iskra sample rubles word')
 
 ok(expandAbbreviationsForSpeech('Отстающие: ПЗ на 12%, ТЗ на 8%.').includes('персональный зал на'), 'speech expand direction progress')
 ok(expandAbbreviationsForSpeech('ПНК за месяц 8').includes('потенциальные новые клиенты'), 'speech expand pnk')
@@ -365,7 +388,7 @@ ok(instantPayroll?.includes('финансовом отчёте') && instantPayro
 ok(matchGeminiInstantChip(GEMINI_INSTANT_CHIPS.find((c) => c.id === 'plan').message) === 'plan', 'instant chip plan')
 ok(matchGeminiInstantChip('случайный текст') === null, 'instant chip miss')
 const instantPlan = buildGeminiInstantReply('plan', { snapshot: snap, gender: 'male' })
-ok(instantPlan?.includes('выполнен на') && instantPlan?.includes('66%') && instantPlan.includes('уровня 2') && instantPlan.endsWith('.'), 'instant plan reply')
+ok(instantPlan?.includes('план') && instantPlan?.includes('66%') && instantPlan.includes('Уровень 2') && instantPlan.includes('На связи'), 'instant plan reply')
 ok(!instantPlan?.includes('undefined'), 'instant plan no undefined')
 
 const instantForecast = buildGeminiInstantReply('month_forecast', {
@@ -420,9 +443,8 @@ ok(
 )
 ok(
   instantPlan?.includes('направлен') ||
-    instantPlan?.includes('ПЗ') ||
-    instantPlan?.includes('без критичного') ||
-    !instantPlan?.includes('Отстающие'),
+    instantPlan?.includes('Залы в норме') ||
+    instantPlan?.includes('Отстающие'),
   'instant plan direction hint',
 )
 
@@ -440,7 +462,7 @@ const instantPlanJuly = buildGeminiInstantReply('plan', {
   snapshot: julySnap,
   gender: 'female',
 })
-ok(instantPlanJuly?.includes('июля') && !instantPlanJuly?.includes('undefined'), 'instant plan july calendar')
+ok(instantPlanJuly?.includes('июль') && !instantPlanJuly?.includes('undefined'), 'instant plan july calendar')
 const prevSnap = {
   ...snap,
   period: { label: 'май 2026' },

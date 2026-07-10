@@ -92,7 +92,7 @@ export function formatPlanDirectionStatusLine(insights, directionPlan) {
   const ok = block.ok ?? []
 
   if (!lagging.length) {
-    return ok.length ? ' ПЗ, ТЗ и АЗ — без критичного отставания.' : ''
+    return ok.length ? ' Залы в норме.' : ''
   }
 
   const lagText = lagging.map((r) => phraseDirectionProgress(r.label, r.pct)).join(', ')

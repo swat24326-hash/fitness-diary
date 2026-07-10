@@ -1,5 +1,9 @@
 import { ISKRA_NAME } from './admin/geminiIskraCore.js'
-import { polishIskraReplyText, expandAbbreviationsForSpeech } from './admin/iskraReplyPhrasing.js'
+import {
+  polishIskraReplyText,
+  expandAbbreviationsForSpeech,
+  prepareNumbersForSpeech,
+} from './admin/iskraReplyPhrasing.js'
 
 const GENDER_STORAGE_KEY = 'fit_gemini_gender'
 const AUTO_SPEAK_KEY = 'fit_gemini_auto_speak'
@@ -162,15 +166,15 @@ function waitForVoices() {
 
 /** Текст для TTS: разговорная форма без символов, которые читаются коряво. */
 export function prepareTextForSpeech(text) {
-  let s = polishIskraReplyText(text)
-    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
-    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
-    .replace(/https?:\/\/\S+/gi, ' ')
-    .replace(/([А-ЯЁ]{2,4})\/([А-ЯЁ]{2,4})(?:\/([А-ЯЁ]{2,4}))?/g, (_, a, b, c) =>
-      c ? `${a}, ${b}, ${c}` : `${a}, ${b}`)
-    .replace(/~\s*/g, 'около ')
-    .replace(/(\d[\d\s]*)\s*₽/g, '$1 рублей')
-    .replace(/(\d+(?:[.,]\d+)?)\s*%/g, '$1 процентов')
+  let s = prepareNumbersForSpeech(
+    polishIskraReplyText(text)
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+      .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+      .replace(/https?:\/\/\S+/gi, ' ')
+      .replace(/([А-ЯЁ]{2,4})\/([А-ЯЁ]{2,4})(?:\/([А-ЯЁ]{2,4}))?/g, (_, a, b, c) =>
+        c ? `${a}, ${b}, ${c}` : `${a}, ${b}`)
+      .replace(/~\s*/g, 'около '),
+  )
     .replace(/\s*[—–]\s*/g, ', ')
     .replace(/:\s+/g, ', ')
     .replace(/;\s*/g, ', ')

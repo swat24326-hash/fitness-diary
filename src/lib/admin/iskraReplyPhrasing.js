@@ -1,5 +1,7 @@
 /** Фразы для ответов ИСКРЫ — лаконично и без логических дыр на слух. */
 
+import { formatRub } from './salesReportCore.js'
+
 function formatPctNumber(pct) {
   const n = Number(pct)
   if (!Number.isFinite(n)) return '0'
@@ -9,7 +11,118 @@ function formatPctNumber(pct) {
 
 /** @param {number} pct */
 export function phrasePlanProgress(pct) {
-  return `план выполнен на ${formatPctNumber(pct)}%`
+  return `план ${formatPctNumber(pct)}%`
+}
+
+/**
+ * Короткая строка плана для чата: %, факт и цель.
+ * @param {number} pct
+ * @param {number} profitRub
+ * @param {number} planRub
+ */
+export function phrasePlanSnapshotLine(pct, profitRub, planRub) {
+  return `план ${formatPctNumber(pct)}% — ${formatRub(profitRub)} из ${formatRubCompact(planRub)}`
+}
+
+/**
+ * Компактная сумма для экрана (млн / тыс).
+ * @param {number} amount
+ */
+export function formatRubCompact(amount) {
+  const n = Number(amount)
+  if (!Number.isFinite(n)) return '—'
+  const abs = Math.abs(Math.round(n))
+  if (abs >= 1_000_000) {
+    const m = Math.round((abs / 1_000_000) * 10) / 10
+    const str = Number.isInteger(m) ? String(m) : String(m).replace('.', ',')
+    return `${str} млн ₽`
+  }
+  if (abs >= 100_000 && abs % 1000 === 0) {
+    return `${Math.round(abs / 1000)} тыс ₽`
+  }
+  return formatRub(amount)
+}
+
+function pluralRu(n, one, few, many) {
+  const abs = Math.abs(Math.trunc(n))
+  const mod10 = abs % 10
+  const mod100 = abs % 100
+  if (mod10 === 1 && mod100 !== 11) return one
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few
+  return many
+}
+
+/** @param {number} amount */
+export function speakRubAmountForSpeech(amount) {
+  const n = Math.round(Math.abs(Number(amount)))
+  if (!Number.isFinite(n) || n === 0) return 'ноль рублей'
+
+  const millions = Math.floor(n / 1_000_000)
+  const thousands = Math.floor((n % 1_000_000) / 1000)
+  const units = n % 1000
+  const parts = []
+
+  if (millions > 0) {
+    parts.push(`${millions} ${pluralRu(millions, 'миллион', 'миллиона', 'миллионов')}`)
+  }
+  if (thousands > 0) {
+    parts.push(`${thousands} ${pluralRu(thousands, 'тысяча', 'тысячи', 'тысяч')}`)
+  }
+  if (units > 0) {
+    parts.push(`${units} ${pluralRu(units, 'рубль', 'рубля', 'рублей')}`)
+  } else if (!parts.length) {
+    return 'ноль рублей'
+  } else {
+    parts.push('рублей')
+  }
+
+  return parts.join(' ')
+}
+
+/** @param {string|number} raw */
+export function speakPercentForSpeech(raw) {
+  const n = parseFloat(String(raw).replace(',', '.'))
+  if (!Number.isFinite(n)) return '0 процентов'
+  const int = Math.floor(Math.abs(n))
+  const dec = Math.round((Math.abs(n) - int) * 10)
+  if (dec === 0) return `${int} ${pluralRu(int, 'процент', 'процента', 'процентов')}`
+  return `${int} целых ${dec} десятых процента`
+}
+
+function speakMillionRubles(raw) {
+  const n = parseFloat(String(raw).replace(',', '.'))
+  if (!Number.isFinite(n)) return 'миллион рублей'
+  const int = Math.floor(n)
+  const dec = Math.round((n - int) * 10)
+  if (dec === 0) {
+    return `${int} ${pluralRu(int, 'миллион', 'миллиона', 'миллионов')} рублей`
+  }
+  return `${int} целых ${dec} десятых миллиона рублей`
+}
+
+/**
+ * Суммы и проценты в форме, удобной для TTS.
+ * @param {string} text
+ */
+export function prepareNumbersForSpeech(text) {
+  let s = String(text ?? '')
+
+  s = s.replace(/(\d+(?:[.,]\d+)?)\s*млн\s*₽/gi, (_, raw) => speakMillionRubles(raw))
+  s = s.replace(/(\d+(?:[.,]\d+)?)\s*тыс\s*₽/gi, (_, raw) => {
+    const n = Math.round(parseFloat(String(raw).replace(',', '.')) * 1000)
+    return speakRubAmountForSpeech(n)
+  })
+  s = s.replace(/(\d[\d\s]*)\s*₽/g, (_, raw) => {
+    const n = parseInt(String(raw).replace(/\s/g, ''), 10)
+    return Number.isFinite(n) ? speakRubAmountForSpeech(n) : `${String(raw).trim()} рублей`
+  })
+  s = s.replace(/(\d+(?:[.,]\d+)?)\s*%/g, (_, raw) => speakPercentForSpeech(raw))
+  s = s.replace(
+    /(\d+)\s+целых\s+(\d)\s+десятых\s+процент(а|ов)/gi,
+    (_, intPart, decPart) => `${intPart} целых ${decPart} десятых процента`,
+  )
+
+  return s
 }
 
 /** @param {number} pct */
@@ -81,9 +194,8 @@ export function polishIskraReplyText(text) {
   let s = String(text ?? '')
 
   s = s
-    .replace(/план\s+(\d+(?:[.,]\d+)?)\s*%/gi, 'план выполнен на $1%')
-    .replace(/план\s+(\d+(?:[.,]\d+)?)\s+процентов/gi, 'план выполнен на $1 процентов')
-    .replace(/ориентир(?:\s+плана)?(?:\s+к\s+дате)?\s*~?\s*(\d+(?:[.,]\d+)?)\s*%/gi, 'норма к дате $1%')
+    .replace(/план\s+выполнен\s+на\s+/gi, 'план ')
+    .replace(/ориентир(?:\s+плана)?(?:\s+к\s+дате)?\s*~?\s*(\d+(?:[.,]\d+)?)\s*%/gi, 'норма $1%')
     .replace(/ориентир(?:\s+плана)?(?:\s+к\s+дате)?\s*~?\s*(\d+(?:[.,]\d+)?)\s+процентов/gi, 'норма к дате $1%')
     .replace(/факт\s+(\d+(?:[.,]\d+)?)\s*(?:%|процентов)/gi, 'выполнено $1%')
     .replace(/покрытие\s+(\d+(?:[.,]\d+)?)\s*(?:%|процентов)/gi, 'отчётность $1%')

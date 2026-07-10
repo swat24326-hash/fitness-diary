@@ -283,6 +283,23 @@ export function formatCalendarContextLine(calendarContext) {
 }
 
 /**
+ * Короткая фраза темпа без даты и без повтора факта плана.
+ * @param {ReturnType<typeof buildGeminiMonthCalendarContext> | null | undefined} calendarContext
+ * @param {'behind'|'ahead'|'on_track'|string|null|undefined} vsCalendar
+ */
+export function formatPlanPaceLineCompact(calendarContext, vsCalendar) {
+  if (!calendarContext?.month_relation || calendarContext.month_relation !== 'current') return ''
+  const expected = calendarContext.expected_plan_progress_pct
+  if (expected == null) return ''
+
+  const norm = phrasePlanBenchmark(expected).replace('норма к дате ', 'норма ')
+  if (vsCalendar === 'behind') return ` ${norm} — отстаём.`
+  if (vsCalendar === 'ahead') return ` ${norm} — опережаем.`
+  if (vsCalendar === 'on_track') return ` ${norm} — в темпе.`
+  return ` ${norm}.`
+}
+
+/**
  * Одна фраза: дата, ориентир и сравнение с фактом — без повтора «отставание».
  * @param {ReturnType<typeof buildGeminiMonthCalendarContext> | null | undefined} calendarContext
  * @param {number} planPct

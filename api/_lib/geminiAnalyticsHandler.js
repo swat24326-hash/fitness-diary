@@ -25,7 +25,7 @@ import {
   buildGeminiIntroReply,
   matchGeminiIntroIntent,
 } from '../../src/lib/admin/geminiAssistantIntro.js'
-import { isIskraOffTopicQuestion } from '../../src/lib/admin/iskraQuestionRouting.js'
+import { isIskraOffTopicQuestion, normalizeIskraOffTopicReply } from '../../src/lib/admin/iskraQuestionRouting.js'
 import { periodLabelRu, trimChatHistory } from '../../src/lib/admin/geminiAnalyticsSnapshot.js'
 import { buildPanelKpiFromAnalytics } from '../../src/lib/admin/clubMonthAnalyticsCore.js'
 
@@ -340,9 +340,13 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
     }
 
     const apiKey = process.env.GEMINI_API_KEY || ''
-    const { text, source } = await callGeminiForReply(authHeader, geminiPayload, edgeBody, apiKey, {
+    let { text, source } = await callGeminiForReply(authHeader, geminiPayload, edgeBody, apiKey, {
       skipEdge: offTopicQuestion,
     })
+
+    if (offTopicQuestion && text) {
+      text = normalizeIskraOffTopicReply(text, clubName, userMessage)
+    }
 
     if (isGeminiReplyIncomplete(text)) {
       sendJson(res, 200, {

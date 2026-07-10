@@ -129,7 +129,7 @@ function buildMicroIntro(ctx, kpi, tail, missingReport, pitch) {
     return `${name} на связи, ${fullName} по ${clubPhrase}, ${period}. Данных пока мало — подскажу, с чего начать контроль месяца.${missingReport}`
   }
 
-  return `${name} на связи, ${fullName} по ${clubPhrase}, ${period}. ${pitch}${missingReport}`
+  return `${name} на связи, ${clubPhrase}, ${period}. ${pitch}${missingReport}`
 }
 
 function buildStandardIntro(ctx, tail, missingReport, pitch) {
