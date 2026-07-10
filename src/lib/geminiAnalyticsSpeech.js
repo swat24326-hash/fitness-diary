@@ -142,44 +142,73 @@ export function prepareTextForSpeech(text) {
 
 
 
-function pickVoice(gender, voices) {
+/** @typedef {{ name?: string, lang?: string, voiceURI?: string }} SpeechVoiceLike */
 
-  const list = Array.isArray(voices) ? voices : []
+/**
+ * @param {SpeechVoiceLike} voice
+ * @param {'male'|'female'} gender
+ */
+function scoreSpeechVoice(voice, gender) {
+  const name = String(voice?.name ?? '')
+  const lang = String(voice?.lang ?? '')
+  const lower = name.toLowerCase()
 
-  const ru = list.filter((v) => /^ru(-|$)/i.test(v.lang))
+  if (!/^ru(-|$)/i.test(lang) && !/рус/i.test(name)) return -1000
 
-  const pool = ru.length ? ru : list
+  let score = 0
 
-  if (!pool.length) return null
-
-
-
-  const preferFemale = [/Microsoft.*Irina/i, /Google.*русский/i, /irina/i, /milena/i, /svetlana/i, /katya/i, /anna/i, /жен/i, /female/i]
-
-  const preferMale = [/dmitri/i, /google.*ru.*male/i, /pavel/i, /yuri/i, /муж/i, /male/i]
-
-  const order = gender === 'female' ? preferFemale : preferMale
-
-
-
-  for (const re of order) {
-
-    const hit = pool.find((v) => re.test(v.name))
-
-    if (hit) return hit
-
-  }
-
-
+  if (/microsoft/i.test(name)) score += 30
+  if (/online/i.test(name)) score += 25
+  if (/natural/i.test(name)) score += 15
+  if (/google/i.test(name)) score -= 40
 
   if (gender === 'female') {
-
-    return pool.find((v) => !/male|dmitri|pavel|муж/i.test(v.name)) ?? pool[0]
-
+    if (/svetlana/i.test(lower)) score += 50
+    if (/irina/i.test(lower)) score += 20
+    if (/dmitri|dmitry|pavel|yuri|male|муж/i.test(lower)) score -= 50
+    if (/female|жен|milena|katya|anna/i.test(lower)) score += 10
+  } else {
+    if (/dmitri|dmitry/i.test(lower)) score += 50
+    if (/pavel|yuri/i.test(lower)) score += 15
+    if (/svetlana|irina|milena|katya|anna|female|жен/i.test(lower)) score -= 50
+    if (/male|муж/i.test(lower)) score += 10
   }
 
-  return pool.find((v) => /male|dmitri|pavel|yuri|муж/i.test(v.name)) ?? pool[0]
+  return score
+}
 
+/**
+ * Предпочитает облачные Microsoft Online (Natural) в Edge; Google — только если Microsoft нет.
+ *
+ * @param {'male'|'female'} gender
+ * @param {SpeechVoiceLike[]} voices
+ * @returns {SpeechVoiceLike | null}
+ */
+export function pickGeminiSpeechVoice(gender, voices) {
+  const list = Array.isArray(voices) ? voices : []
+  const ru = list.filter((v) => /^ru(-|$)/i.test(String(v?.lang ?? '')))
+  const pool = ru.length ? ru : list
+  if (!pool.length) return null
+
+  const hasMicrosoft = pool.some((v) => /microsoft/i.test(String(v?.name ?? '')))
+  const candidates = hasMicrosoft ? pool.filter((v) => !/google/i.test(String(v?.name ?? ''))) : pool
+
+  let best = null
+  let bestScore = -Infinity
+
+  for (const voice of candidates) {
+    const score = scoreSpeechVoice(voice, gender)
+    if (score > bestScore) {
+      bestScore = score
+      best = voice
+    }
+  }
+
+  return best
+}
+
+function pickVoice(gender, voices) {
+  return pickGeminiSpeechVoice(gender, voices)
 }
 
 

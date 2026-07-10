@@ -33,7 +33,7 @@ import {
   matchGeminiIntroIntent,
   resolveGeminiClubLabel,
 } from '../src/lib/admin/geminiAssistantIntro.js'
-import { prepareTextForSpeech } from '../src/lib/geminiAnalyticsSpeech.js'
+import { prepareTextForSpeech, pickGeminiSpeechVoice } from '../src/lib/geminiAnalyticsSpeech.js'
 import {
   clearGeminiSnapshotCacheForTests,
   getCachedGeminiSnapshot,
@@ -204,6 +204,20 @@ const gapHints = buildTrainingsGapHint(20, 5, 2, 30)
 ok(gapHints.length > 0, 'gap hints')
 ok(GEMINI_GENERATION_CONFIG.maxOutputTokens >= 512, 'enough output tokens')
 ok(prepareTextForSpeech('**жирный**  текст').includes('жирный'), 'speech text clean')
+
+const voiceMicrosoftFemale = { name: 'Microsoft Svetlana Online (Natural)', lang: 'ru-RU' }
+const voiceMicrosoftMale = { name: 'Microsoft Dmitry Online (Natural)', lang: 'ru-RU' }
+const voiceMicrosoftIrina = { name: 'Microsoft Irina Desktop', lang: 'ru-RU' }
+const voiceGoogleRu = { name: 'Google русский', lang: 'ru-RU' }
+const voiceEn = { name: 'Microsoft Zira', lang: 'en-US' }
+
+const edgeVoices = [voiceGoogleRu, voiceMicrosoftIrina, voiceMicrosoftFemale, voiceMicrosoftMale, voiceEn]
+ok(pickGeminiSpeechVoice('female', edgeVoices)?.name.includes('Svetlana Online'), 'tts female prefers Svetlana Online')
+ok(pickGeminiSpeechVoice('male', edgeVoices)?.name.includes('Dmitry Online'), 'tts male prefers Dmitry Online')
+ok(!/google/i.test(pickGeminiSpeechVoice('female', edgeVoices)?.name ?? ''), 'tts skips Google when Microsoft available')
+ok(pickGeminiSpeechVoice('female', [voiceGoogleRu, voiceEn])?.name.includes('Google'), 'tts google fallback when no Microsoft')
+ok(pickGeminiSpeechVoice('female', []) === null, 'tts empty voices')
+
 ok(isGeminiRetryableError('models/gemini-1.5-flash is not found'), 'retry on missing model')
 ok(isGeminiRetryableError('This model is currently experiencing high demand'), 'retry on overload')
 ok(formatGeminiUserError('This model is currently experiencing high demand').includes('перегружен'), 'overload error ru')
