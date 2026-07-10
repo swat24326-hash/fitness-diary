@@ -43,6 +43,7 @@ import {
 import { filterAerobicSalesTypes } from '../src/lib/membershipTypesCore.js'
 import { handleGeminiAnalyticsPost, handleGeminiAnalyticsPrefetchGet } from './_lib/geminiAnalyticsHandler.js'
 import { handleIskraSettingsGet, handleIskraSettingsPost } from './_lib/iskraSettingsHandler.js'
+import { handleResetTrainerPasswordPost, handleSetTrainerActivePost } from './_lib/trainerAuthAdmin.js'
 
 const PAGE = 400
 const IN_CHUNK = 80
@@ -874,6 +875,8 @@ export default async function handler(req, res) {
       'gemini-analytics',
       'create-sales-manager',
       'iskra-settings',
+      'reset-trainer-password',
+      'set-trainer-active',
     ])
     if (!postActions.has(action)) {
       sendJson(res, 405, { error: 'Method not allowed' })
@@ -903,6 +906,16 @@ export default async function handler(req, res) {
       const ctx = await requireAdmin(req, res)
       if (!ctx) return
       return handleIskraSettingsPost(ctx, res, body)
+    }
+    if (action === 'reset-trainer-password') {
+      const ctx = await requireAdmin(req, res)
+      if (!ctx) return
+      return handleResetTrainerPasswordPost(ctx, res, body)
+    }
+    if (action === 'set-trainer-active') {
+      const ctx = await requireAdmin(req, res)
+      if (!ctx) return
+      return handleSetTrainerActivePost(ctx, res, body)
     }
     const clubId = String(body?.club_id ?? '').trim()
     const ctx = await requireAdminOrSalesManager(req, res, clubId)

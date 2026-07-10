@@ -1,0 +1,25 @@
+import {
+  parseTrainerIdForAdmin,
+  validateTrainerPasswordConfirm,
+  validateTrainerPasswordForAdmin,
+} from '../src/lib/admin/trainerAuthAdminCore.js'
+
+function ok(cond, msg) {
+  if (!cond) {
+    console.error('FAIL:', msg)
+    process.exit(1)
+  }
+  console.log('OK:', msg)
+}
+
+ok(validateTrainerPasswordForAdmin('12345').ok === false, 'short password rejected')
+ok(validateTrainerPasswordForAdmin('123456').ok === true, 'min password ok')
+ok(validateTrainerPasswordConfirm('secret1', 'secret2').ok === false, 'mismatch rejected')
+ok(validateTrainerPasswordConfirm('secret1', 'secret1').ok === true, 'match ok')
+
+const uuid = 'a1b2c3d4-e5f6-4789-a012-3456789abcde'
+const parsed = parseTrainerIdForAdmin(uuid)
+ok(parsed.ok && parsed.id === uuid, 'uuid parsed')
+ok(parseTrainerIdForAdmin('bad').ok === false, 'bad id rejected')
+
+console.log('verify-trainer-auth-admin: all passed')

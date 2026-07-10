@@ -19,6 +19,11 @@ import {
   updateTrainerClubForAdmin,
 } from '../../lib/dataAccess'
 import { createTrainerForAdmin } from '../../lib/admin/createTrainerService'
+import {
+  resetTrainerPasswordForAdmin,
+  setTrainerActiveForAdmin,
+} from '../../lib/admin/trainerAuthAdminService'
+import { validateTrainerPasswordConfirm } from '../../lib/admin/trainerAuthAdminCore'
 import { humanizeNetworkError } from '../../lib/supabaseRetry'
 import { useIskraPanel } from '../../context/IskraPanelContext.jsx'
 
@@ -72,7 +77,11 @@ export function AdminOrganization({ mode = 'both' } = {}) {
   const [createBusy, setCreateBusy] = useState(false)
   const [createErr, setCreateErr] = useState('')
   const [trainerForm, setTrainerForm] = useState(initialTrainerForm)
-  const [trainerActionNote, setTrainerActionNote] = useState('')
+  const [passwordModalTrainer, setPasswordModalTrainer] = useState(null)
+  const [passwordForm, setPasswordForm] = useState({ password: '', confirm: '' })
+  const [passwordBusy, setPasswordBusy] = useState(false)
+  const [passwordErr, setPasswordErr] = useState('')
+  const [toggleActiveBusyId, setToggleActiveBusyId] = useState('')
 
   const reloadClubsList = useCallback(async (opts = {}) => {
     if (!opts.keepMsg) setClubMsg('')
@@ -348,7 +357,7 @@ export function AdminOrganization({ mode = 'both' } = {}) {
   }
 
   const openCreateTrainer = () => {
-    setTrainerActionNote('')
+    setTrainerMsg('')
     setCreateErr('')
     setTrainerForm({ ...initialTrainerForm(), club_id: defaultClubFromUrl || '' })
     setCreateOpen(true)
@@ -425,10 +434,66 @@ export function AdminOrganization({ mode = 'both' } = {}) {
     }
   }
 
-  const showTrainerStub = (label) => {
-    setTrainerActionNote(
-      `${label}: смена пароля и блокировка через Edge Functions пока не подключены. Выполните действия в Supabase Dashboard (Auth / users).`,
+  const openPasswordModal = (trainer) => {
+    setPasswordModalTrainer(trainer)
+    setPasswordForm({ password: '', confirm: '' })
+    setPasswordErr('')
+  }
+
+  const closePasswordModal = () => {
+    setPasswordModalTrainer(null)
+    setPasswordForm({ password: '', confirm: '' })
+    setPasswordErr('')
+  }
+
+  const submitPasswordReset = async (e) => {
+    e.preventDefault()
+    if (!passwordModalTrainer?.id) return
+    const check = validateTrainerPasswordConfirm(passwordForm.password, passwordForm.confirm)
+    if (!check.ok) {
+      setPasswordErr(check.error)
+      return
+    }
+    setPasswordBusy(true)
+    setPasswordErr('')
+    try {
+      await resetTrainerPasswordForAdmin({
+        trainer_id: passwordModalTrainer.id,
+        password: passwordForm.password,
+      })
+      const name = passwordModalTrainer.name ?? 'тренер'
+      setTrainerMsg(`Пароль для «${name}» обновлён. Сообщите тренеру новый пароль — вход по логину «${passwordModalTrainer.login ?? '—'}».`)
+      closePasswordModal()
+    } catch (err) {
+      setPasswordErr(err?.message ?? 'Не удалось сменить пароль')
+    } finally {
+      setPasswordBusy(false)
+    }
+  }
+
+  const onToggleTrainerActive = async (trainer) => {
+    if (!trainer?.id || toggleActiveBusyId) return
+    const nextActive = trainer.is_active === false
+    const name = trainer.name ?? 'тренер'
+    const ok = window.confirm(
+      nextActive
+        ? `Разблокировать тренера «${name}»? Он снова сможет войти в приложение.`
+        : `Заблокировать тренера «${name}»? Вход в приложение будет запрещён.`,
     )
+    if (!ok) return
+    setToggleActiveBusyId(trainer.id)
+    setTrainerMsg('')
+    try {
+      await setTrainerActiveForAdmin({ trainer_id: trainer.id, is_active: nextActive })
+      setTrainers((prev) =>
+        prev.map((t) => (t.id === trainer.id ? { ...t, is_active: nextActive } : t)),
+      )
+      setTrainerMsg(nextActive ? `Тренер «${name}» разблокирован.` : `Тренер «${name}» заблокирован.`)
+    } catch (err) {
+      setTrainerMsg(humanizeNetworkError(err) || err?.message || 'Не удалось изменить статус')
+    } finally {
+      setToggleActiveBusyId('')
+    }
   }
 
   const trainersByClub = useMemo(() => {
@@ -532,11 +597,25 @@ export function AdminOrganization({ mode = 'both' } = {}) {
                         <Sparkles size={14} aria-hidden />
                         ИСКРА
                       </button>
-                      <button type="button" className="btn btn-ghost btn-touch" onClick={() => showTrainerStub('Сброс пароля')}>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-touch"
+                        disabled={!isSupabaseConfigured() || passwordBusy}
+                        onClick={() => openPasswordModal(tr)}
+                      >
                         Сбросить пароль
                       </button>
-                      <button type="button" className="btn btn-ghost btn-touch" onClick={() => showTrainerStub('Блокировка')}>
-                        {tr.is_active === false ? 'Разблокировать' : 'Заблокировать'}
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-touch"
+                        disabled={!isSupabaseConfigured() || toggleActiveBusyId === tr.id || trainerBusy}
+                        onClick={() => void onToggleTrainerActive(tr)}
+                      >
+                        {toggleActiveBusyId === tr.id
+                          ? '…'
+                          : tr.is_active === false
+                            ? 'Разблокировать'
+                            : 'Заблокировать'}
                       </button>
                       {isSupabaseConfigured() ? (
                         <button
@@ -687,7 +766,6 @@ export function AdminOrganization({ mode = 'both' } = {}) {
           </div>
         </div>
         {trainerMsg ? <p className="muted admin-inline-note">{trainerMsg}</p> : null}
-        {trainerActionNote ? <p className="muted admin-inline-note">{trainerActionNote}</p> : null}
         <label className="row" style={{ gap: 10, alignItems: 'flex-start', margin: '0 0 12px', cursor: 'pointer' }}>
           <input type="checkbox" checked={syncClientsClub} onChange={(e) => setSyncClientsClub(e.target.checked)} style={{ marginTop: 3 }} />
           <span className="muted" style={{ fontSize: 13, lineHeight: 1.45 }}>
@@ -695,7 +773,7 @@ export function AdminOrganization({ mode = 'both' } = {}) {
           </span>
         </label>
         <p className="muted" style={{ fontSize: 13, margin: '0 0 10px', lineHeight: 1.45 }}>
-          Тренер в приложении видит только клиентов своего клуба (поле <code className="muted">users.club_id</code> в Supabase; в локальном демо — демо-клуб). Колонка «Клуб»: смена зала переносит тренера между блоками. Удаление тренера — из Auth и{' '}
+          Тренер в приложении видит только клиентов своего клуба (поле <code className="muted">users.club_id</code> в Supabase). Смена пароля и блокировка — кнопками в таблице (без Supabase Dashboard). Удаление тренера — из Auth и{' '}
           <code className="muted">users</code>, только если у него нет клиентов; нужна Edge Function <code className="muted">delete-trainer</code>.{' '}
           {clientCountsSource === 'remote'
             ? '«Клиентов» в таблице — по облаку.'
@@ -761,6 +839,73 @@ export function AdminOrganization({ mode = 'both' } = {}) {
                 {clubDeleteBusyId ? 'Удаление…' : 'Удалить'}
               </button>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showTrainers && passwordModalTrainer ? (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="org-reset-password-title"
+          onClick={closePasswordModal}
+        >
+          <div className="modal-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <h2 id="org-reset-password-title" className="section-title td-section-title" style={{ marginTop: 0 }}>
+              Новый пароль
+            </h2>
+            <p className="muted" style={{ margin: '0 0 12px', lineHeight: 1.45 }}>
+              Тренер <strong>{passwordModalTrainer.name ?? '—'}</strong>, логин{' '}
+              <strong>{passwordModalTrainer.login ?? '—'}</strong>. После сохранения передайте пароль тренеру — вход по логину, не по email.
+            </p>
+            <form className="grid td-modal-form" onSubmit={submitPasswordReset} style={{ gap: 12 }}>
+              <div className="field">
+                <label className="label" htmlFor="org-reset-pass">
+                  Новый пароль
+                </label>
+                <input
+                  id="org-reset-pass"
+                  type="password"
+                  className="input"
+                  autoComplete="new-password"
+                  value={passwordForm.password}
+                  onChange={(e) => setPasswordForm((f) => ({ ...f, password: e.target.value }))}
+                  disabled={passwordBusy}
+                  required
+                  minLength={6}
+                />
+              </div>
+              <div className="field">
+                <label className="label" htmlFor="org-reset-pass2">
+                  Повторите пароль
+                </label>
+                <input
+                  id="org-reset-pass2"
+                  type="password"
+                  className="input"
+                  autoComplete="new-password"
+                  value={passwordForm.confirm}
+                  onChange={(e) => setPasswordForm((f) => ({ ...f, confirm: e.target.value }))}
+                  disabled={passwordBusy}
+                  required
+                  minLength={6}
+                />
+              </div>
+              {passwordErr ? (
+                <p className="muted" style={{ color: 'var(--danger, #f87171)', margin: 0 }}>
+                  {passwordErr}
+                </p>
+              ) : null}
+              <div className="row td-modal-actions" style={{ marginTop: 4 }}>
+                <button type="button" className="btn btn-ghost btn-touch" onClick={closePasswordModal} disabled={passwordBusy}>
+                  Отмена
+                </button>
+                <button type="submit" className="btn btn-primary btn-touch" disabled={passwordBusy}>
+                  {passwordBusy ? 'Сохранение…' : 'Сохранить пароль'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       ) : null}
