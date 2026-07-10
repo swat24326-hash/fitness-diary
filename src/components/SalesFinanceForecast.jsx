@@ -15,9 +15,19 @@ import { formatRub } from '../lib/admin/salesReportCore.js'
  *   membershipTypes: Array<Record<string, unknown>>,
  *   planForm?: Record<string, string>,
  *   expense?: number,
+ *   variant?: 'full' | 'plan',
  * }} props
  */
-export function SalesFinanceForecast({ year, month, monthRows, membershipTypes, planForm = {}, expense = 0 }) {
+export function SalesFinanceForecast({
+  year,
+  month,
+  monthRows,
+  membershipTypes,
+  planForm = {},
+  expense = 0,
+  variant = 'full',
+}) {
+  const showFinanceLoad = variant === 'full'
   const forecast = useMemo(
     () =>
       buildClubFinanceForecast({
@@ -74,62 +84,77 @@ export function SalesFinanceForecast({ year, month, monthRows, membershipTypes, 
     return formatRub(signed ? n : Math.abs(n))
   }
 
-  const renderForecastTable = (tableRows, { deduction = false } = {}) => (
-    <div className="sales-finance-forecast__table-wrap">
-      <table className="sales-finance-forecast__table">
-        <thead>
-          <tr>
-            <th scope="col">Показатель</th>
-            <th scope="col" className="sales-finance-forecast__col-num">
-              Факт
-            </th>
-            <th scope="col" className="sales-finance-forecast__col-num sales-finance-forecast__col-forecast">
-              Прогноз
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {tableRows.map((row) => {
-            const factVal = forecast.fact[row.key]
-            const forecastVal = forecast.forecast[row.key]
-            const signed = Boolean(row.signed)
-            const rowClass = [
-              row.primary ? 'sales-finance-forecast__row--primary' : undefined,
-              deduction ? 'sales-finance-forecast__row--deduction' : undefined,
-            ]
-              .filter(Boolean)
-              .join(' ') || undefined
-            const factClass = [
-              'sales-finance-forecast__col-num',
-              'sales-finance-forecast__col-fact',
-              signed && Number(factVal) < 0 ? 'sales-finance-forecast__col-negative' : undefined,
-            ]
-              .filter(Boolean)
-              .join(' ')
-            const forecastClass = [
-              'sales-finance-forecast__col-num',
-              'sales-finance-forecast__col-forecast',
-              row.static ? 'sales-finance-forecast__col-static' : undefined,
-              signed && Number(forecastVal) < 0 ? 'sales-finance-forecast__col-negative' : undefined,
-            ]
-              .filter(Boolean)
-              .join(' ')
-            return (
-              <tr key={row.key} className={rowClass}>
-                <th scope="row">{row.label}</th>
-                <td className={factClass}>
-                  {formatValue(row.kind, factVal, { signed })}
-                </td>
-                <td className={forecastClass}>
-                  {formatValue(row.kind, forecastVal, { signed })}
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
+  const financeColGroup = (
+    <colgroup>
+      <col className="sales-finance-forecast__col-label" />
+      <col className="sales-finance-forecast__col-fact-width" />
+      <col className="sales-finance-forecast__col-forecast-width" />
+    </colgroup>
   )
+
+  const financeTableHead = (
+    <thead>
+      <tr>
+        <th scope="col">Показатель</th>
+        <th scope="col" className="sales-finance-forecast__col-num">
+          Факт
+        </th>
+        <th scope="col" className="sales-finance-forecast__col-num sales-finance-forecast__col-forecast">
+          Прогноз
+        </th>
+      </tr>
+    </thead>
+  )
+
+  const renderForecastTable = (tableRows, tone) => (
+    <table className="sales-finance-forecast__table sales-finance-forecast__table--finance">
+      {financeColGroup}
+      <tbody>
+        {tableRows.map((row) => renderFinanceRow(row, tone))}
+      </tbody>
+    </table>
+  )
+
+  const financeBlocks = [
+    { id: 'income', title: 'Доходы и нагрузка', rows: incomeRows, tone: 'income' },
+    { id: 'deduction', title: 'Вычитается', rows: deductionRows, tone: 'deduction' },
+    { id: 'total', title: null, rows: [netProfitRow], tone: 'primary' },
+  ]
+
+  const renderFinanceRow = (row, tone) => {
+    const factVal = forecast.fact[row.key]
+    const forecastVal = forecast.forecast[row.key]
+    const signed = Boolean(row.signed)
+    const rowClass = [
+      tone === 'primary' ? 'sales-finance-forecast__row--primary' : undefined,
+      tone === 'income' ? 'sales-finance-forecast__row--income' : undefined,
+      tone === 'deduction' ? 'sales-finance-forecast__row--deduction' : undefined,
+    ]
+      .filter(Boolean)
+      .join(' ') || undefined
+    const factClass = [
+      'sales-finance-forecast__col-num',
+      'sales-finance-forecast__col-fact',
+      signed && Number(factVal) < 0 ? 'sales-finance-forecast__col-negative' : undefined,
+    ]
+      .filter(Boolean)
+      .join(' ')
+    const forecastClass = [
+      'sales-finance-forecast__col-num',
+      'sales-finance-forecast__col-forecast',
+      row.static ? 'sales-finance-forecast__col-static' : undefined,
+      signed && Number(forecastVal) < 0 ? 'sales-finance-forecast__col-negative' : undefined,
+    ]
+      .filter(Boolean)
+      .join(' ')
+    return (
+      <tr key={row.key} className={rowClass}>
+        <th scope="row">{row.label}</th>
+        <td className={factClass}>{formatValue(row.kind, factVal, { signed })}</td>
+        <td className={forecastClass}>{formatValue(row.kind, forecastVal, { signed })}</td>
+      </tr>
+    )
+  }
 
   const formatReachLabel = (reach, planTarget) => {
     if (planTarget <= 0) return 'План не задан'
@@ -242,23 +267,36 @@ export function SalesFinanceForecast({ year, month, monthRows, membershipTypes, 
         </div>
       ) : null}
 
+      {showFinanceLoad ? (
       <div className="sales-finance-forecast__section">
         <h4 className="sales-finance-forecast__section-title">Финансы и нагрузка</h4>
 
-        <div className="sales-finance-forecast__subsection">
-          <h5 className="sales-finance-forecast__subsection-title">Доходы и нагрузка</h5>
-          {renderForecastTable(incomeRows)}
-        </div>
+        <div className="sales-finance-forecast__finance-stack">
+          <div className="sales-finance-forecast__table-wrap sales-finance-forecast__table-wrap--head">
+            <table className="sales-finance-forecast__table sales-finance-forecast__table--finance sales-finance-forecast__table--head-only">
+              {financeColGroup}
+              {financeTableHead}
+            </table>
+          </div>
 
-        <div className="sales-finance-forecast__subsection">
-          <h5 className="sales-finance-forecast__subsection-title">Вычитается</h5>
-          {renderForecastTable(deductionRows, { deduction: true })}
-        </div>
-
-        <div className="sales-finance-forecast__subsection sales-finance-forecast__subsection--total">
-          {renderForecastTable([netProfitRow])}
+          {financeBlocks.map((block) => (
+            <div
+              key={block.id}
+              className={`sales-finance-forecast__finance-block sales-finance-forecast__finance-block--${block.tone}`}
+            >
+              {block.title ? (
+                <h5 className={`sales-finance-forecast__subsection-title sales-finance-forecast__subsection-title--${block.tone}`}>
+                  {block.title}
+                </h5>
+              ) : null}
+              <div className={`sales-finance-forecast__table-wrap sales-finance-forecast__table-wrap--${block.tone}`}>
+                {renderForecastTable(block.rows, block.tone)}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
+      ) : null}
     </section>
   )
 }

@@ -4,6 +4,7 @@ import {
   canViewSalesPayroll,
   isSalesManagerRole,
   normalizeAppRole,
+  salesFinanceForecastVariantForRole,
   stripSalesBundleForManager,
 } from '../src/lib/admin/salesAccessCore.js'
 
@@ -40,5 +41,7 @@ ok(stripped.month_summary.aerobicPayroll === undefined, 'strip aerobic payroll')
 
 ok(!canViewSalesPayroll('sales_manager'), 'manager cannot view payroll')
 ok(canViewSalesPayroll('admin'), 'admin can view payroll')
+ok(salesFinanceForecastVariantForRole('sales_manager') === 'plan', 'manager forecast plan only')
+ok(salesFinanceForecastVariantForRole('admin') === 'full', 'admin forecast full')
 
 process.exit(failed > 0 ? 1 : 0)

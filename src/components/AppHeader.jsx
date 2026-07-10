@@ -88,7 +88,9 @@ export function AppHeader() {
   const adminQs = useMemo(() => (adminClubValue ? `?club=${encodeURIComponent(adminClubValue)}` : ''), [adminClubValue])
   const salesReportActive = searchParams.get('tab') === 'report'
   const salesStatsActive = searchParams.get('tab') === 'stats'
-  const salesHomeActive = location.pathname === '/sales' && !salesReportActive && !salesStatsActive
+  const salesAnalyticsActive = searchParams.get('tab') === 'analytics'
+  const salesHomeActive =
+    location.pathname === '/sales' && !salesReportActive && !salesStatsActive && !salesAnalyticsActive
 
   useEffect(() => {
     if (!showAdminClubSelect) return
@@ -641,6 +643,12 @@ export function AppHeader() {
             <NavLink to="/sales?tab=stats" className={() => headerNavClass({ isActive: salesStatsActive })}>
               Статистика
             </NavLink>
+            <NavLink to="/sales?tab=analytics" className={() => headerNavClass({ isActive: salesAnalyticsActive })}>
+              <span className="app-header__nav-with-icon">
+                <TrendingUp size={18} aria-hidden />
+                Аналитика
+              </span>
+            </NavLink>
           </>
         ) : (
           <>
@@ -781,6 +789,9 @@ export function AppHeader() {
                   </NavLink>
                   <NavLink to="/sales?tab=stats" className={menuNavClass} onClick={() => setMenuOpen(false)}>
                     Статистика
+                  </NavLink>
+                  <NavLink to="/sales?tab=analytics" className={menuNavClass} onClick={() => setMenuOpen(false)}>
+                    Аналитика
                   </NavLink>
                 </>
               ) : (

@@ -65,3 +65,8 @@ export function canViewSalesPayroll(roleOrMode) {
   const r = String(roleOrMode ?? '').trim()
   return r !== 'sales_manager'
 }
+
+/** Прогноз финансов: менеджеру — только план и направления, админу — полный блок. */
+export function salesFinanceForecastVariantForRole(roleOrMode) {
+  return isSalesManagerRole(roleOrMode) || String(roleOrMode ?? '').trim() === 'sales_manager' ? 'plan' : 'full'
+}

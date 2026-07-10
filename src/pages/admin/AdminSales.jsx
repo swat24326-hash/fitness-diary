@@ -61,6 +61,7 @@ import { SalesDailyForm } from '../../components/SalesDailyForm'
 import { SalesFinancePanel } from '../../components/SalesFinancePanel'
 import { SalesPlanSettingsPanel } from '../../components/SalesPlanSettingsPanel'
 import { SalesManagerStatsPanel } from '../../components/SalesManagerStatsPanel'
+import { SalesManagerAnalyticsPanel } from '../../components/SalesManagerAnalyticsPanel'
 import '../../styles/sales-report.css'
 
 const MONTH_NAMES = [
@@ -92,6 +93,7 @@ export function AdminSales({ accessMode = 'admin' }) {
     if (isSalesManager) {
       if (salesTabParam === 'stats') return 'stats'
       if (salesTabParam === 'report') return 'report'
+      if (salesTabParam === 'analytics') return 'analytics'
       return 'home'
     }
     if (salesTabParam === 'finance') return 'finance'
@@ -595,6 +597,12 @@ export function AdminSales({ accessMode = 'admin' }) {
                   </div>
                   <p className="sales-home__tile-title">Статистика</p>
                 </Link>
+                <Link to="/sales?tab=analytics" className="sales-home__tile u-no-decoration">
+                  <div className="sales-home__tile-icon">
+                    <TrendingUp size={32} aria-hidden />
+                  </div>
+                  <p className="sales-home__tile-title">Аналитика</p>
+                </Link>
               </div>
             </section>
           ) : null}
@@ -619,7 +627,9 @@ export function AdminSales({ accessMode = 'admin' }) {
         <div className="sales-report__toolbar">
           <div className="sales-home__hero-text">
             <p className="sales-home__eyebrow">{monthLabel}</p>
-            <h1 className="sales-page__title">{salesTab === 'report' ? 'Отчёт за день' : 'Статистика'}</h1>
+            <h1 className="sales-page__title">
+              {salesTab === 'report' ? 'Отчёт за день' : salesTab === 'analytics' ? 'Аналитика' : 'Статистика'}
+            </h1>
           </div>
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => void loadBundle()} disabled={busy}>
             <RefreshCw size={16} aria-hidden className="sales-report__btn-icon" />
@@ -718,6 +728,18 @@ export function AdminSales({ accessMode = 'admin' }) {
             fitCityTypeStats={fitCityTypeStats}
             clubId={clubId}
             showPayroll={!isSalesManager}
+          />
+        </div>
+      ) : null}
+
+      {isSalesManager && salesTab === 'analytics' ? (
+        <div id="sales-panel-analytics" className="sales-report__panel">
+          <SalesManagerAnalyticsPanel
+            year={yearMonth.year}
+            month={yearMonth.month}
+            monthRows={monthDays}
+            membershipTypes={membershipTypes}
+            planForm={planForm}
           />
         </div>
       ) : null}

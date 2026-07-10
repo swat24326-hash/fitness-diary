@@ -1462,9 +1462,87 @@
   color: rgba(148, 163, 184, 0.95);
 }
 
+.sales-finance-forecast__finance-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.sales-finance-forecast__finance-block--primary {
+  margin-top: 0.35rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.sales-finance-forecast__subsection-title--income {
+  color: rgba(74, 222, 128, 0.95);
+}
+
+.sales-finance-forecast__subsection-title--deduction {
+  color: rgba(251, 191, 36, 0.95);
+}
+
+.sales-finance-forecast__table-wrap--head {
+  border-radius: 12px;
+}
+
+.sales-finance-forecast__table--head-only tbody {
+  display: none;
+}
+
+.sales-finance-forecast__table-wrap--income {
+  border-color: rgba(46, 255, 184, 0.22);
+  border-top: 2px solid rgba(46, 255, 184, 0.28);
+}
+
+.sales-finance-forecast__table-wrap--deduction {
+  border-color: rgba(251, 191, 36, 0.22);
+  border-top: 2px solid rgba(251, 191, 36, 0.28);
+}
+
+.sales-finance-forecast__table-wrap--primary {
+  border-color: rgba(46, 255, 184, 0.28);
+  border-top: 2px solid rgba(46, 255, 184, 0.35);
+}
+
+.sales-finance-forecast__table--finance {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 520px;
+}
+
+.sales-finance-forecast__col-label {
+  width: 46%;
+}
+
+.sales-finance-forecast__col-fact-width {
+  width: 27%;
+}
+
+.sales-finance-forecast__col-forecast-width {
+  width: 27%;
+}
+
+.sales-finance-forecast__row--income .sales-finance-forecast__col-fact,
+.sales-finance-forecast__row--income .sales-finance-forecast__col-forecast {
+  color: rgba(74, 222, 128, 0.95) !important;
+}
+
+.sales-finance-forecast__row--income .sales-finance-forecast__col-forecast {
+  background: rgba(46, 255, 184, 0.06) !important;
+}
+
 .sales-finance-forecast__row--deduction .sales-finance-forecast__col-fact,
 .sales-finance-forecast__row--deduction .sales-finance-forecast__col-forecast {
-  color: rgba(251, 191, 36, 0.92);
+  color: rgba(251, 191, 36, 0.92) !important;
+}
+
+.sales-finance-forecast__row--deduction .sales-finance-forecast__col-forecast {
+  background: rgba(251, 191, 36, 0.06) !important;
+}
+
+.sales-finance-forecast__row--deduction .sales-finance-forecast__col-static {
+  color: rgba(251, 191, 36, 0.82) !important;
 }
 
 .sales-finance-forecast__col-negative {
@@ -1562,6 +1640,7 @@
   border-bottom: 1px solid rgba(148, 163, 184, 0.12);
   font-variant-numeric: tabular-nums;
   vertical-align: middle;
+  box-sizing: border-box;
 }
 
 .sales-finance-forecast__table tbody tr:nth-child(even) {
