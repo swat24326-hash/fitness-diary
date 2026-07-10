@@ -3,6 +3,7 @@
  */
 
 import { buildPendingSyncKeysByTable, getDb, listSyncQueue, putStore } from './localDb'
+import { listChallengesByClubId } from './localDbClubQuery'
 import { shouldPreserveLocalRowOnPull } from './syncFlushResult'
 import { isSupabaseConfigured } from './supabase'
 import { fetchChallengesForClubViaApi } from './admin/adminApiClient'
@@ -67,8 +68,7 @@ export async function reconcileChallengesForClub(clubId, remoteChallenges) {
 
   const db = await getDb()
   let pruned = 0
-  for (const ch of await db.getAll('challenges')) {
-    if (String(ch.club_id) !== cid) continue
+  for (const ch of await listChallengesByClubId(cid)) {
     const id = String(ch.id ?? '')
     if (!id || remoteIds.has(id) || pendingIds.has(id)) continue
     await db.delete('challenges', id)

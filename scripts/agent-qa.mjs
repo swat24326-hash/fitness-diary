@@ -75,6 +75,7 @@ run('club monthly years bounds', 'node', ['scripts/verify-club-monthly-years-bou
 run('idb retention', 'node', ['scripts/verify-idb-retention.mjs'])
 run('draft trainings query', 'node', ['scripts/verify-draft-trainings-query.mjs'])
 run('challenges club query', 'node', ['scripts/verify-challenges-club-query.mjs'])
+run('client counts local', 'node', ['scripts/verify-client-counts-local.mjs'])
 
 if (!skipLint) {
   run('lint', 'npm', ['run', 'lint'])

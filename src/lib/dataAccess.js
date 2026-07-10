@@ -13,6 +13,7 @@ import {
   listMembershipsByClientId,
   listTrainingsByClientId,
   listTrainingsByTrainerId,
+  countClientsByTrainerIdLocal,
 } from './localDbClubQuery'
 import {
   deleteHealthCardByClientId,
@@ -137,23 +138,13 @@ export async function upsertExercise(exercise) {
   invalidateExerciseCatalogCache()
 }
 
-export async function listAllTrainings() {
-  const db = await getDb()
-  return db.getAll('trainings')
-}
-
 /**
  * Сколько клиентов у каждого тренера: из Supabase, если доступно иначе из IndexedDB на устройстве.
  * @param {{ skipRemote?: boolean }} [opts] — не ходить в Supabase (например список тренеров уже с сервера Vercel).
  */
 export async function getClientCountsByTrainerId(opts = {}) {
   async function fromLocal() {
-    const counts = {}
-    const db = await getDb()
-    const all = await db.getAll('clients')
-    for (const c of all) {
-      if (c.trainer_id) counts[c.trainer_id] = (counts[c.trainer_id] ?? 0) + 1
-    }
+    const counts = await countClientsByTrainerIdLocal()
     return { counts, source: 'local' }
   }
   if (!isSupabaseConfigured() || opts.skipRemote === true) return fromLocal()

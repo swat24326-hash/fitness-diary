@@ -26,6 +26,7 @@
 |--------|--------|
 | `docs/SUPABASE_PROD_CHECKLIST.md` | ✅ |
 | `docs/PAID_TIER_MIGRATION.md` | ✅ |
+| `docs/ROADMAP_MULTI_CLUB_AND_PAID.md` | ✅ план 2+ клубов и Pro |
 | Еженедельный prod smoke (workflow) | ✅ `qa-prod-weekly.yml` |
 | Сборка/PWA в диагностике | ✅ `appBuildInfo.js`, DiagnosticsPanel |
 

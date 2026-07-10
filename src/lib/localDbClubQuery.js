@@ -155,6 +155,28 @@ export async function listClientsByTrainerId(trainerId) {
   return rows.filter((c) => String(c?.trainer_id ?? '') === tid)
 }
 
+/**
+ * Подсчёт клиентов по trainer_id без getAll в память (cursor).
+ * @returns {Promise<Record<string, number>>}
+ */
+export async function countClientsByTrainerIdLocal() {
+  const db = await getDb()
+  const tx = db.transaction('clients', 'readonly')
+  const store = tx.objectStore('clients')
+  const counts = {}
+  let cursor = await store.openCursor()
+  while (cursor) {
+    const tid = cursor.value?.trainer_id
+    if (tid) {
+      const key = String(tid)
+      counts[key] = (counts[key] ?? 0) + 1
+    }
+    cursor = await cursor.continue()
+  }
+  await tx.done
+  return counts
+}
+
 /** @param {string} clubId */
 export async function listMembershipsByClubId(clubId) {
   return getAllFromClubIndex('memberships', clubId)

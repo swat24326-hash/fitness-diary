@@ -10,7 +10,7 @@ import {
   formatChallengeMetricLabel,
   formatChallengeValueRu,
 } from '../../lib/dataAccess'
-import { getAllStore } from '../../lib/localDb'
+import { listClientsByTrainerId } from '../../lib/localDbClubQuery'
 import { formatDateRu } from '../../lib/dateRu'
 import { useDebouncedStorageReload } from '../../lib/useDebouncedStorageReload'
 
@@ -48,10 +48,10 @@ export function TrainerChallengeDetail() {
         }
         const trainerClubIds = await collectTrainerClubIds(myTrainerId, user?.club_id ?? '')
         setAccessDenied(!trainerClubIds.includes(String(ch.club_id)))
-        const clients = await getAllStore('clients')
+        const clients = await listClientsByTrainerId(myTrainerId)
         const mine = new Set(
-          (clients ?? [])
-            .filter((c) => String(c.trainer_id) === String(myTrainerId) && String(c.club_id) === String(ch.club_id))
+          clients
+            .filter((c) => String(c.club_id) === String(ch.club_id))
             .map((c) => c.id),
         )
         setMyClientIds(mine)

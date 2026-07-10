@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { listMemberships } from '../lib/dataAccess'
+import { listTrainingsByClientId } from '../lib/localDbClubQuery'
 import {
   membershipCoversDate,
   membershipHasRemaining,
@@ -23,7 +24,6 @@ import {
   completedWorkoutNumberOnMembership,
   resolveMembershipForDiaryTraining,
 } from '../lib/membershipRules'
-import { getDb } from '../lib/localDb'
 import { useDebouncedStorageReload, shouldReloadTrainerClientStats } from '../lib/useDebouncedStorageReload'
 import { deleteLocalWithSync, saveLocalWithSync } from '../lib/syncService'
 import { formatDateRu } from '../lib/dateRu'
@@ -293,11 +293,7 @@ export function ClientDiaries({ client, onDataChange, clubQs = '', readOnly = fa
 
   const load = useCallback(async () => {
     if (!client?.id) return
-    const db = await getDb()
-    const all = await db.getAll('trainings')
-    const mine = all
-      .filter((t) => t.client_id === client.id)
-      .sort(compareDiaryListOrder)
+    const mine = [...(await listTrainingsByClientId(client.id))].sort(compareDiaryListOrder)
     setTrainings(mine)
     setMemberships(await listMemberships(client.id))
   }, [client?.id])

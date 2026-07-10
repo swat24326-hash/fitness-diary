@@ -22,6 +22,7 @@
 |------|--------|----------|----------|-------------------------|--------|----------|---------|
 | 2026-06-02 | 1 | 3 | ? | ? | Hobby | Free | стартовая база |
 | 2026-06-24 | 1 | 3 | ~40 / ~40 | уточнить в Supabase SQL | Hobby | Free | архив клиентов в коде; 12/12 API functions; prod отвечает; npm qa:local — verify 13/13 локально |
+| 2026-07-11 | 1 | 3 | `npm run check:volume` | `npm run check:volume` | Hobby | Free | масштабирование v10, индексы SQL, лимиты API/IDB; prod QA зелёный |
 
 ---
 
@@ -93,4 +94,5 @@
 
 - [DATA_VOLUME.md](./DATA_VOLUME.md) — SQL и пороги тренировок/клиентов
 - [PAID_TIER_MIGRATION.md](./PAID_TIER_MIGRATION.md) — чеклист дня перехода
+- [ROADMAP_MULTI_CLUB_AND_PAID.md](./ROADMAP_MULTI_CLUB_AND_PAID.md) — **план при 2+ клубах и Pro**
 - [COMMERCIAL_ROADMAP.md](./COMMERCIAL_ROADMAP.md) — продуктовые фазы

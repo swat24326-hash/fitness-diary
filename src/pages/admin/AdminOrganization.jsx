@@ -28,6 +28,7 @@ import { humanizeNetworkError } from '../../lib/supabaseRetry'
 import { useIskraPanel } from '../../context/IskraPanelContext.jsx'
 
 const CREATE_TRAINER_TIMEOUT_MS = 55_000
+const CLUB_SAVE_TIMEOUT_MS = 55_000
 
 function raceWithTimeout(promise, ms, timeoutMessage) {
   let id
@@ -160,11 +161,9 @@ export function AdminOrganization({ mode = 'both' } = {}) {
     let cancelled = false
     void (async () => {
       setClubs(await listClubsLocal())
-      if (!isSupabaseConfigured() || typeof navigator === 'undefined' || !navigator.onLine) {
-        await loadTrainers()
-        return
-      }
-      void loadTrainers()
+      await loadTrainers()
+      if (cancelled) return
+      if (!isSupabaseConfigured() || typeof navigator === 'undefined' || !navigator.onLine) return
       const r = await pullClubsFromSupabase({ force: false })
       if (cancelled) return
       setClubs(await listClubsLocal())
@@ -205,7 +204,11 @@ export function AdminOrganization({ mode = 'both' } = {}) {
           created_at: now,
         }
       }
-      let { remoteOk, recoveredAfterNetwork } = await saveClubForAdmin(row, { isNew })
+      let { remoteOk, recoveredAfterNetwork } = await raceWithTimeout(
+        saveClubForAdmin(row, { isNew }),
+        CLUB_SAVE_TIMEOUT_MS,
+        'Сохранение клуба заняло слишком долго — проверьте интернет и список клубов (↻).',
+      )
       ;({ remoteOk, recoveredAfterNetwork } = await reconcileClubSaveForAdmin(row.id, { remoteOk, recoveredAfterNetwork }))
       setClubForm({ name: '', address: '', phone: '' })
       setClubEdit(null)
