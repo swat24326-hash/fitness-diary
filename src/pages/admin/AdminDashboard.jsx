@@ -1,7 +1,10 @@
 import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom'
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BarChart3, Building2, Sparkles, Stethoscope, TrendingUp, Trophy, UserCircle } from 'lucide-react'
+import { AdminClubDaySummaryPanel } from '../../components/admin/AdminClubDaySummaryPanel'
 import { dispatchLocalDataChanged } from '../../lib/dataAccess'
+import { loadAdminClubDaySummary } from '../../lib/admin/adminClubDaySummaryService'
+import { useDebouncedStorageReload, shouldReloadAdminStatsPage } from '../../lib/useDebouncedStorageReload'
 
 function adminTileClass({ isActive }) {
   return `feature-tile u-no-decoration${isActive ? ' feature-tile--active' : ''}`
@@ -24,6 +27,40 @@ export function AdminDashboard() {
     return p === '/admin'
   }, [location.pathname])
 
+  const [daySummary, setDaySummary] = useState(null)
+  const [daySummaryLoading, setDaySummaryLoading] = useState(false)
+  const daySummaryGenRef = useRef(0)
+
+  const loadDaySummary = useCallback(async () => {
+    if (!isAdminHome) return
+    const gen = ++daySummaryGenRef.current
+    if (!clubId) {
+      setDaySummary(null)
+      setDaySummaryLoading(false)
+      return
+    }
+    setDaySummaryLoading(true)
+    try {
+      const res = await loadAdminClubDaySummary(clubId)
+      if (gen !== daySummaryGenRef.current) return
+      setDaySummary(res.ok ? res.summary : null)
+    } catch {
+      if (gen !== daySummaryGenRef.current) return
+      setDaySummary(null)
+    } finally {
+      if (gen === daySummaryGenRef.current) setDaySummaryLoading(false)
+    }
+  }, [clubId, isAdminHome])
+
+  useEffect(() => {
+    void loadDaySummary()
+    return () => {
+      daySummaryGenRef.current += 1
+    }
+  }, [loadDaySummary])
+
+  useDebouncedStorageReload(() => loadDaySummary(), { shouldRun: shouldReloadAdminStatsPage })
+
   return (
     <div className={`admin-home${isAdminHome ? ' admin-home--dashboard' : ' admin-home--section'}`}>
       {isAdminHome ? (
@@ -32,6 +69,14 @@ export function AdminDashboard() {
             <i className="fas fa-shield-halved admin-home__brand-icon" aria-hidden />
             <h1 className="admin-home__brand-title">Админпанель</h1>
           </div>
+
+          <AdminClubDaySummaryPanel
+            summary={daySummary}
+            clubId={clubId}
+            loading={daySummaryLoading}
+            noClub={!clubId}
+          />
+
           <h2 className="admin-home__tiles-heading" id="admin-home-sections">
             Разделы
           </h2>

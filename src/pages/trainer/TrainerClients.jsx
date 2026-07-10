@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Cake, Clock, Search, UserPlus } from 'lucide-react'
+import { AlertTriangle, Cake, CalendarClock, Clock, Search, UserPlus } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import { TrainerClientListItem } from '../../components/trainer/TrainerClientListItem'
 import { useAuth } from '../../context/AuthContext'
 import { deleteClientAndAllData, listClubsLocal } from '../../lib/dataAccess'
@@ -17,9 +18,16 @@ import { isAppOnline } from '../../lib/syncService'
 import { useDebouncedStorageReload, shouldReloadTrainerClientList } from '../../lib/useDebouncedStorageReload'
 import { flushSyncQueue, saveLocalWithSync } from '../../lib/syncService'
 import { isSupabaseConfigured } from '../../lib/supabase'
+import {
+  buildLastCompletedTrainingDateByClientId,
+  isClientStaleForAttention,
+  isTrainerClientQuickFilter,
+  STALE_TRAINING_DAYS,
+} from '../../lib/trainer/trainerAttentionSummary'
 
 export function TrainerClients() {
   const { user, refreshUserProfile } = useAuth()
+  const [searchParams] = useSearchParams()
   const trainerClubId = user?.club_id ?? null
 
   useEffect(() => {
@@ -32,7 +40,10 @@ export function TrainerClients() {
   const [lastTrainingDateByClientId, setLastTrainingDateByClientId] = useState({})
   const [busy, setBusy] = useState(false)
   const [query, setQuery] = useState('')
-  const [quickFilter, setQuickFilter] = useState('all') // all | expiring | expired_remaining | birthdays
+  const filterFromUrl = searchParams.get('filter')
+  const [quickFilter, setQuickFilter] = useState(() =>
+    isTrainerClientQuickFilter(filterFromUrl) ? filterFromUrl : 'all',
+  )
   const [clientsTab, setClientsTab] = useState('active') // active | archive
   const [visibleCount, setVisibleCount] = useState(CLIENT_LIST_PAGE_SIZE)
   const [showNewClient, setShowNewClient] = useState(false)
@@ -121,6 +132,16 @@ export function TrainerClients() {
 
   useDebouncedStorageReload(() => reload({ silent: true }), { shouldRun: shouldReloadTrainerClientList })
 
+  useEffect(() => {
+    const f = searchParams.get('filter')
+    if (isTrainerClientQuickFilter(f)) setQuickFilter(f)
+  }, [searchParams])
+
+  const lastCompletedByClientId = useMemo(
+    () => buildLastCompletedTrainingDateByClientId(Object.values(trainingsByClientId).flat()),
+    [trainingsByClientId],
+  )
+
   const today = todayLocalIso()
 
   const myClubName = useMemo(() => {
@@ -145,12 +166,23 @@ export function TrainerClients() {
       list = base.filter((c) => isBirthdayWithinNextDays(c.birth_date, today, BIRTHDAY_WINDOW_DAYS))
       return [...list].sort((a, b) => compareByUpcomingBirthday(a, b, today))
     }
+    if (quickFilter === 'stale') {
+      list = base.filter((c) =>
+        isClientStaleForAttention({
+          memList: memByClient[c.id] ?? [],
+          lastCompletedIso: lastCompletedByClientId[c.id],
+          today,
+          staleDays: STALE_TRAINING_DAYS,
+        }),
+      )
+      return list
+    }
     if (quickFilter === 'all') return list
     return list.filter((c) => {
       const sig = membershipSignal(memByClient[c.id] ?? [], today)
       return sig.key === quickFilter
     })
-  }, [clients, archivedClients, clientsTab, query, quickFilter, memByClient, today])
+  }, [clients, archivedClients, clientsTab, query, quickFilter, memByClient, today, lastCompletedByClientId])
 
   useEffect(() => {
     setVisibleCount(CLIENT_LIST_PAGE_SIZE)
@@ -168,14 +200,25 @@ export function TrainerClients() {
     let expiring = 0
     let expired_remaining = 0
     let birthdays = 0
+    let stale = 0
     for (const c of base) {
       const sig = membershipSignal(memByClient[c.id] ?? [], today)
       if (sig.key === 'expiring') expiring++
       if (sig.key === 'expired_remaining') expired_remaining++
       if (isBirthdayWithinNextDays(c.birth_date, today, BIRTHDAY_WINDOW_DAYS)) birthdays++
+      if (
+        isClientStaleForAttention({
+          memList: memByClient[c.id] ?? [],
+          lastCompletedIso: lastCompletedByClientId[c.id],
+          today,
+          staleDays: STALE_TRAINING_DAYS,
+        })
+      ) {
+        stale++
+      }
     }
-    return { all, expiring, expired_remaining, birthdays }
-  }, [clients, archivedClients, clientsTab, memByClient, today])
+    return { all, expiring, expired_remaining, birthdays, stale }
+  }, [clients, archivedClients, clientsTab, memByClient, today, lastCompletedByClientId])
 
   const filterBtnClass = (id) => `btn ${quickFilter === id ? 'btn-primary' : 'btn-ghost'} btn-icon-square`
 
@@ -300,6 +343,15 @@ export function TrainerClients() {
               >
                 <Cake size={20} aria-hidden />
               </button>
+              <button
+                type="button"
+                className={filterBtnClass('stale')}
+                onClick={() => applyFilter('stale')}
+                aria-label={`Фильтр: без завершённой тренировки ${STALE_TRAINING_DAYS}+ дней`}
+                title={`Давно не был ${STALE_TRAINING_DAYS}+ дн. (${filterCounts.stale})`}
+              >
+                <CalendarClock size={20} aria-hidden />
+              </button>
             </div>
           </div>
         </div>
@@ -399,7 +451,9 @@ export function TrainerClients() {
               <p className="muted">
                 {quickFilter === 'birthdays'
                   ? `В ближайшие ${BIRTHDAY_WINDOW_DAYS} дней дней рождения нет (укажите дату в карточке клиента).`
-                  : clients.length === 0 && !query.trim() && quickFilter === 'all'
+                  : quickFilter === 'stale'
+                    ? `Нет клиентов без завершённой тренировки ${STALE_TRAINING_DAYS}+ дней (с действующим абонементом).`
+                    : clients.length === 0 && !query.trim() && quickFilter === 'all'
                     ? 'Пока нет клиентов. Нажмите «+», чтобы добавить.'
                     : 'Ничего не найдено.'}
               </p>

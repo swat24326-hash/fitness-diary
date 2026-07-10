@@ -46,8 +46,10 @@ export function AppHeader() {
     showHeaderSync,
     syncOutboundTotal,
     syncHasPending,
+    syncOutboundLabelShort,
     syncBtnClass,
     syncBtnTitle,
+    syncMenuLabel,
     syncBusy,
     syncProgress,
     syncNow,
@@ -389,7 +391,7 @@ export function AppHeader() {
           <div className="app-header__sync-wrap">
             <button
               type="button"
-              className={syncBtnClass}
+              className={`${syncBtnClass}${syncHasPending && !syncBusy ? ' app-header__sync-btn--labeled' : ''}`}
               disabled={syncBusy}
               onClick={() => void syncNow()}
               title={syncBtnTitle}
@@ -402,9 +404,12 @@ export function AppHeader() {
                   {syncProgress.percent}%
                 </span>
               ) : syncHasPending ? (
-                <span className="app-header__sync-badge" aria-hidden>
-                  {syncOutboundTotal > 99 ? '99+' : syncOutboundTotal}
-                </span>
+                <>
+                  <span className="app-header__sync-badge" aria-hidden>
+                    {syncOutboundTotal > 99 ? '99+' : syncOutboundTotal}
+                  </span>
+                  <span className="app-header__sync-label">{syncOutboundLabelShort}</span>
+                </>
               ) : null}
             </button>
             {syncBusy ? (
@@ -516,9 +521,7 @@ export function AppHeader() {
                   ? syncProgress.label
                     ? `${syncProgress.percent}% — ${syncProgress.label}`
                     : `Синхронизация… ${syncProgress.percent}%`
-                  : syncHasPending
-                    ? `Синхронизировать (${syncOutboundTotal})`
-                    : 'Синхронизировать'}
+                  : syncMenuLabel}
               </button>
             ) : null}
             <button

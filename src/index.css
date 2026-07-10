@@ -569,6 +569,37 @@ button {
     box-shadow 0.2s var(--ease-out);
 }
 
+.app-header__sync-btn--labeled {
+  width: auto;
+  min-width: 42px;
+  max-width: min(168px, 34vw);
+  padding-inline: 10px 12px;
+  gap: 6px;
+  flex-direction: row;
+  align-items: center;
+}
+
+.app-header__sync-label {
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.1;
+  white-space: nowrap;
+  color: inherit;
+}
+
+@media (max-width: 720px) {
+  .app-header__sync-label {
+    display: none;
+  }
+
+  .app-header__sync-btn--labeled {
+    width: 42px;
+    min-width: 42px;
+    max-width: 42px;
+    padding-inline: 9px;
+  }
+}
+
 .app-header__sync-btn--idle {
   color: rgba(246, 244, 239, 0.52);
   border-color: rgba(255, 255, 255, 0.1);
@@ -2989,6 +3020,124 @@ tr:last-child td {
 
 .trainer-home__tiles {
   width: 100%;
+  margin-top: clamp(8px, 2vh, 20px);
+}
+
+.trainer-attention {
+  width: 100%;
+  max-width: 920px;
+  margin-inline: auto;
+}
+
+.trainer-attention__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 16px;
+  margin-bottom: 12px;
+}
+
+.trainer-attention__title {
+  margin: 0;
+  font-size: clamp(1rem, 2.4vw, 1.15rem);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.trainer-attention__hint,
+.trainer-attention__ok {
+  margin: 0;
+  font-size: 13px;
+}
+
+.trainer-attention__loading {
+  font-size: 14px;
+  padding: 12px 0;
+}
+
+.trainer-attention__grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 148px), 1fr));
+  gap: clamp(10px, 2vw, 16px);
+}
+
+.trainer-attention__card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: clamp(12px, 2.5vw, 16px);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: inherit;
+  transition:
+    border-color 0.2s var(--ease-out),
+    box-shadow 0.2s var(--ease-out),
+    transform 0.2s var(--ease-out);
+}
+
+.trainer-attention__card:hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  transform: translateY(-1px);
+}
+
+.trainer-attention__card--hot {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.trainer-attention__card-icon {
+  display: inline-flex;
+  opacity: 0.85;
+}
+
+.trainer-attention__card-count {
+  font-size: clamp(1.35rem, 4vw, 1.65rem);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.trainer-attention__card-label {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.trainer-attention__card-hint {
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.trainer-sync-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+  width: 100%;
+  max-width: 920px;
+  margin-inline: auto;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  background: rgba(251, 191, 36, 0.08);
+}
+
+.trainer-sync-banner__text {
+  margin: 0;
+  flex: 1 1 200px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #fde68a;
+}
+
+.trainer-sync-banner__btn {
+  flex-shrink: 0;
 }
 
 .trainer-home__tiles-heading {
@@ -3283,6 +3432,109 @@ tr:last-child td {
   font-size: clamp(1.65rem, 4vw, 2rem);
   color: var(--accent-bright);
   filter: drop-shadow(0 0 10px rgba(34, 197, 94, 0.35));
+}
+
+.admin-day-summary {
+  width: 100%;
+  max-width: 920px;
+  margin-inline: auto;
+}
+
+.admin-day-summary__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 16px;
+  margin-bottom: 12px;
+}
+
+.admin-day-summary__title {
+  margin: 0;
+  font-size: clamp(1rem, 2.4vw, 1.15rem);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.admin-day-summary__hint,
+.admin-day-summary__ok,
+.admin-day-summary__loading {
+  margin: 0;
+  font-size: 13px;
+}
+
+.admin-day-summary__grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 148px), 1fr));
+  gap: clamp(10px, 2vw, 16px);
+}
+
+.admin-day-summary__card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: clamp(12px, 2.5vw, 16px);
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: inherit;
+  transition:
+    border-color 0.2s var(--ease-out),
+    box-shadow 0.2s var(--ease-out),
+    transform 0.2s var(--ease-out);
+}
+
+.admin-day-summary__card:hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  transform: translateY(-1px);
+}
+
+.admin-day-summary__card--hot {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.admin-day-summary__card--warn {
+  border-color: color-mix(in srgb, #f59e0b 50%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, #f59e0b 15%, transparent);
+}
+
+.admin-day-summary__card-icon {
+  display: inline-flex;
+  opacity: 0.85;
+}
+
+.admin-day-summary__card-count {
+  font-size: clamp(1.35rem, 4vw, 1.65rem);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.admin-day-summary__card-count--text {
+  font-size: clamp(1.1rem, 3.2vw, 1.35rem);
+}
+
+.admin-day-summary__card-label {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.admin-day-summary__card-hint {
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.admin-day-summary__note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 0;
+  font-size: 13px;
 }
 
 .admin-home__hero {

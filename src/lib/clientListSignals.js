@@ -1,5 +1,5 @@
-import { membershipHasRemaining, pickUsableMembershipForDate } from './membershipRules'
-import { formatDateRu } from './dateRu'
+import { membershipHasRemaining, pickUsableMembershipForDate } from './membershipRules.js'
+import { formatDateRu } from './dateRu.js'
 
 export function pickExpiredMembershipWithRemaining(list, todayIso) {
   const d = String(todayIso ?? '')

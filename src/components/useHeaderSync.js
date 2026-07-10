@@ -18,6 +18,12 @@ import {
   reportSyncOutcome,
   subscribeSyncAttention,
 } from '../lib/appErrorJournal'
+import {
+  formatSyncOutboundMenuLabel,
+  formatSyncOutboundShort,
+  formatSyncOutboundTitle,
+} from '../lib/syncOutboundLabel'
+import { SYNC_NOW_REQUEST } from '../lib/syncUiBridge'
 
 export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, searchParams, menuOpen, closeMenu }) {
   const [pendingSync, setPendingSync] = useState(0)
@@ -114,6 +120,8 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
     if (syncFeedbackTimerRef.current) clearTimeout(syncFeedbackTimerRef.current)
     setSyncFeedback({ text: text ? `${pct}% — ${text}` : `${pct}%`, tone: 'ok' })
   }
+
+  const syncNowRef = useRef(async () => {})
 
   const syncNow = async () => {
     if (syncBusy) return
@@ -319,9 +327,24 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
     }
   }
 
+  syncNowRef.current = syncNow
+
+  useEffect(() => {
+    const onRequest = () => {
+      void syncNowRef.current()
+    }
+    window.addEventListener(SYNC_NOW_REQUEST, onRequest)
+    return () => window.removeEventListener(SYNC_NOW_REQUEST, onRequest)
+  }, [])
+
   const showHeaderSync = supabaseReady
   const syncOutboundTotal = pendingSync + unsyncedLocal
   const syncHasPending = syncOutboundTotal > 0
+  const syncOutboundLabelShort = formatSyncOutboundShort({
+    queue: pendingSync,
+    localOnly: unsyncedLocal,
+    total: syncOutboundTotal,
+  })
   const syncBtnClass = [
     'btn',
     'btn-ghost',
@@ -329,24 +352,27 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
     'app-header__sync-btn',
     syncBusy ? 'app-header__sync-btn--busy' : syncHasPending ? 'app-header__sync-btn--pending' : 'app-header__sync-btn--idle',
   ].join(' ')
-  const syncBtnTitle = syncBusy
-    ? syncProgress.label
-      ? `${syncProgress.percent}% — ${syncProgress.label}`
-      : `Синхронизация… ${syncProgress.percent}%`
-    : syncHasPending
-      ? unsyncedLocal > 0 && pendingSync === 0
-        ? `Только на устройстве: ${unsyncedLocal} — отправить в облако`
-        : unsyncedLocal > 0
-          ? `Очередь ${pendingSync}, ещё ${unsyncedLocal} только на устройстве`
-          : `Отправить в облако (${pendingSync} в очереди)`
-      : 'Синхронизировать с облаком'
+  const syncBtnTitle = formatSyncOutboundTitle({
+    queue: pendingSync,
+    localOnly: unsyncedLocal,
+    busy: syncBusy,
+    percent: syncProgress.percent,
+    progressLabel: syncProgress.label,
+  })
+  const syncMenuLabel = formatSyncOutboundMenuLabel({
+    queue: pendingSync,
+    localOnly: unsyncedLocal,
+    total: syncOutboundTotal,
+  })
 
   return {
     showHeaderSync,
     syncOutboundTotal,
     syncHasPending,
+    syncOutboundLabelShort,
     syncBtnClass,
     syncBtnTitle,
+    syncMenuLabel,
     syncBusy,
     syncProgress,
     syncNow,

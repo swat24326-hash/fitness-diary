@@ -1,0 +1,103 @@
+import { Link } from 'react-router-dom'
+import { AlertTriangle, Cake, CalendarClock, Clock } from 'lucide-react'
+
+/**
+ * @param {{
+ *   summary: {
+ *     birthdaysWeek: number,
+ *     expiring: number,
+ *     expired_remaining: number,
+ *     stale: number,
+ *     actionable: number,
+ *     staleDays: number,
+ *     birthdayWeekDays: number,
+ *   } | null,
+ *   loading?: boolean,
+ * }} props
+ */
+export function TrainerAttentionPanel({ summary, loading = false }) {
+  if (loading) {
+    return (
+      <section className="trainer-attention" aria-labelledby="trainer-attention-title" aria-busy="true">
+        <h2 id="trainer-attention-title" className="trainer-attention__title">
+          Сегодня внимание
+        </h2>
+        <div className="trainer-attention__loading muted" role="status">
+          Загрузка…
+        </div>
+      </section>
+    )
+  }
+
+  if (!summary) return null
+
+  const items = [
+    {
+      key: 'birthdays',
+      count: summary.birthdaysWeek,
+      label: 'ДР на неделе',
+      hint: `${summary.birthdayWeekDays} дн.`,
+      icon: Cake,
+      to: '/trainer/clients?filter=birthdays',
+    },
+    {
+      key: 'expiring',
+      count: summary.expiring,
+      label: 'Истекает абонемент',
+      hint: '≤ 3 дня',
+      icon: Clock,
+      to: '/trainer/clients?filter=expiring',
+    },
+    {
+      key: 'expired_remaining',
+      count: summary.expired_remaining,
+      label: 'Срок истёк, осталось',
+      hint: 'тренировки',
+      icon: AlertTriangle,
+      to: '/trainer/clients?filter=expired_remaining',
+    },
+    {
+      key: 'stale',
+      count: summary.stale,
+      label: 'Давно не был',
+      hint: `${summary.staleDays}+ дн.`,
+      icon: CalendarClock,
+      to: '/trainer/clients?filter=stale',
+    },
+  ]
+
+  return (
+    <section className="trainer-attention" aria-labelledby="trainer-attention-title">
+      <div className="trainer-attention__head">
+        <h2 id="trainer-attention-title" className="trainer-attention__title">
+          Сегодня внимание
+        </h2>
+        {summary.actionable === 0 ? (
+          <p className="trainer-attention__ok muted">Всё спокойно — срочных напоминаний нет.</p>
+        ) : (
+          <p className="trainer-attention__hint muted">
+            {summary.actionable}{' '}
+            {summary.actionable === 1 ? 'повод' : summary.actionable < 5 ? 'повода' : 'поводов'} связаться с клиентами
+          </p>
+        )}
+      </div>
+      <ul className="trainer-attention__grid">
+        {items.map(({ key, count, label, hint, icon: Icon, to }) => (
+          <li key={key}>
+            <Link
+              to={to}
+              className={`trainer-attention__card u-no-decoration${count > 0 ? ' trainer-attention__card--hot' : ''}`}
+            >
+              <span className="trainer-attention__card-icon" aria-hidden>
+                <Icon size={18} />
+              </span>
+              <span className="trainer-attention__card-count">{count}</span>
+              <span className="trainer-attention__card-label">{label}</span>
+              <span className="trainer-attention__card-hint muted">{hint}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}

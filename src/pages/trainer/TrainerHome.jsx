@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { User, Users, Trophy, Swords } from 'lucide-react'
+import { TrainerAttentionPanel } from '../../components/trainer/TrainerAttentionPanel'
+import { TrainerSyncPendingBanner } from '../../components/trainer/TrainerSyncPendingBanner'
 import { useAuth } from '../../context/AuthContext'
 import {
   loadContextForChallengeLeaderboard,
@@ -12,9 +14,20 @@ import {
   formatChallengeMetricRu,
 } from '../../lib/dataAccess'
 import { listClientsByTrainerId } from '../../lib/localDbClubQuery'
-import { formatDateRu } from '../../lib/dateRu'
+import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 import { isAppOnline } from '../../lib/syncService'
-import { useDebouncedStorageReload, shouldReloadTrainerChallenges } from '../../lib/useDebouncedStorageReload'
+import { loadTrainerWorkspaceSnapshot } from '../../lib/trainerWorkspaceCache'
+import {
+  buildLastCompletedTrainingDateByClientId,
+  buildTrainerAttentionSummary,
+} from '../../lib/trainer/trainerAttentionSummary'
+import {
+  useDebouncedStorageReload,
+  shouldReloadTrainerChallenges,
+  shouldReloadTrainerClientList,
+} from '../../lib/useDebouncedStorageReload'
+import { useSyncOutboundPoll } from '../../hooks/useSyncOutboundPoll'
+import { isSupabaseConfigured } from '../../lib/supabase'
 
 function daysLeftRu(endDate) {
   const end = String(endDate ?? '').slice(0, 10)
@@ -59,7 +72,39 @@ export function TrainerHome() {
   const trainerId = user?.id ?? ''
 
   const [challengesView, setChallengesView] = useState(INITIAL_CHALLENGES_VIEW)
+  const [attentionSummary, setAttentionSummary] = useState(null)
+  const [attentionLoading, setAttentionLoading] = useState(true)
   const loadGenRef = useRef(0)
+  const attentionGenRef = useRef(0)
+  const syncOutbound = useSyncOutboundPoll({ enabled: isSupabaseConfigured() })
+
+  const loadAttention = useCallback(async () => {
+    if (!trainerId) {
+      setAttentionSummary(null)
+      setAttentionLoading(false)
+      return
+    }
+    const gen = ++attentionGenRef.current
+    setAttentionLoading(true)
+    try {
+      const snap = await loadTrainerWorkspaceSnapshot(trainerId, clubId || null)
+      if (gen !== attentionGenRef.current) return
+      const lastCompletedByClientId = buildLastCompletedTrainingDateByClientId(snap.trainings)
+      setAttentionSummary(
+        buildTrainerAttentionSummary({
+          clients: snap.clients,
+          memByClient: snap.memByClient,
+          lastCompletedByClientId,
+          today: todayLocalIso(),
+        }),
+      )
+    } catch {
+      if (gen !== attentionGenRef.current) return
+      setAttentionSummary(null)
+    } finally {
+      if (gen === attentionGenRef.current) setAttentionLoading(false)
+    }
+  }, [trainerId, clubId])
 
   const loadChallenges = useCallback(
     async (opts = {}) => {
@@ -146,7 +191,15 @@ export function TrainerHome() {
     }
   }, [loadChallenges])
 
+  useEffect(() => {
+    void loadAttention()
+    return () => {
+      attentionGenRef.current += 1
+    }
+  }, [loadAttention])
+
   useDebouncedStorageReload(() => loadChallenges({ silent: true }), { shouldRun: shouldReloadTrainerChallenges })
+  useDebouncedStorageReload(() => loadAttention(), { shouldRun: shouldReloadTrainerClientList })
 
   const hasList = challengesView.items.length > 0
   const showPlaceholder = challengesView.phase === 'loading' || !hasList
@@ -173,6 +226,14 @@ export function TrainerHome() {
           </div>
         </div>
       </section>
+
+      <TrainerSyncPendingBanner
+        queue={syncOutbound.queue}
+        localOnly={syncOutbound.localOnly}
+        total={syncOutbound.total}
+      />
+
+      <TrainerAttentionPanel summary={attentionSummary} loading={attentionLoading} />
 
       <section className="trainer-challenges" aria-labelledby="trainer-challenges-title">
         <div className="trainer-challenges__head">

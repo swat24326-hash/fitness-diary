@@ -76,6 +76,9 @@ run('idb retention', 'node', ['scripts/verify-idb-retention.mjs'])
 run('draft trainings query', 'node', ['scripts/verify-draft-trainings-query.mjs'])
 run('challenges club query', 'node', ['scripts/verify-challenges-club-query.mjs'])
 run('client counts local', 'node', ['scripts/verify-client-counts-local.mjs'])
+run('trainer attention summary', 'node', ['scripts/verify-trainer-attention-summary.mjs'])
+run('admin club day summary', 'node', ['scripts/verify-admin-club-day-summary.mjs'])
+run('sync outbound label', 'node', ['scripts/verify-sync-outbound-label.mjs'])
 
 if (!skipLint) {
   run('lint', 'npm', ['run', 'lint'])
