@@ -208,8 +208,25 @@ ok(!prepareTextForSpeech('~тест / пункт • список').includes('~'
 ok(!prepareTextForSpeech('~тест / пункт • список').includes('/'), 'speech strips slash')
 ok(prepareTextForSpeech('~тест / пункт • список').includes('тест'), 'speech keeps words')
 
+const iskraSample =
+  'ИСКРА: FIT-CITY Клинцы, июль 2026. Данные приняты: план 29.2% — 369 999 ₽ из 1 300 000 ₽. Сегодня 10 июля 2026, первая треть месяца; ориентир ~32.3% — факт 29.2%, в календарном темпе. Направления ПЗ/ТЗ/АЗ — без критичного отставания. Отчёты 9 из 31 (29%).'
+const iskraSpeech = prepareTextForSpeech(iskraSample)
+ok(!iskraSpeech.includes('~'), 'speech iskra sample no tilde')
+ok(!iskraSpeech.includes('/'), 'speech iskra sample no slash')
+ok(!iskraSpeech.includes('—'), 'speech iskra sample no em dash')
+ok(!iskraSpeech.includes('₽'), 'speech iskra sample no ruble sign')
+ok(!iskraSpeech.includes('%'), 'speech iskra sample no percent sign')
+ok(iskraSpeech.includes('около'), 'speech iskra sample tilde to okolo')
+ok(iskraSpeech.includes('рублей'), 'speech iskra sample rubles word')
+ok(iskraSpeech.includes('процентов'), 'speech iskra sample percent word')
+ok(iskraSpeech.includes('ПЗ, ТЗ, АЗ'), 'speech iskra sample directions commas')
+
 const voiceMicrosoftFemale = { name: 'Microsoft Svetlana Online (Natural)', lang: 'ru-RU' }
 const voiceMicrosoftMale = { name: 'Microsoft Dmitry Online (Natural)', lang: 'ru-RU' }
+const voiceMicrosoftNeural = {
+  name: 'Microsoft Server Speech Text to Speech Voice (ru-RU, SvetlanaNeural)',
+  lang: 'ru-RU',
+}
 const voiceMicrosoftIrina = { name: 'Microsoft Irina Desktop', lang: 'ru-RU' }
 const voiceMicrosoftPavelDesktop = { name: 'Microsoft Pavel Desktop', lang: 'ru-RU' }
 const voiceGoogleRu = { name: 'Google русский', lang: 'ru-RU' }
@@ -219,6 +236,7 @@ const voiceEn = { name: 'Microsoft Zira', lang: 'en-US' }
 const edgeVoices = [voiceGoogleRu, voiceMicrosoftIrina, voiceMicrosoftFemale, voiceMicrosoftMale, voiceEn]
 ok(pickGeminiSpeechVoice('female', edgeVoices)?.name.includes('Svetlana Online'), 'tts female prefers Svetlana Online')
 ok(pickGeminiSpeechVoice('male', edgeVoices)?.name.includes('Dmitry Online'), 'tts male prefers Dmitry Online')
+ok(pickGeminiSpeechVoice('female', [voiceGoogleRu, voiceMicrosoftNeural])?.name.includes('SvetlanaNeural'), 'tts female neural voice')
 ok(!/google/i.test(pickGeminiSpeechVoice('female', edgeVoices)?.name ?? ''), 'tts skips Google when Microsoft available')
 ok(pickGeminiSpeechVoice('male', [voiceGoogleRu, voiceMicrosoftPavelDesktop])?.name.includes('Pavel'), 'tts male prefers Pavel desktop over Google')
 ok(pickGeminiSpeechVoice('male', [voiceGoogleMale, voiceGoogleRu])?.name.includes('Google'), 'tts google male only when no Microsoft male')

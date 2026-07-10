@@ -6,24 +6,14 @@ const AUTO_SPEAK_KEY = 'fit_gemini_auto_speak'
 let resumeIntervalId = null
 let speechGeneration = 0
 
-/** @param {string} name */
-function isFemaleVoiceName(name) {
-  const lower = String(name).toLowerCase()
-  return /svetlana|irina|milena|katya|anna|elena|olga|female|жен/i.test(lower)
-}
-
-/** @param {string} name */
-function isMaleVoiceName(name) {
-  const lower = String(name).toLowerCase()
-  if (isFemaleVoiceName(name)) return false
-  return /dmitri|dmitry|pavel|yuri|male|муж/i.test(lower)
-}
-
 /** @param {SpeechVoiceLike} voice */
 function isRussianVoice(voice) {
   const name = String(voice?.name ?? '')
   const lang = String(voice?.lang ?? '')
-  return /^ru(-|$)/i.test(lang) || /рус|irina|pavel|svetlana|dmitri|dmitry/i.test(name)
+  return (
+    /^ru(-|$)/i.test(lang) ||
+    /рус|irina|pavel|svetlana|dmitri|dmitry|svetlananeural|dmitrineural/i.test(name)
+  )
 }
 
 /** @param {SpeechVoiceLike} voice */
@@ -122,12 +112,16 @@ function waitForVoices() {
     const synth = window.speechSynthesis
     let settled = false
     let best = []
+    const startedAt = Date.now()
 
     const collect = () => {
       const voices = synth.getVoices()
       if (voices.length >= best.length) best = [...voices]
       return best
     }
+
+    const hasMicrosoftRu = () =>
+      best.some((v) => isMicrosoftVoice(v) && isRussianVoice(v))
 
     const cleanup = () => {
       if (typeof synth.removeEventListener === 'function') {
@@ -143,13 +137,17 @@ function waitForVoices() {
       resolve(collect())
     }
 
-    const onChange = () => {
+    const tryFinish = () => {
       collect()
-      const hasMicrosoftOnline = best.some(
-        (v) => /microsoft/i.test(String(v?.name ?? '')) && /online/i.test(String(v?.name ?? '')),
-      )
-      if (hasMicrosoftOnline || best.length >= 4) finish()
+      const elapsed = Date.now() - startedAt
+      if (hasMicrosoftRu() && elapsed >= 250) {
+        finish()
+        return
+      }
+      if (elapsed >= 2200) finish()
     }
+
+    const onChange = () => tryFinish()
 
     collect()
     if (typeof synth.addEventListener === 'function') {
@@ -157,28 +155,33 @@ function waitForVoices() {
     }
     synth.onvoiceschanged = onChange
 
-    setTimeout(() => {
-      collect()
-      if (best.length) finish()
-    }, 400)
-
-    setTimeout(finish, 1200)
+    ;[200, 500, 900, 1400, 2200].forEach((ms) => setTimeout(tryFinish, ms))
   })
 }
 
-/** Текст для TTS: без разметки и символов, которые озвучиваются как «тильда», «слеш». */
+/** Текст для TTS: разговорная форма без символов, которые читаются коряво. */
 export function prepareTextForSpeech(text) {
-  return String(text ?? '')
+  let s = String(text ?? '')
     .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/https?:\/\/\S+/gi, ' ')
-    .replace(/[*_`#~|\\/>]+/g, ' ')
-    .replace(/[«»“”"()[\]{}]/g, ' ')
-    .replace(/^\s*[-–—•·▪►]+\s*/gm, '')
-    .replace(/\s+[-–—•·▪►]\s+/g, ', ')
+    .replace(/([А-ЯЁ]{2,4})\/([А-ЯЁ]{2,4})(?:\/([А-ЯЁ]{2,4}))?/g, (_, a, b, c) =>
+      c ? `${a}, ${b}, ${c}` : `${a}, ${b}`)
+    .replace(/~\s*/g, 'около ')
+    .replace(/(\d[\d\s]*)\s*₽/g, '$1 рублей')
+    .replace(/(\d+(?:[.,]\d+)?)\s*%/g, '$1 процентов')
+    .replace(/\s*[—–]\s*/g, ', ')
+    .replace(/:\s+/g, ', ')
+    .replace(/;\s*/g, ', ')
     .replace(/\s*\/\s*/g, ' ')
+    .replace(/[*_`#~|\\]+/g, ' ')
+    .replace(/[«»"“”()[\]{}]/g, ' ')
+    .replace(/^\s*[-•·▪►]+\s*/gm, '')
+    .replace(/\s+[-•·▪►]\s+/g, ', ')
     .replace(/\s+/g, ' ')
     .trim()
+
+  return s
 }
 
 /** @typedef {{ name?: string, lang?: string, voiceURI?: string }} SpeechVoiceLike */
@@ -189,70 +192,44 @@ export function prepareTextForSpeech(text) {
  */
 function scoreSpeechVoice(voice, gender) {
   const name = String(voice?.name ?? '')
-  const lang = String(voice?.lang ?? '')
   const lower = name.toLowerCase()
 
-  if (!/^ru(-|$)/i.test(lang) && !/рус/i.test(name)) return -1000
+  if (!isRussianVoice(voice)) return -1000
 
   let score = 0
 
-  if (/microsoft/i.test(name)) score += 30
-  if (/online/i.test(name)) score += 25
-  if (/natural/i.test(name)) score += 15
-  if (/google/i.test(name)) score -= 40
+  if (/microsoft/i.test(name)) score += 35
+  if (/online/i.test(name)) score += 30
+  if (/natural/i.test(name)) score += 20
+  if (/neural/i.test(name)) score += 25
+  if (/desktop/i.test(name)) score += 8
+  if (/google/i.test(name)) score -= 80
 
   if (gender === 'female') {
-    if (/svetlana/i.test(lower)) score += 50
-    if (/irina/i.test(lower)) score += 20
-    if (/dmitri|dmitry|pavel|yuri|male|муж/i.test(lower)) score -= 60
-    if (/female|жен|milena|katya|anna/i.test(lower)) score += 10
+    if (/svetlana/i.test(lower)) score += 55
+    if (/irina/i.test(lower)) score += 35
+    if (/dmitri|dmitry|pavel|yuri|male|муж/i.test(lower)) score -= 80
+    if (/female|жен|milena|katya|anna|elena|olga/i.test(lower)) score += 12
   } else {
-    if (/dmitri|dmitry/i.test(lower)) score += 50
-    if (/pavel/i.test(lower)) score += 45
-    if (/yuri/i.test(lower)) score += 15
-    if (/svetlana|irina|milena|katya|anna|female|жен/i.test(lower)) score -= 60
-    if (/male|муж/i.test(lower)) score += 10
+    if (/dmitri|dmitry/i.test(lower)) score += 55
+    if (/pavel/i.test(lower)) score += 50
+    if (/yuri/i.test(lower)) score += 20
+    if (/svetlana|irina|milena|katya|anna|female|жен|elena|olga/i.test(lower)) score -= 80
+    if (/male|муж/i.test(lower)) score += 12
   }
 
   return score
 }
 
-/**
- * Предпочитает облачные Microsoft Online (Natural) в Edge; Google — только если Microsoft нет.
- *
- * @param {'male'|'female'} gender
- * @param {SpeechVoiceLike[]} voices
- * @returns {SpeechVoiceLike | null}
- */
 export function pickGeminiSpeechVoice(gender, voices) {
   const normalized = normalizeGender(gender)
   const list = Array.isArray(voices) ? voices : []
-  const ru = list.filter((v) => isRussianVoice(v))
-  const pool = ru.length ? ru : list
-  if (!pool.length) return null
+  const pool = list.filter((v) => isRussianVoice(v))
+  const base = pool.length ? pool : list
+  if (!base.length) return null
 
-  const microsoft = pool.filter((v) => isMicrosoftVoice(v))
-  const nonGoogle = pool.filter((v) => !isGoogleVoice(v))
-
-  if (normalized === 'male') {
-    const microsoftMale = sortMicrosoftVoices(microsoft.filter((v) => isMaleVoiceName(String(v?.name ?? ''))))
-    if (microsoftMale.length) return microsoftMale[0]
-
-    const anyMale = sortMicrosoftVoices(nonGoogle.filter((v) => isMaleVoiceName(String(v?.name ?? ''))))
-    if (anyMale.length) return anyMale[0]
-
-    const googleMale = pool.filter((v) => isGoogleVoice(v) && isMaleVoiceName(String(v?.name ?? '')))
-    if (googleMale.length) return googleMale[0]
-  } else {
-    const microsoftFemale = sortMicrosoftVoices(microsoft.filter((v) => isFemaleVoiceName(String(v?.name ?? ''))))
-    if (microsoftFemale.length) return microsoftFemale[0]
-
-    const anyFemale = sortMicrosoftVoices(nonGoogle.filter((v) => isFemaleVoiceName(String(v?.name ?? ''))))
-    if (anyFemale.length) return anyFemale[0]
-  }
-
-  const hasMicrosoft = microsoft.length > 0
-  const candidates = hasMicrosoft ? nonGoogle : pool
+  const hasMicrosoft = base.some((v) => isMicrosoftVoice(v))
+  const candidates = hasMicrosoft ? base.filter((v) => !isGoogleVoice(v)) : base
 
   let best = null
   let bestScore = -Infinity
@@ -265,7 +242,14 @@ export function pickGeminiSpeechVoice(gender, voices) {
     }
   }
 
-  return best
+  if (best) return best
+
+  if (hasMicrosoft) {
+    const microsoftOnly = base.filter((v) => isMicrosoftVoice(v))
+    return sortMicrosoftVoices(microsoftOnly)[0] ?? null
+  }
+
+  return base[0] ?? null
 }
 
 function bindVoice(utter, gender, voices) {
@@ -273,7 +257,9 @@ function bindVoice(utter, gender, voices) {
   if (!picked) return
   const uri = String(picked.voiceURI ?? '')
   const bound = uri ? voices.find((v) => v.voiceURI === uri) : null
-  utter.voice = bound ?? picked
+  const voice = bound ?? picked
+  utter.voice = voice
+  if (voice?.lang) utter.lang = voice.lang
 }
 
 function clearResumeInterval() {
