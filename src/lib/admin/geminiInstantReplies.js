@@ -18,7 +18,7 @@ import { phrasePlanSnapshotLine } from './iskraReplyPhrasing.js'
 import { formatRub } from './salesReportCore.js'
 import { periodLabelRu } from './geminiAnalyticsSnapshot.js'
 
-/** @typedef {'intro'|'plan'|'gap'|'compare'|'fitcity'|'finance'|'pnk'|'bestday'|'trainer_inactive'|'payroll_gap'|'sales_coverage'|'sales_structure'|'sales_refunds'|'sales_directions'|'month_forecast'|'trainer_trainings'|'trainer_salary'|'trainer_clients'|'trainer_no_type'|'trainer_rank'} GeminiChipId */
+/** @typedef {'intro'|'plan'|'gap'|'compare'|'fitcity'|'finance'|'pnk'|'bestday'|'trainer_inactive'|'payroll_gap'|'sales_coverage'|'sales_structure'|'sales_refunds'|'sales_directions'|'month_forecast'|'trainer_trainings'|'trainer_salary'|'trainer_clients'|'trainer_no_type'|'trainer_rank'|'trainer_summary'} GeminiChipId */
 
 /** Все chip-id с мгновенным ответом (в т.ч. без кнопки в UI). */
 export const GEMINI_INSTANT_CHIPS = [
@@ -162,6 +162,13 @@ export const GEMINI_INSTANT_CHIPS = [
     id: 'trainer_rank',
     label: 'Место в клубе',
     message: 'Как тренер выглядит на фоне других тренеров клуба по тренировкам?',
+    compare: false,
+    quick: false,
+  },
+  {
+    id: 'trainer_summary',
+    label: 'Сводка тренера',
+    message: 'Сводка по тренеру за этот месяц',
     compare: false,
     quick: false,
   },
@@ -317,6 +324,8 @@ export function buildGeminiInstantReply(chipId, opts) {
       return buildTrainerNoTypeReply(club, period, snapshot, opener, closer)
     case 'trainer_rank':
       return buildTrainerRankReply(club, period, snapshot, opener, closer, seed)
+    case 'trainer_summary':
+      return buildTrainerSummaryReply(club, period, snapshot, opener, closer, seed)
     case 'payroll_gap':
       return buildPayrollGapReply(club, period, snapshot, insights, opener, closer)
     case 'sales_coverage':
@@ -627,6 +636,49 @@ function buildTrainerRankReply(club, period, snapshot, opener, closer, seed) {
         ? pickWord(GEMINI_LEXICON_POOLS.critique, seed)
         : 'на уровне среднего'
   return `${ISKRA_NAME}: ${name}, ${period}. ${completed} тренировок — ${rank}-е место из ${total}, среднее по клубу ${clubAvg}, ${vsAvg}. На связи.`
+}
+
+function buildTrainerSummaryReply(club, period, snapshot, opener, closer, _seed) {
+  const row = selectedTrainerRow(snapshot)
+  const trainers = snapshot.trainer_contour?.trainers ?? []
+
+  if (!row) {
+    const hint =
+      trainers.length > 0
+        ? ` Уточните имя — в клубе: ${trainers
+            .slice(0, 6)
+            .map((t) => trainerNameFromRow(t))
+            .join(', ')}.`
+        : ''
+    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: не нашла тренера в запросе.${hint} ${closer}.`
+  }
+
+  const name = trainerNameFromRow(row)
+  const completed = Number(row.completed_trainings) || 0
+  const salary = Number(row.personal_salary_month) || 0
+  const total = Number(row.active_clients_total) || 0
+  const active = Number(row.current_active_holders) || 0
+  const inactive = Number(row.inactive_clients_holders) || 0
+  const noType = Number(row.no_type_trainings_ignored) || 0
+
+  let rankLine = ''
+  if (trainers.length > 1) {
+    const sorted = [...trainers].sort(
+      (a, b) =>
+        (Number(b.completed_trainings) || 0) - (Number(a.completed_trainings) || 0) ||
+        String(a.trainer_name).localeCompare(String(b.trainer_name), 'ru'),
+    )
+    const rank = sorted.findIndex((t) => t.trainer_id === row.trainer_id) + 1
+    rankLine = ` Место в клубе по тренировкам — ${rank} из ${trainers.length}.`
+  }
+
+  const noTypeLine = noType > 0 ? ` Тренировок «Без типа» — ${noType} (в ЗП не входят).` : ''
+
+  return (
+    `${ISKRA_NAME}: ${name}, ${period}. ${opener}: завершённых тренировок — ${completed}; ` +
+    `личная ЗП по планшетам — ${formatRub(salary)}; клиентов ${total} ` +
+    `(с абонементом ${active}, неактивных ${inactive}).${rankLine}${noTypeLine} На связи.`
+  )
 }
 
 function buildPayrollGapReply(club, period, snapshot, insights, opener, closer) {

@@ -4,6 +4,7 @@ import { ISKRA_FULL_NAME, ISKRA_NAME } from './geminiIskraCore.js'
 import { periodLabelRu } from './geminiAnalyticsSnapshot.js'
 import { phrasePlanProgress } from './iskraReplyPhrasing.js'
 import { buildIskraBusinessHighlights, buildIskraIntroPitch } from './iskraBusinessHighlights.js'
+import { isTrainerFocusedQuestion } from './iskraTrainerRouting.js'
 
 export const GEMINI_INTRO_CHIP = {
   id: 'intro',
@@ -42,6 +43,8 @@ function normalizeIntroText(text) {
 }
 
 export function matchGeminiIntroIntent(userMessage) {
+  if (isTrainerFocusedQuestion(userMessage)) return null
+
   const s = normalizeIntroText(userMessage)
   if (!s) return null
 
@@ -53,7 +56,8 @@ export function matchGeminiIntroIntent(userMessage) {
   }
   if (/подробн|как\s+счита|как\s+работа/.test(s) && /ты|искр|аналит|помога/.test(s)) return 'deep'
   if (/чем\s+пом|что\s+уме|что\s+мож|чем\s+полез|help/.test(s)) return 'capabilities'
-  if (/кто\s+ты|ты\s+кто|представ|знаком|расскажи\s+о\s+себе|что\s+ты\s+за|искр/.test(s)) return 'standard'
+  if (/кто\s+ты|ты\s+кто|представ|знаком|расскажи\s+о\s+себе|что\s+ты\s+за/.test(s)) return 'standard'
+  if (/^искра[!?.,\s]*$/.test(s) || /^эвс[!?.,\s]*$/.test(s)) return 'standard'
 
   return null
 }
@@ -118,31 +122,34 @@ export function buildGeminiIntroReply(kind, opts = {}) {
   }
 }
 
-function buildMicroIntro(ctx, kpi, tail, missingReport, pitch) {
-  const { name, fullName, clubPhrase, period, hasClub } = ctx
+function buildMicroIntro(ctx, kpi, _tail, missingReport, pitch) {
+  const { fullName, clubPhrase, period, hasClub } = ctx
 
   if (!hasClub) {
     return `${fullName} на связи. Выберите филиал в шапке — дам сводку по плану, прогнозу и прибыли за ${period}.`
   }
 
   if (kpi && !kpi.hasPlan && (kpi.reportDays || 0) === 0) {
-    return `${name} на связи, ${fullName} по ${clubPhrase}, ${period}. Данных пока мало — подскажу, с чего начать контроль месяца.${missingReport}`
+    return `${fullName} на связи по ${clubPhrase}, ${period}. Данных пока мало — подскажу, с чего начать контроль месяца.${missingReport}`
   }
 
-  return `${name} на связи, ${clubPhrase}, ${period}. ${pitch}${missingReport}`
+  return `${fullName} на связи по ${clubPhrase}, ${period}. ${pitch}${missingReport}`
 }
 
 function buildStandardIntro(ctx, tail, missingReport, pitch) {
-  const { name, fullName, clubPhrase, period, hasClub } = ctx
+  const { fullName, clubPhrase, period, hasClub } = ctx
 
   if (!hasClub) {
     return `${fullName} на связи — аналитика для руководителя клуба. Выберите филиал в шапке: покажу план, прогноз «Финансы клуба», чистую прибыль и риски по направлениям.`
   }
 
+  const pitchHasNow = String(pitch).includes('Сейчас:')
+  const kpiSuffix = pitchHasNow ? '' : tail
+
   return (
-    `${name} на связи. ${fullName} по ${clubPhrase}, ${period}. ` +
+    `${fullName} на связи по ${clubPhrase}, ${period}. ` +
     `${pitch}${TRAINER_ON_REQUEST} ` +
-    `Цифры — из ваших отчётов менеджера и вкладки «Финансы клуба»; свои выводы помечаю отдельно.${tail}${missingReport} ` +
+    `Цифры — из ваших отчётов менеджера и вкладки «Финансы клуба»; свои выводы помечаю отдельно.${kpiSuffix}${missingReport} ` +
     `Спросите текстом или нажмите кнопку ниже.`
   )
 }

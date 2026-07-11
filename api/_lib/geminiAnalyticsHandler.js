@@ -23,6 +23,10 @@ import {
 import { resolveInstantHandlerId } from '../../src/lib/admin/iskraQuickChipsCore.js'
 import { applyTrainerFocusToSnapshot } from '../../src/lib/admin/geminiTrainerContour.js'
 import {
+  isTrainerFocusedQuestion,
+  resolveTrainerIdFromMessage,
+} from '../../src/lib/admin/iskraTrainerRouting.js'
+import {
   buildGeminiIntroReply,
   matchGeminiIntroIntent,
 } from '../../src/lib/admin/geminiAssistantIntro.js'
@@ -239,7 +243,14 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
     }
 
     const explicitHandlerId = String(body?.handler_id ?? '').trim() || null
-    const chipId =
+    const trainersList = snapshot?.trainer_contour?.trainers ?? []
+    const effectiveTrainerId =
+      selectedTrainerId ||
+      (isTrainerFocusedQuestion(userMessage)
+        ? resolveTrainerIdFromMessage(userMessage, trainersList)
+        : null)
+
+    let chipId =
       body?.force_gemini === true
         ? null
         : resolveInstantHandlerId({
@@ -248,7 +259,15 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
             quickChips: quickChipsStored,
             handlerId: explicitHandlerId,
           })
-    const introKind = body?.force_gemini === true ? null : matchGeminiIntroIntent(userMessage)
+
+    if (!chipId && isTrainerFocusedQuestion(userMessage)) {
+      chipId = 'trainer_summary'
+    }
+
+    const introKind =
+      body?.force_gemini === true || isTrainerFocusedQuestion(userMessage)
+        ? null
+        : matchGeminiIntroIntent(userMessage)
 
     if (introKind && !chipId) {
       const introText = buildGeminiIntroReply(introKind, {
@@ -284,8 +303,8 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
     }
 
     if (chipId) {
-      const focusedSnapshot = selectedTrainerId
-        ? applyTrainerFocusToSnapshot(snapshot, selectedTrainerId)
+      const focusedSnapshot = effectiveTrainerId
+        ? applyTrainerFocusToSnapshot(snapshot, effectiveTrainerId)
         : snapshot
       const instantText = buildGeminiInstantReply(chipId, {
         snapshot: focusedSnapshot,
@@ -325,14 +344,14 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
       userMessage,
       snapshot,
       previousSnapshot,
-      selectedTrainerId,
+      selectedTrainerId: effectiveTrainerId,
       promptAppend,
     })
 
     const authHeader = String(req.headers.authorization || req.headers.Authorization || '')
     const dataBlock = offTopicQuestion
       ? { context: 'general_knowledge_question', club_name_for_role_reminder: clubName || 'филиала' }
-      : buildGeminiPromptDataBlock(snapshot, previousSnapshot, { selectedTrainerId })
+      : buildGeminiPromptDataBlock(snapshot, previousSnapshot, { selectedTrainerId: effectiveTrainerId })
     const edgeBody = {
       gender,
       club_name: clubName,
