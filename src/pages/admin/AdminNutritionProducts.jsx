@@ -10,10 +10,32 @@ import {
   seedDefaultNutritionProductsForClub,
 } from '../../lib/nutrition/nutritionProductsService'
 import { NUTRITION_MACRO_GROUP_LABELS } from '../../lib/nutrition/nutritionProductsCore.js'
+import { NUTRITION_EXCLUSION_OPTIONS } from '../../lib/nutrition/nutritionMacrosCore.js'
+import {
+  MEAL_ROLE_OPTIONS,
+  PAIRS_WITH_OPTIONS,
+  buildProductTags,
+  defaultMealRoleForMacroGroup,
+  formatPairingTagsForDisplay,
+} from '../../lib/nutrition/nutritionProductPairingTags.js'
 
 function MacroBadge({ group }) {
   const label = NUTRITION_MACRO_GROUP_LABELS[group] ?? group
   return <span className={`admin-nutrition-badge admin-nutrition-badge--${group}`}>{label}</span>
+}
+
+function PairingTagChips({ tags }) {
+  const chips = formatPairingTagsForDisplay(tags)
+  if (!chips.length) return null
+  return (
+    <div className="admin-nutrition-product-row__tags">
+      {chips.map((chip) => (
+        <span key={`${chip.kind}-${chip.text}`} className={`admin-nutrition-pairing-chip admin-nutrition-pairing-chip--${chip.kind}`}>
+          {chip.text}
+        </span>
+      ))}
+    </div>
+  )
 }
 
 function ProductChipList({ items, group, onDeactivate, confirmId, setConfirmId, busy }) {
@@ -30,11 +52,14 @@ function ProductChipList({ items, group, onDeactivate, confirmId, setConfirmId, 
             <li key={p.id} className="admin-nutrition-product-row">
               <div className="admin-nutrition-product-row__main">
                 <MacroBadge group={group} />
-                <span className="admin-nutrition-product-row__label">{p.label}</span>
-                <span className="muted admin-nutrition-product-row__macros">
-                  Б {p.protein_per100} · Ж {p.fat_per100} · У {p.carbs_per100}
-                  {p.piece_grams ? ` · ${p.piece_grams} г/шт` : ''}
-                </span>
+                <div className="admin-nutrition-product-row__text">
+                  <span className="admin-nutrition-product-row__label">{p.label}</span>
+                  <span className="muted admin-nutrition-product-row__macros">
+                    Б {p.protein_per100} · Ж {p.fat_per100} · У {p.carbs_per100}
+                    {p.piece_grams ? ` · ${p.piece_grams} г/шт` : ''}
+                  </span>
+                  <PairingTagChips tags={p.tags} />
+                </div>
               </div>
               {confirmId === p.id ? (
                 <div className="admin-nutrition-product-row__confirm">
@@ -79,13 +104,20 @@ function ProductChipList({ items, group, onDeactivate, confirmId, setConfirmId, 
   )
 }
 
-const EMPTY_FORM = {
-  label: '',
-  macro_group: 'protein',
-  protein_per100: '',
-  fat_per100: '',
-  carbs_per100: '',
-  piece_grams: '',
+function emptyForm() {
+  return {
+    label: '',
+    macro_group: 'protein',
+    protein_per100: '',
+    fat_per100: '',
+    carbs_per100: '',
+    piece_grams: '',
+    meal_role: defaultMealRoleForMacroGroup('protein'),
+    pairs_with: [],
+    exclusions: [],
+    grams_min: '',
+    grams_max: '',
+  }
 }
 
 export function AdminNutritionProducts() {
@@ -93,7 +125,7 @@ export function AdminNutritionProducts() {
   const clubId = searchParams.get('club')?.trim() ?? ''
 
   const [items, setItems] = useState([])
-  const [form, setForm] = useState(EMPTY_FORM)
+  const [form, setForm] = useState(emptyForm)
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
   const [pullBusy, setPullBusy] = useState(false)
@@ -120,6 +152,32 @@ export function AdminNutritionProducts() {
   }, [items])
 
   const activeCount = useMemo(() => items.filter((p) => p.is_active !== false).length, [items])
+
+  const setMacroGroup = (macroGroup) => {
+    setForm((f) => ({
+      ...f,
+      macro_group: macroGroup,
+      meal_role: defaultMealRoleForMacroGroup(macroGroup),
+    }))
+  }
+
+  const togglePairsWith = (id) => {
+    setForm((f) => {
+      const set = new Set(f.pairs_with)
+      if (set.has(id)) set.delete(id)
+      else set.add(id)
+      return { ...f, pairs_with: [...set] }
+    })
+  }
+
+  const toggleExclusion = (id) => {
+    setForm((f) => {
+      const set = new Set(f.exclusions)
+      if (set.has(id)) set.delete(id)
+      else set.add(id)
+      return { ...f, exclusions: [...set] }
+    })
+  }
 
   const pullFromCloud = async () => {
     if (!clubId) return
@@ -156,6 +214,13 @@ export function AdminNutritionProducts() {
     setBusy(true)
     setMsg('')
     try {
+      const tags = buildProductTags({
+        mealRole: form.meal_role,
+        pairsWith: form.pairs_with,
+        exclusions: form.exclusions,
+        gramsMin: form.grams_min ? Number(String(form.grams_min).replace(',', '.')) : null,
+        gramsMax: form.grams_max ? Number(String(form.grams_max).replace(',', '.')) : null,
+      })
       const res = await insertNutritionProduct({
         club_id: clubId,
         label: form.label,
@@ -164,11 +229,12 @@ export function AdminNutritionProducts() {
         fat_per100: Number(String(form.fat_per100).replace(',', '.')) || 0,
         carbs_per100: Number(String(form.carbs_per100).replace(',', '.')) || 0,
         piece_grams: form.piece_grams ? Number(String(form.piece_grams).replace(',', '.')) : null,
+        tags,
         sort_order: items.length,
       })
       if (!res.cloudOk && res.cloudError) setMsg(res.cloudError)
       else {
-        setForm(EMPTY_FORM)
+        setForm(emptyForm())
         setMsg('Продукт добавлен')
       }
       await reloadLocal()
@@ -207,8 +273,8 @@ export function AdminNutritionProducts() {
             Продукты для рациона
           </h2>
           <p className="muted" style={{ margin: '8px 0 0', lineHeight: 1.45 }}>
-            Свой справочник клуба. Тренер видит эти продукты во вкладке «Питание» у клиента. Если список пуст — используется
-            встроенный базовый набор.
+            Свой справочник клуба. Тренер видит эти продукты во вкладке «Питание» у клиента. Теги сочетания помогают
+            приложению собирать логичные приёмы пищи (например, йогурт + фрукты).
           </p>
           <p className="admin-nutrition-hero__stat">
             Активных: <strong>{activeCount}</strong>
@@ -239,7 +305,7 @@ export function AdminNutritionProducts() {
           </label>
           <label className="admin-nutrition-form__field">
             <span>Группа</span>
-            <select className="input" value={form.macro_group} onChange={(e) => setForm((f) => ({ ...f, macro_group: e.target.value }))}>
+            <select className="input" value={form.macro_group} onChange={(e) => setMacroGroup(e.target.value)}>
               <option value="protein">Белки</option>
               <option value="fat">Жиры</option>
               <option value="carbs">Углеводы</option>
@@ -261,6 +327,55 @@ export function AdminNutritionProducts() {
             <span>Грамм/шт (опц.)</span>
             <input className="input" type="number" min={0} step="1" value={form.piece_grams} onChange={(e) => setForm((f) => ({ ...f, piece_grams: e.target.value }))} />
           </label>
+
+          <div className="admin-nutrition-form__field admin-nutrition-form__field--wide admin-nutrition-form__pairing">
+            <span>Тип продукта (для сочетаний)</span>
+            <select className="input" value={form.meal_role} onChange={(e) => setForm((f) => ({ ...f, meal_role: e.target.value }))}>
+              {MEAL_ROLE_OPTIONS.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <fieldset className="admin-nutrition-form__field admin-nutrition-form__field--wide admin-nutrition-form__checks">
+            <legend>Хорошо сочетается с</legend>
+            <div className="admin-nutrition-form__check-grid">
+              {PAIRS_WITH_OPTIONS.map((o) => (
+                <label key={o.id} className="admin-nutrition-form__check">
+                  <input
+                    type="checkbox"
+                    checked={form.pairs_with.includes(o.id)}
+                    onChange={() => togglePairsWith(o.id)}
+                  />
+                  <span>{o.label}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset className="admin-nutrition-form__field admin-nutrition-form__checks">
+            <legend>Исключения</legend>
+            <div className="admin-nutrition-form__check-grid">
+              {NUTRITION_EXCLUSION_OPTIONS.map((o) => (
+                <label key={o.id} className="admin-nutrition-form__check">
+                  <input type="checkbox" checked={form.exclusions.includes(o.id)} onChange={() => toggleExclusion(o.id)} />
+                  <span>{o.label}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <label className="admin-nutrition-form__field">
+            <span>Мин. порция, г</span>
+            <input className="input" type="number" min={0} step="1" value={form.grams_min} onChange={(e) => setForm((f) => ({ ...f, grams_min: e.target.value }))} />
+          </label>
+          <label className="admin-nutrition-form__field">
+            <span>Макс. порция, г</span>
+            <input className="input" type="number" min={0} step="1" value={form.grams_max} onChange={(e) => setForm((f) => ({ ...f, grams_max: e.target.value }))} />
+          </label>
+
           <button type="submit" className="btn btn-touch admin-nutrition-form__submit" disabled={busy}>
             <Plus size={18} aria-hidden />
             Добавить

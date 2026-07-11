@@ -90,7 +90,7 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
       })
     }
     setMeasurements(await listMeasurements(client.id))
-    setWeightEntries(await listWeightEntries(client.id))
+    setWeightEntries(await listWeightEntries(client.id, hc))
   }, [client.id])
 
   useEffect(() => {

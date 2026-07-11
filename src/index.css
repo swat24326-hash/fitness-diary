@@ -7440,6 +7440,31 @@ tr:last-child td {
   font-size: 15px;
 }
 
+.nutrition-day-summary {
+  margin-bottom: 14px;
+}
+
+.nutrition-grams-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nutrition-grams-input {
+  width: 72px;
+  min-height: 34px;
+  padding: 4px 8px;
+  text-align: right;
+}
+
+.nutrition-edit-hint {
+  color: #94a3b8;
+}
+
+.nutrition-kcal-delta {
+  color: #fbbf24;
+}
+
 @media (max-width: 640px) {
   .nutrition-table th:nth-child(n + 3),
   .nutrition-table td:nth-child(n + 3) {
@@ -7644,4 +7669,66 @@ tr:last-child td {
 
 .admin-nutrition-product-row__delete {
   color: #f87171;
+}
+
+.admin-nutrition-product-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.admin-nutrition-product-row__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.admin-nutrition-pairing-chip {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(148, 163, 184, 0.12);
+  color: #94a3b8;
+}
+
+.admin-nutrition-pairing-chip--pairs {
+  background: rgba(56, 189, 248, 0.12);
+  color: #7dd3fc;
+}
+
+.admin-nutrition-pairing-chip--exclusion {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fcd34d;
+}
+
+.admin-nutrition-form__pairing {
+  margin-top: 4px;
+}
+
+.admin-nutrition-form__checks {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.admin-nutrition-form__checks legend {
+  font-size: 13px;
+  color: #94a3b8;
+  margin-bottom: 8px;
+}
+
+.admin-nutrition-form__check-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+}
+
+.admin-nutrition-form__check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  cursor: pointer;
 }

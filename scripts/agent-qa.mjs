@@ -81,6 +81,7 @@ run('trainer attention summary', 'node', ['scripts/verify-trainer-attention-summ
 run('admin club day summary', 'node', ['scripts/verify-admin-club-day-summary.mjs'])
 run('admin client quick filters', 'node', ['scripts/verify-admin-client-quick-filters.mjs'])
 run('nutrition plan', 'node', ['scripts/verify-nutrition-plan.mjs'])
+run('nutrition meal pairing', 'node', ['scripts/verify-nutrition-meal-pairing.mjs'])
 run('client weight', 'node', ['scripts/verify-client-weight.mjs'])
 run('health card', 'node', ['scripts/verify-health-card.mjs'])
 run('nutrition products', 'node', ['scripts/verify-nutrition-products.mjs'])

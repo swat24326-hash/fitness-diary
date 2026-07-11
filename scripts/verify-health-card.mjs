@@ -6,6 +6,8 @@ import {
   normalizeHealthSex,
   parseHealthFilledAt,
   resolveHealthFilledAtOnSave,
+  filterWeightEntriesForDisplay,
+  listBaselineLikeEntries,
 } from '../src/lib/healthCardCore.js'
 import { appendNutritionPlanHistory, parseNutritionPlanHistory } from '../src/lib/nutrition/nutritionPlanHistoryCore.js'
 import { getTrainingCompletionIssues } from '../src/lib/trainingCompletionValidation.js'
@@ -68,6 +70,16 @@ ok(parseNutritionPlanHistory(history).length === 1, 'plan history append')
 ok(history[0].kcalTarget === 2000, 'plan history kcal')
 
 ok(getHealthCardCompletionIssues(complete).length === 0, 'no issues when complete')
+
+const dupEntries = [
+  { id: 'b1', date: '2026-07-11', weight_kg: 94, source: 'baseline', created_at: 'a' },
+  { id: 'b2', date: '2026-07-11', weight_kg: 93, source: 'initial_adjust', created_at: 'b' },
+  { id: 'm1', date: '2026-06-02', weight_kg: 89, source: 'training', created_at: 'c' },
+]
+ok(listBaselineLikeEntries(dupEntries).length === 2, 'two baseline-like rows')
+const shown = filterWeightEntriesForDisplay(dupEntries, complete)
+ok(shown.filter((r) => r.source === 'baseline' || r.source === 'initial_adjust').length === 1, 'one baseline in UI')
+ok(shown.length === 2, 'baseline + training in UI')
 
 const gateIssues = getTrainingCompletionIssues({}, { health: incomplete, isFirstCompletion: true })
 ok(gateIssues.some((m) => m.includes('карте здоровья')), 'first training blocked without health card')

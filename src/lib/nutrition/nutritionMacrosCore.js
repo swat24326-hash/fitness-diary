@@ -33,7 +33,7 @@ const GOAL_KCAL_FACTOR = {
   endurance: 1,
 }
 
-const GOAL_MACRO_PCT = {
+export const GOAL_MACRO_PCT = {
   lose_weight: { protein: 0.3, fat: 0.25, carbs: 0.45 },
   maintain: { protein: 0.25, fat: 0.3, carbs: 0.45 },
   gain_mass: { protein: 0.25, fat: 0.25, carbs: 0.5 },
@@ -108,6 +108,26 @@ export function roundGrams(grams) {
   const g = Number(grams)
   if (!Number.isFinite(g) || g <= 0) return 0
   return Math.max(5, Math.round(g / 5) * 5)
+}
+
+/**
+ * @param {{ proteinPer100?: number, fatPer100?: number, carbsPer100?: number }} product
+ */
+export function kcalPer100(product) {
+  if (!product) return 0
+  const kcal = product.proteinPer100 * 4 + product.fatPer100 * 9 + product.carbsPer100 * 4
+  return Math.round(kcal)
+}
+
+/**
+ * Граммы продукта под целевые ккал из порции.
+ * @param {{ proteinPer100?: number, fatPer100?: number, carbsPer100?: number }} product
+ * @param {number} kcal
+ */
+export function gramsForKcal(product, kcal) {
+  const k100 = kcalPer100(product)
+  if (!k100 || k100 <= 0 || !Number.isFinite(kcal) || kcal <= 0) return 0
+  return roundGrams((kcal / k100) * 100)
 }
 
 export function formatProductPortion(product, grams) {

@@ -7,10 +7,13 @@ import {
   computeMacroTargets,
   computeTdee,
   formatProductPortion,
+  GOAL_MACRO_PCT,
+  gramsForKcal,
   macrosForGrams,
   roundGrams,
 } from './nutritionMacrosCore.js'
 import { getMealSlots } from './nutritionMealSlotsCore.js'
+import { clampProductGrams, pickFatProductId, pickProteinProductId } from './nutritionMealPairingCore.js'
 
 /**
  * @typedef {object} NutritionSurvey
@@ -98,70 +101,76 @@ function sumItems(items) {
   )
 }
 
-function gramsForMacro(product, macroGrams, macroKey) {
-  const per100 =
-    macroKey === 'protein' ? product.proteinPer100 : macroKey === 'fat' ? product.fatPer100 : product.carbsPer100
-  if (!per100 || per100 <= 0) return 0
-  return roundGrams((macroGrams * 100) / per100)
-}
-
 function pickProductId(ids, mealIndex) {
   if (!ids?.length) return null
   return ids[mealIndex % ids.length]
 }
 
-function buildMealItems(mealIndex, targets, productIdsByGroup, catalogMap) {
-  const items = []
-  const proteinId = pickProductId(productIdsByGroup.protein, mealIndex)
-  const carbsId = pickProductId(productIdsByGroup.carbs, mealIndex)
-  const fatId = pickProductId(productIdsByGroup.fat, mealIndex)
+function scaleMealItemsToBudget(items, mealKcalBudget) {
+  const subtotal = sumItems(items)
+  if (!subtotal.kcal || subtotal.kcal <= mealKcalBudget * 1.05) return items
+  const factor = mealKcalBudget / subtotal.kcal
+  return items.map((item) => {
+    const grams = roundGrams((item.grams ?? 0) * factor)
+    return { ...item, grams, portionLabel: `${grams} г` }
+  })
+}
 
-  if (proteinId) {
-    const p = resolveCatalogProduct(catalogMap, proteinId)
-    if (p) {
-      const grams = gramsForMacro(p, targets.proteinG, 'protein')
-      const portion = formatProductPortion(p, grams)
-      const m = macrosForGrams(p, portion.grams)
-      items.push({
-        productId: p.id,
-        label: p.label,
-        grams: portion.grams,
-        portionLabel: portion.display,
-        ...m,
-      })
-    }
+function buildItemFromKcal(product, productId, kcalShare) {
+  if (!product || kcalShare <= 0) return null
+  let grams = gramsForKcal(product, kcalShare)
+  grams = clampProductGrams(productId, grams, product)
+  const portion = formatProductPortion(product, grams)
+  const m = macrosForGrams(product, portion.grams)
+  return {
+    productId: product.id,
+    label: product.label,
+    grams: portion.grams,
+    portionLabel: portion.display,
+    ...m,
   }
-  if (carbsId) {
-    const p = resolveCatalogProduct(catalogMap, carbsId)
-    if (p) {
-      const grams = gramsForMacro(p, targets.carbsG, 'carbs')
-      const portion = formatProductPortion(p, grams)
-      const m = macrosForGrams(p, portion.grams)
-      items.push({
-        productId: p.id,
-        label: p.label,
-        grams: portion.grams,
-        portionLabel: portion.display,
-        ...m,
-      })
+}
+
+/**
+ * Сборка приёма пищи по калорийному бюджету + правила сочетаний.
+ */
+function buildMealItems(mealIndex, mealKcalBudget, goalKind, productIdsByGroup, catalogMap) {
+  const macroPct = GOAL_MACRO_PCT[goalKind] ?? GOAL_MACRO_PCT.maintain
+  const proteinKcal = mealKcalBudget * macroPct.protein
+  const fatKcal = mealKcalBudget * macroPct.fat
+  const carbsKcal = mealKcalBudget * macroPct.carbs
+
+  const carbsId = pickProductId(productIdsByGroup.carbs, mealIndex)
+  const proteinId = pickProteinProductId(carbsId, productIdsByGroup.protein, mealIndex, catalogMap)
+  const fatId = pickFatProductId(carbsId, productIdsByGroup.fat, mealIndex, catalogMap)
+
+  const rawItems = []
+  const protein = proteinId ? resolveCatalogProduct(catalogMap, proteinId) : null
+  const carbs = carbsId ? resolveCatalogProduct(catalogMap, carbsId) : null
+  const fat = fatId ? resolveCatalogProduct(catalogMap, fatId) : null
+
+  const proteinItem = buildItemFromKcal(protein, proteinId, proteinKcal)
+  if (proteinItem) rawItems.push(proteinItem)
+  const carbsItem = buildItemFromKcal(carbs, carbsId, carbsKcal)
+  if (carbsItem) rawItems.push(carbsItem)
+  const fatItem = buildItemFromKcal(fat, fatId, fatKcal)
+  if (fatItem) rawItems.push(fatItem)
+
+  const scaled = scaleMealItemsToBudget(rawItems, mealKcalBudget)
+  const catalog = catalogMap
+  return scaled.map((item) => {
+    const p = resolveCatalogProduct(catalog, item.productId)
+    if (!p) return item
+    const portion = formatProductPortion(p, item.grams)
+    const m = macrosForGrams(p, portion.grams)
+    return {
+      productId: item.productId,
+      label: item.label,
+      grams: portion.grams,
+      portionLabel: portion.display,
+      ...m,
     }
-  }
-  if (fatId) {
-    const p = resolveCatalogProduct(catalogMap, fatId)
-    if (p) {
-      const grams = gramsForMacro(p, targets.fatG, 'fat')
-      const portion = formatProductPortion(p, Math.min(grams, 40))
-      const m = macrosForGrams(p, portion.grams)
-      items.push({
-        productId: p.id,
-        label: p.label,
-        grams: portion.grams,
-        portionLabel: portion.display,
-        ...m,
-      })
-    }
-  }
-  return items
+  })
 }
 
 /**
@@ -198,20 +207,17 @@ export function buildNutritionPlan(health, survey, catalogMap) {
     return { ok: false, errors: ['После исключений не осталось продуктов в одной из групп'], plan: null }
   }
 
+  const goalKind = /** @type {import('./nutritionMacrosCore.js').NutritionGoalKind} */ (basics.goalKind)
   const slots = getMealSlots(survey.mealsPerDay)
   const dayPlan = slots.map((slot, idx) => {
-    const mealTargets = {
-      proteinG: Math.round(macros.proteinG * slot.ratio),
-      fatG: Math.round(macros.fatG * slot.ratio),
-      carbsG: Math.round(macros.carbsG * slot.ratio),
-      kcal: Math.round(kcalTarget * slot.ratio),
-    }
-    const items = buildMealItems(idx, mealTargets, productIdsByGroup, catalog)
+    const mealKcalBudget = Math.round(kcalTarget * slot.ratio)
+    const items = buildMealItems(idx, mealKcalBudget, goalKind, productIdsByGroup, catalog)
     return {
       slot: slot.id,
       label: slot.label,
       items,
       subtotal: sumItems(items),
+      kcalBudget: mealKcalBudget,
     }
   })
 
@@ -221,7 +227,7 @@ export function buildNutritionPlan(health, survey, catalogMap) {
     ok: true,
     errors: [],
     plan: {
-      version: 1,
+      version: 2,
       mealsPerDay: survey.mealsPerDay,
       bmr: Math.round(bmr),
       tdee,
@@ -232,6 +238,8 @@ export function buildNutritionPlan(health, survey, catalogMap) {
       basis: {
         weightKg: getHealthCurrentWeightKg(health),
         heightCm: Number(health?.height_cm),
+        bmr: Math.round(bmr),
+        tdee,
       },
       catalogSource: [...catalog.values()][0]?.source ?? 'builtin',
       disclaimer:

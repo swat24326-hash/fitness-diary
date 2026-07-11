@@ -1,9 +1,11 @@
 import { todayLocalIso } from './dateRu.js'
-import { saveLocalWithSync } from './syncService.js'
+import { saveLocalWithSync, deleteLocalWithSync } from './syncService.js'
 import { listWeightEntriesByClientId } from './localDbClubQuery.js'
 import {
   findBaselineWeightEntry,
+  filterWeightEntriesForDisplay,
   getHealthFilledAt,
+  listBaselineLikeEntries,
   mergeHealthCardPersistRow,
   normalizeHealthSex,
   parseHealthFilledAt,
@@ -23,10 +25,13 @@ export { listWeightEntriesByClientId } from './localDbClubQuery.js'
 
 /**
  * @param {string} clientId
+ * @param {object | null} [health]
  */
-export async function listWeightEntries(clientId) {
+export async function listWeightEntries(clientId, health = null) {
+  await repairBaselineWeightEntries(clientId, health)
   const rows = await listWeightEntriesByClientId(clientId)
-  return rows.map(normalizeWeightEntryRow)
+  const normalized = rows.map(normalizeWeightEntryRow)
+  return filterWeightEntriesForDisplay(normalized, health)
 }
 
 /**
@@ -128,11 +133,13 @@ export async function saveHealthCardWithWeightFields(clientId, health, formField
   })
 
   if (nextInitial != null && healthFilledAt) {
-    const entries = await listWeightEntries(clientId)
-    await upsertBaselineWeightEntry(clientId, entries, {
+    const entries = await listWeightEntriesByClientId(clientId)
+    const normalized = entries.map(normalizeWeightEntryRow)
+    const keeper = await upsertBaselineWeightEntry(clientId, normalized, {
       date: healthFilledAt,
       weightKg: nextInitial,
     })
+    await pruneDuplicateBaselineEntries(clientId, normalized, keeper?.id)
   }
 
   return row
@@ -221,4 +228,45 @@ export async function upsertBaselineWeightEntry(clientId, entries, opts) {
     trainingId: null,
     note: null,
   })
+}
+
+/**
+ * Удаляет лишние baseline/initial_adjust — остаётся одна точка исходного веса.
+ * @param {string} clientId
+ * @param {object[]} entries
+ * @param {string | null | undefined} keeperId
+ */
+export async function pruneDuplicateBaselineEntries(clientId, entries, keeperId) {
+  const dupes = listBaselineLikeEntries(entries).filter((r) => r.id !== keeperId)
+  for (const row of dupes) {
+    if (!row?.id) continue
+    await deleteLocalWithSync('client_weight_entries', row.id, 'client_weight_entries')
+  }
+  return dupes.length
+}
+
+/**
+ * При загрузке истории: одна baseline на дату карты, дубли удаляем.
+ * @param {string} clientId
+ * @param {object | null | undefined} health
+ */
+export async function repairBaselineWeightEntries(clientId, health) {
+  if (!clientId) return 0
+  const initial = getHealthInitialWeightKg(health)
+  if (initial == null) return 0
+
+  const rows = (await listWeightEntriesByClientId(clientId)).map(normalizeWeightEntryRow)
+  const baselineLike = listBaselineLikeEntries(rows)
+  const filledAt = getHealthFilledAt(health) ?? parseHealthFilledAt(baselineLike[0]?.date) ?? todayLocalIso()
+
+  if (baselineLike.length === 1) {
+    const only = baselineLike[0]
+    const sameDate = parseHealthFilledAt(only.date) === filledAt
+    const sameWeight = Math.round(Number(only.weight_kg) * 10) === Math.round(initial * 10)
+    if (sameDate && sameWeight && only.source === 'baseline') return 0
+  }
+
+  const keeper = await upsertBaselineWeightEntry(clientId, rows, { date: filledAt, weightKg: initial })
+  const fresh = (await listWeightEntriesByClientId(clientId)).map(normalizeWeightEntryRow)
+  return pruneDuplicateBaselineEntries(clientId, fresh, keeper?.id)
 }

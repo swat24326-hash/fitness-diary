@@ -35,6 +35,14 @@ const survey = normalizeNutritionSurvey({
 })
 
 ok(isNutritionHealthReady(health), 'health ready')
+
+const bmrHeavy = computeBmr({ sex: 'male', age: 35, weightKg: 85, heightCm: 170 })
+const bmrLight = computeBmr({ sex: 'male', age: 35, weightKg: 75, heightCm: 170 })
+ok(bmrHeavy - bmrLight === 100, '10 kg → +100 kcal BMR')
+const targetHeavy = computeKcalTarget(computeTdee(bmrHeavy, 'moderate'), 'lose_weight')
+const targetLight = computeKcalTarget(computeTdee(bmrLight, 'moderate'), 'lose_weight')
+ok(targetHeavy - targetLight >= 80, `10 kg affects kcal target (${targetHeavy - targetLight})`)
+
 const bmr = computeBmr({ sex: 'male', age: 35, weightKg: 75, heightCm: 170 })
 ok(bmr > 1500 && bmr < 2000, `bmr plausible ${bmr}`)
 const tdee = computeTdee(bmr, 'moderate')
@@ -57,6 +65,9 @@ const built = buildNutritionPlan(health, survey)
 ok(built.ok, `plan builds: ${built.errors?.join('; ') ?? ''}`)
 ok(built.plan?.dayPlan?.length === 4, 'day plan 4 meals')
 ok(built.plan?.totals?.kcal > 0, 'totals kcal')
+const target = built.plan?.kcalTarget ?? 0
+const actual = built.plan?.totals?.kcal ?? 0
+ok(Math.abs(actual - target) <= target * 0.1, `totals within 10% of target (${actual} vs ${target})`)
 ok(built.plan?.basis?.weightKg === 75, 'plan stores basis weight')
 for (const meal of built.plan?.dayPlan ?? []) {
   ok(meal.items.length >= 2, `${meal.label} has items`)

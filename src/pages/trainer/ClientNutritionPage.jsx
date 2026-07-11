@@ -31,6 +31,7 @@ import {
   renderNutritionPlanPng,
   shareNutritionPlanBlob,
 } from '../../lib/nutrition/nutritionPlanExportCanvas.js'
+import { buildDayProductSummary, setPlanItemGrams } from '../../lib/nutrition/nutritionPlanEditCore.js'
 import { formatDateRu } from '../../lib/dateRu'
 import { useDebouncedStorageReload } from '../../lib/useDebouncedStorageReload'
 
@@ -140,9 +141,27 @@ export function ClientNutritionPage({ client, readOnly = false }) {
   const healthReady = isNutritionHealthReady(health)
   const planStale = isNutritionPlanStale(health, plan)
   const staleMessage = nutritionPlanStaleMessage(health, plan)
+  const daySummary = useMemo(() => buildDayProductSummary(plan), [plan])
+  const kcalDelta = plan?.kcalTarget != null && plan?.totals?.kcal != null ? plan.totals.kcal - plan.kcalTarget : null
 
   const patchSurvey = (patch) => setSurvey((s) => ({ ...s, ...patch }))
 
+  const persistPlan = async (nextPlan) => {
+    if (readOnly || !client?.id) return
+    await saveClientNutrition(client.id, health, survey, nextPlan)
+  }
+
+  const onItemGramsChange = async (mealSlot, productId, raw) => {
+    const grams = Number(String(raw).replace(',', '.'))
+    if (!Number.isFinite(grams) || grams <= 0 || !plan) return
+    const next = setPlanItemGrams(plan, catalogMap, mealSlot, productId, grams)
+    setPlan(next)
+    try {
+      await persistPlan(next)
+    } catch (e) {
+      setError(e?.message ?? 'Ошибка сохранения правки')
+    }
+  }
 
   const saveSurveyDraft = async () => {
     if (readOnly || !client?.id) return
@@ -466,10 +485,19 @@ export function ClientNutritionPage({ client, readOnly = false }) {
                 Мерный рацион на день
               </h2>
               <p className="muted" style={{ margin: '6px 0 0' }}>
-                ~{plan.kcalTarget} ккал · {plan.mealsPerDay} приёма · Б {plan.macros.proteinG} · Ж {plan.macros.fatG} · У{' '}
-                {plan.macros.carbsG}
+                Цель ~{plan.kcalTarget} ккал · факт {plan.totals?.kcal ?? '—'} ккал
+                {kcalDelta != null && Math.abs(kcalDelta) > 30 ? (
+                  <span className="nutrition-kcal-delta"> ({kcalDelta > 0 ? '+' : ''}{kcalDelta})</span>
+                ) : null}
+                {' · '}
+                {plan.mealsPerDay} приёма · Б {plan.macros.proteinG} · Ж {plan.macros.fatG} · У {plan.macros.carbsG}
                 {generatedAt ? ` · ${formatDateRu(generatedAt.slice(0, 10))}` : ''}
               </p>
+              {!readOnly ? (
+                <p className="muted nutrition-edit-hint" style={{ margin: '4px 0 0', fontSize: 12 }}>
+                  Можно подправить граммы в таблице — подытоги пересчитаются автоматически.
+                </p>
+              ) : null}
             </div>
             <div className="nutrition-result-actions">
               <button type="button" className="btn btn-touch" disabled={exportBusy} onClick={() => void exportPng()}>
@@ -482,6 +510,36 @@ export function ClientNutritionPage({ client, readOnly = false }) {
               </button>
             </div>
           </div>
+
+          {daySummary.length > 0 ? (
+            <article className="nutrition-meal-block nutrition-day-summary">
+              <h3 className="nutrition-meal-title">Сводка на день</h3>
+              <table className="nutrition-table">
+                <thead>
+                  <tr>
+                    <th>Продукт</th>
+                    <th>Всего</th>
+                    <th>ккал</th>
+                    <th>Б</th>
+                    <th>Ж</th>
+                    <th>У</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {daySummary.map((row) => (
+                    <tr key={row.productId}>
+                      <td>{row.label}</td>
+                      <td>{row.portionLabel}</td>
+                      <td>{row.kcal}</td>
+                      <td>{row.proteinG}</td>
+                      <td>{row.fatG}</td>
+                      <td>{row.carbsG}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </article>
+          ) : null}
 
           <div className="nutrition-day-table">
             {plan.dayPlan.map((meal) => (
@@ -502,7 +560,25 @@ export function ClientNutritionPage({ client, readOnly = false }) {
                     {meal.items.map((item) => (
                       <tr key={`${meal.slot}-${item.productId}`}>
                         <td>{item.label}</td>
-                        <td>{item.portionLabel}</td>
+                        <td>
+                          {readOnly ? (
+                            item.portionLabel
+                          ) : (
+                            <label className="nutrition-grams-edit">
+                              <input
+                                className="input nutrition-grams-input"
+                                type="number"
+                                min={5}
+                                step={5}
+                                inputMode="decimal"
+                                defaultValue={item.grams ?? ''}
+                                key={`${meal.slot}-${item.productId}-${item.grams}`}
+                                onBlur={(e) => void onItemGramsChange(meal.slot, item.productId, e.target.value)}
+                              />
+                              <span className="muted">г</span>
+                            </label>
+                          )}
+                        </td>
                         <td>{item.kcal}</td>
                         <td>{item.proteinG}</td>
                         <td>{item.fatG}</td>
@@ -527,8 +603,8 @@ export function ClientNutritionPage({ client, readOnly = false }) {
           </div>
 
           <p className="nutrition-totals">
-            <strong>Итого за день:</strong> {plan.totals.kcal} ккал · Б {plan.totals.proteinG} · Ж {plan.totals.fatG} · У{' '}
-            {plan.totals.carbsG}
+            <strong>Итого за день:</strong> {plan.totals.kcal} ккал (цель {plan.kcalTarget}) · Б {plan.totals.proteinG} · Ж{' '}
+            {plan.totals.fatG} · У {plan.totals.carbsG}
           </p>
           <p className="muted" style={{ fontSize: 13 }}>
             {plan.disclaimer}

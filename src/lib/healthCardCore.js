@@ -72,6 +72,13 @@ export const BASELINE_WEIGHT_SOURCES = /** @type {const} */ (['baseline', 'initi
 /**
  * @param {object[]} entries
  */
+export function listBaselineLikeEntries(entries) {
+  return [...(entries ?? [])].filter((r) => BASELINE_WEIGHT_SOURCES.includes(r?.source))
+}
+
+/**
+ * @param {object[]} entries
+ */
 export function findBaselineWeightEntry(entries) {
   const rows = [...(entries ?? [])]
   const baseline = rows.find((r) => r?.source === 'baseline')
@@ -80,6 +87,40 @@ export function findBaselineWeightEntry(entries) {
     .filter((r) => r?.source === 'initial_adjust')
     .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
   return legacy[0] ?? null
+}
+
+/**
+ * Одна строка исходного веса в UI: остальные baseline/initial_adjust скрываем.
+ * @param {object[]} entries
+ * @param {object | null | undefined} health
+ */
+export function filterWeightEntriesForDisplay(entries, health) {
+  const baselineLike = listBaselineLikeEntries(entries)
+  if (!baselineLike.length) return [...(entries ?? [])]
+
+  const filledAt = getHealthFilledAt(health)
+  const initial = getHealthInitialWeightKg(health)
+  const keeper = findBaselineWeightEntry(entries)
+  const keeperId = keeper?.id
+
+  const canonical =
+    filledAt && initial != null
+      ? {
+          ...(keeper ?? { id: 'canonical-baseline', source: 'baseline' }),
+          id: keeperId ?? keeper?.id ?? 'canonical-baseline',
+          date: filledAt,
+          weight_kg: initial,
+          source: 'baseline',
+        }
+      : keeper
+
+  const rest = (entries ?? []).filter((r) => !BASELINE_WEIGHT_SOURCES.includes(r?.source))
+  if (!canonical) return rest
+  return [canonical, ...rest].sort((a, b) => {
+    const d = String(b.date ?? '').localeCompare(String(a.date ?? ''))
+    if (d !== 0) return d
+    return String(b.created_at ?? '').localeCompare(String(a.created_at ?? ''))
+  })
 }
 
 /**
