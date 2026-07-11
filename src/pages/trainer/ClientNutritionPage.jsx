@@ -489,7 +489,11 @@ export function ClientNutritionPage({ client, readOnly = false }) {
     if (!plan) return
     setExportBusy(true)
     try {
-      const blob = await renderNutritionPlanPng(plan, { clientName: client?.name })
+      const blob = await renderNutritionPlanPng(plan, {
+        clientName: client?.name,
+        goalKindLabel,
+        weightKg: getHealthCurrentWeightKg(health),
+      })
       const shared = await shareNutritionPlanBlob(blob, 'Рацион FIT-CITY')
       if (!shared) downloadNutritionPlanBlob(blob, `racion-${client?.id ?? 'client'}.png`)
     } catch (e) {
@@ -759,7 +763,7 @@ export function ClientNutritionPage({ client, readOnly = false }) {
                   ? 'Черновик собран. Можно править граммы или сбросить черновик, чтобы изменить ответы опросника.'
                   : 'Черновик собран. Чтобы изменить ответы — сбросьте черновик и пройдите опросник заново.'}
               </p>
-              {!readOnly ? (
+              {!readOnly && stepId !== 'result' ? (
                 <button type="button" className="btn btn-touch btn-ghost" style={{ marginTop: 10 }} disabled={busy} onClick={() => void resetComposeDraft()}>
                   Сбросить черновик
                 </button>

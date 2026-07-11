@@ -26,6 +26,7 @@ export function NutritionPlanDisplay({
     <>
       <div className="nutrition-result-header">
         <div className="nutrition-result-header__main">
+          <p className="nutrition-plan-brand">FIT-CITY · мерный рацион</p>
           <h2 className="section-title nutrition-client-title" style={{ fontSize: '1.1rem', margin: 0 }}>
             {client.name}
           </h2>
@@ -102,10 +103,11 @@ export function NutritionPlanDisplay({
         </div>
       </div>
 
+      <div className="nutrition-plan-body">
       {daySummary.length > 0 ? (
         <article className="nutrition-meal-block nutrition-day-summary">
           <h3 className="nutrition-meal-title">Сводка на день</h3>
-          <table className="nutrition-table">
+          <table className="nutrition-table nutrition-table--summary">
             <thead>
               <tr>
                 <th>Продукт</th>
@@ -193,13 +195,14 @@ export function NutritionPlanDisplay({
         ))}
       </div>
 
-      <p className="nutrition-totals">
+      <div className="nutrition-totals-card" role="status">
         <strong>Итого за день:</strong> {displayPlan.totals.kcal} ккал (референт ~{displayPlan.kcalTarget}) · Б{' '}
         {displayPlan.totals.proteinG} · Ж {displayPlan.totals.fatG} · У {displayPlan.totals.carbsG}
-      </p>
-      <p className="muted" style={{ fontSize: 13 }}>
+      </div>
+      <p className="nutrition-plan-disclaimer muted">
         {displayPlan.disclaimer}
       </p>
+      </div>
     </>
   )
 }

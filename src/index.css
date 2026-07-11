@@ -7440,6 +7440,27 @@ tr:last-child td {
   color: #6ee7b7;
 }
 
+.nutrition-plan-brand {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #34d399;
+}
+
+.nutrition-plan-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.nutrition-plan-disclaimer {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .nutrition-unsaved-banner {
   margin: 10px 0 0;
   padding: 8px 12px;
@@ -7538,6 +7559,13 @@ tr:last-child td {
   background: rgba(15, 23, 42, 0.35);
 }
 
+.nutrition-day-summary {
+  margin-bottom: 0;
+  border-color: rgba(52, 211, 153, 0.28);
+  background: rgba(16, 185, 129, 0.07);
+  border-left: 3px solid var(--accent-bright);
+}
+
 .nutrition-meal-title {
   margin: 0 0 10px;
   font-size: 1rem;
@@ -7560,6 +7588,15 @@ tr:last-child td {
 .nutrition-table th {
   color: #94a3b8;
   font-weight: 500;
+  background: rgba(51, 65, 85, 0.35);
+}
+
+.nutrition-table tbody tr:nth-child(even) {
+  background: rgba(30, 41, 59, 0.22);
+}
+
+.nutrition-table--summary thead th {
+  color: #a7f3d0;
 }
 
 .nutrition-table tfoot td {
@@ -7572,8 +7609,15 @@ tr:last-child td {
   font-size: 15px;
 }
 
-.nutrition-day-summary {
-  margin-bottom: 14px;
+.nutrition-totals-card {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+  font-size: 15px;
+  color: #ecfdf5;
+  line-height: 1.45;
 }
 
 .nutrition-grams-edit {
