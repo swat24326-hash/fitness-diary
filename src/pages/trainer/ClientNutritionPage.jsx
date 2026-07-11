@@ -107,10 +107,25 @@ export function ClientNutritionPage({ client, readOnly = false }) {
   const [exportBusy, setExportBusy] = useState(false)
   const [catalogMap, setCatalogMap] = useState(() => buildNutritionCatalogMap([]))
   const [catalogLabel, setCatalogLabel] = useState('Базовый справочник')
+  const [confirmDialog, setConfirmDialog] = useState(null)
 
   const surveyLoadedRef = useRef(false)
   const planUnsavedRef = useRef(false)
   const pageViewRef = useRef(PAGE_VIEWS.ration)
+  const confirmResolverRef = useRef(null)
+
+  const askConfirm = useCallback(({ title, message, confirmLabel = 'Да', destructive = false }) => {
+    return new Promise((resolve) => {
+      confirmResolverRef.current = resolve
+      setConfirmDialog({ title, message, confirmLabel, destructive })
+    })
+  }, [])
+
+  const closeConfirm = (ok) => {
+    confirmResolverRef.current?.(ok)
+    confirmResolverRef.current = null
+    setConfirmDialog(null)
+  }
 
   const clubId = String(client?.club_id ?? '').trim()
   const RESULT_STEP = STEPS.length - 1
@@ -227,7 +242,13 @@ export function ClientNutritionPage({ client, readOnly = false }) {
     const msg = savedPlan
       ? 'Прервать составление и вернуть сохранённый рацион?'
       : 'Прервать составление? Несохранённые ответы будут потеряны.'
-    if (!window.confirm(msg)) return false
+    const ok = await askConfirm({
+      title: 'Прервать составление?',
+      message: msg,
+      confirmLabel: 'Прервать',
+      destructive: true,
+    })
+    if (!ok) return false
     resetDraftState()
     setPageView(PAGE_VIEWS.ration)
     setStep(0)
@@ -240,8 +261,13 @@ export function ClientNutritionPage({ client, readOnly = false }) {
       const ok = await leaveCompose()
       if (!ok) return
     } else if (hasPendingChanges && pageView === PAGE_VIEWS.ration) {
-      const msg = 'Отменить черновик правок рациона?'
-      if (!window.confirm(msg)) return
+      const ok = await askConfirm({
+        title: 'Отменить черновик?',
+        message: 'Отменить черновик правок рациона?',
+        confirmLabel: 'Отменить черновик',
+        destructive: true,
+      })
+      if (!ok) return
       resetDraftState()
     }
     setPageView(next)
@@ -290,7 +316,13 @@ export function ClientNutritionPage({ client, readOnly = false }) {
   const rebuildFromSaved = async () => {
     if (readOnly || !client?.id) return
     if (hasPendingChanges) {
-      if (!window.confirm('Отменить текущий черновик и пересобрать рацион?')) return
+      const ok = await askConfirm({
+        title: 'Пересобрать рацион?',
+        message: 'Отменить текущий черновик и пересобрать рацион?',
+        confirmLabel: 'Пересобрать',
+        destructive: true,
+      })
+      if (!ok) return
       resetDraftState()
     }
     const baseSurvey = { ...savedSurvey }
@@ -321,7 +353,13 @@ export function ClientNutritionPage({ client, readOnly = false }) {
     const msg = savedPlan
       ? 'Удалить черновик и вернуть сохранённый рацион с прежними ответами?'
       : 'Отменить составление и вернуть прежние ответы?'
-    if (!window.confirm(msg)) return false
+    const ok = await askConfirm({
+      title: savedPlan ? 'Удалить черновик?' : 'Отменить составление?',
+      message: msg,
+      confirmLabel: savedPlan ? 'Удалить черновик' : 'Отменить',
+      destructive: true,
+    })
+    if (!ok) return false
     setBusy(true)
     setError(null)
     planUnsavedRef.current = false
@@ -414,18 +452,24 @@ export function ClientNutritionPage({ client, readOnly = false }) {
   const deleteSavedNutrition = async () => {
     if (readOnly || !client?.id) return
     if (hasPendingChanges) {
-      const discardFirst = window.confirm('Сначала отменить несохранённый черновик?')
+      const discardFirst = await askConfirm({
+        title: 'Есть черновик',
+        message: 'Сначала отменить несохранённый черновик?',
+        confirmLabel: 'Отменить черновик',
+        destructive: true,
+      })
       if (!discardFirst) return
       resetDraftState()
     }
     if (!savedPlan && !health?.nutrition_plan) return
-    if (
-      !window.confirm(
+    const ok = await askConfirm({
+      title: 'Удалить рацион?',
+      message:
         'Удалить сохранённый рацион и ответы опросника? Записи в истории останутся — их можно удалить отдельно.',
-      )
-    ) {
-      return
-    }
+      confirmLabel: 'Удалить',
+      destructive: true,
+    })
+    if (!ok) return
     setBusy(true)
     setError(null)
     planUnsavedRef.current = false
@@ -447,9 +491,8 @@ export function ClientNutritionPage({ client, readOnly = false }) {
     }
   }
 
-  const deleteHistoryEntry = async (generatedAt) => {
+  const runDeleteHistoryEntry = async (generatedAt) => {
     if (readOnly || !client?.id || !generatedAt) return
-    if (!window.confirm('Удалить эту запись из истории?')) return
     setBusy(true)
     setError(null)
     try {
@@ -460,6 +503,18 @@ export function ClientNutritionPage({ client, readOnly = false }) {
     } finally {
       setBusy(false)
     }
+  }
+
+  const requestDeleteHistoryEntry = (generatedAt) => {
+    if (readOnly || !client?.id || !generatedAt) return
+    void askConfirm({
+      title: 'Удалить запись из истории?',
+      message: 'Запись исчезнет из списка. Текущий сохранённый рацион не изменится.',
+      confirmLabel: 'Удалить',
+      destructive: true,
+    }).then((ok) => {
+      if (ok) void runDeleteHistoryEntry(generatedAt)
+    })
   }
 
   if (!client) return null
@@ -621,7 +676,7 @@ export function ClientNutritionPage({ client, readOnly = false }) {
                       className="btn-icon-square nutrition-plan-history__delete"
                       aria-label="Удалить запись из истории"
                       disabled={busy}
-                      onClick={() => void deleteHistoryEntry(h.generated_at)}
+                        onClick={() => requestDeleteHistoryEntry(h.generated_at)}
                     >
                       <X size={16} />
                     </button>
@@ -940,6 +995,38 @@ export function ClientNutritionPage({ client, readOnly = false }) {
               ) : null}
             </>
           ) : null}
+        </div>
+      ) : null}
+
+      {confirmDialog ? (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="nutrition-confirm-title"
+          onClick={() => !busy && closeConfirm(false)}
+        >
+          <div className="modal-panel nutrition-confirm-panel" onClick={(e) => e.stopPropagation()}>
+            <h2 id="nutrition-confirm-title" className="section-title" style={{ marginTop: 0 }}>
+              {confirmDialog.title}
+            </h2>
+            <p className="muted" style={{ marginTop: 8, marginBottom: 0, lineHeight: 1.5 }}>
+              {confirmDialog.message}
+            </p>
+            <div className="nutrition-confirm-actions">
+              <button type="button" className="btn btn-touch btn-ghost" disabled={busy} onClick={() => closeConfirm(false)}>
+                Отмена
+              </button>
+              <button
+                type="button"
+                className={`btn btn-touch${confirmDialog.destructive ? ' nutrition-confirm-actions__danger' : ''}`}
+                disabled={busy}
+                onClick={() => closeConfirm(true)}
+              >
+                {confirmDialog.confirmLabel}
+              </button>
+            </div>
+          </div>
         </div>
       ) : null}
     </div>

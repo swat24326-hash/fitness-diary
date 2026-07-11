@@ -7308,6 +7308,24 @@ tr:last-child td {
   text-align: left;
 }
 
+.nutrition-confirm-panel {
+  max-width: 420px;
+}
+
+.nutrition-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.nutrition-confirm-actions__danger {
+  background: rgba(248, 113, 113, 0.2);
+  border-color: rgba(248, 113, 113, 0.45);
+  color: #fecaca;
+}
+
 .nutrition-stepper {
   display: flex;
   flex-wrap: wrap;
