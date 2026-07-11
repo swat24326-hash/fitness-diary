@@ -2,8 +2,15 @@ import { todayLocalIso } from './dateRu.js'
 import { saveLocalWithSync } from './syncService.js'
 import { listWeightEntriesByClientId } from './localDbClubQuery.js'
 import {
+  findBaselineWeightEntry,
+  getHealthFilledAt,
+  mergeHealthCardPersistRow,
+  normalizeHealthSex,
+  parseHealthFilledAt,
+  resolveHealthFilledAtOnSave,
+} from './healthCardCore.js'
+import {
   applyHealthWeightPatch,
-  didInitialWeightChange,
   getHealthCurrentWeightKg,
   getHealthInitialWeightKg,
   normalizeHealthCardWeights,
@@ -69,7 +76,7 @@ export async function recordWeightFromLatestTraining(clientId, health, trainings
 }
 
 /**
- * Сохранение медкарты: исходный вес из формы, текущий не трогаем.
+ * Сохранение медкарты: пол, дата составления, исходный вес (одна baseline-точка в истории).
  * @param {string} clientId
  * @param {object | null} health
  * @param {Record<string, unknown>} formFields
@@ -84,23 +91,33 @@ export async function saveHealthCardWithWeightFields(clientId, health, formField
   let nextCurrent = prevCurrent
   if (nextCurrent == null && nextInitial != null) nextCurrent = nextInitial
 
+  const healthFilledAt = resolveHealthFilledAtOnSave(
+    getHealthFilledAt(normalized),
+    parseHealthFilledAt(formFields.health_filled_at),
+    todayLocalIso(),
+  )
+  const sex = normalizeHealthSex(formFields.sex) ?? getHealthSexFromHealth(normalized)
+
   const now = new Date().toISOString()
-  const row = {
-    id: normalized?.id ?? crypto.randomUUID(),
-    client_id: clientId,
+  const persist = mergeHealthCardPersistRow(normalized, {
     height_cm: formFields.height_cm ?? null,
+    sex,
+    health_filled_at: healthFilledAt,
     goal: formFields.goal ?? null,
     diseases: formFields.diseases ?? null,
     contraindications: formFields.contraindications ?? null,
     medications: formFields.medications ?? null,
     notes: formFields.notes ?? null,
-    nutrition_survey: normalized?.nutrition_survey ?? null,
-    nutrition_plan: normalized?.nutrition_plan ?? null,
-    nutrition_plan_generated_at: normalized?.nutrition_plan_generated_at ?? null,
     initial_weight_kg: nextInitial,
     current_weight_kg: nextCurrent,
     weight_kg: nextCurrent,
     weight_updated_at: normalized?.weight_updated_at ?? null,
+  })
+
+  const row = {
+    id: normalized?.id ?? crypto.randomUUID(),
+    client_id: clientId,
+    ...persist,
     updated_at: now,
   }
 
@@ -110,42 +127,35 @@ export async function saveHealthCardWithWeightFields(clientId, health, formField
     remote_id: normalized ? row.id : null,
   })
 
-  if (didInitialWeightChange(prevInitial, nextInitial) && nextInitial != null) {
-    await saveWeightEntry({
-      clientId,
-      date: todayLocalIso(),
+  if (nextInitial != null && healthFilledAt) {
+    const entries = await listWeightEntries(clientId)
+    await upsertBaselineWeightEntry(clientId, entries, {
+      date: healthFilledAt,
       weightKg: nextInitial,
-      source: 'initial_adjust',
-      trainingId: null,
-      note: 'Корректировка исходного веса',
     })
   }
 
   return row
 }
 
+function getHealthSexFromHealth(health) {
+  return normalizeHealthSex(health?.sex)
+}
+
 async function updateHealthCurrentWeight(clientId, health, weightKg) {
   const normalized = normalizeHealthCardWeights(health)
   const initial = getHealthInitialWeightKg(normalized) ?? weightKg
   const now = new Date().toISOString()
-  const row = applyHealthWeightPatch(normalized, {
+  const weightPatch = applyHealthWeightPatch(normalized, {
     initialKg: initial,
     currentKg: weightKg,
     weightUpdatedAt: now,
   })
+  const persist = mergeHealthCardPersistRow(normalized, weightPatch)
   const fullRow = {
     id: normalized?.id ?? crypto.randomUUID(),
     client_id: clientId,
-    height_cm: normalized?.height_cm ?? null,
-    goal: normalized?.goal ?? null,
-    diseases: normalized?.diseases ?? null,
-    contraindications: normalized?.contraindications ?? null,
-    medications: normalized?.medications ?? null,
-    notes: normalized?.notes ?? null,
-    nutrition_survey: normalized?.nutrition_survey ?? null,
-    nutrition_plan: normalized?.nutrition_plan ?? null,
-    nutrition_plan_generated_at: normalized?.nutrition_plan_generated_at ?? null,
-    ...row,
+    ...persist,
     updated_at: now,
   }
   await saveLocalWithSync('health_cards', fullRow, {
@@ -156,10 +166,10 @@ async function updateHealthCurrentWeight(clientId, health, weightKg) {
   return fullRow
 }
 
-async function saveWeightEntry({ clientId, date, weightKg, source, trainingId, note }) {
+async function saveWeightEntry({ clientId, date, weightKg, source, trainingId, note, operation = 'insert', remoteId = null, id }) {
   const now = new Date().toISOString()
   const row = {
-    id: crypto.randomUUID(),
+    id: id ?? crypto.randomUUID(),
     client_id: clientId,
     date,
     weight_kg: weightKg,
@@ -170,8 +180,45 @@ async function saveWeightEntry({ clientId, date, weightKg, source, trainingId, n
   }
   await saveLocalWithSync('client_weight_entries', row, {
     table_name: 'client_weight_entries',
-    operation: 'insert',
-    remote_id: null,
+    operation,
+    remote_id: remoteId,
   })
   return normalizeWeightEntryRow(row)
+}
+
+/**
+ * Одна baseline-точка на дату составления карты; правки исходного веса обновляют её, а не плодят строки.
+ * @param {string} clientId
+ * @param {object[]} entries
+ * @param {{ date: string, weightKg: number }} opts
+ */
+export async function upsertBaselineWeightEntry(clientId, entries, opts) {
+  const date = parseHealthFilledAt(opts.date)
+  const weightKg = parseWeightKg(opts.weightKg)
+  if (!date || weightKg == null) return null
+
+  const existing = findBaselineWeightEntry(entries)
+  if (existing?.id) {
+    const op = existing.synced === true ? 'update' : 'insert'
+    return saveWeightEntry({
+      clientId,
+      id: existing.id,
+      date,
+      weightKg,
+      source: 'baseline',
+      trainingId: null,
+      note: null,
+      operation: op,
+      remoteId: existing.id,
+    })
+  }
+
+  return saveWeightEntry({
+    clientId,
+    date,
+    weightKg,
+    source: 'baseline',
+    trainingId: null,
+    note: null,
+  })
 }

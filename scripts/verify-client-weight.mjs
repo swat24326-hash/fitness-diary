@@ -55,7 +55,7 @@ const sorted = sortWeightEntriesDesc([
 ])
 ok(sorted[0].date === '2026-06-10', 'sort entries desc')
 
-ok(weightEntrySourceLabelRu('training') === 'С тренировки', 'source label training')
+ok(weightEntrySourceLabelRu('baseline') === 'Исходный (карта здоровья)', 'source label baseline')
 
 const health = { current_weight_kg: 77, height_cm: 170 }
 const plan = { basis: { weightKg: 80, heightCm: 170 } }

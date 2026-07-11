@@ -20,9 +20,8 @@ function ok(cond, msg) {
   }
 }
 
-const health = { height_cm: 170, weight_kg: 75, goal: 'снижение' }
+const health = { height_cm: 170, current_weight_kg: 75, weight_kg: 75, sex: 'male', goal: 'снижение' }
 const survey = normalizeNutritionSurvey({
-  sex: 'male',
   age: 35,
   activityLevel: 'moderate',
   goalKind: 'lose_weight',

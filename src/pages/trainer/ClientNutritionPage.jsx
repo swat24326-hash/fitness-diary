@@ -14,6 +14,7 @@ import {
 } from '../../lib/nutrition/nutritionCatalogResolve.js'
 import { isNutritionHealthReady } from '../../lib/nutrition/nutritionPlanBuilder.js'
 import { getHealthCurrentWeightKg } from '../../lib/clientWeightCore'
+import { getHealthSex } from '../../lib/healthCardCore'
 import { isNutritionPlanStale, nutritionPlanStaleMessage } from '../../lib/nutrition/nutritionPlanStaleCore.js'
 import { listNutritionProductsForClub } from '../../lib/nutrition/nutritionProductsService.js'
 import { pullNutritionProductsForClubFromCloud } from '../../lib/pullReferenceData.js'
@@ -81,6 +82,7 @@ export function ClientNutritionPage({ client, readOnly = false }) {
   const [health, setHealth] = useState(null)
   const [survey, setSurvey] = useState(defaultNutritionSurvey)
   const [plan, setPlan] = useState(null)
+  const [planHistory, setPlanHistory] = useState([])
   const [generatedAt, setGeneratedAt] = useState(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
@@ -118,6 +120,7 @@ export function ClientNutritionPage({ client, readOnly = false }) {
       surveyLoadedRef.current = true
     }
     setPlan(st.plan)
+    setPlanHistory(st.planHistory ?? [])
     setGeneratedAt(st.generatedAt)
   }, [client?.id, reloadCatalog])
 
@@ -226,9 +229,11 @@ export function ClientNutritionPage({ client, readOnly = false }) {
       {!healthReady ? (
         <section className="card nutrition-health-banner">
           <h2 className="section-title" style={{ fontSize: '1.05rem' }}>
-            Сначала заполните рост и вес
+            Сначала заполните карту здоровья
           </h2>
-          <p className="muted">Во вкладке «Здоровье» укажите рост, вес и при желании цель клиента.</p>
+          <p className="muted">
+            Во вкладке «Здоровье» укажите дату карты, пол, рост и исходный вес — они нужны для расчёта рациона и первой тренировки.
+          </p>
           <Link to={healthTabHref} className="btn btn-touch" style={{ marginTop: 12 }}>
             Перейти в Здоровье
           </Link>
@@ -236,8 +241,8 @@ export function ClientNutritionPage({ client, readOnly = false }) {
       ) : (
         <section className="card nutrition-health-preview">
           <p className="muted" style={{ margin: 0 }}>
-            Из «Здоровья»: рост <strong>{health.height_cm}</strong> см, текущий вес{' '}
-            <strong>{getHealthCurrentWeightKg(health) ?? '—'}</strong> кг
+            Из «Здоровья»: пол <strong>{getHealthSex(health) === 'male' ? 'мужской' : 'женский'}</strong>, рост{' '}
+            <strong>{health.height_cm}</strong> см, текущий вес <strong>{getHealthCurrentWeightKg(health) ?? '—'}</strong> кг
             {health.goal ? (
               <>
                 , цель: <strong>{health.goal}</strong>
@@ -272,19 +277,11 @@ export function ClientNutritionPage({ client, readOnly = false }) {
           <h2 className="section-title" style={{ fontSize: '1.05rem' }}>
             Профиль для расчёта
           </h2>
+          <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
+            Пол берётся из карты здоровья.{' '}
+            <Link to={healthTabHref}>Изменить в «Здоровье»</Link>
+          </p>
           <div className="nutrition-form-grid">
-            <label className="nutrition-field">
-              <span>Пол</span>
-              <select
-                className="input"
-                value={survey.sex ?? 'female'}
-                disabled={readOnly}
-                onChange={(e) => patchSurvey({ sex: e.target.value })}
-              >
-                <option value="female">Женский</option>
-                <option value="male">Мужской</option>
-              </select>
-            </label>
             <label className="nutrition-field">
               <span>Возраст</span>
               <input
@@ -536,6 +533,24 @@ export function ClientNutritionPage({ client, readOnly = false }) {
           <p className="muted" style={{ fontSize: 13 }}>
             {plan.disclaimer}
           </p>
+
+          {planHistory.length > 0 ? (
+            <section style={{ marginTop: 16 }}>
+              <h3 className="section-title" style={{ fontSize: '0.95rem' }}>
+                Предыдущие рационы
+              </h3>
+              <ul className="nutrition-plan-history" style={{ margin: '8px 0 0', paddingLeft: 18 }}>
+                {planHistory.map((h) => (
+                  <li key={h.generated_at} style={{ marginBottom: 6 }}>
+                    <span className="muted">{formatDateRu(String(h.generated_at).slice(0, 10))}</span>
+                    {' — '}
+                    <strong>{h.kcalTarget ?? h.plan?.kcalTarget ?? '—'} ккал</strong>
+                    {h.mealsPerDay ? ` · ${h.mealsPerDay} приёма` : null}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
         </section>
       )}
 

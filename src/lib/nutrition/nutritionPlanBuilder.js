@@ -1,4 +1,5 @@
 import { getHealthCurrentWeightKg } from '../clientWeightCore.js'
+import { getHealthSex } from '../healthCardCore.js'
 import { filterCatalogProductsByExclusions, resolveCatalogProduct, buildNutritionCatalogMap } from './nutritionCatalogResolve.js'
 import {
   computeBmr,
@@ -13,7 +14,6 @@ import { getMealSlots } from './nutritionMealSlotsCore.js'
 
 /**
  * @typedef {object} NutritionSurvey
- * @property {'female' | 'male'} [sex]
  * @property {number} [age]
  * @property {import('./nutritionMacrosCore.js').NutritionActivityLevel} [activityLevel]
  * @property {import('./nutritionMacrosCore.js').NutritionGoalKind} [goalKind]
@@ -41,7 +41,6 @@ export function normalizeNutritionSurvey(raw) {
   }
   const meals = Number(o.mealsPerDay)
   return {
-    sex: o.sex === 'male' ? 'male' : o.sex === 'female' ? 'female' : undefined,
     age: Number.isFinite(Number(o.age)) ? Number(o.age) : undefined,
     activityLevel: typeof o.activityLevel === 'string' ? o.activityLevel : undefined,
     goalKind: typeof o.goalKind === 'string' ? o.goalKind : undefined,
@@ -61,7 +60,7 @@ export function getNutritionHealthBasics(health, survey) {
     heightCm: health?.height_cm != null ? Number(health.height_cm) : null,
     weightKg: currentKg,
     goalText: health?.goal ?? null,
-    sex: survey.sex,
+    sex: getHealthSex(health),
     age: survey.age,
     activityLevel: survey.activityLevel,
     goalKind: survey.goalKind,
@@ -71,12 +70,11 @@ export function getNutritionHealthBasics(health, survey) {
 export function isNutritionHealthReady(health) {
   const h = Number(health?.height_cm)
   const w = getHealthCurrentWeightKg(health)
-  return Number.isFinite(h) && h > 0 && w != null && w > 0
+  return Number.isFinite(h) && h > 0 && w != null && w > 0 && !!getHealthSex(health)
 }
 
 export function validateSurveyForBuild(survey) {
   const errors = []
-  if (!survey.sex) errors.push('Укажите пол')
   if (!survey.age || survey.age < 14 || survey.age > 90) errors.push('Укажите возраст (14–90)')
   if (!survey.activityLevel) errors.push('Укажите активность')
   if (!survey.goalKind) errors.push('Укажите цель')
@@ -174,7 +172,9 @@ function buildMealItems(mealIndex, targets, productIdsByGroup, catalogMap) {
 export function buildNutritionPlan(health, survey, catalogMap) {
   const catalog = catalogMap ?? buildNutritionCatalogMap([])
   const errors = validateSurveyForBuild(survey)
-  if (!isNutritionHealthReady(health)) errors.push('Заполните рост и вес во вкладке «Здоровье»')
+  if (!isNutritionHealthReady(health)) {
+    errors.push('Заполните рост, вес и пол во вкладке «Здоровье»')
+  }
   if (errors.length) return { ok: false, errors, plan: null }
 
   const basics = getNutritionHealthBasics(health, survey)

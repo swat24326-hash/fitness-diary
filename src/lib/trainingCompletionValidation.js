@@ -1,4 +1,6 @@
 /** Есть ли в строке подхода хотя бы одно заполненное поле */
+import { getHealthCardCompletionIssues } from './healthCardCore.js'
+
 function setRowHasData(s) {
   if (!s || typeof s !== 'object') return false
   const keys = ['reps', 'weight_kg', 'tut_sec', 'load', 'rpe', 'hr_after']
@@ -43,13 +45,17 @@ function exercisesBlockOk(w) {
 
 /**
  * Проверка перед завершением тренировки (комментарий в итоге — не обязателен).
- * Каждый элемент массива — один «блок» по порядку: сначала вес, затем направленность, опрос целиком, разминка, заминка, упражнения, звёзды.
  * @param {object} workout
+ * @param {{ health?: object | null, isFirstCompletion?: boolean }} [ctx]
  * @returns {string[]}
  */
-export function getTrainingCompletionIssues(workout) {
+export function getTrainingCompletionIssues(workout, ctx = {}) {
   const w = workout && typeof workout === 'object' ? workout : {}
   const issues = []
+
+  if (ctx.isFirstCompletion) {
+    issues.push(...getHealthCardCompletionIssues(ctx.health))
+  }
 
   const weightStr = String(w.pre_weight_kg ?? '').trim().replace(',', '.')
   const weightNum = Number(weightStr)

@@ -4,7 +4,7 @@ import { Calendar, ClipboardList, Info, Save } from 'lucide-react'
 import { TrainingForm, emptyTrainingData } from '../../components/TrainingForm'
 import { ContraindicationsToggle } from '../../components/ContraindicationsToggle'
 import { useAuth } from '../../context/AuthContext'
-import { getHealthCard, getLocalClient, listClubsLocal, listMemberships } from '../../lib/dataAccess'
+import { getHealthCard, getLocalClient, listClubsLocal, listMemberships, listTrainingsForClient } from '../../lib/dataAccess'
 import { clampIsoDateToToday, formatDateRu, isIsoDateAfterToday, todayLocalIso } from '../../lib/dateRu'
 import { getDb } from '../../lib/localDb'
 import { pickUsableMembershipForDate } from '../../lib/membershipRules'
@@ -100,6 +100,8 @@ export function TrainingPage() {
   const [saveError, setSaveError] = useState('')
   const [saveNotice, setSaveNotice] = useState('')
   const [membershipSummary, setMembershipSummary] = useState(null)
+  const [healthCard, setHealthCard] = useState(null)
+  const [otherCompletedTrainings, setOtherCompletedTrainings] = useState(0)
   const [autosaveStatus, setAutosaveStatus] = useState('idle') // idle | saving | saved | error
 
   const saveMutexRef = useRef(Promise.resolve())
@@ -132,7 +134,12 @@ export function TrainingPage() {
       setTrainingDate(todayLocalIso())
       setMeta({ status: 'draft', trainingId: null })
       const hc = await getHealthCard(clientIdParam)
+      setHealthCard(hc ?? null)
       setContra((hc?.contraindications ?? '').trim())
+      const trainings = await listTrainingsForClient(clientIdParam)
+      setOtherCompletedTrainings(
+        trainings.filter((t) => String(t?.status ?? '') === 'completed').length,
+      )
       const ms = await activeMembershipSummary(clientIdParam)
       setMembershipSummary(ms)
       draftTrainingIdRef.current = null
@@ -170,7 +177,12 @@ export function TrainingPage() {
     const loaded = t.date ?? today
     setTrainingDate(canEditTrainingDate(isAdmin, t.status) ? loaded : clampIsoDateToToday(loaded))
     const hc = await getHealthCard(t.client_id)
+    setHealthCard(hc ?? null)
     setContra((hc?.contraindications ?? '').trim())
+    const trainings = await listTrainingsForClient(t.client_id)
+    setOtherCompletedTrainings(
+      trainings.filter((tr) => String(tr?.status ?? '') === 'completed' && tr.id !== t.id).length,
+    )
     setMembershipSummary(await activeMembershipSummary(t.client_id))
     draftTrainingIdRef.current = t.id
     setLoadState('ok')
@@ -213,9 +225,21 @@ export function TrainingPage() {
       return
     }
 
+    const db = await getDb()
+    let prev = id && id !== 'new' ? await db.get('trainings', id) : null
+    if (!prev && meta.trainingId) {
+      prev = await db.get('trainings', meta.trainingId)
+    }
+
     const nextStatus = status ?? meta.status ?? 'draft'
     if (nextStatus === 'completed' && !silent) {
-      const blockers = getTrainingCompletionIssues(workoutState)
+      const completedElsewhere = await listTrainingsForClient(cid)
+      const otherCompleted = completedElsewhere.filter(
+        (tr) => String(tr?.status ?? '') === 'completed' && tr.id !== (prev?.id ?? trainingId),
+      ).length
+      const isFirstCompletion = prev?.status !== 'completed' && otherCompleted === 0
+      const hc = healthCard ?? (await getHealthCard(cid))
+      const blockers = getTrainingCompletionIssues(workoutState, { health: hc, isFirstCompletion })
       if (blockers.length > 0) {
         setShowCompletionHints(true)
         setSaveError('')
@@ -226,11 +250,6 @@ export function TrainingPage() {
 
     const today = todayLocalIso()
     const now = new Date().toISOString()
-    const db = await getDb()
-    let prev = id && id !== 'new' ? await db.get('trainings', id) : null
-    if (!prev && meta.trainingId) {
-      prev = await db.get('trainings', meta.trainingId)
-    }
 
     // Для тренера: при первом завершении — «сегодня»; у уже завершённой — выбранная дата.
     const saveWithChosenDate = canEditTrainingDate(
@@ -480,7 +499,14 @@ export function TrainingPage() {
     return calendarDaysUntil(trainingDate, membershipSummary.endDate)
   }, [membershipSummary, trainingDate])
 
-  const completionIssues = useMemo(() => getTrainingCompletionIssues(workoutState), [workoutState])
+  const completionIssues = useMemo(
+    () =>
+      getTrainingCompletionIssues(workoutState, {
+        health: healthCard,
+        isFirstCompletion: meta.status !== 'completed' && otherCompletedTrainings === 0,
+      }),
+    [workoutState, healthCard, meta.status, otherCompletedTrainings],
+  )
   const canCompleteTraining = completionIssues.length === 0
 
   const [showCompletionHints, setShowCompletionHints] = useState(false)

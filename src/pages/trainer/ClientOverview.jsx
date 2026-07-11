@@ -12,8 +12,11 @@ import {
   getHealthInitialWeightKg,
   normalizeHealthCardWeights,
   pickLatestTrainingPreWeight,
+  sortWeightEntriesDesc,
   weightEntrySourceLabelRu,
 } from '../../lib/clientWeightCore'
+import { getHealthFilledAt, getHealthSex } from '../../lib/healthCardCore'
+import { ClientWeightChart } from '../../components/ClientWeightChart'
 import {
   listWeightEntries,
   recordManualWeight,
@@ -32,6 +35,8 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
   const [healthForm, setHealthForm] = useState({
     height_cm: '',
     initial_weight_kg: '',
+    sex: '',
+    health_filled_at: todayLocalIso(),
     goal: '',
     diseases: '',
     contraindications: '',
@@ -75,6 +80,8 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
         height_cm: hc?.height_cm != null ? String(hc.height_cm) : '',
         initial_weight_kg:
           getHealthInitialWeightKg(hc) != null ? String(getHealthInitialWeightKg(hc)) : '',
+        sex: getHealthSex(hc) ?? '',
+        health_filled_at: getHealthFilledAt(hc) ?? todayLocalIso(),
         goal: stripDirectionControls(hc?.goal ?? ''),
         diseases: stripDirectionControls(hc?.diseases ?? ''),
         contraindications: stripDirectionControls(hc?.contraindications ?? ''),
@@ -161,6 +168,20 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
     return { key: 'obese3', label: 'Ожирение III', color: '#ef4444' }
   }, [bmi])
 
+  const sortedWeightEntries = useMemo(() => sortWeightEntriesDesc(weightEntries), [weightEntries])
+
+  const healthSexLabel = useMemo(() => {
+    const sex = getHealthSex(health)
+    if (sex === 'male') return 'Мужской'
+    if (sex === 'female') return 'Женский'
+    return '—'
+  }, [health])
+
+  const healthFilledAtLabel = useMemo(() => {
+    const d = getHealthFilledAt(health)
+    return d ? formatDateRu(d) : '—'
+  }, [health])
+
   const bmiPct = useMemo(() => {
     if (bmi == null) return 0
     // шкала 14..40 (чуть шире нормы, чтобы маркер не упирался)
@@ -184,6 +205,8 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
       await saveHealthCardWithWeightFields(client.id, health, {
         height_cm: toNumOrNull(healthForm.height_cm),
         initial_weight_kg: healthForm.initial_weight_kg,
+        sex: healthForm.sex || null,
+        health_filled_at: healthForm.health_filled_at || null,
         goal: healthForm.goal || null,
         diseases: healthForm.diseases || null,
         contraindications: healthForm.contraindications || null,
@@ -405,6 +428,14 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
           <div className="grid health-mini">
             <div className="health-mini__top">
               <div className="health-mini__metric">
+                <span className="muted">Пол</span>
+                <strong>{healthSexLabel}</strong>
+              </div>
+              <div className="health-mini__metric">
+                <span className="muted">Дата карты</span>
+                <strong>{healthFilledAtLabel}</strong>
+              </div>
+              <div className="health-mini__metric">
                 <span className="muted">Рост</span>
                 <strong>{healthForm.height_cm ? `${healthForm.height_cm} см` : '—'}</strong>
               </div>
@@ -491,6 +522,31 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
           <form onSubmit={saveHealth} className="grid health-form">
             <div className="grid grid-2 health-form__metrics">
               <div className="field">
+                <label className="label">Дата составления карты</label>
+                <input
+                  className="input"
+                  type="date"
+                  required
+                  value={healthForm.health_filled_at}
+                  onChange={(e) => setHealthForm((f) => ({ ...f, health_filled_at: e.target.value }))}
+                />
+              </div>
+              <div className="field">
+                <label className="label">Пол</label>
+                <select
+                  className="input"
+                  required
+                  value={healthForm.sex || ''}
+                  onChange={(e) => setHealthForm((f) => ({ ...f, sex: e.target.value }))}
+                >
+                  <option value="" disabled>
+                    Выберите
+                  </option>
+                  <option value="female">Женский</option>
+                  <option value="male">Мужской</option>
+                </select>
+              </div>
+              <div className="field">
                 <label className="label">Рост (см)</label>
                 <input
                   className="input"
@@ -512,7 +568,8 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
               </div>
             </div>
             <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-              Текущий вес: <strong>{currentWeightKg != null ? `${currentWeightKg} кг` : '—'}</strong> — меняется кнопками «Записать вес» или «С последней тренировки».
+              Исходный вес привязан к дате составления карты. Текущий вес:{' '}
+              <strong>{currentWeightKg != null ? `${currentWeightKg} кг` : '—'}</strong> — меняется кнопками «Записать вес» или «С последней тренировки».
             </p>
             <div className="health-form__bmi">
               <div className="health-form__bmi-row">
@@ -646,6 +703,7 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
                 Закрыть
               </button>
             </div>
+            <ClientWeightChart entries={weightEntries} height={220} />
             <div className="table-wrap" style={{ marginTop: 12 }}>
               <table className="measure-history-table">
                 <thead>
@@ -656,7 +714,7 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
                   </tr>
                 </thead>
                 <tbody>
-                  {weightEntries.map((w) => (
+                  {sortedWeightEntries.map((w) => (
                     <tr key={w.id}>
                       <td style={{ whiteSpace: 'nowrap' }}>{formatDateRu(w.date)}</td>
                       <td>

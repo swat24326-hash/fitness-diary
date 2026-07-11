@@ -82,6 +82,7 @@ run('admin club day summary', 'node', ['scripts/verify-admin-club-day-summary.mj
 run('admin client quick filters', 'node', ['scripts/verify-admin-client-quick-filters.mjs'])
 run('nutrition plan', 'node', ['scripts/verify-nutrition-plan.mjs'])
 run('client weight', 'node', ['scripts/verify-client-weight.mjs'])
+run('health card', 'node', ['scripts/verify-health-card.mjs'])
 run('nutrition products', 'node', ['scripts/verify-nutrition-products.mjs'])
 run('sync outbound label', 'node', ['scripts/verify-sync-outbound-label.mjs'])
 

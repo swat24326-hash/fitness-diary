@@ -50,12 +50,12 @@ export function formatWeightProgressDelta(health) {
   return { delta, text: `${sign}${delta} кг от исходного` }
 }
 
-export const WEIGHT_ENTRY_SOURCES = /** @type {const} */ (['manual', 'training', 'initial_adjust'])
+export const WEIGHT_ENTRY_SOURCES = /** @type {const} */ (['manual', 'training', 'baseline', 'initial_adjust'])
 
 /** @param {string} source */
 export function weightEntrySourceLabelRu(source) {
   if (source === 'training') return 'С тренировки'
-  if (source === 'initial_adjust') return 'Исходный вес'
+  if (source === 'baseline' || source === 'initial_adjust') return 'Исходный (карта здоровья)'
   return 'Вручную'
 }
 
@@ -76,6 +76,14 @@ export function sortWeightEntriesDesc(entries) {
     const d = String(b.date ?? '').localeCompare(String(a.date ?? ''))
     if (d !== 0) return d
     return String(b.created_at ?? '').localeCompare(String(a.created_at ?? ''))
+  })
+}
+
+export function sortWeightEntriesAsc(entries) {
+  return [...(entries ?? [])].sort((a, b) => {
+    const d = String(a.date ?? '').localeCompare(String(b.date ?? ''))
+    if (d !== 0) return d
+    return String(a.created_at ?? '').localeCompare(String(b.created_at ?? ''))
   })
 }
 

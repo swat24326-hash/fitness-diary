@@ -165,6 +165,8 @@ CREATE TABLE health_cards (
   current_weight_kg NUMERIC(6, 2),
   weight_updated_at TIMESTAMPTZ,
   goal TEXT,
+  sex TEXT CHECK (sex IS NULL OR sex IN ('male', 'female')),
+  health_filled_at DATE,
   diseases TEXT,
   contraindications TEXT,
   medications TEXT,
@@ -172,6 +174,7 @@ CREATE TABLE health_cards (
   nutrition_survey JSONB,
   nutrition_plan JSONB,
   nutrition_plan_generated_at TIMESTAMPTZ,
+  nutrition_plan_history JSONB NOT NULL DEFAULT '[]'::jsonb,
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT health_cards_client_id_key UNIQUE (client_id)
 );
@@ -205,7 +208,7 @@ CREATE TABLE client_weight_entries (
   client_id UUID NOT NULL REFERENCES clients (id) ON DELETE CASCADE,
   date DATE NOT NULL,
   weight_kg NUMERIC(6, 2) NOT NULL CHECK (weight_kg > 0),
-  source TEXT NOT NULL CHECK (source IN ('manual', 'training', 'initial_adjust')),
+  source TEXT NOT NULL CHECK (source IN ('manual', 'training', 'baseline', 'initial_adjust')),
   training_id UUID REFERENCES trainings (id) ON DELETE SET NULL,
   note TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
