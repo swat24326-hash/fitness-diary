@@ -7438,6 +7438,32 @@ tr:last-child td {
 
 .nutrition-client-title {
   color: #6ee7b7;
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.nutrition-client-meta {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.nutrition-fact-line {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.nutrition-referents {
+  color: #94a3b8;
+  line-height: 1.45;
+  margin: 8px 0 0;
+  font-size: 13px;
+}
+
+.nutrition-edit-hint {
+  margin: 4px 0 0;
+  font-size: 12px;
 }
 
 .nutrition-plan-brand {
@@ -7517,11 +7543,6 @@ tr:last-child td {
   color: #f87171;
 }
 
-.nutrition-referents {
-  color: #94a3b8;
-  line-height: 1.45;
-}
-
 .nutrition-referent-status {
   color: #6ee7b7;
   font-size: 13px;
@@ -7574,8 +7595,81 @@ tr:last-child td {
 
 .nutrition-table {
   width: 100%;
+  min-width: 520px;
   border-collapse: collapse;
   font-size: 13px;
+}
+
+.nutrition-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -2px;
+  padding: 0 2px 2px;
+  scrollbar-width: thin;
+}
+
+.nutrition-table-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.nutrition-table-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+}
+
+.nutrition-item-cards {
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nutrition-item-card {
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.nutrition-item-card--subtotal {
+  border-color: rgba(52, 211, 153, 0.28);
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.nutrition-item-card__name {
+  font-weight: 600;
+  color: #e2e8f0;
+  font-size: 14px;
+  line-height: 1.35;
+  margin-bottom: 8px;
+}
+
+.nutrition-item-card__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px 10px;
+  margin: 0;
+}
+
+.nutrition-item-card__cell {
+  min-width: 0;
+}
+
+.nutrition-item-card__cell--wide {
+  grid-column: 1 / -1;
+}
+
+.nutrition-item-card__cell dt {
+  margin: 0;
+  font-size: 11px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.nutrition-item-card__cell dd {
+  margin: 2px 0 0;
+  font-size: 14px;
+  color: #e2e8f0;
 }
 
 .nutrition-table th,
@@ -7639,6 +7733,109 @@ tr:last-child td {
 
 .nutrition-kcal-delta {
   color: #fbbf24;
+}
+
+/* Планшет: компактнее панели, степпер со скроллом */
+@media (max-width: 1024px) {
+  .nutrition-panel {
+    padding: 14px 12px;
+  }
+
+  .nutrition-stepper {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+
+  .nutrition-stepper__item {
+    flex-shrink: 0;
+  }
+
+  .nutrition-meal-block {
+    padding: 10px;
+  }
+}
+
+@media (max-width: 720px) {
+  .nutrition-main-tabs__item {
+    flex: 1 1 calc(50% - 4px);
+    text-align: center;
+  }
+
+  .nutrition-result-header {
+    flex-direction: column;
+  }
+
+  .nutrition-result-actions {
+    width: 100%;
+  }
+
+  .nutrition-result-actions .btn {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
+    justify-content: center;
+  }
+
+  .nutrition-nav {
+    gap: 10px;
+  }
+
+  .nutrition-nav .btn {
+    flex: 1 1 auto;
+    min-width: calc(50% - 5px);
+    justify-content: center;
+  }
+
+  .nutrition-referent-status {
+    display: block;
+    margin-top: 4px;
+  }
+}
+
+/* Телефон: карточки вместо таблиц, кнопки на всю ширину */
+@media (max-width: 520px) {
+  .nutrition-page {
+    gap: 12px;
+  }
+
+  .nutrition-panel {
+    padding: 12px 10px;
+  }
+
+  .nutrition-main-tabs__item {
+    flex: 1 1 100%;
+  }
+
+  .nutrition-table-scroll {
+    display: none;
+  }
+
+  .nutrition-item-cards {
+    display: flex;
+  }
+
+  .nutrition-result-actions .btn,
+  .nutrition-nav .btn {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .nutrition-nav {
+    flex-direction: column;
+  }
+
+  .nutrition-totals-card {
+    font-size: 14px;
+    padding: 10px 12px;
+  }
+
+  .nutrition-unsaved-banner__btn {
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 @media (max-width: 640px) {
