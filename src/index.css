@@ -7291,17 +7291,16 @@ tr:last-child td {
   color: #ecfdf5;
 }
 
-.nutrition-compose-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
 .nutrition-compose-header__title {
   font-size: 15px;
   font-weight: 600;
   color: #e2e8f0;
+  margin: 0;
+}
+
+.nutrition-stale-banner,
+.nutrition-rebuild-banner {
+  padding: 14px 16px;
 }
 
 .nutrition-empty {
@@ -7608,6 +7607,12 @@ tr:last-child td {
 
 .nutrition-stale-banner {
   padding: 14px 16px;
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  background: rgba(251, 191, 36, 0.1);
+  color: #fde68a;
+}
+
+.nutrition-rebuild-banner {
   border: 1px solid rgba(251, 191, 36, 0.45);
   background: rgba(251, 191, 36, 0.1);
   color: #fde68a;

@@ -36,3 +36,12 @@ export function planMatchesSurvey(plan, survey) {
 export function attachSurveyKeyToPlan(plan, survey) {
   return { ...plan, builtSurveyKey: surveyBuildKey(survey) }
 }
+
+/** Черновик собран по другим ответам опросника. */
+export function isDraftStaleForSurvey(plan, survey) {
+  return Boolean(plan && !planMatchesSurvey(plan, survey))
+}
+
+export function draftStaleForSurveyMessage() {
+  return 'Ответы в опроснике изменились — рацион ниже собран по прежним данным. Нажмите «Пересчитать», чтобы обновить.'
+}

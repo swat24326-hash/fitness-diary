@@ -1,4 +1,4 @@
-import { planMatchesSurvey, surveyBuildKey, attachSurveyKeyToPlan } from '../src/lib/nutrition/nutritionPlanSessionCore.js'
+import { planMatchesSurvey, surveyBuildKey, attachSurveyKeyToPlan, isDraftStaleForSurvey } from '../src/lib/nutrition/nutritionPlanSessionCore.js'
 
 let failed = 0
 
@@ -25,6 +25,8 @@ const plan = attachSurveyKeyToPlan({ totals: { kcal: 2000 } }, surveyA)
 
 ok(planMatchesSurvey(plan, surveyA), 'plan matches same survey')
 ok(!planMatchesSurvey(plan, surveyB), 'plan rejects changed survey')
+ok(isDraftStaleForSurvey(plan, surveyB), 'draft stale after survey change')
+ok(!isDraftStaleForSurvey(plan, surveyA), 'draft fresh for same survey')
 ok(surveyBuildKey({ ...surveyA, pickedProducts: { protein: ['eggs', 'chicken_breast'], fat: [], carbs: [] } }) !== surveyBuildKey(surveyA), 'product order stable in key')
 
 if (failed) {

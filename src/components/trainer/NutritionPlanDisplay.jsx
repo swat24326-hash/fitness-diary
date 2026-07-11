@@ -72,7 +72,7 @@ export function NutritionPlanDisplay({
                 : planUnsaved
                   ? 'Черновик рациона — сохраните или отмените.'
                   : 'Ответы изменены — пересоберите рацион или отмените.'}
-              {!readOnly ? (
+              {!readOnly && onDiscard ? (
                 <button
                   type="button"
                   className="btn btn-sm btn-ghost nutrition-unsaved-banner__btn"

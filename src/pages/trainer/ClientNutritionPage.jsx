@@ -31,7 +31,7 @@ import {
   toggleProductId,
 } from '../../lib/nutrition/nutritionPlanService.js'
 import { assessTotalsAgainstReferents } from '../../lib/nutrition/nutritionReferentsCore.js'
-import { attachSurveyKeyToPlan, planMatchesSurvey } from '../../lib/nutrition/nutritionPlanSessionCore.js'
+import { attachSurveyKeyToPlan, planMatchesSurvey, isDraftStaleForSurvey, draftStaleForSurveyMessage } from '../../lib/nutrition/nutritionPlanSessionCore.js'
 import {
   downloadNutritionPlanBlob,
   renderNutritionPlanPng,
@@ -208,6 +208,7 @@ export function ClientNutritionPage({ client, readOnly = false }) {
     return planMatchesSurvey(draftPlan, surveyForMatch)
   }, [draftPlan, survey, savedSurvey, isComposing])
   const canSavePlan = Boolean(draftPlan && draftAligned)
+  const composeDraftStale = isComposing && isDraftStaleForSurvey(draftPlan, survey)
   const hasPendingChanges = planUnsaved || (isComposing && surveyDirty)
   const stepId = STEPS[step]?.id
 
@@ -446,6 +447,10 @@ export function ClientNutritionPage({ client, readOnly = false }) {
   }
 
   const goPrev = () => {
+    if (step === 0) {
+      void leaveCompose()
+      return
+    }
     setStep((s) => Math.max(0, s - 1))
   }
 
@@ -593,13 +598,7 @@ export function ClientNutritionPage({ client, readOnly = false }) {
       ) : null}
 
       {healthReady && isComposing ? (
-        <div className="nutrition-compose-header">
-          <button type="button" className="btn btn-touch btn-ghost" disabled={busy} onClick={() => void leaveCompose()}>
-            <ChevronLeft size={18} aria-hidden />
-            К рациону
-          </button>
-          <span className="nutrition-compose-header__title">Составление рациона</span>
-        </div>
+        <p className="nutrition-compose-header__title">Составление рациона</p>
       ) : null}
 
       {error ? (
@@ -889,6 +888,17 @@ export function ClientNutritionPage({ client, readOnly = false }) {
             </section>
           )}
 
+          {stepId === 'result' && composeDraftStale ? (
+            <section className="card nutrition-rebuild-banner" role="status">
+              <p style={{ margin: 0 }}>{draftStaleForSurveyMessage()}</p>
+              {!readOnly ? (
+                <button type="button" className="btn btn-touch" style={{ marginTop: 10 }} disabled={busy} onClick={() => void buildPlan()}>
+                  Пересчитать рацион
+                </button>
+              ) : null}
+            </section>
+          ) : null}
+
           {stepId === 'result' && displayPlan ? (
             <section className="card nutrition-panel">
               <NutritionPlanDisplay
@@ -904,9 +914,8 @@ export function ClientNutritionPage({ client, readOnly = false }) {
                 exportBusy={exportBusy}
                 onExport={exportPng}
                 onItemGramsChange={onItemGramsChange}
-                hasPendingChanges={hasPendingChanges}
+                hasPendingChanges={planUnsaved && draftAligned}
                 draftAligned={draftAligned}
-                onDiscard={() => discardDraft()}
                 busy={busy}
                 formatDateRu={formatDateRu}
               />
@@ -923,9 +932,9 @@ export function ClientNutritionPage({ client, readOnly = false }) {
 
       {healthReady && isComposing && stepId !== 'result' ? (
         <div className="nutrition-nav">
-          <button type="button" className="btn btn-touch btn-ghost" disabled={step === 0 || busy} onClick={goPrev}>
+          <button type="button" className="btn btn-touch btn-ghost" disabled={busy} onClick={goPrev}>
             <ChevronLeft size={18} aria-hidden />
-            Назад
+            {step === 0 ? 'К рациону' : 'Назад'}
           </button>
           <button type="button" className="btn btn-touch" disabled={readOnly || busy} onClick={() => void goNext()}>
             {step === STEPS.length - 2 ? 'Собрать рацион' : 'Далее'}
@@ -934,29 +943,10 @@ export function ClientNutritionPage({ client, readOnly = false }) {
         </div>
       ) : null}
 
-      {healthReady && isComposing && stepId === 'result' && !readOnly ? (
+      {healthReady && isComposing && stepId === 'result' && !readOnly && canSavePlan ? (
         <div className="nutrition-nav">
-          {hasPendingChanges ? (
-            <>
-              <button type="button" className="btn btn-touch btn-ghost" disabled={busy} onClick={() => void discardDraft()}>
-                Отменить
-              </button>
-              <button type="button" className="btn btn-touch" disabled={busy || !canSavePlan} onClick={() => void persistPlan()}>
-                Сохранить рацион
-              </button>
-            </>
-          ) : (
-            <button type="button" className="btn btn-touch" disabled={busy} onClick={() => void buildPlan()}>
-              Пересобрать рацион
-            </button>
-          )}
-        </div>
-      ) : null}
-
-      {healthReady && isComposing && stepId !== 'result' && hasPendingChanges && !readOnly ? (
-        <div className="nutrition-nav nutrition-nav--cancel">
-          <button type="button" className="btn btn-touch btn-ghost" disabled={busy} onClick={() => void discardDraft()}>
-            Отменить составление
+          <button type="button" className="btn btn-touch" disabled={busy} onClick={() => void persistPlan()}>
+            Сохранить рацион
           </button>
         </div>
       ) : null}
