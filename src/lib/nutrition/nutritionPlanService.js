@@ -2,6 +2,7 @@ import { getHealthCurrentWeightKg, getHealthInitialWeightKg } from '../clientWei
 import { getHealthSex } from '../healthCardCore.js'
 import { saveLocalWithSync } from '../syncService.js'
 import { buildNutritionPlan, normalizeNutritionSurvey } from './nutritionPlanBuilder.js'
+import { defaultNutritionSurvey, nutritionSurveyFromStorage } from './nutritionSurveyCore.js'
 import { buildNutritionCatalogMap } from './nutritionCatalogResolve.js'
 import { appendNutritionPlanHistory, parseNutritionPlanHistory, serializeNutritionPlanHistoryForStorage, removeNutritionPlanHistoryEntry } from './nutritionPlanHistoryCore.js'
 import { listNutritionProductsForClub } from './nutritionProductsService.js'
@@ -147,7 +148,7 @@ export async function clearSavedNutrition(clientId, health) {
     contraindications: health?.contraindications ?? null,
     medications: health?.medications ?? null,
     notes: health?.notes ?? null,
-    nutrition_survey: defaultNutritionSurvey(),
+    nutrition_survey: null,
     nutrition_plan: null,
     nutrition_plan_generated_at: null,
     nutrition_plan_history: planHistory,
@@ -205,16 +206,7 @@ export async function removeNutritionHistoryEntry(clientId, health, generatedAt)
   return saveNutritionPlanHistory(clientId, health, next)
 }
 
-export function defaultNutritionSurvey() {
-  return {
-    age: 30,
-    activityLevel: 'moderate',
-    goalKind: 'maintain',
-    mealsPerDay: 4,
-    exclusions: [],
-    pickedProducts: { protein: [], fat: [], carbs: [] },
-  }
-}
+export { defaultNutritionSurvey, nutritionSurveyFromStorage } from './nutritionSurveyCore.js'
 
 export function toggleProductId(list, id) {
   const set = new Set(list ?? [])
