@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Download, Share2 } from 'lucide-react'
 import {
@@ -87,6 +87,8 @@ export function ClientNutritionPage({ client, readOnly = false }) {
   const [exportBusy, setExportBusy] = useState(false)
   const [catalogMap, setCatalogMap] = useState(() => buildNutritionCatalogMap([]))
   const [catalogLabel, setCatalogLabel] = useState('Базовый справочник')
+  /** Опросник не перезаписывать из IDB после первой загрузки — иначе sync сбрасывает ввод. */
+  const surveyLoadedRef = useRef(false)
 
   const clubId = String(client?.club_id ?? '').trim()
 
@@ -106,21 +108,28 @@ export function ClientNutritionPage({ client, readOnly = false }) {
     setCatalogLabel(catalogSourceLabel(map))
   }, [clubId])
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async ({ refreshSurvey = false } = {}) => {
     if (!client?.id) return
     await reloadCatalog()
     const st = await loadClientNutritionState(client.id)
     setHealth(st.health)
-    setSurvey({ ...defaultNutritionSurvey(), ...st.survey })
+    if (refreshSurvey || !surveyLoadedRef.current) {
+      setSurvey({ ...defaultNutritionSurvey(), ...st.survey })
+      surveyLoadedRef.current = true
+    }
     setPlan(st.plan)
     setGeneratedAt(st.generatedAt)
   }, [client?.id, reloadCatalog])
 
   useEffect(() => {
-    void reload()
+    surveyLoadedRef.current = false
+  }, [client?.id])
+
+  useEffect(() => {
+    void reload({ refreshSurvey: true })
   }, [reload])
 
-  useDebouncedStorageReload(() => reload(), {
+  useDebouncedStorageReload(() => reload({ refreshSurvey: false }), {
     shouldRun: (d) =>
       d?.reason === 'nutrition-products' ||
       (d?.reason !== 'exercises' && d?.reason !== 'challenge-trainings'),
@@ -158,7 +167,7 @@ export function ClientNutritionPage({ client, readOnly = false }) {
       setPlan(result.plan)
       setGeneratedAt(new Date().toISOString())
       setStep(STEPS.length - 1)
-      await reload()
+      await reload({ refreshSurvey: false })
     } catch (e) {
       setError(e?.message ?? 'Ошибка расчёта')
     } finally {
@@ -285,7 +294,15 @@ export function ClientNutritionPage({ client, readOnly = false }) {
                 max={90}
                 value={survey.age ?? ''}
                 disabled={readOnly}
-                onChange={(e) => patchSurvey({ age: Number(e.target.value) || undefined })}
+                onChange={(e) => {
+                  const raw = e.target.value
+                  if (raw === '') {
+                    patchSurvey({ age: undefined })
+                    return
+                  }
+                  const n = Number(raw)
+                  patchSurvey({ age: Number.isFinite(n) ? n : undefined })
+                }}
               />
             </label>
           </div>
