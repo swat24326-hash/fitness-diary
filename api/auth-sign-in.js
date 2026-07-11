@@ -5,26 +5,37 @@
 import { createClient } from '@supabase/supabase-js'
 import { readEnv, sendJson, setCors } from './_lib/adminSupabase.js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
+import { emailFromLoginRow, normalizeLoginInput, trainerLocalEmail } from './_lib/authLoginResolveCore.js'
 
 async function resolveEmail(supabaseAdmin, raw) {
-  const trimmed = String(raw ?? '').trim()
+  const trimmed = normalizeLoginInput(raw)
   if (!trimmed) return null
-  if (trimmed.includes('@')) return trimmed
+  if (trimmed.includes('@')) {
+    const row = await supabaseAdmin.from('users').select('email, is_active').ilike('email', trimmed).maybeSingle()
+    const picked = emailFromLoginRow(row.data, trimmed)
+    return picked ?? { email: trimmed, isActive: row.data?.is_active !== false }
+  }
 
   const loginLower = trimmed.toLowerCase()
-  const byLogin = await supabaseAdmin
-    .from('users')
-    .select('email, is_active')
-    .eq('login', loginLower)
-    .maybeSingle()
-  if (byLogin.data?.email) return byLogin.data
+  const synthEmail = trainerLocalEmail(trimmed)
 
-  const byIlike = await supabaseAdmin
-    .from('users')
-    .select('email, is_active')
-    .ilike('login', trimmed)
-    .maybeSingle()
-  if (byIlike.data?.email) return byIlike.data
+  const attempts = [
+    () => supabaseAdmin.from('users').select('email, is_active').eq('login', loginLower).maybeSingle(),
+    () => supabaseAdmin.from('users').select('email, is_active').ilike('login', trimmed).maybeSingle(),
+  ]
+  if (synthEmail) {
+    attempts.push(() => supabaseAdmin.from('users').select('email, is_active').ilike('email', synthEmail).maybeSingle())
+  }
+
+  for (const run of attempts) {
+    const { data } = await run()
+    const picked = emailFromLoginRow(data, trimmed)
+    if (picked) return picked
+  }
+
+  if (synthEmail) {
+    return { email: synthEmail, isActive: true }
+  }
 
   return null
 }
@@ -73,16 +84,24 @@ async function handler(req, res) {
   let emailForAuth = login
   let isActive = true
   if (login.includes('@')) {
-    const row = await supabaseAdmin.from('users').select('is_active').ilike('email', login).maybeSingle()
-    if (row.data) isActive = row.data.is_active !== false
+    const resolved = await resolveEmail(supabaseAdmin, login)
+    if (resolved?.email) {
+      emailForAuth = resolved.email
+      isActive = resolved.isActive !== false
+    } else {
+      const row = await supabaseAdmin.from('users').select('is_active').ilike('email', login).maybeSingle()
+      if (row.data) isActive = row.data.is_active !== false
+    }
   } else {
     const resolved = await resolveEmail(supabaseAdmin, login)
     if (!resolved?.email) {
-      sendJson(res, 401, { error: 'Пользователь с таким логином не найден' })
+      sendJson(res, 401, {
+        error: 'Пользователь с таким логином не найден. Проверьте раскладку или войдите по email.',
+      })
       return
     }
     emailForAuth = String(resolved.email).trim()
-    isActive = resolved.is_active !== false
+    isActive = resolved.isActive !== false
   }
 
   if (!isActive) {

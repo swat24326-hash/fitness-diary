@@ -1,32 +1,36 @@
 import { supabase } from './supabase'
+import { emailFromLoginRow, normalizeLoginInput, trainerLocalEmail } from './authLoginResolveCore.js'
 
 export { isAuthApiTransportError } from './authSignInTransport.js'
 
 /** Тот же порядок, что в /api/auth-sign-in (без service role в браузере). */
 export async function resolveLoginEmailFromDb(raw) {
-  const trimmed = String(raw ?? '').trim()
+  const trimmed = normalizeLoginInput(raw)
   if (!trimmed) return { email: null, isActive: true, error: null }
   if (trimmed.includes('@')) return { email: trimmed, isActive: true, error: null }
 
   const loginLower = trimmed.toLowerCase()
-  const { data: byExact, error: e1 } = await supabase
-    .from('users')
-    .select('email, is_active')
-    .eq('login', loginLower)
-    .maybeSingle()
-  if (e1) return { email: null, isActive: true, error: e1 }
-  if (byExact?.email) {
-    return { email: String(byExact.email).trim(), isActive: byExact.is_active !== false, error: null }
+  const synthEmail = trainerLocalEmail(trimmed)
+
+  const attempts = [
+    () => supabase.from('users').select('email, is_active').eq('login', loginLower).maybeSingle(),
+    () => supabase.from('users').select('email, is_active').ilike('login', trimmed).maybeSingle(),
+  ]
+  if (synthEmail) {
+    attempts.push(() => supabase.from('users').select('email, is_active').ilike('email', synthEmail).maybeSingle())
   }
 
-  const { data: byIlike, error: e2 } = await supabase
-    .from('users')
-    .select('email, is_active')
-    .ilike('login', trimmed)
-    .maybeSingle()
-  if (e2) return { email: null, isActive: true, error: e2 }
-  if (byIlike?.email) {
-    return { email: String(byIlike.email).trim(), isActive: byIlike.is_active !== false, error: null }
+  for (const run of attempts) {
+    const { data, error } = await run()
+    if (error) return { email: null, isActive: true, error }
+    const picked = emailFromLoginRow(data, trimmed)
+    if (picked) {
+      return { email: picked.email, isActive: picked.isActive, error: null }
+    }
+  }
+
+  if (synthEmail) {
+    return { email: synthEmail, isActive: true, error: null }
   }
 
   return { email: null, isActive: true, error: null }
@@ -49,7 +53,7 @@ function apiUrl() {
   return '/api/auth-sign-in'
 }
 
-const AUTH_API_TIMEOUT_MS = 8_000
+const AUTH_API_TIMEOUT_MS = 12_000
 
 /**
  * Вход через /api/auth-sign-in (сервер → Supabase), затем setSession в браузере.
@@ -71,7 +75,7 @@ export async function signInViaServerApi({ login, password }) {
       credentials: 'same-origin',
       cache: 'no-store',
       signal: controller?.signal,
-      body: JSON.stringify({ login, password }),
+      body: JSON.stringify({ login: normalizeLoginInput(login), password }),
     })
   } catch (e) {
     const msg =

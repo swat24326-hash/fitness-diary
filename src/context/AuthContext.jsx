@@ -5,6 +5,7 @@ import {
   resolveLoginEmailFromDb,
   signInViaServerApi,
 } from '../lib/authSignInService'
+import { normalizeLoginInput, trainerLocalEmail } from '../lib/authLoginResolveCore'
 import { fetchMyProfileViaApi } from '../lib/profileApiClient'
 import { firstSuccessfulPromise, isCloudReachable } from '../lib/networkReachability'
 import { withSupabaseRetry } from '../lib/supabaseRetry'
@@ -327,7 +328,7 @@ export function AuthProvider({ children }) {
   }, [applySession])
 
   const signIn = useCallback(async ({ login, password }) => {
-    const raw = (login ?? '').trim()
+    const raw = normalizeLoginInput(login ?? '')
     if (!raw) return { error: { message: 'Введите логин' } }
     if (password == null || password === '') return { error: { message: 'Введите пароль' } }
 
@@ -368,6 +369,7 @@ export function AuthProvider({ children }) {
         return { error: null }
       }
 
+      let serverTransportFailed = false
       try {
         const viaServer = await signInViaServerApi({ login: raw, password })
         if (viaServer.user) {
@@ -378,12 +380,14 @@ export function AuthProvider({ children }) {
           return { error: { message: viaServer.error.message } }
         }
         if (viaServer.error) {
+          serverTransportFailed = Boolean(viaServer.transportError || isAuthApiTransportError(viaServer.error.message))
           console.warn('[auth] /api/auth-sign-in недоступен, пробуем Supabase напрямую', viaServer.error.message)
         }
       } catch (e) {
         if (!isAuthApiTransportError(e?.message)) {
           return { error: { message: humanizeNetworkError(e) } }
         }
+        serverTransportFailed = true
         console.warn('[auth] /api/auth-sign-in недоступен, пробуем Supabase напрямую', e)
       }
 
@@ -397,21 +401,28 @@ export function AuthProvider({ children }) {
           }
           if (resolved.email) {
             emailForAuth = resolved.email
-          } else if (import.meta.env.DEV) {
-            const loginLower = raw.toLowerCase()
-            const { data: devAuth, error: devErr } = await signInWithPasswordRetry(
-              `${loginLower}@trainer.local`,
-              password,
-            )
-            if (!devErr && devAuth?.user) {
-              finishSignIn(devAuth.user, null)
-              return { error: null }
+          } else {
+            const synth = trainerLocalEmail(raw)
+            if (synth) {
+              const { data: synthAuth, error: synthErr } = await signInWithPasswordRetry(synth, password)
+              if (!synthErr && synthAuth?.user) {
+                finishSignIn(synthAuth.user, null)
+                return { error: null }
+              }
             }
           }
           if (!resolved.email && !emailForAuth.includes('@')) {
+            if (serverTransportFailed) {
+              return {
+                error: {
+                  message:
+                    'Сервер входа недоступен на этой сети — логин не удалось проверить. Попробуйте другой Wi‑Fi, отключите VPN или войдите по email (например логин@trainer.local).',
+                },
+              }
+            }
             const devHint = import.meta.env.DEV
               ? ' Локально: скопируйте .env с Vercel (как на сайте) или запустите npx vercel dev; можно войти по email.'
-              : ''
+              : ' Проверьте раскладку или войдите по email.'
             return { error: { message: `Пользователь с таким логином не найден.${devHint}` } }
           }
         } catch (e) {
