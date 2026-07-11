@@ -266,12 +266,14 @@ async function purgeSyncQueuePendingForClient({
   trainingIds,
   membershipIds,
   measurementIds,
+  weightEntryIds,
   healthCardRemoteId,
 }) {
   const queue = await listSyncQueue()
   const tid = new Set(trainingIds)
   const mid = new Set(membershipIds)
   const bid = new Set(measurementIds)
+  const wid = new Set(weightEntryIds)
 
   for (const item of queue) {
     const op = item.operation
@@ -286,6 +288,7 @@ async function purgeSyncQueuePendingForClient({
     if (tbl === 'trainings' && (d.client_id === clientId || tid.has(rid))) drop = true
     if (tbl === 'memberships' && (d.client_id === clientId || mid.has(rid))) drop = true
     if (tbl === 'body_measurements' && (d.client_id === clientId || bid.has(rid))) drop = true
+    if (tbl === 'client_weight_entries' && (d.client_id === clientId || wid.has(rid))) drop = true
     if (tbl === 'health_cards') {
       if (d.client_id === clientId) drop = true
       if (healthCardRemoteId != null && rid === healthCardRemoteId) drop = true
@@ -321,6 +324,13 @@ export async function deleteClientAndAllData(clientId) {
     await deleteLocalWithSync('body_measurements', b.id, 'body_measurements')
   }
 
+  const { listWeightEntriesByClientId } = await import('./localDbClubQuery')
+  const weightEntries = await listWeightEntriesByClientId(clientId)
+  const weightEntryIds = weightEntries.map((w) => w.id)
+  for (const w of weightEntries) {
+    await deleteLocalWithSync('client_weight_entries', w.id, 'client_weight_entries')
+  }
+
   await deleteHealthCardByClientId(clientId)
 
   await deleteLocalWithSync('clients', clientId, 'clients')
@@ -330,6 +340,7 @@ export async function deleteClientAndAllData(clientId) {
     trainingIds,
     membershipIds,
     measurementIds,
+    weightEntryIds,
     healthCardRemoteId,
   })
 

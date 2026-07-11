@@ -285,6 +285,7 @@ export async function fetchClientWorkspaceViaAdminApi(clientId) {
       memberships: Array.isArray(data.memberships) ? data.memberships : [],
       health_card: data.health_card ?? null,
       body_measurements: Array.isArray(data.body_measurements) ? data.body_measurements : [],
+      client_weight_entries: Array.isArray(data.client_weight_entries) ? data.client_weight_entries : [],
       trainings: Array.isArray(data.trainings) ? data.trainings : [],
     }
   }
@@ -465,7 +466,6 @@ export async function fetchClubsViaAdminApi() {
   }
 }
 
-/** GET /api/admin-data?action=membership-types&club_id=… */
 export async function fetchMembershipTypesForClubViaApi(clubId) {
   const cid = String(clubId ?? '').trim()
   if (!cid) return null
@@ -482,6 +482,27 @@ export async function fetchMembershipTypesForClubViaApi(clubId) {
   if (routeMissing) return null
   return {
     membership_types: Array.isArray(data.membership_types) ? data.membership_types : [],
+    count: typeof data.count === 'number' ? data.count : 0,
+  }
+}
+
+/** GET /api/admin-data?action=nutrition-products&club_id=… */
+export async function fetchNutritionProductsForClubViaApi(clubId) {
+  const cid = String(clubId ?? '').trim()
+  if (!cid) return null
+
+  const token = await getAccessTokenForAdminApi()
+  if (!token) {
+    throw new Error('Нет сессии — выйдите и войдите снова, затем нажмите Sync.')
+  }
+
+  const { data, routeMissing } = await adminApiGet(
+    `/api/admin-data?action=nutrition-products&club_id=${encodeURIComponent(cid)}`,
+    token,
+  )
+  if (routeMissing) return null
+  return {
+    nutrition_products: Array.isArray(data.nutrition_products) ? data.nutrition_products : [],
     count: typeof data.count === 'number' ? data.count : 0,
   }
 }

@@ -21,10 +21,11 @@ import { AdminInactiveClientsPanel } from '../../components/AdminInactiveClients
 import { TrainingExercisesReadonly } from '../../components/TrainingExercisesReadonly'
 import { AdminClubStatsSection } from './AdminClubStatsSection'
 import { SectionErrorBoundary } from '../../components/SectionErrorBoundary'
+import { getHealthCurrentWeightKg } from '../../lib/clientWeightCore'
 
 function bmiFromHealthRow(health) {
   const hCm = Number(String(health?.height_cm ?? '').replace(',', '.'))
-  const wKg = Number(String(health?.weight_kg ?? '').replace(',', '.'))
+  const wKg = getHealthCurrentWeightKg(health)
   if (!Number.isFinite(hCm) || !Number.isFinite(wKg) || hCm <= 0 || wKg <= 0) return null
   const m = hCm / 100
   const v = wKg / (m * m)
@@ -33,6 +34,7 @@ function bmiFromHealthRow(health) {
 
 function AdminHealthReadonly({ health }) {
   const bmi = useMemo(() => bmiFromHealthRow(health), [health])
+  const currentKg = getHealthCurrentWeightKg(health)
   if (!health) {
     return <p className="muted" style={{ margin: 0 }}>Медкарта не заведена или пуста.</p>
   }
@@ -41,8 +43,7 @@ function AdminHealthReadonly({ health }) {
   const medications = health.medications ?? ''
   const notes = health.notes ?? ''
   const hasText = diseases || contraindications || medications || notes
-  const hasMetrics =
-    health.height_cm != null && health.height_cm !== '' && health.weight_kg != null && health.weight_kg !== ''
+  const hasMetrics = health.height_cm != null && health.height_cm !== '' && currentKg != null
 
   if (!hasText && !hasMetrics && bmi == null) {
     return <p className="muted" style={{ margin: 0 }}>В медкарте пока нет данных.</p>
@@ -50,17 +51,15 @@ function AdminHealthReadonly({ health }) {
 
   return (
     <div className="grid health-mini" style={{ gap: 8 }}>
-      {(health.height_cm != null && health.height_cm !== '') ||
-      (health.weight_kg != null && health.weight_kg !== '') ||
-      bmi != null ? (
+      {(health.height_cm != null && health.height_cm !== '') || currentKg != null || bmi != null ? (
         <div className="health-mini__top">
           <div className="health-mini__metric">
             <span className="muted">Рост</span>
             <strong>{health.height_cm != null && health.height_cm !== '' ? `${health.height_cm} см` : '—'}</strong>
           </div>
           <div className="health-mini__metric">
-            <span className="muted">Вес</span>
-            <strong>{health.weight_kg != null && health.weight_kg !== '' ? `${health.weight_kg} кг` : '—'}</strong>
+            <span className="muted">Текущий вес</span>
+            <strong>{currentKg != null ? `${currentKg} кг` : '—'}</strong>
           </div>
           <div className="health-mini__metric">
             <span className="muted">ИМТ</span>

@@ -142,6 +142,52 @@ export async function handleMembershipTypes(authCtx, req, res) {
   sendJson(res, 200, { membership_types: rows, count: rows.length, club_id: clubId })
 }
 
+export async function handleNutritionProducts(authCtx, req, res) {
+  const clubId = String(req.query?.club_id ?? req.query?.clubId ?? '').trim()
+  if (!clubId) {
+    sendJson(res, 400, { error: 'Укажите club_id' })
+    return
+  }
+
+  if (!authCtx.isAdmin) {
+    const { data: prof } = await authCtx.supabaseAdmin
+      .from('users')
+      .select('club_id')
+      .eq('id', authCtx.user.id)
+      .maybeSingle()
+    const trainerClub = String(prof?.club_id ?? '').trim()
+    if (trainerClub && trainerClub !== clubId) {
+      sendJson(res, 403, { error: 'Продукты другого клуба недоступны' })
+      return
+    }
+    if (!trainerClub) {
+      const { data: sample } = await authCtx.supabaseAdmin
+        .from('clients')
+        .select('id')
+        .eq('trainer_id', authCtx.user.id)
+        .eq('club_id', clubId)
+        .limit(1)
+      if (!(sample ?? []).length) {
+        sendJson(res, 403, { error: 'Нет доступа к продуктам этого клуба' })
+        return
+      }
+    }
+  }
+
+  const { data, error } = await authCtx.supabaseAdmin
+    .from('nutrition_products')
+    .select('*')
+    .eq('club_id', clubId)
+    .order('sort_order', { ascending: true })
+    .order('label', { ascending: true })
+  if (error) {
+    sendJson(res, 400, { error: error.message })
+    return
+  }
+  const rows = data ?? []
+  sendJson(res, 200, { nutrition_products: rows, count: rows.length, club_id: clubId })
+}
+
 export async function handleExercisesMeta(authCtx, res) {
   const { count, error: countErr } = await authCtx.supabaseAdmin
     .from('exercises')

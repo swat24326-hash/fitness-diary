@@ -287,3 +287,87 @@ CREATE POLICY fit_body_measurements_trainer_rw
     )
     AND public.fit_auth_trainer_club_id() IS NOT NULL
   );
+
+-- -----------------------------------------------------------------------------
+-- client_weight_entries
+-- -----------------------------------------------------------------------------
+ALTER TABLE public.client_weight_entries ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS fit_client_weight_entries_admin_all ON public.client_weight_entries;
+DROP POLICY IF EXISTS fit_client_weight_entries_trainer_rw ON public.client_weight_entries;
+
+CREATE POLICY fit_client_weight_entries_admin_all
+  ON public.client_weight_entries
+  FOR ALL
+  TO authenticated
+  USING (public.fit_auth_is_admin())
+  WITH CHECK (public.fit_auth_is_admin());
+
+CREATE POLICY fit_client_weight_entries_trainer_rw
+  ON public.client_weight_entries
+  FOR ALL
+  TO authenticated
+  USING (
+    public.fit_auth_is_trainer()
+    AND EXISTS (
+      SELECT 1
+      FROM public.clients c
+      WHERE c.id = client_weight_entries.client_id
+        AND c.trainer_id = auth.uid()
+        AND c.club_id = public.fit_auth_trainer_club_id()
+    )
+    AND public.fit_auth_trainer_club_id() IS NOT NULL
+  )
+  WITH CHECK (
+    public.fit_auth_is_trainer()
+    AND EXISTS (
+      SELECT 1
+      FROM public.clients c
+      WHERE c.id = client_weight_entries.client_id
+        AND c.trainer_id = auth.uid()
+        AND c.club_id = public.fit_auth_trainer_club_id()
+    )
+    AND public.fit_auth_trainer_club_id() IS NOT NULL
+  );
+
+-- -----------------------------------------------------------------------------
+-- client_weight_entries
+-- -----------------------------------------------------------------------------
+ALTER TABLE public.client_weight_entries ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS fit_client_weight_entries_admin_all ON public.client_weight_entries;
+DROP POLICY IF EXISTS fit_client_weight_entries_trainer_rw ON public.client_weight_entries;
+
+CREATE POLICY fit_client_weight_entries_admin_all
+  ON public.client_weight_entries
+  FOR ALL
+  TO authenticated
+  USING (public.fit_auth_is_admin())
+  WITH CHECK (public.fit_auth_is_admin());
+
+CREATE POLICY fit_client_weight_entries_trainer_rw
+  ON public.client_weight_entries
+  FOR ALL
+  TO authenticated
+  USING (
+    public.fit_auth_is_trainer()
+    AND EXISTS (
+      SELECT 1
+      FROM public.clients c
+      WHERE c.id = client_weight_entries.client_id
+        AND c.trainer_id = auth.uid()
+        AND c.club_id = public.fit_auth_trainer_club_id()
+    )
+    AND public.fit_auth_trainer_club_id() IS NOT NULL
+  )
+  WITH CHECK (
+    public.fit_auth_is_trainer()
+    AND EXISTS (
+      SELECT 1
+      FROM public.clients c
+      WHERE c.id = client_weight_entries.client_id
+        AND c.trainer_id = auth.uid()
+        AND c.club_id = public.fit_auth_trainer_club_id()
+    )
+    AND public.fit_auth_trainer_club_id() IS NOT NULL
+  );

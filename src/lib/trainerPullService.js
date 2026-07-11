@@ -5,6 +5,7 @@
 import { isSupabaseConfigured } from './supabase'
 import { isRetryableNetworkError } from './supabaseRetry'
 import { normalizeBodyMeasurementRow } from './bodyMeasures'
+import { normalizeWeightEntryRow } from './clientWeightCore'
 import {
   buildPendingSyncKeysByTable,
   getMeta,
@@ -64,7 +65,7 @@ async function pruneOrphanTrainerClients(trainerId, remoteClients, opts = {}) {
   return pruned
 }
 
-async function cacheTrainerPull(trainerId, { clients, memberships, health_cards, body_measurements, trainings }, opts = {}) {
+async function cacheTrainerPull(trainerId, { clients, memberships, health_cards, body_measurements, client_weight_entries, trainings }, opts = {}) {
   const mode = String(opts?.mode ?? 'active')
   const preserveArchived = mode === 'active'
   const pending = await buildPendingSyncKeysByTable()
@@ -73,6 +74,9 @@ async function cacheTrainerPull(trainerId, { clients, memberships, health_cards,
   for (const row of health_cards ?? []) await putStoreUnlessPendingSync('health_cards', row, pending)
   for (const row of body_measurements ?? []) {
     await putStoreUnlessPendingSync('body_measurements', normalizeBodyMeasurementRow(row), pending)
+  }
+  for (const row of client_weight_entries ?? []) {
+    await putStoreUnlessPendingSync('client_weight_entries', normalizeWeightEntryRow(row), pending)
   }
   for (const row of trainings ?? []) await putStoreUnlessPendingSync('trainings', row, pending)
   const pruned_trainings =
@@ -135,6 +139,7 @@ export async function pullTrainerWorkspaceFromCloud(trainerId, opts = {}) {
         count: viaApi.clients.length,
         memberships: viaApi.memberships.length,
         body_measurements: viaApi.body_measurements?.length ?? 0,
+        client_weight_entries: viaApi.client_weight_entries?.length ?? 0,
         trainings: viaApi.trainings?.length ?? 0,
         trainings_truncated: viaApi.trainings_truncated === true,
         incremental: viaApi.incremental === true,

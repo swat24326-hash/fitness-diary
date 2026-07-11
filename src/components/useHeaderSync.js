@@ -173,7 +173,7 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
 
       if (isSupabaseConfigured() && !flushDesc.offline) {
         try {
-          const { pullExercisesFromCloud, pullChallengesForClubFromCloud, pullMembershipTypesForClubFromCloud } =
+          const { pullExercisesFromCloud, pullChallengesForClubFromCloud, pullMembershipTypesForClubFromCloud, pullNutritionProductsForClubFromCloud } =
             await import('../lib/pullReferenceData')
           bumpSyncProgress(76, 'Справочник упражнений…')
           // Sync нажимают вручную, и ожидают увидеть свежие правки админа сразу.
@@ -215,6 +215,14 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
               } else {
                 parts.push(`типы абон. (${mtPull.count ?? 0})`)
               }
+              bumpSyncProgress(95, 'Продукты питания…')
+              const npPull = await pullNutritionProductsForClubFromCloud(club)
+              if (!npPull?.ok) {
+                hadError = true
+                parts.push(`питание: ${npPull.error ?? 'ошибка'}`)
+              } else {
+                parts.push(`питание (${npPull.count ?? 0})`)
+              }
             } else {
               parts.push('клиенты: выберите клуб')
             }
@@ -226,6 +234,13 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
                 parts.push(`типы абон.: ${mtPull.error ?? 'ошибка'}`)
               } else {
                 parts.push(`типы абон. (${mtPull.count ?? 0})`)
+              }
+              const npPull = await pullNutritionProductsForClubFromCloud(String(user.club_id))
+              if (!npPull?.ok) {
+                hadError = true
+                parts.push(`питание: ${npPull.error ?? 'ошибка'}`)
+              } else {
+                parts.push(`питание (${npPull.count ?? 0})`)
               }
               parts.push('отчёт продаж — нажмите «Обновить» на странице')
             } else if (user?.id) {
@@ -265,6 +280,13 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
                 chFailed = true
                 hadError = true
                 parts.push(`типы абон.: ${mtPull.error ?? 'ошибка'}`)
+                break
+              }
+              const npPull = await pullNutritionProductsForClubFromCloud(cid)
+              if (!npPull?.ok) {
+                chFailed = true
+                hadError = true
+                parts.push(`питание: ${npPull.error ?? 'ошибка'}`)
                 break
               }
             }

@@ -2,7 +2,7 @@ import { openDB } from 'idb'
 
 const DB_NAME = 'fitness-diary'
 /** Повышать при схемных правках; клиенты уже на max version не получают upgrade без нового номера. */
-const DB_VERSION = 10
+const DB_VERSION = 12
 
 /**
  * Локальное хранилище: кэш сущностей + очередь синхронизации (поля как в sync_queue на сервере + local_id).
@@ -66,6 +66,16 @@ export async function getDb() {
 
       if (!db.objectStoreNames.contains('membership_types')) {
         db.createObjectStore('membership_types', { keyPath: 'id' })
+      }
+
+      if (!db.objectStoreNames.contains('nutrition_products')) {
+        const nutrition = db.createObjectStore('nutrition_products', { keyPath: 'id' })
+        nutrition.createIndex('by_club_id', 'club_id', { unique: false })
+      }
+
+      if (!db.objectStoreNames.contains('client_weight_entries')) {
+        const weight = db.createObjectStore('client_weight_entries', { keyPath: 'id' })
+        weight.createIndex('by_client_id', 'client_id', { unique: false })
       }
 
       if (oldVersion < 8 && transaction) {
@@ -181,6 +191,7 @@ const PULL_MERGE_GUARD_STORES = new Set([
   'trainings',
   'health_cards',
   'body_measurements',
+  'client_weight_entries',
 ])
 
 function syncQueueItemKey(tableName, item) {
@@ -209,6 +220,8 @@ export async function buildPendingSyncKeysByTable() {
     challenges: new Set(),
     exercises: new Set(),
     membership_types: new Set(),
+    nutrition_products: new Set(),
+    client_weight_entries: new Set(),
   }
   for (const item of queue) {
     const op = item.operation
@@ -300,6 +313,7 @@ export async function removeClientFromLocalCacheOnly(clientId) {
   await deleteAllByIndexKey('trainings', 'by_client_id', cid)
   await deleteAllByIndexKey('memberships', 'by_client_id', cid)
   await deleteAllByIndexKey('body_measurements', 'by_client_id', cid)
+  await deleteAllByIndexKey('client_weight_entries', 'by_client_id', cid)
   try {
     await db.delete('health_cards', cid)
   } catch {

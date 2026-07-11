@@ -7,6 +7,7 @@ import { supabase, isSupabaseConfigured } from '../supabase'
 import { buildPendingSyncKeysByTable, putStore, putStoreUnlessPendingSync } from '../localDb'
 import { markRecordFromCloud } from '../syncLocalRecords'
 import { normalizeBodyMeasurementRow } from '../bodyMeasures'
+import { normalizeWeightEntryRow } from '../clientWeightCore'
 import { pruneOrphanTrainingsForClient } from '../clientTrainingsCache'
 import { ADMIN_SYNC_BATCH_SIZE } from './adminConstants'
 import { fetchClientWorkspaceViaAdminApi } from './adminApiClient'
@@ -28,7 +29,7 @@ function notifyHydrated(clientId, pruned_trainings = 0) {
   }
 }
 
-async function cacheWorkspace({ client, memberships, health_card, body_measurements, trainings }, opts = {}) {
+async function cacheWorkspace({ client, memberships, health_card, body_measurements, client_weight_entries, trainings }, opts = {}) {
   const pending = opts.respectSyncQueue ? await buildPendingSyncKeysByTable() : null
   const save = (store, row) =>
     pending ? putStoreUnlessPendingSync(store, row, pending) : putStore(store, markRecordFromCloud(row))
@@ -37,6 +38,7 @@ async function cacheWorkspace({ client, memberships, health_card, body_measureme
   for (const m of memberships ?? []) await save('memberships', m)
   if (health_card) await save('health_cards', health_card)
   for (const row of body_measurements ?? []) await save('body_measurements', normalizeBodyMeasurementRow(row))
+  for (const row of client_weight_entries ?? []) await save('client_weight_entries', normalizeWeightEntryRow(row))
   for (const t of trainings ?? []) await save('trainings', t)
 
   const cid = String(client?.id ?? '').trim()
@@ -77,6 +79,23 @@ async function hydrateViaBrowserSupabase(clientId) {
     mFrom += ADMIN_SYNC_BATCH_SIZE
   }
 
+  const client_weight_entries = []
+  let wFrom = 0
+  for (;;) {
+    const { data: wRows, error: we } = await supabase
+      .from('client_weight_entries')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .range(wFrom, wFrom + ADMIN_SYNC_BATCH_SIZE - 1)
+    if (we) throw we
+    const chunk = wRows ?? []
+    client_weight_entries.push(...chunk)
+    if (!chunk.length || chunk.length < ADMIN_SYNC_BATCH_SIZE) break
+    wFrom += ADMIN_SYNC_BATCH_SIZE
+  }
+
   const trainings = []
   let from = 0
   for (;;) {
@@ -100,6 +119,7 @@ async function hydrateViaBrowserSupabase(clientId) {
       memberships: memberships ?? [],
       health_card: hc ?? null,
       body_measurements,
+      client_weight_entries,
       trainings,
     },
     { respectSyncQueue: false },

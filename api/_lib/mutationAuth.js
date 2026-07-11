@@ -39,9 +39,11 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
     'trainings',
     'health_cards',
     'body_measurements',
+    'client_weight_entries',
     'challenges',
     'exercises',
     'membership_types',
+    'nutrition_products',
   ])
   if (!allowed.has(table_name)) {
     return { ok: false, error: 'Таблица не поддерживается для синхронизации' }
@@ -49,8 +51,8 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
 
   if (isAdmin) return { ok: true }
 
-  if (table_name === 'membership_types') {
-    return { ok: false, error: 'Типы абонементов может менять только администратор' }
+  if (table_name === 'membership_types' || table_name === 'nutrition_products') {
+    return { ok: false, error: 'Справочник может менять только администратор' }
   }
 
   if (!isTrainer) {
@@ -127,6 +129,20 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
       const clientId = payload.client_id
       if (op === 'delete') {
         const { data: row } = await supabaseAdmin.from('body_measurements').select('client_id').eq('id', remote_id).maybeSingle()
+        return (await canAccessClient(ctx, row?.client_id)) ? { ok: true } : { ok: false, error: 'Нет доступа' }
+      }
+      if (!(await canAccessClient(ctx, clientId))) return { ok: false, error: 'Нет доступа к клиенту' }
+      return { ok: true }
+    }
+
+    if (table_name === 'client_weight_entries') {
+      const clientId = payload.client_id
+      if (op === 'delete') {
+        const { data: row } = await supabaseAdmin
+          .from('client_weight_entries')
+          .select('client_id')
+          .eq('id', remote_id)
+          .maybeSingle()
         return (await canAccessClient(ctx, row?.client_id)) ? { ok: true } : { ok: false, error: 'Нет доступа' }
       }
       if (!(await canAccessClient(ctx, clientId))) return { ok: false, error: 'Нет доступа к клиенту' }

@@ -82,7 +82,8 @@ const maxRetries = maxRetriesMatch ? Number(maxRetriesMatch[1]) : 0
 ok(maxRetries >= 8, `sync queue max retries (${maxRetries})`)
 
 const localDbSrc = readFileSync(join(root, 'src/lib/localDb.js'), 'utf8')
-ok(/DB_VERSION\s*=\s*10/.test(localDbSrc), 'indexeddb version 10 with scale indexes')
+ok(/DB_VERSION\s*=\s*12/.test(localDbSrc), 'indexeddb version 12 with weight entries')
+ok(localDbSrc.includes('client_weight_entries'), 'indexeddb client_weight_entries store')
 ok(localDbSrc.includes('by_trainer_id'), 'indexeddb by_trainer_id index')
 ok(localDbSrc.includes('by_club_date'), 'indexeddb by_club_date compound index')
 ok(localDbSrc.includes("createIndex('by_club_id', 'club_id'"), 'indexeddb challenges by_club_id index')

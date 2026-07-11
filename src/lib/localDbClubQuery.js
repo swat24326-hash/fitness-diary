@@ -283,6 +283,20 @@ export async function listMeasurementsByClientId(clientId) {
   return filtered.sort((a, b) => String(b.date ?? '').localeCompare(String(a.date ?? '')))
 }
 
+/** @param {string} clientId */
+export async function listWeightEntriesByClientId(clientId) {
+  const cid = String(clientId ?? '').trim()
+  if (!cid) return []
+  const rows = await getAllFromIndex('client_weight_entries', 'by_client_id', cid)
+  const filtered =
+    rows.length && rows[0]?.client_id != null ? rows : rows.filter((m) => String(m?.client_id ?? '') === cid)
+  return filtered.sort((a, b) => {
+    const d = String(b.date ?? '').localeCompare(String(a.date ?? ''))
+    if (d !== 0) return d
+    return String(b.created_at ?? '').localeCompare(String(a.created_at ?? ''))
+  })
+}
+
 /**
  * Абонементы клуба → map client_id → rows (один проход по индексу club_id).
  * @param {string} clubId

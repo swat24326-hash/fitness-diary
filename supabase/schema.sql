@@ -112,6 +112,27 @@ CREATE TABLE exercises (
 );
 
 -- ------------------------------------------------------------
+-- Продукты питания (справочник клуба для рациона)
+-- ------------------------------------------------------------
+CREATE TABLE nutrition_products (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  club_id UUID NOT NULL REFERENCES clubs (id) ON DELETE CASCADE,
+  label TEXT NOT NULL,
+  macro_group TEXT NOT NULL CHECK (macro_group IN ('protein', 'fat', 'carbs')),
+  protein_per100 NUMERIC(6, 2) NOT NULL DEFAULT 0,
+  fat_per100 NUMERIC(6, 2) NOT NULL DEFAULT 0,
+  carbs_per100 NUMERIC(6, 2) NOT NULL DEFAULT 0,
+  piece_grams NUMERIC(6, 2),
+  tags JSONB NOT NULL DEFAULT '[]'::jsonb,
+  sort_order INT NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_nutrition_products_club_id ON nutrition_products (club_id);
+
+-- ------------------------------------------------------------
 -- Тренировки (payload в data JSONB — см. TrainingForm / TrainingPage)
 -- ------------------------------------------------------------
 CREATE TABLE trainings (
@@ -140,11 +161,17 @@ CREATE TABLE health_cards (
   client_id UUID NOT NULL REFERENCES clients (id) ON DELETE CASCADE,
   height_cm NUMERIC(6, 2),
   weight_kg NUMERIC(6, 2),
+  initial_weight_kg NUMERIC(6, 2),
+  current_weight_kg NUMERIC(6, 2),
+  weight_updated_at TIMESTAMPTZ,
   goal TEXT,
   diseases TEXT,
   contraindications TEXT,
   medications TEXT,
   notes TEXT,
+  nutrition_survey JSONB,
+  nutrition_plan JSONB,
+  nutrition_plan_generated_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT health_cards_client_id_key UNIQUE (client_id)
 );
@@ -172,6 +199,19 @@ CREATE TABLE body_measurements (
 );
 
 CREATE INDEX IF NOT EXISTS idx_body_measurements_client_date ON body_measurements (client_id, date DESC);
+
+CREATE TABLE client_weight_entries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id UUID NOT NULL REFERENCES clients (id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  weight_kg NUMERIC(6, 2) NOT NULL CHECK (weight_kg > 0),
+  source TEXT NOT NULL CHECK (source IN ('manual', 'training', 'initial_adjust')),
+  training_id UUID REFERENCES trainings (id) ON DELETE SET NULL,
+  note TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_client_weight_entries_client_date ON client_weight_entries (client_id, date DESC, created_at DESC);
 
 -- ------------------------------------------------------------
 -- Челленджи клуба (рейтинг считается на клиенте из trainings.data)

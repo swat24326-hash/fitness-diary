@@ -231,8 +231,10 @@ UI: карточки, drill-down, пояснения в popover (Info).
 
 | Файл | Когда |
 |------|--------|
+| `fitness-diary-features.mdc` | всегда — **новая фича**: исход, код, wow, стабильность |
 | `fitness-diary-architecture.mdc` | всегда — офлайн, слои |
 | `fitness-diary-scale.mdc` | всегда — масштаб, verify |
+| `fitness-diary-stability.mdc` | всегда — не ломать критические сценарии |
 | `fitness-diary-ship.mdc` | всегда — QA, деплой, коммит |
 | `fitness-diary-split-files.mdc` | `src/**`, `api/**` |
 | `fitness-diary-domain.mdc` | абонементы, статистика, agg |
@@ -240,7 +242,7 @@ UI: карточки, drill-down, пояснения в popover (Info).
 | `fitness-diary-supabase.mdc` | `supabase/**`, API |
 | `fitness-diary-ui.mdc` | pages, components, CSS |
 
-Принцип: новую логику сразу в правильный слой/файл, без отложенного «раздувания» монолитов.
+Принцип: новую логику сразу в правильный слой/файл; wow — отдельным предложением, не костылём в PR.
 
 ---
 

@@ -6,6 +6,20 @@ import { useDebouncedStorageReload } from '../../lib/useDebouncedStorageReload'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { stripDirectionControls } from '../../lib/textInput'
 import { saveLocalWithSync } from '../../lib/syncService'
+import {
+  formatWeightProgressDelta,
+  getHealthCurrentWeightKg,
+  getHealthInitialWeightKg,
+  normalizeHealthCardWeights,
+  pickLatestTrainingPreWeight,
+  weightEntrySourceLabelRu,
+} from '../../lib/clientWeightCore'
+import {
+  listWeightEntries,
+  recordManualWeight,
+  recordWeightFromLatestTraining,
+  saveHealthCardWithWeightFields,
+} from '../../lib/clientWeightService'
 import { MembershipManager } from '../../components/MembershipManager'
 import { BODY_MEASURE_FIELDS, getMeasureValue } from '../../lib/bodyMeasures'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
@@ -17,7 +31,7 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
   const [health, setHealth] = useState(null)
   const [healthForm, setHealthForm] = useState({
     height_cm: '',
-    weight_kg: '',
+    initial_weight_kg: '',
     goal: '',
     diseases: '',
     contraindications: '',
@@ -26,6 +40,10 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
   })
   const [healthEditing, setHealthEditing] = useState(false)
   const [measurements, setMeasurements] = useState([])
+  const [weightEntries, setWeightEntries] = useState([])
+  const [showWeightForm, setShowWeightForm] = useState(false)
+  const [showWeightHistory, setShowWeightHistory] = useState(false)
+  const [weightForm, setWeightForm] = useState({ date: todayLocalIso(), weight_kg: '' })
   const [showMeasure, setShowMeasure] = useState(false)
   const [editingMeasureId, setEditingMeasureId] = useState(null)
   const [showMeasureHistory, setShowMeasureHistory] = useState(false)
@@ -48,11 +66,13 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
     const m = await listMemberships(client.id)
     setMemberships(m)
     setClientTrainings(await listTrainingsForClient(client.id))
-    const hc = await getHealthCard(client.id)
+    const hcRaw = await getHealthCard(client.id)
+    const hc = normalizeHealthCardWeights(hcRaw)
     setHealth(hc)
     setHealthForm({
       height_cm: hc?.height_cm != null ? String(hc.height_cm) : '',
-      weight_kg: hc?.weight_kg != null ? String(hc.weight_kg) : '',
+      initial_weight_kg:
+        getHealthInitialWeightKg(hc) != null ? String(getHealthInitialWeightKg(hc)) : '',
       goal: stripDirectionControls(hc?.goal ?? ''),
       diseases: stripDirectionControls(hc?.diseases ?? ''),
       contraindications: stripDirectionControls(hc?.contraindications ?? ''),
@@ -60,6 +80,7 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
       notes: stripDirectionControls(hc?.notes ?? ''),
     })
     setMeasurements(await listMeasurements(client.id))
+    setWeightEntries(await listWeightEntries(client.id))
   }, [client.id])
 
   useEffect(() => {
@@ -105,14 +126,22 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
     [active, clientTrainings],
   )
 
+  const currentWeightKg = useMemo(() => getHealthCurrentWeightKg(health), [health])
+  const initialWeightKg = useMemo(() => getHealthInitialWeightKg(health), [health])
+  const weightProgress = useMemo(() => formatWeightProgressDelta(health), [health])
+  const latestTrainingWeight = useMemo(
+    () => pickLatestTrainingPreWeight(clientTrainings),
+    [clientTrainings],
+  )
+
   const bmi = useMemo(() => {
     const h = Number(String(healthForm.height_cm ?? '').replace(',', '.'))
-    const w = Number(String(healthForm.weight_kg ?? '').replace(',', '.'))
+    const w = currentWeightKg ?? Number(String(healthForm.initial_weight_kg ?? '').replace(',', '.'))
     if (!Number.isFinite(h) || !Number.isFinite(w) || h <= 0 || w <= 0) return null
     const m = h / 100
     const v = w / (m * m)
     return Number.isFinite(v) ? Math.round(v * 10) / 10 : null
-  }, [healthForm.height_cm, healthForm.weight_kg])
+  }, [healthForm.height_cm, healthForm.initial_weight_kg, currentWeightKg])
 
   const bmiMeta = useMemo(() => {
     if (bmi == null) return null
@@ -143,29 +172,57 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
       const n = Number(String(v ?? '').replace(',', '.'))
       return Number.isFinite(n) ? n : null
     }
-    const row = {
-      id: health?.id ?? crypto.randomUUID(),
-      client_id: client.id,
-      height_cm: toNumOrNull(healthForm.height_cm),
-      weight_kg: toNumOrNull(healthForm.weight_kg),
-      goal: healthForm.goal || null,
-      diseases: healthForm.diseases || null,
-      contraindications: healthForm.contraindications || null,
-      medications: healthForm.medications || null,
-      notes: healthForm.notes || null,
-      updated_at: new Date().toISOString(),
-    }
     try {
-      await saveLocalWithSync('health_cards', row, {
-        table_name: 'health_cards',
-        operation: health ? 'update' : 'insert',
-        remote_id: health ? row.id : null,
+      await saveHealthCardWithWeightFields(client.id, health, {
+        height_cm: toNumOrNull(healthForm.height_cm),
+        initial_weight_kg: healthForm.initial_weight_kg,
+        goal: healthForm.goal || null,
+        diseases: healthForm.diseases || null,
+        contraindications: healthForm.contraindications || null,
+        medications: healthForm.medications || null,
+        notes: healthForm.notes || null,
       })
     } catch (err) {
       alert(err?.message ?? 'Ошибка сохранения медкарты')
       return
     }
     setHealthEditing(false)
+    await reloadLocal()
+    onReload?.()
+  }
+
+  const saveWeightEntry = async (e) => {
+    e.preventDefault()
+    if (readOnly) {
+      alert('Клиент в архиве — изменения недоступны.')
+      return
+    }
+    try {
+      await recordManualWeight(client.id, health, {
+        weightKg: weightForm.weight_kg,
+        date: weightForm.date,
+      })
+    } catch (err) {
+      alert(err?.message ?? 'Ошибка записи веса')
+      return
+    }
+    setShowWeightForm(false)
+    setWeightForm({ date: todayLocalIso(), weight_kg: '' })
+    await reloadLocal()
+    onReload?.()
+  }
+
+  const applyWeightFromTraining = async () => {
+    if (readOnly) {
+      alert('Клиент в архиве — изменения недоступны.')
+      return
+    }
+    try {
+      await recordWeightFromLatestTraining(client.id, health, clientTrainings)
+    } catch (err) {
+      alert(err?.message ?? 'Не удалось взять вес с тренировки')
+      return
+    }
     await reloadLocal()
     onReload?.()
   }
@@ -336,8 +393,12 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
                 <strong>{healthForm.height_cm ? `${healthForm.height_cm} см` : '—'}</strong>
               </div>
               <div className="health-mini__metric">
-                <span className="muted">Вес</span>
-                <strong>{healthForm.weight_kg ? `${healthForm.weight_kg} кг` : '—'}</strong>
+                <span className="muted">Исходный вес</span>
+                <strong>{initialWeightKg != null ? `${initialWeightKg} кг` : '—'}</strong>
+              </div>
+              <div className="health-mini__metric">
+                <span className="muted">Текущий вес</span>
+                <strong>{currentWeightKg != null ? `${currentWeightKg} кг` : '—'}</strong>
               </div>
               <div className="health-mini__metric">
                 <span className="muted">ИМТ</span>
@@ -347,6 +408,28 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
                 </strong>
               </div>
             </div>
+            {weightProgress ? (
+              <p className="muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
+                {weightProgress.text}
+              </p>
+            ) : null}
+            {!readOnly ? (
+              <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                <button type="button" className="btn btn-primary btn-xs" onClick={() => setShowWeightForm(true)}>
+                  Записать вес
+                </button>
+                {latestTrainingWeight ? (
+                  <button type="button" className="btn btn-ghost btn-xs" onClick={() => void applyWeightFromTraining()}>
+                    С последней тренировки ({latestTrainingWeight.weightKg} кг)
+                  </button>
+                ) : null}
+                {weightEntries.length > 0 ? (
+                  <button type="button" className="btn btn-ghost btn-xs" onClick={() => setShowWeightHistory(true)}>
+                    История веса ({weightEntries.length})
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="health-bmi" aria-label="Шкала ИМТ">
               <div className="health-bmi__bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={bmiPct}>
@@ -395,16 +478,19 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
                 />
               </div>
               <div className="field">
-                <label className="label">Вес (кг)</label>
+                <label className="label">Исходный вес (кг)</label>
                 <input
                   className="input"
                   inputMode="decimal"
                   placeholder="Напр. 82.5"
-                  value={healthForm.weight_kg}
-                  onChange={(e) => setHealthForm((f) => ({ ...f, weight_kg: e.target.value }))}
+                  value={healthForm.initial_weight_kg}
+                  onChange={(e) => setHealthForm((f) => ({ ...f, initial_weight_kg: e.target.value }))}
                 />
               </div>
             </div>
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+              Текущий вес: <strong>{currentWeightKg != null ? `${currentWeightKg} кг` : '—'}</strong> — меняется кнопками «Записать вес» или «С последней тренировки».
+            </p>
             <div className="health-form__bmi">
               <div className="health-form__bmi-row">
                 <span className="muted">ИМТ</span>
@@ -516,6 +602,86 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
           </div>
         )}
         </section>
+      )}
+
+      {showWeightHistory && (section === 'all' || section === 'health') && (
+        <div className="modal-overlay" onClick={() => setShowWeightHistory(false)}>
+          <div className="modal-panel measure-history-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="row" style={{ alignItems: 'flex-start' }}>
+              <h2 className="section-title" style={{ fontSize: '1.1rem', margin: 0 }}>
+                История веса
+              </h2>
+              <button type="button" className="btn btn-ghost btn-xs" onClick={() => setShowWeightHistory(false)}>
+                Закрыть
+              </button>
+            </div>
+            <div className="table-wrap" style={{ marginTop: 12 }}>
+              <table className="measure-history-table">
+                <thead>
+                  <tr>
+                    <th>Дата</th>
+                    <th>Вес</th>
+                    <th className="muted">Источник</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {weightEntries.map((w) => (
+                    <tr key={w.id}>
+                      <td style={{ whiteSpace: 'nowrap' }}>{formatDateRu(w.date)}</td>
+                      <td>
+                        <strong>{w.weight_kg} кг</strong>
+                      </td>
+                      <td className="muted" style={{ fontSize: 13 }}>
+                        {weightEntrySourceLabelRu(w.source)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showWeightForm && (section === 'all' || section === 'health') && (
+        <div className="modal-overlay" onClick={() => setShowWeightForm(false)}>
+          <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+            <h2 className="section-title" style={{ fontSize: '1.1rem' }}>
+              Записать вес
+            </h2>
+            <form onSubmit={saveWeightEntry} className="grid" style={{ gap: 10 }}>
+              <div className="field">
+                <label className="label">Дата</label>
+                <input
+                  className="input"
+                  type="date"
+                  required
+                  value={weightForm.date}
+                  onChange={(e) => setWeightForm((f) => ({ ...f, date: e.target.value }))}
+                />
+              </div>
+              <div className="field">
+                <label className="label">Вес (кг)</label>
+                <input
+                  className="input"
+                  inputMode="decimal"
+                  required
+                  placeholder="Напр. 79.5"
+                  value={weightForm.weight_kg}
+                  onChange={(e) => setWeightForm((f) => ({ ...f, weight_kg: e.target.value }))}
+                />
+              </div>
+              <div className="row" style={{ justifyContent: 'flex-end', gap: 8 }}>
+                <button type="button" className="btn btn-ghost" onClick={() => setShowWeightForm(false)}>
+                  Закрыть
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Сохранить
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {showMeasureHistory && (section === 'all' || section === 'health') && (

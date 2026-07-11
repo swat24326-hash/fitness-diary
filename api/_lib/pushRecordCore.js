@@ -4,6 +4,7 @@
 import { authorizePush } from './mutationAuth.js'
 import { normalizeTrainingPayload } from './normalizeTrainingPayload.js'
 import { normalizeMembershipTypePushPayload } from '../../src/lib/admin/membershipTypePushPayload.js'
+import { normalizeNutritionProductPushPayload } from '../../src/lib/admin/nutritionProductPushPayload.js'
 
 export const PUSH_ALLOWED_TABLES = new Set([
   'clients',
@@ -11,9 +12,11 @@ export const PUSH_ALLOWED_TABLES = new Set([
   'trainings',
   'health_cards',
   'body_measurements',
+  'client_weight_entries',
   'challenges',
   'exercises',
   'membership_types',
+  'nutrition_products',
 ])
 
 function friendlyExerciseDbError(error, operation) {
@@ -145,6 +148,10 @@ export async function executePushRecord(ctx, item) {
         if (!prep.ok) return { ok: false, status: 400, error: prep.error }
         payload = prep.data
       }
+      if (table_name === 'nutrition_products') {
+        payload = normalizeNutritionProductPushPayload(payload)
+        if (!payload) return { ok: false, status: 400, error: 'Некорректный продукт питания' }
+      }
       const { error } = await supabaseAdmin.from(table_name).insert(payload)
       if (error) {
         if (error.code === '23505') {
@@ -199,6 +206,10 @@ export async function executePushRecord(ctx, item) {
         const prep = normalizeMembershipTypePushPayload(payload)
         if (!prep.ok) return { ok: false, status: 400, error: prep.error }
         payload = prep.data
+      }
+      if (table_name === 'nutrition_products') {
+        payload = normalizeNutritionProductPushPayload(payload)
+        if (!payload) return { ok: false, status: 400, error: 'Некорректный продукт питания' }
       }
       const { error } = await supabaseAdmin.from(table_name).update(payload).eq('id', remote_id)
       if (error) {

@@ -51,6 +51,42 @@ export async function pullMembershipTypesForClubFromCloud(clubId, opts = {}) {
   }
 }
 
+export async function pullNutritionProductsForClubFromCloud(clubId, opts = {}) {
+  const cid = String(clubId ?? '').trim()
+  if (!cid || !isSupabaseConfigured()) return { ok: false, reason: 'no_club_or_supabase' }
+
+  const mergeRows = async (rows, source) => {
+    const { mergeNutritionProductsForClub, notifyNutritionProductsChanged } = await import('./nutrition/nutritionProductsService.js')
+    const { count } = await mergeNutritionProductsForClub(cid, rows, opts)
+    if (count > 0) notifyNutritionProductsChanged(cid, { count, source })
+    return { ok: true, count, source }
+  }
+
+  try {
+    const { fetchNutritionProductsForClubViaApi } = await import('./admin/adminApiClient.js')
+    const viaApi = await fetchNutritionProductsForClubViaApi(cid)
+    if (viaApi) {
+      return mergeRows(viaApi.nutrition_products ?? [], 'api')
+    }
+  } catch (e) {
+    if (!/failed to fetch|connection|timeout|таймаут|сеть/i.test(String(e?.message ?? ''))) {
+      return { ok: false, error: String(e?.message ?? e ?? 'Ошибка загрузки продуктов') }
+    }
+  }
+
+  try {
+    const { supabase } = await import('./supabase')
+    const { withSupabaseRetry } = await import('./supabaseRetry')
+    const { data, error } = await withSupabaseRetry(() =>
+      supabase.from('nutrition_products').select('*').eq('club_id', cid).order('sort_order', { ascending: true }),
+    )
+    if (error) throw error
+    return mergeRows(data ?? [], 'supabase')
+  } catch (e) {
+    return { ok: false, error: String(e?.message ?? e ?? 'Ошибка загрузки продуктов') }
+  }
+}
+
 /** Удалить из IndexedDB челленджи клуба, которых уже нет в облаке (после удаления админом). */
 export async function reconcileChallengesForClub(clubId, remoteChallenges) {
   const cid = String(clubId ?? '').trim()

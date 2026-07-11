@@ -4,7 +4,7 @@
  */
 import { requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
-import { TRAINER_PULL_MAX_TRAININGS, TRAINER_PULL_BODY_MEASUREMENTS_MONTHS, TRAINER_PULL_MAX_BODY_MEASUREMENTS } from './_lib/apiLimits.js'
+import { TRAINER_PULL_MAX_TRAININGS, TRAINER_PULL_BODY_MEASUREMENTS_MONTHS, TRAINER_PULL_MAX_BODY_MEASUREMENTS, TRAINER_PULL_WEIGHT_ENTRIES_MONTHS, TRAINER_PULL_MAX_WEIGHT_ENTRIES } from './_lib/apiLimits.js'
 import { normalizeMatrixRowsFromDb } from '../src/lib/admin/salesTrainingsMatrix.js'
 import {
   aggregatePayrollFromDailyRows,
@@ -200,6 +200,36 @@ async function handler(req, res) {
     if (bodyMeasurementsTruncated) break
   }
 
+  const client_weight_entries = []
+  const weightSince = new Date()
+  weightSince.setMonth(weightSince.getMonth() - TRAINER_PULL_WEIGHT_ENTRIES_MONTHS)
+  const weightSinceIso = weightSince.toISOString().slice(0, 10)
+  let weightEntriesTruncated = false
+
+  for (let i = 0; i < clientIds.length; i += IN_CHUNK) {
+    const chunk = clientIds.slice(i, i + IN_CHUNK)
+    if (!chunk.length) continue
+
+    const { data: we, error: wee } = await supabaseAdmin
+      .from('client_weight_entries')
+      .select('*')
+      .in('client_id', chunk)
+      .gte('date', weightSinceIso)
+      .order('date', { ascending: false })
+    if (wee) {
+      sendJson(res, 400, { error: wee.message })
+      return
+    }
+    for (const row of we ?? []) {
+      if (client_weight_entries.length >= TRAINER_PULL_MAX_WEIGHT_ENTRIES) {
+        weightEntriesTruncated = true
+        break
+      }
+      client_weight_entries.push(row)
+    }
+    if (weightEntriesTruncated) break
+  }
+
   const trainings = []
   let trainingsTruncated = false
   if (!skipTrainings) {
@@ -236,10 +266,13 @@ async function handler(req, res) {
     memberships,
     health_cards,
     body_measurements,
+    client_weight_entries,
     trainings,
     trainings_truncated: trainingsTruncated,
     body_measurements_truncated: bodyMeasurementsTruncated,
+    weight_entries_truncated: weightEntriesTruncated,
     measurements_since: measurementsSinceIso,
+    weight_entries_since: weightSinceIso,
     trainings_since: trainingsSince || null,
     incremental: Boolean(trainingsSince),
     count: {
@@ -247,6 +280,7 @@ async function handler(req, res) {
       memberships: memberships.length,
       health_cards: health_cards.length,
       body_measurements: body_measurements.length,
+      client_weight_entries: client_weight_entries.length,
       trainings: trainings.length,
     },
   })

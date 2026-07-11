@@ -38,3 +38,9 @@ export const HEALTH_CARDS_BODY_MEASUREMENTS_MONTHS = 12
 
 /** Макс. body_measurements в bulk health-cards. */
 export const HEALTH_CARDS_MAX_BODY_MEASUREMENTS = 5_000
+
+/** Окно client_weight_entries в trainer-pull (месяцев). */
+export const TRAINER_PULL_WEIGHT_ENTRIES_MONTHS = 24
+
+/** Макс. записей веса в trainer-pull за один запрос. */
+export const TRAINER_PULL_MAX_WEIGHT_ENTRIES = 3_000

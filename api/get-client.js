@@ -91,6 +91,26 @@ async function handler(req, res) {
     mFrom += PAGE
   }
 
+  const client_weight_entries = []
+  let wFrom = 0
+  for (;;) {
+    const { data: wRows, error: we } = await supabaseAdmin
+      .from('client_weight_entries')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .range(wFrom, wFrom + PAGE - 1)
+    if (we) {
+      sendJson(res, 400, { error: we.message })
+      return
+    }
+    const chunk = wRows ?? []
+    client_weight_entries.push(...chunk)
+    if (chunk.length < PAGE) break
+    wFrom += PAGE
+  }
+
   const trainings = []
   let from = 0
   for (;;) {
@@ -116,6 +136,7 @@ async function handler(req, res) {
     memberships: memberships ?? [],
     health_card: health_card ?? null,
     body_measurements,
+    client_weight_entries,
     trainings,
   })
 }

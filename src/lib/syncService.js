@@ -28,15 +28,17 @@ import { reportQueueFlushProgress, setQueueFlushProgressReporter } from './syncP
 
 export { isDuplicateInsertError, describeFlushQueueResult } from './syncFlushResult'
 
-const TRAINER_CACHE_STORES = new Set(['clients', 'memberships', 'trainings', 'health_cards', 'body_measurements'])
+const TRAINER_CACHE_STORES = new Set(['clients', 'memberships', 'trainings', 'health_cards', 'body_measurements', 'client_weight_entries'])
 
 const AUTO_PUSH_TABLES = new Set([
   'clients',
   'membership_types',
+  'nutrition_products',
   'memberships',
   'trainings',
   'health_cards',
   'body_measurements',
+  'client_weight_entries',
   'challenges',
   'exercises',
 ])
@@ -45,10 +47,12 @@ const AUTO_PUSH_TABLES = new Set([
 const SYNC_TABLE_PRIORITY = {
   clients: 10,
   membership_types: 15,
+  nutrition_products: 16,
   memberships: 20,
   trainings: 30,
   health_cards: 40,
   body_measurements: 50,
+  client_weight_entries: 55,
   challenges: 60,
   exercises: 70,
 }

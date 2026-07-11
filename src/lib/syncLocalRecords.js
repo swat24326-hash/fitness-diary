@@ -23,6 +23,7 @@ const UNSYNCED_SCAN = [
   { store: 'trainings', table: 'trainings', table_name: 'trainings' },
   { store: 'health_cards', table: 'health_cards', table_name: 'health_cards' },
   { store: 'body_measurements', table: 'body_measurements', table_name: 'body_measurements' },
+  { store: 'client_weight_entries', table: 'client_weight_entries', table_name: 'client_weight_entries' },
   { store: 'challenges', table: 'challenges', table_name: 'challenges' },
   { store: 'membership_types', table: 'membership_types', table_name: 'membership_types' },
 ]

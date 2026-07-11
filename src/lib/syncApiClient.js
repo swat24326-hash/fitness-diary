@@ -30,10 +30,12 @@ async function parseJson(res) {
 export const PUSH_TABLES = new Set([
   'clients',
   'membership_types',
+  'nutrition_products',
   'memberships',
   'trainings',
   'health_cards',
   'body_measurements',
+  'client_weight_entries',
   'challenges',
   'exercises',
 ])
@@ -368,6 +370,7 @@ export async function fetchTrainerPullViaApi(opts = {}) {
     memberships: Array.isArray(data.memberships) ? data.memberships : [],
     health_cards: Array.isArray(data.health_cards) ? data.health_cards : [],
     body_measurements: Array.isArray(data.body_measurements) ? data.body_measurements : [],
+    client_weight_entries: Array.isArray(data.client_weight_entries) ? data.client_weight_entries : [],
     trainings: Array.isArray(data.trainings) ? data.trainings : [],
     trainings_truncated: data.trainings_truncated === true,
     trainings_since: data.trainings_since ?? null,

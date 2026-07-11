@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { Pencil } from 'lucide-react'
 import { ClientDiaries } from '../../components/ClientDiaries'
 import { ClientOverview } from './ClientOverview'
+import { ClientNutritionPage } from './ClientNutritionPage'
 import { Statistics } from './Statistics'
 import { getLocalClient, hydrateAdminClientWorkspace, listMemberships } from '../../lib/dataAccess'
 import { isSupabaseConfigured } from '../../lib/supabase'
@@ -55,7 +56,7 @@ export function ClientCard() {
   }, [searchParams])
   const [tab, setTab] = useState(() => {
     const t = searchParams.get('tab')
-    if (t === 'health' || t === 'memberships' || t === 'diaries' || t === 'stats') return t
+    if (t === 'health' || t === 'memberships' || t === 'diaries' || t === 'stats' || t === 'nutrition') return t
     return 'health'
   })
   const [client, setClient] = useState(null)
@@ -73,7 +74,7 @@ export function ClientCard() {
 
   useEffect(() => {
     const t = searchParams.get('tab')
-    if (t === 'health' || t === 'memberships' || t === 'diaries' || t === 'stats') {
+    if (t === 'health' || t === 'memberships' || t === 'diaries' || t === 'stats' || t === 'nutrition') {
       setTab(t)
     }
   }, [searchParams])
@@ -333,6 +334,7 @@ export function ClientCard() {
       <div className="tabs" role="tablist">
         {[
           { id: 'health', label: 'Здоровье' },
+          { id: 'nutrition', label: 'Питание' },
           { id: 'memberships', label: 'Абонементы' },
           { id: 'diaries', label: 'Тренировки' },
           { id: 'stats', label: 'Статистика' },
@@ -344,6 +346,7 @@ export function ClientCard() {
       </div>
 
       {tab === 'health' && <ClientOverview client={client} onReload={reloadLocal} section="health" readOnly={isArchived} />}
+      {tab === 'nutrition' && <ClientNutritionPage client={client} readOnly={isArchived} />}
       {tab === 'memberships' && <ClientOverview client={client} onReload={reloadLocal} section="memberships" readOnly={isArchived} />}
       {tab === 'stats' && <Statistics clientId={client.id} />}
       {tab === 'diaries' && <ClientDiaries client={client} onDataChange={reloadLocal} clubQs={isAdmin ? adminClubQs : ''} readOnly={isArchived} />}

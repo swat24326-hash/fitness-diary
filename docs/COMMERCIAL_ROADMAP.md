@@ -58,6 +58,7 @@
 - Pull trainings/clients **по окну дат** (если IDB > лимита планшета).
 - Расширенный мониторинг (Sentry/Logtail) — по согласованию.
 - Консолидация дублей `*Agg.js` в один пакет, импортируемый и Vite, и Vercel (если сборка позволит без ломки путей).
+- **Месячные отчёты продаж** (`club_sales_monthly`) — сравнение месяцев без загрузки всех daily; детали в [ROADMAP_MULTI_CLUB_AND_PAID.md](./ROADMAP_MULTI_CLUB_AND_PAID.md) §9.
 
 ---
 

@@ -15,6 +15,7 @@ import {
   handleChallengeTrainings,
   handleClubs,
   handleMembershipTypes,
+  handleNutritionProducts,
   handleExercisesMeta,
   handleExercises,
 } from './_lib/adminData/referenceHandlers.js'
@@ -113,6 +114,7 @@ async function handler(req, res) {
     'exercises',
     'exercises-meta',
     'membership-types',
+    'nutrition-products',
   ])
 
   if (trainerActions.has(action)) {
@@ -127,6 +129,7 @@ async function handler(req, res) {
     if (action === 'exercises-meta') return handleExercisesMeta(authCtx, res)
     if (action === 'exercises') return handleExercises(authCtx, res)
     if (action === 'membership-types') return handleMembershipTypes(authCtx, req, res)
+    if (action === 'nutrition-products') return handleNutritionProducts(authCtx, req, res)
   }
 
   if (action === 'sales') {
