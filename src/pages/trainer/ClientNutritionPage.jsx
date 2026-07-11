@@ -31,7 +31,7 @@ import {
   toggleProductId,
 } from '../../lib/nutrition/nutritionPlanService.js'
 import { assessTotalsAgainstReferents } from '../../lib/nutrition/nutritionReferentsCore.js'
-import { attachSurveyKeyToPlan, planMatchesSurvey, isDraftStaleForSurvey, draftStaleForSurveyMessage } from '../../lib/nutrition/nutritionPlanSessionCore.js'
+import { attachSurveyKeyToPlan, planMatchesSurvey } from '../../lib/nutrition/nutritionPlanSessionCore.js'
 import {
   downloadNutritionPlanBlob,
   renderNutritionPlanPng,
@@ -57,7 +57,7 @@ const PAGE_VIEWS = {
   history: 'history',
 }
 
-function ProductChips({ group, selected, exclusions, catalogMap, onToggle, readOnly }) {
+function ProductChips({ group, selected, exclusions, catalogMap, onToggle, readOnly, locked }) {
   const products = useMemo(() => listCatalogProductsByGroup(catalogMap, group), [catalogMap, group])
   const ex = new Set(exclusions ?? [])
   return (
@@ -70,7 +70,7 @@ function ProductChips({ group, selected, exclusions, catalogMap, onToggle, readO
             key={p.id}
             type="button"
             className={`nutrition-chip${active ? ' nutrition-chip--active' : ''}${blocked ? ' nutrition-chip--blocked' : ''}`}
-            disabled={readOnly || blocked}
+            disabled={readOnly || locked || blocked}
             title={blocked ? 'Исключено ограничениями' : undefined}
             onClick={() => onToggle(p.id)}
           >
@@ -208,8 +208,8 @@ export function ClientNutritionPage({ client, readOnly = false }) {
     return planMatchesSurvey(draftPlan, surveyForMatch)
   }, [draftPlan, survey, savedSurvey, isComposing])
   const canSavePlan = Boolean(draftPlan && draftAligned)
-  const composeDraftStale = isComposing && isDraftStaleForSurvey(draftPlan, survey)
-  const hasPendingChanges = planUnsaved || (isComposing && surveyDirty)
+  const composeSurveyLocked = isComposing && Boolean(draftPlan)
+  const hasPendingChanges = planUnsaved || (isComposing && surveyDirty && !draftPlan)
   const stepId = STEPS[step]?.id
 
   const resetDraftState = () => {
@@ -220,11 +220,9 @@ export function ClientNutritionPage({ client, readOnly = false }) {
     setError(null)
   }
 
-  const startCompose = ({ useSavedAnswers = false } = {}) => {
+  const startCompose = () => {
     if (readOnly || !healthReady) return
-    const initial =
-      useSavedAnswers && savedPlan ? { ...savedSurvey } : defaultNutritionSurvey()
-    setSurvey(initial)
+    setSurvey(defaultNutritionSurvey())
     surveyLoadedRef.current = true
     setDraftPlan(null)
     setPlanUnsaved(false)
@@ -232,6 +230,63 @@ export function ClientNutritionPage({ client, readOnly = false }) {
     setPageView(PAGE_VIEWS.compose)
     setStep(0)
     setError(null)
+  }
+
+  const resetComposeDraft = async () => {
+    if (!draftPlan) return
+    const ok = await askConfirm({
+      title: 'Сбросить черновик?',
+      message: 'Удалить собранный черновик и изменить ответы опросника? После сброса пройдите шаги и снова нажмите «Собрать рацион».',
+      confirmLabel: 'Сбросить',
+      destructive: true,
+    })
+    if (!ok) return
+    planUnsavedRef.current = false
+    setDraftPlan(null)
+    setPlanUnsaved(false)
+    setError(null)
+    if (step === RESULT_STEP) setStep(0)
+  }
+
+  const composeAnew = async () => {
+    if (readOnly || !client?.id) return
+    if (hasPendingChanges) {
+      const discardFirst = await askConfirm({
+        title: 'Есть черновик',
+        message: 'Сначала отменить несохранённый черновик?',
+        confirmLabel: 'Отменить черновик',
+        destructive: true,
+      })
+      if (!discardFirst) return
+      resetDraftState()
+    }
+    const ok = await askConfirm({
+      title: 'Составить заново?',
+      message:
+        'Текущий сохранённый рацион и ответы будут удалены. Откроется новый опросник с начала.',
+      confirmLabel: 'Составить заново',
+      destructive: true,
+    })
+    if (!ok) return
+    setBusy(true)
+    setError(null)
+    planUnsavedRef.current = false
+    try {
+      await clearSavedNutrition(client.id, health)
+      setSavedPlan(null)
+      setDraftPlan(null)
+      setPlanUnsaved(false)
+      setSurvey(defaultNutritionSurvey())
+      setSavedSurvey(defaultNutritionSurvey())
+      surveyLoadedRef.current = true
+      setPageView(PAGE_VIEWS.compose)
+      setStep(0)
+      await reload({ refreshSurvey: false })
+    } catch (e) {
+      setError(e?.message ?? 'Не удалось начать заново')
+    } finally {
+      setBusy(false)
+    }
   }
 
   const leaveCompose = async () => {
@@ -277,10 +332,18 @@ export function ClientNutritionPage({ client, readOnly = false }) {
 
   const goToStep = (i) => {
     if (!healthReady || readOnly || !isComposing) return
+    if (i === RESULT_STEP && !draftPlan) return
     setStep(i)
   }
 
-  const patchSurvey = (patch) => setSurvey((s) => ({ ...s, ...patch }))
+  const patchSurvey = (patch) => {
+    if (composeSurveyLocked) {
+      setError('Чтобы изменить ответы, сначала сбросьте черновик рациона.')
+      return
+    }
+    setSurvey((s) => ({ ...s, ...patch }))
+    setError(null)
+  }
 
   const onItemGramsChange = (mealSlot, productId, raw) => {
     const grams = Number(String(raw).replace(',', '.'))
@@ -613,7 +676,7 @@ export function ClientNutritionPage({ client, readOnly = false }) {
             Рацион ещё не составлен
           </h2>
           <p className="muted" style={{ marginTop: 0 }}>
-            Нажмите кнопку ниже — откроется опросник (профиль, приёмы пищи, продукты). Ответы сохранятся только после «Сохранить рацион».
+            Нажмите кнопку ниже — откроется опросник. Чтобы изменить ответы позже, составьте рацион заново.
           </p>
           {!readOnly ? (
             <button type="button" className="btn btn-touch" style={{ marginTop: 12 }} disabled={busy} onClick={() => startCompose()}>
@@ -689,6 +752,21 @@ export function ClientNutritionPage({ client, readOnly = false }) {
 
       {healthReady && isComposing ? (
         <>
+          {composeSurveyLocked ? (
+            <section className="card nutrition-draft-lock-banner" role="status">
+              <p style={{ margin: 0 }}>
+                {stepId === 'result'
+                  ? 'Черновик собран. Можно править граммы или сбросить черновик, чтобы изменить ответы опросника.'
+                  : 'Черновик собран. Чтобы изменить ответы — сбросьте черновик и пройдите опросник заново.'}
+              </p>
+              {!readOnly ? (
+                <button type="button" className="btn btn-touch btn-ghost" style={{ marginTop: 10 }} disabled={busy} onClick={() => void resetComposeDraft()}>
+                  Сбросить черновик
+                </button>
+              ) : null}
+            </section>
+          ) : null}
+
           <div className="nutrition-stepper" role="tablist" aria-label="Шаги рациона">
             {STEPS.map((s, i) => (
               <button
@@ -696,7 +774,8 @@ export function ClientNutritionPage({ client, readOnly = false }) {
                 type="button"
                 className={`nutrition-stepper__item${i === step ? ' nutrition-stepper__item--active' : ''}${i < step ? ' nutrition-stepper__item--done' : ''}`}
                 onClick={() => goToStep(i)}
-                disabled={readOnly}
+                disabled={readOnly || (i === RESULT_STEP && !draftPlan)}
+                title={i === RESULT_STEP && !draftPlan ? 'Сначала соберите рацион на шаге «Углеводы»' : undefined}
               >
                 {s.label}
               </button>
@@ -720,7 +799,7 @@ export function ClientNutritionPage({ client, readOnly = false }) {
                     min={14}
                     max={90}
                     value={survey.age ?? ''}
-                    disabled={readOnly}
+                    disabled={readOnly || composeSurveyLocked}
                     onChange={(e) => {
                       const raw = e.target.value
                       if (raw === '') {
@@ -740,7 +819,7 @@ export function ClientNutritionPage({ client, readOnly = false }) {
                     key={o.id}
                     type="button"
                     className={`nutrition-chip${survey.goalKind === o.id ? ' nutrition-chip--active' : ''}`}
-                    disabled={readOnly}
+                    disabled={readOnly || composeSurveyLocked}
                     onClick={() => patchSurvey({ goalKind: o.id })}
                   >
                     {o.label}
@@ -754,7 +833,7 @@ export function ClientNutritionPage({ client, readOnly = false }) {
                     key={o.id}
                     type="button"
                     className={`nutrition-chip nutrition-chip--wide${survey.activityLevel === o.id ? ' nutrition-chip--active' : ''}`}
-                    disabled={readOnly}
+                    disabled={readOnly || composeSurveyLocked}
                     onClick={() => patchSurvey({ activityLevel: o.id })}
                   >
                     {o.label}
@@ -775,7 +854,7 @@ export function ClientNutritionPage({ client, readOnly = false }) {
                     key={n}
                     type="button"
                     className={`nutrition-chip nutrition-chip--meal${survey.mealsPerDay === n ? ' nutrition-chip--active' : ''}`}
-                    disabled={readOnly}
+                    disabled={readOnly || composeSurveyLocked}
                     onClick={() => patchSurvey({ mealsPerDay: n })}
                   >
                     {n}
@@ -804,7 +883,7 @@ export function ClientNutritionPage({ client, readOnly = false }) {
                       key={o.id}
                       type="button"
                       className={`nutrition-chip${on ? ' nutrition-chip--active' : ''}`}
-                      disabled={readOnly}
+                      disabled={readOnly || composeSurveyLocked}
                       onClick={() =>
                         patchSurvey({
                           exclusions: toggleProductId(survey.exclusions, o.id),
@@ -830,6 +909,7 @@ export function ClientNutritionPage({ client, readOnly = false }) {
                 exclusions={survey.exclusions}
                 catalogMap={catalogMap}
                 readOnly={readOnly}
+                locked={composeSurveyLocked}
                 onToggle={(id) =>
                   patchSurvey({
                     pickedProducts: {
@@ -853,6 +933,7 @@ export function ClientNutritionPage({ client, readOnly = false }) {
                 exclusions={survey.exclusions}
                 catalogMap={catalogMap}
                 readOnly={readOnly}
+                locked={composeSurveyLocked}
                 onToggle={(id) =>
                   patchSurvey({
                     pickedProducts: {
@@ -876,6 +957,7 @@ export function ClientNutritionPage({ client, readOnly = false }) {
                 exclusions={survey.exclusions}
                 catalogMap={catalogMap}
                 readOnly={readOnly}
+                locked={composeSurveyLocked}
                 onToggle={(id) =>
                   patchSurvey({
                     pickedProducts: {
@@ -887,17 +969,6 @@ export function ClientNutritionPage({ client, readOnly = false }) {
               />
             </section>
           )}
-
-          {stepId === 'result' && composeDraftStale ? (
-            <section className="card nutrition-rebuild-banner" role="status">
-              <p style={{ margin: 0 }}>{draftStaleForSurveyMessage()}</p>
-              {!readOnly ? (
-                <button type="button" className="btn btn-touch" style={{ marginTop: 10 }} disabled={busy} onClick={() => void buildPlan()}>
-                  Пересчитать рацион
-                </button>
-              ) : null}
-            </section>
-          ) : null}
 
           {stepId === 'result' && displayPlan ? (
             <section className="card nutrition-panel">
@@ -943,11 +1014,18 @@ export function ClientNutritionPage({ client, readOnly = false }) {
         </div>
       ) : null}
 
-      {healthReady && isComposing && stepId === 'result' && !readOnly && canSavePlan ? (
+      {healthReady && isComposing && stepId === 'result' && !readOnly && (canSavePlan || composeSurveyLocked) ? (
         <div className="nutrition-nav">
-          <button type="button" className="btn btn-touch" disabled={busy} onClick={() => void persistPlan()}>
-            Сохранить рацион
-          </button>
+          {composeSurveyLocked ? (
+            <button type="button" className="btn btn-touch btn-ghost" disabled={busy} onClick={() => void resetComposeDraft()}>
+              Сбросить черновик
+            </button>
+          ) : null}
+          {canSavePlan ? (
+            <button type="button" className="btn btn-touch" disabled={busy} onClick={() => void persistPlan()}>
+              Сохранить рацион
+            </button>
+          ) : null}
         </div>
       ) : null}
 
@@ -963,14 +1041,11 @@ export function ClientNutritionPage({ client, readOnly = false }) {
               >
                 Удалить
               </button>
-              <button type="button" className="btn btn-touch btn-ghost" disabled={busy} onClick={() => startCompose({ useSavedAnswers: true })}>
-                Изменить ответы
-              </button>
               <button type="button" className="btn btn-touch btn-ghost" disabled={busy} onClick={beginPlanEdit}>
                 Редактировать граммы
               </button>
-              <button type="button" className="btn btn-touch" disabled={busy} onClick={() => void rebuildFromSaved()}>
-                Пересобрать рацион
+              <button type="button" className="btn btn-touch" disabled={busy} onClick={() => void composeAnew()}>
+                Составить заново
               </button>
             </>
           ) : hasPendingChanges ? (

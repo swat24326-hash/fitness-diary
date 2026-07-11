@@ -7618,6 +7618,13 @@ tr:last-child td {
   color: #fde68a;
 }
 
+.nutrition-draft-lock-banner {
+  padding: 14px 16px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(30, 41, 59, 0.55);
+  color: #cbd5e1;
+}
+
 /* --- Admin structure: nutrition products catalog --- */
 .admin-nutrition-page {
   display: flex;
