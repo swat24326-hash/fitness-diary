@@ -6,6 +6,7 @@ import {
   normalizeHealthCardWeights,
   parseWeightKg,
   pickLatestTrainingPreWeight,
+  listTrainingPreWeights,
   sortWeightEntriesDesc,
   weightEntrySourceLabelRu,
 } from '../src/lib/clientWeightCore.js'
@@ -45,6 +46,10 @@ const trainings = [
 const picked = pickLatestTrainingPreWeight(trainings)
 ok(picked?.weightKg === 79.2, 'latest completed training weight')
 ok(picked?.training?.id === '2', 'latest training id')
+
+const allPicks = listTrainingPreWeights(trainings)
+ok(allPicks.length === 2, 'two completed trainings with weight')
+ok(allPicks[0].trainingId === '3' && allPicks[1].trainingId === '2', 'training weights chronological')
 
 ok(didInitialWeightChange(80, 80) === false, 'same initial')
 ok(didInitialWeightChange(80, 81) === true, 'initial changed')

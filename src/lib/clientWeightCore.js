@@ -88,6 +88,33 @@ export function sortWeightEntriesAsc(entries) {
 }
 
 /**
+ * Все завершённые тренировки с весом до тренировки (хронологически).
+ * @param {object[]} trainings
+ * @returns {{ weightKg: number, training: object, date: string, trainingId: string }[]}
+ */
+export function listTrainingPreWeights(trainings) {
+  const rows = []
+  for (const training of trainings ?? []) {
+    if (String(training?.status ?? '') !== 'completed') continue
+    const data = typeof training?.data === 'string' ? safeParseJson(training.data) : training?.data
+    const w = parseWeightKg(data?.pre_weight_kg)
+    if (w == null) continue
+    const date = String(training.date ?? '').slice(0, 10)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue
+    const trainingId = training?.id
+    if (!trainingId) continue
+    rows.push({ weightKg: w, training, date, trainingId })
+  }
+  return rows.sort((a, b) => {
+    const d = String(a.date).localeCompare(String(b.date))
+    if (d !== 0) return d
+    return String(a.training?.updated_at ?? a.training?.created_at ?? '').localeCompare(
+      String(b.training?.updated_at ?? b.training?.created_at ?? ''),
+    )
+  })
+}
+
+/**
  * Последняя завершённая тренировка с весом до тренировки.
  * @param {object[]} trainings
  */

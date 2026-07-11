@@ -6,6 +6,7 @@ import {
   normalizeHealthSex,
   parseHealthFilledAt,
   resolveHealthFilledAtOnSave,
+  resolveBaselineWeightDate,
   filterWeightEntriesForDisplay,
   listBaselineLikeEntries,
 } from '../src/lib/healthCardCore.js'
@@ -71,6 +72,18 @@ ok(history[0].kcalTarget === 2000, 'plan history kcal')
 
 ok(getHealthCardCompletionIssues(complete).length === 0, 'no issues when complete')
 
+ok(
+  resolveBaselineWeightDate({
+    entries: [{ date: '2026-03-15', source: 'training' }],
+    healthFilledAt: '2026-06-01',
+  }) === '2026-03-14',
+  'baseline day before first training',
+)
+ok(
+  resolveBaselineWeightDate({ entries: [], healthFilledAt: '2026-06-01' }) === '2026-06-01',
+  'baseline falls back to card date when no other points',
+)
+
 const dupEntries = [
   { id: 'b1', date: '2026-07-11', weight_kg: 94, source: 'baseline', created_at: 'a' },
   { id: 'b2', date: '2026-07-11', weight_kg: 93, source: 'initial_adjust', created_at: 'b' },
@@ -79,6 +92,8 @@ const dupEntries = [
 ok(listBaselineLikeEntries(dupEntries).length === 2, 'two baseline-like rows')
 const shown = filterWeightEntriesForDisplay(dupEntries, complete)
 ok(shown.filter((r) => r.source === 'baseline' || r.source === 'initial_adjust').length === 1, 'one baseline in UI')
+ok(shown.find((r) => r.source === 'baseline')?.date === '2026-06-01', 'baseline at chart start before training')
+ok(shown.find((r) => r.source === 'baseline')?.weight_kg === 80, 'baseline weight from health card')
 ok(shown.length === 2, 'baseline + training in UI')
 
 const gateIssues = getTrainingCompletionIssues({}, { health: incomplete, isFirstCompletion: true })

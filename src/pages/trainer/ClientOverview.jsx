@@ -11,7 +11,7 @@ import {
   getHealthCurrentWeightKg,
   getHealthInitialWeightKg,
   normalizeHealthCardWeights,
-  pickLatestTrainingPreWeight,
+  listTrainingPreWeights,
   sortWeightEntriesDesc,
   weightEntrySourceLabelRu,
 } from '../../lib/clientWeightCore'
@@ -20,7 +20,7 @@ import { ClientWeightChart } from '../../components/ClientWeightChart'
 import {
   listWeightEntries,
   recordManualWeight,
-  recordWeightFromLatestTraining,
+  importWeightsFromAllTrainings,
   saveHealthCardWithWeightFields,
 } from '../../lib/clientWeightService'
 import { MembershipManager } from '../../components/MembershipManager'
@@ -144,10 +144,7 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
   const currentWeightKg = useMemo(() => getHealthCurrentWeightKg(health), [health])
   const initialWeightKg = useMemo(() => getHealthInitialWeightKg(health), [health])
   const weightProgress = useMemo(() => formatWeightProgressDelta(health), [health])
-  const latestTrainingWeight = useMemo(
-    () => pickLatestTrainingPreWeight(clientTrainings),
-    [clientTrainings],
-  )
+  const trainingWeights = useMemo(() => listTrainingPreWeights(clientTrainings), [clientTrainings])
 
   const bmi = useMemo(() => {
     const h = Number(String(healthForm.height_cm ?? '').replace(',', '.'))
@@ -245,15 +242,15 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
     onReload?.()
   }
 
-  const applyWeightFromTraining = async () => {
+  const applyWeightsFromTrainings = async () => {
     if (readOnly) {
       alert('Клиент в архиве — изменения недоступны.')
       return
     }
     try {
-      await recordWeightFromLatestTraining(client.id, health, clientTrainings)
+      await importWeightsFromAllTrainings(client.id, health, clientTrainings)
     } catch (err) {
-      alert(err?.message ?? 'Не удалось взять вес с тренировки')
+      alert(err?.message ?? 'Не удалось подгрузить веса с тренировок')
       return
     }
     await reloadLocal()
@@ -472,9 +469,9 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
                 >
                   Записать вес
                 </button>
-                {latestTrainingWeight ? (
-                  <button type="button" className="btn btn-ghost btn-xs" onClick={() => void applyWeightFromTraining()}>
-                    С последней тренировки ({latestTrainingWeight.weightKg} кг)
+                {trainingWeights.length > 0 ? (
+                  <button type="button" className="btn btn-ghost btn-xs" onClick={() => void applyWeightsFromTrainings()}>
+                    Подгрузить веса с тренировок ({trainingWeights.length})
                   </button>
                 ) : null}
                 {weightEntries.length > 0 ? (
@@ -568,8 +565,9 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
               </div>
             </div>
             <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-              Исходный вес привязан к дате составления карты. Текущий вес:{' '}
-              <strong>{currentWeightKg != null ? `${currentWeightKg} кг` : '—'}</strong> — меняется кнопками «Записать вес» или «С последней тренировки».
+              Исходный вес — первая точка на графике (до первой тренировки). Текущий вес:{' '}
+              <strong>{currentWeightKg != null ? `${currentWeightKg} кг` : '—'}</strong> — «Записать вес» вручную
+              или «Подгрузить веса с тренировок» для всей истории.
             </p>
             <div className="health-form__bmi">
               <div className="health-form__bmi-row">

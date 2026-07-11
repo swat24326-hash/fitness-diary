@@ -10,11 +10,13 @@ import {
   normalizeHealthSex,
   parseHealthFilledAt,
   resolveHealthFilledAtOnSave,
+  resolveBaselineWeightDate,
 } from './healthCardCore.js'
 import {
   applyHealthWeightPatch,
   getHealthCurrentWeightKg,
   getHealthInitialWeightKg,
+  listTrainingPreWeights,
   normalizeHealthCardWeights,
   normalizeWeightEntryRow,
   parseWeightKg,
@@ -59,9 +61,50 @@ export async function recordManualWeight(clientId, health, opts) {
 }
 
 /**
+ * Подгружает веса со всех завершённых тренировок (без дублей по training_id).
  * @param {string} clientId
  * @param {object | null} health
  * @param {object[]} trainings
+ */
+export async function importWeightsFromAllTrainings(clientId, health, trainings) {
+  const picks = listTrainingPreWeights(trainings)
+  if (!picks.length) throw new Error('Нет завершённых тренировок с весом')
+
+  const normalizedHealth = normalizeHealthCardWeights(health)
+  let entries = (await listWeightEntriesByClientId(clientId)).map(normalizeWeightEntryRow)
+
+  for (const pick of picks) {
+    await upsertTrainingWeightEntry(clientId, entries, pick)
+    entries = (await listWeightEntriesByClientId(clientId)).map(normalizeWeightEntryRow)
+  }
+
+  await pruneDuplicateTrainingEntries(clientId, entries)
+  entries = (await listWeightEntriesByClientId(clientId)).map(normalizeWeightEntryRow)
+
+  const initial = getHealthInitialWeightKg(normalizedHealth)
+  if (initial != null) {
+    const baselineDate = resolveBaselineWeightDate({
+      entries,
+      trainingDates: picks.map((p) => p.date),
+      healthFilledAt: getHealthFilledAt(normalizedHealth),
+      todayIso: todayLocalIso(),
+    })
+    const keeper = await upsertBaselineWeightEntry(clientId, entries, { date: baselineDate, weightKg: initial })
+    entries = (await listWeightEntriesByClientId(clientId)).map(normalizeWeightEntryRow)
+    await pruneDuplicateBaselineEntries(clientId, entries, keeper?.id)
+  }
+
+  const latest = pickLatestTrainingPreWeight(trainings)
+  if (latest) await updateHealthCurrentWeight(clientId, normalizedHealth, latest.weightKg)
+
+  return { imported: picks.length, latestWeightKg: latest?.weightKg ?? null }
+}
+
+/**
+ * @param {string} clientId
+ * @param {object | null} health
+ * @param {object[]} trainings
+ * @deprecated Используйте importWeightsFromAllTrainings — без дублей и со всей историей.
  */
 export async function recordWeightFromLatestTraining(clientId, health, trainings) {
   const picked = pickLatestTrainingPreWeight(trainings)
@@ -132,14 +175,22 @@ export async function saveHealthCardWithWeightFields(clientId, health, formField
     remote_id: normalized ? row.id : null,
   })
 
-  if (nextInitial != null && healthFilledAt) {
+  if (nextInitial != null) {
     const entries = await listWeightEntriesByClientId(clientId)
-    const normalized = entries.map(normalizeWeightEntryRow)
-    const keeper = await upsertBaselineWeightEntry(clientId, normalized, {
-      date: healthFilledAt,
+    const normalizedEntries = entries.map(normalizeWeightEntryRow)
+    const trainingDates = normalizedEntries.filter((r) => r?.source === 'training').map((r) => r.date)
+    const baselineDate = resolveBaselineWeightDate({
+      entries: normalizedEntries,
+      trainingDates,
+      healthFilledAt,
+      todayIso: todayLocalIso(),
+    })
+    const keeper = await upsertBaselineWeightEntry(clientId, normalizedEntries, {
+      date: baselineDate,
       weightKg: nextInitial,
     })
-    await pruneDuplicateBaselineEntries(clientId, normalized, keeper?.id)
+    const fresh = (await listWeightEntriesByClientId(clientId)).map(normalizeWeightEntryRow)
+    await pruneDuplicateBaselineEntries(clientId, fresh, keeper?.id)
   }
 
   return row
@@ -257,16 +308,89 @@ export async function repairBaselineWeightEntries(clientId, health) {
 
   const rows = (await listWeightEntriesByClientId(clientId)).map(normalizeWeightEntryRow)
   const baselineLike = listBaselineLikeEntries(rows)
-  const filledAt = getHealthFilledAt(health) ?? parseHealthFilledAt(baselineLike[0]?.date) ?? todayLocalIso()
+  const filledAt = getHealthFilledAt(health)
+  const trainingDates = rows.filter((r) => r?.source === 'training').map((r) => r.date)
+  const baselineDate =
+    resolveBaselineWeightDate({
+      entries: rows,
+      trainingDates,
+      healthFilledAt: filledAt,
+      todayIso: todayLocalIso(),
+    }) ?? parseHealthFilledAt(baselineLike[0]?.date) ?? todayLocalIso()
 
   if (baselineLike.length === 1) {
     const only = baselineLike[0]
-    const sameDate = parseHealthFilledAt(only.date) === filledAt
+    const sameDate = parseHealthFilledAt(only.date) === baselineDate
     const sameWeight = Math.round(Number(only.weight_kg) * 10) === Math.round(initial * 10)
     if (sameDate && sameWeight && only.source === 'baseline') return 0
   }
 
-  const keeper = await upsertBaselineWeightEntry(clientId, rows, { date: filledAt, weightKg: initial })
+  const keeper = await upsertBaselineWeightEntry(clientId, rows, { date: baselineDate, weightKg: initial })
   const fresh = (await listWeightEntriesByClientId(clientId)).map(normalizeWeightEntryRow)
   return pruneDuplicateBaselineEntries(clientId, fresh, keeper?.id)
+}
+
+/**
+ * @param {string} clientId
+ * @param {object[]} entries
+ * @param {{ trainingId: string, date: string, weightKg: number }} pick
+ */
+async function upsertTrainingWeightEntry(clientId, entries, pick) {
+  const matches = (entries ?? []).filter(
+    (r) => r?.source === 'training' && r?.training_id === pick.trainingId,
+  )
+  const existing = [...matches].sort((a, b) =>
+    String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')),
+  )[0]
+
+  if (existing?.id) {
+    const op = existing.synced === true ? 'update' : 'insert'
+    return saveWeightEntry({
+      clientId,
+      id: existing.id,
+      date: pick.date,
+      weightKg: pick.weightKg,
+      source: 'training',
+      trainingId: pick.trainingId,
+      note: null,
+      operation: op,
+      remoteId: existing.id,
+    })
+  }
+
+  return saveWeightEntry({
+    clientId,
+    date: pick.date,
+    weightKg: pick.weightKg,
+    source: 'training',
+    trainingId: pick.trainingId,
+    note: null,
+  })
+}
+
+/**
+ * @param {string} clientId
+ * @param {object[]} entries
+ */
+async function pruneDuplicateTrainingEntries(clientId, entries) {
+  const byTrainingId = new Map()
+  for (const row of entries ?? []) {
+    if (row?.source !== 'training' || !row?.training_id) continue
+    const list = byTrainingId.get(row.training_id) ?? []
+    list.push(row)
+    byTrainingId.set(row.training_id, list)
+  }
+  let removed = 0
+  for (const rows of byTrainingId.values()) {
+    if (rows.length <= 1) continue
+    const sorted = [...rows].sort((a, b) =>
+      String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')),
+    )
+    for (const dupe of sorted.slice(1)) {
+      if (!dupe?.id) continue
+      await deleteLocalWithSync('client_weight_entries', dupe.id, 'client_weight_entries')
+      removed++
+    }
+  }
+  return removed
 }

@@ -1,3 +1,4 @@
+import { addDaysToIso } from './dateRu.js'
 import { parseWeightKg, getHealthInitialWeightKg } from './clientWeightCore.js'
 
 /** @typedef {'male' | 'female'} HealthSex */
@@ -90,6 +91,28 @@ export function findBaselineWeightEntry(entries) {
 }
 
 /**
+ * Дата исходного веса на графике: в начале шкалы (день до первой остальной точки),
+ * не привязана к дате составления карты.
+ * @param {{ entries?: object[], trainingDates?: string[], healthFilledAt?: string | null, todayIso?: string }} opts
+ */
+export function resolveBaselineWeightDate(opts = {}) {
+  const { entries = [], trainingDates = [], healthFilledAt, todayIso = '1970-01-01' } = opts
+  const dates = []
+  for (const row of entries) {
+    if (BASELINE_WEIGHT_SOURCES.includes(row?.source)) continue
+    const d = parseHealthFilledAt(row?.date)
+    if (d) dates.push(d)
+  }
+  for (const raw of trainingDates) {
+    const d = parseHealthFilledAt(raw)
+    if (d) dates.push(d)
+  }
+  const unique = [...new Set(dates)].sort()
+  if (!unique.length) return parseHealthFilledAt(healthFilledAt) ?? todayIso
+  return addDaysToIso(unique[0], -1)
+}
+
+/**
  * Одна строка исходного веса в UI: остальные baseline/initial_adjust скрываем.
  * @param {object[]} entries
  * @param {object | null | undefined} health
@@ -102,19 +125,25 @@ export function filterWeightEntriesForDisplay(entries, health) {
   const initial = getHealthInitialWeightKg(health)
   const keeper = findBaselineWeightEntry(entries)
   const keeperId = keeper?.id
+  const rest = (entries ?? []).filter((r) => !BASELINE_WEIGHT_SOURCES.includes(r?.source))
+  const trainingDates = rest.filter((r) => r?.source === 'training').map((r) => r.date)
+  const baselineDate = resolveBaselineWeightDate({
+    entries,
+    trainingDates,
+    healthFilledAt: filledAt,
+  })
 
   const canonical =
-    filledAt && initial != null
+    initial != null
       ? {
           ...(keeper ?? { id: 'canonical-baseline', source: 'baseline' }),
           id: keeperId ?? keeper?.id ?? 'canonical-baseline',
-          date: filledAt,
+          date: baselineDate,
           weight_kg: initial,
           source: 'baseline',
         }
       : keeper
 
-  const rest = (entries ?? []).filter((r) => !BASELINE_WEIGHT_SOURCES.includes(r?.source))
   if (!canonical) return rest
   return [canonical, ...rest].sort((a, b) => {
     const d = String(b.date ?? '').localeCompare(String(a.date ?? ''))
