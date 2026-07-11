@@ -20,12 +20,14 @@ import { listNutritionProductsForClub } from '../../lib/nutrition/nutritionProdu
 import { pullNutritionProductsForClubFromCloud } from '../../lib/pullReferenceData.js'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import {
-  buildAndSaveNutritionPlan,
   defaultNutritionSurvey,
   loadClientNutritionState,
-  saveClientNutrition,
+  previewNutritionPlan,
+  saveNutritionPlan,
   toggleProductId,
 } from '../../lib/nutrition/nutritionPlanService.js'
+import { assessTotalsAgainstReferents } from '../../lib/nutrition/nutritionReferentsCore.js'
+import { attachSurveyKeyToPlan, planMatchesSurvey } from '../../lib/nutrition/nutritionPlanSessionCore.js'
 import {
   downloadNutritionPlanBlob,
   renderNutritionPlanPng,
@@ -81,8 +83,11 @@ export function ClientNutritionPage({ client, readOnly = false }) {
   }, [location.pathname, searchParams])
   const [step, setStep] = useState(0)
   const [health, setHealth] = useState(null)
-  const [survey, setSurvey] = useState(defaultNutritionSurvey)
-  const [plan, setPlan] = useState(null)
+  const [survey, setSurvey] = useState(() => defaultNutritionSurvey())
+  const [savedSurvey, setSavedSurvey] = useState(() => defaultNutritionSurvey())
+  const [savedPlan, setSavedPlan] = useState(null)
+  const [draftPlan, setDraftPlan] = useState(null)
+  const [planUnsaved, setPlanUnsaved] = useState(false)
   const [planHistory, setPlanHistory] = useState([])
   const [generatedAt, setGeneratedAt] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -92,6 +97,7 @@ export function ClientNutritionPage({ client, readOnly = false }) {
   const [catalogLabel, setCatalogLabel] = useState('Базовый справочник')
   /** Опросник не перезаписывать из IDB после первой загрузки — иначе sync сбрасывает ввод. */
   const surveyLoadedRef = useRef(false)
+  const planUnsavedRef = useRef(false)
 
   const clubId = String(client?.club_id ?? '').trim()
 
@@ -112,17 +118,24 @@ export function ClientNutritionPage({ client, readOnly = false }) {
   }, [clubId])
 
   const reload = useCallback(async ({ refreshSurvey = false } = {}) => {
-    if (!client?.id) return
+    if (!client?.id) return null
     await reloadCatalog()
     const st = await loadClientNutritionState(client.id)
+    const normalizedSurvey = { ...defaultNutritionSurvey(), ...st.survey }
     setHealth(st.health)
     if (refreshSurvey || !surveyLoadedRef.current) {
-      setSurvey({ ...defaultNutritionSurvey(), ...st.survey })
+      setSurvey(normalizedSurvey)
       surveyLoadedRef.current = true
     }
-    setPlan(st.plan)
+    setSavedSurvey(normalizedSurvey)
+    setSavedPlan(st.plan)
+    if (!planUnsavedRef.current) {
+      setDraftPlan(null)
+      setPlanUnsaved(false)
+    }
     setPlanHistory(st.planHistory ?? [])
     setGeneratedAt(st.generatedAt)
+    return st
   }, [client?.id, reloadCatalog])
 
   useEffect(() => {
@@ -139,41 +152,53 @@ export function ClientNutritionPage({ client, readOnly = false }) {
       (d?.reason !== 'exercises' && d?.reason !== 'challenge-trainings'),
   })
   const healthReady = isNutritionHealthReady(health)
-  const planStale = isNutritionPlanStale(health, plan)
-  const staleMessage = nutritionPlanStaleMessage(health, plan)
-  const daySummary = useMemo(() => buildDayProductSummary(plan), [plan])
-  const kcalDelta = plan?.kcalTarget != null && plan?.totals?.kcal != null ? plan.totals.kcal - plan.kcalTarget : null
+  const displayPlan = planUnsaved ? draftPlan : savedPlan
+  const planStale = isNutritionPlanStale(health, savedPlan)
+  const staleMessage = nutritionPlanStaleMessage(health, savedPlan)
+  const daySummary = useMemo(() => buildDayProductSummary(displayPlan), [displayPlan])
+  const referentCheck = useMemo(
+    () => assessTotalsAgainstReferents(displayPlan?.totals, displayPlan?.referents),
+    [displayPlan],
+  )
+  const goalKindLabel = NUTRITION_GOAL_OPTIONS.find((o) => o.id === survey.goalKind)?.label
+  const surveyDirty = useMemo(() => JSON.stringify(survey) !== JSON.stringify(savedSurvey), [survey, savedSurvey])
+  const draftAligned = useMemo(
+    () => (draftPlan ? planMatchesSurvey(draftPlan, survey) : false),
+    [draftPlan, survey],
+  )
+  const canSavePlan = Boolean(draftPlan && draftAligned)
+  const hasPendingChanges = planUnsaved || surveyDirty
+  planUnsavedRef.current = planUnsaved
+
+  const RESULT_STEP = STEPS.length - 1
+
+  const resetToSavedBaseline = () => {
+    planUnsavedRef.current = false
+    setDraftPlan(null)
+    setPlanUnsaved(false)
+    setSurvey({ ...savedSurvey })
+    setError(null)
+  }
+
+  const goToStep = (i) => {
+    if (!healthReady || readOnly) return
+    if (step === RESULT_STEP && i < RESULT_STEP && hasPendingChanges) {
+      resetToSavedBaseline()
+    }
+    setStep(i)
+  }
 
   const patchSurvey = (patch) => setSurvey((s) => ({ ...s, ...patch }))
 
-  const persistPlan = async (nextPlan) => {
-    if (readOnly || !client?.id) return
-    await saveClientNutrition(client.id, health, survey, nextPlan)
-  }
-
-  const onItemGramsChange = async (mealSlot, productId, raw) => {
+  const onItemGramsChange = (mealSlot, productId, raw) => {
     const grams = Number(String(raw).replace(',', '.'))
-    if (!Number.isFinite(grams) || grams <= 0 || !plan) return
-    const next = setPlanItemGrams(plan, catalogMap, mealSlot, productId, grams)
-    setPlan(next)
-    try {
-      await persistPlan(next)
-    } catch (e) {
-      setError(e?.message ?? 'Ошибка сохранения правки')
-    }
-  }
-
-  const saveSurveyDraft = async () => {
-    if (readOnly || !client?.id) return
-    setBusy(true)
+    if (!Number.isFinite(grams) || grams <= 0) return
+    const base = draftPlan ?? savedPlan
+    if (!base) return
+    const next = setPlanItemGrams(base, catalogMap, mealSlot, productId, grams)
+    setDraftPlan(next)
+    setPlanUnsaved(true)
     setError(null)
-    try {
-      await saveClientNutrition(client.id, health, survey, plan)
-    } catch (e) {
-      setError(e?.message ?? 'Ошибка сохранения')
-    } finally {
-      setBusy(false)
-    }
   }
 
   const buildPlan = async () => {
@@ -181,15 +206,14 @@ export function ClientNutritionPage({ client, readOnly = false }) {
     setBusy(true)
     setError(null)
     try {
-      const result = await buildAndSaveNutritionPlan(client.id, health, survey, clubId)
+      const result = await previewNutritionPlan(health, survey, clubId)
       if (!result.ok) {
         setError(result.errors.join('\n'))
         return
       }
-      setPlan(result.plan)
-      setGeneratedAt(new Date().toISOString())
+      setDraftPlan(result.plan)
+      setPlanUnsaved(true)
       setStep(STEPS.length - 1)
-      await reload({ refreshSurvey: false })
     } catch (e) {
       setError(e?.message ?? 'Ошибка расчёта')
     } finally {
@@ -197,11 +221,65 @@ export function ClientNutritionPage({ client, readOnly = false }) {
     }
   }
 
+  const discardDraft = async (opts = {}) => {
+    if (readOnly || !client?.id || !hasPendingChanges) return false
+    const msg = savedPlan
+      ? 'Удалить черновик и вернуть сохранённый рацион с прежними ответами?'
+      : 'Отменить составление и вернуть прежние ответы?'
+    if (!window.confirm(msg)) return false
+    setBusy(true)
+    setError(null)
+    planUnsavedRef.current = false
+    try {
+      setDraftPlan(null)
+      setPlanUnsaved(false)
+      surveyLoadedRef.current = false
+      const st = await reload({ refreshSurvey: true })
+      if (opts.goToStep != null) setStep(opts.goToStep)
+      else setStep(st?.plan ? STEPS.length - 1 : 0)
+      return true
+    } catch (e) {
+      setError(e?.message ?? 'Не удалось отменить черновик')
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const beginPlanEdit = () => {
+    if (!savedPlan) return
+    const copy = JSON.parse(JSON.stringify(savedPlan))
+    setDraftPlan(attachSurveyKeyToPlan(copy, savedSurvey))
+    setPlanUnsaved(true)
+  }
+
+  const persistPlan = async () => {
+    if (readOnly || !client?.id || !draftPlan) return
+    if (!planMatchesSurvey(draftPlan, survey)) {
+      setError('Ответы изменились — пересоберите рацион перед сохранением')
+      return
+    }
+    setBusy(true)
+    setError(null)
+    try {
+      const planToSave = attachSurveyKeyToPlan(draftPlan, survey)
+      await saveNutritionPlan(client.id, health, survey, planToSave)
+      setSavedPlan(planToSave)
+      setDraftPlan(null)
+      setPlanUnsaved(false)
+      await reload({ refreshSurvey: false })
+    } catch (e) {
+      setError(e?.message ?? 'Ошибка сохранения рациона')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const exportPng = async () => {
-    if (!plan) return
+    if (!displayPlan) return
     setExportBusy(true)
     try {
-      const blob = await renderNutritionPlanPng(plan, { clientName: client?.name })
+      const blob = await renderNutritionPlanPng(displayPlan, { clientName: client?.name })
       const shared = await shareNutritionPlanBlob(blob, 'Рацион FIT-CITY')
       if (!shared) downloadNutritionPlanBlob(blob, `racion-${client?.id ?? 'client'}.png`)
     } catch (e) {
@@ -215,7 +293,6 @@ export function ClientNutritionPage({ client, readOnly = false }) {
 
   const goNext = async () => {
     if (step < STEPS.length - 2) {
-      await saveSurveyDraft()
       setStep((s) => s + 1)
       return
     }
@@ -224,7 +301,13 @@ export function ClientNutritionPage({ client, readOnly = false }) {
     }
   }
 
-  const goPrev = () => setStep((s) => Math.max(0, s - 1))
+  const goPrev = () => {
+    setStep((s) => Math.max(0, s - 1))
+  }
+
+  const openSurveyEdit = () => {
+    goToStep(0)
+  }
 
   if (!client) return null
 
@@ -277,7 +360,7 @@ export function ClientNutritionPage({ client, readOnly = false }) {
             key={s.id}
             type="button"
             className={`nutrition-stepper__item${i === step ? ' nutrition-stepper__item--active' : ''}${i < step ? ' nutrition-stepper__item--done' : ''}`}
-            onClick={() => healthReady && setStep(i)}
+            onClick={() => goToStep(i)}
             disabled={!healthReady || readOnly}
           >
             {s.label}
@@ -477,34 +560,80 @@ export function ClientNutritionPage({ client, readOnly = false }) {
         </section>
       )}
 
-      {stepId === 'result' && plan && (
+      {stepId === 'result' && displayPlan && (
         <section className="card nutrition-panel">
           <div className="nutrition-result-header">
-            <div>
-              <h2 className="section-title" style={{ fontSize: '1.05rem', margin: 0 }}>
-                Мерный рацион на день
+            <div className="nutrition-result-header__main">
+              <h2 className="section-title nutrition-client-title" style={{ fontSize: '1.1rem', margin: 0 }}>
+                {client.name}
               </h2>
-              <p className="muted" style={{ margin: '6px 0 0' }}>
-                Цель ~{plan.kcalTarget} ккал · факт {plan.totals?.kcal ?? '—'} ккал
-                {kcalDelta != null && Math.abs(kcalDelta) > 30 ? (
-                  <span className="nutrition-kcal-delta"> ({kcalDelta > 0 ? '+' : ''}{kcalDelta})</span>
+              <p className="nutrition-client-meta muted" style={{ margin: '6px 0 0' }}>
+                Вес <strong>{getHealthCurrentWeightKg(health) ?? '—'}</strong> кг
+                {health?.goal ? (
+                  <>
+                    {' '}
+                    · Цель: <strong>{health.goal}</strong>
+                  </>
                 ) : null}
-                {' · '}
-                {plan.mealsPerDay} приёма · Б {plan.macros.proteinG} · Ж {plan.macros.fatG} · У {plan.macros.carbsG}
-                {generatedAt ? ` · ${formatDateRu(generatedAt.slice(0, 10))}` : ''}
+                {goalKindLabel ? (
+                  <>
+                    {' '}
+                    · Питание: <strong>{goalKindLabel}</strong>
+                  </>
+                ) : null}
+                {generatedAt && !planUnsaved ? ` · сохранён ${formatDateRu(generatedAt.slice(0, 10))}` : null}
               </p>
-              {!readOnly ? (
+              {displayPlan.referents ? (
+                <p className="nutrition-referents" style={{ margin: '8px 0 0', fontSize: 13 }}>
+                  Референты: ккал <strong>{displayPlan.referents.kcal.min}–{displayPlan.referents.kcal.max}</strong>
+                  {' '}(цель ~{displayPlan.referents.kcal.aim}) · Б{' '}
+                  <strong>{displayPlan.referents.protein.min}–{displayPlan.referents.protein.max}</strong> г · Ж{' '}
+                  <strong>{displayPlan.referents.fat.min}–{displayPlan.referents.fat.max}</strong> г · У{' '}
+                  <strong>{displayPlan.referents.carbs.min}–{displayPlan.referents.carbs.max}</strong> г
+                </p>
+              ) : null}
+              <p className="nutrition-fact-line" style={{ margin: '8px 0 0' }}>
+                Факт: <strong>{displayPlan.totals?.kcal ?? '—'}</strong> ккал · Б {displayPlan.totals?.proteinG} · Ж{' '}
+                {displayPlan.totals?.fatG} · У {displayPlan.totals?.carbsG}
+                {referentCheck ? (
+                  <span className="nutrition-referent-status">
+                    {' '}
+                    · в референтах: ккал {referentCheck.kcal ? '✓' : '—'} · Б {referentCheck.protein ? '✓' : '—'} · Ж{' '}
+                    {referentCheck.fat ? '✓' : '—'} · У {referentCheck.carbs ? '✓' : '—'}
+                  </span>
+                ) : null}
+              </p>
+              {hasPendingChanges ? (
+                <p className="nutrition-unsaved-banner" role="status">
+                  {planUnsaved && !draftAligned
+                    ? 'Ответы изменились — пересоберите рацион, иначе сохранение недоступно.'
+                    : planUnsaved
+                      ? 'Черновик рациона — сохраните или отмените.'
+                      : 'Ответы изменены — пересоберите рацион или отмените.'}
+                  {!readOnly ? (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-ghost nutrition-unsaved-banner__btn"
+                      disabled={busy}
+                      onClick={() => void discardDraft()}
+                    >
+                      Отменить
+                    </button>
+                  ) : null}
+                </p>
+              ) : null}
+              {!readOnly && planUnsaved ? (
                 <p className="muted nutrition-edit-hint" style={{ margin: '4px 0 0', fontSize: 12 }}>
-                  Можно подправить граммы в таблице — подытоги пересчитаются автоматически.
+                  Можно подправить граммы — изменения попадут в черновик до сохранения.
                 </p>
               ) : null}
             </div>
             <div className="nutrition-result-actions">
-              <button type="button" className="btn btn-touch" disabled={exportBusy} onClick={() => void exportPng()}>
+              <button type="button" className="btn btn-touch" disabled={exportBusy || planUnsaved} onClick={() => void exportPng()}>
                 <Share2 size={18} aria-hidden />
                 Поделиться / PNG
               </button>
-              <button type="button" className="btn btn-touch btn-ghost" disabled={exportBusy} onClick={() => void exportPng()}>
+              <button type="button" className="btn btn-touch btn-ghost" disabled={exportBusy || planUnsaved} onClick={() => void exportPng()}>
                 <Download size={18} aria-hidden />
                 Скачать
               </button>
@@ -542,7 +671,7 @@ export function ClientNutritionPage({ client, readOnly = false }) {
           ) : null}
 
           <div className="nutrition-day-table">
-            {plan.dayPlan.map((meal) => (
+            {displayPlan.dayPlan.map((meal) => (
               <article key={meal.slot} className="nutrition-meal-block">
                 <h3 className="nutrition-meal-title">{meal.label}</h3>
                 <table className="nutrition-table">
@@ -561,7 +690,7 @@ export function ClientNutritionPage({ client, readOnly = false }) {
                       <tr key={`${meal.slot}-${item.productId}`}>
                         <td>{item.label}</td>
                         <td>
-                          {readOnly ? (
+                          {readOnly || !planUnsaved ? (
                             item.portionLabel
                           ) : (
                             <label className="nutrition-grams-edit">
@@ -573,7 +702,7 @@ export function ClientNutritionPage({ client, readOnly = false }) {
                                 inputMode="decimal"
                                 defaultValue={item.grams ?? ''}
                                 key={`${meal.slot}-${item.productId}-${item.grams}`}
-                                onBlur={(e) => void onItemGramsChange(meal.slot, item.productId, e.target.value)}
+                                onBlur={(e) => onItemGramsChange(meal.slot, item.productId, e.target.value)}
                               />
                               <span className="muted">г</span>
                             </label>
@@ -603,14 +732,14 @@ export function ClientNutritionPage({ client, readOnly = false }) {
           </div>
 
           <p className="nutrition-totals">
-            <strong>Итого за день:</strong> {plan.totals.kcal} ккал (цель {plan.kcalTarget}) · Б {plan.totals.proteinG} · Ж{' '}
-            {plan.totals.fatG} · У {plan.totals.carbsG}
+            <strong>Итого за день:</strong> {displayPlan.totals.kcal} ккал (референт ~{displayPlan.kcalTarget}) · Б{' '}
+            {displayPlan.totals.proteinG} · Ж {displayPlan.totals.fatG} · У {displayPlan.totals.carbsG}
           </p>
           <p className="muted" style={{ fontSize: 13 }}>
-            {plan.disclaimer}
+            {displayPlan.disclaimer}
           </p>
 
-          {planHistory.length > 0 ? (
+          {!planUnsaved && planHistory.length > 0 ? (
             <section style={{ marginTop: 16 }}>
               <h3 className="section-title" style={{ fontSize: '0.95rem' }}>
                 Предыдущие рационы
@@ -620,8 +749,11 @@ export function ClientNutritionPage({ client, readOnly = false }) {
                   <li key={h.generated_at} style={{ marginBottom: 6 }}>
                     <span className="muted">{formatDateRu(String(h.generated_at).slice(0, 10))}</span>
                     {' — '}
-                    <strong>{h.kcalTarget ?? h.plan?.kcalTarget ?? '—'} ккал</strong>
-                    {h.mealsPerDay ? ` · ${h.mealsPerDay} приёма` : null}
+                    <strong>{h.kcal ?? h.kcalTarget ?? '—'} ккал</strong>
+                    {h.proteinG != null ? ` · Б ${h.proteinG}` : ''}
+                    {h.fatG != null ? ` · Ж ${h.fatG}` : ''}
+                    {h.carbsG != null ? ` · У ${h.carbsG}` : ''}
+                    {h.mealsPerDay ? ` · ${h.mealsPerDay} приёма` : ''}
                   </li>
                 ))}
               </ul>
@@ -630,7 +762,7 @@ export function ClientNutritionPage({ client, readOnly = false }) {
         </section>
       )}
 
-      {stepId === 'result' && !plan && (
+      {stepId === 'result' && !displayPlan && (
         <section className="card nutrition-panel">
           <p className="muted">Рацион ещё не собран. Вернитесь к шагам и нажмите «Собрать рацион».</p>
         </section>
@@ -656,14 +788,40 @@ export function ClientNutritionPage({ client, readOnly = false }) {
 
       {healthReady && stepId === 'result' && !readOnly && (
         <div className="nutrition-nav">
-          <button type="button" className="btn btn-touch btn-ghost" onClick={() => setStep(0)}>
+          <button type="button" className="btn btn-touch btn-ghost" onClick={openSurveyEdit}>
             Изменить ответы
           </button>
-          <button type="button" className="btn btn-touch" disabled={busy} onClick={() => void buildPlan()}>
-            Пересобрать рацион
-          </button>
+          {hasPendingChanges ? (
+            <>
+              <button type="button" className="btn btn-touch btn-ghost" disabled={busy} onClick={() => void discardDraft()}>
+                Отменить
+              </button>
+              <button type="button" className="btn btn-touch" disabled={busy || !canSavePlan} onClick={() => void persistPlan()}>
+                Сохранить рацион
+              </button>
+            </>
+          ) : (
+            <>
+              {savedPlan ? (
+                <button type="button" className="btn btn-touch btn-ghost" disabled={busy} onClick={beginPlanEdit}>
+                  Редактировать граммы
+                </button>
+              ) : null}
+              <button type="button" className="btn btn-touch" disabled={busy} onClick={() => void buildPlan()}>
+                {savedPlan ? 'Пересобрать рацион' : 'Собрать рацион'}
+              </button>
+            </>
+          )}
         </div>
       )}
+
+      {healthReady && stepId !== 'result' && hasPendingChanges && !readOnly ? (
+        <div className="nutrition-nav nutrition-nav--cancel">
+          <button type="button" className="btn btn-touch btn-ghost" disabled={busy} onClick={() => void discardDraft()}>
+            Отменить составление
+          </button>
+        </div>
+      ) : null}
     </div>
   )
 }

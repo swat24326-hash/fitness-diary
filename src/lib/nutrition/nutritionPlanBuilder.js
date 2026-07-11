@@ -3,17 +3,20 @@ import { getHealthSex } from '../healthCardCore.js'
 import { filterCatalogProductsByExclusions, resolveCatalogProduct, buildNutritionCatalogMap } from './nutritionCatalogResolve.js'
 import {
   computeBmr,
-  computeKcalTarget,
-  computeMacroTargets,
   computeTdee,
   formatProductPortion,
-  GOAL_MACRO_PCT,
   gramsForKcal,
   macrosForGrams,
   roundGrams,
 } from './nutritionMacrosCore.js'
 import { getMealSlots } from './nutritionMealSlotsCore.js'
 import { clampProductGrams, pickFatProductId, pickProteinProductId } from './nutritionMealPairingCore.js'
+import {
+  computeNutritionReferents,
+  macroKcalSharesFromTargets,
+  macroTargetsFromReferents,
+} from './nutritionReferentsCore.js'
+import { surveyBuildKey } from './nutritionPlanSessionCore.js'
 
 /**
  * @typedef {object} NutritionSurvey
@@ -108,7 +111,11 @@ function pickProductId(ids, mealIndex) {
 
 function scaleMealItemsToBudget(items, mealKcalBudget) {
   const subtotal = sumItems(items)
-  if (!subtotal.kcal || subtotal.kcal <= mealKcalBudget * 1.05) return items
+  if (!subtotal.kcal) return items
+  const tolerance = mealKcalBudget * 0.05
+  if (subtotal.kcal >= mealKcalBudget - tolerance && subtotal.kcal <= mealKcalBudget + tolerance) {
+    return items
+  }
   const factor = mealKcalBudget / subtotal.kcal
   return items.map((item) => {
     const grams = roundGrams((item.grams ?? 0) * factor)
@@ -134,11 +141,10 @@ function buildItemFromKcal(product, productId, kcalShare) {
 /**
  * Сборка приёма пищи по калорийному бюджету + правила сочетаний.
  */
-function buildMealItems(mealIndex, mealKcalBudget, goalKind, productIdsByGroup, catalogMap) {
-  const macroPct = GOAL_MACRO_PCT[goalKind] ?? GOAL_MACRO_PCT.maintain
-  const proteinKcal = mealKcalBudget * macroPct.protein
-  const fatKcal = mealKcalBudget * macroPct.fat
-  const carbsKcal = mealKcalBudget * macroPct.carbs
+function buildMealItems(mealIndex, mealKcalBudget, macroShares, productIdsByGroup, catalogMap) {
+  const proteinKcal = mealKcalBudget * macroShares.protein
+  const fatKcal = mealKcalBudget * macroShares.fat
+  const carbsKcal = mealKcalBudget * macroShares.carbs
 
   const carbsId = pickProductId(productIdsByGroup.carbs, mealIndex)
   const proteinId = pickProteinProductId(carbsId, productIdsByGroup.protein, mealIndex, catalogMap)
@@ -194,8 +200,17 @@ export function buildNutritionPlan(health, survey, catalogMap) {
     heightCm: basics.heightCm,
   })
   const tdee = computeTdee(bmr, /** @type {import('./nutritionMacrosCore.js').NutritionActivityLevel} */ (basics.activityLevel))
-  const kcalTarget = computeKcalTarget(tdee, /** @type {import('./nutritionMacrosCore.js').NutritionGoalKind} */ (basics.goalKind))
-  const macros = computeMacroTargets(kcalTarget, /** @type {import('./nutritionMacrosCore.js').NutritionGoalKind} */ (basics.goalKind))
+  const referents = computeNutritionReferents({
+    sex: basics.sex,
+    age: basics.age,
+    weightKg: basics.weightKg,
+    heightCm: basics.heightCm,
+    activityLevel: basics.activityLevel,
+    goalKind: basics.goalKind,
+  })
+  const kcalTarget = referents?.kcal.aim ?? tdee
+  const macros = macroTargetsFromReferents(referents)
+  const macroShares = macroKcalSharesFromTargets(macros)
 
   const pp = survey.pickedProducts ?? {}
   const productIdsByGroup = {
@@ -207,11 +222,10 @@ export function buildNutritionPlan(health, survey, catalogMap) {
     return { ok: false, errors: ['После исключений не осталось продуктов в одной из групп'], plan: null }
   }
 
-  const goalKind = /** @type {import('./nutritionMacrosCore.js').NutritionGoalKind} */ (basics.goalKind)
   const slots = getMealSlots(survey.mealsPerDay)
   const dayPlan = slots.map((slot, idx) => {
     const mealKcalBudget = Math.round(kcalTarget * slot.ratio)
-    const items = buildMealItems(idx, mealKcalBudget, goalKind, productIdsByGroup, catalog)
+    const items = buildMealItems(idx, mealKcalBudget, macroShares, productIdsByGroup, catalog)
     return {
       slot: slot.id,
       label: slot.label,
@@ -232,6 +246,7 @@ export function buildNutritionPlan(health, survey, catalogMap) {
       bmr: Math.round(bmr),
       tdee,
       kcalTarget,
+      referents,
       macros,
       dayPlan,
       totals,
@@ -242,6 +257,7 @@ export function buildNutritionPlan(health, survey, catalogMap) {
         tdee,
       },
       catalogSource: [...catalog.values()][0]?.source ?? 'builtin',
+      builtSurveyKey: surveyBuildKey(survey),
       disclaimer:
         'Ориентировочный рацион, не является медицинским назначением. Уточняйте с врачом или нутрициологом при заболеваниях.',
     },

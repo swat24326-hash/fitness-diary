@@ -41,13 +41,18 @@ export async function loadClientNutritionState(clientId) {
  * @param {object | null} health
  * @param {import('./nutritionPlanBuilder.js').NutritionSurvey} survey
  * @param {object | null} plan
+ * @param {{ archivePreviousPlan?: boolean, surveyOnly?: boolean }} [opts]
  */
 export async function saveClientNutrition(clientId, health, survey, plan, opts = {}) {
-  const currentKg = getHealthCurrentWeightKg(health)
-  const generatedAt = plan ? new Date().toISOString() : (health?.nutrition_plan_generated_at ?? null)
+  const surveyOnly = opts.surveyOnly === true
+  const planToSave = surveyOnly ? parseNutritionJsonField(health?.nutrition_plan) : plan
+  const generatedAt =
+    !surveyOnly && planToSave
+      ? new Date().toISOString()
+      : (health?.nutrition_plan_generated_at ?? null)
   let planHistory = parseNutritionPlanHistory(health?.nutrition_plan_history)
 
-  if (opts.archivePreviousPlan && health?.nutrition_plan && health?.nutrition_plan_generated_at) {
+  if (!surveyOnly && opts.archivePreviousPlan && health?.nutrition_plan && health?.nutrition_plan_generated_at) {
     planHistory = appendNutritionPlanHistory(planHistory, {
       plan: parseNutritionJsonField(health.nutrition_plan),
       generatedAt: String(health.nutrition_plan_generated_at),
@@ -61,8 +66,8 @@ export async function saveClientNutrition(clientId, health, survey, plan, opts =
     sex: getHealthSex(health),
     health_filled_at: health?.health_filled_at ?? null,
     initial_weight_kg: getHealthInitialWeightKg(health),
-    current_weight_kg: currentKg,
-    weight_kg: currentKg,
+    current_weight_kg: getHealthCurrentWeightKg(health),
+    weight_kg: getHealthCurrentWeightKg(health),
     weight_updated_at: health?.weight_updated_at ?? null,
     goal: health?.goal ?? null,
     diseases: health?.diseases ?? null,
@@ -70,7 +75,7 @@ export async function saveClientNutrition(clientId, health, survey, plan, opts =
     medications: health?.medications ?? null,
     notes: health?.notes ?? null,
     nutrition_survey: survey,
-    nutrition_plan: plan,
+    nutrition_plan: planToSave,
     nutrition_plan_generated_at: generatedAt,
     nutrition_plan_history: planHistory,
     updated_at: new Date().toISOString(),
@@ -84,17 +89,37 @@ export async function saveClientNutrition(clientId, health, survey, plan, opts =
 }
 
 /**
+ * Сборка рациона без сохранения (превью / черновик).
+ * @param {object | null} health
+ * @param {import('./nutritionPlanBuilder.js').NutritionSurvey} survey
+ * @param {string} [clubId]
+ */
+export async function previewNutritionPlan(health, survey, clubId) {
+  const clubRows = clubId ? await listNutritionProductsForClub(clubId, { activeOnly: true }) : []
+  const catalogMap = buildNutritionCatalogMap(clubRows)
+  return buildNutritionPlan(health, survey, catalogMap)
+}
+
+/**
+ * @param {string} clientId
+ * @param {object | null} health
+ * @param {import('./nutritionPlanBuilder.js').NutritionSurvey} survey
+ * @param {object} plan
+ */
+export async function saveNutritionPlan(clientId, health, survey, plan) {
+  await saveClientNutrition(clientId, health, survey, plan, { archivePreviousPlan: true })
+}
+
+/**
  * @param {string} clientId
  * @param {object | null} health
  * @param {import('./nutritionPlanBuilder.js').NutritionSurvey} survey
  * @param {string} [clubId]
  */
 export async function buildAndSaveNutritionPlan(clientId, health, survey, clubId) {
-  const clubRows = clubId ? await listNutritionProductsForClub(clubId, { activeOnly: true }) : []
-  const catalogMap = buildNutritionCatalogMap(clubRows)
-  const result = buildNutritionPlan(health, survey, catalogMap)
+  const result = await previewNutritionPlan(health, survey, clubId)
   if (!result.ok) return result
-  await saveClientNutrition(clientId, health, survey, result.plan, { archivePreviousPlan: true })
+  await saveNutritionPlan(clientId, health, survey, result.plan)
   return result
 }
 
