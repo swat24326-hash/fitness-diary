@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { AlertTriangle, BarChart3, Clock, TrendingUp, UserX } from 'lucide-react'
 import { formatIsoRu } from '../../lib/period'
+import { buildAdminClubQueryHref } from '../../lib/admin/adminClientQuickFilters'
 
 /**
  * @param {{
@@ -21,8 +22,6 @@ import { formatIsoRu } from '../../lib/period'
  * }} props
  */
 export function AdminClubDaySummaryPanel({ summary, clubId = '', loading = false, noClub = false }) {
-  const clubQs = clubId ? `?club=${encodeURIComponent(clubId)}` : ''
-
   if (noClub) {
     return (
       <section className="admin-day-summary" aria-labelledby="admin-day-summary-title">
@@ -34,7 +33,7 @@ export function AdminClubDaySummaryPanel({ summary, clubId = '', loading = false
     )
   }
 
-  if (loading) {
+  if (loading && !summary) {
     return (
       <section className="admin-day-summary" aria-labelledby="admin-day-summary-title" aria-busy="true">
         <h2 id="admin-day-summary-title" className="admin-day-summary__title">
@@ -63,7 +62,7 @@ export function AdminClubDaySummaryPanel({ summary, clubId = '', loading = false
       label: 'Не активные',
       hint: 'на сегодня',
       icon: UserX,
-      to: `/admin/statistics${clubQs}`,
+      to: buildAdminClubQueryHref('/admin/statistics', { clubId, period: 'today', panel: 'inactive' }),
       hot: summary.inactive > 0,
     },
     {
@@ -72,7 +71,7 @@ export function AdminClubDaySummaryPanel({ summary, clubId = '', loading = false
       label: 'Истекает абонемент',
       hint: '≤ 3 дня',
       icon: Clock,
-      to: `/admin/clients${clubQs}`,
+      to: buildAdminClubQueryHref('/admin/clients', { clubId, filter: 'expiring' }),
       hot: summary.expiring > 0,
     },
     {
@@ -81,7 +80,7 @@ export function AdminClubDaySummaryPanel({ summary, clubId = '', loading = false
       label: 'Тренировок сегодня',
       hint: `вчера: ${summary.trainingsYesterday}`,
       icon: BarChart3,
-      to: `/admin/statistics${clubQs}`,
+      to: buildAdminClubQueryHref('/admin/statistics', { clubId, period: 'today', panel: 'journal' }),
       hot: false,
     },
     {
@@ -90,14 +89,18 @@ export function AdminClubDaySummaryPanel({ summary, clubId = '', loading = false
       label: 'Отчёт продаж',
       hint: formatIsoRu(summary.today),
       icon: TrendingUp,
-      to: `/admin/sales${clubQs}`,
+      to: buildAdminClubQueryHref('/admin/sales', { clubId }),
       hot: summary.salesReportFilled === false,
       textCount: true,
     },
   ]
 
   return (
-    <section className="admin-day-summary" aria-labelledby="admin-day-summary-title">
+    <section
+      className="admin-day-summary"
+      aria-labelledby="admin-day-summary-title"
+      aria-busy={loading || undefined}
+    >
       <div className="admin-day-summary__head">
         <h2 id="admin-day-summary-title" className="admin-day-summary__title">
           Сводка дня клуба

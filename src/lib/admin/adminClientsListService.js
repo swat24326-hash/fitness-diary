@@ -19,10 +19,10 @@ import { ADMIN_CLIENTS_REMOTE_LIMIT, ADMIN_SYNC_BATCH_SIZE } from './adminConsta
 
 const LOCAL_DATA_CHANGED = 'fitness-diary-storage'
 
-function notifyLocalDataChanged() {
+function notifyLocalDataChanged(detail = {}) {
   if (typeof window === 'undefined') return
   try {
-    window.dispatchEvent(new CustomEvent(LOCAL_DATA_CHANGED, { detail: {} }))
+    window.dispatchEvent(new CustomEvent(LOCAL_DATA_CHANGED, { detail }))
   } catch {
     /* ignore */
   }

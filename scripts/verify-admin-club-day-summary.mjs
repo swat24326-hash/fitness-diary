@@ -4,6 +4,7 @@
 import {
   buildAdminClubDaySummary,
   countTrainingsOnDate,
+  shouldReloadAdminDaySummary,
   yesterdayIso,
 } from '../src/lib/admin/adminClubDaySummaryCore.js'
 
@@ -57,6 +58,25 @@ ok(summary.trainingsToday === 2, 'trainings today')
 ok(summary.trainingsYesterday === 1, 'trainings yesterday')
 ok(summary.salesReportFilled === false, 'sales not filled')
 ok(summary.actionable >= 3, 'actionable includes sales gap')
+
+ok(shouldReloadAdminDaySummary({ reason: 'sync-complete' }), 'day summary: sync-complete')
+ok(shouldReloadAdminDaySummary({ reason: 'admin-clients-cache' }), 'day summary: admin-clients-cache')
+ok(!shouldReloadAdminDaySummary({}), 'day summary: ignore empty reason')
+ok(!shouldReloadAdminDaySummary({ reason: 'exercises' }), 'day summary: ignore exercises')
+ok(!shouldReloadAdminDaySummary({ reason: 'membership-types' }), 'day summary: ignore membership-types')
+ok(!shouldReloadAdminDaySummary({ reason: 'sync-queue' }), 'day summary: ignore sync-queue')
+
+const withOverrides = buildAdminClubDaySummary({
+  today: '2026-07-11',
+  yesterday: '2026-07-10',
+  clients: [],
+  memberships: [],
+  trainings: [],
+  inactiveOverride: 11,
+  trainingsTodayOverride: 10,
+  trainingsYesterdayOverride: 4,
+})
+ok(withOverrides.inactive === 11 && withOverrides.trainingsToday === 10 && withOverrides.trainingsYesterday === 4, 'summary overrides')
 
 if (failed) process.exit(1)
 console.log('verify-admin-club-day-summary: all passed')

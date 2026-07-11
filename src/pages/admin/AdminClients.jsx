@@ -8,6 +8,7 @@ import {
   listAdminClientsForClub,
   listTrainerSummariesForAdmin,
 } from '../../lib/dataAccess'
+import { isAdminClientQuickFilter } from '../../lib/admin/adminClientQuickFilters'
 import { loadAdminClubMembershipsMap, loadAdminClubTrainingsForClientIds } from '../../lib/admin/adminClubWorkspaceCache'
 import { pullAdminClientsFromCloud } from '../../lib/admin/adminClientsListService'
 import { useDebouncedStorageReload, shouldReloadAdminClientsPage } from '../../lib/useDebouncedStorageReload'
@@ -70,8 +71,9 @@ function buildLastTrainingMap(trainings) {
 export function AdminClients() {
   const ctx = useOutletContext()
   const clubIdCtx = ctx?.clubId ?? ''
-  const [search] = useSearchParams()
-  const club = search.get('club') ?? clubIdCtx ?? ''
+  const [searchParams, setSearchParams] = useSearchParams()
+  const club = searchParams.get('club') ?? clubIdCtx ?? ''
+  const filterFromUrl = searchParams.get('filter')
 
   const [clients, setClients] = useState([])
   const [memByClient, setMemByClient] = useState({})
@@ -83,7 +85,9 @@ export function AdminClients() {
   const [pageTrainingsBusy, setPageTrainingsBusy] = useState(false)
   const [query, setQuery] = useState('')
   const [trainerQuery, setTrainerQuery] = useState('')
-  const [quickFilter, setQuickFilter] = useState('all')
+  const [quickFilter, setQuickFilter] = useState(() =>
+    isAdminClientQuickFilter(filterFromUrl) ? filterFromUrl : 'all',
+  )
   const [clientsTab, setClientsTab] = useState('active') // active | archive
   const [source, setSource] = useState('local')
   const [fallback, setFallback] = useState(null)
@@ -146,6 +150,12 @@ export function AdminClients() {
   }, [reload])
 
   useDebouncedStorageReload(() => reload({ silent: true }), { shouldRun: shouldReloadAdminClientsPage })
+
+  useEffect(() => {
+    const f = searchParams.get('filter')
+    if (isAdminClientQuickFilter(f)) setQuickFilter(f)
+    else if (!f) setQuickFilter('all')
+  }, [searchParams])
 
   // Архив с сервера тянем только когда открыли вкладку «Архив».
   useEffect(() => {
@@ -279,7 +289,17 @@ export function AdminClients() {
   const filterBtnClass = (id) => `btn ${quickFilter === id ? 'btn-primary' : 'btn-ghost'} btn-icon-square`
 
   const applyFilter = (id) => {
-    setQuickFilter((cur) => (cur === id ? 'all' : id))
+    const next = quickFilter === id ? 'all' : id
+    setQuickFilter(next)
+    setSearchParams(
+      (prev) => {
+        const p = new URLSearchParams(prev)
+        if (next === 'all') p.delete('filter')
+        else p.set('filter', next)
+        return p
+      },
+      { replace: true },
+    )
   }
 
   const updateClientArchiveFlag = async (clientRow, archived) => {

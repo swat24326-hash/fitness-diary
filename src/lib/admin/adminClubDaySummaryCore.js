@@ -71,6 +71,9 @@ export function countTrainingsOnDate(trainings, iso) {
  *   memberships?: object[],
  *   trainings?: object[],
  *   salesReportFilled?: boolean | null,
+ *   inactiveOverride?: number | null,
+ *   trainingsTodayOverride?: number | null,
+ *   trainingsYesterdayOverride?: number | null,
  * }} input
  */
 export function buildAdminClubDaySummary(input = {}) {
@@ -85,8 +88,17 @@ export function buildAdminClubDaySummary(input = {}) {
   const yesterdayTrainings = countTrainingsOnDate(trainings, yesterday)
   const expiring = countClubExpiringMemberships(clients, memberships, today)
 
+  const inactive =
+    Number.isFinite(input.inactiveOverride) ? Number(input.inactiveOverride) : period.inactiveInPeriod
+  const trainingsToday =
+    Number.isFinite(input.trainingsTodayOverride) ? Number(input.trainingsTodayOverride) : todayTrainings.completed
+  const trainingsYesterday =
+    Number.isFinite(input.trainingsYesterdayOverride)
+      ? Number(input.trainingsYesterdayOverride)
+      : yesterdayTrainings.completed
+
   const actionable =
-    period.inactiveInPeriod +
+    inactive +
     expiring +
     (input.salesReportFilled === false ? 1 : 0)
 
@@ -94,12 +106,23 @@ export function buildAdminClubDaySummary(input = {}) {
     today,
     yesterday,
     totalClients: period.totalClients,
-    inactive: period.inactiveInPeriod,
+    inactive,
     expiring,
-    trainingsToday: todayTrainings.completed,
-    trainingsYesterday: yesterdayTrainings.completed,
+    trainingsToday,
+    trainingsYesterday,
     draftsToday: todayTrainings.draft,
     salesReportFilled: input.salesReportFilled ?? null,
     actionable,
   }
+}
+
+/** События IDB, после которых нужно обновить сводку дня (без справочников и очереди sync). */
+export function shouldReloadAdminDaySummary(detail = {}) {
+  const reason = String(detail?.reason ?? '')
+  if (!reason) return false
+  if (reason === 'sync-complete' || reason === 'admin-clients-cache') return true
+  if (reason === 'client-deleted' || reason === 'trainer-club-cascade') return true
+  if (reason === 'client-hydrated' || reason === 'memberships-refreshed') return true
+  if (reason === 'client-archive-changed' || reason === 'client-trainer-reassigned') return true
+  return false
 }

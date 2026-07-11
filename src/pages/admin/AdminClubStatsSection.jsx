@@ -23,10 +23,15 @@ function rankMedal(i) {
 
 /** @typedef {'byDay' | 'byTypes' | 'rating' | 'clubMonthly'} AdminStatsInlinePanel */
 
+/** @typedef {'inactive' | 'journal'} AdminStatsDeepLinkPanel */
+
 /**
  * @param {{
  *   clubId: string,
  *   trainerScope?: { trainerId: string, clubId?: string | null, selfLabel?: string },
+ *   initialPeriod?: string | null,
+ *   deepLinkPanel?: AdminStatsDeepLinkPanel | null,
+ *   onDeepLinkConsumed?: () => void,
  *   onActiveRangeChange?: (r: { start: string, end: string } | null) => void,
  *   onOpenCompletedJournal?: () => void,
  *   onOpenInactive?: (clients: object[]) => void,
@@ -35,6 +40,9 @@ function rankMedal(i) {
 export function AdminClubStatsSection({
   clubId,
   trainerScope,
+  initialPeriod = null,
+  deepLinkPanel = null,
+  onDeepLinkConsumed,
   onActiveRangeChange,
   onOpenCompletedJournal,
   onOpenInactive,
@@ -43,7 +51,10 @@ export function AdminClubStatsSection({
   const scopeTrainerId = trainerScope?.trainerId ?? ''
   const scopeClubId = trainerScope?.clubId ?? clubId ?? ''
   const { openIskra } = useIskraPanel()
-  const [period, setPeriod] = useState('month')
+  const periodPresetIds = useMemo(() => new Set(PERIOD_PRESETS.map((p) => p.id)), [])
+  const resolvedInitialPeriod =
+    initialPeriod && periodPresetIds.has(initialPeriod) ? initialPeriod : 'month'
+  const [period, setPeriod] = useState(resolvedInitialPeriod)
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
   const [busy, setBusy] = useState(false)
@@ -60,6 +71,13 @@ export function AdminClubStatsSection({
   const [monthlyYearSummary, setMonthlyYearSummary] = useState(null)
   const monthlyCacheRef = useRef(new Map())
   const statsHelpRef = useRef(null)
+  const deepLinkHandledRef = useRef('')
+
+  useEffect(() => {
+    if (initialPeriod && periodPresetIds.has(initialPeriod)) {
+      setPeriod(initialPeriod)
+    }
+  }, [initialPeriod, clubId, periodPresetIds])
 
   const range = useMemo(() => getDateRange(period, customFrom, customTo), [period, customFrom, customTo])
 
@@ -107,6 +125,7 @@ export function AdminClubStatsSection({
     setMonthlyYears([defaultChartYear])
     setMonthlyYearSummary(null)
     monthlyCacheRef.current.clear()
+    deepLinkHandledRef.current = ''
   }, [clubId, scopeClubId, isTrainerScope, defaultChartYear])
 
   /** Итог по календарному году — только при открытии графика. */
@@ -243,6 +262,20 @@ export function AdminClubStatsSection({
   useDebouncedStorageReload(() => void loadStats({ silent: true }), {
     shouldRun: isTrainerScope ? shouldReloadTrainerClientList : shouldReloadAdminStatsPage,
   })
+
+  useEffect(() => {
+    if (!deepLinkPanel || busy || !stats) return
+    const key = `${clubId}:${deepLinkPanel}:${range.start}:${range.end}`
+    if (deepLinkHandledRef.current === key) return
+    deepLinkHandledRef.current = key
+    setInlinePanel(null)
+    if (deepLinkPanel === 'inactive') {
+      onOpenInactive?.(stats.inactiveClients ?? [])
+    } else if (deepLinkPanel === 'journal') {
+      onOpenCompletedJournal?.()
+    }
+    onDeepLinkConsumed?.()
+  }, [deepLinkPanel, busy, stats, clubId, range.start, range.end, onOpenInactive, onOpenCompletedJournal, onDeepLinkConsumed])
 
   const maxDayTotal = useMemo(() => {
     if (!stats?.byDay?.length) return 1

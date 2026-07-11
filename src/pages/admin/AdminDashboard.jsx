@@ -4,7 +4,8 @@ import { BarChart3, Building2, Sparkles, Stethoscope, TrendingUp, Trophy, UserCi
 import { AdminClubDaySummaryPanel } from '../../components/admin/AdminClubDaySummaryPanel'
 import { dispatchLocalDataChanged } from '../../lib/dataAccess'
 import { loadAdminClubDaySummary } from '../../lib/admin/adminClubDaySummaryService'
-import { useDebouncedStorageReload, shouldReloadAdminStatsPage } from '../../lib/useDebouncedStorageReload'
+import { useDebouncedStorageReload } from '../../lib/useDebouncedStorageReload'
+import { shouldReloadAdminDaySummary } from '../../lib/admin/adminClubDaySummaryCore'
 
 function adminTileClass({ isActive }) {
   return `feature-tile u-no-decoration${isActive ? ' feature-tile--active' : ''}`
@@ -31,7 +32,7 @@ export function AdminDashboard() {
   const [daySummaryLoading, setDaySummaryLoading] = useState(false)
   const daySummaryGenRef = useRef(0)
 
-  const loadDaySummary = useCallback(async () => {
+  const loadDaySummary = useCallback(async ({ silent = false } = {}) => {
     if (!isAdminHome) return
     const gen = ++daySummaryGenRef.current
     if (!clubId) {
@@ -39,7 +40,7 @@ export function AdminDashboard() {
       setDaySummaryLoading(false)
       return
     }
-    setDaySummaryLoading(true)
+    if (!silent) setDaySummaryLoading(true)
     try {
       const res = await loadAdminClubDaySummary(clubId)
       if (gen !== daySummaryGenRef.current) return
@@ -48,7 +49,7 @@ export function AdminDashboard() {
       if (gen !== daySummaryGenRef.current) return
       setDaySummary(null)
     } finally {
-      if (gen === daySummaryGenRef.current) setDaySummaryLoading(false)
+      if (gen === daySummaryGenRef.current && !silent) setDaySummaryLoading(false)
     }
   }, [clubId, isAdminHome])
 
@@ -59,7 +60,7 @@ export function AdminDashboard() {
     }
   }, [loadDaySummary])
 
-  useDebouncedStorageReload(() => loadDaySummary(), { shouldRun: shouldReloadAdminStatsPage })
+  useDebouncedStorageReload(() => loadDaySummary({ silent: true }), { shouldRun: shouldReloadAdminDaySummary })
 
   return (
     <div className={`admin-home${isAdminHome ? ' admin-home--dashboard' : ' admin-home--section'}`}>

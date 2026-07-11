@@ -92,8 +92,24 @@ function AdminHealthReadonly({ health }) {
 export function AdminStatistics() {
   const ctx = useOutletContext()
   const clubIdCtx = ctx?.clubId ?? ''
-  const [search] = useSearchParams()
-  const club = search.get('club') ?? clubIdCtx ?? ''
+  const [searchParams, setSearchParams] = useSearchParams()
+  const club = searchParams.get('club') ?? clubIdCtx ?? ''
+  const periodParam = searchParams.get('period')
+  const initialPeriod = periodParam === 'today' || periodParam === 'month' ? periodParam : null
+  const panelParam = searchParams.get('panel')
+  const deepLinkPanel =
+    panelParam === 'inactive' ? 'inactive' : panelParam === 'journal' ? 'journal' : null
+
+  const consumeDeepLink = useCallback(() => {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete('panel')
+        return next
+      },
+      { replace: true },
+    )
+  }, [setSearchParams])
 
   const [statsRange, setStatsRange] = useState({ start: '', end: '' })
   const [journalOpen, setJournalOpen] = useState(false)
@@ -339,6 +355,9 @@ export function AdminStatistics() {
 
       <AdminClubStatsSection
         clubId={club}
+        initialPeriod={initialPeriod}
+        deepLinkPanel={deepLinkPanel}
+        onDeepLinkConsumed={consumeDeepLink}
         onActiveRangeChange={onStatsRange}
         onOpenCompletedJournal={openCompletedJournal}
         onOpenInactive={openInactive}
