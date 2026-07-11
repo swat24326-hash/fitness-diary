@@ -74,3 +74,26 @@ export function appendNutritionPlanHistory(prevHistory, snapshot) {
   )
   return next
 }
+
+/**
+ * @param {unknown} prevHistory
+ * @param {string} generatedAt
+ */
+export function removeNutritionPlanHistoryEntry(prevHistory, generatedAt) {
+  const id = String(generatedAt ?? '')
+  if (!id) return parseNutritionPlanHistory(prevHistory)
+  return parseNutritionPlanHistory(prevHistory).filter((h) => h.generated_at !== id)
+}
+
+/** Компактная запись для БД — без полного plan. */
+export function serializeNutritionPlanHistoryForStorage(entries) {
+  return (entries ?? []).map((e) => ({
+    generated_at: e.generated_at,
+    kcal: e.kcal ?? null,
+    kcalTarget: e.kcalTarget ?? null,
+    proteinG: e.proteinG ?? null,
+    fatG: e.fatG ?? null,
+    carbsG: e.carbsG ?? null,
+    mealsPerDay: e.mealsPerDay ?? null,
+  }))
+}

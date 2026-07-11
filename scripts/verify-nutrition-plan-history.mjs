@@ -2,6 +2,8 @@ import {
   appendNutritionPlanHistory,
   nutritionPlanHistoryEntry,
   parseNutritionPlanHistory,
+  removeNutritionPlanHistoryEntry,
+  serializeNutritionPlanHistoryForStorage,
 } from '../src/lib/nutrition/nutritionPlanHistoryCore.js'
 
 let failed = 0
@@ -39,6 +41,13 @@ const legacy = parseNutritionPlanHistory([
 ok(legacy.length === 2, 'parse legacy + compact')
 ok(legacy[1].kcal === 2480, 'parse compact kcal')
 ok(legacy[0].proteinG === 180, 'parse legacy protein from plan.totals')
+
+const removed = removeNutritionPlanHistoryEntry(legacy, '2026-07-11T12:00:00.000Z')
+ok(removed.length === 1, 'remove one history entry')
+ok(removed[0].generated_at === '2026-06-01T10:00:00.000Z', 'removed correct entry')
+
+const stored = serializeNutritionPlanHistoryForStorage(removed)
+ok(stored.length === 1 && !('plan' in stored[0]), 'stored history compact')
 
 if (failed) {
   console.error(`\n${failed} check(s) failed`)

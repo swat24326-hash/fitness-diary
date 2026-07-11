@@ -7404,6 +7404,41 @@ tr:last-child td {
   justify-content: flex-start;
 }
 
+.nutrition-nav__delete {
+  color: #f87171;
+}
+
+.nutrition-plan-history-block {
+  margin-top: 16px;
+}
+
+.nutrition-plan-history {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nutrition-plan-history__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.nutrition-plan-history__text {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.45;
+}
+
+.nutrition-plan-history__delete {
+  flex-shrink: 0;
+  color: #f87171;
+}
+
 .nutrition-referents {
   color: #94a3b8;
   line-height: 1.45;

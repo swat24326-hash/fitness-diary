@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Download, Share2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, Share2, X } from 'lucide-react'
 import {
   NUTRITION_ACTIVITY_OPTIONS,
   NUTRITION_EXCLUSION_OPTIONS,
@@ -20,9 +20,11 @@ import { listNutritionProductsForClub } from '../../lib/nutrition/nutritionProdu
 import { pullNutritionProductsForClubFromCloud } from '../../lib/pullReferenceData.js'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import {
+  clearSavedNutrition,
   defaultNutritionSurvey,
   loadClientNutritionState,
   previewNutritionPlan,
+  removeNutritionHistoryEntry,
   saveNutritionPlan,
   toggleProductId,
 } from '../../lib/nutrition/nutritionPlanService.js'
@@ -305,8 +307,57 @@ export function ClientNutritionPage({ client, readOnly = false }) {
     setStep((s) => Math.max(0, s - 1))
   }
 
-  const openSurveyEdit = () => {
-    goToStep(0)
+  const deleteSavedNutrition = async () => {
+    if (readOnly || !client?.id) return
+    if (hasPendingChanges) {
+      const discardFirst = window.confirm('Сначала отменить несохранённый черновик?')
+      if (!discardFirst) return
+      resetToSavedBaseline()
+    }
+    if (!savedPlan && !health?.nutrition_plan) {
+      setStep(0)
+      return
+    }
+    if (
+      !window.confirm(
+        'Удалить сохранённый рацион и ответы опросника? Записи в истории останутся — их можно удалить отдельно.',
+      )
+    ) {
+      return
+    }
+    setBusy(true)
+    setError(null)
+    planUnsavedRef.current = false
+    try {
+      await clearSavedNutrition(client.id, health)
+      setSavedPlan(null)
+      setDraftPlan(null)
+      setPlanUnsaved(false)
+      setSurvey(defaultNutritionSurvey())
+      setSavedSurvey(defaultNutritionSurvey())
+      surveyLoadedRef.current = true
+      setStep(0)
+      await reload({ refreshSurvey: true })
+    } catch (e) {
+      setError(e?.message ?? 'Не удалось удалить рацион')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const deleteHistoryEntry = async (generatedAt) => {
+    if (readOnly || !client?.id || !generatedAt) return
+    if (!window.confirm('Удалить эту запись из истории?')) return
+    setBusy(true)
+    setError(null)
+    try {
+      await removeNutritionHistoryEntry(client.id, health, generatedAt)
+      await reload({ refreshSurvey: false })
+    } catch (e) {
+      setError(e?.message ?? 'Не удалось удалить запись')
+    } finally {
+      setBusy(false)
+    }
   }
 
   if (!client) return null
@@ -739,21 +790,34 @@ export function ClientNutritionPage({ client, readOnly = false }) {
             {displayPlan.disclaimer}
           </p>
 
-          {!planUnsaved && planHistory.length > 0 ? (
-            <section style={{ marginTop: 16 }}>
+          {planHistory.length > 0 && !planUnsaved ? (
+            <section className="nutrition-plan-history-block">
               <h3 className="section-title" style={{ fontSize: '0.95rem' }}>
                 Предыдущие рационы
               </h3>
-              <ul className="nutrition-plan-history" style={{ margin: '8px 0 0', paddingLeft: 18 }}>
+              <ul className="nutrition-plan-history">
                 {planHistory.map((h) => (
-                  <li key={h.generated_at} style={{ marginBottom: 6 }}>
-                    <span className="muted">{formatDateRu(String(h.generated_at).slice(0, 10))}</span>
-                    {' — '}
-                    <strong>{h.kcal ?? h.kcalTarget ?? '—'} ккал</strong>
-                    {h.proteinG != null ? ` · Б ${h.proteinG}` : ''}
-                    {h.fatG != null ? ` · Ж ${h.fatG}` : ''}
-                    {h.carbsG != null ? ` · У ${h.carbsG}` : ''}
-                    {h.mealsPerDay ? ` · ${h.mealsPerDay} приёма` : ''}
+                  <li key={h.generated_at} className="nutrition-plan-history__row">
+                    <span className="nutrition-plan-history__text">
+                      <span className="muted">{formatDateRu(String(h.generated_at).slice(0, 10))}</span>
+                      {' — '}
+                      <strong>{h.kcal ?? h.kcalTarget ?? '—'} ккал</strong>
+                      {h.proteinG != null ? ` · Б ${h.proteinG}` : ''}
+                      {h.fatG != null ? ` · Ж ${h.fatG}` : ''}
+                      {h.carbsG != null ? ` · У ${h.carbsG}` : ''}
+                      {h.mealsPerDay ? ` · ${h.mealsPerDay} приёма` : ''}
+                    </span>
+                    {!readOnly ? (
+                      <button
+                        type="button"
+                        className="btn-icon-square nutrition-plan-history__delete"
+                        aria-label="Удалить запись из истории"
+                        disabled={busy}
+                        onClick={() => void deleteHistoryEntry(h.generated_at)}
+                      >
+                        <X size={16} />
+                      </button>
+                    ) : null}
                   </li>
                 ))}
               </ul>
@@ -788,9 +852,16 @@ export function ClientNutritionPage({ client, readOnly = false }) {
 
       {healthReady && stepId === 'result' && !readOnly && (
         <div className="nutrition-nav">
-          <button type="button" className="btn btn-touch btn-ghost" onClick={openSurveyEdit}>
-            Изменить ответы
-          </button>
+          {!hasPendingChanges && (savedPlan || health?.nutrition_plan) ? (
+            <button
+              type="button"
+              className="btn btn-touch btn-ghost nutrition-nav__delete"
+              disabled={busy}
+              onClick={() => void deleteSavedNutrition()}
+            >
+              Удалить
+            </button>
+          ) : null}
           {hasPendingChanges ? (
             <>
               <button type="button" className="btn btn-touch btn-ghost" disabled={busy} onClick={() => void discardDraft()}>
