@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, Pencil } from 'lucide-react'
 import { hydrateAdminClientWorkspace } from '../../lib/admin/adminClientHydrate'
 import { getHealthCard, listMeasurements, listMemberships, listTrainingsForClient } from '../../lib/dataAccess'
@@ -47,6 +47,7 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
   const [showMeasure, setShowMeasure] = useState(false)
   const [editingMeasureId, setEditingMeasureId] = useState(null)
   const [showMeasureHistory, setShowMeasureHistory] = useState(false)
+  const formEditRef = useRef({ health: false, weight: false, measure: false })
   const [measureForm, setMeasureForm] = useState({
     date: todayLocalIso(),
     neck: '',
@@ -69,16 +70,18 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
     const hcRaw = await getHealthCard(client.id)
     const hc = normalizeHealthCardWeights(hcRaw)
     setHealth(hc)
-    setHealthForm({
-      height_cm: hc?.height_cm != null ? String(hc.height_cm) : '',
-      initial_weight_kg:
-        getHealthInitialWeightKg(hc) != null ? String(getHealthInitialWeightKg(hc)) : '',
-      goal: stripDirectionControls(hc?.goal ?? ''),
-      diseases: stripDirectionControls(hc?.diseases ?? ''),
-      contraindications: stripDirectionControls(hc?.contraindications ?? ''),
-      medications: stripDirectionControls(hc?.medications ?? ''),
-      notes: stripDirectionControls(hc?.notes ?? ''),
-    })
+    if (!formEditRef.current.health) {
+      setHealthForm({
+        height_cm: hc?.height_cm != null ? String(hc.height_cm) : '',
+        initial_weight_kg:
+          getHealthInitialWeightKg(hc) != null ? String(getHealthInitialWeightKg(hc)) : '',
+        goal: stripDirectionControls(hc?.goal ?? ''),
+        diseases: stripDirectionControls(hc?.diseases ?? ''),
+        contraindications: stripDirectionControls(hc?.contraindications ?? ''),
+        medications: stripDirectionControls(hc?.medications ?? ''),
+        notes: stripDirectionControls(hc?.notes ?? ''),
+      })
+    }
     setMeasurements(await listMeasurements(client.id))
     setWeightEntries(await listWeightEntries(client.id))
   }, [client.id])
@@ -88,7 +91,12 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
   }, [reloadLocal])
 
   useDebouncedStorageReload(() => reloadLocal(), {
-    shouldRun: (d) => d?.reason !== 'exercises' && d?.reason !== 'challenge-trainings',
+    shouldRun: (d) => {
+      if (formEditRef.current.health || formEditRef.current.weight || formEditRef.current.measure) {
+        return false
+      }
+      return d?.reason !== 'exercises' && d?.reason !== 'challenge-trainings'
+    },
   })
 
   useEffect(() => {
@@ -187,6 +195,7 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
       return
     }
     setHealthEditing(false)
+    formEditRef.current.health = false
     await reloadLocal()
     onReload?.()
   }
@@ -207,6 +216,7 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
       return
     }
     setShowWeightForm(false)
+    formEditRef.current.weight = false
     setWeightForm({ date: todayLocalIso(), weight_kg: '' })
     await reloadLocal()
     onReload?.()
@@ -264,6 +274,7 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
       return
     }
     setShowMeasure(false)
+    formEditRef.current.measure = false
     setEditingMeasureId(null)
     await reloadLocal()
     onReload?.()
@@ -296,6 +307,7 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
       calf_l: '',
     })
     setShowMeasure(true)
+    formEditRef.current.measure = true
   }
 
   const openEditMeasurement = (m) => {
@@ -309,6 +321,7 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
     }
     setMeasureForm((prevF) => ({ ...prevF, ...next }))
     setShowMeasure(true)
+    formEditRef.current.measure = true
   }
 
   return (
@@ -379,7 +392,10 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
               className="btn btn-ghost btn-icon-square"
               aria-label="Редактировать карту здоровья"
               title="Редактировать"
-              onClick={() => setHealthEditing(true)}
+              onClick={() => {
+                formEditRef.current.health = true
+                setHealthEditing(true)
+              }}
             >
               <Pencil size={16} aria-hidden />
             </button>
@@ -415,7 +431,14 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
             ) : null}
             {!readOnly ? (
               <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-                <button type="button" className="btn btn-primary btn-xs" onClick={() => setShowWeightForm(true)}>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-xs"
+                  onClick={() => {
+                    formEditRef.current.weight = true
+                    setShowWeightForm(true)
+                  }}
+                >
                   Записать вес
                 </button>
                 {latestTrainingWeight ? (
@@ -538,7 +561,15 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
               <button type="submit" className="btn btn-primary btn-touch">
                 Сохранить
               </button>
-              <button type="button" className="btn btn-ghost btn-touch" onClick={() => setHealthEditing(false)}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-touch"
+                onClick={() => {
+                  formEditRef.current.health = false
+                  setHealthEditing(false)
+                  void reloadLocal()
+                }}
+              >
                 Отмена
               </button>
             </div>
@@ -644,7 +675,13 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
       )}
 
       {showWeightForm && (section === 'all' || section === 'health') && (
-        <div className="modal-overlay" onClick={() => setShowWeightForm(false)}>
+        <div
+          className="modal-overlay"
+          onClick={() => {
+            formEditRef.current.weight = false
+            setShowWeightForm(false)
+          }}
+        >
           <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
             <h2 className="section-title" style={{ fontSize: '1.1rem' }}>
               Записать вес
@@ -672,7 +709,14 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
                 />
               </div>
               <div className="row" style={{ justifyContent: 'flex-end', gap: 8 }}>
-                <button type="button" className="btn btn-ghost" onClick={() => setShowWeightForm(false)}>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    formEditRef.current.weight = false
+                    setShowWeightForm(false)
+                  }}
+                >
                   Закрыть
                 </button>
                 <button type="submit" className="btn btn-primary">
@@ -737,7 +781,13 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
       )}
 
       {showMeasure && (section === 'all' || section === 'health') && (
-        <div className="modal-overlay" onClick={() => setShowMeasure(false)}>
+        <div
+          className="modal-overlay"
+          onClick={() => {
+            formEditRef.current.measure = false
+            setShowMeasure(false)
+          }}
+        >
           <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
             <h2 className="section-title" style={{ fontSize: '1.1rem' }}>
               {editingMeasureId ? 'Редактировать замер' : 'Новый замер'}
@@ -763,7 +813,14 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
                 ))}
               </div>
               <div className="row" style={{ justifyContent: 'flex-end', gap: 8 }}>
-                <button type="button" className="btn btn-ghost" onClick={() => setShowMeasure(false)}>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    formEditRef.current.measure = false
+                    setShowMeasure(false)
+                  }}
+                >
                   Закрыть
                 </button>
                 <button type="submit" className="btn btn-primary">
