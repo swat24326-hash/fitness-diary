@@ -19,11 +19,11 @@ import { getHealthFilledAt, getHealthSex } from '../../lib/healthCardCore'
 import { ClientWeightChart } from '../../components/ClientWeightChart'
 import {
   listWeightEntries,
-  recordManualWeight,
   importWeightsFromAllTrainings,
   saveHealthCardWithWeightFields,
 } from '../../lib/clientWeightService'
-import { MembershipManager } from '../../components/MembershipManager'
+import { BmiScaleBar } from '../../components/BmiScaleBar'
+import { calcBmiFromHeightWeight, getBmiMeta } from '../../lib/bmiScaleCore'
 import { BODY_MEASURE_FIELDS, getMeasureValue } from '../../lib/bodyMeasures'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 import { explainInactiveMembership, pickUsableMembershipForDate, countedUsedTrainingsOnMembership } from '../../lib/membershipRules'
@@ -46,13 +46,11 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
   const [healthEditing, setHealthEditing] = useState(false)
   const [measurements, setMeasurements] = useState([])
   const [weightEntries, setWeightEntries] = useState([])
-  const [showWeightForm, setShowWeightForm] = useState(false)
   const [showWeightHistory, setShowWeightHistory] = useState(false)
-  const [weightForm, setWeightForm] = useState({ date: todayLocalIso(), weight_kg: '' })
   const [showMeasure, setShowMeasure] = useState(false)
   const [editingMeasureId, setEditingMeasureId] = useState(null)
   const [showMeasureHistory, setShowMeasureHistory] = useState(false)
-  const formEditRef = useRef({ health: false, weight: false, measure: false })
+  const formEditRef = useRef({ health: false, measure: false })
   const [measureForm, setMeasureForm] = useState({
     date: todayLocalIso(),
     neck: '',
@@ -99,7 +97,7 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
 
   useDebouncedStorageReload(() => reloadLocal(), {
     shouldRun: (d) => {
-      if (formEditRef.current.health || formEditRef.current.weight || formEditRef.current.measure) {
+      if (formEditRef.current.health || formEditRef.current.measure) {
         return false
       }
       return d?.reason !== 'exercises' && d?.reason !== 'challenge-trainings'
@@ -146,24 +144,16 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
   const weightProgress = useMemo(() => formatWeightProgressDelta(health), [health])
   const trainingWeights = useMemo(() => listTrainingPreWeights(clientTrainings), [clientTrainings])
 
-  const bmi = useMemo(() => {
-    const h = Number(String(healthForm.height_cm ?? '').replace(',', '.'))
-    const w = currentWeightKg ?? Number(String(healthForm.initial_weight_kg ?? '').replace(',', '.'))
-    if (!Number.isFinite(h) || !Number.isFinite(w) || h <= 0 || w <= 0) return null
-    const m = h / 100
-    const v = w / (m * m)
-    return Number.isFinite(v) ? Math.round(v * 10) / 10 : null
-  }, [healthForm.height_cm, healthForm.initial_weight_kg, currentWeightKg])
+  const bmi = useMemo(
+    () =>
+      calcBmiFromHeightWeight(
+        healthForm.height_cm,
+        currentWeightKg ?? healthForm.initial_weight_kg,
+      ),
+    [healthForm.height_cm, healthForm.initial_weight_kg, currentWeightKg],
+  )
 
-  const bmiMeta = useMemo(() => {
-    if (bmi == null) return null
-    if (bmi < 18.5) return { key: 'under', label: 'Дефицит', color: '#60a5fa' }
-    if (bmi < 25) return { key: 'normal', label: 'Норма', color: '#22c55e' }
-    if (bmi < 30) return { key: 'over', label: 'Избыток', color: '#fbbf24' }
-    if (bmi < 35) return { key: 'obese1', label: 'Ожирение I', color: '#fb923c' }
-    if (bmi < 40) return { key: 'obese2', label: 'Ожирение II', color: '#f87171' }
-    return { key: 'obese3', label: 'Ожирение III', color: '#ef4444' }
-  }, [bmi])
+  const bmiMeta = useMemo(() => getBmiMeta(bmi), [bmi])
 
   const sortedWeightEntries = useMemo(() => sortWeightEntriesDesc(weightEntries), [weightEntries])
 
@@ -178,15 +168,6 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
     const d = getHealthFilledAt(health)
     return d ? formatDateRu(d) : '—'
   }, [health])
-
-  const bmiPct = useMemo(() => {
-    if (bmi == null) return 0
-    // шкала 14..40 (чуть шире нормы, чтобы маркер не упирался)
-    const min = 14
-    const max = 40
-    const clamped = Math.min(max, Math.max(min, bmi))
-    return Math.round(((clamped - min) / (max - min)) * 100)
-  }, [bmi])
 
   const saveHealth = async (e) => {
     e.preventDefault()
@@ -216,28 +197,6 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
     }
     setHealthEditing(false)
     formEditRef.current.health = false
-    await reloadLocal()
-    onReload?.()
-  }
-
-  const saveWeightEntry = async (e) => {
-    e.preventDefault()
-    if (readOnly) {
-      alert('Клиент в архиве — изменения недоступны.')
-      return
-    }
-    try {
-      await recordManualWeight(client.id, health, {
-        weightKg: weightForm.weight_kg,
-        date: weightForm.date,
-      })
-    } catch (err) {
-      alert(err?.message ?? 'Ошибка записи веса')
-      return
-    }
-    setShowWeightForm(false)
-    formEditRef.current.weight = false
-    setWeightForm({ date: todayLocalIso(), weight_kg: '' })
     await reloadLocal()
     onReload?.()
   }
@@ -459,61 +418,36 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
             ) : null}
             {!readOnly ? (
               <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-xs"
-                  onClick={() => {
-                    formEditRef.current.weight = true
-                    setShowWeightForm(true)
-                  }}
-                >
-                  Записать вес
+                <button type="button" className="btn btn-ghost btn-xs" onClick={() => setShowWeightHistory(true)}>
+                  История веса{weightEntries.length > 0 ? ` (${weightEntries.length})` : ''}
                 </button>
-                {trainingWeights.length > 0 ? (
-                  <button type="button" className="btn btn-ghost btn-xs" onClick={() => void applyWeightsFromTrainings()}>
-                    Подгрузить веса с тренировок ({trainingWeights.length})
-                  </button>
-                ) : null}
-                {weightEntries.length > 0 ? (
-                  <button type="button" className="btn btn-ghost btn-xs" onClick={() => setShowWeightHistory(true)}>
-                    История веса ({weightEntries.length})
-                  </button>
-                ) : null}
+              </div>
+            ) : weightEntries.length > 0 ? (
+              <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                <button type="button" className="btn btn-ghost btn-xs" onClick={() => setShowWeightHistory(true)}>
+                  История веса ({weightEntries.length})
+                </button>
               </div>
             ) : null}
 
-            <div className="health-bmi" aria-label="Шкала ИМТ">
-              <div className="health-bmi__bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={bmiPct}>
-                <span className="health-bmi__seg health-bmi__seg--under" />
-                <span className="health-bmi__seg health-bmi__seg--normal" />
-                <span className="health-bmi__seg health-bmi__seg--over" />
-                <span className="health-bmi__seg health-bmi__seg--obese" />
-                {bmi != null ? (
-                  <span className="health-bmi__marker" style={{ left: `${bmiPct}%`, background: bmiMeta?.color ?? 'var(--accent-bright)' }} />
-                ) : null}
-              </div>
-              <div className="health-bmi__ticks">
-                <span>18.5</span>
-                <span>25</span>
-                <span>30</span>
-                <span>40</span>
-              </div>
+            <BmiScaleBar bmi={bmi} />
+            <div className="health-mini__details">
+              <p>
+                <span className="muted">Цель:</span> {healthForm.goal || '—'}
+              </p>
+              <p>
+                <span className="muted">Заболевания:</span> {healthForm.diseases || '—'}
+              </p>
+              <p>
+                <span className="muted">Противопоказания:</span> {healthForm.contraindications || '—'}
+              </p>
+              <p>
+                <span className="muted">Препараты:</span> {healthForm.medications || '—'}
+              </p>
+              <p className="health-mini__details-wide">
+                <span className="muted">Заметки:</span> {healthForm.notes || '—'}
+              </p>
             </div>
-            <p>
-              <span className="muted">Цель:</span> {healthForm.goal || '—'}
-            </p>
-            <p>
-              <span className="muted">Заболевания:</span> {healthForm.diseases || '—'}
-            </p>
-            <p>
-              <span className="muted">Противопоказания:</span> {healthForm.contraindications || '—'}
-            </p>
-            <p>
-              <span className="muted">Препараты:</span> {healthForm.medications || '—'}
-            </p>
-            <p>
-              <span className="muted">Заметки:</span> {healthForm.notes || '—'}
-            </p>
           </div>
         ) : (
           <form onSubmit={saveHealth} className="grid health-form">
@@ -566,8 +500,8 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
             </div>
             <p className="muted" style={{ margin: 0, fontSize: 13 }}>
               Исходный вес — первая точка на графике (до первой тренировки). Текущий вес:{' '}
-              <strong>{currentWeightKg != null ? `${currentWeightKg} кг` : '—'}</strong> — «Записать вес» вручную
-              или «Подгрузить веса с тренировок» для всей истории.
+              <strong>{currentWeightKg != null ? `${currentWeightKg} кг` : '—'}</strong> — подгружается из истории
+              тренировок в разделе «История веса».
             </p>
             <div className="health-form__bmi">
               <div className="health-form__bmi-row">
@@ -575,17 +509,7 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
                 <strong style={{ color: bmiMeta?.color ?? 'var(--text)' }}>{bmi != null ? bmi : '—'}</strong>
                 <span className="muted">{bmiMeta ? bmiMeta.label : ''}</span>
               </div>
-              <div className="health-bmi">
-                <div className="health-bmi__bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={bmiPct}>
-                  <span className="health-bmi__seg health-bmi__seg--under" />
-                  <span className="health-bmi__seg health-bmi__seg--normal" />
-                  <span className="health-bmi__seg health-bmi__seg--over" />
-                  <span className="health-bmi__seg health-bmi__seg--obese" />
-                  {bmi != null ? (
-                    <span className="health-bmi__marker" style={{ left: `${bmiPct}%`, background: bmiMeta?.color ?? 'var(--accent-bright)' }} />
-                  ) : null}
-                </div>
-              </div>
+              <BmiScaleBar bmi={bmi} />
             </div>
             <div className="field">
               <label className="label">Цель</label>
@@ -693,15 +617,29 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
       {showWeightHistory && (section === 'all' || section === 'health') && (
         <div className="modal-overlay" onClick={() => setShowWeightHistory(false)}>
           <div className="modal-panel measure-history-panel" onClick={(e) => e.stopPropagation()}>
-            <div className="row" style={{ alignItems: 'flex-start' }}>
-              <h2 className="section-title" style={{ fontSize: '1.1rem', margin: 0 }}>
+            <div className="row" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+              <h2 className="section-title" style={{ fontSize: '1.1rem', margin: 0, flex: '1 1 auto' }}>
                 История веса
               </h2>
-              <button type="button" className="btn btn-ghost btn-xs" onClick={() => setShowWeightHistory(false)}>
-                Закрыть
-              </button>
+              <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                {!readOnly && trainingWeights.length > 0 ? (
+                  <button type="button" className="btn btn-primary btn-xs" onClick={() => void applyWeightsFromTrainings()}>
+                    Подгрузить с тренировок ({trainingWeights.length})
+                  </button>
+                ) : null}
+                <button type="button" className="btn btn-ghost btn-xs" onClick={() => setShowWeightHistory(false)}>
+                  Закрыть
+                </button>
+              </div>
             </div>
             <ClientWeightChart entries={weightEntries} height={220} />
+            {weightEntries.length === 0 ? (
+              <p className="muted" style={{ margin: '12px 0 0', fontSize: 13 }}>
+                {trainingWeights.length > 0 && !readOnly
+                  ? 'Нажмите «Подгрузить с тренировок», чтобы построить график по весам до тренировки.'
+                  : 'Записей пока нет.'}
+              </p>
+            ) : null}
             <div className="table-wrap" style={{ marginTop: 12 }}>
               <table className="measure-history-table">
                 <thead>
@@ -726,60 +664,6 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
                 </tbody>
               </table>
             </div>
-          </div>
-        </div>
-      )}
-
-      {showWeightForm && (section === 'all' || section === 'health') && (
-        <div
-          className="modal-overlay"
-          onClick={() => {
-            formEditRef.current.weight = false
-            setShowWeightForm(false)
-          }}
-        >
-          <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
-            <h2 className="section-title" style={{ fontSize: '1.1rem' }}>
-              Записать вес
-            </h2>
-            <form onSubmit={saveWeightEntry} className="grid" style={{ gap: 10 }}>
-              <div className="field">
-                <label className="label">Дата</label>
-                <input
-                  className="input"
-                  type="date"
-                  required
-                  value={weightForm.date}
-                  onChange={(e) => setWeightForm((f) => ({ ...f, date: e.target.value }))}
-                />
-              </div>
-              <div className="field">
-                <label className="label">Вес (кг)</label>
-                <input
-                  className="input"
-                  inputMode="decimal"
-                  required
-                  placeholder="Напр. 79.5"
-                  value={weightForm.weight_kg}
-                  onChange={(e) => setWeightForm((f) => ({ ...f, weight_kg: e.target.value }))}
-                />
-              </div>
-              <div className="row" style={{ justifyContent: 'flex-end', gap: 8 }}>
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => {
-                    formEditRef.current.weight = false
-                    setShowWeightForm(false)
-                  }}
-                >
-                  Закрыть
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  Сохранить
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}

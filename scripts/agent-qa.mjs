@@ -89,6 +89,7 @@ run('nutrition plan session', 'node', ['scripts/verify-nutrition-plan-session.mj
 run('nutrition prod flow', 'node', ['scripts/verify-nutrition-prod-flow.mjs'])
 run('nutrition survey storage', 'node', ['scripts/verify-nutrition-survey-storage.mjs'])
 run('client weight', 'node', ['scripts/verify-client-weight.mjs'])
+run('BMI scale', 'node', ['scripts/verify-bmi-scale.mjs'])
 run('health card', 'node', ['scripts/verify-health-card.mjs'])
 run('nutrition products', 'node', ['scripts/verify-nutrition-products.mjs'])
 run('sync outbound label', 'node', ['scripts/verify-sync-outbound-label.mjs'])

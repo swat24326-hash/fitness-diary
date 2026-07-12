@@ -4723,6 +4723,16 @@ tr:last-child td {
   color: var(--text);
 }
 
+.health-mini__details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 12px;
+}
+
+.health-mini__details-wide {
+  grid-column: 1 / -1;
+}
+
 .health-form {
   gap: 12px;
 }
@@ -4752,7 +4762,8 @@ tr:last-child td {
   overflow: hidden;
   background: rgba(255, 255, 255, 0.06);
   display: grid;
-  grid-template-columns: 18.5fr 6.5fr 5fr 10fr; /* 0-18.5 / 18.5-25 / 25-30 / 30-40 */
+  /* шкала 14–40: дефицит 14–18.5 / норма / избыток / ожирение */
+  grid-template-columns: 4.5fr 6.5fr 5fr 10fr;
 }
 
 .health-bmi__seg {
@@ -4761,19 +4772,19 @@ tr:last-child td {
 }
 
 .health-bmi__seg--under {
-  background: rgba(96, 165, 250, 0.55);
+  background: #38bdf8;
 }
 
 .health-bmi__seg--normal {
-  background: rgba(34, 197, 94, 0.55);
+  background: #22c55e;
 }
 
 .health-bmi__seg--over {
-  background: rgba(251, 191, 36, 0.55);
+  background: #f97316;
 }
 
 .health-bmi__seg--obese {
-  background: rgba(248, 113, 113, 0.55);
+  background: #ef4444;
 }
 
 .health-bmi__marker {
@@ -4794,9 +4805,21 @@ tr:last-child td {
   color: rgba(148, 160, 151, 0.85);
 }
 
+.health-bmi__ticks--scale {
+  position: relative;
+  display: block;
+  height: 1.1em;
+}
+
+.health-bmi__tick {
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
 @media (max-width: 720px) {
   .health-mini__top {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
