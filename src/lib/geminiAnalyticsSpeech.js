@@ -10,6 +10,11 @@ const AUTO_SPEAK_KEY = 'fit_gemini_auto_speak'
 
 let resumeIntervalId = null
 let speechGeneration = 0
+let cachedVoices = null
+let voicesLoadPromise = null
+
+const SPEECH_CHUNK_MAX = 200
+const SPEECH_RESUME_MS = 200
 
 /** @param {SpeechVoiceLike} voice */
 function isRussianVoice(voice) {
@@ -88,24 +93,56 @@ export function saveGeminiAutoSpeak(enabled) {
 }
 
 /**
- * Разблокирует TTS после жеста пользователя (отправка вопроса / чип).
- * Без этого браузер часто блокирует автоозвучку ответа после async-запроса.
+ * Разблокирует TTS в цепочке жеста пользователя (перед speak / микрофоном).
+ * Не вызывает cancel — иначе Chrome обрывает следующую фразу на первом слове.
  */
 export function primeGeminiSpeechPlayback() {
   if (typeof window === 'undefined' || !window.speechSynthesis) return false
   try {
-    const synth = window.speechSynthesis
-    synth.resume()
-    if (synth.speaking) synth.cancel()
-    const utter = new SpeechSynthesisUtterance('\u200b')
-    utter.volume = 0.01
-    utter.rate = 10
-    utter.lang = 'ru-RU'
-    synth.speak(utter)
+    window.speechSynthesis.resume()
     return true
   } catch {
     return false
   }
+}
+
+/**
+ * Делит длинный ответ на фразы — Chrome иначе замирает после «ИСКРА».
+ * @param {string} text
+ * @param {number} [maxLen]
+ */
+export function splitSpeechChunks(text, maxLen = SPEECH_CHUNK_MAX) {
+  const clean = String(text ?? '').trim()
+  if (!clean) return []
+  if (clean.length <= maxLen) return [clean]
+
+  const parts = []
+  let rest = clean
+  while (rest.length > maxLen) {
+    let cut = rest.lastIndexOf('. ', maxLen)
+    if (cut < 30) cut = rest.lastIndexOf(', ', maxLen)
+    if (cut < 20) cut = rest.lastIndexOf(' ', maxLen)
+    if (cut < 10) cut = maxLen
+    parts.push(rest.slice(0, cut + 1).trim())
+    rest = rest.slice(cut + 1).trim()
+  }
+  if (rest) parts.push(rest)
+  return parts.filter(Boolean)
+}
+
+function getVoicesCached() {
+  if (cachedVoices?.length) return Promise.resolve(cachedVoices)
+  if (!voicesLoadPromise) {
+    voicesLoadPromise = waitForVoices().then((voices) => {
+      cachedVoices = voices
+      return voices
+    })
+  }
+  return voicesLoadPromise
+}
+
+function delayMs(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 function waitForVoices() {
@@ -279,12 +316,27 @@ function armChromeSpeechResume() {
   clearResumeInterval()
   resumeIntervalId = window.setInterval(() => {
     const synth = window.speechSynthesis
-    if (!synth.speaking) {
+    if (!synth.speaking && !synth.pending) {
       clearResumeInterval()
       return
     }
-    synth.resume()
-  }, 8000)
+    try {
+      synth.resume()
+    } catch {
+      /* ignore */
+    }
+  }, SPEECH_RESUME_MS)
+}
+
+function buildUtterance(chunk, gender, voices) {
+  const normalized = normalizeGender(gender)
+  const utter = new SpeechSynthesisUtterance(chunk)
+  utter.lang = 'ru-RU'
+  utter.rate = normalized === 'female' ? 0.94 : 0.98
+  utter.pitch = normalized === 'female' ? 1.02 : 0.82
+  utter.volume = 1
+  bindVoice(utter, normalized, voices)
+  return utter
 }
 
 export async function speakGeminiText(text, gender = 'female') {
@@ -293,33 +345,48 @@ export async function speakGeminiText(text, gender = 'female') {
   const clean = prepareTextForSpeech(text)
   if (!clean) return false
 
+  const chunks = splitSpeechChunks(clean)
+  if (!chunks.length) return false
+
   const generation = ++speechGeneration
-  const normalized = normalizeGender(gender)
-  const voices = await waitForVoices()
+  const voices = await getVoicesCached()
   if (generation !== speechGeneration) return false
-
-  const utter = new SpeechSynthesisUtterance(clean)
-  utter.lang = 'ru-RU'
-  utter.rate = normalized === 'female' ? 0.94 : 0.98
-  utter.pitch = normalized === 'female' ? 1.02 : 0.82
-  utter.volume = 1
-
-  bindVoice(utter, normalized, voices)
 
   const synth = window.speechSynthesis
   synth.cancel()
-  utter.onend = () => {
-    if (generation !== speechGeneration) return
-    clearResumeInterval()
-  }
-  utter.onerror = () => {
-    if (generation !== speechGeneration) return
-    clearResumeInterval()
-  }
+  await delayMs(40)
   if (generation !== speechGeneration) return false
-  synth.speak(utter)
-  armChromeSpeechResume()
 
+  primeGeminiSpeechPlayback()
+
+  let index = 0
+  const speakNext = () => {
+    if (generation !== speechGeneration) return
+    if (index >= chunks.length) {
+      clearResumeInterval()
+      return
+    }
+
+    const utter = buildUtterance(chunks[index++], gender, voices)
+    utter.onend = () => {
+      if (generation !== speechGeneration) return
+      speakNext()
+    }
+    utter.onerror = () => {
+      if (generation !== speechGeneration) return
+      speakNext()
+    }
+
+    synth.speak(utter)
+    armChromeSpeechResume()
+    try {
+      synth.resume()
+    } catch {
+      /* ignore */
+    }
+  }
+
+  speakNext()
   return true
 }
 
@@ -395,11 +462,13 @@ export function startGeminiSpeechRecognition(handlers) {
       return
     }
     const msg =
-      code === 'not-allowed'
-        ? 'Разрешите микрофон в браузере'
-        : code === 'network'
-          ? 'Распознавание речи недоступно без сети'
-          : 'Не удалось распознать речь'
+      code === 'not-allowed' || code === 'service-not-allowed'
+        ? 'Разрешите микрофон в браузере (значок замка в адресной строке)'
+        : code === 'audio-capture'
+          ? 'Микрофон не найден или занят другим приложением'
+          : code === 'network'
+            ? 'Распознавание речи недоступно без сети'
+            : 'Не удалось распознать речь'
     handlers.onError?.(msg)
   }
 

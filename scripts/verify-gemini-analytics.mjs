@@ -36,7 +36,7 @@ import {
   matchGeminiIntroIntent,
   resolveGeminiClubLabel,
 } from '../src/lib/admin/geminiAssistantIntro.js'
-import { prepareTextForSpeech, pickGeminiSpeechVoice } from '../src/lib/geminiAnalyticsSpeech.js'
+import { prepareTextForSpeech, pickGeminiSpeechVoice, splitSpeechChunks } from '../src/lib/geminiAnalyticsSpeech.js'
 import {
   clearGeminiSnapshotCacheForTests,
   getCachedGeminiSnapshot,
@@ -264,6 +264,14 @@ ok(prepareTextForSpeech('**жирный**  текст').includes('жирный')
 ok(!prepareTextForSpeech('~тест / пункт • список').includes('~'), 'speech strips tilde')
 ok(!prepareTextForSpeech('~тест / пункт • список').includes('/'), 'speech strips slash')
 ok(prepareTextForSpeech('~тест / пункт • список').includes('тест'), 'speech keeps words')
+
+const longIskra =
+  'ИСКРА. Клуб, март 2026. план 45 процентов, 500 тысяч рублей из 1 миллион рублей. ' +
+  'норма к дате 32 процента, в темпе. персональный зал на 80 процентов. На связи.'
+const chunks = splitSpeechChunks(longIskra, 120)
+ok(chunks.length >= 2, 'speech chunks split long reply')
+ok(chunks.join(' ').includes('ИСКРА'), 'speech chunks keep content')
+ok(splitSpeechChunks('коротко').length === 1, 'speech short single chunk')
 
 ok(phrasePlanProgress(29.2) === 'план 29,2%', 'phrase plan progress')
 ok(phrasePlanSnapshotLine(33.4, 424611, 1300000).includes('1,3 млн ₽'), 'plan snapshot compact plan rub')

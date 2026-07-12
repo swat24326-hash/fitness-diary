@@ -320,7 +320,6 @@ export function GeminiAnalyticsPanel({
       const compare = resolveGeminiComparePrevious({ userMessage, comparePrevious })
 
       stopListening()
-      primeGeminiSpeechPlayback()
       setError('')
       setLoading(true)
       if (isRetry && !completionRetry) {
@@ -428,7 +427,7 @@ export function GeminiAnalyticsPanel({
     return () => window.clearTimeout(timerId)
   }, [open, clubId, initialMessage])
 
-  const toggleVoiceInput = useCallback(() => {
+  const toggleVoiceInput = useCallback(async () => {
     if (!voiceSupported || loading || !clubId) return
     if (listening) {
       stopListening()
@@ -436,6 +435,18 @@ export function GeminiAnalyticsPanel({
     }
 
     setError('')
+    primeGeminiSpeechPlayback()
+
+    try {
+      if (navigator.mediaDevices?.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        for (const track of stream.getTracks()) track.stop()
+      }
+    } catch {
+      setError('Разрешите микрофон в браузере (значок замка в адресной строке)')
+      return
+    }
+
     const session = startGeminiSpeechRecognition({
       onInterim: (text) => setInput(text),
       onFinal: (text) => {
