@@ -6,7 +6,7 @@ import { addDaysToIso, formatDateRu, formatDateTimeRu, todayLocalIso } from '../
 import { completedTrainingsOnMembership } from '../lib/membershipRules'
 import { ensureMembershipTypesForClub, isTrainerAssignableMembershipType, membershipTypeCode } from '../lib/membershipTypesService'
 import { CheckCircle2, Eye, Pencil, Plus, Trash2 } from 'lucide-react'
-import { CloseButton } from './CloseButton'
+import { ModalHeader } from './ModalHeader'
 import { useAuth } from '../context/AuthContext'
 
 function newId() {
@@ -395,10 +395,10 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
   return (
     <div className="grid" style={{ gap: 16 }}>
       {newOpen && (
-        <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Новый абонемент" onClick={() => setNewOpen(false)}>
-          <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ marginTop: 0 }}>Новый абонемент</h3>
-            <form onSubmit={addMembership} className="grid" style={{ gap: 10 }}>
+        <div className="modal-overlay modal-overlay--center" role="dialog" aria-modal="true" aria-label="Новый абонемент" onClick={() => setNewOpen(false)}>
+          <div className="modal-panel modal-panel--membership-form" onClick={(e) => e.stopPropagation()}>
+            <ModalHeader title="Новый абонемент" onClose={() => setNewOpen(false)} />
+            <form onSubmit={addMembership} className="grid membership-form" style={{ gap: 12 }}>
               <div className="grid grid-2" style={{ gap: 8 }}>
                 <input className="input" type="date" value={form.start_date} onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))} />
                 <input className="input" type="date" value={form.end_date} onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))} />
@@ -436,9 +436,6 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
                 ) : null}
               </div>
               <div className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
-                <button type="button" className="btn btn-ghost btn-touch" onClick={() => setNewOpen(false)}>
-                  Отмена
-                </button>
                 <button type="submit" className="btn btn-primary btn-touch">
                   Добавить
                 </button>
@@ -449,9 +446,10 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
       )}
 
       {selected && editOpenId === selected.id && (
-        <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Редактирование абонемента" onClick={() => setEditOpenId(null)}>
-          <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
-            <form onSubmit={saveEdit} className="grid" style={{ gap: 10 }}>
+        <div className="modal-overlay modal-overlay--center" role="dialog" aria-modal="true" aria-label="Редактирование абонемента" onClick={() => setEditOpenId(null)}>
+          <div className="modal-panel modal-panel--membership-form" onClick={(e) => e.stopPropagation()}>
+            <ModalHeader title="Редактирование абонемента" onClose={() => setEditOpenId(null)} />
+            <form onSubmit={saveEdit} className="grid membership-form" style={{ gap: 12 }}>
               <div className="grid grid-2" style={{ gap: 8 }}>
                 <div className="field" style={{ margin: 0 }}>
                   <label className="label">Начало</label>
@@ -493,9 +491,6 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
               </div>
 
               <div className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
-                <button type="button" className="btn btn-ghost btn-touch" onClick={() => setEditOpenId(null)}>
-                  Отмена
-                </button>
                 <button type="submit" className="btn btn-primary btn-touch">
                   Сохранить
                 </button>
@@ -507,65 +502,58 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
 
       {viewOpenId && (
         <div
-          className="modal-overlay"
+          className="modal-overlay modal-overlay--center"
           role="dialog"
           aria-modal="true"
           aria-label="Тренировки абонемента"
           onClick={() => setViewOpenId(null)}
         >
-          <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-panel modal-panel--membership-view" onClick={(e) => e.stopPropagation()}>
             {(() => {
               const m = items.find((x) => x.id === viewOpenId)
               const list = m ? trainingsForMembership(m) : []
               const total = Number(m?.total_trainings ?? 0)
               return (
-                <div className="grid" style={{ gap: 12 }}>
-                  <div className="row" style={{ justifyContent: 'space-between', gap: 10 }}>
-                    <h3 style={{ margin: 0 }}>Тренировки абонемента</h3>
-                    <div className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
-                      <button
-                        type="button"
-                        className="btn btn-primary btn-icon-square"
-                        aria-label="Списать тренировку"
-                        title="Списать тренировку"
-                        onClick={() => writeOffTraining(m)}
-                        disabled={!m}
-                      >
-                        <CheckCircle2 size={18} aria-hidden />
-                      </button>
-                      <CloseButton onClick={() => setViewOpenId(null)} />
-                    </div>
-                  </div>
-                  <div className="muted" style={{ fontSize: 13 }}>
+                <div className="membership-view">
+                  <ModalHeader title="Тренировки абонемента" onClose={() => setViewOpenId(null)}>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-icon-square"
+                      aria-label="Списать тренировку"
+                      title="Списать тренировку"
+                      onClick={() => writeOffTraining(m)}
+                      disabled={!m}
+                    >
+                      <CheckCircle2 size={18} aria-hidden />
+                    </button>
+                  </ModalHeader>
+                  <div className="muted membership-view__period">
                     Период: <strong style={{ color: 'var(--text)' }}>{formatDateRu(m?.start_date)} — {formatDateRu(m?.end_date)}</strong>
                   </div>
 
                   {list.length === 0 ? (
-                    <p className="muted" style={{ margin: 0 }}>
+                    <p className="muted membership-view__empty">
                       Пока нет завершённых тренировок по этому абонементу.
                     </p>
                   ) : (
-                    <ul className="list" style={{ margin: 0 }}>
+                    <ul className="membership-training-list">
                       {list.map((t, idx) => (
-                        <li key={t.id} className="list-item" style={{ padding: 12 }}>
-                          <div className="row" style={{ width: '100%', justifyContent: 'flex-start', gap: 12, flexWrap: 'nowrap', alignItems: 'center' }}>
-                            <div style={{ minWidth: 0, flex: '1 1 auto' }}>
-                              <strong>{formatDateRu(t.date ?? t.created_at?.slice(0, 10))}</strong>
-                              <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>
-                                тренировка {idx + 1}/{Number.isFinite(total) && total > 0 ? total : '—'}
-                              </div>
+                        <li key={t.id} className="membership-training-list__item">
+                          <div className="membership-training-list__main">
+                            <strong>{formatDateRu(t.date ?? t.created_at?.slice(0, 10))}</strong>
+                            <div className="muted membership-training-list__meta">
+                              тренировка {idx + 1}/{Number.isFinite(total) && total > 0 ? total : '—'}
                             </div>
-                            <button
-                              type="button"
-                              className="btn btn-ghost btn-icon-square"
-                              aria-label="Отменить тренировку"
-                              title="Отменить тренировку"
-                              style={{ marginLeft: 'auto' }}
-                              onClick={() => cancelTraining(t, m)}
-                            >
-                              <Trash2 size={18} aria-hidden />
-                            </button>
                           </div>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-icon-square"
+                            aria-label="Отменить тренировку"
+                            title="Отменить тренировку"
+                            onClick={() => cancelTraining(t, m)}
+                          >
+                            <Trash2 size={18} aria-hidden />
+                          </button>
                         </li>
                       ))}
                     </ul>
@@ -578,8 +566,8 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
       )}
 
       {confirmCancel && (
-        <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Подтверждение удаления тренировки" onClick={() => setConfirmCancel(null)}>
-          <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay modal-overlay--center" role="dialog" aria-modal="true" aria-label="Подтверждение удаления тренировки" onClick={() => setConfirmCancel(null)}>
+          <div className="modal-panel modal-panel--membership-form" onClick={(e) => e.stopPropagation()}>
             <h3 style={{ marginTop: 0 }}>Отменить тренировку?</h3>
             <p className="muted" style={{ marginTop: 6 }}>
               Дата: <strong style={{ color: 'var(--text)' }}>{formatDateRu(confirmCancel.t?.date ?? confirmCancel.t?.created_at?.slice(0, 10))}</strong>

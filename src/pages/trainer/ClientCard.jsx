@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { Pencil } from 'lucide-react'
+import { Dumbbell, Pencil } from 'lucide-react'
 import { ClientDiaries } from '../../components/ClientDiaries'
 import { ClientOverview } from './ClientOverview'
 import { ClientNutritionPage } from './ClientNutritionPage'
@@ -303,23 +303,37 @@ export function ClientCard() {
         {!isAdmin ? (
           <div className="row td-client-actions" style={{ flexShrink: 0, alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             {isArchived ? (
-              <button type="button" className="btn btn-primary btn-touch btn-xs" style={{ opacity: 0.55, pointerEvents: 'auto' }} aria-disabled="true" onClick={() => alert('Клиент в архиве — сначала «Вернуть из архива».')}>
-                Новая тренировка
+              <button
+                type="button"
+                className="btn btn-primary btn-icon-square btn-touch"
+                style={{ opacity: 0.55, pointerEvents: 'auto' }}
+                aria-disabled="true"
+                aria-label="Новая тренировка"
+                title="Новая тренировка"
+                onClick={() => alert('Клиент в архиве — сначала «Вернуть из архива».')}
+              >
+                <Dumbbell size={20} aria-hidden />
               </button>
             ) : hasActiveMembership ? (
-              <Link to={`/trainer/workouts/new?clientId=${client.id}`} className="btn btn-primary btn-touch btn-xs" style={{ textDecoration: 'none' }}>
-                Новая тренировка
+              <Link
+                to={`/trainer/workouts/new?clientId=${client.id}`}
+                className="btn btn-primary btn-icon-square btn-touch u-no-decoration"
+                aria-label="Новая тренировка"
+                title="Новая тренировка"
+              >
+                <Dumbbell size={20} aria-hidden />
               </Link>
             ) : (
               <button
                 type="button"
-                className="btn btn-primary btn-touch btn-xs"
+                className="btn btn-primary btn-icon-square btn-touch"
                 style={{ opacity: 0.55, pointerEvents: 'auto' }}
                 aria-disabled="true"
+                aria-label="Новая тренировка"
                 title="Нет действующего абонемента"
                 onClick={() => alert('Нет действующего абонемента')}
               >
-                Новая тренировка
+                <Dumbbell size={20} aria-hidden />
               </button>
             )}
           </div>

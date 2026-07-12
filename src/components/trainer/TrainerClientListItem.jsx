@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Archive, RotateCcw, Trash2 } from 'lucide-react'
+import { Archive, Dumbbell, RotateCcw, Trash2 } from 'lucide-react'
 import { formatUpcomingBirthdayLabel } from '../../lib/clientBirthdays'
 import { formatDateRu } from '../../lib/dateRu'
 import {
@@ -47,18 +47,24 @@ export function TrainerClientListItem({
         <div className="row td-client-actions">
           {mode === 'active' ? (
             active ? (
-              <Link to={`/trainer/workouts/new?clientId=${client.id}`} className="btn btn-ghost btn-touch u-no-decoration">
-                Тренировка
+              <Link
+                to={`/trainer/workouts/new?clientId=${client.id}`}
+                className="btn btn-primary btn-icon-square btn-touch u-no-decoration"
+                aria-label="Новая тренировка"
+                title="Новая тренировка"
+              >
+                <Dumbbell size={20} aria-hidden />
               </Link>
             ) : (
               <button
                 type="button"
-                className="btn btn-ghost btn-touch u-opacity-55 u-pointer-auto"
+                className="btn btn-primary btn-icon-square btn-touch u-opacity-55 u-pointer-auto"
                 aria-disabled="true"
+                aria-label="Новая тренировка"
                 title="Нет действующего абонемента"
                 onClick={() => alert('Нет действующего абонемента')}
               >
-                Тренировка
+                <Dumbbell size={20} aria-hidden />
               </button>
             )
           ) : null}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, ChevronDown, ChevronUp, ClipboardCopy, LogOut, RefreshCw, Share2, Wrench } from 'lucide-react'
+import { AlertTriangle, Brush, ChevronDown, ChevronUp, ClipboardCopy, LogOut, RefreshCw, Share2, Wrench } from 'lucide-react'
 import { CloseButton } from './CloseButton'
 import { getDb, listSyncQueue } from '../lib/localDb'
 import {
@@ -522,31 +522,51 @@ export function DiagnosticsPanel({
       )}
 
       <div className="row diagnostics-panel__actions">
-        <button type="button" className="btn btn-primary diagnostics-panel__copy" disabled={copyBusy} onClick={() => void handleShare()}>
-          <Share2 size={16} aria-hidden />
-          {copyBusy ? '…' : simpleMode ? 'Отправить отчёт' : 'Отправить / скопировать'}
+        <button
+          type="button"
+          className="btn btn-primary btn-icon-square"
+          disabled={copyBusy}
+          onClick={() => void handleShare()}
+          aria-label={simpleMode ? 'Отправить отчёт' : 'Отправить / скопировать'}
+          title={simpleMode ? 'Отправить отчёт' : 'Отправить / скопировать'}
+        >
+          <Share2 size={18} aria-hidden />
         </button>
         {!simpleMode ? (
-          <button type="button" className="btn btn-ghost" disabled={copyBusy} onClick={() => void handleCopy()}>
-            <ClipboardCopy size={16} aria-hidden />
-            Копировать
+          <button
+            type="button"
+            className="btn btn-ghost btn-icon-square"
+            disabled={copyBusy}
+            onClick={() => void handleCopy()}
+            aria-label="Копировать отчёт"
+            title="Копировать отчёт"
+          >
+            <ClipboardCopy size={18} aria-hidden />
           </button>
         ) : null}
         {onSyncNow ? (
-          <button type="button" className="btn btn-ghost" disabled={syncBusy} onClick={onSyncNow}>
-            <RefreshCw size={16} className={syncBusy ? 'icon-spin' : undefined} aria-hidden />
-            Sync
+          <button
+            type="button"
+            className="btn btn-ghost btn-icon-square"
+            disabled={syncBusy}
+            onClick={onSyncNow}
+            aria-label="Синхронизация"
+            title="Sync"
+          >
+            <RefreshCw size={18} className={syncBusy ? 'icon-spin' : undefined} aria-hidden />
           </button>
         ) : null}
-        {onClose ? <CloseButton onClick={onClose} /> : null}
         <button
           type="button"
-          className="btn btn-ghost app-error-journal__clear"
+          className="btn btn-ghost btn-icon-square"
           disabled={errors.length === 0}
           onClick={handleClear}
+          aria-label="Очистить журнал"
+          title="Очистить журнал"
         >
-          Очистить журнал
+          <Brush size={18} aria-hidden />
         </button>
+        {onClose ? <CloseButton onClick={onClose} /> : null}
       </div>
     </div>
   )

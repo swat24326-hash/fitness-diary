@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Plus, Pencil, RefreshCw } from 'lucide-react'
+import { Plus, Pencil, RefreshCw, LineChart } from 'lucide-react'
 import { hydrateAdminClientWorkspace } from '../../lib/admin/adminClientHydrate'
 import { getHealthCard, listMeasurements, listMemberships, listTrainingsForClient } from '../../lib/dataAccess'
 import { useDebouncedStorageReload } from '../../lib/useDebouncedStorageReload'
@@ -480,10 +480,21 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
             ) : null}
             {!readOnly ? (
               <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 10, alignItems: 'center' }}>
-                <button type="button" className="btn btn-ghost btn-xs" onClick={() => void openWeightHistory()}>
-                  История веса{weightEntries.length > 0 ? ` (${weightEntries.length})` : ''}
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-icon-square btn-icon-badge-wrap"
+                  onClick={() => void openWeightHistory()}
+                  aria-label={`История веса${weightEntries.length > 0 ? ` (${weightEntries.length})` : ''}`}
+                  title={`История веса${weightEntries.length > 0 ? ` (${weightEntries.length})` : ''}`}
+                >
+                  <LineChart size={18} aria-hidden />
                   {weightImportPending ? (
-                    <span className="weight-import-badge" title="Есть веса с тренировок" aria-hidden />
+                    <span className="weight-import-badge weight-import-badge--corner" title="Есть веса с тренировок" aria-hidden />
+                  ) : null}
+                  {weightEntries.length > 0 ? (
+                    <span className="btn-icon-count" aria-hidden>
+                      {weightEntries.length}
+                    </span>
                   ) : null}
                 </button>
                 {lastWeightDateLabel ? (
@@ -494,8 +505,17 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
               </div>
             ) : weightEntries.length > 0 ? (
               <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 10, alignItems: 'center' }}>
-                <button type="button" className="btn btn-ghost btn-xs" onClick={() => void openWeightHistory()}>
-                  История веса ({weightEntries.length})
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-icon-square btn-icon-badge-wrap"
+                  onClick={() => void openWeightHistory()}
+                  aria-label={`История веса (${weightEntries.length})`}
+                  title={`История веса (${weightEntries.length})`}
+                >
+                  <LineChart size={18} aria-hidden />
+                  <span className="btn-icon-count" aria-hidden>
+                    {weightEntries.length}
+                  </span>
                 </button>
                 {lastWeightDateLabel ? (
                   <span className="muted" style={{ fontSize: 12 }}>
