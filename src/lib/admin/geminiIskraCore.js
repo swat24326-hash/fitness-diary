@@ -85,6 +85,16 @@ export function buildIskraEstimatePolicyRule() {
   ].join('\n')
 }
 
+export function buildIskraSpeechFriendlyRule() {
+  return [
+    'ОЗВУЧКА (ответ читается вслух):',
+    'Короткие предложения, до 80 слов. Без markdown, списков и латиницы.',
+    'Деньги — с символом ₽ (например 424 611 ₽). Проценты — 33,4%. Месяц: «июль 2026».',
+    'Аббревиатуры ПЗ, ТЗ, АЗ, ПНК — допустимы, при озвучке расшифруем.',
+    'Не пиши «221 рубль» словами — пиши сумму цифрами с ₽, склонение сделает синтез.',
+  ].join('\n')
+}
+
 export function buildIskraSovietToneRule() {
   return [
     'СТИЛЬ ЭВМ (умеренный советский колорит, без пародий и лозунгов):',
@@ -133,6 +143,10 @@ export function buildIskraSystemPrompt(clubName, opts = {}) {
     '',
 
     buildIskraBusinessLanguageRule(),
+
+    '',
+
+    buildIskraSpeechFriendlyRule(),
 
     '',
 

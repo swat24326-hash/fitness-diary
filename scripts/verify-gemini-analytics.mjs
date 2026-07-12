@@ -36,7 +36,7 @@ import {
   matchGeminiIntroIntent,
   resolveGeminiClubLabel,
 } from '../src/lib/admin/geminiAssistantIntro.js'
-import { prepareTextForSpeech, pickGeminiSpeechVoice, pickGeminiSpeechFallbackVoice, splitSpeechChunks } from '../src/lib/geminiAnalyticsSpeech.js'
+import { prepareTextForSpeech, pickGeminiSpeechVoice, pickGeminiSpeechFallbackVoice, splitSpeechChunks, speechChunkPauseMs } from '../src/lib/geminiAnalyticsSpeech.js'
 import {
   clearGeminiSnapshotCacheForTests,
   getCachedGeminiSnapshot,
@@ -75,7 +75,11 @@ import {
   speakYearGenitiveForSpeech,
   naturalizeTextForSpeech,
   prepareProsodyForSpeech,
+  prepareDeltasForSpeech,
+  prepareRangesForSpeech,
+  prepareRemainingNumbersForSpeech,
 } from '../src/lib/admin/iskraSpeechNaturalizer.js'
+import { buildIskraSpeechFriendlyRule } from '../src/lib/admin/geminiIskraCore.js'
 import {
   isIskraClubAnalyticsQuestion,
   isIskraOffTopicQuestion,
@@ -295,6 +299,11 @@ ok(naturalizeTextForSpeech('июль 2026').includes('двадцать шест�
 ok(naturalizeTextForSpeech('8 клиентов без абонемента').includes('восемь клиентов'), 'speech count phrase')
 ok(prepareProsodyForSpeech('ИСКРА. Клуб. На связи.').includes('ИСКРА, '), 'speech prosody iskra comma')
 ok(prepareTextForSpeech('персональный зал на 12%').includes('двенадцать'), 'speech pct after abbr expand')
+ok(prepareDeltasForSpeech('+15%').includes('плюс'), 'speech delta plus pct')
+ok(prepareRangesForSpeech('от 10 до 20%').includes('от десять'), 'speech range pct')
+ok(prepareRemainingNumbersForSpeech('уровень 2 готов').includes('два'), 'speech stray digit')
+ok(speechChunkPauseMs('в норме.') >= 200, 'speech pause sentence')
+ok(buildIskraSpeechFriendlyRule().includes('₽'), 'iskra speech rule rub')
 ok(integerToRussianWords(33) === 'тридцать три', 'speech int words')
 ok(speakPercentForSpeech('33,4').includes('тридцать три'), 'speech percent int words')
 ok(polishIskraReplyText('план 29.2%').includes('план 29.2%'), 'polish keeps compact plan pct')
@@ -315,6 +324,7 @@ ok(!iskraSpeech.includes('%'), 'speech iskra sample no percent sign')
 ok(iskraSpeech.includes('план'), 'speech iskra plan phrasing')
 ok(iskraSpeech.includes('целых'), 'speech iskra percent decimal')
 ok(iskraSpeech.includes('тысяч') || iskraSpeech.includes('миллион'), 'speech iskra money words')
+ok(!/\d/.test(iskraSpeech), 'speech iskra sample no digits')
 ok(iskraSpeech.includes('рубл'), 'speech iskra sample rubles word')
 
 ok(expandAbbreviationsForSpeech('Отстающие: ПЗ на 12%, ТЗ на 8%.').includes('персональный зал на'), 'speech expand direction progress')

@@ -14,9 +14,11 @@ let speechGeneration = 0
 let cachedVoices = null
 let voicesLoadPromise = null
 
-const SPEECH_CHUNK_MAX = 160
+const SPEECH_CHUNK_MAX = 150
 const SPEECH_RESUME_MS = 200
 const SPEECH_CHUNK_PAUSE_MS = 150
+const SPEECH_CHUNK_PAUSE_SENTENCE_MS = 240
+const SPEECH_CHUNK_PAUSE_COMMA_MS = 170
 
 /** @param {SpeechVoiceLike} voice */
 function isRussianVoice(voice) {
@@ -125,23 +127,73 @@ export function primeGeminiSpeechPlayback() {
  * @param {string} text
  * @param {number} [maxLen]
  */
+/** @param {string} chunk */
+export function speechChunkPauseMs(chunk) {
+  const tail = String(chunk ?? '').trim()
+  if (/[.!?]$/.test(tail)) return SPEECH_CHUNK_PAUSE_SENTENCE_MS
+  if (/[,;:]$/.test(tail)) return SPEECH_CHUNK_PAUSE_COMMA_MS
+  return SPEECH_CHUNK_PAUSE_MS
+}
+
+function hardSplitSpeechSegment(segment, maxLen) {
+  const parts = []
+  let rest = String(segment ?? '').trim()
+  while (rest.length > maxLen) {
+    let cut = rest.lastIndexOf('. ', maxLen)
+    if (cut < 40) cut = rest.lastIndexOf(', ', maxLen)
+    if (cut < 25) cut = rest.lastIndexOf(' ', maxLen)
+    if (cut < 12) cut = maxLen
+    parts.push(rest.slice(0, cut + 1).trim())
+    rest = rest.slice(cut + 1).trim()
+  }
+  if (rest) parts.push(rest)
+  return parts
+}
+
 export function splitSpeechChunks(text, maxLen = SPEECH_CHUNK_MAX) {
   const clean = String(text ?? '').trim()
   if (!clean) return []
   if (clean.length <= maxLen) return [clean]
 
-  const parts = []
-  let rest = clean
-  while (rest.length > maxLen) {
-    let cut = rest.lastIndexOf('. ', maxLen)
-    if (cut < 30) cut = rest.lastIndexOf(', ', maxLen)
-    if (cut < 20) cut = rest.lastIndexOf(' ', maxLen)
-    if (cut < 10) cut = maxLen
-    parts.push(rest.slice(0, cut + 1).trim())
-    rest = rest.slice(cut + 1).trim()
+  const sentences = []
+  let buffer = ''
+  for (const ch of clean) {
+    buffer += ch
+    if (/[.!?]/.test(ch) && buffer.trim()) {
+      sentences.push(buffer.trim())
+      buffer = ''
+    }
   }
-  if (rest) parts.push(rest)
-  return parts.filter(Boolean)
+  if (buffer.trim()) sentences.push(buffer.trim())
+
+  const source = sentences.length ? sentences : [clean]
+  const merged = []
+  let group = ''
+
+  for (const sentence of source) {
+    const piece = sentence.trim()
+    if (!piece) continue
+    const candidate = group ? `${group} ${piece}` : piece
+    if (candidate.length <= maxLen) {
+      group = candidate
+      continue
+    }
+    if (group) merged.push(group)
+    if (piece.length <= maxLen) {
+      group = piece
+      continue
+    }
+    const hard = hardSplitSpeechSegment(piece, maxLen)
+    if (hard.length === 1) {
+      group = hard[0]
+      continue
+    }
+    merged.push(...hard.slice(0, -1))
+    group = hard[hard.length - 1] ?? ''
+  }
+
+  if (group) merged.push(group)
+  return merged.filter(Boolean)
 }
 
 function getVoicesCached() {
@@ -455,7 +507,7 @@ export async function speakGeminiText(text, gender = 'female') {
       ) {
         if (retryChunkWithGoogle()) return
       }
-      void delayMs(SPEECH_CHUNK_PAUSE_MS).then(() => {
+      void delayMs(speechChunkPauseMs(chunk)).then(() => {
         if (generation !== speechGeneration) return
         speakNext()
       })

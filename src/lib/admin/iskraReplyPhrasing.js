@@ -191,7 +191,12 @@ export function prepareNumbersForSpeech(text) {
   let s = String(text ?? '')
 
   s = s.replace(/(\d+(?:[.,]\d+)?)\s*млн\s*₽/gi, (_, raw) => speakMillionRubles(raw))
+  s = s.replace(/(\d+(?:[.,]\d+)?)\s*млн(?=[\s,.!?;:]|$)/gi, (_, raw) => speakMillionRubles(raw))
   s = s.replace(/(\d+(?:[.,]\d+)?)\s*тыс\s*₽/gi, (_, raw) => {
+    const n = Math.round(parseFloat(String(raw).replace(',', '.')) * 1000)
+    return speakRubAmountForSpeech(n)
+  })
+  s = s.replace(/(\d+(?:[.,]\d+)?)\s*тыс(?=[\s,.!?;:]|$)/gi, (_, raw) => {
     const n = Math.round(parseFloat(String(raw).replace(',', '.')) * 1000)
     return speakRubAmountForSpeech(n)
   })
@@ -203,10 +208,17 @@ export function prepareNumbersForSpeech(text) {
     const n = parseInt(String(raw).replace(/\s/g, ''), 10)
     return Number.isFinite(n) ? speakRubAmountForSpeech(n) : String(raw).trim()
   })
+  s = s.replace(/(\d+(?:[.,]\d+)?)\s+процент(?:ов|а)?(?=[\s,.!?;:]|$)/gi, (_, raw) =>
+    speakPercentForSpeech(raw))
   s = s.replace(/(\d+(?:[.,]\d+)?)\s*%/g, (_, raw) => speakPercentForSpeech(raw))
   s = s.replace(
     /(\d+)\s+целых\s+(\d)\s+десятых\s+процент(а|ов)/gi,
-    (_, intPart, decPart) => `${intPart} целых ${decPart} десятых процента`,
+    (_, intPart, decPart) => {
+      const intWords = integerToRussianWords(parseInt(intPart, 10)) || intPart
+      const dec = parseInt(decPart, 10)
+      const decWord = RU_DEC_ONES[dec] ?? decPart
+      return `${intWords} целых ${decWord} десятых процента`
+    },
   )
 
   return s
