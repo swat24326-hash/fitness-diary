@@ -51,8 +51,8 @@ ok(
   'first save uses form date',
 )
 ok(
-  resolveHealthFilledAtOnSave('2026-04-01', '2026-05-10', '2026-06-20') === '2026-04-01',
-  'keep existing filled at',
+  resolveHealthFilledAtOnSave('2026-04-01', '2026-05-10', '2026-06-20') === '2026-05-10',
+  'form date wins on save',
 )
 
 const entries = [

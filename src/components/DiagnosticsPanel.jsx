@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, ChevronDown, ChevronUp, ClipboardCopy, LogOut, RefreshCw, Share2, Wrench } from 'lucide-react'
+import { CloseButton } from './CloseButton'
 import { getDb, listSyncQueue } from '../lib/localDb'
 import {
   APP_ERRORS_CHANGED,
@@ -537,11 +538,7 @@ export function DiagnosticsPanel({
             Sync
           </button>
         ) : null}
-        {onClose ? (
-          <button type="button" className="btn btn-ghost" onClick={onClose}>
-            Закрыть
-          </button>
-        ) : null}
+        {onClose ? <CloseButton onClick={onClose} /> : null}
         <button
           type="button"
           className="btn btn-ghost app-error-journal__clear"

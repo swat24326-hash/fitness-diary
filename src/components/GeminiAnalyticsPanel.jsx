@@ -15,8 +15,8 @@ import {
   Users,
   Volume2,
   Wallet,
-  X,
 } from 'lucide-react'
+import { CloseButton } from './CloseButton'
 import { postGeminiAnalytics, prefetchGeminiSnapshot } from '../lib/admin/geminiAnalyticsService.js'
 import { isGeminiReplyIncomplete, resolveGeminiComparePrevious } from '../lib/admin/geminiAnalyticsPrompt.js'
 import {
@@ -497,9 +497,7 @@ export function GeminiAnalyticsPanel({
             >
               <Settings size={18} />
             </Link>
-            <button type="button" className="btn btn-ghost btn-sm gemini-panel__close" onClick={handleClose} aria-label="Закрыть">
-              <X size={18} />
-            </button>
+            <CloseButton className="gemini-panel__close" sm onClick={handleClose} />
           </div>
         </header>
 

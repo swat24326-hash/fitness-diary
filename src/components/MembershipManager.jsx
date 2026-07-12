@@ -6,6 +6,7 @@ import { addDaysToIso, formatDateRu, formatDateTimeRu, todayLocalIso } from '../
 import { completedTrainingsOnMembership } from '../lib/membershipRules'
 import { ensureMembershipTypesForClub, isTrainerAssignableMembershipType, membershipTypeCode } from '../lib/membershipTypesService'
 import { CheckCircle2, Eye, Pencil, Plus, Trash2 } from 'lucide-react'
+import { CloseButton } from './CloseButton'
 import { useAuth } from '../context/AuthContext'
 
 function newId() {
@@ -532,9 +533,7 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
                       >
                         <CheckCircle2 size={18} aria-hidden />
                       </button>
-                      <button type="button" className="btn btn-ghost btn-icon-square" aria-label="Закрыть" title="Закрыть" onClick={() => setViewOpenId(null)}>
-                        ✕
-                      </button>
+                      <CloseButton onClick={() => setViewOpenId(null)} />
                     </div>
                   </div>
                   <div className="muted" style={{ fontSize: 13 }}>

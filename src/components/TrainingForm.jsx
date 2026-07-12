@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Info, List, Paperclip, Plus, Trash2, X } from 'lucide-react'
+import { Info, List, Paperclip, Plus, Trash2 } from 'lucide-react'
+import { CloseButton } from './CloseButton'
 import { listExercises, listTrainingsForClient, LOCAL_DATA_CHANGED } from '../lib/dataAccess'
 import { formatDateRu } from '../lib/dateRu'
 import { findLastExerciseResult } from '../lib/lastExerciseResult'
@@ -735,18 +736,12 @@ export function TrainingForm({
                 <h3 id="exercise-catalog-title" style={{ margin: 0 }}>
                   Справочник упражнений
                 </h3>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-icon-square"
-                  aria-label="Закрыть"
-                  title="Закрыть"
+                <CloseButton
                   onClick={() => {
                     setPickExerciseIdx(null)
                     setSuggestOpenId(null)
                   }}
-                >
-                  ✕
-                </button>
+                />
               </div>
               <p className="muted" style={{ margin: 0, fontSize: 13 }}>
                 Список задаёт администратор. Можно выбрать здесь или подобрать по буквам в поле на форме — сохраняется только упражнение из справочника.
@@ -841,9 +836,7 @@ export function TrainingForm({
               <h4 id="focus-pop-title" className="training-focus-pop__title">
                 Направленность / группа
               </h4>
-              <button type="button" className="btn btn-ghost" onClick={() => setFocusExerciseIdx(null)} aria-label="Закрыть">
-                <X size={22} />
-              </button>
+              <CloseButton onClick={() => setFocusExerciseIdx(null)} size={22} />
             </div>
             <p className="muted" style={{ margin: '0 0 10px', fontSize: 13 }}>
               {focusEx.name?.trim() ? `Упражнение: ${focusEx.name}` : 'Без названия'}

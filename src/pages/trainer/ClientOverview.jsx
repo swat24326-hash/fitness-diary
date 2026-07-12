@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { Plus, Pencil, RefreshCw } from 'lucide-react'
 import { hydrateAdminClientWorkspace } from '../../lib/admin/adminClientHydrate'
 import { getHealthCard, listMeasurements, listMemberships, listTrainingsForClient } from '../../lib/dataAccess'
@@ -23,13 +24,22 @@ import {
   saveHealthCardWithWeightFields,
 } from '../../lib/clientWeightService'
 import { BmiScaleBar } from '../../components/BmiScaleBar'
+import { AppToast } from '../../components/AppToast'
+import { CloseButton } from '../../components/CloseButton'
 import { MembershipManager } from '../../components/MembershipManager'
+import { ModalHeader } from '../../components/ModalHeader'
 import { calcBmiFromHeightWeight, getBmiMeta } from '../../lib/bmiScaleCore'
+import { useAppToast } from '../../hooks/useAppToast'
+import { isNutritionPlanStale, nutritionPlanStaleMessage } from '../../lib/nutrition/nutritionPlanStaleCore'
+import { parseNutritionJsonField } from '../../lib/nutrition/nutritionPlanService'
+import { needsWeightImportRefresh, pickLastWeightEntryDate } from '../../lib/weightImportCore'
 import { BODY_MEASURE_FIELDS, getMeasureValue } from '../../lib/bodyMeasures'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 import { explainInactiveMembership, pickUsableMembershipForDate, countedUsedTrainingsOnMembership } from '../../lib/membershipRules'
 
 export function ClientOverview({ client, onReload, section = 'all', readOnly = false }) {
+  const location = useLocation()
+  const { showToast, toast } = useAppToast()
   const [memberships, setMemberships] = useState([])
   const [clientTrainings, setClientTrainings] = useState([])
   const [health, setHealth] = useState(null)
@@ -171,6 +181,31 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
     return d ? formatDateRu(d) : '—'
   }, [health])
 
+  const nutritionTabHref = useMemo(() => `${location.pathname}?tab=nutrition`, [location.pathname])
+  const savedNutritionPlan = useMemo(() => parseNutritionJsonField(health?.nutrition_plan), [health?.nutrition_plan])
+  const nutritionStaleMessage = useMemo(
+    () => nutritionPlanStaleMessage(health, savedNutritionPlan),
+    [health, savedNutritionPlan],
+  )
+  const showNutritionStale = useMemo(
+    () => Boolean(savedNutritionPlan && isNutritionPlanStale(health, savedNutritionPlan) && nutritionStaleMessage),
+    [health, savedNutritionPlan, nutritionStaleMessage],
+  )
+  const weightImportPending = useMemo(
+    () => needsWeightImportRefresh(trainingWeights, weightEntries),
+    [trainingWeights, weightEntries],
+  )
+  const lastWeightDateLabel = useMemo(() => {
+    const iso = pickLastWeightEntryDate(weightEntries)
+    return iso ? formatDateRu(iso) : null
+  }, [weightEntries])
+
+  const cancelHealthEdit = useCallback(() => {
+    formEditRef.current.health = false
+    setHealthEditing(false)
+    void reloadLocal()
+  }, [reloadLocal])
+
   const saveHealth = async (e) => {
     e.preventDefault()
     if (readOnly) {
@@ -203,23 +238,36 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
     onReload?.()
   }
 
-  const applyWeightsFromTrainings = async () => {
-    if (readOnly || weightImportBusy) {
-      if (readOnly) alert('Клиент в архиве — изменения недоступны.')
-      return
+  const applyWeightsFromTrainings = useCallback(
+    async (opts = {}) => {
+      if (readOnly || weightImportBusy) {
+        if (readOnly) alert('Клиент в архиве — изменения недоступны.')
+        return null
+      }
+      setWeightImportBusy(true)
+      try {
+        const result = await importWeightsFromAllTrainings(client.id, health, clientTrainings)
+        await reloadLocal()
+        onReload?.()
+        if (opts.toast !== false) showToast(`Подтянуто весов: ${result.imported}`)
+        return result
+      } catch (err) {
+        alert(err?.message ?? 'Не удалось подгрузить веса с тренировок')
+        return null
+      } finally {
+        setWeightImportBusy(false)
+      }
+    },
+    [client.id, health, clientTrainings, readOnly, weightImportBusy, reloadLocal, onReload, showToast],
+  )
+
+  const openWeightHistory = useCallback(async () => {
+    setShowWeightHistory(true)
+    if (readOnly) return
+    if (needsWeightImportRefresh(trainingWeights, weightEntries)) {
+      await applyWeightsFromTrainings({ toast: true })
     }
-    setWeightImportBusy(true)
-    try {
-      await importWeightsFromAllTrainings(client.id, health, clientTrainings)
-    } catch (err) {
-      alert(err?.message ?? 'Не удалось подгрузить веса с тренировок')
-      return
-    } finally {
-      setWeightImportBusy(false)
-    }
-    await reloadLocal()
-    onReload?.()
-  }
+  }, [readOnly, trainingWeights, weightEntries, applyWeightsFromTrainings])
 
   const saveMeasurement = async (e) => {
     e.preventDefault()
@@ -370,7 +418,7 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
           <h2 className="section-title" style={{ fontSize: '1.05rem', margin: 0 }}>
             Карта здоровья
           </h2>
-          {!healthEditing && !readOnly ? (
+          {!readOnly && !healthEditing ? (
             <button
               type="button"
               className="btn btn-ghost btn-icon-square"
@@ -384,7 +432,16 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
               <Pencil size={16} aria-hidden />
             </button>
           ) : null}
+          {!readOnly && healthEditing ? <CloseButton onClick={cancelHealthEdit} aria-label="Отменить редактирование" /> : null}
         </div>
+        {showNutritionStale ? (
+          <section className="card nutrition-stale-banner" role="status" style={{ marginTop: 12 }}>
+            <p style={{ margin: 0 }}>{nutritionStaleMessage}</p>
+            <Link to={nutritionTabHref} className="btn btn-ghost btn-xs" style={{ marginTop: 10 }}>
+              Открыть «Питание»
+            </Link>
+          </section>
+        ) : null}
         {!healthEditing ? (
           <div className="grid health-mini">
             <div className="health-mini__top">
@@ -422,16 +479,29 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
               </p>
             ) : null}
             {!readOnly ? (
-              <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-                <button type="button" className="btn btn-ghost btn-xs" onClick={() => setShowWeightHistory(true)}>
+              <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 10, alignItems: 'center' }}>
+                <button type="button" className="btn btn-ghost btn-xs" onClick={() => void openWeightHistory()}>
                   История веса{weightEntries.length > 0 ? ` (${weightEntries.length})` : ''}
+                  {weightImportPending ? (
+                    <span className="weight-import-badge" title="Есть веса с тренировок" aria-hidden />
+                  ) : null}
                 </button>
+                {lastWeightDateLabel ? (
+                  <span className="muted" style={{ fontSize: 12 }}>
+                    Последний вес: {lastWeightDateLabel}
+                  </span>
+                ) : null}
               </div>
             ) : weightEntries.length > 0 ? (
-              <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-                <button type="button" className="btn btn-ghost btn-xs" onClick={() => setShowWeightHistory(true)}>
+              <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 10, alignItems: 'center' }}>
+                <button type="button" className="btn btn-ghost btn-xs" onClick={() => void openWeightHistory()}>
                   История веса ({weightEntries.length})
                 </button>
+                {lastWeightDateLabel ? (
+                  <span className="muted" style={{ fontSize: 12 }}>
+                    Последний вес: {lastWeightDateLabel}
+                  </span>
+                ) : null}
               </div>
             ) : null}
 
@@ -545,17 +615,6 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
               <button type="submit" className="btn btn-primary btn-touch">
                 Сохранить
               </button>
-              <button
-                type="button"
-                className="btn btn-ghost btn-touch"
-                onClick={() => {
-                  formEditRef.current.health = false
-                  setHealthEditing(false)
-                  void reloadLocal()
-                }}
-              >
-                Отмена
-              </button>
             </div>
           </form>
         )}
@@ -622,34 +681,26 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
       {showWeightHistory && (section === 'all' || section === 'health') && (
         <div className="modal-overlay" onClick={() => setShowWeightHistory(false)}>
           <div className="modal-panel measure-history-panel" onClick={(e) => e.stopPropagation()}>
-            <div className="row" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
-              <h2 className="section-title" style={{ fontSize: '1.1rem', margin: 0, flex: '1 1 auto' }}>
-                История веса
-              </h2>
-              <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-                {!readOnly && trainingWeights.length > 0 ? (
-                  <button
-                    type="button"
-                    className="btn btn-icon-square weight-history-sync-btn"
-                    onClick={() => void applyWeightsFromTrainings()}
-                    disabled={weightImportBusy}
-                    title={`Подгрузить веса с тренировок (${trainingWeights.length})`}
-                    aria-label={`Подгрузить веса с тренировок (${trainingWeights.length})`}
-                    aria-busy={weightImportBusy}
-                  >
-                    <RefreshCw size={18} className={weightImportBusy ? 'icon-spin' : undefined} aria-hidden />
-                  </button>
-                ) : null}
-                <button type="button" className="btn btn-ghost btn-xs" onClick={() => setShowWeightHistory(false)}>
-                  Закрыть
+            <ModalHeader title="История веса" onClose={() => setShowWeightHistory(false)}>
+              {!readOnly && trainingWeights.length > 0 ? (
+                <button
+                  type="button"
+                  className="btn btn-icon-square weight-history-sync-btn"
+                  onClick={() => void applyWeightsFromTrainings()}
+                  disabled={weightImportBusy}
+                  title={`Подгрузить веса с тренировок (${trainingWeights.length})`}
+                  aria-label={`Подгрузить веса с тренировок (${trainingWeights.length})`}
+                  aria-busy={weightImportBusy}
+                >
+                  <RefreshCw size={18} className={weightImportBusy ? 'icon-spin' : undefined} aria-hidden />
                 </button>
-              </div>
-            </div>
+              ) : null}
+            </ModalHeader>
             <ClientWeightChart entries={weightEntries} height={220} />
             {weightEntries.length === 0 ? (
               <p className="muted" style={{ margin: '12px 0 0', fontSize: 13 }}>
                 {trainingWeights.length > 0 && !readOnly
-                  ? 'Нажмите кнопку с иконкой синхронизации, чтобы подгрузить веса с тренировок.'
+                  ? 'Веса подгружаются автоматически при открытии. Можно обновить кнопкой синхронизации.'
                   : 'Записей пока нет.'}
               </p>
             ) : null}
@@ -684,14 +735,7 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
       {showMeasureHistory && (section === 'all' || section === 'health') && (
         <div className="modal-overlay" onClick={() => setShowMeasureHistory(false)}>
           <div className="modal-panel measure-history-panel" onClick={(e) => e.stopPropagation()}>
-            <div className="row" style={{ alignItems: 'flex-start' }}>
-              <h2 className="section-title" style={{ fontSize: '1.1rem', margin: 0 }}>
-                История замеров
-              </h2>
-              <button type="button" className="btn btn-ghost btn-xs" onClick={() => setShowMeasureHistory(false)}>
-                Закрыть
-              </button>
-            </div>
+            <ModalHeader title="История замеров" onClose={() => setShowMeasureHistory(false)} />
             <div className="table-wrap" style={{ marginTop: 12 }}>
               <table className="measure-history-table">
                 <thead>
@@ -742,9 +786,13 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
           }}
         >
           <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
-            <h2 className="section-title" style={{ fontSize: '1.1rem' }}>
-              {editingMeasureId ? 'Редактировать замер' : 'Новый замер'}
-            </h2>
+            <ModalHeader
+              title={editingMeasureId ? 'Редактировать замер' : 'Новый замер'}
+              onClose={() => {
+                formEditRef.current.measure = false
+                setShowMeasure(false)
+              }}
+            />
             <form onSubmit={saveMeasurement} className="grid" style={{ gap: 10 }}>
               <div className="field">
                 <label className="label">Дата</label>
@@ -766,16 +814,6 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
                 ))}
               </div>
               <div className="row" style={{ justifyContent: 'flex-end', gap: 8 }}>
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => {
-                    formEditRef.current.measure = false
-                    setShowMeasure(false)
-                  }}
-                >
-                  Закрыть
-                </button>
                 <button type="submit" className="btn btn-primary">
                   Сохранить
                 </button>
@@ -784,6 +822,7 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
           </div>
         </div>
       )}
+      <AppToast toast={toast} />
     </div>
   )
 }

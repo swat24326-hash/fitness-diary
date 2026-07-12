@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { RefreshCw, UserPlus } from 'lucide-react'
+import { CloseButton } from '../../components/CloseButton'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { fetchTrainersViaAdminApi } from '../../lib/admin/adminApiClient'
 import { createSalesManagerForAdmin } from '../../lib/admin/createSalesManagerService'
@@ -117,9 +118,7 @@ export function AdminSalesManagers() {
             <h2 id="sales-manager-create-title" className="section-title td-section-title" style={{ margin: 0 }}>
               Новый менеджер по продажам
             </h2>
-            <button type="button" className="btn btn-ghost btn-icon-square" aria-label="Закрыть" title="Закрыть" onClick={closeCreate} disabled={saving}>
-              ✕
-            </button>
+            <CloseButton onClick={closeCreate} disabled={saving} />
           </div>
           <form className="grid td-modal-form" onSubmit={submitCreate} style={{ gap: 12, marginTop: 12 }}>
             <div className="field">

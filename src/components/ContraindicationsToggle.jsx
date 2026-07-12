@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AlertTriangle } from 'lucide-react'
+import { CloseButton } from './CloseButton'
 
 /**
  * @param {'inline' | 'modal'} [mode='inline'] — `modal`: окно поверх интерфейса (как «Тренировки абонемента»)
@@ -35,9 +36,7 @@ export function ContraindicationsToggle({ text, size = 'md', title = 'Проти
           <h3 id={id} style={{ margin: 0 }}>
             {title}
           </h3>
-          <button type="button" className="btn btn-ghost btn-icon-square" aria-label="Закрыть" title="Закрыть" onClick={() => setOpen(false)}>
-            ✕
-          </button>
+          <CloseButton onClick={() => setOpen(false)} />
         </div>
         <p className="contra-modal-text">{t}</p>
         <p className="muted" style={{ margin: '14px 0 0', fontSize: 12 }}>

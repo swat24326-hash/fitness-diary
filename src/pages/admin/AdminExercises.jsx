@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { FileUp, Pencil, RefreshCw, X } from 'lucide-react'
+import { FileUp, Pencil, RefreshCw } from 'lucide-react'
+import { CloseButton } from '../../components/CloseButton'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { listExercises, pullExercisesFromSupabase } from '../../lib/dataAccess'
 import { insertExercise, updateExercise, removeExercise } from '../../lib/exerciseService'
@@ -347,15 +348,7 @@ export function AdminExercises() {
               <h2 id="bulk-ex-title" className="section-title" style={{ margin: 0 }}>
                 Быстрая загрузка
               </h2>
-              <button
-                type="button"
-                className="btn btn-ghost btn-icon-square btn-touch"
-                aria-label="Закрыть"
-                disabled={bulkBusy}
-                onClick={() => setBulkOpen(false)}
-              >
-                <X size={18} aria-hidden />
-              </button>
+              <CloseButton touch disabled={bulkBusy} onClick={() => setBulkOpen(false)} />
             </div>
             <p className="muted" style={{ fontSize: 13, marginTop: 0, lineHeight: 1.5 }}>
               <strong>Формат:</strong> блок из 4 строк с подписями; между упражнениями — пустая строка.

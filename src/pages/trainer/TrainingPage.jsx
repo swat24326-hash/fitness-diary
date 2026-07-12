@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Calendar, ClipboardList, Info, Save } from 'lucide-react'
+import { CloseButton } from '../../components/CloseButton'
 import { TrainingForm, emptyTrainingData } from '../../components/TrainingForm'
 import { ContraindicationsToggle } from '../../components/ContraindicationsToggle'
 import { useAuth } from '../../context/AuthContext'
@@ -743,9 +744,11 @@ export function TrainingPage() {
         <div className="training-completion-hint" role="status">
           <div className="training-completion-hint__head">
             <p className="training-completion-hint__step">{nextCompletionHint}</p>
-            <button type="button" className="btn btn-ghost btn-icon-square training-completion-hint__close" aria-label="Закрыть подсказку" onClick={() => setShowCompletionHints(false)}>
-              ✕
-            </button>
+            <CloseButton
+              className="training-completion-hint__close"
+              label="Закрыть подсказку"
+              onClick={() => setShowCompletionHints(false)}
+            />
           </div>
         </div>
       ) : null}

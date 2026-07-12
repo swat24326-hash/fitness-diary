@@ -12,8 +12,8 @@ import {
   Search,
   Timer,
   Trash2,
-  X,
 } from 'lucide-react'
+import { CloseButton } from './CloseButton'
 import { useAuth } from '../context/AuthContext'
 import { listMemberships } from '../lib/dataAccess'
 import { listTrainingsByClientId } from '../lib/localDbClubQuery'
@@ -186,9 +186,7 @@ function TrainingViewModal({ training, clientName, trainerName, memberships, all
       <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
         <div className="row u-items-start">
           <h2 id="diary-modal-title">Просмотр тренировки · {formatDiaryDate(training.date)}</h2>
-          <button type="button" className="btn btn-ghost" onClick={onClose} aria-label="Закрыть">
-            <X size={20} />
-          </button>
+          <CloseButton onClick={onClose} size={20} />
         </div>
         <p className="muted u-mt-0 u-mb-8">
           {formatDateRu(training.date)} · {training.type ?? '—'} · {trainerName ?? 'Тренер'}

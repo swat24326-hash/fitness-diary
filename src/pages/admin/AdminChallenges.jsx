@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
 import { Plus, RefreshCw, Trash2, Trophy } from 'lucide-react'
+import { CloseButton } from '../../components/CloseButton'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import {
   dispatchLocalDataChanged,
@@ -367,9 +368,7 @@ export function AdminChallenges() {
           <div className="modal challenge-modal" role="dialog" aria-modal="true" aria-labelledby="ch-modal-title">
             <div className="challenge-modal__head">
               <h2 id="ch-modal-title">Новый челлендж</h2>
-              <button type="button" className="btn btn-ghost btn-icon" aria-label="Закрыть" onClick={() => setModal(false)}>
-                ×
-              </button>
+              <CloseButton onClick={() => setModal(false)} />
             </div>
             <form onSubmit={submitCreate} className="challenge-modal__form">
               <label className="field">

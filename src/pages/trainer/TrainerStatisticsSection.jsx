@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Eye, RefreshCw, UserCircle, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Eye, RefreshCw, UserCircle } from 'lucide-react'
+import { CloseButton } from '../../components/CloseButton'
 import { useAuth } from '../../context/AuthContext'
 import { loadAdminHealthCardsByClientIds } from '../../lib/dataAccess'
 import { loadTrainerJournalFiltered } from '../../lib/trainer/trainerJournalService'
@@ -433,9 +434,7 @@ export function TrainerStatisticsSection() {
               <h2 id="trainer-stat-view-title" className="section-title td-section-title" style={{ margin: 0, flex: '1 1 auto' }}>
                 Тренировка {formatDateRu(previewTraining.date)}
               </h2>
-              <button type="button" className="btn btn-ghost btn-icon-square btn-touch" onClick={() => setPreviewTraining(null)} aria-label="Закрыть">
-                <X size={20} aria-hidden />
-              </button>
+              <CloseButton touch onClick={() => setPreviewTraining(null)} size={20} />
             </div>
             <p className="muted" style={{ margin: '0 0 12px', fontSize: 13 }}>
               Клиент: <strong>{clients[previewTraining.client_id]?.name ?? previewTraining.client_id}</strong>{' '}

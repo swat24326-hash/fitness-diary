@@ -56,15 +56,17 @@ export function getHealthCardCompletionIssues(health) {
 }
 
 /**
- * Дата составления: при первом заполнении — из формы или сегодня; иначе сохраняем существующую.
+ * Дата составления: из формы при сохранении; иначе прежняя или сегодня.
  * @param {string | null | undefined} prevFilledAt
  * @param {string | null | undefined} formFilledAt
  * @param {string} todayIso
  */
 export function resolveHealthFilledAtOnSave(prevFilledAt, formFilledAt, todayIso) {
+  const form = parseHealthFilledAt(formFilledAt)
+  if (form) return form
   const prev = parseHealthFilledAt(prevFilledAt)
   if (prev) return prev
-  return parseHealthFilledAt(formFilledAt) ?? todayIso
+  return todayIso
 }
 
 /** Источники единственной базовой точки веса. */
