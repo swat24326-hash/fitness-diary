@@ -36,15 +36,26 @@ function isGoogleVoice(voice) {
   return /google/i.test(String(voice?.name ?? ''))
 }
 
+/** @param {SpeechVoiceLike} voice */
+function isMicrosoftOnlineVoice(voice) {
+  const name = String(voice?.name ?? '').toLowerCase()
+  return isMicrosoftVoice(voice) && (/online/i.test(name) || /neural/i.test(name))
+}
+
+/** @param {SpeechVoiceLike} voice */
+function isMicrosoftDesktopVoice(voice) {
+  return isMicrosoftVoice(voice) && /desktop/i.test(String(voice?.name ?? '').toLowerCase())
+}
+
 /** @param {SpeechVoiceLike[]} voices */
 function sortMicrosoftVoices(voices) {
   return [...voices].sort((a, b) => {
     const score = (v) => {
       const name = String(v?.name ?? '')
       let s = 0
-      if (/online/i.test(name)) s += 30
-      if (/natural/i.test(name)) s += 20
-      if (/desktop/i.test(name)) s += 5
+      if (isMicrosoftDesktopVoice(v)) s += 40
+      if (isMicrosoftOnlineVoice(v)) s -= 30
+      if (/natural/i.test(name)) s += 5
       return s
     }
     return score(b) - score(a)
@@ -240,24 +251,26 @@ function scoreSpeechVoice(voice, gender) {
 
   let score = 0
 
-  if (/microsoft/i.test(name)) score += 35
-  if (/online/i.test(name)) score += 30
-  if (/natural/i.test(name)) score += 20
-  if (/neural/i.test(name)) score += 25
-  if (/desktop/i.test(name)) score += 8
-  if (/google/i.test(name)) score -= 80
+  // Google ru — локально в Edge/Chrome, без VPN (Microsoft Online в РФ часто обрывается).
+  if (isGoogleVoice(voice)) {
+    score += 50
+    if (gender === 'female' && !/male|муж/i.test(lower)) score += 28
+    else if (gender === 'male' && /male|муж/i.test(lower)) score += 12
+  } else if (isMicrosoftDesktopVoice(voice)) score += 44
+  else if (isMicrosoftOnlineVoice(voice)) score -= 55
+  else if (isMicrosoftVoice(voice)) score += 28
 
   if (gender === 'female') {
-    if (/svetlana/i.test(lower)) score += 55
-    if (/irina/i.test(lower)) score += 35
+    if (/svetlana/i.test(lower)) score += 20
+    if (/irina/i.test(lower)) score += 18
     if (/dmitri|dmitry|pavel|yuri|male|муж/i.test(lower)) score -= 80
-    if (/female|жен|milena|katya|anna|elena|olga/i.test(lower)) score += 12
+    if (/female|жен|milena|katya|anna|elena|olga/i.test(lower)) score += 10
   } else {
-    if (/dmitri|dmitry/i.test(lower)) score += 55
-    if (/pavel/i.test(lower)) score += 50
-    if (/yuri/i.test(lower)) score += 20
+    if (/dmitri|dmitry/i.test(lower)) score += 22
+    if (/pavel/i.test(lower)) score += 20
+    if (/yuri/i.test(lower)) score += 12
     if (/svetlana|irina|milena|katya|anna|female|жен|elena|olga/i.test(lower)) score -= 80
-    if (/male|муж/i.test(lower)) score += 12
+    if (/male|муж/i.test(lower)) score += 10
   }
 
   return score
@@ -270,13 +283,10 @@ export function pickGeminiSpeechVoice(gender, voices) {
   const base = pool.length ? pool : list
   if (!base.length) return null
 
-  const hasMicrosoft = base.some((v) => isMicrosoftVoice(v))
-  const candidates = hasMicrosoft ? base.filter((v) => !isGoogleVoice(v)) : base
-
   let best = null
   let bestScore = -Infinity
 
-  for (const voice of candidates) {
+  for (const voice of base) {
     const score = scoreSpeechVoice(voice, normalized)
     if (score > bestScore) {
       bestScore = score
@@ -286,12 +296,8 @@ export function pickGeminiSpeechVoice(gender, voices) {
 
   if (best) return best
 
-  if (hasMicrosoft) {
-    const microsoftOnly = base.filter((v) => isMicrosoftVoice(v))
-    return sortMicrosoftVoices(microsoftOnly)[0] ?? null
-  }
-
-  return base[0] ?? null
+  const microsoftOnly = base.filter((v) => isMicrosoftVoice(v))
+  return sortMicrosoftVoices(microsoftOnly)[0] ?? base[0] ?? null
 }
 
 function bindVoice(utter, gender, voices) {
