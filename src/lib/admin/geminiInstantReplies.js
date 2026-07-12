@@ -17,12 +17,28 @@ import { phrasePlanSnapshotLine } from './iskraReplyPhrasing.js'
 import { formatRub } from './salesReportCore.js'
 import { periodLabelRu } from './geminiAnalyticsSnapshot.js'
 import { iskraReplyHeader, iskraTrainerHeader, joinIskraReply } from './iskraReplyCompact.js'
+import { buildIskraAdviceReply } from './iskraBusinessAdvice.js'
+import { buildIskraAppGuideReply } from './iskraAppGuide.js'
 
-/** @typedef {'intro'|'plan'|'gap'|'compare'|'fitcity'|'finance'|'pnk'|'bestday'|'trainer_inactive'|'payroll_gap'|'sales_coverage'|'sales_structure'|'sales_refunds'|'sales_directions'|'month_forecast'|'trainer_trainings'|'trainer_salary'|'trainer_clients'|'trainer_no_type'|'trainer_rank'|'trainer_summary'} GeminiChipId */
+/** @typedef {'intro'|'advice'|'advice_plan'|'app_guide'|'app_sync'|'app_structure'|'plan'|'gap'|'compare'|'fitcity'|'finance'|'pnk'|'bestday'|'trainer_inactive'|'payroll_gap'|'sales_coverage'|'sales_structure'|'sales_refunds'|'sales_directions'|'month_forecast'|'trainer_trainings'|'trainer_salary'|'trainer_clients'|'trainer_no_type'|'trainer_rank'|'trainer_summary'} GeminiChipId */
 
 /** Все chip-id с мгновенным ответом (в т.ч. без кнопки в UI). */
 export const GEMINI_INSTANT_CHIPS = [
   { ...GEMINI_INTRO_CHIP, quick: true },
+  {
+    id: 'advice',
+    label: 'Что делать',
+    message: 'Что сделать сейчас, чтобы улучшить результат месяца?',
+    compare: false,
+    quick: true,
+  },
+  {
+    id: 'advice_plan',
+    label: 'Как дожать план',
+    message: 'Как дожать план продаж до конца месяца?',
+    compare: false,
+    quick: false,
+  },
   {
     id: 'plan',
     label: 'План продаж',
@@ -64,6 +80,27 @@ export const GEMINI_INSTANT_CHIPS = [
     message: 'Какой прогноз на месяц по выручке, плану и чистой прибыли?',
     compare: false,
     quick: true,
+  },
+  {
+    id: 'app_guide',
+    label: 'Приложение',
+    message: 'Как работать в FIT-CITY: клиенты, тренировки, разделы?',
+    compare: false,
+    quick: false,
+  },
+  {
+    id: 'app_sync',
+    label: 'Sync',
+    message: 'Как синхронизировать данные и что делать офлайн?',
+    compare: false,
+    quick: false,
+  },
+  {
+    id: 'app_structure',
+    label: 'Структура',
+    message: 'Где в админке организация, статистика и настройки?',
+    compare: false,
+    quick: false,
   },
   {
     id: 'sales_coverage',
@@ -297,6 +334,38 @@ export function buildGeminiInstantReply(chipId, opts) {
         gender: opts.gender,
         clubName: snapshot?.club_name,
         periodLabel: snapshot?.period?.label,
+      })
+    case 'advice':
+      return buildIskraAdviceReply(snapshot, {
+        advisorRoleId: opts.advisorRoleId,
+        club,
+        period,
+        focus: 'general',
+      })
+    case 'advice_plan':
+      return buildIskraAdviceReply(snapshot, {
+        advisorRoleId: opts.advisorRoleId,
+        club,
+        period,
+        focus: 'plan',
+      })
+    case 'app_guide':
+      return buildIskraAppGuideReply('general', {
+        club,
+        period,
+        advisorRoleId: opts.advisorRoleId,
+      })
+    case 'app_sync':
+      return buildIskraAppGuideReply('sync', {
+        club,
+        period,
+        advisorRoleId: opts.advisorRoleId,
+      })
+    case 'app_structure':
+      return buildIskraAppGuideReply('structure', {
+        club,
+        period,
+        advisorRoleId: opts.advisorRoleId,
       })
     case 'plan':
       return buildPlanReply(club, period, snapshot, insights, opener, closer, seed)

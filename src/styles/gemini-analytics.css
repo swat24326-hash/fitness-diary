@@ -854,7 +854,397 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
+.app-header__vasya-btn--active {
+  border-color: rgba(46, 255, 184, 0.55);
+  box-shadow:
+    0 0 24px rgba(46, 255, 184, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  animation: iskra-orb-glow 2.4s ease-in-out infinite;
+}
+
+/* —— Компактный док ИСКРЫ (диалог без блокировки страницы) —— */
+.iskra-dock {
+  position: fixed;
+  z-index: 1180;
+  left: 50%;
+  bottom: max(12px, env(safe-area-inset-bottom, 12px));
+  transform: translateX(-50%) translateY(120%);
+  width: min(720px, calc(100vw - 20px));
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    transform 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.28s ease;
+}
+
+.iskra-dock--open {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.iskra-dock__thread {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  max-height: min(38dvh, 280px);
+  overflow-y: auto;
+  padding: 0.55rem 0.65rem;
+  border-radius: 16px;
+  background: rgba(3, 10, 8, 0.88);
+  border: 1px solid rgba(46, 255, 184, 0.16);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.35);
+  animation: iskra-dock-thread-in 0.32s ease both;
+}
+
+.iskra-dock__bubble {
+  padding: 0.45rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  max-width: 92%;
+}
+
+.iskra-dock__bubble p {
+  margin: 0;
+}
+
+.iskra-dock__bubble--assistant {
+  align-self: flex-start;
+  background: rgba(244, 114, 182, 0.12);
+  border: 1px solid rgba(244, 114, 182, 0.2);
+}
+
+.iskra-dock__bubble--user {
+  align-self: flex-end;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.iskra-dock__bubble-name {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #f472b6;
+  margin-bottom: 0.2rem;
+}
+
+.iskra-dock__hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: center;
+  padding: 0 0.25rem;
+  animation: iskra-dock-hints-in 0.4s ease both;
+}
+
+.iskra-dock__hint {
+  border: 1px solid rgba(46, 255, 184, 0.22);
+  background: rgba(8, 32, 24, 0.85);
+  color: inherit;
+  border-radius: 999px;
+  padding: 0.28rem 0.65rem;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.iskra-dock__hint:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: rgba(46, 255, 184, 0.45);
+  background: rgba(46, 255, 184, 0.12);
+}
+
+.iskra-dock__hint--warn {
+  border-color: rgba(251, 191, 36, 0.35);
+}
+
+.iskra-dock__hint--ok {
+  border-color: rgba(46, 255, 184, 0.4);
+}
+
+.iskra-dock__hint--accent {
+  border-color: rgba(244, 114, 182, 0.35);
+}
+
+.iskra-dock__bar {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 18px;
+  background:
+    radial-gradient(ellipse 80% 120% at 0% 50%, rgba(244, 114, 182, 0.12), transparent 55%),
+    linear-gradient(135deg, rgba(8, 28, 22, 0.96), rgba(3, 8, 6, 0.98));
+  border: 1px solid rgba(46, 255, 184, 0.2);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.45),
+    0 0 40px rgba(46, 255, 184, 0.08);
+  backdrop-filter: blur(18px) saturate(160%);
+}
+
+.iskra-dock__orb {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #f472b6;
+  background: rgba(244, 114, 182, 0.15);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.iskra-dock__orb-ring {
+  position: absolute;
+  inset: -4px;
+  border-radius: 18px;
+  border: 1px solid rgba(244, 114, 182, 0.35);
+  animation: iskra-orb-ring 2.8s ease-out infinite;
+  pointer-events: none;
+}
+
+.iskra-dock__orb-ring--2 {
+  animation-delay: 1.4s;
+}
+
+.iskra-dock--listening .iskra-dock__orb,
+.iskra-dock--thinking .iskra-dock__orb {
+  animation: iskra-orb-pulse 1.2s ease-in-out infinite;
+}
+
+.iskra-dock__meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.iskra-dock__title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: rgba(46, 255, 184, 0.9);
+}
+
+.iskra-dock__status {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.82);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.iskra-dock__form {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.iskra-dock__input {
+  flex: 1;
+  min-width: 0;
+  width: min(220px, 28vw);
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.75);
+  color: inherit;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.82rem;
+}
+
+.iskra-dock__input:focus {
+  outline: none;
+  border-color: #f472b6;
+  box-shadow: 0 0 0 3px rgba(244, 114, 182, 0.15);
+}
+
+.iskra-dock__icon-btn,
+.iskra-dock__send {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(15, 23, 42, 0.65);
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.iskra-dock__icon-btn--on,
+.iskra-dock__send {
+  border-color: rgba(244, 114, 182, 0.45);
+  background: rgba(244, 114, 182, 0.15);
+  color: #f472b6;
+}
+
+.iskra-dock__icon-btn--mic {
+  border-color: rgba(239, 68, 68, 0.45);
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  animation: gemini-mic-pulse 1.2s ease-in-out infinite;
+}
+
+.iskra-dock__actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.iskra-dock__error {
+  margin: 0;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.75rem;
+  color: #fca5a5;
+  text-align: center;
+}
+
+.iskra-dock__club {
+  margin: 0;
+  text-align: center;
+  font-size: 0.68rem;
+}
+
+.iskra-dock__typing {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.iskra-dock__typing span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f472b6;
+  animation: gemini-dot 1.2s ease-in-out infinite;
+}
+
+.iskra-dock__typing span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.iskra-dock__typing span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.gemini-panel-backdrop--expanded {
+  background: rgba(2, 6, 23, 0.28);
+  backdrop-filter: blur(3px);
+}
+
+@keyframes iskra-orb-ring {
+  0% {
+    transform: scale(0.92);
+    opacity: 0.7;
+  }
+  70% {
+    transform: scale(1.15);
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes iskra-orb-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(244, 114, 182, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(244, 114, 182, 0);
+  }
+}
+
+@keyframes iskra-orb-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 16px rgba(46, 255, 184, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 26px rgba(46, 255, 184, 0.4);
+  }
+}
+
+@keyframes iskra-dock-thread-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes iskra-dock-hints-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 720px) {
+  .iskra-dock {
+    width: calc(100vw - 12px);
+  }
+
+  .iskra-dock__bar {
+    grid-template-columns: auto 1fr auto;
+    grid-template-rows: auto auto;
+  }
+
+  .iskra-dock__meta {
+    grid-column: 2 / 3;
+  }
+
+  .iskra-dock__form {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .iskra-dock__input {
+    width: 100%;
+  }
+
+  .iskra-dock__actions {
+    grid-column: 3 / 4;
+    grid-row: 1;
+  }
+
+  .iskra-dock__status {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iskra-dock,
+  .iskra-dock__orb-ring,
+  .iskra-dock--listening .iskra-dock__orb,
+  .app-header__vasya-btn--active {
+    animation: none;
+    transition: none;
+  }
+}
+
 .app-header__vasya-btn:disabled {
   opacity: 0.45;
   box-shadow: none;
+  animation: none;
 }

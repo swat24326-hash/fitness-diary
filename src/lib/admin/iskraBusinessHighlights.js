@@ -44,11 +44,37 @@ export function buildIskraBusinessHighlights(snapshot) {
   return parts.slice(0, 2).join(', ')
 }
 
+/** Короткие «рекламные» строки для «Кто ты?» — без цифр месяца (их даёт кнопка «План»). */
+export const ISKRA_INTRO_AD_LINES = [
+  'Бортовая ЭВМ для управляющего: план, прогноз, риски — без паники и без десятка Excel.',
+  'Считаю за вас: дотянем ли месяц, где деньги, кто проседает по залам — спросите, отвечу.',
+  'Не кофе и не чат: советская аналитика FIT-CITY — цифры клуба в двух-трёх фразах.',
+  'Ваш говорящий штаб: план, прогноз, прибыль и тренеры — кнопкой или голосом.',
+  'Работаю от отчётов, не от догадок: подскажу, где дожать план, пока месяц не в архиве.',
+]
+
 /**
- * @param {object | null | undefined} snapshot
+ * @param {number} [seed]
  */
-export function buildIskraIntroPitch(snapshot) {
-  const highlights = buildIskraBusinessHighlights(snapshot)
-  if (!highlights) return 'План, прогноз, прибыль.'
-  return `Сейчас: ${highlights}.`
+export function buildIskraIntroAdPitch(seed = 0) {
+  const pool = ISKRA_INTRO_AD_LINES
+  if (!pool.length) return 'План, прогноз, прибыль — по запросу.'
+  const i = Math.abs(Math.trunc(seed)) % pool.length
+  return pool[i]
+}
+
+/** @param {string} club @param {string} period */
+export function introAdSeed(club, period) {
+  return String(club + period)
+    .split('')
+    .reduce((acc, ch) => acc + ch.charCodeAt(0), 0)
+}
+
+/**
+ * Рекламный питч для «Кто ты?» — без цифр из snapshot.
+ * @param {object | null | undefined} [_snapshot]
+ * @param {number} [seed]
+ */
+export function buildIskraIntroPitch(_snapshot, seed = 0) {
+  return buildIskraIntroAdPitch(seed)
 }

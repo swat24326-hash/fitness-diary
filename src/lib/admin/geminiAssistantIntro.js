@@ -2,8 +2,11 @@
 
 import { ISKRA_FULL_NAME, ISKRA_NAME } from './geminiIskraCore.js'
 import { periodLabelRu } from './geminiAnalyticsSnapshot.js'
-import { phrasePlanProgress } from './iskraReplyPhrasing.js'
-import { buildIskraBusinessHighlights, buildIskraIntroPitch } from './iskraBusinessHighlights.js'
+import {
+  buildIskraIntroAdPitch,
+  introAdSeed,
+} from './iskraBusinessHighlights.js'
+import { joinIskraReply, iskraReplyHeader } from './iskraReplyCompact.js'
 import { isTrainerFocusedQuestion } from './iskraTrainerRouting.js'
 
 export const GEMINI_INTRO_CHIP = {
@@ -73,43 +76,25 @@ function introContext(opts = {}) {
   return { name: ISKRA_NAME, fullName: ISKRA_FULL_NAME, club, period, clubPhrase, hasClub }
 }
 
-function kpiTail(kpi, snapshot) {
-  const highlights = buildIskraBusinessHighlights(snapshot)
-  if (highlights) return ` ${highlights}.`
-
-  if (!kpi) return ''
-  const parts = []
-  const cal = snapshot?.calendar_context
-  if (cal?.month_relation === 'current' && cal.calendar_day) {
-    parts.push(`сегодня ${cal.calendar_day}-е число`)
-  }
-  if (kpi.hasPlan) parts.push(phrasePlanProgress(kpi.planPct))
-  if (!parts.length) return ''
-  return ` Сейчас: ${parts.join(', ')}.`
-}
-
 function missingReportNote(kpi, snapshot) {
   const cal = snapshot?.calendar_context
   if (cal?.month_relation !== 'current') return ''
   const days = Number(kpi?.reportDays) || 0
   if (days > 0) return ''
-  return ' Отчёт за сегодня ещё не внесён — сводка по вчерашним данным.'
+  return ' Отчёт за сегодня ещё не внесён.'
 }
-
-const TRAINER_ON_REQUEST = ' Тренер — по запросу.'
 
 export function buildGeminiIntroReply(kind, opts = {}) {
   const kpi = opts.kpi ?? kpiHintsFromSnapshot(opts.snapshot) ?? null
   const ctx = introContext(opts)
-  const tail = kpiTail(kpi, opts.snapshot)
   const missingReport = missingReportNote(kpi, opts.snapshot)
-  const pitch = buildIskraIntroPitch(opts.snapshot)
+  const adPitch = buildIskraIntroAdPitch(introAdSeed(ctx.club, ctx.period))
 
   switch (kind) {
     case 'micro':
-      return buildMicroIntro(ctx, kpi, tail, missingReport, pitch)
+      return buildMicroIntro(ctx, kpi, missingReport, adPitch)
     case 'capabilities':
-      return buildCapabilitiesIntro(ctx, pitch)
+      return buildCapabilitiesIntro(ctx, adPitch)
     case 'sources':
       return buildSourcesIntro(ctx)
     case 'identity':
@@ -118,73 +103,94 @@ export function buildGeminiIntroReply(kind, opts = {}) {
       return buildDeepIntro(ctx, missingReport)
     case 'standard':
     default:
-      return buildStandardIntro(ctx, tail, missingReport, pitch)
+      return buildStandardIntro(ctx, missingReport, adPitch)
   }
 }
 
-function buildMicroIntro(ctx, kpi, _tail, missingReport, pitch) {
-  const { name, clubPhrase, period, hasClub } = ctx
+function buildMicroIntro(ctx, kpi, missingReport, adPitch) {
+  const { name, period, hasClub } = ctx
 
   if (!hasClub) {
-    return `${name} на связи. Выберите филиал — дам план и прибыль за ${period}.`
+    return joinIskraReply(`${name} на связи.`, `${adPitch} Выберите филиал в шапке.`)
   }
 
   if (kpi && !kpi.hasPlan && (kpi.reportDays || 0) === 0) {
-    return `${name}, ${clubPhrase}, ${period}. Данных мало.${missingReport} На связи.`
+    return joinIskraReply(
+      iskraReplyHeader(ctx.club, period),
+      `Данных мало — начнём с отчётов.${missingReport}`,
+    )
   }
 
-  return `${name}, ${clubPhrase}, ${period}. ${pitch}${missingReport} На связи.`
+  return joinIskraReply(iskraReplyHeader(ctx.club, period), `${adPitch}${missingReport}`)
 }
 
-function buildStandardIntro(ctx, tail, missingReport, pitch) {
-  const { name, clubPhrase, period, hasClub } = ctx
+function buildStandardIntro(ctx, missingReport, adPitch) {
+  const { club, period, hasClub } = ctx
 
   if (!hasClub) {
-    return `${name} на связи. Выберите филиал в шапке — план, прогноз, прибыль.`
+    return joinIskraReply(
+      'ИСКРА на связи.',
+      `${adPitch} Выберите филиал в шапке — цифры по кнопке «План».`,
+    )
   }
 
-  const pitchHasNow = String(pitch).includes('Сейчас:')
-  const kpiSuffix = pitchHasNow ? '' : tail
-
-  return (
-    `${name}, ${clubPhrase}, ${period}. ${pitch}${kpiSuffix}${missingReport} ` +
-    `Спросите или нажмите кнопку.${TRAINER_ON_REQUEST} На связи.`
+  return joinIskraReply(
+    iskraReplyHeader(club, period),
+    `${adPitch}${missingReport} Цифры месяца — кнопка «План».`,
   )
 }
 
-function buildCapabilitiesIntro(ctx, pitch) {
-  const { name, clubPhrase, hasClub } = ctx
-  const scope = hasClub ? clubPhrase : 'филиал'
+function buildCapabilitiesIntro(ctx, adPitch) {
+  const { club, period, hasClub } = ctx
 
-  return `${name}, ${scope}: ${pitch} Кнопки снизу — готовые вопросы.`
+  if (!hasClub) {
+    return joinIskraReply('ИСКРА на связи.', `${adPitch} Выберите филиал.`)
+  }
+
+  return joinIskraReply(iskraReplyHeader(club, period), `${adPitch} Кнопки снизу — готовые вопросы.`)
 }
 
 function buildSourcesIntro(ctx) {
-  const { name, clubPhrase, hasClub } = ctx
-  const who = hasClub ? clubPhrase : 'филиал'
+  const { club, period, hasClub } = ctx
 
-  return (
-    `${name}: цифры ${who} из отчётов менеджера и «Финансы клуба». ` +
-    `Тренеры с планшетов — по запросу.`
+  if (!hasClub) {
+    return joinIskraReply(
+      'ИСКРА на связи.',
+      'Цифры из отчётов менеджера и «Финансы клуба». Тренеры — по запросу.',
+    )
+  }
+
+  return joinIskraReply(
+    iskraReplyHeader(club, period),
+    'Цифры из отчётов менеджера и «Финансы клуба». Тренеры с планшетов — по запросу.',
   )
 }
 
 function buildIdentityIntro(ctx) {
-  const { name, clubPhrase, hasClub } = ctx
-  const scope = hasClub ? `, ${clubPhrase}` : ''
+  const { fullName, club, period, hasClub } = ctx
 
-  return `${name} — ЭВМ FIT-CITY${scope}, не внешний чат. План, прогноз, прибыль из ваших отчётов.`
+  if (!hasClub) {
+    return joinIskraReply(
+      `${fullName} на связи.`,
+      'Встроенная ЭВМ FIT-CITY, не Google и не ChatGPT. План и прогноз — из ваших отчётов.',
+    )
+  }
+
+  return joinIskraReply(
+    iskraReplyHeader(club, period),
+    `${fullName} — бортовая ЭВМ приложения, не внешний чат. Цифры клуба из ваших отчётов.`,
+  )
 }
 
 function buildDeepIntro(ctx, missingReport) {
-  const { name, clubPhrase, period, hasClub } = ctx
+  const { name, club, period, hasClub } = ctx
   if (!hasClub) {
-    return `${name}: выберите филиал — план и финансы за ${period}.`
+    return joinIskraReply(`${name} на связи.`, `Выберите филиал — расскажу про план и прогноз за ${period}.`)
   }
 
-  return (
-    `${name}, ${clubPhrase}, ${period}: план по валу, возвраты в чистую прибыль, ` +
-    `прогноз как «Финансы клуба». Оценки модели — с пометкой «Оценка ИСКРЫ».${missingReport}`
+  return joinIskraReply(
+    iskraReplyHeader(club, period),
+    `План по валу, возвраты в чистую прибыль, прогноз как «Финансы клуба». Оценки модели — с пометкой «Оценка ИСКРЫ».${missingReport}`,
   )
 }
 
@@ -194,10 +200,9 @@ export function buildGeminiMicroIntro(opts = {}) {
 
 export function buildGeminiSelfPresentationRule() {
   return [
-    'Если спрашивают кто ты — представься как ЭВС «ИСКРА», советская ЭВМ FIT-CITY, НЕ Google/Gemini/ChatGPT.',
-    'Продавай пользу: план, прогноз, чистая прибыль, отставание по залам — не перечисление функций.',
-    'Можешь связывать данные и отвечать на открытые вопросы; свои выводы — с пометкой «Оценка ИСКРЫ».',
-    'Не акцентируй число отчётов и расхождение менеджер/планшеты.',
-    'Учитывай calendar_context и club_finance (прогноз как вкладка «Финансы клуба»).',
+    'На «кто ты» — короткая бортовая реклама: чем помогаете управляющему (план, прогноз, риски, залы).',
+    'Без цифр месяца и без повтора кнопки «План» — факты плана только когда спросили про план.',
+    'Представься как ЭВС «ИСКРА», советская ЭВМ FIT-CITY, НЕ Google/Gemini/ChatGPT.',
+    'Свои выводы — с пометкой «Оценка ИСКРЫ»; не акцентируй число отчётов.',
   ].join(' ')
 }

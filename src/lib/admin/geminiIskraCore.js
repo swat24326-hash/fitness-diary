@@ -2,6 +2,7 @@
 
 import { buildIskraAnalysisFocusRule } from './geminiPlanDirections.js'
 import { ISKRA_ESTIMATE_DISCLAIMER_RU } from './iskraDataAvailability.js'
+import { buildIskraAppGuideRule } from './iskraAppGuide.js'
 
 
 
@@ -122,8 +123,9 @@ export function buildIskraSalesFocusRule() {
 export function buildIskraSystemPrompt(clubName, opts = {}) {
   const club = String(clubName ?? '').trim() || 'клуб'
   const append = String(opts.promptAppend ?? '').trim()
+  const advisorRole = opts.advisorRole ?? null
   const focusRule =
-    opts.analysisFocus === 'trainer'
+    opts.analysisFocus === 'trainer' || advisorRole?.analysisFocus === 'trainer'
       ? buildIskraAnalysisFocusRule('trainer')
       : buildIskraSalesFocusRule()
   const lines = [
@@ -175,7 +177,15 @@ export function buildIskraSystemPrompt(clubName, opts = {}) {
     'Для текущего месяца: «норма к дате N%» и «выполнено N%». club_finance — прогноз как «Финансы клуба».',
     'Упоминай дату когда уместно.',
 
-    'На вопросы «кто ты» — представься как ЭВС «ИСКРА», советская ЭВМ FIT-CITY, НЕ Google/Gemini/ChatGPT.',
+    'На вопросы «кто ты» — короткая бортовая реклама для управляющего: чем помогаете (план, прогноз, риски). Без цифр месяца — цифры по кнопке «План» или прямому вопросу про план.',
+
+    advisorRole
+      ? `Роль советника: ${advisorRole.labelRu}. ${advisorRole.personaFocus}`
+      : '',
+
+    advisorRole?.id === 'app_admin' ? buildIskraAppGuideRule() : '',
+
+    'На вопросы про действия («что делать», «как дожать план») — 1–2 конкретных шага из advisor_advice или insights, не общие слова.',
 
     'Ответ: 2–3 предложения, до 50 слов. Факт → вывод. Без markdown. Закончи «На связи.»',
 

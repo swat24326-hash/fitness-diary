@@ -7,6 +7,8 @@ import {
   matchGeminiInstantChip,
   normalizeGeminiChipMessage,
 } from './geminiInstantReplies.js'
+import { mapAppRoleToAdvisorRole } from './iskraAdvisorScope.js'
+import { resolveIskraAdvisorRole, iskraAdvisorFullAccess } from './iskraAdvisorRoles.js'
 
 export const ISKRA_QUICK_CHIP_LIMITS = {
   maxChips: 12,
@@ -42,13 +44,35 @@ export function defaultIskraTrainerQuickChips() {
 
 /**
  * Кнопки панели: клуб/управляющий или фокус на тренере.
- * @param {{ stored?: unknown, trainerId?: string | null }} opts
+ * @param {{ stored?: unknown, trainerId?: string | null, appRole?: string }} opts
  * @returns {IskraQuickChip[]}
  */
 export function resolvePanelQuickChips(opts = {}) {
   const trainerId = String(opts.trainerId ?? '').trim()
   if (trainerId) return defaultIskraTrainerQuickChips()
-  return resolveIskraQuickChips(opts.stored)
+
+  const stored = resolveIskraQuickChips(opts.stored)
+  const appRole = String(opts.appRole ?? '').trim()
+  if (!appRole) return stored
+
+  const role = resolveIskraAdvisorRole(mapAppRoleToAdvisorRole(appRole))
+  if (iskraAdvisorFullAccess(role)) {
+    return stored.length ? stored : defaultIskraQuickChips()
+  }
+  const allowed = new Set(role.defaultChipIds)
+  const filtered = stored.filter((chip) => {
+    const handler = String(chip.handler_id ?? chip.id ?? '').trim()
+    return allowed.has(handler)
+  })
+  if (filtered.length >= 4) return filtered
+
+  const byId = new Map(stored.map((c) => [String(c.handler_id ?? c.id), c]))
+  const merged = []
+  for (const id of role.defaultChipIds) {
+    const chip = byId.get(id) ?? defaultIskraQuickChips().find((c) => (c.handler_id ?? c.id) === id)
+    if (chip && !merged.some((m) => (m.handler_id ?? m.id) === id)) merged.push(chip)
+  }
+  return merged.length ? merged : stored
 }
 
 /** @returns {IskraQuickChip[]} */

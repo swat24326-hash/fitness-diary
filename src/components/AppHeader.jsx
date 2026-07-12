@@ -36,7 +36,16 @@ export function AppHeader() {
   const [online, setOnline] = useState(() => (typeof navigator !== 'undefined' ? isAppOnline() : true))
   const [menuOpen, setMenuOpen] = useState(false)
   const closeMenu = useCallback(() => setMenuOpen(false), [])
-  const { open: geminiOpen, trainerId: geminiTrainerId, trainerName: geminiTrainerName, initialMessage: geminiInitialMessage, openIskra, closeIskra } = useIskraPanel()
+  const {
+    mode: iskraMode,
+    trainerId: geminiTrainerId,
+    trainerName: geminiTrainerName,
+    initialMessage: geminiInitialMessage,
+    openIskra,
+    expandIskra,
+    minimizeIskra,
+    closeIskra,
+  } = useIskraPanel()
   const menuRootRef = useRef(null)
   const [adminClubs, setAdminClubs] = useState([])
   /** Название клуба тренера (adminClubs грузится только на /admin). */
@@ -377,7 +386,7 @@ export function AppHeader() {
         {showAdminClubSelect ? (
           <button
             type="button"
-            className="btn btn-secondary btn-sm app-header__vasya-btn"
+            className={`btn btn-secondary btn-sm app-header__vasya-btn${iskraMode !== 'closed' ? ' app-header__vasya-btn--active' : ''}`}
             disabled={!adminClubValue}
             title={adminClubValue ? 'ЭВС «ИСКРА» — аналитика клуба' : 'Сначала выберите клуб'}
             aria-label={adminClubValue ? 'ЭВС «ИСКРА» — аналитика клуба' : 'Сначала выберите клуб'}
@@ -561,11 +570,13 @@ export function AppHeader() {
       syncBusy={syncBusy}
       onSignOut={doSignOut}
     />
-    {geminiOpen ? (
+    {iskraMode !== 'closed' ? (
       <Suspense fallback={null}>
         <GeminiAnalyticsPanel
-          open={geminiOpen}
+          mode={iskraMode}
           onClose={closeIskra}
+          onExpand={expandIskra}
+          onMinimize={minimizeIskra}
           clubId={adminClubValue}
           clubName={adminClubName}
           selectedTrainerId={geminiTrainerId}

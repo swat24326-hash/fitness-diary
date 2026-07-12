@@ -118,7 +118,9 @@ export async function prefetchGeminiSnapshot(opts, retryOpts = {}) {
  *   completionRetry?: boolean,
  *   completionRetry?: boolean,
  *   selectedTrainerId?: string | null,
+ *   selectedTrainerId?: string | null,
  *   handlerId?: string | null,
+ *   appRole?: string,
  * }} opts
  */
 export async function postGeminiAnalytics(opts) {
@@ -148,6 +150,7 @@ export async function postGeminiAnalytics(opts) {
         completion_retry: opts.completionRetry === true,
         selected_trainer_id: opts.selectedTrainerId ? String(opts.selectedTrainerId).trim() : undefined,
         handler_id: opts.handlerId ? String(opts.handlerId).trim() : undefined,
+        app_role: opts.appRole ? String(opts.appRole).trim() : undefined,
       }),
     },
     GEMINI_REQUEST_TIMEOUT_MS,

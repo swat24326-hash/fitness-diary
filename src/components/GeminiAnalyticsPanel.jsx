@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   CircleHelp,
   Dumbbell,
+  Lightbulb,
   Mic,
   RotateCcw,
   Send,
@@ -17,6 +19,7 @@ import {
   Wallet,
 } from 'lucide-react'
 import { CloseButton } from './CloseButton'
+import { IskraCompactDock } from './IskraCompactDock.jsx'
 import { postGeminiAnalytics, prefetchGeminiSnapshot } from '../lib/admin/geminiAnalyticsService.js'
 import { isGeminiReplyIncomplete, resolveGeminiComparePrevious } from '../lib/admin/geminiAnalyticsPrompt.js'
 import {
@@ -27,6 +30,9 @@ import {
 } from '../lib/admin/iskraQuickChipsCore.js'
 import { buildGeminiMicroIntro } from '../lib/admin/geminiAssistantIntro.js'
 import { ISKRA_FULL_NAME, ISKRA_NAME } from '../lib/admin/geminiIskraCore.js'
+import { mapAppRoleToAdvisorRole } from '../lib/admin/iskraAdvisorScope.js'
+import { resolveIskraAdvisorRole } from '../lib/admin/iskraAdvisorRoles.js'
+import { useAuth } from '../context/AuthContext.jsx'
 import { GeminiContextKpi } from './GeminiContextKpi.jsx'
 import {
   isSpeechRecognitionSupported,
@@ -38,6 +44,7 @@ import {
   stopGeminiSpeech,
 } from '../lib/geminiAnalyticsSpeech.js'
 import { periodLabelRu } from '../lib/admin/geminiAnalyticsSnapshot.js'
+import { buildIskraProactiveHints, pickRotatingHint } from '../lib/admin/iskraProactiveHints.js'
 import '../styles/gemini-analytics.css'
 
 const MONTH_NAMES = [
@@ -59,6 +66,8 @@ const ISKRA_TTS_GENDER = 'female'
 
 const CHIP_ICONS = {
   intro: CircleHelp,
+  advice: Lightbulb,
+  advice_plan: Target,
   plan: Target,
   gap: Sparkles,
   compare: TrendingUp,
@@ -85,8 +94,11 @@ function shiftMonth(year, month, delta) {
 
 /**
  * @param {{
- *   open: boolean,
+ *   open?: boolean,
+ *   mode?: 'closed'|'compact'|'expanded',
  *   onClose: () => void,
+ *   onExpand?: () => void,
+ *   onMinimize?: () => void,
  *   clubId: string,
  *   clubName?: string,
  *   initialYear?: number,
@@ -97,8 +109,11 @@ function shiftMonth(year, month, delta) {
  * }} props
  */
 export function GeminiAnalyticsPanel({
-  open,
+  open: openLegacy,
+  mode: modeProp = 'expanded',
   onClose,
+  onExpand,
+  onMinimize,
   clubId,
   clubName = '',
   initialYear,
@@ -107,6 +122,19 @@ export function GeminiAnalyticsPanel({
   selectedTrainerName = '',
   initialMessage = null,
 }) {
+  const mode =
+    modeProp !== 'closed'
+      ? modeProp
+      : openLegacy
+        ? 'expanded'
+        : 'closed'
+  const isActive = mode === 'compact' || mode === 'expanded'
+
+  const { role: appRole } = useAuth()
+  const advisorRole = useMemo(
+    () => resolveIskraAdvisorRole(mapAppRoleToAdvisorRole(appRole)),
+    [appRole],
+  )
   const now = new Date()
   const [year, setYear] = useState(initialYear ?? now.getFullYear())
   const [month, setMonth] = useState(initialMonth ?? now.getMonth() + 1)
@@ -125,10 +153,13 @@ export function GeminiAnalyticsPanel({
   const [trainers, setTrainers] = useState([])
   const [focusTrainerId, setFocusTrainerId] = useState(null)
   const [entered, setEntered] = useState(false)
-  const [voiceSupported] = useState(() => isSpeechRecognitionSupported())
+  const [dockThreadOpen, setDockThreadOpen] = useState(false)
+  const [hintTick, setHintTick] = useState(0)
+  const voiceSupported = useState(() => isSpeechRecognitionSupported())[0]
   const listRef = useRef(null)
   const recognitionRef = useRef(null)
   const initialMessageSentRef = useRef(false)
+  const prevModeRef = useRef(/** @type {'closed'|'compact'|'expanded'} */ ('closed'))
 
   const settingsHref = clubId ? `/admin/iskra-settings?club=${encodeURIComponent(clubId)}` : '/admin/iskra-settings'
   const activeTrainerId = focusTrainerId || null
@@ -138,8 +169,8 @@ export function GeminiAnalyticsPanel({
     ''
 
   const panelQuickChips = useMemo(
-    () => resolvePanelQuickChips({ stored: quickChips, trainerId: activeTrainerId }),
-    [quickChips, activeTrainerId],
+    () => resolvePanelQuickChips({ stored: quickChips, trainerId: activeTrainerId, appRole }),
+    [quickChips, activeTrainerId, appRole],
   )
 
   const stopListening = useCallback(() => {
@@ -151,8 +182,15 @@ export function GeminiAnalyticsPanel({
   const handleClose = useCallback(() => {
     stopGeminiSpeech()
     stopListening()
+    setDockThreadOpen(false)
     onClose()
   }, [onClose, stopListening])
+
+  const handleMinimize = useCallback(() => {
+    stopListening()
+    setDockThreadOpen(false)
+    onMinimize?.()
+  }, [onMinimize, stopListening])
 
   useEffect(() => {
     return () => {
@@ -162,54 +200,77 @@ export function GeminiAnalyticsPanel({
   }, [stopListening])
 
   useEffect(() => {
-    if (!open) {
+    if (mode === 'closed') {
       setEntered(false)
       return undefined
     }
     const t = requestAnimationFrame(() => setEntered(true))
     return () => cancelAnimationFrame(t)
-  }, [open])
+  }, [mode])
+
+  useEffect(() => {
+    if (mode !== 'compact') return undefined
+    const t = window.setInterval(() => setHintTick((n) => n + 1), 8000)
+    return () => window.clearInterval(t)
+  }, [mode])
 
   useEffect(() => {
     if (initialYear) setYear(initialYear)
     if (initialMonth) setMonth(initialMonth)
-  }, [initialYear, initialMonth, open])
+  }, [initialYear, initialMonth, mode])
 
   useEffect(() => {
-    if (open) {
-      setFocusTrainerId(selectedTrainerId || null)
-      initialMessageSentRef.current = false
-    }
-  }, [open, selectedTrainerId])
+    if (!isActive) return
+    setFocusTrainerId(selectedTrainerId || null)
+  }, [isActive, selectedTrainerId])
 
   useEffect(() => {
-    if (!open) {
+    if (mode === 'closed') {
+      prevModeRef.current = 'closed'
       stopGeminiSpeech()
       stopListening()
       return undefined
     }
-    setError('')
-    setInput('')
-    const focusLine = focusTrainerLabel
-      ? ` Сейчас запрос по тренеру ${focusTrainerLabel} — продажи клуба по-прежнему в отчёте менеджера.`
-      : selectedTrainerId && selectedTrainerName
-        ? ` Сейчас запрос по тренеру ${selectedTrainerName}.`
-        : ''
-    setMessages([
-      {
-        role: 'assistant',
-        content: `${buildGeminiMicroIntro({
-          clubName,
-          periodLabel: periodLabelRu(year, month),
-          gender: ISKRA_TTS_GENDER,
-          hasClub: !!clubId,
-        })}${focusLine}`,
-      },
-    ])
-    return () => {
-      stopListening()
+
+    const justOpened = prevModeRef.current === 'closed'
+    prevModeRef.current = mode
+
+    if (justOpened) {
+      initialMessageSentRef.current = false
+      setError('')
+      setInput('')
+      const focusLine = focusTrainerLabel
+        ? ` Сейчас запрос по тренеру ${focusTrainerLabel} — продажи клуба по-прежнему в отчёте менеджера.`
+        : selectedTrainerId && selectedTrainerName
+          ? ` Сейчас запрос по тренеру ${selectedTrainerName}.`
+          : ''
+      setMessages([
+        {
+          role: 'assistant',
+          content: `${buildGeminiMicroIntro({
+            clubName,
+            periodLabel: periodLabelRu(year, month),
+            gender: ISKRA_TTS_GENDER,
+            hasClub: !!clubId,
+          })}${focusLine}`,
+        },
+      ])
     }
-  }, [open, clubId, year, month, clubName, stopListening, focusTrainerLabel, selectedTrainerId, selectedTrainerName])
+    return () => {
+      if (mode === 'closed') stopListening()
+    }
+  }, [
+    mode,
+    clubId,
+    year,
+    month,
+    clubName,
+    stopListening,
+    focusTrainerLabel,
+    selectedTrainerId,
+    selectedTrainerName,
+    isActive,
+  ])
 
   const reloadKpi = useCallback(async () => {
     if (!clubId) {
@@ -237,7 +298,7 @@ export function GeminiAnalyticsPanel({
   }, [clubId, year, month])
 
   useEffect(() => {
-    if (!open || !clubId) {
+    if (mode === 'closed' || !clubId) {
       setKpi(null)
       setTrainers([])
       setQuickChips(defaultIskraQuickChips())
@@ -266,10 +327,10 @@ export function GeminiAnalyticsPanel({
     return () => {
       cancelled = true
     }
-  }, [open, clubId, year, month])
+  }, [mode, clubId, year, month])
 
   useEffect(() => {
-    if (!open || !clubId) return undefined
+    if (mode === 'closed' || !clubId) return undefined
     let hiddenAt = 0
     const onVis = () => {
       if (document.visibilityState === 'hidden') {
@@ -283,7 +344,7 @@ export function GeminiAnalyticsPanel({
     }
     document.addEventListener('visibilitychange', onVis)
     return () => document.removeEventListener('visibilitychange', onVis)
-  }, [open, clubId, reloadKpi])
+  }, [mode, clubId, reloadKpi])
 
   useEffect(() => {
     if (listRef.current) {
@@ -293,6 +354,28 @@ export function GeminiAnalyticsPanel({
 
   const personaLabel = ISKRA_NAME
   const personaShort = 'И'
+  const proactiveHints = useMemo(
+    () => buildIskraProactiveHints(kpi, { clubName }),
+    [kpi, clubName],
+  )
+  const rotatingHint = useMemo(
+    () => pickRotatingHint(proactiveHints, hintTick),
+    [proactiveHints, hintTick],
+  )
+  const lastAssistantLine = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      if (messages[i].role === 'assistant') return String(messages[i].content ?? '')
+    }
+    return ''
+  }, [messages])
+  const dockStatusLine = listening
+    ? 'Слушаю…'
+    : loading
+      ? 'Думаю…'
+      : lastAssistantLine
+        ? `${lastAssistantLine.slice(0, 80)}${lastAssistantLine.length > 80 ? '…' : ''}`
+        : rotatingHint?.label || 'На связи — спросите или нажмите микрофон'
+
   const panelClass = `gemini-panel gemini-panel--female${entered ? ' gemini-panel--open' : ''}`
 
   useEffect(() => {
@@ -345,6 +428,7 @@ export function GeminiAnalyticsPanel({
           completionRetry: flags.completionRetry,
           selectedTrainerId: activeTrainerId || undefined,
           handlerId,
+          appRole,
         })
 
       try {
@@ -410,7 +494,7 @@ export function GeminiAnalyticsPanel({
         setInput('')
       }
     },
-    [clubId, year, month, chatHistory, loading, stopListening, autoSpeak, rateLimitSec, activeTrainerId],
+    [clubId, year, month, chatHistory, loading, stopListening, autoSpeak, rateLimitSec, activeTrainerId, appRole],
   )
 
   const comparePreviousFromChip = useCallback(
@@ -419,13 +503,13 @@ export function GeminiAnalyticsPanel({
   )
 
   useEffect(() => {
-    if (!open || !clubId || !initialMessage?.trim() || initialMessageSentRef.current) return
+    if (!isActive || !clubId || !initialMessage?.trim() || initialMessageSentRef.current) return
     initialMessageSentRef.current = true
     const timerId = window.setTimeout(() => {
       void sendMessage(initialMessage, false)
     }, 450)
     return () => window.clearTimeout(timerId)
-  }, [open, clubId, initialMessage])
+  }, [isActive, clubId, initialMessage])
 
   const toggleVoiceInput = useCallback(async () => {
     if (!voiceSupported || loading || !clubId) return
@@ -474,10 +558,55 @@ export function GeminiAnalyticsPanel({
     setInput('')
   }, [voiceSupported, loading, clubId, listening, stopListening, sendMessage])
 
-  if (!open) return null
+  if (mode === 'closed') return null
+
+  if (mode === 'compact') {
+    return (
+      <IskraCompactDock
+        entered={entered}
+        listening={listening}
+        loading={loading}
+        clubName={clubName}
+        advisorLabel={advisorRole.labelRu}
+        statusLine={dockStatusLine}
+        proactiveHints={proactiveHints}
+        threadOpen={dockThreadOpen}
+        onToggleThread={() => setDockThreadOpen((v) => !v)}
+        messages={messages}
+        personaLabel={personaLabel}
+        input={input}
+        onInputChange={setInput}
+        onSubmit={() => void sendMessage(input, false)}
+        onMic={toggleVoiceInput}
+        onExpand={() => onExpand?.()}
+        onClose={handleClose}
+        onHintClick={(msg) => {
+          setDockThreadOpen(true)
+          void sendMessage(msg, comparePreviousFromChip(msg))
+        }}
+        voiceSupported={voiceSupported}
+        rateLimitSec={rateLimitSec}
+        error={error}
+        autoSpeak={autoSpeak}
+        onToggleAutoSpeak={() => {
+          setAutoSpeak((on) => {
+            const next = !on
+            saveGeminiAutoSpeak(next)
+            if (next) primeGeminiSpeechPlayback()
+            else stopGeminiSpeech()
+            return next
+          })
+        }}
+      />
+    )
+  }
 
   return (
-    <div className={`gemini-panel-backdrop${entered ? ' gemini-panel-backdrop--open' : ''}`} role="presentation" onClick={handleClose}>
+    <div
+      className={`gemini-panel-backdrop gemini-panel-backdrop--expanded${entered ? ' gemini-panel-backdrop--open' : ''}`}
+      role="presentation"
+      onClick={handleMinimize}
+    >
       <aside
         className={panelClass}
         role="dialog"
@@ -495,10 +624,22 @@ export function GeminiAnalyticsPanel({
             </div>
             <div>
               <h2 className="gemini-panel__title">{ISKRA_FULL_NAME}</h2>
-              <p className="gemini-panel__sub muted">{clubName || 'Выберите клуб в шапке'}</p>
+              <p className="gemini-panel__sub muted">
+                {clubName || 'Выберите клуб в шапке'}
+                {clubName ? ` · ${advisorRole.labelRu}` : ''}
+              </p>
             </div>
           </div>
           <div className="gemini-panel__head-actions">
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm gemini-panel__settings"
+              aria-label="Свернуть в док"
+              title="Свернуть — работайте с вкладками"
+              onClick={handleMinimize}
+            >
+              <ChevronDown size={18} />
+            </button>
             <Link
               to={settingsHref}
               className="btn btn-ghost btn-sm gemini-panel__settings"

@@ -33,7 +33,7 @@ export const GEMINI_GENERATION_CONFIG_RETRY = {
 }
 
 export const GEMINI_RESPONSE_BRIEF_RULE =
-  'Ответ: 2–3 предложения, до 50 слов. Формат: ИСКРА, [клуб], [месяц]. [факт]. [вывод]. На связи. Не про клуб — краткий факт, затем цифры клуба. Без markdown и «ИСКРА — это…».'
+  'Ответ: 2–3 предложения, до 50 слов. «Кто ты» — реклама помощи управляющему, БЕЗ цифр плана. Про план — только цифры из JSON. Формат: ИСКРА, [клуб], [месяц]. [факт]. На связи. Без markdown.'
 
 /** Явный флаг или формулировка вопроса про прошлый месяц / динамику. */
 export function shouldComparePreviousMonth(userMessage) {
@@ -133,6 +133,8 @@ export function buildGeminiPromptDataBlock(snapshot, previousSnapshot = null, op
   const block = {
     analysis_period: current?.period?.label ?? '',
     analysis_focus: analysisFocus,
+    advisor_role_id: opts.advisorRoleId ?? 'app_admin',
+    advisor_advice: opts.advisorAdvice ?? null,
     calendar_context: calendarContext,
     sales_contour: current?.sales_contour ?? null,
     trainer_contour: current?.trainer_contour ?? null,
@@ -181,6 +183,8 @@ export function buildGeminiGeneratePayload(opts) {
   const userMessage = String(opts.userMessage ?? '').trim()
   const dataBlock = buildGeminiPromptDataBlock(opts.snapshot, opts.previousSnapshot, {
     selectedTrainerId: opts.selectedTrainerId,
+    advisorRoleId: opts.advisorRoleId,
+    advisorAdvice: opts.advisorAdvice,
   })
   const periodLabel = dataBlock.analysis_period || 'период не задан'
   const offTopic = isIskraOffTopicQuestion(userMessage)
@@ -190,7 +194,8 @@ export function buildGeminiGeneratePayload(opts) {
     : `Вопрос: ${userMessage}`
   const promptOpts = {
     promptAppend: opts.promptAppend,
-    analysisFocus: opts.selectedTrainerId ? 'trainer' : 'sales',
+    analysisFocus: opts.selectedTrainerId ? 'trainer' : opts.advisorRole?.analysisFocus ?? 'sales',
+    advisorRole: opts.advisorRole ?? null,
   }
   const payloadDataBlock = offTopic ? buildIskraOffTopicDataBlock(clubName) : dataBlock
 

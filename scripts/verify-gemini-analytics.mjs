@@ -69,7 +69,7 @@ import {
   formatRubCompact,
 } from '../src/lib/admin/iskraReplyPhrasing.js'
 import { buildIskraClubFinanceBlock } from '../src/lib/admin/clubFinanceForecastCore.js'
-import { buildIskraIntroPitch } from '../src/lib/admin/iskraBusinessHighlights.js'
+import { buildIskraIntroPitch, ISKRA_INTRO_AD_LINES } from '../src/lib/admin/iskraBusinessHighlights.js'
 import {
   speakCountForSpeech,
   speakYearGenitiveForSpeech,
@@ -192,7 +192,7 @@ ok(noFinance.finance === undefined, 'finance hidden')
 
 ok(GEMINI_ANALYTICS_MODEL === 'gemini-2.5-flash-lite', 'default model lite')
 ok(buildSystemPrompt('male', 'X').includes('50 слов'), 'brief prompt rule')
-ok(buildSystemPrompt('male', 'X').includes('Не про клуб'), 'prompt off-topic rule')
+ok(buildSystemPrompt('male', 'X').includes('НЕ про клуб'), 'prompt off-topic rule')
 ok(!isIskraClubAnalyticsQuestion('Кто такой Путин?'), 'putin not club question')
 ok(isIskraClubAnalyticsQuestion('Как выполнен план продаж'), 'plan is club question')
 ok(buildIskraQuestionReplyHint('Кто такой Путин?', 'Клинцы').includes('краткий прямой ответ'), 'off-topic hint')
@@ -407,7 +407,7 @@ ok(highlights?.best_day?.date === '2026-06-15', 'profit highlights helper')
 const byType = topTrainingsByCardType(rows, membershipTypes, 3)
 ok(byType[0]?.count === 6, 'top trainings by card type')
 
-ok(GEMINI_QUICK_CHIPS.length === 7, 'quick chips include month forecast')
+ok(GEMINI_QUICK_CHIPS.length === 8, 'quick chips include advice and month forecast')
 ok(GEMINI_TRAINER_QUICK_CHIPS.length === 7, 'trainer quick chips count')
 ok(GEMINI_INSTANT_CHIPS.length >= GEMINI_QUICK_CHIPS.length, 'instant chips cover quick chips')
 ok(
@@ -605,14 +605,24 @@ const introClub = buildGeminiIntroReply('standard', {
   clubName: 'FIT-CITY Север',
 })
 ok(introClub.includes('FIT-CITY Север') && introClub.includes('ИСКРА'), 'intro uses club name and iskra')
-ok(introClub.includes('план') || introClub.includes('прогноз'), 'intro business pitch')
-ok(buildIskraIntroPitch(snap).includes('план'), 'intro pitch helper')
+ok(ISKRA_INTRO_AD_LINES.some((line) => introClub.includes(line)), 'intro business pitch')
+ok(!introClub.includes('%'), 'intro no plan pct')
+ok(buildIskraIntroPitch(snap, 0).includes('план'), 'intro pitch helper')
+const introChip = buildGeminiInstantReply('intro', { snapshot: snap, gender: 'male' })
+const planChip = buildGeminiInstantReply('plan', { snapshot: snap, gender: 'male' })
+ok(introChip !== planChip, 'intro differs from plan chip')
+ok(planChip?.includes('%'), 'plan chip has pct')
+ok(!introChip?.includes('Уровень'), 'intro chip no plan level')
 const introOther = buildGeminiIntroReply('standard', {
   snapshot: snap,
   gender: 'female',
   clubName: 'FIT-CITY Юг',
 })
-ok(introOther.includes('FIT-CITY Юг') && (introOther.includes('план') || introOther.includes('прогноз')), 'intro other club business')
+ok(
+  introOther.includes('FIT-CITY Юг') &&
+    ISKRA_INTRO_AD_LINES.some((line) => introOther.includes(line)),
+  'intro other club business',
+)
 const microNoClub = buildGeminiMicroIntro({ hasClub: false, gender: 'male' })
 ok(microNoClub.includes('филиал') || microNoClub.includes('шапке'), 'micro no club hint')
 

@@ -46,7 +46,8 @@ const intro = buildGeminiIntroReply('standard', {
   },
 })
 
-ok(intro.includes('ЭВС «ИСКРА» на связи'), 'single iskra branding')
+ok(intro.includes('ИСКРА') && intro.includes('На связи'), 'intro compact branding')
+ok(intro.includes('кнопка «План»'), 'intro points to plan chip')
 ok(!/ИСКРА на связи\. ЭВС «ИСКРА»/.test(intro), 'no double iskra opener')
 const nowCount = (intro.match(/Сейчас:/g) || []).length
 ok(nowCount <= 1, 'plan line not duplicated')

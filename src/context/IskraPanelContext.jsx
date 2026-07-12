@@ -2,13 +2,15 @@ import { createContext, useCallback, useContext, useMemo, useState } from 'react
 import { useSearchParams } from 'react-router-dom'
 import { stopGeminiSpeech } from '../lib/geminiAnalyticsSpeech.js'
 
-/** @typedef {{ trainerId?: string | null, trainerName?: string, clubId?: string | null, initialMessage?: string | null }} OpenIskraOpts */
+/** @typedef {'closed'|'compact'|'expanded'} IskraPanelMode */
+
+/** @typedef {{ trainerId?: string | null, trainerName?: string, clubId?: string | null, initialMessage?: string | null, mode?: IskraPanelMode }} OpenIskraOpts */
 
 const IskraPanelContext = createContext(null)
 
 export function IskraPanelProvider({ children }) {
   const [searchParams, setSearchParams] = useSearchParams()
-  const [open, setOpen] = useState(false)
+  const [mode, setMode] = useState(/** @type {IskraPanelMode} */ ('closed'))
   const [trainerId, setTrainerId] = useState(null)
   const [trainerName, setTrainerName] = useState('')
   const [initialMessage, setInitialMessage] = useState(null)
@@ -25,14 +27,23 @@ export function IskraPanelProvider({ children }) {
       setTrainerId(opts.trainerId ? String(opts.trainerId).trim() : null)
       setTrainerName(String(opts.trainerName ?? '').trim())
       setInitialMessage(opts.initialMessage ? String(opts.initialMessage).trim() : null)
-      setOpen(true)
+      const nextMode = opts.mode === 'expanded' ? 'expanded' : 'compact'
+      setMode(nextMode)
     },
     [searchParams, setSearchParams],
   )
 
+  const expandIskra = useCallback(() => {
+    setMode((m) => (m === 'closed' ? 'compact' : 'expanded'))
+  }, [])
+
+  const minimizeIskra = useCallback(() => {
+    setMode((m) => (m === 'expanded' ? 'compact' : m))
+  }, [])
+
   const closeIskra = useCallback(() => {
     stopGeminiSpeech()
-    setOpen(false)
+    setMode('closed')
     setTrainerId(null)
     setTrainerName('')
     setInitialMessage(null)
@@ -40,14 +51,17 @@ export function IskraPanelProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      open,
+      mode,
+      open: mode !== 'closed',
       trainerId,
       trainerName,
       initialMessage,
       openIskra,
+      expandIskra,
+      minimizeIskra,
       closeIskra,
     }),
-    [open, trainerId, trainerName, initialMessage, openIskra, closeIskra],
+    [mode, trainerId, trainerName, initialMessage, openIskra, expandIskra, minimizeIskra, closeIskra],
   )
 
   return <IskraPanelContext.Provider value={value}>{children}</IskraPanelContext.Provider>
