@@ -52,6 +52,81 @@ function pluralRu(n, one, few, many) {
   return many
 }
 
+const RU_ONES_M = ['', 'один', 'два', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять']
+const RU_ONES_F = ['', 'одна', 'две', 'три', 'четыре', 'пять', 'шесть', 'семь', 'восемь', 'девять']
+const RU_TEENS = [
+  'десять',
+  'одиннадцать',
+  'двенадцать',
+  'тринадцать',
+  'четырнадцать',
+  'пятнадцать',
+  'шестнадцать',
+  'семнадцать',
+  'восемнадцать',
+  'девятнадцать',
+]
+const RU_TENS = [
+  '',
+  '',
+  'двадцать',
+  'тридцать',
+  'сорок',
+  'пятьдесят',
+  'шестьдесят',
+  'семьдесят',
+  'восемьдесят',
+  'девяносто',
+]
+const RU_HUNDREDS = [
+  '',
+  'сто',
+  'двести',
+  'триста',
+  'четыреста',
+  'пятьсот',
+  'шестьсот',
+  'семьсот',
+  'восемьсот',
+  'девятьсот',
+]
+const RU_DEC_ONES = [
+  'ноль',
+  'одна',
+  'две',
+  'три',
+  'четыре',
+  'пять',
+  'шесть',
+  'семь',
+  'восемь',
+  'девять',
+]
+
+/**
+ * Целое число прописью — TTS иначе читает «221 рубль» с неверным склонением.
+ * @param {number} n
+ * @param {{ feminine?: boolean }} [options]
+ */
+export function integerToRussianWords(n, options = {}) {
+  const feminine = options.feminine === true
+  const num = Math.abs(Math.trunc(Number(n))) % 1000
+  if (!Number.isFinite(num) || num === 0) return ''
+
+  const ones = feminine ? RU_ONES_F : RU_ONES_M
+  const parts = []
+  const hundreds = Math.floor(num / 100)
+  const tens = Math.floor((num % 100) / 10)
+  const units = num % 10
+
+  if (hundreds > 0) parts.push(RU_HUNDREDS[hundreds])
+  if (tens > 1) parts.push(RU_TENS[tens])
+  if (tens === 1) parts.push(RU_TEENS[units])
+  else if (units > 0) parts.push(ones[units])
+
+  return parts.join(' ')
+}
+
 /** @param {number} amount */
 export function speakRubAmountForSpeech(amount) {
   const n = Math.round(Math.abs(Number(amount)))
@@ -63,41 +138,49 @@ export function speakRubAmountForSpeech(amount) {
   const parts = []
 
   if (millions > 0) {
-    parts.push(`${millions} ${pluralRu(millions, 'миллион', 'миллиона', 'миллионов')}`)
+    const words = integerToRussianWords(millions)
+    if (words) {
+      parts.push(`${words} ${pluralRu(millions, 'миллион', 'миллиона', 'миллионов')}`)
+    }
   }
   if (thousands > 0) {
-    parts.push(`${thousands} ${pluralRu(thousands, 'тысяча', 'тысячи', 'тысяч')}`)
+    const words = integerToRussianWords(thousands, { feminine: true })
+    if (words) {
+      parts.push(`${words} ${pluralRu(thousands, 'тысяча', 'тысячи', 'тысяч')}`)
+    }
   }
   if (units > 0) {
-    parts.push(`${units} ${pluralRu(units, 'рубль', 'рубля', 'рублей')}`)
-  } else if (!parts.length) {
-    return 'ноль рублей'
-  } else {
-    parts.push('рублей')
+    const words = integerToRussianWords(units)
+    if (words) parts.push(words)
   }
 
-  return parts.join(' ')
+  if (!parts.length) return 'ноль рублей'
+  return `${parts.join(' ')} ${pluralRu(n, 'рубль', 'рубля', 'рублей')}`
 }
 
 /** @param {string|number} raw */
 export function speakPercentForSpeech(raw) {
   const n = parseFloat(String(raw).replace(',', '.'))
-  if (!Number.isFinite(n)) return '0 процентов'
+  if (!Number.isFinite(n)) return 'ноль процентов'
   const int = Math.floor(Math.abs(n))
   const dec = Math.round((Math.abs(n) - int) * 10)
-  if (dec === 0) return `${int} ${pluralRu(int, 'процент', 'процента', 'процентов')}`
-  return `${int} целых ${dec} десятых процента`
+  const intWords = integerToRussianWords(int) || 'ноль'
+  if (dec === 0) {
+    return `${intWords} ${pluralRu(int, 'процент', 'процента', 'процентов')}`
+  }
+  return `${intWords} целых ${RU_DEC_ONES[dec]} десятых процента`
 }
 
 function speakMillionRubles(raw) {
   const n = parseFloat(String(raw).replace(',', '.'))
-  if (!Number.isFinite(n)) return 'миллион рублей'
+  if (!Number.isFinite(n)) return 'один миллион рублей'
   const int = Math.floor(n)
   const dec = Math.round((n - int) * 10)
+  const intWords = integerToRussianWords(int) || 'ноль'
   if (dec === 0) {
-    return `${int} ${pluralRu(int, 'миллион', 'миллиона', 'миллионов')} рублей`
+    return `${intWords} ${pluralRu(int, 'миллион', 'миллиона', 'миллионов')} рублей`
   }
-  return `${int} целых ${dec} десятых миллиона рублей`
+  return `${intWords} целых ${RU_DEC_ONES[dec]} десятых миллиона рублей`
 }
 
 /**
@@ -115,6 +198,10 @@ export function prepareNumbersForSpeech(text) {
   s = s.replace(/(\d[\d\s]*)\s*₽/g, (_, raw) => {
     const n = parseInt(String(raw).replace(/\s/g, ''), 10)
     return Number.isFinite(n) ? speakRubAmountForSpeech(n) : `${String(raw).trim()} рублей`
+  })
+  s = s.replace(/(\d[\d\s]*)\s+рубл(?:ь|я|ей)(?=[\s,.!?;:]|$)/gi, (_, raw) => {
+    const n = parseInt(String(raw).replace(/\s/g, ''), 10)
+    return Number.isFinite(n) ? speakRubAmountForSpeech(n) : String(raw).trim()
   })
   s = s.replace(/(\d+(?:[.,]\d+)?)\s*%/g, (_, raw) => speakPercentForSpeech(raw))
   s = s.replace(

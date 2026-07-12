@@ -65,6 +65,7 @@ import {
   expandAbbreviationsForSpeech,
   speakRubAmountForSpeech,
   speakPercentForSpeech,
+  integerToRussianWords,
   formatRubCompact,
 } from '../src/lib/admin/iskraReplyPhrasing.js'
 import { buildIskraClubFinanceBlock } from '../src/lib/admin/clubFinanceForecastCore.js'
@@ -277,7 +278,13 @@ ok(phrasePlanProgress(29.2) === 'план 29,2%', 'phrase plan progress')
 ok(phrasePlanSnapshotLine(33.4, 424611, 1300000).includes('1,3 млн ₽'), 'plan snapshot compact plan rub')
 ok(formatRubCompact(1300000) === '1,3 млн ₽', 'rub compact millions')
 ok(speakRubAmountForSpeech(424611).includes('тысяч'), 'speech rub thousands')
-ok(speakPercentForSpeech('33,4').includes('целых'), 'speech percent decimal')
+ok(speakRubAmountForSpeech(221).includes('двести двадцать один рубль'), 'speech rub 221 singular')
+ok(speakRubAmountForSpeech(222).includes('двести двадцать два рубля'), 'speech rub 222 genitive')
+ok(speakRubAmountForSpeech(220).includes('двести двадцать рублей'), 'speech rub 220 plural')
+ok(!/\d/.test(speakRubAmountForSpeech(424611)), 'speech rub no digits')
+ok(prepareTextForSpeech('осталось 222 рубля').includes('два рубля'), 'speech fixes rubles in text')
+ok(integerToRussianWords(33) === 'тридцать три', 'speech int words')
+ok(speakPercentForSpeech('33,4').includes('тридцать три'), 'speech percent int words')
 ok(polishIskraReplyText('план 29.2%').includes('план 29.2%'), 'polish keeps compact plan pct')
 
 const paceLine = formatPlanPaceLine(midMonth, 29.2, 'on_track')
