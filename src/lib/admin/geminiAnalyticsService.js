@@ -70,12 +70,15 @@ export async function prefetchGeminiSnapshot(opts, retryOpts = {}) {
         GEMINI_REQUEST_TIMEOUT_MS,
       )
       const data = await parseJsonResponse(res)
-      if (res.ok && data?.kpi) {
+      if (data.ok && data?.kpi) {
         return {
           ok: true,
           kpi: data.kpi,
           trainers: Array.isArray(data.trainers) ? data.trainers : [],
           quickChips: data.quick_chips ?? null,
+          sparkBrief: data.spark_brief ?? null,
+          sparkBriefEnabled: data.spark_brief_enabled !== false,
+          insightCards: Array.isArray(data.insight_cards) ? data.insight_cards : [],
         }
       }
       lastError =

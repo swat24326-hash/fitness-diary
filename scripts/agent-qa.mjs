@@ -65,6 +65,7 @@ run('gemini trainer contour', 'node', ['scripts/verify-gemini-trainer-contour.mj
 run('iskra trainer routing', 'node', ['scripts/verify-iskra-trainer-routing.mjs'])
 run('iskra advisor', 'node', ['scripts/verify-iskra-advisor.mjs'])
 run('iskra learning', 'node', ['scripts/verify-iskra-learning.mjs'])
+run('iskra north star', 'node', ['scripts/verify-iskra-north-star.mjs'])
 run('stats agg parity', 'node', ['scripts/verify-stats-agg-parity.mjs'])
 run('challenge max reps', 'node', ['scripts/verify-challenge-max-reps.mjs'])
 run('membership stats refresh', 'node', ['scripts/verify-membership-stats-refresh.mjs'])

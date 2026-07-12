@@ -98,6 +98,12 @@ export async function saveIskraSettings(clubId, payload = {}) {
 
   }
 
+  if (Object.prototype.hasOwnProperty.call(payload, 'sparkBriefEnabled')) {
+
+    body.spark_brief_enabled = payload.sparkBriefEnabled !== false
+
+  }
+
 
 
   if (payload.resetQuickChips === true) {

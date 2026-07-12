@@ -52,3 +52,5 @@ iskraAdvisorPipeline.js   — оркестратор
 `node scripts/verify-iskra-advisor.mjs`
 
 Самообучение: [ISKRA_SELF_LEARNING.md](./ISKRA_SELF_LEARNING.md), `node scripts/verify-iskra-learning.mjs`
+
+North Star (максимум бизнес + вау): [ISKRA_NORTH_STAR.md](./ISKRA_NORTH_STAR.md)

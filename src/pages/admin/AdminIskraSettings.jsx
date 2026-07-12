@@ -140,6 +140,10 @@ export function AdminIskraSettings() {
 
   const [chipsCustom, setChipsCustom] = useState(false)
 
+  const [sparkBriefEnabled, setSparkBriefEnabled] = useState(true)
+
+  const [savedSparkBriefEnabled, setSavedSparkBriefEnabled] = useState(true)
+
   const [loading, setLoading] = useState(true)
 
   const [saving, setSaving] = useState(false)
@@ -220,6 +224,10 @@ export function AdminIskraSettings() {
 
       setChipsCustom(data?.quick_chips_custom === true)
 
+      setSparkBriefEnabled(data?.spark_brief_enabled !== false)
+
+      setSavedSparkBriefEnabled(data?.spark_brief_enabled !== false)
+
       setDefaultPreview(String(data?.default_prompt_preview ?? ''))
 
       if (data?.club_name) setClubName(data.club_name)
@@ -264,6 +272,8 @@ export function AdminIskraSettings() {
 
         quickChips,
 
+        sparkBriefEnabled,
+
       })
 
       const chips = cloneChips(data?.quick_chips ?? quickChips)
@@ -275,6 +285,10 @@ export function AdminIskraSettings() {
       setQuickChips(chips)
 
       setChipsCustom(data?.quick_chips_custom === true)
+
+      setSparkBriefEnabled(data?.spark_brief_enabled !== false)
+
+      setSavedSparkBriefEnabled(data?.spark_brief_enabled !== false)
 
       setMsg('Сохранено')
 
@@ -382,7 +396,10 @@ export function AdminIskraSettings() {
 
 
 
-  const dirty = promptAppend !== savedAppend || !chipsEqual(quickChips, savedQuickChips)
+  const dirty =
+    promptAppend !== savedAppend ||
+    !chipsEqual(quickChips, savedQuickChips) ||
+    sparkBriefEnabled !== savedSparkBriefEnabled
 
 
 
@@ -433,6 +450,40 @@ export function AdminIskraSettings() {
       ) : null}
 
       {msg ? <p className="admin-iskra-settings__ok">{msg}</p> : null}
+
+
+
+      <section className="card admin-iskra-settings__section">
+
+        <h2 className="section-title">Утренний бриф SparkBrief</h2>
+
+        <p className="muted" style={{ fontSize: 14, marginTop: 0 }}>
+
+          Короткая сводка при открытии ИСКРЫ: план, главный риск и кнопка «Сделать». Можно скрыть на сегодня — бриф
+
+          вернётся в следующем месяце.
+
+        </p>
+
+        <label className="admin-iskra-settings__check">
+
+          <input
+
+            type="checkbox"
+
+            checked={sparkBriefEnabled}
+
+            onChange={(e) => setSparkBriefEnabled(e.target.checked)}
+
+            disabled={!clubId || saving || loading}
+
+          />
+
+          Показывать SparkBrief при открытии ИСКРЫ
+
+        </label>
+
+      </section>
 
 
 

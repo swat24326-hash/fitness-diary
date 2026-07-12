@@ -46,6 +46,8 @@ import {
 import { loadClubLearningBundle } from './iskraLearningHandler.js'
 import { periodLabelRu, trimChatHistory } from '../../src/lib/admin/geminiAnalyticsSnapshot.js'
 import { buildPanelKpiFromAnalytics } from '../../src/lib/admin/clubMonthAnalyticsCore.js'
+import { buildEnrichedIskraAdviceCards } from '../../src/lib/admin/iskraActionImpactCore.js'
+import { buildIskraSparkBrief } from '../../src/lib/admin/iskraSparkBriefCore.js'
 
 const rateLimitMs = 12000
 const lastByUser = new Map()
@@ -135,12 +137,21 @@ export async function handleGeminiAnalyticsPrefetchGet(ctx, req, res) {
       {},
     )
     let quickChips = null
+    let sparkBriefEnabled = true
     try {
       const settings = await loadClubIskraSettings(ctx.supabaseAdmin, parsed.clubId)
       quickChips = settings.quick_chips
+      sparkBriefEnabled = settings.spark_brief_enabled !== false
     } catch {
       quickChips = null
+      sparkBriefEnabled = true
     }
+    const kpi = buildPanelKpiFromAnalytics(snapshot)
+    const insightCards = buildEnrichedIskraAdviceCards(snapshot, { advisorRoleId: 'app_admin', limit: 3 })
+    const sparkBrief = buildIskraSparkBrief(snapshot, {
+      advisorRoleId: 'app_admin',
+      clubName: snapshot.club_name,
+    })
     sendJson(res, 200, {
       ok: true,
       warmed: true,
@@ -148,7 +159,22 @@ export async function handleGeminiAnalyticsPrefetchGet(ctx, req, res) {
       year: parsed.year,
       month: parsed.month,
       period: snapshot.period?.label ?? periodLabelRu(parsed.year, parsed.month),
-      kpi: buildPanelKpiFromAnalytics(snapshot),
+      kpi,
+      spark_brief: sparkBrief,
+      spark_brief_enabled: sparkBriefEnabled,
+      insight_cards: insightCards.map((c) => ({
+        id: c.id,
+        headline: c.headline,
+        action: c.action,
+        evidence: c.evidence,
+        impactRub: c.impactRub,
+        impactLabel: c.impactLabel,
+        doHandlerId: c.doHandlerId,
+        doMessage: c.doMessage,
+        doLabel: c.doLabel,
+        tone: c.tone,
+        priority: c.priority,
+      })),
       trainers: (snapshot.trainer_contour?.trainers ?? []).map((t) => ({
         trainer_id: t.trainer_id,
         trainer_name: t.trainer_name,

@@ -30,7 +30,7 @@ export async function loadClubIskraSettings(supabaseAdmin, clubId) {
 
     .from('club_iskra_settings')
 
-    .select('prompt_append, quick_chips, updated_at')
+    .select('prompt_append, quick_chips, spark_brief_enabled, updated_at')
 
     .eq('club_id', clubId)
 
@@ -43,6 +43,8 @@ export async function loadClubIskraSettings(supabaseAdmin, clubId) {
     prompt_append: String(data?.prompt_append ?? '').trim(),
 
     quick_chips: data?.quick_chips ?? null,
+
+    spark_brief_enabled: data?.spark_brief_enabled !== false,
 
     updated_at: data?.updated_at ?? null,
 
@@ -109,6 +111,8 @@ export async function handleIskraSettingsGet(ctx, req, res) {
       default_quick_chips: defaultIskraQuickChips(),
 
       updated_at: settings.updated_at,
+
+      spark_brief_enabled: settings.spark_brief_enabled,
 
       default_prompt_preview: buildIskraSystemPrompt(clubName || 'клуб'),
 
@@ -194,9 +198,19 @@ export async function handleIskraSettingsPost(ctx, res, body) {
 
       club_id: clubId,
 
-      prompt_append: promptAppend,
+      prompt_append: Object.prototype.hasOwnProperty.call(body ?? {}, 'prompt_append')
+
+        ? promptAppend
+
+        : existing.prompt_append,
 
       updated_at: new Date().toISOString(),
+
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body ?? {}, 'spark_brief_enabled')) {
+
+      row.spark_brief_enabled = body.spark_brief_enabled !== false
 
     }
 
@@ -218,7 +232,7 @@ export async function handleIskraSettingsPost(ctx, res, body) {
 
       .upsert(row, { onConflict: 'club_id' })
 
-      .select('prompt_append, quick_chips, updated_at')
+      .select('prompt_append, quick_chips, spark_brief_enabled, updated_at')
 
       .maybeSingle()
 
@@ -239,6 +253,8 @@ export async function handleIskraSettingsPost(ctx, res, body) {
       quick_chips: resolved,
 
       quick_chips_custom: data?.quick_chips != null,
+
+      spark_brief_enabled: data?.spark_brief_enabled !== false,
 
       updated_at: data?.updated_at ?? null,
 

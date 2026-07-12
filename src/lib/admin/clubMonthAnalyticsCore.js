@@ -543,14 +543,23 @@ export function buildPanelKpiFromAnalytics(analytics) {
   const planTotal = Number(sales.plan_total) || 0
   const planPct = Number(sales.plan_progress_pct) || 0
   const pzTrainings = Number(sales.pz_trainings_from_manager_reports) || 0
+  const reportDays = Number(report.days_with_reports) || 0
+  const daysInMonth = Number(report.days_in_month) || 0
+  const forecastPct = Number(analytics.club_finance?.forecast?.plan_pct) || null
 
   return {
     profitTotal,
     planTotal,
     planPct,
+    plan_progress_pct: planPct,
     planFillPercent: Math.min(100, Math.max(0, planPct)),
     pzTrainings,
-    reportsLabel: `${Number(report.days_with_reports) || 0}/${Number(report.days_in_month) || 0}`,
+    reportsLabel: `${reportDays}/${daysInMonth || 0}`,
+    report_days: reportDays,
+    days_in_month: daysInMonth,
     hasPlan: planTotal > 0,
+    forecast_pct: forecastPct,
+    plan_tone:
+      planPct >= 85 ? 'ok' : planPct >= 45 ? 'neutral' : planPct > 0 ? 'warn' : 'neutral',
   }
 }

@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Dumbbell, FileBarChart, Target, Wallet } from 'lucide-react'
+import { Dumbbell, FileBarChart, Wallet } from 'lucide-react'
 import { formatRub } from '../lib/admin/salesReportCore.js'
 import { buildGeminiPanelKpi, buildGeminiPanelKpiFromSnapshot } from '../lib/admin/geminiPanelKpi.js'
+import { buildMonthRiverDays } from '../lib/admin/iskraSparkBriefCore.js'
+import { IskraPlanArc } from './iskra/IskraPlanArc.jsx'
+import { IskraMonthRiver } from './iskra/IskraMonthRiver.jsx'
 
 /**
  * @param {{
@@ -20,6 +23,8 @@ export function GeminiContextKpi({ kpi: kpiProp, analytics, bundle, year, month,
     if (bundle) return buildGeminiPanelKpi(bundle, year, month)
     return null
   }, [kpiProp, analytics, bundle, year, month])
+
+  const river = useMemo(() => (kpi ? buildMonthRiverDays(kpi) : null), [kpi])
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -40,39 +45,42 @@ export function GeminiContextKpi({ kpi: kpiProp, analytics, bundle, year, month,
 
   if (!kpi) return null
 
+  const planTone = kpi.plan_tone ?? (kpi.planPct >= 85 ? 'ok' : kpi.planPct >= 45 ? 'neutral' : 'warn')
+
   return (
-    <div className="gemini-panel__kpi" aria-label="Ключевые показатели месяца">
-      <div className="gemini-panel__kpi-plan">
-        <div className="gemini-panel__kpi-plan-head">
-          <Target size={14} aria-hidden />
-          <span>План</span>
-          <strong>{kpi.hasPlan ? `${kpi.planPct}%` : '—'}</strong>
-        </div>
-        <div className="gemini-panel__kpi-track" aria-hidden>
-          <div
-            className={`gemini-panel__kpi-fill${mounted ? ' gemini-panel__kpi-fill--ready' : ''}`}
-            style={{ width: mounted ? `${kpi.planFillPercent}%` : '0%' }}
-          />
+    <div className="gemini-panel__kpi iskra-kpi-hero" aria-label="Ключевые показатели месяца">
+      <div className="iskra-kpi-hero__top">
+        <IskraPlanArc planPct={kpi.planPct} hasPlan={kpi.hasPlan} tone={planTone} size={96} />
+        <div className="iskra-kpi-hero__stats">
+          <div className="gemini-panel__kpi-card iskra-kpi-hero__stat">
+            <Wallet size={15} aria-hidden />
+            <span className="gemini-panel__kpi-label">Продажи</span>
+            <strong>{formatRub(kpi.profitTotal)}</strong>
+          </div>
+          <div className="gemini-panel__kpi-card iskra-kpi-hero__stat">
+            <Dumbbell size={15} aria-hidden />
+            <span className="gemini-panel__kpi-label">Трен. ПЗ</span>
+            <strong title="Тренировки персонального зала из отчётов менеджера за месяц">{kpi.pzTrainings}</strong>
+          </div>
+          <div className="gemini-panel__kpi-card iskra-kpi-hero__stat">
+            <FileBarChart size={15} aria-hidden />
+            <span className="gemini-panel__kpi-label">Дни отчёта</span>
+            <strong>{kpi.reportsLabel}</strong>
+          </div>
         </div>
       </div>
 
-      <div className="gemini-panel__kpi-grid">
-        <div className="gemini-panel__kpi-card">
-          <Wallet size={15} aria-hidden />
-          <span className="gemini-panel__kpi-label">Продажи</span>
-          <strong>{formatRub(kpi.profitTotal)}</strong>
-        </div>
-        <div className="gemini-panel__kpi-card">
-          <Dumbbell size={15} aria-hidden />
-          <span className="gemini-panel__kpi-label">Трен. ПЗ</span>
-          <strong title="Тренировки персонального зала из отчётов менеджера за месяц">{kpi.pzTrainings}</strong>
-        </div>
-        <div className="gemini-panel__kpi-card">
-          <FileBarChart size={15} aria-hidden />
-          <span className="gemini-panel__kpi-label">Дни отчёта</span>
-          <strong>{kpi.reportsLabel}</strong>
-        </div>
+      <div
+        className={`gemini-panel__kpi-track iskra-kpi-hero__bar${mounted ? ' gemini-panel__kpi-fill--ready' : ''}`}
+        aria-hidden
+      >
+        <div
+          className={`gemini-panel__kpi-fill${mounted ? ' gemini-panel__kpi-fill--ready' : ''}`}
+          style={{ width: mounted ? `${kpi.planFillPercent}%` : '0%' }}
+        />
       </div>
+
+      <IskraMonthRiver river={river} />
     </div>
   )
 }

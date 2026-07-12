@@ -56,7 +56,31 @@ import {
   recordIskraLearningFeedback,
 } from '../lib/admin/iskraLearningService.js'
 import { deriveReplySignalKey } from '../lib/admin/iskraLearningCore.js'
+import { IskraInsightCards } from './iskra/IskraInsightCards.jsx'
+import { IskraSparkBrief } from './iskra/IskraSparkBrief.jsx'
 import '../styles/gemini-analytics.css'
+
+function sparkDismissStorageKey(clubId, year, month) {
+  return `fitness-diary-iskra-spark-dismiss-${clubId}-${year}-${month}`
+}
+
+function readSparkDismissed(clubId, year, month) {
+  if (typeof localStorage === 'undefined') return false
+  try {
+    return localStorage.getItem(sparkDismissStorageKey(clubId, year, month)) === '1'
+  } catch {
+    return false
+  }
+}
+
+function writeSparkDismissed(clubId, year, month) {
+  if (typeof localStorage === 'undefined') return
+  try {
+    localStorage.setItem(sparkDismissStorageKey(clubId, year, month), '1')
+  } catch {
+    /* ignore */
+  }
+}
 
 const MONTH_NAMES = [
   'январь',
@@ -168,6 +192,10 @@ export function GeminiAnalyticsPanel({
   const [hintTick, setHintTick] = useState(0)
   const [learningTick, setLearningTick] = useState(0)
   const [feedbackByMsg, setFeedbackByMsg] = useState(() => ({}))
+  const [sparkBrief, setSparkBrief] = useState(null)
+  const [insightCards, setInsightCards] = useState([])
+  const [sparkBriefEnabled, setSparkBriefEnabled] = useState(true)
+  const [sparkBriefDismissed, setSparkBriefDismissed] = useState(false)
   const voiceSupported = useState(() => isSpeechRecognitionSupported())[0]
   const listRef = useRef(null)
   const recognitionRef = useRef(null)
@@ -285,30 +313,49 @@ export function GeminiAnalyticsPanel({
     isActive,
   ])
 
+  useEffect(() => {
+    if (!clubId) {
+      setSparkBriefDismissed(false)
+      return
+    }
+    setSparkBriefDismissed(readSparkDismissed(clubId, year, month))
+  }, [clubId, year, month, mode])
+
+  const applyPrefetchPayload = useCallback((data) => {
+    if (!data?.ok) return false
+    setKpi(data.kpi ?? null)
+    setTrainers(Array.isArray(data.trainers) ? data.trainers : [])
+    setQuickChips(resolveIskraQuickChips(data.quickChips))
+    setSparkBrief(data.sparkBrief ?? null)
+    setInsightCards(Array.isArray(data.insightCards) ? data.insightCards : [])
+    setSparkBriefEnabled(data.sparkBriefEnabled !== false)
+    setKpiLoadError('')
+    return true
+  }, [])
+
   const reloadKpi = useCallback(async () => {
     if (!clubId) {
       setKpi(null)
       setTrainers([])
       setQuickChips(defaultIskraQuickChips())
+      setSparkBrief(null)
+      setInsightCards([])
       setKpiLoadError('')
       return
     }
     setKpiLoading(true)
     setKpiLoadError('')
     const data = await prefetchGeminiSnapshot({ clubId, year, month })
-    if (data.ok) {
-      setKpi(data.kpi ?? null)
-      setTrainers(Array.isArray(data.trainers) ? data.trainers : [])
-      setQuickChips(resolveIskraQuickChips(data.quickChips))
-      setKpiLoadError('')
-    } else {
+    if (!applyPrefetchPayload(data)) {
       setKpi(null)
       setTrainers([])
       setQuickChips(defaultIskraQuickChips())
+      setSparkBrief(null)
+      setInsightCards([])
       setKpiLoadError(data.error || 'Не удалось загрузить данные')
     }
     setKpiLoading(false)
-  }, [clubId, year, month])
+  }, [clubId, year, month, applyPrefetchPayload])
 
   useEffect(() => {
     if (mode === 'closed' || !clubId) {
@@ -324,15 +371,12 @@ export function GeminiAnalyticsPanel({
       setKpiLoadError('')
       const data = await prefetchGeminiSnapshot({ clubId, year, month })
       if (cancelled) return
-      if (data.ok) {
-        setKpi(data.kpi ?? null)
-        setTrainers(Array.isArray(data.trainers) ? data.trainers : [])
-        setQuickChips(resolveIskraQuickChips(data.quickChips))
-        setKpiLoadError('')
-      } else {
+      if (!applyPrefetchPayload(data)) {
         setKpi(null)
         setTrainers([])
         setQuickChips(defaultIskraQuickChips())
+        setSparkBrief(null)
+        setInsightCards([])
         setKpiLoadError(data.error || 'Не удалось загрузить данные')
       }
       setKpiLoading(false)
@@ -340,7 +384,7 @@ export function GeminiAnalyticsPanel({
     return () => {
       cancelled = true
     }
-  }, [mode, clubId, year, month])
+  }, [mode, clubId, year, month, applyPrefetchPayload])
 
   useEffect(() => {
     if (mode === 'closed' || !clubId) return undefined
@@ -577,6 +621,39 @@ export function GeminiAnalyticsPanel({
     [messages, feedbackByMsg, recordLearning],
   )
 
+  const showSparkBrief = sparkBriefEnabled && sparkBrief && !sparkBriefDismissed && !kpiLoading
+
+  const dismissSparkBrief = useCallback(() => {
+    if (clubId) writeSparkDismissed(clubId, year, month)
+    setSparkBriefDismissed(true)
+  }, [clubId, year, month])
+
+  const runInsightAction = useCallback(
+    (card) => {
+      if (!card) return
+      const message = String(card.doMessage ?? card.message ?? '').trim()
+      const handlerId = card.doHandlerId ?? card.handler_id ?? card.handlerId
+      if (!message) return
+      recordLearning({
+        eventType: 'chip_click',
+        handlerId,
+        userMessage: message,
+        meta: { source: 'insight_card', card_id: card.id },
+      })
+      void sendMessage(message, false, { handlerId })
+    },
+    [sendMessage, recordLearning],
+  )
+
+  const runSparkCta = useCallback(() => {
+    if (!sparkBrief?.cta) return
+    runInsightAction({
+      id: sparkBrief.cta.cardId,
+      doMessage: sparkBrief.cta.message,
+      doHandlerId: sparkBrief.cta.handlerId,
+    })
+  }, [sparkBrief, runInsightAction])
+
   const comparePreviousFromChip = useCallback(
     (userText) => comparePreviousFromQuickChips(panelQuickChips, userText),
     [panelQuickChips],
@@ -642,7 +719,17 @@ export function GeminiAnalyticsPanel({
 
   if (mode === 'compact') {
     return (
-      <IskraCompactDock
+      <div className="iskra-compact-stack">
+        {showSparkBrief ? (
+          <IskraSparkBrief
+            brief={sparkBrief}
+            kpi={kpi}
+            compact
+            onCta={runSparkCta}
+            onDismiss={dismissSparkBrief}
+          />
+        ) : null}
+        <IskraCompactDock
         entered={entered}
         listening={listening}
         loading={loading}
@@ -680,7 +767,8 @@ export function GeminiAnalyticsPanel({
             return next
           })
         }}
-      />
+        />
+      </div>
     )
   }
 
@@ -759,6 +847,20 @@ export function GeminiAnalyticsPanel({
         ) : null}
 
         <GeminiContextKpi kpi={kpi} year={year} month={month} loading={kpiLoading} />
+        {showSparkBrief ? (
+          <IskraSparkBrief
+            brief={sparkBrief}
+            kpi={kpi}
+            onCta={runSparkCta}
+            onDismiss={dismissSparkBrief}
+          />
+        ) : null}
+        <IskraInsightCards
+          cards={insightCards}
+          loading={kpiLoading}
+          disabled={loading || !clubId || rateLimitSec > 0}
+          onDo={runInsightAction}
+        />
         {kpiLoadError ? (
           <div className="gemini-panel__kpi-retry" role="status">
             <p className="gemini-panel__kpi-retry-text muted">{kpiLoadError}</p>
