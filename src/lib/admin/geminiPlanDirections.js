@@ -96,8 +96,8 @@ export function formatPlanDirectionStatusLine(insights, directionPlan) {
   }
 
   const lagText = lagging.map((r) => phraseDirectionProgress(r.label, r.pct)).join(', ')
-  const okText = ok.length ? ` ${joinOkDirectionLabels(ok)} — в рабочем темпе.` : ''
-  return ` Отстающие: ${lagText}.${okText}`
+  const okText = ok.length ? ` ${joinOkDirectionLabels(ok)} — в норме.` : ''
+  return ` Отстают: ${lagText}.${okText}`
 }
 
 /**
@@ -131,7 +131,7 @@ export function formatPlanDirectionsDetail(directionRows, directionPlan) {
   if (!parts.length) return 'план по направлениям не задан'
 
   const tail = block.summary_ru ? ` ${block.summary_ru}` : ''
-  return `выполнение — ${parts.join('; ')}.${tail}`
+  return `${parts.join(', ')}.${tail}`
 }
 
 /** @param {'sales'|'trainer'} mode */

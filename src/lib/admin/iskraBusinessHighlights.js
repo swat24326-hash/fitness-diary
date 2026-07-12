@@ -41,7 +41,7 @@ export function buildIskraBusinessHighlights(snapshot) {
   }
 
   if (!parts.length) return null
-  return parts.slice(0, 2).join('; ')
+  return parts.slice(0, 2).join(', ')
 }
 
 /**
@@ -49,8 +49,6 @@ export function buildIskraBusinessHighlights(snapshot) {
  */
 export function buildIskraIntroPitch(snapshot) {
   const highlights = buildIskraBusinessHighlights(snapshot)
-  const base = 'План, прогноз и прибыль клуба — спрашивайте по цифрам.'
-
-  if (!highlights) return base
-  return `${base} Сейчас: ${highlights}.`
+  if (!highlights) return 'План, прогноз, прибыль.'
+  return `Сейчас: ${highlights}.`
 }

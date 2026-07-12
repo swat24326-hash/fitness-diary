@@ -80,6 +80,7 @@ import {
   prepareRemainingNumbersForSpeech,
 } from '../src/lib/admin/iskraSpeechNaturalizer.js'
 import { buildIskraSpeechFriendlyRule } from '../src/lib/admin/geminiIskraCore.js'
+import { countIskraReplyWords, joinIskraReply, iskraReplyHeader } from '../src/lib/admin/iskraReplyCompact.js'
 import {
   isIskraClubAnalyticsQuestion,
   isIskraOffTopicQuestion,
@@ -190,7 +191,7 @@ const noFinance = buildGeminiSnapshot({
 ok(noFinance.finance === undefined, 'finance hidden')
 
 ok(GEMINI_ANALYTICS_MODEL === 'gemini-2.5-flash-lite', 'default model lite')
-ok(buildSystemPrompt('male', 'X').includes('80 слов'), 'brief prompt rule')
+ok(buildSystemPrompt('male', 'X').includes('50 слов'), 'brief prompt rule')
 ok(buildSystemPrompt('male', 'X').includes('Не про клуб'), 'prompt off-topic rule')
 ok(!isIskraClubAnalyticsQuestion('Кто такой Путин?'), 'putin not club question')
 ok(isIskraClubAnalyticsQuestion('Как выполнен план продаж'), 'plan is club question')
@@ -270,7 +271,7 @@ ok(isGeminiReplyIncomplete('ЭВС ИСКРА, июль 202', 'MAX_TOKENS'), 'tr
 ok(!isGeminiReplyIncomplete('План на 45%, требуется усилить контроль по выручке.', 'STOP'), 'complete reply ok')
 const gapHints = buildTrainingsGapHint(20, 5, 2, 30)
 ok(gapHints.length > 0, 'gap hints')
-ok(GEMINI_GENERATION_CONFIG.maxOutputTokens >= 512, 'enough output tokens')
+ok(GEMINI_GENERATION_CONFIG.maxOutputTokens >= 384, 'enough output tokens')
 ok(prepareTextForSpeech('**жирный**  текст').includes('жирный'), 'speech text clean')
 ok(!prepareTextForSpeech('~тест / пункт • список').includes('~'), 'speech strips tilde')
 ok(!prepareTextForSpeech('~тест / пункт • список').includes('/'), 'speech strips slash')
@@ -303,7 +304,8 @@ ok(prepareDeltasForSpeech('+15%').includes('плюс'), 'speech delta plus pct')
 ok(prepareRangesForSpeech('от 10 до 20%').includes('от десять'), 'speech range pct')
 ok(prepareRemainingNumbersForSpeech('уровень 2 готов').includes('два'), 'speech stray digit')
 ok(speechChunkPauseMs('в норме.') >= 200, 'speech pause sentence')
-ok(buildIskraSpeechFriendlyRule().includes('₽'), 'iskra speech rule rub')
+ok(buildIskraSpeechFriendlyRule().includes('50 слов'), 'iskra speech rule rub')
+ok(joinIskraReply(iskraReplyHeader('Клинцы', 'июнь'), 'план 45%.').includes('ИСКРА, Клинцы'), 'compact reply header')
 ok(integerToRussianWords(33) === 'тридцать три', 'speech int words')
 ok(speakPercentForSpeech('33,4').includes('тридцать три'), 'speech percent int words')
 ok(polishIskraReplyText('план 29.2%').includes('план 29.2%'), 'polish keeps compact plan pct')
@@ -451,7 +453,7 @@ const instantTrainerTrainings = buildGeminiInstantReply('trainer_trainings', {
 })
 ok(instantTrainerTrainings?.includes('42') && instantTrainerTrainings?.includes('Анжелика'), 'instant trainer trainings')
 const instantTrainerRank = buildGeminiInstantReply('trainer_rank', { snapshot: trainerSnap, gender: 'female' })
-ok(instantTrainerRank?.includes('1-е место') && instantTrainerRank?.includes('42'), 'instant trainer rank')
+ok(instantTrainerRank?.includes('1-е из') && instantTrainerRank?.includes('42'), 'instant trainer rank')
 
 ok(matchGeminiInstantChip(GEMINI_INSTANT_CHIPS.find((c) => c.id === 'month_forecast').message) === 'month_forecast', 'instant chip month forecast')
 
@@ -459,7 +461,7 @@ ok(matchGeminiInstantChip(GEMINI_INSTANT_CHIPS.find((c) => c.id === 'pnk').messa
 const instantPnk = buildGeminiInstantReply('pnk', { snapshot: snap, gender: 'male' })
 ok(instantPnk?.includes('8') && instantPnk.endsWith('.'), 'instant pnk reply')
 const instantBest = buildGeminiInstantReply('bestday', { snapshot: snap, gender: 'male' })
-ok(instantBest?.includes('лучший день') && instantBest?.includes('15.6'), 'instant best day reply')
+ok(instantBest?.includes('Лучший день') && instantBest?.includes('15.6'), 'instant best day reply')
 
 const instantPayroll = buildGeminiInstantReply('payroll_gap', {
   snapshot: {
@@ -476,6 +478,7 @@ ok(matchGeminiInstantChip('случайный текст') === null, 'instant ch
 const instantPlan = buildGeminiInstantReply('plan', { snapshot: snap, gender: 'male' })
 ok(instantPlan?.includes('план') && instantPlan?.includes('66%') && instantPlan.includes('Уровень 2') && instantPlan.includes('На связи'), 'instant plan reply')
 ok(!instantPlan?.includes('undefined'), 'instant plan no undefined')
+ok(countIskraReplyWords(instantPlan) <= 70, 'instant plan word cap')
 
 const instantForecast = buildGeminiInstantReply('month_forecast', {
   snapshot: {
@@ -505,10 +508,10 @@ const instantForecast = buildGeminiInstantReply('month_forecast', {
     },
   },
 })
-ok(instantForecast?.includes('Прогноз вала на конец месяца'), 'instant forecast gross')
+ok(instantForecast?.includes('Вал') && instantForecast?.includes('1 200 000'), 'instant forecast gross')
 ok(instantForecast?.includes('не дотянем') && instantForecast?.includes('92.3%'), 'instant forecast shortfall')
-ok(instantForecast?.includes('Чистая прибыль к концу месяца'), 'instant forecast net profit')
-ok(instantForecast?.includes('отстают: ПЗ'), 'instant forecast direction lag')
+ok(instantForecast?.includes('Прибыль') && instantForecast?.includes('450 000'), 'instant forecast net profit')
+ok(instantForecast?.includes('Отстают: ПЗ'), 'instant forecast direction lag')
 ok(instantForecast?.endsWith('.'), 'instant forecast ends with dot')
 
 const cfBlock = buildIskraClubFinanceBlock({
@@ -530,7 +533,7 @@ ok(
 ok(
   instantPlan?.includes('направлен') ||
     instantPlan?.includes('Залы в норме') ||
-    instantPlan?.includes('Отстающие'),
+    instantPlan?.includes('Отстают'),
   'instant plan direction hint',
 )
 

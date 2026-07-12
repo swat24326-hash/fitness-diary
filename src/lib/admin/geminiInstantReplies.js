@@ -1,6 +1,5 @@
 /** Мгновенные ответы ИСКРЫ на chips — только готовые поля snapshot, без Gemini и без оценок модели. */
 
-import { ISKRA_NAME } from './geminiIskraCore.js'
 import { buildIskraDataAvailability, iskraUnavailableHint } from './iskraDataAvailability.js'
 import { GEMINI_LEXICON_POOLS } from './geminiAnalyticsDomain.js'
 import { buildGeminiIntroReply, GEMINI_INTRO_CHIP } from './geminiAssistantIntro.js'
@@ -17,6 +16,7 @@ import {
 import { phrasePlanSnapshotLine } from './iskraReplyPhrasing.js'
 import { formatRub } from './salesReportCore.js'
 import { periodLabelRu } from './geminiAnalyticsSnapshot.js'
+import { iskraReplyHeader, iskraTrainerHeader, joinIskraReply } from './iskraReplyCompact.js'
 
 /** @typedef {'intro'|'plan'|'gap'|'compare'|'fitcity'|'finance'|'pnk'|'bestday'|'trainer_inactive'|'payroll_gap'|'sales_coverage'|'sales_structure'|'sales_refunds'|'sales_directions'|'month_forecast'|'trainer_trainings'|'trainer_salary'|'trainer_clients'|'trainer_no_type'|'trainer_rank'|'trainer_summary'} GeminiChipId */
 
@@ -359,14 +359,17 @@ function buildPlanReply(club, period, snapshot, insights, opener, closer, seed) 
   const achieved = Number(planInsight.achieved_level ?? sales.achieved_plan_level) || 0
 
   if (!planInsight.has_plan && plan <= 0) {
-    return `${ISKRA_NAME}: ${club}, ${period}. План на месяц не задан. Отчётность ${coverage}%, ${days} дней.${calendarLine(snapshot)} ${closer}.`
+    return joinIskraReply(
+      iskraReplyHeader(club, period),
+      `План не задан. Отчётность ${coverage}%, ${days} дн.${calendarLine(snapshot)}`,
+    )
   }
 
   const cal = resolveCalendarContext(snapshot)
   const vsCalendar = planInsight.calendar_vs_plan ?? comparePlanToCalendar(pct, cal)
   const paceLine = formatPlanPaceLineCompact(cal, vsCalendar)
   const dirLine = formatPlanDirectionStatusLine(insights)
-  const levelLine = achieved > 0 ? ` Уровень ${achieved} закрыт.` : ''
+  const levelLine = achieved > 0 ? ` Уровень ${achieved}.` : ''
   const push =
     planInsight.tone === 'weak' || vsCalendar === 'behind' ? formatPushLine(seed + 1) : ''
   const praise =
@@ -382,7 +385,10 @@ function buildPlanReply(club, period, snapshot, insights, opener, closer, seed) 
     forecastLine += '.'
   }
 
-  return `${ISKRA_NAME}: ${club}, ${period}. ${phrasePlanSnapshotLine(pct, profit, plan)}.${paceLine}${dirLine}${levelLine}${forecastLine}${push}${praise} На связи.`
+  return joinIskraReply(
+    iskraReplyHeader(club, period),
+    `${phrasePlanSnapshotLine(pct, profit, plan)}.${paceLine}${dirLine}${levelLine}${forecastLine}${push}${praise}`,
+  )
 }
 
 function formatPctPlain(pct) {
@@ -392,22 +398,28 @@ function formatPctPlain(pct) {
   return Number.isInteger(rounded) ? String(rounded) : String(rounded).replace('.', ',')
 }
 
-function buildGapReply(club, period, insights, opener, closer, seed) {
+function buildGapReply(club, period, insights, _opener, _closer, seed) {
   const issues = insights.issues ?? []
   if (!issues.length) {
-    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: критических отклонений не зафиксировано — ${pickWord(GEMINI_LEXICON_POOLS.praise, seed)}. ${closer}.`
+    return joinIskraReply(
+      iskraReplyHeader(club, period),
+      `Без критичных отклонений — ${pickWord(GEMINI_LEXICON_POOLS.praise, seed)}.`,
+    )
   }
 
   const main = issues[0].text
   const second = issues[1]?.text
-  const tail = second ? ` Дополнительно: ${second}.` : ''
-  return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: главный риск — ${main}.${tail} ${pickWord(GEMINI_LEXICON_POOLS.push, seed)}. ${closer}.`
+  const tail = second ? ` ${second}.` : ''
+  return joinIskraReply(
+    iskraReplyHeader(club, period),
+    `Риск: ${main}.${tail} ${pickWord(GEMINI_LEXICON_POOLS.push, seed)}.`,
+  )
 }
 
-function buildCompareReply(club, period, insights, opener, closer, seed) {
+function buildCompareReply(club, period, insights, _opener, _closer, seed) {
   const mom = insights.mom_comparison
   if (!mom) {
-    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: прошлый месяц не подгружен — повторите запрос или проверьте отчёты. На связи.`
+    return joinIskraReply(iskraReplyHeader(club, period), 'Прошлый месяц не подгружен.')
   }
 
   const prevLabel = mom.previous_period_label || 'прошлый месяц'
@@ -446,48 +458,50 @@ function buildCompareReply(club, period, insights, opener, closer, seed) {
     planLine = ` План ${curPlan}% против ${formatPctPlain(mom.plan_pct_previous)}% — снижение.`
   }
 
-  return `${ISKRA_NAME}: ${club}, ${period}. ${opener}, ${profitLine}.${planLine} На связи.`
+  return joinIskraReply(iskraReplyHeader(club, period), `${profitLine}.${planLine}`)
 }
 
-function buildFitcityReply(club, period, insights, opener, closer, seed) {
+function buildFitcityReply(club, period, insights, _opener, _closer, seed) {
   const fc = insights.fitcity ?? {}
   const manager = Number(fc.manager_total) || 0
   const fitCity = Number(fc.fit_city_total) || 0
   const gap = Number(fc.gap) || 0
 
   if (fc.status === 'empty') {
-    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: в отчёте и FIT-CITY данных нет — база не заполнена. ${closer}.`
+    return joinIskraReply(iskraReplyHeader(club, period), 'В отчёте и FIT-CITY данных нет.')
   }
   if (fc.status === 'aligned') {
-    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: отчёт и FIT-CITY совпали — ${manager} тренировок, ${pickWord(GEMINI_LEXICON_POOLS.praise, seed)}. ${closer}.`
+    return joinIskraReply(
+      iskraReplyHeader(club, period),
+      `Отчёт и FIT-CITY совпали — ${manager} тренировок.`,
+    )
   }
   if (fc.status === 'manager_higher') {
-    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: в отчёте ${manager}, на планшетах ${fitCity} — разница ${gap}; часть зала может быть без планшета. Сверьте с менеджером. ${closer}.`
+    return joinIskraReply(
+      iskraReplyHeader(club, period),
+      `В отчёте ${manager}, на планшетах ${fitCity} — разница ${gap}.`,
+    )
   }
-  return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: FIT-CITY (${fitCity}) больше отчёта (${manager}) — ${pickWord(GEMINI_LEXICON_POOLS.critique, seed)}, проверьте дневные отчёты. ${closer}.`
+  return joinIskraReply(
+    iskraReplyHeader(club, period),
+    `FIT-CITY ${fitCity}, отчёт ${manager} — ${pickWord(GEMINI_LEXICON_POOLS.critique, seed)}.`,
+  )
 }
 
-function buildFinanceReply(club, period, insights, opener, closer, seed, snapshot) {
+function buildFinanceReply(club, period, insights, _opener, _closer, seed, snapshot) {
   const cf = snapshot?.club_finance
   const fin = insights.finance ?? snapshot?.finance
   if (!fin && !cf?.available) {
     const hint = iskraUnavailableHint(snapshot?.data_availability, 'finance')
-    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: ${hint} ${closer}.`
+    return joinIskraReply(iskraReplyHeader(club, period), hint)
   }
 
   const net = Number(fin?.net_profit ?? cf?.fact?.net_profit_rub) || 0
   const payroll = Number(fin?.trainer_payroll ?? cf?.fact?.trainer_payroll_rub) || 0
-  const expense = Number(fin?.supervisor_expense ?? cf?.fact?.supervisor_expense_rub) || 0
 
   let forecastLine = ''
   if (cf?.available && cf.forecast?.net_profit_rub != null) {
-    forecastLine = ` Прогноз чистой прибыли к концу месяца — ${formatRub(cf.forecast.net_profit_rub)}.`
-  }
-
-  let hallsLine = ''
-  const halls = cf?.fact?.halls
-  if (halls) {
-    hallsLine = ` По залам сейчас: ПЗ ${formatRub(halls.pz_net_profit_rub)}, ТЗ ${formatRub(halls.tz_revenue_rub)}, АЗ ${formatRub(halls.az_net_profit_rub)}.`
+    forecastLine = ` Прогноз прибыли ${formatRub(cf.forecast.net_profit_rub)}.`
   }
 
   const tone =
@@ -497,7 +511,10 @@ function buildFinanceReply(club, period, insights, opener, closer, seed, snapsho
         ? pickWord(GEMINI_LEXICON_POOLS.praise, seed)
         : 'на нуле'
 
-  return `${ISKRA_NAME}: ${club}, ${period}. Чистая прибыль ${formatRub(net)} — ${tone}. ЗП ПЗ ${formatRub(payroll)}, расход управляющего ${formatRub(expense)}.${hallsLine}${forecastLine} ${closer}.`
+  return joinIskraReply(
+    iskraReplyHeader(club, period),
+    `Прибыль ${formatRub(net)} — ${tone}. ЗП ПЗ ${formatRub(payroll)}.${forecastLine}`,
+  )
 }
 
 function formatDayRu(iso) {
@@ -506,7 +523,7 @@ function formatDayRu(iso) {
   return `${Number(m[3])}.${Number(m[2])}`
 }
 
-function buildPnkReply(club, period, insights, opener, closer, seed) {
+function buildPnkReply(club, period, insights, _opener, _closer, seed) {
   const pnkInsight = insights.pnk ?? {}
   const report = insights.report ?? {}
   const pnk = Number(pnkInsight.total) || 0
@@ -514,36 +531,42 @@ function buildPnkReply(club, period, insights, opener, closer, seed) {
   const days = Number(report.days_with_reports) || 0
 
   if (days <= 0) {
-    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: отчётов нет — ПНК не определён. ${closer}.`
+    return joinIskraReply(iskraReplyHeader(club, period), 'Отчётов нет — ПНК не определён.')
   }
 
   const tone = toneWord(pnkInsight.tone, seed, GEMINI_LEXICON_POOLS)
-  return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: ПНК за месяц ${pnk} шт — ${tone}. Покрытие отчётов ${coverage}%. ${closer}.`
+  return joinIskraReply(
+    iskraReplyHeader(club, period),
+    `ПНК ${pnk} шт — ${tone}. Отчётность ${coverage}%.`,
+  )
 }
 
-function buildBestDayReply(club, period, snapshot, insights, opener, closer, seed) {
+function buildBestDayReply(club, period, snapshot, insights, _opener, _closer, seed) {
   const sales = salesFrom(snapshot)
   const best =
     insights.highlights?.best_day ?? sales.profit_day_highlights?.best_day
   if (!best?.date) {
-    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: нет дней с отчётом — лучший день не определён. ${closer}.`
+    return joinIskraReply(iskraReplyHeader(club, period), 'Лучший день не определён.')
   }
 
   const dayLabel = formatDayRu(best.date)
   const amount = formatRub(Number(best.profit) || 0)
-  return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: лучший день ${dayLabel} — ${amount}, ${pickWord(GEMINI_LEXICON_POOLS.praise, seed)}. ${closer}.`
+  return joinIskraReply(
+    iskraReplyHeader(club, period),
+    `Лучший день ${dayLabel} — ${amount}, ${pickWord(GEMINI_LEXICON_POOLS.praise, seed)}.`,
+  )
 }
 
-function buildTrainerInactiveReply(club, period, snapshot, opener, closer) {
+function buildTrainerInactiveReply(club, period, snapshot, _opener, _closer) {
   const row = selectedTrainerRow(snapshot)
   if (row) {
     const name = trainerNameFromRow(row)
     const inactive = Number(row.inactive_clients_holders) || 0
-    const tail =
-      inactive > 0
-        ? 'Список — в карточках клиентов тренера.'
-        : 'Все закреплённые клиенты с действующим абонементом.'
-    return `${ISKRA_NAME}: ${name}, ${period}. ${opener}: неактивных клиентов — ${inactive} (без абонемента на конец периода). ${tail} На связи.`
+    const tail = inactive > 0 ? 'Список в карточке тренера.' : 'Все с абонементом.'
+    return joinIskraReply(
+      iskraTrainerHeader(name, period),
+      `Неактивных клиентов — ${inactive}. ${tail}`,
+    )
   }
 
   const roll = snapshot.trainer_contour?.club_roll_up
@@ -551,71 +574,79 @@ function buildTrainerInactiveReply(club, period, snapshot, opener, closer) {
   const trainersCount = Number(roll?.trainers_count) || 0
 
   if (!trainersCount) {
-    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: по тренерам пока нет данных с планшетов или закреплённых клиентов. ${closer}.`
+    return joinIskraReply(iskraReplyHeader(club, period), 'По тренерам данных нет.')
   }
 
-  return (
-    `${ISKRA_NAME}: ${club}, ${period}. ${opener}: у тренеров ${inactive} неактивных клиентов ` +
-    `(без действующего абонемента на конец периода) — по ${trainersCount} тренерам. ` +
-    `Это не продажи из отчёта менеджера, а картина по закреплённым клиентам; списки — в профиле каждого тренера. ${closer}.`
+  return joinIskraReply(
+    iskraReplyHeader(club, period),
+    `Неактивных клиентов у тренеров — ${inactive}, тренеров ${trainersCount}.`,
   )
 }
 
-function buildTrainerTrainingsReply(club, period, snapshot, opener, closer) {
+function buildTrainerTrainingsReply(club, period, snapshot, _opener, _closer) {
   const row = selectedTrainerRow(snapshot)
   if (!row) {
-    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: выберите тренера в фокусе анализа. ${closer}.`
+    return joinIskraReply(iskraReplyHeader(club, period), 'Выберите тренера в фокусе.')
   }
   const name = trainerNameFromRow(row)
   const completed = Number(row.completed_trainings) || 0
-  return `${ISKRA_NAME}: ${name}, ${period}. Завершённых тренировок — ${completed}. На связи.`
+  return joinIskraReply(iskraTrainerHeader(name, period), `Тренировок — ${completed}.`)
 }
 
-function buildTrainerSalaryReply(club, period, snapshot, opener, closer) {
+function buildTrainerSalaryReply(club, period, snapshot, _opener, _closer) {
   const row = selectedTrainerRow(snapshot)
   if (!row) {
-    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: выберите тренера в фокусе анализа. ${closer}.`
+    return joinIskraReply(iskraReplyHeader(club, period), 'Выберите тренера в фокусе.')
   }
   const name = trainerNameFromRow(row)
   const salary = Number(row.personal_salary_month) || 0
   const noType = Number(row.no_type_trainings_ignored) || 0
-  const noTypeLine = noType > 0 ? ` Тренировки «Без типа» (${noType}) в ЗП не входят.` : ''
-  return `${ISKRA_NAME}: ${name}, ${period}. Личная ЗП по планшетам — ${formatRub(salary)}.${noTypeLine} На связи.`
+  const noTypeLine = noType > 0 ? ` «Без типа» — ${noType}, в ЗП не входят.` : ''
+  return joinIskraReply(
+    iskraTrainerHeader(name, period),
+    `Личная ЗП — ${formatRub(salary)}.${noTypeLine}`,
+  )
 }
 
-function buildTrainerClientsReply(club, period, snapshot, opener, closer) {
+function buildTrainerClientsReply(club, period, snapshot, _opener, _closer) {
   const row = selectedTrainerRow(snapshot)
   if (!row) {
-    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: выберите тренера в фокусе анализа. ${closer}.`
+    return joinIskraReply(iskraReplyHeader(club, period), 'Выберите тренера в фокусе.')
   }
   const name = trainerNameFromRow(row)
   const total = Number(row.active_clients_total) || 0
   const active = Number(row.current_active_holders) || 0
   const inactive = Number(row.inactive_clients_holders) || 0
-  return `${ISKRA_NAME}: ${name}, ${period}. Клиентов ${total}: с абонементом ${active}, неактивных ${inactive}. На связи.`
+  return joinIskraReply(
+    iskraTrainerHeader(name, period),
+    `Клиентов ${total}: с абонементом ${active}, неактивных ${inactive}.`,
+  )
 }
 
-function buildTrainerNoTypeReply(club, period, snapshot, opener, closer) {
+function buildTrainerNoTypeReply(club, period, snapshot, _opener, _closer) {
   const row = selectedTrainerRow(snapshot)
   if (!row) {
-    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: выберите тренера в фокусе анализа. ${closer}.`
+    return joinIskraReply(iskraReplyHeader(club, period), 'Выберите тренера в фокусе.')
   }
   const name = trainerNameFromRow(row)
   const noType = Number(row.no_type_trainings_ignored) || 0
   if (!noType) {
-    return `${ISKRA_NAME}: ${name}, ${period}. Тренировок «Без типа» нет — личная ЗП считается по всем завершённым. На связи.`
+    return joinIskraReply(iskraTrainerHeader(name, period), 'Тренировок «Без типа» нет.')
   }
-  return `${ISKRA_NAME}: ${name}, ${period}. Тренировок «Без типа» — ${noType}; они не входят в личную ЗП. На связи.`
+  return joinIskraReply(
+    iskraTrainerHeader(name, period),
+    `«Без типа» — ${noType}, в личную ЗП не входят.`,
+  )
 }
 
-function buildTrainerRankReply(club, period, snapshot, opener, closer, seed) {
+function buildTrainerRankReply(club, period, snapshot, _opener, _closer, seed) {
   const row = selectedTrainerRow(snapshot)
   const trainers = snapshot.trainer_contour?.trainers ?? []
   if (!row) {
-    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: выберите тренера в фокусе анализа. ${closer}.`
+    return joinIskraReply(iskraReplyHeader(club, period), 'Выберите тренера в фокусе.')
   }
   if (!trainers.length) {
-    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: по тренерам пока нет данных. ${closer}.`
+    return joinIskraReply(iskraReplyHeader(club, period), 'По тренерам данных нет.')
   }
 
   const name = trainerNameFromRow(row)
@@ -635,22 +666,25 @@ function buildTrainerRankReply(club, period, snapshot, opener, closer, seed) {
       : completed < clubAvg
         ? pickWord(GEMINI_LEXICON_POOLS.critique, seed)
         : 'на уровне среднего'
-  return `${ISKRA_NAME}: ${name}, ${period}. ${completed} тренировок — ${rank}-е место из ${total}, среднее по клубу ${clubAvg}, ${vsAvg}. На связи.`
+  return joinIskraReply(
+    iskraTrainerHeader(name, period),
+    `${completed} тренировок — ${rank}-е из ${total}, среднее ${clubAvg}, ${vsAvg}.`,
+  )
 }
 
-function buildTrainerSummaryReply(club, period, snapshot, opener, closer, _seed) {
+function buildTrainerSummaryReply(club, period, snapshot, _opener, _closer, _seed) {
   const row = selectedTrainerRow(snapshot)
   const trainers = snapshot.trainer_contour?.trainers ?? []
 
   if (!row) {
     const hint =
       trainers.length > 0
-        ? ` Уточните имя — в клубе: ${trainers
-            .slice(0, 6)
+        ? ` Тренеры: ${trainers
+            .slice(0, 4)
             .map((t) => trainerNameFromRow(t))
             .join(', ')}.`
         : ''
-    return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: не нашла тренера в запросе.${hint} ${closer}.`
+    return joinIskraReply(iskraReplyHeader(club, period), `Тренер не найден.${hint}`)
   }
 
   const name = trainerNameFromRow(row)
@@ -669,82 +703,88 @@ function buildTrainerSummaryReply(club, period, snapshot, opener, closer, _seed)
         String(a.trainer_name).localeCompare(String(b.trainer_name), 'ru'),
     )
     const rank = sorted.findIndex((t) => t.trainer_id === row.trainer_id) + 1
-    rankLine = ` Место в клубе по тренировкам — ${rank} из ${trainers.length}.`
+    rankLine = ` Место ${rank} из ${trainers.length}.`
   }
 
-  const noTypeLine = noType > 0 ? ` Тренировок «Без типа» — ${noType} (в ЗП не входят).` : ''
+  const noTypeLine = noType > 0 ? ` «Без типа» — ${noType}.` : ''
 
-  return (
-    `${ISKRA_NAME}: ${name}, ${period}. ${opener}: завершённых тренировок — ${completed}; ` +
-    `личная ЗП по планшетам — ${formatRub(salary)}; клиентов ${total} ` +
-    `(с абонементом ${active}, неактивных ${inactive}).${rankLine}${noTypeLine} На связи.`
+  return joinIskraReply(
+    iskraTrainerHeader(name, period),
+    `Тренировок ${completed}, ЗП ${formatRub(salary)}, клиентов ${total} (активных ${active}, неактивных ${inactive}).${rankLine}${noTypeLine}`,
   )
 }
 
-function buildPayrollGapReply(club, period, snapshot, insights, opener, closer) {
+function buildPayrollGapReply(club, period, snapshot, insights, _opener, _closer) {
   const salesPayroll = Number(snapshot.finance?.trainer_payroll ?? insights.finance?.trainer_payroll) || 0
   const personalSum = Number(snapshot.trainer_contour?.club_roll_up?.personal_salary_sum) || 0
 
-  return (
-    `${ISKRA_NAME}: ${opener}. В финансовом отчёте зарплата персонального зала — ${formatRub(salesPayroll)} ` +
-    `(как внесено менеджером для картины прибыли клуба). Сумма личных зарплат тренеров по факту тренировок с планшетов — ${formatRub(personalSum)}. ` +
-    `Цифры могут расходиться: часть тренировок ещё не синхронизирована или есть занятия «Без типа», которые не входят в личную ЗП. ${club}, ${period}. ${closer}.`
+  return joinIskraReply(
+    iskraReplyHeader(club, period),
+    `В финансовом отчёте ЗП зала ${formatRub(salesPayroll)}, личных зарплат тренеров ${formatRub(personalSum)}. Расхождение — «Без типа» и синхронизация.`,
   )
 }
 
-function buildSalesCoverageReply(club, period, snapshot, insights, opener, closer) {
+function buildSalesCoverageReply(club, period, snapshot, insights, _opener, _closer) {
   const sales = salesFrom(snapshot)
   const report = insights.report ?? {}
   const days = Number(report.days_with_reports ?? sales.days_with_reports) || 0
   const total = Number(report.days_in_month ?? snapshot.period?.days_in_month) || 0
   const coverage = Number(report.coverage_pct ?? sales.report_coverage_pct) || 0
-  return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: отчётов ${days} из ${total} дней (${coverage}%).${calendarLine(snapshot)} Без дневных отчётов выводы по продажам предварительные. ${closer}.`
+  return joinIskraReply(
+    iskraReplyHeader(club, period),
+    `Отчётов ${days} из ${total} (${coverage}%).${calendarLine(snapshot)}`,
+  )
 }
 
-function buildSalesStructureReply(club, period, insights, opener, closer) {
+function buildSalesStructureReply(club, period, insights, _opener, _closer) {
   const st = insights.structure ?? {}
   const nk = Number(st.nk_share_pct) || 0
   const dk = Number(st.dk_share_pct) || 0
   const uk = Number(st.uk_share_pct) || 0
   const dop = Number(st.dop_share_pct) || 0
-  const weak = st.weak_nk_vs_dk ? ' Слабая доля НК при опоре на ДК — риск по притоку новых.' : ''
-  return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: структура выручки — НК ${nk}%, ДК ${dk}%, УК ${uk}%, доп. ${dop}%.${weak} ${closer}.`
+  const weak = st.weak_nk_vs_dk ? ' Слабая доля НК.' : ''
+  return joinIskraReply(
+    iskraReplyHeader(club, period),
+    `НК ${nk}%, ДК ${dk}%, УК ${uk}%, доп. ${dop}%.${weak}`,
+  )
 }
 
-function buildSalesRefundsReply(club, period, snapshot, insights, opener, closer) {
+function buildSalesRefundsReply(club, period, snapshot, insights, _opener, _closer) {
   const sales = salesFrom(snapshot)
   const plan = insights.plan ?? {}
   const gross = Number(plan.profit_gross_for_plan ?? sales.profit_gross_total) || 0
   const net = Number(plan.profit_total ?? sales.profit_total) || 0
   const refunds = Number(plan.refunds_total ?? sales.refunds_total) || 0
-  return (
-    `${ISKRA_NAME}: ${club}, ${period}. ${opener}: возвраты ${formatRub(refunds)}. ` +
-    `На план это не влияет — он считается по валовой выручке ${formatRub(gross)}. ` +
-    `Чистый заработок месяца после возвратов — ${formatRub(net)}. ${closer}.`
+  return joinIskraReply(
+    iskraReplyHeader(club, period),
+    `Возвраты ${formatRub(refunds)}. План по валу ${formatRub(gross)}, чистыми ${formatRub(net)}.`,
   )
 }
 
-function buildSalesDirectionsReply(club, period, insights, opener, closer) {
+function buildSalesDirectionsReply(club, period, insights, _opener, _closer) {
   const rows = insights.structure?.direction_rows ?? []
   const detail = formatPlanDirectionsDetail(rows, insights.direction_plan)
-  return `${ISKRA_NAME}: ${club}, ${period}. ${opener}: ${detail} ${closer}.`
+  return joinIskraReply(iskraReplyHeader(club, period), detail)
 }
 
-function buildMonthForecastReply(club, period, snapshot, opener, closer, seed) {
+function buildMonthForecastReply(club, period, snapshot, _opener, _closer, seed) {
   const cf = snapshot?.club_finance
   const mf = snapshot?.month_forecast
   const block = cf?.available ? cf : mf
 
   if (!block?.available) {
     if (block?.reason === 'not_current_month') {
-      return `${ISKRA_NAME}: ${club}, ${period}. Прогноз на конец месяца — только для текущего календарного месяца. ${closer}.`
+      return joinIskraReply(iskraReplyHeader(club, period), 'Прогноз — только для текущего месяца.')
     }
     if (block?.reason === 'insufficient_reports') {
       const need = Number(block.min_report_days) || 3
       const have = Number(block.report_days) || 0
-      return `${ISKRA_NAME}: ${club}, ${period}. Для прогноза нужно минимум ${need} отчётов — сейчас ${have}. ${closer}.`
+      return joinIskraReply(
+        iskraReplyHeader(club, period),
+        `Для прогноза нужно ${need} отчётов — сейчас ${have}.`,
+      )
     }
-    return `${ISKRA_NAME}: ${club}, ${period}. Прогноз пока недоступен — мало данных. ${closer}.`
+    return joinIskraReply(iskraReplyHeader(club, period), 'Прогноз недоступен — мало данных.')
   }
 
   const gross = Number(cf?.forecast?.gross_rub ?? mf?.forecast_gross_total) || 0
@@ -757,15 +797,15 @@ function buildMonthForecastReply(club, period, snapshot, opener, closer, seed) {
   let planLine = ''
   if (plan > 0) {
     if (surplus > 0) {
-      planLine = ` План ${formatRub(plan)}: прогноз ${pct}% — переработаем на ${formatRub(surplus)}.`
+      planLine = ` План ${formatRub(plan)}: ${pct}% — запас ${formatRub(surplus)}.`
     } else if (shortfall > 0) {
-      planLine = ` План ${formatRub(plan)}: прогноз ${pct}% — не дотянем ${formatRub(shortfall)}.`
+      planLine = ` План ${formatRub(plan)}: ${pct}% — не дотянем ${formatRub(shortfall)}.`
       if (pct < 90) planLine += formatPushLine(seed + 2)
     } else {
-      planLine = ` План ${formatRub(plan)}: прогноз ${pct}% — в цель.`
+      planLine = ` План ${formatRub(plan)}: ${pct}% — в цель.`
     }
   } else {
-    planLine = ` План не задан — прогноз вала ${formatRub(gross)}.`
+    planLine = ` План не задан, вал ${formatRub(gross)}.`
   }
 
   let profitLine = ''
@@ -777,7 +817,7 @@ function buildMonthForecastReply(club, period, snapshot, opener, closer, seed) {
         : net > 0
           ? pickWord(GEMINI_LEXICON_POOLS.praise, seed)
           : 'на нуле'
-    profitLine = ` Чистая прибыль к концу месяца — ${formatRub(net)}, ${tone}.`
+    profitLine = ` Прибыль ${formatRub(net)}, ${tone}.`
   }
 
   let dirLine = ''
@@ -786,11 +826,12 @@ function buildMonthForecastReply(club, period, snapshot, opener, closer, seed) {
     (d) => (Number(d.plan_target_rub) || 0) > 0 && (Number(d.forecast_progress_pct) || 0) < 90,
   )
   if (lagging.length) {
-    const parts = lagging.map(
-      (d) => `${d.label} ${d.forecast_progress_pct}%`,
-    )
-    dirLine = ` По прогнозу отстают: ${parts.join(', ')}.`
+    const parts = lagging.map((d) => `${d.label} ${d.forecast_progress_pct}%`)
+    dirLine = ` Отстают: ${parts.join(', ')}.`
   }
 
-  return `${ISKRA_NAME}: ${club}, ${period}. Прогноз вала на конец месяца — ${formatRub(gross)}.${planLine}${profitLine}${dirLine} ${closer}.`
+  return joinIskraReply(
+    iskraReplyHeader(club, period),
+    `Вал ${formatRub(gross)}.${planLine}${profitLine}${dirLine}`,
+  )
 }

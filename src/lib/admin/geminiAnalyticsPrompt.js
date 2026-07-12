@@ -23,17 +23,17 @@ export const GEMINI_ANALYTICS_MODEL = GEMINI_ANALYTICS_MODELS[0]
 
 /** Лимит длины ответа для чата и озвучки. */
 export const GEMINI_GENERATION_CONFIG = {
-  temperature: 0.65,
-  maxOutputTokens: 512,
+  temperature: 0.6,
+  maxOutputTokens: 384,
 }
 
 export const GEMINI_GENERATION_CONFIG_RETRY = {
-  temperature: 0.6,
-  maxOutputTokens: 768,
+  temperature: 0.55,
+  maxOutputTokens: 512,
 }
 
 export const GEMINI_RESPONSE_BRIEF_RULE =
-  'Ответ: 2–4 предложения, до 80 слов. Не про клуб — факт на вопрос, затем «По цифрам [клуб]: план, прогноз, прибыль». Без «ИСКРА — это…» и ЭВС. Про клуб — план, прогноз, прибыль из JSON. Без markdown. Точка в конце.'
+  'Ответ: 2–3 предложения, до 50 слов. Формат: ИСКРА, [клуб], [месяц]. [факт]. [вывод]. На связи. Не про клуб — краткий факт, затем цифры клуба. Без markdown и «ИСКРА — это…».'
 
 /** Явный флаг или формулировка вопроса про прошлый месяц / динамику. */
 export function shouldComparePreviousMonth(userMessage) {

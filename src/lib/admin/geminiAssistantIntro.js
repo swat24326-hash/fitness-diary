@@ -96,7 +96,7 @@ function missingReportNote(kpi, snapshot) {
   return ' Отчёт за сегодня ещё не внесён — сводка по вчерашним данным.'
 }
 
-const TRAINER_ON_REQUEST = ' По конкретному тренеру — по запросу.'
+const TRAINER_ON_REQUEST = ' Тренер — по запросу.'
 
 export function buildGeminiIntroReply(kind, opts = {}) {
   const kpi = opts.kpi ?? kpiHintsFromSnapshot(opts.snapshot) ?? null
@@ -123,75 +123,68 @@ export function buildGeminiIntroReply(kind, opts = {}) {
 }
 
 function buildMicroIntro(ctx, kpi, _tail, missingReport, pitch) {
-  const { fullName, clubPhrase, period, hasClub } = ctx
+  const { name, clubPhrase, period, hasClub } = ctx
 
   if (!hasClub) {
-    return `${fullName} на связи. Выберите филиал в шапке — дам сводку по плану, прогнозу и прибыли за ${period}.`
+    return `${name} на связи. Выберите филиал — дам план и прибыль за ${period}.`
   }
 
   if (kpi && !kpi.hasPlan && (kpi.reportDays || 0) === 0) {
-    return `${fullName} на связи по ${clubPhrase}, ${period}. Данных пока мало — подскажу, с чего начать контроль месяца.${missingReport}`
+    return `${name}, ${clubPhrase}, ${period}. Данных мало.${missingReport} На связи.`
   }
 
-  return `${fullName} на связи по ${clubPhrase}, ${period}. ${pitch}${missingReport}`
+  return `${name}, ${clubPhrase}, ${period}. ${pitch}${missingReport} На связи.`
 }
 
 function buildStandardIntro(ctx, tail, missingReport, pitch) {
-  const { fullName, clubPhrase, period, hasClub } = ctx
+  const { name, clubPhrase, period, hasClub } = ctx
 
   if (!hasClub) {
-    return `${fullName} на связи — аналитика для руководителя клуба. Выберите филиал в шапке: покажу план, прогноз «Финансы клуба», чистую прибыль и риски по направлениям.`
+    return `${name} на связи. Выберите филиал в шапке — план, прогноз, прибыль.`
   }
 
   const pitchHasNow = String(pitch).includes('Сейчас:')
   const kpiSuffix = pitchHasNow ? '' : tail
 
   return (
-    `${fullName} на связи по ${clubPhrase}, ${period}. ` +
-    `${pitch}${TRAINER_ON_REQUEST} ` +
-    `Цифры — из ваших отчётов менеджера и вкладки «Финансы клуба»; свои выводы помечаю отдельно.${kpiSuffix}${missingReport} ` +
-    `Спросите текстом или нажмите кнопку ниже.`
+    `${name}, ${clubPhrase}, ${period}. ${pitch}${kpiSuffix}${missingReport} ` +
+    `Спросите или нажмите кнопку.${TRAINER_ON_REQUEST} На связи.`
   )
 }
 
 function buildCapabilitiesIntro(ctx, pitch) {
   const { name, clubPhrase, hasClub } = ctx
-  const scope = hasClub ? `по ${clubPhrase}` : 'по выбранному филиалу'
+  const scope = hasClub ? clubPhrase : 'филиал'
 
-  return `${name} ${scope}: ${pitch} Быстрые кнопки снизу — готовые вопросы.`
+  return `${name}, ${scope}: ${pitch} Кнопки снизу — готовые вопросы.`
 }
 
 function buildSourcesIntro(ctx) {
   const { name, clubPhrase, hasClub } = ctx
-  const who = hasClub ? `по ${clubPhrase}` : 'по филиалу'
+  const who = hasClub ? clubPhrase : 'филиал'
 
   return (
-    `${name}: цифры ${who} из отчётов менеджера — план, выручка, прогноз месяца, финансы залов. ` +
-    `Вкладка «Финансы клуба» и блок club_finance в сводке — один расчёт прогноза. ` +
-    `Данные тренеров с планшетов — только если спросите про тренера.`
+    `${name}: цифры ${who} из отчётов менеджера и «Финансы клуба». ` +
+    `Тренеры с планшетов — по запросу.`
   )
 }
 
 function buildIdentityIntro(ctx) {
-  const { fullName, clubPhrase, hasClub } = ctx
-  const scope = hasClub ? ` по ${clubPhrase}` : ''
+  const { name, clubPhrase, hasClub } = ctx
+  const scope = hasClub ? `, ${clubPhrase}` : ''
 
-  return (
-    `${fullName} — встроенная советская ЭВМ приложения FIT-CITY${scope}, не внешний чат. ` +
-    `Читаю отчёты и прогнозы клуба, помогаю принимать решения по цифрам.`
-  )
+  return `${name} — ЭВМ FIT-CITY${scope}, не внешний чат. План, прогноз, прибыль из ваших отчётов.`
 }
 
 function buildDeepIntro(ctx, missingReport) {
   const { name, clubPhrase, period, hasClub } = ctx
   if (!hasClub) {
-    return `${name}: после выбора филиала подтяну план, прогноз и финансы за ${period}.`
+    return `${name}: выберите филиал — план и финансы за ${period}.`
   }
 
   return (
-    `${name} для ${clubPhrase}, ${period}: план — по валовой выручке, возвраты уменьшают заработок, не план. ` +
-    `Прогноз месяца — среднее по внесённым отчётам × дней в месяце (как на вкладке «Финансы клуба»). ` +
-    `Могу связать план, прогноз, направления и чистую прибыль; расчёты модели — с пометкой «Оценка ИСКРЫ».${missingReport}`
+    `${name}, ${clubPhrase}, ${period}: план по валу, возвраты в чистую прибыль, ` +
+    `прогноз как «Финансы клуба». Оценки модели — с пометкой «Оценка ИСКРЫ».${missingReport}`
   )
 }
 
