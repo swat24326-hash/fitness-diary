@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Archive, Dumbbell, RotateCcw, Trash2 } from 'lucide-react'
+import { Archive, Dumbbell, RotateCcw, Trash2, UserCircle } from 'lucide-react'
 import { formatUpcomingBirthdayLabel } from '../../lib/clientBirthdays'
 import { formatDateRu } from '../../lib/dateRu'
 import {
@@ -68,8 +68,13 @@ export function TrainerClientListItem({
               </button>
             )
           ) : null}
-          <Link to={`/trainer/clients/${client.id}`} className="btn btn-primary btn-touch u-no-decoration">
-            Карточка
+          <Link
+            to={`/trainer/clients/${client.id}`}
+            className="btn btn-primary btn-icon-square btn-touch u-no-decoration"
+            aria-label="Карточка клиента"
+            title="Карточка клиента"
+          >
+            <UserCircle size={20} aria-hidden />
           </Link>
           {mode === 'active' ? (
             <button

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Calendar, ClipboardList, Info, Save } from 'lucide-react'
+import { Calendar, Info, Save, UserCircle } from 'lucide-react'
 import { CloseButton } from '../../components/CloseButton'
 import { TrainingForm, emptyTrainingData } from '../../components/TrainingForm'
 import { ContraindicationsToggle } from '../../components/ContraindicationsToggle'
@@ -576,11 +576,11 @@ export function TrainingPage() {
         {clientCardTrainingsHref ? (
           <Link
             to={clientCardTrainingsHref}
-            className="btn btn-secondary btn-sm training-page-head-card-link"
+            className="btn btn-secondary btn-icon-square btn-sm training-page-head-card-link"
+            aria-label="Карточка клиента — все тренировки"
             title="Карточка клиента — все тренировки"
           >
-            <ClipboardList size={16} aria-hidden />
-            <span>Карточка</span>
+            <UserCircle size={18} aria-hidden />
           </Link>
         ) : null}
       </div>

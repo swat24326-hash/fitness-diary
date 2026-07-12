@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ClipboardList, Dumbbell, LogOut, RefreshCw, UserPlus, Users } from 'lucide-react'
+import { ClipboardList, Dumbbell, LogOut, RefreshCw, UserCircle, UserPlus, Users } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { invalidateTrainerWorkspaceCache, loadTrainerWorkspaceSnapshot } from '../../lib/trainerWorkspaceCache'
 import { pullTrainerWorkspaceFromCloud } from '../../lib/trainerPullService'
@@ -392,8 +392,13 @@ export function TrainerDashboard() {
                         <Dumbbell size={20} aria-hidden />
                       </button>
                     )}
-                    <Link to={`/trainer/clients/${c.id}`} className="btn btn-primary btn-touch u-no-decoration">
-                      Карточка
+                    <Link
+                      to={`/trainer/clients/${c.id}`}
+                      className="btn btn-primary btn-icon-square btn-touch u-no-decoration"
+                      aria-label="Карточка клиента"
+                      title="Карточка клиента"
+                    >
+                      <UserCircle size={20} aria-hidden />
                     </Link>
                   </div>
                 </div>
