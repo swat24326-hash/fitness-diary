@@ -4823,6 +4823,32 @@ tr:last-child td {
   }
 }
 
+/* История веса: подгрузка с тренировок — белая иконка sync */
+.weight-history-sync-btn {
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.92);
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.weight-history-sync-btn:hover:not(:disabled) {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.weight-history-sync-btn:disabled {
+  opacity: 0.65;
+}
+
+.weight-history-sync-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
 /* Admin — те же отступы и заметки, что у экрана тренера */
 .admin-inline-note {
   margin-top: 8px;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Plus, Pencil } from 'lucide-react'
+import { Plus, Pencil, RefreshCw } from 'lucide-react'
 import { hydrateAdminClientWorkspace } from '../../lib/admin/adminClientHydrate'
 import { getHealthCard, listMeasurements, listMemberships, listTrainingsForClient } from '../../lib/dataAccess'
 import { useDebouncedStorageReload } from '../../lib/useDebouncedStorageReload'
@@ -23,6 +23,7 @@ import {
   saveHealthCardWithWeightFields,
 } from '../../lib/clientWeightService'
 import { BmiScaleBar } from '../../components/BmiScaleBar'
+import { MembershipManager } from '../../components/MembershipManager'
 import { calcBmiFromHeightWeight, getBmiMeta } from '../../lib/bmiScaleCore'
 import { BODY_MEASURE_FIELDS, getMeasureValue } from '../../lib/bodyMeasures'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
@@ -47,6 +48,7 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
   const [measurements, setMeasurements] = useState([])
   const [weightEntries, setWeightEntries] = useState([])
   const [showWeightHistory, setShowWeightHistory] = useState(false)
+  const [weightImportBusy, setWeightImportBusy] = useState(false)
   const [showMeasure, setShowMeasure] = useState(false)
   const [editingMeasureId, setEditingMeasureId] = useState(null)
   const [showMeasureHistory, setShowMeasureHistory] = useState(false)
@@ -202,15 +204,18 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
   }
 
   const applyWeightsFromTrainings = async () => {
-    if (readOnly) {
-      alert('Клиент в архиве — изменения недоступны.')
+    if (readOnly || weightImportBusy) {
+      if (readOnly) alert('Клиент в архиве — изменения недоступны.')
       return
     }
+    setWeightImportBusy(true)
     try {
       await importWeightsFromAllTrainings(client.id, health, clientTrainings)
     } catch (err) {
       alert(err?.message ?? 'Не удалось подгрузить веса с тренировок')
       return
+    } finally {
+      setWeightImportBusy(false)
     }
     await reloadLocal()
     onReload?.()
@@ -623,8 +628,16 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
               </h2>
               <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
                 {!readOnly && trainingWeights.length > 0 ? (
-                  <button type="button" className="btn btn-primary btn-xs" onClick={() => void applyWeightsFromTrainings()}>
-                    Подгрузить с тренировок ({trainingWeights.length})
+                  <button
+                    type="button"
+                    className="btn btn-icon-square weight-history-sync-btn"
+                    onClick={() => void applyWeightsFromTrainings()}
+                    disabled={weightImportBusy}
+                    title={`Подгрузить веса с тренировок (${trainingWeights.length})`}
+                    aria-label={`Подгрузить веса с тренировок (${trainingWeights.length})`}
+                    aria-busy={weightImportBusy}
+                  >
+                    <RefreshCw size={18} className={weightImportBusy ? 'icon-spin' : undefined} aria-hidden />
                   </button>
                 ) : null}
                 <button type="button" className="btn btn-ghost btn-xs" onClick={() => setShowWeightHistory(false)}>
@@ -636,7 +649,7 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
             {weightEntries.length === 0 ? (
               <p className="muted" style={{ margin: '12px 0 0', fontSize: 13 }}>
                 {trainingWeights.length > 0 && !readOnly
-                  ? 'Нажмите «Подгрузить с тренировок», чтобы построить график по весам до тренировки.'
+                  ? 'Нажмите кнопку с иконкой синхронизации, чтобы подгрузить веса с тренировок.'
                   : 'Записей пока нет.'}
               </p>
             ) : null}
