@@ -4,6 +4,7 @@ import {
   expandAbbreviationsForSpeech,
   prepareNumbersForSpeech,
 } from './admin/iskraReplyPhrasing.js'
+import { naturalizeTextForSpeech } from './admin/iskraSpeechNaturalizer.js'
 
 const GENDER_STORAGE_KEY = 'fit_gemini_gender'
 const AUTO_SPEAK_KEY = 'fit_gemini_auto_speak'
@@ -13,8 +14,9 @@ let speechGeneration = 0
 let cachedVoices = null
 let voicesLoadPromise = null
 
-const SPEECH_CHUNK_MAX = 200
+const SPEECH_CHUNK_MAX = 160
 const SPEECH_RESUME_MS = 200
+const SPEECH_CHUNK_PAUSE_MS = 150
 
 /** @param {SpeechVoiceLike} voice */
 function isRussianVoice(voice) {
@@ -235,7 +237,7 @@ export function prepareTextForSpeech(text) {
     .replace(/\s+/g, ' ')
     .trim()
 
-  return expandAbbreviationsForSpeech(s)
+  return naturalizeTextForSpeech(expandAbbreviationsForSpeech(s))
 }
 
 /** @typedef {{ name?: string, lang?: string, voiceURI?: string }} SpeechVoiceLike */
@@ -380,8 +382,8 @@ function buildUtterance(chunk, gender, voices, options = {}) {
   const normalized = normalizeGender(gender)
   const utter = new SpeechSynthesisUtterance(chunk)
   utter.lang = 'ru-RU'
-  utter.rate = normalized === 'female' ? 0.94 : 0.98
-  utter.pitch = normalized === 'female' ? 1.02 : 0.82
+  utter.rate = normalized === 'female' ? 0.91 : 0.95
+  utter.pitch = normalized === 'female' ? 1.0 : 0.86
   utter.volume = 1
   bindVoice(utter, normalized, voices, options)
   return utter
@@ -453,7 +455,10 @@ export async function speakGeminiText(text, gender = 'female') {
       ) {
         if (retryChunkWithGoogle()) return
       }
-      speakNext()
+      void delayMs(SPEECH_CHUNK_PAUSE_MS).then(() => {
+        if (generation !== speechGeneration) return
+        speakNext()
+      })
     }
     utter.onerror = () => {
       if (generation !== speechGeneration) return

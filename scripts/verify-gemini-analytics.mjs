@@ -71,6 +71,12 @@ import {
 import { buildIskraClubFinanceBlock } from '../src/lib/admin/clubFinanceForecastCore.js'
 import { buildIskraIntroPitch } from '../src/lib/admin/iskraBusinessHighlights.js'
 import {
+  speakCountForSpeech,
+  speakYearGenitiveForSpeech,
+  naturalizeTextForSpeech,
+  prepareProsodyForSpeech,
+} from '../src/lib/admin/iskraSpeechNaturalizer.js'
+import {
   isIskraClubAnalyticsQuestion,
   isIskraOffTopicQuestion,
   buildIskraQuestionReplyHint,
@@ -283,6 +289,12 @@ ok(speakRubAmountForSpeech(222).includes('двести двадцать два �
 ok(speakRubAmountForSpeech(220).includes('двести двадцать рублей'), 'speech rub 220 plural')
 ok(!/\d/.test(speakRubAmountForSpeech(424611)), 'speech rub no digits')
 ok(prepareTextForSpeech('осталось 222 рубля').includes('два рубля'), 'speech fixes rubles in text')
+ok(speakYearGenitiveForSpeech(2026).includes('двадцать шестого'), 'speech year genitive')
+ok(speakCountForSpeech(8, 'клиент', 'клиента', 'клиентов').includes('восемь клиентов'), 'speech count clients')
+ok(naturalizeTextForSpeech('июль 2026').includes('двадцать шестого года'), 'speech month year')
+ok(naturalizeTextForSpeech('8 клиентов без абонемента').includes('восемь клиентов'), 'speech count phrase')
+ok(prepareProsodyForSpeech('ИСКРА. Клуб. На связи.').includes('ИСКРА, '), 'speech prosody iskra comma')
+ok(prepareTextForSpeech('персональный зал на 12%').includes('двенадцать'), 'speech pct after abbr expand')
 ok(integerToRussianWords(33) === 'тридцать три', 'speech int words')
 ok(speakPercentForSpeech('33,4').includes('тридцать три'), 'speech percent int words')
 ok(polishIskraReplyText('план 29.2%').includes('план 29.2%'), 'polish keeps compact plan pct')
