@@ -53,9 +53,10 @@ function sortMicrosoftVoices(voices) {
     const score = (v) => {
       const name = String(v?.name ?? '')
       let s = 0
-      if (isMicrosoftDesktopVoice(v)) s += 40
-      if (isMicrosoftOnlineVoice(v)) s -= 30
-      if (/natural/i.test(name)) s += 5
+      if (isMicrosoftOnlineVoice(v)) s += 40
+      if (/natural/i.test(name)) s += 20
+      if (/neural/i.test(name)) s += 15
+      if (isMicrosoftDesktopVoice(v)) s += 8
       return s
     }
     return score(b) - score(a)
@@ -251,26 +252,25 @@ function scoreSpeechVoice(voice, gender) {
 
   let score = 0
 
-  // Google ru — локально в Edge/Chrome, без VPN (Microsoft Online в РФ часто обрывается).
-  if (isGoogleVoice(voice)) {
-    score += 50
-    if (gender === 'female' && !/male|муж/i.test(lower)) score += 28
-    else if (gender === 'male' && /male|муж/i.test(lower)) score += 12
-  } else if (isMicrosoftDesktopVoice(voice)) score += 44
-  else if (isMicrosoftOnlineVoice(voice)) score -= 55
-  else if (isMicrosoftVoice(voice)) score += 28
+  // Основной голос — Microsoft Online Natural (с VPN звучит лучше всего).
+  if (isMicrosoftVoice(voice)) score += 35
+  if (isMicrosoftOnlineVoice(voice)) score += 30
+  if (/natural/i.test(name)) score += 20
+  if (/neural/i.test(name)) score += 25
+  if (isMicrosoftDesktopVoice(voice)) score += 8
+  if (isGoogleVoice(voice)) score -= 80
 
   if (gender === 'female') {
-    if (/svetlana/i.test(lower)) score += 20
-    if (/irina/i.test(lower)) score += 18
+    if (/svetlana/i.test(lower)) score += 55
+    if (/irina/i.test(lower)) score += 35
     if (/dmitri|dmitry|pavel|yuri|male|муж/i.test(lower)) score -= 80
-    if (/female|жен|milena|katya|anna|elena|olga/i.test(lower)) score += 10
+    if (/female|жен|milena|katya|anna|elena|olga/i.test(lower)) score += 12
   } else {
-    if (/dmitri|dmitry/i.test(lower)) score += 22
-    if (/pavel/i.test(lower)) score += 20
-    if (/yuri/i.test(lower)) score += 12
+    if (/dmitri|dmitry/i.test(lower)) score += 55
+    if (/pavel/i.test(lower)) score += 50
+    if (/yuri/i.test(lower)) score += 20
     if (/svetlana|irina|milena|katya|anna|female|жен|elena|olga/i.test(lower)) score -= 80
-    if (/male|муж/i.test(lower)) score += 10
+    if (/male|муж/i.test(lower)) score += 12
   }
 
   return score
@@ -283,10 +283,13 @@ export function pickGeminiSpeechVoice(gender, voices) {
   const base = pool.length ? pool : list
   if (!base.length) return null
 
+  const hasMicrosoft = base.some((v) => isMicrosoftVoice(v))
+  const candidates = hasMicrosoft ? base.filter((v) => !isGoogleVoice(v)) : base
+
   let best = null
   let bestScore = -Infinity
 
-  for (const voice of base) {
+  for (const voice of candidates) {
     const score = scoreSpeechVoice(voice, normalized)
     if (score > bestScore) {
       bestScore = score
@@ -296,18 +299,54 @@ export function pickGeminiSpeechVoice(gender, voices) {
 
   if (best) return best
 
-  const microsoftOnly = base.filter((v) => isMicrosoftVoice(v))
-  return sortMicrosoftVoices(microsoftOnly)[0] ?? base[0] ?? null
+  if (hasMicrosoft) {
+    const microsoftOnly = base.filter((v) => isMicrosoftVoice(v))
+    return sortMicrosoftVoices(microsoftOnly)[0] ?? null
+  }
+
+  return base[0] ?? null
 }
 
-function bindVoice(utter, gender, voices) {
-  const picked = pickGeminiSpeechVoice(gender, voices)
-  if (!picked) return
-  const uri = String(picked.voiceURI ?? '')
+/** Запасной голос Google ru — если Microsoft Online недоступен без VPN. */
+export function pickGeminiSpeechFallbackVoice(gender, voices) {
+  const normalized = normalizeGender(gender)
+  const list = Array.isArray(voices) ? voices : []
+  const googleRu = list.filter((v) => isGoogleVoice(v) && isRussianVoice(v))
+  if (!googleRu.length) return null
+
+  let best = null
+  let bestScore = -Infinity
+
+  for (const voice of googleRu) {
+    const lower = String(voice?.name ?? '').toLowerCase()
+    let score = 50
+    if (normalized === 'female' && !/male|муж/i.test(lower)) score += 28
+    else if (normalized === 'male' && /male|муж/i.test(lower)) score += 12
+    if (score > bestScore) {
+      bestScore = score
+      best = voice
+    }
+  }
+
+  return best
+}
+
+function resolveBoundVoice(voice, voices) {
+  if (!voice) return null
+  const uri = String(voice.voiceURI ?? '')
   const bound = uri ? voices.find((v) => v.voiceURI === uri) : null
-  const voice = bound ?? picked
+  return bound ?? voice
+}
+
+function bindVoice(utter, gender, voices, options = {}) {
+  const { useFallback = false } = options
+  const picked = useFallback
+    ? pickGeminiSpeechFallbackVoice(gender, voices)
+    : pickGeminiSpeechVoice(gender, voices)
+  const voice = resolveBoundVoice(picked, voices)
+  if (!voice) return
   utter.voice = voice
-  if (voice?.lang) utter.lang = voice.lang
+  if (voice.lang) utter.lang = voice.lang
 }
 
 function clearResumeInterval() {
@@ -334,15 +373,24 @@ function armChromeSpeechResume() {
   }, SPEECH_RESUME_MS)
 }
 
-function buildUtterance(chunk, gender, voices) {
+const SPEECH_MS_FALLBACK_MIN = 500
+const SPEECH_MS_FALLBACK_MIN_CHARS = 16
+
+function buildUtterance(chunk, gender, voices, options = {}) {
   const normalized = normalizeGender(gender)
   const utter = new SpeechSynthesisUtterance(chunk)
   utter.lang = 'ru-RU'
   utter.rate = normalized === 'female' ? 0.94 : 0.98
   utter.pitch = normalized === 'female' ? 1.02 : 0.82
   utter.volume = 1
-  bindVoice(utter, normalized, voices)
+  bindVoice(utter, normalized, voices, options)
   return utter
+}
+
+function shouldFallbackFromMicrosoftUtterance(utter, chunk, elapsedMs, useFallback) {
+  if (useFallback || !utter?.voice) return false
+  if (!isMicrosoftVoice(utter.voice)) return false
+  return chunk.length >= SPEECH_MS_FALLBACK_MIN_CHARS && elapsedMs < SPEECH_MS_FALLBACK_MIN
 }
 
 export async function speakGeminiText(text, gender = 'female') {
@@ -366,6 +414,15 @@ export async function speakGeminiText(text, gender = 'female') {
   primeGeminiSpeechPlayback()
 
   let index = 0
+  let useGoogleFallback = false
+
+  const activateGoogleFallback = () => {
+    if (useGoogleFallback) return false
+    if (!pickGeminiSpeechFallbackVoice(gender, voices)) return false
+    useGoogleFallback = true
+    return true
+  }
+
   const speakNext = () => {
     if (generation !== speechGeneration) return
     if (index >= chunks.length) {
@@ -373,13 +430,34 @@ export async function speakGeminiText(text, gender = 'female') {
       return
     }
 
-    const utter = buildUtterance(chunks[index++], gender, voices)
+    const chunkIndex = index
+    const chunk = chunks[chunkIndex]
+    index += 1
+
+    const utter = buildUtterance(chunk, gender, voices, { useFallback: useGoogleFallback })
+    const startedAt = Date.now()
+
+    const retryChunkWithGoogle = () => {
+      if (!activateGoogleFallback()) return false
+      index = chunkIndex
+      speakNext()
+      return true
+    }
+
     utter.onend = () => {
       if (generation !== speechGeneration) return
+      const elapsed = Date.now() - startedAt
+      if (
+        shouldFallbackFromMicrosoftUtterance(utter, chunk, elapsed, useGoogleFallback) &&
+        pickGeminiSpeechFallbackVoice(gender, voices)
+      ) {
+        if (retryChunkWithGoogle()) return
+      }
       speakNext()
     }
     utter.onerror = () => {
       if (generation !== speechGeneration) return
+      if (retryChunkWithGoogle()) return
       speakNext()
     }
 

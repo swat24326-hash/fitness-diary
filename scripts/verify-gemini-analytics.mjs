@@ -36,7 +36,7 @@ import {
   matchGeminiIntroIntent,
   resolveGeminiClubLabel,
 } from '../src/lib/admin/geminiAssistantIntro.js'
-import { prepareTextForSpeech, pickGeminiSpeechVoice, splitSpeechChunks } from '../src/lib/geminiAnalyticsSpeech.js'
+import { prepareTextForSpeech, pickGeminiSpeechVoice, pickGeminiSpeechFallbackVoice, splitSpeechChunks } from '../src/lib/geminiAnalyticsSpeech.js'
 import {
   clearGeminiSnapshotCacheForTests,
   getCachedGeminiSnapshot,
@@ -316,17 +316,19 @@ const voiceGoogleMale = { name: 'Google русский Male', lang: 'ru-RU' }
 const voiceEn = { name: 'Microsoft Zira', lang: 'en-US' }
 
 const edgeVoices = [voiceGoogleRu, voiceMicrosoftIrina, voiceMicrosoftFemale, voiceMicrosoftMale, voiceEn]
-ok(pickGeminiSpeechVoice('female', edgeVoices)?.name.includes('Google'), 'tts female prefers Google without VPN')
-ok(pickGeminiSpeechVoice('male', edgeVoices)?.name.includes('Google'), 'tts male prefers Google over MS Online')
-ok(pickGeminiSpeechVoice('female', [voiceGoogleRu, voiceMicrosoftNeural])?.name.includes('Google'), 'tts female google over neural cloud')
-ok(pickGeminiSpeechVoice('female', [voiceMicrosoftIrina, voiceMicrosoftFemale])?.name.includes('Irina'), 'tts female desktop over online when no google')
-ok(pickGeminiSpeechVoice('male', [voiceGoogleRu, voiceMicrosoftPavelDesktop])?.name.includes('Pavel'), 'tts male desktop pavel when best local ms')
-ok(pickGeminiSpeechVoice('male', [voiceGoogleMale, voiceGoogleRu])?.name.includes('Google'), 'tts google male when no microsoft')
+ok(pickGeminiSpeechVoice('female', edgeVoices)?.name.includes('Svetlana Online'), 'tts female prefers Svetlana Online')
+ok(pickGeminiSpeechVoice('male', edgeVoices)?.name.includes('Dmitry Online'), 'tts male prefers Dmitry Online')
+ok(pickGeminiSpeechVoice('female', [voiceGoogleRu, voiceMicrosoftNeural])?.name.includes('SvetlanaNeural'), 'tts female neural voice')
+ok(!/google/i.test(pickGeminiSpeechVoice('female', edgeVoices)?.name ?? ''), 'tts skips Google when Microsoft available')
+ok(pickGeminiSpeechFallbackVoice('female', edgeVoices)?.name.includes('Google'), 'tts fallback Google without VPN')
+ok(pickGeminiSpeechFallbackVoice('male', edgeVoices)?.name.includes('Google'), 'tts fallback male Google')
+ok(pickGeminiSpeechVoice('male', [voiceGoogleRu, voiceMicrosoftPavelDesktop])?.name.includes('Pavel'), 'tts male prefers Pavel desktop over Google')
+ok(pickGeminiSpeechVoice('male', [voiceGoogleMale, voiceGoogleRu])?.name.includes('Google'), 'tts google male only when no Microsoft male')
 ok(pickGeminiSpeechVoice('female', [voiceGoogleRu, voiceEn])?.name.includes('Google'), 'tts google fallback when no Microsoft')
 ok(pickGeminiSpeechVoice('female', []) === null, 'tts empty voices')
 
 const voiceMicrosoftPavel = { name: 'Microsoft Pavel Online (Natural)', lang: 'ru-RU' }
-ok(pickGeminiSpeechVoice('male', [voiceMicrosoftFemale, voiceMicrosoftPavel])?.name.includes('Pavel'), 'tts male pavel online only if no google/desktop')
+ok(pickGeminiSpeechVoice('male', [voiceMicrosoftFemale, voiceMicrosoftPavel])?.name.includes('Pavel'), 'tts male prefers Pavel when no Dmitry')
 
 ok(isGeminiRetryableError('models/gemini-1.5-flash is not found'), 'retry on missing model')
 ok(isGeminiRetryableError('This model is currently experiencing high demand'), 'retry on overload')
