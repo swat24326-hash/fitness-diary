@@ -83,7 +83,7 @@ export function IskraCompactDock({
               type="button"
               className={`iskra-dock__hint iskra-dock__hint--${hint.tone || 'neutral'}`}
               disabled={loading || rateLimitSec > 0}
-              onClick={() => onHintClick(hint.message, hint.handlerId)}
+              onClick={() => onHintClick(hint.message, hint.id)}
             >
               {hint.label}
             </button>

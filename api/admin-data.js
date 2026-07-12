@@ -7,6 +7,7 @@ import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 import { assertSalesPlanScopeForRole } from '../src/lib/admin/salesAccessCore.js'
 import { handleGeminiAnalyticsPost, handleGeminiAnalyticsPrefetchGet } from './_lib/geminiAnalyticsHandler.js'
 import { handleIskraSettingsGet, handleIskraSettingsPost } from './_lib/iskraSettingsHandler.js'
+import { handleIskraLearningPost } from './_lib/iskraLearningHandler.js'
 import { handleResetTrainerPasswordPost, handleSetTrainerActivePost } from './_lib/trainerAuthAdmin.js'
 import { handleSearch, handleJournal } from './_lib/adminData/journalHandlers.js'
 import { handleClubStats, handleHealthCards, handleClubMonthly } from './_lib/adminData/clubHandlers.js'
@@ -46,6 +47,7 @@ async function handler(req, res) {
       'gemini-analytics',
       'create-sales-manager',
       'iskra-settings',
+      'iskra-learning',
       'reset-trainer-password',
       'set-trainer-active',
     ])
@@ -77,6 +79,11 @@ async function handler(req, res) {
       const ctx = await requireAdmin(req, res)
       if (!ctx) return
       return handleIskraSettingsPost(ctx, res, body)
+    }
+    if (action === 'iskra-learning') {
+      const ctx = await requireAdmin(req, res)
+      if (!ctx) return
+      return handleIskraLearningPost(ctx, res, body)
     }
     if (action === 'reset-trainer-password') {
       const ctx = await requireAdmin(req, res)

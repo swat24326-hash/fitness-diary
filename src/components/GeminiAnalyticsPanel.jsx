@@ -13,6 +13,8 @@ import {
   Settings,
   Sparkles,
   Target,
+  ThumbsDown,
+  ThumbsUp,
   TrendingUp,
   Users,
   Volume2,
@@ -45,6 +47,15 @@ import {
 } from '../lib/geminiAnalyticsSpeech.js'
 import { periodLabelRu } from '../lib/admin/geminiAnalyticsSnapshot.js'
 import { buildIskraProactiveHints, pickRotatingHint } from '../lib/admin/iskraProactiveHints.js'
+import {
+  buildIskraLearningContext,
+  rankHintsWithLearning,
+} from '../lib/admin/iskraLearningPipeline.js'
+import {
+  loadIskraLearningBundleForUi,
+  recordIskraLearningFeedback,
+} from '../lib/admin/iskraLearningService.js'
+import { deriveReplySignalKey } from '../lib/admin/iskraLearningCore.js'
 import '../styles/gemini-analytics.css'
 
 const MONTH_NAMES = [
@@ -155,6 +166,8 @@ export function GeminiAnalyticsPanel({
   const [entered, setEntered] = useState(false)
   const [dockThreadOpen, setDockThreadOpen] = useState(false)
   const [hintTick, setHintTick] = useState(0)
+  const [learningTick, setLearningTick] = useState(0)
+  const [feedbackByMsg, setFeedbackByMsg] = useState(() => ({}))
   const voiceSupported = useState(() => isSpeechRecognitionSupported())[0]
   const listRef = useRef(null)
   const recognitionRef = useRef(null)
@@ -354,10 +367,15 @@ export function GeminiAnalyticsPanel({
 
   const personaLabel = ISKRA_NAME
   const personaShort = 'И'
-  const proactiveHints = useMemo(
-    () => buildIskraProactiveHints(kpi, { clubName }),
-    [kpi, clubName],
-  )
+  const learningBundle = useMemo(() => {
+    if (!clubId) return { signals: [], playbooks: [], phase: 'collect' }
+    return loadIskraLearningBundleForUi(clubId)
+  }, [clubId, learningTick])
+  const learningCtx = useMemo(() => buildIskraLearningContext({ learningBundle }), [learningBundle])
+  const proactiveHints = useMemo(() => {
+    const base = buildIskraProactiveHints(kpi, { clubName })
+    return rankHintsWithLearning(base, learningCtx)
+  }, [kpi, clubName, learningCtx])
   const rotatingHint = useMemo(
     () => pickRotatingHint(proactiveHints, hintTick),
     [proactiveHints, hintTick],
@@ -389,6 +407,19 @@ export function GeminiAnalyticsPanel({
   const chatHistory = useMemo(
     () => messages.filter((m) => m.role === 'user' || m.role === 'assistant'),
     [messages],
+  )
+
+  const recordLearning = useCallback(
+    (payload) => {
+      if (!clubId) return
+      recordIskraLearningFeedback({
+        clubId,
+        advisorRoleId: advisorRole.id,
+        ...payload,
+      })
+      setLearningTick((n) => n + 1)
+    },
+    [clubId, advisorRole.id],
   )
 
   const sendMessage = useCallback(
@@ -431,6 +462,14 @@ export function GeminiAnalyticsPanel({
           appRole,
         })
 
+      if (handlerId && !completionRetry) {
+        recordLearning({
+          eventType: 'chip_click',
+          handlerId,
+          userMessage,
+        })
+      }
+
       try {
         let data = await fetchReply({
           skipCache: completionRetry,
@@ -450,19 +489,31 @@ export function GeminiAnalyticsPanel({
           }
         }
 
+        const replyMeta = {
+          source: data?.source,
+          chip_id: data?.chip_id,
+          intro_kind: data?.intro_kind,
+          handler_id: handlerId,
+          signal_key: deriveReplySignalKey(userMessage, {
+            chip_id: data?.chip_id,
+            handler_id: handlerId,
+            intro_kind: data?.intro_kind,
+          }),
+        }
+
         if (completionRetry) {
           setMessages((prev) => {
             const next = [...prev]
             for (let i = next.length - 1; i >= 0; i--) {
               if (next[i].role === 'assistant' && next[i].incomplete) {
-                next[i] = { role: 'assistant', content: reply, incomplete }
+                next[i] = { role: 'assistant', content: reply, incomplete, meta: replyMeta }
                 return next
               }
             }
-            return [...next, { role: 'assistant', content: reply, incomplete }]
+            return [...next, { role: 'assistant', content: reply, incomplete, meta: replyMeta }]
           })
         } else {
-          setMessages((prev) => [...prev, { role: 'assistant', content: reply, incomplete }])
+          setMessages((prev) => [...prev, { role: 'assistant', content: reply, incomplete, meta: replyMeta }])
         }
 
         setLastRetry(incomplete ? { text: userMessage, comparePrevious: compare, completionRetry: true } : null)
@@ -494,7 +545,36 @@ export function GeminiAnalyticsPanel({
         setInput('')
       }
     },
-    [clubId, year, month, chatHistory, loading, stopListening, autoSpeak, rateLimitSec, activeTrainerId, appRole],
+    [clubId, year, month, chatHistory, loading, stopListening, autoSpeak, rateLimitSec, activeTrainerId, appRole, recordLearning],
+  )
+
+  const submitReplyFeedback = useCallback(
+    (msgIndex, vote) => {
+      const msg = messages[msgIndex]
+      if (!msg || msg.role !== 'assistant' || msg.incomplete) return
+      const key = `a-${msgIndex}`
+      if (feedbackByMsg[key]) return
+
+      let userText = ''
+      for (let j = msgIndex - 1; j >= 0; j--) {
+        if (messages[j].role === 'user') {
+          userText = messages[j].content
+          break
+        }
+      }
+
+      recordLearning({
+        eventType: vote === 'up' ? 'feedback_up' : 'feedback_down',
+        signalKey: msg.meta?.signal_key,
+        userMessage: userText,
+        chipId: msg.meta?.chip_id,
+        handlerId: msg.meta?.handler_id,
+        introKind: msg.meta?.intro_kind,
+        meta: { source: msg.meta?.source, vote },
+      })
+      setFeedbackByMsg((prev) => ({ ...prev, [key]: vote }))
+    },
+    [messages, feedbackByMsg, recordLearning],
   )
 
   const comparePreviousFromChip = useCallback(
@@ -580,7 +660,10 @@ export function GeminiAnalyticsPanel({
         onMic={toggleVoiceInput}
         onExpand={() => onExpand?.()}
         onClose={handleClose}
-        onHintClick={(msg) => {
+        onHintClick={(msg, hintId) => {
+          if (hintId) {
+            recordLearning({ eventType: 'hint_click', hintId, userMessage: msg })
+          }
           setDockThreadOpen(true)
           void sendMessage(msg, comparePreviousFromChip(msg))
         }}
@@ -801,6 +884,28 @@ export function GeminiAnalyticsPanel({
                           <RotateCcw size={14} aria-hidden />
                           Дописать
                         </button>
+                      ) : null}
+                      {!msg.incomplete ? (
+                        <>
+                          <button
+                            type="button"
+                            className={`btn btn-ghost btn-sm gemini-panel__feedback${feedbackByMsg[`a-${i}`] === 'up' ? ' gemini-panel__feedback--on' : ''}`}
+                            aria-label="Полезный ответ"
+                            disabled={!!feedbackByMsg[`a-${i}`]}
+                            onClick={() => submitReplyFeedback(i, 'up')}
+                          >
+                            <ThumbsUp size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            className={`btn btn-ghost btn-sm gemini-panel__feedback${feedbackByMsg[`a-${i}`] === 'down' ? ' gemini-panel__feedback--on' : ''}`}
+                            aria-label="Не полезный ответ"
+                            disabled={!!feedbackByMsg[`a-${i}`]}
+                            onClick={() => submitReplyFeedback(i, 'down')}
+                          >
+                            <ThumbsDown size={14} />
+                          </button>
+                        </>
                       ) : null}
                       <button
                         type="button"

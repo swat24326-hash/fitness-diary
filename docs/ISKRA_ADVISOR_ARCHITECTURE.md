@@ -50,3 +50,5 @@ iskraAdvisorPipeline.js   — оркестратор
 ## Verify
 
 `node scripts/verify-iskra-advisor.mjs`
+
+Самообучение: [ISKRA_SELF_LEARNING.md](./ISKRA_SELF_LEARNING.md), `node scripts/verify-iskra-learning.mjs`

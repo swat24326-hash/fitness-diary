@@ -518,6 +518,15 @@
   opacity: 1;
 }
 
+.gemini-panel__feedback {
+  color: var(--text-muted, #8b949e);
+}
+
+.gemini-panel__feedback--on {
+  color: var(--gemini-accent);
+  opacity: 1;
+}
+
 .gemini-panel__typing {
   display: flex;
   gap: 0.28rem;

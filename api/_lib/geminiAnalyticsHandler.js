@@ -38,6 +38,12 @@ import {
   buildAdvisorPromptAppend,
   buildIskraAdvisorContext,
 } from '../../src/lib/admin/iskraAdvisorPipeline.js'
+import {
+  buildIskraLearningContext,
+  buildLearningMetaForResponse,
+  mergeLearningIntoPromptAppend,
+} from '../../src/lib/admin/iskraLearningPipeline.js'
+import { loadClubLearningBundle } from './iskraLearningHandler.js'
 import { periodLabelRu, trimChatHistory } from '../../src/lib/admin/geminiAnalyticsSnapshot.js'
 import { buildPanelKpiFromAnalytics } from '../../src/lib/admin/clubMonthAnalyticsCore.js'
 
@@ -245,6 +251,7 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
 
     let promptAppend = ''
     let quickChipsStored = null
+    let learningBundle = { signals: [], playbooks: [], phase: 'collect' }
     try {
       const settings = await loadClubIskraSettings(ctx.supabaseAdmin, clubId)
       promptAppend = settings.prompt_append
@@ -253,7 +260,17 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
       promptAppend = ''
       quickChipsStored = null
     }
-    promptAppend = [promptAppend, buildAdvisorPromptAppend(advisorCtx)].filter(Boolean).join('\n\n')
+    try {
+      learningBundle = await loadClubLearningBundle(ctx.supabaseAdmin, clubId)
+    } catch {
+      learningBundle = { signals: [], playbooks: [], phase: 'collect' }
+    }
+    const learningCtx = buildIskraLearningContext({ learningBundle })
+    const learningMeta = buildLearningMetaForResponse(learningCtx)
+    promptAppend = mergeLearningIntoPromptAppend(
+      [promptAppend, buildAdvisorPromptAppend(advisorCtx)].filter(Boolean).join('\n\n'),
+      learningCtx,
+    )
 
     const explicitHandlerId = String(body?.handler_id ?? '').trim() || null
     const trainersList = scopedSnapshot?.trainer_contour?.trainers ?? []
@@ -323,6 +340,9 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
           compare_previous: comparePrevious,
           intro_kind: introKind,
           ...advisorMeta,
+      ...learningMeta,
+        ...learningMeta,
+          ...learningMeta,
         })
         return
       }
@@ -359,6 +379,9 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
           compare_previous: comparePrevious,
           chip_id: chipId,
           ...advisorMeta,
+      ...learningMeta,
+        ...learningMeta,
+          ...learningMeta,
         })
         return
       }
@@ -417,6 +440,8 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
         compare_previous: comparePrevious,
         incomplete: true,
         ...advisorMeta,
+      ...learningMeta,
+        ...learningMeta,
       })
       return
     }
@@ -434,6 +459,7 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
       source,
       compare_previous: comparePrevious,
       ...advisorMeta,
+      ...learningMeta,
     })
   } catch (e) {
     const msg = formatGeminiUserError(e?.message ?? 'Ошибка аналитики')
