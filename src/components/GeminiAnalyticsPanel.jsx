@@ -65,6 +65,7 @@ import { IskraDispatchModal } from './iskra/IskraDispatchModal.jsx'
 import { useClubDispatchRecipients } from '../hooks/useClubDispatchRecipients.js'
 import { buildWeekChecklistTaskDraft } from '../lib/admin/staffTaskCreateCore.js'
 import '../styles/gemini-analytics.css'
+import '../styles/iskra-dispatch.css'
 
 function sparkDismissStorageKey(clubId, year, month) {
   return `fitness-diary-iskra-spark-dismiss-${clubId}-${year}-${month}`

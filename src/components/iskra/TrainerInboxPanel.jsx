@@ -13,6 +13,7 @@ import { notifyTrainerInboxUpdated } from '../../lib/admin/trainerInboxEvents.js
 import { taskKindLabel } from '../../lib/admin/iskraTaskKindsCore.js'
 import { DispatchTaskProgressBar } from './DispatchTaskProgressBar.jsx'
 import { DispatchTaskStagesList } from './DispatchTaskStagesList.jsx'
+import '../../styles/iskra-dispatch.css'
 
 /**
  * @param {{

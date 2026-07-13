@@ -20,6 +20,10 @@ export function DispatchDuePicker({ mode, onModeChange, dueDate, onDueDateChange
 
   return (
     <div className="iskra-dispatch__due">
+      <p className="iskra-dispatch__sub-label">
+        <CalendarDays size={14} aria-hidden />
+        Дедлайн
+      </p>
       <div className="iskra-dispatch__due-mode" role="group" aria-label="Дедлайн">
         {DISPATCH_DUE_MODE_OPTIONS.map((opt) => (
           <button

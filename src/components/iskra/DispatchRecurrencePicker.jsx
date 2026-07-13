@@ -30,9 +30,9 @@ export function DispatchRecurrencePicker({
 
   return (
     <div className="iskra-dispatch__recurrence">
-      <p className="iskra-dispatch__recurrence-label">
-        <Repeat size={14} aria-hidden style={{ verticalAlign: -2, marginRight: 4 }} />
-        Повтор
+      <p className="iskra-dispatch__sub-label">
+        <Repeat size={14} aria-hidden />
+        Повтор задания
       </p>
       <div className="iskra-dispatch__recurrence-mode" role="group" aria-label="Повтор задания">
         {DISPATCH_RECURRENCE_PRESETS.map((opt) => (

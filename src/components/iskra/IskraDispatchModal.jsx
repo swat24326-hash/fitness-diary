@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Send, Sparkles, X } from 'lucide-react'
+import { CalendarClock, ClipboardList, ListOrdered, Send, Sparkles, UserRound, X } from 'lucide-react'
 import { buildDispatchFromInsightCard } from '../../lib/admin/iskraDispatchCore.js'
 import { createIskraDispatch } from '../../lib/admin/iskraDispatchService.js'
 import { buildManualTaskDraft, staffTaskSourceChannelLabel } from '../../lib/admin/staffTaskCreateCore.js'
@@ -9,12 +9,13 @@ import {
   buildSelectedRecipientIds,
   dispatchRecipientSendLabel,
 } from '../../lib/admin/iskraDispatchRecipientCore.js'
-import { dispatchDueDateMinIso, isValidFutureDueDate, resolveDispatchDueAt } from '../../lib/admin/iskraDispatchDueCore.js'
+import { dispatchDueDateMinIso, dispatchDueModeLabel, isValidFutureDueDate, resolveDispatchDueAt } from '../../lib/admin/iskraDispatchDueCore.js'
 import { DispatchRecipientPicker } from './DispatchRecipientPicker.jsx'
 import { DispatchDuePicker } from './DispatchDuePicker.jsx'
-import { isValidCustomRecurrenceDays } from '../../lib/admin/iskraDispatchRecurrenceCore.js'
+import { isValidCustomRecurrenceDays, DISPATCH_RECURRENCE_PRESETS, formatRecurrenceDaysRu } from '../../lib/admin/iskraDispatchRecurrenceCore.js'
 import { DispatchRecurrencePicker } from './DispatchRecurrencePicker.jsx'
 import { DispatchStagesEditor } from './DispatchStagesEditor.jsx'
+import '../../styles/iskra-dispatch.css'
 
 /**
  * @param {{
@@ -124,6 +125,51 @@ export function IskraDispatchModal({
     [recipientMode, singleRecipientId, multiRecipientIds, recipientOptions],
   )
 
+  const handleRecurrenceChange = (preset) => {
+    setRecurrencePreset(preset)
+    if (preset && dueMode === 'none') setDueMode('3days')
+  }
+
+  const composePreview = useMemo(() => {
+    let who = '—'
+    if (recipientMode === 'all') who = `все (${recipientOptions.length})`
+    else if (recipientMode === 'several') who = `${selectedRecipientIds.length} чел.`
+    else {
+      const hit = recipientOptions.find((t) => t.trainer_id === singleRecipientId)
+      who = hit?.trainer_name || hit?.role_label || '—'
+    }
+
+    let when = dispatchDueModeLabel(dueMode)
+    if (dueMode === 'date' && dueDate) when = `до ${dueDate.split('-').reverse().join('.')}`
+
+    let recur = ''
+    if (recurrencePreset) {
+      const hit = DISPATCH_RECURRENCE_PRESETS.find((p) => p.id === recurrencePreset)
+      recur =
+        recurrencePreset === 'custom_days' && isValidCustomRecurrenceDays(customRecurrenceDays)
+          ? formatRecurrenceDaysRu(customRecurrenceDays)
+          : hit?.label || ''
+    }
+
+    const stagesCount = stageTitles.map((s) => String(s).trim()).filter(Boolean).length
+    const stagesWord =
+      stagesCount === 1 ? '1 этап' : stagesCount >= 2 && stagesCount <= 4 ? `${stagesCount} этапа` : stagesCount >= 5 ? `${stagesCount} этапов` : ''
+    const parts = [who, when]
+    if (recur) parts.push(recur)
+    if (stagesWord) parts.push(stagesWord)
+    return parts.join(' · ')
+  }, [
+    recipientMode,
+    recipientOptions,
+    selectedRecipientIds.length,
+    singleRecipientId,
+    dueMode,
+    dueDate,
+    recurrencePreset,
+    customRecurrenceDays,
+    stageTitles,
+  ])
+
   useEffect(() => {
     if (!open) return
     const onKey = (e) => {
@@ -140,7 +186,7 @@ export function IskraDispatchModal({
       setError(
         recipientMode === 'several' && !selectedRecipientIds.length
           ? 'Выберите хотя бы одного исполнителя'
-          : 'Выберите исполнителя и заполните текст',
+          : 'Заполните заголовок, описание и выберите исполнителя',
       )
       return
     }
@@ -211,9 +257,11 @@ export function IskraDispatchModal({
     recipientOptions.length,
   )
 
+  const flowStep = !title.trim() || !body.trim() ? 1 : !selectedRecipientIds.length ? 2 : 3
+
   return (
     <div
-      className="modal-overlay iskra-dispatch-overlay"
+      className="modal-overlay modal-overlay--center iskra-dispatch-overlay"
       role="dialog"
       aria-modal="true"
       aria-labelledby="iskra-dispatch-title"
@@ -222,7 +270,9 @@ export function IskraDispatchModal({
       <div className="modal-panel iskra-dispatch" onClick={(e) => e.stopPropagation()}>
         <header className="iskra-dispatch__head">
           <div className="iskra-dispatch__head-main">
-            <Sparkles size={18} aria-hidden />
+            <span className="iskra-dispatch__head-icon" aria-hidden>
+              <Sparkles size={20} />
+            </span>
             <div>
               <h2 id="iskra-dispatch-title" className="iskra-dispatch__title">
                 Поставить задание
@@ -232,18 +282,106 @@ export function IskraDispatchModal({
                   ? 'Ручное задание без ИСКРЫ'
                   : draft.source_channel
                     ? `Планёрка · ${draftChannelLabel}`
-                    : 'Планёрка: кому, срок, текст'}
+                    : 'Сначала суть, потом кому и срок'}
               </p>
             </div>
           </div>
-          <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={onClose} aria-label="Закрыть">
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm btn-icon-square iskra-dispatch__close"
+            disabled={busy}
+            onClick={onClose}
+            aria-label="Закрыть"
+          >
             <X size={18} />
           </button>
         </header>
 
-        <div className="iskra-dispatch__body">
-          <div className="iskra-dispatch__section">
-            <span className="iskra-dispatch__section-label">Исполнитель</span>
+        <div className="iskra-dispatch__flow" aria-hidden>
+          <span className={`iskra-dispatch__flow-step${flowStep >= 1 ? ' iskra-dispatch__flow-step--on' : ''}`}>
+            <span className="iskra-dispatch__flow-num">1</span>
+            Суть
+          </span>
+          <span className="iskra-dispatch__flow-line" />
+          <span className={`iskra-dispatch__flow-step${flowStep >= 2 ? ' iskra-dispatch__flow-step--on' : ''}`}>
+            <span className="iskra-dispatch__flow-num">2</span>
+            Кому
+          </span>
+          <span className="iskra-dispatch__flow-line" />
+          <span className={`iskra-dispatch__flow-step${flowStep >= 3 ? ' iskra-dispatch__flow-step--on' : ''}`}>
+            <span className="iskra-dispatch__flow-num">3</span>
+            Срок
+          </span>
+        </div>
+
+        <div className="iskra-dispatch__body stagger">
+          <section className="iskra-dispatch__block" aria-labelledby="iskra-dispatch-block-task">
+            <div className="iskra-dispatch__block-head">
+              <h3 id="iskra-dispatch-block-task" className="iskra-dispatch__block-title">
+                <ClipboardList size={15} aria-hidden />
+                Суть задания
+              </h3>
+              <span className="iskra-dispatch__block-badge">Шаг 1</span>
+            </div>
+            <p className="iskra-dispatch__block-hint muted">Что нужно сделать — исполнитель увидит это в инбоксе.</p>
+
+            <label className="iskra-dispatch__field">
+              <span>Заголовок</span>
+              <input
+                className="input"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                maxLength={200}
+                placeholder="Кратко: что сделать"
+                disabled={busy}
+                autoFocus
+              />
+            </label>
+
+            <label className="iskra-dispatch__field">
+              <span>Описание</span>
+              <textarea
+                className="input iskra-dispatch__textarea"
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                rows={4}
+                maxLength={2000}
+                placeholder="Подробности: что, зачем, критерий готовности"
+                disabled={busy}
+              />
+            </label>
+
+            <div className="iskra-dispatch__field">
+              <span className="iskra-dispatch__field-label">Приоритет</span>
+              <div className="iskra-dispatch__priority" role="group" aria-label="Приоритет">
+                <button
+                  type="button"
+                  className={`iskra-dispatch__priority-btn${priority === 'normal' ? ' iskra-dispatch__priority-btn--on' : ''}`}
+                  disabled={busy}
+                  onClick={() => setPriority('normal')}
+                >
+                  Обычный
+                </button>
+                <button
+                  type="button"
+                  className={`iskra-dispatch__priority-btn iskra-dispatch__priority-btn--high${priority === 'high' ? ' iskra-dispatch__priority-btn--on' : ''}`}
+                  disabled={busy}
+                  onClick={() => setPriority('high')}
+                >
+                  Высокий
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <section className="iskra-dispatch__block" aria-labelledby="iskra-dispatch-block-who">
+            <div className="iskra-dispatch__block-head">
+              <h3 id="iskra-dispatch-block-who" className="iskra-dispatch__block-title">
+                <UserRound size={15} aria-hidden />
+                Исполнитель
+              </h3>
+              <span className="iskra-dispatch__block-badge">Шаг 2</span>
+            </div>
             <DispatchRecipientPicker
               mode={recipientMode}
               onModeChange={setRecipientMode}
@@ -254,10 +392,16 @@ export function IskraDispatchModal({
               onMultiIdsChange={setMultiRecipientIds}
               disabled={busy}
             />
-          </div>
+          </section>
 
-          <div className="iskra-dispatch__section">
-            <span className="iskra-dispatch__section-label">Срок и повтор</span>
+          <section className="iskra-dispatch__block" aria-labelledby="iskra-dispatch-block-when">
+            <div className="iskra-dispatch__block-head">
+              <h3 id="iskra-dispatch-block-when" className="iskra-dispatch__block-title">
+                <CalendarClock size={15} aria-hidden />
+                Срок и повтор
+              </h3>
+              <span className="iskra-dispatch__block-badge">Шаг 3</span>
+            </div>
             <DispatchDuePicker
               mode={dueMode}
               onModeChange={setDueMode}
@@ -265,50 +409,27 @@ export function IskraDispatchModal({
               onDueDateChange={setDueDate}
               disabled={busy}
             />
+            <div className="iskra-dispatch__split" aria-hidden />
             <DispatchRecurrencePicker
               preset={recurrencePreset}
-              onPresetChange={setRecurrencePreset}
+              onPresetChange={handleRecurrenceChange}
               customDays={customRecurrenceDays}
               onCustomDaysChange={setCustomRecurrenceDays}
               dueMode={dueMode}
               disabled={busy}
             />
-          </div>
+          </section>
 
-          <div className="iskra-dispatch__section">
+          <section className="iskra-dispatch__block iskra-dispatch__block--optional" aria-labelledby="iskra-dispatch-block-stages">
+            <div className="iskra-dispatch__block-head">
+              <h3 id="iskra-dispatch-block-stages" className="iskra-dispatch__block-title">
+                <ListOrdered size={15} aria-hidden />
+                Этапы
+              </h3>
+              <span className="iskra-dispatch__block-badge">Опционально</span>
+            </div>
             <DispatchStagesEditor stages={stageTitles} onChange={setStageTitles} disabled={busy} />
-          </div>
-
-          <label className="iskra-dispatch__field">
-            <span>Приоритет</span>
-            <select className="select" value={priority} onChange={(e) => setPriority(e.target.value)} disabled={busy}>
-              <option value="normal">Обычный</option>
-              <option value="high">Высокий</option>
-            </select>
-          </label>
-
-          <label className="iskra-dispatch__field">
-            <span>Заголовок</span>
-            <input
-              className="input"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              maxLength={200}
-              disabled={busy}
-            />
-          </label>
-
-          <label className="iskra-dispatch__field">
-            <span>Описание</span>
-            <textarea
-              className="input iskra-dispatch__textarea"
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              rows={5}
-              maxLength={2000}
-              disabled={busy}
-            />
-          </label>
+          </section>
 
           {error ? (
             <p className="iskra-dispatch__feedback iskra-dispatch__feedback--error" role="alert">
@@ -323,18 +444,25 @@ export function IskraDispatchModal({
         </div>
 
         <footer className="iskra-dispatch__foot">
-          <button type="button" className="btn btn-secondary" disabled={busy} onClick={onClose}>
-            Отмена
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={busy || !recipientOptions.length || !selectedRecipientIds.length}
-            onClick={() => void handleSend()}
-          >
-            <Send size={16} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
-            {busy ? 'Отправка…' : sendLabel}
-          </button>
+          {composePreview ? (
+            <p className="iskra-dispatch__preview">
+              Отправка: <strong>{composePreview}</strong>
+            </p>
+          ) : null}
+          <div className="iskra-dispatch__foot-actions">
+            <button type="button" className="btn btn-secondary" disabled={busy} onClick={onClose}>
+              Отмена
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={busy || !recipientOptions.length || !selectedRecipientIds.length}
+              onClick={() => void handleSend()}
+            >
+              <Send size={16} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
+              {busy ? 'Отправка…' : sendLabel}
+            </button>
+          </div>
         </footer>
       </div>
     </div>
