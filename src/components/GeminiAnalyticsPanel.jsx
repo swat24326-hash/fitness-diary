@@ -62,6 +62,7 @@ import { IskraSparkBrief } from './iskra/IskraSparkBrief.jsx'
 import { IskraAlertRibbon } from './iskra/IskraAlertRibbon.jsx'
 import { IskraWeekChecklist } from './iskra/IskraWeekChecklist.jsx'
 import { IskraDispatchModal } from './iskra/IskraDispatchModal.jsx'
+import { useClubDispatchRecipients } from '../hooks/useClubDispatchRecipients.js'
 import { buildWeekChecklistTaskDraft } from '../lib/admin/staffTaskCreateCore.js'
 import '../styles/gemini-analytics.css'
 
@@ -228,6 +229,7 @@ export function GeminiAnalyticsPanel({
   const [kpiLoadError, setKpiLoadError] = useState('')
   const [quickChips, setQuickChips] = useState(() => defaultIskraQuickChips())
   const [trainers, setTrainers] = useState([])
+  const { recipients: dispatchRecipients } = useClubDispatchRecipients(clubId, { includeSalesManagers: true })
   const [focusTrainerId, setFocusTrainerId] = useState(null)
   const [entered, setEntered] = useState(false)
   const [dockThreadOpen, setDockThreadOpen] = useState(false)
@@ -1445,6 +1447,7 @@ export function GeminiAnalyticsPanel({
       year={year}
       month={month}
       trainers={trainers}
+      recipients={dispatchRecipients}
       defaultCard={dispatchCard}
       defaultDraft={dispatchDraft}
       defaultRecipientId={activeTrainerId ?? ''}

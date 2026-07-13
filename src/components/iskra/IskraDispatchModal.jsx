@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarClock, Send, Sparkles, X } from 'lucide-react'
+import { Send, Sparkles, X } from 'lucide-react'
 import { buildDispatchFromInsightCard } from '../../lib/admin/iskraDispatchCore.js'
 import { createIskraDispatch } from '../../lib/admin/iskraDispatchService.js'
 import { buildManualTaskDraft, staffTaskSourceChannelLabel } from '../../lib/admin/staffTaskCreateCore.js'
 import { periodLabelRu } from '../../lib/admin/geminiAnalyticsSnapshot.js'
 import { ISKRA_TASK_KIND_META } from '../../lib/admin/iskraTaskKindsCore.js'
-
-const DUE_PRESETS = [
-  { id: 'tomorrow', label: 'Завтра' },
-  { id: '3days', label: '3 дня' },
-  { id: 'week', label: 'Неделя' },
-  { id: 'none', label: 'Без срока' },
-]
+import {
+  buildSelectedRecipientIds,
+  dispatchRecipientSendLabel,
+} from '../../lib/admin/iskraDispatchRecipientCore.js'
+import { dispatchDueDateMinIso, isValidFutureDueDate, resolveDispatchDueAt } from '../../lib/admin/iskraDispatchDueCore.js'
+import { DispatchRecipientPicker } from './DispatchRecipientPicker.jsx'
+import { DispatchDuePicker } from './DispatchDuePicker.jsx'
+import { isValidCustomRecurrenceDays } from '../../lib/admin/iskraDispatchRecurrenceCore.js'
+import { DispatchRecurrencePicker } from './DispatchRecurrencePicker.jsx'
 
 /**
  * @param {{
@@ -64,6 +66,7 @@ export function IskraDispatchModal({
       task_kind: 'custom',
       priority: 'normal',
       due_preset: '3days',
+      recurrence_preset: '',
       context_json: {},
     }
   }, [defaultDraft, defaultCard, clubName, periodLabel, manualMode])
@@ -73,9 +76,13 @@ export function IskraDispatchModal({
 
   const [recipientMode, setRecipientMode] = useState('one')
   const [singleRecipientId, setSingleRecipientId] = useState('')
+  const [multiRecipientIds, setMultiRecipientIds] = useState([])
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
-  const [duePreset, setDuePreset] = useState('3days')
+  const [dueMode, setDueMode] = useState('3days')
+  const [dueDate, setDueDate] = useState(dispatchDueDateMinIso())
+  const [recurrencePreset, setRecurrencePreset] = useState('')
+  const [customRecurrenceDays, setCustomRecurrenceDays] = useState(7)
   const [priority, setPriority] = useState('normal')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -84,22 +91,35 @@ export function IskraDispatchModal({
   useEffect(() => {
     if (!open) return
     const defaultId = defaultRecipientId || draft.default_recipient_id || recipientOptions[0]?.trainer_id || ''
+    const preset = String(draft.due_preset ?? '3days')
+    const resolvedDue = resolveDispatchDueAt({ due_preset: preset })
+    let nextDueMode = resolvedDue.due_mode
+    if (preset === 'week') nextDueMode = '3days'
+    if (!['tomorrow', '3days', 'none', 'date'].includes(nextDueMode)) nextDueMode = '3days'
+
     setRecipientMode('one')
     setSingleRecipientId(defaultId)
+    setMultiRecipientIds(defaultId ? [defaultId] : [])
     setTitle(draft.title)
     setBody(draft.body)
-    setDuePreset(draft.due_preset ?? '3days')
+    setDueMode(nextDueMode)
+    setDueDate(resolvedDue.due_date || dispatchDueDateMinIso())
+    setRecurrencePreset(String(draft.recurrence_preset ?? ''))
+    setCustomRecurrenceDays(Number(draft.recurrence_days) || 7)
     setPriority(draft.priority ?? 'normal')
     setError('')
     setOkMsg('')
   }, [open, draft, defaultRecipientId, recipientOptions])
 
-  const selectedRecipientIds = useMemo(() => {
-    if (recipientMode === 'all') {
-      return recipientOptions.map((t) => t.trainer_id)
-    }
-    return singleRecipientId ? [singleRecipientId] : []
-  }, [recipientMode, singleRecipientId, recipientOptions])
+  const selectedRecipientIds = useMemo(
+    () =>
+      buildSelectedRecipientIds(recipientMode, {
+        singleId: singleRecipientId,
+        multiIds: multiRecipientIds,
+        options: recipientOptions,
+      }),
+    [recipientMode, singleRecipientId, multiRecipientIds, recipientOptions],
+  )
 
   useEffect(() => {
     if (!open) return
@@ -114,12 +134,33 @@ export function IskraDispatchModal({
 
   const handleSend = async () => {
     if (!clubId || !selectedRecipientIds.length || !title.trim() || !body.trim()) {
-      setError('Выберите исполнителя и заполните текст')
+      setError(
+        recipientMode === 'several' && !selectedRecipientIds.length
+          ? 'Выберите хотя бы одного исполнителя'
+          : 'Выберите исполнителя и заполните текст',
+      )
       return
     }
+
+    if (dueMode === 'date' && !isValidFutureDueDate(dueDate)) {
+      setError('Укажите дату дедлайна — сегодня или позже')
+      return
+    }
+
+    if (recurrencePreset && dueMode === 'none') {
+      setError('Для повторяющегося задания нужен срок — не «Без срока»')
+      return
+    }
+
+    if (recurrencePreset === 'custom_days' && !isValidCustomRecurrenceDays(customRecurrenceDays)) {
+      setError('Укажите интервал повтора от 2 до 90 дней')
+      return
+    }
+
     setBusy(true)
     setError('')
     try {
+      const duePreset = dueMode === 'date' ? 'date' : dueMode
       const result = await createIskraDispatch({
         clubId,
         recipientUserIds: selectedRecipientIds,
@@ -135,10 +176,16 @@ export function IskraDispatchModal({
         taskKind,
         priority,
         duePreset,
+        dueDate: dueMode === 'date' ? dueDate : undefined,
+        recurrencePreset,
+        recurrenceDays: recurrencePreset === 'custom_days' ? customRecurrenceDays : undefined,
         deepLink: draft.deep_link || ISKRA_TASK_KIND_META[taskKind]?.deepLink,
       })
       const count = Number(result?.count) || selectedRecipientIds.length
-      setOkMsg(count > 1 ? `Задание поставлено ${count} сотрудникам` : 'Задание поставлено')
+      const recurNote = recurrencePreset ? ' · цикл запущен' : ''
+      setOkMsg(
+        count > 1 ? `Задание поставлено ${count} сотрудникам${recurNote}` : `Задание поставлено${recurNote}`,
+      )
       onSent?.()
       window.setTimeout(() => onClose(), 700)
     } catch (e) {
@@ -148,7 +195,11 @@ export function IskraDispatchModal({
     }
   }
 
-  const canPickAll = recipientOptions.length > 1
+  const sendLabel = dispatchRecipientSendLabel(
+    recipientMode,
+    selectedRecipientIds.length,
+    recipientOptions.length,
+  )
 
   return (
     <div
@@ -181,49 +232,37 @@ export function IskraDispatchModal({
         </header>
 
         <div className="iskra-dispatch__body">
-          <div className="iskra-dispatch__field">
-            <span>Исполнитель</span>
-            {canPickAll ? (
-              <div className="iskra-dispatch__recipient-mode" role="group" aria-label="Кому отправить">
-                <button
-                  type="button"
-                  className={`iskra-dispatch__recipient-mode-btn${recipientMode === 'one' ? ' iskra-dispatch__recipient-mode-btn--on' : ''}`}
-                  disabled={busy}
-                  onClick={() => setRecipientMode('one')}
-                >
-                  Один
-                </button>
-                <button
-                  type="button"
-                  className={`iskra-dispatch__recipient-mode-btn${recipientMode === 'all' ? ' iskra-dispatch__recipient-mode-btn--on' : ''}`}
-                  disabled={busy}
-                  onClick={() => setRecipientMode('all')}
-                >
-                  Все ({recipientOptions.length})
-                </button>
-              </div>
-            ) : null}
+          <div className="iskra-dispatch__section">
+            <span className="iskra-dispatch__section-label">Исполнитель</span>
+            <DispatchRecipientPicker
+              mode={recipientMode}
+              onModeChange={setRecipientMode}
+              options={recipientOptions}
+              singleId={singleRecipientId}
+              onSingleIdChange={setSingleRecipientId}
+              multiIds={multiRecipientIds}
+              onMultiIdsChange={setMultiRecipientIds}
+              disabled={busy}
+            />
+          </div>
 
-            {recipientMode === 'one' || !canPickAll ? (
-              <select
-                className="select"
-                value={singleRecipientId}
-                onChange={(e) => setSingleRecipientId(e.target.value)}
-                disabled={busy || !recipientOptions.length}
-              >
-                {!recipientOptions.length ? <option value="">Нет исполнителей в клубе</option> : null}
-                {recipientOptions.map((t) => (
-                  <option key={t.trainer_id} value={t.trainer_id}>
-                    {t.role_label ? `${t.role_label}: ` : ''}
-                    {t.trainer_name || t.trainer_id}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <p className="iskra-dispatch__recipient-all-note muted">
-                Задание получат все активные сотрудники клуба ({recipientOptions.length}).
-              </p>
-            )}
+          <div className="iskra-dispatch__section">
+            <span className="iskra-dispatch__section-label">Срок и повтор</span>
+            <DispatchDuePicker
+              mode={dueMode}
+              onModeChange={setDueMode}
+              dueDate={dueDate}
+              onDueDateChange={setDueDate}
+              disabled={busy}
+            />
+            <DispatchRecurrencePicker
+              preset={recurrencePreset}
+              onPresetChange={setRecurrencePreset}
+              customDays={customRecurrenceDays}
+              onCustomDaysChange={setCustomRecurrenceDays}
+              dueMode={dueMode}
+              disabled={busy}
+            />
           </div>
 
           <label className="iskra-dispatch__field">
@@ -231,20 +270,6 @@ export function IskraDispatchModal({
             <select className="select" value={priority} onChange={(e) => setPriority(e.target.value)} disabled={busy}>
               <option value="normal">Обычный</option>
               <option value="high">Высокий</option>
-            </select>
-          </label>
-
-          <label className="iskra-dispatch__field">
-            <span>
-              <CalendarClock size={14} aria-hidden style={{ verticalAlign: -2, marginRight: 4 }} />
-              Дедлайн
-            </span>
-            <select className="select" value={duePreset} onChange={(e) => setDuePreset(e.target.value)} disabled={busy}>
-              {DUE_PRESETS.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.label}
-                </option>
-              ))}
             </select>
           </label>
 
@@ -294,7 +319,7 @@ export function IskraDispatchModal({
             onClick={() => void handleSend()}
           >
             <Send size={16} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
-            {busy ? 'Отправка…' : recipientMode === 'all' ? `Поставить всем (${recipientOptions.length})` : 'Поставить задачу'}
+            {busy ? 'Отправка…' : sendLabel}
           </button>
         </footer>
       </div>

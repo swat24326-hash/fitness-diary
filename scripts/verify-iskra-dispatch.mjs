@@ -26,6 +26,32 @@ import {
   resolveDueAtFromPreset,
   resolveTaskKindFromInsight,
 } from '../src/lib/admin/iskraTaskKindsCore.js'
+import {
+  canCreateClubDispatch,
+  canDeleteClubDispatch,
+  canStopClubDispatchRecurrence,
+  canViewClubDispatchSent,
+  isDispatchRecipientRole,
+} from '../src/lib/admin/iskraDispatchAccessCore.js'
+import {
+  buildRecurringDispatchSpawnRow,
+  computeNextDueAtFromRecurrence,
+  formatRecurrenceDaysRu,
+  formatRecurrenceLabel,
+  normalizeRecurrenceInput,
+  normalizeStopRecurrencePayload,
+  recurrenceRuleFromPreset,
+} from '../src/lib/admin/iskraDispatchRecurrenceCore.js'
+import {
+  resolveDispatchDueAt,
+  resolveDueAtFromMode,
+  dueAtEndOfLocalDay,
+} from '../src/lib/admin/iskraDispatchDueCore.js'
+import {
+  buildSelectedRecipientIds,
+  dispatchRecipientSendLabel,
+  toggleDispatchRecipientId,
+} from '../src/lib/admin/iskraDispatchRecipientCore.js'
 
 let failed = 0
 
@@ -160,6 +186,101 @@ const glance = buildDispatchGlanceCaption(
   }),
 )
 ok(glance.includes('Просмотрено'), 'glance caption')
+
+ok(isDispatchRecipientRole('trainer'), 'trainer is dispatch recipient')
+ok(isDispatchRecipientRole('sales_manager'), 'sales manager is dispatch recipient')
+ok(!isDispatchRecipientRole('admin'), 'admin not dispatch recipient')
+
+ok(canCreateClubDispatch({ isAdmin: true }, 'c1'), 'admin can create dispatch')
+ok(canCreateClubDispatch({ isSalesManager: true, user: { club_id: 'c1' } }, 'c1'), 'manager own club')
+ok(!canCreateClubDispatch({ isSalesManager: true, user: { club_id: 'c1' } }, 'c2'), 'manager other club blocked')
+ok(canViewClubDispatchSent({ isSalesManager: true }), 'manager can view sent')
+ok(!canDeleteClubDispatch({ isSalesManager: true }), 'manager cannot delete')
+ok(canStopClubDispatchRecurrence({ isAdmin: true }, 'c1'), 'admin can stop recurrence')
+ok(canStopClubDispatchRecurrence({ isSalesManager: true, user: { club_id: 'c1' } }, 'c1'), 'manager stop own club')
+
+const customRecur = normalizeRecurrenceInput({ recurrence_preset: 'custom_days', recurrence_days: 5 })
+ok(customRecur.enabled && customRecur.interval === 5, 'custom 5 days recurrence')
+
+const badCustom = normalizeDispatchCreatePayload({
+  club_id: 'c1',
+  recipient_user_id: 'u1',
+  title: 'T',
+  body: 'B',
+  due_preset: 'tomorrow',
+  recurrence_preset: 'custom_days',
+  recurrence_days: 1,
+})
+ok(!badCustom.ok, 'custom 1 day blocked')
+
+ok(formatRecurrenceDaysRu(5) === '5 дней', 'days label ru 5')
+ok(formatRecurrenceLabel(5, 'day') === 'Каждые 5 дней', 'label every 5 days')
+
+const stopPayload = normalizeStopRecurrencePayload({ dispatch_id: 'd1', club_id: 'c1' })
+ok(stopPayload.ok && stopPayload.dispatch_id === 'd1', 'stop recurrence payload')
+
+const toggled = toggleDispatchRecipientId(['u1'], 'u2')
+ok(toggled.length === 2 && toggled.includes('u2'), 'toggle adds recipient')
+const toggledOff = toggleDispatchRecipientId(toggled, 'u1')
+ok(toggledOff.length === 1 && toggledOff[0] === 'u2', 'toggle removes recipient')
+
+const severalIds = buildSelectedRecipientIds('several', {
+  multiIds: ['a', 'b'],
+  options: [{ trainer_id: 'a' }, { trainer_id: 'b' }, { trainer_id: 'c' }],
+})
+ok(severalIds.length === 2, 'several mode ids')
+
+ok(dispatchRecipientSendLabel('all', 0, 5) === 'Поставить всем (5)', 'send label all')
+ok(dispatchRecipientSendLabel('several', 3, 5) === 'Поставить (3)', 'send label several')
+
+const dueDate = resolveDispatchDueAt({ due_preset: 'date', due_date: '2026-08-01' })
+ok(dueDate.due_at && dueDate.due_mode === 'date', 'due from calendar date')
+
+const dueTomorrow = resolveDueAtFromMode('tomorrow', { now: new Date('2026-07-10T10:00:00Z') })
+ok(dueTomorrow && dueTomorrow.includes('2026'), 'due mode tomorrow')
+
+const recur = recurrenceRuleFromPreset('every_3_weeks')
+ok(recur.enabled && recur.interval === 3 && recur.unit === 'week', 'recurrence every 3 weeks')
+
+const nextDue = computeNextDueAtFromRecurrence(
+  '2026-07-10T20:59:59.999Z',
+  { interval: 1, unit: 'week' },
+  new Date('2026-07-11T10:00:00Z'),
+)
+ok(nextDue && nextDue > '2026-07-10', 'next due after week')
+
+const badRecur = normalizeDispatchCreatePayload({
+  club_id: 'c1',
+  recipient_user_id: 'u1',
+  title: 'T',
+  body: 'B',
+  due_preset: 'none',
+  recurrence_preset: 'daily',
+})
+ok(!badRecur.ok, 'recurring without due blocked')
+
+const spawn = buildRecurringDispatchSpawnRow(
+  {
+    club_id: 'c1',
+    recipient_user_id: 'u1',
+    series_id: 's1',
+    recurrence_interval: 1,
+    recurrence_unit: 'day',
+    title: 'T',
+    body: 'B',
+    kind: 'task',
+    source: 'admin',
+    task_kind: 'custom',
+    priority: 'normal',
+    due_at: '2026-07-10T20:59:59.999Z',
+  },
+  '2026-07-11T20:59:59.999Z',
+  '2026-07-11T12:00:00Z',
+)
+ok(spawn.series_id === 's1' && spawn.status === 'pending', 'spawn row keeps series')
+
+ok(formatRecurrenceLabel(1, 'month') === 'Каждый месяц', 'recurrence label monthly')
+ok(dueAtEndOfLocalDay('2026-07-15'), 'due end of local day')
 
 if (failed) process.exit(1)
 console.log('verify-iskra-dispatch: all ok')

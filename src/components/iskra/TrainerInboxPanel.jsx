@@ -154,6 +154,12 @@ export function TrainerInboxPanel({ open, onClose, clubId = '', onPendingChange 
               <h3 className="iskra-inbox__card-title">{item.title}</h3>
               <p className="iskra-inbox__card-body">{item.body}</p>
               <DispatchTaskProgressBar progress={item.progress} />
+              {item.due_label || item.recurrence_label ? (
+                <p className="iskra-inbox__card-due muted">
+                  {item.due_label ? `Срок: ${item.due_label}` : 'Без срока'}
+                  {item.recurrence_label ? ` · ${item.recurrence_label}` : null}
+                </p>
+              ) : null}
               {item.recipient_reply ? (
                 <p className="iskra-inbox__card-reply muted">Ваш ответ: {item.recipient_reply}</p>
               ) : null}

@@ -6655,12 +6655,26 @@ tr:last-child td {
 }
 
 .admin-task-card {
-  border-radius: 14px;
+  border-radius: 16px;
   border: 1px solid var(--border);
-  border-left: 3px solid rgba(0, 166, 81, 0.4);
+  border-left: 4px solid rgba(0, 166, 81, 0.55);
   background: linear-gradient(145deg, rgba(22, 28, 26, 0.96), rgba(14, 18, 17, 0.98));
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
-  padding: 16px 18px;
+  padding: 18px 20px;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    transform 0.2s;
+}
+
+.admin-task-card:hover {
+  border-color: rgba(0, 166, 81, 0.35);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.42);
+  transform: translateY(-1px);
+}
+
+.club-tasks-view .admin-section__tabs {
+  margin-bottom: 4px;
 }
 
 .admin-task-card--overdue {
@@ -6720,6 +6734,29 @@ tr:last-child td {
   font-size: 0.72rem;
   color: #ffb347;
   font-weight: 650;
+}
+
+.admin-task-card__recurrence {
+  color: rgba(110, 231, 183, 0.9);
+  font-weight: 600;
+}
+
+.admin-task-card__recur-badge {
+  font-size: 0.68rem;
+  font-weight: 650;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(0, 166, 81, 0.12);
+  border: 1px solid rgba(0, 166, 81, 0.28);
+  color: rgba(167, 243, 208, 0.95);
+}
+
+.admin-task-card__stop-recur {
+  color: rgba(167, 243, 208, 0.95);
+}
+
+.admin-task-card__stop-recur:hover {
+  color: #a7f3d0;
 }
 
 .admin-task-card__title {

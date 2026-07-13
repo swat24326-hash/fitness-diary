@@ -1,5 +1,12 @@
+import { randomUUID } from 'node:crypto'
 import { sendJson } from './adminSupabase.js'
-import { isSalesManagerRole } from '../../src/lib/admin/salesAccessCore.js'
+import {
+  canCreateClubDispatch,
+  canDeleteClubDispatch,
+  canStopClubDispatchRecurrence,
+  canViewClubDispatchSent,
+  isDispatchRecipientRole,
+} from '../../src/lib/admin/iskraDispatchAccessCore.js'
 import {
   canTransitionDispatchStatus,
   formatDispatchForUi,
@@ -8,25 +15,22 @@ import {
   normalizeDispatchDeletePayload,
   normalizeRecipientUserIds,
 } from '../../src/lib/admin/iskraDispatchCore.js'
+import {
+  buildRecurringDispatchSpawnRow,
+  computeNextDueAtFromRecurrence,
+  hasActiveRecurringSeries,
+  normalizeStopRecurrencePayload,
+} from '../../src/lib/admin/iskraDispatchRecurrenceCore.js'
 import { notifyDispatchPushForRecipients } from './webPushCore.js'
 
-const TRAINER_ROLES = new Set(['trainer', 'тренер'])
-
 const DISPATCH_SELECT =
-  'id, club_id, sender_user_id, recipient_user_id, kind, status, title, body, source, source_channel, context_json, insight_key, task_kind, priority, due_at, deep_link, period_year, period_month, created_at, updated_at, seen_at, accepted_at, completed_at, declined_at, recipient_reply'
-
-function isTrainerRole(role) {
-  return TRAINER_ROLES.has(String(role ?? '').trim().toLowerCase())
-}
+  'id, club_id, sender_user_id, recipient_user_id, kind, status, title, body, source, source_channel, context_json, insight_key, task_kind, priority, due_at, deep_link, period_year, period_month, series_id, recurrence_interval, recurrence_unit, created_at, updated_at, seen_at, accepted_at, completed_at, declined_at, recipient_reply'
 
 /**
- * @param {string} role
- * @param {string} taskKind
+ * @param {object} ctx
  */
-function isDispatchRecipientRole(role, taskKind) {
-  if (isTrainerRole(role)) return true
-  if (isSalesManagerRole(role) && String(taskKind ?? '') === 'daily_report') return true
-  return false
+function managerClubId(ctx) {
+  return String(ctx?.user?.club_id ?? ctx?.profile?.club_id ?? '').trim()
 }
 
 /**
@@ -97,7 +101,7 @@ export async function handleIskraDispatchGet(ctx, req, res) {
   const view = String(req.query?.view ?? 'inbox').trim().toLowerCase()
   const limit = Math.min(50, Math.max(1, Number(req.query?.limit) || 30))
 
-  if (!clubId && view === 'sent' && !ctx.isAdmin) {
+  if (!clubId && view === 'sent') {
     sendJson(res, 400, { error: 'Укажите club_id' })
     return
   }
@@ -110,15 +114,24 @@ export async function handleIskraDispatchGet(ctx, req, res) {
       .limit(limit)
 
     if (view === 'sent') {
-      if (!ctx.isAdmin) {
-        sendJson(res, 403, { error: 'Только администратор' })
+      if (!canViewClubDispatchSent(ctx)) {
+        sendJson(res, 403, { error: 'Нет доступа к списку заданий' })
         return
       }
       if (!clubId) {
         sendJson(res, 400, { error: 'Укажите club_id' })
         return
       }
-      query = query.eq('club_id', clubId)
+      if (ctx.isSalesManager && !ctx.isAdmin) {
+        const mgrClub = managerClubId(ctx)
+        if (!mgrClub || mgrClub !== clubId) {
+          sendJson(res, 403, { error: 'Менеджер может смотреть задания только своего клуба' })
+          return
+        }
+        query = query.eq('club_id', clubId).eq('sender_user_id', ctx.user.id)
+      } else {
+        query = query.eq('club_id', clubId)
+      }
     } else {
       query = query.eq('recipient_user_id', ctx.user.id)
       if (clubId) query = query.eq('club_id', clubId)
@@ -180,15 +193,18 @@ export async function handleIskraDispatchPost(ctx, res, body) {
   if (op === 'delete') {
     return handleIskraDispatchDelete(ctx, res, body)
   }
-
-  if (!ctx.isAdmin) {
-    sendJson(res, 403, { error: 'Отправлять задачи может только администратор' })
-    return
+  if (op === 'stop_recurrence') {
+    return handleIskraDispatchStopRecurrence(ctx, res, body)
   }
 
   const normalized = normalizeDispatchCreatePayload(body)
   if (!normalized.ok) {
     sendJson(res, 400, { error: normalized.error })
+    return
+  }
+
+  if (!canCreateClubDispatch(ctx, normalized.payload.club_id)) {
+    sendJson(res, 403, { error: 'Нет прав ставить задания в этом клубе' })
     return
   }
 
@@ -272,6 +288,12 @@ async function insertDispatchRow(ctx, { payload: p, senderUserId, now }) {
       return { ok: false, error: 'Тренер из другого клуба' }
     }
 
+    const seriesId = p.series_id
+      ? p.series_id
+      : p.recurrence_interval && p.recurrence_unit
+        ? randomUUID()
+        : null
+
     const row = {
       club_id: p.club_id,
       sender_user_id: senderUserId,
@@ -290,6 +312,9 @@ async function insertDispatchRow(ctx, { payload: p, senderUserId, now }) {
       deep_link: p.deep_link,
       period_year: p.period_year,
       period_month: p.period_month,
+      series_id: seriesId,
+      recurrence_interval: p.recurrence_interval,
+      recurrence_unit: p.recurrence_unit,
       updated_at: now,
     }
 
@@ -316,12 +341,147 @@ async function insertDispatchRow(ctx, { payload: p, senderUserId, now }) {
 }
 
 /**
+ * После «Выполнено» — следующий цикл повторяющегося задания.
+ * @param {object} ctx
+ * @param {object} completedRow
+ * @param {string} nowIso
+ */
+async function spawnNextRecurringDispatch(ctx, completedRow, nowIso) {
+  if (!hasActiveRecurringSeries(completedRow)) return null
+
+  const { data: activeRows, error: activeErr } = await ctx.supabaseAdmin
+    .from('club_iskra_dispatch')
+    .select('id')
+    .eq('series_id', completedRow.series_id)
+    .eq('recipient_user_id', completedRow.recipient_user_id)
+    .in('status', ['pending', 'seen', 'accepted'])
+    .limit(1)
+
+  if (activeErr) throw activeErr
+  if ((activeRows ?? []).length) return null
+
+  const nextDue = computeNextDueAtFromRecurrence(completedRow.due_at, {
+    interval: completedRow.recurrence_interval,
+    unit: completedRow.recurrence_unit,
+  })
+  if (!nextDue) return null
+
+  const spawnRow = buildRecurringDispatchSpawnRow(completedRow, nextDue, nowIso)
+  const rowResult = await insertDispatchRow(ctx, {
+    payload: spawnRow,
+    senderUserId: String(completedRow.sender_user_id ?? ''),
+    now: nowIso,
+  })
+  if (!rowResult.ok) return null
+
+  void notifyDispatchPushForRecipients(ctx, [rowResult.item]).catch(() => {})
+  return rowResult.item
+}
+
+/**
+ * Остановить цепочку повторяющихся заданий (все экземпляры серии).
+ * @param {object} ctx
+ * @param {object} res
+ * @param {object} body
+ */
+async function handleIskraDispatchStopRecurrence(ctx, res, body) {
+  const normalized = normalizeStopRecurrencePayload(body)
+  if (!normalized.ok) {
+    sendJson(res, 400, { error: normalized.error })
+    return
+  }
+
+  if (!canStopClubDispatchRecurrence(ctx, normalized.club_id)) {
+    sendJson(res, 403, { error: 'Нет прав остановить повтор заданий в этом клубе' })
+    return
+  }
+
+  try {
+    let seriesId = normalized.series_id
+    if (!seriesId && normalized.dispatch_id) {
+      const { data: row, error: loadErr } = await ctx.supabaseAdmin
+        .from('club_iskra_dispatch')
+        .select('id, club_id, series_id, sender_user_id, recurrence_interval, recurrence_unit')
+        .eq('id', normalized.dispatch_id)
+        .maybeSingle()
+      if (loadErr) throw loadErr
+      if (!row) {
+        sendJson(res, 404, { error: 'Задание не найдено' })
+        return
+      }
+      if (String(row.club_id) !== normalized.club_id) {
+        sendJson(res, 400, { error: 'Задание из другого клуба' })
+        return
+      }
+      if (ctx.isSalesManager && !ctx.isAdmin && String(row.sender_user_id) !== String(ctx.user.id)) {
+        sendJson(res, 403, { error: 'Менеджер может останавливать только свои циклы заданий' })
+        return
+      }
+      seriesId = String(row.series_id ?? '').trim()
+      if (!seriesId || !row.recurrence_interval || !row.recurrence_unit) {
+        sendJson(res, 400, { error: 'У этого задания нет активного повтора' })
+        return
+      }
+    }
+
+    if (!seriesId) {
+      sendJson(res, 400, { error: 'Укажите series_id или задание с повтором' })
+      return
+    }
+
+    if (ctx.isSalesManager && !ctx.isAdmin) {
+      const { data: owned, error: ownErr } = await ctx.supabaseAdmin
+        .from('club_iskra_dispatch')
+        .select('id')
+        .eq('series_id', seriesId)
+        .eq('club_id', normalized.club_id)
+        .eq('sender_user_id', ctx.user.id)
+        .limit(1)
+      if (ownErr) throw ownErr
+      if (!(owned ?? []).length) {
+        sendJson(res, 403, { error: 'Менеджер может останавливать только свои циклы заданий' })
+        return
+      }
+    }
+
+    const now = new Date().toISOString()
+    const { data, error } = await ctx.supabaseAdmin
+      .from('club_iskra_dispatch')
+      .update({
+        recurrence_interval: null,
+        recurrence_unit: null,
+        updated_at: now,
+      })
+      .eq('series_id', seriesId)
+      .eq('club_id', normalized.club_id)
+      .select('id')
+
+    if (error) {
+      if (/does not exist|relation.*club_iskra_dispatch/i.test(String(error.message ?? ''))) {
+        sendJson(res, 200, { ok: false, stopped: false, reason: 'migration_pending' })
+        return
+      }
+      throw error
+    }
+
+    sendJson(res, 200, {
+      ok: true,
+      stopped: true,
+      series_id: seriesId,
+      updated_count: (data ?? []).length,
+    })
+  } catch (e) {
+    sendJson(res, 400, { error: e?.message ? String(e.message) : 'Ошибка остановки повтора' })
+  }
+}
+
+/**
  * @param {object} ctx
  * @param {object} res
  * @param {object} body
  */
 async function handleIskraDispatchDelete(ctx, res, body) {
-  if (!ctx.isAdmin) {
+  if (!canDeleteClubDispatch(ctx)) {
     sendJson(res, 403, { error: 'Удалять задания может только администратор' })
     return
   }
@@ -386,7 +546,7 @@ async function handleIskraDispatchStatusUpdate(ctx, res, body) {
   try {
     const { data: existing, error: loadErr } = await ctx.supabaseAdmin
       .from('club_iskra_dispatch')
-      .select('id, recipient_user_id, status, seen_at')
+      .select(DISPATCH_SELECT)
       .eq('id', id)
       .maybeSingle()
 
@@ -429,7 +589,12 @@ async function handleIskraDispatchStatusUpdate(ctx, res, body) {
 
     if (error) throw error
 
-    sendJson(res, 200, { ok: true, item: data })
+    let spawnedItem = null
+    if (status === 'done' && hasActiveRecurringSeries(existing)) {
+      spawnedItem = await spawnNextRecurringDispatch(ctx, existing, now)
+    }
+
+    sendJson(res, 200, { ok: true, item: data, spawned: spawnedItem })
   } catch (e) {
     sendJson(res, 400, { error: e?.message ? String(e.message) : 'Ошибка обновления' })
   }

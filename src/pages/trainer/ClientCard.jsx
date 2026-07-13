@@ -74,7 +74,7 @@ export function ClientCard() {
     if (!isAdmin || !client) return ''
     return String(client.club_id ?? searchParams.get('club') ?? '').trim()
   }, [isAdmin, client, searchParams])
-  const { recipients: taskRecipients } = useClubDispatchRecipients(taskClubId)
+  const { recipients: taskRecipients } = useClubDispatchRecipients(taskClubId, { includeSalesManagers: true })
   const clientTaskDraft = useMemo(
     () => (client && isAdmin ? buildClientCardTaskDraft(client) : null),
     [client, isAdmin],

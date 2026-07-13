@@ -55,6 +55,9 @@ export async function fetchIskraDispatch(opts = {}) {
  *   priority?: string,
  *   dueAt?: string | null,
  *   duePreset?: string,
+ *   dueDate?: string,
+ *   recurrencePreset?: string,
+ *   recurrenceDays?: number,
  *   deepLink?: string,
  * }} opts
  */
@@ -93,6 +96,9 @@ export async function createIskraDispatch(opts) {
       priority: opts.priority,
       due_at: opts.dueAt,
       due_preset: opts.duePreset,
+      due_date: opts.dueDate,
+      recurrence_preset: opts.recurrencePreset,
+      recurrence_days: opts.recurrenceDays,
       deep_link: opts.deepLink,
     }),
   })
@@ -119,6 +125,33 @@ export async function deleteIskraDispatch(opts) {
     body: JSON.stringify({
       op: 'delete',
       dispatch_id: opts.dispatchId,
+      club_id: opts.clubId,
+    }),
+  })
+  const data = await parseJson(res)
+  if (!res.ok) throw new Error(data?.error ?? `Ошибка (${res.status})`)
+  return data
+}
+
+/**
+ * @param {{ dispatchId?: string, seriesId?: string, clubId: string }} opts
+ */
+export async function stopIskraDispatchRecurrence(opts) {
+  const token = await getAccessTokenForAdminApi()
+  if (!token) throw new Error('Нет сессии')
+
+  const res = await fetch(`${apiOrigin()}/api/admin-data?action=iskra-dispatch`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    credentials: 'same-origin',
+    cache: 'no-store',
+    body: JSON.stringify({
+      op: 'stop_recurrence',
+      dispatch_id: opts.dispatchId,
+      series_id: opts.seriesId,
       club_id: opts.clubId,
     }),
   })

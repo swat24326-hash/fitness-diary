@@ -57,6 +57,7 @@ function buildCrumbs(pathname, search) {
   if (p === '/admin/diagnostics') return [...admin, { label: 'Диагностика', to: `/admin/diagnostics${clubQs}` }]
   if (p === '/admin/iskra-settings') return [...admin, { label: 'ИСКРА', to: `/admin/iskra-settings${clubQs}` }]
   if (p === '/admin/club-tasks') return [...admin, { label: 'Планёрка', to: `/admin/club-tasks${clubQs}` }]
+  if (p === '/sales/club-tasks') return [{ label: 'План продаж', to: '/sales' }, { label: 'Планёрка', to: '/sales/club-tasks' }]
   if (matchPath('/admin/challenges/:challengeId', p)) {
     const full = `${p}${search || ''}`
     return [...admin, { label: 'Челленджи', to: `/admin/challenges${clubQs}` }, { label: 'Рейтинг', to: full }]
@@ -72,6 +73,7 @@ function buildCrumbs(pathname, search) {
 
   // Fallback: показываем только корень раздела
   if (p.startsWith('/admin')) return admin
+  if (p.startsWith('/sales')) return [{ label: 'План продаж', to: '/sales' }]
   if (p.startsWith('/trainer')) return trainer
   return [{ label: 'Главная', to: '/' }]
 }

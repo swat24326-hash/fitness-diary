@@ -145,7 +145,7 @@ export function suggestDefaultDuePreset(insightKey) {
   const days = ISKRA_TASK_KIND_META[kind]?.defaultDays ?? 3
   if (days <= 1) return 'tomorrow'
   if (days <= 3) return '3days'
-  return 'week'
+  return '3days'
 }
 
 /**

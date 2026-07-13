@@ -2,6 +2,8 @@
  * ИСКРА Dispatch — задачи сотрудникам (task-менеджер, не чат).
  */
 
+import { resolveDispatchDueAt } from './iskraDispatchDueCore.js'
+import { formatRecurrenceLabel, normalizeRecurrenceInput } from './iskraDispatchRecurrenceCore.js'
 import {
   formatDispatchDueLabel,
   isDispatchOverdue,
@@ -11,7 +13,6 @@ import {
   suggestPriorityFromInsight,
   ISKRA_TASK_KINDS,
   ISKRA_TASK_PRIORITIES,
-  resolveDueAtFromPreset,
 } from './iskraTaskKindsCore.js'
 import { normalizeStaffTaskContextJson, STAFF_TASK_SOURCE_CHANNELS } from './staffTaskCreateCore.js'
 import { resolveDispatchDeepLink } from './staffTaskDeepLinkCore.js'
@@ -134,9 +135,23 @@ export function normalizeDispatchCreatePayload(raw) {
     priority = insightKey ? suggestPriorityFromInsight(insightKey) : 'normal'
   }
 
-  let dueAt = raw?.due_at ? String(raw.due_at).trim() : null
-  if (!dueAt && raw?.due_preset) {
-    dueAt = resolveDueAtFromPreset(String(raw.due_preset))
+  const dueResolved = resolveDispatchDueAt({
+    due_preset: raw?.due_preset,
+    due_at: raw?.due_at,
+    due_date: raw?.due_date,
+  })
+  const dueAt = dueResolved.due_at
+
+  const recurrence = normalizeRecurrenceInput({
+    recurrence_preset: raw?.recurrence_preset,
+    recurrence_days: raw?.recurrence_days,
+    recurrence: raw?.recurrence,
+  })
+  if (String(raw?.recurrence_preset ?? '').trim() === 'custom_days' && !recurrence.enabled) {
+    return { ok: false, error: 'Укажите интервал повтора от 2 до 90 дней' }
+  }
+  if (recurrence.enabled && !dueAt) {
+    return { ok: false, error: 'Для повторяющегося задания укажите срок (не «без срока»)' }
   }
 
   const deepLink = String(raw?.deep_link ?? '').trim() || resolveDeepLinkForTaskKind(taskKind)
@@ -174,6 +189,8 @@ export function normalizeDispatchCreatePayload(raw) {
       due_at: dueAt,
       deep_link: deepLink.slice(0, 300),
       context_json: normalizeStaffTaskContextJson(raw?.context_json),
+      recurrence_interval: recurrence.enabled ? recurrence.interval : null,
+      recurrence_unit: recurrence.enabled ? recurrence.unit : null,
     },
   }
 }
@@ -282,6 +299,11 @@ export function formatDispatchForUi(row) {
     recipient_reply: String(row.recipient_reply ?? '').trim(),
     sender_name: String(row.sender_name ?? '').trim() || 'ИСКРА',
     recipient_name: String(row.recipient_name ?? '').trim(),
+    series_id: row.series_id ?? null,
+    recurrence_interval: row.recurrence_interval ?? null,
+    recurrence_unit: row.recurrence_unit ?? null,
+    recurrence_label: formatRecurrenceLabel(row.recurrence_interval, row.recurrence_unit),
+    is_recurring: Boolean(row.recurrence_interval && row.recurrence_unit),
     progress: buildDispatchProgressForUi({
       status,
       created_at: row.created_at ?? null,

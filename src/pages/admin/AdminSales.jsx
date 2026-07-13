@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
-import { BarChart3, CalendarDays, RefreshCw, TrendingUp } from 'lucide-react'
+import { BarChart3, CalendarDays, ClipboardList, RefreshCw, TrendingUp } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { addDaysToIso, clampIsoDateToToday, formatDateRu, todayLocalIso } from '../../lib/dateRu'
@@ -611,6 +611,12 @@ export function AdminSales({ accessMode = 'admin' }) {
                     <TrendingUp size={44} aria-hidden />
                   </div>
                   <p className="sales-home__tile-title">Аналитика</p>
+                </Link>
+                <Link to="/sales/club-tasks" className="sales-home__tile u-no-decoration">
+                  <div className="sales-home__tile-icon">
+                    <ClipboardList size={44} aria-hidden />
+                  </div>
+                  <p className="sales-home__tile-title">Планёрка</p>
                 </Link>
               </div>
             </section>

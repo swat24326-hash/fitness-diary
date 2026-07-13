@@ -165,9 +165,10 @@ export function AppHeader() {
   }, [isAdmin, user?.club_id])
 
   const isTrainer = !isAdmin && !isSalesManager && !!user
+  const isDispatchInboxUser = (isTrainer || isSalesManager) && !!user
 
   useEffect(() => {
-    if (!isTrainer || !supabaseReady) {
+    if (!isDispatchInboxUser || !supabaseReady) {
       setInboxPending(0)
       return
     }
@@ -187,33 +188,33 @@ export function AppHeader() {
       alive = false
       window.clearInterval(t)
     }
-  }, [isTrainer, supabaseReady, user?.club_id, online, inboxOpen])
+  }, [isDispatchInboxUser, supabaseReady, user?.club_id, online, inboxOpen])
 
   useEffect(() => {
-    if (!isTrainer) return
+    if (!isDispatchInboxUser) return
     const onOpen = () => setInboxOpen(true)
     window.addEventListener(TRAINER_INBOX_OPEN_EVENT, onOpen)
     return () => window.removeEventListener(TRAINER_INBOX_OPEN_EVENT, onOpen)
-  }, [isTrainer])
+  }, [isDispatchInboxUser])
 
   useEffect(() => {
-    if (!isTrainer) return
+    if (!isDispatchInboxUser) return
     if (searchParams.get('inbox') === '1') {
       setInboxOpen(true)
       const next = new URLSearchParams(searchParams)
       next.delete('inbox')
       setSearchParams(next, { replace: true })
     }
-  }, [isTrainer, searchParams, setSearchParams])
+  }, [isDispatchInboxUser, searchParams, setSearchParams])
 
   useEffect(() => {
-    if (!isTrainer || !('serviceWorker' in navigator)) return
+    if (!isDispatchInboxUser || !('serviceWorker' in navigator)) return
     const onMessage = (event) => {
       if (event?.data?.type === 'open-trainer-inbox') setInboxOpen(true)
     }
     navigator.serviceWorker.addEventListener('message', onMessage)
     return () => navigator.serviceWorker.removeEventListener('message', onMessage)
-  }, [isTrainer])
+  }, [isDispatchInboxUser])
 
   /** Один зал — сразу в URL; несколько — без «все клубы», только явный выбор. */
   useEffect(() => {
@@ -452,7 +453,7 @@ export function AppHeader() {
           </button>
         ) : null}
         {!isAdmin && !isSalesManager && user ? <HeaderStopwatch /> : null}
-        {isTrainer && supabaseReady ? (
+        {isDispatchInboxUser && supabaseReady ? (
           <button
             type="button"
             className={`btn btn-secondary btn-sm app-header__inbox-btn${inboxOpen ? ' app-header__inbox-btn--active' : ''}`}
@@ -642,7 +643,7 @@ export function AppHeader() {
       syncBusy={syncBusy}
       onSignOut={doSignOut}
     />
-    {isTrainer ? (
+    {isDispatchInboxUser ? (
       <TrainerInboxPanel
         open={inboxOpen}
         onClose={() => setInboxOpen(false)}

@@ -15,6 +15,7 @@ const MIGRATIONS = [
   'supabase/migrations/20260714120000_club_iskra_dispatch_tasks.sql',
   'supabase/migrations/20260715120000_club_iskra_dispatch_source_channel.sql',
   'supabase/migrations/20260716120000_user_push_subscriptions.sql',
+  'supabase/migrations/20260717120000_club_iskra_dispatch_recurrence.sql',
 ]
 
 const VERIFY_SQL =

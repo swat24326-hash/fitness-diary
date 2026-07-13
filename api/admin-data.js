@@ -5,6 +5,7 @@
 import { requireAdmin, requireAdminOrSalesManager, requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 import { assertSalesPlanScopeForRole } from '../src/lib/admin/salesAccessCore.js'
+import { canViewClubDispatchSent } from '../src/lib/admin/iskraDispatchAccessCore.js'
 import { handleGeminiAnalyticsPost, handleGeminiAnalyticsPrefetchGet } from './_lib/geminiAnalyticsHandler.js'
 import { handleIskraSettingsGet, handleIskraSettingsPost } from './_lib/iskraSettingsHandler.js'
 import { handleIskraLearningGet, handleIskraLearningPost } from './_lib/iskraLearningHandler.js'
@@ -96,7 +97,19 @@ async function handler(req, res) {
         if (!ctx) return
         return handleIskraDispatchPost(ctx, res, body)
       }
-      const ctx = await requireAdmin(req, res)
+      if (op === 'delete' || op === 'stop_recurrence') {
+        const clubId = String(body?.club_id ?? '').trim()
+        if (op === 'delete') {
+          const ctx = await requireAdmin(req, res)
+          if (!ctx) return
+          return handleIskraDispatchPost(ctx, res, body)
+        }
+        const ctx = await requireAdminOrSalesManager(req, res, clubId)
+        if (!ctx) return
+        return handleIskraDispatchPost(ctx, res, body)
+      }
+      const clubId = String(body?.club_id ?? '').trim()
+      const ctx = await requireAdminOrSalesManager(req, res, clubId)
       if (!ctx) return
       return handleIskraDispatchPost(ctx, res, body)
     }
@@ -149,6 +162,19 @@ async function handler(req, res) {
   if (trainerActions.has(action)) {
     const authCtx = await requireAuthUser(req, res)
     if (!authCtx) return
+    if (action === 'iskra-dispatch') {
+      const view = String(req.query?.view ?? 'inbox').trim().toLowerCase()
+      if (view === 'sent') {
+        if (!canViewClubDispatchSent(authCtx)) {
+          sendJson(res, 403, { error: 'Нет доступа к списку заданий' })
+          return
+        }
+      } else if (!authCtx.isAdmin && !authCtx.isTrainer && !authCtx.isSalesManager) {
+        sendJson(res, 403, { error: 'Нет доступа' })
+        return
+      }
+      return handleIskraDispatchGet(authCtx, req, res)
+    }
     if (!authCtx.isAdmin && !authCtx.isTrainer) {
       sendJson(res, 403, { error: 'Нет доступа' })
       return
