@@ -1,6 +1,13 @@
 /** ЭВС «ИСКРА» — persona, системный промпт, правила двух контуров. */
 
 import { buildIskraAnalysisFocusRule } from './geminiPlanDirections.js'
+import { buildSeedPlaybooksPromptRule } from './iskraBusinessPlaybooksCore.js'
+import {
+  buildAdviceModeRule,
+  buildPanelSegmentRule,
+  buildPayrollContourRule,
+  resolvePanelAnalysisFocus,
+} from './iskraPanelContourCore.js'
 import { ISKRA_ESTIMATE_DISCLAIMER_RU } from './iskraDataAvailability.js'
 import { buildIskraAppGuideRule } from './iskraAppGuide.js'
 import {
@@ -123,7 +130,7 @@ export function buildIskraSalesFocusRule() {
 
  * @param {string} clubName
 
- * @param {{ promptAppend?: string, analysisFocus?: 'sales'|'trainer', advisorRole?: object, responseMode?: string }} [opts]
+ * @param {{ promptAppend?: string, analysisFocus?: string, panelSegment?: string, selectedTrainerId?: string | null, userMessage?: string, snapshot?: object | null, advisorRole?: object, responseMode?: string }} [opts]
  */
 export function buildIskraSystemPrompt(clubName, opts = {}) {
   const club = String(clubName ?? '').trim() || 'клуб'
@@ -132,10 +139,18 @@ export function buildIskraSystemPrompt(clubName, opts = {}) {
   const responseMode =
     normalizeIskraResponseMode(opts.responseMode) ||
     resolveIskraResponseMode({ advisorRoleId: advisorRole?.id ?? 'app_admin' })
+  const panelSegment = opts.panelSegment === 'trainer' ? 'trainer' : 'sales'
+  const trainerId = String(opts.selectedTrainerId ?? '').trim() || null
+  const focusKey = resolvePanelAnalysisFocus({ segment: panelSegment, trainerId })
   const focusRule =
-    opts.analysisFocus === 'trainer' || advisorRole?.analysisFocus === 'trainer'
-      ? buildIskraAnalysisFocusRule('trainer')
-      : buildIskraSalesFocusRule()
+    panelSegment === 'trainer' ? buildIskraAnalysisFocusRule(focusKey) : buildIskraSalesFocusRule()
+  const segmentRule = buildPanelSegmentRule(panelSegment)
+  const payrollRule = buildPayrollContourRule(panelSegment, trainerId)
+  const adviceRule = buildAdviceModeRule(opts.userMessage, panelSegment)
+  const seedRule =
+    panelSegment === 'sales' && responseMode !== 'brief'
+      ? buildSeedPlaybooksPromptRule(opts.snapshot)
+      : ''
   const lines = [
 
     `Ты — бортовой аналитический модуль ${ISKRA_FULL_NAME}. Твоё имя — ${ISKRA_NAME}.`,
@@ -163,6 +178,18 @@ export function buildIskraSystemPrompt(clubName, opts = {}) {
     '',
 
     focusRule,
+
+    '',
+
+    segmentRule,
+
+    '',
+
+    payrollRule,
+
+    adviceRule ? `\n${adviceRule}` : '',
+
+    seedRule ? `\n${seedRule}` : '',
 
     '',
 

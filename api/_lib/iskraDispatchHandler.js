@@ -26,7 +26,7 @@ import {
   normalizeCompleteStagePayload,
   resetDispatchStagesForSpawn,
 } from '../../src/lib/admin/iskraDispatchStagesCore.js'
-import { notifyDispatchPushForRecipients } from './webPushCore.js'
+import { notifyDispatchPushForRecipients, notifyDispatchStatusPushToSender } from './webPushCore.js'
 
 const DISPATCH_SELECT =
   'id, club_id, sender_user_id, recipient_user_id, kind, status, title, body, source, source_channel, context_json, insight_key, task_kind, priority, due_at, deep_link, period_year, period_month, series_id, recurrence_interval, recurrence_unit, stages_json, created_at, updated_at, seen_at, accepted_at, completed_at, declined_at, recipient_reply'
@@ -547,6 +547,11 @@ async function handleIskraDispatchCompleteStage(ctx, res, body) {
     if (error) throw error
 
     const names = await loadUserNames(ctx.supabaseAdmin, [data.sender_user_id, data.recipient_user_id])
+    if (patch.status === 'accepted') {
+      void notifyDispatchStatusPushToSender(ctx, data, 'accepted', {
+        recipientName: names.get(String(data.recipient_user_id)) || '',
+      }).catch(() => {})
+    }
     sendJson(res, 200, {
       ok: true,
       item: formatDispatchForUi({
@@ -673,6 +678,11 @@ async function handleIskraDispatchStatusUpdate(ctx, res, body) {
       .maybeSingle()
 
     if (error) throw error
+
+    const names = await loadUserNames(ctx.supabaseAdmin, [existing.recipient_user_id])
+    void notifyDispatchStatusPushToSender(ctx, existing, status, {
+      recipientName: names.get(String(existing.recipient_user_id)) || '',
+    }).catch(() => {})
 
     let spawnedItem = null
     if (status === 'done' && hasActiveRecurringSeries(existing)) {

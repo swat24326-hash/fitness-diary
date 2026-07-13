@@ -11,7 +11,7 @@ import {
   sendTrainerPushTest,
 } from '../lib/push/trainerPushService.js'
 
-const PROMPT_DISMISS_KEY = 'trainer_push_prompt_dismissed_v1'
+const DEFAULT_PROMPT_DISMISS_KEY = 'trainer_push_prompt_dismissed_v1'
 
 async function fetchVapidPublicKey() {
   const fromEnv = String(import.meta.env.VITE_VAPID_PUBLIC_KEY ?? '').trim()
@@ -30,10 +30,11 @@ async function fetchVapidPublicKey() {
 }
 
 /**
- * @param {{ clubId?: string, autoRegister?: boolean }} [opts]
+ * @param {{ clubId?: string, autoRegister?: boolean, promptDismissKey?: string }} [opts]
  */
 export function useTrainerPush(opts = {}) {
   const clubId = String(opts.clubId ?? '').trim()
+  const promptDismissKey = String(opts.promptDismissKey ?? DEFAULT_PROMPT_DISMISS_KEY).trim() || DEFAULT_PROMPT_DISMISS_KEY
   const [supported] = useState(() => isTrainerPushSupported())
   const [permission, setPermission] = useState(
     () => (typeof Notification !== 'undefined' ? Notification.permission : 'denied'),
@@ -106,7 +107,7 @@ export function useTrainerPush(opts = {}) {
       })
 
       setSubscribed(true)
-      localStorage.setItem(PROMPT_DISMISS_KEY, '1')
+      localStorage.setItem(promptDismissKey, '1')
       return true
     } catch (e) {
       setError(e?.message ? String(e.message) : 'Не удалось включить уведомления')
@@ -114,7 +115,7 @@ export function useTrainerPush(opts = {}) {
     } finally {
       setBusy(false)
     }
-  }, [clubId, supported])
+  }, [clubId, supported, promptDismissKey])
 
   const unsubscribe = useCallback(async () => {
     if (!supported) return false
@@ -175,7 +176,7 @@ export function useTrainerPush(opts = {}) {
       supported &&
       permission === 'default' &&
       !subscribed &&
-      !localStorage.getItem(PROMPT_DISMISS_KEY),
-    dismissPrompt: () => localStorage.setItem(PROMPT_DISMISS_KEY, '1'),
+      !localStorage.getItem(promptDismissKey),
+    dismissPrompt: () => localStorage.setItem(promptDismissKey, '1'),
   }
 }

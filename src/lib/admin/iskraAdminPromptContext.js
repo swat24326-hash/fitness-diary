@@ -29,6 +29,7 @@ export function buildTrainersSummaryForPrompt(snapshot) {
  *   dispatchOpen?: object[],
  *   previousSnapshot?: object | null,
  *   playbooks?: Array<{ signal_key: string, note: string }> | null,
+ *   panelSegment?: string,
  * }} [opts]
  */
 export function augmentPromptDataBlockForAdmin(block, snapshot, opts = {}) {
@@ -39,18 +40,18 @@ export function augmentPromptDataBlockForAdmin(block, snapshot, opts = {}) {
 
   const next = { ...block }
 
-  if (snapshot?.trainer_contour?.trainers?.length) {
+  if (snapshot?.trainer_contour?.trainers?.length && opts.panelSegment !== 'sales') {
     next.trainers_summary = buildTrainersSummaryForPrompt(snapshot)
   }
 
-  if (mode === 'deep' && snapshot?.trainer_contour?.club_roll_up) {
+  if (mode === 'deep' && snapshot?.trainer_contour?.club_roll_up && opts.panelSegment !== 'sales') {
     next.trainer_contour = {
       ...(next.trainer_contour ?? {}),
       club_roll_up: snapshot.trainer_contour.club_roll_up,
     }
   }
 
-  if (mode === 'deep' && snapshot?.sales?.direction_structure) {
+  if (mode === 'deep' && snapshot?.sales?.direction_structure && opts.panelSegment !== 'trainer') {
     next.sales_contour = {
       ...(next.sales_contour ?? {}),
       direction_structure: snapshot.sales.direction_structure,

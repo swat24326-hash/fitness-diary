@@ -34,10 +34,11 @@ export const GEMINI_INSTANT_CHIPS = [
   },
   {
     id: 'advice_plan',
-    label: 'Как дожать план',
-    message: 'Как дожать план продаж до конца месяца?',
+    label: 'Совет по плану',
+    message:
+      'Дай совет: какое направление просело и что делать по НК/ДК/УК и ПЗ/ТЗ/АЗ, чтобы дожать план?',
     compare: false,
-    quick: false,
+    quick: true,
   },
   {
     id: 'plan',
@@ -354,18 +355,21 @@ export function buildGeminiInstantReply(chipId, opts) {
         club,
         period,
         advisorRoleId: opts.advisorRoleId,
+        userMessage: opts.userMessage,
       })
     case 'app_sync':
       return buildIskraAppGuideReply('sync', {
         club,
         period,
         advisorRoleId: opts.advisorRoleId,
+        userMessage: opts.userMessage,
       })
     case 'app_structure':
       return buildIskraAppGuideReply('structure', {
         club,
         period,
         advisorRoleId: opts.advisorRoleId,
+        userMessage: opts.userMessage,
       })
     case 'plan':
       return buildPlanReply(club, period, snapshot, insights, opener, closer, seed)

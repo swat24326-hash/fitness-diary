@@ -8,6 +8,7 @@ import { deleteIskraDispatch, fetchIskraDispatch, stopIskraDispatchRecurrence } 
 import { staffTaskSourceChannelLabel } from '../../lib/admin/staffTaskCreateCore.js'
 import { listClubsLocal, pullClubsFromSupabase } from '../../lib/dataAccess'
 import { IskraDispatchModal } from '../../components/iskra/IskraDispatchModal.jsx'
+import { OwnerDispatchPushPrompt, OwnerDispatchPushSettings } from '../../components/iskra/OwnerDispatchPushPrompt.jsx'
 import { DispatchTaskProgressBar } from '../../components/iskra/DispatchTaskProgressBar.jsx'
 import { useClubDispatchRecipients } from '../../hooks/useClubDispatchRecipients.js'
 
@@ -175,6 +176,10 @@ export function ClubTasksView({ clubId, mode = 'admin', canDelete = mode === 'ad
           Новое задание
         </button>
       </AdminSectionHeader>
+
+      {mode === 'admin' && clubId ? (
+        <OwnerDispatchPushPrompt clubId={clubId} hasActiveSentTasks={activeCount > 0 || items.length > 0} />
+      ) : null}
 
       {!clubId ? (
         <div className="admin-section__empty-card">
@@ -371,6 +376,15 @@ export function ClubTasksView({ clubId, mode = 'admin', canDelete = mode === 'ad
           ) : null}
         </>
       )}
+
+      {mode === 'admin' && clubId ? (
+        <div className="admin-section__footer-card" style={{ marginTop: 16 }}>
+          <p className="section-sub" style={{ margin: '0 0 8px' }}>
+            Уведомления о статусе заданий
+          </p>
+          <OwnerDispatchPushSettings clubId={clubId} />
+        </div>
+      ) : null}
 
       <IskraDispatchModal
         open={modalOpen}

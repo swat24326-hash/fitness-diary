@@ -134,10 +134,9 @@ export function formatPlanDirectionsDetail(directionRows, directionPlan) {
   return `${parts.join(', ')}.${tail}`
 }
 
-/** @param {'sales'|'trainer'} mode */
 export function buildIskraAnalysisFocusRule(mode) {
-  if (mode === 'trainer') {
-    return 'Фокус запроса: конкретный тренер. Отвечай по его тренировкам, клиентам и личной ЗП. План продаж клуба и ПЗ/ТЗ/АЗ — только если явно спросили.'
+  if (mode === 'trainer' || mode === 'trainer_club') {
+    return 'Фокус: сегмент «Тренеры» (планшеты). Отвечай по тренировкам, клиентам и personal_salary_month. План продаж, НК/ДК/УК и finance.trainer_payroll — не использовать.'
   }
-  return 'Фокус анализа: продажи клуба (отчёт менеджера). Планшеты и тренеры — не упоминай, пока руководитель не спросил про конкретного тренера.'
+  return 'Фокус: сегмент «Продажи» (отчёт менеджера). План, выручка, направления ПЗ/ТЗ/АЗ, finance.trainer_payroll — только из sales_contour. Неактивные клиенты — как риск для продаж (sales_inactive_signal). Личные ЗП планшетов — не подставлять.'
 }

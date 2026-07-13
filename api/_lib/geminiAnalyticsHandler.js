@@ -21,7 +21,7 @@ import {
   buildGeminiInstantReply,
 } from '../../src/lib/admin/geminiInstantReplies.js'
 import { resolveInstantHandlerId } from '../../src/lib/admin/iskraQuickChipsCore.js'
-import { applyTrainerFocusToSnapshot } from '../../src/lib/admin/geminiTrainerContour.js'
+import { applyTrainerFocusToSnapshot, compactTrainerContourForPrompt } from '../../src/lib/admin/geminiTrainerContour.js'
 import {
   isTrainerFocusedQuestion,
   resolveTrainerIdFromMessage,
@@ -55,7 +55,7 @@ import {
   shouldSkipGeminiEdge,
   iskraAdminRichContext,
 } from '../../src/lib/admin/iskraResponseModeCore.js'
-import { loadClubOpenDispatchForPrompt } from './iskraDispatchQuery.js'
+import { loadClubOpenDispatchForPrompt, loadClubPlanerkaFeed } from './iskraDispatchQuery.js'
 import { deriveSourceFactsForReply } from '../../src/lib/admin/iskraReplySourceFactsCore.js'
 import { buildIskraProactiveAlerts } from '../../src/lib/admin/iskraProactiveAlertsCore.js'
 import { shouldLoadPreviousMonthSnapshot } from '../../src/lib/admin/iskraMonthMemoryCore.js'
@@ -63,6 +63,8 @@ import { buildForecastConfidenceLine } from '../../src/lib/admin/iskraForecastCo
 import { buildMomGlanceLine } from '../../src/lib/admin/iskraMomGlanceCore.js'
 import { buildWeekChecklistItems } from '../../src/lib/admin/iskraWeekChecklistCore.js'
 import { applyMonthComparisonInsights } from '../../src/lib/admin/clubMonthAnalyticsCore.js'
+import { shouldRouteChipToGemini } from '../../src/lib/admin/iskraChipRoutingCore.js'
+import { buildDirectionGlanceLine } from '../../src/lib/admin/iskraSalesAdviceContextCore.js'
 import { previousMonthParts } from '../../src/lib/admin/geminiAnalyticsSnapshot.js'
 
 const rateLimitMs = 12000
@@ -199,6 +201,13 @@ export async function handleGeminiAnalyticsPrefetchGet(ctx, req, res) {
     const momGlance = buildMomGlanceLine(snapshot)
     const forecastConfidence = buildForecastConfidenceLine(snapshot)
     const weekChecklist = buildWeekChecklistItems(snapshot, { limit: 3 })
+    const directionGlance = buildDirectionGlanceLine(snapshot)
+    let planerkaFeed = { summary: { active_count: 0 }, items: [] }
+    try {
+      planerkaFeed = await loadClubPlanerkaFeed(ctx.supabaseAdmin, parsed.clubId)
+    } catch {
+      planerkaFeed = { summary: { active_count: 0 }, items: [] }
+    }
     sendJson(res, 200, {
       ok: true,
       warmed: true,
@@ -213,6 +222,8 @@ export async function handleGeminiAnalyticsPrefetchGet(ctx, req, res) {
       mom_glance: momGlance,
       forecast_confidence: forecastConfidence,
       week_checklist: weekChecklist,
+      direction_glance: directionGlance,
+      planerka_feed: planerkaFeed,
       insight_cards: insightCards.map((c) => ({
         id: c.id,
         headline: c.headline,
@@ -230,6 +241,7 @@ export async function handleGeminiAnalyticsPrefetchGet(ctx, req, res) {
         trainer_id: t.trainer_id,
         trainer_name: t.trainer_name,
       })),
+      trainer_contour: compactTrainerContourForPrompt(snapshot.trainer_contour),
       quick_chips: quickChips,
     })
   } catch (e) {
@@ -254,6 +266,7 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
   })
   const includeFinance = body?.include_finance !== false
   const selectedTrainerId = String(body?.selected_trainer_id ?? '').trim() || null
+  const panelSegment = String(body?.panel_segment ?? '').trim() === 'trainer' ? 'trainer' : 'sales'
   const appRole = String(body?.app_role ?? ctx.user?.role ?? 'admin').trim() || 'admin'
   const offTopicQuestion = isIskraOffTopicQuestion(userMessage)
   const skipCache = body?.skip_cache === true || body?.force_gemini === true || offTopicQuestion
@@ -378,10 +391,12 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
 
     const trainersList = scopedSnapshot?.trainer_contour?.trainers ?? []
     const effectiveTrainerId =
-      selectedTrainerId ||
-      (isTrainerFocusedQuestion(userMessage)
-        ? resolveTrainerIdFromMessage(userMessage, trainersList)
-        : null)
+      panelSegment === 'trainer'
+        ? selectedTrainerId ||
+          (isTrainerFocusedQuestion(userMessage)
+            ? resolveTrainerIdFromMessage(userMessage, trainersList)
+            : null)
+        : null
 
     let chipId =
       body?.force_gemini === true
@@ -398,14 +413,14 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
       if (adviceIntent) chipId = adviceIntent
     }
 
-    if (!chipId && !body?.force_gemini && advisorCtx.advisorRoleId === 'app_admin') {
+    if (!chipId && !body?.force_gemini && advisorCtx.advisorRoleId !== 'app_admin') {
       const appTopic = matchIskraAppGuideIntent(userMessage)
       if (appTopic === 'sync') chipId = 'app_sync'
       else if (appTopic === 'structure' || appTopic === 'deploy') chipId = 'app_structure'
       else if (appTopic) chipId = 'app_guide'
     }
 
-    if (!chipId && isTrainerFocusedQuestion(userMessage)) {
+    if (!chipId && panelSegment === 'trainer' && isTrainerFocusedQuestion(userMessage)) {
       chipId = 'trainer_summary'
     }
 
@@ -449,6 +464,10 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
       }
     }
 
+    if (chipId && shouldRouteChipToGemini(chipId, advisorCtx.advisorRoleId)) {
+      chipId = null
+    }
+
     if (chipId) {
       const focusedSnapshot = effectiveTrainerId
         ? applyTrainerFocusToSnapshot(scopedSnapshot, effectiveTrainerId)
@@ -458,6 +477,7 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
         previousSnapshot,
         gender,
         advisorRoleId: advisorCtx.advisorRoleId,
+        userMessage,
       })
       if (instantText) {
         setCachedGeminiResponse(
@@ -509,6 +529,7 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
       snapshot: geminiScopedSnapshot,
       previousSnapshot,
       selectedTrainerId: effectiveTrainerId,
+      panelSegment,
       promptAppend,
       advisorRoleId: geminiAdvisorCtx.advisorRoleId,
       advisorRole: geminiAdvisorCtx.role,
@@ -524,6 +545,7 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
       ? { context: 'general_knowledge_question', club_name_for_role_reminder: clubName || 'филиала' }
       : buildGeminiPromptDataBlock(geminiScopedSnapshot, previousSnapshot, {
           selectedTrainerId: effectiveTrainerId,
+          panelSegment,
           advisorRoleId: geminiAdvisorCtx.advisorRoleId,
           advisorAdvice: geminiAdvisorCtx.adviceSummary,
           responseMode,

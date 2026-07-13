@@ -20,7 +20,7 @@ export function normalizeAppRoleForIskra(rawRole) {
 
 /**
  * ИСКРА в админке сейчас только у admin → app_admin.
- * club_supervisor / curator — зарезервированы (см. userRoleConstants, docs/CLUB_SUPERVISOR.md).
+ * club_supervisor / curator — см. docs/CLUB_SUPERVISOR.md, docs/ISKRA_CURATOR.md
  *
  * @param {string} [appRole]
  * @returns {import('./iskraAdvisorRoles.js').IskraAdvisorRoleId}

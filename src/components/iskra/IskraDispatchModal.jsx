@@ -125,9 +125,9 @@ export function IskraDispatchModal({
     [recipientMode, singleRecipientId, multiRecipientIds, recipientOptions],
   )
 
-  const handleRecurrenceChange = (preset) => {
-    setRecurrencePreset(preset)
-    if (preset && dueMode === 'none') setDueMode('3days')
+  const handleRecurrenceChange = (nextPreset) => {
+    setRecurrencePreset(nextPreset)
+    if (nextPreset && dueMode === 'none') setDueMode('3days')
   }
 
   const composePreview = useMemo(() => {

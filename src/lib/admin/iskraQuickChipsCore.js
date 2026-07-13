@@ -43,13 +43,14 @@ export function defaultIskraTrainerQuickChips() {
 }
 
 /**
- * Кнопки панели: клуб/управляющий или фокус на тренере.
- * @param {{ stored?: unknown, trainerId?: string | null, appRole?: string }} opts
+ * Кнопки панели по сегменту (продажи / тренеры) и роли.
+ * @param {{ stored?: unknown, segment?: string, trainerId?: string | null, appRole?: string }} opts
  * @returns {IskraQuickChip[]}
  */
 export function resolvePanelQuickChips(opts = {}) {
+  const segment = String(opts.segment ?? '').trim()
   const trainerId = String(opts.trainerId ?? '').trim()
-  if (trainerId) return defaultIskraTrainerQuickChips()
+  if (segment === 'trainer' || trainerId) return defaultIskraTrainerQuickChips()
 
   const stored = resolveIskraQuickChips(opts.stored)
   const appRole = String(opts.appRole ?? '').trim()

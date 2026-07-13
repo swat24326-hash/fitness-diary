@@ -42,7 +42,8 @@
 | [ISKRA_DISPATCH.md](./ISKRA_DISPATCH.md) | shipped | Задания тренерам из инсайтов |
 | [ISKRA_PLANERKA.md](./ISKRA_PLANERKA.md) | shipped | Планёрка / пульс команды |
 | [ISKRA_SELF_LEARNING.md](./ISKRA_SELF_LEARNING.md) | shipped | 👍/👎 и дообучение на фидбеке |
-| [ISKRA_STAFF_PULSE.md](./ISKRA_STAFF_PULSE.md) | — | Редирект → [ISKRA_PLANERKA.md](./ISKRA_PLANERKA.md) |
+| [ISKRA_PRO.md](./ISKRA_PRO.md) | shipped | Упаковка Pro внутри FIT-CITY |
+| [ISKRA_CURATOR.md](./ISKRA_CURATOR.md) | план C0+ | Личный куратор: привычки, здоровье, собеседник |
 
 ---
 
@@ -52,7 +53,7 @@
 |------|------------|
 | [CLUB_OPERATIONS_PLAN.md](./CLUB_OPERATIONS_PLAN.md) | Операции клуба в продукте |
 | [RELAY_OPERATIONS.md](./RELAY_OPERATIONS.md) | Relay / передача смен |
-| [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md) | Роль куратора клуба |
+| [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md) | Роль управляющего клуба |
 | [SALES_MANAGER.md](./SALES_MANAGER.md) | Роль менеджера продаж |
 
 ---

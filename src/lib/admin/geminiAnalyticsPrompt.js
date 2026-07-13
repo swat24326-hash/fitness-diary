@@ -9,8 +9,16 @@ import {
   buildIskraQuestionReplyHint,
   isIskraOffTopicQuestion,
 } from './iskraQuestionRouting.js'
+import {
+  filterPromptDataBlockForSegment,
+  resolvePanelAnalysisFocus,
+} from './iskraPanelContourCore.js'
+import { buildSalesAdviceContext } from './iskraSalesAdviceContextCore.js'
 import { augmentPromptDataBlockForAdmin } from './iskraAdminPromptContext.js'
 import { buildPlaybooksPromptBlock } from './iskraLearningCore.js'
+import { mergePlaybooksForPrompt, buildSeedPlaybooksPromptRule } from './iskraBusinessPlaybooksCore.js'
+import { matchIskraAppGuideIntent } from './iskraAppGuide.js'
+import { buildKbPromptBlock } from './iskraKnowledgeBaseCore.js'
 import {
   GEMINI_RESPONSE_BRIEF_RULE,
   isGeminiReplyIncompleteForMode,
@@ -132,17 +140,22 @@ export function buildSystemPrompt(_gender, clubName, opts = {}) {
 /** Компактный блок данных для промпта (меньше шума для модели). */
 export function buildGeminiPromptDataBlock(snapshot, previousSnapshot = null, opts = {}) {
   const selectedTrainerId = opts.selectedTrainerId ?? snapshot?.trainer_contour?.selected_trainer_id ?? null
-  const current = compactSnapshotForPrompt(snapshot, selectedTrainerId)
+  const panelSegment = opts.panelSegment === 'trainer' ? 'trainer' : 'sales'
+  const current = compactSnapshotForPrompt(snapshot, panelSegment === 'trainer' ? selectedTrainerId : null)
   const responseMode =
     normalizeIskraResponseMode(opts.responseMode) ||
     resolveIskraResponseMode({ advisorRoleId: opts.advisorRoleId ?? 'app_admin' })
   const calendarContext =
     snapshot?.calendar_context ??
     buildGeminiMonthCalendarContext(snapshot?.period?.year, snapshot?.period?.month)
-  const analysisFocus = selectedTrainerId ? 'trainer' : 'sales'
+  const analysisFocus = resolvePanelAnalysisFocus({
+    segment: panelSegment,
+    trainerId: selectedTrainerId,
+  })
   let block = {
     analysis_period: current?.period?.label ?? '',
     analysis_focus: analysisFocus,
+    panel_segment: panelSegment,
     advisor_role_id: opts.advisorRoleId ?? 'app_admin',
     response_mode: responseMode,
     advisor_advice: opts.advisorAdvice ?? null,
@@ -157,25 +170,44 @@ export function buildGeminiPromptDataBlock(snapshot, previousSnapshot = null, op
     data_sources: current?.data_sources ?? null,
     data_availability: buildIskraDataAvailability(snapshot, {
       hasPreviousPeriod: !!previousSnapshot,
-      selectedTrainerId,
+      selectedTrainerId: panelSegment === 'trainer' ? selectedTrainerId : null,
     }),
     current_period: current?.period ?? null,
   }
+  if (panelSegment === 'sales') {
+    block.sales_advice_context = buildSalesAdviceContext(snapshot)
+  }
+  const userMessage = String(opts.userMessage ?? '').trim()
+  const appTopic = matchIskraAppGuideIntent(userMessage)
+  if (appTopic || /приложен|fit-?city|как\s+(создать|добавить|синхрон|работ)/i.test(userMessage)) {
+    block.app_knowledge = buildKbPromptBlock(userMessage, appTopic)
+  }
   if (previousSnapshot) {
-    const prev = compactSnapshotForPrompt(previousSnapshot, selectedTrainerId)
+    const prev = compactSnapshotForPrompt(
+      previousSnapshot,
+      panelSegment === 'trainer' ? selectedTrainerId : null,
+    )
     block.previous_period = {
       period: prev?.period ?? null,
-      sales_contour: prev?.sales_contour ?? null,
-      trainer_contour: prev?.trainer_contour ?? null,
-      insights: prev?.insights ?? null,
+      sales_contour: panelSegment === 'sales' ? prev?.sales_contour ?? null : null,
+      trainer_contour: panelSegment === 'trainer' ? prev?.trainer_contour ?? null : null,
+      insights: panelSegment === 'sales' ? prev?.insights ?? null : null,
     }
   }
   block = augmentPromptDataBlockForAdmin(block, snapshot, {
     responseMode,
     dispatchOpen: opts.dispatchOpen,
     previousSnapshot: opts.previousSnapshot ?? previousSnapshot,
-    playbooks: opts.playbooks ?? buildPlaybooksPromptBlock(opts.learningBundle),
+    playbooks:
+      opts.playbooks ??
+      mergePlaybooksForPrompt({
+        clubPlaybooks: buildPlaybooksPromptBlock(opts.learningBundle),
+        snapshot,
+        limit: 8,
+      }),
+    panelSegment,
   })
+  block = filterPromptDataBlockForSegment(block, panelSegment, selectedTrainerId)
   return block
 }
 
@@ -195,15 +227,16 @@ export function buildGeminiGeneratePayload(opts) {
   const responseMode = resolveIskraResponseMode({
     advisorRoleId: opts.advisorRoleId ?? opts.advisorRole?.id ?? 'app_admin',
     userMessage: opts.userMessage,
-    explicitMode: opts.    responseMode,
+    explicitMode: opts.responseMode,
     comparePrevious: opts.comparePrevious === true,
-    dispatchOpen: opts.dispatchOpen,
-    learningBundle: opts.learningBundle,
   })
+  const panelSegment = opts.panelSegment === 'trainer' ? 'trainer' : 'sales'
   const history = trimChatHistory(opts.messages, resolveChatHistoryTurns(responseMode))
   const userMessage = String(opts.userMessage ?? '').trim()
   const dataBlock = buildGeminiPromptDataBlock(opts.snapshot, opts.previousSnapshot, {
     selectedTrainerId: opts.selectedTrainerId,
+    panelSegment,
+    userMessage,
     advisorRoleId: opts.advisorRoleId,
     advisorAdvice: opts.advisorAdvice,
     responseMode,
@@ -218,7 +251,11 @@ export function buildGeminiGeneratePayload(opts) {
     : `Вопрос: ${userMessage}`
   const promptOpts = {
     promptAppend: opts.promptAppend,
-    analysisFocus: opts.selectedTrainerId ? 'trainer' : opts.advisorRole?.analysisFocus ?? 'sales',
+    panelSegment,
+    selectedTrainerId: opts.selectedTrainerId,
+    userMessage,
+    snapshot: opts.snapshot,
+    analysisFocus: dataBlock.analysis_focus,
     advisorRole: opts.advisorRole ?? null,
     responseMode,
   }

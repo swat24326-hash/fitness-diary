@@ -30,13 +30,18 @@ ok(normalizeIskraResponseMode('подробно') === 'deep', 'normalize под�
 ok(normalizeIskraResponseMode('deep') === 'deep', 'normalize deep')
 ok(resolveIskraResponseMode({ advisorRoleId: 'app_admin', userPreference: 'deep' }) === 'deep', 'admin deep pref')
 ok(resolveIskraResponseMode({ advisorRoleId: 'club_supervisor' }) === 'brief', 'supervisor brief')
-ok(resolveIskraResponseMode({ chipId: 'plan' }) === 'brief', 'chip brief')
+ok(resolveIskraResponseMode({ chipId: 'plan', chipUsesInstant: true }) === 'brief', 'instant chip brief')
+ok(
+  resolveIskraResponseMode({ advisorRoleId: 'app_admin', chipId: 'plan', chipUsesInstant: false }) === 'standard',
+  'admin gemini chip not forced brief',
+)
 ok(isDeepAnalysisQuestion('Разбери месяц и дай план действий'), 'deep question detect')
 ok(resolveIskraResponseMode({ advisorRoleId: 'app_admin', userMessage: 'Почему просел план?' }) === 'deep', 'auto deep')
 
 const briefCfg = resolveGeminiGenerationConfig('brief')
 const deepCfg = resolveGeminiGenerationConfig('deep')
 ok(briefCfg.maxOutputTokens === 384, 'brief tokens')
+ok(resolveGeminiGenerationConfig('standard').maxOutputTokens === 1024, 'standard tokens')
 ok(deepCfg.maxOutputTokens === 1536, 'deep tokens')
 ok(shouldSkipGeminiEdge('deep'), 'skip edge deep')
 ok(!shouldSkipGeminiEdge('brief'), 'edge ok brief')

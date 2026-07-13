@@ -3,6 +3,7 @@
  */
 
 import { iskraReplyHeader, joinIskraReply } from './iskraReplyCompact.js'
+import { buildKbInstantReply } from './iskraKnowledgeBaseCore.js'
 
 /** @typedef {'general'|'client'|'membership'|'sync'|'trainer'|'structure'|'deploy'} IskraAppGuideTopic */
 
@@ -50,12 +51,14 @@ export function matchIskraAppGuideIntent(userMessage) {
 
 /**
  * @param {IskraAppGuideTopic} [topic]
- * @param {{ club?: string, period?: string, advisorRoleId?: string }} [opts]
+ * @param {{ club?: string, period?: string, advisorRoleId?: string, userMessage?: string }} [opts]
  */
 export function buildIskraAppGuideReply(topic = 'general', opts = {}) {
   const club = String(opts.club ?? 'клуб').trim()
   const period = String(opts.period ?? 'месяц').trim()
-  const line = GUIDE_LINES[topic] ?? GUIDE_LINES.general
+  const userMessage = String(opts.userMessage ?? '').trim()
+  const kbReply = buildKbInstantReply(userMessage, topic)
+  const line = kbReply || GUIDE_LINES[topic] || GUIDE_LINES.general
   const roleHint =
     opts.advisorRoleId === 'app_admin'
       ? ' Полный доступ — «Организация», диагностика, настройки ИСКРА.'
@@ -67,7 +70,8 @@ export function buildIskraAppGuideReply(topic = 'general', opts = {}) {
 
 export function buildIskraAppGuideRule() {
   return [
-    'Вопросы про приложение (клиент, sync, разделы, деплой) — отвечай из знаний FIT-CITY, без выдуманных кнопок.',
+    'Вопросы про приложение (клиент, sync, разделы) — отвечай из app_knowledge и articles в JSON, без выдуманных кнопок.',
+    'Формат: краткий ответ → нумерованные шаги из базы знаний → при необходимости одно уточнение.',
     'Не подменяй техподсказку цифрами плана, если спросили «как сделать в приложении».',
   ].join(' ')
 }

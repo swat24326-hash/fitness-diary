@@ -83,6 +83,9 @@ export async function prefetchGeminiSnapshot(opts, retryOpts = {}) {
           momGlance: data.mom_glance ?? null,
           forecastConfidence: data.forecast_confidence ?? null,
           weekChecklist: Array.isArray(data.week_checklist) ? data.week_checklist : [],
+          trainerContour: data.trainer_contour ?? null,
+          directionGlance: data.direction_glance ?? null,
+          planerkaFeed: data.planerka_feed ?? null,
         }
       }
       lastError =
@@ -129,6 +132,7 @@ export async function prefetchGeminiSnapshot(opts, retryOpts = {}) {
  *   handlerId?: string | null,
  *   appRole?: string,
  *   responseMode?: string,
+ *   panelSegment?: 'sales' | 'trainer',
  * }} opts
  */
 export async function postGeminiAnalytics(opts) {
@@ -160,6 +164,7 @@ export async function postGeminiAnalytics(opts) {
         handler_id: opts.handlerId ? String(opts.handlerId).trim() : undefined,
         app_role: opts.appRole ? String(opts.appRole).trim() : undefined,
         response_mode: opts.responseMode ? String(opts.responseMode).trim() : undefined,
+        panel_segment: opts.panelSegment === 'trainer' ? 'trainer' : 'sales',
       }),
     },
     GEMINI_REQUEST_TIMEOUT_MS,

@@ -1,58 +1,48 @@
 # ИСКРА — архитектура бизнес-советника
 
-Масштабируемая структура: аналитик-советник с ролевой адаптацией.
+Ролевая адаптация и **расширенная роль куратора сети**.
 
 ## Статус (2026)
 
-| Роль советника | users.role (план) | Статус |
-|----------------|-------------------|--------|
-| **app_admin** | `admin` | **Активна** — полный доступ |
-| **club_supervisor** | `supervisor` (управляющий) | Заложена, не включена |
-| **curator** | `curator` (куратор) | Заложена, не включена |
+| Роль | users.role | Охват | Статус |
+|------|------------|-------|--------|
+| **app_admin** | `admin` | 1 клуб + техподдержка | **Активна** |
+| **club_supervisor** | `supervisor` | 1 клуб, урезанная аналитика | Заложена |
+| **curator** | `curator` | **Все клубы** + личное расширение | Заложена — [ISKRA_CURATOR.md](./ISKRA_CURATOR.md) |
 
-Сейчас ИСКРА в UI только у **админа** и работает как **app_admin**: вся аналитика + бизнес-советы + подсказки по приложению. В чате — режимы **стандарт** и **подробно** (см. `iskraResponseModeCore.js`, Эпик I в North Star).
+## Куратор — не отдельный продукт
 
-## Три модели (целевые)
+Куратор = **бизнес в приоритете** (продажи, KPI, аналитика по сети) **+** личный слой (привычки, здоровье, собеседник) в одном помощнике.
+
+```
+snapshot клубов (продажи, KPI)
+        +
+curator_context (привычки, здоровье, расписание)
+        ↓
+    один ответ Gemini
+```
+
+## Три роли
 
 ### Админ (`app_admin`) — сейчас
-- Максимальные права: всё из куратора + техподдержка приложения
-- План, прогноз, маржа, тренеры, «Что делать», sync, организация, деплой
-- Snapshot **без** обрезки
+Один клуб: полная аналитика, Планёрка, KB приложения.
 
 ### Управляющий (`club_supervisor`) — позже
-- План, тренировки, тренеры, лёгкие советы
-- Подсказки по работе в приложении (клиент, абонемент)
-- Без детальной маржи и чистой прибыли
+Один клуб: план, тренеры, без детальной маржи.
 
 ### Куратор (`curator`) — позже
-- Полная аналитика клуба
-- Стратегические бизнес-советы «как у сильного управленца»
-- Без акцента на техподдержку приложения
+Все клубы: продажи/KPI **в первую очередь**; личное — расширение. См. [ISKRA_CURATOR.md](./ISKRA_CURATOR.md).
 
 ## Слои кода
 
 ```
-iskraAdvisorRoles.js      — реестр ролей (active: true/false)
-iskraAdvisorScope.js      — app role → advisor role, filter snapshot
-iskraBusinessAdvice.js    — карточки советов из insights
-iskraAppGuide.js          — подсказки по FIT-CITY
-iskraAdvisorPipeline.js   — оркестратор
+iskraAdvisorRoles.js
+iskraPanelContourCore.js       — продажи | тренеры (внутри клуба)
+iskraCuratorContourCore.js     — network_curator + личное расширение
+iskraCuratorPersonaCore.js
 ```
-
-## Включение управляющего / куратора (чеклист)
-
-1. `users.role` + `AuthContext.normalizeRole`
-2. `mapAppRoleToAdvisorRole()` — раскомментировать ветки
-3. `ISKRA_ACTIVE_ADVISOR_ROLE_IDS` — добавить роль
-4. Доступ к панели ИСКРЫ (сейчас `requireAdmin`)
-5. `club_iskra_settings.quick_chips_by_role` (опционально)
 
 ## Verify
 
-`node scripts/verify-iskra-advisor.mjs`
-
-Самообучение: [ISKRA_SELF_LEARNING.md](./ISKRA_SELF_LEARNING.md), `node scripts/verify-iskra-learning.mjs`
-
-North Star (максимум бизнес + вау): [ISKRA_NORTH_STAR.md](./ISKRA_NORTH_STAR.md)
-
-Планёрка (задания сотрудникам): [ISKRA_PLANERKA.md](./ISKRA_PLANERKA.md)
+- `node scripts/verify-iskra-advisor.mjs`
+- `node scripts/verify-iskra-curator-contour.mjs`

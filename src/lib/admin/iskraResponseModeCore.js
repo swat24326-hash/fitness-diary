@@ -41,7 +41,8 @@ export function isDeepAnalysisQuestion(message) {
  */
 export function resolveIskraResponseMode(opts = {}) {
   const advisorRoleId = String(opts.advisorRoleId ?? 'app_admin').trim()
-  if (opts.instantPath === true || opts.chipId) return 'brief'
+  if (opts.instantPath === true) return 'brief'
+  if (opts.chipId && opts.chipUsesInstant !== false) return 'brief'
 
   const explicit = normalizeIskraResponseMode(opts.explicitMode)
   if (explicit) return explicit
@@ -90,8 +91,8 @@ export function resolveGeminiGenerationConfig(mode, retry = false) {
   }
   if (mode === 'standard') {
     return retry
-      ? { temperature: 0.55, maxOutputTokens: 1024 }
-      : { temperature: 0.6, maxOutputTokens: 768 }
+      ? { temperature: 0.55, maxOutputTokens: 1280 }
+      : { temperature: 0.6, maxOutputTokens: 1024 }
   }
   return retry
     ? { temperature: 0.55, maxOutputTokens: 512 }

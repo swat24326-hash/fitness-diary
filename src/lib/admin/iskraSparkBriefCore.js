@@ -6,6 +6,11 @@ import { buildPanelKpiFromAnalytics } from './clubMonthAnalyticsCore.js'
 import { buildEnrichedIskraAdviceCards } from './iskraActionImpactCore.js'
 import { formatRubCompact } from './iskraReplyPhrasing.js'
 import { buildForecastConfidenceLine } from './iskraForecastConfidenceCore.js'
+import {
+  pickPrimarySeedPlaybook,
+  seedPlaybookActionLine,
+} from './iskraBusinessPlaybooksCore.js'
+import { buildDirectionGlanceLine } from './iskraSalesAdviceContextCore.js'
 
 /**
  * @param {object | null | undefined} snapshot
@@ -27,6 +32,8 @@ export function buildIskraSparkBrief(snapshot, opts = {}) {
     (planPct > 0 && planPct < 45)
 
   const forecast = buildForecastConfidenceLine(snapshot)
+  const directionGlance = buildDirectionGlanceLine(snapshot)
+  const seedPlaybook = behind || top?.tone === 'warn' ? pickPrimarySeedPlaybook(snapshot) : null
 
   const line1 = kpi?.hasPlan
     ? `План ${String(planPct).replace('.', ',')}% · ${formatRubCompact(kpi.profitTotal)}`
@@ -35,7 +42,7 @@ export function buildIskraSparkBrief(snapshot, opts = {}) {
   let line2 = 'Темп в норме — держите ритм отчётов'
   let tone = 'ok'
   if (behind) {
-    line2 = top?.headline ?? 'План отстаёт от календарного темпа'
+    line2 = directionGlance?.line ?? top?.headline ?? 'План отстаёт от календарного темпа'
     tone = 'warn'
   } else if (top) {
     line2 = top.headline
@@ -45,25 +52,36 @@ export function buildIskraSparkBrief(snapshot, opts = {}) {
     tone = 'ok'
   }
 
-  const line3 = top?.action
-    ? top.action.length > 96
-      ? `${top.action.slice(0, 93)}…`
-      : top.action
-    : 'Спросите ИСКРУ или нажмите «Сделать»'
+  const line3 = seedPlaybook
+    ? seedPlaybookActionLine(seedPlaybook)
+    : top?.action
+      ? top.action.length > 96
+        ? `${top.action.slice(0, 93)}…`
+        : top.action
+      : 'Спросите «Совет по плану» или нажмите «Сделать»'
 
-  const cta = top
+  const cta = behind || seedPlaybook
     ? {
-        handlerId: top.doHandlerId,
-        message: top.doMessage,
-        label: top.doLabel ?? 'Сделать',
-        cardId: top.id,
+        handlerId: 'advice_plan',
+        message:
+          'Дай совет: какое направление просело и что делать по НК/ДК/УК и ПЗ/ТЗ/АЗ, чтобы дожать план?',
+        label: 'Совет по плану',
+        cardId: 'advice_plan',
       }
-    : {
-        handlerId: 'plan',
-        message: 'Как выполнен план продаж за этот месяц?',
-        label: 'План',
-        cardId: 'plan',
-      }
+    : top
+      ? {
+          handlerId: top.doHandlerId,
+          message: top.doMessage,
+          label: top.doLabel ?? 'Сделать',
+          cardId: top.id,
+        }
+      : {
+          handlerId: 'advice_plan',
+          message:
+            'Дай совет: какое направление просело и что делать по НК/ДК/УК и ПЗ/ТЗ/АЗ, чтобы дожать план?',
+          label: 'Совет по плану',
+          cardId: 'advice_plan',
+        }
 
   return {
     club,

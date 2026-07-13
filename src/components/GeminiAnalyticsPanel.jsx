@@ -2,8 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   CircleHelp,
   Dumbbell,
   Lightbulb,
@@ -33,7 +31,7 @@ import {
 import { buildGeminiMicroIntro } from '../lib/admin/geminiAssistantIntro.js'
 import { ISKRA_FULL_NAME, ISKRA_NAME } from '../lib/admin/geminiIskraCore.js'
 import { mapAppRoleToAdvisorRole } from '../lib/admin/iskraAdvisorScope.js'
-import { resolveIskraAdvisorRole } from '../lib/admin/iskraAdvisorRoles.js'
+import { resolveIskraAdvisorRole, iskraAdvisorFullAccess } from '../lib/admin/iskraAdvisorRoles.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { GeminiContextKpi } from './GeminiContextKpi.jsx'
 import {
@@ -57,11 +55,19 @@ import {
 } from '../lib/admin/iskraLearningService.js'
 import { deriveReplySignalKey } from '../lib/admin/iskraLearningCore.js'
 import { extractIskraSpeechSnippet } from '../lib/admin/iskraResponseModeCore.js'
+import { resolveChipSendOptions } from '../lib/admin/iskraChipRoutingCore.js'
+import {
+  resolveSegmentAlerts,
+} from '../lib/admin/iskraPanelSegmentCore.js'
+import { buildTrainerInsightCards } from '../lib/admin/iskraTrainerPanelCore.js'
 import { IskraInsightCards } from './iskra/IskraInsightCards.jsx'
 import { IskraSparkBrief } from './iskra/IskraSparkBrief.jsx'
 import { IskraAlertRibbon } from './iskra/IskraAlertRibbon.jsx'
 import { IskraWeekChecklist } from './iskra/IskraWeekChecklist.jsx'
+import { IskraPlanerkaFeed } from './iskra/IskraPlanerkaFeed.jsx'
 import { IskraDispatchModal } from './iskra/IskraDispatchModal.jsx'
+import { IskraPanelNav } from './iskra/IskraPanelNav.jsx'
+import { IskraTrainerKpi } from './iskra/IskraTrainerKpi.jsx'
 import { useClubDispatchRecipients } from '../hooks/useClubDispatchRecipients.js'
 import { buildWeekChecklistTaskDraft } from '../lib/admin/staffTaskCreateCore.js'
 import '../styles/gemini-analytics.css'
@@ -126,21 +132,6 @@ function IskraMessageBody({ content }) {
   )
 }
 
-const MONTH_NAMES = [
-  'январь',
-  'февраль',
-  'март',
-  'апрель',
-  'май',
-  'июнь',
-  'июль',
-  'август',
-  'сентябрь',
-  'октябрь',
-  'ноябрь',
-  'декабрь',
-]
-
 const ISKRA_TTS_GENDER = 'female'
 
 const CHIP_ICONS = {
@@ -164,11 +155,6 @@ const CHIP_ICONS = {
 function chipIconFor(chip) {
   const handler = String(chip?.handler_id ?? chip?.id ?? '').trim()
   return CHIP_ICONS[handler] ?? Sparkles
-}
-
-function shiftMonth(year, month, delta) {
-  const d = new Date(Number(year), Number(month) - 1 + delta, 1)
-  return { year: d.getFullYear(), month: d.getMonth() + 1 }
 }
 
 /**
@@ -232,6 +218,8 @@ export function GeminiAnalyticsPanel({
   const [trainers, setTrainers] = useState([])
   const { recipients: dispatchRecipients } = useClubDispatchRecipients(clubId, { includeSalesManagers: true })
   const [focusTrainerId, setFocusTrainerId] = useState(null)
+  const [panelSegment, setPanelSegment] = useState('sales')
+  const [trainerContour, setTrainerContour] = useState(null)
   const [entered, setEntered] = useState(false)
   const [dockThreadOpen, setDockThreadOpen] = useState(false)
   const [hintTick, setHintTick] = useState(0)
@@ -244,6 +232,8 @@ export function GeminiAnalyticsPanel({
   const [proactiveAlerts, setProactiveAlerts] = useState([])
   const [momGlance, setMomGlance] = useState(null)
   const [forecastConfidence, setForecastConfidence] = useState(null)
+  const [directionGlance, setDirectionGlance] = useState(null)
+  const [planerkaFeed, setPlanerkaFeed] = useState(null)
   const [weekChecklist, setWeekChecklist] = useState([])
   const [correctionOpenFor, setCorrectionOpenFor] = useState(null)
   const [correctionText, setCorrectionText] = useState('')
@@ -259,16 +249,36 @@ export function GeminiAnalyticsPanel({
   const prevModeRef = useRef(/** @type {'closed'|'compact'|'expanded'} */ ('closed'))
 
   const settingsHref = clubId ? `/admin/iskra-settings?club=${encodeURIComponent(clubId)}` : '/admin/iskra-settings'
-  const activeTrainerId = focusTrainerId || null
+  const activeTrainerId = panelSegment === 'trainer' ? focusTrainerId || null : null
   const focusTrainerLabel =
     trainers.find((t) => t.trainer_id === activeTrainerId)?.trainer_name ||
     (activeTrainerId && selectedTrainerName) ||
     ''
 
   const panelQuickChips = useMemo(
-    () => resolvePanelQuickChips({ stored: quickChips, trainerId: activeTrainerId, appRole }),
-    [quickChips, activeTrainerId, appRole],
+    () =>
+      resolvePanelQuickChips({
+        stored: quickChips,
+        segment: panelSegment,
+        trainerId: activeTrainerId,
+        appRole,
+      }),
+    [quickChips, panelSegment, activeTrainerId, appRole],
   )
+
+  const segmentAlerts = useMemo(
+    () => resolveSegmentAlerts(proactiveAlerts, trainerContour, panelSegment, activeTrainerId),
+    [proactiveAlerts, trainerContour, panelSegment, activeTrainerId],
+  )
+
+  const trainerInsightCards = useMemo(
+    () => buildTrainerInsightCards(trainerContour, { trainerId: activeTrainerId, limit: 3 }),
+    [trainerContour, activeTrainerId],
+  )
+
+  const displayInsightCards = panelSegment === 'trainer' ? trainerInsightCards : insightCards
+
+  const showAdminDepth = iskraAdvisorFullAccess(advisorRole)
 
   const stopListening = useCallback(() => {
     recognitionRef.current?.stop()
@@ -318,7 +328,10 @@ export function GeminiAnalyticsPanel({
 
   useEffect(() => {
     if (!isActive) return
-    setFocusTrainerId(selectedTrainerId || null)
+    if (selectedTrainerId) {
+      setFocusTrainerId(selectedTrainerId)
+      setPanelSegment('trainer')
+    }
   }, [isActive, selectedTrainerId])
 
   useEffect(() => {
@@ -336,10 +349,10 @@ export function GeminiAnalyticsPanel({
       initialMessageSentRef.current = false
       setError('')
       setInput('')
-      const focusLine = focusTrainerLabel
-        ? ` Сейчас запрос по тренеру ${focusTrainerLabel} — продажи клуба по-прежнему в отчёте менеджера.`
-        : selectedTrainerId && selectedTrainerName
-          ? ` Сейчас запрос по тренеру ${selectedTrainerName}.`
+      const focusLine = panelSegment === 'trainer' && focusTrainerLabel
+        ? ` Сейчас контур тренеров (планшеты)${focusTrainerLabel ? ` — ${focusTrainerLabel}` : ''}.`
+        : panelSegment === 'trainer'
+          ? ' Сейчас контур тренеров (планшеты) — сводка клуба.'
           : ''
       setMessages([
         {
@@ -364,6 +377,7 @@ export function GeminiAnalyticsPanel({
     clubName,
     stopListening,
     focusTrainerLabel,
+    panelSegment,
     selectedTrainerId,
     selectedTrainerName,
     isActive,
@@ -388,7 +402,10 @@ export function GeminiAnalyticsPanel({
     setProactiveAlerts(Array.isArray(data.proactiveAlerts) ? data.proactiveAlerts : [])
     setMomGlance(data.momGlance ?? null)
     setForecastConfidence(data.forecastConfidence ?? null)
+    setDirectionGlance(data.directionGlance ?? null)
+    setPlanerkaFeed(data.planerkaFeed ?? null)
     setWeekChecklist(Array.isArray(data.weekChecklist) ? data.weekChecklist : [])
+    setTrainerContour(data.trainerContour ?? null)
     setKpiLoadError('')
     return true
   }, [])
@@ -403,7 +420,10 @@ export function GeminiAnalyticsPanel({
       setProactiveAlerts([])
       setMomGlance(null)
       setForecastConfidence(null)
+      setDirectionGlance(null)
+      setPlanerkaFeed(null)
       setWeekChecklist([])
+      setTrainerContour(null)
       setKpiLoadError('')
       return
     }
@@ -419,7 +439,10 @@ export function GeminiAnalyticsPanel({
       setProactiveAlerts([])
       setMomGlance(null)
       setForecastConfidence(null)
+      setDirectionGlance(null)
+      setPlanerkaFeed(null)
       setWeekChecklist([])
+      setTrainerContour(null)
       setKpiLoadError(data.error || 'Не удалось загрузить данные')
     }
     setKpiLoading(false)
@@ -448,6 +471,8 @@ export function GeminiAnalyticsPanel({
         setProactiveAlerts([])
         setMomGlance(null)
         setForecastConfidence(null)
+        setDirectionGlance(null)
+        setPlanerkaFeed(null)
         setWeekChecklist([])
         setKpiLoadError(data.error || 'Не удалось загрузить данные')
       }
@@ -570,7 +595,7 @@ export function GeminiAnalyticsPanel({
         setMessages((prev) => [...prev, { role: 'user', content: userMessage }])
       }
 
-      const responseMode = handlerId ? 'brief' : responseDepth
+      const responseMode = opts.responseMode ?? (handlerId ? 'brief' : responseDepth)
 
       const fetchReply = (flags = {}) =>
         postGeminiAnalytics({
@@ -585,6 +610,7 @@ export function GeminiAnalyticsPanel({
           forceGemini: flags.forceGemini,
           completionRetry: flags.completionRetry,
           selectedTrainerId: activeTrainerId || undefined,
+          panelSegment,
           handlerId,
           appRole,
           responseMode,
@@ -677,7 +703,7 @@ export function GeminiAnalyticsPanel({
         setInput('')
       }
     },
-    [clubId, year, month, chatHistory, loading, stopListening, autoSpeak, rateLimitSec, activeTrainerId, appRole, recordLearning, responseDepth],
+    [clubId, year, month, chatHistory, loading, stopListening, autoSpeak, rateLimitSec, activeTrainerId, panelSegment, appRole, recordLearning, responseDepth],
   )
 
   const submitReplyFeedback = useCallback(
@@ -757,9 +783,13 @@ export function GeminiAnalyticsPanel({
         userMessage: message,
         meta: { source: 'proactive_alert', alert_id: alert.id },
       })
-      void sendMessage(message, false, { handlerId })
+      const routed = resolveChipSendOptions(
+        { handler_id: handlerId },
+        { advisorRoleId: advisorRole.id, responseDepth },
+      )
+      void sendMessage(message, false, routed)
     },
-    [sendMessage, recordLearning],
+    [sendMessage, recordLearning, advisorRole.id, responseDepth],
   )
 
   const runChecklistItem = useCallback(
@@ -774,9 +804,13 @@ export function GeminiAnalyticsPanel({
         userMessage: message,
         meta: { source: 'week_checklist', item_id: item.id },
       })
-      void sendMessage(message, false, { handlerId })
+      const routed = resolveChipSendOptions(
+        { handler_id: handlerId },
+        { advisorRoleId: advisorRole.id, responseDepth },
+      )
+      void sendMessage(message, false, routed)
     },
-    [sendMessage, recordLearning],
+    [sendMessage, recordLearning, advisorRole.id, responseDepth],
   )
 
   const showSparkBrief = sparkBriefEnabled && sparkBrief && !sparkBriefDismissed && !kpiLoading
@@ -798,9 +832,13 @@ export function GeminiAnalyticsPanel({
         userMessage: message,
         meta: { source: 'insight_card', card_id: card.id },
       })
-      void sendMessage(message, false, { handlerId })
+      const routed = resolveChipSendOptions(
+        { handler_id: handlerId },
+        { advisorRoleId: advisorRole.id, responseDepth },
+      )
+      void sendMessage(message, false, routed)
     },
-    [sendMessage, recordLearning],
+    [sendMessage, recordLearning, advisorRole.id, responseDepth],
   )
 
   const runSparkCta = useCallback(() => {
@@ -827,6 +865,17 @@ export function GeminiAnalyticsPanel({
       setDispatchOpen(true)
     },
     [clubId, year, month],
+  )
+
+  const sendChipMessage = useCallback(
+    (chip) => {
+      const routed = resolveChipSendOptions(chip, {
+        advisorRoleId: advisorRole.id,
+        responseDepth,
+      })
+      void sendMessage(chip.message, chip.compare === true, routed)
+    },
+    [advisorRole.id, responseDepth, sendMessage],
   )
 
   const comparePreviousFromChip = useCallback(
@@ -1011,71 +1060,97 @@ export function GeminiAnalyticsPanel({
 
         <div className="gemini-panel__scene">
         <div className="gemini-panel__insights">
-        {trainers.length > 0 ? (
-          <div className="gemini-panel__focus">
-            <label className="gemini-panel__focus-label" htmlFor="iskra-trainer-focus">
-              Фокус анализа
-            </label>
-            <select
-              id="iskra-trainer-focus"
-              className="select gemini-panel__focus-select"
-              value={activeTrainerId ?? ''}
-              onChange={(e) => setFocusTrainerId(e.target.value || null)}
-              disabled={loading}
-            >
-              <option value="">Продажи клуба</option>
-              {trainers.map((t) => (
-                <option key={t.trainer_id} value={t.trainer_id}>
-                  Тренер: {t.trainer_name || t.trainer_id}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : null}
+        <IskraPanelNav
+          segment={panelSegment}
+          onSegmentChange={setPanelSegment}
+          year={year}
+          month={month}
+          onYearMonthChange={(y, m) => {
+            setYear(y)
+            setMonth(m)
+          }}
+          trainers={trainers}
+          trainerId={activeTrainerId}
+          onTrainerChange={setFocusTrainerId}
+          responseDepth={responseDepth}
+          onResponseDepthChange={(depth) => {
+            setResponseDepth(depth)
+            writeResponseDepthPreference(depth)
+          }}
+          showDepthControls={showAdminDepth}
+          autoSpeak={autoSpeak}
+          onAutoSpeakToggle={() => {
+            setAutoSpeak((on) => {
+              const next = !on
+              saveGeminiAutoSpeak(next)
+              if (next) primeGeminiSpeechPlayback()
+              else stopGeminiSpeech()
+              return next
+            })
+          }}
+          disabled={loading}
+        />
 
-        <GeminiContextKpi kpi={kpi} year={year} month={month} loading={kpiLoading} />
+        {panelSegment === 'sales' ? (
+          <>
+            <GeminiContextKpi kpi={kpi} year={year} month={month} loading={kpiLoading} />
+            {directionGlance?.line ? (
+              <p className="iskra-direction-glance muted" role="note">
+                {directionGlance.line}
+              </p>
+            ) : null}
+            {momGlance?.line ? (
+              <p className="iskra-mom-glance muted" role="note">
+                {momGlance.line}
+              </p>
+            ) : null}
+            {!showSparkBrief && (forecastConfidence?.line || sparkBrief?.forecastLine) ? (
+              <p
+                className={`iskra-forecast-glance muted iskra-forecast-glance--${forecastConfidence?.confidence ?? sparkBrief?.forecastConfidence ?? 'medium'}`}
+                role="note"
+              >
+                {forecastConfidence?.line ?? sparkBrief?.forecastLine}
+              </p>
+            ) : null}
+            {showSparkBrief ? (
+              <IskraSparkBrief
+                brief={sparkBrief}
+                kpi={kpi}
+                onCta={runSparkCta}
+                onDismiss={dismissSparkBrief}
+              />
+            ) : null}
+            <IskraWeekChecklist
+              clubId={clubId}
+              year={year}
+              month={month}
+              items={weekChecklist}
+              disabled={loading || !clubId || rateLimitSec > 0}
+              onRunItem={runChecklistItem}
+              onAssignItem={openDispatchFromChecklist}
+            />
+          </>
+        ) : (
+          <IskraTrainerKpi
+            contour={trainerContour}
+            trainerId={activeTrainerId}
+            loading={kpiLoading}
+          />
+        )}
+
         <IskraAlertRibbon
-          alerts={proactiveAlerts}
+          alerts={segmentAlerts}
           disabled={loading || !clubId || rateLimitSec > 0}
           onAlertAction={runAlertAction}
         />
-        {momGlance?.line ? (
-          <p className="iskra-mom-glance muted" role="note">
-            {momGlance.line}
-          </p>
-        ) : null}
-        {!showSparkBrief && (forecastConfidence?.line || sparkBrief?.forecastLine) ? (
-          <p
-            className={`iskra-forecast-glance muted iskra-forecast-glance--${forecastConfidence?.confidence ?? sparkBrief?.forecastConfidence ?? 'medium'}`}
-            role="note"
-          >
-            {forecastConfidence?.line ?? sparkBrief?.forecastLine}
-          </p>
-        ) : null}
-        {showSparkBrief ? (
-          <IskraSparkBrief
-            brief={sparkBrief}
-            kpi={kpi}
-            onCta={runSparkCta}
-            onDismiss={dismissSparkBrief}
-          />
-        ) : null}
+        <IskraPlanerkaFeed feed={planerkaFeed} clubId={clubId} loading={kpiLoading} />
         <IskraInsightCards
-          cards={insightCards}
+          cards={displayInsightCards}
           loading={kpiLoading}
           disabled={loading || !clubId || rateLimitSec > 0}
           onDo={runInsightAction}
-          onDispatch={openDispatchFromCard}
-          dispatchDisabled={!trainers.length}
-        />
-        <IskraWeekChecklist
-          clubId={clubId}
-          year={year}
-          month={month}
-          items={weekChecklist}
-          disabled={loading || !clubId || rateLimitSec > 0}
-          onRunItem={runChecklistItem}
-          onAssignItem={openDispatchFromChecklist}
+          onDispatch={panelSegment === 'sales' ? openDispatchFromCard : undefined}
+          dispatchDisabled={!trainers.length || panelSegment !== 'sales'}
         />
         {kpiLoadError ? (
           <div className="gemini-panel__kpi-retry" role="status">
@@ -1086,87 +1161,10 @@ export function GeminiAnalyticsPanel({
             </button>
           </div>
         ) : null}
-
-        <div className="gemini-panel__controls">
-          <div className="gemini-panel__month">
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              aria-label="Предыдущий месяц"
-              onClick={() => {
-                const next = shiftMonth(year, month, -1)
-                setYear(next.year)
-                setMonth(next.month)
-              }}
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <span className="gemini-panel__month-label">
-              {MONTH_NAMES[(month || 1) - 1]} {year}
-            </span>
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              aria-label="Следующий месяц"
-              onClick={() => {
-                const next = shiftMonth(year, month, 1)
-                setYear(next.year)
-                setMonth(next.month)
-              }}
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-
-          <div className="gemini-panel__speak-controls">
-            <div className="gemini-panel__depth-toggle" role="group" aria-label="Глубина ответа ИСКРЫ">
-              <button
-                type="button"
-                className={`gemini-panel__depth-btn${responseDepth === 'standard' ? ' gemini-panel__depth-btn--on' : ''}`}
-                aria-pressed={responseDepth === 'standard'}
-                title="Обычные ответы в чате"
-                onClick={() => {
-                  setResponseDepth('standard')
-                  writeResponseDepthPreference('standard')
-                }}
-              >
-                Стандарт
-              </button>
-              <button
-                type="button"
-                className={`gemini-panel__depth-btn${responseDepth === 'deep' ? ' gemini-panel__depth-btn--on' : ''}`}
-                aria-pressed={responseDepth === 'deep'}
-                title="Развёрнутый анализ с шагами"
-                onClick={() => {
-                  setResponseDepth('deep')
-                  writeResponseDepthPreference('deep')
-                }}
-              >
-                Подробно
-              </button>
-            </div>
-            <button
-              type="button"
-              className={`gemini-panel__speak-toggle${autoSpeak ? ' gemini-panel__speak-toggle--on' : ''}`}
-              aria-pressed={autoSpeak}
-              aria-label={autoSpeak ? 'Автоозвучка включена' : 'Автоозвучка выключена'}
-              title={autoSpeak ? 'Ответы озвучиваются' : 'Только текст, без автоозвучки'}
-              onClick={() => {
-                setAutoSpeak((on) => {
-                  const next = !on
-                  saveGeminiAutoSpeak(next)
-                  if (next) primeGeminiSpeechPlayback()
-                  else stopGeminiSpeech()
-                  return next
-                })
-              }}
-            >
-              <Volume2 size={16} aria-hidden />
-            </button>
-          </div>
         </div>
 
-        <div className="gemini-panel__chips">
+        <div className="gemini-panel__chat gemini-panel__chat--fullscreen">
+        <div className="gemini-panel__chips gemini-panel__chips--chat">
           {panelQuickChips.map((chip) => {
             const ChipIcon = chipIconFor(chip)
             return (
@@ -1175,11 +1173,7 @@ export function GeminiAnalyticsPanel({
                 type="button"
                 className="gemini-panel__chip"
                 disabled={loading || !clubId || rateLimitSec > 0}
-                onClick={() =>
-                  void sendMessage(chip.message, chip.compare === true, {
-                    handlerId: chip.handler_id || undefined,
-                  })
-                }
+                onClick={() => sendChipMessage(chip)}
               >
                 <ChipIcon size={13} aria-hidden />
                 {chip.label}
@@ -1187,9 +1181,6 @@ export function GeminiAnalyticsPanel({
             )
           })}
         </div>
-        </div>
-
-        <div className="gemini-panel__chat gemini-panel__chat--fullscreen">
         <div className="gemini-panel__messages" ref={listRef}>
           {messages.map((msg, i) => (
             <div
@@ -1452,6 +1443,7 @@ export function GeminiAnalyticsPanel({
       defaultCard={dispatchCard}
       defaultDraft={dispatchDraft}
       defaultRecipientId={activeTrainerId ?? ''}
+      onSent={() => void reloadKpi()}
     />
     </>
   )

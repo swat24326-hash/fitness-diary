@@ -1,5 +1,10 @@
 import webpush from 'web-push'
 import { buildDispatchPushPayload } from '../../src/lib/push/trainerPushCore.js'
+import {
+  buildDispatchSenderStatusPushPayload,
+  shouldNotifySenderOnDispatchStatus,
+  shouldSkipSenderPush,
+} from '../../src/lib/admin/iskraDispatchSenderPushCore.js'
 
 let configured = false
 
@@ -112,4 +117,30 @@ export async function notifyDispatchPushForRecipients(ctx, items) {
   }
 
   await Promise.allSettled(tasks)
+}
+
+/**
+ * Push отправителю задания: исполнитель принял или выполнил.
+ * @param {object} ctx
+ * @param {{ id?: string, club_id?: string, sender_user_id?: string, recipient_user_id?: string, title?: string }} dispatchRow
+ * @param {string} newStatus
+ * @param {{ recipientName?: string }} [opts]
+ */
+export async function notifyDispatchStatusPushToSender(ctx, dispatchRow, newStatus, opts = {}) {
+  if (!ensureConfigured()) return
+  const status = String(newStatus ?? '').trim()
+  if (!shouldNotifySenderOnDispatchStatus(status)) return
+  if (shouldSkipSenderPush(dispatchRow?.sender_user_id, dispatchRow?.recipient_user_id)) return
+
+  const senderId = String(dispatchRow?.sender_user_id ?? '').trim()
+  const payload = buildDispatchSenderStatusPushPayload({
+    status: /** @type {import('../../src/lib/admin/iskraDispatchSenderPushCore.js').DispatchSenderPushStatus} */ (status),
+    dispatchId: String(dispatchRow?.id ?? ''),
+    clubId: String(dispatchRow?.club_id ?? ''),
+    taskTitle: String(dispatchRow?.title ?? ''),
+    recipientName: opts.recipientName ?? '',
+  })
+  if (!payload) return
+
+  await sendPushToUser(ctx.supabaseAdmin, senderId, payload)
 }

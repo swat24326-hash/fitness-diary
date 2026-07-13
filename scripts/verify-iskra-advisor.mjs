@@ -86,6 +86,11 @@ const adminCtx = buildIskraAdvisorContext({ appRole: 'admin', snapshot: snap })
 ok(adminCtx.advisorRoleId === 'app_admin', 'admin advisor context')
 ok(adminCtx.snapshot?.finance != null, 'admin full finance snapshot')
 ok(iskraAdvisorFullAccess('app_admin'), 'admin full access flag')
+ok(iskraAdvisorFullAccess('curator'), 'curator full business access')
+
+const curatorRole = resolveIskraAdvisorRole('curator')
+ok(curatorRole.capabilities.includes('network_kpi'), 'curator network kpi')
+ok(curatorRole.capabilities.includes('curator_habits'), 'curator personal extension')
 
 const supervisorRole = resolveIskraAdvisorRole('club_supervisor')
 ok(!supervisorRole.active, 'supervisor role def inactive')

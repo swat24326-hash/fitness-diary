@@ -2,7 +2,8 @@
  * Роли советника ИСКРЫ — не путать с public.users.role.
  *
  * Сейчас в проде активна только app_admin (пользователь admin).
- * club_supervisor и curator заложены в архитектуру — включим при появлении ролей в users.
+ * club_supervisor — управляющий клуба (операционка).
+ * curator — куратор сети: продажи/KPI по клубам + личное расширение (docs/ISKRA_CURATOR.md).
  */
 
 /** @typedef {'app_admin'|'club_supervisor'|'curator'} IskraAdvisorRoleId */
@@ -85,7 +86,8 @@ export const ISKRA_ADVISOR_ROLES = {
   curator: {
     id: 'curator',
     labelRu: 'Куратор',
-    description: 'Полная аналитика и стратегические бизнес-советы над управляющими (включим позже)',
+    description:
+      'Куратор сети: продажи, KPI и аналитика по клубам — плюс личный слой (привычки, здоровье, собеседник)',
     active: false,
     capabilities: [
       'plan',
@@ -96,14 +98,24 @@ export const ISKRA_ADVISOR_ROLES = {
       'advice',
       'strategy',
       'risks',
+      'multi_club',
+      'network_kpi',
+      'curator_personal',
+      'curator_habits',
+      'curator_health',
+      'curator_schedule',
+      'curator_companion',
     ],
     hiddenTopicIds: [],
     defaultChipIds: [
       ...FULL_BUSINESS_CHIP_IDS,
       'sales_directions',
+      'curator_habits',
+      'curator_health',
+      'curator_talk',
     ],
     personaFocus:
-      'Советуй как опытный куратор сети: полная картина денег, плана и команды — приоритеты и шаги.',
+      'Куратор сети клубов: в первую очередь продажи, план, KPI и аналитика; личные привычки, здоровье и диалог — расширение того же помощника.',
     analysisFocus: 'sales',
   },
 }
@@ -130,11 +142,25 @@ export function iskraAdvisorHasCapability(role, capability) {
   return (role?.capabilities ?? []).includes(String(capability ?? '').trim())
 }
 
-/** Полный доступ к финансам и всем темам snapshot. */
+/** Полный доступ к snapshot (продажи, финансы, тренеры). Куратор — по сети клубов. */
 export function iskraAdvisorFullAccess(roleOrId) {
   const role =
     typeof roleOrId === 'object' && roleOrId?.id
       ? roleOrId
       : resolveIskraAdvisorRole(String(roleOrId ?? ''))
   return role.id === 'app_admin' || role.id === 'curator'
+}
+
+/** Куратор сети (мульти-клуб + личное расширение). */
+export function iskraAdvisorNetworkCurator(roleOrId) {
+  const role =
+    typeof roleOrId === 'object' && roleOrId?.id
+      ? roleOrId
+      : resolveIskraAdvisorRole(String(roleOrId ?? ''))
+  return role.id === 'curator'
+}
+
+/** @deprecated Используйте iskraAdvisorNetworkCurator */
+export function iskraAdvisorCuratorContour(roleOrId) {
+  return iskraAdvisorNetworkCurator(roleOrId)
 }

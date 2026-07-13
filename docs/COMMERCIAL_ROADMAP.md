@@ -72,7 +72,7 @@
 | Создание клуба / CONNECTION_RESET (§15 handoff) | открыто |
 | **Управляющий** (supervisor, один на клуб) | 📋 ТЗ: [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md), реализация позже |
 | Менеджер по продажам | 📋 ТЗ: [SALES_MANAGER.md](./SALES_MANAGER.md), реализация позже |
-| **Планёрка** (задания команде) | 📋 [ISKRA_PLANERKA.md](./ISKRA_PLANERKA.md), [CLUB_OPERATIONS_PLAN.md](./CLUB_OPERATIONS_PLAN.md) |
+| **Планёрка** (задания команде) | ✅ v1 + лента в ИСКРЕ — [ISKRA_PLANERKA.md](./ISKRA_PLANERKA.md), [ISKRA_PRO.md](./ISKRA_PRO.md) |
 
 ---
 
