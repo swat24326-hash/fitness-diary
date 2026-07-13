@@ -41,6 +41,8 @@ import {
   normalizeRecurrenceInput,
   normalizeStopRecurrencePayload,
   recurrenceRuleFromPreset,
+  isRecurringDispatchPreset,
+  DISPATCH_RECURRENCE_INTERVAL_PRESETS,
 } from '../src/lib/admin/iskraDispatchRecurrenceCore.js'
 import {
   resolveDispatchDueAt,
@@ -328,6 +330,9 @@ const spawn = buildRecurringDispatchSpawnRow(
 ok(spawn.series_id === 's1' && spawn.status === 'pending', 'spawn row keeps series')
 
 ok(formatRecurrenceLabel(1, 'month') === 'Каждый месяц', 'recurrence label monthly')
+ok(!isRecurringDispatchPreset(''), 'empty preset is one-time')
+ok(isRecurringDispatchPreset('weekly'), 'weekly is recurring')
+ok(DISPATCH_RECURRENCE_INTERVAL_PRESETS.length === 5, 'interval presets without once')
 ok(dueAtEndOfLocalDay('2026-07-15'), 'due end of local day')
 
 if (failed) process.exit(1)

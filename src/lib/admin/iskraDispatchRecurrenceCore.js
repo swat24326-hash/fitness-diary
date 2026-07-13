@@ -12,6 +12,16 @@ export const DISPATCH_RECURRENCE_PRESETS = [
   { id: 'monthly', label: 'Каждый месяц', interval: 1, unit: 'month' },
   { id: 'custom_days', label: 'Свой интервал', interval: 0, unit: 'day' },
 ]
+
+/** Пресеты цикла — без «Разовое». */
+export const DISPATCH_RECURRENCE_INTERVAL_PRESETS = DISPATCH_RECURRENCE_PRESETS.filter((p) => p.id)
+
+/**
+ * @param {string} presetId
+ */
+export function isRecurringDispatchPreset(presetId) {
+  return !!String(presetId ?? '').trim()
+}
 /**
  * @param {number} n
  */
