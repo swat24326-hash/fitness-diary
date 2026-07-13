@@ -1,5 +1,9 @@
 import { addDaysToIso } from './dateRu.js'
 import { parseWeightKg, getHealthInitialWeightKg } from './clientWeightCore.js'
+import {
+  parseNutritionPlanHistory,
+  serializeNutritionPlanHistoryForStorage,
+} from './nutrition/nutritionPlanHistoryCore.js'
 
 /** @typedef {'male' | 'female'} HealthSex */
 
@@ -178,6 +182,23 @@ export function buildWeightChartSeries(entries) {
 }
 
 /**
+ * NOT NULL в Supabase: пустая история рационов — [].
+ * @param {unknown} raw
+ */
+export function normalizeNutritionPlanHistoryForStorage(raw) {
+  return serializeNutritionPlanHistoryForStorage(parseNutritionPlanHistory(raw))
+}
+
+/** Перед push в Supabase — не отправлять null в nutrition_plan_history. */
+export function normalizeHealthCardPushPayload(payload) {
+  if (!payload || typeof payload !== 'object') return payload
+  return {
+    ...payload,
+    nutrition_plan_history: normalizeNutritionPlanHistoryForStorage(payload.nutrition_plan_history),
+  }
+}
+
+/**
  * Поля health_cards для сохранения (без id/client_id).
  * @param {object | null | undefined} health
  * @param {Record<string, unknown>} patch
@@ -211,7 +232,7 @@ export function mergeHealthCardPersistRow(health, patch) {
         : (normalized.nutrition_plan_generated_at ?? null),
     nutrition_plan_history:
       patch.nutrition_plan_history !== undefined
-        ? patch.nutrition_plan_history
-        : (normalized.nutrition_plan_history ?? null),
+        ? normalizeNutritionPlanHistoryForStorage(patch.nutrition_plan_history)
+        : normalizeNutritionPlanHistoryForStorage(normalized.nutrition_plan_history),
   }
 }

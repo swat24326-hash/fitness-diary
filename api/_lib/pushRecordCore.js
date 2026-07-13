@@ -5,6 +5,7 @@ import { authorizePush } from './mutationAuth.js'
 import { normalizeTrainingPayload } from './normalizeTrainingPayload.js'
 import { normalizeMembershipTypePushPayload } from '../../src/lib/admin/membershipTypePushPayload.js'
 import { normalizeNutritionProductPushPayload } from '../../src/lib/admin/nutritionProductPushPayload.js'
+import { normalizeHealthCardPushPayload } from '../../src/lib/healthCardCore.js'
 
 export const PUSH_ALLOWED_TABLES = new Set([
   'clients',
@@ -152,6 +153,9 @@ export async function executePushRecord(ctx, item) {
         payload = normalizeNutritionProductPushPayload(payload)
         if (!payload) return { ok: false, status: 400, error: 'Некорректный продукт питания' }
       }
+      if (table_name === 'health_cards') {
+        payload = normalizeHealthCardPushPayload(payload)
+      }
       const { error } = await supabaseAdmin.from(table_name).insert(payload)
       if (error) {
         if (error.code === '23505') {
@@ -210,6 +214,9 @@ export async function executePushRecord(ctx, item) {
       if (table_name === 'nutrition_products') {
         payload = normalizeNutritionProductPushPayload(payload)
         if (!payload) return { ok: false, status: 400, error: 'Некорректный продукт питания' }
+      }
+      if (table_name === 'health_cards') {
+        payload = normalizeHealthCardPushPayload(payload)
       }
       const { error } = await supabaseAdmin.from(table_name).update(payload).eq('id', remote_id)
       if (error) {

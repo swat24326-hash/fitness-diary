@@ -9,6 +9,8 @@ import {
   resolveBaselineWeightDate,
   filterWeightEntriesForDisplay,
   listBaselineLikeEntries,
+  mergeHealthCardPersistRow,
+  normalizeHealthCardPushPayload,
 } from '../src/lib/healthCardCore.js'
 import { appendNutritionPlanHistory, parseNutritionPlanHistory } from '../src/lib/nutrition/nutritionPlanHistoryCore.js'
 import { getTrainingCompletionIssues } from '../src/lib/trainingCompletionValidation.js'
@@ -71,6 +73,13 @@ ok(parseNutritionPlanHistory(history).length === 1, 'plan history append')
 ok(history[0].kcalTarget === 2000, 'plan history kcal')
 
 ok(getHealthCardCompletionIssues(complete).length === 0, 'no issues when complete')
+
+const newCard = mergeHealthCardPersistRow(null, { height_cm: 175, initial_weight_kg: 70 })
+ok(Array.isArray(newCard.nutrition_plan_history), 'new health card has plan history array')
+ok(newCard.nutrition_plan_history.length === 0, 'new health card plan history defaults to empty')
+
+const pushRow = normalizeHealthCardPushPayload({ client_id: 'c1', nutrition_plan_history: null })
+ok(Array.isArray(pushRow.nutrition_plan_history) && pushRow.nutrition_plan_history.length === 0, 'push payload coerces null history')
 
 ok(
   resolveBaselineWeightDate({
