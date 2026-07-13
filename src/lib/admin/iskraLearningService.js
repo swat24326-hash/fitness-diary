@@ -93,6 +93,63 @@ export async function syncIskraLearningEvent(event) {
 /**
  * @param {string} clubId
  */
+export async function fetchIskraLearningBundle(clubId) {
+  const token = await getAccessTokenForAdminApi()
+  if (!token) throw new Error('Нет сессии администратора')
+
+  const params = new URLSearchParams({
+    action: 'iskra-learning',
+    club_id: String(clubId ?? '').trim(),
+  })
+  const res = await fetchWithAppTimeout(
+    `${apiOrigin()}/api/admin-data?${params}`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'same-origin',
+      cache: 'no-store',
+    },
+    12_000,
+  )
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(String(data?.error ?? `Ошибка (${res.status})`))
+  return data
+}
+
+/**
+ * @param {{ clubId: string, signalKey: string, note: string, confirmed?: boolean }} opts
+ */
+export async function saveIskraPlaybook(opts) {
+  const token = await getAccessTokenForAdminApi()
+  if (!token) throw new Error('Нет сессии администратора')
+
+  const res = await fetchWithAppTimeout(
+    `${apiOrigin()}/api/admin-data?action=iskra-learning`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'same-origin',
+      cache: 'no-store',
+      body: JSON.stringify({
+        op: 'save_playbook',
+        club_id: opts.clubId,
+        signal_key: opts.signalKey,
+        note: opts.note,
+        confirmed: opts.confirmed === true,
+      }),
+    },
+    12_000,
+  )
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(String(data?.error ?? `Ошибка (${res.status})`))
+  return data
+}
+
+/**
+ * @param {string} clubId
+ */
 export function loadIskraLearningBundleForUi(clubId) {
   return getLocalIskraLearningBundle(clubId)
 }

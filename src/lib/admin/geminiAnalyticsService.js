@@ -79,6 +79,10 @@ export async function prefetchGeminiSnapshot(opts, retryOpts = {}) {
           sparkBrief: data.spark_brief ?? null,
           sparkBriefEnabled: data.spark_brief_enabled !== false,
           insightCards: Array.isArray(data.insight_cards) ? data.insight_cards : [],
+          proactiveAlerts: Array.isArray(data.proactive_alerts) ? data.proactive_alerts : [],
+          momGlance: data.mom_glance ?? null,
+          forecastConfidence: data.forecast_confidence ?? null,
+          weekChecklist: Array.isArray(data.week_checklist) ? data.week_checklist : [],
         }
       }
       lastError =
@@ -124,6 +128,7 @@ export async function prefetchGeminiSnapshot(opts, retryOpts = {}) {
  *   selectedTrainerId?: string | null,
  *   handlerId?: string | null,
  *   appRole?: string,
+ *   responseMode?: string,
  * }} opts
  */
 export async function postGeminiAnalytics(opts) {
@@ -154,6 +159,7 @@ export async function postGeminiAnalytics(opts) {
         selected_trainer_id: opts.selectedTrainerId ? String(opts.selectedTrainerId).trim() : undefined,
         handler_id: opts.handlerId ? String(opts.handlerId).trim() : undefined,
         app_role: opts.appRole ? String(opts.appRole).trim() : undefined,
+        response_mode: opts.responseMode ? String(opts.responseMode).trim() : undefined,
       }),
     },
     GEMINI_REQUEST_TIMEOUT_MS,

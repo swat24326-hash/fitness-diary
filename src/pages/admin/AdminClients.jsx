@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
-import { AlertTriangle, Archive, Clock, RefreshCw, RotateCcw, Search, Trash2, UserCog, UserSearch } from 'lucide-react'
+import { AlertTriangle, Archive, Clock, RefreshCw, RotateCcw, Search, Trash2, UserCircle, UserCog, UserSearch } from 'lucide-react'
+import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import {
   deleteClientAndAllData,
   dispatchLocalDataChanged,
@@ -424,16 +425,14 @@ export function AdminClients() {
   }
 
   return (
-    <div className="grid stagger td-grid">
-      <div className="row td-top">
-        <div className="u-grow u-minw-0 td-top__grow">
-          <h1 className="section-title td-top__title">Клиенты</h1>
-          <p className="section-sub td-top__sub muted" style={{ fontSize: 14, margin: '6px 0 0', lineHeight: 1.45 }}>
-            Список как у тренера: абонемент и последняя тренировка. У каждого клиента указан <strong>закреплённый тренер</strong> (владелец карточки).
-          </p>
-        </div>
-      </div>
+    <section className="admin-section-shell admin-section-shell--wide">
+      <AdminSectionHeader
+        icon={UserCircle}
+        title="Клиенты"
+        lead="Список как у тренера: абонемент и последняя тренировка. У каждого клиента указан закреплённый тренер (владелец карточки)."
+      />
 
+    <div className="grid stagger td-grid">
       <section className="card">
         <h2 className="section-title td-section-title" style={{ margin: '0 0 12px' }}>
           Поиск
@@ -799,5 +798,6 @@ export function AdminClients() {
         </div>
       )}
     </div>
+    </section>
   )
 }

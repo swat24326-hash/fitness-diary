@@ -155,12 +155,15 @@ export async function loadGeminiSnapshotForMonth(supabaseAdmin, clubId, year, mo
  * @param {string} clubId
  * @param {number} year
  * @param {number} month
- * @param {{ comparePrevious?: boolean, includeFinance?: boolean, clubName?: string }} opts
+ * @param {{ comparePrevious?: boolean, includePreviousMonth?: boolean, includeFinance?: boolean, clubName?: string }} opts
  */
 export async function loadGeminiAnalyticsContext(supabaseAdmin, clubId, year, month, opts = {}) {
   const snapshot = await loadGeminiSnapshotForMonth(supabaseAdmin, clubId, year, month, opts)
   let previousSnapshot = null
-  if (opts.comparePrevious) {
+  const wantPrev =
+    opts.comparePrevious === true ||
+    opts.includePreviousMonth === true
+  if (wantPrev) {
     const prev = previousMonthParts(year, month)
     if (prev) {
       previousSnapshot = await loadGeminiSnapshotForMonth(supabaseAdmin, clubId, prev.year, prev.month, opts)

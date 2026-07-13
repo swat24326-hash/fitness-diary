@@ -63,13 +63,14 @@ supabase/
   functions/              — Edge: create-trainer, delete-trainer
   policies_admin_example.sql — пример RLS (не автоприменяется)
 docs/
+  README.md               — карта всей документации (начать здесь для навигации)
   DEPLOY.md               — первый деплой в интернет
   RELEASE.md              — чеклист релиза на production
-  RUNBOOK.md              — типовые инциденты (sync, PWA, статистика)
+  RUNBOOK.md              — типовые инциденты (sync, PWA, статистика, клубы)
   SUPABASE_PROD_CHECKLIST.md — Auth, RLS, users.id перед крупным клубом
-  PAID_TIER_MIGRATION.md  — переход Vercel/Supabase на платные тарифы
   COMMERCIAL_ROADMAP.md   — фазы 0–4, что сделано / ongoing
   DATA_VOLUME.md          — SQL оценка объёма, пороги для pull-by-period
+  ISKRA_*.md              — ИСКРА: north star, архитектура, dispatch, planerka, learning
   PROJECT_HANDOFF_FOR_AI.md — этот файл
 .cursor/rules/
   fitness-diary-architecture.mdc  — всегда: слои, офлайн, без костылей
@@ -213,7 +214,7 @@ UI: карточки, drill-down, пояснения в popover (Info).
 
 ## 13. Как продолжить работу другой модели
 
-1. Прочитать этот файл и при необходимости **`docs/DEPLOY.md`**.  
+1. Прочитать этот файл; навигация по docs — **`docs/README.md`**. При необходимости — **`docs/DEPLOY.md`**.
 2. Для изменений UI/логики — искать по `src/pages`, `src/components`, `src/lib`.  
 3. Для схемы БД — `supabase/schema.sql` и `supabase/migrations/`.  
 4. После правок: **`npm run lint`**; при sync/статистике/абонементах — **`npm run qa:local`**.  
@@ -246,126 +247,8 @@ UI: карточки, drill-down, пояснения в popover (Info).
 
 ---
 
-## 15. Инцидент: клубы в приложении ≠ клубы в Supabase (май 2026)
+## 15. Клубы: приложение ≠ Supabase
 
-**Статус на момент handoff:** RLS и `public.users.id` пользователь **исправил в SQL**, но в браузере по-прежнему **`ERR_CONNECTION_RESET`**, **`ERR_HTTP2_PING_FAILED`**, **`[auth] profile load failed`**, кнопка «Создать клуб» зависает на **«Сохраняем…»**, в UI — фантомные дубликаты **«Нон-стоп»**, в Table Editor — только **FIT-CITY Клинцы** (пользователь подтвердил: создан через приложение, когда связь работала).
+Симптомы (фантомные клубы в UI, «Сохраняем…», `ERR_CONNECTION_RESET`, 403 на clubs): **[RUNBOOK.md §3](./RUNBOOK.md)** и **[SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md)**.
 
-### 15.1. Инфраструктура
-
-| Параметр | Значение |
-|----------|----------|
-| Production URL | https://fitness-diary-bice.vercel.app |
-| Supabase project ref (из кода/доков) | `hrylzinyasucjecltxpc` |
-| Project URL | `https://hrylzinyasucjecltxpc.supabase.co` (без `/rest/v1/` в env) |
-| Anon key | JWT `eyJ…` (anon public), **не** `sb_publishable_…` |
-| Админ Auth | `admin@fit-city.ru` |
-| Auth UID (Authentication → Users) | `b6a3743e-b788-467e-b4bc-aed14a4b175a` |
-| `public.users` после UPDATE | `id` = тот же UID, `role` = `admin`, `is_active` = true |
-
-**Vercel env:** `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` — после смены обязателен **Redeploy**. Локально — `.env` (gitignore). В git **много незакоммиченных** правок (`main` ahead 2 + modified files).
-
-### 15.2. Архитектура данных для клубов
-
-```
-Админка → AdminOrganization.jsx (clubSubmit)
-    → saveClubForAdmin() в dataAccess.js
-        1) INSERT/UPDATE в Supabase (clubs)
-        2) при успехе — putStore('clubs') в IndexedDB
-        3) при сетевой ошибке — только IDB + enqueueSync (insert/update clubs)
-    → reloadClubsList({ forcePull })
-        → pullClubsFromSupabase()
-            upsert клубы из облака
-            prune: удалить локальные id, которых нет в remote (кроме pending insert в sync_queue)
-```
-
-**Разрыв «UI admin» vs «RLS admin»:**
-
-- `AuthContext.resolveRole()` даёт **admin** по email `admin@fit-city.ru` / кэшу / metadata, даже если `users` не загрузился.
-- Postgres RLS для INSERT/DELETE в `clubs` — только `fit_auth_is_admin()` (см. миграции ниже).
-- SELECT в `clubs` — **всем authenticated** (`USING (true)`), поэтому список из облака читается, а запись может падать.
-
-### 15.3. Миграции Supabase (клубы + RLS)
-
-| Файл | Содержание |
-|------|------------|
-| `20260518120000_clubs_rls_admin.sql` | RLS на `clubs`: SELECT authenticated; ALL для admin через `fit_auth_is_admin()` |
-| `20260519120000_fit_auth_admin_by_email.sql` | `fit_auth_is_admin()` = по `u.id = auth.uid()` **или** по `lower(u.email) = lower(jwt email)` |
-
-**Пользователь выполнил в SQL Editor:** обе миграции +  
-`UPDATE public.users SET id = 'b6a3743e-b788-467e-b4bc-aed14a4b175a' WHERE email ILIKE 'admin@fit-city.ru';`
-
-### 15.4. Что меняли в коде (сессия отладки, не всё в git)
-
-| Область | Файлы | Суть |
-|---------|-------|------|
-| Создание клуба | `dataAccess.js` → `saveClubForAdmin` | Раньше только `saveLocalWithSync` + очередь (insert clubs **выкидывался**); теперь прямой INSERT в Supabase |
-| Удаление клуба | `deleteClubForAdmin` | Сначала DELETE в облаке с `.select('id')`, потом IDB; если уже нет в облаке — убрать локально |
-| Pull / prune | `pullClubsFromSupabaseInner` | Удаление «лишних» локальных клубов; не трогать id из `sync_queue` insert |
-| Очередь синка | `syncService.js` | `clearPoisonedSyncQueue` больше **не** удаляет insert clubs; flush с `force: true` может слать insert clubs |
-| Retry / timeout | `supabaseRetry.js` | `withSupabaseRetry`, `withFastTimeout(8000)`, `assertSupabaseOk` |
-| UI админки | `AdminOrganization.jsx` | `reloadClubsList`, «Убрать из кэша», блокировка двойного submit, сообщения remoteOk |
-| Auth | `AuthContext.jsx` | Роль по email если profile не грузится; warn если `users.id ≠ auth.uid` |
-| Supabase client | `supabase.js` | Валидация `eyJ` vs `sb_publishable_` |
-
-**Деплои на Vercel:** несколько `npx vercel --prod` (последний bundle ~ `index-C-6fM_D3.js` / `index-BiIgy5RY.js` — смотреть в Network).
-
-### 15.5. История симптомов (хронология)
-
-1. Клубы **удалялись только локально**, в облаке оставались → исправлен порядок delete + проверка строк.
-2. Сообщение «удалён в облаке» при 0 строк DELETE → добавлен `.select('id')`.
-3. После create **forcePull сразу удалял** новый клуб из IDB (не было в remote) → `saveClubForAdmin` + не делать forcePull при `remoteOk: false`.
-4. **403** на POST clubs при `users.id ≠ auth.uid()` → миграция by email + UPDATE id.
-5. **Сейчас:** даже после SQL, в консоли **`GET …/clubs` → `net::ERR_CONNECTION_RESET`**, **`profile load failed` (Failed to fetch)** — запросы **не доходят стабильно** до API; UI зависает на «Сохраняем…» (таймаут 8s × retry).
-
-**Важно:** FIT-CITY Клинцы в облаке — доказательство, что приложение **умеет** писать в `clubs`, когда сеть + RLS в порядке. Текущий блокер — не только RLS.
-
-### 15.6. Текущее состояние UI (последний скрин пользователя)
-
-- Список: 2× «Нон-стоп» (локальный кэш, вероятно два failed create с разными UUID), 1× FIT-CITY (из облака).
-- Кнопка **«Сохраняем…»** — `clubBusy` до завершения `saveClubForAdmin` (до ~16s+ при retry).
-- Консоль: красные GET к `hrylzinyasucjecltxpc.supabase.co`, иногда `200 (OK)` + `ERR_CONNECTION_RESET` (особенность Chrome/HTTP2).
-- Жёлтый `[auth] profile load failed` — `refreshProfile` → `users` select не прошёл.
-
-### 15.7. Гипотезы для следующего исследователя (приоритет)
-
-1. **Транспорт / сеть (P0):** VPN, антивирус HTTPS, провайдер, Yandex Browser, корпоративный firewall. Проверить с **другого браузера/сети/устройства**; `curl` к `/rest/v1/clubs?select=id&limit=1` с заголовком `apikey` + `Authorization: Bearer <access_token>`.
-2. **Параллельные запросы при открытии Organization (P1):** одновременно `pullClubs`, `refreshProfile`, `listTrainers` — уменьшить нагрузку / serial queue.
-3. **PWA / Service Worker (P1):** очистка site data, unregister SW; `PwaUpdatePrompt.jsx` менялся.
-4. **Зависание UI (P2):** гарантировать `finally { setClubBusy(false) }`, уменьшить timeout, показывать ошибку раньше; не блокировать форму на весь retry chain.
-5. **Дубликаты в IDB (P2):** `listClubsLocal` дедупит по `id`, но два «Нон-стоп» — два разных UUID; нужна очистка или merge.
-6. **Vercel env (P2):** убедиться URL без опечатки (`hrylziny` vs `hrylzyny`); в истории был неверный URL → NXDOMAIN.
-7. **Supabase project paused / quota** — Dashboard → project health.
-
-### 15.8. Как воспроизвести
-
-1. Войти https://fitness-diary-bice.vercel.app как `admin@fit-city.ru`.
-2. Админка → Структура → Клубы.
-3. Заполнить форму → «Создать клуб».
-4. Ожидание: запись в Table Editor `clubs` + зелёное «создан в облаке».
-5. Факт (у пользователя): «Сохраняем…», консоль CONNECTION_RESET, в облаке нет новой строки.
-
-### 15.9. SQL для проверки после фикса
-
-```sql
-SELECT id, name, created_at FROM public.clubs ORDER BY created_at DESC;
-
-SELECT id, email, role, is_active FROM public.users WHERE email ILIKE 'admin@fit-city.ru';
-
--- В браузере под сессией админа INSERT должен проходить; в SQL Editor RLS может вести себя иначе.
-```
-
-### 15.10. Рекомендуемые следующие шаги в коде
-
-1. Диагностическая панель на странице клубов: `getSupabaseConfigStatus()`, результат тестового `select` на `users` и `clubs`, Auth UID vs `users.id`.
-2. Сериализация начальной загрузки Organization (не 3 параллельных Supabase call).
-3. `saveClubForAdmin`: при network error — явное сообщение; опционально Edge Function `admin-upsert-club` (service role на сервере) если RLS/сеть нестабильны (осторожно с безопасностью).
-4. Закоммитить все локальные правки в `main` с понятным changelog.
-5. После стабилизации сети — удалить фантомные клубы: UI «Убрать из кэша» или SQL по id.
-
-### 15.11. Ключевые фрагменты кода (точки входа)
-
-- Создание: `src/pages/admin/AdminOrganization.jsx` → `clubSubmit` → `saveClubForAdmin`
-- Логика облака/кэша: `src/lib/dataAccess.js` (`saveClubForAdmin`, `pullClubsFromSupabaseInner`, `deleteClubForAdmin`)
-- Очередь: `src/lib/syncService.js` (`flushSyncQueue`, `clearPoisonedSyncQueue`)
-- Роль: `src/context/AuthContext.jsx` (`resolveRole`, `refreshProfile`, `configuredAdminEmails`)
-- Клиент: `src/lib/supabase.js`, `src/lib/supabaseRetry.js`
+Код: `AdminOrganization.jsx` → `saveClubForAdmin` / `pullClubsFromSupabaseInner` в `dataAccess.js`; RLS — миграции `20260518120000_clubs_rls_admin.sql`, `20260519120000_fit_auth_admin_by_email.sql`.

@@ -191,7 +191,8 @@ const noFinance = buildGeminiSnapshot({
 ok(noFinance.finance === undefined, 'finance hidden')
 
 ok(GEMINI_ANALYTICS_MODEL === 'gemini-2.5-flash-lite', 'default model lite')
-ok(buildSystemPrompt('male', 'X').includes('50 слов'), 'brief prompt rule')
+ok(buildSystemPrompt('male', 'X', { responseMode: 'brief' }).includes('50 слов'), 'brief prompt rule')
+ok(!buildSystemPrompt('male', 'X', { responseMode: 'deep' }).includes('до 50 слов'), 'deep prompt no brief cap')
 ok(buildSystemPrompt('male', 'X').includes('НЕ про клуб'), 'prompt off-topic rule')
 ok(!isIskraClubAnalyticsQuestion('Кто такой Путин?'), 'putin not club question')
 ok(isIskraClubAnalyticsQuestion('Как выполнен план продаж'), 'plan is club question')

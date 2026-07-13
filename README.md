@@ -4,8 +4,9 @@
 
 ## Документация
 
+- **[docs/README.md](docs/README.md)** — карта всей документации (ops, ИСКРА, roadmaps).
+- **[docs/PROJECT_HANDOFF_FOR_AI.md](docs/PROJECT_HANDOFF_FOR_AI.md)** — полный контекст проекта для нового чата или разработчика.
 - **[docs/DEPLOY.md](docs/DEPLOY.md)** — первый выклад в интернет (Supabase, хостинг, env).
-- **[docs/PROJECT_HANDOFF_FOR_AI.md](docs/PROJECT_HANDOFF_FOR_AI.md)** — подробное описание проекта для передачи другой нейросети или разработчику.
 
 ## Быстрый старт локально
 

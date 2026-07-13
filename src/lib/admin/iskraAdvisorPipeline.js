@@ -22,6 +22,7 @@ import { defaultIskraQuickChips, resolveIskraQuickChips } from './iskraQuickChip
  *   appRole?: string,
  *   snapshot?: object | null,
  *   storedQuickChips?: unknown,
+ *   adviceLimit?: number,
  * }} opts
  * @returns {IskraAdvisorContext}
  */
@@ -31,7 +32,8 @@ export function buildIskraAdvisorContext(opts = {}) {
   const role = resolveIskraAdvisorRole(advisorRoleId)
   const rawSnapshot = opts.snapshot ?? null
   const snapshot = rawSnapshot ? filterSnapshotForAdvisorRole(rawSnapshot, advisorRoleId) : null
-  const adviceSummary = buildIskraAdviceSummary(snapshot, { advisorRoleId, limit: 3 })
+  const adviceLimit = Math.max(1, Number(opts.adviceLimit) || 3)
+  const adviceSummary = buildIskraAdviceSummary(snapshot, { advisorRoleId, limit: adviceLimit })
 
   return {
     appRole,

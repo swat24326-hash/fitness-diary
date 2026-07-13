@@ -27,14 +27,14 @@ export function IskraPanelProvider({ children }) {
       setTrainerId(opts.trainerId ? String(opts.trainerId).trim() : null)
       setTrainerName(String(opts.trainerName ?? '').trim())
       setInitialMessage(opts.initialMessage ? String(opts.initialMessage).trim() : null)
-      const nextMode = opts.mode === 'expanded' ? 'expanded' : 'compact'
+      const nextMode = opts.mode === 'compact' ? 'compact' : 'expanded'
       setMode(nextMode)
     },
     [searchParams, setSearchParams],
   )
 
   const expandIskra = useCallback(() => {
-    setMode((m) => (m === 'closed' ? 'compact' : 'expanded'))
+    setMode('expanded')
   }, [])
 
   const minimizeIskra = useCallback(() => {

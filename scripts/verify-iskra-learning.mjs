@@ -11,6 +11,7 @@ import {
   deriveReplySignalKey,
   extractLearningPlaybooks,
   normalizeLearningEvent,
+  normalizePlaybookSave,
   rankProactiveHintsByLearning,
   shouldPromoteToPlaybook,
 } from '../src/lib/admin/iskraLearningCore.js'
@@ -88,6 +89,9 @@ ok(bundle.playbooks.length >= 1, 'bundle from rows')
 const append = buildLearnedPromptAppend(bundle)
 ok(append.includes('УРОКИ КЛУБА'), 'learned prompt append')
 ok(append.includes('направлениям'), 'playbook note in append')
+
+const saveOk = normalizePlaybookSave({ club_id: 'c1', signal_key: 'chip:plan', note: 'Сначала план' })
+ok(saveOk.ok, 'normalize playbook save')
 
 const learningCtx = buildIskraLearningContext({ learningBundle: bundle })
 const merged = mergeLearningIntoPromptAppend('Базовый промпт', learningCtx)

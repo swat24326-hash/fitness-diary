@@ -10,6 +10,11 @@ function formatPctNumber(pct) {
 }
 
 /** @param {number} pct */
+export function formatPctPlain(pct) {
+  return formatPctNumber(pct)
+}
+
+/** @param {number} pct */
 export function phrasePlanProgress(pct) {
   return `план ${formatPctNumber(pct)}%`
 }

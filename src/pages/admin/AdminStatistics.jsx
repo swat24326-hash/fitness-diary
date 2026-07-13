@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Eye, RefreshCw, UserCircle } from 'lucide-react'
+import { BarChart3, ChevronLeft, ChevronRight, Eye, RefreshCw, UserCircle } from 'lucide-react'
 import { CloseButton } from '../../components/CloseButton'
+import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import {
   loadAdminJournalPage,
@@ -343,16 +344,14 @@ export function AdminStatistics() {
 
   return (
     <SectionErrorBoundary section="admin_statistics" title="Статистика клуба">
-    <div className="grid stagger td-grid">
-      <div className="row td-top">
-        <div className="u-grow u-minw-0 td-top__grow">
-          <h1 className="section-title td-top__title">Статистика клуба</h1>
-          <p className="section-sub td-top__sub muted" style={{ fontSize: 14, margin: '6px 0 0', lineHeight: 1.45 }}>
-            Показатели по залу за период. Списки <strong>«Не активные»</strong> и <strong>«Проведено тренировок»</strong> — по нажатию на карточки в сводке; график по дням и таблица типов — там же.
-          </p>
-        </div>
-      </div>
+    <section className="admin-section-shell admin-section-shell--wide">
+      <AdminSectionHeader
+        icon={BarChart3}
+        title="Статистика"
+        lead="Показатели по залу за период. Списки «Не активные» и «Проведено тренировок» — по нажатию на карточки в сводке; график по дням и таблица типов — там же."
+      />
 
+    <div className="grid stagger td-grid">
       <AdminClubStatsSection
         clubId={club}
         initialPeriod={initialPeriod}
@@ -611,6 +610,7 @@ export function AdminStatistics() {
         </div>
       )}
     </div>
+    </section>
     </SectionErrorBoundary>
   )
 }

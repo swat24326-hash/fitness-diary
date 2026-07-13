@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BarChart3, Building2, Sparkles, Stethoscope, TrendingUp, Trophy, UserCircle } from 'lucide-react'
+import { BarChart3, Building2, ClipboardList, Sparkles, Stethoscope, TrendingUp, Trophy, UserCircle } from 'lucide-react'
 import { AdminClubDaySummaryPanel } from '../../components/admin/AdminClubDaySummaryPanel'
 import { dispatchLocalDataChanged } from '../../lib/dataAccess'
 import { loadAdminClubDaySummary } from '../../lib/admin/adminClubDaySummaryService'
@@ -124,6 +124,12 @@ export function AdminDashboard() {
                   <Sparkles size={44} aria-hidden />
                 </div>
                 <p className="feature-tile__title">ИСКРА</p>
+              </NavLink>
+              <NavLink to={tab('club-tasks')} className={adminTileClass}>
+                <div className="feature-tile__icon">
+                  <ClipboardList size={44} aria-hidden />
+                </div>
+                <p className="feature-tile__title">Планёрка</p>
               </NavLink>
             </div>
           </section>

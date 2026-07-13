@@ -37,6 +37,13 @@ export function IskraSparkBrief({ brief, kpi, onCta, onDismiss, compact = false 
         <p className="iskra-spark-brief__line iskra-spark-brief__line--1">{brief.lines[0]}</p>
         <p className="iskra-spark-brief__line iskra-spark-brief__line--2">{brief.lines[1]}</p>
         {!compact ? <p className="iskra-spark-brief__line iskra-spark-brief__line--3 muted">{brief.lines[2]}</p> : null}
+        {brief.forecastLine ? (
+          <p
+            className={`iskra-spark-brief__forecast muted iskra-forecast-glance--${brief.forecastConfidence ?? 'medium'}`}
+          >
+            {brief.forecastLine}
+          </p>
+        ) : null}
       </div>
       <div className="iskra-spark-brief__actions">
         <button type="button" className="btn btn-primary btn-sm iskra-spark-brief__cta" onClick={onCta}>

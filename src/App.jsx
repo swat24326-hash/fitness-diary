@@ -18,6 +18,7 @@ import { AdminChallenges } from './pages/admin/AdminChallenges'
 import { AdminChallengeDetail } from './pages/admin/AdminChallengeDetail'
 import { AdminDiagnostics } from './pages/admin/AdminDiagnostics'
 import { AdminIskraSettings } from './pages/admin/AdminIskraSettings'
+import { AdminClubTasks } from './pages/admin/AdminClubTasks'
 import { IskraPanelProvider } from './context/IskraPanelContext'
 import { Login } from './pages/Login'
 import { ClientCard } from './pages/trainer/ClientCard'
@@ -161,6 +162,7 @@ export default function App() {
                 <Route path="challenges/:challengeId" element={<AdminChallengeDetail />} />
                 <Route path="diagnostics" element={<AdminDiagnostics />} />
                 <Route path="iskra-settings" element={<AdminIskraSettings />} />
+                <Route path="club-tasks" element={<AdminClubTasks />} />
                 <Route path="clubs" element={<AdminLegacyClubsRedirect />} />
               </Route>
             </Route>

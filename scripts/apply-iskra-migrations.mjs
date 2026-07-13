@@ -11,21 +11,13 @@ import { resolve } from 'node:path'
 const MIGRATIONS = [
   'supabase/migrations/20260709120000_club_iskra_learning.sql',
   'supabase/migrations/20260710120000_club_iskra_settings_spark_brief.sql',
+  'supabase/migrations/20260713120000_club_iskra_dispatch.sql',
+  'supabase/migrations/20260714120000_club_iskra_dispatch_tasks.sql',
+  'supabase/migrations/20260715120000_club_iskra_dispatch_source_channel.sql',
 ]
 
-const VERIFY_SQL = `
-select
-  exists (
-    select 1 from information_schema.tables
-    where table_schema = 'public' and table_name = 'club_iskra_learning_signals'
-  ) as learning_table,
-  exists (
-    select 1 from information_schema.columns
-    where table_schema = 'public'
-      and table_name = 'club_iskra_settings'
-      and column_name = 'spark_brief_enabled'
-  ) as spark_brief_col;
-`
+const VERIFY_SQL =
+  "select exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'club_iskra_learning_signals') as learning_table, exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'club_iskra_settings' and column_name = 'spark_brief_enabled') as spark_brief_col, exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = 'club_iskra_dispatch') as dispatch_table, exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'club_iskra_dispatch' and column_name = 'due_at') as dispatch_due_col, exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'club_iskra_dispatch' and column_name = 'source_channel') as dispatch_source_channel_col;"
 
 function fail(msg) {
   console.error(msg)

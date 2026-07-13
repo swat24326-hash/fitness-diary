@@ -38,6 +38,7 @@ import {
   buildAdvisorPromptAppend,
   buildIskraAdvisorContext,
 } from '../../src/lib/admin/iskraAdvisorPipeline.js'
+import { mapAppRoleToAdvisorRole } from '../../src/lib/admin/iskraAdvisorScope.js'
 import {
   buildIskraLearningContext,
   buildLearningMetaForResponse,
@@ -48,6 +49,21 @@ import { periodLabelRu, trimChatHistory } from '../../src/lib/admin/geminiAnalyt
 import { buildPanelKpiFromAnalytics } from '../../src/lib/admin/clubMonthAnalyticsCore.js'
 import { buildEnrichedIskraAdviceCards } from '../../src/lib/admin/iskraActionImpactCore.js'
 import { buildIskraSparkBrief } from '../../src/lib/admin/iskraSparkBriefCore.js'
+import {
+  resolveAdviceCardLimit,
+  resolveIskraResponseMode,
+  shouldSkipGeminiEdge,
+  iskraAdminRichContext,
+} from '../../src/lib/admin/iskraResponseModeCore.js'
+import { loadClubOpenDispatchForPrompt } from './iskraDispatchQuery.js'
+import { deriveSourceFactsForReply } from '../../src/lib/admin/iskraReplySourceFactsCore.js'
+import { buildIskraProactiveAlerts } from '../../src/lib/admin/iskraProactiveAlertsCore.js'
+import { shouldLoadPreviousMonthSnapshot } from '../../src/lib/admin/iskraMonthMemoryCore.js'
+import { buildForecastConfidenceLine } from '../../src/lib/admin/iskraForecastConfidenceCore.js'
+import { buildMomGlanceLine } from '../../src/lib/admin/iskraMomGlanceCore.js'
+import { buildWeekChecklistItems } from '../../src/lib/admin/iskraWeekChecklistCore.js'
+import { applyMonthComparisonInsights } from '../../src/lib/admin/clubMonthAnalyticsCore.js'
+import { previousMonthParts } from '../../src/lib/admin/geminiAnalyticsSnapshot.js'
 
 const rateLimitMs = 12000
 const lastByUser = new Map()
@@ -65,6 +81,18 @@ function parseClubYearMonth(bodyOrQuery) {
   const ym = parseYearMonth(bodyOrQuery)
   if (!clubId || !ym) return null
   return { clubId, ...ym }
+}
+
+/**
+ * @param {object} payload
+ * @param {object | null | undefined} snapshot
+ * @param {string} userMessage
+ * @param {{ chipId?: string, handlerId?: string }} [meta]
+ */
+function attachSourceFacts(payload, snapshot, userMessage, meta = {}) {
+  const source_facts = deriveSourceFactsForReply(snapshot, userMessage, meta)
+  if (source_facts.length) payload.source_facts = source_facts
+  return payload
 }
 
 async function tryEdgeGemini(authHeader, payload) {
@@ -99,7 +127,7 @@ async function callGeminiForReply(authHeader, geminiPayload, edgeBody, apiKey, o
     edgeResult = await tryEdgeGemini(authHeader, edgeBody)
     if (edgeResult?.ok && edgeResult.data?.text) {
       const edgeText = String(edgeResult.data.text)
-      if (!isGeminiReplyIncomplete(edgeText)) {
+      if (!isGeminiReplyIncomplete(edgeText, undefined, geminiPayload.responseMode ?? 'brief')) {
         text = edgeText
         source = 'edge'
       }
@@ -147,11 +175,30 @@ export async function handleGeminiAnalyticsPrefetchGet(ctx, req, res) {
       sparkBriefEnabled = true
     }
     const kpi = buildPanelKpiFromAnalytics(snapshot)
+    const prevParts = previousMonthParts(parsed.year, parsed.month)
+    if (prevParts) {
+      try {
+        const prevSnap = await loadGeminiSnapshotForMonth(
+          ctx.supabaseAdmin,
+          parsed.clubId,
+          prevParts.year,
+          prevParts.month,
+          {},
+        )
+        applyMonthComparisonInsights(snapshot, prevSnap)
+      } catch {
+        /* mom optional */
+      }
+    }
     const insightCards = buildEnrichedIskraAdviceCards(snapshot, { advisorRoleId: 'app_admin', limit: 3 })
     const sparkBrief = buildIskraSparkBrief(snapshot, {
       advisorRoleId: 'app_admin',
       clubName: snapshot.club_name,
     })
+    const proactiveAlerts = buildIskraProactiveAlerts(snapshot, kpi)
+    const momGlance = buildMomGlanceLine(snapshot)
+    const forecastConfidence = buildForecastConfidenceLine(snapshot)
+    const weekChecklist = buildWeekChecklistItems(snapshot, { limit: 3 })
     sendJson(res, 200, {
       ok: true,
       warmed: true,
@@ -162,6 +209,10 @@ export async function handleGeminiAnalyticsPrefetchGet(ctx, req, res) {
       kpi,
       spark_brief: sparkBrief,
       spark_brief_enabled: sparkBriefEnabled,
+      proactive_alerts: proactiveAlerts,
+      mom_glance: momGlance,
+      forecast_confidence: forecastConfidence,
+      week_checklist: weekChecklist,
       insight_cards: insightCards.map((c) => ({
         id: c.id,
         headline: c.headline,
@@ -207,6 +258,7 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
   const offTopicQuestion = isIskraOffTopicQuestion(userMessage)
   const skipCache = body?.skip_cache === true || body?.force_gemini === true || offTopicQuestion
   const completionRetry = body?.completion_retry === true
+  const responseModePref = String(body?.response_mode ?? '').trim() || null
 
   if (!clubId) {
     sendJson(res, 400, { error: 'Укажите club_id' })
@@ -237,6 +289,16 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
   }
 
   try {
+    const responseModeForCache = resolveIskraResponseMode({
+      advisorRoleId: mapAppRoleToAdvisorRole(appRole),
+      userMessage,
+      explicitMode: responseModePref,
+      userPreference: responseModePref,
+      comparePrevious,
+    })
+
+    const explicitHandlerId = String(body?.handler_id ?? '').trim() || null
+
     if (!skipCache) {
       const cached = getCachedGeminiResponse(
         clubId,
@@ -245,11 +307,12 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
         gender,
         comparePrevious,
         userMessage,
+        responseModeForCache,
       )
       if (cached) {
         const persona = buildPersona(gender)
         const snap = getCachedGeminiSnapshot(clubId, ym.year, ym.month, includeFinance)
-        sendJson(res, 200, {
+        sendJson(res, 200, attachSourceFacts({
           text: cached,
           persona: persona.name,
           club_name: snap?.club_name ?? '',
@@ -258,7 +321,8 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
           source: 'cache',
           compare_previous: comparePrevious,
           cached: true,
-        })
+          response_mode: responseModeForCache,
+        }, snap, userMessage, { handlerId: explicitHandlerId }))
         return
       }
     }
@@ -268,8 +332,15 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
       clubId,
       ym.year,
       ym.month,
-      { comparePrevious, includeFinance },
+      {
+        comparePrevious,
+        includePreviousMonth: shouldLoadPreviousMonthSnapshot({ comparePrevious, responseMode: responseModeForCache }),
+        includeFinance,
+      },
     )
+
+    const needsRichPrompt = iskraAdminRichContext(responseModeForCache)
+    let dispatchOpen = []
 
     const advisorCtx = buildIskraAdvisorContext({ appRole, snapshot })
     const scopedSnapshot = advisorCtx.snapshot ?? snapshot
@@ -291,6 +362,13 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
     } catch {
       learningBundle = { signals: [], playbooks: [], phase: 'collect' }
     }
+    if (needsRichPrompt) {
+      try {
+        dispatchOpen = await loadClubOpenDispatchForPrompt(ctx.supabaseAdmin, clubId)
+      } catch {
+        dispatchOpen = []
+      }
+    }
     const learningCtx = buildIskraLearningContext({ learningBundle })
     const learningMeta = buildLearningMetaForResponse(learningCtx)
     promptAppend = mergeLearningIntoPromptAppend(
@@ -298,7 +376,6 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
       learningCtx,
     )
 
-    const explicitHandlerId = String(body?.handler_id ?? '').trim() || null
     const trainersList = scopedSnapshot?.trainer_contour?.trainers ?? []
     const effectiveTrainerId =
       selectedTrainerId ||
@@ -356,7 +433,7 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
           introText,
         )
         const persona = buildPersona(gender)
-        sendJson(res, 200, {
+        sendJson(res, 200, attachSourceFacts({
           text: introText,
           persona: persona.name,
           club_name: clubName,
@@ -366,10 +443,8 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
           compare_previous: comparePrevious,
           intro_kind: introKind,
           ...advisorMeta,
-      ...learningMeta,
-        ...learningMeta,
           ...learningMeta,
-        })
+        }, scopedSnapshot, userMessage, { handlerId: explicitHandlerId, chipId: introKind }))
         return
       }
     }
@@ -395,7 +470,7 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
           instantText,
         )
         const persona = buildPersona(gender)
-        sendJson(res, 200, {
+        sendJson(res, 200, attachSourceFacts({
           text: instantText,
           persona: persona.name,
           club_name: clubName,
@@ -405,36 +480,55 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
           compare_previous: comparePrevious,
           chip_id: chipId,
           ...advisorMeta,
-      ...learningMeta,
-        ...learningMeta,
           ...learningMeta,
-        })
+        }, focusedSnapshot, userMessage, { chipId, handlerId: chipId }))
         return
       }
     }
 
     const messages = trimChatHistory(body?.messages, 6)
+    const responseMode = resolveIskraResponseMode({
+      advisorRoleId: advisorCtx.advisorRoleId,
+      userMessage,
+      explicitMode: responseModePref,
+      userPreference: responseModePref,
+      comparePrevious,
+    })
+    const geminiAdvisorCtx = buildIskraAdvisorContext({
+      appRole,
+      snapshot,
+      adviceLimit: resolveAdviceCardLimit(responseMode),
+    })
+    const geminiScopedSnapshot = geminiAdvisorCtx.snapshot ?? snapshot
+
     const geminiPayload = buildGeminiGeneratePayload({
       gender,
       clubName,
       messages,
       userMessage,
-      snapshot: scopedSnapshot,
+      snapshot: geminiScopedSnapshot,
       previousSnapshot,
       selectedTrainerId: effectiveTrainerId,
       promptAppend,
-      advisorRoleId: advisorCtx.advisorRoleId,
-      advisorRole: advisorCtx.role,
-      advisorAdvice: advisorCtx.adviceSummary,
+      advisorRoleId: geminiAdvisorCtx.advisorRoleId,
+      advisorRole: geminiAdvisorCtx.role,
+      advisorAdvice: geminiAdvisorCtx.adviceSummary,
+      responseMode,
+      comparePrevious,
+      dispatchOpen,
+      learningBundle,
     })
 
     const authHeader = String(req.headers.authorization || req.headers.Authorization || '')
     const dataBlock = offTopicQuestion
       ? { context: 'general_knowledge_question', club_name_for_role_reminder: clubName || 'филиала' }
-      : buildGeminiPromptDataBlock(scopedSnapshot, previousSnapshot, {
+      : buildGeminiPromptDataBlock(geminiScopedSnapshot, previousSnapshot, {
           selectedTrainerId: effectiveTrainerId,
-          advisorRoleId: advisorCtx.advisorRoleId,
-          advisorAdvice: advisorCtx.adviceSummary,
+          advisorRoleId: geminiAdvisorCtx.advisorRoleId,
+          advisorAdvice: geminiAdvisorCtx.adviceSummary,
+          responseMode,
+          dispatchOpen,
+          learningBundle,
         })
     const edgeBody = {
       gender,
@@ -448,15 +542,15 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
 
     const apiKey = process.env.GEMINI_API_KEY || ''
     let { text, source } = await callGeminiForReply(authHeader, geminiPayload, edgeBody, apiKey, {
-      skipEdge: offTopicQuestion,
+      skipEdge: offTopicQuestion || shouldSkipGeminiEdge(responseMode),
     })
 
     if (offTopicQuestion && text) {
       text = normalizeIskraOffTopicReply(text, clubName, userMessage)
     }
 
-    if (isGeminiReplyIncomplete(text)) {
-      sendJson(res, 200, {
+    if (isGeminiReplyIncomplete(text, undefined, responseMode)) {
+      sendJson(res, 200, attachSourceFacts({
         text,
         persona: buildPersona(gender).name,
         club_name: clubName,
@@ -465,18 +559,27 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
         source,
         compare_previous: comparePrevious,
         incomplete: true,
+        response_mode: responseMode,
         ...advisorMeta,
-      ...learningMeta,
         ...learningMeta,
-      })
+      }, geminiScopedSnapshot, userMessage, { chipId, handlerId: explicitHandlerId }))
       return
     }
 
     if (!offTopicQuestion) {
-      setCachedGeminiResponse(clubId, ym.year, ym.month, gender, comparePrevious, userMessage, text)
+      setCachedGeminiResponse(
+        clubId,
+        ym.year,
+        ym.month,
+        gender,
+        comparePrevious,
+        userMessage,
+        text,
+        responseMode,
+      )
     }
 
-    sendJson(res, 200, {
+    sendJson(res, 200, attachSourceFacts({
       text,
       persona: buildPersona(gender).name,
       club_name: clubName,
@@ -484,9 +587,10 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
       month: ym.month,
       source,
       compare_previous: comparePrevious,
+      response_mode: responseMode,
       ...advisorMeta,
       ...learningMeta,
-    })
+    }, geminiScopedSnapshot, userMessage, { chipId, handlerId: explicitHandlerId }))
   } catch (e) {
     const msg = formatGeminiUserError(e?.message ?? 'Ошибка аналитики')
     sendJson(res, 400, { error: msg })

@@ -9,6 +9,16 @@ import {
   buildIskraQuestionReplyHint,
   isIskraOffTopicQuestion,
 } from './iskraQuestionRouting.js'
+import { augmentPromptDataBlockForAdmin } from './iskraAdminPromptContext.js'
+import { buildPlaybooksPromptBlock } from './iskraLearningCore.js'
+import {
+  GEMINI_RESPONSE_BRIEF_RULE,
+  isGeminiReplyIncompleteForMode,
+  normalizeIskraResponseMode,
+  resolveChatHistoryTurns,
+  resolveGeminiGenerationConfig,
+  resolveIskraResponseMode,
+} from './iskraResponseModeCore.js'
 
 export { buildPersona }
 
@@ -21,19 +31,12 @@ export const GEMINI_ANALYTICS_MODELS = [
 
 export const GEMINI_ANALYTICS_MODEL = GEMINI_ANALYTICS_MODELS[0]
 
-/** Лимит длины ответа для чата и озвучки. */
-export const GEMINI_GENERATION_CONFIG = {
-  temperature: 0.6,
-  maxOutputTokens: 384,
-}
+/** Лимит длины ответа для чата и озвучки (режим brief — чипы и TTS). */
+export const GEMINI_GENERATION_CONFIG = resolveGeminiGenerationConfig('brief')
 
-export const GEMINI_GENERATION_CONFIG_RETRY = {
-  temperature: 0.55,
-  maxOutputTokens: 512,
-}
+export const GEMINI_GENERATION_CONFIG_RETRY = resolveGeminiGenerationConfig('brief', true)
 
-export const GEMINI_RESPONSE_BRIEF_RULE =
-  'Ответ: 2–3 предложения, до 50 слов. «Кто ты» — реклама помощи управляющему, БЕЗ цифр плана. Про план — только цифры из JSON. Формат: ИСКРА, [клуб], [месяц]. [факт]. На связи. Без markdown.'
+export { GEMINI_RESPONSE_BRIEF_RULE }
 
 /** Явный флаг или формулировка вопроса про прошлый месяц / динамику. */
 export function shouldComparePreviousMonth(userMessage) {
@@ -117,23 +120,31 @@ export function formatGeminiUserError(message) {
 /**
  * @param {'male'|'female'|string} _gender
  * @param {string} clubName
+ * @param {{ advisorRole?: object, responseMode?: string }} [opts]
  */
 export function buildSystemPrompt(_gender, clubName, opts = {}) {
-  return `${buildIskraSystemPrompt(clubName, opts)}\n\n${GEMINI_RESPONSE_BRIEF_RULE}`
+  const mode =
+    normalizeIskraResponseMode(opts.responseMode) ||
+    resolveIskraResponseMode({ advisorRoleId: opts.advisorRole?.id ?? 'app_admin' })
+  return buildIskraSystemPrompt(clubName, { ...opts, responseMode: mode })
 }
 
 /** Компактный блок данных для промпта (меньше шума для модели). */
 export function buildGeminiPromptDataBlock(snapshot, previousSnapshot = null, opts = {}) {
   const selectedTrainerId = opts.selectedTrainerId ?? snapshot?.trainer_contour?.selected_trainer_id ?? null
   const current = compactSnapshotForPrompt(snapshot, selectedTrainerId)
+  const responseMode =
+    normalizeIskraResponseMode(opts.responseMode) ||
+    resolveIskraResponseMode({ advisorRoleId: opts.advisorRoleId ?? 'app_admin' })
   const calendarContext =
     snapshot?.calendar_context ??
     buildGeminiMonthCalendarContext(snapshot?.period?.year, snapshot?.period?.month)
   const analysisFocus = selectedTrainerId ? 'trainer' : 'sales'
-  const block = {
+  let block = {
     analysis_period: current?.period?.label ?? '',
     analysis_focus: analysisFocus,
     advisor_role_id: opts.advisorRoleId ?? 'app_admin',
+    response_mode: responseMode,
     advisor_advice: opts.advisorAdvice ?? null,
     calendar_context: calendarContext,
     sales_contour: current?.sales_contour ?? null,
@@ -159,17 +170,19 @@ export function buildGeminiPromptDataBlock(snapshot, previousSnapshot = null, op
       insights: prev?.insights ?? null,
     }
   }
+  block = augmentPromptDataBlockForAdmin(block, snapshot, {
+    responseMode,
+    dispatchOpen: opts.dispatchOpen,
+    previousSnapshot: opts.previousSnapshot ?? previousSnapshot,
+    playbooks: opts.playbooks ?? buildPlaybooksPromptBlock(opts.learningBundle),
+  })
   return block
 }
 
-/** @param {string} text @param {string} [finishReason] */
-export function isGeminiReplyIncomplete(text, finishReason) {
-  const t = String(text ?? '').trim()
-  if (!t) return true
-  if (finishReason === 'MAX_TOKENS') return true
-  if (t.length < 35) return true
-  if (/[а-яa-z0-9)]$/i.test(t) && !/[.!?…]$/.test(t)) return true
-  return false
+/** @param {string} text @param {string} [finishReason] @param {string} [responseMode] */
+export function isGeminiReplyIncomplete(text, finishReason, responseMode = 'brief') {
+  const mode = normalizeIskraResponseMode(responseMode) || 'brief'
+  return isGeminiReplyIncompleteForMode(text, finishReason, mode)
 }
 
 /**
@@ -179,12 +192,23 @@ export function isGeminiReplyIncomplete(text, finishReason) {
 export function buildGeminiGeneratePayload(opts) {
   const gender = opts.gender === 'female' ? 'female' : 'male'
   const clubName = String(opts.clubName ?? opts.snapshot?.club_name ?? '').trim()
-  const history = trimChatHistory(opts.messages, 10)
+  const responseMode = resolveIskraResponseMode({
+    advisorRoleId: opts.advisorRoleId ?? opts.advisorRole?.id ?? 'app_admin',
+    userMessage: opts.userMessage,
+    explicitMode: opts.    responseMode,
+    comparePrevious: opts.comparePrevious === true,
+    dispatchOpen: opts.dispatchOpen,
+    learningBundle: opts.learningBundle,
+  })
+  const history = trimChatHistory(opts.messages, resolveChatHistoryTurns(responseMode))
   const userMessage = String(opts.userMessage ?? '').trim()
   const dataBlock = buildGeminiPromptDataBlock(opts.snapshot, opts.previousSnapshot, {
     selectedTrainerId: opts.selectedTrainerId,
     advisorRoleId: opts.advisorRoleId,
     advisorAdvice: opts.advisorAdvice,
+    responseMode,
+    dispatchOpen: opts.dispatchOpen,
+    learningBundle: opts.learningBundle,
   })
   const periodLabel = dataBlock.analysis_period || 'период не задан'
   const offTopic = isIskraOffTopicQuestion(userMessage)
@@ -196,6 +220,7 @@ export function buildGeminiGeneratePayload(opts) {
     promptAppend: opts.promptAppend,
     analysisFocus: opts.selectedTrainerId ? 'trainer' : opts.advisorRole?.analysisFocus ?? 'sales',
     advisorRole: opts.advisorRole ?? null,
+    responseMode,
   }
   const payloadDataBlock = offTopic ? buildIskraOffTopicDataBlock(clubName) : dataBlock
 
@@ -229,6 +254,9 @@ export function buildGeminiGeneratePayload(opts) {
         parts,
       },
     ],
+    responseMode,
+    generationConfig: resolveGeminiGenerationConfig(responseMode),
+    generationConfigRetry: resolveGeminiGenerationConfig(responseMode, true),
   }
 }
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { Dumbbell, Pencil } from 'lucide-react'
+import { Dumbbell, ClipboardList, Pencil } from 'lucide-react'
 import { ClientDiaries } from '../../components/ClientDiaries'
 import { ClientOverview } from './ClientOverview'
 import { ClientNutritionPage } from './ClientNutritionPage'
@@ -12,6 +12,9 @@ import { saveLocalWithSync } from '../../lib/syncService'
 import { useAuth } from '../../context/AuthContext'
 import { useDebouncedStorageReload, shouldReloadTrainerClientStats } from '../../lib/useDebouncedStorageReload'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
+import { IskraDispatchModal } from '../../components/iskra/IskraDispatchModal.jsx'
+import { buildClientCardTaskDraft } from '../../lib/admin/staffTaskCreateCore.js'
+import { useClubDispatchRecipients } from '../../hooks/useClubDispatchRecipients.js'
 
 function formatClientName(raw) {
   const s = String(raw ?? '').trim().replace(/\s+/g, ' ')
@@ -65,6 +68,17 @@ export function ClientCard() {
   const [editForm, setEditForm] = useState({ name: '', phone: '', birth_date: '', card_number: '' })
   const [hydrateError, setHydrateError] = useState(null)
   const [archiveBusy, setArchiveBusy] = useState(false)
+  const [taskModalOpen, setTaskModalOpen] = useState(false)
+
+  const taskClubId = useMemo(() => {
+    if (!isAdmin || !client) return ''
+    return String(client.club_id ?? searchParams.get('club') ?? '').trim()
+  }, [isAdmin, client, searchParams])
+  const { recipients: taskRecipients } = useClubDispatchRecipients(taskClubId)
+  const clientTaskDraft = useMemo(
+    () => (client && isAdmin ? buildClientCardTaskDraft(client) : null),
+    [client, isAdmin],
+  )
 
   const reloadLocal = useCallback(async () => {
     const local = await getLocalClient(id)
@@ -289,6 +303,18 @@ export function ClientCard() {
             <button type="button" className="btn btn-ghost btn-icon-square" aria-label="Редактировать данные клиента" title="Редактировать" onClick={openEdit} disabled={isArchived}>
               <Pencil size={16} aria-hidden />
             </button>
+            {isAdmin ? (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                disabled={isArchived || !client.trainer_id || !taskRecipients.length}
+                title={client.trainer_id ? 'Поставить задание тренеру' : 'У клиента нет тренера'}
+                onClick={() => setTaskModalOpen(true)}
+              >
+                <ClipboardList size={14} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
+                Задание
+              </button>
+            ) : null}
           </div>
           <div className="grid" style={{ marginTop: 6, gap: 4 }}>
             <div className="muted">{client.phone ?? '—'}</div>
@@ -364,6 +390,18 @@ export function ClientCard() {
       {tab === 'memberships' && <ClientOverview client={client} onReload={reloadLocal} section="memberships" readOnly={isArchived} />}
       {tab === 'stats' && <Statistics clientId={client.id} />}
       {tab === 'diaries' && <ClientDiaries client={client} onDataChange={reloadLocal} clubQs={isAdmin ? adminClubQs : ''} readOnly={isArchived} />}
+
+      {isAdmin && clientTaskDraft ? (
+        <IskraDispatchModal
+          open={taskModalOpen}
+          onClose={() => setTaskModalOpen(false)}
+          clubId={taskClubId}
+          recipients={taskRecipients}
+          trainers={taskRecipients}
+          defaultDraft={clientTaskDraft}
+          defaultRecipientId={clientTaskDraft.default_recipient_id ?? ''}
+        />
+      ) : null}
     </div>
   )
 }

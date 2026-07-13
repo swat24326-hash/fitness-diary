@@ -79,11 +79,11 @@ export async function requireAuthUser(req, res) {
     .trim()
     .toLowerCase()
   let profile = (
-    await supabaseAdmin.from('users').select('role, email, club_id, name').eq('id', user.id).maybeSingle()
+    await supabaseAdmin.from('users').select('id, role, email, club_id, name').eq('id', user.id).maybeSingle()
   ).data
   if (!profile?.role && callerEmail) {
     profile = (
-      await supabaseAdmin.from('users').select('role, email, club_id, name').ilike('email', callerEmail).maybeSingle()
+      await supabaseAdmin.from('users').select('id, role, email, club_id, name').ilike('email', callerEmail).maybeSingle()
     ).data
   }
   const roleNorm = normalizeRole(profile?.role)
@@ -127,7 +127,7 @@ export async function requireAdminOrSalesManager(req, res, clubId) {
   return { ...ctx, isSalesManager: true, salesClubId: profileClub }
 }
 
-/** @returns {Promise<{ supabaseAdmin: import('@supabase/supabase-js').SupabaseClient, user: object } | null>} */
+/** @returns {Promise<Awaited<ReturnType<typeof requireAuthUser>> | null>} */
 export async function requireAdmin(req, res) {
   const ctx = await requireAuthUser(req, res)
   if (!ctx) return null
@@ -135,5 +135,5 @@ export async function requireAdmin(req, res) {
     sendJson(res, 403, { error: 'Только администратор' })
     return null
   }
-  return { supabaseAdmin: ctx.supabaseAdmin, user: ctx.user }
+  return ctx
 }

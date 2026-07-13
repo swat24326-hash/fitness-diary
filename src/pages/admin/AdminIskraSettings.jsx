@@ -1,12 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 
 import {
 
   ChevronDown,
-
-  ChevronLeft,
 
   ChevronUp,
 
@@ -35,7 +33,8 @@ import {
 } from '../../lib/admin/iskraQuickChipsCore.js'
 
 import { fetchIskraSettings, saveIskraSettings } from '../../lib/admin/iskraSettingsService.js'
-
+import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
+import { IskraPlaybooksSection } from '../../components/iskra/IskraPlaybooksSection.jsx'
 import { listClubsLocal, pullClubsFromSupabase } from '../../lib/dataAccess'
 
 import { useAuth } from '../../context/AuthContext'
@@ -121,8 +120,6 @@ export function AdminIskraSettings() {
   const [searchParams] = useSearchParams()
 
   const clubId = searchParams.get('club')?.trim() ?? ''
-
-  const clubQs = clubId ? `?club=${encodeURIComponent(clubId)}` : ''
 
 
 
@@ -405,37 +402,13 @@ export function AdminIskraSettings() {
 
   return (
 
-    <div className="admin-iskra-settings">
+    <div className="admin-iskra-settings admin-section-shell">
 
-      <header className="admin-iskra-settings__head">
-
-        <Link to={`/admin${clubQs}`} className="admin-diagnostics__back btn btn-ghost btn-sm">
-
-          <ChevronLeft size={16} aria-hidden />
-
-          Админка
-
-        </Link>
-
-        <div className="admin-iskra-settings__title-row">
-
-          <Sparkles size={22} aria-hidden />
-
-          <div>
-
-            <h1 className="admin-iskra-settings__title">{ISKRA_FULL_NAME}</h1>
-
-            <p className="muted admin-iskra-settings__sub">
-
-              {clubName !== '—' ? `Филиал «${clubName}»` : 'Выберите клуб в шапке'}
-
-            </p>
-
-          </div>
-
-        </div>
-
-      </header>
+      <AdminSectionHeader
+        icon={Sparkles}
+        title={ISKRA_FULL_NAME}
+        lead={clubName !== '—' ? `Филиал «${clubName}»` : 'Выберите клуб в шапке'}
+      />
 
 
 
@@ -758,6 +731,10 @@ export function AdminIskraSettings() {
         )}
 
       </section>
+
+
+
+      <IskraPlaybooksSection clubId={clubId} disabled={!clubId || saving || loading} />
 
 
 

@@ -7,7 +7,8 @@ import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 import { assertSalesPlanScopeForRole } from '../src/lib/admin/salesAccessCore.js'
 import { handleGeminiAnalyticsPost, handleGeminiAnalyticsPrefetchGet } from './_lib/geminiAnalyticsHandler.js'
 import { handleIskraSettingsGet, handleIskraSettingsPost } from './_lib/iskraSettingsHandler.js'
-import { handleIskraLearningPost } from './_lib/iskraLearningHandler.js'
+import { handleIskraLearningGet, handleIskraLearningPost } from './_lib/iskraLearningHandler.js'
+import { handleIskraDispatchGet, handleIskraDispatchPost } from './_lib/iskraDispatchHandler.js'
 import { handleResetTrainerPasswordPost, handleSetTrainerActivePost } from './_lib/trainerAuthAdmin.js'
 import { handleSearch, handleJournal } from './_lib/adminData/journalHandlers.js'
 import { handleClubStats, handleHealthCards, handleClubMonthly } from './_lib/adminData/clubHandlers.js'
@@ -48,6 +49,7 @@ async function handler(req, res) {
       'create-sales-manager',
       'iskra-settings',
       'iskra-learning',
+      'iskra-dispatch',
       'reset-trainer-password',
       'set-trainer-active',
     ])
@@ -84,6 +86,17 @@ async function handler(req, res) {
       const ctx = await requireAdmin(req, res)
       if (!ctx) return
       return handleIskraLearningPost(ctx, res, body)
+    }
+    if (action === 'iskra-dispatch') {
+      const op = String(body?.op ?? 'create').trim().toLowerCase()
+      if (op === 'update_status' || op === 'mark_seen') {
+        const ctx = await requireAuthUser(req, res)
+        if (!ctx) return
+        return handleIskraDispatchPost(ctx, res, body)
+      }
+      const ctx = await requireAdmin(req, res)
+      if (!ctx) return
+      return handleIskraDispatchPost(ctx, res, body)
     }
     if (action === 'reset-trainer-password') {
       const ctx = await requireAdmin(req, res)
@@ -122,6 +135,7 @@ async function handler(req, res) {
     'exercises-meta',
     'membership-types',
     'nutrition-products',
+    'iskra-dispatch',
   ])
 
   if (trainerActions.has(action)) {
@@ -137,6 +151,7 @@ async function handler(req, res) {
     if (action === 'exercises') return handleExercises(authCtx, res)
     if (action === 'membership-types') return handleMembershipTypes(authCtx, req, res)
     if (action === 'nutrition-products') return handleNutritionProducts(authCtx, req, res)
+    if (action === 'iskra-dispatch') return handleIskraDispatchGet(authCtx, req, res)
   }
 
   if (action === 'sales') {
@@ -166,6 +181,10 @@ async function handler(req, res) {
       return handleGeminiAnalyticsPrefetchGet(ctx, req, res)
     case 'iskra-settings':
       return handleIskraSettingsGet(ctx, req, res)
+    case 'iskra-learning':
+      return handleIskraLearningGet(ctx, req, res)
+    case 'iskra-dispatch':
+      return handleIskraDispatchGet(ctx, req, res)
     default:
       sendJson(res, 400, {
         error:

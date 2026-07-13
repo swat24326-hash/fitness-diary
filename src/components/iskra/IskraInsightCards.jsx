@@ -1,4 +1,4 @@
-import { ArrowRight, Sparkles } from 'lucide-react'
+import { ArrowRight, Send, Sparkles } from 'lucide-react'
 
 /**
  * @param {{
@@ -6,9 +6,18 @@ import { ArrowRight, Sparkles } from 'lucide-react'
  *   loading?: boolean,
  *   disabled?: boolean,
  *   onDo: (card: object) => void,
+ *   onDispatch?: (card: object) => void,
+ *   dispatchDisabled?: boolean,
  * }} props
  */
-export function IskraInsightCards({ cards, loading = false, disabled = false, onDo }) {
+export function IskraInsightCards({
+  cards,
+  loading = false,
+  disabled = false,
+  onDo,
+  onDispatch,
+  dispatchDisabled = false,
+}) {
   if (loading) {
     return (
       <div className="iskra-insights iskra-insights--loading" aria-hidden>
@@ -38,15 +47,29 @@ export function IskraInsightCards({ cards, loading = false, disabled = false, on
             ) : null}
             <p className="iskra-insight-card__body">{card.action}</p>
             <p className="iskra-insight-card__evidence muted">{card.evidence}</p>
-            <button
-              type="button"
-              className="btn btn-primary btn-sm iskra-insight-card__do"
-              disabled={disabled}
-              onClick={() => onDo(card)}
-            >
-              {card.doLabel ?? 'Сделать'}
-              <ArrowRight size={14} aria-hidden />
-            </button>
+            <div className="iskra-insight-card__actions">
+              <button
+                type="button"
+                className="btn btn-primary btn-sm iskra-insight-card__do"
+                disabled={disabled}
+                onClick={() => onDo(card)}
+              >
+                {card.doLabel ?? 'Сделать'}
+                <ArrowRight size={14} aria-hidden />
+              </button>
+              {onDispatch ? (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm iskra-insight-card__assign"
+                  disabled={disabled || dispatchDisabled}
+                  title="Назначить тренеру"
+                  onClick={() => onDispatch(card)}
+                >
+                  <Send size={14} aria-hidden />
+                  Назначить
+                </button>
+              ) : null}
+            </div>
           </article>
         ))}
       </div>

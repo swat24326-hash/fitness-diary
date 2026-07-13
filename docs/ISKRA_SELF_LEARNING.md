@@ -75,7 +75,7 @@ api/_lib/iskraLearningHandler.js — upsert в Supabase
 
 ## Будущее (без нового endpoint)
 
-- Редактор playbooks в **Настройки ИСКРА**
+- Редактор playbooks в **Настройки ИСКРА** ✅ (`IskraPlaybooksSection`, GET `iskra-learning`)
 - Слияние local + cloud bundle при prefetch
 - Кэш ответов с учётом `learning_playbooks` revision
 - Роль советника в ключе сигнала (`advisor_role_id` уже в событии)

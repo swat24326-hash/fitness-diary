@@ -193,6 +193,53 @@ export function extractLearningPlaybooks(signals) {
 
 /**
  * @param {IskraLearningBundle | null | undefined} bundle
+ */
+export function buildPlaybooksPromptBlock(bundle) {
+  if (!bundle?.playbooks?.length) return null
+  if (ISKRA_LEARNING_PHASE === 'collect') return null
+  return bundle.playbooks.slice(0, 6).map((p) => ({
+    signal_key: p.signal_key,
+    note: p.note,
+  }))
+}
+
+/**
+ * @param {object} body
+ * @returns {{ ok: true, payload: object } | { ok: false, error: string }}
+ */
+export function normalizePlaybookSave(body) {
+  const clubId = String(body?.club_id ?? '').trim()
+  const signalKey = String(body?.signal_key ?? '').trim()
+  const note = String(body?.note ?? '').trim().slice(0, 500)
+  const confirmed = body?.confirmed === true
+  if (!clubId) return { ok: false, error: 'Укажите club_id' }
+  if (!signalKey) return { ok: false, error: 'Укажите signal_key' }
+  if (!note) return { ok: false, error: 'Введите текст урока' }
+  return { ok: true, payload: { clubId, signalKey, note, confirmed } }
+}
+
+/**
+ * @param {object | null | undefined} existing
+ * @param {{ signal_key: string, note: string, confirmed?: boolean }} payload
+ */
+export function applyPlaybookNoteSave(existing, payload) {
+  const now = new Date().toISOString()
+  return {
+    signal_key: payload.signal_key,
+    positive_count: Number(existing?.positive_count) || 0,
+    negative_count: Number(existing?.negative_count) || 0,
+    engagement_count: Number(existing?.engagement_count) || 0,
+    score: Number(existing?.score) || 0,
+    playbook_note: String(payload.note ?? '').trim(),
+    playbook_confirmed: payload.confirmed === true || existing?.playbook_confirmed === true,
+    last_positive_at: existing?.last_positive_at ?? null,
+    last_negative_at: existing?.last_negative_at ?? null,
+    updated_at: now,
+  }
+}
+
+/**
+ * @param {IskraLearningBundle | null | undefined} bundle
  * @param {{ maxNotes?: number }} [opts]
  */
 export function buildLearnedPromptAppend(bundle, opts = {}) {

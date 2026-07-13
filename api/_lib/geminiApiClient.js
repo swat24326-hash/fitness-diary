@@ -49,10 +49,13 @@ async function callGeminiModel(apiKey, payload, model, generationConfig = GEMINI
 }
 
 async function callGeminiModelWithCompletionRetry(apiKey, payload, model) {
-  let result = await callGeminiModel(apiKey, payload, model, GEMINI_GENERATION_CONFIG)
-  if (isGeminiReplyIncomplete(result.text, result.finishReason)) {
+  const gen = payload.generationConfig ?? GEMINI_GENERATION_CONFIG
+  const genRetry = payload.generationConfigRetry ?? GEMINI_GENERATION_CONFIG_RETRY
+  const mode = payload.responseMode ?? 'brief'
+  let result = await callGeminiModel(apiKey, payload, model, gen)
+  if (isGeminiReplyIncomplete(result.text, result.finishReason, mode)) {
     await sleep(400)
-    result = await callGeminiModel(apiKey, payload, model, GEMINI_GENERATION_CONFIG_RETRY)
+    result = await callGeminiModel(apiKey, payload, model, genRetry)
   }
   return result
 }

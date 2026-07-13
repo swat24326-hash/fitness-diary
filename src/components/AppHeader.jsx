@@ -4,7 +4,7 @@ import { subscribeNetworkStatus, initWakeNetworkRecovery } from '../lib/networkR
 import { isAppOnline } from '../lib/syncService'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react'
-import { AlertTriangle, BarChart3, CircleHelp, LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, TrendingUp, User, UserCircle, Building2 } from 'lucide-react'
+import { AlertTriangle, BarChart3, CircleHelp, Inbox, LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, TrendingUp, User, UserCircle, Building2 } from 'lucide-react'
 import {
   listClubsLocal,
   LOCAL_DATA_CHANGED,
@@ -16,6 +16,8 @@ import { HeaderStopwatch } from './HeaderStopwatch'
 import { AppErrorJournalModal } from './AppErrorJournalModal'
 import { useIskraPanel } from '../context/IskraPanelContext.jsx'
 import { useHeaderSync } from './useHeaderSync'
+import { TrainerInboxPanel } from './iskra/TrainerInboxPanel.jsx'
+import { fetchIskraDispatch } from '../lib/admin/iskraDispatchService.js'
 
 const GeminiAnalyticsPanel = lazy(() =>
   import('./GeminiAnalyticsPanel.jsx').then((m) => ({ default: m.GeminiAnalyticsPanel })),
@@ -50,6 +52,8 @@ export function AppHeader() {
   const [adminClubs, setAdminClubs] = useState([])
   /** Название клуба тренера (adminClubs грузится только на /admin). */
   const [trainerClubLabel, setTrainerClubLabel] = useState(null)
+  const [inboxOpen, setInboxOpen] = useState(false)
+  const [inboxPending, setInboxPending] = useState(0)
 
   const {
     showHeaderSync,
@@ -158,6 +162,31 @@ export function AppHeader() {
       window.removeEventListener(LOCAL_DATA_CHANGED, onData)
     }
   }, [isAdmin, user?.club_id])
+
+  const isTrainer = !isAdmin && !isSalesManager && !!user
+
+  useEffect(() => {
+    if (!isTrainer || !supabaseReady) {
+      setInboxPending(0)
+      return
+    }
+    let alive = true
+    const load = async () => {
+      try {
+        const cid = String(user?.club_id ?? '').trim()
+        const data = await fetchIskraDispatch({ clubId: cid || undefined, view: 'inbox', status: 'pending', limit: 5 })
+        if (alive) setInboxPending(Number(data?.pending_count) || 0)
+      } catch {
+        if (alive) setInboxPending(0)
+      }
+    }
+    void load()
+    const t = window.setInterval(() => void load(), 120_000)
+    return () => {
+      alive = false
+      window.clearInterval(t)
+    }
+  }, [isTrainer, supabaseReady, user?.club_id, online, inboxOpen])
 
   /** Один зал — сразу в URL; несколько — без «все клубы», только явный выбор. */
   useEffect(() => {
@@ -396,6 +425,22 @@ export function AppHeader() {
           </button>
         ) : null}
         {!isAdmin && !isSalesManager && user ? <HeaderStopwatch /> : null}
+        {isTrainer && supabaseReady ? (
+          <button
+            type="button"
+            className={`btn btn-secondary btn-sm app-header__inbox-btn${inboxOpen ? ' app-header__inbox-btn--active' : ''}`}
+            title={inboxPending ? `Планёрка: ${inboxPending} новых` : 'Планёрка'}
+            aria-label={inboxPending ? `Планёрка: ${inboxPending} новых заданий` : 'Планёрка — мои задания'}
+            onClick={() => setInboxOpen(true)}
+          >
+            <Inbox size={20} aria-hidden />
+            {inboxPending > 0 ? (
+              <span className="app-header__inbox-badge" aria-hidden>
+                {inboxPending > 99 ? '99+' : inboxPending}
+              </span>
+            ) : null}
+          </button>
+        ) : null}
         {showHeaderSync ? (
           <div className="app-header__sync-wrap">
             <button
@@ -570,6 +615,14 @@ export function AppHeader() {
       syncBusy={syncBusy}
       onSignOut={doSignOut}
     />
+    {isTrainer ? (
+      <TrainerInboxPanel
+        open={inboxOpen}
+        onClose={() => setInboxOpen(false)}
+        clubId={String(user?.club_id ?? '').trim()}
+        onPendingChange={setInboxPending}
+      />
+    ) : null}
     {iskraMode !== 'closed' ? (
       <Suspense fallback={null}>
         <GeminiAnalyticsPanel

@@ -10,7 +10,7 @@
 | **club_supervisor** | `supervisor` (управляющий) | Заложена, не включена |
 | **curator** | `curator` (куратор) | Заложена, не включена |
 
-Сейчас ИСКРА в UI только у **админа** и работает как **app_admin**: вся аналитика + бизнес-советы + подсказки по приложению.
+Сейчас ИСКРА в UI только у **админа** и работает как **app_admin**: вся аналитика + бизнес-советы + подсказки по приложению. В чате — режимы **стандарт** и **подробно** (см. `iskraResponseModeCore.js`, Эпик I в North Star).
 
 ## Три модели (целевые)
 
@@ -54,3 +54,5 @@ iskraAdvisorPipeline.js   — оркестратор
 Самообучение: [ISKRA_SELF_LEARNING.md](./ISKRA_SELF_LEARNING.md), `node scripts/verify-iskra-learning.mjs`
 
 North Star (максимум бизнес + вау): [ISKRA_NORTH_STAR.md](./ISKRA_NORTH_STAR.md)
+
+Планёрка (задания сотрудникам): [ISKRA_PLANERKA.md](./ISKRA_PLANERKA.md)

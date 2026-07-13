@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useLocation, useSearchParams } from 'react-router-dom'
-import { ChevronLeft } from 'lucide-react'
+import { useLocation, useSearchParams } from 'react-router-dom'
+import { Stethoscope } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { listSyncQueue } from '../../lib/localDb'
 import { getPersistentErrorCount, subscribeSyncAttention } from '../../lib/appErrorJournal'
 import { formatAppErrorTime, loadDiagnosticsErrors, suggestErrorHint, sourceLabel } from '../../lib/appDiagnostics'
@@ -16,7 +17,6 @@ export function AdminDiagnostics() {
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const clubId = searchParams.get('club')?.trim() ?? ''
-  const clubQs = clubId ? `?club=${encodeURIComponent(clubId)}` : ''
 
   const [online, setOnline] = useState(() => (typeof navigator !== 'undefined' ? isAppOnline() : true))
   const [clubName, setClubName] = useState('—')
@@ -115,18 +115,12 @@ export function AdminDiagnostics() {
   }
 
   return (
-    <div className="admin-diagnostics">
-      <header className="admin-diagnostics__header">
-        <Link to={`/admin${clubQs}`} className="btn btn-ghost btn-sm admin-diagnostics__back">
-          <ChevronLeft size={18} aria-hidden />
-          Админпанель
-        </Link>
-        <h1 className="admin-diagnostics__title">Диагностика</h1>
-        <p className="muted admin-diagnostics__intro">
-          Состояние этого устройства, очередь sync и журнал ошибок. Скопируйте отчёт и отправьте разработчику или тренеру
-          с планшета — так проще найти причину сбоя.
-        </p>
-      </header>
+    <section className="admin-diagnostics admin-section-shell">
+      <AdminSectionHeader
+        icon={Stethoscope}
+        title="Диагностика"
+        lead="Состояние этого устройства, очередь sync и журнал ошибок. Скопируйте отчёт и отправьте разработчику или тренеру с планшета — так проще найти причину сбоя."
+      />
 
       <div className="admin-diagnostics__summary" aria-label="Краткая сводка">
         <div className={`admin-diagnostics__stat${persistentErrorCount > 0 ? ' admin-diagnostics__stat--warn' : ''}`}>
@@ -172,6 +166,6 @@ export function AdminDiagnostics() {
           {toast.text}
         </div>
       ) : null}
-    </div>
+    </section>
   )
 }

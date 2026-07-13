@@ -56,8 +56,13 @@ import {
   recordIskraLearningFeedback,
 } from '../lib/admin/iskraLearningService.js'
 import { deriveReplySignalKey } from '../lib/admin/iskraLearningCore.js'
+import { extractIskraSpeechSnippet } from '../lib/admin/iskraResponseModeCore.js'
 import { IskraInsightCards } from './iskra/IskraInsightCards.jsx'
 import { IskraSparkBrief } from './iskra/IskraSparkBrief.jsx'
+import { IskraAlertRibbon } from './iskra/IskraAlertRibbon.jsx'
+import { IskraWeekChecklist } from './iskra/IskraWeekChecklist.jsx'
+import { IskraDispatchModal } from './iskra/IskraDispatchModal.jsx'
+import { buildWeekChecklistTaskDraft } from '../lib/admin/staffTaskCreateCore.js'
 import '../styles/gemini-analytics.css'
 
 function sparkDismissStorageKey(clubId, year, month) {
@@ -80,6 +85,43 @@ function writeSparkDismissed(clubId, year, month) {
   } catch {
     /* ignore */
   }
+}
+
+const DEPTH_STORAGE_KEY = 'fitness-diary-iskra-response-depth'
+
+function readResponseDepthPreference() {
+  if (typeof localStorage === 'undefined') return 'standard'
+  try {
+    return localStorage.getItem(DEPTH_STORAGE_KEY) === 'deep' ? 'deep' : 'standard'
+  } catch {
+    return 'standard'
+  }
+}
+
+function writeResponseDepthPreference(depth) {
+  if (typeof localStorage === 'undefined') return
+  try {
+    localStorage.setItem(DEPTH_STORAGE_KEY, depth === 'deep' ? 'deep' : 'standard')
+  } catch {
+    /* ignore */
+  }
+}
+
+function IskraMessageBody({ content }) {
+  const parts = String(content ?? '')
+    .split(/\n\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+  if (parts.length <= 1) {
+    return <p>{content}</p>
+  }
+  return (
+    <div className="gemini-panel__msg-text">
+      {parts.map((p, i) => (
+        <p key={i}>{p}</p>
+      ))}
+    </div>
+  )
 }
 
 const MONTH_NAMES = [
@@ -196,6 +238,17 @@ export function GeminiAnalyticsPanel({
   const [insightCards, setInsightCards] = useState([])
   const [sparkBriefEnabled, setSparkBriefEnabled] = useState(true)
   const [sparkBriefDismissed, setSparkBriefDismissed] = useState(false)
+  const [proactiveAlerts, setProactiveAlerts] = useState([])
+  const [momGlance, setMomGlance] = useState(null)
+  const [forecastConfidence, setForecastConfidence] = useState(null)
+  const [weekChecklist, setWeekChecklist] = useState([])
+  const [correctionOpenFor, setCorrectionOpenFor] = useState(null)
+  const [correctionText, setCorrectionText] = useState('')
+  const [correctionDone, setCorrectionDone] = useState(() => ({}))
+  const [dispatchOpen, setDispatchOpen] = useState(false)
+  const [dispatchCard, setDispatchCard] = useState(null)
+  const [dispatchDraft, setDispatchDraft] = useState(null)
+  const [responseDepth, setResponseDepth] = useState(() => readResponseDepthPreference())
   const voiceSupported = useState(() => isSpeechRecognitionSupported())[0]
   const listRef = useRef(null)
   const recognitionRef = useRef(null)
@@ -329,6 +382,10 @@ export function GeminiAnalyticsPanel({
     setSparkBrief(data.sparkBrief ?? null)
     setInsightCards(Array.isArray(data.insightCards) ? data.insightCards : [])
     setSparkBriefEnabled(data.sparkBriefEnabled !== false)
+    setProactiveAlerts(Array.isArray(data.proactiveAlerts) ? data.proactiveAlerts : [])
+    setMomGlance(data.momGlance ?? null)
+    setForecastConfidence(data.forecastConfidence ?? null)
+    setWeekChecklist(Array.isArray(data.weekChecklist) ? data.weekChecklist : [])
     setKpiLoadError('')
     return true
   }, [])
@@ -340,6 +397,10 @@ export function GeminiAnalyticsPanel({
       setQuickChips(defaultIskraQuickChips())
       setSparkBrief(null)
       setInsightCards([])
+      setProactiveAlerts([])
+      setMomGlance(null)
+      setForecastConfidence(null)
+      setWeekChecklist([])
       setKpiLoadError('')
       return
     }
@@ -352,6 +413,10 @@ export function GeminiAnalyticsPanel({
       setQuickChips(defaultIskraQuickChips())
       setSparkBrief(null)
       setInsightCards([])
+      setProactiveAlerts([])
+      setMomGlance(null)
+      setForecastConfidence(null)
+      setWeekChecklist([])
       setKpiLoadError(data.error || 'Не удалось загрузить данные')
     }
     setKpiLoading(false)
@@ -377,6 +442,10 @@ export function GeminiAnalyticsPanel({
         setQuickChips(defaultIskraQuickChips())
         setSparkBrief(null)
         setInsightCards([])
+        setProactiveAlerts([])
+        setMomGlance(null)
+        setForecastConfidence(null)
+        setWeekChecklist([])
         setKpiLoadError(data.error || 'Не удалось загрузить данные')
       }
       setKpiLoading(false)
@@ -438,7 +507,16 @@ export function GeminiAnalyticsPanel({
         ? `${lastAssistantLine.slice(0, 80)}${lastAssistantLine.length > 80 ? '…' : ''}`
         : rotatingHint?.label || 'На связи — спросите или нажмите микрофон'
 
-  const panelClass = `gemini-panel gemini-panel--female${entered ? ' gemini-panel--open' : ''}`
+  const panelClass = `gemini-panel gemini-panel--female gemini-panel--fullscreen${entered ? ' gemini-panel--open' : ''}`
+
+  useEffect(() => {
+    if (mode !== 'expanded') return undefined
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [mode])
 
   useEffect(() => {
     if (rateLimitSec <= 0) return undefined
@@ -489,6 +567,8 @@ export function GeminiAnalyticsPanel({
         setMessages((prev) => [...prev, { role: 'user', content: userMessage }])
       }
 
+      const responseMode = handlerId ? 'brief' : responseDepth
+
       const fetchReply = (flags = {}) =>
         postGeminiAnalytics({
           clubId,
@@ -504,6 +584,7 @@ export function GeminiAnalyticsPanel({
           selectedTrainerId: activeTrainerId || undefined,
           handlerId,
           appRole,
+          responseMode,
         })
 
       if (handlerId && !completionRetry) {
@@ -521,13 +602,14 @@ export function GeminiAnalyticsPanel({
           completionRetry,
         })
         let reply = String(data?.text ?? '').trim()
-        let incomplete = data?.incomplete === true || isGeminiReplyIncomplete(reply)
+        const replyMode = String(data?.response_mode ?? responseMode).trim() || responseMode
+        let incomplete = data?.incomplete === true || isGeminiReplyIncomplete(reply, undefined, replyMode)
 
         if (incomplete && !completionRetry) {
           try {
             data = await fetchReply({ skipCache: true, forceGemini: true, completionRetry: true })
             reply = String(data?.text ?? '').trim()
-            incomplete = isGeminiReplyIncomplete(reply)
+            incomplete = isGeminiReplyIncomplete(reply, undefined, String(data?.response_mode ?? replyMode))
           } catch {
             /* оставляем первый ответ или ошибку ниже */
           }
@@ -538,6 +620,8 @@ export function GeminiAnalyticsPanel({
           chip_id: data?.chip_id,
           intro_kind: data?.intro_kind,
           handler_id: handlerId,
+          response_mode: data?.response_mode ?? replyMode,
+          source_facts: Array.isArray(data?.source_facts) ? data.source_facts : undefined,
           signal_key: deriveReplySignalKey(userMessage, {
             chip_id: data?.chip_id,
             handler_id: handlerId,
@@ -563,8 +647,9 @@ export function GeminiAnalyticsPanel({
         setLastRetry(incomplete ? { text: userMessage, comparePrevious: compare, completionRetry: true } : null)
         setError('')
         if (autoSpeak && reply && !incomplete) {
+          const speakText = extractIskraSpeechSnippet(reply, replyMode)
           window.setTimeout(() => {
-            void speakGeminiText(reply, ISKRA_TTS_GENDER)
+            void speakGeminiText(speakText, ISKRA_TTS_GENDER)
           }, 80)
         }
       } catch (e) {
@@ -589,7 +674,7 @@ export function GeminiAnalyticsPanel({
         setInput('')
       }
     },
-    [clubId, year, month, chatHistory, loading, stopListening, autoSpeak, rateLimitSec, activeTrainerId, appRole, recordLearning],
+    [clubId, year, month, chatHistory, loading, stopListening, autoSpeak, rateLimitSec, activeTrainerId, appRole, recordLearning, responseDepth],
   )
 
   const submitReplyFeedback = useCallback(
@@ -617,8 +702,78 @@ export function GeminiAnalyticsPanel({
         meta: { source: msg.meta?.source, vote },
       })
       setFeedbackByMsg((prev) => ({ ...prev, [key]: vote }))
+      if (vote === 'down') {
+        setCorrectionOpenFor(msgIndex)
+        setCorrectionText('')
+      }
     },
     [messages, feedbackByMsg, recordLearning],
+  )
+
+  const submitCorrection = useCallback(
+    (msgIndex) => {
+      const note = String(correctionText ?? '').trim()
+      if (!note || correctionDone[`a-${msgIndex}`]) return
+      const msg = messages[msgIndex]
+      if (!msg || msg.role !== 'assistant') return
+
+      let userText = ''
+      for (let j = msgIndex - 1; j >= 0; j--) {
+        if (messages[j].role === 'user') {
+          userText = messages[j].content
+          break
+        }
+      }
+
+      recordLearning({
+        eventType: 'correction',
+        signalKey: msg.meta?.signal_key,
+        userMessage: userText,
+        chipId: msg.meta?.chip_id,
+        handlerId: msg.meta?.handler_id,
+        introKind: msg.meta?.intro_kind,
+        note,
+        meta: { source: msg.meta?.source, reply_preview: String(msg.content ?? '').slice(0, 200) },
+      })
+      setCorrectionDone((prev) => ({ ...prev, [`a-${msgIndex}`]: true }))
+      setCorrectionOpenFor(null)
+      setCorrectionText('')
+    },
+    [correctionText, correctionDone, messages, recordLearning],
+  )
+
+  const runAlertAction = useCallback(
+    (alert) => {
+      if (!alert) return
+      const message = String(alert.ctaMessage ?? '').trim()
+      const handlerId = alert.handlerId
+      if (!message) return
+      recordLearning({
+        eventType: 'chip_click',
+        handlerId,
+        userMessage: message,
+        meta: { source: 'proactive_alert', alert_id: alert.id },
+      })
+      void sendMessage(message, false, { handlerId })
+    },
+    [sendMessage, recordLearning],
+  )
+
+  const runChecklistItem = useCallback(
+    (item) => {
+      if (!item) return
+      const message = String(item.message ?? '').trim()
+      const handlerId = item.handlerId
+      if (!message) return
+      recordLearning({
+        eventType: 'chip_click',
+        handlerId,
+        userMessage: message,
+        meta: { source: 'week_checklist', item_id: item.id },
+      })
+      void sendMessage(message, false, { handlerId })
+    },
+    [sendMessage, recordLearning],
   )
 
   const showSparkBrief = sparkBriefEnabled && sparkBrief && !sparkBriefDismissed && !kpiLoading
@@ -653,6 +808,23 @@ export function GeminiAnalyticsPanel({
       doHandlerId: sparkBrief.cta.handlerId,
     })
   }, [sparkBrief, runInsightAction])
+
+  const openDispatchFromCard = useCallback((card) => {
+    if (!card) return
+    setDispatchCard(card)
+    setDispatchDraft(null)
+    setDispatchOpen(true)
+  }, [])
+
+  const openDispatchFromChecklist = useCallback(
+    (item) => {
+      if (!item || !clubId) return
+      setDispatchCard(null)
+      setDispatchDraft(buildWeekChecklistTaskDraft(item, { clubId, year, month }))
+      setDispatchOpen(true)
+    },
+    [clubId, year, month],
+  )
 
   const comparePreviousFromChip = useCallback(
     (userText) => comparePreviousFromQuickChips(panelQuickChips, userText),
@@ -720,6 +892,11 @@ export function GeminiAnalyticsPanel({
   if (mode === 'compact') {
     return (
       <div className="iskra-compact-stack">
+        <IskraAlertRibbon
+          alerts={proactiveAlerts}
+          disabled={loading || !clubId || rateLimitSec > 0}
+          onAlertAction={runAlertAction}
+        />
         {showSparkBrief ? (
           <IskraSparkBrief
             brief={sparkBrief}
@@ -773,10 +950,11 @@ export function GeminiAnalyticsPanel({
   }
 
   return (
+    <>
     <div
-      className={`gemini-panel-backdrop gemini-panel-backdrop--expanded${entered ? ' gemini-panel-backdrop--open' : ''}`}
+      className={`gemini-panel-backdrop gemini-panel-backdrop--fullscreen${entered ? ' gemini-panel-backdrop--open' : ''}`}
       role="presentation"
-      onClick={handleMinimize}
+      onClick={handleClose}
     >
       <aside
         className={panelClass}
@@ -785,13 +963,17 @@ export function GeminiAnalyticsPanel({
         aria-label={`${ISKRA_FULL_NAME}`}
         onClick={(e) => e.stopPropagation()}
       >
+        <div className="gemini-panel__aurora" aria-hidden>
+          <span className="gemini-panel__aurora-blob gemini-panel__aurora-blob--1" />
+          <span className="gemini-panel__aurora-blob gemini-panel__aurora-blob--2" />
+          <span className="gemini-panel__aurora-blob gemini-panel__aurora-blob--3" />
+        </div>
         <div className="gemini-panel__glow" aria-hidden />
 
-        <div className="gemini-panel__chrome">
-        <header className="gemini-panel__head">
+        <header className="gemini-panel__head gemini-panel__head--fullscreen">
           <div className="gemini-panel__head-main">
-            <div className="gemini-panel__avatar gemini-panel__avatar--female" aria-hidden>
-              <Sparkles size={18} />
+            <div className="gemini-panel__avatar gemini-panel__avatar--female gemini-panel__avatar--orb" aria-hidden>
+              <Sparkles size={20} />
             </div>
             <div>
               <h2 className="gemini-panel__title">{ISKRA_FULL_NAME}</h2>
@@ -806,7 +988,7 @@ export function GeminiAnalyticsPanel({
               type="button"
               className="btn btn-ghost btn-sm gemini-panel__settings"
               aria-label="Свернуть в док"
-              title="Свернуть — работайте с вкладками"
+              title="Свернуть в компактный док"
               onClick={handleMinimize}
             >
               <ChevronDown size={18} />
@@ -824,6 +1006,8 @@ export function GeminiAnalyticsPanel({
           </div>
         </header>
 
+        <div className="gemini-panel__scene">
+        <div className="gemini-panel__insights">
         {trainers.length > 0 ? (
           <div className="gemini-panel__focus">
             <label className="gemini-panel__focus-label" htmlFor="iskra-trainer-focus">
@@ -847,6 +1031,24 @@ export function GeminiAnalyticsPanel({
         ) : null}
 
         <GeminiContextKpi kpi={kpi} year={year} month={month} loading={kpiLoading} />
+        <IskraAlertRibbon
+          alerts={proactiveAlerts}
+          disabled={loading || !clubId || rateLimitSec > 0}
+          onAlertAction={runAlertAction}
+        />
+        {momGlance?.line ? (
+          <p className="iskra-mom-glance muted" role="note">
+            {momGlance.line}
+          </p>
+        ) : null}
+        {!showSparkBrief && (forecastConfidence?.line || sparkBrief?.forecastLine) ? (
+          <p
+            className={`iskra-forecast-glance muted iskra-forecast-glance--${forecastConfidence?.confidence ?? sparkBrief?.forecastConfidence ?? 'medium'}`}
+            role="note"
+          >
+            {forecastConfidence?.line ?? sparkBrief?.forecastLine}
+          </p>
+        ) : null}
         {showSparkBrief ? (
           <IskraSparkBrief
             brief={sparkBrief}
@@ -860,6 +1062,17 @@ export function GeminiAnalyticsPanel({
           loading={kpiLoading}
           disabled={loading || !clubId || rateLimitSec > 0}
           onDo={runInsightAction}
+          onDispatch={openDispatchFromCard}
+          dispatchDisabled={!trainers.length}
+        />
+        <IskraWeekChecklist
+          clubId={clubId}
+          year={year}
+          month={month}
+          items={weekChecklist}
+          disabled={loading || !clubId || rateLimitSec > 0}
+          onRunItem={runChecklistItem}
+          onAssignItem={openDispatchFromChecklist}
         />
         {kpiLoadError ? (
           <div className="gemini-panel__kpi-retry" role="status">
@@ -903,6 +1116,32 @@ export function GeminiAnalyticsPanel({
           </div>
 
           <div className="gemini-panel__speak-controls">
+            <div className="gemini-panel__depth-toggle" role="group" aria-label="Глубина ответа ИСКРЫ">
+              <button
+                type="button"
+                className={`gemini-panel__depth-btn${responseDepth === 'standard' ? ' gemini-panel__depth-btn--on' : ''}`}
+                aria-pressed={responseDepth === 'standard'}
+                title="Обычные ответы в чате"
+                onClick={() => {
+                  setResponseDepth('standard')
+                  writeResponseDepthPreference('standard')
+                }}
+              >
+                Стандарт
+              </button>
+              <button
+                type="button"
+                className={`gemini-panel__depth-btn${responseDepth === 'deep' ? ' gemini-panel__depth-btn--on' : ''}`}
+                aria-pressed={responseDepth === 'deep'}
+                title="Развёрнутый анализ с шагами"
+                onClick={() => {
+                  setResponseDepth('deep')
+                  writeResponseDepthPreference('deep')
+                }}
+              >
+                Подробно
+              </button>
+            </div>
             <button
               type="button"
               className={`gemini-panel__speak-toggle${autoSpeak ? ' gemini-panel__speak-toggle--on' : ''}`}
@@ -947,7 +1186,7 @@ export function GeminiAnalyticsPanel({
         </div>
         </div>
 
-        <div className="gemini-panel__chat">
+        <div className="gemini-panel__chat gemini-panel__chat--fullscreen">
         <div className="gemini-panel__messages" ref={listRef}>
           {messages.map((msg, i) => (
             <div
@@ -961,7 +1200,14 @@ export function GeminiAnalyticsPanel({
                   </div>
                   <div className="gemini-panel__msg-body">
                     <span className="gemini-panel__msg-name">{personaLabel}</span>
-                    <p>{msg.content}</p>
+                    <IskraMessageBody content={msg.content} />
+                    {msg.meta?.source_facts?.length ? (
+                      <ul className="iskra-source-facts muted" aria-label="Источники цифр">
+                        {msg.meta.source_facts.map((fact) => (
+                          <li key={fact}>{fact}</li>
+                        ))}
+                      </ul>
+                    ) : null}
                     <div className="gemini-panel__msg-actions">
                       {msg.incomplete ? (
                         <button
@@ -1015,12 +1261,68 @@ export function GeminiAnalyticsPanel({
                         aria-label="Озвучить"
                         onClick={() => {
                           primeGeminiSpeechPlayback()
-                          void speakGeminiText(msg.content, ISKRA_TTS_GENDER)
+                          void speakGeminiText(
+                            extractIskraSpeechSnippet(msg.content, msg.meta?.response_mode ?? responseDepth),
+                            ISKRA_TTS_GENDER,
+                          )
                         }}
                       >
                         <Volume2 size={14} />
                       </button>
                     </div>
+                    {feedbackByMsg[`a-${i}`] === 'down' && !correctionDone[`a-${i}`] ? (
+                      <div className="iskra-correction">
+                        {correctionOpenFor === i ? (
+                          <>
+                            <label className="iskra-correction__label" htmlFor={`iskra-correction-${i}`}>
+                              Что не так в ответе?
+                            </label>
+                            <textarea
+                              id={`iskra-correction-${i}`}
+                              className="input iskra-correction__input"
+                              rows={2}
+                              value={correctionText}
+                              placeholder="Например: цифра плана неверная"
+                              onChange={(e) => setCorrectionText(e.target.value)}
+                            />
+                            <div className="iskra-correction__actions">
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                disabled={!correctionText.trim()}
+                                onClick={() => submitCorrection(i)}
+                              >
+                                Отправить исправление
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm"
+                                onClick={() => {
+                                  setCorrectionOpenFor(null)
+                                  setCorrectionText('')
+                                }}
+                              >
+                                Отмена
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm iskra-correction__open"
+                            onClick={() => {
+                              setCorrectionOpenFor(i)
+                              setCorrectionText('')
+                            }}
+                          >
+                            Исправить ответ
+                          </button>
+                        )}
+                      </div>
+                    ) : null}
+                    {correctionDone[`a-${i}`] ? (
+                      <p className="iskra-correction__done muted">Спасибо — учтём в обучении клуба</p>
+                    ) : null}
                   </div>
                 </>
               ) : msg.role === 'user' ? (
@@ -1128,7 +1430,25 @@ export function GeminiAnalyticsPanel({
           <p className="gemini-panel__voice-hint muted">Голосовой ввод: Chrome или Edge на Android. Ответ можно озвучить 🔊</p>
         )}
         </div>
+        </div>
       </aside>
     </div>
+    <IskraDispatchModal
+      open={dispatchOpen}
+      onClose={() => {
+        setDispatchOpen(false)
+        setDispatchDraft(null)
+        setDispatchCard(null)
+      }}
+      clubId={clubId}
+      clubName={clubName}
+      year={year}
+      month={month}
+      trainers={trainers}
+      defaultCard={dispatchCard}
+      defaultDraft={dispatchDraft}
+      defaultRecipientId={activeTrainerId ?? ''}
+    />
+    </>
   )
 }

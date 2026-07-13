@@ -5,6 +5,7 @@ import { canAccessTrainerOrAdminApis, requireAuthUser, sendJson, setCors } from 
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 import { LIST_TRAINERS_MAX_USERS } from './_lib/apiLimits.js'
 import { isSalesManagerRole } from '../src/lib/admin/salesAccessCore.js'
+import { isQaAutoUser } from '../src/lib/admin/qaAutoUserCore.js'
 
 const TRAINER_FIELDS = 'id, name, phone, email, login, is_active, role, club_id'
 const PAGE = 500
@@ -69,8 +70,8 @@ async function handler(req, res) {
   const full = await fetchUsersPaged(supabaseAdmin, TRAINER_FIELDS)
 
   if (!full.error) {
-    const trainers = (full.rows ?? []).filter((u) =>
-      wantSalesManagers ? isSalesManagerRole(u.role) : isTrainerRole(u.role),
+    const trainers = (full.rows ?? []).filter(
+      (u) => !isQaAutoUser(u) && (wantSalesManagers ? isSalesManagerRole(u.role) : isTrainerRole(u.role)),
     )
     sendJson(res, 200, {
       trainers,
@@ -95,7 +96,7 @@ async function handler(req, res) {
   }
 
   const trainers = (basic.rows ?? [])
-    .filter((u) => (wantSalesManagers ? isSalesManagerRole(u.role) : isTrainerRole(u.role)))
+    .filter((u) => !isQaAutoUser(u) && (wantSalesManagers ? isSalesManagerRole(u.role) : isTrainerRole(u.role)))
     .map((u) => ({ ...u, club_id: null }))
   sendJson(res, 200, {
     trainers,

@@ -3,6 +3,11 @@
 import { buildIskraAnalysisFocusRule } from './geminiPlanDirections.js'
 import { ISKRA_ESTIMATE_DISCLAIMER_RU } from './iskraDataAvailability.js'
 import { buildIskraAppGuideRule } from './iskraAppGuide.js'
+import {
+  buildIskraResponseFormatRule,
+  normalizeIskraResponseMode,
+  resolveIskraResponseMode,
+} from './iskraResponseModeCore.js'
 
 
 
@@ -118,12 +123,15 @@ export function buildIskraSalesFocusRule() {
 
  * @param {string} clubName
 
- * @param {{ promptAppend?: string, analysisFocus?: 'sales'|'trainer' }} [opts]
+ * @param {{ promptAppend?: string, analysisFocus?: 'sales'|'trainer', advisorRole?: object, responseMode?: string }} [opts]
  */
 export function buildIskraSystemPrompt(clubName, opts = {}) {
   const club = String(clubName ?? '').trim() || 'клуб'
   const append = String(opts.promptAppend ?? '').trim()
   const advisorRole = opts.advisorRole ?? null
+  const responseMode =
+    normalizeIskraResponseMode(opts.responseMode) ||
+    resolveIskraResponseMode({ advisorRoleId: advisorRole?.id ?? 'app_admin' })
   const focusRule =
     opts.analysisFocus === 'trainer' || advisorRole?.analysisFocus === 'trainer'
       ? buildIskraAnalysisFocusRule('trainer')
@@ -146,7 +154,11 @@ export function buildIskraSystemPrompt(clubName, opts = {}) {
 
     '',
 
-    buildIskraSpeechFriendlyRule(),
+    responseMode === 'brief' ? buildIskraSpeechFriendlyRule() : 'ОЗВУЧКА (если запросят голос): кратко — только суть первого абзаца, без списков.',
+
+    '',
+
+    buildIskraResponseFormatRule(responseMode),
 
     '',
 
@@ -185,11 +197,9 @@ export function buildIskraSystemPrompt(clubName, opts = {}) {
 
     advisorRole?.id === 'app_admin' ? buildIskraAppGuideRule() : '',
 
-    'На вопросы про действия («что делать», «как дожать план») — 1–2 конкретных шага из advisor_advice или insights, не общие слова.',
+    'На вопросы про действия («что делать», «как дожать план») — конкретные шаги из advisor_advice или insights, не общие слова.',
 
-    'Ответ: 2–3 предложения, до 50 слов. Факт → вывод. Без markdown. Закончи «На связи.»',
-
-  ]
+  ].filter((line) => line !== '')
 
   if (append) {
 

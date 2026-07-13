@@ -5,6 +5,7 @@
 import { buildPanelKpiFromAnalytics } from './clubMonthAnalyticsCore.js'
 import { buildEnrichedIskraAdviceCards } from './iskraActionImpactCore.js'
 import { formatRubCompact } from './iskraReplyPhrasing.js'
+import { buildForecastConfidenceLine } from './iskraForecastConfidenceCore.js'
 
 /**
  * @param {object | null | undefined} snapshot
@@ -24,6 +25,8 @@ export function buildIskraSparkBrief(snapshot, opts = {}) {
     insights.plan?.calendar_vs_plan === 'behind' ||
     insights.plan?.tone === 'weak' ||
     (planPct > 0 && planPct < 45)
+
+  const forecast = buildForecastConfidenceLine(snapshot)
 
   const line1 = kpi?.hasPlan
     ? `План ${String(planPct).replace('.', ',')}% · ${formatRubCompact(kpi.profitTotal)}`
@@ -66,6 +69,8 @@ export function buildIskraSparkBrief(snapshot, opts = {}) {
     club,
     tone,
     lines: [line1, line2, line3],
+    forecastLine: forecast?.line ?? null,
+    forecastConfidence: forecast?.confidence ?? null,
     cta,
     planPct,
     topCard: top,
