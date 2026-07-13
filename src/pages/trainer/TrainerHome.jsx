@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import { User, Users, Trophy, Swords } from 'lucide-react'
 import { TrainerAttentionPanel } from '../../components/trainer/TrainerAttentionPanel'
 import { TrainerSyncPendingBanner } from '../../components/trainer/TrainerSyncPendingBanner'
+import { TrainerTaskGlanceWidget } from '../../components/iskra/TrainerTaskGlanceWidget.jsx'
+import { TrainerPushPrompt } from '../../components/iskra/TrainerPushPrompt.jsx'
 import { useAuth } from '../../context/AuthContext'
 import {
   loadContextForChallengeLeaderboard,
@@ -232,6 +234,9 @@ export function TrainerHome() {
         localOnly={syncOutbound.localOnly}
         total={syncOutbound.total}
       />
+
+      <TrainerTaskGlanceWidget clubId={clubId} />
+      <TrainerPushPrompt clubId={clubId} />
 
       <TrainerAttentionPanel summary={attentionSummary} loading={attentionLoading} />
 

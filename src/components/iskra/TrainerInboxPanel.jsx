@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, Clock, Inbox, Sparkles, ThumbsUp, X, XCircle } from 'lucide-react'
+import { Check, Inbox, Sparkles, ThumbsUp, X, XCircle } from 'lucide-react'
 import { dispatchStatusLabelRu, ISKRA_DISPATCH_ACTIVE_STATUSES } from '../../lib/admin/iskraDispatchCore.js'
+import { buildDispatchInboxActions } from '../../lib/admin/iskraDispatchInboxActionsCore.js'
 import {
   fetchIskraDispatch,
   markIskraDispatchSeen,
   updateIskraDispatchStatus,
 } from '../../lib/admin/iskraDispatchService.js'
+import { notifyTrainerInboxUpdated } from '../../lib/admin/trainerInboxEvents.js'
 import { taskKindLabel } from '../../lib/admin/iskraTaskKindsCore.js'
 import { DispatchTaskProgressBar } from './DispatchTaskProgressBar.jsx'
 
@@ -34,6 +36,7 @@ export function TrainerInboxPanel({ open, onClose, clubId = '', onPendingChange 
       const list = Array.isArray(data?.items) ? data.items : []
       setItems(list)
       onPendingChange?.(Number(data?.pending_count) || 0)
+      notifyTrainerInboxUpdated()
 
       const pendingIds = list.filter((i) => i.status === 'pending').map((i) => i.id)
       if (pendingIds.length) {
@@ -76,6 +79,7 @@ export function TrainerInboxPanel({ open, onClose, clubId = '', onPendingChange 
       setDeclineId('')
       setDeclineReply('')
       await reload()
+      notifyTrainerInboxUpdated()
     } catch (e) {
       setError(e?.message ? String(e.message) : 'Не удалось обновить статус')
     } finally {
@@ -137,17 +141,17 @@ export function TrainerInboxPanel({ open, onClose, clubId = '', onPendingChange 
               <div className="iskra-inbox__card-head">
                 <Sparkles size={14} aria-hidden />
                 <span className="iskra-inbox__card-from">{item.sender_name || 'ИСКРА'}</span>
-                <span className="iskra-inbox__card-kind">{taskKindLabel(item.task_kind)}</span>
+                {item.task_kind && item.task_kind !== 'custom' ? (
+                  <>
+                    <span className="iskra-inbox__card-sep" aria-hidden>
+                      ·
+                    </span>
+                    <span className="iskra-inbox__card-kind">{taskKindLabel(item.task_kind)}</span>
+                  </>
+                ) : null}
                 <span className="iskra-inbox__card-status">{dispatchStatusLabelRu(item.status)}</span>
               </div>
               <h3 className="iskra-inbox__card-title">{item.title}</h3>
-              {item.due_label ? (
-                <p className={`iskra-inbox__card-due${item.is_overdue ? ' iskra-inbox__card-due--overdue' : ''}`}>
-                  <Clock size={13} aria-hidden style={{ verticalAlign: -2, marginRight: 4 }} />
-                  {item.is_overdue ? 'Просрочено: ' : 'До '}
-                  {item.due_label}
-                </p>
-              ) : null}
               <p className="iskra-inbox__card-body">{item.body}</p>
               <DispatchTaskProgressBar progress={item.progress} />
               {item.recipient_reply ? (
@@ -155,65 +159,76 @@ export function TrainerInboxPanel({ open, onClose, clubId = '', onPendingChange 
               ) : null}
 
               {ISKRA_DISPATCH_ACTIVE_STATUSES.includes(item.status) ? (
-                <div className="iskra-inbox__card-actions">
-                  {item.status === 'seen' || item.status === 'pending' ? (
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      disabled={busyId === item.id}
-                      onClick={() => void setStatus(item.id, 'accepted')}
-                    >
-                      <ThumbsUp size={14} aria-hidden style={{ marginRight: 4, verticalAlign: -2 }} />
-                      Принял
-                    </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    disabled={busyId === item.id}
-                    onClick={() => void setStatus(item.id, 'done')}
-                  >
-                    <Check size={14} aria-hidden style={{ marginRight: 4, verticalAlign: -2 }} />
-                    Выполнено
-                  </button>
-                  {item.deep_link ? (
-                    <Link to={item.deep_link} className="btn btn-secondary btn-sm" onClick={onClose}>
-                      Перейти
-                    </Link>
-                  ) : null}
-                  {declineId === item.id ? (
-                    <div className="iskra-inbox__decline">
-                      <input
-                        className="input"
-                        placeholder="Почему не могу (необязательно)"
-                        value={declineReply}
-                        onChange={(e) => setDeclineReply(e.target.value)}
-                        maxLength={500}
-                      />
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        disabled={busyId === item.id}
-                        onClick={() => void setStatus(item.id, 'declined', declineReply)}
-                      >
-                        Отправить
-                      </button>
+                (() => {
+                  const actions = buildDispatchInboxActions(item)
+                  return (
+                    <div className="iskra-inbox__card-actions">
+                      {actions.stepHint ? (
+                        <p className="iskra-inbox__card-step muted">{actions.stepHint}</p>
+                      ) : null}
+                      {actions.primary ? (
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          disabled={busyId === item.id}
+                          onClick={() => void setStatus(item.id, actions.primary.action)}
+                        >
+                          {actions.primary.action === 'accepted' ? (
+                            <ThumbsUp size={14} aria-hidden style={{ marginRight: 4, verticalAlign: -2 }} />
+                          ) : (
+                            <Check size={14} aria-hidden style={{ marginRight: 4, verticalAlign: -2 }} />
+                          )}
+                          {actions.primary.label}
+                        </button>
+                      ) : null}
+                      {actions.deepLink ? (
+                        <Link to={item.deep_link} className="btn btn-secondary btn-sm" onClick={onClose}>
+                          Перейти к делу
+                        </Link>
+                      ) : null}
+                      {declineId === item.id ? (
+                        <div className="iskra-inbox__decline">
+                          <input
+                            className="input"
+                            placeholder="Почему не могу (необязательно)"
+                            value={declineReply}
+                            onChange={(e) => setDeclineReply(e.target.value)}
+                            maxLength={500}
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            disabled={busyId === item.id}
+                            onClick={() => void setStatus(item.id, 'declined', declineReply)}
+                          >
+                            Отправить
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            disabled={busyId === item.id}
+                            onClick={() => setDeclineId('')}
+                          >
+                            Отмена
+                          </button>
+                        </div>
+                      ) : actions.canDecline ? (
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          disabled={busyId === item.id}
+                          onClick={() => {
+                            setDeclineId(item.id)
+                            setDeclineReply('')
+                          }}
+                        >
+                          <XCircle size={14} aria-hidden style={{ marginRight: 4, verticalAlign: -2 }} />
+                          Не могу
+                        </button>
+                      ) : null}
                     </div>
-                  ) : (
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      disabled={busyId === item.id}
-                      onClick={() => {
-                        setDeclineId(item.id)
-                        setDeclineReply('')
-                      }}
-                    >
-                      <XCircle size={14} aria-hidden style={{ marginRight: 4, verticalAlign: -2 }} />
-                      Не могу
-                    </button>
-                  )}
-                </div>
+                  )
+                })()
               ) : null}
             </article>
           ))}

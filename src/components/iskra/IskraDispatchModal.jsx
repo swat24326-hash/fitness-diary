@@ -4,7 +4,7 @@ import { buildDispatchFromInsightCard } from '../../lib/admin/iskraDispatchCore.
 import { createIskraDispatch } from '../../lib/admin/iskraDispatchService.js'
 import { buildManualTaskDraft, staffTaskSourceChannelLabel } from '../../lib/admin/staffTaskCreateCore.js'
 import { periodLabelRu } from '../../lib/admin/geminiAnalyticsSnapshot.js'
-import { ISKRA_TASK_KIND_META, taskKindLabel } from '../../lib/admin/iskraTaskKindsCore.js'
+import { ISKRA_TASK_KIND_META } from '../../lib/admin/iskraTaskKindsCore.js'
 
 const DUE_PRESETS = [
   { id: 'tomorrow', label: 'Завтра' },
@@ -69,13 +69,14 @@ export function IskraDispatchModal({
   }, [defaultDraft, defaultCard, clubName, periodLabel, manualMode])
 
   const draftChannelLabel = staffTaskSourceChannelLabel(draft.source_channel ?? '')
+  const taskKind = String(draft.task_kind ?? 'custom')
 
-  const [recipientIds, setRecipientIds] = useState(() => new Set())
+  const [recipientMode, setRecipientMode] = useState('one')
+  const [singleRecipientId, setSingleRecipientId] = useState('')
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [duePreset, setDuePreset] = useState('3days')
   const [priority, setPriority] = useState('normal')
-  const [taskKind, setTaskKind] = useState('custom')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [okMsg, setOkMsg] = useState('')
@@ -83,30 +84,22 @@ export function IskraDispatchModal({
   useEffect(() => {
     if (!open) return
     const defaultId = defaultRecipientId || draft.default_recipient_id || recipientOptions[0]?.trainer_id || ''
-    setRecipientIds(defaultId ? new Set([defaultId]) : new Set())
+    setRecipientMode('one')
+    setSingleRecipientId(defaultId)
     setTitle(draft.title)
     setBody(draft.body)
     setDuePreset(draft.due_preset ?? '3days')
     setPriority(draft.priority ?? 'normal')
-    setTaskKind(draft.task_kind ?? 'custom')
     setError('')
     setOkMsg('')
   }, [open, draft, defaultRecipientId, recipientOptions])
 
-  const toggleRecipient = (id) => {
-    setRecipientIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
-
-  const selectAllRecipients = () => {
-    setRecipientIds(new Set(recipientOptions.map((t) => t.trainer_id)))
-  }
-
-  const selectedRecipientIds = useMemo(() => [...recipientIds], [recipientIds])
+  const selectedRecipientIds = useMemo(() => {
+    if (recipientMode === 'all') {
+      return recipientOptions.map((t) => t.trainer_id)
+    }
+    return singleRecipientId ? [singleRecipientId] : []
+  }, [recipientMode, singleRecipientId, recipientOptions])
 
   useEffect(() => {
     if (!open) return
@@ -121,7 +114,7 @@ export function IskraDispatchModal({
 
   const handleSend = async () => {
     if (!clubId || !selectedRecipientIds.length || !title.trim() || !body.trim()) {
-      setError('Выберите исполнителей и заполните текст')
+      setError('Выберите исполнителя и заполните текст')
       return
     }
     setBusy(true)
@@ -155,6 +148,8 @@ export function IskraDispatchModal({
     }
   }
 
+  const canPickAll = recipientOptions.length > 1
+
   return (
     <div
       className="modal-overlay iskra-dispatch-overlay"
@@ -176,7 +171,7 @@ export function IskraDispatchModal({
                   ? 'Ручное задание без ИСКРЫ'
                   : draft.source_channel
                     ? `Планёрка · ${draftChannelLabel}`
-                    : 'Планёрка: срок, тип, исполнитель'}
+                    : 'Планёрка: кому, срок, текст'}
               </p>
             </div>
           </div>
@@ -186,72 +181,58 @@ export function IskraDispatchModal({
         </header>
 
         <div className="iskra-dispatch__body">
-          <fieldset className="iskra-dispatch__field iskra-dispatch__recipients">
-            <legend className="iskra-dispatch__recipients-head">
-              <span>Исполнители</span>
-              {recipientOptions.length > 1 ? (
+          <div className="iskra-dispatch__field">
+            <span>Исполнитель</span>
+            {canPickAll ? (
+              <div className="iskra-dispatch__recipient-mode" role="group" aria-label="Кому отправить">
                 <button
                   type="button"
-                  className="btn btn-ghost btn-sm iskra-dispatch__recipients-all"
+                  className={`iskra-dispatch__recipient-mode-btn${recipientMode === 'one' ? ' iskra-dispatch__recipient-mode-btn--on' : ''}`}
                   disabled={busy}
-                  onClick={selectAllRecipients}
+                  onClick={() => setRecipientMode('one')}
+                >
+                  Один
+                </button>
+                <button
+                  type="button"
+                  className={`iskra-dispatch__recipient-mode-btn${recipientMode === 'all' ? ' iskra-dispatch__recipient-mode-btn--on' : ''}`}
+                  disabled={busy}
+                  onClick={() => setRecipientMode('all')}
                 >
                   Все ({recipientOptions.length})
                 </button>
-              ) : null}
-            </legend>
-            {!recipientOptions.length ? (
-              <p className="muted iskra-dispatch__recipients-empty">Нет исполнителей в клубе</p>
-            ) : (
-              <ul className="iskra-dispatch__recipient-list">
-                {recipientOptions.map((t) => {
-                  const id = t.trainer_id
-                  const checked = recipientIds.has(id)
-                  return (
-                    <li key={id}>
-                      <label className={`iskra-dispatch__recipient${checked ? ' iskra-dispatch__recipient--on' : ''}`}>
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          disabled={busy}
-                          onChange={() => toggleRecipient(id)}
-                        />
-                        <span>
-                          {t.role_label ? `${t.role_label}: ` : ''}
-                          {t.trainer_name || id}
-                        </span>
-                      </label>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-            {selectedRecipientIds.length ? (
-              <p className="iskra-dispatch__recipients-count muted">
-                Выбрано: {selectedRecipientIds.length}
-              </p>
+              </div>
             ) : null}
-          </fieldset>
 
-          <div className="iskra-dispatch__row">
-            <label className="iskra-dispatch__field">
-              <span>Тип задания</span>
-              <select className="select" value={taskKind} onChange={(e) => setTaskKind(e.target.value)} disabled={busy}>
-                {Object.keys(ISKRA_TASK_KIND_META).map((k) => (
-                  <option key={k} value={k}>
-                    {taskKindLabel(k)}
+            {recipientMode === 'one' || !canPickAll ? (
+              <select
+                className="select"
+                value={singleRecipientId}
+                onChange={(e) => setSingleRecipientId(e.target.value)}
+                disabled={busy || !recipientOptions.length}
+              >
+                {!recipientOptions.length ? <option value="">Нет исполнителей в клубе</option> : null}
+                {recipientOptions.map((t) => (
+                  <option key={t.trainer_id} value={t.trainer_id}>
+                    {t.role_label ? `${t.role_label}: ` : ''}
+                    {t.trainer_name || t.trainer_id}
                   </option>
                 ))}
               </select>
-            </label>
-            <label className="iskra-dispatch__field">
-              <span>Приоритет</span>
-              <select className="select" value={priority} onChange={(e) => setPriority(e.target.value)} disabled={busy}>
-                <option value="normal">Обычный</option>
-                <option value="high">Высокий</option>
-              </select>
-            </label>
+            ) : (
+              <p className="iskra-dispatch__recipient-all-note muted">
+                Задание получат все активные сотрудники клуба ({recipientOptions.length}).
+              </p>
+            )}
           </div>
+
+          <label className="iskra-dispatch__field">
+            <span>Приоритет</span>
+            <select className="select" value={priority} onChange={(e) => setPriority(e.target.value)} disabled={busy}>
+              <option value="normal">Обычный</option>
+              <option value="high">Высокий</option>
+            </select>
+          </label>
 
           <label className="iskra-dispatch__field">
             <span>
@@ -313,7 +294,7 @@ export function IskraDispatchModal({
             onClick={() => void handleSend()}
           >
             <Send size={16} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
-            {busy ? 'Отправка…' : 'Поставить задачу'}
+            {busy ? 'Отправка…' : recipientMode === 'all' ? `Поставить всем (${recipientOptions.length})` : 'Поставить задачу'}
           </button>
         </footer>
       </div>

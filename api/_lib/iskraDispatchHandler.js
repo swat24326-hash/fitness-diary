@@ -8,6 +8,7 @@ import {
   normalizeDispatchDeletePayload,
   normalizeRecipientUserIds,
 } from '../../src/lib/admin/iskraDispatchCore.js'
+import { notifyDispatchPushForRecipients } from './webPushCore.js'
 
 const TRAINER_ROLES = new Set(['trainer', 'тренер'])
 
@@ -236,6 +237,8 @@ export async function handleIskraDispatchPost(ctx, res, body) {
       items: created,
       errors: errors.length ? errors : undefined,
     })
+
+    void notifyDispatchPushForRecipients(ctx, created).catch(() => {})
   } catch (e) {
     sendJson(res, 400, { error: e?.message ? String(e.message) : 'Ошибка отправки' })
   }

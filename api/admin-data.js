@@ -9,6 +9,7 @@ import { handleGeminiAnalyticsPost, handleGeminiAnalyticsPrefetchGet } from './_
 import { handleIskraSettingsGet, handleIskraSettingsPost } from './_lib/iskraSettingsHandler.js'
 import { handleIskraLearningGet, handleIskraLearningPost } from './_lib/iskraLearningHandler.js'
 import { handleIskraDispatchGet, handleIskraDispatchPost } from './_lib/iskraDispatchHandler.js'
+import { handlePushSubscriptionGet, handlePushSubscriptionPost } from './_lib/pushSubscriptionHandler.js'
 import { handleResetTrainerPasswordPost, handleSetTrainerActivePost } from './_lib/trainerAuthAdmin.js'
 import { handleSearch, handleJournal } from './_lib/adminData/journalHandlers.js'
 import { handleClubStats, handleHealthCards, handleClubMonthly } from './_lib/adminData/clubHandlers.js'
@@ -50,6 +51,7 @@ async function handler(req, res) {
       'iskra-settings',
       'iskra-learning',
       'iskra-dispatch',
+      'push-subscription',
       'reset-trainer-password',
       'set-trainer-active',
     ])
@@ -98,6 +100,11 @@ async function handler(req, res) {
       if (!ctx) return
       return handleIskraDispatchPost(ctx, res, body)
     }
+    if (action === 'push-subscription') {
+      const ctx = await requireAuthUser(req, res)
+      if (!ctx) return
+      return handlePushSubscriptionPost(ctx, res, body)
+    }
     if (action === 'reset-trainer-password') {
       const ctx = await requireAdmin(req, res)
       if (!ctx) return
@@ -136,6 +143,7 @@ async function handler(req, res) {
     'membership-types',
     'nutrition-products',
     'iskra-dispatch',
+    'push-subscription',
   ])
 
   if (trainerActions.has(action)) {
@@ -152,6 +160,7 @@ async function handler(req, res) {
     if (action === 'membership-types') return handleMembershipTypes(authCtx, req, res)
     if (action === 'nutrition-products') return handleNutritionProducts(authCtx, req, res)
     if (action === 'iskra-dispatch') return handleIskraDispatchGet(authCtx, req, res)
+    if (action === 'push-subscription') return handlePushSubscriptionGet(authCtx, res)
   }
 
   if (action === 'sales') {

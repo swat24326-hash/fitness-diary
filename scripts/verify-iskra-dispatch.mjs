@@ -16,6 +16,12 @@ import {
   buildDispatchWorkflowProgress,
 } from '../src/lib/admin/iskraDispatchProgressCore.js'
 import {
+  buildDispatchGlanceCaption,
+  buildDispatchInboxActions,
+  pickSpotlightDispatchTask,
+  sortActiveDispatchTasks,
+} from '../src/lib/admin/iskraDispatchInboxActionsCore.js'
+import {
   formatDispatchDueLabel,
   resolveDueAtFromPreset,
   resolveTaskKindFromInsight,
@@ -128,6 +134,32 @@ const uiProgress = formatDispatchForUi({
 })
 ok(uiProgress.progress?.workflow?.label === 'Просмотрено', 'formatDispatchForUi progress workflow')
 ok(uiProgress.progress?.time?.pct != null, 'formatDispatchForUi progress time')
+
+const seenActions = buildDispatchInboxActions({ status: 'seen', deep_link: '/trainer/clients' })
+ok(seenActions.primary?.action === 'accepted' && !seenActions.deepLink, 'seen step: accept only')
+
+const acceptedActions = buildDispatchInboxActions({ status: 'accepted', deep_link: '/trainer/clients' })
+ok(acceptedActions.primary?.action === 'done' && acceptedActions.deepLink, 'accepted step: done + link')
+
+const picked = pickSpotlightDispatchTask([
+  { status: 'accepted', priority: 'normal', due_at: '2026-08-01T12:00:00Z' },
+  { status: 'pending', priority: 'high', due_at: '2026-07-14T12:00:00Z', is_overdue: false },
+])
+ok(picked.spotlight?.status === 'pending' && picked.moreCount === 1, 'spotlight prefers pending/high')
+
+ok(sortActiveDispatchTasks([{ status: 'accepted' }, { status: 'pending' }])[0]?.status === 'pending', 'sort active tasks')
+
+const glance = buildDispatchGlanceCaption(
+  formatDispatchForUi({
+    id: 'd4',
+    status: 'seen',
+    created_at: '2026-07-10T10:00:00Z',
+    due_at: '2026-07-20T10:00:00Z',
+    title: 'Test',
+    body: 'Body',
+  }),
+)
+ok(glance.includes('Просмотрено'), 'glance caption')
 
 if (failed) process.exit(1)
 console.log('verify-iskra-dispatch: all ok')

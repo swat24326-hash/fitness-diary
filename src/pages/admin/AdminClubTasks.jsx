@@ -7,7 +7,6 @@ import { fetchTrainersViaAdminApi } from '../../lib/admin/adminApiClient'
 import { dispatchStatusLabelRu } from '../../lib/admin/iskraDispatchCore.js'
 import { deleteIskraDispatch, fetchIskraDispatch } from '../../lib/admin/iskraDispatchService.js'
 import { staffTaskSourceChannelLabel } from '../../lib/admin/staffTaskCreateCore.js'
-import { taskKindLabel } from '../../lib/admin/iskraTaskKindsCore.js'
 import { isQaAutoUser } from '../../lib/admin/qaAutoUserCore.js'
 import { listClubsLocal, pullClubsFromSupabase } from '../../lib/dataAccess'
 import { IskraDispatchModal } from '../../components/iskra/IskraDispatchModal.jsx'
@@ -242,10 +241,6 @@ export function AdminClubTasks() {
                     <div>
                       <dt>Исполнитель</dt>
                       <dd>{item.recipient_name || '—'}</dd>
-                    </div>
-                    <div>
-                      <dt>Тип</dt>
-                      <dd>{taskKindLabel(item.task_kind)}</dd>
                     </div>
                     <div>
                       <dt>Канал</dt>

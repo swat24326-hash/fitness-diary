@@ -18,6 +18,7 @@ import { useIskraPanel } from '../context/IskraPanelContext.jsx'
 import { useHeaderSync } from './useHeaderSync'
 import { TrainerInboxPanel } from './iskra/TrainerInboxPanel.jsx'
 import { fetchIskraDispatch } from '../lib/admin/iskraDispatchService.js'
+import { TRAINER_INBOX_OPEN_EVENT } from '../lib/admin/trainerInboxEvents.js'
 
 const GeminiAnalyticsPanel = lazy(() =>
   import('./GeminiAnalyticsPanel.jsx').then((m) => ({ default: m.GeminiAnalyticsPanel })),
@@ -187,6 +188,32 @@ export function AppHeader() {
       window.clearInterval(t)
     }
   }, [isTrainer, supabaseReady, user?.club_id, online, inboxOpen])
+
+  useEffect(() => {
+    if (!isTrainer) return
+    const onOpen = () => setInboxOpen(true)
+    window.addEventListener(TRAINER_INBOX_OPEN_EVENT, onOpen)
+    return () => window.removeEventListener(TRAINER_INBOX_OPEN_EVENT, onOpen)
+  }, [isTrainer])
+
+  useEffect(() => {
+    if (!isTrainer) return
+    if (searchParams.get('inbox') === '1') {
+      setInboxOpen(true)
+      const next = new URLSearchParams(searchParams)
+      next.delete('inbox')
+      setSearchParams(next, { replace: true })
+    }
+  }, [isTrainer, searchParams, setSearchParams])
+
+  useEffect(() => {
+    if (!isTrainer || !('serviceWorker' in navigator)) return
+    const onMessage = (event) => {
+      if (event?.data?.type === 'open-trainer-inbox') setInboxOpen(true)
+    }
+    navigator.serviceWorker.addEventListener('message', onMessage)
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage)
+  }, [isTrainer])
 
   /** Один зал — сразу в URL; несколько — без «все клубы», только явный выбор. */
   useEffect(() => {
