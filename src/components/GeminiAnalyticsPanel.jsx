@@ -55,6 +55,7 @@ import {
 } from '../lib/admin/iskraLearningService.js'
 import { deriveReplySignalKey } from '../lib/admin/iskraLearningCore.js'
 import { extractIskraSpeechSnippet } from '../lib/admin/iskraResponseModeCore.js'
+import { parseIskraReplyBlocks } from '../lib/admin/iskraReplyDisplayCore.js'
 import { resolveChipSendOptions } from '../lib/admin/iskraChipRoutingCore.js'
 import {
   resolveSegmentAlerts,
@@ -116,20 +117,52 @@ function writeResponseDepthPreference(depth) {
 }
 
 function IskraMessageBody({ content }) {
-  const parts = String(content ?? '')
-    .split(/\n\n+/)
-    .map((p) => p.trim())
-    .filter(Boolean)
-  if (parts.length <= 1) {
-    return <p>{content}</p>
+  const { lead, sections, paragraphs } = parseIskraReplyBlocks(content)
+
+  if (sections.length) {
+    return (
+      <div className="gemini-panel__msg-text iskra-reply">
+        {lead ? <p className="iskra-reply__lead">{lead}</p> : null}
+        {sections.map((section) => (
+          <div key={section.label} className="iskra-reply__section">
+            {section.label ? <span className="iskra-reply__label">{section.label}</span> : null}
+            {section.items.length > 1 ? (
+              <ol className="iskra-reply__list">
+                {section.items.map((item, idx) => (
+                  <li key={`${section.label}-${idx}`}>{item.replace(/^\d+\.\s*/, '')}</li>
+                ))}
+              </ol>
+            ) : (
+              <p className="iskra-reply__body">{section.items[0]}</p>
+            )}
+          </div>
+        ))}
+      </div>
+    )
   }
-  return (
-    <div className="gemini-panel__msg-text">
-      {parts.map((p, i) => (
-        <p key={i}>{p}</p>
-      ))}
-    </div>
-  )
+
+  if (paragraphs.length) {
+    return (
+      <div className="gemini-panel__msg-text iskra-reply">
+        {lead ? <p className="iskra-reply__lead">{lead}</p> : null}
+        {paragraphs.map((p, i) => (
+          <p key={i} className="iskra-reply__body">
+            {p}
+          </p>
+        ))}
+      </div>
+    )
+  }
+
+  if (lead) {
+    return (
+      <div className="gemini-panel__msg-text iskra-reply">
+        <p className="iskra-reply__lead">{lead}</p>
+      </div>
+    )
+  }
+
+  return <p>{content}</p>
 }
 
 const ISKRA_TTS_GENDER = 'female'
