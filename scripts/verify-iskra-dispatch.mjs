@@ -12,6 +12,10 @@ import {
   normalizeRecipientUserIds,
 } from '../src/lib/admin/iskraDispatchCore.js'
 import {
+  buildDispatchTimeProgress,
+  buildDispatchWorkflowProgress,
+} from '../src/lib/admin/iskraDispatchProgressCore.js'
+import {
   formatDispatchDueLabel,
   resolveDueAtFromPreset,
   resolveTaskKindFromInsight,
@@ -96,6 +100,34 @@ ok(batch.ok && batch.payload.recipient_user_id === 'u1', 'batch uses first recip
 const del = normalizeDispatchDeletePayload({ dispatch_id: 'd-1', club_id: 'c1' })
 ok(del.ok && del.dispatch_id === 'd-1', 'normalize delete payload')
 ok(canAdminDeleteDispatch('pending'), 'admin can delete pending')
+
+const wfSeen = buildDispatchWorkflowProgress('seen')
+ok(wfSeen.pct === 33 && wfSeen.label === 'Просмотрено', 'workflow seen')
+
+const time = buildDispatchTimeProgress(
+  '2026-07-10T10:00:00Z',
+  '2026-07-20T10:00:00Z',
+  new Date('2026-07-15T10:00:00Z'),
+)
+ok(time.pct === 50 && time.tone === 'ok', 'time progress mid-window')
+
+const overdue = buildDispatchTimeProgress(
+  '2026-07-10T10:00:00Z',
+  '2026-07-12T10:00:00Z',
+  new Date('2026-07-15T10:00:00Z'),
+)
+ok(overdue.tone === 'overdue', 'time overdue')
+
+const uiProgress = formatDispatchForUi({
+  id: 'd3',
+  status: 'seen',
+  created_at: '2026-07-10T10:00:00Z',
+  due_at: '2026-07-20T10:00:00Z',
+  title: 'Test',
+  body: 'Body',
+})
+ok(uiProgress.progress?.workflow?.label === 'Просмотрено', 'formatDispatchForUi progress workflow')
+ok(uiProgress.progress?.time?.pct != null, 'formatDispatchForUi progress time')
 
 if (failed) process.exit(1)
 console.log('verify-iskra-dispatch: all ok')

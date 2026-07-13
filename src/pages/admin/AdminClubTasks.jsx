@@ -11,6 +11,7 @@ import { taskKindLabel } from '../../lib/admin/iskraTaskKindsCore.js'
 import { isQaAutoUser } from '../../lib/admin/qaAutoUserCore.js'
 import { listClubsLocal, pullClubsFromSupabase } from '../../lib/dataAccess'
 import { IskraDispatchModal } from '../../components/iskra/IskraDispatchModal.jsx'
+import { DispatchTaskProgressBar } from '../../components/iskra/DispatchTaskProgressBar.jsx'
 
 const STATUS_FILTERS = [
   { id: '', label: 'Все' },
@@ -236,6 +237,7 @@ export function AdminClubTasks() {
                   </div>
                   <h2 className="admin-task-card__title">{item.title}</h2>
                   <p className="admin-task-card__body muted">{item.body}</p>
+                  <DispatchTaskProgressBar progress={item.progress} />
                   <dl className="admin-task-card__meta">
                     <div>
                       <dt>Исполнитель</dt>

@@ -15,6 +15,7 @@ import {
 } from './iskraTaskKindsCore.js'
 import { normalizeStaffTaskContextJson, STAFF_TASK_SOURCE_CHANNELS } from './staffTaskCreateCore.js'
 import { resolveDispatchDeepLink } from './staffTaskDeepLinkCore.js'
+import { buildDispatchProgressForUi } from './iskraDispatchProgressCore.js'
 
 /** Компактные строки открытых заданий для промпта Gemini. */
 export function compactOpenDispatchForPrompt(rows) {
@@ -281,6 +282,12 @@ export function formatDispatchForUi(row) {
     recipient_reply: String(row.recipient_reply ?? '').trim(),
     sender_name: String(row.sender_name ?? '').trim() || 'ИСКРА',
     recipient_name: String(row.recipient_name ?? '').trim(),
+    progress: buildDispatchProgressForUi({
+      status,
+      created_at: row.created_at ?? null,
+      due_at: dueAt,
+      is_overdue: isDispatchOverdue(dueAt) && ISKRA_DISPATCH_ACTIVE_STATUSES.includes(status),
+    }),
   }
 }
 

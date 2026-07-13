@@ -6791,6 +6791,142 @@ tr:last-child td {
   color: #ffb4b4;
 }
 
+/* ——— Планёрка: шкала прогресса (ход + срок) ——— */
+.dispatch-task-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.dispatch-task-progress__row {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 8px;
+  align-items: start;
+}
+
+.dispatch-task-progress__label {
+  font-size: 0.68rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  padding-top: 4px;
+}
+
+.dispatch-task-progress__track-wrap {
+  min-width: 0;
+}
+
+.dispatch-task-progress__track {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: visible;
+}
+
+.dispatch-task-progress__fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.35s ease;
+}
+
+.dispatch-task-progress__fill--workflow.dispatch-task-progress__fill--pending {
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.5), rgba(148, 163, 184, 0.75));
+}
+
+.dispatch-task-progress__fill--workflow.dispatch-task-progress__fill--seen {
+  background: linear-gradient(90deg, rgba(100, 180, 255, 0.55), rgba(100, 180, 255, 0.9));
+}
+
+.dispatch-task-progress__fill--workflow.dispatch-task-progress__fill--active {
+  background: linear-gradient(90deg, rgba(0, 166, 81, 0.45), rgba(46, 255, 184, 0.85));
+}
+
+.dispatch-task-progress__fill--workflow.dispatch-task-progress__fill--done {
+  background: linear-gradient(90deg, rgba(0, 166, 81, 0.65), var(--accent-bright));
+}
+
+.dispatch-task-progress__fill--workflow.dispatch-task-progress__fill--declined,
+.dispatch-task-progress__fill--workflow.dispatch-task-progress__fill--dismissed {
+  background: linear-gradient(90deg, rgba(255, 107, 107, 0.45), rgba(255, 140, 140, 0.8));
+}
+
+.dispatch-task-progress__fill--time.dispatch-task-progress__fill--ok {
+  background: linear-gradient(90deg, rgba(0, 166, 81, 0.35), rgba(46, 255, 184, 0.7));
+}
+
+.dispatch-task-progress__fill--time.dispatch-task-progress__fill--warn {
+  background: linear-gradient(90deg, rgba(255, 179, 71, 0.55), rgba(255, 140, 0, 0.9));
+}
+
+.dispatch-task-progress__fill--time.dispatch-task-progress__fill--overdue {
+  background: linear-gradient(90deg, rgba(255, 107, 107, 0.55), rgba(255, 60, 60, 0.95));
+}
+
+.dispatch-task-progress__steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.dispatch-task-progress__step {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: rgba(15, 23, 42, 0.9);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.dispatch-task-progress__step--on {
+  border-color: rgba(46, 255, 184, 0.65);
+  background: rgba(6, 78, 59, 0.95);
+}
+
+.dispatch-task-progress__step--current {
+  border-color: var(--accent-bright);
+  box-shadow: 0 0 8px rgba(46, 255, 184, 0.55);
+  transform: scale(1.12);
+}
+
+.dispatch-task-progress__caption {
+  display: block;
+  margin-top: 5px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dispatch-task-progress__caption--warn {
+  color: #ffb347;
+}
+
+.dispatch-task-progress__caption--overdue {
+  color: #ff9a9a;
+}
+
+.dispatch-task-progress__due {
+  font-weight: 500;
+}
+
+.dispatch-task-progress__no-due {
+  margin: -2px 0 0 50px;
+  font-size: 0.72rem;
+}
+
 @media (max-width: 560px) {
   .admin-section__actions,
   .challenge-admin__actions {

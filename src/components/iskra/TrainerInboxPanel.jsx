@@ -8,6 +8,7 @@ import {
   updateIskraDispatchStatus,
 } from '../../lib/admin/iskraDispatchService.js'
 import { taskKindLabel } from '../../lib/admin/iskraTaskKindsCore.js'
+import { DispatchTaskProgressBar } from './DispatchTaskProgressBar.jsx'
 
 /**
  * @param {{
@@ -148,6 +149,7 @@ export function TrainerInboxPanel({ open, onClose, clubId = '', onPendingChange 
                 </p>
               ) : null}
               <p className="iskra-inbox__card-body">{item.body}</p>
+              <DispatchTaskProgressBar progress={item.progress} />
               {item.recipient_reply ? (
                 <p className="iskra-inbox__card-reply muted">Ваш ответ: {item.recipient_reply}</p>
               ) : null}
