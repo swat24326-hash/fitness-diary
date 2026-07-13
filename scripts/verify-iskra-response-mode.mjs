@@ -54,8 +54,11 @@ ok(buildIskraResponseFormatRule('brief').includes('50 слов'), 'brief format 
 ok(!buildSystemPrompt('male', 'Север', { responseMode: 'deep' }).includes('50 слов'), 'deep system no 50 words')
 ok(buildSystemPrompt('male', 'Север', { responseMode: 'brief' }).includes('50 слов'), 'brief system 50 words')
 
-const snippet = extractIskraSpeechSnippet('Первый абзац с фактом.\n\nВторой с деталями и шагами.', 'deep')
-ok(snippet.includes('Первый') && !snippet.includes('Второй'), 'speech snippet first para')
+const snippet = extractIskraSpeechSnippet(
+  '**Факты:**\n\nПлан 41%.\n\n**Вывод:** Отстаём от прогноза.',
+  'deep',
+)
+ok(snippet.includes('Отстаём') && !/^факты/i.test(snippet.trim()), 'speech snippet sections not label')
 
 const snap = buildGeminiSnapshot({
   clubName: 'Север',

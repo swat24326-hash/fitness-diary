@@ -3,6 +3,8 @@
  * Чистые функции — scripts/verify-iskra-response-mode.mjs
  */
 
+import { buildIskraSpeechSnippet } from './iskraReplyDisplayCore.js'
+
 /** @typedef {'brief'|'standard'|'deep'} IskraResponseMode */
 
 export const ISKRA_RESPONSE_MODES = /** @type {const} */ (['brief', 'standard', 'deep'])
@@ -131,23 +133,12 @@ export function shouldSkipGeminiEdge(mode) {
 }
 
 /**
- * Фрагмент для TTS: не читать простыню в режиме deep.
+ * Фрагмент для TTS: не читать простыню и не озвучивать один заголовок «Факты».
  * @param {string} text
  * @param {IskraResponseMode} [mode]
  */
 export function extractIskraSpeechSnippet(text, mode = 'standard') {
-  const raw = String(text ?? '').trim()
-  if (!raw) return ''
-  if (mode === 'brief') return raw
-
-  const para = (raw.split(/\n\n+/)[0] || raw).trim()
-  const sentences = para.match(/[^.!?…]+[.!?…]+/g)
-  let snippet = sentences?.length ? sentences.slice(0, 2).join(' ').trim() : para
-  const words = snippet.split(/\s+/).filter(Boolean)
-  if (words.length > 55) {
-    snippet = `${words.slice(0, 50).join(' ')}…`
-  }
-  return snippet
+  return buildIskraSpeechSnippet(text, mode)
 }
 
 /** @param {IskraResponseMode} mode @param {string} [finishReason] */

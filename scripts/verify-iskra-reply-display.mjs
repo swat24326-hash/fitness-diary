@@ -2,6 +2,7 @@
  * node scripts/verify-iskra-reply-display.mjs
  */
 import {
+  buildIskraSpeechSnippet,
   iskraReplyLooksLikeWallOfText,
   parseIskraReplyBlocks,
   splitIskraNumberedItems,
@@ -31,6 +32,16 @@ ok(blocks.sections[2].items.length === 2, 'numbered recommendations')
 
 ok(splitIskraNumberedItems('1. А. 2. Б.').length === 2, 'split numbered')
 ok(iskraReplyLooksLikeWallOfText('x'.repeat(300)), 'wall detect')
+
+const geminiSample =
+  '**Факты:**\n\nПлан продаж за июль 41,4%.\n\n**Вывод:** Отстаём от прогноза.\n\n**Шаги:** 1. Дожать НК.'
+const speech = buildIskraSpeechSnippet(geminiSample, 'standard')
+ok(speech.includes('Отстаём'), 'speech prefers conclusion')
+ok(!/^факты[.:]?$/i.test(speech.trim()), 'speech not label only')
+
+const labelOnlyPara = '**Факты:**\n\n**Вывод:** План в норме, прогноз чуть ниже.'
+const speech2 = buildIskraSpeechSnippet(labelOnlyPara, 'deep')
+ok(speech2.includes('норме'), 'speech skips empty facts header')
 
 if (failed) process.exit(1)
 console.log('verify-iskra-reply-display: all ok')
