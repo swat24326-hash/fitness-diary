@@ -1,4 +1,5 @@
 import { ISKRA_DISPATCH_ACTIVE_STATUSES } from './iskraDispatchCore.js'
+import { allDispatchStagesDone, hasDispatchStages, countDispatchStagesDone } from './iskraDispatchStagesCore.js'
 
 /**
  * Какие действия показывать тренеру — по одному шагу за раз.
@@ -6,11 +7,14 @@ import { ISKRA_DISPATCH_ACTIVE_STATUSES } from './iskraDispatchCore.js'
  * pending/seen → только «Принял в работу» (+ «Не могу»).
  * accepted → «Выполнено» (+ «Перейти», если есть deep_link).
  *
- * @param {{ status?: string, deep_link?: string | null }} item
+ * @param {{ status?: string, deep_link?: string | null, stages?: Array<{ done?: boolean }> }} item
  */
 export function buildDispatchInboxActions(item) {
   const status = String(item?.status ?? 'pending')
   const hasDeepLink = !!String(item?.deep_link ?? '').trim()
+  const withStages = hasDispatchStages(item?.stages)
+  const stagesDone = withStages ? allDispatchStagesDone(item?.stages) : true
+  const { done: stagesDoneCount, total: stagesTotal } = countDispatchStagesDone(item?.stages)
 
   if (!ISKRA_DISPATCH_ACTIVE_STATUSES.includes(status)) {
     return {
@@ -31,11 +35,25 @@ export function buildDispatchInboxActions(item) {
   }
 
   if (status === 'accepted') {
+    if (withStages && !stagesDone) {
+      return {
+        primary: null,
+        deepLink: hasDeepLink,
+        canDecline: true,
+        stepHint: `Этапы: ${stagesDoneCount}/${stagesTotal} — отметьте каждый шаг ниже`,
+        stagesMode: true,
+      }
+    }
     return {
-      primary: { action: 'done', label: 'Выполнено' },
+      primary: { action: 'done', label: withStages ? 'Закрыть задание' : 'Выполнено' },
       deepLink: hasDeepLink,
       canDecline: true,
-      stepHint: hasDeepLink ? 'Шаг 2 — выполните и отметьте готово или перейдите к делу' : 'Шаг 2 — отметьте выполнение',
+      stepHint: withStages
+        ? 'Все этапы готовы — подтвердите выполнение задания'
+        : hasDeepLink
+          ? 'Шаг 2 — выполните и отметьте готово или перейдите к делу'
+          : 'Шаг 2 — отметьте выполнение',
+      stagesMode: withStages,
     }
   }
 

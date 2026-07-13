@@ -58,6 +58,7 @@ export async function fetchIskraDispatch(opts = {}) {
  *   dueDate?: string,
  *   recurrencePreset?: string,
  *   recurrenceDays?: number,
+ *   stages?: string[],
  *   deepLink?: string,
  * }} opts
  */
@@ -99,6 +100,7 @@ export async function createIskraDispatch(opts) {
       due_date: opts.dueDate,
       recurrence_preset: opts.recurrencePreset,
       recurrence_days: opts.recurrenceDays,
+      stages: opts.stages,
       deep_link: opts.deepLink,
     }),
   })
@@ -126,6 +128,32 @@ export async function deleteIskraDispatch(opts) {
       op: 'delete',
       dispatch_id: opts.dispatchId,
       club_id: opts.clubId,
+    }),
+  })
+  const data = await parseJson(res)
+  if (!res.ok) throw new Error(data?.error ?? `Ошибка (${res.status})`)
+  return data
+}
+
+/**
+ * @param {{ dispatchId: string, stageId: string }} opts
+ */
+export async function completeIskraDispatchStage(opts) {
+  const token = await getAccessTokenForAdminApi()
+  if (!token) throw new Error('Нет сессии')
+
+  const res = await fetch(`${apiOrigin()}/api/admin-data?action=iskra-dispatch`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    credentials: 'same-origin',
+    cache: 'no-store',
+    body: JSON.stringify({
+      op: 'complete_stage',
+      dispatch_id: opts.dispatchId,
+      stage_id: opts.stageId,
     }),
   })
   const data = await parseJson(res)

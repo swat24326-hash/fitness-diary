@@ -6964,6 +6964,83 @@ tr:last-child td {
   font-size: 0.68rem;
 }
 
+.dispatch-task-progress__fill--stages.dispatch-task-progress__fill--pending {
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.45), rgba(148, 163, 184, 0.7));
+}
+
+.dispatch-task-progress__fill--stages.dispatch-task-progress__fill--active {
+  background: linear-gradient(90deg, rgba(100, 180, 255, 0.5), rgba(100, 180, 255, 0.9));
+}
+
+.dispatch-task-progress__fill--stages.dispatch-task-progress__fill--done {
+  background: linear-gradient(90deg, rgba(0, 166, 81, 0.55), var(--accent-bright));
+}
+
+.dispatch-task-stages {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dispatch-task-stages__item {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--border) 35%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+
+.dispatch-task-stages__item--done {
+  opacity: 0.82;
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.dispatch-task-stages__num {
+  font-size: 0.68rem;
+  font-weight: 700;
+  opacity: 0.55;
+  text-align: center;
+}
+
+.dispatch-task-stages__title {
+  font-size: 0.78rem;
+  line-height: 1.35;
+  min-width: 0;
+}
+
+.dispatch-task-stages__done-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--accent-bright);
+}
+
+.dispatch-task-stages__done-btn {
+  white-space: nowrap;
+}
+
+.dispatch-progress-mini__fill--stages.dispatch-progress-mini__fill--pending {
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.45), rgba(148, 163, 184, 0.7));
+}
+
+.dispatch-progress-mini__fill--stages.dispatch-progress-mini__fill--active {
+  background: linear-gradient(90deg, rgba(100, 180, 255, 0.5), rgba(100, 180, 255, 0.9));
+}
+
+.dispatch-progress-mini__fill--stages.dispatch-progress-mini__fill--done {
+  background: linear-gradient(90deg, rgba(0, 166, 81, 0.55), var(--accent-bright));
+}
+
 /* Компактные шкалы — виджет на главной тренера */
 .dispatch-progress-mini {
   display: flex;

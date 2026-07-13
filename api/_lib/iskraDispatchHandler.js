@@ -21,10 +21,15 @@ import {
   hasActiveRecurringSeries,
   normalizeStopRecurrencePayload,
 } from '../../src/lib/admin/iskraDispatchRecurrenceCore.js'
+import {
+  completeDispatchStage,
+  normalizeCompleteStagePayload,
+  resetDispatchStagesForSpawn,
+} from '../../src/lib/admin/iskraDispatchStagesCore.js'
 import { notifyDispatchPushForRecipients } from './webPushCore.js'
 
 const DISPATCH_SELECT =
-  'id, club_id, sender_user_id, recipient_user_id, kind, status, title, body, source, source_channel, context_json, insight_key, task_kind, priority, due_at, deep_link, period_year, period_month, series_id, recurrence_interval, recurrence_unit, created_at, updated_at, seen_at, accepted_at, completed_at, declined_at, recipient_reply'
+  'id, club_id, sender_user_id, recipient_user_id, kind, status, title, body, source, source_channel, context_json, insight_key, task_kind, priority, due_at, deep_link, period_year, period_month, series_id, recurrence_interval, recurrence_unit, stages_json, created_at, updated_at, seen_at, accepted_at, completed_at, declined_at, recipient_reply'
 
 /**
  * @param {object} ctx
@@ -196,6 +201,9 @@ export async function handleIskraDispatchPost(ctx, res, body) {
   if (op === 'stop_recurrence') {
     return handleIskraDispatchStopRecurrence(ctx, res, body)
   }
+  if (op === 'complete_stage') {
+    return handleIskraDispatchCompleteStage(ctx, res, body)
+  }
 
   const normalized = normalizeDispatchCreatePayload(body)
   if (!normalized.ok) {
@@ -315,6 +323,7 @@ async function insertDispatchRow(ctx, { payload: p, senderUserId, now }) {
       series_id: seriesId,
       recurrence_interval: p.recurrence_interval,
       recurrence_unit: p.recurrence_unit,
+      stages_json: Array.isArray(p.stages_json) ? p.stages_json : [],
       updated_at: now,
     }
 
@@ -367,6 +376,7 @@ async function spawnNextRecurringDispatch(ctx, completedRow, nowIso) {
   if (!nextDue) return null
 
   const spawnRow = buildRecurringDispatchSpawnRow(completedRow, nextDue, nowIso)
+  spawnRow.stages_json = resetDispatchStagesForSpawn(completedRow.stages_json)
   const rowResult = await insertDispatchRow(ctx, {
     payload: spawnRow,
     senderUserId: String(completedRow.sender_user_id ?? ''),
@@ -472,6 +482,81 @@ async function handleIskraDispatchStopRecurrence(ctx, res, body) {
     })
   } catch (e) {
     sendJson(res, 400, { error: e?.message ? String(e.message) : 'Ошибка остановки повтора' })
+  }
+}
+
+/**
+ * Отметить этап задания выполненным (только исполнитель).
+ * @param {object} ctx
+ * @param {object} res
+ * @param {object} body
+ */
+async function handleIskraDispatchCompleteStage(ctx, res, body) {
+  const normalized = normalizeCompleteStagePayload(body?.dispatch_id ?? body?.id, body?.stage_id)
+  if (!normalized.ok) {
+    sendJson(res, 400, { error: normalized.error })
+    return
+  }
+
+  try {
+    const { data: existing, error: loadErr } = await ctx.supabaseAdmin
+      .from('club_iskra_dispatch')
+      .select(DISPATCH_SELECT)
+      .eq('id', normalized.dispatch_id)
+      .maybeSingle()
+
+    if (loadErr) throw loadErr
+    if (!existing) {
+      sendJson(res, 404, { error: 'Задание не найдено' })
+      return
+    }
+
+    if (String(existing.recipient_user_id) !== String(ctx.user.id) && !ctx.isAdmin) {
+      sendJson(res, 403, { error: 'Нет доступа' })
+      return
+    }
+
+    if (!['seen', 'accepted'].includes(String(existing.status))) {
+      sendJson(res, 400, { error: 'Сначала примите задание в работу' })
+      return
+    }
+
+    const result = completeDispatchStage(existing.stages_json, normalized.stage_id)
+    if (!result.ok) {
+      sendJson(res, 400, { error: result.error })
+      return
+    }
+
+    const now = new Date().toISOString()
+    const patch = {
+      stages_json: result.stages,
+      updated_at: now,
+    }
+    if (existing.status === 'seen') {
+      patch.status = 'accepted'
+      patch.accepted_at = now
+    }
+
+    const { data, error } = await ctx.supabaseAdmin
+      .from('club_iskra_dispatch')
+      .update(patch)
+      .eq('id', normalized.dispatch_id)
+      .select(DISPATCH_SELECT)
+      .maybeSingle()
+
+    if (error) throw error
+
+    const names = await loadUserNames(ctx.supabaseAdmin, [data.sender_user_id, data.recipient_user_id])
+    sendJson(res, 200, {
+      ok: true,
+      item: formatDispatchForUi({
+        ...data,
+        sender_name: names.get(String(data.sender_user_id)) || 'ИСКРА',
+        recipient_name: names.get(String(data.recipient_user_id)) || '',
+      }),
+    })
+  } catch (e) {
+    sendJson(res, 400, { error: e?.message ? String(e.message) : 'Ошибка этапа' })
   }
 }
 

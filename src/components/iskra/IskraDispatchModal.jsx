@@ -14,6 +14,7 @@ import { DispatchRecipientPicker } from './DispatchRecipientPicker.jsx'
 import { DispatchDuePicker } from './DispatchDuePicker.jsx'
 import { isValidCustomRecurrenceDays } from '../../lib/admin/iskraDispatchRecurrenceCore.js'
 import { DispatchRecurrencePicker } from './DispatchRecurrencePicker.jsx'
+import { DispatchStagesEditor } from './DispatchStagesEditor.jsx'
 
 /**
  * @param {{
@@ -83,6 +84,7 @@ export function IskraDispatchModal({
   const [dueDate, setDueDate] = useState(dispatchDueDateMinIso())
   const [recurrencePreset, setRecurrencePreset] = useState('')
   const [customRecurrenceDays, setCustomRecurrenceDays] = useState(7)
+  const [stageTitles, setStageTitles] = useState([])
   const [priority, setPriority] = useState('normal')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -106,6 +108,7 @@ export function IskraDispatchModal({
     setDueDate(resolvedDue.due_date || dispatchDueDateMinIso())
     setRecurrencePreset(String(draft.recurrence_preset ?? ''))
     setCustomRecurrenceDays(Number(draft.recurrence_days) || 7)
+    setStageTitles(Array.isArray(draft.stage_titles) ? draft.stage_titles : [])
     setPriority(draft.priority ?? 'normal')
     setError('')
     setOkMsg('')
@@ -157,6 +160,12 @@ export function IskraDispatchModal({
       return
     }
 
+    const stagesToSend = stageTitles.map((s) => String(s).trim()).filter(Boolean)
+    if (stageTitles.length > 0 && stagesToSend.length !== stageTitles.length) {
+      setError('Заполните все этапы или удалите пустые строки')
+      return
+    }
+
     setBusy(true)
     setError('')
     try {
@@ -179,6 +188,7 @@ export function IskraDispatchModal({
         dueDate: dueMode === 'date' ? dueDate : undefined,
         recurrencePreset,
         recurrenceDays: recurrencePreset === 'custom_days' ? customRecurrenceDays : undefined,
+        stages: stagesToSend.length ? stagesToSend : undefined,
         deepLink: draft.deep_link || ISKRA_TASK_KIND_META[taskKind]?.deepLink,
       })
       const count = Number(result?.count) || selectedRecipientIds.length
@@ -263,6 +273,10 @@ export function IskraDispatchModal({
               dueMode={dueMode}
               disabled={busy}
             />
+          </div>
+
+          <div className="iskra-dispatch__section">
+            <DispatchStagesEditor stages={stageTitles} onChange={setStageTitles} disabled={busy} />
           </div>
 
           <label className="iskra-dispatch__field">

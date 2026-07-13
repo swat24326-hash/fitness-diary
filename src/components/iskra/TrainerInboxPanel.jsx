@@ -7,10 +7,12 @@ import {
   fetchIskraDispatch,
   markIskraDispatchSeen,
   updateIskraDispatchStatus,
+  completeIskraDispatchStage,
 } from '../../lib/admin/iskraDispatchService.js'
 import { notifyTrainerInboxUpdated } from '../../lib/admin/trainerInboxEvents.js'
 import { taskKindLabel } from '../../lib/admin/iskraTaskKindsCore.js'
 import { DispatchTaskProgressBar } from './DispatchTaskProgressBar.jsx'
+import { DispatchTaskStagesList } from './DispatchTaskStagesList.jsx'
 
 /**
  * @param {{
@@ -25,6 +27,7 @@ export function TrainerInboxPanel({ open, onClose, clubId = '', onPendingChange 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [busyId, setBusyId] = useState('')
+  const [busyStageId, setBusyStageId] = useState('')
   const [declineId, setDeclineId] = useState('')
   const [declineReply, setDeclineReply] = useState('')
 
@@ -71,6 +74,20 @@ export function TrainerInboxPanel({ open, onClose, clubId = '', onPendingChange 
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, busyId, onClose])
+
+  const completeStage = async (dispatchId, stageId) => {
+    setBusyStageId(stageId)
+    setError('')
+    try {
+      await completeIskraDispatchStage({ dispatchId, stageId })
+      await reload()
+      notifyTrainerInboxUpdated()
+    } catch (e) {
+      setError(e?.message ? String(e.message) : 'Не удалось отметить этап')
+    } finally {
+      setBusyStageId('')
+    }
+  }
 
   const setStatus = async (id, status, recipientReply = '') => {
     setBusyId(id)
@@ -154,6 +171,16 @@ export function TrainerInboxPanel({ open, onClose, clubId = '', onPendingChange 
               <h3 className="iskra-inbox__card-title">{item.title}</h3>
               <p className="iskra-inbox__card-body">{item.body}</p>
               <DispatchTaskProgressBar progress={item.progress} />
+              <DispatchTaskStagesList
+                stages={item.stages}
+                busyStageId={busyStageId}
+                disabled={!!busyId}
+                onCompleteStage={
+                  ['seen', 'accepted'].includes(item.status)
+                    ? (stageId) => void completeStage(item.id, stageId)
+                    : undefined
+                }
+              />
               {item.due_label || item.recurrence_label ? (
                 <p className="iskra-inbox__card-due muted">
                   {item.due_label ? `Срок: ${item.due_label}` : 'Без срока'}

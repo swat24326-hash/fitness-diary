@@ -175,6 +175,7 @@ export function buildRecurringDispatchSpawnRow(row, nextDueAt, nowIso) {
     series_id: row.series_id,
     recurrence_interval: row.recurrence_interval,
     recurrence_unit: row.recurrence_unit,
+    stages_json: row.stages_json ?? [],
     updated_at: nowIso,
   }
 }

@@ -5,6 +5,12 @@
 import { resolveDispatchDueAt } from './iskraDispatchDueCore.js'
 import { formatRecurrenceLabel, normalizeRecurrenceInput } from './iskraDispatchRecurrenceCore.js'
 import {
+  buildDispatchStagesProgress,
+  formatDispatchStagesLabel,
+  normalizeDispatchStagesInput,
+  parseDispatchStages,
+} from './iskraDispatchStagesCore.js'
+import {
   formatDispatchDueLabel,
   isDispatchOverdue,
   resolveDeepLinkForTaskKind,
@@ -154,6 +160,12 @@ export function normalizeDispatchCreatePayload(raw) {
     return { ok: false, error: 'Для повторяющегося задания укажите срок (не «без срока»)' }
   }
 
+  const stagesJson = normalizeDispatchStagesInput(raw)
+  const emptyStage = stagesJson.find((s) => !String(s.title ?? '').trim())
+  if (emptyStage) {
+    return { ok: false, error: 'Заполните название каждого этапа или удалите пустой' }
+  }
+
   const deepLink = String(raw?.deep_link ?? '').trim() || resolveDeepLinkForTaskKind(taskKind)
 
   const reply = String(raw?.recipient_reply ?? '').trim()
@@ -191,6 +203,7 @@ export function normalizeDispatchCreatePayload(raw) {
       context_json: normalizeStaffTaskContextJson(raw?.context_json),
       recurrence_interval: recurrence.enabled ? recurrence.interval : null,
       recurrence_unit: recurrence.enabled ? recurrence.unit : null,
+      stages_json: stagesJson,
     },
   }
 }
@@ -304,11 +317,15 @@ export function formatDispatchForUi(row) {
     recurrence_unit: row.recurrence_unit ?? null,
     recurrence_label: formatRecurrenceLabel(row.recurrence_interval, row.recurrence_unit),
     is_recurring: Boolean(row.recurrence_interval && row.recurrence_unit),
+    stages: parseDispatchStages(row.stages_json),
+    stages_label: formatDispatchStagesLabel(row.stages_json),
+    stages_progress: buildDispatchStagesProgress(row.stages_json),
     progress: buildDispatchProgressForUi({
       status,
       created_at: row.created_at ?? null,
       due_at: dueAt,
       is_overdue: isDispatchOverdue(dueAt) && ISKRA_DISPATCH_ACTIVE_STATUSES.includes(status),
+      stages_json: row.stages_json,
     }),
   }
 }

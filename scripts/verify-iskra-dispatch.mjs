@@ -52,6 +52,14 @@ import {
   dispatchRecipientSendLabel,
   toggleDispatchRecipientId,
 } from '../src/lib/admin/iskraDispatchRecipientCore.js'
+import {
+  allDispatchStagesDone,
+  buildDispatchStagesProgress,
+  completeDispatchStage,
+  normalizeDispatchStagesInput,
+  parseDispatchStages,
+  resetDispatchStagesForSpawn,
+} from '../src/lib/admin/iskraDispatchStagesCore.js'
 
 let failed = 0
 
@@ -166,6 +174,46 @@ ok(seenActions.primary?.action === 'accepted' && !seenActions.deepLink, 'seen st
 
 const acceptedActions = buildDispatchInboxActions({ status: 'accepted', deep_link: '/trainer/clients' })
 ok(acceptedActions.primary?.action === 'done' && acceptedActions.deepLink, 'accepted step: done + link')
+
+const stagesInput = normalizeDispatchStagesInput({ stages: ['Шаг 1', 'Шаг 2'] })
+ok(stagesInput.length === 2 && stagesInput[0].id === 'st1' && !stagesInput[0].done, 'normalize stages input')
+
+const stageDone = completeDispatchStage(stagesInput, 'st1')
+ok(stageDone.ok && stageDone.stages[0].done && !stageDone.stages[1].done, 'complete one stage')
+
+const allDone = completeDispatchStage(stageDone.stages, 'st2')
+ok(allDispatchStagesDone(allDone.stages), 'all stages done')
+
+const stagesProgress = buildDispatchStagesProgress(allDone.stages)
+ok(stagesProgress?.label === 'Этапы: 2/2' && stagesProgress.tone === 'done', 'stages progress label')
+
+const stagesBlocked = buildDispatchInboxActions({
+  status: 'accepted',
+  stages: [{ id: 'st1', title: 'A', done: true, order: 0 }, { id: 'st2', title: 'B', done: false, order: 1 }],
+})
+ok(stagesBlocked.stagesMode && !stagesBlocked.primary, 'accepted with open stages blocks done')
+
+const stagesReady = buildDispatchInboxActions({
+  status: 'accepted',
+  stages: [{ id: 'st1', title: 'A', done: true, order: 0 }, { id: 'st2', title: 'B', done: true, order: 1 }],
+})
+ok(stagesReady.primary?.action === 'done' && stagesReady.primary?.label === 'Закрыть задание', 'all stages → close task')
+
+const withStagesUi = formatDispatchForUi({
+  id: 'd-st',
+  status: 'accepted',
+  created_at: '2026-07-10T10:00:00Z',
+  title: 'T',
+  body: 'B',
+  stages_json: stagesInput,
+})
+ok(withStagesUi.stages_label === 'Этапы: 0/2', 'formatDispatchForUi stages label')
+ok(withStagesUi.progress?.stages?.total === 2, 'formatDispatchForUi stages progress')
+
+const resetStages = resetDispatchStagesForSpawn(
+  parseDispatchStages([{ id: 'st1', title: 'A', done: true, done_at: '2026-07-10T10:00:00Z', order: 0 }]),
+)
+ok(resetStages[0].done === false && resetStages[0].done_at === null, 'reset stages for spawn')
 
 const picked = pickSpotlightDispatchTask([
   { status: 'accepted', priority: 'normal', due_at: '2026-08-01T12:00:00Z' },

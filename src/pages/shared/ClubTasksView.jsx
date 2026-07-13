@@ -274,6 +274,12 @@ export function ClubTasksView({ clubId, mode = 'admin', canDelete = mode === 'ad
                       <dt>Приоритет</dt>
                       <dd>{priorityLabelRu(item.priority)}</dd>
                     </div>
+                    {item.stages_label ? (
+                      <div>
+                        <dt>Этапы</dt>
+                        <dd>{item.stages_label}</dd>
+                      </div>
+                    ) : null}
                   </dl>
                   {item.recipient_reply ? (
                     <p className="admin-task-card__reply muted">Ответ: {item.recipient_reply}</p>

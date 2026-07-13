@@ -2414,6 +2414,63 @@
   font-size: 0.72rem;
 }
 
+.iskra-dispatch__stages {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.iskra-dispatch__stages-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.iskra-dispatch__stages-label {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.iskra-dispatch__stages-hint {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.iskra-dispatch__stages-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.iskra-dispatch__stages-item {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.iskra-dispatch__stages-num {
+  font-size: 0.68rem;
+  font-weight: 700;
+  opacity: 0.55;
+  text-align: center;
+}
+
+.iskra-dispatch__stages-input {
+  min-width: 0;
+}
+
+.iskra-dispatch__stages-meta {
+  margin: 0;
+  font-size: 0.68rem;
+}
+
 .iskra-inbox__list {
   padding: 0.65rem 0.85rem 0.85rem;
   overflow: auto;

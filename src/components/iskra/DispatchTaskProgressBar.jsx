@@ -6,7 +6,7 @@
 export function DispatchTaskProgressBar({ progress }) {
   if (!progress) return null
 
-  const { workflow, time } = progress
+  const { workflow, time, stages } = progress
   const workflowFill =
     workflow.tone === 'declined' || workflow.tone === 'dismissed' ? 'declined' : workflow.tone
   const workflowWidth = workflow.pct === 0 && workflow.tone === 'pending' ? 6 : workflow.pct
@@ -42,6 +42,28 @@ export function DispatchTaskProgressBar({ progress }) {
           <span className="dispatch-task-progress__caption">{workflow.label}</span>
         </div>
       </div>
+
+      {stages?.total ? (
+        <div className="dispatch-task-progress__row">
+          <span className="dispatch-task-progress__label">Этапы</span>
+          <div className="dispatch-task-progress__track-wrap">
+            <div
+              className="dispatch-task-progress__track"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={stages.pct}
+              aria-label={`Этапы: ${stages.label}`}
+            >
+              <div
+                className={`dispatch-task-progress__fill dispatch-task-progress__fill--stages dispatch-task-progress__fill--${stages.tone}`}
+                style={{ width: `${stages.pct || 6}%` }}
+              />
+            </div>
+            <span className="dispatch-task-progress__caption">{stages.label}</span>
+          </div>
+        </div>
+      ) : null}
 
       {time.pct != null ? (
         <div className="dispatch-task-progress__row">

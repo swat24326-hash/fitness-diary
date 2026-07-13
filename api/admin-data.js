@@ -92,7 +92,7 @@ async function handler(req, res) {
     }
     if (action === 'iskra-dispatch') {
       const op = String(body?.op ?? 'create').trim().toLowerCase()
-      if (op === 'update_status' || op === 'mark_seen') {
+      if (op === 'update_status' || op === 'mark_seen' || op === 'complete_stage') {
         const ctx = await requireAuthUser(req, res)
         if (!ctx) return
         return handleIskraDispatchPost(ctx, res, body)

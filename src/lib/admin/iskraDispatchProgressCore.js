@@ -1,4 +1,5 @@
 import { formatDispatchDueLabel } from './iskraTaskKindsCore.js'
+import { buildDispatchStagesProgress } from './iskraDispatchStagesCore.js'
 
 const WORKFLOW_STEPS = /** @type {const} */ ([
   { id: 'pending', label: 'Новое', pct: 0 },
@@ -80,12 +81,13 @@ export function buildDispatchTimeProgress(createdAtIso, dueAtIso, now = new Date
 }
 
 /**
- * @param {{ status?: string, created_at?: string | null, due_at?: string | null, is_overdue?: boolean }} row
+ * @param {{ status?: string, created_at?: string | null, due_at?: string | null, is_overdue?: boolean, stages_json?: unknown }} row
  * @param {Date} [now]
  */
 export function buildDispatchProgressForUi(row, now = new Date()) {
   const workflow = buildDispatchWorkflowProgress(row?.status)
   const time = buildDispatchTimeProgress(row?.created_at, row?.due_at, now)
+  const stages = buildDispatchStagesProgress(row?.stages_json)
   if (row?.is_overdue && time.pct != null) {
     time.tone = 'overdue'
     time.label = 'Просрочено'
@@ -93,15 +95,19 @@ export function buildDispatchProgressForUi(row, now = new Date()) {
   }
 
   let combinedPct = workflow.pct
-  if (time.pct != null) {
-    combinedPct = Math.round((workflow.pct + time.pct) / 2)
+  const parts = [workflow.pct]
+  if (time.pct != null) parts.push(time.pct)
+  if (stages?.pct != null) parts.push(stages.pct)
+  if (parts.length > 1) {
+    combinedPct = Math.round(parts.reduce((a, b) => a + b, 0) / parts.length)
   }
 
   let combinedTone = 'ok'
   if (workflow.tone === 'declined' || workflow.tone === 'dismissed') combinedTone = workflow.tone
   else if (time.tone === 'overdue' || row?.is_overdue) combinedTone = 'overdue'
   else if (time.tone === 'warn') combinedTone = 'warn'
-  else if (workflow.tone === 'done') combinedTone = 'done'
+  else if (workflow.tone === 'done' || stages?.tone === 'done') combinedTone = 'done'
+  else if (stages?.tone === 'active') combinedTone = 'active'
 
-  return { workflow, time, combinedPct, combinedTone }
+  return { workflow, time, stages, combinedPct, combinedTone }
 }
