@@ -2,6 +2,7 @@ import { sendJson } from './adminSupabase.js'
 import {
   normalizePushSubscribePayload,
   normalizePushUnsubscribePayload,
+  normalizeVapidPublicKey,
 } from '../../src/lib/push/trainerPushCore.js'
 import { isWebPushConfigured, sendPushToUser } from './webPushCore.js'
 
@@ -125,6 +126,8 @@ export async function handlePushSubscriptionGet(_ctx, res) {
     ok: true,
     supported: true,
     configured: isWebPushConfigured(),
-    public_key: process.env.VAPID_PUBLIC_KEY || process.env.VITE_VAPID_PUBLIC_KEY || '',
+    public_key: normalizeVapidPublicKey(
+      process.env.VAPID_PUBLIC_KEY || process.env.VITE_VAPID_PUBLIC_KEY || '',
+    ),
   })
 }

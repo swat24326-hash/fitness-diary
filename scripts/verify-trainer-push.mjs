@@ -3,8 +3,11 @@
  */
 import {
   buildDispatchPushPayload,
+  formatPushSubscribeError,
+  isValidVapidPublicKey,
   normalizePushSubscribePayload,
   normalizePushUnsubscribePayload,
+  normalizeVapidPublicKey,
 } from '../src/lib/push/trainerPushCore.js'
 import { sortActiveDispatchTasks } from '../src/lib/admin/iskraDispatchInboxActionsCore.js'
 
@@ -37,6 +40,17 @@ const sorted = sortActiveDispatchTasks([
   { status: 'pending', priority: 'normal' },
 ])
 ok(sorted[0]?.status === 'pending', 'sort active for swipe')
+
+const sampleVapid =
+  'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U'
+ok(isValidVapidPublicKey(sampleVapid), 'valid vapid sample')
+ok(!isValidVapidPublicKey('short'), 'reject short vapid')
+ok(normalizeVapidPublicKey('  "abc"  ') === 'abc', 'normalize vapid trim')
+
+const edgeErr = formatPushSubscribeError(new Error('Registration failed - push service error'), {
+  isEdge: true,
+})
+ok(edgeErr.includes('Edge') && edgeErr.includes('Windows'), 'edge push error ru')
 
 if (failed) process.exit(1)
 console.log('verify-trainer-push: all ok')

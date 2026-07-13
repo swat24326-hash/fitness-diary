@@ -52,6 +52,15 @@ npx vercel --prod --yes
 - iOS без «На экран Домой».
 - Тренер не нажал «Включить» в профиле.
 
+## 6. Microsoft Edge (ошибка «push service error»)
+
+1. **Windows:** Параметры → Система → Уведомления → **Microsoft Edge** — включено.
+2. **Edge:** `edge://settings/content/notifications` — сайт `fitness-diary-bice.vercel.app` в «Разрешить».
+3. Закройте **InPrivate** и корпоративный VPN (блокируют WNS).
+4. Обновите страницу (Ctrl+F5) и нажмите **Включить** снова.
+5. Если не помогло — проверьте VAPID в Vercel (`npx web-push generate-vapid-keys`, redeploy).
+6. Временный обход: **Chrome** на том же ПК — push там обычно стабильнее.
+
 ## Файлы
 
 | Слой | Путь |

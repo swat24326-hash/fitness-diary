@@ -27,6 +27,68 @@ export function urlBase64ToUint8Array(base64String) {
 }
 
 /**
+ * @param {string} raw
+ */
+export function normalizeVapidPublicKey(raw) {
+  return String(raw ?? '')
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    .replace(/\s+/g, '')
+}
+
+/**
+ * VAPID public key = 65 байт (0x04 + координаты P-256).
+ * @param {string} raw
+ */
+export function isValidVapidPublicKey(raw) {
+  const key = normalizeVapidPublicKey(raw)
+  if (!key || key.length < 80) return false
+  try {
+    const bytes = urlBase64ToUint8Array(key)
+    return bytes.length === 65 && bytes[0] === 0x04
+  } catch {
+    return false
+  }
+}
+
+/**
+ * @param {unknown} err
+ * @param {{ isEdge?: boolean }} [opts]
+ */
+export function formatPushSubscribeError(err, opts = {}) {
+  const raw = String(err?.message ?? err ?? '').trim()
+  const lower = raw.toLowerCase()
+  const isEdge =
+    opts.isEdge === true ||
+    (typeof navigator !== 'undefined' && /Edg\//.test(String(navigator.userAgent ?? '')))
+
+  if (!raw) return 'Не удалось включить уведомления'
+
+  if (lower.includes('push service error') || lower.includes('registration failed')) {
+    if (isEdge) {
+      return [
+        'Edge не смог подключиться к службе уведомлений Windows.',
+        'Проверьте: Windows → Уведомления → Microsoft Edge включён;',
+        'в Edge для сайта разрешены уведомления;',
+        'закройте режим InPrivate и VPN;',
+        'нажмите «Включить» ещё раз (подписка сбросится автоматически).',
+      ].join(' ')
+    }
+    return 'Браузер не подключился к push-службе. Разрешите уведомления для сайта и попробуйте снова.'
+  }
+
+  if (lower.includes('not allowed') || lower.includes('denied') || lower.includes('permission')) {
+    return 'Разрешите уведомления в настройках браузера для этого сайта.'
+  }
+
+  if (lower.includes('invalid key') || lower.includes('applicationserverkey')) {
+    return 'Неверный ключ push на сервере. Администратору: проверить VAPID_PUBLIC_KEY в Vercel.'
+  }
+
+  return raw
+}
+
+/**
  * @param {PushSubscription | null | undefined} sub
  */
 export function serializePushSubscription(sub) {

@@ -3,8 +3,11 @@ import { getAccessTokenForAdminApi } from '../lib/admin/adminApiClient.js'
 import {
   isTrainerPushSupported,
   serializePushSubscription,
-  urlBase64ToUint8Array,
 } from '../lib/push/trainerPushCore.js'
+import {
+  formatPushSubscribeError,
+  subscribePushManager,
+} from '../lib/push/trainerPushSubscribe.js'
 import {
   removeTrainerPushSubscription,
   saveTrainerPushSubscription,
@@ -82,18 +85,11 @@ export function useTrainerPush(opts = {}) {
       const perm = await Notification.requestPermission()
       setPermission(perm)
       if (perm !== 'granted') {
-        setError('Разрешите уведомления в настройках планшета')
+        setError('Разрешите уведомления в настройках браузера для этого сайта')
         return false
       }
 
-      const reg = await navigator.serviceWorker.ready
-      let sub = await reg.pushManager.getSubscription()
-      if (!sub) {
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicKey),
-        })
-      }
+      const sub = await subscribePushManager(publicKey)
 
       const serialized = serializePushSubscription(sub)
       if (!serialized.ok) throw new Error(serialized.error)
@@ -110,7 +106,7 @@ export function useTrainerPush(opts = {}) {
       localStorage.setItem(promptDismissKey, '1')
       return true
     } catch (e) {
-      setError(e?.message ? String(e.message) : 'Не удалось включить уведомления')
+      setError(formatPushSubscribeError(e))
       return false
     } finally {
       setBusy(false)
