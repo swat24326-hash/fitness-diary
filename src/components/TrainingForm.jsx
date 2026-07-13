@@ -657,7 +657,7 @@ export function TrainingForm({
                     </>
                   )}
                   <button type="button" className="btn btn-ghost" style={{ marginBottom: 2, minHeight: 42 }} onClick={() => removeSet(exIdx, setIdx)} disabled={ex.sets.length < 2} aria-label="Удалить подход">
-                    <X size={18} />
+                    <Trash2 size={18} aria-hidden />
                   </button>
                 </div>
                 )

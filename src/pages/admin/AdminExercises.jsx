@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { FileUp, Pencil, RefreshCw } from 'lucide-react'
+import { FileUp, Pencil, RefreshCw, Trash2 } from 'lucide-react'
 import { CloseButton } from '../../components/CloseButton'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { listExercises, pullExercisesFromSupabase } from '../../lib/dataAccess'
@@ -324,7 +324,7 @@ export function AdminExercises() {
                         title="Удалить"
                         onClick={() => setConfirmDelete({ id: ex.id, name: ex.name })}
                       >
-                        <X size={16} aria-hidden />
+                        <Trash2 size={16} aria-hidden />
                       </button>
                     </div>
                   </td>
