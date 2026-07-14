@@ -119,6 +119,62 @@ export function buildPlanMatrixCellDailySeries(monthRows, year, month, cellKey) 
 }
 
 /**
+ * Сопоставимый индекс по дням: 100% = дневная норма (план ÷ дней месяца или равномерный факт).
+ * @param {Array<{ date: string, count: number | null, amount: number | null, hasReport: boolean }>} dailySeries
+ * @param {{
+ *   daysInMonth?: number,
+ *   plan?: { count?: number, amount?: number, avg_check?: number },
+ * }} opts
+ */
+export function buildSegmentDailyComparableSeries(dailySeries, opts = {}) {
+  const daysInMonth = Number(opts.daysInMonth) || dailySeries.length || 30
+  const planCount = Math.trunc(Number(opts.plan?.count) || 0)
+  const planAmount = roundPlanRub(Number(opts.plan?.amount) || 0)
+  const planAvg = roundPlanRub(Number(opts.plan?.avg_check) || 0)
+
+  const reported = (dailySeries ?? []).filter((d) => d.hasReport)
+  const monthCount = reported.reduce((s, d) => s + (Number(d.count) || 0), 0)
+  const monthAmount = roundPlanRub(reported.reduce((s, d) => s + (Number(d.amount) || 0), 0))
+
+  const normCount =
+    planCount > 0 ? planCount / daysInMonth : monthCount > 0 ? monthCount / daysInMonth : 0
+  const normAmount =
+    planAmount > 0 ? planAmount / daysInMonth : monthAmount > 0 ? monthAmount / daysInMonth : 0
+  const normAvg = planAvg > 0 ? planAvg : 0
+  const normBasis = planCount > 0 || planAmount > 0 || planAvg > 0 ? 'plan' : 'flat_month'
+
+  return (dailySeries ?? []).map((d) => {
+    if (!d.hasReport) {
+      return {
+        date: d.date,
+        hasReport: false,
+        count: null,
+        amount: null,
+        avg: null,
+        index_count: null,
+        index_amount: null,
+        index_avg: null,
+        norm_basis: normBasis,
+      }
+    }
+    const count = Math.trunc(Number(d.count) || 0)
+    const amount = roundPlanRub(Number(d.amount) || 0)
+    const avg = count > 0 ? roundPlanRub(amount / count) : 0
+    return {
+      date: d.date,
+      hasReport: true,
+      count,
+      amount,
+      avg,
+      index_count: normCount > 0 ? planProgressPercent(count, normCount) : null,
+      index_amount: normAmount > 0 ? planProgressPercent(amount, normAmount) : null,
+      index_avg: normAvg > 0 ? planProgressPercent(avg, normAvg) : null,
+      norm_basis: normBasis,
+    }
+  })
+}
+
+/**
  * @param {{
  *   plan?: { count?: number, avg_check?: number, amount?: number },
  *   fact?: { count?: number, avg_check?: number | null, amount?: number },

@@ -1,6 +1,7 @@
 import {
   buildPlanMatrixComparison,
   buildPlanMatrixCellDailySeries,
+  buildSegmentDailyComparableSeries,
   resolvePlanMatrixCellStatus,
   forecastPlanMatrixAmount,
   forecastPlanMatrixCount,
@@ -116,5 +117,15 @@ ok(dailyPzNk.length === 31, 'daily series covers full july')
 ok(dailyPzNk[0].count === 2 && dailyPzNk[0].amount === 10000 && dailyPzNk[0].hasReport, 'day 1 segment values')
 ok(!dailyPzNk[1].hasReport, 'day 2 without report')
 ok(dailyPzNk[4].count === 3 && dailyPzNk[4].amount === 15000, 'day 5 segment values')
+
+const comparable = buildSegmentDailyComparableSeries(dailyPzNk, {
+  daysInMonth: 31,
+  plan: { count: 31, amount: 310000, avg_check: 10000 },
+})
+const day1 = comparable[0]
+ok(day1.index_count === 200 && day1.index_amount === 100, 'day 1 pace vs daily plan norm')
+ok(day1.norm_basis === 'plan', 'uses plan as norm basis')
+const day5 = comparable[4]
+ok(day5.index_count > 100, 'strong day above daily plan norm')
 
 process.exit(failed > 0 ? 1 : 0)

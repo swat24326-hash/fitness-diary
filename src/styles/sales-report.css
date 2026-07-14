@@ -3559,6 +3559,166 @@
   line-height: 1.4;
 }
 
+.sales-report__segment-schedule-view-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.sales-report__segment-schedule-view-btn {
+  padding: 0.35rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: rgba(2, 6, 23, 0.4);
+  color: rgba(226, 232, 240, 0.72);
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sales-report__segment-schedule-view-btn--on {
+  border-color: rgba(250, 204, 21, 0.45);
+  background: rgba(113, 63, 18, 0.25);
+  color: #fde68a;
+}
+
+.sales-report__segment-schedule-charts--absolute-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.65rem;
+}
+
+.sales-segment-pace-chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.sales-segment-pace-chart__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.sales-segment-pace-chart__legend-line {
+  width: 1.1rem;
+  height: 3px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+.sales-segment-pace-chart__line--amount {
+  color: #34d399;
+}
+
+.sales-segment-pace-chart__line--count {
+  color: #60a5fa;
+}
+
+.sales-segment-pace-chart__line--avg {
+  color: #c4b5fd;
+}
+
+.sales-segment-pace-chart__legend-note {
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+
+.sales-segment-pace-chart__scroll {
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0.35rem 0.25rem;
+}
+
+.sales-segment-pace-chart__svg {
+  display: block;
+}
+
+.sales-segment-pace-chart__grid {
+  stroke: rgba(148, 163, 184, 0.15);
+  stroke-width: 1;
+}
+
+.sales-segment-pace-chart__grid--norm {
+  stroke: rgba(250, 204, 21, 0.45);
+  stroke-dasharray: 4 3;
+}
+
+.sales-segment-pace-chart__ylabel,
+.sales-segment-pace-chart__xlabel {
+  fill: rgba(148, 163, 184, 0.75);
+  font-size: 9px;
+  font-family: inherit;
+}
+
+.sales-segment-pace-chart__xlabel.is-active {
+  fill: #cbd5e1;
+  font-weight: 700;
+}
+
+.sales-segment-pace-chart__norm-tag {
+  fill: rgba(253, 230, 138, 0.85);
+  font-size: 8px;
+  font-family: inherit;
+}
+
+.sales-segment-pace-chart__dot {
+  cursor: pointer;
+}
+
+.sales-segment-pace-chart__hit {
+  fill: transparent;
+  cursor: pointer;
+}
+
+.sales-segment-pace-chart__summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-top: 0.45rem;
+}
+
+.sales-segment-pace-chart__summary-line {
+  margin: 0;
+  font-size: 0.74rem;
+}
+
+.sales-segment-pace-chart__summary-line strong {
+  color: #e2e8f0;
+}
+
+.sales-segment-pace-chart__badge {
+  display: inline-block;
+  min-width: 2.4rem;
+  margin-right: 0.25rem;
+  padding: 0.08rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.sales-segment-pace-chart__badge.sales-segment-pace-chart__line--amount {
+  background: rgba(52, 211, 153, 0.18);
+  color: #6ee7b7;
+}
+
+.sales-segment-pace-chart__badge.sales-segment-pace-chart__line--count {
+  background: rgba(96, 165, 250, 0.18);
+  color: #93c5fd;
+}
+
+.sales-segment-pace-chart__badge.sales-segment-pace-chart__line--avg {
+  background: rgba(196, 181, 253, 0.18);
+  color: #ddd6fe;
+}
+
 .sales-report__segment-schedule-charts {
   display: grid;
   grid-template-columns: 1fr;
