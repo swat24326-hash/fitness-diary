@@ -47,6 +47,7 @@ run('membership type stats', 'node', ['scripts/verify-membership-type-stats.mjs'
 run('membership types pull', 'node', ['scripts/verify-membership-types-pull.mjs'])
 run('membership types merge', 'node', ['scripts/verify-membership-types-merge.mjs'])
 run('club client period', 'node', ['scripts/verify-club-client-period.mjs'])
+run('admin clients archive browse', 'node', ['scripts/verify-admin-clients-archive.mjs'])
 run('club monthly year', 'node', ['scripts/verify-club-monthly-year.mjs'])
 run('club sales profit', 'node', ['scripts/verify-club-sales-profit.mjs'])
 run('club finance forecast', 'node', ['scripts/verify-club-finance-forecast.mjs'])

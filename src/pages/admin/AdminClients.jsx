@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
-import { AlertTriangle, Archive, Clock, RefreshCw, RotateCcw, Search, Trash2, UserCircle, UserCog, UserSearch } from 'lucide-react'
+import { AlertTriangle, Archive, Clock, RefreshCw, RotateCcw, Search, Trash2, UserCheck, UserCircle, UserCog, UserSearch, Users, UserX } from 'lucide-react'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import {
   deleteClientAndAllData,
@@ -10,6 +10,7 @@ import {
   listTrainerSummariesForAdmin,
 } from '../../lib/dataAccess'
 import { isAdminClientQuickFilter } from '../../lib/admin/adminClientQuickFilters'
+import { buildAdminClientsTodaySnapshot, shouldShowAdminClientsList } from '../../lib/admin/adminClientsBrowseCore'
 import { loadAdminClubMembershipsMap, loadAdminClubTrainingsForClientIds } from '../../lib/admin/adminClubWorkspaceCache'
 import { pullAdminClientsFromCloud } from '../../lib/admin/adminClientsListService'
 import { useDebouncedStorageReload, shouldReloadAdminClientsPage } from '../../lib/useDebouncedStorageReload'
@@ -18,7 +19,7 @@ import { isSupabaseConfigured, supabase } from '../../lib/supabase'
 import { USERS_TRAINER_ROLES } from '../../lib/userRoleConstants'
 import { saveLocalWithSync } from '../../lib/syncService'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
-import { countedUsedTrainingsOnMembership, membershipHasRemaining, membershipUsageLabel, pickUsableMembershipForDate } from '../../lib/membershipRules'
+import { countedUsedTrainingsOnMembership, formatInactiveClientListLabel, membershipHasRemaining, membershipUsageLabel, pickUsableMembershipForDate } from '../../lib/membershipRules'
 
 function pickExpiredMembershipWithRemaining(list, todayIso) {
   const d = String(todayIso ?? '')
@@ -87,9 +88,10 @@ export function AdminClients() {
   const [query, setQuery] = useState('')
   const [trainerQuery, setTrainerQuery] = useState('')
   const [quickFilter, setQuickFilter] = useState(() =>
-    isAdminClientQuickFilter(filterFromUrl) ? filterFromUrl : 'all',
+    isAdminClientQuickFilter(filterFromUrl) ? filterFromUrl : 'none',
   )
   const [clientsTab, setClientsTab] = useState('active') // active | archive
+  const [archiveBusy, setArchiveBusy] = useState(false)
   const [source, setSource] = useState('local')
   const [fallback, setFallback] = useState(null)
   const [cloudNeedsClub, setCloudNeedsClub] = useState(false)
@@ -155,19 +157,28 @@ export function AdminClients() {
   useEffect(() => {
     const f = searchParams.get('filter')
     if (isAdminClientQuickFilter(f)) setQuickFilter(f)
-    else if (!f) setQuickFilter('all')
+    else if (!f) setQuickFilter('none')
   }, [searchParams])
 
-  // Архив с сервера тянем только когда открыли вкладку «Архив».
+  // Доп. pull архива при вкладке (основной снимок уже в active+archive merge при загрузке).
   useEffect(() => {
     if (clientsTab !== 'archive') return
     if (!club?.trim()) return
     if (!isSupabaseConfigured() || !navigator.onLine) return
+    let cancelled = false
+    setArchiveBusy(true)
     void (async () => {
-      await pullAdminClientsFromCloud(club, { mode: 'archive' })
-      await reload({ silent: true })
+      try {
+        await pullAdminClientsFromCloud(club, { mode: 'archive' })
+        if (!cancelled) await reload({ silent: true })
+      } finally {
+        if (!cancelled) setArchiveBusy(false)
+      }
     })()
-  }, [clientsTab, club, clients, reload])
+    return () => {
+      cancelled = true
+    }
+  }, [clientsTab, club, reload])
 
   const refreshFromCloud = useCallback(async () => {
     if (!club?.trim()) {
@@ -202,6 +213,31 @@ export function AdminClients() {
 
   const today = todayLocalIso()
 
+  const allMemberships = useMemo(() => {
+    const out = []
+    for (const list of Object.values(memByClient)) out.push(...(list ?? []))
+    return out
+  }, [memByClient])
+
+  const todaySnapshot = useMemo(
+    () => buildAdminClientsTodaySnapshot(clients, allMemberships, today),
+    [clients, allMemberships, today],
+  )
+
+  const showClientList = useMemo(
+    () =>
+      shouldShowAdminClientsList({
+        query,
+        trainerQuery,
+        browseMode: quickFilter,
+        clientsTab,
+      }),
+    [query, trainerQuery, quickFilter, clientsTab],
+  )
+
+  const operationalClients = useMemo(() => clients.filter((c) => !c?.archived_at), [clients])
+  const archivedCount = useMemo(() => clients.filter((c) => Boolean(c?.archived_at)).length, [clients])
+
   const filteredClients = useMemo(() => {
     const q = query.trim().toLowerCase()
     const tq = trainerQuery.trim().toLowerCase()
@@ -223,12 +259,18 @@ export function AdminClients() {
       })
     }
 
-    if (quickFilter === 'all') return base
+    if (quickFilter === 'inactive') {
+      return base.filter((c) => todaySnapshot.inactiveIds.has(c.id))
+    }
+    if (quickFilter === 'active_today') {
+      return base.filter((c) => todaySnapshot.activeTodayIds.has(c.id))
+    }
+    if (quickFilter === 'all' || quickFilter === 'none') return base
     return base.filter((c) => {
       const sig = membershipSignal(memByClient[c.id] ?? [], today)
       return sig.key === quickFilter
     })
-  }, [clients, clientsTab, query, trainerQuery, quickFilter, memByClient, today, trainerNameById])
+  }, [clients, clientsTab, query, trainerQuery, quickFilter, memByClient, today, trainerNameById, todaySnapshot])
 
   const totalPages = Math.max(1, Math.ceil(filteredClients.length / ADMIN_CLIENTS_PAGE_SIZE))
 
@@ -276,7 +318,7 @@ export function AdminClients() {
   }, [club, pagedClients])
 
   const filterCounts = useMemo(() => {
-    const tabBase = clientsTab === 'archive' ? clients.filter((c) => Boolean(c?.archived_at)) : clients.filter((c) => !c?.archived_at)
+    const tabBase = clientsTab === 'archive' ? clients.filter((c) => Boolean(c?.archived_at)) : operationalClients
     let expiring = 0
     let expired_remaining = 0
     for (const c of tabBase) {
@@ -284,18 +326,35 @@ export function AdminClients() {
       if (sig.key === 'expiring') expiring++
       if (sig.key === 'expired_remaining') expired_remaining++
     }
-    return { all: tabBase.length, expiring, expired_remaining }
-  }, [clients, clientsTab, memByClient, today])
+    return {
+      all: todaySnapshot.totalOperational,
+      inactive: todaySnapshot.inactiveCount,
+      active_today: todaySnapshot.activeTodayCount,
+      expiring,
+      expired_remaining,
+    }
+  }, [clients, clientsTab, memByClient, today, operationalClients, todaySnapshot])
+
+  const browseChipClass = (id) => {
+    const hot = id === 'inactive' && filterCounts.inactive > 0
+    return [
+      'admin-clients-browse-chip',
+      quickFilter === id ? 'admin-clients-browse-chip--active' : '',
+      hot ? 'admin-clients-browse-chip--hot' : '',
+    ]
+      .filter(Boolean)
+      .join(' ')
+  }
 
   const filterBtnClass = (id) => `btn ${quickFilter === id ? 'btn-primary' : 'btn-ghost'} btn-icon-square`
 
   const applyFilter = (id) => {
-    const next = quickFilter === id ? 'all' : id
+    const next = quickFilter === id ? 'none' : id
     setQuickFilter(next)
     setSearchParams(
       (prev) => {
         const p = new URLSearchParams(prev)
-        if (next === 'all') p.delete('filter')
+        if (next === 'none') p.delete('filter')
         else p.set('filter', next)
         return p
       },
@@ -485,6 +544,44 @@ export function AdminClients() {
             </button>
           </div>
         </div>
+        <ul className="admin-clients-browse-grid" aria-label="Быстрый выбор списка">
+          <li>
+            <button type="button" className={browseChipClass('all')} onClick={() => applyFilter('all')}>
+              <span className="admin-clients-browse-chip__icon" aria-hidden>
+                <Users size={18} />
+              </span>
+              <span className="admin-clients-browse-chip__count">{filterCounts.all}</span>
+              <span className="admin-clients-browse-chip__label">Все клиенты</span>
+              <span className="admin-clients-browse-chip__hint muted">без архива</span>
+            </button>
+          </li>
+          <li>
+            <button type="button" className={browseChipClass('inactive')} onClick={() => applyFilter('inactive')}>
+              <span className="admin-clients-browse-chip__icon" aria-hidden>
+                <UserX size={18} />
+              </span>
+              <span className="admin-clients-browse-chip__count">{filterCounts.inactive}</span>
+              <span className="admin-clients-browse-chip__label">Не активные</span>
+              <span className="admin-clients-browse-chip__hint muted">на сегодня</span>
+            </button>
+          </li>
+          <li>
+            <button type="button" className={browseChipClass('active_today')} onClick={() => applyFilter('active_today')}>
+              <span className="admin-clients-browse-chip__icon" aria-hidden>
+                <UserCheck size={18} />
+              </span>
+              <span className="admin-clients-browse-chip__count">{filterCounts.active_today}</span>
+              <span className="admin-clients-browse-chip__label">С абонементом</span>
+              <span className="admin-clients-browse-chip__hint muted">на сегодня</span>
+            </button>
+          </li>
+        </ul>
+        {!showClientList ? (
+          <p className="admin-clients-browse-hint muted" role="status">
+            Список целиком не показываем — найдите клиента по имени, телефону или карте (от 2 символов), выберите кнопку выше
+            или откройте вкладку «Архив».
+          </p>
+        ) : null}
       </section>
 
       <section id="clients" className="card">
@@ -507,12 +604,17 @@ export function AdminClients() {
         </div>
         <div className="tabs" role="tablist" style={{ marginTop: 10 }}>
           <button type="button" className="tab" aria-selected={clientsTab === 'active'} onClick={() => setClientsTab('active')}>
-            Активные ({clients.filter((c) => !c?.archived_at).length})
+            Активные ({operationalClients.length})
           </button>
           <button type="button" className="tab" aria-selected={clientsTab === 'archive'} onClick={() => setClientsTab('archive')}>
-            Архив ({clients.filter((c) => Boolean(c?.archived_at)).length})
+            Архив ({archivedCount})
           </button>
         </div>
+        {archiveBusy && clientsTab === 'archive' ? (
+          <p className="muted admin-inline-note" role="status">
+            Загрузка архива из облака…
+          </p>
+        ) : null}
         {refreshMsg && (
           <p className="sync-feedback sync-feedback--ok" style={{ margin: '0 0 12px' }}>
             {refreshMsg}
@@ -545,13 +647,19 @@ export function AdminClients() {
           </p>
         ) : null}
 
-        {!cloudNeedsClub && filteredClients.length === 0 ? (
+        {!cloudNeedsClub && !showClientList ? (
+          <p className="muted" style={{ margin: 0 }}>
+            Выберите фильтр или введите поиск — тогда появится список карточек.
+          </p>
+        ) : null}
+
+        {!cloudNeedsClub && showClientList && filteredClients.length === 0 ? (
           <p className="muted" style={{ margin: 0 }}>
             {clients.length === 0 ? 'Нет клиентов по выбранным условиям.' : 'Никто не подходит под фильтр.'}
           </p>
         ) : null}
 
-        {!cloudNeedsClub && filteredClients.length > 0 ? (
+        {!cloudNeedsClub && showClientList && filteredClients.length > 0 ? (
           <ul className="list">
             {pagedClients.map((c) => {
               const mlist = memByClient[c.id] ?? []
@@ -560,6 +668,9 @@ export function AdminClients() {
               const sig = membershipSignal(mlist, today)
               const expiredLeft = active ? null : pickExpiredMembershipWithRemaining(mlist, today)
               const last = lastTrainingDateFromMap(lastTrainingByClient, c.id)
+              const inactiveRow = todaySnapshot.inactiveDetailById.get(c.id)
+              const inactiveLabel =
+                quickFilter === 'inactive' && inactiveRow ? formatInactiveClientListLabel(inactiveRow) : ''
               return (
                 <li key={c.id} className="list-item td-client-item">
                   <div className="row td-client-row">
@@ -573,6 +684,11 @@ export function AdminClients() {
                           <span style={{ fontWeight: 600 }}>Тренер: </span>
                           {trainerLabel(c.trainer_id)}
                         </div>
+                        {inactiveLabel ? (
+                          <div className="muted td-muted-13" style={{ marginTop: 4, color: '#fecaca' }}>
+                            {inactiveLabel}
+                          </div>
+                        ) : null}
                       </div>
                     </div>
                     <div className="row td-client-actions" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
@@ -674,7 +790,7 @@ export function AdminClients() {
           </ul>
         ) : null}
 
-        {!cloudNeedsClub && filteredClients.length > ADMIN_CLIENTS_PAGE_SIZE ? (
+        {!cloudNeedsClub && showClientList && filteredClients.length > ADMIN_CLIENTS_PAGE_SIZE ? (
           <div className="row" style={{ marginTop: 12, justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
             <span className="muted" style={{ fontSize: 13 }}>
               {pageTrainingsBusy ? 'Загрузка тренировок страницы…' : null}

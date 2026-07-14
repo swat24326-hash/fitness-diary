@@ -114,6 +114,41 @@ async function mergeMembershipsIntoCache(rows) {
   }
 }
 
+/**
+ * Активные + архивные с сервера в один снимок — иначе reconcile после active-pull
+ * удаляет клиентов, которых тренер уже убрал в архив (локально archived_at ещё null).
+ */
+async function mergeActiveAndArchiveClientsFromApi(clubId) {
+  const cid = String(clubId ?? '').trim()
+  if (!cid) return null
+
+  const [activeVia, archiveVia] = await Promise.all([
+    fetchClientsForClubViaAdminApi(cid, { mode: 'active' }),
+    fetchClientsForClubViaAdminApi(cid, { mode: 'archive' }),
+  ])
+  if (!activeVia && !archiveVia) return null
+
+  const activeClients = activeVia?.clients ?? []
+  const archiveClients = archiveVia?.clients ?? []
+
+  await mergeClientsIntoCache(activeClients)
+  await mergeClientsIntoCache(archiveClients)
+
+  const combined = [...activeClients, ...archiveClients]
+  const pruned = await reconcileAdminClubCache(cid, combined, { preserveArchived: true })
+
+  return {
+    activeClients,
+    archiveClients,
+    combined,
+    pruned,
+    activeCount: activeClients.length,
+    archiveCount: archiveClients.length,
+    truncated: Boolean(activeVia?.truncated || archiveVia?.truncated),
+    source: 'admin_api',
+  }
+}
+
 /** Один раз после пакета merge — иначе админка перезагружается 3–4 раза подряд. */
 function notifyAdminClientsCacheUpdated() {
   notifyLocalDataChanged({ reason: 'admin-clients-cache' })
@@ -124,6 +159,31 @@ export async function pullAdminClientsFromCloud(clubId, opts = {}) {
   const cid = String(clubId ?? '').trim()
   if (!cid || !isSupabaseConfigured()) return { ok: false, reason: 'no_club' }
   const mode = String(opts?.mode ?? 'active') // active | archive | all
+
+  if (mode === 'active') {
+    const merged = await mergeActiveAndArchiveClientsFromApi(cid)
+    if (merged) {
+      try {
+        const viaMem = await fetchMembershipsForClubViaAdminApi(cid)
+        if (viaMem?.memberships?.length) {
+          await mergeMembershipsIntoCache(viaMem.memberships)
+        }
+      } catch (memErr) {
+        console.warn('[admin] list-memberships', memErr)
+      }
+      notifyAdminClientsCacheUpdated()
+      const { clients } = await listAdminClientsFromLocalCache(cid)
+      return {
+        ok: true,
+        count: merged.activeCount,
+        archiveCount: merged.archiveCount,
+        source: 'admin_api',
+        clients,
+        pruned_clients: merged.pruned.pruned_clients,
+        pruned_trainings: merged.pruned.pruned_trainings,
+      }
+    }
+  }
 
   const viaApi = await fetchClientsForClubViaAdminApi(cid, { mode })
   if (viaApi) {
@@ -205,10 +265,8 @@ export async function listAdminClientsForClub(p) {
 
   try {
     try {
-      const viaApi = await fetchClientsForClubViaAdminApi(clubId, { mode: 'active' })
-      if (viaApi) {
-        await mergeClientsIntoCache(viaApi.clients)
-        await reconcileAdminClubCache(clubId, viaApi.clients, { preserveArchived: true })
+      const merged = await mergeActiveAndArchiveClientsFromApi(clubId)
+      if (merged) {
         try {
           const viaMem = await fetchMembershipsForClubViaAdminApi(clubId)
           if (viaMem?.memberships?.length) {
@@ -222,7 +280,7 @@ export async function listAdminClientsForClub(p) {
           clients,
           source: 'admin_api',
           fallbackReason: null,
-          truncated: truncated || viaApi.truncated === true,
+          truncated: truncated || merged.truncated === true,
         }
       }
     } catch (apiErr) {

@@ -1,4 +1,4 @@
-export const ADMIN_CLIENT_QUICK_FILTERS = ['expiring', 'expired_remaining']
+export const ADMIN_CLIENT_QUICK_FILTERS = ['all', 'inactive', 'active_today', 'expiring', 'expired_remaining']
 
 /** @param {string} filter */
 export function isAdminClientQuickFilter(filter) {
