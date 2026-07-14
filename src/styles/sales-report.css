@@ -1622,6 +1622,75 @@
   border: 1px solid rgba(148, 163, 184, 0.12);
 }
 
+.sales-finance-forecast__direction-lag {
+  margin: 0.65rem 0 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  background: rgba(127, 29, 29, 0.18);
+  border: 1px solid rgba(248, 113, 113, 0.28);
+}
+
+.sales-finance-forecast__direction-lag-title {
+  margin: 0 0 0.45rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fecaca;
+}
+
+.sales-finance-forecast__direction-lag-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.sales-finance-forecast__direction-lag-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.55);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  font-size: 0.86rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.sales-finance-forecast__direction-lag-hall {
+  color: #fecaca;
+}
+
+.sales-finance-forecast__direction-lag-gap {
+  color: #fca5a5;
+}
+
+.sales-finance-forecast__direction-lag-pct {
+  color: rgba(226, 232, 240, 0.72);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.sales-finance-forecast__direction-lag-summary {
+  margin: 0.55rem 0 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: rgba(254, 226, 226, 0.92);
+}
+
+.sales-finance-forecast__row--lag th[scope='row'] {
+  color: #fecaca;
+}
+
+.sales-finance-forecast__col-gap {
+  color: #fca5a5;
+  font-weight: 700;
+}
+
 .sales-finance-forecast__table-wrap {
   overflow-x: auto;
   border-radius: 12px;
@@ -3071,6 +3140,28 @@
   border-color: rgba(255, 255, 255, 0.1);
 }
 
+.sales-report__plan-compare-forecast-hint {
+  margin: 0;
+  flex: 1 1 100%;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.48);
+}
+
+.sales-report__compare-group-head--forecast {
+  color: #fde68a;
+  background: rgba(113, 63, 18, 0.22);
+}
+
+.sales-report__compare-subhead--forecast {
+  color: rgba(253, 230, 138, 0.85);
+  background: rgba(113, 63, 18, 0.12);
+}
+
+.sales-report__compare-forecast {
+  background: rgba(113, 63, 18, 0.08);
+}
+
 .sales-report__matrix-scroll--compare {
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -3078,7 +3169,7 @@
 }
 
 .sales-report__matrix--compare {
-  min-width: 52rem;
+  min-width: 62rem;
 }
 
 .sales-report__compare-group-head {

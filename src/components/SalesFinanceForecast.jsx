@@ -208,6 +208,27 @@ export function SalesFinanceForecast({
           <p className={`sales-finance-forecast__verdict sales-finance-forecast__reach--${plan.reach.tone}`}>
             {formatReachLabel(plan.reach, plan.level3)}
           </p>
+          {plan.directionLag?.has_lag ? (
+            <div className="sales-finance-forecast__direction-lag" role="status">
+              <p className="sales-finance-forecast__direction-lag-title">Отставание по залам</p>
+              <ul className="sales-finance-forecast__direction-lag-list">
+                {plan.directionLag.lagging.map((hall) => (
+                  <li key={hall.key} className="sales-finance-forecast__direction-lag-item">
+                    <span className="sales-finance-forecast__direction-lag-hall">{hall.label}</span>
+                    <span className="sales-finance-forecast__direction-lag-gap">
+                      −{formatRub(hall.gapRub)}
+                    </span>
+                    <span className="sales-finance-forecast__direction-lag-pct">
+                      прогноз {hall.forecastProgressPercent}%
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {plan.directionLag.summary_ru ? (
+                <p className="sales-finance-forecast__direction-lag-summary">{plan.directionLag.summary_ru}</p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -231,6 +252,9 @@ export function SalesFinanceForecast({
                   <th scope="col" className="sales-finance-forecast__col-num">
                     % плана
                   </th>
+                  <th scope="col" className="sales-finance-forecast__col-num">
+                    Не хватает
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -247,8 +271,16 @@ export function SalesFinanceForecast({
                       : dir.reach.trainingsFallback
                         ? 'по тренировкам'
                         : '—'
+                  const gapText =
+                    isMoney && dir.planTarget > 0 && dir.reach?.willReach !== true && dir.reach?.gapRub > 0
+                      ? `−${formatRub(dir.reach.gapRub)}`
+                      : '—'
+                  const rowClass =
+                    isMoney && dir.planTarget > 0 && dir.reach?.willReach !== true
+                      ? 'sales-finance-forecast__row--lag'
+                      : undefined
                   return (
-                    <tr key={dir.key}>
+                    <tr key={dir.key} className={rowClass}>
                       <th scope="row">{dir.label}</th>
                       <td className="sales-finance-forecast__col-num">{planText}</td>
                       <td className="sales-finance-forecast__col-num sales-finance-forecast__col-fact">{factText}</td>
@@ -258,6 +290,7 @@ export function SalesFinanceForecast({
                           {progressText}
                         </span>
                       </td>
+                      <td className="sales-finance-forecast__col-num sales-finance-forecast__col-gap">{gapText}</td>
                     </tr>
                   )
                 })}

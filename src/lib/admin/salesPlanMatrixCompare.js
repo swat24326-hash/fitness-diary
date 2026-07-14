@@ -62,6 +62,21 @@ export function forecastPlanMatrixAmount(factAmount, calendar) {
 }
 
 /**
+ * Прогноз количества к концу месяца (линейно от факта и календаря).
+ * @param {number} factCount
+ * @param {{ month_relation?: string, expected_plan_progress_pct?: number } | null | undefined} calendar
+ */
+export function forecastPlanMatrixCount(factCount, calendar) {
+  const relation = calendar?.month_relation ?? 'current'
+  const fact = Math.trunc(Number(factCount) || 0)
+  if (relation === 'past') return fact
+  if (relation !== 'current') return fact
+  const elapsed = Number(calendar?.expected_plan_progress_pct) || 0
+  if (elapsed <= 0) return fact
+  return Math.max(0, Math.round((fact / elapsed) * 100))
+}
+
+/**
  * @param {{
  *   plan?: { count?: number, avg_check?: number, amount?: number },
  *   fact?: { count?: number, avg_check?: number | null, amount?: number },
@@ -192,6 +207,9 @@ export function buildPlanMatrixComparison(opts) {
         : planCount
     const onPace = !isCurrentMonth || factCount + paceSlack >= expectedCount
 
+    const forecastCount = forecastPlanMatrixCount(factCount, calendar)
+    const forecastAmount = forecastPlanMatrixAmount(factAmount, calendar)
+
     const row = {
       cellKey,
       hall,
@@ -199,6 +217,12 @@ export function buildPlanMatrixComparison(opts) {
       label: planMatrixCellLabel(hall, col),
       plan: { count: planCount, avg_check: planAvg, amount: planAmount },
       fact: { count: factCount, avg_check: factAvg, amount: factAmount },
+      forecast: {
+        count: forecastCount,
+        amount: forecastAmount,
+        count_progress_pct: planProgressPercent(forecastCount, planCount),
+        amount_progress_pct: planProgressPercent(forecastAmount, planAmount),
+      },
       count_gap: countGap,
       count_progress_pct: countProgressPct,
       avg_gap_rub: avgGapRub,

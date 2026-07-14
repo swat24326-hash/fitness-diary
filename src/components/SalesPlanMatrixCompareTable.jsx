@@ -3,7 +3,7 @@ import { formatRub } from '../lib/admin/salesReportCore.js'
 
 /**
  * @param {number} pct
- * @param {'count'|'amount'|'avg'} kind
+ * @param {'count'|'amount'|'avg'|'forecast'} kind
  */
 function compareToneClass(pct, kind, gapRub) {
   if (kind === 'avg') {
@@ -11,6 +11,11 @@ function compareToneClass(pct, kind, gapRub) {
     return Number(gapRub) < 0 ? ' sales-report__compare-cell--warn' : ' sales-report__compare-cell--ok'
   }
   const n = Number(pct) || 0
+  if (kind === 'forecast') {
+    if (n >= 99.5) return ' sales-report__compare-cell--ok'
+    if (n >= 85) return ' sales-report__compare-cell--mid'
+    return ' sales-report__compare-cell--warn'
+  }
   if (n >= 95) return ' sales-report__compare-cell--ok'
   if (n >= 70) return ' sales-report__compare-cell--mid'
   return ' sales-report__compare-cell--warn'
@@ -56,6 +61,11 @@ export function SalesPlanMatrixCompareTable({ comparison }) {
             </span>
           ) : null}
         </div>
+        {elapsedPct > 0 && elapsedPct < 100 ? (
+          <p className="sales-report__plan-compare-forecast-hint">
+            Прогноз к концу месяца: факт ÷ {Math.round(elapsedPct)}% календаря × 100%.
+          </p>
+        ) : null}
       </div>
       <div className="sales-report__matrix-scroll sales-report__matrix-scroll--stats sales-report__matrix-scroll--compare">
         <table className="sales-report__matrix sales-report__stats-matrix sales-report__matrix--compare">
@@ -76,6 +86,13 @@ export function SalesPlanMatrixCompareTable({ comparison }) {
               <th colSpan={2} className="sales-report__matrix-group-head sales-report__compare-group-head" scope="col">
                 Сумма
               </th>
+              <th
+                colSpan={3}
+                className="sales-report__matrix-group-head sales-report__compare-group-head sales-report__compare-group-head--forecast"
+                scope="col"
+              >
+                Прогноз на конец месяца
+              </th>
             </tr>
             <tr>
               <th className="sales-report__matrix-subhead" scope="col">план</th>
@@ -87,6 +104,15 @@ export function SalesPlanMatrixCompareTable({ comparison }) {
               <th className="sales-report__matrix-subhead" scope="col">Δ</th>
               <th className="sales-report__matrix-subhead" scope="col">план</th>
               <th className="sales-report__matrix-subhead" scope="col">факт</th>
+              <th className="sales-report__matrix-subhead sales-report__compare-subhead--forecast" scope="col">
+                шт
+              </th>
+              <th className="sales-report__matrix-subhead sales-report__compare-subhead--forecast" scope="col">
+                ₽
+              </th>
+              <th className="sales-report__matrix-subhead sales-report__compare-subhead--forecast" scope="col">
+                % плана
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -94,6 +120,10 @@ export function SalesPlanMatrixCompareTable({ comparison }) {
               const countTone = compareToneClass(row.count_progress_pct, 'count')
               const amountTone = compareToneClass(row.amount_progress_pct, 'amount')
               const avgTone = compareToneClass(0, 'avg', row.avg_gap_rub)
+              const forecast = row.forecast ?? {}
+              const forecastCountTone = compareToneClass(forecast.count_progress_pct, 'forecast')
+              const forecastAmountTone = compareToneClass(forecast.amount_progress_pct, 'forecast')
+              const showForecast = elapsedPct > 0
               const st = row.status ?? {}
               const statusClass =
                 st.status === 'ok'
@@ -148,6 +178,23 @@ export function SalesPlanMatrixCompareTable({ comparison }) {
                   <td className="sales-report__matrix-computed sales-report__compare-money">{formatRub(row.plan.amount)}</td>
                   <td className={`sales-report__matrix-computed sales-report__compare-money${amountTone}`}>
                     {formatRub(row.fact.amount)}
+                  </td>
+                  <td
+                    className={`sales-report__matrix-computed sales-report__compare-num sales-report__compare-forecast${showForecast ? forecastCountTone : ''}`}
+                  >
+                    {showForecast ? forecast.count ?? '—' : '—'}
+                  </td>
+                  <td
+                    className={`sales-report__matrix-computed sales-report__compare-money sales-report__compare-forecast${showForecast ? forecastAmountTone : ''}`}
+                  >
+                    {showForecast && forecast.amount != null ? formatRub(forecast.amount) : '—'}
+                  </td>
+                  <td
+                    className={`sales-report__matrix-computed sales-report__compare-num sales-report__compare-forecast${showForecast ? forecastAmountTone : ''}`}
+                  >
+                    {showForecast && row.plan.amount > 0
+                      ? `${Math.round(Number(forecast.amount_progress_pct) || 0)}%`
+                      : '—'}
                   </td>
                 </tr>
               )

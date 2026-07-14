@@ -6,6 +6,7 @@ import { aggregateAerobicPayrollFromDailyRows, buildAerobicPayRateMap } from './
 import {
   planProgressPercent,
   parseSalesMoney,
+  formatRub,
   resolveDailyProfitFromRow,
   sumDirectionRubFromDailyRows,
   buildHallFinanceSummary,
@@ -97,6 +98,38 @@ export function describePlanForecastReach(forecastProgress, target, forecastAmou
   if (willReach) tone = 'strong'
   else if (forecastProgress >= 90) tone = 'ok'
   return { tone, willReach, forecastProgressPercent: forecastProgress, gapRub }
+}
+
+/**
+ * Залы (ПЗ/ТЗ/АЗ), по которым прогноз выручки не дотягивает до плана направления.
+ * @param {Array<{ key?: string, label?: string, mode?: string, planTarget?: number, forecast?: number, forecastProgressPercent?: number, reach?: { willReach?: boolean, gapRub?: number } }>} directionRows
+ */
+export function buildDirectionForecastLagSummary(directionRows) {
+  const lagging = (directionRows ?? [])
+    .filter((d) => d.planTarget > 0 && d.mode === 'revenue' && d.reach?.willReach !== true)
+    .map((d) => ({
+      key: String(d.key ?? ''),
+      label: String(d.label ?? d.key ?? '').trim() || String(d.key ?? ''),
+      planTarget: roundRub(d.planTarget),
+      forecast: roundRub(d.forecast),
+      gapRub: roundRub(d.reach?.gapRub ?? Math.max(0, Number(d.planTarget) - Number(d.forecast))),
+      forecastProgressPercent: Number(d.forecastProgressPercent) || 0,
+    }))
+    .sort((a, b) => a.forecastProgressPercent - b.forecastProgressPercent)
+
+  let summaryRu = ''
+  if (lagging.length === 1) {
+    const d = lagging[0]
+    summaryRu = `По залу ${d.label}: прогноз ${formatRub(d.forecast)} при плане ${formatRub(d.planTarget)} — не хватает ${formatRub(d.gapRub)}.`
+  } else if (lagging.length > 1) {
+    summaryRu = `Отставание по залам: ${lagging.map((d) => `${d.label} −${formatRub(d.gapRub)}`).join(', ')}.`
+  }
+
+  return {
+    lagging,
+    has_lag: lagging.length > 0,
+    summary_ru: summaryRu,
+  }
 }
 
 function buildDirectionForecastRows(monthRows, scale, planDirections) {
@@ -235,6 +268,7 @@ export function buildClubFinanceForecast(opts) {
   const forecastPlanProgress = planProgressPercent(forecastGross, planLevel3)
   const planReach = describePlanForecastReach(forecastPlanProgress, planLevel3, forecastGross)
   const directionRows = buildDirectionForecastRows(monthRows, scale, planTargets.directions)
+  const directionLag = buildDirectionForecastLagSummary(directionRows)
 
   return {
     ok: true,
@@ -249,6 +283,7 @@ export function buildClubFinanceForecast(opts) {
       forecastProgressPercent: forecastPlanProgress,
       reach: planReach,
       directions: directionRows,
+      directionLag,
     },
     fact: {
       earnings: factEarnings,
@@ -434,7 +469,9 @@ export function buildIskraClubFinanceBlock(opts) {
         fact_progress_pct: d.factProgressPercent,
         forecast_progress_pct: d.forecastProgressPercent,
         will_reach: d.reach?.willReach === true,
+        gap_rub: d.reach?.gapRub ?? 0,
       })),
+      direction_lag: fc.plan.directionLag ?? { lagging: [], has_lag: false, summary_ru: '' },
     },
   }
 

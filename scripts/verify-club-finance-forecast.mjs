@@ -1,6 +1,7 @@
 import {
   MIN_REPORT_DAYS_FOR_FORECAST,
   buildClubFinanceForecast,
+  buildDirectionForecastLagSummary,
   buildIskraMonthForecastSummary,
   daysInCalendarMonth,
   isCurrentCalendarMonth,
@@ -145,6 +146,49 @@ ok(fcPlan.plan.directions[0].mode === 'revenue', 'pz uses revenue when matrix fi
 ok(
   fcPlan.plan.directions[0].forecast === Math.round(240000 * (daysInMonth / 3) * 100) / 100,
   'pz direction forecast scaled',
+)
+
+const lagUnit = buildDirectionForecastLagSummary([
+  {
+    key: 'pz',
+    label: 'ПЗ',
+    mode: 'revenue',
+    planTarget: 1000000,
+    forecast: 800000,
+    forecastProgressPercent: 80,
+    reach: { willReach: false, gapRub: 200000 },
+  },
+  {
+    key: 'tz',
+    label: 'ТЗ',
+    mode: 'revenue',
+    planTarget: 500000,
+    forecast: 600000,
+    forecastProgressPercent: 120,
+    reach: { willReach: true, gapRub: 0 },
+  },
+])
+ok(lagUnit.has_lag && lagUnit.lagging.length === 1 && lagUnit.lagging[0].key === 'pz', 'lag summary picks pz only')
+ok(lagUnit.summary_ru.includes('ПЗ'), 'lag summary mentions hall label')
+
+const fcPlanLag = buildClubFinanceForecast({
+  monthRows: planRows,
+  year,
+  month,
+  expense: 0,
+  today,
+  planForm: {
+    plan_level_3: '5000000',
+    plan_pz: '3000000',
+    plan_tz: '130455',
+    plan_az: '93200',
+  },
+})
+ok(fcPlanLag.plan.directionLag.has_lag, 'direction lag when pz below plan')
+ok(fcPlanLag.plan.directionLag.lagging.some((d) => d.key === 'pz'), 'pz in lag list')
+ok(
+  !fcPlanLag.plan.directionLag.lagging.some((d) => d.key === 'tz'),
+  'tz not lagging when forecast above plan',
 )
 
 const trainingOnlyRows = [

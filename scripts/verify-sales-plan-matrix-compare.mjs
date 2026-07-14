@@ -2,6 +2,7 @@ import {
   buildPlanMatrixComparison,
   resolvePlanMatrixCellStatus,
   forecastPlanMatrixAmount,
+  forecastPlanMatrixCount,
 } from '../src/lib/admin/salesPlanMatrixCompare.js'
 import {
   evaluatePlanDirectionsForm,
@@ -78,6 +79,9 @@ ok(pzNk?.plan.avg_check === 9503, 'plan avg check preserved')
 ok(comparison.volume_lag.some((r) => r.cellKey === 'pz_nk'), 'volume lag when behind pace')
 ok(pzNk?.status?.status === 'lag', 'pz_nk status lag when behind pace and forecast')
 ok(comparison.status_summary?.lag >= 1, 'status summary counts lagging rows')
+ok(pzNk?.forecast?.count === 10, 'forecast count linear from fact at 90% calendar')
+ok(pzNk?.forecast?.amount === 102000, 'forecast amount linear from fact at 90% calendar')
+ok(Number(pzNk?.forecast?.amount_progress_pct) > 0, 'forecast amount progress pct computed')
 
 const okRow = resolvePlanMatrixCellStatus(
   {
@@ -94,5 +98,8 @@ ok(okRow.status === 'ok', 'status ok when pace and forecast meet plan')
 
 const forecast = forecastPlanMatrixAmount(90000, { month_relation: 'current', expected_plan_progress_pct: 50 })
 ok(forecast === 180000, 'linear forecast to month end')
+
+const forecastCount = forecastPlanMatrixCount(9, { month_relation: 'current', expected_plan_progress_pct: 90 })
+ok(forecastCount === 10, 'linear forecast count to month end')
 
 process.exit(failed > 0 ? 1 : 0)
