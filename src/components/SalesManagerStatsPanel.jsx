@@ -256,7 +256,13 @@ export function SalesManagerStatsPanel({
       {planMatrixComparison?.has_plan_matrix ? (
         <div className="sales-report__card sales-report__stats-block sales-report__stats-block--plan-compare">
           <h3 className="sales-report__stats-block-title">План vs факт по сегментам</h3>
-          <SalesPlanMatrixCompareTable comparison={planMatrixComparison} />
+          <SalesPlanMatrixCompareTable
+            comparison={planMatrixComparison}
+            monthRows={monthRows}
+            year={year}
+            month={month}
+            onOpenDay={onOpenDay}
+          />
         </div>
       ) : null}
 

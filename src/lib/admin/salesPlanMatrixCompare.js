@@ -5,6 +5,7 @@ import {
   SALES_MATRIX_COLS,
   SALES_MATRIX_HALL_ROWS,
   sumMatrix3x3AmountsFromDailyRows,
+  matrixAmountsFromDb,
 } from './salesReportCore.js'
 import {
   hasPlanMatrixData,
@@ -74,6 +75,47 @@ export function forecastPlanMatrixCount(factCount, calendar) {
   const elapsed = Number(calendar?.expected_plan_progress_pct) || 0
   if (elapsed <= 0) return fact
   return Math.max(0, Math.round((fact / elapsed) * 100))
+}
+
+/**
+ * Продажи по дням месяца для одной ячейки матрицы (pz_nk, tz_dk, …).
+ * @param {Array<Record<string, unknown>>} monthRows
+ * @param {number} year
+ * @param {number} month 1–12
+ * @param {string} cellKey
+ */
+export function buildPlanMatrixCellDailySeries(monthRows, year, month, cellKey) {
+  const y = Number(year)
+  const m = Number(month)
+  const key = String(cellKey ?? '').trim()
+  if (!key) return []
+
+  const lastDay = new Date(y, m, 0).getDate()
+  /** @type {Map<string, { count: number, amount: number }>} */
+  const byDate = new Map()
+
+  for (const r of monthRows ?? []) {
+    const iso = String(r.report_date ?? '').slice(0, 10)
+    if (!iso) continue
+    const count = Math.trunc(Number(r[key]) || 0)
+    const amounts = matrixAmountsFromDb(r.matrix_amounts)
+    const amount = roundPlanRub(Number(amounts[key]) || 0)
+    byDate.set(iso, { count, amount })
+  }
+
+  /** @type {Array<{ date: string, count: number | null, amount: number | null, hasReport: boolean }>} */
+  const series = []
+  for (let day = 1; day <= lastDay; day += 1) {
+    const iso = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    const cell = byDate.get(iso)
+    series.push({
+      date: iso,
+      count: cell != null ? cell.count : null,
+      amount: cell != null ? cell.amount : null,
+      hasReport: cell != null,
+    })
+  }
+  return series
 }
 
 /**

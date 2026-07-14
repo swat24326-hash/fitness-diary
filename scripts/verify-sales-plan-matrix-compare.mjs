@@ -1,5 +1,6 @@
 import {
   buildPlanMatrixComparison,
+  buildPlanMatrixCellDailySeries,
   resolvePlanMatrixCellStatus,
   forecastPlanMatrixAmount,
   forecastPlanMatrixCount,
@@ -101,5 +102,19 @@ ok(forecast === 180000, 'linear forecast to month end')
 
 const forecastCount = forecastPlanMatrixCount(9, { month_relation: 'current', expected_plan_progress_pct: 90 })
 ok(forecastCount === 10, 'linear forecast count to month end')
+
+const dailyPzNk = buildPlanMatrixCellDailySeries(
+  [
+    { report_date: '2026-07-01', pz_nk: 2, matrix_amounts: { pz_nk: 10000 } },
+    { report_date: '2026-07-05', pz_nk: 3, matrix_amounts: { pz_nk: 15000 } },
+  ],
+  2026,
+  7,
+  'pz_nk',
+)
+ok(dailyPzNk.length === 31, 'daily series covers full july')
+ok(dailyPzNk[0].count === 2 && dailyPzNk[0].amount === 10000 && dailyPzNk[0].hasReport, 'day 1 segment values')
+ok(!dailyPzNk[1].hasReport, 'day 2 without report')
+ok(dailyPzNk[4].count === 3 && dailyPzNk[4].amount === 15000, 'day 5 segment values')
 
 process.exit(failed > 0 ? 1 : 0)

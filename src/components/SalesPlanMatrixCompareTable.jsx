@@ -1,5 +1,8 @@
-import { Check, Minus } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { BarChart3, Check, Minus } from 'lucide-react'
 import { formatRub } from '../lib/admin/salesReportCore.js'
+import { buildPlanMatrixCellDailySeries } from '../lib/admin/salesPlanMatrixCompare.js'
+import { SalesPlanMatrixSegmentSchedulePanel } from './SalesPlanMatrixSegmentSchedulePanel.jsx'
 
 /**
  * @param {number} pct
@@ -29,17 +32,47 @@ function compareToneClass(pct, kind, gapRub) {
  *     status_summary?: { ok?: number, lag?: number, total?: number },
  *     calendar_elapsed_pct?: number,
  *   },
+ *   monthRows?: Array<Record<string, unknown>>,
+ *   year: number,
+ *   month: number,
+ *   onOpenDay?: (iso: string) => void,
  * }} props
  */
-export function SalesPlanMatrixCompareTable({ comparison }) {
+export function SalesPlanMatrixCompareTable({ comparison, monthRows = [], year, month, onOpenDay }) {
   const rows = comparison?.rows ?? []
   const statusSummary = comparison?.status_summary ?? { ok: 0, lag: 0, total: rows.length }
   const elapsedPct = Number(comparison?.calendar_elapsed_pct) || 0
+  const [scheduleCellKey, setScheduleCellKey] = useState(/** @type {string | null} */ (null))
+
+  const scheduleRow = useMemo(
+    () => rows.find((r) => r.cellKey === scheduleCellKey) ?? null,
+    [rows, scheduleCellKey],
+  )
+
+  const scheduleSeries = useMemo(() => {
+    if (!scheduleCellKey) return []
+    return buildPlanMatrixCellDailySeries(monthRows, year, month, scheduleCellKey)
+  }, [scheduleCellKey, monthRows, year, month])
 
   if (!rows.length) return null
 
+  const openSchedule = (cellKey) => {
+    setScheduleCellKey((prev) => (prev === cellKey ? null : cellKey))
+  }
+
   return (
     <div className="sales-report__plan-compare">
+      {scheduleRow ? (
+        <SalesPlanMatrixSegmentSchedulePanel
+          label={String(scheduleRow.label ?? scheduleCellKey)}
+          hall={String(scheduleRow.hall ?? '')}
+          col={String(scheduleRow.col ?? '')}
+          series={scheduleSeries}
+          onClose={() => setScheduleCellKey(null)}
+          onOpenDay={onOpenDay}
+        />
+      ) : null}
+
       <div className="sales-report__plan-compare-head">
         {comparison.summary_ru ? (
           <p className="sales-report__plan-compare-summary" role="status">
@@ -93,6 +126,9 @@ export function SalesPlanMatrixCompareTable({ comparison }) {
               >
                 Прогноз на конец месяца
               </th>
+              <th rowSpan={2} className="sales-report__matrix-subhead sales-report__compare-schedule-head" scope="col">
+                График
+              </th>
             </tr>
             <tr>
               <th className="sales-report__matrix-subhead" scope="col">план</th>
@@ -131,10 +167,18 @@ export function SalesPlanMatrixCompareTable({ comparison }) {
                   : st.status === 'lag'
                     ? ' sales-report__compare-status--lag'
                     : ' sales-report__compare-status--muted'
+              const scheduleOpen = scheduleCellKey === row.cellKey
               return (
                 <tr
                   key={row.cellKey}
-                  className={`sales-report__stats-matrix-row sales-report__compare-row sales-report__compare-row--${row.hall}`}
+                  className={[
+                    'sales-report__stats-matrix-row',
+                    'sales-report__compare-row',
+                    `sales-report__compare-row--${row.hall}`,
+                    scheduleOpen ? 'sales-report__compare-row--schedule-open' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
                   data-col={row.col}
                 >
                   <th
@@ -195,6 +239,18 @@ export function SalesPlanMatrixCompareTable({ comparison }) {
                     {showForecast && row.plan.amount > 0
                       ? `${Math.round(Number(forecast.amount_progress_pct) || 0)}%`
                       : '—'}
+                  </td>
+                  <td className="sales-report__compare-schedule-cell">
+                    <button
+                      type="button"
+                      className={`sales-report__compare-schedule-btn${scheduleOpen ? ' sales-report__compare-schedule-btn--active' : ''}`}
+                      onClick={() => openSchedule(String(row.cellKey))}
+                      aria-pressed={scheduleOpen}
+                      aria-label={`${scheduleOpen ? 'Скрыть' : 'Построить'} график продаж ${row.label}`}
+                    >
+                      <BarChart3 size={15} aria-hidden />
+                      {scheduleOpen ? 'Скрыть' : 'График'}
+                    </button>
                   </td>
                 </tr>
               )
