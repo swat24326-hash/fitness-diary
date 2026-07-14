@@ -47,6 +47,7 @@ function formatFactValue(value, kind) {
  *   plan?: { count?: number, amount?: number, avg_check?: number },
  *   daysInMonth?: number,
  *   onDayClick?: (iso: string) => void,
+ *   fullscreen?: boolean,
  * }} props
  */
 export function SalesSegmentComparablePaceChart({
@@ -55,6 +56,7 @@ export function SalesSegmentComparablePaceChart({
   plan,
   daysInMonth,
   onDayClick,
+  fullscreen = false,
 }) {
   const metrics = activeMetricIds.filter((id) => METRIC_META[id])
 
@@ -84,13 +86,19 @@ export function SalesSegmentComparablePaceChart({
     return { chartMaxY: Math.min(300, niceMax), pointsByMetric: byMetric }
   }, [comparable, metrics])
 
-  const plotW = Math.max(comparable.length * 22, 280)
-  const plotH = 160
-  const width = PAD.left + plotW + PAD.right
-  const height = PAD.top + plotH + PAD.bottom
+  const dayWidth = fullscreen ? 30 : 22
+  const plotW = Math.max(comparable.length * dayWidth, fullscreen ? 720 : 280)
+  const plotH = fullscreen
+    ? Math.max(300, Math.min(520, Math.round((typeof window !== 'undefined' ? window.innerHeight : 800) * 0.42)))
+    : 160
+  const pad = fullscreen
+    ? { top: 18, right: 14, bottom: 32, left: 44 }
+    : PAD
+  const width = pad.left + plotW + pad.right
+  const height = pad.top + plotH + pad.bottom
 
-  const yPos = (pct) => PAD.top + plotH - (pct / chartMaxY) * plotH
-  const xPos = (idx) => PAD.left + (idx + 0.5) * (plotW / Math.max(comparable.length, 1))
+  const yPos = (pct) => pad.top + plotH - (pct / chartMaxY) * plotH
+  const xPos = (idx) => pad.left + (idx + 0.5) * (plotW / Math.max(comparable.length, 1))
 
   const yTicks = chartMaxY <= 100 ? [0, 50, 100] : chartMaxY <= 150 ? [0, 50, 100, 150] : [0, 50, 100, 150, chartMaxY]
 
@@ -103,7 +111,7 @@ export function SalesSegmentComparablePaceChart({
   }
 
   return (
-    <div className="sales-segment-pace-chart">
+    <div className={`sales-segment-pace-chart${fullscreen ? ' sales-segment-pace-chart--fullscreen' : ''}`}>
       <div className="sales-segment-pace-chart__legend" aria-label="Легенда">
         {metrics.map((id) => (
           <span key={id} className={`sales-segment-pace-chart__legend-item ${METRIC_META[id].barClass}`}>
@@ -116,7 +124,9 @@ export function SalesSegmentComparablePaceChart({
         </span>
       </div>
 
-      <div className="sales-column-chart__scroll sales-segment-pace-chart__scroll">
+      <div
+        className={`sales-column-chart__scroll sales-segment-pace-chart__scroll${fullscreen ? ' sales-segment-pace-chart__scroll--fullscreen' : ''}`}
+      >
         <svg
           className="sales-segment-pace-chart__svg"
           viewBox={`0 0 ${width} ${height}`}
@@ -128,17 +138,26 @@ export function SalesSegmentComparablePaceChart({
           {yTicks.map((tick) => (
             <g key={tick}>
               <line
-                x1={PAD.left}
+                x1={pad.left}
                 y1={yPos(tick)}
-                x2={PAD.left + plotW}
+                x2={pad.left + plotW}
                 y2={yPos(tick)}
                 className={`sales-segment-pace-chart__grid${tick === 100 ? ' sales-segment-pace-chart__grid--norm' : ''}`}
               />
-              <text x={PAD.left - 6} y={yPos(tick) + 4} className="sales-segment-pace-chart__ylabel" textAnchor="end">
+              <text
+                x={pad.left - 8}
+                y={yPos(tick) + 4}
+                className={`sales-segment-pace-chart__ylabel${fullscreen ? ' sales-segment-pace-chart__ylabel--lg' : ''}`}
+                textAnchor="end"
+              >
                 {tick}%
               </text>
               {tick === 100 ? (
-                <text x={PAD.left + plotW + 4} y={yPos(100) + 4} className="sales-segment-pace-chart__norm-tag">
+                <text
+                  x={pad.left + plotW + 6}
+                  y={yPos(100) + 4}
+                  className={`sales-segment-pace-chart__norm-tag${fullscreen ? ' sales-segment-pace-chart__norm-tag--lg' : ''}`}
+                >
                   норма
                 </text>
               ) : null}
@@ -173,7 +192,7 @@ export function SalesSegmentComparablePaceChart({
                       className="sales-segment-pace-chart__path"
                       fill="none"
                       stroke={METRIC_META[id].color}
-                      strokeWidth="2.25"
+                      strokeWidth={fullscreen ? 3 : 2.25}
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     />
@@ -189,7 +208,7 @@ export function SalesSegmentComparablePaceChart({
                       key={`${id}-dot-${p.x}`}
                       cx={xPos(p.x)}
                       cy={yPos(p.y)}
-                      r="3.5"
+                      r={fullscreen ? 5 : 3.5}
                       className="sales-segment-pace-chart__dot"
                       stroke={METRIC_META[id].color}
                       fill="#0f172a"
@@ -209,8 +228,8 @@ export function SalesSegmentComparablePaceChart({
               <g key={day.date}>
                 <text
                   x={xPos(idx)}
-                  y={height - 8}
-                  className={`sales-segment-pace-chart__xlabel${day.hasReport ? ' is-active' : ''}`}
+                  y={height - 10}
+                  className={`sales-segment-pace-chart__xlabel${day.hasReport ? ' is-active' : ''}${fullscreen ? ' sales-segment-pace-chart__xlabel--lg' : ''}`}
                   textAnchor="middle"
                 >
                   {dayNum}
@@ -218,8 +237,8 @@ export function SalesSegmentComparablePaceChart({
                 {clickable ? (
                   <rect
                     x={xPos(idx) - 10}
-                    y={PAD.top}
-                    width={20}
+                    y={pad.top}
+                    width={fullscreen ? 26 : 20}
                     height={plotH}
                     className="sales-segment-pace-chart__hit"
                     onClick={() => onDayClick?.(day.date)}

@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { BarChart3, Coins, Hash, Percent, X } from 'lucide-react'
 import { formatRub } from '../lib/admin/salesReportCore.js'
 import { SalesSegmentMetricColumnChart } from './SalesSegmentMetricColumnChart.jsx'
@@ -115,12 +116,34 @@ export function SalesPlanMatrixSegmentSchedulePanel({
     setActiveMetrics(new Set(['amount', 'count', 'avg']))
   }
 
-  return (
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.body.style.overflow = prevOverflow
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [onClose])
+
+  const panel = (
     <div
-      className={`sales-report__segment-schedule sales-report__segment-schedule--${col}`}
-      role="region"
-      aria-labelledby="sales-segment-schedule-title"
+      className="sales-report__segment-schedule-overlay"
+      role="presentation"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
     >
+      <div
+        className={`sales-report__segment-schedule sales-report__segment-schedule--fullscreen sales-report__segment-schedule--${col}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="sales-segment-schedule-title"
+        onClick={(e) => e.stopPropagation()}
+      >
       <header className="sales-report__segment-schedule-head">
         <div className="sales-report__segment-schedule-titles">
           <p className="sales-report__segment-schedule-kicker">
@@ -237,7 +260,7 @@ export function SalesPlanMatrixSegmentSchedulePanel({
       </div>
 
       {series.length && activeList.length ? (
-        <div className="sales-report__segment-schedule-charts">
+        <div className="sales-report__segment-schedule-charts sales-report__segment-schedule-charts--fullscreen">
           {useCompareChart ? (
             <div className="sales-report__segment-schedule-chart sales-report__segment-schedule-chart--combined">
               <h5 className="sales-report__segment-schedule-chart-title">
@@ -249,10 +272,11 @@ export function SalesPlanMatrixSegmentSchedulePanel({
                 plan={plan}
                 daysInMonth={monthDays}
                 onOpenDay={onOpenDay}
+                fullscreen
               />
             </div>
           ) : useAbsoluteMulti ? (
-            <div className="sales-report__segment-schedule-charts sales-report__segment-schedule-charts--absolute-grid">
+            <div className="sales-report__segment-schedule-charts sales-report__segment-schedule-charts--absolute-grid sales-report__segment-schedule-charts--absolute-fullscreen">
               {activeList.map((metric) => (
                 <div key={metric.id} className="sales-report__segment-schedule-chart">
                   <h5 className="sales-report__segment-schedule-chart-title">
@@ -263,7 +287,7 @@ export function SalesPlanMatrixSegmentSchedulePanel({
                     metricKind={metric.id}
                     colSuffix={col}
                     onDayClick={onOpenDay}
-                    compact
+                    fullscreen
                   />
                 </div>
               ))}
@@ -278,7 +302,7 @@ export function SalesPlanMatrixSegmentSchedulePanel({
                 metricKind={activeList[0].id}
                 colSuffix={col}
                 onDayClick={onOpenDay}
-                compact={false}
+                fullscreen
               />
             </div>
           )}
@@ -288,6 +312,9 @@ export function SalesPlanMatrixSegmentSchedulePanel({
       {onOpenDay ? (
         <p className="muted sales-report__segment-schedule-hint">Нажмите на столбец дня — откроется отчёт за этот день.</p>
       ) : null}
+      </div>
     </div>
   )
+
+  return createPortal(panel, document.body)
 }

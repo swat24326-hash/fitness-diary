@@ -51,6 +51,7 @@ function formatBarValue(value, kind) {
  *   colSuffix?: string,
  *   onDayClick?: (iso: string) => void,
  *   compact?: boolean,
+ *   fullscreen?: boolean,
  * }} props
  */
 export function SalesSegmentMetricColumnChart({
@@ -59,6 +60,7 @@ export function SalesSegmentMetricColumnChart({
   colSuffix = 'nk',
   onDayClick,
   compact = false,
+  fullscreen = false,
 }) {
   const barColor = useMemo(() => {
     if (colSuffix === 'dk') return 'linear-gradient(180deg, #2563b8, #9ec9ff)'
@@ -104,7 +106,9 @@ export function SalesSegmentMetricColumnChart({
   }
 
   return (
-    <div className={`sales-segment-column-chart${compact ? ' sales-segment-column-chart--compact' : ''}`}>
+    <div
+      className={`sales-segment-column-chart${compact ? ' sales-segment-column-chart--compact' : ''}${fullscreen ? ' sales-segment-column-chart--fullscreen' : ''}`}
+    >
       <div className="sales-column-chart__canvas">
         <div className="sales-column-chart__plot" role="img" aria-label="Продажи сегмента по дням месяца">
           <div className="sales-column-chart__y-axis" aria-hidden>
