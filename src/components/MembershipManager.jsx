@@ -502,7 +502,7 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
 
       {viewOpenId && (
         <div
-          className="modal-overlay modal-overlay--center"
+          className="modal-overlay modal-overlay--center modal-overlay--membership-view"
           role="dialog"
           aria-modal="true"
           aria-label="Тренировки абонемента"
@@ -513,51 +513,71 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
               const m = items.find((x) => x.id === viewOpenId)
               const list = m ? trainingsForMembership(m) : []
               const total = Number(m?.total_trainings ?? 0)
+              const used = Number(m?.used_trainings ?? 0)
+              const canWriteOff =
+                m &&
+                Number.isFinite(total) &&
+                total > 0 &&
+                Number.isFinite(used) &&
+                used < total
               return (
                 <div className="membership-view">
-                  <ModalHeader title="Тренировки абонемента" onClose={() => setViewOpenId(null)}>
-                    <button
-                      type="button"
-                      className="btn btn-primary btn-icon-square"
-                      aria-label="Списать тренировку"
-                      title="Списать тренировку"
-                      onClick={() => writeOffTraining(m)}
-                      disabled={!m}
-                    >
-                      <CheckCircle2 size={18} aria-hidden />
-                    </button>
-                  </ModalHeader>
-                  <div className="muted membership-view__period">
-                    Период: <strong style={{ color: 'var(--text)' }}>{formatDateRu(m?.start_date)} — {formatDateRu(m?.end_date)}</strong>
+                  <div className="membership-view__header">
+                    <ModalHeader title="Тренировки абонемента" onClose={() => setViewOpenId(null)} />
+                    <div className="muted membership-view__period">
+                      Период: <strong style={{ color: 'var(--text)' }}>{formatDateRu(m?.start_date)} — {formatDateRu(m?.end_date)}</strong>
+                      {Number.isFinite(total) && total > 0 ? (
+                        <>
+                          {' '}
+                          · использовано <strong style={{ color: 'var(--text)' }}>{used}/{total}</strong>
+                        </>
+                      ) : null}
+                    </div>
                   </div>
 
-                  {list.length === 0 ? (
-                    <p className="muted membership-view__empty">
-                      Пока нет завершённых тренировок по этому абонементу.
-                    </p>
-                  ) : (
-                    <ul className="membership-training-list">
-                      {list.map((t, idx) => (
-                        <li key={t.id} className="membership-training-list__item">
-                          <div className="membership-training-list__main">
-                            <strong>{formatDateRu(t.date ?? t.created_at?.slice(0, 10))}</strong>
-                            <div className="muted membership-training-list__meta">
-                              тренировка {idx + 1}/{Number.isFinite(total) && total > 0 ? total : '—'}
+                  <div className="membership-view__body">
+                    {list.length === 0 ? (
+                      <p className="muted membership-view__empty">
+                        Пока нет завершённых тренировок по этому абонементу.
+                      </p>
+                    ) : (
+                      <ul className="membership-training-list">
+                        {list.map((t, idx) => (
+                          <li key={t.id} className="membership-training-list__item">
+                            <div className="membership-training-list__main">
+                              <strong>{formatDateRu(t.date ?? t.created_at?.slice(0, 10))}</strong>
+                              <div className="muted membership-training-list__meta">
+                                тренировка {idx + 1}/{Number.isFinite(total) && total > 0 ? total : '—'}
+                              </div>
                             </div>
-                          </div>
-                          <button
-                            type="button"
-                            className="btn btn-ghost btn-icon-square"
-                            aria-label="Отменить тренировку"
-                            title="Отменить тренировку"
-                            onClick={() => cancelTraining(t, m)}
-                          >
-                            <Trash2 size={18} aria-hidden />
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-icon-square"
+                              aria-label="Отменить тренировку"
+                              title="Отменить тренировку"
+                              onClick={() => cancelTraining(t, m)}
+                            >
+                              <Trash2 size={18} aria-hidden />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  <div className="membership-view__footer">
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-touch membership-view__writeoff"
+                      aria-label="Списать тренировку"
+                      title={canWriteOff ? 'Списать тренировку с абонемента' : 'Лимит тренировок исчерпан'}
+                      onClick={() => writeOffTraining(m)}
+                      disabled={!canWriteOff}
+                    >
+                      <CheckCircle2 size={18} aria-hidden />
+                      Списать тренировку
+                    </button>
+                  </div>
                 </div>
               )
             })()}
