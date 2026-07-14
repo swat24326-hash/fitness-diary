@@ -3,15 +3,13 @@ import { createPortal } from 'react-dom'
 import { BarChart3, Coins, Hash, Percent, X } from 'lucide-react'
 import { formatRub } from '../lib/admin/salesReportCore.js'
 import { SalesSegmentMetricColumnChart } from './SalesSegmentMetricColumnChart.jsx'
-import { SalesSegmentComparablePaceChart } from './SalesSegmentComparablePaceChart.jsx'
 
 /** @typedef {'count'|'amount'|'avg'} SegmentMetricId */
-/** @typedef {'compare'|'absolute'} SegmentChartView */
 
 const METRIC_OPTIONS = /** @type {const} */ ([
-  { id: 'amount', label: 'Сумма', short: '₽', icon: Coins },
-  { id: 'count', label: 'Количество', short: 'шт', icon: Hash },
-  { id: 'avg', label: 'Ср. чек', short: '₽/чел', icon: Percent },
+  { id: 'amount', label: 'Выручка', short: '₽', icon: Coins, chartTitle: 'Выручка по дням, ₽' },
+  { id: 'count', label: 'Продажи', short: 'шт', icon: Hash, chartTitle: 'Продажи по дням, шт' },
+  { id: 'avg', label: 'Ср. чек', short: '₽/чел', icon: Percent, chartTitle: 'Средний чек по дням, ₽' },
 ])
 
 /**
@@ -20,8 +18,6 @@ const METRIC_OPTIONS = /** @type {const} */ ([
  *   hall?: string,
  *   col?: string,
  *   series: Array<{ date: string, count: number | null, amount: number | null, hasReport: boolean }>,
- *   plan?: { count?: number, amount?: number, avg_check?: number },
- *   daysInMonth?: number,
  *   onClose: () => void,
  *   onOpenDay?: (iso: string) => void,
  * }} props
@@ -31,15 +27,12 @@ export function SalesPlanMatrixSegmentSchedulePanel({
   hall = '',
   col = '',
   series,
-  plan = {},
-  daysInMonth,
   onClose,
   onOpenDay,
 }) {
   const [activeMetrics, setActiveMetrics] = useState(
-    () => new Set(/** @type {SegmentMetricId[]} */ (['amount', 'count'])),
+    () => new Set(/** @type {SegmentMetricId[]} */ (['amount', 'count', 'avg'])),
   )
-  const [chartView, setChartView] = useState(/** @type {SegmentChartView} */ ('compare'))
 
   const stats = useMemo(() => {
     const reported = series.filter((d) => d.hasReport)
@@ -91,10 +84,7 @@ export function SalesPlanMatrixSegmentSchedulePanel({
   }, [series])
 
   const activeList = METRIC_OPTIONS.filter((m) => activeMetrics.has(m.id))
-  const activeIds = activeList.map((m) => m.id)
-  const monthDays = daysInMonth ?? series.length
-  const useCompareChart = chartView === 'compare' && activeList.length > 0
-  const useAbsoluteMulti = chartView === 'absolute' && activeList.length > 1
+  const stackedCharts = activeList.length > 1
 
   /**
    * @param {SegmentMetricId} id
@@ -144,174 +134,123 @@ export function SalesPlanMatrixSegmentSchedulePanel({
         aria-labelledby="sales-segment-schedule-title"
         onClick={(e) => e.stopPropagation()}
       >
-      <header className="sales-report__segment-schedule-head">
-        <div className="sales-report__segment-schedule-titles">
-          <p className="sales-report__segment-schedule-kicker">
-            <BarChart3 size={14} aria-hidden />
-            График продаж по дням
+        <header className="sales-report__segment-schedule-head">
+          <div className="sales-report__segment-schedule-titles">
+            <p className="sales-report__segment-schedule-kicker">
+              <BarChart3 size={14} aria-hidden />
+              Факты по дням
+            </p>
+            <h4 className="sales-report__segment-schedule-title" id="sales-segment-schedule-title">
+              <span className="sales-report__segment-schedule-hall">{String(label).split(' ')[0]}</span>
+              <span className="sales-report__segment-schedule-col">{String(label).split(' ')[1]}</span>
+              {hall ? <span className="sr-only"> ({hall})</span> : null}
+            </h4>
+          </div>
+          <button
+            type="button"
+            className="sales-report__segment-schedule-close"
+            onClick={onClose}
+            aria-label="Закрыть график продаж"
+          >
+            <X size={18} aria-hidden />
+            Закрыть
+          </button>
+        </header>
+
+        {stats.reportDays > 0 ? (
+          <div className="sales-report__segment-schedule-kpis" aria-label="Сводка за месяц">
+            <div className="sales-report__segment-schedule-kpi">
+              <span className="sales-report__segment-schedule-kpi-label">Итого, ₽</span>
+              <strong className="sales-report__segment-schedule-kpi-value">{formatRub(stats.totalAmount)}</strong>
+            </div>
+            <div className="sales-report__segment-schedule-kpi">
+              <span className="sales-report__segment-schedule-kpi-label">Итого, шт</span>
+              <strong className="sales-report__segment-schedule-kpi-value">{stats.totalCount}</strong>
+            </div>
+            <div className="sales-report__segment-schedule-kpi">
+              <span className="sales-report__segment-schedule-kpi-label">Ср. чек</span>
+              <strong className="sales-report__segment-schedule-kpi-value">
+                {stats.avgCheck != null ? formatRub(stats.avgCheck) : '—'}
+              </strong>
+            </div>
+            <div className="sales-report__segment-schedule-kpi">
+              <span className="sales-report__segment-schedule-kpi-label">Лучший день</span>
+              <strong className="sales-report__segment-schedule-kpi-value">
+                {stats.peakDayNum != null ? `${stats.peakDayNum} · ${formatRub(stats.peakAmount)}` : '—'}
+              </strong>
+            </div>
+            <div className="sales-report__segment-schedule-kpi sales-report__segment-schedule-kpi--muted">
+              <span className="sales-report__segment-schedule-kpi-label">Отчётов</span>
+              <strong className="sales-report__segment-schedule-kpi-value">
+                {stats.reportDays}
+                {stats.daysWithSales < stats.reportDays ? ` · продаж ${stats.daysWithSales}` : ''}
+              </strong>
+            </div>
+          </div>
+        ) : (
+          <p className="sales-report__segment-schedule-meta muted">Нет заполненных отчётов за этот сегмент.</p>
+        )}
+
+        <div className="sales-report__segment-schedule-toolbar">
+          <div className="sales-report__segment-schedule-toolbar-row">
+            <span className="sales-report__segment-schedule-toolbar-label">Показать графики</span>
+            <button
+              type="button"
+              className={`sales-report__segment-schedule-all-btn${activeMetrics.size === 3 ? ' sales-report__segment-schedule-all-btn--on' : ''}`}
+              onClick={selectAllMetrics}
+              aria-pressed={activeMetrics.size === 3}
+            >
+              Все три
+            </button>
+          </div>
+          <div className="sales-report__segment-schedule-toggles" role="group" aria-label="Показатели графика">
+            {METRIC_OPTIONS.map((metric) => {
+              const Icon = metric.icon
+              const on = activeMetrics.has(metric.id)
+              return (
+                <button
+                  key={metric.id}
+                  type="button"
+                  className={`sales-report__segment-schedule-toggle${on ? ' sales-report__segment-schedule-toggle--on' : ''}`}
+                  aria-pressed={on}
+                  onClick={() => toggleMetric(metric.id)}
+                >
+                  <Icon size={14} aria-hidden />
+                  {metric.label}
+                  <span className="sales-report__segment-schedule-toggle-unit">{metric.short}</span>
+                </button>
+              )
+            })}
+          </div>
+          <p className="sales-report__segment-schedule-legend muted">
+            Столбец — день месяца. Подпись на столбце — значение и доля от итога за месяц (%). Золотая обводка — лучший
+            день, красная — самый слабый день по среднему чеку.
           </p>
-          <h4 className="sales-report__segment-schedule-title" id="sales-segment-schedule-title">
-            <span className="sales-report__segment-schedule-hall">{String(label).split(' ')[0]}</span>
-            <span className="sales-report__segment-schedule-col">{String(label).split(' ')[1]}</span>
-            {hall ? <span className="sr-only"> ({hall})</span> : null}
-          </h4>
         </div>
-        <button
-          type="button"
-          className="sales-report__segment-schedule-close"
-          onClick={onClose}
-          aria-label="Закрыть график продаж"
-        >
-          <X size={18} aria-hidden />
-          Закрыть
-        </button>
-      </header>
 
-      {stats.reportDays > 0 ? (
-        <div className="sales-report__segment-schedule-kpis" aria-label="Сводка за месяц">
-          <div className="sales-report__segment-schedule-kpi">
-            <span className="sales-report__segment-schedule-kpi-label">Итого, ₽</span>
-            <strong className="sales-report__segment-schedule-kpi-value">{formatRub(stats.totalAmount)}</strong>
-          </div>
-          <div className="sales-report__segment-schedule-kpi">
-            <span className="sales-report__segment-schedule-kpi-label">Итого, шт</span>
-            <strong className="sales-report__segment-schedule-kpi-value">{stats.totalCount}</strong>
-          </div>
-          <div className="sales-report__segment-schedule-kpi">
-            <span className="sales-report__segment-schedule-kpi-label">Ср. чек</span>
-            <strong className="sales-report__segment-schedule-kpi-value">
-              {stats.avgCheck != null ? formatRub(stats.avgCheck) : '—'}
-            </strong>
-          </div>
-          <div className="sales-report__segment-schedule-kpi">
-            <span className="sales-report__segment-schedule-kpi-label">Лучший день</span>
-            <strong className="sales-report__segment-schedule-kpi-value">
-              {stats.peakDayNum != null ? `${stats.peakDayNum} · ${formatRub(stats.peakAmount)}` : '—'}
-            </strong>
-          </div>
-          <div className="sales-report__segment-schedule-kpi sales-report__segment-schedule-kpi--muted">
-            <span className="sales-report__segment-schedule-kpi-label">Отчётов</span>
-            <strong className="sales-report__segment-schedule-kpi-value">
-              {stats.reportDays}
-              {stats.daysWithSales < stats.reportDays ? ` · продаж ${stats.daysWithSales}` : ''}
-            </strong>
-          </div>
-        </div>
-      ) : (
-        <p className="sales-report__segment-schedule-meta muted">Нет заполненных отчётов за этот сегмент.</p>
-      )}
-
-      <div className="sales-report__segment-schedule-toolbar">
-        <div className="sales-report__segment-schedule-toolbar-row">
-          <span className="sales-report__segment-schedule-toolbar-label">Показать на графике</span>
-          <button
-            type="button"
-            className={`sales-report__segment-schedule-all-btn${activeMetrics.size === 3 ? ' sales-report__segment-schedule-all-btn--on' : ''}`}
-            onClick={selectAllMetrics}
-            aria-pressed={activeMetrics.size === 3}
+        {series.length && activeList.length ? (
+          <div
+            className={`sales-report__segment-schedule-charts sales-report__segment-schedule-charts--fullscreen${stackedCharts ? ' sales-report__segment-schedule-charts--facts-stack' : ''}`}
           >
-            Все показатели
-          </button>
-        </div>
-        <div className="sales-report__segment-schedule-toggles" role="group" aria-label="Показатели графика">
-          {METRIC_OPTIONS.map((metric) => {
-            const Icon = metric.icon
-            const on = activeMetrics.has(metric.id)
-            return (
-              <button
-                key={metric.id}
-                type="button"
-                className={`sales-report__segment-schedule-toggle${on ? ' sales-report__segment-schedule-toggle--on' : ''}`}
-                aria-pressed={on}
-                onClick={() => toggleMetric(metric.id)}
-              >
-                <Icon size={14} aria-hidden />
-                {metric.label}
-                <span className="sales-report__segment-schedule-toggle-unit">{metric.short}</span>
-              </button>
-            )
-          })}
-        </div>
-        <div className="sales-report__segment-schedule-view-modes" role="group" aria-label="Режим графика">
-          <button
-            type="button"
-            className={`sales-report__segment-schedule-view-btn${chartView === 'compare' ? ' sales-report__segment-schedule-view-btn--on' : ''}`}
-            aria-pressed={chartView === 'compare'}
-            onClick={() => setChartView('compare')}
-          >
-            Сравнение, %
-          </button>
-          <button
-            type="button"
-            className={`sales-report__segment-schedule-view-btn${chartView === 'absolute' ? ' sales-report__segment-schedule-view-btn--on' : ''}`}
-            aria-pressed={chartView === 'absolute'}
-            onClick={() => setChartView('absolute')}
-          >
-            Факты
-          </button>
-        </div>
-        <p className="sales-report__segment-schedule-legend muted">
-          {useCompareChart
-            ? 'Все линии на одной шкале: 100% = дневная норма (план ÷ дни месяца). Выше 100% — день сильнее нормы, ниже — слабее.'
-            : useAbsoluteMulti
-              ? 'Абсолютные значения по каждому показателю — отдельные мини-графики.'
-              : 'Столбец — день месяца; яркий — есть отчёт; золотая обводка — лучший день.'}
-        </p>
-      </div>
+            {activeList.map((metric) => (
+              <div key={metric.id} className="sales-report__segment-schedule-chart">
+                <h5 className="sales-report__segment-schedule-chart-title">{metric.chartTitle}</h5>
+                <SalesSegmentMetricColumnChart
+                  series={metricSeries[metric.id]}
+                  metricKind={metric.id}
+                  colSuffix={col}
+                  onDayClick={onOpenDay}
+                  fullscreen
+                  stacked={stackedCharts}
+                />
+              </div>
+            ))}
+          </div>
+        ) : null}
 
-      {series.length && activeList.length ? (
-        <div className="sales-report__segment-schedule-charts sales-report__segment-schedule-charts--fullscreen">
-          {useCompareChart ? (
-            <div className="sales-report__segment-schedule-chart sales-report__segment-schedule-chart--combined">
-              <h5 className="sales-report__segment-schedule-chart-title">
-                Сравнение темпа: {activeList.map((m) => m.label).join(' · ')}
-              </h5>
-              <SalesSegmentComparablePaceChart
-                dailySeries={series}
-                activeMetricIds={activeIds}
-                plan={plan}
-                daysInMonth={monthDays}
-                onOpenDay={onOpenDay}
-                fullscreen
-              />
-            </div>
-          ) : useAbsoluteMulti ? (
-            <div className="sales-report__segment-schedule-charts sales-report__segment-schedule-charts--absolute-grid sales-report__segment-schedule-charts--absolute-fullscreen">
-              {activeList.map((metric) => (
-                <div key={metric.id} className="sales-report__segment-schedule-chart">
-                  <h5 className="sales-report__segment-schedule-chart-title">
-                    {metric.label}, {metric.short}
-                  </h5>
-                  <SalesSegmentMetricColumnChart
-                    series={metricSeries[metric.id]}
-                    metricKind={metric.id}
-                    colSuffix={col}
-                    onDayClick={onOpenDay}
-                    fullscreen
-                  />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="sales-report__segment-schedule-chart">
-              <h5 className="sales-report__segment-schedule-chart-title">
-                {activeList[0].label}, {activeList[0].short}
-              </h5>
-              <SalesSegmentMetricColumnChart
-                series={metricSeries[activeList[0].id]}
-                metricKind={activeList[0].id}
-                colSuffix={col}
-                onDayClick={onOpenDay}
-                fullscreen
-              />
-            </div>
-          )}
-        </div>
-      ) : null}
-
-      {onOpenDay ? (
-        <p className="muted sales-report__segment-schedule-hint">Нажмите на столбец дня — откроется отчёт за этот день.</p>
-      ) : null}
+        {onOpenDay ? (
+          <p className="muted sales-report__segment-schedule-hint">Нажмите на столбец дня — откроется отчёт за этот день.</p>
+        ) : null}
       </div>
     </div>
   )

@@ -45,6 +45,26 @@ function formatBarValue(value, kind) {
 }
 
 /**
+ * @param {number} value
+ * @param {'count'|'amount'|'avg'} kind
+ * @param {number} monthTotal
+ * @param {boolean} showShare
+ */
+function formatDayBarLabel(value, kind, monthTotal, showShare) {
+  const n = Number(value) || 0
+  const base = kind === 'count' ? String(Math.round(n)) : formatAxisValue(n, kind)
+  if (!showShare || monthTotal <= 0 || n <= 0) return base
+  const share = Math.round((n / monthTotal) * 100)
+  return `${base} · ${share}%`
+}
+
+const METRIC_COLORS = /** @type {const} */ ({
+  amount: 'linear-gradient(180deg, #047857, #34d399)',
+  count: 'linear-gradient(180deg, #1d4ed8, #60a5fa)',
+  avg: 'linear-gradient(180deg, #7c3aed, #c4b5fd)',
+})
+
+/**
  * @param {{
  *   series: Array<{ date: string, value: number | null, hasReport: boolean }>,
  *   metricKind?: 'count'|'amount'|'avg',
@@ -52,6 +72,7 @@ function formatBarValue(value, kind) {
  *   onDayClick?: (iso: string) => void,
  *   compact?: boolean,
  *   fullscreen?: boolean,
+ *   stacked?: boolean,
  * }} props
  */
 export function SalesSegmentMetricColumnChart({
@@ -61,39 +82,58 @@ export function SalesSegmentMetricColumnChart({
   onDayClick,
   compact = false,
   fullscreen = false,
+  stacked = false,
 }) {
+  const plotHeight = fullscreen ? (stacked ? 168 : 260) : compact ? 120 : 176
+
   const barColor = useMemo(() => {
+    if (METRIC_COLORS[metricKind]) return METRIC_COLORS[metricKind]
     if (colSuffix === 'dk') return 'linear-gradient(180deg, #2563b8, #9ec9ff)'
     if (colSuffix === 'uk') return 'linear-gradient(180deg, #6b21a8, #e0b0ff)'
     return 'linear-gradient(180deg, #047857, #7ee8c6)'
-  }, [colSuffix])
+  }, [colSuffix, metricKind])
 
-  const { chartMax, ticks, total, hasAny, peakDate, avgPerReportDay } = useMemo(() => {
+  const stats = useMemo(() => {
     let max = 0
     let sum = 0
     let peak = null
     let peakN = 0
+    let low = null
+    let lowN = Infinity
     let reportDays = 0
+    let salesDays = 0
+
     for (const d of series ?? []) {
       const n = d.hasReport ? Number(d.value) || 0 : 0
       if (d.hasReport) {
         reportDays += 1
         sum += n
+        if (n > 0) salesDays += 1
       }
       if (n > max) max = n
       if (n > peakN) {
         peakN = n
         peak = d.date
       }
+      if (d.hasReport && n > 0 && n < lowN) {
+        lowN = n
+        low = d.date
+      }
     }
+
     const cm = chartMaxValue(max)
     return {
       chartMax: cm,
       ticks: yTicks(cm),
       total: sum,
-      hasAny: reportDays > 0,
+      hasAny: salesDays > 0,
+      reportDays,
+      salesDays,
       peakDate: peakN > 0 ? peak : null,
-      avgPerReportDay: reportDays > 0 ? sum / reportDays : 0,
+      peakValue: peakN,
+      lowDate: lowN < Infinity ? low : null,
+      lowValue: lowN < Infinity ? lowN : null,
+      avgPerSalesDay: salesDays > 0 ? sum / salesDays : 0,
     }
   }, [series])
 
@@ -105,14 +145,16 @@ export function SalesSegmentMetricColumnChart({
     )
   }
 
+  const showShare = fullscreen && stats.total > 0
+
   return (
     <div
-      className={`sales-segment-column-chart${compact ? ' sales-segment-column-chart--compact' : ''}${fullscreen ? ' sales-segment-column-chart--fullscreen' : ''}`}
+      className={`sales-segment-column-chart sales-segment-column-chart--${metricKind}${compact ? ' sales-segment-column-chart--compact' : ''}${fullscreen ? ' sales-segment-column-chart--fullscreen' : ''}${stacked ? ' sales-segment-column-chart--stacked' : ''}`}
     >
       <div className="sales-column-chart__canvas">
         <div className="sales-column-chart__plot" role="img" aria-label="Продажи сегмента по дням месяца">
           <div className="sales-column-chart__y-axis" aria-hidden>
-            {ticks.map((t) => (
+            {stats.ticks.map((t) => (
               <span key={t} className="sales-column-chart__y-label">
                 {formatAxisValue(t, metricKind)}
               </span>
@@ -122,31 +164,39 @@ export function SalesSegmentMetricColumnChart({
           <div className="sales-column-chart__scroll">
             <div
               className="sales-column-chart__cols sales-segment-column-chart__cols"
-              style={{ '--chart-max': String(chartMax), '--chart-cols': String(series.length) }}
+              style={{
+                '--chart-max': String(stats.chartMax),
+                '--chart-cols': String(series.length),
+                '--plot-height': `${plotHeight}px`,
+              }}
             >
-              {ticks.map((t) => (
+              {stats.ticks.map((t) => (
                 <div
                   key={`grid-${t}`}
                   className="sales-column-chart__grid-line"
-                  style={{ bottom: `${chartMax ? (t / chartMax) * 100 : 0}%` }}
+                  style={{ bottom: `${stats.chartMax ? (t / stats.chartMax) * 100 : 0}%` }}
                 />
               ))}
 
               {series.map((d, idx) => {
                 const n = d.hasReport ? Number(d.value) || 0 : 0
-                const hPct = chartMax && d.hasReport ? Math.min(100, (n / chartMax) * 100) : 0
-                const isPeak = peakDate === d.date && n > 0
+                const barPx =
+                  stats.chartMax > 0 && d.hasReport && n > 0
+                    ? Math.max(Math.round((n / stats.chartMax) * plotHeight), 10)
+                    : 0
+                const isPeak = stats.peakDate === d.date && n > 0
+                const isLow = stats.lowDate === d.date && n > 0 && stats.salesDays > 1
                 const dayNum = Number(d.date.slice(8, 10)) || idx + 1
                 const clickable = d.hasReport && onDayClick
                 const title = d.hasReport
-                  ? `${dayNum}: ${formatBarValue(n, metricKind)}`
+                  ? `${dayNum}: ${formatBarValue(n, metricKind)}${showShare && n > 0 ? ` (${Math.round((n / stats.total) * 100)}% месяца)` : ''}`
                   : `${dayNum}: нет отчёта`
 
                 return (
                   <button
                     key={d.date}
                     type="button"
-                    className={`sales-column-chart__col-wrap${d.hasReport ? ' is-active' : ''}${isPeak ? ' is-peak' : ''}`}
+                    className={`sales-column-chart__col-wrap${d.hasReport ? ' is-active' : ''}${isPeak ? ' is-peak' : ''}${isLow ? ' is-low' : ''}`}
                     title={title}
                     disabled={!clickable}
                     onClick={() => clickable && onDayClick?.(d.date)}
@@ -155,19 +205,19 @@ export function SalesSegmentMetricColumnChart({
                     <div className="sales-column-chart__col-area">
                       {n > 0 ? (
                         <span className="sales-column-chart__col-value" aria-hidden>
-                          {formatAxisValue(n, metricKind)}
+                          {formatDayBarLabel(n, metricKind, stats.total, showShare)}
                         </span>
                       ) : null}
                       <div
-                        className={`sales-column-chart__col sales-segment-column-chart__col${d.hasReport ? ' is-filled' : ' is-empty'}${isPeak ? ' is-peak' : ''}`}
+                        className={`sales-column-chart__col sales-segment-column-chart__col${d.hasReport ? ' is-filled' : ' is-empty'}${isPeak ? ' is-peak' : ''}${isLow ? ' is-low' : ''}`}
                         style={{
-                          height: d.hasReport ? `${Math.max(hPct, n > 0 ? 6 : 0)}%` : '3px',
+                          height: d.hasReport ? (n > 0 ? `${barPx}px` : '3px') : '3px',
                           ...(d.hasReport && n > 0 ? { background: barColor } : {}),
                         }}
                       />
                     </div>
                     <span
-                      className={`sales-column-chart__col-label${d.hasReport ? ' is-active' : ''}${isPeak ? ' is-peak' : ''}`}
+                      className={`sales-column-chart__col-label${d.hasReport ? ' is-active' : ''}${isPeak ? ' is-peak' : ''}${isLow ? ' is-low' : ''}`}
                     >
                       {dayNum}
                     </span>
@@ -179,15 +229,21 @@ export function SalesSegmentMetricColumnChart({
         </div>
       </div>
 
-      {hasAny ? (
+      {stats.hasAny ? (
         <p className="muted sales-segment-column-chart__foot">
-          На графике: <strong>{formatBarValue(total, metricKind)}</strong>
+          Итого: <strong>{formatBarValue(stats.total, metricKind)}</strong>
           {' · '}
-          ср. за день с отчётом: <strong>{formatBarValue(avgPerReportDay, metricKind)}</strong>
-          {peakDate ? (
+          ср. в день с продажами: <strong>{formatBarValue(stats.avgPerSalesDay, metricKind)}</strong>
+          {stats.peakDate ? (
             <>
               {' · '}
-              пик: <strong>{Number(peakDate.slice(8, 10))}</strong> число
+              макс.: <strong>{Number(stats.peakDate.slice(8, 10))}</strong> ({formatBarValue(stats.peakValue, metricKind)})
+            </>
+          ) : null}
+          {stats.lowDate && metricKind === 'avg' ? (
+            <>
+              {' · '}
+              мин.: <strong>{Number(stats.lowDate.slice(8, 10))}</strong> ({formatBarValue(stats.lowValue, metricKind)})
             </>
           ) : null}
         </p>

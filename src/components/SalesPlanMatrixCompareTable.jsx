@@ -68,12 +68,6 @@ export function SalesPlanMatrixCompareTable({ comparison, monthRows = [], year, 
           hall={String(scheduleRow.hall ?? '')}
           col={String(scheduleRow.col ?? '')}
           series={scheduleSeries}
-          plan={{
-            count: Number(scheduleRow.plan?.count) || 0,
-            amount: Number(scheduleRow.plan?.amount) || 0,
-            avg_check: Number(scheduleRow.plan?.avg_check) || 0,
-          }}
-          daysInMonth={scheduleSeries.length}
           onClose={() => setScheduleCellKey(null)}
           onOpenDay={onOpenDay}
         />
