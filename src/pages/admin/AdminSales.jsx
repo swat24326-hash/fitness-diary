@@ -14,6 +14,7 @@ import {
   monthPartsFromIso,
   resolvePlanFactFromMonthSummary,
 } from '../../lib/admin/salesReportCore'
+import { computePlanDirectionsFromForm, buildPlanMatrixJsonFromForm } from '../../lib/admin/salesPlanMatrixCore'
 import {
   buildTrainingsMatrixColumns,
   clubAggregateInputMap,
@@ -368,15 +369,12 @@ export function AdminSales({ accessMode = 'admin' }) {
     [planForm],
   )
 
-  const planDirections = useMemo(
-    () => ({
-      plan_pz: Number(planForm.plan_pz) || 0,
-      plan_tz: Number(planForm.plan_tz) || 0,
-      plan_az: Number(planForm.plan_az) || 0,
-      plan_extra: Number(planForm.plan_extra) || 0,
-    }),
-    [planForm],
-  )
+  const planDirections = useMemo(() => computePlanDirectionsFromForm(planForm), [planForm])
+
+  const planMatrix = useMemo(() => {
+    const built = buildPlanMatrixJsonFromForm(planForm)
+    return built.ok ? built.plan_matrix : {}
+  }, [planForm])
 
   const shiftReportMonth = useCallback((delta) => {
     setReportDate((current) => {
@@ -782,6 +780,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             monthRows={monthDays}
             planLevels={planLevels}
             planDirections={planDirections}
+            planMatrix={planMatrix}
             membershipTypes={membershipTypes}
             trainers={trainers}
             onPrevMonth={() => shiftReportMonth(-1)}
@@ -828,6 +827,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             monthRows={monthDays}
             planLevels={planLevels}
             planDirections={planDirections}
+            planMatrix={planMatrix}
             membershipTypes={membershipTypes}
             trainers={trainers}
             onPrevMonth={() => shiftReportMonth(-1)}

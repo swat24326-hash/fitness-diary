@@ -2988,3 +2988,25 @@
   border: 1px solid rgba(46, 255, 184, 0.25);
 }
 
+/* План по направлениям — матрица кол-во × ср. чек */
+.sales-report__matrix-scroll--plan {
+  margin-top: 0.5rem;
+}
+
+.sales-report__matrix--plan .sales-report__matrix-input {
+  min-width: 4.5rem;
+}
+
+.sales-report__matrix--compare .sales-report__matrix-computed {
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.sales-report__compare-cell--warn {
+  color: #f5b84d;
+}
+
+.sales-report__compare-cell--ok {
+  color: var(--accent-bright, #2effb8);
+}
+

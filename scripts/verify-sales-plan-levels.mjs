@@ -17,6 +17,19 @@ function ok(cond, msg) {
   }
 }
 
+const matrixBase = {
+  plan_level_1: '1000000',
+  plan_level_2: '1100000',
+  plan_level_3: '1200000',
+  plan_pz_nk_count: '100',
+  plan_pz_nk_avg: '3000',
+  plan_tz_nk_count: '100',
+  plan_tz_nk_avg: '3000',
+  plan_az_nk_count: '100',
+  plan_az_nk_avg: '3000',
+  plan_extra: '300000',
+}
+
 ok(buildPlanProgressVisual(0).fillPercent === 0, '0% empty fill')
 
 ok(
@@ -26,16 +39,8 @@ ok(
 )
 ok(resolvePlanTotal({ plan_total: 5000 }) === 5000, 'legacy plan_total when levels empty')
 
-const parsed = planFormToPayload({
-  plan_level_1: '1000000',
-  plan_level_2: '1100000',
-  plan_level_3: '1200000',
-  plan_pz: '300000',
-  plan_tz: '300000',
-  plan_az: '300000',
-  plan_extra: '300000',
-})
-ok(parsed.ok === true, 'plan payload ok when directions match final')
+const parsed = planFormToPayload(matrixBase)
+ok(parsed.ok === true, 'plan payload ok when matrix meets final')
 ok(parsed.payload.plan_total === 1200000, 'plan_total stored as level 3')
 
 const badOrder = planFormToPayload({
@@ -51,9 +56,8 @@ ok(
       plan_level_1: '1000000',
       plan_level_2: '1100000',
       plan_level_3: '1200000',
-      plan_pz: '500000',
-      plan_tz: '400000',
-      plan_az: '400000',
+      plan_pz_nk_count: '50',
+      plan_pz_nk_avg: '1000',
     },
     { scope: 'levels' },
   ).ok === true,
@@ -63,36 +67,27 @@ ok(
 const badDirections = planFormToPayload(
   {
     plan_level_3: '1200000',
-    plan_pz: '500000',
-    plan_tz: '400000',
-    plan_az: '400000',
+    plan_pz_nk_count: '50',
+    plan_pz_nk_avg: '1000',
+    plan_tz_nk_count: '50',
+    plan_tz_nk_avg: '1000',
+    plan_az_nk_count: '50',
+    plan_az_nk_avg: '1000',
   },
   { scope: 'directions' },
 )
-ok(badDirections.ok === false, 'directions scope rejects sum not equal level 3')
+ok(badDirections.ok === false, 'directions scope rejects sum below level 3')
 
-const goodDirections = planFormToPayload(
-  {
-    plan_level_3: '1200000',
-    plan_pz: '300000',
-    plan_tz: '300000',
-    plan_az: '300000',
-    plan_extra: '300000',
-  },
+const goodDirections = planFormToPayload(matrixBase, { scope: 'directions' })
+ok(goodDirections.ok === true, 'directions scope accepts minimum match')
+
+const aboveDirections = planFormToPayload(
+  { ...matrixBase, plan_pz_nk_count: '110' },
   { scope: 'directions' },
 )
-ok(goodDirections.ok === true, 'directions scope accepts exact match')
+ok(aboveDirections.ok === true, 'directions scope accepts sum above final')
 
-ok(
-  evaluatePlanDirectionsForm({
-    plan_level_3: '1200000',
-    plan_pz: '300000',
-    plan_tz: '300000',
-    plan_az: '300000',
-    plan_extra: '300000',
-  }).canSave === true,
-  'evaluatePlanDirectionsForm canSave when exact',
-)
+ok(evaluatePlanDirectionsForm(matrixBase).canSave === true, 'evaluatePlanDirectionsForm canSave when minimum met')
 
 const milestone = buildPlanMilestoneVisual(1_050_000, {
   level1: 1_000_000,

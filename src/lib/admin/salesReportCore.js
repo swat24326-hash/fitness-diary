@@ -1161,104 +1161,10 @@ export function resolveAchievedPlanLevel(fact, levels) {
   return 0
 }
 
-/** @param {Record<string, string>} form */
-export function evaluatePlanDirectionsForm(form) {
-  const plan_level_3 = parseSalesMoney(form.plan_level_3)
-  const plan_pz = parseSalesMoney(form.plan_pz)
-  const plan_tz = parseSalesMoney(form.plan_tz)
-  const plan_az = parseSalesMoney(form.plan_az)
-  const plan_extra = parseSalesMoney(form.plan_extra)
-  const invalid =
-    [plan_level_3, plan_pz, plan_tz, plan_az, plan_extra].some((n) => Number.isNaN(n)) ||
-    [plan_pz, plan_tz, plan_az, plan_extra].some((n) => n < 0)
-  const finalTarget = Number.isNaN(plan_level_3) ? 0 : Math.round(plan_level_3 * 100) / 100
-  const directionSum = Number.isNaN(plan_pz + plan_tz + plan_az + plan_extra)
-    ? 0
-    : Math.round((plan_pz + plan_tz + plan_az + plan_extra) * 100) / 100
-  const noFinal = finalTarget <= 0
-  const exactMatch = !noFinal && Math.abs(directionSum - finalTarget) <= 0.009
-  const directionsMismatch = !noFinal && directionSum > 0 && !exactMatch
-  return {
-    invalid,
-    finalTarget,
-    directionSum,
-    noFinal,
-    exactMatch,
-    directionsMismatch,
-    canSave: !invalid && !noFinal && exactMatch && directionSum > 0,
-  }
-}
-
-/**
- * @param {Record<string, string>} form
- * @param {{ scope?: 'all' | 'levels' | 'directions' }} [opts]
- */
-export function planFormToPayload(form, opts = {}) {
-  const scope = opts.scope ?? 'all'
-  const plan_level_1 = parseSalesMoney(form.plan_level_1)
-  const plan_level_2 = parseSalesMoney(form.plan_level_2)
-  const plan_level_3 = parseSalesMoney(form.plan_level_3)
-  const plan_pz = parseSalesMoney(form.plan_pz)
-  const plan_tz = parseSalesMoney(form.plan_tz)
-  const plan_az = parseSalesMoney(form.plan_az)
-  const plan_extra = parseSalesMoney(form.plan_extra)
-
-  if ([plan_level_1, plan_level_2, plan_level_3, plan_pz, plan_tz, plan_az, plan_extra].some((n) => Number.isNaN(n))) {
-    return { ok: false, error: 'План: неотрицательные суммы' }
-  }
-
-  if (scope === 'levels' || scope === 'all') {
-    if (plan_level_1 > 0 && plan_level_2 > 0 && plan_level_2 + 0.009 < plan_level_1) {
-      return { ok: false, error: 'Уровень 2 не может быть ниже уровня 1' }
-    }
-    if (plan_level_2 > 0 && plan_level_3 > 0 && plan_level_3 + 0.009 < plan_level_2) {
-      return { ok: false, error: 'Уровень 3 (финал) не может быть ниже уровня 2' }
-    }
-    if (plan_level_1 > 0 && plan_level_3 > 0 && plan_level_2 <= 0 && plan_level_3 + 0.009 < plan_level_1) {
-      return { ok: false, error: 'Уровень 3 не может быть ниже уровня 1' }
-    }
-  }
-
-  const plan_total = plan_level_3 > 0 ? plan_level_3 : Math.max(plan_level_1, plan_level_2, 0)
-  const directionSum = Math.round((plan_pz + plan_tz + plan_az + plan_extra) * 100) / 100
-
-  if (scope === 'directions') {
-    if (plan_level_3 <= 0) {
-      return {
-        ok: false,
-        error: 'Сначала управляющий задаёт уровень 3 (финал) во вкладке «Финансы клуба»',
-      }
-    }
-    if (directionSum <= 0) {
-      return { ok: false, error: 'Распределите план: ПЗ, ТЗ, АЗ и доп. продажи' }
-    }
-    if (Math.abs(directionSum - plan_level_3) > 0.009) {
-      return {
-        ok: false,
-        error: `Сумма направлений (${formatRub(directionSum)}) должна быть ровно ${formatRub(plan_level_3)} — финал уровня 3`,
-      }
-    }
-  } else if (scope === 'all' && plan_total > 0 && directionSum > 0 && Math.abs(directionSum - plan_total) > 0.009) {
-    return {
-      ok: false,
-      error: `План по направлениям (${formatRub(directionSum)}) должен совпадать с уровнем 3 — финалом (${formatRub(plan_total)})`,
-    }
-  }
-
-  return {
-    ok: true,
-    payload: {
-      plan_total: Math.round(plan_total * 100) / 100,
-      plan_level_1,
-      plan_level_2,
-      plan_level_3,
-      plan_pz,
-      plan_tz,
-      plan_az,
-      plan_extra,
-    },
-  }
-}
+export {
+  evaluatePlanDirectionsFormExtended as evaluatePlanDirectionsForm,
+  planMatrixFormToPayload as planFormToPayload,
+} from './salesPlanMatrixCore.js'
 
 
 
@@ -1277,6 +1183,15 @@ export function expenseFormToPayload(form) {
 
 
 export function emptyPlanForm() {
+  /** @type {Record<string, string>} */
+  const matrix = {}
+  for (const row of SALES_MATRIX_HALL_ROWS) {
+    for (const col of SALES_MATRIX_COLS) {
+      const cellKey = `${row.key}_${col.suffix}`
+      matrix[`plan_${cellKey}_count`] = ''
+      matrix[`plan_${cellKey}_avg`] = ''
+    }
+  }
   return {
     plan_level_1: '',
     plan_level_2: '',
@@ -1285,10 +1200,9 @@ export function emptyPlanForm() {
     plan_tz: '',
     plan_az: '',
     plan_extra: '',
+    ...matrix,
   }
 }
-
-
 
 export function planRowToForm(row) {
   const f = emptyPlanForm()
@@ -1299,9 +1213,24 @@ export function planRowToForm(row) {
     plan_level_2: row.plan_level_2 ?? row.plan_dk,
     plan_level_3: row.plan_level_3 ?? row.plan_uk,
   }
-  for (const k of Object.keys(f)) {
+  for (const k of ['plan_level_1', 'plan_level_2', 'plan_level_3', 'plan_pz', 'plan_tz', 'plan_az', 'plan_extra']) {
     const v = src[k]
     f[k] = v == null || v === '' ? '' : String(v)
+  }
+  const rawMatrix = row.plan_matrix
+  if (rawMatrix && typeof rawMatrix === 'object' && !Array.isArray(rawMatrix)) {
+    for (const rowDef of SALES_MATRIX_HALL_ROWS) {
+      for (const col of SALES_MATRIX_COLS) {
+        const cellKey = `${rowDef.key}_${col.suffix}`
+        const cell = /** @type {{ count?: unknown, avg_check?: unknown }} */ (rawMatrix[cellKey])
+        const count = Math.trunc(Number(cell?.count) || 0)
+        const avg = Number(cell?.avg_check) || 0
+        if (count > 0 && avg > 0) {
+          f[`plan_${cellKey}_count`] = String(count)
+          f[`plan_${cellKey}_avg`] = String(avg)
+        }
+      }
+    }
   }
   return f
 }

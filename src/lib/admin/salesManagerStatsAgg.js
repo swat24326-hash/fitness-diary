@@ -26,6 +26,8 @@ import {
   sumDopRubFromDailyRows,
   sumMatrix3x3AmountsFromDailyRows,
 } from './salesReportCore.js'
+import { buildGeminiMonthCalendarContext } from './geminiMonthCalendarContext.js'
+import { buildPlanMatrixComparison } from './salesPlanMatrixCompare.js'
 
 /** @param {Array<Record<string, unknown>>} rows */
 export function sumMatrix3x3FromDailyRows(rows) {
@@ -162,6 +164,7 @@ export function buildSalesDayTableRows(rows) {
  *   monthRows?: Array<Record<string, unknown>>,
  *   planLevels?: { level1?: number, level2?: number, level3?: number },
  *   planDirections?: { plan_pz?: number, plan_tz?: number, plan_az?: number, plan_extra?: number },
+ *   planMatrix?: unknown,
  *   membershipTypes?: Array<{ id: string, code?: string }>,
  *   year: number,
  *   month: number,
@@ -229,6 +232,13 @@ export function buildSalesManagerMonthStats(opts) {
   )
   const aerobicStats = aggregateAerobicSalesFromDailyRows(monthRows, aerobicTypes)
 
+  const calendarContext = buildGeminiMonthCalendarContext(year, month)
+  const planMatrixComparison = buildPlanMatrixComparison({
+    monthRows,
+    planMatrix: opts.planMatrix,
+    calendarContext,
+  })
+
   const { start, end } = monthDateRange(year, month)
 
   return {
@@ -264,5 +274,6 @@ export function buildSalesManagerMonthStats(opts) {
     trainingsStats,
     trainingsTypedTotal,
     dayTable: buildSalesDayTableRows(monthRows),
+    planMatrixComparison,
   }
 }

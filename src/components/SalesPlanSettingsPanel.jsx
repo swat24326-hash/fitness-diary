@@ -76,7 +76,7 @@ export function SalesPlanSettingsPanel({
         <SalesFinanceBlock
           step={2}
           title="План по направлениям"
-          hint="ПЗ, ТЗ, АЗ и доп. продажи — сумма должна совпасть с уровнем 3."
+          hint="Количество × средний чек по НК/ДК/УК. Сумма направлений — не меньше уровня 3."
         >
           <SalesPlanDirectionsForm
             embedded

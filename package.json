@@ -15,6 +15,7 @@
     "lint:fix": "eslint . --fix",
     "db:migrate": "npx supabase db query --linked --file supabase/policies.sql",
     "db:migrate:sales": "node scripts/apply-club-sales-migration.mjs",
+    "db:migrate:plan-matrix": "node scripts/apply-club-sales-plan-matrix.mjs",
     "db:migrate:scalability": "node scripts/apply-scalability-indexes.mjs",
     "db:migrate:iskra": "node scripts/apply-iskra-migrations.mjs",
     "check:volume": "node scripts/check-data-volume.mjs",

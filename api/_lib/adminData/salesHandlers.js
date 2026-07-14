@@ -257,7 +257,7 @@ export async function handleSalesPlanPost(ctx, req, res, body) {
   const { data, error } = await supabaseAdmin
     .from('club_sales_plan')
     .upsert(row, { onConflict: 'club_id,year,month' })
-    .select('plan_total, plan_level_1, plan_level_2, plan_level_3, plan_pz, plan_tz, plan_az, plan_extra, updated_at')
+    .select('plan_total, plan_level_1, plan_level_2, plan_level_3, plan_pz, plan_tz, plan_az, plan_extra, plan_matrix, updated_at')
     .single()
   if (error) {
     sendJson(res, 400, { error: error.message })
