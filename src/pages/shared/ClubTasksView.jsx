@@ -33,7 +33,7 @@ function priorityLabelRu(priority) {
  * }} props
  */
 export function ClubTasksView({ clubId, mode = 'admin', canDelete = mode === 'admin' }) {
-  const { supabaseReady } = useAuth()
+  const { supabaseReady, profilePending, refreshUserProfile } = useAuth()
   const isSalesMode = mode === 'sales'
   const canStopRecurrence = mode === 'admin' || mode === 'sales'
 
@@ -184,8 +184,27 @@ export function ClubTasksView({ clubId, mode = 'admin', canDelete = mode === 'ad
       {!clubId ? (
         <div className="admin-section__empty-card">
           <ClipboardList size={40} aria-hidden className="admin-section__empty-card__icon" />
-          <p className="admin-section__empty-card__title">{isSalesMode ? 'Клуб не найден' : 'Выберите клуб'}</p>
-          {emptyClubHint}
+          {isSalesMode && profilePending ? (
+            <>
+              <p className="admin-section__empty-card__title">Загружаем клуб…</p>
+              <p className="muted" style={{ margin: '0.35rem 0 0' }}>
+                Подождите или нажмите «Повторить».
+              </p>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                style={{ marginTop: '0.75rem' }}
+                onClick={() => void refreshUserProfile()}
+              >
+                Повторить
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="admin-section__empty-card__title">{isSalesMode ? 'Клуб не найден' : 'Выберите клуб'}</p>
+              {emptyClubHint}
+            </>
+          )}
         </div>
       ) : (
         <>

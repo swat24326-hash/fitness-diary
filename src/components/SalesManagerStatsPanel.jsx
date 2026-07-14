@@ -7,6 +7,7 @@ import { MembershipTypeStatsTable } from './MembershipTypeStatsTable.jsx'
 import { SalesDayBarChart } from './SalesDayBarChart.jsx'
 import { SalesProfitDayChart } from './SalesProfitDayChart.jsx'
 import { SalesStructureBlock } from './SalesStructureBlock.jsx'
+import { SalesPlanMatrixCompareTable } from './SalesPlanMatrixCompareTable.jsx'
 
 /**
  * @param {{
@@ -331,80 +332,9 @@ export function SalesManagerStatsPanel({
       </div>
 
       {planMatrixComparison?.has_plan_matrix ? (
-        <div className="sales-report__card sales-report__stats-block">
+        <div className="sales-report__card sales-report__stats-block sales-report__stats-block--plan-compare">
           <h3 className="sales-report__stats-block-title">План vs факт по сегментам</h3>
-          {planMatrixComparison.summary_ru ? (
-            <p className="sales-report__plan-sum-hint muted" role="status">
-              {planMatrixComparison.summary_ru}
-            </p>
-          ) : null}
-          <div className="sales-report__matrix-scroll sales-report__matrix-scroll--stats">
-            <table className="sales-report__matrix sales-report__stats-matrix sales-report__matrix--compare">
-              <thead>
-                <tr>
-                  <th rowSpan={2} className="sales-report__matrix-row-label sales-report__stats-matrix-corner" scope="col" />
-                  <th colSpan={4} className="sales-report__matrix-group-head" scope="col">
-                    Количество
-                  </th>
-                  <th colSpan={3} className="sales-report__matrix-group-head" scope="col">
-                    Средний чек
-                  </th>
-                  <th colSpan={2} className="sales-report__matrix-group-head" scope="col">
-                    Сумма
-                  </th>
-                </tr>
-                <tr>
-                  <th className="sales-report__matrix-subhead" scope="col">план</th>
-                  <th className="sales-report__matrix-subhead" scope="col">факт</th>
-                  <th className="sales-report__matrix-subhead" scope="col">Δ</th>
-                  <th className="sales-report__matrix-subhead" scope="col">%</th>
-                  <th className="sales-report__matrix-subhead" scope="col">план</th>
-                  <th className="sales-report__matrix-subhead" scope="col">факт</th>
-                  <th className="sales-report__matrix-subhead" scope="col">Δ</th>
-                  <th className="sales-report__matrix-subhead" scope="col">план</th>
-                  <th className="sales-report__matrix-subhead" scope="col">факт</th>
-                </tr>
-              </thead>
-              <tbody>
-                {planMatrixComparison.rows.map((row) => {
-                  const countTone =
-                    Number(row.count_progress_pct) < 90
-                      ? ' sales-report__compare-cell--warn'
-                      : ' sales-report__compare-cell--ok'
-                  const avgTone =
-                    row.avg_gap_rub != null && Number(row.avg_gap_rub) < 0
-                      ? ' sales-report__compare-cell--warn'
-                      : ' sales-report__compare-cell--ok'
-                  return (
-                    <tr key={row.cellKey} className="sales-report__stats-matrix-row">
-                      <th className="sales-report__matrix-row-label sales-report__stats-matrix-row-label" scope="row">
-                        {row.label}
-                      </th>
-                      <td className="sales-report__matrix-computed">{row.plan.count}</td>
-                      <td className="sales-report__matrix-computed">{row.fact.count}</td>
-                      <td className={`sales-report__matrix-computed${countTone}`}>
-                        {row.count_gap > 0 ? `+${row.count_gap}` : row.count_gap}
-                      </td>
-                      <td className={`sales-report__matrix-computed${countTone}`}>
-                        {Math.round(Number(row.count_progress_pct) || 0)}%
-                      </td>
-                      <td className="sales-report__matrix-computed">{formatRub(row.plan.avg_check)}</td>
-                      <td className="sales-report__matrix-computed">
-                        {row.fact.avg_check != null ? formatRub(row.fact.avg_check) : '—'}
-                      </td>
-                      <td className={`sales-report__matrix-computed${avgTone}`}>
-                        {row.avg_gap_rub != null
-                          ? `${row.avg_gap_rub > 0 ? '+' : ''}${formatRub(row.avg_gap_rub)}`
-                          : '—'}
-                      </td>
-                      <td className="sales-report__matrix-computed">{formatRub(row.plan.amount)}</td>
-                      <td className="sales-report__matrix-computed">{formatRub(row.fact.amount)}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+          <SalesPlanMatrixCompareTable comparison={planMatrixComparison} />
         </div>
       ) : null}
 

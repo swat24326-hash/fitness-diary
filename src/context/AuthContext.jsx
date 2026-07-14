@@ -16,6 +16,15 @@ import {
   setBackgroundSyncPaused,
 } from '../lib/syncService'
 import { ensureDemoData, demoTrainerId, DEMO_CLUB_ID } from '../lib/seedDemo'
+import {
+  clearIdentityCache,
+  hasPersistedSupabaseSession,
+  mergeIdentityCacheIntoUser,
+  readIdentityCache,
+  readIdentityCacheLatest,
+  writeIdentityCache,
+} from '../lib/userIdentityCache'
+import { initAppLifecycle, requestPersistentStorageOnce, APP_WAKE_EVENT } from '../lib/appLifecycle'
 
 const STORAGE_KEY = 'fitness-diary-auth-fallback'
 const ROLE_CACHE_KEY = 'fitness-diary-role-cache'
@@ -92,13 +101,25 @@ function resolveRole(profile, sessionUser) {
   return 'trainer'
 }
 
-function applyUserFromSession(session, profile) {
-  return {
+function applyUserFromSession(session, profile, identityHint) {
+  const base = {
     id: session.user.id,
     email: session.user.email,
-    name: profile?.name ?? session.user.email,
-    club_id: profile?.club_id ?? null,
+    name: profile?.name ?? identityHint?.name ?? session.user.email,
+    club_id: profile?.club_id ?? identityHint?.club_id ?? null,
   }
+  return identityHint ? mergeIdentityCacheIntoUser(identityHint, base) : base
+}
+
+function persistIdentity(user, role) {
+  if (!user?.id) return
+  writeIdentityCache({
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    club_id: user.club_id,
+    role,
+  })
 }
 
 const AuthContext = createContext(null)
@@ -164,10 +185,14 @@ async function signInWithPasswordRetry(email, password, attempts = 2) {
   return { data: null, error: lastError }
 }
 
+const SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL ?? '').trim()
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [role, setRole] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [sessionRecovering, setSessionRecovering] = useState(false)
+  const [profilePending, setProfilePending] = useState(false)
   const [signingIn, setSigningIn] = useState(false)
 
   const queryUserRow = useCallback(async (applyFilter) => {
@@ -237,25 +262,73 @@ export function AuthProvider({ children }) {
   )
 
   const applySession = useCallback(
-    async (session) => {
+    async (session, { fromWake = false } = {}) => {
       if (!session?.user) {
         setUser(null)
         setRole(null)
+        setProfilePending(false)
         return
       }
       const uid = session.user.id
+      const identityHint = readIdentityCache(uid, session.user.email) ?? readIdentityCacheLatest()
       const quickRole = resolveRole(null, session.user)
-      setUser(applyUserFromSession(session, null))
-      setRole(quickRole)
+      const quickUser = applyUserFromSession(session, null, identityHint)
+      setUser(quickUser)
+      setRole(identityHint?.role ? normalizeRole(identityHint.role) : quickRole)
       setBackgroundSyncPaused(false)
+      setProfilePending(true)
 
-      const profile = await withTimeout(refreshProfile(uid, session.user.email), 8_000, 'profile').catch(() => null)
-      if (!profile) return
-      setUser((prev) => (prev?.id === uid ? applyUserFromSession(session, profile) : prev))
-      setRole(resolveRole(profile, session.user))
+      const profile = await withTimeout(refreshProfile(uid, session.user.email), fromWake ? 12_000 : 8_000, 'profile').catch(
+        () => null,
+      )
+      if (!profile) {
+        if (identityHint) {
+          setUser((prev) => (prev?.id === uid ? mergeIdentityCacheIntoUser(identityHint, prev) : prev))
+        }
+        setProfilePending(false)
+        return
+      }
+      const nextUser = applyUserFromSession(session, profile, identityHint)
+      const nextRole = resolveRole(profile, session.user)
+      setUser((prev) => (prev?.id === uid ? nextUser : prev))
+      setRole(nextRole)
+      persistIdentity(nextUser, nextRole)
+      setProfilePending(false)
     },
     [refreshProfile],
   )
+
+  const refreshSessionOnWake = useCallback(async () => {
+    if (!isSupabaseConfigured()) return
+    try {
+      const { data, error } = await supabase.auth.refreshSession()
+      if (error) {
+        console.warn('[auth] wake refreshSession', error.message)
+        return
+      }
+      if (data?.session?.user) {
+        await applySession(data.session, { fromWake: true })
+      }
+    } catch (e) {
+      console.warn('[auth] wake refreshSession failed', e)
+    }
+  }, [applySession])
+
+  const refreshUserProfile = useCallback(async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    if (!session?.user) return
+    setProfilePending(true)
+    const profile = await refreshProfile(session.user.id, session.user.email)
+    const nextUser = applyUserFromSession(session, profile, readIdentityCache(session.user.id, session.user.email))
+    const nextRole = resolveRole(profile, session.user)
+    setUser(nextUser)
+    setRole(nextRole)
+    persistIdentity(nextUser, nextRole)
+    setProfilePending(false)
+    return profile
+  }, [refreshProfile])
 
   useEffect(() => {
     const off = initConnectivityListeners()
@@ -286,20 +359,54 @@ export function AuthProvider({ children }) {
         }
 
         await clearPoisonedSyncQueue()
-        if (!cancelled) setLoading(false)
 
-        const { data } = await withSupabaseRetry(() => withTimeout(supabase.auth.getSession(), 6_000, 'getSession'))
+        const hasStored = hasPersistedSupabaseSession(SUPABASE_URL)
+        if (hasStored) {
+          const latest = readIdentityCacheLatest()
+          if (latest?.id) {
+            setSessionRecovering(true)
+            setUser({
+              id: latest.id,
+              email: latest.email,
+              name: latest.name,
+              club_id: latest.club_id,
+            })
+            setRole(normalizeRole(latest.role))
+          }
+        }
+
+        let session = null
+        try {
+          const { data } = await withSupabaseRetry(() => withTimeout(supabase.auth.getSession(), 6_000, 'getSession'))
+          session = data.session
+        } catch (e) {
+          console.warn('[auth] getSession failed', e)
+          if (hasStored) {
+            try {
+              const refreshed = await withTimeout(supabase.auth.refreshSession(), 8_000, 'refreshSession')
+              session = refreshed.data?.session ?? null
+            } catch (e2) {
+              console.warn('[auth] refreshSession after getSession fail', e2)
+            }
+          }
+        }
+
         if (cancelled) return
-        const s = data.session
-        if (s?.user) {
-          setUser(applyUserFromSession(s, null))
-          setRole(resolveRole(null, s.user))
-          void applySession(s)
+        if (session?.user) {
+          setUser(applyUserFromSession(session, null, readIdentityCache(session.user.id, session.user.email)))
+          setRole(resolveRole(null, session.user))
+          void applySession(session)
+        } else if (!hasStored) {
+          setUser(null)
+          setRole(null)
         }
       } catch (e) {
         console.warn('[auth] init failed', e)
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+          setSessionRecovering(false)
+        }
         window.clearTimeout(loadGuard)
       }
 
@@ -311,6 +418,14 @@ export function AuthProvider({ children }) {
         if (session?.user) {
           void applySession(session)
         } else if (event === 'SIGNED_OUT') {
+          if (hasPersistedSupabaseSession(SUPABASE_URL)) {
+            setSessionRecovering(true)
+            void refreshSessionOnWake().finally(() => {
+              if (!cancelled) setSessionRecovering(false)
+            })
+            return
+          }
+          clearIdentityCache()
           setUser(null)
           setRole(null)
         }
@@ -318,14 +433,31 @@ export function AuthProvider({ children }) {
       authUnsub = () => sub.subscription.unsubscribe()
     })()
 
+    const offLifecycle = initAppLifecycle({
+      onLongWake: () => {
+        void refreshSessionOnWake()
+      },
+    })
+
     return () => {
       cancelled = true
       window.clearTimeout(loadGuard)
       setBackgroundSyncPaused(true)
       off()
+      offLifecycle()
       authUnsub?.()
     }
-  }, [applySession])
+  }, [applySession, refreshSessionOnWake])
+
+  useEffect(() => {
+    const onWake = (ev) => {
+      if (!ev?.detail?.long || !user?.id) return
+      if (user.club_id || role === 'admin') return
+      void refreshUserProfile()
+    }
+    window.addEventListener(APP_WAKE_EVENT, onWake)
+    return () => window.removeEventListener(APP_WAKE_EVENT, onWake)
+  }, [user?.id, user?.club_id, role, refreshUserProfile])
 
   const signIn = useCallback(async ({ login, password }) => {
     const raw = normalizeLoginInput(login ?? '')
@@ -335,17 +467,31 @@ export function AuthProvider({ children }) {
     setSigningIn(true)
     const finishSignIn = (authUser, profile) => {
       void clearPoisonedSyncQueue()
-      setUser(applyUserFromSession({ user: authUser }, profile))
-      setRole(resolveRole(profile, authUser))
+      const identityHint = readIdentityCache(authUser.id, authUser.email)
+      const nextUser = applyUserFromSession({ user: authUser }, profile, identityHint)
+      const nextRole = resolveRole(profile, authUser)
+      setUser(nextUser)
+      setRole(nextRole)
+      persistIdentity(nextUser, nextRole)
       setBackgroundSyncPaused(false)
+      setProfilePending(false)
+      void requestPersistentStorageOnce()
       if (!profile?.role && authUser?.id) {
+        setProfilePending(true)
         void withTimeout(refreshProfile(authUser.id, authUser.email), 8_000, 'profile')
           .then((p) => {
-            if (!p) return
-            setUser((prev) => (prev?.id === authUser.id ? applyUserFromSession({ user: authUser }, p) : prev))
-            setRole(resolveRole(p, authUser))
+            if (!p) {
+              setProfilePending(false)
+              return
+            }
+            const u = applyUserFromSession({ user: authUser }, p, identityHint)
+            setUser((prev) => (prev?.id === authUser.id ? u : prev))
+            const r = resolveRole(p, authUser)
+            setRole(r)
+            persistIdentity(u, r)
+            setProfilePending(false)
           })
-          .catch(() => {})
+          .catch(() => setProfilePending(false))
       }
     }
 
@@ -466,40 +612,36 @@ export function AuthProvider({ children }) {
   const signOut = useCallback(async () => {
     setBackgroundSyncPaused(true)
     writeFallback(null)
+    clearIdentityCache()
     setUser(null)
     setRole(null)
+    setProfilePending(false)
+    setSessionRecovering(false)
     if (isSupabaseConfigured()) void supabase.auth.signOut()
     void clearSyncQueueForSignOut().catch((e) => {
       console.warn('[auth] clear sync queue on signOut', e)
     })
   }, [])
 
-  const refreshUserProfile = useCallback(async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    if (!session?.user) return
-    const profile = await refreshProfile(session.user.id, session.user.email)
-    setUser(applyUserFromSession(session, profile))
-    setRole(resolveRole(profile, session.user))
-    return profile
-  }, [refreshProfile])
-
   const value = useMemo(
     () => ({
       user,
       role,
       loading,
+      sessionRecovering,
+      profilePending,
       signingIn,
       signIn,
       signOut,
       refreshUserProfile,
+      refreshSessionOnWake,
+      hasStoredSession: hasPersistedSupabaseSession(SUPABASE_URL),
       isAdmin: role === 'admin',
       isTrainer: role === 'trainer',
       isSalesManager: role === 'sales_manager',
       supabaseReady: isSupabaseConfigured(),
     }),
-    [user, role, loading, signingIn, signIn, signOut, refreshUserProfile],
+    [user, role, loading, sessionRecovering, profilePending, signingIn, signIn, signOut, refreshUserProfile, refreshSessionOnWake],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

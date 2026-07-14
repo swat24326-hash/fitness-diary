@@ -5,8 +5,10 @@ import { useAuth } from '../context/AuthContext'
 export function AppWelcomeSplash({ displayName: displayNameProp } = {}) {
   const { user } = useAuth()
   const fromProp = String(displayNameProp ?? '').trim()
-  const rawName = fromProp || String(user?.name ?? '').trim()
+  const isRecovering = /восстанавливаем/i.test(fromProp)
+  const rawName = isRecovering ? '' : fromProp || String(user?.name ?? '').trim()
   const name = rawName || (user?.email ? String(user.email).split('@')[0] : '')
+  const hint = isRecovering ? fromProp : 'Разминаем интерфейс'
 
   return (
     <div className="app-loading-shell app-welcome-shell">
@@ -29,7 +31,7 @@ export function AppWelcomeSplash({ displayName: displayNameProp } = {}) {
             <span />
             <span />
           </span>
-          Разминаем интерфейс
+          {hint}
         </p>
       </div>
     </div>

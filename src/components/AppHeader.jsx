@@ -1,6 +1,7 @@
 import { Link, NavLink, useLocation, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { subscribeNetworkStatus, initWakeNetworkRecovery } from '../lib/networkReachability'
+import { subscribeNetworkStatus } from '../lib/networkReachability'
+import { resolveAdminClubId, readLastAdminClub, writeLastAdminClub } from '../lib/clubContext'
 import { isAppOnline } from '../lib/syncService'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react'
@@ -19,6 +20,8 @@ import { useHeaderSync } from './useHeaderSync'
 import { TrainerInboxPanel } from './iskra/TrainerInboxPanel.jsx'
 import { fetchIskraDispatch } from '../lib/admin/iskraDispatchService.js'
 import { TRAINER_INBOX_OPEN_EVENT } from '../lib/admin/trainerInboxEvents.js'
+import { recoverApp } from '../lib/appLifecycle'
+import { subscribeAppUpdatePending } from '../lib/appUpdateState'
 
 const GeminiAnalyticsPanel = lazy(() =>
   import('./GeminiAnalyticsPanel.jsx').then((m) => ({ default: m.GeminiAnalyticsPanel })),
@@ -33,7 +36,7 @@ function menuNavClass({ isActive }) {
 }
 
 export function AppHeader() {
-  const { user, signOut, isAdmin, isSalesManager, supabaseReady } = useAuth()
+  const { user, signOut, isAdmin, isSalesManager, supabaseReady, refreshUserProfile, refreshSessionOnWake } = useAuth()
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const [online, setOnline] = useState(() => (typeof navigator !== 'undefined' ? isAppOnline() : true))
@@ -51,10 +54,13 @@ export function AppHeader() {
   } = useIskraPanel()
   const menuRootRef = useRef(null)
   const [adminClubs, setAdminClubs] = useState([])
+  const [adminClubsLoading, setAdminClubsLoading] = useState(false)
   /** Название клуба тренера (adminClubs грузится только на /admin). */
   const [trainerClubLabel, setTrainerClubLabel] = useState(null)
   const [inboxOpen, setInboxOpen] = useState(false)
   const [inboxPending, setInboxPending] = useState(0)
+  const [updatePending, setUpdatePending] = useState(false)
+  const [recoverBusy, setRecoverBusy] = useState(false)
 
   const {
     showHeaderSync,
@@ -85,10 +91,13 @@ export function AppHeader() {
   const salesHomeActive =
     location.pathname === '/sales' && !salesReportActive && !salesStatsActive && !salesAnalyticsActive
 
+  useEffect(() => subscribeAppUpdatePending(setUpdatePending), [])
+
   useEffect(() => {
     if (!showAdminClubSelect) return
     let alive = true
     const load = async () => {
+      setAdminClubsLoading(true)
       try {
         let rows = await listClubsLocal()
         if (supabaseReady && rows.length > 1) {
@@ -106,6 +115,8 @@ export function AppHeader() {
         if (alive) setAdminClubs(Array.isArray(rows) ? rows : [])
       } catch {
         if (alive) setAdminClubs([])
+      } finally {
+        if (alive) setAdminClubsLoading(false)
       }
     }
     void load()
@@ -216,30 +227,42 @@ export function AppHeader() {
     return () => navigator.serviceWorker.removeEventListener('message', onMessage)
   }, [isDispatchInboxUser])
 
-  /** Один зал — сразу в URL; несколько — без «все клубы», только явный выбор. */
+  /** Один зал — сразу в URL; несколько — последний выбранный или явный выбор. */
   useEffect(() => {
     if (!showAdminClubSelect || adminClubs.length === 0) return
 
     const current = searchParams.get('club')?.trim() ?? ''
-    const validIds = new Set(adminClubs.map((c) => String(c.id)))
-    let nextClub = current
+    const validIds = adminClubs.map((c) => String(c.id))
+    const singleClubId = adminClubs.length === 1 ? String(adminClubs[0].id) : null
+    const lastClub = readLastAdminClub(user?.id)
+    const nextClub =
+      resolveAdminClubId({
+        urlClub: current,
+        lastClub,
+        validClubIds: validIds,
+        singleClubId,
+      }) ?? (current && validIds.includes(current) ? current : '')
 
-    if (adminClubs.length === 1) {
-      nextClub = String(adminClubs[0].id)
-    } else if (current && !validIds.has(current)) {
-      nextClub = ''
+    if (nextClub && nextClub !== current) {
+      const next = new URLSearchParams(searchParams)
+      next.set('club', nextClub)
+      setSearchParams(next, { replace: true })
+      return
     }
+    if (!nextClub && current && !validIds.includes(current)) {
+      const next = new URLSearchParams(searchParams)
+      next.delete('club')
+      setSearchParams(next, { replace: true })
+    }
+  }, [showAdminClubSelect, adminClubs, searchParams, setSearchParams, user?.id])
 
-    if (nextClub === current) return
-
-    const next = new URLSearchParams(searchParams)
-    if (nextClub) next.set('club', nextClub)
-    else next.delete('club')
-    setSearchParams(next, { replace: true })
-  }, [showAdminClubSelect, adminClubs, searchParams, setSearchParams])
+  useEffect(() => {
+    if (!isAdmin || !user?.id) return
+    const cid = searchParams.get('club')?.trim()
+    if (cid) writeLastAdminClub(user.id, cid)
+  }, [isAdmin, user?.id, searchParams])
 
   useEffect(() => subscribeNetworkStatus(setOnline), [])
-  useEffect(() => initWakeNetworkRecovery(), [])
 
   useEffect(() => {
     if (!menuOpen) return
@@ -260,6 +283,22 @@ export function AppHeader() {
   const doSignOut = () => {
     setMenuOpen(false)
     signOut()
+  }
+
+  const doRecoverApp = async () => {
+    if (recoverBusy) return
+    setRecoverBusy(true)
+    try {
+      await recoverApp({
+        refreshSession: refreshSessionOnWake,
+        refreshProfile: refreshUserProfile,
+      })
+    } catch {
+      showSyncFeedback('Не удалось восстановить — откройте Помощь', 'warn')
+    } finally {
+      setRecoverBusy(false)
+      setMenuOpen(false)
+    }
   }
 
   const homeTo = isAdmin ? `/admin${adminQs}` : isSalesManager ? '/sales' : '/trainer'
@@ -428,7 +467,9 @@ export function AppHeader() {
             aria-label="Клуб"
             title="Клуб"
           >
-            {adminClubs.length !== 1 ? (
+            {adminClubsLoading && adminClubs.length === 0 ? (
+              <option value="">Загрузка клубов…</option>
+            ) : adminClubs.length !== 1 ? (
               <option value="" disabled={!!adminClubValue}>
                 Выберите клуб…
               </option>
@@ -608,6 +649,15 @@ export function AppHeader() {
             ) : null}
             <button
               type="button"
+              className="app-header__menu-item"
+              disabled={recoverBusy}
+              onClick={() => void doRecoverApp()}
+            >
+              <RefreshCw size={18} className={recoverBusy ? 'icon-spin' : undefined} aria-hidden />
+              {recoverBusy ? 'Восстанавливаем…' : 'Восстановить приложение'}
+            </button>
+            <button
+              type="button"
               className="app-header__menu-item app-header__menu-item--journal"
               onClick={openErrorJournal}
             >
@@ -619,9 +669,22 @@ export function AppHeader() {
                 )}
                 {isAdmin ? 'Журнал ошибок' : 'Помощь'}
               </span>
-              {persistentErrorCount > 0 ? (
-                <span className="app-header__error-badge" aria-label={`Записей в журнале: ${persistentErrorCount}`}>
-                  {persistentErrorCount > 99 ? '99+' : persistentErrorCount}
+              {persistentErrorCount > 0 || updatePending ? (
+                <span
+                  className="app-header__error-badge"
+                  aria-label={
+                    updatePending && persistentErrorCount > 0
+                      ? `Обновление отложено; записей в журнале: ${persistentErrorCount}`
+                      : updatePending
+                        ? 'Доступна новая версия'
+                        : `Записей в журнале: ${persistentErrorCount}`
+                  }
+                >
+                  {persistentErrorCount > 0
+                    ? persistentErrorCount > 99
+                      ? '99+'
+                      : persistentErrorCount
+                    : '↑'}
                 </span>
               ) : null}
             </button>

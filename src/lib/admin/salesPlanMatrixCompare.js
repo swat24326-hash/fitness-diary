@@ -13,8 +13,11 @@ import {
   roundPlanRub,
 } from './salesPlanMatrixCore.js'
 
+/** Допуск от календарного темпа, % (как в ИСКРЕ по направлениям). */
+export const PLAN_MATRIX_PACE_SLACK_PCT = 8
+
 /** @param {'pz'|'tz'|'az'} hall @param {'nk'|'dk'|'uk'} col */
-function planMatrixCellLabel(hall, col) {
+export function planMatrixCellLabel(hall, col) {
   const row = SALES_MATRIX_HALL_ROWS.find((r) => r.key === hall)
   const colDef = SALES_MATRIX_COLS.find((c) => c.suffix === col)
   return `${row?.label ?? hall} ${colDef?.label ?? col}`
@@ -41,6 +44,91 @@ function sumMatrix3x3CountsFromDailyRows(rows) {
 function factAvgCheck(amount, count) {
   if (count <= 0 || amount <= 0) return null
   return roundPlanRub(amount / count)
+}
+
+/**
+ * Прогноз суммы к концу месяца (линейно от факта и календаря).
+ * @param {number} factAmount
+ * @param {{ month_relation?: string, expected_plan_progress_pct?: number } | null | undefined} calendar
+ */
+export function forecastPlanMatrixAmount(factAmount, calendar) {
+  const relation = calendar?.month_relation ?? 'current'
+  const fact = roundPlanRub(factAmount)
+  if (relation === 'past') return fact
+  if (relation !== 'current') return fact
+  const elapsed = Number(calendar?.expected_plan_progress_pct) || 0
+  if (elapsed <= 0) return fact
+  return roundPlanRub((fact / elapsed) * 100)
+}
+
+/**
+ * @param {{
+ *   plan?: { count?: number, avg_check?: number, amount?: number },
+ *   fact?: { count?: number, avg_check?: number | null, amount?: number },
+ *   count_progress_pct?: number,
+ *   amount_progress_pct?: number,
+ *   avg_gap_rub?: number | null,
+ *   pace?: { on_pace?: boolean },
+ * }} row
+ * @param {{ month_relation?: string, expected_plan_progress_pct?: number } | null | undefined} calendar
+ */
+export function resolvePlanMatrixCellStatus(row, calendar) {
+  const relation = calendar?.month_relation ?? 'current'
+  const elapsedPct = relation === 'current' ? Number(calendar?.expected_plan_progress_pct) || 0 : relation === 'past' ? 100 : 0
+
+  const planAmount = Number(row.plan?.amount) || 0
+  const factAmount = Number(row.fact?.amount) || 0
+  const countPct = Number(row.count_progress_pct) || 0
+  const amountPct = Number(row.amount_progress_pct) || 0
+
+  if (planAmount <= 0) {
+    return {
+      status: 'muted',
+      label: '—',
+      title: 'План по ячейке не задан',
+      forecast_amount: 0,
+      forecast_pct: 0,
+    }
+  }
+
+  const forecastAmount = forecastPlanMatrixAmount(factAmount, calendar)
+  const forecastPct = planProgressPercent(forecastAmount, planAmount)
+  const forecastOk = forecastPct >= 99.5
+
+  const paceThreshold = relation === 'past' ? 95 : Math.max(5, elapsedPct - PLAN_MATRIX_PACE_SLACK_PCT)
+  const countOk =
+    relation === 'future' ? countPct >= 0 : Boolean(row.pace?.on_pace) || countPct >= paceThreshold
+  const amountOk = relation === 'future' ? amountPct >= 0 : amountPct >= paceThreshold
+
+  const avgGap = row.avg_gap_rub
+  const avgOk = avgGap == null || Number(avgGap) >= -0.01 || factAmount <= 0
+
+  const ok = countOk && amountOk && forecastOk && avgOk
+
+  /** @type {string[]} */
+  const lagReasons = []
+  if (!countOk) lagReasons.push('объём отстаёт от темпа месяца')
+  if (!amountOk) lagReasons.push('сумма ниже ожидаемой на сегодня')
+  if (!forecastOk) lagReasons.push('прогноз к концу месяца не дотягивает до плана')
+  if (!avgOk) lagReasons.push('средний чек ниже плана')
+
+  const title = ok
+    ? 'В темпе и по плану: объём и сумма в норме, прогноз к концу месяца достигает плана.'
+    : lagReasons.length
+      ? `Отставание: ${lagReasons.join('; ')}.`
+      : 'Отставание по плану.'
+
+  return {
+    status: ok ? 'ok' : 'lag',
+    label: ok ? 'В темпе' : 'Отстаём',
+    title,
+    forecast_amount: forecastAmount,
+    forecast_pct: forecastPct,
+    count_on_pace: countOk,
+    amount_on_pace: amountOk,
+    forecast_ok: forecastOk,
+    avg_ok: avgOk,
+  }
 }
 
 /**
@@ -117,6 +205,7 @@ export function buildPlanMatrixComparison(opts) {
       amount_progress_pct: amountProgressPct,
       pace: { expected_count: expectedCount, on_pace: onPace },
     }
+    row.status = resolvePlanMatrixCellStatus(row, calendar)
     rows.push(row)
 
     if (planCount > 0) {
@@ -145,11 +234,16 @@ export function buildPlanMatrixComparison(opts) {
     summaryRu = 'По ячейкам плана — без критичного отставания по объёму и чеку.'
   }
 
+  const statusOk = rows.filter((r) => r.status?.status === 'ok').length
+  const statusLag = rows.filter((r) => r.status?.status === 'lag').length
+
   return {
     has_plan_matrix: true,
     rows,
     volume_lag: volumeLag,
     avg_lag: avgLag,
     summary_ru: summaryRu,
+    status_summary: { ok: statusOk, lag: statusLag, total: rows.length },
+    calendar_elapsed_pct: elapsedPct,
   }
 }

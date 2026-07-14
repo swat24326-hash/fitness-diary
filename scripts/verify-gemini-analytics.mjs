@@ -408,7 +408,9 @@ ok(highlights?.best_day?.date === '2026-06-15', 'profit highlights helper')
 const byType = topTrainingsByCardType(rows, membershipTypes, 3)
 ok(byType[0]?.count === 6, 'top trainings by card type')
 
-ok(GEMINI_QUICK_CHIPS.length === 8, 'quick chips include advice and month forecast')
+ok(GEMINI_QUICK_CHIPS.length === 9, 'quick chips include advice, plan advice and month forecast')
+ok(GEMINI_QUICK_CHIPS.some((c) => c.id === 'advice'), 'quick chips include advice')
+ok(GEMINI_QUICK_CHIPS.some((c) => c.id === 'month_forecast'), 'quick chips include month forecast')
 ok(GEMINI_TRAINER_QUICK_CHIPS.length === 7, 'trainer quick chips count')
 ok(GEMINI_INSTANT_CHIPS.length >= GEMINI_QUICK_CHIPS.length, 'instant chips cover quick chips')
 ok(

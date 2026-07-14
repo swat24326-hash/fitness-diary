@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { isSupabaseConfigured } from './lib/supabase'
 import { clearPoisonedSyncQueue } from './lib/syncService'
@@ -29,23 +29,47 @@ import { TrainerProfile } from './pages/trainer/TrainerProfile'
 import { TrainerChallengeDetail } from './pages/trainer/TrainerChallengeDetail'
 import { TrainingPage } from './pages/trainer/TrainingPage'
 
+/** В dev virtual:pwa-register недоступен — только prod, внутри Router (нужен useLocation). */
+const PwaUpdatePromptLazy = import.meta.env.PROD
+  ? lazy(() => import('./components/PwaUpdatePrompt.jsx').then((m) => ({ default: m.PwaUpdatePrompt })))
+  : () => null
+
+const AppUpdatedBannerLazy = import.meta.env.PROD
+  ? lazy(() => import('./components/AppUpdatedBanner.jsx').then((m) => ({ default: m.AppUpdatedBanner })))
+  : () => null
+
+function AppPwaOverlays() {
+  if (!import.meta.env.PROD) return null
+  return (
+    <Suspense fallback={null}>
+      <PwaUpdatePromptLazy />
+      <AppUpdatedBannerLazy />
+    </Suspense>
+  )
+}
+
 function LoggedInLayout() {
-  const { user, role, loading, isSalesManager } = useAuth()
+  const { user, role, loading, sessionRecovering, hasStoredSession } = useAuth()
 
   useEffect(() => {
-    if (!loading && user && isSupabaseConfigured()) {
+    if (!loading && !sessionRecovering && user && isSupabaseConfigured()) {
       void clearPoisonedSyncQueue()
     }
-  }, [user, loading])
+  }, [user, loading, sessionRecovering])
 
   useEffect(() => initTrainerWorkspaceCacheInvalidation(), [])
 
-  if (loading || (user && role == null)) {
+  if (loading || sessionRecovering || (user && role == null)) {
     return <AppWelcomeSplash />
+  }
+  if (!user && hasStoredSession) {
+    return <AppWelcomeSplash displayName="Восстанавливаем сессию…" />
   }
   if (!user) {
     return <Navigate to="/login" replace />
   }
+
+  const isSalesManager = role === 'sales_manager'
 
   return (
     <div className={`app-shell${isSalesManager ? ' app-shell--sales' : ''}`}>
@@ -131,6 +155,7 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <AppPwaOverlays />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route element={<LoggedInLayout />}>

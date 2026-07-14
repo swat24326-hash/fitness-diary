@@ -25,6 +25,15 @@ import {
 } from '../lib/syncOutboundLabel'
 import { SYNC_NOW_REQUEST } from '../lib/syncUiBridge'
 
+function recordSyncPullIssue(label, error) {
+  const msg = String(error ?? 'ошибка').trim() || 'ошибка'
+  recordAppError({
+    source: 'pull',
+    error: `${label}: ${msg}`,
+    status: /нет доступа/i.test(msg) ? 403 : undefined,
+  })
+}
+
 export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, searchParams, menuOpen, closeMenu }) {
   const [pendingSync, setPendingSync] = useState(0)
   const [unsyncedLocal, setUnsyncedLocal] = useState(0)
@@ -173,6 +182,11 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
 
       if (isSupabaseConfigured() && !flushDesc.offline) {
         try {
+          if (isSalesManager) {
+            // Менеджер: только очередь. Отчёт и типы абон. — через «Обновить» на странице продаж.
+            bumpSyncProgress(88, 'Готово')
+            parts.push('отчёт продаж — обновите на странице')
+          } else {
           const { pullExercisesFromCloud, pullChallengesForClubFromCloud, pullMembershipTypesForClubFromCloud, pullNutritionProductsForClubFromCloud } =
             await import('../lib/pullReferenceData')
           bumpSyncProgress(76, 'Справочник упражнений…')
@@ -212,6 +226,7 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
               if (!mtPull?.ok) {
                 hadError = true
                 parts.push(`типы абон.: ${mtPull.error ?? 'ошибка'}`)
+                recordSyncPullIssue('типы абонементов', mtPull.error)
               } else {
                 parts.push(`типы абон. (${mtPull.count ?? 0})`)
               }
@@ -220,29 +235,13 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
               if (!npPull?.ok) {
                 hadError = true
                 parts.push(`питание: ${npPull.error ?? 'ошибка'}`)
+                recordSyncPullIssue('питание', npPull.error)
               } else {
                 parts.push(`питание (${npPull.count ?? 0})`)
               }
             } else {
               parts.push('клиенты: выберите клуб')
             }
-            } else if (isSalesManager && user?.club_id) {
-              bumpSyncProgress(88, 'Типы абонементов…')
-              const mtPull = await pullMembershipTypesForClubFromCloud(String(user.club_id))
-              if (!mtPull?.ok) {
-                hadError = true
-                parts.push(`типы абон.: ${mtPull.error ?? 'ошибка'}`)
-              } else {
-                parts.push(`типы абон. (${mtPull.count ?? 0})`)
-              }
-              const npPull = await pullNutritionProductsForClubFromCloud(String(user.club_id))
-              if (!npPull?.ok) {
-                hadError = true
-                parts.push(`питание: ${npPull.error ?? 'ошибка'}`)
-              } else {
-                parts.push(`питание (${npPull.count ?? 0})`)
-              }
-              parts.push('отчёт продаж — нажмите «Обновить» на странице')
             } else if (user?.id) {
             bumpSyncProgress(84, 'Клиенты и тренировки…')
             const pull = await pullTrainerWorkspaceFromCloud(user.id)
@@ -280,6 +279,7 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
                 chFailed = true
                 hadError = true
                 parts.push(`типы абон.: ${mtPull.error ?? 'ошибка'}`)
+                recordSyncPullIssue('типы абонементов', mtPull.error)
                 break
               }
               const npPull = await pullNutritionProductsForClubFromCloud(cid)
@@ -287,6 +287,7 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
                 chFailed = true
                 hadError = true
                 parts.push(`питание: ${npPull.error ?? 'ошибка'}`)
+                recordSyncPullIssue('питание', npPull.error)
                 break
               }
             }
@@ -295,6 +296,7 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
               if (chPruned > 0) chMsg += `, убрано ${chPruned}`
               parts.push(chMsg)
             }
+          }
           }
         } catch (e) {
           hadError = true

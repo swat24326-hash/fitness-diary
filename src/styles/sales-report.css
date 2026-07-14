@@ -3006,7 +3006,179 @@
   color: #f5b84d;
 }
 
+.sales-report__compare-cell--mid {
+  color: #9ec9ff;
+}
+
 .sales-report__compare-cell--ok {
   color: var(--accent-bright, #2effb8);
+}
+
+/* План vs факт — блок сравнения */
+.sales-report__stats-block--plan-compare {
+  border-color: rgba(46, 255, 184, 0.18);
+}
+
+.sales-report__plan-compare-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.sales-report__plan-compare-summary {
+  margin: 0;
+  flex: 1 1 14rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.sales-report__plan-compare-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.sales-report__plan-compare-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.sales-report__plan-compare-chip--ok {
+  color: var(--accent-bright, #2effb8);
+  background: rgba(46, 255, 184, 0.1);
+  border-color: rgba(46, 255, 184, 0.28);
+}
+
+.sales-report__plan-compare-chip--lag {
+  color: #f5b84d;
+  background: rgba(245, 184, 77, 0.1);
+  border-color: rgba(245, 184, 77, 0.28);
+}
+
+.sales-report__plan-compare-chip--muted {
+  color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.sales-report__matrix-scroll--compare {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.sales-report__matrix--compare {
+  min-width: 52rem;
+}
+
+.sales-report__compare-group-head {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.sales-report__compare-segment {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 3.5rem;
+}
+
+.sales-report__compare-segment-hall {
+  font-weight: 700;
+  font-size: 0.82rem;
+}
+
+.sales-report__compare-segment-col {
+  font-size: 0.72rem;
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+.sales-report__compare-segment--nk .sales-report__compare-segment-col {
+  color: #7ee8c6;
+}
+
+.sales-report__compare-segment--dk .sales-report__compare-segment-col {
+  color: #9ec9ff;
+}
+
+.sales-report__compare-segment--uk .sales-report__compare-segment-col {
+  color: #e0b0ff;
+}
+
+.sales-report__compare-row--pz {
+  border-left: 3px solid rgba(46, 255, 184, 0.35);
+}
+
+.sales-report__compare-row--tz {
+  border-left: 3px solid rgba(158, 201, 255, 0.35);
+}
+
+.sales-report__compare-row--az {
+  border-left: 3px solid rgba(224, 176, 255, 0.35);
+}
+
+.sales-report__compare-row:nth-child(even) {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.sales-report__compare-status-head {
+  min-width: 4.5rem;
+  text-align: center;
+}
+
+.sales-report__compare-status {
+  text-align: center;
+  vertical-align: middle;
+  padding: 0.35rem 0.4rem;
+}
+
+.sales-report__compare-status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 999px;
+  margin: 0 auto 0.2rem;
+}
+
+.sales-report__compare-status--ok .sales-report__compare-status-icon {
+  color: var(--accent-bright, #2effb8);
+  background: rgba(46, 255, 184, 0.14);
+  box-shadow: 0 0 0 1px rgba(46, 255, 184, 0.25);
+}
+
+.sales-report__compare-status--lag .sales-report__compare-status-icon {
+  color: #f5b84d;
+  background: rgba(245, 184, 77, 0.12);
+  box-shadow: 0 0 0 1px rgba(245, 184, 77, 0.28);
+}
+
+.sales-report__compare-status-label {
+  display: block;
+  font-size: 0.65rem;
+  line-height: 1.2;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.sales-report__compare-num--fact {
+  font-weight: 600;
+}
+
+.sales-report__compare-money {
+  font-variant-numeric: tabular-nums;
 }
 

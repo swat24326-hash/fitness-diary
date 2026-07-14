@@ -5,7 +5,9 @@ import {
   isRecoverableTransientError,
   sourceLabel,
 } from './appErrorJournal.js'
-import { getClientBundleId, getPwaControllerState } from './appBuildInfo.js'
+import { getClientBundleId, getClientBuildTimeIso, getClientBuildTimeLabel, getClientBuildAgeLabel, getPwaControllerState } from './appBuildInfo.js'
+import { getAppUpdatePending } from './appUpdateState.js'
+import { readIdentityCacheLatest } from './userIdentityCache.js'
 
 function isRecoverableSyncErrorForFixes(e) {
   return isRecoverableTransientError(e)
@@ -32,6 +34,9 @@ export function buildSystemState(ctx) {
     at: new Date().toISOString(),
     appVersion: APP_VERSION,
     bundleId: getClientBundleId() ?? '—',
+    buildTime: getClientBuildTimeLabel(),
+    buildTimeIso: getClientBuildTimeIso() ?? '—',
+    buildAge: getClientBuildAgeLabel(),
     pwaSw: getPwaControllerState(),
     userName: user?.name ?? user?.email ?? '—',
     userEmail: user?.email ?? '—',
@@ -44,6 +49,9 @@ export function buildSystemState(ctx) {
     pathname: ctx?.pathname ?? '—',
     errorCount: Number(ctx?.errorCount) || 0,
     queueCount: Number(ctx?.queueCount) || 0,
+    identityCached: Boolean(readIdentityCacheLatest()?.id),
+    cachedClubId: readIdentityCacheLatest()?.club_id ?? '—',
+    updatePending: getAppUpdatePending(),
   }
 }
 
@@ -114,7 +122,13 @@ export function buildDiagnosticReport({ system, errors, queue, filterId = 'all' 
 
   lines.push('=== Фитнес-дневник — диагностика ===')
   lines.push(`Сформировано: ${formatAppErrorTime(system.at)}`)
-  lines.push(`Приложение: v${system.appVersion} (сборка ${system.bundleId})`)
+  lines.push(
+    `Приложение: v${system.appVersion} (сборка ${system.bundleId}${
+      system.buildTime && system.buildTime !== '—'
+        ? `, собрано ${system.buildTime}${system.buildAge ? ` (${system.buildAge})` : ''}`
+        : ''
+    })`,
+  )
   lines.push(`PWA service worker: ${system.pwaSw}`)
   lines.push(`Пользователь: ${system.userName} (${system.userEmail})`)
   lines.push(`ID: ${system.userId}`)
@@ -125,6 +139,10 @@ export function buildDiagnosticReport({ system, errors, queue, filterId = 'all' 
   lines.push(`Страница: ${system.pathname}`)
   lines.push(`Ошибок в журнале: ${system.errorCount}`)
   lines.push(`Очередь sync: ${system.queueCount}`)
+  if (system.identityCached != null) {
+    lines.push(`Кэш профиля: ${system.identityCached ? 'да' : 'нет'}${system.cachedClubId && system.cachedClubId !== '—' ? ` (club ${system.cachedClubId})` : ''}`)
+  }
+  if (system.updatePending) lines.push('Обновление PWA: отложено пользователем')
   lines.push('')
 
   if (queue?.length) {

@@ -17,7 +17,7 @@ export default [
     ...reactJsxRuntime,
     languageOptions: {
       ...reactJsxRuntime.languageOptions,
-      globals: { ...globals.browser },
+      globals: { ...globals.browser, __FITNESS_DIARY_BUILD_TIME__: 'readonly' },
       parserOptions: {
         ...reactJsxRuntime.languageOptions?.parserOptions,
         ecmaVersion: 'latest',

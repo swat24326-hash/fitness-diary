@@ -27,7 +27,10 @@ import {
 } from '../lib/appDiagnostics'
 import { clearPoisonedSyncQueue, getSyncOutboundSummary } from '../lib/syncService'
 import { probeCloudNow } from '../lib/networkReachability'
+import { checkRemoteBundleStale } from '../lib/appBuildInfo'
 import { pruneRedundantSyncQueue } from '../lib/syncQueueOrphans'
+import { recoverApp } from '../lib/appLifecycle'
+import { useAuth } from '../context/AuthContext'
 
 async function copyText(text) {
   if (navigator.clipboard?.writeText) {
@@ -80,6 +83,10 @@ export function DiagnosticsPanel({
   const [copyBusy, setCopyBusy] = useState(false)
   const [repairBusy, setRepairBusy] = useState(false)
   const [probeBusy, setProbeBusy] = useState(false)
+  const [bundleProbeBusy, setBundleProbeBusy] = useState(false)
+  const [bundleProbe, setBundleProbe] = useState(null)
+  const [recoverBusy, setRecoverBusy] = useState(false)
+  const { refreshUserProfile, refreshSessionOnWake } = useAuth()
   const [showAllQueue, setShowAllQueue] = useState(false)
   const [showDetails, setShowDetails] = useState(!simpleMode)
 
@@ -236,6 +243,44 @@ export function DiagnosticsPanel({
     }
   }
 
+  const handleProbeBundle = async () => {
+    setBundleProbeBusy(true)
+    try {
+      const res = await checkRemoteBundleStale()
+      setBundleProbe(res)
+      if (!res.remoteId) {
+        onCopyFeedback?.('Не удалось получить версию с сервера', 'warn')
+        return
+      }
+      if (res.stale) {
+        const when = res.remoteBuildTime && res.remoteBuildTime !== '—' ? `, ${res.remoteBuildTime}` : ''
+        const age = res.remoteBuildAge ? ` (${res.remoteBuildAge})` : ''
+        onCopyFeedback?.(`На сервере в интернете новее: ${res.remoteId}${when}${age}. Обновите приложение.`, 'warn')
+      } else {
+        onCopyFeedback?.('Версия на устройстве совпадает с интернетом', 'ok')
+      }
+    } catch {
+      onCopyFeedback?.('Не удалось проверить версию', 'warn')
+    } finally {
+      setBundleProbeBusy(false)
+    }
+  }
+
+  const handleRecoverApp = async () => {
+    setRecoverBusy(true)
+    try {
+      await recoverApp({
+        refreshSession: refreshSessionOnWake,
+        refreshProfile: refreshUserProfile,
+      })
+      onCopyFeedback?.('Приложение восстановлено', 'ok')
+    } catch {
+      onCopyFeedback?.('Не удалось восстановить — попробуйте ещё раз', 'warn')
+    } finally {
+      setRecoverBusy(false)
+    }
+  }
+
   const handleClear = () => {
     clearAppErrors()
     refreshErrors()
@@ -263,8 +308,37 @@ export function DiagnosticsPanel({
             {panelTitle}
           </h3>
           <p className="muted diagnostics-panel__sub">{panelSub}</p>
+          {simpleMode ? (
+            <div className="diagnostics-panel__update-label" aria-label="Обновление приложения">
+              <span className="diagnostics-panel__update-label-title">Обновление</span>
+            </div>
+          ) : null}
         </div>
       </div>
+
+      {simpleMode ? (
+        <div className="diagnostics-panel__recover">
+          <button
+            type="button"
+            className="btn btn-primary btn-touch"
+            disabled={recoverBusy}
+            onClick={() => void handleRecoverApp()}
+          >
+            <RefreshCw size={16} className={recoverBusy ? 'icon-spin' : undefined} aria-hidden />
+            {recoverBusy ? 'Восстанавливаем…' : 'Восстановить приложение'}
+          </button>
+          <p className="muted diagnostics-panel__recover-hint">
+            Одна кнопка: сессия, профиль и обновление версии — без смахивания приложения.
+            {system.buildTime && system.buildTime !== '—' ? (
+              <>
+                {' '}
+                Сейчас: сборка от {system.buildTime}
+                {system.buildAge ? ` (${system.buildAge})` : ''}.
+              </>
+            ) : null}
+          </p>
+        </div>
+      ) : null}
 
       <div className={`diagnostics-panel__status diagnostics-panel__status--${statusTone}`} role="status">
         {outboundTotal === 0 && !needsAttention ? (
@@ -408,13 +482,49 @@ export function DiagnosticsPanel({
               ) : null}
               <div>
                 <dt>Сборка</dt>
-                <dd className="diagnostics-state-grid__mono" title="Сверьте с Vercel после деплоя">
-                  {system.bundleId}
+                <dd title="Сверьте с Vercel после деплоя">
+                  <div className="diagnostics-state-grid__mono">{system.bundleId}</div>
+                  {system.buildTime && system.buildTime !== '—' ? (
+                    <div className="diagnostics-build-meta muted">
+                      Собрано: {system.buildTime}
+                      {system.buildAge ? ` (${system.buildAge})` : ''}
+                    </div>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm diagnostics-probe-network"
+                    disabled={bundleProbeBusy}
+                    onClick={() => void handleProbeBundle()}
+                  >
+                    <RefreshCw size={14} className={bundleProbeBusy ? 'icon-spin' : undefined} aria-hidden />
+                    {bundleProbeBusy ? 'Проверка…' : 'Сверить в интернете'}
+                  </button>
+                  {bundleProbe?.stale ? (
+                    <div className="diagnostics-build-probe diagnostics-warn">
+                      В интернете новее: {bundleProbe.remoteId}
+                      {bundleProbe.remoteBuildTime && bundleProbe.remoteBuildTime !== '—'
+                        ? ` · ${bundleProbe.remoteBuildTime}`
+                        : ''}
+                      {bundleProbe.remoteBuildAge ? ` (${bundleProbe.remoteBuildAge})` : ''}
+                    </div>
+                  ) : null}
+                  {bundleProbe && !bundleProbe.stale && bundleProbe.remoteId ? (
+                    <div className="diagnostics-build-probe diagnostics-ok">Совпадает с интернетом</div>
+                  ) : null}
                 </dd>
               </div>
               <div>
                 <dt>PWA</dt>
-                <dd>{system.pwaSw}</dd>
+                <dd>
+                  {system.pwaSw}
+                  {system.updatePending ? ' · обновление отложено' : ''}
+                </dd>
+              </div>
+              <div>
+                <dt>Кэш профиля</dt>
+                <dd className={system.identityCached ? 'diagnostics-ok' : 'diagnostics-muted'}>
+                  {system.identityCached ? `да (${system.cachedClubId})` : 'нет'}
+                </dd>
               </div>
               <div>
                 <dt>Ошибок / очередь</dt>

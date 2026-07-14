@@ -5,7 +5,13 @@ import { VitePWA } from 'vite-plugin-pwa'
 const devApiProxyTarget =
   process.env.VITE_DEV_API_PROXY?.trim() || 'https://fitness-diary-bice.vercel.app'
 
+/** Время сборки — попадает в Диагностику рядом с id бандла. */
+const appBuildTimeIso = new Date().toISOString()
+
 export default defineConfig(({ mode }) => ({
+  define: {
+    __FITNESS_DIARY_BUILD_TIME__: JSON.stringify(appBuildTimeIso),
+  },
   server:
     mode === 'development'
       ? {
@@ -19,6 +25,15 @@ export default defineConfig(({ mode }) => ({
         }
       : undefined,
   plugins: [
+    {
+      name: 'fitness-diary-build-meta',
+      transformIndexHtml(html) {
+        return html.replace(
+          '<title>FIT-CITY</title>',
+          `<meta name="fitness-diary-build-time" content="${appBuildTimeIso}" />\n    <title>FIT-CITY</title>`,
+        )
+      },
+    },
     react(),
     VitePWA({
       registerType: 'prompt',

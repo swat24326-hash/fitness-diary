@@ -83,7 +83,7 @@ const MONTH_NAMES = [
 
 export function AdminSales({ accessMode = 'admin' }) {
   const isSalesManager = accessMode === 'sales_manager'
-  const { user } = useAuth()
+  const { user, profilePending, refreshUserProfile } = useAuth()
   const ctx = useOutletContext()
   const clubIdCtx = ctx?.clubId ?? ''
   const [searchParams, setSearchParams] = useSearchParams()
@@ -541,6 +541,27 @@ export function AdminSales({ accessMode = 'admin' }) {
   }
 
   if (!clubId) {
+    if (isSalesManager && profilePending) {
+      return (
+        <div className="challenge-empty-card challenge-empty-card--inline">
+          <TrendingUp className="challenge-empty-card__icon" size={40} aria-hidden />
+          <div>
+            <p className="challenge-empty-card__title">Загружаем клуб…</p>
+            <p className="muted" style={{ margin: '0.35rem 0 0' }}>
+              Подождите несколько секунд или нажмите «Повторить».
+            </p>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              style={{ marginTop: '0.75rem' }}
+              onClick={() => void refreshUserProfile()}
+            >
+              Повторить
+            </button>
+          </div>
+        </div>
+      )
+    }
     return (
       <div className="challenge-empty-card challenge-empty-card--inline">
         <TrendingUp className="challenge-empty-card__icon" size={40} aria-hidden />
