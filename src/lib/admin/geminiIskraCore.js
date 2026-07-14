@@ -54,6 +54,17 @@ export function buildIskraContourRules() {
 
 
 
+export function buildIskraAbbreviationsGlossaryRule() {
+  return [
+    'АББРЕВИАТУРЫ FIT-CITY (только эти значения; не придумывай другие):',
+    'НК — новые клиенты; ДК — действующие клиенты; УК — уходящие клиенты.',
+    'ПЗ — персональный зал; ТЗ — тренажёрный зал; АЗ — аэробный зал; ПНК — потенциальные новые клиенты.',
+    'Сочетания в матрице: ПЗ-НК, ПЗ-ДК, ТЗ-УК и т.п. — направление × категория клиента.',
+    'Запрещено: «длительный клуб», «утренний клуб», «длительный куб», «утренний куб» и любые иные расшифровки ДК/УК.',
+    'Если нужна расшифровка — только «действующие клиенты» или «уходящие клиенты»; чаще достаточно аббревиатуры ДК/УК.',
+  ].join('\n')
+}
+
 export function buildIskraBusinessLanguageRule() {
 
   return [
@@ -172,7 +183,13 @@ export function buildIskraSystemPrompt(clubName, opts = {}) {
 
     '',
 
-    responseMode === 'brief' ? buildIskraSpeechFriendlyRule() : 'ОЗВУЧКА (если запросят голос): кратко — только суть первого абзаца, без списков.',
+    buildIskraAbbreviationsGlossaryRule(),
+
+    '',
+
+    responseMode === 'brief'
+      ? buildIskraSpeechFriendlyRule()
+      : 'ОЗВУЧКА (если запросят голос): в развёрнутом ответе озвучивается весь текст целиком, включая все пункты и шаги.',
 
     '',
 

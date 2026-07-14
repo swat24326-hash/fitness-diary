@@ -129,7 +129,7 @@ export function prepareSpeechLexicon(text) {
     .replace(/\bАЗ\b/g, 'аэробный зал')
     .replace(/\bНК\b/g, 'новые клиенты')
     .replace(/\bДК\b/g, 'действующие клиенты')
-    .replace(/\bУК\b/g, 'ушедшие клиенты')
+    .replace(/\bУК\b/g, 'уходящие клиенты')
     .replace(/\bvs\b/gi, 'против')
     .replace(/\bAPI\b/gi, 'эй-пи-ай')
     .replace(/\bOK\b/gi, 'окей')

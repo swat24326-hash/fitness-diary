@@ -63,6 +63,7 @@ import {
   phrasePlanSnapshotLine,
   polishIskraReplyText,
   expandAbbreviationsForSpeech,
+  fixIskraWrongAbbreviationExpansions,
   speakRubAmountForSpeech,
   speakPercentForSpeech,
   integerToRussianWords,
@@ -334,6 +335,18 @@ ok(expandAbbreviationsForSpeech('Отстающие: ПЗ на 12%, ТЗ на 8%
 ok(expandAbbreviationsForSpeech('ПНК за месяц 8').includes('потенциальные новые клиенты'), 'speech expand pnk')
 ok(expandAbbreviationsForSpeech('FIT-CITY Клинцы').includes('фит сити'), 'speech expand fit city brand')
 ok(!prepareTextForSpeech('ИСКРА: FIT-CITY Клинцы').includes('FIT'), 'speech no latin fit city')
+ok(
+  fixIskraWrongAbbreviationExpansions('ДК (длительный клуб)').includes('ДК') &&
+    !fixIskraWrongAbbreviationExpansions('ДК (длительный клуб)').includes('длительный'),
+  'fix wrong dk expansion',
+)
+ok(
+  prepareTextForSpeech('спецусловия на ДК (длительный клуб) или УК (утренний клуб)').includes('действующие клиенты') &&
+    prepareTextForSpeech('спецусловия на ДК (длительный клуб) или УК (утренний клуб)').includes('уходящие клиенты'),
+  'speech dk uk not long morning club',
+)
+ok(expandAbbreviationsForSpeech('ПЗ-ДК и ПЗ-НК').includes('персональный зал'), 'speech hyphen abbr pz-dk')
+ok(buildSystemPrompt('male', 'Север', { responseMode: 'deep' }).includes('действующие клиенты'), 'deep system glossary dk')
 
 const voiceMicrosoftFemale = { name: 'Microsoft Svetlana Online (Natural)', lang: 'ru-RU' }
 const voiceMicrosoftMale = { name: 'Microsoft Dmitry Online (Natural)', lang: 'ru-RU' }

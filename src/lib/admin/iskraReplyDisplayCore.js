@@ -116,15 +116,36 @@ export function iskraReplyLooksLikeWallOfText(text) {
   return paraCount <= 1
 }
 
-/** @param {string} text @param {number} [max] */
-function truncateSpeechWords(text, max = 55) {
-  const words = String(text ?? '')
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-  if (!words.length) return ''
-  if (words.length <= max) return words.join(' ')
-  return `${words.slice(0, max).join(' ')}…`
+/** @param {string} text */
+function flattenIskraReplyForSpeech(text) {
+  const raw = String(text ?? '').trim()
+  if (!raw) return ''
+
+  const { lead, sections, paragraphs } = parseIskraReplyBlocks(raw)
+  const parts = []
+
+  const cleanedLead = stripIskraFluffOpener(stripIskraReplyMarkdown(lead))
+  if (cleanedLead && cleanedLead.length > 3 && !isSectionLabelOnly(cleanedLead)) {
+    parts.push(cleanedLead)
+  }
+
+  for (const section of sections) {
+    const body = joinSectionItems(section)
+    if (body) parts.push(body)
+  }
+
+  for (const paragraph of paragraphs) {
+    const cleaned = stripIskraFluffOpener(stripIskraReplyMarkdown(paragraph))
+    if (cleaned && cleaned.length > 3 && !isSectionLabelOnly(cleaned)) {
+      parts.push(cleaned)
+    }
+  }
+
+  if (parts.length) {
+    return parts.join(' ').replace(/\s+/g, ' ').trim()
+  }
+
+  return stripIskraFluffOpener(stripIskraReplyMarkdown(raw)).replace(/\s+/g, ' ').trim()
 }
 
 /** @param {string} text */
@@ -150,45 +171,6 @@ export function buildIskraSpeechSnippet(text, mode = 'standard') {
   const raw = String(text ?? '').trim()
   if (!raw) return ''
   if (mode === 'brief') return raw
-
-  const { lead, sections, paragraphs } = parseIskraReplyBlocks(raw)
-  const pick = (label) => sections.find((s) => s.label.toLowerCase() === label.toLowerCase())
-
-  const conclusion = pick('Вывод')
-  if (conclusion?.items?.length) {
-    return truncateSpeechWords(joinSectionItems(conclusion))
-  }
-
-  const facts = pick('Факты')
-  if (facts?.items?.length) {
-    return truncateSpeechWords(joinSectionItems(facts))
-  }
-
-  const steps = pick('Шаги') || pick('Рекомендации')
-  if (steps?.items?.length) {
-    return truncateSpeechWords(joinSectionItems(steps))
-  }
-
-  if (lead && lead.length > 10 && !isSectionLabelOnly(lead)) {
-    return truncateSpeechWords(lead)
-  }
-
-  for (const p of paragraphs) {
-    const cleaned = stripIskraFluffOpener(stripIskraReplyMarkdown(p))
-    if (cleaned.length > 12 && !isSectionLabelOnly(cleaned)) {
-      return truncateSpeechWords(cleaned)
-    }
-  }
-
-  for (const p of raw.split(/\n\n+/)) {
-    const cleaned = stripIskraFluffOpener(stripIskraReplyMarkdown(p))
-    if (cleaned.length > 12 && !isSectionLabelOnly(cleaned)) {
-      const sentences = cleaned.match(/[^.!?…]+[.!?…]+/g)
-      const snippet = sentences?.length ? sentences.slice(0, 2).join(' ').trim() : cleaned
-      return truncateSpeechWords(snippet)
-    }
-  }
-
-  return truncateSpeechWords(stripIskraFluffOpener(stripIskraReplyMarkdown(raw)))
+  return flattenIskraReplyForSpeech(raw)
 }
 

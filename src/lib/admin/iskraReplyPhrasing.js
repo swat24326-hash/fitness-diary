@@ -253,7 +253,27 @@ export const ISKRA_SPEECH_ABBREVIATIONS = {
   АЗ: 'аэробный зал',
   НК: 'новые клиенты',
   ДК: 'действующие клиенты',
-  УК: 'ушедшие клиенты',
+  УК: 'уходящие клиенты',
+}
+
+const WRONG_DK_UK_EXPANSION_RE =
+  /длительн(?:ый|ого|ому|ым|ом|ую|ая|ые|ых|ое|ая|ие|их)\s+к(?:уб|луб(?:а|у|е|ом|ы|ов)?)/gi
+const WRONG_UK_EXPANSION_RE =
+  /утренн(?:ий|его|ему|им|ем|юю|яя|ие|их|ее|ее)\s+к(?:уб|луб(?:а|у|е|ом|ы|ов)?)/gi
+
+/** Исправляет типичные галлюцинации Gemini про ДК/УК. */
+export function fixIskraWrongAbbreviationExpansions(text) {
+  return String(text ?? '')
+    .replace(/\bДК\b\s*\(\s*длительн[^)]*\)/gi, 'ДК')
+    .replace(/\bУК\b\s*\(\s*утренн[^)]*\)/gi, 'УК')
+    .replace(WRONG_DK_UK_EXPANSION_RE, 'действующие клиенты')
+    .replace(WRONG_UK_EXPANSION_RE, 'уходящие клиенты')
+}
+
+function expandHyphenatedAbbreviation(match, left, right) {
+  const leftFull = ISKRA_SPEECH_ABBREVIATIONS[left.toUpperCase()] ?? left
+  const rightFull = ISKRA_SPEECH_ABBREVIATIONS[right.toUpperCase()] ?? right
+  return `${leftFull}, ${rightFull}`
 }
 
 /**
@@ -261,15 +281,16 @@ export const ISKRA_SPEECH_ABBREVIATIONS = {
  * @param {string} text
  */
 export function expandAbbreviationsForSpeech(text) {
-  let s = String(text ?? '')
+  let s = fixIskraWrongAbbreviationExpansions(text)
 
   s = s
     .replace(/FIT[\s-]*CITY/gi, 'фит сити')
     .replace(/ПЗ\s*\/\s*ТЗ\s*\/\s*АЗ/gi, 'персональный зал, тренажёрный зал, аэробный зал')
-    .replace(/НК\s*\/\s*ДК\s*\/\s*УК/gi, 'новые клиенты, действующие клиенты, ушедшие клиенты')
+    .replace(/НК\s*\/\s*ДК\s*\/\s*УК/gi, 'новые клиенты, действующие клиенты, уходящие клиенты')
     .replace(/ПЗ,\s*ТЗ,\s*АЗ/gi, 'персональный зал, тренажёрный зал, аэробный зал')
     .replace(/ПЗ,\s*ТЗ\s+и\s+АЗ/gi, 'персональный зал, тренажёрный зал и аэробный зал')
-    .replace(/НК,\s*ДК,\s*УК/gi, 'новые клиенты, действующие клиенты, ушедшие клиенты')
+    .replace(/НК,\s*ДК,\s*УК/gi, 'новые клиенты, действующие клиенты, уходящие клиенты')
+    .replace(/([ПТА]З|НК|ДК|УК)-([ПТА]З|НК|ДК|УК)/gi, expandHyphenatedAbbreviation)
 
   const ordered = [
     ['ПНК', ISKRA_SPEECH_ABBREVIATIONS.ПНК],
@@ -295,7 +316,7 @@ export function expandAbbreviationsForSpeech(text) {
  * @param {string} text
  */
 export function polishIskraReplyText(text) {
-  let s = String(text ?? '')
+  let s = fixIskraWrongAbbreviationExpansions(text)
 
   s = s
     .replace(/план\s+выполнен\s+на\s+/gi, 'план ')
