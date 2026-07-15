@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Archive, Dumbbell, MessageCircle, RotateCcw, Trash2, UserCircle } from 'lucide-react'
+import { Archive, Dumbbell, RotateCcw, Trash2, UserCircle } from 'lucide-react'
 import { formatUpcomingBirthdayLabel } from '../../lib/clientBirthdays'
 import { formatDateRu } from '../../lib/dateRu'
 import {
@@ -8,6 +8,7 @@ import {
   pickExpiredMembershipWithRemaining,
 } from '../../lib/clientListSignals'
 import { membershipUsageLabel, pickUsableMembershipForDate } from '../../lib/membershipRules'
+import { MaxLogoIcon } from './MaxLogoIcon'
 
 export function TrainerClientListItem({
   client,
@@ -20,6 +21,7 @@ export function TrainerClientListItem({
   onWriteToMax = null,
   outreachCopied = false,
   outreachBusy = false,
+  outreachSent = false,
   mode = 'active',
   busy,
   onDelete,
@@ -33,6 +35,23 @@ export function TrainerClientListItem({
   const birthdayLabel = showBirthdayLabel ? formatUpcomingBirthdayLabel(client.birth_date, today) : null
   const hasPhone = Boolean(String(client.phone ?? '').trim())
   const showOutreach = Boolean(outreachScenario && onWriteToMax)
+
+  const maxState = !hasPhone
+    ? 'no-phone'
+    : outreachCopied
+      ? 'copied'
+      : outreachSent
+        ? 'sent'
+        : 'pending'
+
+  const maxTitle =
+    maxState === 'no-phone'
+      ? 'Нет номера телефона'
+      : maxState === 'copied'
+        ? 'Текст скопирован! Открываю Max…'
+        : maxState === 'sent'
+          ? 'Уже отправлено сегодня — нажать, чтобы отправить снова'
+          : 'Написать в Max'
 
   return (
     <li className="list-item td-client-item">
@@ -54,16 +73,14 @@ export function TrainerClientListItem({
           {showOutreach ? (
             <button
               type="button"
-              className={`btn btn-touch trainer-outreach-btn${outreachCopied ? ' trainer-outreach-btn--copied' : ''}`}
+              className={`btn btn-touch btn-icon-square trainer-max-btn trainer-max-btn--${maxState}`}
               disabled={!hasPhone || busy || outreachBusy}
-              title={hasPhone ? 'Скопировать текст и открыть Max' : 'Нет номера телефона'}
-              aria-label={hasPhone ? 'Написать в Max' : 'Нет номера телефона'}
+              title={maxTitle}
+              aria-label={maxTitle}
+              aria-pressed={outreachSent || outreachCopied}
               onClick={() => onWriteToMax?.()}
             >
-              <MessageCircle size={18} aria-hidden />
-              <span className="trainer-outreach-btn__label">
-                {outreachCopied ? 'Текст скопирован! Открываю Max…' : 'Написать в Max'}
-              </span>
+              <MaxLogoIcon size={22} />
             </button>
           ) : null}
           {mode === 'active' ? (

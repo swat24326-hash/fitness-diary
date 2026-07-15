@@ -81,6 +81,14 @@ function friendlyMembershipTypeDbError(error) {
   return msg || 'Ошибка базы данных'
 }
 
+function friendlyClientsDbError(error) {
+  const msg = String(error?.message ?? '')
+  if (/outreach_name/i.test(msg) && /schema cache|could not find|column/i.test(msg)) {
+    return 'Колонка outreach_name не создана в Supabase — выполните миграцию clients_outreach_name'
+  }
+  return msg || 'Ошибка базы данных'
+}
+
 async function validateMembershipTypeLink(supabaseAdmin, payload, operation) {
   const typeId = String(payload?.membership_type_id ?? '').trim()
   if (!typeId) return { ok: true, data: payload }
@@ -186,7 +194,9 @@ export async function executePushRecord(ctx, item) {
             ? friendlyExerciseDbError(error, 'insert')
             : table_name === 'membership_types'
               ? friendlyMembershipTypeDbError(error)
-              : error.message
+              : table_name === 'clients'
+                ? friendlyClientsDbError(error)
+                : error.message
         return { ok: false, status: 400, error: errMsg }
       }
       return { ok: true }
@@ -225,7 +235,9 @@ export async function executePushRecord(ctx, item) {
             ? friendlyExerciseDbError(error, 'update')
             : table_name === 'membership_types'
               ? friendlyMembershipTypeDbError(error)
-              : error.message
+              : table_name === 'clients'
+                ? friendlyClientsDbError(error)
+                : error.message
         return { ok: false, status: 400, error: errMsg }
       }
       return { ok: true }

@@ -11,11 +11,10 @@ import { AlertTriangle, Cake, CalendarClock, Clock } from 'lucide-react'
  *     actionable: number,
  *     staleDays: number,
  *   } | null,
- *   previews?: Record<string, string>,
  *   loading?: boolean,
  * }} props
  */
-export function TrainerAttentionPanel({ summary, previews = {}, loading = false }) {
+export function TrainerAttentionPanel({ summary, loading = false }) {
   if (loading) {
     return (
       <section className="trainer-attention" aria-labelledby="trainer-attention-title" aria-busy="true">
@@ -95,9 +94,6 @@ export function TrainerAttentionPanel({ summary, previews = {}, loading = false 
               <span className="trainer-attention__card-count">{count}</span>
               <span className="trainer-attention__card-label">{label}</span>
               <span className="trainer-attention__card-hint muted">{hint}</span>
-              {count > 0 && previews[key] ? (
-                <span className="trainer-attention__card-preview muted">{previews[key]}</span>
-              ) : null}
             </Link>
           </li>
         ))}

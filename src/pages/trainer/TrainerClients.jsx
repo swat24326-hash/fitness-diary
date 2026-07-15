@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Cake, CalendarClock, Clock, MessageCircle, Search, UserPlus } from 'lucide-react'
+import { AlertTriangle, Cake, CalendarClock, Clock, Search, UserPlus } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { TrainerClientListItem } from '../../components/trainer/TrainerClientListItem'
 import { useAuth } from '../../context/AuthContext'
@@ -15,10 +15,12 @@ import { isAppOnline } from '../../lib/syncService'
 import { useDebouncedStorageReload, shouldReloadTrainerClientList } from '../../lib/useDebouncedStorageReload'
 import { flushSyncQueue, saveLocalWithSync } from '../../lib/syncService'
 import { isSupabaseConfigured } from '../../lib/supabase'
+import { formatClientName } from '../../lib/clientNameFormat'
 import {
   isBirthdayToday,
   isMembershipExpiredRecently,
   isOutreachScenario,
+  normalizeOutreachName,
   resolveOutreachTemplates,
 } from '../../lib/trainer/trainerClientOutreachCore'
 import {
@@ -52,7 +54,13 @@ export function TrainerClients() {
   const [clientsTab, setClientsTab] = useState('active')
   const [visibleCount, setVisibleCount] = useState(CLIENT_LIST_PAGE_SIZE)
   const [showNewClient, setShowNewClient] = useState(false)
-  const [newClientForm, setNewClientForm] = useState({ name: '', phone: '', birth_date: '', card_number: '' })
+  const [newClientForm, setNewClientForm] = useState({
+    name: '',
+    phone: '',
+    birth_date: '',
+    card_number: '',
+    outreach_name: '',
+  })
   const [clubs, setClubs] = useState([])
   const [outreachTemplatesRaw, setOutreachTemplatesRaw] = useState(null)
   const [typeNameById, setTypeNameById] = useState({})
@@ -60,34 +68,6 @@ export function TrainerClients() {
   const [workspaceReady, setWorkspaceReady] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [toast, setToast] = useState(null)
-
-  const formatClientName = (raw) => {
-    const s = String(raw ?? '').trim().replace(/\s+/g, ' ')
-    if (!s) return ''
-    const parts = s.split(' ').filter(Boolean)
-    const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
-
-    const last = cap(parts[0])
-    const rest = parts.slice(1)
-    const toInitials = (x) => {
-      const t = String(x ?? '').replace(/\./g, '').trim()
-      if (!t) return ''
-      if (t.length >= 2 && /^[A-Za-zА-Яа-я]+$/.test(t) && t === t.toUpperCase()) {
-        return t
-          .slice(0, 2)
-          .split('')
-          .map((ch) => `${ch}.`)
-          .join('')
-      }
-      if (t.length === 1) return `${t.toUpperCase()}.`
-      return cap(t)
-    }
-
-    if (rest.length === 0) return last
-    if (rest.length === 1) return `${last} ${toInitials(rest[0])}`.trim()
-    if (rest.length >= 2) return `${last} ${toInitials(rest[0])}${toInitials(rest[1])}`.trim()
-    return s
-  }
 
   const reload = useCallback(async ({ silent = false } = {}) => {
     if (!user?.id) return
@@ -254,11 +234,11 @@ export function TrainerClients() {
     }
   }, [user?.id, quickFilter, today, outreach.copiedClientId])
 
-  const outreachQueue = useMemo(() => {
-    if (!isOutreachScenario(quickFilter)) return { pending: [], total: 0, done: 0 }
+  const outreachProgress = useMemo(() => {
+    if (!isOutreachScenario(quickFilter)) return { pending: 0, total: 0, done: 0 }
     const withPhone = filteredClients.filter((c) => String(c.phone ?? '').trim())
     const pending = withPhone.filter((c) => !sentTodayIds.has(String(c.id)))
-    return { pending, total: withPhone.length, done: withPhone.length - pending.length }
+    return { pending: pending.length, total: withPhone.length, done: withPhone.length - pending.length }
   }, [filteredClients, quickFilter, sentTodayIds])
 
   const filterBtnClass = (id) => `btn ${quickFilter === id ? 'btn-primary' : 'btn-ghost'} btn-icon-square`
@@ -266,18 +246,6 @@ export function TrainerClients() {
   const applyFilter = (id) => {
     setQuickFilter((cur) => (cur === id ? 'all' : id))
   }
-
-  const handleNextOutreach = useCallback(async () => {
-    const next = outreachQueue.pending[0]
-    if (!next || !isOutreachScenario(quickFilter)) return
-    await outreach.handleWriteToMax({
-      client: next,
-      scenario: quickFilter,
-      memList: memByClient[next.id] ?? [],
-      today,
-    })
-    setSentTodayIds((prev) => new Set([...prev, String(next.id)]))
-  }, [outreach, outreachQueue.pending, quickFilter, memByClient, today])
 
   const updateClientArchiveFlag = async (clientRow, archived) => {
     if (!clientRow?.id) return
@@ -317,6 +285,7 @@ export function TrainerClients() {
         phone: newClientForm.phone.trim() || null,
         birth_date: newClientForm.birth_date || null,
         card_number: String(newClientForm.card_number ?? '').trim() || null,
+        outreach_name: normalizeOutreachName(newClientForm.outreach_name) || null,
         created_at: now,
       }
       await saveLocalWithSync('clients', row, {
@@ -327,7 +296,7 @@ export function TrainerClients() {
       })
       await flushSyncQueue()
       setShowNewClient(false)
-      setNewClientForm({ name: '', phone: '', birth_date: '', card_number: '' })
+      setNewClientForm({ name: '', phone: '', birth_date: '', card_number: '', outreach_name: '' })
       await reload()
     } catch (err) {
       alert(err?.message ?? 'Не удалось создать клиента')
@@ -437,21 +406,20 @@ export function TrainerClients() {
         </div>
 
         {isOutreachScenario(quickFilter) && filteredClients.length > 0 ? (
-          <div className="trainer-outreach-queue">
-            <button
-              type="button"
-              className="btn btn-primary btn-touch trainer-outreach-queue__btn"
-              disabled={!outreachQueue.pending.length || busy}
-              onClick={() => void handleNextOutreach()}
-            >
-              <MessageCircle size={18} aria-hidden />
-              {outreachQueue.pending.length
-                ? `Следующий (${outreachQueue.done + 1} из ${outreachQueue.total})`
-                : `Все обработаны (${outreachQueue.total})`}
-            </button>
-            <p className="muted trainer-outreach-queue__hint">
-              Текст копируется в буфер, затем открывается Max. Выберите чат с клиентом и отправьте сообщение.
-            </p>
+          <div
+            className={`trainer-outreach-progress${outreachProgress.pending === 0 && outreachProgress.total > 0 ? ' trainer-outreach-progress--done' : ''}`}
+            role="status"
+            aria-live="polite"
+          >
+            <span className="trainer-outreach-progress__label">В Max сегодня</span>
+            <strong className="trainer-outreach-progress__count">
+              {outreachProgress.done} из {outreachProgress.total}
+            </strong>
+            <span className="muted trainer-outreach-progress__hint">
+              {outreachProgress.pending > 0
+                ? `осталось ${outreachProgress.pending} — нажмите иконку Max у клиента`
+                : 'все обработаны'}
+            </span>
           </div>
         ) : null}
 
@@ -500,17 +468,22 @@ export function TrainerClients() {
                       outreachScenario={isOutreachScenario(quickFilter) ? quickFilter : null}
                       onWriteToMax={
                         isOutreachScenario(quickFilter)
-                          ? () =>
-                              outreach.handleWriteToMax({
+                          ? async () => {
+                              const result = await outreach.handleWriteToMax({
                                 client: c,
                                 scenario: quickFilter,
                                 memList: memByClient[c.id] ?? [],
                                 today,
                               })
+                              if (result?.ok) {
+                                setSentTodayIds((prev) => new Set([...prev, String(c.id)]))
+                              }
+                            }
                           : null
                       }
                       outreachCopied={outreach.copiedClientId === c.id}
                       outreachBusy={outreach.busyClientId === c.id}
+                      outreachSent={sentTodayIds.has(String(c.id))}
                       mode={clientsTab}
                       busy={busy}
                       onDelete={(row) => setConfirmDelete({ id: row.id, name: row.name })}
@@ -577,7 +550,7 @@ export function TrainerClients() {
                   value={newClientForm.name}
                   onChange={(e) => setNewClientForm((f) => ({ ...f, name: e.target.value }))}
                   onBlur={() => setNewClientForm((f) => ({ ...f, name: formatClientName(f.name) }))}
-                  placeholder="Фамилия И.О. (или Фамилия Имя)"
+                  placeholder="Фамилия Имя Отчество или Фамилия И.О."
                 />
               </div>
               <div className="field">
@@ -591,6 +564,18 @@ export function TrainerClients() {
               <div className="field">
                 <label className="label">Номер карты</label>
                 <input className="input" value={newClientForm.card_number} onChange={(e) => setNewClientForm((f) => ({ ...f, card_number: e.target.value }))} />
+              </div>
+              <div className="field">
+                <label className="label">Имя для сообщений в Max</label>
+                <input
+                  className="input"
+                  value={newClientForm.outreach_name}
+                  onChange={(e) => setNewClientForm((f) => ({ ...f, outreach_name: e.target.value }))}
+                  onBlur={() =>
+                    setNewClientForm((f) => ({ ...f, outreach_name: normalizeOutreachName(f.outreach_name) }))
+                  }
+                  placeholder="Необязательно, если во ФИО есть полное имя"
+                />
               </div>
               <div className="row td-modal-actions">
                 <button type="button" className="btn btn-ghost" onClick={() => setShowNewClient(false)}>

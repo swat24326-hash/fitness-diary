@@ -2,14 +2,17 @@
  * node scripts/verify-trainer-client-outreach.mjs
  */
 import {
+  applyClientNamePlaceholder,
   buildMaxShareUrl,
   buildOutreachMessage,
   daysWordRu,
   defaultOutreachTemplates,
-  extractClientFirstName,
+  extractGreetingNameFromClientName,
   isBirthdayToday,
   isMembershipExpiredRecently,
+  isNameInitialsToken,
   normalizePhoneDigits,
+  resolveClientGreetingName,
   resolveOutreachTemplates,
   validateOutreachTemplatesForSave,
 } from '../src/lib/trainer/trainerClientOutreachCore.js'
@@ -25,7 +28,17 @@ function ok(cond, msg) {
   }
 }
 
-ok(extractClientFirstName('Иванов Иван') === 'Иванов', 'first name is first word')
+ok(isNameInitialsToken('Р.А.'), 'initials Р.А.')
+ok(isNameInitialsToken('Р.'), 'initials Р.')
+ok(!isNameInitialsToken('Роман'), 'Роман is full name')
+ok(extractGreetingNameFromClientName('Плетнёв Роман') === 'Роман', 'second word given name')
+ok(extractGreetingNameFromClientName('Плетнёв Р.А.') === '', 'initials → no greeting name')
+ok(extractGreetingNameFromClientName('Плетнёв') === '', 'surname only → no greeting name')
+ok(resolveClientGreetingName({ name: 'Плетнёв Р.А.', outreach_name: 'Роман' }) === 'Роман', 'outreach_name override')
+ok(resolveClientGreetingName({ name: 'Готарова А.В.' }) === '', 'initials without override')
+ok(applyClientNamePlaceholder('Привет, {client_name}! Это тренер.', '') === 'Привет! Это тренер.', 'strip name from greeting')
+ok(applyClientNamePlaceholder('Привет, {client_name}! Это тренер.', 'Роман') === 'Привет, Роман! Это тренер.', 'keep name in greeting')
+
 ok(daysWordRu(1) === 'день' && daysWordRu(2) === 'дня' && daysWordRu(5) === 'дней', 'daysWordRu')
 
 const today = '2026-07-15'
@@ -45,22 +58,32 @@ const birthdayMsg = buildOutreachMessage('birthdays', {
   clubName: 'Спорт Лайф',
   today,
 })
-ok(birthdayMsg.includes('Иванов'), 'birthday uses first name')
+ok(birthdayMsg.includes('Иван'), 'birthday uses given name not surname')
+ok(!birthdayMsg.includes('Привет, Иванов'), 'not greeting with surname')
 ok(birthdayMsg.includes('Спорт Лайф'), 'birthday uses club name')
 ok(!birthdayMsg.includes('FIT-CITY'), 'no hardcoded FIT-CITY')
 ok(birthdayMsg.includes('следующую тренировку'), 'next training not holiday')
 ok(!/празднич/i.test(birthdayMsg), 'no holiday wording')
 ok(!/рад[а]?\b|поздравлял/i.test(birthdayMsg), 'gender neutral birthday')
 
+const noNameMsg = buildOutreachMessage('stale', {
+  client: { name: 'Готарова А.В.' },
+  trainerName: 'Роман',
+  clubName: 'FIT CITY',
+  today,
+})
+ok(noNameMsg.startsWith('Привет!'), 'no given name → Привет! without comma name')
+ok(!noNameMsg.includes('Готарова'), 'surname not in greeting')
+
 const expiringMsg = buildOutreachMessage('expiring', {
-  clientName: 'Мария',
+  clientName: 'Плетнёв Мария',
   trainerName: 'Алексей',
   clubName: 'Спорт Лайф',
   membershipName: 'Gold',
   memList: [{ start_date: '2026-01-01', end_date: '2026-07-18', total_trainings: 10, used_trainings: 1 }],
   today,
 })
-ok(expiringMsg.includes('Gold') && expiringMsg.includes('3'), 'expiring membership and days')
+ok(expiringMsg.includes('Мария') && expiringMsg.includes('Gold') && expiringMsg.includes('3'), 'expiring membership and days')
 
 ok(normalizePhoneDigits('+7 (999) 123-45-67') === '79991234567', 'phone normalize')
 ok(buildMaxShareUrl('Привет').startsWith('https://max.ru/:share?text='), 'max share url')

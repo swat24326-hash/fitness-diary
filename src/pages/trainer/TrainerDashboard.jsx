@@ -15,6 +15,7 @@ import { pickUsableMembershipForDate } from '../../lib/membershipRules'
 import { aggregateMembershipTypeStats } from '../../lib/admin/membershipTypeStatsAgg'
 import { listMembershipTypesForClub } from '../../lib/membershipTypesService'
 import { MembershipTypeStatsBlock } from '../../components/MembershipTypeStatsBlock'
+import { formatClientName } from '../../lib/clientNameFormat'
 
 function membershipDot(list, today) {
   const active = pickUsableMembershipForDate(list ?? [], today)
@@ -58,36 +59,6 @@ export function TrainerDashboard() {
   const [showNewClient, setShowNewClient] = useState(false)
   const [newClientForm, setNewClientForm] = useState({ name: '', phone: '', birth_date: '' })
   const [membershipTypes, setMembershipTypes] = useState([])
-  const formatClientName = (raw) => {
-    const s = String(raw ?? '').trim().replace(/\s+/g, ' ')
-    if (!s) return ''
-    const parts = s.split(' ').filter(Boolean)
-    const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
-
-    const last = cap(parts[0])
-    const rest = parts.slice(1)
-
-    // "АЮ" -> "А.Ю." / "А" -> "А."
-    const toInitials = (x) => {
-      const t = String(x ?? '').replace(/\./g, '').trim()
-      if (!t) return ''
-      if (t.length >= 2 && /^[A-Za-zА-Яа-я]+$/.test(t) && t === t.toUpperCase()) {
-        return t
-          .slice(0, 2)
-          .split('')
-          .map((ch) => `${ch}.`)
-          .join('')
-      }
-      if (t.length === 1) return `${t.toUpperCase()}.`
-      return cap(t)
-    }
-
-    if (rest.length === 0) return last
-    if (rest.length === 1) return `${last} ${toInitials(rest[0])}`.trim()
-    if (rest.length >= 2) return `${last} ${toInitials(rest[0])}${toInitials(rest[1])}`.trim()
-    return s
-  }
-
   const reload = useCallback(async ({ silent = false } = {}) => {
     if (!user?.id) return
     if (!silent) setBusy(true)
@@ -441,7 +412,7 @@ export function TrainerDashboard() {
                   value={newClientForm.name}
                   onChange={(e) => setNewClientForm((f) => ({ ...f, name: e.target.value }))}
                   onBlur={() => setNewClientForm((f) => ({ ...f, name: formatClientName(f.name) }))}
-                  placeholder="Фамилия И.О. (или Фамилия Имя)"
+                  placeholder="Фамилия Имя Отчество или Фамилия И.О."
                 />
               </div>
               <div className="field">

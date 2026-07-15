@@ -45,6 +45,7 @@ CREATE TABLE clients (
   email TEXT,
   birth_date DATE,
   card_number TEXT,
+  outreach_name TEXT,
   trainer_id UUID NOT NULL REFERENCES users (id),
   club_id UUID NOT NULL REFERENCES clubs (id),
   archived_at TIMESTAMPTZ,

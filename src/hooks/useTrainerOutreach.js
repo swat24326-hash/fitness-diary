@@ -90,7 +90,7 @@ export function useTrainerOutreach(opts = {}) {
     ({ client, scenario, memList = [], today = todayLocalIso() }) => {
       if (!isOutreachScenario(scenario)) return ''
       return buildOutreachMessage(scenario, {
-        clientName: client?.name,
+        client,
         trainerName: opts.trainerName,
         clubName: opts.clubName,
         membershipName: resolveMembershipName(memList, today),

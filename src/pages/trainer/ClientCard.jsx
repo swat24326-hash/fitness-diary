@@ -16,36 +16,12 @@ import { IskraDispatchModal } from '../../components/iskra/IskraDispatchModal.js
 import { buildClientCardTaskDraft } from '../../lib/admin/staffTaskCreateCore.js'
 import { useClubDispatchRecipients } from '../../hooks/useClubDispatchRecipients.js'
 import { listOutreachLogByClientId } from '../../lib/trainer/trainerOutreachLogService.js'
-import { OUTREACH_SCENARIO_LABELS } from '../../lib/trainer/trainerClientOutreachCore.js'
-
-function formatClientName(raw) {
-  const s = String(raw ?? '').trim().replace(/\s+/g, ' ')
-  if (!s) return ''
-  const parts = s.split(' ').filter(Boolean)
-  const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
-
-  const last = cap(parts[0])
-  const rest = parts.slice(1)
-
-  const toInitials = (x) => {
-    const t = String(x ?? '').replace(/\./g, '').trim()
-    if (!t) return ''
-    if (t.length >= 2 && /^[A-Za-zА-Яа-я]+$/.test(t) && t === t.toUpperCase()) {
-      return t
-        .slice(0, 2)
-        .split('')
-        .map((ch) => `${ch}.`)
-        .join('')
-    }
-    if (t.length === 1) return `${t.toUpperCase()}.`
-    return cap(t)
-  }
-
-  if (rest.length === 0) return last
-  if (rest.length === 1) return `${last} ${toInitials(rest[0])}`.trim()
-  if (rest.length >= 2) return `${last} ${toInitials(rest[0])}${toInitials(rest[1])}`.trim()
-  return s
-}
+import { formatClientName } from '../../lib/clientNameFormat.js'
+import {
+  OUTREACH_SCENARIO_LABELS,
+  normalizeOutreachName,
+  resolveClientGreetingName,
+} from '../../lib/trainer/trainerClientOutreachCore.js'
 
 export function ClientCard() {
   const { id } = useParams()
@@ -67,7 +43,7 @@ export function ClientCard() {
   const [client, setClient] = useState(null)
   const [memberships, setMemberships] = useState([])
   const [editOpen, setEditOpen] = useState(false)
-  const [editForm, setEditForm] = useState({ name: '', phone: '', birth_date: '', card_number: '' })
+  const [editForm, setEditForm] = useState({ name: '', phone: '', birth_date: '', card_number: '', outreach_name: '' })
   const [hydrateError, setHydrateError] = useState(null)
   const [archiveBusy, setArchiveBusy] = useState(false)
   const [taskModalOpen, setTaskModalOpen] = useState(false)
@@ -200,6 +176,7 @@ export function ClientCard() {
       phone: client.phone ?? '',
       birth_date: client.birth_date ?? '',
       card_number: client.card_number ?? '',
+      outreach_name: client.outreach_name ?? '',
     })
     setEditOpen(true)
   }
@@ -212,12 +189,14 @@ export function ClientCard() {
     }
     const name = formatClientName(editForm.name)
     if (!name) return
+    const outreach_name = normalizeOutreachName(editForm.outreach_name) || null
     const row = {
       ...client,
       name,
       phone: String(editForm.phone ?? '').trim() || null,
       birth_date: editForm.birth_date || null,
       card_number: String(editForm.card_number ?? '').trim() || null,
+      outreach_name,
     }
     try {
       await saveLocalWithSync('clients', row, { table_name: 'clients', operation: 'update', remote_id: client.id })
@@ -276,7 +255,7 @@ export function ClientCard() {
                   value={editForm.name}
                   onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
                   onBlur={() => setEditForm((f) => ({ ...f, name: formatClientName(f.name) }))}
-                  placeholder="Фамилия И.О. (или Фамилия Имя)"
+                  placeholder="Фамилия Имя Отчество или Фамилия И.О."
                 />
               </div>
               <div className="field" style={{ margin: 0 }}>
@@ -290,6 +269,27 @@ export function ClientCard() {
               <div className="field" style={{ margin: 0 }}>
                 <label className="label">Номер карты</label>
                 <input className="input" value={editForm.card_number} onChange={(e) => setEditForm((f) => ({ ...f, card_number: e.target.value }))} />
+              </div>
+              <div className="field" style={{ margin: 0 }}>
+                <label className="label">Имя для сообщений в Max</label>
+                <input
+                  className="input"
+                  value={editForm.outreach_name}
+                  onChange={(e) => setEditForm((f) => ({ ...f, outreach_name: e.target.value }))}
+                  onBlur={() => setEditForm((f) => ({ ...f, outreach_name: normalizeOutreachName(f.outreach_name) }))}
+                  placeholder="Например: Роман"
+                />
+                <p className="muted" style={{ margin: '4px 0 0', fontSize: 12, lineHeight: 1.35 }}>
+                  Для Max: при полном имени во ФИО подставится само (второе слово). Если только инициалы — впишите имя
+                  сюда, иначе будет «Привет!» без имени.
+                  {(() => {
+                    const g = resolveClientGreetingName({
+                      name: editForm.name,
+                      outreach_name: editForm.outreach_name,
+                    })
+                    return g ? ` Сейчас: ${g}.` : ' Сейчас: без имени.'
+                  })()}
+                </p>
               </div>
               <div className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
                 <button type="button" className="btn btn-ghost btn-touch" onClick={() => setEditOpen(false)}>

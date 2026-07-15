@@ -23,11 +23,81 @@ export function isOutreachScenario(filter) {
   return OUTREACH_SCENARIOS.includes(String(filter ?? ''))
 }
 
-/** @param {string} name */
+/** Инициалы вроде «Р.», «Р.А.», «А» — не имя для обращения. */
+export function isNameInitialsToken(token) {
+  const raw = String(token ?? '').trim()
+  if (!raw) return true
+  if (/^[A-Za-zА-Яа-яЁё]\.([A-Za-zА-Яа-яЁё]\.)*$/u.test(raw)) return true
+  const letters = raw.replace(/\./g, '')
+  if (letters.length === 1 && /^[A-Za-zА-Яа-яЁё]$/u.test(letters)) return true
+  if (raw.includes('.') && letters.length <= 3 && /^[A-Za-zА-Яа-яЁё]+$/u.test(letters)) return true
+  return false
+}
+
+/** @param {string} raw */
+export function normalizeOutreachName(raw) {
+  const s = String(raw ?? '').trim().replace(/\s+/g, ' ')
+  if (!s) return ''
+  // одно слово для обращения; отсекаем мусор
+  const first = s.split(/\s+/)[0]
+  if (!first || isNameInitialsToken(first)) return ''
+  return first.slice(0, 40)
+}
+
+/**
+ * Имя для «Привет, …» из формата карточки «Фамилия Имя|И.О.».
+ * Второе слово целиком → обращение; только инициалы / одно слово → ''.
+ * @param {string} name
+ */
+export function extractGreetingNameFromClientName(name) {
+  const parts = String(name ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  if (parts.length < 2) return ''
+  const second = parts[1]
+  if (isNameInitialsToken(second)) return ''
+  return normalizeOutreachName(second)
+}
+
+/**
+ * Приоритет: outreach_name (явно в карточке) → умный разбор ФИО → '' (сообщение без имени).
+ * @param {{ name?: string, outreach_name?: string | null } | string | null | undefined} clientOrName
+ * @param {string | null | undefined} [outreachNameOverride]
+ */
+export function resolveClientGreetingName(clientOrName, outreachNameOverride) {
+  const fromOverride = normalizeOutreachName(outreachNameOverride)
+  if (fromOverride) return fromOverride
+
+  if (clientOrName && typeof clientOrName === 'object') {
+    const stored = normalizeOutreachName(clientOrName.outreach_name)
+    if (stored) return stored
+    return extractGreetingNameFromClientName(clientOrName.name)
+  }
+
+  return extractGreetingNameFromClientName(clientOrName)
+}
+
+/**
+ * @deprecated используйте resolveClientGreetingName / extractGreetingNameFromClientName
+ * @param {string} name
+ */
 export function extractClientFirstName(name) {
-  const s = String(name ?? '').trim()
-  if (!s) return 'друг'
-  return s.split(/\s+/)[0] || 'друг'
+  return extractGreetingNameFromClientName(name)
+}
+
+/**
+ * Подстановка {client_name}: пустое имя → «Привет, {client_name}!» становится «Привет!»
+ * @param {string} template
+ * @param {string} greetingName
+ */
+export function applyClientNamePlaceholder(template, greetingName) {
+  let out = String(template ?? '')
+  const name = String(greetingName ?? '').trim()
+  if (name) return out.split('{client_name}').join(name)
+  out = out.replace(/,\s*\{client_name\}/g, '')
+  out = out.replace(/\{client_name\}/g, '')
+  return out.replace(/[ \t]{2,}/g, ' ').trim()
 }
 
 /** @param {number} n */
@@ -216,7 +286,12 @@ export function validateOutreachTemplatesForSave(templates) {
  */
 export function fillOutreachTemplate(template, vars) {
   let out = String(template ?? '')
+  const clientName = vars['{client_name}']
+  if (Object.prototype.hasOwnProperty.call(vars, '{client_name}')) {
+    out = applyClientNamePlaceholder(out, clientName)
+  }
   for (const [key, val] of Object.entries(vars)) {
+    if (key === '{client_name}') continue
     out = out.split(key).join(String(val ?? ''))
   }
   return out.trim()
@@ -225,7 +300,9 @@ export function fillOutreachTemplate(template, vars) {
 /**
  * @param {OutreachScenario} scenario
  * @param {{
+ *   client?: { name?: string, outreach_name?: string | null },
  *   clientName?: string,
+ *   outreachName?: string | null,
  *   trainerName?: string,
  *   clubName?: string,
  *   membershipName?: string,
@@ -239,8 +316,9 @@ export function buildOutreachMessage(scenario, ctx = {}) {
   const template = templates[scenario] ?? defaultOutreachTemplates()[scenario]
   const today = String(ctx.today ?? '').slice(0, 10)
   const daysLeft = membershipDaysUntilEnd(ctx.memList ?? [], today)
+  const greetingName = resolveClientGreetingName(ctx.client ?? ctx.clientName, ctx.outreachName)
   const vars = {
-    '{client_name}': extractClientFirstName(ctx.clientName),
+    '{client_name}': greetingName,
     '{trainer_name}': String(ctx.trainerName ?? '').trim() || 'Тренер',
     '{club_name}': String(ctx.clubName ?? '').trim() || 'клуб',
     '{membership_name}': String(ctx.membershipName ?? '').trim() || 'абонемент',
@@ -282,7 +360,7 @@ export async function copyTextToClipboard(text) {
 /**
  * @param {OutreachScenario} scenario
  * @param {{
- *   client?: { name?: string, phone?: string | null },
+ *   client?: { name?: string, outreach_name?: string | null, phone?: string | null },
  *   memList?: object[],
  *   trainerName?: string,
  *   clubName?: string,
@@ -296,7 +374,7 @@ export async function runOutreachToMax(scenario, ctx = {}) {
   if (!phone) return { ok: false, error: 'no_phone' }
 
   const message = buildOutreachMessage(scenario, {
-    clientName: ctx.client?.name,
+    client: ctx.client,
     trainerName: ctx.trainerName,
     clubName: ctx.clubName,
     membershipName: ctx.membershipName,
