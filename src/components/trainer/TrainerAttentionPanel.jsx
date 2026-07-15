@@ -51,7 +51,7 @@ export function TrainerAttentionPanel({ summary, loading = false }) {
       key: 'expired_recent',
       count: summary.expired_recent,
       label: 'Закончился',
-      hint: 'сегодня/вчера',
+      hint: `< ${summary.staleDays} дн. после конца`,
       icon: AlertTriangle,
       to: '/trainer/clients?filter=expired_recent',
     },

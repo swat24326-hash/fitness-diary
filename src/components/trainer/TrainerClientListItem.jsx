@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Archive, Dumbbell, RotateCcw, Trash2, UserCircle } from 'lucide-react'
+import { Archive, Dumbbell, MessageCircle, RotateCcw, Trash2, UserCircle } from 'lucide-react'
 import { formatUpcomingBirthdayLabel } from '../../lib/clientBirthdays'
 import { formatDateRu } from '../../lib/dateRu'
 import {
@@ -11,16 +11,19 @@ import { membershipUsageLabel, pickUsableMembershipForDate } from '../../lib/mem
 
 export function TrainerClientListItem({
   client,
+  rowId = null,
   today,
   memList,
   clientTrainings,
   lastTrainingIso,
   showBirthdayLabel,
   outreachScenario = null,
+  outreachHint = null,
   onWriteToMax = null,
   outreachCopied = false,
   outreachBusy = false,
   outreachSent = false,
+  highlighted = false,
   mode = 'active',
   busy,
   onDelete,
@@ -45,15 +48,19 @@ export function TrainerClientListItem({
 
   const maxTitle =
     maxState === 'no-phone'
-      ? 'Нет номера телефона'
+      ? 'Нет телефона'
       : maxState === 'copied'
-        ? 'Текст скопирован! Открываю Max…'
+        ? 'Скопировано — открываю Max'
         : maxState === 'sent'
-          ? 'Уже отправлено сегодня — нажать, чтобы отправить снова'
-          : 'Написать в Max'
-
+          ? 'Уже отправлено сегодня'
+          : client.max_chat_url
+            ? 'Max — откроется чат'
+            : 'Max — добавьте ссылку на чат в карточке'
   return (
-    <li className="list-item td-client-item">
+    <li
+      id={rowId ?? undefined}
+      className={`list-item td-client-item${highlighted ? ' td-client-item--highlight' : ''}`}
+    >
       <div className="row td-client-row">
         <div className="td-client-left">
           <span
@@ -72,17 +79,16 @@ export function TrainerClientListItem({
           {showOutreach ? (
             <button
               type="button"
-              className={`btn btn-touch trainer-max-btn trainer-max-btn--${maxState}`}
+              className={`btn btn-icon-square btn-touch trainer-max-btn trainer-max-btn--${maxState}`}
               disabled={!hasPhone || busy || outreachBusy}
               title={maxTitle}
               aria-label={maxTitle}
               aria-pressed={outreachSent || outreachCopied}
               onClick={() => onWriteToMax?.()}
             >
-              Max
+              <MessageCircle size={20} aria-hidden />
             </button>
-          ) : null}
-          {mode === 'active' ? (
+          ) : null}          {mode === 'active' ? (
             active ? (
               <Link
                 to={`/trainer/workouts/new?clientId=${client.id}`}
@@ -179,6 +185,11 @@ export function TrainerClientListItem({
         {birthdayLabel ? (
           <span>
             День рождения: <strong>{birthdayLabel}</strong>
+          </span>
+        ) : null}
+        {outreachHint ? (
+          <span className="trainer-outreach-hint">
+            {outreachHint}
           </span>
         ) : null}
       </div>

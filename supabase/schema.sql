@@ -46,6 +46,7 @@ CREATE TABLE clients (
   birth_date DATE,
   card_number TEXT,
   outreach_name TEXT,
+  max_chat_url TEXT,
   trainer_id UUID NOT NULL REFERENCES users (id),
   club_id UUID NOT NULL REFERENCES clubs (id),
   archived_at TIMESTAMPTZ,

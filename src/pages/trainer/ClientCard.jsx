@@ -20,6 +20,7 @@ import { formatClientName } from '../../lib/clientNameFormat.js'
 import {
   OUTREACH_SCENARIO_LABELS,
   normalizeOutreachName,
+  normalizeMaxChatUrl,
   resolveClientGreetingName,
 } from '../../lib/trainer/trainerClientOutreachCore.js'
 
@@ -43,7 +44,7 @@ export function ClientCard() {
   const [client, setClient] = useState(null)
   const [memberships, setMemberships] = useState([])
   const [editOpen, setEditOpen] = useState(false)
-  const [editForm, setEditForm] = useState({ name: '', phone: '', birth_date: '', card_number: '', outreach_name: '' })
+  const [editForm, setEditForm] = useState({ name: '', phone: '', birth_date: '', card_number: '', outreach_name: '', max_chat_url: '' })
   const [hydrateError, setHydrateError] = useState(null)
   const [archiveBusy, setArchiveBusy] = useState(false)
   const [taskModalOpen, setTaskModalOpen] = useState(false)
@@ -177,6 +178,7 @@ export function ClientCard() {
       birth_date: client.birth_date ?? '',
       card_number: client.card_number ?? '',
       outreach_name: client.outreach_name ?? '',
+      max_chat_url: client.max_chat_url ?? '',
     })
     setEditOpen(true)
   }
@@ -190,6 +192,7 @@ export function ClientCard() {
     const name = formatClientName(editForm.name)
     if (!name) return
     const outreach_name = normalizeOutreachName(editForm.outreach_name) || null
+    const max_chat_url = normalizeMaxChatUrl(editForm.max_chat_url) || null
     const row = {
       ...client,
       name,
@@ -197,6 +200,7 @@ export function ClientCard() {
       birth_date: editForm.birth_date || null,
       card_number: String(editForm.card_number ?? '').trim() || null,
       outreach_name,
+      max_chat_url,
     }
     try {
       await saveLocalWithSync('clients', row, { table_name: 'clients', operation: 'update', remote_id: client.id })
@@ -290,6 +294,19 @@ export function ClientCard() {
                     return g ? ` Сейчас: ${g}.` : ' Сейчас: без имени.'
                   })()}
                 </p>
+              </div>
+              <div className="field">
+                <label className="label">Ссылка на чат в Max</label>
+                <input
+                  className="input"
+                  value={editForm.max_chat_url}
+                  onChange={(e) => setEditForm((f) => ({ ...f, max_chat_url: e.target.value }))}
+                  onBlur={() => setEditForm((f) => ({ ...f, max_chat_url: normalizeMaxChatUrl(f.max_chat_url) }))}
+                  placeholder="https://max.ru/u/…"
+                  title="Max → профиль → Поделиться. Без ссылки — выбор чата вручную."
+                  inputMode="url"
+                  autoComplete="off"
+                />
               </div>
               <div className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
                 <button type="button" className="btn btn-ghost btn-touch" onClick={() => setEditOpen(false)}>

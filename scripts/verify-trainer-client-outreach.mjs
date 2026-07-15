@@ -11,8 +11,10 @@ import {
   isBirthdayToday,
   isMembershipExpiredRecently,
   isNameInitialsToken,
+  normalizeMaxChatUrl,
   normalizePhoneDigits,
   resolveClientGreetingName,
+  resolveMaxOpenTarget,
   resolveOutreachTemplates,
   validateOutreachTemplatesForSave,
 } from '../src/lib/trainer/trainerClientOutreachCore.js'
@@ -50,7 +52,14 @@ ok(membershipSignal(expiringMem, today).key === 'expiring', 'expiring in 2 days'
 
 const expiredYesterday = [{ start_date: '2026-01-01', end_date: '2026-07-14', total_trainings: 10, used_trainings: 10 }]
 ok(isMembershipExpiredRecently(expiredYesterday, today), 'expired yesterday')
-ok(!isMembershipExpiredRecently([{ start_date: '2026-01-01', end_date: '2026-07-10', total_trainings: 10, used_trainings: 10 }], today), 'not recent expired')
+ok(
+  isMembershipExpiredRecently([{ start_date: '2026-01-01', end_date: '2026-07-11', total_trainings: 10, used_trainings: 10 }], today),
+  'expired 4 days ago in recent window',
+)
+ok(
+  !isMembershipExpiredRecently([{ start_date: '2026-01-01', end_date: '2026-06-20', total_trainings: 10, used_trainings: 10 }], today),
+  'not recent expired after stale threshold',
+)
 
 const birthdayMsg = buildOutreachMessage('birthdays', {
   clientName: 'Иванов Иван',
@@ -87,6 +96,19 @@ ok(expiringMsg.includes('Мария') && expiringMsg.includes('Gold') && expirin
 
 ok(normalizePhoneDigits('+7 (999) 123-45-67') === '79991234567', 'phone normalize')
 ok(buildMaxShareUrl('Привет').startsWith('https://max.ru/:share?text='), 'max share url')
+
+ok(normalizeMaxChatUrl('https://max.ru/u/abc123') === 'https://max.ru/u/abc123', 'max chat url u/')
+ok(normalizeMaxChatUrl('max.ru/@club_bot') === 'https://max.ru/@club_bot', 'max chat url @')
+ok(normalizeMaxChatUrl('https://telegram.me/foo') === '', 'reject non-max url')
+
+const direct = resolveMaxOpenTarget({
+  message: 'Hi',
+  maxChatUrl: 'https://max.ru/u/abc',
+})
+ok(direct.mode === 'direct_chat' && direct.url === 'https://max.ru/u/abc', 'resolve direct chat')
+
+const share = resolveMaxOpenTarget({ message: 'Hi', phone: '79991234567' })
+ok(share.mode === 'share' && share.url.includes(':share?text='), 'resolve share fallback')
 
 const custom = validateOutreachTemplatesForSave({
   birthdays: 'Привет, {client_name}! Клуб {club_name}. Тренер {trainer_name}.',

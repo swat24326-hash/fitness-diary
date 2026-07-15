@@ -1,10 +1,38 @@
 import { daysUntilNextBirthday } from '../clientBirthdays.js'
 import { membershipSignal } from '../clientListSignals.js'
 import { pickUsableMembershipForDate } from '../membershipRules.js'
-import { daysSinceIsoDate } from './trainerAttentionSummary.js'
+import { todayLocalIso } from '../dateRu.js'
+
+/** @param {number} n */
+export function daysWordRu(n) {
+  const x = Math.abs(Number(n))
+  const mod10 = x % 10
+  const mod100 = x % 100
+  if (mod10 === 1 && mod100 !== 11) return 'день'
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'дня'
+  return 'дней'
+}
+
+/**
+ * @param {string} iso
+ * @param {string} todayIso
+ * @returns {number | null}
+ */
+export function daysSinceIsoDate(iso, todayIso = todayLocalIso()) {
+  const d = String(iso ?? '').trim().slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return null
+  const [y1, m1, d1] = d.split('-').map(Number)
+  const [y2, m2, d2] = String(todayIso).slice(0, 10).split('-').map(Number)
+  const t0 = Date.UTC(y1, m1 - 1, d1)
+  const t1 = Date.UTC(y2, m2 - 1, d2)
+  return Math.round((t1 - t0) / 86400000)
+}
 
 /** Сценарии outreach = ключи быстрых фильтров тренера. */
 export const OUTREACH_SCENARIOS = ['birthdays', 'expiring', 'expired_recent', 'stale']
+
+/** Дней после конца абонемента — переход из «закончился» в «давно не был». */
+export const STALE_TRAINING_DAYS = 14
 
 export const OUTREACH_SCENARIO_LABELS = {
   birthdays: 'День рождения',
@@ -100,38 +128,78 @@ export function applyClientNamePlaceholder(template, greetingName) {
   return out.replace(/[ \t]{2,}/g, ' ').trim()
 }
 
-/** @param {number} n */
-export function daysWordRu(n) {
-  const x = Math.abs(Number(n))
-  const mod10 = x % 10
-  const mod100 = x % 100
-  if (mod10 === 1 && mod100 !== 11) return 'день'
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return 'дня'
-  return 'дней'
-}
-
 /**
+ * Последний по end_date абонемент, который уже закончился (end ≤ сегодня).
  * @param {object[]} list
  * @param {string} todayIso
  */
-export function pickRecentlyExpiredMembership(list, todayIso) {
+export function pickLatestEndedMembership(list, todayIso) {
   const today = String(todayIso ?? '').slice(0, 10)
-  const candidates = (list ?? []).filter((m) => {
+  const ended = (list ?? []).filter((m) => {
     const end = String(m?.end_date ?? '').slice(0, 10)
-    if (!end || end > today) return false
-    const days = daysSinceIsoDate(end, today)
-    return days != null && days >= 0 && days <= 1
+    return /^\d{4}-\d{2}-\d{2}$/.test(end) && end <= today
   })
-  if (!candidates.length) return null
-  return candidates.sort((a, b) => String(b.end_date ?? '').localeCompare(String(a.end_date ?? '')))[0]
+  if (!ended.length) return null
+  return ended.sort((a, b) => String(b.end_date ?? '').localeCompare(String(a.end_date ?? '')))[0]
 }
 
 /**
  * @param {object[]} list
  * @param {string} todayIso
+ * @returns {number | null}
  */
-export function isMembershipExpiredRecently(list, todayIso) {
-  return pickRecentlyExpiredMembership(list, todayIso) != null
+export function membershipDaysSinceLatestEnd(list, todayIso) {
+  const latestEnded = pickLatestEndedMembership(list, todayIso)
+  if (!latestEnded) return null
+  return daysSinceIsoDate(latestEnded.end_date, todayIso)
+}
+
+/**
+ * Абонемент закончился недавно: 0 … (staleDays − 1) дней назад, без активного абонемента.
+ * На 14-й день клиент переходит в «давно не был».
+ *
+ * @param {object[]} list
+ * @param {string} todayIso
+ * @param {number} [staleDays]
+ */
+export function isMembershipExpiredRecently(list, todayIso, staleDays = STALE_TRAINING_DAYS) {
+  const today = String(todayIso ?? '').slice(0, 10)
+  const threshold = Number(staleDays) > 0 ? Number(staleDays) : STALE_TRAINING_DAYS
+  if (pickUsableMembershipForDate(list ?? [], today)) return false
+  const days = membershipDaysSinceLatestEnd(list, today)
+  if (days == null) return false
+  return days >= 0 && days < threshold
+}
+
+/**
+ * @param {object[]} list
+ * @param {string} todayIso
+ * @param {number} [staleDays]
+ */
+export function pickRecentlyExpiredMembership(list, todayIso, staleDays = STALE_TRAINING_DAYS) {
+  if (!isMembershipExpiredRecently(list, todayIso, staleDays)) return null
+  return pickLatestEndedMembership(list, todayIso)
+}
+
+/**
+ * «Давно не был»: абонемент закончился ≥ staleDays назад.
+ * @param {{
+ *   memList?: object[],
+ *   today?: string,
+ *   staleDays?: number,
+ * }} ctx
+ */
+export function isClientStaleForAttention(ctx = {}) {
+  const today = String(ctx.today ?? todayLocalIso())
+  const staleDays = Number(ctx.staleDays) > 0 ? Number(ctx.staleDays) : STALE_TRAINING_DAYS
+  const memList = ctx.memList ?? []
+
+  if (pickUsableMembershipForDate(memList, today)) return false
+  if (isMembershipExpiredRecently(memList, today, staleDays)) return false
+
+  const days = membershipDaysSinceLatestEnd(memList, today)
+  if (days == null) return false
+  return days >= staleDays
 }
 
 /**
@@ -183,6 +251,8 @@ export const OUTREACH_PLACEHOLDER_HINTS = [
   { key: '{membership_name}', label: 'Название абонемента (истекает)' },
   { key: '{days_left}', label: 'Дней до конца (истекает)' },
   { key: '{days_word}', label: 'день / дня / дней (истекает)' },
+  { key: '{days_since_end}', label: 'Дней с конца абонемента' },
+  { key: '{days_since_end_word}', label: 'день / дня / дней (с конца)' },
 ]
 
 const REQUIRED_BY_SCENARIO = {
@@ -200,7 +270,7 @@ export function defaultOutreachTemplates() {
     expiring:
       'Привет, {client_name}! Это твой тренер {trainer_name}. Напоминаю, что твоя карта {membership_name} заканчивается через {days_left} {days_word}. Давай на следующей тренировке всё продлим, чтобы забронировать за тобой удобное время.',
     expired_recent:
-      'Привет, {client_name}! Это твой тренер {trainer_name}. Твой абонемент только что закончился. Давай продлим его на следующей тренировке, чтобы не прерывать процесс и сохранить темп. Когда тебя ждать?',
+      'Привет, {client_name}! Это твой тренер {trainer_name}. Твой абонемент закончился. Давай продлим его на следующей тренировке, чтобы не прерывать процесс и сохранить темп. Когда тебя ждать?',
     stale:
       'Привет, {client_name}! Это твой тренер {trainer_name}. Твой абонемент в {club_name} закончился уже давно. Всё в порядке? Жду в зале — давай вернёмся и продолжим!',
   }
@@ -316,6 +386,7 @@ export function buildOutreachMessage(scenario, ctx = {}) {
   const template = templates[scenario] ?? defaultOutreachTemplates()[scenario]
   const today = String(ctx.today ?? '').slice(0, 10)
   const daysLeft = membershipDaysUntilEnd(ctx.memList ?? [], today)
+  const daysSinceEnd = membershipDaysSinceLatestEnd(ctx.memList ?? [], today)
   const greetingName = resolveClientGreetingName(ctx.client ?? ctx.clientName, ctx.outreachName)
   const vars = {
     '{client_name}': greetingName,
@@ -324,6 +395,8 @@ export function buildOutreachMessage(scenario, ctx = {}) {
     '{membership_name}': String(ctx.membershipName ?? '').trim() || 'абонемент',
     '{days_left}': daysLeft != null ? String(daysLeft) : '3',
     '{days_word}': daysLeft != null ? daysWordRu(daysLeft) : 'дня',
+    '{days_since_end}': daysSinceEnd != null ? String(daysSinceEnd) : '14',
+    '{days_since_end_word}': daysSinceEnd != null ? daysWordRu(daysSinceEnd) : 'дней',
   }
   return fillOutreachTemplate(template, vars)
 }
@@ -331,6 +404,66 @@ export function buildOutreachMessage(scenario, ctx = {}) {
 /** @param {string} raw */
 export function normalizePhoneDigits(raw) {
   return String(raw ?? '').replace(/\D/g, '')
+}
+
+/** @param {string} raw */
+export function formatPhoneE164Ru(raw) {
+  const d = normalizePhoneDigits(raw)
+  if (d.length === 11 && d.startsWith('7')) return `+${d}`
+  if (d.length === 10) return `+7${d}`
+  if (d.length > 11 && d.startsWith('7')) return `+${d}`
+  return ''
+}
+
+/**
+ * Прямая ссылка на чат Max (max.ru/u/… или max.ru/@…).
+ * @param {string | null | undefined} raw
+ */
+export function normalizeMaxChatUrl(raw) {
+  const s = String(raw ?? '').trim()
+  if (!s) return ''
+  try {
+    const withProto = /^https?:\/\//i.test(s) ? s : `https://${s}`
+    const u = new URL(withProto)
+    const host = u.hostname.replace(/^www\./, '')
+    if (host !== 'max.ru' && host !== 'web.max.ru') return ''
+    const path = u.pathname.replace(/\/+$/, '')
+    if (path.startsWith('/u/') || path.startsWith('/@') || /^\/id[\d_a-z-]+/i.test(path)) {
+      return `https://max.ru${path}`
+    }
+  } catch {
+    return ''
+  }
+  return ''
+}
+
+/**
+ * @param {{ message: string, phone?: string, maxChatUrl?: string | null }} input
+ * @returns {{ url: string, mode: 'direct_chat' | 'share' }}
+ */
+export function resolveMaxOpenTarget(input = {}) {
+  const message = String(input.message ?? '')
+  const direct = normalizeMaxChatUrl(input.maxChatUrl)
+  if (direct) {
+    return { url: direct, mode: 'direct_chat' }
+  }
+  return { url: buildMaxShareUrl(message), mode: 'share' }
+}
+
+/** @param {string} url */
+export function openMaxExternalUrl(url) {
+  if (typeof window === 'undefined' || !url) return false
+  try {
+    window.location.assign(url)
+    return true
+  } catch {
+    try {
+      window.open(url, '_blank', 'noopener,noreferrer')
+      return true
+    } catch {
+      return false
+    }
+  }
 }
 
 /** @param {string} text */
@@ -360,7 +493,7 @@ export async function copyTextToClipboard(text) {
 /**
  * @param {OutreachScenario} scenario
  * @param {{
- *   client?: { name?: string, outreach_name?: string | null, phone?: string | null },
+ *   client?: { name?: string, outreach_name?: string | null, phone?: string | null, max_chat_url?: string | null },
  *   memList?: object[],
  *   trainerName?: string,
  *   clubName?: string,
@@ -389,17 +522,22 @@ export async function runOutreachToMax(scenario, ctx = {}) {
     return { ok: false, error: 'copy_failed', message }
   }
 
+  const maxChatUrl = normalizeMaxChatUrl(ctx.client?.max_chat_url)
+  const target = resolveMaxOpenTarget({ message, phone, maxChatUrl })
+
   let opened = false
   if (typeof window !== 'undefined') {
-    try {
-      window.open(buildMaxShareUrl(message), '_blank', 'noopener,noreferrer')
-      opened = true
-    } catch {
-      opened = false
-    }
+    opened = openMaxExternalUrl(target.url)
   }
 
-  return { ok: true, message, opened, phone }
+  return {
+    ok: true,
+    message,
+    opened,
+    phone,
+    maxChatUrl: maxChatUrl || null,
+    openMode: target.mode,
+  }
 }
 
 /** @param {string} message @param {number} [maxLen=80] */

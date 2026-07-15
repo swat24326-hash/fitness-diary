@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Cake, CalendarClock, Clock, Search, UserPlus } from 'lucide-react'
+import { AlertTriangle, Cake, CalendarClock, Clock, Search, SkipForward, UserPlus } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { TrainerClientListItem } from '../../components/trainer/TrainerClientListItem'
 import { useAuth } from '../../context/AuthContext'
@@ -21,6 +21,7 @@ import {
   isMembershipExpiredRecently,
   isOutreachScenario,
   normalizeOutreachName,
+  normalizeMaxChatUrl,
   resolveOutreachTemplates,
 } from '../../lib/trainer/trainerClientOutreachCore'
 import {
@@ -29,6 +30,11 @@ import {
   normalizeTrainerClientQuickFilter,
   STALE_TRAINING_DAYS,
 } from '../../lib/trainer/trainerAttentionSummary'
+import {
+  buildOutreachScenarioHint,
+  pickNextOutreachClient,
+  sortClientsForOutreachFilter,
+} from '../../lib/trainer/trainerOutreachQueue'
 import {
   listOutreachLogTodayByScenario,
   loadCachedClubOutreachTemplates,
@@ -60,6 +66,7 @@ export function TrainerClients() {
     birth_date: '',
     card_number: '',
     outreach_name: '',
+    max_chat_url: '',
   })
   const [clubs, setClubs] = useState([])
   const [outreachTemplatesRaw, setOutreachTemplatesRaw] = useState(null)
@@ -68,6 +75,7 @@ export function TrainerClients() {
   const [workspaceReady, setWorkspaceReady] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [toast, setToast] = useState(null)
+  const [highlightClientId, setHighlightClientId] = useState(null)
 
   const reload = useCallback(async ({ silent = false } = {}) => {
     if (!user?.id) return
@@ -191,15 +199,25 @@ export function TrainerClients() {
     return base.filter((c) => clientMatchesFilter(c, quickFilter))
   }, [clients, archivedClients, clientsTab, query, quickFilter, clientMatchesFilter])
 
+  const sortedFilteredClients = useMemo(() => {
+    if (!isOutreachScenario(quickFilter)) return filteredClients
+    return sortClientsForOutreachFilter(filteredClients, quickFilter, memByClient, sentTodayIds, today)
+  }, [filteredClients, quickFilter, memByClient, sentTodayIds, today])
+
+  const nextOutreachClient = useMemo(() => {
+    if (!isOutreachScenario(quickFilter)) return null
+    return pickNextOutreachClient(sortedFilteredClients, sentTodayIds)
+  }, [sortedFilteredClients, quickFilter, sentTodayIds])
+
   useEffect(() => {
     setVisibleCount(CLIENT_LIST_PAGE_SIZE)
   }, [query, quickFilter, clients.length, archivedClients.length, clientsTab])
 
   const visibleClients = useMemo(
-    () => filteredClients.slice(0, visibleCount),
-    [filteredClients, visibleCount],
+    () => sortedFilteredClients.slice(0, visibleCount),
+    [sortedFilteredClients, visibleCount],
   )
-  const hasMore = filteredClients.length > visibleCount
+  const hasMore = sortedFilteredClients.length > visibleCount
 
   const filterCounts = useMemo(() => {
     const base = clientsTab === 'archive' ? archivedClients : clients
@@ -235,10 +253,34 @@ export function TrainerClients() {
 
   const outreachProgress = useMemo(() => {
     if (!isOutreachScenario(quickFilter)) return { pending: 0, total: 0, done: 0 }
-    const withPhone = filteredClients.filter((c) => String(c.phone ?? '').trim())
+    const withPhone = sortedFilteredClients.filter((c) => String(c.phone ?? '').trim())
     const pending = withPhone.filter((c) => !sentTodayIds.has(String(c.id)))
     return { pending: pending.length, total: withPhone.length, done: withPhone.length - pending.length }
-  }, [filteredClients, quickFilter, sentTodayIds])
+  }, [sortedFilteredClients, quickFilter, sentTodayIds])
+
+  const scrollToOutreachClient = useCallback(
+    (clientId) => {
+      if (!clientId) return
+      const idx = sortedFilteredClients.findIndex((c) => String(c.id) === String(clientId))
+      if (idx >= 0 && idx >= visibleCount) {
+        setVisibleCount(idx + 1)
+      }
+      setHighlightClientId(String(clientId))
+      window.setTimeout(() => {
+        document.getElementById(`trainer-client-${clientId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 50)
+      window.setTimeout(() => setHighlightClientId(null), 2600)
+    },
+    [sortedFilteredClients, visibleCount],
+  )
+
+  const handleNextOutreach = useCallback(() => {
+    if (!nextOutreachClient) {
+      showToast('Все обработаны', 'info')
+      return
+    }
+    scrollToOutreachClient(nextOutreachClient.id)
+  }, [nextOutreachClient, scrollToOutreachClient, showToast])
 
   const filterBtnClass = (id) => `btn ${quickFilter === id ? 'btn-primary' : 'btn-ghost'} btn-icon-square`
 
@@ -285,6 +327,7 @@ export function TrainerClients() {
         birth_date: newClientForm.birth_date || null,
         card_number: String(newClientForm.card_number ?? '').trim() || null,
         outreach_name: normalizeOutreachName(newClientForm.outreach_name) || null,
+        max_chat_url: normalizeMaxChatUrl(newClientForm.max_chat_url) || null,
         created_at: now,
       }
       await saveLocalWithSync('clients', row, {
@@ -295,7 +338,7 @@ export function TrainerClients() {
       })
       await flushSyncQueue()
       setShowNewClient(false)
-      setNewClientForm({ name: '', phone: '', birth_date: '', card_number: '', outreach_name: '' })
+      setNewClientForm({ name: '', phone: '', birth_date: '', card_number: '', outreach_name: '', max_chat_url: '' })
       await reload()
     } catch (err) {
       alert(err?.message ?? 'Не удалось создать клиента')
@@ -321,7 +364,9 @@ export function TrainerClients() {
   const emptyFilterMessage = () => {
     if (quickFilter === 'birthdays') return 'Сегодня дней рождения нет (укажите дату в карточке клиента).'
     if (quickFilter === 'expiring') return 'Нет абонементов, которые заканчиваются через 1–3 дня.'
-    if (quickFilter === 'expired_recent') return 'Нет абонементов, закончившихся сегодня или вчера.'
+    if (quickFilter === 'expired_recent') {
+      return `Нет абонементов, закончившихся за последние ${STALE_TRAINING_DAYS - 1} дней.`
+    }
     if (quickFilter === 'stale') {
       return `Нет клиентов, у которых абонемент закончился ${STALE_TRAINING_DAYS}+ дней назад.`
     }
@@ -358,7 +403,7 @@ export function TrainerClients() {
                 type="button"
                 className={filterBtnClass('expired_recent')}
                 onClick={() => applyFilter('expired_recent')}
-                aria-label="Фильтр: абонемент закончился сегодня или вчера"
+                aria-label={`Фильтр: абонемент закончился менее ${STALE_TRAINING_DAYS} дней назад`}
                 title={`Закончился (${filterCounts.expired_recent})`}
               >
                 <AlertTriangle size={20} aria-hidden />
@@ -404,21 +449,33 @@ export function TrainerClients() {
           </div>
         </div>
 
-        {isOutreachScenario(quickFilter) && filteredClients.length > 0 ? (
+        {isOutreachScenario(quickFilter) && sortedFilteredClients.length > 0 ? (
           <div
             className={`trainer-outreach-progress${outreachProgress.pending === 0 && outreachProgress.total > 0 ? ' trainer-outreach-progress--done' : ''}`}
             role="status"
             aria-live="polite"
+            title={
+              nextOutreachClient
+                ? `Следующий: ${nextOutreachClient.name}`
+                : outreachProgress.pending === 0
+                  ? 'Все обработаны'
+                  : undefined
+            }
           >
-            <span className="trainer-outreach-progress__label">В Max сегодня</span>
             <strong className="trainer-outreach-progress__count">
-              {outreachProgress.done} из {outreachProgress.total}
+              {outreachProgress.done}/{outreachProgress.total}
             </strong>
-            <span className="muted trainer-outreach-progress__hint">
-              {outreachProgress.pending > 0
-                ? `осталось ${outreachProgress.pending} — нажмите «Max» у клиента`
-                : 'все обработаны'}
-            </span>
+            {outreachProgress.pending > 0 && nextOutreachClient ? (
+              <button
+                type="button"
+                className="btn btn-primary btn-icon-square btn-touch trainer-outreach-next-btn"
+                onClick={handleNextOutreach}
+                aria-label={`Следующий: ${nextOutreachClient.name}`}
+                title={`Следующий: ${nextOutreachClient.name}`}
+              >
+                <SkipForward size={20} aria-hidden />
+              </button>
+            ) : null}
           </div>
         ) : null}
 
@@ -448,16 +505,17 @@ export function TrainerClients() {
                 </>
               )}
             </p>
-            {filteredClients.length > 0 ? (
+            {sortedFilteredClients.length > 0 ? (
               <>
                 <p className="muted client-list-meta">
-                  Показано {visibleClients.length} из {filteredClients.length}
-                  {clients.length !== filteredClients.length ? ` (всего у вас ${clients.length})` : ''}
+                  Показано {visibleClients.length} из {sortedFilteredClients.length}
+                  {clients.length !== sortedFilteredClients.length ? ` (всего у вас ${clients.length})` : ''}
                 </p>
                 <ul className="list">
                   {visibleClients.map((c) => (
                     <TrainerClientListItem
                       key={c.id}
+                      rowId={`trainer-client-${c.id}`}
                       client={c}
                       today={today}
                       memList={memByClient[c.id] ?? []}
@@ -465,6 +523,12 @@ export function TrainerClients() {
                       lastTrainingIso={lastCompletedByClientId[c.id] ?? lastTrainingDateByClientId[c.id] ?? '—'}
                       showBirthdayLabel={quickFilter === 'birthdays'}
                       outreachScenario={isOutreachScenario(quickFilter) ? quickFilter : null}
+                      outreachHint={
+                        isOutreachScenario(quickFilter)
+                          ? buildOutreachScenarioHint(quickFilter, memByClient[c.id] ?? [], today)
+                          : null
+                      }
+                      highlighted={highlightClientId === String(c.id)}
                       onWriteToMax={
                         isOutreachScenario(quickFilter)
                           ? async () => {
@@ -494,7 +558,7 @@ export function TrainerClients() {
                 {hasMore ? (
                   <div className="client-list-more">
                     <button type="button" className="btn btn-ghost btn-touch" onClick={() => setVisibleCount((n) => n + CLIENT_LIST_PAGE_SIZE)}>
-                      Показать ещё {Math.min(CLIENT_LIST_PAGE_SIZE, filteredClients.length - visibleCount)}
+                      Показать ещё {Math.min(CLIENT_LIST_PAGE_SIZE, sortedFilteredClients.length - visibleCount)}
                     </button>
                   </div>
                 ) : null}
@@ -574,6 +638,21 @@ export function TrainerClients() {
                     setNewClientForm((f) => ({ ...f, outreach_name: normalizeOutreachName(f.outreach_name) }))
                   }
                   placeholder="Необязательно, если во ФИО есть полное имя"
+                />
+              </div>
+              <div className="field">
+                <label className="label">Ссылка на чат в Max</label>
+                <input
+                  className="input"
+                  value={newClientForm.max_chat_url}
+                  onChange={(e) => setNewClientForm((f) => ({ ...f, max_chat_url: e.target.value }))}
+                  onBlur={() =>
+                    setNewClientForm((f) => ({ ...f, max_chat_url: normalizeMaxChatUrl(f.max_chat_url) }))
+                  }
+                  placeholder="max.ru/u/… — чат откроется сразу"
+                  title="Max → профиль → Поделиться"
+                  inputMode="url"
+                  autoComplete="off"
                 />
               </div>
               <div className="row td-modal-actions">

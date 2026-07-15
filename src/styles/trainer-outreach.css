@@ -2,15 +2,6 @@
 
 .trainer-max-btn {
   flex: 0 0 auto;
-  min-width: 52px;
-  height: 42px;
-  min-height: 42px;
-  padding: 0 12px;
-  border-radius: 12px;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  line-height: 1;
   border: 1px solid rgba(52, 211, 153, 0.35);
   background: rgba(16, 185, 129, 0.12);
   color: #a7f3d0;
@@ -54,11 +45,11 @@
 
 .trainer-outreach-progress {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px 12px;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
   margin-top: 12px;
-  padding: 10px 14px;
+  padding: 8px 12px;
   border-radius: var(--radius);
   border: 1px solid rgba(52, 211, 153, 0.22);
   background: rgba(16, 185, 129, 0.06);
@@ -69,29 +60,37 @@
   background: rgba(100, 116, 139, 0.08);
 }
 
-.trainer-outreach-progress__label {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: rgba(167, 243, 208, 0.85);
-}
-
-.trainer-outreach-progress--done .trainer-outreach-progress__label {
-  color: rgba(203, 213, 225, 0.75);
-}
-
 .trainer-outreach-progress__count {
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   color: var(--text, #e2e8f0);
 }
 
-.trainer-outreach-progress__hint {
-  flex: 1 1 100%;
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.35;
+.trainer-outreach-next-btn {
+  margin-left: auto;
+}
+
+.trainer-outreach-hint {
+  color: rgba(167, 243, 208, 0.9);
+  font-weight: 600;
+}
+
+.td-client-item--highlight {
+  animation: trainer-client-highlight 2.4s ease-out;
+  border-radius: var(--radius);
+  box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.55);
+}
+
+@keyframes trainer-client-highlight {
+  0% {
+    box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.85);
+    background: rgba(16, 185, 129, 0.12);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
+    background: transparent;
+  }
 }
 
 .trainer-outreach-toast {

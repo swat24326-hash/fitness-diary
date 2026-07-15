@@ -86,6 +86,9 @@ function friendlyClientsDbError(error) {
   if (/outreach_name/i.test(msg) && /schema cache|could not find|column/i.test(msg)) {
     return 'Колонка outreach_name не создана в Supabase — выполните миграцию clients_outreach_name'
   }
+  if (/max_chat_url/i.test(msg) && /schema cache|could not find|column/i.test(msg)) {
+    return 'Колонка max_chat_url не создана в Supabase — выполните миграцию clients_max_chat_url'
+  }
   return msg || 'Ошибка базы данных'
 }
 

@@ -76,7 +76,12 @@ export function useTrainerOutreach(opts = {}) {
         setTimeout(() => setCopiedClientId((cur) => (cur === client.id ? null : cur)), 2000)
 
         if (!result.opened) {
-          opts.onFeedback?.('Текст скопирован — откройте Max вручную', 'info')
+          opts.onFeedback?.('Скопировано — откройте Max', 'info')
+        } else if (result.openMode === 'direct_chat') {
+          opts.onFeedback?.('Скопировано — чат Max', 'info')
+        } else {
+          const phoneHint = result.phone ? ` ${result.phone}` : ''
+          opts.onFeedback?.(`Скопировано${phoneHint} — выберите чат`, 'info')
         }
         return result
       } finally {

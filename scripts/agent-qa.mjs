@@ -100,6 +100,7 @@ run('challenges club query', 'node', ['scripts/verify-challenges-club-query.mjs'
 run('client counts local', 'node', ['scripts/verify-client-counts-local.mjs'])
 run('trainer attention summary', 'node', ['scripts/verify-trainer-attention-summary.mjs'])
 run('trainer client outreach', 'node', ['scripts/verify-trainer-client-outreach.mjs'])
+run('trainer outreach queue', 'node', ['scripts/verify-trainer-outreach-queue.mjs'])
 run('client name format', 'node', ['scripts/verify-client-name-format.mjs'])
 run('admin club day summary', 'node', ['scripts/verify-admin-club-day-summary.mjs'])
 run('admin client quick filters', 'node', ['scripts/verify-admin-client-quick-filters.mjs'])
