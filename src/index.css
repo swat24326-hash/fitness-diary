@@ -4778,6 +4778,51 @@ tr:last-child td {
   color: var(--text-muted);
 }
 
+/* Админ на широком экране: карточки статистики — 4 колонки, заголовки без обрезки */
+@media (min-width: 900px) {
+  .app-shell--admin .admin-club-stats-board__grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: clamp(12px, 1.2vw, 18px);
+  }
+
+  .app-shell--admin .admin-club-stat-card__title {
+    display: block;
+    overflow: visible;
+    -webkit-line-clamp: unset;
+    -webkit-box-orient: unset;
+    min-height: auto;
+    font-size: 0.92rem;
+    line-height: 1.3;
+    hyphens: auto;
+  }
+
+  .app-shell--admin .admin-club-stat-card__head.stat-card__top {
+    min-height: auto;
+    align-items: flex-start;
+  }
+
+  .app-shell--admin .admin-club-stat-card.card.stat-card {
+    min-height: 142px;
+    padding: clamp(12px, 1.4vw, 16px);
+  }
+
+  .app-shell--admin .admin-club-stat-card__foot {
+    font-size: 12px;
+    line-height: 1.4;
+    min-height: auto;
+  }
+}
+
+@media (min-width: 1400px) {
+  .app-shell--admin .admin-club-stats-board__grid {
+    gap: clamp(14px, 1.4vw, 20px);
+  }
+
+  .app-shell--admin .admin-club-stat-card__title {
+    font-size: 0.95rem;
+  }
+}
+
 /* Админ — клиенты: единая панель поиска и списка */
 .admin-clients-workspace {
   display: flex;
