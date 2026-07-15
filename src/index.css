@@ -10114,16 +10114,37 @@ tr:last-child td {
   padding-top: 4px;
 }
 
+.homework-preview__send-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+}
+
 .homework-preview__send {
   width: 100%;
   min-height: 52px;
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 800;
   justify-content: center;
   background: linear-gradient(135deg, #14d89a, #0a7d5c);
   border: none;
   color: #04140f;
   box-shadow: 0 10px 28px rgba(20, 216, 154, 0.28);
+}
+
+.homework-preview__send-other {
+  width: 100%;
+  min-height: 52px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  justify-content: center;
+}
+
+@media (max-width: 520px) {
+  .homework-preview__send-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .homework-preview__send:disabled {

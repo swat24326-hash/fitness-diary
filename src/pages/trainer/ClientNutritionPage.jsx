@@ -32,14 +32,11 @@ import {
 } from '../../lib/nutrition/nutritionPlanService.js'
 import { assessTotalsAgainstReferents } from '../../lib/nutrition/nutritionReferentsCore.js'
 import { attachSurveyKeyToPlan, planMatchesSurvey } from '../../lib/nutrition/nutritionPlanSessionCore.js'
-import {
-  downloadNutritionPlanBlob,
-  renderNutritionPlanPng,
-  shareNutritionPlanBlob,
-} from '../../lib/nutrition/nutritionPlanExportCanvas.js'
+import { sendNutritionPlanPng } from '../../lib/nutrition/nutritionPlanShareCore.js'
 import { buildDayProductSummary, setPlanItemGrams } from '../../lib/nutrition/nutritionPlanEditCore.js'
 import { formatDateRu } from '../../lib/dateRu'
 import { useDebouncedStorageReload } from '../../lib/useDebouncedStorageReload'
+import { resolveClubDisplayName } from '../../lib/dataAccess'
 
 const STEPS = [
   { id: 'profile', label: 'Профиль' },
@@ -128,7 +125,30 @@ export function ClientNutritionPage({ client, readOnly = false }) {
   }
 
   const clubId = String(client?.club_id ?? '').trim()
+  const [clubName, setClubName] = useState('')
   const RESULT_STEP = STEPS.length - 1
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      if (!clubId) {
+        setClubName('')
+        return
+      }
+      try {
+        const name = await resolveClubDisplayName(clubId)
+        if (!cancelled) {
+          const n = String(name ?? '').trim()
+          setClubName(!n || n === '—' || n === clubId ? '' : n)
+        }
+      } catch {
+        if (!cancelled) setClubName('')
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [clubId])
 
   const reloadCatalog = useCallback(async () => {
     if (!clubId) {
@@ -484,18 +504,25 @@ export function ClientNutritionPage({ client, readOnly = false }) {
     }
   }
 
-  const exportPng = async () => {
+  const exportPng = async (channel = 'max') => {
     const plan = displayPlan ?? savedPlan
     if (!plan) return
     setExportBusy(true)
     try {
-      const blob = await renderNutritionPlanPng(plan, {
-        clientName: client?.name,
-        goalKindLabel,
-        weightKg: getHealthCurrentWeightKg(health),
-      })
-      const shared = await shareNutritionPlanBlob(blob, 'Рацион FIT-CITY')
-      if (!shared) downloadNutritionPlanBlob(blob, `racion-${client?.id ?? 'client'}.png`)
+      const res = await sendNutritionPlanPng(
+        plan,
+        {
+          client,
+          clientName: client?.name,
+          clubName,
+          goalKindLabel,
+          weightKg: getHealthCurrentWeightKg(health),
+        },
+        { channel },
+      )
+      if (!res.ok) {
+        alert(res.detail || 'Не удалось создать изображение')
+      }
     } catch (e) {
       alert(e?.message ?? 'Не удалось создать изображение')
     } finally {
@@ -703,7 +730,8 @@ export function ClientNutritionPage({ client, readOnly = false }) {
             daySummary={daySummary}
             readOnly={readOnly}
             exportBusy={exportBusy}
-            onExport={exportPng}
+            onExportMax={() => exportPng('max')}
+            onExportOther={() => exportPng('other')}
             onItemGramsChange={onItemGramsChange}
             hasPendingChanges={hasPendingChanges && pageView === PAGE_VIEWS.ration}
             draftAligned={draftAligned}
@@ -987,7 +1015,8 @@ export function ClientNutritionPage({ client, readOnly = false }) {
                 daySummary={daySummary}
                 readOnly={readOnly}
                 exportBusy={exportBusy}
-                onExport={exportPng}
+                onExportMax={() => exportPng('max')}
+                onExportOther={() => exportPng('other')}
                 onItemGramsChange={onItemGramsChange}
                 hasPendingChanges={planUnsaved && draftAligned}
                 draftAligned={draftAligned}

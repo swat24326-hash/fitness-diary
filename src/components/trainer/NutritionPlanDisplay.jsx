@@ -1,4 +1,4 @@
-import { Download, Share2 } from 'lucide-react'
+import { Send, Share2 } from 'lucide-react'
 import { getHealthCurrentWeightKg } from '../../lib/clientWeightCore'
 import { NutritionTableBlock } from './NutritionTableBlock.jsx'
 
@@ -41,7 +41,8 @@ export function NutritionPlanDisplay({
   daySummary,
   readOnly,
   exportBusy,
-  onExport,
+  onExportMax,
+  onExportOther,
   onItemGramsChange,
   hasPendingChanges,
   draftAligned,
@@ -117,13 +118,18 @@ export function NutritionPlanDisplay({
           ) : null}
         </div>
         <div className="nutrition-result-actions">
-          <button type="button" className="btn btn-touch" disabled={exportBusy || planUnsaved} onClick={() => void onExport()}>
-            <Share2 size={18} aria-hidden />
-            Поделиться / PNG
+          <button type="button" className="btn btn-touch" disabled={exportBusy || planUnsaved} onClick={() => void onExportMax?.()}>
+            <Send size={18} aria-hidden />
+            {exportBusy ? 'Готовим…' : 'В Max'}
           </button>
-          <button type="button" className="btn btn-touch btn-ghost" disabled={exportBusy || planUnsaved} onClick={() => void onExport()}>
-            <Download size={18} aria-hidden />
-            Скачать
+          <button
+            type="button"
+            className="btn btn-touch btn-ghost"
+            disabled={exportBusy || planUnsaved}
+            onClick={() => void onExportOther?.()}
+          >
+            <Share2 size={18} aria-hidden />
+            Другой мессенджер
           </button>
         </div>
       </div>

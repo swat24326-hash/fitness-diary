@@ -128,27 +128,36 @@ export function ClientHomeworkPage({ client, readOnly = false }) {
     setMode(MODES.presets)
   }
 
-  const onSend = async () => {
+  const onSend = async (channel = 'max') => {
     if (readOnly) return
     setBusy(true)
     setStatusMsg('')
     try {
-      const res = await sendHomeworkDraft(draft, {
-        client,
-        clientName,
-        trainerName,
-        clubName,
-      })
+      const res = await sendHomeworkDraft(
+        draft,
+        {
+          client,
+          clientName,
+          trainerName,
+          clubName,
+        },
+        { channel },
+      )
       if (!res.ok) {
         if (res.error === 'empty_draft') setStatusMsg('Добавьте упражнения')
         else setStatusMsg(res.detail || 'Не удалось сформировать PNG')
         return
       }
       const parts = []
-      if (res.shared) parts.push('карточка готова к отправке')
-      else if (res.downloaded) parts.push('PNG скачан — прикрепите в Max')
-      if (res.opened) {
-        parts.push(res.openMode === 'direct_chat' ? 'открыт чат Max' : 'открыто окно Max')
+      if (channel === 'other') {
+        if (res.shared) parts.push('выберите мессенджер в меню «Поделиться»')
+        else if (res.downloaded) parts.push('PNG скачан — прикрепите в мессенджер')
+      } else {
+        if (res.shared) parts.push('карточка готова к отправке')
+        else if (res.downloaded) parts.push('PNG скачан — прикрепите в Max')
+        if (res.opened) {
+          parts.push(res.openMode === 'direct_chat' ? 'открыт чат Max' : 'открыто окно Max')
+        }
       }
       setStatusMsg(parts.join(' · ') || 'Готово')
     } finally {
@@ -164,7 +173,7 @@ export function ClientHomeworkPage({ client, readOnly = false }) {
         <div>
           <p className="homework-hero__eyebrow">Домашнее задание</p>
           <h2 className="homework-hero__title">{clientName || 'Клиент'}</h2>
-          <p className="muted homework-hero__sub">Шаблон или конструктор → карточка → Max. Один экран.</p>
+          <p className="muted homework-hero__sub">Шаблон или конструктор → карточка → Max или другой мессенджер.</p>
         </div>
         {draftCount > 0 ? <span className="homework-hero__badge">{draftCount} упр.</span> : null}
       </header>
@@ -280,7 +289,8 @@ export function ClientHomeworkPage({ client, readOnly = false }) {
         onPatchExercise={(bIdx, exIdx, patch) => setDraft((d) => patchHomeworkDraftExercise(d, bIdx, exIdx, patch))}
         onRemoveExercise={(bIdx, exIdx) => setDraft((d) => removeExerciseFromHomeworkDraft(d, bIdx, exIdx))}
         onClear={onClear}
-        onSend={onSend}
+        onSendMax={() => onSend('max')}
+        onSendOther={() => onSend('other')}
       />
     </div>
   )

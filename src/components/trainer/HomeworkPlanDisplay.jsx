@@ -1,8 +1,8 @@
-import { Send, Trash2 } from 'lucide-react'
+import { Send, Share2, Trash2 } from 'lucide-react'
 import { countHomeworkExercises } from '../../lib/homework/homeworkPlanCore.js'
 
 /**
- * Превью черновика ДЗ + комментарий + отправка.
+ * Превью черновика ДЗ + комментарий + отправка в Max / другой мессенджер.
  */
 export function HomeworkPlanDisplay({
   draft,
@@ -11,7 +11,8 @@ export function HomeworkPlanDisplay({
   onCommentChange,
   onPatchExercise,
   onRemoveExercise,
-  onSend,
+  onSendMax,
+  onSendOther,
   onClear,
   statusMsg = '',
 }) {
@@ -21,7 +22,8 @@ export function HomeworkPlanDisplay({
       <section className="card homework-preview homework-preview--empty" aria-live="polite">
         <p className="homework-preview__empty-title">Почти готово</p>
         <p className="muted homework-preview__empty-text">
-          Выберите шаблон сверху — или откройте конструктор и добавьте упражнения. Потом один тап «В Max».
+          Выберите шаблон сверху — или откройте конструктор и добавьте упражнения. Затем отправьте в Max или другой
+          мессенджер.
         </p>
       </section>
     )
@@ -131,15 +133,26 @@ export function HomeworkPlanDisplay({
 
       {!readOnly ? (
         <div className="homework-preview__actions homework-preview__actions--sticky">
-          <button
-            type="button"
-            className="btn btn-touch homework-preview__send"
-            disabled={busy || count === 0}
-            onClick={() => void onSend?.()}
-          >
-            <Send size={20} aria-hidden />
-            {busy ? 'Готовим…' : 'В Max'}
-          </button>
+          <div className="homework-preview__send-row">
+            <button
+              type="button"
+              className="btn btn-touch homework-preview__send"
+              disabled={busy || count === 0}
+              onClick={() => void onSendMax?.()}
+            >
+              <Send size={18} aria-hidden />
+              {busy ? 'Готовим…' : 'В Max'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-touch btn-ghost homework-preview__send-other"
+              disabled={busy || count === 0}
+              onClick={() => void onSendOther?.()}
+            >
+              <Share2 size={18} aria-hidden />
+              Другой мессенджер
+            </button>
+          </div>
           {statusMsg ? <p className="homework-preview__status">{statusMsg}</p> : null}
         </div>
       ) : null}

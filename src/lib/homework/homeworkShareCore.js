@@ -1,5 +1,5 @@
 /**
- * Отправка ДЗ: PNG + открытие Max (ссылка чата или окно share).
+ * Отправка ДЗ: PNG + Max или системное «Поделиться» (другой мессенджер).
  */
 
 import {
@@ -13,19 +13,25 @@ import { downloadHomeworkPlanBlob, renderHomeworkPlanPng, shareHomeworkPlanBlob 
 import { isHomeworkDraftReady } from './homeworkPlanCore.js'
 
 /**
+ * @typedef {'max' | 'other'} HomeworkShareChannel
+ */
+
+/**
  * @param {import('./homeworkPlanCore.js').HomeworkDraft} draft
  * @param {{
- *   client?: { name?: string, phone?: string | null, max_chat_url?: string | null, club_id?: string },
+ *   client?: { name?: string, phone?: string | null, max_chat_url?: string | null },
  *   trainerName?: string,
  *   clientName?: string,
  *   clubName?: string,
  * }} ctx
+ * @param {{ channel?: HomeworkShareChannel }} [opts]
  */
-export async function sendHomeworkDraft(draft, ctx = {}) {
+export async function sendHomeworkDraft(draft, ctx = {}, opts = {}) {
   if (!isHomeworkDraftReady(draft)) {
     return { ok: false, error: 'empty_draft' }
   }
 
+  const channel = opts.channel === 'other' ? 'other' : 'max'
   const clientName = String(ctx.clientName ?? ctx.client?.name ?? '').trim()
   const trainerName = String(ctx.trainerName ?? '').trim()
   const clubName = String(ctx.clubName ?? '').trim()
@@ -38,18 +44,6 @@ export async function sendHomeworkDraft(draft, ctx = {}) {
   }
 
   const title = clubName ? `${clubName} · ${draft.title || 'Домашнее задание'}` : draft.title || 'Домашнее задание'
-  let shared = false
-  try {
-    shared = await shareHomeworkPlanBlob(blob, title)
-  } catch {
-    shared = false
-  }
-  if (!shared) {
-    downloadHomeworkPlanBlob(blob, 'homework.png')
-  }
-
-  const phone = normalizePhoneDigits(ctx.client?.phone)
-  const maxChatUrl = normalizeMaxChatUrl(ctx.client?.max_chat_url)
   const shareText = [
     clubName ? `Домашнее задание · ${clubName}` : 'Домашнее задание',
     draft.title || 'ДЗ',
@@ -59,6 +53,34 @@ export async function sendHomeworkDraft(draft, ctx = {}) {
     .filter(Boolean)
     .join(' · ')
 
+  let shared = false
+  try {
+    shared = await shareHomeworkPlanBlob(blob, title)
+  } catch {
+    shared = false
+  }
+
+  if (channel === 'other') {
+    if (!shared) {
+      downloadHomeworkPlanBlob(blob, 'homework.png')
+    }
+    return {
+      ok: true,
+      channel,
+      shared,
+      downloaded: !shared,
+      opened: false,
+      openMode: null,
+    }
+  }
+
+  // Max: файл в «Поделиться» (если есть) + открыть Max
+  if (!shared) {
+    downloadHomeworkPlanBlob(blob, 'homework.png')
+  }
+
+  const phone = normalizePhoneDigits(ctx.client?.phone)
+  const maxChatUrl = normalizeMaxChatUrl(ctx.client?.max_chat_url)
   let opened = false
   let openMode = null
   if (maxChatUrl || phone) {
@@ -72,6 +94,7 @@ export async function sendHomeworkDraft(draft, ctx = {}) {
 
   return {
     ok: true,
+    channel,
     shared,
     downloaded: !shared,
     opened,
