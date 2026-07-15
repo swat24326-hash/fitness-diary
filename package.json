@@ -18,6 +18,7 @@
     "db:migrate:plan-matrix": "node scripts/apply-club-sales-plan-matrix.mjs",
     "db:migrate:scalability": "node scripts/apply-scalability-indexes.mjs",
     "db:migrate:iskra": "node scripts/apply-iskra-migrations.mjs",
+    "db:migrate:homework": "node scripts/apply-homework-presets-migration.mjs",
     "check:volume": "node scripts/check-data-volume.mjs",
     "gen:icons": "node scripts/generate-icons.mjs",
     "qa": "node scripts/agent-qa.mjs",
