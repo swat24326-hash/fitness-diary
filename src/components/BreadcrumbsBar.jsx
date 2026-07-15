@@ -38,14 +38,16 @@ function buildCrumbs(pathname, search) {
     } catch {
       /* ignore */
     }
-    const sub =
-      tab === 'trainers'
-        ? 'Тренеры'
-        : tab === 'membership-types'
-          ? 'Типы абон.'
-          : tab === 'exercises'
-            ? 'Упражнения'
-            : 'Клубы'
+    const tabLabels = {
+      clubs: 'Клубы',
+      trainers: 'Тренеры',
+      'sales-managers': 'Менеджеры',
+      'membership-types': 'Типы абон.',
+      'nutrition-products': 'Питание',
+      exercises: 'Упражнения',
+      'max-messages': 'Сообщения Max',
+    }
+    const sub = tabLabels[tab] ?? 'Клубы'
     const structureBase = `/admin/structure${clubQs}`
     const full = `${p}${search || ''}`
     return [...admin, { label: 'Структура', to: structureBase }, { label: sub, to: full }]

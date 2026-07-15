@@ -59,7 +59,7 @@ export function TrainerAttentionPanel({ summary, loading = false }) {
       key: 'stale',
       count: summary.stale,
       label: 'Давно не был',
-      hint: `${summary.staleDays}+ дн.`,
+      hint: `${summary.staleDays}+ дн. после конца`,
       icon: CalendarClock,
       to: '/trainer/clients?filter=stale',
     },

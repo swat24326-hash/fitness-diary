@@ -72,20 +72,20 @@ export function AdminOutreachTemplatesSection({ clubId, clubName = 'клуб', d
   }
 
   return (
-    <section className="card admin-iskra-settings__section">
+    <section className="card admin-outreach-templates__section">
       <h2 className="section-title">Сообщения тренеров в Max</h2>
-      <p className="muted" style={{ fontSize: 14, marginTop: 0 }}>
-        Тексты для кнопки «Написать в Max» в списке клиентов. Название клуба подставляется из карточки клуба (
-        <strong>{clubName}</strong>), не захардкожено.
+      <p className="muted admin-outreach-templates__intro">
+        Тексты для кнопки «Max» в списке клиентов тренера. Название клуба подставляется из карточки клуба (
+        <strong>{clubName}</strong>).
       </p>
-      <p className="muted admin-iskra-outreach__placeholders">
+      <p className="muted admin-outreach-templates__placeholders">
         Плейсхолдеры: {OUTREACH_PLACEHOLDER_HINTS.map((p) => `${p.key} — ${p.label}`).join('; ')}
       </p>
       {loading ? <p className="muted">Загрузка…</p> : null}
-      {err ? <p className="admin-iskra-settings__err">{err}</p> : null}
-      {msg ? <p className="admin-iskra-settings__msg">{msg}</p> : null}
+      {err ? <p className="admin-outreach-templates__error" role="alert">{err}</p> : null}
+      {msg ? <p className="admin-outreach-templates__ok">{msg}</p> : null}
       {!loading && OUTREACH_SCENARIOS.map((key) => (
-        <div key={key} className="admin-iskra-outreach__field">
+        <div key={key} className="admin-outreach-templates__field">
           <label className="label" htmlFor={`outreach-${key}`}>
             {OUTREACH_SCENARIO_LABELS[key]}
           </label>
@@ -98,7 +98,7 @@ export function AdminOutreachTemplatesSection({ clubId, clubName = 'клуб', d
           />
         </div>
       ))}
-      <div className="row admin-iskra-settings__actions">
+      <div className="row admin-outreach-templates__actions">
         <button type="button" className="btn btn-primary" disabled={!clubId || disabled || saving || !dirty} onClick={() => void onSave()}>
           <Save size={16} aria-hidden />
           Сохранить шаблоны
@@ -108,7 +108,7 @@ export function AdminOutreachTemplatesSection({ clubId, clubName = 'клуб', d
           Стандартные тексты
         </button>
       </div>
-      {custom ? <p className="muted" style={{ fontSize: 12 }}>На клубе свои шаблоны (отличаются от стандартных).</p> : null}
+      {custom ? <p className="muted admin-outreach-templates__custom-hint">На клубе свои шаблоны (отличаются от стандартных).</p> : null}
     </section>
   )
 }

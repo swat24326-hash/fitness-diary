@@ -20,7 +20,6 @@ import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 import { isAppOnline } from '../../lib/syncService'
 import { loadTrainerWorkspaceSnapshot } from '../../lib/trainerWorkspaceCache'
 import {
-  buildLastCompletedTrainingDateByClientId,
   buildTrainerAttentionSummary,
 } from '../../lib/trainer/trainerAttentionSummary'
 import {
@@ -91,12 +90,10 @@ export function TrainerHome() {
     try {
       const snap = await loadTrainerWorkspaceSnapshot(trainerId, clubId || null)
       if (gen !== attentionGenRef.current) return
-      const lastCompletedByClientId = buildLastCompletedTrainingDateByClientId(snap.trainings)
       setAttentionSummary(
         buildTrainerAttentionSummary({
           clients: snap.clients,
           memByClient: snap.memByClient,
-          lastCompletedByClientId,
           today: todayLocalIso(),
         }),
       )

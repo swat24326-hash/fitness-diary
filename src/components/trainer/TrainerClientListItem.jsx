@@ -8,7 +8,6 @@ import {
   pickExpiredMembershipWithRemaining,
 } from '../../lib/clientListSignals'
 import { membershipUsageLabel, pickUsableMembershipForDate } from '../../lib/membershipRules'
-import { MaxLogoIcon } from './MaxLogoIcon'
 
 export function TrainerClientListItem({
   client,
@@ -73,14 +72,14 @@ export function TrainerClientListItem({
           {showOutreach ? (
             <button
               type="button"
-              className={`btn btn-touch btn-icon-square trainer-max-btn trainer-max-btn--${maxState}`}
+              className={`btn btn-touch trainer-max-btn trainer-max-btn--${maxState}`}
               disabled={!hasPhone || busy || outreachBusy}
               title={maxTitle}
               aria-label={maxTitle}
               aria-pressed={outreachSent || outreachCopied}
               onClick={() => onWriteToMax?.()}
             >
-              <MaxLogoIcon size={22} />
+              Max
             </button>
           ) : null}
           {mode === 'active' ? (

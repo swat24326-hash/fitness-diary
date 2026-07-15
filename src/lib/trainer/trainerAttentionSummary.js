@@ -1,8 +1,9 @@
-import { isBirthdayToday, isMembershipExpiredRecently } from './trainerClientOutreachCore.js'
+import { pickUsableMembershipForDate } from '../membershipRules.js'
 import { membershipSignal } from '../clientListSignals.js'
 import { todayLocalIso } from '../dateRu.js'
+import { isBirthdayToday, isMembershipExpiredRecently } from './trainerClientOutreachCore.js'
 
-/** Дней без завершённой тренировки — «давно не был». */
+/** Дней после конца абонемента — «давно не был» (без пересечения с истекает / только что истёк). */
 export const STALE_TRAINING_DAYS = 14
 
 export const TRAINER_CLIENT_QUICK_FILTERS = ['expiring', 'expired_recent', 'birthdays', 'stale']
@@ -57,11 +58,26 @@ export function buildLastCompletedTrainingDateByClientId(trainings) {
 }
 
 /**
- * Клиент «давно не был»: есть смысл тренироваться, но давно не было завершённой тренировки.
+ * Последний по end_date абонемент, который уже закончился (end ≤ сегодня).
+ * @param {object[]} list
+ * @param {string} todayIso
+ */
+export function pickLatestEndedMembership(list, todayIso) {
+  const today = String(todayIso ?? '').slice(0, 10)
+  const ended = (list ?? []).filter((m) => {
+    const end = String(m?.end_date ?? '').slice(0, 10)
+    return /^\d{4}-\d{2}-\d{2}$/.test(end) && end <= today
+  })
+  if (!ended.length) return null
+  return ended.sort((a, b) => String(b.end_date ?? '').localeCompare(String(a.end_date ?? '')))[0]
+}
+
+/**
+ * «Давно не был»: абонемент закончился ≥ staleDays назад.
+ * Не пересекается с активным / истекает (1–3 дн.) / только что истёк (0–1 дн.).
  *
  * @param {{
  *   memList?: object[],
- *   lastCompletedIso?: string,
  *   today?: string,
  *   staleDays?: number,
  * }} ctx
@@ -70,15 +86,15 @@ export function isClientStaleForAttention(ctx = {}) {
   const today = String(ctx.today ?? todayLocalIso())
   const staleDays = Number(ctx.staleDays) > 0 ? Number(ctx.staleDays) : STALE_TRAINING_DAYS
   const memList = ctx.memList ?? []
-  const sig = membershipSignal(memList, today)
-  const recentlyExpired = isMembershipExpiredRecently(memList, today)
-  if (!['active', 'expiring', 'expired_remaining'].includes(sig.key) && !recentlyExpired) return false
 
-  const last = String(ctx.lastCompletedIso ?? '').trim().slice(0, 10)
-  if (!last || last === '—') return true
+  if (pickUsableMembershipForDate(memList, today)) return false
+  if (isMembershipExpiredRecently(memList, today)) return false
 
-  const days = daysSinceIsoDate(last, today)
-  if (days == null) return true
+  const latestEnded = pickLatestEndedMembership(memList, today)
+  if (!latestEnded) return false
+
+  const days = daysSinceIsoDate(latestEnded.end_date, today)
+  if (days == null) return false
   return days >= staleDays
 }
 
@@ -86,7 +102,6 @@ export function isClientStaleForAttention(ctx = {}) {
  * @param {{
  *   clients?: object[],
  *   memByClient?: Record<string, object[]>,
- *   lastCompletedByClientId?: Record<string, string>,
  *   today?: string,
  *   staleDays?: number,
  * }} input
@@ -95,7 +110,6 @@ export function buildTrainerAttentionSummary(input = {}) {
   const today = String(input.today ?? todayLocalIso())
   const staleDays = Number(input.staleDays) > 0 ? Number(input.staleDays) : STALE_TRAINING_DAYS
   const memByClient = input.memByClient ?? {}
-  const lastCompletedByClientId = input.lastCompletedByClientId ?? {}
 
   let birthdays = 0
   let expiring = 0
@@ -111,14 +125,7 @@ export function buildTrainerAttentionSummary(input = {}) {
     if (sig.key === 'expiring') expiring++
     if (isMembershipExpiredRecently(memList, today)) expired_recent++
 
-    if (
-      isClientStaleForAttention({
-        memList,
-        lastCompletedIso: lastCompletedByClientId[c.id],
-        today,
-        staleDays,
-      })
-    ) {
+    if (isClientStaleForAttention({ memList, today, staleDays })) {
       stale++
     }
   }
@@ -140,7 +147,6 @@ export function buildTrainerAttentionSummary(input = {}) {
  * @param {{
  *   clients?: object[],
  *   memByClient?: Record<string, object[]>,
- *   lastCompletedByClientId?: Record<string, string>,
  *   scenario: string,
  *   today?: string,
  *   staleDays?: number,
@@ -157,15 +163,7 @@ export function findFirstOutreachClient(input = {}) {
     if (scenario === 'birthdays' && isBirthdayToday(c.birth_date, today)) return c
     if (scenario === 'expiring' && membershipSignal(memList, today).key === 'expiring') return c
     if (scenario === 'expired_recent' && isMembershipExpiredRecently(memList, today)) return c
-    if (
-      scenario === 'stale' &&
-      isClientStaleForAttention({
-        memList,
-        lastCompletedIso: input.lastCompletedByClientId?.[c.id],
-        today,
-        staleDays,
-      })
-    ) {
+    if (scenario === 'stale' && isClientStaleForAttention({ memList, today, staleDays })) {
       return c
     }
   }

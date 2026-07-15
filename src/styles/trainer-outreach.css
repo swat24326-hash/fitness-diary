@@ -1,68 +1,55 @@
 /* --- Trainer outreach / Max --- */
 
 .trainer-max-btn {
-  position: relative;
-  padding: 0;
-  border: 1px solid transparent;
-  background: transparent;
-  overflow: visible;
+  flex: 0 0 auto;
+  min-width: 52px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  background: rgba(16, 185, 129, 0.12);
+  color: #a7f3d0;
 }
 
-.trainer-max-btn .max-logo-icon__bg {
-  transition: opacity 0.25s ease, filter 0.25s ease;
+.trainer-max-btn:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: rgba(52, 211, 153, 0.55);
 }
 
 .trainer-max-btn--pending {
-  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.35);
+  border-color: rgba(52, 211, 153, 0.55);
+  background: rgba(16, 185, 129, 0.18);
+  color: #d1fae5;
+  box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.18);
 }
 
-.trainer-max-btn--pending .max-logo-icon__bg {
-  opacity: 1;
-  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.65)) drop-shadow(0 0 14px rgba(192, 38, 211, 0.45));
-  animation: trainer-max-burn 1.8s ease-in-out infinite;
-}
-
-.trainer-max-btn--copied .max-logo-icon__bg {
-  opacity: 1;
-  filter: drop-shadow(0 0 10px rgba(96, 165, 250, 0.8));
+.trainer-max-btn--copied {
+  border-color: rgba(96, 165, 250, 0.5);
+  background: rgba(59, 130, 246, 0.18);
+  color: #bfdbfe;
 }
 
 .trainer-max-btn--sent {
-  opacity: 0.72;
-}
-
-.trainer-max-btn--sent .max-logo-icon__bg {
-  opacity: 0.35;
-  filter: grayscale(0.85) brightness(0.75);
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(100, 116, 139, 0.1);
+  color: rgba(203, 213, 225, 0.7);
+  opacity: 0.85;
 }
 
 .trainer-max-btn--no-phone {
   opacity: 0.4;
-}
-
-.trainer-max-btn--no-phone .max-logo-icon__bg {
-  opacity: 0.25;
-  filter: grayscale(1);
+  border-color: rgba(148, 163, 184, 0.22);
+  background: rgba(100, 116, 139, 0.08);
+  color: rgba(203, 213, 225, 0.55);
 }
 
 .trainer-max-btn:disabled {
   cursor: not-allowed;
-}
-
-@keyframes trainer-max-burn {
-  0%,
-  100% {
-    filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.5)) drop-shadow(0 0 10px rgba(192, 38, 211, 0.35));
-  }
-  50% {
-    filter: drop-shadow(0 0 12px rgba(34, 211, 238, 0.85)) drop-shadow(0 0 18px rgba(192, 38, 211, 0.55));
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .trainer-max-btn--pending .max-logo-icon__bg {
-    animation: none;
-  }
 }
 
 .trainer-outreach-progress {
@@ -136,22 +123,6 @@
 .trainer-outreach-history__list {
   margin: 4px 0 0;
   padding-left: 1.1rem;
-}
-
-.admin-iskra-outreach__field {
-  display: grid;
-  gap: 6px;
-  margin-bottom: 14px;
-}
-
-.admin-iskra-outreach__field textarea {
-  min-height: 88px;
-  resize: vertical;
-}
-
-.admin-iskra-outreach__placeholders {
-  font-size: 12px;
-  line-height: 1.45;
 }
 
 .td-client-dot--expired_recent {

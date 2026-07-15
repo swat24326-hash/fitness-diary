@@ -35,7 +35,6 @@ import {
 import { fetchIskraSettings, saveIskraSettings } from '../../lib/admin/iskraSettingsService.js'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { IskraPlaybooksSection } from '../../components/iskra/IskraPlaybooksSection.jsx'
-import { AdminOutreachTemplatesSection } from '../../components/admin/AdminOutreachTemplatesSection.jsx'
 import { listClubsLocal, pullClubsFromSupabase } from '../../lib/dataAccess'
 
 import { useAuth } from '../../context/AuthContext'
@@ -734,8 +733,6 @@ export function AdminIskraSettings() {
       </section>
 
 
-
-      <AdminOutreachTemplatesSection clubId={clubId} clubName={clubName} disabled={!clubId || saving || loading} />
 
       <IskraPlaybooksSection clubId={clubId} disabled={!clubId || saving || loading} />
 

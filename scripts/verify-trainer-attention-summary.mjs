@@ -35,22 +35,39 @@ ok(lastMap.c2 === '2026-06-01', 'last completed c2')
 
 const activeMem = [{ start_date: '2026-01-01', end_date: '2026-12-31', total_trainings: 10, used_trainings: 2 }]
 ok(
-  isClientStaleForAttention({
-    memList: activeMem,
-    lastCompletedIso: '2026-06-20',
-    today: '2026-07-11',
-    staleDays: 14,
-  }),
-  'stale when last training 21 days ago',
-)
-ok(
   !isClientStaleForAttention({
     memList: activeMem,
-    lastCompletedIso: '2026-07-08',
     today: '2026-07-11',
     staleDays: 14,
   }),
-  'not stale when recent training',
+  'active membership never stale (even without trainings)',
+)
+
+ok(
+  isClientStaleForAttention({
+    memList: [{ start_date: '2026-01-01', end_date: '2026-06-20', total_trainings: 10, used_trainings: 10 }],
+    today: '2026-07-11',
+    staleDays: 14,
+  }),
+  'stale when abo ended 21 days ago',
+)
+
+ok(
+  !isClientStaleForAttention({
+    memList: [{ start_date: '2026-01-01', end_date: '2026-07-10', total_trainings: 10, used_trainings: 10 }],
+    today: '2026-07-11',
+    staleDays: 14,
+  }),
+  'not stale when abo ended yesterday (expired_recent)',
+)
+
+ok(
+  !isClientStaleForAttention({
+    memList: [{ start_date: '2026-01-01', end_date: '2026-07-05', total_trainings: 10, used_trainings: 10 }],
+    today: '2026-07-11',
+    staleDays: 14,
+  }),
+  'not stale when abo ended 6 days ago',
 )
 
 const today = '2026-07-15'
@@ -62,26 +79,22 @@ const summary = buildTrainerAttentionSummary({
     { id: 'b', birth_date: '1990-08-01' },
     { id: 'c' },
     { id: 'd' },
+    { id: 'e' },
   ],
   memByClient: {
     a: [{ start_date: '2026-01-01', end_date: '2026-07-17', total_trainings: 10, used_trainings: 1 }],
     b: [{ start_date: '2026-01-01', end_date: '2026-07-14', total_trainings: 10, used_trainings: 10 }],
     c: activeMem,
-    d: activeMem,
-  },
-  lastCompletedByClientId: {
-    a: '2026-07-14',
-    b: '2026-05-01',
-    c: '2026-06-01',
-    d: '2026-07-14',
+    d: [{ start_date: '2026-01-01', end_date: '2026-06-20', total_trainings: 10, used_trainings: 10 }],
+    e: [{ start_date: '2026-01-01', end_date: '2026-07-10', total_trainings: 8, used_trainings: 8 }],
   },
 })
 
 ok(summary.birthdays === 1, 'birthday today only')
 ok(summary.expiring === 1, 'expiring membership')
-ok(summary.expired_recent === 1, 'expired recent yesterday')
-ok(summary.stale === 2, 'stale b and c with old training')
-ok(summary.actionable === 5, 'actionable total')
+ok(summary.expired_recent === 1, 'expired recent yesterday (b)')
+ok(summary.stale === 1, 'stale only d (abo ended 25 days ago)')
+ok(summary.actionable === 4, 'actionable without overlap: bday+expiring+expired_recent+stale')
 ok(isTrainerClientQuickFilter('stale'), 'stale is valid filter')
 ok(normalizeTrainerClientQuickFilter('expired_remaining') === 'expired_recent', 'legacy filter alias')
 ok(!isTrainerClientQuickFilter('nope'), 'invalid filter')

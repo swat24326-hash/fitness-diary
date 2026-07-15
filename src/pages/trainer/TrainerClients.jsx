@@ -166,14 +166,13 @@ export function TrainerClients() {
       if (filterId === 'stale') {
         return isClientStaleForAttention({
           memList,
-          lastCompletedIso: lastCompletedByClientId[c.id],
           today,
           staleDays: STALE_TRAINING_DAYS,
         })
       }
       return false
     },
-    [memByClient, today, lastCompletedByClientId],
+    [memByClient, today],
   )
 
   const filteredClients = useMemo(() => {
@@ -324,7 +323,7 @@ export function TrainerClients() {
     if (quickFilter === 'expiring') return 'Нет абонементов, которые заканчиваются через 1–3 дня.'
     if (quickFilter === 'expired_recent') return 'Нет абонементов, закончившихся сегодня или вчера.'
     if (quickFilter === 'stale') {
-      return `Нет клиентов без завершённой тренировки ${STALE_TRAINING_DAYS}+ дней (с действующим абонементом).`
+      return `Нет клиентов, у которых абонемент закончился ${STALE_TRAINING_DAYS}+ дней назад.`
     }
     return 'Ничего не найдено.'
   }
@@ -377,8 +376,8 @@ export function TrainerClients() {
                 type="button"
                 className={filterBtnClass('stale')}
                 onClick={() => applyFilter('stale')}
-                aria-label={`Фильтр: без завершённой тренировки ${STALE_TRAINING_DAYS}+ дней`}
-                title={`Давно не был (${filterCounts.stale})`}
+                aria-label={`Фильтр: абонемент закончился ${STALE_TRAINING_DAYS}+ дней назад`}
+                title={`Давно не был ${STALE_TRAINING_DAYS}+ дн. после конца (${filterCounts.stale})`}
               >
                 <CalendarClock size={20} aria-hidden />
               </button>
@@ -417,7 +416,7 @@ export function TrainerClients() {
             </strong>
             <span className="muted trainer-outreach-progress__hint">
               {outreachProgress.pending > 0
-                ? `осталось ${outreachProgress.pending} — нажмите иконку Max у клиента`
+                ? `осталось ${outreachProgress.pending} — нажмите «Max» у клиента`
                 : 'все обработаны'}
             </span>
           </div>

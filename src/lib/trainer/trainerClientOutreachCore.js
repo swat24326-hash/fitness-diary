@@ -10,7 +10,7 @@ export const OUTREACH_SCENARIO_LABELS = {
   birthdays: 'День рождения',
   expiring: 'Истекает абонемент',
   expired_recent: 'Абонемент закончился',
-  stale: 'Давно не было',
+  stale: 'Абонемент давно закончился',
 }
 
 /** @typedef {'birthdays'|'expiring'|'expired_recent'|'stale'} OutreachScenario */
@@ -202,7 +202,7 @@ export function defaultOutreachTemplates() {
     expired_recent:
       'Привет, {client_name}! Это твой тренер {trainer_name}. Твой абонемент только что закончился. Давай продлим его на следующей тренировке, чтобы не прерывать процесс и сохранить темп. Когда тебя ждать?',
     stale:
-      'Привет, {client_name}! Это твой тренер {trainer_name}. Что-то тебя давно не было видно на тренировках в {club_name}. Всё в порядке? Жду в зале, давай возвращаться в рабочий режим!',
+      'Привет, {client_name}! Это твой тренер {trainer_name}. Твой абонемент в {club_name} закончился уже давно. Всё в порядке? Жду в зале — давай вернёмся и продолжим!',
   }
 }
 

@@ -5,8 +5,9 @@ import { AdminExercises } from './AdminExercises'
 import { AdminMembershipTypes } from './AdminMembershipTypes'
 import { AdminSalesManagers } from './AdminSalesManagers'
 import { AdminNutritionProducts } from './AdminNutritionProducts'
+import { AdminMaxOutreach } from './AdminMaxOutreach'
 
-const TAB_IDS = ['clubs', 'trainers', 'sales-managers', 'membership-types', 'nutrition-products', 'exercises']
+const TAB_IDS = ['clubs', 'trainers', 'sales-managers', 'membership-types', 'nutrition-products', 'exercises', 'max-messages']
 
 const TABS = [
   { id: 'clubs', label: 'Клубы' },
@@ -15,6 +16,7 @@ const TABS = [
   { id: 'membership-types', label: 'Типы абон.' },
   { id: 'nutrition-products', label: 'Питание' },
   { id: 'exercises', label: 'Упражнения' },
+  { id: 'max-messages', label: 'Сообщения Max' },
 ]
 
 export function AdminStructure() {
@@ -39,7 +41,7 @@ export function AdminStructure() {
     <div className="admin-structure">
       <header className="admin-structure__header">
         <h1 className="admin-structure__title">Структура</h1>
-        <p className="muted admin-structure__intro">Клубы, тренеры и статистика — в одном разделе. Выбранный в шапке клуб (<code className="muted">?club=</code>) используется в «Статистике».</p>
+        <p className="muted admin-structure__intro">Клубы, тренеры, справочники и тексты для Max — в одном разделе. Выбранный в шапке клуб (<code className="muted">?club=</code>) используется во вкладках ниже.</p>
       </header>
 
       <div className="tabs admin-structure__tabs" role="tablist" aria-label="Структура клуба">
@@ -113,6 +115,15 @@ export function AdminStructure() {
           className="admin-structure__panel"
         >
           {tab === 'exercises' ? <AdminExercises /> : null}
+        </div>
+        <div
+          id="admin-structure-panel-max-messages"
+          role="tabpanel"
+          aria-labelledby="admin-structure-tab-max-messages"
+          hidden={tab !== 'max-messages'}
+          className="admin-structure__panel"
+        >
+          {tab === 'max-messages' ? <AdminMaxOutreach /> : null}
         </div>
       </div>
 
