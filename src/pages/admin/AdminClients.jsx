@@ -338,15 +338,52 @@ export function AdminClients() {
   const browseChipClass = (id) => {
     const hot = id === 'inactive' && filterCounts.inactive > 0
     return [
-      'admin-clients-browse-chip',
-      quickFilter === id ? 'admin-clients-browse-chip--active' : '',
-      hot ? 'admin-clients-browse-chip--hot' : '',
+      'admin-clients-metric',
+      quickFilter === id ? 'admin-clients-metric--active' : '',
+      hot ? 'admin-clients-metric--hot' : '',
     ]
       .filter(Boolean)
       .join(' ')
   }
 
-  const filterBtnClass = (id) => `btn ${quickFilter === id ? 'btn-primary' : 'btn-ghost'} btn-icon-square`
+  const alertChipClass = (id) => {
+    const hot = (id === 'expiring' && filterCounts.expiring > 0) || (id === 'expired_remaining' && filterCounts.expired_remaining > 0)
+    return [
+      'admin-clients-alert',
+      quickFilter === id ? 'admin-clients-alert--active' : '',
+      hot ? 'admin-clients-alert--hot' : '',
+      id === 'expired_remaining' ? 'admin-clients-alert--warn' : '',
+    ]
+      .filter(Boolean)
+      .join(' ')
+  }
+
+  const browseFilterLabels = {
+    all: 'Все клиенты',
+    inactive: 'Не активные на сегодня',
+    active_today: 'С абонементом на сегодня',
+    expiring: 'Абонемент ≤ 3 дня',
+    expired_remaining: 'Срок истёк, тренировки остались',
+  }
+
+  const activeBrowseLabel = browseFilterLabels[quickFilter] ?? null
+
+  const clearBrowseFilter = () => {
+    setQuickFilter('none')
+    setSearchParams(
+      (prev) => {
+        const p = new URLSearchParams(prev)
+        p.delete('filter')
+        return p
+      },
+      { replace: true },
+    )
+  }
+
+  const switchClientsTab = (tab) => {
+    setClientsTab(tab)
+    if (tab === 'archive') clearBrowseFilter()
+  }
 
   const applyFilter = (id) => {
     const next = quickFilter === id ? 'none' : id
@@ -492,175 +529,197 @@ export function AdminClients() {
       />
 
     <div className="grid stagger td-grid">
-      <section className="card">
-        <h2 className="section-title td-section-title" style={{ margin: '0 0 12px' }}>
-          Поиск
-        </h2>
-        <div className="admin-clients-search-row">
-          <div className="admin-clients-search-pair" role="group" aria-label="Поиск клиента и тренера">
-            <div className="admin-clients-search-cell">
-              <Search size={18} aria-hidden className="muted u-shrink-0" />
-              <input
-                className="admin-clients-search-input"
-                type="search"
-                autoComplete="off"
-                placeholder="Клиент: фамилия, телефон или номер карты…"
-                aria-label="Поиск по клиенту"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </div>
-            <div className="admin-clients-search-cell">
-              <UserSearch size={18} aria-hidden className="muted u-shrink-0" />
-              <input
-                className="admin-clients-search-input"
-                type="search"
-                autoComplete="off"
-                placeholder="Тренер: ФИО…"
-                aria-label="Поиск по закреплённому тренеру"
-                value={trainerQuery}
-                onChange={(e) => setTrainerQuery(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="admin-clients-search-filters">
+      <section className="card admin-clients-workspace" id="clients">
+        <div className="admin-clients-workspace__toolbar">
+          <div className="admin-clients-segment" role="tablist" aria-label="Раздел списка клиентов">
             <button
               type="button"
-              className={filterBtnClass('expiring')}
-              onClick={() => applyFilter('expiring')}
-              aria-label="Фильтр: абонемент заканчивается в ближайшие 3 дня"
-              title={`≤ 3 дня (${filterCounts.expiring})`}
+              role="tab"
+              className="admin-clients-segment__btn"
+              aria-selected={clientsTab === 'active'}
+              onClick={() => switchClientsTab('active')}
             >
-              <Clock size={20} aria-hidden />
+              Активные
+              <span className="admin-clients-segment__count">{operationalClients.length}</span>
             </button>
             <button
               type="button"
-              className={filterBtnClass('expired_remaining')}
-              onClick={() => applyFilter('expired_remaining')}
-              aria-label="Фильтр: срок абонемента истёк, но тренировки остались"
-              title={`Срок истёк, осталось (${filterCounts.expired_remaining})`}
+              role="tab"
+              className="admin-clients-segment__btn"
+              aria-selected={clientsTab === 'archive'}
+              onClick={() => switchClientsTab('archive')}
             >
-              <AlertTriangle size={20} aria-hidden />
+              Архив
+              <span className="admin-clients-segment__count">{archivedCount}</span>
             </button>
           </div>
+          <button
+            type="button"
+            className="btn btn-primary btn-icon-square btn-touch"
+            disabled={busy}
+            onClick={() => void refreshFromCloud()}
+            aria-label="Обновить список из облака"
+            title="Обновить из Supabase"
+          >
+            <RefreshCw size={20} className={busy ? 'icon-spin' : undefined} aria-hidden />
+          </button>
         </div>
-        <ul className="admin-clients-browse-grid" aria-label="Быстрый выбор списка">
-          <li>
-            <button type="button" className={browseChipClass('all')} onClick={() => applyFilter('all')}>
-              <span className="admin-clients-browse-chip__icon" aria-hidden>
-                <Users size={18} />
-              </span>
-              <span className="admin-clients-browse-chip__count">{filterCounts.all}</span>
-              <span className="admin-clients-browse-chip__label">Все клиенты</span>
-              <span className="admin-clients-browse-chip__hint muted">без архива</span>
-            </button>
-          </li>
-          <li>
-            <button type="button" className={browseChipClass('inactive')} onClick={() => applyFilter('inactive')}>
-              <span className="admin-clients-browse-chip__icon" aria-hidden>
-                <UserX size={18} />
-              </span>
-              <span className="admin-clients-browse-chip__count">{filterCounts.inactive}</span>
-              <span className="admin-clients-browse-chip__label">Не активные</span>
-              <span className="admin-clients-browse-chip__hint muted">на сегодня</span>
-            </button>
-          </li>
-          <li>
-            <button type="button" className={browseChipClass('active_today')} onClick={() => applyFilter('active_today')}>
-              <span className="admin-clients-browse-chip__icon" aria-hidden>
-                <UserCheck size={18} />
-              </span>
-              <span className="admin-clients-browse-chip__count">{filterCounts.active_today}</span>
-              <span className="admin-clients-browse-chip__label">С абонементом</span>
-              <span className="admin-clients-browse-chip__hint muted">на сегодня</span>
-            </button>
-          </li>
-        </ul>
-        {!showClientList ? (
-          <p className="admin-clients-browse-hint muted" role="status">
-            Список целиком не показываем — найдите клиента по имени, телефону или карте (от 2 символов), выберите кнопку выше
-            или откройте вкладку «Архив».
-          </p>
-        ) : null}
-      </section>
 
-      <section id="clients" className="card">
-        <div className="td-section-head">
-          <h2 className="section-title td-section-title" style={{ margin: 0 }}>
-            Список
-          </h2>
-          <div className="row td-actions">
-            <button
-              type="button"
-              className="btn btn-primary btn-icon-square btn-touch"
-              disabled={busy}
-              onClick={() => void refreshFromCloud()}
-              aria-label="Обновить список из облака"
-              title="Обновить из Supabase"
-            >
-              <RefreshCw size={20} className={busy ? 'icon-spin' : undefined} aria-hidden />
-            </button>
-          </div>
-        </div>
-        <div className="tabs" role="tablist" style={{ marginTop: 10 }}>
-          <button type="button" className="tab" aria-selected={clientsTab === 'active'} onClick={() => setClientsTab('active')}>
-            Активные ({operationalClients.length})
-          </button>
-          <button type="button" className="tab" aria-selected={clientsTab === 'archive'} onClick={() => setClientsTab('archive')}>
-            Архив ({archivedCount})
-          </button>
-        </div>
-        {archiveBusy && clientsTab === 'archive' ? (
-          <p className="muted admin-inline-note" role="status">
-            Загрузка архива из облака…
-          </p>
+        {refreshMsg ? (
+          <p className="sync-feedback sync-feedback--ok admin-clients-workspace__note">{refreshMsg}</p>
         ) : null}
-        {refreshMsg && (
-          <p className="sync-feedback sync-feedback--ok" style={{ margin: '0 0 12px' }}>
-            {refreshMsg}
-          </p>
-        )}
         {cloudNeedsClub ? (
-          <p className="muted" style={{ margin: '0 0 12px', fontSize: 14, lineHeight: 1.5 }}>
-            В облачном режиме выберите <strong>клуб</strong> в панели выше — иначе список клиентов не загружается (избегаем выгрузки всей базы).
+          <p className="muted admin-clients-workspace__note">
+            В облачном режиме выберите <strong>клуб</strong> в панели выше — иначе список клиентов не загружается.
           </p>
         ) : (
-          <p className="muted" style={{ margin: '0 0 12px', fontSize: 13, lineHeight: 1.45 }}>
+          <p className="muted admin-clients-workspace__meta">
             {source === 'remote' || source === 'admin_api' ? (
-              <>Данные из <strong>Supabase</strong>{source === 'admin_api' ? ' (через сервер приложения)' : ''}.</>
+              <>Данные из <strong>Supabase</strong>{source === 'admin_api' ? ' (через сервер приложения)' : ''}</>
             ) : (
               <>
                 С <strong>устройства</strong> (IndexedDB).
-                {!club ? ' Выберите клуб в шапке, чтобы отфильтровать список.' : null}
+                {!club ? ' Выберите клуб в шапке.' : null}
               </>
             )}
           </p>
         )}
         {fallback ? (
-          <p className="admin-inline-note" style={{ color: 'var(--danger)', margin: '0 0 12px' }} role="alert">
+          <p className="admin-inline-note admin-clients-workspace__note" style={{ color: 'var(--danger)' }} role="alert">
             Не удалось загрузить с сервера: {fallback}
           </p>
         ) : null}
         {listTruncated ? (
-          <p className="muted admin-inline-note" role="status">
-            С сервера загружено не более <strong>{ADMIN_CLIENTS_REMOTE_LIMIT}</strong> клиентов по алфавиту — список мог быть обрезан, в клубе может быть больше людей.
+          <p className="muted admin-inline-note admin-clients-workspace__note" role="status">
+            С сервера загружено не более <strong>{ADMIN_CLIENTS_REMOTE_LIMIT}</strong> клиентов — список мог быть обрезан.
+          </p>
+        ) : null}
+        {archiveBusy && clientsTab === 'archive' ? (
+          <p className="muted admin-inline-note admin-clients-workspace__note" role="status">
+            Загрузка архива из облака…
           </p>
         ) : null}
 
-        {!cloudNeedsClub && !showClientList ? (
-          <p className="muted" style={{ margin: 0 }}>
-            Выберите фильтр или введите поиск — тогда появится список карточек.
-          </p>
-        ) : null}
+        <div className="admin-clients-workspace__search" role="group" aria-label="Поиск клиента и тренера">
+          <div className="admin-clients-search-cell">
+            <Search size={18} aria-hidden className="muted u-shrink-0" />
+            <input
+              className="admin-clients-search-input"
+              type="search"
+              autoComplete="off"
+              placeholder="Фамилия, телефон или номер карты…"
+              aria-label="Поиск по клиенту"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+          <div className="admin-clients-search-cell">
+            <UserSearch size={18} aria-hidden className="muted u-shrink-0" />
+            <input
+              className="admin-clients-search-input"
+              type="search"
+              autoComplete="off"
+              placeholder="Тренер: ФИО…"
+              aria-label="Поиск по закреплённому тренеру"
+              value={trainerQuery}
+              onChange={(e) => setTrainerQuery(e.target.value)}
+            />
+          </div>
+        </div>
 
-        {!cloudNeedsClub && showClientList && filteredClients.length === 0 ? (
-          <p className="muted" style={{ margin: 0 }}>
-            {clients.length === 0 ? 'Нет клиентов по выбранным условиям.' : 'Никто не подходит под фильтр.'}
+        {clientsTab === 'active' ? (
+          <div className="admin-clients-workspace__metrics">
+            <p className="admin-clients-workspace__metrics-title">Сводка на сегодня</p>
+            <ul className="admin-clients-metrics-grid" aria-label="Быстрый выбор списка">
+              <li>
+                <button type="button" className={browseChipClass('all')} onClick={() => applyFilter('all')}>
+                  <span className="admin-clients-metric__icon" aria-hidden>
+                    <Users size={18} />
+                  </span>
+                  <span className="admin-clients-metric__count">{filterCounts.all}</span>
+                  <span className="admin-clients-metric__label">Все клиенты</span>
+                  <span className="admin-clients-metric__hint muted">без архива</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" className={browseChipClass('inactive')} onClick={() => applyFilter('inactive')}>
+                  <span className="admin-clients-metric__icon" aria-hidden>
+                    <UserX size={18} />
+                  </span>
+                  <span className="admin-clients-metric__count">{filterCounts.inactive}</span>
+                  <span className="admin-clients-metric__label">Не активные</span>
+                  <span className="admin-clients-metric__hint muted">на сегодня</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" className={browseChipClass('active_today')} onClick={() => applyFilter('active_today')}>
+                  <span className="admin-clients-metric__icon" aria-hidden>
+                    <UserCheck size={18} />
+                  </span>
+                  <span className="admin-clients-metric__count">{filterCounts.active_today}</span>
+                  <span className="admin-clients-metric__label">С абонементом</span>
+                  <span className="admin-clients-metric__hint muted">на сегодня</span>
+                </button>
+              </li>
+            </ul>
+            <ul className="admin-clients-alerts-row" aria-label="Сигналы по абонементам">
+              <li>
+                <button type="button" className={alertChipClass('expiring')} onClick={() => applyFilter('expiring')}>
+                  <Clock size={16} aria-hidden />
+                  <span>≤ 3 дня</span>
+                  <strong>{filterCounts.expiring}</strong>
+                </button>
+              </li>
+              <li>
+                <button type="button" className={alertChipClass('expired_remaining')} onClick={() => applyFilter('expired_remaining')}>
+                  <AlertTriangle size={16} aria-hidden />
+                  <span>Срок истёк</span>
+                  <strong>{filterCounts.expired_remaining}</strong>
+                </button>
+              </li>
+            </ul>
+          </div>
+        ) : (
+          <p className="admin-clients-workspace__archive-hint muted">
+            Архивные карточки: просмотр и возврат. Поиск по имени, телефону или тренеру — от 2 символов.
           </p>
-        ) : null}
+        )}
 
-        {!cloudNeedsClub && showClientList && filteredClients.length > 0 ? (
-          <ul className="list">
+        <div className="admin-clients-workspace__results">
+          {showClientList && activeBrowseLabel ? (
+            <div className="admin-clients-results-bar">
+              <span className="admin-clients-results-bar__label">
+                Показано: <strong>{activeBrowseLabel}</strong>
+                {filteredClients.length > 0 ? (
+                  <span className="muted"> · {filteredClients.length}</span>
+                ) : null}
+              </span>
+              <button type="button" className="btn btn-ghost btn-touch admin-clients-results-bar__clear" onClick={clearBrowseFilter}>
+                Сбросить
+              </button>
+            </div>
+          ) : null}
+
+          {!cloudNeedsClub && !showClientList ? (
+            <div className="admin-clients-empty" role="status">
+              <Search size={28} aria-hidden className="admin-clients-empty__icon" />
+              <p className="admin-clients-empty__title">Список скрыт</p>
+              <p className="muted admin-clients-empty__text">
+                Введите поиск от 2 символов, нажмите карточку сводки{clientsTab === 'active' ? '' : ' или оставайтесь в архиве'} — тогда появятся карточки клиентов.
+              </p>
+            </div>
+          ) : null}
+
+          {!cloudNeedsClub && showClientList && filteredClients.length === 0 ? (
+            <div className="admin-clients-empty admin-clients-empty--compact" role="status">
+              <p className="muted admin-clients-empty__text" style={{ margin: 0 }}>
+                {clients.length === 0 ? 'Нет клиентов по выбранным условиям.' : 'Никто не подходит под фильтр или поиск.'}
+              </p>
+            </div>
+          ) : null}
+
+          {!cloudNeedsClub && showClientList && filteredClients.length > 0 ? (
+          <ul className="list admin-clients-list">
             {pagedClients.map((c) => {
               const mlist = memByClient[c.id] ?? []
               const clientTrainings = pageTrainings.filter((t) => t.client_id === c.id)
@@ -791,7 +850,7 @@ export function AdminClients() {
         ) : null}
 
         {!cloudNeedsClub && showClientList && filteredClients.length > ADMIN_CLIENTS_PAGE_SIZE ? (
-          <div className="row" style={{ marginTop: 12, justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+          <div className="admin-clients-pagination">
             <span className="muted" style={{ fontSize: 13 }}>
               {pageTrainingsBusy ? 'Загрузка тренировок страницы…' : null}
               {!pageTrainingsBusy ? (
@@ -822,6 +881,7 @@ export function AdminClients() {
             </div>
           </div>
         ) : null}
+        </div>
       </section>
 
       {reassignClient && (

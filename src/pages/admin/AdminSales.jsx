@@ -582,7 +582,7 @@ export function AdminSales({ accessMode = 'admin' }) {
   return (
     <SectionErrorBoundary section="admin_sales" title="Продажи и отчёты">
     <div
-      className={`sales-report${busy ? ' sales-report__busy' : ''}${isSalesManager ? ` sales-report--manager sales-home${salesTab === 'home' ? ' sales-home--fill' : ''}` : ''}`}
+      className={`sales-report sales-report--wide${busy ? ' sales-report__busy' : ''}${isSalesManager ? ` sales-report--manager sales-home${salesTab === 'home' ? ' sales-home--fill' : ''}` : ''}`}
     >
       {showSalesHero && isSalesManager ? (
         <div className="sales-home__board">

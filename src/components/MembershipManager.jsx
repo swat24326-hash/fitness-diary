@@ -533,6 +533,24 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
                         </>
                       ) : null}
                     </div>
+                    <div className="membership-view__toolbar">
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-touch membership-view__writeoff"
+                        aria-label="Списать тренировку"
+                        title={canWriteOff ? 'Списать тренировку с абонемента' : 'Лимит тренировок исчерпан'}
+                        onClick={() => writeOffTraining(m)}
+                        disabled={!canWriteOff}
+                      >
+                        <CheckCircle2 size={18} aria-hidden />
+                        Списать тренировку
+                      </button>
+                      {Number.isFinite(total) && total > 0 ? (
+                        <span className="membership-view__usage-chip" aria-live="polite">
+                          {used}/{total}
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
 
                   <div className="membership-view__body">

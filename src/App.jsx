@@ -70,9 +70,12 @@ function LoggedInLayout() {
   }
 
   const isSalesManager = role === 'sales_manager'
+  const isAdmin = role === 'admin'
 
   return (
-    <div className={`app-shell${isSalesManager ? ' app-shell--sales' : ''}`}>
+    <div
+      className={`app-shell${isSalesManager ? ' app-shell--sales' : ''}${isAdmin ? ' app-shell--admin' : ''}`}
+    >
       <IskraPanelProvider>
         <AppHeader />
         {role === 'trainer' ? <DraftTabsBar /> : null}

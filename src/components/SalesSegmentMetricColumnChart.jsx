@@ -73,7 +73,9 @@ const METRIC_COLORS = /** @type {const} */ ({
  *   compact?: boolean,
  *   fullscreen?: boolean,
  *   stacked?: boolean,
- * }} props
+ *   planLine?: number | null,
+  planLabel?: string,
+}} props
  */
 export function SalesSegmentMetricColumnChart({
   series,
@@ -83,6 +85,8 @@ export function SalesSegmentMetricColumnChart({
   compact = false,
   fullscreen = false,
   stacked = false,
+  planLine = null,
+  planLabel = '',
 }) {
   const plotHeight = fullscreen ? (stacked ? 168 : 260) : compact ? 120 : 176
 
@@ -102,6 +106,8 @@ export function SalesSegmentMetricColumnChart({
     let lowN = Infinity
     let reportDays = 0
     let salesDays = 0
+    let daysAtOrAbovePlan = 0
+    const planNorm = Number(planLine) > 0 ? Number(planLine) : null
 
     for (const d of series ?? []) {
       const n = d.hasReport ? Number(d.value) || 0 : 0
@@ -109,6 +115,7 @@ export function SalesSegmentMetricColumnChart({
         reportDays += 1
         sum += n
         if (n > 0) salesDays += 1
+        if (planNorm != null && n >= planNorm) daysAtOrAbovePlan += 1
       }
       if (n > max) max = n
       if (n > peakN) {
@@ -121,6 +128,7 @@ export function SalesSegmentMetricColumnChart({
       }
     }
 
+    if (planNorm != null) max = Math.max(max, planNorm)
     const cm = chartMaxValue(max)
     return {
       chartMax: cm,
@@ -134,8 +142,10 @@ export function SalesSegmentMetricColumnChart({
       lowDate: lowN < Infinity ? low : null,
       lowValue: lowN < Infinity ? lowN : null,
       avgPerSalesDay: salesDays > 0 ? sum / salesDays : 0,
+      planNorm,
+      daysAtOrAbovePlan,
     }
-  }, [series])
+  }, [series, planLine])
 
   if (!series?.length) {
     return (
@@ -146,6 +156,10 @@ export function SalesSegmentMetricColumnChart({
   }
 
   const showShare = fullscreen && stats.total > 0
+  const planBottomPx =
+    stats.planNorm != null && stats.chartMax > 0
+      ? 24 + Math.round((stats.planNorm / stats.chartMax) * plotHeight)
+      : null
 
   return (
     <div
@@ -178,6 +192,19 @@ export function SalesSegmentMetricColumnChart({
                 />
               ))}
 
+              {planBottomPx != null ? (
+                <div
+                  className="sales-segment-column-chart__plan-line"
+                  style={{ bottom: `${planBottomPx}px` }}
+                  title={planLabel || `План: ${formatBarValue(stats.planNorm, metricKind)}`}
+                  aria-hidden
+                >
+                  <span className="sales-segment-column-chart__plan-line-label">
+                    {metricKind === 'avg' ? 'план чека' : 'план'}
+                  </span>
+                </div>
+              ) : null}
+
               {series.map((d, idx) => {
                 const n = d.hasReport ? Number(d.value) || 0 : 0
                 const barPx =
@@ -186,17 +213,19 @@ export function SalesSegmentMetricColumnChart({
                     : 0
                 const isPeak = stats.peakDate === d.date && n > 0
                 const isLow = stats.lowDate === d.date && n > 0 && stats.salesDays > 1
+                const isAbovePlan =
+                  stats.planNorm != null && d.hasReport && n >= stats.planNorm && n > 0
                 const dayNum = Number(d.date.slice(8, 10)) || idx + 1
                 const clickable = d.hasReport && onDayClick
                 const title = d.hasReport
-                  ? `${dayNum}: ${formatBarValue(n, metricKind)}${showShare && n > 0 ? ` (${Math.round((n / stats.total) * 100)}% месяца)` : ''}`
+                  ? `${dayNum}: ${formatBarValue(n, metricKind)}${showShare && n > 0 ? ` (${Math.round((n / stats.total) * 100)}% месяца)` : ''}${isAbovePlan ? ' · план выполнен' : stats.planNorm != null && n > 0 ? ' · ниже плана' : ''}`
                   : `${dayNum}: нет отчёта`
 
                 return (
                   <button
                     key={d.date}
                     type="button"
-                    className={`sales-column-chart__col-wrap${d.hasReport ? ' is-active' : ''}${isPeak ? ' is-peak' : ''}${isLow ? ' is-low' : ''}`}
+                    className={`sales-column-chart__col-wrap${d.hasReport ? ' is-active' : ''}${isPeak ? ' is-peak' : ''}${isLow ? ' is-low' : ''}${isAbovePlan ? ' is-above-plan' : ''}`}
                     title={title}
                     disabled={!clickable}
                     onClick={() => clickable && onDayClick?.(d.date)}
@@ -229,21 +258,42 @@ export function SalesSegmentMetricColumnChart({
         </div>
       </div>
 
-      {stats.hasAny ? (
+      {stats.hasAny || stats.planNorm != null ? (
         <p className="muted sales-segment-column-chart__foot">
-          Итого: <strong>{formatBarValue(stats.total, metricKind)}</strong>
-          {' · '}
-          ср. в день с продажами: <strong>{formatBarValue(stats.avgPerSalesDay, metricKind)}</strong>
-          {stats.peakDate ? (
+          {stats.planNorm != null ? (
             <>
+              {metricKind === 'avg' ? 'уровень плана' : 'план на день'}:{' '}
+              <strong>{formatBarValue(stats.planNorm, metricKind)}</strong>
               {' · '}
-              макс.: <strong>{Number(stats.peakDate.slice(8, 10))}</strong> ({formatBarValue(stats.peakValue, metricKind)})
+              дней ≥ плана: <strong>{stats.daysAtOrAbovePlan}</strong>
+              {stats.reportDays > 0 ? (
+                <>
+                  {' '}
+                  из <strong>{stats.reportDays}</strong>
+                </>
+              ) : null}
+              {stats.hasAny ? ' · ' : null}
             </>
           ) : null}
-          {stats.lowDate && metricKind === 'avg' ? (
+          {stats.hasAny ? (
             <>
+              Итого: <strong>{formatBarValue(stats.total, metricKind)}</strong>
               {' · '}
-              мин.: <strong>{Number(stats.lowDate.slice(8, 10))}</strong> ({formatBarValue(stats.lowValue, metricKind)})
+              ср. в день с продажами: <strong>{formatBarValue(stats.avgPerSalesDay, metricKind)}</strong>
+              {stats.peakDate ? (
+                <>
+                  {' · '}
+                  макс.: <strong>{Number(stats.peakDate.slice(8, 10))}</strong> (
+                  {formatBarValue(stats.peakValue, metricKind)})
+                </>
+              ) : null}
+              {stats.lowDate && metricKind === 'avg' ? (
+                <>
+                  {' · '}
+                  мин.: <strong>{Number(stats.lowDate.slice(8, 10))}</strong> (
+                  {formatBarValue(stats.lowValue, metricKind)})
+                </>
+              ) : null}
             </>
           ) : null}
         </p>

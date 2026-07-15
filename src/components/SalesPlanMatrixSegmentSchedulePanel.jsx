@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { BarChart3, Coins, Hash, Percent, X } from 'lucide-react'
 import { formatRub } from '../lib/admin/salesReportCore.js'
+import { resolveSegmentChartPlanLines } from '../lib/admin/salesPlanMatrixCompare.js'
 import { SalesSegmentMetricColumnChart } from './SalesSegmentMetricColumnChart.jsx'
 
 /** @typedef {'count'|'amount'|'avg'} SegmentMetricId */
@@ -18,6 +19,8 @@ const METRIC_OPTIONS = /** @type {const} */ ([
  *   hall?: string,
  *   col?: string,
  *   series: Array<{ date: string, count: number | null, amount: number | null, hasReport: boolean }>,
+ *   plan?: { count?: number, amount?: number, avg_check?: number },
+ *   daysInMonth?: number,
  *   onClose: () => void,
  *   onOpenDay?: (iso: string) => void,
  * }} props
@@ -27,6 +30,8 @@ export function SalesPlanMatrixSegmentSchedulePanel({
   hall = '',
   col = '',
   series,
+  plan = {},
+  daysInMonth,
   onClose,
   onOpenDay,
 }) {
@@ -85,6 +90,37 @@ export function SalesPlanMatrixSegmentSchedulePanel({
 
   const activeList = METRIC_OPTIONS.filter((m) => activeMetrics.has(m.id))
   const stackedCharts = activeList.length > 1
+  const monthDays = daysInMonth ?? series.length
+
+  const planLines = useMemo(
+    () => resolveSegmentChartPlanLines(plan, monthDays),
+    [plan, monthDays],
+  )
+
+  /**
+   * @param {SegmentMetricId} id
+   */
+  const planLineForMetric = (id) => {
+    if (id === 'amount') return planLines.amount
+    if (id === 'count') return planLines.count
+    if (id === 'avg') return planLines.avg
+    return null
+  }
+
+  /**
+   * @param {SegmentMetricId} id
+   */
+  const planLabelForMetric = (id) => {
+    const line = planLineForMetric(id)
+    if (line == null) return ''
+    if (id === 'amount') {
+      return `План на день: ${formatRub(line)} (${formatRub(planLines.monthAmount)} ÷ ${monthDays} дн.)`
+    }
+    if (id === 'count') {
+      return `План на день: ${Math.round(line * 10) / 10} шт (${planLines.monthCount} ÷ ${monthDays} дн.)`
+    }
+    return `Уровень плана по чеку: ${formatRub(line)}`
+  }
 
   /**
    * @param {SegmentMetricId} id
@@ -223,8 +259,9 @@ export function SalesPlanMatrixSegmentSchedulePanel({
             })}
           </div>
           <p className="sales-report__segment-schedule-legend muted">
-            Столбец — день месяца. Подпись на столбце — значение и доля от итога за месяц (%). Золотая обводка — лучший
-            день, красная — самый слабый день по среднему чеку.
+            Столбец — день месяца. Подпись — значение и доля от итога за месяц (%). Жёлтая пунктирная линия — план
+            {planLines.hasPlan ? ' (выручка и штуки: план месяца ÷ дни; чек — уровень из плана)' : ''}. Столбец выше
+            линии — день выполнил план. Золотая обводка — лучший день, красная — самый слабый чек.
           </p>
         </div>
 
@@ -242,6 +279,8 @@ export function SalesPlanMatrixSegmentSchedulePanel({
                   onDayClick={onOpenDay}
                   fullscreen
                   stacked={stackedCharts}
+                  planLine={planLineForMetric(metric.id)}
+                  planLabel={planLabelForMetric(metric.id)}
                 />
               </div>
             ))}

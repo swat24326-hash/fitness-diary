@@ -7,6 +7,25 @@
   padding-bottom: 2rem;
 }
 
+/* Продажи и статистика менеджера — на десктопе на всю ширину экрана */
+.sales-report--wide,
+.sales-report--manager {
+  max-width: none;
+  width: 100%;
+  margin-inline: 0;
+}
+
+.app-shell:has(.sales-report--wide) .breadcrumbs-shell,
+.app-shell--sales .breadcrumbs-shell {
+  max-width: none;
+}
+
+.app-main:has(.sales-report--wide),
+.app-shell--sales .app-main {
+  max-width: none;
+  width: 100%;
+}
+
 .sales-report__hero {
   position: relative;
   padding: clamp(1.25rem, 3vw, 2rem);
@@ -2622,12 +2641,6 @@
   }
 }
 
-.sales-report--manager {
-  max-width: none;
-  width: 100%;
-  margin-inline: 0;
-}
-
 .sales-home {
   display: flex;
   flex-direction: column;
@@ -3011,7 +3024,7 @@
 }
 
 @media (min-width: 1280px) {
-  .sales-report:not(.sales-report--manager) {
+  .sales-report:not(.sales-report--wide):not(.sales-report--manager) {
     max-width: min(1280px, 96vw);
   }
 }
@@ -3170,6 +3183,58 @@
 
 .sales-report__matrix--compare {
   min-width: 68rem;
+}
+
+@media (min-width: 1024px) {
+  .app-main:has(.sales-report--wide),
+  .app-shell--sales .app-main {
+    padding-left: clamp(12px, 1.4vw, 22px);
+    padding-right: clamp(12px, 1.4vw, 22px);
+  }
+
+  .app-shell:has(.sales-report--wide) .breadcrumbs-shell,
+  .app-shell--sales .breadcrumbs-shell {
+    padding-left: clamp(12px, 1.4vw, 22px);
+    padding-right: clamp(12px, 1.4vw, 22px);
+  }
+}
+
+@media (min-width: 1280px) {
+  .sales-report--wide .sales-report__matrix--compare,
+  .sales-report--manager .sales-report__matrix--compare {
+    min-width: 0;
+    width: 100%;
+    table-layout: fixed;
+  }
+
+  .sales-report--wide .sales-report__matrix-scroll--compare,
+  .sales-report--manager .sales-report__matrix-scroll--compare {
+    overflow-x: visible;
+  }
+
+  .sales-report--wide .sales-report__matrix--compare th,
+  .sales-report--wide .sales-report__matrix--compare td,
+  .sales-report--manager .sales-report__matrix--compare th,
+  .sales-report--manager .sales-report__matrix--compare td {
+    padding: 0.42rem 0.32rem;
+    font-size: 0.8rem;
+  }
+
+  .sales-report--wide .sales-report__compare-money,
+  .sales-report--manager .sales-report__compare-money {
+    font-size: 0.76rem;
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 1600px) {
+  .sales-report--wide .sales-report__matrix--compare th,
+  .sales-report--wide .sales-report__matrix--compare td,
+  .sales-report--manager .sales-report__matrix--compare th,
+  .sales-report--manager .sales-report__matrix--compare td {
+    padding: 0.48rem 0.4rem;
+    font-size: 0.82rem;
+  }
 }
 
 .sales-report__compare-group-head {
@@ -3959,6 +4024,32 @@
   box-shadow:
     0 0 0 2px rgba(250, 204, 21, 0.85),
     0 0 14px rgba(250, 204, 21, 0.35);
+}
+
+.sales-segment-column-chart__plan-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  border-top: 2px dashed rgba(250, 204, 21, 0.72);
+  pointer-events: none;
+}
+
+.sales-segment-column-chart__plan-line-label {
+  position: absolute;
+  right: 6px;
+  top: -13px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: rgba(253, 230, 138, 0.92);
+  text-transform: lowercase;
+}
+
+.sales-column-chart__col-wrap.is-above-plan .sales-segment-column-chart__col.is-filled {
+  box-shadow:
+    0 0 0 1px rgba(46, 255, 184, 0.45),
+    0 0 10px rgba(46, 255, 184, 0.22);
 }
 
 .sales-segment-column-chart__foot strong {

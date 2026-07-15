@@ -3732,6 +3732,58 @@ tr:last-child td {
   width: 100%;
 }
 
+/* Админка: десктоп на всю ширину (как раздел «Продажи») */
+.app-shell--admin .app-main,
+.app-shell--admin .breadcrumbs-shell {
+  max-width: none;
+  width: 100%;
+}
+
+.app-shell--admin .admin-home--dashboard {
+  align-items: stretch;
+}
+
+.app-shell--admin .admin-day-summary,
+.app-shell--admin .admin-home__tiles,
+.app-shell--admin .admin-home__tile-grid {
+  max-width: none;
+  width: 100%;
+}
+
+.app-shell--admin .admin-structure,
+.app-shell--admin .admin-section-shell,
+.app-shell--admin .admin-section-shell--wide,
+.app-shell--admin .challenge-admin-shell,
+.app-shell--admin .admin-diagnostics.admin-section-shell,
+.app-shell--admin .admin-iskra-settings.admin-section-shell {
+  max-width: none;
+  margin-inline: 0;
+}
+
+@media (min-width: 1024px) {
+  .app-shell--admin .admin-home__brand-row {
+    justify-content: flex-start;
+  }
+
+  .app-shell--admin .admin-home__tiles-heading {
+    text-align: left;
+  }
+
+  .app-shell--admin .admin-home__tile-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: clamp(14px, 1.5vw, 22px);
+  }
+
+  .app-shell--admin .admin-home__tile-grid .feature-tile {
+    min-height: clamp(120px, 14vh, 168px);
+    padding: clamp(16px, 2vw, 28px) clamp(12px, 1.5vw, 20px);
+  }
+
+  .app-shell--admin .admin-day-summary__grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 /* Админ: «Структура» — клубы / тренеры / статистика во вкладках */
 .admin-structure {
   width: 100%;

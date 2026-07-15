@@ -3,6 +3,7 @@ import {
   buildPlanMatrixCellDailySeries,
   buildSegmentDailyComparableSeries,
   resolvePlanMatrixCellStatus,
+  resolveSegmentChartPlanLines,
   forecastPlanMatrixAmount,
   forecastPlanMatrixCount,
 } from '../src/lib/admin/salesPlanMatrixCompare.js'
@@ -127,5 +128,11 @@ ok(day1.index_count === 200 && day1.index_amount === 100, 'day 1 pace vs daily p
 ok(day1.norm_basis === 'plan', 'uses plan as norm basis')
 const day5 = comparable[4]
 ok(day5.index_count > 100, 'strong day above daily plan norm')
+
+const planLines = resolveSegmentChartPlanLines({ count: 31, amount: 310000, avg_check: 10000 }, 31)
+ok(planLines.hasPlan === true, 'plan lines when matrix plan set')
+ok(planLines.amount === 10000, 'daily amount plan = month / days')
+ok(planLines.count === 1, 'daily count plan = month / days')
+ok(planLines.avg === 10000, 'avg plan level from matrix')
 
 process.exit(failed > 0 ? 1 : 0)

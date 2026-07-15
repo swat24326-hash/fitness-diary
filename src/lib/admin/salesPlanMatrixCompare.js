@@ -175,6 +175,31 @@ export function buildSegmentDailyComparableSeries(dailySeries, opts = {}) {
 }
 
 /**
+ * Горизонтальные линии «план на день» для графика фактов по сегменту.
+ * @param {{ count?: number, amount?: number, avg_check?: number }} [plan]
+ * @param {number} [daysInMonth]
+ */
+export function resolveSegmentChartPlanLines(plan, daysInMonth) {
+  const days = Math.max(1, Number(daysInMonth) || 30)
+  const planCount = Math.trunc(Number(plan?.count) || 0)
+  const planAmount = roundPlanRub(Number(plan?.amount) || 0)
+  const planAvg = roundPlanRub(Number(plan?.avg_check) || 0)
+  const amount = planAmount > 0 ? roundPlanRub(planAmount / days) : null
+  const count = planCount > 0 ? planCount / days : null
+  const avg = planAvg > 0 ? planAvg : null
+  return {
+    hasPlan: amount != null || count != null || avg != null,
+    amount,
+    count,
+    avg,
+    daysInMonth: days,
+    monthAmount: planAmount,
+    monthCount: planCount,
+    monthAvg: planAvg,
+  }
+}
+
+/**
  * @param {{
  *   plan?: { count?: number, avg_check?: number, amount?: number },
  *   fact?: { count?: number, avg_check?: number | null, amount?: number },
