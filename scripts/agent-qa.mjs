@@ -99,6 +99,7 @@ run('draft trainings query', 'node', ['scripts/verify-draft-trainings-query.mjs'
 run('challenges club query', 'node', ['scripts/verify-challenges-club-query.mjs'])
 run('client counts local', 'node', ['scripts/verify-client-counts-local.mjs'])
 run('trainer attention summary', 'node', ['scripts/verify-trainer-attention-summary.mjs'])
+run('trainer client outreach', 'node', ['scripts/verify-trainer-client-outreach.mjs'])
 run('admin club day summary', 'node', ['scripts/verify-admin-club-day-summary.mjs'])
 run('admin client quick filters', 'node', ['scripts/verify-admin-client-quick-filters.mjs'])
 run('nutrition plan', 'node', ['scripts/verify-nutrition-plan.mjs'])

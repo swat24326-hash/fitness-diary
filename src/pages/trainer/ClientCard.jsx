@@ -15,6 +15,8 @@ import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 import { IskraDispatchModal } from '../../components/iskra/IskraDispatchModal.jsx'
 import { buildClientCardTaskDraft } from '../../lib/admin/staffTaskCreateCore.js'
 import { useClubDispatchRecipients } from '../../hooks/useClubDispatchRecipients.js'
+import { listOutreachLogByClientId } from '../../lib/trainer/trainerOutreachLogService.js'
+import { OUTREACH_SCENARIO_LABELS } from '../../lib/trainer/trainerClientOutreachCore.js'
 
 function formatClientName(raw) {
   const s = String(raw ?? '').trim().replace(/\s+/g, ' ')
@@ -69,6 +71,7 @@ export function ClientCard() {
   const [hydrateError, setHydrateError] = useState(null)
   const [archiveBusy, setArchiveBusy] = useState(false)
   const [taskModalOpen, setTaskModalOpen] = useState(false)
+  const [outreachLogs, setOutreachLogs] = useState([])
 
   const taskClubId = useMemo(() => {
     if (!isAdmin || !client) return ''
@@ -85,6 +88,11 @@ export function ClientCard() {
     setClient(local ?? null)
     setMemberships(local ? await listMemberships(id) : [])
   }, [id])
+
+  useEffect(() => {
+    if (!id || isAdmin) return
+    void listOutreachLogByClientId(id, 3).then(setOutreachLogs)
+  }, [id, isAdmin])
 
   useEffect(() => {
     const t = searchParams.get('tab')
@@ -323,6 +331,18 @@ export function ClientCard() {
           {client.card_number ? (
             <div className="muted" style={{ marginTop: 4, fontSize: 13 }}>
               Карта: {client.card_number}
+            </div>
+          ) : null}
+          {!isAdmin && outreachLogs.length > 0 ? (
+            <div className="trainer-outreach-history muted" style={{ marginTop: 8, fontSize: 12 }}>
+              <strong style={{ color: 'var(--text)' }}>Сообщения в Max:</strong>
+              <ul className="trainer-outreach-history__list">
+                {outreachLogs.map((row) => (
+                  <li key={row.id}>
+                    {formatDateRu(String(row.created_at).slice(0, 10))} — {OUTREACH_SCENARIO_LABELS[row.scenario] ?? row.scenario}
+                  </li>
+                ))}
+              </ul>
             </div>
           ) : null}
         </div>

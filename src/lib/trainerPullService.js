@@ -25,6 +25,7 @@ import { pruneRedundantSyncQueue, purgeSyncQueueForMissingClients } from './sync
 import { pruneLocalTrainingsForTrainer } from './idbRetention'
 import { pruneOrphanTrainingsForTrainerClients } from './clientTrainingsCache'
 import { invalidateTrainerWorkspaceCache } from './trainerWorkspaceCache'
+import { cacheClubOutreachTemplates } from './trainer/trainerOutreachLogService'
 
 const LOCAL_DATA_CHANGED = 'fitness-diary-storage'
 const META_TRAINER_PULL_AT = 'trainer_pull_at'
@@ -65,7 +66,7 @@ async function pruneOrphanTrainerClients(trainerId, remoteClients, opts = {}) {
   return pruned
 }
 
-async function cacheTrainerPull(trainerId, { clients, memberships, health_cards, body_measurements, client_weight_entries, trainings }, opts = {}) {
+async function cacheTrainerPull(trainerId, { clients, memberships, health_cards, body_measurements, client_weight_entries, trainings, club_id, outreach_templates }, opts = {}) {
   const mode = String(opts?.mode ?? 'active')
   const preserveArchived = mode === 'active'
   const pending = await buildPendingSyncKeysByTable()
@@ -86,6 +87,9 @@ async function cacheTrainerPull(trainerId, { clients, memberships, health_cards,
     await purgeSyncQueueForMissingClients((clients ?? []).map((c) => c.id))
   }
   await pruneRedundantSyncQueue()
+  if (club_id && Object.prototype.hasOwnProperty.call({ outreach_templates }, 'outreach_templates')) {
+    await cacheClubOutreachTemplates(club_id, outreach_templates ?? null)
+  }
   invalidateTrainerWorkspaceCache()
   notifyLocalDataChanged()
   return { pruned, pruned_trainings }

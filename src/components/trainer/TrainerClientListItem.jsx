@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Archive, Dumbbell, RotateCcw, Trash2, UserCircle } from 'lucide-react'
+import { Archive, Dumbbell, MessageCircle, RotateCcw, Trash2, UserCircle } from 'lucide-react'
 import { formatUpcomingBirthdayLabel } from '../../lib/clientBirthdays'
 import { formatDateRu } from '../../lib/dateRu'
 import {
@@ -16,6 +16,10 @@ export function TrainerClientListItem({
   clientTrainings,
   lastTrainingIso,
   showBirthdayLabel,
+  outreachScenario = null,
+  onWriteToMax = null,
+  outreachCopied = false,
+  outreachBusy = false,
   mode = 'active',
   busy,
   onDelete,
@@ -27,6 +31,8 @@ export function TrainerClientListItem({
   const expiredLeft = active ? null : pickExpiredMembershipWithRemaining(memList, today)
   const last = formatLastTrainingDate(lastTrainingIso)
   const birthdayLabel = showBirthdayLabel ? formatUpcomingBirthdayLabel(client.birth_date, today) : null
+  const hasPhone = Boolean(String(client.phone ?? '').trim())
+  const showOutreach = Boolean(outreachScenario && onWriteToMax)
 
   return (
     <li className="list-item td-client-item">
@@ -34,7 +40,7 @@ export function TrainerClientListItem({
         <div className="td-client-left">
           <span
             title={sig.label}
-            className={`td-client-dot td-client-dot--${sig.key}`}
+            className={`td-client-dot td-client-dot--${sig.key === 'expired_remaining' ? 'expired_recent' : sig.key}`}
             aria-label={sig.label}
             role="img"
           />
@@ -45,6 +51,21 @@ export function TrainerClientListItem({
           </div>
         </div>
         <div className="row td-client-actions">
+          {showOutreach ? (
+            <button
+              type="button"
+              className={`btn btn-touch trainer-outreach-btn${outreachCopied ? ' trainer-outreach-btn--copied' : ''}`}
+              disabled={!hasPhone || busy || outreachBusy}
+              title={hasPhone ? 'Скопировать текст и открыть Max' : 'Нет номера телефона'}
+              aria-label={hasPhone ? 'Написать в Max' : 'Нет номера телефона'}
+              onClick={() => onWriteToMax?.()}
+            >
+              <MessageCircle size={18} aria-hidden />
+              <span className="trainer-outreach-btn__label">
+                {outreachCopied ? 'Текст скопирован! Открываю Max…' : 'Написать в Max'}
+              </span>
+            </button>
+          ) : null}
           {mode === 'active' ? (
             active ? (
               <Link

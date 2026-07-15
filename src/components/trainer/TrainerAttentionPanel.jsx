@@ -4,18 +4,18 @@ import { AlertTriangle, Cake, CalendarClock, Clock } from 'lucide-react'
 /**
  * @param {{
  *   summary: {
- *     birthdaysWeek: number,
+ *     birthdays: number,
  *     expiring: number,
- *     expired_remaining: number,
+ *     expired_recent: number,
  *     stale: number,
  *     actionable: number,
  *     staleDays: number,
- *     birthdayWeekDays: number,
  *   } | null,
+ *   previews?: Record<string, string>,
  *   loading?: boolean,
  * }} props
  */
-export function TrainerAttentionPanel({ summary, loading = false }) {
+export function TrainerAttentionPanel({ summary, previews = {}, loading = false }) {
   if (loading) {
     return (
       <section className="trainer-attention" aria-labelledby="trainer-attention-title" aria-busy="true">
@@ -34,27 +34,27 @@ export function TrainerAttentionPanel({ summary, loading = false }) {
   const items = [
     {
       key: 'birthdays',
-      count: summary.birthdaysWeek,
-      label: 'ДР на неделе',
-      hint: `${summary.birthdayWeekDays} дн.`,
+      count: summary.birthdays,
+      label: 'ДР сегодня',
+      hint: 'поздравление',
       icon: Cake,
       to: '/trainer/clients?filter=birthdays',
     },
     {
       key: 'expiring',
       count: summary.expiring,
-      label: 'Истекает абонемент',
-      hint: '≤ 3 дня',
+      label: 'Истекает',
+      hint: '1–3 дня',
       icon: Clock,
       to: '/trainer/clients?filter=expiring',
     },
     {
-      key: 'expired_remaining',
-      count: summary.expired_remaining,
-      label: 'Срок истёк, осталось',
-      hint: 'тренировки',
+      key: 'expired_recent',
+      count: summary.expired_recent,
+      label: 'Закончился',
+      hint: 'сегодня/вчера',
       icon: AlertTriangle,
-      to: '/trainer/clients?filter=expired_remaining',
+      to: '/trainer/clients?filter=expired_recent',
     },
     {
       key: 'stale',
@@ -78,6 +78,7 @@ export function TrainerAttentionPanel({ summary, loading = false }) {
           <p className="trainer-attention__hint muted">
             {summary.actionable}{' '}
             {summary.actionable === 1 ? 'повод' : summary.actionable < 5 ? 'повода' : 'поводов'} связаться с клиентами
+            через Max
           </p>
         )}
       </div>
@@ -94,6 +95,9 @@ export function TrainerAttentionPanel({ summary, loading = false }) {
               <span className="trainer-attention__card-count">{count}</span>
               <span className="trainer-attention__card-label">{label}</span>
               <span className="trainer-attention__card-hint muted">{hint}</span>
+              {count > 0 && previews[key] ? (
+                <span className="trainer-attention__card-preview muted">{previews[key]}</span>
+              ) : null}
             </Link>
           </li>
         ))}

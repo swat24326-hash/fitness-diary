@@ -1,0 +1,86 @@
+/**
+ * node scripts/verify-trainer-client-outreach.mjs
+ */
+import {
+  buildMaxShareUrl,
+  buildOutreachMessage,
+  daysWordRu,
+  defaultOutreachTemplates,
+  extractClientFirstName,
+  isBirthdayToday,
+  isMembershipExpiredRecently,
+  normalizePhoneDigits,
+  resolveOutreachTemplates,
+  validateOutreachTemplatesForSave,
+} from '../src/lib/trainer/trainerClientOutreachCore.js'
+import { membershipSignal } from '../src/lib/clientListSignals.js'
+
+let failed = 0
+
+function ok(cond, msg) {
+  if (cond) console.log(`ok: ${msg}`)
+  else {
+    console.error(`FAIL: ${msg}`)
+    failed++
+  }
+}
+
+ok(extractClientFirstName('Иванов Иван') === 'Иванов', 'first name is first word')
+ok(daysWordRu(1) === 'день' && daysWordRu(2) === 'дня' && daysWordRu(5) === 'дней', 'daysWordRu')
+
+const today = '2026-07-15'
+ok(isBirthdayToday('1990-07-15', today), 'birthday today')
+ok(!isBirthdayToday('1990-07-16', today), 'not birthday tomorrow')
+
+const expiringMem = [{ start_date: '2026-01-01', end_date: '2026-07-17', total_trainings: 10, used_trainings: 2 }]
+ok(membershipSignal(expiringMem, today).key === 'expiring', 'expiring in 2 days')
+
+const expiredYesterday = [{ start_date: '2026-01-01', end_date: '2026-07-14', total_trainings: 10, used_trainings: 10 }]
+ok(isMembershipExpiredRecently(expiredYesterday, today), 'expired yesterday')
+ok(!isMembershipExpiredRecently([{ start_date: '2026-01-01', end_date: '2026-07-10', total_trainings: 10, used_trainings: 10 }], today), 'not recent expired')
+
+const birthdayMsg = buildOutreachMessage('birthdays', {
+  clientName: 'Иванов Иван',
+  trainerName: 'Алексей',
+  clubName: 'Спорт Лайф',
+  today,
+})
+ok(birthdayMsg.includes('Иванов'), 'birthday uses first name')
+ok(birthdayMsg.includes('Спорт Лайф'), 'birthday uses club name')
+ok(!birthdayMsg.includes('FIT-CITY'), 'no hardcoded FIT-CITY')
+ok(birthdayMsg.includes('следующую тренировку'), 'next training not holiday')
+ok(!/празднич/i.test(birthdayMsg), 'no holiday wording')
+ok(!/рад[а]?\b|поздравлял/i.test(birthdayMsg), 'gender neutral birthday')
+
+const expiringMsg = buildOutreachMessage('expiring', {
+  clientName: 'Мария',
+  trainerName: 'Алексей',
+  clubName: 'Спорт Лайф',
+  membershipName: 'Gold',
+  memList: [{ start_date: '2026-01-01', end_date: '2026-07-18', total_trainings: 10, used_trainings: 1 }],
+  today,
+})
+ok(expiringMsg.includes('Gold') && expiringMsg.includes('3'), 'expiring membership and days')
+
+ok(normalizePhoneDigits('+7 (999) 123-45-67') === '79991234567', 'phone normalize')
+ok(buildMaxShareUrl('Привет').startsWith('https://max.ru/:share?text='), 'max share url')
+
+const custom = validateOutreachTemplatesForSave({
+  birthdays: 'Привет, {client_name}! Клуб {club_name}. Тренер {trainer_name}.',
+  expiring: 'Hi {client_name} {trainer_name} {membership_name} {days_left} {days_word}',
+  expired_recent: 'Hi {client_name} {trainer_name}',
+  stale: 'Hi {client_name} {trainer_name} {club_name}',
+})
+ok(custom.ok, 'custom templates valid')
+
+const bad = validateOutreachTemplatesForSave({
+  birthdays: 'Без плейсхолдеров',
+})
+ok(!bad.ok, 'reject template without placeholders')
+
+const defaults = defaultOutreachTemplates()
+const resolved = resolveOutreachTemplates(null)
+ok(resolved.birthdays === defaults.birthdays, 'defaults when null stored')
+
+if (failed) process.exit(1)
+console.log('verify-trainer-client-outreach: all passed')

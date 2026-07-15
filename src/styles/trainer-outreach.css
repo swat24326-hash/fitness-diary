@@ -1,0 +1,121 @@
+/* --- Trainer outreach / Max --- */
+
+.trainer-attention__card-preview {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.35;
+  opacity: 0.88;
+}
+
+.trainer-outreach-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(52, 211, 153, 0.45);
+  background: rgba(16, 185, 129, 0.12);
+  color: #a7f3d0;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.trainer-outreach-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.trainer-outreach-btn--copied {
+  border-color: rgba(96, 165, 250, 0.55);
+  background: rgba(59, 130, 246, 0.18);
+  color: #bfdbfe;
+}
+
+.trainer-outreach-btn__label {
+  max-width: 11rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trainer-outreach-queue {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  border: 1px solid rgba(52, 211, 153, 0.25);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.trainer-outreach-queue__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.trainer-outreach-queue__hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.trainer-outreach-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 120;
+  max-width: min(92vw, 420px);
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  line-height: 1.35;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.trainer-outreach-toast--info {
+  background: rgba(30, 41, 59, 0.96);
+  border: 1px solid rgba(96, 165, 250, 0.45);
+  color: #e2e8f0;
+}
+
+.trainer-outreach-toast--warn {
+  background: rgba(69, 26, 26, 0.96);
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  color: #fecaca;
+}
+
+.trainer-outreach-history__list {
+  margin: 4px 0 0;
+  padding-left: 1.1rem;
+}
+
+.admin-iskra-outreach__field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.admin-iskra-outreach__field textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.admin-iskra-outreach__placeholders {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.td-client-dot--expired_recent {
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 14px solid #ff9f1a;
+  border-radius: 0;
+  box-shadow:
+    0 0 0 2px rgba(7, 9, 8, 0.95),
+    0 0 0 3px rgba(255, 255, 255, 0.65),
+    0 4px 10px rgba(0, 0, 0, 0.35);
+}

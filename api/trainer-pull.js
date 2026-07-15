@@ -5,6 +5,7 @@
 import { requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 import { TRAINER_PULL_MAX_TRAININGS, TRAINER_PULL_BODY_MEASUREMENTS_MONTHS, TRAINER_PULL_MAX_BODY_MEASUREMENTS, TRAINER_PULL_WEIGHT_ENTRIES_MONTHS, TRAINER_PULL_MAX_WEIGHT_ENTRIES } from './_lib/apiLimits.js'
+import { loadClubIskraSettings } from './_lib/iskraSettingsHandler.js'
 import { normalizeMatrixRowsFromDb } from '../src/lib/admin/salesTrainingsMatrix.js'
 import {
   aggregatePayrollFromDailyRows,
@@ -122,6 +123,8 @@ async function handler(req, res) {
 
   const trainerId = ctx.user.id
   const { supabaseAdmin } = ctx
+  const profileRes = await supabaseAdmin.from('users').select('club_id').eq('id', trainerId).maybeSingle()
+  const trainerClubId = String(profileRes.data?.club_id ?? '').trim()
   const includeArchived = String(req.query?.include_archived ?? req.query?.includeArchived ?? '').trim() === '1'
   const archivedOnly = String(req.query?.archived ?? '').trim() === '1'
   const skipTrainings = String(req.query?.skip_trainings ?? '').trim() === '1'
@@ -261,6 +264,16 @@ async function handler(req, res) {
     }
   }
 
+  let outreach_templates = null
+  if (trainerClubId) {
+    try {
+      const settings = await loadClubIskraSettings(supabaseAdmin, trainerClubId)
+      outreach_templates = settings.outreach_templates ?? null
+    } catch {
+      outreach_templates = null
+    }
+  }
+
   sendJson(res, 200, {
     clients,
     memberships,
@@ -268,6 +281,8 @@ async function handler(req, res) {
     body_measurements,
     client_weight_entries,
     trainings,
+    club_id: trainerClubId || null,
+    outreach_templates,
     trainings_truncated: trainingsTruncated,
     body_measurements_truncated: bodyMeasurementsTruncated,
     weight_entries_truncated: weightEntriesTruncated,

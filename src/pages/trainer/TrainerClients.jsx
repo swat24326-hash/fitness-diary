@@ -1,17 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Cake, CalendarClock, Clock, Search, UserPlus } from 'lucide-react'
+import { AlertTriangle, Cake, CalendarClock, Clock, MessageCircle, Search, UserPlus } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { TrainerClientListItem } from '../../components/trainer/TrainerClientListItem'
 import { useAuth } from '../../context/AuthContext'
+import { useTrainerOutreach } from '../../hooks/useTrainerOutreach'
 import { deleteClientAndAllData, listClubsLocal } from '../../lib/dataAccess'
-import {
-  BIRTHDAY_WINDOW_DAYS,
-  compareByUpcomingBirthday,
-  isBirthdayWithinNextDays,
-} from '../../lib/clientBirthdays'
 import { membershipSignal } from '../../lib/clientListSignals'
 import { CLIENT_LIST_PAGE_SIZE } from '../../lib/clientListPagination'
 import { todayLocalIso } from '../../lib/dateRu'
+import { listMembershipTypesForClub } from '../../lib/membershipTypesService'
 import { loadTrainerWorkspaceSnapshot } from '../../lib/trainerWorkspaceCache'
 import { pullTrainerWorkspaceFromCloud } from '../../lib/trainerPullService'
 import { isAppOnline } from '../../lib/syncService'
@@ -19,11 +16,21 @@ import { useDebouncedStorageReload, shouldReloadTrainerClientList } from '../../
 import { flushSyncQueue, saveLocalWithSync } from '../../lib/syncService'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import {
+  isBirthdayToday,
+  isMembershipExpiredRecently,
+  isOutreachScenario,
+  resolveOutreachTemplates,
+} from '../../lib/trainer/trainerClientOutreachCore'
+import {
   buildLastCompletedTrainingDateByClientId,
   isClientStaleForAttention,
-  isTrainerClientQuickFilter,
+  normalizeTrainerClientQuickFilter,
   STALE_TRAINING_DAYS,
 } from '../../lib/trainer/trainerAttentionSummary'
+import {
+  listOutreachLogTodayByScenario,
+  loadCachedClubOutreachTemplates,
+} from '../../lib/trainer/trainerOutreachLogService'
 
 export function TrainerClients() {
   const { user, refreshUserProfile } = useAuth()
@@ -41,18 +48,18 @@ export function TrainerClients() {
   const [busy, setBusy] = useState(false)
   const [query, setQuery] = useState('')
   const filterFromUrl = searchParams.get('filter')
-  const [quickFilter, setQuickFilter] = useState(() =>
-    isTrainerClientQuickFilter(filterFromUrl) ? filterFromUrl : 'all',
-  )
-  const [clientsTab, setClientsTab] = useState('active') // active | archive
+  const [quickFilter, setQuickFilter] = useState(() => normalizeTrainerClientQuickFilter(filterFromUrl) ?? 'all')
+  const [clientsTab, setClientsTab] = useState('active')
   const [visibleCount, setVisibleCount] = useState(CLIENT_LIST_PAGE_SIZE)
   const [showNewClient, setShowNewClient] = useState(false)
   const [newClientForm, setNewClientForm] = useState({ name: '', phone: '', birth_date: '', card_number: '' })
   const [clubs, setClubs] = useState([])
-  /** false до первой загрузки снимка — не показываем «клуб не назначен» и пустой список */
+  const [outreachTemplatesRaw, setOutreachTemplatesRaw] = useState(null)
+  const [typeNameById, setTypeNameById] = useState({})
+  const [sentTodayIds, setSentTodayIds] = useState(() => new Set())
   const [workspaceReady, setWorkspaceReady] = useState(false)
-  /** { id, name } — модалка подтверждения удаления клиента */
   const [confirmDelete, setConfirmDelete] = useState(null)
+  const [toast, setToast] = useState(null)
 
   const formatClientName = (raw) => {
     const s = String(raw ?? '').trim().replace(/\s+/g, ' ')
@@ -93,6 +100,11 @@ export function TrainerClients() {
       setTrainingsByClientId(snap.trainingsByClientId)
       setLastTrainingDateByClientId(snap.lastTrainingDateByClientId)
       setClubs(await listClubsLocal())
+      if (trainerClubId) {
+        setOutreachTemplatesRaw(await loadCachedClubOutreachTemplates(trainerClubId))
+        const types = await listMembershipTypesForClub(trainerClubId)
+        setTypeNameById(Object.fromEntries(types.map((t) => [String(t.id), String(t.code ?? t.name ?? 'абонемент')])))
+      }
     } finally {
       if (!silent) setBusy(false)
       setWorkspaceReady(true)
@@ -119,7 +131,6 @@ export function TrainerClients() {
     }
   }, [user?.id, trainerClubId, reload])
 
-  // Архивные клиенты с сервера подгружаем только при открытии вкладки «Архив».
   useEffect(() => {
     if (clientsTab !== 'archive') return
     if (!user?.id) return
@@ -133,8 +144,8 @@ export function TrainerClients() {
   useDebouncedStorageReload(() => reload({ silent: true }), { shouldRun: shouldReloadTrainerClientList })
 
   useEffect(() => {
-    const f = searchParams.get('filter')
-    if (isTrainerClientQuickFilter(f)) setQuickFilter(f)
+    const f = normalizeTrainerClientQuickFilter(searchParams.get('filter'))
+    if (f) setQuickFilter(f)
   }, [searchParams])
 
   const lastCompletedByClientId = useMemo(
@@ -149,6 +160,42 @@ export function TrainerClients() {
     return clubs.find((x) => x.id === trainerClubId)?.name ?? null
   }, [clubs, trainerClubId])
 
+  const outreachTemplates = useMemo(() => resolveOutreachTemplates(outreachTemplatesRaw), [outreachTemplatesRaw])
+
+  const showToast = useCallback((msg, tone = 'info') => {
+    setToast({ msg, tone })
+    setTimeout(() => setToast(null), 3200)
+  }, [])
+
+  const outreach = useTrainerOutreach({
+    userId: user?.id,
+    trainerName: user?.name,
+    clubId: trainerClubId,
+    clubName: myClubName,
+    outreachTemplates,
+    typeNameById,
+    onFeedback: showToast,
+  })
+
+  const clientMatchesFilter = useCallback(
+    (c, filterId) => {
+      const memList = memByClient[c.id] ?? []
+      if (filterId === 'birthdays') return isBirthdayToday(c.birth_date, today)
+      if (filterId === 'expiring') return membershipSignal(memList, today).key === 'expiring'
+      if (filterId === 'expired_recent') return isMembershipExpiredRecently(memList, today)
+      if (filterId === 'stale') {
+        return isClientStaleForAttention({
+          memList,
+          lastCompletedIso: lastCompletedByClientId[c.id],
+          today,
+          staleDays: STALE_TRAINING_DAYS,
+        })
+      }
+      return false
+    },
+    [memByClient, today, lastCompletedByClientId],
+  )
+
   const filteredClients = useMemo(() => {
     const q = query.trim().toLowerCase()
     const source = clientsTab === 'archive' ? archivedClients : clients
@@ -161,28 +208,9 @@ export function TrainerClients() {
           return name.includes(q) || phone.includes(q) || card.includes(q)
         })
 
-    let list = base
-    if (quickFilter === 'birthdays') {
-      list = base.filter((c) => isBirthdayWithinNextDays(c.birth_date, today, BIRTHDAY_WINDOW_DAYS))
-      return [...list].sort((a, b) => compareByUpcomingBirthday(a, b, today))
-    }
-    if (quickFilter === 'stale') {
-      list = base.filter((c) =>
-        isClientStaleForAttention({
-          memList: memByClient[c.id] ?? [],
-          lastCompletedIso: lastCompletedByClientId[c.id],
-          today,
-          staleDays: STALE_TRAINING_DAYS,
-        }),
-      )
-      return list
-    }
-    if (quickFilter === 'all') return list
-    return list.filter((c) => {
-      const sig = membershipSignal(memByClient[c.id] ?? [], today)
-      return sig.key === quickFilter
-    })
-  }, [clients, archivedClients, clientsTab, query, quickFilter, memByClient, today, lastCompletedByClientId])
+    if (quickFilter === 'all') return base
+    return base.filter((c) => clientMatchesFilter(c, quickFilter))
+  }, [clients, archivedClients, clientsTab, query, quickFilter, clientMatchesFilter])
 
   useEffect(() => {
     setVisibleCount(CLIENT_LIST_PAGE_SIZE)
@@ -198,27 +226,40 @@ export function TrainerClients() {
     const base = clientsTab === 'archive' ? archivedClients : clients
     const all = base.length
     let expiring = 0
-    let expired_remaining = 0
+    let expired_recent = 0
     let birthdays = 0
     let stale = 0
     for (const c of base) {
-      const sig = membershipSignal(memByClient[c.id] ?? [], today)
-      if (sig.key === 'expiring') expiring++
-      if (sig.key === 'expired_remaining') expired_remaining++
-      if (isBirthdayWithinNextDays(c.birth_date, today, BIRTHDAY_WINDOW_DAYS)) birthdays++
-      if (
-        isClientStaleForAttention({
-          memList: memByClient[c.id] ?? [],
-          lastCompletedIso: lastCompletedByClientId[c.id],
-          today,
-          staleDays: STALE_TRAINING_DAYS,
-        })
-      ) {
-        stale++
-      }
+      if (clientMatchesFilter(c, 'expiring')) expiring++
+      if (clientMatchesFilter(c, 'expired_recent')) expired_recent++
+      if (clientMatchesFilter(c, 'birthdays')) birthdays++
+      if (clientMatchesFilter(c, 'stale')) stale++
     }
-    return { all, expiring, expired_remaining, birthdays, stale }
-  }, [clients, archivedClients, clientsTab, memByClient, today, lastCompletedByClientId])
+    return { all, expiring, expired_recent, birthdays, stale }
+  }, [clients, archivedClients, clientsTab, clientMatchesFilter])
+
+  useEffect(() => {
+    if (!user?.id || !isOutreachScenario(quickFilter)) {
+      setSentTodayIds(new Set())
+      return
+    }
+    let alive = true
+    void (async () => {
+      const rows = await listOutreachLogTodayByScenario(user.id, quickFilter, today)
+      if (!alive) return
+      setSentTodayIds(new Set(rows.map((r) => String(r.client_id))))
+    })()
+    return () => {
+      alive = false
+    }
+  }, [user?.id, quickFilter, today, outreach.copiedClientId])
+
+  const outreachQueue = useMemo(() => {
+    if (!isOutreachScenario(quickFilter)) return { pending: [], total: 0, done: 0 }
+    const withPhone = filteredClients.filter((c) => String(c.phone ?? '').trim())
+    const pending = withPhone.filter((c) => !sentTodayIds.has(String(c.id)))
+    return { pending, total: withPhone.length, done: withPhone.length - pending.length }
+  }, [filteredClients, quickFilter, sentTodayIds])
 
   const filterBtnClass = (id) => `btn ${quickFilter === id ? 'btn-primary' : 'btn-ghost'} btn-icon-square`
 
@@ -226,20 +267,30 @@ export function TrainerClients() {
     setQuickFilter((cur) => (cur === id ? 'all' : id))
   }
 
+  const handleNextOutreach = useCallback(async () => {
+    const next = outreachQueue.pending[0]
+    if (!next || !isOutreachScenario(quickFilter)) return
+    await outreach.handleWriteToMax({
+      client: next,
+      scenario: quickFilter,
+      memList: memByClient[next.id] ?? [],
+      today,
+    })
+    setSentTodayIds((prev) => new Set([...prev, String(next.id)]))
+  }, [outreach, outreachQueue.pending, quickFilter, memByClient, today])
+
   const updateClientArchiveFlag = async (clientRow, archived) => {
     if (!clientRow?.id) return
-    if (archived) {
-      const ok = window.confirm(`Убрать клиента в архив?\n\n${clientRow.name ?? 'Клиент'}\n\nВ архиве доступен просмотр карточки. Все действия — только после «Вернуть».`)
-      if (!ok) return
-    }
     setBusy(true)
-    const now = new Date().toISOString()
-    const row = { ...clientRow, archived_at: archived ? now : null }
     try {
-      await saveLocalWithSync('clients', row, { table_name: 'clients', operation: 'update', remote_id: clientRow.id })
-      if (isSupabaseConfigured()) {
-        await flushSyncQueue({ force: true, maxMs: 20_000 })
-      }
+      const row = { ...clientRow, archived_at: archived ? new Date().toISOString() : null }
+      await saveLocalWithSync('clients', row, {
+        table_name: 'clients',
+        operation: 'update',
+        remote_id: row.id,
+        data: row,
+      })
+      await flushSyncQueue()
       await reload({ silent: true })
     } catch (err) {
       alert(err?.message ?? 'Не удалось обновить архив')
@@ -250,45 +301,39 @@ export function TrainerClients() {
 
   const createClient = async (e) => {
     e.preventDefault()
-    if (!newClientForm.name.trim()) {
-      alert('Укажите имя')
+    if (!user?.id || !trainerClubId) {
+      alert('Клуб не назначен — попросите администратора назначить клуб в профиле.')
       return
     }
-    let clubId = trainerClubId
-    if (!clubId) {
-      const profile = await refreshUserProfile()
-      clubId = profile?.club_id ?? null
-    }
-    if (!clubId) {
-      alert(
-        'Тренер не привязан к клубу. Админ: Структура → Тренеры → выберите клуб. Затем выйдите и войдите снова (или Ctrl+F5).',
-      )
-      return
-    }
-    const id = crypto.randomUUID()
-    const now = new Date().toISOString()
-    const row = {
-      id,
-      trainer_id: user.id,
-      club_id: clubId,
-      name: formatClientName(newClientForm.name),
-      phone: newClientForm.phone.trim() || null,
-      birth_date: newClientForm.birth_date || null,
-      card_number: String(newClientForm.card_number ?? '').trim() || null,
-      created_at: now,
-    }
+    setBusy(true)
     try {
-      await saveLocalWithSync('clients', row, { table_name: 'clients', operation: 'insert', remote_id: null })
-      if (isSupabaseConfigured()) {
-        await flushSyncQueue({ force: true, maxMs: 20_000 })
+      const id = crypto.randomUUID()
+      const now = new Date().toISOString()
+      const row = {
+        id,
+        trainer_id: user.id,
+        club_id: trainerClubId,
+        name: formatClientName(newClientForm.name),
+        phone: newClientForm.phone.trim() || null,
+        birth_date: newClientForm.birth_date || null,
+        card_number: String(newClientForm.card_number ?? '').trim() || null,
+        created_at: now,
       }
+      await saveLocalWithSync('clients', row, {
+        table_name: 'clients',
+        operation: 'insert',
+        remote_id: id,
+        data: row,
+      })
+      await flushSyncQueue()
+      setShowNewClient(false)
+      setNewClientForm({ name: '', phone: '', birth_date: '', card_number: '' })
+      await reload()
     } catch (err) {
-      alert(err?.message ?? 'Ошибка создания клиента')
-      return
+      alert(err?.message ?? 'Не удалось создать клиента')
+    } finally {
+      setBusy(false)
     }
-    setShowNewClient(false)
-    setNewClientForm({ name: '', phone: '', birth_date: '', card_number: '' })
-    await reload()
   }
 
   const runDeleteClient = async () => {
@@ -305,8 +350,24 @@ export function TrainerClients() {
     }
   }
 
+  const emptyFilterMessage = () => {
+    if (quickFilter === 'birthdays') return 'Сегодня дней рождения нет (укажите дату в карточке клиента).'
+    if (quickFilter === 'expiring') return 'Нет абонементов, которые заканчиваются через 1–3 дня.'
+    if (quickFilter === 'expired_recent') return 'Нет абонементов, закончившихся сегодня или вчера.'
+    if (quickFilter === 'stale') {
+      return `Нет клиентов без завершённой тренировки ${STALE_TRAINING_DAYS}+ дней (с действующим абонементом).`
+    }
+    return 'Ничего не найдено.'
+  }
+
   return (
     <div className="grid stagger td-grid">
+      {toast ? (
+        <div className={`trainer-outreach-toast trainer-outreach-toast--${toast.tone}`} role="status">
+          {toast.msg}
+        </div>
+      ) : null}
+
       <section className="card">
         <div className="row" style={{ justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
           <h2 className="section-title td-section-title" style={{ margin: 0 }}>
@@ -320,17 +381,17 @@ export function TrainerClients() {
                 type="button"
                 className={filterBtnClass('expiring')}
                 onClick={() => applyFilter('expiring')}
-                aria-label="Фильтр: абонемент заканчивается в ближайшие 3 дня"
-                title={`≤ 3 дня (${filterCounts.expiring})`}
+                aria-label="Фильтр: абонемент заканчивается через 1–3 дня"
+                title={`1–3 дня (${filterCounts.expiring})`}
               >
                 <Clock size={20} aria-hidden />
               </button>
               <button
                 type="button"
-                className={filterBtnClass('expired_remaining')}
-                onClick={() => applyFilter('expired_remaining')}
-                aria-label="Фильтр: срок абонемента истёк, но тренировки остались"
-                title={`Срок истёк, осталось (${filterCounts.expired_remaining})`}
+                className={filterBtnClass('expired_recent')}
+                onClick={() => applyFilter('expired_recent')}
+                aria-label="Фильтр: абонемент закончился сегодня или вчера"
+                title={`Закончился (${filterCounts.expired_recent})`}
               >
                 <AlertTriangle size={20} aria-hidden />
               </button>
@@ -338,8 +399,8 @@ export function TrainerClients() {
                 type="button"
                 className={filterBtnClass('birthdays')}
                 onClick={() => applyFilter('birthdays')}
-                aria-label={`Фильтр: дни рождения в ближайшие ${BIRTHDAY_WINDOW_DAYS} дней`}
-                title={`ДР ${BIRTHDAY_WINDOW_DAYS} дн. (${filterCounts.birthdays})`}
+                aria-label="Фильтр: день рождения сегодня"
+                title={`ДР сегодня (${filterCounts.birthdays})`}
               >
                 <Cake size={20} aria-hidden />
               </button>
@@ -348,7 +409,7 @@ export function TrainerClients() {
                 className={filterBtnClass('stale')}
                 onClick={() => applyFilter('stale')}
                 aria-label={`Фильтр: без завершённой тренировки ${STALE_TRAINING_DAYS}+ дней`}
-                title={`Давно не был ${STALE_TRAINING_DAYS}+ дн. (${filterCounts.stale})`}
+                title={`Давно не был (${filterCounts.stale})`}
               >
                 <CalendarClock size={20} aria-hidden />
               </button>
@@ -374,21 +435,31 @@ export function TrainerClients() {
             </button>
           </div>
         </div>
+
+        {isOutreachScenario(quickFilter) && filteredClients.length > 0 ? (
+          <div className="trainer-outreach-queue">
+            <button
+              type="button"
+              className="btn btn-primary btn-touch trainer-outreach-queue__btn"
+              disabled={!outreachQueue.pending.length || busy}
+              onClick={() => void handleNextOutreach()}
+            >
+              <MessageCircle size={18} aria-hidden />
+              {outreachQueue.pending.length
+                ? `Следующий (${outreachQueue.done + 1} из ${outreachQueue.total})`
+                : `Все обработаны (${outreachQueue.total})`}
+            </button>
+            <p className="muted trainer-outreach-queue__hint">
+              Текст копируется в буфер, затем открывается Max. Выберите чат с клиентом и отправьте сообщение.
+            </p>
+          </div>
+        ) : null}
+
         <div className="tabs" role="tablist" style={{ marginTop: 10 }}>
-          <button
-            type="button"
-            className="tab"
-            aria-selected={clientsTab === 'active'}
-            onClick={() => setClientsTab('active')}
-          >
+          <button type="button" className="tab" aria-selected={clientsTab === 'active'} onClick={() => setClientsTab('active')}>
             Активные ({clients.length})
           </button>
-          <button
-            type="button"
-            className="tab"
-            aria-selected={clientsTab === 'archive'}
-            onClick={() => setClientsTab('archive')}
-          >
+          <button type="button" className="tab" aria-selected={clientsTab === 'archive'} onClick={() => setClientsTab('archive')}>
             Архив ({archivedClients.length})
           </button>
         </div>
@@ -406,8 +477,7 @@ export function TrainerClients() {
                 </>
               ) : (
                 <>
-                  Клуб не назначен. Клиенты скрыты, создание тренировки/клиентов недоступно — попросите админа
-                  назначить клуб.
+                  Клуб не назначен. Клиенты скрыты, создание тренировки/клиентов недоступно — попросите админа назначить клуб.
                 </>
               )}
             </p>
@@ -425,8 +495,22 @@ export function TrainerClients() {
                       today={today}
                       memList={memByClient[c.id] ?? []}
                       clientTrainings={trainingsByClientId[c.id] ?? []}
-                      lastTrainingIso={lastTrainingDateByClientId[c.id] ?? '—'}
+                      lastTrainingIso={lastCompletedByClientId[c.id] ?? lastTrainingDateByClientId[c.id] ?? '—'}
                       showBirthdayLabel={quickFilter === 'birthdays'}
+                      outreachScenario={isOutreachScenario(quickFilter) ? quickFilter : null}
+                      onWriteToMax={
+                        isOutreachScenario(quickFilter)
+                          ? () =>
+                              outreach.handleWriteToMax({
+                                client: c,
+                                scenario: quickFilter,
+                                memList: memByClient[c.id] ?? [],
+                                today,
+                              })
+                          : null
+                      }
+                      outreachCopied={outreach.copiedClientId === c.id}
+                      outreachBusy={outreach.busyClientId === c.id}
                       mode={clientsTab}
                       busy={busy}
                       onDelete={(row) => setConfirmDelete({ id: row.id, name: row.name })}
@@ -437,11 +521,7 @@ export function TrainerClients() {
                 </ul>
                 {hasMore ? (
                   <div className="client-list-more">
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-touch"
-                      onClick={() => setVisibleCount((n) => n + CLIENT_LIST_PAGE_SIZE)}
-                    >
+                    <button type="button" className="btn btn-ghost btn-touch" onClick={() => setVisibleCount((n) => n + CLIENT_LIST_PAGE_SIZE)}>
                       Показать ещё {Math.min(CLIENT_LIST_PAGE_SIZE, filteredClients.length - visibleCount)}
                     </button>
                   </div>
@@ -449,11 +529,9 @@ export function TrainerClients() {
               </>
             ) : (
               <p className="muted">
-                {quickFilter === 'birthdays'
-                  ? `В ближайшие ${BIRTHDAY_WINDOW_DAYS} дней дней рождения нет (укажите дату в карточке клиента).`
-                  : quickFilter === 'stale'
-                    ? `Нет клиентов без завершённой тренировки ${STALE_TRAINING_DAYS}+ дней (с действующим абонементом).`
-                    : clients.length === 0 && !query.trim() && quickFilter === 'all'
+                {quickFilter !== 'all' || query.trim()
+                  ? emptyFilterMessage()
+                  : clients.length === 0
                     ? 'Пока нет клиентов. Нажмите «+», чтобы добавить.'
                     : 'Ничего не найдено.'}
               </p>

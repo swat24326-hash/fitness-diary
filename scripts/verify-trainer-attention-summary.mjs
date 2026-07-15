@@ -2,13 +2,13 @@
  * node scripts/verify-trainer-attention-summary.mjs
  */
 import {
-  ATTENTION_BIRTHDAY_WEEK_DAYS,
   STALE_TRAINING_DAYS,
   buildLastCompletedTrainingDateByClientId,
   buildTrainerAttentionSummary,
   daysSinceIsoDate,
   isClientStaleForAttention,
   isTrainerClientQuickFilter,
+  normalizeTrainerClientQuickFilter,
 } from '../src/lib/trainer/trainerAttentionSummary.js'
 
 let failed = 0
@@ -52,55 +52,38 @@ ok(
   }),
   'not stale when recent training',
 )
-ok(
-  isClientStaleForAttention({
-    memList: activeMem,
-    lastCompletedIso: '',
-    today: '2026-07-11',
-    staleDays: 14,
-  }),
-  'stale when never trained',
-)
-ok(
-  !isClientStaleForAttention({
-    memList: [],
-    lastCompletedIso: '',
-    today: '2026-07-11',
-  }),
-  'not stale without usable membership',
-)
 
-const today = '2026-07-10'
+const today = '2026-07-15'
 const summary = buildTrainerAttentionSummary({
   today,
   staleDays: STALE_TRAINING_DAYS,
-  birthdayWeekDays: ATTENTION_BIRTHDAY_WEEK_DAYS,
   clients: [
-    { id: 'a', birth_date: '1990-07-12' },
+    { id: 'a', birth_date: '1990-07-15' },
     { id: 'b', birth_date: '1990-08-01' },
     { id: 'c' },
     { id: 'd' },
   ],
   memByClient: {
-    a: [{ start_date: '2026-01-01', end_date: '2026-07-12', total_trainings: 10, used_trainings: 1 }],
-    b: [{ start_date: '2026-01-01', end_date: '2026-06-01', total_trainings: 10, used_trainings: 3 }],
+    a: [{ start_date: '2026-01-01', end_date: '2026-07-17', total_trainings: 10, used_trainings: 1 }],
+    b: [{ start_date: '2026-01-01', end_date: '2026-07-14', total_trainings: 10, used_trainings: 10 }],
     c: activeMem,
     d: activeMem,
   },
   lastCompletedByClientId: {
-    a: '2026-07-09',
+    a: '2026-07-14',
     b: '2026-05-01',
     c: '2026-06-01',
-    d: '2026-07-08',
+    d: '2026-07-14',
   },
 })
 
-ok(summary.birthdaysWeek === 1, 'birthday within week')
+ok(summary.birthdays === 1, 'birthday today only')
 ok(summary.expiring === 1, 'expiring membership')
-ok(summary.expired_remaining === 1, 'expired remaining')
+ok(summary.expired_recent === 1, 'expired recent yesterday')
 ok(summary.stale === 2, 'stale b and c with old training')
 ok(summary.actionable === 5, 'actionable total')
 ok(isTrainerClientQuickFilter('stale'), 'stale is valid filter')
+ok(normalizeTrainerClientQuickFilter('expired_remaining') === 'expired_recent', 'legacy filter alias')
 ok(!isTrainerClientQuickFilter('nope'), 'invalid filter')
 
 if (failed) process.exit(1)

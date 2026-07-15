@@ -22,7 +22,16 @@ import { loadTrainerWorkspaceSnapshot } from '../../lib/trainerWorkspaceCache'
 import {
   buildLastCompletedTrainingDateByClientId,
   buildTrainerAttentionSummary,
+  findFirstOutreachClient,
+  STALE_TRAINING_DAYS,
 } from '../../lib/trainer/trainerAttentionSummary'
+import {
+  buildOutreachMessage,
+  outreachMessagePreview,
+  resolveOutreachTemplates,
+} from '../../lib/trainer/trainerClientOutreachCore'
+import { loadCachedClubOutreachTemplates } from '../../lib/trainer/trainerOutreachLogService'
+import { listClubsLocal } from '../../lib/dataAccess'
 import {
   useDebouncedStorageReload,
   shouldReloadTrainerChallenges,
@@ -75,6 +84,7 @@ export function TrainerHome() {
 
   const [challengesView, setChallengesView] = useState(INITIAL_CHALLENGES_VIEW)
   const [attentionSummary, setAttentionSummary] = useState(null)
+  const [attentionPreviews, setAttentionPreviews] = useState({})
   const [attentionLoading, setAttentionLoading] = useState(true)
   const loadGenRef = useRef(0)
   const attentionGenRef = useRef(0)
@@ -92,21 +102,52 @@ export function TrainerHome() {
       const snap = await loadTrainerWorkspaceSnapshot(trainerId, clubId || null)
       if (gen !== attentionGenRef.current) return
       const lastCompletedByClientId = buildLastCompletedTrainingDateByClientId(snap.trainings)
-      setAttentionSummary(
-        buildTrainerAttentionSummary({
+      const today = todayLocalIso()
+      const summary = buildTrainerAttentionSummary({
+        clients: snap.clients,
+        memByClient: snap.memByClient,
+        lastCompletedByClientId,
+        today,
+      })
+      setAttentionSummary(summary)
+
+      const clubs = await listClubsLocal()
+      const clubName = clubs.find((c) => String(c.id) === String(clubId))?.name ?? 'клуб'
+      const templatesRaw = clubId ? await loadCachedClubOutreachTemplates(clubId) : null
+      const templates = resolveOutreachTemplates(templatesRaw)
+      /** @type {Record<string, string>} */
+      const previews = {}
+      for (const scenario of ['birthdays', 'expiring', 'expired_recent', 'stale']) {
+        if (!summary[scenario]) continue
+        const client = findFirstOutreachClient({
           clients: snap.clients,
           memByClient: snap.memByClient,
           lastCompletedByClientId,
-          today: todayLocalIso(),
-        }),
-      )
+          scenario,
+          today,
+          staleDays: STALE_TRAINING_DAYS,
+        })
+        if (!client) continue
+        previews[scenario] = outreachMessagePreview(
+          buildOutreachMessage(scenario, {
+            clientName: client.name,
+            trainerName: user?.name,
+            clubName,
+            memList: snap.memByClient[client.id] ?? [],
+            today,
+            templates,
+          }),
+        )
+      }
+      setAttentionPreviews(previews)
     } catch {
       if (gen !== attentionGenRef.current) return
       setAttentionSummary(null)
+      setAttentionPreviews({})
     } finally {
       if (gen === attentionGenRef.current) setAttentionLoading(false)
     }
-  }, [trainerId, clubId])
+  }, [trainerId, clubId, user?.name])
 
   const loadChallenges = useCallback(
     async (opts = {}) => {
@@ -238,7 +279,7 @@ export function TrainerHome() {
       <TrainerTaskGlanceWidget clubId={clubId} />
       <TrainerPushPrompt clubId={clubId} />
 
-      <TrainerAttentionPanel summary={attentionSummary} loading={attentionLoading} />
+      <TrainerAttentionPanel summary={attentionSummary} previews={attentionPreviews} loading={attentionLoading} />
 
       <section className="trainer-challenges" aria-labelledby="trainer-challenges-title">
         <div className="trainer-challenges__head">
