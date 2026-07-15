@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { listExercises } from '../../lib/dataAccess'
+import { listExercises, resolveClubDisplayName } from '../../lib/dataAccess'
 import { formatClientName } from '../../lib/clientNameFormat.js'
 import { listHomeworkPresetsForClub } from '../../lib/homework/homeworkPresetsService'
 import { filterHomeworkExerciseCatalog, listHomeworkMuscleGroups } from '../../lib/homework/homeworkCatalogFilter.js'
@@ -34,6 +34,7 @@ export function ClientHomeworkPage({ client, readOnly = false }) {
   const [search, setSearch] = useState('')
   const [busy, setBusy] = useState(false)
   const [statusMsg, setStatusMsg] = useState('')
+  const [clubName, setClubName] = useState('')
 
   const reloadPresets = useCallback(async () => {
     if (!clubId) {
@@ -50,6 +51,28 @@ export function ClientHomeworkPage({ client, readOnly = false }) {
   useEffect(() => {
     void listExercises().then(setCatalog).catch(() => setCatalog([]))
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      if (!clubId) {
+        setClubName('')
+        return
+      }
+      try {
+        const name = await resolveClubDisplayName(clubId)
+        if (!cancelled) {
+          const n = String(name ?? '').trim()
+          setClubName(!n || n === '—' || n === clubId ? '' : n)
+        }
+      } catch {
+        if (!cancelled) setClubName('')
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [clubId])
 
   useEffect(() => {
     const onStorage = (e) => {
@@ -114,6 +137,7 @@ export function ClientHomeworkPage({ client, readOnly = false }) {
         client,
         clientName,
         trainerName,
+        clubName,
       })
       if (!res.ok) {
         if (res.error === 'empty_draft') setStatusMsg('Добавьте упражнения')

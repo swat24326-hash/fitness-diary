@@ -15,9 +15,10 @@ import { isHomeworkDraftReady } from './homeworkPlanCore.js'
 /**
  * @param {import('./homeworkPlanCore.js').HomeworkDraft} draft
  * @param {{
- *   client?: { name?: string, phone?: string | null, max_chat_url?: string | null },
+ *   client?: { name?: string, phone?: string | null, max_chat_url?: string | null, club_id?: string },
  *   trainerName?: string,
  *   clientName?: string,
+ *   clubName?: string,
  * }} ctx
  */
 export async function sendHomeworkDraft(draft, ctx = {}) {
@@ -27,15 +28,16 @@ export async function sendHomeworkDraft(draft, ctx = {}) {
 
   const clientName = String(ctx.clientName ?? ctx.client?.name ?? '').trim()
   const trainerName = String(ctx.trainerName ?? '').trim()
+  const clubName = String(ctx.clubName ?? '').trim()
 
   let blob
   try {
-    blob = await renderHomeworkPlanPng(draft, { clientName, trainerName })
+    blob = await renderHomeworkPlanPng(draft, { clientName, trainerName, clubName })
   } catch (e) {
     return { ok: false, error: 'png_failed', detail: String(e?.message ?? e) }
   }
 
-  const title = `FIT-CITY · ${draft.title || 'ДЗ'}`
+  const title = clubName ? `${clubName} · ${draft.title || 'Домашнее задание'}` : draft.title || 'Домашнее задание'
   let shared = false
   try {
     shared = await shareHomeworkPlanBlob(blob, title)
@@ -43,13 +45,14 @@ export async function sendHomeworkDraft(draft, ctx = {}) {
     shared = false
   }
   if (!shared) {
-    downloadHomeworkPlanBlob(blob, 'fit-city-homework.png')
+    downloadHomeworkPlanBlob(blob, 'homework.png')
   }
 
   const phone = normalizePhoneDigits(ctx.client?.phone)
   const maxChatUrl = normalizeMaxChatUrl(ctx.client?.max_chat_url)
   const shareText = [
-    `Домашнее задание FIT-CITY: ${draft.title || 'ДЗ'}`,
+    clubName ? `Домашнее задание · ${clubName}` : 'Домашнее задание',
+    draft.title || 'ДЗ',
     clientName ? `для ${clientName}` : '',
     trainerName ? `тренер ${trainerName}` : '',
   ]
