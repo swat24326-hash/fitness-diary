@@ -49,14 +49,20 @@ export function NutritionPlanDisplay({
   onDiscard,
   busy,
   formatDateRu,
+  clubName = '',
 }) {
   if (!displayPlan) return null
+
+  const brandClub = String(clubName ?? '').trim()
+  const canSend = !exportBusy && !planUnsaved && !readOnly
 
   return (
     <>
       <div className="nutrition-result-header nutrition-result-header--plate">
         <div className="nutrition-result-header__main">
-          <p className="nutrition-plan-brand">FIT-CITY · мерный рацион</p>
+          <p className="nutrition-plan-brand">
+            {brandClub ? `${brandClub} · мерный рацион` : 'Мерный рацион'}
+          </p>
           <h2 className="section-title nutrition-client-title">{client.name}</h2>
           <p className="nutrition-client-meta muted">
             Вес <strong>{getHealthCurrentWeightKg(health) ?? '—'}</strong> кг
@@ -117,21 +123,6 @@ export function NutritionPlanDisplay({
             <p className="muted nutrition-edit-hint">Можно подправить граммы — изменения попадут в черновик до сохранения.</p>
           ) : null}
         </div>
-        <div className="nutrition-result-actions">
-          <button type="button" className="btn btn-touch" disabled={exportBusy || planUnsaved} onClick={() => void onExportMax?.()}>
-            <Send size={18} aria-hidden />
-            {exportBusy ? 'Готовим…' : 'В Max'}
-          </button>
-          <button
-            type="button"
-            className="btn btn-touch btn-ghost"
-            disabled={exportBusy || planUnsaved}
-            onClick={() => void onExportOther?.()}
-          >
-            <Share2 size={18} aria-hidden />
-            Другой мессенджер
-          </button>
-        </div>
       </div>
 
       <div className="nutrition-plan-body">
@@ -174,6 +165,34 @@ export function NutritionPlanDisplay({
         </div>
         <p className="nutrition-plan-disclaimer muted">{displayPlan.disclaimer}</p>
       </div>
+
+      {!readOnly ? (
+        <div className="nutrition-share-actions homework-preview__actions--sticky">
+          <div className="homework-preview__send-row">
+            <button
+              type="button"
+              className="btn btn-touch homework-preview__send"
+              disabled={!canSend}
+              onClick={() => void onExportMax?.()}
+            >
+              <Send size={18} aria-hidden />
+              {exportBusy ? 'Готовим…' : 'В Max'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-touch btn-ghost homework-preview__send-other"
+              disabled={!canSend}
+              onClick={() => void onExportOther?.()}
+            >
+              <Share2 size={18} aria-hidden />
+              Другой мессенджер
+            </button>
+          </div>
+          {planUnsaved ? (
+            <p className="muted nutrition-share-actions__hint">Сначала сохраните рацион — затем отправка.</p>
+          ) : null}
+        </div>
+      ) : null}
     </>
   )
 }

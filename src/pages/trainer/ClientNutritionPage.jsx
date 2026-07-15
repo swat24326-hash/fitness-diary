@@ -732,6 +732,7 @@ export function ClientNutritionPage({ client, readOnly = false }) {
             exportBusy={exportBusy}
             onExportMax={() => exportPng('max')}
             onExportOther={() => exportPng('other')}
+            clubName={clubName}
             onItemGramsChange={onItemGramsChange}
             hasPendingChanges={hasPendingChanges && pageView === PAGE_VIEWS.ration}
             draftAligned={draftAligned}
@@ -1017,6 +1018,7 @@ export function ClientNutritionPage({ client, readOnly = false }) {
                 exportBusy={exportBusy}
                 onExportMax={() => exportPng('max')}
                 onExportOther={() => exportPng('other')}
+                clubName={clubName}
                 onItemGramsChange={onItemGramsChange}
                 hasPendingChanges={planUnsaved && draftAligned}
                 draftAligned={draftAligned}

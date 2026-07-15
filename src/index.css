@@ -9158,11 +9158,17 @@ tr:last-child td {
   color: #2effb8;
 }
 
-.nutrition-result-header--plate .nutrition-result-actions .btn:not(.btn-ghost) {
-  background: linear-gradient(135deg, #14d89a, #0a7d5c);
-  border: none;
-  color: #04140f;
-  font-weight: 800;
+.nutrition-share-actions {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nutrition-share-actions__hint {
+  margin: 0;
+  text-align: center;
+  font-size: 13px;
 }
 
 .nutrition-result-actions {
