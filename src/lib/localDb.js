@@ -2,7 +2,7 @@ import { openDB } from 'idb'
 
 const DB_NAME = 'fitness-diary'
 /** Повышать при схемных правках; клиенты уже на max version не получают upgrade без нового номера. */
-const DB_VERSION = 13
+const DB_VERSION = 14
 
 /**
  * Локальное хранилище: кэш сущностей + очередь синхронизации (поля как в sync_queue на сервере + local_id).
@@ -71,6 +71,11 @@ export async function getDb() {
       if (!db.objectStoreNames.contains('nutrition_products')) {
         const nutrition = db.createObjectStore('nutrition_products', { keyPath: 'id' })
         nutrition.createIndex('by_club_id', 'club_id', { unique: false })
+      }
+
+      if (!db.objectStoreNames.contains('homework_presets')) {
+        const homework = db.createObjectStore('homework_presets', { keyPath: 'id' })
+        homework.createIndex('by_club_id', 'club_id', { unique: false })
       }
 
       if (!db.objectStoreNames.contains('client_weight_entries')) {
@@ -232,6 +237,7 @@ export async function buildPendingSyncKeysByTable() {
     exercises: new Set(),
     membership_types: new Set(),
     nutrition_products: new Set(),
+    homework_presets: new Set(),
     client_weight_entries: new Set(),
   }
   for (const item of queue) {

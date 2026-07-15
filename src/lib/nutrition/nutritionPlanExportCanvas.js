@@ -15,22 +15,25 @@ const CARD_GAP = 14
 const TITLE_H = 28
 const TABLE_HEAD_H = 28
 
+/** Рацион / «тарелка» — изумруд и спокойный тёмный фон (не янтарь ДЗ). */
 const C = {
-  bg: '#0a0e14',
-  card: '#121a24',
-  cardBorder: 'rgba(148, 163, 184, 0.22)',
+  bg: '#07140f',
+  bgSoft: '#0a1a14',
+  card: '#0f1c18',
+  cardBorder: 'rgba(52, 211, 153, 0.2)',
   accent: '#34d399',
   accentSoft: '#6ee7b7',
-  text: '#e2e8f0',
-  textSoft: '#cbd5e1',
-  muted: '#94a3b8',
-  dim: '#64748b',
-  rowAlt: 'rgba(30, 41, 59, 0.45)',
-  headBg: 'rgba(51, 65, 85, 0.55)',
-  summaryBg: 'rgba(16, 185, 129, 0.08)',
-  summaryBorder: 'rgba(52, 211, 153, 0.35)',
-  totalsBg: 'rgba(16, 185, 129, 0.14)',
-  totalsBorder: 'rgba(52, 211, 153, 0.32)',
+  accentNeon: '#2effb8',
+  text: '#ecfdf5',
+  textSoft: '#d1fae5',
+  muted: '#86efac',
+  dim: '#6b7280',
+  rowAlt: 'rgba(16, 185, 129, 0.06)',
+  headBg: 'rgba(6, 78, 59, 0.55)',
+  summaryBg: 'rgba(16, 185, 129, 0.1)',
+  summaryBorder: 'rgba(52, 211, 153, 0.4)',
+  totalsBg: 'rgba(16, 185, 129, 0.18)',
+  totalsBorder: 'rgba(46, 255, 184, 0.4)',
 }
 
 const MEAL_COLS = [
@@ -62,44 +65,66 @@ export async function renderNutritionPlanPng(plan, meta = {}) {
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Canvas недоступен')
 
-  ctx.fillStyle = C.bg
+  const bg = ctx.createLinearGradient(0, 0, 0, height)
+  bg.addColorStop(0, C.bg)
+  bg.addColorStop(1, C.bgSoft)
+  ctx.fillStyle = bg
   ctx.fillRect(0, 0, WIDTH, height)
+
+  const glow = ctx.createRadialGradient(WIDTH - 80, 40, 10, WIDTH - 120, 100, 280)
+  glow.addColorStop(0, 'rgba(46, 255, 184, 0.12)')
+  glow.addColorStop(1, 'rgba(0,0,0,0)')
+  ctx.fillStyle = glow
+  ctx.fillRect(WIDTH / 2, 0, WIDTH / 2, 320)
 
   let y = PADDING
 
-  ctx.fillStyle = C.accent
-  ctx.font = 'bold 20px system-ui, sans-serif'
-  ctx.fillText('FIT-CITY · Мерный рацион на день', PADDING, y + 18)
-  y += 34
+  ctx.fillStyle = C.accentNeon
+  ctx.beginPath()
+  ctx.arc(PADDING + 8, y + 12, 7, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.fillStyle = C.accentNeon
+  ctx.font = '800 22px "Segoe UI", system-ui, sans-serif'
+  ctx.fillText('FIT-CITY', PADDING + 26, y + 18)
+  y += 36
+
+  ctx.fillStyle = C.muted
+  ctx.font = '700 13px "Segoe UI", system-ui, sans-serif'
+  ctx.fillText('МЕРНЫЙ РАЦИОН НА ДЕНЬ', PADDING, y + 12)
+  y += 28
 
   if (meta.clientName) {
-    ctx.fillStyle = C.accentSoft
-    ctx.font = 'bold 18px system-ui, sans-serif'
-    ctx.fillText(String(meta.clientName), PADDING, y + 16)
-    y += 28
+    ctx.fillStyle = C.text
+    ctx.font = '800 22px "Segoe UI", system-ui, sans-serif'
+    ctx.fillText(String(meta.clientName), PADDING, y + 18)
+    y += 32
   }
 
-  const metaParts = []
-  if (meta.weightKg != null && meta.weightKg !== '') metaParts.push(`вес ${meta.weightKg} кг`)
-  if (meta.goalKindLabel) metaParts.push(meta.goalKindLabel)
-  metaParts.push(
-    `~${plan.kcalTarget} ккал · ${plan.mealsPerDay} приёма · Б ${plan.macros?.proteinG} Ж ${plan.macros?.fatG} У ${plan.macros?.carbsG}`,
-  )
-  ctx.fillStyle = C.muted
-  ctx.font = '14px system-ui, sans-serif'
-  ctx.fillText(metaParts.join(' · '), PADDING, y + 14)
-  y += 26
+  const macroLine = `~${plan.kcalTarget} ккал · ${plan.mealsPerDay} приёма · Б ${plan.macros?.proteinG}  Ж ${plan.macros?.fatG}  У ${plan.macros?.carbsG}`
+  const chips = []
+  if (meta.weightKg != null && meta.weightKg !== '') chips.push(`вес ${meta.weightKg} кг`)
+  if (meta.goalKindLabel) chips.push(String(meta.goalKindLabel))
+  chips.push(macroLine)
+
+  ctx.fillStyle = C.dim
+  ctx.font = '600 13px "Segoe UI", system-ui, sans-serif'
+  ctx.fillText(chips.join('  ·  '), PADDING, y + 14)
+  y += 24
 
   if (plan.referents) {
     const ref = plan.referents
     const refLine = `Референты: ккал ${ref.kcal.min}–${ref.kcal.max} (цель ~${ref.kcal.aim}) · Б ${ref.protein.min}–${ref.protein.max} · Ж ${ref.fat.min}–${ref.fat.max} · У ${ref.carbs.min}–${ref.carbs.max} г`
-    ctx.fillStyle = C.dim
-    ctx.font = '13px system-ui, sans-serif'
-    wrapText(ctx, refLine, PADDING, y + 12, CONTENT_W, 18)
-    y += 34
+    ctx.fillStyle = C.muted
+    ctx.font = '12px "Segoe UI", system-ui, sans-serif'
+    wrapText(ctx, refLine, PADDING, y + 12, CONTENT_W, 17)
+    y += 32
   } else {
-    y += 8
+    y += 6
   }
+
+  ctx.fillStyle = C.accent
+  ctx.fillRect(PADDING, y, 72, 3)
+  y += 16
 
   if (daySummary.length > 0) {
     const summaryRows = daySummary.map((row) => ({

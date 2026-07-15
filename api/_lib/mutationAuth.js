@@ -44,6 +44,7 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
     'exercises',
     'membership_types',
     'nutrition_products',
+    'homework_presets',
   ])
   if (!allowed.has(table_name)) {
     return { ok: false, error: 'Таблица не поддерживается для синхронизации' }
@@ -51,7 +52,11 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
 
   if (isAdmin) return { ok: true }
 
-  if (table_name === 'membership_types' || table_name === 'nutrition_products') {
+  if (
+    table_name === 'membership_types' ||
+    table_name === 'nutrition_products' ||
+    table_name === 'homework_presets'
+  ) {
     return { ok: false, error: 'Справочник может менять только администратор' }
   }
 

@@ -4,6 +4,7 @@ import { Dumbbell, ClipboardList, Pencil } from 'lucide-react'
 import { ClientDiaries } from '../../components/ClientDiaries'
 import { ClientOverview } from './ClientOverview'
 import { ClientNutritionPage } from './ClientNutritionPage'
+import { ClientHomeworkPage } from './ClientHomeworkPage'
 import { Statistics } from './Statistics'
 import { getLocalClient, hydrateAdminClientWorkspace, listMemberships } from '../../lib/dataAccess'
 import { isSupabaseConfigured } from '../../lib/supabase'
@@ -38,7 +39,16 @@ export function ClientCard() {
   }, [searchParams])
   const [tab, setTab] = useState(() => {
     const t = searchParams.get('tab')
-    if (t === 'health' || t === 'memberships' || t === 'diaries' || t === 'stats' || t === 'nutrition') return t
+    if (
+      t === 'health' ||
+      t === 'memberships' ||
+      t === 'diaries' ||
+      t === 'stats' ||
+      t === 'nutrition' ||
+      t === 'homework'
+    ) {
+      return t
+    }
     return 'health'
   })
   const [client, setClient] = useState(null)
@@ -73,7 +83,14 @@ export function ClientCard() {
 
   useEffect(() => {
     const t = searchParams.get('tab')
-    if (t === 'health' || t === 'memberships' || t === 'diaries' || t === 'stats' || t === 'nutrition') {
+    if (
+      t === 'health' ||
+      t === 'memberships' ||
+      t === 'diaries' ||
+      t === 'stats' ||
+      t === 'nutrition' ||
+      t === 'homework'
+    ) {
       setTab(t)
     }
   }, [searchParams])
@@ -412,6 +429,7 @@ export function ClientCard() {
         {[
           { id: 'health', label: 'Здоровье' },
           { id: 'nutrition', label: 'Питание' },
+          { id: 'homework', label: 'ДЗ' },
           { id: 'memberships', label: 'Абонементы' },
           { id: 'diaries', label: 'Тренировки' },
           { id: 'stats', label: 'Статистика' },
@@ -424,6 +442,7 @@ export function ClientCard() {
 
       {tab === 'health' && <ClientOverview client={client} onReload={reloadLocal} section="health" readOnly={isArchived} />}
       {tab === 'nutrition' && <ClientNutritionPage client={client} readOnly={isArchived} />}
+      {tab === 'homework' && <ClientHomeworkPage client={client} readOnly={isArchived} />}
       {tab === 'memberships' && <ClientOverview client={client} onReload={reloadLocal} section="memberships" readOnly={isArchived} />}
       {tab === 'stats' && <Statistics clientId={client.id} />}
       {tab === 'diaries' && <ClientDiaries client={client} onDataChange={reloadLocal} clubQs={isAdmin ? adminClubQs : ''} readOnly={isArchived} />}

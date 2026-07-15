@@ -87,6 +87,42 @@ export async function pullNutritionProductsForClubFromCloud(clubId, opts = {}) {
   }
 }
 
+export async function pullHomeworkPresetsForClubFromCloud(clubId, opts = {}) {
+  const cid = String(clubId ?? '').trim()
+  if (!cid || !isSupabaseConfigured()) return { ok: false, reason: 'no_club_or_supabase' }
+
+  const mergeRows = async (rows, source) => {
+    const { mergeHomeworkPresetsForClub, notifyHomeworkPresetsChanged } = await import('./homework/homeworkPresetsService.js')
+    const { count } = await mergeHomeworkPresetsForClub(cid, rows, opts)
+    if (count > 0) notifyHomeworkPresetsChanged(cid, { count, source })
+    return { ok: true, count, source }
+  }
+
+  try {
+    const { fetchHomeworkPresetsForClubViaApi } = await import('./admin/adminApiClient.js')
+    const viaApi = await fetchHomeworkPresetsForClubViaApi(cid)
+    if (viaApi) {
+      return mergeRows(viaApi.homework_presets ?? [], 'api')
+    }
+  } catch (e) {
+    if (!/failed to fetch|connection|timeout|таймаут|сеть/i.test(String(e?.message ?? ''))) {
+      return { ok: false, error: String(e?.message ?? e ?? 'Ошибка загрузки шаблонов ДЗ') }
+    }
+  }
+
+  try {
+    const { supabase } = await import('./supabase')
+    const { withSupabaseRetry } = await import('./supabaseRetry')
+    const { data, error } = await withSupabaseRetry(() =>
+      supabase.from('homework_presets').select('*').eq('club_id', cid).order('sort_order', { ascending: true }),
+    )
+    if (error) throw error
+    return mergeRows(data ?? [], 'supabase')
+  } catch (e) {
+    return { ok: false, error: String(e?.message ?? e ?? 'Ошибка загрузки шаблонов ДЗ') }
+  }
+}
+
 /** Удалить из IndexedDB челленджи клуба, которых уже нет в облаке (после удаления админом). */
 export async function reconcileChallengesForClub(clubId, remoteChallenges) {
   const cid = String(clubId ?? '').trim()

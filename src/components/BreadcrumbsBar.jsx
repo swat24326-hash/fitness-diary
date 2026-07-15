@@ -44,6 +44,7 @@ function buildCrumbs(pathname, search) {
       'sales-managers': 'Менеджеры',
       'membership-types': 'Типы абон.',
       'nutrition-products': 'Питание',
+      'homework-presets': 'ДЗ',
       exercises: 'Упражнения',
       'max-messages': 'Сообщения Max',
     }

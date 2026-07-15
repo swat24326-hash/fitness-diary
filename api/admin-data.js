@@ -20,6 +20,7 @@ import {
   handleClubs,
   handleMembershipTypes,
   handleNutritionProducts,
+  handleHomeworkPresets,
   handleExercisesMeta,
   handleExercises,
 } from './_lib/adminData/referenceHandlers.js'
@@ -155,6 +156,7 @@ async function handler(req, res) {
     'exercises-meta',
     'membership-types',
     'nutrition-products',
+    'homework-presets',
     'iskra-dispatch',
     'push-subscription',
   ])
@@ -185,6 +187,7 @@ async function handler(req, res) {
     if (action === 'exercises') return handleExercises(authCtx, res)
     if (action === 'membership-types') return handleMembershipTypes(authCtx, req, res)
     if (action === 'nutrition-products') return handleNutritionProducts(authCtx, req, res)
+    if (action === 'homework-presets') return handleHomeworkPresets(authCtx, req, res)
     if (action === 'iskra-dispatch') return handleIskraDispatchGet(authCtx, req, res)
     if (action === 'push-subscription') return handlePushSubscriptionGet(authCtx, res)
   }

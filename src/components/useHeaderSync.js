@@ -187,7 +187,13 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
             bumpSyncProgress(88, 'Готово')
             parts.push('отчёт продаж — обновите на странице')
           } else {
-          const { pullExercisesFromCloud, pullChallengesForClubFromCloud, pullMembershipTypesForClubFromCloud, pullNutritionProductsForClubFromCloud } =
+          const {
+            pullExercisesFromCloud,
+            pullChallengesForClubFromCloud,
+            pullMembershipTypesForClubFromCloud,
+            pullNutritionProductsForClubFromCloud,
+            pullHomeworkPresetsForClubFromCloud,
+          } =
             await import('../lib/pullReferenceData')
           bumpSyncProgress(76, 'Справочник упражнений…')
           // Sync нажимают вручную, и ожидают увидеть свежие правки админа сразу.
@@ -239,6 +245,15 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
               } else {
                 parts.push(`питание (${npPull.count ?? 0})`)
               }
+              bumpSyncProgress(96, 'Шаблоны ДЗ…')
+              const hwPull = await pullHomeworkPresetsForClubFromCloud(club)
+              if (!hwPull?.ok) {
+                hadError = true
+                parts.push(`ДЗ: ${hwPull.error ?? 'ошибка'}`)
+                recordSyncPullIssue('шаблоны ДЗ', hwPull.error)
+              } else {
+                parts.push(`ДЗ (${hwPull.count ?? 0})`)
+              }
             } else {
               parts.push('клиенты: выберите клуб')
             }
@@ -288,6 +303,14 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
                 hadError = true
                 parts.push(`питание: ${npPull.error ?? 'ошибка'}`)
                 recordSyncPullIssue('питание', npPull.error)
+                break
+              }
+              const hwPull = await pullHomeworkPresetsForClubFromCloud(cid)
+              if (!hwPull?.ok) {
+                chFailed = true
+                hadError = true
+                parts.push(`ДЗ: ${hwPull.error ?? 'ошибка'}`)
+                recordSyncPullIssue('шаблоны ДЗ', hwPull.error)
                 break
               }
             }

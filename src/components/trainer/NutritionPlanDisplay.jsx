@@ -53,7 +53,7 @@ export function NutritionPlanDisplay({
 
   return (
     <>
-      <div className="nutrition-result-header">
+      <div className="nutrition-result-header nutrition-result-header--plate">
         <div className="nutrition-result-header__main">
           <p className="nutrition-plan-brand">FIT-CITY · мерный рацион</p>
           <h2 className="section-title nutrition-client-title">{client.name}</h2>

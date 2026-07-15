@@ -135,6 +135,24 @@ CREATE TABLE nutrition_products (
 CREATE INDEX IF NOT EXISTS idx_nutrition_products_club_id ON nutrition_products (club_id);
 
 -- ------------------------------------------------------------
+-- Шаблоны домашних заданий (калькулятор ДЗ)
+-- ------------------------------------------------------------
+CREATE TABLE homework_presets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  club_id UUID NOT NULL REFERENCES clubs (id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  direction TEXT NOT NULL DEFAULT '',
+  description TEXT,
+  items JSONB NOT NULL DEFAULT '{"blocks":[]}'::jsonb,
+  sort_order INT NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_homework_presets_club_id ON homework_presets (club_id);
+
+-- ------------------------------------------------------------
 -- Тренировки (payload в data JSONB — см. TrainingForm / TrainingPage)
 -- ------------------------------------------------------------
 CREATE TABLE trainings (

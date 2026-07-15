@@ -31,6 +31,7 @@ export const PUSH_TABLES = new Set([
   'clients',
   'membership_types',
   'nutrition_products',
+  'homework_presets',
   'memberships',
   'trainings',
   'health_cards',
