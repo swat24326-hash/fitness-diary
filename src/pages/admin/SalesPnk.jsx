@@ -5,13 +5,18 @@ import { useAuth } from '../../context/AuthContext'
 import { monthPartsFromIso, monthDateRange } from '../../lib/admin/salesReportCore'
 import { todayLocalIso, formatDateRu } from '../../lib/dateRu'
 import { createPnkClient, fetchPnkBundle, patchPnkClient } from '../../lib/pnk/pnkApiService'
-import { buildPnkStageProgress } from '../../lib/pnk/pnkStagesCore'
 import {
   PnkAttentionChips,
+  PnkBoardFilterChips,
   PnkDeliverableChips,
   PnkQualityChips,
   PnkStageChip,
 } from '../../components/pnk/PnkStatusChips'
+import {
+  buildPnkDemoScenarioForm,
+  buildPnkStageProgress,
+  matchesPnkBoardFilter,
+} from '../../lib/pnk/pnkStagesCore'
 import '../../styles/sales-report.css'
 import '../../styles/pnk-funnel.css'
 
@@ -23,6 +28,7 @@ export function SalesPnk() {
   const [bundle, setBundle] = useState(null)
   const [form, setForm] = useState({ name: '', phone: '', trainer_id: '' })
   const [createOpen, setCreateOpen] = useState(false)
+  const [boardFilter, setBoardFilter] = useState('all')
 
   const period = useMemo(() => {
     const parts = monthPartsFromIso(todayLocalIso())
@@ -95,6 +101,27 @@ export function SalesPnk() {
   const stats = bundle?.stats
   const attention = bundle?.attention ?? []
   const clients = bundle?.clients ?? []
+  const attentionIds = useMemo(() => new Set(attention.map((a) => String(a.id))), [attention])
+  const filterCounts = useMemo(() => {
+    const counts = { all: clients.length, attention: 0, call: 0, date: 0, trial: 0 }
+    for (const c of clients) {
+      if (attentionIds.has(String(c.id))) counts.attention++
+      if (matchesPnkBoardFilter(c, 'call')) counts.call++
+      if (matchesPnkBoardFilter(c, 'date')) counts.date++
+      if (matchesPnkBoardFilter(c, 'trial')) counts.trial++
+    }
+    return counts
+  }, [clients, attentionIds])
+  const filteredClients = useMemo(
+    () => clients.filter((c) => matchesPnkBoardFilter(c, boardFilter, attentionIds)),
+    [clients, boardFilter, attentionIds],
+  )
+
+  function fillDemoScenario() {
+    const tid = form.trainer_id || bundle?.trainers?.[0]?.id || ''
+    setForm(buildPnkDemoScenarioForm(tid))
+    setCreateOpen(true)
+  }
 
   return (
     <div className={`sales-report sales-report--wide pnk-funnel${busy ? ' sales-report__busy' : ''}`}>
@@ -167,7 +194,14 @@ export function SalesPnk() {
 
       {createOpen ? (
         <form className="pnk-funnel__create" onSubmit={onCreate}>
-          <h2 className="pnk-funnel__section-title">Новый ПНК</h2>
+          <div className="pnk-client-panel__head" style={{ padding: 0 }}>
+            <h2 className="pnk-funnel__section-title" style={{ margin: 0 }}>
+              Новый ПНК
+            </h2>
+            <button type="button" className="pnk-chip pnk-chip--action" onClick={fillDemoScenario} title="Подставить пример">
+              Пример сценария
+            </button>
+          </div>
           <label>
             Имя
             <input
@@ -205,7 +239,13 @@ export function SalesPnk() {
             Передать тренеру
           </button>
         </form>
-      ) : null}
+      ) : (
+        <div className="pnk-funnel__quality" style={{ marginBottom: '0.75rem' }}>
+          <button type="button" className="pnk-chip pnk-chip--action" onClick={fillDemoScenario}>
+            Создать ПНК по сценарию
+          </button>
+        </div>
+      )}
 
       {attention.length ? (
         <section className="pnk-funnel__attention card" aria-label="Требует внимания">
@@ -233,12 +273,13 @@ export function SalesPnk() {
       ) : null}
 
       <section className="pnk-funnel__board" aria-label="В работе">
-        <h2 className="pnk-funnel__section-title">В работе ({clients.length})</h2>
-        {!clients.length ? (
-          <p className="muted">Пока нет открытых ПНК</p>
+        <h2 className="pnk-funnel__section-title">В работе ({filteredClients.length})</h2>
+        <PnkBoardFilterChips value={boardFilter} onChange={setBoardFilter} counts={filterCounts} />
+        {!filteredClients.length ? (
+          <p className="muted">Пока нет открытых ПНК по фильтру</p>
         ) : (
           <ul className="pnk-funnel__list">
-            {clients.map((c) => {
+            {filteredClients.map((c) => {
               const progress = buildPnkStageProgress(c)
               return (
                 <li key={c.id} className="pnk-funnel__card">

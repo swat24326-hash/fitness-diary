@@ -367,3 +367,72 @@ export function buildPnkStageProgress(client) {
     stages: open,
   }
 }
+
+/** Открытые этапы для полоски пути (без won/lost). */
+export const PNK_OPEN_STAGES = /** @type {PnkStage[]} */ ([
+  'new',
+  'assigned',
+  'contact',
+  'agreed',
+  'trial_done',
+])
+
+/**
+ * Подсказка следующего шага тренеру.
+ * @param {object} client
+ * @returns {{ key: string, label: string } | null}
+ */
+export function pnkNextActionHint(client) {
+  if (!isOpenPnkClient(client)) return null
+  const d = parsePnkDeliverables(client?.pnk_deliverables)
+  const stage = client?.pnk_stage
+  if (!d.contact || stage === 'new' || stage === 'assigned') {
+    return { key: 'contact', label: 'Дальше: позвонить или написать' }
+  }
+  if (!client?.pnk_trial_date || stage === 'contact') {
+    return { key: 'date', label: 'Дальше: согласовать дату пробной' }
+  }
+  if (!d.trial) {
+    return { key: 'trial', label: 'Дальше: провести пробную' }
+  }
+  const pkg = pnkPackageProgress(client)
+  if (!pkg.nutrition) return { key: 'nutrition', label: 'Дальше: выдать питание' }
+  if (!pkg.homework) return { key: 'homework', label: 'Дальше: выдать ДЗ' }
+  return { key: 'close', label: 'Дальше: оформить или закрыть отказ' }
+}
+
+/** Фильтры доски менеджера */
+export const PNK_BOARD_FILTERS = [
+  { id: 'all', label: 'Все' },
+  { id: 'attention', label: 'Внимание' },
+  { id: 'call', label: 'Ждут звонка' },
+  { id: 'date', label: 'С датой' },
+  { id: 'trial', label: 'После пробной' },
+]
+
+/**
+ * @param {object} client
+ * @param {string} filterId
+ * @param {Set<string>} [attentionIds]
+ */
+export function matchesPnkBoardFilter(client, filterId, attentionIds) {
+  const id = String(filterId ?? 'all')
+  if (id === 'all') return true
+  if (id === 'attention') return attentionIds?.has(String(client?.id)) === true
+  const d = parsePnkDeliverables(client?.pnk_deliverables)
+  if (id === 'call') return !d.contact
+  if (id === 'date') return Boolean(client?.pnk_trial_date)
+  if (id === 'trial') return Boolean(d.trial) || client?.pnk_stage === 'trial_done'
+  return true
+}
+
+/**
+ * Имя для демо-сценария (менеджер создаёт ПНК).
+ */
+export function buildPnkDemoScenarioForm(trainerId = '') {
+  return {
+    name: 'Сценарий ПНК Иванов',
+    phone: '+79001234567',
+    trainer_id: String(trainerId ?? '').trim(),
+  }
+}

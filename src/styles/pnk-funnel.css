@@ -211,10 +211,26 @@
   background: rgba(0, 0, 0, 0.18);
 }
 
-.pnk-chip-group--flags {
-  padding: 0;
-  border: none;
-  background: transparent;
+.pnk-chip-group--filters {
+  margin-bottom: 12px;
+}
+
+.pnk-chip-group--path {
+  gap: 6px;
+  padding: 8px;
+}
+
+.pnk-chip--path {
+  min-height: 32px;
+  padding: 6px 10px;
+  font-size: 0.72rem;
+  flex: 1 1 auto;
+}
+
+.pnk-chip--path-done {
+  color: var(--text-muted);
+  opacity: 0.85;
+  border-color: rgba(20, 216, 154, 0.25);
 }
 
 .pnk-chip {

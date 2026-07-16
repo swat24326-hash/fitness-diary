@@ -1,9 +1,13 @@
 import { Link } from 'react-router-dom'
 import {
+  PNK_BOARD_FILTERS,
   PNK_DELIVERABLE_KEYS,
   PNK_DELIVERABLE_LABELS,
+  PNK_OPEN_STAGES,
   PNK_STAGE_LABELS,
   parsePnkDeliverables,
+  pnkNextActionHint,
+  pnkStageIndex,
 } from '../../lib/pnk/pnkStagesCore'
 
 const SHORT = {
@@ -70,6 +74,40 @@ export function PnkStageChip({ stage, tone }) {
   )
 }
 
+/** Полоска этапов: где сейчас клиент. */
+export function PnkStagePathChips({ stage }) {
+  const current = String(stage ?? 'new')
+  const curIdx = pnkStageIndex(current)
+  return (
+    <div className="pnk-chip-group pnk-chip-group--path" role="list" aria-label="Путь ПНК">
+      {PNK_OPEN_STAGES.map((s) => {
+        const idx = pnkStageIndex(s)
+        const done = idx < curIdx || current === 'won'
+        const on = s === current
+        return (
+          <span
+            key={s}
+            role="listitem"
+            className={`pnk-chip pnk-chip--path${on ? ' pnk-chip--on' : ''}${done ? ' pnk-chip--path-done' : ''}`}
+          >
+            {PNK_STAGE_LABELS[s]}
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
+export function PnkNextHintChip({ client }) {
+  const hint = pnkNextActionHint(client)
+  if (!hint) return null
+  return (
+    <span className="pnk-chip pnk-chip--flag pnk-chip--warn" title="Следующий шаг">
+      {hint.label}
+    </span>
+  )
+}
+
 export function PnkAttentionChips({ flags }) {
   if (!flags?.length) return null
   return (
@@ -93,6 +131,30 @@ export function PnkQualityChips({ nutritionPct, homeworkPct, periodLabel }) {
         ДЗ {homeworkPct}%
       </span>
       {periodLabel ? <span className="muted" style={{ fontSize: '0.85rem' }}>{periodLabel}</span> : null}
+    </div>
+  )
+}
+
+/** Фильтры доски менеджера. */
+export function PnkBoardFilterChips({ value, onChange, counts }) {
+  return (
+    <div className="pnk-chip-group pnk-chip-group--filters" role="toolbar" aria-label="Фильтр ПНК">
+      {PNK_BOARD_FILTERS.map((f) => {
+        const n = counts?.[f.id]
+        const on = value === f.id
+        return (
+          <button
+            key={f.id}
+            type="button"
+            className={`pnk-chip${on ? ' pnk-chip--on' : ' pnk-chip--action'}`}
+            aria-pressed={on}
+            onClick={() => onChange?.(f.id)}
+          >
+            {f.label}
+            {n != null ? ` ${n}` : ''}
+          </button>
+        )
+      })}
     </div>
   )
 }

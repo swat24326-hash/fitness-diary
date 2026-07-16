@@ -6,9 +6,12 @@ import {
   applyPnkStagePatch,
   buildNewPnkClientFields,
   buildPnkAttentionFlags,
+  buildPnkDemoScenarioForm,
   canAdvancePnkStage,
   isOpenPnkClient,
   markPnkDeliverable,
+  matchesPnkBoardFilter,
+  pnkNextActionHint,
   pnkPackageProgress,
 } from '../src/lib/pnk/pnkStagesCore.js'
 import { aggregatePnkFunnelStats, listPnkAttentionClients } from '../src/lib/pnk/pnkStatsAgg.js'
@@ -115,6 +118,19 @@ const attn = listPnkAttentionClients(
   new Date('2026-07-16T12:00:00'),
 )
 ok(attn.length >= 1 && attn[0].flags.some((f) => f.code === 'need_contact'), 'attention need contact')
+
+const demo = buildPnkDemoScenarioForm('t1')
+ok(demo.name.includes('Иванов') && demo.trainer_id === 't1', 'demo scenario form')
+
+const waitCall = {
+  id: 'c1',
+  lifecycle: 'pnk',
+  pnk_stage: 'assigned',
+  pnk_deliverables: {},
+}
+ok(matchesPnkBoardFilter(waitCall, 'call'), 'filter call')
+ok(matchesPnkBoardFilter({ ...waitCall, pnk_trial_date: '2026-07-20' }, 'date'), 'filter date')
+ok(pnkNextActionHint(waitCall)?.key === 'contact', 'next hint contact')
 
 if (failed) {
   console.error(`\n${failed} failed`)

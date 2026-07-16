@@ -8,7 +8,7 @@ import {
   parsePnkDeliverables,
 } from '../../lib/pnk/pnkStagesCore'
 import { patchPnkClientLocal } from '../../lib/pnk/pnkLocalService'
-import { PnkAttentionChips, PnkDeliverableChips, PnkStageChip } from '../pnk/PnkStatusChips'
+import { PnkAttentionChips, PnkDeliverableChips, PnkNextHintChip, PnkStageChip, PnkStagePathChips } from '../pnk/PnkStatusChips'
 import '../../styles/pnk-funnel.css'
 
 /**
@@ -64,6 +64,9 @@ export function ClientPnkPanel({ client, onUpdated }) {
         <h2 className="pnk-client-panel__title">ПНК</h2>
         <PnkStageChip stage={client.pnk_stage} />
       </div>
+
+      <PnkStagePathChips stage={client.pnk_stage} />
+      <PnkNextHintChip client={client} />
 
       <div className="pnk-funnel__track" aria-hidden>
         <div className="pnk-funnel__fill" style={{ width: `${progress.pct}%` }} />
