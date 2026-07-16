@@ -61,6 +61,7 @@ run('sales plan matrix compare', 'node', ['scripts/verify-sales-plan-matrix-comp
 run('sales manager stats', 'node', ['scripts/verify-sales-manager-stats.mjs'])
 run('sales client segment', 'node', ['scripts/verify-sales-client-segment.mjs'])
 run('pnk funnel stages', 'node', ['scripts/verify-pnk-stages.mjs'])
+run('pnk wizard steps', 'node', ['scripts/verify-pnk-wizard.mjs'])
 run('pnk trial training start', 'node', ['scripts/verify-pnk-trial-training.mjs'])
 run('pnk coach notify', 'node', ['scripts/verify-pnk-coach-notify.mjs'])
 run('pnk client notify', 'node', ['scripts/verify-pnk-client-notify.mjs'])

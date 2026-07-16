@@ -20,6 +20,7 @@ import {
 } from '../../lib/trainingExerciseFormat'
 import { patchPnkClientLocal } from '../../lib/pnk/pnkLocalService'
 import { shouldOfferMarkPnkTrialDone } from '../../lib/pnk/pnkTrialTrainingCore'
+import { resolvePnkTrialDeliverableAfterWorkout } from '../../lib/pnk/pnkWizardCore'
 
 const TRAINING_TYPES = TRAINING_SESSION_TYPES
 
@@ -396,7 +397,9 @@ export function TrainingPage() {
       }
 
       if (row.status === 'completed') {
-        if (!skipNavigate && shouldOfferMarkPnkTrialDone(client)) {
+        const completedCount =
+          otherCompletedTrainings + (prev?.status === 'completed' ? 0 : 1)
+        if (!skipNavigate && shouldOfferMarkPnkTrialDone(client, completedCount)) {
           setPnkTrialOffer(true)
           return
         }
@@ -538,7 +541,14 @@ export function TrainingPage() {
     }
     setPnkOfferBusy(true)
     try {
-      const res = await patchPnkClientLocal(client, { stage: 'trial_done', deliverable: 'trial' })
+      const completedCount = otherCompletedTrainings + (meta.status === 'completed' ? 1 : 0)
+      const deliverable =
+        resolvePnkTrialDeliverableAfterWorkout(client, Math.max(1, completedCount)) || 'trial'
+      const patch =
+        deliverable === 'trial'
+          ? { stage: 'trial_done', deliverable: 'trial' }
+          : { deliverable }
+      const res = await patchPnkClientLocal(client, patch)
       if (!res.ok) {
         setSaveError(res.error || 'Не удалось отметить пробную')
         return
@@ -551,7 +561,7 @@ export function TrainingPage() {
     } finally {
       setPnkOfferBusy(false)
     }
-  }, [client, leaveToClientCard])
+  }, [client, leaveToClientCard, meta.status, otherCompletedTrainings])
 
   useEffect(() => {
     if (canCompleteTraining) setShowCompletionHints(false)

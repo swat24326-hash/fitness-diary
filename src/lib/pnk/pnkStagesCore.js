@@ -2,8 +2,10 @@
  * Воронка ПНК: этапы, чеклист, переходы, внимание менеджера (без React/IDB).
  */
 
+import { resolvePnkWizardStep } from './pnkWizardCore.js'
+
 /** @typedef {'new'|'assigned'|'contact'|'agreed'|'trial_done'|'followup'|'won'|'lost'} PnkStage */
-/** @typedef {'contact'|'trial'|'nutrition'|'homework'|'followup'} PnkDeliverableKey */
+/** @typedef {'contact'|'health'|'nutrition'|'trial'|'homework'|'trial2'|'homework2'|'followup'} PnkDeliverableKey */
 /** @typedef {'active'|'pnk'|'pnk_lost'} ClientLifecycle */
 
 /** @type {PnkStage[]} */
@@ -22,14 +24,26 @@ export const PNK_STAGE_LABELS = {
 }
 
 /** @type {PnkDeliverableKey[]} */
-export const PNK_DELIVERABLE_KEYS = ['contact', 'trial', 'nutrition', 'homework', 'followup']
+export const PNK_DELIVERABLE_KEYS = [
+  'contact',
+  'health',
+  'nutrition',
+  'trial',
+  'homework',
+  'trial2',
+  'homework2',
+  'followup',
+]
 
 /** @type {Record<PnkDeliverableKey, string>} */
 export const PNK_DELIVERABLE_LABELS = {
   contact: 'Первый контакт',
-  trial: 'Бесплатная тренировка',
+  health: 'Здоровье',
   nutrition: 'Питание',
-  homework: 'Домашнее задание',
+  trial: 'Бесплатная 1',
+  homework: 'ДЗ после 1-й',
+  trial2: 'Бесплатная 2',
+  homework2: 'ДЗ после 2-й',
   followup: 'Уточняющий контакт',
 }
 
@@ -79,7 +93,16 @@ export function canDeletePnkClient(client) {
  */
 export function parsePnkDeliverables(raw) {
   /** @type {Record<PnkDeliverableKey, string | null>} */
-  const out = { contact: null, trial: null, nutrition: null, homework: null, followup: null }
+  const out = {
+    contact: null,
+    health: null,
+    nutrition: null,
+    trial: null,
+    homework: null,
+    trial2: null,
+    homework2: null,
+    followup: null,
+  }
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out
   for (const key of PNK_DELIVERABLE_KEYS) {
     const v = raw[key]
@@ -276,15 +299,26 @@ export function applyPnkStagePatch(input = {}) {
 export function buildNewPnkClientFields(base = {}) {
   const trainerId = String(base.trainer_id ?? '').trim()
   const stage = trainerId ? 'assigned' : 'new'
+  const sessions = Number(base.pnk_trial_sessions) === 2 ? 2 : 1
   return {
     lifecycle: 'pnk',
     pnk_stage: stage,
     pnk_source: String(base.pnk_source ?? 'manager').slice(0, 40) || 'manager',
+    pnk_trial_sessions: sessions,
     pnk_trial_date: null,
     pnk_trial_time: null,
     pnk_comment: null,
     pnk_comments: [],
-    pnk_deliverables: { contact: null, trial: null, nutrition: null, homework: null, followup: null },
+    pnk_deliverables: {
+      contact: null,
+      health: null,
+      nutrition: null,
+      trial: null,
+      homework: null,
+      trial2: null,
+      homework2: null,
+      followup: null,
+    },
     pnk_won_at: null,
     pnk_lost_at: null,
     pnk_lost_reason: null,
@@ -401,86 +435,39 @@ export const PNK_OPEN_STAGES = /** @type {PnkStage[]} */ ([
 ])
 
 /**
- * Подсказка следующего шага тренеру.
- * Ключи UI: created → invite → visit → followup → close
+ * Подсказка следующего шага — через мастер (1|2 бесплатные).
  * @param {object} client
- * @returns {{ key: string, label: string } | null}
+ * @param {{ healthCard?: object | null, bzCompletedCount?: number, healthComplete?: boolean }} [ctx]
  */
-export function pnkNextActionHint(client) {
-  if (!isOpenPnkClient(client)) return null
-  const d = parsePnkDeliverables(client?.pnk_deliverables)
-  const stage = String(client?.pnk_stage ?? '')
-
-  if ((stage === 'new' || stage === 'assigned') && !d.contact && !client?.pnk_trial_date) {
-    return { key: 'created', label: 'Шаг 1: ПНК создан — перейти к контакту' }
-  }
-  if (!d.contact || !client?.pnk_trial_date) {
-    return {
-      key: 'invite',
-      label: !d.contact
-        ? 'Шаг 2: написать клиенту и назначить бесплатную'
-        : 'Шаг 2: сохранить дату бесплатной',
-    }
-  }
-  if (!d.trial) {
-    return { key: 'visit', label: 'Шаг 3: бесплатная тренировка' }
-  }
-  if (!d.followup) {
-    return { key: 'followup', label: 'Шаг 4: уточнить с клиентом' }
-  }
-  return { key: 'close', label: 'Шаг 5: оформить или отказ' }
-}
-
-/** Мета для пошагового UI на карточке тренера. */
-export const PNK_TRAINER_STEP_META = {
-  created: {
-    n: 1,
-    total: 5,
-    title: 'ПНК создан',
-    help: 'Карточка в воронке. Дальше — связаться с клиентом и назначить бесплатную тренировку.',
-  },
-  invite: {
-    n: 2,
-    total: 5,
-    title: 'Контакт и дата',
-    help: 'Напишите клиенту в Max или другой мессенджер, договоритесь и сохраните дату бесплатной тренировки.',
-  },
-  visit: {
-    n: 3,
-    total: 5,
-    title: 'Бесплатная тренировка',
-    help: 'Дата бесплатной — ориентир. «Начать тренировку» откроет форму (при необходимости создаст абонемент типа БЗ). Ещё занятия — вкладка «Абонементы». Статистика — после оформления в ДК.',
-  },
-  followup: {
-    n: 4,
-    total: 5,
-    title: 'Уточнение',
-    help: 'Свяжитесь снова: как прошла тренировка, готов ли оформиться. Текст — через Max или другой мессенджер.',
-  },
-  close: {
-    n: 5,
-    total: 5,
-    title: 'Оформление',
-    help: 'Клиент купил абонемент — «Оформлен». Не готов — «Отказ».',
-  },
+export function pnkNextActionHint(client, ctx = {}) {
+  const step = resolvePnkTrainerUiStep(client, ctx)
+  if (!step) return null
+  return { key: step.key, label: step.label }
 }
 
 /**
- * Текущий шаг UI для тренера (один экран = один шаг).
+ * Текущий шаг UI для тренера / доски / glance.
  * @param {object} client
- * @returns {{ key: string, n: number, total: number, title: string, help: string, label: string } | null}
+ * @param {{ healthCard?: object | null, bzCompletedCount?: number, healthComplete?: boolean }} [ctx]
  */
-export function resolvePnkTrainerUiStep(client) {
-  const hint = pnkNextActionHint(client)
-  if (!hint) return null
-  const meta = PNK_TRAINER_STEP_META[hint.key] || {
-    n: 0,
-    total: 5,
-    title: hint.label,
-    help: '',
+export function resolvePnkTrainerUiStep(client, ctx = {}) {
+  const step = resolvePnkWizardStep(client, ctx)
+  if (!step) return null
+  return {
+    key: step.key,
+    n: step.n,
+    total: step.total,
+    title: step.title,
+    help: step.help,
+    label: step.label,
+    tab: step.tab,
+    sessions: step.sessions,
+    steps: step.steps,
   }
-  return { key: hint.key, label: hint.label, ...meta }
 }
+
+/** @deprecated */
+export const PNK_TRAINER_STEP_META = {}
 
 /**
  * День визита относительно даты пробной (пока trial не отмечен).

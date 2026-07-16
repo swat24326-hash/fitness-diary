@@ -33,7 +33,7 @@ export function SalesPnk() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [bundle, setBundle] = useState(null)
-  const [form, setForm] = useState({ name: '', phone: '', trainer_id: '' })
+  const [form, setForm] = useState({ name: '', phone: '', trainer_id: '', pnk_trial_sessions: 1 })
   const [createOpen, setCreateOpen] = useState(false)
   const [boardFilter, setBoardFilter] = useState('all')
   const [toast, setToast] = useState('')
@@ -101,6 +101,7 @@ export function SalesPnk() {
         name: form.name,
         phone: form.phone,
         trainer_id: form.trainer_id,
+        pnk_trial_sessions: Number(form.pnk_trial_sessions) === 2 ? 2 : 1,
       })
       const trainer = (bundle?.trainers ?? []).find((t) => t.id === form.trainer_id)
       setLastCreated({
@@ -108,7 +109,7 @@ export function SalesPnk() {
         trainerName: trainer?.name || '',
         trainerPhone: trainer?.phone || null,
       })
-      setForm((f) => ({ ...f, name: '', phone: '' }))
+      setForm((f) => ({ ...f, name: '', phone: '', pnk_trial_sessions: 1 }))
       setCreateOpen(false)
       await load()
     } catch (err) {
@@ -167,7 +168,10 @@ export function SalesPnk() {
 
   function fillDemoScenario() {
     const tid = form.trainer_id || bundle?.trainers?.[0]?.id || ''
-    setForm(buildPnkDemoScenarioForm(tid))
+    setForm({
+      ...buildPnkDemoScenarioForm(tid),
+      pnk_trial_sessions: Number(form.pnk_trial_sessions) === 2 ? 2 : 1,
+    })
     setCreateOpen(true)
   }
 
@@ -315,6 +319,31 @@ export function SalesPnk() {
                         ))}
                       </select>
                     </label>
+                    <fieldset className="pnk-funnel__sessions" style={{ border: 0, margin: 0, padding: 0 }}>
+                      <legend className="muted" style={{ fontSize: '0.9rem', marginBottom: 6 }}>
+                        Бесплатных тренировок
+                      </legend>
+                      <div className="row" style={{ gap: 16, flexWrap: 'wrap' }}>
+                        <label className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <input
+                            type="radio"
+                            name="pnk_trial_sessions"
+                            checked={Number(form.pnk_trial_sessions) !== 2}
+                            onChange={() => setForm((f) => ({ ...f, pnk_trial_sessions: 1 }))}
+                          />
+                          1
+                        </label>
+                        <label className="label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <input
+                            type="radio"
+                            name="pnk_trial_sessions"
+                            checked={Number(form.pnk_trial_sessions) === 2}
+                            onChange={() => setForm((f) => ({ ...f, pnk_trial_sessions: 2 }))}
+                          />
+                          2
+                        </label>
+                      </div>
+                    </fieldset>
                     <p className="muted" style={{ margin: '0 0 8px', fontSize: '0.9rem' }}>
                       После создания — напишите тренеру (Max / другой мессенджер).
                     </p>

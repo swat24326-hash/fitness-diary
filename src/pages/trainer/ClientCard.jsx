@@ -6,7 +6,7 @@ import { ClientOverview } from './ClientOverview'
 import { ClientNutritionPage } from './ClientNutritionPage'
 import { ClientHomeworkPage } from './ClientHomeworkPage'
 import { Statistics } from './Statistics'
-import { getLocalClient, hydrateAdminClientWorkspace, listMemberships } from '../../lib/dataAccess'
+import { getHealthCard, getLocalClient, hydrateAdminClientWorkspace, listMemberships, listTrainingsForClient } from '../../lib/dataAccess'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { hasUsableMembershipOnDate } from '../../lib/membershipRules'
 import { saveLocalWithSync } from '../../lib/syncService'
@@ -57,6 +57,8 @@ export function ClientCard() {
   })
   const [client, setClient] = useState(null)
   const [memberships, setMemberships] = useState([])
+  const [healthCard, setHealthCard] = useState(null)
+  const [bzCompletedCount, setBzCompletedCount] = useState(0)
   const [editOpen, setEditOpen] = useState(false)
   const [editForm, setEditForm] = useState({ name: '', phone: '', birth_date: '', card_number: '', outreach_name: '', max_chat_url: '' })
   const [hydrateError, setHydrateError] = useState(null)
@@ -82,7 +84,21 @@ export function ClientCard() {
   const reloadLocal = useCallback(async () => {
     const local = await getLocalClient(id)
     setClient(local ?? null)
-    setMemberships(local ? await listMemberships(id) : [])
+    if (!local) {
+      setMemberships([])
+      setHealthCard(null)
+      setBzCompletedCount(0)
+      return
+    }
+    const [mems, hc, trainings] = await Promise.all([
+      listMemberships(id),
+      getHealthCard(id),
+      listTrainingsForClient(id),
+    ])
+    setMemberships(mems)
+    setHealthCard(hc ?? null)
+    const completed = (trainings ?? []).filter((t) => String(t?.status ?? '') === 'completed').length
+    setBzCompletedCount(Math.min(2, completed))
   }, [id])
 
   useEffect(() => {
@@ -449,11 +465,14 @@ export function ClientCard() {
 
       <ClientPnkPanel
         client={client}
+        healthCard={healthCard}
+        bzCompletedCount={bzCompletedCount}
         onUpdated={(next) => {
           setClient(next)
           void reloadLocal()
         }}
         onOpenDiaries={() => setTab('diaries')}
+        onOpenTab={(t) => setTab(t)}
         onStartTraining={isArchived ? undefined : () => startPnkTraining()}
       />
 

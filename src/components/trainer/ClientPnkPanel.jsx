@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Check, CalendarPlus, Ban, Trophy, Heart, Utensils, ClipboardList, Ticket, Dumbbell } from 'lucide-react'
+import { Check, CalendarPlus, Ban, Trophy, Heart, Utensils, Dumbbell, ClipboardList } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { formatDateRu } from '../../lib/dateRu'
 import {
   buildPnkAttentionFlags,
   isOpenPnkClient,
   parsePnkDeliverables,
   resolvePnkTrainerUiStep,
 } from '../../lib/pnk/pnkStagesCore'
+import { canAdvancePnkWizardStep, buildPnkWizardAdvancePatch } from '../../lib/pnk/pnkWizardCore'
 import { patchPnkClientLocal } from '../../lib/pnk/pnkLocalService'
 import { PnkClientMessengerButtons } from '../pnk/PnkClientMessengerButtons'
 import { PnkStepBlocks } from '../pnk/PnkStepBlocks'
@@ -16,10 +15,17 @@ import { PnkAttentionChips } from '../pnk/PnkStatusChips'
 import '../../styles/pnk-funnel.css'
 
 /**
- * Воронка ПНК у тренера — шаги, день визита с понятными CTA.
- * onStartTraining — сразу форма тренировки (БЗ); onOpenDiaries — вкладка списка.
+ * Линейный мастер ПНК у тренера (1 или 2 бесплатные).
  */
-export function ClientPnkPanel({ client, onUpdated, onOpenDiaries, onStartTraining }) {
+export function ClientPnkPanel({
+  client,
+  onUpdated,
+  onOpenDiaries,
+  onStartTraining,
+  onOpenTab,
+  healthCard,
+  bzCompletedCount = 0,
+}) {
   const { user } = useAuth()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -28,27 +34,27 @@ export function ClientPnkPanel({ client, onUpdated, onOpenDiaries, onStartTraini
   const [trialTime, setTrialTime] = useState('')
   const [comment, setComment] = useState('')
   const [lostReason, setLostReason] = useState('')
-  const [rescheduleOpen, setRescheduleOpen] = useState(false)
   const [startBusy, setStartBusy] = useState(false)
 
   useEffect(() => {
     setTrialDate(String(client?.pnk_trial_date ?? '').slice(0, 10))
     setTrialTime(String(client?.pnk_trial_time ?? ''))
-    setRescheduleOpen(false)
   }, [client?.id, client?.pnk_trial_date, client?.pnk_trial_time])
 
   if (!client || !isOpenPnkClient(client)) return null
 
-  const step = resolvePnkTrainerUiStep(client)
+  const ctx = { healthCard, bzCompletedCount: Math.min(2, Math.max(0, Number(bzCompletedCount) || 0)) }
+  const step = resolvePnkTrainerUiStep(client, ctx)
   if (!step) return null
 
+  const advance = canAdvancePnkWizardStep(client, step, ctx)
   const flags = buildPnkAttentionFlags(client)
   const d = parsePnkDeliverables(client.pnk_deliverables)
   const trainerName = user?.name || ''
-  const clubName = ''
-  const showEarlyLost = step.key !== 'close'
+  const showNext = Boolean(buildPnkWizardAdvancePatch(step))
 
   async function run(patch) {
+    if (!patch) return
     setBusy(true)
     setError('')
     try {
@@ -92,8 +98,34 @@ export function ClientPnkPanel({ client, onUpdated, onOpenDiaries, onStartTraini
     setTimeout(() => setToast(''), 3500)
   }
 
+  function openTab(tabId) {
+    if (typeof onOpenTab === 'function') onOpenTab(tabId)
+  }
+
+  function nextButton() {
+    if (!showNext) return null
+    return (
+      <div className="pnk-client-panel__actions">
+        <button
+          type="button"
+          className="btn btn-primary btn-touch pnk-client-panel__btn-primary"
+          disabled={busy || !advance.ok}
+          title={!advance.ok ? advance.reason : 'Далее'}
+          onClick={() => void run(buildPnkWizardAdvancePatch(step))}
+        >
+          Далее
+        </button>
+        {!advance.ok && advance.reason ? (
+          <p className="muted" style={{ margin: 0, fontSize: '0.9rem' }}>
+            {advance.reason}
+          </p>
+        ) : null}
+      </div>
+    )
+  }
+
   function earlyLostButton() {
-    if (!showEarlyLost) return null
+    if (step.key === 'close') return null
     return (
       <button
         type="button"
@@ -105,49 +137,6 @@ export function ClientPnkPanel({ client, onUpdated, onOpenDiaries, onStartTraini
       </button>
     )
   }
-
-  function rescheduleFields() {
-    return (
-      <div className="pnk-client-panel__schedule">
-        <label className="pnk-client-panel__field">
-          Дата бесплатной
-          <input
-            className="input"
-            type="date"
-            value={trialDate}
-            onChange={(e) => setTrialDate(e.target.value)}
-          />
-        </label>
-        <label className="pnk-client-panel__field">
-          Время
-          <input
-            className="input"
-            type="time"
-            value={trialTime}
-            onChange={(e) => setTrialTime(e.target.value)}
-          />
-        </label>
-      </div>
-    )
-  }
-
-  async function saveReschedule() {
-    await run({
-      stage: 'agreed',
-      trial_date: trialDate,
-      trial_time: trialTime,
-      comment: comment || 'Перенос даты',
-    })
-    setRescheduleOpen(false)
-  }
-
-  const doneBits = [
-    d.contact || client.pnk_trial_date ? 'Контакт/дата' : null,
-    d.trial ? 'Бесплатная' : null,
-    d.nutrition ? 'Питание' : null,
-    d.homework ? 'ДЗ' : null,
-    d.followup ? 'Уточнение' : null,
-  ].filter(Boolean)
 
   return (
     <section className="pnk-client-panel" aria-label="Воронка ПНК">
@@ -167,10 +156,6 @@ export function ClientPnkPanel({ client, onUpdated, onOpenDiaries, onStartTraini
 
       {flags.length ? <PnkAttentionChips flags={flags} /> : null}
 
-      {doneBits.length ? (
-        <p className="pnk-client-panel__done muted">Уже сделано: {doneBits.join(' · ')}</p>
-      ) : null}
-
       {toast ? (
         <p className="sync-feedback sync-feedback--ok" role="status">
           {toast}
@@ -182,22 +167,6 @@ export function ClientPnkPanel({ client, onUpdated, onOpenDiaries, onStartTraini
         </p>
       ) : null}
 
-      {step.key === 'created' ? (
-        <div className="pnk-client-panel__step">
-          <div className="pnk-client-panel__actions">
-            <button
-              type="button"
-              className="btn btn-primary btn-touch pnk-client-panel__btn-primary"
-              disabled={busy}
-              onClick={() => void run({ stage: 'contact' })}
-            >
-              Дальше: контакт и дата
-            </button>
-            {earlyLostButton()}
-          </div>
-        </div>
-      ) : null}
-
       {step.key === 'invite' ? (
         <div className="pnk-client-panel__step">
           <p className="pnk-client-panel__sub">Написать клиенту</p>
@@ -206,7 +175,7 @@ export function ClientPnkPanel({ client, onUpdated, onOpenDiaries, onStartTraini
               kind="invite"
               client={client}
               trainerName={trainerName}
-              clubName={clubName}
+              clubName=""
               trialDate={trialDate}
               trialTime={trialTime}
               busy={busy}
@@ -260,40 +229,39 @@ export function ClientPnkPanel({ client, onUpdated, onOpenDiaries, onStartTraini
                 setComment('')
               }}
             >
-              <CalendarPlus size={18} aria-hidden /> Сохранить дату — к бесплатной
+              <CalendarPlus size={18} aria-hidden /> Сохранить дату
             </button>
             {earlyLostButton()}
           </div>
         </div>
       ) : null}
 
-      {step.key === 'visit' ? (
+      {step.key === 'health' ? (
         <div className="pnk-client-panel__step">
-          <p className="pnk-client-panel__schedule-line">
-            Ориентир по дате:{' '}
-            <strong>
-              {formatDateRu(client.pnk_trial_date)}
-              {client.pnk_trial_time ? ` ${client.pnk_trial_time}` : ''}
-            </strong>
-            <span className="muted"> · можно начать тренировку в любой день</span>
-          </p>
-
-          <div className="pnk-client-panel__visit-links">
-            <Link to="?tab=health" className="btn btn-secondary btn-touch u-no-decoration">
-              <Heart size={16} aria-hidden /> Здоровье
-            </Link>
-            <Link to="?tab=nutrition" className="btn btn-secondary btn-touch u-no-decoration">
-              <Utensils size={16} aria-hidden /> Питание
-            </Link>
-            <Link to="?tab=homework" className="btn btn-secondary btn-touch u-no-decoration">
-              <ClipboardList size={16} aria-hidden /> ДЗ
-            </Link>
-            <Link to="?tab=memberships" className="btn btn-secondary btn-touch u-no-decoration">
-              <Ticket size={16} aria-hidden /> Абонементы
-            </Link>
+          <div className="pnk-client-panel__actions">
+            <button
+              type="button"
+              className="btn btn-secondary btn-touch"
+              onClick={() => openTab('health')}
+            >
+              <Heart size={16} aria-hidden /> Открыть здоровье
+            </button>
           </div>
+          {nextButton()}
+          <div className="pnk-client-panel__actions">{earlyLostButton()}</div>
+        </div>
+      ) : null}
 
+      {step.key === 'nutrition' ? (
+        <div className="pnk-client-panel__step">
           <div className="pnk-client-panel__actions pnk-client-panel__actions--wrap">
+            <button
+              type="button"
+              className="btn btn-secondary btn-touch"
+              onClick={() => openTab('nutrition')}
+            >
+              <Utensils size={16} aria-hidden /> Открыть питание
+            </button>
             {!d.nutrition ? (
               <button
                 type="button"
@@ -306,6 +274,46 @@ export function ClientPnkPanel({ client, onUpdated, onOpenDiaries, onStartTraini
             ) : (
               <span className="pnk-client-panel__ok">✓ Питание</span>
             )}
+          </div>
+          {nextButton()}
+          <div className="pnk-client-panel__actions">{earlyLostButton()}</div>
+        </div>
+      ) : null}
+
+      {step.key === 'train1' || step.key === 'train2' ? (
+        <div className="pnk-client-panel__step">
+          <div className="pnk-client-panel__actions">
+            {typeof onStartTraining === 'function' || typeof onOpenDiaries === 'function' ? (
+              <button
+                type="button"
+                className="btn btn-primary btn-touch pnk-client-panel__btn-primary"
+                disabled={busy || startBusy}
+                onClick={() => void handleStartTraining()}
+              >
+                <Dumbbell size={18} aria-hidden /> Начать тренировку
+              </button>
+            ) : null}
+            {typeof onOpenDiaries === 'function' ? (
+              <button type="button" className="btn btn-ghost btn-touch" onClick={() => onOpenDiaries()}>
+                Список тренировок
+              </button>
+            ) : null}
+          </div>
+          {nextButton()}
+          <div className="pnk-client-panel__actions">{earlyLostButton()}</div>
+        </div>
+      ) : null}
+
+      {step.key === 'hw1' ? (
+        <div className="pnk-client-panel__step">
+          <div className="pnk-client-panel__actions pnk-client-panel__actions--wrap">
+            <button
+              type="button"
+              className="btn btn-secondary btn-touch"
+              onClick={() => openTab('homework')}
+            >
+              <ClipboardList size={16} aria-hidden /> Открыть ДЗ
+            </button>
             {!d.homework ? (
               <button
                 type="button"
@@ -319,62 +327,36 @@ export function ClientPnkPanel({ client, onUpdated, onOpenDiaries, onStartTraini
               <span className="pnk-client-panel__ok">✓ ДЗ</span>
             )}
           </div>
+          {nextButton()}
+          <div className="pnk-client-panel__actions">{earlyLostButton()}</div>
+        </div>
+      ) : null}
 
-          <div className="pnk-client-panel__actions">
-            {typeof onStartTraining === 'function' || typeof onOpenDiaries === 'function' ? (
-              <button
-                type="button"
-                className="btn btn-primary btn-touch pnk-client-panel__btn-primary"
-                disabled={busy || startBusy}
-                onClick={() => void handleStartTraining()}
-              >
-                <Dumbbell size={18} aria-hidden /> Начать тренировку
-              </button>
-            ) : null}
+      {step.key === 'hw2' ? (
+        <div className="pnk-client-panel__step">
+          <div className="pnk-client-panel__actions pnk-client-panel__actions--wrap">
             <button
               type="button"
               className="btn btn-secondary btn-touch"
-              disabled={busy}
-              onClick={() => void run({ stage: 'trial_done', deliverable: 'trial' })}
+              onClick={() => openTab('homework')}
             >
-              <Check size={18} aria-hidden /> Проведена
+              <ClipboardList size={16} aria-hidden /> Открыть ДЗ
             </button>
-            <button
-              type="button"
-              className="btn btn-ghost btn-touch pnk-client-panel__btn-secondary"
-              onClick={() => setRescheduleOpen((v) => !v)}
-            >
-              Изменить дату
-            </button>
-          </div>
-
-          <div className="pnk-client-panel__actions">
-            {typeof onOpenDiaries === 'function' ? (
-              <button type="button" className="btn btn-ghost btn-touch" onClick={() => onOpenDiaries()}>
-                Список тренировок
+            {!d.homework2 ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-touch"
+                disabled={busy}
+                onClick={() => void run({ deliverable: 'homework2' })}
+              >
+                ✓ ДЗ выдано
               </button>
-            ) : null}
-            {earlyLostButton()}
+            ) : (
+              <span className="pnk-client-panel__ok">✓ ДЗ после 2-й</span>
+            )}
           </div>
-
-          {rescheduleOpen ? (
-            <>
-              <p className="muted" style={{ margin: 0, fontSize: '0.9rem' }}>
-                Дата в воронке — только ориентир для команды. На старт тренировки не влияет.
-              </p>
-              {rescheduleFields()}
-              <div className="pnk-client-panel__actions">
-                <button
-                  type="button"
-                  className="btn btn-primary btn-touch pnk-client-panel__btn-primary"
-                  disabled={busy || !trialDate}
-                  onClick={() => void saveReschedule()}
-                >
-                  <CalendarPlus size={18} aria-hidden /> Сохранить дату
-                </button>
-              </div>
-            </>
-          ) : null}
+          {nextButton()}
+          <div className="pnk-client-panel__actions">{earlyLostButton()}</div>
         </div>
       ) : null}
 
@@ -386,10 +368,30 @@ export function ClientPnkPanel({ client, onUpdated, onOpenDiaries, onStartTraini
               kind="followup"
               client={client}
               trainerName={trainerName}
-              clubName={clubName}
+              clubName=""
               busy={busy}
               onResult={onMessengerResult}
             />
+          </div>
+          <div className="pnk-client-panel__actions pnk-client-panel__actions--wrap">
+            {!d.followup ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-touch"
+                disabled={busy}
+                onClick={() => {
+                  void run({
+                    ...buildPnkWizardAdvancePatch(step),
+                    comment: comment || undefined,
+                  })
+                  setComment('')
+                }}
+              >
+                <Check size={18} aria-hidden /> Уточнение сделано
+              </button>
+            ) : (
+              <span className="pnk-client-panel__ok">✓ Уточнение</span>
+            )}
           </div>
           <label className="pnk-client-panel__field">
             Комментарий после разговора
@@ -400,24 +402,8 @@ export function ClientPnkPanel({ client, onUpdated, onOpenDiaries, onStartTraini
               onChange={(e) => setComment(e.target.value)}
             />
           </label>
-          <div className="pnk-client-panel__actions">
-            <button
-              type="button"
-              className="btn btn-primary btn-touch pnk-client-panel__btn-primary"
-              disabled={busy}
-              onClick={() => {
-                void run({
-                  stage: 'followup',
-                  deliverable: 'followup',
-                  comment: comment || undefined,
-                })
-                setComment('')
-              }}
-            >
-              <Check size={18} aria-hidden /> Уточнение сделано — к оформлению
-            </button>
-            {earlyLostButton()}
-          </div>
+          {nextButton()}
+          <div className="pnk-client-panel__actions">{earlyLostButton()}</div>
         </div>
       ) : null}
 

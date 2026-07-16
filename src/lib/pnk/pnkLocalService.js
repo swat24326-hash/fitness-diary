@@ -10,6 +10,7 @@ import {
   buildPnkTrialMembershipRow,
   resolvePnkStartTrainingAction,
 } from './pnkTrialTrainingCore.js'
+import { normalizePnkTrialSessions } from './pnkWizardCore.js'
 
 /**
  * Локальное обновление ПНК на планшете тренера (очередь sync).
@@ -42,6 +43,7 @@ export function withPnkFieldsForInsert(row, source = 'trainer') {
     ...buildNewPnkClientFields({
       trainer_id: row.trainer_id,
       pnk_source: source,
+      pnk_trial_sessions: row.pnk_trial_sessions,
     }),
   })
 }
@@ -74,6 +76,7 @@ export async function addPnkTrialMembership(client) {
     clubId,
     membershipTypeId: String(decision.type.id),
     todayIso: todayLocalIso(),
+    totalTrainings: normalizePnkTrialSessions(client?.pnk_trial_sessions),
   })
   await saveLocalWithSync('memberships', row, {
     table_name: 'memberships',
@@ -131,6 +134,7 @@ export async function preparePnkTrialTraining(client, opts = {}) {
     clubId,
     membershipTypeId: String(decision.type.id),
     todayIso: today,
+    totalTrainings: normalizePnkTrialSessions(client?.pnk_trial_sessions),
   })
   await saveLocalWithSync('memberships', row, {
     table_name: 'memberships',

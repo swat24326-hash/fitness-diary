@@ -7,11 +7,13 @@ import {
   parsePnkComments,
   parsePnkDeliverables,
 } from './pnkStagesCore.js'
+import { normalizePnkTrialSessions } from './pnkWizardCore.js'
 
 export const CLIENT_PNK_DB_FIELDS = [
   'lifecycle',
   'pnk_stage',
   'pnk_source',
+  'pnk_trial_sessions',
   'pnk_trial_date',
   'pnk_trial_time',
   'pnk_comment',
@@ -47,6 +49,7 @@ export function normalizeClientPnkFields(row) {
     lifecycle,
     pnk_stage: stage,
     pnk_source: row?.pnk_source != null ? String(row.pnk_source).slice(0, 40) : null,
+    pnk_trial_sessions: normalizePnkTrialSessions(row?.pnk_trial_sessions),
     pnk_trial_date: row?.pnk_trial_date ? String(row.pnk_trial_date).slice(0, 10) : null,
     pnk_trial_time: row?.pnk_trial_time ? String(row.pnk_trial_time).trim().slice(0, 8) : null,
     pnk_comment: row?.pnk_comment != null ? String(row.pnk_comment).slice(0, 500) : null,

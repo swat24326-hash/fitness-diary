@@ -69,6 +69,7 @@ export function TrainerClients() {
     outreach_name: '',
     max_chat_url: '',
     as_pnk: false,
+    pnk_trial_sessions: 1,
   })
   const [clubs, setClubs] = useState([])
   const [outreachTemplatesRaw, setOutreachTemplatesRaw] = useState(null)
@@ -332,6 +333,9 @@ export function TrainerClients() {
         outreach_name: normalizeOutreachName(newClientForm.outreach_name) || null,
         max_chat_url: normalizeMaxChatUrl(newClientForm.max_chat_url) || null,
         created_at: now,
+        ...(newClientForm.as_pnk
+          ? { pnk_trial_sessions: Number(newClientForm.pnk_trial_sessions) === 2 ? 2 : 1 }
+          : {}),
       }
       const row = newClientForm.as_pnk ? withPnkFieldsForInsert(rowBase, 'trainer') : rowBase
       await saveLocalWithSync('clients', row, {
@@ -350,6 +354,7 @@ export function TrainerClients() {
         outreach_name: '',
         max_chat_url: '',
         as_pnk: false,
+        pnk_trial_sessions: 1,
       })
       await reload()
     } catch (err) {
@@ -687,6 +692,24 @@ export function TrainerClients() {
                   Это ПНК (пробная / воронка)
                 </label>
               </div>
+              {newClientForm.as_pnk ? (
+                <div className="field">
+                  <span className="label">Бесплатных тренировок</span>
+                  <select
+                    className="input"
+                    value={Number(newClientForm.pnk_trial_sessions) === 2 ? 2 : 1}
+                    onChange={(e) =>
+                      setNewClientForm((f) => ({
+                        ...f,
+                        pnk_trial_sessions: Number(e.target.value) === 2 ? 2 : 1,
+                      }))
+                    }
+                  >
+                    <option value={1}>1</option>
+                    <option value={2}>2</option>
+                  </select>
+                </div>
+              ) : null}
               <div className="row td-modal-actions">
                 <button type="button" className="btn btn-ghost" onClick={() => setShowNewClient(false)}>
                   Отмена

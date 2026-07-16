@@ -134,7 +134,7 @@ const waitCall = {
 }
 ok(matchesPnkBoardFilter(waitCall, 'call'), 'filter call')
 ok(matchesPnkBoardFilter({ ...waitCall, pnk_trial_date: '2026-07-20' }, 'date'), 'filter date')
-ok(pnkNextActionHint(waitCall)?.key === 'created', 'next hint created')
+ok(pnkNextActionHint(waitCall)?.key === 'invite', 'next hint invite when no contact')
 ok(
   pnkNextActionHint({
     ...waitCall,
@@ -147,19 +147,20 @@ ok(
     ...waitCall,
     pnk_deliverables: { contact: 'x' },
     pnk_trial_date: '2026-07-20',
-  })?.key === 'visit',
-  'next hint visit',
+  })?.key === 'health',
+  'next hint health after date',
 )
 ok(
   pnkNextActionHint({
     ...waitCall,
-    pnk_deliverables: { contact: 'x', trial: 'y' },
+    pnk_deliverables: { contact: 'x', health: 'h', nutrition: 'n', trial: 'y', homework: 'hw' },
     pnk_trial_date: '2026-07-20',
+    pnk_trial_sessions: 1,
   })?.key === 'followup',
-  'next hint followup',
+  'next hint followup after free path',
 )
 const ui = resolvePnkTrainerUiStep(waitCall)
-ok(ui?.n === 1 && ui.title === 'ПНК создан', 'trainer ui step 1')
+ok(ui?.key === 'invite' && ui.title === 'Контакт и дата', 'trainer ui step invite')
 
 ok(canDeletePnkClient({ id: '1', lifecycle: 'pnk' }), 'can delete open pnk')
 ok(canDeletePnkClient({ id: '2', lifecycle: 'pnk_lost' }), 'can delete lost pnk')

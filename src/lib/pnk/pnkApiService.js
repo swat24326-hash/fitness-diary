@@ -40,7 +40,7 @@ export async function fetchPnkBundle(opts) {
 }
 
 /**
- * @param {{ clubId: string, name: string, phone?: string, trainer_id: string, pnk_source?: string }} payload
+ * @param {{ clubId: string, name: string, phone?: string, trainer_id: string, pnk_source?: string, pnk_trial_sessions?: 1|2 }} payload
  */
 export async function createPnkClient(payload) {
   const clubId = String(payload.clubId ?? '').trim()
@@ -60,6 +60,7 @@ export async function createPnkClient(payload) {
         phone: payload.phone,
         trainer_id: payload.trainer_id,
         pnk_source: payload.pnk_source || 'manager',
+        pnk_trial_sessions: payload.pnk_trial_sessions,
       }),
     })
     const data = await parseJson(res)

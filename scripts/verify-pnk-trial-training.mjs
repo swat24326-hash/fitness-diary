@@ -104,24 +104,30 @@ ok(
 )
 
 ok(
-  shouldOfferMarkPnkTrialDone({
-    lifecycle: 'pnk',
-    pnk_stage: 'agreed',
-    pnk_trial_date: '2026-07-17',
-    pnk_deliverables: { contact: 'x' },
-  }),
+  shouldOfferMarkPnkTrialDone(
+    {
+      lifecycle: 'pnk',
+      pnk_stage: 'agreed',
+      pnk_trial_date: '2026-07-17',
+      pnk_deliverables: { contact: 'x', health: 'h', nutrition: 'n' },
+    },
+    1,
+  ),
   'offer mark trial after workout',
 )
 ok(
-  !shouldOfferMarkPnkTrialDone({
-    lifecycle: 'pnk',
-    pnk_stage: 'trial_done',
-    pnk_trial_date: '2026-07-17',
-    pnk_deliverables: { trial: 'x' },
-  }),
+  !shouldOfferMarkPnkTrialDone(
+    {
+      lifecycle: 'pnk',
+      pnk_stage: 'trial_done',
+      pnk_trial_date: '2026-07-17',
+      pnk_deliverables: { trial: 'x' },
+    },
+    1,
+  ),
   'no offer if already trial_done',
 )
-ok(!shouldOfferMarkPnkTrialDone({ lifecycle: 'active' }), 'no offer for DK client')
+ok(!shouldOfferMarkPnkTrialDone({ lifecycle: 'active' }, 1), 'no offer for DK client')
 
 if (failed) {
   console.error(`\n${failed} failed`)
