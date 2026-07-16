@@ -22,8 +22,12 @@ const types = [
   { id: 't1', code: 'ДК', is_active: true, is_pnk_trial: false },
   { id: 'bz', code: 'БЗ', is_active: true, is_pnk_trial: true },
 ]
-ok(findPnkTrialMembershipType(types)?.id === 'bz', 'find БЗ type')
+ok(findPnkTrialMembershipType(types)?.id === 'bz', 'find БЗ type by flag')
 ok(findPnkTrialMembershipType([{ id: 'x', is_pnk_trial: true, is_active: false }]) == null, 'inactive БЗ ignored')
+ok(
+  findPnkTrialMembershipType([{ id: 'by-code', code: 'БЗ', is_active: true, is_pnk_trial: false }])?.id === 'by-code',
+  'find БЗ by code without flag',
+)
 
 const usable = [
   {

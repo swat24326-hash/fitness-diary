@@ -10,11 +10,25 @@ import { addDaysToIso } from '../dateRu.js'
 import { isOpenPnkClient, parsePnkDeliverables } from './pnkStagesCore.js'
 
 /**
+ * Тип считается БЗ/пробной: флаг is_pnk_trial или код/имя «БЗ».
+ * @param {object | null | undefined} t
+ */
+export function isPnkTrialTypeRow(t) {
+  if (!t || t.is_active === false) return false
+  if (isPnkTrialMembershipType(t)) return true
+  const code = String(t.code ?? '').trim().toUpperCase()
+  const name = String(t.name ?? '').trim().toUpperCase()
+  return code === 'БЗ' || name === 'БЗ' || code === 'BZ' || name === 'BZ'
+}
+
+/**
  * Активный тип БЗ (пробная ПНК) в справочнике клуба.
+ * Сначала флаг is_pnk_trial, иначе код/имя «БЗ».
  * @param {object[]} [types]
  */
 export function findPnkTrialMembershipType(types) {
-  return (types ?? []).find((t) => isPnkTrialMembershipType(t) && t?.is_active !== false) ?? null
+  const list = (types ?? []).filter((t) => t?.is_active !== false)
+  return list.find((t) => isPnkTrialMembershipType(t)) ?? list.find((t) => isPnkTrialTypeRow(t)) ?? null
 }
 
 /**
@@ -24,9 +38,7 @@ export function findPnkTrialMembershipType(types) {
  */
 export function listPnkTrialMemberships(memberships, membershipTypes) {
   const typeIds = new Set(
-    (membershipTypes ?? [])
-      .filter((t) => isPnkTrialMembershipType(t))
-      .map((t) => String(t.id)),
+    (membershipTypes ?? []).filter((t) => isPnkTrialTypeRow(t)).map((t) => String(t.id)),
   )
   if (!typeIds.size) return []
   return (memberships ?? []).filter((m) => typeIds.has(String(m?.membership_type_id ?? '')))
@@ -80,7 +92,7 @@ export function resolvePnkStartTrainingAction(input) {
   if (!type?.id) {
     return {
       action: 'need_bz_type',
-      error: 'В клубе нет типа абонемента БЗ (пробная). Добавьте его в типах абонементов с флагом «ПНК / БЗ».',
+      error: 'В клубе нет типа «БЗ». Создайте тип абонемента с кодом БЗ (или флагом ПНК / БЗ в админке).',
     }
   }
   return { action: 'create_bz', type }

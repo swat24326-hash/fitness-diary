@@ -5,6 +5,7 @@ import { deleteLocalWithSync, saveLocalWithSync } from '../lib/syncService'
 import { addDaysToIso, formatDateRu, formatDateTimeRu, todayLocalIso } from '../lib/dateRu'
 import { completedTrainingsOnMembership } from '../lib/membershipRules'
 import { ensureMembershipTypesForClub, isTrainerAssignableMembershipType, membershipTypeCode } from '../lib/membershipTypesService'
+import { findPnkTrialMembershipType } from '../lib/pnk/pnkTrialTrainingCore'
 import {
   classifySaleClientSegment,
   saleClientSegmentHintRu,
@@ -117,7 +118,8 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
         setTypesLoadError('')
         return
       }
-      setTypesLoading(true)
+      const silent = opts.silent === true
+      if (!silent) setTypesLoading(true)
       setTypesLoadError('')
       try {
         const { types, error } = await ensureMembershipTypesForClub(clubId, {
@@ -128,7 +130,7 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
       } catch (e) {
         setTypesLoadError(String(e?.message ?? 'Не удалось загрузить типы'))
       } finally {
-        setTypesLoading(false)
+        if (!silent) setTypesLoading(false)
       }
     },
     [clubId],
@@ -138,6 +140,14 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
     setNewOpen(true)
     const activeCount = membershipTypes.filter((t) => t.is_active !== false).length
     if (activeCount === 0) void reloadTypes({ force: true })
+    const bz = findPnkTrialMembershipType(membershipTypes)
+    if (bz?.id) {
+      setForm((f) => ({
+        ...f,
+        total_trainings: 1,
+        membership_type_id: String(bz.id),
+      }))
+    }
   }, [membershipTypes, reloadTypes])
 
   useEffect(() => {
@@ -145,10 +155,14 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
   }, [reloadTypes])
 
   useEffect(() => {
-    const onStorage = () => void reloadTypes()
+    const onStorage = () => {
+      // Пока открыта форма — не дёргаем типы (native select иначе закрывается).
+      if (newOpen || editOpenId) return
+      void reloadTypes({ silent: true })
+    }
     window.addEventListener('fitness-diary-storage', onStorage)
     return () => window.removeEventListener('fitness-diary-storage', onStorage)
-  }, [reloadTypes])
+  }, [reloadTypes, newOpen, editOpenId])
 
   useEffect(() => {
     if (!editOpenId || !clubId) return undefined
@@ -411,8 +425,8 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
   return (
     <div className="grid" style={{ gap: 16 }}>
       {newOpen && (
-        <div className="modal-overlay modal-overlay--center" role="dialog" aria-modal="true" aria-label="Новый абонемент" onClick={() => setNewOpen(false)}>
-          <div className="modal-panel modal-panel--membership-form" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay modal-overlay--center" role="dialog" aria-modal="true" aria-label="Новый абонемент">
+          <div className="modal-panel modal-panel--membership-form">
             <ModalHeader title="Новый абонемент" onClose={() => setNewOpen(false)} />
             <form onSubmit={addMembership} className="grid membership-form" style={{ gap: 12 }}>
               {saleSegmentHint ? (
@@ -467,8 +481,8 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
       )}
 
       {selected && editOpenId === selected.id && (
-        <div className="modal-overlay modal-overlay--center" role="dialog" aria-modal="true" aria-label="Редактирование абонемента" onClick={() => setEditOpenId(null)}>
-          <div className="modal-panel modal-panel--membership-form" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay modal-overlay--center" role="dialog" aria-modal="true" aria-label="Редактирование абонемента">
+          <div className="modal-panel modal-panel--membership-form">
             <ModalHeader title="Редактирование абонемента" onClose={() => setEditOpenId(null)} />
             <form onSubmit={saveEdit} className="grid membership-form" style={{ gap: 12 }}>
               <div className="grid grid-2" style={{ gap: 8 }}>

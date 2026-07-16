@@ -19,7 +19,7 @@ import '../../styles/pnk-funnel.css'
  * Воронка ПНК у тренера — шаги, день визита с понятными CTA.
  * onStartTraining — сразу форма тренировки (БЗ); onOpenDiaries — вкладка списка.
  */
-export function ClientPnkPanel({ client, onUpdated, onOpenDiaries, onStartTraining, onAddBz }) {
+export function ClientPnkPanel({ client, onUpdated, onOpenDiaries, onStartTraining }) {
   const { user } = useAuth()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -349,16 +349,6 @@ export function ClientPnkPanel({ client, onUpdated, onOpenDiaries, onStartTraini
           </div>
 
           <div className="pnk-client-panel__actions">
-            {typeof onAddBz === 'function' ? (
-              <button
-                type="button"
-                className="btn btn-ghost btn-touch"
-                disabled={busy || startBusy}
-                onClick={() => void onAddBz()}
-              >
-                <Ticket size={16} aria-hidden /> Добавить БЗ
-              </button>
-            ) : null}
             {typeof onOpenDiaries === 'function' ? (
               <button type="button" className="btn btn-ghost btn-touch" onClick={() => onOpenDiaries()}>
                 Список тренировок

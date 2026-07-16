@@ -20,7 +20,7 @@ import { listOutreachLogByClientId } from '../../lib/trainer/trainerOutreachLogS
 import { ClientPnkPanel } from '../../components/trainer/ClientPnkPanel.jsx'
 import { formatClientName } from '../../lib/clientNameFormat.js'
 import { isOpenPnkClient, isPnkCardTabVisible } from '../../lib/pnk/pnkStagesCore.js'
-import { preparePnkTrialTraining, addPnkTrialMembership } from '../../lib/pnk/pnkLocalService.js'
+import { preparePnkTrialTraining } from '../../lib/pnk/pnkLocalService.js'
 import {
   OUTREACH_SCENARIO_LABELS,
   normalizeOutreachName,
@@ -251,17 +251,6 @@ export function ClientCard() {
     navigate(res.path)
   }, [client, isAdmin, navigate, reloadLocal])
 
-  const addPnkBz = useCallback(async () => {
-    if (!client?.id) return
-    const res = await addPnkTrialMembership(client)
-    if (!res.ok) {
-      alert(res.error || 'Не удалось создать БЗ')
-      return
-    }
-    void reloadLocal()
-    alert('Добавлен абонемент БЗ на 1 занятие')
-  }, [client, reloadLocal])
-
   if (!client) {
     const backTo = isAdmin ? adminClientsListHref : '/trainer/clients'
     const backLabel = isAdmin ? 'к списку клиентов' : 'к списку клиентов'
@@ -466,7 +455,6 @@ export function ClientCard() {
         }}
         onOpenDiaries={() => setTab('diaries')}
         onStartTraining={isArchived ? undefined : () => startPnkTraining()}
-        onAddBz={isArchived ? undefined : () => addPnkBz()}
       />
 
       <div className="tabs" role="tablist">
