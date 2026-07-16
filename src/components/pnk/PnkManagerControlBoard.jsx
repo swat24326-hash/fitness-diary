@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronDown, ChevronUp, UserPlus } from 'lucide-react'
-import { DispatchTaskProgressMini } from '../iskra/DispatchTaskProgressMini.jsx'
+import { PnkStepBlocks } from './PnkStepBlocks.jsx'
 import { PnkCoachNotifyChip } from './PnkCoachNotifyChip'
 import { PnkAttentionChips, PnkBoardFilterChips } from './PnkStatusChips'
 import { buildPnkManagerControlCards } from '../../lib/pnk/pnkManagerBoardCore.js'
@@ -104,7 +104,7 @@ export function PnkManagerControlBoard({
                     <span className="pnk-control-card__step muted">
                       Шаг {card.stepN}/{card.stepTotal} · {card.stepTitle}
                     </span>
-                    <DispatchTaskProgressMini progress={card.progressMini} />
+                    <PnkStepBlocks stepN={card.stepN} stepTotal={card.stepTotal} />
                   </span>
                   <span className="pnk-control-card__chevron" aria-hidden>
                     {open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}

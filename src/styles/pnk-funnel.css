@@ -652,6 +652,44 @@ button.pnk-chip:disabled {
   border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
 }
 
+.pnk-step-blocks {
+  margin-top: 8px;
+  width: 100%;
+}
+
+.pnk-step-blocks__track {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+  width: 100%;
+}
+
+.pnk-step-blocks__seg {
+  height: 8px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text-muted) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+}
+
+.pnk-step-blocks__seg--done {
+  background: color-mix(in srgb, var(--accent) 55%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.pnk-step-blocks__seg--current {
+  background: color-mix(in srgb, var(--accent) 88%, white);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.pnk-step-blocks__seg--todo {
+  opacity: 0.85;
+}
+
+
 @media (max-width: 560px) {
   .pnk-control-board__filters {
     grid-template-columns: 1fr;

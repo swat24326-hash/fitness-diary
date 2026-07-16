@@ -5,13 +5,12 @@ import { useAuth } from '../../context/AuthContext'
 import { listLocalClients } from '../../lib/dataAccess'
 import {
   buildPnkGlanceCards,
-  buildPnkGlanceProgressMini,
 } from '../../lib/pnk/pnkTrainerGlanceCore.js'
 import {
   useDebouncedStorageReload,
   shouldReloadTrainerClientList,
 } from '../../lib/useDebouncedStorageReload'
-import { DispatchTaskProgressMini } from '../iskra/DispatchTaskProgressMini.jsx'
+import { PnkStepBlocks } from './PnkStepBlocks.jsx'
 
 const SWIPE_THRESHOLD_PX = 42
 
@@ -92,7 +91,6 @@ export function TrainerPnkGlanceWidget({ clubId = '' }) {
   if (loading || !cards.length) return null
 
   const card = cards[index] ?? cards[0]
-  const progress = buildPnkGlanceProgressMini(card)
   const hasMany = cards.length > 1
 
   return (
@@ -157,7 +155,7 @@ export function TrainerPnkGlanceWidget({ clubId = '' }) {
           </div>
 
           <p className="trainer-task-glance__task-title">{card.name}</p>
-          <DispatchTaskProgressMini progress={progress} />
+          <PnkStepBlocks stepN={card.stepN} stepTotal={card.stepTotal} />
           {card.caption ? <p className="trainer-task-glance__caption muted">{card.caption}</p> : null}
         </button>
 

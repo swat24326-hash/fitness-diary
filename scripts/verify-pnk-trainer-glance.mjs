@@ -4,7 +4,7 @@
 import {
   buildPnkGlanceCard,
   buildPnkGlanceCards,
-  buildPnkGlanceProgressMini,
+  buildPnkStepSegments,
 } from '../src/lib/pnk/pnkTrainerGlanceCore.js'
 
 let failed = 0
@@ -46,8 +46,11 @@ const list = buildPnkGlanceCards([
 ])
 ok(list.length === 2 && list[0].isHot, 'sort hot first, skip active')
 
-const mini = buildPnkGlanceProgressMini(visit)
-ok(mini.workflow.pct === 60 && mini.stages.label === 'Бесплатная тренировка', 'progress mini')
+const segs = buildPnkStepSegments({ stepN: 4, stepTotal: 5 })
+ok(segs.segments.length === 5, 'five blocks')
+ok(segs.segments.filter((s) => s.state === 'done').length === 3, '3 done before current')
+ok(segs.segments[3].state === 'current', '4th is current')
+ok(segs.segments[4].state === 'todo', '5th todo')
 
 ok(buildPnkGlanceCard({ lifecycle: 'pnk', pnk_stage: 'won' }) == null, 'won not in glance')
 

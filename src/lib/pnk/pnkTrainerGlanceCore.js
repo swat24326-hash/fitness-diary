@@ -95,25 +95,31 @@ export function buildPnkGlanceCards(clients, now = new Date()) {
 }
 
 /**
- * Мини-прогресс для UI (совместим с DispatchTaskProgressMini по форме).
- * @param {{ pct: number, stepN: number, stepTotal: number, stepTitle: string }} card
+ * Одна шкала из блоков шагов воронки (1…total).
+ * @param {{ stepN?: number, stepTotal?: number } | null | undefined} card
+ * @returns {{ stepN: number, total: number, segments: { index: number, state: 'done' | 'current' | 'todo' }[] }}
  */
+export function buildPnkStepSegments(card) {
+  const total = Math.max(1, Math.min(8, Number(card?.stepTotal) || 5))
+  const stepN = Math.max(0, Math.min(total, Number(card?.stepN) || 0))
+  /** @type {{ index: number, state: 'done' | 'current' | 'todo' }[]} */
+  const segments = []
+  for (let i = 1; i <= total; i++) {
+    let state = 'todo'
+    if (i < stepN) state = 'done'
+    else if (i === stepN) state = 'current'
+    segments.push({ index: i, state })
+  }
+  return { stepN, total, segments }
+}
+
+/** @deprecated используйте buildPnkStepSegments + PnkStepBlocks */
 export function buildPnkGlanceProgressMini(card) {
-  const pct = Math.max(0, Math.min(100, Number(card?.pct) || 0))
+  const { stepN, total } = buildPnkStepSegments(card)
+  const pct = Math.round((stepN / total) * 100)
   return {
-    workflow: {
-      pct,
-      tone: pct >= 80 ? 'done' : pct >= 40 ? 'active' : 'pending',
-      label: `Шаг ${card?.stepN ?? 0} из ${card?.stepTotal ?? 5}`,
-      step: Math.max(0, (card?.stepN ?? 1) - 1),
-      steps: [],
-    },
-    stages: {
-      total: card?.stepTotal ?? 5,
-      pct,
-      tone: 'active',
-      label: card?.stepTitle || '',
-    },
+    workflow: { pct, tone: 'active', label: `Шаг ${stepN} из ${total}`, step: Math.max(0, stepN - 1), steps: [] },
+    stages: { total, pct, tone: 'active', label: '' },
     time: { pct: null },
   }
 }

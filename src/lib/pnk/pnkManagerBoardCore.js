@@ -1,7 +1,7 @@
 /**
  * Доска контроля ПНК для менеджера / админа (десятки карточек, сортировка, фильтр).
  */
-import { buildPnkGlanceCard, buildPnkGlanceProgressMini } from './pnkTrainerGlanceCore.js'
+import { buildPnkGlanceCard } from './pnkTrainerGlanceCore.js'
 import { matchesPnkBoardFilter } from './pnkStagesCore.js'
 
 /**
@@ -18,7 +18,6 @@ export function buildPnkManagerControlCard(client, now = new Date()) {
     trainerPhone: client?.trainer_phone ? String(client.trainer_phone).trim() : null,
     phone: client?.phone ? String(client.phone).trim() : null,
     client,
-    progressMini: buildPnkGlanceProgressMini(base),
   }
 }
 
