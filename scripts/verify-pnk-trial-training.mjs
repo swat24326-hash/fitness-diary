@@ -61,17 +61,17 @@ ok(
     memberships: depletedBz,
     membershipTypes: types,
     todayIso: '2026-07-17',
-  }).action === 'confirm_new_bz',
-  'confirm before second БЗ',
+  }).action === 'create_bz',
+  'second БЗ without confirm when depleted',
 )
 ok(
   resolvePnkStartTrainingAction({
-    memberships: depletedBz,
+    memberships: usable,
     membershipTypes: types,
     todayIso: '2026-07-17',
-    allowCreateAfterDepleted: true,
+    forceNewBz: true,
   }).action === 'create_bz',
-  'create after confirm',
+  'force add another БЗ while one usable',
 )
 
 ok(
@@ -86,11 +86,10 @@ const row = buildPnkTrialMembershipRow({
   clubId: 'club1',
   membershipTypeId: 'bz',
   todayIso: '2026-07-17',
-  trialDateIso: '2026-07-16',
   nowIso: '2026-07-17T10:00:00.000Z',
 })
 ok(row.total_trainings === 1 && row.used_trainings === 0, 'БЗ one session')
-ok(row.start_date === '2026-07-16' && row.end_date === '2026-07-24', 'covers trial + week')
+ok(row.start_date === '2026-07-17' && row.end_date === '2026-07-31', 'БЗ from today +14d, not funnel date')
 ok(row.membership_type_id === 'bz', 'membership type БЗ')
 
 const path = buildPnkNewWorkoutPath({ clientId: 'c1', clubId: 'club1' })

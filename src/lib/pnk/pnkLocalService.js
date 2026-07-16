@@ -1,5 +1,6 @@
 import { listMemberships } from '../dataAccess.js'
 import { todayLocalIso } from '../dateRu.js'
+import { pickUsableMembershipForDate } from '../membershipRules.js'
 import { ensureMembershipTypesForClub } from '../membershipTypesService.js'
 import { saveLocalWithSync } from '../syncService.js'
 import { applyPnkStagePatch, buildNewPnkClientFields } from './pnkStagesCore.js'
@@ -46,14 +47,48 @@ export function withPnkFieldsForInsert(row, source = 'trainer') {
 }
 
 /**
- * Подготовить старт бесплатной: при необходимости создать абонемент БЗ, вернуть путь к форме.
- * Если БЗ уже был и израсходован — без `allowCreateAfterDepleted` вернёт `needsConfirm`.
+ * Создать ещё один абонемент БЗ (можно 2–3 и больше).
  * @param {object} client
- * @param {{ isAdmin?: boolean, allowCreateAfterDepleted?: boolean }} [opts]
- * @returns {Promise<
- *   | { ok: true, path: string, createdMembership?: boolean }
- *   | { ok: false, error: string, needsConfirm?: boolean }
- * >}
+ * @returns {Promise<{ ok: true, membership: object } | { ok: false, error: string }>}
+ */
+export async function addPnkTrialMembership(client) {
+  const clientId = String(client?.id ?? '').trim()
+  const clubId = String(client?.club_id ?? '').trim()
+  if (!clientId) return { ok: false, error: 'Нет клиента' }
+  if (!clubId) return { ok: false, error: 'У клиента не указан клуб' }
+
+  const { types, error: typesError } = await ensureMembershipTypesForClub(clubId)
+  const decision = resolvePnkStartTrainingAction({
+    memberships: [],
+    membershipTypes: types,
+    todayIso: todayLocalIso(),
+    forceNewBz: true,
+  })
+  if (decision.action !== 'create_bz') {
+    return { ok: false, error: decision.error || typesError || 'Нет типа абонемента БЗ' }
+  }
+
+  const row = buildPnkTrialMembershipRow({
+    id: crypto.randomUUID(),
+    clientId,
+    clubId,
+    membershipTypeId: String(decision.type.id),
+    todayIso: todayLocalIso(),
+  })
+  await saveLocalWithSync('memberships', row, {
+    table_name: 'memberships',
+    operation: 'insert',
+    remote_id: null,
+  })
+  return { ok: true, membership: row }
+}
+
+/**
+ * Подготовить старт бесплатной: при необходимости создать БЗ, вернуть путь к форме.
+ * Несколько БЗ — норма; без confirm. `forceNewBz` — всегда добавить новый БЗ перед стартом.
+ * @param {object} client
+ * @param {{ isAdmin?: boolean, forceNewBz?: boolean }} [opts]
+ * @returns {Promise<{ ok: true, path: string, createdMembership?: boolean } | { ok: false, error: string }>}
  */
 export async function preparePnkTrialTraining(client, opts = {}) {
   const clientId = String(client?.id ?? '').trim()
@@ -69,13 +104,7 @@ export async function preparePnkTrialTraining(client, opts = {}) {
     isAdmin: opts.isAdmin === true,
   })
 
-  const first = resolvePnkStartTrainingAction({
-    memberships,
-    membershipTypes: [],
-    todayIso: today,
-    allowCreateAfterDepleted: opts.allowCreateAfterDepleted === true,
-  })
-  if (first.action === 'open') {
+  if (opts.forceNewBz !== true && pickUsableMembershipForDate(memberships, today)) {
     return { ok: true, path, createdMembership: false }
   }
 
@@ -84,7 +113,7 @@ export async function preparePnkTrialTraining(client, opts = {}) {
     memberships,
     membershipTypes: types,
     todayIso: today,
-    allowCreateAfterDepleted: opts.allowCreateAfterDepleted === true,
+    forceNewBz: opts.forceNewBz === true,
   })
   if (decision.action === 'open') {
     return { ok: true, path, createdMembership: false }
@@ -95,14 +124,6 @@ export async function preparePnkTrialTraining(client, opts = {}) {
       error: decision.error || typesError || 'Нет типа абонемента БЗ',
     }
   }
-  if (decision.action === 'confirm_new_bz') {
-    return {
-      ok: false,
-      needsConfirm: true,
-      error:
-        'У клиента уже был абонемент БЗ (занятие использовано или срок прошёл). Создать новый БЗ на 1 занятие?',
-    }
-  }
 
   const row = buildPnkTrialMembershipRow({
     id: crypto.randomUUID(),
@@ -110,7 +131,6 @@ export async function preparePnkTrialTraining(client, opts = {}) {
     clubId,
     membershipTypeId: String(decision.type.id),
     todayIso: today,
-    trialDateIso: client?.pnk_trial_date,
   })
   await saveLocalWithSync('memberships', row, {
     table_name: 'memberships',

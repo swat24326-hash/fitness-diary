@@ -8,7 +8,6 @@ import {
   isOpenPnkClient,
   parsePnkDeliverables,
   resolvePnkTrainerUiStep,
-  resolvePnkVisitDayState,
 } from '../../lib/pnk/pnkStagesCore'
 import { patchPnkClientLocal } from '../../lib/pnk/pnkLocalService'
 import { PnkClientMessengerButtons } from '../pnk/PnkClientMessengerButtons'
@@ -20,7 +19,7 @@ import '../../styles/pnk-funnel.css'
  * Воронка ПНК у тренера — шаги, день визита с понятными CTA.
  * onStartTraining — сразу форма тренировки (БЗ); onOpenDiaries — вкладка списка.
  */
-export function ClientPnkPanel({ client, onUpdated, onOpenDiaries, onStartTraining }) {
+export function ClientPnkPanel({ client, onUpdated, onOpenDiaries, onStartTraining, onAddBz }) {
   const { user } = useAuth()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -45,10 +44,9 @@ export function ClientPnkPanel({ client, onUpdated, onOpenDiaries, onStartTraini
 
   const flags = buildPnkAttentionFlags(client)
   const d = parsePnkDeliverables(client.pnk_deliverables)
-  const visitDay = resolvePnkVisitDayState(client)
   const trainerName = user?.name || ''
   const clubName = ''
-  const showEarlyLost = step.key !== 'close' && visitDay !== 'past'
+  const showEarlyLost = step.key !== 'close'
 
   async function run(patch) {
     setBusy(true)
@@ -272,16 +270,12 @@ export function ClientPnkPanel({ client, onUpdated, onOpenDiaries, onStartTraini
       {step.key === 'visit' ? (
         <div className="pnk-client-panel__step">
           <p className="pnk-client-panel__schedule-line">
-            Бесплатная:{' '}
+            Ориентир по дате:{' '}
             <strong>
               {formatDateRu(client.pnk_trial_date)}
               {client.pnk_trial_time ? ` ${client.pnk_trial_time}` : ''}
             </strong>
-            {visitDay === 'before' ? (
-              <span className="muted"> · ещё не день визита</span>
-            ) : visitDay === 'today' ? (
-              <span className="pnk-client-panel__ok"> · сегодня</span>
-            ) : null}
+            <span className="muted"> · можно начать тренировку в любой день</span>
           </p>
 
           <div className="pnk-client-panel__visit-links">
@@ -299,39 +293,84 @@ export function ClientPnkPanel({ client, onUpdated, onOpenDiaries, onStartTraini
             </Link>
           </div>
 
-          {(visitDay === 'today' || visitDay === 'before') && (
-            <div className="pnk-client-panel__actions pnk-client-panel__actions--wrap">
-              {!d.nutrition ? (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-touch"
-                  disabled={busy}
-                  onClick={() => void run({ deliverable: 'nutrition' })}
-                >
-                  ✓ Питание выдано
-                </button>
-              ) : (
-                <span className="pnk-client-panel__ok">✓ Питание</span>
-              )}
-              {!d.homework ? (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-touch"
-                  disabled={busy}
-                  onClick={() => void run({ deliverable: 'homework' })}
-                >
-                  ✓ ДЗ выдано
-                </button>
-              ) : (
-                <span className="pnk-client-panel__ok">✓ ДЗ</span>
-              )}
-            </div>
-          )}
+          <div className="pnk-client-panel__actions pnk-client-panel__actions--wrap">
+            {!d.nutrition ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-touch"
+                disabled={busy}
+                onClick={() => void run({ deliverable: 'nutrition' })}
+              >
+                ✓ Питание выдано
+              </button>
+            ) : (
+              <span className="pnk-client-panel__ok">✓ Питание</span>
+            )}
+            {!d.homework ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-touch"
+                disabled={busy}
+                onClick={() => void run({ deliverable: 'homework' })}
+              >
+                ✓ ДЗ выдано
+              </button>
+            ) : (
+              <span className="pnk-client-panel__ok">✓ ДЗ</span>
+            )}
+          </div>
 
-          {visitDay === 'before' ? (
+          <div className="pnk-client-panel__actions">
+            {typeof onStartTraining === 'function' || typeof onOpenDiaries === 'function' ? (
+              <button
+                type="button"
+                className="btn btn-primary btn-touch pnk-client-panel__btn-primary"
+                disabled={busy || startBusy}
+                onClick={() => void handleStartTraining()}
+              >
+                <Dumbbell size={18} aria-hidden /> Начать тренировку
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="btn btn-secondary btn-touch"
+              disabled={busy}
+              onClick={() => void run({ stage: 'trial_done', deliverable: 'trial' })}
+            >
+              <Check size={18} aria-hidden /> Проведена
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost btn-touch pnk-client-panel__btn-secondary"
+              onClick={() => setRescheduleOpen((v) => !v)}
+            >
+              Изменить дату
+            </button>
+          </div>
+
+          <div className="pnk-client-panel__actions">
+            {typeof onAddBz === 'function' ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-touch"
+                disabled={busy || startBusy}
+                onClick={() => void onAddBz()}
+              >
+                <Ticket size={16} aria-hidden /> Добавить БЗ
+              </button>
+            ) : null}
+            {typeof onOpenDiaries === 'function' ? (
+              <button type="button" className="btn btn-ghost btn-touch" onClick={() => onOpenDiaries()}>
+                Список тренировок
+              </button>
+            ) : null}
+            {earlyLostButton()}
+          </div>
+
+          {rescheduleOpen ? (
             <>
               <p className="muted" style={{ margin: 0, fontSize: '0.9rem' }}>
-                До визита можно перенести дату. Тренировку можно открыть заранее во вкладке «Тренировки».
+                Дата в воронке — только ориентир для команды. На старт тренировки не влияет.
               </p>
               {rescheduleFields()}
               <div className="pnk-client-panel__actions">
@@ -341,113 +380,10 @@ export function ClientPnkPanel({ client, onUpdated, onOpenDiaries, onStartTraini
                   disabled={busy || !trialDate}
                   onClick={() => void saveReschedule()}
                 >
-                  <CalendarPlus size={18} aria-hidden /> Перенести дату
+                  <CalendarPlus size={18} aria-hidden /> Сохранить дату
                 </button>
-                {typeof onOpenDiaries === 'function' ? (
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-touch pnk-client-panel__btn-secondary"
-                    onClick={() => onOpenDiaries()}
-                  >
-                    <Dumbbell size={18} aria-hidden /> Тренировки
-                  </button>
-                ) : null}
-                {earlyLostButton()}
               </div>
             </>
-          ) : null}
-
-          {visitDay === 'today' ? (
-            <>
-              <div className="pnk-client-panel__actions">
-                {typeof onStartTraining === 'function' || typeof onOpenDiaries === 'function' ? (
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-touch pnk-client-panel__btn-primary"
-                    disabled={busy || startBusy}
-                    onClick={() => void handleStartTraining()}
-                  >
-                    <Dumbbell size={18} aria-hidden /> Начать тренировку
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-touch"
-                  disabled={busy}
-                  onClick={() => void run({ stage: 'trial_done', deliverable: 'trial' })}
-                >
-                  <Check size={18} aria-hidden /> Проведена
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-touch pnk-client-panel__btn-secondary"
-                  onClick={() => setRescheduleOpen((v) => !v)}
-                >
-                  Перенести
-                </button>
-              </div>
-              {rescheduleOpen ? (
-                <>
-                  {rescheduleFields()}
-                  <div className="pnk-client-panel__actions">
-                    <button
-                      type="button"
-                      className="btn btn-primary btn-touch pnk-client-panel__btn-primary"
-                      disabled={busy || !trialDate}
-                      onClick={() => void saveReschedule()}
-                    >
-                      <CalendarPlus size={18} aria-hidden /> Сохранить новую дату
-                    </button>
-                    {earlyLostButton()}
-                  </div>
-                </>
-              ) : (
-                <div className="pnk-client-panel__actions">{earlyLostButton()}</div>
-              )}
-            </>
-          ) : null}
-
-          {visitDay === 'past' ? (
-            <div className="pnk-client-panel__noshow">
-              <p>
-                <strong>Дата бесплатной уже прошла</strong> — клиент не отмечен. Перенесите визит или закройте
-                воронку.
-              </p>
-              {rescheduleFields()}
-              <div className="pnk-client-panel__actions">
-                <button
-                  type="button"
-                  className="btn btn-primary btn-touch pnk-client-panel__btn-primary"
-                  disabled={busy || !trialDate}
-                  onClick={() => void saveReschedule()}
-                >
-                  <CalendarPlus size={18} aria-hidden /> Перенести дату
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-touch pnk-client-panel__btn-secondary"
-                  disabled={busy}
-                  onClick={() => void run({ stage: 'lost', lost_reason: lostReason || 'Отказ после неявки' })}
-                >
-                  <Ban size={18} aria-hidden /> Закрыть без оформления
-                </button>
-              </div>
-              <div className="pnk-client-panel__actions">
-                {typeof onOpenDiaries === 'function' ? (
-                  <button type="button" className="btn btn-ghost btn-touch" onClick={() => onOpenDiaries()}>
-                    <Dumbbell size={16} aria-hidden /> Открыть тренировки
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-touch"
-                  disabled={busy}
-                  onClick={() => void run({ stage: 'trial_done', deliverable: 'trial' })}
-                >
-                  <Check size={16} aria-hidden /> Всё же проведена
-                </button>
-              </div>
-            </div>
           ) : null}
         </div>
       ) : null}

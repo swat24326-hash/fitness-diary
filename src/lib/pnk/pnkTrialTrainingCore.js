@@ -1,10 +1,11 @@
 /**
  * Старт бесплатной тренировки ПНК: абонемент БЗ + путь к форме.
+ * Дата пробной в воронке — справочная; не ограничивает старт и срок БЗ.
  * Без React / IDB — для verify.
  */
 
 import { isPnkTrialMembershipType } from '../membershipTypesCore.js'
-import { membershipIsUsableOn, pickUsableMembershipForDate } from '../membershipRules.js'
+import { pickUsableMembershipForDate } from '../membershipRules.js'
 import { addDaysToIso } from '../dateRu.js'
 import { isOpenPnkClient, parsePnkDeliverables } from './pnkStagesCore.js'
 
@@ -32,29 +33,26 @@ export function listPnkTrialMemberships(memberships, membershipTypes) {
 }
 
 /**
- * Черновик абонемента БЗ на одно занятие, покрывающий сегодня и дату пробной.
+ * Новый абонемент БЗ на одно занятие от сегодня (дата воронки не влияет на срок).
  * @param {{
  *   id: string,
  *   clientId: string,
  *   clubId: string,
  *   membershipTypeId: string,
  *   todayIso: string,
- *   trialDateIso?: string | null,
  *   nowIso?: string,
+ *   validityDays?: number,
  * }} p
  */
 export function buildPnkTrialMembershipRow(p) {
   const today = String(p.todayIso ?? '').slice(0, 10)
-  const trial = String(p.trialDateIso ?? '').slice(0, 10)
-  const start = trial && trial < today ? trial : today
-  const endAnchor = trial && trial > today ? trial : today
-  const end = addDaysToIso(endAnchor, 7)
+  const days = Number.isFinite(Number(p.validityDays)) ? Math.max(1, Number(p.validityDays)) : 14
   return {
     id: p.id,
     client_id: p.clientId,
     club_id: p.clubId,
-    start_date: start,
-    end_date: end,
+    start_date: today,
+    end_date: addDaysToIso(today, days),
     total_trainings: 1,
     used_trainings: 0,
     membership_type_id: p.membershipTypeId,
@@ -63,18 +61,19 @@ export function buildPnkTrialMembershipRow(p) {
 }
 
 /**
- * Что делать перед открытием формы тренировки.
+ * Что делать перед открытием формы / добавлением БЗ.
+ * Несколько БЗ у клиента — норма; без confirm.
  * @param {{
  *   memberships?: object[],
  *   membershipTypes?: object[],
  *   todayIso: string,
- *   allowCreateAfterDepleted?: boolean,
+ *   forceNewBz?: boolean,
  * }} input
- * @returns {{ action: 'open' } | { action: 'create_bz', type: object } | { action: 'confirm_new_bz', type: object } | { action: 'need_bz_type', error: string }}
+ * @returns {{ action: 'open' } | { action: 'create_bz', type: object } | { action: 'need_bz_type', error: string }}
  */
 export function resolvePnkStartTrainingAction(input) {
   const today = String(input.todayIso ?? '').slice(0, 10)
-  if (pickUsableMembershipForDate(input.memberships, today)) {
+  if (input.forceNewBz !== true && pickUsableMembershipForDate(input.memberships, today)) {
     return { action: 'open' }
   }
   const type = findPnkTrialMembershipType(input.membershipTypes)
@@ -83,11 +82,6 @@ export function resolvePnkStartTrainingAction(input) {
       action: 'need_bz_type',
       error: 'В клубе нет типа абонемента БЗ (пробная). Добавьте его в типах абонементов с флагом «ПНК / БЗ».',
     }
-  }
-  const priorBz = listPnkTrialMemberships(input.memberships, input.membershipTypes)
-  const hasUnusablePrior = priorBz.some((m) => !membershipIsUsableOn(m, today))
-  if (hasUnusablePrior && input.allowCreateAfterDepleted !== true) {
-    return { action: 'confirm_new_bz', type }
   }
   return { action: 'create_bz', type }
 }
