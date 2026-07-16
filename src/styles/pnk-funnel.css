@@ -533,12 +533,36 @@ button.pnk-chip:disabled {
   }
 }
 
+/* ── Двухколоночный layout ПНК (широкий монитор) ── */
+
+.pnk-funnel__layout {
+  display: grid;
+  gap: 1rem;
+  margin: 1rem 0 0;
+  min-width: 0;
+}
+
 /* ── Доска контроля менеджера / админа ── */
 
 .pnk-control-board {
   display: grid;
   gap: 12px;
-  margin: 1rem 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.pnk-control-board--split {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.pnk-control-board__master,
+.pnk-control-board__assess {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  align-content: start;
 }
 
 .pnk-control-board__toolbar {
@@ -552,16 +576,116 @@ button.pnk-chip:disabled {
   gap: 8px;
 }
 
-.pnk-control-board__scroll {
+.pnk-control-board__grid {
   list-style: none;
   margin: 0;
-  padding: 0 4px 8px 0;
+  padding: 0 2px 4px 0;
   display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 10px;
-  max-height: min(62vh, 640px);
+  max-height: min(58vh, 560px);
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+}
+
+.pnk-control-tile {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  aspect-ratio: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pnk-control-tile__btn {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto auto auto;
+  align-content: start;
+  gap: 4px;
+  padding: 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.pnk-control-tile__icon {
+  width: 36px;
+  height: 36px;
+}
+
+.pnk-control-tile__name {
+  font-size: 0.92rem;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.pnk-control-tile__hot {
+  justify-self: start;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pnk-control-tile__meta {
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pnk-control-tile__step {
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.pnk-control-tile .pnk-step-blocks {
+  margin-top: 2px;
+}
+
+.pnk-control-tile--selected {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.pnk-control-detail {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.pnk-control-detail--empty {
+  min-height: 8rem;
+}
+
+.pnk-control-detail__head {
+  display: grid;
+  gap: 6px;
+}
+
+.pnk-control-detail__titles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.pnk-control-detail__name {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 650;
 }
 
 .pnk-funnel__attention-scroll {
@@ -572,45 +696,6 @@ button.pnk-chip:disabled {
   gap: 8px;
   max-height: 180px;
   overflow-y: auto;
-}
-
-.pnk-control-card {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-}
-
-.pnk-control-card__summary {
-  width: 100%;
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px 14px;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  min-height: 44px;
-}
-
-.pnk-control-card__main {
-  flex: 1;
-  min-width: 0;
-  display: grid;
-  gap: 4px;
-}
-
-.pnk-control-card__title-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.pnk-control-card__name {
-  font-size: 1rem;
 }
 
 .pnk-control-card__hot {
@@ -630,26 +715,27 @@ button.pnk-chip:disabled {
   font-size: 0.82rem;
 }
 
-.pnk-control-card__chevron {
-  flex-shrink: 0;
-  opacity: 0.7;
-  margin-top: 2px;
-}
-
-.pnk-control-card__panel {
-  display: grid;
-  gap: 10px;
-  padding: 0 14px 14px;
-  border-top: 1px solid var(--border-soft);
-}
-
 .pnk-control-card__intervene {
   margin: 0;
   font-size: 0.88rem;
 }
 
-.pnk-control-card--open {
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+@media (min-width: 1100px) {
+  .pnk-control-board--split {
+    grid-template-columns: minmax(0, 0.42fr) minmax(0, 0.58fr);
+    gap: 1rem 1.25rem;
+    align-items: start;
+  }
+
+  .pnk-control-board__assess {
+    position: sticky;
+    top: 0.75rem;
+  }
+
+  .pnk-control-board__grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    max-height: min(70vh, 720px);
+  }
 }
 
 .pnk-step-blocks {

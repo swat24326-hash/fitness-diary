@@ -247,164 +247,176 @@ export function SalesPnk() {
         </section>
       ) : null}
 
-      {stats ? (
-        <PnkQualityChips
-          nutritionPct={stats.nutritionPct}
-          homeworkPct={stats.homeworkPct}
-          periodLabel={`${formatDateRu(period.dateFrom)}–${formatDateRu(period.dateTo)}`}
-        />
-      ) : null}
-
-      {createOpen && clubId ? (
-        <form className="pnk-funnel__create" onSubmit={onCreate}>
-          <div className="pnk-client-panel__head" style={{ padding: 0 }}>
-            <h2 className="pnk-funnel__section-title" style={{ margin: 0 }}>
-              Новый ПНК
-            </h2>
-            <button type="button" className="pnk-chip pnk-chip--action" onClick={fillDemoScenario} title="Подставить пример">
-              Пример сценария
-            </button>
-          </div>
-          <label>
-            Имя
-            <input
-              className="input"
-              required
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            />
-          </label>
-          <label>
-            Телефон
-            <input
-              className="input"
-              value={form.phone}
-              onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-            />
-          </label>
-          <label>
-            Тренер
-            <select
-              className="input"
-              required
-              value={form.trainer_id}
-              onChange={(e) => setForm((f) => ({ ...f, trainer_id: e.target.value }))}
-            >
-              <option value="">Выберите</option>
-              {(bundle?.trainers ?? []).map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <p className="muted" style={{ margin: '0 0 8px', fontSize: '0.9rem' }}>
-            После создания — напишите тренеру (Max / другой мессенджер).
-          </p>
-          <button type="submit" className="btn btn-primary btn-touch" disabled={busy}>
-            Передать тренеру
-          </button>
-        </form>
-      ) : clubId ? (
-        <div className="pnk-funnel__quality" style={{ marginBottom: '0.75rem' }}>
-          <button type="button" className="pnk-chip pnk-chip--action" onClick={fillDemoScenario}>
-            Создать ПНК по сценарию
-          </button>
-        </div>
-      ) : null}
-
-      {lastCreated?.client ? (
-        <section className="card pnk-funnel__notify-banner" aria-label="Сообщить тренеру">
-          <p className="pnk-funnel__section-title" style={{ marginBottom: 8 }}>
-            ПНК «{lastCreated.client.name}» создан
-          </p>
-          <p className="muted" style={{ margin: '0 0 10px', fontSize: '0.9rem' }}>
-            Напишите тренеру: «В Max» или «Другой мессенджер».
-          </p>
-          <PnkCoachNotifyChip
-            client={lastCreated.client}
-            trainerName={lastCreated.trainerName}
-            trainerPhone={lastCreated.trainerPhone}
-            managerName={user?.name || ''}
-            kind="created"
-            busy={busy}
-            onResult={toastFromNotify}
-          />
-        </section>
-      ) : null}
-
-      {attention.length ? (
-        <section className="pnk-funnel__attention card" aria-label="Требует внимания">
-          <h2 className="pnk-funnel__section-title">Внимание ({attention.length})</h2>
-          <ul className="pnk-funnel__attention-scroll">
-            {attention.map((row) => (
-              <li key={row.id} className={`pnk-funnel__row pnk-funnel__row--${row.tone}`}>
-                <div className="pnk-funnel__row-main">
-                  <div className="pnk-client-panel__head" style={{ padding: 0 }}>
-                    <strong>{row.name}</strong>
-                    <PnkStageChip stage={row.pnk_stage} tone={row.tone} />
-                  </div>
-                  <PnkAttentionChips flags={row.flags} />
-                  {row.pnk_trial_date ? (
-                    <span className="muted" style={{ fontSize: '0.85rem' }}>
-                      {formatDateRu(row.pnk_trial_date)}
-                      {row.pnk_trial_time ? ` ${row.pnk_trial_time}` : ''}
-                    </span>
-                  ) : null}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
       {clubId ? (
-        <PnkManagerControlBoard
-          clients={clients}
-          attentionIds={attentionIds}
-          boardFilter={boardFilter}
-          onBoardFilterChange={setBoardFilter}
-          filterCounts={filterCounts}
-          trainers={bundle?.trainers ?? []}
-          managerName={user?.name || ''}
-          busy={busy}
-          clientHref={isAdmin ? clientHref : undefined}
-          onNotifyResult={toastFromNotify}
-          onComment={onComment}
-          onDelete={onDelete}
-          initialFocusId={focusId}
-        />
-      ) : null}
+        <div className="pnk-funnel__layout">
+          <PnkManagerControlBoard
+            clients={clients}
+            attentionIds={attentionIds}
+            boardFilter={boardFilter}
+            onBoardFilterChange={setBoardFilter}
+            filterCounts={filterCounts}
+            trainers={bundle?.trainers ?? []}
+            managerName={user?.name || ''}
+            busy={busy}
+            clientHref={isAdmin ? clientHref : undefined}
+            onNotifyResult={toastFromNotify}
+            onComment={onComment}
+            onDelete={onDelete}
+            initialFocusId={focusId}
+            workExtras={
+              <>
+                {createOpen ? (
+                  <form className="pnk-funnel__create" onSubmit={onCreate}>
+                    <div className="pnk-client-panel__head" style={{ padding: 0 }}>
+                      <h2 className="pnk-funnel__section-title" style={{ margin: 0 }}>
+                        Новый ПНК
+                      </h2>
+                      <button
+                        type="button"
+                        className="pnk-chip pnk-chip--action"
+                        onClick={fillDemoScenario}
+                        title="Подставить пример"
+                      >
+                        Пример сценария
+                      </button>
+                    </div>
+                    <label>
+                      Имя
+                      <input
+                        className="input"
+                        required
+                        value={form.name}
+                        onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                      />
+                    </label>
+                    <label>
+                      Телефон
+                      <input
+                        className="input"
+                        value={form.phone}
+                        onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                      />
+                    </label>
+                    <label>
+                      Тренер
+                      <select
+                        className="input"
+                        required
+                        value={form.trainer_id}
+                        onChange={(e) => setForm((f) => ({ ...f, trainer_id: e.target.value }))}
+                      >
+                        <option value="">Выберите</option>
+                        {(bundle?.trainers ?? []).map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <p className="muted" style={{ margin: '0 0 8px', fontSize: '0.9rem' }}>
+                      После создания — напишите тренеру (Max / другой мессенджер).
+                    </p>
+                    <button type="submit" className="btn btn-primary btn-touch" disabled={busy}>
+                      Передать тренеру
+                    </button>
+                  </form>
+                ) : (
+                  <div className="pnk-funnel__quality" style={{ marginBottom: '0.75rem' }}>
+                    <button type="button" className="pnk-chip pnk-chip--action" onClick={fillDemoScenario}>
+                      Создать ПНК по сценарию
+                    </button>
+                  </div>
+                )}
 
-      {stats?.trainers?.length ? (
-        <section className="pnk-funnel__by-trainer card">
-          <h2 className="pnk-funnel__section-title">По тренерам</h2>
-          <table className="pnk-funnel__table">
-            <thead>
-              <tr>
-                <th>Тренер</th>
-                <th>ПНК</th>
-                <th>Оформл.</th>
-                <th>%</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stats.trainers.map((t) => (
-                <tr key={t.trainerId}>
-                  <td>{t.trainer_name}</td>
-                  <td>{t.entered}</td>
-                  <td>{t.won}</td>
-                  <td>{t.conversionPct}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
+                {lastCreated?.client ? (
+                  <section className="card pnk-funnel__notify-banner" aria-label="Сообщить тренеру">
+                    <p className="pnk-funnel__section-title" style={{ marginBottom: 8 }}>
+                      ПНК «{lastCreated.client.name}» создан
+                    </p>
+                    <p className="muted" style={{ margin: '0 0 10px', fontSize: '0.9rem' }}>
+                      Напишите тренеру: «В Max» или «Другой мессенджер».
+                    </p>
+                    <PnkCoachNotifyChip
+                      client={lastCreated.client}
+                      trainerName={lastCreated.trainerName}
+                      trainerPhone={lastCreated.trainerPhone}
+                      managerName={user?.name || ''}
+                      kind="created"
+                      busy={busy}
+                      onResult={toastFromNotify}
+                    />
+                  </section>
+                ) : null}
+
+                {attention.length ? (
+                  <section className="pnk-funnel__attention card" aria-label="Требует внимания">
+                    <h2 className="pnk-funnel__section-title">Внимание ({attention.length})</h2>
+                    <ul className="pnk-funnel__attention-scroll">
+                      {attention.map((row) => (
+                        <li key={row.id} className={`pnk-funnel__row pnk-funnel__row--${row.tone}`}>
+                          <div className="pnk-funnel__row-main">
+                            <div className="pnk-client-panel__head" style={{ padding: 0 }}>
+                              <strong>{row.name}</strong>
+                              <PnkStageChip stage={row.pnk_stage} tone={row.tone} />
+                            </div>
+                            <PnkAttentionChips flags={row.flags} />
+                            {row.pnk_trial_date ? (
+                              <span className="muted" style={{ fontSize: '0.85rem' }}>
+                                {formatDateRu(row.pnk_trial_date)}
+                                {row.pnk_trial_time ? ` ${row.pnk_trial_time}` : ''}
+                              </span>
+                            ) : null}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null}
+              </>
+            }
+            assessExtras={
+              <>
+                {stats ? (
+                  <PnkQualityChips
+                    nutritionPct={stats.nutritionPct}
+                    homeworkPct={stats.homeworkPct}
+                    periodLabel={`${formatDateRu(period.dateFrom)}–${formatDateRu(period.dateTo)}`}
+                  />
+                ) : null}
+                {stats?.trainers?.length ? (
+                  <section className="pnk-funnel__by-trainer card">
+                    <h2 className="pnk-funnel__section-title">По тренерам</h2>
+                    <table className="pnk-funnel__table">
+                      <thead>
+                        <tr>
+                          <th>Тренер</th>
+                          <th>ПНК</th>
+                          <th>Оформл.</th>
+                          <th>%</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {stats.trainers.map((t) => (
+                          <tr key={t.trainerId}>
+                            <td>{t.trainer_name}</td>
+                            <td>{t.entered}</td>
+                            <td>{t.won}</td>
+                            <td>{t.conversionPct}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </section>
+                ) : null}
+              </>
+            }
+          />
+        </div>
       ) : null}
 
       {isAdmin ? (
         <p className="muted pnk-funnel__admin-hint">
-          Админ видит всю картину по клубу: фильтр, поиск, раскрытие карточки → написать тренеру (Max / другой мессенджер),
+          Админ видит всю картину по клубу: фильтр, поиск, выбор карточки → написать тренеру (Max / другой мессенджер),
           комментарий, переход в карточку клиента.
         </p>
       ) : null}

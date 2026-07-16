@@ -1,14 +1,12 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { ChevronDown, ChevronUp, Trash2, UserPlus } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { UserPlus } from 'lucide-react'
 import { PnkStepBlocks } from './PnkStepBlocks.jsx'
-import { PnkCoachNotifyChip } from './PnkCoachNotifyChip'
-import { PnkAttentionChips, PnkBoardFilterChips } from './PnkStatusChips'
+import { PnkBoardFilterChips } from './PnkStatusChips'
+import { PnkControlCardDetail } from './PnkControlCardDetail.jsx'
 import { buildPnkManagerControlCards } from '../../lib/pnk/pnkManagerBoardCore.js'
-import { buildPnkAttentionFlags, canDeletePnkClient } from '../../lib/pnk/pnkStagesCore.js'
 
 /**
- * Прокручиваемая доска контроля ПНК (менеджер / админ).
+ * Доска контроля ПНК: квадратная сетка + панель оценки (layout split).
  */
 export function PnkManagerControlBoard({
   clients = [],
@@ -24,11 +22,15 @@ export function PnkManagerControlBoard({
   onComment,
   onDelete,
   initialFocusId = '',
+  workExtras = null,
+  assessExtras = null,
 }) {
   const [trainerId, setTrainerId] = useState('')
   const [query, setQuery] = useState('')
   const [expandedId, setExpandedId] = useState(() => String(initialFocusId || '').trim())
   const [confirmDelete, setConfirmDelete] = useState(null)
+  const focusAppliedRef = useRef(false)
+  const lastFocusParamRef = useRef(String(initialFocusId || '').trim())
 
   const cards = buildPnkManagerControlCards(clients, {
     boardFilter,
@@ -36,129 +38,112 @@ export function PnkManagerControlBoard({
     trainerId,
     query,
   })
+  const cardIdsKey = cards.map((c) => c.id).join(',')
 
+  useEffect(() => {
+    const focus = String(initialFocusId || '').trim()
+    if (focus !== lastFocusParamRef.current) {
+      lastFocusParamRef.current = focus
+      focusAppliedRef.current = false
+    }
+    setExpandedId((prev) => {
+      if (!focusAppliedRef.current && focus && cards.some((c) => c.id === focus)) {
+        focusAppliedRef.current = true
+        return focus
+      }
+      if (prev && cards.some((c) => c.id === prev)) return prev
+      return cards[0]?.id ?? ''
+    })
+  }, [cardIdsKey, initialFocusId])
+
+  const selected = cards.find((c) => c.id === expandedId) ?? null
   const canDelete = typeof onDelete === 'function'
 
   return (
-    <section className="pnk-control-board" aria-label="Контроль ПНК">
-      <div className="pnk-control-board__toolbar">
-        <h2 className="pnk-funnel__section-title" style={{ margin: 0 }}>
-          В работе ({cards.length}
-          {clients.length !== cards.length ? ` из ${clients.length}` : ''})
-        </h2>
-        <PnkBoardFilterChips value={boardFilter} onChange={onBoardFilterChange} counts={filterCounts} />
-        <div className="pnk-control-board__filters">
-          <input
-            className="input"
-            type="search"
-            placeholder="Поиск: имя, телефон, тренер"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            aria-label="Поиск ПНК"
-          />
-          <select
-            className="input"
-            value={trainerId}
-            onChange={(e) => setTrainerId(e.target.value)}
-            aria-label="Фильтр по тренеру"
-          >
-            <option value="">Все тренеры</option>
-            {trainers.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
+    <section className="pnk-control-board pnk-control-board--split" aria-label="Контроль ПНК">
+      <div className="pnk-control-board__master">
+        {workExtras}
+        <div className="pnk-control-board__toolbar">
+          <h2 className="pnk-funnel__section-title" style={{ margin: 0 }}>
+            В работе ({cards.length}
+            {clients.length !== cards.length ? ` из ${clients.length}` : ''})
+          </h2>
+          <PnkBoardFilterChips value={boardFilter} onChange={onBoardFilterChange} counts={filterCounts} />
+          <div className="pnk-control-board__filters">
+            <input
+              className="input"
+              type="search"
+              placeholder="Поиск: имя, телефон, тренер"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              aria-label="Поиск ПНК"
+            />
+            <select
+              className="input"
+              value={trainerId}
+              onChange={(e) => setTrainerId(e.target.value)}
+              aria-label="Фильтр по тренеру"
+            >
+              <option value="">Все тренеры</option>
+              {trainers.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
-      </div>
 
-      {!cards.length ? (
-        <p className="muted">Пока нет открытых ПНК по фильтру</p>
-      ) : (
-        <ul className="pnk-control-board__scroll" role="list">
-          {cards.map((card) => {
-            const open = expandedId === card.id
-            const flags = buildPnkAttentionFlags(card.client)
-            const href = typeof clientHref === 'function' ? clientHref(card.client) : null
-            const showDelete = canDelete && canDeletePnkClient(card.client)
-            return (
-              <li
-                key={card.id}
-                className={`pnk-control-card trainer-task-glance__card${card.isHot ? ' trainer-task-glance__card--hot' : ''}${open ? ' pnk-control-card--open' : ''}`}
-              >
-                <button
-                  type="button"
-                  className="pnk-control-card__summary"
-                  onClick={() => setExpandedId(open ? '' : card.id)}
-                  aria-expanded={open}
+        {!cards.length ? (
+          <p className="muted">Пока нет открытых ПНК по фильтру</p>
+        ) : (
+          <ul className="pnk-control-board__grid" role="list">
+            {cards.map((card) => {
+              const open = expandedId === card.id
+              return (
+                <li
+                  key={card.id}
+                  className={`pnk-control-tile trainer-task-glance__card${card.isHot ? ' trainer-task-glance__card--hot' : ''}${open ? ' pnk-control-tile--selected' : ''}`}
                 >
-                  <span className="trainer-task-glance__icon trainer-pnk-glance__icon" aria-hidden>
-                    <UserPlus size={18} />
-                  </span>
-                  <span className="pnk-control-card__main">
-                    <span className="pnk-control-card__title-row">
-                      <strong className="pnk-control-card__name">{card.name}</strong>
-                      {card.isHot ? (
-                        <span className="pnk-control-card__hot">{card.hotLabel || 'Внимание'}</span>
-                      ) : null}
+                  <button
+                    type="button"
+                    className="pnk-control-tile__btn"
+                    onClick={() => setExpandedId(card.id)}
+                    aria-pressed={open}
+                    aria-label={`${card.name}, шаг ${card.stepN} из ${card.stepTotal}`}
+                  >
+                    <span className="trainer-task-glance__icon trainer-pnk-glance__icon pnk-control-tile__icon" aria-hidden>
+                      <UserPlus size={18} />
                     </span>
-                    <span className="pnk-control-card__meta muted">
-                      {card.trainerName}
-                      {card.caption ? ` · ${card.caption}` : ''}
-                    </span>
-                    <span className="pnk-control-card__step muted">
-                      Шаг {card.stepN}/{card.stepTotal} · {card.stepTitle}
+                    <strong className="pnk-control-tile__name">{card.name}</strong>
+                    {card.isHot ? (
+                      <span className="pnk-control-card__hot pnk-control-tile__hot">{card.hotLabel || 'Внимание'}</span>
+                    ) : null}
+                    <span className="pnk-control-tile__meta muted">{card.trainerName}</span>
+                    <span className="pnk-control-tile__step muted">
+                      {card.stepN}/{card.stepTotal}
                     </span>
                     <PnkStepBlocks stepN={card.stepN} stepTotal={card.stepTotal} />
-                  </span>
-                  <span className="pnk-control-card__chevron" aria-hidden>
-                    {open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                  </span>
-                </button>
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
 
-                {open ? (
-                  <div className="pnk-control-card__panel">
-                    {flags.length ? <PnkAttentionChips flags={flags} /> : null}
-                    <p className="pnk-control-card__intervene muted">
-                      Вмешаться: напишите тренеру — текст под текущий этап.
-                    </p>
-                    <PnkCoachNotifyChip
-                      client={card.client}
-                      trainerName={card.trainerName}
-                      trainerPhone={card.trainerPhone}
-                      managerName={managerName}
-                      busy={busy}
-                      onResult={onNotifyResult}
-                    />
-                    {href ? (
-                      <Link to={href} className="btn btn-secondary btn-touch u-no-decoration">
-                        Открыть карточку клиента
-                      </Link>
-                    ) : null}
-                    {typeof onComment === 'function' ? (
-                      <CommentMini disabled={busy} onSubmit={(text) => onComment(card.id, text)} />
-                    ) : null}
-                    {showDelete ? (
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-touch pnk-control-card__delete"
-                        disabled={busy}
-                        onClick={() => setConfirmDelete({ id: card.id, name: card.name })}
-                      >
-                        <Trash2 size={16} aria-hidden />
-                        Удалить ПНК
-                      </button>
-                    ) : null}
-                    {card.client?.pnk_comment ? (
-                      <p className="pnk-funnel__comment">«{card.client.pnk_comment}»</p>
-                    ) : null}
-                  </div>
-                ) : null}
-              </li>
-            )
-          })}
-        </ul>
-      )}
+      <div className="pnk-control-board__assess">
+        <PnkControlCardDetail
+          card={selected}
+          busy={busy}
+          managerName={managerName}
+          clientHref={clientHref}
+          onNotifyResult={onNotifyResult}
+          onComment={onComment}
+          onRequestDelete={canDelete ? setConfirmDelete : undefined}
+        />
+        {assessExtras}
+      </div>
 
       {confirmDelete ? (
         <div
@@ -197,33 +182,5 @@ export function PnkManagerControlBoard({
         </div>
       ) : null}
     </section>
-  )
-}
-
-function CommentMini({ onSubmit, disabled }) {
-  const [text, setText] = useState('')
-  return (
-    <form
-      className="pnk-funnel__comment-form"
-      onSubmit={(e) => {
-        e.preventDefault()
-        const v = text.trim()
-        if (!v) return
-        onSubmit(v)
-        setText('')
-      }}
-    >
-      <input
-        className="input"
-        placeholder="Комментарий в воронку"
-        value={text}
-        disabled={disabled}
-        onChange={(e) => setText(e.target.value)}
-        aria-label="Комментарий"
-      />
-      <button type="submit" className="btn btn-secondary btn-sm btn-touch" disabled={disabled || !text.trim()}>
-        OK
-      </button>
-    </form>
   )
 }
