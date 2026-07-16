@@ -434,14 +434,20 @@ button.pnk-chip:disabled {
 .pnk-client-panel__head {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
+}
+
+.pnk-client-panel__head-main {
+  min-width: 0;
 }
 
 .pnk-client-panel__title {
   margin: 0;
-  font-size: 1.15rem;
-  font-weight: 650;
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
 }
 
 .pnk-client-panel__step-kicker {
@@ -468,6 +474,10 @@ button.pnk-chip:disabled {
   margin: 0;
   font-size: 0.92rem;
   color: var(--accent-bright);
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 8px;
 }
 
 .pnk-client-panel__step {
@@ -482,10 +492,40 @@ button.pnk-chip:disabled {
   color: var(--text-muted);
 }
 
+.pnk-client-panel__actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.pnk-client-panel__actions--wrap {
+  flex-wrap: wrap;
+}
+
+.pnk-client-panel__actions .pnk-coach-notify {
+  display: contents;
+}
+
+.pnk-client-panel__actions .pnk-coach-notify__max,
+.pnk-client-panel__actions .pnk-coach-notify__other,
+.pnk-client-panel__actions .btn {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 44px;
+  justify-content: center;
+  gap: 6px;
+}
+
 .pnk-client-panel__visit-links {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
+}
+
+.pnk-client-panel__visit-links.pnk-client-panel__actions {
+  display: grid;
 }
 
 .pnk-client-panel__visit-links .btn {
@@ -554,6 +594,18 @@ button.pnk-chip:disabled {
   gap: 8px;
   padding-top: 4px;
   border-top: 1px solid var(--border-soft);
+}
+
+@media (max-width: 720px) {
+  .pnk-client-panel__actions:not(.pnk-client-panel__actions--wrap) {
+    flex-wrap: wrap;
+  }
+
+  .pnk-client-panel__actions .pnk-coach-notify__max,
+  .pnk-client-panel__actions .pnk-coach-notify__other,
+  .pnk-client-panel__actions .btn {
+    flex: 1 1 calc(50% - 8px);
+  }
 }
 
 @media (max-width: 720px) {
@@ -636,10 +688,13 @@ button.pnk-chip:disabled {
   margin: 0;
   padding: 0;
   min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
   border-radius: var(--radius);
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  overflow: visible;
+  overflow: hidden;
   transition:
     border-color 0.2s var(--ease-out),
     box-shadow 0.2s var(--ease-out);
@@ -657,7 +712,9 @@ button.pnk-chip:disabled {
 
 .pnk-control-tile__btn {
   width: 100%;
+  flex: 1;
   display: grid;
+  grid-template-rows: auto 2.7em 1.35em 2.9em 1.35em auto;
   gap: 6px;
   padding: 12px;
   border: 0;
@@ -666,6 +723,7 @@ button.pnk-chip:disabled {
   text-align: left;
   cursor: pointer;
   min-height: 44px;
+  align-content: start;
 }
 
 .pnk-control-tile__top {
@@ -673,6 +731,7 @@ button.pnk-chip:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-height: 32px;
 }
 
 .pnk-control-tile__icon {
@@ -690,46 +749,85 @@ button.pnk-chip:disabled {
   border-radius: var(--radius-sm);
   border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
   background: color-mix(in srgb, var(--accent) 12%, transparent);
+  flex-shrink: 0;
 }
 
 .pnk-control-tile__name {
   font-size: 1.05rem;
   font-weight: 700;
   line-height: 1.3;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+  overflow: hidden;
   word-break: break-word;
   overflow-wrap: anywhere;
+  align-self: start;
 }
 
 .pnk-control-tile__stage {
   font-size: 0.88rem;
   font-weight: 650;
   color: var(--text);
-  line-height: 1.25;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  align-self: start;
 }
 
-.pnk-control-tile__alert {
+.pnk-control-tile__alert,
+.pnk-control-tile__caption,
+.pnk-control-tile__slot {
   font-size: 0.78rem;
   font-weight: 650;
   line-height: 1.3;
-  color: #fde68a;
   padding: 6px 8px;
   border-radius: var(--radius-sm);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
+  overflow: hidden;
+  box-sizing: border-box;
+  min-height: 2.9em;
+  align-self: stretch;
+}
+
+.pnk-control-tile__alert {
+  color: #fde68a;
   border: 1px solid color-mix(in srgb, var(--warning) 45%, transparent);
   background: color-mix(in srgb, var(--warning) 12%, transparent);
 }
 
 .pnk-control-tile__caption {
-  font-size: 0.8rem;
-  line-height: 1.3;
+  font-weight: 500;
+  border: 1px solid transparent;
+  background: transparent;
+  padding-inline: 0;
+}
+
+.pnk-control-tile__slot {
+  font-weight: 500;
+  border: 1px solid transparent;
+  background: transparent;
+  visibility: hidden;
 }
 
 .pnk-control-tile__meta {
   font-size: 0.78rem;
-  line-height: 1.3;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  align-self: start;
 }
 
 .pnk-control-tile .pnk-step-blocks {
-  margin-top: 2px;
+  margin-top: 0;
+  align-self: end;
 }
 
 .pnk-control-detail {
@@ -912,6 +1010,84 @@ button.pnk-chip:disabled {
   .pnk-control-board__filters {
     grid-template-columns: 1fr;
   }
+}
+
+/* Главная менеджера / тренера — лицо карточки ПНК (как плитки на доске) */
+.pnk-glance-shell {
+  display: grid;
+  gap: 8px;
+}
+
+.pnk-glance-face {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+  padding: 4px 0 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.pnk-glance-face__top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.pnk-glance-face__icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+}
+
+.pnk-glance-face__head-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.pnk-glance-face__eyebrow {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.pnk-glance-face__meta {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.pnk-glance-face__name {
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.3;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.pnk-glance-face__stage {
+  font-size: 0.95rem;
+  font-weight: 650;
+  color: var(--text);
+  line-height: 1.25;
+}
+
+.pnk-glance-face__caption {
+  font-size: 0.88rem;
+  line-height: 1.3;
+}
+
+.pnk-glance-face__cta {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.manager-pnk-glance .pnk-glance-face__name {
+  color: var(--accent-bright, #2effb8);
 }
 
 /* Главная менеджера / админа — карусель ПНК в цветах sales/admin */

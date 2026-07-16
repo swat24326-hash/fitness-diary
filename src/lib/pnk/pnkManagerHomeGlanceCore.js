@@ -48,6 +48,7 @@ export function buildPnkManagerHomeGlanceCards(clients, opts = {}) {
       stepTitle: card.stepTitle,
       caption: card.caption,
       isHot: card.isHot,
+      hotLabel: card.hotLabel,
       trainerName: card.trainerName,
       href: id ? `${boardHref}${sep}focus=${encodeURIComponent(id)}` : boardHref,
       fromLine: trainerLine

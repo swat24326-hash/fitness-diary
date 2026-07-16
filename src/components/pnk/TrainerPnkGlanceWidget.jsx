@@ -1,21 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, UserPlus } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { listLocalClients } from '../../lib/dataAccess'
-import {
-  buildPnkGlanceCards,
-} from '../../lib/pnk/pnkTrainerGlanceCore.js'
+import { buildPnkGlanceCards } from '../../lib/pnk/pnkTrainerGlanceCore.js'
 import {
   useDebouncedStorageReload,
   shouldReloadTrainerClientList,
 } from '../../lib/useDebouncedStorageReload'
-import { PnkStepBlocks } from './PnkStepBlocks.jsx'
+import { PnkGlanceCardFace } from './PnkGlanceCardFace.jsx'
+import '../../styles/pnk-funnel.css'
 
 const SWIPE_THRESHOLD_PX = 42
 
 /**
- * ПНК на главной — тот же стиль, что «Задание от руководства».
+ * ПНК на главной тренера — те же принципы, что доска менеджера/админа.
  * @param {{ clubId?: string }} props
  */
 export function TrainerPnkGlanceWidget({ clubId = '' }) {
@@ -96,7 +95,7 @@ export function TrainerPnkGlanceWidget({ clubId = '' }) {
   return (
     <section className="trainer-task-glance trainer-pnk-glance" aria-labelledby="trainer-pnk-glance-title">
       <div
-        className={`trainer-task-glance__card${card.isHot ? ' trainer-task-glance__card--hot' : ''}`}
+        className={`trainer-task-glance__card pnk-glance-shell${card.isHot ? ' trainer-task-glance__card--hot' : ''}`}
         onTouchStart={hasMany ? onTouchStart : undefined}
         onTouchMove={hasMany ? onTouchMove : undefined}
         onTouchEnd={hasMany ? onTouchEnd : undefined}
@@ -133,31 +132,19 @@ export function TrainerPnkGlanceWidget({ clubId = '' }) {
           </div>
         ) : null}
 
-        <button
-          type="button"
-          className="trainer-task-glance__body"
+        <PnkGlanceCardFace
+          name={card.name}
+          stepN={card.stepN}
+          stepTotal={card.stepTotal}
+          stepTitle={card.stepTitle}
+          caption={card.caption}
+          isHot={card.isHot}
+          hotLabel={card.hotLabel}
+          eyebrow={card.isHot ? 'ПНК требует внимания' : 'ПНК в работе'}
+          titleId="trainer-pnk-glance-title"
           onClick={onCardClick}
-          aria-label={`Открыть ПНК: ${card.name}`}
-        >
-          <div className="trainer-task-glance__head">
-            <span className="trainer-task-glance__icon trainer-pnk-glance__icon" aria-hidden>
-              <UserPlus size={18} />
-            </span>
-            <div className="trainer-task-glance__head-text">
-              <h2 id="trainer-pnk-glance-title" className="trainer-task-glance__title">
-                {card.isHot ? 'ПНК требует внимания' : 'ПНК в работе'}
-              </h2>
-              <p className="trainer-task-glance__from muted">
-                Шаг {card.stepN} из {card.stepTotal} · {card.stepTitle}
-              </p>
-            </div>
-            <ChevronRight size={18} className="trainer-task-glance__chevron" aria-hidden />
-          </div>
-
-          <p className="trainer-task-glance__task-title">{card.name}</p>
-          <PnkStepBlocks stepN={card.stepN} stepTotal={card.stepTotal} />
-          {card.caption ? <p className="trainer-task-glance__caption muted">{card.caption}</p> : null}
-        </button>
+          ariaLabel={`Открыть ПНК: ${card.name}`}
+        />
 
         {hasMany ? (
           <div className="trainer-task-glance__dots" role="tablist" aria-label="ПНК">

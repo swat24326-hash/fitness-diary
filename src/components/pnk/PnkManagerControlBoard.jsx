@@ -125,11 +125,21 @@ export function PnkManagerControlBoard({
                     </span>
                     <strong className="pnk-control-tile__name">{card.name}</strong>
                     <span className="pnk-control-tile__stage">{card.stepTitle}</span>
-                    {card.isHot && card.hotLabel ? (
-                      <span className="pnk-control-tile__alert">{card.hotLabel}</span>
-                    ) : card.caption && card.caption !== card.stepTitle ? (
-                      <span className="pnk-control-tile__caption muted">{card.caption}</span>
-                    ) : null}
+                    <span
+                      className={
+                        card.isHot && card.hotLabel
+                          ? 'pnk-control-tile__alert'
+                          : card.caption && card.caption !== card.stepTitle
+                            ? 'pnk-control-tile__caption muted'
+                            : 'pnk-control-tile__slot'
+                      }
+                    >
+                      {card.isHot && card.hotLabel
+                        ? card.hotLabel
+                        : card.caption && card.caption !== card.stepTitle
+                          ? card.caption
+                          : '\u00a0'}
+                    </span>
                     <span className="pnk-control-tile__meta muted">
                       {card.trainerName}
                       {trialDate ? ` · ${formatDateRu(trialDate)}${trialTime ? ` ${trialTime}` : ''}` : ''}
