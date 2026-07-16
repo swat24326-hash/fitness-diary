@@ -4,6 +4,7 @@ import { PnkStepBlocks } from './PnkStepBlocks.jsx'
 import { PnkBoardFilterChips } from './PnkStatusChips'
 import { PnkControlCardDetail } from './PnkControlCardDetail.jsx'
 import { buildPnkManagerControlCards } from '../../lib/pnk/pnkManagerBoardCore.js'
+import { formatDateRu } from '../../lib/dateRu.js'
 
 /**
  * Доска контроля ПНК: квадратная сетка + панель оценки (layout split).
@@ -100,28 +101,38 @@ export function PnkManagerControlBoard({
           <ul className="pnk-control-board__grid" role="list">
             {cards.map((card) => {
               const open = expandedId === card.id
+              const trialDate = String(card.client?.pnk_trial_date ?? '').slice(0, 10)
+              const trialTime = String(card.client?.pnk_trial_time ?? '').trim()
               return (
                 <li
                   key={card.id}
-                  className={`pnk-control-tile trainer-task-glance__card${card.isHot ? ' trainer-task-glance__card--hot' : ''}${open ? ' pnk-control-tile--selected' : ''}`}
+                  className={`pnk-control-tile${card.isHot ? ' pnk-control-tile--hot' : ''}${open ? ' pnk-control-tile--selected' : ''}`}
                 >
                   <button
                     type="button"
                     className="pnk-control-tile__btn"
                     onClick={() => setExpandedId(card.id)}
                     aria-pressed={open}
-                    aria-label={`${card.name}, шаг ${card.stepN} из ${card.stepTotal}`}
+                    aria-label={`${card.name}, шаг ${card.stepN} из ${card.stepTotal}${card.hotLabel ? `, ${card.hotLabel}` : ''}`}
                   >
-                    <span className="trainer-task-glance__icon trainer-pnk-glance__icon pnk-control-tile__icon" aria-hidden>
-                      <UserPlus size={18} />
+                    <span className="pnk-control-tile__top">
+                      <span className="trainer-task-glance__icon trainer-pnk-glance__icon pnk-control-tile__icon" aria-hidden>
+                        <UserPlus size={18} />
+                      </span>
+                      <span className="pnk-control-tile__step-badge">
+                        {card.stepN}/{card.stepTotal}
+                      </span>
                     </span>
                     <strong className="pnk-control-tile__name">{card.name}</strong>
-                    {card.isHot ? (
-                      <span className="pnk-control-card__hot pnk-control-tile__hot">{card.hotLabel || 'Внимание'}</span>
+                    <span className="pnk-control-tile__stage">{card.stepTitle}</span>
+                    {card.isHot && card.hotLabel ? (
+                      <span className="pnk-control-tile__alert">{card.hotLabel}</span>
+                    ) : card.caption && card.caption !== card.stepTitle ? (
+                      <span className="pnk-control-tile__caption muted">{card.caption}</span>
                     ) : null}
-                    <span className="pnk-control-tile__meta muted">{card.trainerName}</span>
-                    <span className="pnk-control-tile__step muted">
-                      {card.stepN}/{card.stepTotal}
+                    <span className="pnk-control-tile__meta muted">
+                      {card.trainerName}
+                      {trialDate ? ` · ${formatDateRu(trialDate)}${trialTime ? ` ${trialTime}` : ''}` : ''}
                     </span>
                     <PnkStepBlocks stepN={card.stepN} stepTotal={card.stepTotal} />
                   </button>

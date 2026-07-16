@@ -8,9 +8,7 @@ import { createPnkClient, deletePnkClient, fetchPnkBundle, patchPnkClient } from
 import { PnkCoachNotifyChip } from '../../components/pnk/PnkCoachNotifyChip'
 import { PnkManagerControlBoard } from '../../components/pnk/PnkManagerControlBoard'
 import {
-  PnkAttentionChips,
   PnkQualityChips,
-  PnkStageChip,
 } from '../../components/pnk/PnkStatusChips'
 import {
   buildPnkDemoScenarioForm,
@@ -53,6 +51,11 @@ export function SalesPnk() {
       setToast(r.shared ? 'Выберите мессенджер' : 'Скопировано — вставьте тренеру')
     }
     setTimeout(() => setToast(''), 3500)
+  }
+
+  function onCreatedNotifyResult(r) {
+    toastFromNotify(r)
+    if (r?.ok) setLastCreated(null)
   }
 
   const period = useMemo(() => {
@@ -175,11 +178,31 @@ export function SalesPnk() {
 
   return (
     <div className={`sales-report sales-report--wide pnk-funnel${busy ? ' sales-report__busy' : ''}`}>
-      <div className="sales-report__toolbar">
+      <div className="sales-report__toolbar pnk-funnel__topbar">
         <div className="sales-home__hero-text">
           <p className="sales-home__eyebrow">{isAdmin ? 'Контроль клуба' : 'Воронка'}</p>
           <h1 className="sales-page__title">ПНК</h1>
         </div>
+        {stats ? (
+          <section className="pnk-funnel__kpi pnk-funnel__kpi--inline" aria-label="Сводка за месяц">
+            <div className="pnk-funnel__kpi-card">
+              <span className="pnk-funnel__kpi-label">ПНК</span>
+              <span className="pnk-funnel__kpi-value">{stats.entered}</span>
+            </div>
+            <div className="pnk-funnel__kpi-card">
+              <span className="pnk-funnel__kpi-label">Оформления</span>
+              <span className="pnk-funnel__kpi-value">{stats.won}</span>
+            </div>
+            <div className="pnk-funnel__kpi-card">
+              <span className="pnk-funnel__kpi-label">Конверсия</span>
+              <span className="pnk-funnel__kpi-value">{stats.conversionPct}%</span>
+            </div>
+            <div className="pnk-funnel__kpi-card">
+              <span className="pnk-funnel__kpi-label">В работе</span>
+              <span className="pnk-funnel__kpi-value">{stats.open}</span>
+            </div>
+          </section>
+        ) : null}
         <div className="pnk-funnel__toolbar-actions">
           <Link to={backTo} className="btn btn-ghost btn-sm btn-icon-square btn-touch" title="Назад" aria-label="Назад">
             <ArrowLeft size={16} aria-hidden />
@@ -224,27 +247,6 @@ export function SalesPnk() {
         <p className="sync-feedback sync-feedback--err" role="alert">
           {error}
         </p>
-      ) : null}
-
-      {stats ? (
-        <section className="pnk-funnel__kpi" aria-label="Сводка за месяц">
-          <div className="pnk-funnel__kpi-card">
-            <span className="pnk-funnel__kpi-label">ПНК</span>
-            <span className="pnk-funnel__kpi-value">{stats.entered}</span>
-          </div>
-          <div className="pnk-funnel__kpi-card">
-            <span className="pnk-funnel__kpi-label">Оформления</span>
-            <span className="pnk-funnel__kpi-value">{stats.won}</span>
-          </div>
-          <div className="pnk-funnel__kpi-card">
-            <span className="pnk-funnel__kpi-label">Конверсия</span>
-            <span className="pnk-funnel__kpi-value">{stats.conversionPct}%</span>
-          </div>
-          <div className="pnk-funnel__kpi-card">
-            <span className="pnk-funnel__kpi-label">В работе</span>
-            <span className="pnk-funnel__kpi-value">{stats.open}</span>
-          </div>
-        </section>
       ) : null}
 
       {clubId ? (
@@ -320,19 +322,23 @@ export function SalesPnk() {
                       Передать тренеру
                     </button>
                   </form>
-                ) : (
-                  <div className="pnk-funnel__quality" style={{ marginBottom: '0.75rem' }}>
-                    <button type="button" className="pnk-chip pnk-chip--action" onClick={fillDemoScenario}>
-                      Создать ПНК по сценарию
-                    </button>
-                  </div>
-                )}
+                ) : null}
 
                 {lastCreated?.client ? (
                   <section className="card pnk-funnel__notify-banner" aria-label="Сообщить тренеру">
-                    <p className="pnk-funnel__section-title" style={{ marginBottom: 8 }}>
-                      ПНК «{lastCreated.client.name}» создан
-                    </p>
+                    <div className="pnk-client-panel__head" style={{ padding: 0, marginBottom: 8 }}>
+                      <p className="pnk-funnel__section-title" style={{ margin: 0 }}>
+                        ПНК «{lastCreated.client.name}» создан
+                      </p>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm btn-touch"
+                        onClick={() => setLastCreated(null)}
+                        title="Скрыть"
+                      >
+                        Позже
+                      </button>
+                    </div>
                     <p className="muted" style={{ margin: '0 0 10px', fontSize: '0.9rem' }}>
                       Напишите тренеру: «В Max» или «Другой мессенджер».
                     </p>
@@ -343,33 +349,8 @@ export function SalesPnk() {
                       managerName={user?.name || ''}
                       kind="created"
                       busy={busy}
-                      onResult={toastFromNotify}
+                      onResult={onCreatedNotifyResult}
                     />
-                  </section>
-                ) : null}
-
-                {attention.length ? (
-                  <section className="pnk-funnel__attention card" aria-label="Требует внимания">
-                    <h2 className="pnk-funnel__section-title">Внимание ({attention.length})</h2>
-                    <ul className="pnk-funnel__attention-scroll">
-                      {attention.map((row) => (
-                        <li key={row.id} className={`pnk-funnel__row pnk-funnel__row--${row.tone}`}>
-                          <div className="pnk-funnel__row-main">
-                            <div className="pnk-client-panel__head" style={{ padding: 0 }}>
-                              <strong>{row.name}</strong>
-                              <PnkStageChip stage={row.pnk_stage} tone={row.tone} />
-                            </div>
-                            <PnkAttentionChips flags={row.flags} />
-                            {row.pnk_trial_date ? (
-                              <span className="muted" style={{ fontSize: '0.85rem' }}>
-                                {formatDateRu(row.pnk_trial_date)}
-                                {row.pnk_trial_time ? ` ${row.pnk_trial_time}` : ''}
-                              </span>
-                            ) : null}
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
                   </section>
                 ) : null}
               </>

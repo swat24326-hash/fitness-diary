@@ -59,32 +59,35 @@ export function PnkControlCardDetail({
       <p className="pnk-control-card__intervene muted">
         Вмешаться: напишите тренеру — текст под текущий этап.
       </p>
-      <PnkCoachNotifyChip
-        client={card.client}
-        trainerName={card.trainerName}
-        trainerPhone={card.trainerPhone}
-        managerName={managerName}
-        busy={busy}
-        onResult={onNotifyResult}
-      />
-      {href ? (
-        <Link to={href} className="btn btn-secondary btn-touch u-no-decoration">
-          Открыть карточку клиента
-        </Link>
-      ) : null}
+      <div className="pnk-control-detail__actions" role="group" aria-label="Действия по ПНК">
+        <PnkCoachNotifyChip
+          client={card.client}
+          trainerName={card.trainerName}
+          trainerPhone={card.trainerPhone}
+          managerName={managerName}
+          busy={busy}
+          onResult={onNotifyResult}
+        />
+        {href ? (
+          <Link to={href} className="btn btn-secondary btn-touch u-no-decoration pnk-control-detail__action">
+            Открыть карточку клиента
+          </Link>
+        ) : null}
+        {showDelete ? (
+          <button
+            type="button"
+            className="btn btn-ghost btn-touch pnk-control-card__delete pnk-control-detail__action"
+            disabled={busy}
+            onClick={() => onRequestDelete({ id: card.id, name: card.name })}
+            title="Удалить ПНК"
+          >
+            <Trash2 size={16} aria-hidden />
+            Удалить ПНК
+          </button>
+        ) : null}
+      </div>
       {typeof onComment === 'function' ? (
         <CommentMini disabled={busy} onSubmit={(text) => onComment(card.id, text)} />
-      ) : null}
-      {showDelete ? (
-        <button
-          type="button"
-          className="btn btn-ghost btn-touch pnk-control-card__delete"
-          disabled={busy}
-          onClick={() => onRequestDelete({ id: card.id, name: card.name })}
-        >
-          <Trash2 size={16} aria-hidden />
-          Удалить ПНК
-        </button>
       ) : null}
       {card.client?.pnk_comment ? (
         <p className="pnk-funnel__comment">«{card.client.pnk_comment}»</p>
