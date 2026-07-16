@@ -195,8 +195,46 @@
   margin-bottom: 1rem;
 }
 
-.pnk-funnel__admin-hint {
-  margin-top: 1rem;
+.pnk-coach-notify {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: stretch;
+  width: 100%;
+}
+
+.pnk-coach-notify__max,
+.pnk-coach-notify__other {
+  flex: 1 1 140px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.pnk-coach-notify__max {
+  background: color-mix(in srgb, var(--accent) 22%, rgba(0, 0, 0, 0.35));
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+}
+
+.pnk-funnel__notify-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.pnk-funnel__notify-banner {
+  margin-bottom: 1rem;
+  padding: 14px 16px;
+}
+
+.sync-feedback--ok {
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
 }
 
 /* ── Chips (как iskra-dispatch) ── */

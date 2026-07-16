@@ -38,7 +38,7 @@ const TRAINER_ROLES_SALES = new Set(TRAINER_ROLES)
 export async function fetchClubTrainersForSales(supabaseAdmin, clubId) {
   const { data, error } = await supabaseAdmin
     .from('users')
-    .select('id, name, email, login, is_active, role, club_id')
+    .select('id, name, email, login, phone, is_active, role, club_id')
     .eq('club_id', clubId)
     .order('name', { ascending: true })
   if (error) throw error

@@ -57,6 +57,7 @@ async function handlePnkGet(ctx, req, res) {
   const open = clients.filter((c) => isOpenPnkClient(c))
   const trainers = await fetchClubTrainersForSales(supabaseAdmin, clubId)
   const trainerNameById = new Map(trainers.map((t) => [t.id, t.name || t.login || t.email || '—']))
+  const trainerPhoneById = new Map(trainers.map((t) => [t.id, t.phone ? String(t.phone).trim() : '']))
 
   const stats = aggregatePnkFunnelStats(clients, {
     dateFrom: dateFrom || undefined,
@@ -69,6 +70,7 @@ async function handlePnkGet(ctx, req, res) {
     clients: open.map((c) => ({
       ...c,
       trainer_name: trainerNameById.get(String(c.trainer_id)) ?? null,
+      trainer_phone: trainerPhoneById.get(String(c.trainer_id)) || null,
     })),
     history: clients
       .filter((c) => !isOpenPnkClient(c))
@@ -76,6 +78,7 @@ async function handlePnkGet(ctx, req, res) {
       .map((c) => ({
         ...c,
         trainer_name: trainerNameById.get(String(c.trainer_id)) ?? null,
+        trainer_phone: trainerPhoneById.get(String(c.trainer_id)) || null,
       })),
     stats: {
       ...stats,
@@ -85,7 +88,11 @@ async function handlePnkGet(ctx, req, res) {
       })),
     },
     attention,
-    trainers: trainers.map((t) => ({ id: t.id, name: t.name || t.login || t.email || '—' })),
+    trainers: trainers.map((t) => ({
+      id: t.id,
+      name: t.name || t.login || t.email || '—',
+      phone: t.phone ? String(t.phone).trim() : null,
+    })),
   })
 }
 

@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import { monthPartsFromIso, monthDateRange } from '../../lib/admin/salesReportCore'
 import { todayLocalIso, formatDateRu } from '../../lib/dateRu'
 import { createPnkClient, fetchPnkBundle, patchPnkClient } from '../../lib/pnk/pnkApiService'
+import { PnkCoachNotifyChip } from '../../components/pnk/PnkCoachNotifyChip'
 import {
   PnkAttentionChips,
   PnkBoardFilterChips,
@@ -29,6 +30,22 @@ export function SalesPnk() {
   const [form, setForm] = useState({ name: '', phone: '', trainer_id: '' })
   const [createOpen, setCreateOpen] = useState(false)
   const [boardFilter, setBoardFilter] = useState('all')
+  const [toast, setToast] = useState('')
+  const [lastCreated, setLastCreated] = useState(null)
+
+  function toastFromNotify(r) {
+    if (!r?.ok) {
+      setToast('Не удалось отправить — скопируйте текст вручную')
+      setTimeout(() => setToast(''), 3500)
+      return
+    }
+    if (r.channel === 'max') {
+      setToast(r.opened ? 'Текст скопирован, Max открыт' : 'Текст скопирован — вставьте в Max')
+    } else {
+      setToast(r.shared ? 'Выберите мессенджер' : 'Скопировано — вставьте тренеру')
+    }
+    setTimeout(() => setToast(''), 3500)
+  }
 
   const period = useMemo(() => {
     const parts = monthPartsFromIso(todayLocalIso())
@@ -68,11 +85,17 @@ export function SalesPnk() {
     setBusy(true)
     setError('')
     try {
-      await createPnkClient({
+      const client = await createPnkClient({
         clubId,
         name: form.name,
         phone: form.phone,
         trainer_id: form.trainer_id,
+      })
+      const trainer = (bundle?.trainers ?? []).find((t) => t.id === form.trainer_id)
+      setLastCreated({
+        client,
+        trainerName: trainer?.name || '',
+        trainerPhone: trainer?.phone || null,
       })
       setForm((f) => ({ ...f, name: '', phone: '' }))
       setCreateOpen(false)
@@ -157,6 +180,12 @@ export function SalesPnk() {
         </div>
       </div>
 
+      {toast ? (
+        <p className="sync-feedback sync-feedback--ok" role="status">
+          {toast}
+        </p>
+      ) : null}
+
       {error ? (
         <p className="sync-feedback sync-feedback--err" role="alert">
           {error}
@@ -235,6 +264,9 @@ export function SalesPnk() {
               ))}
             </select>
           </label>
+          <p className="muted" style={{ margin: '0 0 8px', fontSize: '0.9rem' }}>
+            После создания появятся кнопки «В Max» и «Другой мессенджер» — как у ДЗ и питания.
+          </p>
           <button type="submit" className="btn btn-primary btn-touch" disabled={busy}>
             Передать тренеру
           </button>
@@ -246,6 +278,26 @@ export function SalesPnk() {
           </button>
         </div>
       )}
+
+      {lastCreated?.client ? (
+        <section className="card pnk-funnel__notify-banner" aria-label="Сообщить тренеру">
+          <p className="pnk-funnel__section-title" style={{ marginBottom: 8 }}>
+            ПНК «{lastCreated.client.name}» создан
+          </p>
+          <p className="muted" style={{ margin: '0 0 10px', fontSize: '0.9rem' }}>
+            Напишите тренеру: «В Max» или «Другой мессенджер» (текст копируется автоматически).
+          </p>
+          <PnkCoachNotifyChip
+            client={lastCreated.client}
+            trainerName={lastCreated.trainerName}
+            trainerPhone={lastCreated.trainerPhone}
+            managerName={user?.name || ''}
+            kind="created"
+            busy={busy}
+            onResult={toastFromNotify}
+          />
+        </section>
+      ) : null}
 
       {attention.length ? (
         <section className="pnk-funnel__attention card" aria-label="Требует внимания">
@@ -302,6 +354,14 @@ export function SalesPnk() {
                     <div className="pnk-funnel__fill" style={{ width: `${progress.pct}%` }} />
                   </div>
                   <PnkDeliverableChips client={c} />
+                  <PnkCoachNotifyChip
+                    client={c}
+                    trainerName={c.trainer_name || ''}
+                    trainerPhone={c.trainer_phone}
+                    managerName={user?.name || ''}
+                    busy={busy}
+                    onResult={toastFromNotify}
+                  />
                   {c.pnk_comment ? <p className="pnk-funnel__comment">«{c.pnk_comment}»</p> : null}
                   <CommentMini disabled={busy} onSubmit={(text) => void onComment(c.id, text)} />
                 </li>

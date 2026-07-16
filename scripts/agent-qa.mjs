@@ -61,6 +61,7 @@ run('sales plan matrix compare', 'node', ['scripts/verify-sales-plan-matrix-comp
 run('sales manager stats', 'node', ['scripts/verify-sales-manager-stats.mjs'])
 run('sales client segment', 'node', ['scripts/verify-sales-client-segment.mjs'])
 run('pnk funnel stages', 'node', ['scripts/verify-pnk-stages.mjs'])
+run('pnk coach notify', 'node', ['scripts/verify-pnk-coach-notify.mjs'])
 run('sales manager role', 'node', ['scripts/verify-sales-manager-role.mjs'])
 run('sales draft storage', 'node', ['scripts/verify-admin-sales-draft.mjs'])
 run('club month analytics', 'node', ['scripts/verify-club-month-analytics.mjs'])
