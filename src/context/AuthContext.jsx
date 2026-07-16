@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import {
   isAuthApiTransportError,
@@ -18,6 +18,7 @@ import {
 import { ensureDemoData, demoTrainerId, DEMO_CLUB_ID } from '../lib/seedDemo'
 import {
   clearIdentityCache,
+  clearPersistedSupabaseSession,
   hasPersistedSupabaseSession,
   mergeIdentityCacheIntoUser,
   readIdentityCache,
@@ -187,6 +188,14 @@ async function signInWithPasswordRetry(email, password, attempts = 2) {
 
 const SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL ?? '').trim()
 
+function clearRoleCache() {
+  try {
+    localStorage.removeItem(ROLE_CACHE_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [role, setRole] = useState(null)
@@ -194,6 +203,11 @@ export function AuthProvider({ children }) {
   const [sessionRecovering, setSessionRecovering] = useState(false)
   const [profilePending, setProfilePending] = useState(false)
   const [signingIn, setSigningIn] = useState(false)
+  /** Явный выход: не восстанавливать сессию по остаткам токена / SIGNED_OUT. */
+  const signingOutRef = useRef(false)
+  const [hasStoredSession, setHasStoredSession] = useState(() =>
+    isSupabaseConfigured() ? hasPersistedSupabaseSession(SUPABASE_URL) : false,
+  )
 
   const queryUserRow = useCallback(async (applyFilter) => {
     const fields = 'role, name, email, phone, login, club_id'
@@ -263,6 +277,7 @@ export function AuthProvider({ children }) {
 
   const applySession = useCallback(
     async (session, { fromWake = false } = {}) => {
+      if (signingOutRef.current) return
       if (!session?.user) {
         setUser(null)
         setRole(null)
@@ -281,6 +296,7 @@ export function AuthProvider({ children }) {
       const profile = await withTimeout(refreshProfile(uid, session.user.email), fromWake ? 12_000 : 8_000, 'profile').catch(
         () => null,
       )
+      if (signingOutRef.current) return
       if (!profile) {
         if (identityHint) {
           setUser((prev) => (prev?.id === uid ? mergeIdentityCacheIntoUser(identityHint, prev) : prev))
@@ -299,13 +315,14 @@ export function AuthProvider({ children }) {
   )
 
   const refreshSessionOnWake = useCallback(async () => {
-    if (!isSupabaseConfigured()) return
+    if (!isSupabaseConfigured() || signingOutRef.current) return
     try {
       const { data, error } = await supabase.auth.refreshSession()
       if (error) {
         console.warn('[auth] wake refreshSession', error.message)
         return
       }
+      if (signingOutRef.current) return
       if (data?.session?.user) {
         await applySession(data.session, { fromWake: true })
       }
@@ -361,6 +378,7 @@ export function AuthProvider({ children }) {
         await clearPoisonedSyncQueue()
 
         const hasStored = hasPersistedSupabaseSession(SUPABASE_URL)
+        setHasStoredSession(hasStored)
         if (hasStored) {
           const latest = readIdentityCacheLatest()
           if (latest?.id) {
@@ -416,8 +434,21 @@ export function AuthProvider({ children }) {
         /* INITIAL_SESSION / TOKEN_REFRESHED — без лишних запросов к REST. */
         if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') return
         if (session?.user) {
+          if (signingOutRef.current) return
+          setHasStoredSession(true)
           void applySession(session)
         } else if (event === 'SIGNED_OUT') {
+          /* Явный выход: не пытаться «восстановить сессию» по остатку refresh_token. */
+          if (signingOutRef.current) {
+            clearPersistedSupabaseSession(SUPABASE_URL)
+            clearIdentityCache()
+            clearRoleCache()
+            setHasStoredSession(false)
+            setUser(null)
+            setRole(null)
+            setSessionRecovering(false)
+            return
+          }
           if (hasPersistedSupabaseSession(SUPABASE_URL)) {
             setSessionRecovering(true)
             void refreshSessionOnWake().finally(() => {
@@ -426,6 +457,7 @@ export function AuthProvider({ children }) {
             return
           }
           clearIdentityCache()
+          setHasStoredSession(false)
           setUser(null)
           setRole(null)
         }
@@ -465,6 +497,7 @@ export function AuthProvider({ children }) {
     if (password == null || password === '') return { error: { message: 'Введите пароль' } }
 
     setSigningIn(true)
+    signingOutRef.current = false
     const finishSignIn = (authUser, profile) => {
       void clearPoisonedSyncQueue()
       const identityHint = readIdentityCache(authUser.id, authUser.email)
@@ -473,6 +506,7 @@ export function AuthProvider({ children }) {
       setUser(nextUser)
       setRole(nextRole)
       persistIdentity(nextUser, nextRole)
+      setHasStoredSession(true)
       setBackgroundSyncPaused(false)
       setProfilePending(false)
       void requestPersistentStorageOnce()
@@ -610,14 +644,28 @@ export function AuthProvider({ children }) {
   }, [refreshProfile])
 
   const signOut = useCallback(async () => {
+    signingOutRef.current = true
     setBackgroundSyncPaused(true)
     writeFallback(null)
     clearIdentityCache()
+    clearRoleCache()
+    /* Сначала токены — иначе UI видит hasStoredSession и снова «восстанавливает сессию». */
+    if (isSupabaseConfigured()) clearPersistedSupabaseSession(SUPABASE_URL)
+    setHasStoredSession(false)
     setUser(null)
     setRole(null)
     setProfilePending(false)
     setSessionRecovering(false)
-    if (isSupabaseConfigured()) void supabase.auth.signOut()
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.auth.signOut({ scope: 'local' })
+      } catch (e) {
+        console.warn('[auth] signOut', e)
+      }
+      clearPersistedSupabaseSession(SUPABASE_URL)
+      setHasStoredSession(false)
+    }
+    /* signingOutRef остаётся true до следующего входа — чтобы поздний wake/refresh не вернул сессию. */
     void clearSyncQueueForSignOut().catch((e) => {
       console.warn('[auth] clear sync queue on signOut', e)
     })
@@ -635,13 +683,25 @@ export function AuthProvider({ children }) {
       signOut,
       refreshUserProfile,
       refreshSessionOnWake,
-      hasStoredSession: hasPersistedSupabaseSession(SUPABASE_URL),
+      hasStoredSession,
       isAdmin: role === 'admin',
       isTrainer: role === 'trainer',
       isSalesManager: role === 'sales_manager',
       supabaseReady: isSupabaseConfigured(),
     }),
-    [user, role, loading, sessionRecovering, profilePending, signingIn, signIn, signOut, refreshUserProfile, refreshSessionOnWake],
+    [
+      user,
+      role,
+      loading,
+      sessionRecovering,
+      profilePending,
+      signingIn,
+      signIn,
+      signOut,
+      refreshUserProfile,
+      refreshSessionOnWake,
+      hasStoredSession,
+    ],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

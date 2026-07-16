@@ -20,6 +20,7 @@ import { AdminDiagnostics } from './pages/admin/AdminDiagnostics'
 import { AdminIskraSettings } from './pages/admin/AdminIskraSettings'
 import { AdminClubTasks } from './pages/admin/AdminClubTasks'
 import { SalesClubTasks } from './pages/admin/SalesClubTasks'
+import { SalesPnk } from './pages/admin/SalesPnk'
 import { IskraPanelProvider } from './context/IskraPanelContext'
 import { Login } from './pages/Login'
 import { ClientCard } from './pages/trainer/ClientCard'
@@ -174,6 +175,7 @@ export default function App() {
             <Route element={<RoleOutlet roles={['sales_manager']} />}>
               <Route path="/sales" element={<AdminSales accessMode="sales_manager" />} />
               <Route path="/sales/club-tasks" element={<SalesClubTasks />} />
+              <Route path="/sales/pnk" element={<SalesPnk />} />
             </Route>
             <Route element={<RoleOutlet roles={['admin']} />}>
               <Route path="/admin/workouts/:id" element={<TrainingPage />} />

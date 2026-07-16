@@ -91,6 +91,9 @@ function friendlyClientsDbError(error) {
   if (/max_chat_url/i.test(msg) && /schema cache|could not find|column/i.test(msg)) {
     return 'Колонка max_chat_url не создана в Supabase — выполните миграцию clients_max_chat_url'
   }
+  if (/lifecycle|pnk_/i.test(msg) && /schema cache|could not find|column/i.test(msg)) {
+    return 'Колонки воронки ПНК не созданы в Supabase — выполните миграцию pnk_funnel'
+  }
   return msg || 'Ошибка базы данных'
 }
 

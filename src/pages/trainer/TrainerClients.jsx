@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Cake, CalendarClock, Clock, Search, SkipForward, UserPlus } from 'lucide-react'
+import { AlertTriangle, Cake, CalendarClock, Clock, Search, SkipForward, UserPlus, UserRound } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { TrainerClientListItem } from '../../components/trainer/TrainerClientListItem'
 import { useAuth } from '../../context/AuthContext'
@@ -39,6 +39,7 @@ import {
   listOutreachLogTodayByScenario,
   loadCachedClubOutreachTemplates,
 } from '../../lib/trainer/trainerOutreachLogService'
+import { withPnkFieldsForInsert } from '../../lib/pnk/pnkLocalService'
 
 export function TrainerClients() {
   const { user, refreshUserProfile } = useAuth()
@@ -67,6 +68,7 @@ export function TrainerClients() {
     card_number: '',
     outreach_name: '',
     max_chat_url: '',
+    as_pnk: false,
   })
   const [clubs, setClubs] = useState([])
   const [outreachTemplatesRaw, setOutreachTemplatesRaw] = useState(null)
@@ -168,6 +170,7 @@ export function TrainerClients() {
   const clientMatchesFilter = useCallback(
     (c, filterId) => {
       const memList = memByClient[c.id] ?? []
+      if (filterId === 'pnk') return String(c.lifecycle ?? '') === 'pnk'
       if (filterId === 'birthdays') return isBirthdayToday(c.birth_date, today)
       if (filterId === 'expiring') return membershipSignal(memList, today).key === 'expiring'
       if (filterId === 'expired_recent') return isMembershipExpiredRecently(memList, today)
@@ -318,7 +321,7 @@ export function TrainerClients() {
     try {
       const id = crypto.randomUUID()
       const now = new Date().toISOString()
-      const row = {
+      const rowBase = {
         id,
         trainer_id: user.id,
         club_id: trainerClubId,
@@ -330,6 +333,7 @@ export function TrainerClients() {
         max_chat_url: normalizeMaxChatUrl(newClientForm.max_chat_url) || null,
         created_at: now,
       }
+      const row = newClientForm.as_pnk ? withPnkFieldsForInsert(rowBase, 'trainer') : rowBase
       await saveLocalWithSync('clients', row, {
         table_name: 'clients',
         operation: 'insert',
@@ -338,7 +342,15 @@ export function TrainerClients() {
       })
       await flushSyncQueue()
       setShowNewClient(false)
-      setNewClientForm({ name: '', phone: '', birth_date: '', card_number: '', outreach_name: '', max_chat_url: '' })
+      setNewClientForm({
+        name: '',
+        phone: '',
+        birth_date: '',
+        card_number: '',
+        outreach_name: '',
+        max_chat_url: '',
+        as_pnk: false,
+      })
       await reload()
     } catch (err) {
       alert(err?.message ?? 'Не удалось создать клиента')
@@ -370,7 +382,8 @@ export function TrainerClients() {
     if (quickFilter === 'stale') {
       return `Нет клиентов, у которых абонемент закончился ${STALE_TRAINING_DAYS}+ дней назад.`
     }
-    return 'Ничего не найдено.'
+    if (quickFilter === 'pnk') return 'Нет клиентов в воронке ПНК.'
+    return 'Нет клиентов по фильтру.'
   }
 
   return (
@@ -425,6 +438,15 @@ export function TrainerClients() {
                 title={`Давно не был ${STALE_TRAINING_DAYS}+ дн. после конца (${filterCounts.stale})`}
               >
                 <CalendarClock size={20} aria-hidden />
+              </button>
+              <button
+                type="button"
+                className={filterBtnClass('pnk')}
+                onClick={() => applyFilter('pnk')}
+                aria-label="Фильтр: потенциальные новые клиенты"
+                title="ПНК"
+              >
+                <UserRound size={20} aria-hidden />
               </button>
             </div>
           </div>
@@ -654,6 +676,16 @@ export function TrainerClients() {
                   inputMode="url"
                   autoComplete="off"
                 />
+              </div>
+              <div className="field">
+                <label className="label">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(newClientForm.as_pnk)}
+                    onChange={(e) => setNewClientForm((f) => ({ ...f, as_pnk: e.target.checked }))}
+                  />{' '}
+                  Это ПНК (пробная / воронка)
+                </label>
               </div>
               <div className="row td-modal-actions">
                 <button type="button" className="btn btn-ghost" onClick={() => setShowNewClient(false)}>

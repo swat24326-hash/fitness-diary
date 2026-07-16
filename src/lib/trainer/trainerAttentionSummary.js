@@ -13,7 +13,7 @@ import {
 
 export { STALE_TRAINING_DAYS, daysSinceIsoDate, isClientStaleForAttention } from './trainerClientOutreachCore.js'
 
-export const TRAINER_CLIENT_QUICK_FILTERS = ['expiring', 'expired_recent', 'birthdays', 'stale']
+export const TRAINER_CLIENT_QUICK_FILTERS = ['expiring', 'expired_recent', 'birthdays', 'stale', 'pnk']
 
 /** @param {string} filter */
 export function normalizeTrainerClientQuickFilter(filter) {

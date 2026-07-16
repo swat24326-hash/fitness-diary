@@ -200,7 +200,9 @@ function inactiveMembershipDetail(memberships, dateIso) {
 export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, dateTo, asOf) {
   const from = String(dateFrom ?? '').slice(0, 10)
   const to = String(dateTo ?? '').slice(0, 10)
-  const operational = filterOperationalClients(clientRows)
+  const operational = filterOperationalClients(clientRows).filter(
+    (c) => String(c?.lifecycle ?? 'active') !== 'pnk',
+  )
   const totalClients = operational.length
   const clientIdSet = new Set(operational.map((c) => c.id).filter(Boolean))
   const clientById = new Map()

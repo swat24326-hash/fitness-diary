@@ -72,7 +72,9 @@
 | Создание клуба / CONNECTION_RESET (§15 handoff) | открыто |
 | **Управляющий** (supervisor, один на клуб) | 📋 ТЗ: [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md), реализация позже |
 | Менеджер по продажам | 📋 ТЗ: [SALES_MANAGER.md](./SALES_MANAGER.md), реализация позже |
+| **Воронка ПНК** | 🚧 MVP: [PNK_FUNNEL.md](./PNK_FUNNEL.md) — этапы, чеклист питание/ДЗ, экран `/sales/pnk` |
 | **Планёрка** (задания команде) | ✅ v1 + лента в ИСКРЕ — [ISKRA_PLANERKA.md](./ISKRA_PLANERKA.md), [ISKRA_PRO.md](./ISKRA_PRO.md) |
+| **Каналы связи** (Max тренер + SMS/звонок клуба через Мои Звонки) | ⏸ backlog — [OUTREACH_CHANNELS_ROADMAP.md](./OUTREACH_CHANNELS_ROADMAP.md) |
 
 ---
 

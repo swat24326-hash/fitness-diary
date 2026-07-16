@@ -12,6 +12,7 @@ export const MEMBERSHIP_TYPE_DB_FIELDS = [
   'trainer_assignable',
   'trainer_pay_per_session',
   'aerobic_pay_amount',
+  'is_pnk_trial',
   'created_at',
 ]
 
@@ -46,6 +47,7 @@ export function normalizeMembershipTypePushPayload(payload, { insert = false } =
     trainer_assignable: trainerAssignable,
     trainer_pay_per_session: pay,
     aerobic_pay_amount: aerobicPay,
+    is_pnk_trial: payload?.is_pnk_trial === true,
   })
   if (insert && (!next.code || !next.club_id)) {
     return { ok: false, error: 'Укажите клуб и название типа' }

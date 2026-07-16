@@ -8,6 +8,7 @@ import {
   pickExpiredMembershipWithRemaining,
 } from '../../lib/clientListSignals'
 import { membershipUsageLabel, pickUsableMembershipForDate } from '../../lib/membershipRules'
+import '../../styles/pnk-funnel.css'
 
 export function TrainerClientListItem({
   client,
@@ -70,7 +71,14 @@ export function TrainerClientListItem({
             role="img"
           />
           <div>
-            <strong>{client.name}</strong>
+            <strong>
+              {client.name}
+              {String(client.lifecycle ?? '') === 'pnk' ? (
+                <span className="pnk-badge" style={{ marginLeft: 8 }}>
+                  ПНК
+                </span>
+              ) : null}
+            </strong>
             <div className="muted td-muted-13">{client.phone ?? '—'}</div>
             <div className="muted td-muted-13">Карта: {String(client.card_number ?? '').trim() || '—'}</div>
           </div>

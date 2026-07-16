@@ -5,6 +5,10 @@ import { deleteLocalWithSync, saveLocalWithSync } from '../lib/syncService'
 import { addDaysToIso, formatDateRu, formatDateTimeRu, todayLocalIso } from '../lib/dateRu'
 import { completedTrainingsOnMembership } from '../lib/membershipRules'
 import { ensureMembershipTypesForClub, isTrainerAssignableMembershipType, membershipTypeCode } from '../lib/membershipTypesService'
+import {
+  classifySaleClientSegment,
+  saleClientSegmentHintRu,
+} from '../lib/admin/salesClientSegmentCore'
 import { CheckCircle2, Eye, Pencil, Plus, Trash2 } from 'lucide-react'
 import { ModalHeader } from './ModalHeader'
 import { useAuth } from '../context/AuthContext'
@@ -93,6 +97,18 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
   const [confirmCancel, setConfirmCancel] = useState(null) // { t, membership }
 
   const todayIso = useMemo(() => todayLocalIso(), [])
+
+  const saleSegmentHint = useMemo(() => {
+    if (!newOpen) return ''
+    const saleDate = String(form.start_date || todayIso).slice(0, 10)
+    const result = classifySaleClientSegment({
+      saleDate,
+      clientId,
+      memList: items,
+      trainings,
+    })
+    return saleClientSegmentHintRu(result)
+  }, [newOpen, form.start_date, todayIso, clientId, items, trainings])
 
   const reloadTypes = useCallback(
     async (opts = {}) => {
@@ -399,6 +415,11 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
           <div className="modal-panel modal-panel--membership-form" onClick={(e) => e.stopPropagation()}>
             <ModalHeader title="Новый абонемент" onClose={() => setNewOpen(false)} />
             <form onSubmit={addMembership} className="grid membership-form" style={{ gap: 12 }}>
+              {saleSegmentHint ? (
+                <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.4 }} title="Сегмент для отчёта продаж">
+                  Сегмент продажи: <strong style={{ color: 'var(--text)' }}>{saleSegmentHint}</strong>
+                </p>
+              ) : null}
               <div className="grid grid-2" style={{ gap: 8 }}>
                 <input className="input" type="date" value={form.start_date} onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))} />
                 <input className="input" type="date" value={form.end_date} onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))} />

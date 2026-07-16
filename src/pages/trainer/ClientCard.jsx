@@ -17,6 +17,7 @@ import { IskraDispatchModal } from '../../components/iskra/IskraDispatchModal.js
 import { buildClientCardTaskDraft } from '../../lib/admin/staffTaskCreateCore.js'
 import { useClubDispatchRecipients } from '../../hooks/useClubDispatchRecipients.js'
 import { listOutreachLogByClientId } from '../../lib/trainer/trainerOutreachLogService.js'
+import { ClientPnkPanel } from '../../components/trainer/ClientPnkPanel.jsx'
 import { formatClientName } from '../../lib/clientNameFormat.js'
 import {
   OUTREACH_SCENARIO_LABELS,
@@ -424,6 +425,14 @@ export function ClientCard() {
           Переназначить тренера или удалить клиента — в списке «Клиенты». Новую тренировку «с нуля» начинает только тренер; правки и черновики доступны здесь и в конструкторе.
         </p>
       ) : null}
+
+      <ClientPnkPanel
+        client={client}
+        onUpdated={(next) => {
+          setClient(next)
+          void reloadLocal()
+        }}
+      />
 
       <div className="tabs" role="tablist">
         {[

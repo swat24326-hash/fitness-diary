@@ -94,13 +94,14 @@ export function clearIdentityCache() {
 }
 
 /**
- * Есть ли refresh_token в localStorage Supabase (сессия может восстановиться).
+ * Ключи localStorage с сессией Supabase (sb-*-auth-token).
  * @param {string} [supabaseUrl]
+ * @returns {string[]}
  */
-export function hasPersistedSupabaseSession(supabaseUrl) {
-  if (typeof localStorage === 'undefined') return false
+export function listPersistedSupabaseAuthKeys(supabaseUrl) {
+  if (typeof localStorage === 'undefined') return []
+  const keys = []
   try {
-    const keys = []
     if (supabaseUrl) {
       try {
         const ref = new URL(supabaseUrl).hostname.split('.')[0]
@@ -113,10 +114,20 @@ export function hasPersistedSupabaseSession(supabaseUrl) {
       const k = localStorage.key(i)
       if (k?.startsWith('sb-') && k.endsWith('-auth-token')) keys.push(k)
     }
-    const seen = new Set()
-    for (const key of keys) {
-      if (seen.has(key)) continue
-      seen.add(key)
+  } catch {
+    /* ignore */
+  }
+  return [...new Set(keys)]
+}
+
+/**
+ * Есть ли refresh_token в localStorage Supabase (сессия может восстановиться).
+ * @param {string} [supabaseUrl]
+ */
+export function hasPersistedSupabaseSession(supabaseUrl) {
+  if (typeof localStorage === 'undefined') return false
+  try {
+    for (const key of listPersistedSupabaseAuthKeys(supabaseUrl)) {
       const raw = localStorage.getItem(key)
       if (!raw) continue
       const data = JSON.parse(raw)
@@ -126,6 +137,21 @@ export function hasPersistedSupabaseSession(supabaseUrl) {
     /* ignore */
   }
   return false
+}
+
+/**
+ * Жёстко убрать токены Supabase из localStorage (явный выход с планшета).
+ * @param {string} [supabaseUrl]
+ */
+export function clearPersistedSupabaseSession(supabaseUrl) {
+  if (typeof localStorage === 'undefined') return
+  try {
+    for (const key of listPersistedSupabaseAuthKeys(supabaseUrl)) {
+      localStorage.removeItem(key)
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 /**

@@ -50,6 +50,21 @@ CREATE TABLE clients (
   trainer_id UUID NOT NULL REFERENCES users (id),
   club_id UUID NOT NULL REFERENCES clubs (id),
   archived_at TIMESTAMPTZ,
+  lifecycle TEXT NOT NULL DEFAULT 'active' CHECK (lifecycle IN ('active', 'pnk', 'pnk_lost')),
+  pnk_stage TEXT CHECK (
+    pnk_stage IS NULL
+    OR pnk_stage IN ('new', 'assigned', 'contact', 'agreed', 'trial_done', 'won', 'lost')
+  ),
+  pnk_source TEXT,
+  pnk_trial_date DATE,
+  pnk_trial_time TEXT,
+  pnk_comment TEXT,
+  pnk_comments JSONB NOT NULL DEFAULT '[]'::jsonb,
+  pnk_deliverables JSONB NOT NULL DEFAULT '{}'::jsonb,
+  pnk_won_at TIMESTAMPTZ,
+  pnk_lost_at TIMESTAMPTZ,
+  pnk_lost_reason TEXT,
+  pnk_created_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -69,6 +84,7 @@ CREATE TABLE membership_types (
   trainer_pay_per_session NUMERIC(10, 2) NOT NULL DEFAULT 0,
   trainer_assignable BOOLEAN NOT NULL DEFAULT true,
   aerobic_pay_amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
+  is_pnk_trial BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT membership_types_code_len CHECK (char_length(trim(code)) >= 1 AND char_length(trim(code)) <= 12),
   CONSTRAINT membership_types_trainer_pay_nonneg CHECK (trainer_pay_per_session >= 0),

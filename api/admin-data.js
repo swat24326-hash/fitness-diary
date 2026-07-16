@@ -32,6 +32,7 @@ import {
   handleSalesFinancePost,
   handleCreateSalesManagerPost,
 } from './_lib/adminData/salesHandlers.js'
+import { handlePnk } from './_lib/adminData/pnkHandlers.js'
 
 async function handler(req, res) {
   setCors(res, 'GET, POST, OPTIONS')
@@ -56,6 +57,7 @@ async function handler(req, res) {
       'push-subscription',
       'reset-trainer-password',
       'set-trainer-active',
+      'pnk',
     ])
     if (!postActions.has(action)) {
       sendJson(res, 405, { error: 'Method not allowed' })
@@ -132,6 +134,7 @@ async function handler(req, res) {
     const clubId = String(body?.club_id ?? '').trim()
     const ctx = await requireAdminOrSalesManager(req, res, clubId)
     if (!ctx) return
+    if (action === 'pnk') return handlePnk(ctx, req, res)
     if (action === 'sales-daily') return handleSalesDailyPost(ctx, req, res, body)
     if (action === 'sales-plan') {
       const scope =
@@ -197,6 +200,13 @@ async function handler(req, res) {
     const ctx = await requireAdminOrSalesManager(req, res, clubId)
     if (!ctx) return
     return handleSalesGet(ctx, req, res)
+  }
+
+  if (action === 'pnk') {
+    const clubId = String(req.query?.club_id ?? '').trim()
+    const ctx = await requireAdminOrSalesManager(req, res, clubId)
+    if (!ctx) return
+    return handlePnk(ctx, req, res)
   }
 
   const ctx = await requireAdmin(req, res)
