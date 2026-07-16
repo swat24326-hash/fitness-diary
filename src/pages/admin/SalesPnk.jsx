@@ -4,7 +4,7 @@ import { ArrowLeft, RefreshCw, UserPlus } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { monthPartsFromIso, monthDateRange } from '../../lib/admin/salesReportCore'
 import { todayLocalIso, formatDateRu } from '../../lib/dateRu'
-import { createPnkClient, fetchPnkBundle, patchPnkClient } from '../../lib/pnk/pnkApiService'
+import { createPnkClient, deletePnkClient, fetchPnkBundle, patchPnkClient } from '../../lib/pnk/pnkApiService'
 import { PnkCoachNotifyChip } from '../../components/pnk/PnkCoachNotifyChip'
 import { PnkManagerControlBoard } from '../../components/pnk/PnkManagerControlBoard'
 import {
@@ -120,6 +120,24 @@ export function SalesPnk() {
     setBusy(true)
     try {
       await patchPnkClient({ clubId, client_id: clientId, comment })
+      await load()
+    } catch (err) {
+      setError(String(err?.message ?? err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onDelete(clientId) {
+    const id = String(clientId ?? '').trim()
+    if (!id || !clubId) return
+    setBusy(true)
+    setError('')
+    try {
+      await deletePnkClient({ clubId, client_id: id })
+      setLastCreated((prev) => (prev?.client?.id === id ? null : prev))
+      setToast('ПНК удалён')
+      setTimeout(() => setToast(''), 3000)
       await load()
     } catch (err) {
       setError(String(err?.message ?? err))
@@ -352,6 +370,7 @@ export function SalesPnk() {
           clientHref={isAdmin ? clientHref : undefined}
           onNotifyResult={toastFromNotify}
           onComment={onComment}
+          onDelete={onDelete}
         />
       ) : null}
 

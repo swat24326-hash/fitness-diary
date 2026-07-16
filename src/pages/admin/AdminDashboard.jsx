@@ -2,10 +2,12 @@ import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BarChart3, Building2, ClipboardList, Sparkles, Stethoscope, TrendingUp, Trophy, UserCircle, UserPlus } from 'lucide-react'
 import { AdminClubDaySummaryPanel } from '../../components/admin/AdminClubDaySummaryPanel'
+import { ManagerPnkHomeGlance } from '../../components/pnk/ManagerPnkHomeGlance'
 import { dispatchLocalDataChanged } from '../../lib/dataAccess'
 import { loadAdminClubDaySummary } from '../../lib/admin/adminClubDaySummaryService'
 import { useDebouncedStorageReload } from '../../lib/useDebouncedStorageReload'
 import { shouldReloadAdminDaySummary } from '../../lib/admin/adminClubDaySummaryCore'
+import '../../styles/pnk-funnel.css'
 
 function adminTileClass({ isActive }) {
   return `feature-tile u-no-decoration${isActive ? ' feature-tile--active' : ''}`
@@ -78,11 +80,24 @@ export function AdminDashboard() {
             noClub={!clubId}
           />
 
+          {clubId ? <ManagerPnkHomeGlance clubId={clubId} href={tab('pnk')} /> : null}
+
           <h2 className="admin-home__tiles-heading" id="admin-home-sections">
             Разделы
           </h2>
           <section className="admin-home__tiles" aria-labelledby="admin-home-sections">
             <div className="tile-grid admin-home__tile-grid">
+              <NavLink
+                to={tab('pnk')}
+                className={({ isActive }) =>
+                  `${adminTileClass({ isActive })} feature-tile--pnk`
+                }
+              >
+                <div className="feature-tile__icon">
+                  <UserPlus size={44} aria-hidden />
+                </div>
+                <p className="feature-tile__title">ПНК</p>
+              </NavLink>
               <NavLink to={tab('structure')} className={adminTileClass}>
                 <div className="feature-tile__icon">
                   <Building2 size={44} aria-hidden />
@@ -130,12 +145,6 @@ export function AdminDashboard() {
                   <ClipboardList size={44} aria-hidden />
                 </div>
                 <p className="feature-tile__title">Планёрка</p>
-              </NavLink>
-              <NavLink to={tab('pnk')} className={adminTileClass}>
-                <div className="feature-tile__icon">
-                  <UserPlus size={44} aria-hidden />
-                </div>
-                <p className="feature-tile__title">ПНК</p>
               </NavLink>
             </div>
           </section>

@@ -104,3 +104,33 @@ export async function patchPnkClient(payload) {
     throw new Error(humanizeNetworkError(e))
   }
 }
+
+/**
+ * @param {{ clubId: string, client_id: string }} payload
+ */
+export async function deletePnkClient(payload) {
+  const clubId = String(payload.clubId ?? '').trim()
+  const clientId = String(payload.client_id ?? '').trim()
+  if (!clubId || !clientId) throw new Error('Укажите клуб и клиента')
+  const token = await getAccessTokenForAdminApi()
+  if (!token) throw new Error('Нет сессии')
+  try {
+    const res = await fetchWithAppTimeout(`${apiOrigin()}/api/admin-data?action=pnk`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        op: 'delete',
+        club_id: clubId,
+        client_id: clientId,
+      }),
+    })
+    const data = await parseJson(res)
+    if (!res.ok) throw new Error(data.error || `Ошибка ${res.status}`)
+    return data
+  } catch (e) {
+    throw new Error(humanizeNetworkError(e))
+  }
+}

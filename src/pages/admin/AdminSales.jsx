@@ -64,6 +64,7 @@ import { SalesPlanSettingsPanel } from '../../components/SalesPlanSettingsPanel'
 import { SalesManagerStatsPanel } from '../../components/SalesManagerStatsPanel'
 import { SalesManagerAnalyticsPanel } from '../../components/SalesManagerAnalyticsPanel'
 import { SectionErrorBoundary } from '../../components/SectionErrorBoundary'
+import { ManagerPnkHomeGlance } from '../../components/pnk/ManagerPnkHomeGlance'
 import '../../styles/sales-report.css'
 
 const MONTH_NAMES = [
@@ -608,43 +609,46 @@ export function AdminSales({ accessMode = 'admin' }) {
           </div>
 
           {salesTab === 'home' ? (
-            <section className="sales-home__tiles" aria-labelledby="sales-home-sections">
-              <h2 id="sales-home-sections" className="sales-home__tiles-heading">
-                Разделы
-              </h2>
-              <div className="sales-home__tile-grid">
-                <Link to="/sales?tab=report" className="sales-home__tile u-no-decoration">
-                  <div className="sales-home__tile-icon">
-                    <CalendarDays size={44} aria-hidden />
-                  </div>
-                  <p className="sales-home__tile-title">Отчёт</p>
-                </Link>
-                <Link to="/sales?tab=stats" className="sales-home__tile u-no-decoration">
-                  <div className="sales-home__tile-icon">
-                    <BarChart3 size={44} aria-hidden />
-                  </div>
-                  <p className="sales-home__tile-title">Статистика</p>
-                </Link>
-                <Link to="/sales?tab=analytics" className="sales-home__tile u-no-decoration">
-                  <div className="sales-home__tile-icon">
-                    <TrendingUp size={44} aria-hidden />
-                  </div>
-                  <p className="sales-home__tile-title">Аналитика</p>
-                </Link>
-                <Link to="/sales/pnk" className="sales-home__tile u-no-decoration">
-                  <div className="sales-home__tile-icon">
-                    <UserRound size={44} aria-hidden />
-                  </div>
-                  <p className="sales-home__tile-title">ПНК</p>
-                </Link>
-                <Link to="/sales/club-tasks" className="sales-home__tile u-no-decoration">
-                  <div className="sales-home__tile-icon">
-                    <ClipboardList size={44} aria-hidden />
-                  </div>
-                  <p className="sales-home__tile-title">Планёрка</p>
-                </Link>
-              </div>
-            </section>
+            <>
+              {clubId ? <ManagerPnkHomeGlance clubId={clubId} href="/sales/pnk" /> : null}
+              <section className="sales-home__tiles" aria-labelledby="sales-home-sections">
+                <h2 id="sales-home-sections" className="sales-home__tiles-heading">
+                  Разделы
+                </h2>
+                <div className="sales-home__tile-grid">
+                  <Link to="/sales/pnk" className="sales-home__tile sales-home__tile--pnk u-no-decoration">
+                    <div className="sales-home__tile-icon">
+                      <UserRound size={44} aria-hidden />
+                    </div>
+                    <p className="sales-home__tile-title">ПНК</p>
+                  </Link>
+                  <Link to="/sales?tab=report" className="sales-home__tile u-no-decoration">
+                    <div className="sales-home__tile-icon">
+                      <CalendarDays size={44} aria-hidden />
+                    </div>
+                    <p className="sales-home__tile-title">Отчёт</p>
+                  </Link>
+                  <Link to="/sales?tab=stats" className="sales-home__tile u-no-decoration">
+                    <div className="sales-home__tile-icon">
+                      <BarChart3 size={44} aria-hidden />
+                    </div>
+                    <p className="sales-home__tile-title">Статистика</p>
+                  </Link>
+                  <Link to="/sales?tab=analytics" className="sales-home__tile u-no-decoration">
+                    <div className="sales-home__tile-icon">
+                      <TrendingUp size={44} aria-hidden />
+                    </div>
+                    <p className="sales-home__tile-title">Аналитика</p>
+                  </Link>
+                  <Link to="/sales/club-tasks" className="sales-home__tile u-no-decoration">
+                    <div className="sales-home__tile-icon">
+                      <ClipboardList size={44} aria-hidden />
+                    </div>
+                    <p className="sales-home__tile-title">Планёрка</p>
+                  </Link>
+                </div>
+              </section>
+            </>
           ) : null}
         </div>
       ) : showSalesHero ? (

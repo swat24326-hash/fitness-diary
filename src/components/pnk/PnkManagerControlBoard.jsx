@@ -1,15 +1,14 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronDown, ChevronUp, UserPlus } from 'lucide-react'
+import { ChevronDown, ChevronUp, Trash2, UserPlus } from 'lucide-react'
 import { PnkStepBlocks } from './PnkStepBlocks.jsx'
 import { PnkCoachNotifyChip } from './PnkCoachNotifyChip'
 import { PnkAttentionChips, PnkBoardFilterChips } from './PnkStatusChips'
 import { buildPnkManagerControlCards } from '../../lib/pnk/pnkManagerBoardCore.js'
-import { buildPnkAttentionFlags } from '../../lib/pnk/pnkStagesCore.js'
+import { buildPnkAttentionFlags, canDeletePnkClient } from '../../lib/pnk/pnkStagesCore.js'
 
 /**
  * Прокручиваемая доска контроля ПНК (менеджер / админ).
- * Стиль как glance заданий, но список — десятки карточек + вмешательство.
  */
 export function PnkManagerControlBoard({
   clients = [],
@@ -23,10 +22,12 @@ export function PnkManagerControlBoard({
   clientHref,
   onNotifyResult,
   onComment,
+  onDelete,
 }) {
   const [trainerId, setTrainerId] = useState('')
   const [query, setQuery] = useState('')
   const [expandedId, setExpandedId] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState(null)
 
   const cards = buildPnkManagerControlCards(clients, {
     boardFilter,
@@ -34,6 +35,8 @@ export function PnkManagerControlBoard({
     trainerId,
     query,
   })
+
+  const canDelete = typeof onDelete === 'function'
 
   return (
     <section className="pnk-control-board" aria-label="Контроль ПНК">
@@ -76,6 +79,7 @@ export function PnkManagerControlBoard({
             const open = expandedId === card.id
             const flags = buildPnkAttentionFlags(card.client)
             const href = typeof clientHref === 'function' ? clientHref(card.client) : null
+            const showDelete = canDelete && canDeletePnkClient(card.client)
             return (
               <li
                 key={card.id}
@@ -133,6 +137,17 @@ export function PnkManagerControlBoard({
                     {typeof onComment === 'function' ? (
                       <CommentMini disabled={busy} onSubmit={(text) => onComment(card.id, text)} />
                     ) : null}
+                    {showDelete ? (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-touch pnk-control-card__delete"
+                        disabled={busy}
+                        onClick={() => setConfirmDelete({ id: card.id, name: card.name })}
+                      >
+                        <Trash2 size={16} aria-hidden />
+                        Удалить ПНК
+                      </button>
+                    ) : null}
                     {card.client?.pnk_comment ? (
                       <p className="pnk-funnel__comment">«{card.client.pnk_comment}»</p>
                     ) : null}
@@ -143,6 +158,43 @@ export function PnkManagerControlBoard({
           })}
         </ul>
       )}
+
+      {confirmDelete ? (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pnk-delete-title"
+          onClick={() => !busy && setConfirmDelete(null)}
+        >
+          <div className="modal-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
+            <h2 id="pnk-delete-title" className="section-title" style={{ marginTop: 0 }}>
+              Удалить ПНК?
+            </h2>
+            <p className="muted" style={{ marginTop: 8 }}>
+              Карточка <strong style={{ color: 'var(--text)' }}>{confirmDelete.name}</strong> будет удалена без
+              восстановления. Связанные тренировки и абонементы этой карточки тоже уйдут.
+            </p>
+            <div className="row td-modal-actions" style={{ marginTop: 18 }}>
+              <button type="button" className="btn btn-ghost btn-touch" disabled={busy} onClick={() => setConfirmDelete(null)}>
+                Отмена
+              </button>
+              <button
+                type="button"
+                className="btn btn-touch pnk-control-card__delete-confirm"
+                disabled={busy}
+                onClick={() => {
+                  const id = confirmDelete.id
+                  setConfirmDelete(null)
+                  void onDelete?.(id)
+                }}
+              >
+                {busy ? 'Удаление…' : 'Да, удалить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   )
 }

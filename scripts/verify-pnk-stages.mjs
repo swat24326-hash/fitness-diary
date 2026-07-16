@@ -8,6 +8,7 @@ import {
   buildPnkAttentionFlags,
   buildPnkDemoScenarioForm,
   canAdvancePnkStage,
+  canDeletePnkClient,
   isOpenPnkClient,
   markPnkDeliverable,
   matchesPnkBoardFilter,
@@ -157,6 +158,10 @@ ok(
 )
 const ui = resolvePnkTrainerUiStep(waitCall)
 ok(ui?.n === 1 && ui.title === 'ПНК создан', 'trainer ui step 1')
+
+ok(canDeletePnkClient({ id: '1', lifecycle: 'pnk' }), 'can delete open pnk')
+ok(canDeletePnkClient({ id: '2', lifecycle: 'pnk_lost' }), 'can delete lost pnk')
+ok(!canDeletePnkClient({ id: '3', lifecycle: 'active' }), 'cannot delete active dk')
 
 if (failed) {
   console.error(`\n${failed} failed`)

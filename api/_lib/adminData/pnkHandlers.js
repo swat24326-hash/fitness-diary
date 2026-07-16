@@ -1,6 +1,6 @@
 import { sendJson } from '../adminSupabase.js'
 import { formatClientName } from '../../../src/lib/clientNameFormat.js'
-import { applyPnkStagePatch, isOpenPnkClient } from '../../../src/lib/pnk/pnkStagesCore.js'
+import { applyPnkStagePatch, canDeletePnkClient, isOpenPnkClient } from '../../../src/lib/pnk/pnkStagesCore.js'
 import { mergeNewPnkOntoClient, normalizeClientPnkFields, pickClientPnkFields } from '../../../src/lib/pnk/pnkClientFields.js'
 import { aggregatePnkFunnelStats, listPnkAttentionClients } from '../../../src/lib/pnk/pnkStatsAgg.js'
 import { fetchClubTrainersForSales, parseJsonBody } from './salesHandlers.js'
@@ -202,6 +202,40 @@ async function handlePnkPost(ctx, req, res) {
       return
     }
     sendJson(res, 200, { client: normalizeClientPnkFields(data) })
+    return
+  }
+
+  if (op === 'delete') {
+    const clientId = String(body.client_id ?? '').trim()
+    if (!clientId) {
+      sendJson(res, 400, { error: 'Укажите client_id' })
+      return
+    }
+    const { data: existing, error: loadErr } = await supabaseAdmin
+      .from('clients')
+      .select(PNK_CLIENT_SELECT)
+      .eq('id', clientId)
+      .eq('club_id', clubId)
+      .maybeSingle()
+    if (loadErr) {
+      sendJson(res, 500, { error: loadErr.message || 'Ошибка чтения' })
+      return
+    }
+    if (!existing) {
+      sendJson(res, 404, { error: 'Клиент не найден' })
+      return
+    }
+    const row = normalizeClientPnkFields(existing)
+    if (!canDeletePnkClient(row)) {
+      sendJson(res, 403, { error: 'Удалить можно только карточку ПНК (не оформленного ДК)' })
+      return
+    }
+    const { error } = await supabaseAdmin.from('clients').delete().eq('id', clientId).eq('club_id', clubId)
+    if (error) {
+      sendJson(res, 500, { error: error.message || 'Не удалось удалить' })
+      return
+    }
+    sendJson(res, 200, { ok: true, client_id: clientId })
     return
   }
 

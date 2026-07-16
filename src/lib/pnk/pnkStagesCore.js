@@ -64,6 +64,16 @@ export function isPnkLifecycleClient(client) {
 }
 
 /**
+ * Можно удалить карточку ПНК с доски менеджера/админа
+ * (не трогаем уже оформленных ДК).
+ * @param {object} client
+ */
+export function canDeletePnkClient(client) {
+  if (!client?.id) return false
+  return isPnkLifecycleClient(client)
+}
+
+/**
  * @param {unknown} raw
  * @returns {Record<PnkDeliverableKey, string | null>}
  */
