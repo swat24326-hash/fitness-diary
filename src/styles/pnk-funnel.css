@@ -709,90 +709,66 @@ button.pnk-chip:disabled {
   }
 }
 
-/* Главная менеджера / админа — вход в ПНК */
-.pnk-home-glance {
-  display: flex;
-  align-items: center;
-  gap: 14px;
+/* Главная менеджера / админа — карусель ПНК в цветах sales/admin */
+.manager-pnk-glance {
+  width: 100%;
+  max-width: none;
   margin: 0 0 1rem;
-  padding: 16px 18px;
-  border-radius: var(--radius-md);
-  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
-  background: color-mix(in srgb, var(--accent) 12%, var(--bg-card));
-  box-shadow: var(--shadow-soft);
+}
+
+.manager-pnk-glance__card {
+  background: color-mix(in srgb, var(--accent-bright, #2effb8) 8%, var(--bg-elevated, var(--bg-card)));
+  border-color: color-mix(in srgb, var(--accent-bright, #2effb8) 32%, var(--border));
+  box-shadow: var(--shadow-soft, 0 8px 24px rgba(0, 0, 0, 0.18));
+}
+
+.manager-pnk-glance__card:hover {
+  border-color: color-mix(in srgb, var(--accent-bright, #2effb8) 55%, var(--border));
+}
+
+.manager-pnk-glance__card--hot {
+  border-color: color-mix(in srgb, #f59e0b 50%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, #f59e0b 18%, transparent);
+}
+
+.manager-pnk-glance__icon {
+  background: color-mix(in srgb, var(--accent-bright, #2effb8) 18%, transparent);
+  color: var(--accent-bright, #2effb8);
+}
+
+.manager-pnk-glance .trainer-task-glance__nav-btn {
+  border-color: color-mix(in srgb, var(--accent-bright, #2effb8) 28%, var(--border));
+  color: var(--accent-bright, #2effb8);
+}
+
+.manager-pnk-glance .trainer-task-glance__nav-btn:disabled {
   color: inherit;
-  transition: border-color 0.15s ease, background 0.15s ease, transform 0.12s ease;
 }
 
-.pnk-home-glance:hover {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
-  background: color-mix(in srgb, var(--accent) 18%, var(--bg-card));
-  transform: translateY(-1px);
+.manager-pnk-glance .trainer-task-glance__dot--on {
+  background: var(--accent-bright, #2effb8);
 }
 
-.pnk-home-glance:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
+.manager-pnk-glance .trainer-task-glance__title {
+  color: var(--text);
 }
 
-.pnk-home-glance--hot {
-  border-color: color-mix(in srgb, var(--danger, #f87171) 45%, var(--border));
-  background: color-mix(in srgb, var(--danger, #f87171) 14%, var(--bg-card));
-}
-
-.pnk-home-glance--loading {
-  opacity: 0.85;
-}
-
-.pnk-home-glance__icon {
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--accent) 22%, transparent);
-  color: var(--accent);
-  flex-shrink: 0;
-}
-
-.pnk-home-glance--hot .pnk-home-glance__icon {
-  background: color-mix(in srgb, var(--danger, #f87171) 22%, transparent);
-  color: #fecaca;
-}
-
-.pnk-home-glance__body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  flex: 1;
-}
-
-.pnk-home-glance__title {
-  font-size: 1.15rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.pnk-home-glance__meta {
-  font-size: 0.9rem;
-  color: var(--text-muted);
-  line-height: 1.35;
-}
-
-.pnk-home-glance__chevron {
-  flex-shrink: 0;
-  opacity: 0.65;
-  color: var(--text-muted);
+.manager-pnk-glance .trainer-task-glance__task-title {
+  color: var(--accent-bright, #2effb8);
 }
 
 .sales-home__tile--pnk,
 .feature-tile--pnk {
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
-  background: color-mix(in srgb, var(--accent) 10%, var(--bg-card));
+  border-color: color-mix(in srgb, var(--accent-bright, #2effb8) 40%, var(--border));
+  background: color-mix(in srgb, var(--accent-bright, #2effb8) 10%, var(--bg-card));
 }
 
 .sales-home__tile--pnk .sales-home__tile-icon,
 .feature-tile--pnk .feature-tile__icon {
-  color: var(--accent);
+  color: var(--accent-bright, #2effb8);
+}
+
+.sales-home--fill .manager-pnk-glance,
+.admin-home--dashboard .manager-pnk-glance {
+  margin-top: 0.25rem;
 }

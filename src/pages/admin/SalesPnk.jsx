@@ -30,6 +30,7 @@ export function SalesPnk() {
     : String(user?.club_id ?? '').trim()
   const clubQs = clubId ? `?club=${encodeURIComponent(clubId)}` : ''
   const backTo = isAdmin ? `/admin/sales${clubQs}` : '/sales'
+  const focusId = String(searchParams.get('focus') ?? '').trim()
 
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -371,6 +372,7 @@ export function SalesPnk() {
           onNotifyResult={toastFromNotify}
           onComment={onComment}
           onDelete={onDelete}
+          initialFocusId={focusId}
         />
       ) : null}
 

@@ -1,6 +1,7 @@
 /**
- * Сводка ПНК для главной менеджера / админа (без React).
+ * Карточки ПНК для виджета на главной менеджера / админа (как glance заданий).
  */
+import { buildPnkManagerControlCards } from './pnkManagerBoardCore.js'
 import { isOpenPnkClient } from './pnkStagesCore.js'
 import { listPnkAttentionClients } from './pnkStatsAgg.js'
 
@@ -17,12 +18,41 @@ export function buildPnkManagerHomeGlance(clients, now = new Date()) {
   }
   const attention = listPnkAttentionClients(list, now)
   const hotCount = attention.filter((row) => row.tone === 'hot').length
-  const attentionCount = attention.length
   return {
     openCount,
-    attentionCount,
+    attentionCount: attention.length,
     hotCount,
     hasWork: openCount > 0,
     isHot: hotCount > 0,
   }
+}
+
+/**
+ * Карточки для карусели на главной (стрелки как у планёрки / тренера).
+ * @param {object[]} clients
+ * @param {{ boardHref?: string, now?: Date }} [opts]
+ */
+export function buildPnkManagerHomeGlanceCards(clients, opts = {}) {
+  const boardHref = String(opts.boardHref ?? '/sales/pnk').trim() || '/sales/pnk'
+  const now = opts.now || new Date()
+  const sep = boardHref.includes('?') ? '&' : '?'
+
+  return buildPnkManagerControlCards(clients, { boardFilter: 'all', now }).map((card) => {
+    const id = String(card.id ?? '').trim()
+    const trainerLine = card.trainerName && card.trainerName !== '—' ? `Тренер: ${card.trainerName}` : ''
+    return {
+      id: card.id,
+      name: card.name,
+      stepN: card.stepN,
+      stepTotal: card.stepTotal,
+      stepTitle: card.stepTitle,
+      caption: card.caption,
+      isHot: card.isHot,
+      trainerName: card.trainerName,
+      href: id ? `${boardHref}${sep}focus=${encodeURIComponent(id)}` : boardHref,
+      fromLine: trainerLine
+        ? `Шаг ${card.stepN} из ${card.stepTotal} · ${card.stepTitle} · ${trainerLine}`
+        : `Шаг ${card.stepN} из ${card.stepTotal} · ${card.stepTitle}`,
+    }
+  })
 }

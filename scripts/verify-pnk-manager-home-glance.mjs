@@ -1,7 +1,10 @@
 /**
  * node scripts/verify-pnk-manager-home-glance.mjs
  */
-import { buildPnkManagerHomeGlance } from '../src/lib/pnk/pnkManagerHomeGlanceCore.js'
+import {
+  buildPnkManagerHomeGlance,
+  buildPnkManagerHomeGlanceCards,
+} from '../src/lib/pnk/pnkManagerHomeGlanceCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -21,6 +24,8 @@ const clients = [
   {
     id: '1',
     name: 'Альфа',
+    trainer_id: 't1',
+    trainer_name: 'Иван',
     lifecycle: 'pnk',
     pnk_stage: 'assigned',
     pnk_created_at: '2026-06-01T10:00:00.000Z',
@@ -29,6 +34,8 @@ const clients = [
   {
     id: '2',
     name: 'Бета',
+    trainer_id: 't2',
+    trainer_name: 'Пётр',
     lifecycle: 'pnk',
     pnk_stage: 'trial_done',
     pnk_trial_date: '2026-07-10',
@@ -47,6 +54,24 @@ const clients = [
 const g = buildPnkManagerHomeGlance(clients, now)
 ok(g.openCount === 2 && g.hasWork, 'two open')
 ok(g.attentionCount >= 1 && g.isHot, 'attention / hot from overdue trial')
+
+const cards = buildPnkManagerHomeGlanceCards(clients, {
+  boardHref: '/sales/pnk',
+  now,
+})
+ok(cards.length === 2, 'two carousel cards')
+ok(cards.every((c) => c.isHot || c.name === 'Альфа' || c.name === 'Бета'), 'open names only')
+const beta = cards.find((c) => c.id === '2')
+ok(beta?.isHot && beta.href.includes('focus=2'), 'beta hot + focus query')
+ok(String(cards[0].fromLine).includes('Тренер:'), 'trainer in from line')
+ok(cards.every((c) => c.stepN >= 1 && c.stepTotal === 5), 'step fields')
+ok(cards[0].isHot, 'hot sorted first when present')
+
+const adminCards = buildPnkManagerHomeGlanceCards(clients, {
+  boardHref: '/admin/pnk?club=c1',
+  now,
+})
+ok(adminCards[0].href.includes('club=c1') && adminCards[0].href.includes('focus='), 'admin href keeps club')
 
 if (failed) {
   console.error(`\n${failed} failed`)

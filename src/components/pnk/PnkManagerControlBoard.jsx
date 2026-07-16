@@ -23,10 +23,11 @@ export function PnkManagerControlBoard({
   onNotifyResult,
   onComment,
   onDelete,
+  initialFocusId = '',
 }) {
   const [trainerId, setTrainerId] = useState('')
   const [query, setQuery] = useState('')
-  const [expandedId, setExpandedId] = useState('')
+  const [expandedId, setExpandedId] = useState(() => String(initialFocusId || '').trim())
   const [confirmDelete, setConfirmDelete] = useState(null)
 
   const cards = buildPnkManagerControlCards(clients, {
