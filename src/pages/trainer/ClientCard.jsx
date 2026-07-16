@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Dumbbell, ClipboardList, Pencil } from 'lucide-react'
 import { ClientDiaries } from '../../components/ClientDiaries'
 import { ClientOverview } from './ClientOverview'
@@ -20,6 +20,7 @@ import { listOutreachLogByClientId } from '../../lib/trainer/trainerOutreachLogS
 import { ClientPnkPanel } from '../../components/trainer/ClientPnkPanel.jsx'
 import { formatClientName } from '../../lib/clientNameFormat.js'
 import { isOpenPnkClient, isPnkCardTabVisible } from '../../lib/pnk/pnkStagesCore.js'
+import { preparePnkTrialTraining } from '../../lib/pnk/pnkLocalService.js'
 import {
   OUTREACH_SCENARIO_LABELS,
   normalizeOutreachName,
@@ -29,6 +30,7 @@ import {
 
 export function ClientCard() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { isAdmin, isTrainer } = useAuth()
   const adminClientsListHref = useMemo(() => {
@@ -236,6 +238,23 @@ export function ClientCard() {
     await reloadLocal()
   }
 
+  const startPnkTraining = useCallback(async () => {
+    if (!client?.id) return
+    let res = await preparePnkTrialTraining(client, { isAdmin })
+    if (!res.ok && res.needsConfirm) {
+      if (!window.confirm(res.error)) return
+      res = await preparePnkTrialTraining(client, { isAdmin, allowCreateAfterDepleted: true })
+    }
+    if (!res.ok) {
+      alert(res.error || 'Не удалось открыть тренировку')
+      return
+    }
+    if (res.createdMembership) {
+      void reloadLocal()
+    }
+    navigate(res.path)
+  }, [client, isAdmin, navigate, reloadLocal])
+
   if (!client) {
     const backTo = isAdmin ? adminClientsListHref : '/trainer/clients'
     const backLabel = isAdmin ? 'к списку клиентов' : 'к списку клиентов'
@@ -438,6 +457,8 @@ export function ClientCard() {
           setClient(next)
           void reloadLocal()
         }}
+        onOpenDiaries={() => setTab('diaries')}
+        onStartTraining={isArchived ? undefined : () => startPnkTraining()}
       />
 
       <div className="tabs" role="tablist">

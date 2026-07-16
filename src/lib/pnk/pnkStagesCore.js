@@ -449,7 +449,7 @@ export const PNK_TRAINER_STEP_META = {
     n: 3,
     total: 5,
     title: 'Бесплатная тренировка',
-    help: 'В день визита заполните здоровье, питание, ДЗ и абонемент (БЗ). Тренировки и статистика появятся после оформления в ДК.',
+    help: 'День визита: заполните здоровье, питание, ДЗ. «Начать тренировку» откроет форму (при необходимости создаст абонемент БЗ). Статистика — после оформления в ДК.',
   },
   followup: {
     n: 4,
@@ -483,15 +483,37 @@ export function resolvePnkTrainerUiStep(client) {
 }
 
 /**
- * Пока ПНК открыт — без журнала тренировок и статистики
- * (нужны после оформления в активного клиента).
+ * День визита относительно даты пробной (пока trial не отмечен).
+ * @param {object} client
+ * @param {Date} [now]
+ * @returns {'none'|'before'|'today'|'past'}
+ */
+export function resolvePnkVisitDayState(client, now = new Date()) {
+  const d = parsePnkDeliverables(client?.pnk_deliverables)
+  if (d.trial || client?.pnk_stage === 'trial_done') return 'none'
+  const trialDate = String(client?.pnk_trial_date ?? '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trialDate)) return 'none'
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  if (trialDate > today) return 'before'
+  if (trialDate === today) return 'today'
+  return 'past'
+}
+
+/**
+ * Пока ПНК открыт — статистика скрыта; тренировки доступны после назначения даты пробной.
  * @param {object} client
  * @param {string} tabId
  */
 export function isPnkCardTabVisible(client, tabId) {
   const id = String(tabId ?? '')
   if (!isOpenPnkClient(client)) return true
-  if (id === 'diaries' || id === 'stats') return false
+  if (id === 'stats') return false
+  if (id === 'diaries') {
+    const trialDate = String(client?.pnk_trial_date ?? '').slice(0, 10)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trialDate)) return true
+    const stage = client?.pnk_stage
+    return stage === 'agreed' || stage === 'trial_done' || stage === 'followup'
+  }
   return true
 }
 

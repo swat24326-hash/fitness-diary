@@ -15,6 +15,8 @@ import {
   pnkNextActionHint,
   pnkPackageProgress,
   resolvePnkTrainerUiStep,
+  resolvePnkVisitDayState,
+  isPnkCardTabVisible,
 } from '../src/lib/pnk/pnkStagesCore.js'
 import { aggregatePnkFunnelStats, listPnkAttentionClients } from '../src/lib/pnk/pnkStatsAgg.js'
 
@@ -162,6 +164,23 @@ ok(ui?.n === 1 && ui.title === 'ПНК создан', 'trainer ui step 1')
 ok(canDeletePnkClient({ id: '1', lifecycle: 'pnk' }), 'can delete open pnk')
 ok(canDeletePnkClient({ id: '2', lifecycle: 'pnk_lost' }), 'can delete lost pnk')
 ok(!canDeletePnkClient({ id: '3', lifecycle: 'active' }), 'cannot delete active dk')
+
+const visitBase = {
+  id: 'v1',
+  lifecycle: 'pnk',
+  pnk_stage: 'agreed',
+  pnk_trial_date: '2026-07-17',
+  pnk_deliverables: { contact: 'x' },
+}
+ok(resolvePnkVisitDayState(visitBase, new Date('2026-07-17T12:00:00')) === 'today', 'visit today')
+ok(resolvePnkVisitDayState(visitBase, new Date('2026-07-16T12:00:00')) === 'before', 'visit before')
+ok(resolvePnkVisitDayState(visitBase, new Date('2026-07-18T12:00:00')) === 'past', 'visit past')
+ok(!isPnkCardTabVisible(visitBase, 'stats'), 'stats hidden while pnk open')
+ok(isPnkCardTabVisible(visitBase, 'diaries'), 'diaries visible with trial date')
+ok(
+  !isPnkCardTabVisible({ id: 'v2', lifecycle: 'pnk', pnk_stage: 'assigned' }, 'diaries'),
+  'diaries hidden before trial date',
+)
 
 if (failed) {
   console.error(`\n${failed} failed`)

@@ -505,17 +505,50 @@ button.pnk-chip:disabled {
 }
 
 .pnk-client-panel__actions .pnk-coach-notify {
-  display: contents;
+  display: flex;
+  flex: 1 1 100%;
+  width: 100%;
+  flex-wrap: nowrap;
+  gap: 8px;
+  min-width: 0;
 }
 
 .pnk-client-panel__actions .pnk-coach-notify__max,
 .pnk-client-panel__actions .pnk-coach-notify__other,
 .pnk-client-panel__actions .btn {
-  flex: 1 1 0;
   min-width: 0;
   min-height: 44px;
   justify-content: center;
   gap: 6px;
+}
+
+/* Зелёные / главные — чуть длиннее соседних */
+.pnk-client-panel__actions .pnk-coach-notify__max,
+.pnk-client-panel__actions .pnk-client-panel__btn-primary,
+.pnk-client-panel__actions .btn-primary {
+  flex: 1.55 1 0;
+}
+
+.pnk-client-panel__actions .pnk-coach-notify__other,
+.pnk-client-panel__actions .pnk-client-panel__btn-secondary,
+.pnk-client-panel__actions .btn-ghost,
+.pnk-client-panel__actions .btn-secondary {
+  flex: 1 1 0;
+}
+
+.pnk-client-panel .pnk-coach-notify {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  width: 100%;
+}
+
+.pnk-client-panel .pnk-coach-notify__max {
+  flex: 1.55 1 0;
+}
+
+.pnk-client-panel .pnk-coach-notify__other {
+  flex: 1 1 0;
 }
 
 .pnk-client-panel__visit-links {
@@ -535,8 +568,7 @@ button.pnk-chip:disabled {
 }
 
 .pnk-client-panel__early-lost {
-  padding-top: 4px;
-  border-top: 1px solid var(--border-soft);
+  display: none;
 }
 
 .pnk-client-panel__schedule {
@@ -601,9 +633,23 @@ button.pnk-chip:disabled {
     flex-wrap: wrap;
   }
 
+  .pnk-client-panel__actions .pnk-coach-notify {
+    flex-wrap: wrap;
+  }
+
   .pnk-client-panel__actions .pnk-coach-notify__max,
+  .pnk-client-panel__actions .pnk-client-panel__btn-primary,
+  .pnk-client-panel__actions .btn-primary,
   .pnk-client-panel__actions .pnk-coach-notify__other,
+  .pnk-client-panel__actions .pnk-client-panel__btn-secondary,
+  .pnk-client-panel__actions .btn-ghost,
+  .pnk-client-panel__actions .btn-secondary,
   .pnk-client-panel__actions .btn {
+    flex: 1 1 calc(50% - 8px);
+  }
+
+  .pnk-client-panel .pnk-coach-notify__max,
+  .pnk-client-panel .pnk-coach-notify__other {
     flex: 1 1 calc(50% - 8px);
   }
 }
