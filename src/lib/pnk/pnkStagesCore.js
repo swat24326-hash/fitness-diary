@@ -2,33 +2,35 @@
  * Воронка ПНК: этапы, чеклист, переходы, внимание менеджера (без React/IDB).
  */
 
-/** @typedef {'new'|'assigned'|'contact'|'agreed'|'trial_done'|'won'|'lost'} PnkStage */
-/** @typedef {'contact'|'trial'|'nutrition'|'homework'} PnkDeliverableKey */
+/** @typedef {'new'|'assigned'|'contact'|'agreed'|'trial_done'|'followup'|'won'|'lost'} PnkStage */
+/** @typedef {'contact'|'trial'|'nutrition'|'homework'|'followup'} PnkDeliverableKey */
 /** @typedef {'active'|'pnk'|'pnk_lost'} ClientLifecycle */
 
 /** @type {PnkStage[]} */
-export const PNK_STAGES = ['new', 'assigned', 'contact', 'agreed', 'trial_done', 'won', 'lost']
+export const PNK_STAGES = ['new', 'assigned', 'contact', 'agreed', 'trial_done', 'followup', 'won', 'lost']
 
 /** @type {Record<PnkStage, string>} */
 export const PNK_STAGE_LABELS = {
   new: 'Создан',
-  assigned: 'У тренера',
-  contact: 'Касание',
+  assigned: 'Создан',
+  contact: 'Контакт',
   agreed: 'Дата пробной',
-  trial_done: 'Пробная',
+  trial_done: 'Бесплатная',
+  followup: 'Уточнение',
   won: 'Оформлен',
   lost: 'Отказ',
 }
 
 /** @type {PnkDeliverableKey[]} */
-export const PNK_DELIVERABLE_KEYS = ['contact', 'trial', 'nutrition', 'homework']
+export const PNK_DELIVERABLE_KEYS = ['contact', 'trial', 'nutrition', 'homework', 'followup']
 
 /** @type {Record<PnkDeliverableKey, string>} */
 export const PNK_DELIVERABLE_LABELS = {
-  contact: 'Звонок / сообщение',
-  trial: 'Пробная тренировка',
+  contact: 'Первый контакт',
+  trial: 'Бесплатная тренировка',
   nutrition: 'Питание',
   homework: 'Домашнее задание',
+  followup: 'Уточняющий контакт',
 }
 
 /** Часы до «горит» без касания после передачи */
@@ -67,7 +69,7 @@ export function isPnkLifecycleClient(client) {
  */
 export function parsePnkDeliverables(raw) {
   /** @type {Record<PnkDeliverableKey, string | null>} */
-  const out = { contact: null, trial: null, nutrition: null, homework: null }
+  const out = { contact: null, trial: null, nutrition: null, homework: null, followup: null }
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out
   for (const key of PNK_DELIVERABLE_KEYS) {
     const v = raw[key]
@@ -233,6 +235,13 @@ export function applyPnkStagePatch(input = {}) {
       Object.assign(client, m.client)
     }
   }
+  if (client.pnk_stage === 'followup' || input.deliverable === 'followup') {
+    const d = parsePnkDeliverables(client.pnk_deliverables)
+    if (!d.followup) {
+      const m = markPnkDeliverable(client, 'followup')
+      Object.assign(client, m.client)
+    }
+  }
 
   if (client.pnk_stage === 'won') {
     client.lifecycle = 'active'
@@ -265,7 +274,7 @@ export function buildNewPnkClientFields(base = {}) {
     pnk_trial_time: null,
     pnk_comment: null,
     pnk_comments: [],
-    pnk_deliverables: { contact: null, trial: null, nutrition: null, homework: null },
+    pnk_deliverables: { contact: null, trial: null, nutrition: null, homework: null, followup: null },
     pnk_won_at: null,
     pnk_lost_at: null,
     pnk_lost_reason: null,
@@ -330,7 +339,7 @@ export function buildPnkAttentionFlags(client, now = new Date()) {
     }
   }
 
-  if (stage === 'trial_done' || d.trial) {
+  if ((stage === 'trial_done' || d.trial) && !d.followup) {
     const pkg = pnkPackageProgress(client)
     if (!pkg.done) {
       flags.push({
@@ -339,6 +348,11 @@ export function buildPnkAttentionFlags(client, now = new Date()) {
         tone: 'warn',
       })
     }
+    flags.push({
+      code: 'need_followup',
+      label: 'Нужно уточнить с клиентом',
+      tone: 'warn',
+    })
   }
 
   return flags
@@ -368,37 +382,107 @@ export function buildPnkStageProgress(client) {
   }
 }
 
-/** Открытые этапы для полоски пути (без won/lost). */
+/** Открытые этапы для полоски пути (без won/lost). new схлопнут в assigned. */
 export const PNK_OPEN_STAGES = /** @type {PnkStage[]} */ ([
-  'new',
   'assigned',
-  'contact',
   'agreed',
   'trial_done',
+  'followup',
 ])
 
 /**
  * Подсказка следующего шага тренеру.
+ * Ключи UI: created → invite → visit → followup → close
  * @param {object} client
  * @returns {{ key: string, label: string } | null}
  */
 export function pnkNextActionHint(client) {
   if (!isOpenPnkClient(client)) return null
   const d = parsePnkDeliverables(client?.pnk_deliverables)
-  const stage = client?.pnk_stage
-  if (!d.contact || stage === 'new' || stage === 'assigned') {
-    return { key: 'contact', label: 'Дальше: позвонить или написать' }
+  const stage = String(client?.pnk_stage ?? '')
+
+  if ((stage === 'new' || stage === 'assigned') && !d.contact && !client?.pnk_trial_date) {
+    return { key: 'created', label: 'Шаг 1: ПНК создан — перейти к контакту' }
   }
-  if (!client?.pnk_trial_date || stage === 'contact') {
-    return { key: 'date', label: 'Дальше: согласовать дату пробной' }
+  if (!d.contact || !client?.pnk_trial_date) {
+    return {
+      key: 'invite',
+      label: !d.contact
+        ? 'Шаг 2: написать клиенту и назначить бесплатную'
+        : 'Шаг 2: сохранить дату бесплатной',
+    }
   }
   if (!d.trial) {
-    return { key: 'trial', label: 'Дальше: провести пробную' }
+    return { key: 'visit', label: 'Шаг 3: бесплатная тренировка' }
   }
-  const pkg = pnkPackageProgress(client)
-  if (!pkg.nutrition) return { key: 'nutrition', label: 'Дальше: выдать питание' }
-  if (!pkg.homework) return { key: 'homework', label: 'Дальше: выдать ДЗ' }
-  return { key: 'close', label: 'Дальше: оформить или закрыть отказ' }
+  if (!d.followup) {
+    return { key: 'followup', label: 'Шаг 4: уточнить с клиентом' }
+  }
+  return { key: 'close', label: 'Шаг 5: оформить или отказ' }
+}
+
+/** Мета для пошагового UI на карточке тренера. */
+export const PNK_TRAINER_STEP_META = {
+  created: {
+    n: 1,
+    total: 5,
+    title: 'ПНК создан',
+    help: 'Карточка в воронке. Дальше — связаться с клиентом и назначить бесплатную тренировку.',
+  },
+  invite: {
+    n: 2,
+    total: 5,
+    title: 'Контакт и дата',
+    help: 'Напишите клиенту в Max или другой мессенджер, договоритесь и сохраните дату бесплатной тренировки.',
+  },
+  visit: {
+    n: 3,
+    total: 5,
+    title: 'Бесплатная тренировка',
+    help: 'В день визита заполните здоровье, питание, ДЗ и абонемент (БЗ). Тренировки и статистика появятся после оформления в ДК.',
+  },
+  followup: {
+    n: 4,
+    total: 5,
+    title: 'Уточнение',
+    help: 'Свяжитесь снова: как прошла тренировка, готов ли оформиться. Текст — через Max или другой мессенджер.',
+  },
+  close: {
+    n: 5,
+    total: 5,
+    title: 'Оформление',
+    help: 'Клиент купил абонемент — «Оформлен». Не готов — «Отказ».',
+  },
+}
+
+/**
+ * Текущий шаг UI для тренера (один экран = один шаг).
+ * @param {object} client
+ * @returns {{ key: string, n: number, total: number, title: string, help: string, label: string } | null}
+ */
+export function resolvePnkTrainerUiStep(client) {
+  const hint = pnkNextActionHint(client)
+  if (!hint) return null
+  const meta = PNK_TRAINER_STEP_META[hint.key] || {
+    n: 0,
+    total: 5,
+    title: hint.label,
+    help: '',
+  }
+  return { key: hint.key, label: hint.label, ...meta }
+}
+
+/**
+ * Пока ПНК открыт — без журнала тренировок и статистики
+ * (нужны после оформления в активного клиента).
+ * @param {object} client
+ * @param {string} tabId
+ */
+export function isPnkCardTabVisible(client, tabId) {
+  const id = String(tabId ?? '')
+  if (!isOpenPnkClient(client)) return true
+  if (id === 'diaries' || id === 'stats') return false
+  return true
 }
 
 /** Фильтры доски менеджера */

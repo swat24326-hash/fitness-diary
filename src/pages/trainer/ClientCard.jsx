@@ -19,6 +19,7 @@ import { useClubDispatchRecipients } from '../../hooks/useClubDispatchRecipients
 import { listOutreachLogByClientId } from '../../lib/trainer/trainerOutreachLogService.js'
 import { ClientPnkPanel } from '../../components/trainer/ClientPnkPanel.jsx'
 import { formatClientName } from '../../lib/clientNameFormat.js'
+import { isOpenPnkClient, isPnkCardTabVisible } from '../../lib/pnk/pnkStagesCore.js'
 import {
   OUTREACH_SCENARIO_LABELS,
   normalizeOutreachName,
@@ -60,6 +61,11 @@ export function ClientCard() {
   const [archiveBusy, setArchiveBusy] = useState(false)
   const [taskModalOpen, setTaskModalOpen] = useState(false)
   const [outreachLogs, setOutreachLogs] = useState([])
+
+  useEffect(() => {
+    if (!client || !isOpenPnkClient(client)) return
+    if (!isPnkCardTabVisible(client, tab)) setTab('health')
+  }, [client, tab])
 
   const taskClubId = useMemo(() => {
     if (!isAdmin || !client) return ''
@@ -442,7 +448,9 @@ export function ClientCard() {
           { id: 'memberships', label: 'Абонементы' },
           { id: 'diaries', label: 'Тренировки' },
           { id: 'stats', label: 'Статистика' },
-        ].map((t) => (
+        ]
+          .filter((t) => isPnkCardTabVisible(client, t.id))
+          .map((t) => (
           <button key={t.id} type="button" className="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}>
             {t.label}
           </button>

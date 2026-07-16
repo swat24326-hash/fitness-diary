@@ -8,7 +8,10 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-const MIGRATION = 'supabase/migrations/20260716140000_pnk_funnel.sql'
+const MIGRATIONS = [
+  'supabase/migrations/20260716140000_pnk_funnel.sql',
+  'supabase/migrations/20260716150000_pnk_followup_stage.sql',
+]
 const VERIFY_SQL =
   "select column_name from information_schema.columns where table_schema = 'public' and ((table_name = 'clients' and column_name in ('lifecycle','pnk_stage')) or (table_name = 'membership_types' and column_name = 'is_pnk_trial')) order by 1;"
 
@@ -44,7 +47,9 @@ function run(label, args) {
   console.log(`✓ ${label}`)
 }
 
-if (!existsSync(resolve(MIGRATION))) fail(`Нет файла ${MIGRATION}`)
+for (const MIGRATION of MIGRATIONS) {
+  if (!existsSync(resolve(MIGRATION))) fail(`Нет файла ${MIGRATION}`)
+}
 
 const useLinked = process.argv.includes('--linked')
 let dbArgs
@@ -63,6 +68,8 @@ if (useLinked) {
   dbArgs = ['--db-url', dbUrl]
 }
 
-run(`apply ${MIGRATION}`, ['db', 'query', ...dbArgs, '--file', MIGRATION, '--yes'])
+for (const MIGRATION of MIGRATIONS) {
+  run(`apply ${MIGRATION}`, ['db', 'query', ...dbArgs, '--file', MIGRATION, '--yes'])
+}
 run('verify pnk columns', ['db', 'query', ...dbArgs, VERIFY_SQL, '--yes'])
 console.log('\nPNK funnel migration applied.')

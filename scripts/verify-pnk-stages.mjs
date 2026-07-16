@@ -13,6 +13,7 @@ import {
   matchesPnkBoardFilter,
   pnkNextActionHint,
   pnkPackageProgress,
+  resolvePnkTrainerUiStep,
 } from '../src/lib/pnk/pnkStagesCore.js'
 import { aggregatePnkFunnelStats, listPnkAttentionClients } from '../src/lib/pnk/pnkStatsAgg.js'
 
@@ -130,7 +131,32 @@ const waitCall = {
 }
 ok(matchesPnkBoardFilter(waitCall, 'call'), 'filter call')
 ok(matchesPnkBoardFilter({ ...waitCall, pnk_trial_date: '2026-07-20' }, 'date'), 'filter date')
-ok(pnkNextActionHint(waitCall)?.key === 'contact', 'next hint contact')
+ok(pnkNextActionHint(waitCall)?.key === 'created', 'next hint created')
+ok(
+  pnkNextActionHint({
+    ...waitCall,
+    pnk_stage: 'contact',
+  })?.key === 'invite',
+  'next hint invite',
+)
+ok(
+  pnkNextActionHint({
+    ...waitCall,
+    pnk_deliverables: { contact: 'x' },
+    pnk_trial_date: '2026-07-20',
+  })?.key === 'visit',
+  'next hint visit',
+)
+ok(
+  pnkNextActionHint({
+    ...waitCall,
+    pnk_deliverables: { contact: 'x', trial: 'y' },
+    pnk_trial_date: '2026-07-20',
+  })?.key === 'followup',
+  'next hint followup',
+)
+const ui = resolvePnkTrainerUiStep(waitCall)
+ok(ui?.n === 1 && ui.title === 'ПНК создан', 'trainer ui step 1')
 
 if (failed) {
   console.error(`\n${failed} failed`)

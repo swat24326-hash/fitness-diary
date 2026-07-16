@@ -407,8 +407,63 @@ button.pnk-chip:disabled {
 
 .pnk-client-panel__title {
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   font-weight: 650;
+}
+
+.pnk-client-panel__step-kicker {
+  margin: 0 0 4px;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.pnk-client-panel__help {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.pnk-client-panel__done {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.pnk-client-panel__ok {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--accent-bright);
+}
+
+.pnk-client-panel__step {
+  display: grid;
+  gap: 12px;
+}
+
+.pnk-client-panel__sub {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.pnk-client-panel__visit-links {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pnk-client-panel__visit-links .btn {
+  min-height: 44px;
+  justify-content: center;
+  gap: 8px;
+}
+
+.pnk-client-panel__early-lost {
+  padding-top: 4px;
+  border-top: 1px solid var(--border-soft);
 }
 
 .pnk-client-panel__schedule {

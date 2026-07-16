@@ -7,14 +7,14 @@ import {
   PNK_STAGE_LABELS,
   parsePnkDeliverables,
   pnkNextActionHint,
-  pnkStageIndex,
 } from '../../lib/pnk/pnkStagesCore'
 
 const SHORT = {
-  contact: 'Касание',
-  trial: 'Пробная',
+  contact: 'Контакт',
+  trial: 'Бесплатная',
   nutrition: 'Питание',
   homework: 'ДЗ',
+  followup: 'Уточнение',
 }
 
 /**
@@ -76,13 +76,20 @@ export function PnkStageChip({ stage, tone }) {
 
 /** Полоска этапов: где сейчас клиент. */
 export function PnkStagePathChips({ stage }) {
-  const current = String(stage ?? 'new')
-  const curIdx = pnkStageIndex(current)
+  const raw = String(stage ?? 'new')
+  const current =
+    raw === 'new' || raw === 'assigned'
+      ? 'assigned'
+      : raw === 'contact'
+        ? 'agreed'
+        : raw === 'won' || raw === 'lost'
+          ? raw
+          : raw
+  const curIdx = PNK_OPEN_STAGES.indexOf(/** @type {any} */ (current))
   return (
     <div className="pnk-chip-group pnk-chip-group--path" role="list" aria-label="Путь ПНК">
-      {PNK_OPEN_STAGES.map((s) => {
-        const idx = pnkStageIndex(s)
-        const done = idx < curIdx || current === 'won'
+      {PNK_OPEN_STAGES.map((s, idx) => {
+        const done = curIdx >= 0 && idx < curIdx
         const on = s === current
         return (
           <span
