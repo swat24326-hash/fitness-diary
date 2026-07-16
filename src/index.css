@@ -7949,6 +7949,10 @@ tr:last-child td {
   font-size: 12px;
 }
 
+.trainer-pnk-glance__icon {
+  color: color-mix(in srgb, var(--accent) 80%, white);
+}
+
 @media (max-width: 560px) {
   .admin-section__actions,
   .challenge-admin__actions {

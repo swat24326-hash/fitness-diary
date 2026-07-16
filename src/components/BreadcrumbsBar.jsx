@@ -60,6 +60,7 @@ function buildCrumbs(pathname, search) {
   if (p === '/admin/diagnostics') return [...admin, { label: 'Диагностика', to: `/admin/diagnostics${clubQs}` }]
   if (p === '/admin/iskra-settings') return [...admin, { label: 'ИСКРА', to: `/admin/iskra-settings${clubQs}` }]
   if (p === '/admin/club-tasks') return [...admin, { label: 'Планёрка', to: `/admin/club-tasks${clubQs}` }]
+  if (p === '/admin/pnk') return [...admin, { label: 'ПНК', to: `/admin/pnk${clubQs}` }]
   if (p === '/sales/club-tasks') return [{ label: 'План продаж', to: '/sales' }, { label: 'Планёрка', to: '/sales/club-tasks' }]
   if (p === '/sales/pnk') return [{ label: 'План продаж', to: '/sales' }, { label: 'ПНК', to: '/sales/pnk' }]
   if (matchPath('/admin/challenges/:challengeId', p)) {

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { AlertTriangle, Cake, CalendarClock, Clock } from 'lucide-react'
+import { AlertTriangle, Cake, CalendarClock, Clock, UserPlus } from 'lucide-react'
 
 /**
  * @param {{
@@ -8,6 +8,7 @@ import { AlertTriangle, Cake, CalendarClock, Clock } from 'lucide-react'
  *     expiring: number,
  *     expired_recent: number,
  *     stale: number,
+ *     pnk?: number,
  *     actionable: number,
  *     staleDays: number,
  *   } | null,
@@ -31,6 +32,14 @@ export function TrainerAttentionPanel({ summary, loading = false }) {
   if (!summary) return null
 
   const items = [
+    {
+      key: 'pnk',
+      count: summary.pnk ?? 0,
+      label: 'ПНК',
+      hint: 'воронка',
+      icon: UserPlus,
+      to: '/trainer/clients?filter=pnk',
+    },
     {
       key: 'birthdays',
       count: summary.birthdays,
@@ -76,8 +85,7 @@ export function TrainerAttentionPanel({ summary, loading = false }) {
         ) : (
           <p className="trainer-attention__hint muted">
             {summary.actionable}{' '}
-            {summary.actionable === 1 ? 'повод' : summary.actionable < 5 ? 'повода' : 'поводов'} связаться с клиентами
-            через Max
+            {summary.actionable === 1 ? 'повод' : summary.actionable < 5 ? 'повода' : 'поводов'} — Max и воронка ПНК
           </p>
         )}
       </div>

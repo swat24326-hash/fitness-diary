@@ -186,6 +186,7 @@ export default function App() {
                 <Route path="trainers" element={<AdminLegacyTrainersRedirect />} />
                 <Route path="statistics" element={<AdminStatistics />} />
                 <Route path="sales" element={<AdminSales />} />
+                <Route path="pnk" element={<SalesPnk />} />
                 <Route path="clients" element={<AdminClients />} />
                 <Route path="clients/:id" element={<ClientCard />} />
                 <Route path="diaries" element={<AdminDiariesRedirect />} />

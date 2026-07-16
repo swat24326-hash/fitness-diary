@@ -1,29 +1,36 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, RefreshCw, UserPlus } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { monthPartsFromIso, monthDateRange } from '../../lib/admin/salesReportCore'
 import { todayLocalIso, formatDateRu } from '../../lib/dateRu'
 import { createPnkClient, fetchPnkBundle, patchPnkClient } from '../../lib/pnk/pnkApiService'
 import { PnkCoachNotifyChip } from '../../components/pnk/PnkCoachNotifyChip'
+import { PnkManagerControlBoard } from '../../components/pnk/PnkManagerControlBoard'
 import {
   PnkAttentionChips,
-  PnkBoardFilterChips,
-  PnkDeliverableChips,
   PnkQualityChips,
   PnkStageChip,
 } from '../../components/pnk/PnkStatusChips'
 import {
   buildPnkDemoScenarioForm,
-  buildPnkStageProgress,
   matchesPnkBoardFilter,
 } from '../../lib/pnk/pnkStagesCore'
 import '../../styles/sales-report.css'
 import '../../styles/pnk-funnel.css'
 
+/**
+ * Контроль воронки ПНК: менеджер продаж и админ (клуб из шапки).
+ */
 export function SalesPnk() {
   const { user, isAdmin } = useAuth()
-  const clubId = String(user?.club_id ?? '').trim()
+  const [searchParams] = useSearchParams()
+  const clubId = isAdmin
+    ? String(searchParams.get('club') ?? '').trim()
+    : String(user?.club_id ?? '').trim()
+  const clubQs = clubId ? `?club=${encodeURIComponent(clubId)}` : ''
+  const backTo = isAdmin ? `/admin/sales${clubQs}` : '/sales'
+
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [bundle, setBundle] = useState(null)
@@ -56,7 +63,7 @@ export function SalesPnk() {
 
   const load = useCallback(async () => {
     if (!clubId) {
-      setError('У менеджера не задан клуб')
+      setError(isAdmin ? 'Выберите клуб в шапке' : 'У менеджера не задан клуб')
       return
     }
     setBusy(true)
@@ -74,7 +81,7 @@ export function SalesPnk() {
     } finally {
       setBusy(false)
     }
-  }, [clubId, period.dateFrom, period.dateTo])
+  }, [clubId, period.dateFrom, period.dateTo, isAdmin])
 
   useEffect(() => {
     void load()
@@ -135,10 +142,6 @@ export function SalesPnk() {
     }
     return counts
   }, [clients, attentionIds])
-  const filteredClients = useMemo(
-    () => clients.filter((c) => matchesPnkBoardFilter(c, boardFilter, attentionIds)),
-    [clients, boardFilter, attentionIds],
-  )
 
   function fillDemoScenario() {
     const tid = form.trainer_id || bundle?.trainers?.[0]?.id || ''
@@ -146,22 +149,27 @@ export function SalesPnk() {
     setCreateOpen(true)
   }
 
+  function clientHref(c) {
+    if (!isAdmin) return null
+    return `/admin/clients/${encodeURIComponent(c.id)}${clubQs}`
+  }
+
   return (
     <div className={`sales-report sales-report--wide pnk-funnel${busy ? ' sales-report__busy' : ''}`}>
       <div className="sales-report__toolbar">
         <div className="sales-home__hero-text">
-          <p className="sales-home__eyebrow">Воронка</p>
+          <p className="sales-home__eyebrow">{isAdmin ? 'Контроль клуба' : 'Воронка'}</p>
           <h1 className="sales-page__title">ПНК</h1>
         </div>
         <div className="pnk-funnel__toolbar-actions">
-          <Link to="/sales" className="btn btn-ghost btn-sm btn-icon-square btn-touch" title="Назад" aria-label="Назад">
+          <Link to={backTo} className="btn btn-ghost btn-sm btn-icon-square btn-touch" title="Назад" aria-label="Назад">
             <ArrowLeft size={16} aria-hidden />
           </Link>
           <button
             type="button"
             className="btn btn-secondary btn-sm btn-icon-square btn-touch"
             onClick={() => void load()}
-            disabled={busy}
+            disabled={busy || !clubId}
             title="Обновить"
             aria-label="Обновить"
           >
@@ -171,6 +179,7 @@ export function SalesPnk() {
             type="button"
             className="btn btn-primary btn-sm btn-icon-square btn-touch"
             onClick={() => setCreateOpen((v) => !v)}
+            disabled={!clubId}
             title="Новый ПНК"
             aria-label="Новый ПНК"
             aria-pressed={createOpen}
@@ -179,6 +188,12 @@ export function SalesPnk() {
           </button>
         </div>
       </div>
+
+      {isAdmin && !clubId ? (
+        <p className="sync-feedback sync-feedback--err" role="status">
+          Выберите клуб в шапке — тогда откроется контроль ПНК по залу.
+        </p>
+      ) : null}
 
       {toast ? (
         <p className="sync-feedback sync-feedback--ok" role="status">
@@ -221,7 +236,7 @@ export function SalesPnk() {
         />
       ) : null}
 
-      {createOpen ? (
+      {createOpen && clubId ? (
         <form className="pnk-funnel__create" onSubmit={onCreate}>
           <div className="pnk-client-panel__head" style={{ padding: 0 }}>
             <h2 className="pnk-funnel__section-title" style={{ margin: 0 }}>
@@ -265,19 +280,19 @@ export function SalesPnk() {
             </select>
           </label>
           <p className="muted" style={{ margin: '0 0 8px', fontSize: '0.9rem' }}>
-            После создания появятся кнопки «В Max» и «Другой мессенджер» — как у ДЗ и питания.
+            После создания — напишите тренеру (Max / другой мессенджер).
           </p>
           <button type="submit" className="btn btn-primary btn-touch" disabled={busy}>
             Передать тренеру
           </button>
         </form>
-      ) : (
+      ) : clubId ? (
         <div className="pnk-funnel__quality" style={{ marginBottom: '0.75rem' }}>
           <button type="button" className="pnk-chip pnk-chip--action" onClick={fillDemoScenario}>
             Создать ПНК по сценарию
           </button>
         </div>
-      )}
+      ) : null}
 
       {lastCreated?.client ? (
         <section className="card pnk-funnel__notify-banner" aria-label="Сообщить тренеру">
@@ -285,7 +300,7 @@ export function SalesPnk() {
             ПНК «{lastCreated.client.name}» создан
           </p>
           <p className="muted" style={{ margin: '0 0 10px', fontSize: '0.9rem' }}>
-            Напишите тренеру: «В Max» или «Другой мессенджер» (текст копируется автоматически).
+            Напишите тренеру: «В Max» или «Другой мессенджер».
           </p>
           <PnkCoachNotifyChip
             client={lastCreated.client}
@@ -301,8 +316,8 @@ export function SalesPnk() {
 
       {attention.length ? (
         <section className="pnk-funnel__attention card" aria-label="Требует внимания">
-          <h2 className="pnk-funnel__section-title">Внимание</h2>
-          <ul className="pnk-funnel__list">
+          <h2 className="pnk-funnel__section-title">Внимание ({attention.length})</h2>
+          <ul className="pnk-funnel__attention-scroll">
             {attention.map((row) => (
               <li key={row.id} className={`pnk-funnel__row pnk-funnel__row--${row.tone}`}>
                 <div className="pnk-funnel__row-main">
@@ -324,52 +339,21 @@ export function SalesPnk() {
         </section>
       ) : null}
 
-      <section className="pnk-funnel__board" aria-label="В работе">
-        <h2 className="pnk-funnel__section-title">В работе ({filteredClients.length})</h2>
-        <PnkBoardFilterChips value={boardFilter} onChange={setBoardFilter} counts={filterCounts} />
-        {!filteredClients.length ? (
-          <p className="muted">Пока нет открытых ПНК по фильтру</p>
-        ) : (
-          <ul className="pnk-funnel__list">
-            {filteredClients.map((c) => {
-              const progress = buildPnkStageProgress(c)
-              return (
-                <li key={c.id} className="pnk-funnel__card">
-                  <div className="pnk-funnel__card-head">
-                    <div>
-                      <div className="pnk-client-panel__head" style={{ padding: 0, marginBottom: 4 }}>
-                        <strong>{c.name}</strong>
-                        <PnkStageChip stage={c.pnk_stage} />
-                      </div>
-                      <p className="pnk-funnel__meta">
-                        {c.trainer_name || '—'}
-                        {c.pnk_trial_date
-                          ? ` · ${formatDateRu(c.pnk_trial_date)}${c.pnk_trial_time ? ` ${c.pnk_trial_time}` : ''}`
-                          : ''}
-                      </p>
-                    </div>
-                    <span className="pnk-funnel__pct">{progress.pct}%</span>
-                  </div>
-                  <div className="pnk-funnel__track" aria-hidden>
-                    <div className="pnk-funnel__fill" style={{ width: `${progress.pct}%` }} />
-                  </div>
-                  <PnkDeliverableChips client={c} />
-                  <PnkCoachNotifyChip
-                    client={c}
-                    trainerName={c.trainer_name || ''}
-                    trainerPhone={c.trainer_phone}
-                    managerName={user?.name || ''}
-                    busy={busy}
-                    onResult={toastFromNotify}
-                  />
-                  {c.pnk_comment ? <p className="pnk-funnel__comment">«{c.pnk_comment}»</p> : null}
-                  <CommentMini disabled={busy} onSubmit={(text) => void onComment(c.id, text)} />
-                </li>
-              )
-            })}
-          </ul>
-        )}
-      </section>
+      {clubId ? (
+        <PnkManagerControlBoard
+          clients={clients}
+          attentionIds={attentionIds}
+          boardFilter={boardFilter}
+          onBoardFilterChange={setBoardFilter}
+          filterCounts={filterCounts}
+          trainers={bundle?.trainers ?? []}
+          managerName={user?.name || ''}
+          busy={busy}
+          clientHref={isAdmin ? clientHref : undefined}
+          onNotifyResult={toastFromNotify}
+          onComment={onComment}
+        />
+      ) : null}
 
       {stats?.trainers?.length ? (
         <section className="pnk-funnel__by-trainer card">
@@ -398,36 +382,11 @@ export function SalesPnk() {
       ) : null}
 
       {isAdmin ? (
-        <p className="muted pnk-funnel__admin-hint">Админ: полный контроль через этот же экран у менеджера клуба.</p>
+        <p className="muted pnk-funnel__admin-hint">
+          Админ видит всю картину по клубу: фильтр, поиск, раскрытие карточки → написать тренеру (Max / другой мессенджер),
+          комментарий, переход в карточку клиента.
+        </p>
       ) : null}
     </div>
-  )
-}
-
-function CommentMini({ onSubmit, disabled }) {
-  const [text, setText] = useState('')
-  return (
-    <form
-      className="pnk-funnel__comment-form"
-      onSubmit={(e) => {
-        e.preventDefault()
-        const v = text.trim()
-        if (!v) return
-        onSubmit(v)
-        setText('')
-      }}
-    >
-      <input
-        className="input"
-        placeholder="Комментарий"
-        value={text}
-        disabled={disabled}
-        onChange={(e) => setText(e.target.value)}
-        aria-label="Комментарий"
-      />
-      <button type="submit" className="btn btn-secondary btn-sm btn-touch" disabled={disabled || !text.trim()}>
-        OK
-      </button>
-    </form>
   )
 }

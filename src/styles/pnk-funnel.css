@@ -532,3 +532,128 @@ button.pnk-chip:disabled {
     flex: 1 1 calc(50% - 8px);
   }
 }
+
+/* ── Доска контроля менеджера / админа ── */
+
+.pnk-control-board {
+  display: grid;
+  gap: 12px;
+  margin: 1rem 0;
+}
+
+.pnk-control-board__toolbar {
+  display: grid;
+  gap: 10px;
+}
+
+.pnk-control-board__filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(8rem, 1fr);
+  gap: 8px;
+}
+
+.pnk-control-board__scroll {
+  list-style: none;
+  margin: 0;
+  padding: 0 4px 8px 0;
+  display: grid;
+  gap: 10px;
+  max-height: min(62vh, 640px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pnk-funnel__attention-scroll {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.pnk-control-card {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.pnk-control-card__summary {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.pnk-control-card__main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.pnk-control-card__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.pnk-control-card__name {
+  font-size: 1rem;
+}
+
+.pnk-control-card__hot {
+  font-size: 0.72rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--danger) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+  color: #fecaca;
+}
+
+.pnk-control-card__meta,
+.pnk-control-card__step {
+  font-size: 0.82rem;
+}
+
+.pnk-control-card__chevron {
+  flex-shrink: 0;
+  opacity: 0.7;
+  margin-top: 2px;
+}
+
+.pnk-control-card__panel {
+  display: grid;
+  gap: 10px;
+  padding: 0 14px 14px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.pnk-control-card__intervene {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.pnk-control-card--open {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+@media (max-width: 560px) {
+  .pnk-control-board__filters {
+    grid-template-columns: 1fr;
+  }
+}

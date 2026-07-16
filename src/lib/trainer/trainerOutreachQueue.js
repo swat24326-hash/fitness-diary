@@ -1,5 +1,6 @@
 import { membershipSignal } from '../clientListSignals.js'
 import { todayLocalIso } from '../dateRu.js'
+import { isOpenPnkClient } from '../pnk/pnkStagesCore.js'
 import {
   isBirthdayToday,
   isMembershipExpiredRecently,
@@ -130,7 +131,7 @@ export function pickNextOutreachClient(clients, sentTodayIds) {
 }
 
 /**
- * Сводка по главному сценарию на клиента (без двойного счёта).
+ * Сводка по главному сценарию на клиента (без двойного счёта) + отдельно открытые ПНК.
  * @param {{
  *   clients?: object[],
  *   memByClient?: Record<string, object[]>,
@@ -147,9 +148,11 @@ export function buildTrainerAttentionSummaryByPrimaryScenario(input = {}) {
   let expiring = 0
   let expired_recent = 0
   let stale = 0
+  let pnk = 0
 
   for (const c of input.clients ?? []) {
     if (c?.archived_at) continue
+    if (isOpenPnkClient(c)) pnk++
     const primary = resolvePrimaryOutreachScenarioForClient({
       client: c,
       memList: memByClient[c.id] ?? [],
@@ -167,7 +170,8 @@ export function buildTrainerAttentionSummaryByPrimaryScenario(input = {}) {
     expiring,
     expired_recent,
     stale,
-    actionable: birthdays + expiring + expired_recent + stale,
+    pnk,
+    actionable: birthdays + expiring + expired_recent + stale + pnk,
     staleDays,
   }
 }
