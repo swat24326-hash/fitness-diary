@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Check, CalendarPlus, Ban, Trophy, Heart, Utensils, Dumbbell, ClipboardList } from 'lucide-react'
+import { CalendarPlus, Ban, Trophy, Heart, Utensils, Dumbbell, ClipboardList } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import {
   buildPnkAttentionFlags,
@@ -136,7 +136,16 @@ export function ClientPnkPanel({
               className="btn btn-primary btn-touch pnk-client-panel__btn-primary"
               disabled={busy || !advance.ok}
               title={!advance.ok ? advance.reason : 'Далее'}
-              onClick={() => void run(buildPnkWizardAdvancePatch(step))}
+              onClick={() => {
+                const patch = buildPnkWizardAdvancePatch(step)
+                if (!patch) return
+                if (step.key === 'followup' && comment) {
+                  void run({ ...patch, comment })
+                  setComment('')
+                  return
+                }
+                void run(patch)
+              }}
             >
               Далее
             </button>
@@ -266,28 +275,19 @@ export function ClientPnkPanel({
 
       {step.key === 'nutrition' ? (
         <div className="pnk-client-panel__step">
+          {d.nutrition ? (
+            <p className="pnk-client-panel__ok" style={{ margin: 0 }}>
+              ✓ Рацион сохранён — можно «Далее»
+            </p>
+          ) : null}
           {stepActions(
-            <>
-              <button
-                type="button"
-                className="btn btn-secondary btn-touch"
-                onClick={() => openTab('nutrition')}
-              >
-                <Utensils size={16} aria-hidden /> Открыть питание
-              </button>
-              {!d.nutrition ? (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-touch"
-                  disabled={busy}
-                  onClick={() => void run({ deliverable: 'nutrition' })}
-                >
-                  ✓ Питание выдано
-                </button>
-              ) : (
-                <span className="pnk-client-panel__ok">✓ Питание</span>
-              )}
-            </>,
+            <button
+              type="button"
+              className="btn btn-secondary btn-touch"
+              onClick={() => openTab('nutrition')}
+            >
+              <Utensils size={16} aria-hidden /> Открыть питание
+            </button>,
           )}
         </div>
       ) : null}
@@ -323,18 +323,14 @@ export function ClientPnkPanel({
               >
                 <ClipboardList size={16} aria-hidden /> Открыть ДЗ
               </button>
-              {!d.homework ? (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-touch"
-                  disabled={busy}
-                  onClick={() => void run({ deliverable: 'homework' })}
-                >
-                  ✓ ДЗ выдано
-                </button>
-              ) : (
-                <span className="pnk-client-panel__ok">✓ ДЗ</span>
-              )}
+              <button
+                type="button"
+                className="btn btn-ghost btn-touch"
+                disabled={busy || Boolean(d.homework)}
+                onClick={() => void run({ deliverable: 'homework' })}
+              >
+                ДЗ выдано
+              </button>
             </>,
           )}
         </div>
@@ -351,18 +347,14 @@ export function ClientPnkPanel({
               >
                 <ClipboardList size={16} aria-hidden /> Открыть ДЗ
               </button>
-              {!d.homework2 ? (
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-touch"
-                  disabled={busy}
-                  onClick={() => void run({ deliverable: 'homework2' })}
-                >
-                  ✓ ДЗ выдано
-                </button>
-              ) : (
-                <span className="pnk-client-panel__ok">✓ ДЗ после 2-й</span>
-              )}
+              <button
+                type="button"
+                className="btn btn-ghost btn-touch"
+                disabled={busy || Boolean(d.homework2)}
+                onClick={() => void run({ deliverable: 'homework2' })}
+              >
+                ДЗ выдано
+              </button>
             </>,
           )}
         </div>
@@ -390,26 +382,7 @@ export function ClientPnkPanel({
               onChange={(e) => setComment(e.target.value)}
             />
           </label>
-          {stepActions(
-            !d.followup ? (
-              <button
-                type="button"
-                className="btn btn-ghost btn-touch"
-                disabled={busy}
-                onClick={() => {
-                  void run({
-                    ...buildPnkWizardAdvancePatch(step),
-                    comment: comment || undefined,
-                  })
-                  setComment('')
-                }}
-              >
-                <Check size={18} aria-hidden /> Уточнение сделано
-              </button>
-            ) : (
-              <span className="pnk-client-panel__ok">✓ Уточнение</span>
-            ),
-          )}
+          {stepActions(null)}
         </div>
       ) : null}
 

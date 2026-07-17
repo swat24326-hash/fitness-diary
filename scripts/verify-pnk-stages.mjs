@@ -177,10 +177,11 @@ ok(resolvePnkVisitDayState(visitBase, new Date('2026-07-17T12:00:00')) === 'toda
 ok(resolvePnkVisitDayState(visitBase, new Date('2026-07-16T12:00:00')) === 'before', 'visit before')
 ok(resolvePnkVisitDayState(visitBase, new Date('2026-07-18T12:00:00')) === 'past', 'visit past')
 ok(!isPnkCardTabVisible(visitBase, 'stats'), 'stats hidden while pnk open')
-ok(isPnkCardTabVisible(visitBase, 'health'), 'health after invite+date')
-ok(!isPnkCardTabVisible(visitBase, 'nutrition'), 'nutrition locked until health')
-ok(!isPnkCardTabVisible(visitBase, 'diaries'), 'diaries locked until nutrition')
-ok(!isPnkCardTabVisible(visitBase, 'homework'), 'homework locked until trial')
+ok(isPnkCardTabVisible(visitBase, 'health'), 'only health on health step')
+ok(!isPnkCardTabVisible(visitBase, 'nutrition'), 'nutrition hidden on health step')
+ok(!isPnkCardTabVisible(visitBase, 'diaries'), 'diaries hidden on health step')
+ok(!isPnkCardTabVisible(visitBase, 'homework'), 'homework hidden on health step')
+ok(!isPnkCardTabVisible(visitBase, 'memberships'), 'memberships hidden on health step')
 ok(
   !isPnkCardTabVisible({ id: 'v2', lifecycle: 'pnk', pnk_stage: 'assigned' }, 'health'),
   'tabs hidden before invite done',
@@ -189,20 +190,23 @@ const afterHealth = {
   ...visitBase,
   pnk_deliverables: { contact: 'x', health: 'x' },
 }
-ok(isPnkCardTabVisible(afterHealth, 'nutrition'), 'nutrition after health')
-ok(!isPnkCardTabVisible(afterHealth, 'diaries'), 'diaries still locked after health')
+ok(isPnkCardTabVisible(afterHealth, 'nutrition'), 'only nutrition on nutrition step')
+ok(!isPnkCardTabVisible(afterHealth, 'health'), 'health tab hidden on nutrition step')
+ok(!isPnkCardTabVisible(afterHealth, 'diaries'), 'diaries hidden on nutrition step')
 const afterNutrition = {
   ...visitBase,
   pnk_deliverables: { contact: 'x', health: 'x', nutrition: 'x' },
 }
-ok(isPnkCardTabVisible(afterNutrition, 'diaries'), 'diaries after nutrition')
-ok(!isPnkCardTabVisible(afterNutrition, 'homework'), 'homework still locked')
+ok(isPnkCardTabVisible(afterNutrition, 'diaries'), 'only diaries on train step')
+ok(!isPnkCardTabVisible(afterNutrition, 'nutrition'), 'nutrition hidden on train step')
+ok(!isPnkCardTabVisible(afterNutrition, 'homework'), 'homework hidden on train step')
 const afterTrial = {
   ...visitBase,
   pnk_stage: 'trial_done',
   pnk_deliverables: { contact: 'x', health: 'x', nutrition: 'x', trial: 'x' },
 }
-ok(isPnkCardTabVisible(afterTrial, 'homework'), 'homework after trial')
+ok(isPnkCardTabVisible(afterTrial, 'homework'), 'only homework on hw step')
+ok(!isPnkCardTabVisible(afterTrial, 'diaries'), 'diaries hidden on hw step')
 
 if (failed) {
   console.error(`\n${failed} failed`)

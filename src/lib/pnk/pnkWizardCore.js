@@ -84,19 +84,19 @@ function helpForWizardKey(key, sessions) {
     case 'health':
       return 'Заполните карту здоровья (рост, вес, пол). Затем «Далее».'
     case 'nutrition':
-      return 'Выдайте питание и отметьте «Питание выдано». Затем «Далее».'
+      return 'Сохраните рацион кнопкой «Сохранить рацион». После сохранения можно «Далее». В Max — по желанию.'
     case 'train1':
       return sessions === 2
         ? 'Проведите первую бесплатную (1 из 2). После «Закончить» вернитесь и нажмите «Далее».'
         : 'Проведите бесплатную. После «Закончить» вернитесь и нажмите «Далее».'
     case 'hw1':
-      return 'Выдайте ДЗ и отметьте «ДЗ выдано». Затем «Далее».'
+      return 'Соберите ДЗ и отправьте в Max — после отправки можно «Далее». Или нажмите «ДЗ выдано».'
     case 'train2':
       return 'Проведите вторую бесплатную (2 из 2). Здоровье и питание уже пройдены.'
     case 'hw2':
-      return 'Выдайте ДЗ после второй тренировки. Затем «Далее».'
+      return 'Соберите ДЗ после 2-й и отправьте в Max — затем «Далее». Или «ДЗ выдано».'
     case 'followup':
-      return 'Свяжитесь с клиентом после бесплатной. Затем оформление или отказ.'
+      return 'Свяжитесь с клиентом после бесплатной. Затем «Далее» или оформление.'
     case 'close':
       return 'Оформлен (ДК) или отказ.'
     default:
@@ -177,22 +177,21 @@ export function canAdvancePnkWizardStep(client, step, ctx = {}) {
       if (!healthOk) return { ok: false, reason: 'Заполните карту здоровья (рост, вес, пол)' }
       return { ok: true }
     case 'nutrition':
-      if (!d.nutrition) return { ok: false, reason: 'Отметьте «Питание выдано»' }
+      if (!d.nutrition) return { ok: false, reason: 'Сначала сохраните рацион' }
+      return { ok: true }
+    case 'hw1':
+      if (!d.homework) return { ok: false, reason: 'Отправьте ДЗ в Max или отметьте «ДЗ выдано»' }
+      return { ok: true }
+    case 'hw2':
+      if (!d.homework2) return { ok: false, reason: 'Отправьте ДЗ в Max или отметьте «ДЗ выдано»' }
       return { ok: true }
     case 'train1':
       if (bzDone < 1 && !d.trial) return { ok: false, reason: 'Сначала завершите тренировку' }
       return { ok: true }
-    case 'hw1':
-      if (!d.homework) return { ok: false, reason: 'Отметьте «ДЗ выдано»' }
-      return { ok: true }
     case 'train2':
       if (bzDone < 2 && !d.trial2) return { ok: false, reason: 'Сначала завершите вторую тренировку' }
       return { ok: true }
-    case 'hw2':
-      if (!d.homework2) return { ok: false, reason: 'Отметьте «ДЗ выдано» после 2-й' }
-      return { ok: true }
     case 'followup':
-      if (!d.followup) return { ok: false, reason: 'Отметьте уточнение' }
       return { ok: true }
     case 'close':
       return { ok: false, reason: 'Выберите оформление или отказ' }

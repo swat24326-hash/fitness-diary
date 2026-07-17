@@ -8,6 +8,7 @@ import {
   normalizePnkTrialSessions,
   resolvePnkWizardStep,
 } from '../src/lib/pnk/pnkWizardCore.js'
+import { isPnkCardTabVisible } from '../src/lib/pnk/pnkStagesCore.js'
 
 let failed = 0
 
@@ -73,6 +74,9 @@ const afterHealth = {
   pnk_deliverables: { ...afterInvite.pnk_deliverables, health: '2026-07-19T11:00:00.000Z' },
 }
 ok(resolvePnkWizardStep(afterHealth)?.key === 'nutrition', '→ nutrition')
+const nutritionStep = resolvePnkWizardStep(afterHealth)
+ok(canAdvancePnkWizardStep(afterHealth, nutritionStep).ok === false, 'nutrition blocked until saved')
+ok(buildPnkWizardAdvancePatch(nutritionStep)?.deliverable === 'nutrition', 'nutrition advance patch')
 
 const afterNutrition = {
   ...afterHealth,
@@ -89,11 +93,14 @@ const afterTrain1 = {
   pnk_deliverables: { ...afterNutrition.pnk_deliverables, trial: '2026-07-20T18:00:00.000Z' },
 }
 ok(resolvePnkWizardStep(afterTrain1, { bzCompletedCount: 1 })?.key === 'hw1', 'N=1 → hw1')
+const hw1Step = resolvePnkWizardStep(afterTrain1, { bzCompletedCount: 1 })
+ok(canAdvancePnkWizardStep(afterTrain1, hw1Step, { bzCompletedCount: 1 }).ok === false, 'hw1 blocked until issued')
 
 const afterHw1 = {
   ...afterTrain1,
   pnk_deliverables: { ...afterTrain1.pnk_deliverables, homework: '2026-07-20T19:00:00.000Z' },
 }
+ok(canAdvancePnkWizardStep(afterHw1, hw1Step, { bzCompletedCount: 1 }).ok === true, 'hw1 ok when issued')
 ok(resolvePnkWizardStep(afterHw1, { bzCompletedCount: 1 })?.key === 'followup', 'N=1 skips train2 → followup')
 
 const afterFollowup = {
@@ -129,6 +136,28 @@ ok(resolvePnkWizardStep({ lifecycle: 'active', pnk_stage: 'won' }) === null, 'cl
 ok(buildPnkWizardAdvancePatch({ key: 'train1' })?.deliverable === 'trial', 'train1 patch')
 ok(buildPnkWizardAdvancePatch({ key: 'train2' })?.deliverable === 'trial2', 'train2 patch')
 ok(buildPnkWizardAdvancePatch({ key: 'invite' }) === null, 'invite no advance patch')
+
+/* Жёсткая последовательность вкладок — только текущий шаг */
+function onlyTab(client, expectTab, label) {
+  const tabs = ['health', 'nutrition', 'homework', 'diaries', 'memberships', 'stats']
+  for (const t of tabs) {
+    const vis = isPnkCardTabVisible(client, t)
+    if (expectTab == null) {
+      ok(!vis, `${label}: ${t} hidden`)
+    } else if (t === expectTab) {
+      ok(vis, `${label}: ${expectTab} visible`)
+    } else {
+      ok(!vis, `${label}: ${t} hidden`)
+    }
+  }
+}
+
+onlyTab(baseClient(1), null, 'invite')
+onlyTab(afterInvite, 'health', 'health step')
+onlyTab(afterHealth, 'nutrition', 'nutrition step')
+onlyTab(afterNutrition, 'diaries', 'train step')
+onlyTab(afterTrain1, 'homework', 'hw step')
+onlyTab(afterFollowup, null, 'close step')
 
 if (failed) {
   console.error(`\n${failed} failed`)

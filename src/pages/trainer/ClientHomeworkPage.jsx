@@ -22,7 +22,7 @@ const MODES = {
   builder: 'builder',
 }
 
-export function ClientHomeworkPage({ client, readOnly = false }) {
+export function ClientHomeworkPage({ client, readOnly = false, onHomeworkIssued }) {
   const { user } = useAuth()
   const clubId = String(client?.club_id ?? '').trim()
 
@@ -160,6 +160,11 @@ export function ClientHomeworkPage({ client, readOnly = false }) {
         }
       }
       setStatusMsg(parts.join(' · ') || 'Готово')
+      try {
+        await onHomeworkIssued?.()
+      } catch {
+        /* отметка ПНК не должна ломать отправку ДЗ */
+      }
     } finally {
       setBusy(false)
     }

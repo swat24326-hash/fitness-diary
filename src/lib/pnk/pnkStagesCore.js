@@ -384,19 +384,22 @@ export function buildPnkAttentionFlags(client, now = new Date()) {
   }
 
   if ((stage === 'trial_done' || d.trial) && !d.followup) {
-    const pkg = pnkPackageProgress(client)
-    if (!pkg.done) {
+    const wiz = resolvePnkWizardStep(client)
+    if (wiz?.key === 'followup' || wiz?.key === 'close') {
+      const pkg = pnkPackageProgress(client)
+      if (!pkg.done) {
+        flags.push({
+          code: 'need_package',
+          label: !pkg.nutrition && !pkg.homework ? 'Нет питания и ДЗ' : !pkg.nutrition ? 'Нет питания' : 'Нет ДЗ',
+          tone: 'warn',
+        })
+      }
       flags.push({
-        code: 'need_package',
-        label: !pkg.nutrition && !pkg.homework ? 'Нет питания и ДЗ' : !pkg.nutrition ? 'Нет питания' : 'Нет ДЗ',
+        code: 'need_followup',
+        label: 'Нужно уточнить с клиентом',
         tone: 'warn',
       })
     }
-    flags.push({
-      code: 'need_followup',
-      label: 'Нужно уточнить с клиентом',
-      tone: 'warn',
-    })
   }
 
   return flags
@@ -487,26 +490,18 @@ export function resolvePnkVisitDayState(client, now = new Date()) {
 }
 
 /**
- * Вкладки карточки по прогрессу мастера ПНК (без прыжков вперёд).
+ * Строгая последовательность: видна только вкладка текущего шага мастера.
  * @param {object} client
  * @param {string} tabId
+ * @param {{ healthCard?: object | null, bzCompletedCount?: number, healthComplete?: boolean }} [ctx]
  */
-export function isPnkCardTabVisible(client, tabId) {
+export function isPnkCardTabVisible(client, tabId, ctx = {}) {
   const id = String(tabId ?? '')
   if (!isOpenPnkClient(client)) return true
   if (id === 'stats') return false
-
-  const d = parsePnkDeliverables(client?.pnk_deliverables)
-  const inviteDone = Boolean(d.contact) && Boolean(String(client?.pnk_trial_date ?? '').slice(0, 10))
-  if (!inviteDone) return false
-
-  if (id === 'health') return true
-  if (id === 'nutrition' || id === 'memberships') return Boolean(d.health)
-  if (id === 'diaries') return Boolean(d.nutrition)
-  if (id === 'homework') {
-    return Boolean(d.trial) || client?.pnk_stage === 'trial_done' || Boolean(d.trial2)
-  }
-  return false
+  const step = resolvePnkWizardStep(client, ctx)
+  if (!step?.tab) return false
+  return step.tab === id
 }
 
 /** Фильтры доски менеджера */

@@ -19,8 +19,8 @@ import { useClubDispatchRecipients } from '../../hooks/useClubDispatchRecipients
 import { listOutreachLogByClientId } from '../../lib/trainer/trainerOutreachLogService.js'
 import { ClientPnkPanel } from '../../components/trainer/ClientPnkPanel.jsx'
 import { formatClientName } from '../../lib/clientNameFormat.js'
-import { isOpenPnkClient, isPnkCardTabVisible } from '../../lib/pnk/pnkStagesCore.js'
-import { preparePnkTrialTraining } from '../../lib/pnk/pnkLocalService.js'
+import { isOpenPnkClient, isPnkCardTabVisible, resolvePnkTrainerUiStep } from '../../lib/pnk/pnkStagesCore.js'
+import { preparePnkTrialTraining, patchPnkClientLocal } from '../../lib/pnk/pnkLocalService.js'
 import {
   OUTREACH_SCENARIO_LABELS,
   normalizeOutreachName,
@@ -68,8 +68,12 @@ export function ClientCard() {
 
   useEffect(() => {
     if (!client || !isOpenPnkClient(client)) return
-    if (!isPnkCardTabVisible(client, tab)) setTab('health')
-  }, [client, tab])
+    const ctx = { healthCard, bzCompletedCount }
+    if (!isPnkCardTabVisible(client, tab, ctx)) {
+      const step = resolvePnkTrainerUiStep(client, ctx)
+      setTab(step?.tab || 'health')
+    }
+  }, [client, tab, healthCard, bzCompletedCount])
 
   const taskClubId = useMemo(() => {
     if (!isAdmin || !client) return ''
@@ -266,6 +270,26 @@ export function ClientCard() {
     }
     navigate(res.path)
   }, [client, isAdmin, navigate, reloadLocal])
+
+  const markPnkNutritionSaved = useCallback(async () => {
+    if (!client || !isOpenPnkClient(client) || isArchived) return
+    const res = await patchPnkClientLocal(client, { deliverable: 'nutrition' })
+    if (res.ok) {
+      setClient(res.client)
+      void reloadLocal()
+    }
+  }, [client, isArchived, reloadLocal])
+
+  const markPnkHomeworkIssued = useCallback(async () => {
+    if (!client || !isOpenPnkClient(client) || isArchived) return
+    const step = resolvePnkTrainerUiStep(client, { healthCard, bzCompletedCount })
+    const deliverable = step?.key === 'hw2' ? 'homework2' : 'homework'
+    const res = await patchPnkClientLocal(client, { deliverable })
+    if (res.ok) {
+      setClient(res.client)
+      void reloadLocal()
+    }
+  }, [client, isArchived, reloadLocal, healthCard, bzCompletedCount])
 
   if (!client) {
     const backTo = isAdmin ? adminClientsListHref : '/trainer/clients'
@@ -495,7 +519,7 @@ export function ClientCard() {
           { id: 'diaries', label: 'Тренировки' },
           { id: 'stats', label: 'Статистика' },
         ]
-          .filter((t) => isPnkCardTabVisible(client, t.id))
+          .filter((t) => isPnkCardTabVisible(client, t.id, { healthCard, bzCompletedCount }))
           .map((t) => (
           <button key={t.id} type="button" className="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}>
             {t.label}
@@ -503,12 +527,36 @@ export function ClientCard() {
         ))}
       </div>
 
-      {tab === 'health' && <ClientOverview client={client} onReload={reloadLocal} section="health" readOnly={isArchived} />}
-      {tab === 'nutrition' && <ClientNutritionPage client={client} readOnly={isArchived} />}
-      {tab === 'homework' && <ClientHomeworkPage client={client} readOnly={isArchived} />}
-      {tab === 'memberships' && <ClientOverview client={client} onReload={reloadLocal} section="memberships" readOnly={isArchived} />}
-      {tab === 'stats' && <Statistics clientId={client.id} />}
-      {tab === 'diaries' && (
+      {tab === 'health' &&
+        (!isOpenPnkClient(client) || isPnkCardTabVisible(client, 'health', { healthCard, bzCompletedCount })) && (
+          <ClientOverview client={client} onReload={reloadLocal} section="health" readOnly={isArchived} />
+        )}
+      {tab === 'nutrition' &&
+        (!isOpenPnkClient(client) || isPnkCardTabVisible(client, 'nutrition', { healthCard, bzCompletedCount })) && (
+        <ClientNutritionPage
+          client={client}
+          readOnly={isArchived}
+          onPlanSaved={isOpenPnkClient(client) && !isArchived ? markPnkNutritionSaved : undefined}
+        />
+      )}
+      {tab === 'homework' &&
+        (!isOpenPnkClient(client) || isPnkCardTabVisible(client, 'homework', { healthCard, bzCompletedCount })) && (
+          <ClientHomeworkPage
+            client={client}
+            readOnly={isArchived}
+            onHomeworkIssued={isOpenPnkClient(client) && !isArchived ? markPnkHomeworkIssued : undefined}
+          />
+        )}
+      {tab === 'memberships' &&
+        (!isOpenPnkClient(client) || isPnkCardTabVisible(client, 'memberships', { healthCard, bzCompletedCount })) && (
+          <ClientOverview client={client} onReload={reloadLocal} section="memberships" readOnly={isArchived} />
+        )}
+      {tab === 'stats' &&
+        (!isOpenPnkClient(client) || isPnkCardTabVisible(client, 'stats', { healthCard, bzCompletedCount })) && (
+          <Statistics clientId={client.id} />
+        )}
+      {tab === 'diaries' &&
+        (!isOpenPnkClient(client) || isPnkCardTabVisible(client, 'diaries', { healthCard, bzCompletedCount })) && (
         <>
           {isOpenPnkClient(client) && !isArchived && !isAdmin ? (
             <div className="pnk-conduct-banner" style={{ marginBottom: 12 }}>

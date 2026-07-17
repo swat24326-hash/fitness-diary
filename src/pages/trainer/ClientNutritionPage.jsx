@@ -79,7 +79,7 @@ function ProductChips({ group, selected, exclusions, catalogMap, onToggle, readO
   )
 }
 
-export function ClientNutritionPage({ client, readOnly = false }) {
+export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const healthTabHref = useMemo(() => {
@@ -198,6 +198,17 @@ export function ClientNutritionPage({ client, readOnly = false }) {
   useEffect(() => {
     void reload({ refreshSurvey: false })
   }, [reload])
+
+  /** Рацион уже сохранён ранее — для ПНК это тоже «шаг выполнен», чтобы «Далее» открылась. */
+  const syncedExistingPlanRef = useRef(false)
+  useEffect(() => {
+    syncedExistingPlanRef.current = false
+  }, [client?.id])
+  useEffect(() => {
+    if (readOnly || !onPlanSaved || !savedPlan || syncedExistingPlanRef.current) return
+    syncedExistingPlanRef.current = true
+    void Promise.resolve(onPlanSaved()).catch(() => {})
+  }, [savedPlan, onPlanSaved, readOnly])
 
   useDebouncedStorageReload(() => reload({ refreshSurvey: false }), {
     shouldRun: (d) =>
@@ -497,6 +508,11 @@ export function ClientNutritionPage({ client, readOnly = false }) {
       setPageView(PAGE_VIEWS.ration)
       setStep(0)
       await reload({ refreshSurvey: true })
+      try {
+        await onPlanSaved?.()
+      } catch {
+        /* отметка ПНК не должна ломать сохранение рациона */
+      }
     } catch (e) {
       setError(e?.message ?? 'Ошибка сохранения рациона')
     } finally {
