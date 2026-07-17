@@ -282,3 +282,31 @@ export function shouldOfferMarkPnkTrialDone(client, bzCompletedCount = 0) {
   if (!isOpenPnk(client)) return false
   return Boolean(resolvePnkTrialDeliverableAfterWorkout(client, bzCompletedCount))
 }
+
+/**
+ * Бесплатную можно начать только на шаге тренировки (не обходя питание гантелей).
+ * Иначе после зала воронка снова покажет «Питание».
+ * @param {object} client
+ * @param {{ healthCard?: object | null, bzCompletedCount?: number, now?: Date }} [ctx]
+ */
+export function canStartPnkTrialTraining(client, ctx = {}) {
+  if (!isOpenPnk(client)) {
+    return { ok: false, reason: 'Клиент не в открытой воронке ПНК' }
+  }
+  const step = resolvePnkWizardStep(client, ctx)
+  if (!step) return { ok: false, reason: 'Нет шага воронки' }
+  if (step.key === 'train1' || step.key === 'train2') return { ok: true }
+  if (step.key === 'nutrition') {
+    return { ok: false, reason: 'Сначала сохраните рацион или нажмите «Пропустить» в шапке' }
+  }
+  if (step.key === 'health') {
+    return { ok: false, reason: 'Сначала заполните карту здоровья и нажмите «Далее»' }
+  }
+  if (step.key === 'invite' || step.key === 'wait' || step.key === 'created') {
+    return { ok: false, reason: 'Сначала дойдите до шага тренировки в воронке' }
+  }
+  return {
+    ok: false,
+    reason: 'Сейчас не шаг тренировки — откройте нужный шаг в воронке или нажмите «Далее»',
+  }
+}

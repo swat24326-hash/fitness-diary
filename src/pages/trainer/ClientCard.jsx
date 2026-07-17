@@ -24,6 +24,7 @@ import { isOpenPnkClient, isPnkCardTabVisible, resolvePnkTrainerUiStep } from '.
 import { buildPnkVisitQualityReport, shouldShowPnkVisitQuality } from '../../lib/pnk/pnkVisitQualityCore.js'
 import { listMeasurementsByClientId } from '../../lib/localDbClubQuery.js'
 import { preparePnkTrialTraining, patchPnkClientLocal } from '../../lib/pnk/pnkLocalService.js'
+import { canStartPnkTrialTraining } from '../../lib/pnk/pnkWizardCore.js'
 import {
   OUTREACH_SCENARIO_LABELS,
   normalizeOutreachName,
@@ -292,6 +293,11 @@ export function ClientCard() {
 
   const startPnkTraining = useCallback(async () => {
     if (!client?.id) return
+    const gate = canStartPnkTrialTraining(client, { healthCard, bzCompletedCount })
+    if (!gate.ok) {
+      alert(gate.reason || 'Сначала завершите предыдущие шаги воронки')
+      return
+    }
     const res = await preparePnkTrialTraining(client, { isAdmin })
     if (!res.ok) {
       alert(res.error || 'Не удалось открыть тренировку')
@@ -301,7 +307,7 @@ export function ClientCard() {
       void reloadLocal()
     }
     navigate(res.path)
-  }, [client, isAdmin, navigate, reloadLocal])
+  }, [client, isAdmin, navigate, reloadLocal, healthCard, bzCompletedCount])
 
   /** После сохранения рациона — только обновить кэш (не двигать шаг ПНК). */
   const onNutritionPlanSaved = useCallback(async () => {

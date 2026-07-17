@@ -8,7 +8,7 @@ import { isPnkTrialMembershipType } from '../membershipTypesCore.js'
 import { pickUsableMembershipForDate } from '../membershipRules.js'
 import { addDaysToIso } from '../dateRu.js'
 
-export { shouldOfferMarkPnkTrialDone } from './pnkWizardCore.js'
+export { shouldOfferMarkPnkTrialDone, canStartPnkTrialTraining } from './pnkWizardCore.js'
 
 /**
  * Есть ли у клиента платный абонемент (не БЗ) — для оформления ДК.

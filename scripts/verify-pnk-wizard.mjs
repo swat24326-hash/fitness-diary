@@ -6,6 +6,7 @@ import {
   buildPnkWizardStepList,
   buildPnkVisitStartedPatch,
   canAdvancePnkWizardStep,
+  canStartPnkTrialTraining,
   isPnkVisitPackageOpen,
   normalizePnkTrialSessions,
   resolvePnkWizardStep,
@@ -203,6 +204,10 @@ onlyTab(afterHealth, 'nutrition', 'nutrition step')
 onlyTab(afterNutrition, 'diaries', 'train step')
 onlyTab(afterTrain1, 'homework', 'hw step')
 onlyTab(afterFollowup, null, 'close step', ['memberships'])
+
+ok(!canStartPnkTrialTraining(afterHealth).ok, 'block train before nutrition')
+ok(canStartPnkTrialTraining(afterNutrition).ok, 'allow train on train1')
+ok(!canStartPnkTrialTraining(afterTrain1).ok, 'block train on homework step')
 
 if (failed) {
   console.error(`\n${failed} failed`)
