@@ -91,6 +91,11 @@ const won = applyPnkStagePatch({ client: pkgClient, stage: 'won' })
 ok(won.ok && won.client.lifecycle === 'active' && won.client.pnk_stage === 'won', 'won → active')
 ok(!isOpenPnkClient(won.client), 'won not open')
 
+const lost = applyPnkStagePatch({ client: agreed.client, stage: 'lost', lost_reason: 'Дорого' })
+ok(lost.ok && lost.client.lifecycle === 'pnk_lost' && lost.client.pnk_stage === 'lost', 'lost → pnk_lost')
+ok(!isOpenPnkClient(lost.client), 'lost not open')
+ok(lost.client.pnk_lost_reason === 'Дорого', 'lost reason kept')
+
 const wonBlocked = applyPnkStagePatch({
   client: pkgClient,
   stage: 'won',

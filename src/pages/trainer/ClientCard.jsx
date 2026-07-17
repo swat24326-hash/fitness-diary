@@ -413,6 +413,11 @@ export function ClientCard() {
         <div className="td-client-left u-grow u-minw-0">
           <div className="row" style={{ alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <h1 style={{ margin: 0, fontSize: '1.35rem' }}>{client.name}</h1>
+            {String(client.lifecycle ?? '') === 'pnk_lost' ? (
+              <span className="pnk-badge pnk-badge--lost" title="Отказ в воронке ПНК — не оформленный ДК">
+                Отказ ПНК
+              </span>
+            ) : null}
             <button type="button" className="btn btn-ghost btn-icon-square" aria-label="Редактировать данные клиента" title="Редактировать" onClick={openEdit} disabled={isArchived}>
               <Pencil size={16} aria-hidden />
             </button>
@@ -429,6 +434,13 @@ export function ClientCard() {
               </button>
             ) : null}
           </div>
+          {String(client.lifecycle ?? '') === 'pnk_lost' ? (
+            <p className="muted" style={{ margin: '8px 0 0', fontSize: 13, lineHeight: 1.4 }} role="status">
+              Отказ в воронке ПНК — это не оформленный клиент ДК
+              {client.pnk_lost_reason ? ` (причина: ${client.pnk_lost_reason})` : ''}. Карточка сохранена для учёта в
+              статистике.
+            </p>
+          ) : null}
           <div className="grid" style={{ marginTop: 6, gap: 4 }}>
             <div className="muted">{client.phone ?? '—'}</div>
             <div className="muted">{client.birth_date ? formatDateRu(client.birth_date) : '—'}</div>

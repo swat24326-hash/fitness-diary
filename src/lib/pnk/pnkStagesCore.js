@@ -69,9 +69,15 @@ export function isClientLifecycle(lifecycle) {
   return s === 'active' || s === 'pnk' || s === 'pnk_lost'
 }
 
-/** Клиент в открытой воронке ПНК */
+/** Клиент в открытой воронке ПНК (ещё не ДК и не отказ) */
 export function isOpenPnkClient(client) {
-  return String(client?.lifecycle ?? '') === 'pnk' && isPnkStage(client?.pnk_stage) && client.pnk_stage !== 'won'
+  const stage = client?.pnk_stage
+  return (
+    String(client?.lifecycle ?? '') === 'pnk' &&
+    isPnkStage(stage) &&
+    stage !== 'won' &&
+    stage !== 'lost'
+  )
 }
 
 export function isPnkLifecycleClient(client) {

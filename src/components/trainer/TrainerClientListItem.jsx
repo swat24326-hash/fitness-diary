@@ -78,6 +78,11 @@ export function TrainerClientListItem({
                   ПНК
                 </span>
               ) : null}
+              {String(client.lifecycle ?? '') === 'pnk_lost' ? (
+                <span className="pnk-badge pnk-badge--lost" style={{ marginLeft: 8 }}>
+                  Отказ
+                </span>
+              ) : null}
             </strong>
             <div className="muted td-muted-13">{client.phone ?? '—'}</div>
             <div className="muted td-muted-13">Карта: {String(client.card_number ?? '').trim() || '—'}</div>

@@ -417,6 +417,13 @@ button.pnk-chip:disabled {
   vertical-align: middle;
 }
 
+.pnk-badge--lost {
+  background: rgba(248, 113, 113, 0.14);
+  border-color: rgba(248, 113, 113, 0.35);
+  color: #fca5a5;
+  letter-spacing: 0.03em;
+}
+
 /* ── Карточка тренера ── */
 
 .pnk-client-panel {
