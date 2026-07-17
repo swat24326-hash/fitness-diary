@@ -4774,6 +4774,70 @@ tr:last-child td {
   min-height: 2.5rem;
 }
 
+.admin-club-stat-card__value.stat-card__value.admin-club-stat-card__value--pnk {
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-club-stat-card__fraction {
+  line-height: 1;
+}
+
+.admin-club-stat-card__pct {
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1;
+  opacity: 0.72;
+  padding-bottom: 0.08em;
+  margin-left: 2px;
+}
+
+.admin-pnk-report__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.admin-pnk-report__cell {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border, #2a3a32) 80%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated, #152018) 90%, transparent);
+}
+
+.admin-pnk-report__label {
+  font-size: 0.78rem;
+  color: var(--text-muted, #9aa39c);
+}
+
+.admin-pnk-report__num {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.admin-pnk-report__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.admin-pnk-report__table th,
+.admin-pnk-report__table td {
+  text-align: left;
+  padding: 8px 6px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border, #2a3a32) 70%, transparent);
+}
+
+.admin-pnk-report__table th {
+  font-size: 0.78rem;
+  color: var(--text-muted, #9aa39c);
+  font-weight: 600;
+}
+
 .admin-club-stat-card__value.stat-card__value.admin-club-stat-card__value--months {
   align-items: flex-end;
   gap: 6px;

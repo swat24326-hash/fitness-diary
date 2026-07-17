@@ -23,7 +23,7 @@ function rankMedal(i) {
   return `${i + 1}.`
 }
 
-/** @typedef {'byDay' | 'byTypes' | 'rating' | 'clubMonthly'} AdminStatsInlinePanel */
+/** @typedef {'byDay' | 'byTypes' | 'rating' | 'clubMonthly' | 'pnk'} AdminStatsInlinePanel */
 
 /** @typedef {'inactive' | 'journal'} AdminStatsDeepLinkPanel */
 
@@ -266,7 +266,18 @@ export function AdminClubStatsSection({
           dateTo: range.end,
           trainerId: isTrainerScope ? scopeTrainerId : '',
         })
-        setPnkFunnel({ entered: agg.entered, won: agg.won, conversionPct: agg.conversionPct })
+        setPnkFunnel({
+          entered: agg.entered,
+          won: agg.won,
+          lost: agg.lost,
+          open: agg.open,
+          conversionPct: agg.conversionPct,
+          nutritionPct: agg.nutritionPct,
+          homeworkPct: agg.homeworkPct,
+          packageDone: agg.packageDone,
+          trialDone: agg.trialDone,
+          trainers: agg.trainers ?? [],
+        })
       } catch {
         setPnkFunnel(null)
       }
@@ -468,6 +479,9 @@ export function AdminClubStatsSection({
                 <strong>Не активные</strong> — нет действующего абонемента в периоде (на сегодня или на последний день действия в периоде): закончились тренировки, истёк срок или ещё не начался; нажмите карточку для списка.
               </li>
               <li>
+                <strong>ПНК → ДК</strong> — дробь: оформления / все ПНК за период; маленький % — конверсия. Открытые ПНК в общей базе клиентов не считаются. Нажмите карточку для разбора.
+              </li>
+              <li>
                 <strong>Проведено тренировок</strong> — завершённые за период; список внизу страницы.
               </li>
               <li>
@@ -493,15 +507,27 @@ export function AdminClubStatsSection({
         ) : null}
 
         <div className="admin-club-stats-board__grid">
-          <div className="card stat-card admin-club-stat-card">
+          <button
+            type="button"
+            className={statCardClass(inlinePanel === 'pnk')}
+            aria-label={
+              pnkFunnel
+                ? `ПНК в ДК: ${pnkFunnel.won} из ${pnkFunnel.entered}, ${pnkFunnel.conversionPct} процентов. Нажмите для отчёта`
+                : 'ПНК в ДК: нет данных'
+            }
+            title={pnkFunnel ? 'Подробный отчёт по воронке ПНК' : undefined}
+            onClick={() => toggleInlinePanel('pnk')}
+          >
             <div className="stat-card__top admin-club-stat-card__head">
               <h3 className="td-stat-title admin-club-stat-card__title">ПНК → ДК</h3>
               <UserPlus className="stat-card__icon" size={22} aria-hidden />
             </div>
-            <p className="stat-card__value admin-club-stat-card__value">
+            <p className="stat-card__value admin-club-stat-card__value admin-club-stat-card__value--pnk">
               {pnkFunnel ? (
                 <>
-                  {pnkFunnel.won}/{pnkFunnel.entered}
+                  <span className="admin-club-stat-card__fraction">
+                    {pnkFunnel.won}/{pnkFunnel.entered}
+                  </span>
                   <span className="admin-club-stat-card__pct">{pnkFunnel.conversionPct}%</span>
                 </>
               ) : (
@@ -509,9 +535,13 @@ export function AdminClubStatsSection({
               )}
             </p>
             <p className="admin-club-stat-card__foot">
-              {isTrainerScope ? 'мои оформления / ПНК за период' : 'оформления / ПНК за период'}
+              {inlinePanel === 'pnk'
+                ? 'скрыть отчёт'
+                : isTrainerScope
+                  ? 'нажмите · мои оформления / ПНК'
+                  : 'нажмите · оформления / ПНК'}
             </p>
-          </div>
+          </button>
 
           <div className="card stat-card admin-club-stat-card">
             <div className="stat-card__top admin-club-stat-card__head">
@@ -666,6 +696,88 @@ export function AdminClubStatsSection({
           ) : null}
         </div>
       </div>
+
+      {inlinePanel === 'pnk' && pnkFunnel ? (
+        <section className="card admin-club-stats-detail" style={{ marginBottom: 20, padding: 14 }}>
+          <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 8px' }}>
+            Воронка ПНК за период
+          </h3>
+          <p className="muted" style={{ margin: '0 0 12px', fontSize: 13, lineHeight: 1.45 }}>
+            Дробь <strong>{pnkFunnel.won}/{pnkFunnel.entered}</strong> — сколько оформили в ДК из всех ПНК, попавших в период
+            (по дате создания). Процент — та же конверсия мелко. Открытый ПНК сюда входит, в «Всего клиентов» клуба — нет,
+            пока не оформлен.
+          </p>
+          <div className="admin-pnk-report__grid">
+            <div className="admin-pnk-report__cell">
+              <span className="admin-pnk-report__label">ПНК</span>
+              <strong className="admin-pnk-report__num">{pnkFunnel.entered}</strong>
+            </div>
+            <div className="admin-pnk-report__cell">
+              <span className="admin-pnk-report__label">Оформлено</span>
+              <strong className="admin-pnk-report__num">{pnkFunnel.won}</strong>
+            </div>
+            <div className="admin-pnk-report__cell">
+              <span className="admin-pnk-report__label">Отказы</span>
+              <strong className="admin-pnk-report__num">{pnkFunnel.lost}</strong>
+            </div>
+            <div className="admin-pnk-report__cell">
+              <span className="admin-pnk-report__label">Сейчас в работе</span>
+              <strong className="admin-pnk-report__num">{pnkFunnel.open}</strong>
+            </div>
+            <div className="admin-pnk-report__cell">
+              <span className="admin-pnk-report__label">Конверсия</span>
+              <strong className="admin-pnk-report__num">{pnkFunnel.conversionPct}%</strong>
+            </div>
+            <div className="admin-pnk-report__cell">
+              <span className="admin-pnk-report__label">С питанием</span>
+              <strong className="admin-pnk-report__num">{pnkFunnel.nutritionPct}%</strong>
+            </div>
+            <div className="admin-pnk-report__cell">
+              <span className="admin-pnk-report__label">С ДЗ</span>
+              <strong className="admin-pnk-report__num">{pnkFunnel.homeworkPct}%</strong>
+            </div>
+            <div className="admin-pnk-report__cell">
+              <span className="admin-pnk-report__label">Пакет полный</span>
+              <strong className="admin-pnk-report__num">{pnkFunnel.packageDone}</strong>
+            </div>
+            <div className="admin-pnk-report__cell">
+              <span className="admin-pnk-report__label">С пробной</span>
+              <strong className="admin-pnk-report__num">{pnkFunnel.trialDone}</strong>
+            </div>
+          </div>
+          {!isTrainerScope && pnkFunnel.trainers?.length ? (
+            <>
+              <h4 className="section-title" style={{ fontSize: '0.95rem', margin: '16px 0 8px' }}>
+                По тренерам
+              </h4>
+              <table className="admin-pnk-report__table">
+                <thead>
+                  <tr>
+                    <th>Тренер</th>
+                    <th>Оформл. / ПНК</th>
+                    <th>%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pnkFunnel.trainers.map((t) => (
+                    <tr key={t.trainerId}>
+                      <td>{trainerLabel(t.trainerId)}</td>
+                      <td>
+                        {t.won}/{t.entered}
+                      </td>
+                      <td>{t.conversionPct}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          ) : null}
+          <p className="muted" style={{ margin: '12px 0 0', fontSize: 12, lineHeight: 1.4 }}>
+            Дальше здесь появятся доли с полной картой здоровья, обмерами и «слабыми» пропусками шагов — тот же язык, что в
+            «Итоге визита» у админа на карточке клиента.
+          </p>
+        </section>
+      ) : null}
 
       {inlinePanel === 'byDay' ? (
         <section className="card admin-club-stats-detail" style={{ marginBottom: 20, padding: 14 }}>
