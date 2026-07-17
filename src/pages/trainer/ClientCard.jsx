@@ -18,8 +18,11 @@ import { buildClientCardTaskDraft } from '../../lib/admin/staffTaskCreateCore.js
 import { useClubDispatchRecipients } from '../../hooks/useClubDispatchRecipients.js'
 import { listOutreachLogByClientId } from '../../lib/trainer/trainerOutreachLogService.js'
 import { ClientPnkPanel } from '../../components/trainer/ClientPnkPanel.jsx'
+import { PnkVisitQualityReport } from '../../components/pnk/PnkVisitQualityReport.jsx'
 import { formatClientName } from '../../lib/clientNameFormat.js'
 import { isOpenPnkClient, isPnkCardTabVisible, resolvePnkTrainerUiStep } from '../../lib/pnk/pnkStagesCore.js'
+import { buildPnkVisitQualityReport, shouldShowPnkVisitQuality } from '../../lib/pnk/pnkVisitQualityCore.js'
+import { listMeasurementsByClientId } from '../../lib/localDbClubQuery.js'
 import { preparePnkTrialTraining, patchPnkClientLocal } from '../../lib/pnk/pnkLocalService.js'
 import {
   OUTREACH_SCENARIO_LABELS,
@@ -59,6 +62,7 @@ export function ClientCard() {
   const [memberships, setMemberships] = useState([])
   const [healthCard, setHealthCard] = useState(null)
   const [bzCompletedCount, setBzCompletedCount] = useState(0)
+  const [hasMeasurements, setHasMeasurements] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [editForm, setEditForm] = useState({ name: '', phone: '', birth_date: '', card_number: '', outreach_name: '', max_chat_url: '' })
   const [hydrateError, setHydrateError] = useState(null)
@@ -92,17 +96,20 @@ export function ClientCard() {
       setMemberships([])
       setHealthCard(null)
       setBzCompletedCount(0)
+      setHasMeasurements(false)
       return
     }
-    const [mems, hc, trainings] = await Promise.all([
+    const [mems, hc, trainings, measures] = await Promise.all([
       listMemberships(id),
       getHealthCard(id),
       listTrainingsForClient(id),
+      listMeasurementsByClientId(id),
     ])
     setMemberships(mems)
     setHealthCard(hc ?? null)
     const completed = (trainings ?? []).filter((t) => String(t?.status ?? '') === 'completed').length
     setBzCompletedCount(Math.min(2, completed))
+    setHasMeasurements((measures ?? []).length > 0)
   }, [id])
 
   useEffect(() => {
@@ -505,6 +512,16 @@ export function ClientCard() {
         onOpenTab={(t) => setTab(t)}
         onStartTraining={isArchived ? undefined : () => startPnkTraining()}
       />
+
+      {isAdmin && shouldShowPnkVisitQuality(client) ? (
+        <PnkVisitQualityReport
+          report={buildPnkVisitQualityReport(client, {
+            healthCard,
+            bzCompletedCount,
+            hasMeasurements,
+          })}
+        />
+      ) : null}
 
       <div className="tabs" role="tablist">
         {[

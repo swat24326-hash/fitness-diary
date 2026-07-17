@@ -75,7 +75,25 @@ ok(resolvePnkWizardStep(arrived, { now: beforeVisit })?.key === 'health', 'Кл�
 ok(isPnkVisitPackageOpen(arrived, { visit_started: 'x', health: null, nutrition: null, trial: null, homework: null, trial2: null, homework2: null, contact: 'x', followup: null }, beforeVisit), 'package open after visit_started')
 
 const onVisitDay = resolvePnkWizardStep(afterInvite, { now: new Date('2026-07-20T09:00:00') })
-ok(onVisitDay?.key === 'health', 'visit day → health without button')
+ok(onVisitDay?.key === 'wait', 'visit day still wait until Клиент пришёл')
+ok(
+  !isPnkVisitPackageOpen(
+    afterInvite,
+    {
+      visit_started: null,
+      health: null,
+      nutrition: null,
+      trial: null,
+      homework: null,
+      trial2: null,
+      homework2: null,
+      contact: 'x',
+      followup: null,
+    },
+    new Date('2026-07-20T09:00:00'),
+  ),
+  'date alone does not open package',
+)
 
 const healthCard = {
   height_cm: 170,
@@ -120,7 +138,7 @@ const afterTrain1 = {
 }
 ok(resolvePnkWizardStep(afterTrain1, { bzCompletedCount: 1 })?.key === 'hw1', 'N=1 → hw1')
 const hw1Step = resolvePnkWizardStep(afterTrain1, { bzCompletedCount: 1 })
-ok(canAdvancePnkWizardStep(afterTrain1, hw1Step, { bzCompletedCount: 1 }).ok === false, 'hw1 blocked until issued')
+ok(canAdvancePnkWizardStep(afterTrain1, hw1Step, { bzCompletedCount: 1 }).ok === true, 'hw1 Next ok (marks ДЗ)')
 
 const afterHw1 = {
   ...afterTrain1,
@@ -184,7 +202,7 @@ onlyTab(arrived, 'health', 'health step')
 onlyTab(afterHealth, 'nutrition', 'nutrition step')
 onlyTab(afterNutrition, 'diaries', 'train step')
 onlyTab(afterTrain1, 'homework', 'hw step')
-onlyTab(afterFollowup, null, 'close step')
+onlyTab(afterFollowup, null, 'close step', ['memberships'])
 
 if (failed) {
   console.error(`\n${failed} failed`)

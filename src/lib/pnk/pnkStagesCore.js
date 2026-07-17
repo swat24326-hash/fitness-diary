@@ -177,6 +177,20 @@ export function markPnkDeliverable(client, key, iso = new Date().toISOString()) 
 }
 
 /**
+ * Снять отметку deliverable (кнопка «Назад» в шапке воронки).
+ * @param {object} client
+ * @param {PnkDeliverableKey | string} key
+ */
+export function clearPnkDeliverable(client, key) {
+  if (!PNK_DELIVERABLE_KEYS.includes(/** @type {PnkDeliverableKey} */ (key))) {
+    return { ok: false, error: 'Неизвестный пункт чеклиста', client }
+  }
+  const deliverables = parsePnkDeliverables(client?.pnk_deliverables)
+  deliverables[key] = null
+  return { ok: true, client: { ...client, pnk_deliverables: deliverables } }
+}
+
+/**
  * @param {object} client
  * @param {{ text: string, at?: string, by_role?: string, by_name?: string }} entry
  */
@@ -219,6 +233,15 @@ export function applyPnkStagePatch(input = {}) {
 
   if (nextStage) client.pnk_stage = nextStage
 
+  if (client.pnk_stage === 'won' && nextStage === 'won') {
+    if (input.require_dk_membership === true && input.has_dk_membership !== true) {
+      return {
+        ok: false,
+        error: 'Сначала оформите платный абонемент (ДК) во вкладке «Абонементы»',
+      }
+    }
+  }
+
   if (input.trial_date != null) {
     const d = String(input.trial_date).slice(0, 10)
     if (d && !/^\d{4}-\d{2}-\d{2}$/.test(d)) return { ok: false, error: 'Некорректная дата пробной' }
@@ -238,6 +261,12 @@ export function applyPnkStagePatch(input = {}) {
     const marked = markPnkDeliverable(client, input.deliverable, input.deliverable_at)
     if (!marked.ok) return marked
     Object.assign(client, marked.client)
+  }
+
+  if (input.clear_deliverable && PNK_DELIVERABLE_KEYS.includes(input.clear_deliverable)) {
+    const cleared = clearPnkDeliverable(client, input.clear_deliverable)
+    if (!cleared.ok) return cleared
+    Object.assign(client, cleared.client)
   }
 
   if (input.comment) {
@@ -502,7 +531,10 @@ export function isPnkCardTabVisible(client, tabId, ctx = {}) {
   if (!isOpenPnkClient(client)) return true
   if (id === 'stats') return false
   const step = resolvePnkWizardStep(client, ctx)
-  if (!step?.tab) return false
+  if (!step) return false
+  // Оформление: нужна вкладка абонементов, чтобы выдать ДК до «Оформлен»
+  if (step.key === 'close' && id === 'memberships') return true
+  if (!step.tab) return false
   return step.tab === id
 }
 

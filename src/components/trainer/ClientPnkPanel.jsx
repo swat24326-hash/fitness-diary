@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { CalendarPlus, Ban, Trophy, Heart, Utensils, Dumbbell, ClipboardList } from 'lucide-react'
+import { Ban, Trophy, Dumbbell } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import {
   buildPnkAttentionFlags,
@@ -7,15 +7,19 @@ import {
   parsePnkDeliverables,
   resolvePnkTrainerUiStep,
 } from '../../lib/pnk/pnkStagesCore'
-import { canAdvancePnkWizardStep, buildPnkWizardAdvancePatch, buildPnkVisitStartedPatch } from '../../lib/pnk/pnkWizardCore'
+import { canAdvancePnkWizardStep } from '../../lib/pnk/pnkWizardCore'
+import { resolvePnkFunnelHatNav } from '../../lib/pnk/pnkWizardNavCore'
+import { hasPaidDkMembership } from '../../lib/pnk/pnkTrialTrainingCore'
 import { patchPnkClientLocal } from '../../lib/pnk/pnkLocalService'
+import { listMemberships } from '../../lib/dataAccess'
+import { ensureMembershipTypesForClub } from '../../lib/membershipTypesService'
 import { PnkClientMessengerButtons } from '../pnk/PnkClientMessengerButtons'
-import { PnkStepBlocks } from '../pnk/PnkStepBlocks'
+import { PnkFunnelHat } from '../pnk/PnkFunnelHat'
 import { PnkAttentionChips } from '../pnk/PnkStatusChips'
 import '../../styles/pnk-funnel.css'
 
 /**
- * Линейный мастер ПНК у тренера (1 или 2 бесплатные).
+ * Линейный мастер ПНК у тренера: единая шапка Назад / Далее / Пропустить.
  */
 export function ClientPnkPanel({
   client,
@@ -35,7 +39,10 @@ export function ClientPnkPanel({
   const [comment, setComment] = useState('')
   const [lostReason, setLostReason] = useState('')
   const [startBusy, setStartBusy] = useState(false)
+  const [hasDkMembership, setHasDkMembership] = useState(false)
+  const [advanceLocked, setAdvanceLocked] = useState(false)
   const autoStartTrainRef = useRef('')
+  const advanceLockRef = useRef(false)
 
   useEffect(() => {
     setTrialDate(String(client?.pnk_trial_date ?? '').slice(0, 10))
@@ -44,16 +51,49 @@ export function ClientPnkPanel({
 
   const openPnk = Boolean(client && isOpenPnkClient(client))
   const ctx = openPnk
-    ? { healthCard, bzCompletedCount: Math.min(2, Math.max(0, Number(bzCompletedCount) || 0)) }
+    ? {
+        healthCard,
+        bzCompletedCount: Math.min(2, Math.max(0, Number(bzCompletedCount) || 0)),
+        trialDate,
+        trialTime,
+      }
     : null
   const step = openPnk ? resolvePnkTrainerUiStep(client, ctx) : null
+  const hatNav = openPnk && step ? resolvePnkFunnelHatNav(client, step, ctx) : null
 
   useEffect(() => {
     if (!step?.tab) return
     if (typeof onOpenTab === 'function') onOpenTab(step.tab)
   }, [step?.key, step?.tab, onOpenTab])
 
-  /** Шаг тренировки → сразу форма упражнений (не список дневников). */
+  useEffect(() => {
+    if (step?.key !== 'close') return
+    if (typeof onOpenTab === 'function') onOpenTab('memberships')
+  }, [step?.key, onOpenTab])
+
+  useEffect(() => {
+    if (step?.key !== 'close' || !client?.id || !client?.club_id) {
+      setHasDkMembership(false)
+      return
+    }
+    let cancelled = false
+    async function refreshDk() {
+      try {
+        const ms = await listMemberships(client.id)
+        const { types } = await ensureMembershipTypesForClub(client.club_id)
+        if (!cancelled) setHasDkMembership(hasPaidDkMembership(ms, types))
+      } catch {
+        if (!cancelled) setHasDkMembership(false)
+      }
+    }
+    void refreshDk()
+    const timer = window.setInterval(() => void refreshDk(), 2000)
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [step?.key, client?.id, client?.club_id])
+
   useEffect(() => {
     if (!step || (step.key !== 'train1' && step.key !== 'train2')) return
     if (typeof onStartTraining !== 'function') return
@@ -65,30 +105,65 @@ export function ClientPnkPanel({
     void onStartTraining()
   }, [step?.key, client?.id, bzCompletedCount, onStartTraining])
 
-  if (!openPnk || !step) return null
+  if (!openPnk || !step || !hatNav) return null
 
   const advance = canAdvancePnkWizardStep(client, step, ctx)
   const flags = buildPnkAttentionFlags(client)
   const d = parsePnkDeliverables(client.pnk_deliverables)
   const trainerName = user?.name || ''
-  const showNext = Boolean(buildPnkWizardAdvancePatch(step))
 
   async function run(patch) {
-    if (!patch) return
+    if (!patch) return false
     setBusy(true)
     setError('')
     try {
       const res = await patchPnkClientLocal(client, patch)
       if (!res.ok) {
         setError(res.error || 'Ошибка')
-        return
+        return false
       }
       onUpdated?.(res.client)
+      return true
     } catch (e) {
       setError(String(e?.message ?? e))
+      return false
     } finally {
       setBusy(false)
     }
+  }
+
+  async function handleHatNext() {
+    if (advanceLockRef.current) return
+    const patch = hatNav.nextPatch
+    if (!patch) return
+    advanceLockRef.current = true
+    setAdvanceLocked(true)
+    try {
+      if (step.key === 'followup' && comment) {
+        await run({ ...patch, comment })
+        setComment('')
+      } else {
+        await run(patch)
+      }
+    } finally {
+      window.setTimeout(() => {
+        advanceLockRef.current = false
+        setAdvanceLocked(false)
+      }, 900)
+    }
+  }
+
+  async function handleHatBack() {
+    if (!hatNav.backPatch) return
+    const title = hatNav.backTitle || 'предыдущий'
+    if (!window.confirm(`Вернуться на шаг «${title}»? Отметка текущего шага снимется.`)) return
+    await run(hatNav.backPatch)
+  }
+
+  async function handleHatSkip() {
+    if (!hatNav.skipPatch) return
+    if (!window.confirm('Пропустить этот шаг? Отметим как сделанный без доп. действия.')) return
+    await run(hatNav.skipPatch)
   }
 
   async function handleStartTraining() {
@@ -118,77 +193,29 @@ export function ClientPnkPanel({
     setTimeout(() => setToast(''), 3500)
   }
 
-  function openTab(tabId) {
-    if (typeof onOpenTab === 'function') onOpenTab(tabId)
-  }
-
-  function earlyLostButton() {
-    if (step.key === 'close') return null
-    return (
-      <button
-        type="button"
-        className="btn btn-ghost btn-touch pnk-client-panel__btn-secondary"
-        disabled={busy}
-        onClick={() => void run({ stage: 'lost', lost_reason: lostReason || comment || 'Отказ' })}
-      >
-        Отказ
-      </button>
-    )
-  }
-
-  /** Один ряд: основные действия + «Далее» (зелёная чуть длиннее) + отказ */
-  function stepActions(mainButtons, opts = {}) {
-    const includeNext = opts.includeNext !== false && showNext
-    return (
-      <>
-        <div className="pnk-client-panel__actions pnk-client-panel__actions--step">
-          {mainButtons}
-          {includeNext ? (
-            <button
-              type="button"
-              className="btn btn-primary btn-touch pnk-client-panel__btn-primary"
-              disabled={busy || !advance.ok}
-              title={!advance.ok ? advance.reason : 'Далее'}
-              onClick={() => {
-                const patch = buildPnkWizardAdvancePatch(step)
-                if (!patch) return
-                if (step.key === 'followup' && comment) {
-                  void run({ ...patch, comment })
-                  setComment('')
-                  return
-                }
-                void run(patch)
-              }}
-            >
-              Далее
-            </button>
-          ) : null}
-          {earlyLostButton()}
-        </div>
-        {includeNext && !advance.ok && advance.reason ? (
-          <p className="muted" style={{ margin: 0, fontSize: '0.9rem' }}>
-            {advance.reason}
-          </p>
-        ) : null}
-      </>
-    )
-  }
-
   return (
     <section className="pnk-client-panel" aria-label="Воронка ПНК">
-      <div className="pnk-client-panel__head">
-        <div className="pnk-client-panel__head-main">
-          <p className="pnk-client-panel__step-kicker">ПНК</p>
-          <h2 className="pnk-client-panel__title">{step.title}</h2>
-        </div>
-        <span className="pnk-control-tile__step-badge">
-          {step.n}/{step.total}
-        </span>
+      <div className="pnk-funnel-hat-sticky">
+        <PnkFunnelHat
+          step={step}
+          nav={hatNav}
+          busy={busy || advanceLocked}
+          hideNav={step.key === 'close'}
+          onBack={() => void handleHatBack()}
+          onNext={() => void handleHatNext()}
+          onSkip={() => void handleHatSkip()}
+        />
+        {step.key !== 'close' ? (
+          <button
+            type="button"
+            className="btn btn-ghost btn-touch pnk-funnel-hat__refuse"
+            disabled={busy}
+            onClick={() => void run({ stage: 'lost', lost_reason: lostReason || comment || 'Отказ' })}
+          >
+            <Ban size={16} aria-hidden /> Отказ
+          </button>
+        ) : null}
       </div>
-
-      <PnkStepBlocks stepN={step.n} stepTotal={step.total} />
-
-      <p className="pnk-client-panel__help">{step.help}</p>
 
       {flags.length && step.key !== 'wait' && step.key !== 'invite' ? <PnkAttentionChips flags={flags} /> : null}
 
@@ -217,7 +244,6 @@ export function ClientPnkPanel({
               onResult={onMessengerResult}
             />
           </div>
-
           <div className="pnk-client-panel__schedule">
             <label className="pnk-client-panel__field">
               Дата бесплатной
@@ -238,25 +264,9 @@ export function ClientPnkPanel({
               />
             </label>
           </div>
-
-          <div className="pnk-client-panel__actions pnk-client-panel__actions--step">
-            <button
-              type="button"
-              className="btn btn-primary btn-touch pnk-client-panel__btn-primary"
-              disabled={busy || !trialDate}
-              onClick={() => {
-                void run({
-                  stage: 'agreed',
-                  trial_date: trialDate,
-                  trial_time: trialTime,
-                  deliverable: 'contact',
-                })
-              }}
-            >
-              <CalendarPlus size={18} aria-hidden /> Сохранить дату
-            </button>
-            {earlyLostButton()}
-          </div>
+          <p className="muted" style={{ margin: 0, fontSize: '0.9rem' }}>
+            Укажите дату и нажмите «Далее» в шапке воронки.
+          </p>
         </div>
       ) : null}
 
@@ -282,7 +292,7 @@ export function ClientPnkPanel({
               />
             </label>
           </div>
-          <div className="pnk-client-panel__actions pnk-client-panel__actions--step">
+          <div className="pnk-client-panel__actions">
             <button
               type="button"
               className="btn btn-secondary btn-touch"
@@ -296,16 +306,10 @@ export function ClientPnkPanel({
             >
               Изменить дату
             </button>
-            <button
-              type="button"
-              className="btn btn-primary btn-touch pnk-client-panel__btn-primary"
-              disabled={busy}
-              onClick={() => void run(buildPnkVisitStartedPatch())}
-            >
-              Клиент пришёл
-            </button>
-            {earlyLostButton()}
           </div>
+          <p className="muted" style={{ margin: 0, fontSize: '0.9rem' }}>
+            Когда клиент в зале — «Далее» в шапке (= клиент пришёл).
+          </p>
           <div className="pnk-client-panel__actions" style={{ marginTop: 8 }}>
             <PnkClientMessengerButtons
               kind="invite"
@@ -323,15 +327,9 @@ export function ClientPnkPanel({
 
       {step.key === 'health' ? (
         <div className="pnk-client-panel__step">
-          {stepActions(
-            <button
-              type="button"
-              className="btn btn-secondary btn-touch"
-              onClick={() => openTab('health')}
-            >
-              <Heart size={16} aria-hidden /> Открыть здоровье
-            </button>,
-          )}
+          <p className="muted" style={{ margin: 0, fontSize: '0.9rem' }}>
+            Заполните карту ниже, затем «Далее» в шапке.
+          </p>
         </div>
       ) : null}
 
@@ -339,25 +337,20 @@ export function ClientPnkPanel({
         <div className="pnk-client-panel__step">
           {advance.ok ? (
             <p className="pnk-client-panel__ok" style={{ margin: 0 }}>
-              ✓ Рацион сохранён — можно «Далее»
+              ✓ Рацион сохранён — можно «Далее» или «Пропустить»
             </p>
-          ) : null}
-          {stepActions(
-            <button
-              type="button"
-              className="btn btn-secondary btn-touch"
-              onClick={() => openTab('nutrition')}
-            >
-              <Utensils size={16} aria-hidden /> Открыть питание
-            </button>,
+          ) : (
+            <p className="muted" style={{ margin: 0, fontSize: '0.9rem' }}>
+              Сохраните рацион ниже или нажмите «Пропустить» в шапке.
+            </p>
           )}
         </div>
       ) : null}
 
       {step.key === 'train1' || step.key === 'train2' ? (
         <div className="pnk-client-panel__step">
-          {stepActions(
-            typeof onStartTraining === 'function' || typeof onOpenDiaries === 'function' ? (
+          <div className="pnk-client-panel__actions">
+            {typeof onStartTraining === 'function' || typeof onOpenDiaries === 'function' ? (
               <button
                 type="button"
                 className={
@@ -370,55 +363,25 @@ export function ClientPnkPanel({
               >
                 <Dumbbell size={18} aria-hidden /> Начать тренировку
               </button>
-            ) : null,
-          )}
+            ) : null}
+          </div>
+          {advance.ok ? (
+            <p className="pnk-client-panel__ok" style={{ margin: '8px 0 0' }}>
+              ✓ Тренировка есть — «Далее» в шапке
+            </p>
+          ) : null}
         </div>
       ) : null}
 
-      {step.key === 'hw1' ? (
+      {step.key === 'hw1' || step.key === 'hw2' ? (
         <div className="pnk-client-panel__step">
-          {stepActions(
-            <>
-              <button
-                type="button"
-                className="btn btn-secondary btn-touch"
-                onClick={() => openTab('homework')}
-              >
-                <ClipboardList size={16} aria-hidden /> Открыть ДЗ
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost btn-touch"
-                disabled={busy || Boolean(d.homework)}
-                onClick={() => void run({ deliverable: 'homework' })}
-              >
-                ДЗ выдано
-              </button>
-            </>,
-          )}
-        </div>
-      ) : null}
-
-      {step.key === 'hw2' ? (
-        <div className="pnk-client-panel__step">
-          {stepActions(
-            <>
-              <button
-                type="button"
-                className="btn btn-secondary btn-touch"
-                onClick={() => openTab('homework')}
-              >
-                <ClipboardList size={16} aria-hidden /> Открыть ДЗ
-              </button>
-              <button
-                type="button"
-                className="btn btn-ghost btn-touch"
-                disabled={busy || Boolean(d.homework2)}
-                onClick={() => void run({ deliverable: 'homework2' })}
-              >
-                ДЗ выдано
-              </button>
-            </>,
+          <p className="muted" style={{ margin: 0, fontSize: '0.9rem' }}>
+            Выдайте ДЗ во вкладке ниже, затем «Далее» или «Пропустить» в шапке.
+          </p>
+          {((step.key === 'hw1' && d.homework) || (step.key === 'hw2' && d.homework2)) && (
+            <p className="pnk-client-panel__ok" style={{ margin: '8px 0 0' }}>
+              ✓ ДЗ отмечено
+            </p>
           )}
         </div>
       ) : null}
@@ -445,18 +408,50 @@ export function ClientPnkPanel({
               onChange={(e) => setComment(e.target.value)}
             />
           </label>
-          {stepActions(null)}
         </div>
       ) : null}
 
       {step.key === 'close' ? (
         <div className="pnk-client-panel__step">
-          <div className="pnk-client-panel__actions">
+          <p className="pnk-client-panel__sub">
+            Сначала оформите платный абонемент во вкладке ниже. Только потом — «Оформлен (ДК)».
+          </p>
+          {!hasDkMembership ? (
+            <p className="muted" style={{ margin: 0, fontSize: '0.9rem' }}>
+              Платного абонемента пока нет — «Далее» здесь не оформляет клиента.
+            </p>
+          ) : (
+            <p className="pnk-client-panel__ok" style={{ margin: 0 }}>
+              ✓ Платный абонемент есть — можно оформить
+            </p>
+          )}
+          <div className="pnk-client-panel__actions pnk-client-panel__actions--step">
             <button
+              key={`pnk-won-${client.id}`}
               type="button"
               className="btn btn-primary btn-touch pnk-client-panel__btn-primary"
-              disabled={busy}
-              onClick={() => void run({ stage: 'won', comment: comment || undefined })}
+              disabled={busy || !hasDkMembership || advanceLocked}
+              title={!hasDkMembership ? 'Сначала оформите ДК во вкладке «Абонементы»' : 'Оформить как ДК'}
+              onClick={() => {
+                if (!hasDkMembership) {
+                  setError('Сначала оформите платный абонемент (ДК)')
+                  if (typeof onOpenTab === 'function') onOpenTab('memberships')
+                  return
+                }
+                if (
+                  !window.confirm(
+                    'Оформить клиента как ДК? Он станет активным. Это не кнопка «Далее» — только финальное оформление.',
+                  )
+                ) {
+                  return
+                }
+                void run({
+                  stage: 'won',
+                  comment: comment || undefined,
+                  require_dk_membership: true,
+                  has_dk_membership: true,
+                })
+              }}
             >
               <Trophy size={18} aria-hidden /> Оформлен (ДК)
             </button>

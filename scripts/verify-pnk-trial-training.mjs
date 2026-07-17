@@ -5,6 +5,7 @@ import {
   buildPnkNewWorkoutPath,
   buildPnkTrialMembershipRow,
   findPnkTrialMembershipType,
+  hasPaidDkMembership,
   resolvePnkStartTrainingAction,
   shouldOfferMarkPnkTrialDone,
 } from '../src/lib/pnk/pnkTrialTrainingCore.js'
@@ -128,6 +129,27 @@ ok(
   'no offer if already trial_done',
 )
 ok(!shouldOfferMarkPnkTrialDone({ lifecycle: 'active' }, 1), 'no offer for DK client')
+
+ok(
+  !hasPaidDkMembership(
+    [{ id: 'm1', membership_type_id: 'bz' }],
+    [{ id: 'bz', is_pnk_trial: true, is_active: true }],
+  ),
+  'БЗ alone is not ДК',
+)
+ok(
+  hasPaidDkMembership(
+    [
+      { id: 'm1', membership_type_id: 'bz' },
+      { id: 'm2', membership_type_id: 'dk' },
+    ],
+    [
+      { id: 'bz', is_pnk_trial: true, is_active: true },
+      { id: 'dk', name: '12', is_active: true },
+    ],
+  ),
+  'paid type counts as ДК',
+)
 
 if (failed) {
   console.error(`\n${failed} failed`)

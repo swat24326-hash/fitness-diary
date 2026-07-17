@@ -91,6 +91,21 @@ const won = applyPnkStagePatch({ client: pkgClient, stage: 'won' })
 ok(won.ok && won.client.lifecycle === 'active' && won.client.pnk_stage === 'won', 'won → active')
 ok(!isOpenPnkClient(won.client), 'won not open')
 
+const wonBlocked = applyPnkStagePatch({
+  client: pkgClient,
+  stage: 'won',
+  require_dk_membership: true,
+  has_dk_membership: false,
+})
+ok(!wonBlocked.ok, 'won blocked without ДК when required')
+const wonWithDk = applyPnkStagePatch({
+  client: pkgClient,
+  stage: 'won',
+  require_dk_membership: true,
+  has_dk_membership: true,
+})
+ok(wonWithDk.ok && wonWithDk.client.lifecycle === 'active', 'won ok with ДК flag')
+
 const clients = [
   {
     id: 'a',
@@ -177,25 +192,30 @@ ok(resolvePnkVisitDayState(visitBase, new Date('2026-07-17T12:00:00')) === 'toda
 ok(resolvePnkVisitDayState(visitBase, new Date('2026-07-16T12:00:00')) === 'before', 'visit before')
 ok(resolvePnkVisitDayState(visitBase, new Date('2026-07-18T12:00:00')) === 'past', 'visit past')
 ok(!isPnkCardTabVisible(visitBase, 'stats'), 'stats hidden while pnk open')
-ok(isPnkCardTabVisible(visitBase, 'health'), 'only health on health step')
-ok(!isPnkCardTabVisible(visitBase, 'nutrition'), 'nutrition hidden on health step')
-ok(!isPnkCardTabVisible(visitBase, 'diaries'), 'diaries hidden on health step')
-ok(!isPnkCardTabVisible(visitBase, 'homework'), 'homework hidden on health step')
-ok(!isPnkCardTabVisible(visitBase, 'memberships'), 'memberships hidden on health step')
+ok(!isPnkCardTabVisible(visitBase, 'health'), 'health hidden until Клиент пришёл')
+const onHealthStep = {
+  ...visitBase,
+  pnk_deliverables: { contact: 'x', visit_started: 'x' },
+}
+ok(isPnkCardTabVisible(onHealthStep, 'health'), 'only health on health step')
+ok(!isPnkCardTabVisible(onHealthStep, 'nutrition'), 'nutrition hidden on health step')
+ok(!isPnkCardTabVisible(onHealthStep, 'diaries'), 'diaries hidden on health step')
+ok(!isPnkCardTabVisible(onHealthStep, 'homework'), 'homework hidden on health step')
+ok(!isPnkCardTabVisible(onHealthStep, 'memberships'), 'memberships hidden on health step')
 ok(
   !isPnkCardTabVisible({ id: 'v2', lifecycle: 'pnk', pnk_stage: 'assigned' }, 'health'),
   'tabs hidden before invite done',
 )
 const afterHealth = {
   ...visitBase,
-  pnk_deliverables: { contact: 'x', health: 'x' },
+  pnk_deliverables: { contact: 'x', visit_started: 'x', health: 'x' },
 }
 ok(isPnkCardTabVisible(afterHealth, 'nutrition'), 'only nutrition on nutrition step')
 ok(!isPnkCardTabVisible(afterHealth, 'health'), 'health tab hidden on nutrition step')
 ok(!isPnkCardTabVisible(afterHealth, 'diaries'), 'diaries hidden on nutrition step')
 const afterNutrition = {
   ...visitBase,
-  pnk_deliverables: { contact: 'x', health: 'x', nutrition: 'x' },
+  pnk_deliverables: { contact: 'x', visit_started: 'x', health: 'x', nutrition: 'x' },
 }
 ok(isPnkCardTabVisible(afterNutrition, 'diaries'), 'only diaries on train step')
 ok(!isPnkCardTabVisible(afterNutrition, 'memberships'), 'memberships hidden on train step')
@@ -204,10 +224,25 @@ ok(!isPnkCardTabVisible(afterNutrition, 'homework'), 'homework hidden on train s
 const afterTrial = {
   ...visitBase,
   pnk_stage: 'trial_done',
-  pnk_deliverables: { contact: 'x', health: 'x', nutrition: 'x', trial: 'x' },
+  pnk_deliverables: { contact: 'x', visit_started: 'x', health: 'x', nutrition: 'x', trial: 'x' },
 }
 ok(isPnkCardTabVisible(afterTrial, 'homework'), 'only homework on hw step')
 ok(!isPnkCardTabVisible(afterTrial, 'diaries'), 'diaries hidden on hw step')
+const onClose = {
+  ...visitBase,
+  pnk_stage: 'followup',
+  pnk_deliverables: {
+    contact: 'x',
+    visit_started: 'x',
+    health: 'x',
+    nutrition: 'x',
+    trial: 'x',
+    homework: 'x',
+    followup: 'x',
+  },
+}
+ok(isPnkCardTabVisible(onClose, 'memberships'), 'memberships visible on close for ДК')
+ok(!isPnkCardTabVisible(onClose, 'health'), 'health hidden on close')
 
 if (failed) {
   console.error(`\n${failed} failed`)

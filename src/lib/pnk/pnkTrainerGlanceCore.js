@@ -100,7 +100,7 @@ export function buildPnkGlanceCards(clients, now = new Date()) {
  * @returns {{ stepN: number, total: number, segments: { index: number, state: 'done' | 'current' | 'todo' }[] }}
  */
 export function buildPnkStepSegments(card) {
-  const total = Math.max(1, Math.min(8, Number(card?.stepTotal) || 5))
+  const total = Math.max(1, Math.min(12, Number(card?.stepTotal) || 5))
   const stepN = Math.max(0, Math.min(total, Number(card?.stepN) || 0))
   /** @type {{ index: number, state: 'done' | 'current' | 'todo' }[]} */
   const segments = []

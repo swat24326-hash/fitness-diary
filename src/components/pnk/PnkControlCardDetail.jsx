@@ -4,7 +4,9 @@ import { Trash2 } from 'lucide-react'
 import { PnkStepBlocks } from './PnkStepBlocks.jsx'
 import { PnkCoachNotifyChip } from './PnkCoachNotifyChip'
 import { PnkAttentionChips } from './PnkStatusChips'
+import { PnkVisitQualityReport } from './PnkVisitQualityReport.jsx'
 import { buildPnkAttentionFlags, canDeletePnkClient } from '../../lib/pnk/pnkStagesCore.js'
+import { buildPnkVisitQualityReport } from '../../lib/pnk/pnkVisitQualityCore.js'
 
 /**
  * Правая панель оценки выбранного ПНК (master–detail).
@@ -17,6 +19,8 @@ export function PnkControlCardDetail({
   onNotifyResult,
   onComment,
   onRequestDelete,
+  showVisitQuality = false,
+  visitQualityReport = null,
 }) {
   if (!card) {
     return (
@@ -49,12 +53,21 @@ export function PnkControlCardDetail({
           {card.caption ? ` · ${card.caption}` : ''}
         </p>
         <p className="pnk-control-card__step muted" style={{ margin: 0 }}>
-          Шаг {card.stepN}/{card.stepTotal} · {card.stepTitle}
+          ПНК · шаг {card.stepN}/{card.stepTotal} · {card.stepTitle}
         </p>
-        <PnkStepBlocks stepN={card.stepN} stepTotal={card.stepTotal} />
+        <div className="pnk-funnel-hat--tile">
+          <PnkStepBlocks stepN={card.stepN} stepTotal={card.stepTotal} />
+        </div>
       </div>
 
       {flags.length ? <PnkAttentionChips flags={flags} /> : null}
+
+      {showVisitQuality ? (
+        <PnkVisitQualityReport
+          report={visitQualityReport || buildPnkVisitQualityReport(card.client)}
+          className="pnk-visit-quality--compact"
+        />
+      ) : null}
 
       <p className="pnk-control-card__intervene muted">
         Вмешаться: напишите тренеру — текст под текущий этап.

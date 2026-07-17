@@ -189,17 +189,12 @@ export function SalesPnk() {
         </div>
         {stats ? (
           <section className="pnk-funnel__kpi pnk-funnel__kpi--inline" aria-label="Сводка за месяц">
-            <div className="pnk-funnel__kpi-card">
-              <span className="pnk-funnel__kpi-label">ПНК</span>
-              <span className="pnk-funnel__kpi-value">{stats.entered}</span>
-            </div>
-            <div className="pnk-funnel__kpi-card">
-              <span className="pnk-funnel__kpi-label">Оформления</span>
-              <span className="pnk-funnel__kpi-value">{stats.won}</span>
-            </div>
-            <div className="pnk-funnel__kpi-card">
-              <span className="pnk-funnel__kpi-label">Конверсия</span>
-              <span className="pnk-funnel__kpi-value">{stats.conversionPct}%</span>
+            <div className="pnk-funnel__kpi-card pnk-funnel__kpi-card--fraction">
+              <span className="pnk-funnel__kpi-label">ПНК → ДК</span>
+              <span className="pnk-funnel__kpi-value">
+                {stats.won}/{stats.entered}
+                <span className="pnk-funnel__kpi-pct">{stats.conversionPct}%</span>
+              </span>
             </div>
             <div className="pnk-funnel__kpi-card">
               <span className="pnk-funnel__kpi-label">В работе</span>
@@ -269,6 +264,7 @@ export function SalesPnk() {
             onComment={onComment}
             onDelete={onDelete}
             initialFocusId={focusId}
+            showVisitQuality={isAdmin}
             workExtras={
               <>
                 {createOpen ? (
@@ -400,18 +396,17 @@ export function SalesPnk() {
                       <thead>
                         <tr>
                           <th>Тренер</th>
-                          <th>ПНК</th>
-                          <th>Оформл.</th>
-                          <th>%</th>
+                          <th>Оформл. / ПНК</th>
                         </tr>
                       </thead>
                       <tbody>
                         {stats.trainers.map((t) => (
                           <tr key={t.trainerId}>
                             <td>{t.trainer_name}</td>
-                            <td>{t.entered}</td>
-                            <td>{t.won}</td>
-                            <td>{t.conversionPct}</td>
+                            <td>
+                              {t.won}/{t.entered}
+                              <span className="pnk-funnel__kpi-pct pnk-funnel__kpi-pct--inline">{t.conversionPct}%</span>
+                            </td>
                           </tr>
                         ))}
                       </tbody>

@@ -11,6 +11,27 @@ import { addDaysToIso } from '../dateRu.js'
 export { shouldOfferMarkPnkTrialDone } from './pnkWizardCore.js'
 
 /**
+ * Есть ли у клиента платный абонемент (не БЗ) — для оформления ДК.
+ * @param {object[]} [memberships]
+ * @param {object[]} [membershipTypes]
+ */
+export function hasPaidDkMembership(memberships, membershipTypes) {
+  const typeById = new Map()
+  for (const t of membershipTypes ?? []) {
+    if (t?.id != null) typeById.set(String(t.id), t)
+  }
+  for (const m of memberships ?? []) {
+    if (!m || m.archived_at) continue
+    const typeId = String(m.membership_type_id ?? m.type_id ?? '').trim()
+    const t = typeById.get(typeId)
+    if (!t) continue
+    if (isPnkTrialTypeRow(t)) continue
+    return true
+  }
+  return false
+}
+
+/**
  * Тип считается БЗ/пробной: флаг is_pnk_trial или код/имя «БЗ».
  * @param {object | null | undefined} t
  */

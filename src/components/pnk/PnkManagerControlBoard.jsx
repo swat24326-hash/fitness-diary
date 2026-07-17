@@ -25,6 +25,7 @@ export function PnkManagerControlBoard({
   initialFocusId = '',
   workExtras = null,
   assessExtras = null,
+  showVisitQuality = false,
 }) {
   const [trainerId, setTrainerId] = useState('')
   const [query, setQuery] = useState('')
@@ -144,7 +145,12 @@ export function PnkManagerControlBoard({
                       {card.trainerName}
                       {trialDate ? ` · ${formatDateRu(trialDate)}${trialTime ? ` ${trialTime}` : ''}` : ''}
                     </span>
-                    <PnkStepBlocks stepN={card.stepN} stepTotal={card.stepTotal} />
+                    <div className="pnk-funnel-hat--tile" aria-hidden>
+                      <p className="pnk-client-panel__step-kicker">
+                        ПНК · шаг {card.stepN}/{card.stepTotal}
+                      </p>
+                      <PnkStepBlocks stepN={card.stepN} stepTotal={card.stepTotal} />
+                    </div>
                   </button>
                 </li>
               )
@@ -162,6 +168,7 @@ export function PnkManagerControlBoard({
           onNotifyResult={onNotifyResult}
           onComment={onComment}
           onRequestDelete={canDelete ? setConfirmDelete : undefined}
+          showVisitQuality={showVisitQuality}
         />
         {assessExtras}
       </div>

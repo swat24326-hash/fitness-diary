@@ -42,8 +42,15 @@ export function pickClientPnkFields(row) {
  * @param {object} row
  */
 export function normalizeClientPnkFields(row) {
-  const lifecycle = isClientLifecycle(row?.lifecycle) ? row.lifecycle : 'active'
-  const stage = isPnkStage(row?.pnk_stage) ? row.pnk_stage : lifecycle === 'pnk' ? 'new' : null
+  const stageHint = isPnkStage(row?.pnk_stage) ? row.pnk_stage : null
+  let lifecycle = isClientLifecycle(row?.lifecycle) ? row.lifecycle : null
+  if (!lifecycle) {
+    if (stageHint === 'won') lifecycle = 'active'
+    else if (stageHint === 'lost') lifecycle = 'pnk_lost'
+    else if (stageHint || row?.pnk_created_at || row?.pnk_deliverables) lifecycle = 'pnk'
+    else lifecycle = 'active'
+  }
+  const stage = stageHint ?? (lifecycle === 'pnk' ? 'new' : null)
   return {
     ...row,
     lifecycle,

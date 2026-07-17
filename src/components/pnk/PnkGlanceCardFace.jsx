@@ -50,7 +50,12 @@ export function PnkGlanceCardFace({
         <span className="pnk-glance-face__caption muted">{caption}</span>
       ) : null}
 
-      <PnkStepBlocks stepN={stepN} stepTotal={stepTotal} />
+      <div className="pnk-funnel-hat--tile">
+        <p className="pnk-client-panel__step-kicker">
+          ПНК · шаг {stepN}/{stepTotal}
+        </p>
+        <PnkStepBlocks stepN={stepN} stepTotal={stepTotal} />
+      </div>
       <span className="pnk-glance-face__cta muted">Открыть</span>
     </button>
   )

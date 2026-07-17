@@ -438,6 +438,234 @@ button.pnk-chip:disabled {
   gap: 12px;
 }
 
+/* Единая липкая шапка воронки (Назад / Далее / Пропустить) */
+.pnk-funnel-hat-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  display: grid;
+  gap: 8px;
+  margin: 0 0 4px;
+  padding: 10px 10px 8px;
+  border-radius: var(--radius-md, 12px);
+  background: color-mix(in srgb, var(--bg-elevated, #1a1f1c) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent, #7dffb3) 28%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+.pnk-funnel-hat {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pnk-funnel-hat__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.pnk-funnel-hat__titles {
+  min-width: 0;
+}
+
+.pnk-funnel-hat__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+}
+
+.pnk-funnel-hat__help {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  color: var(--text-muted, #9aa39c);
+}
+
+.pnk-funnel-hat__nav {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.pnk-funnel-hat__btn {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 44px;
+  justify-content: center;
+  gap: 4px;
+  font-size: 0.88rem;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.pnk-funnel-hat__btn--next {
+  flex: 1.45 1 0;
+}
+
+.pnk-funnel-hat__hint {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.pnk-funnel-hat__refuse {
+  justify-self: end;
+  min-height: 40px;
+  font-size: 0.85rem;
+}
+
+.pnk-funnel__kpi-pct {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 0.72em;
+  font-weight: 600;
+  opacity: 0.75;
+  vertical-align: super;
+}
+
+.pnk-funnel__kpi-pct--inline {
+  margin-left: 4px;
+  vertical-align: baseline;
+  font-size: 0.85em;
+}
+
+.pnk-funnel__kpi-card--fraction .pnk-funnel__kpi-value {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.pnk-visit-quality {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 12px;
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid color-mix(in srgb, var(--accent, #7dffb3) 22%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated, #1a1f1c) 88%, transparent);
+}
+
+.pnk-visit-quality--compact {
+  margin-top: 12px;
+  padding: 10px;
+}
+
+.pnk-visit-quality__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.pnk-visit-quality__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.pnk-visit-quality__summary {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.pnk-visit-quality__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.pnk-visit-quality__item {
+  display: grid;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border-left: 3px solid transparent;
+}
+
+.pnk-visit-quality__item--done {
+  border-left-color: var(--accent, #7dffb3);
+  background: color-mix(in srgb, var(--accent, #7dffb3) 10%, transparent);
+}
+
+.pnk-visit-quality__item--weak {
+  border-left-color: #e6b84d;
+  background: color-mix(in srgb, #e6b84d 12%, transparent);
+}
+
+.pnk-visit-quality__item--missing {
+  border-left-color: color-mix(in srgb, var(--text-muted, #9aa39c) 50%, transparent);
+  opacity: 0.9;
+}
+
+.pnk-visit-quality__label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.pnk-visit-quality__note {
+  font-size: 0.8rem;
+}
+
+.pnk-visit-quality__pct {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.admin-club-stat-card__pct {
+  margin-left: 6px;
+  font-size: 0.55em;
+  font-weight: 600;
+  opacity: 0.75;
+  vertical-align: super;
+}
+
+.pnk-conversion-fraction {
+  display: grid;
+  gap: 2px;
+}
+
+.pnk-conversion-fraction__label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.pnk-conversion-fraction__value {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.pnk-conversion-fraction__pct {
+  margin-left: 6px;
+  font-size: 0.7em;
+  font-weight: 600;
+  opacity: 0.75;
+  vertical-align: super;
+}
+
+/* Компактная «шапка» на плитке доски — тот же язык прогресса */
+.pnk-control-tile .pnk-funnel-hat--tile {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--accent, #7dffb3) 18%, transparent);
+}
+
+.pnk-control-tile .pnk-funnel-hat--tile .pnk-client-panel__step-kicker {
+  margin: 0;
+  font-size: 0.68rem;
+}
+
 .pnk-client-panel__head-main {
   min-width: 0;
 }

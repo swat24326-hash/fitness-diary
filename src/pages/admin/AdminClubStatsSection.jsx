@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BarChart3, ClipboardList, Info, LayoutGrid, LineChart, RefreshCw, Sparkles, Trophy, UserCheck, UserMinus, Users } from 'lucide-react'
+import { BarChart3, ClipboardList, Info, LayoutGrid, LineChart, RefreshCw, Sparkles, Trophy, UserCheck, UserMinus, UserPlus, Users } from 'lucide-react'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { isAppOnline } from '../../lib/syncService'
 import { refreshMembershipsForStats } from '../../lib/membershipCacheRefresh'
@@ -13,6 +13,8 @@ import { AdminClubMonthlyChart } from '../../components/AdminClubMonthlyChart'
 import { MembershipTypeStatsTable } from '../../components/MembershipTypeStatsTable'
 import { loadClubMonthlyStatsForYear, MONTHS_PER_CALENDAR_YEAR } from '../../lib/admin/adminClubMonthlyService'
 import { useIskraPanel } from '../../context/IskraPanelContext.jsx'
+import { getDb } from '../../lib/localDb'
+import { aggregatePnkFunnelStats } from '../../lib/pnk/pnkStatsAgg'
 
 function rankMedal(i) {
   if (i === 0) return '🥇'
@@ -59,6 +61,7 @@ export function AdminClubStatsSection({
   const [customTo, setCustomTo] = useState('')
   const [busy, setBusy] = useState(false)
   const [stats, setStats] = useState(null)
+  const [pnkFunnel, setPnkFunnel] = useState(null)
   const [trainerNameById, setTrainerNameById] = useState({})
   const [clubLabel, setClubLabel] = useState('')
   const [statsHelpOpen, setStatsHelpOpen] = useState(false)
@@ -248,8 +251,28 @@ export function AdminClubStatsSection({
             dateTo: range.end,
           })
       setStats(s)
+
+      try {
+        const db = await getDb()
+        const allClients = await db.getAll('clients')
+        const clubFilter = isTrainerScope ? scopeClubId || clubId : clubId
+        const scoped = (allClients ?? []).filter((c) => {
+          if (c?.archived_at) return false
+          if (clubFilter && String(c.club_id ?? '') !== String(clubFilter)) return false
+          return true
+        })
+        const agg = aggregatePnkFunnelStats(scoped, {
+          dateFrom: range.start,
+          dateTo: range.end,
+          trainerId: isTrainerScope ? scopeTrainerId : '',
+        })
+        setPnkFunnel({ entered: agg.entered, won: agg.won, conversionPct: agg.conversionPct })
+      } catch {
+        setPnkFunnel(null)
+      }
     } catch {
       setStats(null)
+      setPnkFunnel(null)
     } finally {
       if (!silent) setBusy(false)
     }
@@ -470,6 +493,26 @@ export function AdminClubStatsSection({
         ) : null}
 
         <div className="admin-club-stats-board__grid">
+          <div className="card stat-card admin-club-stat-card">
+            <div className="stat-card__top admin-club-stat-card__head">
+              <h3 className="td-stat-title admin-club-stat-card__title">ПНК → ДК</h3>
+              <UserPlus className="stat-card__icon" size={22} aria-hidden />
+            </div>
+            <p className="stat-card__value admin-club-stat-card__value">
+              {pnkFunnel ? (
+                <>
+                  {pnkFunnel.won}/{pnkFunnel.entered}
+                  <span className="admin-club-stat-card__pct">{pnkFunnel.conversionPct}%</span>
+                </>
+              ) : (
+                '—'
+              )}
+            </p>
+            <p className="admin-club-stat-card__foot">
+              {isTrainerScope ? 'мои оформления / ПНК за период' : 'оформления / ПНК за период'}
+            </p>
+          </div>
+
           <div className="card stat-card admin-club-stat-card">
             <div className="stat-card__top admin-club-stat-card__head">
               <h3 className="td-stat-title admin-club-stat-card__title">{isTrainerScope ? 'Мои клиенты' : 'Всего клиентов'}</h3>
