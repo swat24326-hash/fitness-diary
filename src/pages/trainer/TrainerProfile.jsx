@@ -1,6 +1,5 @@
 import { useAuth } from '../../context/AuthContext'
 import { TrainerStatisticsSection } from './TrainerStatisticsSection'
-import { TrainerPushSettings } from '../../components/iskra/TrainerPushPrompt.jsx'
 
 export function TrainerProfile() {
   const { user } = useAuth()
@@ -15,8 +14,6 @@ export function TrainerProfile() {
           {user?.name ?? user?.email ?? 'Тренер'}
         </p>
       </section>
-
-      <TrainerPushSettings clubId={String(user?.club_id ?? '').trim()} />
 
       <TrainerStatisticsSection />
     </div>

@@ -7104,6 +7104,15 @@ tr:last-child td {
   line-height: 1.4;
 }
 
+.diagnostics-panel__push {
+  margin-bottom: 14px;
+}
+
+.diagnostics-panel__push .trainer-push-settings.card {
+  margin: 0;
+  box-shadow: none;
+}
+
 .diagnostics-panel__update-label {
   margin-top: 8px;
 }
