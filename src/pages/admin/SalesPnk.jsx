@@ -141,7 +141,7 @@ export function SalesPnk() {
     try {
       await deletePnkClient({ clubId, client_id: id })
       setLastCreated((prev) => (prev?.client?.id === id ? null : prev))
-      setToast('ПНК удалён')
+      setToast('ПНК удалён — в статистике остался отказ')
       setTimeout(() => setToast(''), 3000)
       await load()
     } catch (err) {

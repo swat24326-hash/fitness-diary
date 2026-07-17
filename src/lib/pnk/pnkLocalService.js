@@ -1,10 +1,11 @@
-import { listMemberships } from '../dataAccess.js'
+import { deleteClientAndAllData, listMemberships } from '../dataAccess.js'
 import { todayLocalIso } from '../dateRu.js'
 import { pickUsableMembershipForDate } from '../membershipRules.js'
 import { ensureMembershipTypesForClub } from '../membershipTypesService.js'
 import { saveLocalWithSync } from '../syncService.js'
-import { applyPnkStagePatch, buildNewPnkClientFields } from './pnkStagesCore.js'
+import { applyPnkStagePatch, buildNewPnkClientFields, isOpenPnkClient } from './pnkStagesCore.js'
 import { normalizeClientPnkFields } from './pnkClientFields.js'
+import { buildPnkLostFunnelEvent } from './pnkFunnelEventsCore.js'
 import {
   buildPnkNewWorkoutPath,
   buildPnkTrialMembershipRow,
@@ -31,6 +32,28 @@ export async function patchPnkClientLocal(client, patch = {}) {
     remote_id: result.client.id,
   })
   return { ok: true, client: result.client }
+}
+
+/**
+ * Отказ: запись в анонимный журнал + полное удаление карточки (и абонементов).
+ * @param {object} client
+ * @param {{ lost_reason?: string }} [opts]
+ */
+export async function refuseAndDeletePnkClientLocal(client, opts = {}) {
+  const base = normalizeClientPnkFields(client)
+  if (!isOpenPnkClient(base)) {
+    return { ok: false, error: 'Отказ доступен только для открытого ПНК' }
+  }
+  const built = buildPnkLostFunnelEvent(base, { reason: opts.lost_reason })
+  if (!built.ok) return built
+
+  await saveLocalWithSync('pnk_funnel_events', built.event, {
+    table_name: 'pnk_funnel_events',
+    operation: 'insert',
+    remote_id: built.event.id,
+  })
+  await deleteClientAndAllData(base.id)
+  return { ok: true, event: built.event, client_id: base.id }
 }
 
 /**

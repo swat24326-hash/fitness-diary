@@ -91,7 +91,7 @@ export function PnkFunnelHat({
               type="button"
               className="btn btn-ghost btn-touch pnk-funnel-hat__btn pnk-funnel-hat__btn--refuse"
               disabled={busy}
-              title="Отказ клиента — выйти из воронки без оформления ДК"
+              title="Отказ — удалить карточку; в статистике останется отметка без оформления"
               onClick={() => onRefuse?.()}
             >
               <Ban size={16} aria-hidden /> Отказ

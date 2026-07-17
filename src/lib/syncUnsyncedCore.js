@@ -29,6 +29,7 @@ export function defaultSyncOperation(table_name, record) {
   if (table_name === 'body_measurements') return { operation: 'insert', remote_id: null }
   if (table_name === 'client_weight_entries') return { operation: 'insert', remote_id: null }
   if (table_name === 'challenges') return { operation: 'insert', remote_id: null }
+  if (table_name === 'pnk_funnel_events') return { operation: 'insert', remote_id: record?.id ?? null }
   if (table_name === 'memberships') return { operation: 'update', remote_id: record?.id ?? null }
   if (table_name === 'clients') return { operation: 'update', remote_id: record?.id ?? null }
   if (table_name === 'health_cards') return { operation: 'update', remote_id: record?.id ?? null }

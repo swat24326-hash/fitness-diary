@@ -42,11 +42,13 @@ const AUTO_PUSH_TABLES = new Set([
   'client_weight_entries',
   'challenges',
   'exercises',
+  'pnk_funnel_events',
 ])
 
 /** Порядок отправки: сначала сущности, от которых зависят остальные. */
 const SYNC_TABLE_PRIORITY = {
   clients: 10,
+  pnk_funnel_events: 12,
   membership_types: 15,
   nutrition_products: 16,
   homework_presets: 17,

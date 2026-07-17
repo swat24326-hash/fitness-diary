@@ -274,6 +274,21 @@ async function handler(req, res) {
     }
   }
 
+  let pnk_funnel_events = []
+  try {
+    const { data: evRows, error: evErr } = await supabaseAdmin
+      .from('pnk_funnel_events')
+      .select(
+        'id, club_id, trainer_id, event_type, entered_at, occurred_at, reason, had_nutrition, had_homework, trial_done, package_done, created_at',
+      )
+      .eq('trainer_id', trainerId)
+      .order('occurred_at', { ascending: false })
+      .limit(200)
+    if (!evErr) pnk_funnel_events = evRows ?? []
+  } catch {
+    pnk_funnel_events = []
+  }
+
   sendJson(res, 200, {
     clients,
     memberships,
@@ -281,6 +296,7 @@ async function handler(req, res) {
     body_measurements,
     client_weight_entries,
     trainings,
+    pnk_funnel_events,
     club_id: trainerClubId || null,
     outreach_templates,
     trainings_truncated: trainingsTruncated,
@@ -297,6 +313,7 @@ async function handler(req, res) {
       body_measurements: body_measurements.length,
       client_weight_entries: client_weight_entries.length,
       trainings: trainings.length,
+      pnk_funnel_events: pnk_funnel_events.length,
     },
   })
 }

@@ -552,6 +552,9 @@ export function ClientCard() {
           syncPnkTab(next, pnkUiCtx)
           void reloadLocal()
         }}
+        onRefused={() => {
+          navigate(isAdmin ? adminClientsListHref : '/clients', { replace: true })
+        }}
         onOpenDiaries={() => setTab('diaries')}
         onOpenTab={onOpenPnkTab}
         onStartTraining={isArchived ? undefined : () => startPnkTraining()}

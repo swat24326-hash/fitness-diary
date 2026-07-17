@@ -45,6 +45,7 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
     'membership_types',
     'nutrition_products',
     'homework_presets',
+    'pnk_funnel_events',
   ])
   if (!allowed.has(table_name)) {
     return { ok: false, error: 'Таблица не поддерживается для синхронизации' }
@@ -164,6 +165,20 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
       const { data: prof } = await supabaseAdmin.from('users').select('club_id').eq('id', user.id).maybeSingle()
       if (String(prof?.club_id ?? '') === String(challengeClubId ?? '')) return { ok: true }
       return { ok: false, error: 'Челлендж другого клуба' }
+    }
+
+    if (table_name === 'pnk_funnel_events') {
+      if (op !== 'insert') {
+        return { ok: false, error: 'Журнал ПНК можно только добавлять' }
+      }
+      if (String(payload.trainer_id ?? '') !== String(user.id)) {
+        return { ok: false, error: 'Событие ПНК должно быть от вашего имени' }
+      }
+      const { data: prof } = await supabaseAdmin.from('users').select('club_id').eq('id', user.id).maybeSingle()
+      if (String(prof?.club_id ?? '') !== String(payload.club_id ?? '')) {
+        return { ok: false, error: 'Событие ПНК другого клуба' }
+      }
+      return { ok: true }
     }
 
     return { ok: false, error: 'Нет доступа' }

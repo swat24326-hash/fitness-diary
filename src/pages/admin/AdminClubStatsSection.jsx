@@ -14,6 +14,7 @@ import { MembershipTypeStatsTable } from '../../components/MembershipTypeStatsTa
 import { loadClubMonthlyStatsForYear, MONTHS_PER_CALENDAR_YEAR } from '../../lib/admin/adminClubMonthlyService'
 import { useIskraPanel } from '../../context/IskraPanelContext.jsx'
 import { getDb } from '../../lib/localDb'
+import { fetchPnkBundle } from '../../lib/pnk/pnkApiService'
 import { aggregatePnkFunnelStats } from '../../lib/pnk/pnkStatsAgg'
 
 function rankMedal(i) {
@@ -253,31 +254,98 @@ export function AdminClubStatsSection({
       setStats(s)
 
       try {
-        const db = await getDb()
-        const allClients = await db.getAll('clients')
         const clubFilter = isTrainerScope ? scopeClubId || clubId : clubId
-        const scoped = (allClients ?? []).filter((c) => {
-          if (c?.archived_at) return false
-          if (clubFilter && String(c.club_id ?? '') !== String(clubFilter)) return false
-          return true
-        })
-        const agg = aggregatePnkFunnelStats(scoped, {
-          dateFrom: range.start,
-          dateTo: range.end,
-          trainerId: isTrainerScope ? scopeTrainerId : '',
-        })
-        setPnkFunnel({
-          entered: agg.entered,
-          won: agg.won,
-          lost: agg.lost,
-          open: agg.open,
-          conversionPct: agg.conversionPct,
-          nutritionPct: agg.nutritionPct,
-          homeworkPct: agg.homeworkPct,
-          packageDone: agg.packageDone,
-          trialDone: agg.trialDone,
-          trainers: agg.trainers ?? [],
-        })
+        if (!isTrainerScope && clubFilter && isSupabaseConfigured() && isAppOnline()) {
+          try {
+            const bundle = await fetchPnkBundle({
+              clubId: clubFilter,
+              dateFrom: range.start,
+              dateTo: range.end,
+            })
+            const s = bundle?.stats
+            if (s) {
+              setPnkFunnel({
+                entered: s.entered,
+                won: s.won,
+                lost: s.lost,
+                open: s.open,
+                conversionPct: s.conversionPct,
+                nutritionPct: s.nutritionPct,
+                homeworkPct: s.homeworkPct,
+                packageDone: s.packageDone,
+                trialDone: s.trialDone,
+                trainers: s.trainers ?? [],
+              })
+            } else {
+              setPnkFunnel(null)
+            }
+          } catch {
+            /* fallback ниже */
+            const db = await getDb()
+            const allClients = await db.getAll('clients')
+            const allEvents = (await db.getAll('pnk_funnel_events').catch(() => [])) ?? []
+            const scoped = (allClients ?? []).filter((c) => {
+              if (c?.archived_at) return false
+              if (clubFilter && String(c.club_id ?? '') !== String(clubFilter)) return false
+              return true
+            })
+            const scopedEvents = allEvents.filter((ev) => {
+              if (clubFilter && String(ev.club_id ?? '') !== String(clubFilter)) return false
+              return true
+            })
+            const agg = aggregatePnkFunnelStats(
+              scoped,
+              { dateFrom: range.start, dateTo: range.end },
+              scopedEvents,
+            )
+            setPnkFunnel({
+              entered: agg.entered,
+              won: agg.won,
+              lost: agg.lost,
+              open: agg.open,
+              conversionPct: agg.conversionPct,
+              nutritionPct: agg.nutritionPct,
+              homeworkPct: agg.homeworkPct,
+              packageDone: agg.packageDone,
+              trialDone: agg.trialDone,
+              trainers: agg.trainers ?? [],
+            })
+          }
+        } else {
+          const db = await getDb()
+          const allClients = await db.getAll('clients')
+          const allEvents = (await db.getAll('pnk_funnel_events').catch(() => [])) ?? []
+          const scoped = (allClients ?? []).filter((c) => {
+            if (c?.archived_at) return false
+            if (clubFilter && String(c.club_id ?? '') !== String(clubFilter)) return false
+            return true
+          })
+          const scopedEvents = allEvents.filter((ev) => {
+            if (clubFilter && String(ev.club_id ?? '') !== String(clubFilter)) return false
+            return true
+          })
+          const agg = aggregatePnkFunnelStats(
+            scoped,
+            {
+              dateFrom: range.start,
+              dateTo: range.end,
+              trainerId: isTrainerScope ? scopeTrainerId : '',
+            },
+            scopedEvents,
+          )
+          setPnkFunnel({
+            entered: agg.entered,
+            won: agg.won,
+            lost: agg.lost,
+            open: agg.open,
+            conversionPct: agg.conversionPct,
+            nutritionPct: agg.nutritionPct,
+            homeworkPct: agg.homeworkPct,
+            packageDone: agg.packageDone,
+            trialDone: agg.trialDone,
+            trainers: agg.trainers ?? [],
+          })
+        }
       } catch {
         setPnkFunnel(null)
       }

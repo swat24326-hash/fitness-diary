@@ -39,6 +39,7 @@ export const PUSH_TABLES = new Set([
   'client_weight_entries',
   'challenges',
   'exercises',
+  'pnk_funnel_events',
 ])
 
 const PUSH_RECORD_TIMEOUT_MS = 28_000

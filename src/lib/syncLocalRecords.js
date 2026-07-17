@@ -28,6 +28,7 @@ const UNSYNCED_SCAN = [
   { store: 'membership_types', table: 'membership_types', table_name: 'membership_types' },
   { store: 'nutrition_products', table: 'nutrition_products', table_name: 'nutrition_products' },
   { store: 'homework_presets', table: 'homework_presets', table_name: 'homework_presets' },
+  { store: 'pnk_funnel_events', table: 'pnk_funnel_events', table_name: 'pnk_funnel_events' },
 ]
 
 /** После успешного push — не ставить в очередь снова. */
@@ -58,6 +59,7 @@ export async function markRecordSynced(table_name, data) {
     exercises: 'exercises',
     nutrition_products: 'nutrition_products',
     homework_presets: 'homework_presets',
+    pnk_funnel_events: 'pnk_funnel_events',
   }
   const store = storeByTable[table_name]
   if (!store) return

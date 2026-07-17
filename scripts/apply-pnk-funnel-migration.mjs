@@ -12,9 +12,10 @@ const MIGRATIONS = [
   'supabase/migrations/20260716140000_pnk_funnel.sql',
   'supabase/migrations/20260716150000_pnk_followup_stage.sql',
   'supabase/migrations/20260717120000_pnk_trial_sessions.sql',
+  'supabase/migrations/20260718120000_pnk_funnel_events.sql',
 ]
 const VERIFY_SQL =
-  "select column_name from information_schema.columns where table_schema = 'public' and ((table_name = 'clients' and column_name in ('lifecycle','pnk_stage','pnk_trial_sessions')) or (table_name = 'membership_types' and column_name = 'is_pnk_trial')) order by 1;"
+  "select table_name, column_name from information_schema.columns where table_schema = 'public' and ((table_name = 'clients' and column_name in ('lifecycle','pnk_stage','pnk_trial_sessions')) or (table_name = 'membership_types' and column_name = 'is_pnk_trial') or (table_name = 'pnk_funnel_events' and column_name in ('id','event_type','club_id'))) order by 1, 2;"
 
 function fail(msg) {
   console.error(msg)

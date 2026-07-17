@@ -7,6 +7,7 @@ import { normalizeMembershipTypePushPayload } from '../../src/lib/admin/membersh
 import { normalizeNutritionProductPushPayload } from '../../src/lib/admin/nutritionProductPushPayload.js'
 import { normalizeHomeworkPresetPushPayload } from '../../src/lib/admin/homeworkPresetPushPayload.js'
 import { normalizeHealthCardPushPayload } from '../../src/lib/healthCardCore.js'
+import { normalizePnkFunnelEventPushPayload } from '../../src/lib/pnk/pnkFunnelEventsCore.js'
 
 export const PUSH_ALLOWED_TABLES = new Set([
   'clients',
@@ -20,6 +21,7 @@ export const PUSH_ALLOWED_TABLES = new Set([
   'membership_types',
   'nutrition_products',
   'homework_presets',
+  'pnk_funnel_events',
 ])
 
 function friendlyExerciseDbError(error, operation) {
@@ -175,6 +177,10 @@ export async function executePushRecord(ctx, item) {
       }
       if (table_name === 'health_cards') {
         payload = normalizeHealthCardPushPayload(payload)
+      }
+      if (table_name === 'pnk_funnel_events') {
+        payload = normalizePnkFunnelEventPushPayload(payload)
+        if (!payload) return { ok: false, status: 400, error: 'Некорректное событие воронки ПНК' }
       }
       const { error } = await supabaseAdmin.from(table_name).insert(payload)
       if (error) {

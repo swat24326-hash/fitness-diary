@@ -10,7 +10,7 @@ import {
 import { canAdvancePnkWizardStep } from '../../lib/pnk/pnkWizardCore'
 import { resolvePnkFunnelHatNav } from '../../lib/pnk/pnkWizardNavCore'
 import { hasPaidDkMembership } from '../../lib/pnk/pnkTrialTrainingCore'
-import { patchPnkClientLocal } from '../../lib/pnk/pnkLocalService'
+import { patchPnkClientLocal, refuseAndDeletePnkClientLocal } from '../../lib/pnk/pnkLocalService'
 import { listMemberships } from '../../lib/dataAccess'
 import { ensureMembershipTypesForClub } from '../../lib/membershipTypesService'
 import { PnkClientMessengerButtons } from '../pnk/PnkClientMessengerButtons'
@@ -24,6 +24,7 @@ import '../../styles/pnk-funnel.css'
 export function ClientPnkPanel({
   client,
   onUpdated,
+  onRefused,
   onOpenDiaries,
   onStartTraining,
   onOpenTab,
@@ -41,6 +42,7 @@ export function ClientPnkPanel({
   const [startBusy, setStartBusy] = useState(false)
   const [hasDkMembership, setHasDkMembership] = useState(false)
   const [advanceLocked, setAdvanceLocked] = useState(false)
+  const [confirmRefuse, setConfirmRefuse] = useState(false)
   const autoStartTrainRef = useRef('')
   const advanceLockRef = useRef(false)
 
@@ -122,6 +124,28 @@ export function ClientPnkPanel({
     }
   }
 
+  async function handleRefuseConfirm() {
+    setBusy(true)
+    setError('')
+    try {
+      const res = await refuseAndDeletePnkClientLocal(client, {
+        lost_reason: lostReason || comment || 'Отказ',
+      })
+      if (!res.ok) {
+        setError(res.error || 'Не удалось оформить отказ')
+        setConfirmRefuse(false)
+        return
+      }
+      setConfirmRefuse(false)
+      onRefused?.(res)
+    } catch (e) {
+      setError(String(e?.message ?? e))
+      setConfirmRefuse(false)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function handleHatNext() {
     if (advanceLockRef.current) return
     const patch = hatNav.nextPatch
@@ -195,9 +219,47 @@ export function ClientPnkPanel({
           onBack={() => void handleHatBack()}
           onNext={() => void handleHatNext()}
           onSkip={() => void handleHatSkip()}
-          onRefuse={() => void run({ stage: 'lost', lost_reason: lostReason || comment || 'Отказ' })}
+          onRefuse={() => setConfirmRefuse(true)}
         />
       </div>
+
+      {confirmRefuse ? (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pnk-refuse-title"
+          onClick={() => !busy && setConfirmRefuse(false)}
+        >
+          <div className="modal-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
+            <h2 id="pnk-refuse-title" className="section-title" style={{ marginTop: 0 }}>
+              Подтвердить отказ?
+            </h2>
+            <p className="muted" style={{ marginTop: 8 }}>
+              Карточка <strong style={{ color: 'var(--text)' }}>{String(client?.name ?? '').trim() || 'клиента'}</strong>{' '}
+              и все абонементы будут удалены. В статистике останется только отметка, что ПНК был и не оформился.
+            </p>
+            <div className="row td-modal-actions" style={{ marginTop: 18 }}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-touch"
+                disabled={busy}
+                onClick={() => setConfirmRefuse(false)}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                className="btn btn-touch pnk-client-panel__refuse-confirm"
+                disabled={busy}
+                onClick={() => void handleRefuseConfirm()}
+              >
+                {busy ? 'Удаление…' : 'Да, отказ'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {flags.length && step.key !== 'wait' && step.key !== 'invite' ? <PnkAttentionChips flags={flags} /> : null}
 
@@ -441,7 +503,7 @@ export function ClientPnkPanel({
               type="button"
               className="btn btn-ghost btn-touch pnk-client-panel__btn-secondary"
               disabled={busy}
-              onClick={() => void run({ stage: 'lost', lost_reason: lostReason || 'Отказ' })}
+              onClick={() => setConfirmRefuse(true)}
             >
               <Ban size={18} aria-hidden /> Отказ
             </button>

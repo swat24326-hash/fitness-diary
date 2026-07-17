@@ -40,8 +40,9 @@ function hasPnkTrace(c) {
 /**
  * @param {object[]} clients
  * @param {{ dateFrom?: string, dateTo?: string, trainerId?: string }} [opts]
+ * @param {object[]} [events] — анонимный журнал (отказы без карточки)
  */
-export function aggregatePnkFunnelStats(clients, opts = {}) {
+export function aggregatePnkFunnelStats(clients, opts = {}, events = []) {
   const from = String(opts.dateFrom ?? '').slice(0, 10)
   const to = String(opts.dateTo ?? '').slice(0, 10)
   const trainerFilter = opts.trainerId != null ? String(opts.trainerId).trim() : ''
@@ -111,6 +112,37 @@ export function aggregatePnkFunnelStats(clients, opts = {}) {
     if (isOpenPnkClient(c)) {
       open++
       bumpTrainer(tid, 'open')
+    }
+  }
+
+  for (const ev of events ?? []) {
+    if (String(ev?.event_type ?? '') !== 'lost') continue
+    const tid = String(ev?.trainer_id ?? '').trim()
+    if (trainerFilter && tid !== trainerFilter) continue
+
+    const enteredIso = String(ev?.entered_at ?? ev?.occurred_at ?? '').slice(0, 10)
+    const lostAt = String(ev?.occurred_at ?? '').slice(0, 10)
+    const enteredInPeriod = periodActive ? inPeriod(enteredIso, from, to) : Boolean(enteredIso)
+    const lostInPeriod = periodActive ? inPeriod(lostAt, from, to) : Boolean(lostAt)
+
+    if (enteredInPeriod) {
+      entered++
+      bumpTrainer(tid, 'entered')
+      if (ev.trial_done === true) trialDone++
+      if (ev.had_nutrition === true) {
+        withNutrition++
+        bumpTrainer(tid, 'nutrition')
+      }
+      if (ev.had_homework === true) {
+        withHomework++
+        bumpTrainer(tid, 'homework')
+      }
+      if (ev.package_done === true) packageDone++
+    }
+
+    if (lostInPeriod) {
+      lost++
+      bumpTrainer(tid, 'lost')
     }
   }
 

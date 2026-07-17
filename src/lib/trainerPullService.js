@@ -66,7 +66,21 @@ async function pruneOrphanTrainerClients(trainerId, remoteClients, opts = {}) {
   return pruned
 }
 
-async function cacheTrainerPull(trainerId, { clients, memberships, health_cards, body_measurements, client_weight_entries, trainings, club_id, outreach_templates }, opts = {}) {
+async function cacheTrainerPull(
+  trainerId,
+  {
+    clients,
+    memberships,
+    health_cards,
+    body_measurements,
+    client_weight_entries,
+    trainings,
+    pnk_funnel_events,
+    club_id,
+    outreach_templates,
+  },
+  opts = {},
+) {
   const mode = String(opts?.mode ?? 'active')
   const preserveArchived = mode === 'active'
   const pending = await buildPendingSyncKeysByTable()
@@ -80,6 +94,7 @@ async function cacheTrainerPull(trainerId, { clients, memberships, health_cards,
     await putStoreUnlessPendingSync('client_weight_entries', normalizeWeightEntryRow(row), pending)
   }
   for (const row of trainings ?? []) await putStoreUnlessPendingSync('trainings', row, pending)
+  for (const row of pnk_funnel_events ?? []) await putStoreUnlessPendingSync('pnk_funnel_events', row, pending)
   const pruned_trainings =
     mode === 'active' ? 0 : await pruneOrphanTrainingsForTrainerClients(clients, trainings, pending?.trainings ?? null)
   const pruned = await pruneOrphanTrainerClients(trainerId, clients, { preserveArchived })

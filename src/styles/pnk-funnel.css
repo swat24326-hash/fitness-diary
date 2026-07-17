@@ -1330,7 +1330,8 @@ button.pnk-chip:disabled {
   border-color: color-mix(in srgb, var(--danger) 40%, transparent);
 }
 
-.pnk-control-card__delete-confirm {
+.pnk-control-card__delete-confirm,
+.pnk-client-panel__refuse-confirm {
   background: rgba(248, 113, 113, 0.2);
   border-color: rgba(248, 113, 113, 0.45);
   color: #fecaca;

@@ -2,6 +2,7 @@ import { sendJson } from '../adminSupabase.js'
 import { formatClientName } from '../../../src/lib/clientNameFormat.js'
 import { applyPnkStagePatch, canDeletePnkClient, isOpenPnkClient } from '../../../src/lib/pnk/pnkStagesCore.js'
 import { mergeNewPnkOntoClient, normalizeClientPnkFields, pickClientPnkFields } from '../../../src/lib/pnk/pnkClientFields.js'
+import { buildPnkLostFunnelEvent, normalizePnkFunnelEventPushPayload } from '../../../src/lib/pnk/pnkFunnelEventsCore.js'
 import { aggregatePnkFunnelStats, listPnkAttentionClients } from '../../../src/lib/pnk/pnkStatsAgg.js'
 import { fetchClubTrainersForSales, parseJsonBody } from './salesHandlers.js'
 
@@ -59,10 +60,28 @@ async function handlePnkGet(ctx, req, res) {
   const trainerNameById = new Map(trainers.map((t) => [t.id, t.name || t.login || t.email || '—']))
   const trainerPhoneById = new Map(trainers.map((t) => [t.id, t.phone ? String(t.phone).trim() : '']))
 
-  const stats = aggregatePnkFunnelStats(clients, {
-    dateFrom: dateFrom || undefined,
-    dateTo: dateTo || undefined,
-  })
+  const { data: eventsData, error: eventsErr } = await supabaseAdmin
+    .from('pnk_funnel_events')
+    .select(
+      'id, club_id, trainer_id, event_type, entered_at, occurred_at, reason, had_nutrition, had_homework, trial_done, package_done, created_at',
+    )
+    .eq('club_id', clubId)
+    .order('occurred_at', { ascending: false })
+    .limit(500)
+  if (eventsErr) {
+    sendJson(res, 500, { error: eventsErr.message || 'Ошибка журнала ПНК' })
+    return
+  }
+  const events = eventsData ?? []
+
+  const stats = aggregatePnkFunnelStats(
+    clients,
+    {
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+    },
+    events,
+  )
   const attention = listPnkAttentionClients(open)
 
   sendJson(res, 200, {
@@ -80,6 +99,10 @@ async function handlePnkGet(ctx, req, res) {
         trainer_name: trainerNameById.get(String(c.trainer_id)) ?? null,
         trainer_phone: trainerPhoneById.get(String(c.trainer_id)) || null,
       })),
+    events: events.map((ev) => ({
+      ...ev,
+      trainer_name: trainerNameById.get(String(ev.trainer_id)) ?? null,
+    })),
     stats: {
       ...stats,
       trainers: stats.trainers.map((row) => ({
@@ -230,6 +253,19 @@ async function handlePnkPost(ctx, req, res) {
     if (!canDeletePnkClient(row)) {
       sendJson(res, 403, { error: 'Удалить можно только карточку ПНК (не оформленного ДК)' })
       return
+    }
+    const built = buildPnkLostFunnelEvent(row, {
+      reason: body.lost_reason || row.pnk_lost_reason || 'Удаление / отказ',
+    })
+    if (built.ok) {
+      const payload = normalizePnkFunnelEventPushPayload(built.event)
+      if (payload) {
+        const { error: evErr } = await supabaseAdmin.from('pnk_funnel_events').insert(payload)
+        if (evErr && evErr.code !== '23505') {
+          sendJson(res, 500, { error: evErr.message || 'Не удалось записать отказ в журнал' })
+          return
+        }
+      }
     }
     const { error } = await supabaseAdmin.from('clients').delete().eq('id', clientId).eq('club_id', clubId)
     if (error) {
