@@ -21,6 +21,7 @@ import {
 import { patchPnkClientLocal } from '../../lib/pnk/pnkLocalService'
 import { shouldOfferMarkPnkTrialDone } from '../../lib/pnk/pnkTrialTrainingCore'
 import { resolvePnkTrialDeliverableAfterWorkout } from '../../lib/pnk/pnkWizardCore'
+import { suggestTrainingPreWeightInput } from '../../lib/clientWeightCore'
 
 const TRAINING_TYPES = TRAINING_SESSION_TYPES
 
@@ -135,13 +136,16 @@ export function TrainingPage() {
       }
       const c = await getLocalClient(clientIdParam)
       setClient(c ?? null)
-      setWorkoutState(emptyTrainingData())
-      setTrainingType('Силовая')
-      setTrainingDate(todayLocalIso())
-      setMeta({ status: 'draft', trainingId: null })
       const hc = await getHealthCard(clientIdParam)
       setHealthCard(hc ?? null)
       setContra((hc?.contraindications ?? '').trim())
+      const prefilled = emptyTrainingData()
+      const fromHealth = suggestTrainingPreWeightInput(hc)
+      if (fromHealth) prefilled.pre_weight_kg = fromHealth
+      setWorkoutState(prefilled)
+      setTrainingType('Силовая')
+      setTrainingDate(todayLocalIso())
+      setMeta({ status: 'draft', trainingId: null })
       const trainings = await listTrainingsForClient(clientIdParam)
       setOtherCompletedTrainings(
         trainings.filter((t) => String(t?.status ?? '') === 'completed').length,
@@ -695,6 +699,7 @@ export function TrainingPage() {
                   value={workoutState.pre_weight_kg ?? ''}
                   onChange={(e) => setWorkoutState((w) => ({ ...w, pre_weight_kg: e.target.value }))}
                   aria-label="Вес до тренировки, кг"
+                  title="Если уже указан в карте здоровья — подставляется автоматически, можно поправить"
                 />
               </div>
             </div>

@@ -14,6 +14,7 @@ import {
 } from './healthCardCore.js'
 import {
   applyHealthWeightPatch,
+  findWeightEntryForTrainingUpsert,
   getHealthCurrentWeightKg,
   getHealthInitialWeightKg,
   listTrainingPreWeights,
@@ -336,14 +337,13 @@ export async function repairBaselineWeightEntries(clientId, health) {
  * @param {{ trainingId: string, date: string, weightKg: number }} pick
  */
 async function upsertTrainingWeightEntry(clientId, entries, pick) {
-  const matches = (entries ?? []).filter(
-    (r) => r?.source === 'training' && r?.training_id === pick.trainingId,
-  )
-  const existing = [...matches].sort((a, b) =>
-    String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')),
-  )[0]
+  const resolved = findWeightEntryForTrainingUpsert(entries, {
+    trainingId: pick.trainingId,
+    date: pick.date,
+  })
+  const existing = resolved.row
 
-  if (existing?.id) {
+  if (existing?.id && (resolved.kind === 'update' || resolved.kind === 'claim')) {
     const op = existing.synced === true ? 'update' : 'insert'
     return saveWeightEntry({
       clientId,

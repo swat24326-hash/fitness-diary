@@ -1,5 +1,6 @@
 import {
   didInitialWeightChange,
+  findWeightEntryForTrainingUpsert,
   formatWeightProgressDelta,
   getHealthCurrentWeightKg,
   getHealthInitialWeightKg,
@@ -8,6 +9,7 @@ import {
   pickLatestTrainingPreWeight,
   listTrainingPreWeights,
   sortWeightEntriesDesc,
+  suggestTrainingPreWeightInput,
   weightEntrySourceLabelRu,
 } from '../src/lib/clientWeightCore.js'
 import { isNutritionPlanStale, nutritionPlanStaleMessage } from '../src/lib/nutrition/nutritionPlanStaleCore.js'
@@ -61,6 +63,28 @@ const sorted = sortWeightEntriesDesc([
 ok(sorted[0].date === '2026-06-10', 'sort entries desc')
 
 ok(weightEntrySourceLabelRu('baseline') === 'Исходный (карта здоровья)', 'source label baseline')
+
+ok(suggestTrainingPreWeightInput({ current_weight_kg: 72.5 }) === '72.5', 'suggest pre_weight from health')
+ok(suggestTrainingPreWeightInput({}) === '', 'suggest empty without health weight')
+ok(suggestTrainingPreWeightInput({ initial_weight_kg: 80 }) === '80', 'suggest from initial when no current')
+
+const claim = findWeightEntryForTrainingUpsert(
+  [{ id: 'b1', date: '2026-07-17', source: 'baseline', weight_kg: 72, created_at: 'a' }],
+  { trainingId: 't1', date: '2026-07-17' },
+)
+ok(claim.kind === 'claim' && claim.row?.id === 'b1', 'same-day baseline claimed by training')
+
+const update = findWeightEntryForTrainingUpsert(
+  [{ id: 'tr', date: '2026-07-17', source: 'training', training_id: 't1', weight_kg: 72, created_at: 'a' }],
+  { trainingId: 't1', date: '2026-07-17' },
+)
+ok(update.kind === 'update' && update.row?.id === 'tr', 'same training_id updates')
+
+const insert = findWeightEntryForTrainingUpsert(
+  [{ id: 'tr2', date: '2026-07-17', source: 'training', training_id: 'other', weight_kg: 71, created_at: 'a' }],
+  { trainingId: 't1', date: '2026-07-17' },
+)
+ok(insert.kind === 'insert', 'second training same day keeps own entry')
 
 const health = { current_weight_kg: 77, height_cm: 170 }
 const plan = { basis: { weightKg: 80, heightCm: 170 } }

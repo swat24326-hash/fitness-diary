@@ -145,6 +145,47 @@ function safeParseJson(raw) {
 }
 
 /**
+ * Вес из карты здоровья для поля «Вес» в новой тренировке (строка для input).
+ * Сначала актуальный, иначе исходный — чтобы после заполнения карты не вводить дважды.
+ * @param {object | null | undefined} health
+ * @returns {string}
+ */
+export function suggestTrainingPreWeightInput(health) {
+  const kg = getHealthCurrentWeightKg(health) ?? getHealthInitialWeightKg(health)
+  if (kg == null) return ''
+  return Number.isInteger(kg) ? String(kg) : String(kg)
+}
+
+/**
+ * Куда писать вес с тренировки: обновить ту же тренировку, «забрать» запись за день
+ * (карта здоровья / вручную), или создать новую. Так не появляется второй вес в один день.
+ * @param {object[]} entries
+ * @param {{ trainingId: string, date: string }} pick
+ * @returns {{ kind: 'update' | 'claim' | 'insert', row: object | null }}
+ */
+export function findWeightEntryForTrainingUpsert(entries, pick) {
+  const list = (entries ?? []).map(normalizeWeightEntryRow)
+  const trainingId = pick?.trainingId != null ? String(pick.trainingId) : ''
+  const day = String(pick?.date ?? '').slice(0, 10)
+
+  if (trainingId) {
+    const byTraining = [...list]
+      .filter((r) => r?.source === 'training' && String(r.training_id ?? '') === trainingId)
+      .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))[0]
+    if (byTraining) return { kind: 'update', row: byTraining }
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(day)) {
+    const sameDayOther = [...list]
+      .filter((r) => String(r?.date ?? '').slice(0, 10) === day && r?.source !== 'training')
+      .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))[0]
+    if (sameDayOther) return { kind: 'claim', row: sameDayOther }
+  }
+
+  return { kind: 'insert', row: null }
+}
+
+/**
  * @param {number | null | undefined} prevInitial
  * @param {number | null | undefined} nextInitial
  */
