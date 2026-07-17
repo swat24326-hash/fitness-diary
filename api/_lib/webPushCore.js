@@ -16,7 +16,8 @@ export function isWebPushConfigured() {
 }
 
 function ensureConfigured() {
-  if (configured || !isWebPushConfigured()) return false
+  if (!isWebPushConfigured()) return false
+  if (configured) return true
   webpush.setVapidDetails(
     process.env.VAPID_SUBJECT || 'mailto:push@fit-city.local',
     process.env.VAPID_PUBLIC_KEY,

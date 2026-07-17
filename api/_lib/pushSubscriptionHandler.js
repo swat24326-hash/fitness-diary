@@ -60,12 +60,16 @@ export async function handlePushSubscriptionPost(ctx, res, body) {
         tag: 'push-test',
       })
       const sent = Number(result.sent ?? 0)
-      let reason = ''
-      if (!sent) {
-        if (result.skipped && result.reason === 'migration_pending') reason = 'migration_pending'
-        else if (result.skipped && result.reason === 'not_configured') reason = 'not_configured'
-        else if (result.skipped) reason = 'skipped'
+      let reason = String(result.reason ?? '').trim()
+      if (!sent && !reason) {
+        if (result.skipped) reason = 'skipped'
         else reason = 'no_subscription'
+      }
+      const messages = {
+        no_subscription: 'На сервере нет подписки этого пользователя. Нажмите «Переподключить».',
+        send_failed: 'Подписка есть, но отправка не удалась. Разрешите уведомления в браузере и нажмите «Переподключить».',
+        not_configured: 'Push не настроен на сервере (VAPID). Задания в Планёрке работают как обычно.',
+        migration_pending: 'Таблица подписок ещё не создана. Админу: npm run db:migrate:iskra -- --linked.',
       }
       sendJson(res, 200, {
         ok: true,
@@ -73,9 +77,7 @@ export async function handlePushSubscriptionPost(ctx, res, body) {
         reason: reason || undefined,
         message: sent
           ? 'Тестовое уведомление отправлено'
-          : reason === 'no_subscription'
-            ? 'На сервере нет подписки этого пользователя. Нажмите «Переподключить».'
-            : 'Тест не отправился. Нажмите «Переподключить» или см. docs/PUSH_SETUP.md.',
+          : messages[reason] || 'Тест не отправился. Нажмите «Переподключить» или см. docs/PUSH_SETUP.md.',
       })
     } catch (e) {
       sendJson(res, 400, { error: e?.message ? String(e.message) : 'Ошибка теста push' })

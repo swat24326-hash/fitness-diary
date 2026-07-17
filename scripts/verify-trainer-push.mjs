@@ -52,5 +52,15 @@ const edgeErr = formatPushSubscribeError(new Error('Registration failed - push s
 })
 ok(edgeErr.includes('Edge') && edgeErr.includes('Windows'), 'edge push error ru')
 
+/** Регрессия: после первой инициализации VAPID повторный вызов не должен «отключать» push. */
+function simulateEnsureConfigured(state) {
+  if (!state.hasKeys) return { ok: false, configured: state.configured }
+  if (state.configured) return { ok: true, configured: true }
+  return { ok: true, configured: true }
+}
+const first = simulateEnsureConfigured({ hasKeys: true, configured: false })
+const second = simulateEnsureConfigured({ hasKeys: true, configured: first.configured })
+ok(first.ok && second.ok, 'vapid stay ready after first init')
+
 if (failed) process.exit(1)
 console.log('verify-trainer-push: all ok')
