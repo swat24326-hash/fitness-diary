@@ -1,16 +1,18 @@
 /**
  * Линейный мастер ПНК: 1 или 2 бесплатные, шаги без пропуска.
+ * После даты — «До визита»; здоровье/питание/тренировка/ДЗ — пакет дня визита.
  * Без React / IDB. Не импортирует pnkStagesCore (избегаем цикла).
  */
 
 import { isHealthCardComplete } from '../healthCardCore.js'
 
-/** @typedef {'created'|'invite'|'health'|'nutrition'|'train1'|'hw1'|'train2'|'hw2'|'followup'|'close'} PnkWizardKey */
+/** @typedef {'created'|'invite'|'wait'|'health'|'nutrition'|'train1'|'hw1'|'train2'|'hw2'|'followup'|'close'} PnkWizardKey */
 
 export const PNK_TRIAL_SESSIONS_OPTIONS = [1, 2]
 
 const DELIVERABLE_KEYS = [
   'contact',
+  'visit_started',
   'health',
   'nutrition',
   'trial',
@@ -37,6 +39,25 @@ function parseDeliverables(raw) {
   return out
 }
 
+function todayIso(now = new Date()) {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+}
+
+/**
+ * Пакет дня визита открыт: пришёл вручную, наступила дата, или уже внутри пакета (старые клиенты).
+ * @param {object} client
+ * @param {ReturnType<typeof parseDeliverables>} d
+ * @param {Date} [now]
+ */
+export function isPnkVisitPackageOpen(client, d, now = new Date()) {
+  if (d.visit_started || d.health || d.nutrition || d.trial || d.homework || d.trial2 || d.homework2) {
+    return true
+  }
+  const trialDate = String(client?.pnk_trial_date ?? '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trialDate)) return false
+  return trialDate <= todayIso(now)
+}
+
 /**
  * @param {unknown} raw
  * @returns {1|2}
@@ -55,6 +76,7 @@ export function buildPnkWizardStepList(sessions) {
   const steps = [
     { key: 'created', title: 'Создан', tab: null },
     { key: 'invite', title: 'Контакт и дата', tab: null },
+    { key: 'wait', title: 'До визита', tab: null },
     { key: 'health', title: 'Здоровье', tab: 'health' },
     { key: 'nutrition', title: 'Питание', tab: 'nutrition' },
     { key: 'train1', title: n === 2 ? 'Тренировка 1 из 2' : 'Бесплатная тренировка', tab: 'diaries' },
@@ -80,23 +102,25 @@ export function buildPnkWizardStepList(sessions) {
 function helpForWizardKey(key, sessions) {
   switch (key) {
     case 'invite':
-      return 'Свяжитесь с клиентом и сохраните дату бесплатной. Дальше без даты нельзя.'
+      return 'Свяжитесь с клиентом и сохраните дату бесплатной.'
+    case 'wait':
+      return 'До визита можно перенести дату или написать клиенту. Когда придёт — «Клиент пришёл».'
     case 'health':
       return 'Заполните карту здоровья (рост, вес, пол). Затем «Далее».'
     case 'nutrition':
-      return 'Сохраните рацион кнопкой «Сохранить рацион». После сохранения можно «Далее». В Max — по желанию.'
+      return 'Сохраните рацион. Затем «Далее». В Max — по желанию.'
     case 'train1':
       return sessions === 2
-        ? 'Проведите первую бесплатную (1 из 2). После «Закончить» вернитесь и нажмите «Далее».'
-        : 'Проведите бесплатную. После «Закончить» вернитесь и нажмите «Далее».'
+        ? 'Проведите первую бесплатную. После «Закончить» — «Далее».'
+        : 'Проведите бесплатную. После «Закончить» — «Далее».'
     case 'hw1':
-      return 'Соберите ДЗ и отправьте в Max — после отправки можно «Далее». Или нажмите «ДЗ выдано».'
+      return 'Выдайте ДЗ (Max или «ДЗ выдано»). Затем «Далее».'
     case 'train2':
-      return 'Проведите вторую бесплатную (2 из 2). Здоровье и питание уже пройдены.'
+      return 'Проведите вторую бесплатную. Затем «Далее».'
     case 'hw2':
-      return 'Соберите ДЗ после 2-й и отправьте в Max — затем «Далее». Или «ДЗ выдано».'
+      return 'Выдайте ДЗ после 2-й. Затем «Далее».'
     case 'followup':
-      return 'Свяжитесь с клиентом после бесплатной. Затем «Далее» или оформление.'
+      return 'Свяжитесь с клиентом после бесплатной. Затем «Далее».'
     case 'close':
       return 'Оформлен (ДК) или отказ.'
     default:
@@ -107,7 +131,7 @@ function helpForWizardKey(key, sessions) {
 /**
  * Текущий шаг мастера.
  * @param {object} client
- * @param {{ healthCard?: object | null, healthComplete?: boolean, bzCompletedCount?: number }} [ctx]
+ * @param {{ healthCard?: object | null, healthComplete?: boolean, bzCompletedCount?: number, now?: Date }} [ctx]
  */
 export function resolvePnkWizardStep(client, ctx = {}) {
   if (!isOpenPnk(client)) return null
@@ -117,11 +141,14 @@ export function resolvePnkWizardStep(client, ctx = {}) {
   const bzDone = Math.max(0, Number(ctx.bzCompletedCount) || 0)
   const trial1Done = Boolean(d.trial) || bzDone >= 1
   const trial2Done = Boolean(d.trial2) || bzDone >= 2
+  const now = ctx.now instanceof Date ? ctx.now : new Date()
 
   /** @type {PnkWizardKey} */
   let key
   if (!d.contact || !client?.pnk_trial_date) {
     key = 'invite'
+  } else if (!isPnkVisitPackageOpen(client, d, now)) {
+    key = 'wait'
   } else if (!d.health) {
     key = 'health'
   } else if (!d.nutrition) {
@@ -173,6 +200,8 @@ export function canAdvancePnkWizardStep(client, step, ctx = {}) {
       if (!client?.pnk_trial_date) return { ok: false, reason: 'Сохраните дату бесплатной' }
       if (!d.contact) return { ok: false, reason: 'Отметьте контакт (напишите клиенту)' }
       return { ok: true }
+    case 'wait':
+      return { ok: false, reason: 'Когда клиент придёт — «Клиент пришёл»' }
     case 'health':
       if (!healthOk) return { ok: false, reason: 'Заполните карту здоровья (рост, вес, пол)' }
       return { ok: true }
@@ -223,6 +252,11 @@ export function buildPnkWizardAdvancePatch(step) {
     default:
       return null
   }
+}
+
+/** Патч «Клиент пришёл» — вход в пакет дня визита до даты. */
+export function buildPnkVisitStartedPatch() {
+  return { deliverable: 'visit_started' }
 }
 
 /**

@@ -4,7 +4,9 @@
 import {
   buildPnkWizardAdvancePatch,
   buildPnkWizardStepList,
+  buildPnkVisitStartedPatch,
   canAdvancePnkWizardStep,
+  isPnkVisitPackageOpen,
   normalizePnkTrialSessions,
   resolvePnkWizardStep,
 } from '../src/lib/pnk/pnkWizardCore.js'
@@ -26,12 +28,17 @@ ok(normalizePnkTrialSessions(99) === 1, 'sessions fallback')
 
 const steps1 = buildPnkWizardStepList(1)
 const steps2 = buildPnkWizardStepList(2)
-ok(steps1.map((s) => s.key).join(',') === 'created,invite,health,nutrition,train1,hw1,followup,close', 'N=1 step list')
 ok(
-  steps2.map((s) => s.key).join(',') === 'created,invite,health,nutrition,train1,hw1,train2,hw2,followup,close',
+  steps1.map((s) => s.key).join(',') ===
+    'created,invite,wait,health,nutrition,train1,hw1,followup,close',
+  'N=1 step list',
+)
+ok(
+  steps2.map((s) => s.key).join(',') ===
+    'created,invite,wait,health,nutrition,train1,hw1,train2,hw2,followup,close',
   'N=2 step list',
 )
-ok(steps1.length === 8 && steps2.length === 10, 'step counts')
+ok(steps1.length === 9 && steps2.length === 11, 'step counts')
 
 function baseClient(sessions) {
   return {
@@ -45,10 +52,10 @@ function baseClient(sessions) {
 }
 
 const empty1 = resolvePnkWizardStep(baseClient(1))
-ok(empty1?.key === 'invite' && empty1.n === 2 && empty1.total === 8, 'N=1 starts at invite')
+ok(empty1?.key === 'invite' && empty1.n === 2 && empty1.total === 9, 'N=1 starts at invite')
 
 const empty2 = resolvePnkWizardStep(baseClient(2))
-ok(empty2?.key === 'invite' && empty2.total === 10, 'N=2 starts at invite total 10')
+ok(empty2?.key === 'invite' && empty2.total === 11, 'N=2 starts at invite total 11')
 
 const afterInvite = {
   ...baseClient(1),
@@ -56,7 +63,19 @@ const afterInvite = {
   pnk_trial_date: '2026-07-20',
   pnk_deliverables: { contact: '2026-07-19T10:00:00.000Z' },
 }
-ok(resolvePnkWizardStep(afterInvite)?.key === 'health', 'after invite → health')
+const beforeVisit = new Date('2026-07-17T12:00:00')
+ok(resolvePnkWizardStep(afterInvite, { now: beforeVisit })?.key === 'wait', 'after invite → wait before date')
+
+ok(buildPnkVisitStartedPatch()?.deliverable === 'visit_started', 'visit started patch')
+const arrived = {
+  ...afterInvite,
+  pnk_deliverables: { ...afterInvite.pnk_deliverables, visit_started: '2026-07-17T12:00:00.000Z' },
+}
+ok(resolvePnkWizardStep(arrived, { now: beforeVisit })?.key === 'health', 'Клиент пришёл → health')
+ok(isPnkVisitPackageOpen(arrived, { visit_started: 'x', health: null, nutrition: null, trial: null, homework: null, trial2: null, homework2: null, contact: 'x', followup: null }, beforeVisit), 'package open after visit_started')
+
+const onVisitDay = resolvePnkWizardStep(afterInvite, { now: new Date('2026-07-20T09:00:00') })
+ok(onVisitDay?.key === 'health', 'visit day → health without button')
 
 const healthCard = {
   height_cm: 170,
@@ -64,14 +83,14 @@ const healthCard = {
   sex: 'male',
   health_filled_at: '2026-07-01',
 }
-const healthStep = resolvePnkWizardStep(afterInvite, { healthCard })
+const healthStep = resolvePnkWizardStep(arrived, { healthCard, now: beforeVisit })
 ok(healthStep?.key === 'health', 'still health until deliverable')
-ok(canAdvancePnkWizardStep(afterInvite, healthStep, { healthCard }).ok === true, 'health can advance with card')
+ok(canAdvancePnkWizardStep(arrived, healthStep, { healthCard }).ok === true, 'health can advance with card')
 ok(buildPnkWizardAdvancePatch(healthStep)?.deliverable === 'health', 'health advance patch')
 
 const afterHealth = {
-  ...afterInvite,
-  pnk_deliverables: { ...afterInvite.pnk_deliverables, health: '2026-07-19T11:00:00.000Z' },
+  ...arrived,
+  pnk_deliverables: { ...arrived.pnk_deliverables, health: '2026-07-19T11:00:00.000Z' },
 }
 ok(resolvePnkWizardStep(afterHealth)?.key === 'nutrition', '→ nutrition')
 const nutritionStep = resolvePnkWizardStep(afterHealth)
@@ -110,7 +129,6 @@ const afterFollowup = {
 }
 ok(resolvePnkWizardStep(afterFollowup)?.key === 'close', 'N=1 → close')
 
-/* N=2 path: after hw1 need train2 */
 const n2AfterHw1 = {
   ...afterHw1,
   pnk_trial_sessions: 2,
@@ -136,13 +154,13 @@ ok(resolvePnkWizardStep({ lifecycle: 'active', pnk_stage: 'won' }) === null, 'cl
 ok(buildPnkWizardAdvancePatch({ key: 'train1' })?.deliverable === 'trial', 'train1 patch')
 ok(buildPnkWizardAdvancePatch({ key: 'train2' })?.deliverable === 'trial2', 'train2 patch')
 ok(buildPnkWizardAdvancePatch({ key: 'invite' }) === null, 'invite no advance patch')
+ok(buildPnkWizardAdvancePatch({ key: 'wait' }) === null, 'wait no advance patch')
 
-/* Жёсткая последовательность вкладок — только текущий шаг */
 function onlyTab(client, expectTab, label, extraVisible = []) {
   const tabs = ['health', 'nutrition', 'homework', 'diaries', 'memberships', 'stats']
   const allowed = new Set(expectTab == null ? extraVisible : [expectTab, ...extraVisible])
   for (const t of tabs) {
-    const vis = isPnkCardTabVisible(client, t)
+    const vis = isPnkCardTabVisible(client, t, { now: beforeVisit })
     if (expectTab == null && extraVisible.length === 0) {
       ok(!vis, `${label}: ${t} hidden`)
     } else if (allowed.has(t)) {
@@ -154,9 +172,10 @@ function onlyTab(client, expectTab, label, extraVisible = []) {
 }
 
 onlyTab(baseClient(1), null, 'invite')
-onlyTab(afterInvite, 'health', 'health step')
+onlyTab(afterInvite, null, 'wait')
+onlyTab(arrived, 'health', 'health step')
 onlyTab(afterHealth, 'nutrition', 'nutrition step')
-onlyTab(afterNutrition, 'diaries', 'train step', ['memberships'])
+onlyTab(afterNutrition, 'diaries', 'train step')
 onlyTab(afterTrain1, 'homework', 'hw step')
 onlyTab(afterFollowup, null, 'close step')
 

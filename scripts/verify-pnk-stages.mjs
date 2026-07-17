@@ -147,8 +147,8 @@ ok(
     ...waitCall,
     pnk_deliverables: { contact: 'x' },
     pnk_trial_date: '2026-07-20',
-  })?.key === 'health',
-  'next hint health after date',
+  })?.key === 'wait',
+  'next hint wait after date before visit',
 )
 ok(
   pnkNextActionHint({
@@ -198,7 +198,7 @@ const afterNutrition = {
   pnk_deliverables: { contact: 'x', health: 'x', nutrition: 'x' },
 }
 ok(isPnkCardTabVisible(afterNutrition, 'diaries'), 'only diaries on train step')
-ok(isPnkCardTabVisible(afterNutrition, 'memberships'), 'memberships allowed on train step')
+ok(!isPnkCardTabVisible(afterNutrition, 'memberships'), 'memberships hidden on train step')
 ok(!isPnkCardTabVisible(afterNutrition, 'nutrition'), 'nutrition hidden on train step')
 ok(!isPnkCardTabVisible(afterNutrition, 'homework'), 'homework hidden on train step')
 const afterTrial = {

@@ -5,7 +5,7 @@
 import { resolvePnkWizardStep } from './pnkWizardCore.js'
 
 /** @typedef {'new'|'assigned'|'contact'|'agreed'|'trial_done'|'followup'|'won'|'lost'} PnkStage */
-/** @typedef {'contact'|'health'|'nutrition'|'trial'|'homework'|'trial2'|'homework2'|'followup'} PnkDeliverableKey */
+/** @typedef {'contact'|'visit_started'|'health'|'nutrition'|'trial'|'homework'|'trial2'|'homework2'|'followup'} PnkDeliverableKey */
 /** @typedef {'active'|'pnk'|'pnk_lost'} ClientLifecycle */
 
 /** @type {PnkStage[]} */
@@ -26,6 +26,7 @@ export const PNK_STAGE_LABELS = {
 /** @type {PnkDeliverableKey[]} */
 export const PNK_DELIVERABLE_KEYS = [
   'contact',
+  'visit_started',
   'health',
   'nutrition',
   'trial',
@@ -38,6 +39,7 @@ export const PNK_DELIVERABLE_KEYS = [
 /** @type {Record<PnkDeliverableKey, string>} */
 export const PNK_DELIVERABLE_LABELS = {
   contact: 'Первый контакт',
+  visit_started: 'Визит начат',
   health: 'Здоровье',
   nutrition: 'Питание',
   trial: 'Бесплатная 1',
@@ -491,20 +493,17 @@ export function resolvePnkVisitDayState(client, now = new Date()) {
 
 /**
  * Строгая последовательность: видна только вкладка текущего шага мастера.
- * На шаге тренировки дополнительно — «Абонементы» (если БЗ нужно добавить вручную).
  * @param {object} client
  * @param {string} tabId
- * @param {{ healthCard?: object | null, bzCompletedCount?: number, healthComplete?: boolean }} [ctx]
+ * @param {{ healthCard?: object | null, bzCompletedCount?: number, healthComplete?: boolean, now?: Date }} [ctx]
  */
 export function isPnkCardTabVisible(client, tabId, ctx = {}) {
   const id = String(tabId ?? '')
   if (!isOpenPnkClient(client)) return true
   if (id === 'stats') return false
   const step = resolvePnkWizardStep(client, ctx)
-  if (!step) return false
-  if (step.tab === id) return true
-  if ((step.key === 'train1' || step.key === 'train2') && id === 'memberships') return true
-  return false
+  if (!step?.tab) return false
+  return step.tab === id
 }
 
 /** Фильтры доски менеджера */

@@ -7,7 +7,7 @@ import {
   parsePnkDeliverables,
   resolvePnkTrainerUiStep,
 } from '../../lib/pnk/pnkStagesCore'
-import { canAdvancePnkWizardStep, buildPnkWizardAdvancePatch } from '../../lib/pnk/pnkWizardCore'
+import { canAdvancePnkWizardStep, buildPnkWizardAdvancePatch, buildPnkVisitStartedPatch } from '../../lib/pnk/pnkWizardCore'
 import { patchPnkClientLocal } from '../../lib/pnk/pnkLocalService'
 import { PnkClientMessengerButtons } from '../pnk/PnkClientMessengerButtons'
 import { PnkStepBlocks } from '../pnk/PnkStepBlocks'
@@ -190,7 +190,7 @@ export function ClientPnkPanel({
 
       <p className="pnk-client-panel__help">{step.help}</p>
 
-      {flags.length ? <PnkAttentionChips flags={flags} /> : null}
+      {flags.length && step.key !== 'wait' && step.key !== 'invite' ? <PnkAttentionChips flags={flags} /> : null}
 
       {toast ? (
         <p className="sync-feedback sync-feedback--ok" role="status">
@@ -205,7 +205,6 @@ export function ClientPnkPanel({
 
       {step.key === 'invite' ? (
         <div className="pnk-client-panel__step">
-          <p className="pnk-client-panel__sub">Написать клиенту</p>
           <div className="pnk-client-panel__actions">
             <PnkClientMessengerButtons
               kind="invite"
@@ -238,18 +237,9 @@ export function ClientPnkPanel({
                 onChange={(e) => setTrialTime(e.target.value)}
               />
             </label>
-            <label className="pnk-client-panel__field pnk-client-panel__field--grow">
-              Комментарий
-              <input
-                className="input"
-                value={comment}
-                placeholder="Что договорились"
-                onChange={(e) => setComment(e.target.value)}
-              />
-            </label>
           </div>
 
-          <div className="pnk-client-panel__actions">
+          <div className="pnk-client-panel__actions pnk-client-panel__actions--step">
             <button
               type="button"
               className="btn btn-primary btn-touch pnk-client-panel__btn-primary"
@@ -259,15 +249,74 @@ export function ClientPnkPanel({
                   stage: 'agreed',
                   trial_date: trialDate,
                   trial_time: trialTime,
-                  comment: comment || undefined,
                   deliverable: 'contact',
                 })
-                setComment('')
               }}
             >
               <CalendarPlus size={18} aria-hidden /> Сохранить дату
             </button>
             {earlyLostButton()}
+          </div>
+        </div>
+      ) : null}
+
+      {step.key === 'wait' ? (
+        <div className="pnk-client-panel__step">
+          <div className="pnk-client-panel__schedule">
+            <label className="pnk-client-panel__field">
+              Дата
+              <input
+                className="input"
+                type="date"
+                value={trialDate}
+                onChange={(e) => setTrialDate(e.target.value)}
+              />
+            </label>
+            <label className="pnk-client-panel__field">
+              Время
+              <input
+                className="input"
+                type="time"
+                value={trialTime}
+                onChange={(e) => setTrialTime(e.target.value)}
+              />
+            </label>
+          </div>
+          <div className="pnk-client-panel__actions pnk-client-panel__actions--step">
+            <button
+              type="button"
+              className="btn btn-secondary btn-touch"
+              disabled={busy || !trialDate}
+              onClick={() =>
+                void run({
+                  trial_date: trialDate,
+                  trial_time: trialTime,
+                })
+              }
+            >
+              Изменить дату
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-touch pnk-client-panel__btn-primary"
+              disabled={busy}
+              onClick={() => void run(buildPnkVisitStartedPatch())}
+            >
+              Клиент пришёл
+            </button>
+            {earlyLostButton()}
+          </div>
+          <div className="pnk-client-panel__actions" style={{ marginTop: 8 }}>
+            <PnkClientMessengerButtons
+              kind="invite"
+              client={client}
+              trainerName={trainerName}
+              clubName=""
+              trialDate={trialDate}
+              trialTime={trialTime}
+              busy={busy}
+              onResult={onMessengerResult}
+            />
           </div>
         </div>
       ) : null}
@@ -307,9 +356,6 @@ export function ClientPnkPanel({
 
       {step.key === 'train1' || step.key === 'train2' ? (
         <div className="pnk-client-panel__step">
-          <p className="pnk-client-panel__sub">
-            Открывается форма тренировки (упражнения). Если не открылась — нажмите кнопку.
-          </p>
           {stepActions(
             typeof onStartTraining === 'function' || typeof onOpenDiaries === 'function' ? (
               <button
