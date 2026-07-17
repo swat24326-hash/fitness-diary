@@ -37,7 +37,14 @@ import { BODY_MEASURE_FIELDS, getMeasureValue } from '../../lib/bodyMeasures'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 import { explainInactiveMembership, pickUsableMembershipForDate, countedUsedTrainingsOnMembership } from '../../lib/membershipRules'
 
-export function ClientOverview({ client, onReload, section = 'all', readOnly = false }) {
+export function ClientOverview({
+  client,
+  onReload,
+  section = 'all',
+  readOnly = false,
+  membershipAutoOpen = false,
+  membershipPreferPaid = false,
+}) {
   const location = useLocation()
   const { showToast, toast } = useAppToast()
   const [memberships, setMemberships] = useState([])
@@ -399,6 +406,8 @@ export function ClientOverview({ client, onReload, section = 'all', readOnly = f
             clientId={client.id}
             clubId={client.club_id}
             recordTrainerId={client.trainer_id}
+            autoOpenNew={membershipAutoOpen}
+            preferPaidType={membershipPreferPaid}
             onChanged={() => {
               void reloadLocal()
               void onReload?.()

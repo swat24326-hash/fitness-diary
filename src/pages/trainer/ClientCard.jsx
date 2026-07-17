@@ -176,6 +176,12 @@ export function ClientCard() {
     return hasUsableMembershipOnDate(memberships, today)
   }, [memberships])
 
+  const pnkCloseMemberships = useMemo(() => {
+    if (!client || !isOpenPnkClient(client)) return false
+    const step = resolvePnkTrainerUiStep(client, { healthCard, bzCompletedCount })
+    return step?.key === 'close'
+  }, [client, healthCard, bzCompletedCount])
+
   const isArchived = Boolean(client?.archived_at)
 
   const restoreFromArchive = useCallback(async () => {
@@ -562,7 +568,14 @@ export function ClientCard() {
         )}
       {tab === 'memberships' &&
         (!isOpenPnkClient(client) || isPnkCardTabVisible(client, 'memberships', { healthCard, bzCompletedCount })) && (
-          <ClientOverview client={client} onReload={reloadLocal} section="memberships" readOnly={isArchived} />
+          <ClientOverview
+            client={client}
+            onReload={reloadLocal}
+            section="memberships"
+            readOnly={isArchived}
+            membershipAutoOpen={pnkCloseMemberships && !isArchived}
+            membershipPreferPaid={pnkCloseMemberships}
+          />
         )}
       {tab === 'stats' &&
         (!isOpenPnkClient(client) || isPnkCardTabVisible(client, 'stats', { healthCard, bzCompletedCount })) && (

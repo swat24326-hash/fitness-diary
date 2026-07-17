@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { listMemberships, listTrainingsForClient } from '../lib/dataAccess'
 import { getDb } from '../lib/localDb'
 import { deleteLocalWithSync, saveLocalWithSync } from '../lib/syncService'
 import { addDaysToIso, formatDateRu, formatDateTimeRu, todayLocalIso } from '../lib/dateRu'
 import { completedTrainingsOnMembership } from '../lib/membershipRules'
 import { ensureMembershipTypesForClub, isTrainerAssignableMembershipType, membershipTypeCode } from '../lib/membershipTypesService'
-import { findPnkTrialMembershipType } from '../lib/pnk/pnkTrialTrainingCore'
+import { findPnkTrialMembershipType, isPnkTrialTypeRow } from '../lib/pnk/pnkTrialTrainingCore'
 import {
   classifySaleClientSegment,
   saleClientSegmentHintRu,
@@ -82,7 +83,16 @@ function MembershipStatusIcon({ kind }) {
   )
 }
 
-export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged }) {
+export function MembershipManager({
+  clientId,
+  clubId,
+  recordTrainerId,
+  onChanged,
+  /** Сразу открыть форму нового абонемента (шаг ПНК → ДК). */
+  autoOpenNew = false,
+  /** По умолчанию выбирать платный тип, не БЗ. */
+  preferPaidType = false,
+}) {
   const { user } = useAuth()
   const [items, setItems] = useState([])
   const [selectedId, setSelectedId] = useState(null)
@@ -96,6 +106,7 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
   const [trainings, setTrainings] = useState([])
   const [viewOpenId, setViewOpenId] = useState(null)
   const [confirmCancel, setConfirmCancel] = useState(null) // { t, membership }
+  const autoOpenedRef = useRef(false)
 
   const todayIso = useMemo(() => todayLocalIso(), [])
 
@@ -136,23 +147,51 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
     [clubId],
   )
 
+  const pickDefaultTypeId = useCallback(
+    (types) => {
+      const list = types ?? membershipTypes
+      const assignable = list.filter((t) => t.is_active !== false && isTrainerAssignableMembershipType(t))
+      if (preferPaidType) {
+        const paid = assignable.find((t) => !isPnkTrialTypeRow(t))
+        if (paid?.id) return { id: String(paid.id), total: 12 }
+      }
+      const bz = findPnkTrialMembershipType(list)
+      if (bz?.id && !preferPaidType) {
+        return { id: String(bz.id), total: 1 }
+      }
+      const first = assignable.find((t) => (preferPaidType ? !isPnkTrialTypeRow(t) : true)) ?? assignable[0]
+      if (first?.id) {
+        return { id: String(first.id), total: preferPaidType ? 12 : 1 }
+      }
+      return { id: '', total: preferPaidType ? 12 : 1 }
+    },
+    [membershipTypes, preferPaidType],
+  )
+
   const openNewMembership = useCallback(() => {
     setNewOpen(true)
     const activeCount = membershipTypes.filter((t) => t.is_active !== false).length
     if (activeCount === 0) void reloadTypes({ force: true })
-    const bz = findPnkTrialMembershipType(membershipTypes)
-    if (bz?.id) {
-      setForm((f) => ({
-        ...f,
-        total_trainings: 1,
-        membership_type_id: String(bz.id),
-      }))
-    }
-  }, [membershipTypes, reloadTypes])
+    const picked = pickDefaultTypeId(membershipTypes)
+    setForm((f) => ({
+      ...f,
+      start_date: f.start_date || todayIso,
+      end_date: f.end_date || addDaysToIso(todayIso, 30),
+      total_trainings: picked.total,
+      membership_type_id: picked.id,
+    }))
+  }, [membershipTypes, reloadTypes, pickDefaultTypeId, todayIso])
 
   useEffect(() => {
     void reloadTypes()
   }, [reloadTypes])
+
+  useEffect(() => {
+    if (!autoOpenNew || autoOpenedRef.current) return
+    if (typesLoading) return
+    autoOpenedRef.current = true
+    openNewMembership()
+  }, [autoOpenNew, typesLoading, openNewMembership, membershipTypes])
 
   useEffect(() => {
     const onStorage = () => {
@@ -424,151 +463,219 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
 
   return (
     <div className="grid" style={{ gap: 16 }}>
-      {newOpen && (
-        <div className="modal-overlay modal-overlay--center" role="dialog" aria-modal="true" aria-label="Новый абонемент">
-          <div className="modal-panel modal-panel--membership-form">
-            <ModalHeader title="Новый абонемент" onClose={() => setNewOpen(false)} />
-            <form onSubmit={addMembership} className="grid membership-form" style={{ gap: 12 }}>
-              {saleSegmentHint ? (
-                <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.4 }} title="Сегмент для отчёта продаж">
-                  Сегмент продажи: <strong style={{ color: 'var(--text)' }}>{saleSegmentHint}</strong>
-                </p>
-              ) : null}
-              <div className="grid grid-2" style={{ gap: 8 }}>
-                <input className="input" type="date" value={form.start_date} onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))} />
-                <input className="input" type="date" value={form.end_date} onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))} />
-              </div>
-              <input
-                className="input"
-                type="number"
-                min={0}
-                placeholder="Всего тренировок"
-                value={form.total_trainings}
-                onChange={(e) => setForm((f) => ({ ...f, total_trainings: e.target.value }))}
+      {newOpen &&
+        createPortal(
+          <div
+            className="modal-overlay modal-overlay--center"
+            role="dialog"
+            aria-modal="true"
+            aria-label={preferPaidType ? 'Платный абонемент ДК' : 'Новый абонемент'}
+          >
+            <div className="modal-panel modal-panel--membership-form">
+              <ModalHeader
+                title={preferPaidType ? 'Платный абонемент (ДК)' : 'Новый абонемент'}
+                onClose={() => setNewOpen(false)}
               />
-              <div className="field" style={{ margin: 0 }}>
-                <label className="label" htmlFor="membership-new-type">
-                  Тип абонемента
-                </label>
-                <select
-                  id="membership-new-type"
-                  className="input"
-                  value={form.membership_type_id}
-                  disabled={typesLoading}
-                  onChange={(e) => setForm((f) => ({ ...f, membership_type_id: e.target.value }))}
-                >
-                  <option value="">{typesLoading ? 'Загрузка типов…' : '—'}</option>
-                  {typeOptionsForSelect(form.membership_type_id).map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.code}
-                    </option>
-                  ))}
-                </select>
-                {!typesLoading && typeOptionsForSelect(form.membership_type_id).length === 0 ? (
-                  <p className="muted" style={{ margin: '6px 0 0', fontSize: '0.85rem' }}>
-                    {typesLoadError || 'Типов нет в кэше. Проверьте сеть или нажмите Sync в шапке.'}
+              <form onSubmit={addMembership} className="grid membership-form" style={{ gap: 12 }}>
+                {preferPaidType ? (
+                  <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.4 }}>
+                    Выберите платный тип (не БЗ), срок и число тренировок — затем «Добавить». После этого нажмите
+                    «Оформлен (ДК)» в шапке воронки.
                   </p>
                 ) : null}
-              </div>
-              <div className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
-                <button type="submit" className="btn btn-primary btn-touch">
-                  Добавить
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {selected && editOpenId === selected.id && (
-        <div className="modal-overlay modal-overlay--center" role="dialog" aria-modal="true" aria-label="Редактирование абонемента">
-          <div className="modal-panel modal-panel--membership-form">
-            <ModalHeader title="Редактирование абонемента" onClose={() => setEditOpenId(null)} />
-            <form onSubmit={saveEdit} className="grid membership-form" style={{ gap: 12 }}>
-              <div className="grid grid-2" style={{ gap: 8 }}>
-                <div className="field" style={{ margin: 0 }}>
-                  <label className="label">Начало</label>
-                  <input className="input" type="date" value={edit.start_date} onChange={(e) => setEdit((s) => ({ ...s, start_date: e.target.value }))} />
+                {saleSegmentHint ? (
+                  <p className="muted" style={{ margin: 0, fontSize: 13, lineHeight: 1.4 }} title="Сегмент для отчёта продаж">
+                    Сегмент продажи: <strong style={{ color: 'var(--text)' }}>{saleSegmentHint}</strong>
+                  </p>
+                ) : null}
+                <div className="grid grid-2" style={{ gap: 8 }}>
+                  <input className="input" type="date" value={form.start_date} onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))} />
+                  <input className="input" type="date" value={form.end_date} onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))} />
                 </div>
-                <div className="field" style={{ margin: 0 }}>
-                  <label className="label">Окончание</label>
-                  <input className="input" type="date" value={edit.end_date} onChange={(e) => setEdit((s) => ({ ...s, end_date: e.target.value }))} />
-                </div>
-              </div>
-
-              <div className="field" style={{ margin: 0 }}>
-                <label className="label">Всего тренировок</label>
-                <input className="input" type="number" min={0} value={edit.total_trainings} onChange={(e) => setEdit((s) => ({ ...s, total_trainings: e.target.value }))} />
-              </div>
-
-              <div className="field" style={{ margin: 0 }}>
-                <label className="label" htmlFor="membership-edit-type">
-                  Тип абонемента
-                </label>
-                <select
-                  id="membership-edit-type"
+                <input
                   className="input"
-                  value={edit.membership_type_id}
-                  disabled={typesLoading}
-                  onChange={(e) => setEdit((s) => ({ ...s, membership_type_id: e.target.value }))}
-                >
-                  <option value="">{typesLoading ? 'Загрузка типов…' : '—'}</option>
-                  {typeOptionsForSelect(edit.membership_type_id).map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.code}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  type="number"
+                  min={0}
+                  placeholder="Всего тренировок"
+                  value={form.total_trainings}
+                  onChange={(e) => setForm((f) => ({ ...f, total_trainings: e.target.value }))}
+                />
+                <div className="field" style={{ margin: 0 }}>
+                  <label className="label" htmlFor="membership-new-type">
+                    Тип абонемента
+                  </label>
+                  <select
+                    id="membership-new-type"
+                    className="input"
+                    value={form.membership_type_id}
+                    disabled={typesLoading}
+                    onChange={(e) => setForm((f) => ({ ...f, membership_type_id: e.target.value }))}
+                  >
+                    <option value="">{typesLoading ? 'Загрузка типов…' : '—'}</option>
+                    {typeOptionsForSelect(form.membership_type_id).map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.code}
+                        {isPnkTrialTypeRow(t) ? ' (БЗ)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {!typesLoading && typeOptionsForSelect(form.membership_type_id).length === 0 ? (
+                    <p className="muted" style={{ margin: '6px 0 0', fontSize: '0.85rem' }}>
+                      {typesLoadError || 'Типов нет в кэше. Проверьте сеть или нажмите Sync в шапке.'}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
+                  <button type="submit" className="btn btn-primary btn-touch">
+                    Добавить
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body,
+        )}
 
-              <div className="muted" style={{ fontSize: 13 }}>
-                Использовано: <strong>{selected.used_trainings ?? 0}</strong>
-              </div>
+      {selected &&
+        editOpenId === selected.id &&
+        createPortal(
+          <div className="modal-overlay modal-overlay--center" role="dialog" aria-modal="true" aria-label="Редактирование абонемента">
+            <div className="modal-panel modal-panel--membership-form">
+              <ModalHeader title="Редактирование абонемента" onClose={() => setEditOpenId(null)} />
+              <form onSubmit={saveEdit} className="grid membership-form" style={{ gap: 12 }}>
+                <div className="grid grid-2" style={{ gap: 8 }}>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label className="label">Начало</label>
+                    <input className="input" type="date" value={edit.start_date} onChange={(e) => setEdit((s) => ({ ...s, start_date: e.target.value }))} />
+                  </div>
+                  <div className="field" style={{ margin: 0 }}>
+                    <label className="label">Окончание</label>
+                    <input className="input" type="date" value={edit.end_date} onChange={(e) => setEdit((s) => ({ ...s, end_date: e.target.value }))} />
+                  </div>
+                </div>
 
-              <div className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
-                <button type="submit" className="btn btn-primary btn-touch">
-                  Сохранить
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+                <div className="field" style={{ margin: 0 }}>
+                  <label className="label">Всего тренировок</label>
+                  <input className="input" type="number" min={0} value={edit.total_trainings} onChange={(e) => setEdit((s) => ({ ...s, total_trainings: e.target.value }))} />
+                </div>
 
-      {viewOpenId && (
-        <div
-          className="modal-overlay modal-overlay--center modal-overlay--membership-view"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Тренировки абонемента"
-          onClick={() => setViewOpenId(null)}
-        >
-          <div className="modal-panel modal-panel--membership-view" onClick={(e) => e.stopPropagation()}>
-            {(() => {
-              const m = items.find((x) => x.id === viewOpenId)
-              const list = m ? trainingsForMembership(m) : []
-              const total = Number(m?.total_trainings ?? 0)
-              const used = Number(m?.used_trainings ?? 0)
-              const canWriteOff =
-                m &&
-                Number.isFinite(total) &&
-                total > 0 &&
-                Number.isFinite(used) &&
-                used < total
-              return (
-                <div className="membership-view">
-                  <div className="membership-view__header">
-                    <ModalHeader title="Тренировки абонемента" onClose={() => setViewOpenId(null)} />
-                    <div className="muted membership-view__period">
-                      Период: <strong style={{ color: 'var(--text)' }}>{formatDateRu(m?.start_date)} — {formatDateRu(m?.end_date)}</strong>
-                      {Number.isFinite(total) && total > 0 ? (
-                        <>
-                          {' '}
-                          · использовано <strong style={{ color: 'var(--text)' }}>{used}/{total}</strong>
-                        </>
-                      ) : null}
+                <div className="field" style={{ margin: 0 }}>
+                  <label className="label" htmlFor="membership-edit-type">
+                    Тип абонемента
+                  </label>
+                  <select
+                    id="membership-edit-type"
+                    className="input"
+                    value={edit.membership_type_id}
+                    disabled={typesLoading}
+                    onChange={(e) => setEdit((s) => ({ ...s, membership_type_id: e.target.value }))}
+                  >
+                    <option value="">{typesLoading ? 'Загрузка типов…' : '—'}</option>
+                    {typeOptionsForSelect(edit.membership_type_id).map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.code}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="muted" style={{ fontSize: 13 }}>
+                  Использовано: <strong>{selected.used_trainings ?? 0}</strong>
+                </div>
+
+                <div className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
+                  <button type="submit" className="btn btn-primary btn-touch">
+                    Сохранить
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>,
+          document.body,
+        )}
+
+      {viewOpenId &&
+        createPortal(
+          <div
+            className="modal-overlay modal-overlay--center modal-overlay--membership-view"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Тренировки абонемента"
+            onClick={() => setViewOpenId(null)}
+          >
+            <div className="modal-panel modal-panel--membership-view" onClick={(e) => e.stopPropagation()}>
+              {(() => {
+                const m = items.find((x) => x.id === viewOpenId)
+                const list = m ? trainingsForMembership(m) : []
+                const total = Number(m?.total_trainings ?? 0)
+                const used = Number(m?.used_trainings ?? 0)
+                const canWriteOff =
+                  m && Number.isFinite(total) && total > 0 && Number.isFinite(used) && used < total
+                return (
+                  <div className="membership-view">
+                    <div className="membership-view__header">
+                      <ModalHeader title="Тренировки абонемента" onClose={() => setViewOpenId(null)} />
+                      <div className="muted membership-view__period">
+                        Период:{' '}
+                        <strong style={{ color: 'var(--text)' }}>
+                          {formatDateRu(m?.start_date)} — {formatDateRu(m?.end_date)}
+                        </strong>
+                        {Number.isFinite(total) && total > 0 ? (
+                          <>
+                            {' '}
+                            · использовано <strong style={{ color: 'var(--text)' }}>{used}/{total}</strong>
+                          </>
+                        ) : null}
+                      </div>
+                      <div className="membership-view__toolbar">
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-touch membership-view__writeoff"
+                          aria-label="Списать тренировку"
+                          title={canWriteOff ? 'Списать тренировку с абонемента' : 'Лимит тренировок исчерпан'}
+                          onClick={() => writeOffTraining(m)}
+                          disabled={!canWriteOff}
+                        >
+                          <CheckCircle2 size={18} aria-hidden />
+                          Списать тренировку
+                        </button>
+                        {Number.isFinite(total) && total > 0 ? (
+                          <span className="membership-view__usage-chip" aria-live="polite">
+                            {used}/{total}
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
-                    <div className="membership-view__toolbar">
+
+                    <div className="membership-view__body">
+                      {list.length === 0 ? (
+                        <p className="muted membership-view__empty">Пока нет завершённых тренировок по этому абонементу.</p>
+                      ) : (
+                        <ul className="membership-training-list">
+                          {list.map((t, idx) => (
+                            <li key={t.id} className="membership-training-list__item">
+                              <div className="membership-training-list__main">
+                                <strong>{formatDateRu(t.date ?? t.created_at?.slice(0, 10))}</strong>
+                                <div className="muted membership-training-list__meta">
+                                  тренировка {idx + 1}/{Number.isFinite(total) && total > 0 ? total : '—'}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-icon-square"
+                                aria-label="Отменить тренировку"
+                                title="Отменить тренировку"
+                                onClick={() => cancelTraining(t, m)}
+                              >
+                                <Trash2 size={18} aria-hidden />
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+
+                    <div className="membership-view__footer">
                       <button
                         type="button"
                         className="btn btn-primary btn-touch membership-view__writeoff"
@@ -580,105 +687,69 @@ export function MembershipManager({ clientId, clubId, recordTrainerId, onChanged
                         <CheckCircle2 size={18} aria-hidden />
                         Списать тренировку
                       </button>
-                      {Number.isFinite(total) && total > 0 ? (
-                        <span className="membership-view__usage-chip" aria-live="polite">
-                          {used}/{total}
-                        </span>
-                      ) : null}
                     </div>
                   </div>
-
-                  <div className="membership-view__body">
-                    {list.length === 0 ? (
-                      <p className="muted membership-view__empty">
-                        Пока нет завершённых тренировок по этому абонементу.
-                      </p>
-                    ) : (
-                      <ul className="membership-training-list">
-                        {list.map((t, idx) => (
-                          <li key={t.id} className="membership-training-list__item">
-                            <div className="membership-training-list__main">
-                              <strong>{formatDateRu(t.date ?? t.created_at?.slice(0, 10))}</strong>
-                              <div className="muted membership-training-list__meta">
-                                тренировка {idx + 1}/{Number.isFinite(total) && total > 0 ? total : '—'}
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              className="btn btn-ghost btn-icon-square"
-                              aria-label="Отменить тренировку"
-                              title="Отменить тренировку"
-                              onClick={() => cancelTraining(t, m)}
-                            >
-                              <Trash2 size={18} aria-hidden />
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-
-                  <div className="membership-view__footer">
-                    <button
-                      type="button"
-                      className="btn btn-primary btn-touch membership-view__writeoff"
-                      aria-label="Списать тренировку"
-                      title={canWriteOff ? 'Списать тренировку с абонемента' : 'Лимит тренировок исчерпан'}
-                      onClick={() => writeOffTraining(m)}
-                      disabled={!canWriteOff}
-                    >
-                      <CheckCircle2 size={18} aria-hidden />
-                      Списать тренировку
-                    </button>
-                  </div>
-                </div>
-              )
-            })()}
-          </div>
-        </div>
-      )}
-
-      {confirmCancel && (
-        <div className="modal-overlay modal-overlay--center" role="dialog" aria-modal="true" aria-label="Подтверждение удаления тренировки" onClick={() => setConfirmCancel(null)}>
-          <div className="modal-panel modal-panel--membership-form" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ marginTop: 0 }}>Отменить тренировку?</h3>
-            <p className="muted" style={{ marginTop: 6 }}>
-              Дата: <strong style={{ color: 'var(--text)' }}>{formatDateRu(confirmCancel.t?.date ?? confirmCancel.t?.created_at?.slice(0, 10))}</strong>
-            </p>
-            <p className="muted" style={{ marginTop: 6 }}>
-              Тренировка будет удалена из дневника и из истории абонемента. Если это было списание (неявка), списание тоже отменится.
-            </p>
-            <div className="row" style={{ justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
-              <button type="button" className="btn btn-ghost btn-touch" onClick={() => setConfirmCancel(null)}>
-                Отмена
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary btn-touch"
-                onClick={async () => {
-                  const payload = confirmCancel
-                  setConfirmCancel(null)
-                  await doCancelTraining(payload.t, payload.membership)
-                }}
-              >
-                Удалить
-              </button>
+                )
+              })()}
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
+
+      {confirmCancel &&
+        createPortal(
+          <div
+            className="modal-overlay modal-overlay--center"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Подтверждение удаления тренировки"
+            onClick={() => setConfirmCancel(null)}
+          >
+            <div className="modal-panel modal-panel--membership-form" onClick={(e) => e.stopPropagation()}>
+              <h3 style={{ marginTop: 0 }}>Отменить тренировку?</h3>
+              <p className="muted" style={{ marginTop: 6 }}>
+                Дата:{' '}
+                <strong style={{ color: 'var(--text)' }}>
+                  {formatDateRu(confirmCancel.t?.date ?? confirmCancel.t?.created_at?.slice(0, 10))}
+                </strong>
+              </p>
+              <p className="muted" style={{ marginTop: 6 }}>
+                Тренировка будет удалена из дневника и из истории абонемента. Если это было списание (неявка), списание
+                тоже отменится.
+              </p>
+              <div className="row" style={{ justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
+                <button type="button" className="btn btn-ghost btn-touch" onClick={() => setConfirmCancel(null)}>
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-touch"
+                  onClick={async () => {
+                    const payload = confirmCancel
+                    setConfirmCancel(null)
+                    await doCancelTraining(payload.t, payload.membership)
+                  }}
+                >
+                  Удалить
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
 
       <div className="card">
-        <div className="row" style={{ alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+        <div className="row" style={{ alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
           <h3 style={{ margin: 0 }}>Абонементы</h3>
           <button
             type="button"
-            className="btn btn-primary btn-icon-square"
-            aria-label="Новый абонемент"
-            title="Новый абонемент"
+            className={preferPaidType ? 'btn btn-primary btn-touch' : 'btn btn-primary btn-icon-square'}
+            aria-label={preferPaidType ? 'Оформить платный абонемент' : 'Новый абонемент'}
+            title={preferPaidType ? 'Оформить платный абонемент' : 'Новый абонемент'}
             onClick={openNewMembership}
           >
-            <Plus size={16} aria-hidden />
+            <Plus size={16} aria-hidden style={preferPaidType ? { marginRight: 6, verticalAlign: -2 } : undefined} />
+            {preferPaidType ? 'Оформить платный' : null}
           </button>
         </div>
         <div className="muted" style={{ fontSize: 12, marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
