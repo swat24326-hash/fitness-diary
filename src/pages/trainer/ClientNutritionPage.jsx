@@ -199,17 +199,6 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
     void reload({ refreshSurvey: false })
   }, [reload])
 
-  /** Рацион уже сохранён ранее — для ПНК это тоже «шаг выполнен», чтобы «Далее» открылась. */
-  const syncedExistingPlanRef = useRef(false)
-  useEffect(() => {
-    syncedExistingPlanRef.current = false
-  }, [client?.id])
-  useEffect(() => {
-    if (readOnly || !onPlanSaved || !savedPlan || syncedExistingPlanRef.current) return
-    syncedExistingPlanRef.current = true
-    void Promise.resolve(onPlanSaved()).catch(() => {})
-  }, [savedPlan, onPlanSaved, readOnly])
-
   useDebouncedStorageReload(() => reload({ refreshSurvey: false }), {
     shouldRun: (d) =>
       d?.reason === 'nutrition-products' ||

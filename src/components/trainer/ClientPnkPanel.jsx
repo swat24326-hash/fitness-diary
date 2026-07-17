@@ -337,7 +337,7 @@ export function ClientPnkPanel({
 
       {step.key === 'nutrition' ? (
         <div className="pnk-client-panel__step">
-          {d.nutrition ? (
+          {advance.ok ? (
             <p className="pnk-client-panel__ok" style={{ margin: 0 }}>
               ✓ Рацион сохранён — можно «Далее»
             </p>

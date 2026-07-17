@@ -108,7 +108,7 @@ function helpForWizardKey(key, sessions) {
     case 'health':
       return 'Заполните карту здоровья (рост, вес, пол). Затем «Далее».'
     case 'nutrition':
-      return 'Сохраните рацион. Затем «Далее». В Max — по желанию.'
+      return 'Сохраните рацион («Сохранить рацион»). Потом можно «Далее». В Max — по желанию.'
     case 'train1':
       return sessions === 2
         ? 'Проведите первую бесплатную. После «Закончить» — «Далее».'
@@ -184,10 +184,17 @@ export function resolvePnkWizardStep(client, ctx = {}) {
   }
 }
 
+function healthCardHasNutritionPlan(healthCard) {
+  const plan = healthCard?.nutrition_plan
+  if (plan == null || plan === '') return false
+  if (typeof plan === 'object') return Object.keys(plan).length > 0
+  return String(plan).trim().length > 2
+}
+
 /**
  * @param {object} client
  * @param {ReturnType<typeof resolvePnkWizardStep>} step
- * @param {{ healthCard?: object | null, healthComplete?: boolean, bzCompletedCount?: number }} [ctx]
+ * @param {{ healthCard?: object | null, healthComplete?: boolean, bzCompletedCount?: number, nutritionPlanSaved?: boolean }} [ctx]
  */
 export function canAdvancePnkWizardStep(client, step, ctx = {}) {
   if (!step) return { ok: false, reason: 'Нет шага' }
@@ -206,8 +213,10 @@ export function canAdvancePnkWizardStep(client, step, ctx = {}) {
       if (!healthOk) return { ok: false, reason: 'Заполните карту здоровья (рост, вес, пол)' }
       return { ok: true }
     case 'nutrition':
-      if (!d.nutrition) return { ok: false, reason: 'Сначала сохраните рацион' }
-      return { ok: true }
+      if (d.nutrition || ctx.nutritionPlanSaved === true || healthCardHasNutritionPlan(ctx.healthCard)) {
+        return { ok: true }
+      }
+      return { ok: false, reason: 'Сначала сохраните рацион' }
     case 'hw1':
       if (!d.homework) return { ok: false, reason: 'Отправьте ДЗ в Max или отметьте «ДЗ выдано»' }
       return { ok: true }

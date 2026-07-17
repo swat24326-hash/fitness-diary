@@ -271,14 +271,10 @@ export function ClientCard() {
     navigate(res.path)
   }, [client, isAdmin, navigate, reloadLocal])
 
-  const markPnkNutritionSaved = useCallback(async () => {
-    if (!client || !isOpenPnkClient(client) || isArchived) return
-    const res = await patchPnkClientLocal(client, { deliverable: 'nutrition' })
-    if (res.ok) {
-      setClient(res.client)
-      void reloadLocal()
-    }
-  }, [client, isArchived, reloadLocal])
+  /** После сохранения рациона — только обновить кэш (не двигать шаг ПНК). */
+  const onNutritionPlanSaved = useCallback(async () => {
+    await reloadLocal()
+  }, [reloadLocal])
 
   const markPnkHomeworkIssued = useCallback(async () => {
     if (!client || !isOpenPnkClient(client) || isArchived) return
@@ -536,7 +532,7 @@ export function ClientCard() {
         <ClientNutritionPage
           client={client}
           readOnly={isArchived}
-          onPlanSaved={isOpenPnkClient(client) && !isArchived ? markPnkNutritionSaved : undefined}
+          onPlanSaved={isOpenPnkClient(client) && !isArchived ? onNutritionPlanSaved : undefined}
         />
       )}
       {tab === 'homework' &&

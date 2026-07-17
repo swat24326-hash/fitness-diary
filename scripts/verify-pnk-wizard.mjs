@@ -95,6 +95,13 @@ const afterHealth = {
 ok(resolvePnkWizardStep(afterHealth)?.key === 'nutrition', '→ nutrition')
 const nutritionStep = resolvePnkWizardStep(afterHealth)
 ok(canAdvancePnkWizardStep(afterHealth, nutritionStep).ok === false, 'nutrition blocked until saved')
+ok(
+  canAdvancePnkWizardStep(afterHealth, nutritionStep, {
+    healthCard: { nutrition_plan: { meals: [{ items: [] }] } },
+  }).ok === true,
+  'nutrition Next ok after plan saved (no deliverable yet)',
+)
+ok(resolvePnkWizardStep(afterHealth)?.key === 'nutrition', 'stay on nutrition until Next')
 ok(buildPnkWizardAdvancePatch(nutritionStep)?.deliverable === 'nutrition', 'nutrition advance patch')
 
 const afterNutrition = {
