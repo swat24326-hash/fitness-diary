@@ -201,20 +201,12 @@ export function ClientPnkPanel({
           nav={hatNav}
           busy={busy || advanceLocked}
           hideNav={step.key === 'close'}
+          showRefuse={step.key !== 'close'}
           onBack={() => void handleHatBack()}
           onNext={() => void handleHatNext()}
           onSkip={() => void handleHatSkip()}
+          onRefuse={() => void run({ stage: 'lost', lost_reason: lostReason || comment || 'Отказ' })}
         />
-        {step.key !== 'close' ? (
-          <button
-            type="button"
-            className="btn btn-ghost btn-touch pnk-funnel-hat__refuse"
-            disabled={busy}
-            onClick={() => void run({ stage: 'lost', lost_reason: lostReason || comment || 'Отказ' })}
-          >
-            <Ban size={16} aria-hidden /> Отказ
-          </button>
-        ) : null}
       </div>
 
       {flags.length && step.key !== 'wait' && step.key !== 'invite' ? <PnkAttentionChips flags={flags} /> : null}

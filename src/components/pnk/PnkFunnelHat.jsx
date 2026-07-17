@@ -1,8 +1,9 @@
-import { ChevronLeft, ChevronRight, FastForward } from 'lucide-react'
+import { Ban, ChevronLeft, ChevronRight, FastForward } from 'lucide-react'
 import { PnkStepBlocks } from './PnkStepBlocks.jsx'
 
 /**
- * Единая шапка воронки ПНК: прогресс + Назад / Далее / Пропустить.
+ * Единая шапка воронки ПНК: прогресс + Назад / Далее / Пропустить [/ Отказ].
+ * Действия — один ряд (симметрия), когда влезают.
  * @param {{
  *   step: { n: number, total: number, title: string, help?: string, key?: string },
  *   nav: {
@@ -19,6 +20,8 @@ import { PnkStepBlocks } from './PnkStepBlocks.jsx'
  *   onBack?: () => void,
  *   onNext?: () => void,
  *   onSkip?: () => void,
+ *   onRefuse?: () => void,
+ *   showRefuse?: boolean,
  *   hideNav?: boolean,
  * }} props
  */
@@ -29,6 +32,8 @@ export function PnkFunnelHat({
   onBack,
   onNext,
   onSkip,
+  onRefuse,
+  showRefuse = false,
   hideNav = false,
 }) {
   if (!step) return null
@@ -81,6 +86,17 @@ export function PnkFunnelHat({
           >
             <FastForward size={16} aria-hidden /> Пропустить
           </button>
+          {showRefuse ? (
+            <button
+              type="button"
+              className="btn btn-ghost btn-touch pnk-funnel-hat__btn pnk-funnel-hat__btn--refuse"
+              disabled={busy}
+              title="Отказ клиента — выйти из воронки без оформления ДК"
+              onClick={() => onRefuse?.()}
+            >
+              <Ban size={16} aria-hidden /> Отказ
+            </button>
+          ) : null}
         </div>
       ) : null}
 

@@ -512,7 +512,17 @@ button.pnk-chip:disabled {
 }
 
 .pnk-funnel-hat__btn--next {
-  flex: 1.45 1 0;
+  flex: 1.35 1 0;
+}
+
+.pnk-funnel-hat__btn--refuse {
+  flex: 0.95 1 0;
+  color: #fca5a5;
+  border-color: color-mix(in srgb, #f87171 35%, transparent);
+}
+
+.pnk-funnel-hat__btn--refuse:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.1);
 }
 
 .pnk-funnel-hat__hint {
@@ -520,10 +530,19 @@ button.pnk-chip:disabled {
   font-size: 0.85rem;
 }
 
-.pnk-funnel-hat__refuse {
-  justify-self: end;
-  min-height: 40px;
-  font-size: 0.85rem;
+@media (max-width: 520px) {
+  .pnk-funnel-hat__nav {
+    flex-wrap: wrap;
+  }
+
+  .pnk-funnel-hat__btn {
+    flex: 1 1 calc(50% - 8px);
+  }
+
+  .pnk-funnel-hat__btn--next {
+    flex: 1 1 100%;
+    order: -1;
+  }
 }
 
 .pnk-funnel__kpi-pct {
