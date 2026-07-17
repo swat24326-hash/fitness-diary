@@ -62,16 +62,6 @@ export function ClientPnkPanel({
   const hatNav = openPnk && step ? resolvePnkFunnelHatNav(client, step, ctx) : null
 
   useEffect(() => {
-    if (!step?.tab) return
-    if (typeof onOpenTab === 'function') onOpenTab(step.tab)
-  }, [step?.key, step?.tab, onOpenTab])
-
-  useEffect(() => {
-    if (step?.key !== 'close') return
-    if (typeof onOpenTab === 'function') onOpenTab('memberships')
-  }, [step?.key, onOpenTab])
-
-  useEffect(() => {
     if (step?.key !== 'close' || !client?.id || !client?.club_id) {
       setHasDkMembership(false)
       return

@@ -70,14 +70,33 @@ export function ClientCard() {
   const [taskModalOpen, setTaskModalOpen] = useState(false)
   const [outreachLogs, setOutreachLogs] = useState([])
 
+  const syncPnkTab = useCallback(
+    (c, ctx) => {
+      if (!c || !isOpenPnkClient(c)) return
+      const step = resolvePnkTrainerUiStep(c, ctx)
+      if (!step) return
+      if (step.key === 'close') {
+        setTab('memberships')
+        return
+      }
+      if (step.tab) setTab(step.tab)
+    },
+    [],
+  )
+
+  const pnkUiCtx = useMemo(
+    () => ({ healthCard, bzCompletedCount }),
+    [healthCard, bzCompletedCount],
+  )
+
+  /** Синхрон с шагом воронки — без зависимости от tab (иначе «Далее» мигает предыдущей вкладкой). */
   useEffect(() => {
-    if (!client || !isOpenPnkClient(client)) return
-    const ctx = { healthCard, bzCompletedCount }
-    if (!isPnkCardTabVisible(client, tab, ctx)) {
-      const step = resolvePnkTrainerUiStep(client, ctx)
-      setTab(step?.tab || 'health')
-    }
-  }, [client, tab, healthCard, bzCompletedCount])
+    syncPnkTab(client, pnkUiCtx)
+  }, [client, pnkUiCtx, syncPnkTab])
+
+  const onOpenPnkTab = useCallback((t) => {
+    if (t) setTab(t)
+  }, [])
 
   const taskClubId = useMemo(() => {
     if (!isAdmin || !client) return ''
@@ -524,10 +543,11 @@ export function ClientCard() {
         bzCompletedCount={bzCompletedCount}
         onUpdated={(next) => {
           setClient(next)
+          syncPnkTab(next, pnkUiCtx)
           void reloadLocal()
         }}
         onOpenDiaries={() => setTab('diaries')}
-        onOpenTab={(t) => setTab(t)}
+        onOpenTab={onOpenPnkTab}
         onStartTraining={isArchived ? undefined : () => startPnkTraining()}
       />
 

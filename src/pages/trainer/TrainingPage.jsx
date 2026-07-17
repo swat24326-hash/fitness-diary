@@ -108,8 +108,6 @@ export function TrainingPage() {
   const [healthCard, setHealthCard] = useState(null)
   const [otherCompletedTrainings, setOtherCompletedTrainings] = useState(0)
   const [autosaveStatus, setAutosaveStatus] = useState('idle') // idle | saving | saved | error
-  const [pnkTrialOffer, setPnkTrialOffer] = useState(false)
-  const [pnkOfferBusy, setPnkOfferBusy] = useState(false)
 
   const saveMutexRef = useRef(Promise.resolve())
   const [hydrateVersion, bumpHydrateVersion] = useState(0)
@@ -404,7 +402,20 @@ export function TrainingPage() {
         const completedCount =
           otherCompletedTrainings + (prev?.status === 'completed' ? 0 : 1)
         if (!skipNavigate && shouldOfferMarkPnkTrialDone(client, completedCount)) {
-          setPnkTrialOffer(true)
+          // Сразу отмечаем шаг воронки — без лишнего вопроса «Позже»
+          try {
+            const deliverable =
+              resolvePnkTrialDeliverableAfterWorkout(client, Math.max(1, completedCount)) || 'trial'
+            const patch =
+              deliverable === 'trial'
+                ? { stage: 'trial_done', deliverable: 'trial' }
+                : { deliverable }
+            const res = await patchPnkClientLocal(client, patch)
+            if (res.ok) setClient(res.client)
+          } catch {
+            /* карточка всё равно откроется; шаг можно закрыть Далее в воронке */
+          }
+          nav(`${clientsBase}/${cid}${preserveClubQs}`, { replace: true })
           return
         }
         if (!skipNavigate) nav(`${clientsBase}/${cid}${preserveClubQs}`, { replace: true })
@@ -528,44 +539,6 @@ export function TrainingPage() {
   const [showCompletionHints, setShowCompletionHints] = useState(false)
 
   const nextCompletionHint = completionIssues[0] ?? null
-
-  const leaveToClientCard = useCallback(() => {
-    const cid = client?.id ?? clientIdParam
-    if (!cid) {
-      nav(homeLink, { replace: true })
-      return
-    }
-    nav(`${clientsBase}/${cid}${preserveClubQs}`, { replace: true })
-  }, [client?.id, clientIdParam, clientsBase, homeLink, nav, preserveClubQs])
-
-  const markPnkTrialDoneAndLeave = useCallback(async () => {
-    if (!client?.id) {
-      leaveToClientCard()
-      return
-    }
-    setPnkOfferBusy(true)
-    try {
-      const completedCount = otherCompletedTrainings + (meta.status === 'completed' ? 1 : 0)
-      const deliverable =
-        resolvePnkTrialDeliverableAfterWorkout(client, Math.max(1, completedCount)) || 'trial'
-      const patch =
-        deliverable === 'trial'
-          ? { stage: 'trial_done', deliverable: 'trial' }
-          : { deliverable }
-      const res = await patchPnkClientLocal(client, patch)
-      if (!res.ok) {
-        setSaveError(res.error || 'Не удалось отметить пробную')
-        return
-      }
-      setClient(res.client)
-      setPnkTrialOffer(false)
-      leaveToClientCard()
-    } catch (e) {
-      setSaveError(String(e?.message ?? e))
-    } finally {
-      setPnkOfferBusy(false)
-    }
-  }, [client, leaveToClientCard, meta.status, otherCompletedTrainings])
 
   useEffect(() => {
     if (canCompleteTraining) setShowCompletionHints(false)
@@ -743,37 +716,7 @@ export function TrainingPage() {
         </p>
       ) : null}
 
-      {pnkTrialOffer ? (
-        <div className="training-completion-hint" role="dialog" aria-label="Отметить пробную ПНК">
-          <p className="training-completion-hint__step" style={{ margin: '0 0 12px' }}>
-            Тренировка сохранена. Отметить бесплатную проведённой в воронке ПНК?
-          </p>
-          <div className="row" style={{ flexWrap: 'wrap', gap: 10 }}>
-            <button
-              type="button"
-              className="btn btn-primary btn-touch"
-              disabled={pnkOfferBusy}
-              onClick={() => void markPnkTrialDoneAndLeave()}
-            >
-              Да, проведена
-            </button>
-            <button
-              type="button"
-              className="btn btn-ghost btn-touch"
-              disabled={pnkOfferBusy}
-              onClick={() => {
-                setPnkTrialOffer(false)
-                leaveToClientCard()
-              }}
-            >
-              Позже
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {!pnkTrialOffer ? (
-        <div className="row training-actions-row" style={{ flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+      <div className="row training-actions-row" style={{ flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
           {canCompleteTraining ? (
             <span className="tip" data-tip="Пометит тренировку как завершённую и сохранит. Если есть проблема — появится сообщение ниже.">
               <button
@@ -823,7 +766,6 @@ export function TrainingPage() {
             </span>
           ) : null}
         </div>
-      ) : null}
 
       {showCompletionHints && nextCompletionHint ? (
         <div className="training-completion-hint" role="status">
