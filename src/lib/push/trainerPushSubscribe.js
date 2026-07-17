@@ -78,18 +78,24 @@ function isPushServiceError(err) {
 
 /**
  * @param {string} publicKey
+ * @param {{ force?: boolean }} [opts] — force: сбросить старую подписку и создать заново
  * @returns {Promise<PushSubscription>}
  */
-export async function subscribePushManager(publicKey) {
+export async function subscribePushManager(publicKey, opts = {}) {
   const key = normalizeVapidPublicKey(publicKey)
   if (!isValidVapidPublicKey(key)) {
     throw new Error('Неверный ключ push на сервере. Администратору: VAPID_PUBLIC_KEY в Vercel (см. docs/PUSH_SETUP.md).')
   }
 
   const reg = await waitForPushServiceWorker()
+  const force = opts.force === true
 
-  let sub = await reg.pushManager.getSubscription()
-  if (sub) return sub
+  if (force) {
+    await clearPushSubscription(reg)
+  } else {
+    const existing = await reg.pushManager.getSubscription()
+    if (existing) return existing
+  }
 
   try {
     return await subscribeOnce(reg, key)

@@ -59,7 +59,7 @@ export async function sendWebPushToRow(row, payload) {
  * @param {{ title?: string, body?: string, url?: string, tag?: string }} payload
  */
 export async function sendPushToUser(supabaseAdmin, userId, payload) {
-  if (!ensureConfigured()) return { ok: true, sent: 0, skipped: true }
+  if (!ensureConfigured()) return { ok: true, sent: 0, skipped: true, reason: 'not_configured' }
 
   const { data, error } = await supabaseAdmin
     .from('user_push_subscriptions')
@@ -74,20 +74,30 @@ export async function sendPushToUser(supabaseAdmin, userId, payload) {
   }
 
   const rows = data ?? []
+  if (!rows.length) return { ok: true, sent: 0, reason: 'no_subscription' }
+
   let sent = 0
+  let failed = 0
   const expiredIds = []
 
   for (const row of rows) {
     const result = await sendWebPushToRow(row, payload)
     if (result.ok) sent += 1
     else if (result.expired) expiredIds.push(row.id)
+    else failed += 1
   }
 
   if (expiredIds.length) {
     await supabaseAdmin.from('user_push_subscriptions').delete().in('id', expiredIds)
   }
 
-  return { ok: true, sent, expired: expiredIds.length }
+  return {
+    ok: true,
+    sent,
+    failed,
+    expired: expiredIds.length,
+    reason: sent > 0 ? undefined : failed > 0 ? 'send_failed' : 'no_subscription',
+  }
 }
 
 /**

@@ -121,6 +121,16 @@ export function TrainerPushSettings({ clubId = '' }) {
             <button type="button" className="btn btn-secondary btn-sm" disabled={push.busy} onClick={() => void push.testPush()}>
               Проверить
             </button>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              disabled={push.busy}
+              onClick={() => void push.reconnect()}
+              title="Сбросить и заново привязать к серверу"
+            >
+              <Bell size={14} aria-hidden style={{ marginRight: 4, verticalAlign: -2 }} />
+              {push.busy ? '…' : 'Переподключить'}
+            </button>
             <button type="button" className="btn btn-ghost btn-sm" disabled={push.busy} onClick={() => void push.unsubscribe()}>
               <BellOff size={14} aria-hidden style={{ marginRight: 4, verticalAlign: -2 }} />
               Отключить

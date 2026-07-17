@@ -38,6 +38,11 @@ export async function saveTrainerPushSubscription(opts) {
   })
   const data = await parseJson(res)
   if (!res.ok) throw new Error(data?.error ?? `Ошибка (${res.status})`)
+  if (data?.migration_pending || data?.stored === false) {
+    throw new Error(
+      'Не удалось сохранить подписку на сервере. Проверьте миграцию user_push_subscriptions (docs/PUSH_SETUP.md).',
+    )
+  }
   return data
 }
 

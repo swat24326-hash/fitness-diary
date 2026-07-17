@@ -59,10 +59,23 @@ export async function handlePushSubscriptionPost(ctx, res, body) {
         url: '/trainer?inbox=1',
         tag: 'push-test',
       })
+      const sent = Number(result.sent ?? 0)
+      let reason = ''
+      if (!sent) {
+        if (result.skipped && result.reason === 'migration_pending') reason = 'migration_pending'
+        else if (result.skipped && result.reason === 'not_configured') reason = 'not_configured'
+        else if (result.skipped) reason = 'skipped'
+        else reason = 'no_subscription'
+      }
       sendJson(res, 200, {
         ok: true,
-        sent: result.sent ?? 0,
-        message: result.sent ? 'Тестовое уведомление отправлено' : 'Нет активной подписки на этом устройстве',
+        sent,
+        reason: reason || undefined,
+        message: sent
+          ? 'Тестовое уведомление отправлено'
+          : reason === 'no_subscription'
+            ? 'На сервере нет подписки этого пользователя. Нажмите «Переподключить».'
+            : 'Тест не отправился. Нажмите «Переподключить» или см. docs/PUSH_SETUP.md.',
       })
     } catch (e) {
       sendJson(res, 400, { error: e?.message ? String(e.message) : 'Ошибка теста push' })

@@ -93,6 +93,15 @@ export function OwnerDispatchPushSettings({ clubId = '' }) {
             <button type="button" className="btn btn-secondary btn-sm" disabled={push.busy} onClick={() => void push.testPush()}>
               Проверить
             </button>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              disabled={push.busy}
+              onClick={() => void push.reconnect()}
+              title="Сбросить и заново привязать к серверу"
+            >
+              {push.busy ? '…' : 'Переподключить'}
+            </button>
             <button type="button" className="btn btn-ghost btn-sm" disabled={push.busy} onClick={() => void push.unsubscribe()}>
               Отключить
             </button>
