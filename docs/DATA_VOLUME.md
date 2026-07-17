@@ -76,7 +76,7 @@ SELECT
 - Статистика клуба на API таймаутится (&gt; 10 s на `admin-data?action=club-stats`) **и**
 - SQL показывает &gt; 50k тренировок на клуб.
 
-До этого — оптимизировать запросы в `api/lib/*Agg.js`, не менять контракт офлайн-кэша.
+До этого — оптимизировать запросы в `api/_lib/*Agg.js`, не менять контракт офлайн-кэша.
 
 ## Регресс цифр
 
@@ -86,4 +86,4 @@ SELECT
 npm run qa:local
 ```
 
-Скрипт `verify-stats-agg-parity.mjs` сравнивает `api/lib/*Agg.js` и `src/lib/admin/*Agg.js` на одних фикстурах.
+Скрипт `verify-stats-agg-parity.mjs` сравнивает `api/_lib/*Agg.js` и `src/lib/admin/*Agg.js` на одних фикстурах.

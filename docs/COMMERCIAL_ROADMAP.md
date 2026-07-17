@@ -6,7 +6,7 @@
 
 1. **Офлайн-first** не ломаем: запись → IDB + очередь → push → pull; pull не затирает pending.
 2. **Статистика:** период сводки ≠ годовой график (полный календарный год).
-3. **Дубли агрегации:** `src/lib/admin/*Agg.js` ↔ `api/lib/*Agg.js` + `scripts/verify-*.mjs`.
+3. **Дубли агрегации:** `src/lib/admin/*Agg.js` ↔ `api/_lib/*Agg.js` + `scripts/verify-*.mjs`.
 4. **Vercel Hobby ≤12 functions** — расширять `admin-data?action=`, не плодить `api/*.js`.
 
 ---
@@ -18,7 +18,7 @@
 | `npm run qa:local` в GitHub Actions на PR/push | ✅ `.github/workflows/qa.yml` |
 | `docs/RELEASE.md`, `docs/RUNBOOK.md` | ✅ |
 | Удаление мёртвого UI «Не продлилось» | ✅ |
-| Handoff обновлён | ✅ |
+| Handoff обновлён | ✅ (2026-07: роли sales/PNK, `api/_lib`, системная карта docs) |
 
 ## Фаза 1 — прод-гигиена ✅
 
@@ -40,7 +40,7 @@
 | `TrainingForm.jsx` | ~4k | подформы, хуки черновика |
 | `syncService.js` | ~3.5k | flush / pull / save по модулям |
 | `dataAccess.js` | ~3k | админ → `src/lib/admin/*` |
-| `api/admin-data.js` | ~4k | action handlers → `api/lib/*` |
+| `api/admin-data.js` | тонкий роутер | action handlers → `api/_lib/adminData/*` (strangler ongoing) |
 
 Правило: **strangler** — новый код в новом файле, старый импортирует.
 
@@ -71,10 +71,10 @@
 | Ручной архив клиентов (тренер + админ) | ✅ фаза B, [CLIENT_ARCHIVE.md](./CLIENT_ARCHIVE.md) — миграция `20260602120000`, UI, sync, agg |
 | Создание клуба / CONNECTION_RESET (§15 handoff) | открыто |
 | **Управляющий** (supervisor, один на клуб) | 📋 ТЗ: [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md), реализация позже |
-| Менеджер по продажам | 📋 ТЗ: [SALES_MANAGER.md](./SALES_MANAGER.md), реализация позже |
-| **Воронка ПНК** | 🚧 MVP: [PNK_FUNNEL.md](./PNK_FUNNEL.md) — этапы, чеклист питание/ДЗ, экран `/sales/pnk` |
+| Менеджер по продажам | ✅ роль + ежедневный отчёт / план в проде; ТЗ-справочник: [SALES_MANAGER.md](./SALES_MANAGER.md) |
+| **Воронка ПНК** | ✅ в проде (2026-07) — [PNK_FUNNEL.md](./PNK_FUNNEL.md); доска `/sales/pnk`, мастер на карточке |
 | **Планёрка** (задания команде) | ✅ v1 + лента в ИСКРЕ — [ISKRA_PLANERKA.md](./ISKRA_PLANERKA.md), [ISKRA_PRO.md](./ISKRA_PRO.md) |
-| **Каналы связи** (Max тренер + SMS/звонок клуба через Мои Звонки) | ⏸ backlog — [OUTREACH_CHANNELS_ROADMAP.md](./OUTREACH_CHANNELS_ROADMAP.md) |
+| **Каналы связи** | Max тренер ✅; SMS клуба (Мои Звонки) ⏸ — [OUTREACH_CHANNELS_ROADMAP.md](./OUTREACH_CHANNELS_ROADMAP.md) |
 
 ---
 

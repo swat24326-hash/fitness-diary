@@ -1,6 +1,6 @@
 ---
 description: Sync, очередь, pull — офлайн без потери данных
-globs: src/lib/sync*.js,src/lib/trainerPull*.js,src/lib/syncLocalRecords.js,src/lib/pullReferenceData.js,api/push*.js,api/lib/pushRecordCore.js,api/trainer-pull.js,scripts/verify-sync*.mjs
+globs: src/lib/sync*.js,src/lib/trainerPull*.js,src/lib/syncLocalRecords.js,src/lib/pullReferenceData.js,api/push*.js,api/_lib/pushRecordCore.js,api/trainer-pull.js,scripts/verify-sync*.mjs
 alwaysApply: false
 ---
 
@@ -32,7 +32,7 @@ alwaysApply: false
 
 ## Новая синхронизируемая таблица
 
-- `PUSH_ALLOWED_TABLES` в `api/lib/pushRecordCore.js` + путь flush в `syncService` / `syncApiClient`.
+- `PUSH_ALLOWED_TABLES` в `api/_lib/pushRecordCore.js` + путь flush в `syncService` / `syncApiClient`.
 - Verify: `verify-sync-offline.mjs`, при re-queue — `verify-sync-unsynced.mjs`.
 
 ## Перед завершением

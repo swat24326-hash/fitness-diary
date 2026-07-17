@@ -1,12 +1,12 @@
 ---
 description: Абонементы, статистика, списание — доменные правила (не ломать)
-globs: src/lib/membershipRules.js,src/lib/**/*Stats*.js,src/lib/admin/adminClub*.js,src/lib/admin/adminClubMonthlyService.js,src/lib/trainer/trainerPeriodStatsService.js,src/lib/trainer/trainerMonthlyStatsService.js,src/lib/periodStats/**,api/lib/*Agg.js,api/lib/clubMonthlyAgg.js,scripts/verify-club*.mjs,scripts/verify-membership*.mjs
+globs: src/lib/membershipRules.js,src/lib/**/*Stats*.js,src/lib/admin/adminClub*.js,src/lib/admin/adminClubMonthlyService.js,src/lib/trainer/trainerPeriodStatsService.js,src/lib/trainer/trainerMonthlyStatsService.js,src/lib/periodStats/**,api/_lib/*Agg.js,api/_lib/clubMonthlyAgg.js,scripts/verify-club*.mjs,scripts/verify-membership*.mjs
 alwaysApply: false
 ---
 
 # Домен: абонементы и статистика
 
-Коммерческий продукт: ошибка в цифрах = потеря доверия клуба. Логика **одна**, проверяемая.
+Коммерческий продукт: ошибка в цифрах = потеря доверия клуба. Логика **одна**, проверяемая. Новая фича в домене: `fitness-diary-features.mdc`.
 
 ## Абонемент
 
@@ -20,7 +20,7 @@ alwaysApply: false
 - **Период сводки** (`dateFrom`–`dateTo`): карточки «клиенты», «активные», «не активные», «проведено», «по дням», «по типам».
 - **«Не активные»**: нет абонемента для тренировки в периоде — `hasUsableMembershipForPeriodStats` (сегодня в текущем периоде; для закрытого месяца — также последний день действия абонемента в периоде, чтобы не помечать «29.06» как неактивных на 30.06). Отдельной «Не продлилось» **нет** (`notRenewed*` = 0).
 - **Итоговый годовой график** («Итог по клубу»): **всегда полный календарный год** (янв–дек), **не** обрезается периодом сводки. Только тренировки **с типом карты** на абонементе.
-- Агрегация: `src/lib/admin/*` + зеркало `api/lib/*Agg.js`. Изменил одно — **обязательно** второе + `scripts/verify-*.mjs` + строка в `agent-qa.mjs`.
+- Агрегация: `src/lib/admin/*` + зеркало `api/_lib/*Agg.js`. Изменил одно — **обязательно** второе + `scripts/verify-*.mjs` + строка в `agent-qa.mjs`.
 
 ## Перед merge
 

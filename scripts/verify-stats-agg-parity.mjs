@@ -1,5 +1,5 @@
 /**
- * Паритет агрегаций: api/lib/*Agg.js vs src/lib/admin/*Agg.js
+ * Паритет агрегаций: api/_lib/*Agg.js vs src/lib/admin/*Agg.js
  * Ловит расхождение формул между сервером и офлайн-статистикой.
  */
 import { aggregateClubClientPeriod as aggApiClub } from '../api/_lib/clubStatsAgg.js'

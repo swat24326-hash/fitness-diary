@@ -18,6 +18,7 @@
 | [sync_offline.md](./sync_offline.md) | Sync / офлайн | `sync_offline` |
 | [admin_organization.md](./admin_organization.md) | Организация | `admin_organization` |
 | [admin_sales.md](./admin_sales.md) | Продажи | `admin_sales` |
+| [pnk_funnel.md](./pnk_funnel.md) | Воронка ПНК | `pnk_funnel` |
 | [admin_statistics.md](./admin_statistics.md) | Статистика | `admin_statistics` |
 | [admin_iskra.md](./admin_iskra.md) | ИСКРА | `admin_iskra` |
 | [app_general.md](./app_general.md) | Общее | `app_general` |

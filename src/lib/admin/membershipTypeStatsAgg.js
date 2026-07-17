@@ -1,4 +1,4 @@
-/** Статистика тренировок по типу абонемента (дублирует api/lib/membershipTypeStatsAgg.js). */
+/** Статистика тренировок по типу абонемента (дублирует api/_lib/membershipTypeStatsAgg.js). */
 
 export const MEMBERSHIP_TYPE_UNLABELED = '__none__'
 

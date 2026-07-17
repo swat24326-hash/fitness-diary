@@ -23,7 +23,7 @@ alwaysApply: false
 ## API Vercel
 
 - Hobby **≤12 functions** — новый `api/*.js` только если нельзя расширить `admin-data?action=`.
-- Handler тонкий; логика в `api/lib/*Core.js` / `*Agg.js`.
+- Handler тонкий; логика в `api/_lib/*Core.js` / `*Agg.js`.
 - Тренер / нестабильная сеть: `/api/*`, не новый `supabase.from` из UI.
 
 ## Новая таблица в продукте

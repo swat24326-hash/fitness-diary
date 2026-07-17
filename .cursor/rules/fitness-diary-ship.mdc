@@ -5,17 +5,25 @@ alwaysApply: true
 
 # Завершение задачи — без сюрпризов на проде
 
+**Новая фича:** цикл до «готово» — `fitness-diary-features.mdc` (фильтр идеи → исход → код → wow-идеи → стабильность → этот чеклист).
+
 ## Обязательно перед «готово»
 
-1. **`npm run lint`** — всегда.
+Проверки **не отменяются** ради экономии Cursor (`fitness-diary-cursor-efficiency.mdc`).
+
+1. **`npm run lint`** — всегда, в том числе для мелких правок.
 2. **`npm run qa:local`** — если затронуты: sync, статистика, абонементы, API agg, форматы упражнений.
 3. Новая **ветвистая логика** → `scripts/verify-*.mjs` + регистрация в `scripts/agent-qa.mjs`.
 4. **Build** проходит (`qa:local` включает build).
 
 ## Новый verify-скрипт
 
-- Чистые функции из `src/lib/` или `api/lib/`, без React/IDB.
+- Чистые функции из `src/lib/` или `api/_lib/`, без React/IDB.
 - `ok(cond, msg)` + `process.exit(1)` при fail (как существующие `verify-*.mjs`).
+
+## Документация
+
+Часть DoD — **`.cursor/rules/fitness-diary-docs.mdc`** (не откладывать, не копить drift). Кратко: handoff / API / SYNC / статусы / README / CHANGELOG по таблице в том правиле.
 
 ## Git и деплой
 

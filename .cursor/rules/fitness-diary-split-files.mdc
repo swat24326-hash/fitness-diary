@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Разбиение файлов — сразу, не потом
 
-Если фича **увеличивает** файл или добавляет вторую ответственность — **в той же задаче** выносим код, не откладываем.
+Если фича **увеличивает** файл или добавляет вторую ответственность — **в той же задаче** выносим код, не откладываем. Цикл фичи: `fitness-diary-features.mdc`.
 
 ## Пороги
 
@@ -26,7 +26,7 @@ alwaysApply: false
 
 **dataAccess:** новое — в `src/lib/admin/` или `trainerPullService.js` и т.п.; в `dataAccess.js` только реэкспорт при необходимости совместимости.
 
-**API:** `api/lib/featureCore.js` + `api/feature.js` (10–30 строк handler).
+**API:** `api/_lib/featureCore.js` + `api/feature.js` (10–30 строк handler).
 
 **Диагностика / журнал:** `appErrorJournal.js` (storage) + `appDiagnostics.js` (логика) + `DiagnosticsPanel.jsx` (UI).
 
@@ -37,6 +37,8 @@ alwaysApply: false
 - Поведение офлайн/Sync то же; тесты/verify-скрипты зелёные.
 
 ## Не делать ради «рефакторинга»
+
+Это **не** противоречит «минимальному diff» в ship/architecture: не трогаем чужие зоны; свой порог 400–600+ — выполняем в рамках той же задачи.
 
 - Массово резать `index.css` или стабильные мелкие файлы без фичи.
 - Дробить `api/admin-data.js` на 6 endpoints без учёта лимита Vercel.

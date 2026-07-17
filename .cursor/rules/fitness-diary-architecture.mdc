@@ -7,6 +7,14 @@ alwaysApply: true
 
 PWA для тренера (планшет, офлайн) и админа. **Не наращивать «временные» патчи** — сразу правильный слой и файлы.
 
+## Иерархия правил (если кажется, что правила спорят)
+
+1. **Качество продукта** — `fitness-diary-stability.mdc`, `fitness-diary-domain.mdc`, `fitness-diary-sync.mdc`: не ломать тренера, офлайн, цифры клуба.
+2. **Архитектура и ship** — правильный слой, verify, `npm run lint` всегда; `qa:local` / verify — по ship и stability, не пропускать на критическом пути. Документация как DoD — `fitness-diary-docs.mdc`.
+3. **Экономия Cursor** — `fitness-diary-cursor-efficiency.mdc`: меньше лишнего контекста и воды в отчётах, **не** в ущерб п.1–2.
+
+**Минимальный diff** = не трогать несвязанное. Если **ваша** фича раздувает файл — разбить в той же задаче (`fitness-diary-split-files.mdc`), это не «лишний рефакторинг».
+
 ## Поток данных (не ломать)
 
 1. **Запись:** UI → `saveLocalWithSync` → IndexedDB + `sync_queue` → при online `/api/push-record` или `push-records`.
@@ -22,7 +30,7 @@ PWA для тренера (планшет, офлайн) и админа. **Не
 | Pull упражнений/челленджей | `exerciseCatalog.js`, `pullReferenceData.js` |
 | Чистая логика без React/IDB | отдельный `src/lib/*.js` (тестируется из `scripts/verify-*.mjs`) |
 | UI | `components/` или `pages/`; тяжёлую логику — в хук `use*.js` или сервис |
-| API Vercel | общее → `api/lib/`; handler → тонкий `api/*.js` (как `pushRecordCore` + `push-record`) |
+| API Vercel | общее → `api/_lib/`; handler → тонкий `api/*.js` (как `pushRecordCore` + `push-record`) |
 
 ## Сеть
 
@@ -42,4 +50,6 @@ PWA для тренера (планшет, офлайн) и админа. **Не
 - `npm run lint`; при затронутом sync/offline — `npm run qa:local` или релевантный `verify-*.mjs`.
 - Минимальный diff; не рефакторить несвязанные файлы.
 
-Подробнее: `fitness-diary-split-files.mdc`, `fitness-diary-scale.mdc`, `fitness-diary-ship.mdc`, `fitness-diary-domain.mdc`. Контекст: `docs/PROJECT_HANDOFF_FOR_AI.md`.
+**Новая фича (полный цикл):** `fitness-diary-features.mdc` — фильтр идеи, исход, wow, стабильность, ship.
+
+Подробнее: `fitness-diary-split-files.mdc`, `fitness-diary-scale.mdc`, `fitness-diary-ship.mdc`, `fitness-diary-domain.mdc`, `fitness-diary-cursor-efficiency.mdc`. Контекст: `docs/PROJECT_HANDOFF_FOR_AI.md`.

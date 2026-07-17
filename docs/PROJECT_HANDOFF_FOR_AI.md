@@ -1,19 +1,26 @@
 # Описание проекта для передачи другой нейросети / разработчику
 
-Документ самодостаточен: по нему можно продолжить работу без доступа к истории чата. Язык интерфейса пользователя — **русский**. Репозиторий: **fitness-diary** (PWA «дневник тренировок» для фитнес-клуба, бренд в UI — FIT-CITY).
+**Актуально:** 2026-07-17. Документ самодостаточен: по нему можно продолжить работу без истории чата. Язык UI — **русский**. Репозиторий: **fitness-diary** (PWA дневник тренировок, бренд — FIT-CITY).
+
+**Сначала:** этот файл → карта [README.md](./README.md) → при углублении [API.md](./API.md), [SYNC.md](./SYNC.md), [DATA_MODEL.md](./DATA_MODEL.md), [TESTING.md](./TESTING.md), [PWA.md](./PWA.md). Модули рядом с ядром: [PRODUCT_MODULES.md](./PRODUCT_MODULES.md).
+
+Правила кода для Cursor — `.cursor/rules/` (политика). Этот handoff — **нарратив**: что за продукт и куда смотреть. Не дублировать политику целиком.
 
 ---
 
 ## 1. Назначение продукта
 
-Веб-приложение для **тренеров** и **администраторов** клуба:
+PWA для **тренеров** (планшет, офлайн), **админов** и **менеджеров по продажам**:
 
-- ведение **клиентов**, **абонементов**, **тренировок** (черновик → завершена);
-- **медкарта** (карта здоровья), **обмеры**, **цель** клиента;
-- **справочник упражнений** (админ);
-- **организация**: клубы, тренеры (в т.ч. Edge Functions создания/удаления тренера);
-- **статистика по клубу** (админ, при выбранном клубе): клиенты, действующие/не активные абонементы, тренировки, итог по году;
-- офлайн-ориентированность: **IndexedDB** как кэш + **очередь синхронизации** в браузере; при наличии **Supabase** — обмен с облаком.
+- клиенты, абонементы, тренировки (черновик → завершена);
+- медкарта, обмеры, цель; **питание** и **ДЗ** (домашние задания);
+- воронка **ПНК** (потенциальный новый клиент): менеджер создаёт → тренер ведёт мастер на карточке;
+- справочник упражнений, челленджи;
+- организация: клубы, тренеры (создание/удаление через API / Edge);
+- статистика клуба, продажи / финансы, **ИСКРА** (AI-советник админки);
+- офлайн: **IndexedDB** + **очередь sync** → `/api/push-record(s)` → pull (`trainer-pull`, `admin-data`).
+
+Production: https://fitness-diary-bice.vercel.app
 
 ---
 
@@ -23,15 +30,15 @@
 |------|------------|
 | UI | React 19, React Router 7 |
 | Сборка | Vite 6, `@vitejs/plugin-react` |
-| PWA | `vite-plugin-pwa` (service worker в production, `devOptions.enabled` только при `mode === 'production'`) |
-| Бэкенд | Supabase: Postgres, Auth (`signInWithPassword`), Edge Functions |
-| Локальное хранилище | `idb` (IndexedDB), см. `src/lib/localDb.js` |
-| Стили | Глобальный CSS `src/index.css`, утилиты `src/styles/` |
-| Иконки UI | `lucide-react`, частично Font Awesome |
-| Графики | `chart.js`, `react-chartjs-2` (где используется) |
-| Линт | ESLint 9 flat config `eslint.config.js`, скрипт `npm run lint` |
+| PWA | `vite-plugin-pwa` (SW в production) |
+| Бэкенд | Supabase (Postgres, Auth) + **Vercel serverless** `api/*.js` |
+| Локальное хранилище | `idb` → `src/lib/localDb.js` (версия IDB **14**) |
+| Стили | `src/index.css`, `src/styles/` |
+| AI | Gemini через `admin-data?action=gemini-analytics` (ключ только на сервере) |
+| Push | Web Push (VAPID) для планёрки / заданий |
+| Линт | ESLint 9, `npm run lint` |
 
-**TypeScript в проекте нет** — только `.js` / `.jsx`.
+**TypeScript нет** — только `.js` / `.jsx`.
 
 ---
 
@@ -39,149 +46,117 @@
 
 ```
 src/
-  App.jsx                 — маршруты, layout, RoleOutlet
-  main.jsx
-  context/AuthContext.jsx — сессия, роль, isAdmin, signIn/signOut, supabaseReady
+  App.jsx                 — маршруты, RoleOutlet (admin | trainer | sales_manager)
+  context/AuthContext.jsx — сессия, роль, isAdmin / isTrainer / isSalesManager
   lib/
-    supabase.js           — createClient, isSupabaseConfigured (VITE_* + trim)
-    localDb.js            — IndexedDB: stores, версия БД
-    dataAccess.js         — реэкспорты + pull/list/get для клиентов, тренировок и т.д.
-    syncService.js        — saveLocalWithSync, flushSyncQueue, deleteHealthCardByClientId; fallback для health_cards.goal
-    membershipRules.js    — логика «действующий абонемент», pickUsableMembershipForDate, списание по дате
-    bodyMeasures.js       — BODY_MEASURE_FIELDS, getMeasureValue (+ fallback на старые имена колонок)
-    seedDemo.js           — демо-данные при локальном входе без Supabase
-    seedExercises.js      — демо-упражнения при пустом справочнике
-    admin/                — сервисы админки: клиенты, журнал, статистика клуба, организация, поиск, hydrate
+    localDb.js, syncService.js, syncApiClient.js, membershipRules.js
+    dataAccess.js         — реэкспорты; новое админское — в admin/
+    admin/                — статистика, продажи, организация, ИСКРА-клиент
+    pnk/                  — этапы ПНК, wizard, glance, visit quality (*Core.js)
+    trainer/              — статистика тренера, pull-хелперы
   pages/
-    Login.jsx
-    admin/                — AdminDashboard (вложенные роуты), AdminClients, AdminStatistics, AdminOrganization, AdminExercises, AdminClubStatsSection
-    trainer/              — TrainerHome, TrainerDashboard, TrainerClients, ClientCard, ClientOverview, TrainingPage, Statistics, TrainerProfile
-  components/             — ClientDiaries, MembershipManager, TrainingForm, AppHeader, DraftTabsBar, …
+    admin/                — дашборд, клиенты, статистика, sales, ИСКРА, челленджи
+    trainer/              — home, clients, ClientCard, TrainingPage, profile
+    sales/                — при необходимости; SalesPnk / AdminSales под /sales
+  components/pnk/         — UI воронки ПНК
+api/
+  *.js                    — тонкие handlers (лимит Hobby ≤12 functions)
+  _lib/                   — ядро: pushRecordCore, *Agg, adminData/*, iskra*, …
 supabase/
-  schema.sql              — эталонная схема Postgres под приложение (новый проект)
-  migrations/*.sql        — идемпотентные изменения для существующих БД
-  functions/              — Edge: create-trainer, delete-trainer
-  policies_admin_example.sql — пример RLS (не автоприменяется)
-docs/
-  README.md               — карта всей документации (начать здесь для навигации)
-  DEPLOY.md               — первый деплой в интернет
-  RELEASE.md              — чеклист релиза на production
-  RUNBOOK.md              — типовые инциденты (sync, PWA, статистика, клубы)
-  SUPABASE_PROD_CHECKLIST.md — Auth, RLS, users.id перед крупным клубом
-  COMMERCIAL_ROADMAP.md   — фазы 0–4, что сделано / ongoing
-  DATA_VOLUME.md          — SQL оценка объёма, пороги для pull-by-period
-  ISKRA_*.md              — ИСКРА: north star, архитектура, dispatch, planerka, learning
-  PROJECT_HANDOFF_FOR_AI.md — этот файл
-.cursor/rules/
-  fitness-diary-architecture.mdc  — всегда: слои, офлайн, без костылей
-  fitness-diary-split-files.mdc     — при правках src/api: когда дробить файлы
-public/                   — иконки PWA, _redirects (Cloudflare)
-netlify.toml, vercel.json — SPA fallback для хостинга
-.env.example              — VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
+  schema.sql, migrations/, functions/ (create-trainer, delete-trainer, …)
+docs/                     — карта в README.md
+.cursor/rules/            — architecture, sync, domain, ship, features, …
+scripts/                  — agent-qa.mjs, verify-*.mjs
 ```
+
+**Важно:** серверный код — **`api/_lib/`**, не `api/lib/`.
 
 ---
 
 ## 4. Переменные окружения
 
-Все публичные ключи только с префиксом **`VITE_`** (вшиваются в клиент при `vite build`).
+Публичные (фронт, префикс **`VITE_`**):
 
-- `VITE_SUPABASE_URL` — Project URL  
-- `VITE_SUPABASE_ANON_KEY` — anon public key  
+- `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (JWT `eyJ…`, не `sb_publishable_…`)
+- опционально `VITE_VAPID_PUBLIC_KEY`, `VITE_ADMIN_EMAILS`
 
-Если URL/ключ пустые, содержат плейсхолдер `YOUR_PROJECT` / `YOUR_SUPABASE_ANON_KEY`, или только пробелы — **`isSupabaseConfigured()` === false`**: приложение работает в **локальном режиме** (демо-сид, ограниченный функционал облака).
+Только сервер (Vercel / Edge, **без** `VITE_`):
 
-Секреты сервисной роли **никогда** не кладутся во фронт.
+- `SUPABASE_SERVICE_ROLE_KEY`, опционально `SUPABASE_URL` / `SUPABASE_ANON_KEY`
+- `GEMINI_API_KEY`, опционально `GEMINI_MODEL`
+- `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
+
+См. `.env.example`. Без URL/ключа Supabase — локальный демо-режим.
 
 ---
 
 ## 5. Аутентификация и роли
 
-- **`AuthContext`**: `user`, `role` (`'admin' | 'trainer'`), `isAdmin`, `isTrainer`, `loading`, `signIn`, `signOut`, `supabaseReady` (= настроен ли Supabase, не «онлайн ли сеть»).
-- **Без Supabase**: вход по логину из `Login.jsx` пишет сессию в `localStorage` (`fitness-diary-auth-fallback`), поднимается демо-пользователь; вызывается `ensureDemoData()`.
-- **С Supabase**: `signInWithPassword`, профиль из таблицы `users` (`role`, `name`, `club_id` при наличии колонки).
+- **`AuthContext`**: `role` ∈ `'admin' | 'trainer' | 'sales_manager'`; флаги `isAdmin`, `isTrainer`, `isSalesManager`.
+- Без Supabase: fallback в `localStorage`, демо-данные.
+- С Supabase: `signInWithPassword` (+ при необходимости `/api/auth-sign-in`), профиль из `users`.
 
-**Маршрутизация** (`App.jsx`):
+**Маршруты** (`App.jsx`):
 
-- `/login` — без layout.
-- Остальное внутри `LoggedInLayout` (шапка, черновики, breadcrumbs, `<Outlet />`).
-- **`RoleOutlet`**: дети доступны только если `roles.includes(role)`; иначе редирект на `/admin` или `/trainer`.
+| Роль | Пути |
+|------|------|
+| trainer | `/trainer`, `/trainer/clients`, `/trainer/clients/:id`, `/trainer/workouts/:id`, `/trainer/profile`, челленджи |
+| sales_manager | `/sales`, `/sales/club-tasks`, `/sales/pnk` |
+| admin | `/admin/*` (clients, statistics, sales, pnk, challenges, iskra-settings, club-tasks, diagnostics, …), `/admin/workouts/:id` |
 
-Пути:
+Карточка клиента (`ClientCard`) общая для тренера и админа.
 
-- Тренер: `/trainer`, `/trainer/clients`, `/trainer/clients/:id` (**ClientCard**), `/trainer/workouts/:id` (**TrainingPage**), `/trainer/profile`.
-- Админ: `/admin` (**AdminDashboard** с вложенными `clients`, `statistics`, `organization`, `exercises`, …), `/admin/clients/:id` (**тот же ClientCard**), `/admin/workouts/:id` (**TrainingPage**).
-- Редиректы совместимости: `/admin/diaries` → клиенты; старые `trainers`/`clubs` → organization.
-
----
-
-## 6. Модель данных (логическая)
-
-### IndexedDB (`localDb.js`)
-
-Хранилища: `meta`, `clients`, `memberships`, `trainings`, `exercises`, `body_measurements`, `health_cards` (**keyPath: `client_id`**), `clubs`, `sync_queue`.
-
-Важно: **`health_cards`** в IDB ключуется по **`client_id`**, не по `id` записи.
-
-### Основные сущности
-
-- **clients**: `trainer_id`, `club_id`, имя, телефон, `birth_date`, `card_number`, …
-- **memberships**: период `start_date`/`end_date`, `total_trainings`, `used_trainings`, `club_id`, `client_id`; поле `status` в схеме Postgres может быть, **логика «активности» в приложении** опирается на `membershipRules` (даты + остаток тренировок), не на `status`.
-- **trainings**: `client_id`, `trainer_id`, `club_id`, `date`, `type`, `status` (`draft` | `completed`), `data` (JSONB) — структура формы из `TrainingForm`.
-- **health_cards**: в т.ч. `height_cm`, `weight_kg`, `goal`, тексты медкарты; синк с облаком; если в Postgres нет колонки `goal`, `flushSyncQueue` повторяет запись **без** `goal` (см. `syncService.js`).
-- **body_measurements**: поля как в `BODY_MEASURE_FIELDS` (`neck`, `chest`, `arm_r`, …); `getMeasureValue` умеет читать legacy-имена (`arm`, `waist`, …).
-
-### Синхронизация (`syncService.js`)
-
-- `saveLocalWithSync(store, record, { table_name, operation, remote_id })` — запись в IDB + очередь `sync_queue`.
-- `flushSyncQueue()` — при онлайне и настроенном Supabase шлёт insert/update/delete в таблицы из `ALLOWED_TABLES`.
-- Удаление медкарты: `deleteHealthCardByClientId` — в IDB ключ `client_id`, в очереди delete по `remote_id` = `hc.id`.
+**В планах (не роли в коде):** управляющий клуба — [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md).
 
 ---
 
-## 7. Ключевая бизнес-логика (коротко)
+## 6. Модель данных и sync (кратко)
 
-- **Новая тренировка**: тренер с `clientId` в query; **админ** не создаёт новую с нуля (`TrainingPage` early return + текст в `ClientCard`).
-- **Списание абонемента** при первом переводе в `completed`: `pickUsableMembershipForDate`, дата для тренера — **«сегодня»** (`todayIso`), для админа — **`trainingDate`** (см. комментарии в `TrainingPage`).
-- **`club_id`** у тренировки обязателен; при отсутствии у клиента — эвристики из абонемента / первого клуба (`TrainingPage` + `persist`).
-- **Тренер без `club_id` в профиле**: `listLocalClients` / `listTrainingsForTrainer` с пустым `trainerClubId` возвращают **[]** — дашборд пустой (задуманная политика).
-- **Админ, список клиентов в облаке без выбранного клуба**: `listAdminClientsForClub` может вернуть пусто + `cloudNeedsClub` (см. `adminClientsListService.js`).
-- **Поиск клиентов (админ)**: два поля — клиент и тренер; отдельный сервис `adminClientSearchService.js` (журнал и т.п.) с поиском по ФИО тренера при Supabase.
+Полнее: [DATA_MODEL.md](./DATA_MODEL.md), [SYNC.md](./SYNC.md).
 
----
+**IDB stores:** `meta`, `clients`, `memberships`, `trainings`, `exercises`, `body_measurements`, `health_cards` (**keyPath: `client_id`**), `clubs`, `sync_queue`, `challenges`, `membership_types`, `nutrition_products`, `homework_presets`, `client_weight_entries`, `outreach_log`, `club_iskra_settings`.
 
-## 8. Статистика клуба (`adminClubStatsService.js` + `AdminClubStatsSection`)
+**Поток записи:** UI → `saveLocalWithSync` → IDB + `sync_queue` → при online `/api/push-record` или `push-records` → ручной Sync: **сначала flush очереди**, потом **pull**. Pull не затирает строки с pending (`putStoreUnlessPendingSync`).
 
-При выбранном `clubId` и диапазоне дат (**период сводки**):
+**Allowlist push:** `PUSH_ALLOWED_TABLES` в `api/_lib/pushRecordCore.js`.
 
-- всего клиентов клуба;
-- «действующие» — `hasUsableMembershipOnDate(..., dateTo)`;
-- «не активные» — на `dateTo` нет действующего абонемента (причина: `inactiveMembershipReason`);
-- проведённые тренировки — `status === 'completed'` в диапазоне;
-- по типам карт, по дням, рейтинг тренеров — в том же периоде.
-
-**Итоговый годовой график** («Итог по клубу»): **полный календарный год** (янв–дек), **не зависит** от периода сводки; только завершённые со **типом карты** на абонементе.
-
-Доменные правила: `membershipRules.js`, agg: `api/lib/clubStatsAgg.js`, `clubMonthlyAgg.js`. Verify: `verify-club-client-period.mjs`, `verify-club-monthly-year.mjs`.
-
-UI: карточки, drill-down, пояснения в popover (Info).
+Продажи / ПНК / ИСКРА на сервере часто идут через **`admin-data?action=`**, не только через очередь планшета.
 
 ---
 
-## 9. Карточка клиента (`ClientCard` + `ClientOverview`)
+## 7. Ключевая бизнес-логика
 
-Вкладки: **Здоровье** (медкарта + обмеры + цель), **Абонементы**, **Тренировки**, **Статистика**.
-
-Цель хранится в **`health_cards.goal`**; миграция Postgres: `supabase/migrations/20260513120000_health_cards_goal.sql`.
+- **Новая тренировка:** тренер с `clientId`; админ с нуля не создаёт.
+- **Списание абонемента** при первом `completed`: `membershipRules` / `pickUsableMembershipForDate`; дата для тренера — «сегодня», для админа — дата тренировки.
+- **`club_id`** у тренировки обязателен; тренер без `club_id` в профиле видит пустые списки.
+- **ПНК:** жизненный цикл на клиенте + абонемент БЗ; логика в `src/lib/pnk/*Core.js`; UI мастер + доска `/sales/pnk`. Док: [PNK_FUNNEL.md](./PNK_FUNNEL.md).
+- **Архив клиентов:** [CLIENT_ARCHIVE.md](./CLIENT_ARCHIVE.md) — не ломать sync/agg.
 
 ---
 
-## 10. Edge Functions
+## 8. Статистика клуба
 
-- `supabase/functions/create-trainer` — вызывается из админки организации (`supabase.functions.invoke`).
-- `supabase/functions/delete-trainer` — через `adminOrganizationService.js`.
+Период сводки ≠ годовой график (полный календарный год).  
+Agg: `src/lib/admin/*Agg.js` ↔ зеркало `api/_lib/*Agg.js` + `scripts/verify-*.mjs`.  
+UI: карточки, drill-down. Домен: `.cursor/rules/fitness-diary-domain.mdc`.
 
-Деплой: Supabase CLI `supabase functions deploy …` (см. `docs/DEPLOY.md`).
+---
+
+## 9. Карточка клиента
+
+Вкладки: **Здоровье**, **Питание**, **ДЗ**, **Абонементы**, **Тренировки**, **Статистика**; для открытого ПНК — мастер шагов и ограничения видимости вкладок (`pnkStagesCore`).
+
+Цель — в `health_cards.goal`.
+
+---
+
+## 10. API и Edge
+
+Каталог endpoints: [API.md](./API.md).
+
+- Vercel: `admin-data`, `trainer-pull`, `push-record(s)`, auth, list-*, create-trainer, …
+- Hobby **≤12** `api/*.js` — новое действие → `admin-data?action=`, не новый файл.
+- Edge Functions: `create-trainer`, `delete-trainer` (см. DEPLOY).
 
 ---
 
@@ -190,65 +165,64 @@ UI: карточки, drill-down, пояснения в popover (Info).
 | Команда | Назначение |
 |---------|------------|
 | `npm run dev` | Разработка |
-| `npm run build` | Артефакт в `dist/` |
-| `npm run preview` | Локальный просмотр production-сборки |
-| `npm run lint` | ESLint |
-| `npm run qa:local` | build + verify-скрипты + lint (без prod smoke) |
-| `npm run qa` | qa:local + prod smoke |
-| CI | `.github/workflows/qa.yml` — `qa:local` на push/PR; `qa-prod-weekly.yml` — prod smoke по понедельникам |
-| `npm run gen:icons` | Регенерация `public/icons` |
+| `npm run build` / `preview` | Production-сборка |
+| `npm run lint` | ESLint — **всегда** перед «готово» |
+| `npm run qa:local` | build + verify + lint (без prod smoke) |
+| `npm run qa` | + prod smoke |
+| `npm run qa:deep` / `qa:roles` | углублённые / ролевые проверки |
+| `npm run check:volume` | объём данных (см. DATA_VOLUME) |
+| `npm run db:migrate*` | policies, sales, pnk, iskra, … |
 
-Деплой статики и Supabase: **`docs/DEPLOY.md`**. Конфиги: `netlify.toml`, `vercel.json`, `public/_redirects`.
+Подробнее: [TESTING.md](./TESTING.md), [RELEASE.md](./RELEASE.md), [DEPLOY.md](./DEPLOY.md).  
+CI: `.github/workflows/qa.yml` (`qa:local`), weekly prod smoke.
 
 ---
 
-## 12. Известные ограничения / неочевидности
+## 12. Известные ограничения
 
-1. **`supabase/schema.sql` vs миграции**: для нового проекта можно выполнить `schema.sql` в SQL Editor, затем миграции (идемпотентны). Не смешивать бездумно два «источника правды» на одной БД без понимания порядка.
-2. **RLS**: в репозитории только пример; на проде политики обязательны.
-3. **Имена тренеров без Supabase**: `listTrainerSummariesForAdmin` возвращает `[]` — поиск/отображение ФИО тренера в облачных фичах ограничены.
-4. **PWA кэш**: в dev SW отключён (`vite-plugin-pwa` `devOptions`), чтобы не было «белого экрана» из кэша.
-5. **Чанк JS** крупный — предупреждение Vite при build, не ошибка.
+1. `schema.sql` + идемпотентные `migrations/` — понимать порядок на новой БД.
+2. RLS на проде обязателен ([SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md)).
+3. PWA SW в dev обычно выключен — иначе риск «белого экрана» из кэша ([PWA.md](./PWA.md)).
+4. Инциденты клубы ≠ облако: [RUNBOOK.md](./RUNBOOK.md) §3.
 
 ---
 
 ## 13. Как продолжить работу другой модели
 
-1. Прочитать этот файл; навигация по docs — **`docs/README.md`**. При необходимости — **`docs/DEPLOY.md`**.
-2. Для изменений UI/логики — искать по `src/pages`, `src/components`, `src/lib`.  
-3. Для схемы БД — `supabase/schema.sql` и `supabase/migrations/`.  
-4. После правок: **`npm run lint`**; при sync/статистике/абонементах — **`npm run qa:local`**.  
-5. Не добавлять секреты сервисной роли во фронт; для новых таблиц синка — расширить `PUSH_ALLOWED_TABLES` (`api/lib/pushRecordCore.js`) и путь в `flushSyncQueue`, если таблица должна синхронизироваться.
+1. Этот handoff + [docs/README.md](./README.md).
+2. Код: `src/pages`, `src/components`, `src/lib`, `api/_lib`.
+3. Схема: `supabase/schema.sql`, `migrations/`.
+4. После правок: `npm run lint`; sync/статистика/абонементы/agg → `npm run qa:local`.
+5. Новая таблица в sync: migration + RLS + `PUSH_ALLOWED_TABLES` + flush/pull + store в `localDb` при офлайн-кэше.
+6. Фича shipped → обновить статус в doc + строку в README (см. ship-правило).
 
 ---
 
 ## 14. Контакты с пользователем
 
-Пользователь предпочитает **русский** язык в ответах. Даты в UI часто через **`formatDateRu`** / периоды через **`src/lib/period.js`**.
-
-Файл можно копировать целиком в системный промпт или первое сообщение новому ассистенту вместе с указанием корня репозитория: `fitness-diary`.
-
-**Правила для Cursor (агент подхватывает автоматически):** каталог `.cursor/rules/`
-
-| Файл | Когда |
-|------|--------|
-| `fitness-diary-features.mdc` | всегда — **новая фича**: исход, код, wow, стабильность |
-| `fitness-diary-architecture.mdc` | всегда — офлайн, слои |
-| `fitness-diary-scale.mdc` | всегда — масштаб, verify |
-| `fitness-diary-stability.mdc` | всегда — не ломать критические сценарии |
-| `fitness-diary-ship.mdc` | всегда — QA, деплой, коммит |
-| `fitness-diary-split-files.mdc` | `src/**`, `api/**` |
-| `fitness-diary-domain.mdc` | абонементы, статистика, agg |
-| `fitness-diary-sync.mdc` | sync, очередь, pull |
-| `fitness-diary-supabase.mdc` | `supabase/**`, API |
-| `fitness-diary-ui.mdc` | pages, components, CSS |
-
-Принцип: новую логику сразу в правильный слой/файл; wow — отдельным предложением, не костылём в PR.
+Ответы на **русском**, простым языком. Даты UI: `formatDateRu`, периоды — `src/lib/period.js`.
 
 ---
 
-## 15. Клубы: приложение ≠ Supabase
+## 15. Правила Cursor
 
-Симптомы (фантомные клубы в UI, «Сохраняем…», `ERR_CONNECTION_RESET`, 403 на clubs): **[RUNBOOK.md §3](./RUNBOOK.md)** и **[SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md)**.
+| Файл | Когда |
+|------|--------|
+| `fitness-diary-features.mdc` | новая фича: фильтр → исход → код → wow → стабильность |
+| `fitness-diary-architecture.mdc` | слои, офлайн |
+| `fitness-diary-scale.mdc` | масштаб, verify |
+| `fitness-diary-stability.mdc` | критические сценарии |
+| `fitness-diary-ship.mdc` | QA, деплой, коммит |
+| `fitness-diary-docs.mdc` | документация как DoD: правда, слои, без drift |
+| `fitness-diary-split-files.mdc` | пороги разбиения файлов |
+| `fitness-diary-domain.mdc` | абонементы, статистика |
+| `fitness-diary-sync.mdc` | очередь, pull |
+| `fitness-diary-supabase.mdc` | миграции, секреты, ≤12 functions |
+| `fitness-diary-ui.mdc` | планшет, русский UX, ПНК UI |
+| `fitness-diary-cursor-efficiency.mdc` | экономия контекста, понятные отчёты |
 
-Код: `AdminOrganization.jsx` → `saveClubForAdmin` / `pullClubsFromSupabaseInner` в `dataAccess.js`; RLS — миграции `20260518120000_clubs_rls_admin.sql`, `20260519120000_fit_auth_admin_by_email.sql`.
+---
+
+## 16. Клубы: приложение ≠ Supabase
+
+Симптомы и фиксы: [RUNBOOK.md §3](./RUNBOOK.md), [SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md).

@@ -24,11 +24,15 @@ function ok(cond, msg) {
   }
 }
 
-ok(ISKRA_KB_ARTICLES.length >= 10, 'article count')
+ok(ISKRA_KB_ARTICLES.length >= 11, 'article count')
 ok(ISKRA_KB_ARTICLES.some((a) => a.id === 'client_create'), 'client_create article')
+ok(ISKRA_KB_ARTICLES.some((a) => a.id === 'pnk_funnel'), 'pnk_funnel article')
 
 const clientHits = searchKbArticles('как создать клиента', { topic: 'client' })
 ok(clientHits[0]?.id === 'client_create', 'search client_create')
+
+const pnkHits = searchKbArticles('как провести пнк', { topic: 'sales' })
+ok(pnkHits.some((a) => a.id === 'pnk_funnel'), 'search pnk_funnel')
 
 const syncHits = searchKbArticles('не синхронизируется планшет', { topic: 'sync' })
 ok(syncHits.length >= 1, 'search sync topic')

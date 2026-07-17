@@ -1,4 +1,4 @@
-/** Клиенты клуба за период (зеркало api/lib/clubStatsAgg.js → aggregateClubClientPeriod). */
+/** Клиенты клуба за период (зеркало api/_lib/clubStatsAgg.js → aggregateClubClientPeriod). */
 
 import {
   hasUsableMembershipForPeriodStats,
