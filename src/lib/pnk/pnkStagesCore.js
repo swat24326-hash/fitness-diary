@@ -491,6 +491,7 @@ export function resolvePnkVisitDayState(client, now = new Date()) {
 
 /**
  * Строгая последовательность: видна только вкладка текущего шага мастера.
+ * На шаге тренировки дополнительно — «Абонементы» (если БЗ нужно добавить вручную).
  * @param {object} client
  * @param {string} tabId
  * @param {{ healthCard?: object | null, bzCompletedCount?: number, healthComplete?: boolean }} [ctx]
@@ -500,8 +501,10 @@ export function isPnkCardTabVisible(client, tabId, ctx = {}) {
   if (!isOpenPnkClient(client)) return true
   if (id === 'stats') return false
   const step = resolvePnkWizardStep(client, ctx)
-  if (!step?.tab) return false
-  return step.tab === id
+  if (!step) return false
+  if (step.tab === id) return true
+  if ((step.key === 'train1' || step.key === 'train2') && id === 'memberships') return true
+  return false
 }
 
 /** Фильтры доски менеджера */

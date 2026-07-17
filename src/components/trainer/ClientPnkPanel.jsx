@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CalendarPlus, Ban, Trophy, Heart, Utensils, Dumbbell, ClipboardList } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import {
@@ -35,6 +35,7 @@ export function ClientPnkPanel({
   const [comment, setComment] = useState('')
   const [lostReason, setLostReason] = useState('')
   const [startBusy, setStartBusy] = useState(false)
+  const autoStartTrainRef = useRef('')
 
   useEffect(() => {
     setTrialDate(String(client?.pnk_trial_date ?? '').slice(0, 10))
@@ -51,6 +52,18 @@ export function ClientPnkPanel({
     if (!step?.tab) return
     if (typeof onOpenTab === 'function') onOpenTab(step.tab)
   }, [step?.key, step?.tab, onOpenTab])
+
+  /** Шаг тренировки → сразу форма упражнений (не список дневников). */
+  useEffect(() => {
+    if (!step || (step.key !== 'train1' && step.key !== 'train2')) return
+    if (typeof onStartTraining !== 'function') return
+    const need = step.key === 'train2' ? 2 : 1
+    if ((Number(bzCompletedCount) || 0) >= need) return
+    const stamp = `${client?.id}:${step.key}`
+    if (autoStartTrainRef.current === stamp) return
+    autoStartTrainRef.current = stamp
+    void onStartTraining()
+  }, [step?.key, client?.id, bzCompletedCount, onStartTraining])
 
   if (!openPnk || !step) return null
 
@@ -295,13 +308,17 @@ export function ClientPnkPanel({
       {step.key === 'train1' || step.key === 'train2' ? (
         <div className="pnk-client-panel__step">
           <p className="pnk-client-panel__sub">
-            Упражнения — через «Начать тренировку». Вкладка «Тренировки» — список уже сохранённых.
+            Открывается форма тренировки (упражнения). Если не открылась — нажмите кнопку.
           </p>
           {stepActions(
             typeof onStartTraining === 'function' || typeof onOpenDiaries === 'function' ? (
               <button
                 type="button"
-                className="btn btn-secondary btn-touch"
+                className={
+                  advance.ok
+                    ? 'btn btn-secondary btn-touch'
+                    : 'btn btn-primary btn-touch pnk-client-panel__btn-primary'
+                }
                 disabled={busy || startBusy}
                 onClick={() => void handleStartTraining()}
               >

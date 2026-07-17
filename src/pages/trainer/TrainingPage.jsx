@@ -616,7 +616,7 @@ export function TrainingPage() {
   }
 
   return (
-    <div className="grid" style={{ gap: 16 }}>
+    <div className="grid training-page-root" style={{ gap: 16 }}>
       <div className="training-page-head-title">
         <div className="training-page-head-title__left">
           <h1 className="training-page-head-name">{title}</h1>

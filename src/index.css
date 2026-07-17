@@ -1132,6 +1132,24 @@ button {
   padding: clamp(16px, 3vw, 28px);
 }
 
+/* Форма тренировки — шире, плитки крупнее (планшет в зале) */
+.app-main:has(.training-page-root) {
+  max-width: min(1480px, 100%);
+}
+
+.training-page-root .training-tile {
+  height: 92px;
+  padding: 12px 14px;
+}
+
+.training-page-root .training-tile__value {
+  font-size: 1.35rem;
+}
+
+.training-page-root .card {
+  padding: clamp(16px, 2.2vw, 24px);
+}
+
 @media (max-width: 900px) {
   .app-main {
     padding: clamp(12px, 2.6vw, 20px);
@@ -6185,10 +6203,24 @@ tr:last-child td {
 }
 
 .modal-panel--membership-form {
-  width: min(560px, 100%);
-  max-height: min(92dvh, calc(100dvh - 24px));
+  width: min(720px, 96vw);
+  max-height: min(96dvh, calc(100dvh - 12px));
   overflow-y: auto;
   overscroll-behavior: contain;
+  padding: 28px 32px;
+}
+
+@media (min-width: 900px) {
+  .modal-panel--membership-form {
+    width: min(820px, 92vw);
+    padding: 32px 36px;
+  }
+
+  .modal-panel--membership-form .membership-form .input,
+  .modal-panel--membership-form .membership-form select.input {
+    min-height: 48px;
+    font-size: 1.05rem;
+  }
 }
 
 .modal-overlay.modal-overlay--membership-view {

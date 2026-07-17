@@ -138,14 +138,15 @@ ok(buildPnkWizardAdvancePatch({ key: 'train2' })?.deliverable === 'trial2', 'tra
 ok(buildPnkWizardAdvancePatch({ key: 'invite' }) === null, 'invite no advance patch')
 
 /* Жёсткая последовательность вкладок — только текущий шаг */
-function onlyTab(client, expectTab, label) {
+function onlyTab(client, expectTab, label, extraVisible = []) {
   const tabs = ['health', 'nutrition', 'homework', 'diaries', 'memberships', 'stats']
+  const allowed = new Set(expectTab == null ? extraVisible : [expectTab, ...extraVisible])
   for (const t of tabs) {
     const vis = isPnkCardTabVisible(client, t)
-    if (expectTab == null) {
+    if (expectTab == null && extraVisible.length === 0) {
       ok(!vis, `${label}: ${t} hidden`)
-    } else if (t === expectTab) {
-      ok(vis, `${label}: ${expectTab} visible`)
+    } else if (allowed.has(t)) {
+      ok(vis, `${label}: ${t} visible`)
     } else {
       ok(!vis, `${label}: ${t} hidden`)
     }
@@ -155,7 +156,7 @@ function onlyTab(client, expectTab, label) {
 onlyTab(baseClient(1), null, 'invite')
 onlyTab(afterInvite, 'health', 'health step')
 onlyTab(afterHealth, 'nutrition', 'nutrition step')
-onlyTab(afterNutrition, 'diaries', 'train step')
+onlyTab(afterNutrition, 'diaries', 'train step', ['memberships'])
 onlyTab(afterTrain1, 'homework', 'hw step')
 onlyTab(afterFollowup, null, 'close step')
 
