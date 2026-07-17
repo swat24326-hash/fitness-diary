@@ -504,6 +504,29 @@ button.pnk-chip:disabled {
   flex-wrap: wrap;
 }
 
+/* Шаг мастера: всегда один ряд, зелёная «Далее» чуть длиннее */
+.pnk-client-panel__actions--step {
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+.pnk-client-panel__actions--step .btn,
+.pnk-client-panel__actions--step .pnk-client-panel__ok {
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: 0.92rem;
+  padding-left: 10px;
+  padding-right: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pnk-client-panel__actions--step .pnk-client-panel__btn-primary,
+.pnk-client-panel__actions--step .btn-primary {
+  flex: 1.55 1 0;
+}
+
 .pnk-client-panel__actions .pnk-coach-notify {
   display: flex;
   flex: 1 1 100%;
@@ -629,28 +652,35 @@ button.pnk-chip:disabled {
 }
 
 @media (max-width: 720px) {
-  .pnk-client-panel__actions:not(.pnk-client-panel__actions--wrap) {
+  .pnk-client-panel__actions:not(.pnk-client-panel__actions--wrap):not(.pnk-client-panel__actions--step) {
     flex-wrap: wrap;
   }
 
-  .pnk-client-panel__actions .pnk-coach-notify {
+  .pnk-client-panel__actions:not(.pnk-client-panel__actions--step) .pnk-coach-notify {
     flex-wrap: wrap;
   }
 
-  .pnk-client-panel__actions .pnk-coach-notify__max,
-  .pnk-client-panel__actions .pnk-client-panel__btn-primary,
-  .pnk-client-panel__actions .btn-primary,
-  .pnk-client-panel__actions .pnk-coach-notify__other,
-  .pnk-client-panel__actions .pnk-client-panel__btn-secondary,
-  .pnk-client-panel__actions .btn-ghost,
-  .pnk-client-panel__actions .btn-secondary,
-  .pnk-client-panel__actions .btn {
+  .pnk-client-panel__actions:not(.pnk-client-panel__actions--step) .pnk-coach-notify__max,
+  .pnk-client-panel__actions:not(.pnk-client-panel__actions--step) .pnk-client-panel__btn-primary,
+  .pnk-client-panel__actions:not(.pnk-client-panel__actions--step) .btn-primary,
+  .pnk-client-panel__actions:not(.pnk-client-panel__actions--step) .pnk-coach-notify__other,
+  .pnk-client-panel__actions:not(.pnk-client-panel__actions--step) .pnk-client-panel__btn-secondary,
+  .pnk-client-panel__actions:not(.pnk-client-panel__actions--step) .btn-ghost,
+  .pnk-client-panel__actions:not(.pnk-client-panel__actions--step) .btn-secondary,
+  .pnk-client-panel__actions:not(.pnk-client-panel__actions--step) .btn {
     flex: 1 1 calc(50% - 8px);
   }
 
   .pnk-client-panel .pnk-coach-notify__max,
   .pnk-client-panel .pnk-coach-notify__other {
     flex: 1 1 calc(50% - 8px);
+  }
+
+  .pnk-client-panel__actions--step .btn,
+  .pnk-client-panel__actions--step .pnk-client-panel__ok {
+    font-size: 0.82rem;
+    padding-left: 6px;
+    padding-right: 6px;
   }
 }
 

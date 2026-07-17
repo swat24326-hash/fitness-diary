@@ -432,6 +432,16 @@ export function ClientCard() {
               >
                 <Dumbbell size={20} aria-hidden />
               </button>
+            ) : isOpenPnkClient(client) ? (
+              <button
+                type="button"
+                className="btn btn-primary btn-icon-square btn-touch"
+                aria-label="Провести бесплатную тренировку"
+                title="Провести бесплатную — записать упражнения"
+                onClick={() => void startPnkTraining()}
+              >
+                <Dumbbell size={20} aria-hidden />
+              </button>
             ) : hasActiveMembership ? (
               <Link
                 to={`/trainer/workouts/new?clientId=${client.id}`}
@@ -498,7 +508,26 @@ export function ClientCard() {
       {tab === 'homework' && <ClientHomeworkPage client={client} readOnly={isArchived} />}
       {tab === 'memberships' && <ClientOverview client={client} onReload={reloadLocal} section="memberships" readOnly={isArchived} />}
       {tab === 'stats' && <Statistics clientId={client.id} />}
-      {tab === 'diaries' && <ClientDiaries client={client} onDataChange={reloadLocal} clubQs={isAdmin ? adminClubQs : ''} readOnly={isArchived} />}
+      {tab === 'diaries' && (
+        <>
+          {isOpenPnkClient(client) && !isArchived && !isAdmin ? (
+            <div className="pnk-conduct-banner" style={{ marginBottom: 12 }}>
+              <p className="muted" style={{ margin: '0 0 8px', fontSize: '0.92rem' }}>
+                Здесь список уже проведённых. Чтобы записать упражнения — нажмите кнопку.
+              </p>
+              <button
+                type="button"
+                className="btn btn-primary btn-touch"
+                onClick={() => void startPnkTraining()}
+              >
+                <Dumbbell size={18} aria-hidden style={{ marginRight: 8, verticalAlign: -3 }} />
+                Начать тренировку — записать упражнения
+              </button>
+            </div>
+          ) : null}
+          <ClientDiaries client={client} onDataChange={reloadLocal} clubQs={isAdmin ? adminClubQs : ''} readOnly={isArchived} />
+        </>
+      )}
 
       {isAdmin && clientTaskDraft ? (
         <IskraDispatchModal

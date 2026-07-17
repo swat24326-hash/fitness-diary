@@ -41,11 +41,18 @@ export function ClientPnkPanel({
     setTrialTime(String(client?.pnk_trial_time ?? ''))
   }, [client?.id, client?.pnk_trial_date, client?.pnk_trial_time])
 
-  if (!client || !isOpenPnkClient(client)) return null
+  const openPnk = Boolean(client && isOpenPnkClient(client))
+  const ctx = openPnk
+    ? { healthCard, bzCompletedCount: Math.min(2, Math.max(0, Number(bzCompletedCount) || 0)) }
+    : null
+  const step = openPnk ? resolvePnkTrainerUiStep(client, ctx) : null
 
-  const ctx = { healthCard, bzCompletedCount: Math.min(2, Math.max(0, Number(bzCompletedCount) || 0)) }
-  const step = resolvePnkTrainerUiStep(client, ctx)
-  if (!step) return null
+  useEffect(() => {
+    if (!step?.tab) return
+    if (typeof onOpenTab === 'function') onOpenTab(step.tab)
+  }, [step?.key, step?.tab, onOpenTab])
+
+  if (!openPnk || !step) return null
 
   const advance = canAdvancePnkWizardStep(client, step, ctx)
   const flags = buildPnkAttentionFlags(client)
@@ -102,28 +109,6 @@ export function ClientPnkPanel({
     if (typeof onOpenTab === 'function') onOpenTab(tabId)
   }
 
-  function nextButton() {
-    if (!showNext) return null
-    return (
-      <div className="pnk-client-panel__actions">
-        <button
-          type="button"
-          className="btn btn-primary btn-touch pnk-client-panel__btn-primary"
-          disabled={busy || !advance.ok}
-          title={!advance.ok ? advance.reason : 'Далее'}
-          onClick={() => void run(buildPnkWizardAdvancePatch(step))}
-        >
-          Далее
-        </button>
-        {!advance.ok && advance.reason ? (
-          <p className="muted" style={{ margin: 0, fontSize: '0.9rem' }}>
-            {advance.reason}
-          </p>
-        ) : null}
-      </div>
-    )
-  }
-
   function earlyLostButton() {
     if (step.key === 'close') return null
     return (
@@ -133,8 +118,37 @@ export function ClientPnkPanel({
         disabled={busy}
         onClick={() => void run({ stage: 'lost', lost_reason: lostReason || comment || 'Отказ' })}
       >
-        Отказ на этом шаге
+        Отказ
       </button>
+    )
+  }
+
+  /** Один ряд: основные действия + «Далее» (зелёная чуть длиннее) + отказ */
+  function stepActions(mainButtons, opts = {}) {
+    const includeNext = opts.includeNext !== false && showNext
+    return (
+      <>
+        <div className="pnk-client-panel__actions pnk-client-panel__actions--step">
+          {mainButtons}
+          {includeNext ? (
+            <button
+              type="button"
+              className="btn btn-primary btn-touch pnk-client-panel__btn-primary"
+              disabled={busy || !advance.ok}
+              title={!advance.ok ? advance.reason : 'Далее'}
+              onClick={() => void run(buildPnkWizardAdvancePatch(step))}
+            >
+              Далее
+            </button>
+          ) : null}
+          {earlyLostButton()}
+        </div>
+        {includeNext && !advance.ok && advance.reason ? (
+          <p className="muted" style={{ margin: 0, fontSize: '0.9rem' }}>
+            {advance.reason}
+          </p>
+        ) : null}
+      </>
     )
   }
 
@@ -238,125 +252,119 @@ export function ClientPnkPanel({
 
       {step.key === 'health' ? (
         <div className="pnk-client-panel__step">
-          <div className="pnk-client-panel__actions">
+          {stepActions(
             <button
               type="button"
               className="btn btn-secondary btn-touch"
               onClick={() => openTab('health')}
             >
               <Heart size={16} aria-hidden /> Открыть здоровье
-            </button>
-          </div>
-          {nextButton()}
-          <div className="pnk-client-panel__actions">{earlyLostButton()}</div>
+            </button>,
+          )}
         </div>
       ) : null}
 
       {step.key === 'nutrition' ? (
         <div className="pnk-client-panel__step">
-          <div className="pnk-client-panel__actions pnk-client-panel__actions--wrap">
-            <button
-              type="button"
-              className="btn btn-secondary btn-touch"
-              onClick={() => openTab('nutrition')}
-            >
-              <Utensils size={16} aria-hidden /> Открыть питание
-            </button>
-            {!d.nutrition ? (
+          {stepActions(
+            <>
               <button
                 type="button"
-                className="btn btn-ghost btn-touch"
-                disabled={busy}
-                onClick={() => void run({ deliverable: 'nutrition' })}
+                className="btn btn-secondary btn-touch"
+                onClick={() => openTab('nutrition')}
               >
-                ✓ Питание выдано
+                <Utensils size={16} aria-hidden /> Открыть питание
               </button>
-            ) : (
-              <span className="pnk-client-panel__ok">✓ Питание</span>
-            )}
-          </div>
-          {nextButton()}
-          <div className="pnk-client-panel__actions">{earlyLostButton()}</div>
+              {!d.nutrition ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-touch"
+                  disabled={busy}
+                  onClick={() => void run({ deliverable: 'nutrition' })}
+                >
+                  ✓ Питание выдано
+                </button>
+              ) : (
+                <span className="pnk-client-panel__ok">✓ Питание</span>
+              )}
+            </>,
+          )}
         </div>
       ) : null}
 
       {step.key === 'train1' || step.key === 'train2' ? (
         <div className="pnk-client-panel__step">
-          <div className="pnk-client-panel__actions">
-            {typeof onStartTraining === 'function' || typeof onOpenDiaries === 'function' ? (
+          <p className="pnk-client-panel__sub">
+            Упражнения — через «Начать тренировку». Вкладка «Тренировки» — список уже сохранённых.
+          </p>
+          {stepActions(
+            typeof onStartTraining === 'function' || typeof onOpenDiaries === 'function' ? (
               <button
                 type="button"
-                className="btn btn-primary btn-touch pnk-client-panel__btn-primary"
+                className="btn btn-secondary btn-touch"
                 disabled={busy || startBusy}
                 onClick={() => void handleStartTraining()}
               >
                 <Dumbbell size={18} aria-hidden /> Начать тренировку
               </button>
-            ) : null}
-            {typeof onOpenDiaries === 'function' ? (
-              <button type="button" className="btn btn-ghost btn-touch" onClick={() => onOpenDiaries()}>
-                Список тренировок
-              </button>
-            ) : null}
-          </div>
-          {nextButton()}
-          <div className="pnk-client-panel__actions">{earlyLostButton()}</div>
+            ) : null,
+          )}
         </div>
       ) : null}
 
       {step.key === 'hw1' ? (
         <div className="pnk-client-panel__step">
-          <div className="pnk-client-panel__actions pnk-client-panel__actions--wrap">
-            <button
-              type="button"
-              className="btn btn-secondary btn-touch"
-              onClick={() => openTab('homework')}
-            >
-              <ClipboardList size={16} aria-hidden /> Открыть ДЗ
-            </button>
-            {!d.homework ? (
+          {stepActions(
+            <>
               <button
                 type="button"
-                className="btn btn-ghost btn-touch"
-                disabled={busy}
-                onClick={() => void run({ deliverable: 'homework' })}
+                className="btn btn-secondary btn-touch"
+                onClick={() => openTab('homework')}
               >
-                ✓ ДЗ выдано
+                <ClipboardList size={16} aria-hidden /> Открыть ДЗ
               </button>
-            ) : (
-              <span className="pnk-client-panel__ok">✓ ДЗ</span>
-            )}
-          </div>
-          {nextButton()}
-          <div className="pnk-client-panel__actions">{earlyLostButton()}</div>
+              {!d.homework ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-touch"
+                  disabled={busy}
+                  onClick={() => void run({ deliverable: 'homework' })}
+                >
+                  ✓ ДЗ выдано
+                </button>
+              ) : (
+                <span className="pnk-client-panel__ok">✓ ДЗ</span>
+              )}
+            </>,
+          )}
         </div>
       ) : null}
 
       {step.key === 'hw2' ? (
         <div className="pnk-client-panel__step">
-          <div className="pnk-client-panel__actions pnk-client-panel__actions--wrap">
-            <button
-              type="button"
-              className="btn btn-secondary btn-touch"
-              onClick={() => openTab('homework')}
-            >
-              <ClipboardList size={16} aria-hidden /> Открыть ДЗ
-            </button>
-            {!d.homework2 ? (
+          {stepActions(
+            <>
               <button
                 type="button"
-                className="btn btn-ghost btn-touch"
-                disabled={busy}
-                onClick={() => void run({ deliverable: 'homework2' })}
+                className="btn btn-secondary btn-touch"
+                onClick={() => openTab('homework')}
               >
-                ✓ ДЗ выдано
+                <ClipboardList size={16} aria-hidden /> Открыть ДЗ
               </button>
-            ) : (
-              <span className="pnk-client-panel__ok">✓ ДЗ после 2-й</span>
-            )}
-          </div>
-          {nextButton()}
-          <div className="pnk-client-panel__actions">{earlyLostButton()}</div>
+              {!d.homework2 ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-touch"
+                  disabled={busy}
+                  onClick={() => void run({ deliverable: 'homework2' })}
+                >
+                  ✓ ДЗ выдано
+                </button>
+              ) : (
+                <span className="pnk-client-panel__ok">✓ ДЗ после 2-й</span>
+              )}
+            </>,
+          )}
         </div>
       ) : null}
 
@@ -373,8 +381,17 @@ export function ClientPnkPanel({
               onResult={onMessengerResult}
             />
           </div>
-          <div className="pnk-client-panel__actions pnk-client-panel__actions--wrap">
-            {!d.followup ? (
+          <label className="pnk-client-panel__field">
+            Комментарий после разговора
+            <input
+              className="input"
+              value={comment}
+              placeholder="Что ответил клиент"
+              onChange={(e) => setComment(e.target.value)}
+            />
+          </label>
+          {stepActions(
+            !d.followup ? (
               <button
                 type="button"
                 className="btn btn-ghost btn-touch"
@@ -391,19 +408,8 @@ export function ClientPnkPanel({
               </button>
             ) : (
               <span className="pnk-client-panel__ok">✓ Уточнение</span>
-            )}
-          </div>
-          <label className="pnk-client-panel__field">
-            Комментарий после разговора
-            <input
-              className="input"
-              value={comment}
-              placeholder="Что ответил клиент"
-              onChange={(e) => setComment(e.target.value)}
-            />
-          </label>
-          {nextButton()}
-          <div className="pnk-client-panel__actions">{earlyLostButton()}</div>
+            ),
+          )}
         </div>
       ) : null}
 

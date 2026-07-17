@@ -487,7 +487,7 @@ export function resolvePnkVisitDayState(client, now = new Date()) {
 }
 
 /**
- * Пока ПНК открыт — статистика скрыта; тренировки доступны после назначения даты пробной.
+ * Вкладки карточки по прогрессу мастера ПНК (без прыжков вперёд).
  * @param {object} client
  * @param {string} tabId
  */
@@ -495,13 +495,18 @@ export function isPnkCardTabVisible(client, tabId) {
   const id = String(tabId ?? '')
   if (!isOpenPnkClient(client)) return true
   if (id === 'stats') return false
-  if (id === 'diaries') {
-    const trialDate = String(client?.pnk_trial_date ?? '').slice(0, 10)
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trialDate)) return true
-    const stage = client?.pnk_stage
-    return stage === 'agreed' || stage === 'trial_done' || stage === 'followup'
+
+  const d = parsePnkDeliverables(client?.pnk_deliverables)
+  const inviteDone = Boolean(d.contact) && Boolean(String(client?.pnk_trial_date ?? '').slice(0, 10))
+  if (!inviteDone) return false
+
+  if (id === 'health') return true
+  if (id === 'nutrition' || id === 'memberships') return Boolean(d.health)
+  if (id === 'diaries') return Boolean(d.nutrition)
+  if (id === 'homework') {
+    return Boolean(d.trial) || client?.pnk_stage === 'trial_done' || Boolean(d.trial2)
   }
-  return true
+  return false
 }
 
 /** Фильтры доски менеджера */
