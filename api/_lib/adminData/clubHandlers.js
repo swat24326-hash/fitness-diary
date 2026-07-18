@@ -17,6 +17,10 @@ import { IN_CHUNK, PAGE } from './constants.js'
 import { fetchPaged, fetchCompletedTrainingYearBounds } from './paging.js'
 import { aggregateCoachQuality } from '../../../src/lib/admin/coachQualityAgg.js'
 import { coachQualityRulesHelp } from '../../../src/lib/admin/coachQualityCore.js'
+import {
+  activeClientIdsFromTrainings,
+  fetchCoachQualityCareInputs,
+} from '../coachQualityCareFetch.js'
 
 export async function handleClubStats(ctx, req, res) {
   const clubId = String(req.query?.club_id ?? '').trim()
@@ -29,13 +33,25 @@ export async function handleClubStats(ctx, req, res) {
   try {
     const { supabaseAdmin } = ctx
     const raw = await fetchClubStatsRaw(supabaseAdmin, { clubId, dateFrom, dateTo })
-    // Те же trainings, что и сводка клуба (service role) — не браузерный RLS.
+    const activeIds = activeClientIdsFromTrainings(raw.trainings, dateFrom, dateTo)
+    let careInputs = {
+      healthByClientId: {},
+      lastMeasureByClientId: {},
+      hadMeasureEverByClientId: {},
+      weightEntriesByClientId: {},
+    }
+    try {
+      careInputs = await fetchCoachQualityCareInputs(supabaseAdmin, activeIds)
+    } catch (careErr) {
+      console.warn('[club-stats] coachQuality care inputs', careErr)
+    }
     const coachQuality = {
       ...aggregateCoachQuality({
         trainings: raw.trainings,
         clients: raw.clients,
         memberships: raw.memberships,
         membershipTypes: raw.membershipTypes,
+        ...careInputs,
         dateFrom,
         dateTo,
       }),

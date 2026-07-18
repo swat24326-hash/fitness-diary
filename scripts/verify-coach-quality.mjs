@@ -6,10 +6,12 @@
  */
 import {
   areBodyMeasuresApplicable,
+  clientNeedsNutritionPlan,
   coachQualityRulesHelp,
   computeCoachQualityScorePct,
   daysWithoutUsableMembership,
   evaluateBagFlag,
+  evaluateHealthPassportFlag,
   evaluateMeasuresCareFlag,
   evaluateNutritionCareFlag,
   isThinCompletedTraining,
@@ -119,8 +121,11 @@ function healthOk(extra = {}) {
   return {
     height_cm: 170,
     current_weight_kg: 70,
-    goal: '',
-    nutrition_plan: null,
+    initial_weight_kg: 70,
+    sex: 'female',
+    health_filled_at: '2026-01-01',
+    goal: 'сила',
+    nutrition_plan: { basis: { weightKg: 70, heightCm: 170 }, meals: [] },
     ...extra,
   }
 }
@@ -129,6 +134,9 @@ function healthStalePlan(currentKg = 78, basisKg = 80) {
   return {
     height_cm: 170,
     current_weight_kg: currentKg,
+    initial_weight_kg: basisKg,
+    sex: 'female',
+    health_filled_at: '2026-01-01',
     goal: 'похудение',
     nutrition_plan: { basis: { weightKg: basisKg, heightCm: 170 }, meals: [] },
   }
@@ -169,9 +177,43 @@ ok(!areBodyMeasuresApplicable({ goal: '' }, false), 'пустая цель бе�
 ok(areBodyMeasuresApplicable({ goal: 'сила' }, true), 'история обмеров → применимо')
 ok(areBodyMeasuresApplicable(null, true), 'null health + история → применимо')
 
+setSection('TECH / паспорт здоровья F0')
+
+ok(evaluateHealthPassportFlag(null).critical, 'нет карты — F0')
+ok(evaluateHealthPassportFlag({ height_cm: 170 }).critical, 'неполная карта — F0')
+ok(!evaluateHealthPassportFlag(healthOk()).critical, 'полная карта — не F0')
+
 setSection('TECH / рацион F1')
 
-ok(evaluateNutritionCareFlag(healthOk(), [], TODAY).critical === false, 'нет плана — не F1')
+ok(
+  !clientNeedsNutritionPlan({ goal: 'сила', current_weight_kg: null, initial_weight_kg: null }),
+  'сила без веса — рацион не обязателен',
+)
+ok(clientNeedsNutritionPlan({ goal: 'похудение' }), 'похудение — рацион нужен')
+ok(
+  evaluateNutritionCareFlag(
+    {
+      height_cm: 170,
+      goal: 'сила',
+      sex: 'male',
+      health_filled_at: '2026-01-01',
+      initial_weight_kg: null,
+      current_weight_kg: null,
+      nutrition_plan: null,
+    },
+    [],
+    TODAY,
+  ).critical === false,
+  'сила без веса и без плана — не F1',
+)
+ok(
+  evaluateNutritionCareFlag(healthOk({ nutrition_plan: null, goal: 'похудение' }), [], TODAY).critical === true,
+  'похудение без плана — F1 missing',
+)
+ok(
+  evaluateNutritionCareFlag(healthOk({ nutrition_plan: null }), [], TODAY).critical === true,
+  'есть вес в карте без плана — F1 missing',
+)
 ok(
   evaluateNutritionCareFlag(
     {

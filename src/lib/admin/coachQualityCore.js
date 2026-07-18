@@ -10,6 +10,8 @@ import {
 import { isPnkTrialTypeRow } from '../pnk/pnkTrialTrainingCore.js'
 import { daysSinceIsoDate, membershipDaysSinceLatestEnd } from '../trainer/trainerClientOutreachCore.js'
 import { todayLocalIso } from '../dateRu.js'
+import { getHealthCardCompletionIssues } from '../healthCardCore.js'
+import { getHealthCurrentWeightKg, getHealthInitialWeightKg } from '../clientWeightCore.js'
 
 export const COACH_QUALITY_PERIOD_DAYS = 30
 export const COACH_QUALITY_MIN_COMPLETED = 8
@@ -25,7 +27,7 @@ export const COACH_QUALITY_DEPTH_BAD = 50
 
 /** @typedef {'ok'|'attention'|'review'|'insufficient_data'} CoachQualityStatus */
 /** @typedef {'care'|'depth'|'bag'} CoachQualityAxis */
-/** @typedef {'f1_nutrition_stale'|'f2_measures'|'thin_training'|'stuck_dk'|'stuck_bz'|'inactive_corridor'} CoachQualityFactKind */
+/** @typedef {'f0_health_empty'|'f1_nutrition_missing'|'f1_nutrition_stale'|'f2_measures'|'thin_training'|'stuck_dk'|'stuck_bz'|'inactive_corridor'} CoachQualityFactKind */
 
 /**
  * Тонкая завершённая тренировка: ровно 1 упражнение с данными или ≤2 set-строк.
@@ -109,21 +111,58 @@ export function nutritionStaleDays(health, plan, weightEntries = [], todayIso = 
 }
 
 /**
- * F1: план есть и stale дольше льготы (или дата неизвестна).
- * @returns {{ critical: boolean, days: number|null, reason: string|null }}
+ * Цель намекает на работу с весом/формой → нужен рацион.
+ * @param {object|null|undefined} health
+ */
+export function clientNeedsNutritionPlan(health) {
+  const goal = String(health?.goal ?? '')
+    .trim()
+    .toLowerCase()
+  if (/похуд|рекомпоз|сниж|жир|форм|вес|набор|сушк|коррекц|сгон|питан/i.test(goal)) return true
+  return getHealthCurrentWeightKg(health) != null || getHealthInitialWeightKg(health) != null
+}
+
+/**
+ * Паспорт карты здоровья для активного клиента — те же минимумы, что для старта тренировки.
+ * @returns {{ critical: boolean, reason: string|null }}
+ */
+export function evaluateHealthPassportFlag(health) {
+  if (!health || typeof health !== 'object') {
+    return { critical: true, reason: 'Нет карты здоровья' }
+  }
+  const issues = getHealthCardCompletionIssues(health)
+  if (!issues.length) return { critical: false, reason: null }
+  return {
+    critical: true,
+    reason: 'Карта здоровья не заполнена (рост, исходный вес, пол, дата)',
+  }
+}
+
+/**
+ * F1: нет плана (если нужен) или план stale дольше льготы.
+ * @returns {{ critical: boolean, days: number|null, reason: string|null, kind: 'f1_nutrition_missing'|'f1_nutrition_stale'|null }}
  */
 export function evaluateNutritionCareFlag(health, weightEntries, todayIso = todayLocalIso()) {
   const plan = health?.nutrition_plan
   if (!plan || typeof plan !== 'object') {
-    return { critical: false, days: 0, reason: null }
+    if (clientNeedsNutritionPlan(health) || (weightEntries ?? []).length > 0) {
+      return {
+        critical: true,
+        days: 0,
+        reason: 'Нет плана рациона',
+        kind: 'f1_nutrition_missing',
+      }
+    }
+    return { critical: false, days: 0, reason: null, kind: null }
   }
   const days = nutritionStaleDays(health, plan, weightEntries, todayIso)
-  if (days === 0) return { critical: false, days: 0, reason: null }
+  if (days === 0) return { critical: false, days: 0, reason: null, kind: null }
   if (days == null) {
     return {
       critical: true,
       days: null,
       reason: 'Рацион устарел после смены веса/роста (дата смены неизвестна)',
+      kind: 'f1_nutrition_stale',
     }
   }
   if (days > COACH_QUALITY_NUTRITION_STALE_GRACE_DAYS) {
@@ -131,9 +170,10 @@ export function evaluateNutritionCareFlag(health, weightEntries, todayIso = toda
       critical: true,
       days,
       reason: `Рацион не обновлён ${days} дн. после смены веса/роста`,
+      kind: 'f1_nutrition_stale',
     }
   }
-  return { critical: false, days, reason: null }
+  return { critical: false, days, reason: null, kind: null }
 }
 
 /**
@@ -378,7 +418,8 @@ export const COACH_QUALITY_STATUS_LABELS = {
 export function coachQualityRulesHelp() {
   return [
     'Списание занятия — норма, за него не судим.',
-    'Ведение: рацион после смены веса обновить за 7 дней; обмеры за 30 дней — если уместны или уже вели.',
+    'Ведение активного клиента: карта здоровья заполнена (рост, исходный вес, пол, дата); рацион — если цель на вес/форму или вес уже ведут; обмеры за период — если уместны или уже вели.',
+    'Пустая карта / нет рациона при работе с весом / устаревший рацион (>7 дн.) — минус к ведению.',
     'Тонкая тренировка: 1 упражнение или ≤2 подхода с данными.',
     'Неактивные: 0–7 дней — коридор; 8–14 — затянули; >14 без нового абонемента/архива (или после БЗ без ДК/отказа) — провал.',
     'Мало данных: <8 завершённых или <3 активных клиентов — статус «Мало данных», ведение/глубину не сравниваем с другими.',

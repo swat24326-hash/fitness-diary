@@ -6,6 +6,7 @@ import {
   COACH_QUALITY_AXIS_LABELS,
   computeCoachQualityScorePct,
   evaluateBagFlag,
+  evaluateHealthPassportFlag,
   evaluateMeasuresCareFlag,
   evaluateNutritionCareFlag,
   isThinCompletedTraining,
@@ -144,6 +145,8 @@ export function aggregateCoachQuality(input) {
     let stuckBz = 0
     let bagWarnCount = 0
     let staleCount = 0
+    let missingPlanCount = 0
+    let emptyHealthCount = 0
     let missingMeasuresCount = 0
 
     const rosterClients = (input.clients ?? []).filter(
@@ -162,6 +165,7 @@ export function aggregateCoachQuality(input) {
 
     for (const clientId of tr.activeIds) {
       const health = healthBy[clientId] ?? null
+      const passport = evaluateHealthPassportFlag(health)
       const nut = evaluateNutritionCareFlag(health, weightsBy[clientId] ?? [], asOf)
       const meas = evaluateMeasuresCareFlag(
         health,
@@ -170,11 +174,22 @@ export function aggregateCoachQuality(input) {
         Boolean(hadMeasureBy[clientId]),
       )
       let flagged = false
+      if (passport.critical) {
+        flagged = true
+        emptyHealthCount++
+        addFact({
+          kind: 'f0_health_empty',
+          axis: 'care',
+          clientId,
+          reason: passport.reason,
+        })
+      }
       if (nut.critical) {
         flagged = true
-        staleCount++
+        if (nut.kind === 'f1_nutrition_missing') missingPlanCount++
+        else staleCount++
         addFact({
-          kind: 'f1_nutrition_stale',
+          kind: nut.kind ?? 'f1_nutrition_stale',
           axis: 'care',
           clientId,
           reason: nut.reason,
@@ -268,6 +283,8 @@ export function aggregateCoachQuality(input) {
       bagPct,
       scorePct,
       staleCount,
+      missingPlanCount,
+      emptyHealthCount,
       missingMeasuresCount,
       status: resolved.status,
       statusLabel: resolved.statusLabel,
