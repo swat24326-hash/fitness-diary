@@ -23,13 +23,14 @@ export function TrainerTaskGlanceWidget({ clubId = '' }) {
   const [loading, setLoading] = useState(true)
   const touchRef = useRef({ startX: 0, moved: false })
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (opts = {}) => {
+    const silent = opts.silent === true
     if (!isSupabaseConfigured()) {
       setTasks([])
       setLoading(false)
       return
     }
-    setLoading(true)
+    if (!silent) setLoading(true)
     try {
       const data = await fetchIskraDispatch({ clubId: clubId || undefined, view: 'inbox', limit: 20 })
       const list = Array.isArray(data?.items) ? data.items : []
@@ -37,8 +38,10 @@ export function TrainerTaskGlanceWidget({ clubId = '' }) {
       setTasks(active)
       setIndex((prev) => (prev >= active.length ? 0 : prev))
     } catch {
-      setTasks([])
-      setIndex(0)
+      if (!silent) {
+        setTasks([])
+        setIndex(0)
+      }
     } finally {
       setLoading(false)
     }
@@ -46,10 +49,10 @@ export function TrainerTaskGlanceWidget({ clubId = '' }) {
 
   useEffect(() => {
     void reload()
-    const t = window.setInterval(() => void reload(), 120_000)
-    const onUpdate = () => void reload()
+    const t = window.setInterval(() => void reload({ silent: true }), 120_000)
+    const onUpdate = () => void reload({ silent: true })
     const onVis = () => {
-      if (document.visibilityState === 'visible') void reload()
+      if (document.visibilityState === 'visible') void reload({ silent: true })
     }
     window.addEventListener(TRAINER_INBOX_UPDATED_EVENT, onUpdate)
     document.addEventListener('visibilitychange', onVis)

@@ -19,22 +19,25 @@ export function ManagerPnkHomeGlance({ clubId = '', href = '/sales/pnk' }) {
   const [loading, setLoading] = useState(true)
   const touchRef = useRef({ startX: 0, moved: false })
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (opts = {}) => {
+    const silent = opts.silent === true
     const cid = String(clubId || '').trim()
     if (!cid) {
       setCards([])
       setLoading(false)
       return
     }
-    setLoading(true)
+    if (!silent) setLoading(true)
     try {
       const data = await fetchPnkBundle({ clubId: cid })
       const next = buildPnkManagerHomeGlanceCards(data?.clients ?? [], { boardHref: href })
       setCards(next)
       setIndex((prev) => (prev >= next.length ? 0 : prev))
     } catch {
-      setCards([])
-      setIndex(0)
+      if (!silent) {
+        setCards([])
+        setIndex(0)
+      }
     } finally {
       setLoading(false)
     }

@@ -25,7 +25,8 @@ export function TrainerPnkGlanceWidget({ clubId = '' }) {
   const [loading, setLoading] = useState(true)
   const touchRef = useRef({ startX: 0, moved: false })
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (opts = {}) => {
+    const silent = opts.silent === true
     const tid = String(user?.id ?? '').trim()
     const cid = String(clubId || user?.club_id || '').trim()
     if (!tid || !cid) {
@@ -33,15 +34,17 @@ export function TrainerPnkGlanceWidget({ clubId = '' }) {
       setLoading(false)
       return
     }
-    setLoading(true)
+    if (!silent) setLoading(true)
     try {
       const clients = await listLocalClients(tid, cid)
       const next = buildPnkGlanceCards(clients)
       setCards(next)
       setIndex((prev) => (prev >= next.length ? 0 : prev))
     } catch {
-      setCards([])
-      setIndex(0)
+      if (!silent) {
+        setCards([])
+        setIndex(0)
+      }
     } finally {
       setLoading(false)
     }
@@ -51,7 +54,7 @@ export function TrainerPnkGlanceWidget({ clubId = '' }) {
     void reload()
   }, [reload])
 
-  useDebouncedStorageReload(() => reload(), { shouldRun: shouldReloadTrainerClientList })
+  useDebouncedStorageReload(() => reload({ silent: true }), { shouldRun: shouldReloadTrainerClientList })
 
   const goPrev = useCallback(() => {
     setIndex((i) => Math.max(0, i - 1))

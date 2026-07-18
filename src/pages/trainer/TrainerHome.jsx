@@ -80,14 +80,15 @@ export function TrainerHome() {
   const attentionGenRef = useRef(0)
   const syncOutbound = useSyncOutboundPoll({ enabled: isSupabaseConfigured() })
 
-  const loadAttention = useCallback(async () => {
+  const loadAttention = useCallback(async (opts = {}) => {
+    const silent = opts.silent === true
     if (!trainerId) {
       setAttentionSummary(null)
       setAttentionLoading(false)
       return
     }
     const gen = ++attentionGenRef.current
-    setAttentionLoading(true)
+    if (!silent) setAttentionLoading(true)
     try {
       const snap = await loadTrainerWorkspaceSnapshot(trainerId, clubId || null)
       if (gen !== attentionGenRef.current) return
@@ -100,7 +101,7 @@ export function TrainerHome() {
       )
     } catch {
       if (gen !== attentionGenRef.current) return
-      setAttentionSummary(null)
+      if (!silent) setAttentionSummary(null)
     } finally {
       if (gen === attentionGenRef.current) setAttentionLoading(false)
     }
@@ -199,7 +200,7 @@ export function TrainerHome() {
   }, [loadAttention])
 
   useDebouncedStorageReload(() => loadChallenges({ silent: true }), { shouldRun: shouldReloadTrainerChallenges })
-  useDebouncedStorageReload(() => loadAttention(), { shouldRun: shouldReloadTrainerClientList })
+  useDebouncedStorageReload(() => loadAttention({ silent: true }), { shouldRun: shouldReloadTrainerClientList })
 
   const hasList = challengesView.items.length > 0
   const showPlaceholder = challengesView.phase === 'loading' || !hasList
