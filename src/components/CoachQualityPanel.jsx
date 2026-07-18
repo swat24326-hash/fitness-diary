@@ -28,7 +28,7 @@ export function CoachQualityPanel({
 }) {
   const [openId, setOpenId] = useState(null)
   const [rulesOpen, setRulesOpen] = useState(false)
-  const rules = coachQuality?.rules ?? coachQualityRulesHelp()
+  const rules = coachQuality?.rules ?? coachQualityRulesHelp(coachQuality?.config)
 
   const trainers = useMemo(() => {
     const list = coachQuality?.trainers ?? []
@@ -183,6 +183,12 @@ export function CoachQualityPanel({
       </div>
 
       <RulesBlock rules={rules} open={rulesOpen} onToggle={() => setRulesOpen((v) => !v)} />
+      {!selfTrainerId ? (
+        <p className="muted" style={{ margin: '10px 0 0', fontSize: 12 }}>
+          Настройка весов и тумблеров — в{' '}
+          <Link to="/admin/structure?tab=coach-quality">Структура → Качество ведения</Link>.
+        </p>
+      ) : null}
     </section>
   )
 }

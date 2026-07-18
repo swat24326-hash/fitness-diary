@@ -12,6 +12,7 @@ import {
   isThinCompletedTraining,
   resolveCoachQualityStatus,
 } from './coachQualityCore.js'
+import { normalizeCoachQualityConfig } from './coachQualityConfigCore.js'
 
 const FACTS_LIMIT = 10
 
@@ -66,6 +67,7 @@ export function indexWeightEntriesByClient(entries) {
  *   dateTo: string,
  *   todayIso?: string,
  *   trainerIdFilter?: string|null,
+ *   config?: object|null,
  * }} input
  */
 export function aggregateCoachQuality(input) {
@@ -74,6 +76,7 @@ export function aggregateCoachQuality(input) {
   const today = String(input.todayIso ?? todayLocalIso()).slice(0, 10)
   const asOf = dateTo && dateTo < today ? dateTo : today
   const trainerFilter = input.trainerIdFilter ? String(input.trainerIdFilter) : null
+  const cfg = normalizeCoachQualityConfig(input.config)
 
   const healthBy = input.healthByClientId ?? {}
   const lastMeasureBy = input.lastMeasureByClientId ?? {}
@@ -115,7 +118,7 @@ export function aggregateCoachQuality(input) {
     const tr = ensureTrainer(tid)
     tr.completed++
     const data = t.data && typeof t.data === 'object' ? t.data : t
-    if (isThinCompletedTraining(data)) tr.thin++
+    if (cfg.toggleThinTrainings && isThinCompletedTraining(data)) tr.thin++
     const cid = String(t.client_id ?? '')
     if (cid) {
       tr.activeIds.add(cid)
@@ -165,14 +168,23 @@ export function aggregateCoachQuality(input) {
 
     for (const clientId of tr.activeIds) {
       const health = healthBy[clientId] ?? null
-      const passport = evaluateHealthPassportFlag(health)
-      const nut = evaluateNutritionCareFlag(health, weightsBy[clientId] ?? [], asOf)
-      const meas = evaluateMeasuresCareFlag(
+      const passport = cfg.toggleHealthPassport
+        ? evaluateHealthPassportFlag(health)
+        : { critical: false, reason: null }
+      const nutRaw = evaluateNutritionCareFlag(health, weightsBy[clientId] ?? [], asOf)
+      let nutCritical = false
+      if (nutRaw.critical) {
+        if (nutRaw.kind === 'f1_nutrition_missing') nutCritical = cfg.toggleNutritionMissing
+        else nutCritical = cfg.toggleNutritionStale
+      }
+      const nut = { ...nutRaw, critical: nutCritical }
+      const measRaw = evaluateMeasuresCareFlag(
         health,
         lastMeasureBy[clientId] ?? null,
         dateFrom,
         Boolean(hadMeasureBy[clientId]),
       )
+      const meas = cfg.toggleMeasures ? measRaw : { critical: false, reason: null }
       let flagged = false
       if (passport.critical) {
         flagged = true
@@ -217,7 +229,8 @@ export function aggregateCoachQuality(input) {
         todayIso: asOf,
         lastCompletedIso: tr.lastCompletedByClient.get(clientId) ?? null,
       })
-      if (bag.corridor === 'warn') {
+      const corridorWarn = bag.corridor === 'warn' && cfg.toggleInactiveCorridor
+      if (corridorWarn) {
         bagWarnCount++
         addFact({
           kind: 'inactive_corridor',
@@ -226,7 +239,11 @@ export function aggregateCoachQuality(input) {
           reason: bag.reason,
         })
       }
-      if (bag.stuck) {
+      const stuckEnabled =
+        bag.stuck &&
+        ((bag.kind === 'stuck_bz' && cfg.toggleStuckBz) ||
+          (bag.kind !== 'stuck_bz' && cfg.toggleStuckDk))
+      if (stuckEnabled) {
         stuckCount++
         if (bag.kind === 'stuck_bz') stuckBz++
         else stuckDk++
@@ -258,13 +275,16 @@ export function aggregateCoachQuality(input) {
       completed: tr.completed,
       activeClients,
     })
-    const scorePct = computeCoachQualityScorePct({
-      carePct,
-      depthPct,
-      bagPct,
-      stuckCount,
-      completed: tr.completed,
-    })
+    const scorePct = computeCoachQualityScorePct(
+      {
+        carePct,
+        depthPct,
+        bagPct,
+        stuckCount,
+        completed: tr.completed,
+      },
+      cfg,
+    )
 
     statusCounts[resolved.status] = (statusCounts[resolved.status] ?? 0) + 1
 
@@ -319,6 +339,7 @@ export function aggregateCoachQuality(input) {
     statusCounts,
     medianCarePct,
     averageScorePct,
+    config: cfg,
     trainers,
     rules: null,
   }

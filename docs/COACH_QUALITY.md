@@ -22,6 +22,7 @@
 | Рацион F1 | нет плана при цели на вес/форму или если вес уже ведут; либо план stale **> 7** дней |
 | Карта F0 | у активного нет полной карты (рост, исходный вес, пол, дата) — как минимум для старта тренировки |
 | Обмеры F2 | нет замера за период, если цель на тело **или** обмеры уже вели |
+| Настройки клуба | **Структура → Качество ведения**: веса осей (сумма 100%) + тумблеры F0/F1/F2/тонкие/хвосты/потолок 79 |
 | Тонкая тренировка | 1 упражнение с данными **или** ≤2 set-строк |
 | Неактивные | 0–7 коридор · 8–14 внимание · **>14** stuck (без архива) |
 | После БЗ | то же; исход: ДК / отказ ПНК / архив |
@@ -33,6 +34,7 @@
 ## Где в UI
 
 - Админ: **Статистика клуба** → карточка **«Качество ведения»** (средний балл /100) → по клику таблица по тренерам. В рейтинге по завершённым — чип статуса и балл.
+- Админ: **Структура → Качество ведения** — веса осей и тумблеры правил (сохраняется на клуб).
 - Тренер: **Статистика** → та же карточка (свой балл) → по клику своя строка и факты.
 - В фактах имя клиента — ссылка на карточку (`/admin/clients/:id` или `/trainer/clients/:id`).
 - `averageScorePct` — среднее по тренерам с баллом (без «нет балла»).
@@ -44,8 +46,13 @@
 | `src/lib/admin/coachQualityCore.js` | правила, статусы, подписи осей |
 | `src/lib/admin/coachQualityAgg.js` | агрегат byTrainer |
 | `src/lib/admin/coachQualityService.js` | загрузка health/обмеров/веса (локальный/тренерский scope) |
+| `src/lib/admin/coachQualityConfigCore.js` | дефолт/нормализация весов и тумблеров |
+| `src/lib/admin/coachQualitySettingsService.js` | клиент API настроек |
+| `src/pages/admin/AdminCoachQualitySettings.jsx` | UI в Структуре |
+| `api/_lib/coachQualitySettingsHandler.js` | `admin-data?action=coach-quality-settings` |
 | `api/_lib/coachQualityCareFetch.js` | медкарты / обмеры / вес для `club-stats` |
-| `api/_lib/adminData/clubHandlers.js` | `club-stats` → `coachQuality` по тем же trainings + care inputs |
+| `api/_lib/adminData/clubHandlers.js` | `club-stats` → `coachQuality` + конфиг клуба |
+| `supabase/migrations/20260718190000_club_coach_quality_settings.sql` | таблица настроек |
 | `src/components/CoachQualityPanel.jsx` | UI |
 | `scripts/verify-coach-quality.mjs` | verify |
 

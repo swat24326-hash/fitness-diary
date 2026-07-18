@@ -141,7 +141,7 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 Период сводки ≠ годовой график (полный календарный год).  
 Agg: `src/lib/admin/*Agg.js` ↔ зеркало `api/_lib/*Agg.js` + `scripts/verify-*.mjs`.  
 UI: карточки, drill-down. Домен: `.cursor/rules/fitness-diary-domain.mdc`.  
-**Качество ведения** (care / depth / хвосты ДК+БЗ): [COACH_QUALITY.md](./COACH_QUALITY.md) — блок в статистике клуба и у тренера.
+**Качество ведения** (care / depth / хвосты ДК+БЗ): [COACH_QUALITY.md](./COACH_QUALITY.md) — статистика + настройка весов/тумблеров в **Структура → Качество ведения**.
 
 ---
 

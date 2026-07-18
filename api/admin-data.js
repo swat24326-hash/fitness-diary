@@ -8,6 +8,10 @@ import { assertSalesPlanScopeForRole } from '../src/lib/admin/salesAccessCore.js
 import { canViewClubDispatchSent } from '../src/lib/admin/iskraDispatchAccessCore.js'
 import { handleGeminiAnalyticsPost, handleGeminiAnalyticsPrefetchGet } from './_lib/geminiAnalyticsHandler.js'
 import { handleIskraSettingsGet, handleIskraSettingsPost } from './_lib/iskraSettingsHandler.js'
+import {
+  handleCoachQualitySettingsGet,
+  handleCoachQualitySettingsPost,
+} from './_lib/coachQualitySettingsHandler.js'
 import { handleIskraLearningGet, handleIskraLearningPost } from './_lib/iskraLearningHandler.js'
 import { handleIskraDispatchGet, handleIskraDispatchPost } from './_lib/iskraDispatchHandler.js'
 import { handlePushSubscriptionGet, handlePushSubscriptionPost } from './_lib/pushSubscriptionHandler.js'
@@ -52,6 +56,7 @@ async function handler(req, res) {
       'gemini-analytics',
       'create-sales-manager',
       'iskra-settings',
+      'coach-quality-settings',
       'iskra-learning',
       'iskra-dispatch',
       'push-subscription',
@@ -87,6 +92,11 @@ async function handler(req, res) {
       const ctx = await requireAdmin(req, res)
       if (!ctx) return
       return handleIskraSettingsPost(ctx, res, body)
+    }
+    if (action === 'coach-quality-settings') {
+      const ctx = await requireAdmin(req, res)
+      if (!ctx) return
+      return handleCoachQualitySettingsPost(ctx, res, body)
     }
     if (action === 'iskra-learning') {
       const ctx = await requireAdmin(req, res)
@@ -229,6 +239,8 @@ async function handler(req, res) {
       return handleGeminiAnalyticsPrefetchGet(ctx, req, res)
     case 'iskra-settings':
       return handleIskraSettingsGet(ctx, req, res)
+    case 'coach-quality-settings':
+      return handleCoachQualitySettingsGet(ctx, req, res)
     case 'iskra-learning':
       return handleIskraLearningGet(ctx, req, res)
     case 'iskra-dispatch':

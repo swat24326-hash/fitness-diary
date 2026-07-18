@@ -13,6 +13,7 @@ import {
   indexWeightEntriesByClient,
 } from './coachQualityAgg.js'
 import { coachQualityRulesHelp } from './coachQualityCore.js'
+import { loadCoachQualityConfigForClub } from './coachQualitySettingsService.js'
 
 export { indexMeasurementsByClient, indexWeightEntriesByClient }
 
@@ -47,7 +48,7 @@ async function loadRowsByClientIds(clientIds, loader) {
 export async function buildCoachQualityForScope(input) {
   const clients = input.clients ?? []
   const clientIds = [...new Set(clients.map((c) => String(c.id)).filter(Boolean))]
-  const [{ healthByClientId }, membershipTypes, measures, weights] = await Promise.all([
+  const [{ healthByClientId }, membershipTypes, measures, weights, config] = await Promise.all([
     loadAdminHealthCardsByClientIds(clientIds),
     input.membershipTypes?.length
       ? Promise.resolve(input.membershipTypes)
@@ -56,6 +57,11 @@ export async function buildCoachQualityForScope(input) {
         : Promise.resolve([]),
     loadRowsByClientIds(clientIds, listMeasurementsByClientId),
     loadRowsByClientIds(clientIds, listWeightEntriesByClientId),
+    input.config
+      ? Promise.resolve(input.config)
+      : input.clubId
+        ? loadCoachQualityConfigForClub(input.clubId)
+        : Promise.resolve(null),
   ])
 
   const { lastMeasureByClientId, hadMeasureEverByClientId } = indexMeasurementsByClient(measures)
@@ -72,10 +78,11 @@ export async function buildCoachQualityForScope(input) {
     dateFrom: input.dateFrom,
     dateTo: input.dateTo,
     trainerIdFilter: input.trainerIdFilter ?? null,
+    config,
   })
 
   return {
     ...agg,
-    rules: coachQualityRulesHelp(),
+    rules: coachQualityRulesHelp(config),
   }
 }

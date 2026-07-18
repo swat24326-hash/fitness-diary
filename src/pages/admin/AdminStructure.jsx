@@ -7,6 +7,7 @@ import { AdminSalesManagers } from './AdminSalesManagers'
 import { AdminNutritionProducts } from './AdminNutritionProducts'
 import { AdminHomeworkPresets } from './AdminHomeworkPresets'
 import { AdminMaxOutreach } from './AdminMaxOutreach'
+import { AdminCoachQualitySettings } from './AdminCoachQualitySettings'
 
 const TAB_IDS = [
   'clubs',
@@ -17,6 +18,7 @@ const TAB_IDS = [
   'homework-presets',
   'exercises',
   'max-messages',
+  'coach-quality',
 ]
 
 const TABS = [
@@ -28,6 +30,7 @@ const TABS = [
   { id: 'homework-presets', label: 'ДЗ' },
   { id: 'exercises', label: 'Упражнения' },
   { id: 'max-messages', label: 'Сообщения Max' },
+  { id: 'coach-quality', label: 'Качество ведения' },
 ]
 
 export function AdminStructure() {
@@ -144,6 +147,15 @@ export function AdminStructure() {
           className="admin-structure__panel"
         >
           {tab === 'max-messages' ? <AdminMaxOutreach /> : null}
+        </div>
+        <div
+          id="admin-structure-panel-coach-quality"
+          role="tabpanel"
+          aria-labelledby="admin-structure-tab-coach-quality"
+          hidden={tab !== 'coach-quality'}
+          className="admin-structure__panel"
+        >
+          {tab === 'coach-quality' ? <AdminCoachQualitySettings /> : null}
         </div>
       </div>
 

@@ -30,6 +30,10 @@ import {
   COACH_QUALITY_STATUS_LABELS,
 } from '../src/lib/admin/coachQualityCore.js'
 import { aggregateCoachQuality, indexMeasurementsByClient, indexWeightEntriesByClient } from '../src/lib/admin/coachQualityAgg.js'
+import {
+  defaultCoachQualityConfig,
+  normalizeCoachQualityConfig,
+} from '../src/lib/admin/coachQualityConfigCore.js'
 
 let failed = 0
 let section = ''
@@ -923,6 +927,56 @@ ok(COACH_QUALITY_CARE_WARN < COACH_QUALITY_CARE_OK, 'care warn < ok')
 ok(COACH_QUALITY_DEPTH_BAD < COACH_QUALITY_DEPTH_OK, 'depth bad < ok')
 ok(COACH_QUALITY_INACTIVE_GRACE_DAYS < COACH_QUALITY_STUCK_DAYS, 'grace < stuck days')
 ok(COACH_QUALITY_MIN_COMPLETED >= 1 && COACH_QUALITY_MIN_ACTIVE_CLIENTS >= 1, 'пороги мало данных заданы')
+
+setSection('MANAGER / конфиг клуба: веса и тумблеры')
+
+const def = defaultCoachQualityConfig()
+ok(def.weightCare + def.weightDepth + def.weightBag === 100, 'дефолт веса = 100%')
+const norm = normalizeCoachQualityConfig({ weightCare: 50, weightDepth: 50, weightBag: 50 })
+ok(norm.weightCare + norm.weightDepth + norm.weightBag === 100, 'нормализация весов к 100%')
+ok(norm.weightCare === 33 && norm.weightDepth === 33 && norm.weightBag === 34, 'равные веса → 33/33/34')
+
+const offCare = aggregateCoachQuality({
+  dateFrom: FROM,
+  dateTo: TO,
+  todayIso: TODAY,
+  config: {
+    ...def,
+    toggleHealthPassport: false,
+    toggleNutritionMissing: false,
+    toggleNutritionStale: false,
+    toggleMeasures: false,
+  },
+  clients: [
+    { id: 'c1', trainer_id: 't1', name: 'C1', archived_at: null },
+    { id: 'c2', trainer_id: 't1', name: 'C2', archived_at: null },
+    { id: 'c3', trainer_id: 't1', name: 'C3', archived_at: null },
+  ],
+  trainings: [
+    completed('a', 't1', 'c1', '2026-07-02', deepData()),
+    completed('b', 't1', 'c2', '2026-07-03', deepData()),
+    completed('c', 't1', 'c3', '2026-07-04', deepData()),
+    completed('d', 't1', 'c1', '2026-07-05', deepData()),
+    completed('e', 't1', 'c2', '2026-07-06', deepData()),
+    completed('f', 't1', 'c3', '2026-07-07', deepData()),
+    completed('g', 't1', 'c1', '2026-07-08', deepData()),
+    completed('h', 't1', 'c2', '2026-07-09', deepData()),
+  ],
+  memberships: [usablePaid('c1'), usablePaid('c2'), usablePaid('c3')],
+  membershipTypes: TYPES,
+  healthByClientId: {},
+  lastMeasureByClientId: {},
+  hadMeasureEverByClientId: {},
+  weightEntriesByClientId: {},
+})
+ok(offCare.trainers[0]?.carePct === 100, 'все тумблеры ведения выкл → care 100% при пустых картах')
+ok(offCare.trainers[0]?.scorePct === 100, 'при глубине 100 и базе 100 → балл 100')
+
+const depthHeavy = computeCoachQualityScorePct(
+  { carePct: 0, depthPct: 100, bagPct: 100, stuckCount: 0, completed: 10 },
+  { weightCare: 20, weightDepth: 50, weightBag: 30 },
+)
+ok(depthHeavy === 80, 'веса 20/50/30 при care0 depth100 bag100 → 80')
 
 // ─── finish ─────────────────────────────────────────────────────────
 console.log('')

@@ -12,6 +12,10 @@ import { daysSinceIsoDate, membershipDaysSinceLatestEnd } from '../trainer/train
 import { todayLocalIso } from '../dateRu.js'
 import { getHealthCardCompletionIssues } from '../healthCardCore.js'
 import { getHealthCurrentWeightKg, getHealthInitialWeightKg } from '../clientWeightCore.js'
+import {
+  normalizeCoachQualityConfig,
+  coachQualityRulesHelpFromConfig,
+} from './coachQualityConfigCore.js'
 
 export const COACH_QUALITY_PERIOD_DAYS = 30
 export const COACH_QUALITY_MIN_COMPLETED = 8
@@ -359,9 +363,9 @@ export function resolveCoachQualityStatus(p) {
 }
 
 /**
- * Итоговый балл 0–100 (ведение 40% + глубина 40% + чистота базы 20%).
+ * Итоговый балл 0–100 (веса осей из конфига клуба, дефолт 40/40/20).
  * Без завершённых тренировок в периоде — null (не рисуем «100 из воздуха»).
- * При stuck — потолок 79.
+ * При stuck — потолок 79 (если тумблер включён).
  * @param {{
  *   carePct?: number|null,
  *   depthPct?: number|null,
@@ -369,31 +373,44 @@ export function resolveCoachQualityStatus(p) {
  *   stuckCount?: number,
  *   completed?: number,
  * }} p
+ * @param {import('./coachQualityConfigCore.js').CoachQualityConfig | object | null} [config]
  * @returns {number|null}
  */
-export function computeCoachQualityScorePct(p = {}) {
+export function computeCoachQualityScorePct(p = {}, config = null) {
   const completed = Math.max(0, Number(p.completed) || 0)
-  // Нет работы в периоде — нет балла (иначе 100% за «пустую» чистоту базы).
   if (completed <= 0) return null
+
+  const cfg = normalizeCoachQualityConfig(config)
 
   const bag = Number.isFinite(Number(p.bagPct)) ? Number(p.bagPct) : 100
   const careRaw = p.carePct
   const depthRaw = p.depthPct
   const hasCare = careRaw != null && careRaw !== '' && Number.isFinite(Number(careRaw))
   const hasDepth = depthRaw != null && depthRaw !== '' && Number.isFinite(Number(depthRaw))
+
+  const wCare = cfg.weightCare / 100
+  const wDepth = cfg.weightDepth / 100
+  const wBag = cfg.weightBag / 100
+
   let score
   if (hasCare && hasDepth) {
-    score = Math.round(Number(careRaw) * 0.4 + Number(depthRaw) * 0.4 + bag * 0.2)
+    score = Math.round(Number(careRaw) * wCare + Number(depthRaw) * wDepth + bag * wBag)
   } else if (hasCare || hasDepth) {
-    const parts = [bag]
-    if (hasCare) parts.push(Number(careRaw))
-    if (hasDepth) parts.push(Number(depthRaw))
-    score = Math.round(parts.reduce((a, b) => a + b, 0) / parts.length)
+    /** @type {{ v: number, w: number }[]} */
+    const parts = [{ v: bag, w: wBag }]
+    if (hasCare) parts.push({ v: Number(careRaw), w: wCare })
+    if (hasDepth) parts.push({ v: Number(depthRaw), w: wDepth })
+    const wSum = parts.reduce((s, x) => s + x.w, 0)
+    score =
+      wSum > 0
+        ? Math.round(parts.reduce((s, x) => s + x.v * x.w, 0) / wSum)
+        : Math.round(parts.reduce((s, x) => s + x.v, 0) / parts.length)
   } else {
-    // Есть тренировки, но ещё нет осей care/depth — только база, не выдаём «идеал».
     score = Math.min(Math.round(bag), 70)
   }
-  if ((Number(p.stuckCount) || 0) >= 1) score = Math.min(score, 79)
+  if (cfg.toggleStuckScoreCap && (Number(p.stuckCount) || 0) >= 1) {
+    score = Math.min(score, 79)
+  }
   if (score < 0) return 0
   if (score > 100) return 100
   return score
@@ -414,15 +431,8 @@ export const COACH_QUALITY_STATUS_LABELS = {
 
 /**
  * Короткие правила для UI (тренер и админ видят одно и то же).
+ * @param {import('./coachQualityConfigCore.js').CoachQualityConfig | object | null} [config]
  */
-export function coachQualityRulesHelp() {
-  return [
-    'Списание занятия — норма, за него не судим.',
-    'Ведение активного клиента: карта здоровья заполнена (рост, исходный вес, пол, дата); рацион — если цель на вес/форму или вес уже ведут; обмеры за период — если уместны или уже вели.',
-    'Пустая карта / нет рациона при работе с весом / устаревший рацион (>7 дн.) — минус к ведению.',
-    'Тонкая тренировка: 1 упражнение или ≤2 подхода с данными.',
-    'Неактивные: 0–7 дней — коридор; 8–14 — затянули; >14 без нового абонемента/архива (или после БЗ без ДК/отказа) — провал.',
-    'Мало данных: <8 завершённых или <3 активных клиентов — статус «Мало данных», ведение/глубину не сравниваем с другими.',
-    'Итоговый балл: ведение 40% + глубина 40% + чистота базы 20%; при хвостах >14 дн. потолок 79. Без тренировок в периоде балла нет (не 100 «из воздуха»).',
-  ]
+export function coachQualityRulesHelp(config = null) {
+  return coachQualityRulesHelpFromConfig(config)
 }

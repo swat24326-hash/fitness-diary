@@ -21,6 +21,7 @@ import {
   activeClientIdsFromTrainings,
   fetchCoachQualityCareInputs,
 } from '../coachQualityCareFetch.js'
+import { loadClubCoachQualitySettings } from '../coachQualitySettingsHandler.js'
 
 export async function handleClubStats(ctx, req, res) {
   const clubId = String(req.query?.club_id ?? '').trim()
@@ -45,6 +46,13 @@ export async function handleClubStats(ctx, req, res) {
     } catch (careErr) {
       console.warn('[club-stats] coachQuality care inputs', careErr)
     }
+    let cqConfig = null
+    try {
+      const settings = await loadClubCoachQualitySettings(supabaseAdmin, clubId)
+      cqConfig = settings.config
+    } catch (cfgErr) {
+      console.warn('[club-stats] coachQuality config', cfgErr)
+    }
     const coachQuality = {
       ...aggregateCoachQuality({
         trainings: raw.trainings,
@@ -54,8 +62,9 @@ export async function handleClubStats(ctx, req, res) {
         ...careInputs,
         dateFrom,
         dateTo,
+        config: cqConfig,
       }),
-      rules: coachQualityRulesHelp(),
+      rules: coachQualityRulesHelp(cqConfig),
       source: 'admin_api',
     }
     sendJson(res, 200, {
