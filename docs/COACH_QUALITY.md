@@ -41,11 +41,13 @@
 |------|------|
 | `src/lib/admin/coachQualityCore.js` | правила, статусы, подписи осей |
 | `src/lib/admin/coachQualityAgg.js` | агрегат byTrainer |
-| `src/lib/admin/coachQualityService.js` | загрузка health/обмеров/веса |
+| `src/lib/admin/coachQualityService.js` | загрузка health/обмеров/веса (локальный/тренерский scope) |
+| `api/_lib/adminData/clubHandlers.js` | `club-stats` → `coachQuality` по тем же trainings, что сводка клуба |
 | `src/components/CoachQualityPanel.jsx` | UI |
 | `scripts/verify-coach-quality.mjs` | verify |
 
-Подключение: `buildScopePeriodStats`, `loadClubTrainingStats` → поле `coachQuality`.
+Подключение: `buildScopePeriodStats`, `loadClubTrainingStats` → поле `coachQuality`.  
+Админская сводка клуба берёт `coachQuality` из **`admin-data?action=club-stats`** (service role), чтобы не зависеть от пустого IndexedDB и RLS браузера.
 
 ## Проверка
 

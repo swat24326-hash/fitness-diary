@@ -37,7 +37,7 @@
 | action | Кто | Зачем |
 |--------|-----|--------|
 | `search`, `journal` | admin | Поиск / журнал |
-| `club-stats`, `club-monthly` | admin | Сводка и год |
+| `club-stats`, `club-monthly` | admin | Сводка и год; в `club-stats` также `coachQuality` (те же trainings, что сводка) |
 | `health-cards`, `clubs` | admin | Медкарты, клубы |
 | `sales` | admin / sales_manager | Отчёты продаж |
 | `pnk` | admin / sales_manager | Доска / данные ПНК |

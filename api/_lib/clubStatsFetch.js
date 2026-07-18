@@ -5,7 +5,8 @@ import {
   CLUB_STATS_MAX_TRAININGS,
 } from './apiLimits.js'
 
-const MEMBERSHIP_TYPES_SELECT = 'id, code, sort_order, is_active, trainer_assignable, trainer_pay_per_session, aerobic_pay_amount'
+const MEMBERSHIP_TYPES_SELECT =
+  'id, code, name, sort_order, is_active, is_pnk_trial, trainer_assignable, trainer_pay_per_session, aerobic_pay_amount'
 
 /**
  * Общая загрузка сырых данных для club-stats и ИСКРА (лимиты памяти Vercel).
@@ -19,7 +20,12 @@ const MEMBERSHIP_TYPES_SELECT = 'id, code, sort_order, is_active, trainer_assign
  */
 export async function fetchClubStatsRaw(
   supabaseAdmin,
-  { clubId, dateFrom, dateTo, membershipTypesSelect = 'id, code, sort_order, is_active' },
+  {
+    clubId,
+    dateFrom,
+    dateTo,
+    membershipTypesSelect = 'id, code, name, sort_order, is_active, is_pnk_trial',
+  },
 ) {
   const cid = String(clubId ?? '').trim()
   const from = String(dateFrom ?? '').trim()
@@ -39,7 +45,7 @@ export async function fetchClubStatsRaw(
     }),
     fetchPagedLimited(supabaseAdmin, {
       table: 'clients',
-      select: 'id, name, phone, archived_at, trainer_id',
+      select: 'id, name, phone, archived_at, trainer_id, lifecycle, pnk_stage',
       clubId: cid,
       maxRows: CLUB_STATS_MAX_CLIENTS,
     }),

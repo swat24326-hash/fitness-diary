@@ -15,6 +15,8 @@ import {
 } from '../clubMonthlyAgg.js'
 import { IN_CHUNK, PAGE } from './constants.js'
 import { fetchPaged, fetchCompletedTrainingYearBounds } from './paging.js'
+import { aggregateCoachQuality } from '../../../src/lib/admin/coachQualityAgg.js'
+import { coachQualityRulesHelp } from '../../../src/lib/admin/coachQualityCore.js'
 
 export async function handleClubStats(ctx, req, res) {
   const clubId = String(req.query?.club_id ?? '').trim()
@@ -27,6 +29,19 @@ export async function handleClubStats(ctx, req, res) {
   try {
     const { supabaseAdmin } = ctx
     const raw = await fetchClubStatsRaw(supabaseAdmin, { clubId, dateFrom, dateTo })
+    // Те же trainings, что и сводка клуба (service role) — не браузерный RLS.
+    const coachQuality = {
+      ...aggregateCoachQuality({
+        trainings: raw.trainings,
+        clients: raw.clients,
+        memberships: raw.memberships,
+        membershipTypes: raw.membershipTypes,
+        dateFrom,
+        dateTo,
+      }),
+      rules: coachQualityRulesHelp(),
+      source: 'admin_api',
+    }
     sendJson(res, 200, {
       ...aggregateTrainings(raw.trainings),
       ...aggregateClubClientPeriod(raw.clients, raw.memberships, dateFrom, dateTo),
@@ -35,6 +50,7 @@ export async function handleClubStats(ctx, req, res) {
         memberships: raw.memberships,
         membershipTypes: raw.membershipTypes,
       }),
+      coachQuality,
       source: 'admin_api',
       stats_truncated: raw.truncated,
     })

@@ -240,11 +240,6 @@ export async function loadClubTrainingStats(p) {
   try {
     const viaApi = await fetchClubTrainingStatsViaApi({ clubId, dateFrom, dateTo })
     if (viaApi) {
-      let [rows, clients, memberships] = await Promise.all([
-        fetchTrainingsForClubRangeLocal(clubId, dateFrom, dateTo).catch(() => []),
-        fetchClientsForClubLocal(clubId).catch(() => []),
-        fetchMembershipsForClubLocal(clubId).catch(() => []),
-      ])
       const stats = {
         ...base,
         totalCompleted: viaApi.totalCompleted ?? 0,
@@ -262,11 +257,20 @@ export async function loadClubTrainingStats(p) {
         inactiveClients: viaApi.inactiveClients ?? [],
         notRenewedInPeriod: viaApi.notRenewedInPeriod ?? 0,
         notRenewedClients: viaApi.notRenewedClients ?? [],
+        // Сервер считает по тем же trainings, что и сводка (без урезания RLS в браузере).
+        coachQuality: viaApi.coachQuality ?? null,
         source: 'admin_api',
         fallbackReason: null,
         error: null,
       }
-      // Сводка с API часто есть, а IDB на админ-браузере пустой — для качества берём remote.
+      if (viaApi.coachQuality) return stats
+
+      // Старый API без coachQuality — fallback на локальный/remote кэш.
+      let [rows, clients, memberships] = await Promise.all([
+        fetchTrainingsForClubRangeLocal(clubId, dateFrom, dateTo).catch(() => []),
+        fetchClientsForClubLocal(clubId).catch(() => []),
+        fetchMembershipsForClubLocal(clubId).catch(() => []),
+      ])
       const localThin = !clients.length || (!rows.length && !memberships.length)
       if (localThin && (viaApi.totalCompleted > 0 || viaApi.totalClients > 0)) {
         try {
