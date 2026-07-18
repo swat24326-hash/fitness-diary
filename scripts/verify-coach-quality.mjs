@@ -786,6 +786,8 @@ setSection('MANAGER / фильтр одного тренера и медиана
     hadMeasureEverByClientId: {},
   })
   ok(aggAll.medianCarePct != null, 'медиана ведения по клубу считается')
+  ok(aggAll.averageScorePct != null, 'средний балл по клубу считается')
+  ok(Number.isFinite(aggAll.averageScorePct), 'средний балл — число')
 
   const onlyT2 = aggregateCoachQuality({
     dateFrom: FROM,

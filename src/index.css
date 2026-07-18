@@ -4838,6 +4838,224 @@ tr:last-child td {
   font-weight: 600;
 }
 
+/* Качество ведения — таблица под карточкой статистики */
+.coach-quality-panel {
+  margin-bottom: 20px;
+  padding: 14px;
+}
+
+.coach-quality-panel__title {
+  font-size: 1rem;
+  margin: 0 0 4px;
+}
+
+.coach-quality-panel__lead {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.coach-quality-panel__empty {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.coach-quality-panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.coach-quality-panel__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.coach-quality-panel__chip {
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 12px;
+  color: var(--text-muted, #9aa39c);
+  white-space: nowrap;
+}
+
+.coach-quality-panel__chip strong {
+  color: var(--text, #e8eee9);
+}
+
+.coach-quality-panel__avg {
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+
+.coach-quality-panel__avg strong {
+  color: var(--text, #e8eee9);
+}
+
+.coach-quality-panel__avg-den {
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+.coach-quality-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -2px 4px;
+}
+
+.coach-quality-table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.coach-quality-table th,
+.coach-quality-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border, #2a3a32) 70%, transparent);
+  vertical-align: middle;
+}
+
+.coach-quality-table th {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted, #9aa39c);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.coach-quality-table__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.coach-quality-table th.coach-quality-table__num {
+  text-align: right;
+}
+
+.coach-quality-table__name {
+  font-weight: 600;
+  max-width: 11rem;
+}
+
+.coach-quality-table__score {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.coach-quality-table__score .muted {
+  margin-left: 2px;
+  font-weight: 500;
+  font-size: 0.78em;
+}
+
+.coach-quality-table__warn {
+  margin-left: 4px;
+  font-size: 0.85em;
+}
+
+.coach-quality-table__chev {
+  width: 28px;
+  text-align: center;
+  color: var(--text-muted, #9aa39c);
+}
+
+.coach-quality-table tbody tr[role='button'] {
+  cursor: pointer;
+}
+
+.coach-quality-table tbody tr[role='button']:hover,
+.coach-quality-table__row--open {
+  background: color-mix(in srgb, var(--bg-elevated, #152018) 88%, transparent);
+}
+
+.coach-quality-table__detail td {
+  padding: 0 8px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border, #2a3a32) 70%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated, #152018) 70%, transparent);
+}
+
+.coach-quality-detail {
+  padding: 10px 4px 4px;
+  font-size: 13px;
+}
+
+.coach-quality-detail__note,
+.coach-quality-detail__drop {
+  margin: 0 0 8px;
+}
+
+.coach-quality-detail__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+
+.coach-quality-detail__sub {
+  margin: 8px 0 4px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.coach-quality-detail ul {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+
+.coach-quality-detail__more {
+  margin: 0;
+  font-size: 12px;
+}
+
+.coach-quality-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.coach-quality-badge--ok {
+  color: var(--success, #4ade80);
+}
+
+.coach-quality-badge--review {
+  color: var(--danger, #f87171);
+}
+
+.coach-quality-badge--attention {
+  color: var(--warning, #fbbf24);
+}
+
+.coach-quality-badge--muted {
+  color: var(--text-muted, #9aa39c);
+}
+
+.coach-quality-panel__rules {
+  margin-top: 12px;
+}
+
+.coach-quality-panel__rules-list {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+.admin-club-stat-card__value.stat-card__value:has(.admin-club-stat-card__value-unit) {
+  align-items: flex-end;
+  gap: 4px;
+}
+
 .admin-club-stat-card__value.stat-card__value.admin-club-stat-card__value--months {
   align-items: flex-end;
   gap: 6px;

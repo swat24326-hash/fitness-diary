@@ -290,6 +290,10 @@ export function aggregateCoachQuality(input) {
 
   const withCare = trainers.filter((t) => t.status !== 'insufficient_data' && t.carePct != null)
   const medianCarePct = median(withCare.map((t) => t.carePct))
+  const scored = trainers.map((t) => t.scorePct).filter((n) => Number.isFinite(n))
+  const averageScorePct = scored.length
+    ? Math.round(scored.reduce((s, n) => s + n, 0) / scored.length)
+    : null
 
   return {
     asOf,
@@ -297,6 +301,7 @@ export function aggregateCoachQuality(input) {
     dateTo,
     statusCounts,
     medianCarePct,
+    averageScorePct,
     trainers,
     rules: null,
   }

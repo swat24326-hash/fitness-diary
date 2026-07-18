@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BarChart3, ClipboardList, Info, LayoutGrid, LineChart, RefreshCw, Sparkles, Trophy, UserCheck, UserMinus, UserPlus, Users } from 'lucide-react'
+import { BarChart3, ClipboardList, Gauge, Info, LayoutGrid, LineChart, RefreshCw, Sparkles, Trophy, UserCheck, UserMinus, UserPlus, Users } from 'lucide-react'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { isAppOnline } from '../../lib/syncService'
 import { refreshMembershipsForStats } from '../../lib/membershipCacheRefresh'
@@ -24,7 +24,7 @@ function rankMedal(i) {
   return `${i + 1}.`
 }
 
-/** @typedef {'byDay' | 'byTypes' | 'rating' | 'clubMonthly' | 'pnk'} AdminStatsInlinePanel */
+/** @typedef {'byDay' | 'byTypes' | 'rating' | 'clubMonthly' | 'pnk' | 'coachQuality'} AdminStatsInlinePanel */
 
 /** @typedef {'inactive' | 'journal'} AdminStatsDeepLinkPanel */
 
@@ -365,6 +365,15 @@ export function AdminClubStatsSection({
     return map
   }, [stats?.coachQuality?.trainers])
 
+  const coachQualityAvg = stats?.coachQuality?.averageScorePct ?? null
+  const selfCoachQuality = isTrainerScope
+    ? coachQualityByTrainer.get(String(scopeTrainerId)) ?? null
+    : null
+  const coachQualityCardValue = isTrainerScope
+    ? selfCoachQuality?.scorePct ?? null
+    : coachQualityAvg
+  const hasCoachQualityRows = (stats?.coachQuality?.trainers ?? []).length > 0
+
   const clientHrefForQuality = useCallback(
     (clientId) => {
       const id = String(clientId ?? '').trim()
@@ -536,6 +545,9 @@ export function AdminClubStatsSection({
                   <strong>Рейтинг тренеров</strong> — сравнение тренеров клуба.
                 </li>
               ) : null}
+              <li>
+                <strong>Качество ведения</strong> — {isTrainerScope ? 'ваш балл 0–100' : 'средний балл тренеров 0–100'}; нажмите для таблицы (ведение, глубина, хвосты).
+              </li>
             </ul>
             <p className="admin-club-stats-board__popover-note">
               По тренировкам в периоде: черновиков <strong>{totalDraft}</strong>, уникальных клиентов в записях (завершена или черновик) —{' '}
@@ -732,6 +744,44 @@ export function AdminClubStatsSection({
               </p>
             </button>
           ) : null}
+          <button
+            type="button"
+            className={statCardClass(inlinePanel === 'coachQuality')}
+            disabled={!hasCoachQualityRows}
+            aria-label={
+              hasCoachQualityRows
+                ? isTrainerScope
+                  ? `Качество ведения: ${coachQualityCardValue != null ? `${coachQualityCardValue} из 100` : 'нет балла'}. Нажмите для таблицы`
+                  : `Качество ведения: средний балл ${coachQualityCardValue != null ? coachQualityCardValue : 'нет'}. Нажмите для таблицы`
+                : 'Качество ведения: нет данных'
+            }
+            title={hasCoachQualityRows ? 'Таблица качества ведения' : undefined}
+            onClick={() => toggleInlinePanel('coachQuality')}
+          >
+            <div className="stat-card__top admin-club-stat-card__head">
+              <h3 className="td-stat-title admin-club-stat-card__title">Качество ведения</h3>
+              <Gauge className="stat-card__icon" size={22} aria-hidden />
+            </div>
+            <p className="stat-card__value admin-club-stat-card__value">
+              {coachQualityCardValue != null ? (
+                <>
+                  {coachQualityCardValue}
+                  <span className="admin-club-stat-card__value-unit">/100</span>
+                </>
+              ) : (
+                '—'
+              )}
+            </p>
+            <p className="admin-club-stat-card__foot">
+              {!hasCoachQualityRows
+                ? 'за выбранный период'
+                : inlinePanel === 'coachQuality'
+                  ? 'скрыть таблицу'
+                  : isTrainerScope
+                    ? 'нажмите · ваша оценка'
+                    : 'средний балл · нажмите для таблицы'}
+            </p>
+          </button>
         </div>
       </div>
 
@@ -967,9 +1017,9 @@ export function AdminClubStatsSection({
         </section>
       ) : null}
 
-      {s ? (
+      {inlinePanel === 'coachQuality' ? (
         <CoachQualityPanel
-          coachQuality={s.coachQuality}
+          coachQuality={s?.coachQuality}
           trainerLabel={trainerLabel}
           clientHref={clientHrefForQuality}
           selfTrainerId={isTrainerScope ? scopeTrainerId : null}
