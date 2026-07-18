@@ -5,7 +5,7 @@ import {
   COACH_QUALITY_AXIS_LABELS,
   COACH_QUALITY_STATUS_LABELS,
   coachQualityRulesHelp,
-} from '../../lib/admin/coachQualityCore.js'
+} from '../lib/admin/coachQualityCore.js'
 
 /**
  * Оценка качества ведения: админ (клуб) и тренер (свой scope) — одни правила и оси просадки.
