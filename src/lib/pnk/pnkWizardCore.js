@@ -145,9 +145,10 @@ export function resolvePnkWizardStep(client, ctx = {}) {
     key = 'invite'
   } else if (!isPnkVisitPackageOpen(client, d, now)) {
     key = 'wait'
-  } else if (!d.health) {
+  } else if (!trial1Done && !d.health) {
+    // После пробной не возвращаем к здоровью/питанию (пропуск + откат Back не откатывают зал)
     key = 'health'
-  } else if (!d.nutrition) {
+  } else if (!trial1Done && !d.nutrition) {
     key = 'nutrition'
   } else if (!trial1Done) {
     key = 'train1'

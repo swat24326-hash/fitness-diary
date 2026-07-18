@@ -108,7 +108,7 @@ assert(!isDuplicateInsertError(null), 'null not duplicate')
 {
   const pending = new Set(['ch-1'])
   assert(shouldPreserveLocalRowOnPull(pending, 'ch-1', { id: 'ch-1' }), 'preserve local challenge on pull')
-  assert(!shouldPreserveLocalRowOnPull(pending, 'ch-1', null), 'no local row -> apply pull')
+  assert(shouldPreserveLocalRowOnPull(pending, 'ch-1', null), 'pending delete without local -> block restore')
   assert(!shouldPreserveLocalRowOnPull(new Set(), 'ch-1', { id: 'ch-1' }), 'no pending -> apply pull')
   assert(!shouldPreserveLocalRowOnPull(pending, '', { id: 'x' }), 'empty id -> apply pull')
 }

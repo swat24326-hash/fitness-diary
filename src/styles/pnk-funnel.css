@@ -794,10 +794,42 @@ button.pnk-chip:disabled {
 
 .pnk-client-panel__actions {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: stretch;
   min-width: 0;
+}
+
+.pnk-client-panel__actions--secondary {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.pnk-client-panel__actions--secondary > .btn {
+  flex: none;
+  width: 100%;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  min-height: 44px;
+}
+
+.pnk-client-panel__actions--secondary .pnk-coach-notify {
+  flex: none;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.pnk-client-panel__actions--secondary .pnk-coach-notify__max,
+.pnk-client-panel__actions--secondary .pnk-coach-notify__other {
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pnk-client-panel__actions--wrap {

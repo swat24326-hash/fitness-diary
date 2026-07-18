@@ -251,7 +251,8 @@ export async function buildPendingSyncKeysByTable() {
   }
   for (const item of queue) {
     const op = item.operation
-    if (op !== 'insert' && op !== 'update') continue
+    // insert/update — не затирать локальные правки; delete — не восстанавливать из облака
+    if (op !== 'insert' && op !== 'update' && op !== 'delete') continue
     const t = item.table_name
     if (!keys[t]) continue
     const k = syncQueueItemKey(t, item)
@@ -267,7 +268,8 @@ function cloudCachedRecord(record) {
 }
 
 /**
- * putStore, но не затирает локальные правки, ещё не ушедшие в облако.
+ * putStore, но не затирает локальные правки и не восстанавливает удалённые
+ * (пока insert/update/delete в очереди sync).
  * @returns {Promise<boolean>} false если запись пропущена из‑за очереди
  */
 export async function putStoreUnlessPendingSync(storeName, record, pending) {
@@ -281,12 +283,8 @@ export async function putStoreUnlessPendingSync(storeName, record, pending) {
     await putStore(storeName, fromCloud)
     return true
   }
-  if (pending?.[storeName]?.has(key)) {
-    const db = await getDb()
-    const existing =
-      storeName === 'health_cards' ? await db.get('health_cards', key) : await db.get(storeName, key)
-    if (existing) return false
-  }
+  // Любой pending (в т.ч. delete без локальной строки) — не трогаем из облака
+  if (pending?.[storeName]?.has(key)) return false
   await putStore(storeName, fromCloud)
   return true
 }

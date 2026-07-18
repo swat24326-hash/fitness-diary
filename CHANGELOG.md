@@ -10,7 +10,7 @@
 ## 2026-07
 
 - **Документация:** актуальный handoff, индекс, `API` / `SYNC` / `DATA_MODEL` / `TESTING` / `PWA`; путь серверного кода — `api/_lib`.
-- **ПНК:** одна главная кнопка на шаге тренера (шапка / «Начать тренировку»); доска — автовыбор срочного + сводка под ссылкой; итог визита у менеджера. [docs/PNK_FUNNEL.md](./docs/PNK_FUNNEL.md).
+- **ПНК:** фикс отказа (pull не возвращал карточку), «Неявка» после прихода, питание после пропуска+зала, кнопки на шаге визита; одна главная CTA; итог визита менеджеру. [docs/PNK_FUNNEL.md](./docs/PNK_FUNNEL.md).
 - **ПНК (воронка):** в проде — создание менеджером, мастер на карточке тренера, доска `/sales/pnk`, KPI. См. [docs/PNK_FUNNEL.md](./docs/PNK_FUNNEL.md).
 - **Каналы:** Max у тренера в продукте; SMS клуба (Мои Звонки) — backlog. [docs/OUTREACH_CHANNELS_ROADMAP.md](./docs/OUTREACH_CHANNELS_ROADMAP.md).
 - **Web Push** для планёрки / заданий — [docs/PUSH_SETUP.md](./docs/PUSH_SETUP.md).

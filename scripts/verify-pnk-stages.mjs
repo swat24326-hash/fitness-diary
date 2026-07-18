@@ -75,6 +75,15 @@ const noshow = buildPnkAttentionFlags(
 )
 ok(noshow.some((f) => f.code === 'noshow'), 'noshow flag after trial date')
 
+const noshowGone = buildPnkAttentionFlags(
+  {
+    ...agreed.client,
+    pnk_deliverables: { visit_started: '2026-07-11T10:00:00.000Z' },
+  },
+  new Date('2026-07-11T12:00:00'),
+)
+ok(!noshowGone.some((f) => f.code === 'noshow'), 'no noshow after Клиент пришёл')
+
 const trialDone = applyPnkStagePatch({
   client: agreed.client,
   stage: 'trial_done',

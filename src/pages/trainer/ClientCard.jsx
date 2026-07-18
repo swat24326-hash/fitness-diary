@@ -553,7 +553,7 @@ export function ClientCard() {
           void reloadLocal()
         }}
         onRefused={() => {
-          navigate(isAdmin ? adminClientsListHref : '/clients', { replace: true })
+          navigate(isAdmin ? adminClientsListHref : '/trainer', { replace: true })
         }}
         onOpenDiaries={() => setTab('diaries')}
         onOpenTab={onOpenPnkTab}

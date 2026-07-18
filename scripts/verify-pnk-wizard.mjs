@@ -137,6 +137,20 @@ const afterTrain1 = {
   pnk_stage: 'trial_done',
   pnk_deliverables: { ...afterNutrition.pnk_deliverables, trial: '2026-07-20T18:00:00.000Z' },
 }
+ok(resolvePnkWizardStep(afterTrain1)?.key === 'hw1', '→ hw1 after trial')
+
+// Пропуск питания + пробная: не возвращаем на «Питание»
+const trialWithoutNutrition = {
+  ...arrived,
+  pnk_stage: 'trial_done',
+  pnk_deliverables: {
+    ...arrived.pnk_deliverables,
+    health: '2026-07-19T11:00:00.000Z',
+    trial: '2026-07-20T18:00:00.000Z',
+  },
+}
+ok(resolvePnkWizardStep(trialWithoutNutrition)?.key === 'hw1', 'trial without nutrition → hw1 not nutrition')
+ok(resolvePnkWizardStep(trialWithoutNutrition, { bzCompletedCount: 1 })?.key === 'hw1', 'bzDone without nutrition → hw1')
 ok(resolvePnkWizardStep(afterTrain1, { bzCompletedCount: 1 })?.key === 'hw1', 'N=1 → hw1')
 const hw1Step = resolvePnkWizardStep(afterTrain1, { bzCompletedCount: 1 })
 ok(canAdvancePnkWizardStep(afterTrain1, hw1Step, { bzCompletedCount: 1 }).ok === true, 'hw1 Next ok (marks ДЗ)')

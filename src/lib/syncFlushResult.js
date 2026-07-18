@@ -1,10 +1,11 @@
 /** Чистая логика синхронизации (без IndexedDB / Supabase) — для UI и node-тестов. */
 
-/** Pull не затирает локальную строку, если для id есть неотправленные insert/update в очереди. */
-export function shouldPreserveLocalRowOnPull(pendingIdSet, recordId, hasLocalRow) {
+/** Pull не затирает локальную строку и не восстанавливает удалённую при pending в очереди. */
+export function shouldPreserveLocalRowOnPull(pendingIdSet, recordId, _hasLocalRow) {
   const id = String(recordId ?? '').trim()
   if (!id || !pendingIdSet?.has(id)) return false
-  return !!hasLocalRow
+  // delete в очереди: локальной строки нет — всё равно не восстанавливаем из облака
+  return true
 }
 
 /** id клиентов с неотправленным insert в очереди (офлайн-новые). */

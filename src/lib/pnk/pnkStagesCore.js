@@ -407,7 +407,11 @@ export function buildPnkAttentionFlags(client, now = new Date()) {
   }
 
   const trialDate = String(client.pnk_trial_date ?? '').slice(0, 10)
-  if (trialDate && /^\d{4}-\d{2}-\d{2}$/.test(trialDate) && !d.trial) {
+  // Неявка только до старта визита: если клиент уже «пришёл» / в пакете — не висим
+  const visitUnderway = Boolean(
+    d.visit_started || d.health || d.nutrition || d.trial || d.homework || d.trial2 || d.homework2,
+  )
+  if (trialDate && /^\d{4}-\d{2}-\d{2}$/.test(trialDate) && !d.trial && !visitUnderway) {
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     if (trialDate < today) {
       flags.push({
