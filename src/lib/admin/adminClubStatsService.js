@@ -240,9 +240,12 @@ export async function loadClubTrainingStats(p) {
   try {
     const viaApi = await fetchClubTrainingStatsViaApi({ clubId, dateFrom, dateTo })
     if (viaApi) {
-      // Сразу цифры с API. Локальный IndexedDB на админском ПК часто пуст —
-      // не блокируем сводку расчётом качества (оно догрузится с кэшем / позже с API).
-      return {
+      let [rows, clients, memberships] = await Promise.all([
+        fetchTrainingsForClubRangeLocal(clubId, dateFrom, dateTo).catch(() => []),
+        fetchClientsForClubLocal(clubId).catch(() => []),
+        fetchMembershipsForClubLocal(clubId).catch(() => []),
+      ])
+      const stats = {
         ...base,
         totalCompleted: viaApi.totalCompleted ?? 0,
         totalDraft: viaApi.totalDraft ?? 0,
@@ -259,15 +262,38 @@ export async function loadClubTrainingStats(p) {
         inactiveClients: viaApi.inactiveClients ?? [],
         notRenewedInPeriod: viaApi.notRenewedInPeriod ?? 0,
         notRenewedClients: viaApi.notRenewedClients ?? [],
-        coachQuality: viaApi.coachQuality ?? null,
         source: 'admin_api',
         fallbackReason: null,
         error: null,
       }
+      // Сводка с API часто есть, а IDB на админ-браузере пустой — для качества берём remote.
+      const localThin = !clients.length || (!rows.length && !memberships.length)
+      if (localThin && (viaApi.totalCompleted > 0 || viaApi.totalClients > 0)) {
+        try {
+          ;[rows, clients, memberships] = await Promise.all([
+            fetchTrainingsForClubRangeRemote(clubId, dateFrom, dateTo),
+            fetchClientsForClubRemote(clubId),
+            fetchMembershipsForClubRemote(clubId),
+          ])
+        } catch (remoteErr) {
+          console.warn('[admin] coachQuality remote fill', remoteErr)
+        }
+      }
+      if (clients.length) {
+        return attachCoachQuality(stats, {
+          clubId,
+          dateFrom,
+          dateTo,
+          clients,
+          trainings: rows,
+          memberships,
+        })
+      }
+      return stats
     }
   } catch (apiErr) {
     const msg = String(apiErr?.message ?? '')
-    if (!/failed to fetch|connection reset|timeout|таймаут/i.test(msg)) {
+    if (!/failed to fetch|connection reset|timeout/i.test(msg)) {
       console.warn('[admin] club-training-stats api', apiErr)
     }
   }
