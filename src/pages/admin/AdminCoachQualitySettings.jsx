@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { RotateCcw, Save } from 'lucide-react'
+import { Gauge, RotateCcw, Save } from 'lucide-react'
 import {
   defaultCoachQualityConfig,
   normalizeCoachQualityConfig,
@@ -133,18 +133,18 @@ export function AdminCoachQualitySettings() {
   }, [toggles])
 
   return (
-    <section className="card">
+    <section className="card cq-settings">
       <AdminSectionHeader
         title="Качество ведения"
-        lead="Веса осей и тумблеры правил — одинаково для статистики админа и тренера."
+        lead="Веса осей и правила оценки — одинаково для статистики админа и тренера."
+        icon={Gauge}
       />
 
-      <div className="row" style={{ flexWrap: 'wrap', gap: 10, marginBottom: 14, alignItems: 'center' }}>
-        <label className="muted" style={{ fontSize: 13 }}>
-          Клуб
+      <div className="cq-settings__toolbar">
+        <label className="cq-settings__club">
+          <span className="cq-settings__club-label">Клуб</span>
           <select
-            className="input"
-            style={{ marginLeft: 8, minWidth: 200 }}
+            className="input cq-settings__club-select"
             value={clubId}
             onChange={(e) => setClubId(e.target.value)}
             disabled={busy}
@@ -157,88 +157,83 @@ export function AdminCoachQualitySettings() {
             ))}
           </select>
         </label>
-        {clubName ? <span className="muted" style={{ fontSize: 13 }}>{clubName}</span> : null}
+        {clubName ? <span className="cq-settings__club-name muted">{clubName}</span> : null}
       </div>
 
       {migrationNeeded ? (
-        <p className="muted" style={{ margin: '0 0 12px', fontSize: 13 }}>
+        <p className="admin-section__banner admin-section__banner--warn">
           Таблица в базе ещё не создана — сейчас действует стандарт. После миграции{' '}
           <code>club_coach_quality_settings</code> сохранение заработает.
         </p>
       ) : null}
 
-      <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 8px' }}>
-        Веса осей (сумма {weightSum}%)
-      </h3>
-      <div className="grid" style={{ gap: 10, marginBottom: 16, maxWidth: 420 }}>
-        <WeightRow
-          label="Ведение"
-          value={config.weightCare}
-          onChange={(v) => setWeight('weightCare', v)}
-          disabled={busy}
-        />
-        <WeightRow
-          label="Глубина"
-          value={config.weightDepth}
-          onChange={(v) => setWeight('weightDepth', v)}
-          disabled={busy}
-        />
-        <WeightRow
-          label="Хвосты"
-          value={config.weightBag}
-          onChange={(v) => setWeight('weightBag', v)}
-          disabled={busy}
-        />
-      </div>
-      {weightSum !== 100 ? (
-        <p style={{ color: 'var(--warning, #fbbf24)', fontSize: 13, margin: '0 0 12px' }}>
-          Сумма должна быть 100% (при сохранении веса нормализуются).
-        </p>
-      ) : null}
-
-      {Object.entries(groups).map(([group, items]) => (
-        <div key={group} style={{ marginBottom: 16 }}>
-          <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 8px' }}>
-            {group}
-          </h3>
-          <div className="grid" style={{ gap: 8 }}>
-            {items.map((t) => (
-              <label
-                key={t.key}
-                className="row"
-                style={{
-                  gap: 10,
-                  alignItems: 'flex-start',
-                  padding: '8px 10px',
-                  borderRadius: 10,
-                  border: '1px solid color-mix(in srgb, var(--border, #2a3a32) 80%, transparent)',
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={Boolean(config[t.key])}
-                  onChange={(e) => setToggle(t.key, e.target.checked)}
-                  disabled={busy}
-                  style={{ marginTop: 3 }}
-                />
-                <span>
-                  <strong style={{ fontSize: 14 }}>{t.label}</strong>
-                  <span className="muted" style={{ display: 'block', fontSize: 12, marginTop: 2 }}>
-                    {t.hint}
-                  </span>
-                </span>
-              </label>
-            ))}
-          </div>
+      <div className="cq-settings__block">
+        <div className="cq-settings__block-head">
+          <h3 className="cq-settings__block-title">Веса осей</h3>
+          <span className={`cq-settings__sum${weightSum === 100 ? '' : ' cq-settings__sum--bad'}`}>
+            сумма {weightSum}%
+          </span>
         </div>
-      ))}
+        <div className="cq-settings__weights">
+          <WeightField
+            label="Ведение"
+            value={config.weightCare}
+            onChange={(v) => setWeight('weightCare', v)}
+            disabled={busy}
+          />
+          <WeightField
+            label="Глубина"
+            value={config.weightDepth}
+            onChange={(v) => setWeight('weightDepth', v)}
+            disabled={busy}
+          />
+          <WeightField
+            label="Хвосты"
+            value={config.weightBag}
+            onChange={(v) => setWeight('weightBag', v)}
+            disabled={busy}
+          />
+        </div>
+        {weightSum !== 100 ? (
+          <p className="cq-settings__hint cq-settings__hint--warn">
+            Сумма должна быть 100% (при сохранении веса нормализуются).
+          </p>
+        ) : (
+          <p className="cq-settings__hint muted">Доля каждой оси в итоговом балле 0–100.</p>
+        )}
+      </div>
+
+      <div className="cq-settings__groups">
+        {Object.entries(groups).map(([group, items]) => (
+          <div key={group} className="cq-settings__group">
+            <h3 className="cq-settings__group-title">{group}</h3>
+            <ul className="cq-settings__toggles">
+              {items.map((t) => (
+                <li key={t.key}>
+                  <label className="cq-settings__toggle">
+                    <input
+                      type="checkbox"
+                      className="cq-settings__checkbox"
+                      checked={Boolean(config[t.key])}
+                      onChange={(e) => setToggle(t.key, e.target.checked)}
+                      disabled={busy}
+                    />
+                    <span className="cq-settings__toggle-text">
+                      <span className="cq-settings__toggle-label">{t.label}</span>
+                      <span className="cq-settings__toggle-hint muted">{t.hint}</span>
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
 
       {rulesPreview.length ? (
-        <div style={{ marginBottom: 14 }}>
-          <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 6px' }}>
-            Как будет считаться
-          </h3>
-          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>
+        <div className="cq-settings__preview">
+          <h3 className="cq-settings__block-title">Как будет считаться</h3>
+          <ul className="cq-settings__preview-list">
             {rulesPreview.map((line) => (
               <li key={line}>{line}</li>
             ))}
@@ -246,7 +241,7 @@ export function AdminCoachQualitySettings() {
         </div>
       ) : null}
 
-      <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
+      <div className="cq-settings__actions">
         <button type="button" className="btn btn-primary" disabled={busy || !clubId} onClick={() => void onSave()}>
           <Save size={16} aria-hidden />
           Сохранить
@@ -256,29 +251,28 @@ export function AdminCoachQualitySettings() {
           Стандарт FIT-CITY
         </button>
       </div>
-      {msg ? <p style={{ margin: '10px 0 0', fontSize: 13, color: 'var(--success, #4ade80)' }}>{msg}</p> : null}
-      {err ? <p style={{ margin: '10px 0 0', fontSize: 13, color: 'var(--danger, #f87171)' }}>{err}</p> : null}
+      {msg ? <p className="cq-settings__status cq-settings__status--ok">{msg}</p> : null}
+      {err ? <p className="cq-settings__status cq-settings__status--err">{err}</p> : null}
     </section>
   )
 }
 
-function WeightRow({ label, value, onChange, disabled }) {
+function WeightField({ label, value, onChange, disabled }) {
   return (
-    <label className="row" style={{ justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
-      <span style={{ fontSize: 14, minWidth: 80 }}>{label}</span>
-      <input
-        type="number"
-        className="input"
-        min={0}
-        max={100}
-        step={1}
-        value={value}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.value)}
-        style={{ width: 80, textAlign: 'right' }}
-      />
-      <span className="muted" style={{ fontSize: 13 }}>
-        %
+    <label className="cq-settings__weight">
+      <span className="cq-settings__weight-label">{label}</span>
+      <span className="cq-settings__weight-input-wrap">
+        <input
+          type="number"
+          className="input cq-settings__weight-input"
+          min={0}
+          max={100}
+          step={1}
+          value={value}
+          disabled={disabled}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        <span className="cq-settings__weight-unit muted">%</span>
       </span>
     </label>
   )
