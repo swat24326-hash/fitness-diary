@@ -74,6 +74,7 @@
 | Файл | Статус | Назначение |
 |------|--------|------------|
 | [PNK_FUNNEL.md](./PNK_FUNNEL.md) | ✅ в проде | Воронка ПНК: менеджер → тренер → KPI |
+| [COACH_QUALITY.md](./COACH_QUALITY.md) | ✅ MVP | Качество ведения тренера: care / depth / хвосты базы |
 | [PRODUCT_MODULES.md](./PRODUCT_MODULES.md) | карта | Питание, ДЗ, outreach, ИСКРА — куда код и docs |
 | [SALES_MANAGER.md](./SALES_MANAGER.md) | ✅ роль/отчёт в проде; ТЗ — справочник | Менеджер продаж + финансы |
 | [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md) | 📋 ТЗ | Управляющий клуба (ещё не роль в коде) |

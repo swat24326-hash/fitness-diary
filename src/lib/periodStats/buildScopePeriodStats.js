@@ -1,6 +1,7 @@
 import { aggregateTrainings, aggregateClubClientPeriod } from '../admin/adminClubStatsService'
 import { aggregateMembershipTypeStats } from '../admin/membershipTypeStatsAgg'
 import { listMembershipTypesForClub } from '../membershipTypesService'
+import { buildCoachQualityForScope } from '../admin/coachQualityService.js'
 
 function trainingsInRange(trainings, dateFrom, dateTo) {
   return (trainings ?? []).filter((t) => {
@@ -48,6 +49,22 @@ export async function buildScopePeriodStats(input) {
   const inRange = trainingsInRange(trainings, dateFrom, dateTo)
   const membershipTypes = typesIn ?? (clubId ? await listMembershipTypesForClub(clubId) : [])
 
+  let coachQuality = null
+  try {
+    coachQuality = await buildCoachQualityForScope({
+      clients,
+      trainings: inRange,
+      memberships,
+      clubId,
+      dateFrom,
+      dateTo,
+      trainerIdFilter: trainerIdFilter || null,
+      membershipTypes,
+    })
+  } catch (e) {
+    console.warn('[stats] coachQuality', e)
+  }
+
   return {
     ...aggregateTrainings(inRange),
     ...aggregateClubClientPeriod(clients, memberships, dateFrom, dateTo),
@@ -57,6 +74,7 @@ export async function buildScopePeriodStats(input) {
       membershipTypes,
       trainerIdFilter: trainerIdFilter || null,
     }),
+    coachQuality,
     source: 'local',
     fallbackReason: null,
     error: null,

@@ -14,6 +14,7 @@ import { fetchClubTrainingStatsViaApi } from './adminApiClient'
 import { ADMIN_SYNC_BATCH_SIZE } from './adminConstants'
 import { aggregateMembershipTypeStats } from './membershipTypeStatsAgg'
 import { listMembershipTypesForClub } from '../membershipTypesService'
+import { buildCoachQualityForScope } from './coachQualityService.js'
 
 export function aggregateTrainings(rows) {
   const dayMap = new Map()
@@ -110,6 +111,8 @@ async function fetchClientsForClubLocal(clubId) {
     phone: c.phone,
     trainer_id: c.trainer_id,
     archived_at: c.archived_at,
+    lifecycle: c.lifecycle ?? null,
+    pnk_stage: c.pnk_stage ?? null,
   }))
 }
 
@@ -124,7 +127,7 @@ async function fetchClientsForClubRemote(clubId) {
     const { data, error } = await withSupabaseRetry(() =>
       supabase
         .from('clients')
-        .select('id, name, phone, trainer_id, archived_at')
+        .select('id, name, phone, trainer_id, archived_at, lifecycle, pnk_stage')
         .eq('club_id', clubId)
         .order('id', { ascending: true })
         .range(from, from + ADMIN_SYNC_BATCH_SIZE - 1),
@@ -166,6 +169,23 @@ async function membershipTypeStatsSlice(clubId, trainings, memberships) {
   return aggregateMembershipTypeStats({ trainings, memberships, membershipTypes })
 }
 
+async function attachCoachQuality(stats, { clubId, dateFrom, dateTo, clients, trainings, memberships }) {
+  try {
+    const coachQuality = await buildCoachQualityForScope({
+      clubId,
+      dateFrom,
+      dateTo,
+      clients,
+      trainings,
+      memberships,
+    })
+    return { ...stats, coachQuality }
+  } catch (e) {
+    console.warn('[admin] coachQuality', e)
+    return { ...stats, coachQuality: null }
+  }
+}
+
 /**
  * @param {{ clubId: string, dateFrom: string, dateTo: string }} p — даты ISO yyyy-mm-dd
  */
@@ -187,6 +207,7 @@ export async function loadClubTrainingStats(p) {
     inactiveClients: [],
     notRenewedInPeriod: 0,
     notRenewedClients: [],
+    coachQuality: null,
     source: 'local',
     fallbackReason: null,
     error: null,
@@ -204,19 +225,27 @@ export async function loadClubTrainingStats(p) {
       fetchClientsForClubLocal(clubId),
       fetchMembershipsForClubLocal(clubId),
     ])
-    return {
-      ...base,
-      ...aggregateTrainings(rows),
-      ...clientSlice(clients, memberships),
-      ...(await membershipTypeStatsSlice(clubId, rows, memberships)),
-      source: 'local',
-    }
+    return attachCoachQuality(
+      {
+        ...base,
+        ...aggregateTrainings(rows),
+        ...clientSlice(clients, memberships),
+        ...(await membershipTypeStatsSlice(clubId, rows, memberships)),
+        source: 'local',
+      },
+      { clubId, dateFrom, dateTo, clients, trainings: rows, memberships },
+    )
   }
 
   try {
     const viaApi = await fetchClubTrainingStatsViaApi({ clubId, dateFrom, dateTo })
     if (viaApi) {
-      return {
+      const [rows, clients, memberships] = await Promise.all([
+        fetchTrainingsForClubRangeLocal(clubId, dateFrom, dateTo).catch(() => []),
+        fetchClientsForClubLocal(clubId).catch(() => []),
+        fetchMembershipsForClubLocal(clubId).catch(() => []),
+      ])
+      const stats = {
         ...base,
         totalCompleted: viaApi.totalCompleted ?? 0,
         totalDraft: viaApi.totalDraft ?? 0,
@@ -237,6 +266,17 @@ export async function loadClubTrainingStats(p) {
         fallbackReason: null,
         error: null,
       }
+      if (clients.length && (rows.length || memberships.length)) {
+        return attachCoachQuality(stats, {
+          clubId,
+          dateFrom,
+          dateTo,
+          clients,
+          trainings: rows,
+          memberships,
+        })
+      }
+      return stats
     }
   } catch (apiErr) {
     const msg = String(apiErr?.message ?? '')
@@ -251,26 +291,32 @@ export async function loadClubTrainingStats(p) {
       fetchClientsForClubRemote(clubId),
       fetchMembershipsForClubRemote(clubId),
     ])
-    return {
-      ...base,
-      ...aggregateTrainings(rows),
-      ...clientSlice(clients, memberships),
-      ...(await membershipTypeStatsSlice(clubId, rows, memberships)),
-      source: 'remote',
-    }
+    return attachCoachQuality(
+      {
+        ...base,
+        ...aggregateTrainings(rows),
+        ...clientSlice(clients, memberships),
+        ...(await membershipTypeStatsSlice(clubId, rows, memberships)),
+        source: 'remote',
+      },
+      { clubId, dateFrom, dateTo, clients, trainings: rows, memberships },
+    )
   } catch (e) {
     const [rows, clients, memberships] = await Promise.all([
       fetchTrainingsForClubRangeLocal(clubId, dateFrom, dateTo),
       fetchClientsForClubLocal(clubId),
       fetchMembershipsForClubLocal(clubId),
     ])
-    return {
-      ...base,
-      ...aggregateTrainings(rows),
-      ...clientSlice(clients, memberships),
-      ...(await membershipTypeStatsSlice(clubId, rows, memberships)),
-      source: 'local',
-      fallbackReason: e?.message ? String(e.message) : 'Статистика с сервера недоступна',
-    }
+    return attachCoachQuality(
+      {
+        ...base,
+        ...aggregateTrainings(rows),
+        ...clientSlice(clients, memberships),
+        ...(await membershipTypeStatsSlice(clubId, rows, memberships)),
+        source: 'local',
+        fallbackReason: e?.message ? String(e.message) : 'Статистика с сервера недоступна',
+      },
+      { clubId, dateFrom, dateTo, clients, trainings: rows, memberships },
+    )
   }
 }

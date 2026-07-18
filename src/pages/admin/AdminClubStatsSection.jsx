@@ -11,6 +11,7 @@ import { formatIsoRu, getDateRange, PERIOD_PRESETS } from '../../lib/period'
 import { AdminClubDayChart } from '../../components/AdminClubDayChart'
 import { AdminClubMonthlyChart } from '../../components/AdminClubMonthlyChart'
 import { MembershipTypeStatsTable } from '../../components/MembershipTypeStatsTable'
+import { CoachQualityPanel, CoachQualityStatusBadge } from '../../components/CoachQualityPanel'
 import { loadClubMonthlyStatsForYear, MONTHS_PER_CALENDAR_YEAR } from '../../lib/admin/adminClubMonthlyService'
 import { useIskraPanel } from '../../context/IskraPanelContext.jsx'
 import { fetchPnkBundle } from '../../lib/pnk/pnkApiService'
@@ -355,6 +356,23 @@ export function AdminClubStatsSection({
   }
 
   const clubMonthlySum = useMemo(() => clubMonthly.reduce((sum, r) => sum + (Number(r?.count) || 0), 0), [clubMonthly])
+
+  const coachQualityByTrainer = useMemo(() => {
+    const map = new Map()
+    for (const row of stats?.coachQuality?.trainers ?? []) {
+      map.set(String(row.trainerId), row)
+    }
+    return map
+  }, [stats?.coachQuality?.trainers])
+
+  const clientHrefForQuality = useCallback(
+    (clientId) => {
+      const id = String(clientId ?? '').trim()
+      if (!id) return '/'
+      return isTrainerScope ? `/trainer/clients/${id}` : `/admin/clients/${id}`
+    },
+    [isTrainerScope],
+  )
 
   if (!isTrainerScope && !clubId) {
     return (
@@ -874,7 +892,9 @@ export function AdminClubStatsSection({
             </p>
           ) : (
             <div className="grid grid-2" style={{ gap: 10 }}>
-              {byTrainer.map((tr, idx) => (
+              {byTrainer.map((tr, idx) => {
+                const q = coachQualityByTrainer.get(String(tr.trainerId))
+                return (
                 <div key={tr.trainerId} className="card" style={{ padding: 12, margin: 0 }}>
                   <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
                     <span style={{ fontSize: 18 }} aria-hidden>
@@ -883,6 +903,16 @@ export function AdminClubStatsSection({
                     <Trophy size={18} className="muted" style={{ opacity: 0.5 }} aria-hidden />
                   </div>
                   <p style={{ margin: '0 0 8px', fontWeight: 600, fontSize: 15, lineHeight: 1.3 }}>{trainerLabel(tr.trainerId)}</p>
+                  {q ? (
+                    <div style={{ marginBottom: 8 }}>
+                      <CoachQualityStatusBadge status={q.status} label={q.statusLabel} />
+                      {q.failureDirectionLabels?.length ? (
+                        <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
+                          Просадка: {q.failureDirectionLabels.join(' · ')}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
                   <div className="row" style={{ flexWrap: 'wrap', gap: 12, fontSize: 13 }}>
                     <span>
                       <span className="muted">Завершено:</span> <strong>{tr.completed}</strong>
@@ -913,10 +943,21 @@ export function AdminClubStatsSection({
                     </button>
                   ) : null}
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </section>
+      ) : null}
+
+      {s ? (
+        <CoachQualityPanel
+          coachQuality={s.coachQuality}
+          trainerLabel={trainerLabel}
+          clientHref={clientHrefForQuality}
+          selfTrainerId={isTrainerScope ? scopeTrainerId : null}
+          compact={isTrainerScope}
+        />
       ) : null}
 
     </section>

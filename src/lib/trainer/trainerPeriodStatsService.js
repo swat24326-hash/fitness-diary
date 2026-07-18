@@ -25,6 +25,7 @@ export async function loadTrainerPeriodStats(p) {
       inactiveClients: [],
       notRenewedInPeriod: 0,
       notRenewedClients: [],
+      coachQuality: null,
       source: 'local',
       fallbackReason: null,
       error: !trainerId ? 'no_trainer' : 'bad_range',
