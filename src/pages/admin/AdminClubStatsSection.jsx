@@ -908,11 +908,19 @@ export function AdminClubStatsSection({
                       <div className="row" style={{ flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
                         <CoachQualityStatusBadge status={q.status} label={q.statusLabel} />
                         <strong style={{ fontSize: 16 }}>
-                          {q.scorePct != null ? `${q.scorePct}` : '—'}
-                          <span className="muted" style={{ fontSize: 12, fontWeight: 500 }}>
-                            {' '}
-                            / 100
-                          </span>
+                          {q.scorePct != null ? (
+                            <>
+                              {q.scorePct}
+                              <span className="muted" style={{ fontSize: 12, fontWeight: 500 }}>
+                                {' '}
+                                / 100
+                              </span>
+                            </>
+                          ) : (
+                            <span className="muted" style={{ fontSize: 13, fontWeight: 600 }}>
+                              нет балла
+                            </span>
+                          )}
                         </strong>
                       </div>
                       {q.failureDirectionLabels?.length ? (

@@ -248,6 +248,7 @@ export function aggregateCoachQuality(input) {
       depthPct,
       bagPct,
       stuckCount,
+      completed: tr.completed,
     })
 
     statusCounts[resolved.status] = (statusCounts[resolved.status] ?? 0) + 1

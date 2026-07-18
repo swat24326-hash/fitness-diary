@@ -319,17 +319,23 @@ export function resolveCoachQualityStatus(p) {
 }
 
 /**
- * Итоговый балл 0–100 (прозрачно: ведение 40% + глубина 40% + чистота базы 20%).
- * При нехватке осей — среднее по доступным; stuck ограничивает потолок 79.
+ * Итоговый балл 0–100 (ведение 40% + глубина 40% + чистота базы 20%).
+ * Без завершённых тренировок в периоде — null (не рисуем «100 из воздуха»).
+ * При stuck — потолок 79.
  * @param {{
  *   carePct?: number|null,
  *   depthPct?: number|null,
  *   bagPct?: number|null,
  *   stuckCount?: number,
+ *   completed?: number,
  * }} p
- * @returns {number}
+ * @returns {number|null}
  */
 export function computeCoachQualityScorePct(p = {}) {
+  const completed = Math.max(0, Number(p.completed) || 0)
+  // Нет работы в периоде — нет балла (иначе 100% за «пустую» чистоту базы).
+  if (completed <= 0) return null
+
   const bag = Number.isFinite(Number(p.bagPct)) ? Number(p.bagPct) : 100
   const careRaw = p.carePct
   const depthRaw = p.depthPct
@@ -344,7 +350,8 @@ export function computeCoachQualityScorePct(p = {}) {
     if (hasDepth) parts.push(Number(depthRaw))
     score = Math.round(parts.reduce((a, b) => a + b, 0) / parts.length)
   } else {
-    score = Math.round(bag)
+    // Есть тренировки, но ещё нет осей care/depth — только база, не выдаём «идеал».
+    score = Math.min(Math.round(bag), 70)
   }
   if ((Number(p.stuckCount) || 0) >= 1) score = Math.min(score, 79)
   if (score < 0) return 0
@@ -374,7 +381,7 @@ export function coachQualityRulesHelp() {
     'Ведение: рацион после смены веса обновить за 7 дней; обмеры за 30 дней — если уместны или уже вели.',
     'Тонкая тренировка: 1 упражнение или ≤2 подхода с данными.',
     'Неактивные: 0–7 дней — коридор; 8–14 — затянули; >14 без нового абонемента/архива (или после БЗ без ДК/отказа) — провал.',
-    'Мало данных: <8 завершённых или <3 активных клиентов — статус «Мало данных», ведение/глубину не сравниваем с другими; итоговый балл всё равно есть (больше по хвостам базы).',
-    'Итоговый балл: ведение 40% + глубина 40% + чистота базы 20%; при хвостах >14 дн. потолок 79.',
+    'Мало данных: <8 завершённых или <3 активных клиентов — статус «Мало данных», ведение/глубину не сравниваем с другими.',
+    'Итоговый балл: ведение 40% + глубина 40% + чистота базы 20%; при хвостах >14 дн. потолок 79. Без тренировок в периоде балла нет (не 100 «из воздуха»).',
   ]
 }

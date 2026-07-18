@@ -112,11 +112,19 @@ export function CoachQualityPanel({
                   <div className="row" style={{ flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
                     <CoachQualityStatusBadge status={tr.status} label={tr.statusLabel} />
                     <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em' }}>
-                      {tr.scorePct != null ? `${tr.scorePct}` : '—'}
-                      <span className="muted" style={{ fontSize: 12, fontWeight: 500 }}>
-                        {' '}
-                        / 100
-                      </span>
+                      {tr.scorePct != null ? (
+                        <>
+                          {tr.scorePct}
+                          <span className="muted" style={{ fontSize: 12, fontWeight: 500 }}>
+                            {' '}
+                            / 100
+                          </span>
+                        </>
+                      ) : (
+                        <span className="muted" style={{ fontSize: 14, fontWeight: 600 }}>
+                          нет балла
+                        </span>
+                      )}
                     </span>
                     {tr.failureDirectionLabels?.length ? (
                       <span className="muted" style={{ fontSize: 12 }}>
@@ -150,8 +158,9 @@ export function CoachQualityPanel({
                   </div>
                   {tr.status === 'insufficient_data' ? (
                     <p className="muted" style={{ margin: '6px 0 0', fontSize: 12 }}>
-                      Мало данных для сравнения ведения/глубины (нужно ≥8 тренировок и ≥3 активных клиентов). Итоговый
-                      балл считаем по доступным осям.
+                      {tr.completed > 0
+                        ? 'Мало данных для сравнения ведения/глубины (нужно ≥8 тренировок и ≥3 активных клиентов).'
+                        : 'В периоде нет завершённых тренировок — итоговый балл не ставим (это не «100»).'}
                     </p>
                   ) : null}
                 </div>

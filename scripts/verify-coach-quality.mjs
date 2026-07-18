@@ -411,12 +411,38 @@ ok(stInsufStuck.status === 'review' && stInsufStuck.failureDirections.includes('
 ok(COACH_QUALITY_AXIS_LABELS.care && COACH_QUALITY_STATUS_LABELS.ok, 'подписи осей/статусов для UI')
 ok(coachQualityRulesHelp().length >= 4, 'текст правил для тренера и админа')
 
-const scoreFull = computeCoachQualityScorePct({ carePct: 100, depthPct: 80, bagPct: 100, stuckCount: 0 })
+const scoreFull = computeCoachQualityScorePct({
+  carePct: 100,
+  depthPct: 80,
+  bagPct: 100,
+  stuckCount: 0,
+  completed: 10,
+})
 ok(scoreFull === Math.round(100 * 0.4 + 80 * 0.4 + 100 * 0.2), 'итоговый балл = 40/40/20')
-const scoreStuck = computeCoachQualityScorePct({ carePct: 100, depthPct: 100, bagPct: 100, stuckCount: 2 })
+const scoreStuck = computeCoachQualityScorePct({
+  carePct: 100,
+  depthPct: 100,
+  bagPct: 100,
+  stuckCount: 2,
+  completed: 10,
+})
 ok(scoreStuck === 79, 'stuck → потолок 79')
-const scoreBagOnly = computeCoachQualityScorePct({ carePct: null, depthPct: null, bagPct: 90, stuckCount: 0 })
-ok(scoreBagOnly === 90, 'без тренировок балл = чистота базы')
+const scoreIdle = computeCoachQualityScorePct({
+  carePct: null,
+  depthPct: null,
+  bagPct: 100,
+  stuckCount: 0,
+  completed: 0,
+})
+ok(scoreIdle == null, '0 тренировок → нет балла (не 100)')
+const scoreBagOnly = computeCoachQualityScorePct({
+  carePct: null,
+  depthPct: null,
+  bagPct: 90,
+  stuckCount: 0,
+  completed: 5,
+})
+ok(scoreBagOnly === 70, 'есть тренировки без care/depth → потолок 70 по базе')
 
 setSection('TECH / индексы service')
 
