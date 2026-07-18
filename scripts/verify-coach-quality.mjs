@@ -33,6 +33,9 @@ import { aggregateCoachQuality, indexMeasurementsByClient, indexWeightEntriesByC
 import {
   defaultCoachQualityConfig,
   normalizeCoachQualityConfig,
+  resolveCareSubWeights,
+  resolveBagSubWeights,
+  coachQualityRulesHelpFromConfig,
 } from '../src/lib/admin/coachQualityConfigCore.js'
 
 let failed = 0
@@ -586,9 +589,10 @@ setSection('COACH / stale рацион у активного')
   const me = agg.trainers.find((t) => t.trainerId === 'me')
   ok(me?.activeClients === 3, '3 активных')
   ok(me?.criticalClients === 1 && me?.staleCount === 1, 'один F1 stale')
-  ok(me?.carePct === Math.round((100 * 2) / 3), 'care_pct = 2/3 без критичных')
+  // stale 25% + обмеры (цель похудение) 25% у одного из трёх
+  ok(me?.carePct === Math.round(100 - 50 / 3), 'care_pct: 1×(stale+меры) / 3 активных')
   ok(me?.facts.some((f) => f.kind === 'f1_nutrition_stale' && f.clientName === 'Иванов'), 'факт с именем клиента')
-  ok(me?.failureDirections.includes('care') || me?.carePct < COACH_QUALITY_CARE_OK, 'тренер видит просадку ведения')
+  ok(me?.carePct < 100 && me?.staleCount === 1, 'тренер видит просадку ведения')
 }
 
 setSection('COACH / обмеры и «не штрафуем зря»')
@@ -977,6 +981,82 @@ const depthHeavy = computeCoachQualityScorePct(
   { weightCare: 20, weightDepth: 50, weightBag: 30 },
 )
 ok(depthHeavy === 80, 'веса 20/50/30 при care0 depth100 bag100 → 80')
+
+setSection('MANAGER / доли внутри осей')
+
+{
+  const even = normalizeCoachQualityConfig(def)
+  ok(
+    even.subCarePassport + even.subCareNutritionMissing + even.subCareNutritionStale + even.subCareMeasures ===
+      100,
+    'дефолт долей ведения = 100%',
+  )
+  ok(even.subBagStuckDk + even.subBagStuckBz + even.subBagCorridor === 100, 'дефолт долей хвостов = 100%')
+
+  const careOnlyStale = normalizeCoachQualityConfig({
+    ...def,
+    toggleHealthPassport: false,
+    toggleNutritionMissing: false,
+    toggleMeasures: false,
+    toggleNutritionStale: true,
+    subCareNutritionStale: 100,
+  })
+  const cw = resolveCareSubWeights(careOnlyStale)
+  ok(cw.nutritionStale === 100 && cw.passport === 0, 'выкл. пункты → 0, stale = 100% оси')
+
+  const bagRedis = normalizeCoachQualityConfig({
+    ...def,
+    toggleInactiveCorridor: false,
+    subBagStuckDk: 50,
+    subBagStuckBz: 50,
+  })
+  ok(bagRedis.subBagCorridor === 0, 'выкл. коридор → доля 0')
+  ok(bagRedis.subBagStuckDk + bagRedis.subBagStuckBz === 100, 'две доли хвостов → 100%')
+
+  const aggHarsh = aggregateCoachQuality({
+    dateFrom: FROM,
+    dateTo: TO,
+    todayIso: TODAY,
+    config: careOnlyStale,
+    clients: [
+      { id: 'c1', trainer_id: 'me', name: 'Иванов', archived_at: null },
+      { id: 'c2', trainer_id: 'me', name: 'Петров', archived_at: null },
+      { id: 'c3', trainer_id: 'me', name: 'Сидоров', archived_at: null },
+    ],
+    trainings: [
+      completed('1', 'me', 'c1', '2026-07-05', deepData()),
+      completed('2', 'me', 'c2', '2026-07-06', deepData()),
+      completed('3', 'me', 'c3', '2026-07-07', deepData()),
+      completed('4', 'me', 'c1', '2026-07-08', deepData()),
+      completed('5', 'me', 'c2', '2026-07-09', deepData()),
+      completed('6', 'me', 'c3', '2026-07-10', deepData()),
+      completed('7', 'me', 'c1', '2026-07-11', deepData()),
+      completed('8', 'me', 'c2', '2026-07-12', deepData()),
+      completed('9', 'me', 'c3', '2026-07-13', deepData()),
+    ],
+    memberships: [usablePaid('c1'), usablePaid('c2'), usablePaid('c3')],
+    membershipTypes: TYPES,
+    healthByClientId: {
+      c1: healthStalePlan(),
+      c2: healthOk(),
+      c3: healthOk(),
+    },
+    weightEntriesByClientId: {
+      c1: [{ date: '2026-06-01', weight_kg: 78 }],
+    },
+    lastMeasureByClientId: {},
+    hadMeasureEverByClientId: {},
+  })
+  ok(
+    aggHarsh.trainers[0]?.carePct === Math.round(100 - 100 / 3),
+    'один пункт 100% внутри ведения ≈ старый бинарный 2/3',
+  )
+
+  const help = coachQualityRulesHelpFromConfig(even)
+  ok(help.some((l) => /паспорт 25%/.test(l)), 'preview правил содержит доли ведения')
+  ok(help.some((l) => /stuck ДК 40%/.test(l)), 'preview правил содержит доли хвостов')
+  ok(resolveBagSubWeights(even).corridor === 20, 'коридор в долях хвостов')
+}
 
 // ─── finish ─────────────────────────────────────────────────────────
 console.log('')

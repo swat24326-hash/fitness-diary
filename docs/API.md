@@ -38,7 +38,7 @@
 |--------|-----|--------|
 | `search`, `journal` | admin | Поиск / журнал |
 | `club-stats`, `club-monthly` | admin | Сводка и год; в `club-stats` также `coachQuality` (те же trainings + конфиг клуба) |
-| `coach-quality-settings` | admin | GET/POST веса и тумблеры качества ведения |
+| `coach-quality-settings` | admin | GET/POST веса осей, доли внутри ведения/хвостов и тумблеры |
 | `health-cards`, `clubs` | admin | Медкарты, клубы |
 | `sales` | admin / sales_manager | Отчёты продаж |
 | `pnk` | admin / sales_manager | Доска / данные ПНК |

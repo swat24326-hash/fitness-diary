@@ -12,7 +12,7 @@ import {
   isThinCompletedTraining,
   resolveCoachQualityStatus,
 } from './coachQualityCore.js'
-import { normalizeCoachQualityConfig } from './coachQualityConfigCore.js'
+import { normalizeCoachQualityConfig, resolveCareSubWeights, resolveBagSubWeights } from './coachQualityConfigCore.js'
 
 const FACTS_LIMIT = 10
 
@@ -77,6 +77,8 @@ export function aggregateCoachQuality(input) {
   const asOf = dateTo && dateTo < today ? dateTo : today
   const trainerFilter = input.trainerIdFilter ? String(input.trainerIdFilter) : null
   const cfg = normalizeCoachQualityConfig(input.config)
+  const careW = resolveCareSubWeights(cfg)
+  const bagW = resolveBagSubWeights(cfg)
 
   const healthBy = input.healthByClientId ?? {}
   const lastMeasureBy = input.lastMeasureByClientId ?? {}
@@ -151,6 +153,8 @@ export function aggregateCoachQuality(input) {
     let missingPlanCount = 0
     let emptyHealthCount = 0
     let missingMeasuresCount = 0
+    let careDamageSum = 0
+    let bagDamageSum = 0
 
     const rosterClients = (input.clients ?? []).filter(
       (c) => String(c?.trainer_id ?? '') === trainerId && !c?.archived_at,
@@ -172,22 +176,23 @@ export function aggregateCoachQuality(input) {
         ? evaluateHealthPassportFlag(health)
         : { critical: false, reason: null }
       const nutRaw = evaluateNutritionCareFlag(health, weightsBy[clientId] ?? [], asOf)
-      let nutCritical = false
+      let nutMissing = false
+      let nutStale = false
       if (nutRaw.critical) {
-        if (nutRaw.kind === 'f1_nutrition_missing') nutCritical = cfg.toggleNutritionMissing
-        else nutCritical = cfg.toggleNutritionStale
+        if (nutRaw.kind === 'f1_nutrition_missing') nutMissing = cfg.toggleNutritionMissing
+        else nutStale = cfg.toggleNutritionStale
       }
-      const nut = { ...nutRaw, critical: nutCritical }
       const measRaw = evaluateMeasuresCareFlag(
         health,
         lastMeasureBy[clientId] ?? null,
         dateFrom,
         Boolean(hadMeasureBy[clientId]),
       )
-      const meas = cfg.toggleMeasures ? measRaw : { critical: false, reason: null }
-      let flagged = false
+      const measCritical = cfg.toggleMeasures && measRaw.critical
+
+      let damage = 0
       if (passport.critical) {
-        flagged = true
+        damage += careW.passport
         emptyHealthCount++
         addFact({
           kind: 'f0_health_empty',
@@ -196,28 +201,39 @@ export function aggregateCoachQuality(input) {
           reason: passport.reason,
         })
       }
-      if (nut.critical) {
-        flagged = true
-        if (nut.kind === 'f1_nutrition_missing') missingPlanCount++
-        else staleCount++
+      if (nutMissing) {
+        damage += careW.nutritionMissing
+        missingPlanCount++
         addFact({
-          kind: nut.kind ?? 'f1_nutrition_stale',
+          kind: 'f1_nutrition_missing',
           axis: 'care',
           clientId,
-          reason: nut.reason,
+          reason: nutRaw.reason,
         })
       }
-      if (meas.critical) {
-        flagged = true
+      if (nutStale) {
+        damage += careW.nutritionStale
+        staleCount++
+        addFact({
+          kind: 'f1_nutrition_stale',
+          axis: 'care',
+          clientId,
+          reason: nutRaw.reason,
+        })
+      }
+      if (measCritical) {
+        damage += careW.measures
         missingMeasuresCount++
         addFact({
           kind: 'f2_measures',
           axis: 'care',
           clientId,
-          reason: meas.reason,
+          reason: measRaw.reason,
         })
       }
-      if (flagged) criticalClients++
+      damage = Math.min(100, damage)
+      if (damage > 0) criticalClients++
+      careDamageSum += damage
     }
 
     for (const c of rosterClients) {
@@ -229,8 +245,10 @@ export function aggregateCoachQuality(input) {
         todayIso: asOf,
         lastCompletedIso: tr.lastCompletedByClient.get(clientId) ?? null,
       })
+      let damage = 0
       const corridorWarn = bag.corridor === 'warn' && cfg.toggleInactiveCorridor
       if (corridorWarn) {
+        damage += bagW.corridor
         bagWarnCount++
         addFact({
           kind: 'inactive_corridor',
@@ -239,33 +257,39 @@ export function aggregateCoachQuality(input) {
           reason: bag.reason,
         })
       }
-      const stuckEnabled =
-        bag.stuck &&
-        ((bag.kind === 'stuck_bz' && cfg.toggleStuckBz) ||
-          (bag.kind !== 'stuck_bz' && cfg.toggleStuckDk))
-      if (stuckEnabled) {
+      const isStuckBz = bag.stuck && bag.kind === 'stuck_bz' && cfg.toggleStuckBz
+      const isStuckDk = bag.stuck && bag.kind !== 'stuck_bz' && cfg.toggleStuckDk
+      if (isStuckBz) {
+        damage += bagW.stuckBz
         stuckCount++
-        if (bag.kind === 'stuck_bz') stuckBz++
-        else stuckDk++
+        stuckBz++
         addFact({
-          kind: bag.kind ?? 'stuck_dk',
+          kind: 'stuck_bz',
+          axis: 'bag',
+          clientId,
+          reason: bag.reason,
+        })
+      } else if (isStuckDk) {
+        damage += bagW.stuckDk
+        stuckCount++
+        stuckDk++
+        addFact({
+          kind: 'stuck_dk',
           axis: 'bag',
           clientId,
           reason: bag.reason,
         })
       }
+      bagDamageSum += Math.min(100, damage)
     }
 
     const activeClients = tr.activeIds.size
     const carePct =
-      activeClients > 0
-        ? Math.round((100 * (activeClients - criticalClients)) / activeClients)
-        : null
+      activeClients > 0 ? Math.round(100 - careDamageSum / activeClients) : null
     const depthPct =
       tr.completed > 0 ? Math.round((100 * (tr.completed - tr.thin)) / tr.completed) : null
     const bagDenom = rosterClients.length
-    const bagPct =
-      bagDenom > 0 ? Math.round((100 * (bagDenom - stuckCount)) / bagDenom) : 100
+    const bagPct = bagDenom > 0 ? Math.round(100 - bagDamageSum / bagDenom) : 100
 
     const resolved = resolveCoachQualityStatus({
       carePct,

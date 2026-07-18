@@ -83,7 +83,12 @@ export function AdminCoachQualitySettings() {
   }
 
   const setToggle = (key, on) => {
-    setConfig((c) => ({ ...c, [key]: Boolean(on) }))
+    setConfig((c) => normalizeCoachQualityConfig({ ...c, [key]: Boolean(on) }))
+  }
+
+  const setSubWeight = (key, value) => {
+    const n = Math.max(0, Math.min(100, Number(value) || 0))
+    setConfig((c) => normalizeCoachQualityConfig({ ...c, [key]: n }))
   }
 
   const onSave = async () => {
@@ -136,7 +141,7 @@ export function AdminCoachQualitySettings() {
     <section className="card cq-settings">
       <AdminSectionHeader
         title="Качество ведения"
-        lead="Веса осей и правила оценки — одинаково для статистики админа и тренера."
+        lead="Веса осей, доли внутри ведения и хвостов, тумблеры — одинаково для статистики админа и тренера."
         icon={Gauge}
       />
 
@@ -167,92 +172,147 @@ export function AdminCoachQualitySettings() {
         </p>
       ) : null}
 
-      <div className="cq-settings__block">
-        <div className="cq-settings__block-head">
-          <h3 className="cq-settings__block-title">Веса осей</h3>
-          <span className={`cq-settings__sum${weightSum === 100 ? '' : ' cq-settings__sum--bad'}`}>
-            сумма {weightSum}%
-          </span>
-        </div>
-        <div className="cq-settings__weights">
-          <WeightField
-            label="Ведение"
-            value={config.weightCare}
-            onChange={(v) => setWeight('weightCare', v)}
-            disabled={busy}
-          />
-          <WeightField
-            label="Глубина"
-            value={config.weightDepth}
-            onChange={(v) => setWeight('weightDepth', v)}
-            disabled={busy}
-          />
-          <WeightField
-            label="Хвосты"
-            value={config.weightBag}
-            onChange={(v) => setWeight('weightBag', v)}
-            disabled={busy}
-          />
-        </div>
-        {weightSum !== 100 ? (
-          <p className="cq-settings__hint cq-settings__hint--warn">
-            Сумма должна быть 100% (при сохранении веса нормализуются).
-          </p>
-        ) : (
-          <p className="cq-settings__hint muted">Доля каждой оси в итоговом балле 0–100.</p>
-        )}
-      </div>
-
-      <div className="cq-settings__groups">
-        {Object.entries(groups).map(([group, items]) => (
-          <div key={group} className="cq-settings__group">
-            <h3 className="cq-settings__group-title">{group}</h3>
-            <ul className="cq-settings__toggles">
-              {items.map((t) => (
-                <li key={t.key}>
-                  <label className="cq-settings__toggle">
-                    <input
-                      type="checkbox"
-                      className="cq-settings__checkbox"
-                      checked={Boolean(config[t.key])}
-                      onChange={(e) => setToggle(t.key, e.target.checked)}
-                      disabled={busy}
-                    />
-                    <span className="cq-settings__toggle-text">
-                      <span className="cq-settings__toggle-label">{t.label}</span>
-                      <span className="cq-settings__toggle-hint muted">{t.hint}</span>
-                    </span>
-                  </label>
-                </li>
-              ))}
-            </ul>
+      <div className="cq-settings__layout">
+        <div className="cq-settings__main">
+          <div className="cq-settings__block">
+            <div className="cq-settings__block-head">
+              <h3 className="cq-settings__block-title">Веса осей</h3>
+              <span className={`cq-settings__sum${weightSum === 100 ? '' : ' cq-settings__sum--bad'}`}>
+                сумма {weightSum}%
+              </span>
+            </div>
+            <div className="cq-settings__weights">
+              <WeightField
+                label="Ведение"
+                value={config.weightCare}
+                onChange={(v) => setWeight('weightCare', v)}
+                disabled={busy}
+              />
+              <WeightField
+                label="Глубина"
+                value={config.weightDepth}
+                onChange={(v) => setWeight('weightDepth', v)}
+                disabled={busy}
+              />
+              <WeightField
+                label="Хвосты"
+                value={config.weightBag}
+                onChange={(v) => setWeight('weightBag', v)}
+                disabled={busy}
+              />
+            </div>
+            {weightSum !== 100 ? (
+              <p className="cq-settings__hint cq-settings__hint--warn">
+                Сумма должна быть 100% (при сохранении веса нормализуются).
+              </p>
+            ) : (
+              <p className="cq-settings__hint muted">Доля каждой оси в итоговом балле 0–100.</p>
+            )}
           </div>
-        ))}
-      </div>
 
-      {rulesPreview.length ? (
-        <div className="cq-settings__preview">
-          <h3 className="cq-settings__block-title">Как будет считаться</h3>
-          <ul className="cq-settings__preview-list">
-            {rulesPreview.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
+          <div className="cq-settings__groups">
+            {Object.entries(groups).map(([group, items]) => {
+              const withSubs = items.filter((t) => t.subWeightKey)
+              const subSum = withSubs.reduce((s, t) => {
+                if (!config[t.key]) return s
+                return s + (Number(config[t.subWeightKey]) || 0)
+              }, 0)
+              const enabledSubs = withSubs.filter((t) => config[t.key]).length
+              return (
+                <div key={group} className="cq-settings__group">
+                  <div className="cq-settings__group-head">
+                    <h3 className="cq-settings__group-title">{group}</h3>
+                    {enabledSubs > 0 ? (
+                      <span
+                        className={`cq-settings__sum${subSum === 100 ? '' : ' cq-settings__sum--bad'}`}
+                      >
+                        внутри оси {subSum}%
+                      </span>
+                    ) : group === 'Глубина' ? (
+                      <span className="cq-settings__sum">= вес оси {config.weightDepth}%</span>
+                    ) : null}
+                  </div>
+                  <ul className="cq-settings__toggles">
+                    {items.map((t) => (
+                      <li key={t.key}>
+                        <div className="cq-settings__toggle-row">
+                          <label className="cq-settings__toggle">
+                            <input
+                              type="checkbox"
+                              className="cq-settings__checkbox"
+                              checked={Boolean(config[t.key])}
+                              onChange={(e) => setToggle(t.key, e.target.checked)}
+                              disabled={busy}
+                            />
+                            <span className="cq-settings__toggle-text">
+                              <span className="cq-settings__toggle-label">{t.label}</span>
+                              <span className="cq-settings__toggle-hint muted">{t.hint}</span>
+                            </span>
+                          </label>
+                          {t.subWeightKey ? (
+                            <label className="cq-settings__sub">
+                              <input
+                                type="number"
+                                className="input cq-settings__sub-input"
+                                min={0}
+                                max={100}
+                                step={1}
+                                value={config[t.key] ? config[t.subWeightKey] : 0}
+                                disabled={busy || !config[t.key]}
+                                onChange={(e) => setSubWeight(t.subWeightKey, e.target.value)}
+                                aria-label={`Доля внутри оси: ${t.label}`}
+                              />
+                              <span className="muted">%</span>
+                            </label>
+                          ) : null}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )
+            })}
+          </div>
         </div>
-      ) : null}
 
-      <div className="cq-settings__actions">
-        <button type="button" className="btn btn-primary" disabled={busy || !clubId} onClick={() => void onSave()}>
-          <Save size={16} aria-hidden />
-          Сохранить
-        </button>
-        <button type="button" className="btn btn-secondary" disabled={busy || !clubId} onClick={() => void onReset()}>
-          <RotateCcw size={16} aria-hidden />
-          Стандарт FIT-CITY
-        </button>
+        <aside className="cq-settings__aside">
+          {rulesPreview.length ? (
+            <div className="cq-settings__preview">
+              <h3 className="cq-settings__block-title">Как будет считаться</h3>
+              <ul className="cq-settings__preview-list">
+                {rulesPreview.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <div className="cq-settings__preview cq-settings__preview--empty">
+              <h3 className="cq-settings__block-title">Как будет считаться</h3>
+              <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+                Выберите клуб — здесь появится текст правил по текущим настройкам.
+              </p>
+            </div>
+          )}
+
+          <div className="cq-settings__actions">
+            <button type="button" className="btn btn-primary" disabled={busy || !clubId} onClick={() => void onSave()}>
+              <Save size={16} aria-hidden />
+              Сохранить
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              disabled={busy || !clubId}
+              onClick={() => void onReset()}
+            >
+              <RotateCcw size={16} aria-hidden />
+              Стандарт FIT-CITY
+            </button>
+          </div>
+          {msg ? <p className="cq-settings__status cq-settings__status--ok">{msg}</p> : null}
+          {err ? <p className="cq-settings__status cq-settings__status--err">{err}</p> : null}
+        </aside>
       </div>
-      {msg ? <p className="cq-settings__status cq-settings__status--ok">{msg}</p> : null}
-      {err ? <p className="cq-settings__status cq-settings__status--err">{err}</p> : null}
     </section>
   )
 }
