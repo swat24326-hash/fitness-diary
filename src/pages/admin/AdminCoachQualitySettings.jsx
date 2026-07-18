@@ -5,6 +5,10 @@ import {
   defaultCoachQualityConfig,
   normalizeCoachQualityConfig,
   coachQualityToggleMeta,
+  coachQualityRulesHelpFromConfig,
+  CARE_SUB_KEYS,
+  BAG_SUB_KEYS,
+  sumEnabledSubWeights,
 } from '../../lib/admin/coachQualityConfigCore.js'
 import {
   fetchCoachQualitySettings,
@@ -34,6 +38,17 @@ export function AdminCoachQualitySettings() {
 
   const toggles = useMemo(() => coachQualityToggleMeta(), [])
   const weightSum = config.weightCare + config.weightDepth + config.weightBag
+  const careSub = sumEnabledSubWeights(config, CARE_SUB_KEYS)
+  const bagSub = sumEnabledSubWeights(config, BAG_SUB_KEYS)
+  const liveRules = useMemo(() => coachQualityRulesHelpFromConfig(config), [config])
+  const rulesLines = liveRules.length ? liveRules : rulesPreview
+
+  const canSave =
+    Boolean(clubId) &&
+    !busy &&
+    weightSum === 100 &&
+    (careSub.enabled === 0 || careSub.sum === 100) &&
+    (bagSub.enabled === 0 || bagSub.sum === 100)
 
   const loadClubs = useCallback(async () => {
     try {
@@ -79,25 +94,43 @@ export function AdminCoachQualitySettings() {
 
   const setWeight = (key, value) => {
     const n = Math.max(0, Math.min(100, Number(value) || 0))
-    setConfig((c) => normalizeCoachQualityConfig({ ...c, [key]: n }))
+    setConfig((c) => normalizeCoachQualityConfig({ ...c, [key]: n }, { redistributeSubs: false }))
   }
 
   const setToggle = (key, on) => {
-    setConfig((c) => normalizeCoachQualityConfig({ ...c, [key]: Boolean(on) }))
+    setConfig((c) => {
+      const next = { ...c, [key]: Boolean(on) }
+      const meta = toggles.find((t) => t.key === key)
+      if (meta?.subWeightKey && !on) next[meta.subWeightKey] = 0
+      return normalizeCoachQualityConfig(next, { redistributeSubs: false })
+    })
   }
 
   const setSubWeight = (key, value) => {
     const n = Math.max(0, Math.min(100, Number(value) || 0))
-    setConfig((c) => normalizeCoachQualityConfig({ ...c, [key]: n }))
+    setConfig((c) => normalizeCoachQualityConfig({ ...c, [key]: n }, { redistributeSubs: false }))
   }
 
   const onSave = async () => {
     if (!clubId) return
+    if (weightSum !== 100) {
+      setErr('Сумма весов осей должна быть 100%')
+      return
+    }
+    if (careSub.enabled > 0 && careSub.sum !== 100) {
+      setErr('Сумма долей внутри «Ведение» должна быть 100%')
+      return
+    }
+    if (bagSub.enabled > 0 && bagSub.sum !== 100) {
+      setErr('Сумма долей внутри «Хвосты» должна быть 100%')
+      return
+    }
     setBusy(true)
     setErr('')
     setMsg('')
     try {
-      const data = await saveCoachQualitySettings(clubId, { config })
+      const toSave = normalizeCoachQualityConfig(config)
+      const data = await saveCoachQualitySettings(clubId, { config: toSave })
       setConfig(normalizeCoachQualityConfig(data?.config))
       setRulesPreview(Array.isArray(data?.rules_preview) ? data.rules_preview : [])
       setMsg('Сохранено. Статистика клуба будет считать по новым правилам.')
@@ -213,23 +246,22 @@ export function AdminCoachQualitySettings() {
           <div className="cq-settings__groups">
             {Object.entries(groups).map(([group, items]) => {
               const withSubs = items.filter((t) => t.subWeightKey)
-              const subSum = withSubs.reduce((s, t) => {
-                if (!config[t.key]) return s
-                return s + (Number(config[t.subWeightKey]) || 0)
-              }, 0)
-              const enabledSubs = withSubs.filter((t) => config[t.key]).length
+              const subInfo =
+                group === 'Ведение' ? careSub : group === 'Хвосты' ? bagSub : { sum: 0, enabled: 0 }
               return (
                 <div key={group} className="cq-settings__group">
                   <div className="cq-settings__group-head">
                     <h3 className="cq-settings__group-title">{group}</h3>
-                    {enabledSubs > 0 ? (
+                    {subInfo.enabled > 0 ? (
                       <span
-                        className={`cq-settings__sum${subSum === 100 ? '' : ' cq-settings__sum--bad'}`}
+                        className={`cq-settings__sum${subInfo.sum === 100 ? '' : ' cq-settings__sum--bad'}`}
                       >
-                        внутри оси {subSum}%
+                        внутри оси {subInfo.sum}%
                       </span>
                     ) : group === 'Глубина' ? (
                       <span className="cq-settings__sum">= вес оси {config.weightDepth}%</span>
+                    ) : withSubs.length > 0 ? (
+                      <span className="cq-settings__sum muted">пункты выкл.</span>
                     ) : null}
                   </div>
                   <ul className="cq-settings__toggles">
@@ -264,6 +296,8 @@ export function AdminCoachQualitySettings() {
                               />
                               <span className="muted">%</span>
                             </label>
+                          ) : t.key === 'toggleStuckScoreCap' ? (
+                            <span className="cq-settings__sub-note muted">без %</span>
                           ) : null}
                         </div>
                       </li>
@@ -276,11 +310,11 @@ export function AdminCoachQualitySettings() {
         </div>
 
         <aside className="cq-settings__aside">
-          {rulesPreview.length ? (
+          {rulesLines.length ? (
             <div className="cq-settings__preview">
               <h3 className="cq-settings__block-title">Как будет считаться</h3>
               <ul className="cq-settings__preview-list">
-                {rulesPreview.map((line) => (
+                {rulesLines.map((line) => (
                   <li key={line}>{line}</li>
                 ))}
               </ul>
@@ -295,7 +329,7 @@ export function AdminCoachQualitySettings() {
           )}
 
           <div className="cq-settings__actions">
-            <button type="button" className="btn btn-primary" disabled={busy || !clubId} onClick={() => void onSave()}>
+            <button type="button" className="btn btn-primary" disabled={!canSave} onClick={() => void onSave()}>
               <Save size={16} aria-hidden />
               Сохранить
             </button>
@@ -309,6 +343,11 @@ export function AdminCoachQualitySettings() {
               Стандарт FIT-CITY
             </button>
           </div>
+          {!canSave && clubId && !busy ? (
+            <p className="cq-settings__hint cq-settings__hint--warn">
+              Чтобы сохранить: сумма осей и долей внутри включённых групп = 100%.
+            </p>
+          ) : null}
           {msg ? <p className="cq-settings__status cq-settings__status--ok">{msg}</p> : null}
           {err ? <p className="cq-settings__status cq-settings__status--err">{err}</p> : null}
         </aside>

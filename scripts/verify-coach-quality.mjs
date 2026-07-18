@@ -1054,8 +1054,30 @@ setSection('MANAGER / доли внутри осей')
 
   const help = coachQualityRulesHelpFromConfig(even)
   ok(help.some((l) => /паспорт 25%/.test(l)), 'preview правил содержит доли ведения')
-  ok(help.some((l) => /stuck ДК 40%/.test(l)), 'preview правил содержит доли хвостов')
+  ok(help.some((l) => /хвост ДК 40%/.test(l)), 'preview правил содержит доли хвостов')
   ok(resolveBagSubWeights(even).corridor === 20, 'коридор в долях хвостов')
+  ok(help.every((l) => !/\bstuck\b/i.test(l)), 'в тексте правил нет англ. stuck')
+
+  const keepSubs = normalizeCoachQualityConfig(
+    {
+      ...def,
+      subCarePassport: 40,
+      subCareNutritionMissing: 30,
+      subCareNutritionStale: 20,
+      subCareMeasures: 10,
+    },
+    { redistributeSubs: false },
+  )
+  ok(keepSubs.subCarePassport === 40 && keepSubs.subCareMeasures === 10, 'без redistribute доли не прыгают')
+  const afterSaveNorm = normalizeCoachQualityConfig(keepSubs)
+  ok(
+    afterSaveNorm.subCarePassport +
+      afterSaveNorm.subCareNutritionMissing +
+      afterSaveNorm.subCareNutritionStale +
+      afterSaveNorm.subCareMeasures ===
+      100,
+    'при сохранении доли нормализуются к 100%',
+  )
 }
 
 // ─── finish ─────────────────────────────────────────────────────────

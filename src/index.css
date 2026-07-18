@@ -4044,10 +4044,11 @@ tr:last-child td {
   margin-top: 2px;
 }
 
-.cq-settings__sub-input {
-  width: 4.25rem;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
+.cq-settings__sub-note {
+  flex: 0 0 auto;
+  margin-top: 8px;
+  font-size: 0.75rem;
+  white-space: nowrap;
 }
 
 .cq-settings__toggle {

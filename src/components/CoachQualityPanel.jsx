@@ -214,8 +214,8 @@ function TrainerDetail({ tr, clientLabel, clientHref }) {
         <span>Завершено: {tr.completed}</span>
         <span>Активных: {tr.activeClients}</span>
         <span>Тонких: {tr.minimalCompleted}</span>
-        <span>Stuck ДК: {tr.stuckDk}</span>
-        <span>Stuck БЗ: {tr.stuckBz}</span>
+        <span>Хвост ДК: {tr.stuckDk}</span>
+        <span>Хвост БЗ: {tr.stuckBz}</span>
       </div>
       <p className="coach-quality-detail__sub">Куда смотреть</p>
       {(tr.failureDirections ?? []).length === 0 ? (

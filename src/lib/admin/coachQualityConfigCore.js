@@ -105,29 +105,29 @@ export function coachQualityToggleMeta() {
     {
       key: 'toggleStuckDk',
       group: 'Хвосты',
-      label: 'Stuck ДК (>14 дн.)',
-      hint: 'Неактивный без нового абонемента и архива',
+      label: 'Хвост ДК (>14 дней)',
+      hint: 'Неактивный без нового абонемента и без архива',
       subWeightKey: 'subBagStuckDk',
     },
     {
       key: 'toggleStuckBz',
       group: 'Хвосты',
-      label: 'Stuck после БЗ',
-      hint: 'После пробной без ДК / отказа / архива',
+      label: 'Хвост после БЗ',
+      hint: 'После пробной без ДК, отказа или архива',
       subWeightKey: 'subBagStuckBz',
     },
     {
       key: 'toggleInactiveCorridor',
       group: 'Хвосты',
       label: 'Коридор 8–14 дней',
-      hint: 'Даёт статус «Внимание», ещё не stuck',
+      hint: 'Статус «Внимание», ещё не хвост',
       subWeightKey: 'subBagCorridor',
     },
     {
       key: 'toggleStuckScoreCap',
       group: 'Хвосты',
-      label: 'Потолок балла 79 при stuck',
-      hint: 'Правило итога, не доля внутри оси',
+      label: 'Не выше 79 баллов при хвостах',
+      hint: 'Ограничение итога, не доля внутри оси — процента здесь нет',
       subWeightKey: null,
     },
   ]
@@ -148,9 +148,12 @@ const BAG_SUB_KEYS = [
 
 /**
  * @param {unknown} raw
+ * @param {{ redistributeSubs?: boolean }} [opts]
+ *   redistributeSubs — по умолчанию true (API/агрегат). В UI при вводе % — false, иначе цифры «прыгают».
  * @returns {CoachQualityConfig}
  */
-export function normalizeCoachQualityConfig(raw) {
+export function normalizeCoachQualityConfig(raw, opts = {}) {
+  const redistributeSubs = opts.redistributeSubs !== false
   const d = defaultCoachQualityConfig()
   const src = raw && typeof raw === 'object' ? raw : {}
   const bool = (key, fallback) => {
@@ -204,8 +207,14 @@ export function normalizeCoachQualityConfig(raw) {
     subBagCorridor: clampWeight(src.subBagCorridor ?? src.sub_bag_corridor, d.subBagCorridor),
   }
 
-  redistributeSubWeights(cfg, CARE_SUB_KEYS)
-  redistributeSubWeights(cfg, BAG_SUB_KEYS)
+  if (redistributeSubs) {
+    redistributeSubWeights(cfg, CARE_SUB_KEYS)
+    redistributeSubWeights(cfg, BAG_SUB_KEYS)
+  } else {
+    for (const [toggleKey, subKey] of [...CARE_SUB_KEYS, ...BAG_SUB_KEYS]) {
+      if (!cfg[toggleKey]) cfg[subKey] = 0
+    }
+  }
   return cfg
 }
 
@@ -251,9 +260,18 @@ export function validateCoachQualityConfigForSave(raw) {
  * @param {CoachQualityConfig} [cfg]
  */
 export function coachQualityRulesHelpFromConfig(cfg) {
-  const c = normalizeCoachQualityConfig(cfg)
-  const care = resolveCareSubWeights(c)
-  const bag = resolveBagSubWeights(c)
+  const c = normalizeCoachQualityConfig(cfg, { redistributeSubs: false })
+  const care = {
+    passport: c.toggleHealthPassport ? c.subCarePassport : 0,
+    nutritionMissing: c.toggleNutritionMissing ? c.subCareNutritionMissing : 0,
+    nutritionStale: c.toggleNutritionStale ? c.subCareNutritionStale : 0,
+    measures: c.toggleMeasures ? c.subCareMeasures : 0,
+  }
+  const bag = {
+    stuckDk: c.toggleStuckDk ? c.subBagStuckDk : 0,
+    stuckBz: c.toggleStuckBz ? c.subBagStuckBz : 0,
+    corridor: c.toggleInactiveCorridor ? c.subBagCorridor : 0,
+  }
   const careBits = []
   if (care.passport) careBits.push(`паспорт ${care.passport}%`)
   if (care.nutritionMissing) careBits.push(`нет рациона ${care.nutritionMissing}%`)
@@ -267,16 +285,16 @@ export function coachQualityRulesHelpFromConfig(cfg) {
     ? `Глубина (${c.weightDepth}% итога): тонкие тренировки (1 упражнение или ≤2 подхода).`
     : 'Тонкие тренировки в оценке выключены.'
   const bagBits = []
-  if (bag.stuckDk) bagBits.push(`stuck ДК ${bag.stuckDk}%`)
-  if (bag.stuckBz) bagBits.push(`после БЗ ${bag.stuckBz}%`)
+  if (bag.stuckDk) bagBits.push(`хвост ДК ${bag.stuckDk}%`)
+  if (bag.stuckBz) bagBits.push(`хвост после БЗ ${bag.stuckBz}%`)
   if (bag.corridor) bagBits.push(`коридор 8–14 ${bag.corridor}%`)
   const bagLine =
     bagBits.length > 0
       ? `Хвосты (${c.weightBag}% итога): ${bagBits.join('; ')}.`
       : 'Ось хвостов в оценке выключена.'
   const capLine = c.toggleStuckScoreCap
-    ? 'При stuck потолок итогового балла 79.'
-    : 'Потолок 79 при stuck выключен.'
+    ? 'Если есть хвосты — итоговый балл не выше 79.'
+    : 'Ограничение «не выше 79 при хвостах» выключено.'
   return [
     'Списание занятия — норма, за него не судим.',
     careLine,
@@ -290,10 +308,11 @@ export function coachQualityRulesHelpFromConfig(cfg) {
 
 /**
  * Перераспределяет % среди включённых пунктов группы → сумма 100.
+ * Вызывать при сохранении / сбросе / выключении тумблера — не при каждом вводе %.
  * @param {CoachQualityConfig} cfg
  * @param {[string, string][]} pairs [toggleKey, subKey]
  */
-function redistributeSubWeights(cfg, pairs) {
+export function redistributeSubWeights(cfg, pairs) {
   const active = pairs.filter(([toggleKey]) => cfg[toggleKey])
   if (!active.length) {
     for (const [, subKey] of pairs) cfg[subKey] = 0
@@ -328,6 +347,24 @@ function redistributeSubWeights(cfg, pairs) {
     if (!cfg[toggleKey]) cfg[subKey] = 0
   }
 }
+
+/**
+ * Сумма долей включённых пунктов группы (0 если все выкл).
+ * @param {CoachQualityConfig} cfg
+ * @param {[string, string][]} pairs
+ */
+export function sumEnabledSubWeights(cfg, pairs) {
+  let sum = 0
+  let enabled = 0
+  for (const [toggleKey, subKey] of pairs) {
+    if (!cfg[toggleKey]) continue
+    enabled++
+    sum += Number(cfg[subKey]) || 0
+  }
+  return { sum, enabled }
+}
+
+export { CARE_SUB_KEYS, BAG_SUB_KEYS }
 
 function clampWeight(v, fallback) {
   const n = Number(v)
