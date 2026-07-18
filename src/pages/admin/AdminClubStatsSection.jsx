@@ -458,6 +458,12 @@ export function AdminClubStatsSection({
         </p>
       ) : null}
       {s?.fallbackReason ? <p className="muted admin-inline-note">Резерв: локальный кэш. Причина: {s.fallbackReason}</p> : null}
+      {s?.source === 'local' && isSupabaseConfigured() && (s?.totalCompleted ?? 0) === 0 && (s?.totalClients ?? 0) === 0 ? (
+        <p className="muted admin-inline-note" style={{ marginBottom: 12 }}>
+          Облако не ответило вовремя или сессия устарела — на этом устройстве нет кэша клуба, поэтому нули.
+          Нажмите обновление ещё раз; при повторной ошибке выйдите и войдите в админку.
+        </p>
+      ) : null}
 
       <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 8px' }}>
         Период

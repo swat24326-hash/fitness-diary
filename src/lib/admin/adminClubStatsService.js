@@ -240,12 +240,9 @@ export async function loadClubTrainingStats(p) {
   try {
     const viaApi = await fetchClubTrainingStatsViaApi({ clubId, dateFrom, dateTo })
     if (viaApi) {
-      const [rows, clients, memberships] = await Promise.all([
-        fetchTrainingsForClubRangeLocal(clubId, dateFrom, dateTo).catch(() => []),
-        fetchClientsForClubLocal(clubId).catch(() => []),
-        fetchMembershipsForClubLocal(clubId).catch(() => []),
-      ])
-      const stats = {
+      // Сразу цифры с API. Локальный IndexedDB на админском ПК часто пуст —
+      // не блокируем сводку расчётом качества (оно догрузится с кэшем / позже с API).
+      return {
         ...base,
         totalCompleted: viaApi.totalCompleted ?? 0,
         totalDraft: viaApi.totalDraft ?? 0,
@@ -262,25 +259,15 @@ export async function loadClubTrainingStats(p) {
         inactiveClients: viaApi.inactiveClients ?? [],
         notRenewedInPeriod: viaApi.notRenewedInPeriod ?? 0,
         notRenewedClients: viaApi.notRenewedClients ?? [],
+        coachQuality: viaApi.coachQuality ?? null,
         source: 'admin_api',
         fallbackReason: null,
         error: null,
       }
-      if (clients.length && (rows.length || memberships.length)) {
-        return attachCoachQuality(stats, {
-          clubId,
-          dateFrom,
-          dateTo,
-          clients,
-          trainings: rows,
-          memberships,
-        })
-      }
-      return stats
     }
   } catch (apiErr) {
     const msg = String(apiErr?.message ?? '')
-    if (!/failed to fetch|connection reset|timeout/i.test(msg)) {
+    if (!/failed to fetch|connection reset|timeout|таймаут/i.test(msg)) {
       console.warn('[admin] club-training-stats api', apiErr)
     }
   }

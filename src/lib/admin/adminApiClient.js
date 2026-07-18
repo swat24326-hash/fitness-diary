@@ -1,6 +1,6 @@
 import { supabase } from '../supabase'
 import { sleep } from '../supabaseRetry'
-import { fetchWithAppTimeout } from '../networkReachability.js'
+import { fetchWithAppTimeout, CLUB_STATS_FETCH_TIMEOUT_MS } from '../networkReachability.js'
 
 async function parseJsonResponse(res) {
   const text = await res.text()
@@ -303,15 +303,19 @@ export async function fetchClientWorkspaceViaAdminApi(clientId) {
   throw new Error(data?.error ? String(data.error) : `Ошибка сервера (${res.status})`)
 }
 
-async function adminApiGet(path, token) {
+async function adminApiGet(path, token, timeoutMs = undefined) {
   let res
   try {
-    res = await fetchWithAppTimeout(`${apiOrigin()}${path}`, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${token}` },
-      credentials: 'same-origin',
-      cache: 'no-store',
-    })
+    res = await fetchWithAppTimeout(
+      `${apiOrigin()}${path}`,
+      {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'same-origin',
+        cache: 'no-store',
+      },
+      timeoutMs,
+    )
   } catch (e) {
     throw new Error(e?.message ?? 'Сеть')
   }
@@ -364,7 +368,7 @@ export async function fetchAdminJournalViaApi({ page, pageSize, filters }) {
   }
 }
 
-/** GET /api/club-training-stats */
+/** GET /api/admin-data?action=club-stats */
 export async function fetchClubTrainingStatsViaApi({ clubId, dateFrom, dateTo }) {
   const token = await getAccessTokenForAdminApi()
   if (!token) throw new Error('Нет сессии администратора')
@@ -374,7 +378,11 @@ export async function fetchClubTrainingStatsViaApi({ clubId, dateFrom, dateTo })
     date_from: dateFrom,
     date_to: dateTo,
   })
-  const { data, routeMissing } = await adminApiGet(`/api/admin-data?action=club-stats&${params}`, token)
+  const { data, routeMissing } = await adminApiGet(
+    `/api/admin-data?action=club-stats&${params}`,
+    token,
+    CLUB_STATS_FETCH_TIMEOUT_MS,
+  )
   if (routeMissing) return null
   return data
 }

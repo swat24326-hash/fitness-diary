@@ -7,8 +7,10 @@ export const CLOUD_STATUS_EVENT = 'fitness-diary-cloud-status'
 
 let cloudReachable = true
 let cloudCheckedAt = 0
-/** Таймаут /api/* — короткий, чтобы быстрее уйти в Supabase direct. */
+/** Таймаут /api/* по умолчанию — короткий, чтобы быстрее уйти в Supabase direct. */
 export const ADMIN_FETCH_TIMEOUT_MS = 5_000
+/** club-stats тянет тренировки с data — 5 с мало на холодном старте Hobby. */
+export const CLUB_STATS_FETCH_TIMEOUT_MS = 45_000
 
 function emitCloud() {
   if (typeof window === 'undefined') return
