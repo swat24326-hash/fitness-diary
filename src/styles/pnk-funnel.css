@@ -511,12 +511,22 @@ button.pnk-chip:disabled {
   padding-right: 8px;
 }
 
-.pnk-funnel-hat__btn--next {
-  flex: 1.35 1 0;
+.pnk-funnel-hat__btn--cta {
+  flex: 2.2 1 0;
+  min-height: 52px;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.pnk-funnel-hat__btn--next-soft {
+  flex: 1.2 1 0;
+}
+
+.pnk-funnel-hat__btn--side {
+  flex: 0.85 1 0;
 }
 
 .pnk-funnel-hat__btn--refuse {
-  flex: 0.95 1 0;
   color: #fca5a5;
   border-color: color-mix(in srgb, #f87171 35%, transparent);
 }
@@ -530,6 +540,29 @@ button.pnk-chip:disabled {
   font-size: 0.85rem;
 }
 
+.pnk-client-panel__cta-hint {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  color: var(--text-muted, #9aa39c);
+}
+
+.pnk-client-panel__cta-hint strong {
+  color: var(--text, #e8efe9);
+  font-weight: 650;
+}
+
+.pnk-client-panel__actions--secondary {
+  opacity: 0.95;
+}
+
+.pnk-client-panel__btn-cta {
+  min-height: 52px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  width: 100%;
+}
+
 @media (max-width: 520px) {
   .pnk-funnel-hat__nav {
     flex-wrap: wrap;
@@ -539,9 +572,22 @@ button.pnk-chip:disabled {
     flex: 1 1 calc(50% - 8px);
   }
 
-  .pnk-funnel-hat__btn--next {
+  .pnk-funnel-hat__btn--cta {
     flex: 1 1 100%;
     order: -1;
+  }
+
+  .pnk-funnel-hat__btn--next-soft {
+    flex: 1 1 100%;
+    order: -1;
+  }
+
+  .pnk-funnel-hat__btn-label {
+    display: none;
+  }
+
+  .pnk-funnel-hat__btn--side {
+    flex: 1 1 calc(33% - 8px);
   }
 }
 
@@ -987,6 +1033,39 @@ button.pnk-chip:disabled {
   gap: 12px;
   min-width: 0;
   align-content: start;
+}
+
+.pnk-funnel__month-summary {
+  display: grid;
+  gap: 10px;
+}
+
+.pnk-funnel__month-summary-toggle {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--accent, #34d399);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: left;
+  padding: 6px 0;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.pnk-funnel__month-summary-toggle:hover {
+  text-decoration: underline;
+}
+
+.pnk-funnel__month-summary-hint {
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+
+.pnk-funnel__month-summary-body {
+  display: grid;
+  gap: 10px;
 }
 
 .pnk-control-board__toolbar {

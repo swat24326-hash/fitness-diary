@@ -7,6 +7,7 @@ import {
   buildPnkWizardSkipPatch,
   canSkipPnkWizardStep,
   resolvePnkFunnelHatNav,
+  resolvePnkStepPrimarySlot,
 } from '../src/lib/pnk/pnkWizardNavCore.js'
 import { resolvePnkWizardStep } from '../src/lib/pnk/pnkWizardCore.js'
 import { applyPnkStagePatch, clearPnkDeliverable } from '../src/lib/pnk/pnkStagesCore.js'
@@ -33,8 +34,19 @@ const waitStep = resolvePnkWizardStep(base)
 ok(waitStep?.key === 'wait', 'on wait')
 const waitNav = resolvePnkFunnelHatNav(base, waitStep, {})
 ok(waitNav.canNext && waitNav.nextPatch?.deliverable === 'visit_started', 'wait Next = клиент пришёл')
+ok(waitNav.nextLabel === 'Клиент пришёл', 'wait CTA label')
+ok(waitNav.primarySlot === 'hat', 'wait primary in hat')
 ok(!waitNav.canSkip, 'wait no skip')
 ok(waitNav.canBack && waitNav.backPatch?.clear_deliverable === 'contact', 'wait Back clears contact')
+
+const trainClient = {
+  ...base,
+  pnk_deliverables: { contact: 'x', visit_started: 'x', health: 'x', nutrition: 'x' },
+}
+const trainStep = resolvePnkWizardStep(trainClient, { bzCompletedCount: 0 })
+ok(trainStep?.key === 'train1', 'on train1')
+ok(resolvePnkStepPrimarySlot(trainStep, { canNext: false }) === 'body', 'train CTA in body before BZ')
+ok(resolvePnkStepPrimarySlot(trainStep, { canNext: true }) === 'hat', 'train CTA in hat after BZ')
 
 const arrivedForBack = {
   ...base,

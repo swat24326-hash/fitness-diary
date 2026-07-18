@@ -2,28 +2,8 @@ import { Ban, ChevronLeft, ChevronRight, FastForward } from 'lucide-react'
 import { PnkStepBlocks } from './PnkStepBlocks.jsx'
 
 /**
- * Единая шапка воронки ПНК: прогресс + Назад / Далее / Пропустить [/ Отказ].
- * Действия — один ряд (симметрия), когда влезают.
- * @param {{
- *   step: { n: number, total: number, title: string, help?: string, key?: string },
- *   nav: {
- *     canBack: boolean,
- *     backReason?: string | null,
- *     backTitle?: string | null,
- *     canNext: boolean,
- *     nextReason?: string | null,
- *     nextLabel?: string,
- *     canSkip: boolean,
- *     skipReason?: string | null,
- *   },
- *   busy?: boolean,
- *   onBack?: () => void,
- *   onNext?: () => void,
- *   onSkip?: () => void,
- *   onRefuse?: () => void,
- *   showRefuse?: boolean,
- *   hideNav?: boolean,
- * }} props
+ * Единая шапка воронки ПНК: прогресс + одна главная CTA + вторичные.
+ * primarySlot=hat → «Далее / Клиент пришёл» яркая; body → главная кнопка в теле шага.
  */
 export function PnkFunnelHat({
   step,
@@ -37,6 +17,12 @@ export function PnkFunnelHat({
   hideNav = false,
 }) {
   if (!step) return null
+  const primaryInHat = (nav?.primarySlot || 'hat') === 'hat'
+  const nextLabel = nav?.nextLabel || 'Далее'
+  const nextClass = primaryInHat
+    ? 'btn btn-primary btn-touch pnk-funnel-hat__btn pnk-funnel-hat__btn--cta'
+    : 'btn btn-secondary btn-touch pnk-funnel-hat__btn pnk-funnel-hat__btn--next-soft'
+
   return (
     <div className="pnk-funnel-hat" aria-label={`Воронка ПНК, шаг ${step.n} из ${step.total}`}>
       <div className="pnk-funnel-hat__top">
@@ -54,10 +40,14 @@ export function PnkFunnelHat({
       {step.help ? <p className="pnk-funnel-hat__help">{step.help}</p> : null}
 
       {!hideNav ? (
-        <div className="pnk-funnel-hat__nav" role="group" aria-label="Навигация по воронке">
+        <div
+          className={`pnk-funnel-hat__nav${primaryInHat ? ' pnk-funnel-hat__nav--cta-hat' : ' pnk-funnel-hat__nav--cta-body'}`}
+          role="group"
+          aria-label="Навигация по воронке"
+        >
           <button
             type="button"
-            className="btn btn-ghost btn-touch pnk-funnel-hat__btn"
+            className="btn btn-ghost btn-touch pnk-funnel-hat__btn pnk-funnel-hat__btn--side"
             disabled={busy || !nav?.canBack}
             title={
               nav?.canBack
@@ -66,35 +56,38 @@ export function PnkFunnelHat({
             }
             onClick={() => onBack?.()}
           >
-            <ChevronLeft size={18} aria-hidden /> Назад
+            <ChevronLeft size={18} aria-hidden />
+            <span className="pnk-funnel-hat__btn-label">Назад</span>
           </button>
           <button
             type="button"
-            className="btn btn-primary btn-touch pnk-funnel-hat__btn pnk-funnel-hat__btn--next"
+            className={nextClass}
             disabled={busy || !nav?.canNext}
-            title={nav?.canNext ? nav.nextLabel || 'Далее' : nav?.nextReason || 'Далее'}
+            title={nav?.canNext ? nextLabel : nav?.nextReason || nextLabel}
             onClick={() => onNext?.()}
           >
-            {nav?.nextLabel || 'Далее'} <ChevronRight size={18} aria-hidden />
+            {nextLabel} <ChevronRight size={18} aria-hidden />
           </button>
           <button
             type="button"
-            className="btn btn-secondary btn-touch pnk-funnel-hat__btn"
+            className="btn btn-ghost btn-touch pnk-funnel-hat__btn pnk-funnel-hat__btn--side"
             disabled={busy || !nav?.canSkip}
             title={nav?.canSkip ? 'Пропустить шаг' : nav?.skipReason || 'Пропустить'}
             onClick={() => onSkip?.()}
           >
-            <FastForward size={16} aria-hidden /> Пропустить
+            <FastForward size={16} aria-hidden />
+            <span className="pnk-funnel-hat__btn-label">Пропустить</span>
           </button>
           {showRefuse ? (
             <button
               type="button"
-              className="btn btn-ghost btn-touch pnk-funnel-hat__btn pnk-funnel-hat__btn--refuse"
+              className="btn btn-ghost btn-touch pnk-funnel-hat__btn pnk-funnel-hat__btn--side pnk-funnel-hat__btn--refuse"
               disabled={busy}
               title="Отказ — удалить карточку; в статистике останется отметка без оформления"
               onClick={() => onRefuse?.()}
             >
-              <Ban size={16} aria-hidden /> Отказ
+              <Ban size={16} aria-hidden />
+              <span className="pnk-funnel-hat__btn-label">Отказ</span>
             </button>
           ) : null}
         </div>
@@ -102,6 +95,9 @@ export function PnkFunnelHat({
 
       {!hideNav && !nav?.canNext && nav?.nextReason ? (
         <p className="pnk-funnel-hat__hint muted">{nav.nextReason}</p>
+      ) : null}
+      {!hideNav && !primaryInHat && !nav?.canNext ? (
+        <p className="pnk-funnel-hat__hint muted">Главное действие — большая кнопка ниже</p>
       ) : null}
     </div>
   )

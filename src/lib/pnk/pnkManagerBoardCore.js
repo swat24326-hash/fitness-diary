@@ -59,3 +59,18 @@ export function buildPnkManagerControlCards(clients, opts = {}) {
   })
   return list
 }
+
+/**
+ * Кого показать справа: URL-focus, иначе первый «горящий», иначе первый в списке.
+ * @param {{ id: string, isHot?: boolean }[]} cards
+ * @param {{ preferredId?: string }} [opts]
+ * @returns {string}
+ */
+export function pickPnkBoardSelectedId(cards, opts = {}) {
+  const list = Array.isArray(cards) ? cards : []
+  const preferred = String(opts.preferredId ?? '').trim()
+  if (preferred && list.some((c) => c.id === preferred)) return preferred
+  const hot = list.find((c) => c.isHot)
+  if (hot) return hot.id
+  return list[0]?.id ?? ''
+}

@@ -139,6 +139,19 @@ export function buildPnkWizardHatNextPatch(step, opts = {}) {
 }
 
 /**
+ * Где живёт одна главная кнопка шага: шапка или тело (планшет).
+ * День визита: wait/health/nutrition → шапка; тренировка до зала → тело.
+ * @param {ReturnType<typeof import('./pnkWizardCore.js').resolvePnkWizardStep>} step
+ * @param {{ canNext?: boolean }} [opts]
+ * @returns {'hat' | 'body'}
+ */
+export function resolvePnkStepPrimarySlot(step, opts = {}) {
+  const key = step?.key
+  if ((key === 'train1' || key === 'train2') && opts.canNext !== true) return 'body'
+  return 'hat'
+}
+
+/**
  * Можно ли жать «Далее» в шапке.
  * @param {object} client
  * @param {ReturnType<typeof import('./pnkWizardCore.js').resolvePnkWizardStep>} step
@@ -153,10 +166,20 @@ export function canHatNextPnkWizardStep(client, step, ctx = {}) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(trialDate)) {
       return { ok: false, reason: 'Укажите дату бесплатной', label: 'Далее' }
     }
-    return { ok: true, reason: null, label: 'Далее' }
+    return { ok: true, reason: null, label: 'Сохранить и далее' }
   }
   const adv = canAdvancePnkWizardStep(client, step, ctx)
-  return { ...adv, label: 'Далее' }
+  /** @type {Record<string, string>} */
+  const labels = {
+    health: 'К питанию',
+    nutrition: 'К тренировке',
+    train1: 'Далее',
+    train2: 'Далее',
+    hw1: 'Далее',
+    hw2: 'Далее',
+    followup: 'Далее',
+  }
+  return { ...adv, label: labels[step.key] || 'Далее' }
 }
 
 /**
@@ -170,6 +193,7 @@ export function resolvePnkFunnelHatNav(client, step, ctx = {}) {
   const next = canHatNextPnkWizardStep(client, step, ctx)
   const skip = canSkipPnkWizardStep(step)
   const backTarget = resolvePnkWizardBackTarget(step)
+  const primarySlot = resolvePnkStepPrimarySlot(step, { canNext: next.ok })
   return {
     canBack: back.ok,
     backReason: back.ok ? null : back.reason,
@@ -183,6 +207,7 @@ export function resolvePnkFunnelHatNav(client, step, ctx = {}) {
     canSkip: skip.ok,
     skipReason: skip.ok ? null : skip.reason,
     skipPatch: skip.ok ? buildPnkWizardSkipPatch(step) : null,
+    primarySlot,
   }
 }
 

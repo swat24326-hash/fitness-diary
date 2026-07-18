@@ -36,6 +36,8 @@ export function SalesPnk() {
   const [form, setForm] = useState({ name: '', phone: '', trainer_id: '', pnk_trial_sessions: 1 })
   const [createOpen, setCreateOpen] = useState(false)
   const [boardFilter, setBoardFilter] = useState('all')
+  const [attentionFilterSeeded, setAttentionFilterSeeded] = useState(false)
+  const [monthSummaryOpen, setMonthSummaryOpen] = useState(false)
   const [toast, setToast] = useState('')
   const [lastCreated, setLastCreated] = useState(null)
 
@@ -166,6 +168,13 @@ export function SalesPnk() {
     return counts
   }, [clients, attentionIds])
 
+  // Первый заход без ?focus= — сразу фильтр «Внимание», если есть горящие
+  useEffect(() => {
+    if (attentionFilterSeeded || focusId || !bundle) return
+    setAttentionFilterSeeded(true)
+    if (attention.length > 0) setBoardFilter('attention')
+  }, [attentionFilterSeeded, focusId, bundle, attention.length])
+
   function fillDemoScenario() {
     const tid = form.trainer_id || bundle?.trainers?.[0]?.id || ''
     setForm({
@@ -264,7 +273,7 @@ export function SalesPnk() {
             onComment={onComment}
             onDelete={onDelete}
             initialFocusId={focusId}
-            showVisitQuality={isAdmin}
+            showVisitQuality
             workExtras={
               <>
                 {createOpen ? (
@@ -381,39 +390,59 @@ export function SalesPnk() {
               </>
             }
             assessExtras={
-              <>
-                {stats ? (
-                  <PnkQualityChips
-                    nutritionPct={stats.nutritionPct}
-                    homeworkPct={stats.homeworkPct}
-                    periodLabel={`${formatDateRu(period.dateFrom)}–${formatDateRu(period.dateTo)}`}
-                  />
-                ) : null}
-                {stats?.trainers?.length ? (
-                  <section className="pnk-funnel__by-trainer card">
-                    <h2 className="pnk-funnel__section-title">По тренерам</h2>
-                    <table className="pnk-funnel__table">
-                      <thead>
-                        <tr>
-                          <th>Тренер</th>
-                          <th>Оформл. / ПНК</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {stats.trainers.map((t) => (
-                          <tr key={t.trainerId}>
-                            <td>{t.trainer_name}</td>
-                            <td>
-                              {t.won}/{t.entered}
-                              <span className="pnk-funnel__kpi-pct pnk-funnel__kpi-pct--inline">{t.conversionPct}%</span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </section>
-                ) : null}
-              </>
+              stats ? (
+                <div className="pnk-funnel__month-summary">
+                  <button
+                    type="button"
+                    className="pnk-funnel__month-summary-toggle"
+                    aria-expanded={monthSummaryOpen}
+                    onClick={() => setMonthSummaryOpen((v) => !v)}
+                  >
+                    {monthSummaryOpen ? 'Скрыть сводку' : 'Сводка месяца'}
+                    {!monthSummaryOpen ? (
+                      <span className="muted pnk-funnel__month-summary-hint">
+                        {' '}
+                        · питание {stats.nutritionPct}% · ДЗ {stats.homeworkPct}%
+                      </span>
+                    ) : null}
+                  </button>
+                  {monthSummaryOpen ? (
+                    <div className="pnk-funnel__month-summary-body">
+                      <PnkQualityChips
+                        nutritionPct={stats.nutritionPct}
+                        homeworkPct={stats.homeworkPct}
+                        periodLabel={`${formatDateRu(period.dateFrom)}–${formatDateRu(period.dateTo)}`}
+                      />
+                      {stats.trainers?.length ? (
+                        <section className="pnk-funnel__by-trainer card">
+                          <h2 className="pnk-funnel__section-title">По тренерам</h2>
+                          <table className="pnk-funnel__table">
+                            <thead>
+                              <tr>
+                                <th>Тренер</th>
+                                <th>Оформл. / ПНК</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {stats.trainers.map((t) => (
+                                <tr key={t.trainerId}>
+                                  <td>{t.trainer_name}</td>
+                                  <td>
+                                    {t.won}/{t.entered}
+                                    <span className="pnk-funnel__kpi-pct pnk-funnel__kpi-pct--inline">
+                                      {t.conversionPct}%
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </section>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null
             }
           />
         </div>

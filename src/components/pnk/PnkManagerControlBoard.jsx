@@ -3,7 +3,10 @@ import { UserPlus } from 'lucide-react'
 import { PnkStepBlocks } from './PnkStepBlocks.jsx'
 import { PnkBoardFilterChips } from './PnkStatusChips'
 import { PnkControlCardDetail } from './PnkControlCardDetail.jsx'
-import { buildPnkManagerControlCards } from '../../lib/pnk/pnkManagerBoardCore.js'
+import {
+  buildPnkManagerControlCards,
+  pickPnkBoardSelectedId,
+} from '../../lib/pnk/pnkManagerBoardCore.js'
 import { formatDateRu } from '../../lib/dateRu.js'
 
 /**
@@ -33,6 +36,7 @@ export function PnkManagerControlBoard({
   const [confirmDelete, setConfirmDelete] = useState(null)
   const focusAppliedRef = useRef(false)
   const lastFocusParamRef = useRef(String(initialFocusId || '').trim())
+  const lastBoardFilterRef = useRef(boardFilter)
 
   const cards = buildPnkManagerControlCards(clients, {
     boardFilter,
@@ -48,15 +52,22 @@ export function PnkManagerControlBoard({
       lastFocusParamRef.current = focus
       focusAppliedRef.current = false
     }
+    const filterChanged = lastBoardFilterRef.current !== boardFilter
+    lastBoardFilterRef.current = boardFilter
+
     setExpandedId((prev) => {
       if (!focusAppliedRef.current && focus && cards.some((c) => c.id === focus)) {
         focusAppliedRef.current = true
         return focus
       }
+      // Смена фильтра (напр. «Внимание») — сразу первый срочный в новом списке
+      if (filterChanged) {
+        return pickPnkBoardSelectedId(cards)
+      }
       if (prev && cards.some((c) => c.id === prev)) return prev
-      return cards[0]?.id ?? ''
+      return pickPnkBoardSelectedId(cards)
     })
-  }, [cardIdsKey, initialFocusId])
+  }, [cardIdsKey, initialFocusId, boardFilter]) // cards через cardIdsKey + boardFilter
 
   const selected = cards.find((c) => c.id === expandedId) ?? null
   const canDelete = typeof onDelete === 'function'

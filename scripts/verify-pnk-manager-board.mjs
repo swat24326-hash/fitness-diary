@@ -1,7 +1,10 @@
 /**
  * node scripts/verify-pnk-manager-board.mjs
  */
-import { buildPnkManagerControlCards } from '../src/lib/pnk/pnkManagerBoardCore.js'
+import {
+  buildPnkManagerControlCards,
+  pickPnkBoardSelectedId,
+} from '../src/lib/pnk/pnkManagerBoardCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -51,6 +54,9 @@ const clients = [
 const all = buildPnkManagerControlCards(clients, { now: new Date('2026-07-16T12:00:00') })
 ok(all.length === 3 && all[0].isHot, 'hot first among three')
 ok(all[0].trainerName === 'Иван' || all.some((c) => c.trainerPhone), 'trainer fields')
+ok(pickPnkBoardSelectedId(all) === all[0].id, 'pick defaults to first (hot)')
+ok(pickPnkBoardSelectedId(all, { preferredId: '2' }) === '2', 'pick respects preferred')
+ok(pickPnkBoardSelectedId([], { preferredId: 'x' }) === '', 'pick empty')
 
 const byTrainer = buildPnkManagerControlCards(clients, { trainerId: 't1' })
 ok(byTrainer.length === 2 && byTrainer.every((c) => c.trainerId === 't1'), 'filter trainer')

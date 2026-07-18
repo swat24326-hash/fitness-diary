@@ -19,7 +19,7 @@ import { PnkAttentionChips } from '../pnk/PnkStatusChips'
 import '../../styles/pnk-funnel.css'
 
 /**
- * Линейный мастер ПНК у тренера: единая шапка Назад / Далее / Пропустить.
+ * Линейный мастер ПНК у тренера: шапка с одной главной CTA + тело шага.
  */
 export function ClientPnkPanel({
   client,
@@ -103,6 +103,7 @@ export function ClientPnkPanel({
   const flags = buildPnkAttentionFlags(client)
   const d = parsePnkDeliverables(client.pnk_deliverables)
   const trainerName = user?.name || ''
+  const primaryInBody = hatNav.primarySlot === 'body'
 
   async function run(patch) {
     if (!patch) return false
@@ -276,18 +277,6 @@ export function ClientPnkPanel({
 
       {step.key === 'invite' ? (
         <div className="pnk-client-panel__step">
-          <div className="pnk-client-panel__actions">
-            <PnkClientMessengerButtons
-              kind="invite"
-              client={client}
-              trainerName={trainerName}
-              clubName=""
-              trialDate={trialDate}
-              trialTime={trialTime}
-              busy={busy}
-              onResult={onMessengerResult}
-            />
-          </div>
           <div className="pnk-client-panel__schedule">
             <label className="pnk-client-panel__field">
               Дата бесплатной
@@ -308,14 +297,26 @@ export function ClientPnkPanel({
               />
             </label>
           </div>
-          <p className="muted" style={{ margin: 0, fontSize: '0.9rem' }}>
-            Укажите дату и нажмите «Далее» в шапке воронки.
-          </p>
+          <div className="pnk-client-panel__actions pnk-client-panel__actions--secondary">
+            <PnkClientMessengerButtons
+              kind="invite"
+              client={client}
+              trainerName={trainerName}
+              clubName=""
+              trialDate={trialDate}
+              trialTime={trialTime}
+              busy={busy}
+              onResult={onMessengerResult}
+            />
+          </div>
         </div>
       ) : null}
 
       {step.key === 'wait' ? (
         <div className="pnk-client-panel__step">
+          <p className="pnk-client-panel__cta-hint">
+            Когда клиент в зале — нажмите <strong>«Клиент пришёл»</strong> в шапке.
+          </p>
           <div className="pnk-client-panel__schedule">
             <label className="pnk-client-panel__field">
               Дата
@@ -336,7 +337,7 @@ export function ClientPnkPanel({
               />
             </label>
           </div>
-          <div className="pnk-client-panel__actions">
+          <div className="pnk-client-panel__actions pnk-client-panel__actions--secondary">
             <button
               type="button"
               className="btn btn-secondary btn-touch"
@@ -350,11 +351,6 @@ export function ClientPnkPanel({
             >
               Изменить дату
             </button>
-          </div>
-          <p className="muted" style={{ margin: 0, fontSize: '0.9rem' }}>
-            Когда клиент в зале — «Далее» в шапке (= клиент пришёл).
-          </p>
-          <div className="pnk-client-panel__actions" style={{ marginTop: 8 }}>
             <PnkClientMessengerButtons
               kind="invite"
               client={client}
@@ -371,8 +367,8 @@ export function ClientPnkPanel({
 
       {step.key === 'health' ? (
         <div className="pnk-client-panel__step">
-          <p className="muted" style={{ margin: 0, fontSize: '0.9rem' }}>
-            Заполните карту ниже, затем «Далее» в шапке.
+          <p className="pnk-client-panel__cta-hint">
+            Заполните карту здоровья ниже. Когда готово — <strong>«К питанию»</strong> в шапке.
           </p>
         </div>
       ) : null}
@@ -381,11 +377,11 @@ export function ClientPnkPanel({
         <div className="pnk-client-panel__step">
           {advance.ok ? (
             <p className="pnk-client-panel__ok" style={{ margin: 0 }}>
-              ✓ Рацион сохранён — можно «Далее» или «Пропустить»
+              ✓ Рацион есть — «К тренировке» в шапке
             </p>
           ) : (
-            <p className="muted" style={{ margin: 0, fontSize: '0.9rem' }}>
-              Сохраните рацион ниже или нажмите «Пропустить» в шапке.
+            <p className="pnk-client-panel__cta-hint">
+              Сохраните рацион ниже. Или <strong>Пропустить</strong> в шапке, если рациона нет.
             </p>
           )}
         </div>
@@ -393,14 +389,14 @@ export function ClientPnkPanel({
 
       {step.key === 'train1' || step.key === 'train2' ? (
         <div className="pnk-client-panel__step">
-          <div className="pnk-client-panel__actions">
+          <div className="pnk-client-panel__actions pnk-client-panel__actions--step">
             {typeof onStartTraining === 'function' || typeof onOpenDiaries === 'function' ? (
               <button
                 type="button"
                 className={
-                  advance.ok
-                    ? 'btn btn-secondary btn-touch'
-                    : 'btn btn-primary btn-touch pnk-client-panel__btn-primary'
+                  primaryInBody
+                    ? 'btn btn-primary btn-touch pnk-client-panel__btn-primary pnk-client-panel__btn-cta'
+                    : 'btn btn-secondary btn-touch'
                 }
                 disabled={busy || startBusy}
                 onClick={() => void handleStartTraining()}
@@ -413,7 +409,11 @@ export function ClientPnkPanel({
             <p className="pnk-client-panel__ok" style={{ margin: '8px 0 0' }}>
               ✓ Тренировка есть — «Далее» в шапке
             </p>
-          ) : null}
+          ) : (
+            <p className="pnk-client-panel__cta-hint" style={{ marginTop: 8 }}>
+              Одна главная кнопка: начните БЗ, после завершения вернитесь и нажмите «Далее».
+            </p>
+          )}
         </div>
       ) : null}
 
