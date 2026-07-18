@@ -111,6 +111,13 @@ export function CoachQualityPanel({
                   </p>
                   <div className="row" style={{ flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
                     <CoachQualityStatusBadge status={tr.status} label={tr.statusLabel} />
+                    <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em' }}>
+                      {tr.scorePct != null ? `${tr.scorePct}` : '—'}
+                      <span className="muted" style={{ fontSize: 12, fontWeight: 500 }}>
+                        {' '}
+                        / 100
+                      </span>
+                    </span>
                     {tr.failureDirectionLabels?.length ? (
                       <span className="muted" style={{ fontSize: 12 }}>
                         Просадка: {tr.failureDirectionLabels.join(' · ')}
@@ -122,6 +129,9 @@ export function CoachQualityPanel({
                     )}
                   </div>
                   <div className="row" style={{ flexWrap: 'wrap', gap: 12, fontSize: 13, marginTop: 8 }}>
+                    <span>
+                      <span className="muted">Тренировок:</span> <strong>{tr.completed ?? 0}</strong>
+                    </span>
                     <span>
                       <span className="muted">Ведение:</span>{' '}
                       <strong>{tr.carePct != null ? `${tr.carePct}%` : '—'}</strong>
@@ -138,6 +148,12 @@ export function CoachQualityPanel({
                       ) : null}
                     </span>
                   </div>
+                  {tr.status === 'insufficient_data' ? (
+                    <p className="muted" style={{ margin: '6px 0 0', fontSize: 12 }}>
+                      Мало данных для сравнения ведения/глубины (нужно ≥8 тренировок и ≥3 активных клиентов). Итоговый
+                      балл считаем по доступным осям.
+                    </p>
+                  ) : null}
                 </div>
                 {open ? <ChevronUp size={18} aria-hidden /> : <ChevronDown size={18} aria-hidden />}
               </button>

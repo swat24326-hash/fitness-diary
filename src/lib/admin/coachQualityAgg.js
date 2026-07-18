@@ -4,6 +4,7 @@
 import { todayLocalIso } from '../dateRu.js'
 import {
   COACH_QUALITY_AXIS_LABELS,
+  computeCoachQualityScorePct,
   evaluateBagFlag,
   evaluateMeasuresCareFlag,
   evaluateNutritionCareFlag,
@@ -242,6 +243,12 @@ export function aggregateCoachQuality(input) {
       completed: tr.completed,
       activeClients,
     })
+    const scorePct = computeCoachQualityScorePct({
+      carePct,
+      depthPct,
+      bagPct,
+      stuckCount,
+    })
 
     statusCounts[resolved.status] = (statusCounts[resolved.status] ?? 0) + 1
 
@@ -258,6 +265,7 @@ export function aggregateCoachQuality(input) {
       stuckBz,
       bagWarnCount,
       bagPct,
+      scorePct,
       staleCount,
       missingMeasuresCount,
       status: resolved.status,
@@ -276,7 +284,7 @@ export function aggregateCoachQuality(input) {
     const ra = rank[a.status] ?? 9
     const rb = rank[b.status] ?? 9
     if (ra !== rb) return ra - rb
-    return (a.carePct ?? 999) - (b.carePct ?? 999)
+    return (a.scorePct ?? 999) - (b.scorePct ?? 999)
   })
 
   const withCare = trainers.filter((t) => t.status !== 'insufficient_data' && t.carePct != null)

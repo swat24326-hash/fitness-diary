@@ -318,6 +318,40 @@ export function resolveCoachQualityStatus(p) {
   }
 }
 
+/**
+ * Итоговый балл 0–100 (прозрачно: ведение 40% + глубина 40% + чистота базы 20%).
+ * При нехватке осей — среднее по доступным; stuck ограничивает потолок 79.
+ * @param {{
+ *   carePct?: number|null,
+ *   depthPct?: number|null,
+ *   bagPct?: number|null,
+ *   stuckCount?: number,
+ * }} p
+ * @returns {number}
+ */
+export function computeCoachQualityScorePct(p = {}) {
+  const bag = Number.isFinite(Number(p.bagPct)) ? Number(p.bagPct) : 100
+  const careRaw = p.carePct
+  const depthRaw = p.depthPct
+  const hasCare = careRaw != null && careRaw !== '' && Number.isFinite(Number(careRaw))
+  const hasDepth = depthRaw != null && depthRaw !== '' && Number.isFinite(Number(depthRaw))
+  let score
+  if (hasCare && hasDepth) {
+    score = Math.round(Number(careRaw) * 0.4 + Number(depthRaw) * 0.4 + bag * 0.2)
+  } else if (hasCare || hasDepth) {
+    const parts = [bag]
+    if (hasCare) parts.push(Number(careRaw))
+    if (hasDepth) parts.push(Number(depthRaw))
+    score = Math.round(parts.reduce((a, b) => a + b, 0) / parts.length)
+  } else {
+    score = Math.round(bag)
+  }
+  if ((Number(p.stuckCount) || 0) >= 1) score = Math.min(score, 79)
+  if (score < 0) return 0
+  if (score > 100) return 100
+  return score
+}
+
 export const COACH_QUALITY_AXIS_LABELS = {
   care: 'Ведение клиентов',
   depth: 'Глубина тренировок',
@@ -340,6 +374,7 @@ export function coachQualityRulesHelp() {
     'Ведение: рацион после смены веса обновить за 7 дней; обмеры за 30 дней — если уместны или уже вели.',
     'Тонкая тренировка: 1 упражнение или ≤2 подхода с данными.',
     'Неактивные: 0–7 дней — коридор; 8–14 — затянули; >14 без нового абонемента/архива (или после БЗ без ДК/отказа) — провал.',
-    'Мало данных: <8 завершённых или <3 активных клиентов — care/depth не сравниваем; хвосты базы всё равно видны.',
+    'Мало данных: <8 завершённых или <3 активных клиентов — статус «Мало данных», ведение/глубину не сравниваем с другими; итоговый балл всё равно есть (больше по хвостам базы).',
+    'Итоговый балл: ведение 40% + глубина 40% + чистота базы 20%; при хвостах >14 дн. потолок 79.',
   ]
 }

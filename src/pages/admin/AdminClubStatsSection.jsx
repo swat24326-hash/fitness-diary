@@ -458,12 +458,6 @@ export function AdminClubStatsSection({
         </p>
       ) : null}
       {s?.fallbackReason ? <p className="muted admin-inline-note">Резерв: локальный кэш. Причина: {s.fallbackReason}</p> : null}
-      {s?.source === 'local' && isSupabaseConfigured() && (s?.totalCompleted ?? 0) === 0 && (s?.totalClients ?? 0) === 0 ? (
-        <p className="muted admin-inline-note" style={{ marginBottom: 12 }}>
-          Облако не ответило вовремя или сессия устарела — на этом устройстве нет кэша клуба, поэтому нули.
-          Нажмите обновление ещё раз; при повторной ошибке выйдите и войдите в админку.
-        </p>
-      ) : null}
 
       <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 8px' }}>
         Период
@@ -911,7 +905,16 @@ export function AdminClubStatsSection({
                   <p style={{ margin: '0 0 8px', fontWeight: 600, fontSize: 15, lineHeight: 1.3 }}>{trainerLabel(tr.trainerId)}</p>
                   {q ? (
                     <div style={{ marginBottom: 8 }}>
-                      <CoachQualityStatusBadge status={q.status} label={q.statusLabel} />
+                      <div className="row" style={{ flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+                        <CoachQualityStatusBadge status={q.status} label={q.statusLabel} />
+                        <strong style={{ fontSize: 16 }}>
+                          {q.scorePct != null ? `${q.scorePct}` : '—'}
+                          <span className="muted" style={{ fontSize: 12, fontWeight: 500 }}>
+                            {' '}
+                            / 100
+                          </span>
+                        </strong>
+                      </div>
                       {q.failureDirectionLabels?.length ? (
                         <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
                           Просадка: {q.failureDirectionLabels.join(' · ')}
