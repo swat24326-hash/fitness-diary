@@ -3119,6 +3119,61 @@ tr:last-child td {
   font-size: 13px;
 }
 
+.trainer-cq-glance {
+  width: 100%;
+  max-width: 920px;
+  margin: 14px auto 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border, #2a3a32) 80%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated, #152018) 70%, transparent);
+}
+
+.trainer-cq-glance__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  margin-bottom: 6px;
+}
+
+.trainer-cq-glance__title {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: clamp(0.95rem, 2.2vw, 1.05rem);
+  font-weight: 650;
+}
+
+.trainer-cq-glance__more {
+  font-size: 0.82rem;
+}
+
+.trainer-cq-glance__headline {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.trainer-cq-glance__loading {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.trainer-cq-glance__clients {
+  margin: 8px 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.trainer-cq-glance__clients li + li {
+  margin-top: 3px;
+}
+
+
 .trainer-attention__loading {
   font-size: 14px;
   padding: 12px 0;
@@ -5219,6 +5274,50 @@ tr:last-child td {
 .coach-quality-panel__avg-den {
   font-weight: 500;
   opacity: 0.7;
+}
+
+.coach-quality-brief {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent, #3d8b6e) 35%, var(--border, #2a3a32));
+  background: color-mix(in srgb, var(--accent, #3d8b6e) 10%, transparent);
+}
+
+.coach-quality-brief__title {
+  margin: 0 0 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.coach-quality-brief__list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.coach-quality-brief__list li + li {
+  margin-top: 2px;
+}
+
+.coach-quality-brief__people {
+  margin: 8px 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--text-muted, #9aa39c);
+}
+
+.coach-quality-brief__people strong {
+  color: var(--text, #e8eee9);
+  font-weight: 650;
+}
+
+.coach-quality-brief__drop {
+  color: var(--warning, #fbbf24);
+  font-weight: 600;
 }
 
 .coach-quality-table-wrap {

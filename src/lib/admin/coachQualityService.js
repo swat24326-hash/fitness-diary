@@ -14,6 +14,10 @@ import {
 } from './coachQualityAgg.js'
 import { coachQualityRulesHelp } from './coachQualityCore.js'
 import { loadCoachQualityConfigForClub } from './coachQualitySettingsService.js'
+import {
+  buildCoachQualityMorningBrief,
+  previousEqualPeriod,
+} from './coachQualityBriefCore.js'
 
 export { indexMeasurementsByClient, indexWeightEntriesByClient }
 
@@ -43,6 +47,10 @@ async function loadRowsByClientIds(clientIds, loader) {
  *   dateTo: string,
  *   trainerIdFilter?: string|null,
  *   membershipTypes?: object[],
+ *   previousTrainings?: object[]|null,
+ *   trainerNameById?: Record<string, string>,
+ *   skipBrief?: boolean,
+ *   config?: object|null,
  * }} input
  */
 export async function buildCoachQualityForScope(input) {
@@ -65,24 +73,52 @@ export async function buildCoachQualityForScope(input) {
   ])
 
   const { lastMeasureByClientId, hadMeasureEverByClientId } = indexMeasurementsByClient(measures)
-
-  const agg = aggregateCoachQuality({
-    trainings: input.trainings,
+  const weightEntriesByClientId = indexWeightEntriesByClient(weights)
+  const shared = {
     clients,
     memberships: input.memberships,
     membershipTypes,
     healthByClientId,
     lastMeasureByClientId,
     hadMeasureEverByClientId,
-    weightEntriesByClientId: indexWeightEntriesByClient(weights),
-    dateFrom: input.dateFrom,
-    dateTo: input.dateTo,
+    weightEntriesByClientId,
     trainerIdFilter: input.trainerIdFilter ?? null,
     config,
+  }
+
+  const agg = aggregateCoachQuality({
+    ...shared,
+    trainings: input.trainings,
+    dateFrom: input.dateFrom,
+    dateTo: input.dateTo,
   })
+
+  let brief = null
+  if (!input.skipBrief) {
+    const prevRange = previousEqualPeriod(input.dateFrom, input.dateTo)
+    let previousAgg = null
+    if (prevRange) {
+      const prevTrainings =
+        input.previousTrainings ??
+        (input.trainings ?? []).filter((t) => {
+          const d = String(t?.date ?? '').slice(0, 10)
+          return d >= prevRange.dateFrom && d <= prevRange.dateTo
+        })
+      previousAgg = aggregateCoachQuality({
+        ...shared,
+        trainings: prevTrainings,
+        dateFrom: prevRange.dateFrom,
+        dateTo: prevRange.dateTo,
+      })
+    }
+    brief = buildCoachQualityMorningBrief(agg, previousAgg, {
+      trainerNameById: input.trainerNameById,
+    })
+  }
 
   return {
     ...agg,
+    brief,
     rules: coachQualityRulesHelp(config),
   }
 }

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { User, Users, Trophy, Swords } from 'lucide-react'
 import { TrainerAttentionPanel } from '../../components/trainer/TrainerAttentionPanel'
 import { TrainerSyncPendingBanner } from '../../components/trainer/TrainerSyncPendingBanner'
+import { TrainerCoachQualityGlance } from '../../components/trainer/TrainerCoachQualityGlance'
 import { TrainerTaskGlanceWidget } from '../../components/iskra/TrainerTaskGlanceWidget.jsx'
 import { TrainerPnkGlanceWidget } from '../../components/pnk/TrainerPnkGlanceWidget.jsx'
 import { TrainerPushPrompt } from '../../components/iskra/TrainerPushPrompt.jsx'
@@ -17,12 +18,15 @@ import {
   formatChallengeMetricRu,
 } from '../../lib/dataAccess'
 import { listClientsByTrainerId } from '../../lib/localDbClubQuery'
-import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
+import { addDaysToIso, formatDateRu, todayLocalIso } from '../../lib/dateRu'
 import { isAppOnline } from '../../lib/syncService'
 import { loadTrainerWorkspaceSnapshot } from '../../lib/trainerWorkspaceCache'
 import {
   buildTrainerAttentionSummary,
 } from '../../lib/trainer/trainerAttentionSummary'
+import { buildTrainerCoachQualityGlance } from '../../lib/trainer/trainerCoachQualityGlanceCore.js'
+import { buildCoachQualityForScope } from '../../lib/admin/coachQualityService.js'
+import { COACH_QUALITY_PERIOD_DAYS } from '../../lib/admin/coachQualityCore.js'
 import {
   useDebouncedStorageReload,
   shouldReloadTrainerChallenges,
@@ -76,8 +80,11 @@ export function TrainerHome() {
   const [challengesView, setChallengesView] = useState(INITIAL_CHALLENGES_VIEW)
   const [attentionSummary, setAttentionSummary] = useState(null)
   const [attentionLoading, setAttentionLoading] = useState(true)
+  const [cqGlance, setCqGlance] = useState(null)
+  const [cqGlanceLoading, setCqGlanceLoading] = useState(true)
   const loadGenRef = useRef(0)
   const attentionGenRef = useRef(0)
+  const cqGenRef = useRef(0)
   const syncOutbound = useSyncOutboundPoll({ enabled: isSupabaseConfigured() })
 
   const loadAttention = useCallback(async (opts = {}) => {
@@ -85,10 +92,16 @@ export function TrainerHome() {
     if (!trainerId) {
       setAttentionSummary(null)
       setAttentionLoading(false)
+      setCqGlance(null)
+      setCqGlanceLoading(false)
       return
     }
     const gen = ++attentionGenRef.current
-    if (!silent) setAttentionLoading(true)
+    const cqGen = ++cqGenRef.current
+    if (!silent) {
+      setAttentionLoading(true)
+      setCqGlanceLoading(true)
+    }
     try {
       const snap = await loadTrainerWorkspaceSnapshot(trainerId, clubId || null)
       if (gen !== attentionGenRef.current) return
@@ -99,9 +112,40 @@ export function TrainerHome() {
           today: todayLocalIso(),
         }),
       )
+
+      // Качество ведения — отдельно, не блокирует внимание и Sync
+      void (async () => {
+        try {
+          const dateTo = todayLocalIso()
+          const dateFrom = addDaysToIso(dateTo, -(COACH_QUALITY_PERIOD_DAYS - 1))
+          const memberships = Object.values(snap.memByClient ?? {}).flat()
+          const cq = await buildCoachQualityForScope({
+            clients: snap.clients ?? [],
+            trainings: snap.trainings ?? [],
+            memberships,
+            clubId: clubId || null,
+            dateFrom,
+            dateTo,
+            trainerIdFilter: trainerId,
+            skipBrief: true,
+          })
+          if (cqGen !== cqGenRef.current) return
+          const row = (cq.trainers ?? []).find((t) => String(t.trainerId) === String(trainerId))
+          setCqGlance(buildTrainerCoachQualityGlance(row))
+        } catch {
+          if (cqGen !== cqGenRef.current) return
+          if (!silent) setCqGlance(null)
+        } finally {
+          if (cqGen === cqGenRef.current) setCqGlanceLoading(false)
+        }
+      })()
     } catch {
       if (gen !== attentionGenRef.current) return
       if (!silent) setAttentionSummary(null)
+      if (cqGen === cqGenRef.current) {
+        setCqGlance(null)
+        setCqGlanceLoading(false)
+      }
     } finally {
       if (gen === attentionGenRef.current) setAttentionLoading(false)
     }
@@ -239,6 +283,7 @@ export function TrainerHome() {
       <TrainerPushPrompt clubId={clubId} />
 
       <TrainerAttentionPanel summary={attentionSummary} loading={attentionLoading} />
+      <TrainerCoachQualityGlance glance={cqGlance} loading={cqGlanceLoading} />
 
       <section className="trainer-challenges" aria-labelledby="trainer-challenges-title">
         <div className="trainer-challenges__head">

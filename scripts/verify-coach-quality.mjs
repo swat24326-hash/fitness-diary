@@ -37,6 +37,13 @@ import {
   resolveBagSubWeights,
   coachQualityRulesHelpFromConfig,
 } from '../src/lib/admin/coachQualityConfigCore.js'
+import {
+  previousEqualPeriod,
+  buildCoachQualityMorningBrief,
+  isTrainerDropped,
+  COACH_QUALITY_SCORE_DROP_THRESHOLD,
+} from '../src/lib/admin/coachQualityBriefCore.js'
+import { buildTrainerCoachQualityGlance } from '../src/lib/trainer/trainerCoachQualityGlanceCore.js'
 
 let failed = 0
 let section = ''
@@ -1078,6 +1085,84 @@ setSection('MANAGER / доли внутри осей')
       100,
     'при сохранении доли нормализуются к 100%',
   )
+}
+
+setSection('MANAGER / утренний бриф и glance тренера')
+
+{
+  const prev = previousEqualPeriod('2026-07-01', '2026-07-18')
+  ok(prev?.dateTo === '2026-06-30', 'предыдущий период: to = day before from')
+  ok(prev?.dateFrom === '2026-06-13', 'предыдущий период той же длины')
+
+  ok(
+    isTrainerDropped({ status: 'review', scorePct: 50 }, { status: 'ok', scorePct: 90 }),
+    'просел: статус хуже',
+  )
+  ok(
+    isTrainerDropped(
+      { status: 'attention', scorePct: 70 },
+      { status: 'attention', scorePct: 70 + COACH_QUALITY_SCORE_DROP_THRESHOLD },
+    ),
+    'просел: балл упал на порог',
+  )
+  ok(
+    !isTrainerDropped({ status: 'ok', scorePct: 90 }, { status: 'review', scorePct: 40 }),
+    'не просел: стало лучше',
+  )
+
+  const brief = buildCoachQualityMorningBrief(
+    {
+      trainers: [
+        {
+          trainerId: 't1',
+          status: 'review',
+          statusLabel: 'Разбор',
+          scorePct: 55,
+          failureDirections: ['bag'],
+          failureDirectionLabels: ['Хвосты'],
+        },
+        {
+          trainerId: 't2',
+          status: 'ok',
+          statusLabel: 'Ок',
+          scorePct: 95,
+          failureDirections: [],
+          failureDirectionLabels: [],
+        },
+      ],
+    },
+    {
+      dateFrom: '2026-06-13',
+      dateTo: '2026-06-30',
+      trainers: [
+        {
+          trainerId: 't1',
+          status: 'ok',
+          statusLabel: 'Ок',
+          scorePct: 88,
+          failureDirections: [],
+          failureDirectionLabels: [],
+        },
+      ],
+    },
+    { trainerNameById: { t1: 'Иванов' } },
+  )
+  ok(brief.reviewCount === 1 && brief.droppedCount === 1, 'бриф: на разбор + просел')
+  ok(brief.chipLabel && /разбор/.test(brief.chipLabel), 'чип брифа про разбор')
+  ok(brief.trainers[0]?.name === 'Иванов' && brief.trainers[0]?.dropped, 'в брифе имя и флаг просел')
+
+  const glance = buildTrainerCoachQualityGlance({
+    minimalCompleted: 2,
+    stuckCount: 1,
+    bagWarnCount: 0,
+    facts: [
+      { kind: 'stuck_dk', clientId: 'c1', clientName: 'Петров', reason: 'хвост' },
+      { kind: 'f1_nutrition_stale', clientId: 'c2', clientName: 'Сидоров' },
+    ],
+  })
+  ok(glance?.hasSignal && /тонких/.test(glance.headline) && /хвост/.test(glance.headline), 'glance headline')
+  ok(glance.factsPreview.length === 1 && glance.factsPreview[0].clientName === 'Петров', 'glance только хвосты/тонкие факты')
+  ok(buildTrainerCoachQualityGlance({ minimalCompleted: 0, stuckCount: 0, bagWarnCount: 0 })?.hasSignal === false, 'glance без сигнала')
 }
 
 // ─── finish ─────────────────────────────────────────────────────────

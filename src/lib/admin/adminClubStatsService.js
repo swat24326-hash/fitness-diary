@@ -15,6 +15,7 @@ import { ADMIN_SYNC_BATCH_SIZE } from './adminConstants'
 import { aggregateMembershipTypeStats } from './membershipTypeStatsAgg'
 import { listMembershipTypesForClub } from '../membershipTypesService'
 import { buildCoachQualityForScope } from './coachQualityService.js'
+import { previousEqualPeriod } from './coachQualityBriefCore.js'
 
 export function aggregateTrainings(rows) {
   const dayMap = new Map()
@@ -171,6 +172,15 @@ async function membershipTypeStatsSlice(clubId, trainings, memberships) {
 
 async function attachCoachQuality(stats, { clubId, dateFrom, dateTo, clients, trainings, memberships }) {
   try {
+    const prevRange = previousEqualPeriod(dateFrom, dateTo)
+    let previousTrainings = []
+    if (prevRange) {
+      previousTrainings = await fetchTrainingsForClubRangeLocal(
+        clubId,
+        prevRange.dateFrom,
+        prevRange.dateTo,
+      ).catch(() => [])
+    }
     const coachQuality = await buildCoachQualityForScope({
       clubId,
       dateFrom,
@@ -178,6 +188,7 @@ async function attachCoachQuality(stats, { clubId, dateFrom, dateTo, clients, tr
       clients,
       trainings,
       memberships,
+      previousTrainings,
     })
     return { ...stats, coachQuality }
   } catch (e) {

@@ -366,6 +366,7 @@ export function AdminClubStatsSection({
   }, [stats?.coachQuality?.trainers])
 
   const coachQualityAvg = stats?.coachQuality?.averageScorePct ?? null
+  const coachQualityBriefChip = !isTrainerScope ? stats?.coachQuality?.brief?.chipLabel ?? null : null
   const selfCoachQuality = isTrainerScope
     ? coachQualityByTrainer.get(String(scopeTrainerId)) ?? null
     : null
@@ -779,7 +780,9 @@ export function AdminClubStatsSection({
                   ? 'скрыть таблицу'
                   : isTrainerScope
                     ? 'нажмите · ваша оценка'
-                    : 'средний балл · нажмите для таблицы'}
+                    : coachQualityBriefChip
+                      ? coachQualityBriefChip
+                      : 'средний балл · нажмите для таблицы'}
             </p>
           </button>
         </div>

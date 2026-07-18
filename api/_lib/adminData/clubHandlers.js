@@ -18,10 +18,16 @@ import { fetchPaged, fetchCompletedTrainingYearBounds } from './paging.js'
 import { aggregateCoachQuality } from '../../../src/lib/admin/coachQualityAgg.js'
 import { coachQualityRulesHelp } from '../../../src/lib/admin/coachQualityCore.js'
 import {
+  buildCoachQualityMorningBrief,
+  previousEqualPeriod,
+} from '../../../src/lib/admin/coachQualityBriefCore.js'
+import {
   activeClientIdsFromTrainings,
   fetchCoachQualityCareInputs,
 } from '../coachQualityCareFetch.js'
 import { loadClubCoachQualitySettings } from '../coachQualitySettingsHandler.js'
+import { fetchPagedLimited } from '../fetchPagedLimited.js'
+import { CLUB_STATS_MAX_TRAININGS } from '../apiLimits.js'
 
 export async function handleClubStats(ctx, req, res) {
   const clubId = String(req.query?.club_id ?? '').trim()
@@ -53,17 +59,47 @@ export async function handleClubStats(ctx, req, res) {
     } catch (cfgErr) {
       console.warn('[club-stats] coachQuality config', cfgErr)
     }
+    const currentAgg = aggregateCoachQuality({
+      trainings: raw.trainings,
+      clients: raw.clients,
+      memberships: raw.memberships,
+      membershipTypes: raw.membershipTypes,
+      ...careInputs,
+      dateFrom,
+      dateTo,
+      config: cqConfig,
+    })
+
+    let previousAgg = null
+    const prevRange = previousEqualPeriod(dateFrom, dateTo)
+    if (prevRange) {
+      try {
+        const prevTrainingsRes = await fetchPagedLimited(supabaseAdmin, {
+          table: 'trainings',
+          select: 'id, trainer_id, client_id, date, status, data',
+          clubId,
+          dateFrom: prevRange.dateFrom,
+          dateTo: prevRange.dateTo,
+          maxRows: CLUB_STATS_MAX_TRAININGS,
+        })
+        previousAgg = aggregateCoachQuality({
+          trainings: prevTrainingsRes.rows,
+          clients: raw.clients,
+          memberships: raw.memberships,
+          membershipTypes: raw.membershipTypes,
+          ...careInputs,
+          dateFrom: prevRange.dateFrom,
+          dateTo: prevRange.dateTo,
+          config: cqConfig,
+        })
+      } catch (prevErr) {
+        console.warn('[club-stats] coachQuality previous period', prevErr)
+      }
+    }
+
     const coachQuality = {
-      ...aggregateCoachQuality({
-        trainings: raw.trainings,
-        clients: raw.clients,
-        memberships: raw.memberships,
-        membershipTypes: raw.membershipTypes,
-        ...careInputs,
-        dateFrom,
-        dateTo,
-        config: cqConfig,
-      }),
+      ...currentAgg,
+      brief: buildCoachQualityMorningBrief(currentAgg, previousAgg),
       rules: coachQualityRulesHelp(cqConfig),
       source: 'admin_api',
     }

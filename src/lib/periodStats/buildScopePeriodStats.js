@@ -2,6 +2,7 @@ import { aggregateTrainings, aggregateClubClientPeriod } from '../admin/adminClu
 import { aggregateMembershipTypeStats } from '../admin/membershipTypeStatsAgg'
 import { listMembershipTypesForClub } from '../membershipTypesService'
 import { buildCoachQualityForScope } from '../admin/coachQualityService.js'
+import { previousEqualPeriod } from '../admin/coachQualityBriefCore.js'
 
 function trainingsInRange(trainings, dateFrom, dateTo) {
   return (trainings ?? []).filter((t) => {
@@ -51,6 +52,8 @@ export async function buildScopePeriodStats(input) {
 
   let coachQuality = null
   try {
+    const prev = previousEqualPeriod(dateFrom, dateTo)
+    const previousTrainings = prev ? trainingsInRange(trainings, prev.dateFrom, prev.dateTo) : []
     coachQuality = await buildCoachQualityForScope({
       clients,
       trainings: inRange,
@@ -60,6 +63,7 @@ export async function buildScopePeriodStats(input) {
       dateTo,
       trainerIdFilter: trainerIdFilter || null,
       membershipTypes,
+      previousTrainings,
     })
   } catch (e) {
     console.warn('[stats] coachQuality', e)

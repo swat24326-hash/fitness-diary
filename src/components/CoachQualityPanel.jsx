@@ -50,6 +50,12 @@ export function CoachQualityPanel({
 
   const sc = coachQuality.statusCounts ?? {}
   const colCount = 8
+  const briefTop = (coachQuality.brief?.trainers ?? []).slice(0, 3)
+  const briefHasSignal =
+    Boolean(coachQuality.brief) &&
+    ((coachQuality.brief.reviewCount ?? 0) > 0 ||
+      (coachQuality.brief.attentionCount ?? 0) > 0 ||
+      (coachQuality.brief.droppedCount ?? 0) > 0)
 
   return (
     <section className="card admin-club-stats-detail coach-quality-panel">
@@ -86,6 +92,34 @@ export function CoachQualityPanel({
             </>
           ) : null}
         </p>
+      ) : null}
+
+      {!selfTrainerId && briefHasSignal ? (
+        <div className="coach-quality-brief" role="status">
+          <p className="coach-quality-brief__title">Утренний бриф</p>
+          <ul className="coach-quality-brief__list">
+            {(coachQuality.brief.lines ?? []).map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+          {briefTop.length ? (
+            <ul className="coach-quality-brief__people">
+              {briefTop.map((t) => {
+                const name = trainerLabel(t.trainerId)
+                const axes = (t.failureDirectionLabels ?? []).join(', ') || '—'
+                return (
+                  <li key={t.trainerId}>
+                    <strong>{name}</strong>
+                    {t.dropped ? <span className="coach-quality-brief__drop"> просел</span> : null}
+                    {': '}
+                    {t.statusLabel}
+                    {axes !== '—' ? ` · ${axes}` : null}
+                  </li>
+                )
+              })}
+            </ul>
+          ) : null}
+        </div>
       ) : null}
 
       <div className="coach-quality-table-wrap">
