@@ -2,6 +2,7 @@ import { deleteClientAndAllData, listMemberships } from '../dataAccess.js'
 import { todayLocalIso } from '../dateRu.js'
 import { pickUsableMembershipForDate } from '../membershipRules.js'
 import { ensureMembershipTypesForClub } from '../membershipTypesService.js'
+import { listClientsByClubId, listPnkFunnelEventsByClubId } from '../localDbClubQuery.js'
 import { saveLocalWithSync } from '../syncService.js'
 import { applyPnkStagePatch, buildNewPnkClientFields, isOpenPnkClient } from './pnkStagesCore.js'
 import { normalizeClientPnkFields } from './pnkClientFields.js'
@@ -12,6 +13,52 @@ import {
   resolvePnkStartTrainingAction,
 } from './pnkTrialTrainingCore.js'
 import { normalizePnkTrialSessions } from './pnkWizardCore.js'
+import { aggregatePnkFunnelStats } from './pnkStatsAgg.js'
+
+/**
+ * Локальные цифры ПНК для статистики (индексы IDB по клубу, без getAll всего store).
+ * @param {{
+ *   clubId?: string | null,
+ *   dateFrom: string,
+ *   dateTo: string,
+ *   trainerId?: string | null,
+ * }} opts
+ */
+export async function loadLocalPnkFunnelUiStats({ clubId, dateFrom, dateTo, trainerId = '' }) {
+  const cid = String(clubId ?? '').trim()
+  if (!cid) return null
+
+  const clients = (await listClientsByClubId(cid)).filter((c) => !c?.archived_at)
+  let events = []
+  try {
+    events = await listPnkFunnelEventsByClubId(cid)
+  } catch {
+    events = []
+  }
+
+  const agg = aggregatePnkFunnelStats(
+    clients,
+    {
+      dateFrom,
+      dateTo,
+      trainerId: trainerId ? String(trainerId) : '',
+    },
+    events,
+  )
+
+  return {
+    entered: agg.entered,
+    won: agg.won,
+    lost: agg.lost,
+    open: agg.open,
+    conversionPct: agg.conversionPct,
+    nutritionPct: agg.nutritionPct,
+    homeworkPct: agg.homeworkPct,
+    packageDone: agg.packageDone,
+    trialDone: agg.trialDone,
+    trainers: agg.trainers ?? [],
+  }
+}
 
 /**
  * Локальное обновление ПНК на планшете тренера (очередь sync).

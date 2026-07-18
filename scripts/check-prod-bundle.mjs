@@ -24,7 +24,8 @@ function get(url) {
   })
 }
 
-const ORIGIN = 'https://fitness-diary-bice.vercel.app'
+/** Другой хост: QA_ORIGIN=https://… node scripts/check-prod-bundle.mjs */
+const ORIGIN = process.env.QA_ORIGIN ?? 'https://fitness-diary-bice.vercel.app'
 
 async function main() {
   const home = await get(`${ORIGIN}/`)

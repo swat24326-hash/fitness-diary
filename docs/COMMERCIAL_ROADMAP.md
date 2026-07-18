@@ -60,6 +60,12 @@
 - Консолидация дублей `*Agg.js` в один пакет, импортируемый и Vite, и Vercel (если сборка позволит без ломки путей).
 - **Месячные отчёты продаж** (`club_sales_monthly`) — сравнение месяцев без загрузки всех daily; детали в [ROADMAP_MULTI_CLUB_AND_PAID.md](./ROADMAP_MULTI_CLUB_AND_PAID.md) §9.
 
+## Фаза 5 — регион и РФ-хостинг 📋 (будущее)
+
+Cutover **не в текущих спринтах**. Сейчас — только **закладка**: портативность в коде/docs (правило `fitness-diary-hosting-portability.mdc`).
+
+План фаз R0–R4: [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md). Staging/пилот — по явной команде.
+
 ---
 
 ## Мелкие UX (вне фаз, по приоритету)

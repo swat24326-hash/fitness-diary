@@ -92,6 +92,7 @@
 
 ## Связанные документы
 
+- [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md) — общая стратегия + **РФ-хостинг** (может заменить апгрейд Vercel Pro)
 - [DATA_VOLUME.md](./DATA_VOLUME.md) — SQL и пороги тренировок/клиентов
 - [PAID_TIER_MIGRATION.md](./PAID_TIER_MIGRATION.md) — чеклист дня перехода
 - [ROADMAP_MULTI_CLUB_AND_PAID.md](./ROADMAP_MULTI_CLUB_AND_PAID.md) — **план при 2+ клубах и Pro**

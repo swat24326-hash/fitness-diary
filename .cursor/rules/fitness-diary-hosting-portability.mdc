@@ -1,0 +1,29 @@
+---
+description: Hosting portability — future RU servers; write code/docs without Vercel/Supabase lock-in
+alwaysApply: true
+---
+
+# Портативность хостинга (РФ — в будущем)
+
+**Переезд на российские серверы не стартуем**, пока нет явной команды. Но при **каждой** фиче и доке держим в уме: тот же продукт должен когда‑нибудь жить на Postgres + Node API + статике в РФ без переписывания sync и домена.
+
+План и варианты (C1/C2): `docs/STRATEGY_SCALE_AND_RU_HOSTING.md`.
+
+## Делать
+
+1. **URL и секреты только из env** — `VITE_SUPABASE_*`, server keys, VAPID, Gemini. Не хардкодить `*.vercel.app`, project ref, регион облака в бизнес-логике.
+2. **Контракт API стабильный** — `/api/push-record(s)`, `trainer-pull`, `admin-data?action=`. Новая логика в `api/_lib/`, тонкий entrypoint.
+3. **Доменные правила в `src/lib/` / `api/_lib/`** — без привязки к бренду хостера; verify на чистых функциях.
+4. **Клиент → предпочтительно `/api/*`**, не размазывать прямой `supabase.from` по UI (проще сменить Auth/BaaS).
+5. **В docs** при упоминании деплоя: «сейчас Vercel/Supabase; целевой переезд — см. STRATEGY…», не писать так, будто US SaaS навсегда.
+
+## Не делать
+
+- Фичи «только на Vercel» (edge middleware, proprietary runtime) без запасного пути на обычный Node.
+- Второй параллельный стек «уже под РФ» в том же PR.
+- Ломать sync/офлайн ради удобства текущего хостера.
+- Стартовать cutover / R2–R4 без явной просьбы пользователя.
+
+## Иерархия
+
+Не важнее стабильности зала (`fitness-diary-stability.mdc`). Портативность = закладка в дизайн, не отдельный рефакторинг «на всякий случай».

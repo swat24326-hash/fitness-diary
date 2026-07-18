@@ -146,6 +146,11 @@ export async function listClientsByClubId(clubId) {
   return getAllFromClubIndex('clients', clubId)
 }
 
+/** @param {string} clubId */
+export async function listPnkFunnelEventsByClubId(clubId) {
+  return getAllFromClubIndex('pnk_funnel_events', clubId)
+}
+
 /** @param {string} trainerId */
 export async function listClientsByTrainerId(trainerId) {
   const tid = String(trainerId ?? '').trim()

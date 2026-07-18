@@ -6,6 +6,7 @@
 
 Связанные документы:
 
+- [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md) — общая стратегия масштаба и **переход на РФ-хостинг**
 - [GROWTH_PLAYBOOK.md](./GROWTH_PLAYBOOK.md) — журнал метрик и пороги тарифов
 - [DATA_VOLUME.md](./DATA_VOLUME.md) — SQL и цифры «когда бить тревогу»
 - [PAID_TIER_MIGRATION.md](./PAID_TIER_MIGRATION.md) — чеклист дня перехода на Pro
@@ -229,8 +230,9 @@ Prod: https://fitness-diary-bice.vercel.app
 |------|---------|---------|---------------|
 | 2026-07-11 | Масштабирование v10, индексы, check:volume | Остаёмся Free/Hobby | При 2-м клубе — §2; при договоре — §3 |
 | 2026-07-11 | Месячный отчёт продаж (`club_sales_monthly`) | Запланировано §9, не срочно | Этап A при росте сравнений / ИСКРЫ |
+| 2026-07-18 | Стратегия РФ-хостинга | План в [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md); переезд не стартован | Согласовать триггер и вариант C1/C2 |
 | | | | |
 
 ---
 
-*Обновлять этот файл при смене стратегии (новый домен, второй Supabase-проект, white-label).*
+*Обновлять этот файл при смене стратегии (новый домен, второй Supabase-проект, white-label, старт РФ-хостинга).*

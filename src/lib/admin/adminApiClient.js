@@ -84,8 +84,12 @@ export async function fetchTrainersViaAdminApi(opts = {}) {
         await sleep(400 * (attempt + 1))
         continue
       }
+      const siteOrigin =
+        typeof window !== 'undefined' && window.location?.origin
+          ? window.location.origin
+          : 'этого сайта'
       throw new Error(
-        `Не удалось открыть ${url} (${msg}). Проверьте связь и что сайт открыт с https://fitness-diary-bice.vercel.app — после деплоя сделайте жёсткое обновление (Ctrl+F5).`,
+        `Не удалось открыть ${url} (${msg}). Проверьте связь и что открыт именно ${siteOrigin} — после деплоя сделайте жёсткое обновление (Ctrl+F5).`,
       )
     }
 

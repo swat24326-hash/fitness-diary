@@ -37,6 +37,7 @@ PWA для тренера (планшет, офлайн) и админа. **Не
 - **Тренер / нестабильная сеть:** предпочитать `/api/*`, не новый прямой `supabase.from` из компонентов.
 - **Vercel Hobby ≤12 functions:** перед новым `api/*.js` — считать лимит; расширять `admin-data?action=` или удалять дубликат endpoint.
 - **Auth:** только `eyJ…` anon key, не `sb_publishable_…`.
+- **Портативность хостинга (РФ позже):** env вместо хардкода URL; логика в `_lib`, не в runtime хостера — `fitness-diary-hosting-portability.mdc`, план `docs/STRATEGY_SCALE_AND_RU_HOSTING.md`.
 
 ## Запрещённые «костыли»
 
@@ -52,4 +53,4 @@ PWA для тренера (планшет, офлайн) и админа. **Не
 
 **Новая фича (полный цикл):** `fitness-diary-features.mdc` — фильтр идеи, исход, wow, стабильность, ship.
 
-Подробнее: `fitness-diary-split-files.mdc`, `fitness-diary-scale.mdc`, `fitness-diary-ship.mdc`, `fitness-diary-domain.mdc`, `fitness-diary-cursor-efficiency.mdc`. Контекст: `docs/PROJECT_HANDOFF_FOR_AI.md`.
+Подробнее: `fitness-diary-split-files.mdc`, `fitness-diary-scale.mdc`, `fitness-diary-ship.mdc`, `fitness-diary-domain.mdc`, `fitness-diary-hosting-portability.mdc`, `fitness-diary-cursor-efficiency.mdc`. Контекст: `docs/PROJECT_HANDOFF_FOR_AI.md`.

@@ -2,6 +2,8 @@
 
 Документ-памятка. **Не оплачивать заранее** — только когда объём клуба упирается в лимиты free tier.
 
+Если цель — **данные и API в РФ**, смотрите сначала [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md): свой хостинг может снять лимит Vercel Hobby без апгрейда Pro.
+
 ## Когда пора
 
 - Стабильные `ERR_CONNECTION_RESET` / таймауты Supabase в часы пик.

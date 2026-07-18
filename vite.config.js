@@ -2,8 +2,9 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-const devApiProxyTarget =
-  process.env.VITE_DEV_API_PROXY?.trim() || 'https://fitness-diary-bice.vercel.app'
+/** Локальный `npm run dev`: куда проксировать `/api`. Переопределение — VITE_DEV_API_PROXY. */
+const DEFAULT_DEV_API_PROXY = 'https://fitness-diary-bice.vercel.app'
+const devApiProxyTarget = process.env.VITE_DEV_API_PROXY?.trim() || DEFAULT_DEV_API_PROXY
 
 /** Время сборки — попадает в Диагностику рядом с id бандла. */
 const appBuildTimeIso = new Date().toISOString()
