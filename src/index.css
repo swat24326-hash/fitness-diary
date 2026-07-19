@@ -3122,21 +3122,21 @@ tr:last-child td {
   will-change: transform;
 }
 
-/* Гантель — метафора роли тренера (не brand-mark продукта Ось) */
-.trainer-home__hero-dumbbell {
+/* Гантель FA — как на главной тренера раньше (не brand-mark Ось) */
+.trainer-home__hero-dumbbell-fa {
   display: block;
-  width: clamp(56px, 14vw, 120px);
-  height: clamp(56px, 14vw, 120px);
-  color: var(--accent-bright);
+  font-size: clamp(72px, 18vw, 220px);
+  line-height: 1;
+  color: var(--accent);
   transition:
     color 0.3s ease,
     transform 0.3s ease;
   filter: drop-shadow(0 0 14px var(--accent-glow)) drop-shadow(0 18px 36px rgba(0, 0, 0, 0.45));
 }
 
-.trainer-home__hero-float:hover .trainer-home__hero-dumbbell {
+.trainer-home__hero-float:hover .trainer-home__hero-dumbbell-fa {
   transform: scale(1.06);
-  color: var(--accent);
+  color: var(--accent-bright);
 }
 
 .trainer-home__tiles {
@@ -3370,9 +3370,8 @@ tr:last-child td {
     align-self: center;
   }
 
-  .trainer-home__hero-dumbbell {
-    width: clamp(40px, 11vw, 72px);
-    height: clamp(40px, 11vw, 72px);
+  .trainer-home__hero-dumbbell-fa {
+    font-size: clamp(40px, 11vw, 86px);
   }
 
   .trainer-home__hero-glow {
@@ -3423,9 +3422,8 @@ tr:last-child td {
     font-size: clamp(1.28rem, 4.2vw, 1.75rem);
   }
 
-  .trainer-home__hero-dumbbell {
-    width: clamp(34px, 9vw, 58px);
-    height: clamp(34px, 9vw, 58px);
+  .trainer-home__hero-dumbbell-fa {
+    font-size: clamp(34px, 9vw, 58px);
   }
 
   .trainer-home .feature-tile {

@@ -219,6 +219,22 @@ async function handler(req, res) {
     return handlePnk(ctx, req, res)
   }
 
+  /** Настройки качества ведения: чтение — админ или сотрудник своего клуба; запись — только админ (POST). */
+  if (action === 'coach-quality-settings') {
+    const clubId = String(req.query?.club_id ?? '').trim()
+    const authCtx = await requireAuthUser(req, res)
+    if (!authCtx) return
+    if (authCtx.isAdmin) {
+      return handleCoachQualitySettingsGet(authCtx, req, res)
+    }
+    const userClub = String(authCtx.profile?.club_id ?? '').trim()
+    if ((authCtx.isTrainer || authCtx.isSalesManager) && clubId && userClub === clubId) {
+      return handleCoachQualitySettingsGet(authCtx, req, res)
+    }
+    sendJson(res, 403, { error: 'Нет доступа к настройкам качества этого клуба' })
+    return
+  }
+
   const ctx = await requireAdmin(req, res)
   if (!ctx) return
 
@@ -239,8 +255,6 @@ async function handler(req, res) {
       return handleGeminiAnalyticsPrefetchGet(ctx, req, res)
     case 'iskra-settings':
       return handleIskraSettingsGet(ctx, req, res)
-    case 'coach-quality-settings':
-      return handleCoachQualitySettingsGet(ctx, req, res)
     case 'iskra-learning':
       return handleIskraLearningGet(ctx, req, res)
     case 'iskra-dispatch':

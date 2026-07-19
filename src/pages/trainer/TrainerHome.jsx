@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Dumbbell, User, Users, Trophy, Swords } from 'lucide-react'
+import { User, Users, Trophy, Swords } from 'lucide-react'
 import { TrainerAttentionPanel } from '../../components/trainer/TrainerAttentionPanel'
 import { TrainerSyncPendingBanner } from '../../components/trainer/TrainerSyncPendingBanner'
 import { TrainerCoachQualityGlance } from '../../components/trainer/TrainerCoachQualityGlance'
@@ -267,7 +267,7 @@ export function TrainerHome() {
         <div className="trainer-home__hero-visual" aria-hidden>
           <div className="trainer-home__hero-glow" />
           <div className="trainer-home__hero-float">
-            <Dumbbell size={96} strokeWidth={1.5} className="trainer-home__hero-dumbbell" aria-hidden />
+            <i className="fas fa-dumbbell trainer-home__hero-dumbbell-fa" aria-hidden />
           </div>
         </div>
       </section>

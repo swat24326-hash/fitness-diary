@@ -61,7 +61,7 @@
 | `src/components/trainer/TrainerCoachQualityGlance.jsx` | UI на главной тренера |
 | `src/lib/admin/coachQualitySettingsService.js` | клиент API настроек |
 | `src/pages/admin/AdminCoachQualitySettings.jsx` | UI в Структуре |
-| `api/_lib/coachQualitySettingsHandler.js` | `admin-data?action=coach-quality-settings` |
+| `api/_lib/coachQualitySettingsHandler.js` | `admin-data?action=coach-quality-settings` (GET: админ или тренер/продажи своего клуба; POST: только админ) |
 | `api/_lib/coachQualityCareFetch.js` | медкарты / обмеры / вес для `club-stats` |
 | `api/_lib/adminData/clubHandlers.js` | `club-stats` → `coachQuality` + конфиг клуба |
 | `supabase/migrations/20260718190000_club_coach_quality_settings.sql` | таблица настроек |

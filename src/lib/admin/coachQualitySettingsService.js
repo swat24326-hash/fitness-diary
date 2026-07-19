@@ -16,7 +16,7 @@ async function parseJson(res) {
 /** @param {string} clubId */
 export async function fetchCoachQualitySettings(clubId) {
   const token = await getAccessTokenForAdminApi()
-  if (!token) throw new Error('Нет сессии администратора')
+  if (!token) throw new Error('Нет сессии')
   const params = new URLSearchParams({
     action: 'coach-quality-settings',
     club_id: clubId,
@@ -52,7 +52,7 @@ export async function loadCoachQualityConfigForClub(clubId) {
  */
 export async function saveCoachQualitySettings(clubId, payload = {}) {
   const token = await getAccessTokenForAdminApi()
-  if (!token) throw new Error('Нет сессии администратора')
+  if (!token) throw new Error('Нет сессии')
   const body = {
     club_id: clubId,
     reset: payload.reset === true,
