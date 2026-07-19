@@ -6,6 +6,8 @@ import { AdminHomeSalesPlanGlance } from '../../components/admin/AdminHomeSalesP
 import { ManagerPnkHomeGlance } from '../../components/pnk/ManagerPnkHomeGlance'
 import { dispatchLocalDataChanged } from '../../lib/dataAccess'
 import { loadAdminClubDaySummary } from '../../lib/admin/adminClubDaySummaryService'
+import { loadClubTrainingStats } from '../../lib/admin/adminClubStatsService'
+import { getDateRange } from '../../lib/period'
 import { useDebouncedStorageReload } from '../../lib/useDebouncedStorageReload'
 import { shouldReloadAdminDaySummary } from '../../lib/admin/adminClubDaySummaryCore'
 import '../../styles/pnk-funnel.css'
@@ -33,7 +35,10 @@ export function AdminDashboard() {
 
   const [daySummary, setDaySummary] = useState(null)
   const [daySummaryLoading, setDaySummaryLoading] = useState(false)
+  const [coachQualityHome, setCoachQualityHome] = useState(null)
+  const [coachQualityHomeLoading, setCoachQualityHomeLoading] = useState(false)
   const daySummaryGenRef = useRef(0)
+  const cqGenRef = useRef(0)
 
   const loadDaySummary = useCallback(async ({ silent = false } = {}) => {
     if (!isAdminHome) return
@@ -56,14 +61,59 @@ export function AdminDashboard() {
     }
   }, [clubId, isAdminHome])
 
+  const loadCoachQualityHome = useCallback(async ({ silent = false } = {}) => {
+    if (!isAdminHome) return
+    const gen = ++cqGenRef.current
+    if (!clubId) {
+      setCoachQualityHome(null)
+      setCoachQualityHomeLoading(false)
+      return
+    }
+    if (!silent) setCoachQualityHomeLoading(true)
+    try {
+      const range = getDateRange('month')
+      const stats = await loadClubTrainingStats({
+        clubId,
+        dateFrom: range.start,
+        dateTo: range.end,
+      })
+      if (gen !== cqGenRef.current) return
+      const cq = stats?.coachQuality
+      if (!cq) {
+        setCoachQualityHome(null)
+        return
+      }
+      const review = Number(cq.brief?.reviewCount) || 0
+      const dropped = Number(cq.brief?.droppedCount) || 0
+      setCoachQualityHome({
+        scorePct: cq.averageScorePct ?? null,
+        chipLabel: cq.brief?.chipLabel ?? null,
+        hot: review > 0 || dropped > 0,
+      })
+    } catch {
+      if (gen !== cqGenRef.current) return
+      setCoachQualityHome(null)
+    } finally {
+      if (gen === cqGenRef.current && !silent) setCoachQualityHomeLoading(false)
+    }
+  }, [clubId, isAdminHome])
+
   useEffect(() => {
     void loadDaySummary()
+    void loadCoachQualityHome()
     return () => {
       daySummaryGenRef.current += 1
+      cqGenRef.current += 1
     }
-  }, [loadDaySummary])
+  }, [loadDaySummary, loadCoachQualityHome])
 
-  useDebouncedStorageReload(() => loadDaySummary({ silent: true }), { shouldRun: shouldReloadAdminDaySummary })
+  useDebouncedStorageReload(
+    () => {
+      void loadDaySummary({ silent: true })
+      void loadCoachQualityHome({ silent: true })
+    },
+    { shouldRun: shouldReloadAdminDaySummary },
+  )
 
   return (
     <div className={`admin-home${isAdminHome ? ' admin-home--dashboard' : ' admin-home--section'}`}>
@@ -86,6 +136,8 @@ export function AdminDashboard() {
             clubId={clubId}
             loading={daySummaryLoading}
             noClub={!clubId}
+            coachQuality={coachQualityHome}
+            coachQualityLoading={coachQualityHomeLoading}
           />
 
           {clubId ? <ManagerPnkHomeGlance clubId={clubId} href={tab('pnk')} /> : null}

@@ -3711,6 +3711,14 @@ tr:last-child td {
   font-size: clamp(1.1rem, 3.2vw, 1.35rem);
 }
 
+.admin-day-summary__card-suffix {
+  margin-left: 2px;
+  font-size: 0.55em;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0;
+}
+
 .admin-day-summary__card-label {
   font-size: 13px;
   font-weight: 600;
@@ -3924,7 +3932,7 @@ tr:last-child td {
   }
 
   .app-shell--admin .admin-day-summary__grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 

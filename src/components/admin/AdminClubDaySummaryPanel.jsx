@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { AlertTriangle, BarChart3, Clock, TrendingUp, UserX } from 'lucide-react'
+import { AlertTriangle, BarChart3, Clock, Gauge, TrendingUp, UserX } from 'lucide-react'
 import { formatIsoRu } from '../../lib/period'
 import { buildAdminClubQueryHref } from '../../lib/admin/adminClientQuickFilters'
 
@@ -19,9 +19,22 @@ import { buildAdminClubQueryHref } from '../../lib/admin/adminClientQuickFilters
  *   clubId?: string,
  *   loading?: boolean,
  *   noClub?: boolean,
+ *   coachQuality?: {
+ *     scorePct: number | null,
+ *     chipLabel: string | null,
+ *     hot?: boolean,
+ *   } | null,
+ *   coachQualityLoading?: boolean,
  * }} props
  */
-export function AdminClubDaySummaryPanel({ summary, clubId = '', loading = false, noClub = false }) {
+export function AdminClubDaySummaryPanel({
+  summary,
+  clubId = '',
+  loading = false,
+  noClub = false,
+  coachQuality = null,
+  coachQualityLoading = false,
+}) {
   if (noClub) {
     return (
       <section className="admin-day-summary" aria-labelledby="admin-day-summary-title">
@@ -44,6 +57,7 @@ export function AdminClubDaySummaryPanel({ summary, clubId = '', loading = false
           <p className="admin-path-loading__text">Загрузка…</p>
         </div>
         <div className="admin-path-skeleton-grid" aria-hidden>
+          <div className="admin-path-skeleton-tile" />
           <div className="admin-path-skeleton-tile" />
           <div className="admin-path-skeleton-tile" />
           <div className="admin-path-skeleton-tile" />
@@ -100,6 +114,22 @@ export function AdminClubDaySummaryPanel({ summary, clubId = '', loading = false
       hot: summary.salesReportFilled === false,
       textCount: true,
     },
+    {
+      key: 'coachQuality',
+      count:
+        coachQualityLoading && !coachQuality
+          ? '…'
+          : coachQuality?.scorePct != null
+            ? coachQuality.scorePct
+            : '—',
+      valueSuffix: coachQuality?.scorePct != null ? '/100' : null,
+      label: 'Качество ведения',
+      hint: coachQuality?.chipLabel || 'за месяц · таблица в статистике',
+      icon: Gauge,
+      to: buildAdminClubQueryHref('/admin/statistics', { clubId, period: 'month', panel: 'coachQuality' }),
+      hot: Boolean(coachQuality?.hot),
+      textCount: coachQuality?.scorePct == null,
+    },
   ]
 
   return (
@@ -122,7 +152,7 @@ export function AdminClubDaySummaryPanel({ summary, clubId = '', loading = false
         )}
       </div>
       <ul className="admin-day-summary__grid">
-        {items.map(({ key, count, label, hint, icon: Icon, to, hot, textCount }) => (
+        {items.map(({ key, count, label, hint, icon: Icon, to, hot, textCount, valueSuffix }) => (
           <li key={key}>
             <Link
               to={to}
@@ -133,6 +163,7 @@ export function AdminClubDaySummaryPanel({ summary, clubId = '', loading = false
               </span>
               <span className={`admin-day-summary__card-count${textCount ? ' admin-day-summary__card-count--text' : ''}`}>
                 {count}
+                {valueSuffix ? <span className="admin-day-summary__card-suffix">{valueSuffix}</span> : null}
               </span>
               <span className="admin-day-summary__card-label">{label}</span>
               <span className="admin-day-summary__card-hint muted">
