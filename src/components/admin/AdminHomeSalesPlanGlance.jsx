@@ -28,7 +28,7 @@ const MONTH_NAMES = [
 ]
 
 /**
- * Факт / план месяца на главной админа — тот же сосуд, что в продажах, в оболочке admin-home.
+ * Факт / план месяца на главной админа — тап по карточке открывает продажи.
  * @param {{ clubId: string }} props
  */
 export function AdminHomeSalesPlanGlance({ clubId = '' }) {
@@ -89,7 +89,12 @@ export function AdminHomeSalesPlanGlance({ clubId = '' }) {
   if (!String(clubId || '').trim()) return null
 
   return (
-    <section className="admin-home-sales-plan" aria-labelledby="admin-home-sales-plan-title">
+    <Link
+      to={salesHref}
+      className="admin-home-sales-plan u-no-decoration"
+      aria-labelledby="admin-home-sales-plan-title"
+      title="Открыть продажи"
+    >
       <div className="admin-home-sales-plan__head">
         <div className="admin-home-sales-plan__titles">
           <h2 id="admin-home-sales-plan-title" className="admin-home-sales-plan__title">
@@ -98,9 +103,6 @@ export function AdminHomeSalesPlanGlance({ clubId = '' }) {
           </h2>
           {monthLabel ? <p className="admin-home-sales-plan__month muted">{monthLabel}</p> : null}
         </div>
-        <Link to={salesHref} className="btn btn-ghost btn-sm btn-touch admin-home-sales-plan__link">
-          Открыть
-        </Link>
       </div>
 
       {loading ? (
@@ -117,6 +119,6 @@ export function AdminHomeSalesPlanGlance({ clubId = '' }) {
           <SalesPlanVessel fact={fact} planLevels={planLevels} />
         </div>
       )}
-    </section>
+    </Link>
   )
 }

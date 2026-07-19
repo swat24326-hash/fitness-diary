@@ -72,39 +72,61 @@
   }
 }
 
-/* Факт / план на главной админа — champagne glass, не navy продаж */
+/* Факт / план на главной админа — champagne glass, узко по высоте, на всю ширину */
 .admin-home-sales-plan {
+  display: block;
   width: 100%;
-  max-width: 920px;
-  margin-inline: auto;
-  padding: clamp(14px, 2.2vw, 20px);
+  max-width: none;
+  margin-inline: 0;
+  align-self: stretch;
+  padding: 10px 14px;
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--bg-card);
   backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
   box-shadow: var(--shadow-soft);
+  color: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.15s var(--ease-out),
+    box-shadow 0.15s var(--ease-out),
+    transform 0.15s var(--ease-out);
+}
+
+.admin-home-sales-plan:hover {
+  border-color: color-mix(in srgb, var(--accent-bright) 40%, var(--border));
+  box-shadow: var(--shadow-soft);
+}
+
+.admin-home-sales-plan:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent-bright) 55%, transparent);
+  outline-offset: 2px;
 }
 
 .admin-home-sales-plan__head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .admin-home-sales-plan__titles {
   min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .admin-home-sales-plan__title {
   margin: 0;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: clamp(1rem, 2.4vw, 1.15rem);
+  gap: 6px;
+  font-size: 0.95rem;
   font-weight: 650;
   letter-spacing: 0.02em;
   color: var(--text);
@@ -113,15 +135,13 @@
 .admin-home-sales-plan__icon {
   color: var(--accent-bright);
   flex-shrink: 0;
+  width: 16px;
+  height: 16px;
 }
 
 .admin-home-sales-plan__month {
-  margin: 4px 0 0;
-  font-size: 0.85rem;
-}
-
-.admin-home-sales-plan__link {
-  flex-shrink: 0;
+  margin: 0;
+  font-size: 0.8rem;
 }
 
 .admin-home-sales-plan__error {
@@ -131,16 +151,71 @@
 
 .admin-home-sales-plan__vessel .sales-report__plan-chart {
   max-width: none;
+  width: 100%;
+  margin: 0;
   padding: 0;
+  gap: 0.35rem;
+  align-items: stretch;
 }
 
 .admin-home-sales-plan__vessel .sales-report__plan-track {
+  height: 12px;
   background: color-mix(in srgb, var(--bg) 70%, transparent);
   border-color: var(--border);
 }
 
+.admin-home-sales-plan__vessel .sales-report__plan-milestone {
+  height: 18px;
+  margin-top: -9px;
+}
+
+.admin-home-sales-plan__vessel .sales-report__plan-milestone-ruler {
+  height: 1.15rem;
+  margin-top: 0.2rem;
+}
+
+.admin-home-sales-plan__vessel .sales-report__plan-milestone-tag {
+  width: 1.1rem;
+  height: 1.1rem;
+  font-size: 0.62rem;
+}
+
+.admin-home-sales-plan__vessel .sales-report__plan-stats {
+  margin: 0;
+  gap: 0.1rem;
+}
+
+.admin-home-sales-plan__vessel .sales-report__plan-stats-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+}
+
+.admin-home-sales-plan__vessel .sales-report__plan-fraction {
+  font-size: clamp(1.05rem, 2.2vw, 1.35rem);
+  line-height: 1.15;
+}
+
 .admin-home-sales-plan__vessel .sales-report__plan-fact {
   color: var(--accent-bright);
+}
+
+.admin-home-sales-plan__vessel .sales-report__plan-levels-grid {
+  gap: 0.4rem;
+  margin-top: 0.15rem;
+}
+
+.admin-home-sales-plan__vessel .sales-report__plan-level-chip {
+  min-height: 2.35rem;
+  padding: 0.3rem 0.35rem;
+  gap: 0.1rem;
+}
+
+.admin-home-sales-plan__vessel .sales-report__plan-level-chip-label {
+  font-size: 0.62rem;
+}
+
+.admin-home-sales-plan__vessel .sales-report__plan-level-chip-value {
+  font-size: clamp(0.7rem, 1.4vw, 0.82rem);
 }
 
 .admin-home-sales-plan__vessel .sales-report__plan-level-chip.is-reached,
@@ -150,4 +225,35 @@
 
 .admin-home-sales-plan__vessel .sales-report__plan-level-chip.is-reached .sales-report__plan-level-chip-label {
   color: var(--accent-bright);
+}
+
+@media (min-width: 900px) {
+  .admin-home-sales-plan {
+    padding: 10px 16px 12px;
+  }
+
+  .admin-home-sales-plan__vessel .sales-report__plan-chart {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(150px, 0.5fr) minmax(0, 1fr);
+    column-gap: 16px;
+    row-gap: 0;
+    align-items: center;
+  }
+
+  .admin-home-sales-plan__vessel .sales-report__plan-track-wrap {
+    min-width: 0;
+  }
+
+  .admin-home-sales-plan__vessel .sales-report__plan-stats {
+    text-align: left;
+    align-items: flex-start;
+  }
+
+  .admin-home-sales-plan__vessel .sales-report__plan-fraction {
+    justify-content: flex-start;
+  }
+
+  .admin-home-sales-plan__vessel .sales-report__plan-levels-grid {
+    margin-top: 0;
+  }
 }

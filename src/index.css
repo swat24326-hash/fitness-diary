@@ -3887,6 +3887,7 @@ tr:last-child td {
 }
 
 .app-shell--admin .admin-day-summary,
+.app-shell--admin .admin-home-sales-plan,
 .app-shell--admin .admin-home__tiles,
 .app-shell--admin .admin-home__tile-grid {
   max-width: none;
