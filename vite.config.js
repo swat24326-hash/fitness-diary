@@ -30,8 +30,8 @@ export default defineConfig(({ mode }) => ({
       name: 'fitness-diary-build-meta',
       transformIndexHtml(html) {
         return html.replace(
-          '<title>FIT-CITY</title>',
-          `<meta name="fitness-diary-build-time" content="${appBuildTimeIso}" />\n    <title>FIT-CITY</title>`,
+          '<title>Ось</title>',
+          `<meta name="fitness-diary-build-time" content="${appBuildTimeIso}" />\n    <title>Ось</title>`,
         )
       },
     },
@@ -50,9 +50,9 @@ export default defineConfig(({ mode }) => ({
         'icons/icon-512.png',
       ],
       manifest: {
-        name: 'FIT-CITY Дневник тренировок',
-        short_name: 'FIT-CITY',
-        description: 'Дневник тренировок для фитнес-клуба',
+        name: 'Ось — операционная система фитнес-клуба',
+        short_name: 'Ось',
+        description: 'Операционная система фитнес-клуба: зал, продажи, управление',
         start_url: '/',
         display: 'standalone',
         theme_color: '#0a0a0a',

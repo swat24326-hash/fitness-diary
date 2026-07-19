@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { User, Users, Trophy, Swords } from 'lucide-react'
+import { OsMark } from '../../components/brand/OsMark.jsx'
 import { TrainerAttentionPanel } from '../../components/trainer/TrainerAttentionPanel'
 import { TrainerSyncPendingBanner } from '../../components/trainer/TrainerSyncPendingBanner'
 import { TrainerCoachQualityGlance } from '../../components/trainer/TrainerCoachQualityGlance'
@@ -256,10 +257,10 @@ export function TrainerHome() {
       <section className="trainer-home__hero" aria-labelledby="trainer-home-title">
         <div className="trainer-home__hero-text">
           <h1 id="trainer-home-title" className="trainer-home__title">
-            <span className="trainer-home__title-eyebrow">фитнес</span>
+            <span className="trainer-home__title-eyebrow">зал</span>
             <span className="trainer-home__title-display">
-              <span className="trainer-home__title-display-accent">Днев</span>
-              <span className="trainer-home__title-display-rest">ник</span>
+              <span className="trainer-home__title-display-accent">Глав</span>
+              <span className="trainer-home__title-display-rest">ная</span>
             </span>
           </h1>
           <p className="trainer-home__lead">Контроль. Результат. Профессионализм.</p>
@@ -267,7 +268,7 @@ export function TrainerHome() {
         <div className="trainer-home__hero-visual" aria-hidden>
           <div className="trainer-home__hero-glow" />
           <div className="trainer-home__hero-float">
-            <i className="fas fa-dumbbell trainer-home__hero-dumbbell-fa" aria-hidden />
+            <OsMark size={96} className="trainer-home__hero-mark" />
           </div>
         </div>
       </section>

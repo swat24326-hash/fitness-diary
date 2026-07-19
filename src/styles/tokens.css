@@ -1,5 +1,5 @@
 /**
- * Premium theme — глобальные токены FIT-CITY.
+ * Premium theme — глобальные токены Ось.
  * Канон: docs/BRAND_SYSTEM.md (Whoop-дисциплина + ролевые оттенки).
  * Семантика: --premium-* (источник) → --bg, --accent, … (используются в UI).
  * База :root = тренер (emerald); .app-shell--sales / --admin переопределяют accent.
@@ -114,7 +114,7 @@
  * База :root = тренер (emerald). Sales / admin переопределяют accent + radial + glow.
  */
 .app-shell--trainer {
-  /* явный класс: значения как у :root (emerald) */
+  /* Явный класс симметрии ролей; значения = :root (emerald). Не убирать. */
 }
 
 .app-shell--sales {

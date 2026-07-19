@@ -1,7 +1,7 @@
 {
-  "name": "FIT-CITY Дневник тренировок",
-  "short_name": "FIT-CITY",
-  "description": "Дневник тренировок для фитнес-клуба",
+  "name": "Ось — операционная система фитнес-клуба",
+  "short_name": "Ось",
+  "description": "Операционная система фитнес-клуба: зал, продажи, управление",
   "start_url": "/",
   "display": "standalone",
   "theme_color": "#0a0a0a",
@@ -18,4 +18,3 @@
     { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
   ]
 }
-

@@ -1,5 +1,6 @@
-import { Dumbbell } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { OsMark } from './brand/OsMark.jsx'
+import { PRODUCT_BRAND_LOCKUP, PRODUCT_BRAND_TAGLINE } from '../lib/productBrand.js'
 
 /** Экран при старте сессии / во время входа вместо сухого «Загрузка…». */
 export function AppWelcomeSplash({ displayName: displayNameProp } = {}) {
@@ -15,14 +16,15 @@ export function AppWelcomeSplash({ displayName: displayNameProp } = {}) {
       <div className="app-welcome" role="status" aria-live="polite" aria-label="Добро пожаловать">
         <div className="app-welcome__stage" aria-hidden>
           <span className="app-welcome__glow" />
-          <div className="app-welcome__dumbbell">
-            <Dumbbell size={52} strokeWidth={2.25} />
+          <div className="app-welcome__dumbbell app-welcome__mark">
+            <OsMark size={56} />
           </div>
           <span className="app-welcome__spark app-welcome__spark--a">💪</span>
           <span className="app-welcome__spark app-welcome__spark--b">✨</span>
           <span className="app-welcome__spark app-welcome__spark--c">🔥</span>
         </div>
-        <p className="app-welcome__brand">FIT-CITY</p>
+        <p className="app-welcome__brand">{PRODUCT_BRAND_LOCKUP}</p>
+        <p className="app-welcome__tagline">{PRODUCT_BRAND_TAGLINE}</p>
         <h1 className="app-welcome__title">Добро пожаловать</h1>
         {name ? <p className="app-welcome__name">{name}</p> : null}
         <p className="app-welcome__hint">

@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BarChart3, Building2, ClipboardList, Sparkles, Stethoscope, TrendingUp, Trophy, UserCircle, UserPlus } from 'lucide-react'
+import { BarChart3, Building2, ClipboardList, Shield, Sparkles, Stethoscope, TrendingUp, Trophy, UserCircle, UserPlus } from 'lucide-react'
 import { AdminClubDaySummaryPanel } from '../../components/admin/AdminClubDaySummaryPanel'
 import { ManagerPnkHomeGlance } from '../../components/pnk/ManagerPnkHomeGlance'
 import { dispatchLocalDataChanged } from '../../lib/dataAccess'
@@ -69,7 +69,7 @@ export function AdminDashboard() {
       {isAdminHome ? (
         <>
           <div className="admin-home__brand-row">
-            <i className="fas fa-shield-halved admin-home__brand-icon" aria-hidden />
+            <Shield className="admin-home__brand-icon" size={28} strokeWidth={2.25} aria-hidden />
             <h1 className="admin-home__brand-title">Админпанель</h1>
           </div>
 

@@ -1,8 +1,8 @@
-# Документация fitness-diary (FIT-CITY)
+# Документация fitness-diary (**Ось**)
 
 Карта файлов в `docs/`. Правила для Cursor — в `.cursor/rules/` (не дублируем политику здесь).
 
-**С чего начать:** [PRODUCT_VISION.md](./PRODUCT_VISION.md) — крупная цель (тип ОС клуба) → [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) — что в коде сегодня → при углублении системная карта ниже.
+**С чего начать:** [PRODUCT_VISION.md](./PRODUCT_VISION.md) — крупная цель → [BRAND_SYSTEM.md](./BRAND_SYSTEM.md) — продукт Ось vs клуб FIT-CITY → [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) — что в коде сегодня.
 
 **Системная карта (тонкие доки):** [API.md](./API.md) · [SYNC.md](./SYNC.md) · [DATA_MODEL.md](./DATA_MODEL.md) · [TESTING.md](./TESTING.md) · [PWA.md](./PWA.md)
 

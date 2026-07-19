@@ -6,6 +6,8 @@ import { isAppOnline } from '../lib/syncService'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react'
 import { AlertTriangle, BarChart3, CircleHelp, Inbox, LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, TrendingUp, User, UserCircle, Building2 } from 'lucide-react'
+import { OsMark } from './brand/OsMark.jsx'
+import { PRODUCT_BRAND_NAME, productBrandAriaOnline } from '../lib/productBrand.js'
 import {
   listClubsLocal,
   LOCAL_DATA_CHANGED,
@@ -346,6 +348,13 @@ export function AppHeader() {
     return club?.name?.trim() || ''
   }, [adminClubs, adminClubValue])
 
+  /** В шапке герой — клуб; Ось только микро-знаком (docs/BRAND_SYSTEM.md). */
+  const headerClubTitle = isAdmin
+    ? adminClubName || (adminClubsLoading && adminClubs.length === 0 ? '…' : 'Выберите клуб')
+    : trainerClubLabel === null
+      ? '…'
+      : trainerClubLabel || '—'
+
   return (
     <>
     <header
@@ -379,15 +388,18 @@ export function AppHeader() {
         ) : (
           <Link
             to={homeTo}
-            className="app-brand u-no-decoration"
+            className="app-brand app-brand--club-hero u-no-decoration"
             style={{ color: 'inherit' }}
-            title={online ? 'Сеть: онлайн' : 'Сеть: офлайн'}
-            aria-label={online ? 'FIT-CITY, подключение к сети есть' : 'FIT-CITY, нет подключения к сети'}
+            title={`${PRODUCT_BRAND_NAME} · ${online ? 'онлайн' : 'офлайн'}`}
+            aria-label={`${headerClubTitle}. ${productBrandAriaOnline(online)}`}
           >
-            <span className={`app-brand-mark ${online ? 'app-brand-mark--online' : 'app-brand-mark--offline'}`} aria-hidden>
-              <i className="fas fa-dumbbell app-brand-mark__fa-icon" aria-hidden />
+            <span
+              className={`app-brand-mark app-brand-mark--micro ${online ? 'app-brand-mark--online' : 'app-brand-mark--offline'}`}
+              aria-hidden
+            >
+              <OsMark size={18} className="app-brand-mark__svg" />
             </span>
-            <span className="app-brand-text">FIT-CITY</span>
+            <span className="app-brand-club">{headerClubTitle}</span>
           </Link>
         )}
       </div>

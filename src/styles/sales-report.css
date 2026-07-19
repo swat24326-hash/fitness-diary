@@ -224,7 +224,7 @@
 }
 
 .sales-report__plan-fact {
-  color: var(--accent-bright, #4ade80);
+  color: var(--accent-bright);
 }
 
 .sales-report__plan-sep {
@@ -314,7 +314,7 @@
   margin: 0;
   font-size: clamp(1.15rem, 3vw, 1.5rem);
   font-weight: 700;
-  color: var(--accent-bright, #4ade80);
+  color: var(--accent-bright);
 }
 
 .sales-report__vessel-plan {
@@ -388,8 +388,8 @@
 }
 
 .sales-report__date-btn:hover:not(:disabled) {
-  border-color: var(--accent-bright, #4ade80);
-  color: var(--accent-bright, #4ade80);
+  border-color: var(--accent-bright);
+  color: var(--accent-bright);
 }
 
 .sales-report__date-btn:disabled {
@@ -447,7 +447,7 @@
 }
 
 .sales-report__metric-total strong {
-  color: var(--accent-bright, #4ade80);
+  color: var(--accent-bright);
   font-size: 1.2rem;
 }
 
@@ -494,7 +494,7 @@
 
 .sales-report__mini-card svg {
   flex-shrink: 0;
-  color: var(--accent-bright, #4ade80);
+  color: var(--accent-bright);
   opacity: 0.85;
 }
 
@@ -648,7 +648,7 @@
 .sales-report__matrix-cell-avg {
   grid-column: 1 / -1;
   font-size: 0.75rem;
-  color: var(--accent-bright, #4ade80);
+  color: var(--accent-bright);
   text-align: center;
   padding-top: 0.15rem;
 }
@@ -667,7 +667,7 @@
 }
 
 .sales-report__matrix-computed strong {
-  color: var(--accent-bright, #4ade80);
+  color: var(--accent-bright);
   font-weight: 600;
 }
 
@@ -792,7 +792,7 @@
 
 .sales-report__kpi--primary .sales-report__kpi-value {
   font-size: clamp(1.25rem, 3vw, 1.75rem);
-  color: var(--accent-bright, #4ade80);
+  color: var(--accent-bright);
 }
 
 .sales-report__kpi--supplement {
@@ -1049,7 +1049,7 @@
 
 .sales-report__plan-computed-total {
   font-size: 1.05rem;
-  color: var(--accent-bright, #4ade80);
+  color: var(--accent-bright);
 }
 
 .sales-report__plan-sum-hint {
@@ -1063,7 +1063,7 @@
 }
 
 .sales-report__plan-sum-hint--ok {
-  color: var(--accent-bright, #4ade80);
+  color: var(--accent-bright);
 }
 
 .sales-report__plan-levels {
@@ -1087,7 +1087,7 @@
 
 .sales-report__plan-level-label {
   font-weight: 600;
-  color: var(--accent-bright, #4ade80);
+  color: var(--accent-bright);
 }
 
 .sales-report__plan-level-track {
@@ -1167,7 +1167,7 @@
 .sales-report__tabs .tab[aria-selected='true'] {
   background: rgba(46, 255, 184, 0.12);
   border-color: rgba(46, 255, 184, 0.25);
-  color: var(--accent-bright, #4ade80);
+  color: var(--accent-bright);
 }
 
 .sales-report__finance {
@@ -1210,7 +1210,7 @@
   justify-content: center;
   font-size: 0.8rem;
   font-weight: 800;
-  color: var(--accent-bright, #4ade80);
+  color: var(--accent-bright);
   background: rgba(46, 255, 184, 0.12);
   border: 1px solid rgba(46, 255, 184, 0.28);
   box-shadow: 0 0 16px rgba(46, 255, 184, 0.12);
@@ -1571,7 +1571,7 @@
 }
 
 .sales-finance-forecast__section-icon {
-  color: var(--accent-bright, #4ade80);
+  color: var(--accent-bright);
 }
 
 .sales-finance-forecast__plan-cards {
@@ -1788,12 +1788,12 @@
 }
 
 .sales-finance-forecast__row--primary th[scope='row'] {
-  color: var(--accent-bright, #4ade80);
+  color: var(--accent-bright);
   font-size: 0.98rem;
 }
 
 .sales-finance-forecast__row--primary .sales-finance-forecast__col-forecast {
-  color: var(--accent-bright, #4ade80) !important;
+  color: var(--accent-bright) !important;
   background: rgba(46, 255, 184, 0.1);
   font-size: 1.05rem;
 }
@@ -2398,7 +2398,7 @@
   padding: 0;
   border: none;
   background: none;
-  color: var(--accent-bright, #4ade80);
+  color: var(--accent-bright);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -2563,7 +2563,7 @@
 }
 
 .sales-column-chart__col-wrap.is-peak .sales-column-chart__col-value {
-  color: var(--accent-bright, #4ade80);
+  color: var(--accent-bright);
 }
 
 .sales-column-chart__col {
@@ -2618,7 +2618,7 @@
 }
 
 .sales-column-chart__col-label.is-peak {
-  color: var(--accent-bright, #4ade80);
+  color: var(--accent-bright);
   font-weight: 700;
 }
 
@@ -2628,7 +2628,7 @@
 }
 
 .sales-column-chart__sum-val {
-  color: var(--accent-bright, #4ade80);
+  color: var(--accent-bright);
 }
 
 @media (max-width: 640px) {
@@ -2940,7 +2940,7 @@
   border-radius: 12px;
   border: 1px solid rgba(148, 163, 184, 0.14);
   background: rgba(15, 23, 42, 0.72);
-  color: var(--accent-bright, #2effb8);
+  color: var(--accent-bright);
 }
 
 .sales-home__tile-title {
@@ -3048,7 +3048,7 @@
 }
 
 .sales-header__brand-icon {
-  color: var(--accent-bright, #2effb8);
+  color: var(--accent-bright);
   flex-shrink: 0;
 }
 
@@ -3065,7 +3065,7 @@
   padding: 0.1rem 0.5rem;
   border-radius: 999px;
   font-size: 0.78rem;
-  color: var(--accent-bright, #2effb8);
+  color: var(--accent-bright);
   background: rgba(46, 255, 184, 0.12);
   border: 1px solid rgba(46, 255, 184, 0.25);
 }
@@ -3093,7 +3093,7 @@
 }
 
 .sales-report__compare-cell--ok {
-  color: var(--accent-bright, #2effb8);
+  color: var(--accent-bright);
 }
 
 /* План vs факт — блок сравнения */
@@ -3136,7 +3136,7 @@
 }
 
 .sales-report__plan-compare-chip--ok {
-  color: var(--accent-bright, #2effb8);
+  color: var(--accent-bright);
   background: rgba(46, 255, 184, 0.1);
   border-color: rgba(46, 255, 184, 0.28);
 }
@@ -3312,7 +3312,7 @@
 }
 
 .sales-report__compare-status--ok .sales-report__compare-status-icon {
-  color: var(--accent-bright, #2effb8);
+  color: var(--accent-bright);
   background: rgba(46, 255, 184, 0.14);
   box-shadow: 0 0 0 1px rgba(46, 255, 184, 0.25);
 }
@@ -3370,13 +3370,13 @@
 
 .sales-report__compare-schedule-btn:hover {
   border-color: rgba(46, 255, 184, 0.45);
-  color: var(--accent-bright, #2effb8);
+  color: var(--accent-bright);
 }
 
 .sales-report__compare-schedule-btn--active {
   border-color: rgba(46, 255, 184, 0.55);
   background: rgba(46, 255, 184, 0.14);
-  color: var(--accent-bright, #2effb8);
+  color: var(--accent-bright);
 }
 
 .sales-report__compare-row--schedule-open {
@@ -3644,14 +3644,14 @@
 
 .sales-report__segment-schedule-all-btn:hover {
   border-color: rgba(46, 255, 184, 0.45);
-  color: var(--accent-bright, #2effb8);
+  color: var(--accent-bright);
 }
 
 .sales-report__segment-schedule-all-btn--on {
   border-style: solid;
   border-color: rgba(46, 255, 184, 0.45);
   background: rgba(46, 255, 184, 0.1);
-  color: var(--accent-bright, #2effb8);
+  color: var(--accent-bright);
 }
 
 .sales-report__segment-schedule-toggles {
@@ -3683,7 +3683,7 @@
 .sales-report__segment-schedule-toggle--on {
   border-color: rgba(46, 255, 184, 0.5);
   background: rgba(46, 255, 184, 0.12);
-  color: var(--accent-bright, #2effb8);
+  color: var(--accent-bright);
   box-shadow: 0 0 0 1px rgba(46, 255, 184, 0.15);
 }
 
