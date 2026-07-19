@@ -71,3 +71,83 @@
     background-position: -100% 0;
   }
 }
+
+/* Факт / план на главной админа — champagne glass, не navy продаж */
+.admin-home-sales-plan {
+  width: 100%;
+  max-width: 920px;
+  margin-inline: auto;
+  padding: clamp(14px, 2.2vw, 20px);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow: var(--shadow-soft);
+}
+
+.admin-home-sales-plan__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.admin-home-sales-plan__titles {
+  min-width: 0;
+}
+
+.admin-home-sales-plan__title {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: clamp(1rem, 2.4vw, 1.15rem);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+
+.admin-home-sales-plan__icon {
+  color: var(--accent-bright);
+  flex-shrink: 0;
+}
+
+.admin-home-sales-plan__month {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+}
+
+.admin-home-sales-plan__link {
+  flex-shrink: 0;
+}
+
+.admin-home-sales-plan__error {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.admin-home-sales-plan__vessel .sales-report__plan-chart {
+  max-width: none;
+  padding: 0;
+}
+
+.admin-home-sales-plan__vessel .sales-report__plan-track {
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  border-color: var(--border);
+}
+
+.admin-home-sales-plan__vessel .sales-report__plan-fact {
+  color: var(--accent-bright);
+}
+
+.admin-home-sales-plan__vessel .sales-report__plan-level-chip.is-reached,
+.admin-home-sales-plan__vessel .sales-report__plan-level-chip.is-final.is-reached {
+  border-color: color-mix(in srgb, var(--accent-bright) 45%, transparent);
+}
+
+.admin-home-sales-plan__vessel .sales-report__plan-level-chip.is-reached .sales-report__plan-level-chip-label {
+  color: var(--accent-bright);
+}

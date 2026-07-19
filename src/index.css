@@ -1756,9 +1756,9 @@ a:focus-visible:not(.btn) {
 
 .tab[aria-selected='true'],
 .tab.tab--active {
-  background: rgba(34, 197, 94, 0.12);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent-bright);
-  border-color: rgba(34, 197, 94, 0.35);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
 a.tab {

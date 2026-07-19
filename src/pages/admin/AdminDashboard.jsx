@@ -2,6 +2,7 @@ import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BarChart3, Building2, ClipboardList, Shield, Sparkles, Stethoscope, TrendingUp, Trophy, UserCircle, UserPlus } from 'lucide-react'
 import { AdminClubDaySummaryPanel } from '../../components/admin/AdminClubDaySummaryPanel'
+import { AdminHomeSalesPlanGlance } from '../../components/admin/AdminHomeSalesPlanGlance'
 import { ManagerPnkHomeGlance } from '../../components/pnk/ManagerPnkHomeGlance'
 import { dispatchLocalDataChanged } from '../../lib/dataAccess'
 import { loadAdminClubDaySummary } from '../../lib/admin/adminClubDaySummaryService'
@@ -77,6 +78,8 @@ export function AdminDashboard() {
               Управление клубом: сводка дня, разделы и контроль.
             </p>
           </div>
+
+          {clubId ? <AdminHomeSalesPlanGlance clubId={clubId} /> : null}
 
           <AdminClubDaySummaryPanel
             summary={daySummary}
