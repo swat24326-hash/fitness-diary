@@ -165,7 +165,23 @@ export function SalesFinanceForecast({
     return `Прогноз: ${reach.forecastProgressPercent}%`
   }
 
+  const formatPaceLabel = (pace) => {
+    if (!pace) return null
+    if (pace.mode === 'already_at_plan') return 'Факт уже закрывает план.'
+    if (pace.mode === 'no_days_left') {
+      return `До плана не хватает ${formatRub(pace.gapRub)} — дней отчёта уже не осталось.`
+    }
+    if (pace.mode === 'weekday' && pace.perDayRub != null) {
+      return `Чтобы дотянуть план: ~${formatRub(pace.perDayRub)} в будний день (${pace.remainingWeekdays} буд. осталось).`
+    }
+    if (pace.perDayRub != null) {
+      return `Чтобы дотянуть план: ~${formatRub(pace.perDayRub)} в день (${pace.remainingDays} дн. осталось).`
+    }
+    return null
+  }
+
   const plan = forecast.plan
+  const paceLabel = formatPaceLabel(plan?.pace)
 
   return (
     <section className="sales-finance-forecast" aria-labelledby="sales-finance-forecast-title">
@@ -175,9 +191,19 @@ export function SalesFinanceForecast({
           Прогноз на {monthEndLabel}
         </h3>
         <p className="sales-finance-forecast__hint">
-          Среднее за <strong>{forecast.reportDays}</strong> отчёт
-          {forecast.reportDays === 1 ? '' : forecast.reportDays < 5 ? 'а' : 'ов'} ×{' '}
-          <strong>{forecast.daysInMonth}</strong> дн. месяца
+          {forecast.method === 'weekday_weekend_remaining' ? (
+            <>
+              Факт + среднее будней / выходных × оставшиеся дни (
+              <strong>{forecast.dayType?.remainingWeekdays ?? 0}</strong> буд. ·{' '}
+              <strong>{forecast.dayType?.remainingWeekends ?? 0}</strong> вых.)
+            </>
+          ) : (
+            <>
+              Среднее за <strong>{forecast.reportDays}</strong> отчёт
+              {forecast.reportDays === 1 ? '' : forecast.reportDays < 5 ? 'а' : 'ов'} ×{' '}
+              <strong>{forecast.daysInMonth}</strong> дн. месяца
+            </>
+          )}
         </p>
       </header>
 
@@ -208,6 +234,11 @@ export function SalesFinanceForecast({
           <p className={`sales-finance-forecast__verdict sales-finance-forecast__reach--${plan.reach.tone}`}>
             {formatReachLabel(plan.reach, plan.level3)}
           </p>
+          {paceLabel ? (
+            <p className="sales-finance-forecast__pace" role="status">
+              {paceLabel}
+            </p>
+          ) : null}
           {plan.directionLag?.has_lag ? (
             <div className="sales-finance-forecast__direction-lag" role="status">
               <p className="sales-finance-forecast__direction-lag-title">Отставание по залам</p>

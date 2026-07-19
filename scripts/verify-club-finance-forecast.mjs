@@ -1,11 +1,21 @@
 import {
   MIN_REPORT_DAYS_FOR_FORECAST,
+  FORECAST_METHOD_UNIFORM,
+  FORECAST_METHOD_WEEKDAY_WEEKEND,
   buildClubFinanceForecast,
   buildDirectionForecastLagSummary,
   buildIskraMonthForecastSummary,
   daysInCalendarMonth,
   isCurrentCalendarMonth,
 } from '../src/lib/admin/clubFinanceForecastCore.js'
+import {
+  MIN_WEEKDAY_SAMPLES_FOR_SPLIT,
+  MIN_WEEKEND_SAMPLES_FOR_SPLIT,
+  computePlanPaceNeeded,
+  isoDateInMonth,
+  projectMonthMetric,
+  weekdayKindFromIso,
+} from '../src/lib/admin/clubFinanceForecastProjection.js'
 
 let failed = 0
 
@@ -25,6 +35,8 @@ const daysInMonth = daysInCalendarMonth(year, month)
 
 ok(isCurrentCalendarMonth(year, month, today), 'july 2026 is current for test date')
 ok(!isCurrentCalendarMonth(2026, 6, today), 'june is past relative to test date')
+ok(weekdayKindFromIso('2026-07-04') === 'weekend', 'sat is weekend')
+ok(weekdayKindFromIso('2026-07-06') === 'weekday', 'mon is weekday')
 
 const rows3 = [
   { profit_nk: 10000, profit_dk: 0, profit_uk: 0, refunds_amount: 100 },
@@ -42,6 +54,7 @@ const fc3 = buildClubFinanceForecast({
 })
 
 ok(fc3.ok, 'forecast ok with 3 reports')
+ok(fc3.method === FORECAST_METHOD_UNIFORM, 'no dates → uniform method')
 ok(fc3.reportDays === 3, 'report days = 3')
 ok(fc3.fact.earnings === 29400, 'fact earnings net of refunds')
 ok(fc3.fact.refunds === 600, 'fact refunds sum')
@@ -265,6 +278,114 @@ const iskraPast = buildIskraMonthForecastSummary({
   today,
 })
 ok(!iskraPast.available && iskraPast.reason === 'not_current_month', 'iskra past month blocked')
+
+/** Будни 1–3 июля (ср–пт) по 100k, выходные 4–5 (сб–вс) по 10k. */
+const splitRows = [
+  { report_date: '2026-07-01', profit_nk: 100000, profit_dk: 0, profit_uk: 0 },
+  { report_date: '2026-07-02', profit_nk: 100000, profit_dk: 0, profit_uk: 0 },
+  { report_date: '2026-07-03', profit_nk: 100000, profit_dk: 0, profit_uk: 0 },
+  { report_date: '2026-07-04', profit_nk: 10000, profit_dk: 0, profit_uk: 0 },
+  { report_date: '2026-07-05', profit_nk: 10000, profit_dk: 0, profit_uk: 0 },
+]
+
+const splitProj = projectMonthMetric({
+  monthRows: splitRows,
+  year,
+  month,
+  getValue: (row) => Number(row.profit_nk) || 0,
+  roundFn: (n) => Math.round(n * 100) / 100,
+})
+ok(splitProj.method === FORECAST_METHOD_WEEKDAY_WEEKEND, 'split method when enough weekday+weekend')
+ok(splitProj.weekdaySamples >= MIN_WEEKDAY_SAMPLES_FOR_SPLIT, 'weekday samples ok')
+ok(splitProj.weekendSamples >= MIN_WEEKEND_SAMPLES_FOR_SPLIT, 'weekend samples ok')
+ok(splitProj.weekdayAvg === 100000, 'weekday avg 100k')
+ok(splitProj.weekendAvg === 10000, 'weekend avg 10k')
+
+const expectedSplit =
+  Math.round(
+    (320000 + 100000 * splitProj.remainingWeekdays + 10000 * splitProj.remainingWeekends) * 100,
+  ) / 100
+ok(splitProj.forecastTotal === expectedSplit, 'split forecast = fact + remaining day types')
+ok(
+  splitProj.forecastTotal !== Math.round(320000 * (daysInMonth / 5) * 100) / 100,
+  'split differs from naive average×days',
+)
+
+const fcSplit = buildClubFinanceForecast({
+  monthRows: splitRows,
+  year,
+  month,
+  expense: 0,
+  today,
+  planForm: { plan_level_3: '2000000' },
+})
+ok(fcSplit.ok && fcSplit.method === FORECAST_METHOD_WEEKDAY_WEEKEND, 'finance forecast uses weekday/weekend')
+ok(fcSplit.plan.forecastGross === expectedSplit, 'plan gross matches split projection')
+ok(
+  fcSplit.dayType.remainingWeekdays + fcSplit.dayType.remainingWeekends === daysInMonth - 5,
+  'remaining fills month',
+)
+
+/** Только будни — fallback на среднее × дни. */
+const weekdayOnly = [
+  { report_date: '2026-07-01', profit_nk: 50000, profit_dk: 0, profit_uk: 0 },
+  { report_date: '2026-07-02', profit_nk: 50000, profit_dk: 0, profit_uk: 0 },
+  { report_date: '2026-07-03', profit_nk: 50000, profit_dk: 0, profit_uk: 0 },
+]
+const fcWdOnly = buildClubFinanceForecast({
+  monthRows: weekdayOnly,
+  year,
+  month,
+  expense: 0,
+  today,
+})
+ok(fcWdOnly.method === FORECAST_METHOD_UNIFORM, 'weekday-only falls back to uniform')
+ok(
+  fcWdOnly.plan.forecastGross === Math.round(150000 * (daysInMonth / 3) * 100) / 100,
+  'weekday-only uses scale',
+)
+
+ok(isoDateInMonth(2026, 7, 5) === '2026-07-05', 'isoDateInMonth pads')
+
+const paceAtPlan = computePlanPaceNeeded({
+  planTarget: 100000,
+  factGross: 120000,
+  remainingWeekdays: 10,
+  remainingWeekends: 4,
+  daysInMonth: 31,
+  reportDays: 5,
+})
+ok(paceAtPlan?.mode === 'already_at_plan' && paceAtPlan.perDayRub === 0, 'pace already at plan')
+
+const paceWeekday = computePlanPaceNeeded({
+  planTarget: 1000000,
+  factGross: 400000,
+  remainingWeekdays: 10,
+  remainingWeekends: 4,
+  daysInMonth: 31,
+  reportDays: 5,
+})
+ok(paceWeekday?.mode === 'weekday', 'pace uses weekdays')
+ok(paceWeekday.gapRub === 600000, 'pace gap')
+ok(paceWeekday.perDayRub === 60000, 'pace 600k / 10 weekdays')
+
+const paceAny = computePlanPaceNeeded({
+  planTarget: 100000,
+  factGross: 40000,
+  remainingWeekdays: 0,
+  remainingWeekends: 0,
+  daysInMonth: 31,
+  reportDays: 10,
+})
+ok(paceAny?.mode === 'any_day' && paceAny.perDayRub === Math.round((60000 / 21) * 100) / 100, 'pace fallback any day')
+
+ok(fcSplit.plan.pace?.mode === 'weekday', 'split forecast exposes weekday pace')
+ok(fcSplit.plan.pace?.gapRub === Math.round((2000000 - 320000) * 100) / 100, 'split pace gap to plan')
+ok(
+  fcSplit.plan.pace?.perDayRub ===
+    Math.round(((2000000 - 320000) / fcSplit.dayType.remainingWeekdays) * 100) / 100,
+  'split pace per weekday',
+)
 
 if (failed) process.exit(1)
 console.log('verify-club-finance-forecast: all passed')

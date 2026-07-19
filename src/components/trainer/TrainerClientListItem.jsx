@@ -8,6 +8,7 @@ import {
   pickExpiredMembershipWithRemaining,
 } from '../../lib/clientListSignals'
 import { membershipUsageLabel, pickUsableMembershipForDate } from '../../lib/membershipRules'
+import { ClientRowMoreMenu } from '../ClientRowMoreMenu'
 import '../../styles/pnk-funnel.css'
 
 export function TrainerClientListItem({
@@ -101,7 +102,8 @@ export function TrainerClientListItem({
             >
               <MessageCircle size={20} aria-hidden />
             </button>
-          ) : null}          {mode === 'active' ? (
+          ) : null}
+          {mode === 'active' ? (
             active ? (
               <Link
                 to={`/trainer/workouts/new?clientId=${client.id}`}
@@ -132,39 +134,32 @@ export function TrainerClientListItem({
           >
             <UserCircle size={20} aria-hidden />
           </Link>
-          {mode === 'active' ? (
-            <button
-              type="button"
-              className="btn btn-ghost btn-icon-square btn-touch"
-              disabled={busy}
-              aria-label={`В архив: ${client.name}`}
-              title="В архив"
-              onClick={() => onArchive?.(client)}
-            >
-              <Archive size={20} aria-hidden />
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="btn btn-ghost btn-icon-square btn-touch"
-              disabled={busy}
-              aria-label={`Вернуть из архива: ${client.name}`}
-              title="Вернуть"
-              onClick={() => onRestore?.(client)}
-            >
-              <RotateCcw size={20} aria-hidden />
-            </button>
-          )}
-          <button
-            type="button"
-            className="btn btn-ghost btn-icon-square btn-touch td-client-delete"
+          <ClientRowMoreMenu
             disabled={busy}
-            aria-label={`Удалить клиента ${client.name}`}
-            title="Удалить клиента"
-            onClick={() => onDelete(client)}
-          >
-            <Trash2 size={20} aria-hidden />
-          </button>
+            ariaLabel={`Ещё действия: ${client.name}`}
+            items={[
+              mode === 'active'
+                ? {
+                    id: 'archive',
+                    label: 'В архив',
+                    icon: Archive,
+                    onSelect: () => onArchive?.(client),
+                  }
+                : {
+                    id: 'restore',
+                    label: 'Вернуть из архива',
+                    icon: RotateCcw,
+                    onSelect: () => onRestore?.(client),
+                  },
+              {
+                id: 'delete',
+                label: 'Удалить',
+                icon: Trash2,
+                danger: true,
+                onSelect: () => onDelete?.(client),
+              },
+            ]}
+          />
         </div>
       </div>
       <div className="muted td-muted-row">
@@ -200,11 +195,7 @@ export function TrainerClientListItem({
             День рождения: <strong>{birthdayLabel}</strong>
           </span>
         ) : null}
-        {outreachHint ? (
-          <span className="trainer-outreach-hint">
-            {outreachHint}
-          </span>
-        ) : null}
+        {outreachHint ? <span className="trainer-outreach-hint">{outreachHint}</span> : null}
       </div>
     </li>
   )

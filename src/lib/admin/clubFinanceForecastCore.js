@@ -1,4 +1,4 @@
-/** Прогноз «Финансы клуба»: среднее по отчётам месяца × дней в месяце (только текущий месяц). Возвраты в прогнозе — статическая сумма из отчётов. */
+/** Прогноз «Финансы клуба»: факт + средние будни/выходных на незаполненные дни (fallback — среднее × дней месяца). Возвраты — статическая сумма. */
 
 import { filterAerobicSalesTypes, filterTrainerAssignableTypes } from '../membershipTypesCore.js'
 import { normalizeAerobicRowsFromDb, sumAerobicRows } from './aerobicSalesMatrix.js'
@@ -17,6 +17,14 @@ import {
   buildTrainerPayRateMap,
   computeNetProfitWithPayroll,
 } from './trainerPayrollCore.js'
+import {
+  FORECAST_METHOD_UNIFORM,
+  FORECAST_METHOD_WEEKDAY_WEEKEND,
+  computePlanPaceNeeded,
+  projectMonthMetric,
+} from './clubFinanceForecastProjection.js'
+
+export { FORECAST_METHOD_UNIFORM, FORECAST_METHOD_WEEKDAY_WEEKEND, computePlanPaceNeeded }
 
 export const MIN_REPORT_DAYS_FOR_FORECAST = 3
 
@@ -132,7 +140,13 @@ export function buildDirectionForecastLagSummary(directionRows) {
   }
 }
 
-function buildDirectionForecastRows(monthRows, scale, planDirections) {
+/**
+ * @param {Array<Record<string, unknown>>} monthRows
+ * @param {number} year
+ * @param {number} month
+ * @param {Record<string, number>} planDirections
+ */
+function buildDirectionForecastRows(monthRows, year, month, planDirections) {
   const factRub = sumDirectionRubFromDailyRows(monthRows)
   return FORECAST_DIRECTION_KEYS.map((key) => {
     const planKey = FORECAST_DIRECTION_PLAN_KEYS[key]
@@ -140,8 +154,18 @@ function buildDirectionForecastRows(monthRows, scale, planDirections) {
     const useRevenue = key === 'tz' ? true : hasDirectionRevenueForHall(monthRows, key)
 
     if (useRevenue) {
+      const projected = projectMonthMetric({
+        monthRows,
+        year,
+        month,
+        getValue: (row) => {
+          const dayRub = sumDirectionRubFromDailyRows([row])
+          return Number(dayRub[key]) || 0
+        },
+        roundFn: roundRub,
+      })
       const factRevenue = roundRub(factRub[key] || 0)
-      const forecastRevenue = roundRub(factRevenue * scale)
+      const forecastRevenue = projected.forecastTotal
       return {
         key,
         label: FORECAST_DIRECTION_LABELS[key],
@@ -159,18 +183,20 @@ function buildDirectionForecastRows(monthRows, scale, planDirections) {
       }
     }
 
-    let factTrainings = 0
-    for (const row of monthRows) {
-      factTrainings += key === 'pz' ? pzTrainingsFromDailyRow(row) : azTrainingsFromDailyRow(row)
-    }
-    const forecastTrainings = roundCount(factTrainings * scale)
+    const projected = projectMonthMetric({
+      monthRows,
+      year,
+      month,
+      getValue: (row) => (key === 'pz' ? pzTrainingsFromDailyRow(row) : azTrainingsFromDailyRow(row)),
+      roundFn: roundCount,
+    })
     return {
       key,
       label: FORECAST_DIRECTION_LABELS[key],
       mode: 'trainings',
       planTarget,
-      fact: factTrainings,
-      forecast: forecastTrainings,
+      fact: projected.fact,
+      forecast: projected.forecastTotal,
       factProgressPercent: 0,
       forecastProgressPercent: 0,
       reach: { tone: 'muted', willReach: false, forecastProgressPercent: 0, gapRub: 0, trainingsFallback: true },
@@ -210,7 +236,6 @@ export function buildClubFinanceForecast(opts) {
   }
 
   const daysInMonth = daysInCalendarMonth(year, month)
-  const scale = daysInMonth / reportDays
 
   let earningsTotal = 0
   let earningsGrossTotal = 0
@@ -236,17 +261,53 @@ export function buildClubFinanceForecast(opts) {
   const aerobicPayrollFact = aggregateAerobicPayrollFromDailyRows(monthRows, aerobicRateMap).clubTotal
   const expense = roundRub(opts.expense)
 
+  const grossProj = projectMonthMetric({
+    monthRows,
+    year,
+    month,
+    getValue: (row) => resolveDailyProfitFromRow(row).gross,
+    roundFn: roundRub,
+  })
+  const pzTrainProj = projectMonthMetric({
+    monthRows,
+    year,
+    month,
+    getValue: (row) => pzTrainingsFromDailyRow(row),
+    roundFn: roundCount,
+  })
+  const azTrainProj = projectMonthMetric({
+    monthRows,
+    year,
+    month,
+    getValue: (row) => azTrainingsFromDailyRow(row),
+    roundFn: roundCount,
+  })
+  const trainerPayProj = projectMonthMetric({
+    monthRows,
+    year,
+    month,
+    getValue: (row) => aggregatePayrollFromDailyRows([row], trainerRateMap).clubTotal,
+    roundFn: roundRub,
+  })
+  const aerobicPayProj = projectMonthMetric({
+    monthRows,
+    year,
+    month,
+    getValue: (row) => aggregateAerobicPayrollFromDailyRows([row], aerobicRateMap).clubTotal,
+    roundFn: roundRub,
+  })
+
   const factEarnings = roundRub(earningsTotal)
   const factRefunds = roundRub(refundsTotal)
   const factGross = roundRub(earningsGrossTotal)
-  const forecastGross = roundRub(earningsGrossTotal * scale)
+  const forecastGross = grossProj.forecastTotal
   /** Возвраты в прогнозе — только факт из отчётов, без экстраполяции на конец месяца. */
   const forecastRefunds = factRefunds
   const forecastEarnings = roundRub(forecastGross - forecastRefunds)
-  const forecastPzTrainings = roundCount(pzTrainingsTotal * scale)
-  const forecastAzTrainings = roundCount(azTrainingsTotal * scale)
-  const forecastTrainerPayroll = roundRub(trainerPayrollFact * scale)
-  const forecastAerobicPayroll = roundRub(aerobicPayrollFact * scale)
+  const forecastPzTrainings = pzTrainProj.forecastTotal
+  const forecastAzTrainings = azTrainProj.forecastTotal
+  const forecastTrainerPayroll = trainerPayProj.forecastTotal
+  const forecastAerobicPayroll = aerobicPayProj.forecastTotal
 
   const factNetProfit = computeNetProfitWithPayroll(
     factEarnings,
@@ -267,14 +328,31 @@ export function buildClubFinanceForecast(opts) {
   const factPlanProgress = planProgressPercent(factGross, planLevel3)
   const forecastPlanProgress = planProgressPercent(forecastGross, planLevel3)
   const planReach = describePlanForecastReach(forecastPlanProgress, planLevel3, forecastGross)
-  const directionRows = buildDirectionForecastRows(monthRows, scale, planTargets.directions)
+  const directionRows = buildDirectionForecastRows(monthRows, year, month, planTargets.directions)
   const directionLag = buildDirectionForecastLagSummary(directionRows)
+  const pace = computePlanPaceNeeded({
+    planTarget: planLevel3,
+    factGross,
+    remainingWeekdays: grossProj.remainingWeekdays,
+    remainingWeekends: grossProj.remainingWeekends,
+    daysInMonth,
+    reportDays,
+  })
 
   return {
     ok: true,
     reportDays,
     daysInMonth,
-    scale: Math.round(scale * 10000) / 10000,
+    method: grossProj.method,
+    scale: grossProj.scale,
+    dayType: {
+      weekdaySamples: grossProj.weekdaySamples,
+      weekendSamples: grossProj.weekendSamples,
+      weekdayAvgGross: grossProj.weekdayAvg,
+      weekendAvgGross: grossProj.weekendAvg,
+      remainingWeekdays: grossProj.remainingWeekdays,
+      remainingWeekends: grossProj.remainingWeekends,
+    },
     plan: {
       level3: planLevel3,
       factGross,
@@ -284,6 +362,7 @@ export function buildClubFinanceForecast(opts) {
       reach: planReach,
       directions: directionRows,
       directionLag,
+      pace,
     },
     fact: {
       earnings: factEarnings,
@@ -362,7 +441,7 @@ export function buildIskraMonthForecastSummary(opts) {
   /** @type {Record<string, unknown>} */
   const summary = {
     available: true,
-    method: 'avg_per_report_day_times_days_in_month',
+    method: fc.method ?? FORECAST_METHOD_UNIFORM,
     report_days: fc.reportDays,
     days_in_month: fc.daysInMonth,
     plan_level_3: planLevel3,
@@ -431,7 +510,7 @@ export function buildIskraClubFinanceBlock(opts) {
   /** @type {Record<string, unknown>} */
   const block = {
     available: true,
-    method: 'avg_per_report_day_times_days_in_month',
+    method: fc.method ?? FORECAST_METHOD_UNIFORM,
     report_days: fc.reportDays,
     days_in_month: fc.daysInMonth,
     fact: {

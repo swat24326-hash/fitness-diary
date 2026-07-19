@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
 import { AlertTriangle, Archive, Clock, RefreshCw, RotateCcw, Search, Trash2, UserCheck, UserCircle, UserCog, UserSearch, Users, UserX } from 'lucide-react'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
+import { ClientRowMoreMenu } from '../../components/ClientRowMoreMenu.jsx'
 import {
   deleteClientAndAllData,
   dispatchLocalDataChanged,
@@ -778,49 +779,38 @@ export function AdminClients() {
                         Карточка
                       </Link>
                       <div className="row" style={{ gap: 8, justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
-                        {clientsTab === 'active' ? (
-                          <button
-                            type="button"
-                            className="btn btn-ghost btn-icon-square btn-touch"
-                            disabled={busy}
-                            onClick={() => void updateClientArchiveFlag(c, true)}
-                            aria-label={`В архив: ${c.name ?? c.id}`}
-                            title="В архив"
-                          >
-                            <Archive size={20} aria-hidden />
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            className="btn btn-ghost btn-icon-square btn-touch"
-                            disabled={busy}
-                            onClick={() => void updateClientArchiveFlag(c, false)}
-                            aria-label={`Вернуть из архива: ${c.name ?? c.id}`}
-                            title="Вернуть"
-                          >
-                            <RotateCcw size={20} aria-hidden />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-icon-square btn-touch"
+                        <ClientRowMoreMenu
                           disabled={busy}
-                          onClick={() => void openReassignModal(c)}
-                          aria-label={`Переназначить тренера: ${c.name ?? c.id}`}
-                          title="Переназначить тренера"
-                        >
-                          <UserCog size={20} aria-hidden />
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-icon-square btn-touch td-client-delete"
-                          disabled={busy}
-                          aria-label={`Удалить клиента ${c.name ?? ''}`}
-                          title="Удалить клиента"
-                          onClick={() => setConfirmDelete({ id: c.id, name: c.name ?? 'Клиент' })}
-                        >
-                          <Trash2 size={20} aria-hidden />
-                        </button>
+                          ariaLabel={`Ещё действия: ${c.name ?? c.id}`}
+                          items={[
+                            clientsTab === 'active'
+                              ? {
+                                  id: 'archive',
+                                  label: 'В архив',
+                                  icon: Archive,
+                                  onSelect: () => void updateClientArchiveFlag(c, true),
+                                }
+                              : {
+                                  id: 'restore',
+                                  label: 'Вернуть из архива',
+                                  icon: RotateCcw,
+                                  onSelect: () => void updateClientArchiveFlag(c, false),
+                                },
+                            {
+                              id: 'reassign',
+                              label: 'Переназначить тренера',
+                              icon: UserCog,
+                              onSelect: () => void openReassignModal(c),
+                            },
+                            {
+                              id: 'delete',
+                              label: 'Удалить',
+                              icon: Trash2,
+                              danger: true,
+                              onSelect: () => setConfirmDelete({ id: c.id, name: c.name ?? 'Клиент' }),
+                            },
+                          ]}
+                        />
                       </div>
                     </div>
                   </div>
