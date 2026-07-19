@@ -3122,8 +3122,8 @@ tr:last-child td {
   will-change: transform;
 }
 
-/* Знак Ось (шевроны) — accent роли, без FA-гантели */
-.trainer-home__hero-mark {
+/* Гантель — метафора роли тренера (не brand-mark продукта Ось) */
+.trainer-home__hero-dumbbell {
   display: block;
   width: clamp(56px, 14vw, 120px);
   height: clamp(56px, 14vw, 120px);
@@ -3134,7 +3134,7 @@ tr:last-child td {
   filter: drop-shadow(0 0 14px var(--accent-glow)) drop-shadow(0 18px 36px rgba(0, 0, 0, 0.45));
 }
 
-.trainer-home__hero-float:hover .trainer-home__hero-mark {
+.trainer-home__hero-float:hover .trainer-home__hero-dumbbell {
   transform: scale(1.06);
   color: var(--accent);
 }
@@ -3370,7 +3370,7 @@ tr:last-child td {
     align-self: center;
   }
 
-  .trainer-home__hero-mark {
+  .trainer-home__hero-dumbbell {
     width: clamp(40px, 11vw, 72px);
     height: clamp(40px, 11vw, 72px);
   }
@@ -3423,7 +3423,7 @@ tr:last-child td {
     font-size: clamp(1.28rem, 4.2vw, 1.75rem);
   }
 
-  .trainer-home__hero-mark {
+  .trainer-home__hero-dumbbell {
     width: clamp(34px, 9vw, 58px);
     height: clamp(34px, 9vw, 58px);
   }
