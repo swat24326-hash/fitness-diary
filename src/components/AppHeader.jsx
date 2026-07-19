@@ -382,12 +382,12 @@ export function AppHeader() {
             className="app-brand u-no-decoration"
             style={{ color: 'inherit' }}
             title={online ? 'Сеть: онлайн' : 'Сеть: офлайн'}
-            aria-label={online ? 'Фитнес-дневник, подключение к сети есть' : 'Фитнес-дневник, нет подключения к сети'}
+            aria-label={online ? 'FIT-CITY, подключение к сети есть' : 'FIT-CITY, нет подключения к сети'}
           >
             <span className={`app-brand-mark ${online ? 'app-brand-mark--online' : 'app-brand-mark--offline'}`} aria-hidden>
               <i className="fas fa-dumbbell app-brand-mark__fa-icon" aria-hidden />
             </span>
-            <span className="app-brand-text">Фитнес-дневник</span>
+            <span className="app-brand-text">FIT-CITY</span>
           </Link>
         )}
       </div>

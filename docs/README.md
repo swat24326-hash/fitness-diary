@@ -2,7 +2,7 @@
 
 Карта файлов в `docs/`. Правила для Cursor — в `.cursor/rules/` (не дублируем политику здесь).
 
-**С чего начать:** [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) — полный контекст для нового чата или разработчика.
+**С чего начать:** [PRODUCT_VISION.md](./PRODUCT_VISION.md) — крупная цель (тип ОС клуба) → [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) — что в коде сегодня → при углублении системная карта ниже.
 
 **Системная карта (тонкие доки):** [API.md](./API.md) · [SYNC.md](./SYNC.md) · [DATA_MODEL.md](./DATA_MODEL.md) · [TESTING.md](./TESTING.md) · [PWA.md](./PWA.md)
 
@@ -42,6 +42,8 @@
 
 | Файл | Когда читать |
 |------|--------------|
+| [PRODUCT_VISION.md](./PRODUCT_VISION.md) | **Тип продукта / крупная цель:** ОС клуба, слои L0–L4, качество и инженерный каркас |
+| [BRAND_SYSTEM.md](./BRAND_SYSTEM.md) | **Фирменный стиль:** Whoop-опора, ролевые цвета, токены, driving prompt |
 | [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md) | Стратегия + РФ-хостинг (**позже**); сейчас — закладка в дизайн |
 | [COMMERCIAL_ROADMAP.md](./COMMERCIAL_ROADMAP.md) | Фазы 0–4: что сделано и ongoing |
 | [ROADMAP_MULTI_CLUB_AND_PAID.md](./ROADMAP_MULTI_CLUB_AND_PAID.md) | 2+ клубов и платные тарифы |

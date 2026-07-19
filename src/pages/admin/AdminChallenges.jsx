@@ -417,7 +417,7 @@ export function AdminChallenges() {
                     <Link
                       to={`/admin/structure${clubQs ? `${clubQs}&` : '?'}tab=exercises`}
                       className="u-no-decoration"
-                      style={{ color: 'var(--accent-bright, #00a651)' }}
+                      style={{ color: 'var(--accent-bright, #2effb8)' }}
                     >
                       Упражнения
                     </Link>

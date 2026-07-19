@@ -7,6 +7,7 @@
 
 | Документ | Роль |
 |----------|------|
+| [PRODUCT_VISION.md](./PRODUCT_VISION.md) | Тип продукта / ОС клуба, слои L0–L4 (зачем масштабируем) |
 | [COMMERCIAL_ROADMAP.md](./COMMERCIAL_ROADMAP.md) | Продуктовые фазы 0–4 |
 | [ROADMAP_MULTI_CLUB_AND_PAID.md](./ROADMAP_MULTI_CLUB_AND_PAID.md) | 2+ клубов, Vercel/Supabase Pro |
 | [GROWTH_PLAYBOOK.md](./GROWTH_PLAYBOOK.md) | Журнал метрик и пороги |

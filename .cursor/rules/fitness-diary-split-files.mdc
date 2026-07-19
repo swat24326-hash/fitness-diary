@@ -1,45 +1,38 @@
 ---
-description: When and how to split large JS/JSX/API files in Fitness Diary
-globs: src/**/*.{js,jsx},api/**/*.js
+description: Thresholds and patterns when splitting existing large JS/JSX/API/CSS files
+globs: src/**/*.{js,jsx,css},api/**/*.js
 alwaysApply: false
 ---
 
-# Разбиение файлов — сразу, не потом
+# Разбиение уже больших файлов
 
-Если фича **увеличивает** файл или добавляет вторую ответственность — **в той же задаче** выносим код, не откладываем. Цикл фичи: `fitness-diary-features.mdc`.
+**Как писать новые файлы** — см. `fitness-diary-file-structure.mdc` (always apply). Этот файл — только пороги и шаблоны, когда трогаем **старый** монолит.
 
 ## Пороги
 
 | Строк (прибл.) | Действие |
 |----------------|----------|
-| **400–500** + 2 роли (UI + sync, форма + каталог) | Вынести подкомпонент / сервис / хук в этом PR |
+| **400–500** + 2 роли в одном файле | Вынести подкомпонент / сервис / хук в этом PR |
 | **600+** | Обязательно разбить в рамках задачи |
-| **index.css** | Новые стили — блок с комментарием-секцией; не раздувать без нужды; полное дробление CSS — отдельная задача |
+| **`index.css`** | Новое — в `styles/*.css` или секция-комментарий; полное дробление монолита — отдельная задача по запросу |
 
-## Шаблоны разбиения
+## Шаблоны выноса
 
-**Страница** (`pages/…`): `Page.jsx` + `PageSection.jsx` + `usePageData.js` или `*Service.js`.
+**Страница:** `Page.jsx` + `PageSection.jsx` + `usePageData.js` / `*Service.js`.
 
-**Большая форма** (`TrainingForm`): основной компонент + `TrainingExerciseCatalog.jsx` + `trainingSetFields.js` / хелперы форматов.
+**Форма тренировки:** оболочка + каталог упражнений + хелперы форматов сетов.
 
-**Шапка** (`AppHeader`): layout + `useHeaderSync.js` (flush, pull, прогресс, journal props).
+**Шапка:** layout + `useHeaderSync.js` (flush, pull, прогресс).
 
-**dataAccess:** новое — в `src/lib/admin/` или `trainerPullService.js` и т.п.; в `dataAccess.js` только реэкспорт при необходимости совместимости.
+**dataAccess:** новое — в `src/lib/admin/` / trainer-сервисы; реэкспорт в `dataAccess.js` только при необходимости.
 
-**API:** `api/_lib/featureCore.js` + `api/feature.js` (10–30 строк handler).
+**API:** `api/_lib/featureCore.js` + тонкий `api/feature.js`.
 
-**Диагностика / журнал:** `appErrorJournal.js` (storage) + `appDiagnostics.js` (логика) + `DiagnosticsPanel.jsx` (UI).
+**Диагностика:** `appErrorJournal.js` + `appDiagnostics.js` + `DiagnosticsPanel.jsx`.
 
-## Проверки после разбиения
+## После выноса
 
 - Нет циклов: `lib/` не импортирует `pages/` или `components/`.
-- Публичный API страницы не меняется без нужды (или обновлены все импорты).
-- Поведение офлайн/Sync то же; тесты/verify-скрипты зелёные.
-
-## Не делать ради «рефакторинга»
-
-Это **не** противоречит «минимальному diff» в ship/architecture: не трогаем чужие зоны; свой порог 400–600+ — выполняем в рамках той же задачи.
-
-- Массово резать `index.css` или стабильные мелкие файлы без фичи.
-- Дробить `api/admin-data.js` на 6 endpoints без учёта лимита Vercel.
-- Трогать `AuthContext` / RLS без явного запроса.
+- Поведение офлайн/Sync то же; релевантные verify зелёные.
+- Не резать массово чужие зоны и `AuthContext` / RLS без явного запроса.
+- Не дробить `api/admin-data.js` на кучу endpoints без учёта лимита Vercel.

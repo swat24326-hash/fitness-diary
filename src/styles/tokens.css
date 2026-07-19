@@ -1,6 +1,8 @@
 /**
- * Premium emerald theme — глобальные токены.
+ * Premium theme — глобальные токены FIT-CITY.
+ * Канон: docs/BRAND_SYSTEM.md (Whoop-дисциплина + ролевые оттенки).
  * Семантика: --premium-* (источник) → --bg, --accent, … (используются в UI).
+ * База :root = тренер (emerald); .app-shell--sales / --admin переопределяют accent.
  */
 :root {
   color-scheme: dark;
@@ -104,4 +106,45 @@
   backdrop-filter: blur(var(--premium-glass-blur)) saturate(var(--premium-glass-saturate));
   -webkit-backdrop-filter: blur(var(--premium-glass-blur)) saturate(var(--premium-glass-saturate));
   border: 1px solid var(--premium-glass-border);
+}
+
+/**
+ * Ролевые оттенки shell — docs/BRAND_SYSTEM.md
+ * Оттенок = роль сессии (кто залогинен), не открытый модуль.
+ * База :root = тренер (emerald). Sales / admin переопределяют accent + radial + glow.
+ */
+.app-shell--trainer {
+  /* явный класс: значения как у :root (emerald) */
+}
+
+.app-shell--sales {
+  --premium-accent-neon: #22d3ee;
+  --premium-glow-soft: rgba(34, 211, 238, 0.22);
+  --premium-glow-mid: rgba(34, 211, 238, 0.38);
+  --premium-glow-ambient: rgba(34, 211, 238, 0.1);
+  --premium-bg-radial: rgba(34, 211, 238, 0.12);
+  --premium-glass-border: rgba(34, 211, 238, 0.14);
+  --accent: #06b6d4;
+  --accent-bright: #22d3ee;
+  --accent-dim: #0e7490;
+  --accent-glow: var(--premium-glow-soft);
+  --accent-soft: var(--premium-glow-ambient);
+  --border: var(--premium-glass-border);
+  --border-strong: rgba(34, 211, 238, 0.32);
+}
+
+.app-shell--admin {
+  --premium-accent-neon: #f0d48a;
+  --premium-glow-soft: rgba(240, 212, 138, 0.22);
+  --premium-glow-mid: rgba(240, 212, 138, 0.36);
+  --premium-glow-ambient: rgba(240, 212, 138, 0.1);
+  --premium-bg-radial: rgba(240, 212, 138, 0.12);
+  --premium-glass-border: rgba(240, 212, 138, 0.16);
+  --accent: #d4b45c;
+  --accent-bright: #f0d48a;
+  --accent-dim: #8a7340;
+  --accent-glow: var(--premium-glow-soft);
+  --accent-soft: var(--premium-glow-ambient);
+  --border: var(--premium-glass-border);
+  --border-strong: rgba(240, 212, 138, 0.34);
 }

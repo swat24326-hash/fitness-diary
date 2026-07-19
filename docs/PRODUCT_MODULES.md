@@ -1,6 +1,6 @@
 # Модули продукта (кроме ядра тренировок)
 
-**Актуально:** 2026-07-17. Ядро (клиент / абонемент / тренировка / sync) — handoff и [DATA_MODEL.md](./DATA_MODEL.md). Здесь — соседние контуры, чтобы не искать по репо вслепую.
+**Актуально:** 2026-07-19. Крупная цель продукта — [PRODUCT_VISION.md](./PRODUCT_VISION.md). Ядро (клиент / абонемент / тренировка / sync) — handoff и [DATA_MODEL.md](./DATA_MODEL.md). Здесь — соседние контуры, чтобы не искать по репо вслепую.
 
 | Модуль | Статус | Где код | Документ |
 |--------|--------|---------|----------|
@@ -12,7 +12,10 @@
 | **ИСКРА** | ✅ прод | `api/_lib/gemini*`, `iskra*`, UI админки | `ISKRA_*.md`, [iskra-kb/](./iskra-kb/README.md) |
 | **Планёрка / dispatch** | ✅ прод | iskra-dispatch + push | [ISKRA_PLANERKA.md](./ISKRA_PLANERKA.md), [PUSH_SETUP.md](./PUSH_SETUP.md) |
 | **Архив клиентов** | ✅ прод | archive + sync/agg | [CLIENT_ARCHIVE.md](./CLIENT_ARCHIVE.md) |
+| **Качество ведения** | ✅ MVP | coach quality + admin/trainer UI | [COACH_QUALITY.md](./COACH_QUALITY.md) |
 | **Управляющий** | 📋 ТЗ | — | [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md) |
+| **Сайт заявок** | ⏸ слой L2 | — | [PRODUCT_VISION.md](./PRODUCT_VISION.md) §5.3 |
+| **Касса (облако / физ.)** | ⏸ слой L3 | — | [PRODUCT_VISION.md](./PRODUCT_VISION.md) §5.4 |
 
 ### Питание и ДЗ (ориентир)
 
