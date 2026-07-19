@@ -241,20 +241,25 @@ export function ClubTasksView({ clubId, mode = 'admin', canDelete = mode === 'ad
             </p>
           ) : null}
 
-          {loading && !items.length ? <p className="muted admin-section__empty">Загрузка…</p> : null}
+          {loading && !items.length ? (
+            <div className="admin-path-loading" role="status" aria-busy="true">
+              <span className="app-loading__ring app-loading__ring--sm" aria-hidden />
+              <p className="admin-path-loading__text">Загрузка заданий…</p>
+            </div>
+          ) : null}
 
           {!loading && !items.length && !error ? (
             <div className="admin-section__empty-card">
               <ClipboardList size={36} aria-hidden className="admin-section__empty-card__icon" />
               <p className="admin-section__empty-card__title">Пока нет заданий</p>
-              <p className="muted" style={{ margin: 0 }}>
+              <p className="os-empty-card__hint">
                 Нажмите «Новое задание»{isSalesMode ? '' : ' или назначьте из карточки ИСКРЫ'}.
               </p>
             </div>
           ) : null}
 
           {items.length ? (
-            <ul className="admin-task-list">
+            <ul className="admin-task-list os-enter">
               {items.map((item) => (
                 <li
                   key={item.id}
@@ -265,6 +270,7 @@ export function ClubTasksView({ clubId, mode = 'admin', canDelete = mode === 'ad
                       <span className={`admin-task-card__status admin-task-card__status--${item.status}`}>
                         {dispatchStatusLabelRu(item.status)}
                       </span>
+                      {item.is_overdue ? <span className="admin-task-card__overdue">Просрочено</span> : null}
                       {item.priority === 'high' ? (
                         <span className="admin-task-card__priority">Высокий приоритет</span>
                       ) : null}

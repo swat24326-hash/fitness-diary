@@ -8,6 +8,7 @@ import { clearPoisonedSyncQueue, resetSyncQueueOnceAfterDeploy } from './lib/syn
 initAppErrorJournal()
 import '@fortawesome/fontawesome-free/css/all.min.css'
 import './index.css'
+import './styles/os-polish.css'
 
 if (isSupabaseConfigured()) {
   void resetSyncQueueOnceAfterDeploy()

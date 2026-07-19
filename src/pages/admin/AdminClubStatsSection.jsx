@@ -956,11 +956,12 @@ export function AdminClubStatsSection({
             Тренеры — рейтинг по завершённым
           </h3>
           {byTrainer.length === 0 ? (
-            <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-              Нет данных по тренерам за период.
-            </p>
+            <div className="os-empty-card" role="status">
+              <p className="os-empty-card__title">Нет данных по тренерам</p>
+              <p className="os-empty-card__hint">За выбранный период нет завершённых тренировок по тренерам клуба.</p>
+            </div>
           ) : (
-            <div className="grid grid-2" style={{ gap: 10 }}>
+            <div className="grid grid-2 os-enter" style={{ gap: 10 }}>
               {byTrainer.map((tr, idx) => {
                 const q = coachQualityByTrainer.get(String(tr.trainerId))
                 return (

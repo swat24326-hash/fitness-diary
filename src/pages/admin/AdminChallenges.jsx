@@ -302,7 +302,7 @@ export function AdminChallenges() {
         ))}
       </div>
 
-      <ul className="challenge-card-list">
+      <ul className="challenge-card-list os-enter">
         {filtered.length === 0 ? (
           <li className="challenge-empty-card challenge-empty-card--inline">
             <p style={{ margin: 0 }}>Пока нет челленджей в этом фильтре.</p>

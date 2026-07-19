@@ -108,9 +108,13 @@ export function PnkManagerControlBoard({
         </div>
 
         {!cards.length ? (
-          <p className="muted">Пока нет открытых ПНК по фильтру</p>
+          <div className="os-empty-card" role="status">
+            <UserPlus size={32} aria-hidden className="os-empty-card__icon" />
+            <p className="os-empty-card__title">Пока нет открытых ПНК</p>
+            <p className="os-empty-card__hint">Смените фильтр или создайте ПНК — карточки появятся на доске.</p>
+          </div>
         ) : (
-          <ul className="pnk-control-board__grid" role="list">
+          <ul className="pnk-control-board__grid os-enter" role="list">
             {cards.map((card) => {
               const open = expandedId === card.id
               const trialDate = String(card.client?.pnk_trial_date ?? '').slice(0, 10)

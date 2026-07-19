@@ -122,7 +122,7 @@ export function AdminDiagnostics() {
         lead="Состояние этого устройства, очередь sync и журнал ошибок. Скопируйте отчёт и отправьте разработчику или тренеру с планшета — так проще найти причину сбоя."
       />
 
-      <div className="admin-diagnostics__summary" aria-label="Краткая сводка">
+      <div className="admin-diagnostics__summary os-enter" aria-label="Краткая сводка">
         <div className={`admin-diagnostics__stat${persistentErrorCount > 0 ? ' admin-diagnostics__stat--warn' : ''}`}>
           <span className="admin-diagnostics__stat-value">{persistentErrorCount}</span>
           <span className="admin-diagnostics__stat-label">важных в журнале</span>

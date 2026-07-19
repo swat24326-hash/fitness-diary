@@ -545,7 +545,7 @@ export function TrainerClients() {
                   Показано {visibleClients.length} из {sortedFilteredClients.length}
                   {clients.length !== sortedFilteredClients.length ? ` (всего у вас ${clients.length})` : ''}
                 </p>
-                <ul className="list">
+                <ul className="list os-enter">
                   {visibleClients.map((c) => (
                     <TrainerClientListItem
                       key={c.id}
@@ -599,6 +599,7 @@ export function TrainerClients() {
               </>
             ) : (
               <div className="trainer-path-empty" role="status">
+                <UserRound size={28} aria-hidden className="os-empty-card__icon" />
                 <p className="trainer-path-empty__text">
                   {quickFilter !== 'all' || query.trim()
                     ? emptyFilterMessage()

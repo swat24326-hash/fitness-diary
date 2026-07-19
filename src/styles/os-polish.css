@@ -1,0 +1,277 @@
+/* Волна D — empty/loading одного класса, планшет, планёрка, микро-движение */
+
+/* ——— Empty: glass + токены роли (вместо «сырого» dashed) ——— */
+.admin-section__empty-card,
+.challenge-empty-card,
+.os-empty-card {
+  gap: 10px;
+  padding: clamp(28px, 4vw, 40px) clamp(16px, 3vw, 28px);
+  border-radius: var(--radius-md);
+  border: 1px dashed color-mix(in srgb, var(--accent-bright) 28%, var(--border));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 6%, transparent) 0%, transparent 42%),
+    var(--bg-card);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow: var(--shadow-soft);
+}
+
+.admin-section__empty-card__icon,
+.challenge-empty-card__icon,
+.os-empty-card__icon {
+  color: var(--accent-bright);
+  opacity: 0.85;
+}
+
+.admin-section__empty-card__title,
+.challenge-empty-card__title,
+.os-empty-card__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.os-empty-card__hint {
+  margin: 0;
+  max-width: 28rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.trainer-path-empty {
+  border-radius: var(--radius-md);
+  border: 1px dashed color-mix(in srgb, var(--accent-bright) 22%, var(--border));
+  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+  min-height: 120px;
+}
+
+/* ——— Микро-движение: появление списка ——— */
+.os-enter > * {
+  animation: fade-in-up 0.38s var(--ease-out) both;
+}
+
+.os-enter > *:nth-child(1) {
+  animation-delay: 0.02s;
+}
+.os-enter > *:nth-child(2) {
+  animation-delay: 0.05s;
+}
+.os-enter > *:nth-child(3) {
+  animation-delay: 0.08s;
+}
+.os-enter > *:nth-child(4) {
+  animation-delay: 0.11s;
+}
+.os-enter > *:nth-child(5) {
+  animation-delay: 0.14s;
+}
+.os-enter > *:nth-child(6) {
+  animation-delay: 0.17s;
+}
+.os-enter > *:nth-child(7) {
+  animation-delay: 0.2s;
+}
+.os-enter > *:nth-child(8) {
+  animation-delay: 0.23s;
+}
+.os-enter > *:nth-child(n + 9) {
+  animation-delay: 0.26s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .os-enter > * {
+    animation: none;
+  }
+}
+
+/* ——— Список клиентов: крупные тапы на планшете ——— */
+.list-item.td-client-item {
+  min-height: 64px;
+  padding: 14px 14px;
+  gap: 12px;
+}
+
+.td-client-row {
+  min-height: 44px;
+  gap: 10px;
+}
+
+.td-client-left {
+  gap: 12px;
+  min-width: 0;
+}
+
+.td-client-left .list-item__title,
+.td-client-left strong {
+  font-size: 1.05rem;
+  line-height: 1.3;
+}
+
+.td-client-actions {
+  gap: 10px;
+}
+
+.td-client-actions .btn,
+.td-client-actions button {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+@media (min-width: 768px) {
+  .list-item.td-client-item {
+    padding: 16px 18px;
+  }
+}
+
+/* ——— Форма тренировки: иерархия шагов ——— */
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.steps > .card {
+  padding: clamp(16px, 2.5vw, 22px);
+  border-color: color-mix(in srgb, var(--accent) 12%, var(--border));
+  box-shadow: var(--shadow-soft);
+}
+
+.steps .step-nav.tabs {
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.steps .step-nav .tab {
+  min-height: 44px;
+  padding-inline: 14px;
+  font-weight: 600;
+}
+
+.training-exercises-head {
+  margin-bottom: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+}
+
+.training-exercise-block {
+  padding: 12px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+}
+
+.training-exercise-block:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.set-row-compact {
+  min-height: 44px;
+}
+
+.training-add-set-btn {
+  min-height: 44px;
+}
+
+/* ——— Планёрка: карточки как сводка + бейдж «Просрочено» ——— */
+.admin-task-list.os-enter {
+  gap: 12px;
+}
+
+.admin-task-card {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-left-color: color-mix(in srgb, var(--accent-bright) 55%, transparent);
+  background: var(--bg-card);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow: var(--shadow-soft);
+}
+
+.admin-task-card:hover {
+  border-color: color-mix(in srgb, var(--accent-bright) 35%, var(--border));
+  box-shadow: var(--shadow-soft);
+  transform: translateY(-1px);
+}
+
+.admin-task-card--overdue {
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+  border-left-color: var(--danger);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--danger) 8%, transparent) 0%, transparent 28%),
+    var(--bg-card);
+}
+
+.admin-task-card__overdue {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--danger) 15%, #fff);
+  background: color-mix(in srgb, var(--danger) 22%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 40%, transparent);
+}
+
+/* ——— Админ: диагностика / структура / челленджи ——— */
+.admin-diagnostics__summary {
+  gap: 12px;
+}
+
+.admin-diagnostics__stat {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow: var(--shadow-soft);
+  padding: 14px 16px;
+}
+
+.admin-structure__header {
+  margin-bottom: 12px;
+}
+
+.admin-structure__title {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.admin-structure__panel-wrap > .card,
+.admin-structure .card {
+  border-color: color-mix(in srgb, var(--accent) 10%, var(--border));
+}
+
+.challenge-admin-shell .challenge-admin__h1 {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.challenge-list-card {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  box-shadow: var(--shadow-soft);
+  transition:
+    border-color 0.15s var(--ease-out),
+    transform 0.15s var(--ease-out);
+}
+
+.challenge-list-card:hover {
+  border-color: color-mix(in srgb, var(--accent-bright) 32%, var(--border));
+  transform: translateY(-1px);
+}
+
+.challenge-card-list.os-enter {
+  gap: 12px;
+}
+
+/* ПНК board empty — тот же язык */
+.pnk-control-board .os-empty-card {
+  margin: 8px 0 4px;
+}
