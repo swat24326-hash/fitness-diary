@@ -12,6 +12,7 @@ import {
 import { isAdminClientQuickFilter } from '../../lib/admin/adminClientQuickFilters'
 import { buildAdminClientsTodaySnapshot, shouldShowAdminClientsList } from '../../lib/admin/adminClientsBrowseCore'
 import { loadAdminClubMembershipsMap, loadAdminClubTrainingsForClientIds } from '../../lib/admin/adminClubWorkspaceCache'
+import { fetchClientsLastTrainingsViaApi } from '../../lib/admin/adminApiClient'
 import { pullAdminClientsFromCloud } from '../../lib/admin/adminClientsListService'
 import { useDebouncedStorageReload, shouldReloadAdminClientsPage } from '../../lib/useDebouncedStorageReload'
 import { ADMIN_CLIENTS_PAGE_SIZE, ADMIN_CLIENTS_REMOTE_LIMIT } from '../../lib/admin/adminConstants'
@@ -54,7 +55,7 @@ function membershipSignal(list, today) {
 }
 
 function lastTrainingDateFromMap(map, clientId) {
-  const d = map?.[clientId]
+  const d = map?.[String(clientId ?? '')]
   return d ? formatDateRu(d) : '—'
 }
 
@@ -68,6 +69,17 @@ function buildLastTrainingMap(trainings) {
     if (!out[cid] || d > out[cid]) out[cid] = d
   }
   return out
+}
+
+/** Остаток занятий: дневник + поле абонемента (если кэш тренировок пуст на устройстве админа). */
+function remainingTrainingsOnMembership(membership, clientTrainings) {
+  if (!membership) return null
+  const total = Number(membership.total_trainings ?? 0)
+  if (!Number.isFinite(total)) return null
+  const usedDiary = countedUsedTrainingsOnMembership(membership, clientTrainings)
+  const usedStored = Number(membership.used_trainings ?? 0)
+  const used = Math.max(usedDiary, Number.isFinite(usedStored) ? usedStored : 0)
+  return Math.max(0, total - used)
 }
 
 export function AdminClients() {
@@ -299,9 +311,20 @@ export function AdminClients() {
     void (async () => {
       try {
         const rows = await loadAdminClubTrainingsForClientIds(club, ids)
+        let map = buildLastTrainingMap(rows)
+        const missing = ids.map(String).filter((id) => !map[id] || map[id] === '—')
+        if (missing.length && isSupabaseConfigured() && navigator.onLine) {
+          try {
+            const remote = await fetchClientsLastTrainingsViaApi({ clubId: club, clientIds: missing })
+            const remoteMap = remote?.lastByClient ?? {}
+            map = { ...map, ...remoteMap }
+          } catch {
+            /* облако недоступно — оставляем локальный кэш */
+          }
+        }
         if (!cancelled) {
           setPageTrainings(rows)
-          setLastTrainingByClient(buildLastTrainingMap(rows))
+          setLastTrainingByClient(map)
         }
       } catch {
         if (!cancelled) {
@@ -816,20 +839,7 @@ export function AdminClients() {
                       <>
                         <span>
                           Срок <strong>{formatDateRu(expiredLeft.end_date)}</strong>, осталось тренировок:{' '}
-                          <strong>
-                            {(() => {
-                              const total = Number(expiredLeft.total_trainings ?? 0)
-                              const used = Math.max(
-                                0,
-                                total - countedUsedTrainingsOnMembership(expiredLeft, clientTrainings),
-                              )
-                              const usedStored = Number(expiredLeft.used_trainings ?? 0)
-                              const remaining = Number.isFinite(total)
-                                ? Math.max(0, total - Math.max(used, usedStored))
-                                : null
-                              return remaining ?? '—'
-                            })()}
-                          </strong>
+                          <strong>{remainingTrainingsOnMembership(expiredLeft, clientTrainings) ?? '—'}</strong>
                         </span>
                         <span className="td-muted-sep">·</span>
                       </>

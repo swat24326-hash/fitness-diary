@@ -36,7 +36,7 @@
 
 | action | Кто | Зачем |
 |--------|-----|--------|
-| `search`, `journal` | admin | Поиск / журнал |
+| `search`, `journal`, `clients-last-trainings` | admin | Поиск / журнал / даты последних тренировок по id (список клиентов) |
 | `club-stats`, `club-monthly` | admin | Сводка и год; в `club-stats` также `coachQuality` (те же trainings + конфиг клуба) |
 | `coach-quality-settings` | GET: admin или тренер/продажи своего клуба; POST: admin | веса осей, доли внутри ведения/хвостов и тумблеры |
 | `health-cards`, `clubs` | admin | Медкарты, клубы |

@@ -92,3 +92,59 @@ export async function handleJournal(ctx, req, res) {
   }
   sendJson(res, 200, { trainings: rows, clientsById, totalCount: count ?? rows.length, page, pageSize: size })
 }
+
+/**
+ * Последняя дата тренировки по клиентам страницы списка (облако).
+ * GET ?club_id=&client_ids=id1,id2 (≤50)
+ */
+export async function handleClientsLastTrainings(ctx, req, res) {
+  const clubId = String(req.query?.club_id ?? req.query?.clubId ?? '').trim()
+  const ids = [
+    ...new Set(
+      String(req.query?.client_ids ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    ),
+  ].slice(0, 50)
+
+  if (!clubId || !ids.length) {
+    sendJson(res, 200, { lastByClient: {} })
+    return
+  }
+
+  const { supabaseAdmin } = ctx
+  const pairs = await Promise.all(
+    ids.map(async (clientId) => {
+      const completed = await supabaseAdmin
+        .from('trainings')
+        .select('date')
+        .eq('club_id', clubId)
+        .eq('client_id', clientId)
+        .eq('status', 'completed')
+        .order('date', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (completed.error) return [clientId, null]
+      if (completed.data?.date) return [clientId, String(completed.data.date).slice(0, 10)]
+
+      const any = await supabaseAdmin
+        .from('trainings')
+        .select('date')
+        .eq('club_id', clubId)
+        .eq('client_id', clientId)
+        .order('date', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (any.error || !any.data?.date) return [clientId, null]
+      return [clientId, String(any.data.date).slice(0, 10)]
+    }),
+  )
+
+  /** @type {Record<string, string>} */
+  const lastByClient = {}
+  for (const [id, date] of pairs) {
+    if (date) lastByClient[id] = date
+  }
+  sendJson(res, 200, { lastByClient })
+}

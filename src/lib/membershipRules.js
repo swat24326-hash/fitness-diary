@@ -256,7 +256,9 @@ export function countedUsedTrainingsOnMembership(membership, clientTrainings) {
 /** Текст «used/total» для списка клиентов. */
 export function membershipUsageLabel(membership, clientTrainings) {
   if (!membership) return '—'
-  const used = countedUsedTrainingsOnMembership(membership, clientTrainings)
+  const usedDiary = countedUsedTrainingsOnMembership(membership, clientTrainings)
+  const usedStored = Number(membership.used_trainings ?? 0)
+  const used = Math.max(usedDiary, Number.isFinite(usedStored) ? usedStored : 0)
   const total = membership.total_trainings
   return `${used}/${total ?? '—'}`
 }

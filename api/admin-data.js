@@ -16,7 +16,7 @@ import { handleIskraLearningGet, handleIskraLearningPost } from './_lib/iskraLea
 import { handleIskraDispatchGet, handleIskraDispatchPost } from './_lib/iskraDispatchHandler.js'
 import { handlePushSubscriptionGet, handlePushSubscriptionPost } from './_lib/pushSubscriptionHandler.js'
 import { handleResetTrainerPasswordPost, handleSetTrainerActivePost } from './_lib/trainerAuthAdmin.js'
-import { handleSearch, handleJournal } from './_lib/adminData/journalHandlers.js'
+import { handleSearch, handleJournal, handleClientsLastTrainings } from './_lib/adminData/journalHandlers.js'
 import { handleClubStats, handleHealthCards, handleClubMonthly } from './_lib/adminData/clubHandlers.js'
 import {
   handleChallenges,
@@ -243,6 +243,8 @@ async function handler(req, res) {
       return handleSearch(ctx, req, res)
     case 'journal':
       return handleJournal(ctx, req, res)
+    case 'clients-last-trainings':
+      return handleClientsLastTrainings(ctx, req, res)
     case 'club-stats':
       return handleClubStats(ctx, req, res)
     case 'club-monthly':
@@ -262,7 +264,7 @@ async function handler(req, res) {
     default:
       sendJson(res, 400, {
         error:
-          'Укажите action: search, journal, club-stats, club-monthly, health-cards, sales, gemini-analytics-prefetch, iskra-settings, challenges, challenge-trainings, exercises, membership-types, clubs',
+          'Укажите action: search, journal, clients-last-trainings, club-stats, club-monthly, health-cards, sales, gemini-analytics-prefetch, iskra-settings, challenges, challenge-trainings, exercises, membership-types, clubs',
       })
   }
 }

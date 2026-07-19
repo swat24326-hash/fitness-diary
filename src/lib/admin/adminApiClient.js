@@ -368,6 +368,29 @@ export async function fetchAdminJournalViaApi({ page, pageSize, filters }) {
   }
 }
 
+/** GET /api/admin-data?action=clients-last-trainings — даты последних тренировок по id клиентов. */
+export async function fetchClientsLastTrainingsViaApi({ clubId, clientIds }) {
+  const cid = String(clubId ?? '').trim()
+  const ids = [...new Set((clientIds ?? []).map((id) => String(id ?? '').trim()).filter(Boolean))].slice(0, 50)
+  if (!cid || !ids.length) return { lastByClient: {} }
+
+  const token = await getAccessTokenForAdminApi()
+  if (!token) throw new Error('Нет сессии администратора')
+
+  const params = new URLSearchParams({
+    club_id: cid,
+    client_ids: ids.join(','),
+  })
+  const { data, routeMissing } = await adminApiGet(
+    `/api/admin-data?action=clients-last-trainings&${params}`,
+    token,
+  )
+  if (routeMissing) return null
+  const lastByClient =
+    data?.lastByClient && typeof data.lastByClient === 'object' ? data.lastByClient : {}
+  return { lastByClient }
+}
+
 /** GET /api/admin-data?action=club-stats */
 export async function fetchClubTrainingStatsViaApi({ clubId, dateFrom, dateTo }) {
   const token = await getAccessTokenForAdminApi()
