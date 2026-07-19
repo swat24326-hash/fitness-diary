@@ -572,7 +572,12 @@ export function TrainingPage() {
   }
 
   if (loadState === 'loading') {
-    return <p className="muted">Загрузка…</p>
+    return (
+      <div className="trainer-path-loading" role="status" aria-live="polite" aria-busy="true">
+        <span className="app-loading__ring app-loading__ring--sm" aria-hidden />
+        <p className="trainer-path-loading__text">Загрузка…</p>
+      </div>
+    )
   }
 
   if (loadState === 'missing') {
@@ -594,9 +599,9 @@ export function TrainingPage() {
 
   return (
     <div className="grid training-page-root" style={{ gap: 16 }}>
-      <div className="training-page-head-title">
-        <div className="training-page-head-title__left">
-          <h1 className="training-page-head-name">{title}</h1>
+      <div className="trainer-path-head training-page-head-title">
+        <div className="trainer-path-head__left training-page-head-title__left">
+          <h1 className="trainer-path-head__title training-page-head-name">{title}</h1>
           {contra ? <ContraindicationsToggle text={contra} size="sm" mode="modal" /> : null}
         </div>
         {clientCardTrainingsHref ? (

@@ -1,42 +1,42 @@
-/* --- Trainer outreach / Max --- */
+/* --- Trainer outreach / Max (токены роли, без чужого blue) --- */
 
 .trainer-max-btn {
   flex: 0 0 auto;
-  border: 1px solid rgba(52, 211, 153, 0.35);
-  background: rgba(16, 185, 129, 0.12);
-  color: #a7f3d0;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: color-mix(in srgb, var(--accent-bright) 85%, var(--text));
 }
 
 .trainer-max-btn:hover:not(:disabled) {
-  background: rgba(16, 185, 129, 0.2);
-  border-color: rgba(52, 211, 153, 0.55);
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
 .trainer-max-btn--pending {
-  border-color: rgba(52, 211, 153, 0.55);
-  background: rgba(16, 185, 129, 0.18);
-  color: #d1fae5;
-  box-shadow: 0 0 0 1px rgba(52, 211, 153, 0.18);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent-bright);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 .trainer-max-btn--copied {
-  border-color: rgba(96, 165, 250, 0.5);
-  background: rgba(59, 130, 246, 0.18);
-  color: #bfdbfe;
+  border-color: color-mix(in srgb, var(--accent-bright) 50%, transparent);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--accent-bright);
 }
 
 .trainer-max-btn--sent {
-  border-color: rgba(148, 163, 184, 0.28);
-  background: rgba(100, 116, 139, 0.1);
-  color: rgba(203, 213, 225, 0.7);
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--text-muted) 12%, transparent);
+  color: var(--text-muted);
   opacity: 0.85;
 }
 
 .trainer-max-btn--no-phone {
   opacity: 0.4;
-  border-color: rgba(148, 163, 184, 0.22);
-  background: rgba(100, 116, 139, 0.08);
-  color: rgba(203, 213, 225, 0.55);
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--text-muted) 8%, transparent);
+  color: var(--text-muted);
 }
 
 .trainer-max-btn:disabled {
@@ -51,20 +51,20 @@
   margin-top: 12px;
   padding: 8px 12px;
   border-radius: var(--radius);
-  border: 1px solid rgba(52, 211, 153, 0.22);
-  background: rgba(16, 185, 129, 0.06);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
 }
 
 .trainer-outreach-progress--done {
-  border-color: rgba(148, 163, 184, 0.28);
-  background: rgba(100, 116, 139, 0.08);
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--text-muted) 8%, transparent);
 }
 
 .trainer-outreach-progress__count {
   font-size: 1rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: var(--text, #e2e8f0);
+  color: var(--text);
 }
 
 .trainer-outreach-next-btn {
@@ -72,23 +72,23 @@
 }
 
 .trainer-outreach-hint {
-  color: rgba(167, 243, 208, 0.9);
+  color: color-mix(in srgb, var(--accent-bright) 90%, var(--text));
   font-weight: 600;
 }
 
 .td-client-item--highlight {
   animation: trainer-client-highlight 2.4s ease-out;
   border-radius: var(--radius);
-  box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.55);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
 @keyframes trainer-client-highlight {
   0% {
-    box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.85);
-    background: rgba(16, 185, 129, 0.12);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 85%, transparent);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
   }
   100% {
-    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
+    box-shadow: 0 0 0 0 transparent;
     background: transparent;
   }
 }
@@ -104,19 +104,19 @@
   border-radius: var(--radius);
   font-size: 13px;
   line-height: 1.35;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow-soft);
 }
 
 .trainer-outreach-toast--info {
-  background: rgba(30, 41, 59, 0.96);
-  border: 1px solid rgba(96, 165, 250, 0.45);
-  color: #e2e8f0;
+  background: var(--bg-elevated);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+  color: var(--text);
 }
 
 .trainer-outreach-toast--warn {
-  background: rgba(69, 26, 26, 0.96);
-  border: 1px solid rgba(248, 113, 113, 0.45);
-  color: #fecaca;
+  background: color-mix(in srgb, var(--danger) 18%, var(--bg-elevated));
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, transparent);
+  color: color-mix(in srgb, var(--danger) 85%, var(--text));
 }
 
 .trainer-outreach-history__list {
@@ -129,7 +129,7 @@
   height: 0;
   border-left: 8px solid transparent;
   border-right: 8px solid transparent;
-  border-bottom: 14px solid #ff9f1a;
+  border-bottom: 14px solid color-mix(in srgb, var(--warning) 75%, var(--danger));
   border-radius: 0;
   box-shadow:
     0 0 0 2px rgba(7, 9, 8, 0.95),

@@ -1,0 +1,123 @@
+/* Путь тренера: клиенты → карточка → тренировка (волна C.2) */
+
+.trainer-path-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 4px;
+}
+
+.trainer-path-head__title {
+  margin: 0;
+  font-size: clamp(1.25rem, 2.4vw, 1.45rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trainer-path-head__lead {
+  margin: 6px 0 0;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+  max-width: 42rem;
+}
+
+.trainer-path-head__left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+/* На экране тренировки заголовок + противопоказания в ряд */
+.trainer-path-head__left.training-page-head-title__left {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.trainer-path-head__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.trainer-path-head__meta {
+  display: grid;
+  gap: 2px;
+  margin-top: 4px;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.trainer-path-head__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.trainer-path-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 100px;
+  padding: 20px 12px;
+  text-align: center;
+}
+
+.trainer-path-empty__text {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  max-width: 28rem;
+  line-height: 1.45;
+}
+
+.trainer-path-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 120px;
+  padding: 24px 16px;
+}
+
+.trainer-path-loading__text {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+/* Список клиентов — glass, без «слайда» в сторону */
+.list-item.td-client-item {
+  background: var(--bg-card);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.list-item.td-client-item:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  box-shadow: var(--shadow-soft);
+}
+
+.list-item.td-client-item:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+}

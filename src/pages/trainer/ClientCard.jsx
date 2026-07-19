@@ -329,14 +329,16 @@ export function ClientCard() {
     const backTo = isAdmin ? adminClientsListHref : '/trainer/clients'
     const backLabel = isAdmin ? 'к списку клиентов' : 'к списку клиентов'
     return (
-      <p className="muted">
-        Клиент не найден. <Link to={backTo}>Назад {backLabel}</Link>
-      </p>
+      <div className="trainer-path-empty" role="status">
+        <p className="trainer-path-empty__text">
+          Клиент не найден. <Link to={backTo}>Назад {backLabel}</Link>
+        </p>
+      </div>
     )
   }
 
   return (
-    <div className="grid" style={{ gap: 18 }}>
+    <div className="grid trainer-path-card" style={{ gap: 18 }}>
       {isAdmin ? (
         <p style={{ margin: 0 }}>
           <Link to={adminClientsListHref} className="u-no-decoration muted" style={{ fontSize: 14 }}>
@@ -434,10 +436,10 @@ export function ClientCard() {
         </div>
       )}
 
-      <div className="row td-client-row" style={{ alignItems: 'flex-start', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 }}>
-        <div className="td-client-left u-grow u-minw-0">
-          <div className="row" style={{ alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <h1 style={{ margin: 0, fontSize: '1.35rem' }}>{client.name}</h1>
+      <header className="trainer-path-head">
+        <div className="trainer-path-head__left">
+          <div className="trainer-path-head__title-row">
+            <h1 className="trainer-path-head__title">{client.name}</h1>
             {String(client.lifecycle ?? '') === 'pnk_lost' ? (
               <span className="pnk-badge pnk-badge--lost" title="Отказ в воронке ПНК — не оформленный ДК">
                 Отказ ПНК
@@ -460,21 +462,17 @@ export function ClientCard() {
             ) : null}
           </div>
           {String(client.lifecycle ?? '') === 'pnk_lost' ? (
-            <p className="muted" style={{ margin: '8px 0 0', fontSize: 13, lineHeight: 1.4 }} role="status">
+            <p className="trainer-path-head__lead" role="status">
               Отказ в воронке ПНК — это не оформленный клиент ДК
               {client.pnk_lost_reason ? ` (причина: ${client.pnk_lost_reason})` : ''}. Карточка сохранена для учёта в
               статистике.
             </p>
           ) : null}
-          <div className="grid" style={{ marginTop: 6, gap: 4 }}>
-            <div className="muted">{client.phone ?? '—'}</div>
-            <div className="muted">{client.birth_date ? formatDateRu(client.birth_date) : '—'}</div>
+          <div className="trainer-path-head__meta">
+            <div>{client.phone ?? '—'}</div>
+            <div>{client.birth_date ? formatDateRu(client.birth_date) : '—'}</div>
+            {client.card_number ? <div>Карта: {client.card_number}</div> : null}
           </div>
-          {client.card_number ? (
-            <div className="muted" style={{ marginTop: 4, fontSize: 13 }}>
-              Карта: {client.card_number}
-            </div>
-          ) : null}
           {!isAdmin && outreachLogs.length > 0 ? (
             <div className="trainer-outreach-history muted" style={{ marginTop: 8, fontSize: 12 }}>
               <strong style={{ color: 'var(--text)' }}>Сообщения в Max:</strong>
@@ -489,7 +487,7 @@ export function ClientCard() {
           ) : null}
         </div>
         {!isAdmin ? (
-          <div className="row td-client-actions" style={{ flexShrink: 0, alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <div className="trainer-path-head__actions">
             {isArchived ? (
               <button
                 type="button"
@@ -536,7 +534,7 @@ export function ClientCard() {
             )}
           </div>
         ) : null}
-      </div>
+      </header>
       {isAdmin ? (
         <p className="muted" style={{ fontSize: 13, margin: '10px 0 0', lineHeight: 1.45 }}>
           Переназначить тренера или удалить клиента — в списке «Клиенты». Новую тренировку «с нуля» начинает только тренер; правки и черновики доступны здесь и в конструкторе.

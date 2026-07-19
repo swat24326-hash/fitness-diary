@@ -1,6 +1,7 @@
 @import './styles/tokens.css';
 @import './styles/utilities.css';
 @import './styles/trainer-outreach.css';
+@import './styles/trainer-path.css';
 
 *,
 *::before,
@@ -6357,14 +6358,14 @@ tr:last-child td {
     0 4px 10px rgba(0, 0, 0, 0.35);
 }
 
-/* Цвет + форма, чтобы различалось не только по цвету. */
+/* Цвет + форма, чтобы различалось не только по цвету (токены роли). */
 .td-client-dot--active {
-  background: #00d46a; /* ярче, чем стандартный green */
+  background: var(--accent-bright);
 }
 
 /* Жёлтый: ромб */
 .td-client-dot--expiring {
-  background: #ffd000;
+  background: var(--warning);
   border-radius: 3px;
   transform: rotate(45deg);
 }
@@ -6375,7 +6376,7 @@ tr:last-child td {
   height: 0;
   border-left: 8px solid transparent;
   border-right: 8px solid transparent;
-  border-bottom: 14px solid #ff9f1a;
+  border-bottom: 14px solid color-mix(in srgb, var(--warning) 75%, var(--danger));
   border-radius: 0;
   box-shadow:
     0 0 0 2px rgba(7, 9, 8, 0.95),
@@ -6386,7 +6387,7 @@ tr:last-child td {
 /* Красный: квадрат */
 .td-client-dot--none,
 .td-client-dot--limit0 {
-  background: #ff3b3b;
+  background: var(--danger);
   border-radius: 2px;
 }
 

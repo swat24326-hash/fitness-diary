@@ -399,6 +399,24 @@ export function TrainerClients() {
         </div>
       ) : null}
 
+      <header className="trainer-path-head">
+        <div className="trainer-path-head__left">
+          <h1 className="trainer-path-head__title">Клиенты</h1>
+          <p className="trainer-path-head__lead">Поиск, фильтры и быстрый переход к карточке.</p>
+        </div>
+        <div className="trainer-path-head__actions">
+          <button
+            type="button"
+            className="btn btn-primary btn-icon-square btn-touch"
+            onClick={() => setShowNewClient(true)}
+            aria-label="Добавить нового клиента"
+            title="Новый клиент"
+          >
+            <UserPlus size={20} aria-hidden />
+          </button>
+        </div>
+      </header>
+
       <section className="card">
         <div className="row" style={{ justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
           <h2 className="section-title td-section-title" style={{ margin: 0 }}>
@@ -463,17 +481,6 @@ export function TrainerClients() {
           <h2 className="section-title td-section-title" style={{ margin: 0 }}>
             Список
           </h2>
-          <div className="row td-actions">
-            <button
-              type="button"
-              className="btn btn-primary btn-icon-square btn-touch"
-              onClick={() => setShowNewClient(true)}
-              aria-label="Добавить нового клиента"
-              title="Новый клиент"
-            >
-              <UserPlus size={20} aria-hidden />
-            </button>
-          </div>
         </div>
 
         {isOutreachScenario(quickFilter) && sortedFilteredClients.length > 0 ? (
@@ -591,13 +598,15 @@ export function TrainerClients() {
                 ) : null}
               </>
             ) : (
-              <p className="muted">
-                {quickFilter !== 'all' || query.trim()
-                  ? emptyFilterMessage()
-                  : clients.length === 0
-                    ? 'Пока нет клиентов. Нажмите «+», чтобы добавить.'
-                    : 'Ничего не найдено.'}
-              </p>
+              <div className="trainer-path-empty" role="status">
+                <p className="trainer-path-empty__text">
+                  {quickFilter !== 'all' || query.trim()
+                    ? emptyFilterMessage()
+                    : clients.length === 0
+                      ? 'Пока нет клиентов. Нажмите «+», чтобы добавить.'
+                      : 'Ничего не найдено.'}
+                </p>
+              </div>
             )}
           </>
         )}
