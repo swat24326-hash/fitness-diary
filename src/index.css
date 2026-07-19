@@ -5069,6 +5069,16 @@ tr:last-child td {
   opacity: 1;
 }
 
+.admin-club-stat-card--static {
+  cursor: default;
+  opacity: 0.92;
+}
+
+.admin-club-stat-card--static .admin-club-stat-card__foot {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
 .admin-club-stat-card--active {
   border-color: color-mix(in srgb, var(--accent-bright) 55%, transparent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-bright) 28%, transparent);

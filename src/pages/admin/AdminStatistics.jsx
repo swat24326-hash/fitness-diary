@@ -99,7 +99,13 @@ export function AdminStatistics() {
   const initialPeriod = periodParam === 'today' || periodParam === 'month' ? periodParam : null
   const panelParam = searchParams.get('panel')
   const deepLinkPanel =
-    panelParam === 'inactive' ? 'inactive' : panelParam === 'journal' ? 'journal' : null
+    panelParam === 'inactive'
+      ? 'inactive'
+      : panelParam === 'journal'
+        ? 'journal'
+        : panelParam === 'coachQuality'
+          ? 'coachQuality'
+          : null
 
   const consumeDeepLink = useCallback(() => {
     setSearchParams(
@@ -347,8 +353,8 @@ export function AdminStatistics() {
     <section className="admin-section-shell admin-section-shell--wide">
       <AdminSectionHeader
         icon={BarChart3}
-        title="Статистика"
-        lead="Показатели по залу за период. Списки «Не активные» и «Проведено тренировок» — по нажатию на карточки в сводке; график по дням и таблица типов — там же."
+        title="Статистика клуба"
+        lead="Цифры за период. Нажмите карточку — список или разбор. «Не активные» и тренировки открываются ниже."
       />
 
     <div className="grid stagger td-grid">
@@ -360,6 +366,7 @@ export function AdminStatistics() {
         onActiveRangeChange={onStatsRange}
         onOpenCompletedJournal={openCompletedJournal}
         onOpenInactive={openInactive}
+        hideSectionTitle
       />
 
       {inactiveOpen ? (

@@ -67,9 +67,9 @@ export function AdminClubDaySummaryPanel({ summary, clubId = '', loading = false
       key: 'inactive',
       count: summary.inactive,
       label: 'Не активные',
-      hint: 'на сегодня',
+      hint: 'на сегодня · список в статистике',
       icon: UserX,
-      to: buildAdminClubQueryHref('/admin/clients', { clubId, filter: 'inactive' }),
+      to: buildAdminClubQueryHref('/admin/statistics', { clubId, period: 'today', panel: 'inactive' }),
       hot: summary.inactive > 0,
     },
     {

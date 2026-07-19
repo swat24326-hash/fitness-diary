@@ -26,7 +26,7 @@ function rankMedal(i) {
 
 /** @typedef {'byDay' | 'byTypes' | 'rating' | 'clubMonthly' | 'pnk' | 'coachQuality'} AdminStatsInlinePanel */
 
-/** @typedef {'inactive' | 'journal'} AdminStatsDeepLinkPanel */
+/** @typedef {'inactive' | 'journal' | 'coachQuality'} AdminStatsDeepLinkPanel */
 
 /**
  * @param {{
@@ -38,6 +38,7 @@ function rankMedal(i) {
  *   onActiveRangeChange?: (r: { start: string, end: string } | null) => void,
  *   onOpenCompletedJournal?: () => void,
  *   onOpenInactive?: (clients: object[]) => void,
+ *   hideSectionTitle?: boolean,
  * }} props
  */
 export function AdminClubStatsSection({
@@ -49,6 +50,7 @@ export function AdminClubStatsSection({
   onActiveRangeChange,
   onOpenCompletedJournal,
   onOpenInactive,
+  hideSectionTitle = false,
 }) {
   const isTrainerScope = Boolean(trainerScope?.trainerId)
   const scopeTrainerId = trainerScope?.trainerId ?? ''
@@ -328,6 +330,11 @@ export function AdminClubStatsSection({
       onOpenInactive?.(stats.inactiveClients ?? [])
     } else if (deepLinkPanel === 'journal') {
       onOpenCompletedJournal?.()
+    } else if (deepLinkPanel === 'coachQuality') {
+      setInlinePanel('coachQuality')
+      window.setTimeout(() => {
+        document.getElementById('admin-coach-quality-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 80)
     }
     onDeepLinkConsumed?.()
   }, [deepLinkPanel, busy, stats, clubId, range.start, range.end, onOpenInactive, onOpenCompletedJournal, onDeepLinkConsumed])
@@ -427,9 +434,13 @@ export function AdminClubStatsSection({
   return (
     <section className="card">
       <div className="td-section-head">
-        <h2 className="section-title td-section-title" style={{ margin: 0 }}>
-          {isTrainerScope ? 'Статистика' : 'Статистика клуба'}
-        </h2>
+        {hideSectionTitle ? (
+          <span className="u-visually-hidden">Сводка за период</span>
+        ) : (
+          <h2 className="section-title td-section-title" style={{ margin: 0 }}>
+            {isTrainerScope ? 'Статистика' : 'Статистика клуба'}
+          </h2>
+        )}
         <div className="row td-actions">
           <button
             type="button"
@@ -594,23 +605,21 @@ export function AdminClubStatsSection({
             </p>
           </button>
 
-          <div className="card stat-card admin-club-stat-card">
+          <div className="card stat-card admin-club-stat-card admin-club-stat-card--static" title="Сводка без списка">
             <div className="stat-card__top admin-club-stat-card__head">
               <h3 className="td-stat-title admin-club-stat-card__title">{isTrainerScope ? 'Мои клиенты' : 'Всего клиентов'}</h3>
               <Users className="stat-card__icon" size={22} aria-hidden />
             </div>
             <p className="stat-card__value admin-club-stat-card__value">{totalClients}</p>
-            <p className="admin-club-stat-card__foot" aria-hidden="true">
-              {'\u00a0'}
-            </p>
+            <p className="admin-club-stat-card__foot">в базе · без списка</p>
           </div>
-          <div className="card stat-card admin-club-stat-card">
+          <div className="card stat-card admin-club-stat-card admin-club-stat-card--static" title="Сводка без списка">
             <div className="stat-card__top admin-club-stat-card__head">
               <h3 className="td-stat-title admin-club-stat-card__title">Действующих</h3>
               <UserCheck className="stat-card__icon" size={22} aria-hidden />
             </div>
             <p className="stat-card__value admin-club-stat-card__value">{activeWithMembership}</p>
-            <p className="admin-club-stat-card__foot">с абонементом на конец периода</p>
+            <p className="admin-club-stat-card__foot">абонемент на конец периода · без списка</p>
           </div>
           <button
             type="button"
@@ -722,8 +731,8 @@ export function AdminClubStatsSection({
             </p>
             <p className="admin-club-stat-card__foot">
               {inlinePanel === 'clubMonthly'
-                ? `скрыть · ${monthlyChartYear}`
-                : `${defaultChartYear} · нажмите для графика`}
+                ? `скрыть · календарный ${monthlyChartYear}`
+                : `календарный ${defaultChartYear} · не период сверху`}
             </p>
           </button>
           {!isTrainerScope ? (
@@ -741,7 +750,11 @@ export function AdminClubStatsSection({
               </div>
               <p className="stat-card__value admin-club-stat-card__value">{byTrainer.length}</p>
               <p className="admin-club-stat-card__foot">
-                {byTrainer.length ? (inlinePanel === 'rating' ? 'скрыть рейтинг' : 'нажмите для рейтинга') : 'за выбранный период'}
+                {byTrainer.length
+                  ? inlinePanel === 'rating'
+                    ? 'скрыть рейтинг'
+                    : `лидер: ${trainerLabel(byTrainer[0].trainerId)} · нажмите`
+                  : 'за выбранный период'}
               </p>
             </button>
           ) : null}
@@ -1024,13 +1037,15 @@ export function AdminClubStatsSection({
       ) : null}
 
       {inlinePanel === 'coachQuality' ? (
-        <CoachQualityPanel
-          coachQuality={s?.coachQuality}
-          trainerLabel={trainerLabel}
-          clientHref={clientHrefForQuality}
-          selfTrainerId={isTrainerScope ? scopeTrainerId : null}
-          compact={isTrainerScope}
-        />
+        <div id="admin-coach-quality-panel">
+          <CoachQualityPanel
+            coachQuality={s?.coachQuality}
+            trainerLabel={trainerLabel}
+            clientHref={clientHrefForQuality}
+            selfTrainerId={isTrainerScope ? scopeTrainerId : null}
+            compact={isTrainerScope}
+          />
+        </div>
       ) : null}
 
     </section>
