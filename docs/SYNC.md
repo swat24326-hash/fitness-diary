@@ -1,6 +1,6 @@
 # Sync — очередь, flush, pull
 
-**Актуально:** 2026-07-17. Политика кода: `.cursor/rules/fitness-diary-sync.mdc`. Инциденты: [RUNBOOK.md](./RUNBOOK.md).
+**Актуально:** 2026-07-19. Политика кода: `.cursor/rules/fitness-diary-sync.mdc`. Инциденты: [RUNBOOK.md](./RUNBOOK.md).
 
 ---
 
@@ -20,6 +20,16 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 ```
 
 Ключевые модули: `src/lib/syncService.js`, `syncApiClient.js`, `localDb.js` (`enqueueSync`, `putStoreUnlessPendingSync`).
+
+---
+
+## UI полоски Sync
+
+Во время ручного Sync кнопка показывает **%** и технический label в `title`. Под шапкой — полоска **`sync-motto`**: короткие цитаты/советы по зонам прогресса (банк в `src/lib/syncMotivationCore.js`). Длинная фраза дочитывается вертикальным автоскроллом; при `prefers-reduced-motion` полоска временно выше.
+
+Ошибки и офлайн — обычный русский текст (без девизов). Техсписок шагов (`справочник · рабочая область…`) сохраняется в **Помощь → Последний Sync** (`getLastSyncReport` / `setLastSyncReport`).
+
+Проверка банка: `node scripts/verify-sync-motivation.mjs`.
 
 ---
 

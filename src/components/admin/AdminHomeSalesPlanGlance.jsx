@@ -106,9 +106,13 @@ export function AdminHomeSalesPlanGlance({ clubId = '' }) {
       </div>
 
       {loading ? (
-        <div className="admin-path-loading" role="status" aria-busy="true">
-          <span className="app-loading__ring app-loading__ring--sm" aria-hidden />
-          <p className="admin-path-loading__text">Загрузка плана…</p>
+        <div className="admin-home-sales-plan__skel" role="status" aria-busy="true" aria-label="Загрузка плана продаж">
+          <div className="admin-home-skel admin-home-sales-plan__skel-bar" aria-hidden />
+          <div className="admin-home-sales-plan__skel-row" aria-hidden>
+            <div className="admin-home-skel admin-home-sales-plan__skel-chip" />
+            <div className="admin-home-skel admin-home-sales-plan__skel-chip" />
+            <div className="admin-home-skel admin-home-sales-plan__skel-chip" />
+          </div>
         </div>
       ) : error ? (
         <p className="muted admin-home-sales-plan__error" role="status">

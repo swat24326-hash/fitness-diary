@@ -23,6 +23,13 @@ import {
   formatSyncOutboundShort,
   formatSyncOutboundTitle,
 } from '../lib/syncOutboundLabel'
+import {
+  SYNC_MOTTO_ZONE_ROTATE_MS,
+  createSyncSessionSeed,
+  getSyncMotivationZone,
+  pickSyncMotivationCard,
+  setLastSyncReport,
+} from '../lib/syncMotivationCore'
 import { SYNC_NOW_REQUEST } from '../lib/syncUiBridge'
 
 function recordSyncPullIssue(label, error) {
@@ -41,10 +48,19 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
   const [syncProgress, setSyncProgress] = useState({ percent: 0, label: '' })
   const [syncFeedback, setSyncFeedback] = useState(null)
   const syncFeedbackTimerRef = useRef(null)
+  const mottoSessionRef = useRef(/** @type {{
+    seed: number,
+    zone: number,
+    zoneStartedAt: number,
+    slot: number,
+    usedIds: string[],
+    cardId: string | null,
+  } | null} */ (null))
   const [errorJournalOpen, setErrorJournalOpen] = useState(false)
   const [needsAttention, setNeedsAttention] = useState(false)
   const [persistentErrorCount, setPersistentErrorCount] = useState(0)
   const pendingSyncRef = useRef(0)
+  const syncPercentRef = useRef(0)
 
   const refreshSyncOutbound = async () => {
     if (!isSupabaseConfigured()) {
@@ -101,13 +117,73 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
     if (menuOpen) void refreshSyncOutbound()
   }, [menuOpen])
 
-  const showSyncFeedback = (text, tone = 'ok') => {
+  const showSyncFeedback = (text, tone = 'ok', holdMs = 6000) => {
+    mottoSessionRef.current = null
     if (syncFeedbackTimerRef.current) clearTimeout(syncFeedbackTimerRef.current)
-    setSyncFeedback({ text, tone })
+    setSyncFeedback({ mode: 'plain', text, tone })
     syncFeedbackTimerRef.current = setTimeout(() => {
       setSyncFeedback(null)
       syncFeedbackTimerRef.current = null
-    }, 6000)
+    }, holdMs)
+  }
+
+  const showSyncMotto = (card, tone = 'ok', holdMs = 0) => {
+    if (syncFeedbackTimerRef.current) clearTimeout(syncFeedbackTimerRef.current)
+    setSyncFeedback({ mode: 'motto', card, tone })
+    if (holdMs > 0) {
+      syncFeedbackTimerRef.current = setTimeout(() => {
+        setSyncFeedback(null)
+        syncFeedbackTimerRef.current = null
+      }, holdMs)
+    } else {
+      syncFeedbackTimerRef.current = null
+    }
+  }
+
+  const applyMottoForPercent = (percent) => {
+    const zone = getSyncMotivationZone(percent)
+    const now = Date.now()
+    let session = mottoSessionRef.current
+    if (!session) {
+      session = {
+        seed: createSyncSessionSeed(),
+        zone: -1,
+        zoneStartedAt: now,
+        slot: 0,
+        usedIds: [],
+        cardId: null,
+      }
+      mottoSessionRef.current = session
+    }
+
+    const zoneChanged = session.zone !== zone
+    const dwellRotate =
+      !zoneChanged &&
+      zone < 4 &&
+      session.cardId &&
+      now - session.zoneStartedAt >= SYNC_MOTTO_ZONE_ROTATE_MS
+
+    if (zoneChanged) {
+      if (session.cardId) session.usedIds = [...session.usedIds, session.cardId].slice(-12)
+      session.zone = zone
+      session.zoneStartedAt = now
+      session.slot = 0
+    } else if (dwellRotate) {
+      if (session.cardId) session.usedIds = [...session.usedIds, session.cardId].slice(-12)
+      session.slot += 1
+      session.zoneStartedAt = now
+    } else if (session.cardId && zone < 4) {
+      return
+    }
+
+    const card = pickSyncMotivationCard({
+      percent,
+      sessionSeed: session.seed,
+      excludeIds: session.usedIds,
+      slot: session.slot,
+    })
+    session.cardId = card.id
+    showSyncMotto(card, 'ok', zone === 4 ? 7500 : 0)
   }
 
   const openErrorJournal = () => {
@@ -125,10 +201,18 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
   const bumpSyncProgress = (percent, label) => {
     const pct = Math.min(100, Math.max(0, Math.round(percent)))
     const text = String(label ?? '')
+    syncPercentRef.current = pct
     setSyncProgress({ percent: pct, label: text })
-    if (syncFeedbackTimerRef.current) clearTimeout(syncFeedbackTimerRef.current)
-    setSyncFeedback({ text: text ? `${pct}% — ${text}` : `${pct}%`, tone: 'ok' })
+    applyMottoForPercent(pct)
   }
+
+  useEffect(() => {
+    if (!syncBusy) return undefined
+    const id = window.setInterval(() => {
+      applyMottoForPercent(syncPercentRef.current)
+    }, 2000)
+    return () => window.clearInterval(id)
+  }, [syncBusy])
 
   const syncNowRef = useRef(async () => {})
 
@@ -137,15 +221,33 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
     closeMenu()
     setSyncBusy(true)
     setSyncFeedback(null)
+    mottoSessionRef.current = {
+      seed: createSyncSessionSeed(),
+      zone: -1,
+      zoneStartedAt: Date.now(),
+      slot: 0,
+      usedIds: [],
+      cardId: null,
+    }
     bumpSyncProgress(0, 'Старт…')
 
     const parts = []
     let hadError = false
 
+    const saveTechReport = (tone, message) => {
+      setLastSyncReport({
+        at: Date.now(),
+        tone,
+        parts: [...parts],
+        message: message || (parts.length ? parts.join(' · ') : 'Синхронизация завершена'),
+      })
+    }
+
     try {
       if (!isAppOnline()) {
         recordAppError({ source: 'network', error: 'Нет сети — синхронизация отложена' })
         showSyncFeedback('Нет Wi‑Fi — синхронизация отложена.', 'warn')
+        saveTechReport('warn', 'Нет Wi‑Fi — синхронизация отложена.')
         reportSyncOutcome({ queueCount: pendingSyncRef.current, hadError: true })
         return
       }
@@ -161,6 +263,7 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
       const flushDesc = describeFlushQueueResult(flush)
       if (flushDesc.offline) {
         showSyncFeedback(flushDesc.message, 'warn')
+        saveTechReport('warn', flushDesc.message)
         reportSyncOutcome({ queueCount: pendingSyncRef.current, hadError: true })
         return
       }
@@ -345,23 +448,27 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
           status: top?.status,
         })
         bumpSyncProgress(98, `В очереди: ${queueLeft}`)
-        showSyncFeedback(
-          `Не всё ушло в облако: в очереди ${queueLeft} ${queueLeft === 1 ? 'запись' : 'записей'}. Данные на устройстве сохранены — проверьте сеть и нажмите Sync снова.`,
-          'warn',
-        )
+        const warnMsg = `Не всё ушло в облако: в очереди ${queueLeft} ${queueLeft === 1 ? 'запись' : 'записей'}. Данные на устройстве сохранены — проверьте сеть и нажмите Sync снова.`
+        showSyncFeedback(warnMsg, 'warn')
+        saveTechReport('warn', warnMsg)
       } else if (hadError) {
         bumpSyncProgress(100, 'Готово с замечаниями')
-        showSyncFeedback(`Синхронизация с замечаниями: ${parts.join(' · ')}.`, 'warn')
+        const warnMsg = `Синхронизация с замечаниями: ${parts.join(' · ')}.`
+        showSyncFeedback(warnMsg, 'warn')
+        saveTechReport('warn', warnMsg)
       } else {
         bumpSyncProgress(100, 'Готово')
-        showSyncFeedback(parts.length ? `Готово: ${parts.join(' · ')}.` : 'Синхронизация завершена.', 'ok')
+        saveTechReport('ok', parts.length ? `Готово: ${parts.join(' · ')}.` : 'Синхронизация завершена.')
+        // Карточка 23 уже через applyMottoForPercent(100); hold 7.5 с задан в showSyncMotto.
       }
 
       reportSyncOutcome({ queueCount: queueLeft, hadError })
     } catch (e) {
       console.warn('[sync]', e)
       recordAppError({ source: 'sync', error: e?.message ?? 'Ошибка синхронизации' })
-      showSyncFeedback(e?.message ?? 'Ошибка синхронизации', 'err')
+      const errMsg = e?.message ?? 'Ошибка синхронизации'
+      showSyncFeedback(errMsg, 'err')
+      saveTechReport('err', errMsg)
       try {
         const q = await listSyncQueue()
         reportSyncOutcome({ queueCount: q.length, hadError: true })

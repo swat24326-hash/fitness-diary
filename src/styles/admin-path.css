@@ -72,6 +72,90 @@
   }
 }
 
+/* Главная админа: спокойный скелетон без трёх спиннеров */
+.admin-home-skel {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: linear-gradient(
+    110deg,
+    color-mix(in srgb, var(--bg-card) 80%, transparent) 0%,
+    color-mix(in srgb, var(--accent) 8%, var(--bg-card)) 45%,
+    color-mix(in srgb, var(--bg-card) 80%, transparent) 100%
+  );
+  background-size: 200% 100%;
+  animation: admin-path-shimmer 1.4s ease-in-out infinite;
+}
+
+.admin-home-sales-plan__skel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 72px;
+  padding: 4px 0 2px;
+}
+
+.admin-home-sales-plan__skel-bar {
+  height: 14px;
+  width: 100%;
+  border-radius: 999px;
+}
+
+.admin-home-sales-plan__skel-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.admin-home-sales-plan__skel-chip {
+  height: 36px;
+  border-radius: var(--radius-sm);
+}
+
+.admin-day-summary--skel .admin-day-summary__title {
+  margin-bottom: 12px;
+}
+
+.admin-day-summary__skel-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 148px), 1fr));
+  gap: 12px;
+}
+
+.admin-day-summary__skel-card {
+  min-height: 96px;
+  border-radius: var(--radius-md);
+}
+
+@media (min-width: 1024px) {
+  .app-shell--admin .admin-day-summary__skel-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.manager-pnk-glance--skel {
+  min-height: 132px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.manager-pnk-glance__skel-card {
+  min-height: 132px;
+  width: 100%;
+  border-radius: var(--radius-md);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-home-skel,
+  .admin-path-skeleton-tile {
+    animation: none;
+  }
+}
+
 /* Факт / план на главной админа — champagne glass, узко по высоте, на всю ширину */
 .admin-home-sales-plan {
   display: block;

@@ -133,6 +133,7 @@ run('health card', 'node', ['scripts/verify-health-card.mjs'])
 run('nutrition products', 'node', ['scripts/verify-nutrition-products.mjs'])
 run('homework plan', 'node', ['scripts/verify-homework-plan.mjs'])
 run('sync outbound label', 'node', ['scripts/verify-sync-outbound-label.mjs'])
+run('sync motivation', 'node', ['scripts/verify-sync-motivation.mjs'])
 
 if (!skipLint) {
   run('lint', 'npm', ['run', 'lint'])

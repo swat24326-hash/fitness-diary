@@ -48,21 +48,21 @@ export function AdminClubDaySummaryPanel({
 
   if (loading && !summary) {
     return (
-      <section className="admin-day-summary" aria-labelledby="admin-day-summary-title" aria-busy="true">
+      <section
+        className="admin-day-summary admin-day-summary--skel"
+        aria-labelledby="admin-day-summary-title"
+        aria-busy="true"
+      >
         <h2 id="admin-day-summary-title" className="admin-day-summary__title">
           Сводка дня клуба
         </h2>
-        <div className="admin-path-loading" role="status">
-          <span className="app-loading__ring app-loading__ring--sm" aria-hidden />
-          <p className="admin-path-loading__text">Загрузка…</p>
-        </div>
-        <div className="admin-path-skeleton-grid" aria-hidden>
-          <div className="admin-path-skeleton-tile" />
-          <div className="admin-path-skeleton-tile" />
-          <div className="admin-path-skeleton-tile" />
-          <div className="admin-path-skeleton-tile" />
-          <div className="admin-path-skeleton-tile" />
-        </div>
+        <ul className="admin-day-summary__skel-grid" aria-label="Загрузка сводки">
+          <li className="admin-home-skel admin-day-summary__skel-card" />
+          <li className="admin-home-skel admin-day-summary__skel-card" />
+          <li className="admin-home-skel admin-day-summary__skel-card" />
+          <li className="admin-home-skel admin-day-summary__skel-card" />
+          <li className="admin-home-skel admin-day-summary__skel-card" />
+        </ul>
       </section>
     )
   }

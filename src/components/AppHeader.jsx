@@ -19,6 +19,7 @@ import { HeaderStopwatch } from './HeaderStopwatch'
 import { AppErrorJournalModal } from './AppErrorJournalModal'
 import { useIskraPanel } from '../context/IskraPanelContext.jsx'
 import { useHeaderSync } from './useHeaderSync'
+import { SyncMottoStrip } from './SyncMottoStrip'
 import { TrainerInboxPanel } from './iskra/TrainerInboxPanel.jsx'
 import { fetchIskraDispatch } from '../lib/admin/iskraDispatchService.js'
 import { TRAINER_INBOX_OPEN_EVENT } from '../lib/admin/trainerInboxEvents.js'
@@ -751,7 +752,9 @@ export function AppHeader() {
         />
       </Suspense>
     ) : null}
-    {syncFeedback && (
+    {syncFeedback?.mode === 'motto' && syncFeedback.card ? (
+      <SyncMottoStrip card={syncFeedback.card} tone={syncFeedback.tone || 'ok'} />
+    ) : syncFeedback ? (
       <div
         className={`sync-feedback sync-feedback--${syncFeedback.tone}`}
         role="status"
@@ -759,7 +762,7 @@ export function AppHeader() {
       >
         {syncFeedback.text}
       </div>
-    )}
+    ) : null}
     </>
   )
 }

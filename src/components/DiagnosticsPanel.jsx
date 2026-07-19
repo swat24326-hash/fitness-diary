@@ -26,6 +26,7 @@ import {
   suggestErrorHint,
 } from '../lib/appDiagnostics'
 import { clearPoisonedSyncQueue, getSyncOutboundSummary } from '../lib/syncService'
+import { formatLastSyncReportTime, getLastSyncReport } from '../lib/syncMotivationCore'
 import { probeCloudNow } from '../lib/networkReachability'
 import { checkRemoteBundleStale } from '../lib/appBuildInfo'
 import { pruneRedundantSyncQueue } from '../lib/syncQueueOrphans'
@@ -93,6 +94,11 @@ export function DiagnosticsPanel({
     simpleMode && (context?.role === 'trainer' || context?.role === 'sales_manager')
   const [showAllQueue, setShowAllQueue] = useState(false)
   const [showDetails, setShowDetails] = useState(!simpleMode)
+  const [lastSyncReport, setLastSyncReportState] = useState(() => getLastSyncReport())
+
+  const refreshLastSyncReport = useCallback(() => {
+    setLastSyncReportState(getLastSyncReport())
+  }, [])
 
   const refreshErrors = useCallback(() => {
     const list = loadDiagnosticsErrors(50)
@@ -103,7 +109,8 @@ export function DiagnosticsPanel({
   useEffect(() => {
     pruneRecoverableAppErrors()
     refreshErrors()
-  }, [refreshErrors])
+    refreshLastSyncReport()
+  }, [refreshErrors, refreshLastSyncReport])
 
   const refreshAttention = useCallback(
     (queueLen) => {
@@ -140,8 +147,9 @@ export function DiagnosticsPanel({
 
   const refreshAll = useCallback(() => {
     refreshErrors()
+    refreshLastSyncReport()
     void refreshQueue()
-  }, [refreshErrors, refreshQueue])
+  }, [refreshErrors, refreshLastSyncReport, refreshQueue])
 
   useEffect(() => {
     refreshAll()
@@ -545,6 +553,40 @@ export function DiagnosticsPanel({
                 </dd>
               </div>
             </dl>
+          </section>
+
+          <section className="diagnostics-panel__queue" aria-label="Последний Sync">
+            <div className="diagnostics-panel__section-row">
+              <h4 className="diagnostics-panel__section-title">Последний Sync</h4>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={refreshLastSyncReport}>
+                <RefreshCw size={14} aria-hidden />
+                Обновить
+              </button>
+            </div>
+            {!lastSyncReport ? (
+              <p className="muted diagnostics-panel__empty-inline">Ещё не было Sync на этом устройстве.</p>
+            ) : (
+              <>
+                <p className="diagnostics-panel__queue-note">
+                  <span className={lastSyncReport.tone === 'ok' ? 'diagnostics-ok' : 'diagnostics-warn'}>
+                    {lastSyncReport.tone === 'ok' ? 'Успех' : lastSyncReport.tone === 'err' ? 'Ошибка' : 'С замечаниями'}
+                  </span>
+                  {' · '}
+                  {formatLastSyncReportTime(lastSyncReport.at)}
+                </p>
+                <p className="diagnostics-panel__empty-inline" style={{ marginTop: 6 }}>
+                  {lastSyncReport.message ||
+                    (lastSyncReport.parts.length ? lastSyncReport.parts.join(' · ') : '—')}
+                </p>
+                {lastSyncReport.parts.length > 0 && !simpleMode ? (
+                  <ul className="diagnostics-panel__queue-list" style={{ marginTop: 8 }}>
+                    {lastSyncReport.parts.map((p, i) => (
+                      <li key={`${i}-${p}`}>{p}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </>
+            )}
           </section>
 
           <section className="diagnostics-panel__queue" aria-label="Очередь синхронизации">
