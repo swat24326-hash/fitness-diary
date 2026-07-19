@@ -2,6 +2,7 @@
 @import './styles/utilities.css';
 @import './styles/trainer-outreach.css';
 @import './styles/trainer-path.css';
+@import './styles/admin-path.css';
 
 *,
 *::before,
@@ -3534,7 +3535,7 @@ tr:last-child td {
   width: clamp(76px, 22vw, 104px);
   height: clamp(76px, 22vw, 104px);
   border-radius: clamp(16px, 4vw, 22px);
-  background: rgba(34, 197, 94, 0.12);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent-bright);
 }
 
@@ -3560,15 +3561,15 @@ tr:last-child td {
 
 /* Активный раздел (админ-плитки как NavLink) */
 .feature-tile.feature-tile--active {
-  border-color: rgba(34, 197, 94, 0.55);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
   box-shadow:
-    0 0 0 1px rgba(34, 197, 94, 0.28),
+    0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent),
     0 16px 36px rgba(0, 0, 0, 0.45);
   transform: translateY(-3px);
 }
 
 .feature-tile.feature-tile--active .feature-tile__icon {
-  background: rgba(34, 197, 94, 0.22);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
   color: var(--accent-bright);
 }
 
@@ -3595,6 +3596,19 @@ tr:last-child td {
   justify-content: center;
   gap: 10px;
   margin-top: 2px;
+}
+
+.admin-home__brand-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+
+.admin-home__brand-lead {
+  margin: 0;
+  text-align: center;
 }
 
 .admin-home__brand-title {
@@ -4659,7 +4673,7 @@ tr:last-child td {
     var(--accent-dim) 100%
   );
   box-shadow:
-    0 0 16px rgba(46, 255, 184, 0.22),
+    0 0 16px color-mix(in srgb, var(--accent-bright) 22%, transparent),
     0 6px 14px rgba(0, 0, 0, 0.32),
     inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
@@ -4668,13 +4682,13 @@ tr:last-child td {
   width: min(100%, 30px);
   background: linear-gradient(
     180deg,
-    #b8ffe8 0%,
+    var(--accent-bright) 0%,
     var(--premium-accent-neon) 32%,
     var(--accent) 72%,
-    #0a6b4f 100%
+    var(--accent-dim) 100%
   );
   box-shadow:
-    0 0 24px rgba(46, 255, 184, 0.38),
+    0 0 24px color-mix(in srgb, var(--accent-bright) 38%, transparent),
     0 8px 20px rgba(0, 0, 0, 0.38),
     inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
@@ -5045,8 +5059,8 @@ tr:last-child td {
 }
 
 .admin-club-stat-card--clickable:not(:disabled):hover {
-  border-color: rgba(74, 222, 128, 0.45);
-  box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.2);
+  border-color: color-mix(in srgb, var(--accent-bright) 45%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-bright) 20%, transparent);
 }
 
 .admin-club-stat-card--clickable:disabled {
@@ -5055,8 +5069,8 @@ tr:last-child td {
 }
 
 .admin-club-stat-card--active {
-  border-color: rgba(74, 222, 128, 0.55);
-  box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.28);
+  border-color: color-mix(in srgb, var(--accent-bright) 55%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-bright) 28%, transparent);
 }
 
 .admin-mem-type-table-wrap {
@@ -7955,7 +7969,7 @@ tr:last-child td {
   color: var(--accent-bright);
   flex-shrink: 0;
   margin-top: 2px;
-  filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.25));
+  filter: drop-shadow(0 0 8px var(--accent-glow));
 }
 
 .admin-section__title,

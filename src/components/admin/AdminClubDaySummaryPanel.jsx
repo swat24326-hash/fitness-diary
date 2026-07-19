@@ -39,9 +39,16 @@ export function AdminClubDaySummaryPanel({ summary, clubId = '', loading = false
         <h2 id="admin-day-summary-title" className="admin-day-summary__title">
           Сводка дня клуба
         </h2>
-        <p className="admin-day-summary__loading muted" role="status">
-          Загрузка…
-        </p>
+        <div className="admin-path-loading" role="status">
+          <span className="app-loading__ring app-loading__ring--sm" aria-hidden />
+          <p className="admin-path-loading__text">Загрузка…</p>
+        </div>
+        <div className="admin-path-skeleton-grid" aria-hidden>
+          <div className="admin-path-skeleton-tile" />
+          <div className="admin-path-skeleton-tile" />
+          <div className="admin-path-skeleton-tile" />
+          <div className="admin-path-skeleton-tile" />
+        </div>
       </section>
     )
   }

@@ -82,7 +82,17 @@ export function ManagerPnkHomeGlance({ clubId = '', href = '/sales/pnk' }) {
   }
 
   if (!String(clubId || '').trim()) return null
-  if (loading || !cards.length) return null
+  if (loading) {
+    return (
+      <section className="trainer-task-glance manager-pnk-glance" aria-busy="true" aria-label="ПНК">
+        <div className="admin-path-loading" role="status">
+          <span className="app-loading__ring app-loading__ring--sm" aria-hidden />
+          <p className="admin-path-loading__text">Загрузка ПНК…</p>
+        </div>
+      </section>
+    )
+  }
+  if (!cards.length) return null
 
   const card = cards[index] ?? cards[0]
   const hasMany = cards.length > 1

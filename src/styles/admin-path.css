@@ -1,0 +1,73 @@
+/* Админ / sales path polish (волна C.3–C.4) — шапки и loading без смены логики */
+
+.admin-path-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 8px;
+  width: 100%;
+}
+
+.admin-path-head__title {
+  margin: 0;
+  font-size: clamp(1.25rem, 2.2vw, 1.55rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.admin-path-head__lead {
+  margin: 6px 0 0;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+  max-width: 40rem;
+}
+
+.admin-path-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 96px;
+  padding: 20px 12px;
+}
+
+.admin-path-loading__text {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.admin-path-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.admin-path-skeleton-tile {
+  min-height: 88px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: linear-gradient(
+    110deg,
+    color-mix(in srgb, var(--bg-card) 80%, transparent) 0%,
+    color-mix(in srgb, var(--accent) 8%, var(--bg-card)) 45%,
+    color-mix(in srgb, var(--bg-card) 80%, transparent) 100%
+  );
+  background-size: 200% 100%;
+  animation: admin-path-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes admin-path-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}

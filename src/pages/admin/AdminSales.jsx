@@ -655,8 +655,8 @@ export function AdminSales({ accessMode = 'admin' }) {
         <div className="sales-report__hero">
           <div className="sales-report__hero-head">
             <div>
-              <h1 className="section-title sales-report__page-title">Продажи</h1>
-              <p className="sales-report__month-label muted">{monthLabel}</p>
+              <h1 className="admin-path-head__title sales-report__page-title">Продажи</h1>
+              <p className="admin-path-head__lead sales-report__month-label">{monthLabel}</p>
             </div>
             <button
               type="button"

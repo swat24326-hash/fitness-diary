@@ -68,9 +68,14 @@ export function AdminDashboard() {
     <div className={`admin-home${isAdminHome ? ' admin-home--dashboard' : ' admin-home--section'}`}>
       {isAdminHome ? (
         <>
-          <div className="admin-home__brand-row">
-            <Shield className="admin-home__brand-icon" size={28} strokeWidth={2.25} aria-hidden />
-            <h1 className="admin-home__brand-title">Админпанель</h1>
+          <div className="admin-home__brand-block">
+            <div className="admin-home__brand-row">
+              <Shield className="admin-home__brand-icon" size={28} strokeWidth={2.25} aria-hidden />
+              <h1 className="admin-home__brand-title">Админпанель</h1>
+            </div>
+            <p className="admin-path-head__lead admin-home__brand-lead">
+              Управление клубом: сводка дня, разделы и контроль.
+            </p>
           </div>
 
           <AdminClubDaySummaryPanel

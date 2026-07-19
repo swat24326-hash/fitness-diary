@@ -899,7 +899,10 @@ export function AdminClubStatsSection({
             Столбцы — по всем календарным месяцам {monthlyChartYear} года (янв–дек), независимо от периода сводки выше.
           </p>
           {clubMonthlyBusy && !clubMonthly.length ? (
-            <p className="muted" style={{ margin: 0, fontSize: 13 }}>Загрузка…</p>
+            <div className="admin-path-loading" role="status" aria-busy="true">
+              <span className="app-loading__ring app-loading__ring--sm" aria-hidden />
+              <p className="admin-path-loading__text">Загрузка…</p>
+            </div>
           ) : (
             <>
               {!clubMonthlySum &&
