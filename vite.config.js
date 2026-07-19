@@ -50,7 +50,7 @@ export default defineConfig(({ mode }) => ({
         'icons/icon-512.png',
       ],
       manifest: {
-        name: 'Ось — операционная система фитнес-клуба',
+        name: 'Ось',
         short_name: 'Ось',
         description: 'Операционная система фитнес-клуба: зал, продажи, управление',
         start_url: '/',

@@ -33,3 +33,15 @@ export function productBrandAriaOnline(online) {
     ? `${PRODUCT_BRAND_NAME}, подключение к сети есть`
     : `${PRODUCT_BRAND_NAME}, нет подключения к сети`
 }
+
+/**
+ * Title окна / PWA: клуб, без «Ось — … - Ось».
+ * Манифест name = «Ось»; document.title = клуб → в Windows не дублируется.
+ */
+export function productBrandDocumentTitle(clubLabel) {
+  const club = String(clubLabel ?? '').trim()
+  if (!club || club === '…' || club === '—' || club === 'Выберите клуб') {
+    return PRODUCT_BRAND_NAME
+  }
+  return club
+}

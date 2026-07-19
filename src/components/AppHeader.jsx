@@ -7,7 +7,7 @@ import { isSupabaseConfigured } from '../lib/supabase'
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react'
 import { AlertTriangle, BarChart3, CircleHelp, Inbox, LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, TrendingUp, User, UserCircle, Building2 } from 'lucide-react'
 import { OsMark } from './brand/OsMark.jsx'
-import { PRODUCT_BRAND_NAME, productBrandAriaOnline } from '../lib/productBrand.js'
+import { PRODUCT_BRAND_NAME, productBrandAriaOnline, productBrandDocumentTitle } from '../lib/productBrand.js'
 import {
   listClubsLocal,
   LOCAL_DATA_CHANGED,
@@ -354,6 +354,16 @@ export function AppHeader() {
     : trainerClubLabel === null
       ? '…'
       : trainerClubLabel || '—'
+
+  useEffect(() => {
+    if (isSalesManager) {
+      const club =
+        trainerClubLabel && trainerClubLabel !== '…' ? String(trainerClubLabel).trim() : ''
+      document.title = club ? `Продажи · ${club}` : 'Продажи'
+      return
+    }
+    document.title = productBrandDocumentTitle(headerClubTitle)
+  }, [isSalesManager, trainerClubLabel, headerClubTitle])
 
   return (
     <>
