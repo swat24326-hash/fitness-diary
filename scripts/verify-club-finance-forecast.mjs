@@ -5,6 +5,7 @@ import {
   buildClubFinanceForecast,
   buildDirectionForecastLagSummary,
   buildIskraMonthForecastSummary,
+  buildPlanCalendarNorm,
   daysInCalendarMonth,
   isCurrentCalendarMonth,
 } from '../src/lib/admin/clubFinanceForecastCore.js'
@@ -237,13 +238,17 @@ const fcTrain = buildClubFinanceForecast({
   planForm: { plan_level_3: '100000', plan_pz: '50000', plan_az: '20000' },
 })
 
-ok(fcTrain.ok, 'forecast trainings fallback')
-ok(fcTrain.plan.directions.find((d) => d.key === 'pz')?.mode === 'trainings', 'pz falls back to trainings')
-ok(fcTrain.plan.directions.find((d) => d.key === 'az')?.mode === 'trainings', 'az falls back to trainings')
+ok(fcTrain.ok, 'forecast no-revenue directions')
+ok(fcTrain.plan.directions.find((d) => d.key === 'pz')?.mode === 'no_revenue', 'pz no revenue mode')
+ok(fcTrain.plan.directions.find((d) => d.key === 'az')?.mode === 'no_revenue', 'az no revenue mode')
+ok(fcTrain.plan.directions.find((d) => d.key === 'pz')?.noteRu === 'Нет выручки по залу', 'pz note ru')
+ok(fcTrain.plan.directions.find((d) => d.key === 'pz')?.forecast === 0, 'pz forecast rub is 0 without revenue')
+ok(fcTrain.plan.directions.find((d) => d.key === 'pz')?.forecastProgressPercent === 0, 'pz no false plan %')
 ok(
-  fcTrain.plan.directions.find((d) => d.key === 'pz')?.forecast === Math.round(15 * (daysInMonth / 3)),
-  'pz trainings forecast scaled',
+  fcTrain.plan.directions.find((d) => d.key === 'pz')?.trainingsForecast === Math.round(15 * (daysInMonth / 3)),
+  'pz trainings still projected as hint',
 )
+ok(!fcTrain.plan.directionLag.lagging.some((d) => d.key === 'pz'), 'pz not in lag without revenue ₽')
 
 const iskra = buildIskraMonthForecastSummary({
   monthRows: rows3,
@@ -385,6 +390,21 @@ ok(
   fcSplit.plan.pace?.perDayRub ===
     Math.round(((2000000 - 320000) / fcSplit.dayType.remainingWeekdays) * 100) / 100,
   'split pace per weekday',
+)
+
+const expectedCalPct = Math.round((8 / 31) * 1000) / 10
+const calNormUnit = buildPlanCalendarNorm({
+  year,
+  month,
+  factProgressPercent: 10,
+  today,
+})
+ok(calNormUnit?.expectedPct === expectedCalPct, 'calendar norm 8/31')
+ok(calNormUnit?.vs === 'behind', 'fact 10% behind calendar mid-early july')
+ok(fcPlan.plan.calendarNorm?.expectedPct === expectedCalPct, 'plan forecast exposes calendar norm')
+ok(
+  fcPlan.plan.calendarNorm?.factPct === fcPlan.plan.factProgressPercent,
+  'calendar norm fact matches plan fact %',
 )
 
 if (failed) process.exit(1)

@@ -180,8 +180,18 @@ export function SalesFinanceForecast({
     return null
   }
 
+  const formatCalendarNormLabel = (norm) => {
+    if (!norm) return null
+    const expected = String(norm.expectedPct).replace('.', ',')
+    const fact = String(norm.factPct).replace('.', ',')
+    const vs = norm.vsLabelRu ? ` — ${norm.vsLabelRu}` : ''
+    return `Норма к дате ${expected}% · факт ${fact}%${vs}`
+  }
+
   const plan = forecast.plan
   const paceLabel = formatPaceLabel(plan?.pace)
+  const calendarNormLabel = formatCalendarNormLabel(plan?.calendarNorm)
+  const calendarNorm = plan?.calendarNorm
 
   return (
     <section className="sales-finance-forecast" aria-labelledby="sales-finance-forecast-title">
@@ -230,7 +240,31 @@ export function SalesFinanceForecast({
               </strong>
               <span className="sales-finance-forecast__plan-kpi-sub">{formatRub(plan.forecastGross)}</span>
             </article>
+            {calendarNorm ? (
+              <article
+                className={`sales-finance-forecast__plan-card sales-finance-forecast__plan-card--${calendarNorm.tone}`}
+              >
+                <span className="sales-finance-forecast__plan-kpi-label">Норма к дате</span>
+                <strong
+                  className={`sales-finance-forecast__plan-kpi-value sales-finance-forecast__reach--${calendarNorm.tone}`}
+                >
+                  {String(calendarNorm.expectedPct).replace('.', ',')}%
+                </strong>
+                <span className="sales-finance-forecast__plan-kpi-sub">
+                  факт {String(calendarNorm.factPct).replace('.', ',')}%
+                  {calendarNorm.vsLabelRu ? ` · ${calendarNorm.vsLabelRu}` : ''}
+                </span>
+              </article>
+            ) : null}
           </div>
+          {calendarNormLabel ? (
+            <p
+              className={`sales-finance-forecast__calendar-norm sales-finance-forecast__reach--${calendarNorm?.tone ?? 'ok'}`}
+              role="status"
+            >
+              {calendarNormLabel}
+            </p>
+          ) : null}
           <p className={`sales-finance-forecast__verdict sales-finance-forecast__reach--${plan.reach.tone}`}>
             {formatReachLabel(plan.reach, plan.level3)}
           </p>
@@ -291,28 +325,46 @@ export function SalesFinanceForecast({
               <tbody>
                 {plan.directions.map((dir) => {
                   const isMoney = dir.mode === 'revenue'
-                  const factText = isMoney ? formatRub(dir.fact) : `${formatValue('count', dir.fact)} трен.`
+                  const noRevenue = dir.mode === 'no_revenue'
+                  const factText = isMoney
+                    ? formatRub(dir.fact)
+                    : noRevenue
+                      ? 'нет выручки'
+                      : `${formatValue('count', dir.fact)} трен.`
                   const forecastText = isMoney
                     ? formatRub(dir.forecast)
-                    : `${formatValue('count', dir.forecast)} трен.`
+                    : noRevenue
+                      ? '—'
+                      : `${formatValue('count', dir.forecast)} трен.`
                   const planText = dir.planTarget > 0 ? formatRub(dir.planTarget) : '—'
                   const progressText =
-                    dir.mode === 'revenue' && dir.planTarget > 0
+                    isMoney && dir.planTarget > 0
                       ? `${dir.forecastProgressPercent}%`
-                      : dir.reach.trainingsFallback
-                        ? 'по тренировкам'
+                      : noRevenue
+                        ? 'нет выручки по залу'
                         : '—'
                   const gapText =
                     isMoney && dir.planTarget > 0 && dir.reach?.willReach !== true && dir.reach?.gapRub > 0
                       ? `−${formatRub(dir.reach.gapRub)}`
                       : '—'
+                  const trainingsHint =
+                    noRevenue && (dir.trainingsFact > 0 || dir.trainingsForecast > 0)
+                      ? `трен. ${formatValue('count', dir.trainingsFact)} → ${formatValue('count', dir.trainingsForecast)} (не к плану ₽)`
+                      : null
                   const rowClass =
                     isMoney && dir.planTarget > 0 && dir.reach?.willReach !== true
                       ? 'sales-finance-forecast__row--lag'
-                      : undefined
+                      : noRevenue
+                        ? 'sales-finance-forecast__row--no-revenue'
+                        : undefined
                   return (
                     <tr key={dir.key} className={rowClass}>
-                      <th scope="row">{dir.label}</th>
+                      <th scope="row">
+                        {dir.label}
+                        {trainingsHint ? (
+                          <span className="sales-finance-forecast__dir-note">{trainingsHint}</span>
+                        ) : null}
+                      </th>
                       <td className="sales-finance-forecast__col-num">{planText}</td>
                       <td className="sales-finance-forecast__col-num sales-finance-forecast__col-fact">{factText}</td>
                       <td className="sales-finance-forecast__col-num sales-finance-forecast__col-forecast">{forecastText}</td>

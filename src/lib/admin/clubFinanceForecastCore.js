@@ -23,8 +23,50 @@ import {
   computePlanPaceNeeded,
   projectMonthMetric,
 } from './clubFinanceForecastProjection.js'
+import {
+  buildGeminiMonthCalendarContext,
+  comparePlanToCalendar,
+} from './geminiMonthCalendarContext.js'
 
 export { FORECAST_METHOD_UNIFORM, FORECAST_METHOD_WEEKDAY_WEEKEND, computePlanPaceNeeded }
+
+/**
+ * Норма к дате (линейный % календаря) рядом с фактом плана — только текущий месяц.
+ * @param {{
+ *   year: number,
+ *   month: number,
+ *   factProgressPercent: number,
+ *   today?: Date,
+ * }} opts
+ */
+export function buildPlanCalendarNorm(opts) {
+  const cal = buildGeminiMonthCalendarContext(opts.year, opts.month, opts.today ?? new Date())
+  if (!cal || cal.month_relation !== 'current') return null
+
+  const expectedPct = Number(cal.expected_plan_progress_pct) || 0
+  const factPct = Number(opts.factProgressPercent) || 0
+  const vs = comparePlanToCalendar(factPct, cal)
+  /** @type {'strong'|'ok'|'weak'} */
+  let tone = 'ok'
+  if (vs === 'ahead') tone = 'strong'
+  else if (vs === 'behind') tone = 'weak'
+
+  let vsLabelRu = ''
+  if (vs === 'ahead') vsLabelRu = 'опережаем календарь'
+  else if (vs === 'on_track') vsLabelRu = 'в темпе календаря'
+  else if (vs === 'behind') vsLabelRu = 'отстаём от календаря'
+
+  return {
+    expectedPct,
+    factPct,
+    vs,
+    tone,
+    vsLabelRu,
+    calendarDay: cal.calendar_day,
+    daysElapsed: cal.days_elapsed,
+    daysInMonth: cal.days_in_month,
+  }
+}
 
 export const MIN_REPORT_DAYS_FOR_FORECAST = 3
 
@@ -183,23 +225,33 @@ function buildDirectionForecastRows(monthRows, year, month, planDirections) {
       }
     }
 
-    const projected = projectMonthMetric({
+    const projectedTrainings = projectMonthMetric({
       monthRows,
       year,
       month,
       getValue: (row) => (key === 'pz' ? pzTrainingsFromDailyRow(row) : azTrainingsFromDailyRow(row)),
       roundFn: roundCount,
     })
+    /** Нет ₽ по залу — не сравниваем тренировки (шт) с планом в ₽. */
     return {
       key,
       label: FORECAST_DIRECTION_LABELS[key],
-      mode: 'trainings',
+      mode: 'no_revenue',
       planTarget,
-      fact: projected.fact,
-      forecast: projected.forecastTotal,
+      fact: 0,
+      forecast: 0,
+      trainingsFact: projectedTrainings.fact,
+      trainingsForecast: projectedTrainings.forecastTotal,
       factProgressPercent: 0,
       forecastProgressPercent: 0,
-      reach: { tone: 'muted', willReach: false, forecastProgressPercent: 0, gapRub: 0, trainingsFallback: true },
+      noteRu: 'Нет выручки по залу',
+      reach: {
+        tone: 'muted',
+        willReach: false,
+        forecastProgressPercent: 0,
+        gapRub: 0,
+        noRevenue: true,
+      },
     }
   })
 }
@@ -338,6 +390,15 @@ export function buildClubFinanceForecast(opts) {
     daysInMonth,
     reportDays,
   })
+  const calendarNorm =
+    planLevel3 > 0
+      ? buildPlanCalendarNorm({
+          year,
+          month,
+          factProgressPercent: factPlanProgress,
+          today,
+        })
+      : null
 
   return {
     ok: true,
@@ -363,6 +424,7 @@ export function buildClubFinanceForecast(opts) {
       directions: directionRows,
       directionLag,
       pace,
+      calendarNorm,
     },
     fact: {
       earnings: factEarnings,
@@ -549,6 +611,9 @@ export function buildIskraClubFinanceBlock(opts) {
         forecast_progress_pct: d.forecastProgressPercent,
         will_reach: d.reach?.willReach === true,
         gap_rub: d.reach?.gapRub ?? 0,
+        note_ru: d.noteRu ?? null,
+        trainings_fact: d.trainingsFact ?? null,
+        trainings_forecast: d.trainingsForecast ?? null,
       })),
       direction_lag: fc.plan.directionLag ?? { lagging: [], has_lag: false, summary_ru: '' },
     },
