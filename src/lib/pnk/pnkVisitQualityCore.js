@@ -304,8 +304,8 @@ function buildSummaryLine({ done, weak, missing, total, pending, client }) {
     return `${head}: по текущему этапу ок (${done}/${total}), ждём зал`
   }
   if (missing === 0 && weak === 0) return `${head}: пакет полный (${done}/${total})`
-  if (weak > 0 && missing === 0) return `${head}: есть слабые места (${weak}), сделано ${done}/${total}`
-  return `${head}: сделано ${done}/${total}, слабо ${weak}, нет ${missing}`
+  if (weak > 0 && missing === 0) return `${head}: частично (${weak}), сделано ${done}/${total}`
+  return `${head}: сделано ${done}/${total}, частично ${weak}, нет ${missing}`
 }
 
 /**

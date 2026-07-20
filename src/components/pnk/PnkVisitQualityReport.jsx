@@ -9,6 +9,38 @@ const STATUS_MARK = {
   pending: '…',
 }
 
+/** Сводка: только статусы с числом > 0; подпись сразу понятна. */
+const SUMMARY_CHIPS = [
+  {
+    key: 'done',
+    tone: 'done',
+    label: 'сделано',
+    title: 'Пункт сделан по делу',
+    countOf: (r) => r.done ?? 0,
+  },
+  {
+    key: 'weak',
+    tone: 'weak',
+    label: 'частично',
+    title: 'Есть отметка, но неполно (например карта без обмеров)',
+    countOf: (r) => r.weak ?? 0,
+  },
+  {
+    key: 'missing',
+    tone: 'missing',
+    label: 'нет',
+    title: 'Пункта нет — уже можно было сделать',
+    countOf: (r) => r.missing ?? 0,
+  },
+  {
+    key: 'pending',
+    tone: 'pending',
+    label: 'ждём',
+    title: 'Ещё рано — клиент не в зале, пункт не штрафует',
+    countOf: (r) => r.pending ?? 0,
+  },
+]
+
 function QualityItem({ item }) {
   return (
     <li className={`pnk-visit-quality__item pnk-visit-quality__item--${item.status}`}>
@@ -23,11 +55,18 @@ function QualityItem({ item }) {
   )
 }
 
+function buildVisibleChips(report) {
+  return SUMMARY_CHIPS.map((chip) => ({
+    ...chip,
+    n: chip.countOf(report),
+  })).filter((chip) => chip.n > 0)
+}
+
 export function PnkVisitQualityReport({ report, className = '' }) {
   if (!report?.items?.length) return null
   const phases = Array.isArray(report.phases) && report.phases.length > 0 ? report.phases : null
   const pct = report.pct != null ? Number(report.pct) : null
-  const pending = report.pending ?? 0
+  const chips = buildVisibleChips(report)
 
   return (
     <section
@@ -41,26 +80,20 @@ export function PnkVisitQualityReport({ report, className = '' }) {
         </span>
       </div>
 
-      <ul className="pnk-visit-quality__chips" aria-label="Сводка по статусам">
-        <li className="pnk-visit-quality__chip pnk-visit-quality__chip--done">
-          <span className="pnk-visit-quality__chip-n">{report.done ?? 0}</span>
-          <span className="pnk-visit-quality__chip-l">сделано</span>
-        </li>
-        <li className="pnk-visit-quality__chip pnk-visit-quality__chip--weak">
-          <span className="pnk-visit-quality__chip-n">{report.weak ?? 0}</span>
-          <span className="pnk-visit-quality__chip-l">слабо</span>
-        </li>
-        <li className="pnk-visit-quality__chip pnk-visit-quality__chip--missing">
-          <span className="pnk-visit-quality__chip-n">{report.missing ?? 0}</span>
-          <span className="pnk-visit-quality__chip-l">нет</span>
-        </li>
-        {pending > 0 ? (
-          <li className="pnk-visit-quality__chip pnk-visit-quality__chip--pending">
-            <span className="pnk-visit-quality__chip-n">{pending}</span>
-            <span className="pnk-visit-quality__chip-l">ждём</span>
-          </li>
-        ) : null}
-      </ul>
+      {chips.length > 0 ? (
+        <ul className="pnk-visit-quality__chips" aria-label="Сводка по статусам">
+          {chips.map((chip) => (
+            <li
+              key={chip.key}
+              className={`pnk-visit-quality__chip pnk-visit-quality__chip--${chip.tone}`}
+              title={chip.title}
+            >
+              <span className="pnk-visit-quality__chip-n">{chip.n}</span>
+              <span className="pnk-visit-quality__chip-l">{chip.label}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
 
       {phases ? (
         <div className="pnk-visit-quality__phases">
