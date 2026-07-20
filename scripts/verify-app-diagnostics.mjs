@@ -36,6 +36,26 @@ const errors = [
 assert.equal(filterAppErrors(errors, 'sync').length, 1)
 assert.ok(suggestErrorHint(errors[0]).includes('Обновите'))
 assert.ok(suggestErrorHint(errors[1]).includes('сет'))
+assert.ok(
+  suggestErrorHint({
+    source: 'app',
+    error:
+      'Uncaught TypeError: Failed to fetch dynamically imported module: https://x/assets/PwaUpdatePrompt-CORITAdj.js',
+  }).includes('Ctrl+F5'),
+  'chunk load hint',
+)
+
+const chunkFixes = resolveQuickFixes({
+  errors: [
+    {
+      source: 'app',
+      error: 'Failed to fetch dynamically imported module: PwaUpdatePrompt-CORITAdj.js',
+    },
+  ],
+  queue: [],
+  system: { online: true },
+})
+assert.ok(chunkFixes.some((f) => f.id === 'reload'), 'chunk load quick fix reload')
 
 const queue = [{ table_name: 'trainings', operation: 'insert', local_id: 'abc', retry_count: 1 }]
 assert.ok(formatSyncQueueLine(queue[0], 0).includes('trainings'))

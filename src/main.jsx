@@ -4,8 +4,10 @@ import App from './App.jsx'
 import { isSupabaseConfigured } from './lib/supabase'
 import { initAppErrorJournal } from './lib/appErrorJournal'
 import { clearPoisonedSyncQueue, resetSyncQueueOnceAfterDeploy } from './lib/syncService'
+import { armViteChunkReloadOnStaleDeploy } from './lib/viteChunkReload.js'
 
 initAppErrorJournal()
+armViteChunkReloadOnStaleDeploy()
 import '@fortawesome/fontawesome-free/css/all.min.css'
 import './index.css'
 import './styles/os-polish.css'

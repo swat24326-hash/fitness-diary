@@ -84,6 +84,13 @@ export function suggestErrorHint(row) {
   if (status === 409 || /duplicate|unique|already exists|409/i.test(text)) {
     return 'Запись уже есть в облаке. Обычно помогает повторная синхронизация.'
   }
+  if (
+    /dynamically imported module|failed to fetch dynamically|importing a module script failed|loading chunk|chunkloaderror|vite:preload/i.test(
+      text,
+    )
+  ) {
+    return 'После обновления сайта открыта старая версия страницы. Нажмите Ctrl+F5 (или закройте и откройте приложение) — Sync тут не поможет.'
+  }
   if (status === 0 || /network|fetch|failed to fetch|offline|нет сети|недоступна/i.test(text)) {
     return 'Проблема с сетью. Проверьте Wi‑Fi/мобильный интернет и нажмите Sync.'
   }
@@ -257,13 +264,18 @@ export function resolveQuickFixes({ errors = [], queue = [], localOnly = 0, syst
     })
   }
 
-  const needsReload = list.some((e) => /trainings_type_check|type_check/i.test(String(e.error ?? '')))
+  const needsReload = list.some((e) =>
+    /trainings_type_check|type_check|dynamically imported module|failed to fetch dynamically|loading chunk|chunkloaderror/i.test(
+      String(e.error ?? ''),
+    ),
+  )
   if (needsReload) {
     fixes.push({
       id: 'reload',
       tone: 'warn',
       title: 'Нужно обновить приложение',
-      detail: 'Перезагрузите страницу (или закройте и откройте PWA), затем снова нажмите «Синхронизировать».',
+      detail:
+        'После деплоя открыта старая сборка. Перезагрузите страницу (Ctrl+F5) или закройте и откройте PWA, затем при необходимости Sync.',
       action: 'reload',
     })
   }
