@@ -90,6 +90,7 @@ export function AdminHomeAttentionRow({
             subtitle={softForPnkSlot.subtitle}
             href={softForPnkSlot.href}
             tone={softForPnkSlot.tone}
+            scorePct={softForPnkSlot.scorePct}
             compact={compact}
           />
         ) : null}
@@ -111,6 +112,7 @@ export function AdminHomeAttentionRow({
             subtitle={softForPlanerkaSlot.subtitle}
             href={softForPlanerkaSlot.href}
             tone={softForPlanerkaSlot.tone}
+            scorePct={softForPlanerkaSlot.scorePct}
             compact={compact}
           />
         ) : null}

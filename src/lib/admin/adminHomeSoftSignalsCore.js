@@ -2,17 +2,16 @@ import { buildAdminClubQueryHref } from './adminClientQuickFilters.js'
 
 /**
  * Мягкие сигналы для пустых слотов ряда «внимание» (когда нет ПНК / планёрки).
+ * Отчёт продаж сюда не кладём — это зона менеджера в разделе «Продажи».
  *
  * @param {{
  *   summary?: {
- *     salesReportFilled?: boolean | null,
  *     inactive?: number,
  *     expiring?: number,
  *     today?: string,
  *   } | null,
  *   coachQuality?: { scorePct?: number | null, chipLabel?: string | null, hot?: boolean } | null,
  *   clubId?: string,
- *   hrefSales?: string,
  *   hrefStatsInactive?: string,
  *   hrefStatsCoach?: string,
  *   hrefClientsExpiring?: string,
@@ -23,6 +22,7 @@ import { buildAdminClubQueryHref } from './adminClientQuickFilters.js'
  *   subtitle: string,
  *   href: string,
  *   tone: 'warn' | 'hot' | 'neutral',
+ *   scorePct?: number | null,
  * }>}
  */
 export function buildAdminHomeSoftSignals(opts = {}) {
@@ -31,8 +31,6 @@ export function buildAdminHomeSoftSignals(opts = {}) {
   const clubId = String(opts.clubId ?? '').trim()
   const out = []
 
-  const hrefSales =
-    opts.hrefSales || buildAdminClubQueryHref('/admin/sales', { clubId })
   const hrefInactive =
     opts.hrefStatsInactive ||
     buildAdminClubQueryHref('/admin/statistics', { clubId, period: 'today', panel: 'inactive' })
@@ -43,24 +41,15 @@ export function buildAdminHomeSoftSignals(opts = {}) {
     opts.hrefClientsExpiring ||
     buildAdminClubQueryHref('/admin/clients', { clubId, filter: 'expiring' })
 
-  if (summary?.salesReportFilled === false) {
-    out.push({
-      id: 'sales-report',
-      title: 'Отчёт продаж',
-      subtitle: 'Не заполнен сегодня',
-      href: hrefSales,
-      tone: 'warn',
-    })
-  }
-
-  if (cq?.hot) {
-    const score = cq.scorePct != null ? `${cq.scorePct}/100` : ''
+  const scorePct = cq?.scorePct != null && Number.isFinite(Number(cq.scorePct)) ? Number(cq.scorePct) : null
+  if (cq && (scorePct != null || cq.hot || cq.chipLabel)) {
     out.push({
       id: 'coach-quality',
       title: 'Качество ведения',
-      subtitle: cq.chipLabel || score || 'Нужен разбор',
+      subtitle: cq.chipLabel || (cq.hot ? 'Нужен разбор' : 'за месяц · статистика'),
       href: hrefCoach,
-      tone: 'hot',
+      tone: cq.hot ? 'hot' : 'neutral',
+      scorePct,
     })
   }
 

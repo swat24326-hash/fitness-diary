@@ -1,8 +1,8 @@
 import { buildAdminClubQueryHref } from './adminClientQuickFilters.js'
-import { formatDateRu } from '../dateRu.js'
 
 /**
  * Карточки сводки дня (без React) — для UI и spotlight.
+ * Отчёт продаж на главной не показываем — смотрят в разделе «Продажи».
  *
  * @param {{
  *   summary: object,
@@ -17,13 +17,6 @@ export function buildAdminDaySummaryCards(opts = {}) {
   const clubId = String(opts.clubId ?? '').trim()
   const cq = opts.coachQuality ?? null
   const cqLoading = opts.coachQualityLoading === true
-
-  const salesLabel =
-    summary.salesReportFilled === null
-      ? 'Нет облака'
-      : summary.salesReportFilled
-        ? 'Заполнен'
-        : 'Не заполнен'
 
   return [
     {
@@ -60,18 +53,6 @@ export function buildAdminDaySummaryCards(opts = {}) {
       hot: false,
       warn: false,
       textCount: false,
-      valueSuffix: null,
-    },
-    {
-      key: 'sales',
-      count: summary.salesReportFilled === false ? '!' : summary.salesReportFilled ? '✓' : '—',
-      label: 'Отчёт продаж',
-      hint: `${formatDateRu(summary.today)} · ${salesLabel}`,
-      icon: 'trending',
-      to: buildAdminClubQueryHref('/admin/sales', { clubId }),
-      hot: summary.salesReportFilled === false,
-      warn: summary.salesReportFilled === false,
-      textCount: true,
       valueSuffix: null,
     },
     {

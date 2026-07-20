@@ -53,6 +53,11 @@ export function AdminClubDaySummaryPanel({
     [cards],
   )
 
+  const actionableUi = useMemo(
+    () => cards.filter((c) => c.hot || c.warn).length,
+    [cards],
+  )
+
   if (noClub) {
     return (
       <section className="admin-day-summary" aria-labelledby="admin-day-summary-title">
@@ -96,12 +101,12 @@ export function AdminClubDaySummaryPanel({
         <h2 id="admin-day-summary-title" className="admin-day-summary__title">
           Сводка дня клуба
         </h2>
-        {summary.actionable === 0 ? (
+        {actionableUi === 0 ? (
           <p className="admin-day-summary__ok muted">На сегодня ({formatIsoRu(summary.today)}) всё в порядке.</p>
         ) : (
           <p className="admin-day-summary__hint muted">
-            {summary.actionable}{' '}
-            {summary.actionable === 1 ? 'пункт' : summary.actionable < 5 ? 'пункта' : 'пунктов'} требуют внимания
+            {actionableUi}{' '}
+            {actionableUi === 1 ? 'пункт' : actionableUi < 5 ? 'пункта' : 'пунктов'} требуют внимания
           </p>
         )}
       </div>

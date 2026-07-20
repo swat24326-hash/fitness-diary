@@ -65,7 +65,6 @@ import { SalesManagerStatsPanel } from '../../components/SalesManagerStatsPanel'
 import { SalesManagerAnalyticsPanel } from '../../components/SalesManagerAnalyticsPanel'
 import { SectionErrorBoundary } from '../../components/SectionErrorBoundary'
 import { AdminHomeAttentionRow } from '../../components/admin/AdminHomeAttentionRow'
-import { buildAdminHomeSoftSignals } from '../../lib/admin/adminHomeSoftSignalsCore.js'
 import '../../styles/sales-report.css'
 
 const MONTH_NAMES = [
@@ -146,7 +145,6 @@ export function AdminSales({ accessMode = 'admin' }) {
   const [fitCityTypeStats, setFitCityTypeStats] = useState(null)
   const [trainingsMatrix, setTrainingsMatrix] = useState({})
   const [aerobicMatrix, setAerobicMatrix] = useState({})
-  const [hasDailyReport, setHasDailyReport] = useState(null)
   const [attentionWidgets, setAttentionWidgets] = useState({
     hasPnk: false,
     hasPlanerka: false,
@@ -195,7 +193,6 @@ export function AdminSales({ accessMode = 'admin' }) {
       setMonthSummary(bundle.monthSummary)
       setMonthDays(bundle.monthDays ?? [])
       setYearMonth({ year: bundle.year, month: bundle.month })
-      setHasDailyReport(Boolean(bundle.daily?.id))
 
       const types =
         (bundle.membershipTypes?.length ? bundle.membershipTypes : null) ??
@@ -369,21 +366,7 @@ export function AdminSales({ accessMode = 'admin' }) {
 
   const factMonth = resolvePlanFactFromMonthSummary(monthSummary)
 
-  const softSignals = useMemo(() => {
-    if (!isSalesManager || !clubId) return []
-    const today = todayLocalIso()
-    const salesReportFilled =
-      reportDate === today && hasDailyReport != null ? hasDailyReport : null
-    return buildAdminHomeSoftSignals({
-      summary: {
-        salesReportFilled: salesReportFilled === false ? false : salesReportFilled === true ? true : null,
-        inactive: 0,
-        expiring: 0,
-      },
-      clubId,
-      hrefSales: '/sales?tab=report',
-    })
-  }, [isSalesManager, clubId, reportDate, hasDailyReport])
+  const softSignals = useMemo(() => [], [])
 
   const onWidgetsPresence = useCallback((info) => {
     setAttentionWidgets({

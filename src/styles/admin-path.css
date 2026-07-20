@@ -444,8 +444,17 @@
   border-color: color-mix(in srgb, var(--accent-bright) 45%, var(--border));
 }
 
+.admin-home-soft-signal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+}
+
 .admin-home-soft-signal__icon {
   display: inline-flex;
+  flex-shrink: 0;
   color: var(--accent-bright);
 }
 
@@ -453,16 +462,31 @@
   color: #fbbf24;
 }
 
-.admin-home-soft-signal__text {
-  display: grid;
-  gap: 4px;
+.admin-home-soft-signal__title {
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.25;
   min-width: 0;
 }
 
-.admin-home-soft-signal__title {
-  font-size: 1rem;
-  font-weight: 650;
-  line-height: 1.25;
+.admin-home-soft-signal__score {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  margin-top: 2px;
+}
+
+.admin-home-soft-signal__score-value {
+  font-size: clamp(1.55rem, 3vw, 1.9rem);
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: var(--text);
+}
+
+.admin-home-soft-signal__score-suffix {
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .admin-home-soft-signal__sub {
@@ -479,6 +503,10 @@
 .admin-home-soft-signal--compact {
   padding: clamp(10px, 1.4vw, 14px);
   gap: 6px;
+}
+
+.admin-home-soft-signal--score .admin-home-soft-signal__cta {
+  margin-top: 4px;
 }
 
 @media (min-width: 960px) {
