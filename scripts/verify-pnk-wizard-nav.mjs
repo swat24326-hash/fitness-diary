@@ -37,7 +37,7 @@ ok(waitNav.canNext && waitNav.nextPatch?.deliverable === 'visit_started', 'wait 
 ok(waitNav.nextLabel === 'Клиент пришёл', 'wait CTA label')
 ok(waitNav.primarySlot === 'hat', 'wait primary in hat')
 ok(!waitNav.canSkip, 'wait no skip')
-ok(waitNav.canBack && waitNav.backPatch?.clear_deliverable === 'contact', 'wait Back clears contact')
+ok(waitNav.canBack && waitNav.backPatch?.trial_date === '', 'wait Back clears trial date')
 
 const trainClient = {
   ...base,
@@ -64,17 +64,28 @@ const healthNav = resolvePnkFunnelHatNav(
 )
 ok(healthNav.canBack && !healthNav.backRisky, 'health Back ok (safe)')
 
-const invite = {
+const contactClient = {
   ...base,
   pnk_trial_date: null,
   pnk_deliverables: {},
 }
-const inviteStep = resolvePnkWizardStep(invite)
-const inviteNav = resolvePnkFunnelHatNav(invite, inviteStep, { trialDate: '2026-07-21' })
-ok(inviteNav.canNext, 'invite Next with draft date')
+const contactStep = resolvePnkWizardStep(contactClient)
+ok(contactStep?.key === 'contact', 'on contact')
+const contactNav = resolvePnkFunnelHatNav(contactClient, contactStep, {})
+ok(contactNav.canNext && contactNav.nextPatch?.deliverable === 'contact', 'contact Next marks contact')
+
+const dateClient = {
+  ...base,
+  pnk_trial_date: null,
+  pnk_deliverables: { contact: 'x' },
+}
+const dateStep = resolvePnkWizardStep(dateClient)
+ok(dateStep?.key === 'date', 'on date')
+const dateNav = resolvePnkFunnelHatNav(dateClient, dateStep, { trialDate: '2026-07-21' })
+ok(dateNav.canNext, 'date Next with draft date')
 ok(
-  buildPnkWizardHatNextPatch(inviteStep, { trialDate: '2026-07-21' })?.deliverable === 'contact',
-  'invite hat patch',
+  buildPnkWizardHatNextPatch(dateStep, { trialDate: '2026-07-21' })?.stage === 'agreed',
+  'date hat patch',
 )
 
 const healthClient = {

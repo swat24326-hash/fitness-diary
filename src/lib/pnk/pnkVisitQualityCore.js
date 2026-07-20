@@ -11,11 +11,24 @@ import { normalizePnkTrialSessions } from './pnkWizardCore.js'
 
 /**
  * @typedef {'done' | 'weak' | 'missing'} PnkQualityStatus
- * @typedef {{ key: string, label: string, status: PnkQualityStatus, note: string }} PnkQualityItem
+ * @typedef {'before' | 'visit' | 'after'} PnkQualityPhase
+ * @typedef {{
+ *   key: string,
+ *   label: string,
+ *   status: PnkQualityStatus,
+ *   note: string,
+ *   phase: PnkQualityPhase,
+ *   phaseLabel: string,
+ * }} PnkQualityItem
  */
 
+export const PNK_VISIT_QUALITY_PHASES = [
+  { id: 'before', label: 'До визита' },
+  { id: 'visit', label: 'В зале' },
+  { id: 'after', label: 'После' },
+]
+
 /**
- * Показывать блок итога визита (админ): открытый ПНК, отказ или оформленный.
  * @param {object | null | undefined} client
  */
 export function shouldShowPnkVisitQuality(client) {
@@ -54,21 +67,30 @@ export function buildPnkVisitQualityReport(client, ctx = {}) {
   /** @type {PnkQualityItem[]} */
   const items = []
 
-  items.push(itemContact(d))
-  items.push(itemVisit(d))
-  items.push(itemHealth(d, healthOk))
-  items.push(itemNutrition(d, hasPlan))
+  items.push(withPhase(itemContact(d), 'before'))
+  items.push(withPhase(itemDate(client), 'before'))
+  items.push(withPhase(itemVisit(d), 'visit'))
+  items.push(withPhase(itemHealth(d, healthOk), 'visit'))
+  items.push(withPhase(itemNutrition(d, hasPlan), 'visit'))
   items.push(
-    itemTrial(d, bzDone, 1, sessions === 2 ? 'Тренировка 1' : 'Бесплатная тренировка', client),
+    withPhase(
+      itemTrial(d, bzDone, 1, sessions === 2 ? 'Тренировка 1' : 'Тренировка', client),
+      'visit',
+    ),
   )
-  items.push(itemHomework(d, 'homework', sessions === 2 ? 'ДЗ после 1-й' : 'Домашнее задание'))
+  items.push(
+    withPhase(
+      itemHomework(d, 'homework', sessions === 2 ? 'ДЗ после 1-й' : 'Домашнее задание'),
+      'visit',
+    ),
+  )
   if (sessions === 2) {
-    items.push(itemTrial(d, bzDone, 2, 'Тренировка 2', client))
-    items.push(itemHomework(d, 'homework2', 'ДЗ после 2-й'))
+    items.push(withPhase(itemTrial(d, bzDone, 2, 'Тренировка 2', client), 'visit'))
+    items.push(withPhase(itemHomework(d, 'homework2', 'ДЗ после 2-й'), 'visit'))
   }
-  items.push(itemFollowup(d))
-  items.push(itemMeasurements(hasMeasure))
-  items.push(itemOutcome(client))
+  items.push(withPhase(itemFollowup(d), 'after'))
+  items.push(withPhase(itemMeasurements(hasMeasure), 'after'))
+  items.push(withPhase(itemOutcome(client), 'after'))
 
   const counted = items.filter((i) => i.key !== 'outcome')
   const done = counted.filter((i) => i.status === 'done').length
@@ -79,6 +101,7 @@ export function buildPnkVisitQualityReport(client, ctx = {}) {
 
   return {
     items,
+    phases: groupVisitQualityPhases(items),
     done,
     weak,
     missing,
@@ -88,14 +111,45 @@ export function buildPnkVisitQualityReport(client, ctx = {}) {
   }
 }
 
+/**
+ * @param {PnkQualityItem[]} items
+ */
+export function groupVisitQualityPhases(items) {
+  return PNK_VISIT_QUALITY_PHASES.map((p) => ({
+    id: p.id,
+    label: p.label,
+    items: items.filter((i) => i.phase === p.id),
+  })).filter((g) => g.items.length > 0)
+}
+
+function withPhase(item, phase) {
+  const phaseLabel = PNK_VISIT_QUALITY_PHASES.find((p) => p.id === phase)?.label || ''
+  return { ...item, phase, phaseLabel }
+}
+
 function itemContact(d) {
-  if (d.contact) return row('contact', PNK_DELIVERABLE_LABELS.contact || 'Контакт', 'done', 'Связь с клиентом отмечена')
-  return row('contact', 'Контакт', 'missing', 'Нет отметки контакта')
+  if (d.contact) {
+    return row('contact', PNK_DELIVERABLE_LABELS.contact, 'done', 'Связь отмечена')
+  }
+  return row('contact', PNK_DELIVERABLE_LABELS.contact, 'missing', 'Нет отметки связи')
+}
+
+function itemDate(client) {
+  const when = formatPnkTrialSlot(client)
+  if (when) return row('trial_date', 'Дата бесплатной', 'done', `Назначена на ${when}`)
+  return row('trial_date', 'Дата бесплатной', 'missing', 'Дата не назначена')
 }
 
 function itemVisit(d) {
-  if (d.visit_started) return row('visit_started', 'Визит начат', 'done', 'Клиент пришёл')
-  return row('visit_started', 'Визит начат', 'missing', 'Пакет визита не стартовал')
+  if (d.visit_started) {
+    return row('visit_started', PNK_DELIVERABLE_LABELS.visit_started, 'done', 'Клиент пришёл')
+  }
+  return row(
+    'visit_started',
+    PNK_DELIVERABLE_LABELS.visit_started,
+    'missing',
+    'Пакет визита не стартовал',
+  )
 }
 
 function itemHealth(d, healthOk) {
@@ -125,12 +179,7 @@ function itemTrial(d, bzDone, need, label, client) {
   const real = bzDone >= need
   const when = need === 1 ? formatPnkTrialSlot(client) : ''
   if (real) {
-    return row(
-      key,
-      label,
-      'done',
-      when ? `Проведена · была на ${when}` : 'Тренировка проведена',
-    )
+    return row(key, label, 'done', when ? `Проведена · была на ${when}` : 'Тренировка проведена')
   }
   if (marked) {
     return row(
@@ -145,7 +194,7 @@ function itemTrial(d, bzDone, need, label, client) {
   if (when) {
     return row(key, label, 'weak', `Назначена на ${when} · ещё не проведена`)
   }
-  return row(key, label, 'missing', 'Тренировка не проведена · дата не назначена')
+  return row(key, label, 'missing', 'Тренировка не проведена')
 }
 
 function itemHomework(d, key, label) {
@@ -154,8 +203,10 @@ function itemHomework(d, key, label) {
 }
 
 function itemFollowup(d) {
-  if (d.followup) return row('followup', 'Контакт после', 'done', 'Касание после бесплатной')
-  return row('followup', 'Контакт после', 'missing', 'Нет касания после')
+  if (d.followup) {
+    return row('followup', PNK_DELIVERABLE_LABELS.followup, 'done', 'Касание после бесплатной')
+  }
+  return row('followup', PNK_DELIVERABLE_LABELS.followup, 'missing', 'Нет касания после')
 }
 
 function itemMeasurements(hasMeasure) {
@@ -167,12 +218,12 @@ function itemOutcome(client) {
   const stage = String(client?.pnk_stage ?? '')
   const lc = String(client?.lifecycle ?? '')
   if (stage === 'won' || lc === 'active') {
-    return row('outcome', 'Итог', 'done', 'Оформлен (ДК)')
+    return row('outcome', 'Оформление', 'done', 'Оформлен (ДК)')
   }
   if (stage === 'lost' || lc === 'pnk_lost') {
-    return row('outcome', 'Итог', 'weak', 'Отказ')
+    return row('outcome', 'Оформление', 'weak', 'Отказ')
   }
-  return row('outcome', 'Итог', 'missing', 'Ещё в воронке')
+  return row('outcome', 'Оформление', 'missing', 'Ещё в воронке')
 }
 
 function row(key, label, status, note) {
@@ -182,18 +233,13 @@ function row(key, label, status, note) {
 function buildSummaryLine({ done, weak, missing, total, client }) {
   const stage = String(client?.pnk_stage ?? '')
   const head =
-    stage === 'won'
-      ? 'Оформление'
-      : stage === 'lost'
-        ? 'Отказ'
-        : 'В работе'
+    stage === 'won' ? 'Оформление' : stage === 'lost' ? 'Отказ' : 'В работе'
   if (missing === 0 && weak === 0) return `${head}: пакет полный (${done}/${total})`
   if (weak > 0 && missing === 0) return `${head}: есть слабые места (${weak}), сделано ${done}/${total}`
   return `${head}: сделано ${done}/${total}, слабо ${weak}, нет ${missing}`
 }
 
 /**
- * Дробь оформлений и % для KPI.
  * @param {number} entered
  * @param {number} won
  */

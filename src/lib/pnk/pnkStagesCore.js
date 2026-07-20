@@ -13,12 +13,12 @@ export const PNK_STAGES = ['new', 'assigned', 'contact', 'agreed', 'trial_done',
 
 /** @type {Record<PnkStage, string>} */
 export const PNK_STAGE_LABELS = {
-  new: 'Создан',
-  assigned: 'Создан',
-  contact: 'Контакт',
-  agreed: 'Дата пробной',
-  trial_done: 'Бесплатная',
-  followup: 'Уточнение',
+  new: 'Создан ПНК',
+  assigned: 'Создан ПНК',
+  contact: 'Связь с клиентом',
+  agreed: 'Дата бесплатной',
+  trial_done: 'Тренировка',
+  followup: 'Касание после',
   won: 'Оформлен',
   lost: 'Отказ',
 }
@@ -38,15 +38,15 @@ export const PNK_DELIVERABLE_KEYS = [
 
 /** @type {Record<PnkDeliverableKey, string>} */
 export const PNK_DELIVERABLE_LABELS = {
-  contact: 'Первый контакт',
-  visit_started: 'Визит начат',
+  contact: 'Связь с клиентом',
+  visit_started: 'Клиент в зале',
   health: 'Здоровье',
   nutrition: 'Питание',
-  trial: 'Бесплатная 1',
-  homework: 'ДЗ после 1-й',
-  trial2: 'Бесплатная 2',
+  trial: 'Тренировка',
+  homework: 'Домашнее задание',
+  trial2: 'Тренировка 2',
   homework2: 'ДЗ после 2-й',
-  followup: 'Уточняющий контакт',
+  followup: 'Касание после',
 }
 
 /** Часы до «горит» без касания после передачи */

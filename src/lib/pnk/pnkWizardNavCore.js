@@ -21,7 +21,7 @@ export function resolvePnkWizardBackTarget(step) {
   if (!step?.steps?.length || !step.key) return { prevKey: null, prevTitle: null }
   const idx = step.steps.findIndex((s) => s.key === step.key)
   if (idx <= 0) return { prevKey: null, prevTitle: null }
-  // «Создан» не показываем как рабочий шаг — прыгаем к invite минимум
+  // «Создан ПНК» не показываем как рабочий шаг — минимум «Связь с клиентом»
   let prev = idx - 1
   while (prev > 0 && step.steps[prev]?.key === 'created') prev -= 1
   const row = step.steps[prev]
@@ -30,15 +30,20 @@ export function resolvePnkWizardBackTarget(step) {
 }
 
 /**
- * Какой deliverable снять, чтобы вернуться на предыдущий шаг.
+ * Патч отката на предыдущий шаг.
  * @param {ReturnType<typeof import('./pnkWizardCore.js').resolvePnkWizardStep>} step
- * @returns {{ clear_deliverable: string } | null}
+ * @returns {{ clear_deliverable?: string, trial_date?: string, trial_time?: string, stage?: string } | null}
  */
 export function buildPnkWizardBackClearPatch(step) {
   if (!step?.key) return null
+  if (step.key === 'date') {
+    return { clear_deliverable: 'contact', stage: 'assigned' }
+  }
+  if (step.key === 'wait') {
+    return { trial_date: '', trial_time: '', stage: 'contact' }
+  }
   /** @type {Record<string, string>} */
   const map = {
-    wait: 'contact',
     health: 'visit_started',
     nutrition: 'health',
     train1: 'nutrition',
@@ -54,7 +59,6 @@ export function buildPnkWizardBackClearPatch(step) {
 
 /**
  * Можно ли «Назад» с очисткой отметки.
- * Рискованные шаги (снимают отметку тренировки / ДЗ после зала) — только серая кнопка.
  * @param {ReturnType<typeof import('./pnkWizardCore.js').resolvePnkWizardStep>} step
  */
 export function canGoBackPnkWizardStep(step) {
@@ -71,7 +75,6 @@ export function canGoBackPnkWizardStep(step) {
 }
 
 /**
- * Откат снимет отметку зала / ДЗ — кнопку оставляем серой.
  * @param {ReturnType<typeof import('./pnkWizardCore.js').resolvePnkWizardStep>} step
  */
 export function isPnkWizardBackRisky(step) {
@@ -80,17 +83,14 @@ export function isPnkWizardBackRisky(step) {
 }
 
 /**
- * Шаги, которые можно пропустить без полного действия в форме.
  * @param {ReturnType<typeof import('./pnkWizardCore.js').resolvePnkWizardStep>} step
  */
 export function canSkipPnkWizardStep(step) {
   if (!step?.key) return { ok: false, reason: 'Нет шага' }
   switch (step.key) {
     case 'nutrition':
-      return { ok: true, reason: null }
     case 'hw1':
     case 'hw2':
-      return { ok: true, reason: null }
     case 'followup':
       return { ok: true, reason: null }
     case 'health':
@@ -98,10 +98,12 @@ export function canSkipPnkWizardStep(step) {
     case 'train1':
     case 'train2':
       return { ok: false, reason: 'Тренировку пропустить нельзя' }
-    case 'invite':
+    case 'contact':
+      return { ok: false, reason: 'Сначала свяжитесь с клиентом' }
+    case 'date':
       return { ok: false, reason: 'Сначала сохраните дату' }
     case 'wait':
-      return { ok: false, reason: 'Нажмите «Далее», когда клиент пришёл' }
+      return { ok: false, reason: 'Нажмите «Клиент пришёл», когда клиент в зале' }
     case 'close':
       return { ok: false, reason: 'Выберите оформление или отказ' }
     default:
@@ -118,29 +120,29 @@ export function buildPnkWizardSkipPatch(step) {
 }
 
 /**
- * Патч для универсальной «Далее» в шапке (в т.ч. wait → визит, invite → дата).
+ * Патч для «Далее» в шапке.
  * @param {ReturnType<typeof import('./pnkWizardCore.js').resolvePnkWizardStep>} step
  * @param {{ trialDate?: string, trialTime?: string }} [opts]
  */
 export function buildPnkWizardHatNextPatch(step, opts = {}) {
   if (!step?.key) return null
   if (step.key === 'wait') return buildPnkVisitStartedPatch()
-  if (step.key === 'invite') {
+  if (step.key === 'contact') {
+    return { stage: 'contact', deliverable: 'contact' }
+  }
+  if (step.key === 'date') {
     const trialDate = String(opts.trialDate ?? '').slice(0, 10)
     if (!/^\d{4}-\d{2}-\d{2}$/.test(trialDate)) return null
     return {
       stage: 'agreed',
       trial_date: trialDate,
       trial_time: String(opts.trialTime ?? '').trim() || null,
-      deliverable: 'contact',
     }
   }
   return buildPnkWizardAdvancePatch(step)
 }
 
 /**
- * Где живёт одна главная кнопка шага: шапка или тело (планшет).
- * День визита: wait/health/nutrition → шапка; тренировка до зала → тело.
  * @param {ReturnType<typeof import('./pnkWizardCore.js').resolvePnkWizardStep>} step
  * @param {{ canNext?: boolean }} [opts]
  * @returns {'hat' | 'body'}
@@ -152,7 +154,6 @@ export function resolvePnkStepPrimarySlot(step, opts = {}) {
 }
 
 /**
- * Можно ли жать «Далее» в шапке.
  * @param {object} client
  * @param {ReturnType<typeof import('./pnkWizardCore.js').resolvePnkWizardStep>} step
  * @param {{ healthCard?: object | null, bzCompletedCount?: number, trialDate?: string, trialTime?: string }} [ctx]
@@ -161,12 +162,15 @@ export function canHatNextPnkWizardStep(client, step, ctx = {}) {
   if (!step) return { ok: false, reason: 'Нет шага' }
   if (step.key === 'close') return { ok: false, reason: 'Выберите оформление или отказ' }
   if (step.key === 'wait') return { ok: true, reason: null, label: 'Клиент пришёл' }
-  if (step.key === 'invite') {
+  if (step.key === 'contact') {
+    return { ok: true, reason: null, label: 'Связался — далее' }
+  }
+  if (step.key === 'date') {
     const trialDate = String(ctx.trialDate ?? client?.pnk_trial_date ?? '').slice(0, 10)
     if (!/^\d{4}-\d{2}-\d{2}$/.test(trialDate)) {
       return { ok: false, reason: 'Укажите дату бесплатной', label: 'Далее' }
     }
-    return { ok: true, reason: null, label: 'Сохранить и далее' }
+    return { ok: true, reason: null, label: 'Сохранить дату' }
   }
   const adv = canAdvancePnkWizardStep(client, step, ctx)
   /** @type {Record<string, string>} */
@@ -212,7 +216,6 @@ export function resolvePnkFunnelHatNav(client, step, ctx = {}) {
 }
 
 /**
- * Подписи сегментов для компактной шапки / плитки (короткие).
  * @param {1|2|number} sessions
  */
 export function buildPnkFunnelSegmentLabels(sessions) {

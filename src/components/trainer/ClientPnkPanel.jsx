@@ -104,7 +104,7 @@ export function ClientPnkPanel({
   const d = parsePnkDeliverables(client.pnk_deliverables)
   const trainerName = user?.name || ''
   const primaryInBody = hatNav.primarySlot === 'body'
-  const visitBoard = step.key === 'wait' || step.key === 'invite'
+  const visitBoard = step.key === 'wait' || step.key === 'date'
 
   async function run(patch) {
     if (!patch) return false
@@ -290,7 +290,9 @@ export function ClientPnkPanel({
         </div>
       ) : null}
 
-      {flags.length && step.key !== 'wait' && step.key !== 'invite' ? <PnkAttentionChips flags={flags} /> : null}
+      {flags.length && step.key !== 'wait' && step.key !== 'date' && step.key !== 'contact' ? (
+        <PnkAttentionChips flags={flags} />
+      ) : null}
 
       {toast ? (
         <p className="sync-feedback sync-feedback--ok" role="status">
@@ -303,8 +305,31 @@ export function ClientPnkPanel({
         </p>
       ) : null}
 
-      {step.key === 'invite' ? (
+      {step.key === 'contact' ? (
+        <div className="pnk-client-panel__step">
+          <p className="pnk-client-panel__cta-hint">
+            Напишите клиенту. Когда связались — <strong>«Связался — далее»</strong> в шапке.
+          </p>
+          <div className="pnk-client-panel__actions pnk-client-panel__actions--secondary">
+            <PnkClientMessengerButtons
+              kind="invite"
+              client={client}
+              trainerName={trainerName}
+              clubName=""
+              trialDate={trialDate}
+              trialTime={trialTime}
+              busy={busy}
+              onResult={onMessengerResult}
+            />
+          </div>
+        </div>
+      ) : null}
+
+      {step.key === 'date' ? (
         <div className="pnk-client-panel__step pnk-client-panel__step--visit">
+          <p className="pnk-client-panel__cta-hint">
+            Назначьте дату бесплатной. Затем <strong>«Сохранить дату»</strong> в шапке.
+          </p>
           <div className="pnk-client-panel__schedule">
             <label className="pnk-client-panel__field">
               Дата бесплатной

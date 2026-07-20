@@ -59,8 +59,8 @@ const healthCard = {
 /** Состояния по шагам мастера (1 БЗ) */
 const fixtures = [
   {
-    key: 'invite',
-    label: 'Контакт и дата',
+    key: 'contact',
+    label: 'Связь с клиентом',
     client: clientAt(base),
     ctx: { healthCard: null, bzCompletedCount: 0 },
     expectHatRefuse: true,
@@ -68,8 +68,19 @@ const fixtures = [
     expectCanSkip: false,
   },
   {
+    key: 'date',
+    label: 'Дата бесплатной',
+    client: clientAt(base, {
+      pnk_deliverables: { contact: '2026-07-17' },
+    }),
+    ctx: { healthCard: null, bzCompletedCount: 0, trialDate: '2026-07-18' },
+    expectHatRefuse: true,
+    expectHideNav: false,
+    expectCanSkip: false,
+  },
+  {
     key: 'wait',
-    label: 'Старт визита',
+    label: 'Ждём в зале',
     client: clientAt(base, {
       pnk_trial_date: '2026-07-18',
       pnk_deliverables: { contact: '2026-07-17' },

@@ -31,15 +31,15 @@ const steps1 = buildPnkWizardStepList(1)
 const steps2 = buildPnkWizardStepList(2)
 ok(
   steps1.map((s) => s.key).join(',') ===
-    'created,invite,wait,health,nutrition,train1,hw1,followup,close',
+    'created,contact,date,wait,health,nutrition,train1,hw1,followup,close',
   'N=1 step list',
 )
 ok(
   steps2.map((s) => s.key).join(',') ===
-    'created,invite,wait,health,nutrition,train1,hw1,train2,hw2,followup,close',
+    'created,contact,date,wait,health,nutrition,train1,hw1,train2,hw2,followup,close',
   'N=2 step list',
 )
-ok(steps1.length === 9 && steps2.length === 11, 'step counts')
+ok(steps1.length === 10 && steps2.length === 12, 'step counts')
 
 function baseClient(sessions) {
   return {
@@ -53,10 +53,10 @@ function baseClient(sessions) {
 }
 
 const empty1 = resolvePnkWizardStep(baseClient(1))
-ok(empty1?.key === 'invite' && empty1.n === 2 && empty1.total === 9, 'N=1 starts at invite')
+ok(empty1?.key === 'contact' && empty1.n === 2 && empty1.total === 10, 'N=1 starts at contact')
 
 const empty2 = resolvePnkWizardStep(baseClient(2))
-ok(empty2?.key === 'invite' && empty2.total === 11, 'N=2 starts at invite total 11')
+ok(empty2?.key === 'contact' && empty2.total === 12, 'N=2 starts at contact total 12')
 
 const afterInvite = {
   ...baseClient(1),
@@ -193,7 +193,8 @@ ok(resolvePnkWizardStep(afterHw2, { bzCompletedCount: 2 })?.key === 'followup', 
 ok(resolvePnkWizardStep({ lifecycle: 'active', pnk_stage: 'won' }) === null, 'closed client null')
 ok(buildPnkWizardAdvancePatch({ key: 'train1' })?.deliverable === 'trial', 'train1 patch')
 ok(buildPnkWizardAdvancePatch({ key: 'train2' })?.deliverable === 'trial2', 'train2 patch')
-ok(buildPnkWizardAdvancePatch({ key: 'invite' }) === null, 'invite no advance patch')
+ok(buildPnkWizardAdvancePatch({ key: 'contact' })?.deliverable === 'contact', 'contact advance patch')
+ok(buildPnkWizardAdvancePatch({ key: 'date' }) === null, 'date no advance patch')
 ok(buildPnkWizardAdvancePatch({ key: 'wait' }) === null, 'wait no advance patch')
 
 function onlyTab(client, expectTab, label, extraVisible = []) {
@@ -211,7 +212,7 @@ function onlyTab(client, expectTab, label, extraVisible = []) {
   }
 }
 
-onlyTab(baseClient(1), null, 'invite')
+onlyTab(baseClient(1), null, 'contact')
 onlyTab(afterInvite, null, 'wait')
 onlyTab(arrived, 'health', 'health step')
 onlyTab(afterHealth, 'nutrition', 'nutrition step')

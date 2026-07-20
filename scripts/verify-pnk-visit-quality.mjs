@@ -103,7 +103,9 @@ const noDate = buildPnkVisitQualityReport(
   { bzCompletedCount: 0 },
 )
 ok(noDate.items.find((i) => i.key === 'trial')?.status === 'missing', 'no date → missing')
-ok(/дата не назначена/i.test(noDate.items.find((i) => i.key === 'trial')?.note || ''), 'no date note')
+ok(noDate.items.find((i) => i.key === 'trial_date')?.status === 'missing', 'trial_date missing')
+ok(/дата не назначена/i.test(noDate.items.find((i) => i.key === 'trial_date')?.note || ''), 'no date note')
+ok(noDate.phases?.length >= 2, 'phases present')
 
 const frac = formatPnkConversionFraction(10, 4)
 ok(frac.fraction === '4/10' && frac.pct === 40, 'conversion fraction')

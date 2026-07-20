@@ -3,6 +3,8 @@
  */
 export function PnkVisitQualityReport({ report, className = '' }) {
   if (!report?.items?.length) return null
+  const phases = Array.isArray(report.phases) && report.phases.length > 0 ? report.phases : null
+
   return (
     <section
       className={`pnk-visit-quality${className ? ` ${className}` : ''}`}
@@ -15,14 +17,35 @@ export function PnkVisitQualityReport({ report, className = '' }) {
         </span>
       </div>
       <p className="pnk-visit-quality__summary">{report.summaryLine}</p>
-      <ul className="pnk-visit-quality__list">
-        {report.items.map((item) => (
-          <li key={item.key} className={`pnk-visit-quality__item pnk-visit-quality__item--${item.status}`}>
-            <span className="pnk-visit-quality__label">{item.label}</span>
-            <span className="pnk-visit-quality__note muted">{item.note}</span>
-          </li>
-        ))}
-      </ul>
+      {phases ? (
+        <div className="pnk-visit-quality__phases">
+          {phases.map((phase) => (
+            <div key={phase.id} className="pnk-visit-quality__phase">
+              <p className="pnk-visit-quality__phase-title">{phase.label}</p>
+              <ul className="pnk-visit-quality__list">
+                {phase.items.map((item) => (
+                  <li
+                    key={item.key}
+                    className={`pnk-visit-quality__item pnk-visit-quality__item--${item.status}`}
+                  >
+                    <span className="pnk-visit-quality__label">{item.label}</span>
+                    <span className="pnk-visit-quality__note muted">{item.note}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <ul className="pnk-visit-quality__list">
+          {report.items.map((item) => (
+            <li key={item.key} className={`pnk-visit-quality__item pnk-visit-quality__item--${item.status}`}>
+              <span className="pnk-visit-quality__label">{item.label}</span>
+              <span className="pnk-visit-quality__note muted">{item.note}</span>
+            </li>
+          ))}
+        </ul>
+      )}
       {report.pct != null ? (
         <p className="pnk-visit-quality__pct muted">Полнота по делу: {report.pct}%</p>
       ) : null}

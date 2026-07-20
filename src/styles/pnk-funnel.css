@@ -731,6 +731,20 @@ button.pnk-chip:disabled {
   gap: 6px;
 }
 
+.pnk-visit-quality__phases {
+  display: grid;
+  gap: 12px;
+}
+
+.pnk-visit-quality__phase-title {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted, #9aa39c);
+}
+
 .pnk-visit-quality__item {
   display: grid;
   gap: 2px;

@@ -52,7 +52,7 @@ export function buildPnkGlanceCard(client, now = new Date()) {
   const trialDate = String(client?.pnk_trial_date ?? '').slice(0, 10)
   const trialTime = String(client?.pnk_trial_time ?? '').trim()
   let caption = step.label
-  if (trialDate && (step.key === 'visit' || step.key === 'invite')) {
+  if (trialDate && (step.key === 'wait' || step.key === 'date' || step.key === 'contact')) {
     caption = `Бесплатная: ${formatDateRu(trialDate)}${trialTime ? ` ${trialTime}` : ''}`
   } else if (hotFlag?.label) {
     caption = hotFlag.label

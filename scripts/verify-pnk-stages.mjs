@@ -30,7 +30,7 @@ function ok(cond, msg) {
   }
 }
 
-ok(PNK_STAGE_LABELS.agreed === 'Дата пробной', 'labels')
+ok(PNK_STAGE_LABELS.agreed === 'Дата бесплатной', 'labels')
 ok(canAdvancePnkStage('assigned', 'agreed'), 'assigned → agreed')
 ok(canAdvancePnkStage('new', 'won') === false, 'new cannot win')
 ok(canAdvancePnkStage('agreed', 'lost'), 'agreed → lost')
@@ -163,13 +163,14 @@ const waitCall = {
 }
 ok(matchesPnkBoardFilter(waitCall, 'call'), 'filter call')
 ok(matchesPnkBoardFilter({ ...waitCall, pnk_trial_date: '2026-07-20' }, 'date'), 'filter date')
-ok(pnkNextActionHint(waitCall)?.key === 'invite', 'next hint invite when no contact')
+ok(pnkNextActionHint(waitCall)?.key === 'contact', 'next hint contact when no contact')
 ok(
   pnkNextActionHint({
     ...waitCall,
     pnk_stage: 'contact',
-  })?.key === 'invite',
-  'next hint invite',
+    pnk_deliverables: { contact: 'x' },
+  })?.key === 'date',
+  'next hint date after contact',
 )
 ok(
   pnkNextActionHint({
@@ -189,7 +190,7 @@ ok(
   'next hint followup after free path',
 )
 const ui = resolvePnkTrainerUiStep(waitCall)
-ok(ui?.key === 'invite' && ui.title === 'Контакт и дата', 'trainer ui step invite')
+ok(ui?.key === 'contact' && ui.title === 'Связь с клиентом', 'trainer ui step contact')
 
 ok(canDeletePnkClient({ id: '1', lifecycle: 'pnk' }), 'can delete open pnk')
 ok(canDeletePnkClient({ id: '2', lifecycle: 'pnk_lost' }), 'can delete lost pnk')
@@ -218,7 +219,7 @@ ok(!isPnkCardTabVisible(onHealthStep, 'homework'), 'homework hidden on health st
 ok(!isPnkCardTabVisible(onHealthStep, 'memberships'), 'memberships hidden on health step')
 ok(
   !isPnkCardTabVisible({ id: 'v2', lifecycle: 'pnk', pnk_stage: 'assigned' }, 'health'),
-  'tabs hidden before invite done',
+  'tabs hidden before contact done',
 )
 const afterHealth = {
   ...visitBase,

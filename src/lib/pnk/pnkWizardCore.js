@@ -1,13 +1,12 @@
 /**
  * Линейный мастер ПНК: 1 или 2 бесплатные, шаги без пропуска.
- * После контакта и даты — «Старт визита»; здоровье/питание/тренировка/ДЗ —
- * только после «Клиент пришёл» (visit_started). Без React / IDB.
- * Не импортирует pnkStagesCore (избегаем цикла).
+ * Создан ПНК → связь → дата → ждём в зале → пакет визита → касание → оформление.
+ * Без React / IDB. Не импортирует pnkStagesCore (избегаем цикла).
  */
 
 import { isHealthCardComplete } from '../healthCardCore.js'
 
-/** @typedef {'created'|'invite'|'wait'|'health'|'nutrition'|'train1'|'hw1'|'train2'|'hw2'|'followup'|'close'} PnkWizardKey */
+/** @typedef {'created'|'contact'|'date'|'wait'|'health'|'nutrition'|'train1'|'hw1'|'train2'|'hw2'|'followup'|'close'} PnkWizardKey */
 
 export const PNK_TRIAL_SESSIONS_OPTIONS = [1, 2]
 
@@ -43,7 +42,6 @@ function parseDeliverables(raw) {
 /**
  * Пакет дня визита открыт только после «Клиент пришёл» (visit_started)
  * или если уже внутри пакета (старые клиенты без visit_started).
- * Дата визита сама по себе пакет не открывает — иначе «пробная сегодня» сразу кидает в здоровье.
  * @param {object} _client
  * @param {ReturnType<typeof parseDeliverables>} d
  * @param {Date} [_now]
@@ -70,22 +68,23 @@ export function buildPnkWizardStepList(sessions) {
   const n = normalizePnkTrialSessions(sessions)
   /** @type {{ key: PnkWizardKey, title: string, tab: string | null }[]} */
   const steps = [
-    { key: 'created', title: 'Создан', tab: null },
-    { key: 'invite', title: 'Контакт и дата', tab: null },
-    { key: 'wait', title: 'Старт визита', tab: null },
+    { key: 'created', title: 'Создан ПНК', tab: null },
+    { key: 'contact', title: 'Связь с клиентом', tab: null },
+    { key: 'date', title: 'Дата бесплатной', tab: null },
+    { key: 'wait', title: 'Ждём в зале', tab: null },
     { key: 'health', title: 'Здоровье', tab: 'health' },
     { key: 'nutrition', title: 'Питание', tab: 'nutrition' },
-    { key: 'train1', title: n === 2 ? 'Тренировка 1 из 2' : 'Бесплатная тренировка', tab: 'diaries' },
+    { key: 'train1', title: n === 2 ? 'Тренировка 1' : 'Тренировка', tab: 'diaries' },
     { key: 'hw1', title: n === 2 ? 'ДЗ после 1-й' : 'Домашнее задание', tab: 'homework' },
   ]
   if (n === 2) {
     steps.push(
-      { key: 'train2', title: 'Тренировка 2 из 2', tab: 'diaries' },
+      { key: 'train2', title: 'Тренировка 2', tab: 'diaries' },
       { key: 'hw2', title: 'ДЗ после 2-й', tab: 'homework' },
     )
   }
   steps.push(
-    { key: 'followup', title: 'Контакт после бесплатной', tab: null },
+    { key: 'followup', title: 'Касание после', tab: null },
     { key: 'close', title: 'Оформление', tab: null },
   )
   return steps
@@ -97,8 +96,12 @@ export function buildPnkWizardStepList(sessions) {
  */
 function helpForWizardKey(key, sessions) {
   switch (key) {
-    case 'invite':
-      return 'Свяжитесь с клиентом и сохраните дату бесплатной.'
+    case 'created':
+      return 'ПНК создан (менеджер или тренер). Дальше — связаться с клиентом.'
+    case 'contact':
+      return 'Свяжитесь с клиентом (Max или другой мессенджер). Затем «Далее».'
+    case 'date':
+      return 'Назначьте дату и время бесплатной тренировки. Затем «Далее».'
     case 'wait':
       return 'Пока клиент не в зале — можно перенести дату или написать. Когда пришёл — «Клиент пришёл», затем здоровье → питание → тренировка.'
     case 'health':
@@ -138,15 +141,18 @@ export function resolvePnkWizardStep(client, ctx = {}) {
   const trial1Done = Boolean(d.trial) || bzDone >= 1
   const trial2Done = Boolean(d.trial2) || bzDone >= 2
   const now = ctx.now instanceof Date ? ctx.now : new Date()
+  const trialDate = String(client?.pnk_trial_date ?? '').slice(0, 10)
+  const hasDate = /^\d{4}-\d{2}-\d{2}$/.test(trialDate)
 
   /** @type {PnkWizardKey} */
   let key
-  if (!d.contact || !client?.pnk_trial_date) {
-    key = 'invite'
+  if (!d.contact) {
+    key = 'contact'
+  } else if (!hasDate) {
+    key = 'date'
   } else if (!isPnkVisitPackageOpen(client, d, now)) {
     key = 'wait'
   } else if (!trial1Done && !d.health) {
-    // После пробной не возвращаем к здоровью/питанию (пропуск + откат Back не откатывают зал)
     key = 'health'
   } else if (!trial1Done && !d.nutrition) {
     key = 'nutrition'
@@ -200,9 +206,11 @@ export function canAdvancePnkWizardStep(client, step, ctx = {}) {
   const healthOk = ctx.healthComplete === true || isHealthCardComplete(ctx.healthCard)
 
   switch (step.key) {
-    case 'invite':
+    case 'contact':
+      if (!d.contact) return { ok: false, reason: 'Отметьте связь (напишите клиенту или «Далее»)' }
+      return { ok: true }
+    case 'date':
       if (!client?.pnk_trial_date) return { ok: false, reason: 'Сохраните дату бесплатной' }
-      if (!d.contact) return { ok: false, reason: 'Отметьте контакт (напишите клиенту)' }
       return { ok: true }
     case 'wait':
       return { ok: false, reason: 'Когда клиент придёт — «Клиент пришёл»' }
@@ -238,6 +246,8 @@ export function canAdvancePnkWizardStep(client, step, ctx = {}) {
 export function buildPnkWizardAdvancePatch(step) {
   if (!step) return null
   switch (step.key) {
+    case 'contact':
+      return { stage: 'contact', deliverable: 'contact' }
     case 'health':
       return { deliverable: 'health' }
     case 'nutrition':
@@ -286,7 +296,6 @@ export function shouldOfferMarkPnkTrialDone(client, bzCompletedCount = 0) {
 
 /**
  * Бесплатную можно начать только на шаге тренировки (не обходя питание гантелей).
- * Иначе после зала воронка снова покажет «Питание».
  * @param {object} client
  * @param {{ healthCard?: object | null, bzCompletedCount?: number, now?: Date }} [ctx]
  */
@@ -303,7 +312,12 @@ export function canStartPnkTrialTraining(client, ctx = {}) {
   if (step.key === 'health') {
     return { ok: false, reason: 'Сначала заполните карту здоровья и нажмите «Далее»' }
   }
-  if (step.key === 'invite' || step.key === 'wait' || step.key === 'created') {
+  if (
+    step.key === 'contact' ||
+    step.key === 'date' ||
+    step.key === 'wait' ||
+    step.key === 'created'
+  ) {
     return { ok: false, reason: 'Сначала дойдите до шага тренировки в воронке' }
   }
   return {
