@@ -3,7 +3,7 @@ import { PnkStepBlocks } from './PnkStepBlocks.jsx'
 
 /**
  * Лицо карточки ПНК на главной (менеджер / тренер) —
- * шапка · имя · этап · статус · шкала — по ширине, без кучи в углу.
+ * шапка · два столбца (имя/этап | статус) · шкала.
  */
 export function PnkGlanceCardFace({
   name = '',
@@ -44,8 +44,10 @@ export function PnkGlanceCardFace({
       </div>
 
       <div className="pnk-glance-face__main">
-        <strong className="pnk-glance-face__name">{name}</strong>
-        {stepTitle ? <span className="pnk-glance-face__stage">{stepTitle}</span> : null}
+        <div className="pnk-glance-face__identity">
+          <strong className="pnk-glance-face__name">{name}</strong>
+          {stepTitle ? <span className="pnk-glance-face__stage">{stepTitle}</span> : null}
+        </div>
         {statusText ? (
           <span className={`pnk-glance-face__status${isHot || hotLabel ? ' pnk-glance-face__status--hot' : ''}`}>
             {statusText}

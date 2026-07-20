@@ -3410,25 +3410,33 @@ tr:last-child td {
   }
 
   .trainer-home .pnk-glance-face {
-    gap: 8px;
+    gap: 6px;
   }
 
   .trainer-home .pnk-glance-face__name {
-    font-size: clamp(1.05rem, 1.8vw, 1.25rem);
+    font-size: clamp(1rem, 1.6vw, 1.15rem);
   }
 
   .trainer-home .pnk-glance-face__status {
     padding: 6px 8px;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
   }
 
   .trainer-home .pnk-glance-face__top {
-    gap: 8px;
+    gap: 6px;
   }
 
   .trainer-home .pnk-glance-face__icon {
-    width: 30px;
-    height: 30px;
+    width: 28px;
+    height: 28px;
+  }
+
+  .trainer-home .pnk-glance-face__stage {
+    font-size: 0.78rem;
+  }
+
+  .trainer-home .pnk-glance-face__eyebrow {
+    font-size: 0.82rem;
   }
 
   .trainer-home .trainer-attention__grid {
@@ -3450,9 +3458,9 @@ tr:last-child td {
     font-size: 0.78rem;
   }
 
-  /* Виджет ПНК — не на всю ширину доски */
+  /* Виджет ПНК — узкая карточка в 2 столбца */
   .trainer-home .trainer-pnk-glance {
-    max-width: min(100%, 400px);
+    max-width: min(100%, 300px);
     width: 100%;
     justify-self: start;
   }
@@ -3520,7 +3528,7 @@ tr:last-child td {
   }
 
   .trainer-home .trainer-pnk-glance {
-    max-width: min(100%, 380px);
+    max-width: min(100%, 300px);
   }
 }
 
@@ -3530,7 +3538,7 @@ tr:last-child td {
   }
 
   .trainer-home .trainer-pnk-glance {
-    max-width: min(100%, 360px);
+    max-width: min(100%, 300px);
   }
 }
 
