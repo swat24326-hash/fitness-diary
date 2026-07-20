@@ -156,15 +156,6 @@ export function SalesFinanceForecast({
     )
   }
 
-  const formatReachLabel = (reach, planTarget) => {
-    if (planTarget <= 0) return 'План не задан'
-    if (reach.willReach) return `Прогноз: выполним план (${reach.forecastProgressPercent}%)`
-    if (reach.gapRub > 0) {
-      return `Прогноз: не дотянем (${reach.forecastProgressPercent}%, не хватает ${formatRub(reach.gapRub)})`
-    }
-    return `Прогноз: ${reach.forecastProgressPercent}%`
-  }
-
   const formatPaceLabel = (pace) => {
     if (!pace) return null
     if (pace.mode === 'already_at_plan') return 'Факт уже закрывает план.'
@@ -172,26 +163,24 @@ export function SalesFinanceForecast({
       return `До плана не хватает ${formatRub(pace.gapRub)} — дней отчёта уже не осталось.`
     }
     if (pace.mode === 'weekday' && pace.perDayRub != null) {
-      return `Чтобы дотянуть план: ~${formatRub(pace.perDayRub)} в будний день (${pace.remainingWeekdays} буд. осталось).`
+      return `Нужно ~${formatRub(pace.perDayRub)} в будний день · ${pace.remainingWeekdays} буд. осталось`
     }
     if (pace.perDayRub != null) {
-      return `Чтобы дотянуть план: ~${formatRub(pace.perDayRub)} в день (${pace.remainingDays} дн. осталось).`
+      return `Нужно ~${formatRub(pace.perDayRub)} в день · ${pace.remainingDays} дн. осталось`
     }
     return null
   }
 
-  const formatCalendarNormLabel = (norm) => {
-    if (!norm) return null
-    const expected = String(norm.expectedPct).replace('.', ',')
-    const fact = String(norm.factPct).replace('.', ',')
-    const vs = norm.vsLabelRu ? ` — ${norm.vsLabelRu}` : ''
-    return `Норма к дате ${expected}% · факт ${fact}%${vs}`
-  }
-
   const plan = forecast.plan
   const paceLabel = formatPaceLabel(plan?.pace)
-  const calendarNormLabel = formatCalendarNormLabel(plan?.calendarNorm)
   const calendarNorm = plan?.calendarNorm
+  const reach = plan?.reach
+  const forecastSub =
+    reach?.willReach === true
+      ? `${formatRub(plan.forecastGross)} · план по прогнозу`
+      : reach?.gapRub > 0
+        ? `${formatRub(plan.forecastGross)} · −${formatRub(reach.gapRub)} до плана`
+        : formatRub(plan?.forecastGross)
 
   return (
     <section className="sales-finance-forecast" aria-labelledby="sales-finance-forecast-title">
@@ -203,15 +192,15 @@ export function SalesFinanceForecast({
         <p className="sales-finance-forecast__hint">
           {forecast.method === 'weekday_weekend_remaining' ? (
             <>
-              Факт + среднее будней / выходных × оставшиеся дни (
+              Будни и выходные отдельно ·{' '}
               <strong>{forecast.dayType?.remainingWeekdays ?? 0}</strong> буд. ·{' '}
-              <strong>{forecast.dayType?.remainingWeekends ?? 0}</strong> вых.)
+              <strong>{forecast.dayType?.remainingWeekends ?? 0}</strong> вых.
             </>
           ) : (
             <>
               Среднее за <strong>{forecast.reportDays}</strong> отчёт
               {forecast.reportDays === 1 ? '' : forecast.reportDays < 5 ? 'а' : 'ов'} ×{' '}
-              <strong>{forecast.daysInMonth}</strong> дн. месяца
+              <strong>{forecast.daysInMonth}</strong> дн.
             </>
           )}
         </p>
@@ -219,26 +208,22 @@ export function SalesFinanceForecast({
 
       {plan?.level3 > 0 ? (
         <div className="sales-finance-forecast__section">
-          <h4 className="sales-finance-forecast__section-title">
-            <Target size={17} aria-hidden className="sales-finance-forecast__section-icon" />
-            План уровня 3
-          </h4>
           <div className="sales-finance-forecast__plan-cards">
             <article className="sales-finance-forecast__plan-card">
-              <span className="sales-finance-forecast__plan-kpi-label">Цель месяца</span>
+              <span className="sales-finance-forecast__plan-kpi-label">Цель</span>
               <strong className="sales-finance-forecast__plan-kpi-value">{formatRub(plan.level3)}</strong>
             </article>
             <article className="sales-finance-forecast__plan-card">
-              <span className="sales-finance-forecast__plan-kpi-label">Факт сейчас</span>
+              <span className="sales-finance-forecast__plan-kpi-label">Факт</span>
               <strong className="sales-finance-forecast__plan-kpi-value">{plan.factProgressPercent}%</strong>
               <span className="sales-finance-forecast__plan-kpi-sub">{formatRub(plan.factGross)}</span>
             </article>
-            <article className={`sales-finance-forecast__plan-card sales-finance-forecast__plan-card--${plan.reach.tone}`}>
-              <span className="sales-finance-forecast__plan-kpi-label">Прогноз на конец</span>
-              <strong className={`sales-finance-forecast__plan-kpi-value sales-finance-forecast__reach--${plan.reach.tone}`}>
+            <article className={`sales-finance-forecast__plan-card sales-finance-forecast__plan-card--${reach?.tone ?? 'ok'}`}>
+              <span className="sales-finance-forecast__plan-kpi-label">Прогноз</span>
+              <strong className={`sales-finance-forecast__plan-kpi-value sales-finance-forecast__reach--${reach?.tone ?? 'ok'}`}>
                 {plan.forecastProgressPercent}%
               </strong>
-              <span className="sales-finance-forecast__plan-kpi-sub">{formatRub(plan.forecastGross)}</span>
+              <span className="sales-finance-forecast__plan-kpi-sub">{forecastSub}</span>
             </article>
             {calendarNorm ? (
               <article
@@ -250,29 +235,22 @@ export function SalesFinanceForecast({
                 >
                   {String(calendarNorm.expectedPct).replace('.', ',')}%
                 </strong>
-                <span className="sales-finance-forecast__plan-kpi-sub">
-                  факт {String(calendarNorm.factPct).replace('.', ',')}%
-                  {calendarNorm.vsLabelRu ? ` · ${calendarNorm.vsLabelRu}` : ''}
-                </span>
+                {calendarNorm.vsLabelRu ? (
+                  <span className="sales-finance-forecast__plan-kpi-sub">{calendarNorm.vsLabelRu}</span>
+                ) : null}
               </article>
             ) : null}
           </div>
-          {calendarNormLabel ? (
+
+          {paceLabel ? (
             <p
-              className={`sales-finance-forecast__calendar-norm sales-finance-forecast__reach--${calendarNorm?.tone ?? 'ok'}`}
+              className={`sales-finance-forecast__action sales-finance-forecast__action--${reach?.willReach ? 'ok' : 'focus'}`}
               role="status"
             >
-              {calendarNormLabel}
-            </p>
-          ) : null}
-          <p className={`sales-finance-forecast__verdict sales-finance-forecast__reach--${plan.reach.tone}`}>
-            {formatReachLabel(plan.reach, plan.level3)}
-          </p>
-          {paceLabel ? (
-            <p className="sales-finance-forecast__pace" role="status">
               {paceLabel}
             </p>
           ) : null}
+
           {plan.directionLag?.has_lag ? (
             <div className="sales-finance-forecast__direction-lag" role="status">
               <p className="sales-finance-forecast__direction-lag-title">Отставание по залам</p>
@@ -284,14 +262,11 @@ export function SalesFinanceForecast({
                       −{formatRub(hall.gapRub)}
                     </span>
                     <span className="sales-finance-forecast__direction-lag-pct">
-                      прогноз {hall.forecastProgressPercent}%
+                      {hall.forecastProgressPercent}%
                     </span>
                   </li>
                 ))}
               </ul>
-              {plan.directionLag.summary_ru ? (
-                <p className="sales-finance-forecast__direction-lag-summary">{plan.directionLag.summary_ru}</p>
-              ) : null}
             </div>
           ) : null}
         </div>
@@ -299,7 +274,10 @@ export function SalesFinanceForecast({
 
       {plan?.directions?.length ? (
         <div className="sales-finance-forecast__section">
-          <h4 className="sales-finance-forecast__section-title">Прогноз по направлениям</h4>
+          <h4 className="sales-finance-forecast__section-title">
+            <Target size={17} aria-hidden className="sales-finance-forecast__section-icon" />
+            Прогноз по направлениям
+          </h4>
           <div className="sales-finance-forecast__table-wrap">
             <table className="sales-finance-forecast__table sales-finance-forecast__table--plan">
               <thead>
