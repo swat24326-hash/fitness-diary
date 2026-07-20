@@ -774,44 +774,47 @@ export function AdminClients() {
                         ) : null}
                       </div>
                     </div>
-                    <div className="row td-client-actions" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
-                      <Link to={`/admin/clients/${c.id}${clubQs}`} className="btn btn-primary btn-touch u-no-decoration">
-                        Карточка
+                    <div className="row td-client-actions">
+                      <Link
+                        to={`/admin/clients/${c.id}${clubQs}`}
+                        className="btn btn-primary btn-icon-square btn-touch u-no-decoration"
+                        aria-label="Карточка клиента"
+                        title="Карточка клиента"
+                      >
+                        <UserCircle size={20} aria-hidden />
                       </Link>
-                      <div className="row" style={{ gap: 8, justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
-                        <ClientRowMoreMenu
-                          disabled={busy}
-                          ariaLabel={`Ещё действия: ${c.name ?? c.id}`}
-                          items={[
-                            clientsTab === 'active'
-                              ? {
-                                  id: 'archive',
-                                  label: 'В архив',
-                                  icon: Archive,
-                                  onSelect: () => void updateClientArchiveFlag(c, true),
-                                }
-                              : {
-                                  id: 'restore',
-                                  label: 'Вернуть из архива',
-                                  icon: RotateCcw,
-                                  onSelect: () => void updateClientArchiveFlag(c, false),
-                                },
-                            {
-                              id: 'reassign',
-                              label: 'Переназначить тренера',
-                              icon: UserCog,
-                              onSelect: () => void openReassignModal(c),
-                            },
-                            {
-                              id: 'delete',
-                              label: 'Удалить',
-                              icon: Trash2,
-                              danger: true,
-                              onSelect: () => setConfirmDelete({ id: c.id, name: c.name ?? 'Клиент' }),
-                            },
-                          ]}
-                        />
-                      </div>
+                      <ClientRowMoreMenu
+                        disabled={busy}
+                        ariaLabel={`Ещё действия: ${c.name ?? c.id}`}
+                        items={[
+                          clientsTab === 'active'
+                            ? {
+                                id: 'archive',
+                                label: 'В архив',
+                                icon: Archive,
+                                onSelect: () => void updateClientArchiveFlag(c, true),
+                              }
+                            : {
+                                id: 'restore',
+                                label: 'Вернуть из архива',
+                                icon: RotateCcw,
+                                onSelect: () => void updateClientArchiveFlag(c, false),
+                              },
+                          {
+                            id: 'reassign',
+                            label: 'Переназначить тренера',
+                            icon: UserCog,
+                            onSelect: () => void openReassignModal(c),
+                          },
+                          {
+                            id: 'delete',
+                            label: 'Удалить',
+                            icon: Trash2,
+                            danger: true,
+                            onSelect: () => setConfirmDelete({ id: c.id, name: c.name ?? 'Клиент' }),
+                          },
+                        ]}
+                      />
                     </div>
                   </div>
                   <div className="muted td-muted-row">
