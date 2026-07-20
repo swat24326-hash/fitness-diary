@@ -12,6 +12,7 @@ import {
 import {
   MIN_WEEKDAY_SAMPLES_FOR_SPLIT,
   MIN_WEEKEND_SAMPLES_FOR_SPLIT,
+  computePlanMoneyNormToDate,
   computePlanPaceNeeded,
   isoDateInMonth,
   projectMonthMetric,
@@ -393,18 +394,46 @@ ok(
 )
 
 const expectedCalPct = Math.round((8 / 31) * 1000) / 10
+const moneyNorm = computePlanMoneyNormToDate({
+  planTarget: 1300000,
+  factGross: 709480,
+  daysElapsed: 19,
+  daysInMonth: 30,
+})
+ok(moneyNorm?.expectedRub === 823333.33, 'money norm = plan × 19/30')
+ok(moneyNorm?.pacePct === 86.2, 'pace ≈ 86.2% of norm ₽')
+ok(moneyNorm?.lagRub === -113853.33, 'lag = fact − norm ₽')
+ok(moneyNorm?.vs === 'behind', '709k vs 823k norm is behind')
+
+const moneyAhead = computePlanMoneyNormToDate({
+  planTarget: 1100000,
+  factGross: 709480,
+  daysElapsed: 19,
+  daysInMonth: 30,
+})
+ok(moneyAhead?.pacePct > 100 && moneyAhead.vs === 'on_track', 'slightly over prorated stays on_track (±8)')
+const moneyFarAhead = computePlanMoneyNormToDate({
+  planTarget: 1100000,
+  factGross: 800000,
+  daysElapsed: 19,
+  daysInMonth: 30,
+})
+ok(moneyFarAhead?.vs === 'ahead', 'well over prorated → ahead')
+
 const calNormUnit = buildPlanCalendarNorm({
   year,
   month,
-  factProgressPercent: 10,
+  planTarget: 1300000,
+  factGross: 300000,
   today,
 })
-ok(calNormUnit?.expectedPct === expectedCalPct, 'calendar norm 8/31')
-ok(calNormUnit?.vs === 'behind', 'fact 10% behind calendar mid-early july')
-ok(fcPlan.plan.calendarNorm?.expectedPct === expectedCalPct, 'plan forecast exposes calendar norm')
+ok(calNormUnit?.expectedPct === expectedCalPct, 'calendar share still exposed as expectedPct')
+ok(calNormUnit?.expectedRub === Math.round((1300000 * (8 / 31)) * 100) / 100, 'july 8/31 money norm')
+ok(calNormUnit?.method === 'plan_times_elapsed_share', 'money norm method')
+ok(fcPlan.plan.calendarNorm?.expectedRub > 0, 'plan forecast exposes money norm')
 ok(
-  fcPlan.plan.calendarNorm?.factPct === fcPlan.plan.factProgressPercent,
-  'calendar norm fact matches plan fact %',
+  Math.abs(fcPlan.plan.calendarNorm.pacePct - (fcPlan.plan.factGross / fcPlan.plan.calendarNorm.expectedRub) * 100) < 0.15,
+  'forecast card pace from fact/norm',
 )
 
 if (failed) process.exit(1)

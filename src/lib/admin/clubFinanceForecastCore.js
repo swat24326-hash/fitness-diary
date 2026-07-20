@@ -20,22 +20,23 @@ import {
 import {
   FORECAST_METHOD_UNIFORM,
   FORECAST_METHOD_WEEKDAY_WEEKEND,
+  computePlanMoneyNormToDate,
   computePlanPaceNeeded,
   projectMonthMetric,
 } from './clubFinanceForecastProjection.js'
-import {
-  buildGeminiMonthCalendarContext,
-  comparePlanToCalendar,
-} from './geminiMonthCalendarContext.js'
+import { buildGeminiMonthCalendarContext } from './geminiMonthCalendarContext.js'
 
-export { FORECAST_METHOD_UNIFORM, FORECAST_METHOD_WEEKDAY_WEEKEND, computePlanPaceNeeded }
+export { FORECAST_METHOD_UNIFORM, FORECAST_METHOD_WEEKDAY_WEEKEND, computePlanPaceNeeded, computePlanMoneyNormToDate }
 
 /**
- * Норма к дате (линейный % календаря) рядом с фактом плана — только текущий месяц.
+ * Норма к дате в ₽ для блока прогноза (текущий месяц).
+ * Не меняет ISKRA calendar_context и не трогает прогноз на конец / темп до плана.
+ *
  * @param {{
  *   year: number,
  *   month: number,
- *   factProgressPercent: number,
+ *   planTarget: number,
+ *   factGross: number,
  *   today?: Date,
  * }} opts
  */
@@ -43,23 +44,34 @@ export function buildPlanCalendarNorm(opts) {
   const cal = buildGeminiMonthCalendarContext(opts.year, opts.month, opts.today ?? new Date())
   if (!cal || cal.month_relation !== 'current') return null
 
-  const expectedPct = Number(cal.expected_plan_progress_pct) || 0
-  const factPct = Number(opts.factProgressPercent) || 0
-  const vs = comparePlanToCalendar(factPct, cal)
+  const money = computePlanMoneyNormToDate({
+    planTarget: opts.planTarget,
+    factGross: opts.factGross,
+    daysElapsed: cal.days_elapsed,
+    daysInMonth: cal.days_in_month,
+  })
+  if (!money) return null
+
   /** @type {'strong'|'ok'|'weak'} */
   let tone = 'ok'
-  if (vs === 'ahead') tone = 'strong'
-  else if (vs === 'behind') tone = 'weak'
+  if (money.vs === 'ahead') tone = 'strong'
+  else if (money.vs === 'behind') tone = 'weak'
 
   let vsLabelRu = ''
-  if (vs === 'ahead') vsLabelRu = 'опережаем календарь'
-  else if (vs === 'on_track') vsLabelRu = 'в темпе календаря'
-  else if (vs === 'behind') vsLabelRu = 'отстаём от календаря'
+  if (money.vs === 'ahead') vsLabelRu = 'опережаем норму'
+  else if (money.vs === 'on_track') vsLabelRu = 'в темпе нормы'
+  else if (money.vs === 'behind') vsLabelRu = 'отстаём от нормы'
 
   return {
-    expectedPct,
-    factPct,
-    vs,
+    method: 'plan_times_elapsed_share',
+    expectedRub: money.expectedRub,
+    lagRub: money.lagRub,
+    pacePct: money.pacePct,
+    /** Доля полного плана (факт÷план) — для справки, не главный KPI карточки. */
+    factPct: money.factPctOfPlan,
+    /** Календарная доля месяца (день÷дни) — не путать с темпом. */
+    expectedPct: Number(cal.expected_plan_progress_pct) || 0,
+    vs: money.vs,
     tone,
     vsLabelRu,
     calendarDay: cal.calendar_day,
@@ -395,7 +407,8 @@ export function buildClubFinanceForecast(opts) {
       ? buildPlanCalendarNorm({
           year,
           month,
-          factProgressPercent: factPlanProgress,
+          planTarget: planLevel3,
+          factGross,
           today,
         })
       : null

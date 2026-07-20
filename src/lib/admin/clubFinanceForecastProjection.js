@@ -181,6 +181,54 @@ function roundRubPace(n) {
   return Math.round((Number(n) || 0) * 100) / 100
 }
 
+function round1(n) {
+  return Math.round(Number(n) * 10) / 10
+}
+
+/** Допуск темпа к норме в ₽ (± п.п. от 100%), как у календаря ИСКРЫ. */
+export const PLAN_MONEY_NORM_SLACK_PP = 8
+
+/**
+ * Норма к дате в ₽: plan × (день / дней месяца).
+ * % темпа = факт ÷ норма_₽; лаг = факт − норма_₽.
+ * Не путать с прогнозом на конец месяца и с fact÷полный_план.
+ *
+ * @param {{
+ *   planTarget: number,
+ *   factGross: number,
+ *   daysElapsed: number,
+ *   daysInMonth: number,
+ * }} opts
+ * @returns {{
+ *   expectedRub: number,
+ *   lagRub: number,
+ *   pacePct: number,
+ *   factPctOfPlan: number,
+ *   vs: 'ahead' | 'on_track' | 'behind',
+ * } | null}
+ */
+export function computePlanMoneyNormToDate(opts) {
+  const planTarget = roundRubPace(opts.planTarget)
+  const factGross = roundRubPace(opts.factGross)
+  const daysElapsed = Math.max(0, Number(opts.daysElapsed) || 0)
+  const daysInMonth = Math.max(0, Number(opts.daysInMonth) || 0)
+  if (planTarget <= 0 || daysInMonth <= 0 || daysElapsed <= 0) return null
+
+  const expectedRub = roundRubPace(planTarget * (daysElapsed / daysInMonth))
+  if (expectedRub <= 0) return null
+
+  const pacePct = round1((factGross / expectedRub) * 100)
+  const lagRub = roundRubPace(factGross - expectedRub)
+  const factPctOfPlan = round1((factGross / planTarget) * 100)
+
+  /** @type {'ahead' | 'on_track' | 'behind'} */
+  let vs = 'on_track'
+  if (pacePct >= 100 + PLAN_MONEY_NORM_SLACK_PP) vs = 'ahead'
+  else if (pacePct < 100 - PLAN_MONEY_NORM_SLACK_PP) vs = 'behind'
+
+  return { expectedRub, lagRub, pacePct, factPctOfPlan, vs }
+}
+
 /**
  * Сколько ₽ нужно в будний день, чтобы закрыть план (выходные в знаменатель не кладём).
  * @param {{

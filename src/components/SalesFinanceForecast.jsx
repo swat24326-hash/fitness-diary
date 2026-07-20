@@ -156,25 +156,38 @@ export function SalesFinanceForecast({
     )
   }
 
-  const formatPaceLabel = (pace) => {
+  const formatPaceLabel = (pace, reach, calendarNorm) => {
     if (!pace) return null
     if (pace.mode === 'already_at_plan') return 'Факт уже закрывает план.'
     if (pace.mode === 'no_days_left') {
       return `До плана не хватает ${formatRub(pace.gapRub)} — дней отчёта уже не осталось.`
     }
-    if (pace.mode === 'weekday' && pace.perDayRub != null) {
-      return `Нужно ~${formatRub(pace.perDayRub)} в будний день · ${pace.remainingWeekdays} буд. осталось`
+
+    const todayLag =
+      calendarNorm && calendarNorm.lagRub < 0
+        ? `Сегодня −${formatRub(Math.abs(calendarNorm.lagRub))} к норме`
+        : null
+
+    if (reach?.willReach) {
+      if (todayLag) return `${todayLag} · к концу месяца по прогнозу план закрываем`
+      return 'По прогнозу план выполним — держите темп.'
     }
-    if (pace.perDayRub != null) {
-      return `Нужно ~${formatRub(pace.perDayRub)} в день · ${pace.remainingDays} дн. осталось`
-    }
-    return null
+
+    const need =
+      pace.mode === 'weekday' && pace.perDayRub != null
+        ? `Нужно ~${formatRub(pace.perDayRub)} в будний день · ${pace.remainingWeekdays} буд. осталось`
+        : pace.perDayRub != null
+          ? `Нужно ~${formatRub(pace.perDayRub)} в день · ${pace.remainingDays} дн. осталось`
+          : null
+    if (!need) return todayLag
+    if (todayLag) return `${todayLag} · ${need.charAt(0).toLowerCase()}${need.slice(1)}`
+    return need
   }
 
   const plan = forecast.plan
-  const paceLabel = formatPaceLabel(plan?.pace)
   const calendarNorm = plan?.calendarNorm
   const reach = plan?.reach
+  const paceLabel = formatPaceLabel(plan?.pace, reach, calendarNorm)
   const forecastSub =
     reach?.willReach === true
       ? `${formatRub(plan.forecastGross)} · план по прогнозу`
@@ -182,27 +195,27 @@ export function SalesFinanceForecast({
         ? `${formatRub(plan.forecastGross)} · −${formatRub(reach.gapRub)} до плана`
         : formatRub(plan?.forecastGross)
 
+  const normLagText =
+    calendarNorm && calendarNorm.lagRub !== 0
+      ? `${calendarNorm.lagRub > 0 ? '+' : '−'}${formatRub(Math.abs(calendarNorm.lagRub))} к норме`
+      : null
+
   return (
     <section className="sales-finance-forecast" aria-labelledby="sales-finance-forecast-title">
       <header className="sales-finance-forecast__head">
         <h3 className="sales-finance-forecast__title" id="sales-finance-forecast-title">
           <TrendingUp size={20} aria-hidden className="sales-finance-forecast__title-icon" />
-          Прогноз на {monthEndLabel}
+          План и прогноз · до {monthEndLabel}
         </h3>
         <p className="sales-finance-forecast__hint">
+          Сегодня — темп к норме в ₽ · к концу месяца — прогноз
           {forecast.method === 'weekday_weekend_remaining' ? (
             <>
-              Будни и выходные отдельно ·{' '}
-              <strong>{forecast.dayType?.remainingWeekdays ?? 0}</strong> буд. ·{' '}
-              <strong>{forecast.dayType?.remainingWeekends ?? 0}</strong> вых.
+              {' '}
+              (будни/вых. · <strong>{forecast.dayType?.remainingWeekdays ?? 0}</strong>/
+              <strong>{forecast.dayType?.remainingWeekends ?? 0}</strong>)
             </>
-          ) : (
-            <>
-              Среднее за <strong>{forecast.reportDays}</strong> отчёт
-              {forecast.reportDays === 1 ? '' : forecast.reportDays < 5 ? 'а' : 'ов'} ×{' '}
-              <strong>{forecast.daysInMonth}</strong> дн.
-            </>
-          )}
+          ) : null}
         </p>
       </header>
 
@@ -210,14 +223,31 @@ export function SalesFinanceForecast({
         <div className="sales-finance-forecast__section">
           <div className="sales-finance-forecast__plan-cards">
             <article className="sales-finance-forecast__plan-card">
-              <span className="sales-finance-forecast__plan-kpi-label">Цель</span>
+              <span className="sales-finance-forecast__plan-kpi-label">План</span>
               <strong className="sales-finance-forecast__plan-kpi-value">{formatRub(plan.level3)}</strong>
+              <span className="sales-finance-forecast__plan-kpi-sub">уровень 3</span>
             </article>
             <article className="sales-finance-forecast__plan-card">
               <span className="sales-finance-forecast__plan-kpi-label">Факт</span>
               <strong className="sales-finance-forecast__plan-kpi-value">{plan.factProgressPercent}%</strong>
-              <span className="sales-finance-forecast__plan-kpi-sub">{formatRub(plan.factGross)}</span>
+              <span className="sales-finance-forecast__plan-kpi-sub">{formatRub(plan.factGross)} от плана</span>
             </article>
+            {calendarNorm ? (
+              <article
+                className={`sales-finance-forecast__plan-card sales-finance-forecast__plan-card--${calendarNorm.tone}`}
+              >
+                <span className="sales-finance-forecast__plan-kpi-label">Темп</span>
+                <strong
+                  className={`sales-finance-forecast__plan-kpi-value sales-finance-forecast__reach--${calendarNorm.tone}`}
+                >
+                  {String(calendarNorm.pacePct).replace('.', ',')}%
+                </strong>
+                <span className="sales-finance-forecast__plan-kpi-sub">
+                  норма {formatRub(calendarNorm.expectedRub)}
+                  {normLagText ? ` · ${normLagText}` : ''}
+                </span>
+              </article>
+            ) : null}
             <article className={`sales-finance-forecast__plan-card sales-finance-forecast__plan-card--${reach?.tone ?? 'ok'}`}>
               <span className="sales-finance-forecast__plan-kpi-label">Прогноз</span>
               <strong className={`sales-finance-forecast__plan-kpi-value sales-finance-forecast__reach--${reach?.tone ?? 'ok'}`}>
@@ -225,21 +255,6 @@ export function SalesFinanceForecast({
               </strong>
               <span className="sales-finance-forecast__plan-kpi-sub">{forecastSub}</span>
             </article>
-            {calendarNorm ? (
-              <article
-                className={`sales-finance-forecast__plan-card sales-finance-forecast__plan-card--${calendarNorm.tone}`}
-              >
-                <span className="sales-finance-forecast__plan-kpi-label">Норма к дате</span>
-                <strong
-                  className={`sales-finance-forecast__plan-kpi-value sales-finance-forecast__reach--${calendarNorm.tone}`}
-                >
-                  {String(calendarNorm.expectedPct).replace('.', ',')}%
-                </strong>
-                {calendarNorm.vsLabelRu ? (
-                  <span className="sales-finance-forecast__plan-kpi-sub">{calendarNorm.vsLabelRu}</span>
-                ) : null}
-              </article>
-            ) : null}
           </div>
 
           {paceLabel ? (
@@ -253,7 +268,7 @@ export function SalesFinanceForecast({
 
           {plan.directionLag?.has_lag ? (
             <div className="sales-finance-forecast__direction-lag" role="status">
-              <p className="sales-finance-forecast__direction-lag-title">Отставание по залам</p>
+              <p className="sales-finance-forecast__direction-lag-title">Где отстаём по залам</p>
               <ul className="sales-finance-forecast__direction-lag-list">
                 {plan.directionLag.lagging.map((hall) => (
                   <li key={hall.key} className="sales-finance-forecast__direction-lag-item">
