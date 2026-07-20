@@ -16,8 +16,6 @@ import { AdminStatistics } from './pages/admin/AdminStatistics'
 import { AdminSales } from './pages/admin/AdminSales'
 import { AdminChallenges } from './pages/admin/AdminChallenges'
 import { AdminChallengeDetail } from './pages/admin/AdminChallengeDetail'
-import { AdminDiagnostics } from './pages/admin/AdminDiagnostics'
-import { AdminIskraSettings } from './pages/admin/AdminIskraSettings'
 import { AdminClubTasks } from './pages/admin/AdminClubTasks'
 import { SalesClubTasks } from './pages/admin/SalesClubTasks'
 import { SalesPnk } from './pages/admin/SalesPnk'
@@ -143,6 +141,20 @@ function AdminLegacyExercisesRedirect() {
   return <Navigate to={`/admin/structure?${sp.toString()}`} replace />
 }
 
+function AdminLegacyDiagnosticsRedirect() {
+  const loc = useLocation()
+  const sp = new URLSearchParams(loc.search || '')
+  sp.set('tab', 'diagnostics')
+  return <Navigate to={`/admin/structure?${sp.toString()}`} replace />
+}
+
+function AdminLegacyIskraSettingsRedirect() {
+  const loc = useLocation()
+  const sp = new URLSearchParams(loc.search || '')
+  sp.set('tab', 'iskra-settings')
+  return <Navigate to={`/admin/structure?${sp.toString()}`} replace />
+}
+
 function AdminLegacyStructureStatisticsTabRedirect() {
   const loc = useLocation()
   const sp = new URLSearchParams(loc.search || '')
@@ -192,8 +204,8 @@ export default function App() {
                 <Route path="exercises" element={<AdminLegacyExercisesRedirect />} />
                 <Route path="challenges" element={<AdminChallenges />} />
                 <Route path="challenges/:challengeId" element={<AdminChallengeDetail />} />
-                <Route path="diagnostics" element={<AdminDiagnostics />} />
-                <Route path="iskra-settings" element={<AdminIskraSettings />} />
+                <Route path="diagnostics" element={<AdminLegacyDiagnosticsRedirect />} />
+                <Route path="iskra-settings" element={<AdminLegacyIskraSettingsRedirect />} />
                 <Route path="club-tasks" element={<AdminClubTasks />} />
                 <Route path="clubs" element={<AdminLegacyClubsRedirect />} />
               </Route>

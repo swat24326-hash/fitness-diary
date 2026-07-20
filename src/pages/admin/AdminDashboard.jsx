@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BarChart3, Building2, ClipboardList, Shield, Sparkles, Stethoscope, TrendingUp, Trophy, UserCircle, UserPlus } from 'lucide-react'
+import { BarChart3, Building2, ClipboardList, Shield, TrendingUp, Trophy, UserCircle, UserPlus } from 'lucide-react'
 import { AdminClubDaySummaryPanel } from '../../components/admin/AdminClubDaySummaryPanel'
 import { AdminHomeSalesPlanGlance } from '../../components/admin/AdminHomeSalesPlanGlance'
 import { ManagerPnkHomeGlance } from '../../components/pnk/ManagerPnkHomeGlance'
@@ -187,18 +187,6 @@ export function AdminDashboard() {
                   <Trophy size={44} aria-hidden />
                 </div>
                 <p className="feature-tile__title">Челленджи</p>
-              </NavLink>
-              <NavLink to={tab('diagnostics')} className={adminTileClass}>
-                <div className="feature-tile__icon">
-                  <Stethoscope size={44} aria-hidden />
-                </div>
-                <p className="feature-tile__title">Диагностика</p>
-              </NavLink>
-              <NavLink to={tab('iskra-settings')} className={adminTileClass}>
-                <div className="feature-tile__icon">
-                  <Sparkles size={44} aria-hidden />
-                </div>
-                <p className="feature-tile__title">ИСКРА</p>
               </NavLink>
               <NavLink to={tab('club-tasks')} className={adminTileClass}>
                 <div className="feature-tile__icon">

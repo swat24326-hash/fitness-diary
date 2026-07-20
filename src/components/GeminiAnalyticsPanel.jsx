@@ -290,7 +290,9 @@ export function GeminiAnalyticsPanel({
   const initialMessageSentRef = useRef(false)
   const prevModeRef = useRef(/** @type {'closed'|'compact'|'expanded'} */ ('closed'))
 
-  const settingsHref = clubId ? `/admin/iskra-settings?club=${encodeURIComponent(clubId)}` : '/admin/iskra-settings'
+  const settingsHref = clubId
+    ? `/admin/structure?tab=iskra-settings&club=${encodeURIComponent(clubId)}`
+    : '/admin/structure?tab=iskra-settings'
   const activeTrainerId = panelSegment === 'trainer' ? focusTrainerId || null : null
   const focusTrainerLabel =
     trainers.find((t) => t.trainer_id === activeTrainerId)?.trainer_name ||

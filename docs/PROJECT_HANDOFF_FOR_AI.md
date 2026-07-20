@@ -106,7 +106,7 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 |------|------|
 | trainer | `/trainer`, `/trainer/clients`, `/trainer/clients/:id`, `/trainer/workouts/:id`, `/trainer/profile`, челленджи |
 | sales_manager | `/sales`, `/sales/club-tasks`, `/sales/pnk` |
-| admin | `/admin/*` (clients, statistics, sales, pnk, challenges, iskra-settings, club-tasks, diagnostics, …), `/admin/workouts/:id` |
+| admin | `/admin/*` (clients, statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. diagnostics / iskra-settings, …), `/admin/workouts/:id` |
 
 Карточка клиента (`ClientCard`) общая для тренера и админа.
 

@@ -47,6 +47,9 @@ function buildCrumbs(pathname, search) {
       'homework-presets': 'ДЗ',
       exercises: 'Упражнения',
       'max-messages': 'Сообщения Max',
+      'coach-quality': 'Качество ведения',
+      diagnostics: 'Диагностика',
+      'iskra-settings': 'ИСКРА',
     }
     const sub = tabLabels[tab] ?? 'Клубы'
     const structureBase = `/admin/structure${clubQs}`
@@ -57,8 +60,6 @@ function buildCrumbs(pathname, search) {
   if (p === '/admin/statistics') return [...admin, { label: 'Статистика', to: `/admin/statistics${clubQs}` }]
   if (p === '/admin/sales') return [...admin, { label: 'Продажи', to: `/admin/sales${clubQs}` }]
   if (p === '/admin/challenges') return [...admin, { label: 'Челленджи', to: `/admin/challenges${clubQs}` }]
-  if (p === '/admin/diagnostics') return [...admin, { label: 'Диагностика', to: `/admin/diagnostics${clubQs}` }]
-  if (p === '/admin/iskra-settings') return [...admin, { label: 'ИСКРА', to: `/admin/iskra-settings${clubQs}` }]
   if (p === '/admin/club-tasks') return [...admin, { label: 'Планёрка', to: `/admin/club-tasks${clubQs}` }]
   if (p === '/admin/pnk') return [...admin, { label: 'ПНК', to: `/admin/pnk${clubQs}` }]
   if (p === '/sales/club-tasks') return [{ label: 'План продаж', to: '/sales' }, { label: 'Планёрка', to: '/sales/club-tasks' }]

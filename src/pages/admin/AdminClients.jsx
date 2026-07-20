@@ -756,95 +756,98 @@ export function AdminClients() {
                 quickFilter === 'inactive' && inactiveRow ? formatInactiveClientListLabel(inactiveRow) : ''
               return (
                 <li key={c.id} className="list-item td-client-item">
-                  <div className="row td-client-row">
-                    <div className="td-client-left">
-                      <span title={sig.label} className="td-client-dot" style={{ background: sig.color }} />
-                      <div>
-                        <strong>{c.name}</strong>
-                        <div className="muted td-muted-13">{c.phone ?? '—'}</div>
-                        <div className="muted td-muted-13">Карта: {String(c.card_number ?? '').trim() || '—'}</div>
-                        <div className="muted td-muted-13" style={{ marginTop: 4 }}>
-                          <span style={{ fontWeight: 600 }}>Тренер: </span>
-                          {trainerLabel(c.trainer_id)}
+                  <div className="td-client-card">
+                    <div className="td-client-card__top">
+                      <div className="td-client-card__who">
+                        <span title={sig.label} className="td-client-dot" style={{ background: sig.color }} />
+                        <div className="td-client-card__who-text">
+                          <strong className="td-client-card__name">{c.name}</strong>
+                          <div className="td-client-card__phone">{c.phone ?? '—'}</div>
                         </div>
-                        {inactiveLabel ? (
-                          <div className="muted td-muted-13" style={{ marginTop: 4, color: '#fecaca' }}>
-                            {inactiveLabel}
-                          </div>
-                        ) : null}
+                      </div>
+                      <div className="td-client-card__facts" aria-label="Сводка по клиенту">
+                        <div className="td-client-fact">
+                          <span className="td-client-fact__label">Карта</span>
+                          <span className="td-client-fact__value">{String(c.card_number ?? '').trim() || '—'}</span>
+                        </div>
+                        <div className="td-client-fact">
+                          <span className="td-client-fact__label">Тренер</span>
+                          <span className="td-client-fact__value">{trainerLabel(c.trainer_id)}</span>
+                        </div>
+                        <div className="td-client-fact">
+                          <span className="td-client-fact__label">Абонемент</span>
+                          <span className="td-client-fact__value">
+                            {active ? (
+                              <>
+                                до {formatDateRu(active.end_date)}
+                                <span className="td-client-fact__sub"> · {membershipUsageLabel(active, clientTrainings)}</span>
+                              </>
+                            ) : expiredLeft ? (
+                              <>
+                                срок {formatDateRu(expiredLeft.end_date)}
+                                <span className="td-client-fact__sub">
+                                  {' '}
+                                  · осталось {remainingTrainingsOnMembership(expiredLeft, clientTrainings) ?? '—'}
+                                </span>
+                              </>
+                            ) : (
+                              'нет действующего'
+                            )}
+                          </span>
+                        </div>
+                        <div className="td-client-fact">
+                          <span className="td-client-fact__label">Последняя</span>
+                          <span className="td-client-fact__value">{last}</span>
+                        </div>
+                      </div>
+                      <div className="row td-client-actions">
+                        <Link
+                          to={`/admin/clients/${c.id}${clubQs}`}
+                          className="btn btn-primary btn-icon-square btn-touch u-no-decoration"
+                          aria-label="Карточка клиента"
+                          title="Карточка клиента"
+                        >
+                          <UserCircle size={20} aria-hidden />
+                        </Link>
+                        <ClientRowMoreMenu
+                          disabled={busy}
+                          ariaLabel={`Ещё действия: ${c.name ?? c.id}`}
+                          items={[
+                            clientsTab === 'active'
+                              ? {
+                                  id: 'archive',
+                                  label: 'В архив',
+                                  icon: Archive,
+                                  onSelect: () => void updateClientArchiveFlag(c, true),
+                                }
+                              : {
+                                  id: 'restore',
+                                  label: 'Вернуть из архива',
+                                  icon: RotateCcw,
+                                  onSelect: () => void updateClientArchiveFlag(c, false),
+                                },
+                            {
+                              id: 'reassign',
+                              label: 'Переназначить тренера',
+                              icon: UserCog,
+                              onSelect: () => void openReassignModal(c),
+                            },
+                            {
+                              id: 'delete',
+                              label: 'Удалить',
+                              icon: Trash2,
+                              danger: true,
+                              onSelect: () => setConfirmDelete({ id: c.id, name: c.name ?? 'Клиент' }),
+                            },
+                          ]}
+                        />
                       </div>
                     </div>
-                    <div className="row td-client-actions">
-                      <Link
-                        to={`/admin/clients/${c.id}${clubQs}`}
-                        className="btn btn-primary btn-icon-square btn-touch u-no-decoration"
-                        aria-label="Карточка клиента"
-                        title="Карточка клиента"
-                      >
-                        <UserCircle size={20} aria-hidden />
-                      </Link>
-                      <ClientRowMoreMenu
-                        disabled={busy}
-                        ariaLabel={`Ещё действия: ${c.name ?? c.id}`}
-                        items={[
-                          clientsTab === 'active'
-                            ? {
-                                id: 'archive',
-                                label: 'В архив',
-                                icon: Archive,
-                                onSelect: () => void updateClientArchiveFlag(c, true),
-                              }
-                            : {
-                                id: 'restore',
-                                label: 'Вернуть из архива',
-                                icon: RotateCcw,
-                                onSelect: () => void updateClientArchiveFlag(c, false),
-                              },
-                          {
-                            id: 'reassign',
-                            label: 'Переназначить тренера',
-                            icon: UserCog,
-                            onSelect: () => void openReassignModal(c),
-                          },
-                          {
-                            id: 'delete',
-                            label: 'Удалить',
-                            icon: Trash2,
-                            danger: true,
-                            onSelect: () => setConfirmDelete({ id: c.id, name: c.name ?? 'Клиент' }),
-                          },
-                        ]}
-                      />
-                    </div>
-                  </div>
-                  <div className="muted td-muted-row">
-                    {active ? (
-                      <>
-                        <span>
-                          Абонемент до <strong>{formatDateRu(active.end_date)}</strong>
-                        </span>
-                        <span>
-                          Использовано: <strong>{membershipUsageLabel(active, clientTrainings)}</strong>
-                        </span>
-                        <span className="td-muted-sep">·</span>
-                      </>
-                    ) : expiredLeft ? (
-                      <>
-                        <span>
-                          Срок <strong>{formatDateRu(expiredLeft.end_date)}</strong>, осталось тренировок:{' '}
-                          <strong>{remainingTrainingsOnMembership(expiredLeft, clientTrainings) ?? '—'}</strong>
-                        </span>
-                        <span className="td-muted-sep">·</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>Нет действующего абонемента</span>
-                        <span className="td-muted-sep">·</span>
-                      </>
-                    )}
-                    <span>
-                      Последняя тренировка: <strong>{last}</strong>
-                    </span>
+                    {inactiveLabel ? (
+                      <p className="td-client-card__alert" role="status">
+                        {inactiveLabel}
+                      </p>
+                    ) : null}
                   </div>
                 </li>
               )

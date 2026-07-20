@@ -94,20 +94,12 @@
   gap: 12px;
 }
 
-.td-client-row {
+.td-client-card__top {
   min-height: 44px;
-  gap: 10px;
 }
 
-.td-client-left {
-  gap: 12px;
-  min-width: 0;
-}
-
-.td-client-left .list-item__title,
-.td-client-left strong {
-  font-size: 1.05rem;
-  line-height: 1.3;
+.td-client-card__name {
+  font-size: 1.08rem;
 }
 
 .td-client-actions {

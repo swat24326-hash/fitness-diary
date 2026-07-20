@@ -8,6 +8,8 @@ import { AdminNutritionProducts } from './AdminNutritionProducts'
 import { AdminHomeworkPresets } from './AdminHomeworkPresets'
 import { AdminMaxOutreach } from './AdminMaxOutreach'
 import { AdminCoachQualitySettings } from './AdminCoachQualitySettings'
+import { AdminDiagnostics } from './AdminDiagnostics'
+import { AdminIskraSettings } from './AdminIskraSettings'
 
 const TAB_IDS = [
   'clubs',
@@ -19,6 +21,8 @@ const TAB_IDS = [
   'exercises',
   'max-messages',
   'coach-quality',
+  'diagnostics',
+  'iskra-settings',
 ]
 
 const TABS = [
@@ -31,6 +35,8 @@ const TABS = [
   { id: 'exercises', label: 'Упражнения' },
   { id: 'max-messages', label: 'Сообщения Max' },
   { id: 'coach-quality', label: 'Качество ведения' },
+  { id: 'diagnostics', label: 'Диагностика' },
+  { id: 'iskra-settings', label: 'ИСКРА' },
 ]
 
 export function AdminStructure() {
@@ -55,7 +61,10 @@ export function AdminStructure() {
     <div className="admin-structure">
       <header className="admin-structure__header">
         <h1 className="admin-structure__title">Структура</h1>
-        <p className="muted admin-structure__intro">Клубы, тренеры, справочники и тексты для Max — в одном разделе. Выбранный в шапке клуб (<code className="muted">?club=</code>) используется во вкладках ниже.</p>
+        <p className="muted admin-structure__intro">
+          Клубы, тренеры, справочники, тексты Max, диагностика и настройки ИСКРА — в одном разделе. Выбранный в
+          шапке клуб (<code className="muted">?club=</code>) используется во вкладках ниже.
+        </p>
       </header>
 
       <div className="tabs admin-structure__tabs" role="tablist" aria-label="Структура клуба">
@@ -156,6 +165,24 @@ export function AdminStructure() {
           className="admin-structure__panel"
         >
           {tab === 'coach-quality' ? <AdminCoachQualitySettings /> : null}
+        </div>
+        <div
+          id="admin-structure-panel-diagnostics"
+          role="tabpanel"
+          aria-labelledby="admin-structure-tab-diagnostics"
+          hidden={tab !== 'diagnostics'}
+          className="admin-structure__panel"
+        >
+          {tab === 'diagnostics' ? <AdminDiagnostics /> : null}
+        </div>
+        <div
+          id="admin-structure-panel-iskra-settings"
+          role="tabpanel"
+          aria-labelledby="admin-structure-tab-iskra-settings"
+          hidden={tab !== 'iskra-settings'}
+          className="admin-structure__panel"
+        >
+          {tab === 'iskra-settings' ? <AdminIskraSettings /> : null}
         </div>
       </div>
 
