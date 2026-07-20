@@ -107,11 +107,15 @@ export function AdminDashboard() {
         return
       }
       const review = Number(cq.brief?.reviewCount) || 0
+      const attention = Number(cq.brief?.attentionCount) || 0
       const dropped = Number(cq.brief?.droppedCount) || 0
       setCoachQualityHome({
         scorePct: cq.averageScorePct ?? null,
         chipLabel: cq.brief?.chipLabel ?? null,
         hot: review > 0 || dropped > 0,
+        reviewCount: review,
+        attentionCount: attention,
+        droppedCount: dropped,
       })
     } catch {
       if (gen !== cqGenRef.current) return

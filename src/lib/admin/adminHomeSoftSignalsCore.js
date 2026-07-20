@@ -10,7 +10,14 @@ import { buildAdminClubQueryHref } from './adminClientQuickFilters.js'
  *     expiring?: number,
  *     today?: string,
  *   } | null,
- *   coachQuality?: { scorePct?: number | null, chipLabel?: string | null, hot?: boolean } | null,
+ *   coachQuality?: {
+ *     scorePct?: number | null,
+ *     chipLabel?: string | null,
+ *     hot?: boolean,
+ *     reviewCount?: number,
+ *     attentionCount?: number,
+ *     droppedCount?: number,
+ *   } | null,
  *   clubId?: string,
  *   hrefStatsInactive?: string,
  *   hrefStatsCoach?: string,
@@ -23,6 +30,9 @@ import { buildAdminClubQueryHref } from './adminClientQuickFilters.js'
  *   href: string,
  *   tone: 'warn' | 'hot' | 'neutral',
  *   scorePct?: number | null,
+ *   reviewCount?: number,
+ *   attentionCount?: number,
+ *   droppedCount?: number,
  * }>}
  */
 export function buildAdminHomeSoftSignals(opts = {}) {
@@ -43,13 +53,18 @@ export function buildAdminHomeSoftSignals(opts = {}) {
 
   const scorePct = cq?.scorePct != null && Number.isFinite(Number(cq.scorePct)) ? Number(cq.scorePct) : null
   if (cq && (scorePct != null || cq.hot || cq.chipLabel)) {
+    const chipLabel = cq.chipLabel ? String(cq.chipLabel).trim() : ''
     out.push({
       id: 'coach-quality',
       title: 'Качество ведения',
-      subtitle: cq.chipLabel || (cq.hot ? 'Нужен разбор' : 'за месяц · статистика'),
+      subtitle: chipLabel || (cq.hot ? 'Нужен разбор' : 'за месяц · статистика'),
       href: hrefCoach,
       tone: cq.hot ? 'hot' : 'neutral',
       scorePct,
+      chipLabel: chipLabel || null,
+      reviewCount: Math.max(0, Number(cq.reviewCount) || 0),
+      attentionCount: Math.max(0, Number(cq.attentionCount) || 0),
+      droppedCount: Math.max(0, Number(cq.droppedCount) || 0),
     })
   }
 

@@ -9,6 +9,11 @@ import {
   buildAdminDaySummaryCards,
   splitDaySummarySpotlight,
 } from '../src/lib/admin/adminDaySummaryUiCore.js'
+import {
+  buildCoachQualityHomeGlanceVm,
+  resolveCoachQualityHomeBand,
+  resolveCoachQualityScoreBand,
+} from '../src/lib/admin/coachQualityHomeGlanceCore.js'
 
 let failed = 0
 
@@ -36,6 +41,30 @@ const calmCq = buildAdminHomeSoftSignals({
   coachQuality: { hot: false, scorePct: 81 },
 })
 ok(calmCq[0]?.id === 'coach-quality' && calmCq[0]?.scorePct === 81, 'soft: coach even when not hot')
+ok(calmCq[0]?.chipLabel == null, 'soft: calm has no chipLabel')
+ok(calmCq[0]?.reviewCount === 0, 'soft: calm review 0')
+
+ok(resolveCoachQualityScoreBand(85) === 'ok', 'scale: 85 ok')
+ok(resolveCoachQualityScoreBand(81) === 'attention', 'scale: 81 between markers')
+ok(resolveCoachQualityScoreBand(60) === 'review', 'scale: 60 review')
+ok(resolveCoachQualityHomeBand({ scorePct: 81 }) === 'ok', 'badge: calm 81 is Ok')
+ok(resolveCoachQualityHomeBand({ scorePct: 72, reviewCount: 1 }) === 'review', 'badge: review fact')
+
+const calmVm = buildCoachQualityHomeGlanceVm({ scorePct: 81 })
+ok(calmVm.fillPct === 81 && calmVm.markers.length === 2, 'vm: scale + markers')
+ok(calmVm.band === 'ok', 'vm: calm badge Ok')
+ok(calmVm.calm && /спокойно/i.test(calmVm.headline || ''), 'vm: calm headline')
+
+const hotVm = buildCoachQualityHomeGlanceVm({
+  scorePct: 72,
+  reviewCount: 1,
+  attentionCount: 2,
+  droppedCount: 1,
+  chipLabel: '1 на разбор · 1 просели',
+})
+ok(hotVm.facts.length === 3, 'vm: three facts')
+ok(hotVm.band === 'review', 'vm: hot band from review fact')
+ok(hotVm.headline === '1 на разбор · 1 просели', 'vm: chip as headline')
 
 ok(pickSoftSignalsForSlots(signals, { primarySides: 0 }).length === 2, 'pick 2 when empty sides')
 ok(pickSoftSignalsForSlots(signals, { primarySides: 1 }).length === 1, 'pick 1 when one primary')

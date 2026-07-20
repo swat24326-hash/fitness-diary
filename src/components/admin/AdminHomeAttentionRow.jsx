@@ -91,6 +91,10 @@ export function AdminHomeAttentionRow({
             href={softForPnkSlot.href}
             tone={softForPnkSlot.tone}
             scorePct={softForPnkSlot.scorePct}
+            chipLabel={softForPnkSlot.chipLabel}
+            reviewCount={softForPnkSlot.reviewCount}
+            attentionCount={softForPnkSlot.attentionCount}
+            droppedCount={softForPnkSlot.droppedCount}
             compact={compact}
           />
         ) : null}
@@ -113,6 +117,10 @@ export function AdminHomeAttentionRow({
             href={softForPlanerkaSlot.href}
             tone={softForPlanerkaSlot.tone}
             scorePct={softForPlanerkaSlot.scorePct}
+            chipLabel={softForPlanerkaSlot.chipLabel}
+            reviewCount={softForPlanerkaSlot.reviewCount}
+            attentionCount={softForPlanerkaSlot.attentionCount}
+            droppedCount={softForPlanerkaSlot.droppedCount}
             compact={compact}
           />
         ) : null}
