@@ -57,10 +57,11 @@ function sortMicrosoftVoices(voices) {
     const score = (v) => {
       const name = String(v?.name ?? '')
       let s = 0
-      if (isMicrosoftOnlineVoice(v)) s += 40
-      if (/natural/i.test(name)) s += 20
-      if (/neural/i.test(name)) s += 15
-      if (isMicrosoftDesktopVoice(v)) s += 8
+      // Desktop стабильнее Online (без VPN Online часто «молчит» → системный EN).
+      if (isMicrosoftDesktopVoice(v)) s += 50
+      if (isMicrosoftOnlineVoice(v)) s += 20
+      if (/natural/i.test(name)) s += 12
+      if (/neural/i.test(name)) s += 10
       return s
     }
     return score(b) - score(a)
@@ -322,17 +323,17 @@ function scoreSpeechVoice(voice, gender) {
 
   let score = 0
 
-  // Основной голос — Microsoft Online Natural (с VPN звучит лучше всего).
-  if (isMicrosoftVoice(voice)) score += 35
-  if (isMicrosoftOnlineVoice(voice)) score += 30
-  if (/natural/i.test(name)) score += 20
-  if (/neural/i.test(name)) score += 25
-  if (isMicrosoftDesktopVoice(voice)) score += 8
-  if (isGoogleVoice(voice)) score -= 80
+  // Desktop ru надёжнее Online Natural (без VPN Online даёт системный EN + Google).
+  if (isMicrosoftVoice(voice)) score += 40
+  if (isMicrosoftDesktopVoice(voice)) score += 45
+  if (isMicrosoftOnlineVoice(voice)) score += 12
+  if (/natural/i.test(name)) score += 10
+  if (/neural/i.test(name)) score += 14
+  if (isGoogleVoice(voice)) score -= 120
 
   if (gender === 'female') {
-    if (/svetlana/i.test(lower)) score += 55
-    if (/irina/i.test(lower)) score += 35
+    if (/irina/i.test(lower)) score += 60
+    if (/svetlana/i.test(lower)) score += 40
     if (/dmitri|dmitry|pavel|yuri|male|муж/i.test(lower)) score -= 80
     if (/female|жен|milena|katya|anna|elena|olga/i.test(lower)) score += 12
   } else {
@@ -349,12 +350,12 @@ function scoreSpeechVoice(voice, gender) {
 export function pickGeminiSpeechVoice(gender, voices) {
   const normalized = normalizeGender(gender)
   const list = Array.isArray(voices) ? voices : []
+  // Никогда не падаем на английский системный голос.
   const pool = list.filter((v) => isRussianVoice(v))
-  const base = pool.length ? pool : list
-  if (!base.length) return null
+  if (!pool.length) return null
 
-  const hasMicrosoft = base.some((v) => isMicrosoftVoice(v))
-  const candidates = hasMicrosoft ? base.filter((v) => !isGoogleVoice(v)) : base
+  const hasMicrosoft = pool.some((v) => isMicrosoftVoice(v))
+  const candidates = hasMicrosoft ? pool.filter((v) => !isGoogleVoice(v)) : pool
 
   let best = null
   let bestScore = -Infinity
@@ -367,14 +368,14 @@ export function pickGeminiSpeechVoice(gender, voices) {
     }
   }
 
-  if (best) return best
+  if (best && bestScore > -500) return best
 
   if (hasMicrosoft) {
-    const microsoftOnly = base.filter((v) => isMicrosoftVoice(v))
+    const microsoftOnly = pool.filter((v) => isMicrosoftVoice(v))
     return sortMicrosoftVoices(microsoftOnly)[0] ?? null
   }
 
-  return base[0] ?? null
+  return candidates[0] ?? null
 }
 
 /** Запасной голос Google ru — только если Microsoft совсем недоступен. */
@@ -418,11 +419,58 @@ export function pickGeminiSpeechLocalMicrosoftVoice(gender, voices) {
   return pickGeminiSpeechVoice(gender, local)
 }
 
-function resolveBoundVoice(voice, voices) {
-  if (!voice) return null
-  const uri = String(voice.voiceURI ?? '')
-  const bound = uri ? voices.find((v) => v.voiceURI === uri) : null
-  return bound ?? voice
+function getLiveVoices(fallback = []) {
+  try {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      const live = window.speechSynthesis.getVoices()
+      if (live?.length) {
+        cachedVoices = [...live]
+        return cachedVoices
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return Array.isArray(fallback) && fallback.length ? fallback : cachedVoices ?? []
+}
+
+/**
+ * Живой объект голоса из текущего getVoices() — иначе Chrome игнорит voice и орёт EN.
+ * @param {SpeechVoiceLike | null | undefined} picked
+ * @param {SpeechVoiceLike[]} voices
+ */
+export function resolveLiveRussianVoice(picked, voices) {
+  if (!picked) return null
+  const list = Array.isArray(voices) ? voices : []
+  const name = String(picked.name ?? '')
+  const uri = String(picked.voiceURI ?? '')
+
+  const byUri = uri ? list.find((v) => v.voiceURI === uri) : null
+  if (byUri && isRussianVoice(byUri) && !/^en(-|$)/i.test(String(byUri.lang ?? ''))) return byUri
+
+  const byName = name
+    ? list.find((v) => String(v.name ?? '') === name && isRussianVoice(v))
+    : null
+  if (byName) return byName
+
+  if (isRussianVoice(picked) && list.includes(picked)) return picked
+  return null
+}
+
+/**
+ * @param {'male'|'female'|string} gender
+ * @param {SpeechVoiceLike[]} voices
+ * @param {SpeechVoiceTier} tier
+ */
+export function pickVoiceForSpeechTier(gender, voices, tier) {
+  if (tier === 'google') return pickGeminiSpeechFallbackVoice(gender, voices)
+  if (tier === 'local_ms') {
+    return (
+      pickGeminiSpeechLocalMicrosoftVoice(gender, voices) ??
+      pickGeminiSpeechVoice(gender, voices)
+    )
+  }
+  return pickGeminiSpeechVoice(gender, voices)
 }
 
 /**
@@ -430,25 +478,19 @@ function resolveBoundVoice(voice, voices) {
  * @param {'male'|'female'|string} gender
  * @param {SpeechVoiceLike[]} voices
  * @param {{ voiceTier?: SpeechVoiceTier, useFallback?: boolean }} [options]
+ * @returns {boolean}
  */
 function bindVoice(utter, gender, voices, options = {}) {
   const tier =
     options.voiceTier ??
     (options.useFallback ? 'google' : 'primary')
-  let picked = null
-  if (tier === 'google') {
-    picked = pickGeminiSpeechFallbackVoice(gender, voices)
-  } else if (tier === 'local_ms') {
-    picked =
-      pickGeminiSpeechLocalMicrosoftVoice(gender, voices) ??
-      pickGeminiSpeechVoice(gender, voices)
-  } else {
-    picked = pickGeminiSpeechVoice(gender, voices)
-  }
-  const voice = resolveBoundVoice(picked, voices)
-  if (!voice) return
+  const live = getLiveVoices(voices)
+  const picked = pickVoiceForSpeechTier(gender, live, tier)
+  const voice = resolveLiveRussianVoice(picked, live)
+  if (!voice) return false
   utter.voice = voice
-  if (voice.lang) utter.lang = voice.lang
+  utter.lang = 'ru-RU'
+  return true
 }
 
 function clearResumeInterval() {
@@ -475,48 +517,56 @@ function armChromeSpeechResume() {
   }, SPEECH_RESUME_MS)
 }
 
-/** Почти мгновенный onend = Online/VPN «молчит», не обычная быстрая фраза. */
-const SPEECH_DEAD_END_MS = 280
-const SPEECH_DEAD_END_MIN_CHARS = 24
+/** Почти мгновенный onend у Online = «молчит», не живая фраза Desktop. */
+const SPEECH_DEAD_END_MS = 320
+const SPEECH_DEAD_END_MIN_CHARS = 20
 
+/**
+ * @returns {SpeechSynthesisUtterance | null}
+ */
 function buildUtterance(chunk, gender, voices, options = {}) {
   const normalized = normalizeGender(gender)
   const utter = new SpeechSynthesisUtterance(chunk)
   utter.lang = 'ru-RU'
-  utter.rate = normalized === 'female' ? 0.91 : 0.95
-  utter.pitch = normalized === 'female' ? 1.0 : 0.86
+  utter.rate = normalized === 'female' ? 0.92 : 0.95
+  utter.pitch = normalized === 'female' ? 1.02 : 0.88
   utter.volume = 1
-  bindVoice(utter, normalized, voices, options)
+  if (!bindVoice(utter, normalized, voices, options)) return null
+  if (!utter.voice || !isRussianVoice(utter.voice)) return null
   return utter
 }
 
 /**
- * Ложный «успех» Online: Chrome часто шлёт onend через десятки мс без звука.
- * Не путать с короткой живой фразой Microsoft Desktop.
+ * Эскалация только с Online (не с Desktop) — иначе уходим в скрипучий Google.
  */
 export function shouldEscalateSpeechVoice(utter, chunk, elapsedMs, tier) {
-  if (tier === 'google' || !utter?.voice) return false
-  if (!isMicrosoftVoice(utter.voice)) return false
+  if (tier !== 'primary') return false
+  if (!utter?.voice) return true
+  if (!isMicrosoftOnlineVoice(utter.voice)) return false
   const text = String(chunk ?? '')
   if (text.length < SPEECH_DEAD_END_MIN_CHARS) return false
   return elapsedMs < SPEECH_DEAD_END_MS
 }
 
 /**
- * Online (красивый) → Desktop Microsoft → Google только в крайнем случае.
+ * Online → Desktop. На Google — только если русского Microsoft нет совсем.
  * @param {SpeechVoiceTier} tier
  * @param {'male'|'female'|string} gender
  * @param {SpeechVoiceLike[]} voices
  * @returns {SpeechVoiceTier | null}
  */
 export function nextSpeechVoiceTier(tier, gender, voices) {
+  const hasLocalMs = !!pickGeminiSpeechLocalMicrosoftVoice(gender, voices)
+  const hasAnyMs = (Array.isArray(voices) ? voices : []).some(
+    (v) => isMicrosoftVoice(v) && isRussianVoice(v),
+  )
   if (tier === 'primary') {
-    if (pickGeminiSpeechLocalMicrosoftVoice(gender, voices)) return 'local_ms'
-    if (pickGeminiSpeechFallbackVoice(gender, voices)) return 'google'
+    if (hasLocalMs) return 'local_ms'
+    if (!hasAnyMs && pickGeminiSpeechFallbackVoice(gender, voices)) return 'google'
     return null
   }
   if (tier === 'local_ms') {
-    if (pickGeminiSpeechFallbackVoice(gender, voices)) return 'google'
+    // Не прыгаем на Google, если Desktop уже есть — лучше тишина, чем скрип.
     return null
   }
   return null
@@ -532,19 +582,25 @@ export async function speakGeminiText(text, gender = 'female') {
   if (!chunks.length) return false
 
   const generation = ++speechGeneration
-  const voices = await getVoicesCached()
+  let voices = await getVoicesCached()
+  voices = getLiveVoices(voices)
   if (generation !== speechGeneration) return false
+
+  if (!pickGeminiSpeechVoice(gender, voices) && !pickGeminiSpeechFallbackVoice(gender, voices)) {
+    return false
+  }
 
   const synth = window.speechSynthesis
   synth.cancel()
-  await delayMs(40)
+  await delayMs(80)
   if (generation !== speechGeneration) return false
 
   primeGeminiSpeechPlayback()
 
   let index = 0
   /** @type {SpeechVoiceTier} */
-  let voiceTier = 'primary'
+  // Сразу Desktop, если есть — не пробуем Online (он часто даёт EN-слово + Google).
+  let voiceTier = pickGeminiSpeechLocalMicrosoftVoice(gender, voices) ? 'local_ms' : 'primary'
 
   const escalateVoiceTier = () => {
     const next = nextSpeechVoiceTier(voiceTier, gender, voices)
@@ -564,6 +620,7 @@ export async function speakGeminiText(text, gender = 'female') {
     const chunk = chunks[chunkIndex]
     index += 1
 
+    voices = getLiveVoices(voices)
     const utter = buildUtterance(chunk, gender, voices, { voiceTier })
     const startedAt = Date.now()
 
@@ -574,6 +631,16 @@ export async function speakGeminiText(text, gender = 'female') {
       return true
     }
 
+    if (!utter) {
+      if (retryChunkWithNextTier()) return
+      clearResumeInterval()
+      return
+    }
+
+    utter.onstart = () => {
+      if (generation !== speechGeneration) return
+      armChromeSpeechResume()
+    }
     utter.onend = () => {
       if (generation !== speechGeneration) return
       const elapsed = Date.now() - startedAt
@@ -591,12 +658,11 @@ export async function speakGeminiText(text, gender = 'female') {
       speakNext()
     }
 
-    synth.speak(utter)
-    armChromeSpeechResume()
     try {
-      synth.resume()
+      synth.speak(utter)
     } catch {
-      /* ignore */
+      if (retryChunkWithNextTier()) return
+      speakNext()
     }
   }
 

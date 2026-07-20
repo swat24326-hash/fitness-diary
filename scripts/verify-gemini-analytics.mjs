@@ -36,7 +36,7 @@ import {
   matchGeminiIntroIntent,
   resolveGeminiClubLabel,
 } from '../src/lib/admin/geminiAssistantIntro.js'
-import { prepareTextForSpeech, pickGeminiSpeechVoice, pickGeminiSpeechFallbackVoice, pickGeminiSpeechLocalMicrosoftVoice, nextSpeechVoiceTier, shouldEscalateSpeechVoice, splitSpeechChunks, speechChunkPauseMs } from '../src/lib/geminiAnalyticsSpeech.js'
+import { prepareTextForSpeech, pickGeminiSpeechVoice, pickGeminiSpeechFallbackVoice, pickGeminiSpeechLocalMicrosoftVoice, nextSpeechVoiceTier, shouldEscalateSpeechVoice, resolveLiveRussianVoice, splitSpeechChunks, speechChunkPauseMs } from '../src/lib/geminiAnalyticsSpeech.js'
 import {
   clearGeminiSnapshotCacheForTests,
   getCachedGeminiSnapshot,
@@ -384,8 +384,8 @@ const voiceGoogleMale = { name: 'Google русский Male', lang: 'ru-RU' }
 const voiceEn = { name: 'Microsoft Zira', lang: 'en-US' }
 
 const edgeVoices = [voiceGoogleRu, voiceMicrosoftIrina, voiceMicrosoftFemale, voiceMicrosoftMale, voiceEn]
-ok(pickGeminiSpeechVoice('female', edgeVoices)?.name.includes('Svetlana Online'), 'tts female prefers Svetlana Online')
-ok(pickGeminiSpeechVoice('male', edgeVoices)?.name.includes('Dmitry Online'), 'tts male prefers Dmitry Online')
+ok(pickGeminiSpeechVoice('female', edgeVoices)?.name.includes('Irina'), 'tts female prefers Irina Desktop')
+ok(pickGeminiSpeechVoice('male', edgeVoices)?.name.includes('Dmitry Online') || pickGeminiSpeechVoice('male', edgeVoices)?.name.includes('Pavel'), 'tts male prefers ms russian')
 ok(pickGeminiSpeechVoice('female', [voiceGoogleRu, voiceMicrosoftNeural])?.name.includes('SvetlanaNeural'), 'tts female neural voice')
 ok(!/google/i.test(pickGeminiSpeechVoice('female', edgeVoices)?.name ?? ''), 'tts skips Google when Microsoft available')
 ok(pickGeminiSpeechFallbackVoice('female', edgeVoices)?.name.includes('Google'), 'tts fallback Google without VPN')
@@ -393,8 +393,8 @@ ok(pickGeminiSpeechFallbackVoice('male', edgeVoices)?.name.includes('Google'), '
 ok(pickGeminiSpeechLocalMicrosoftVoice('female', edgeVoices)?.name.includes('Irina'), 'tts local ms female Irina')
 ok(pickGeminiSpeechLocalMicrosoftVoice('male', [voiceGoogleRu, voiceMicrosoftPavelDesktop])?.name.includes('Pavel'), 'tts local ms male Pavel')
 ok(nextSpeechVoiceTier('primary', 'female', edgeVoices) === 'local_ms', 'tts escalate primary→local_ms')
-ok(nextSpeechVoiceTier('local_ms', 'female', edgeVoices) === 'google', 'tts escalate local_ms→google')
-ok(nextSpeechVoiceTier('primary', 'female', [voiceGoogleRu]) === 'google', 'tts escalate primary→google if no local ms')
+ok(nextSpeechVoiceTier('local_ms', 'female', edgeVoices) === null, 'tts never escalate local_ms→google')
+ok(nextSpeechVoiceTier('primary', 'female', [voiceGoogleRu]) === 'google', 'tts escalate primary→google if no ms')
 ok(
   shouldEscalateSpeechVoice(
     { voice: voiceMicrosoftFemale },
@@ -403,6 +403,15 @@ ok(
     'primary',
   ),
   'tts dead-end online escalates',
+)
+ok(
+  !shouldEscalateSpeechVoice(
+    { voice: voiceMicrosoftIrina },
+    'План продаж за месяц пока ниже нормы к дате.',
+    120,
+    'local_ms',
+  ),
+  'tts desktop local does not escalate',
 )
 ok(
   !shouldEscalateSpeechVoice(
@@ -416,7 +425,13 @@ ok(
 ok(pickGeminiSpeechVoice('male', [voiceGoogleRu, voiceMicrosoftPavelDesktop])?.name.includes('Pavel'), 'tts male prefers Pavel desktop over Google')
 ok(pickGeminiSpeechVoice('male', [voiceGoogleMale, voiceGoogleRu])?.name.includes('Google'), 'tts google male only when no Microsoft male')
 ok(pickGeminiSpeechVoice('female', [voiceGoogleRu, voiceEn])?.name.includes('Google'), 'tts google fallback when no Microsoft')
+ok(pickGeminiSpeechVoice('female', [voiceEn]) === null, 'tts never picks english-only list')
 ok(pickGeminiSpeechVoice('female', []) === null, 'tts empty voices')
+ok(
+  resolveLiveRussianVoice(voiceMicrosoftIrina, [voiceEn, voiceMicrosoftIrina])?.name.includes('Irina'),
+  'tts resolve live russian by name',
+)
+ok(resolveLiveRussianVoice(voiceEn, [voiceEn, voiceMicrosoftIrina]) === null, 'tts resolve rejects english')
 
 const voiceMicrosoftPavel = { name: 'Microsoft Pavel Online (Natural)', lang: 'ru-RU' }
 ok(pickGeminiSpeechVoice('male', [voiceMicrosoftFemale, voiceMicrosoftPavel])?.name.includes('Pavel'), 'tts male prefers Pavel when no Dmitry')
