@@ -3,7 +3,7 @@ import { PnkStepBlocks } from './PnkStepBlocks.jsx'
 
 /**
  * Лицо карточки ПНК на главной (менеджер / тренер) —
- * те же принципы, что плитки на доске админа: ФИО, шаг, алерт, шкала.
+ * шапка · имя · этап · статус · шкала — по ширине, без кучи в углу.
  */
 export function PnkGlanceCardFace({
   name = '',
@@ -19,12 +19,12 @@ export function PnkGlanceCardFace({
   onClick,
   ariaLabel = '',
 }) {
-  const alertText = hotLabel || (isHot ? caption : '') || null
+  const statusText = hotLabel || caption || null
 
   return (
     <button
       type="button"
-      className="pnk-glance-face"
+      className={`pnk-glance-face${isHot ? ' pnk-glance-face--hot' : ''}`}
       onClick={onClick}
       aria-label={ariaLabel || `Открыть ПНК: ${name}`}
     >
@@ -38,24 +38,28 @@ export function PnkGlanceCardFace({
           </h2>
           {metaLine ? <p className="pnk-glance-face__meta muted">{metaLine}</p> : null}
         </div>
-        <span className="pnk-control-tile__step-badge">{stepN}/{stepTotal}</span>
+        <span className="pnk-glance-face__step-badge" aria-label={`Шаг ${stepN} из ${stepTotal}`}>
+          {stepN}/{stepTotal}
+        </span>
       </div>
 
-      <strong className="pnk-glance-face__name">{name}</strong>
-      {stepTitle ? <span className="pnk-glance-face__stage">{stepTitle}</span> : null}
+      <div className="pnk-glance-face__main">
+        <strong className="pnk-glance-face__name">{name}</strong>
+        {stepTitle ? <span className="pnk-glance-face__stage">{stepTitle}</span> : null}
+        {statusText ? (
+          <span className={`pnk-glance-face__status${isHot || hotLabel ? ' pnk-glance-face__status--hot' : ''}`}>
+            {statusText}
+          </span>
+        ) : null}
+      </div>
 
-      {alertText ? (
-        <span className="pnk-control-tile__alert">{alertText}</span>
-      ) : caption ? (
-        <span className="pnk-glance-face__caption muted">{caption}</span>
-      ) : null}
-
-      <div className="pnk-funnel-hat--tile">
-        <p className="pnk-client-panel__step-kicker">
+      <div className="pnk-glance-face__progress">
+        <p className="pnk-glance-face__step-kicker">
           ПНК · шаг {stepN}/{stepTotal}
         </p>
         <PnkStepBlocks stepN={stepN} stepTotal={stepTotal} />
       </div>
+
       <span className="pnk-glance-face__cta muted">Открыть</span>
     </button>
   )
