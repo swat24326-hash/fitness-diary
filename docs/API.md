@@ -46,7 +46,7 @@
 | `iskra-settings`, `iskra-learning`, `iskra-dispatch` | admin (+ dispatch шире) | Настройки, обучение, задания |
 | `challenges`, `challenge-trainings`, `exercises`, `exercises-meta` | admin / trainer | Справочники |
 | `membership-types`, `nutrition-products`, `homework-presets` | admin / trainer | Типы карт, питание, ДЗ |
-| `push-subscription` | auth user | VAPID / подписка |
+| `push-subscription` | admin / trainer / sales_manager | VAPID public key |
 
 ### POST (фрагмент)
 

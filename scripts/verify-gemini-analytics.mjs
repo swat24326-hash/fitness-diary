@@ -194,11 +194,17 @@ ok(noFinance.finance === undefined, 'finance hidden')
 ok(GEMINI_ANALYTICS_MODEL === 'gemini-2.5-flash-lite', 'default model lite')
 ok(buildSystemPrompt('male', 'X', { responseMode: 'brief' }).includes('50 слов'), 'brief prompt rule')
 ok(!buildSystemPrompt('male', 'X', { responseMode: 'deep' }).includes('до 50 слов'), 'deep prompt no brief cap')
-ok(buildSystemPrompt('male', 'X').includes('НЕ про клуб'), 'prompt off-topic rule')
+ok(buildSystemPrompt('male', 'X', { responseMode: 'brief' }).includes('НЕ про клуб'), 'brief prompt off-topic rule')
+ok(buildSystemPrompt('male', 'X', { responseMode: 'standard' }).includes('JARVIS'), 'admin standard jarvis persona')
+ok(buildSystemPrompt('male', 'X', { responseMode: 'standard' }).includes('ПРОБЕЛЫ ДАННЫХ'), 'admin jarvis product gap rule')
 ok(!isIskraClubAnalyticsQuestion('Кто такой Путин?'), 'putin not club question')
 ok(isIskraClubAnalyticsQuestion('Как выполнен план продаж'), 'plan is club question')
 ok(buildIskraQuestionReplyHint('Кто такой Путин?', 'Клинцы').includes('краткий прямой ответ'), 'off-topic hint')
 ok(buildIskraQuestionReplyHint('где США', 'Клинцы').includes('допишет система'), 'off-topic hint server tail')
+ok(
+  buildIskraQuestionReplyHint('Как составить рацион с БАД?', 'Клинцы', { jarvis: true }).includes('JARVIS'),
+  'jarvis off-topic hint',
+)
 ok(!buildIskraRoleReminderPhrase('Клинцы').includes('ИСКРА — это'), 'role reminder no tautology')
 ok(ISKRA_OFF_TOPIC_BRIDGE_PHRASES.length >= 12, 'off-topic bridge pool')
 const tautologyReply =
@@ -207,6 +213,9 @@ const fixedOffTopic = normalizeIskraOffTopicReply(tautologyReply, 'Клинцы'
 ok(fixedOffTopic.includes('Северной Америке'), 'off-topic keeps answer')
 ok(!fixedOffTopic.includes('бортовой аналитический'), 'off-topic strips tautology')
 ok(fixedOffTopic.includes('По цифрам Клинцы'), 'off-topic adds role reminder')
+const jarvisOffTopic = normalizeIskraOffTopicReply(tautologyReply, 'Клинцы', 'где США', { jarvis: true })
+ok(jarvisOffTopic.includes('Северной Америке'), 'jarvis off-topic keeps answer')
+ok(!jarvisOffTopic.includes('По цифрам Клинцы'), 'jarvis off-topic no forced role tail')
 const bridgeUsed = pickIskraOffTopicBridgePhrase('где США', 'Клинцы')
 ok(fixedOffTopic.includes(bridgeUsed), 'off-topic inserts bridge phrase')
 const plainOffTopic = formatIskraOffTopicReply('США расположены в Северной Америке.', 'Клинцы', 'где сша')
@@ -218,10 +227,24 @@ const offTopicPayload = buildGeminiGeneratePayload({
   userMessage: 'Кто такой Путин?',
   snapshot: snap,
   messages: [],
+  responseMode: 'brief',
 })
 const offTopicUserText = offTopicPayload.contents[0].parts[0].text
 ok(offTopicUserText.includes('краткий прямой ответ'), 'off-topic payload has hint')
-ok(!offTopicUserText.includes('sales_contour'), 'off-topic payload no club json')
+ok(!offTopicUserText.includes('sales_contour'), 'brief off-topic payload no club json')
+const jarvisOffPayload = buildGeminiGeneratePayload({
+  gender: 'female',
+  clubName: 'Клинцы',
+  userMessage: 'Как улучшить удержание клиентов по мировой практике?',
+  snapshot: snap,
+  messages: [],
+  responseMode: 'standard',
+  advisorRoleId: 'app_admin',
+  advisorRole: { id: 'app_admin', labelRu: 'Админ', personaFocus: 'клуб' },
+})
+const jarvisOffText = jarvisOffPayload.contents[0].parts[0].text
+ok(jarvisOffText.includes('JARVIS') || jarvisOffText.includes('sales_contour') || jarvisOffText.includes('Данные'), 'jarvis off-topic keeps club context')
+ok(jarvisOffPayload.systemInstruction.parts[0].text.includes('JARVIS'), 'jarvis system prompt in payload')
 ok(buildSystemPrompt('male', 'X').includes('club_finance'), 'prompt club finance rule')
 ok(buildSystemPrompt('male', 'X').includes('ЯЗЫК ОТВЕТА'), 'prompt business language')
 ok(buildSystemPrompt('male', 'Север').includes('sales_contour'), 'prompt internal sales contour')

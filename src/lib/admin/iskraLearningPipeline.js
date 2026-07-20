@@ -3,6 +3,7 @@
  */
 
 import { buildLearnedPromptAppend, rankProactiveHintsByLearning } from './iskraLearningCore.js'
+import { extractInactionLessons } from './iskraInactionLearningCore.js'
 
 /**
  * @typedef {import('./iskraLearningCore.js').IskraLearningBundle} IskraLearningBundle
@@ -15,10 +16,12 @@ import { buildLearnedPromptAppend, rankProactiveHintsByLearning } from './iskraL
  */
 export function buildIskraLearningContext(opts = {}) {
   const bundle = opts.learningBundle ?? { signals: [], playbooks: [], phase: 'collect' }
+  const inactionLessons = extractInactionLessons(bundle.signals)
   return {
     bundle,
     hasPlaybooks: (bundle.playbooks?.length ?? 0) > 0,
     signalCount: bundle.signals?.length ?? 0,
+    inactionLessons,
   }
 }
 
@@ -27,7 +30,9 @@ export function buildIskraLearningContext(opts = {}) {
  * @param {ReturnType<typeof buildIskraLearningContext>} learningCtx
  */
 export function mergeLearningIntoPromptAppend(baseAppend, learningCtx) {
-  const learned = buildLearnedPromptAppend(learningCtx.bundle)
+  const learned = buildLearnedPromptAppend(learningCtx.bundle, {
+    inactionLessons: learningCtx.inactionLessons,
+  })
   return [baseAppend, learned].filter(Boolean).join('\n\n')
 }
 

@@ -56,7 +56,7 @@ export const ISKRA_DISPATCH_ACTIVE_STATUSES = /** @type {const} */ (['pending', 
 
 /**
  * @param {object} card insight card
- * @param {{ periodLabel?: string, clubName?: string }} [opts]
+ * @param {{ periodLabel?: string, clubName?: string, planPct?: number, profitTotal?: number, impactRub?: number|null, year?: number, month?: number }} [opts]
  */
 export function buildDispatchFromInsightCard(card, opts = {}) {
   const club = String(opts.clubName ?? 'клуб').trim()
@@ -88,7 +88,14 @@ export function buildDispatchFromInsightCard(card, opts = {}) {
     deep_link: resolveDeepLinkForTaskKind(taskKind),
     priority: suggestPriorityFromInsight(insightKey),
     due_preset: suggestDefaultDuePreset(insightKey),
-    context_json: { insight_key: insightKey },
+    context_json: {
+      insight_key: insightKey,
+      plan_pct: Number(opts.planPct) || 0,
+      profit_total: Number(opts.profitTotal) || 0,
+      impact_rub: opts.impactRub == null ? null : Number(opts.impactRub) || 0,
+      year: opts.year ?? null,
+      month: opts.month ?? null,
+    },
   }
 }
 

@@ -53,10 +53,15 @@ export async function handlePushSubscriptionPost(ctx, res, body) {
       return
     }
     try {
+      const testUrl = ctx.isSalesManager
+        ? '/sales/club-tasks?inbox=1'
+        : ctx.isAdmin
+          ? '/admin/club-tasks?inbox=1'
+          : '/trainer?inbox=1'
       const result = await sendPushToUser(ctx.supabaseAdmin, userId, {
         title: 'Проверка уведомлений',
         body: 'Если видите это — push для Планёрки работает.',
-        url: '/trainer?inbox=1',
+        url: testUrl,
         tag: 'push-test',
       })
       const sent = Number(result.sent ?? 0)

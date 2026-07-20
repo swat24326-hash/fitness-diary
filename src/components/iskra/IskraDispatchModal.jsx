@@ -31,6 +31,11 @@ import '../../styles/iskra-dispatch.css'
  *   defaultDraft?: object | null,
  *   defaultRecipientId?: string,
  *   manualMode?: boolean,
+ *   baselineMetrics?: {
+ *     planPct?: number,
+ *     profitTotal?: number,
+ *     impactRub?: number | null,
+ *   } | null,
  *   onSent?: () => void,
  * }} props
  */
@@ -47,6 +52,7 @@ export function IskraDispatchModal({
   defaultDraft = null,
   defaultRecipientId = '',
   manualMode = false,
+  baselineMetrics = null,
   onSent,
 }) {
   const recipientOptions = recipients ?? trainers
@@ -54,7 +60,15 @@ export function IskraDispatchModal({
   const draft = useMemo(() => {
     if (defaultDraft) return defaultDraft
     if (defaultCard) {
-      return buildDispatchFromInsightCard(defaultCard, { clubName, periodLabel })
+      return buildDispatchFromInsightCard(defaultCard, {
+        clubName,
+        periodLabel,
+        planPct: baselineMetrics?.planPct,
+        profitTotal: baselineMetrics?.profitTotal,
+        impactRub: baselineMetrics?.impactRub ?? defaultCard?.impactRub ?? null,
+        year,
+        month,
+      })
     }
     if (manualMode) {
       return buildManualTaskDraft()
@@ -71,7 +85,7 @@ export function IskraDispatchModal({
       recurrence_preset: '',
       context_json: {},
     }
-  }, [defaultDraft, defaultCard, clubName, periodLabel, manualMode])
+  }, [defaultDraft, defaultCard, clubName, periodLabel, manualMode, baselineMetrics, year, month])
 
   const draftChannelLabel = staffTaskSourceChannelLabel(draft.source_channel ?? '')
   const taskKind = String(draft.task_kind ?? 'custom')

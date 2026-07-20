@@ -2,7 +2,7 @@
  * Локальный журнал сигналов самообучения ИСКРЫ (localStorage, офлайн-first).
  */
 
-import { aggregateLearningSignals } from './admin/iskraLearningCore.js'
+import { aggregateLearningSignals, extractLearningPlaybooks, extractOwnerCorrections } from './admin/iskraLearningCore.js'
 
 const STORAGE_KEY = 'fitness-diary-iskra-learning-v1'
 const MAX_EVENTS_PER_CLUB = 120
@@ -79,10 +79,13 @@ export function listLocalIskraLearningEvents(clubId, limit = MAX_EVENTS_PER_CLUB
 export function getLocalIskraLearningBundle(clubId) {
   const events = listLocalIskraLearningEvents(clubId)
   const signals = aggregateLearningSignals(events)
-  const playbooks = signals
-    .filter((s) => s.playbook_confirmed && s.playbook_note)
-    .map((s) => ({ signal_key: s.signal_key, note: s.playbook_note }))
-  return { signals, playbooks, phase: 'apply', source: 'local' }
+  return {
+    signals,
+    playbooks: extractLearningPlaybooks(signals),
+    owner_corrections: extractOwnerCorrections(signals),
+    phase: 'apply',
+    source: 'local',
+  }
 }
 
 /**

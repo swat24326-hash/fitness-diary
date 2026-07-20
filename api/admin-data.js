@@ -190,6 +190,14 @@ async function handler(req, res) {
       }
       return handleIskraDispatchGet(authCtx, req, res)
     }
+    // VAPID public key + своя подписка: тренер, админ и менеджер продаж
+    if (action === 'push-subscription') {
+      if (!authCtx.isAdmin && !authCtx.isTrainer && !authCtx.isSalesManager) {
+        sendJson(res, 403, { error: 'Нет доступа' })
+        return
+      }
+      return handlePushSubscriptionGet(authCtx, res)
+    }
     if (!authCtx.isAdmin && !authCtx.isTrainer) {
       sendJson(res, 403, { error: 'Нет доступа' })
       return
@@ -201,8 +209,6 @@ async function handler(req, res) {
     if (action === 'membership-types') return handleMembershipTypes(authCtx, req, res)
     if (action === 'nutrition-products') return handleNutritionProducts(authCtx, req, res)
     if (action === 'homework-presets') return handleHomeworkPresets(authCtx, req, res)
-    if (action === 'iskra-dispatch') return handleIskraDispatchGet(authCtx, req, res)
-    if (action === 'push-subscription') return handlePushSubscriptionGet(authCtx, res)
   }
 
   if (action === 'sales') {

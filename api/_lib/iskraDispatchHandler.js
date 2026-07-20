@@ -27,6 +27,9 @@ import {
   resetDispatchStagesForSpawn,
 } from '../../src/lib/admin/iskraDispatchStagesCore.js'
 import { notifyDispatchPushForRecipients, notifyDispatchStatusPushToSender } from './webPushCore.js'
+import { persistClubLearningEvent } from './iskraLearningHandler.js'
+import { buildDispatchLearningEvent } from '../../src/lib/admin/iskraDispatchLearningCore.js'
+import { adviceBaselineToLearningEvent } from '../../src/lib/admin/iskraAdviceOutcomeCore.js'
 
 const DISPATCH_SELECT =
   'id, club_id, sender_user_id, recipient_user_id, kind, status, title, body, source, source_channel, context_json, insight_key, task_kind, priority, due_at, deep_link, period_year, period_month, series_id, recurrence_interval, recurrence_unit, stages_json, created_at, updated_at, seen_at, accepted_at, completed_at, declined_at, recipient_reply'
@@ -263,6 +266,41 @@ export async function handleIskraDispatchPost(ctx, res, body) {
     })
 
     void notifyDispatchPushForRecipients(ctx, created).catch(() => {})
+    for (const item of created) {
+      const raw = buildDispatchLearningEvent({
+        clubId: item.club_id ?? p.club_id,
+        action: 'assign',
+        insightKey: item.insight_key,
+        kind: item.kind,
+        taskKind: item.task_kind,
+        title: item.title,
+      })
+      if (raw) void persistClubLearningEvent(ctx.supabaseAdmin, raw)
+
+      const ctxJson =
+        item.context_json && typeof item.context_json === 'object'
+          ? item.context_json
+          : p.context_json && typeof p.context_json === 'object'
+            ? p.context_json
+            : {}
+      const insightKey = String(item.insight_key ?? ctxJson.insight_key ?? '').trim()
+      if (insightKey) {
+        const baselineRaw = adviceBaselineToLearningEvent(
+          {
+            card_id: insightKey,
+            plan_pct: Number(ctxJson.plan_pct) || 0,
+            profit_total: Number(ctxJson.profit_total) || 0,
+            impact_rub_est: ctxJson.impact_rub == null ? null : Number(ctxJson.impact_rub) || 0,
+            year: ctxJson.year ?? p.period_year ?? null,
+            month: ctxJson.month ?? p.period_month ?? null,
+            source: 'dispatch',
+            captured_at: new Date().toISOString(),
+          },
+          { clubId: item.club_id ?? p.club_id },
+        )
+        if (baselineRaw) void persistClubLearningEvent(ctx.supabaseAdmin, baselineRaw)
+      }
+    }
   } catch (e) {
     sendJson(res, 400, { error: e?.message ? String(e.message) : 'Ошибка отправки' })
   }
@@ -690,6 +728,18 @@ async function handleIskraDispatchStatusUpdate(ctx, res, body) {
     }
 
     sendJson(res, 200, { ok: true, item: data, spawned: spawnedItem })
+
+    if (status === 'done' || status === 'dismissed' || status === 'declined') {
+      const raw = buildDispatchLearningEvent({
+        clubId: existing.club_id,
+        action: status === 'done' ? 'done' : 'dismiss',
+        insightKey: existing.insight_key,
+        kind: existing.kind,
+        taskKind: existing.task_kind,
+        title: existing.title,
+      })
+      if (raw) void persistClubLearningEvent(ctx.supabaseAdmin, raw)
+    }
   } catch (e) {
     sendJson(res, 400, { error: e?.message ? String(e.message) : 'Ошибка обновления' })
   }

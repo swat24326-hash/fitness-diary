@@ -27,6 +27,9 @@ async function fetchVapidPublicKey() {
     credentials: 'same-origin',
     cache: 'no-store',
   })
+  if (res.status === 403) {
+    throw new Error('Нет доступа к настройке уведомлений для этой роли')
+  }
   if (!res.ok) return ''
   const data = await res.json().catch(() => ({}))
   return String(data?.public_key ?? '').trim()

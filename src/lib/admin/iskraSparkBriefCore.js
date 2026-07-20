@@ -34,14 +34,24 @@ export function buildIskraSparkBrief(snapshot, opts = {}) {
   const forecast = buildForecastConfidenceLine(snapshot)
   const directionGlance = buildDirectionGlanceLine(snapshot)
   const seedPlaybook = behind || top?.tone === 'warn' ? pickPrimarySeedPlaybook(snapshot) : null
+  const outcomeLine =
+    typeof opts.outcomeLine === 'string' && opts.outcomeLine.trim()
+      ? opts.outcomeLine.trim()
+      : null
+
+  const hour = Number(opts.hour)
+  const morning = Number.isFinite(hour) ? hour >= 5 && hour < 11 : false
 
   const line1 = kpi?.hasPlan
     ? `План ${String(planPct).replace('.', ',')}% · ${formatRubCompact(kpi.profitTotal)}`
     : `Продажи ${formatRubCompact(kpi?.profitTotal ?? 0)}`
 
-  let line2 = 'Темп в норме — держите ритм отчётов'
+  let line2 = morning ? 'Утро: темп в норме — держите ритм отчётов' : 'Темп в норме — держите ритм отчётов'
   let tone = 'ok'
-  if (behind) {
+  if (outcomeLine && !behind) {
+    line2 = outcomeLine.length > 96 ? `${outcomeLine.slice(0, 93)}…` : outcomeLine
+    tone = 'accent'
+  } else if (behind) {
     line2 = directionGlance?.line ?? top?.headline ?? 'План отстаёт от календарного темпа'
     tone = 'warn'
   } else if (top) {
@@ -58,7 +68,9 @@ export function buildIskraSparkBrief(snapshot, opts = {}) {
       ? top.action.length > 96
         ? `${top.action.slice(0, 93)}…`
         : top.action
-      : 'Спросите «Совет по плану» или нажмите «Сделать»'
+      : morning
+        ? 'Откройте «Сделать» или спросите ИСКРУ за 30 секунд'
+        : 'Спросите «Совет по плану» или нажмите «Сделать»'
 
   const cta = behind || seedPlaybook
     ? {

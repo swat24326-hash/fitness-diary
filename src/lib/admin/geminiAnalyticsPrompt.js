@@ -4,11 +4,19 @@ import { trimChatHistory, compactSnapshotForPrompt } from './geminiAnalyticsSnap
 import { buildIskraSystemPrompt, buildPersona } from './geminiIskraCore.js'
 import { buildGeminiMonthCalendarContext } from './geminiMonthCalendarContext.js'
 import { buildIskraDataAvailability } from './iskraDataAvailability.js'
+import { estimateIskraModelCeiling } from './iskraModelCeilingCore.js'
+import { buildPastSelfComparison } from './iskraPastSelfCore.js'
+import { buildForecastConfidenceLine } from './iskraForecastConfidenceCore.js'
+import { extractAdviceOutcomes } from './iskraAdviceOutcomeCore.js'
 import {
   buildIskraOffTopicDataBlock,
   buildIskraQuestionReplyHint,
   isIskraOffTopicQuestion,
 } from './iskraQuestionRouting.js'
+import {
+  shouldKeepClubContextOnOffTopic,
+  shouldUseAdminJarvisMode,
+} from './iskraAdminJarvisCore.js'
 import {
   filterPromptDataBlockForSegment,
   resolvePanelAnalysisFocus,
@@ -174,6 +182,23 @@ export function buildGeminiPromptDataBlock(snapshot, previousSnapshot = null, op
     }),
     current_period: current?.period ?? null,
   }
+  const availability = block.data_availability
+  const forecastConf = buildForecastConfidenceLine(snapshot)
+  block.model_ceiling = estimateIskraModelCeiling(availability, forecastConf)
+  const pastSelf = buildPastSelfComparison(snapshot, {
+    outcomes: extractAdviceOutcomes(opts.learningBundle?.signals ?? []),
+  })
+  if (pastSelf) {
+    block.past_self = {
+      line: pastSelf.line,
+      direction: pastSelf.direction,
+      plan_delta_pct: pastSelf.planDeltaPct,
+      profit_delta_pct: pastSelf.profitDeltaPct,
+    }
+  }
+  if (opts.coachQualityBrief) {
+    block.coach_quality_brief = opts.coachQualityBrief
+  }
   if (panelSegment === 'sales') {
     block.sales_advice_context = buildSalesAdviceContext(snapshot)
   }
@@ -242,10 +267,14 @@ export function buildGeminiGeneratePayload(opts) {
     responseMode,
     dispatchOpen: opts.dispatchOpen,
     learningBundle: opts.learningBundle,
+    coachQualityBrief: opts.coachQualityBrief ?? null,
   })
   const periodLabel = dataBlock.analysis_period || 'период не задан'
+  const advisorRoleId = opts.advisorRoleId ?? opts.advisorRole?.id ?? 'app_admin'
+  const jarvis = shouldUseAdminJarvisMode({ advisorRoleId, responseMode })
+  const keepClubOnOffTopic = shouldKeepClubContextOnOffTopic({ advisorRoleId, responseMode })
   const offTopic = isIskraOffTopicQuestion(userMessage)
-  const replyHint = buildIskraQuestionReplyHint(userMessage, clubName)
+  const replyHint = buildIskraQuestionReplyHint(userMessage, clubName, { jarvis })
   const questionBlock = replyHint
     ? `Вопрос: ${userMessage}\n\n${replyHint}`
     : `Вопрос: ${userMessage}`
@@ -258,13 +287,15 @@ export function buildGeminiGeneratePayload(opts) {
     analysisFocus: dataBlock.analysis_focus,
     advisorRole: opts.advisorRole ?? null,
     responseMode,
+    coachQualityBrief: opts.coachQualityBrief ?? null,
   }
-  const payloadDataBlock = offTopic ? buildIskraOffTopicDataBlock(clubName) : dataBlock
+  const stripClub = offTopic && !keepClubOnOffTopic
+  const payloadDataBlock = stripClub ? buildIskraOffTopicDataBlock(clubName) : dataBlock
 
   const parts = []
   if (history.length === 0) {
     parts.push({
-      text: offTopic
+      text: stripClub
         ? questionBlock
         : `Период анализа (только он): ${periodLabel}\n\nДанные (JSON):\n${JSON.stringify(payloadDataBlock)}\n\n${questionBlock}`,
     })
@@ -275,7 +306,7 @@ export function buildGeminiGeneratePayload(opts) {
       })
     }
     parts.push({
-      text: offTopic
+      text: stripClub
         ? questionBlock
         : `Период анализа (только он): ${periodLabel}\n\nАктуальные данные (JSON):\n${JSON.stringify(payloadDataBlock)}\n\n${questionBlock}`,
     })

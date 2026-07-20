@@ -18,6 +18,7 @@ import { iskraAdvisorFullAccess } from '../../lib/admin/iskraAdvisorRoles.js'
  *   autoSpeak?: boolean,
  *   onAutoSpeakToggle?: () => void,
  *   disabled?: boolean,
+ *   briefSlot?: import('react').ReactNode,
  * }} props
  */
 export function IskraPanelNav({
@@ -35,6 +36,7 @@ export function IskraPanelNav({
   autoSpeak = false,
   onAutoSpeakToggle,
   disabled = false,
+  briefSlot = null,
 }) {
   const prev = shiftMonth(year, month, -1)
   const next = shiftMonth(year, month, 1)
@@ -113,6 +115,8 @@ export function IskraPanelNav({
             </button>
           </div>
         ) : null}
+
+        {briefSlot}
 
         {onAutoSpeakToggle ? (
           <button

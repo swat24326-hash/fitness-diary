@@ -9,12 +9,19 @@ import {
   resolvePanelAnalysisFocus,
 } from './iskraPanelContourCore.js'
 import { ISKRA_ESTIMATE_DISCLAIMER_RU } from './iskraDataAvailability.js'
+import { buildProductGapAskRuleWithCeiling } from './iskraModelCeilingCore.js'
+import { buildCoachQualityPromptBlock } from './iskraCoachQualityPromptCore.js'
 import { buildIskraAppGuideRule } from './iskraAppGuide.js'
 import {
   buildIskraResponseFormatRule,
   normalizeIskraResponseMode,
   resolveIskraResponseMode,
 } from './iskraResponseModeCore.js'
+import {
+  buildAdminJarvisPersonaRule,
+  buildAdminJarvisReasoningRule,
+  shouldUseAdminJarvisMode,
+} from './iskraAdminJarvisCore.js'
 
 
 
@@ -163,11 +170,20 @@ export function buildIskraSystemPrompt(clubName, opts = {}) {
     panelSegment === 'sales' && responseMode !== 'brief'
       ? buildSeedPlaybooksPromptRule(opts.snapshot)
       : ''
+  const jarvis = shouldUseAdminJarvisMode({
+    advisorRoleId: advisorRole?.id ?? 'app_admin',
+    responseMode,
+  })
+  const jarvisRoleId = advisorRole?.id ?? 'app_admin'
   const lines = [
 
-    `Ты — бортовой аналитический модуль ${ISKRA_FULL_NAME}. Твоё имя — ${ISKRA_NAME}.`,
+    jarvis
+      ? `Ты — ${ISKRA_FULL_NAME}, умный рабочий ассистент (режим JARVIS). Твоё имя — ${ISKRA_NAME}.`
+      : `Ты — бортовой аналитический модуль ${ISKRA_FULL_NAME}. Твоё имя — ${ISKRA_NAME}.`,
 
-    'Характер: надёжная советская ЭВМ — строгая, профессиональная, сдержанная. Без «воды», вежливо и по-делу.',
+    jarvis
+      ? 'Характер: сильный помощник руководителя — чётко, по делу, с мировой практикой и памятью о владельце. Без воды.'
+      : 'Характер: надёжная советская ЭВМ — строгая, профессиональная, сдержанная. Без «воды», вежливо и по-делу.',
 
     responseMode === 'deep'
       ? 'Структурируй ответ: факты → вывод → шаги → контрольная точка. Доступна СТРОГО администратору.'
@@ -217,7 +233,15 @@ export function buildIskraSystemPrompt(clubName, opts = {}) {
 
     '',
 
-    buildIskraReasoningRule(),
+    jarvis ? buildAdminJarvisReasoningRule() : buildIskraReasoningRule(),
+
+    jarvis ? `\n${buildAdminJarvisPersonaRule(club)}` : '',
+
+    jarvis && (jarvisRoleId === 'app_admin' || jarvisRoleId === 'curator')
+      ? `\n${buildProductGapAskRuleWithCeiling()}`
+      : '',
+
+    jarvis ? `\n${buildCoachQualityPromptBlock(opts.coachQualityBrief ?? null)}` : '',
 
     '',
 
@@ -225,7 +249,9 @@ export function buildIskraSystemPrompt(clubName, opts = {}) {
 
     '',
 
-    `Анализируй филиал «${club}» когда вопрос про цифры клуба. На прочие вопросы — краткий ответ и фраза «По цифрам ${club}: план, прогноз, прибыль» без самопрезентации.`,
+    jarvis
+      ? `Анализируй филиал «${club}» по цифрам из JSON. На широкие вопросы — полноценный ответ JARVIS; связь с клубом — когда уместна.`
+      : `Анализируй филиал «${club}» когда вопрос про цифры клуба. На прочие вопросы — краткий ответ и фраза «По цифрам ${club}: план, прогноз, прибыль» без самопрезентации.`,
 
     'Не выдумывай цифры. insights — готовые выводы системы, интерпретируй их простым языком.',
 

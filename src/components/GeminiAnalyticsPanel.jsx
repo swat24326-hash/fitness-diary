@@ -53,7 +53,14 @@ import {
   loadIskraLearningBundleForUi,
   recordIskraLearningFeedback,
 } from '../lib/admin/iskraLearningService.js'
-import { deriveReplySignalKey } from '../lib/admin/iskraLearningCore.js'
+import { deriveReplySignalKey, normalizeLearningEvent } from '../lib/admin/iskraLearningCore.js'
+import { detectOwnerFeedbackFromMessage } from '../lib/admin/iskraOwnerFeedbackDetectCore.js'
+import {
+  bumpInsightCardIgnoreCount,
+  buildInactionDismissEvent,
+  clearInsightCardIgnoreCount,
+  ISKRA_INACTION_DISMISS_THRESHOLD,
+} from '../lib/admin/iskraInactionLearningCore.js'
 import { extractIskraSpeechSnippet } from '../lib/admin/iskraResponseModeCore.js'
 import { parseIskraReplyBlocks } from '../lib/admin/iskraReplyDisplayCore.js'
 import { resolveChipSendOptions } from '../lib/admin/iskraChipRoutingCore.js'
@@ -68,6 +75,7 @@ import { IskraWeekChecklist } from './iskra/IskraWeekChecklist.jsx'
 import { IskraPlanerkaFeed } from './iskra/IskraPlanerkaFeed.jsx'
 import { IskraDispatchModal } from './iskra/IskraDispatchModal.jsx'
 import { IskraPanelNav } from './iskra/IskraPanelNav.jsx'
+import { IskraOwnerMonthBriefButton } from './iskra/IskraOwnerMonthBriefButton.jsx'
 import { IskraTrainerKpi } from './iskra/IskraTrainerKpi.jsx'
 import { useClubDispatchRecipients } from '../hooks/useClubDispatchRecipients.js'
 import { buildWeekChecklistTaskDraft } from '../lib/admin/staffTaskCreateCore.js'
@@ -260,6 +268,7 @@ export function GeminiAnalyticsPanel({
   const [feedbackByMsg, setFeedbackByMsg] = useState(() => ({}))
   const [sparkBrief, setSparkBrief] = useState(null)
   const [insightCards, setInsightCards] = useState([])
+  const [adviceOutcomes, setAdviceOutcomes] = useState([])
   const [sparkBriefEnabled, setSparkBriefEnabled] = useState(true)
   const [sparkBriefDismissed, setSparkBriefDismissed] = useState(false)
   const [proactiveAlerts, setProactiveAlerts] = useState([])
@@ -310,6 +319,7 @@ export function GeminiAnalyticsPanel({
   )
 
   const displayInsightCards = panelSegment === 'trainer' ? trainerInsightCards : insightCards
+  const insightCardIdsKey = (displayInsightCards ?? []).map((c) => String(c?.id ?? '')).join('|')
 
   const showAdminDepth = iskraAdvisorFullAccess(advisorRole)
 
@@ -431,6 +441,7 @@ export function GeminiAnalyticsPanel({
     setQuickChips(resolveIskraQuickChips(data.quickChips))
     setSparkBrief(data.sparkBrief ?? null)
     setInsightCards(Array.isArray(data.insightCards) ? data.insightCards : [])
+    setAdviceOutcomes(Array.isArray(data.adviceOutcomes) ? data.adviceOutcomes : [])
     setSparkBriefEnabled(data.sparkBriefEnabled !== false)
     setProactiveAlerts(Array.isArray(data.proactiveAlerts) ? data.proactiveAlerts : [])
     setMomGlance(data.momGlance ?? null)
@@ -450,6 +461,7 @@ export function GeminiAnalyticsPanel({
       setQuickChips(defaultIskraQuickChips())
       setSparkBrief(null)
       setInsightCards([])
+      setAdviceOutcomes([])
       setProactiveAlerts([])
       setMomGlance(null)
       setForecastConfidence(null)
@@ -469,6 +481,7 @@ export function GeminiAnalyticsPanel({
       setQuickChips(defaultIskraQuickChips())
       setSparkBrief(null)
       setInsightCards([])
+      setAdviceOutcomes([])
       setProactiveAlerts([])
       setMomGlance(null)
       setForecastConfidence(null)
@@ -501,6 +514,7 @@ export function GeminiAnalyticsPanel({
         setQuickChips(defaultIskraQuickChips())
         setSparkBrief(null)
         setInsightCards([])
+        setAdviceOutcomes([])
         setProactiveAlerts([])
         setMomGlance(null)
         setForecastConfidence(null)
@@ -605,6 +619,23 @@ export function GeminiAnalyticsPanel({
     [clubId, advisorRole.id],
   )
 
+  useEffect(() => {
+    if (!clubId || !insightCardIdsKey) return
+    for (const card of displayInsightCards ?? []) {
+      const id = String(card?.id ?? '').trim()
+      if (!id) continue
+      const count = bumpInsightCardIgnoreCount(clubId, id, 1)
+      if (count > 0 && count % ISKRA_INACTION_DISMISS_THRESHOLD === 0) {
+        recordLearning({
+          eventType: 'inaction_dismiss',
+          signalKey: `inaction:insight_card_${id}`,
+          note: `Карточку «${card.headline || id}» часто видят без действия — предлагай реже или иначе.`,
+          meta: { source: 'inaction', kind: 'insight_card', target_id: id },
+        })
+      }
+    }
+  }, [clubId, year, month, panelSegment, insightCardIdsKey, displayInsightCards, recordLearning])
+
   const sendMessage = useCallback(
     async (text, comparePrevious = false, opts = {}) => {
       const isRetry = opts.retry === true
@@ -647,6 +678,8 @@ export function GeminiAnalyticsPanel({
           handlerId,
           appRole,
           responseMode,
+          inputChannel: opts.inputChannel,
+          coachQualityBrief: opts.coachQualityBrief,
         })
 
       if (handlerId && !completionRetry) {
@@ -655,6 +688,19 @@ export function GeminiAnalyticsPanel({
           handlerId,
           userMessage,
         })
+      }
+
+      if (opts.inputChannel === 'voice' && !completionRetry) {
+        const voiceHits = detectOwnerFeedbackFromMessage(userMessage)
+        for (const hit of voiceHits) {
+          recordLearning({
+            eventType: 'preference',
+            signalKey: hit.signal_key,
+            note: hit.note,
+            userMessage,
+            meta: { source: 'voice', kind: hit.kind },
+          })
+        }
       }
 
       try {
@@ -849,13 +895,33 @@ export function GeminiAnalyticsPanel({
   const showSparkBrief = sparkBriefEnabled && sparkBrief && !sparkBriefDismissed && !kpiLoading
 
   const dismissSparkBrief = useCallback(() => {
-    if (clubId) writeSparkDismissed(clubId, year, month)
+    if (clubId) {
+      writeSparkDismissed(clubId, year, month)
+      const raw = buildInactionDismissEvent({
+        clubId,
+        kind: 'spark_brief',
+        targetId: sparkBrief?.cta?.cardId || 'brief',
+        advisorRoleId: advisorRole.id,
+      })
+      if (raw) {
+        const n = normalizeLearningEvent(raw)
+        if (n.ok) {
+          recordLearning({
+            eventType: 'inaction_dismiss',
+            signalKey: n.event.signal_key,
+            note: n.event.note,
+            meta: n.event.meta,
+          })
+        }
+      }
+    }
     setSparkBriefDismissed(true)
-  }, [clubId, year, month])
+  }, [clubId, year, month, sparkBrief, advisorRole.id, recordLearning])
 
   const runInsightAction = useCallback(
     (card) => {
       if (!card) return
+      if (clubId && card.id) clearInsightCardIgnoreCount(clubId, card.id)
       const message = String(card.doMessage ?? card.message ?? '').trim()
       const handlerId = card.doHandlerId ?? card.handler_id ?? card.handlerId
       if (!message) return
@@ -871,7 +937,7 @@ export function GeminiAnalyticsPanel({
       )
       void sendMessage(message, false, routed)
     },
-    [sendMessage, recordLearning, advisorRole.id, responseDepth],
+    [sendMessage, recordLearning, advisorRole.id, responseDepth, clubId],
   )
 
   const runSparkCta = useCallback(() => {
@@ -949,7 +1015,7 @@ export function GeminiAnalyticsPanel({
       onInterim: (text) => setInput(text),
       onFinal: (text) => {
         setInput(text)
-        void sendMessage(text, false)
+        void sendMessage(text, false, { inputChannel: 'voice' })
       },
       onError: (msg) => {
         setError(msg)
@@ -1122,6 +1188,21 @@ export function GeminiAnalyticsPanel({
             })
           }}
           disabled={loading}
+          briefSlot={
+            panelSegment === 'sales' ? (
+              <IskraOwnerMonthBriefButton
+                clubName={clubName}
+                periodLabel={periodLabelRu(year, month)}
+                kpi={kpi}
+                sparkBrief={sparkBrief}
+                insightCards={insightCards}
+                momGlance={momGlance}
+                forecastConfidence={forecastConfidence}
+                outcomes={adviceOutcomes}
+                disabled={loading || kpiLoading}
+              />
+            ) : null
+          }
         />
 
         {panelSegment === 'sales' ? (
@@ -1348,7 +1429,7 @@ export function GeminiAnalyticsPanel({
                       </div>
                     ) : null}
                     {correctionDone[`a-${i}`] ? (
-                      <p className="iskra-correction__done muted">Спасибо — учтём в обучении клуба</p>
+                      <p className="iskra-correction__done muted">Запомнила — следующие ответы учтут правку</p>
                     ) : null}
                   </div>
                 </>
@@ -1476,6 +1557,15 @@ export function GeminiAnalyticsPanel({
       defaultCard={dispatchCard}
       defaultDraft={dispatchDraft}
       defaultRecipientId={activeTrainerId ?? ''}
+      baselineMetrics={
+        kpi
+          ? {
+              planPct: kpi.planPct,
+              profitTotal: kpi.profitTotal,
+              impactRub: dispatchCard?.impactRub ?? null,
+            }
+          : null
+      }
       onSent={() => void reloadKpi()}
     />
     </>

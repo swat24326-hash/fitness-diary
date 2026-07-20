@@ -2,12 +2,15 @@
  * Проактивные алерты ИСКРЫ — триггеры без вопроса (admin).
  */
 
+import { buildCoachQualityAlert } from './iskraCoachQualityPromptCore.js'
+
 /**
  * @param {object | null | undefined} snapshot
  * @param {object | null | undefined} [kpi]
+ * @param {{ outcomeLine?: string | null, pastSelfLine?: string | null, coachQualityBrief?: object | null }} [opts]
  * @returns {Array<{ id: string, severity: 'warn'|'accent'|'ok', title: string, message: string, handlerId?: string, ctaMessage?: string }>}
  */
-export function buildIskraProactiveAlerts(snapshot, kpi) {
+export function buildIskraProactiveAlerts(snapshot, kpi, opts = {}) {
   if (!snapshot) return []
   const alerts = []
   const insights = snapshot.insights ?? {}
@@ -18,6 +21,35 @@ export function buildIskraProactiveAlerts(snapshot, kpi) {
   const cal = snapshot.calendar_context ?? {}
   const phase = String(cal.month_relation ?? cal.phase ?? '').toLowerCase()
   const midOrLate = phase.includes('mid') || phase.includes('late') || phase.includes('конец')
+  const outcomeLine = String(opts.outcomeLine ?? '').trim()
+
+  if (outcomeLine) {
+    alerts.push({
+      id: 'outcome_win',
+      severity: 'ok',
+      title: 'Исход совета',
+      message: outcomeLine.length > 120 ? `${outcomeLine.slice(0, 117)}…` : outcomeLine,
+      handlerId: 'advice_plan',
+      ctaMessage: 'Что сработало в клубе за последнее время и что усилить?',
+    })
+  }
+
+  const pastSelfLine = String(opts.pastSelfLine ?? '').trim()
+  if (pastSelfLine && !outcomeLine) {
+    alerts.push({
+      id: 'past_self',
+      severity: 'accent',
+      title: 'Вы vs прошлый вы',
+      message: pastSelfLine.length > 120 ? `${pastSelfLine.slice(0, 117)}…` : pastSelfLine,
+      handlerId: 'plan',
+      ctaMessage: 'Сравни этот месяц с прошлым: что улучшить, опираясь на наш опыт?',
+    })
+  }
+
+  if (opts.coachQualityBrief) {
+    const cq = buildCoachQualityAlert(opts.coachQualityBrief)
+    if (cq) alerts.push(cq)
+  }
 
   if (plan.has_plan !== false && (planPct < 40 || (plan.calendar_vs_plan === 'behind' && planPct < 55))) {
     alerts.push({

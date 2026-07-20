@@ -8,6 +8,49 @@ import {
 } from '../../src/lib/admin/iskraLearningCore.js'
 
 /**
+ * Best-effort upsert of one learning event (migration may be pending).
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabaseAdmin
+ * @param {object} rawEvent — body for normalizeLearningEvent
+ * @returns {Promise<{ ok: boolean, stored?: boolean, reason?: string }>}
+ */
+export async function persistClubLearningEvent(supabaseAdmin, rawEvent) {
+  if (!supabaseAdmin) return { ok: false, reason: 'no_client' }
+  const normalized = normalizeLearningEvent(rawEvent)
+  if (!normalized.ok) return { ok: false, reason: normalized.error }
+
+  const event = normalized.event
+  const clubId = event.club_id
+
+  try {
+    const { data: existing, error: loadErr } = await supabaseAdmin
+      .from('club_iskra_learning_signals')
+      .select(
+        'signal_key, positive_count, negative_count, engagement_count, score, playbook_note, playbook_confirmed, last_positive_at, last_negative_at',
+      )
+      .eq('club_id', clubId)
+      .eq('signal_key', event.signal_key)
+      .maybeSingle()
+
+    if (loadErr) {
+      if (/does not exist|relation.*club_iskra_learning/i.test(String(loadErr.message ?? ''))) {
+        return { ok: true, stored: false, reason: 'migration_pending' }
+      }
+      throw loadErr
+    }
+
+    const row = applyLearningEventToSignalRow(existing, event)
+    const { error: upsertErr } = await supabaseAdmin.from('club_iskra_learning_signals').upsert(
+      { club_id: clubId, ...row },
+      { onConflict: 'club_id,signal_key' },
+    )
+    if (upsertErr) throw upsertErr
+    return { ok: true, stored: true }
+  } catch {
+    return { ok: false, reason: 'persist_failed' }
+  }
+}
+
+/**
  * @param {import('@supabase/supabase-js').SupabaseClient} supabaseAdmin
  * @param {string} clubId
  */

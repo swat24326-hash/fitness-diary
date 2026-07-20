@@ -44,7 +44,32 @@ import {
   buildLearningMetaForResponse,
   mergeLearningIntoPromptAppend,
 } from '../../src/lib/admin/iskraLearningPipeline.js'
-import { loadClubLearningBundle } from './iskraLearningHandler.js'
+import { loadClubLearningBundle, persistClubLearningEvent } from './iskraLearningHandler.js'
+import {
+  shouldKeepClubContextOnOffTopic,
+  shouldUseAdminJarvisMode,
+} from '../../src/lib/admin/iskraAdminJarvisCore.js'
+import {
+  buildOwnerFeedbackPromptAppend,
+  detectOwnerFeedbackFromMessage,
+  ownerFeedbackHitToLearningEvent,
+} from '../../src/lib/admin/iskraOwnerFeedbackDetectCore.js'
+import {
+  buildClarifyingPromptRule,
+  findPendingClarifyingQuestion,
+  parseClarifyingAnswer,
+  resolveIskraClarifyingAsk,
+} from '../../src/lib/admin/iskraClarifyingCore.js'
+import {
+  adviceOutcomeToLearningEvent,
+  buildAdviceOutcomeSparkLine,
+  buildAdviceOutcomesPromptBlock,
+  extractAdviceOutcomes,
+  settleOpenAdviceBaselines,
+} from '../../src/lib/admin/iskraAdviceOutcomeCore.js'
+import { buildPastSelfComparison } from '../../src/lib/admin/iskraPastSelfCore.js'
+import { buildModelCeilingPromptRule, estimateIskraModelCeiling } from '../../src/lib/admin/iskraModelCeilingCore.js'
+import { buildIskraDataAvailability } from '../../src/lib/admin/iskraDataAvailability.js'
 import { periodLabelRu, trimChatHistory } from '../../src/lib/admin/geminiAnalyticsSnapshot.js'
 import { buildPanelKpiFromAnalytics } from '../../src/lib/admin/clubMonthAnalyticsCore.js'
 import { buildEnrichedIskraAdviceCards } from '../../src/lib/admin/iskraActionImpactCore.js'
@@ -193,11 +218,34 @@ export async function handleGeminiAnalyticsPrefetchGet(ctx, req, res) {
       }
     }
     const insightCards = buildEnrichedIskraAdviceCards(snapshot, { advisorRoleId: 'app_admin', limit: 3 })
+
+    let learningBundle = { signals: [], playbooks: [], phase: 'collect' }
+    try {
+      learningBundle = await loadClubLearningBundle(ctx.supabaseAdmin, parsed.clubId)
+    } catch {
+      learningBundle = { signals: [], playbooks: [], phase: 'collect' }
+    }
+    const settled = settleOpenAdviceBaselines(learningBundle.signals, snapshot)
+    for (const outcome of settled) {
+      const raw = adviceOutcomeToLearningEvent(outcome, { clubId: parsed.clubId })
+      if (raw) void persistClubLearningEvent(ctx.supabaseAdmin, raw)
+    }
+    const outcomes = [
+      ...extractAdviceOutcomes(learningBundle.signals),
+      ...settled,
+    ]
+    const outcomeLine = buildAdviceOutcomeSparkLine(outcomes)
+    const pastSelf = buildPastSelfComparison(snapshot, { outcomes })
     const sparkBrief = buildIskraSparkBrief(snapshot, {
       advisorRoleId: 'app_admin',
       clubName: snapshot.club_name,
+      outcomeLine: outcomeLine ?? pastSelf?.line ?? undefined,
+      hour: new Date().getHours(),
     })
-    const proactiveAlerts = buildIskraProactiveAlerts(snapshot, kpi)
+    const proactiveAlerts = buildIskraProactiveAlerts(snapshot, kpi, {
+      outcomeLine,
+      pastSelfLine: pastSelf?.line ?? null,
+    })
     const momGlance = buildMomGlanceLine(snapshot)
     const forecastConfidence = buildForecastConfidenceLine(snapshot)
     const weekChecklist = buildWeekChecklistItems(snapshot, { limit: 3 })
@@ -237,6 +285,12 @@ export async function handleGeminiAnalyticsPrefetchGet(ctx, req, res) {
         tone: c.tone,
         priority: c.priority,
       })),
+      advice_outcomes: outcomes.slice(0, 4).map((o) => ({
+        card_id: o.card_id,
+        plan_delta_pct: o.plan_delta_pct,
+        profit_delta_rub: o.profit_delta_rub,
+        label_ru: o.label_ru,
+      })),
       trainers: (snapshot.trainer_contour?.trainers ?? []).map((t) => ({
         trainer_id: t.trainer_id,
         trainer_name: t.trainer_name,
@@ -246,6 +300,27 @@ export async function handleGeminiAnalyticsPrefetchGet(ctx, req, res) {
     })
   } catch (e) {
     sendJson(res, 400, { error: e?.message ? String(e.message) : 'Ошибка prefetch' })
+  }
+}
+
+/**
+ * Persist NL preference hits into club learning signals (best-effort).
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabaseAdmin
+ * @param {string} clubId
+ * @param {Array<{ kind: string, note: string, signal_key: string }>} hits
+ * @param {string} advisorRoleId
+ * @param {string} userMessage
+ */
+async function persistOwnerFeedbackHits(supabaseAdmin, clubId, hits, advisorRoleId, userMessage) {
+  if (!supabaseAdmin || !hits?.length) return
+  for (const hit of hits) {
+    const raw = ownerFeedbackHitToLearningEvent(hit, {
+      clubId,
+      advisorRoleId,
+      userMessage,
+    })
+    if (!raw) continue
+    await persistClubLearningEvent(supabaseAdmin, raw)
   }
 }
 
@@ -388,6 +463,78 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
       [promptAppend, buildAdvisorPromptAppend(advisorCtx)].filter(Boolean).join('\n\n'),
       learningCtx,
     )
+
+    const jarvisMode = shouldUseAdminJarvisMode({
+      advisorRoleId: advisorCtx.advisorRoleId,
+      responseMode: responseModeForCache,
+    })
+    const voiceSource = String(body?.input_channel ?? body?.meta?.source ?? '').trim() === 'voice'
+    const chatMessagesEarly = Array.isArray(body?.messages) ? body.messages : []
+    const ownerFeedbackHits = jarvisMode ? detectOwnerFeedbackFromMessage(userMessage) : []
+    const pendingClarify = jarvisMode ? findPendingClarifyingQuestion(chatMessagesEarly) : null
+    const clarifyAnswer = jarvisMode ? parseClarifyingAnswer(userMessage, pendingClarify) : null
+    if (clarifyAnswer) {
+      ownerFeedbackHits.push(clarifyAnswer)
+    }
+    if (ownerFeedbackHits.length) {
+      promptAppend = [promptAppend, buildOwnerFeedbackPromptAppend(ownerFeedbackHits)]
+        .filter(Boolean)
+        .join('\n\n')
+      void persistOwnerFeedbackHits(
+        ctx.supabaseAdmin,
+        clubId,
+        ownerFeedbackHits,
+        advisorCtx.advisorRoleId,
+        userMessage,
+      )
+    }
+
+    const clarifyingAsk = resolveIskraClarifyingAsk({
+      jarvis: jarvisMode,
+      learningBundle,
+      messages: chatMessagesEarly,
+      userMessage,
+    })
+    if (clarifyingAsk.ask && !clarifyAnswer) {
+      promptAppend = [promptAppend, buildClarifyingPromptRule(clarifyingAsk)].filter(Boolean).join('\n\n')
+    }
+    learningMeta.clarifying_ask = clarifyingAsk.ask && !clarifyAnswer ? clarifyingAsk.reason : null
+    learningMeta.clarifying_question = clarifyingAsk.ask && !clarifyAnswer ? clarifyingAsk.question : null
+
+    const adviceOutcomes = extractAdviceOutcomes(learningBundle.signals)
+    const outcomesBlock = buildAdviceOutcomesPromptBlock(adviceOutcomes)
+    if (outcomesBlock) {
+      promptAppend = [promptAppend, outcomesBlock].filter(Boolean).join('\n\n')
+    }
+    learningMeta.advice_outcomes = adviceOutcomes.length
+
+    const pastSelf = buildPastSelfComparison(scopedSnapshot, { outcomes: adviceOutcomes })
+    if (pastSelf?.promptBlock) {
+      promptAppend = [promptAppend, pastSelf.promptBlock].filter(Boolean).join('\n\n')
+    }
+
+    const coachQualityBrief = body?.coach_quality_brief ?? null
+    if (voiceSource) {
+      promptAppend = [
+        promptAppend,
+        'КАНАЛ: голосовой ввод. Правки владельца из этой реплики («короче», «запомни…») — столь же обязательны, как из текста.',
+      ]
+        .filter(Boolean)
+        .join('\n\n')
+    }
+
+    const availabilityForCeiling = buildIskraDataAvailability(scopedSnapshot, {
+      hasPreviousPeriod: !!previousSnapshot,
+    })
+    const ceiling = estimateIskraModelCeiling(
+      availabilityForCeiling,
+      buildForecastConfidenceLine(scopedSnapshot),
+    )
+    if (jarvisMode && ceiling.band !== 'high') {
+      promptAppend = [promptAppend, buildModelCeilingPromptRule(ceiling)].filter(Boolean).join('\n\n')
+    }
+    learningMeta.model_ceiling = ceiling.score
+    learningMeta.model_ceiling_band = ceiling.band
 
     const trainersList = scopedSnapshot?.trainer_contour?.trainers ?? []
     const effectiveTrainerId =
@@ -538,20 +685,27 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
       comparePrevious,
       dispatchOpen,
       learningBundle,
+      coachQualityBrief,
     })
 
     const authHeader = String(req.headers.authorization || req.headers.Authorization || '')
-    const dataBlock = offTopicQuestion
-      ? { context: 'general_knowledge_question', club_name_for_role_reminder: clubName || 'филиала' }
-      : buildGeminiPromptDataBlock(geminiScopedSnapshot, previousSnapshot, {
-          selectedTrainerId: effectiveTrainerId,
-          panelSegment,
-          advisorRoleId: geminiAdvisorCtx.advisorRoleId,
-          advisorAdvice: geminiAdvisorCtx.adviceSummary,
-          responseMode,
-          dispatchOpen,
-          learningBundle,
-        })
+    const keepClubOnOffTopic = shouldKeepClubContextOnOffTopic({
+      advisorRoleId: geminiAdvisorCtx.advisorRoleId,
+      responseMode,
+    })
+    const dataBlock =
+      offTopicQuestion && !keepClubOnOffTopic
+        ? { context: 'general_knowledge_question', club_name_for_role_reminder: clubName || 'филиала' }
+        : buildGeminiPromptDataBlock(geminiScopedSnapshot, previousSnapshot, {
+            selectedTrainerId: effectiveTrainerId,
+            panelSegment,
+            advisorRoleId: geminiAdvisorCtx.advisorRoleId,
+            advisorAdvice: geminiAdvisorCtx.adviceSummary,
+            responseMode,
+            dispatchOpen,
+            learningBundle,
+            coachQualityBrief,
+          })
     const edgeBody = {
       gender,
       club_name: clubName,
@@ -564,11 +718,13 @@ export async function handleGeminiAnalyticsPost(ctx, req, res, body) {
 
     const apiKey = process.env.GEMINI_API_KEY || ''
     let { text, source } = await callGeminiForReply(authHeader, geminiPayload, edgeBody, apiKey, {
-      skipEdge: offTopicQuestion || shouldSkipGeminiEdge(responseMode),
+      skipEdge: (offTopicQuestion && !keepClubOnOffTopic) || shouldSkipGeminiEdge(responseMode),
     })
 
     if (offTopicQuestion && text) {
-      text = normalizeIskraOffTopicReply(text, clubName, userMessage)
+      text = normalizeIskraOffTopicReply(text, clubName, userMessage, {
+        jarvis: keepClubOnOffTopic,
+      })
     }
 
     if (isGeminiReplyIncomplete(text, undefined, responseMode)) {

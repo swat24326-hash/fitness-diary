@@ -11,7 +11,7 @@ export const ISKRA_LEARNING_PHASE = /** @type {IskraLearningPhase} */ ('apply')
 export const ISKRA_LEARNING_MIN_PLAYBOOK_POSITIVE = 3
 export const ISKRA_LEARNING_PLAYBOOK_SCORE_THRESHOLD = 2.5
 
-/** @typedef {'feedback_up' | 'feedback_down' | 'hint_click' | 'chip_click' | 'correction' | 'playbook_confirm'} IskraLearningEventType */
+/** @typedef {'feedback_up' | 'feedback_down' | 'hint_click' | 'chip_click' | 'correction' | 'preference' | 'dispatch_assign' | 'dispatch_done' | 'dispatch_dismiss' | 'advice_baseline' | 'advice_outcome' | 'inaction_dismiss' | 'playbook_confirm'} IskraLearningEventType */
 
 /** @type {Record<IskraLearningEventType, { weight: number, kind: 'engagement' | 'feedback' | 'curation' }>} */
 export const ISKRA_LEARNING_EVENT_WEIGHTS = {
@@ -20,6 +20,20 @@ export const ISKRA_LEARNING_EVENT_WEIGHTS = {
   hint_click: { weight: 0.6, kind: 'engagement' },
   chip_click: { weight: 0.5, kind: 'engagement' },
   correction: { weight: -0.8, kind: 'curation' },
+  /** Фраза в чате («короче», «запомни…») — без настроек. */
+  preference: { weight: 1.5, kind: 'curation' },
+  /** Планёрка: назначили задание из совета. */
+  dispatch_assign: { weight: 1.2, kind: 'engagement' },
+  /** Планёрка: задание выполнено. */
+  dispatch_done: { weight: 2, kind: 'curation' },
+  /** Планёрка: скрыто / отклонено. */
+  dispatch_dismiss: { weight: -1, kind: 'curation' },
+  /** Зафиксировали baseline совета (план%/₽ на момент действия). */
+  advice_baseline: { weight: 0.4, kind: 'engagement' },
+  /** Исход совета после сдвига цифр. */
+  advice_outcome: { weight: 2.2, kind: 'curation' },
+  /** Закрыли бриф / игнор карточки без действия. */
+  inaction_dismiss: { weight: -0.9, kind: 'curation' },
   playbook_confirm: { weight: 2, kind: 'curation' },
 }
 
@@ -40,6 +54,7 @@ export const ISKRA_LEARNING_EVENT_WEIGHTS = {
  * @typedef {{
  *   signals: IskraLearningSignal[],
  *   playbooks: Array<{ signal_key: string, note: string }>,
+ *   owner_corrections?: Array<{ signal_key: string, note: string }>,
  *   phase: IskraLearningPhase,
  * }} IskraLearningBundle
  */
@@ -142,12 +157,40 @@ export function aggregateLearningSignals(events) {
 
     if (ev.event_type === 'feedback_up') row.positive_count += 1
     else if (ev.event_type === 'feedback_down' || ev.event_type === 'correction') row.negative_count += 1
-    else if (ev.event_type === 'hint_click' || ev.event_type === 'chip_click') row.engagement_count += 1
+    else if (
+      ev.event_type === 'hint_click' ||
+      ev.event_type === 'chip_click' ||
+      ev.event_type === 'preference' ||
+      ev.event_type === 'dispatch_assign' ||
+      ev.event_type === 'advice_baseline'
+    ) {
+      row.engagement_count += 1
+    } else if (ev.event_type === 'dispatch_done' || ev.event_type === 'advice_outcome') {
+      row.positive_count += 1
+      row.engagement_count += 1
+    } else if (ev.event_type === 'dispatch_dismiss' || ev.event_type === 'inaction_dismiss') {
+      row.negative_count += 1
+    }
 
     if (ev.event_type === 'playbook_confirm' && ev.note) {
       row.playbook_note = ev.note
       row.playbook_confirmed = true
       row.positive_count += 1
+    }
+
+    // Correction / preference / сильные исходы с note → память.
+    if (
+      (ev.event_type === 'correction' ||
+        ev.event_type === 'preference' ||
+        ev.event_type === 'dispatch_done' ||
+        ev.event_type === 'dispatch_dismiss' ||
+        ev.event_type === 'advice_baseline' ||
+        ev.event_type === 'advice_outcome' ||
+        ev.event_type === 'inaction_dismiss') &&
+      ev.note &&
+      !row.playbook_confirmed
+    ) {
+      row.playbook_note = ev.note
     }
 
     row.score = Number((row.score + def.weight).toFixed(3))
@@ -169,6 +212,26 @@ export function shouldPromoteToPlaybook(signal) {
     signal.positive_count >= ISKRA_LEARNING_MIN_PLAYBOOK_POSITIVE &&
     signal.score >= ISKRA_LEARNING_PLAYBOOK_SCORE_THRESHOLD
   )
+}
+
+/**
+ * Правки владельца из «Исправить» / фраз в чате (не подтверждённые playbooks).
+ * @param {IskraLearningSignal[]} signals
+ */
+export function extractOwnerCorrections(signals) {
+  const out = []
+  for (const s of signals ?? []) {
+    const note = String(s.playbook_note ?? '').trim()
+    if (!note || s.playbook_confirmed) continue
+    if (note.startsWith('[baseline]') || note.startsWith('[outcome]')) continue
+    const key = String(s.signal_key ?? '')
+    const isOwnerKey = key.startsWith('owner:')
+    const isDispatchKey = key.startsWith('dispatch:')
+    const looksLikeCorrection = (Number(s.negative_count) || 0) > 0 || isOwnerKey || isDispatchKey
+    if (!looksLikeCorrection) continue
+    out.push({ signal_key: s.signal_key, note })
+  }
+  return out.slice(0, 4)
 }
 
 /**
@@ -243,13 +306,34 @@ export function applyPlaybookNoteSave(existing, payload) {
  * @param {{ maxNotes?: number }} [opts]
  */
 export function buildLearnedPromptAppend(bundle, opts = {}) {
-  if (!bundle?.playbooks?.length) return ''
   if (ISKRA_LEARNING_PHASE === 'collect') return ''
 
   const maxNotes = Math.max(1, Number(opts.maxNotes) || 3)
-  const lines = bundle.playbooks.slice(0, maxNotes).map((p) => `· ${p.note}`)
-  if (!lines.length) return ''
-  return `УРОКИ КЛУБА (самообучение ИСКРЫ, не противоречь без пометки): ${lines.join(' ')}`
+  const parts = []
+
+  const playbooks = bundle?.playbooks ?? []
+  if (playbooks.length) {
+    const lines = playbooks.slice(0, maxNotes).map((p) => `· ${p.note}`)
+    parts.push(`УРОКИ КЛУБА (самообучение ИСКРЫ, не противоречь без пометки): ${lines.join(' ')}`)
+  }
+
+  const owner =
+    bundle?.owner_corrections ??
+    extractOwnerCorrections(bundle?.signals ?? [])
+  if (owner.length) {
+    const lines = owner.slice(0, 4).map((p) => `· ${p.note}`)
+    parts.push(
+      `ПРАВКИ ВЛАДЕЛЬЦА (из диалога / «Исправить», соблюдай без похода в настройки): ${lines.join(' ')}`,
+    )
+  }
+
+  // Неделание — подмешиваем из сигналов inaction:* (порог внутри extract вызывающей стороны)
+  if (Array.isArray(opts.inactionLessons) && opts.inactionLessons.length) {
+    const lines = opts.inactionLessons.slice(0, 3).map((p) => `· ${p.note}`)
+    parts.push(`НЕДЕЛАНИЕ ВЛАДЕЛЬЦА: ${lines.join(' ')}`)
+  }
+
+  return parts.join('\n')
 }
 
 /**
@@ -294,6 +378,7 @@ export function buildLearningBundleFromRows(rows) {
   return {
     signals,
     playbooks: extractLearningPlaybooks(signals),
+    owner_corrections: extractOwnerCorrections(signals),
     phase: ISKRA_LEARNING_PHASE,
   }
 }
@@ -325,8 +410,30 @@ export function applyLearningEventToSignalRow(existing, event) {
   } else if (event.event_type === 'feedback_down' || event.event_type === 'correction') {
     row.negative_count += 1
     row.last_negative_at = now
+    if (event.event_type === 'correction' && event.note && !row.playbook_confirmed) {
+      row.playbook_note = String(event.note).trim()
+    }
   } else if (event.event_type === 'hint_click' || event.event_type === 'chip_click') {
     row.engagement_count += 1
+  } else if (event.event_type === 'preference' || event.event_type === 'dispatch_assign' || event.event_type === 'advice_baseline') {
+    row.engagement_count += 1
+    if (event.note && !row.playbook_confirmed) {
+      row.playbook_note = String(event.note).trim()
+    }
+    row.last_positive_at = now
+  } else if (event.event_type === 'dispatch_done' || event.event_type === 'advice_outcome') {
+    row.positive_count += 1
+    row.engagement_count += 1
+    row.last_positive_at = now
+    if (event.note && !row.playbook_confirmed) {
+      row.playbook_note = String(event.note).trim()
+    }
+  } else if (event.event_type === 'dispatch_dismiss' || event.event_type === 'inaction_dismiss') {
+    row.negative_count += 1
+    row.last_negative_at = now
+    if (event.note && !row.playbook_confirmed) {
+      row.playbook_note = String(event.note).trim()
+    }
   } else if (event.event_type === 'playbook_confirm') {
     row.playbook_confirmed = true
     row.playbook_note = event.note || row.playbook_note
