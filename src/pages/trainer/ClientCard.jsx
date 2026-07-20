@@ -570,7 +570,7 @@ export function ClientCard() {
 
       <div className="tabs" role="tablist">
         {[
-          { id: 'health', label: 'Здоровье' },
+          { id: 'health', label: 'Здоровье и обмеры' },
           { id: 'nutrition', label: 'Питание' },
           { id: 'homework', label: 'ДЗ' },
           { id: 'memberships', label: 'Абонементы' },

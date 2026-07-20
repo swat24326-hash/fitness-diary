@@ -72,7 +72,7 @@ export function buildPnkWizardStepList(sessions) {
     { key: 'contact', title: 'Связь с клиентом', tab: null },
     { key: 'date', title: 'Дата бесплатной', tab: null },
     { key: 'wait', title: 'Ждём в зале', tab: null },
-    { key: 'health', title: 'Здоровье', tab: 'health' },
+    { key: 'health', title: 'Здоровье и обмеры', tab: 'health' },
     { key: 'nutrition', title: 'Питание', tab: 'nutrition' },
     { key: 'train1', title: n === 2 ? 'Тренировка 1' : 'Тренировка', tab: 'diaries' },
     { key: 'hw1', title: n === 2 ? 'ДЗ после 1-й' : 'Домашнее задание', tab: 'homework' },

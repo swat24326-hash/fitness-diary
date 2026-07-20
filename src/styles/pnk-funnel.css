@@ -235,6 +235,12 @@
   width: 100%;
 }
 
+.pnk-coach-notify--icons {
+  width: auto;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
 .pnk-coach-notify__max,
 .pnk-coach-notify__other {
   flex: 1 1 140px;
@@ -243,6 +249,15 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
+}
+
+.pnk-coach-notify--icons .pnk-coach-notify__max,
+.pnk-coach-notify--icons .pnk-coach-notify__other {
+  flex: 0 0 auto;
+  width: 42px;
+  min-width: 42px;
+  padding: 0;
+  gap: 0;
 }
 
 .pnk-coach-notify__max {
@@ -438,80 +453,10 @@ button.pnk-chip:disabled {
   box-shadow: var(--shadow-soft);
 }
 
-/* Планшет: шапка воронки слева, Max справа — без пустого чёрного поля */
-.pnk-client-panel__visit-board {
-  display: grid;
-  gap: 12px;
-  align-items: start;
-  min-width: 0;
-}
-
+/* Раньше шапка | Max сбоку — ломало поток; Max снова под шагом */
+.pnk-client-panel__visit-board,
 .pnk-client-panel__visit-side {
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-}
-
-.pnk-client-panel__visit-side .pnk-coach-notify {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  width: 100%;
-  margin: 0;
-}
-
-.pnk-client-panel__visit-side .pnk-coach-notify__max,
-.pnk-client-panel__visit-side .pnk-coach-notify__other {
-  flex: none;
-  width: 100%;
-  min-width: 0;
-  min-height: 44px;
-  justify-content: center;
-}
-
-.pnk-client-panel__step--visit {
-  min-width: 0;
-}
-
-@media (min-width: 900px) {
-  .pnk-client-panel--visit-board .pnk-client-panel__visit-board {
-    grid-template-columns: minmax(0, 1.45fr) minmax(15rem, 0.9fr);
-    gap: 14px 18px;
-  }
-
-  .pnk-client-panel--visit-board .pnk-client-panel__visit-side {
-    position: sticky;
-    top: 0;
-    align-self: start;
-    padding: 12px;
-    border-radius: var(--radius-md, 12px);
-    background: color-mix(in srgb, var(--bg-elevated, #1a1f1c) 90%, transparent);
-    border: 1px solid color-mix(in srgb, var(--accent, #7dffb3) 24%, transparent);
-  }
-
-  .pnk-client-panel--visit-board .pnk-client-panel__visit-side .pnk-coach-notify {
-    grid-template-columns: 1fr;
-  }
-
-  .pnk-client-panel--visit-board .pnk-client-panel__step--visit {
-    display: grid;
-    grid-template-columns: minmax(0, 1.45fr) minmax(15rem, 0.9fr);
-    gap: 12px 18px;
-    align-items: end;
-  }
-
-  .pnk-client-panel--visit-board .pnk-client-panel__step--visit .pnk-client-panel__cta-hint {
-    grid-column: 1 / -1;
-  }
-
-  .pnk-client-panel--visit-board .pnk-client-panel__step--visit .pnk-client-panel__schedule {
-    grid-column: 1;
-  }
-
-  .pnk-client-panel--visit-board .pnk-client-panel__step--visit .pnk-client-panel__actions--secondary {
-    grid-column: 1;
-    max-width: 22rem;
-  }
+  display: contents;
 }
 
 .pnk-client-panel__head {
@@ -572,48 +517,49 @@ button.pnk-chip:disabled {
   display: flex;
   flex-wrap: nowrap;
   gap: 8px;
-  align-items: stretch;
+  align-items: center;
+  justify-content: flex-start;
   min-width: 0;
 }
 
 .pnk-funnel-hat__btn {
-  flex: 1 1 0;
-  min-width: 0;
-  min-height: 44px;
+  flex: 0 0 auto;
+  min-width: 42px;
+  min-height: 42px;
   justify-content: center;
-  gap: 4px;
-  font-size: 0.88rem;
-  padding-left: 8px;
-  padding-right: 8px;
+  gap: 0;
+  padding: 0;
 }
 
 .pnk-funnel-hat__btn--cta {
-  flex: 2.2 1 0;
-  min-height: 52px;
-  font-size: 1rem;
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
   font-weight: 700;
 }
 
 .pnk-funnel-hat__btn--next-soft {
-  flex: 1.2 1 0;
+  flex: 0 0 auto;
 }
 
 .pnk-funnel-hat__btn--side {
-  flex: 0.85 1 0;
+  flex: 0 0 auto;
 }
 
 .pnk-funnel-hat__btn--refuse {
-  color: #fca5a5;
-  border-color: color-mix(in srgb, #f87171 35%, transparent);
+  color: #fecaca;
 }
 
 .pnk-funnel-hat__btn--refuse:hover:not(:disabled) {
-  background: rgba(248, 113, 113, 0.1);
+  color: #fff;
+  border-color: color-mix(in srgb, var(--danger, #ef4444) 50%, var(--border));
 }
 
 .pnk-funnel-hat__hint {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
 }
 
 .pnk-client-panel__cta-hint {
@@ -630,6 +576,10 @@ button.pnk-chip:disabled {
 
 .pnk-client-panel__actions--secondary {
   opacity: 0.95;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
 }
 
 .pnk-client-panel__btn-cta {
@@ -642,28 +592,6 @@ button.pnk-chip:disabled {
 @media (max-width: 520px) {
   .pnk-funnel-hat__nav {
     flex-wrap: wrap;
-  }
-
-  .pnk-funnel-hat__btn {
-    flex: 1 1 calc(50% - 8px);
-  }
-
-  .pnk-funnel-hat__btn--cta {
-    flex: 1 1 100%;
-    order: -1;
-  }
-
-  .pnk-funnel-hat__btn--next-soft {
-    flex: 1 1 100%;
-    order: -1;
-  }
-
-  .pnk-funnel-hat__btn-label {
-    display: none;
-  }
-
-  .pnk-funnel-hat__btn--side {
-    flex: 1 1 calc(33% - 8px);
   }
 }
 
@@ -1082,35 +1010,34 @@ button.pnk-chip:disabled {
 }
 
 .pnk-client-panel__actions--secondary {
-  flex-direction: column;
-  align-items: stretch;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 .pnk-client-panel__actions--secondary > .btn {
-  flex: none;
-  width: 100%;
-  white-space: normal;
-  overflow: visible;
-  text-overflow: unset;
-  min-height: 44px;
+  flex: 0 0 auto;
+  width: auto;
+  white-space: nowrap;
+  min-height: 42px;
 }
 
 .pnk-client-panel__actions--secondary .pnk-coach-notify {
-  flex: none;
-  width: 100%;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  flex: 0 0 auto;
+  width: auto;
+  display: flex;
+  flex-wrap: nowrap;
   gap: 8px;
 }
 
 .pnk-client-panel__actions--secondary .pnk-coach-notify__max,
 .pnk-client-panel__actions--secondary .pnk-coach-notify__other {
-  flex: none;
-  width: 100%;
-  min-width: 0;
+  flex: 0 0 auto;
+  width: 42px;
+  min-width: 42px;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .pnk-client-panel__actions--wrap {
@@ -1632,14 +1559,14 @@ button.pnk-chip:disabled {
   margin-top: 2px;
 }
 
-/* Действия: Max заметнее, удалить — приглушённее */
+/* Действия доски: только иконки в один ряд */
 .pnk-control-detail__actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
-  align-items: stretch;
+  align-items: center;
   min-width: 0;
-  padding-top: 2px;
+  padding-top: 4px;
   border-top: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
 }
 
@@ -1648,15 +1575,15 @@ button.pnk-chip:disabled {
 }
 
 .pnk-control-detail__actions .pnk-coach-notify__max,
-.pnk-control-detail__actions .pnk-coach-notify__other {
-  flex: 1 1 140px;
-  min-width: 0;
-  min-height: 44px;
-  justify-content: center;
-  gap: 6px;
-  padding-inline: 12px;
-  font-size: 0.86rem;
-  font-weight: 650;
+.pnk-control-detail__actions .pnk-coach-notify__other,
+.pnk-control-detail__action--client,
+.pnk-control-detail__action--delete {
+  flex: 0 0 auto;
+  width: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  padding: 0;
+  gap: 0;
 }
 
 .pnk-control-detail__actions .pnk-coach-notify__max {
@@ -1664,30 +1591,8 @@ button.pnk-chip:disabled {
   background: color-mix(in srgb, var(--accent-bright, var(--accent)) 12%, transparent);
 }
 
-.pnk-control-detail__action--client {
-  flex: 1 1 160px;
-  min-height: 44px;
-  justify-content: center;
-  font-size: 0.86rem;
-}
-
 .pnk-control-detail__action--delete {
-  flex: 0 1 auto;
-  min-height: 44px;
-  opacity: 0.85;
-  font-size: 0.82rem;
-}
-
-@media (max-width: 720px) {
-  .pnk-control-detail__actions .pnk-coach-notify__max,
-  .pnk-control-detail__actions .pnk-coach-notify__other,
-  .pnk-control-detail__action--client {
-    flex: 1 1 calc(50% - 8px);
-  }
-
-  .pnk-control-detail__action--delete {
-    flex: 1 1 100%;
-  }
+  opacity: 0.9;
 }
 
 .pnk-funnel__attention-scroll {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Ban, Trophy, Dumbbell } from 'lucide-react'
+import { Ban, CalendarClock, Trophy, Dumbbell } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import {
   buildPnkAttentionFlags,
@@ -104,7 +104,6 @@ export function ClientPnkPanel({
   const d = parsePnkDeliverables(client.pnk_deliverables)
   const trainerName = user?.name || ''
   const primaryInBody = hatNav.primarySlot === 'body'
-  const visitBoard = step.key === 'wait' || step.key === 'date'
 
   async function run(patch) {
     if (!patch) return false
@@ -237,20 +236,8 @@ export function ClientPnkPanel({
   )
 
   return (
-    <section
-      className={visitBoard ? 'pnk-client-panel pnk-client-panel--visit-board' : 'pnk-client-panel'}
-      aria-label="Воронка ПНК"
-    >
-      {visitBoard ? (
-        <div className="pnk-client-panel__visit-board">
-          <div className="pnk-funnel-hat-sticky">{funnelHat}</div>
-          <aside className="pnk-client-panel__visit-side" aria-label="Написать клиенту">
-            {visitMessengers}
-          </aside>
-        </div>
-      ) : (
-        <div className="pnk-funnel-hat-sticky">{funnelHat}</div>
-      )}
+    <section className="pnk-client-panel" aria-label="Воронка ПНК">
+      <div className="pnk-funnel-hat-sticky">{funnelHat}</div>
 
       {confirmRefuse ? (
         <div
@@ -308,7 +295,7 @@ export function ClientPnkPanel({
       {step.key === 'contact' ? (
         <div className="pnk-client-panel__step">
           <p className="pnk-client-panel__cta-hint">
-            Напишите клиенту. Когда связались — <strong>«Связался — далее»</strong> в шапке.
+            Напишите клиенту. Когда связались — кнопка «далее» в шапке.
           </p>
           <div className="pnk-client-panel__actions pnk-client-panel__actions--secondary">
             <PnkClientMessengerButtons
@@ -326,9 +313,9 @@ export function ClientPnkPanel({
       ) : null}
 
       {step.key === 'date' ? (
-        <div className="pnk-client-panel__step pnk-client-panel__step--visit">
+        <div className="pnk-client-panel__step">
           <p className="pnk-client-panel__cta-hint">
-            Назначьте дату бесплатной. Затем <strong>«Сохранить дату»</strong> в шапке.
+            Назначьте дату бесплатной. Затем сохраните в шапке (галочка).
           </p>
           <div className="pnk-client-panel__schedule">
             <label className="pnk-client-panel__field">
@@ -350,13 +337,16 @@ export function ClientPnkPanel({
               />
             </label>
           </div>
+          <div className="pnk-client-panel__actions pnk-client-panel__actions--secondary">
+            {visitMessengers}
+          </div>
         </div>
       ) : null}
 
       {step.key === 'wait' ? (
-        <div className="pnk-client-panel__step pnk-client-panel__step--visit">
+        <div className="pnk-client-panel__step">
           <p className="pnk-client-panel__cta-hint">
-            Когда клиент в зале — нажмите <strong>«Клиент пришёл»</strong> в шапке.
+            Когда клиент в зале — нажмите кнопку с человечком в шапке («Клиент пришёл»).
           </p>
           <div className="pnk-client-panel__schedule">
             <label className="pnk-client-panel__field">
@@ -379,10 +369,13 @@ export function ClientPnkPanel({
             </label>
           </div>
           <div className="pnk-client-panel__actions pnk-client-panel__actions--secondary">
+            {visitMessengers}
             <button
               type="button"
-              className="btn btn-secondary btn-touch"
+              className="btn btn-secondary btn-touch btn-icon-square"
               disabled={busy || !trialDate}
+              aria-label="Изменить дату"
+              title="Изменить дату бесплатной"
               onClick={() =>
                 void run({
                   trial_date: trialDate,
@@ -390,7 +383,7 @@ export function ClientPnkPanel({
                 })
               }
             >
-              Изменить дату
+              <CalendarClock size={18} aria-hidden />
             </button>
           </div>
         </div>
@@ -399,7 +392,7 @@ export function ClientPnkPanel({
       {step.key === 'health' ? (
         <div className="pnk-client-panel__step">
           <p className="pnk-client-panel__cta-hint">
-            Заполните карту здоровья ниже. Когда готово — <strong>«К питанию»</strong> в шапке.
+            Ниже — карта здоровья и обмеры (один экран). Когда карта готова — к питанию в шапке.
           </p>
         </div>
       ) : null}

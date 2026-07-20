@@ -40,7 +40,7 @@ export const PNK_DELIVERABLE_KEYS = [
 export const PNK_DELIVERABLE_LABELS = {
   contact: 'Связь с клиентом',
   visit_started: 'Начало тренировки',
-  health: 'Здоровье',
+  health: 'Здоровье и обмеры',
   nutrition: 'Питание',
   trial: 'Тренировка',
   homework: 'Домашнее задание',

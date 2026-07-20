@@ -6,7 +6,7 @@ import {
 } from '../../lib/pnk/pnkCoachNotifyCore.js'
 
 /**
- * Две кнопки как у ДЗ / питания: «В Max» и «Другой мессенджер».
+ * Написать тренеру: Max / другой мессенджер — только иконки.
  */
 export function PnkCoachNotifyChip({
   client,
@@ -36,26 +36,26 @@ export function PnkCoachNotifyChip({
   }
 
   return (
-    <div className="pnk-coach-notify" role="group" aria-label="Написать тренеру">
+    <div className="pnk-coach-notify pnk-coach-notify--icons" role="group" aria-label="Написать тренеру">
       <button
         type="button"
-        className="btn btn-touch pnk-coach-notify__max"
+        className="btn btn-touch btn-icon-square pnk-coach-notify__max"
         disabled={busy}
+        aria-label="В Max"
         title="Скопировать и открыть Max"
         onClick={() => void send('max')}
       >
-        <Send size={16} aria-hidden />
-        В Max
+        <Send size={18} aria-hidden />
       </button>
       <button
         type="button"
-        className="btn btn-touch btn-ghost pnk-coach-notify__other"
+        className="btn btn-touch btn-ghost btn-icon-square pnk-coach-notify__other"
         disabled={busy}
+        aria-label="Другой мессенджер"
         title="Скопировать и открыть «Поделиться» — любой мессенджер"
         onClick={() => void send('other')}
       >
-        <Share2 size={16} aria-hidden />
-        Другой мессенджер
+        <Share2 size={18} aria-hidden />
       </button>
     </div>
   )

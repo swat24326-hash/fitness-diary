@@ -40,7 +40,7 @@ const VISIT_PACKAGE_KEYS = new Set([
   'homework2',
 ])
 
-const AFTER_KEYS = new Set(['followup', 'measurements'])
+const AFTER_KEYS = new Set(['followup'])
 
 /**
  * @param {object | null | undefined} client
@@ -76,7 +76,6 @@ export function buildPnkVisitQualityReport(client, ctx = {}) {
       return String(plan).trim().length > 2
     })()
   const bzDone = Math.max(0, Number(ctx.bzCompletedCount) || 0)
-  const hasMeasure = ctx.hasMeasurements === true
   const visitStarted = Boolean(d.visit_started)
 
   /** @type {PnkQualityItem[]} */
@@ -85,7 +84,9 @@ export function buildPnkVisitQualityReport(client, ctx = {}) {
   items.push(withPhase(itemContact(d), 'before'))
   items.push(withPhase(itemDate(client), 'before'))
   items.push(withPhase(itemVisitStart(d, client), 'visit'))
-  items.push(withPhase(gateUntilVisit(itemHealth(d, healthOk), visitStarted), 'visit'))
+  items.push(
+    withPhase(gateUntilVisit(itemHealthAndMeasures(d, healthOk, ctx.hasMeasurements), visitStarted), 'visit'),
+  )
   items.push(withPhase(gateUntilVisit(itemNutrition(d, hasPlan), visitStarted), 'visit'))
   items.push(
     withPhase(
@@ -117,7 +118,6 @@ export function buildPnkVisitQualityReport(client, ctx = {}) {
     )
   }
   items.push(withPhase(gateUntilVisit(itemFollowup(d), visitStarted), 'after'))
-  items.push(withPhase(gateUntilVisit(itemMeasurements(hasMeasure), visitStarted), 'after'))
   items.push(withPhase(itemOutcome(client), 'after'))
 
   // outcome не в чипах; pending не штрафует (ещё нельзя требовать)
@@ -203,10 +203,30 @@ function itemVisitStart(d, client) {
   return row('visit_started', label, 'missing', 'Ещё не началась · нет даты бесплатной')
 }
 
-function itemHealth(d, healthOk) {
-  if (healthOk) return row('health', 'Здоровье', 'done', 'Карта заполнена')
-  if (d.health) return row('health', 'Здоровье', 'weak', 'Отмечено в воронке, карта неполная')
-  return row('health', 'Здоровье', 'missing', 'Карта не заполнена')
+/**
+ * Один пункт визита: карта здоровья + обмеры (на вкладке «Здоровье» они уже рядом).
+ * key остаётся `health` — deliverable воронки тот же.
+ * hasMeasurements === undefined — обмеры не подгружали (доска без IDB): оцениваем только карту.
+ */
+function itemHealthAndMeasures(d, healthOk, hasMeasurements) {
+  const label = 'Здоровье и обмеры'
+  const measuresKnown = typeof hasMeasurements === 'boolean'
+  const measuresOk = hasMeasurements === true
+
+  if (healthOk && (!measuresKnown || measuresOk)) {
+    if (measuresOk) return row('health', label, 'done', 'Карта и обмеры есть')
+    return row('health', label, 'done', 'Карта заполнена')
+  }
+  if (healthOk && measuresKnown && !measuresOk) {
+    return row('health', label, 'weak', 'Карта есть, обмеров нет')
+  }
+  if (!healthOk && measuresOk) {
+    return row('health', label, 'weak', 'Обмеры есть, карта неполная')
+  }
+  if (d.health) {
+    return row('health', label, 'weak', 'Отмечено в воронке, карта неполная')
+  }
+  return row('health', label, 'missing', 'Нет карты здоровья и обмеров')
 }
 
 function itemNutrition(d, hasPlan) {
@@ -258,11 +278,6 @@ function itemFollowup(d) {
     return row('followup', PNK_DELIVERABLE_LABELS.followup, 'done', 'Касание после бесплатной')
   }
   return row('followup', PNK_DELIVERABLE_LABELS.followup, 'missing', 'Нет касания после')
-}
-
-function itemMeasurements(hasMeasure) {
-  if (hasMeasure) return row('measurements', 'Обмеры', 'done', 'Есть замеры')
-  return row('measurements', 'Обмеры', 'missing', 'Обмеров нет')
 }
 
 function itemOutcome(client) {

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Trash2 } from 'lucide-react'
+import { IdCard, Trash2 } from 'lucide-react'
 import { PnkStepBlocks } from './PnkStepBlocks.jsx'
 import { PnkCoachNotifyChip } from './PnkCoachNotifyChip'
 import { PnkAttentionChips } from './PnkStatusChips'
@@ -81,21 +81,23 @@ export function PnkControlCardDetail({
         {href ? (
           <Link
             to={href}
-            className="btn btn-secondary btn-touch u-no-decoration pnk-control-detail__action pnk-control-detail__action--client"
+            className="btn btn-secondary btn-touch btn-icon-square u-no-decoration pnk-control-detail__action pnk-control-detail__action--client"
+            aria-label="Открыть карточку клиента"
+            title="Открыть карточку клиента"
           >
-            Открыть карточку клиента
+            <IdCard size={18} aria-hidden />
           </Link>
         ) : null}
         {showDelete ? (
           <button
             type="button"
-            className="btn btn-ghost btn-touch pnk-control-card__delete pnk-control-detail__action pnk-control-detail__action--delete"
+            className="btn btn-ghost btn-touch btn-icon-square pnk-control-card__delete pnk-control-detail__action pnk-control-detail__action--delete"
             disabled={busy}
-            onClick={() => onRequestDelete({ id: card.id, name: card.name })}
+            aria-label="Удалить ПНК"
             title="Удалить ПНК"
+            onClick={() => onRequestDelete({ id: card.id, name: card.name })}
           >
-            <Trash2 size={16} aria-hidden />
-            Удалить ПНК
+            <Trash2 size={18} aria-hidden />
           </button>
         ) : null}
       </div>

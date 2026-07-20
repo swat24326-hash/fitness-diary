@@ -2,8 +2,7 @@ import { Send, Share2 } from 'lucide-react'
 import { buildPnkClientMessage, notifyPnkClient } from '../../lib/pnk/pnkClientNotifyCore.js'
 
 /**
- * Написать клиенту ПНК: «В Max» / «Другой мессенджер».
- * @param {{ kind: 'invite' | 'followup', client: object, trainerName?: string, clubName?: string, trialDate?: string, trialTime?: string, busy?: boolean, onResult?: Function }} props
+ * Написать клиенту ПНК: Max / другой мессенджер — только иконки.
  */
 export function PnkClientMessengerButtons({
   kind,
@@ -32,26 +31,26 @@ export function PnkClientMessengerButtons({
   }
 
   return (
-    <div className="pnk-coach-notify" role="group" aria-label="Написать клиенту">
+    <div className="pnk-coach-notify pnk-coach-notify--icons" role="group" aria-label="Написать клиенту">
       <button
         type="button"
-        className="btn btn-touch pnk-coach-notify__max"
+        className="btn btn-touch btn-icon-square pnk-coach-notify__max"
         disabled={busy}
+        aria-label="В Max"
         title="Скопировать и открыть Max"
         onClick={() => void send('max')}
       >
-        <Send size={16} aria-hidden />
-        В Max
+        <Send size={18} aria-hidden />
       </button>
       <button
         type="button"
-        className="btn btn-touch btn-ghost pnk-coach-notify__other"
+        className="btn btn-touch btn-ghost btn-icon-square pnk-coach-notify__other"
         disabled={busy}
+        aria-label="Другой мессенджер"
         title="Скопировать и открыть «Поделиться»"
         onClick={() => void send('other')}
       >
-        <Share2 size={16} aria-hidden />
-        Другой мессенджер
+        <Share2 size={18} aria-hidden />
       </button>
     </div>
   )

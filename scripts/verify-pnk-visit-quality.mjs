@@ -56,10 +56,27 @@ const r2 = buildPnkVisitQualityReport(strong, {
   bzCompletedCount: 1,
   hasMeasurements: true,
 })
-ok(r2.items.find((i) => i.key === 'health')?.status === 'done', 'health done')
+ok(r2.items.find((i) => i.key === 'health')?.status === 'done', 'health+measures done')
+ok(r2.items.find((i) => i.key === 'health')?.label === 'Здоровье и обмеры', 'combined label')
+ok(!r2.items.some((i) => i.key === 'measurements'), 'no separate measurements item')
+ok(r2.items.find((i) => i.key === 'health')?.phase === 'visit', 'health+measures in visit phase')
 ok(r2.items.find((i) => i.key === 'nutrition')?.status === 'done', 'nutrition done')
 ok(r2.items.find((i) => i.key === 'outcome')?.status === 'done', 'outcome won')
 ok(r2.summaryLine.includes('полный') || r2.done >= 7, 'strong summary')
+
+const healthNoMeasures = buildPnkVisitQualityReport(incomplete, {
+  healthCard: fullHealth,
+  bzCompletedCount: 0,
+  hasMeasurements: false,
+})
+ok(healthNoMeasures.items.find((i) => i.key === 'health')?.status === 'weak', 'health without measures is weak')
+ok(/обмеров нет/i.test(healthNoMeasures.items.find((i) => i.key === 'health')?.note || ''), 'weak note')
+
+const healthUnknownMeasures = buildPnkVisitQualityReport(incomplete, {
+  healthCard: fullHealth,
+  bzCompletedCount: 0,
+})
+ok(healthUnknownMeasures.items.find((i) => i.key === 'health')?.status === 'done', 'board without measure data: health alone ok')
 
 const weakNutrition = buildPnkVisitQualityReport(
   {
