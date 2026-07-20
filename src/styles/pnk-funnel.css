@@ -805,14 +805,23 @@ button.pnk-chip:disabled {
 
 .pnk-visit-quality__phases {
   display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 6px;
+  align-items: start;
 }
 
 .pnk-visit-quality__phase {
-  padding: 6px 7px 5px;
+  min-width: 0;
+  padding: 6px 6px 5px;
   border-radius: 8px;
   border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
   background: color-mix(in srgb, var(--bg, #0d1210) 40%, transparent);
+}
+
+@media (max-width: 640px) {
+  .pnk-visit-quality__phases {
+    grid-template-columns: 1fr;
+  }
 }
 
 .pnk-visit-quality__phase-title {
@@ -906,15 +915,16 @@ button.pnk-chip:disabled {
 
 .pnk-visit-quality__label {
   font-weight: 650;
-  font-size: 0.8rem;
+  font-size: 0.76rem;
   line-height: 1.2;
   color: var(--text);
 }
 
 .pnk-visit-quality__note {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   line-height: 1.25;
   color: color-mix(in srgb, var(--text) 58%, var(--text-muted));
+  overflow-wrap: anywhere;
 }
 
 .pnk-visit-quality__pct-block {
