@@ -3239,8 +3239,15 @@ tr:last-child td {
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 148px), 1fr));
-  gap: clamp(10px, 2vw, 16px);
+  /* ПНК уже остальных — короткий ярлык «ПНК» */
+  grid-template-columns: minmax(0, 0.72fr) repeat(4, minmax(0, 1fr));
+  gap: clamp(8px, 1.5vw, 12px);
+}
+
+@media (max-width: 560px) {
+  .trainer-attention__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .trainer-attention__card {
@@ -3289,6 +3296,10 @@ tr:last-child td {
 .trainer-attention__card-hint {
   font-size: 12px;
   line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .trainer-sync-banner {
@@ -3403,22 +3414,32 @@ tr:last-child td {
   }
 
   .trainer-home .pnk-glance-face__name {
-    font-size: clamp(1.15rem, 2vw, 1.4rem);
+    font-size: clamp(1.05rem, 1.8vw, 1.25rem);
   }
 
   .trainer-home .pnk-glance-face__status {
-    padding: 8px 10px;
-    font-size: 0.85rem;
+    padding: 6px 8px;
+    font-size: 0.8rem;
+  }
+
+  .trainer-home .pnk-glance-face__top {
+    gap: 8px;
+  }
+
+  .trainer-home .pnk-glance-face__icon {
+    width: 30px;
+    height: 30px;
   }
 
   .trainer-home .trainer-attention__grid {
-    grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+    grid-template-columns: minmax(0, 0.68fr) repeat(4, minmax(0, 1fr));
     gap: 8px;
   }
 
   .trainer-home .trainer-attention__card {
-    padding: 10px 10px;
+    padding: 10px 8px;
     gap: 2px;
+    min-width: 0;
   }
 
   .trainer-home .trainer-attention__card-count {
@@ -3427,6 +3448,13 @@ tr:last-child td {
 
   .trainer-home .trainer-attention__card-label {
     font-size: 0.78rem;
+  }
+
+  /* Виджет ПНК — не на всю ширину доски */
+  .trainer-home .trainer-pnk-glance {
+    max-width: min(100%, 400px);
+    width: 100%;
+    justify-self: start;
   }
 
   .trainer-home .trainer-cq-glance {
@@ -3488,13 +3516,21 @@ tr:last-child td {
   }
 
   .trainer-home .trainer-attention__grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 0.65fr) repeat(4, minmax(0, 1fr));
+  }
+
+  .trainer-home .trainer-pnk-glance {
+    max-width: min(100%, 380px);
   }
 }
 
 @media (min-width: 1024px) {
   .trainer-home .trainer-attention__grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 0.62fr) repeat(4, minmax(0, 1fr));
+  }
+
+  .trainer-home .trainer-pnk-glance {
+    max-width: min(100%, 360px);
   }
 }
 
