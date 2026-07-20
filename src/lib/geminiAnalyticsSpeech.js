@@ -197,7 +197,22 @@ export function splitSpeechChunks(text, maxLen = SPEECH_CHUNK_MAX) {
 }
 
 function getVoicesCached() {
-  if (cachedVoices?.length) return Promise.resolve(cachedVoices)
+  if (cachedVoices?.length) {
+    // Подтянуть Microsoft, если Chrome догрузил голоса после первого кэша.
+    try {
+      const live = typeof window !== 'undefined' ? window.speechSynthesis?.getVoices?.() ?? [] : []
+      if (live.length) {
+        const cachedHasMs = cachedVoices.some((v) => isMicrosoftVoice(v) && isRussianVoice(v))
+        const liveHasMs = live.some((v) => isMicrosoftVoice(v) && isRussianVoice(v))
+        if (live.length > cachedVoices.length || (liveHasMs && !cachedHasMs)) {
+          cachedVoices = [...live]
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    return Promise.resolve(cachedVoices)
+  }
   if (!voicesLoadPromise) {
     voicesLoadPromise = waitForVoices().then((voices) => {
       cachedVoices = voices
@@ -293,6 +308,7 @@ export function prepareTextForSpeech(text) {
 }
 
 /** @typedef {{ name?: string, lang?: string, voiceURI?: string }} SpeechVoiceLike */
+/** @typedef {'primary' | 'local_ms' | 'google'} SpeechVoiceTier */
 
 /**
  * @param {SpeechVoiceLike} voice
@@ -361,7 +377,7 @@ export function pickGeminiSpeechVoice(gender, voices) {
   return base[0] ?? null
 }
 
-/** Запасной голос Google ru — если Microsoft Online недоступен без VPN. */
+/** Запасной голос Google ru — только если Microsoft совсем недоступен. */
 export function pickGeminiSpeechFallbackVoice(gender, voices) {
   const normalized = normalizeGender(gender)
   const list = Array.isArray(voices) ? voices : []
@@ -385,6 +401,23 @@ export function pickGeminiSpeechFallbackVoice(gender, voices) {
   return best
 }
 
+/**
+ * Локальный / не-Online Microsoft — красивее Google, обычно без VPN.
+ * Neural без Online оставляем здесь как ступень после Online Natural.
+ * @param {'male'|'female'|string} gender
+ * @param {SpeechVoiceLike[]} voices
+ */
+export function pickGeminiSpeechLocalMicrosoftVoice(gender, voices) {
+  const list = Array.isArray(voices) ? voices : []
+  const local = list.filter((v) => {
+    if (!isMicrosoftVoice(v) || !isRussianVoice(v)) return false
+    const name = String(v?.name ?? '').toLowerCase()
+    return !/online/i.test(name)
+  })
+  if (!local.length) return null
+  return pickGeminiSpeechVoice(gender, local)
+}
+
 function resolveBoundVoice(voice, voices) {
   if (!voice) return null
   const uri = String(voice.voiceURI ?? '')
@@ -392,11 +425,26 @@ function resolveBoundVoice(voice, voices) {
   return bound ?? voice
 }
 
+/**
+ * @param {SpeechSynthesisUtterance} utter
+ * @param {'male'|'female'|string} gender
+ * @param {SpeechVoiceLike[]} voices
+ * @param {{ voiceTier?: SpeechVoiceTier, useFallback?: boolean }} [options]
+ */
 function bindVoice(utter, gender, voices, options = {}) {
-  const { useFallback = false } = options
-  const picked = useFallback
-    ? pickGeminiSpeechFallbackVoice(gender, voices)
-    : pickGeminiSpeechVoice(gender, voices)
+  const tier =
+    options.voiceTier ??
+    (options.useFallback ? 'google' : 'primary')
+  let picked = null
+  if (tier === 'google') {
+    picked = pickGeminiSpeechFallbackVoice(gender, voices)
+  } else if (tier === 'local_ms') {
+    picked =
+      pickGeminiSpeechLocalMicrosoftVoice(gender, voices) ??
+      pickGeminiSpeechVoice(gender, voices)
+  } else {
+    picked = pickGeminiSpeechVoice(gender, voices)
+  }
   const voice = resolveBoundVoice(picked, voices)
   if (!voice) return
   utter.voice = voice
@@ -427,8 +475,9 @@ function armChromeSpeechResume() {
   }, SPEECH_RESUME_MS)
 }
 
-const SPEECH_MS_FALLBACK_MIN = 500
-const SPEECH_MS_FALLBACK_MIN_CHARS = 16
+/** Почти мгновенный onend = Online/VPN «молчит», не обычная быстрая фраза. */
+const SPEECH_DEAD_END_MS = 280
+const SPEECH_DEAD_END_MIN_CHARS = 24
 
 function buildUtterance(chunk, gender, voices, options = {}) {
   const normalized = normalizeGender(gender)
@@ -441,10 +490,36 @@ function buildUtterance(chunk, gender, voices, options = {}) {
   return utter
 }
 
-function shouldFallbackFromMicrosoftUtterance(utter, chunk, elapsedMs, useFallback) {
-  if (useFallback || !utter?.voice) return false
+/**
+ * Ложный «успех» Online: Chrome часто шлёт onend через десятки мс без звука.
+ * Не путать с короткой живой фразой Microsoft Desktop.
+ */
+export function shouldEscalateSpeechVoice(utter, chunk, elapsedMs, tier) {
+  if (tier === 'google' || !utter?.voice) return false
   if (!isMicrosoftVoice(utter.voice)) return false
-  return chunk.length >= SPEECH_MS_FALLBACK_MIN_CHARS && elapsedMs < SPEECH_MS_FALLBACK_MIN
+  const text = String(chunk ?? '')
+  if (text.length < SPEECH_DEAD_END_MIN_CHARS) return false
+  return elapsedMs < SPEECH_DEAD_END_MS
+}
+
+/**
+ * Online (красивый) → Desktop Microsoft → Google только в крайнем случае.
+ * @param {SpeechVoiceTier} tier
+ * @param {'male'|'female'|string} gender
+ * @param {SpeechVoiceLike[]} voices
+ * @returns {SpeechVoiceTier | null}
+ */
+export function nextSpeechVoiceTier(tier, gender, voices) {
+  if (tier === 'primary') {
+    if (pickGeminiSpeechLocalMicrosoftVoice(gender, voices)) return 'local_ms'
+    if (pickGeminiSpeechFallbackVoice(gender, voices)) return 'google'
+    return null
+  }
+  if (tier === 'local_ms') {
+    if (pickGeminiSpeechFallbackVoice(gender, voices)) return 'google'
+    return null
+  }
+  return null
 }
 
 export async function speakGeminiText(text, gender = 'female') {
@@ -468,12 +543,13 @@ export async function speakGeminiText(text, gender = 'female') {
   primeGeminiSpeechPlayback()
 
   let index = 0
-  let useGoogleFallback = false
+  /** @type {SpeechVoiceTier} */
+  let voiceTier = 'primary'
 
-  const activateGoogleFallback = () => {
-    if (useGoogleFallback) return false
-    if (!pickGeminiSpeechFallbackVoice(gender, voices)) return false
-    useGoogleFallback = true
+  const escalateVoiceTier = () => {
+    const next = nextSpeechVoiceTier(voiceTier, gender, voices)
+    if (!next) return false
+    voiceTier = next
     return true
   }
 
@@ -488,11 +564,11 @@ export async function speakGeminiText(text, gender = 'female') {
     const chunk = chunks[chunkIndex]
     index += 1
 
-    const utter = buildUtterance(chunk, gender, voices, { useFallback: useGoogleFallback })
+    const utter = buildUtterance(chunk, gender, voices, { voiceTier })
     const startedAt = Date.now()
 
-    const retryChunkWithGoogle = () => {
-      if (!activateGoogleFallback()) return false
+    const retryChunkWithNextTier = () => {
+      if (!escalateVoiceTier()) return false
       index = chunkIndex
       speakNext()
       return true
@@ -501,11 +577,8 @@ export async function speakGeminiText(text, gender = 'female') {
     utter.onend = () => {
       if (generation !== speechGeneration) return
       const elapsed = Date.now() - startedAt
-      if (
-        shouldFallbackFromMicrosoftUtterance(utter, chunk, elapsed, useGoogleFallback) &&
-        pickGeminiSpeechFallbackVoice(gender, voices)
-      ) {
-        if (retryChunkWithGoogle()) return
+      if (shouldEscalateSpeechVoice(utter, chunk, elapsed, voiceTier)) {
+        if (retryChunkWithNextTier()) return
       }
       void delayMs(speechChunkPauseMs(chunk)).then(() => {
         if (generation !== speechGeneration) return
@@ -514,7 +587,7 @@ export async function speakGeminiText(text, gender = 'female') {
     }
     utter.onerror = () => {
       if (generation !== speechGeneration) return
-      if (retryChunkWithGoogle()) return
+      if (retryChunkWithNextTier()) return
       speakNext()
     }
 

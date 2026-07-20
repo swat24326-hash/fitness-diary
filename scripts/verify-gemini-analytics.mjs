@@ -36,7 +36,7 @@ import {
   matchGeminiIntroIntent,
   resolveGeminiClubLabel,
 } from '../src/lib/admin/geminiAssistantIntro.js'
-import { prepareTextForSpeech, pickGeminiSpeechVoice, pickGeminiSpeechFallbackVoice, splitSpeechChunks, speechChunkPauseMs } from '../src/lib/geminiAnalyticsSpeech.js'
+import { prepareTextForSpeech, pickGeminiSpeechVoice, pickGeminiSpeechFallbackVoice, pickGeminiSpeechLocalMicrosoftVoice, nextSpeechVoiceTier, shouldEscalateSpeechVoice, splitSpeechChunks, speechChunkPauseMs } from '../src/lib/geminiAnalyticsSpeech.js'
 import {
   clearGeminiSnapshotCacheForTests,
   getCachedGeminiSnapshot,
@@ -390,6 +390,29 @@ ok(pickGeminiSpeechVoice('female', [voiceGoogleRu, voiceMicrosoftNeural])?.name.
 ok(!/google/i.test(pickGeminiSpeechVoice('female', edgeVoices)?.name ?? ''), 'tts skips Google when Microsoft available')
 ok(pickGeminiSpeechFallbackVoice('female', edgeVoices)?.name.includes('Google'), 'tts fallback Google without VPN')
 ok(pickGeminiSpeechFallbackVoice('male', edgeVoices)?.name.includes('Google'), 'tts fallback male Google')
+ok(pickGeminiSpeechLocalMicrosoftVoice('female', edgeVoices)?.name.includes('Irina'), 'tts local ms female Irina')
+ok(pickGeminiSpeechLocalMicrosoftVoice('male', [voiceGoogleRu, voiceMicrosoftPavelDesktop])?.name.includes('Pavel'), 'tts local ms male Pavel')
+ok(nextSpeechVoiceTier('primary', 'female', edgeVoices) === 'local_ms', 'tts escalate primary→local_ms')
+ok(nextSpeechVoiceTier('local_ms', 'female', edgeVoices) === 'google', 'tts escalate local_ms→google')
+ok(nextSpeechVoiceTier('primary', 'female', [voiceGoogleRu]) === 'google', 'tts escalate primary→google if no local ms')
+ok(
+  shouldEscalateSpeechVoice(
+    { voice: voiceMicrosoftFemale },
+    'План продаж за месяц пока ниже нормы к дате.',
+    120,
+    'primary',
+  ),
+  'tts dead-end online escalates',
+)
+ok(
+  !shouldEscalateSpeechVoice(
+    { voice: voiceMicrosoftFemale },
+    'План продаж за месяц пока ниже нормы к дате.',
+    900,
+    'primary',
+  ),
+  'tts live microsoft does not escalate',
+)
 ok(pickGeminiSpeechVoice('male', [voiceGoogleRu, voiceMicrosoftPavelDesktop])?.name.includes('Pavel'), 'tts male prefers Pavel desktop over Google')
 ok(pickGeminiSpeechVoice('male', [voiceGoogleMale, voiceGoogleRu])?.name.includes('Google'), 'tts google male only when no Microsoft male')
 ok(pickGeminiSpeechVoice('female', [voiceGoogleRu, voiceEn])?.name.includes('Google'), 'tts google fallback when no Microsoft')

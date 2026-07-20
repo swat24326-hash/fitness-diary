@@ -76,6 +76,19 @@ const brief = buildIskraSparkBrief(snap, { clubName: 'Север' })
 ok(brief.lines.length === 3, 'spark brief 3 lines')
 ok(brief.cta?.message, 'spark brief cta')
 
+const snapWithNorm = {
+  ...snap,
+  calendar_context: {
+    ...(snap.calendar_context ?? {}),
+    expected_plan_progress_pct: 60,
+    month_relation: 'current',
+  },
+}
+const kpiNorm = buildPanelKpiFromAnalytics(snapWithNorm)
+ok(kpiNorm?.expectedPlanPct === 60, 'kpi expected plan pct')
+const briefNorm = buildIskraSparkBrief(snapWithNorm, { clubName: 'Север' })
+ok(/норма к дате/i.test(briefNorm.lines[0] ?? ''), 'spark brief has norm-to-date')
+
 const river = buildMonthRiverDays(kpi)
 ok(river.cells.length >= 28, 'month river cells')
 ok(river.label.includes('2/'), 'month river label')

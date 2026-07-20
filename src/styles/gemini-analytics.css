@@ -1669,6 +1669,12 @@
   gap: 0.45rem;
 }
 
+.iskra-kpi-hero__caption {
+  margin: 0 0 0.35rem;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
 .iskra-kpi-hero__stat {
   min-width: 0;
 }

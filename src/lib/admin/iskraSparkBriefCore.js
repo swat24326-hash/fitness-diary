@@ -1,10 +1,6 @@
-/**
- * Утренний SparkBrief ИСКРЫ — 3 строки + CTA из snapshot/KPI.
- */
-
 import { buildPanelKpiFromAnalytics } from './clubMonthAnalyticsCore.js'
 import { buildEnrichedIskraAdviceCards } from './iskraActionImpactCore.js'
-import { formatRubCompact } from './iskraReplyPhrasing.js'
+import { formatPctPlain, formatRubCompact, phrasePlanBenchmark } from './iskraReplyPhrasing.js'
 import { buildForecastConfidenceLine } from './iskraForecastConfidenceCore.js'
 import {
   pickPrimarySeedPlaybook,
@@ -14,7 +10,7 @@ import { buildDirectionGlanceLine } from './iskraSalesAdviceContextCore.js'
 
 /**
  * @param {object | null | undefined} snapshot
- * @param {{ advisorRoleId?: string, clubName?: string }} [opts]
+ * @param {{ advisorRoleId?: string, clubName?: string, outcomeLine?: string | null, hour?: number }} [opts]
  */
 export function buildIskraSparkBrief(snapshot, opts = {}) {
   const club = String(opts.clubName ?? snapshot?.club_name ?? 'клуб').trim()
@@ -25,11 +21,15 @@ export function buildIskraSparkBrief(snapshot, opts = {}) {
   })
   const top = cards[0] ?? null
   const planPct = Number(kpi?.planPct) || 0
+  const expectedPlanPct = Number(kpi?.expectedPlanPct)
+  const hasExpected = Number.isFinite(expectedPlanPct) && expectedPlanPct > 0
   const insights = snapshot?.insights ?? {}
+  const calendarBehind = hasExpected && planPct + 5 < expectedPlanPct
   const behind =
+    calendarBehind ||
     insights.plan?.calendar_vs_plan === 'behind' ||
     insights.plan?.tone === 'weak' ||
-    (planPct > 0 && planPct < 45)
+    (planPct > 0 && !hasExpected && planPct < 45)
 
   const forecast = buildForecastConfidenceLine(snapshot)
   const directionGlance = buildDirectionGlanceLine(snapshot)
@@ -43,7 +43,13 @@ export function buildIskraSparkBrief(snapshot, opts = {}) {
   const morning = Number.isFinite(hour) ? hour >= 5 && hour < 11 : false
 
   const line1 = kpi?.hasPlan
-    ? `План ${String(planPct).replace('.', ',')}% · ${formatRubCompact(kpi.profitTotal)}`
+    ? [
+        `План ${formatPctPlain(planPct)}%`,
+        hasExpected ? phrasePlanBenchmark(expectedPlanPct) : null,
+        formatRubCompact(kpi.profitTotal),
+      ]
+        .filter(Boolean)
+        .join(' · ')
     : `Продажи ${formatRubCompact(kpi?.profitTotal ?? 0)}`
 
   let line2 = morning ? 'Утро: темп в норме — держите ритм отчётов' : 'Темп в норме — держите ритм отчётов'
@@ -52,11 +58,20 @@ export function buildIskraSparkBrief(snapshot, opts = {}) {
     line2 = outcomeLine.length > 96 ? `${outcomeLine.slice(0, 93)}…` : outcomeLine
     tone = 'accent'
   } else if (behind) {
-    line2 = directionGlance?.line ?? top?.headline ?? 'План отстаёт от календарного темпа'
+    line2 =
+      directionGlance?.line ??
+      (hasExpected
+        ? `Отстаёте от нормы к дате (${formatPctPlain(planPct)}% при ${formatPctPlain(expectedPlanPct)}%)`
+        : null) ??
+      top?.headline ??
+      'План отстаёт от календарного темпа'
     tone = 'warn'
   } else if (top) {
     line2 = top.headline
     tone = top.tone === 'warn' ? 'warn' : 'accent'
+  } else if (hasExpected && planPct + 2 >= expectedPlanPct) {
+    line2 = 'План в темпе к дате — можно усилить допродажи'
+    tone = 'ok'
   } else if (planPct >= 85) {
     line2 = 'План в темпе — можно усилить допродажи'
     tone = 'ok'
@@ -103,6 +118,7 @@ export function buildIskraSparkBrief(snapshot, opts = {}) {
     forecastConfidence: forecast?.confidence ?? null,
     cta,
     planPct,
+    expectedPlanPct: hasExpected ? expectedPlanPct : null,
     topCard: top,
   }
 }

@@ -549,12 +549,31 @@ export function buildPanelKpiFromAnalytics(analytics) {
   const reportDays = Number(report.days_with_reports) || 0
   const daysInMonth = Number(report.days_in_month) || 0
   const forecastPct = Number(analytics.club_finance?.forecast?.plan_pct) || null
+  const expectedRaw =
+    analytics.calendar_context?.expected_plan_progress_pct ??
+    insights.plan?.calendar_expected_pct ??
+    null
+  const expectedPlanPct =
+    expectedRaw != null && Number.isFinite(Number(expectedRaw)) ? Number(expectedRaw) : null
+
+  let planTone = 'neutral'
+  if (planTotal > 0) {
+    if (expectedPlanPct != null && expectedPlanPct > 0) {
+      if (planPct + 5 < expectedPlanPct) planTone = 'warn'
+      else if (planPct + 2 >= expectedPlanPct) planTone = 'ok'
+      else planTone = 'neutral'
+    } else {
+      planTone = planPct >= 85 ? 'ok' : planPct >= 45 ? 'neutral' : planPct > 0 ? 'warn' : 'neutral'
+    }
+  }
 
   return {
     profitTotal,
     planTotal,
     planPct,
     plan_progress_pct: planPct,
+    expectedPlanPct,
+    expected_plan_pct: expectedPlanPct,
     planFillPercent: Math.min(100, Math.max(0, planPct)),
     pzTrainings,
     reportsLabel: `${reportDays}/${daysInMonth || 0}`,
@@ -562,7 +581,6 @@ export function buildPanelKpiFromAnalytics(analytics) {
     days_in_month: daysInMonth,
     hasPlan: planTotal > 0,
     forecast_pct: forecastPct,
-    plan_tone:
-      planPct >= 85 ? 'ok' : planPct >= 45 ? 'neutral' : planPct > 0 ? 'warn' : 'neutral',
+    plan_tone: planTone,
   }
 }
