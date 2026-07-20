@@ -3332,6 +3332,56 @@ tr:last-child td {
   margin-top: 0;
 }
 
+/* Планшет / широкий экран: снимаем узкий 920px, заполняем ширину зала */
+@media (min-width: 768px) {
+  .app-main:has(.trainer-home),
+  .app-main:has(.pnk-client-panel),
+  .app-main:has(.trainer-path-head) {
+    max-width: min(1480px, 100%);
+  }
+
+  .trainer-home .trainer-attention,
+  .trainer-home .trainer-cq-glance,
+  .trainer-home .trainer-task-glance,
+  .trainer-home .trainer-pnk-glance,
+  .trainer-home .trainer-sync-banner,
+  .trainer-home .trainer-push-prompt,
+  .trainer-home .trainer-challenges,
+  .trainer-home .tile-grid {
+    max-width: none;
+    margin-inline: 0;
+    width: 100%;
+  }
+}
+
+/* Landscape-планшет: виджеты в две колонки — не куча в левом верхнем углу */
+@media (min-width: 1024px) {
+  .trainer-home {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: clamp(14px, 1.8vw, 22px);
+    align-items: start;
+  }
+
+  .trainer-home__hero,
+  .trainer-home > .trainer-sync-banner,
+  .trainer-home > .trainer-push-prompt,
+  .trainer-home > .trainer-challenges,
+  .trainer-home > .trainer-home__tiles {
+    grid-column: 1 / -1;
+  }
+
+  .trainer-home .trainer-cq-glance,
+  .trainer-home .trainer-task-glance,
+  .trainer-home .trainer-attention {
+    margin-top: 0;
+  }
+
+  .trainer-attention__grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 168px), 1fr));
+  }
+}
+
 /* Узкий планшет / портрет: пропорционально компактнее, hero в 2 колонки (не stack — экономит высоту) */
 @media (max-width: 960px) {
   .app-main:has(.trainer-home) {

@@ -438,6 +438,82 @@ button.pnk-chip:disabled {
   box-shadow: var(--shadow-soft);
 }
 
+/* Планшет: шапка воронки слева, Max справа — без пустого чёрного поля */
+.pnk-client-panel__visit-board {
+  display: grid;
+  gap: 12px;
+  align-items: start;
+  min-width: 0;
+}
+
+.pnk-client-panel__visit-side {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pnk-client-panel__visit-side .pnk-coach-notify {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+}
+
+.pnk-client-panel__visit-side .pnk-coach-notify__max,
+.pnk-client-panel__visit-side .pnk-coach-notify__other {
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  justify-content: center;
+}
+
+.pnk-client-panel__step--visit {
+  min-width: 0;
+}
+
+@media (min-width: 900px) {
+  .pnk-client-panel--visit-board .pnk-client-panel__visit-board {
+    grid-template-columns: minmax(0, 1.45fr) minmax(15rem, 0.9fr);
+    gap: 14px 18px;
+  }
+
+  .pnk-client-panel--visit-board .pnk-client-panel__visit-side {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    padding: 12px;
+    border-radius: var(--radius-md, 12px);
+    background: color-mix(in srgb, var(--bg-elevated, #1a1f1c) 90%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent, #7dffb3) 24%, transparent);
+  }
+
+  .pnk-client-panel--visit-board .pnk-client-panel__visit-side .pnk-coach-notify {
+    grid-template-columns: 1fr;
+  }
+
+  .pnk-client-panel--visit-board .pnk-client-panel__step--visit {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(15rem, 0.9fr);
+    gap: 12px 18px;
+    align-items: end;
+  }
+
+  .pnk-client-panel--visit-board .pnk-client-panel__step--visit .pnk-client-panel__cta-hint {
+    grid-column: 1 / -1;
+  }
+
+  .pnk-client-panel--visit-board .pnk-client-panel__step--visit .pnk-client-panel__schedule {
+    grid-column: 1;
+  }
+
+  .pnk-client-panel--visit-board .pnk-client-panel__step--visit .pnk-client-panel__actions--secondary {
+    grid-column: 1;
+    max-width: 22rem;
+  }
+}
+
 .pnk-client-panel__head {
   display: flex;
   justify-content: space-between;

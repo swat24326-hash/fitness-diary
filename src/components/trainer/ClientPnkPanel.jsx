@@ -104,6 +104,7 @@ export function ClientPnkPanel({
   const d = parsePnkDeliverables(client.pnk_deliverables)
   const trainerName = user?.name || ''
   const primaryInBody = hatNav.primarySlot === 'body'
+  const visitBoard = step.key === 'wait' || step.key === 'invite'
 
   async function run(patch) {
     if (!patch) return false
@@ -208,21 +209,48 @@ export function ClientPnkPanel({
     setTimeout(() => setToast(''), 3500)
   }
 
+  const funnelHat = (
+    <PnkFunnelHat
+      step={step}
+      nav={hatNav}
+      busy={busy || advanceLocked}
+      hideNav={step.key === 'close'}
+      showRefuse={step.key !== 'close'}
+      onBack={() => void handleHatBack()}
+      onNext={() => void handleHatNext()}
+      onSkip={() => void handleHatSkip()}
+      onRefuse={() => setConfirmRefuse(true)}
+    />
+  )
+
+  const visitMessengers = (
+    <PnkClientMessengerButtons
+      kind="invite"
+      client={client}
+      trainerName={trainerName}
+      clubName=""
+      trialDate={trialDate}
+      trialTime={trialTime}
+      busy={busy}
+      onResult={onMessengerResult}
+    />
+  )
+
   return (
-    <section className="pnk-client-panel" aria-label="Воронка ПНК">
-      <div className="pnk-funnel-hat-sticky">
-        <PnkFunnelHat
-          step={step}
-          nav={hatNav}
-          busy={busy || advanceLocked}
-          hideNav={step.key === 'close'}
-          showRefuse={step.key !== 'close'}
-          onBack={() => void handleHatBack()}
-          onNext={() => void handleHatNext()}
-          onSkip={() => void handleHatSkip()}
-          onRefuse={() => setConfirmRefuse(true)}
-        />
-      </div>
+    <section
+      className={visitBoard ? 'pnk-client-panel pnk-client-panel--visit-board' : 'pnk-client-panel'}
+      aria-label="Воронка ПНК"
+    >
+      {visitBoard ? (
+        <div className="pnk-client-panel__visit-board">
+          <div className="pnk-funnel-hat-sticky">{funnelHat}</div>
+          <aside className="pnk-client-panel__visit-side" aria-label="Написать клиенту">
+            {visitMessengers}
+          </aside>
+        </div>
+      ) : (
+        <div className="pnk-funnel-hat-sticky">{funnelHat}</div>
+      )}
 
       {confirmRefuse ? (
         <div
@@ -276,7 +304,7 @@ export function ClientPnkPanel({
       ) : null}
 
       {step.key === 'invite' ? (
-        <div className="pnk-client-panel__step">
+        <div className="pnk-client-panel__step pnk-client-panel__step--visit">
           <div className="pnk-client-panel__schedule">
             <label className="pnk-client-panel__field">
               Дата бесплатной
@@ -297,23 +325,11 @@ export function ClientPnkPanel({
               />
             </label>
           </div>
-          <div className="pnk-client-panel__actions pnk-client-panel__actions--secondary">
-            <PnkClientMessengerButtons
-              kind="invite"
-              client={client}
-              trainerName={trainerName}
-              clubName=""
-              trialDate={trialDate}
-              trialTime={trialTime}
-              busy={busy}
-              onResult={onMessengerResult}
-            />
-          </div>
         </div>
       ) : null}
 
       {step.key === 'wait' ? (
-        <div className="pnk-client-panel__step">
+        <div className="pnk-client-panel__step pnk-client-panel__step--visit">
           <p className="pnk-client-panel__cta-hint">
             Когда клиент в зале — нажмите <strong>«Клиент пришёл»</strong> в шапке.
           </p>
@@ -351,16 +367,6 @@ export function ClientPnkPanel({
             >
               Изменить дату
             </button>
-            <PnkClientMessengerButtons
-              kind="invite"
-              client={client}
-              trainerName={trainerName}
-              clubName=""
-              trialDate={trialDate}
-              trialTime={trialTime}
-              busy={busy}
-              onResult={onMessengerResult}
-            />
           </div>
         </div>
       ) : null}
