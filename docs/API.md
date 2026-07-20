@@ -43,7 +43,7 @@
 | `sales` | admin / sales_manager | Отчёты продаж |
 | `pnk` | admin / sales_manager | Доска / данные ПНК |
 | `gemini-analytics-prefetch` | admin | Prefetch ИСКРЫ |
-| `iskra-settings`, `iskra-learning`, `iskra-dispatch` | admin (+ dispatch шире) | Настройки, обучение, задания |
+| `iskra-settings`, `iskra-learning`, `iskra-dispatch`, `iskra-tts` | admin (+ dispatch шире) | Настройки, обучение, задания, neural озвучка |
 | `challenges`, `challenge-trainings`, `exercises`, `exercises-meta` | admin / trainer | Справочники |
 | `membership-types`, `nutrition-products`, `homework-presets` | admin / trainer | Типы карт, питание, ДЗ |
 | `push-subscription` | admin / trainer / sales_manager | VAPID public key |
@@ -55,7 +55,7 @@
 | `sales-daily`, `sales-plan` | admin / sales_manager | День / план |
 | `sales-finance`, `create-sales-manager` | admin | Финансы, создание менеджера |
 | `gemini-analytics` | admin | Запрос к ИСКРЕ |
-| `iskra-settings`, `iskra-learning`, `iskra-dispatch` | по op / роли | CRUD настроек, фидбек, задания |
+| `iskra-settings`, `iskra-learning`, `iskra-dispatch`, `iskra-tts` | по op / роли | CRUD настроек, фидбек, задания, TTS |
 | `push-subscription` | auth user | Регистрация push |
 | `reset-trainer-password`, `set-trainer-active` | admin | Управление тренером |
 | `pnk` | admin / sales_manager | Мутации ПНК |

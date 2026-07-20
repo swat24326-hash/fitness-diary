@@ -13,6 +13,12 @@ let resumeIntervalId = null
 let speechGeneration = 0
 let cachedVoices = null
 let voicesLoadPromise = null
+/** @type {HTMLAudioElement | null} */
+let neuralAudioEl = null
+/** @type {string | null} */
+let neuralObjectUrl = null
+/** Один Audio на сессию — разблокируется жестом, потом играет neural без повторного gesture. */
+let unlockedAudioEl = null
 
 const SPEECH_CHUNK_MAX = 150
 const SPEECH_RESUME_MS = 200
@@ -114,13 +120,39 @@ export function saveGeminiAutoSpeak(enabled) {
  * Не вызывает cancel — иначе Chrome обрывает следующую фразу на первом слове.
  */
 export function primeGeminiSpeechPlayback() {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return false
-  try {
-    window.speechSynthesis.resume()
-    return true
-  } catch {
-    return false
+  if (typeof window === 'undefined') return false
+  let ok = false
+  if (window.speechSynthesis) {
+    try {
+      window.speechSynthesis.resume()
+      ok = true
+    } catch {
+      /* ignore */
+    }
   }
+  try {
+    if (!unlockedAudioEl) unlockedAudioEl = new Audio()
+    unlockedAudioEl.volume = 1
+    unlockedAudioEl.src =
+      'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA='
+    const p = unlockedAudioEl.play()
+    if (p && typeof p.then === 'function') {
+      void p
+        .then(() => {
+          try {
+            unlockedAudioEl.pause()
+            unlockedAudioEl.currentTime = 0
+          } catch {
+            /* ignore */
+          }
+        })
+        .catch(() => {})
+    }
+    ok = true
+  } catch {
+    /* ignore */
+  }
+  return ok
 }
 
 /**
@@ -326,9 +358,9 @@ function scoreSpeechVoice(voice, gender) {
   // Desktop ru надёжнее Online Natural (без VPN Online даёт системный EN + Google).
   if (isMicrosoftVoice(voice)) score += 40
   if (isMicrosoftDesktopVoice(voice)) score += 45
-  if (isMicrosoftOnlineVoice(voice)) score += 12
-  if (/natural/i.test(name)) score += 10
-  if (/neural/i.test(name)) score += 14
+  if (isMicrosoftOnlineVoice(voice)) score -= 200
+  if (/natural/i.test(name) && !isMicrosoftOnlineVoice(voice)) score += 10
+  if (/neural/i.test(name) && !isMicrosoftOnlineVoice(voice)) score += 14
   if (isGoogleVoice(voice)) score -= 120
 
   if (gender === 'female') {
@@ -354,8 +386,14 @@ export function pickGeminiSpeechVoice(gender, voices) {
   const pool = list.filter((v) => isRussianVoice(v))
   if (!pool.length) return null
 
-  const hasMicrosoft = pool.some((v) => isMicrosoftVoice(v))
-  const candidates = hasMicrosoft ? pool.filter((v) => !isGoogleVoice(v)) : pool
+  // Online Natural в Chrome часто «молчит» и подменяет Google — не выбираем в браузере.
+  const stable = pool.filter((v) => !isMicrosoftOnlineVoice(v))
+  const hasLocalMs = stable.some((v) => isMicrosoftVoice(v))
+  const candidates = hasLocalMs
+    ? stable.filter((v) => !isGoogleVoice(v))
+    : stable.filter((v) => isGoogleVoice(v)).length
+      ? stable.filter((v) => isGoogleVoice(v))
+      : stable
 
   let best = null
   let bestScore = -Infinity
@@ -370,12 +408,12 @@ export function pickGeminiSpeechVoice(gender, voices) {
 
   if (best && bestScore > -500) return best
 
-  if (hasMicrosoft) {
-    const microsoftOnly = pool.filter((v) => isMicrosoftVoice(v))
+  if (hasLocalMs) {
+    const microsoftOnly = stable.filter((v) => isMicrosoftVoice(v))
     return sortMicrosoftVoices(microsoftOnly)[0] ?? null
   }
 
-  return candidates[0] ?? null
+  return pickGeminiSpeechFallbackVoice(normalized, pool)
 }
 
 /** Запасной голос Google ru — только если Microsoft совсем недоступен. */
@@ -412,8 +450,8 @@ export function pickGeminiSpeechLocalMicrosoftVoice(gender, voices) {
   const list = Array.isArray(voices) ? voices : []
   const local = list.filter((v) => {
     if (!isMicrosoftVoice(v) || !isRussianVoice(v)) return false
-    const name = String(v?.name ?? '').toLowerCase()
-    return !/online/i.test(name)
+    if (isMicrosoftOnlineVoice(v)) return false
+    return true
   })
   if (!local.length) return null
   return pickGeminiSpeechVoice(gender, local)
@@ -572,19 +610,93 @@ export function nextSpeechVoiceTier(tier, gender, voices) {
   return null
 }
 
+function stopNeuralAudioPlayback() {
+  if (neuralAudioEl) {
+    try {
+      neuralAudioEl.pause()
+      neuralAudioEl.removeAttribute('src')
+      neuralAudioEl.load()
+    } catch {
+      /* ignore */
+    }
+    neuralAudioEl = null
+  }
+  if (neuralObjectUrl) {
+    try {
+      URL.revokeObjectURL(neuralObjectUrl)
+    } catch {
+      /* ignore */
+    }
+    neuralObjectUrl = null
+  }
+}
+
+/**
+ * Красивый neural (Svetlana) с сервера — когда в Chrome нет Microsoft Desktop.
+ * @param {string} text
+ * @param {'male'|'female'|string} gender
+ * @param {number} generation
+ */
+async function speakWithNeuralTts(text, gender, generation) {
+  const { fetchIskraNeuralTts } = await import('./admin/iskraTtsService.js')
+  const result = await fetchIskraNeuralTts(text, gender)
+  if (generation !== speechGeneration) return false
+  if (!result.ok) return false
+
+  stopNeuralAudioPlayback()
+  const binary = atob(result.base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i)
+  const blob = new Blob([bytes], { type: result.mime || 'audio/mpeg' })
+  neuralObjectUrl = URL.createObjectURL(blob)
+
+  const audio = unlockedAudioEl || new Audio()
+  unlockedAudioEl = audio
+  neuralAudioEl = audio
+  audio.src = neuralObjectUrl
+  audio.volume = 1
+
+  await new Promise((resolve, reject) => {
+    audio.onended = () => resolve(true)
+    audio.onerror = () => reject(new Error('audio_error'))
+    const p = audio.play()
+    if (p && typeof p.then === 'function') {
+      p.catch(reject)
+    }
+  })
+  return generation === speechGeneration
+}
+
 export async function speakGeminiText(text, gender = 'female') {
   if (typeof window === 'undefined' || !window.speechSynthesis) return false
 
   const clean = prepareTextForSpeech(text)
   if (!clean) return false
 
-  const chunks = splitSpeechChunks(clean)
-  if (!chunks.length) return false
-
   const generation = ++speechGeneration
+  stopNeuralAudioPlayback()
+
   let voices = await getVoicesCached()
   voices = getLiveVoices(voices)
   if (generation !== speechGeneration) return false
+
+  const localMs = pickGeminiSpeechLocalMicrosoftVoice(gender, voices)
+  const canUseLocal =
+    !!localMs && !!resolveLiveRussianVoice(localMs, getLiveVoices(voices))
+
+  // В Chrome обычно только Google — берём neural Svetlana с API, не скрипучий Google.
+  if (!canUseLocal) {
+    try {
+      const ok = await speakWithNeuralTts(clean, gender, generation)
+      if (ok) return true
+    } catch {
+      /* fall through to browser Google */
+    }
+    if (generation !== speechGeneration) return false
+  }
+
+  const chunks = splitSpeechChunks(clean)
+  if (!chunks.length) return false
 
   if (!pickGeminiSpeechVoice(gender, voices) && !pickGeminiSpeechFallbackVoice(gender, voices)) {
     return false
@@ -599,8 +711,7 @@ export async function speakGeminiText(text, gender = 'female') {
 
   let index = 0
   /** @type {SpeechVoiceTier} */
-  // Сразу Desktop, если есть — не пробуем Online (он часто даёт EN-слово + Google).
-  let voiceTier = pickGeminiSpeechLocalMicrosoftVoice(gender, voices) ? 'local_ms' : 'primary'
+  let voiceTier = canUseLocal ? 'local_ms' : 'google'
 
   const escalateVoiceTier = () => {
     const next = nextSpeechVoiceTier(voiceTier, gender, voices)
@@ -676,9 +787,11 @@ export function previewGeminiVoice(_gender = 'female') {
 }
 
 export function stopGeminiSpeech() {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return
+  if (typeof window === 'undefined') return
   speechGeneration++
   clearResumeInterval()
+  stopNeuralAudioPlayback()
+  if (!window.speechSynthesis) return
   const synth = window.speechSynthesis
   try {
     synth.pause()

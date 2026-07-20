@@ -647,6 +647,9 @@ export function GeminiAnalyticsPanel({
 
       const compare = resolveGeminiComparePrevious({ userMessage, comparePrevious })
 
+      // Жест пользователя: разблокировать neural Audio до долгого ответа Gemini.
+      if (autoSpeak) primeGeminiSpeechPlayback()
+
       stopListening()
       setError('')
       setLoading(true)
@@ -755,6 +758,7 @@ export function GeminiAnalyticsPanel({
         setLastRetry(incomplete ? { text: userMessage, comparePrevious: compare, completionRetry: true } : null)
         setError('')
         if (autoSpeak && reply && !incomplete) {
+          primeGeminiSpeechPlayback()
           const speakText = extractIskraSpeechSnippet(reply, replyMode)
           window.setTimeout(() => {
             void speakGeminiText(speakText, ISKRA_TTS_GENDER)

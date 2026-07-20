@@ -14,6 +14,7 @@ import {
 } from './_lib/coachQualitySettingsHandler.js'
 import { handleIskraLearningGet, handleIskraLearningPost } from './_lib/iskraLearningHandler.js'
 import { handleIskraDispatchGet, handleIskraDispatchPost } from './_lib/iskraDispatchHandler.js'
+import { handleIskraTtsPost } from './_lib/iskraTtsHandler.js'
 import { handlePushSubscriptionGet, handlePushSubscriptionPost } from './_lib/pushSubscriptionHandler.js'
 import { handleResetTrainerPasswordPost, handleSetTrainerActivePost } from './_lib/trainerAuthAdmin.js'
 import { handleSearch, handleJournal, handleClientsLastTrainings } from './_lib/adminData/journalHandlers.js'
@@ -59,6 +60,7 @@ async function handler(req, res) {
       'coach-quality-settings',
       'iskra-learning',
       'iskra-dispatch',
+      'iskra-tts',
       'push-subscription',
       'reset-trainer-password',
       'set-trainer-active',
@@ -77,6 +79,11 @@ async function handler(req, res) {
       const ctx = await requireAdmin(req, res)
       if (!ctx) return
       return handleGeminiAnalyticsPost(ctx, req, res, body)
+    }
+    if (action === 'iskra-tts') {
+      const ctx = await requireAdmin(req, res)
+      if (!ctx) return
+      return handleIskraTtsPost(ctx, res, body)
     }
     if (action === 'sales-finance') {
       const ctx = await requireAdmin(req, res)

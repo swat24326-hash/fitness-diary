@@ -385,13 +385,14 @@ const voiceEn = { name: 'Microsoft Zira', lang: 'en-US' }
 
 const edgeVoices = [voiceGoogleRu, voiceMicrosoftIrina, voiceMicrosoftFemale, voiceMicrosoftMale, voiceEn]
 ok(pickGeminiSpeechVoice('female', edgeVoices)?.name.includes('Irina'), 'tts female prefers Irina Desktop')
-ok(pickGeminiSpeechVoice('male', edgeVoices)?.name.includes('Dmitry Online') || pickGeminiSpeechVoice('male', edgeVoices)?.name.includes('Pavel'), 'tts male prefers ms russian')
-ok(pickGeminiSpeechVoice('female', [voiceGoogleRu, voiceMicrosoftNeural])?.name.includes('SvetlanaNeural'), 'tts female neural voice')
+ok(pickGeminiSpeechVoice('female', [voiceGoogleRu, voiceMicrosoftNeural])?.name.includes('Google'), 'tts skips server neural online')
 ok(!/google/i.test(pickGeminiSpeechVoice('female', edgeVoices)?.name ?? ''), 'tts skips Google when Microsoft available')
 ok(pickGeminiSpeechFallbackVoice('female', edgeVoices)?.name.includes('Google'), 'tts fallback Google without VPN')
 ok(pickGeminiSpeechFallbackVoice('male', edgeVoices)?.name.includes('Google'), 'tts fallback male Google')
 ok(pickGeminiSpeechLocalMicrosoftVoice('female', edgeVoices)?.name.includes('Irina'), 'tts local ms female Irina')
 ok(pickGeminiSpeechLocalMicrosoftVoice('male', [voiceGoogleRu, voiceMicrosoftPavelDesktop])?.name.includes('Pavel'), 'tts local ms male Pavel')
+ok(pickGeminiSpeechLocalMicrosoftVoice('female', [voiceGoogleRu, voiceMicrosoftFemale]) === null, 'tts local ms ignores online only')
+ok(pickGeminiSpeechVoice('female', [voiceGoogleRu, voiceMicrosoftFemale])?.name.includes('Google'), 'tts browser pick skips online ms')
 ok(nextSpeechVoiceTier('primary', 'female', edgeVoices) === 'local_ms', 'tts escalate primary→local_ms')
 ok(nextSpeechVoiceTier('local_ms', 'female', edgeVoices) === null, 'tts never escalate local_ms→google')
 ok(nextSpeechVoiceTier('primary', 'female', [voiceGoogleRu]) === 'google', 'tts escalate primary→google if no ms')
@@ -434,7 +435,15 @@ ok(
 ok(resolveLiveRussianVoice(voiceEn, [voiceEn, voiceMicrosoftIrina]) === null, 'tts resolve rejects english')
 
 const voiceMicrosoftPavel = { name: 'Microsoft Pavel Online (Natural)', lang: 'ru-RU' }
-ok(pickGeminiSpeechVoice('male', [voiceMicrosoftFemale, voiceMicrosoftPavel])?.name.includes('Pavel'), 'tts male prefers Pavel when no Dmitry')
+ok(
+  pickGeminiSpeechVoice('male', [voiceMicrosoftFemale, voiceMicrosoftPavel]) === null ||
+    /google/i.test(pickGeminiSpeechVoice('male', [voiceMicrosoftFemale, voiceMicrosoftPavel])?.name ?? ''),
+  'tts online-only ms not used in browser pick',
+)
+ok(
+  pickGeminiSpeechVoice('male', [voiceMicrosoftFemale, voiceMicrosoftPavelDesktop])?.name.includes('Pavel'),
+  'tts male prefers Pavel desktop when no Dmitry',
+)
 
 ok(isGeminiRetryableError('models/gemini-1.5-flash is not found'), 'retry on missing model')
 ok(isGeminiRetryableError('This model is currently experiencing high demand'), 'retry on overload')
