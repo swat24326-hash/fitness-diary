@@ -39,7 +39,7 @@ export const PNK_DELIVERABLE_KEYS = [
 /** @type {Record<PnkDeliverableKey, string>} */
 export const PNK_DELIVERABLE_LABELS = {
   contact: 'Связь с клиентом',
-  visit_started: 'Клиент в зале',
+  visit_started: 'Начало тренировки',
   health: 'Здоровье',
   nutrition: 'Питание',
   trial: 'Тренировка',

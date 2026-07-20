@@ -6,6 +6,7 @@ const STATUS_MARK = {
   done: '✓',
   weak: '~',
   missing: '·',
+  pending: '…',
 }
 
 function QualityItem({ item }) {
@@ -26,6 +27,7 @@ export function PnkVisitQualityReport({ report, className = '' }) {
   if (!report?.items?.length) return null
   const phases = Array.isArray(report.phases) && report.phases.length > 0 ? report.phases : null
   const pct = report.pct != null ? Number(report.pct) : null
+  const pending = report.pending ?? 0
 
   return (
     <section
@@ -34,7 +36,7 @@ export function PnkVisitQualityReport({ report, className = '' }) {
     >
       <div className="pnk-visit-quality__head">
         <h3 className="pnk-visit-quality__title">Итог визита</h3>
-        <span className="pnk-visit-quality__badge" title="Сделано по делу / всего пунктов">
+        <span className="pnk-visit-quality__badge" title="Сделано по делу / пунктов, которые уже можно требовать">
           {report.done}/{report.total}
         </span>
       </div>
@@ -52,6 +54,12 @@ export function PnkVisitQualityReport({ report, className = '' }) {
           <span className="pnk-visit-quality__chip-n">{report.missing ?? 0}</span>
           <span className="pnk-visit-quality__chip-l">нет</span>
         </li>
+        {pending > 0 ? (
+          <li className="pnk-visit-quality__chip pnk-visit-quality__chip--pending">
+            <span className="pnk-visit-quality__chip-n">{pending}</span>
+            <span className="pnk-visit-quality__chip-l">ждём</span>
+          </li>
+        ) : null}
       </ul>
 
       {phases ? (
@@ -78,7 +86,7 @@ export function PnkVisitQualityReport({ report, className = '' }) {
       {pct != null ? (
         <div className="pnk-visit-quality__pct-block" aria-label={`Полнота по делу ${pct}%`}>
           <div className="pnk-visit-quality__pct-row">
-            <span className="pnk-visit-quality__pct-label">Полнота по делу</span>
+            <span className="pnk-visit-quality__pct-label">Полнота по текущему этапу</span>
             <span className="pnk-visit-quality__pct-value">{pct}%</span>
           </div>
           <div className="pnk-visit-quality__pct-track" aria-hidden>
