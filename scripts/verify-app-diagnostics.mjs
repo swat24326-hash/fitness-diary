@@ -12,6 +12,7 @@ import {
   formatSyncQueueLine,
   resolveQuickFixes,
 } from '../src/lib/appDiagnostics.js'
+import { isViteStaleChunkError } from '../src/lib/viteChunkReload.js'
 
 const system = buildSystemState({
   user: { name: 'Test', email: 't@x.com', id: 'u1' },
@@ -56,6 +57,14 @@ const chunkFixes = resolveQuickFixes({
   system: { online: true },
 })
 assert.ok(chunkFixes.some((f) => f.id === 'reload'), 'chunk load quick fix reload')
+
+assert.ok(
+  isViteStaleChunkError(
+    new Error('Failed to fetch dynamically imported module: https://x/assets/PwaUpdatePrompt-CORITAdj.js'),
+  ),
+  'stale chunk detector',
+)
+assert.ok(!isViteStaleChunkError(new Error('Failed to fetch')), 'ordinary network is not chunk')
 
 const queue = [{ table_name: 'trainings', operation: 'insert', local_id: 'abc', retry_count: 1 }]
 assert.ok(formatSyncQueueLine(queue[0], 0).includes('trainings'))

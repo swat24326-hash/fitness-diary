@@ -17,7 +17,8 @@ function shouldReloadNow() {
   }
 }
 
-function isStaleChunkError(err) {
+/** @param {unknown} err */
+export function isViteStaleChunkError(err) {
   const msg = String(err?.message ?? err ?? '')
   return /Failed to fetch dynamically imported module|Importing a module script failed|Loading chunk [\w-]+ failed|ChunkLoadError/i.test(
     msg,
@@ -39,7 +40,7 @@ export function armViteChunkReloadOnStaleDeploy() {
 
   window.addEventListener('unhandledrejection', (event) => {
     const reason = event?.reason
-    if (!isStaleChunkError(reason)) return
+    if (!isViteStaleChunkError(reason)) return
     if (shouldReloadNow()) window.location.reload()
   })
 }
