@@ -25,12 +25,8 @@ export function PnkControlCardDetail({
   if (!card) {
     return (
       <div className="pnk-control-detail pnk-control-detail--empty card" aria-live="polite">
-        <p className="pnk-funnel__section-title" style={{ margin: 0 }}>
-          Оценка ПНК
-        </p>
-        <p className="muted" style={{ margin: '8px 0 0' }}>
-          Выберите карточку слева — здесь итог визита, шаги, связь с тренером и комментарий.
-        </p>
+        <p className="pnk-control-detail__empty-title">Оценка ПНК</p>
+        <p className="pnk-control-detail__empty-text muted">Выберите карточку слева</p>
       </div>
     )
   }
@@ -38,6 +34,7 @@ export function PnkControlCardDetail({
   const flags = buildPnkAttentionFlags(card.client)
   const href = typeof clientHref === 'function' ? clientHref(card.client) : null
   const showDelete = typeof onRequestDelete === 'function' && canDeletePnkClient(card.client)
+  const metaBits = [card.trainerName, card.caption].filter(Boolean)
 
   return (
     <div className="pnk-control-detail card" aria-label={`Оценка: ${card.name}`}>
@@ -48,14 +45,17 @@ export function PnkControlCardDetail({
             <span className="pnk-control-card__hot">{card.hotLabel || 'Внимание'}</span>
           ) : null}
         </div>
-        <p className="pnk-control-card__meta muted" style={{ margin: 0 }}>
-          {card.trainerName}
-          {card.caption ? ` · ${card.caption}` : ''}
+        {metaBits.length ? (
+          <p className="pnk-control-detail__meta muted">{metaBits.join(' · ')}</p>
+        ) : null}
+        <p className="pnk-control-detail__step">
+          <span className="pnk-control-detail__step-kicker">ПНК</span>
+          <span className="pnk-control-detail__step-n">
+            шаг {card.stepN}/{card.stepTotal}
+          </span>
+          <span className="pnk-control-detail__step-title">{card.stepTitle}</span>
         </p>
-        <p className="pnk-control-card__step muted" style={{ margin: 0 }}>
-          ПНК · шаг {card.stepN}/{card.stepTotal} · {card.stepTitle}
-        </p>
-        <div className="pnk-funnel-hat--tile">
+        <div className="pnk-control-detail__progress pnk-funnel-hat--tile">
           <PnkStepBlocks stepN={card.stepN} stepTotal={card.stepTotal} />
         </div>
       </div>
@@ -69,9 +69,6 @@ export function PnkControlCardDetail({
         />
       ) : null}
 
-      <p className="pnk-control-card__intervene muted">
-        Вмешаться: напишите тренеру — текст под текущий этап.
-      </p>
       <div className="pnk-control-detail__actions" role="group" aria-label="Действия по ПНК">
         <PnkCoachNotifyChip
           client={card.client}
@@ -82,14 +79,17 @@ export function PnkControlCardDetail({
           onResult={onNotifyResult}
         />
         {href ? (
-          <Link to={href} className="btn btn-secondary btn-touch u-no-decoration pnk-control-detail__action">
+          <Link
+            to={href}
+            className="btn btn-secondary btn-touch u-no-decoration pnk-control-detail__action pnk-control-detail__action--client"
+          >
             Открыть карточку клиента
           </Link>
         ) : null}
         {showDelete ? (
           <button
             type="button"
-            className="btn btn-ghost btn-touch pnk-control-card__delete pnk-control-detail__action"
+            className="btn btn-ghost btn-touch pnk-control-card__delete pnk-control-detail__action pnk-control-detail__action--delete"
             disabled={busy}
             onClick={() => onRequestDelete({ id: card.id, name: card.name })}
             title="Удалить ПНК"

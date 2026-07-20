@@ -3,13 +3,10 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, RefreshCw, UserPlus } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { monthPartsFromIso, monthDateRange } from '../../lib/admin/salesReportCore'
-import { todayLocalIso, formatDateRu } from '../../lib/dateRu'
+import { todayLocalIso } from '../../lib/dateRu'
 import { createPnkClient, deletePnkClient, fetchPnkBundle, patchPnkClient } from '../../lib/pnk/pnkApiService'
 import { PnkCoachNotifyChip } from '../../components/pnk/PnkCoachNotifyChip'
 import { PnkManagerControlBoard } from '../../components/pnk/PnkManagerControlBoard'
-import {
-  PnkQualityChips,
-} from '../../components/pnk/PnkStatusChips'
 import {
   buildPnkDemoScenarioForm,
   matchesPnkBoardFilter,
@@ -37,7 +34,6 @@ export function SalesPnk() {
   const [createOpen, setCreateOpen] = useState(false)
   const [boardFilter, setBoardFilter] = useState('all')
   const [attentionFilterSeeded, setAttentionFilterSeeded] = useState(false)
-  const [monthSummaryOpen, setMonthSummaryOpen] = useState(false)
   const [toast, setToast] = useState('')
   const [lastCreated, setLastCreated] = useState(null)
 
@@ -389,70 +385,8 @@ export function SalesPnk() {
                 ) : null}
               </>
             }
-            assessExtras={
-              stats ? (
-                <div className="pnk-funnel__month-summary">
-                  <button
-                    type="button"
-                    className="pnk-funnel__month-summary-toggle"
-                    aria-expanded={monthSummaryOpen}
-                    onClick={() => setMonthSummaryOpen((v) => !v)}
-                  >
-                    {monthSummaryOpen ? 'Скрыть сводку' : 'Сводка месяца'}
-                    {!monthSummaryOpen ? (
-                      <span className="muted pnk-funnel__month-summary-hint">
-                        {' '}
-                        · питание {stats.nutritionPct}% · ДЗ {stats.homeworkPct}%
-                      </span>
-                    ) : null}
-                  </button>
-                  {monthSummaryOpen ? (
-                    <div className="pnk-funnel__month-summary-body">
-                      <PnkQualityChips
-                        nutritionPct={stats.nutritionPct}
-                        homeworkPct={stats.homeworkPct}
-                        periodLabel={`${formatDateRu(period.dateFrom)}–${formatDateRu(period.dateTo)}`}
-                      />
-                      {stats.trainers?.length ? (
-                        <section className="pnk-funnel__by-trainer card">
-                          <h2 className="pnk-funnel__section-title">По тренерам</h2>
-                          <table className="pnk-funnel__table">
-                            <thead>
-                              <tr>
-                                <th>Тренер</th>
-                                <th>Оформл. / ПНК</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {stats.trainers.map((t) => (
-                                <tr key={t.trainerId}>
-                                  <td>{t.trainer_name}</td>
-                                  <td>
-                                    {t.won}/{t.entered}
-                                    <span className="pnk-funnel__kpi-pct pnk-funnel__kpi-pct--inline">
-                                      {t.conversionPct}%
-                                    </span>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </section>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null
-            }
           />
         </div>
-      ) : null}
-
-      {isAdmin ? (
-        <p className="muted pnk-funnel__admin-hint">
-          Админ видит всю картину по клубу: фильтр, поиск, выбор карточки → написать тренеру (Max / другой мессенджер),
-          комментарий, переход в карточку клиента.
-        </p>
       ) : null}
     </div>
   )
