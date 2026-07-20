@@ -63,9 +63,9 @@ function sortMicrosoftVoices(voices) {
     const score = (v) => {
       const name = String(v?.name ?? '')
       let s = 0
-      // Desktop стабильнее Online (без VPN Online часто «молчит» → системный EN).
-      if (isMicrosoftDesktopVoice(v)) s += 50
-      if (isMicrosoftOnlineVoice(v)) s += 20
+      if (isMicrosoftOnlineVoice(v) && /natural/i.test(name)) s += 60
+      else if (isMicrosoftOnlineVoice(v)) s += 30
+      if (isMicrosoftDesktopVoice(v)) s += 40
       if (/natural/i.test(name)) s += 12
       if (/neural/i.test(name)) s += 10
       return s
@@ -341,7 +341,7 @@ export function prepareTextForSpeech(text) {
 }
 
 /** @typedef {{ name?: string, lang?: string, voiceURI?: string }} SpeechVoiceLike */
-/** @typedef {'primary' | 'local_ms' | 'google'} SpeechVoiceTier */
+/** @typedef {'online' | 'local_ms' | 'google'} SpeechVoiceTier */
 
 /**
  * @param {SpeechVoiceLike} voice
@@ -355,17 +355,18 @@ function scoreSpeechVoice(voice, gender) {
 
   let score = 0
 
-  // Desktop ru надёжнее Online Natural (без VPN Online даёт системный EN + Google).
+  // Edge + VPN: Microsoft Online Natural — самый красивый голос.
   if (isMicrosoftVoice(voice)) score += 40
+  if (isMicrosoftOnlineVoice(voice) && /natural/i.test(name)) score += 70
+  else if (isMicrosoftOnlineVoice(voice)) score += 35
   if (isMicrosoftDesktopVoice(voice)) score += 45
-  if (isMicrosoftOnlineVoice(voice)) score -= 200
-  if (/natural/i.test(name) && !isMicrosoftOnlineVoice(voice)) score += 10
+  if (/natural/i.test(name)) score += 12
   if (/neural/i.test(name) && !isMicrosoftOnlineVoice(voice)) score += 14
   if (isGoogleVoice(voice)) score -= 120
 
   if (gender === 'female') {
-    if (/irina/i.test(lower)) score += 60
-    if (/svetlana/i.test(lower)) score += 40
+    if (/svetlana/i.test(lower)) score += 55
+    if (/irina/i.test(lower)) score += 40
     if (/dmitri|dmitry|pavel|yuri|male|муж/i.test(lower)) score -= 80
     if (/female|жен|milena|katya|anna|elena|olga/i.test(lower)) score += 12
   } else {
@@ -382,18 +383,11 @@ function scoreSpeechVoice(voice, gender) {
 export function pickGeminiSpeechVoice(gender, voices) {
   const normalized = normalizeGender(gender)
   const list = Array.isArray(voices) ? voices : []
-  // Никогда не падаем на английский системный голос.
   const pool = list.filter((v) => isRussianVoice(v))
   if (!pool.length) return null
 
-  // Online Natural в Chrome часто «молчит» и подменяет Google — не выбираем в браузере.
-  const stable = pool.filter((v) => !isMicrosoftOnlineVoice(v))
-  const hasLocalMs = stable.some((v) => isMicrosoftVoice(v))
-  const candidates = hasLocalMs
-    ? stable.filter((v) => !isGoogleVoice(v))
-    : stable.filter((v) => isGoogleVoice(v)).length
-      ? stable.filter((v) => isGoogleVoice(v))
-      : stable
+  const hasMicrosoft = pool.some((v) => isMicrosoftVoice(v))
+  const candidates = hasMicrosoft ? pool.filter((v) => !isGoogleVoice(v)) : pool
 
   let best = null
   let bestScore = -Infinity
@@ -408,15 +402,15 @@ export function pickGeminiSpeechVoice(gender, voices) {
 
   if (best && bestScore > -500) return best
 
-  if (hasLocalMs) {
-    const microsoftOnly = stable.filter((v) => isMicrosoftVoice(v))
+  if (hasMicrosoft) {
+    const microsoftOnly = pool.filter((v) => isMicrosoftVoice(v))
     return sortMicrosoftVoices(microsoftOnly)[0] ?? null
   }
 
   return pickGeminiSpeechFallbackVoice(normalized, pool)
 }
 
-/** Запасной голос Google ru — только если Microsoft совсем недоступен. */
+/** Запасной голос Google ru — только если Microsoft и neural недоступны. */
 export function pickGeminiSpeechFallbackVoice(gender, voices) {
   const normalized = normalizeGender(gender)
   const list = Array.isArray(voices) ? voices : []
@@ -441,8 +435,21 @@ export function pickGeminiSpeechFallbackVoice(gender, voices) {
 }
 
 /**
- * Локальный / не-Online Microsoft — красивее Google, обычно без VPN.
- * Neural без Online оставляем здесь как ступень после Online Natural.
+ * Microsoft Online Natural (Edge + VPN) — предпочтительный красивый голос.
+ * @param {'male'|'female'|string} gender
+ * @param {SpeechVoiceLike[]} voices
+ */
+export function pickGeminiSpeechOnlineMicrosoftVoice(gender, voices) {
+  const list = Array.isArray(voices) ? voices : []
+  const online = list.filter(
+    (v) => isMicrosoftOnlineVoice(v) && isRussianVoice(v) && /natural|neural/i.test(String(v?.name ?? '')),
+  )
+  if (!online.length) return null
+  return pickGeminiSpeechVoice(gender, online)
+}
+
+/**
+ * Локальный Microsoft Desktop (без Online) — работает без VPN.
  * @param {'male'|'female'|string} gender
  * @param {SpeechVoiceLike[]} voices
  */
@@ -455,6 +462,18 @@ export function pickGeminiSpeechLocalMicrosoftVoice(gender, voices) {
   })
   if (!local.length) return null
   return pickGeminiSpeechVoice(gender, local)
+}
+
+/**
+ * Стартовый ярус: Online (VPN) → Desktop → null (тогда neural/API).
+ * @param {'male'|'female'|string} gender
+ * @param {SpeechVoiceLike[]} voices
+ * @returns {SpeechVoiceTier | null}
+ */
+export function resolveInitialSpeechVoiceTier(gender, voices) {
+  if (pickGeminiSpeechOnlineMicrosoftVoice(gender, voices)) return 'online'
+  if (pickGeminiSpeechLocalMicrosoftVoice(gender, voices)) return 'local_ms'
+  return null
 }
 
 function getLiveVoices(fallback = []) {
@@ -502,12 +521,8 @@ export function resolveLiveRussianVoice(picked, voices) {
  */
 export function pickVoiceForSpeechTier(gender, voices, tier) {
   if (tier === 'google') return pickGeminiSpeechFallbackVoice(gender, voices)
-  if (tier === 'local_ms') {
-    return (
-      pickGeminiSpeechLocalMicrosoftVoice(gender, voices) ??
-      pickGeminiSpeechVoice(gender, voices)
-    )
-  }
+  if (tier === 'local_ms') return pickGeminiSpeechLocalMicrosoftVoice(gender, voices)
+  if (tier === 'online') return pickGeminiSpeechOnlineMicrosoftVoice(gender, voices)
   return pickGeminiSpeechVoice(gender, voices)
 }
 
@@ -575,10 +590,10 @@ function buildUtterance(chunk, gender, voices, options = {}) {
 }
 
 /**
- * Эскалация только с Online (не с Desktop) — иначе уходим в скрипучий Google.
+ * Эскалация только если Online «молчит» (нет VPN) — не трогаем живой Desktop.
  */
 export function shouldEscalateSpeechVoice(utter, chunk, elapsedMs, tier) {
-  if (tier !== 'primary') return false
+  if (tier !== 'online') return false
   if (!utter?.voice) return true
   if (!isMicrosoftOnlineVoice(utter.voice)) return false
   const text = String(chunk ?? '')
@@ -587,26 +602,18 @@ export function shouldEscalateSpeechVoice(utter, chunk, elapsedMs, tier) {
 }
 
 /**
- * Online → Desktop. На Google — только если русского Microsoft нет совсем.
+ * Online → Desktop. Google из браузера не берём при эскалации (лучше neural).
  * @param {SpeechVoiceTier} tier
  * @param {'male'|'female'|string} gender
  * @param {SpeechVoiceLike[]} voices
  * @returns {SpeechVoiceTier | null}
  */
 export function nextSpeechVoiceTier(tier, gender, voices) {
-  const hasLocalMs = !!pickGeminiSpeechLocalMicrosoftVoice(gender, voices)
-  const hasAnyMs = (Array.isArray(voices) ? voices : []).some(
-    (v) => isMicrosoftVoice(v) && isRussianVoice(v),
-  )
-  if (tier === 'primary') {
-    if (hasLocalMs) return 'local_ms'
-    if (!hasAnyMs && pickGeminiSpeechFallbackVoice(gender, voices)) return 'google'
+  if (tier === 'online') {
+    if (pickGeminiSpeechLocalMicrosoftVoice(gender, voices)) return 'local_ms'
     return null
   }
-  if (tier === 'local_ms') {
-    // Не прыгаем на Google, если Desktop уже есть — лучше тишина, чем скрип.
-    return null
-  }
+  if (tier === 'local_ms') return null
   return null
 }
 
@@ -632,7 +639,6 @@ function stopNeuralAudioPlayback() {
 }
 
 /**
- * Красивый neural (Svetlana) с сервера — когда в Chrome нет Microsoft Desktop.
  * @param {string} text
  * @param {'male'|'female'|string} gender
  * @param {number} generation
@@ -667,118 +673,179 @@ async function speakWithNeuralTts(text, gender, generation) {
   return generation === speechGeneration
 }
 
+/**
+ * Браузерная озвучка Microsoft (Online / Desktop). Не Google.
+ * @returns {Promise<'done' | 'need_neural' | 'aborted'>}
+ */
+function speakBrowserMicrosoftChunks(clean, gender, startTier, generation) {
+  return new Promise((resolve) => {
+    const chunks = splitSpeechChunks(clean)
+    if (!chunks.length) {
+      resolve('aborted')
+      return
+    }
+
+    const synth = window.speechSynthesis
+    synth.cancel()
+
+    let voices = getLiveVoices()
+    let index = 0
+    /** @type {SpeechVoiceTier} */
+    let voiceTier = startTier
+    let settled = false
+
+    const finish = (result) => {
+      if (settled) return
+      settled = true
+      clearResumeInterval()
+      resolve(result)
+    }
+
+    const escalateOrNeural = () => {
+      const next = nextSpeechVoiceTier(voiceTier, gender, voices)
+      if (next) {
+        voiceTier = next
+        return 'retry'
+      }
+      return 'neural'
+    }
+
+    const speakNext = () => {
+      if (generation !== speechGeneration) {
+        finish('aborted')
+        return
+      }
+      if (index >= chunks.length) {
+        finish('done')
+        return
+      }
+
+      const chunkIndex = index
+      const chunk = chunks[chunkIndex]
+      index += 1
+      voices = getLiveVoices(voices)
+      const utter = buildUtterance(chunk, gender, voices, { voiceTier })
+      const startedAt = Date.now()
+
+      if (!utter) {
+        const action = escalateOrNeural()
+        if (action === 'retry') {
+          index = chunkIndex
+          speakNext()
+          return
+        }
+        finish('need_neural')
+        return
+      }
+
+      utter.onstart = () => {
+        if (generation !== speechGeneration) return
+        armChromeSpeechResume()
+      }
+      utter.onend = () => {
+        if (generation !== speechGeneration) {
+          finish('aborted')
+          return
+        }
+        const elapsed = Date.now() - startedAt
+        if (shouldEscalateSpeechVoice(utter, chunk, elapsed, voiceTier)) {
+          const action = escalateOrNeural()
+          if (action === 'retry') {
+            index = chunkIndex
+            speakNext()
+            return
+          }
+          finish('need_neural')
+          return
+        }
+        void delayMs(speechChunkPauseMs(chunk)).then(() => {
+          if (generation !== speechGeneration) {
+            finish('aborted')
+            return
+          }
+          speakNext()
+        })
+      }
+      utter.onerror = () => {
+        if (generation !== speechGeneration) {
+          finish('aborted')
+          return
+        }
+        const action = escalateOrNeural()
+        if (action === 'retry') {
+          index = chunkIndex
+          speakNext()
+          return
+        }
+        finish('need_neural')
+      }
+
+      try {
+        synth.speak(utter)
+      } catch {
+        const action = escalateOrNeural()
+        if (action === 'retry') {
+          index = chunkIndex
+          speakNext()
+          return
+        }
+        finish('need_neural')
+      }
+    }
+
+    void delayMs(60).then(() => {
+      if (generation !== speechGeneration) {
+        finish('aborted')
+        return
+      }
+      speakNext()
+    })
+  })
+}
+
 export async function speakGeminiText(text, gender = 'female') {
-  if (typeof window === 'undefined' || !window.speechSynthesis) return false
+  if (typeof window === 'undefined') return false
 
   const clean = prepareTextForSpeech(text)
   if (!clean) return false
 
   const generation = ++speechGeneration
   stopNeuralAudioPlayback()
+  if (window.speechSynthesis) {
+    try {
+      window.speechSynthesis.cancel()
+    } catch {
+      /* ignore */
+    }
+  }
 
   let voices = await getVoicesCached()
   voices = getLiveVoices(voices)
   if (generation !== speechGeneration) return false
 
-  const localMs = pickGeminiSpeechLocalMicrosoftVoice(gender, voices)
-  const canUseLocal =
-    !!localMs && !!resolveLiveRussianVoice(localMs, getLiveVoices(voices))
-
-  // В Chrome обычно только Google — берём neural Svetlana с API, не скрипучий Google.
-  if (!canUseLocal) {
-    try {
-      const ok = await speakWithNeuralTts(clean, gender, generation)
-      if (ok) return true
-    } catch {
-      /* fall through to browser Google */
-    }
-    if (generation !== speechGeneration) return false
-  }
-
-  const chunks = splitSpeechChunks(clean)
-  if (!chunks.length) return false
-
-  if (!pickGeminiSpeechVoice(gender, voices) && !pickGeminiSpeechFallbackVoice(gender, voices)) {
-    return false
-  }
-
-  const synth = window.speechSynthesis
-  synth.cancel()
-  await delayMs(80)
-  if (generation !== speechGeneration) return false
-
   primeGeminiSpeechPlayback()
 
-  let index = 0
-  /** @type {SpeechVoiceTier} */
-  let voiceTier = canUseLocal ? 'local_ms' : 'google'
-
-  const escalateVoiceTier = () => {
-    const next = nextSpeechVoiceTier(voiceTier, gender, voices)
-    if (!next) return false
-    voiceTier = next
-    return true
+  // 1) Edge + VPN: Microsoft Online Natural. 2) Desktop. 3) Neural API. Google — только в самом конце.
+  const startTier = resolveInitialSpeechVoiceTier(gender, voices)
+  if (startTier && window.speechSynthesis) {
+    const browserResult = await speakBrowserMicrosoftChunks(clean, gender, startTier, generation)
+    if (generation !== speechGeneration) return false
+    if (browserResult === 'done') return true
+    if (browserResult === 'aborted') return false
   }
 
-  const speakNext = () => {
-    if (generation !== speechGeneration) return
-    if (index >= chunks.length) {
-      clearResumeInterval()
-      return
-    }
-
-    const chunkIndex = index
-    const chunk = chunks[chunkIndex]
-    index += 1
-
-    voices = getLiveVoices(voices)
-    const utter = buildUtterance(chunk, gender, voices, { voiceTier })
-    const startedAt = Date.now()
-
-    const retryChunkWithNextTier = () => {
-      if (!escalateVoiceTier()) return false
-      index = chunkIndex
-      speakNext()
-      return true
-    }
-
-    if (!utter) {
-      if (retryChunkWithNextTier()) return
-      clearResumeInterval()
-      return
-    }
-
-    utter.onstart = () => {
-      if (generation !== speechGeneration) return
-      armChromeSpeechResume()
-    }
-    utter.onend = () => {
-      if (generation !== speechGeneration) return
-      const elapsed = Date.now() - startedAt
-      if (shouldEscalateSpeechVoice(utter, chunk, elapsed, voiceTier)) {
-        if (retryChunkWithNextTier()) return
-      }
-      void delayMs(speechChunkPauseMs(chunk)).then(() => {
-        if (generation !== speechGeneration) return
-        speakNext()
-      })
-    }
-    utter.onerror = () => {
-      if (generation !== speechGeneration) return
-      if (retryChunkWithNextTier()) return
-      speakNext()
-    }
-
-    try {
-      synth.speak(utter)
-    } catch {
-      if (retryChunkWithNextTier()) return
-      speakNext()
-    }
+  try {
+    const ok = await speakWithNeuralTts(clean, gender, generation)
+    if (ok) return true
+  } catch {
+    /* fall through */
   }
+  if (generation !== speechGeneration) return false
 
-  speakNext()
-  return true
+  // Крайний случай: только Google в браузере (neural недоступен).
+  if (!window.speechSynthesis || !pickGeminiSpeechFallbackVoice(gender, voices)) return false
+  const googleResult = await speakBrowserMicrosoftChunks(clean, gender, 'google', generation)
+  return googleResult === 'done'
 }
 
 export function previewGeminiVoice(_gender = 'female') {
