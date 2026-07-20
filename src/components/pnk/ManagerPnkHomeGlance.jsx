@@ -10,42 +10,71 @@ const SWIPE_THRESHOLD_PX = 42
 
 /**
  * ПНК на главной менеджера / админа — те же принципы, что доска контроля.
- * @param {{ clubId: string, href?: string }} props
+ * @param {{
+ *   clubId: string,
+ *   href?: string,
+ *   compact?: boolean,
+ *   onPresenceChange?: (visible: boolean) => void,
+ * }} props
  */
-export function ManagerPnkHomeGlance({ clubId = '', href = '/sales/pnk' }) {
+export function ManagerPnkHomeGlance({
+  clubId = '',
+  href = '/sales/pnk',
+  compact = false,
+  onPresenceChange,
+}) {
   const navigate = useNavigate()
   const [cards, setCards] = useState([])
   const [index, setIndex] = useState(0)
   const [loading, setLoading] = useState(true)
   const touchRef = useRef({ startX: 0, moved: false })
+  const presenceRef = useRef(null)
 
-  const reload = useCallback(async (opts = {}) => {
-    const silent = opts.silent === true
-    const cid = String(clubId || '').trim()
-    if (!cid) {
-      setCards([])
-      setLoading(false)
-      return
-    }
-    if (!silent) setLoading(true)
-    try {
-      const data = await fetchPnkBundle({ clubId: cid })
-      const next = buildPnkManagerHomeGlanceCards(data?.clients ?? [], { boardHref: href })
-      setCards(next)
-      setIndex((prev) => (prev >= next.length ? 0 : prev))
-    } catch {
-      if (!silent) {
+  const reportPresence = useCallback(
+    (visible) => {
+      if (presenceRef.current === visible) return
+      presenceRef.current = visible
+      onPresenceChange?.(visible)
+    },
+    [onPresenceChange],
+  )
+
+  const reload = useCallback(
+    async (opts = {}) => {
+      const silent = opts.silent === true
+      const cid = String(clubId || '').trim()
+      if (!cid) {
         setCards([])
-        setIndex(0)
+        setLoading(false)
+        reportPresence(false)
+        return
       }
-    } finally {
-      setLoading(false)
-    }
-  }, [clubId, href])
+      if (!silent) setLoading(true)
+      try {
+        const data = await fetchPnkBundle({ clubId: cid })
+        const next = buildPnkManagerHomeGlanceCards(data?.clients ?? [], { boardHref: href })
+        setCards(next)
+        setIndex((prev) => (prev >= next.length ? 0 : prev))
+        reportPresence(next.length > 0)
+      } catch {
+        if (!silent) {
+          setCards([])
+          setIndex(0)
+        }
+        reportPresence(false)
+      } finally {
+        setLoading(false)
+      }
+    },
+    [clubId, href, reportPresence],
+  )
 
   useEffect(() => {
     void reload()
-  }, [reload])
+    return () => {
+      reportPresence(false)
+    }
+  }, [reload, reportPresence])
 
   const goPrev = useCallback(() => {
     setIndex((i) => Math.max(0, i - 1))
@@ -82,7 +111,10 @@ export function ManagerPnkHomeGlance({ clubId = '', href = '/sales/pnk' }) {
   }
 
   if (!String(clubId || '').trim()) return null
+
+  /* В ряду «внимание» скелетон не резервируем — иначе план сжимается зря */
   if (loading) {
+    if (compact) return null
     return (
       <section
         className="trainer-task-glance manager-pnk-glance manager-pnk-glance--skel"
@@ -101,7 +133,10 @@ export function ManagerPnkHomeGlance({ clubId = '', href = '/sales/pnk' }) {
     card.trainerName && card.trainerName !== '—' ? `Тренер: ${card.trainerName}` : ''
 
   return (
-    <section className="trainer-task-glance manager-pnk-glance" aria-labelledby="manager-pnk-glance-title">
+    <section
+      className={`trainer-task-glance manager-pnk-glance${compact ? ' manager-pnk-glance--compact' : ''}`}
+      aria-labelledby="manager-pnk-glance-title"
+    >
       <div
         className={`trainer-task-glance__card manager-pnk-glance__card pnk-glance-shell${card.isHot ? ' trainer-task-glance__card--hot manager-pnk-glance__card--hot' : ''}`}
         onTouchStart={hasMany ? onTouchStart : undefined}

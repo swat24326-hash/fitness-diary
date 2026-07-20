@@ -3730,6 +3730,44 @@ tr:last-child td {
   line-height: 1.2;
 }
 
+.admin-day-summary--dense {
+  max-width: none;
+}
+
+.admin-day-summary--dense .admin-day-summary__grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  gap: 10px;
+}
+
+.admin-day-summary--dense .admin-day-summary__card {
+  padding: 10px 12px;
+  gap: 2px;
+}
+
+.admin-day-summary--dense .admin-day-summary__card-count {
+  font-size: 1.25rem;
+}
+
+.admin-day-summary--dense .admin-day-summary__card-label {
+  font-size: 0.82rem;
+}
+
+.admin-day-summary__more {
+  margin-top: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.feature-tile--echo {
+  opacity: 0.55;
+}
+
+.feature-tile--echo:hover,
+.feature-tile--echo.feature-tile--active {
+  opacity: 0.85;
+}
+
 .admin-day-summary__note {
   display: flex;
   align-items: center;

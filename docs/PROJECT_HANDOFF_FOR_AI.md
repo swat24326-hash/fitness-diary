@@ -110,6 +110,8 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 
 Карточка клиента (`ClientCard`) общая для тренера и админа.
 
+**Главная админа / менеджера продаж:** ряд «внимание» — `AdminHomeAttentionRow` (план + ПНК + планёрка + мягкие сигналы в пустые слоты). Сводка дня — spotlight + «Ещё». Тот же каркас при будущих ролях управляющего/куратора ([CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md), [ISKRA_CURATOR.md](./ISKRA_CURATOR.md)).
+
 **В планах (не роли в коде):** управляющий клуба — [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md).
 
 ---

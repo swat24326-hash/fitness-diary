@@ -1,29 +1,27 @@
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, BarChart3, Clock, Gauge, TrendingUp, UserX } from 'lucide-react'
+import { AlertTriangle, BarChart3, ChevronDown, ChevronUp, Clock, Gauge, TrendingUp, UserX } from 'lucide-react'
 import { formatIsoRu } from '../../lib/period'
-import { buildAdminClubQueryHref } from '../../lib/admin/adminClientQuickFilters'
+import {
+  buildAdminDaySummaryCards,
+  splitDaySummarySpotlight,
+} from '../../lib/admin/adminDaySummaryUiCore.js'
+
+const ICONS = {
+  userX: UserX,
+  clock: Clock,
+  barChart: BarChart3,
+  trending: TrendingUp,
+  gauge: Gauge,
+}
 
 /**
  * @param {{
- *   summary: {
- *     today: string,
- *     yesterday: string,
- *     inactive: number,
- *     expiring: number,
- *     trainingsToday: number,
- *     trainingsYesterday: number,
- *     draftsToday: number,
- *     salesReportFilled: boolean | null,
- *     actionable: number,
- *   } | null,
+ *   summary: object | null,
  *   clubId?: string,
  *   loading?: boolean,
  *   noClub?: boolean,
- *   coachQuality?: {
- *     scorePct: number | null,
- *     chipLabel: string | null,
- *     hot?: boolean,
- *   } | null,
+ *   coachQuality?: object | null,
  *   coachQualityLoading?: boolean,
  * }} props
  */
@@ -35,6 +33,26 @@ export function AdminClubDaySummaryPanel({
   coachQuality = null,
   coachQualityLoading = false,
 }) {
+  const [expanded, setExpanded] = useState(false)
+
+  const cards = useMemo(
+    () =>
+      summary
+        ? buildAdminDaySummaryCards({
+            summary,
+            clubId,
+            coachQuality,
+            coachQualityLoading,
+          })
+        : [],
+    [summary, clubId, coachQuality, coachQualityLoading],
+  )
+
+  const { spotlight, rest, hasMore } = useMemo(
+    () => splitDaySummarySpotlight(cards, { maxSpotlight: 2 }),
+    [cards],
+  )
+
   if (noClub) {
     return (
       <section className="admin-day-summary" aria-labelledby="admin-day-summary-title">
@@ -49,7 +67,7 @@ export function AdminClubDaySummaryPanel({
   if (loading && !summary) {
     return (
       <section
-        className="admin-day-summary admin-day-summary--skel"
+        className="admin-day-summary admin-day-summary--skel admin-day-summary--dense"
         aria-labelledby="admin-day-summary-title"
         aria-busy="true"
       >
@@ -59,9 +77,6 @@ export function AdminClubDaySummaryPanel({
         <ul className="admin-day-summary__skel-grid" aria-label="Загрузка сводки">
           <li className="admin-home-skel admin-day-summary__skel-card" />
           <li className="admin-home-skel admin-day-summary__skel-card" />
-          <li className="admin-home-skel admin-day-summary__skel-card" />
-          <li className="admin-home-skel admin-day-summary__skel-card" />
-          <li className="admin-home-skel admin-day-summary__skel-card" />
         </ul>
       </section>
     )
@@ -69,72 +84,11 @@ export function AdminClubDaySummaryPanel({
 
   if (!summary) return null
 
-  const salesLabel =
-    summary.salesReportFilled === null
-      ? 'Нет облака'
-      : summary.salesReportFilled
-        ? 'Заполнен'
-        : 'Не заполнен'
-
-  const items = [
-    {
-      key: 'inactive',
-      count: summary.inactive,
-      label: 'Не активные',
-      hint: 'на сегодня · список в статистике',
-      icon: UserX,
-      to: buildAdminClubQueryHref('/admin/statistics', { clubId, period: 'today', panel: 'inactive' }),
-      hot: summary.inactive > 0,
-    },
-    {
-      key: 'expiring',
-      count: summary.expiring,
-      label: 'Истекает абонемент',
-      hint: '≤ 3 дня',
-      icon: Clock,
-      to: buildAdminClubQueryHref('/admin/clients', { clubId, filter: 'expiring' }),
-      hot: summary.expiring > 0,
-    },
-    {
-      key: 'trainings',
-      count: summary.trainingsToday,
-      label: 'Тренировок сегодня',
-      hint: `вчера: ${summary.trainingsYesterday}`,
-      icon: BarChart3,
-      to: buildAdminClubQueryHref('/admin/statistics', { clubId, period: 'today', panel: 'journal' }),
-      hot: false,
-    },
-    {
-      key: 'sales',
-      count: summary.salesReportFilled === false ? '!' : summary.salesReportFilled ? '✓' : '—',
-      label: 'Отчёт продаж',
-      hint: formatIsoRu(summary.today),
-      icon: TrendingUp,
-      to: buildAdminClubQueryHref('/admin/sales', { clubId }),
-      hot: summary.salesReportFilled === false,
-      textCount: true,
-    },
-    {
-      key: 'coachQuality',
-      count:
-        coachQualityLoading && !coachQuality
-          ? '…'
-          : coachQuality?.scorePct != null
-            ? coachQuality.scorePct
-            : '—',
-      valueSuffix: coachQuality?.scorePct != null ? '/100' : null,
-      label: 'Качество ведения',
-      hint: coachQuality?.chipLabel || 'за месяц · таблица в статистике',
-      icon: Gauge,
-      to: buildAdminClubQueryHref('/admin/statistics', { clubId, period: 'month', panel: 'coachQuality' }),
-      hot: Boolean(coachQuality?.hot),
-      textCount: coachQuality?.scorePct == null,
-    },
-  ]
+  const visible = expanded || !hasMore ? cards : spotlight
 
   return (
     <section
-      className="admin-day-summary"
+      className="admin-day-summary admin-day-summary--dense"
       aria-labelledby="admin-day-summary-title"
       aria-busy={loading || undefined}
     >
@@ -151,28 +105,49 @@ export function AdminClubDaySummaryPanel({
           </p>
         )}
       </div>
-      <ul className="admin-day-summary__grid">
-        {items.map(({ key, count, label, hint, icon: Icon, to, hot, textCount, valueSuffix }) => (
-          <li key={key}>
-            <Link
-              to={to}
-              className={`admin-day-summary__card u-no-decoration${hot ? ' admin-day-summary__card--hot' : ''}${key === 'sales' && summary.salesReportFilled === false ? ' admin-day-summary__card--warn' : ''}`}
-            >
-              <span className="admin-day-summary__card-icon" aria-hidden>
-                <Icon size={18} />
-              </span>
-              <span className={`admin-day-summary__card-count${textCount ? ' admin-day-summary__card-count--text' : ''}`}>
-                {count}
-                {valueSuffix ? <span className="admin-day-summary__card-suffix">{valueSuffix}</span> : null}
-              </span>
-              <span className="admin-day-summary__card-label">{label}</span>
-              <span className="admin-day-summary__card-hint muted">
-                {key === 'sales' ? `${hint} · ${salesLabel}` : hint}
-              </span>
-            </Link>
-          </li>
-        ))}
+      <ul className={`admin-day-summary__grid${expanded ? ' admin-day-summary__grid--expanded' : ''}`}>
+        {visible.map(({ key, count, label, hint, icon, to, hot, warn, textCount, valueSuffix }) => {
+          const Icon = ICONS[icon] || BarChart3
+          return (
+            <li key={key}>
+              <Link
+                to={to}
+                className={`admin-day-summary__card u-no-decoration${hot ? ' admin-day-summary__card--hot' : ''}${warn ? ' admin-day-summary__card--warn' : ''}`}
+              >
+                <span className="admin-day-summary__card-icon" aria-hidden>
+                  <Icon size={16} />
+                </span>
+                <span
+                  className={`admin-day-summary__card-count${textCount ? ' admin-day-summary__card-count--text' : ''}`}
+                >
+                  {count}
+                  {valueSuffix ? <span className="admin-day-summary__card-suffix">{valueSuffix}</span> : null}
+                </span>
+                <span className="admin-day-summary__card-label">{label}</span>
+                <span className="admin-day-summary__card-hint muted">{hint}</span>
+              </Link>
+            </li>
+          )
+        })}
       </ul>
+      {hasMore ? (
+        <button
+          type="button"
+          className="admin-day-summary__more btn btn-ghost btn-sm"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((v) => !v)}
+        >
+          {expanded ? (
+            <>
+              <ChevronUp size={16} aria-hidden /> Свернуть
+            </>
+          ) : (
+            <>
+              <ChevronDown size={16} aria-hidden /> Ещё {rest.length}
+            </>
+          )}
+        </button>
+      ) : null}
       {summary.draftsToday > 0 ? (
         <p className="admin-day-summary__note muted">
           <AlertTriangle size={14} aria-hidden /> Черновиков тренировок сегодня: {summary.draftsToday}

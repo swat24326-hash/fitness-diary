@@ -29,9 +29,9 @@ const MONTH_NAMES = [
 
 /**
  * Факт / план месяца на главной админа — тап по карточке открывает продажи.
- * @param {{ clubId: string }} props
+ * @param {{ clubId: string, compact?: boolean }} props
  */
-export function AdminHomeSalesPlanGlance({ clubId = '' }) {
+export function AdminHomeSalesPlanGlance({ clubId = '', compact = false }) {
   const [loading, setLoading] = useState(true)
   const [fact, setFact] = useState(0)
   const [planLevels, setPlanLevels] = useState({ level1: 0, level2: 0, level3: 0 })
@@ -91,7 +91,7 @@ export function AdminHomeSalesPlanGlance({ clubId = '' }) {
   return (
     <Link
       to={salesHref}
-      className="admin-home-sales-plan u-no-decoration"
+      className={`admin-home-sales-plan u-no-decoration${compact ? ' admin-home-sales-plan--compact' : ''}`}
       aria-labelledby="admin-home-sales-plan-title"
       title="Открыть продажи"
     >

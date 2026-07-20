@@ -1654,7 +1654,13 @@ button.pnk-chip:disabled {
 }
 
 .sales-home--fill .manager-pnk-glance,
-.admin-home--dashboard .manager-pnk-glance {
+.admin-home--dashboard .manager-pnk-glance:not(.manager-pnk-glance--compact) {
   margin-top: 0.25rem;
   max-width: min(100%, 480px);
+}
+
+.sales-home--fill .admin-home-attention .manager-pnk-glance,
+.admin-home--dashboard .admin-home-attention .manager-pnk-glance {
+  margin-top: 0;
+  max-width: none;
 }

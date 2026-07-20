@@ -64,7 +64,8 @@ import { SalesPlanSettingsPanel } from '../../components/SalesPlanSettingsPanel'
 import { SalesManagerStatsPanel } from '../../components/SalesManagerStatsPanel'
 import { SalesManagerAnalyticsPanel } from '../../components/SalesManagerAnalyticsPanel'
 import { SectionErrorBoundary } from '../../components/SectionErrorBoundary'
-import { ManagerPnkHomeGlance } from '../../components/pnk/ManagerPnkHomeGlance'
+import { AdminHomeAttentionRow } from '../../components/admin/AdminHomeAttentionRow'
+import { buildAdminHomeSoftSignals } from '../../lib/admin/adminHomeSoftSignalsCore.js'
 import '../../styles/sales-report.css'
 
 const MONTH_NAMES = [
@@ -145,6 +146,12 @@ export function AdminSales({ accessMode = 'admin' }) {
   const [fitCityTypeStats, setFitCityTypeStats] = useState(null)
   const [trainingsMatrix, setTrainingsMatrix] = useState({})
   const [aerobicMatrix, setAerobicMatrix] = useState({})
+  const [hasDailyReport, setHasDailyReport] = useState(null)
+  const [attentionWidgets, setAttentionWidgets] = useState({
+    hasPnk: false,
+    hasPlanerka: false,
+    sideCount: 0,
+  })
   const dailyBaselineFpRef = useRef('')
   const planBaselineFpRef = useRef('')
   const expenseBaselineFpRef = useRef('')
@@ -188,6 +195,7 @@ export function AdminSales({ accessMode = 'admin' }) {
       setMonthSummary(bundle.monthSummary)
       setMonthDays(bundle.monthDays ?? [])
       setYearMonth({ year: bundle.year, month: bundle.month })
+      setHasDailyReport(Boolean(bundle.daily?.id))
 
       const types =
         (bundle.membershipTypes?.length ? bundle.membershipTypes : null) ??
@@ -360,6 +368,30 @@ export function AdminSales({ accessMode = 'admin' }) {
   }, [yearMonth])
 
   const factMonth = resolvePlanFactFromMonthSummary(monthSummary)
+
+  const softSignals = useMemo(() => {
+    if (!isSalesManager || !clubId) return []
+    const today = todayLocalIso()
+    const salesReportFilled =
+      reportDate === today && hasDailyReport != null ? hasDailyReport : null
+    return buildAdminHomeSoftSignals({
+      summary: {
+        salesReportFilled: salesReportFilled === false ? false : salesReportFilled === true ? true : null,
+        inactive: 0,
+        expiring: 0,
+      },
+      clubId,
+      hrefSales: '/sales?tab=report',
+    })
+  }, [isSalesManager, clubId, reportDate, hasDailyReport])
+
+  const onWidgetsPresence = useCallback((info) => {
+    setAttentionWidgets({
+      hasPnk: Boolean(info?.hasPnk),
+      hasPlanerka: Boolean(info?.hasPlanerka),
+      sideCount: Number(info?.sideCount) || 0,
+    })
+  }, [])
 
   const planLevels = useMemo(
     () => ({
@@ -587,68 +619,95 @@ export function AdminSales({ accessMode = 'admin' }) {
     >
       {showSalesHero && isSalesManager ? (
         <div className="sales-home__board">
-          <div className="sales-report__hero sales-home__hero">
-            <div className="sales-report__hero-head">
-              <div className="sales-home__hero-text">
-                <p className="sales-home__eyebrow">{monthLabel}</p>
-                <h1 className="sales-home__title">План продаж</h1>
+          {clubId ? (
+            <AdminHomeAttentionRow
+              clubId={clubId}
+              hrefPnk="/sales/pnk"
+              hrefPlanerka="/sales/club-tasks"
+              softSignals={softSignals}
+              onWidgetsPresence={onWidgetsPresence}
+              renderPlan={({ compact }) => (
+                <div
+                  className={`sales-report__hero sales-home__hero sales-home__attention-plan${compact ? ' sales-home__attention-plan--compact' : ''}`}
+                >
+                  <div className="sales-report__hero-head">
+                    <div className="sales-home__hero-text">
+                      <p className="sales-home__eyebrow">{monthLabel}</p>
+                      <h1 className="sales-home__title">План продаж</h1>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm btn-icon-square"
+                      onClick={() => void loadBundle()}
+                      disabled={busy}
+                      aria-label="Обновить"
+                      title="Обновить"
+                      aria-busy={busy}
+                    >
+                      <RefreshCw size={16} aria-hidden className={busy ? 'icon-spin' : undefined} />
+                    </button>
+                  </div>
+                  <SalesPlanVessel fact={factMonth} planLevels={planLevels} pulseKey={vesselPulse} />
+                </div>
+              )}
+            />
+          ) : (
+            <div className="sales-report__hero sales-home__hero">
+              <div className="sales-report__hero-head">
+                <div className="sales-home__hero-text">
+                  <p className="sales-home__eyebrow">{monthLabel}</p>
+                  <h1 className="sales-home__title">План продаж</h1>
+                </div>
               </div>
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm btn-icon-square"
-                onClick={() => void loadBundle()}
-                disabled={busy}
-                aria-label="Обновить"
-                title="Обновить"
-                aria-busy={busy}
-              >
-                <RefreshCw size={16} aria-hidden className={busy ? 'icon-spin' : undefined} />
-              </button>
             </div>
-            <SalesPlanVessel fact={factMonth} planLevels={planLevels} pulseKey={vesselPulse} />
-          </div>
+          )}
 
           {salesTab === 'home' ? (
-            <>
-              {clubId ? <ManagerPnkHomeGlance clubId={clubId} href="/sales/pnk" /> : null}
-              <section className="sales-home__tiles" aria-labelledby="sales-home-sections">
-                <h2 id="sales-home-sections" className="sales-home__tiles-heading">
-                  Разделы
-                </h2>
-                <div className="sales-home__tile-grid">
-                  <Link to="/sales/pnk" className="sales-home__tile sales-home__tile--pnk u-no-decoration">
-                    <div className="sales-home__tile-icon">
-                      <UserRound size={44} aria-hidden />
-                    </div>
-                    <p className="sales-home__tile-title">ПНК</p>
-                  </Link>
-                  <Link to="/sales?tab=report" className="sales-home__tile u-no-decoration">
-                    <div className="sales-home__tile-icon">
-                      <CalendarDays size={44} aria-hidden />
-                    </div>
-                    <p className="sales-home__tile-title">Отчёт</p>
-                  </Link>
-                  <Link to="/sales?tab=stats" className="sales-home__tile u-no-decoration">
-                    <div className="sales-home__tile-icon">
-                      <BarChart3 size={44} aria-hidden />
-                    </div>
-                    <p className="sales-home__tile-title">Статистика</p>
-                  </Link>
-                  <Link to="/sales?tab=analytics" className="sales-home__tile u-no-decoration">
-                    <div className="sales-home__tile-icon">
-                      <TrendingUp size={44} aria-hidden />
-                    </div>
-                    <p className="sales-home__tile-title">Аналитика</p>
-                  </Link>
-                  <Link to="/sales/club-tasks" className="sales-home__tile u-no-decoration">
-                    <div className="sales-home__tile-icon">
-                      <ClipboardList size={44} aria-hidden />
-                    </div>
-                    <p className="sales-home__tile-title">Планёрка</p>
-                  </Link>
-                </div>
-              </section>
-            </>
+            <section className="sales-home__tiles" aria-labelledby="sales-home-sections">
+              <h2 id="sales-home-sections" className="sales-home__tiles-heading">
+                Разделы
+              </h2>
+              <div className="sales-home__tile-grid">
+                <Link
+                  to="/sales/pnk"
+                  className={`sales-home__tile sales-home__tile--pnk u-no-decoration${attentionWidgets.hasPnk ? ' sales-home__tile--echo' : ''}`}
+                  title={attentionWidgets.hasPnk ? 'ПНК уже на главной выше' : undefined}
+                >
+                  <div className="sales-home__tile-icon">
+                    <UserRound size={44} aria-hidden />
+                  </div>
+                  <p className="sales-home__tile-title">ПНК</p>
+                </Link>
+                <Link to="/sales?tab=report" className="sales-home__tile u-no-decoration">
+                  <div className="sales-home__tile-icon">
+                    <CalendarDays size={44} aria-hidden />
+                  </div>
+                  <p className="sales-home__tile-title">Отчёт</p>
+                </Link>
+                <Link to="/sales?tab=stats" className="sales-home__tile u-no-decoration">
+                  <div className="sales-home__tile-icon">
+                    <BarChart3 size={44} aria-hidden />
+                  </div>
+                  <p className="sales-home__tile-title">Статистика</p>
+                </Link>
+                <Link to="/sales?tab=analytics" className="sales-home__tile u-no-decoration">
+                  <div className="sales-home__tile-icon">
+                    <TrendingUp size={44} aria-hidden />
+                  </div>
+                  <p className="sales-home__tile-title">Аналитика</p>
+                </Link>
+                <Link
+                  to="/sales/club-tasks"
+                  className={`sales-home__tile u-no-decoration${attentionWidgets.hasPlanerka ? ' sales-home__tile--echo' : ''}`}
+                  title={attentionWidgets.hasPlanerka ? 'Планёрка уже на главной выше' : undefined}
+                >
+                  <div className="sales-home__tile-icon">
+                    <ClipboardList size={44} aria-hidden />
+                  </div>
+                  <p className="sales-home__tile-title">Планёрка</p>
+                </Link>
+              </div>
+            </section>
           ) : null}
         </div>
       ) : showSalesHero ? (

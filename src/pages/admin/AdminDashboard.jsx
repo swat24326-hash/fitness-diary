@@ -2,11 +2,11 @@ import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BarChart3, Building2, ClipboardList, Shield, TrendingUp, Trophy, UserCircle, UserPlus } from 'lucide-react'
 import { AdminClubDaySummaryPanel } from '../../components/admin/AdminClubDaySummaryPanel'
-import { AdminHomeSalesPlanGlance } from '../../components/admin/AdminHomeSalesPlanGlance'
-import { ManagerPnkHomeGlance } from '../../components/pnk/ManagerPnkHomeGlance'
+import { AdminHomeAttentionRow } from '../../components/admin/AdminHomeAttentionRow'
 import { dispatchLocalDataChanged } from '../../lib/dataAccess'
 import { loadAdminClubDaySummary } from '../../lib/admin/adminClubDaySummaryService'
 import { loadClubTrainingStats } from '../../lib/admin/adminClubStatsService'
+import { buildAdminHomeSoftSignals } from '../../lib/admin/adminHomeSoftSignalsCore.js'
 import { getDateRange } from '../../lib/period'
 import { useDebouncedStorageReload } from '../../lib/useDebouncedStorageReload'
 import { shouldReloadAdminDaySummary } from '../../lib/admin/adminClubDaySummaryCore'
@@ -37,8 +37,31 @@ export function AdminDashboard() {
   const [daySummaryLoading, setDaySummaryLoading] = useState(false)
   const [coachQualityHome, setCoachQualityHome] = useState(null)
   const [coachQualityHomeLoading, setCoachQualityHomeLoading] = useState(false)
+  const [attentionWidgets, setAttentionWidgets] = useState({
+    hasPnk: false,
+    hasPlanerka: false,
+    sideCount: 0,
+  })
   const daySummaryGenRef = useRef(0)
   const cqGenRef = useRef(0)
+
+  const softSignals = useMemo(
+    () =>
+      buildAdminHomeSoftSignals({
+        summary: daySummary,
+        coachQuality: coachQualityHome,
+        clubId,
+      }),
+    [daySummary, coachQualityHome, clubId],
+  )
+
+  const onWidgetsPresence = useCallback((info) => {
+    setAttentionWidgets({
+      hasPnk: Boolean(info?.hasPnk),
+      hasPlanerka: Boolean(info?.hasPlanerka),
+      sideCount: Number(info?.sideCount) || 0,
+    })
+  }, [])
 
   const loadDaySummary = useCallback(async ({ silent = false } = {}) => {
     if (!isAdminHome) return
@@ -129,7 +152,15 @@ export function AdminDashboard() {
             </p>
           </div>
 
-          {clubId ? <AdminHomeSalesPlanGlance clubId={clubId} /> : null}
+          {clubId ? (
+            <AdminHomeAttentionRow
+              clubId={clubId}
+              hrefPnk={tab('pnk')}
+              hrefPlanerka={tab('club-tasks')}
+              softSignals={softSignals}
+              onWidgetsPresence={onWidgetsPresence}
+            />
+          ) : null}
 
           <AdminClubDaySummaryPanel
             summary={daySummary}
@@ -140,8 +171,6 @@ export function AdminDashboard() {
             coachQualityLoading={coachQualityHomeLoading}
           />
 
-          {clubId ? <ManagerPnkHomeGlance clubId={clubId} href={tab('pnk')} /> : null}
-
           <h2 className="admin-home__tiles-heading" id="admin-home-sections">
             Разделы
           </h2>
@@ -150,8 +179,9 @@ export function AdminDashboard() {
               <NavLink
                 to={tab('pnk')}
                 className={({ isActive }) =>
-                  `${adminTileClass({ isActive })} feature-tile--pnk`
+                  `${adminTileClass({ isActive })} feature-tile--pnk${attentionWidgets.hasPnk ? ' feature-tile--echo' : ''}`
                 }
+                title={attentionWidgets.hasPnk ? 'ПНК уже на главной выше' : undefined}
               >
                 <div className="feature-tile__icon">
                   <UserPlus size={44} aria-hidden />
@@ -188,7 +218,13 @@ export function AdminDashboard() {
                 </div>
                 <p className="feature-tile__title">Челленджи</p>
               </NavLink>
-              <NavLink to={tab('club-tasks')} className={adminTileClass}>
+              <NavLink
+                to={tab('club-tasks')}
+                className={({ isActive }) =>
+                  `${adminTileClass({ isActive })}${attentionWidgets.hasPlanerka ? ' feature-tile--echo' : ''}`
+                }
+                title={attentionWidgets.hasPlanerka ? 'Планёрка уже на главной выше' : undefined}
+              >
                 <div className="feature-tile__icon">
                   <ClipboardList size={44} aria-hidden />
                 </div>

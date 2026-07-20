@@ -2706,6 +2706,56 @@
   padding: clamp(1.25rem, 2.5vh, 2rem) clamp(1.5rem, 3.5vw, 2.75rem) clamp(0.75rem, 1.5vh, 1.35rem);
 }
 
+/* Ряд «внимание» на главной менеджера — тот же каркас, что у админа */
+.sales-home--fill .admin-home-attention {
+  flex: 0 0 auto;
+  margin-bottom: clamp(12px, 2vh, 20px);
+}
+
+.sales-home--fill .admin-home-attention .sales-home__attention-plan {
+  flex: 1 1 auto;
+  height: 100%;
+  box-sizing: border-box;
+  gap: clamp(0.55rem, 1.2vh, 0.9rem);
+  padding: clamp(12px, 1.8vh, 18px) clamp(14px, 2.2vw, 20px);
+  max-width: none;
+  width: 100%;
+}
+
+.sales-home--fill .admin-home-attention .sales-home__attention-plan .sales-report__plan-chart {
+  max-width: none;
+  margin: 0;
+  gap: clamp(0.4rem, 1vh, 0.75rem);
+  padding: 0;
+}
+
+.sales-home--fill .admin-home-attention .sales-home__attention-plan .sales-home__title {
+  font-size: clamp(1.15rem, 2vw, 1.45rem);
+}
+
+.sales-home--fill .admin-home-attention .sales-home__attention-plan .sales-report__plan-track {
+  height: clamp(14px, 2vh, 20px);
+}
+
+.sales-home--fill .admin-home-attention .sales-home__attention-plan .sales-report__plan-fraction {
+  font-size: clamp(1.05rem, 2.2vw, 1.45rem);
+}
+
+.sales-home--fill .admin-home-attention .sales-home__attention-plan--compact {
+  gap: 0.45rem;
+  padding: clamp(10px, 1.4vh, 14px) clamp(12px, 1.8vw, 16px);
+}
+
+.sales-home--fill .admin-home-attention .sales-home__attention-plan--compact .sales-report__plan-levels-grid {
+  gap: 0.4rem;
+  margin-top: 0.2rem;
+}
+
+.sales-home--fill .admin-home-attention .sales-home__attention-plan--compact .sales-report__plan-level-chip {
+  min-height: 2.1rem;
+  padding: 0.25rem 0.3rem;
+}
+
 .sales-home--fill .sales-home__hero .sales-report__hero-head {
   flex-shrink: 0;
   margin-bottom: 0;
@@ -2946,6 +2996,14 @@
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
     0 12px 28px rgba(0, 0, 0, 0.35);
+}
+
+.sales-home__tile--echo {
+  opacity: 0.55;
+}
+
+.sales-home__tile--echo:hover {
+  opacity: 0.85;
 }
 
 .sales-home__tile:focus-visible {

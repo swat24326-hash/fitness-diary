@@ -311,6 +311,195 @@
   color: var(--accent-bright);
 }
 
+/* ——— Ряд «внимание»: план + ПНК + планёрка ——— */
+.admin-home-attention {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(10px, 1.5vw, 16px);
+  width: 100%;
+  margin: 0 0 1rem;
+  align-items: stretch;
+}
+
+.admin-home-attention__plan,
+.admin-home-attention__side {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-home-attention__side.is-empty {
+  display: none;
+}
+
+.admin-home-attention__plan > *,
+.admin-home-attention__side > * {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  height: 100%;
+}
+
+.admin-home-attention__plan .admin-home-sales-plan {
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.admin-home-attention .manager-pnk-glance,
+.admin-home-attention .admin-planerka-glance {
+  max-width: none;
+  margin: 0;
+}
+
+.admin-home-attention .manager-pnk-glance__card,
+.admin-home-attention .admin-planerka-glance__card {
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.admin-home-sales-plan--compact {
+  padding: 10px 12px;
+}
+
+.admin-home-sales-plan--compact .admin-home-sales-plan__vessel .sales-report__plan-chart {
+  gap: 0.28rem;
+}
+
+.admin-home-sales-plan--compact .admin-home-sales-plan__vessel .sales-report__plan-fraction {
+  font-size: clamp(0.95rem, 1.8vw, 1.2rem);
+}
+
+.admin-home-sales-plan--compact .admin-home-sales-plan__vessel .sales-report__plan-level-chip {
+  min-height: 2.1rem;
+  padding: 0.25rem 0.3rem;
+}
+
+.admin-planerka-glance__card {
+  background: color-mix(in srgb, var(--accent-bright) 8%, var(--bg-elevated, var(--bg-card)));
+  border-color: color-mix(in srgb, var(--accent-bright) 32%, var(--border));
+}
+
+.admin-planerka-glance__icon {
+  background: color-mix(in srgb, var(--accent-bright) 18%, transparent);
+  color: var(--accent-bright);
+}
+
+.admin-planerka-glance .trainer-task-glance__title {
+  color: var(--text);
+}
+
+.admin-planerka-glance .trainer-task-glance__task-title {
+  color: var(--accent-bright);
+}
+
+.admin-planerka-glance .trainer-task-glance__dot--on {
+  background: var(--accent-bright);
+}
+
+.admin-planerka-glance--compact .trainer-task-glance__card,
+.manager-pnk-glance--compact .manager-pnk-glance__card {
+  padding: clamp(10px, 1.6vw, 14px);
+}
+
+.manager-pnk-glance--compact .pnk-glance-face {
+  gap: clamp(8px, 1.4vw, 12px);
+}
+
+.manager-pnk-glance--compact .pnk-glance-face__name {
+  font-size: clamp(1.15rem, 2vw, 1.4rem);
+}
+
+.manager-pnk-glance--compact .pnk-glance-face__status {
+  padding: 10px 12px;
+  font-size: 0.9rem;
+}
+
+/* Мягкий сигнал в пустом слоте ряда */
+.admin-home-soft-signal {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: clamp(12px, 1.8vw, 16px);
+  border-radius: var(--radius-md, var(--radius));
+  border: 1px solid color-mix(in srgb, var(--accent-bright) 28%, var(--border));
+  background: color-mix(in srgb, var(--accent-bright) 7%, var(--bg-elevated, var(--bg-card)));
+  color: inherit;
+  transition: border-color 0.15s var(--ease-out), box-shadow 0.15s var(--ease-out);
+}
+
+.admin-home-soft-signal:hover {
+  border-color: color-mix(in srgb, var(--accent-bright) 50%, var(--border));
+}
+
+.admin-home-soft-signal--warn {
+  border-color: color-mix(in srgb, #f59e0b 45%, var(--border));
+  background: color-mix(in srgb, #f59e0b 8%, var(--bg-elevated, var(--bg-card)));
+}
+
+.admin-home-soft-signal--hot {
+  border-color: color-mix(in srgb, var(--accent-bright) 45%, var(--border));
+}
+
+.admin-home-soft-signal__icon {
+  display: inline-flex;
+  color: var(--accent-bright);
+}
+
+.admin-home-soft-signal--warn .admin-home-soft-signal__icon {
+  color: #fbbf24;
+}
+
+.admin-home-soft-signal__text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.admin-home-soft-signal__title {
+  font-size: 1rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.admin-home-soft-signal__sub {
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+
+.admin-home-soft-signal__cta {
+  margin-top: auto;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.admin-home-soft-signal--compact {
+  padding: clamp(10px, 1.4vw, 14px);
+  gap: 6px;
+}
+
+@media (min-width: 960px) {
+  .admin-home-attention--sides-1 {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  }
+
+  .admin-home-attention--sides-2 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .admin-home-sales-plan--compact .admin-home-sales-plan__vessel .sales-report__plan-chart {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.35rem;
+  }
+
+  .admin-home-sales-plan--compact .admin-home-sales-plan__vessel .sales-report__plan-levels-grid {
+    margin-top: 0.15rem;
+  }
+}
+
 @media (min-width: 900px) {
   .admin-home-sales-plan {
     padding: 10px 16px 12px;

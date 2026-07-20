@@ -122,6 +122,7 @@ run('trainer client outreach', 'node', ['scripts/verify-trainer-client-outreach.
 run('trainer outreach queue', 'node', ['scripts/verify-trainer-outreach-queue.mjs'])
 run('client name format', 'node', ['scripts/verify-client-name-format.mjs'])
 run('admin club day summary', 'node', ['scripts/verify-admin-club-day-summary.mjs'])
+run('admin home attention', 'node', ['scripts/verify-admin-home-attention.mjs'])
 run('admin client quick filters', 'node', ['scripts/verify-admin-client-quick-filters.mjs'])
 run('nutrition plan', 'node', ['scripts/verify-nutrition-plan.mjs'])
 run('nutrition meal pairing', 'node', ['scripts/verify-nutrition-meal-pairing.mjs'])
