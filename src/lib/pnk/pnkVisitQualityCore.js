@@ -4,6 +4,7 @@
  * Без React / IDB.
  */
 
+import { formatDateRu } from '../dateRu.js'
 import { isHealthCardComplete } from '../healthCardCore.js'
 import { parsePnkDeliverables, PNK_DELIVERABLE_LABELS } from './pnkStagesCore.js'
 import { normalizePnkTrialSessions } from './pnkWizardCore.js'
@@ -57,10 +58,12 @@ export function buildPnkVisitQualityReport(client, ctx = {}) {
   items.push(itemVisit(d))
   items.push(itemHealth(d, healthOk))
   items.push(itemNutrition(d, hasPlan))
-  items.push(itemTrial(d, bzDone, 1, sessions === 2 ? 'Тренировка 1' : 'Бесплатная тренировка'))
+  items.push(
+    itemTrial(d, bzDone, 1, sessions === 2 ? 'Тренировка 1' : 'Бесплатная тренировка', client),
+  )
   items.push(itemHomework(d, 'homework', sessions === 2 ? 'ДЗ после 1-й' : 'Домашнее задание'))
   if (sessions === 2) {
-    items.push(itemTrial(d, bzDone, 2, 'Тренировка 2'))
+    items.push(itemTrial(d, bzDone, 2, 'Тренировка 2', client))
     items.push(itemHomework(d, 'homework2', 'ДЗ после 2-й'))
   }
   items.push(itemFollowup(d))
@@ -107,13 +110,42 @@ function itemNutrition(d, hasPlan) {
   return row('nutrition', 'Питание', 'missing', 'Рацион не делали')
 }
 
-function itemTrial(d, bzDone, need, label) {
+function formatPnkTrialSlot(client) {
+  const trialDate = String(client?.pnk_trial_date ?? '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trialDate)) return ''
+  const trialTime = String(client?.pnk_trial_time ?? '')
+    .trim()
+    .slice(0, 5)
+  return `${formatDateRu(trialDate)}${trialTime ? ` ${trialTime}` : ''}`
+}
+
+function itemTrial(d, bzDone, need, label, client) {
   const key = need === 2 ? 'trial2' : 'trial'
   const marked = Boolean(d[key])
   const real = bzDone >= need
-  if (real) return row(key, label, 'done', 'Тренировка проведена')
-  if (marked) return row(key, label, 'weak', 'Отметка есть, завершённых БЗ меньше нужного')
-  return row(key, label, 'missing', 'Тренировка не проведена')
+  const when = need === 1 ? formatPnkTrialSlot(client) : ''
+  if (real) {
+    return row(
+      key,
+      label,
+      'done',
+      when ? `Проведена · была на ${when}` : 'Тренировка проведена',
+    )
+  }
+  if (marked) {
+    return row(
+      key,
+      label,
+      'weak',
+      when
+        ? `Отметка есть · дата ${when}, завершённых БЗ меньше нужного`
+        : 'Отметка есть, завершённых БЗ меньше нужного',
+    )
+  }
+  if (when) {
+    return row(key, label, 'weak', `Назначена на ${when} · ещё не проведена`)
+  }
+  return row(key, label, 'missing', 'Тренировка не проведена · дата не назначена')
 }
 
 function itemHomework(d, key, label) {

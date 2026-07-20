@@ -78,6 +78,33 @@ const weakNutrition = buildPnkVisitQualityReport(
 )
 ok(weakNutrition.items.find((i) => i.key === 'nutrition')?.status === 'weak', 'nutrition weak without plan')
 
+const scheduled = buildPnkVisitQualityReport(
+  {
+    lifecycle: 'pnk',
+    pnk_stage: 'agreed',
+    pnk_trial_sessions: 1,
+    pnk_trial_date: '2026-07-21',
+    pnk_trial_time: '19:00',
+    pnk_deliverables: { contact: 'x' },
+  },
+  { bzCompletedCount: 0 },
+)
+const trialItem = scheduled.items.find((i) => i.key === 'trial')
+ok(trialItem?.status === 'weak', 'scheduled trial is weak not missing')
+ok(/21\.07\.2026/.test(trialItem?.note || '') && /19:00/.test(trialItem?.note || ''), 'scheduled trial shows date/time')
+
+const noDate = buildPnkVisitQualityReport(
+  {
+    lifecycle: 'pnk',
+    pnk_stage: 'contact',
+    pnk_trial_sessions: 1,
+    pnk_deliverables: { contact: 'x' },
+  },
+  { bzCompletedCount: 0 },
+)
+ok(noDate.items.find((i) => i.key === 'trial')?.status === 'missing', 'no date → missing')
+ok(/дата не назначена/i.test(noDate.items.find((i) => i.key === 'trial')?.note || ''), 'no date note')
+
 const frac = formatPnkConversionFraction(10, 4)
 ok(frac.fraction === '4/10' && frac.pct === 40, 'conversion fraction')
 
