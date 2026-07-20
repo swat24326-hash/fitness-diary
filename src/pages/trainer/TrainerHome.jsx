@@ -81,7 +81,7 @@ export function TrainerHome() {
   const [attentionSummary, setAttentionSummary] = useState(null)
   const [attentionLoading, setAttentionLoading] = useState(true)
   const [cqGlance, setCqGlance] = useState(null)
-  const [cqGlanceLoading, setCqGlanceLoading] = useState(true)
+  const [cqGlanceLoading, setCqGlanceLoading] = useState(false)
   const loadGenRef = useRef(0)
   const attentionGenRef = useRef(0)
   const cqGenRef = useRef(0)
@@ -97,11 +97,7 @@ export function TrainerHome() {
       return
     }
     const gen = ++attentionGenRef.current
-    const cqGen = ++cqGenRef.current
-    if (!silent) {
-      setAttentionLoading(true)
-      setCqGlanceLoading(true)
-    }
+    if (!silent) setAttentionLoading(true)
     try {
       const snap = await loadTrainerWorkspaceSnapshot(trainerId, clubId || null)
       if (gen !== attentionGenRef.current) return
@@ -113,7 +109,10 @@ export function TrainerHome() {
         }),
       )
 
-      // Качество ведения — отдельно, не блокирует внимание и Sync
+      // Качество ведения — только после актуального snap; gen CQ отдельный,
+      // иначе при отмене loadAttention спиннер «Загрузка…» зависает навсегда.
+      const cqGen = ++cqGenRef.current
+      if (!silent) setCqGlanceLoading(true)
       void (async () => {
         try {
           const dateTo = todayLocalIso()
@@ -134,7 +133,7 @@ export function TrainerHome() {
           setCqGlance(buildTrainerCoachQualityGlance(row))
         } catch {
           if (cqGen !== cqGenRef.current) return
-          if (!silent) setCqGlance(null)
+          setCqGlance(null)
         } finally {
           if (cqGen === cqGenRef.current) setCqGlanceLoading(false)
         }
@@ -142,10 +141,8 @@ export function TrainerHome() {
     } catch {
       if (gen !== attentionGenRef.current) return
       if (!silent) setAttentionSummary(null)
-      if (cqGen === cqGenRef.current) {
-        setCqGlance(null)
-        setCqGlanceLoading(false)
-      }
+      setCqGlance(null)
+      setCqGlanceLoading(false)
     } finally {
       if (gen === attentionGenRef.current) setAttentionLoading(false)
     }

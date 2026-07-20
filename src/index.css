@@ -3024,11 +3024,11 @@ tr:last-child td {
   }
 }
 
-/* Главная тренера: hero + плитки */
+/* Главная тренера: hero + плитки — плотная доска под планшет */
 .trainer-home {
   display: flex;
   flex-direction: column;
-  gap: clamp(32px, 5vw, 56px);
+  gap: clamp(12px, 2vh, 20px);
   width: 100%;
 }
 
@@ -3340,6 +3340,11 @@ tr:last-child td {
     max-width: min(1480px, 100%);
   }
 
+  .app-main:has(.trainer-home) {
+    padding-top: clamp(8px, 1.4vh, 14px);
+    padding-bottom: clamp(8px, 1.4vh, 14px);
+  }
+
   .trainer-home .trainer-attention,
   .trainer-home .trainer-cq-glance,
   .trainer-home .trainer-task-glance,
@@ -3352,20 +3357,125 @@ tr:last-child td {
     margin-inline: 0;
     width: 100%;
   }
+
+  /* Компактный hero — место под ПНК и внимание */
+  .trainer-home__hero {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.55fr);
+    gap: clamp(8px, 1.5vw, 16px);
+    padding: clamp(10px, 1.6vh, 18px) clamp(14px, 2.5vw, 22px);
+  }
+
+  .trainer-home__hero-text {
+    gap: 6px;
+  }
+
+  .trainer-home__title-display {
+    font-size: clamp(1.65rem, 3.8vw, 2.6rem);
+  }
+
+  .trainer-home__lead {
+    font-size: 0.88rem;
+    line-height: 1.35;
+    max-width: 42ch;
+  }
+
+  .trainer-home__hero-visual {
+    min-height: 0;
+  }
+
+  .trainer-home__hero-dumbbell-fa {
+    font-size: clamp(44px, 8vw, 96px);
+  }
+
+  .trainer-home .trainer-task-glance,
+  .trainer-home .trainer-pnk-glance,
+  .trainer-home .trainer-cq-glance {
+    margin-top: 0;
+  }
+
+  .trainer-home .trainer-task-glance__card,
+  .trainer-home .trainer-pnk-glance .trainer-task-glance__card {
+    padding: 10px 12px;
+  }
+
+  .trainer-home .pnk-glance-face {
+    gap: 8px;
+  }
+
+  .trainer-home .pnk-glance-face__name {
+    font-size: clamp(1.15rem, 2vw, 1.4rem);
+  }
+
+  .trainer-home .pnk-glance-face__status {
+    padding: 8px 10px;
+    font-size: 0.85rem;
+  }
+
+  .trainer-home .trainer-attention__grid {
+    grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+    gap: 8px;
+  }
+
+  .trainer-home .trainer-attention__card {
+    padding: 10px 10px;
+    gap: 2px;
+  }
+
+  .trainer-home .trainer-attention__card-count {
+    font-size: 1.35rem;
+  }
+
+  .trainer-home .trainer-attention__card-label {
+    font-size: 0.78rem;
+  }
+
+  .trainer-home .trainer-cq-glance {
+    padding: 10px 12px;
+  }
+
+  .trainer-home .trainer-challenges {
+    margin-bottom: 8px;
+    padding: 0;
+  }
+
+  .trainer-home .trainer-challenges__soon {
+    min-height: 0;
+    gap: 8px;
+    padding: 14px 16px;
+  }
+
+  .trainer-home .trainer-challenges__soon-icon {
+    transform: scale(0.85);
+  }
+
+  .trainer-home .trainer-challenges__soon-text {
+    font-size: 0.92rem;
+  }
+
+  .trainer-home .tile-grid {
+    gap: 12px;
+  }
+
+  .trainer-home .feature-tile {
+    min-height: 120px;
+    padding: 14px 12px;
+    gap: 10px;
+  }
 }
 
-/* Landscape-планшет: виджеты в две колонки — не куча в левом верхнем углу */
-@media (min-width: 1024px) {
+/* Планшет landscape / широкий: доска 2 колонки; внимание на всю ширину */
+@media (min-width: 900px) {
   .trainer-home {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: clamp(14px, 1.8vw, 22px);
+    gap: 10px 14px;
     align-items: start;
   }
 
   .trainer-home__hero,
   .trainer-home > .trainer-sync-banner,
   .trainer-home > .trainer-push-prompt,
+  .trainer-home > .trainer-attention,
   .trainer-home > .trainer-challenges,
   .trainer-home > .trainer-home__tiles {
     grid-column: 1 / -1;
@@ -3377,8 +3487,14 @@ tr:last-child td {
     margin-top: 0;
   }
 
-  .trainer-attention__grid {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 168px), 1fr));
+  .trainer-home .trainer-attention__grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .trainer-home .trainer-attention__grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 

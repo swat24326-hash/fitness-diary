@@ -13,7 +13,7 @@ import { Gauge } from 'lucide-react'
  * }} props
  */
 export function TrainerCoachQualityGlance({ glance, loading = false }) {
-  if (loading) {
+  if (loading && !glance?.headline) {
     return (
       <section className="trainer-cq-glance" aria-labelledby="trainer-cq-glance-title" aria-busy="true">
         <h2 id="trainer-cq-glance-title" className="trainer-cq-glance__title">
