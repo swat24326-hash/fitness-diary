@@ -4,7 +4,7 @@ import {
   computeAerobicPayrollFromRows,
   parseAerobicPayRate,
 } from '../src/lib/admin/aerobicPayrollCore.js'
-import { aerobicInputMapToRows, aggregateAerobicSalesFromDailyRows, normalizeAerobicRowsFromDb } from '../src/lib/admin/aerobicSalesMatrix.js'
+import { aerobicInputMapToRows, aggregateAerobicSalesFromDailyRows, buildAerobicTypeDayBreakdown, normalizeAerobicRowsFromDb } from '../src/lib/admin/aerobicSalesMatrix.js'
 import { computeNetProfitWithPayroll } from '../src/lib/admin/trainerPayrollCore.js'
 import { normalizeMembershipTypePushPayload } from '../src/lib/admin/membershipTypePushPayload.js'
 import {
@@ -75,5 +75,27 @@ const monthAgg = aggregateAerobicSalesFromDailyRows(
 )
 ok(monthAgg.total === 7, 'aerobic month aggregate total')
 ok(monthAgg.byType.find((x) => x.typeId === 'az2')?.count === 4, 'aerobic month by type')
+
+const dayBreakdown = buildAerobicTypeDayBreakdown(
+  [
+    { report_date: '2026-07-13', aerobic_sales_matrix: [{ membership_type_id: 'az1', count: 4 }] },
+    { report_date: '2026-07-10', aerobic_sales_matrix: [{ membership_type_id: 'az1', count: 2 }, { membership_type_id: 'az2', count: 1 }] },
+    { report_date: '2026-07-11', aerobic_sales_matrix: [{ membership_type_id: 'az2', count: 5 }] },
+  ],
+  'az1',
+)
+ok(dayBreakdown.length === 2, 'type day breakdown length')
+ok(dayBreakdown[0].date === '2026-07-13' && dayBreakdown[0].count === 4, 'type day breakdown newest first')
+ok(dayBreakdown[1].date === '2026-07-10' && dayBreakdown[1].count === 2, 'type day breakdown second')
+
+const totalBreakdown = buildAerobicTypeDayBreakdown(
+  [
+    { report_date: '2026-07-13', aerobic_sales_matrix: [{ membership_type_id: 'az1', count: 4 }] },
+    { report_date: '2026-07-10', aerobic_sales_matrix: [{ membership_type_id: 'az1', count: 2 }, { membership_type_id: 'az2', count: 1 }] },
+  ],
+  null,
+)
+ok(totalBreakdown.find((d) => d.date === '2026-07-10')?.count === 3, 'total day breakdown sums types')
+ok(totalBreakdown.every((d) => d.count > 0), 'total day breakdown skips empty')
 
 process.exit(failed > 0 ? 1 : 0)

@@ -96,3 +96,31 @@ export function aggregateAerobicSalesFromDailyRows(dailyRows, membershipTypes) {
   const total = byType.reduce((s, row) => s + row.count, 0)
   return { byType, total }
 }
+
+/**
+ * Расшифровка АЗ по дням для одного типа (или суммы по всем типам).
+ * @param {Array<Record<string, unknown>>} dailyRows
+ * @param {string | null} [typeId] — null / '' = сумма по всем типам за день
+ * @returns {Array<{ date: string, count: number }>} дни с count > 0, новые сверху
+ */
+export function buildAerobicTypeDayBreakdown(dailyRows, typeId = null) {
+  const wantId = typeId == null || String(typeId).trim() === '' ? null : String(typeId).trim()
+  /** @type {Array<{ date: string, count: number }>} */
+  const out = []
+  for (const day of dailyRows ?? []) {
+    const date = String(day?.report_date ?? '').slice(0, 10)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue
+    const rows = normalizeAerobicRowsFromDb(day?.aerobic_sales_matrix)
+    let count = 0
+    if (wantId == null) {
+      count = sumAerobicRows(rows)
+    } else {
+      for (const row of rows) {
+        if (row.membership_type_id === wantId) count += row.count
+      }
+    }
+    if (count > 0) out.push({ date, count })
+  }
+  out.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+  return out
+}

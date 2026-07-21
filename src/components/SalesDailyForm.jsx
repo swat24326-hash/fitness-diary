@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import { Calendar, ChevronLeft, ChevronRight, Save, Users } from 'lucide-react'
 import {
   computeProfitFromMatrix,
@@ -14,6 +14,7 @@ import {
   salesMatrixRowMembershipTotal,
   salesMatrixRowSumTotal,
 } from '../lib/admin/salesReportCore.js'
+import { openNativeDatePicker, todayLocalIso } from '../lib/dateRu.js'
 import { SalesTrainingsMatrix } from './SalesTrainingsMatrix.jsx'
 import { SalesAerobicMatrix } from './SalesAerobicMatrix.jsx'
 
@@ -78,6 +79,7 @@ export function SalesDailyForm({
   clubId = '',
   showPayroll = true,
 }) {
+  const dateInputRef = useRef(null)
   const profit = useMemo(() => {
     const calc = computeProfitFromMatrix(form)
     if (!calc.ok) {
@@ -87,6 +89,11 @@ export function SalesDailyForm({
   }, [form])
 
   const setField = (key, value) => onFormChange({ ...form, [key]: value })
+
+  const openReportDatePicker = (e) => {
+    e.preventDefault()
+    openNativeDatePicker(dateInputRef.current)
+  }
 
   return (
     <section className="sales-report__card" aria-labelledby="sales-daily-title">
@@ -98,15 +105,24 @@ export function SalesDailyForm({
         <button type="button" className="sales-report__date-btn" onClick={onPrevDay} aria-label="Предыдущий день">
           <ChevronLeft size={18} />
         </button>
-        <label className="sales-report__date-pill">
+        <label
+          className="sales-report__date-pill"
+          title="Выбрать дату в календаре"
+          onClick={openReportDatePicker}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') openReportDatePicker(e)
+          }}
+        >
           <Calendar size={16} aria-hidden />
           <span className="sales-report__date-text">{dateLabel}</span>
           <input
+            ref={dateInputRef}
             type="date"
             className="sales-report__date-input-overlay"
             value={reportDate}
+            max={todayLocalIso()}
             onChange={(e) => onDateChange(e.target.value)}
-            aria-label="Дата отчёта"
+            aria-label="Дата отчёта — открыть календарь"
           />
         </label>
         <button type="button" className="sales-report__date-btn" onClick={onNextDay} aria-label="Следующий день">

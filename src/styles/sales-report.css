@@ -346,6 +346,18 @@
   background: color-mix(in srgb, var(--bg-elevated) 80%, transparent);
   border: 1px solid color-mix(in srgb, var(--text-muted) 25%, transparent);
   cursor: pointer;
+  min-height: 2.25rem;
+  touch-action: manipulation;
+}
+
+.sales-report__date-pill:hover {
+  border-color: color-mix(in srgb, var(--accent-bright, var(--accent)) 45%, transparent);
+}
+
+.sales-report__date-pill > svg {
+  pointer-events: none;
+  flex-shrink: 0;
+  color: var(--accent-bright, var(--accent));
 }
 
 .sales-report__date-text {
@@ -362,8 +374,10 @@
   margin: 0;
   padding: 0;
   border: none;
-  opacity: 0;
   cursor: pointer;
+  z-index: 2;
+  /* iOS/Android: нулевой opacity иногда глотает tap */
+  opacity: 0.01;
 }
 
 .sales-report__date-pill input[type='date'] {
@@ -4320,5 +4334,92 @@
 .sales-report__segment-schedule-hint {
   margin: 0.65rem 0 0;
   font-size: 0.78rem;
+}
+
+/* Расшифровка АЗ по дням (статистика месяца) */
+.sales-aerobic-day-modal__list {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  max-height: 100%;
+  padding-right: 2px;
+}
+
+.sales-aerobic-day-modal__item {
+  padding: 0;
+}
+
+.sales-aerobic-day-modal__day-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  margin: 0;
+  border: 0;
+  border-radius: var(--radius-sm, 8px);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  touch-action: manipulation;
+}
+
+.sales-aerobic-day-modal__day-btn:hover,
+.sales-aerobic-day-modal__day-btn:focus-visible {
+  background: color-mix(in srgb, var(--accent, #7dffb3) 10%, transparent);
+  outline: none;
+}
+
+.sales-aerobic-day-modal__day-btn--static {
+  cursor: default;
+}
+
+.sales-aerobic-day-modal__count {
+  flex-shrink: 0;
+  min-width: 2.25rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--accent-bright, var(--accent));
+  background: color-mix(in srgb, var(--accent, #7dffb3) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent, #7dffb3) 30%, transparent);
+}
+
+.admin-mem-type-table__num-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.5rem;
+  min-height: 2.25rem;
+  padding: 0.2rem 0.4rem;
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 8px);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  font-weight: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.admin-mem-type-table__num-btn:hover,
+.admin-mem-type-table__num-btn:focus-visible {
+  border-color: color-mix(in srgb, var(--accent, #7dffb3) 40%, transparent);
+  background: color-mix(in srgb, var(--accent, #7dffb3) 10%, transparent);
+  outline: none;
+}
+
+.admin-mem-type-table__num-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 

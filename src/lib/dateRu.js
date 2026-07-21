@@ -55,3 +55,22 @@ export function formatDateTimeRu(isoLike) {
   return `${hh}:${mm} ${date}`
 }
 
+/**
+ * Открыть нативный календарь у input[type=date|month].
+ * На планшетах/Chromium прозрачный overlay часто не открывает picker — нужен showPicker().
+ * @param {HTMLInputElement | null | undefined} el
+ */
+export function openNativeDatePicker(el) {
+  if (!el || el.disabled) return
+  if (typeof el.showPicker === 'function') {
+    try {
+      el.showPicker()
+      return
+    } catch {
+      /* NotAllowedError / старый браузер — fallback ниже */
+    }
+  }
+  el.focus()
+  el.click()
+}
+

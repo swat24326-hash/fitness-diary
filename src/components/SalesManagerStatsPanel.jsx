@@ -1,9 +1,10 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { BarChart3, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { buildSalesManagerMonthStats } from '../lib/admin/salesManagerStatsAgg.js'
 import { formatRub } from '../lib/admin/salesReportCore.js'
 import { SALES_TRAINING_CLUB_ID } from '../lib/admin/salesTrainingsMatrix.js'
 import { MembershipTypeStatsTable } from './MembershipTypeStatsTable.jsx'
+import { SalesAerobicTypeDayModal } from './SalesAerobicTypeDayModal.jsx'
 import { SalesDayBarChart } from './SalesDayBarChart.jsx'
 import { SalesProfitDayChart } from './SalesProfitDayChart.jsx'
 import { SalesStructureBlock } from './SalesStructureBlock.jsx'
@@ -81,6 +82,8 @@ export function SalesManagerStatsPanel({
     hallFinance,
     aerobicStats,
   } = stats
+
+  const [aerobicDrill, setAerobicDrill] = useState(/** @type {{ typeId: string | null, code: string } | null} */ (null))
 
   return (
     <section className="sales-report__stats" aria-labelledby="sales-stats-title">
@@ -208,6 +211,9 @@ export function SalesManagerStatsPanel({
       {aerobicStats?.byType?.length ? (
         <div className="sales-report__card sales-report__stats-block">
           <h3 className="sales-report__stats-block-title">Тренировки в аэробном зале</h3>
+          <p className="muted" style={{ margin: '0 0 8px', fontSize: 13 }}>
+            Нажмите на число — расшифровка по дням.
+          </p>
           <div className="table-wrap admin-mem-type-table-wrap">
             <table className="admin-mem-type-table">
               <thead>
@@ -230,11 +236,27 @@ export function SalesManagerStatsPanel({
                   </th>
                   {aerobicStats.byType.map((row) => (
                     <td key={row.typeId} className="admin-mem-type-table__num">
-                      {row.count > 0 ? row.count : 0}
+                      <button
+                        type="button"
+                        className="admin-mem-type-table__num-btn"
+                        disabled={!(row.count > 0)}
+                        aria-label={`${row.code}: ${row.count}, расшифровка по дням`}
+                        onClick={() => setAerobicDrill({ typeId: row.typeId, code: row.code })}
+                      >
+                        {row.count > 0 ? row.count : 0}
+                      </button>
                     </td>
                   ))}
                   <td className="admin-mem-type-table__num admin-mem-type-table__sum-col">
-                    <strong>{aerobicStats.total}</strong>
+                    <button
+                      type="button"
+                      className="admin-mem-type-table__num-btn"
+                      disabled={!(aerobicStats.total > 0)}
+                      aria-label={`Итого: ${aerobicStats.total}, расшифровка по дням`}
+                      onClick={() => setAerobicDrill({ typeId: null, code: 'Итого' })}
+                    >
+                      <strong>{aerobicStats.total}</strong>
+                    </button>
                   </td>
                 </tr>
               </tbody>
@@ -242,6 +264,16 @@ export function SalesManagerStatsPanel({
           </div>
         </div>
       ) : null}
+
+      <SalesAerobicTypeDayModal
+        open={Boolean(aerobicDrill)}
+        onClose={() => setAerobicDrill(null)}
+        typeId={aerobicDrill?.typeId ?? null}
+        typeCode={aerobicDrill?.code ?? 'Итого'}
+        monthLabel={monthLabel}
+        monthRows={monthRows}
+        onOpenDay={onOpenDay}
+      />
 
       <div className="sales-report__card sales-report__stats-block">
         <h3 className="sales-report__stats-block-title">Структура продаж</h3>
