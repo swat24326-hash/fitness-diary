@@ -38,6 +38,7 @@ import {
   handleCreateSalesManagerPost,
 } from './_lib/adminData/salesHandlers.js'
 import { handlePnk } from './_lib/adminData/pnkHandlers.js'
+import { handleClubSmsGet, handleClubSmsPost } from './_lib/moiZvonkiHandler.js'
 
 async function handler(req, res) {
   setCors(res, 'GET, POST, OPTIONS')
@@ -65,6 +66,7 @@ async function handler(req, res) {
       'reset-trainer-password',
       'set-trainer-active',
       'pnk',
+      'club-sms',
     ])
     if (!postActions.has(action)) {
       sendJson(res, 405, { error: 'Method not allowed' })
@@ -74,6 +76,12 @@ async function handler(req, res) {
     if (!body) {
       sendJson(res, 400, { error: 'Invalid JSON' })
       return
+    }
+    if (action === 'club-sms') {
+      const clubId = String(body?.club_id ?? '').trim()
+      const ctx = await requireAdminOrSalesManager(req, res, clubId)
+      if (!ctx) return
+      return handleClubSmsPost(ctx, res, body)
     }
     if (action === 'gemini-analytics') {
       const ctx = await requireAdmin(req, res)
@@ -230,6 +238,13 @@ async function handler(req, res) {
     const ctx = await requireAdminOrSalesManager(req, res, clubId)
     if (!ctx) return
     return handlePnk(ctx, req, res)
+  }
+
+  if (action === 'club-sms') {
+    const clubId = String(req.query?.club_id ?? '').trim()
+    const ctx = await requireAdminOrSalesManager(req, res, clubId)
+    if (!ctx) return
+    return handleClubSmsGet(ctx, res)
   }
 
   /** Настройки качества ведения: чтение — админ или сотрудник своего клуба; запись — только админ (POST). */

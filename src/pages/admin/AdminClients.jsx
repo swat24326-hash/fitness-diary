@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
 import { AlertTriangle, Archive, Clock, RefreshCw, RotateCcw, Search, Trash2, UserCheck, UserCircle, UserCog, UserSearch, Users, UserX } from 'lucide-react'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
+import { AdminClientClubSmsButton } from '../../components/admin/AdminClientClubSmsButton.jsx'
 import { ClientRowMoreMenu } from '../../components/ClientRowMoreMenu.jsx'
 import {
   deleteClientAndAllData,
@@ -14,7 +15,9 @@ import { isAdminClientQuickFilter } from '../../lib/admin/adminClientQuickFilter
 import { buildAdminClientsTodaySnapshot, shouldShowAdminClientsList } from '../../lib/admin/adminClientsBrowseCore'
 import { loadAdminClubMembershipsMap, loadAdminClubTrainingsForClientIds } from '../../lib/admin/adminClubWorkspaceCache'
 import { fetchClientsLastTrainingsViaApi } from '../../lib/admin/adminApiClient'
+import { fetchClubSmsStatus } from '../../lib/admin/clubSmsService.js'
 import { pullAdminClientsFromCloud } from '../../lib/admin/adminClientsListService'
+import { isOutreachScenario } from '../../lib/trainer/trainerClientOutreachCore.js'
 import { useDebouncedStorageReload, shouldReloadAdminClientsPage } from '../../lib/useDebouncedStorageReload'
 import { ADMIN_CLIENTS_PAGE_SIZE, ADMIN_CLIENTS_REMOTE_LIMIT } from '../../lib/admin/adminConstants'
 import { isSupabaseConfigured, supabase } from '../../lib/supabase'
@@ -120,6 +123,31 @@ export function AdminClients() {
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [refreshMsg, setRefreshMsg] = useState('')
+  const [smsFeedback, setSmsFeedback] = useState(null)
+  const [clubSmsConfigured, setClubSmsConfigured] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    if (!club) {
+      setClubSmsConfigured(false)
+      return undefined
+    }
+    fetchClubSmsStatus(club)
+      .then((r) => {
+        if (!cancelled) setClubSmsConfigured(r.configured)
+      })
+      .catch(() => {
+        if (!cancelled) setClubSmsConfigured(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [club])
+
+  const onSmsFeedback = useCallback((msg, tone = 'ok') => {
+    setSmsFeedback({ msg, tone })
+    window.setTimeout(() => setSmsFeedback(null), 4000)
+  }, [])
 
   const reload = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setBusy(true)
@@ -592,6 +620,16 @@ export function AdminClients() {
         {refreshMsg ? (
           <p className="sync-feedback sync-feedback--ok admin-clients-workspace__note">{refreshMsg}</p>
         ) : null}
+        {smsFeedback ? (
+          <p
+            className={`sync-feedback admin-clients-workspace__note${
+              smsFeedback.tone === 'warn' ? ' sync-feedback--warn' : ' sync-feedback--ok'
+            }`}
+            role="status"
+          >
+            {smsFeedback.msg}
+          </p>
+        ) : null}
         {cloudNeedsClub ? (
           <p className="muted admin-clients-workspace__note">
             В облачном режиме выберите <strong>клуб</strong> в панели выше — иначе список клиентов не загружается.
@@ -801,6 +839,14 @@ export function AdminClients() {
                         </div>
                       </div>
                       <div className="row td-client-actions">
+                        <AdminClientClubSmsButton
+                          clubId={club}
+                          client={c}
+                          scenario={isOutreachScenario(quickFilter) ? quickFilter : 'expiring'}
+                          configured={clubSmsConfigured}
+                          busy={busy}
+                          onFeedback={onSmsFeedback}
+                        />
                         <Link
                           to={`/admin/clients/${c.id}${clubQs}`}
                           className="btn btn-primary btn-icon-square btn-touch u-no-decoration"

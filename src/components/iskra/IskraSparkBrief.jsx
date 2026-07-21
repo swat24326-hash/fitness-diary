@@ -1,5 +1,6 @@
-import { Sparkles, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { IskraPlanArc } from './IskraPlanArc.jsx'
+import { IskraOrb } from './IskraOrb.jsx'
 
 /**
  * @param {{
@@ -29,9 +30,7 @@ export function IskraSparkBrief({ brief, kpi, onCta, onDismiss, compact = false 
           size={72}
         />
       ) : (
-        <div className="iskra-spark-brief__orb" aria-hidden>
-          <Sparkles size={18} />
-        </div>
+        <IskraOrb state="idle" size={40} className="iskra-spark-brief__orb" />
       )}
       <div className="iskra-spark-brief__copy">
         <p className="iskra-spark-brief__line iskra-spark-brief__line--1">{brief.lines[0]}</p>

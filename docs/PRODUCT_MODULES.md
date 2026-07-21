@@ -8,7 +8,7 @@
 | **Продажи** | ✅ прод | `src/lib/admin/sales*`, `AdminSales`, salesHandlers | [SALES_MANAGER.md](./SALES_MANAGER.md) |
 | **Питание** | ✅ в карточке | `src/lib/nutrition/*`, store `nutrition_products` | вкладка «Питание»; push в allowlist |
 | **ДЗ (домашние)** | ✅ в карточке | `src/lib/homework/*`, store `homework_presets` | вкладка «ДЗ»; push в allowlist |
-| **Max / outreach** | Max ✅; SMS ⏸ | `outreach_log`, фильтры тренера | [OUTREACH_CHANNELS_ROADMAP.md](./OUTREACH_CHANNELS_ROADMAP.md) |
+| **Max / outreach** | Max ✅; SMS MVP | `outreach_log`, фильтры тренера, `club-sms` | [OUTREACH_CHANNELS_ROADMAP.md](./OUTREACH_CHANNELS_ROADMAP.md), [MOIZVONKI_SETUP.md](./MOIZVONKI_SETUP.md) |
 | **ИСКРА** | ✅ прод | `api/_lib/gemini*`, `iskra*`, UI админки | `ISKRA_*.md`, [iskra-kb/](./iskra-kb/README.md) |
 | **Планёрка / dispatch** | ✅ прод | iskra-dispatch + push | [ISKRA_PLANERKA.md](./ISKRA_PLANERKA.md), [PUSH_SETUP.md](./PUSH_SETUP.md) |
 | **Архив клиентов** | ✅ прод | archive + sync/agg | [CLIENT_ARCHIVE.md](./CLIENT_ARCHIVE.md) |

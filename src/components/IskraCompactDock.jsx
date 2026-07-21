@@ -1,5 +1,7 @@
-import { Maximize2, Mic, Send, Sparkles, Volume2, X } from 'lucide-react'
+import { Maximize2, Mic, Send, Volume2, X } from 'lucide-react'
 import { ISKRA_NAME } from '../lib/admin/geminiIskraCore.js'
+import { IskraOrb } from './iskra/IskraOrb.jsx'
+import { useIskraOrbState } from './iskra/useIskraOrbState.js'
 
 /**
  * Компактный док ИСКРЫ — диалог без блокировки страницы.
@@ -29,6 +31,7 @@ export function IskraCompactDock({
   autoSpeak,
   onToggleAutoSpeak,
 }) {
+  const orbState = useIskraOrbState(listening, loading, { chime: true })
   const visibleMessages = threadOpen ? messages.filter((m) => m.role === 'user' || m.role === 'assistant').slice(-4) : []
 
   return (
@@ -92,16 +95,14 @@ export function IskraCompactDock({
       ) : null}
 
       <div className="iskra-dock__bar">
-        <button
-          type="button"
+        <IskraOrb
+          state={orbState}
+          size={44}
+          interactive
           className="iskra-dock__orb"
-          aria-label={threadOpen ? 'Свернуть диалог' : 'Развернуть последние сообщения'}
+          ariaLabel={threadOpen ? 'Свернуть диалог' : 'Развернуть последние сообщения'}
           onClick={onToggleThread}
-        >
-          <span className="iskra-dock__orb-ring" aria-hidden />
-          <span className="iskra-dock__orb-ring iskra-dock__orb-ring--2" aria-hidden />
-          <Sparkles size={20} aria-hidden />
-        </button>
+        />
 
         <div className="iskra-dock__meta">
           <span className="iskra-dock__title">
@@ -140,7 +141,8 @@ export function IskraCompactDock({
           <button
             type="button"
             className={`iskra-dock__icon-btn${autoSpeak ? ' iskra-dock__icon-btn--on' : ''}`}
-            aria-label="Автоозвучка"
+            aria-label="Автоозвучка и звук искры"
+            title="Автоозвучка и звук искры"
             aria-pressed={autoSpeak}
             onClick={onToggleAutoSpeak}
           >

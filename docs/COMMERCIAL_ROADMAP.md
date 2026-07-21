@@ -80,7 +80,7 @@ Cutover **не в текущих спринтах**. Сейчас — тольк
 | Менеджер по продажам | ✅ роль + ежедневный отчёт / план в проде; ТЗ-справочник: [SALES_MANAGER.md](./SALES_MANAGER.md) |
 | **Воронка ПНК** | ✅ в проде (2026-07) — [PNK_FUNNEL.md](./PNK_FUNNEL.md); доска `/sales/pnk`, мастер на карточке |
 | **Планёрка** (задания команде) | ✅ v1 + лента в ИСКРЕ — [ISKRA_PLANERKA.md](./ISKRA_PLANERKA.md), [ISKRA_PRO.md](./ISKRA_PRO.md) |
-| **Каналы связи** | Max тренер ✅; SMS клуба (Мои Звонки) ⏸ — [OUTREACH_CHANNELS_ROADMAP.md](./OUTREACH_CHANNELS_ROADMAP.md) |
+| **Каналы связи** | Max тренер ✅; SMS клуба (Мои Звонки) MVP — [OUTREACH_CHANNELS_ROADMAP.md](./OUTREACH_CHANNELS_ROADMAP.md), [MOIZVONKI_SETUP.md](./MOIZVONKI_SETUP.md) |
 
 ---
 

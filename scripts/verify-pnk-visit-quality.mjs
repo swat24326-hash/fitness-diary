@@ -111,10 +111,13 @@ ok(trialItem?.status === 'pending', 'scheduled trial pending until visit start')
 ok(trialItem?.note?.includes('После начала'), 'pending note')
 const startItem = scheduled.items.find((i) => i.key === 'visit_started')
 ok(startItem?.label === 'Начало тренировки', 'visit_started label')
+ok(startItem?.status === 'pending', 'visit_started pending while waiting in hall')
 ok(/21\.07\.2026/.test(startItem?.note || '') && /19:00/.test(startItem?.note || ''), 'start shows free slot')
 ok(scheduled.pending > 0, 'has pending count')
-ok(scheduled.total <= 3, 'score only countable before hall')
-ok(scheduled.missing <= 1, 'does not mass-penalize hall package')
+ok(scheduled.done === 2, 'contact + date done before hall')
+ok(scheduled.missing === 0, 'no missing when waiting with date set')
+ok(scheduled.total === 2, 'score only contact+date before hall')
+ok(scheduled.summaryLine.includes('ждём зал') || scheduled.pending > 0, 'summary waits for hall')
 
 const noDate = buildPnkVisitQualityReport(
   {
@@ -126,9 +129,11 @@ const noDate = buildPnkVisitQualityReport(
   { bzCompletedCount: 0 },
 )
 ok(noDate.items.find((i) => i.key === 'trial')?.status === 'pending', 'no date trial still pending before hall')
+ok(noDate.items.find((i) => i.key === 'visit_started')?.status === 'pending', 'visit_started pending without date')
 ok(noDate.items.find((i) => i.key === 'trial_date')?.status === 'missing', 'trial_date missing')
 ok(/дата не назначена/i.test(noDate.items.find((i) => i.key === 'trial_date')?.note || ''), 'no date note')
 ok(noDate.phases?.length >= 2, 'phases present')
+ok(noDate.missing === 1, 'only trial_date missing without date')
 
 const afterStart = buildPnkVisitQualityReport(
   {

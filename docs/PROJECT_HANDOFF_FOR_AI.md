@@ -89,6 +89,7 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 - `SUPABASE_SERVICE_ROLE_KEY`, опционально `SUPABASE_URL` / `SUPABASE_ANON_KEY`
 - `GEMINI_API_KEY`, опционально `GEMINI_MODEL`
 - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
+- клубные SMS «Мои Звонки»: `MOIZVONKI_DOMAIN` или `MOIZVONKI_API_BASE`, `MOIZVONKI_API_KEY`, `MOIZVONKI_USER_EMAIL` (см. `docs/MOIZVONKI_SETUP.md`)
 
 См. `.env.example`. Без URL/ключа Supabase — локальный демо-режим.
 

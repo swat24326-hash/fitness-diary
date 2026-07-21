@@ -165,7 +165,7 @@
 2. Trainer path: клиенты → карточка → тренировка — ✅: единая шапка `trainer-path-head`, один primary CTA, токены статуса/outreach, glass-список  
 3. Admin home + статистика — ✅: champagne-плитки/карточки на токенах, loading skeleton, `admin-path.css`  
 4. Sales / ПНК под ролевыми токенами — ✅: plan/chips без emerald/cyan-хардкода; админ на продажах остаётся champagne shell  
-5. ИСКРА-orb / персонаж — **только по явному запросу** ([ISKRA_NORTH_STAR.md](./ISKRA_NORTH_STAR.md))
+5. ИСКРА-orb — ✅ MVP по запросу: `IskraOrb` (idle/listen/think/insight), док + шапка + бриф; Lottie-персонаж — позже ([ISKRA_NORTH_STAR.md](./ISKRA_NORTH_STAR.md))
 
 **Волна D (2026-07-19):** empty/loading одного класса; список клиентов (тапы); форма тренировки; планёрка + «Просрочено»; диагностика/структура/челленджи glass; микро-появление `.os-enter`.
 

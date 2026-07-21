@@ -7,6 +7,7 @@ import { isSupabaseConfigured } from '../lib/supabase'
 import { useCallback, useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react'
 import { AlertTriangle, BarChart3, CircleHelp, Inbox, LayoutDashboard, LogOut, Menu, RefreshCw, Trophy, TrendingUp, User, UserCircle, Building2 } from 'lucide-react'
 import { OsMark } from './brand/OsMark.jsx'
+import { IskraOrb } from './iskra/IskraOrb.jsx'
 import { PRODUCT_BRAND_NAME, productBrandAriaOnline, productBrandDocumentTitle } from '../lib/productBrand.js'
 import {
   listClubsLocal,
@@ -513,7 +514,7 @@ export function AppHeader() {
             aria-label={adminClubValue ? 'ЭВС «ИСКРА» — аналитика клуба' : 'Сначала выберите клуб'}
             onClick={() => openIskra({})}
           >
-            <span aria-hidden>✨</span>
+            <IskraOrb state="idle" size={26} className="app-header__vasya-orb" />
           </button>
         ) : null}
         {!isAdmin && !isSalesManager && user ? <HeaderStopwatch /> : null}

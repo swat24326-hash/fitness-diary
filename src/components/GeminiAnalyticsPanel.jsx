@@ -43,6 +43,7 @@ import {
   startGeminiSpeechRecognition,
   stopGeminiSpeech,
 } from '../lib/geminiAnalyticsSpeech.js'
+import { saveIskraInsightChimeEnabled } from '../lib/admin/iskraInsightChime.js'
 import { periodLabelRu } from '../lib/admin/geminiAnalyticsSnapshot.js'
 import { buildIskraProactiveHints, pickRotatingHint } from '../lib/admin/iskraProactiveHints.js'
 import {
@@ -70,6 +71,8 @@ import {
 import { buildTrainerInsightCards } from '../lib/admin/iskraTrainerPanelCore.js'
 import { IskraInsightCards } from './iskra/IskraInsightCards.jsx'
 import { IskraSparkBrief } from './iskra/IskraSparkBrief.jsx'
+import { IskraOrb } from './iskra/IskraOrb.jsx'
+import { useIskraOrbState } from './iskra/useIskraOrbState.js'
 import { IskraAlertRibbon } from './iskra/IskraAlertRibbon.jsx'
 import { IskraWeekChecklist } from './iskra/IskraWeekChecklist.jsx'
 import { IskraPlanerkaFeed } from './iskra/IskraPlanerkaFeed.jsx'
@@ -583,6 +586,7 @@ export function GeminiAnalyticsPanel({
       : lastAssistantLine
         ? `${lastAssistantLine.slice(0, 80)}${lastAssistantLine.length > 80 ? '…' : ''}`
         : rotatingHint?.label || 'На связи — спросите или нажмите микрофон'
+  const orbState = useIskraOrbState(listening, loading, { chime: true })
 
   const panelClass = `gemini-panel gemini-panel--female gemini-panel--fullscreen${entered ? ' gemini-panel--open' : ''}`
 
@@ -1096,6 +1100,7 @@ export function GeminiAnalyticsPanel({
           setAutoSpeak((on) => {
             const next = !on
             saveGeminiAutoSpeak(next)
+            saveIskraInsightChimeEnabled(next)
             if (next) primeGeminiSpeechPlayback()
             else stopGeminiSpeech()
             return next
@@ -1129,9 +1134,7 @@ export function GeminiAnalyticsPanel({
 
         <header className="gemini-panel__head gemini-panel__head--fullscreen">
           <div className="gemini-panel__head-main">
-            <div className="gemini-panel__avatar gemini-panel__avatar--female gemini-panel__avatar--orb" aria-hidden>
-              <Sparkles size={20} />
-            </div>
+            <IskraOrb state={orbState} size={44} className="gemini-panel__avatar gemini-panel__avatar--orb" />
             <div>
               <h2 className="gemini-panel__title">{ISKRA_FULL_NAME}</h2>
               <p className="gemini-panel__sub muted">
@@ -1188,6 +1191,7 @@ export function GeminiAnalyticsPanel({
             setAutoSpeak((on) => {
               const next = !on
               saveGeminiAutoSpeak(next)
+              saveIskraInsightChimeEnabled(next)
               if (next) primeGeminiSpeechPlayback()
               else stopGeminiSpeech()
               return next

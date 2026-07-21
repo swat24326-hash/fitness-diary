@@ -1,6 +1,6 @@
 # API — каталог endpoints
 
-**Актуально:** 2026-07-17. Vercel Hobby **≤12** serverless functions в `api/*.js`. Новое действие — сначала `admin-data?action=`, не новый файл.
+**Актуально:** 2026-07-21. Vercel Hobby **≤12** serverless functions в `api/*.js`. Новое действие — сначала `admin-data?action=`, не новый файл.
 
 Политика: `.cursor/rules/fitness-diary-supabase.mdc`, `fitness-diary-architecture.mdc`.  
 Ядро: **`api/_lib/`** (не `api/lib/`).
@@ -47,6 +47,7 @@
 | `challenges`, `challenge-trainings`, `exercises`, `exercises-meta` | admin / trainer | Справочники |
 | `membership-types`, `nutrition-products`, `homework-presets` | admin / trainer | Типы карт, питание, ДЗ |
 | `push-subscription` | admin / trainer / sales_manager | VAPID public key |
+| `club-sms` | admin / sales_manager | Статус Мои Звонки (`configured`) |
 
 ### POST (фрагмент)
 
@@ -59,6 +60,7 @@
 | `push-subscription` | auth user | Регистрация push |
 | `reset-trainer-password`, `set-trainer-active` | admin | Управление тренером |
 | `pnk` | admin / sales_manager | Мутации ПНК |
+| `club-sms` | admin / sales_manager | SMS клиенту через Мои Звонки (`client_id`, `scenario` / `text`) |
 
 ---
 

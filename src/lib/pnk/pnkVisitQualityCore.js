@@ -2,7 +2,7 @@
  * Итог качества ведения ПНК (чеклист для админа).
  * Отличает «сделано по делу» от «только отметка / пропуск».
  * Блок «В зале» = пакет первой бесплатной: пока нет начала тренировки,
- * остальные пункты зала/после не штрафуют оценку (status pending).
+ * само «Начало тренировки» и остальные пункты зала/после — status pending (не «нет»).
  * Без React / IDB.
  */
 
@@ -197,10 +197,11 @@ function itemVisitStart(d, client) {
   if (d.visit_started) {
     return row('visit_started', label, 'done', when ? `Начата · ${when}` : 'Клиент в зале')
   }
+  // Ещё не в зале — не штраф «нет»: тренер на этапе «ждём» всё сделал верно
   if (when) {
-    return row('visit_started', label, 'missing', `Ждём в зале · бесплатная ${when}`)
+    return row('visit_started', label, 'pending', `Ждём в зале · бесплатная ${when}`)
   }
-  return row('visit_started', label, 'missing', 'Ещё не началась · нет даты бесплатной')
+  return row('visit_started', label, 'pending', 'Ждём начала · сначала нужна дата бесплатной')
 }
 
 /**
