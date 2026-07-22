@@ -1,14 +1,20 @@
 import { useCallback, useState } from 'react'
 import { MessageSquare } from 'lucide-react'
-import { sendClubSmsViaApi } from '../../lib/admin/clubSmsService.js'
+import { AdminClientClubSmsSheet } from './AdminClientClubSmsSheet.jsx'
 
 /**
- * Кнопка клубного SMS (Мои Звонки) в списке клиентов админки.
- * Статус configured передаёт родитель (один GET на страницу).
+ * Кнопка клубного SMS (Мои Звонки) — открывает лист подтверждения, не шлёт сразу.
  * @param {{
  *   clubId: string,
- *   client: { id: string, name?: string, phone?: string | null },
- *   scenario?: string,
+ *   client: { id: string, name?: string, phone?: string | null, outreach_name?: string | null, trainer_id?: string | null },
+ *   mode?: 'template' | 'custom',
+ *   scenario?: string | null,
+ *   scenarioLabel?: string,
+ *   memList?: object[],
+ *   trainerName?: string,
+ *   clubName?: string,
+ *   membershipName?: string,
+ *   today?: string,
  *   configured?: boolean | null,
  *   busy?: boolean,
  *   onFeedback?: (msg: string, tone?: string) => void,
@@ -17,16 +23,23 @@ import { sendClubSmsViaApi } from '../../lib/admin/clubSmsService.js'
 export function AdminClientClubSmsButton({
   clubId,
   client,
-  scenario = 'expiring',
+  mode = 'custom',
+  scenario = null,
+  scenarioLabel = '',
+  memList = [],
+  trainerName = '',
+  clubName = '',
+  membershipName = 'абонемент',
+  today,
   configured = null,
   busy = false,
   onFeedback,
 }) {
-  const [sending, setSending] = useState(false)
+  const [open, setOpen] = useState(false)
   const hasPhone = Boolean(String(client?.phone ?? '').trim())
 
-  const onClick = useCallback(async () => {
-    if (!client?.id || !clubId || sending || busy) return
+  const onOpen = useCallback(() => {
+    if (!client?.id || !clubId || busy) return
     if (!hasPhone) {
       onFeedback?.('У клиента нет номера телефона', 'warn')
       return
@@ -35,42 +48,46 @@ export function AdminClientClubSmsButton({
       onFeedback?.('Мои Звонки не настроены на сервере (см. docs/MOIZVONKI_SETUP.md)', 'warn')
       return
     }
-    setSending(true)
-    try {
-      await sendClubSmsViaApi({
-        clubId,
-        clientId: client.id,
-        scenario,
-      })
-      onFeedback?.('SMS отправлено через Мои Звонки (телефон клуба)', 'ok')
-    } catch (e) {
-      const msg = e?.message || 'Не удалось отправить SMS'
-      onFeedback?.(msg, 'warn')
-    } finally {
-      setSending(false)
-    }
-  }, [busy, client?.id, clubId, configured, hasPhone, onFeedback, scenario, sending])
+    setOpen(true)
+  }, [busy, client?.id, clubId, configured, hasPhone, onFeedback])
 
-  const disabled = busy || sending || !hasPhone || configured === false
+  const disabled = busy || !hasPhone || configured === false
   const title =
     configured === false
       ? 'Мои Звонки не настроены на сервере'
       : !hasPhone
         ? 'Нет телефона'
-        : sending
-          ? 'Отправка…'
-          : 'SMS клиенту (Мои Звонки)'
+        : mode === 'template'
+          ? `SMS · ${scenarioLabel || 'шаблон'}`
+          : 'SMS клиенту (свой текст)'
 
   return (
-    <button
-      type="button"
-      className="btn btn-ghost btn-icon-square btn-touch"
-      disabled={disabled}
-      onClick={() => void onClick()}
-      aria-label={title}
-      title={title}
-    >
-      <MessageSquare size={20} aria-hidden />
-    </button>
+    <>
+      <button
+        type="button"
+        className="btn btn-ghost btn-icon-square btn-touch"
+        disabled={disabled}
+        onClick={onOpen}
+        aria-label={title}
+        title={title}
+      >
+        <MessageSquare size={20} aria-hidden />
+      </button>
+      <AdminClientClubSmsSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        clubId={clubId}
+        client={client}
+        mode={mode}
+        scenario={scenario}
+        scenarioLabel={scenarioLabel}
+        memList={memList}
+        trainerName={trainerName}
+        clubName={clubName}
+        membershipName={membershipName}
+        today={today}
+        onFeedback={onFeedback}
+      />
+    </>
   )
 }

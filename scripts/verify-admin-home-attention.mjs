@@ -85,11 +85,22 @@ const cards = buildAdminDaySummaryCards({
 })
 ok(cards.length === 4, 'day cards without sales')
 ok(!cards.some((c) => c.key === 'sales'), 'no sales card')
+const inactiveCard = cards.find((c) => c.key === 'inactive')
+ok(
+  inactiveCard?.to === '/admin/clients?club=club-1&filter=inactive',
+  'inactive card → clients',
+)
+ok(/клиент/i.test(inactiveCard?.hint || ''), 'inactive hint mentions clients')
 const split = splitDaySummarySpotlight(cards, { maxSpotlight: 2 })
 ok(split.spotlight.length === 2, 'spotlight size')
 ok(split.spotlight.some((c) => c.key === 'inactive'), 'spotlight has inactive')
 ok(split.hasMore === true, 'has more')
 
+const softInactive = signals.find((s) => s.id === 'inactive')
+ok(
+  softInactive?.href === '/admin/clients?club=club-1&filter=inactive',
+  'soft inactive → clients',
+)
 if (failed) {
   console.error(`\n${failed} failed`)
   process.exit(1)

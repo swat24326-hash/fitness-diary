@@ -8,6 +8,7 @@ import {
 import {
   OUTREACH_SCENARIOS,
   buildOutreachMessage,
+  clientMatchesOutreachFilter,
   isOutreachScenario,
   resolveOutreachTemplates,
 } from '../../src/lib/trainer/trainerClientOutreachCore.js'
@@ -30,6 +31,7 @@ export async function handleClubSmsGet(_ctx, res) {
 /**
  * POST admin-data?action=club-sms
  * body: { club_id, client_id, scenario?: 'expiring'|..., text?: string }
+ * С text — произвольное SMS. Без text — только валидный scenario + клиент подходит под фильтр.
  * @param {object} ctx
  * @param {object} res
  * @param {object} body
@@ -64,7 +66,7 @@ export async function handleClubSmsPost(ctx, res, body) {
 
   const { data: client, error: clientErr } = await ctx.supabaseAdmin
     .from('clients')
-    .select('id, name, phone, outreach_name, club_id, trainer_id, archived_at')
+    .select('id, name, phone, outreach_name, club_id, trainer_id, archived_at, birth_date')
     .eq('id', clientId)
     .maybeSingle()
 
@@ -88,10 +90,17 @@ export async function handleClubSmsPost(ctx, res, body) {
 
   const customText = String(body?.text ?? '').trim()
   let text = customText
-  let scenario = String(body?.scenario ?? 'expiring').trim().toLowerCase()
+  let scenario = String(body?.scenario ?? '').trim().toLowerCase()
 
   if (!text) {
-    if (!isOutreachScenario(scenario)) scenario = 'expiring'
+    if (!isOutreachScenario(scenario)) {
+      sendJson(res, 400, {
+        ok: false,
+        error: 'Укажите текст SMS или выберите фильтр со сценарием (например «Истекает ≤ 3 дня»)',
+        code: 'need_text_or_scenario',
+      })
+      return
+    }
 
     const today = todayLocalIso()
     const [memRes, clubRes, settingsRes, trainerRes] = await Promise.all([
@@ -111,6 +120,21 @@ export async function handleClubSmsPost(ctx, res, body) {
     ])
 
     const memList = memRes.data ?? []
+    const matches = clientMatchesOutreachFilter(scenario, {
+      memList,
+      today,
+      birthDate: client.birth_date,
+      isStale: false,
+    })
+    if (!matches) {
+      sendJson(res, 400, {
+        ok: false,
+        error: 'Клиент не подходит под этот сценарий — напишите свой текст SMS',
+        code: 'scenario_mismatch',
+      })
+      return
+    }
+
     const active = pickUsableMembershipForDate(memList, today)
     let membershipName = 'абонемент'
     const typeId = active?.membership_type_id

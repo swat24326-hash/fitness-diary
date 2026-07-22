@@ -1,0 +1,171 @@
+import { useEffect, useId, useState } from 'react'
+import { X } from 'lucide-react'
+import { sendClubSmsViaApi } from '../../lib/admin/clubSmsService.js'
+import {
+  buildOutreachMessage,
+  OUTREACH_TEMPLATE_LIMITS,
+} from '../../lib/trainer/trainerClientOutreachCore.js'
+import '../../styles/club-sms-sheet.css'
+
+const MAX_LEN = OUTREACH_TEMPLATE_LIMITS.maxLength
+
+/**
+ * Лист: превью шаблона или свой текст + обязательное подтверждение перед SMS.
+ *
+ * @param {{
+ *   open: boolean,
+ *   onClose: () => void,
+ *   clubId: string,
+ *   client: { id: string, name?: string, phone?: string | null, outreach_name?: string | null, trainer_id?: string | null },
+ *   mode: 'template' | 'custom',
+ *   scenario?: string | null,
+ *   scenarioLabel?: string,
+ *   memList?: object[],
+ *   trainerName?: string,
+ *   clubName?: string,
+ *   membershipName?: string,
+ *   today?: string,
+ *   onFeedback?: (msg: string, tone?: string) => void,
+ * }} props
+ */
+export function AdminClientClubSmsSheet({
+  open,
+  onClose,
+  clubId,
+  client,
+  mode = 'custom',
+  scenario = null,
+  scenarioLabel = '',
+  memList = [],
+  trainerName = '',
+  clubName = '',
+  membershipName = 'абонемент',
+  today,
+  onFeedback,
+}) {
+  const titleId = useId()
+  const [text, setText] = useState('')
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!open || !client) return
+    setError('')
+    if (mode === 'template' && scenario) {
+      const preview = buildOutreachMessage(scenario, {
+        client,
+        memList,
+        trainerName,
+        clubName,
+        membershipName,
+        today,
+      })
+      setText(preview)
+    } else {
+      setText('')
+    }
+  }, [open, client, mode, scenario, memList, trainerName, clubName, membershipName, today])
+
+  if (!open || !client) return null
+
+  const trimmed = text.trim()
+  const canSend = trimmed.length > 0 && !sending
+  const title =
+    mode === 'template' && scenarioLabel
+      ? `SMS · ${scenarioLabel}`
+      : 'SMS клиенту'
+
+  const onSend = async () => {
+    if (!canSend || !clubId || !client.id) return
+    setSending(true)
+    setError('')
+    try {
+      await sendClubSmsViaApi({
+        clubId,
+        clientId: client.id,
+        text: trimmed.slice(0, MAX_LEN),
+        ...(mode === 'template' && scenario ? { scenario } : {}),
+      })
+      onFeedback?.('SMS отправлено через Мои Звонки (телефон клуба)', 'ok')
+      onClose()
+    } catch (e) {
+      setError(e?.message || 'Не удалось отправить SMS')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <div
+      className="club-sms-sheet-backdrop"
+      role="presentation"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !sending) onClose()
+      }}
+    >
+      <div
+        className="club-sms-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="club-sms-sheet__head">
+          <div>
+            <h2 id={titleId} className="club-sms-sheet__title">
+              {title}
+            </h2>
+            <p className="club-sms-sheet__meta">
+              {client.name || 'Клиент'}
+              {client.phone ? ` · ${client.phone}` : ''}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-ghost btn-icon-square btn-touch"
+            aria-label="Закрыть"
+            disabled={sending}
+            onClick={onClose}
+          >
+            <X size={18} aria-hidden />
+          </button>
+        </div>
+
+        <p className="club-sms-sheet__hint">
+          {mode === 'template'
+            ? 'Проверьте текст и нажмите «Отправить». Можно править перед отправкой.'
+            : 'Напишите текст SMS. Без подтверждения сообщение не уйдёт.'}
+        </p>
+
+        <p className="club-sms-sheet__label">Текст сообщения</p>
+        <textarea
+          className="club-sms-sheet__text"
+          value={text}
+          onChange={(e) => setText(e.target.value.slice(0, MAX_LEN))}
+          placeholder="Текст SMS…"
+          disabled={sending}
+          aria-label="Текст SMS"
+        />
+        <p className="club-sms-sheet__count">
+          {trimmed.length}/{MAX_LEN}
+        </p>
+
+        {error ? <p className="club-sms-sheet__error">{error}</p> : null}
+
+        <div className="club-sms-sheet__actions">
+          <button type="button" className="btn btn-ghost btn-touch" disabled={sending} onClick={onClose}>
+            Отмена
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary btn-touch"
+            disabled={!canSend}
+            onClick={() => void onSend()}
+          >
+            {sending ? 'Отправка…' : 'Отправить'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}

@@ -19,6 +19,7 @@ import { buildAdminClubQueryHref } from './adminClientQuickFilters.js'
  *     droppedCount?: number,
  *   } | null,
  *   clubId?: string,
+ *   hrefClientsInactive?: string,
  *   hrefStatsInactive?: string,
  *   hrefStatsCoach?: string,
  *   hrefClientsExpiring?: string,
@@ -42,8 +43,9 @@ export function buildAdminHomeSoftSignals(opts = {}) {
   const out = []
 
   const hrefInactive =
+    opts.hrefClientsInactive ||
     opts.hrefStatsInactive ||
-    buildAdminClubQueryHref('/admin/statistics', { clubId, period: 'today', panel: 'inactive' })
+    buildAdminClubQueryHref('/admin/clients', { clubId, filter: 'inactive' })
   const hrefCoach =
     opts.hrefStatsCoach ||
     buildAdminClubQueryHref('/admin/statistics', { clubId, period: 'month', panel: 'coachQuality' })
@@ -73,7 +75,7 @@ export function buildAdminHomeSoftSignals(opts = {}) {
     out.push({
       id: 'inactive',
       title: `${inactive} не активных`,
-      subtitle: 'Список в статистике',
+      subtitle: 'Список в клиентах',
       href: hrefInactive,
       tone: 'hot',
     })

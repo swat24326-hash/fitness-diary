@@ -1,0 +1,126 @@
+/**
+ * Лист подтверждения клубного SMS (Мои Звонки).
+ */
+
+.club-sms-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: max(12px, env(safe-area-inset-bottom, 12px)) 12px 12px;
+  background: rgba(2, 6, 23, 0.55);
+  backdrop-filter: blur(6px);
+}
+
+.club-sms-sheet {
+  width: min(440px, 100%);
+  max-height: min(78dvh, 560px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 1rem 1rem 0.85rem;
+  border-radius: var(--radius-md, 16px);
+  border: 1px solid var(--border, rgba(46, 255, 184, 0.14));
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, transparent 36%),
+    var(--bg-card, rgba(8, 32, 24, 0.92));
+  box-shadow: var(--shadow, 0 24px 60px rgba(0, 0, 0, 0.55));
+  animation: club-sms-sheet-in 0.28s var(--ease-out, ease) both;
+}
+
+.club-sms-sheet__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.club-sms-sheet__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.club-sms-sheet__meta {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+.club-sms-sheet__hint {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.club-sms-sheet__label {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.club-sms-sheet__text {
+  width: 100%;
+  min-height: 7.5rem;
+  resize: vertical;
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--radius-sm, 12px);
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.28);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.club-sms-sheet__text:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent-bright, #2effb8) 55%, transparent);
+  outline-offset: 1px;
+}
+
+.club-sms-sheet__count {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.club-sms-sheet__error {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--danger, #f87171);
+}
+
+.club-sms-sheet__actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: 0.15rem;
+}
+
+@keyframes club-sms-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .club-sms-sheet {
+    animation: none;
+  }
+}

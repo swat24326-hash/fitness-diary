@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { UserCircle } from 'lucide-react'
 import { formatIsoRu } from '../lib/period'
 import { formatInactiveClientListLabel } from '../lib/membershipRules'
 
@@ -61,8 +62,13 @@ export function AdminInactiveClientsPanel({
                     {metaParts.length > 0 ? <span>{metaParts.join(' · ')}</span> : null}
                   </div>
                 </div>
-                <Link to={linkFor(c.id)} className="btn btn-primary btn-touch u-no-decoration">
-                  Карточка
+                <Link
+                  to={linkFor(c.id)}
+                  className="btn btn-primary btn-icon-square btn-touch u-no-decoration"
+                  aria-label="Карточка клиента"
+                  title="Карточка клиента"
+                >
+                  <UserCircle size={20} aria-hidden />
                 </Link>
               </li>
             )

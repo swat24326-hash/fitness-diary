@@ -16,8 +16,8 @@ import { buildAdminClientsTodaySnapshot, shouldShowAdminClientsList } from '../.
 import { loadAdminClubMembershipsMap, loadAdminClubTrainingsForClientIds } from '../../lib/admin/adminClubWorkspaceCache'
 import { fetchClientsLastTrainingsViaApi } from '../../lib/admin/adminApiClient'
 import { fetchClubSmsStatus } from '../../lib/admin/clubSmsService.js'
+import { resolveClubSmsMode } from '../../lib/admin/clubSmsModeCore.js'
 import { pullAdminClientsFromCloud } from '../../lib/admin/adminClientsListService'
-import { isOutreachScenario } from '../../lib/trainer/trainerClientOutreachCore.js'
 import { useDebouncedStorageReload, shouldReloadAdminClientsPage } from '../../lib/useDebouncedStorageReload'
 import { ADMIN_CLIENTS_PAGE_SIZE, ADMIN_CLIENTS_REMOTE_LIMIT } from '../../lib/admin/adminConstants'
 import { isSupabaseConfigured, supabase } from '../../lib/supabase'
@@ -419,6 +419,7 @@ export function AdminClients() {
   }
 
   const activeBrowseLabel = browseFilterLabels[quickFilter] ?? null
+  const smsMode = useMemo(() => resolveClubSmsMode(quickFilter), [quickFilter])
 
   const clearBrowseFilter = () => {
     setQuickFilter('none')
@@ -842,7 +843,12 @@ export function AdminClients() {
                         <AdminClientClubSmsButton
                           clubId={club}
                           client={c}
-                          scenario={isOutreachScenario(quickFilter) ? quickFilter : 'expiring'}
+                          mode={smsMode.mode}
+                          scenario={smsMode.scenario}
+                          scenarioLabel={smsMode.label}
+                          memList={mlist}
+                          trainerName={trainerNameById[String(c.trainer_id ?? '')] || ''}
+                          today={today}
                           configured={clubSmsConfigured}
                           busy={busy}
                           onFeedback={onSmsFeedback}
