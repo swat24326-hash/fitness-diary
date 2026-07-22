@@ -22,10 +22,8 @@
   gap: 0.65rem;
   padding: 1rem 1rem 0.85rem;
   border-radius: var(--radius-md, 16px);
-  border: 1px solid var(--border, rgba(46, 255, 184, 0.14));
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, transparent 36%),
-    var(--bg-card, rgba(8, 32, 24, 0.92));
+  border: 1px solid var(--border-strong, rgba(46, 255, 184, 0.32));
+  background: var(--bg-subtle, #061210);
   box-shadow: var(--shadow, 0 24px 60px rgba(0, 0, 0, 0.55));
   animation: club-sms-sheet-in 0.28s var(--ease-out, ease) both;
 }
@@ -74,8 +72,8 @@
   resize: vertical;
   padding: 0.65rem 0.75rem;
   border-radius: var(--radius-sm, 12px);
-  border: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid var(--border-strong, rgba(46, 255, 184, 0.32));
+  background: var(--bg, #030806);
   color: var(--text);
   font: inherit;
   font-size: 0.9rem;

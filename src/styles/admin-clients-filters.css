@@ -1,0 +1,149 @@
+/**
+ * Квадратные фильтры «Сводка на сегодня» в админке → Клиенты.
+ */
+
+.admin-clients-filters-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: clamp(8px, 1.8vw, 12px);
+}
+
+.admin-clients-filter-tile-wrap {
+  min-width: 0;
+}
+
+.admin-clients-filter-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--radius-md, 16px);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.03) 0%, rgba(0, 0, 0, 0.12) 100%);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  transition:
+    border-color 0.2s var(--ease-out, ease),
+    box-shadow 0.2s var(--ease-out, ease),
+    transform 0.2s var(--ease-out, ease);
+}
+
+.admin-clients-filter-tile:hover {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+  transform: translateY(-1px);
+}
+
+.admin-clients-filter-tile--active {
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--border));
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent),
+    0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.admin-clients-filter-tile--hot:not(.admin-clients-filter-tile--active) {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+}
+
+.admin-clients-filter-tile--warn.admin-clients-filter-tile--hot:not(.admin-clients-filter-tile--active),
+.admin-clients-filter-tile--warn.admin-clients-filter-tile--active {
+  border-color: color-mix(in srgb, #f59e0b 48%, var(--border));
+  background: color-mix(in srgb, #f59e0b 8%, rgba(0, 0, 0, 0.12));
+}
+
+.admin-clients-filter-tile__help {
+  position: absolute;
+  z-index: 2;
+  top: 4px;
+  right: 4px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.admin-clients-filter-tile__help:hover,
+.admin-clients-filter-tile__help--on {
+  color: var(--accent-bright, var(--accent));
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.admin-clients-filter-tile__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 4px;
+  width: 100%;
+  min-height: 0;
+  padding: 12px 10px 10px;
+  padding-top: 32px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-clients-filter-tile__icon {
+  display: inline-flex;
+  opacity: 0.88;
+  margin-bottom: auto;
+}
+
+.admin-clients-filter-tile__count {
+  font-size: clamp(1.25rem, 3.2vw, 1.55rem);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.admin-clients-filter-tile__label {
+  font-size: clamp(0.72rem, 1.8vw, 0.84rem);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.admin-clients-filter-tile__pop {
+  position: absolute;
+  z-index: 3;
+  left: 6px;
+  right: 6px;
+  top: 34px;
+  margin: 0;
+  padding: 8px 9px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-elevated, #0c281e) 92%, #000);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--text);
+  pointer-events: none;
+}
+
+@media (max-width: 900px) {
+  .admin-clients-filters-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .admin-clients-filters-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

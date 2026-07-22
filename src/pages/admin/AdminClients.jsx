@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
-import { AlertTriangle, Archive, Clock, RefreshCw, RotateCcw, Search, Trash2, UserCheck, UserCircle, UserCog, UserSearch, Users, UserX } from 'lucide-react'
+import { Archive, RefreshCw, RotateCcw, Search, Trash2, UserCircle, UserCog, UserSearch } from 'lucide-react'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { AdminClientClubSmsButton } from '../../components/admin/AdminClientClubSmsButton.jsx'
+import { AdminClientsBrowseFilters } from '../../components/admin/AdminClientsBrowseFilters.jsx'
 import { ClientRowMoreMenu } from '../../components/ClientRowMoreMenu.jsx'
 import {
   deleteClientAndAllData,
@@ -387,29 +388,6 @@ export function AdminClients() {
     }
   }, [clients, clientsTab, memByClient, today, operationalClients, todaySnapshot])
 
-  const browseChipClass = (id) => {
-    const hot = id === 'inactive' && filterCounts.inactive > 0
-    return [
-      'admin-clients-metric',
-      quickFilter === id ? 'admin-clients-metric--active' : '',
-      hot ? 'admin-clients-metric--hot' : '',
-    ]
-      .filter(Boolean)
-      .join(' ')
-  }
-
-  const alertChipClass = (id) => {
-    const hot = (id === 'expiring' && filterCounts.expiring > 0) || (id === 'expired_remaining' && filterCounts.expired_remaining > 0)
-    return [
-      'admin-clients-alert',
-      quickFilter === id ? 'admin-clients-alert--active' : '',
-      hot ? 'admin-clients-alert--hot' : '',
-      id === 'expired_remaining' ? 'admin-clients-alert--warn' : '',
-    ]
-      .filter(Boolean)
-      .join(' ')
-  }
-
   const browseFilterLabels = {
     all: 'Все клиенты',
     inactive: 'Не активные на сегодня',
@@ -691,57 +669,11 @@ export function AdminClients() {
         </div>
 
         {clientsTab === 'active' ? (
-          <div className="admin-clients-workspace__metrics">
-            <p className="admin-clients-workspace__metrics-title">Сводка на сегодня</p>
-            <ul className="admin-clients-metrics-grid" aria-label="Быстрый выбор списка">
-              <li>
-                <button type="button" className={browseChipClass('all')} onClick={() => applyFilter('all')}>
-                  <span className="admin-clients-metric__icon" aria-hidden>
-                    <Users size={18} />
-                  </span>
-                  <span className="admin-clients-metric__count">{filterCounts.all}</span>
-                  <span className="admin-clients-metric__label">Все клиенты</span>
-                  <span className="admin-clients-metric__hint muted">без архива</span>
-                </button>
-              </li>
-              <li>
-                <button type="button" className={browseChipClass('inactive')} onClick={() => applyFilter('inactive')}>
-                  <span className="admin-clients-metric__icon" aria-hidden>
-                    <UserX size={18} />
-                  </span>
-                  <span className="admin-clients-metric__count">{filterCounts.inactive}</span>
-                  <span className="admin-clients-metric__label">Не активные</span>
-                  <span className="admin-clients-metric__hint muted">на сегодня</span>
-                </button>
-              </li>
-              <li>
-                <button type="button" className={browseChipClass('active_today')} onClick={() => applyFilter('active_today')}>
-                  <span className="admin-clients-metric__icon" aria-hidden>
-                    <UserCheck size={18} />
-                  </span>
-                  <span className="admin-clients-metric__count">{filterCounts.active_today}</span>
-                  <span className="admin-clients-metric__label">С абонементом</span>
-                  <span className="admin-clients-metric__hint muted">на сегодня</span>
-                </button>
-              </li>
-            </ul>
-            <ul className="admin-clients-alerts-row" aria-label="Сигналы по абонементам">
-              <li>
-                <button type="button" className={alertChipClass('expiring')} onClick={() => applyFilter('expiring')}>
-                  <Clock size={16} aria-hidden />
-                  <span>≤ 3 дня</span>
-                  <strong>{filterCounts.expiring}</strong>
-                </button>
-              </li>
-              <li>
-                <button type="button" className={alertChipClass('expired_remaining')} onClick={() => applyFilter('expired_remaining')}>
-                  <AlertTriangle size={16} aria-hidden />
-                  <span>Срок истёк</span>
-                  <strong>{filterCounts.expired_remaining}</strong>
-                </button>
-              </li>
-            </ul>
-          </div>
+          <AdminClientsBrowseFilters
+            counts={filterCounts}
+            quickFilter={quickFilter}
+            onApply={applyFilter}
+          />
         ) : (
           <p className="admin-clients-workspace__archive-hint muted">
             Архивные карточки: просмотр и возврат. Поиск по имени, телефону или тренеру — от 2 символов.
