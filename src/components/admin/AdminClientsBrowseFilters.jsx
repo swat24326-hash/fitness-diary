@@ -13,7 +13,7 @@ export const ADMIN_CLIENTS_FILTER_HELP = {
 }
 
 /**
- * Сводка на сегодня — пять одинаковых квадратных фильтров.
+ * Сводка на сегодня — пять крупных плиток на ширину рабочей зоны.
  * @param {{
  *   counts: { all: number, inactive: number, active_today: number, expiring: number, expired_remaining: number },
  *   quickFilter: string,
@@ -34,31 +34,31 @@ export function AdminClientsBrowseFilters({ counts, quickFilter, onApply }) {
       <p className="admin-clients-workspace__metrics-title">Сводка на сегодня</p>
       <ul className="admin-clients-filters-grid" aria-label="Быстрый выбор списка">
         <AdminClientsFilterTile
-          icon={<Users size={18} />}
+          icon={<Users size={18} strokeWidth={2} />}
           count={counts.all}
           label="Все клиенты"
           {...tile('all')}
         />
         <AdminClientsFilterTile
-          icon={<UserX size={18} />}
+          icon={<UserX size={18} strokeWidth={2} />}
           count={counts.inactive}
           label="Не активные"
           {...tile('inactive', { hot: counts.inactive > 0 })}
         />
         <AdminClientsFilterTile
-          icon={<UserCheck size={18} />}
+          icon={<UserCheck size={18} strokeWidth={2} />}
           count={counts.active_today}
           label="С абонементом"
           {...tile('active_today')}
         />
         <AdminClientsFilterTile
-          icon={<Clock size={18} />}
+          icon={<Clock size={18} strokeWidth={2} />}
           count={counts.expiring}
-          label="≤ 3 дня"
+          label="Истекает ≤ 3 дня"
           {...tile('expiring', { hot: counts.expiring > 0 })}
         />
         <AdminClientsFilterTile
-          icon={<AlertTriangle size={18} />}
+          icon={<AlertTriangle size={18} strokeWidth={2} />}
           count={counts.expired_remaining}
           label="Срок истёк"
           {...tile('expired_remaining', {

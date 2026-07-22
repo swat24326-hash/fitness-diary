@@ -1,73 +1,129 @@
 /**
- * Компактные квадратные фильтры «Сводка на сегодня».
- * Размер под цифру (~76px), не растягиваем на всю ширину.
+ * Сводка на сегодня — пять равных плиток на ширину рабочей зоны.
+ * Цифра + подпись на виду; «?» — длинная подсказка.
  */
 
 .admin-clients-filters-grid {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
 }
 
 .admin-clients-filter-tile-wrap {
   position: relative;
-  flex: 0 0 auto;
-  width: 76px;
+  min-width: 0;
 }
 
 .admin-clients-filter-tile {
   position: relative;
-  width: 76px;
-  height: 76px;
-  border-radius: 14px;
-  background: var(--bg-subtle, #061210);
-  border: 1px solid var(--border);
+  min-height: 132px;
+  height: 100%;
+  border-radius: 18px;
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--accent) 9%, transparent) 0%,
+      transparent 48%
+    ),
+    var(--bg-subtle, #061210);
+  border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 5%, transparent);
   overflow: visible;
   transition:
-    border-color 0.2s var(--ease-out, ease),
-    box-shadow 0.2s var(--ease-out, ease),
-    transform 0.2s var(--ease-out, ease);
+    border-color 0.22s var(--ease-out, ease),
+    box-shadow 0.22s var(--ease-out, ease),
+    transform 0.22s var(--ease-out, ease),
+    background 0.22s ease;
+}
+
+.admin-clients-filter-tile::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  border-radius: 18px 18px 0 0;
+  background: linear-gradient(
+    90deg,
+    transparent 4%,
+    color-mix(in srgb, var(--accent) 35%, transparent) 50%,
+    transparent 96%
+  );
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .admin-clients-filter-tile:hover {
-  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
-  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 6%, transparent),
+    0 10px 24px rgba(0, 0, 0, 0.28);
 }
 
 .admin-clients-filter-tile--active {
-  border-color: color-mix(in srgb, var(--accent) 58%, var(--border));
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--border));
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--accent) 16%, transparent) 0%,
+      transparent 55%
+    ),
+    var(--bg-subtle, #061210);
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent),
-    0 6px 18px rgba(0, 0, 0, 0.22);
+    0 0 0 1px color-mix(in srgb, var(--accent) 22%, transparent),
+    0 12px 28px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 color-mix(in srgb, #fff 7%, transparent);
+}
+
+.admin-clients-filter-tile--active::before {
+  opacity: 1;
+  background: linear-gradient(
+    90deg,
+    transparent 2%,
+    color-mix(in srgb, var(--accent-bright, var(--accent)) 78%, transparent) 50%,
+    transparent 98%
+  );
 }
 
 .admin-clients-filter-tile--hot:not(.admin-clients-filter-tile--active) {
-  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  border-color: color-mix(in srgb, var(--accent) 46%, var(--border));
 }
 
 .admin-clients-filter-tile--warn.admin-clients-filter-tile--hot:not(.admin-clients-filter-tile--active),
 .admin-clients-filter-tile--warn.admin-clients-filter-tile--active {
-  border-color: color-mix(in srgb, #f59e0b 48%, var(--border));
-  background: color-mix(in srgb, #f59e0b 10%, var(--bg-subtle, #061210));
+  border-color: color-mix(in srgb, #f59e0b 52%, var(--border));
+  background:
+    linear-gradient(165deg, color-mix(in srgb, #f59e0b 14%, transparent) 0%, transparent 52%),
+    var(--bg-subtle, #061210);
+}
+
+.admin-clients-filter-tile--warn::before {
+  background: linear-gradient(
+    90deg,
+    transparent 4%,
+    color-mix(in srgb, #f59e0b 55%, transparent) 50%,
+    transparent 96%
+  );
+  opacity: 0.75;
 }
 
 .admin-clients-filter-tile__help {
   position: absolute;
   z-index: 2;
-  top: 2px;
-  right: 2px;
-  width: 24px;
-  height: 24px;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: none;
-  border-radius: 7px;
+  border-radius: 9px;
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
@@ -83,92 +139,121 @@
 }
 
 .admin-clients-filter-tile__main {
-  display: grid;
-  grid-template-rows: auto 1fr;
-  align-items: center;
-  justify-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
   width: 100%;
+  min-height: 132px;
   height: 100%;
-  padding: 6px 4px 8px;
+  padding: 14px 14px 16px;
   border: none;
   border-radius: inherit;
   background: transparent;
   color: inherit;
   font: inherit;
+  text-align: left;
   cursor: pointer;
 }
 
 .admin-clients-filter-tile__icon {
   display: inline-flex;
-  justify-self: start;
-  margin-left: 4px;
-  opacity: 0.75;
-  color: var(--text-muted);
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent-bright, var(--accent));
+  opacity: 1;
 }
 
 .admin-clients-filter-tile__icon svg {
-  width: 15px;
-  height: 15px;
+  width: 18px;
+  height: 18px;
+}
+
+.admin-clients-filter-tile--warn .admin-clients-filter-tile__icon {
+  background: color-mix(in srgb, #f59e0b 16%, transparent);
+  color: #fbbf24;
 }
 
 .admin-clients-filter-tile__count {
-  align-self: end;
-  margin-bottom: 2px;
-  font-size: 1.7rem;
+  display: block;
+  margin-top: auto;
+  font-size: clamp(1.85rem, 2.6vw, 2.45rem);
   font-weight: 750;
   font-variant-numeric: tabular-nums;
   line-height: 0.95;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.04em;
   color: var(--text);
 }
 
 .admin-clients-filter-tile--wide-num .admin-clients-filter-tile__count {
-  font-size: 1.35rem;
-  letter-spacing: -0.04em;
+  font-size: clamp(1.45rem, 2.1vw, 2rem);
+  letter-spacing: -0.045em;
+}
+
+.admin-clients-filter-tile__label {
+  display: block;
+  max-width: 100%;
+  margin-top: 2px;
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-clients-filter-tile--active .admin-clients-filter-tile__label {
+  color: color-mix(in srgb, var(--text) 78%, var(--accent-bright, var(--accent)));
 }
 
 .admin-clients-filter-tile__pop {
   position: absolute;
   z-index: 5;
   left: 0;
-  top: calc(100% + 6px);
-  width: max(180px, 220%);
-  max-width: min(260px, 70vw);
+  right: 0;
+  top: calc(100% + 8px);
+  width: auto;
+  max-width: none;
   margin: 0;
-  padding: 8px 10px;
-  border-radius: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
   border: 1px solid var(--border-strong, var(--border));
-  background: var(--bg-subtle, #061210);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
-  font-size: 0.74rem;
-  line-height: 1.35;
+  background: color-mix(in srgb, var(--bg-subtle, #061210) 92%, #000);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.48);
+  font-size: 0.78rem;
+  line-height: 1.4;
   color: var(--text-muted);
   pointer-events: none;
 }
 
-.admin-clients-filter-tile__pop-title {
-  display: block;
-  margin-bottom: 0.2rem;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--text);
+@media (max-width: 900px) {
+  .admin-clients-filters-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
-@media (max-width: 420px) {
-  .admin-clients-filter-tile-wrap,
-  .admin-clients-filter-tile {
-    width: 68px;
+@media (max-width: 560px) {
+  .admin-clients-filters-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
   }
 
-  .admin-clients-filter-tile {
-    height: 68px;
+  .admin-clients-filter-tile,
+  .admin-clients-filter-tile__main {
+    min-height: 118px;
   }
 
-  .admin-clients-filter-tile__count {
-    font-size: 1.45rem;
-  }
-
-  .admin-clients-filter-tile--wide-num .admin-clients-filter-tile__count {
-    font-size: 1.2rem;
+  .admin-clients-filter-tile__label {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
   }
 }

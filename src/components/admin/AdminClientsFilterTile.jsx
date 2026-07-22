@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { CircleHelp } from 'lucide-react'
 
 /**
- * Компактная квадратная плитка: цифра — главный акцент; название — по «?».
+ * Плитка сводки: крупная цифра + подпись на виду; «?» — подробная подсказка.
  * @param {{
  *   icon: import('react').ReactNode,
  *   count: number,
@@ -61,31 +61,31 @@ export function AdminClientsFilterTile({
         <button
           type="button"
           className={`admin-clients-filter-tile__help${helpOpen ? ' admin-clients-filter-tile__help--on' : ''}`}
-          aria-label={`Что за фильтр: ${label}`}
+          aria-label={`Подробнее: ${label}`}
           aria-expanded={helpOpen}
           aria-controls={helpId}
-          title="Что за фильтр"
+          title="Подробнее"
           onClick={() => setHelpOpen((v) => !v)}
         >
-          <CircleHelp size={13} aria-hidden />
+          <CircleHelp size={15} aria-hidden />
         </button>
 
         <button
           type="button"
           className="admin-clients-filter-tile__main"
           onClick={onSelect}
+          aria-pressed={active}
           aria-label={`${label}: ${count}`}
-          title={label}
         >
           <span className="admin-clients-filter-tile__icon" aria-hidden>
             {icon}
           </span>
           <span className="admin-clients-filter-tile__count">{count}</span>
+          <span className="admin-clients-filter-tile__label">{label}</span>
         </button>
 
         {helpOpen ? (
           <p id={helpId} className="admin-clients-filter-tile__pop" role="note">
-            <strong className="admin-clients-filter-tile__pop-title">{label}</strong>
             {helpText}
           </p>
         ) : null}
