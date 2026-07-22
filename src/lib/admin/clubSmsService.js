@@ -70,7 +70,8 @@ export async function sendClubSmsViaApi(opts) {
   }
   const data = await res.json().catch(() => ({}))
   if (!res.ok || data?.ok === false) {
-    const err = new Error(data?.error || 'Не удалось отправить SMS')
+    const detail = data?.detail ? ` (${data.detail})` : ''
+    const err = new Error((data?.error || 'Не удалось отправить SMS') + detail)
     err.code = data?.code
     throw err
   }

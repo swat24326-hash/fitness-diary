@@ -64,12 +64,17 @@ export async function handleClubSmsPost(ctx, res, body) {
 
   const { data: client, error: clientErr } = await ctx.supabaseAdmin
     .from('clients')
-    .select('id, name, phone, outreach_name, club_id, trainer_id, archived')
+    .select('id, name, phone, outreach_name, club_id, trainer_id, archived_at')
     .eq('id', clientId)
     .maybeSingle()
 
   if (clientErr) {
-    sendJson(res, 500, { ok: false, error: 'Не удалось загрузить клиента', code: 'db_error' })
+    sendJson(res, 500, {
+      ok: false,
+      error: 'Не удалось загрузить клиента',
+      code: 'db_error',
+      detail: String(clientErr.message ?? '').slice(0, 160) || undefined,
+    })
     return
   }
   if (!client || String(client.club_id ?? '') !== clubId) {
