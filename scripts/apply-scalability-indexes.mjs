@@ -12,7 +12,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-const MIGRATION = 'supabase/migrations/20260710120000_scalability_indexes.sql'
+const MIGRATION = 'supabase/migrations/20260710120100_scalability_indexes.sql'
 const VERIFY_SQL =
   "select indexname from pg_indexes where schemaname='public' and indexname like 'idx_trainings_%' order by 1 limit 5;"
 
