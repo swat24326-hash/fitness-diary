@@ -75,8 +75,8 @@ export function AdminOutreachTemplatesSection({ clubId, clubName = 'клуб', d
     <section className="card admin-outreach-templates__section">
       <h2 className="section-title">Сообщения тренеров в Max</h2>
       <p className="muted admin-outreach-templates__intro">
-        Тексты для кнопки «Max» в списке клиентов тренера. Название клуба подставляется из карточки клуба (
-        <strong>{clubName}</strong>).
+        Тексты для кнопки «Max» у тренера (личный мессенджер). Обычно: «Это твой тренер…». Название клуба —{' '}
+        <strong>{clubName}</strong>. SMS клуба настраиваются блоком ниже.
       </p>
       <p className="muted admin-outreach-templates__placeholders">
         Плейсхолдеры: {OUTREACH_PLACEHOLDER_HINTS.map((p) => `${p.key} — ${p.label}`).join('; ')}

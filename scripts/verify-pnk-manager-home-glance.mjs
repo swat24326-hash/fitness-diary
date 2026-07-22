@@ -37,10 +37,10 @@ const clients = [
     trainer_id: 't2',
     trainer_name: 'Пётр',
     lifecycle: 'pnk',
-    pnk_stage: 'trial_done',
+    pnk_stage: 'agreed',
     pnk_trial_date: '2026-07-10',
     pnk_created_at: '2026-07-01T10:00:00.000Z',
-    pnk_deliverables: { contact: 'x', trial: 'y' },
+    pnk_deliverables: { contact: 'x' },
   },
   {
     id: '3',
@@ -64,7 +64,7 @@ ok(cards.every((c) => c.isHot || c.name === 'Альфа' || c.name === 'Бета
 const beta = cards.find((c) => c.id === '2')
 ok(beta?.isHot && beta.href.includes('focus=2'), 'beta hot + focus query')
 ok(String(cards[0].fromLine).includes('Тренер:'), 'trainer in from line')
-ok(cards.every((c) => c.stepN >= 1 && c.stepTotal === 5), 'step fields')
+ok(cards.every((c) => c.stepN >= 1 && c.stepTotal === 10), 'step fields')
 ok(cards[0].isHot, 'hot sorted first when present')
 
 const adminCards = buildPnkManagerHomeGlanceCards(clients, {

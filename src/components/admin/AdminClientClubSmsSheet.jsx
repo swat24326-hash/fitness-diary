@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from 'react'
 import { X } from 'lucide-react'
 import { sendClubSmsViaApi } from '../../lib/admin/clubSmsService.js'
+import { resolveClubSmsTemplates } from '../../lib/admin/clubSmsTemplatesCore.js'
 import {
   buildOutreachMessage,
   OUTREACH_TEMPLATE_LIMITS,
@@ -10,7 +11,7 @@ import '../../styles/club-sms-sheet.css'
 const MAX_LEN = OUTREACH_TEMPLATE_LIMITS.maxLength
 
 /**
- * Лист: превью шаблона или свой текст + обязательное подтверждение перед SMS.
+ * Лист: превью шаблона клуба или свой текст + подтверждение перед SMS.
  *
  * @param {{
  *   open: boolean,
@@ -25,6 +26,7 @@ const MAX_LEN = OUTREACH_TEMPLATE_LIMITS.maxLength
  *   clubName?: string,
  *   membershipName?: string,
  *   today?: string,
+ *   templates?: Record<string, string> | null,
  *   onFeedback?: (msg: string, tone?: string) => void,
  * }} props
  */
@@ -41,6 +43,7 @@ export function AdminClientClubSmsSheet({
   clubName = '',
   membershipName = 'абонемент',
   today,
+  templates = null,
   onFeedback,
 }) {
   const titleId = useId()
@@ -52,28 +55,31 @@ export function AdminClientClubSmsSheet({
     if (!open || !client) return
     setError('')
     if (mode === 'template' && scenario) {
+      const clubTemplates = resolveClubSmsTemplates(templates)
       const preview = buildOutreachMessage(scenario, {
         client,
         memList,
         trainerName,
-        clubName,
+        clubName: clubName || 'клуб',
         membershipName,
         today,
+        templates: clubTemplates,
       })
       setText(preview)
     } else {
       setText('')
     }
-  }, [open, client, mode, scenario, memList, trainerName, clubName, membershipName, today])
+  }, [open, client, mode, scenario, memList, trainerName, clubName, membershipName, today, templates])
 
   if (!open || !client) return null
 
   const trimmed = text.trim()
   const canSend = trimmed.length > 0 && !sending
+  const clubLabel = clubName?.trim() || 'клуба'
   const title =
     mode === 'template' && scenarioLabel
-      ? `SMS · ${scenarioLabel}`
-      : 'SMS клиенту'
+      ? `SMS от ${clubLabel} · ${scenarioLabel}`
+      : `SMS от ${clubLabel}`
 
   const onSend = async () => {
     if (!canSend || !clubId || !client.id) return
@@ -133,8 +139,8 @@ export function AdminClientClubSmsSheet({
 
         <p className="club-sms-sheet__hint">
           {mode === 'template'
-            ? 'Проверьте текст и нажмите «Отправить». Можно править перед отправкой.'
-            : 'Напишите текст SMS. Без подтверждения сообщение не уйдёт.'}
+            ? 'Текст от имени клуба (не от тренера). Проверьте и нажмите «Отправить».'
+            : 'Напишите текст SMS от клуба. Без подтверждения сообщение не уйдёт.'}
         </p>
 
         <p className="club-sms-sheet__label">Текст сообщения</p>

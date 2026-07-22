@@ -24,7 +24,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | `homework_presets` | `id` | Шаблоны ДЗ |
 | `client_weight_entries` | `id` | Вес |
 | `outreach_log` | `id` | Касания / Max-очередь (локальный журнал) |
-| `club_iskra_settings` | `club_id` | Настройки ИСКРЫ на клуб |
+| `club_iskra_settings` | `club_id` | Настройки ИСКРЫ на клуб (`outreach_templates` — Max тренера; `club_sms_templates` — SMS клуба) |
 
 Охрана pull: см. [SYNC.md](./SYNC.md).
 

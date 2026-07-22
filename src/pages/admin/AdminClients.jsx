@@ -126,19 +126,30 @@ export function AdminClients() {
   const [refreshMsg, setRefreshMsg] = useState('')
   const [smsFeedback, setSmsFeedback] = useState(null)
   const [clubSmsConfigured, setClubSmsConfigured] = useState(null)
+  const [clubSmsTemplates, setClubSmsTemplates] = useState(null)
+  const [clubSmsClubName, setClubSmsClubName] = useState('')
 
   useEffect(() => {
     let cancelled = false
     if (!club) {
       setClubSmsConfigured(false)
+      setClubSmsTemplates(null)
+      setClubSmsClubName('')
       return undefined
     }
     fetchClubSmsStatus(club)
       .then((r) => {
-        if (!cancelled) setClubSmsConfigured(r.configured)
+        if (cancelled) return
+        setClubSmsConfigured(r.configured)
+        setClubSmsTemplates(r.templates ?? null)
+        setClubSmsClubName(r.clubName || '')
       })
       .catch(() => {
-        if (!cancelled) setClubSmsConfigured(false)
+        if (!cancelled) {
+          setClubSmsConfigured(false)
+          setClubSmsTemplates(null)
+          setClubSmsClubName('')
+        }
       })
     return () => {
       cancelled = true
@@ -780,7 +791,9 @@ export function AdminClients() {
                           scenarioLabel={smsMode.label}
                           memList={mlist}
                           trainerName={trainerNameById[String(c.trainer_id ?? '')] || ''}
+                          clubName={clubSmsClubName}
                           today={today}
+                          templates={clubSmsTemplates}
                           configured={clubSmsConfigured}
                           busy={busy}
                           onFeedback={onSmsFeedback}

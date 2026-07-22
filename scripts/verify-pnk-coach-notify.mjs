@@ -23,7 +23,7 @@ const base = {
 }
 
 ok(resolvePnkCoachNotifyKind(base) === 'call', 'kind call when no contact')
-ok(resolvePnkCoachNotifyKind({ ...base, pnk_trial_date: '2026-07-20', pnk_stage: 'agreed' }) === 'agreed', 'kind agreed')
+ok(resolvePnkCoachNotifyKind({ ...base, pnk_trial_date: '2099-07-20', pnk_stage: 'agreed' }) === 'agreed', 'kind agreed')
 ok(
   resolvePnkCoachNotifyKind({
     ...base,

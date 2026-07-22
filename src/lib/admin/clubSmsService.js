@@ -9,9 +9,9 @@ function apiOrigin() {
 }
 
 /**
- * GET admin-data?action=club-sms — настроены ли Мои Звонки на сервере.
+ * GET admin-data?action=club-sms — настроены ли Мои Звонки + шаблоны SMS клуба.
  * @param {string} clubId
- * @returns {Promise<{ configured: boolean }>}
+ * @returns {Promise<{ configured: boolean, templates?: Record<string, string>, clubName?: string }>}
  */
 export async function fetchClubSmsStatus(clubId) {
   const token = await getAccessTokenForAdminApi()
@@ -31,7 +31,11 @@ export async function fetchClubSmsStatus(clubId) {
   if (!res.ok) {
     throw new Error(data?.error || 'Не удалось проверить настройки SMS')
   }
-  return { configured: data?.configured === true }
+  return {
+    configured: data?.configured === true,
+    templates: data?.templates && typeof data.templates === 'object' ? data.templates : undefined,
+    clubName: data?.club_name ? String(data.club_name) : '',
+  }
 }
 
 /**

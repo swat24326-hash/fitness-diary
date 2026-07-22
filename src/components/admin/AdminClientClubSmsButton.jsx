@@ -15,6 +15,7 @@ import { AdminClientClubSmsSheet } from './AdminClientClubSmsSheet.jsx'
  *   clubName?: string,
  *   membershipName?: string,
  *   today?: string,
+ *   templates?: Record<string, string> | null,
  *   configured?: boolean | null,
  *   busy?: boolean,
  *   onFeedback?: (msg: string, tone?: string) => void,
@@ -31,6 +32,7 @@ export function AdminClientClubSmsButton({
   clubName = '',
   membershipName = 'абонемент',
   today,
+  templates = null,
   configured = null,
   busy = false,
   onFeedback,
@@ -86,6 +88,7 @@ export function AdminClientClubSmsButton({
         clubName={clubName}
         membershipName={membershipName}
         today={today}
+        templates={templates}
         onFeedback={onFeedback}
       />
     </>

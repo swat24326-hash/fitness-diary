@@ -244,7 +244,7 @@ async function handler(req, res) {
     const clubId = String(req.query?.club_id ?? '').trim()
     const ctx = await requireAdminOrSalesManager(req, res, clubId)
     if (!ctx) return
-    return handleClubSmsGet(ctx, res)
+    return handleClubSmsGet(ctx, req, res)
   }
 
   /** Настройки качества ведения: чтение — админ или сотрудник своего клуба; запись — только админ (POST). */

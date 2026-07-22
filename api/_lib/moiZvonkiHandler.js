@@ -10,28 +10,53 @@ import {
   buildOutreachMessage,
   clientMatchesOutreachFilter,
   isOutreachScenario,
-  resolveOutreachTemplates,
 } from '../../src/lib/trainer/trainerClientOutreachCore.js'
+import { resolveClubSmsTemplates } from '../../src/lib/admin/clubSmsTemplatesCore.js'
 import { pickUsableMembershipForDate } from '../../src/lib/membershipRules.js'
 import { todayLocalIso } from '../../src/lib/dateRu.js'
 
 /**
- * GET admin-data?action=club-sms — без секретов, только флаг настройки.
- * @param {object} _ctx
+ * GET admin-data?action=club-sms&club_id=
+ * @param {object} ctx
+ * @param {object} req
  * @param {object} res
  */
-export async function handleClubSmsGet(_ctx, res) {
+export async function handleClubSmsGet(ctx, req, res) {
+  const clubId = String(req.query?.club_id ?? '').trim()
+  let templates = resolveClubSmsTemplates(null)
+  let clubName = ''
+
+  if (clubId && ctx?.supabaseAdmin) {
+    try {
+      const [{ data: settings }, { data: club }] = await Promise.all([
+        ctx.supabaseAdmin
+          .from('club_iskra_settings')
+          .select('club_sms_templates')
+          .eq('club_id', clubId)
+          .maybeSingle(),
+        ctx.supabaseAdmin.from('clubs').select('name').eq('id', clubId).maybeSingle(),
+      ])
+      templates = resolveClubSmsTemplates(settings?.club_sms_templates ?? null)
+      clubName = String(club?.name ?? '').trim()
+    } catch {
+      templates = resolveClubSmsTemplates(null)
+    }
+  }
+
   sendJson(res, 200, {
     ok: true,
     configured: isMoiZvonkiConfigured(),
     scenarios: [...OUTREACH_SCENARIOS],
+    club_id: clubId || null,
+    club_name: clubName,
+    templates,
   })
 }
 
 /**
  * POST admin-data?action=club-sms
  * body: { club_id, client_id, scenario?: 'expiring'|..., text?: string }
- * С text — произвольное SMS. Без text — только валидный scenario + клиент подходит под фильтр.
+ * С text — произвольное SMS. Без text — club-шаблон + клиент подходит под фильтр.
  * @param {object} ctx
  * @param {object} res
  * @param {object} body
@@ -111,7 +136,7 @@ export async function handleClubSmsPost(ctx, res, body) {
       ctx.supabaseAdmin.from('clubs').select('id, name').eq('id', clubId).maybeSingle(),
       ctx.supabaseAdmin
         .from('club_iskra_settings')
-        .select('outreach_templates')
+        .select('club_sms_templates')
         .eq('club_id', clubId)
         .maybeSingle(),
       client.trainer_id
@@ -147,11 +172,11 @@ export async function handleClubSmsPost(ctx, res, body) {
       if (typeRow?.name) membershipName = String(typeRow.name)
     }
 
-    const templates = resolveOutreachTemplates(settingsRes.data?.outreach_templates ?? null)
+    const templates = resolveClubSmsTemplates(settingsRes.data?.club_sms_templates ?? null)
     text = buildOutreachMessage(scenario, {
       client,
       memList,
-      trainerName: trainerRes.data?.name || ctx.profile?.name || 'Тренер',
+      trainerName: trainerRes.data?.name || '',
       clubName: clubRes.data?.name || 'клуб',
       membershipName,
       today,

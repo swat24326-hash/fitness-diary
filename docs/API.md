@@ -47,7 +47,7 @@
 | `challenges`, `challenge-trainings`, `exercises`, `exercises-meta` | admin / trainer | Справочники |
 | `membership-types`, `nutrition-products`, `homework-presets` | admin / trainer | Типы карт, питание, ДЗ |
 | `push-subscription` | admin / trainer / sales_manager | VAPID public key |
-| `club-sms` | admin / sales_manager | Статус Мои Звонки (`configured`) |
+| `club-sms` | admin / sales_manager | Статус Мои Звонки (`configured`, `templates`, `club_name`) |
 
 ### POST (фрагмент)
 

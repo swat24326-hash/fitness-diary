@@ -33,7 +33,7 @@ const TABS = [
   { id: 'nutrition-products', label: 'Питание' },
   { id: 'homework-presets', label: 'ДЗ' },
   { id: 'exercises', label: 'Упражнения' },
-  { id: 'max-messages', label: 'Сообщения Max' },
+  { id: 'max-messages', label: 'Max и SMS' },
   { id: 'coach-quality', label: 'Качество ведения' },
   { id: 'diagnostics', label: 'Диагностика' },
   { id: 'iskra-settings', label: 'ИСКРА' },

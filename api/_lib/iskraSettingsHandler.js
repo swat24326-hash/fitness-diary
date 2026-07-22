@@ -12,6 +12,12 @@ import {
   resolveOutreachTemplates,
   validateOutreachTemplatesForSave,
 } from '../../src/lib/trainer/trainerClientOutreachCore.js'
+import {
+  defaultClubSmsTemplates,
+  parseStoredClubSmsTemplates,
+  resolveClubSmsTemplates,
+  validateClubSmsTemplatesForSave,
+} from '../../src/lib/admin/clubSmsTemplatesCore.js'
 
 /**
  * @param {import('@supabase/supabase-js').SupabaseClient} supabaseAdmin
@@ -20,7 +26,9 @@ import {
 export async function loadClubIskraSettings(supabaseAdmin, clubId) {
   const { data, error } = await supabaseAdmin
     .from('club_iskra_settings')
-    .select('prompt_append, quick_chips, spark_brief_enabled, outreach_templates, updated_at')
+    .select(
+      'prompt_append, quick_chips, spark_brief_enabled, outreach_templates, club_sms_templates, updated_at',
+    )
     .eq('club_id', clubId)
     .maybeSingle()
   if (error) throw error
@@ -29,6 +37,7 @@ export async function loadClubIskraSettings(supabaseAdmin, clubId) {
     quick_chips: data?.quick_chips ?? null,
     spark_brief_enabled: data?.spark_brief_enabled !== false,
     outreach_templates: data?.outreach_templates ?? null,
+    club_sms_templates: data?.club_sms_templates ?? null,
     updated_at: data?.updated_at ?? null,
   }
 }
@@ -55,6 +64,8 @@ export async function handleIskraSettingsGet(ctx, req, res) {
     const quickChips = storedChips ?? defaultIskraQuickChips()
     const storedOutreach = parseStoredOutreachTemplates(settings.outreach_templates)
     const outreachTemplates = storedOutreach ?? resolveOutreachTemplates(null)
+    const storedClubSms = parseStoredClubSmsTemplates(settings.club_sms_templates)
+    const clubSmsTemplates = storedClubSms ?? resolveClubSmsTemplates(null)
 
     sendJson(res, 200, {
       ok: true,
@@ -67,6 +78,9 @@ export async function handleIskraSettingsGet(ctx, req, res) {
       outreach_templates: outreachTemplates,
       outreach_templates_custom: storedOutreach != null,
       default_outreach_templates: defaultOutreachTemplates(),
+      club_sms_templates: clubSmsTemplates,
+      club_sms_templates_custom: storedClubSms != null,
+      default_club_sms_templates: defaultClubSmsTemplates(),
       updated_at: settings.updated_at,
       spark_brief_enabled: settings.spark_brief_enabled,
       default_prompt_preview: buildIskraSystemPrompt(clubName || 'клуб'),
@@ -116,6 +130,16 @@ export async function handleIskraSettingsPost(ctx, res, body) {
     outreachTemplatesToStore = validated.templates
   }
 
+  let clubSmsTemplatesToStore = undefined
+  if (Object.prototype.hasOwnProperty.call(body ?? {}, 'club_sms_templates')) {
+    const validated = validateClubSmsTemplatesForSave(body.club_sms_templates)
+    if (!validated.ok) {
+      sendJson(res, 400, { error: validated.error })
+      return
+    }
+    clubSmsTemplatesToStore = validated.templates
+  }
+
   try {
     const existing = await loadClubIskraSettings(ctx.supabaseAdmin, clubId)
     const row = {
@@ -142,15 +166,25 @@ export async function handleIskraSettingsPost(ctx, res, body) {
       row.outreach_templates = existing.outreach_templates
     }
 
+    if (clubSmsTemplatesToStore !== undefined) {
+      row.club_sms_templates = clubSmsTemplatesToStore
+    } else {
+      row.club_sms_templates = existing.club_sms_templates
+    }
+
     const { data, error } = await ctx.supabaseAdmin
       .from('club_iskra_settings')
       .upsert(row, { onConflict: 'club_id' })
-      .select('prompt_append, quick_chips, spark_brief_enabled, outreach_templates, updated_at')
+      .select(
+        'prompt_append, quick_chips, spark_brief_enabled, outreach_templates, club_sms_templates, updated_at',
+      )
       .maybeSingle()
     if (error) throw error
 
     const resolved = resolveIskraQuickChips(data?.quick_chips)
     const outreachResolved = parseStoredOutreachTemplates(data?.outreach_templates) ?? resolveOutreachTemplates(null)
+    const clubSmsResolved =
+      parseStoredClubSmsTemplates(data?.club_sms_templates) ?? resolveClubSmsTemplates(null)
 
     sendJson(res, 200, {
       ok: true,
@@ -160,6 +194,8 @@ export async function handleIskraSettingsPost(ctx, res, body) {
       quick_chips_custom: data?.quick_chips != null,
       outreach_templates: outreachResolved,
       outreach_templates_custom: data?.outreach_templates != null,
+      club_sms_templates: clubSmsResolved,
+      club_sms_templates_custom: data?.club_sms_templates != null,
       spark_brief_enabled: data?.spark_brief_enabled !== false,
       updated_at: data?.updated_at ?? null,
     })

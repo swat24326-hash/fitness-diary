@@ -122,6 +122,7 @@ run('trainer client outreach', 'node', ['scripts/verify-trainer-client-outreach.
 run('trainer outreach queue', 'node', ['scripts/verify-trainer-outreach-queue.mjs'])
 run('moi zvonki club sms', 'node', ['scripts/verify-moi-zvonki.mjs'])
 run('club sms mode', 'node', ['scripts/verify-club-sms-mode.mjs'])
+run('club sms templates', 'node', ['scripts/verify-club-sms-templates.mjs'])
 run('client name format', 'node', ['scripts/verify-client-name-format.mjs'])
 run('admin club day summary', 'node', ['scripts/verify-admin-club-day-summary.mjs'])
 run('admin home attention', 'node', ['scripts/verify-admin-home-attention.mjs'])

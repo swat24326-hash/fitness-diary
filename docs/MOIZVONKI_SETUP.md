@@ -1,11 +1,11 @@
 # Мои Звонки — клубные SMS
 
-**Статус:** ✅ в проде (админка → Клиенты → SMS с подтверждением).  
+**Статус:** ✅ в проде (админка → Клиенты → SMS с подтверждением; шаблоны отдельно от Max).  
 **Не путать с:** Max у тренера (личный чат) и с номерным Max-шлюзом.
 
 ## Зачем
 
-Менеджер / админ из списка клиентов отправляет SMS **с Android-телефона клуба** через API Мои Звонки. Ссылки на чат Max не нужны.
+Менеджер / админ из списка клиентов отправляет SMS **с Android-телефона клуба** через API Мои Звонки. Ссылки на чат Max не нужны. Текст — **от имени клуба** («Это {club_name}»), не «это твой тренер».
 
 ## Что настроить у себя
 
@@ -29,27 +29,37 @@
 
 Локально: те же переменные в `.env` (см. `.env.example`).
 
+## Шаблоны (два канала)
+
+| Канал | Где править | Тон |
+|-------|-------------|-----|
+| **Max тренера** | Структура → **Max и SMS** → блок «Сообщения тренеров в Max» | «Это твой тренер {trainer_name}» |
+| **SMS клуба** | тот же экран → блок «SMS от клуба (Мои Звонки)» | «Это {club_name}» |
+
+В БД: `club_iskra_settings.outreach_templates` (Max) и `club_sms_templates` (SMS). Миграция: `supabase/migrations/20260722230000_club_sms_templates.sql`.
+
 ## Как пользоваться в Оси
 
 1. Админка → **Клиенты** (нужен выбранный клуб).
-2. Иконка **SMS** у строки → открывается лист (сообщение **не** уходит сразу).
-3. **Фильтр «Абонемент ≤ 3 дня»** — в листе сразу текст шаблона «истекает»; можно править → **Отправить** / **Отмена**.
+2. Иконка **SMS** у строки → лист «SMS от клуба» (сообщение **не** уходит сразу).
+3. **Фильтр «Абонемент ≤ 3 дня»** — в листе сразу текст шаблона клуба «истекает»; можно править → **Отправить** / **Отмена**.
 4. **Все / не активные / сегодня / срок истёк с остатком / поиск** — пустое поле: напишите свой текст → **Отправить**. Без текста кнопка неактивна.
-5. Шаблоны берутся из outreach клуба (как Max); канал — SMS.
+5. Шаблоны SMS — только `club_sms_templates`, **не** шаблоны Max.
 
 Если env не задан, кнопка неактивна, подсказка про настройку.
 
 ## API
 
-- `GET /api/admin-data?action=club-sms&club_id=` → `{ configured: true|false }`
+- `GET /api/admin-data?action=club-sms&club_id=` → `{ configured, templates, club_name }`
 - `POST /api/admin-data?action=club-sms` body: `{ club_id, client_id, text? , scenario? }`  
   - С `text` — уходит этот текст.  
-  - Без `text` — нужен валидный `scenario`; клиент должен подходить под фильтр сценария, иначе `400 scenario_mismatch`.  
+  - Без `text` — нужен валидный `scenario`; клиент должен подходить под фильтр сценария, иначе `400 scenario_mismatch`. Текст собирается из **club_sms_templates**.  
   - **Не** подставляется `expiring` по умолчанию.  
   Роли: admin или sales_manager своего клуба.
+- Шаблоны: `GET/POST` `action=iskra-settings` — поля `club_sms_templates` / `club_sms_templates_custom`.
 
-Код: `api/_lib/moiZvonkiCore.js`, `moiZvonkiHandler.js`, `src/lib/admin/clubSmsModeCore.js`.  
-Проверка: `node scripts/verify-moi-zvonki.mjs`, `node scripts/verify-club-sms-mode.mjs`.
+Код: `api/_lib/moiZvonkiCore.js`, `moiZvonkiHandler.js`, `src/lib/admin/clubSmsModeCore.js`, `clubSmsTemplatesCore.js`.  
+Проверка: `node scripts/verify-moi-zvonki.mjs`, `node scripts/verify-club-sms-mode.mjs`, `node scripts/verify-club-sms-templates.mjs`.
 
 ## Не в MVP
 

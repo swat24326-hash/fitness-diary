@@ -46,7 +46,7 @@ function buildCrumbs(pathname, search) {
       'nutrition-products': 'Питание',
       'homework-presets': 'ДЗ',
       exercises: 'Упражнения',
-      'max-messages': 'Сообщения Max',
+      'max-messages': 'Max и SMS',
       'coach-quality': 'Качество ведения',
       diagnostics: 'Диагностика',
       'iskra-settings': 'ИСКРА',

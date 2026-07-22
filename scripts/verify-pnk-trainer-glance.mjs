@@ -26,7 +26,7 @@ const open = {
 }
 
 const card = buildPnkGlanceCard(open, new Date('2026-07-16T12:00:00'))
-ok(card && card.stepN === 1 && card.href.includes('c1'), 'glance created step')
+ok(card && card.stepN === 2 && card.stepTotal === 10 && card.href.includes('c1'), 'glance created step')
 ok(card.isHot === true, 'stale contact is hot')
 
 const withDate = {
@@ -36,8 +36,8 @@ const withDate = {
   pnk_trial_time: '10:00',
   pnk_deliverables: { contact: '2026-07-15' },
 }
-const visit = buildPnkGlanceCard(withDate)
-ok(visit?.stepN === 3 && visit.caption.includes('20'), 'visit caption has date')
+const visit = buildPnkGlanceCard(withDate, new Date('2026-07-16T12:00:00'))
+ok(visit?.stepN === 4 && visit.caption.includes('20'), 'visit caption has date')
 
 const list = buildPnkGlanceCards([
   withDate,
