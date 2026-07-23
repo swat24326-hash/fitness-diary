@@ -5,6 +5,7 @@ import { removeSyncItem } from './localDb'
 import { handlePushApiFailure, isUnrecoverablePushError } from './syncQueueOrphans'
 import { markRecordSynced } from './syncLocalRecords'
 import { mapWithConcurrency } from './syncConcurrency'
+import { collapseMemoryPushBatch } from './syncFlushResult'
 
 /** Меньшие пачки — иначе serverless (10–60 с) обрывает запрос, клиент уходит в медленный retry. */
 export const PUSH_BATCH_SIZE = 12
@@ -311,7 +312,20 @@ export function schedulePushRecordViaApi(item) {
 }
 
 async function flushPushQueue() {
-  const batch = pushQueue.splice(0, pushQueue.length)
+  let batch = pushQueue.splice(0, pushQueue.length)
+  try {
+    const { collapseRedundantQueueItems, collapseDuplicateQueueInserts } = await import('./syncQueueOrphans.js')
+    await collapseRedundantQueueItems()
+    await collapseDuplicateQueueInserts()
+    const { listSyncQueue } = await import('./localDb.js')
+    const stillPending = new Set((await listSyncQueue()).map((i) => String(i.local_id ?? '')).filter(Boolean))
+    batch = batch.filter((item) => !item.local_id || stillPending.has(String(item.local_id)))
+  } catch {
+    /* сеть/IDB — шлём как есть, ниже ещё in-memory collapse */
+  }
+  batch = collapseMemoryPushBatch(batch)
+  if (!batch.length) return
+
   for (let i = 0; i < batch.length; i += PUSH_BATCH_SIZE) {
     const chunk = batch.slice(i, i + PUSH_BATCH_SIZE)
     const pushed = await pushRecordsBatchViaApi(chunk)

@@ -371,3 +371,31 @@ CREATE POLICY fit_client_weight_entries_trainer_rw
     )
     AND public.fit_auth_trainer_club_id() IS NOT NULL
   );
+
+-- -----------------------------------------------------------------------------
+-- club_sms_log
+-- -----------------------------------------------------------------------------
+ALTER TABLE public.club_sms_log ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS fit_club_sms_log_admin_all ON public.club_sms_log;
+DROP POLICY IF EXISTS fit_club_sms_log_sales_manager ON public.club_sms_log;
+
+CREATE POLICY fit_club_sms_log_admin_all
+  ON public.club_sms_log
+  FOR ALL
+  TO authenticated
+  USING (public.fit_auth_is_admin())
+  WITH CHECK (public.fit_auth_is_admin());
+
+CREATE POLICY fit_club_sms_log_sales_manager
+  ON public.club_sms_log
+  FOR ALL
+  TO authenticated
+  USING (
+    public.fit_auth_is_sales_manager()
+    AND club_id = public.fit_auth_sales_manager_club_id()
+  )
+  WITH CHECK (
+    public.fit_auth_is_sales_manager()
+    AND club_id = public.fit_auth_sales_manager_club_id()
+  );

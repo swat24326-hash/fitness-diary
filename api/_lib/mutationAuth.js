@@ -85,7 +85,8 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
       const clientId = payload.client_id
       if (op === 'delete') {
         const { data: m } = await supabaseAdmin.from('memberships').select('client_id').eq('id', remote_id).maybeSingle()
-        if (!m?.client_id) return { ok: false, error: 'Абонемент не найден' }
+        // Уже нет в облаке (удалили до insert / повтор delete) — успех, не 403.
+        if (!m?.client_id) return { ok: true }
         return (await canAccessClient(ctx, m.client_id)) ? { ok: true } : { ok: false, error: 'Нет доступа' }
       }
       if (!(await canAccessClient(ctx, clientId))) return { ok: false, error: 'Нет доступа к клиенту' }

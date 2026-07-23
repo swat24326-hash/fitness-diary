@@ -9,6 +9,7 @@ import {
   isUnrecoverablePushError,
   pendingClientInsertIdsFromQueue,
   shouldPreserveLocalRowOnPull,
+  collapseMemoryPushBatch,
 } from '../src/lib/syncFlushResult.js'
 
 let failed = 0
@@ -30,6 +31,11 @@ assert(!isUnrecoverablePushError(401, 'JWT'), '401 -> retry (session)')
 assert(!isUnrecoverablePushError(500, 'internal'), '500 -> retry')
 assert(!isUnrecoverablePushError(403, 'forbidden generic'), '403 generic -> retry')
 assert(!isUnrecoverablePushError(404, 'not found generic'), '404 generic -> retry')
+assert(
+  isUnrecoverablePushError(400, 'Укажите дату начала абонемента'),
+  '400 membership missing start_date -> drop',
+)
+assert(!isUnrecoverablePushError(400, 'какой-то другой 400'), '400 generic -> retry')
 
 /* --- duplicate insert --- */
 assert(isDuplicateInsertError({ status: 409 }), '409 duplicate')
@@ -37,6 +43,42 @@ assert(isDuplicateInsertError({ code: '23505', message: 'duplicate key' }), 'pg 
 assert(isDuplicateInsertError({ message: 'HTTP 409 conflict' }), 'message 409')
 assert(!isDuplicateInsertError({ message: 'network error' }), 'network not duplicate')
 assert(!isDuplicateInsertError(null), 'null not duplicate')
+
+/* --- auto-push: insert+delete same entity → keep delete only --- */
+{
+  const collapsed = collapseMemoryPushBatch([
+    { table_name: 'memberships', operation: 'insert', remote_id: null, data: { id: 'm1' }, local_id: 'a' },
+    { table_name: 'memberships', operation: 'delete', remote_id: 'm1', data: {}, local_id: 'b' },
+  ])
+  assert(collapsed.length === 1 && collapsed[0].operation === 'delete', 'memory batch: delete wins over insert')
+}
+{
+  const collapsed = collapseMemoryPushBatch([
+    { table_name: 'memberships', operation: 'update', remote_id: 'm2', data: { id: 'm2' }, local_id: 'c' },
+    { table_name: 'memberships', operation: 'update', remote_id: 'm2', data: { id: 'm2', used_trainings: 1 }, local_id: 'd' },
+  ])
+  assert(collapsed.length === 1 && collapsed[0].data.used_trainings === 1, 'memory batch: keep last update')
+}
+{
+  const collapsed = collapseMemoryPushBatch([
+    {
+      table_name: 'memberships',
+      operation: 'insert',
+      remote_id: null,
+      data: { id: 'm3', start_date: '2026-08-01', end_date: '2026-08-31' },
+      local_id: 'e',
+    },
+    {
+      table_name: 'memberships',
+      operation: 'update',
+      remote_id: 'm3',
+      data: { id: 'm3', start_date: '2026-07-13', end_date: '2026-08-12' },
+      local_id: 'f',
+    },
+  ])
+  assert(collapsed.length === 1 && collapsed[0].operation === 'insert', 'memory batch: fold update into insert')
+  assert(collapsed[0].data.start_date === '2026-07-13', 'memory batch: early-activate dates win')
+}
 
 /* --- flush UI --- */
 {

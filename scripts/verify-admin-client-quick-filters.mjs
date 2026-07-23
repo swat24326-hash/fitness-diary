@@ -10,6 +10,7 @@ import {
 import {
   clientMatchesAdminFunnelFilter,
   countAdminFunnelFilters,
+  isAwaitingMembershipStart,
 } from '../src/lib/admin/adminClientsFunnelCore.js'
 import {
   hasUpcomingMembership,
@@ -84,6 +85,20 @@ ok(hasUpcomingMembership(gap, today), 'gap has upcoming')
 ok(inactiveMembershipReason(gap, today) === 'not_started', 'gap reason not_started')
 ok(!isMembershipExpiredRecently(gap, today), 'gap not expired_recent')
 ok(!isClientStaleForAttention({ memList: gap, today }), 'gap not stale')
+
+const depletedPlusUpcoming = [
+  { start_date: '2026-01-01', end_date: '2026-12-31', total_trainings: 10, used_trainings: 10 },
+  { start_date: '2026-08-01', end_date: '2026-09-01', total_trainings: 8, used_trainings: 0 },
+]
+ok(hasUpcomingMembership(depletedPlusUpcoming, today), 'depleted+upcoming has upcoming')
+ok(
+  inactiveMembershipReason(depletedPlusUpcoming, today) === 'not_started',
+  'depleted covering + upcoming → not_started (не в «Не активные»)',
+)
+ok(
+  isAwaitingMembershipStart(depletedPlusUpcoming, today),
+  'depleted+upcoming → awaiting_start',
+)
 
 const clients = [
   { id: 'b', birth_date: '1990-07-22' },

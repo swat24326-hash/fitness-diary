@@ -116,7 +116,14 @@ export function AdminClientClubSmsSheet({
         /* отметка локальная — сбой журнала не ломает успех отправки */
       }
       onSent?.(client.id, savedScenario)
-      onFeedback?.('SMS отправлено через Мои Звонки (телефон клуба)', 'ok')
+      if (sendResult?.log_warning) {
+        onFeedback?.(
+          `SMS отправлено, но журнал в облаке не записался: ${String(sendResult.log_warning).slice(0, 120)}`,
+          'warn',
+        )
+      } else {
+        onFeedback?.('SMS отправлено через Мои Звонки (телефон клуба)', 'ok')
+      }
       onClose()
     } catch (e) {
       setError(e?.message || 'Не удалось отправить SMS')

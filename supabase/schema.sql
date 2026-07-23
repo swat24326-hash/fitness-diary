@@ -274,3 +274,28 @@ CREATE TABLE challenges (
 CREATE INDEX IF NOT EXISTS idx_challenges_club_id ON challenges (club_id);
 CREATE INDEX IF NOT EXISTS idx_challenges_exercise_id ON challenges (exercise_id);
 CREATE INDEX IF NOT EXISTS idx_challenges_status ON challenges (status);
+
+-- ------------------------------------------------------------
+-- Журнал клубных SMS (Мои Звонки)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS club_sms_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  club_id UUID NOT NULL REFERENCES clubs (id) ON DELETE CASCADE,
+  client_id UUID NOT NULL REFERENCES clients (id) ON DELETE CASCADE,
+  sent_by UUID REFERENCES users (id) ON DELETE SET NULL,
+  scenario TEXT NOT NULL DEFAULT 'custom',
+  message_preview TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT club_sms_log_scenario_check CHECK (
+    scenario IN ('birthdays', 'expiring', 'expired_recent', 'stale', 'custom')
+  ),
+  CONSTRAINT club_sms_log_preview_len CHECK (
+    message_preview IS NULL OR char_length(message_preview) <= 200
+  )
+);
+
+CREATE INDEX IF NOT EXISTS idx_club_sms_log_club_created
+  ON club_sms_log (club_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_club_sms_log_club_client_created
+  ON club_sms_log (club_id, client_id, created_at DESC);

@@ -289,12 +289,18 @@ export function MembershipManager({
     const id = newId()
     const now = new Date().toISOString()
     const today = todayLocalIso()
+    const start = String(form.start_date || today).slice(0, 10)
+    const end = String(form.end_date || addDaysToIso(today, 30)).slice(0, 10)
+    if (end < start) {
+      alert('Дата окончания не может быть раньше начала')
+      return
+    }
     const row = {
       id,
       client_id: clientId,
       club_id: clubId,
-      start_date: form.start_date || today,
-      end_date: form.end_date || addDaysToIso(today, 30),
+      start_date: start,
+      end_date: end,
       total_trainings: Number(form.total_trainings) || 0,
       used_trainings: 0,
       membership_type_id: form.membership_type_id?.trim() || null,
@@ -341,6 +347,10 @@ export function MembershipManager({
     }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(end)) {
       alert('Укажите дату окончания абонемента')
+      return
+    }
+    if (end < start) {
+      alert('Дата окончания не может быть раньше начала')
       return
     }
     const patch = {
@@ -794,7 +804,7 @@ export function MembershipManager({
             className="modal-overlay modal-overlay--center"
             role="dialog"
             aria-modal="true"
-            aria-label="Подтверждение удаления абонемента"
+            aria-label={deleteConfirmCopy.blocked ? 'Нужно сначала удалить тренировки' : 'Подтверждение удаления абонемента'}
             onClick={() => setConfirmDeleteMembership(null)}
           >
             <div className="modal-panel modal-panel--membership-form" onClick={(e) => e.stopPropagation()}>
@@ -814,7 +824,7 @@ export function MembershipManager({
               </p>
               <div className="row" style={{ justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
                 <button type="button" className="btn btn-ghost btn-touch" onClick={() => setConfirmDeleteMembership(null)}>
-                  Отмена
+                  {deleteConfirmCopy.blocked ? 'Закрыть' : 'Отмена'}
                 </button>
                 <button
                   type="button"
@@ -822,10 +832,17 @@ export function MembershipManager({
                   onClick={async () => {
                     const m = confirmDeleteMembership
                     setConfirmDeleteMembership(null)
+                    if (deleteConfirmCopy.blocked) {
+                      if (m?.id) {
+                        setSelectedId(m.id)
+                        setViewOpenId(m.id)
+                      }
+                      return
+                    }
                     await doDeleteMembership(m)
                   }}
                 >
-                  Удалить
+                  {deleteConfirmCopy.confirmLabel}
                 </button>
               </div>
             </div>

@@ -44,5 +44,11 @@ export function normalizeMembershipPushPayload(payload, { insert = false } = {})
     }
   }
 
+  const start = isoDateOrEmpty(next.start_date)
+  const end = isoDateOrEmpty(next.end_date)
+  if (start && end && end < start) {
+    return { ok: false, error: 'Дата окончания не может быть раньше начала' }
+  }
+
   return { ok: true, data: next }
 }

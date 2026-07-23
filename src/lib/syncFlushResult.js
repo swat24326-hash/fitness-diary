@@ -49,6 +49,16 @@ export function isSyncQueueOrphanForCloudClients(item, remoteClientIds, pendingC
 export function isUnrecoverablePushError(status, message) {
   const code = Number(status)
   const msg = String(message ?? '').toLowerCase()
+  // Битый insert абонемента без дат — не крутить 12 раз, снять из очереди.
+  if (code === 400) {
+    return (
+      msg.includes('укажите дату начала') ||
+      msg.includes('укажите дату окончания') ||
+      msg.includes('конец раньше начала') ||
+      msg.includes('не может быть раньше начала') ||
+      msg.includes('некорректный абонемент')
+    )
+  }
   if (code !== 403 && code !== 404) return false
   return (
     msg.includes('нет доступа к клиенту') ||
@@ -77,6 +87,73 @@ export function isDuplicateInsertError(err) {
   if (msg.includes('duplicate key') || msg.includes('unique constraint')) return true
   if (msg.includes('already exists') || details.includes('already exists')) return true
   return msg.includes('409') || details.includes('duplicate')
+}
+
+/**
+ * Схлопнуть in-memory пачку auto-push:
+ * - delete побеждает insert/update той же сущности;
+ * - insert + update → один insert с последними данными (ранняя активация офлайн).
+ * @param {Array<{ table_name?: string, operation?: string, remote_id?: string | null, data?: object, local_id?: string }>} items
+ */
+export function collapseMemoryPushBatch(items) {
+  const list = Array.isArray(items) ? items.filter(Boolean) : []
+  if (list.length <= 1) return list
+
+  const entityKey = (item) => {
+    const table = String(item?.table_name ?? '').trim()
+    const d = item?.data && typeof item.data === 'object' ? item.data : {}
+    const id = String(item?.remote_id ?? d.id ?? '').trim()
+    if (!table || !id) return ''
+    return `${table}:${id}`
+  }
+
+  /** @type {Map<string, typeof list>} */
+  const byEntity = new Map()
+  /** @type {typeof list} */
+  const passthrough = []
+
+  for (const item of list) {
+    const key = entityKey(item)
+    if (!key) {
+      passthrough.push(item)
+      continue
+    }
+    const prev = byEntity.get(key)
+    if (prev) prev.push(item)
+    else byEntity.set(key, [item])
+  }
+
+  /** @type {typeof list} */
+  const out = [...passthrough]
+  for (const group of byEntity.values()) {
+    const lastDeleteIdx = group.map((x) => x.operation).lastIndexOf('delete')
+    if (lastDeleteIdx >= 0) {
+      out.push(group[lastDeleteIdx])
+      continue
+    }
+    const inserts = group.filter((x) => x.operation === 'insert')
+    const updates = group.filter((x) => x.operation === 'update')
+    if (inserts.length && updates.length) {
+      const base = inserts[inserts.length - 1]
+      let data = { ...(base.data && typeof base.data === 'object' ? base.data : {}) }
+      for (const u of updates) {
+        if (u.data && typeof u.data === 'object') data = { ...data, ...u.data }
+      }
+      out.push({
+        ...base,
+        operation: 'insert',
+        remote_id: null,
+        data,
+      })
+      continue
+    }
+    if (updates.length > 1) {
+      out.push(updates[updates.length - 1])
+      continue
+    }
+    out.push(...group)
+  }
+  return out
 }
 
 /** Текст для UI после flush (офлайн-first: не «успех», если очередь не пуста). */

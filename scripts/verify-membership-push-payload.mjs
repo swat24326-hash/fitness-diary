@@ -51,4 +51,17 @@ ok(
   'update keeps valid dates',
 )
 
+const badOrder = normalizeMembershipPushPayload(
+  {
+    id: 'm5',
+    client_id: 'c1',
+    club_id: 'cl1',
+    start_date: '2026-08-01',
+    end_date: '2026-07-01',
+    total_trainings: 8,
+  },
+  { insert: true },
+)
+ok(!badOrder.ok && /раньше начала/i.test(badOrder.error), 'insert rejects end before start')
+
 console.log('verify-membership-push-payload: all passed')

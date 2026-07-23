@@ -118,11 +118,12 @@ function inactiveMembershipReason(memberships, dateIso) {
   const list = memberships ?? []
   if (!list.length) return 'no_membership'
   const d = String(dateIso ?? '')
-  const covering = list.filter((m) => membershipCoversDate(m, d))
-  if (covering.some((m) => !membershipHasRemaining(m))) return 'depleted'
+  // Куплен следующий (даже если текущий исчерпан по лимиту) — не «пропал», а ждёт старт.
   if (hasUpcomingMembership(list, d) || list.every((m) => String(m.start_date ?? '') > d)) {
     return 'not_started'
   }
+  const covering = list.filter((m) => membershipCoversDate(m, d))
+  if (covering.some((m) => !membershipHasRemaining(m))) return 'depleted'
   return 'expired'
 }
 

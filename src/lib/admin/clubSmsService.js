@@ -68,6 +68,13 @@ export async function fetchClubSmsLogs(clubId, opts = {}) {
   if (!res.ok) {
     throw new Error(data?.error || 'Не удалось загрузить журнал SMS')
   }
+  if (data?.logs_error) {
+    const raw = String(data.logs_error)
+    if (/club_sms_log|does not exist|schema cache|relation/i.test(raw)) {
+      throw new Error('Журнал SMS не создан в базе — выполните миграцию club_sms_log на Supabase')
+    }
+    throw new Error(raw.slice(0, 160) || 'Не удалось загрузить журнал SMS')
+  }
   return Array.isArray(data?.logs) ? data.logs : []
 }
 

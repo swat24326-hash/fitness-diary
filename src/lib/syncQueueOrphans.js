@@ -152,6 +152,36 @@ export async function collapseRedundantQueueItems() {
     }
   }
 
+  // insert + последующие update той же сущности → один insert с последними данными
+  // (ранняя активация офлайн не должна гоняться параллельно с исходным insert).
+  const after = await listSyncQueue()
+  /** @type {Map<string, object>} */
+  const insertByKey = new Map()
+  for (const item of after) {
+    if (item.operation !== 'insert') continue
+    const id = entityIdForQueueItem(item)
+    if (!id) continue
+    insertByKey.set(`${item.table_name}:${id}`, item)
+  }
+  const db = await getDb()
+  for (const item of after) {
+    if (item.operation !== 'update') continue
+    const id = entityIdForQueueItem(item)
+    if (!id) continue
+    const key = `${item.table_name}:${id}`
+    const ins = insertByKey.get(key)
+    if (!ins) continue
+    const mergedData = {
+      ...(ins.data && typeof ins.data === 'object' ? ins.data : {}),
+      ...(item.data && typeof item.data === 'object' ? item.data : {}),
+    }
+    const merged = { ...ins, data: mergedData, operation: 'insert', remote_id: null }
+    await db.put('sync_queue', merged)
+    await removeSyncItem(item.local_id)
+    insertByKey.set(key, merged)
+    removed++
+  }
+
   return { removed }
 }
 
