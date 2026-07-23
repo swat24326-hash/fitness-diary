@@ -1,13 +1,14 @@
-import { AlertTriangle, Cake, CalendarClock, Clock, History, Users, UserX } from 'lucide-react'
+import { AlertTriangle, Cake, CalendarClock, Clock, History, Sparkles, Users, UserX } from 'lucide-react'
 import { AdminClientsFilterTile } from './AdminClientsFilterTile.jsx'
 import { STALE_TRAINING_DAYS } from '../../lib/trainer/trainerClientOutreachCore.js'
 import '../../styles/admin-clients-filters.css'
 
 /** Подсказки «что за фильтр» — по клику на ? */
 export const ADMIN_CLIENTS_FILTER_HELP = {
-  all: 'Все клиенты клуба без архива. Полный список для поиска и работы по карточкам.',
+  all: 'Клиенты клуба без архива и без открытой воронки ПНК. Для поиска и работы по обычным карточкам.',
+  pnk: 'Открытые карточки воронки ПНК (пробная / ещё не ДК). Как у тренера: отдельно от «всех» клиентов клуба.',
   inactive:
-    'Нет действующего абонемента на сегодня и нет купленного со стартом впереди. Цель учёта и возврата.',
+    'Нет действующего абонемента на сегодня и нет купленного со стартом впереди. Цель учёта и возврата. ПНК сюда не входят.',
   awaiting_start:
     'Следующий абонемент уже куплен, старт ещё впереди. Не цель для SMS «вернись / купи» — клиент удержан.',
   birthdays: 'День рождения сегодня. Отдельный срез для поздравления (SMS от клуба).',
@@ -20,6 +21,7 @@ export const ADMIN_CLIENTS_FILTER_HELP = {
  * @param {{
  *   counts: {
  *     all: number,
+ *     pnk: number,
  *     inactive: number,
  *     awaiting_start: number,
  *     birthdays: number,
@@ -49,6 +51,12 @@ export function AdminClientsBrowseFilters({ counts, quickFilter, onApply }) {
           count={counts.all}
           label="Все клиенты"
           {...tile('all')}
+        />
+        <AdminClientsFilterTile
+          icon={<Sparkles size={18} strokeWidth={2} />}
+          count={counts.pnk}
+          label="ПНК"
+          {...tile('pnk', { hot: counts.pnk > 0 })}
         />
         <AdminClientsFilterTile
           icon={<UserX size={18} strokeWidth={2} />}

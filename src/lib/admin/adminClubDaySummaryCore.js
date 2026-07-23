@@ -125,6 +125,7 @@ export function buildAdminClubDaySummary(input = {}) {
     draftsToday: todayTrainings.draft,
     salesReportFilled: input.salesReportFilled ?? null,
     actionable,
+    pnk: funnel.pnk,
   }
 }
 

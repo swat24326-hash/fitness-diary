@@ -11,6 +11,7 @@ import { aggregateClubClientPeriod } from './clubClientPeriodAgg.js'
 export const ADMIN_CLIENTS_BROWSE_MODES = [
   'all',
   'inactive',
+  'pnk',
   'awaiting_start',
   'birthdays',
   'expiring',

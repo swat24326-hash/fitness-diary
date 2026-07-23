@@ -13,6 +13,7 @@ import {
 export const ADMIN_CLIENT_FUNNEL_FILTERS = [
   'all',
   'inactive',
+  'pnk',
   'awaiting_start',
   'birthdays',
   'expiring',
@@ -29,6 +30,11 @@ export function normalizeAdminClientQuickFilter(raw) {
   return f
 }
 
+/** Открытая карточка воронки ПНК (не отказ). */
+export function isAdminPnkClient(client) {
+  return String(client?.lifecycle ?? '') === 'pnk'
+}
+
 /** Куплен абонемент со стартом позже сегодня, сегодня usable нет. */
 export function isAwaitingMembershipStart(memList, todayIso) {
   const today = String(todayIso ?? '').slice(0, 10)
@@ -39,7 +45,7 @@ export function isAwaitingMembershipStart(memList, todayIso) {
 /**
  * @param {string} filter
  * @param {{
- *   client?: { id?: string, birth_date?: string | null },
+ *   client?: { id?: string, birth_date?: string | null, lifecycle?: string | null },
  *   memList?: object[],
  *   today?: string,
  *   inactiveIds?: Set<string>,
@@ -54,6 +60,7 @@ export function clientMatchesAdminFunnelFilter(filter, ctx = {}) {
 
   if (mode === 'all' || mode === 'none') return true
   if (mode === 'inactive') return Boolean(ctx.inactiveIds?.has(id))
+  if (mode === 'pnk') return isAdminPnkClient(client)
   if (mode === 'awaiting_start') return isAwaitingMembershipStart(memList, today)
   if (mode === 'birthdays') return isBirthdayToday(client.birth_date, today)
   if (mode === 'expiring') return membershipSignal(memList, today).key === 'expiring'
@@ -74,9 +81,11 @@ export function countAdminFunnelFilters(clients, memByClient, today, inactiveIds
   let expiring = 0
   let expired_recent = 0
   let stale = 0
+  let pnk = 0
   for (const c of clients ?? []) {
     const memList = memByClient[c.id] ?? memByClient[String(c.id)] ?? []
     const ctx = { client: c, memList, today, inactiveIds }
+    if (clientMatchesAdminFunnelFilter('pnk', ctx)) pnk++
     if (clientMatchesAdminFunnelFilter('birthdays', ctx)) birthdays++
     if (clientMatchesAdminFunnelFilter('awaiting_start', ctx)) awaiting_start++
     if (clientMatchesAdminFunnelFilter('expiring', ctx)) expiring++
@@ -84,6 +93,7 @@ export function countAdminFunnelFilters(clients, memByClient, today, inactiveIds
     if (clientMatchesAdminFunnelFilter('stale', ctx)) stale++
   }
   return {
+    pnk,
     birthdays,
     awaiting_start,
     expiring,

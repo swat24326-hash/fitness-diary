@@ -32,6 +32,7 @@ function ok(cond, msg) {
 }
 
 ok(ADMIN_CLIENT_QUICK_FILTERS.includes('inactive'), 'inactive in filters')
+ok(ADMIN_CLIENT_QUICK_FILTERS.includes('pnk'), 'pnk in filters')
 ok(ADMIN_CLIENT_QUICK_FILTERS.includes('awaiting_start'), 'awaiting_start in filters')
 ok(ADMIN_CLIENT_QUICK_FILTERS.includes('expiring'), 'expiring in filters')
 ok(ADMIN_CLIENT_QUICK_FILTERS.includes('birthdays'), 'birthdays in filters')
@@ -41,12 +42,18 @@ ok(!ADMIN_CLIENT_QUICK_FILTERS.includes('active_today'), 'no active_today tile')
 ok(!ADMIN_CLIENT_QUICK_FILTERS.includes('expired_remaining'), 'no expired_remaining tile')
 
 ok(isAdminClientQuickFilter('expiring'), 'expiring filter')
+ok(isAdminClientQuickFilter('pnk'), 'pnk filter')
 ok(isAdminClientQuickFilter('awaiting_start'), 'awaiting_start filter')
 ok(isAdminClientQuickFilter('stale'), 'stale filter')
 ok(isAdminClientQuickFilter('expired_remaining'), 'alias expired_remaining accepted')
 ok(normalizeAdminClientQuickFilter('expired_remaining') === 'expired_recent', 'alias → expired_recent')
 ok(normalizeAdminClientQuickFilter('active_today') === 'none', 'active_today dropped')
 
+ok(
+  buildAdminClubQueryHref('/admin/clients', { clubId: 'c1', filter: 'pnk' }) ===
+    '/admin/clients?club=c1&filter=pnk',
+  'clients pnk href',
+)
 ok(
   buildAdminClubQueryHref('/admin/clients', { clubId: 'c1', filter: 'expiring' }) ===
     '/admin/clients?club=c1&filter=expiring',
@@ -106,6 +113,7 @@ const clients = [
   { id: 'r', birth_date: '1990-01-01' },
   { id: 's', birth_date: '1990-01-01' },
   { id: 'a', birth_date: '1990-01-01' },
+  { id: 'p', birth_date: '1990-01-01', lifecycle: 'pnk' },
 ]
 const memByClient = {
   b: [{ start_date: '2026-01-01', end_date: '2026-12-01', total_trainings: 10, used_trainings: 1 }],
@@ -113,15 +121,25 @@ const memByClient = {
   r: day13,
   s: day14,
   a: gap,
+  p: [],
 }
 const inactiveIds = new Set(['r', 's'])
 const counts = countAdminFunnelFilters(clients, memByClient, today, inactiveIds)
+ok(counts.pnk === 1, 'count pnk')
 ok(counts.birthdays === 1, 'count birthdays')
 ok(counts.awaiting_start === 1, 'count awaiting_start')
 ok(counts.expiring === 1, 'count expiring')
 ok(counts.expired_recent === 1, 'count expired_recent')
 ok(counts.stale === 1, 'count stale')
 
+ok(
+  clientMatchesAdminFunnelFilter('pnk', { client: { id: 'p', lifecycle: 'pnk' }, today }),
+  'match pnk',
+)
+ok(
+  !clientMatchesAdminFunnelFilter('pnk', { client: { id: 'b', lifecycle: 'active' }, today }),
+  'regular not pnk',
+)
 ok(
   clientMatchesAdminFunnelFilter('birthdays', {
     client: clients[0],

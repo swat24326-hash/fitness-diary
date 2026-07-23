@@ -3,6 +3,7 @@ import { normalizeAdminClientQuickFilter } from './adminClientsFunnelCore.js'
 export const ADMIN_CLIENT_QUICK_FILTERS = [
   'all',
   'inactive',
+  'pnk',
   'awaiting_start',
   'birthdays',
   'expiring',

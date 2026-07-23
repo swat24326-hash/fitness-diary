@@ -37,6 +37,7 @@ import { USERS_TRAINER_ROLES } from '../../lib/userRoleConstants'
 import { saveLocalWithSync } from '../../lib/syncService'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 import { countedUsedTrainingsOnMembership, formatInactiveClientListLabel, membershipHasRemaining, membershipUsageLabel, pickUsableMembershipForDate } from '../../lib/membershipRules'
+import '../../styles/pnk-funnel.css'
 
 function pickExpiredMembershipWithRemaining(list, todayIso) {
   const d = String(todayIso ?? '')
@@ -356,7 +357,10 @@ export function AdminClients() {
       })
     }
 
-    if (quickFilter === 'all' || quickFilter === 'none') return base
+    if (quickFilter === 'none') return base
+    if (quickFilter === 'all') {
+      return base.filter((c) => String(c?.lifecycle ?? '') !== 'pnk')
+    }
     return base.filter((c) =>
       clientMatchesAdminFunnelFilter(quickFilter, {
         client: c,
@@ -428,6 +432,7 @@ export function AdminClients() {
     const funnel = countAdminFunnelFilters(tabBase, memByClient, today, todaySnapshot.inactiveIds)
     return {
       all: todaySnapshot.totalOperational,
+      pnk: funnel.pnk,
       inactive: todaySnapshot.inactiveCount,
       awaiting_start: funnel.awaiting_start,
       birthdays: funnel.birthdays,
@@ -439,6 +444,7 @@ export function AdminClients() {
 
   const browseFilterLabels = {
     all: 'Все клиенты',
+    pnk: 'Воронка ПНК',
     inactive: 'Не активные на сегодня',
     awaiting_start: 'Ждёт старт абонемента',
     birthdays: 'ДР сегодня',
@@ -807,7 +813,19 @@ export function AdminClients() {
                       <div className="td-client-card__who">
                         <span title={sig.label} className="td-client-dot" style={{ background: sig.color }} />
                         <div className="td-client-card__who-text">
-                          <strong className="td-client-card__name">{c.name}</strong>
+                          <strong className="td-client-card__name">
+                            {c.name}
+                            {String(c.lifecycle ?? '') === 'pnk' ? (
+                              <span className="pnk-badge" style={{ marginLeft: 8 }}>
+                                ПНК
+                              </span>
+                            ) : null}
+                            {String(c.lifecycle ?? '') === 'pnk_lost' ? (
+                              <span className="pnk-badge pnk-badge--lost" style={{ marginLeft: 8 }}>
+                                Отказ
+                              </span>
+                            ) : null}
+                          </strong>
                           <div className="td-client-card__phone">{c.phone ?? '—'}</div>
                         </div>
                       </div>
