@@ -8,8 +8,15 @@ import { hasUsableMembershipForPeriodStats } from '../membershipRules.js'
 import { aggregateClubClientPeriod } from './clubClientPeriodAgg.js'
 
 /** Режимы, при которых показываем список без строки поиска. */
-export const ADMIN_CLIENTS_BROWSE_MODES = ['all', 'inactive', 'active_today', 'expiring', 'expired_remaining']
-
+export const ADMIN_CLIENTS_BROWSE_MODES = [
+  'all',
+  'inactive',
+  'awaiting_start',
+  'birthdays',
+  'expiring',
+  'expired_recent',
+  'stale',
+]
 /** @param {string} mode */
 export function isAdminClientsBrowseMode(mode) {
   return ADMIN_CLIENTS_BROWSE_MODES.includes(String(mode ?? ''))

@@ -9,6 +9,11 @@ import { getHealthCard, getLocalClient, listClubsLocal, listMemberships, listTra
 import { clampIsoDateToToday, formatDateRu, isIsoDateAfterToday, todayLocalIso } from '../../lib/dateRu'
 import { getDb } from '../../lib/localDb'
 import { pickUsableMembershipForDate } from '../../lib/membershipRules'
+import {
+  applyEarlyMembershipActivation,
+  loadEarlyActivationProposal,
+} from '../../lib/trainer/earlyMembershipActivateService.js'
+import { EarlyMembershipActivateSheet } from '../../components/trainer/EarlyMembershipActivateSheet.jsx'
 import { saveLocalWithSync } from '../../lib/syncService'
 import { stripDirectionControls } from '../../lib/textInput'
 import { getTrainingCompletionIssues } from '../../lib/trainingCompletionValidation'
@@ -108,6 +113,10 @@ export function TrainingPage() {
   const [healthCard, setHealthCard] = useState(null)
   const [otherCompletedTrainings, setOtherCompletedTrainings] = useState(0)
   const [autosaveStatus, setAutosaveStatus] = useState('idle') // idle | saving | saved | error
+  const [earlyActivateProposal, setEarlyActivateProposal] = useState(null)
+  const [earlyActivateOpen, setEarlyActivateOpen] = useState(false)
+  const [earlyActivateBusy, setEarlyActivateBusy] = useState(false)
+  const [earlyActivateError, setEarlyActivateError] = useState('')
 
   const saveMutexRef = useRef(Promise.resolve())
   const [hydrateVersion, bumpHydrateVersion] = useState(0)
@@ -152,13 +161,22 @@ export function TrainingPage() {
       setMembershipSummary(ms)
       draftTrainingIdRef.current = null
       if (!c) {
+        setEarlyActivateProposal(null)
         setLoadState('missing')
         return
       }
       if (!ms) {
-        setLoadState('no_membership')
+        const offer = await loadEarlyActivationProposal(clientIdParam, todayLocalIso())
+        if (offer.ok && offer.proposal) {
+          setEarlyActivateProposal(offer.proposal)
+          setLoadState('awaiting_activate')
+        } else {
+          setEarlyActivateProposal(null)
+          setLoadState('no_membership')
+        }
         return
       }
+      setEarlyActivateProposal(null)
       setLoadState('ok')
       bumpHydrateVersion((v) => v + 1)
       return
@@ -594,6 +612,69 @@ export function TrainingPage() {
         У клиента нет активного абонемента — новую тренировку начать нельзя.{' '}
         <Link to={`${clientsBase}/${clientIdParam}${preserveClubQs}`}>В карточку клиента</Link>
       </p>
+    )
+  }
+
+  if (loadState === 'awaiting_activate') {
+    return (
+      <div className="grid" style={{ gap: 16 }}>
+        <div className="card" style={{ display: 'grid', gap: 12 }}>
+          <h1 className="section-title" style={{ margin: 0 }}>
+            {client?.name || 'Клиент'}
+          </h1>
+          <p className="muted" style={{ margin: 0 }}>
+            Нет действующего абонемента на сегодня, но есть купленный со стартом впереди. Можно
+            активировать его раньше (даты сдвинутся) и сразу начать тренировку.
+          </p>
+          <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
+            <button
+              type="button"
+              className="btn btn-primary btn-touch"
+              onClick={() => {
+                setEarlyActivateError('')
+                setEarlyActivateOpen(true)
+              }}
+            >
+              Активировать и начать
+            </button>
+            <Link
+              to={`${clientsBase}/${clientIdParam}${preserveClubQs}`}
+              className="btn btn-ghost btn-touch u-no-decoration"
+            >
+              В карточку клиента
+            </Link>
+          </div>
+        </div>
+        <EarlyMembershipActivateSheet
+          open={earlyActivateOpen}
+          proposal={earlyActivateProposal}
+          busy={earlyActivateBusy}
+          error={earlyActivateError}
+          onCancel={() => {
+            if (earlyActivateBusy) return
+            setEarlyActivateOpen(false)
+            setEarlyActivateError('')
+          }}
+          onConfirm={async () => {
+            if (!clientIdParam) return
+            setEarlyActivateBusy(true)
+            setEarlyActivateError('')
+            try {
+              const res = await applyEarlyMembershipActivation(clientIdParam, todayLocalIso())
+              if (!res.ok) {
+                setEarlyActivateError(res.error || 'Не удалось активировать')
+                return
+              }
+              setEarlyActivateOpen(false)
+              await load()
+            } catch (e) {
+              setEarlyActivateError(e?.message || 'Не удалось активировать')
+            } finally {
+              setEarlyActivateBusy(false)
+            }
+          }}
+        />
+      </div>
     )
   }
 

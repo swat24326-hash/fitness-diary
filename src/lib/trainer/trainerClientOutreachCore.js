@@ -1,6 +1,6 @@
 import { daysUntilNextBirthday } from '../clientBirthdays.js'
 import { membershipSignal } from '../clientListSignals.js'
-import { pickUsableMembershipForDate } from '../membershipRules.js'
+import { hasUpcomingMembership, pickUsableMembershipForDate } from '../membershipRules.js'
 import { todayLocalIso } from '../dateRu.js'
 
 /** @param {number} n */
@@ -166,6 +166,8 @@ export function isMembershipExpiredRecently(list, todayIso, staleDays = STALE_TR
   const today = String(todayIso ?? '').slice(0, 10)
   const threshold = Number(staleDays) > 0 ? Number(staleDays) : STALE_TRAINING_DAYS
   if (pickUsableMembershipForDate(list ?? [], today)) return false
+  // Уже куплен следующий абонемент — не «закончился» для возврата/продажи.
+  if (hasUpcomingMembership(list ?? [], today)) return false
   const days = membershipDaysSinceLatestEnd(list, today)
   if (days == null) return false
   return days >= 0 && days < threshold
@@ -195,6 +197,7 @@ export function isClientStaleForAttention(ctx = {}) {
   const memList = ctx.memList ?? []
 
   if (pickUsableMembershipForDate(memList, today)) return false
+  if (hasUpcomingMembership(memList, today)) return false
   if (isMembershipExpiredRecently(memList, today, staleDays)) return false
 
   const days = membershipDaysSinceLatestEnd(memList, today)
@@ -236,7 +239,13 @@ export function clientMatchesOutreachFilter(scenario, ctx = {}) {
   if (scenario === 'birthdays') return isBirthdayToday(ctx.birthDate, today)
   if (scenario === 'expiring') return membershipSignal(memList, today).key === 'expiring'
   if (scenario === 'expired_recent') return isMembershipExpiredRecently(memList, today)
-  if (scenario === 'stale') return ctx.isStale === true
+  if (scenario === 'stale') {
+    return isClientStaleForAttention({
+      memList,
+      today,
+      staleDays: ctx.staleDays,
+    })
+  }
   return false
 }
 

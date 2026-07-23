@@ -5,6 +5,7 @@ import { getDb } from '../lib/localDb'
 import { deleteLocalWithSync, saveLocalWithSync } from '../lib/syncService'
 import { addDaysToIso, formatDateRu, formatDateTimeRu, todayLocalIso } from '../lib/dateRu'
 import { completedTrainingsOnMembership } from '../lib/membershipRules'
+import { buildMembershipDeleteConfirmCopy } from '../lib/membershipDeleteCore'
 import { ensureMembershipTypesForClub, isTrainerAssignableMembershipType, membershipTypeCode } from '../lib/membershipTypesService'
 import { findPnkTrialMembershipType, isPnkTrialTypeRow } from '../lib/pnk/pnkTrialTrainingCore'
 import {
@@ -13,6 +14,7 @@ import {
 } from '../lib/admin/salesClientSegmentCore'
 import { CheckCircle2, Eye, Pencil, Plus, Trash2 } from 'lucide-react'
 import { ModalHeader } from './ModalHeader'
+import { ClientRowMoreMenu } from './ClientRowMoreMenu'
 import { useAuth } from '../context/AuthContext'
 
 function newId() {
@@ -106,6 +108,7 @@ export function MembershipManager({
   const [trainings, setTrainings] = useState([])
   const [viewOpenId, setViewOpenId] = useState(null)
   const [confirmCancel, setConfirmCancel] = useState(null) // { t, membership }
+  const [confirmDeleteMembership, setConfirmDeleteMembership] = useState(null) // membership row
   const autoOpenedRef = useRef(false)
 
   const todayIso = useMemo(() => todayLocalIso(), [])
@@ -330,15 +333,50 @@ export function MembershipManager({
   const saveEdit = async (e) => {
     e?.preventDefault?.()
     if (!selected) return
+    const start = String(edit.start_date || selected.start_date || todayIso).slice(0, 10)
+    const end = String(edit.end_date || selected.end_date || '').slice(0, 10)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) {
+      alert('Укажите дату начала абонемента')
+      return
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(end)) {
+      alert('Укажите дату окончания абонемента')
+      return
+    }
     const patch = {
-      start_date: edit.start_date || null,
-      end_date: edit.end_date || null,
+      start_date: start,
+      end_date: end,
       total_trainings: Number(edit.total_trainings) || 0,
       membership_type_id: edit.membership_type_id?.trim() || null,
     }
     await patchMembership(selected.id, patch)
     setEditOpenId(null)
   }
+
+  const requestDeleteMembership = useCallback((m) => {
+    if (!m?.id) return
+    setConfirmDeleteMembership(m)
+  }, [])
+
+  const doDeleteMembership = useCallback(
+    async (m) => {
+      if (!m?.id) return
+      await deleteLocalWithSync('memberships', m.id, 'memberships')
+      if (selectedId === m.id) setSelectedId(null)
+      if (editOpenId === m.id) setEditOpenId(null)
+      if (viewOpenId === m.id) setViewOpenId(null)
+      await notify()
+    },
+    [selectedId, editOpenId, viewOpenId, notify],
+  )
+
+  const deleteConfirmCopy = useMemo(() => {
+    if (!confirmDeleteMembership) return null
+    return buildMembershipDeleteConfirmCopy({
+      membership: confirmDeleteMembership,
+      linkedTrainingsCount: completedTrainingsOnMembership(confirmDeleteMembership, trainings).length,
+    })
+  }, [confirmDeleteMembership, trainings])
 
   const trainingsForMembership = useCallback(
     (m) => {
@@ -583,7 +621,18 @@ export function MembershipManager({
                   Использовано: <strong>{selected.used_trainings ?? 0}</strong>
                 </div>
 
-                <div className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
+                <div className="row" style={{ gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-touch"
+                    onClick={() => {
+                      if (!selected) return
+                      setEditOpenId(null)
+                      requestDeleteMembership(selected)
+                    }}
+                  >
+                    Удалить
+                  </button>
                   <button type="submit" className="btn btn-primary btn-touch">
                     Сохранить
                   </button>
@@ -738,6 +787,52 @@ export function MembershipManager({
           document.body,
         )}
 
+      {confirmDeleteMembership &&
+        deleteConfirmCopy &&
+        createPortal(
+          <div
+            className="modal-overlay modal-overlay--center"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Подтверждение удаления абонемента"
+            onClick={() => setConfirmDeleteMembership(null)}
+          >
+            <div className="modal-panel modal-panel--membership-form" onClick={(e) => e.stopPropagation()}>
+              <h3 style={{ marginTop: 0 }}>{deleteConfirmCopy.title}</h3>
+              <p className="muted" style={{ marginTop: 6 }}>
+                Период:{' '}
+                <strong style={{ color: 'var(--text)' }}>{deleteConfirmCopy.periodLabel}</strong>
+                {deleteConfirmCopy.usedLabel ? (
+                  <>
+                    {' '}
+                    · использовано <strong style={{ color: 'var(--text)' }}>{deleteConfirmCopy.usedLabel}</strong>
+                  </>
+                ) : null}
+              </p>
+              <p className="muted" style={{ marginTop: 6 }}>
+                {deleteConfirmCopy.body}
+              </p>
+              <div className="row" style={{ justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap', marginTop: 14 }}>
+                <button type="button" className="btn btn-ghost btn-touch" onClick={() => setConfirmDeleteMembership(null)}>
+                  Отмена
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-touch"
+                  onClick={async () => {
+                    const m = confirmDeleteMembership
+                    setConfirmDeleteMembership(null)
+                    await doDeleteMembership(m)
+                  }}
+                >
+                  Удалить
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+
       <div className="card">
         <div className="row" style={{ alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
           <h3 style={{ margin: 0 }}>Абонементы</h3>
@@ -792,32 +887,38 @@ export function MembershipManager({
                     {m.used_trainings ?? 0}/{m.total_trainings ?? '—'}
                   </td>
                   <td className="muted">{formatDateTimeRu(m.created_at)}</td>
-                  <td style={{ width: 96 }}>
+                  <td style={{ width: 56 }}>
                     <div className="mem-actions">
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-icon-square"
-                        aria-label="Посмотреть тренировки абонемента"
-                        title="Тренировки абонемента"
-                        onClick={() => {
-                          setSelectedId(m.id)
-                          setViewOpenId(m.id)
-                        }}
-                      >
-                        <Eye size={16} aria-hidden />
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-icon-square"
-                        aria-label="Редактировать абонемент"
-                        title="Редактировать"
-                        onClick={() => {
-                          setSelectedId(m.id)
-                          setEditOpenId(m.id)
-                        }}
-                      >
-                        <Pencil size={16} aria-hidden />
-                      </button>
+                      <ClientRowMoreMenu
+                        ariaLabel="Действия с абонементом"
+                        items={[
+                          {
+                            id: 'view',
+                            label: 'Тренировки',
+                            icon: Eye,
+                            onSelect: () => {
+                              setSelectedId(m.id)
+                              setViewOpenId(m.id)
+                            },
+                          },
+                          {
+                            id: 'edit',
+                            label: 'Редактировать',
+                            icon: Pencil,
+                            onSelect: () => {
+                              setSelectedId(m.id)
+                              setEditOpenId(m.id)
+                            },
+                          },
+                          {
+                            id: 'delete',
+                            label: 'Удалить',
+                            icon: Trash2,
+                            danger: true,
+                            onSelect: () => requestDeleteMembership(m),
+                          },
+                        ]}
+                      />
                     </div>
                   </td>
                 </tr>

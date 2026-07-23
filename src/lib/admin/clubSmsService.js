@@ -1,5 +1,6 @@
 import { getAccessTokenForAdminApi, apiRouteMissing } from './adminApiClient.js'
 import { fetchWithAppTimeout } from '../networkReachability.js'
+import { CLUB_SMS_LOG_DEFAULT_LOOKBACK_DAYS } from './clubSmsLogCore.js'
 
 function apiOrigin() {
   if (typeof window !== 'undefined' && window.location?.origin) {
@@ -36,6 +37,38 @@ export async function fetchClubSmsStatus(clubId) {
     templates: data?.templates && typeof data.templates === 'object' ? data.templates : undefined,
     clubName: data?.club_name ? String(data.club_name) : '',
   }
+}
+
+/**
+ * Облачный журнал SMS клуба.
+ * @param {string} clubId
+ * @param {{ sinceDays?: number }} [opts]
+ * @returns {Promise<object[]>}
+ */
+export async function fetchClubSmsLogs(clubId, opts = {}) {
+  const token = await getAccessTokenForAdminApi()
+  if (!token) throw new Error('Нет сессии — войдите снова')
+  const sinceDays = Number(opts.sinceDays) > 0 ? Number(opts.sinceDays) : CLUB_SMS_LOG_DEFAULT_LOOKBACK_DAYS
+  const qs = new URLSearchParams({
+    club_id: String(clubId ?? '').trim(),
+    logs: '1',
+    since_days: String(sinceDays),
+  })
+  const res = await fetchWithAppTimeout(`${apiOrigin()}/api/admin-data?action=club-sms&${qs}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+    credentials: 'same-origin',
+    cache: 'no-store',
+  })
+  const ct = res.headers.get('content-type') || ''
+  if (apiRouteMissing(res, ct)) {
+    throw new Error('API club-sms недоступен — нужен деплой с журналом SMS')
+  }
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(data?.error || 'Не удалось загрузить журнал SMS')
+  }
+  return Array.isArray(data?.logs) ? data.logs : []
 }
 
 /**

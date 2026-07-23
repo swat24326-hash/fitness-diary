@@ -34,8 +34,8 @@ const r = aggregateClubClientPeriod(clients, memberships, '2026-05-01', '2026-05
 
 ok(r.totalClients === 4, 'total clients')
 ok(r.activeWithMembership === 1, 'c2 active on end of may')
-ok(r.inactiveInPeriod === 3, 'c1 expired/depleted, c3 not started, c4 depleted')
-ok(r.inactiveClients.length === 3, 'inactive list size')
+ok(r.inactiveInPeriod === 2, 'c1 expired, c4 depleted; c3 ждёт старт — не в неактивных')
+ok(r.inactiveClients.length === 2, 'inactive list size')
 ok(r.inactiveClients.some((c) => c.id === 'c1' && c.inactiveReason === 'expired'), 'c1 end in may -> expired on 31.05')
 ok(
   r.inactiveClients.some((c) => c.id === 'c1' && c.inactiveDetail?.includes('15.05.2026')),
@@ -46,7 +46,7 @@ ok(
   r.inactiveClients.some((c) => c.id === 'c4' && c.inactiveDetail?.includes('12/12')),
   'c4 detail has usage',
 )
-ok(r.inactiveClients.some((c) => c.id === 'c3' && c.inactiveReason === 'not_started'), 'c3 not started')
+ok(!r.inactiveClients.some((c) => c.id === 'c3'), 'c3 not_started excluded from inactive')
 ok(r.notRenewedInPeriod === 0, 'notRenewed deprecated empty')
 
 const withTrainer = [
@@ -57,7 +57,7 @@ const withTrainer = [
 ]
 const rTr = aggregateClubClientPeriod(withTrainer, memberships, '2026-05-01', '2026-05-31', '2026-05-31')
 ok(rTr.inactiveClients.find((c) => c.id === 'c1')?.trainerId === 'trainer-a', 'inactive carries trainerId')
-ok(rTr.inactiveClients.find((c) => c.id === 'c3')?.trainerId == null, 'inactive without trainer')
+ok(!rTr.inactiveClients.some((c) => c.id === 'c3'), 'not_started not listed inactive')
 
 const withArchived = [
   ...clients,
@@ -83,7 +83,17 @@ const futureMem = [
 ]
 const rEarlyJune = aggregateClubClientPeriod([{ id: 'late', name: 'Будущий' }], futureMem, '2026-06-01', '2026-06-30', '2026-06-05')
 ok(rEarlyJune.activeWithMembership === 0, 'membership not started on 05.06')
-ok(rEarlyJune.inactiveClients[0]?.inactiveReason === 'not_started', 'reason not_started early june')
+ok(rEarlyJune.inactiveInPeriod === 0, 'ждёт старт — не в неактивных')
+ok(rEarlyJune.inactiveClients.length === 0, 'empty inactive when only upcoming')
+
+const gapClient = [{ id: 'gap', name: 'Gap' }]
+const gapMem = [
+  { client_id: 'gap', start_date: '2026-01-01', end_date: '2026-06-01', total_trainings: 10, used_trainings: 10 },
+  { client_id: 'gap', start_date: '2026-06-20', end_date: '2026-07-20', total_trainings: 8, used_trainings: 0 },
+]
+const rGap = aggregateClubClientPeriod(gapClient, gapMem, '2026-06-01', '2026-06-30', '2026-06-10')
+ok(rGap.activeWithMembership === 0, 'gap: no usable mid-june')
+ok(rGap.inactiveInPeriod === 0, 'gap: upcoming next card — not inactive')
 
 if (failed > 0) {
   console.error(`\n${failed} check(s) failed`)

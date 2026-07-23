@@ -6,7 +6,8 @@
 
 Правила кода для Cursor — `.cursor/rules/` (политика). Этот handoff — **нарратив**: что за продукт и куда смотреть. Не дублировать политику целиком.
 
-**Хостинг:** сейчас Vercel + Supabase. Переезд на **российские серверы — в будущем**; при разработке уже учитывать портативность (env, стабильный `/api/*`, логика в `_lib`) — [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md), правило `fitness-diary-hosting-portability.mdc`. Cutover не делать без явной команды.
+**Хостинг:** сейчас Vercel + Supabase. Переезд на **российские серверы — в будущем**; при разработке уже учитывать портативность (env, стабильный `/api/*`, логика в `_lib`) — [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md), правило `fitness-diary-hosting-portability.mdc`. Cutover не делать без явной команды.  
+**Безопасность (усиление):** ⏸ после РФ — STRATEGY §5.7; до cutover не кодить rate limit / админ-email без команды. Гигиена в фичах — `fitness-diary-security.mdc`.
 
 ---
 
@@ -89,7 +90,7 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 - `SUPABASE_SERVICE_ROLE_KEY`, опционально `SUPABASE_URL` / `SUPABASE_ANON_KEY`
 - `GEMINI_API_KEY`, опционально `GEMINI_MODEL`
 - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
-- клубные SMS «Мои Звонки»: `MOIZVONKI_DOMAIN` или `MOIZVONKI_API_BASE`, `MOIZVONKI_API_KEY`, `MOIZVONKI_USER_EMAIL` (см. `docs/MOIZVONKI_SETUP.md`)
+- клубные SMS «Мои Звонки»: `MOIZVONKI_*` env; журнал Postgres `club_sms_log` (см. `docs/MOIZVONKI_SETUP.md`)
 
 См. `.env.example`. Без URL/ключа Supabase — локальный демо-режим.
 
@@ -220,6 +221,7 @@ CI: `.github/workflows/qa.yml` (`qa:local`), weekly prod smoke.
 | `fitness-diary-architecture.mdc` | слои, офлайн |
 | `fitness-diary-scale.mdc` | масштаб, verify |
 | `fitness-diary-stability.mdc` | критические сценарии |
+| `fitness-diary-security.mdc` | безопасность: auth, секреты, push/RLS, удалённые угрозы |
 | `fitness-diary-ship.mdc` | QA, деплой, коммит |
 | `fitness-diary-docs.mdc` | документация как DoD: правда, слои, без drift |
 | `fitness-diary-file-structure.mdc` | как пишем файлы (структура с первого коммита) |

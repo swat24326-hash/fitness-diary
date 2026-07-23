@@ -1,6 +1,8 @@
 import { useEffect, useId, useState } from 'react'
 import { X } from 'lucide-react'
+import { appendClubSmsLog } from '../../lib/admin/clubSmsLogService.js'
 import { sendClubSmsViaApi } from '../../lib/admin/clubSmsService.js'
+import { resolveClubSmsLogScenario } from '../../lib/admin/clubSmsSentMarkCore.js'
 import { resolveClubSmsTemplates } from '../../lib/admin/clubSmsTemplatesCore.js'
 import {
   buildOutreachMessage,
@@ -28,6 +30,7 @@ const MAX_LEN = OUTREACH_TEMPLATE_LIMITS.maxLength
  *   today?: string,
  *   templates?: Record<string, string> | null,
  *   onFeedback?: (msg: string, tone?: string) => void,
+ *   onSent?: (clientId: string, scenario?: string) => void,
  * }} props
  */
 export function AdminClientClubSmsSheet({
@@ -45,6 +48,7 @@ export function AdminClientClubSmsSheet({
   today,
   templates = null,
   onFeedback,
+  onSent,
 }) {
   const titleId = useId()
   const [text, setText] = useState('')
@@ -86,12 +90,32 @@ export function AdminClientClubSmsSheet({
     setSending(true)
     setError('')
     try {
-      await sendClubSmsViaApi({
+      const logScenario = resolveClubSmsLogScenario({
+        mode,
+        scenario,
+        client,
+        memList,
+        today,
+      })
+      const sendResult = await sendClubSmsViaApi({
         clubId,
         clientId: client.id,
         text: trimmed.slice(0, MAX_LEN),
         ...(mode === 'template' && scenario ? { scenario } : {}),
       })
+      const savedScenario = String(sendResult?.scenario ?? logScenario)
+      try {
+        await appendClubSmsLog({
+          id: sendResult?.log_id || undefined,
+          client_id: client.id,
+          club_id: clubId,
+          scenario: savedScenario,
+          message_preview: trimmed.slice(0, 120),
+        })
+      } catch {
+        /* отметка локальная — сбой журнала не ломает успех отправки */
+      }
+      onSent?.(client.id, savedScenario)
       onFeedback?.('SMS отправлено через Мои Звонки (телефон клуба)', 'ok')
       onClose()
     } catch (e) {

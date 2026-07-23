@@ -1,5 +1,12 @@
 import { sendJson } from './adminSupabase.js'
 import {
+  buildClubSmsLogInsertRow,
+  clampClubSmsLogSinceDays,
+  CLUB_SMS_LOG_MAX_ROWS,
+  clubSmsLogSinceIso,
+  shapeClubSmsLogApiRow,
+} from '../../src/lib/admin/clubSmsLogCore.js'
+import {
   checkClubSmsRateLimit,
   isMoiZvonkiConfigured,
   isValidMoiZvonkiPhone,
@@ -12,17 +19,22 @@ import {
   isOutreachScenario,
 } from '../../src/lib/trainer/trainerClientOutreachCore.js'
 import { resolveClubSmsTemplates } from '../../src/lib/admin/clubSmsTemplatesCore.js'
+import { resolveClientClubSmsScenario } from '../../src/lib/admin/clubSmsSentMarkCore.js'
 import { pickUsableMembershipForDate } from '../../src/lib/membershipRules.js'
 import { todayLocalIso } from '../../src/lib/dateRu.js'
 
 /**
  * GET admin-data?action=club-sms&club_id=
+ * Опционально: &logs=1&since_days=14 — облачный журнал.
  * @param {object} ctx
  * @param {object} req
  * @param {object} res
  */
 export async function handleClubSmsGet(ctx, req, res) {
   const clubId = String(req.query?.club_id ?? '').trim()
+  const wantLogs =
+    String(req.query?.logs ?? '') === '1' ||
+    String(req.query?.logs ?? '').toLowerCase() === 'true'
   let templates = resolveClubSmsTemplates(null)
   let clubName = ''
 
@@ -43,6 +55,18 @@ export async function handleClubSmsGet(ctx, req, res) {
     }
   }
 
+  /** @type {object[] | undefined} */
+  let logs
+  let logs_error
+  if (wantLogs && clubId && ctx?.supabaseAdmin) {
+    try {
+      logs = await fetchClubSmsLogsForClub(ctx, clubId, req.query?.since_days)
+    } catch (e) {
+      logs = []
+      logs_error = String(e?.message ?? e).slice(0, 160)
+    }
+  }
+
   sendJson(res, 200, {
     ok: true,
     configured: isMoiZvonkiConfigured(),
@@ -50,13 +74,70 @@ export async function handleClubSmsGet(ctx, req, res) {
     club_id: clubId || null,
     club_name: clubName,
     templates,
+    ...(wantLogs ? { logs, logs_error: logs_error || undefined } : {}),
   })
+}
+
+/**
+ * @param {object} ctx
+ * @param {string} clubId
+ * @param {unknown} sinceDaysRaw
+ */
+async function fetchClubSmsLogsForClub(ctx, clubId, sinceDaysRaw) {
+  const sinceDays = clampClubSmsLogSinceDays(sinceDaysRaw)
+  const sinceIso = clubSmsLogSinceIso(todayLocalIso(), sinceDays)
+
+  const { data: rows, error } = await ctx.supabaseAdmin
+    .from('club_sms_log')
+    .select('id, club_id, client_id, sent_by, scenario, message_preview, created_at')
+    .eq('club_id', clubId)
+    .gte('created_at', sinceIso)
+    .order('created_at', { ascending: false })
+    .limit(CLUB_SMS_LOG_MAX_ROWS)
+
+  if (error) throw new Error(error.message || 'club_sms_log query failed')
+
+  const list = rows ?? []
+  const clientIds = [...new Set(list.map((r) => String(r.client_id)).filter(Boolean))]
+  const senderIds = [...new Set(list.map((r) => String(r.sent_by || '')).filter(Boolean))]
+
+  /** @type {Record<string, string>} */
+  const clientNames = {}
+  /** @type {Record<string, string>} */
+  const senderNames = {}
+
+  if (clientIds.length) {
+    const { data: clients } = await ctx.supabaseAdmin
+      .from('clients')
+      .select('id, name')
+      .in('id', clientIds)
+    for (const c of clients ?? []) {
+      clientNames[String(c.id)] = String(c.name ?? '').trim() || '—'
+    }
+  }
+  if (senderIds.length) {
+    const { data: users } = await ctx.supabaseAdmin
+      .from('users')
+      .select('id, name')
+      .in('id', senderIds)
+    for (const u of users ?? []) {
+      senderNames[String(u.id)] = String(u.name ?? '').trim() || '—'
+    }
+  }
+
+  return list
+    .map((row) =>
+      shapeClubSmsLogApiRow(row, {
+        clientName: clientNames[String(row.client_id)],
+        sentByName: row.sent_by ? senderNames[String(row.sent_by)] : null,
+      }),
+    )
+    .filter(Boolean)
 }
 
 /**
  * POST admin-data?action=club-sms
  * body: { club_id, client_id, scenario?: 'expiring'|..., text?: string }
- * С text — произвольное SMS. Без text — club-шаблон + клиент подходит под фильтр.
  * @param {object} ctx
  * @param {object} res
  * @param {object} body
@@ -116,6 +197,8 @@ export async function handleClubSmsPost(ctx, res, body) {
   const customText = String(body?.text ?? '').trim()
   let text = customText
   let scenario = String(body?.scenario ?? '').trim().toLowerCase()
+  /** @type {object[] | null} */
+  let memListForLog = null
 
   if (!text) {
     if (!isOutreachScenario(scenario)) {
@@ -145,11 +228,11 @@ export async function handleClubSmsPost(ctx, res, body) {
     ])
 
     const memList = memRes.data ?? []
+    memListForLog = memList
     const matches = clientMatchesOutreachFilter(scenario, {
       memList,
       today,
       birthDate: client.birth_date,
-      isStale: false,
     })
     if (!matches) {
       sendJson(res, 400, {
@@ -197,10 +280,56 @@ export async function handleClubSmsPost(ctx, res, body) {
     return
   }
 
+  let logScenario = isOutreachScenario(scenario) ? scenario : 'custom'
+  if (customText) {
+    try {
+      if (!memListForLog) {
+        const { data: mems } = await ctx.supabaseAdmin
+          .from('memberships')
+          .select('id, client_id, membership_type_id, start_date, end_date, total_trainings, used_trainings')
+          .eq('client_id', clientId)
+        memListForLog = mems ?? []
+      }
+      logScenario = resolveClientClubSmsScenario({
+        client,
+        memList: memListForLog,
+        today: todayLocalIso(),
+      })
+    } catch {
+      logScenario = 'custom'
+    }
+  }
+
+  let log_id = null
+  let log_warning
+  const built = buildClubSmsLogInsertRow({
+    club_id: clubId,
+    client_id: clientId,
+    sent_by: ctx?.user?.id ?? null,
+    scenario: logScenario,
+    message_preview: text,
+  })
+  if (built.ok) {
+    const { data: inserted, error: insertErr } = await ctx.supabaseAdmin
+      .from('club_sms_log')
+      .insert(built.row)
+      .select('id')
+      .maybeSingle()
+    if (insertErr) {
+      log_warning = String(insertErr.message ?? 'journal_insert_failed').slice(0, 160)
+    } else {
+      log_id = inserted?.id ? String(inserted.id) : null
+    }
+  } else {
+    log_warning = built.error
+  }
+
   sendJson(res, 200, {
     ok: true,
     phone: result.phone,
-    scenario: customText ? null : scenario,
+    scenario: logScenario,
     preview: text.length > 80 ? `${text.slice(0, 79)}…` : text,
+    log_id,
+    ...(log_warning ? { log_warning } : {}),
   })
 }

@@ -47,6 +47,8 @@ export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, 
     const client = clientById.get(id)
     const ref = inactiveMembershipReferenceDate(from, to, asOf)
     const { reason, inactiveDetail, membershipEndDate, membershipStartDate } = inactiveMembershipDetail(mems, ref)
+    // Ждёт старт купленного абонемента — не в «Не активные» (не цель для SMS «вернись»).
+    if (reason === 'not_started') continue
     inactiveClients.push({
       id,
       name: String(client?.name ?? '').trim() || '—',

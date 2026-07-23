@@ -8,6 +8,10 @@ import { buildAdminClubQueryHref } from './adminClientQuickFilters.js'
  *   summary?: {
  *     inactive?: number,
  *     expiring?: number,
+ *     expired_recent?: number,
+ *     stale?: number,
+ *     birthdays?: number,
+ *     awaiting_start?: number,
  *     today?: string,
  *   } | null,
  *   coachQuality?: {
@@ -41,17 +45,14 @@ export function buildAdminHomeSoftSignals(opts = {}) {
   const cq = opts.coachQuality ?? null
   const clubId = String(opts.clubId ?? '').trim()
   const out = []
+  const clients = (filter) => buildAdminClubQueryHref('/admin/clients', { clubId, filter })
 
   const hrefInactive =
-    opts.hrefClientsInactive ||
-    opts.hrefStatsInactive ||
-    buildAdminClubQueryHref('/admin/clients', { clubId, filter: 'inactive' })
+    opts.hrefClientsInactive || opts.hrefStatsInactive || clients('inactive')
   const hrefCoach =
     opts.hrefStatsCoach ||
     buildAdminClubQueryHref('/admin/statistics', { clubId, period: 'month', panel: 'coachQuality' })
-  const hrefExpiring =
-    opts.hrefClientsExpiring ||
-    buildAdminClubQueryHref('/admin/clients', { clubId, filter: 'expiring' })
+  const hrefExpiring = opts.hrefClientsExpiring || clients('expiring')
 
   const scorePct = cq?.scorePct != null && Number.isFinite(Number(cq.scorePct)) ? Number(cq.scorePct) : null
   if (cq && (scorePct != null || cq.hot || cq.chipLabel)) {
@@ -81,6 +82,28 @@ export function buildAdminHomeSoftSignals(opts = {}) {
     })
   }
 
+  const expiredRecent = Number(summary?.expired_recent) || 0
+  if (expiredRecent > 0) {
+    out.push({
+      id: 'expired_recent',
+      title: expiredRecent === 1 ? 'Абонемент закончился' : `${expiredRecent} закончились`,
+      subtitle: '0–13 дней · продлить',
+      href: clients('expired_recent'),
+      tone: 'warn',
+    })
+  }
+
+  const stale = Number(summary?.stale) || 0
+  if (stale > 0) {
+    out.push({
+      id: 'stale',
+      title: stale === 1 ? 'Давно не был' : `${stale} давно не были`,
+      subtitle: '14+ дней · возврат',
+      href: clients('stale'),
+      tone: 'hot',
+    })
+  }
+
   const expiring = Number(summary?.expiring) || 0
   if (expiring > 0) {
     out.push({
@@ -89,6 +112,17 @@ export function buildAdminHomeSoftSignals(opts = {}) {
       subtitle: '≤ 3 дня',
       href: hrefExpiring,
       tone: 'warn',
+    })
+  }
+
+  const birthdays = Number(summary?.birthdays) || 0
+  if (birthdays > 0) {
+    out.push({
+      id: 'birthdays',
+      title: birthdays === 1 ? 'ДР сегодня' : `${birthdays} ДР сегодня`,
+      subtitle: 'SMS от клуба',
+      href: clients('birthdays'),
+      tone: 'neutral',
     })
   }
 

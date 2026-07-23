@@ -12,11 +12,22 @@ import {
   listAdminClientsForClub,
   listTrainerSummariesForAdmin,
 } from '../../lib/dataAccess'
-import { isAdminClientQuickFilter } from '../../lib/admin/adminClientQuickFilters'
+import { isAdminClientQuickFilter, normalizeAdminClientQuickFilter } from '../../lib/admin/adminClientQuickFilters'
 import { buildAdminClientsTodaySnapshot, shouldShowAdminClientsList } from '../../lib/admin/adminClientsBrowseCore'
+import {
+  clientMatchesAdminFunnelFilter,
+  countAdminFunnelFilters,
+} from '../../lib/admin/adminClientsFunnelCore.js'
 import { loadAdminClubMembershipsMap, loadAdminClubTrainingsForClientIds } from '../../lib/admin/adminClubWorkspaceCache'
 import { fetchClientsLastTrainingsViaApi } from '../../lib/admin/adminApiClient'
 import { fetchClubSmsStatus } from '../../lib/admin/clubSmsService.js'
+import { listRecentClubSmsLogs } from '../../lib/admin/clubSmsLogService.js'
+import {
+  clubSmsMarkChipLabel,
+  clubSmsMarkTitle,
+  mapClubSmsMarksByClient,
+  resolveClientClubSmsScenario,
+} from '../../lib/admin/clubSmsSentMarkCore.js'
 import { resolveClubSmsMode } from '../../lib/admin/clubSmsModeCore.js'
 import { pullAdminClientsFromCloud } from '../../lib/admin/adminClientsListService'
 import { useDebouncedStorageReload, shouldReloadAdminClientsPage } from '../../lib/useDebouncedStorageReload'
@@ -104,9 +115,10 @@ export function AdminClients() {
   const [pageTrainingsBusy, setPageTrainingsBusy] = useState(false)
   const [query, setQuery] = useState('')
   const [trainerQuery, setTrainerQuery] = useState('')
-  const [quickFilter, setQuickFilter] = useState(() =>
-    isAdminClientQuickFilter(filterFromUrl) ? filterFromUrl : 'none',
-  )
+  const [quickFilter, setQuickFilter] = useState(() => {
+    const n = normalizeAdminClientQuickFilter(filterFromUrl)
+    return isAdminClientQuickFilter(n) ? n : 'none'
+  })
   const [clientsTab, setClientsTab] = useState('active') // active | archive
   const [archiveBusy, setArchiveBusy] = useState(false)
   const [source, setSource] = useState('local')
@@ -128,6 +140,8 @@ export function AdminClients() {
   const [clubSmsConfigured, setClubSmsConfigured] = useState(null)
   const [clubSmsTemplates, setClubSmsTemplates] = useState(null)
   const [clubSmsClubName, setClubSmsClubName] = useState('')
+  /** @type {[object[], function]} */
+  const [clubSmsLogs, setClubSmsLogs] = useState([])
 
   useEffect(() => {
     let cancelled = false
@@ -135,6 +149,7 @@ export function AdminClients() {
       setClubSmsConfigured(false)
       setClubSmsTemplates(null)
       setClubSmsClubName('')
+      setClubSmsLogs([])
       return undefined
     }
     fetchClubSmsStatus(club)
@@ -151,6 +166,9 @@ export function AdminClients() {
           setClubSmsClubName('')
         }
       })
+    void listRecentClubSmsLogs(club, { todayIso: todayLocalIso() }).then((rows) => {
+      if (!cancelled) setClubSmsLogs(rows)
+    })
     return () => {
       cancelled = true
     }
@@ -160,6 +178,20 @@ export function AdminClients() {
     setSmsFeedback({ msg, tone })
     window.setTimeout(() => setSmsFeedback(null), 4000)
   }, [])
+
+  const onClubSmsSent = useCallback((clientId, scenario = 'custom') => {
+    const id = String(clientId ?? '').trim()
+    if (!id || !club) return
+    const entry = {
+      id: `local_${Date.now()}`,
+      client_id: id,
+      club_id: club,
+      scenario: String(scenario || 'custom'),
+      channel: 'club_sms',
+      created_at: new Date().toISOString(),
+    }
+    setClubSmsLogs((prev) => [...prev, entry])
+  }, [club])
 
   const reload = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setBusy(true)
@@ -208,10 +240,22 @@ export function AdminClients() {
   useDebouncedStorageReload(() => reload({ silent: true }), { shouldRun: shouldReloadAdminClientsPage })
 
   useEffect(() => {
-    const f = searchParams.get('filter')
-    if (isAdminClientQuickFilter(f)) setQuickFilter(f)
-    else if (!f) setQuickFilter('none')
-  }, [searchParams])
+    const raw = searchParams.get('filter')
+    const n = normalizeAdminClientQuickFilter(raw)
+    if (raw === 'expired_remaining' || raw === 'active_today') {
+      setSearchParams(
+        (prev) => {
+          const p = new URLSearchParams(prev)
+          if (n === 'none') p.delete('filter')
+          else p.set('filter', n)
+          return p
+        },
+        { replace: true },
+      )
+    }
+    if (isAdminClientQuickFilter(n)) setQuickFilter(n)
+    else if (!raw) setQuickFilter('none')
+  }, [searchParams, setSearchParams])
 
   // Доп. pull архива при вкладке (основной снимок уже в active+archive merge при загрузке).
   useEffect(() => {
@@ -312,17 +356,15 @@ export function AdminClients() {
       })
     }
 
-    if (quickFilter === 'inactive') {
-      return base.filter((c) => todaySnapshot.inactiveIds.has(c.id))
-    }
-    if (quickFilter === 'active_today') {
-      return base.filter((c) => todaySnapshot.activeTodayIds.has(c.id))
-    }
     if (quickFilter === 'all' || quickFilter === 'none') return base
-    return base.filter((c) => {
-      const sig = membershipSignal(memByClient[c.id] ?? [], today)
-      return sig.key === quickFilter
-    })
+    return base.filter((c) =>
+      clientMatchesAdminFunnelFilter(quickFilter, {
+        client: c,
+        memList: memByClient[c.id] ?? [],
+        today,
+        inactiveIds: todaySnapshot.inactiveIds,
+      }),
+    )
   }, [clients, clientsTab, query, trainerQuery, quickFilter, memByClient, today, trainerNameById, todaySnapshot])
 
   const totalPages = Math.max(1, Math.ceil(filteredClients.length / ADMIN_CLIENTS_PAGE_SIZE))
@@ -383,32 +425,54 @@ export function AdminClients() {
 
   const filterCounts = useMemo(() => {
     const tabBase = clientsTab === 'archive' ? clients.filter((c) => Boolean(c?.archived_at)) : operationalClients
-    let expiring = 0
-    let expired_remaining = 0
-    for (const c of tabBase) {
-      const sig = membershipSignal(memByClient[c.id] ?? [], today)
-      if (sig.key === 'expiring') expiring++
-      if (sig.key === 'expired_remaining') expired_remaining++
-    }
+    const funnel = countAdminFunnelFilters(tabBase, memByClient, today, todaySnapshot.inactiveIds)
     return {
       all: todaySnapshot.totalOperational,
       inactive: todaySnapshot.inactiveCount,
-      active_today: todaySnapshot.activeTodayCount,
-      expiring,
-      expired_remaining,
+      awaiting_start: funnel.awaiting_start,
+      birthdays: funnel.birthdays,
+      expiring: funnel.expiring,
+      expired_recent: funnel.expired_recent,
+      stale: funnel.stale,
     }
   }, [clients, clientsTab, memByClient, today, operationalClients, todaySnapshot])
 
   const browseFilterLabels = {
     all: 'Все клиенты',
     inactive: 'Не активные на сегодня',
-    active_today: 'С абонементом на сегодня',
-    expiring: 'Абонемент ≤ 3 дня',
-    expired_remaining: 'Срок истёк, тренировки остались',
+    awaiting_start: 'Ждёт старт абонемента',
+    birthdays: 'ДР сегодня',
+    expiring: 'Истекает абонемент',
+    expired_recent: 'Абонемент закончился',
+    stale: 'Давно не был',
   }
 
   const activeBrowseLabel = browseFilterLabels[quickFilter] ?? null
   const smsMode = useMemo(() => resolveClubSmsMode(quickFilter), [quickFilter])
+  const clientSmsScenarioById = useMemo(() => {
+    /** @type {Record<string, string>} */
+    const out = {}
+    for (const c of clients ?? []) {
+      const id = String(c?.id ?? '')
+      if (!id) continue
+      out[id] = resolveClientClubSmsScenario({
+        client: c,
+        memList: memByClient[id] ?? memByClient[c.id] ?? [],
+        today,
+      })
+    }
+    return out
+  }, [clients, memByClient, today])
+  const viewingSmsFilter = quickFilter === 'none' ? 'all' : quickFilter
+  const clubSmsMarkByClient = useMemo(
+    () =>
+      mapClubSmsMarksByClient(clubSmsLogs, {
+        today,
+        viewingFilter: viewingSmsFilter,
+        clientScenarioById: clientSmsScenarioById,
+      }),
+    [clubSmsLogs, today, viewingSmsFilter, clientSmsScenarioById],
+  )
 
   const clearBrowseFilter = () => {
     setQuickFilter('none')
@@ -796,7 +860,17 @@ export function AdminClients() {
                           templates={clubSmsTemplates}
                           configured={clubSmsConfigured}
                           busy={busy}
+                          sentMarked={clubSmsMarkByClient.has(String(c.id))}
+                          markChipLabel={clubSmsMarkChipLabel(
+                            viewingSmsFilter,
+                            clubSmsMarkByClient.get(String(c.id))?.scenario,
+                          )}
+                          markTitle={clubSmsMarkTitle(
+                            clubSmsMarkByClient.get(String(c.id))?.scenario,
+                            viewingSmsFilter,
+                          )}
                           onFeedback={onSmsFeedback}
+                          onSent={onClubSmsSent}
                         />
                         <Link
                           to={`/admin/clients/${c.id}${clubQs}`}

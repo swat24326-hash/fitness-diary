@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { AdminClubSmsTemplatesSection } from '../../components/admin/AdminClubSmsTemplatesSection.jsx'
+import { AdminClubSmsJournalSection } from '../../components/admin/AdminClubSmsJournalSection.jsx'
 import { AdminOutreachTemplatesSection } from '../../components/admin/AdminOutreachTemplatesSection.jsx'
 import { listClubsLocal, pullClubsFromSupabase } from '../../lib/dataAccess'
 import { useAuth } from '../../context/AuthContext'
@@ -46,6 +47,7 @@ export function AdminMaxOutreach() {
       </p>
       <AdminOutreachTemplatesSection clubId={clubId} clubName={clubName} />
       <AdminClubSmsTemplatesSection clubId={clubId} clubName={clubName} />
+      <AdminClubSmsJournalSection clubId={clubId} />
     </div>
   )
 }

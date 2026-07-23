@@ -3,6 +3,7 @@ import { buildAdminClubQueryHref } from './adminClientQuickFilters.js'
 /**
  * Карточки сводки дня (без React) — для UI и spotlight.
  * Отчёт продаж на главной не показываем — смотрят в разделе «Продажи».
+ * Воронка клиентов — ссылки в /admin/clients?filter=.
  *
  * @param {{
  *   summary: object,
@@ -17,6 +18,7 @@ export function buildAdminDaySummaryCards(opts = {}) {
   const clubId = String(opts.clubId ?? '').trim()
   const cq = opts.coachQuality ?? null
   const cqLoading = opts.coachQualityLoading === true
+  const clients = (filter) => buildAdminClubQueryHref('/admin/clients', { clubId, filter })
 
   return [
     {
@@ -25,8 +27,32 @@ export function buildAdminDaySummaryCards(opts = {}) {
       label: 'Не активные',
       hint: 'на сегодня · список в клиентах',
       icon: 'userX',
-      to: buildAdminClubQueryHref('/admin/clients', { clubId, filter: 'inactive' }),
+      to: clients('inactive'),
       hot: summary.inactive > 0,
+      warn: false,
+      textCount: false,
+      valueSuffix: null,
+    },
+    {
+      key: 'expired_recent',
+      count: Number(summary.expired_recent) || 0,
+      label: 'Закончился',
+      hint: '0–13 дней после конца',
+      icon: 'alert',
+      to: clients('expired_recent'),
+      hot: (Number(summary.expired_recent) || 0) > 0,
+      warn: (Number(summary.expired_recent) || 0) > 0,
+      textCount: false,
+      valueSuffix: null,
+    },
+    {
+      key: 'stale',
+      count: Number(summary.stale) || 0,
+      label: 'Давно не был',
+      hint: '14+ дней после конца',
+      icon: 'history',
+      to: clients('stale'),
+      hot: (Number(summary.stale) || 0) > 0,
       warn: false,
       textCount: false,
       valueSuffix: null,
@@ -37,8 +63,32 @@ export function buildAdminDaySummaryCards(opts = {}) {
       label: 'Истекает абонемент',
       hint: '≤ 3 дня',
       icon: 'clock',
-      to: buildAdminClubQueryHref('/admin/clients', { clubId, filter: 'expiring' }),
+      to: clients('expiring'),
       hot: summary.expiring > 0,
+      warn: false,
+      textCount: false,
+      valueSuffix: null,
+    },
+    {
+      key: 'birthdays',
+      count: Number(summary.birthdays) || 0,
+      label: 'ДР сегодня',
+      hint: 'поздравить от клуба',
+      icon: 'cake',
+      to: clients('birthdays'),
+      hot: (Number(summary.birthdays) || 0) > 0,
+      warn: false,
+      textCount: false,
+      valueSuffix: null,
+    },
+    {
+      key: 'awaiting_start',
+      count: Number(summary.awaiting_start) || 0,
+      label: 'Ждёт старт',
+      hint: 'абонемент куплен вперёд',
+      icon: 'calendarClock',
+      to: clients('awaiting_start'),
+      hot: false,
       warn: false,
       textCount: false,
       valueSuffix: null,

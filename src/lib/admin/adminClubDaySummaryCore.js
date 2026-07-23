@@ -2,6 +2,7 @@ import { filterOperationalClients } from '../clientArchive.js'
 import { membershipSignal } from '../clientListSignals.js'
 import { todayLocalIso } from '../dateRu.js'
 import { aggregateClubClientPeriod } from './clubClientPeriodAgg.js'
+import { countAdminFunnelFilters } from './adminClientsFunnelCore.js'
 
 /** @param {string} todayIso yyyy-mm-dd */
 export function yesterdayIso(todayIso = todayLocalIso()) {
@@ -86,7 +87,11 @@ export function buildAdminClubDaySummary(input = {}) {
   const period = aggregateClubClientPeriod(clients, memberships, today, today, today)
   const todayTrainings = countTrainingsOnDate(trainings, today)
   const yesterdayTrainings = countTrainingsOnDate(trainings, yesterday)
-  const expiring = countClubExpiringMemberships(clients, memberships, today)
+  const byClientMap = buildMembershipsByClientId(memberships)
+  /** @type {Record<string, object[]>} */
+  const memByClient = Object.fromEntries(byClientMap)
+  const inactiveIds = new Set(period.inactiveClients.map((c) => c.id).filter(Boolean))
+  const funnel = countAdminFunnelFilters(filterOperationalClients(clients), memByClient, today, inactiveIds)
 
   const inactive =
     Number.isFinite(input.inactiveOverride) ? Number(input.inactiveOverride) : period.inactiveInPeriod
@@ -97,9 +102,12 @@ export function buildAdminClubDaySummary(input = {}) {
       ? Number(input.trainingsYesterdayOverride)
       : yesterdayTrainings.completed
 
+  const expiring = funnel.expiring
   const actionable =
     inactive +
     expiring +
+    funnel.expired_recent +
+    funnel.stale +
     (input.salesReportFilled === false ? 1 : 0)
 
   return {
@@ -108,6 +116,10 @@ export function buildAdminClubDaySummary(input = {}) {
     totalClients: period.totalClients,
     inactive,
     expiring,
+    expired_recent: funnel.expired_recent,
+    stale: funnel.stale,
+    awaiting_start: funnel.awaiting_start,
+    birthdays: funnel.birthdays,
     trainingsToday,
     trainingsYesterday,
     draftsToday: todayTrainings.draft,

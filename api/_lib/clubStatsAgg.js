@@ -120,8 +120,21 @@ function inactiveMembershipReason(memberships, dateIso) {
   const d = String(dateIso ?? '')
   const covering = list.filter((m) => membershipCoversDate(m, d))
   if (covering.some((m) => !membershipHasRemaining(m))) return 'depleted'
-  if (list.every((m) => String(m.start_date ?? '') > d)) return 'not_started'
+  if (hasUpcomingMembership(list, d) || list.every((m) => String(m.start_date ?? '') > d)) {
+    return 'not_started'
+  }
   return 'expired'
+}
+
+function hasUpcomingMembership(memberships, dateIso) {
+  const d = String(dateIso ?? '').slice(0, 10)
+  if (!d) return false
+  return (memberships ?? []).some((m) => {
+    const s = String(m?.start_date ?? '').slice(0, 10)
+    const e = String(m?.end_date ?? '').slice(0, 10)
+    if (!s || !e || s <= d) return false
+    return membershipHasRemaining(m)
+  })
 }
 
 function formatDateRu(isoLike) {
@@ -230,6 +243,7 @@ export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, 
     const client = clientById.get(id)
     const ref = inactiveMembershipReferenceDate(from, to, asOf)
     const { reason, inactiveDetail, membershipEndDate, membershipStartDate } = inactiveMembershipDetail(mems, ref)
+    if (reason === 'not_started') continue
     inactiveClients.push({
       id,
       name: String(client?.name ?? '').trim() || '—',

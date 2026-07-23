@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, BarChart3, ChevronDown, ChevronUp, Clock, Gauge, TrendingUp, UserX } from 'lucide-react'
+import { AlertTriangle, BarChart3, Cake, CalendarClock, ChevronDown, ChevronUp, Clock, Gauge, History, TrendingUp, UserX } from 'lucide-react'
 import { formatIsoRu } from '../../lib/period'
 import {
   buildAdminDaySummaryCards,
@@ -13,6 +13,10 @@ const ICONS = {
   barChart: BarChart3,
   trending: TrendingUp,
   gauge: Gauge,
+  alert: AlertTriangle,
+  history: History,
+  cake: Cake,
+  calendarClock: CalendarClock,
 }
 
 /**

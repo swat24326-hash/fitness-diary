@@ -1,6 +1,6 @@
 # Sync — очередь, flush, pull
 
-**Актуально:** 2026-07-19. Политика кода: `.cursor/rules/fitness-diary-sync.mdc`. Инциденты: [RUNBOOK.md](./RUNBOOK.md).
+**Актуально:** 2026-07-23. Политика кода: `.cursor/rules/fitness-diary-sync.mdc`. Инциденты: [RUNBOOK.md](./RUNBOOK.md).
 
 ---
 
@@ -38,7 +38,8 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 1. **Не обходить** `saveLocalWithSync` ради «быстрого» сохранения в облако с UI тренера.
 2. **Ручной Sync:** сначала flush, потом pull.
 3. **Pull merge:** для охраняемых stores не перезаписывать строку, если по ней есть pending в очереди.
-4. **Новая синхронизируемая таблица:**
+4. **memberships push:** `start_date` / `end_date` в БД NOT NULL. При **update** пустые/null даты **опускаются** из payload (`normalizeMembershipPushPayload`), чтобы списание `used_trainings` не затирало даты. При **insert** даты обязательны. Verify: `scripts/verify-membership-push-payload.mjs`.
+5. **Новая синхронизируемая таблица:**
    - migration + RLS;
    - добавить в `PUSH_ALLOWED_TABLES` (`api/_lib/pushRecordCore.js`);
    - путь flush в sync-сервисе;

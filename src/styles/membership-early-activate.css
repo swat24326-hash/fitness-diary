@@ -1,0 +1,105 @@
+/**
+ * Лист ранней активации абонемента (сдвиг дат).
+ */
+
+.membership-early-activate-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: max(12px, env(safe-area-inset-bottom, 12px)) 12px 12px;
+  background: rgba(2, 6, 23, 0.55);
+  backdrop-filter: blur(6px);
+}
+
+.membership-early-activate-sheet {
+  width: min(440px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1rem 0.9rem;
+  border-radius: var(--radius-md, 16px);
+  border: 1px solid var(--border-strong, rgba(46, 255, 184, 0.32));
+  background: var(--bg-subtle, #061210);
+  box-shadow: var(--shadow, 0 24px 60px rgba(0, 0, 0, 0.55));
+  animation: membership-early-activate-in 0.28s var(--ease-out, ease) both;
+}
+
+@keyframes membership-early-activate-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.membership-early-activate-sheet__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.membership-early-activate-sheet__title {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.3;
+}
+
+.membership-early-activate-sheet__lead {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.membership-early-activate-sheet__dates {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+  background: color-mix(in srgb, var(--bg, #020617) 70%, transparent);
+}
+
+.membership-early-activate-sheet__dates > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.membership-early-activate-sheet__label {
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.membership-early-activate-sheet__warn {
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, #f59e0b 45%, var(--border));
+  background: color-mix(in srgb, #f59e0b 12%, transparent);
+  color: color-mix(in srgb, var(--text) 88%, #f59e0b);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.membership-early-activate-sheet__error {
+  margin: 0;
+  color: #f87171;
+  font-size: 0.85rem;
+}
+
+.membership-early-activate-sheet__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}

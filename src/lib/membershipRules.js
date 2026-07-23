@@ -1,4 +1,4 @@
-import { formatDateRu, todayLocalIso } from './dateRu.js'
+import { formatDateRu, todayLocalIso, addDaysToIso } from './dateRu.js'
 
 export function membershipCoversDate(m, dateIso) {
   if (!m || !dateIso) return false
@@ -30,6 +30,117 @@ export function pickUsableMembershipForDate(memberships, dateIso) {
 /** Есть ли абонемент, по которому можно провести тренировку в указанную дату (поле status в Row не используется). */
 export function hasUsableMembershipOnDate(memberships, dateIso) {
   return pickUsableMembershipForDate(memberships, dateIso) != null
+}
+
+/**
+ * Уже купленный абонемент со стартом позже даты (gap / «ждёт старт»).
+ * Такого клиента не считаем «пропавшим» для неактивных и воронки возврата.
+ */
+export function hasUpcomingMembership(memberships, dateIso) {
+  const d = String(dateIso ?? '').slice(0, 10)
+  if (!d) return false
+  return (memberships ?? []).some((m) => {
+    const s = String(m?.start_date ?? '').slice(0, 10)
+    const e = String(m?.end_date ?? '').slice(0, 10)
+    if (!s || !e || s <= d) return false
+    return membershipHasRemaining(m)
+  })
+}
+
+/** Дней в периоде абонемента включительно (14→14 = 1; 14→15 = 2). */
+export function membershipPeriodDayCount(m) {
+  const s = String(m?.start_date ?? '').slice(0, 10)
+  const e = String(m?.end_date ?? '').slice(0, 10)
+  if (!s || !e || e < s) return null
+  const ps = s.split('-').map(Number)
+  const pe = e.split('-').map(Number)
+  if (ps.length !== 3 || pe.length !== 3) return null
+  const startD = new Date(ps[0], ps[1] - 1, ps[2])
+  const endD = new Date(pe[0], pe[1] - 1, pe[2])
+  return Math.round((endD - startD) / 86400000) + 1
+}
+
+/**
+ * Самый ранний купленный абонемент со стартом позже даты и с остатком занятий.
+ * @param {object[]} memberships
+ * @param {string} dateIso
+ */
+export function pickEarliestUpcomingMembership(memberships, dateIso) {
+  const d = String(dateIso ?? '').slice(0, 10)
+  if (!d) return null
+  const candidates = (memberships ?? []).filter((m) => {
+    const s = String(m?.start_date ?? '').slice(0, 10)
+    const e = String(m?.end_date ?? '').slice(0, 10)
+    if (!s || !e || s <= d) return false
+    return membershipHasRemaining(m)
+  })
+  if (!candidates.length) return null
+  return candidates.sort((a, b) => String(a.start_date).localeCompare(String(b.start_date)))[0]
+}
+
+/** Порог предупреждения «старт был далеко» (дней сдвига). */
+export const EARLY_ACTIVATE_WARN_SHIFT_DAYS = 14
+
+/**
+ * Предложение сдвинуть даты upcoming-абонемента на activateOnIso (длина периода та же).
+ * Не вызывать, если на дату уже есть usable — иначе два overlapping.
+ *
+ * @param {object | null | undefined} membership
+ * @param {string} activateOnIso
+ * @returns {{
+ *   ok: true,
+ *   membershipId: string,
+ *   from: { start: string, end: string },
+ *   to: { start: string, end: string },
+ *   daysShift: number,
+ *   periodDays: number,
+ *   warnFar: boolean,
+ * } | { ok: false, error: string }}
+ */
+export function proposeEarlyMembershipActivation(membership, activateOnIso) {
+  const activateOn = String(activateOnIso ?? '').slice(0, 10)
+  if (!membership?.id) return { ok: false, error: 'no_membership' }
+  if (!activateOn) return { ok: false, error: 'bad_date' }
+  const fromStart = String(membership.start_date ?? '').slice(0, 10)
+  const fromEnd = String(membership.end_date ?? '').slice(0, 10)
+  if (!fromStart || !fromEnd || fromEnd < fromStart) return { ok: false, error: 'bad_period' }
+  if (fromStart <= activateOn) return { ok: false, error: 'already_started' }
+  if (!membershipHasRemaining(membership)) return { ok: false, error: 'depleted' }
+
+  const periodDays = membershipPeriodDayCount(membership)
+  if (!periodDays || periodDays < 1) return { ok: false, error: 'bad_period' }
+
+  const toStart = activateOn
+  const toEnd = addDaysToIso(toStart, periodDays - 1)
+  const daysShift = (() => {
+    const ps = fromStart.split('-').map(Number)
+    const pa = activateOn.split('-').map(Number)
+    const a = new Date(ps[0], ps[1] - 1, ps[2])
+    const b = new Date(pa[0], pa[1] - 1, pa[2])
+    return Math.round((a - b) / 86400000)
+  })()
+
+  return {
+    ok: true,
+    membershipId: String(membership.id),
+    from: { start: fromStart, end: fromEnd },
+    to: { start: toStart, end: toEnd },
+    daysShift,
+    periodDays,
+    warnFar: daysShift > EARLY_ACTIVATE_WARN_SHIFT_DAYS,
+  }
+}
+
+/**
+ * Можно ли предложить раннюю активацию на дату (нет usable, есть upcoming).
+ * @param {object[]} memberships
+ * @param {string} dateIso
+ */
+export function canOfferEarlyMembershipActivation(memberships, dateIso) {
+  const d = String(dateIso ?? '').slice(0, 10)
+  if (!d) return false
+  if (pickUsableMembershipForDate(memberships, d)) return false
+  return pickEarliestUpcomingMembership(memberships, d) != null
 }
 
 /**
@@ -76,7 +187,10 @@ export function inactiveMembershipReason(memberships, dateIso) {
   const d = String(dateIso ?? '')
   const covering = list.filter((m) => membershipCoversDate(m, d))
   if (covering.some((m) => !membershipHasRemaining(m))) return 'depleted'
-  if (list.every((m) => String(m.start_date ?? '') > d)) return 'not_started'
+  // Будущий купленный абонемент (в т.ч. после окончания старого) — не «пропал», а ждёт старт.
+  if (hasUpcomingMembership(list, d) || list.every((m) => String(m.start_date ?? '') > d)) {
+    return 'not_started'
+  }
   return 'expired'
 }
 

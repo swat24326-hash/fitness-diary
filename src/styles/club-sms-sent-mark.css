@@ -1,0 +1,56 @@
+/**
+ * Отметка «SMS сегодня» у кнопки клубного SMS в списке клиентов.
+ */
+
+.admin-client-sms-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-client-sms-btn--sent {
+  color: var(--accent, #2effb8);
+  opacity: 0.92;
+}
+
+.admin-client-sms-mark {
+  position: absolute;
+  right: -6px;
+  bottom: -4px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 4.6rem;
+  padding: 1px 5px 1px 3px;
+  border-radius: 999px;
+  border: 1px solid rgba(46, 255, 184, 0.45);
+  background: linear-gradient(135deg, rgba(6, 28, 22, 0.96), rgba(12, 48, 38, 0.94));
+  color: var(--accent, #2effb8);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  text-transform: lowercase;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.admin-client-sms-mark__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+  .admin-client-sms-mark__text {
+    display: none;
+  }
+
+  .admin-client-sms-mark {
+    padding: 2px;
+    right: -2px;
+    bottom: -2px;
+  }
+}

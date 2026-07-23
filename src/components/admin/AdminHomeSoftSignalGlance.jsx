@@ -1,11 +1,14 @@
 import { Link } from 'react-router-dom'
-import { AlertTriangle, Clock, Gauge, UserX } from 'lucide-react'
+import { AlertTriangle, Cake, Clock, Gauge, History, UserX } from 'lucide-react'
 import { buildCoachQualityHomeGlanceVm } from '../../lib/admin/coachQualityHomeGlanceCore.js'
 
 const ID_ICON = {
   'coach-quality': Gauge,
   inactive: UserX,
   expiring: Clock,
+  expired_recent: AlertTriangle,
+  stale: History,
+  birthdays: Cake,
 }
 
 /**

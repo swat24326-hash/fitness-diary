@@ -47,7 +47,7 @@
 | `challenges`, `challenge-trainings`, `exercises`, `exercises-meta` | admin / trainer | Справочники |
 | `membership-types`, `nutrition-products`, `homework-presets` | admin / trainer | Типы карт, питание, ДЗ |
 | `push-subscription` | admin / trainer / sales_manager | VAPID public key |
-| `club-sms` | admin / sales_manager | Статус Мои Звонки (`configured`, `templates`, `club_name`) |
+| `club-sms` | admin / sales_manager | Статус Мои Звонки (`configured`, `templates`, `club_name`); `&logs=1&since_days=` — журнал `club_sms_log` |
 
 ### POST (фрагмент)
 
@@ -60,7 +60,7 @@
 | `push-subscription` | auth user | Регистрация push |
 | `reset-trainer-password`, `set-trainer-active` | admin | Управление тренером |
 | `pnk` | admin / sales_manager | Мутации ПНК |
-| `club-sms` | admin / sales_manager | SMS клиенту через Мои Звонки (`client_id`, `scenario` / `text`) |
+| `club-sms` | admin / sales_manager | SMS клиенту через Мои Звонки (`client_id`, `scenario` / `text`); после успеха — запись в `club_sms_log` |
 
 ---
 

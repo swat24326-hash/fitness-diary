@@ -3,6 +3,7 @@
  */
 import { authorizePush } from './mutationAuth.js'
 import { normalizeTrainingPayload } from './normalizeTrainingPayload.js'
+import { normalizeMembershipPushPayload } from '../../src/lib/membershipPushPayload.js'
 import { normalizeMembershipTypePushPayload } from '../../src/lib/admin/membershipTypePushPayload.js'
 import { normalizeNutritionProductPushPayload } from '../../src/lib/admin/nutritionProductPushPayload.js'
 import { normalizeHomeworkPresetPushPayload } from '../../src/lib/admin/homeworkPresetPushPayload.js'
@@ -158,7 +159,9 @@ export async function executePushRecord(ctx, item) {
         payload = normalizeTrainingPayload(payload)
       }
       if (table_name === 'memberships') {
-        const link = await validateMembershipTypeLink(supabaseAdmin, payload, 'insert')
+        const prep = normalizeMembershipPushPayload(payload, { insert: true })
+        if (!prep.ok) return { ok: false, status: 400, error: prep.error }
+        const link = await validateMembershipTypeLink(supabaseAdmin, prep.data, 'insert')
         if (!link.ok) return { ok: false, status: 400, error: link.error }
         payload = link.data
       }
@@ -230,7 +233,9 @@ export async function executePushRecord(ctx, item) {
         payload = prep.data
       }
       if (table_name === 'memberships') {
-        const link = await validateMembershipTypeLink(supabaseAdmin, payload, 'update')
+        const prep = normalizeMembershipPushPayload(payload)
+        if (!prep.ok) return { ok: false, status: 400, error: prep.error }
+        const link = await validateMembershipTypeLink(supabaseAdmin, prep.data, 'update')
         if (!link.ok) return { ok: false, status: 400, error: link.error }
         payload = link.data
       }

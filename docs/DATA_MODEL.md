@@ -23,8 +23,10 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | `nutrition_products` | `id` | Питание |
 | `homework_presets` | `id` | Шаблоны ДЗ |
 | `client_weight_entries` | `id` | Вес |
-| `outreach_log` | `id` | Касания / Max-очередь (локальный журнал) |
+| `outreach_log` | `id` | Касания / Max-очередь (локальный журнал; кэш club SMS) |
 | `club_iskra_settings` | `club_id` | Настройки ИСКРЫ на клуб (`outreach_templates` — Max тренера; `club_sms_templates` — SMS клуба) |
+
+Postgres (не IDB): **`club_sms_log`** — облачный журнал SMS клуба (кто / кому / сценарий / превью); API `admin-data?action=club-sms`.
 
 Охрана pull: см. [SYNC.md](./SYNC.md).
 
@@ -35,7 +37,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | Сущность | Смысл |
 |----------|--------|
 | **clients** | Тренер, клуб, контакты, флаги архива, поля жизненного цикла **ПНК** |
-| **memberships** | Период, лимит тренировок, тип карты; списание при завершении тренировки |
+| **memberships** | Период, лимит тренировок, тип карты; списание при завершении тренировки; удаление с карточки клиента (`deleteLocalWithSync`, confirm в `MembershipManager`) |
 | **trainings** | Дата, тип, статус, JSON `data` из `TrainingForm` |
 | **health_cards** | Рост, вес, цель (`goal`), тексты медкарты |
 | **body_measurements** | Поля из `BODY_MEASURE_FIELDS` (+ legacy-имена в читалке) |

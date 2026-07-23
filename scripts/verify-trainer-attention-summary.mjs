@@ -210,6 +210,26 @@ ok(
 
 
 
+const gapMem = [
+
+  { start_date: '2026-01-01', end_date: '2026-06-01', total_trainings: 10, used_trainings: 10 },
+
+  { start_date: '2026-08-01', end_date: '2026-09-01', total_trainings: 8, used_trainings: 0 },
+
+]
+
+ok(!isMembershipExpiredRecently(gapMem, '2026-07-15'), 'trainer: upcoming next card — not expired_recent')
+
+ok(
+
+  !isClientStaleForAttention({ memList: gapMem, today: '2026-07-15', staleDays: 14 }),
+
+  'trainer: upcoming next card — not stale',
+
+)
+
+
+
 const today = '2026-07-15'
 
 const summary = buildTrainerAttentionSummary({

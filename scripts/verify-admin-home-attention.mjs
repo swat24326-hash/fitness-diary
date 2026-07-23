@@ -27,14 +27,29 @@ function ok(cond, msg) {
 
 const signals = buildAdminHomeSoftSignals({
   clubId: 'club-1',
-  summary: { salesReportFilled: false, inactive: 3, expiring: 1 },
+  summary: {
+    salesReportFilled: false,
+    inactive: 3,
+    expiring: 1,
+    expired_recent: 2,
+    stale: 4,
+    birthdays: 1,
+  },
   coachQuality: { hot: true, scorePct: 72, chipLabel: 'на разбор' },
 })
 ok(signals[0]?.id === 'coach-quality', 'soft: coach quality first')
 ok(signals[0]?.scorePct === 72, 'soft: coach score')
 ok(!signals.some((s) => s.id === 'sales-report'), 'soft: no sales report')
 ok(signals.some((s) => s.id === 'inactive'), 'soft: inactive')
+ok(signals.some((s) => s.id === 'expired_recent'), 'soft: expired_recent')
+ok(signals.some((s) => s.id === 'stale'), 'soft: stale')
 ok(signals.some((s) => s.id === 'expiring'), 'soft: expiring')
+ok(signals.some((s) => s.id === 'birthdays'), 'soft: birthdays')
+ok(
+  signals.find((s) => s.id === 'expired_recent')?.href ===
+    '/admin/clients?club=club-1&filter=expired_recent',
+  'soft expired_recent → clients',
+)
 
 const calmCq = buildAdminHomeSoftSignals({
   clubId: 'club-1',
@@ -77,13 +92,17 @@ const cards = buildAdminDaySummaryCards({
     yesterday: '2026-07-19',
     inactive: 2,
     expiring: 0,
+    expired_recent: 1,
+    stale: 0,
+    birthdays: 0,
+    awaiting_start: 3,
     trainingsToday: 5,
     trainingsYesterday: 4,
     salesReportFilled: false,
   },
   coachQuality: { scorePct: 81, hot: false },
 })
-ok(cards.length === 4, 'day cards without sales')
+ok(cards.length === 8, 'day cards funnel + trainings + cq')
 ok(!cards.some((c) => c.key === 'sales'), 'no sales card')
 const inactiveCard = cards.find((c) => c.key === 'inactive')
 ok(
@@ -91,6 +110,17 @@ ok(
   'inactive card → clients',
 )
 ok(/клиент/i.test(inactiveCard?.hint || ''), 'inactive hint mentions clients')
+const awaitingCard = cards.find((c) => c.key === 'awaiting_start')
+ok(
+  awaitingCard?.to === '/admin/clients?club=club-1&filter=awaiting_start',
+  'awaiting_start card → clients',
+)
+ok(awaitingCard?.count === 3, 'awaiting_start count')
+const expiredCard = cards.find((c) => c.key === 'expired_recent')
+ok(
+  expiredCard?.to === '/admin/clients?club=club-1&filter=expired_recent',
+  'expired_recent card → clients',
+)
 const split = splitDaySummarySpotlight(cards, { maxSpotlight: 2 })
 ok(split.spotlight.length === 2, 'spotlight size')
 ok(split.spotlight.some((c) => c.key === 'inactive'), 'spotlight has inactive')

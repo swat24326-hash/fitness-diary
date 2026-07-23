@@ -1,9 +1,11 @@
 import { useCallback, useState } from 'react'
-import { MessageSquare } from 'lucide-react'
+import { Check, MessageSquare } from 'lucide-react'
 import { AdminClientClubSmsSheet } from './AdminClientClubSmsSheet.jsx'
+import '../../styles/club-sms-sent-mark.css'
 
 /**
  * Кнопка клубного SMS (Мои Звонки) — открывает лист подтверждения, не шлёт сразу.
+ * Отметка: в «Истекает» / «Давно не был» — на окно фильтра; иначе только сегодня.
  * @param {{
  *   clubId: string,
  *   client: { id: string, name?: string, phone?: string | null, outreach_name?: string | null, trainer_id?: string | null },
@@ -18,7 +20,11 @@ import { AdminClientClubSmsSheet } from './AdminClientClubSmsSheet.jsx'
  *   templates?: Record<string, string> | null,
  *   configured?: boolean | null,
  *   busy?: boolean,
+ *   sentMarked?: boolean,
+ *   markChipLabel?: string,
+ *   markTitle?: string,
  *   onFeedback?: (msg: string, tone?: string) => void,
+ *   onSent?: (clientId: string, scenario?: string) => void,
  * }} props
  */
 export function AdminClientClubSmsButton({
@@ -35,7 +41,11 @@ export function AdminClientClubSmsButton({
   templates = null,
   configured = null,
   busy = false,
+  sentMarked = false,
+  markChipLabel = 'сегодня',
+  markTitle = 'SMS отправлено сегодня с этого устройства',
   onFeedback,
+  onSent,
 }) {
   const [open, setOpen] = useState(false)
   const hasPhone = Boolean(String(client?.phone ?? '').trim())
@@ -59,22 +69,32 @@ export function AdminClientClubSmsButton({
       ? 'Мои Звонки не настроены на сервере'
       : !hasPhone
         ? 'Нет телефона'
-        : mode === 'template'
-          ? `SMS · ${scenarioLabel || 'шаблон'}`
-          : 'SMS клиенту (свой текст)'
+        : sentMarked
+          ? markTitle
+          : mode === 'template'
+            ? `SMS · ${scenarioLabel || 'шаблон'}`
+            : 'SMS клиенту (свой текст)'
 
   return (
     <>
-      <button
-        type="button"
-        className="btn btn-ghost btn-icon-square btn-touch"
-        disabled={disabled}
-        onClick={onOpen}
-        aria-label={title}
-        title={title}
-      >
-        <MessageSquare size={20} aria-hidden />
-      </button>
+      <span className={`admin-client-sms-wrap${sentMarked ? ' admin-client-sms-wrap--sent' : ''}`}>
+        <button
+          type="button"
+          className={`btn btn-ghost btn-icon-square btn-touch${sentMarked ? ' admin-client-sms-btn--sent' : ''}`}
+          disabled={disabled}
+          onClick={onOpen}
+          aria-label={title}
+          title={title}
+        >
+          <MessageSquare size={20} aria-hidden />
+        </button>
+        {sentMarked ? (
+          <span className="admin-client-sms-mark" title={markTitle}>
+            <Check size={11} strokeWidth={3} aria-hidden />
+            <span className="admin-client-sms-mark__text">{markChipLabel}</span>
+          </span>
+        ) : null}
+      </span>
       <AdminClientClubSmsSheet
         open={open}
         onClose={() => setOpen(false)}
@@ -90,6 +110,7 @@ export function AdminClientClubSmsButton({
         today={today}
         templates={templates}
         onFeedback={onFeedback}
+        onSent={onSent}
       />
     </>
   )
