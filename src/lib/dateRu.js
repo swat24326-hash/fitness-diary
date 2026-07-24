@@ -33,6 +33,38 @@ export function addDaysToIso(iso, days) {
   return `${yy}-${mm}-${dd}`
 }
 
+/**
+ * Календарные месяцы (не «+30 дней»): 24.07 → 24.08.
+ * Если дня нет в целевом месяце (31.01 → февраль) — последний день месяца.
+ * @param {string} iso YYYY-MM-DD
+ * @param {number} months
+ */
+export function addMonthsToIso(iso, months) {
+  const raw = String(iso ?? '').slice(0, 10)
+  const [y, m, d] = raw.split('-').map(Number)
+  if (!y || !m || !d) return raw
+  const delta = Number(months)
+  if (!Number.isFinite(delta)) return raw
+  const targetMonthIndex = m - 1 + Math.trunc(delta)
+  const targetYear = y + Math.floor(targetMonthIndex / 12)
+  const month0 = ((targetMonthIndex % 12) + 12) % 12
+  const lastDay = new Date(targetYear, month0 + 1, 0).getDate()
+  const day = Math.min(d, lastDay)
+  const mm = String(month0 + 1).padStart(2, '0')
+  const dd = String(day).padStart(2, '0')
+  return `${targetYear}-${mm}-${dd}`
+}
+
+/**
+ * Дата окончания абонемента по умолчанию: +1 календарный месяц от старта.
+ * @param {string} startIso YYYY-MM-DD
+ */
+export function defaultMembershipEndIso(startIso) {
+  const start = String(startIso ?? '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return ''
+  return addMonthsToIso(start, 1)
+}
+
 export function formatDateRu(isoLike) {
   if (!isoLike) return '—'
   const s = String(isoLike)

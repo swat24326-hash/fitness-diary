@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { listMemberships, listTrainingsForClient } from '../lib/dataAccess'
 import { getDb } from '../lib/localDb'
 import { deleteLocalWithSync, saveLocalWithSync } from '../lib/syncService'
-import { addDaysToIso, formatDateRu, formatDateTimeRu, todayLocalIso } from '../lib/dateRu'
+import { defaultMembershipEndIso, formatDateRu, formatDateTimeRu, todayLocalIso } from '../lib/dateRu'
 import { completedTrainingsOnMembership } from '../lib/membershipRules'
 import { buildMembershipDeleteConfirmCopy } from '../lib/membershipDeleteCore'
 import { ensureMembershipTypesForClub, isTrainerAssignableMembershipType, membershipTypeCode } from '../lib/membershipTypesService'
@@ -179,7 +179,7 @@ export function MembershipManager({
     setForm((f) => ({
       ...f,
       start_date: f.start_date || todayIso,
-      end_date: f.end_date || addDaysToIso(todayIso, 30),
+      end_date: f.end_date || defaultMembershipEndIso(f.start_date || todayIso),
       total_trainings: picked.total,
       membership_type_id: picked.id,
     }))
@@ -290,7 +290,7 @@ export function MembershipManager({
     const now = new Date().toISOString()
     const today = todayLocalIso()
     const start = String(form.start_date || today).slice(0, 10)
-    const end = String(form.end_date || addDaysToIso(today, 30)).slice(0, 10)
+    const end = String(form.end_date || defaultMembershipEndIso(start)).slice(0, 10)
     if (end < start) {
       alert('Дата окончания не может быть раньше начала')
       return
@@ -537,9 +537,31 @@ export function MembershipManager({
                   </p>
                 ) : null}
                 <div className="grid grid-2" style={{ gap: 8 }}>
-                  <input className="input" type="date" value={form.start_date} onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))} />
-                  <input className="input" type="date" value={form.end_date} onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))} />
+                  <input
+                    className="input"
+                    type="date"
+                    value={form.start_date}
+                    aria-label="Дата начала"
+                    onChange={(e) => {
+                      const start = e.target.value
+                      setForm((f) => ({
+                        ...f,
+                        start_date: start,
+                        end_date: start ? defaultMembershipEndIso(start) : f.end_date,
+                      }))
+                    }}
+                  />
+                  <input
+                    className="input"
+                    type="date"
+                    value={form.end_date}
+                    aria-label="Дата окончания"
+                    onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))}
+                  />
                 </div>
+                <p className="muted" style={{ margin: 0, fontSize: 12, lineHeight: 1.35 }}>
+                  Подсказка: срок — календарный месяц (с того же числа: 24 → 24), не «+30 дней».
+                </p>
                 <input
                   className="input"
                   type="number"

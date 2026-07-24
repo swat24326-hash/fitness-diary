@@ -50,6 +50,7 @@ run('membership types merge', 'node', ['scripts/verify-membership-types-merge.mj
 run('membership push payload', 'node', ['scripts/verify-membership-push-payload.mjs'])
 run('membership delete confirm', 'node', ['scripts/verify-membership-delete.mjs'])
 run('membership early activate', 'node', ['scripts/verify-membership-early-activate.mjs'])
+run('date ru calendar month', 'node', ['scripts/verify-date-ru.mjs'])
 run('club client period', 'node', ['scripts/verify-club-client-period.mjs'])
 run('admin clients archive browse', 'node', ['scripts/verify-admin-clients-archive.mjs'])
 run('club monthly year', 'node', ['scripts/verify-club-monthly-year.mjs'])

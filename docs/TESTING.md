@@ -45,6 +45,7 @@
 | Главная: ряд внимания / soft signals | `verify-admin-home-attention.mjs` |
 | Push абонементов (даты NOT NULL) | `verify-membership-push-payload.mjs` |
 | Удаление абонемента (тексты confirm) | `verify-membership-delete.mjs` |
+| Срок абонемента по умолчанию (+1 календарный месяц) | `verify-date-ru.mjs` |
 
 Подробнее: `.cursor/rules/fitness-diary-stability.mdc`, процесс аудита — [DEEP_AUDIT.md](./DEEP_AUDIT.md).
 
