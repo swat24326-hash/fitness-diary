@@ -59,6 +59,7 @@ import {
 } from '../../lib/admin/adminSalesDraftStorage'
 import { SalesPlanVessel } from '../../components/SalesPlanVessel'
 import { SalesDailyForm } from '../../components/SalesDailyForm'
+import { SalesDailyTaskAssign } from '../../components/sales/SalesDailyTaskAssign.jsx'
 import { SalesFinancePanel } from '../../components/SalesFinancePanel'
 import { SalesPlanSettingsPanel } from '../../components/SalesPlanSettingsPanel'
 import { SalesManagerStatsPanel } from '../../components/SalesManagerStatsPanel'
@@ -866,6 +867,7 @@ export function AdminSales({ accessMode = 'admin' }) {
 
       {!isSalesManager && salesTab === 'daily' ? (
         <div id="sales-panel-daily" role="tabpanel" aria-labelledby="sales-tab-daily">
+          {clubId ? <SalesDailyTaskAssign clubId={clubId} reportDate={reportDate} /> : null}
           <SalesDailyForm
             reportDate={reportDate}
             dateLabel={formatDateRu(reportDate)}

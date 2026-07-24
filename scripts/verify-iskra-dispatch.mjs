@@ -172,7 +172,10 @@ ok(uiProgress.progress?.workflow?.label === 'Просмотрено', 'formatDis
 ok(uiProgress.progress?.time?.pct != null, 'formatDispatchForUi progress time')
 
 const seenActions = buildDispatchInboxActions({ status: 'seen', deep_link: '/trainer/clients' })
-ok(seenActions.primary?.action === 'accepted' && !seenActions.deepLink, 'seen step: accept only')
+ok(seenActions.primary?.action === 'accepted' && seenActions.deepLink, 'seen step: accept + early deep link')
+
+const pendingNoLink = buildDispatchInboxActions({ status: 'pending', deep_link: '' })
+ok(pendingNoLink.primary?.action === 'accepted' && !pendingNoLink.deepLink, 'pending without link: accept only')
 
 const acceptedActions = buildDispatchInboxActions({ status: 'accepted', deep_link: '/trainer/clients' })
 ok(acceptedActions.primary?.action === 'done' && acceptedActions.deepLink, 'accepted step: done + link')

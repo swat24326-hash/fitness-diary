@@ -5,6 +5,7 @@
 import { buildDispatchFromInsightCard, formatDispatchForUi, normalizeDispatchCreatePayload } from '../src/lib/admin/iskraDispatchCore.js'
 import {
   buildClientCardTaskDraft,
+  buildDispatchFromProactiveAlert,
   buildManualTaskDraft,
   buildSalesReportTaskDraft,
   buildWeekChecklistTaskDraft,
@@ -95,6 +96,20 @@ const weekDraft = buildWeekChecklistTaskDraft(
   { clubId: 'club-1', year: 2026, month: 7 },
 )
 ok(weekDraft.source_channel === 'week_checklist', 'week checklist draft channel')
+
+const alertDraft = buildDispatchFromProactiveAlert(
+  {
+    id: 'inactive_spike',
+    title: 'Неактивных: 8',
+    message: 'Риск оттока',
+    severity: 'accent',
+    handlerId: 'trainer_inactive',
+  },
+  { clubId: 'club-1', clubName: 'FIT-CITY', year: 2026, month: 7 },
+)
+ok(alertDraft.source_channel === 'iskra_proactive_alert', 'alert draft channel')
+ok(alertDraft.task_kind === 'reactivate_clients', 'alert draft task kind')
+ok(staffTaskSourceChannelLabel('iskra_proactive_alert') === 'Алерт ИСКРЫ', 'alert channel label')
 
 ok(
   resolveDispatchDeepLink({

@@ -2154,6 +2154,22 @@
   line-height: 1.35;
 }
 
+.iskra-alert-ribbon__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.iskra-planerka-feed__reply {
+  margin: 0.25rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--accent-bright) 75%, var(--text));
+  font-weight: 600;
+}
+
 .iskra-week-checklist {
   margin: 0 1rem 0.65rem;
   padding: 0.6rem 0.7rem;

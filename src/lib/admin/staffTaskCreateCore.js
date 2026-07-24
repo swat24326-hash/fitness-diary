@@ -6,12 +6,13 @@ import { formatDateRu } from '../dateRu.js'
 import { resolveDeepLinkForTaskKind, resolveTaskKindFromInsight } from './iskraTaskKindsCore.js'
 import { buildClientCardDeepLink, buildSalesReportDeepLink } from './staffTaskDeepLinkCore.js'
 
-/** @typedef {'manual_app' | 'iskra_insight_card' | 'client_card' | 'sales_report' | 'week_checklist' | 'auto_trigger' | ''} StaffTaskSourceChannel */
+/** @typedef {'manual_app' | 'iskra_insight_card' | 'iskra_proactive_alert' | 'client_card' | 'sales_report' | 'week_checklist' | 'auto_trigger' | ''} StaffTaskSourceChannel */
 
 export const STAFF_TASK_SOURCE_CHANNELS = /** @type {const} */ ([
   '',
   'manual_app',
   'iskra_insight_card',
+  'iskra_proactive_alert',
   'client_card',
   'sales_report',
   'week_checklist',
@@ -75,6 +76,7 @@ export function staffTaskSourceChannelLabel(channel) {
   const map = {
     manual_app: 'Вручную',
     iskra_insight_card: 'Карточка ИСКРЫ',
+    iskra_proactive_alert: 'Алерт ИСКРЫ',
     client_card: 'Карточка клиента',
     sales_report: 'Отчёт продаж',
     week_checklist: 'Чеклист недели',
@@ -82,6 +84,61 @@ export function staffTaskSourceChannelLabel(channel) {
   }
   const key = String(channel ?? '').trim()
   return map[key] ?? (key ? key : '—')
+}
+
+/** @type {Record<string, string>} */
+const PROACTIVE_ALERT_TO_TASK_KIND = {
+  plan_critical: 'plan_push',
+  forecast_miss: 'plan_push',
+  no_reports: 'daily_report',
+  low_coverage: 'daily_report',
+  inactive_spike: 'reactivate_clients',
+  coach_quality: 'training_hygiene',
+  coach_quality_brief: 'training_hygiene',
+}
+
+/**
+ * Задание из проактивного алерта ИСКРЫ («Назначить», не только «Разобрать»).
+ * @param {{ id?: string, title?: string, message?: string, severity?: string, handlerId?: string }} alert
+ * @param {{ clubId?: string, clubName?: string, year?: number, month?: number }} [opts]
+ */
+export function buildDispatchFromProactiveAlert(alert, opts = {}) {
+  const alertId = String(alert?.id ?? '').trim()
+  const titleRaw = String(alert?.title ?? 'Сигнал ИСКРЫ').trim()
+  const message = String(alert?.message ?? '').trim()
+  const clubId = String(opts.clubId ?? '').trim()
+  const clubName = String(opts.clubName ?? 'клуб').trim()
+  const year = Number(opts.year)
+  const month = Number(opts.month)
+  const taskKind = PROACTIVE_ALERT_TO_TASK_KIND[alertId] ?? resolveTaskKindFromInsight(alertId)
+  const priority = alert?.severity === 'warn' || taskKind === 'daily_report' || taskKind === 'plan_push' ? 'high' : 'normal'
+
+  return {
+    title: `ИСКРА · ${titleRaw}`.slice(0, 200),
+    body: [
+      message,
+      `Клуб: ${clubName}.`,
+      'Примите задание и отметьте выполнение до дедлайна.',
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .slice(0, 2000),
+    insight_key: alertId,
+    source: /** @type {'admin'} */ ('admin'),
+    source_channel: /** @type {'iskra_proactive_alert'} */ ('iskra_proactive_alert'),
+    task_kind: taskKind,
+    priority,
+    due_preset: taskKind === 'daily_report' ? 'tomorrow' : '3days',
+    context_json: normalizeStaffTaskContextJson({
+      club_id: clubId,
+      alert_id: alertId,
+      handler_id: String(alert?.handlerId ?? '').trim(),
+      period_year: Number.isFinite(year) ? Math.trunc(year) : null,
+      period_month: Number.isFinite(month) && month >= 1 && month <= 12 ? Math.trunc(month) : null,
+    }),
+    deep_link: resolveDeepLinkForTaskKind(taskKind),
+    default_recipient_id: '',
+  }
 }
 
 /**

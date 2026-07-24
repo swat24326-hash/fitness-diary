@@ -62,6 +62,11 @@ export function IskraPlanerkaFeed({ feed, clubId = '', loading = false }) {
                   {item.due_label ? ` · ${item.due_label}` : ''}
                   {item.is_overdue ? ' · просрочено' : ''}
                 </p>
+                {item.has_reply && item.recipient_reply ? (
+                  <p className="iskra-planerka-feed__reply" role="status">
+                    Ответ: {item.recipient_reply}
+                  </p>
+                ) : null}
               </div>
             </li>
           ))}

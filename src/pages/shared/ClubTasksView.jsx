@@ -14,6 +14,7 @@ import { useClubDispatchRecipients } from '../../hooks/useClubDispatchRecipients
 
 const STATUS_FILTERS = [
   { id: '', label: 'Все' },
+  { id: 'overdue', label: 'Просрочено' },
   { id: 'pending', label: 'Новые' },
   { id: 'seen', label: 'Просмотрено' },
   { id: 'accepted', label: 'В работе' },
@@ -23,6 +24,16 @@ const STATUS_FILTERS = [
 
 function priorityLabelRu(priority) {
   return String(priority) === 'high' ? 'Высокий' : 'Обычный'
+}
+
+/** @param {Array<object>} list */
+function sortClubTasksForDisplay(list) {
+  return [...(list ?? [])].sort((a, b) => {
+    if (Boolean(a?.is_overdue) !== Boolean(b?.is_overdue)) return a?.is_overdue ? -1 : 1
+    const ta = String(a?.updated_at ?? a?.created_at ?? '')
+    const tb = String(b?.updated_at ?? b?.created_at ?? '')
+    return tb.localeCompare(ta)
+  })
 }
 
 /**
@@ -80,13 +91,18 @@ export function ClubTasksView({ clubId, mode = 'admin', canDelete = mode === 'ad
     setLoading(true)
     setError('')
     try {
+      const apiStatus = statusFilter === 'overdue' ? undefined : statusFilter || undefined
       const data = await fetchIskraDispatch({
         clubId,
         view: 'sent',
-        status: statusFilter || undefined,
+        status: apiStatus,
         limit: 50,
       })
-      setItems(Array.isArray(data?.items) ? data.items : [])
+      let list = Array.isArray(data?.items) ? data.items : []
+      if (statusFilter === 'overdue') {
+        list = list.filter((i) => i.is_overdue === true)
+      }
+      setItems(sortClubTasksForDisplay(list))
       setMigrationPending(Boolean(data?.migration_pending))
     } catch (e) {
       setError(e?.message ? String(e.message) : 'Не удалось загрузить задания')
@@ -104,6 +120,7 @@ export function ClubTasksView({ clubId, mode = 'admin', canDelete = mode === 'ad
     () => items.filter((i) => ['pending', 'seen', 'accepted'].includes(i.status)).length,
     [items],
   )
+  const overdueCount = useMemo(() => items.filter((i) => i.is_overdue === true).length, [items])
 
   const handleDelete = async (item) => {
     if (!canDelete || !clubId || !item?.id) return
@@ -209,7 +226,15 @@ export function ClubTasksView({ clubId, mode = 'admin', canDelete = mode === 'ad
       ) : (
         <>
           <p className="admin-section__stats muted">
-            Открытых: <strong>{activeCount}</strong> · Всего в списке: {items.length}
+            Открытых: <strong>{activeCount}</strong>
+            {statusFilter !== 'overdue' && overdueCount > 0 ? (
+              <>
+                {' '}
+                · Просрочено: <strong className="club-tasks-view__overdue-stat">{overdueCount}</strong>
+              </>
+            ) : null}
+            {' '}
+            · Всего в списке: {items.length}
             {isSalesMode ? ' · только ваши отправленные' : null}
           </p>
 
@@ -312,7 +337,14 @@ export function ClubTasksView({ clubId, mode = 'admin', canDelete = mode === 'ad
                     ) : null}
                   </dl>
                   {item.recipient_reply ? (
-                    <p className="admin-task-card__reply muted">Ответ: {item.recipient_reply}</p>
+                    <p
+                      className={`admin-task-card__reply${
+                        item.status === 'declined' || item.status === 'done' ? ' admin-task-card__reply--loud' : ''
+                      }`}
+                      role="status"
+                    >
+                      <strong>Ответ:</strong> {item.recipient_reply}
+                    </p>
                   ) : null}
                   {canDelete || (canStopRecurrence && item.is_recurring) ? (
                     <div className="admin-task-card__foot">

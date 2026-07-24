@@ -1,6 +1,6 @@
 # ИСКРА Dispatch — сообщения и задания сотрудникам (v1)
 
-**Статус:** реализовано (2026-07) — MVP **Планёрки** + виджет на главной, push, пошаговые кнопки.  
+**Статус:** реализовано (2026-07) — MVP **Планёрки** + виджет на главной, push, пошаговые кнопки, O2-контекст.  
 **API:** `admin-data?action=iskra-dispatch`, `admin-data?action=push-subscription`  
 **Таблицы:** `club_iskra_dispatch`, `user_push_subscriptions`
 
@@ -10,9 +10,10 @@
 
 | Роль | Действие |
 |------|----------|
-| **Админ** | Планёрка: задание **Один / Все**, приоритет, срок, текст (тип — только у ИСКРЫ) |
-| **Тренер** | Виджет на главной (свайп), inbox: **шаг 1 Принял → шаг 2 Выполнено**, «Не могу», **Перейти** |
-| **Тренер (online)** | Web Push при новом задании; подписка в **Профиль** |
+| **Админ** | Планёрка: задание **Один / Все**, приоритет, срок; из ИСКРЫ / **алерта** / **отчёта продаж** / карточки клиента / чеклиста |
+| **Тренер** | Виджет на главной, inbox: **Принял → Выполнено**, «Не могу», **«Перейти» сразу** (если есть deep_link) |
+| **Тренер (online)** | Web Push; на главной статус **«Уведомления выкл»** + CTA; подписка в **Профиль** |
+| **Отправитель** | Ответ исполнителя в карточке заданий и в ленте ИСКРЫ; фильтр **Просрочено** |
 
 Статусы: `pending` → `seen` → `accepted` → `done` | `declined` | `dismissed`
 
@@ -21,7 +22,7 @@
 ## Поток
 
 ```
-Админ / ИСКРА → IskraDispatchModal → POST iskra-dispatch
+Админ / ИСКРА / алерт / отчёт → IskraDispatchModal → POST iskra-dispatch
                                           ↓
                             club_iskra_dispatch + push (если VAPID)
                                           ↓
@@ -34,14 +35,14 @@
 
 | Слой | Путь |
 |------|------|
-| Core | `src/lib/admin/iskraDispatchCore.js`, `iskraDispatchInboxActionsCore.js` |
+| Core | `iskraDispatchCore.js`, `iskraDispatchInboxActionsCore.js`, `staffTaskCreateCore.js` |
 | Progress | `iskraDispatchProgressCore.js`, `DispatchTaskProgressBar.jsx` |
 | Push | `src/lib/push/`, `api/_lib/webPushCore.js`, `public/push-sw.js` |
 | Client API | `iskraDispatchService.js` |
 | Handler | `api/_lib/iskraDispatchHandler.js`, `pushSubscriptionHandler.js` |
-| UI админ | `IskraDispatchModal.jsx`, `AdminClubTasks.jsx` |
+| UI админ | `IskraDispatchModal.jsx`, `AdminClubTasks.jsx`, `SalesDailyTaskAssign.jsx`, `IskraAlertRibbon` |
 | UI тренер | `TrainerTaskGlanceWidget.jsx`, `TrainerInboxPanel.jsx`, `TrainerPushPrompt.jsx` |
-| Verify | `verify-iskra-dispatch.mjs`, `verify-trainer-push.mjs` |
+| Verify | `verify-iskra-dispatch.mjs`, `verify-operations-tasks.mjs`, `verify-trainer-push.mjs` |
 
 ---
 
@@ -59,8 +60,7 @@ Push на проде: [PUSH_SETUP.md](./PUSH_SETUP.md) (VAPID в Vercel).
 
 - Роль **управляющий** как отправитель
 - Авто-задания по триггерам
-- Сигналы в learning (`task_sent`, `task_done`)
-- Эскалация просрочки
+- Эскалация просрочки (повтор / копия)
 
 ---
 

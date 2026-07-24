@@ -4,7 +4,7 @@ import { allDispatchStagesDone, hasDispatchStages, countDispatchStagesDone } fro
 /**
  * Какие действия показывать тренеру — по одному шагу за раз.
  *
- * pending/seen → только «Принял в работу» (+ «Не могу»).
+ * pending/seen → «Принял в работу» (+ «Перейти», если есть deep_link) (+ «Не могу»).
  * accepted → «Выполнено» (+ «Перейти», если есть deep_link).
  *
  * @param {{ status?: string, deep_link?: string | null, stages?: Array<{ done?: boolean }> }} item
@@ -28,9 +28,11 @@ export function buildDispatchInboxActions(item) {
   if (status === 'pending' || status === 'seen') {
     return {
       primary: { action: 'accepted', label: 'Принял в работу' },
-      deepLink: false,
+      deepLink: hasDeepLink,
       canDecline: true,
-      stepHint: 'Шаг 1 из 2 — подтвердите, что берёте задание',
+      stepHint: hasDeepLink
+        ? 'Шаг 1 — можно сразу перейти к делу или принять задание'
+        : 'Шаг 1 из 2 — подтвердите, что берёте задание',
     }
   }
 

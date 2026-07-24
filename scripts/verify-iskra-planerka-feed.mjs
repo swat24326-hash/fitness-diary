@@ -32,6 +32,14 @@ const item = buildPlanerkaFeedItem(row)
 ok(item?.status_label === 'В работе', 'status label')
 ok(item?.is_active === true, 'active flag')
 
+const withReply = buildPlanerkaFeedItem({
+  ...row,
+  id: 'd-reply',
+  status: 'done',
+  recipient_reply: 'Созвонился, договорились на пятницу',
+})
+ok(withReply?.has_reply === true && withReply.recipient_reply.includes('Созвонился'), 'feed reply visible')
+
 const overdueRow = { ...row, id: 'd2', status: 'pending', is_overdue: true, title: 'План ПЗ' }
 const payload = buildPlanerkaFeedPayload([row, overdueRow, { ...row, id: 'd3', status: 'done' }])
 ok(payload.items.length === 3, 'payload items')

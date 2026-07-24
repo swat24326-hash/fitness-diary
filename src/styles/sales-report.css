@@ -46,6 +46,22 @@
   font-weight: 600;
 }
 
+.sales-report__assign-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm, 12px);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.sales-report__assign-hint {
+  font-size: 0.82rem;
+}
+
 .sales-report__hero-head {
   display: flex;
   justify-content: space-between;

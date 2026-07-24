@@ -81,7 +81,10 @@ import { IskraPanelNav } from './iskra/IskraPanelNav.jsx'
 import { IskraOwnerMonthBriefButton } from './iskra/IskraOwnerMonthBriefButton.jsx'
 import { IskraTrainerKpi } from './iskra/IskraTrainerKpi.jsx'
 import { useClubDispatchRecipients } from '../hooks/useClubDispatchRecipients.js'
-import { buildWeekChecklistTaskDraft } from '../lib/admin/staffTaskCreateCore.js'
+import {
+  buildDispatchFromProactiveAlert,
+  buildWeekChecklistTaskDraft,
+} from '../lib/admin/staffTaskCreateCore.js'
 import '../styles/gemini-analytics.css'
 import '../styles/iskra-dispatch.css'
 
@@ -966,6 +969,23 @@ export function GeminiAnalyticsPanel({
     setDispatchOpen(true)
   }, [])
 
+  const openDispatchFromAlert = useCallback(
+    (alert) => {
+      if (!alert || alert.severity === 'ok') return
+      setDispatchCard(null)
+      setDispatchDraft(
+        buildDispatchFromProactiveAlert(alert, {
+          clubId,
+          clubName,
+          year,
+          month,
+        }),
+      )
+      setDispatchOpen(true)
+    },
+    [clubId, clubName, year, month],
+  )
+
   const openDispatchFromChecklist = useCallback(
     (item) => {
       if (!item || !clubId) return
@@ -1057,6 +1077,7 @@ export function GeminiAnalyticsPanel({
           alerts={proactiveAlerts}
           disabled={loading || !clubId || rateLimitSec > 0}
           onAlertAction={runAlertAction}
+          onAlertAssign={openDispatchFromAlert}
         />
         {showSparkBrief ? (
           <IskraSparkBrief
@@ -1266,6 +1287,7 @@ export function GeminiAnalyticsPanel({
           alerts={segmentAlerts}
           disabled={loading || !clubId || rateLimitSec > 0}
           onAlertAction={runAlertAction}
+          onAlertAssign={openDispatchFromAlert}
         />
         <IskraPlanerkaFeed feed={planerkaFeed} clubId={clubId} loading={kpiLoading} />
         <IskraInsightCards

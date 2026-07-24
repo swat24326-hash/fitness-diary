@@ -11,7 +11,8 @@ import { useTrainerPush } from '../../hooks/useTrainerPush.js'
 export function TrainerPushPrompt({ clubId = '' }) {
   const push = useTrainerPush({ clubId })
   const [hasTasks, setHasTasks] = useState(false)
-  const [visible, setVisible] = useState(() => push.shouldShowPrompt())
+  const [dismissedCompact, setDismissedCompact] = useState(false)
+  const [showFull, setShowFull] = useState(() => push.shouldShowPrompt())
 
   const loadTasks = useCallback(async () => {
     if (!isSupabaseConfigured()) {
@@ -31,52 +32,97 @@ export function TrainerPushPrompt({ clubId = '' }) {
     void loadTasks()
   }, [loadTasks])
 
-  if (!visible || !push.supported || !hasTasks || push.subscribed) return null
+  useEffect(() => {
+    setShowFull(push.shouldShowPrompt())
+  }, [push.subscribed, push.permission, push.supported])
+
+  if (!push.supported || !hasTasks || push.subscribed) return null
+
+  const permissionDenied = push.permission === 'denied'
+
+  if (showFull) {
+    return (
+      <aside className="trainer-push-prompt" role="status" aria-live="polite">
+        <div className="trainer-push-prompt__main">
+          <BellOff size={18} aria-hidden className="trainer-push-prompt__icon" />
+          <div>
+            <p className="trainer-push-prompt__title">Уведомления выкл</p>
+            <p className="trainer-push-prompt__text muted">
+              Есть задания Планёрки, но push на планшете выключен — новое придёт только когда откроете
+              приложение.
+            </p>
+            {push.error ? (
+              <p className="trainer-push-prompt__error" role="alert">
+                {push.error}
+              </p>
+            ) : null}
+          </div>
+        </div>
+        <div className="trainer-push-prompt__actions">
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            disabled={push.busy || permissionDenied}
+            title={permissionDenied ? 'Разрешите уведомления в настройках браузера' : undefined}
+            onClick={() => void push.subscribe()}
+          >
+            {push.busy ? 'Подключение…' : 'Включить'}
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            disabled={push.busy}
+            onClick={() => {
+              push.dismissPrompt()
+              setShowFull(false)
+            }}
+          >
+            Позже
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm trainer-push-prompt__close"
+            aria-label="Закрыть"
+            onClick={() => {
+              push.dismissPrompt()
+              setShowFull(false)
+            }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      </aside>
+    )
+  }
+
+  if (dismissedCompact) return null
 
   return (
-    <aside className="trainer-push-prompt" role="status" aria-live="polite">
-      <div className="trainer-push-prompt__main">
-        <Bell size={18} aria-hidden className="trainer-push-prompt__icon" />
-        <div>
-          <p className="trainer-push-prompt__title">Уведомления о заданиях</p>
-          <p className="trainer-push-prompt__text muted">
-            Руководитель поставил задачу — пришлём на планшет, когда есть интернет. Тренировки офлайн не
-            затрагиваем.
-          </p>
-          {push.error ? (
-            <p className="trainer-push-prompt__error" role="alert">
-              {push.error}
-            </p>
-          ) : null}
-        </div>
-      </div>
-      <div className="trainer-push-prompt__actions">
-        <button type="button" className="btn btn-primary btn-sm" disabled={push.busy} onClick={() => void push.subscribe()}>
-          {push.busy ? 'Подключение…' : 'Включить'}
-        </button>
+    <aside className="trainer-push-prompt trainer-push-prompt--compact" role="status">
+      <BellOff size={16} aria-hidden className="trainer-push-prompt__icon" />
+      <p className="trainer-push-prompt__compact-text">
+        {permissionDenied
+          ? 'Уведомления заблокированы в браузере — задания только в шапке → Планёрка'
+          : 'Уведомления выкл — задания только в шапке'}
+      </p>
+      {!permissionDenied ? (
         <button
           type="button"
-          className="btn btn-ghost btn-sm"
+          className="btn btn-secondary btn-sm"
           disabled={push.busy}
-          onClick={() => {
-            push.dismissPrompt()
-            setVisible(false)
-          }}
+          onClick={() => void push.subscribe()}
         >
-          Позже
+          {push.busy ? '…' : 'Включить'}
         </button>
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm trainer-push-prompt__close"
-          aria-label="Закрыть"
-          onClick={() => {
-            push.dismissPrompt()
-            setVisible(false)
-          }}
-        >
-          <X size={16} />
-        </button>
-      </div>
+      ) : null}
+      <button
+        type="button"
+        className="btn btn-ghost btn-sm trainer-push-prompt__close"
+        aria-label="Скрыть"
+        onClick={() => setDismissedCompact(true)}
+      >
+        <X size={14} />
+      </button>
     </aside>
   )
 }
@@ -108,7 +154,9 @@ export function TrainerPushSettings({ clubId = '' }) {
       <p className="section-sub" style={{ margin: '0 0 12px' }}>
         {push.subscribed
           ? 'Включены на этом планшете — новые задания приходят, когда планшет онлайн.'
-          : 'Получать «новое задание» на планшет (нужен интернет). Офлайн-тренировки не меняются.'}
+          : push.permission === 'denied'
+            ? 'Сейчас выкл (браузер блокирует). Разрешите уведомления для сайта или смотрите задания в шапке → Планёрка.'
+            : 'Сейчас выкл — новое задание видно в шапке. Можно включить push на планшет.'}
       </p>
       {push.error ? (
         <p className="trainer-push-settings__error" role="alert">
@@ -137,7 +185,12 @@ export function TrainerPushSettings({ clubId = '' }) {
             </button>
           </>
         ) : (
-          <button type="button" className="btn btn-primary btn-sm" disabled={push.busy} onClick={() => void push.subscribe()}>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            disabled={push.busy || push.permission === 'denied'}
+            onClick={() => void push.subscribe()}
+          >
             <Bell size={14} aria-hidden style={{ marginRight: 4, verticalAlign: -2 }} />
             {push.busy ? 'Подключение…' : 'Включить уведомления'}
           </button>

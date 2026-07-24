@@ -24,6 +24,7 @@ export function buildPlanerkaFeedItem(row) {
   if (!row || typeof row !== 'object') return null
   const status = String(row.status ?? 'pending')
   const title = String(row.title ?? '').trim() || 'Задание'
+  const reply = String(row.recipient_reply ?? '').trim()
   return {
     id: String(row.id ?? ''),
     title: title.length > 72 ? `${title.slice(0, 69)}…` : title,
@@ -36,6 +37,8 @@ export function buildPlanerkaFeedItem(row) {
     source: String(row.source ?? ''),
     task_kind: String(row.task_kind ?? 'custom'),
     completed_at: row.completed_at ?? null,
+    recipient_reply: reply ? (reply.length > 100 ? `${reply.slice(0, 97)}…` : reply) : '',
+    has_reply: Boolean(reply),
   }
 }
 
