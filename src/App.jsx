@@ -77,8 +77,10 @@ function LoggedInLayout() {
     <div className={`app-shell app-shell--${shellRole}`}>
       <HeartRateSessionsProvider>
         <IskraPanelProvider>
-          <AppHeader />
-          {role === 'trainer' ? <DraftTabsBar /> : null}
+          <div className="app-chrome-top">
+            <AppHeader />
+            {role === 'trainer' ? <DraftTabsBar /> : null}
+          </div>
           <BreadcrumbsBar />
           <main className="app-main">
             <AppErrorBoundary>

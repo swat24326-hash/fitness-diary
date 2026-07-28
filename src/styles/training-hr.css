@@ -31,11 +31,6 @@
   line-height: 1.15;
 }
 
-.training-hr-idle__hint--warn {
-  color: #f0b429;
-  max-width: 4.8rem;
-}
-
 .app-header__hr-chip--connecting {
   opacity: 0.75;
 }

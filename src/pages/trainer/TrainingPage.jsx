@@ -851,11 +851,7 @@ export function TrainingPage() {
                   ×
                 </button>
               ) : null}
-              {!hr.supported ? (
-                <span className="training-hr-idle__hint training-hr-idle__hint--warn" title={hr.unsupportedHint}>
-                  только Android
-                </span>
-              ) : hrProfileHint && !hrConnected ? (
+              {hr.supported && hrProfileHint && !hrConnected ? (
                 <span className="training-hr-idle__hint" title={hrProfileHint}>
                   сводка неполная
                 </span>
