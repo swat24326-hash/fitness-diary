@@ -32,7 +32,9 @@ export async function fetchTrainerTrainingsRemoteInRange(trainerId, dateFrom, da
     const { data, error } = await withSupabaseRetry(() =>
       supabase
         .from('trainings')
-        .select('id, trainer_id, client_id, club_id, date, status, data, membership_id, updated_at')
+        // Как в clubStatsFetch: membership_id/updated_at на проде в trainings нет
+        // (иначе PostgREST → fallback на локальный кэш и обрезанные цифры).
+        .select('id, trainer_id, client_id, club_id, date, status, data')
         .eq('trainer_id', tid)
         .gte('date', from)
         .lte('date', to)
