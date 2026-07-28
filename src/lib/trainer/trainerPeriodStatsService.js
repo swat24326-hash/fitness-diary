@@ -12,8 +12,10 @@ import {
   readTrainerSelfStatsLastGood,
   writeTrainerSelfStatsLastGood,
 } from './trainerSelfStatsLastGood.js'
+import { coachQualityNeedsRemoteTrainings } from './coachQualityRemoteGate.js'
 
 export { mergeLocalAndRemoteTrainings } from './trainerRemoteMerge.js'
+export { coachQualityNeedsRemoteTrainings } from './coachQualityRemoteGate.js'
 
 function flattenMemByClient(memByClient) {
   const out = []
@@ -23,9 +25,19 @@ function flattenMemByClient(memByClient) {
   return out
 }
 
+function countCompletedInRange(trainings, dateFrom, dateTo) {
+  let n = 0
+  for (const t of trainings ?? []) {
+    if (String(t?.status ?? '') !== 'completed') continue
+    const d = String(t?.date ?? '').slice(0, 10)
+    if (d && d >= dateFrom && d <= dateTo) n += 1
+  }
+  return n
+}
+
 /**
  * API trainer-self-stats не считает CQ (тяжело / care inputs).
- * Добираем с планшета из IDB — те же правила, что в buildScopePeriodStats.
+ * Добираем с планшета: IDB + при online догрузка облака, если локальных completed меньше API.
  */
 async function attachCoachQualityIfMissing(period, { trainerId, clubId, dateFrom, dateTo }) {
   if (period?.coachQuality?.trainers?.length) return period
@@ -46,10 +58,15 @@ async function attachCoachQualityIfMissing(period, { trainerId, clubId, dateFrom
           return d && d >= prev.dateFrom && d <= prev.dateTo
         })
       : []
-    // Мало локальных тренировок — подтянем облако только для CQ (лёгкий select уже в remote fetch)
     let trainingsForCq = inRange
     let prevForCq = previousTrainings
-    if (inRange.length < 3 && isSupabaseConfigured() && isAppOnline()) {
+    const localCompleted = countCompletedInRange(trainings, dateFrom, dateTo)
+    const needRemote = coachQualityNeedsRemoteTrainings({
+      localCompleted,
+      apiCompleted: period?.totalCompleted,
+      online: isSupabaseConfigured() && isAppOnline(),
+    })
+    if (needRemote) {
       try {
         const fetchFrom = prev?.dateFrom ?? dateFrom
         const remote = await fetchTrainerTrainingsRemoteInRange(trainerId, fetchFrom, dateTo)

@@ -56,6 +56,8 @@
 | `src/lib/admin/coachQualityAgg.js` | агрегат byTrainer |
 | `src/lib/admin/coachQualityConfigCore.js` | дефолт/нормализация весов осей, долей внутри осей и тумблеров |
 | `src/lib/admin/coachQualityService.js` | загрузка health/обмеров/веса (локальный/тренерский scope) |
+| `src/lib/trainer/trainerPeriodStatsService.js` | тренер: CQ + догрузка облака при неполном IDB |
+| `src/lib/trainer/coachQualityRemoteGate.js` | когда тянуть remote для CQ (local completed &lt; API) |
 | `src/lib/admin/coachQualityBriefCore.js` | утренний бриф: на разбор / просели к прошлому периоду |
 | `src/lib/trainer/trainerCoachQualityGlanceCore.js` | подсказка тренеру (тонкие + хвосты) |
 | `src/components/trainer/TrainerCoachQualityGlance.jsx` | UI на главной тренера |
@@ -69,7 +71,8 @@
 | `scripts/verify-coach-quality.mjs` | verify |
 
 Подключение: `buildScopePeriodStats`, `loadClubTrainingStats` → поле `coachQuality`.  
-Админская сводка клуба берёт `coachQuality` из **`admin-data?action=club-stats`** (service role), чтобы не зависеть от пустого IndexedDB и RLS браузера.
+Админская сводка клуба берёт `coachQuality` из **`admin-data?action=club-stats`** (service role), чтобы не зависеть от пустого IndexedDB и RLS браузера.  
+Тренер: `trainer-self-stats` отдаёт сводку **без** CQ; клиент считает CQ теми же правилами. При online, если локальных `completed` меньше, чем в API-сводке, догружает тренировки из облака (`coachQualityNeedsRemoteTrainings`) — иначе на «бедном» кэше ноута балл завышается (меньше тонких в выборке).
 
 ## Проверка
 

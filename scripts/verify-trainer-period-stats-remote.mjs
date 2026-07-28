@@ -10,6 +10,7 @@ import {
   mergeLocalAndRemoteTrainings,
   mergeRowsById,
 } from '../src/lib/trainer/trainerRemoteMerge.js'
+import { coachQualityNeedsRemoteTrainings } from '../src/lib/trainer/coachQualityRemoteGate.js'
 import { computeTrainerSelfPayroll, payrollFallbackLabel } from '../src/lib/trainer/trainerSelfPayroll.js'
 import { normalizeTrainingRowForPayroll } from '../api/_lib/trainerSelfStatsNormalize.js'
 
@@ -32,6 +33,33 @@ function ok(cond, msg) {
 {
   const prev = previousEqualPeriod('2026-07-28', '2026-07-28')
   ok(prev?.dateFrom === '2026-07-27' && prev?.dateTo === '2026-07-27', 'один день')
+}
+
+{
+  // CQ: неполный IDB (61) при API 118 → догрузка; полный кэш → без лишнего fetch
+  ok(
+    coachQualityNeedsRemoteTrainings({ localCompleted: 61, apiCompleted: 118, online: true }),
+    'CQ remote: local < api',
+  )
+  ok(
+    !coachQualityNeedsRemoteTrainings({ localCompleted: 118, apiCompleted: 118, online: true }),
+    'CQ skip remote: local == api',
+  )
+  ok(
+    !coachQualityNeedsRemoteTrainings({ localCompleted: 0, apiCompleted: 50, online: false }),
+    'CQ offline: без remote',
+  )
+  ok(
+    coachQualityNeedsRemoteTrainings({ localCompleted: 10, apiCompleted: null, online: true }),
+    'CQ remote: нет api-цифры → тянем',
+  )
+  ok(!periodSrcHasOldCqGate(), 'нет старого порога inRange.length < 3 для CQ')
+}
+
+function periodSrcHasOldCqGate() {
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+  const periodSrc = readFileSync(join(root, 'src/lib/trainer/trainerPeriodStatsService.js'), 'utf8')
+  return /inRange\.length\s*<\s*3/.test(periodSrc)
 }
 
 {
