@@ -1,7 +1,8 @@
 /**
- * ЗП на планшете: те же ставки, что в computeTrainerSelfPayroll,
- * но тренировки/абонементы при online — из облака (иначе разные устройства = разные цифры).
- * На слабом Wi‑Fi планшета — длинный timeout, частичный ответ, кэш сессии.
+ * ЗП на планшете: приоритет
+ * 1) /api/admin-data?action=trainer-self-stats (сервер, стабильно)
+ * 2) last-good localStorage
+ * 3) локальный кэш + прямой Supabase (фолбэк)
  */
 
 import { isSupabaseConfigured, supabase } from '../supabase'
@@ -14,44 +15,19 @@ import {
 } from './trainerPeriodStatsService.js'
 import { mergeLocalAndRemoteTrainings, mergeRowsById } from './trainerRemoteMerge.js'
 import { computeTrainerSelfPayroll } from './trainerSelfPayroll.js'
+import { fetchTrainerSelfStatsViaApi } from './trainerSelfStatsApi.js'
+import {
+  readTrainerSelfStatsLastGood,
+  writeTrainerSelfStatsLastGood,
+} from './trainerSelfStatsLastGood.js'
 
 export { mergeRowsById } from './trainerRemoteMerge.js'
 export { payrollFallbackLabel } from './trainerSelfPayroll.js'
 
 const MEM_PAGE = 500
 const MEM_MAX = 8000
-const SESSION_CACHE_TTL_MS = 8 * 60 * 1000
-
-function sessionCacheKey(trainerId, from, to) {
-  return `fd-tr-pay-tr:${trainerId}:${from}:${to}`
-}
-
-function readSessionTrainings(trainerId, from, to) {
-  try {
-    const raw = sessionStorage.getItem(sessionCacheKey(trainerId, from, to))
-    if (!raw) return null
-    const parsed = JSON.parse(raw)
-    if (!parsed || !Array.isArray(parsed.rows)) return null
-    if (Date.now() - Number(parsed.at || 0) > SESSION_CACHE_TTL_MS) return null
-    return parsed.rows
-  } catch {
-    return null
-  }
-}
-
-function writeSessionTrainings(trainerId, from, to, rows) {
-  try {
-    sessionStorage.setItem(
-      sessionCacheKey(trainerId, from, to),
-      JSON.stringify({ at: Date.now(), rows }),
-    )
-  } catch {
-    /* quota / private mode */
-  }
-}
 
 /**
- * Абонементы клиентов тренера (RLS режет по trainer_id клиента).
  * @param {string} clubId
  * @returns {Promise<{ rows: object[], partial: boolean, warn: string | null }>}
  */
@@ -107,7 +83,13 @@ export async function fetchTrainerMembershipsRemote(clubId) {
  *   membershipTypes: object[],
  *   membershipsLocal?: object[],
  * }} p
- * @returns {Promise<{ dayPay: number, monthPay: number, source: string, fallbackReason: string | null }>}
+ * @returns {Promise<{
+ *   dayPay: number,
+ *   monthPay: number,
+ *   source: string,
+ *   fallbackReason: string | null,
+ *   period?: object | null,
+ * }>}
  */
 export async function loadTrainerSelfPayrollAmounts(p) {
   const trainerId = String(p.trainerId ?? '').trim()
@@ -115,9 +97,47 @@ export async function loadTrainerSelfPayrollAmounts(p) {
   const dayIso = String(p.dayIso ?? '').slice(0, 10)
   const monthFrom = String(p.monthFrom ?? '').slice(0, 10)
   const monthTo = String(p.monthTo ?? '').slice(0, 10)
-  const empty = { dayPay: 0, monthPay: 0, source: 'local', fallbackReason: null }
+  const empty = { dayPay: 0, monthPay: 0, source: 'local', fallbackReason: null, period: null }
 
   if (!trainerId || !clubId || !dayIso || !monthFrom || !monthTo) return empty
+
+  const lastGood = readTrainerSelfStatsLastGood(trainerId, monthFrom, monthTo, dayIso)
+
+  if (isAppOnline()) {
+    try {
+      const api = await fetchTrainerSelfStatsViaApi({
+        dateFrom: monthFrom,
+        dateTo: monthTo,
+        dayIso,
+      })
+      if (api?.payroll && typeof api.payroll.dayPay === 'number') {
+        writeTrainerSelfStatsLastGood(trainerId, monthFrom, monthTo, dayIso, api)
+        return {
+          dayPay: api.payroll.dayPay,
+          monthPay: api.payroll.monthPay,
+          source: 'api',
+          fallbackReason: null,
+          period: api.period ?? null,
+        }
+      }
+    } catch (e) {
+      console.warn('[trainer-payroll] api', e)
+      if (lastGood) {
+        return {
+          dayPay: lastGood.payroll.dayPay,
+          monthPay: lastGood.payroll.monthPay,
+          source: 'last_good',
+          fallbackReason: e?.message ? String(e.message).slice(0, 120) : 'api_failed',
+          period: lastGood.period ?? null,
+        }
+      }
+    }
+  }
+
+  if (lastGood) {
+    // Параллельно досчитаем локально, но сначала отдадим last-good через отдельный путь в UI;
+    // здесь — полный локальный путь как запас.
+  }
 
   const loadFrom = dayIso < monthFrom ? dayIso : monthFrom
   const loadTo = dayIso > monthTo ? dayIso : monthTo
@@ -134,20 +154,11 @@ export async function loadTrainerSelfPayrollAmounts(p) {
       if (remote.rows.length > 0) {
         trainings = mergeLocalAndRemoteTrainings(trainings, remote.rows, loadFrom, loadTo)
         source = remote.partial ? 'remote_partial' : 'remote'
-        writeSessionTrainings(trainerId, loadFrom, loadTo, remote.rows)
         if (remote.partial && remote.warn) fallbackReason = `частично: ${remote.warn}`
       }
     } catch (e) {
-      const cached = readSessionTrainings(trainerId, loadFrom, loadTo)
-      if (cached?.length) {
-        trainings = mergeLocalAndRemoteTrainings(trainings, cached, loadFrom, loadTo)
-        source = 'session_cache'
-        fallbackReason = e?.message ? String(e.message).slice(0, 80) : 'timeout'
-        console.warn('[trainer-payroll] remote fail → session cache', e)
-      } else {
-        fallbackReason = e?.message ? String(e.message).slice(0, 120) : 'remote_failed'
-        console.warn('[trainer-payroll] remote trainings', e)
-      }
+      fallbackReason = e?.message ? String(e.message).slice(0, 120) : 'remote_failed'
+      console.warn('[trainer-payroll] remote trainings', e)
     }
 
     try {
@@ -171,11 +182,23 @@ export async function loadTrainerSelfPayrollAmounts(p) {
 
   const types = p.membershipTypes ?? []
   const ctx = { trainings, memberships, membershipTypes: types, trainerId }
+  const dayPay = computeTrainerSelfPayroll({ ...ctx, dateFrom: dayIso, dateTo: dayIso })
+  const monthPay = computeTrainerSelfPayroll({ ...ctx, dateFrom: monthFrom, dateTo: monthTo })
 
-  return {
-    dayPay: computeTrainerSelfPayroll({ ...ctx, dateFrom: dayIso, dateTo: dayIso }),
-    monthPay: computeTrainerSelfPayroll({ ...ctx, dateFrom: monthFrom, dateTo: monthTo }),
-    source,
-    fallbackReason,
+  if (dayPay > 0 || monthPay > 0) {
+    writeTrainerSelfStatsLastGood(trainerId, monthFrom, monthTo, dayIso, {
+      payroll: { dayPay, monthPay },
+      source,
+    })
+  } else if (lastGood && (fallbackReason || source === 'local')) {
+    return {
+      dayPay: lastGood.payroll.dayPay,
+      monthPay: lastGood.payroll.monthPay,
+      source: 'last_good',
+      fallbackReason: fallbackReason || 'local_empty',
+      period: lastGood.period ?? null,
+    }
   }
+
+  return { dayPay, monthPay, source, fallbackReason, period: null }
 }

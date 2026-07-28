@@ -36,40 +36,17 @@ import { isSupabaseConfigured, supabase } from '../../lib/supabase'
 import { USERS_TRAINER_ROLES } from '../../lib/userRoleConstants'
 import { saveLocalWithSync } from '../../lib/syncService'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
-import { countedUsedTrainingsOnMembership, formatInactiveClientListLabel, membershipHasRemaining, membershipUsageLabel, pickUsableMembershipForDate } from '../../lib/membershipRules'
+import {
+  countedUsedTrainingsOnMembership,
+  formatInactiveClientListLabel,
+  membershipUsageLabel,
+  pickUsableMembershipForDate,
+} from '../../lib/membershipRules'
+import {
+  membershipSignal,
+  pickExpiredMembershipWithRemaining,
+} from '../../lib/clientListSignals'
 import '../../styles/pnk-funnel.css'
-
-function pickExpiredMembershipWithRemaining(list, todayIso) {
-  const d = String(todayIso ?? '')
-  const candidates = (list ?? []).filter((m) => String(m?.end_date ?? '') < d && membershipHasRemaining(m))
-  if (!candidates.length) return null
-  return candidates.sort((a, b) => String(b.end_date ?? '').localeCompare(String(a.end_date ?? '')))[0]
-}
-
-function membershipSignal(list, today) {
-  const active = pickUsableMembershipForDate(list ?? [], today)
-  if (!active) {
-    const expiredLeft = pickExpiredMembershipWithRemaining(list, today)
-    if (expiredLeft) {
-      const total = Number(expiredLeft.total_trainings ?? 0)
-      const used = Number(expiredLeft.used_trainings ?? 0)
-      const remaining = Number.isFinite(total) && Number.isFinite(used) ? Math.max(0, total - used) : null
-      return { key: 'expired_remaining', color: '#f59e0b', label: `срок истёк, осталось ${remaining ?? '—'}` }
-    }
-    return { key: 'none', color: '#f87171', label: 'нет активного' }
-  }
-
-  const total = Number(active.total_trainings ?? 0)
-  const used = Number(active.used_trainings ?? 0)
-  const remaining = Number.isFinite(total) && Number.isFinite(used) ? Math.max(0, total - used) : null
-  if (remaining === 0) return { key: 'limit0', color: '#f87171', label: 'лимит 0' }
-
-  const end = new Date(active.end_date)
-  const d0 = new Date(today)
-  const days = Math.ceil((end - d0) / 86400000)
-  if (days <= 3) return { key: 'expiring', color: '#eab308', label: `≤${days}д` }
-  return { key: 'active', color: '#22c55e', label: 'активен' }
-}
 
 function lastTrainingDateFromMap(map, clientId) {
   const d = map?.[String(clientId ?? '')]
@@ -855,7 +832,7 @@ export function AdminClients() {
                                 </span>
                               </>
                             ) : (
-                              'нет действующего'
+                              sig.factLabel || 'нет абонемента'
                             )}
                           </span>
                         </div>

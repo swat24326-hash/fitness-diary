@@ -1,6 +1,6 @@
 # API — каталог endpoints
 
-**Актуально:** 2026-07-21. Vercel Hobby **≤12** serverless functions в `api/*.js`. Новое действие — сначала `admin-data?action=`, не новый файл.
+**Актуально:** 2026-07-28. Vercel Hobby **≤12** serverless functions в `api/*.js`. Новое действие — сначала `admin-data?action=`, не новый файл.
 
 Политика: `.cursor/rules/fitness-diary-supabase.mdc`, `fitness-diary-architecture.mdc`.  
 Ядро: **`api/_lib/`** (не `api/lib/`).
@@ -45,7 +45,7 @@
 | `gemini-analytics-prefetch` | admin | Prefetch ИСКРЫ |
 | `iskra-settings`, `iskra-learning`, `iskra-dispatch`, `iskra-tts` | admin (+ dispatch шире) | Настройки, обучение, задания, neural озвучка |
 | `challenges`, `challenge-trainings`, `exercises`, `exercises-meta` | admin / trainer | Справочники |
-| `membership-types`, `nutrition-products`, `homework-presets` | admin / trainer | Типы карт, питание, ДЗ |
+| `trainer-self-stats` | trainer (свой клуб) / admin+trainer_id | ЗП день/месяц + сводка периода (сервер) |
 | `push-subscription` | admin / trainer / sales_manager | VAPID public key |
 | `club-sms` | admin / sales_manager | Статус Мои Звонки (`configured`, `templates`, `club_name`); `&logs=1&since_days=` — журнал `club_sms_log` |
 

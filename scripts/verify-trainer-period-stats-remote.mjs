@@ -77,10 +77,20 @@ function ok(cond, msg) {
   ok(payrollSrc.includes('fetchTrainerMembershipsRemote'), 'ЗП тянет remote memberships')
   ok(payrollSrc.includes('TRAINER_REMOTE_RETRY') || periodSrc.includes('timeoutMs: 22_000'), 'длинный timeout для планшета')
   ok(panelSrc.includes('loadTrainerSelfPayrollAmounts'), 'панель ЗП через cloud service')
-  ok(panelSrc.includes('payrollFallbackLabel'), 'понятная подпись при timeout')
+  ok(panelSrc.includes('readTrainerSelfStatsLastGood'), 'ЗП сеет last-good до загрузки')
+  ok(
+    readFileSync(join(root, 'api/admin-data.js'), 'utf8').includes('trainer-self-stats'),
+    'admin-data знает action trainer-self-stats',
+  )
+  ok(
+    readFileSync(join(root, 'api/_lib/trainerSelfStatsCore.js'), 'utf8').includes(
+      'buildTrainerSelfStatsPayload',
+    ),
+    'серверный расчёт ЗП/статистики есть',
+  )
 
   ok(
-    /медленн/i.test(payrollFallbackLabel('timeout') ?? ''),
+    /нестабильн|медленн|кэш|Sync/i.test(payrollFallbackLabel('timeout') ?? ''),
     'timeout → понятный текст, не сырой timeout',
   )
 

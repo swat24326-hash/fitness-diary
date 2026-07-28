@@ -8,6 +8,7 @@ import {
   todayLocalIso,
 } from '../lib/dateRu.js'
 import { loadTrainerSelfPayrollAmounts, payrollFallbackLabel } from '../lib/trainer/trainerSelfPayrollService.js'
+import { readTrainerSelfStatsLastGood } from '../lib/trainer/trainerSelfStatsLastGood.js'
 import '../styles/trainer-payroll.css'
 
 const MONTH_NAMES = [
@@ -102,9 +103,30 @@ export function TrainerPayrollPanel({ trainerId, clubId, membershipTypes, member
       return
     }
 
+    const cached = readTrainerSelfStatsLastGood(
+      trainerId,
+      monthRange.start,
+      monthRange.end,
+      selectedDay,
+    )
+    if (cached?.payroll) {
+      setDayPay(cached.payroll.dayPay)
+      setMonthPay(cached.payroll.monthPay)
+    }
+
     let cancelled = false
     setBusy(true)
     setError('')
+
+    const hardCap = window.setTimeout(() => {
+      if (!cancelled) {
+        setBusy(false)
+        setRetryingCloud(false)
+        if (!cached?.payroll) {
+          setFallbackReason((prev) => prev || 'timeout')
+        }
+      }
+    }, 50_000)
 
     void (async () => {
       try {
@@ -123,8 +145,9 @@ export function TrainerPayrollPanel({ trainerId, clubId, membershipTypes, member
         setFallbackReason(res.fallbackReason ?? null)
 
         const softNet =
-          res.fallbackReason && /timeout|частично/i.test(String(res.fallbackReason))
-        if (!res.fallbackReason || res.source === 'remote') {
+          res.fallbackReason &&
+          /timeout|частично|таймаут|api_failed|local_empty/i.test(String(res.fallbackReason))
+        if (!res.fallbackReason || res.source === 'api' || res.source === 'remote') {
           autoRetryRef.current = 0
           setRetryingCloud(false)
         } else if (softNet && autoRetryRef.current < 1) {
@@ -139,18 +162,22 @@ export function TrainerPayrollPanel({ trainerId, clubId, membershipTypes, member
       } catch (e) {
         if (!cancelled) {
           setError(e?.message ?? 'Ошибка расчёта')
-          setDayPay(0)
-          setMonthPay(0)
-          setFallbackReason(null)
+          if (!cached?.payroll) {
+            setDayPay(0)
+            setMonthPay(0)
+          }
+          setFallbackReason(e?.message ? String(e.message).slice(0, 80) : 'error')
           setRetryingCloud(false)
         }
       } finally {
+        window.clearTimeout(hardCap)
         if (!cancelled) setBusy(false)
       }
     })()
 
     return () => {
       cancelled = true
+      window.clearTimeout(hardCap)
     }
   }, [
     trainerId,
@@ -196,7 +223,7 @@ export function TrainerPayrollPanel({ trainerId, clubId, membershipTypes, member
             Моя зарплата
           </h2>
           <p className="trainer-payroll__note" style={{ margin: '0.35rem 0 0' }}>
-            По вашим завершённым тренировкам × ставки типов карт (при сети — из облака).
+            По вашим завершённым тренировкам × ставки типов карт (сервер клуба; при сбое — последние цифры).
           </p>
         </div>
       </div>
@@ -294,14 +321,14 @@ export function TrainerPayrollPanel({ trainerId, clubId, membershipTypes, member
       <div className="trainer-payroll__kpi-grid">
         <div className={`trainer-payroll__kpi${busy ? ' trainer-payroll__kpi--loading' : ''}`}>
           <span className="trainer-payroll__kpi-label">За день</span>
-          <span className="trainer-payroll__kpi-value">{busy ? '…' : formatRub(dayPay)}</span>
+          <span className="trainer-payroll__kpi-value">{formatRub(dayPay)}</span>
           <span className="trainer-payroll__kpi-sub">{formatDateRu(selectedDay)}</span>
         </div>
         <div
           className={`trainer-payroll__kpi trainer-payroll__kpi--accent${busy ? ' trainer-payroll__kpi--loading' : ''}`}
         >
           <span className="trainer-payroll__kpi-label">За месяц</span>
-          <span className="trainer-payroll__kpi-value">{busy ? '…' : formatRub(monthPay)}</span>
+          <span className="trainer-payroll__kpi-value">{formatRub(monthPay)}</span>
           <span className="trainer-payroll__kpi-sub">{monthCaption}</span>
         </div>
       </div>

@@ -5,6 +5,7 @@ import { formatDateRu } from '../../lib/dateRu'
 import {
   formatLastTrainingDate,
   membershipSignal,
+  membershipSignalDotClass,
   pickExpiredMembershipWithRemaining,
 } from '../../lib/clientListSignals'
 import { membershipUsageLabel, pickUsableMembershipForDate } from '../../lib/membershipRules'
@@ -69,7 +70,7 @@ export function TrainerClientListItem({
           <div className="td-client-card__who">
             <span
               title={sig.label}
-              className={`td-client-dot td-client-dot--${sig.key === 'expired_remaining' ? 'expired_recent' : sig.key}`}
+              className={`td-client-dot td-client-dot--${membershipSignalDotClass(sig.key)}`}
               aria-label={sig.label}
               role="img"
             />
@@ -111,7 +112,7 @@ export function TrainerClientListItem({
                     <span className="td-client-fact__sub"> · {membershipUsageLabel(expiredLeft, clientTrainings)}</span>
                   </>
                 ) : (
-                  'нет активного'
+                  sig.factLabel || 'нет абонемента'
                 )}
               </span>
             </div>

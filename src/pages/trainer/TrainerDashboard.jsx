@@ -12,26 +12,11 @@ import { flushSyncQueue, saveLocalWithSync } from '../../lib/syncService'
 import { subscribeNetworkStatus } from '../../lib/networkReachability'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 import { pickUsableMembershipForDate } from '../../lib/membershipRules'
+import { membershipSignal } from '../../lib/clientListSignals'
 import { aggregateMembershipTypeStats } from '../../lib/admin/membershipTypeStatsAgg'
 import { listMembershipTypesForClub } from '../../lib/membershipTypesService'
 import { MembershipTypeStatsBlock } from '../../components/MembershipTypeStatsBlock'
 import { formatClientName } from '../../lib/clientNameFormat'
-
-function membershipDot(list, today) {
-  const active = pickUsableMembershipForDate(list ?? [], today)
-  if (!active) return { color: '#f87171', label: 'нет активного' }
-
-  const total = Number(active.total_trainings ?? 0)
-  const used = Number(active.used_trainings ?? 0)
-  const remaining = Number.isFinite(total) && Number.isFinite(used) ? Math.max(0, total - used) : null
-  if (remaining === 0) return { color: '#f87171', label: 'лимит 0' }
-
-  const end = new Date(active.end_date)
-  const d0 = new Date(today)
-  const days = Math.ceil((end - d0) / 86400000)
-  if (days <= 3) return { color: '#eab308', label: `≤${days}д` }
-  return { color: '#22c55e', label: 'активен' }
-}
 
 function lastTrainingDate(trainings, clientId) {
   const ts = trainings.filter((t) => t.client_id === clientId).map((t) => t.date || t.created_at?.slice(0, 10))
@@ -327,13 +312,13 @@ export function TrainerDashboard() {
           {clients.map((c) => {
             const mlist = memByClient[c.id] ?? []
             const active = pickUsableMembershipForDate(mlist, today)
-            const dot = membershipDot(mlist, today)
+            const sig = membershipSignal(mlist, today)
             const last = lastTrainingDate(trainings, c.id)
             return (
               <li key={c.id} className="list-item td-client-item">
                 <div className="row td-client-row">
                   <div className="td-client-left">
-                    <span title={dot.label} className="td-client-dot" style={{ background: dot.color }} />
+                    <span title={sig.label} className="td-client-dot" style={{ background: sig.color }} />
                     <div>
                       <strong>{c.name}</strong>
                       <div className="muted td-muted-13">

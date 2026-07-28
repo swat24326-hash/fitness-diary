@@ -47,6 +47,7 @@
 | Шаг формы при сплите черновиков | `verify-training-form-step-memory.mjs` |
 | Статистика тренера: облако за период (не только IDB) | `verify-trainer-period-stats-remote.mjs` |
 | Главная: ряд внимания / soft signals | `verify-admin-home-attention.mjs` |
+| Список клиентов: точка/подпись абонемента | `verify-client-list-signals.mjs` |
 | Push абонементов (даты NOT NULL) | `verify-membership-push-payload.mjs` |
 | Удаление абонемента (тексты confirm) | `verify-membership-delete.mjs` |
 | Срок абонемента по умолчанию (+1 календарный месяц) | `verify-date-ru.mjs` |

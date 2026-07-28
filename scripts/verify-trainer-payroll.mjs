@@ -99,7 +99,7 @@ const selfPay = computeTrainerSelfPayroll({
 })
 ok(selfPay === 800, 'trainer self payroll one completed typed training')
 
-ok(/медленн/i.test(payrollFallbackLabel('timeout') ?? ''), 'payroll timeout label is human')
+ok(/нестабильн|медленн|кэш|Sync/i.test(payrollFallbackLabel('timeout') ?? ''), 'payroll timeout label is human')
 
 const clubMap = {
   [salesTrainingCellKey(SALES_TRAINING_CLUB_ID, 't1')]: '2',

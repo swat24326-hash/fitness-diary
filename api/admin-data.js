@@ -17,6 +17,7 @@ import { handleIskraDispatchGet, handleIskraDispatchPost } from './_lib/iskraDis
 import { handleIskraTtsPost } from './_lib/iskraTtsHandler.js'
 import { handlePushSubscriptionGet, handlePushSubscriptionPost } from './_lib/pushSubscriptionHandler.js'
 import { handleResetTrainerPasswordPost, handleSetTrainerActivePost } from './_lib/trainerAuthAdmin.js'
+import { handleTrainerSelfStatsGet } from './_lib/adminData/trainerSelfStatsHandler.js'
 import { handleSearch, handleJournal, handleClientsLastTrainings } from './_lib/adminData/journalHandlers.js'
 import { handleClubStats, handleHealthCards, handleClubMonthly } from './_lib/adminData/clubHandlers.js'
 import {
@@ -187,11 +188,19 @@ async function handler(req, res) {
     'homework-presets',
     'iskra-dispatch',
     'push-subscription',
+    'trainer-self-stats',
   ])
 
   if (trainerActions.has(action)) {
     const authCtx = await requireAuthUser(req, res)
     if (!authCtx) return
+    if (action === 'trainer-self-stats') {
+      if (!authCtx.isAdmin && !authCtx.isTrainer) {
+        sendJson(res, 403, { error: 'Нет доступа' })
+        return
+      }
+      return handleTrainerSelfStatsGet(authCtx, req, res)
+    }
     if (action === 'iskra-dispatch') {
       const view = String(req.query?.view ?? 'inbox').trim().toLowerCase()
       if (view === 'sent') {

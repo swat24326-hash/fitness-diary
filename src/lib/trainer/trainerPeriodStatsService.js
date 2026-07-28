@@ -1,10 +1,15 @@
+import { isSupabaseConfigured, supabase } from '../supabase'
+import { isAppOnline } from '../syncService'
 import { withSupabaseRetry, isRetryableNetworkError } from '../supabaseRetry'
 import { clearTrainerWorkspaceSnapshotSync, loadTrainerWorkspaceSnapshot } from '../trainerWorkspaceCache'
 import { buildScopePeriodStats } from '../periodStats/buildScopePeriodStats'
 import { previousEqualPeriod } from '../admin/coachQualityBriefCore.js'
-import { isSupabaseConfigured, supabase } from '../supabase'
-import { isAppOnline } from '../syncService'
 import { mergeLocalAndRemoteTrainings } from './trainerRemoteMerge.js'
+import { fetchTrainerSelfStatsViaApi } from './trainerSelfStatsApi.js'
+import {
+  readTrainerSelfStatsLastGood,
+  writeTrainerSelfStatsLastGood,
+} from './trainerSelfStatsLastGood.js'
 
 export { mergeLocalAndRemoteTrainings } from './trainerRemoteMerge.js'
 
@@ -117,6 +122,34 @@ export async function loadTrainerPeriodStats(p) {
   }
 
   clearTrainerWorkspaceSnapshotSync()
+
+  if (isAppOnline()) {
+    try {
+      const dayIso = dateTo
+      const api = await fetchTrainerSelfStatsViaApi({ dateFrom, dateTo, dayIso })
+      if (api?.period && typeof api.period.totalCompleted === 'number') {
+        writeTrainerSelfStatsLastGood(trainerId, dateFrom, dateTo, dayIso, api)
+        return {
+          ...api.period,
+          source: 'api',
+          fallbackReason: null,
+          error: null,
+        }
+      }
+    } catch (e) {
+      console.warn('[trainer-stats] api', e)
+      const lastGood = readTrainerSelfStatsLastGood(trainerId, dateFrom, dateTo, dateTo)
+      if (lastGood?.period && typeof lastGood.period.totalCompleted === 'number') {
+        return {
+          ...lastGood.period,
+          source: 'last_good',
+          fallbackReason: e?.message ? String(e.message).slice(0, 120) : 'api_failed',
+          error: null,
+        }
+      }
+    }
+  }
+
   const { clients, trainings: localTrainings, memByClient } = await loadTrainerWorkspaceSnapshot(
     trainerId,
     clubId || null,
