@@ -6834,23 +6834,12 @@ tr:last-child td {
   flex-shrink: 0;
 }
 
-/* Строка с открытым ⋮ выше соседей: у карточек backdrop-filter/transform
-   создают stacking context, иначе меню уходит «под» кнопки нижней строки. */
-.list-item:has(.client-row-more--open),
-.list-item.td-client-item:has(.client-row-more--open) {
-  position: relative;
-  z-index: 60;
-}
-
 .client-row-more--open {
   z-index: 61;
 }
 
 .client-row-more__menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 62;
+  z-index: 1300;
   min-width: 220px;
   padding: 6px;
   border-radius: var(--radius-md);
@@ -6867,6 +6856,13 @@ tr:last-child td {
   flex-direction: column;
   gap: 4px;
   animation: fade-in-up 0.2s var(--ease-out) both;
+}
+
+/* Portal на body: не режется overflow у .table-wrap / списка клиентов */
+.client-row-more__menu--portal {
+  position: fixed;
+  right: auto;
+  margin: 0;
 }
 
 .client-row-more__item {
