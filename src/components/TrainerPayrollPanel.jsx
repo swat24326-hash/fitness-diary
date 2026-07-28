@@ -7,8 +7,7 @@ import {
   formatDateRu,
   todayLocalIso,
 } from '../lib/dateRu.js'
-import { loadTrainerJournalFiltered } from '../lib/trainer/trainerJournalService.js'
-import { computeTrainerSelfPayroll } from '../lib/trainer/trainerSelfPayroll.js'
+import { loadTrainerSelfPayrollAmounts } from '../lib/trainer/trainerSelfPayrollService.js'
 import '../styles/trainer-payroll.css'
 
 const MONTH_NAMES = [
@@ -66,6 +65,7 @@ export function TrainerPayrollPanel({ trainerId, clubId, membershipTypes, member
   const [monthPay, setMonthPay] = useState(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [fallbackReason, setFallbackReason] = useState(null)
   const [reloadKey, setReloadKey] = useState(0)
 
   const monthRange = useMemo(
@@ -77,12 +77,6 @@ export function TrainerPayrollPanel({ trainerId, clubId, membershipTypes, member
     () => monthLabelRu(selectedMonth.year, selectedMonth.month),
     [selectedMonth.year, selectedMonth.month],
   )
-
-  const loadRange = useMemo(() => {
-    const from = selectedDay < monthRange.start ? selectedDay : monthRange.start
-    const to = selectedDay > monthRange.end ? selectedDay : monthRange.end
-    return { start: from, end: to }
-  }, [selectedDay, monthRange.start, monthRange.end])
 
   const atCurrentMonth = useMemo(
     () =>
@@ -109,43 +103,29 @@ export function TrainerPayrollPanel({ trainerId, clubId, membershipTypes, member
     let cancelled = false
     setBusy(true)
     setError('')
+    setFallbackReason(null)
 
     void (async () => {
       try {
-        const journal = await loadTrainerJournalFiltered({
+        const res = await loadTrainerSelfPayrollAmounts({
           trainerId,
           clubId,
-          dateFrom: loadRange.start,
-          dateTo: loadRange.end,
+          dayIso: selectedDay,
+          monthFrom: monthRange.start,
+          monthTo: monthRange.end,
+          membershipTypes: membershipTypes ?? [],
+          membershipsLocal: memberships ?? [],
         })
         if (cancelled) return
-
-        const ctx = {
-          trainings: journal.trainings ?? [],
-          memberships: memberships ?? [],
-          membershipTypes: membershipTypes ?? [],
-          trainerId,
-        }
-
-        setDayPay(
-          computeTrainerSelfPayroll({
-            ...ctx,
-            dateFrom: selectedDay,
-            dateTo: selectedDay,
-          }),
-        )
-        setMonthPay(
-          computeTrainerSelfPayroll({
-            ...ctx,
-            dateFrom: monthRange.start,
-            dateTo: monthRange.end,
-          }),
-        )
+        setDayPay(res.dayPay)
+        setMonthPay(res.monthPay)
+        setFallbackReason(res.fallbackReason ?? null)
       } catch (e) {
         if (!cancelled) {
           setError(e?.message ?? 'Ошибка расчёта')
           setDayPay(0)
           setMonthPay(0)
+          setFallbackReason(null)
         }
       } finally {
         if (!cancelled) setBusy(false)
@@ -163,8 +143,6 @@ export function TrainerPayrollPanel({ trainerId, clubId, membershipTypes, member
     selectedDay,
     monthRange.start,
     monthRange.end,
-    loadRange.start,
-    loadRange.end,
     reloadKey,
   ])
 
@@ -194,10 +172,16 @@ export function TrainerPayrollPanel({ trainerId, clubId, membershipTypes, member
             Моя зарплата
           </h2>
           <p className="trainer-payroll__note" style={{ margin: '0.35rem 0 0' }}>
-            По вашим завершённым тренировкам × ставки типов карт.
+            По вашим завершённым тренировкам × ставки типов карт (при сети — из облака).
           </p>
         </div>
       </div>
+
+      {fallbackReason ? (
+        <p className="muted admin-inline-note" style={{ marginBottom: 12 }}>
+          Резерв: локальный кэш. Причина: {fallbackReason}
+        </p>
+      ) : null}
 
       {!clubId ? (
         <p className="muted" style={{ margin: '0 0 1rem', fontSize: 13 }}>

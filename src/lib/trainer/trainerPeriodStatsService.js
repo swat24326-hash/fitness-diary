@@ -1,9 +1,16 @@
+import { withSupabaseRetry } from '../supabaseRetry'
 import { clearTrainerWorkspaceSnapshotSync, loadTrainerWorkspaceSnapshot } from '../trainerWorkspaceCache'
 import { buildScopePeriodStats } from '../periodStats/buildScopePeriodStats'
 import { previousEqualPeriod } from '../admin/coachQualityBriefCore.js'
 import { isSupabaseConfigured, supabase } from '../supabase'
 import { isAppOnline } from '../syncService'
-import { withSupabaseRetry } from '../supabaseRetry'
+import { mergeLocalAndRemoteTrainings } from './trainerRemoteMerge.js'
+
+export { mergeLocalAndRemoteTrainings } from './trainerRemoteMerge.js'
+
+/** Колонки trainings на проде (без membership_id/updated_at — их нет в таблице). */
+export const TRAINER_TRAININGS_REMOTE_SELECT =
+  'id, trainer_id, client_id, club_id, date, status, data'
 
 const REMOTE_PAGE = 500
 const REMOTE_MAX = 8000
@@ -32,9 +39,7 @@ export async function fetchTrainerTrainingsRemoteInRange(trainerId, dateFrom, da
     const { data, error } = await withSupabaseRetry(() =>
       supabase
         .from('trainings')
-        // Как в clubStatsFetch: membership_id/updated_at на проде в trainings нет
-        // (иначе PostgREST → fallback на локальный кэш и обрезанные цифры).
-        .select('id, trainer_id, client_id, club_id, date, status, data')
+        .select(TRAINER_TRAININGS_REMOTE_SELECT)
         .eq('trainer_id', tid)
         .gte('date', from)
         .lte('date', to)
@@ -98,14 +103,7 @@ export async function loadTrainerPeriodStats(p) {
       const fetchFrom = prev?.dateFrom ?? dateFrom
       const remote = await fetchTrainerTrainingsRemoteInRange(trainerId, fetchFrom, dateTo)
       if (remote.length > 0) {
-        const remoteIds = new Set(remote.map((t) => String(t.id)))
-        const keepLocal = (localTrainings ?? []).filter((t) => {
-          const id = String(t?.id ?? '')
-          if (remoteIds.has(id)) return false
-          const d = String(t?.date ?? '').slice(0, 10)
-          return !d || d < fetchFrom || d > dateTo
-        })
-        trainings = [...keepLocal, ...remote]
+        trainings = mergeLocalAndRemoteTrainings(localTrainings, remote, fetchFrom, dateTo)
         source = 'remote'
       }
     } catch (e) {
