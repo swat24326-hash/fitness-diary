@@ -51,21 +51,36 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0;
-  min-width: 44px;
+  gap: 1px;
+  min-width: 48px;
   min-height: 44px;
-  padding: 4px 10px;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--accent, #2effb8) 40%, transparent);
-  background: color-mix(in srgb, var(--accent, #2effb8) 12%, rgba(0, 0, 0, 0.35));
+  padding: 5px 11px 6px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent, #2effb8) 45%, transparent);
+  background:
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--accent, #2effb8) 22%, rgba(0, 0, 0, 0.2)),
+      color-mix(in srgb, var(--accent, #2effb8) 8%, rgba(0, 0, 0, 0.45))
+    );
   color: var(--text, #f2f5fa);
   cursor: pointer;
   --hr-beat: 0.85s;
+  --hr-tint: var(--accent, #2effb8);
   line-height: 1.05;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 12%, transparent),
+    0 0 0 0 color-mix(in srgb, var(--hr-tint) 0%, transparent);
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.2s ease;
 }
 
 .app-header__hr-chip:hover {
-  border-color: color-mix(in srgb, var(--accent, #2effb8) 70%, transparent);
+  border-color: color-mix(in srgb, var(--hr-tint) 75%, transparent);
+}
+
+.app-header__hr-chip--beating {
+  animation: app-header-hr-chip-glow var(--hr-beat) ease-out infinite;
 }
 
 .app-header__hr-chip--on-workout {
@@ -73,31 +88,83 @@
 }
 
 .app-header__hr-chip--stale {
-  opacity: 0.55;
+  opacity: 0.6;
 }
 
-.app-header__hr-chip--stale .app-header__hr-ring {
+.app-header__hr-chip--stale .app-header__hr-heart,
+.app-header__hr-chip--stale .app-header__hr-glow {
   animation-play-state: paused;
-  opacity: 0.15;
 }
 
 .app-header__hr-chip--zone-easy {
+  --hr-tint: #3dd68c;
   border-color: color-mix(in srgb, #3dd68c 55%, transparent);
-  background: color-mix(in srgb, #3dd68c 14%, rgba(0, 0, 0, 0.35));
+  background:
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, #3dd68c 22%, rgba(0, 0, 0, 0.2)),
+      color-mix(in srgb, #3dd68c 8%, rgba(0, 0, 0, 0.45))
+    );
 }
 
 .app-header__hr-chip--zone-mid {
+  --hr-tint: #f0b429;
   border-color: color-mix(in srgb, #f0b429 55%, transparent);
-  background: color-mix(in srgb, #f0b429 14%, rgba(0, 0, 0, 0.35));
+  background:
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, #f0b429 22%, rgba(0, 0, 0, 0.2)),
+      color-mix(in srgb, #f0b429 8%, rgba(0, 0, 0, 0.45))
+    );
 }
 
 .app-header__hr-chip--zone-hard {
+  --hr-tint: #f07167;
   border-color: color-mix(in srgb, #f07167 55%, transparent);
-  background: color-mix(in srgb, #f07167 14%, rgba(0, 0, 0, 0.35));
+  background:
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, #f07167 22%, rgba(0, 0, 0, 0.2)),
+      color-mix(in srgb, #f07167 8%, rgba(0, 0, 0, 0.45))
+    );
 }
 
 .app-header__hr-chip--lost {
   border-style: dashed;
+}
+
+.app-header__hr-glow {
+  position: absolute;
+  inset: -20%;
+  background: radial-gradient(
+    circle at 50% 40%,
+    color-mix(in srgb, var(--hr-tint) 28%, transparent),
+    transparent 62%
+  );
+  opacity: 0.35;
+  pointer-events: none;
+  animation: app-header-hr-glow-breathe var(--hr-beat) ease-out infinite;
+}
+
+.app-header__hr-row {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.app-header__hr-heart {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  color: var(--hr-tint);
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--hr-tint) 55%, transparent));
+  transform-origin: center;
+}
+
+.app-header__hr-chip--beating .app-header__hr-heart {
+  animation: app-header-hr-heart-beat var(--hr-beat) ease-in-out infinite;
 }
 
 .app-header__hr-again {
@@ -107,27 +174,17 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--accent, #2effb8) 90%, #fff);
-}
-
-.app-header__hr-ring {
-  position: absolute;
-  inset: 3px;
-  border-radius: 10px;
-  border: 1px solid color-mix(in srgb, var(--accent, #2effb8) 45%, transparent);
-  opacity: 0.35;
-  pointer-events: none;
-  animation: app-header-hr-pulse var(--hr-beat) ease-out infinite;
+  color: color-mix(in srgb, var(--hr-tint) 90%, #fff);
 }
 
 .app-header__hr-name {
   position: relative;
   z-index: 1;
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  font-size: 0.58rem;
+  font-weight: 650;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--accent, #2effb8) 90%, #fff);
+  color: color-mix(in srgb, var(--hr-tint) 88%, #fff);
   max-width: 4.8rem;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -137,10 +194,11 @@
 .app-header__hr-bpm {
   position: relative;
   z-index: 1;
-  font-size: 1.05rem;
-  font-weight: 700;
+  font-size: 1.08rem;
+  font-weight: 750;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
+  color: #f7fafc;
 }
 
 .app-header__hr-err {
@@ -158,18 +216,58 @@
   white-space: nowrap;
 }
 
-@keyframes app-header-hr-pulse {
-  0% {
-    transform: scale(0.96);
-    opacity: 0.4;
-  }
-  50% {
-    transform: scale(1.04);
-    opacity: 0.12;
-  }
+/* Двойной удар сердца (lub-dub) в ритме BPM */
+@keyframes app-header-hr-heart-beat {
+  0%,
   100% {
+    transform: scale(1);
+  }
+  12% {
+    transform: scale(1.22);
+  }
+  24% {
+    transform: scale(1);
+  }
+  36% {
+    transform: scale(1.14);
+  }
+  48% {
+    transform: scale(1);
+  }
+}
+
+@keyframes app-header-hr-glow-breathe {
+  0%,
+  100% {
+    opacity: 0.22;
     transform: scale(0.96);
-    opacity: 0.4;
+  }
+  18% {
+    opacity: 0.55;
+    transform: scale(1.04);
+  }
+  40% {
+    opacity: 0.28;
+    transform: scale(1);
+  }
+}
+
+@keyframes app-header-hr-chip-glow {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, #fff 12%, transparent),
+      0 0 0 0 color-mix(in srgb, var(--hr-tint) 0%, transparent);
+  }
+  18% {
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, #fff 14%, transparent),
+      0 0 10px 0 color-mix(in srgb, var(--hr-tint) 35%, transparent);
+  }
+  40% {
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, #fff 12%, transparent),
+      0 0 4px 0 color-mix(in srgb, var(--hr-tint) 18%, transparent);
   }
 }
 
@@ -185,78 +283,154 @@
 
 /* Сводка пульса на «Итоге» */
 .training-hr-summary {
+  position: relative;
   margin: 12px 0 16px;
-  padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
+  padding: 14px 16px 16px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent, #2effb8) 28%, transparent);
+  background:
+    linear-gradient(
+      155deg,
+      color-mix(in srgb, var(--accent, #2effb8) 14%, rgba(0, 0, 0, 0.25)),
+      color-mix(in srgb, #0b1210 88%, rgba(0, 0, 0, 0.55))
+    );
+  overflow: hidden;
+  --hr-summary-beat: 0.9s;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, #fff 10%, transparent),
+    0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.training-hr-summary__glow {
+  position: absolute;
+  inset: -30% auto auto -10%;
+  width: 70%;
+  height: 70%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--accent, #2effb8) 22%, transparent),
+    transparent 68%
+  );
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.training-hr-summary__head {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.training-hr-summary__heart-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent, #2effb8) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent, #2effb8) 35%, transparent);
+}
+
+.training-hr-summary__heart {
+  color: var(--accent, #2effb8);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent, #2effb8) 50%, transparent));
+  animation: training-hr-summary-heart var(--hr-summary-beat) ease-in-out infinite;
+  transform-origin: center;
 }
 
 .training-hr-summary__title {
-  margin: 0 0 10px;
-  font-size: 0.95rem;
-  font-weight: 650;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .training-hr-summary__stats {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
 }
 
 .training-hr-summary__stat {
   display: flex;
   flex-direction: column;
-  min-width: 3.5rem;
-  padding: 6px 10px;
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.22);
+  min-width: 3.6rem;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, #000 35%, transparent);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.training-hr-summary__stat--avg {
+  border-color: color-mix(in srgb, var(--accent, #2effb8) 40%, transparent);
+  background: color-mix(in srgb, var(--accent, #2effb8) 12%, rgba(0, 0, 0, 0.35));
+}
+
+.training-hr-summary__stat--avg .training-hr-summary__v {
+  color: color-mix(in srgb, var(--accent, #2effb8) 70%, #fff);
 }
 
 .training-hr-summary__k {
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   color: var(--muted, #9aa3b2);
 }
 
 .training-hr-summary__v {
-  font-size: 1.15rem;
-  font-weight: 700;
+  font-size: 1.2rem;
+  font-weight: 750;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
 
 .training-hr-summary__zones {
+  position: relative;
+  z-index: 1;
   display: grid;
-  gap: 6px;
-  margin-top: 12px;
+  gap: 7px;
+  margin-top: 14px;
 }
 
 .training-hr-summary__zone {
   position: relative;
-  height: 28px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.06);
+  height: 30px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   overflow: hidden;
 }
 
 .training-hr-summary__zone-bar {
   position: absolute;
   inset: 0 auto 0 0;
+  width: var(--zone-pct, 0%);
   max-width: 100%;
-  opacity: 0.45;
+  opacity: 0.55;
+  transform-origin: left center;
+  animation: training-hr-summary-bar 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .training-hr-summary__zone--easy .training-hr-summary__zone-bar {
-  background: #3dd68c;
+  background: linear-gradient(90deg, #2bb673, #3dd68c);
+  animation-delay: 0.05s;
 }
 
 .training-hr-summary__zone--mid .training-hr-summary__zone-bar {
-  background: #f0b429;
+  background: linear-gradient(90deg, #d49a1a, #f0b429);
+  animation-delay: 0.12s;
 }
 
 .training-hr-summary__zone--hard .training-hr-summary__zone-bar {
-  background: #f07167;
+  background: linear-gradient(90deg, #d45a52, #f07167);
+  animation-delay: 0.2s;
 }
 
 .training-hr-summary__zone-label {
@@ -265,15 +439,31 @@
   display: flex;
   align-items: center;
   height: 100%;
-  padding: 0 10px;
+  padding: 0 12px;
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 650;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
 }
 
 .training-hr-summary__kcal {
-  margin: 12px 0 0;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding: 8px 10px;
+  border-radius: 12px;
   font-size: 1.05rem;
-  font-weight: 650;
+  font-weight: 700;
+  background: color-mix(in srgb, #f0b429 10%, rgba(0, 0, 0, 0.25));
+  border: 1px solid color-mix(in srgb, #f0b429 28%, transparent);
+}
+
+.training-hr-summary__kcal-icon {
+  flex-shrink: 0;
+  color: #f0b429;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, #f0b429 45%, transparent));
 }
 
 .training-hr-summary__kcal-note {
@@ -283,6 +473,39 @@
 }
 
 .training-hr-summary__hint {
-  margin: 10px 0 0;
+  position: relative;
+  z-index: 1;
+  margin: 12px 0 0;
   font-size: 0.8rem;
 }
+
+@keyframes training-hr-summary-heart {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  14% {
+    transform: scale(1.16);
+  }
+  28% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.1);
+  }
+  54% {
+    transform: scale(1);
+  }
+}
+
+@keyframes training-hr-summary-bar {
+  from {
+    transform: scaleX(0);
+    opacity: 0.2;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 0.55;
+  }
+}
+

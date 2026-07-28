@@ -1,8 +1,9 @@
+import { Heart } from 'lucide-react'
 import { useHeartRateSessions } from '../context/HeartRateSessionsContext'
 import { hrChipZoneClass } from '../lib/hr/hrSessionsCore'
 
 /**
- * Чипы пульса в общей шапке: 1 = BPM; 2 live = фамилия+BPM.
+ * Чипы пульса в общей шапке: сердце + BPM; 2 live = фамилия сверху.
  * lost/stale → тап = подключить снова; live → тап = отключить.
  */
 export function HeaderHeartRate() {
@@ -25,12 +26,10 @@ export function HeaderHeartRate() {
     <div className="app-header__hr" role="status" aria-live="polite">
       {visible.map((slot) => {
         const lost = slot.status === 'lost' || (slot.status === 'live' && slot.stale)
+        const liveBeat = slot.status === 'live' && !slot.stale && slot.bpm != null && slot.bpm > 0
         const bpmText =
           slot.bpm != null ? String(slot.bpm) : slot.status === 'connecting' ? '…' : '—'
-        const pulseSec =
-          slot.status === 'live' && !slot.stale && slot.bpm != null && slot.bpm > 0
-            ? Math.max(0.35, Math.min(1.4, 60 / slot.bpm))
-            : 1
+        const pulseSec = liveBeat ? Math.max(0.4, Math.min(1.35, 60 / slot.bpm)) : 1
         const name = surname(slot.clientName)
         const zoneClass = hrChipZoneClass(slot.zone)
         const title = lost
@@ -44,6 +43,7 @@ export function HeaderHeartRate() {
             className={[
               'app-header__hr-chip',
               zoneClass,
+              liveBeat ? 'app-header__hr-chip--beating' : '',
               lost ? 'app-header__hr-chip--stale' : '',
               slot.status === 'connecting' ? 'app-header__hr-chip--connecting' : '',
               lost ? 'app-header__hr-chip--lost' : '',
@@ -79,9 +79,20 @@ export function HeaderHeartRate() {
                   : `Пульс ${bpmText}. Отключить`
             }
           >
-            <span className="app-header__hr-ring" aria-hidden />
+            <span className="app-header__hr-glow" aria-hidden />
             {showNames ? <span className="app-header__hr-name">{name}</span> : null}
-            <span className="app-header__hr-bpm">{lost && slot.bpm == null ? '!' : bpmText}</span>
+            <span className="app-header__hr-row">
+              <Heart
+                className="app-header__hr-heart"
+                size={14}
+                strokeWidth={2.25}
+                aria-hidden
+                fill="currentColor"
+              />
+              <span className="app-header__hr-bpm">
+                {lost && slot.bpm == null ? '!' : bpmText}
+              </span>
+            </span>
             {lost ? <span className="app-header__hr-again">Снова</span> : null}
           </button>
         )
