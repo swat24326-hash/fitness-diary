@@ -6,6 +6,7 @@ import { buildScopePeriodStats } from '../periodStats/buildScopePeriodStats'
 import { previousEqualPeriod } from '../admin/coachQualityBriefCore.js'
 import { mergeLocalAndRemoteTrainings } from './trainerRemoteMerge.js'
 import { todayLocalIso } from '../dateRu.js'
+import { buildCoachQualityForScope } from '../admin/coachQualityService.js'
 import { fetchTrainerSelfStatsViaApi } from './trainerSelfStatsApi.js'
 import {
   readTrainerSelfStatsLastGood,
@@ -13,6 +14,78 @@ import {
 } from './trainerSelfStatsLastGood.js'
 
 export { mergeLocalAndRemoteTrainings } from './trainerRemoteMerge.js'
+
+function flattenMemByClient(memByClient) {
+  const out = []
+  for (const list of Object.values(memByClient ?? {})) {
+    if (Array.isArray(list)) out.push(...list)
+  }
+  return out
+}
+
+/**
+ * API trainer-self-stats не считает CQ (тяжело / care inputs).
+ * Добираем с планшета из IDB — те же правила, что в buildScopePeriodStats.
+ */
+async function attachCoachQualityIfMissing(period, { trainerId, clubId, dateFrom, dateTo }) {
+  if (period?.coachQuality?.trainers?.length) return period
+  try {
+    const { clients, trainings, memByClient } = await loadTrainerWorkspaceSnapshot(
+      trainerId,
+      clubId || null,
+    )
+    const memberships = flattenMemByClient(memByClient)
+    const prev = previousEqualPeriod(dateFrom, dateTo)
+    const inRange = (trainings ?? []).filter((t) => {
+      const d = String(t?.date ?? '').slice(0, 10)
+      return d && d >= dateFrom && d <= dateTo
+    })
+    const previousTrainings = prev
+      ? (trainings ?? []).filter((t) => {
+          const d = String(t?.date ?? '').slice(0, 10)
+          return d && d >= prev.dateFrom && d <= prev.dateTo
+        })
+      : []
+    // Мало локальных тренировок — подтянем облако только для CQ (лёгкий select уже в remote fetch)
+    let trainingsForCq = inRange
+    let prevForCq = previousTrainings
+    if (inRange.length < 3 && isSupabaseConfigured() && isAppOnline()) {
+      try {
+        const fetchFrom = prev?.dateFrom ?? dateFrom
+        const remote = await fetchTrainerTrainingsRemoteInRange(trainerId, fetchFrom, dateTo)
+        if (remote.rows.length > 0) {
+          const merged = mergeLocalAndRemoteTrainings(trainings, remote.rows, fetchFrom, dateTo)
+          trainingsForCq = merged.filter((t) => {
+            const d = String(t?.date ?? '').slice(0, 10)
+            return d && d >= dateFrom && d <= dateTo
+          })
+          prevForCq = prev
+            ? merged.filter((t) => {
+                const d = String(t?.date ?? '').slice(0, 10)
+                return d && d >= prev.dateFrom && d <= prev.dateTo
+              })
+            : []
+        }
+      } catch (e) {
+        console.warn('[trainer-stats] coachQuality remote', e)
+      }
+    }
+    const coachQuality = await buildCoachQualityForScope({
+      clients,
+      trainings: trainingsForCq,
+      memberships,
+      clubId,
+      dateFrom,
+      dateTo,
+      trainerIdFilter: trainerId,
+      previousTrainings: prevForCq,
+    })
+    return { ...period, coachQuality }
+  } catch (e) {
+    console.warn('[trainer-stats] coachQuality attach', e)
+    return period
+  }
+}
 
 /** Колонки trainings на проде (без membership_id/updated_at — их нет в таблице). */
 export const TRAINER_TRAININGS_REMOTE_SELECT =
@@ -139,12 +212,16 @@ export async function loadTrainerPeriodStats(p) {
       })
       if (api?.period && typeof api.period.totalCompleted === 'number') {
         writeTrainerSelfStatsLastGood(trainerId, dateFrom, dateTo, dayIso, api)
-        return {
-          ...api.period,
-          source: 'api',
-          fallbackReason: null,
-          error: null,
-        }
+        const withCq = await attachCoachQualityIfMissing(
+          {
+            ...api.period,
+            source: 'api',
+            fallbackReason: null,
+            error: null,
+          },
+          { trainerId, clubId, dateFrom, dateTo },
+        )
+        return withCq
       }
       throw new Error('Пустой ответ статистики')
     } catch (e) {
@@ -154,12 +231,15 @@ export async function loadTrainerPeriodStats(p) {
       const lastGood = readTrainerSelfStatsLastGood(trainerId, dateFrom, dateTo, dayIso)
       const reason = e?.message ? String(e.message).slice(0, 160) : 'api_failed'
       if (lastGood?.period && typeof lastGood.period.totalCompleted === 'number') {
-        return {
-          ...lastGood.period,
-          source: 'last_good',
-          fallbackReason: reason,
-          error: null,
-        }
+        return await attachCoachQualityIfMissing(
+          {
+            ...lastGood.period,
+            source: 'last_good',
+            fallbackReason: reason,
+            error: null,
+          },
+          { trainerId, clubId, dateFrom, dateTo },
+        )
       }
       apiFailReason = reason
     }
