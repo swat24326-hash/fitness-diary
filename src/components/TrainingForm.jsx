@@ -21,6 +21,11 @@ import {
   supersetRailRole,
   toggleSupersetWithPrevious,
 } from '../lib/trainingSuperset'
+import { TrainingHrSessionSummary } from './trainer/TrainingHrSessionSummary.jsx'
+import {
+  rememberTrainingFormStep,
+  resolveTrainingFormStep,
+} from '../lib/trainingFormStepMemory'
 
 function newEmptyExerciseRow(format = 'Силовая') {
   return {
@@ -86,8 +91,11 @@ export function TrainingForm({
   trainingType = 'Силовая',
   clientId = '',
   currentTrainingId = null,
+  hrSessionSummary = null,
 }) {
-  const [step, setStep] = useState(0)
+  const [step, setStep] = useState(() =>
+    resolveTrainingFormStep({ trainingId: currentTrainingId, exercises: value?.exercises }),
+  )
   const [focusExerciseIdx, setFocusExerciseIdx] = useState(null)
   const [pickExerciseIdx, setPickExerciseIdx] = useState(null)
   const [pickSearch, setPickSearch] = useState('')
@@ -279,6 +287,10 @@ export function TrainingForm({
     setPickExerciseIdx(null)
     setSuggestOpenId(null)
   }, [step])
+
+  useEffect(() => {
+    rememberTrainingFormStep(currentTrainingId, step)
+  }, [currentTrainingId, step])
 
   return (
     <div className="steps">
@@ -695,6 +707,7 @@ export function TrainingForm({
         <section className="card">
           <h3 style={{ marginTop: 0 }}>Итог</h3>
           <p className="muted">Ключевые упражнения: {summaryText}</p>
+          <TrainingHrSessionSummary summary={hrSessionSummary ?? value?.hr_session} />
           <div className="field">
             <span className="label">Оценка (1–5 звёзд)</span>
             <div className="row" style={{ flexWrap: 'wrap', justifyContent: 'flex-start', gap: 8 }}>

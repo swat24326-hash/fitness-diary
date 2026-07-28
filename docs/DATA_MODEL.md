@@ -12,7 +12,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | `meta` | key (string) | Флаги, служебное |
 | `clients` | `id` | индексы `club_id`, `trainer_id`; поля ПНК / архив |
 | `memberships` | `id` | `client_id`, `club_id`; «активность» — в коде, не слепо по `status` |
-| `trainings` | `id` | `draft` \| `completed`; `data` JSON формы |
+| `trainings` | `id` | `draft` \| `completed`; `data` JSON формы (в т.ч. опционально `hr_session` — сводка пульса BLE, см. [TRAINING_HR.md](./TRAINING_HR.md)) |
 | `exercises` | `id` | Справочник |
 | `body_measurements` | `id` | обмеры |
 | `health_cards` | **`client_id`** | Не путать с `id` строки в Postgres |
@@ -38,7 +38,7 @@ Postgres (не IDB): **`club_sms_log`** — облачный журнал SMS к
 |----------|--------|
 | **clients** | Тренер, клуб, контакты, флаги архива, поля жизненного цикла **ПНК** |
 | **memberships** | Период, лимит тренировок, тип карты; списание при завершении тренировки; удаление с карточки клиента только без связанных тренировок (иначе — сначала удалить их в списке абонемента) |
-| **trainings** | Дата, тип, статус, JSON `data` из `TrainingForm` |
+| **trainings** | Дата, тип, статус, JSON `data` из `TrainingForm` (упражнения, вес, опционально снимок `hr_session`) |
 | **health_cards** | Рост, вес, цель (`goal`), тексты медкарты |
 | **body_measurements** | Поля из `BODY_MEASURE_FIELDS` (+ legacy-имена в читалке) |
 | **Продажи** | Daily / plan / finance в Postgres; UI `/sales`, `/admin/sales` — через API, не IDB-очередь |

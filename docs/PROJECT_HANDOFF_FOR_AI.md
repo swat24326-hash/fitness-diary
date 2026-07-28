@@ -59,7 +59,7 @@ src/
     admin/                — статистика, продажи, организация, ИСКРА-клиент
     pnk/                  — этапы ПНК, wizard, glance, visit quality (*Core.js)
     trainer/              — статистика тренера, pull-хелперы
-    hr/                   — BLE пульс в шапке занятия (см. docs/TRAINING_HR.md)
+    hr/                   — BLE пульс в общей шапке, до 2 слотов (см. docs/TRAINING_HR.md)
   pages/
     admin/                — дашборд, клиенты, статистика, sales, ИСКРА, челленджи
     trainer/              — home, clients, ClientCard, TrainingPage, profile

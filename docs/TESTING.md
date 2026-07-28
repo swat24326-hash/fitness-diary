@@ -43,6 +43,8 @@
 | ПНК мастер / KPI | целевые `verify-pnk-*.mjs` |
 | Качество ведения тренера | `verify-coach-quality.mjs` (TECH + COACH + MANAGER сценарии) |
 | Пульс BLE (парсер + память датчика) | `verify-ble-heart-rate.mjs` |
+| Сводка пульса сессии (зоны, ккал) | `verify-hr-session-agg.mjs` |
+| Шаг формы при сплите черновиков | `verify-training-form-step-memory.mjs` |
 | Главная: ряд внимания / soft signals | `verify-admin-home-attention.mjs` |
 | Push абонементов (даты NOT NULL) | `verify-membership-push-payload.mjs` |
 | Удаление абонемента (тексты confirm) | `verify-membership-delete.mjs` |

@@ -20,7 +20,7 @@ import { AdminClubTasks } from './pages/admin/AdminClubTasks'
 import { SalesClubTasks } from './pages/admin/SalesClubTasks'
 import { SalesPnk } from './pages/admin/SalesPnk'
 import { IskraPanelProvider } from './context/IskraPanelContext'
-import { HeartRateFocusProvider } from './context/HeartRateFocusContext'
+import { HeartRateSessionsProvider } from './context/HeartRateSessionsContext'
 import { Login } from './pages/Login'
 import { ClientCard } from './pages/trainer/ClientCard'
 import { TrainerHome } from './pages/trainer/TrainerHome'
@@ -75,7 +75,7 @@ function LoggedInLayout() {
 
   return (
     <div className={`app-shell app-shell--${shellRole}`}>
-      <HeartRateFocusProvider>
+      <HeartRateSessionsProvider>
         <IskraPanelProvider>
           <AppHeader />
           {role === 'trainer' ? <DraftTabsBar /> : null}
@@ -86,7 +86,7 @@ function LoggedInLayout() {
             </AppErrorBoundary>
           </main>
         </IskraPanelProvider>
-      </HeartRateFocusProvider>
+      </HeartRateSessionsProvider>
     </div>
   )
 }

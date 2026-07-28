@@ -17,6 +17,7 @@ import {
 } from '../lib/dataAccess'
 import { DEMO_CLUB_ID } from '../lib/seedDemo'
 import { HeaderStopwatch } from './HeaderStopwatch'
+import { HeaderHeartRate } from './HeaderHeartRate'
 import { AppErrorJournalModal } from './AppErrorJournalModal'
 import { useIskraPanel } from '../context/IskraPanelContext.jsx'
 import { useHeaderSync } from './useHeaderSync'
@@ -517,6 +518,7 @@ export function AppHeader() {
             <IskraOrb state="idle" size={26} className="app-header__vasya-orb" />
           </button>
         ) : null}
+        {!isAdmin && !isSalesManager && user ? <HeaderHeartRate /> : null}
         {!isAdmin && !isSalesManager && user ? <HeaderStopwatch /> : null}
         {isDispatchInboxUser && supabaseReady ? (
           <button

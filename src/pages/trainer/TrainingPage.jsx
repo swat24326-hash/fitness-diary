@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Calendar, Info, Save, UserCircle } from 'lucide-react'
+import { Calendar, Activity, Bluetooth, Info, Save, UserCircle } from 'lucide-react'
 import { CloseButton } from '../../components/CloseButton'
 import { TrainingForm, emptyTrainingData } from '../../components/TrainingForm'
 import { ContraindicationsToggle } from '../../components/ContraindicationsToggle'
@@ -14,8 +14,7 @@ import {
   loadEarlyActivationProposal,
 } from '../../lib/trainer/earlyMembershipActivateService.js'
 import { EarlyMembershipActivateSheet } from '../../components/trainer/EarlyMembershipActivateSheet.jsx'
-import { TrainingHrFocusHat } from '../../components/trainer/TrainingHrFocusHat.jsx'
-import { useHeartRateSession } from '../../hooks/useHeartRateSession.js'
+import { useHeartRateSessions } from '../../context/HeartRateSessionsContext.jsx'
 import { saveLocalWithSync } from '../../lib/syncService'
 import { stripDirectionControls } from '../../lib/textInput'
 import { getTrainingCompletionIssues } from '../../lib/trainingCompletionValidation'
@@ -29,6 +28,14 @@ import { patchPnkClientLocal } from '../../lib/pnk/pnkLocalService'
 import { shouldOfferMarkPnkTrialDone } from '../../lib/pnk/pnkTrialTrainingCore'
 import { resolvePnkTrialDeliverableAfterWorkout } from '../../lib/pnk/pnkWizardCore'
 import { suggestTrainingPreWeightInput } from '../../lib/clientWeightCore'
+import { getHealthSex } from '../../lib/healthCardCore.js'
+import {
+  ageYearsFromBirthDate,
+  buildHrSessionSummary,
+  estimateMaxHr,
+  normalizeHrSessionSnapshot,
+} from '../../lib/hr/hrSessionAgg.js'
+import { hrConnectProfileHint } from '../../lib/hr/hrSessionsCore.js'
 
 const TRAINING_TYPES = TRAINING_SESSION_TYPES
 
@@ -37,7 +44,11 @@ function sanitizeWorkoutData(w, opts = {}) {
   const { pre_hr: _dropHr, meal_note: _mn, survey_notes: _sn, readiness: _rd, ...rest } = w
   const sessionFallback = normalizeExerciseFormat(opts.sessionFallback, 'Силовая')
   const exercises = normalizeExercisesForStorage(w.exercises, sessionFallback)
-  return { ...rest, exercises }
+  const hr_session = normalizeHrSessionSnapshot(rest.hr_session)
+  const next = { ...rest, exercises }
+  if (hr_session) next.hr_session = hr_session
+  else delete next.hr_session
+  return next
 }
 
 /** Активный абонемент: номер тренировки, всего, дней до end_date */
@@ -575,29 +586,70 @@ export function TrainingPage() {
 
   const canChangeDate = canEditTrainingDate(isAdmin, meta.status)
 
-  const hr = useHeartRateSession({ trainerUserId: user?.id })
-  const hrLive = hr.status === 'live'
+  const hr = useHeartRateSessions()
+  const clientKey = client?.id ?? clientIdParam ?? ''
+  const hrSlot = hr.slotForClient(clientKey)
+  const hrConnected = hrSlot?.status === 'live' || hrSlot?.status === 'connecting'
+  const hrLost = hrSlot?.status === 'lost'
+  const hrBusy = hrSlot?.status === 'connecting'
+  const hrMaxHr = useMemo(() => {
+    const age = ageYearsFromBirthDate(client?.birth_date, trainingDate || todayLocalIso())
+    return estimateMaxHr(age) ?? undefined
+  }, [client?.birth_date, trainingDate])
+  const hrProfileHint = useMemo(() => {
+    const weight = workoutState.pre_weight_kg || healthCard?.weight_kg || null
+    return hrConnectProfileHint({
+      birthDate: client?.birth_date,
+      sex: getHealthSex(healthCard),
+      weightKg: weight,
+    })
+  }, [client?.birth_date, healthCard, workoutState.pre_weight_kg])
   const membershipTileLabel = membershipSummary
     ? `${membershipSummary.current}/${membershipSummary.total}`
     : '—'
   const daysTileLabel =
     daysUntilMembershipEnd == null ? '—' : daysUntilMembershipEnd < 0 ? '0' : String(daysUntilMembershipEnd)
 
-  const weightInput = (
-    <>
-      <div className="training-tile__label">Вес</div>
-      <input
-        className="training-tile__input training-tile__input--accent"
-        type="number"
-        min={0}
-        step="0.1"
-        value={workoutState.pre_weight_kg ?? ''}
-        onChange={(e) => setWorkoutState((w) => ({ ...w, pre_weight_kg: e.target.value }))}
-        aria-label="Вес до тренировки, кг"
-        title="Если уже указан в карте здоровья — подставляется автоматически, можно поправить"
-      />
-    </>
-  )
+  const liveHrSummary = useMemo(() => {
+    if (!clientKey) return null
+    const samples = hr.getSessionSamples(clientKey)
+    if (!samples.length) return null
+    const weight = workoutState.pre_weight_kg || healthCard?.weight_kg || null
+    return buildHrSessionSummary(samples, {
+      birthDate: client?.birth_date,
+      sex: getHealthSex(healthCard),
+      weightKg: weight,
+      asOfIso: trainingDate || todayLocalIso(),
+    })
+  }, [
+    client?.birth_date,
+    clientKey,
+    healthCard,
+    hr.getSessionSamples,
+    hr.samplesEpoch,
+    trainingDate,
+    workoutState.pre_weight_kg,
+  ])
+
+  const displayHrSummary = liveHrSummary ?? normalizeHrSessionSnapshot(workoutState.hr_session)
+
+  useEffect(() => {
+    if (!liveHrSummary) return
+    setWorkoutState((w) => {
+      const prev = normalizeHrSessionSnapshot(w.hr_session)
+      if (
+        prev &&
+        prev.avg === liveHrSummary.avg &&
+        prev.max === liveHrSummary.max &&
+        prev.min === liveHrSummary.min &&
+        prev.samples_n === liveHrSummary.samples_n &&
+        prev.kcal_est === liveHrSummary.kcal_est
+      ) {
+        return w
+      }
+      return { ...w, hr_session: liveHrSummary }
+    })
+  }, [liveHrSummary])
 
   if (isNew && isAdmin) {
     return (
@@ -712,7 +764,90 @@ export function TrainingPage() {
           {contra ? <ContraindicationsToggle text={contra} size="sm" mode="modal" /> : null}
         </div>
         <div className="training-page-head-title__right">
-          {!hrLive ? <TrainingHrFocusHat hr={hr} idle /> : null}
+          {!isAdmin && clientKey ? (
+            <div className="training-hr-idle">
+              <button
+                type="button"
+                className={[
+                  'btn',
+                  'btn-secondary',
+                  'btn-icon-square',
+                  'btn-sm',
+                  'training-hr-idle__btn',
+                  hrLost ? 'training-hr-idle__btn--lost' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                disabled={hrBusy || !hr.supported}
+                onClick={() => {
+                  if (hrConnected) {
+                    hr.disconnectClient(clientKey)
+                    return
+                  }
+                  void hr.connectForClient({
+                    clientId: clientKey,
+                    clientName: client?.name ?? title,
+                    maxHr: hrMaxHr,
+                  })
+                }}
+                aria-label={
+                  hrConnected
+                    ? 'Отключить пульсометр этого клиента'
+                    : hrLost
+                      ? 'Подключить пульсометр снова'
+                      : 'Подключить пульсометр к этому клиенту'
+                }
+                title={
+                  !hr.supported
+                    ? 'Bluetooth-пульс доступен в Chrome на планшете'
+                    : hrConnected
+                      ? 'Отключить пульс (также можно нажать чип в шапке)'
+                      : hrLost
+                        ? 'Связь потеряна — подключить снова'
+                        : hrProfileHint
+                          ? `Пульс — привязать датчик. ${hrProfileHint}`
+                          : 'Пульс — привязать датчик к этому клиенту'
+                }
+              >
+                <Activity size={18} aria-hidden />
+              </button>
+              {hrConnected || hrLost ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-icon-square btn-sm"
+                  disabled={hrBusy}
+                  onClick={() =>
+                    void hr.pickOtherForClient({
+                      clientId: clientKey,
+                      clientName: client?.name ?? title,
+                      maxHr: hrMaxHr,
+                    })
+                  }
+                  aria-label="Другой датчик"
+                  title="Другой датчик"
+                >
+                  <Bluetooth size={16} aria-hidden />
+                </button>
+              ) : null}
+              {hrLost ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-icon-square btn-sm"
+                  disabled={hrBusy}
+                  onClick={() => hr.disconnectClient(clientKey)}
+                  aria-label="Убрать слот пульса"
+                  title="Убрать чип без подключения"
+                >
+                  ×
+                </button>
+              ) : null}
+              {hrProfileHint && !hrConnected ? (
+                <span className="training-hr-idle__hint" title={hrProfileHint}>
+                  сводка неполная
+                </span>
+              ) : null}
+            </div>
+          ) : null}
           {clientCardTrainingsHref ? (
             <Link
               to={clientCardTrainingsHref}
@@ -729,14 +864,6 @@ export function TrainingPage() {
       <div className="card">
         <div className="training-head">
           <div className="training-head__top">
-            {hrLive ? (
-              <TrainingHrFocusHat
-                hr={hr}
-                membershipLabel={membershipTileLabel}
-                daysLabel={daysTileLabel}
-                weightSlot={weightInput}
-              />
-            ) : (
             <div className="training-tiles" role="group" aria-label="Параметры тренировки">
               <div className="training-tile training-tile--date training-tile--clickable" aria-label="Дата тренировки">
                 <div className="training-tile__label">Дата</div>
@@ -784,10 +911,19 @@ export function TrainingPage() {
               </div>
 
               <div className="training-tile training-tile--accent" aria-label="Вес до тренировки">
-                {weightInput}
+                <div className="training-tile__label">Вес</div>
+                <input
+                  className="training-tile__input training-tile__input--accent"
+                  type="number"
+                  min={0}
+                  step="0.1"
+                  value={workoutState.pre_weight_kg ?? ''}
+                  onChange={(e) => setWorkoutState((w) => ({ ...w, pre_weight_kg: e.target.value }))}
+                  aria-label="Вес до тренировки, кг"
+                  title="Если уже указан в карте здоровья — подставляется автоматически, можно поправить"
+                />
               </div>
             </div>
-            )}
           </div>
         </div>
 
@@ -814,6 +950,7 @@ export function TrainingPage() {
         trainingType={trainingType}
         clientId={client?.id ?? clientIdParam ?? ''}
         currentTrainingId={meta.trainingId}
+        hrSessionSummary={displayHrSummary}
       />
 
       {saveError ? (

@@ -75,7 +75,7 @@ export function canRememberBluetoothDevices() {
 }
 
 /**
- * @param {{ optionalServices?: string[] }} [opts]
+ * @param {{ optionalServices?: string[], acceptAll?: boolean }} [opts]
  * @returns {Promise<BluetoothDevice>}
  */
 export async function requestHeartRateDevice(opts = {}) {
@@ -84,10 +84,34 @@ export async function requestHeartRateDevice(opts = {}) {
     e.name = 'NotSupportedError'
     throw e
   }
+  const optionalServices = opts.optionalServices ?? [HR_SERVICE_UUID]
+  if (opts.acceptAll) {
+    return navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices,
+    })
+  }
   return navigator.bluetooth.requestDevice({
     filters: [{ services: [HR_SERVICE_UUID] }],
-    optionalServices: opts.optionalServices ?? [HR_SERVICE_UUID],
+    optionalServices,
   })
+}
+
+/**
+ * Сначала фильтр Heart Rate; если список пуст / отмена не помогла — общий список устройств.
+ * @param {{ optionalServices?: string[] }} [opts]
+ * @returns {Promise<BluetoothDevice>}
+ */
+export async function requestHeartRateDeviceWithFallback(opts = {}) {
+  try {
+    return await requestHeartRateDevice({ ...opts, acceptAll: false })
+  } catch (err) {
+    const name = err && typeof err === 'object' && 'name' in err ? String(err.name) : ''
+    // NotFoundError: нет устройств в фильтре или пользователь закрыл пикер.
+    // Пробуем полный список — иначе Cospo/аналоги без UUID в рекламе не видны.
+    if (name !== 'NotFoundError') throw err
+    return requestHeartRateDevice({ ...opts, acceptAll: true })
+  }
 }
 
 /**
