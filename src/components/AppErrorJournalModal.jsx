@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { DiagnosticsPanel } from './DiagnosticsPanel'
 
 export function AppErrorJournalModal({ open, onClose, onCleared, onCopyFeedback, context, onSyncNow, syncBusy, onSignOut }) {
@@ -12,8 +13,9 @@ export function AppErrorJournalModal({ open, onClose, onCleared, onCopyFeedback,
   }, [open, onClose])
 
   if (!open) return null
+  if (typeof document === 'undefined') return null
 
-  return (
+  return createPortal(
     <div
       className="modal-overlay"
       role="dialog"
@@ -33,6 +35,7 @@ export function AppErrorJournalModal({ open, onClose, onCleared, onCopyFeedback,
           onSignOut={onSignOut}
         />
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

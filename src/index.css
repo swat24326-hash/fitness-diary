@@ -122,16 +122,15 @@ button {
   flex-direction: column;
 }
 
-/* Шапка + вкладки черновиков: всегда сверху при скролле (пульс, секундомер). */
+/* Шапка + вкладки черновиков: всегда сверху при скролле (пульс, секундомер).
+ * Без backdrop-filter: иначе position:fixed модалки (журнал ошибок) «запираются» в шапке. */
 .app-chrome-top {
   position: sticky;
   top: 0;
   z-index: 40;
   flex-shrink: 0;
-  background: linear-gradient(180deg, rgba(12, 17, 14, 0.98), rgba(7, 9, 8, 0.94));
-  backdrop-filter: blur(18px) saturate(145%);
-  -webkit-backdrop-filter: blur(18px) saturate(145%);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 20px rgba(0, 0, 0, 0.22);
+  background: linear-gradient(180deg, #0c110e 0%, #080a09 100%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 20px rgba(0, 0, 0, 0.28);
 }
 
 .app-header {

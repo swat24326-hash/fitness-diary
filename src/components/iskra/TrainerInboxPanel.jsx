@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { Check, Inbox, Sparkles, ThumbsUp, X, XCircle } from 'lucide-react'
 import { dispatchStatusLabelRu, ISKRA_DISPATCH_ACTIVE_STATUSES } from '../../lib/admin/iskraDispatchCore.js'
@@ -106,10 +107,11 @@ export function TrainerInboxPanel({ open, onClose, clubId = '', onPendingChange 
   }
 
   if (!open) return null
+  if (typeof document === 'undefined') return null
 
   const active = items.filter((i) => ISKRA_DISPATCH_ACTIVE_STATUSES.includes(i.status))
 
-  return (
+  return createPortal(
     <div
       className="modal-overlay iskra-inbox-overlay"
       role="dialog"
@@ -268,6 +270,7 @@ export function TrainerInboxPanel({ open, onClose, clubId = '', onPendingChange 
           ))}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
