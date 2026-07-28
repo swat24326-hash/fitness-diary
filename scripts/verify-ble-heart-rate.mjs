@@ -4,7 +4,9 @@
  */
 import {
   humanizeBleHrError,
+  isAppleDeviceWithoutWebBluetooth,
   parseHeartRateMeasurement,
+  webBluetoothHrUnavailableHint,
 } from '../src/lib/hr/bleHeartRateCore.js'
 import {
   HR_MAX_SLOTS,
@@ -84,7 +86,34 @@ function bytes(...arr) {
   const net = humanizeBleHrError({ name: 'NetworkError', message: 'GATT Error' })
   ok(net.includes('подключить'), 'сеть/GATT на русском')
   const nosup = humanizeBleHrError({ name: 'NotSupportedError', message: 'bluetooth' })
-  ok(/не поддерживает|Bluetooth/i.test(nosup), 'нет поддержки на русском')
+  ok(/не поддерживает|Bluetooth|Android|Apple|iPhone|iPad/i.test(nosup), 'нет поддержки на русском')
+}
+
+// --- Apple / unavailable hint ---
+{
+  ok(
+    isAppleDeviceWithoutWebBluetooth({ userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)' }) === true,
+    'iPhone без BLE',
+  )
+  ok(
+    isAppleDeviceWithoutWebBluetooth({
+      userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
+      maxTouchPoints: 5,
+    }) === true,
+    'iPadOS как Mac + touch',
+  )
+  ok(
+    isAppleDeviceWithoutWebBluetooth({
+      userAgent: 'Mozilla/5.0 (Linux; Android 13)',
+      maxTouchPoints: 5,
+    }) === false,
+    'Android не Apple',
+  )
+  const appleHint = webBluetoothHrUnavailableHint({
+    userAgent: 'Mozilla/5.0 (iPad; CPU OS 17_0)',
+  })
+  // navigator.bluetooth в Node нет → hint не пустой
+  ok(appleHint.includes('iPhone') || appleHint.includes('iPad') || appleHint.includes('Android'), 'hint Apple/Android')
 }
 
 // --- slots UI rules ---

@@ -775,11 +775,19 @@ export function TrainingPage() {
                   'btn-sm',
                   'training-hr-idle__btn',
                   hrLost ? 'training-hr-idle__btn--lost' : '',
+                  !hr.supported ? 'training-hr-idle__btn--unsupported' : '',
                 ]
                   .filter(Boolean)
                   .join(' ')}
-                disabled={hrBusy || !hr.supported}
+                disabled={hrBusy}
                 onClick={() => {
+                  if (!hr.supported) {
+                    const msg =
+                      hr.unsupportedHint ||
+                      'Bluetooth-пульс на этом устройстве недоступен. Нужен Android-планшет с Chrome.'
+                    window.alert(msg)
+                    return
+                  }
                   if (hrConnected) {
                     hr.disconnectClient(clientKey)
                     return
@@ -791,15 +799,17 @@ export function TrainingPage() {
                   })
                 }}
                 aria-label={
-                  hrConnected
-                    ? 'Отключить пульсометр этого клиента'
-                    : hrLost
-                      ? 'Подключить пульсометр снова'
-                      : 'Подключить пульсометр к этому клиенту'
+                  !hr.supported
+                    ? 'Пульс недоступен на этом устройстве'
+                    : hrConnected
+                      ? 'Отключить пульсометр этого клиента'
+                      : hrLost
+                        ? 'Подключить пульсометр снова'
+                        : 'Подключить пульсометр к этому клиенту'
                 }
                 title={
                   !hr.supported
-                    ? 'Bluetooth-пульс доступен в Chrome на планшете'
+                    ? hr.unsupportedHint || 'Bluetooth-пульс недоступен на Apple / Safari'
                     : hrConnected
                       ? 'Отключить пульс (также можно нажать чип в шапке)'
                       : hrLost
@@ -841,7 +851,11 @@ export function TrainingPage() {
                   ×
                 </button>
               ) : null}
-              {hrProfileHint && !hrConnected ? (
+              {!hr.supported ? (
+                <span className="training-hr-idle__hint training-hr-idle__hint--warn" title={hr.unsupportedHint}>
+                  только Android
+                </span>
+              ) : hrProfileHint && !hrConnected ? (
                 <span className="training-hr-idle__hint" title={hrProfileHint}>
                   сводка неполная
                 </span>

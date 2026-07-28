@@ -36,9 +36,11 @@
 
 | Нужно | Почему |
 |-------|--------|
-| Chrome или Edge на Android | Web Bluetooth |
+| Chrome или Edge на **Android** | Web Bluetooth |
 | HTTPS (prod PWA) | требование браузера |
 | Датчик Heart Rate GATT | Cospo HW807, Polar и аналоги |
+
+**Не работает на iPhone / iPad** (и в Safari): Apple не даёт Web Bluetooth. Кнопка пульса нажимается и объясняет это; подключать датчик — на Android-планшете клуба.
 
 ## Где код
 

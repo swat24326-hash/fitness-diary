@@ -45,13 +45,13 @@ export function humanizeBleHrError(err) {
     return 'Датчик не выбран'
   }
   if (name === 'SecurityError' || /secure|https|permission/i.test(msg)) {
-    return 'Bluetooth недоступен в этом браузере (нужен Chrome на планшете)'
+    return 'Bluetooth недоступен в этом браузере (нужен Chrome на Android-планшете)'
   }
   if (name === 'NetworkError' || /gatt|connect/i.test(msg)) {
     return 'Не удалось подключить пояс. Включите датчик и поднесите ближе'
   }
   if (name === 'NotSupportedError' || /bluetooth/i.test(msg)) {
-    return 'Этот браузер не поддерживает Bluetooth-пульс'
+    return webBluetoothHrUnavailableHint() || 'Этот браузер не поддерживает Bluetooth-пульс'
   }
   if (/getDevices|not available/i.test(msg)) {
     return 'Повторное подключение недоступно — выберите датчик заново'
@@ -65,6 +65,35 @@ export function humanizeBleHrError(err) {
  */
 export function isWebBluetoothHrAvailable() {
   return typeof navigator !== 'undefined' && Boolean(navigator.bluetooth?.requestDevice)
+}
+
+/**
+ * iPhone / iPad (в т.ч. iPadOS как «Mac») — Web Bluetooth недоступен в любом браузере.
+ * @param {{ userAgent?: string, platform?: string, maxTouchPoints?: number } | null | undefined} [nav]
+ * @returns {boolean}
+ */
+export function isAppleDeviceWithoutWebBluetooth(nav) {
+  const n = nav && typeof nav === 'object' ? nav : typeof navigator !== 'undefined' ? navigator : null
+  if (!n) return false
+  const ua = String(n.userAgent ?? '')
+  if (/iPhone|iPad|iPod/i.test(ua)) return true
+  // iPadOS 13+: часто «Macintosh» + touch
+  if (/Macintosh/i.test(ua) && Number(n.maxTouchPoints) > 1) return true
+  if (String(n.platform ?? '') === 'MacIntel' && Number(n.maxTouchPoints) > 1) return true
+  return false
+}
+
+/**
+ * Почему пульс нельзя подключить (пустая строка = можно).
+ * @param {{ userAgent?: string, platform?: string, maxTouchPoints?: number } | null | undefined} [nav]
+ * @returns {string}
+ */
+export function webBluetoothHrUnavailableHint(nav) {
+  if (isWebBluetoothHrAvailable()) return ''
+  if (isAppleDeviceWithoutWebBluetooth(nav)) {
+    return 'На iPhone и iPad пульс по Bluetooth недоступен — так устроен Apple. Подключайте датчик на Android-планшете в Chrome.'
+  }
+  return 'Bluetooth-пульс работает в Chrome или Edge на Android-планшете. В Safari и на Apple это не поддерживается.'
 }
 
 /**

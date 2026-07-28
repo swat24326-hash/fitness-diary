@@ -18,11 +18,22 @@
   border-color: color-mix(in srgb, #f0b429 45%, transparent);
 }
 
+.training-hr-idle__btn--unsupported {
+  opacity: 0.72;
+  color: var(--muted, #9aa3b2);
+  border-color: color-mix(in srgb, var(--muted, #9aa3b2) 35%, transparent);
+}
+
 .training-hr-idle__hint {
   font-size: 0.65rem;
   color: var(--muted, #9aa3b2);
   max-width: 5.5rem;
   line-height: 1.15;
+}
+
+.training-hr-idle__hint--warn {
+  color: #f0b429;
+  max-width: 4.8rem;
 }
 
 .app-header__hr-chip--connecting {

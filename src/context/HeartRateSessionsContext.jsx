@@ -16,6 +16,7 @@ import {
   humanizeBleHrError,
   isWebBluetoothHrAvailable,
   requestHeartRateDeviceWithFallback,
+  webBluetoothHrUnavailableHint,
 } from '../lib/hr/bleHeartRateCore'
 import {
   HR_MAX_SLOTS,
@@ -230,7 +231,7 @@ export function HeartRateSessionsProvider({ children }) {
       if (!id) return { ok: false, error: 'Нет клиента' }
 
       if (!isWebBluetoothHrAvailable()) {
-        const err = 'Этот браузер не поддерживает Bluetooth-пульс'
+        const err = webBluetoothHrUnavailableHint() || 'Этот браузер не поддерживает Bluetooth-пульс'
         setBannerError(err)
         return { ok: false, error: err }
       }
@@ -416,6 +417,7 @@ export function HeartRateSessionsProvider({ children }) {
       bannerError,
       clearBannerError: () => setBannerError(''),
       supported: isWebBluetoothHrAvailable(),
+      unsupportedHint: webBluetoothHrUnavailableHint(),
       maxSlots: HR_MAX_SLOTS,
       showNames: showHrChipName(liveCount),
       samplesEpoch,
@@ -456,6 +458,7 @@ export function useHeartRateSessions() {
       bannerError: '',
       clearBannerError: () => {},
       supported: false,
+      unsupportedHint: webBluetoothHrUnavailableHint(),
       maxSlots: HR_MAX_SLOTS,
       showNames: false,
       connectForClient: async () => ({ ok: false, error: 'Нет провайдера' }),
