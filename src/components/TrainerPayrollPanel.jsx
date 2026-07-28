@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Calendar, ChevronLeft, ChevronRight, Wallet } from 'lucide-react'
 import { formatRub, monthDateRange } from '../lib/admin/salesReportCore.js'
 import {
@@ -7,7 +7,7 @@ import {
   formatDateRu,
   todayLocalIso,
 } from '../lib/dateRu.js'
-import { loadTrainerSelfPayrollAmounts } from '../lib/trainer/trainerSelfPayrollService.js'
+import { loadTrainerSelfPayrollAmounts, payrollFallbackLabel } from '../lib/trainer/trainerSelfPayrollService.js'
 import '../styles/trainer-payroll.css'
 
 const MONTH_NAMES = [
@@ -66,7 +66,9 @@ export function TrainerPayrollPanel({ trainerId, clubId, membershipTypes, member
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [fallbackReason, setFallbackReason] = useState(null)
+  const [retryingCloud, setRetryingCloud] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const autoRetryRef = useRef(0)
 
   const monthRange = useMemo(
     () => monthDateRange(selectedMonth.year, selectedMonth.month),
@@ -103,7 +105,6 @@ export function TrainerPayrollPanel({ trainerId, clubId, membershipTypes, member
     let cancelled = false
     setBusy(true)
     setError('')
-    setFallbackReason(null)
 
     void (async () => {
       try {
@@ -120,12 +121,28 @@ export function TrainerPayrollPanel({ trainerId, clubId, membershipTypes, member
         setDayPay(res.dayPay)
         setMonthPay(res.monthPay)
         setFallbackReason(res.fallbackReason ?? null)
+
+        const softNet =
+          res.fallbackReason && /timeout|частично/i.test(String(res.fallbackReason))
+        if (!res.fallbackReason || res.source === 'remote') {
+          autoRetryRef.current = 0
+          setRetryingCloud(false)
+        } else if (softNet && autoRetryRef.current < 1) {
+          autoRetryRef.current += 1
+          setRetryingCloud(true)
+          window.setTimeout(() => {
+            if (!cancelled) setReloadKey((k) => k + 1)
+          }, 2800)
+        } else {
+          setRetryingCloud(false)
+        }
       } catch (e) {
         if (!cancelled) {
           setError(e?.message ?? 'Ошибка расчёта')
           setDayPay(0)
           setMonthPay(0)
           setFallbackReason(null)
+          setRetryingCloud(false)
         }
       } finally {
         if (!cancelled) setBusy(false)
@@ -145,6 +162,13 @@ export function TrainerPayrollPanel({ trainerId, clubId, membershipTypes, member
     monthRange.end,
     reloadKey,
   ])
+
+  useEffect(() => {
+    autoRetryRef.current = 0
+    setRetryingCloud(false)
+  }, [selectedDay, monthRange.start, monthRange.end, trainerId, clubId])
+
+  const fallbackNote = payrollFallbackLabel(fallbackReason, { retrying: retryingCloud })
 
   const onDayChange = (iso) => setSelectedDay(clampIsoDateToToday(iso))
 
@@ -177,9 +201,9 @@ export function TrainerPayrollPanel({ trainerId, clubId, membershipTypes, member
         </div>
       </div>
 
-      {fallbackReason ? (
+      {fallbackNote ? (
         <p className="muted admin-inline-note" style={{ marginBottom: 12 }}>
-          Резерв: локальный кэш. Причина: {fallbackReason}
+          {fallbackNote}
         </p>
       ) : null}
 

@@ -13,7 +13,7 @@ import {
   SALES_TRAINING_CLUB_ID,
 } from '../src/lib/admin/salesTrainingsMatrix.js'
 
-import { computeTrainerSelfPayroll } from '../src/lib/trainer/trainerSelfPayroll.js'
+import { computeTrainerSelfPayroll, payrollFallbackLabel } from '../src/lib/trainer/trainerSelfPayroll.js'
 
 let failed = 0
 
@@ -98,6 +98,8 @@ const selfPay = computeTrainerSelfPayroll({
   ],
 })
 ok(selfPay === 800, 'trainer self payroll one completed typed training')
+
+ok(/медленн/i.test(payrollFallbackLabel('timeout') ?? ''), 'payroll timeout label is human')
 
 const clubMap = {
   [salesTrainingCellKey(SALES_TRAINING_CLUB_ID, 't1')]: '2',

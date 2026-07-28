@@ -10,7 +10,7 @@ import {
   mergeLocalAndRemoteTrainings,
   mergeRowsById,
 } from '../src/lib/trainer/trainerRemoteMerge.js'
-import { computeTrainerSelfPayroll } from '../src/lib/trainer/trainerSelfPayroll.js'
+import { computeTrainerSelfPayroll, payrollFallbackLabel } from '../src/lib/trainer/trainerSelfPayroll.js'
 
 function ok(cond, msg) {
   if (!cond) {
@@ -75,7 +75,14 @@ function ok(cond, msg) {
   ok(!/\.select\([^)]*updated_at/.test(periodSrc), 'нет select updated_at в period stats')
   ok(payrollSrc.includes('fetchTrainerTrainingsRemoteInRange'), 'ЗП тянет remote trainings')
   ok(payrollSrc.includes('fetchTrainerMembershipsRemote'), 'ЗП тянет remote memberships')
+  ok(payrollSrc.includes('TRAINER_REMOTE_RETRY') || periodSrc.includes('timeoutMs: 22_000'), 'длинный timeout для планшета')
   ok(panelSrc.includes('loadTrainerSelfPayrollAmounts'), 'панель ЗП через cloud service')
+  ok(panelSrc.includes('payrollFallbackLabel'), 'понятная подпись при timeout')
+
+  ok(
+    /медленн/i.test(payrollFallbackLabel('timeout') ?? ''),
+    'timeout → понятный текст, не сырой timeout',
+  )
 
   const selfPay = computeTrainerSelfPayroll({
     trainerId: 'tr1',

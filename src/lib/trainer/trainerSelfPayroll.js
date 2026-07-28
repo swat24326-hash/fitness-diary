@@ -41,3 +41,15 @@ export function computeTrainerSelfPayroll(input) {
   const pay = computePayrollFromMembershipStats(stats, rateMap, { trainerIdFilter: trainerId })
   return pay.clubTotal
 }
+
+/** Подпись для UI при слабой сети планшета. */
+export function payrollFallbackLabel(reason, { retrying = false } = {}) {
+  const r = String(reason ?? '')
+  if (/timeout|частично/i.test(r)) {
+    return retrying
+      ? 'Сеть медленная — повторяю загрузку из облака…'
+      : 'Сеть на планшете медленная. Цифры могут быть неполными — обновлю ещё раз или нажмите Sync.'
+  }
+  if (!r) return null
+  return `Резерв: локальный кэш. Причина: ${r}`
+}
