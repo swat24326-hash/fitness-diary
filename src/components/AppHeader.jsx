@@ -575,6 +575,7 @@ export function AppHeader() {
             ) : null}
           </div>
         ) : null}
+        </div>
         <button
           type="button"
           className={[
@@ -597,7 +598,6 @@ export function AppHeader() {
           ) : null}
           <span className="sr-only">Меню аккаунта</span>
         </button>
-        </div>
         {menuOpen && (
           <div id="app-header-account-menu" className="app-header__dropdown" role="region" aria-label="Аккаунт и синхронизация">
             <div className="app-header__menu-nav" aria-label="Разделы">
