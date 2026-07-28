@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { FileText } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useHeartRateFocus } from '../context/HeartRateFocusContext'
 import { LOCAL_DATA_CHANGED } from '../lib/dataAccess'
 import { loadDraftTrainingsForBar } from '../lib/draftTrainingsQuery'
 import { formatDateRu } from '../lib/dateRu'
@@ -14,6 +15,7 @@ function surnameOnly(name) {
 
 export function DraftTabsBar() {
   const { user, isAdmin } = useAuth()
+  const { focused: hrFocus } = useHeartRateFocus()
   const loc = useLocation()
   const [drafts, setDrafts] = useState([])
   const [clientById, setClientById] = useState({})
@@ -69,7 +71,7 @@ export function DraftTabsBar() {
     return m?.[1] ?? null
   }, [loc.pathname])
 
-  if (!user?.id || drafts.length === 0) return null
+  if (hrFocus || !user?.id || drafts.length === 0) return null
 
   const workoutBase = isAdmin ? '/admin/workouts' : '/trainer/workouts'
 

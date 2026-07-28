@@ -1,0 +1,240 @@
+/* Пульс в шапке тренировки — режим фокуса */
+
+.training-hr-idle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.training-hr-idle__btn {
+  color: var(--accent, #2effb8);
+  border-color: color-mix(in srgb, var(--accent, #2effb8) 35%, transparent);
+}
+
+.training-hr-idle__err {
+  font-size: 0.78rem;
+  color: var(--muted, #9aa3b2);
+  max-width: 14rem;
+  line-height: 1.25;
+}
+
+.training-hr-spin {
+  animation: training-hr-rotate 0.9s linear infinite;
+}
+
+@keyframes training-hr-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.training-hr-focus {
+  display: grid;
+  grid-template-columns: minmax(120px, 160px) 1fr;
+  gap: 14px 18px;
+  align-items: center;
+  padding: 4px 2px 2px;
+  --hr-beat: 0.85s;
+}
+
+.training-hr-focus__orb {
+  position: relative;
+  width: 132px;
+  height: 132px;
+  margin: 0 auto;
+  display: grid;
+  place-items: center;
+}
+
+.training-hr-focus__ring {
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--accent, #2effb8) 55%, transparent);
+  opacity: 0.55;
+  animation: training-hr-pulse var(--hr-beat) ease-out infinite;
+}
+
+.training-hr-focus__ring--delay {
+  inset: 0;
+  opacity: 0.28;
+  animation-delay: calc(var(--hr-beat) * 0.35);
+}
+
+.training-hr-focus__bpm {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  text-align: center;
+}
+
+.training-hr-focus__value {
+  font-size: clamp(2.4rem, 5.5vw, 3.1rem);
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--text, #f2f5fa);
+  font-variant-numeric: tabular-nums;
+  transition: opacity 0.35s ease, color 0.35s ease;
+}
+
+.training-hr-focus__unit {
+  margin-top: 4px;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--accent, #2effb8) 85%, #fff);
+  opacity: 0.9;
+}
+
+.training-hr-focus--stale .training-hr-focus__value {
+  opacity: 0.42;
+  color: var(--muted, #9aa3b2);
+}
+
+.training-hr-focus--stale .training-hr-focus__ring {
+  animation-play-state: paused;
+  opacity: 0.2;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.training-hr-focus__side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.training-hr-focus__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.training-hr-focus__status {
+  font-size: 0.8rem;
+  color: var(--muted, #9aa3b2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.training-hr-focus--stale .training-hr-focus__status {
+  color: color-mix(in srgb, var(--muted, #9aa3b2) 80%, #fff);
+}
+
+.training-hr-focus__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.training-hr-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  min-height: 40px;
+}
+
+.training-hr-chip__k {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted, #9aa3b2);
+}
+
+.training-hr-chip__v {
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text, #f2f5fa);
+}
+
+.training-hr-chip--weight {
+  align-items: center;
+  padding: 4px 8px 4px 10px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent, #2effb8) 22%, transparent),
+    rgba(255, 255, 255, 0.04)
+  );
+  border-color: color-mix(in srgb, var(--accent, #2effb8) 28%, transparent);
+}
+
+.training-hr-chip--weight .training-tile__label {
+  margin: 0;
+  font-size: 0.68rem;
+}
+
+.training-hr-chip--weight .training-tile__input--accent {
+  width: 4.2rem;
+  min-height: 32px;
+  font-size: 0.95rem;
+  padding: 2px 4px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.training-page-head-title__right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.training-hr-focus__actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+@keyframes training-hr-pulse {
+  0% {
+    transform: scale(0.92);
+    opacity: 0.55;
+  }
+  45% {
+    transform: scale(1.06);
+    opacity: 0.2;
+  }
+  100% {
+    transform: scale(0.92);
+    opacity: 0.55;
+  }
+}
+
+@media (max-width: 560px) {
+  .training-hr-focus {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .training-hr-focus__side {
+    width: 100%;
+    align-items: center;
+  }
+
+  .training-hr-focus__chips {
+    justify-content: center;
+  }
+
+  .training-hr-focus__actions {
+    justify-content: center;
+  }
+
+  .training-hr-focus__status {
+    white-space: normal;
+  }
+}

@@ -121,6 +121,7 @@ run('draft trainings query', 'node', ['scripts/verify-draft-trainings-query.mjs'
 run('challenges club query', 'node', ['scripts/verify-challenges-club-query.mjs'])
 run('client counts local', 'node', ['scripts/verify-client-counts-local.mjs'])
 run('coach quality', 'node', ['scripts/verify-coach-quality.mjs'])
+run('ble heart rate', 'node', ['scripts/verify-ble-heart-rate.mjs'])
 run('trainer attention summary', 'node', ['scripts/verify-trainer-attention-summary.mjs'])
 run('trainer client outreach', 'node', ['scripts/verify-trainer-client-outreach.mjs'])
 run('trainer outreach queue', 'node', ['scripts/verify-trainer-outreach-queue.mjs'])

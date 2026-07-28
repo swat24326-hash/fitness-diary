@@ -20,6 +20,7 @@ import { AdminClubTasks } from './pages/admin/AdminClubTasks'
 import { SalesClubTasks } from './pages/admin/SalesClubTasks'
 import { SalesPnk } from './pages/admin/SalesPnk'
 import { IskraPanelProvider } from './context/IskraPanelContext'
+import { HeartRateFocusProvider } from './context/HeartRateFocusContext'
 import { Login } from './pages/Login'
 import { ClientCard } from './pages/trainer/ClientCard'
 import { TrainerHome } from './pages/trainer/TrainerHome'
@@ -74,16 +75,18 @@ function LoggedInLayout() {
 
   return (
     <div className={`app-shell app-shell--${shellRole}`}>
-      <IskraPanelProvider>
-        <AppHeader />
-        {role === 'trainer' ? <DraftTabsBar /> : null}
-        <BreadcrumbsBar />
-        <main className="app-main">
-          <AppErrorBoundary>
-            <Outlet />
-          </AppErrorBoundary>
-        </main>
-      </IskraPanelProvider>
+      <HeartRateFocusProvider>
+        <IskraPanelProvider>
+          <AppHeader />
+          {role === 'trainer' ? <DraftTabsBar /> : null}
+          <BreadcrumbsBar />
+          <main className="app-main">
+            <AppErrorBoundary>
+              <Outlet />
+            </AppErrorBoundary>
+          </main>
+        </IskraPanelProvider>
+      </HeartRateFocusProvider>
     </div>
   )
 }

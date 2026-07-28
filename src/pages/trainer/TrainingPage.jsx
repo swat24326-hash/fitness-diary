@@ -14,6 +14,8 @@ import {
   loadEarlyActivationProposal,
 } from '../../lib/trainer/earlyMembershipActivateService.js'
 import { EarlyMembershipActivateSheet } from '../../components/trainer/EarlyMembershipActivateSheet.jsx'
+import { TrainingHrFocusHat } from '../../components/trainer/TrainingHrFocusHat.jsx'
+import { useHeartRateSession } from '../../hooks/useHeartRateSession.js'
 import { saveLocalWithSync } from '../../lib/syncService'
 import { stripDirectionControls } from '../../lib/textInput'
 import { getTrainingCompletionIssues } from '../../lib/trainingCompletionValidation'
@@ -573,6 +575,30 @@ export function TrainingPage() {
 
   const canChangeDate = canEditTrainingDate(isAdmin, meta.status)
 
+  const hr = useHeartRateSession({ trainerUserId: user?.id })
+  const hrLive = hr.status === 'live'
+  const membershipTileLabel = membershipSummary
+    ? `${membershipSummary.current}/${membershipSummary.total}`
+    : '—'
+  const daysTileLabel =
+    daysUntilMembershipEnd == null ? '—' : daysUntilMembershipEnd < 0 ? '0' : String(daysUntilMembershipEnd)
+
+  const weightInput = (
+    <>
+      <div className="training-tile__label">Вес</div>
+      <input
+        className="training-tile__input training-tile__input--accent"
+        type="number"
+        min={0}
+        step="0.1"
+        value={workoutState.pre_weight_kg ?? ''}
+        onChange={(e) => setWorkoutState((w) => ({ ...w, pre_weight_kg: e.target.value }))}
+        aria-label="Вес до тренировки, кг"
+        title="Если уже указан в карте здоровья — подставляется автоматически, можно поправить"
+      />
+    </>
+  )
+
   if (isNew && isAdmin) {
     return (
       <p className="muted">
@@ -685,21 +711,32 @@ export function TrainingPage() {
           <h1 className="trainer-path-head__title training-page-head-name">{title}</h1>
           {contra ? <ContraindicationsToggle text={contra} size="sm" mode="modal" /> : null}
         </div>
-        {clientCardTrainingsHref ? (
-          <Link
-            to={clientCardTrainingsHref}
-            className="btn btn-secondary btn-icon-square btn-sm training-page-head-card-link"
-            aria-label="Карточка клиента — все тренировки"
-            title="Карточка клиента — все тренировки"
-          >
-            <UserCircle size={18} aria-hidden />
-          </Link>
-        ) : null}
+        <div className="training-page-head-title__right">
+          {!hrLive ? <TrainingHrFocusHat hr={hr} idle /> : null}
+          {clientCardTrainingsHref ? (
+            <Link
+              to={clientCardTrainingsHref}
+              className="btn btn-secondary btn-icon-square btn-sm training-page-head-card-link"
+              aria-label="Карточка клиента — все тренировки"
+              title="Карточка клиента — все тренировки"
+            >
+              <UserCircle size={18} aria-hidden />
+            </Link>
+          ) : null}
+        </div>
       </div>
 
       <div className="card">
         <div className="training-head">
           <div className="training-head__top">
+            {hrLive ? (
+              <TrainingHrFocusHat
+                hr={hr}
+                membershipLabel={membershipTileLabel}
+                daysLabel={daysTileLabel}
+                weightSlot={weightInput}
+              />
+            ) : (
             <div className="training-tiles" role="group" aria-label="Параметры тренировки">
               <div className="training-tile training-tile--date training-tile--clickable" aria-label="Дата тренировки">
                 <div className="training-tile__label">Дата</div>
@@ -738,30 +775,19 @@ export function TrainingPage() {
 
               <div className="training-tile" aria-label="Номер тренировки в абонементе">
                 <div className="training-tile__label">Трен.</div>
-                <div className="training-tile__value">{membershipSummary ? `${membershipSummary.current}/${membershipSummary.total}` : '—'}</div>
+                <div className="training-tile__value">{membershipTileLabel}</div>
               </div>
 
               <div className="training-tile" aria-label="Дней до окончания абонемента">
                 <div className="training-tile__label">Дней</div>
-                <div className="training-tile__value">
-                  {daysUntilMembershipEnd == null ? '—' : daysUntilMembershipEnd < 0 ? '0' : String(daysUntilMembershipEnd)}
-                </div>
+                <div className="training-tile__value">{daysTileLabel}</div>
               </div>
 
               <div className="training-tile training-tile--accent" aria-label="Вес до тренировки">
-                <div className="training-tile__label">Вес</div>
-                <input
-                  className="training-tile__input training-tile__input--accent"
-                  type="number"
-                  min={0}
-                  step="0.1"
-                  value={workoutState.pre_weight_kg ?? ''}
-                  onChange={(e) => setWorkoutState((w) => ({ ...w, pre_weight_kg: e.target.value }))}
-                  aria-label="Вес до тренировки, кг"
-                  title="Если уже указан в карте здоровья — подставляется автоматически, можно поправить"
-                />
+                {weightInput}
               </div>
             </div>
+            )}
           </div>
         </div>
 

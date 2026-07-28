@@ -45,7 +45,7 @@
 |------|--------------|
 | [PRODUCT_VISION.md](./PRODUCT_VISION.md) | **Тип продукта / крупная цель:** ОС клуба, слои L0–L4, качество и инженерный каркас |
 | [BRAND_SYSTEM.md](./BRAND_SYSTEM.md) | **Фирменный стиль:** Whoop-опора, ролевые цвета, токены, driving prompt |
-| [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md) | Стратегия + РФ-хостинг (**позже**); §5.7 — усиление security **после** переезда |
+| [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md) | Стратегия + РФ: курс **C2 + Yandex**; чеклист владельца до стенда §5.4.0; security после переезда §5.7 |
 | [COMMERCIAL_ROADMAP.md](./COMMERCIAL_ROADMAP.md) | Фазы 0–4: что сделано и ongoing |
 | [ROADMAP_MULTI_CLUB_AND_PAID.md](./ROADMAP_MULTI_CLUB_AND_PAID.md) | 2+ клубов и платные тарифы |
 | [DATA_VOLUME.md](./DATA_VOLUME.md) | Оценка объёма БД, пороги pull-by-period |
@@ -78,6 +78,7 @@
 |------|--------|------------|
 | [PNK_FUNNEL.md](./PNK_FUNNEL.md) | ✅ в проде | Воронка ПНК: менеджер → тренер → KPI |
 | [COACH_QUALITY.md](./COACH_QUALITY.md) | ✅ MVP | Качество ведения тренера: care / depth / хвосты базы |
+| [TRAINING_HR.md](./TRAINING_HR.md) | ✅ MVP | Пульс BLE в шапке занятия, фокус, память датчика на планшете |
 | [PRODUCT_MODULES.md](./PRODUCT_MODULES.md) | карта | Питание, ДЗ, outreach, ИСКРА — куда код и docs |
 | [SALES_MANAGER.md](./SALES_MANAGER.md) | ✅ роль/отчёт в проде; ТЗ — справочник | Менеджер продаж + финансы |
 | [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md) | 📋 ТЗ | Управляющий клуба (ещё не роль в коде) |
