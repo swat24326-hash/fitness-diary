@@ -5,6 +5,7 @@ import { clearTrainerWorkspaceSnapshotSync, loadTrainerWorkspaceSnapshot } from 
 import { buildScopePeriodStats } from '../periodStats/buildScopePeriodStats'
 import { previousEqualPeriod } from '../admin/coachQualityBriefCore.js'
 import { mergeLocalAndRemoteTrainings } from './trainerRemoteMerge.js'
+import { todayLocalIso } from '../dateRu.js'
 import { fetchTrainerSelfStatsViaApi } from './trainerSelfStatsApi.js'
 import {
   readTrainerSelfStatsLastGood,
@@ -123,10 +124,19 @@ export async function loadTrainerPeriodStats(p) {
 
   clearTrainerWorkspaceSnapshotSync()
 
+  let apiFailReason = null
+
   if (isAppOnline()) {
     try {
-      const dayIso = dateTo
-      const api = await fetchTrainerSelfStatsViaApi({ dateFrom, dateTo, dayIso })
+      const today = todayLocalIso()
+      // Тот же day, что у панели ЗП (сегодня в периоде) — общий inflight-запрос
+      const dayIso = today >= dateFrom && today <= dateTo ? today : dateTo
+      const api = await fetchTrainerSelfStatsViaApi({
+        dateFrom,
+        dateTo,
+        dayIso,
+        clubId,
+      })
       if (api?.period && typeof api.period.totalCompleted === 'number') {
         writeTrainerSelfStatsLastGood(trainerId, dateFrom, dateTo, dayIso, api)
         return {
@@ -136,17 +146,22 @@ export async function loadTrainerPeriodStats(p) {
           error: null,
         }
       }
+      throw new Error('Пустой ответ статистики')
     } catch (e) {
       console.warn('[trainer-stats] api', e)
-      const lastGood = readTrainerSelfStatsLastGood(trainerId, dateFrom, dateTo, dateTo)
+      const today = todayLocalIso()
+      const dayIso = today >= dateFrom && today <= dateTo ? today : dateTo
+      const lastGood = readTrainerSelfStatsLastGood(trainerId, dateFrom, dateTo, dayIso)
+      const reason = e?.message ? String(e.message).slice(0, 160) : 'api_failed'
       if (lastGood?.period && typeof lastGood.period.totalCompleted === 'number') {
         return {
           ...lastGood.period,
           source: 'last_good',
-          fallbackReason: e?.message ? String(e.message).slice(0, 120) : 'api_failed',
+          fallbackReason: reason,
           error: null,
         }
       }
+      apiFailReason = reason
     }
   }
 
@@ -157,7 +172,7 @@ export async function loadTrainerPeriodStats(p) {
 
   let trainings = localTrainings
   let source = 'local'
-  let fallbackReason = null
+  let fallbackReason = apiFailReason
 
   if (isSupabaseConfigured() && isAppOnline()) {
     try {
@@ -169,10 +184,12 @@ export async function loadTrainerPeriodStats(p) {
         source = remote.partial ? 'remote_partial' : 'remote'
         if (remote.partial && remote.warn) {
           fallbackReason = `частично: ${remote.warn}`
+        } else if (!apiFailReason) {
+          fallbackReason = null
         }
       }
     } catch (e) {
-      fallbackReason = e?.message ? String(e.message).slice(0, 120) : 'remote_failed'
+      fallbackReason = e?.message ? String(e.message).slice(0, 120) : apiFailReason || 'remote_failed'
       console.warn('[trainer-stats] remote trainings', e)
     }
   }

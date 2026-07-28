@@ -109,6 +109,7 @@ export async function loadTrainerSelfPayrollAmounts(p) {
         dateFrom: monthFrom,
         dateTo: monthTo,
         dayIso,
+        clubId,
       })
       if (api?.payroll && typeof api.payroll.dayPay === 'number') {
         writeTrainerSelfStatsLastGood(trainerId, monthFrom, monthTo, dayIso, api)

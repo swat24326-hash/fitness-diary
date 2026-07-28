@@ -462,8 +462,8 @@ export function AdminClubStatsSection({
           {clubLabel ? (
             <>
               Клуб: <strong>{clubLabel}</strong>
-              {s?.source === 'remote' || s?.source === 'admin_api' ? (
-                <> · данные из <strong>Supabase</strong>.</>
+              {s?.source === 'remote' || s?.source === 'admin_api' || s?.source === 'api' ? (
+                <> · данные из <strong>облака</strong>.</>
               ) : (
                 <>
                   · сейчас с <strong>устройства</strong> (IndexedDB).
@@ -477,8 +477,16 @@ export function AdminClubStatsSection({
             <>Сводка по клубу: клиенты и абонементы на конец периода, непродления в диапазоне, проведённые тренировки, график по дням и рейтинг тренеров.</>
           )}
         </p>
-      ) : null}
-      {s?.fallbackReason ? <p className="muted admin-inline-note">Резерв: локальный кэш. Причина: {s.fallbackReason}</p> : null}
+      ) : (
+        <p className="muted" style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.45 }}>
+          {s?.source === 'api'
+            ? 'Цифры с сервера клуба.'
+            : s?.source === 'last_good'
+              ? 'Показаны последние успешные цифры (сеть сбойнула).'
+              : 'Сейчас с устройства. Если нули — нажмите Sync или обновите приложение.'}
+        </p>
+      )}
+      {s?.fallbackReason ? <p className="muted admin-inline-note">Резерв / причина: {s.fallbackReason}</p> : null}
 
       <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 8px' }}>
         Период

@@ -2,8 +2,8 @@ import { sendJson } from '../adminSupabase.js'
 import { buildTrainerSelfStatsPayload } from '../trainerSelfStatsCore.js'
 
 /**
- * GET admin-data?action=trainer-self-stats&date_from=&date_to=&day=
- * Только свой club_id / свой trainer id (из JWT).
+ * GET admin-data?action=trainer-self-stats&date_from=&date_to=&day=&club_id=
+ * trainer_id всегда = JWT; club_id из профиля, иначе подсказка с клиента (тот же uid).
  */
 export async function handleTrainerSelfStatsGet(authCtx, req, res) {
   if (!authCtx.isTrainer && !authCtx.isAdmin) {
@@ -25,22 +25,33 @@ export async function handleTrainerSelfStatsGet(authCtx, req, res) {
   }
 
   const trainerId = String(authCtx.user?.id ?? '').trim()
-  const clubId = String(authCtx.profile?.club_id ?? '').trim()
-  if (!trainerId || !clubId) {
-    sendJson(res, 400, { error: 'В профиле нет клуба — обратитесь к администратору' })
-    return
-  }
+  const profileClub = String(authCtx.profile?.club_id ?? '').trim()
+  const hintClub = String(req.query?.club_id ?? '').trim()
 
-  // Админ может смотреть только если явно передан свой же контекст не нужен на MVP —
-  // для админа без club в trainer scope используем query club_id + trainer_id только если admin.
   let effectiveTrainerId = trainerId
-  let effectiveClubId = clubId
+  let effectiveClubId = profileClub || hintClub
+
   if (authCtx.isAdmin && !authCtx.isTrainer) {
     effectiveTrainerId = String(req.query?.trainer_id ?? '').trim()
-    effectiveClubId = String(req.query?.club_id ?? clubId).trim()
+    effectiveClubId = String(req.query?.club_id ?? profileClub).trim()
     if (!effectiveTrainerId || !effectiveClubId) {
       sendJson(res, 400, { error: 'Админу нужны trainer_id и club_id' })
       return
+    }
+  } else {
+    if (!trainerId) {
+      sendJson(res, 401, { error: 'Unauthorized' })
+      return
+    }
+    if (!effectiveClubId) {
+      sendJson(res, 400, {
+        error: 'В профиле нет клуба — попросите администратора указать клуб тренеру',
+      })
+      return
+    }
+    // Клиент прислал другой club_id, чем в users — берём профиль (источник истины).
+    if (profileClub && hintClub && profileClub !== hintClub) {
+      effectiveClubId = profileClub
     }
   }
 

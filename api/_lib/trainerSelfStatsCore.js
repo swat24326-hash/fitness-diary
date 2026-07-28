@@ -1,6 +1,6 @@
 /**
  * Сводка ЗП + статистики тренера на сервере (service role).
- * Планшет не тянет тысячи строк через PostgREST — один ответ /api/admin-data.
+ * Лёгкий select (без полного JSONB data) — успевать на планшетном Wi‑Fi / cold start.
  */
 
 import { aggregateTrainings, aggregateClubClientPeriod } from './clubStatsAgg.js'
@@ -10,13 +10,18 @@ import {
   buildTrainerPayRateMap,
   computePayrollFromMembershipStats,
 } from '../../src/lib/admin/trainerPayrollCore.js'
+import { normalizeTrainingRowForPayroll } from './trainerSelfStatsNormalize.js'
 
-const TRAININGS_SELECT = 'id, trainer_id, client_id, club_id, date, status, data'
-const CLIENTS_SELECT = 'id, name, phone, trainer_id, archived_at, lifecycle, pnk_stage, club_id'
+export { normalizeTrainingRowForPayroll } from './trainerSelfStatsNormalize.js'
+
+/** Только нужное для ЗП: membership_id из JSONB без тяжёлого data. */
+const TRAININGS_SELECT =
+  'id, trainer_id, client_id, club_id, date, status, membership_id:data->>membership_id'
+const CLIENTS_SELECT = 'id, trainer_id, archived_at, lifecycle, club_id'
 const MEM_SELECT =
   'id, client_id, club_id, start_date, end_date, total_trainings, used_trainings, membership_type_id'
 const TYPES_SELECT =
-  'id, code, name, sort_order, is_active, is_pnk_trial, trainer_assignable, trainer_pay_per_session'
+  'id, code, sort_order, is_active, is_pnk_trial, trainer_assignable, trainer_pay_per_session, aerobic_pay_amount'
 
 /**
  * @param {import('@supabase/supabase-js').SupabaseClient} supabaseAdmin
@@ -54,7 +59,7 @@ export async function buildTrainerSelfStatsPayload(supabaseAdmin, p) {
 
   if (typesRes.error) throw typesRes.error
 
-  const trainings = trainingsRes.rows
+  const trainings = trainingsRes.rows.map(normalizeTrainingRowForPayroll)
   const clients = clientsRes.rows
   const membershipTypes = Array.isArray(typesRes.data) ? typesRes.data : []
   const clientIds = clients.map((c) => String(c.id)).filter(Boolean)
@@ -139,7 +144,7 @@ async function fetchTrainerTrainingsPaged(supabaseAdmin, { trainerId, clubId, da
     }
     const room = cap - rows.length
     const limit = Math.min(pageSize, room)
-    const { data, error } = await supabaseAdmin
+    let q = supabaseAdmin
       .from('trainings')
       .select(TRAININGS_SELECT)
       .eq('club_id', clubId)
@@ -148,6 +153,22 @@ async function fetchTrainerTrainingsPaged(supabaseAdmin, { trainerId, clubId, da
       .lte('date', dateTo)
       .order('id', { ascending: true })
       .range(from, from + limit - 1)
+
+    let { data, error } = await q
+    // Фоллбэк, если PostgREST не принял data->membership_id
+    if (error && /membership_id|could not find|column/i.test(String(error.message ?? ''))) {
+      const fallback = await supabaseAdmin
+        .from('trainings')
+        .select('id, trainer_id, client_id, club_id, date, status, data')
+        .eq('club_id', clubId)
+        .eq('trainer_id', trainerId)
+        .gte('date', dateFrom)
+        .lte('date', dateTo)
+        .order('id', { ascending: true })
+        .range(from, from + limit - 1)
+      data = fallback.data
+      error = fallback.error
+    }
     if (error) throw error
     const chunk = data ?? []
     rows.push(...chunk)

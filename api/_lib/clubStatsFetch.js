@@ -6,7 +6,7 @@ import {
 } from './apiLimits.js'
 
 const MEMBERSHIP_TYPES_SELECT =
-  'id, code, name, sort_order, is_active, is_pnk_trial, trainer_assignable, trainer_pay_per_session, aerobic_pay_amount'
+  'id, code, sort_order, is_active, is_pnk_trial, trainer_assignable, trainer_pay_per_session, aerobic_pay_amount'
 
 /**
  * Общая загрузка сырых данных для club-stats и ИСКРА (лимиты памяти Vercel).
@@ -24,7 +24,7 @@ export async function fetchClubStatsRaw(
     clubId,
     dateFrom,
     dateTo,
-    membershipTypesSelect = 'id, code, name, sort_order, is_active, is_pnk_trial',
+    membershipTypesSelect = 'id, code, sort_order, is_active, is_pnk_trial',
   },
 ) {
   const cid = String(clubId ?? '').trim()

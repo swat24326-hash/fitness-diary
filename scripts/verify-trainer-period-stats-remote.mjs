@@ -11,6 +11,7 @@ import {
   mergeRowsById,
 } from '../src/lib/trainer/trainerRemoteMerge.js'
 import { computeTrainerSelfPayroll, payrollFallbackLabel } from '../src/lib/trainer/trainerSelfPayroll.js'
+import { normalizeTrainingRowForPayroll } from '../api/_lib/trainerSelfStatsNormalize.js'
 
 function ok(cond, msg) {
   if (!cond) {
@@ -118,6 +119,24 @@ function ok(cond, msg) {
     ],
   })
   ok(selfPay === 1400, 'ЗП = 2 × 700 по типу карты из data.membership_id')
+
+  const n = normalizeTrainingRowForPayroll({
+    id: '1',
+    membership_id: 'm9',
+    date: '2026-07-01',
+    status: 'completed',
+  })
+  ok(n.data?.membership_id === 'm9', 'normalize membership_id for payroll')
+  ok(
+    !readFileSync(join(root, 'api/_lib/trainerSelfStatsCore.js'), 'utf8').includes('code, name,'),
+    'trainer-self-stats не select name (колонки нет на проде)',
+  )
+  ok(
+    !readFileSync(join(root, 'api/_lib/clubStatsFetch.js'), 'utf8').includes(
+      'id, code, name, sort_order',
+    ),
+    'clubStatsFetch не select name у membership_types',
+  )
 }
 
 console.log('verify-trainer-period-stats-remote: all passed')

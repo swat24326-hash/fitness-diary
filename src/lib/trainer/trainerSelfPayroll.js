@@ -45,10 +45,12 @@ export function computeTrainerSelfPayroll(input) {
 /** Подпись для UI при слабой сети планшета. */
 export function payrollFallbackLabel(reason, { retrying = false } = {}) {
   const r = String(reason ?? '')
-  if (/timeout|частично|таймаут|api_failed|local_empty/i.test(r)) {
+  if (/timeout|частично|таймаут|api_failed|local_empty|сесс|войдите|клуб/i.test(r)) {
     return retrying
       ? 'Сеть медленная — повторяю загрузку…'
-      : 'Сеть нестабильна. Показаны последние успешные цифры или кэш — нажмите Sync / обновите.'
+      : /сесс|войдите/i.test(r)
+        ? `Нужен повторный вход на планшете. (${r})`
+        : `Сеть нестабильна или сервер не ответил. ${r} — Sync / обновите приложение.`
   }
   if (!r) return null
   return `Резерв: локальный кэш. Причина: ${r}`
