@@ -62,6 +62,8 @@
 | `src/lib/trainer/trainerCoachQualityGlanceCore.js` | подсказка тренеру (тонкие + хвосты) |
 | `src/components/trainer/TrainerCoachQualityGlance.jsx` | UI на главной тренера |
 | `src/lib/admin/coachQualitySettingsService.js` | клиент API настроек |
+| `src/lib/homeGlanceCache.js` | session SWR для home-glance (не для detail) |
+| `src/hooks/useStaleWhileRevalidate.js` | hydrate → show → fetch if stale |
 | `src/pages/admin/AdminCoachQualitySettings.jsx` | UI в Структуре |
 | `api/_lib/coachQualitySettingsHandler.js` | `admin-data?action=coach-quality-settings` (GET: админ или тренер/продажи своего клуба; POST: только админ) |
 | `api/_lib/coachQualityCareFetch.js` | медкарты / обмеры / вес для `club-stats` |
@@ -72,7 +74,30 @@
 
 Подключение: `buildScopePeriodStats`, `loadClubTrainingStats` → поле `coachQuality`.  
 Админская сводка клуба берёт `coachQuality` из **`admin-data?action=club-stats`** (service role), чтобы не зависеть от пустого IndexedDB и RLS браузера.  
-Тренер: `trainer-self-stats` отдаёт сводку **без** CQ. Клиент: лёгкие карточки сразу; CQ — `admin-data?action=coach-quality` (online) или локальный расчёт (офлайн), параллельно со сводкой. Админ: `club-stats&include_cq=0` + тот же `coach-quality`; на главной glance с session TTL ~20 мин (сброс после Sync), не путать с вечерним ритмом продаж. При online, если локальных `completed` меньше API-сводки и API CQ недоступен, догружает тренировки из облака (`coachQualityNeedsRemoteTrainings`).
+Тренер: `trainer-self-stats` отдаёт сводку **без** CQ. Клиент: лёгкие карточки сразу; CQ — `admin-data?action=coach-quality` (online) или локальный расчёт (офлайн), параллельно со сводкой. Админ: `club-stats&include_cq=0` + тот же `coach-quality`. При online, если локальных `completed` меньше API-сводки и API CQ недоступен, догружает тренировки из облака (`coachQualityNeedsRemoteTrainings`).
+
+### Glance vs detail (кэш)
+
+Два профиля свежести — не смешивать:
+
+| Профиль | Где | Сеть | TTL |
+|---------|-----|------|-----|
+| **Glance** | главная / компактный чип | stale-while-revalidate: last-good сразу, фон если TTL истёк | по домену (см. ниже) |
+| **Detail** | Статистика, полный отчёт, таблица | **всегда** новый запрос при открытии / смене периода | нет отказа от сети по glance-TTL |
+
+Общий слой: `src/lib/homeGlanceCache.js` (`createGlanceCache`). Профили:
+
+| id | TTL | Invalidate |
+|----|-----|------------|
+| `admin-cq` | 60 мин | Sync; смена клуба; сохранение настроек CQ |
+| `admin-sales-plan` | 2 ч | save daily/plan/finance |
+| `admin-day-summary` | 10 мин | Sync; смена клуба |
+| `trainer-cq` | 45 мин | Sync |
+| `admin-attention-presence` | 60 мин | last-known ПНК/планёрка (анти-прыжок слотов) |
+
+Хук UI: `src/hooks/useStaleWhileRevalidate.js`. Soft-слоты: CQ **только** в planerka-soft (`assignAttentionSoftSlots`) — не переезжает при появлении ПНК.
+
+**Ручной смоук:** главная — табы туда-сюда без мигания CQ/продаж/сводки; Network без лишнего `coach-quality` в пределах часа. Статистика — каждый заход / смена периода → запрос `coach-quality`.
 
 ## Проверка
 

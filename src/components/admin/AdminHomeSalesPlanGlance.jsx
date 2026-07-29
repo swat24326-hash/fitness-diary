@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { TrendingUp } from 'lucide-react'
 import { SalesPlanVessel } from '../SalesPlanVessel.jsx'
@@ -16,9 +16,12 @@ import { todayLocalIso } from '../../lib/dateRu.js'
 import { buildAdminClubQueryHref } from '../../lib/admin/adminClientQuickFilters.js'
 import {
   isSalesPlanGlanceFresh,
+  peekSalesPlanGlanceSession,
   readSalesPlanGlanceSession,
+  salesPlanGlanceLooksSame,
   writeSalesPlanGlanceSession,
 } from '../../lib/admin/salesPlanGlanceSession.js'
+import { useStaleWhileRevalidate } from '../../hooks/useStaleWhileRevalidate.js'
 import '../../styles/sales-report.css'
 
 const MONTH_NAMES = [
@@ -36,121 +39,83 @@ const MONTH_NAMES = [
   'декабрь',
 ]
 
-function applyGlancePayload(payload, setters) {
-  setters.setMonthLabel(payload.monthLabel ?? '')
-  setters.setFact(Number(payload.fact) || 0)
-  setters.setPlanLevels(
-    payload.planLevels ?? { level1: 0, level2: 0, level3: 0 },
-  )
-  setters.setForecastBundle(payload.forecastBundle ?? null)
-  setters.setError('')
+async function fetchSalesPlanGlancePayload(clubId) {
+  const reportDate = todayLocalIso()
+  const bundle = await fetchClubSalesBundle({ clubId, reportDate })
+  const parts = monthPartsFromIso(reportDate)
+  const name = parts ? MONTH_NAMES[(parts.month || 1) - 1] ?? '' : ''
+  const form = planRowToForm(bundle.plan)
+  const levels = {
+    level1: Number(form.plan_level_1) || 0,
+    level2: Number(form.plan_level_2) || 0,
+    level3: Number(form.plan_level_3) || 0,
+  }
+  const expenseForm = expenseRowToForm(bundle.expense)
+  const expenseRaw = parseSalesMoney(expenseForm.expense_month)
+  return {
+    monthLabel: parts ? `${name} ${parts.year}` : '',
+    fact: resolvePlanFactFromMonthSummary(bundle.monthSummary),
+    planLevels: levels,
+    forecastBundle: {
+      year: Number(bundle.year) || parts?.year || 0,
+      month: Number(bundle.month) || parts?.month || 0,
+      monthRows: Array.isArray(bundle.monthDays) ? bundle.monthDays : [],
+      membershipTypes: Array.isArray(bundle.membershipTypes) ? bundle.membershipTypes : [],
+      planForm: form,
+      expense: Number.isFinite(expenseRaw) ? expenseRaw : 0,
+    },
+  }
 }
 
 /**
- * Факт / план месяца на главной админа — тап по карточке открывает продажи.
+ * Факт / план месяца на главной админа — SWR: last-good сразу, без скелетона при кэше.
  * @param {{ clubId: string, compact?: boolean }} props
  */
 export function AdminHomeSalesPlanGlance({ clubId = '', compact = false }) {
-  const [loading, setLoading] = useState(true)
-  const [fact, setFact] = useState(0)
-  const [planLevels, setPlanLevels] = useState({ level1: 0, level2: 0, level3: 0 })
-  const [monthLabel, setMonthLabel] = useState('')
-  const [error, setError] = useState('')
-  const [forecastBundle, setForecastBundle] = useState(null)
-  const genRef = useRef(0)
+  const cid = String(clubId || '').trim()
+  const reportDate = todayLocalIso()
 
   const salesHref = useMemo(
-    () => buildAdminClubQueryHref('/admin/sales', { clubId }),
-    [clubId],
+    () => buildAdminClubQueryHref('/admin/sales', { clubId: cid }),
+    [cid],
   )
 
-  const load = useCallback(async ({ silent = false, force = false } = {}) => {
-    const cid = String(clubId || '').trim()
-    if (!cid) {
-      setFact(0)
-      setPlanLevels({ level1: 0, level2: 0, level3: 0 })
-      setMonthLabel('')
-      setError('')
-      setForecastBundle(null)
-      setLoading(false)
-      return
-    }
-    const reportDate = todayLocalIso()
-    const cached = readSalesPlanGlanceSession(cid, reportDate)
-    if (cached?.payload && isSalesPlanGlanceFresh(cached.savedAt) && !force) {
-      applyGlancePayload(cached.payload, {
-        setMonthLabel,
-        setFact,
-        setPlanLevels,
-        setForecastBundle,
-        setError,
-      })
-      setLoading(false)
-      return
-    }
-    if (cached?.payload && silent) {
-      applyGlancePayload(cached.payload, {
-        setMonthLabel,
-        setFact,
-        setPlanLevels,
-        setForecastBundle,
-        setError,
-      })
-    }
+  const peek = useCallback(
+    () => (cid ? peekSalesPlanGlanceSession(cid, reportDate) : null),
+    [cid, reportDate],
+  )
+  const read = useCallback(
+    () => (cid ? readSalesPlanGlanceSession(cid, reportDate) : null),
+    [cid, reportDate],
+  )
+  const write = useCallback(
+    (payload) => {
+      if (cid) writeSalesPlanGlanceSession(cid, reportDate, payload)
+    },
+    [cid, reportDate],
+  )
+  const fetcher = useCallback(async () => {
+    if (!cid) return null
+    return fetchSalesPlanGlancePayload(cid)
+  }, [cid])
 
-    const gen = ++genRef.current
-    if (!silent) setLoading(true)
-    try {
-      const bundle = await fetchClubSalesBundle({ clubId: cid, reportDate })
-      if (gen !== genRef.current) return
-      const parts = monthPartsFromIso(reportDate)
-      const name = parts ? MONTH_NAMES[(parts.month || 1) - 1] ?? '' : ''
-      const form = planRowToForm(bundle.plan)
-      const levels = {
-        level1: Number(form.plan_level_1) || 0,
-        level2: Number(form.plan_level_2) || 0,
-        level3: Number(form.plan_level_3) || 0,
-      }
-      const expenseForm = expenseRowToForm(bundle.expense)
-      const expenseRaw = parseSalesMoney(expenseForm.expense_month)
-      const payload = {
-        monthLabel: parts ? `${name} ${parts.year}` : '',
-        fact: resolvePlanFactFromMonthSummary(bundle.monthSummary),
-        planLevels: levels,
-        forecastBundle: {
-          year: Number(bundle.year) || parts?.year || 0,
-          month: Number(bundle.month) || parts?.month || 0,
-          monthRows: Array.isArray(bundle.monthDays) ? bundle.monthDays : [],
-          membershipTypes: Array.isArray(bundle.membershipTypes) ? bundle.membershipTypes : [],
-          planForm: form,
-          expense: Number.isFinite(expenseRaw) ? expenseRaw : 0,
-        },
-      }
-      applyGlancePayload(payload, {
-        setMonthLabel,
-        setFact,
-        setPlanLevels,
-        setForecastBundle,
-        setError,
-      })
-      writeSalesPlanGlanceSession(cid, reportDate, payload)
-    } catch (err) {
-      if (gen !== genRef.current) return
-      if (!cached?.payload) {
-        setForecastBundle(null)
-        setError(err?.message ?? 'Не удалось загрузить план продаж')
-      }
-    } finally {
-      if (gen === genRef.current) setLoading(false)
-    }
-  }, [clubId])
+  const { data, loading } = useStaleWhileRevalidate({
+    enabled: Boolean(cid),
+    deps: [cid, reportDate],
+    peek,
+    read,
+    write,
+    isFresh: isSalesPlanGlanceFresh,
+    looksSame: salesPlanGlanceLooksSame,
+    fetcher,
+  })
 
-  useEffect(() => {
-    void load()
-    return () => {
-      genRef.current += 1
-    }
-  }, [load])
+  const fact = Number(data?.fact) || 0
+  const planLevels = data?.planLevels ?? { level1: 0, level2: 0, level3: 0 }
+  const monthLabel = data?.monthLabel ?? ''
+  const forecastBundle = data?.forecastBundle ?? null
+const showSkel = loading && !data
+  const error = !loading && !data ? 'Не удалось загрузить план продаж' : ''
 
   const glanceForecast = useMemo(() => {
     if (!forecastBundle?.year || !forecastBundle?.month) return null
@@ -164,7 +129,7 @@ export function AdminHomeSalesPlanGlance({ clubId = '', compact = false }) {
     })
   }, [forecastBundle])
 
-  if (!String(clubId || '').trim()) return null
+  if (!cid) return null
 
   return (
     <Link
@@ -183,7 +148,7 @@ export function AdminHomeSalesPlanGlance({ clubId = '', compact = false }) {
         </div>
       </div>
 
-      {loading ? (
+      {showSkel ? (
         <div className="admin-home-sales-plan__skel" role="status" aria-busy="true" aria-label="Загрузка плана продаж">
           <div className="admin-home-skel admin-home-sales-plan__skel-bar" aria-hidden />
           <div className="admin-home-sales-plan__skel-row" aria-hidden>

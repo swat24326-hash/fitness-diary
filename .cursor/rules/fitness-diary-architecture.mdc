@@ -10,10 +10,11 @@ PWA для тренера (планшет, офлайн) и админа. **Не
 ## Иерархия правил (если кажется, что правила спорят)
 
 1. **Качество продукта** — `fitness-diary-stability.mdc`, `fitness-diary-domain.mdc`, `fitness-diary-sync.mdc`: не ломать тренера, офлайн, цифры клуба.
-2. **Архитектура и ship** — правильный слой, verify, `npm run lint` всегда; `qa:local` / verify — по ship и stability, не пропускать на критическом пути. Документация как DoD — `fitness-diary-docs.mdc`.
-3. **Экономия Cursor** — `fitness-diary-cursor-efficiency.mdc`: меньше лишнего контекста и воды в отчётах, **не** в ущерб п.1–2.
+2. **Безопасность** — `fitness-diary-security.mdc`: удалённые угрозы, auth, секреты, `authorizePush`, RLS; не важнее п.1, но не откладывать «на потом».
+3. **Архитектура и ship** — правильный слой, verify, `npm run lint` всегда; `qa:local` / verify — по ship и stability, не пропускать на критическом пути. Документация как DoD — `fitness-diary-docs.mdc`. **Взрослое приложение** — `fitness-diary-adult-app.mdc`: не прототип; старое меняем под нормальную стратегию, когда задача упирается.
+4. **Экономия Cursor** — `fitness-diary-cursor-efficiency.mdc`: меньше лишнего контекста и воды в отчётах, **не** в ущерб п.1–3.
 
-**Минимальный diff** = не трогать несвязанное. Новый код — по `fitness-diary-file-structure.mdc` (сразу правильные файлы). Если правка раздувает старый файл — пороги в `fitness-diary-split-files.mdc`; это не «лишний рефакторинг».
+**Минимальный diff** = не трогать несвязанное. Новый код — по `fitness-diary-file-structure.mdc` (сразу правильные файлы). Если правка раздувает старый файл — пороги в `fitness-diary-split-files.mdc`; это не «лишний рефакторинг». Старый костыль на пути задачи — подтянуть по `fitness-diary-adult-app.mdc`, не наращивать.
 
 ## Поток данных (не ломать)
 
@@ -53,4 +54,4 @@ PWA для тренера (планшет, офлайн) и админа. **Не
 
 **Новая фича (полный цикл):** `fitness-diary-features.mdc` — фильтр идеи, исход, wow, стабильность, ship.
 
-Подробнее: `fitness-diary-split-files.mdc`, `fitness-diary-scale.mdc`, `fitness-diary-ship.mdc`, `fitness-diary-domain.mdc`, `fitness-diary-hosting-portability.mdc`, `fitness-diary-cursor-efficiency.mdc`. Контекст: `docs/PROJECT_HANDOFF_FOR_AI.md`.
+Подробнее: `fitness-diary-split-files.mdc`, `fitness-diary-scale.mdc`, `fitness-diary-ship.mdc`, `fitness-diary-domain.mdc`, `fitness-diary-security.mdc`, `fitness-diary-hosting-portability.mdc`, `fitness-diary-cursor-efficiency.mdc`. Контекст: `docs/PROJECT_HANDOFF_FOR_AI.md`.

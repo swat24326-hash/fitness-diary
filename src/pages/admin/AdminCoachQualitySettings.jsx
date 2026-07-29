@@ -14,6 +14,7 @@ import {
   fetchCoachQualitySettings,
   saveCoachQualitySettings,
 } from '../../lib/admin/coachQualitySettingsService.js'
+import { invalidateAdminCoachQualityGlance } from '../../lib/admin/coachQualityGlanceSession.js'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { listClubsLocal, pullClubsFromSupabase } from '../../lib/dataAccess'
 import { useAuth } from '../../context/AuthContext'
@@ -133,6 +134,7 @@ export function AdminCoachQualitySettings() {
       const data = await saveCoachQualitySettings(clubId, { config: toSave })
       setConfig(normalizeCoachQualityConfig(data?.config))
       setRulesPreview(Array.isArray(data?.rules_preview) ? data.rules_preview : [])
+      invalidateAdminCoachQualityGlance(clubId)
       setMsg('Сохранено. Статистика клуба будет считать по новым правилам.')
       setMigrationNeeded(false)
     } catch (e) {
@@ -152,6 +154,7 @@ export function AdminCoachQualitySettings() {
       const data = await saveCoachQualitySettings(clubId, { reset: true })
       setConfig(normalizeCoachQualityConfig(data?.config ?? defaults))
       setRulesPreview(Array.isArray(data?.rules_preview) ? data.rules_preview : [])
+      invalidateAdminCoachQualityGlance(clubId)
       setMsg('Сброшено к стандарту.')
     } catch (e) {
       setErr(e?.message ? String(e.message) : 'Ошибка сброса')

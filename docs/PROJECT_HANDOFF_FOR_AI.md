@@ -150,7 +150,8 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 Период сводки ≠ годовой график (полный календарный год).  
 Agg: `src/lib/admin/*Agg.js` ↔ зеркало `api/_lib/*Agg.js` + `scripts/verify-*.mjs`.  
 UI: карточки, drill-down. Домен: `.cursor/rules/fitness-diary-domain.mdc`.  
-**Качество ведения** (care / depth / хвосты ДК+БЗ): [COACH_QUALITY.md](./COACH_QUALITY.md) — статистика + настройка весов/тумблеров в **Структура → Качество ведения**.
+**Качество ведения** (care / depth / хвосты ДК+БЗ): [COACH_QUALITY.md](./COACH_QUALITY.md) — статистика + настройка весов/тумблеров в **Структура → Качество ведения**.  
+Главная = **glance** (session TTL / SWR, `homeGlanceCache`: CQ, продажи, сводка дня, presence ПНК/планёрки); экран статистики = **detail** (всегда свежий `coach-quality`, без glance-TTL).
 
 ---
 

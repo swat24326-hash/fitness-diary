@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { User, Users, Trophy, Swords } from 'lucide-react'
 import { TrainerAttentionPanel } from '../../components/trainer/TrainerAttentionPanel'
@@ -25,6 +25,13 @@ import {
   buildTrainerAttentionSummary,
 } from '../../lib/trainer/trainerAttentionSummary'
 import { buildTrainerCoachQualityGlance } from '../../lib/trainer/trainerCoachQualityGlanceCore.js'
+import {
+  isTrainerCoachQualityGlanceFresh,
+  peekTrainerCoachQualityGlanceSession,
+  readTrainerCoachQualityGlanceSession,
+  trainerCoachQualityGlanceLooksSame,
+  writeTrainerCoachQualityGlanceSession,
+} from '../../lib/trainer/trainerCoachQualityGlanceSession.js'
 import { buildCoachQualityForScope } from '../../lib/admin/coachQualityService.js'
 import { COACH_QUALITY_PERIOD_DAYS } from '../../lib/admin/coachQualityCore.js'
 import { fetchCoachQualityViaApi } from '../../lib/admin/adminApiClient.js'
@@ -88,8 +95,28 @@ export function TrainerHome() {
   const cqGenRef = useRef(0)
   const syncOutbound = useSyncOutboundPoll({ enabled: isSupabaseConfigured() })
 
+  const cqPeriod = useMemo(() => {
+    const dateTo = todayLocalIso()
+    const dateFrom = addDaysToIso(dateTo, -(COACH_QUALITY_PERIOD_DAYS - 1))
+    return { dateFrom, dateTo }
+  }, [])
+
+  /** Last-good CQ до paint — без «Загрузка…» при возврате на главную. */
+  useLayoutEffect(() => {
+    if (!trainerId) return
+    const cached = peekTrainerCoachQualityGlanceSession(
+      trainerId,
+      cqPeriod.dateFrom,
+      cqPeriod.dateTo,
+    )
+    if (!cached) return
+    setCqGlance((prev) => (trainerCoachQualityGlanceLooksSame(prev, cached) ? prev : cached))
+    setCqGlanceLoading(false)
+  }, [trainerId, cqPeriod.dateFrom, cqPeriod.dateTo])
+
   const loadAttention = useCallback(async (opts = {}) => {
     const silent = opts.silent === true
+    const forceCq = opts.forceCq === true
     if (!trainerId) {
       setAttentionSummary(null)
       setAttentionLoading(false)
@@ -110,14 +137,23 @@ export function TrainerHome() {
         }),
       )
 
-      // Качество ведения — только после актуального snap; gen CQ отдельный,
-      // иначе при отмене loadAttention спиннер «Загрузка…» зависает навсегда.
       const cqGen = ++cqGenRef.current
-      if (!silent) setCqGlanceLoading(true)
+      const { dateFrom, dateTo } = cqPeriod
+      const cachedRow = readTrainerCoachQualityGlanceSession(trainerId, dateFrom, dateTo)
+      const cached = cachedRow?.payload ?? null
+
+      if (cached) {
+        setCqGlance((prev) => (trainerCoachQualityGlanceLooksSame(prev, cached) ? prev : cached))
+        setCqGlanceLoading(false)
+        if (!forceCq && isTrainerCoachQualityGlanceFresh(cachedRow.savedAt)) {
+          return
+        }
+      } else if (!silent) {
+        setCqGlanceLoading(true)
+      }
+
       void (async () => {
         try {
-          const dateTo = todayLocalIso()
-          const dateFrom = addDaysToIso(dateTo, -(COACH_QUALITY_PERIOD_DAYS - 1))
           let row = null
           if (clubId && isSupabaseConfigured() && isAppOnline()) {
             try {
@@ -150,10 +186,12 @@ export function TrainerHome() {
             row = (cq.trainers ?? []).find((t) => String(t.trainerId) === String(trainerId))
           }
           if (cqGen !== cqGenRef.current) return
-          setCqGlance(buildTrainerCoachQualityGlance(row))
+          const glance = buildTrainerCoachQualityGlance(row)
+          writeTrainerCoachQualityGlanceSession(trainerId, dateFrom, dateTo, glance)
+          setCqGlance((prev) => (trainerCoachQualityGlanceLooksSame(prev, glance) ? prev : glance))
         } catch {
           if (cqGen !== cqGenRef.current) return
-          setCqGlance(null)
+          if (!cached) setCqGlance(null)
         } finally {
           if (cqGen === cqGenRef.current) setCqGlanceLoading(false)
         }
@@ -161,12 +199,14 @@ export function TrainerHome() {
     } catch {
       if (gen !== attentionGenRef.current) return
       if (!silent) setAttentionSummary(null)
-      setCqGlance(null)
-      setCqGlanceLoading(false)
+      if (!peekTrainerCoachQualityGlanceSession(trainerId, cqPeriod.dateFrom, cqPeriod.dateTo)) {
+        setCqGlance(null)
+        setCqGlanceLoading(false)
+      }
     } finally {
       if (gen === attentionGenRef.current) setAttentionLoading(false)
     }
-  }, [trainerId, clubId])
+  }, [trainerId, clubId, cqPeriod])
 
   const loadChallenges = useCallback(
     async (opts = {}) => {
@@ -261,7 +301,9 @@ export function TrainerHome() {
   }, [loadAttention])
 
   useDebouncedStorageReload(() => loadChallenges({ silent: true }), { shouldRun: shouldReloadTrainerChallenges })
-  useDebouncedStorageReload(() => loadAttention({ silent: true }), { shouldRun: shouldReloadTrainerClientList })
+  useDebouncedStorageReload(() => loadAttention({ silent: true, forceCq: true }), {
+    shouldRun: shouldReloadTrainerClientList,
+  })
 
   const hasList = challengesView.items.length > 0
   const showPlaceholder = challengesView.phase === 'loading' || !hasList

@@ -85,9 +85,8 @@ export function AdminPlanerkaHomeGlance({
     return () => {
       window.clearInterval(t)
       document.removeEventListener('visibilitychange', onVis)
-      reportPresence(false)
     }
-  }, [reload, reportPresence])
+  }, [reload])
 
   const goPrev = useCallback(() => {
     setIndex((i) => Math.max(0, i - 1))

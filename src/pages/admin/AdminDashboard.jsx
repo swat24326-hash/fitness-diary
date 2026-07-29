@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { BarChart3, Building2, ClipboardList, Shield, TrendingUp, Trophy, UserCircle, UserPlus } from 'lucide-react'
 import { AdminClubDaySummaryPanel } from '../../components/admin/AdminClubDaySummaryPanel'
 import { AdminHomeAttentionRow } from '../../components/admin/AdminHomeAttentionRow'
@@ -11,14 +11,39 @@ import { getDateRange } from '../../lib/period'
 import { useDebouncedStorageReload } from '../../lib/useDebouncedStorageReload'
 import { shouldReloadAdminDaySummary } from '../../lib/admin/adminClubDaySummaryCore'
 import {
-  clearCoachQualityGlanceSession,
+  coachQualityGlanceLooksSame,
   isCoachQualityGlanceFresh,
+  peekCoachQualityGlanceSession,
   readCoachQualityGlanceSession,
   writeCoachQualityGlanceSession,
 } from '../../lib/admin/coachQualityGlanceSession.js'
+import {
+  daySummaryGlanceLooksSame,
+  isDaySummaryGlanceFresh,
+  peekDaySummaryGlanceSession,
+  readDaySummaryGlanceSession,
+  writeDaySummaryGlanceSession,
+} from '../../lib/admin/daySummaryGlanceSession.js'
+import { useStaleWhileRevalidate } from '../../hooks/useStaleWhileRevalidate.js'
+import { todayLocalIso } from '../../lib/dateRu.js'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { isAppOnline } from '../../lib/syncService'
 import '../../styles/pnk-funnel.css'
+
+function glanceFromCoachQualityApi(api) {
+  if (api?.glance) return api.glance
+  if (!api?.coachQuality) return null
+  return {
+    scorePct: api.coachQuality.averageScorePct ?? null,
+    chipLabel: api.coachQuality.brief?.chipLabel ?? null,
+    hot:
+      (Number(api.coachQuality.brief?.reviewCount) || 0) > 0 ||
+      (Number(api.coachQuality.brief?.droppedCount) || 0) > 0,
+    reviewCount: Number(api.coachQuality.brief?.reviewCount) || 0,
+    attentionCount: Number(api.coachQuality.brief?.attentionCount) || 0,
+    droppedCount: Number(api.coachQuality.brief?.droppedCount) || 0,
+  }
+}
 
 function adminTileClass({ isActive }) {
   return `feature-tile u-no-decoration${isActive ? ' feature-tile--active' : ''}`
@@ -41,17 +66,95 @@ export function AdminDashboard() {
     return p === '/admin'
   }, [location.pathname])
 
-  const [daySummary, setDaySummary] = useState(null)
-  const [daySummaryLoading, setDaySummaryLoading] = useState(false)
-  const [coachQualityHome, setCoachQualityHome] = useState(null)
-  const [coachQualityHomeLoading, setCoachQualityHomeLoading] = useState(false)
   const [attentionWidgets, setAttentionWidgets] = useState({
     hasPnk: false,
     hasPlanerka: false,
     sideCount: 0,
   })
-  const daySummaryGenRef = useRef(0)
-  const cqGenRef = useRef(0)
+
+  const todayIso = todayLocalIso()
+
+  const peekCq = useCallback(() => {
+    if (!clubId) return null
+    const range = getDateRange('month')
+    return peekCoachQualityGlanceSession(clubId, range.start, range.end)
+  }, [clubId])
+  const readCq = useCallback(() => {
+    if (!clubId) return null
+    const range = getDateRange('month')
+    const row = readCoachQualityGlanceSession(clubId, range.start, range.end)
+    if (!row) return null
+    return { payload: row.glance, savedAt: row.savedAt }
+  }, [clubId])
+  const writeCq = useCallback(
+    (glance) => {
+      if (!clubId) return
+      const range = getDateRange('month')
+      writeCoachQualityGlanceSession(clubId, range.start, range.end, glance)
+    },
+    [clubId],
+  )
+  const fetchCqGlance = useCallback(async () => {
+    if (!clubId || !isSupabaseConfigured() || !isAppOnline()) return null
+    const range = getDateRange('month')
+    const api = await fetchCoachQualityViaApi({
+      clubId,
+      dateFrom: range.start,
+      dateTo: range.end,
+      mode: 'glance',
+    })
+    return glanceFromCoachQualityApi(api)
+  }, [clubId])
+
+  const {
+    data: coachQualityHome,
+    loading: coachQualityHomeLoading,
+    reload: reloadCoachQualityHome,
+  } = useStaleWhileRevalidate({
+    enabled: isAdminHome && Boolean(clubId),
+    deps: [clubId],
+    peek: peekCq,
+    read: readCq,
+    write: writeCq,
+    isFresh: isCoachQualityGlanceFresh,
+    looksSame: coachQualityGlanceLooksSame,
+    fetcher: fetchCqGlance,
+  })
+
+  const peekDay = useCallback(
+    () => (clubId ? peekDaySummaryGlanceSession(clubId, todayIso) : null),
+    [clubId, todayIso],
+  )
+  const readDay = useCallback(
+    () => (clubId ? readDaySummaryGlanceSession(clubId, todayIso) : null),
+    [clubId, todayIso],
+  )
+  const writeDay = useCallback(
+    (summary) => {
+      if (clubId) writeDaySummaryGlanceSession(clubId, todayIso, summary)
+    },
+    [clubId, todayIso],
+  )
+  const fetchDaySummary = useCallback(async () => {
+    if (!clubId) return null
+    const res = await loadAdminClubDaySummary(clubId)
+    return res.ok ? res.summary : null
+  }, [clubId])
+
+  const {
+    data: daySummary,
+    loading: daySummaryLoading,
+    reload: reloadDaySummary,
+  } = useStaleWhileRevalidate({
+    enabled: isAdminHome && Boolean(clubId),
+    deps: [clubId, todayIso],
+    peek: peekDay,
+    read: readDay,
+    write: writeDay,
+    isFresh: isDaySummaryGlanceFresh,
+    looksSame: daySummaryGlanceLooksSame,
+    fetcher: fetchDaySummary,
+  })
 
   const softSignals = useMemo(
     () =>
@@ -71,101 +174,10 @@ export function AdminDashboard() {
     })
   }, [])
 
-  const loadDaySummary = useCallback(async ({ silent = false } = {}) => {
-    if (!isAdminHome) return
-    const gen = ++daySummaryGenRef.current
-    if (!clubId) {
-      setDaySummary(null)
-      setDaySummaryLoading(false)
-      return
-    }
-    if (!silent) setDaySummaryLoading(true)
-    try {
-      const res = await loadAdminClubDaySummary(clubId)
-      if (gen !== daySummaryGenRef.current) return
-      setDaySummary(res.ok ? res.summary : null)
-    } catch {
-      if (gen !== daySummaryGenRef.current) return
-      setDaySummary(null)
-    } finally {
-      if (gen === daySummaryGenRef.current && !silent) setDaySummaryLoading(false)
-    }
-  }, [clubId, isAdminHome])
-
-  const loadCoachQualityHome = useCallback(async ({ silent = false, force = false } = {}) => {
-    if (!isAdminHome) return
-    const gen = ++cqGenRef.current
-    if (!clubId) {
-      setCoachQualityHome(null)
-      setCoachQualityHomeLoading(false)
-      return
-    }
-    const range = getDateRange('month')
-    const cached = readCoachQualityGlanceSession(clubId, range.start, range.end)
-    if (cached?.glance && isCoachQualityGlanceFresh(cached.savedAt) && !force) {
-      setCoachQualityHome(cached.glance)
-      setCoachQualityHomeLoading(false)
-      return
-    }
-    if (cached?.glance && silent) {
-      setCoachQualityHome(cached.glance)
-    }
-    if (!silent) setCoachQualityHomeLoading(true)
-    try {
-      if (!isSupabaseConfigured() || !isAppOnline()) {
-        if (gen !== cqGenRef.current) return
-        if (!cached?.glance) setCoachQualityHome(null)
-        return
-      }
-      const api = await fetchCoachQualityViaApi({
-        clubId,
-        dateFrom: range.start,
-        dateTo: range.end,
-        mode: 'glance',
-      })
-      if (gen !== cqGenRef.current) return
-      const glance = api?.glance
-        ? api.glance
-        : api?.coachQuality
-          ? {
-              scorePct: api.coachQuality.averageScorePct ?? null,
-              chipLabel: api.coachQuality.brief?.chipLabel ?? null,
-              hot:
-                (Number(api.coachQuality.brief?.reviewCount) || 0) > 0 ||
-                (Number(api.coachQuality.brief?.droppedCount) || 0) > 0,
-              reviewCount: Number(api.coachQuality.brief?.reviewCount) || 0,
-              attentionCount: Number(api.coachQuality.brief?.attentionCount) || 0,
-              droppedCount: Number(api.coachQuality.brief?.droppedCount) || 0,
-            }
-          : null
-      if (!glance) {
-        setCoachQualityHome(cached?.glance ?? null)
-        return
-      }
-      writeCoachQualityGlanceSession(clubId, range.start, range.end, glance)
-      setCoachQualityHome(glance)
-    } catch {
-      if (gen !== cqGenRef.current) return
-      setCoachQualityHome(cached?.glance ?? null)
-    } finally {
-      if (gen === cqGenRef.current && !silent) setCoachQualityHomeLoading(false)
-    }
-  }, [clubId, isAdminHome])
-
-  useEffect(() => {
-    void loadDaySummary()
-    void loadCoachQualityHome()
-    return () => {
-      daySummaryGenRef.current += 1
-      cqGenRef.current += 1
-    }
-  }, [loadDaySummary, loadCoachQualityHome])
-
   useDebouncedStorageReload(
     () => {
-      if (clubId) clearCoachQualityGlanceSession(clubId)
-      void loadDaySummary({ silent: true })
-      void loadCoachQualityHome({ silent: true, force: true })
+      void reloadDaySummary({ force: true })
+      void reloadCoachQualityHome({ force: true })
     },
     { shouldRun: shouldReloadAdminDaySummary },
   )

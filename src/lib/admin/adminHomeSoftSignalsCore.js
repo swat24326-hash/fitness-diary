@@ -141,3 +141,40 @@ export function pickSoftSignalsForSlots(signals, opts = {}) {
   const list = Array.isArray(signals) ? signals : []
   return list.slice(0, free)
 }
+
+/**
+ * Стабильные soft-слоты: CQ всегда только в planerka-soft (не в pnk).
+ * Иначе при появлении ПНК карточка «переезжает» — выглядит как дёрганье.
+ *
+ * @param {unknown[]} signals
+ * @param {{ hasPnk?: boolean, hasPlanerka?: boolean }} [opts]
+ * @returns {{ softForPnk: object|null, softForPlanerka: object|null }}
+ */
+export function assignAttentionSoftSlots(signals, opts = {}) {
+  const hasPnk = Boolean(opts.hasPnk)
+  const hasPlanerka = Boolean(opts.hasPlanerka)
+  const list = Array.isArray(signals) ? signals : []
+  const cq = list.find((s) => s && s.id === 'coach-quality') ?? null
+  const others = list.filter((s) => s && s.id !== 'coach-quality')
+
+  let softForPnk = null
+  let softForPlanerka = null
+
+  // CQ: фиксированный «дом» — слот планёрки. Если планёрка занята — CQ только в сводке дня.
+  if (cq && !hasPlanerka) {
+    softForPlanerka = cq
+  }
+
+  const free = []
+  if (!hasPnk) free.push('pnk')
+  if (!hasPlanerka && !softForPlanerka) free.push('planerka')
+
+  let i = 0
+  for (const slot of free) {
+    if (i >= others.length) break
+    if (slot === 'pnk') softForPnk = others[i++]
+    else softForPlanerka = others[i++]
+  }
+
+  return { softForPnk, softForPlanerka }
+}

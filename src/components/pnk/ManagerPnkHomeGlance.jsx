@@ -71,10 +71,7 @@ export function ManagerPnkHomeGlance({
 
   useEffect(() => {
     void reload()
-    return () => {
-      reportPresence(false)
-    }
-  }, [reload, reportPresence])
+  }, [reload])
 
   const goPrev = useCallback(() => {
     setIndex((i) => Math.max(0, i - 1))

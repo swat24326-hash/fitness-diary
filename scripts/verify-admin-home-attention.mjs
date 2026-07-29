@@ -2,6 +2,7 @@
  * node scripts/verify-admin-home-attention.mjs
  */
 import {
+  assignAttentionSoftSlots,
   buildAdminHomeSoftSignals,
   pickSoftSignalsForSlots,
 } from '../src/lib/admin/adminHomeSoftSignalsCore.js'
@@ -84,6 +85,19 @@ ok(hotVm.headline === '1 на разбор · 1 просели', 'vm: chip as he
 ok(pickSoftSignalsForSlots(signals, { primarySides: 0 }).length === 2, 'pick 2 when empty sides')
 ok(pickSoftSignalsForSlots(signals, { primarySides: 1 }).length === 1, 'pick 1 when one primary')
 ok(pickSoftSignalsForSlots(signals, { primarySides: 2 }).length === 0, 'pick 0 when full')
+
+const emptySides = assignAttentionSoftSlots(signals, { hasPnk: false, hasPlanerka: false })
+ok(emptySides.softForPlanerka?.id === 'coach-quality', 'assign: CQ pinned to planerka soft')
+ok(emptySides.softForPnk?.id === 'inactive', 'assign: other soft fills pnk')
+const withPnk = assignAttentionSoftSlots(signals, { hasPnk: true, hasPlanerka: false })
+ok(withPnk.softForPlanerka?.id === 'coach-quality', 'assign: CQ stays on planerka when PNK appears')
+ok(withPnk.softForPnk == null, 'assign: no soft in pnk when PNK primary')
+const both = assignAttentionSoftSlots(signals, { hasPnk: true, hasPlanerka: true })
+ok(both.softForPlanerka == null && both.softForPnk == null, 'assign: no soft when both primary')
+ok(
+  both.softForPnk?.id !== 'coach-quality' && both.softForPlanerka?.id !== 'coach-quality',
+  'assign: CQ never jumps into pnk',
+)
 
 const cards = buildAdminDaySummaryCards({
   clubId: 'club-1',

@@ -3,12 +3,16 @@ import { AdminHomeSalesPlanGlance } from './AdminHomeSalesPlanGlance.jsx'
 import { AdminPlanerkaHomeGlance } from './AdminPlanerkaHomeGlance.jsx'
 import { AdminHomeSoftSignalGlance } from './AdminHomeSoftSignalGlance.jsx'
 import { ManagerPnkHomeGlance } from '../pnk/ManagerPnkHomeGlance.jsx'
-import { pickSoftSignalsForSlots } from '../../lib/admin/adminHomeSoftSignalsCore.js'
+import { assignAttentionSoftSlots } from '../../lib/admin/adminHomeSoftSignalsCore.js'
+import {
+  peekAttentionPresenceSession,
+  writeAttentionPresenceSession,
+} from '../../lib/admin/attentionPresenceSession.js'
 import '../../styles/admin-path.css'
 
 /**
  * Верхний ряд главной: план + ПНК / планёрка / мягкие сигналы.
- * Админ и менеджер — один каркас; план через renderPlan.
+ * Presence из session — слоты не прыгают с false→true после первого fetch.
  *
  * @param {{
  *   clubId: string,
@@ -27,8 +31,11 @@ export function AdminHomeAttentionRow({
   softSignals = [],
   onWidgetsPresence,
 }) {
-  const [hasPnk, setHasPnk] = useState(false)
-  const [hasPlanerka, setHasPlanerka] = useState(false)
+  const cid = String(clubId || '').trim()
+  const cachedPresence = cid ? peekAttentionPresenceSession(cid) : null
+
+  const [hasPnk, setHasPnk] = useState(() => Boolean(cachedPresence?.hasPnk))
+  const [hasPlanerka, setHasPlanerka] = useState(() => Boolean(cachedPresence?.hasPlanerka))
 
   const onPnkPresence = useCallback((visible) => {
     setHasPnk(Boolean(visible))
@@ -38,28 +45,29 @@ export function AdminHomeAttentionRow({
     setHasPlanerka(Boolean(visible))
   }, [])
 
-  const primarySides = (hasPnk ? 1 : 0) + (hasPlanerka ? 1 : 0)
-  const softShown = useMemo(
-    () => pickSoftSignalsForSlots(softSignals, { primarySides, maxSides: 2 }),
-    [softSignals, primarySides],
+  useEffect(() => {
+    if (!cid) return
+    writeAttentionPresenceSession(cid, { hasPnk, hasPlanerka })
+  }, [cid, hasPnk, hasPlanerka])
+
+  const { softForPnk, softForPlanerka } = useMemo(
+    () => assignAttentionSoftSlots(softSignals, { hasPnk, hasPlanerka }),
+    [softSignals, hasPnk, hasPlanerka],
   )
 
-  const sideCount = primarySides + softShown.length
+  const primarySides = (hasPnk ? 1 : 0) + (hasPlanerka ? 1 : 0)
+  const softCount = (softForPnk ? 1 : 0) + (softForPlanerka ? 1 : 0)
+  const sideCount = primarySides + softCount
   const compact = sideCount > 0
 
   useEffect(() => {
     onWidgetsPresence?.({ hasPnk, hasPlanerka, sideCount })
   }, [hasPnk, hasPlanerka, sideCount, onWidgetsPresence])
 
-  const cid = String(clubId || '').trim()
   if (!cid) return null
 
-  let softCursor = 0
-  const softForPnkSlot = !hasPnk && softShown[softCursor] ? softShown[softCursor++] : null
-  const softForPlanerkaSlot = !hasPlanerka && softShown[softCursor] ? softShown[softCursor++] : null
-
-  const pnkSlotFilled = hasPnk || Boolean(softForPnkSlot)
-  const planerkaSlotFilled = hasPlanerka || Boolean(softForPlanerkaSlot)
+  const pnkSlotFilled = hasPnk || Boolean(softForPnk)
+  const planerkaSlotFilled = hasPlanerka || Boolean(softForPlanerka)
 
   return (
     <section
@@ -83,18 +91,18 @@ export function AdminHomeAttentionRow({
           compact={compact}
           onPresenceChange={onPnkPresence}
         />
-        {softForPnkSlot ? (
+        {softForPnk ? (
           <AdminHomeSoftSignalGlance
-            id={softForPnkSlot.id}
-            title={softForPnkSlot.title}
-            subtitle={softForPnkSlot.subtitle}
-            href={softForPnkSlot.href}
-            tone={softForPnkSlot.tone}
-            scorePct={softForPnkSlot.scorePct}
-            chipLabel={softForPnkSlot.chipLabel}
-            reviewCount={softForPnkSlot.reviewCount}
-            attentionCount={softForPnkSlot.attentionCount}
-            droppedCount={softForPnkSlot.droppedCount}
+            id={softForPnk.id}
+            title={softForPnk.title}
+            subtitle={softForPnk.subtitle}
+            href={softForPnk.href}
+            tone={softForPnk.tone}
+            scorePct={softForPnk.scorePct}
+            chipLabel={softForPnk.chipLabel}
+            reviewCount={softForPnk.reviewCount}
+            attentionCount={softForPnk.attentionCount}
+            droppedCount={softForPnk.droppedCount}
             compact={compact}
           />
         ) : null}
@@ -109,18 +117,18 @@ export function AdminHomeAttentionRow({
           compact={compact}
           onPresenceChange={onPlanerkaPresence}
         />
-        {softForPlanerkaSlot ? (
+        {softForPlanerka ? (
           <AdminHomeSoftSignalGlance
-            id={softForPlanerkaSlot.id}
-            title={softForPlanerkaSlot.title}
-            subtitle={softForPlanerkaSlot.subtitle}
-            href={softForPlanerkaSlot.href}
-            tone={softForPlanerkaSlot.tone}
-            scorePct={softForPlanerkaSlot.scorePct}
-            chipLabel={softForPlanerkaSlot.chipLabel}
-            reviewCount={softForPlanerkaSlot.reviewCount}
-            attentionCount={softForPlanerkaSlot.attentionCount}
-            droppedCount={softForPlanerkaSlot.droppedCount}
+            id={softForPlanerka.id}
+            title={softForPlanerka.title}
+            subtitle={softForPlanerka.subtitle}
+            href={softForPlanerka.href}
+            tone={softForPlanerka.tone}
+            scorePct={softForPlanerka.scorePct}
+            chipLabel={softForPlanerka.chipLabel}
+            reviewCount={softForPlanerka.reviewCount}
+            attentionCount={softForPlanerka.attentionCount}
+            droppedCount={softForPlanerka.droppedCount}
             compact={compact}
           />
         ) : null}

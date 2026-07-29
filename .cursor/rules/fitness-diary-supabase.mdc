@@ -13,6 +13,7 @@ alwaysApply: false
 - **Service role** — только `api/` (serverless), **никогда** во фронт / `VITE_*`.
 - Anon key — JWT `eyJ…`, **не** `sb_publishable_…`.
 - `public.users.id` **=** Auth UID (иначе RLS и админка ломаются).
+- Направление безопасности (auth, push, RLS): `fitness-diary-security.mdc`.
 
 ## Миграции и схема
 
