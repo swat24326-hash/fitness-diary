@@ -128,7 +128,7 @@ export function PwaUpdatePrompt() {
     <div className="pwa-update" role="status" aria-live="polite">
       <div className="pwa-update__text">
         {deferUpdate
-          ? 'Доступна новая версия — обновим, когда закончите тренировку или отчёт.'
+          ? 'Доступна новая версия — обновим, когда закончите тренировку или сохраните отчёт продаж.'
           : 'Доступна новая версия. Нажмите один раз — всё обновится само.'}
         {!navigator.onLine && (
           <span className="muted"> Сейчас офлайн — обновление применится при появлении интернета.</span>

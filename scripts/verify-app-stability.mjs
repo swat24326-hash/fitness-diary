@@ -3,7 +3,7 @@
  * node scripts/verify-app-stability.mjs
  */
 import { resolveAdminClubId } from '../src/lib/clubContext.js'
-import { decideAppUpdate, isOnTrainingPage, shouldAutoApplyUpdate } from '../src/lib/appUpdatePolicy.js'
+import { decideAppUpdate, isOnTrainingPage, isOnSalesReportPage, shouldAutoApplyUpdate } from '../src/lib/appUpdatePolicy.js'
 import { getAppUpdatePending, setAppUpdatePending, clearAppUpdatePending } from '../src/lib/appUpdateState.js'
 import { mergeIdentityCacheIntoUser } from '../src/lib/userIdentityCache.js'
 import { parseBundleIdFromHtml, parseBuildTimeFromHtml, formatBuildTimeRu, formatBuildLabel, formatBuildAgeRu, getRemoteBuildProbeUrl } from '../src/lib/appBuildInfo.js'
@@ -52,10 +52,27 @@ ok(!isOnTrainingPage('/sales'), 'sales path is not training')
 
 ok(decideAppUpdate({ pathname: '/login' }) === 'immediate', 'login → immediate update')
 ok(decideAppUpdate({ pathname: '/trainer/workouts/x' }) === 'defer', 'training → defer')
-ok(decideAppUpdate({ pathname: '/sales', syncQueueCount: 2 }) === 'prompt', 'queue → prompt')
+ok(decideAppUpdate({ pathname: '/sales', syncQueueCount: 2 }) === 'prompt', 'queue on sales without draft → prompt')
+ok(
+  decideAppUpdate({ pathname: '/sales', hasSalesDraft: true }) === 'defer',
+  'sales report + draft → defer',
+)
+ok(
+  decideAppUpdate({ pathname: '/admin', hasSalesDraft: true }) === 'immediate',
+  'admin home + leftover draft → immediate (not defer)',
+)
+ok(
+  decideAppUpdate({ pathname: '/admin', hasSalesDraft: true, syncQueueCount: 1 }) === 'prompt',
+  'admin home + draft + queue → prompt',
+)
 ok(decideAppUpdate({ pathname: '/trainer' }) === 'immediate', 'trainer home → immediate')
 ok(shouldAutoApplyUpdate('immediate'), 'auto on immediate')
 ok(!shouldAutoApplyUpdate('defer'), 'no auto on defer')
+
+ok(isOnSalesReportPage('/admin/sales'), 'admin sales is report page')
+ok(isOnSalesReportPage('/sales'), 'manager sales is report page')
+ok(!isOnSalesReportPage('/admin'), 'admin home is not sales report')
+ok(!isOnSalesReportPage('/sales/pnk'), 'pnk is not sales report')
 
 const merged = mergeIdentityCacheIntoUser(
   { id: 'u1', email: 'a@b.ru', name: 'Ann', club_id: 'c1', role: 'sales_manager', at: 1 },
