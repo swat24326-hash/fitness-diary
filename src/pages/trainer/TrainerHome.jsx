@@ -27,6 +27,7 @@ import {
 import { buildTrainerCoachQualityGlance } from '../../lib/trainer/trainerCoachQualityGlanceCore.js'
 import { buildCoachQualityForScope } from '../../lib/admin/coachQualityService.js'
 import { COACH_QUALITY_PERIOD_DAYS } from '../../lib/admin/coachQualityCore.js'
+import { fetchCoachQualityViaApi } from '../../lib/admin/adminApiClient.js'
 import {
   useDebouncedStorageReload,
   shouldReloadTrainerChallenges,
@@ -117,19 +118,38 @@ export function TrainerHome() {
         try {
           const dateTo = todayLocalIso()
           const dateFrom = addDaysToIso(dateTo, -(COACH_QUALITY_PERIOD_DAYS - 1))
-          const memberships = Object.values(snap.memByClient ?? {}).flat()
-          const cq = await buildCoachQualityForScope({
-            clients: snap.clients ?? [],
-            trainings: snap.trainings ?? [],
-            memberships,
-            clubId: clubId || null,
-            dateFrom,
-            dateTo,
-            trainerIdFilter: trainerId,
-            skipBrief: true,
-          })
+          let row = null
+          if (clubId && isSupabaseConfigured() && isAppOnline()) {
+            try {
+              const api = await fetchCoachQualityViaApi({
+                clubId,
+                dateFrom,
+                dateTo,
+                trainerId,
+                mode: 'glance',
+              })
+              row = (api?.coachQuality?.trainers ?? []).find(
+                (t) => String(t.trainerId) === String(trainerId),
+              )
+            } catch {
+              /* локальный расчёт */
+            }
+          }
+          if (!row) {
+            const memberships = Object.values(snap.memByClient ?? {}).flat()
+            const cq = await buildCoachQualityForScope({
+              clients: snap.clients ?? [],
+              trainings: snap.trainings ?? [],
+              memberships,
+              clubId: clubId || null,
+              dateFrom,
+              dateTo,
+              trainerIdFilter: trainerId,
+              skipBrief: true,
+            })
+            row = (cq.trainers ?? []).find((t) => String(t.trainerId) === String(trainerId))
+          }
           if (cqGen !== cqGenRef.current) return
-          const row = (cq.trainers ?? []).find((t) => String(t.trainerId) === String(trainerId))
           setCqGlance(buildTrainerCoachQualityGlance(row))
         } catch {
           if (cqGen !== cqGenRef.current) return

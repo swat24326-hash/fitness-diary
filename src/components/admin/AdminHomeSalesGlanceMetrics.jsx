@@ -1,0 +1,57 @@
+import { formatRub } from '../../lib/admin/salesReportCore.js'
+
+const ROWS = [
+  { key: 'netProfit', label: 'Чистая прибыль', kind: 'money', signed: true },
+  { key: 'pzTrainings', label: 'Тренировки ПЗ', kind: 'count' },
+  { key: 'azTrainings', label: 'Тренировки АЗ', kind: 'count' },
+]
+
+/**
+ * @param {'money' | 'count'} kind
+ * @param {unknown} value
+ * @param {{ signed?: boolean }} [opts]
+ */
+function formatGlanceValue(kind, value, { signed = false } = {}) {
+  if (value == null || !Number.isFinite(Number(value))) return '—'
+  if (kind === 'count') return new Intl.NumberFormat('ru-RU').format(Number(value) || 0)
+  const n = Number(value) || 0
+  return formatRub(signed ? n : Math.abs(n))
+}
+
+/**
+ * Компактные факт / прогноз под шкалой плана на главной.
+ *
+ * @param {{
+ *   fact?: Record<string, number> | null,
+ *   forecast?: Record<string, number> | null,
+ * }} props
+ */
+export function AdminHomeSalesGlanceMetrics({ fact = null, forecast = null }) {
+  if (!fact || !forecast) return null
+
+  return (
+    <ul className="admin-home-sales-plan__metrics" aria-label="Факт и прогноз месяца">
+      {ROWS.map((row) => {
+        const factVal = fact[row.key]
+        const forecastVal = forecast[row.key]
+        const factNeg = Boolean(row.signed) && Number(factVal) < 0
+        const forecastNeg = Boolean(row.signed) && Number(forecastVal) < 0
+        return (
+          <li key={row.key} className="admin-home-sales-plan__metric">
+            <span className="admin-home-sales-plan__metric-label">{row.label}</span>
+            <span
+              className={`admin-home-sales-plan__metric-fact${factNeg ? ' is-negative' : ''}`}
+            >
+              {formatGlanceValue(row.kind, factVal, { signed: row.signed })}
+            </span>
+            <span
+              className={`admin-home-sales-plan__metric-forecast${forecastNeg ? ' is-negative' : ''}`}
+            >
+              {formatGlanceValue(row.kind, forecastVal, { signed: row.signed })}
+            </span>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}

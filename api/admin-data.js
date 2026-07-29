@@ -19,7 +19,7 @@ import { handlePushSubscriptionGet, handlePushSubscriptionPost } from './_lib/pu
 import { handleResetTrainerPasswordPost, handleSetTrainerActivePost } from './_lib/trainerAuthAdmin.js'
 import { handleTrainerSelfStatsGet } from './_lib/adminData/trainerSelfStatsHandler.js'
 import { handleSearch, handleJournal, handleClientsLastTrainings } from './_lib/adminData/journalHandlers.js'
-import { handleClubStats, handleHealthCards, handleClubMonthly } from './_lib/adminData/clubHandlers.js'
+import { handleClubStats, handleCoachQuality, handleHealthCards, handleClubMonthly } from './_lib/adminData/clubHandlers.js'
 import {
   handleChallenges,
   handleChallengeTrainings,
@@ -189,6 +189,7 @@ async function handler(req, res) {
     'iskra-dispatch',
     'push-subscription',
     'trainer-self-stats',
+    'coach-quality',
   ])
 
   if (trainerActions.has(action)) {
@@ -200,6 +201,16 @@ async function handler(req, res) {
         return
       }
       return handleTrainerSelfStatsGet(authCtx, req, res)
+    }
+    if (action === 'coach-quality') {
+      if (authCtx.isAdmin) {
+        return handleCoachQuality(authCtx, req, res)
+      }
+      if (authCtx.isTrainer) {
+        return handleCoachQuality(authCtx, req, res)
+      }
+      sendJson(res, 403, { error: 'Нет доступа' })
+      return
     }
     if (action === 'iskra-dispatch') {
       const view = String(req.query?.view ?? 'inbox').trim().toLowerCase()
@@ -301,7 +312,7 @@ async function handler(req, res) {
     default:
       sendJson(res, 400, {
         error:
-          'Укажите action: search, journal, clients-last-trainings, club-stats, club-monthly, health-cards, sales, gemini-analytics-prefetch, iskra-settings, challenges, challenge-trainings, exercises, membership-types, clubs',
+          'Укажите action: search, journal, clients-last-trainings, club-stats, club-monthly, coach-quality, health-cards, sales, gemini-analytics-prefetch, iskra-settings, challenges, challenge-trainings, exercises, membership-types, clubs',
       })
   }
 }

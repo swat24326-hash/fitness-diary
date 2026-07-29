@@ -40,20 +40,23 @@ export async function loadAdminClubDaySummary(clubId) {
 
   if (isSupabaseConfigured() && isAppOnline()) {
     try {
-      const [todayStats, rangeStats] = await Promise.all([
-        loadClubTrainingStats({ clubId: cid, dateFrom: today, dateTo: today }),
-        loadClubTrainingStats({ clubId: cid, dateFrom: yesterday, dateTo: today }),
-      ])
-      if (!todayStats?.error) {
-        inactiveOverride = todayStats.inactiveInPeriod ?? null
-        trainingsTodayOverride = todayStats.totalCompleted ?? null
-      }
+      // Один light-запрос: completed по byDay + inactive на конец периода (сегодня).
+      const rangeStats = await loadClubTrainingStats({
+        clubId: cid,
+        dateFrom: yesterday,
+        dateTo: today,
+        includeCoachQuality: false,
+      })
       if (!rangeStats?.error) {
+        inactiveOverride = rangeStats.inactiveInPeriod ?? null
         const byDay = rangeStats.byDay ?? []
+        const tRow = byDay.find((d) => String(d?.date ?? '').slice(0, 10) === today)
         const yRow = byDay.find((d) => String(d?.date ?? '').slice(0, 10) === yesterday)
-        if (Number.isFinite(yRow?.completed)) {
-          trainingsYesterdayOverride = yRow.completed
+        if (Number.isFinite(tRow?.completed)) trainingsTodayOverride = tRow.completed
+        else if (Number.isFinite(rangeStats.totalCompleted) && !yRow) {
+          trainingsTodayOverride = rangeStats.totalCompleted
         }
+        if (Number.isFinite(yRow?.completed)) trainingsYesterdayOverride = yRow.completed
       }
     } catch {
       /* локальный кэш ниже */

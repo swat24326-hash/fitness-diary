@@ -5,11 +5,19 @@ import { AdminClubDaySummaryPanel } from '../../components/admin/AdminClubDaySum
 import { AdminHomeAttentionRow } from '../../components/admin/AdminHomeAttentionRow'
 import { dispatchLocalDataChanged } from '../../lib/dataAccess'
 import { loadAdminClubDaySummary } from '../../lib/admin/adminClubDaySummaryService'
-import { loadClubTrainingStats } from '../../lib/admin/adminClubStatsService'
+import { fetchCoachQualityViaApi } from '../../lib/admin/adminApiClient'
 import { buildAdminHomeSoftSignals } from '../../lib/admin/adminHomeSoftSignalsCore.js'
 import { getDateRange } from '../../lib/period'
 import { useDebouncedStorageReload } from '../../lib/useDebouncedStorageReload'
 import { shouldReloadAdminDaySummary } from '../../lib/admin/adminClubDaySummaryCore'
+import {
+  clearCoachQualityGlanceSession,
+  isCoachQualityGlanceFresh,
+  readCoachQualityGlanceSession,
+  writeCoachQualityGlanceSession,
+} from '../../lib/admin/coachQualityGlanceSession.js'
+import { isSupabaseConfigured } from '../../lib/supabase'
+import { isAppOnline } from '../../lib/syncService'
 import '../../styles/pnk-funnel.css'
 
 function adminTileClass({ isActive }) {
@@ -84,7 +92,7 @@ export function AdminDashboard() {
     }
   }, [clubId, isAdminHome])
 
-  const loadCoachQualityHome = useCallback(async ({ silent = false } = {}) => {
+  const loadCoachQualityHome = useCallback(async ({ silent = false, force = false } = {}) => {
     if (!isAdminHome) return
     const gen = ++cqGenRef.current
     if (!clubId) {
@@ -92,34 +100,53 @@ export function AdminDashboard() {
       setCoachQualityHomeLoading(false)
       return
     }
+    const range = getDateRange('month')
+    const cached = readCoachQualityGlanceSession(clubId, range.start, range.end)
+    if (cached?.glance && isCoachQualityGlanceFresh(cached.savedAt) && !force) {
+      setCoachQualityHome(cached.glance)
+      setCoachQualityHomeLoading(false)
+      return
+    }
+    if (cached?.glance && silent) {
+      setCoachQualityHome(cached.glance)
+    }
     if (!silent) setCoachQualityHomeLoading(true)
     try {
-      const range = getDateRange('month')
-      const stats = await loadClubTrainingStats({
+      if (!isSupabaseConfigured() || !isAppOnline()) {
+        if (gen !== cqGenRef.current) return
+        if (!cached?.glance) setCoachQualityHome(null)
+        return
+      }
+      const api = await fetchCoachQualityViaApi({
         clubId,
         dateFrom: range.start,
         dateTo: range.end,
+        mode: 'glance',
       })
       if (gen !== cqGenRef.current) return
-      const cq = stats?.coachQuality
-      if (!cq) {
-        setCoachQualityHome(null)
+      const glance = api?.glance
+        ? api.glance
+        : api?.coachQuality
+          ? {
+              scorePct: api.coachQuality.averageScorePct ?? null,
+              chipLabel: api.coachQuality.brief?.chipLabel ?? null,
+              hot:
+                (Number(api.coachQuality.brief?.reviewCount) || 0) > 0 ||
+                (Number(api.coachQuality.brief?.droppedCount) || 0) > 0,
+              reviewCount: Number(api.coachQuality.brief?.reviewCount) || 0,
+              attentionCount: Number(api.coachQuality.brief?.attentionCount) || 0,
+              droppedCount: Number(api.coachQuality.brief?.droppedCount) || 0,
+            }
+          : null
+      if (!glance) {
+        setCoachQualityHome(cached?.glance ?? null)
         return
       }
-      const review = Number(cq.brief?.reviewCount) || 0
-      const attention = Number(cq.brief?.attentionCount) || 0
-      const dropped = Number(cq.brief?.droppedCount) || 0
-      setCoachQualityHome({
-        scorePct: cq.averageScorePct ?? null,
-        chipLabel: cq.brief?.chipLabel ?? null,
-        hot: review > 0 || dropped > 0,
-        reviewCount: review,
-        attentionCount: attention,
-        droppedCount: dropped,
-      })
+      writeCoachQualityGlanceSession(clubId, range.start, range.end, glance)
+      setCoachQualityHome(glance)
     } catch {
       if (gen !== cqGenRef.current) return
-      setCoachQualityHome(null)
+      setCoachQualityHome(cached?.glance ?? null)
     } finally {
       if (gen === cqGenRef.current && !silent) setCoachQualityHomeLoading(false)
     }
@@ -136,8 +163,9 @@ export function AdminDashboard() {
 
   useDebouncedStorageReload(
     () => {
+      if (clubId) clearCoachQualityGlanceSession(clubId)
       void loadDaySummary({ silent: true })
-      void loadCoachQualityHome({ silent: true })
+      void loadCoachQualityHome({ silent: true, force: true })
     },
     { shouldRun: shouldReloadAdminDaySummary },
   )

@@ -301,7 +301,12 @@ export async function loadClubTrainingStats(p) {
   }
 
   try {
-    const viaApi = await fetchClubTrainingStatsViaApi({ clubId, dateFrom, dateTo })
+    const viaApi = await fetchClubTrainingStatsViaApi({
+      clubId,
+      dateFrom,
+      dateTo,
+      includeCq: includeCoachQuality,
+    })
     if (viaApi) {
       const stats = {
         ...base,

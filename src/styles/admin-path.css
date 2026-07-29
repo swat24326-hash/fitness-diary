@@ -311,6 +311,82 @@
   color: var(--accent-bright);
 }
 
+/* Факт / прогноз: прибыль и тренировки — мелкие цифры под шкалой */
+.admin-home-sales-plan__metrics {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 8px 0 0;
+  border-top: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+  display: grid;
+  gap: 4px;
+}
+
+.admin-home-sales-plan__metric {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px 10px;
+  min-width: 0;
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.admin-home-sales-plan__metric-label {
+  min-width: 0;
+  color: var(--text-muted);
+  font-weight: 550;
+  letter-spacing: 0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-home-sales-plan__metric-fact,
+.admin-home-sales-plan__metric-forecast {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.admin-home-sales-plan__metric-fact {
+  color: var(--text);
+}
+
+.admin-home-sales-plan__metric-forecast {
+  color: var(--accent-bright);
+}
+
+.admin-home-sales-plan__metric-fact.is-negative,
+.admin-home-sales-plan__metric-forecast.is-negative {
+  color: var(--danger, #f87171);
+}
+
+.admin-home-sales-plan__skel-metrics {
+  display: grid;
+  gap: 5px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.admin-home-sales-plan__skel-metric {
+  height: 12px;
+  width: 100%;
+  border-radius: 6px;
+}
+
+.admin-home-sales-plan--compact .admin-home-sales-plan__metrics {
+  margin-top: 6px;
+  padding-top: 6px;
+  gap: 3px;
+}
+
+.admin-home-sales-plan--compact .admin-home-sales-plan__metric {
+  font-size: 0.68rem;
+  gap: 6px 8px;
+}
+
 /* ——— Ряд «внимание»: план + ПНК + планёрка ——— */
 .admin-home-attention {
   display: grid;

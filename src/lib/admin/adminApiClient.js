@@ -392,7 +392,7 @@ export async function fetchClientsLastTrainingsViaApi({ clubId, clientIds }) {
 }
 
 /** GET /api/admin-data?action=club-stats */
-export async function fetchClubTrainingStatsViaApi({ clubId, dateFrom, dateTo }) {
+export async function fetchClubTrainingStatsViaApi({ clubId, dateFrom, dateTo, includeCq = true }) {
   const token = await getAccessTokenForAdminApi()
   if (!token) throw new Error('Нет сессии администратора')
 
@@ -400,9 +400,40 @@ export async function fetchClubTrainingStatsViaApi({ clubId, dateFrom, dateTo })
     club_id: clubId,
     date_from: dateFrom,
     date_to: dateTo,
+    include_cq: includeCq ? '1' : '0',
   })
   const { data, routeMissing } = await adminApiGet(
     `/api/admin-data?action=club-stats&${params}`,
+    token,
+    CLUB_STATS_FETCH_TIMEOUT_MS,
+  )
+  if (routeMissing) return null
+  return data
+}
+
+/**
+ * GET /api/admin-data?action=coach-quality
+ * @returns {Promise<{ coachQuality?: object, glance?: object } | null>}
+ */
+export async function fetchCoachQualityViaApi({
+  clubId,
+  dateFrom,
+  dateTo,
+  trainerId = '',
+  mode = 'full',
+}) {
+  const token = await getAccessTokenForAdminApi()
+  if (!token) throw new Error('Нет сессии')
+
+  const params = new URLSearchParams({
+    club_id: clubId,
+    date_from: dateFrom,
+    date_to: dateTo,
+    mode: mode === 'glance' ? 'glance' : 'full',
+  })
+  if (trainerId) params.set('trainer_id', String(trainerId))
+  const { data, routeMissing } = await adminApiGet(
+    `/api/admin-data?action=coach-quality&${params}`,
     token,
     CLUB_STATS_FETCH_TIMEOUT_MS,
   )

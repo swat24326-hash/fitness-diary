@@ -13,6 +13,7 @@ import {
   writeTrainerSelfStatsLastGood,
 } from './trainerSelfStatsLastGood.js'
 import { coachQualityNeedsRemoteTrainings } from './coachQualityRemoteGate.js'
+import { fetchCoachQualityViaApi } from '../admin/adminApiClient.js'
 
 export { mergeLocalAndRemoteTrainings } from './trainerRemoteMerge.js'
 export { coachQualityNeedsRemoteTrainings } from './coachQualityRemoteGate.js'
@@ -36,12 +37,29 @@ function countCompletedInRange(trainings, dateFrom, dateTo) {
 }
 
 /**
- * API trainer-self-stats не считает CQ (тяжело / care inputs).
- * Добираем с планшета: IDB + при online догрузка облака, если локальных completed меньше API.
- * Можно вызывать вторым шагом после лёгкой сводки (`includeCoachQuality: false`).
+ * Сначала online API coach-quality; иначе IDB (+ remote trainings при бедном кэше).
  */
 export async function ensureTrainerPeriodCoachQuality(period, { trainerId, clubId, dateFrom, dateTo }) {
   if (period?.coachQuality?.trainers?.length) return period
+
+  const cid = String(clubId ?? '').trim()
+  if (cid && isSupabaseConfigured() && isAppOnline()) {
+    try {
+      const api = await fetchCoachQualityViaApi({
+        clubId: cid,
+        dateFrom,
+        dateTo,
+        trainerId,
+        mode: 'full',
+      })
+      if (api?.coachQuality?.trainers?.length) {
+        return { ...period, coachQuality: api.coachQuality }
+      }
+    } catch (e) {
+      console.warn('[trainer-stats] coachQuality api', e)
+    }
+  }
+
   try {
     const { clients, trainings, memByClient } = await loadTrainerWorkspaceSnapshot(
       trainerId,

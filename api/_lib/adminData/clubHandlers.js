@@ -15,24 +15,16 @@ import {
 } from '../clubMonthlyAgg.js'
 import { IN_CHUNK, PAGE } from './constants.js'
 import { fetchPaged, fetchCompletedTrainingYearBounds } from './paging.js'
-import { aggregateCoachQuality } from '../../../src/lib/admin/coachQualityAgg.js'
-import { coachQualityRulesHelp } from '../../../src/lib/admin/coachQualityCore.js'
 import {
-  buildCoachQualityMorningBrief,
-  previousEqualPeriod,
-} from '../../../src/lib/admin/coachQualityBriefCore.js'
-import {
-  activeClientIdsFromTrainings,
-  fetchCoachQualityCareInputs,
-} from '../coachQualityCareFetch.js'
-import { loadClubCoachQualitySettings } from '../coachQualitySettingsHandler.js'
-import { fetchPagedLimited } from '../fetchPagedLimited.js'
-import { CLUB_STATS_MAX_TRAININGS } from '../apiLimits.js'
+  buildClubCoachQualityPayload,
+  parseIncludeCqFlag,
+} from '../clubCoachQualityCore.js'
 
 export async function handleClubStats(ctx, req, res) {
   const clubId = String(req.query?.club_id ?? '').trim()
   const dateFrom = String(req.query?.date_from ?? '').trim()
   const dateTo = String(req.query?.date_to ?? '').trim()
+  const includeCq = parseIncludeCqFlag(req.query?.include_cq)
   if (!clubId || !dateFrom || !dateTo || dateFrom > dateTo) {
     sendJson(res, 400, { error: 'Укажите club_id, date_from, date_to' })
     return
@@ -40,70 +32,7 @@ export async function handleClubStats(ctx, req, res) {
   try {
     const { supabaseAdmin } = ctx
     const raw = await fetchClubStatsRaw(supabaseAdmin, { clubId, dateFrom, dateTo })
-    const activeIds = activeClientIdsFromTrainings(raw.trainings, dateFrom, dateTo)
-    let careInputs = {
-      healthByClientId: {},
-      lastMeasureByClientId: {},
-      hadMeasureEverByClientId: {},
-      weightEntriesByClientId: {},
-    }
-    try {
-      careInputs = await fetchCoachQualityCareInputs(supabaseAdmin, activeIds)
-    } catch (careErr) {
-      console.warn('[club-stats] coachQuality care inputs', careErr)
-    }
-    let cqConfig = null
-    try {
-      const settings = await loadClubCoachQualitySettings(supabaseAdmin, clubId)
-      cqConfig = settings.config
-    } catch (cfgErr) {
-      console.warn('[club-stats] coachQuality config', cfgErr)
-    }
-    const currentAgg = aggregateCoachQuality({
-      trainings: raw.trainings,
-      clients: raw.clients,
-      memberships: raw.memberships,
-      membershipTypes: raw.membershipTypes,
-      ...careInputs,
-      dateFrom,
-      dateTo,
-      config: cqConfig,
-    })
-
-    let previousAgg = null
-    const prevRange = previousEqualPeriod(dateFrom, dateTo)
-    if (prevRange) {
-      try {
-        const prevTrainingsRes = await fetchPagedLimited(supabaseAdmin, {
-          table: 'trainings',
-          select: 'id, trainer_id, client_id, date, status, data',
-          clubId,
-          dateFrom: prevRange.dateFrom,
-          dateTo: prevRange.dateTo,
-          maxRows: CLUB_STATS_MAX_TRAININGS,
-        })
-        previousAgg = aggregateCoachQuality({
-          trainings: prevTrainingsRes.rows,
-          clients: raw.clients,
-          memberships: raw.memberships,
-          membershipTypes: raw.membershipTypes,
-          ...careInputs,
-          dateFrom: prevRange.dateFrom,
-          dateTo: prevRange.dateTo,
-          config: cqConfig,
-        })
-      } catch (prevErr) {
-        console.warn('[club-stats] coachQuality previous period', prevErr)
-      }
-    }
-
-    const coachQuality = {
-      ...currentAgg,
-      brief: buildCoachQualityMorningBrief(currentAgg, previousAgg),
-      rules: coachQualityRulesHelp(cqConfig),
-      source: 'admin_api',
-    }
-    sendJson(res, 200, {
+    const base = {
       ...aggregateTrainings(raw.trainings),
       ...aggregateClubClientPeriod(raw.clients, raw.memberships, dateFrom, dateTo),
       ...aggregateMembershipTypeStats({
@@ -111,9 +40,64 @@ export async function handleClubStats(ctx, req, res) {
         memberships: raw.memberships,
         membershipTypes: raw.membershipTypes,
       }),
-      coachQuality,
       source: 'admin_api',
       stats_truncated: raw.truncated,
+    }
+
+    if (!includeCq) {
+      sendJson(res, 200, { ...base, coachQuality: null })
+      return
+    }
+
+    const { coachQuality } = await buildClubCoachQualityPayload(supabaseAdmin, {
+      clubId,
+      dateFrom,
+      dateTo,
+      mode: 'full',
+      raw,
+    })
+    sendJson(res, 200, { ...base, coachQuality })
+  } catch (e) {
+    sendJson(res, 400, { error: e?.message ? String(e.message) : 'Ошибка' })
+  }
+}
+
+/**
+ * GET admin-data?action=coach-quality
+ * admin: клуб; trainer: только свой club_id + свой trainer_id.
+ */
+export async function handleCoachQuality(ctx, req, res) {
+  const clubId = String(req.query?.club_id ?? '').trim()
+  const dateFrom = String(req.query?.date_from ?? '').trim()
+  const dateTo = String(req.query?.date_to ?? '').trim()
+  const mode = String(req.query?.mode ?? 'full').trim().toLowerCase() === 'glance' ? 'glance' : 'full'
+  if (!clubId || !dateFrom || !dateTo || dateFrom > dateTo) {
+    sendJson(res, 400, { error: 'Укажите club_id, date_from, date_to' })
+    return
+  }
+
+  let trainerIdFilter = String(req.query?.trainer_id ?? '').trim() || null
+  if (ctx.isTrainer && !ctx.isAdmin) {
+    const selfId = String(ctx.user?.id ?? '').trim()
+    const userClub = String(ctx.profile?.club_id ?? '').trim()
+    if (!selfId || !userClub || userClub !== clubId) {
+      sendJson(res, 403, { error: 'Нет доступа к качеству этого клуба' })
+      return
+    }
+    trainerIdFilter = selfId
+  }
+
+  try {
+    const payload = await buildClubCoachQualityPayload(ctx.supabaseAdmin, {
+      clubId,
+      dateFrom,
+      dateTo,
+      trainerIdFilter,
+      mode,
+    })
+    sendJson(res, 200, {
+      ...payload,
+      source: 'admin_api',
     })
   } catch (e) {
     sendJson(res, 400, { error: e?.message ? String(e.message) : 'Ошибка' })

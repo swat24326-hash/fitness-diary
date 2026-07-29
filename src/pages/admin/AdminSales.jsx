@@ -12,8 +12,10 @@ import {
   expenseRowToForm,
   planRowToForm,
   monthPartsFromIso,
+  parseSalesMoney,
   resolvePlanFactFromMonthSummary,
 } from '../../lib/admin/salesReportCore'
+import { buildClubFinanceForecast } from '../../lib/admin/clubFinanceForecastCore'
 import { computePlanDirectionsFromForm, buildPlanMatrixJsonFromForm } from '../../lib/admin/salesPlanMatrixCore'
 import {
   buildTrainingsMatrixColumns,
@@ -39,6 +41,7 @@ import {
   saveClubSalesFinance,
   saveClubSalesPlan,
 } from '../../lib/admin/adminSalesService'
+import { clearSalesPlanGlanceSession } from '../../lib/admin/salesPlanGlanceSession.js'
 import {
   buildDailyDraftPayload,
   buildExpenseDraftPayload,
@@ -58,6 +61,7 @@ import {
   writeSalesDraft,
 } from '../../lib/admin/adminSalesDraftStorage'
 import { SalesPlanVessel } from '../../components/SalesPlanVessel'
+import { AdminHomeSalesGlanceMetrics } from '../../components/admin/AdminHomeSalesGlanceMetrics.jsx'
 import { SalesDailyForm } from '../../components/SalesDailyForm'
 import { SalesDailyTaskAssign } from '../../components/sales/SalesDailyTaskAssign.jsx'
 import { SalesFinancePanel } from '../../components/SalesFinancePanel'
@@ -367,6 +371,27 @@ export function AdminSales({ accessMode = 'admin' }) {
 
   const factMonth = resolvePlanFactFromMonthSummary(monthSummary)
 
+  const heroFinanceForecast = useMemo(() => {
+    if (isSalesManager) return null
+    const expenseRaw = parseSalesMoney(expenseForm.expense_month)
+    return buildClubFinanceForecast({
+      monthRows: monthDays,
+      year: yearMonth.year,
+      month: yearMonth.month,
+      expense: Number.isFinite(expenseRaw) ? expenseRaw : 0,
+      membershipTypes,
+      planForm,
+    })
+  }, [
+    isSalesManager,
+    monthDays,
+    yearMonth.year,
+    yearMonth.month,
+    expenseForm.expense_month,
+    membershipTypes,
+    planForm,
+  ])
+
   const softSignals = useMemo(() => [], [])
 
   const onWidgetsPresence = useCallback((info) => {
@@ -459,6 +484,7 @@ export function AdminSales({ accessMode = 'admin' }) {
       )
       setAerobicMatrix(aerobicRowsToInputMap(normalizeAerobicRowsFromDb(row?.aerobic_sales_matrix)))
       clearSalesDraft(salesDailyDraftKey(clubId, reportDate))
+      clearSalesPlanGlanceSession(clubId)
       await loadBundle()
       setVesselPulse((k) => k + 1)
       showToast('Отчёт сохранён')
@@ -487,6 +513,7 @@ export function AdminSales({ accessMode = 'admin' }) {
       }
       setPlanForm(planRowToForm(plan))
       clearSalesDraft(salesPlanDraftKey(clubId, yearMonth.year, yearMonth.month))
+      clearSalesPlanGlanceSession(clubId)
       await loadBundle()
       showToast('Уровни плана сохранены')
     } catch (e) {
@@ -514,6 +541,7 @@ export function AdminSales({ accessMode = 'admin' }) {
       }
       setPlanForm(planRowToForm(plan))
       clearSalesDraft(salesPlanDraftKey(clubId, yearMonth.year, yearMonth.month))
+      clearSalesPlanGlanceSession(clubId)
       await loadBundle()
       showToast('План по направлениям сохранён')
     } catch (e) {
@@ -540,6 +568,7 @@ export function AdminSales({ accessMode = 'admin' }) {
       }
       setExpenseForm(expenseRowToForm(expense))
       clearSalesDraft(salesFinanceDraftKey(clubId, yearMonth.year, yearMonth.month))
+      clearSalesPlanGlanceSession(clubId)
       await loadBundle()
       showToast('Расход сохранён')
     } catch (e) {
@@ -714,6 +743,12 @@ export function AdminSales({ accessMode = 'admin' }) {
             </button>
           </div>
           <SalesPlanVessel fact={factMonth} planLevels={planLevels} pulseKey={vesselPulse} />
+          {heroFinanceForecast?.ok ? (
+            <AdminHomeSalesGlanceMetrics
+              fact={heroFinanceForecast.fact}
+              forecast={heroFinanceForecast.forecast}
+            />
+          ) : null}
         </div>
       ) : null}
 

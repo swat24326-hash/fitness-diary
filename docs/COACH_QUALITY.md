@@ -72,7 +72,7 @@
 
 Подключение: `buildScopePeriodStats`, `loadClubTrainingStats` → поле `coachQuality`.  
 Админская сводка клуба берёт `coachQuality` из **`admin-data?action=club-stats`** (service role), чтобы не зависеть от пустого IndexedDB и RLS браузера.  
-Тренер: `trainer-self-stats` отдаёт сводку **без** CQ; клиент считает CQ теми же правилами **вторым шагом** (карточки периода появляются раньше, балл — с подписью «считаем…»). При online, если локальных `completed` меньше, чем в API-сводке, догружает тренировки из облака (`coachQualityNeedsRemoteTrainings`) — иначе на «бедном» кэше ноута балл завышается (меньше тонких в выборке).
+Тренер: `trainer-self-stats` отдаёт сводку **без** CQ. Клиент: лёгкие карточки сразу; CQ — `admin-data?action=coach-quality` (online) или локальный расчёт (офлайн), параллельно со сводкой. Админ: `club-stats&include_cq=0` + тот же `coach-quality`; на главной glance с session TTL ~20 мин (сброс после Sync), не путать с вечерним ритмом продаж. При online, если локальных `completed` меньше API-сводки и API CQ недоступен, догружает тренировки из облака (`coachQualityNeedsRemoteTrainings`).
 
 ## Проверка
 

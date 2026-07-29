@@ -37,7 +37,8 @@
 | action | Кто | Зачем |
 |--------|-----|--------|
 | `search`, `journal`, `clients-last-trainings` | admin | Поиск / журнал / даты последних тренировок по id (список клиентов) |
-| `club-stats`, `club-monthly` | admin | Сводка и год; в `club-stats` также `coachQuality` (те же trainings + конфиг клуба) |
+| `club-stats`, `club-monthly` | admin | Сводка и год. `club-stats&include_cq=0` — лёгкая сводка без CQ (default `include_cq=1` для совместимости) |
+| `coach-quality` | admin / trainer (свой клуб + свой id) | Отдельный расчёт CQ; `mode=full\|glance`. Статистика и главная грузят параллельно со сводкой |
 | `coach-quality-settings` | GET: admin или тренер/продажи своего клуба; POST: admin | веса осей, доли внутри ведения/хвостов и тумблеры |
 | `health-cards`, `clubs` | admin | Медкарты, клубы |
 | `sales` | admin / sales_manager | Отчёты продаж |
