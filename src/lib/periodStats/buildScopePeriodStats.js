@@ -31,6 +31,7 @@ function flattenMemberships(memByClient) {
  *   dateTo: string,
  *   trainerIdFilter?: string | null,
  *   membershipTypes?: object[],
+ *   includeCoachQuality?: boolean,
  * }} input
  */
 export async function buildScopePeriodStats(input) {
@@ -44,6 +45,7 @@ export async function buildScopePeriodStats(input) {
     dateTo,
     trainerIdFilter = null,
     membershipTypes: typesIn,
+    includeCoachQuality = true,
   } = input
 
   const memberships = membershipsIn ?? flattenMemberships(memByClient)
@@ -51,22 +53,24 @@ export async function buildScopePeriodStats(input) {
   const membershipTypes = typesIn ?? (clubId ? await listMembershipTypesForClub(clubId) : [])
 
   let coachQuality = null
-  try {
-    const prev = previousEqualPeriod(dateFrom, dateTo)
-    const previousTrainings = prev ? trainingsInRange(trainings, prev.dateFrom, prev.dateTo) : []
-    coachQuality = await buildCoachQualityForScope({
-      clients,
-      trainings: inRange,
-      memberships,
-      clubId,
-      dateFrom,
-      dateTo,
-      trainerIdFilter: trainerIdFilter || null,
-      membershipTypes,
-      previousTrainings,
-    })
-  } catch (e) {
-    console.warn('[stats] coachQuality', e)
+  if (includeCoachQuality) {
+    try {
+      const prev = previousEqualPeriod(dateFrom, dateTo)
+      const previousTrainings = prev ? trainingsInRange(trainings, prev.dateFrom, prev.dateTo) : []
+      coachQuality = await buildCoachQualityForScope({
+        clients,
+        trainings: inRange,
+        memberships,
+        clubId,
+        dateFrom,
+        dateTo,
+        trainerIdFilter: trainerIdFilter || null,
+        membershipTypes,
+        previousTrainings,
+      })
+    } catch (e) {
+      console.warn('[stats] coachQuality', e)
+    }
   }
 
   return {

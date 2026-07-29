@@ -198,10 +198,58 @@ async function attachCoachQuality(stats, { clubId, dateFrom, dateTo, clients, tr
 }
 
 /**
- * @param {{ clubId: string, dateFrom: string, dateTo: string }} p — даты ISO yyyy-mm-dd
+ * Добирает CQ, если в сводке его ещё нет (второй шаг после лёгкой загрузки).
+ * @param {object} period
+ * @param {{ clubId: string, dateFrom: string, dateTo: string }} p
+ */
+export async function ensureClubPeriodCoachQuality(period, { clubId, dateFrom, dateTo }) {
+  if (period?.coachQuality?.trainers?.length) return period
+  const cid = String(clubId ?? '').trim()
+  if (!cid || !dateFrom || !dateTo || dateFrom > dateTo) {
+    return { ...period, coachQuality: period?.coachQuality ?? null }
+  }
+
+  let [rows, clients, memberships] = await Promise.all([
+    fetchTrainingsForClubRangeLocal(cid, dateFrom, dateTo).catch(() => []),
+    fetchClientsForClubLocal(cid).catch(() => []),
+    fetchMembershipsForClubLocal(cid).catch(() => []),
+  ])
+  const localThin = !clients.length || (!rows.length && !memberships.length)
+  const needData =
+    localThin && ((period?.totalCompleted ?? 0) > 0 || (period?.totalClients ?? 0) > 0)
+  if (needData && isSupabaseConfigured()) {
+    try {
+      ;[rows, clients, memberships] = await Promise.all([
+        fetchTrainingsForClubRangeRemote(cid, dateFrom, dateTo),
+        fetchClientsForClubRemote(cid),
+        fetchMembershipsForClubRemote(cid),
+      ])
+    } catch (remoteErr) {
+      console.warn('[admin] coachQuality remote fill', remoteErr)
+    }
+  }
+  if (!clients.length) return { ...period, coachQuality: period?.coachQuality ?? null }
+  return attachCoachQuality(period, {
+    clubId: cid,
+    dateFrom,
+    dateTo,
+    clients,
+    trainings: rows,
+    memberships,
+  })
+}
+
+/**
+ * @param {{
+ *   clubId: string,
+ *   dateFrom: string,
+ *   dateTo: string,
+ *   includeCoachQuality?: boolean,
+ * }} p — даты ISO yyyy-mm-dd
  */
 export async function loadClubTrainingStats(p) {
   const { clubId, dateFrom, dateTo } = p
+  const includeCoachQuality = p.includeCoachQuality !== false
   const base = {
     totalCompleted: 0,
     totalDraft: 0,
@@ -229,6 +277,10 @@ export async function loadClubTrainingStats(p) {
   }
 
   const clientSlice = (clients, memberships) => aggregateClubClientPeriod(clients, memberships, dateFrom, dateTo)
+  const maybeAttach = async (stats, ctx) => {
+    if (!includeCoachQuality) return { ...stats, coachQuality: stats.coachQuality ?? null }
+    return attachCoachQuality(stats, ctx)
+  }
 
   if (!isSupabaseConfigured()) {
     const [rows, clients, memberships] = await Promise.all([
@@ -236,7 +288,7 @@ export async function loadClubTrainingStats(p) {
       fetchClientsForClubLocal(clubId),
       fetchMembershipsForClubLocal(clubId),
     ])
-    return attachCoachQuality(
+    return maybeAttach(
       {
         ...base,
         ...aggregateTrainings(rows),
@@ -274,7 +326,7 @@ export async function loadClubTrainingStats(p) {
         fallbackReason: null,
         error: null,
       }
-      if (viaApi.coachQuality) return stats
+      if (viaApi.coachQuality || !includeCoachQuality) return stats
 
       // Старый API без coachQuality — fallback на локальный/remote кэш.
       let [rows, clients, memberships] = await Promise.all([
@@ -319,7 +371,7 @@ export async function loadClubTrainingStats(p) {
       fetchClientsForClubRemote(clubId),
       fetchMembershipsForClubRemote(clubId),
     ])
-    return attachCoachQuality(
+    return maybeAttach(
       {
         ...base,
         ...aggregateTrainings(rows),
@@ -335,7 +387,7 @@ export async function loadClubTrainingStats(p) {
       fetchClientsForClubLocal(clubId),
       fetchMembershipsForClubLocal(clubId),
     ])
-    return attachCoachQuality(
+    return maybeAttach(
       {
         ...base,
         ...aggregateTrainings(rows),

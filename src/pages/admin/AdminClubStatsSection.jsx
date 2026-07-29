@@ -1,12 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { BarChart3, ClipboardList, Gauge, Info, LayoutGrid, LineChart, RefreshCw, Trophy, UserCheck, UserMinus, UserPlus, Users } from 'lucide-react'
+import { listTrainerSummariesForAdmin, listClubsLocal } from '../../lib/dataAccess'
 import { isSupabaseConfigured } from '../../lib/supabase'
-import { isAppOnline } from '../../lib/syncService'
-import { refreshMembershipsForStats } from '../../lib/membershipCacheRefresh'
-import { loadClubTrainingStats, listTrainerSummariesForAdmin, listClubsLocal } from '../../lib/dataAccess'
-import { loadTrainerPeriodStats } from '../../lib/trainer/trainerPeriodStatsService'
 import { loadTrainerMonthlyStatsForYear } from '../../lib/trainer/trainerMonthlyStatsService'
-import { useDebouncedStorageReload, shouldReloadAdminStatsPage, shouldReloadTrainerClientList } from '../../lib/useDebouncedStorageReload'
 import { formatIsoRu, getDateRange, PERIOD_PRESETS } from '../../lib/period'
 import { AdminClubDayChart } from '../../components/AdminClubDayChart'
 import { AdminClubMonthlyChart } from '../../components/AdminClubMonthlyChart'
@@ -15,8 +11,7 @@ import { CoachQualityPanel } from '../../components/CoachQualityPanel'
 import { TrainerRatingCard } from '../../components/admin/TrainerRatingCard'
 import { loadClubMonthlyStatsForYear, MONTHS_PER_CALENDAR_YEAR } from '../../lib/admin/adminClubMonthlyService'
 import { useIskraPanel } from '../../context/IskraPanelContext.jsx'
-import { fetchPnkBundle } from '../../lib/pnk/pnkApiService'
-import { loadLocalPnkFunnelUiStats } from '../../lib/pnk/pnkLocalService'
+import { useClubPeriodStatsLoad } from './useClubPeriodStatsLoad'
 
 /** @typedef {'byDay' | 'byTypes' | 'rating' | 'clubMonthly' | 'pnk' | 'coachQuality'} AdminStatsInlinePanel */
 
@@ -56,9 +51,6 @@ export function AdminClubStatsSection({
   const [period, setPeriod] = useState(resolvedInitialPeriod)
   const [customFrom, setCustomFrom] = useState('')
   const [customTo, setCustomTo] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [stats, setStats] = useState(null)
-  const [pnkFunnel, setPnkFunnel] = useState(null)
   const [trainerNameById, setTrainerNameById] = useState({})
   const [clubLabel, setClubLabel] = useState('')
   const [statsHelpOpen, setStatsHelpOpen] = useState(false)
@@ -80,6 +72,14 @@ export function AdminClubStatsSection({
   }, [initialPeriod, clubId, periodPresetIds])
 
   const range = useMemo(() => getDateRange(period, customFrom, customTo), [period, customFrom, customTo])
+
+  const { busy, coachQualityBusy, stats, pnkFunnel, loadStats } = useClubPeriodStatsLoad({
+    clubId,
+    isTrainerScope,
+    scopeTrainerId,
+    scopeClubId,
+    range,
+  })
 
   const defaultChartYear = useMemo(() => {
     const end = String(range.end ?? '').slice(0, 10)
@@ -220,102 +220,9 @@ export function AdminClubStatsSection({
     }
   }, [clubId, isTrainerScope])
 
-  const loadStats = useCallback(async ({ silent = false } = {}) => {
-    const canLoad = isTrainerScope ? scopeTrainerId : clubId
-    if (!canLoad || !range.start || !range.end || range.start > range.end) {
-      setStats(null)
-      return
-    }
-    if (!silent) setBusy(true)
-    try {
-      if (isSupabaseConfigured() && isAppOnline()) {
-        await refreshMembershipsForStats({
-          clubId: isTrainerScope ? scopeClubId : clubId,
-          trainerId: isTrainerScope ? scopeTrainerId : null,
-          notify: false,
-        })
-      }
-      const s = isTrainerScope
-        ? await loadTrainerPeriodStats({
-            trainerId: scopeTrainerId,
-            clubId: scopeClubId || null,
-            dateFrom: range.start,
-            dateTo: range.end,
-          })
-        : await loadClubTrainingStats({
-            clubId,
-            dateFrom: range.start,
-            dateTo: range.end,
-          })
-      setStats(s)
-
-      try {
-        const clubFilter = isTrainerScope ? scopeClubId || clubId : clubId
-        if (!isTrainerScope && clubFilter && isSupabaseConfigured() && isAppOnline()) {
-          try {
-            const bundle = await fetchPnkBundle({
-              clubId: clubFilter,
-              dateFrom: range.start,
-              dateTo: range.end,
-            })
-            const s = bundle?.stats
-            if (s) {
-              setPnkFunnel({
-                entered: s.entered,
-                won: s.won,
-                lost: s.lost,
-                open: s.open,
-                conversionPct: s.conversionPct,
-                nutritionPct: s.nutritionPct,
-                homeworkPct: s.homeworkPct,
-                packageDone: s.packageDone,
-                trialDone: s.trialDone,
-                trainers: s.trainers ?? [],
-              })
-            } else {
-              setPnkFunnel(null)
-            }
-          } catch {
-            /* офлайн / ошибка API — локальный кэш по клубу */
-            setPnkFunnel(
-              await loadLocalPnkFunnelUiStats({
-                clubId: clubFilter,
-                dateFrom: range.start,
-                dateTo: range.end,
-              }),
-            )
-          }
-        } else {
-          setPnkFunnel(
-            await loadLocalPnkFunnelUiStats({
-              clubId: clubFilter,
-              dateFrom: range.start,
-              dateTo: range.end,
-              trainerId: isTrainerScope ? scopeTrainerId : '',
-            }),
-          )
-        }
-      } catch {
-        setPnkFunnel(null)
-      }
-    } catch {
-      setStats(null)
-      setPnkFunnel(null)
-    } finally {
-      if (!silent) setBusy(false)
-    }
-  }, [clubId, scopeClubId, scopeTrainerId, isTrainerScope, range.start, range.end])
-
-  useEffect(() => {
-    void loadStats()
-  }, [loadStats])
-
-  useDebouncedStorageReload(() => void loadStats({ silent: true }), {
-    shouldRun: isTrainerScope ? shouldReloadTrainerClientList : shouldReloadAdminStatsPage,
-  })
-
   useEffect(() => {
     if (!deepLinkPanel || busy || !stats) return
+    if (deepLinkPanel === 'coachQuality' && coachQualityBusy) return
     const key = `${clubId}:${deepLinkPanel}:${range.start}:${range.end}`
     if (deepLinkHandledRef.current === key) return
     deepLinkHandledRef.current = key
@@ -331,7 +238,18 @@ export function AdminClubStatsSection({
       }, 80)
     }
     onDeepLinkConsumed?.()
-  }, [deepLinkPanel, busy, stats, clubId, range.start, range.end, onOpenInactive, onOpenCompletedJournal, onDeepLinkConsumed])
+  }, [
+    deepLinkPanel,
+    busy,
+    coachQualityBusy,
+    stats,
+    clubId,
+    range.start,
+    range.end,
+    onOpenInactive,
+    onOpenCompletedJournal,
+    onDeepLinkConsumed,
+  ])
 
   const maxDayTotal = useMemo(() => {
     if (!stats?.byDay?.length) return 1
@@ -763,15 +681,18 @@ export function AdminClubStatsSection({
           <button
             type="button"
             className={statCardClass(inlinePanel === 'coachQuality')}
-            disabled={!hasCoachQualityRows}
+            disabled={!hasCoachQualityRows || coachQualityBusy}
+            aria-busy={coachQualityBusy || undefined}
             aria-label={
-              hasCoachQualityRows
-                ? isTrainerScope
-                  ? `Качество ведения: ${coachQualityCardValue != null ? `${coachQualityCardValue} из 100` : 'нет балла'}. Нажмите для таблицы`
-                  : `Качество ведения: средний балл ${coachQualityCardValue != null ? coachQualityCardValue : 'нет'}. Нажмите для таблицы`
-                : 'Качество ведения: нет данных'
+              coachQualityBusy
+                ? 'Качество ведения: считаем'
+                : hasCoachQualityRows
+                  ? isTrainerScope
+                    ? `Качество ведения: ${coachQualityCardValue != null ? `${coachQualityCardValue} из 100` : 'нет балла'}. Нажмите для таблицы`
+                    : `Качество ведения: средний балл ${coachQualityCardValue != null ? coachQualityCardValue : 'нет'}. Нажмите для таблицы`
+                  : 'Качество ведения: нет данных'
             }
-            title={hasCoachQualityRows ? 'Таблица качества ведения' : undefined}
+            title={hasCoachQualityRows && !coachQualityBusy ? 'Таблица качества ведения' : undefined}
             onClick={() => toggleInlinePanel('coachQuality')}
           >
             <div className="stat-card__top admin-club-stat-card__head">
@@ -779,7 +700,9 @@ export function AdminClubStatsSection({
               <Gauge className="stat-card__icon" size={22} aria-hidden />
             </div>
             <p className="stat-card__value admin-club-stat-card__value">
-              {coachQualityCardValue != null ? (
+              {coachQualityBusy ? (
+                '…'
+              ) : coachQualityCardValue != null ? (
                 <>
                   {coachQualityCardValue}
                   <span className="admin-club-stat-card__value-unit">/100</span>
@@ -789,15 +712,17 @@ export function AdminClubStatsSection({
               )}
             </p>
             <p className="admin-club-stat-card__foot">
-              {!hasCoachQualityRows
-                ? 'за выбранный период'
-                : inlinePanel === 'coachQuality'
-                  ? 'скрыть таблицу'
-                  : isTrainerScope
-                    ? 'нажмите · ваша оценка'
-                    : coachQualityBriefChip
-                      ? coachQualityBriefChip
-                      : 'средний балл · нажмите для таблицы'}
+              {coachQualityBusy
+                ? 'считаем…'
+                : !hasCoachQualityRows
+                  ? 'за выбранный период'
+                  : inlinePanel === 'coachQuality'
+                    ? 'скрыть таблицу'
+                    : isTrainerScope
+                      ? 'нажмите · ваша оценка'
+                      : coachQualityBriefChip
+                        ? coachQualityBriefChip
+                        : 'средний балл · нажмите для таблицы'}
             </p>
           </button>
         </div>

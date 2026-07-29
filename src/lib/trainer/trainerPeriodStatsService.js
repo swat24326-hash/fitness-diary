@@ -38,8 +38,9 @@ function countCompletedInRange(trainings, dateFrom, dateTo) {
 /**
  * API trainer-self-stats не считает CQ (тяжело / care inputs).
  * Добираем с планшета: IDB + при online догрузка облака, если локальных completed меньше API.
+ * Можно вызывать вторым шагом после лёгкой сводки (`includeCoachQuality: false`).
  */
-async function attachCoachQualityIfMissing(period, { trainerId, clubId, dateFrom, dateTo }) {
+export async function ensureTrainerPeriodCoachQuality(period, { trainerId, clubId, dateFrom, dateTo }) {
   if (period?.coachQuality?.trainers?.length) return period
   try {
     const { clients, trainings, memByClient } = await loadTrainerWorkspaceSnapshot(
@@ -182,12 +183,19 @@ export async function fetchTrainerTrainingsRemoteInRange(trainerId, dateFrom, da
 }
 
 /**
- * @param {{ trainerId: string, clubId: string | null, dateFrom: string, dateTo: string }} p
+ * @param {{
+ *   trainerId: string,
+ *   clubId: string | null,
+ *   dateFrom: string,
+ *   dateTo: string,
+ *   includeCoachQuality?: boolean,
+ * }} p
  */
 export async function loadTrainerPeriodStats(p) {
   const trainerId = String(p.trainerId ?? '').trim()
   const clubId = String(p.clubId ?? '').trim()
   const { dateFrom, dateTo } = p
+  const includeCoachQuality = p.includeCoachQuality !== false
   if (!trainerId || !dateFrom || !dateTo || dateFrom > dateTo) {
     return {
       totalCompleted: 0,
@@ -229,16 +237,14 @@ export async function loadTrainerPeriodStats(p) {
       })
       if (api?.period && typeof api.period.totalCompleted === 'number') {
         writeTrainerSelfStatsLastGood(trainerId, dateFrom, dateTo, dayIso, api)
-        const withCq = await attachCoachQualityIfMissing(
-          {
-            ...api.period,
-            source: 'api',
-            fallbackReason: null,
-            error: null,
-          },
-          { trainerId, clubId, dateFrom, dateTo },
-        )
-        return withCq
+        const period = {
+          ...api.period,
+          source: 'api',
+          fallbackReason: null,
+          error: null,
+        }
+        if (!includeCoachQuality) return { ...period, coachQuality: period.coachQuality ?? null }
+        return await ensureTrainerPeriodCoachQuality(period, { trainerId, clubId, dateFrom, dateTo })
       }
       throw new Error('Пустой ответ статистики')
     } catch (e) {
@@ -246,19 +252,19 @@ export async function loadTrainerPeriodStats(p) {
       const today = todayLocalIso()
       const dayIso = today >= dateFrom && today <= dateTo ? today : dateTo
       const lastGood = readTrainerSelfStatsLastGood(trainerId, dateFrom, dateTo, dayIso)
-      const reason = e?.message ? String(e.message).slice(0, 160) : 'api_failed'
+      const reason = e?.message ? String(e.message) : 'api_failed'
+      const reasonShort = reason.slice(0, 160)
       if (lastGood?.period && typeof lastGood.period.totalCompleted === 'number') {
-        return await attachCoachQualityIfMissing(
-          {
-            ...lastGood.period,
-            source: 'last_good',
-            fallbackReason: reason,
-            error: null,
-          },
-          { trainerId, clubId, dateFrom, dateTo },
-        )
+        const period = {
+          ...lastGood.period,
+          source: 'last_good',
+          fallbackReason: reasonShort,
+          error: null,
+        }
+        if (!includeCoachQuality) return { ...period, coachQuality: period.coachQuality ?? null }
+        return await ensureTrainerPeriodCoachQuality(period, { trainerId, clubId, dateFrom, dateTo })
       }
-      apiFailReason = reason
+      apiFailReason = reasonShort
     }
   }
 
@@ -299,6 +305,7 @@ export async function loadTrainerPeriodStats(p) {
     dateFrom,
     dateTo,
     trainerIdFilter: trainerId,
+    includeCoachQuality,
   })
   return { ...stats, source, fallbackReason, error: null }
 }
