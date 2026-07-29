@@ -286,7 +286,26 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
       if (isSupabaseConfigured() && !flushDesc.offline) {
         try {
           if (isSalesManager) {
-            // Менеджер: только очередь. Отчёт и типы абон. — через «Обновить» на странице продаж.
+            // Очередь + типы абон. (АЗ-колонки отчёта). Цифры дня — через «Обновить» на странице продаж.
+            const club = String(user?.club_id ?? '').trim()
+            if (club) {
+              bumpSyncProgress(82, 'Типы абонементов…')
+              try {
+                const { pullMembershipTypesForClubFromCloud } = await import('../lib/pullReferenceData')
+                const mtPull = await pullMembershipTypesForClubFromCloud(club, { forceFromCloud: true })
+                if (!mtPull?.ok) {
+                  hadError = true
+                  parts.push(`типы абон.: ${mtPull.error ?? mtPull.reason ?? 'ошибка'}`)
+                  recordSyncPullIssue('типы абонементов', mtPull.error ?? mtPull.reason)
+                } else {
+                  parts.push(`типы абон. (${mtPull.count ?? 0})`)
+                }
+              } catch (e) {
+                hadError = true
+                parts.push(`типы абон.: ${e?.message ?? 'ошибка'}`)
+                recordSyncPullIssue('типы абонементов', e?.message)
+              }
+            }
             bumpSyncProgress(88, 'Готово')
             parts.push('отчёт продаж — обновите на странице')
           } else {

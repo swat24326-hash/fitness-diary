@@ -42,6 +42,7 @@
 | Админ: статистика / ИСКРА | agg, snapshot |
 | ПНК мастер / KPI | целевые `verify-pnk-*.mjs` |
 | Качество ведения тренера | `verify-coach-quality.mjs` (TECH + COACH + MANAGER сценарии) |
+| Home glance cache | `verify-home-glance-cache.mjs` (TTL / looksSame / профили) |
 | Пульс BLE (парсер + память датчика) | `verify-ble-heart-rate.mjs` |
 | Сводка пульса сессии (зоны, ккал) | `verify-hr-session-agg.mjs` |
 | Шаг формы при сплите черновиков | `verify-training-form-step-memory.mjs` |
@@ -50,6 +51,7 @@
 | Список клиентов: точка/подпись абонемента | `verify-client-list-signals.mjs` |
 | Push абонементов (даты NOT NULL) | `verify-membership-push-payload.mjs` |
 | Удаление абонемента (тексты confirm) | `verify-membership-delete.mjs` |
+| Менеджер: доступ к типам АЗ / выбор списка для отчёта | `verify-sales-membership-types-access.mjs` |
 | Срок абонемента по умолчанию (+1 календарный месяц) | `verify-date-ru.mjs` |
 
 Подробнее: `.cursor/rules/fitness-diary-stability.mdc`, процесс аудита — [DEEP_AUDIT.md](./DEEP_AUDIT.md).

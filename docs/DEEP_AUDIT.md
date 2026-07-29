@@ -24,8 +24,9 @@
 1. **Новый тип АЗ offline** → insert в IDB + queue → открыть «Типы абон.» online → тип не должен исчезнуть до Sync.
 2. **Stale cache ПЗ** → forceFromCloud → Бокс/R1+/R2+ в блоке АЗ, не в ПЗ.
 3. **Push типа АЗ** → в Supabase `trainer_assignable=false`, `aerobic_pay_amount` заполнен.
-4. **Pull тренера** → строки с pending в `sync_queue` не затираются (`shouldPreserveLocalRowOnPull`).
-5. **Sales bundle** → типы из облака; структура после pull совпадает с продажами.
+4. **Менеджер + новый АЗ (R3+)** → после Sync админа «Обновить» у менеджера показывает колонку; без RLS/API менеджер видит только старый IDB.
+5. **Pull тренера** → строки с pending в `sync_queue` не затираются (`shouldPreserveLocalRowOnPull`).
+6. **Sales bundle** → типы из облака; структура после pull совпадает с продажами.
 
 ## Шкала достоверности
 

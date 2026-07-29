@@ -233,6 +233,21 @@ async function handler(req, res) {
       }
       return handlePushSubscriptionGet(authCtx, res)
     }
+    // Типы абон. (в т.ч. АЗ) нужны менеджеру для колонок отчёта продаж
+    if (action === 'membership-types') {
+      const { canFetchMembershipTypesViaApi } = await import('../src/lib/admin/salesMembershipTypesAccessCore.js')
+      if (
+        !canFetchMembershipTypesViaApi({
+          isAdmin: authCtx.isAdmin,
+          isTrainer: authCtx.isTrainer,
+          isSalesManager: authCtx.isSalesManager,
+        })
+      ) {
+        sendJson(res, 403, { error: 'Нет доступа' })
+        return
+      }
+      return handleMembershipTypes(authCtx, req, res)
+    }
     if (!authCtx.isAdmin && !authCtx.isTrainer) {
       sendJson(res, 403, { error: 'Нет доступа' })
       return
@@ -241,7 +256,6 @@ async function handler(req, res) {
     if (action === 'challenge-trainings') return handleChallengeTrainings(authCtx, req, res)
     if (action === 'exercises-meta') return handleExercisesMeta(authCtx, res)
     if (action === 'exercises') return handleExercises(authCtx, res)
-    if (action === 'membership-types') return handleMembershipTypes(authCtx, req, res)
     if (action === 'nutrition-products') return handleNutritionProducts(authCtx, req, res)
     if (action === 'homework-presets') return handleHomeworkPresets(authCtx, req, res)
   }

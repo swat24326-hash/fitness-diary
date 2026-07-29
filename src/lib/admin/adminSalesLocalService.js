@@ -116,6 +116,14 @@ async function fetchClubTrainers(clubId) {
 }
 
 async function loadMembershipTypes(clubId, warnings) {
+  // Сначала API (service role) — у менеджера прямой Supabase раньше не отдавал типы АЗ (нет RLS).
+  try {
+    const { fetchMembershipTypesForClubViaApi } = await import('../adminApiClient.js')
+    const viaApi = await fetchMembershipTypesForClubViaApi(clubId)
+    if ((viaApi?.membership_types ?? []).length) return viaApi.membership_types
+  } catch (e) {
+    warnings.push(`типы карт (API): ${humanizeNetworkError(e) || e?.message || 'ошибка'}`)
+  }
   try {
     const typesRes = await withSupabaseRetry(() =>
       supabase

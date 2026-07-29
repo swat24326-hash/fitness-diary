@@ -109,12 +109,16 @@ export async function handleMembershipTypes(authCtx, req, res) {
       .select('club_id')
       .eq('id', authCtx.user.id)
       .maybeSingle()
-    const trainerClub = String(prof?.club_id ?? '').trim()
-    if (trainerClub && trainerClub !== clubId) {
+    const profileClub = String(prof?.club_id ?? '').trim()
+    if (profileClub && profileClub !== clubId) {
       sendJson(res, 403, { error: 'Типы другого клуба недоступны' })
       return
     }
-    if (!trainerClub) {
+    if (!profileClub) {
+      if (authCtx.isSalesManager) {
+        sendJson(res, 403, { error: 'Клуб не привязан к учётке менеджера' })
+        return
+      }
       const { data: sample } = await authCtx.supabaseAdmin
         .from('clients')
         .select('id')

@@ -20,6 +20,7 @@
     "db:migrate:iskra": "node scripts/apply-iskra-migrations.mjs",
     "db:migrate:homework": "node scripts/apply-homework-presets-migration.mjs",
     "db:migrate:pnk": "node scripts/apply-pnk-funnel-migration.mjs",
+    "db:migrate:membership-types-sm": "node scripts/apply-membership-types-sales-manager-read.mjs",
     "check:volume": "node scripts/check-data-volume.mjs",
     "gen:icons": "node scripts/generate-icons.mjs",
     "qa": "node scripts/agent-qa.mjs",

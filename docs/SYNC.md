@@ -1,6 +1,6 @@
 # Sync — очередь, flush, pull
 
-**Актуально:** 2026-07-23. Политика кода: `.cursor/rules/fitness-diary-sync.mdc`. Инциденты: [RUNBOOK.md](./RUNBOOK.md).
+**Актуально:** 2026-07-29. Политика кода: `.cursor/rules/fitness-diary-sync.mdc`. Инциденты: [RUNBOOK.md](./RUNBOOK.md).
 
 ---
 
@@ -39,7 +39,8 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 2. **Ручной Sync:** сначала flush, потом pull.
 3. **Pull merge:** для охраняемых stores не перезаписывать строку, если по ней есть pending в очереди.
 4. **memberships push:** `start_date` / `end_date` в БД NOT NULL. При **update** пустые/null даты **опускаются** из payload (`normalizeMembershipPushPayload`), чтобы списание `used_trainings` не затирало даты. При **insert** даты обязательны. Verify: `scripts/verify-membership-push-payload.mjs`.
-5. **Новая синхронизируемая таблица:**
+5. **Менеджер продаж + типы абон.:** Sync у менеджера — flush + pull `membership_types` (свой клуб). Колонки АЗ в дневном отчёте обновляются ещё кнопкой **«Обновить»** на `/sales`. API: `admin-data?action=membership-types` доступен менеджеру; RLS: `fit_membership_types_sales_manager_read`. Без этого «Обновить» мог показывать устаревший IDB без нового R3+. Док: [SALES_MANAGER.md](./SALES_MANAGER.md).
+6. **Новая синхронизируемая таблица:**
    - migration + RLS;
    - добавить в `PUSH_ALLOWED_TABLES` (`api/_lib/pushRecordCore.js`);
    - путь flush в sync-сервисе;
@@ -80,4 +81,5 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 ## Проверки
 
 - Изменения sync/offline → `npm run qa:local` или целевой `scripts/verify-sync*.mjs`.
+- Новые типы АЗ у менеджера → `scripts/verify-sales-membership-types-access.mjs`.
 - Не использовать `navigate(0)` после Sync — событие обновления данных.

@@ -1,6 +1,6 @@
 # Модель данных — IDB, сущности, Postgres
 
-**Актуально:** 2026-07-17. Эталон схемы: `supabase/schema.sql` + идемпотентные `supabase/migrations/`.  
+**Актуально:** 2026-07-29. Эталон схемы: `supabase/schema.sql` + идемпотентные `supabase/migrations/`.  
 Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/lib/membershipRules.js`.
 
 ---
@@ -19,7 +19,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | `clubs` | `id` | Кэш клубов |
 | `sync_queue` | `local_id` | Очередь push |
 | `challenges` | `id` | Челленджи |
-| `membership_types` | `id` | Типы карт (в т.ч. БЗ / `is_pnk_trial`) |
+| `membership_types` | `id` | Типы карт: **ПЗ** (`trainer_assignable≠false`) и **АЗ** (`trainer_assignable=false`); также БЗ / `is_pnk_trial`. Менеджер продаж читает все типы своего клуба (RLS `fit_membership_types_sales_manager_read`) |
 | `nutrition_products` | `id` | Питание |
 | `homework_presets` | `id` | Шаблоны ДЗ |
 | `client_weight_entries` | `id` | Вес |

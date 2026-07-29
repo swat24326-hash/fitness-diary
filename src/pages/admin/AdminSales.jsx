@@ -42,6 +42,7 @@ import {
   saveClubSalesPlan,
 } from '../../lib/admin/adminSalesService'
 import { clearSalesPlanGlanceSession } from '../../lib/admin/salesPlanGlanceSession.js'
+import { pickMembershipTypesForSalesReport } from '../../lib/admin/salesMembershipTypesAccessCore.js'
 import {
   buildDailyDraftPayload,
   buildExpenseDraftPayload,
@@ -189,7 +190,10 @@ export function AdminSales({ accessMode = 'admin' }) {
       const cachedTypes = await listMembershipTypesForClub(clubId)
       if (cachedTypes.length) setMembershipTypes(cachedTypes)
 
-      const typesPromise = ensureMembershipTypesForClub(clubId, { force: !cachedTypes.length })
+      const typesPromise = ensureMembershipTypesForClub(clubId, {
+        force: true,
+        forceFromCloud: true,
+      })
       const bundle = await fetchClubSalesBundle({ clubId, reportDate })
       const ensured = await typesPromise
       const cid = clubId
@@ -199,10 +203,7 @@ export function AdminSales({ accessMode = 'admin' }) {
       setMonthDays(bundle.monthDays ?? [])
       setYearMonth({ year: bundle.year, month: bundle.month })
 
-      const types =
-        (bundle.membershipTypes?.length ? bundle.membershipTypes : null) ??
-        ensured.types ??
-        []
+      const types = pickMembershipTypesForSalesReport(bundle.membershipTypes, ensured.types)
       setMembershipTypes(types)
       setTrainers(bundle.trainers ?? [])
       setFitCityTypeStats(bundle.fitCityTypeStats ?? null)

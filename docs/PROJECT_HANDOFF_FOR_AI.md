@@ -111,6 +111,8 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 | sales_manager | `/sales`, `/sales/club-tasks`, `/sales/pnk` |
 | admin | `/admin/*` (clients, statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. diagnostics / iskra-settings, …), `/admin/workouts/:id` |
 
+**Менеджер и типы АЗ:** справочник `membership_types` (ПЗ + АЗ) нужен для колонок «Тренировки в аэробном зале». Доступ: RLS `fit_membership_types_sales_manager_read` + `admin-data?action=membership-types`. Sync менеджера тянет типы; на отчёте — ещё «Обновить». Подробнее: [SALES_MANAGER.md](./SALES_MANAGER.md), [SYNC.md](./SYNC.md).
+
 Карточка клиента (`ClientCard`) общая для тренера и админа.
 
 **Главная админа / менеджера продаж:** ряд «внимание» — `AdminHomeAttentionRow` (план + ПНК + планёрка + мягкие сигналы в пустые слоты). Сводка дня — spotlight + «Ещё». Тот же каркас при будущих ролях управляющего/куратора ([CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md), [ISKRA_CURATOR.md](./ISKRA_CURATOR.md)).
