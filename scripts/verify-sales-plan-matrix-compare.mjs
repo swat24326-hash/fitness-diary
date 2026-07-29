@@ -98,6 +98,55 @@ const okRow = resolvePlanMatrixCellStatus(
   { month_relation: 'current', expected_plan_progress_pct: 90 },
 )
 ok(okRow.status === 'ok', 'status ok when pace and forecast meet plan')
+ok((okRow.risks ?? []).length === 0, 'no risks when count and avg on plan')
+
+const moneyOkAvgRisk = resolvePlanMatrixCellStatus(
+  {
+    plan: { amount: 100000, count: 10 },
+    fact: { amount: 120000, count: 20 },
+    count_progress_pct: 200,
+    amount_progress_pct: 120,
+    avg_gap_rub: -2000,
+    pace: { on_pace: true },
+  },
+  { month_relation: 'current', expected_plan_progress_pct: 50 },
+)
+ok(moneyOkAvgRisk.status === 'ok', 'status ok when money/forecast ok despite low avg')
+ok(
+  moneyOkAvgRisk.risks?.some((r) => r.key === 'avg') === true,
+  'avg risk chip when average check below plan',
+)
+
+const moneyOkCountRisk = resolvePlanMatrixCellStatus(
+  {
+    plan: { amount: 100000, count: 100 },
+    fact: { amount: 95000, count: 40 },
+    count_progress_pct: 40,
+    amount_progress_pct: 95,
+    avg_gap_rub: 5000,
+    pace: { on_pace: false },
+  },
+  { month_relation: 'current', expected_plan_progress_pct: 90 },
+)
+ok(moneyOkCountRisk.status === 'ok', 'status ok when money ok despite volume lag')
+ok(
+  moneyOkCountRisk.risks?.some((r) => r.key === 'count') === true,
+  'count risk chip when volume behind pace',
+)
+
+const moneyLag = resolvePlanMatrixCellStatus(
+  {
+    plan: { amount: 100000, count: 10 },
+    fact: { amount: 40000, count: 10 },
+    count_progress_pct: 100,
+    amount_progress_pct: 40,
+    avg_gap_rub: -1000,
+    pace: { on_pace: true },
+  },
+  { month_relation: 'current', expected_plan_progress_pct: 90 },
+)
+ok(moneyLag.status === 'lag', 'status lag when amount/forecast behind')
+ok(moneyLag.risks?.some((r) => r.key === 'avg') === true, 'risks still listed when money lags')
 
 const forecast = forecastPlanMatrixAmount(90000, { month_relation: 'current', expected_plan_progress_pct: 50 })
 ok(forecast === 180000, 'linear forecast to month end')

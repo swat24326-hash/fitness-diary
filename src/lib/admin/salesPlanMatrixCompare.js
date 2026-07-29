@@ -241,25 +241,40 @@ export function resolvePlanMatrixCellStatus(row, calendar) {
   const avgGap = row.avg_gap_rub
   const avgOk = avgGap == null || Number(avgGap) >= -0.01 || factAmount <= 0
 
-  const ok = countOk && amountOk && forecastOk && avgOk
+  // Статус строки — по деньгам (сумма к темпу + прогноз). Штуки и чек — отдельные риски.
+  const ok = amountOk && forecastOk
+
+  /** @type {Array<{ key: 'count' | 'avg', label: string, detail: string }>} */
+  const risks = []
+  if (!countOk) {
+    risks.push({ key: 'count', label: 'штуки', detail: 'объём штук отстаёт от темпа месяца' })
+  }
+  if (!avgOk) {
+    risks.push({ key: 'avg', label: 'чек', detail: 'средний чек ниже плана' })
+  }
 
   /** @type {string[]} */
   const lagReasons = []
-  if (!countOk) lagReasons.push('объём отстаёт от темпа месяца')
   if (!amountOk) lagReasons.push('сумма ниже ожидаемой на сегодня')
   if (!forecastOk) lagReasons.push('прогноз к концу месяца не дотягивает до плана')
-  if (!avgOk) lagReasons.push('средний чек ниже плана')
 
-  const title = ok
-    ? 'В темпе и по плану: объём и сумма в норме, прогноз к концу месяца достигает плана.'
-    : lagReasons.length
-      ? `Отставание: ${lagReasons.join('; ')}.`
-      : 'Отставание по плану.'
+  const riskNote = risks.length ? ` Риск: ${risks.map((r) => r.detail).join('; ')}.` : ''
+  let title
+  if (ok && !risks.length) {
+    title = 'В темпе: сумма и прогноз в норме, объём и средний чек без риска.'
+  } else if (ok) {
+    title = `В темпе по сумме и прогнозу.${riskNote}`
+  } else if (lagReasons.length) {
+    title = `Отставание: ${lagReasons.join('; ')}.${riskNote}`
+  } else {
+    title = 'Отставание по плану.'
+  }
 
   return {
     status: ok ? 'ok' : 'lag',
     label: ok ? 'В темпе' : 'Отстаём',
     title,
+    risks,
     forecast_amount: forecastAmount,
     forecast_pct: forecastPct,
     count_on_pace: countOk,
@@ -383,6 +398,9 @@ export function buildPlanMatrixComparison(opts) {
 
   const statusOk = rows.filter((r) => r.status?.status === 'ok').length
   const statusLag = rows.filter((r) => r.status?.status === 'lag').length
+  const statusRisk = rows.filter(
+    (r) => r.status?.status === 'ok' && Array.isArray(r.status?.risks) && r.status.risks.length > 0,
+  ).length
 
   return {
     has_plan_matrix: true,
@@ -390,7 +408,7 @@ export function buildPlanMatrixComparison(opts) {
     volume_lag: volumeLag,
     avg_lag: avgLag,
     summary_ru: summaryRu,
-    status_summary: { ok: statusOk, lag: statusLag, total: rows.length },
+    status_summary: { ok: statusOk, lag: statusLag, risk: statusRisk, total: rows.length },
     calendar_elapsed_pct: elapsedPct,
   }
 }

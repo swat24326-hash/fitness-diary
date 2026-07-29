@@ -29,7 +29,7 @@ function compareToneClass(pct, kind, gapRub) {
  *   comparison: {
  *     rows?: Array<Record<string, unknown>>,
  *     summary_ru?: string,
- *     status_summary?: { ok?: number, lag?: number, total?: number },
+ *     status_summary?: { ok?: number, lag?: number, risk?: number, total?: number },
  *     calendar_elapsed_pct?: number,
  *   },
  *   monthRows?: Array<Record<string, unknown>>,
@@ -90,6 +90,11 @@ export function SalesPlanMatrixCompareTable({ comparison, monthRows = [], year, 
             <Check size={14} aria-hidden />
             {statusSummary.ok} в темпе
           </span>
+          {Number(statusSummary.risk) > 0 ? (
+            <span className="sales-report__plan-compare-chip sales-report__plan-compare-chip--risk">
+              {statusSummary.risk} с риском
+            </span>
+          ) : null}
           <span className="sales-report__plan-compare-chip sales-report__plan-compare-chip--lag">
             <Minus size={14} aria-hidden />
             {statusSummary.lag} отстают
@@ -102,7 +107,8 @@ export function SalesPlanMatrixCompareTable({ comparison, monthRows = [], year, 
         </div>
         {elapsedPct > 0 && elapsedPct < 100 ? (
           <p className="sales-report__plan-compare-forecast-hint">
-            Прогноз к концу месяца: факт ÷ {Math.round(elapsedPct)}% календаря × 100%.
+            Статус — по сумме и прогнозу к концу месяца. Чипы «штуки» / «чек» — риск по объёму или среднему
+            чеку. Прогноз: факт ÷ {Math.round(elapsedPct)}% календаря × 100%.
           </p>
         ) : null}
       </div>
@@ -194,17 +200,30 @@ export function SalesPlanMatrixCompareTable({ comparison, monthRows = [], year, 
                     <span className="sales-report__compare-segment-hall">{String(row.label).split(' ')[0]}</span>
                     <span className="sales-report__compare-segment-col">{String(row.label).split(' ')[1]}</span>
                   </th>
-                  <td className={`sales-report__compare-status${statusClass}`}>
-                    <span className="sales-report__compare-status-icon" title={st.title ?? ''} aria-label={st.title ?? st.label}>
+                  <td className={`sales-report__compare-status${statusClass}`} title={st.title ?? ''}>
+                    <span className="sales-report__compare-status-icon" aria-hidden>
                       {st.status === 'ok' ? (
-                        <Check size={18} strokeWidth={2.5} aria-hidden />
+                        <Check size={18} strokeWidth={2.5} />
                       ) : st.status === 'lag' ? (
-                        <Minus size={18} strokeWidth={2.5} aria-hidden />
+                        <Minus size={18} strokeWidth={2.5} />
                       ) : (
                         '—'
                       )}
                     </span>
                     <span className="sales-report__compare-status-label">{st.label ?? '—'}</span>
+                    {Array.isArray(st.risks) && st.risks.length > 0 ? (
+                      <span className="sales-report__compare-risks" aria-label={st.title ?? 'Риски по ячейке'}>
+                        {st.risks.map((risk) => (
+                          <span
+                            key={risk.key}
+                            className={`sales-report__compare-risk sales-report__compare-risk--${risk.key}`}
+                            title={risk.detail ?? ''}
+                          >
+                            {risk.label}
+                          </span>
+                        ))}
+                      </span>
+                    ) : null}
                   </td>
                   <td className="sales-report__matrix-computed sales-report__compare-num">{row.plan.count}</td>
                   <td className="sales-report__matrix-computed sales-report__compare-num sales-report__compare-num--fact">

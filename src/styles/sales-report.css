@@ -3258,6 +3258,12 @@
   border-color: rgba(245, 184, 77, 0.28);
 }
 
+.sales-report__plan-compare-chip--risk {
+  color: #f0a878;
+  background: rgba(240, 168, 120, 0.1);
+  border-color: rgba(240, 168, 120, 0.28);
+}
+
 .sales-report__plan-compare-chip--muted {
   color: rgba(255, 255, 255, 0.55);
   background: rgba(255, 255, 255, 0.04);
@@ -3402,7 +3408,7 @@
 }
 
 .sales-report__compare-status-head {
-  min-width: 4.5rem;
+  min-width: 5.5rem;
   text-align: center;
 }
 
@@ -3439,6 +3445,40 @@
   font-size: 0.65rem;
   line-height: 1.2;
   color: rgba(255, 255, 255, 0.55);
+}
+
+.sales-report__compare-risks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.2rem;
+  margin-top: 0.28rem;
+}
+
+.sales-report__compare-risk {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.08rem 0.38rem;
+  border-radius: 999px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  color: #f0a878;
+  background: rgba(240, 168, 120, 0.12);
+  border: 1px solid rgba(240, 168, 120, 0.32);
+}
+
+.sales-report__compare-risk--count {
+  color: #f5b84d;
+  background: rgba(245, 184, 77, 0.1);
+  border-color: rgba(245, 184, 77, 0.3);
+}
+
+.sales-report__compare-risk--avg {
+  color: #f0a878;
+  background: rgba(240, 168, 120, 0.12);
+  border-color: rgba(240, 168, 120, 0.32);
 }
 
 .sales-report__compare-num--fact {
