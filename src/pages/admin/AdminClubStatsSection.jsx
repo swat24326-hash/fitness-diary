@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { BarChart3, ClipboardList, Gauge, Info, LayoutGrid, LineChart, RefreshCw, Sparkles, Trophy, UserCheck, UserMinus, UserPlus, Users } from 'lucide-react'
+import { BarChart3, ClipboardList, Gauge, Info, LayoutGrid, LineChart, RefreshCw, Trophy, UserCheck, UserMinus, UserPlus, Users } from 'lucide-react'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { isAppOnline } from '../../lib/syncService'
 import { refreshMembershipsForStats } from '../../lib/membershipCacheRefresh'
@@ -11,18 +11,12 @@ import { formatIsoRu, getDateRange, PERIOD_PRESETS } from '../../lib/period'
 import { AdminClubDayChart } from '../../components/AdminClubDayChart'
 import { AdminClubMonthlyChart } from '../../components/AdminClubMonthlyChart'
 import { MembershipTypeStatsTable } from '../../components/MembershipTypeStatsTable'
-import { CoachQualityPanel, CoachQualityStatusBadge } from '../../components/CoachQualityPanel'
+import { CoachQualityPanel } from '../../components/CoachQualityPanel'
+import { TrainerRatingCard } from '../../components/admin/TrainerRatingCard'
 import { loadClubMonthlyStatsForYear, MONTHS_PER_CALENDAR_YEAR } from '../../lib/admin/adminClubMonthlyService'
 import { useIskraPanel } from '../../context/IskraPanelContext.jsx'
 import { fetchPnkBundle } from '../../lib/pnk/pnkApiService'
 import { loadLocalPnkFunnelUiStats } from '../../lib/pnk/pnkLocalService'
-
-function rankMedal(i) {
-  if (i === 0) return '🥇'
-  if (i === 1) return '🥈'
-  if (i === 2) return '🥉'
-  return `${i + 1}.`
-}
 
 /** @typedef {'byDay' | 'byTypes' | 'rating' | 'clubMonthly' | 'pnk' | 'coachQuality'} AdminStatsInlinePanel */
 
@@ -969,75 +963,31 @@ export function AdminClubStatsSection({
               <p className="os-empty-card__hint">За выбранный период нет завершённых тренировок по тренерам клуба.</p>
             </div>
           ) : (
-            <div className="grid grid-2 os-enter" style={{ gap: 10 }}>
+            <div className="trainer-rating-grid os-enter">
               {byTrainer.map((tr, idx) => {
                 const q = coachQualityByTrainer.get(String(tr.trainerId))
+                const name = trainerLabel(tr.trainerId)
                 return (
-                <div key={tr.trainerId} className="card" style={{ padding: 12, margin: 0 }}>
-                  <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
-                    <span style={{ fontSize: 18 }} aria-hidden>
-                      {rankMedal(idx)}
-                    </span>
-                    <Trophy size={18} className="muted" style={{ opacity: 0.5 }} aria-hidden />
-                  </div>
-                  <p style={{ margin: '0 0 8px', fontWeight: 600, fontSize: 15, lineHeight: 1.3 }}>{trainerLabel(tr.trainerId)}</p>
-                  {q ? (
-                    <div style={{ marginBottom: 8 }}>
-                      <div className="row" style={{ flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
-                        <CoachQualityStatusBadge status={q.status} label={q.statusLabel} />
-                        <strong style={{ fontSize: 16 }}>
-                          {q.scorePct != null ? (
-                            <>
-                              {q.scorePct}
-                              <span className="muted" style={{ fontSize: 12, fontWeight: 500 }}>
-                                {' '}
-                                / 100
-                              </span>
-                            </>
-                          ) : (
-                            <span className="muted" style={{ fontSize: 13, fontWeight: 600 }}>
-                              нет балла
-                            </span>
-                          )}
-                        </strong>
-                      </div>
-                      {q.failureDirectionLabels?.length ? (
-                        <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
-                          Просадка: {q.failureDirectionLabels.join(' · ')}
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  <div className="row" style={{ flexWrap: 'wrap', gap: 12, fontSize: 13 }}>
-                    <span>
-                      <span className="muted">Завершено:</span> <strong>{tr.completed}</strong>
-                    </span>
-                    <span>
-                      <span className="muted">Черновики:</span> <strong>{tr.draft}</strong>
-                    </span>
-                    <span>
-                      <span className="muted">Клиентов:</span> <strong>{tr.uniqueClients}</strong>
-                    </span>
-                  </div>
-                  {!isTrainerScope ? (
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      style={{ marginTop: 10 }}
-                      onClick={() =>
-                        openIskra({
-                          trainerId: tr.trainerId,
-                          trainerName: trainerLabel(tr.trainerId),
-                          clubId: scopeClubId,
-                          initialMessage: `Искра, сводка по тренеру ${trainerLabel(tr.trainerId)} за этот месяц.`,
-                        })
-                      }
-                    >
-                      <Sparkles size={14} aria-hidden />
-                      ИСКРА
-                    </button>
-                  ) : null}
-                </div>
+                  <TrainerRatingCard
+                    key={tr.trainerId}
+                    rank={idx + 1}
+                    name={name}
+                    completed={tr.completed}
+                    draft={tr.draft}
+                    clients={tr.uniqueClients}
+                    quality={q ?? null}
+                    onOpenIskra={
+                      isTrainerScope
+                        ? null
+                        : () =>
+                            openIskra({
+                              trainerId: tr.trainerId,
+                              trainerName: name,
+                              clubId: scopeClubId,
+                              initialMessage: `Искра, сводка по тренеру ${name} за этот месяц.`,
+                            })
+                    }
+                  />
                 )
               })}
             </div>
