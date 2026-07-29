@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, ClipboardList } from 'lucide-react'
 import { fetchIskraDispatch } from '../../lib/admin/iskraDispatchService.js'
@@ -7,18 +7,25 @@ import {
   sortActiveDispatchTasks,
 } from '../../lib/admin/iskraDispatchInboxActionsCore.js'
 import { dispatchStatusLabelRu } from '../../lib/admin/iskraDispatchCore.js'
+import {
+  isPlanerkaHomeGlanceFresh,
+  peekPlanerkaHomeGlanceTasks,
+  readPlanerkaHomeGlanceSession,
+  writePlanerkaHomeGlanceSession,
+} from '../../lib/admin/planerkaHomeGlanceSession.js'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { DispatchTaskProgressMini } from '../iskra/DispatchTaskProgressMini.jsx'
 
 const SWIPE_THRESHOLD_PX = 42
 
 /**
- * Активные задания клуба на главной админа (view=sent).
+ * Активные задания клуба на главной админа (view=sent) — last-good сразу.
  *
  * @param {{
  *   clubId?: string,
  *   href?: string,
  *   compact?: boolean,
+ *   expectVisible?: boolean,
  *   onPresenceChange?: (visible: boolean) => void,
  * }} props
  */
@@ -26,12 +33,14 @@ export function AdminPlanerkaHomeGlance({
   clubId = '',
   href = '/admin/club-tasks',
   compact = false,
+  expectVisible = false,
   onPresenceChange,
 }) {
   const navigate = useNavigate()
-  const [tasks, setTasks] = useState([])
+  const cid = String(clubId || '').trim()
+  const [tasks, setTasks] = useState(() => (cid ? peekPlanerkaHomeGlanceTasks(cid) ?? [] : []))
   const [index, setIndex] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => (cid ? !(peekPlanerkaHomeGlanceTasks(cid)?.length) : false))
   const touchRef = useRef({ startX: 0, moved: false })
   const presenceRef = useRef(null)
 
@@ -44,35 +53,60 @@ export function AdminPlanerkaHomeGlance({
     [onPresenceChange],
   )
 
+  useLayoutEffect(() => {
+    if (!cid) {
+      reportPresence(false)
+      return
+    }
+    const cached = peekPlanerkaHomeGlanceTasks(cid)
+    if (cached?.length) {
+      setTasks(cached)
+      setLoading(false)
+      reportPresence(true)
+    } else if (expectVisible) {
+      reportPresence(true)
+    }
+  }, [cid, expectVisible, reportPresence])
+
   const reload = useCallback(
-    async (opts = {}) => {
-      const silent = opts.silent === true
-      const cid = String(clubId || '').trim()
+    async ({ force = false, silent = false } = {}) => {
       if (!cid || !isSupabaseConfigured()) {
         setTasks([])
         setLoading(false)
         reportPresence(false)
         return
       }
-      if (!silent) setLoading(true)
+      const row = readPlanerkaHomeGlanceSession(cid)
+      const cached = Array.isArray(row?.payload?.tasks) ? row.payload.tasks : []
+      if (cached.length) {
+        setTasks(cached)
+        setLoading(false)
+        reportPresence(true)
+        if (!force && !silent && isPlanerkaHomeGlanceFresh(row.savedAt)) return
+        if (!force && silent && isPlanerkaHomeGlanceFresh(row.savedAt)) return
+      } else if (!silent) {
+        setLoading(true)
+      }
+
       try {
         const data = await fetchIskraDispatch({ clubId: cid, view: 'sent', limit: 20 })
         const list = Array.isArray(data?.items) ? data.items : []
         const active = sortActiveDispatchTasks(list)
         setTasks(active)
         setIndex((prev) => (prev >= active.length ? 0 : prev))
+        writePlanerkaHomeGlanceSession(cid, active)
         reportPresence(active.length > 0)
       } catch {
-        if (!silent) {
+        if (!cached.length && !silent) {
           setTasks([])
           setIndex(0)
+          reportPresence(false)
         }
-        reportPresence(false)
       } finally {
         setLoading(false)
       }
     },
-    [clubId, reportPresence],
+    [cid, reportPresence],
   )
 
   useEffect(() => {
@@ -121,7 +155,21 @@ export function AdminPlanerkaHomeGlance({
     navigate(href)
   }
 
-  if (loading || !tasks.length) return null
+  if (!cid) return null
+
+  if (loading && !tasks.length) {
+    if (compact && !expectVisible) return null
+    return (
+      <section
+        className="trainer-task-glance admin-planerka-glance admin-planerka-glance--skel"
+        aria-busy="true"
+        aria-label="Загрузка планёрки"
+      >
+        <div className="admin-home-skel manager-pnk-glance__skel-card" />
+      </section>
+    )
+  }
+  if (!tasks.length) return null
 
   const task = tasks[index] ?? tasks[0]
   const caption = buildDispatchGlanceCaption(task)

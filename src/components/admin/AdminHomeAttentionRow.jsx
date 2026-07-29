@@ -89,6 +89,7 @@ export function AdminHomeAttentionRow({
           clubId={cid}
           href={hrefPnk}
           compact={compact}
+          expectVisible={hasPnk}
           onPresenceChange={onPnkPresence}
         />
         {softForPnk ? (
@@ -115,6 +116,7 @@ export function AdminHomeAttentionRow({
           clubId={cid}
           href={hrefPlanerka}
           compact={compact}
+          expectVisible={hasPlanerka}
           onPresenceChange={onPlanerkaPresence}
         />
         {softForPlanerka ? (

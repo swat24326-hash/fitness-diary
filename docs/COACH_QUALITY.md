@@ -92,6 +92,7 @@
 | `admin-cq` | 60 мин | Sync; смена клуба; сохранение настроек CQ |
 | `admin-sales-plan` | 2 ч | save daily/plan/finance |
 | `admin-day-summary` | 10 мин | Sync; смена клуба |
+| `admin-pnk-home` / `admin-planerka-home` | 10 мин | last-good карточек (анти-прыжок ряда) |
 | `trainer-cq` | 45 мин | Sync |
 | `admin-attention-presence` | 60 мин | last-known ПНК/планёрка (анти-прыжок слотов) |
 

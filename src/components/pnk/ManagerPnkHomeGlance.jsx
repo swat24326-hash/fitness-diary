@@ -1,19 +1,26 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { fetchPnkBundle } from '../../lib/pnk/pnkApiService.js'
 import { buildPnkManagerHomeGlanceCards } from '../../lib/pnk/pnkManagerHomeGlanceCore.js'
+import {
+  isPnkHomeGlanceFresh,
+  peekPnkHomeGlanceCards,
+  readPnkHomeGlanceSession,
+  writePnkHomeGlanceSession,
+} from '../../lib/pnk/pnkHomeGlanceSession.js'
 import { PnkGlanceCardFace } from './PnkGlanceCardFace.jsx'
 import '../../styles/pnk-funnel.css'
 
 const SWIPE_THRESHOLD_PX = 42
 
 /**
- * ПНК на главной менеджера / админа — те же принципы, что доска контроля.
+ * ПНК на главной менеджера / админа — last-good сразу, без выскакивания в ряду.
  * @param {{
  *   clubId: string,
  *   href?: string,
  *   compact?: boolean,
+ *   expectVisible?: boolean,
  *   onPresenceChange?: (visible: boolean) => void,
  * }} props
  */
@@ -21,12 +28,14 @@ export function ManagerPnkHomeGlance({
   clubId = '',
   href = '/sales/pnk',
   compact = false,
+  expectVisible = false,
   onPresenceChange,
 }) {
   const navigate = useNavigate()
-  const [cards, setCards] = useState([])
+  const cid = String(clubId || '').trim()
+  const [cards, setCards] = useState(() => (cid ? peekPnkHomeGlanceCards(cid) ?? [] : []))
   const [index, setIndex] = useState(0)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => (cid ? !(peekPnkHomeGlanceCards(cid)?.length) : false))
   const touchRef = useRef({ startX: 0, moved: false })
   const presenceRef = useRef(null)
 
@@ -39,34 +48,58 @@ export function ManagerPnkHomeGlance({
     [onPresenceChange],
   )
 
+  useLayoutEffect(() => {
+    if (!cid) {
+      reportPresence(false)
+      return
+    }
+    const cached = peekPnkHomeGlanceCards(cid)
+    if (cached?.length) {
+      setCards(cached)
+      setLoading(false)
+      reportPresence(true)
+    } else if (expectVisible) {
+      reportPresence(true)
+    }
+  }, [cid, expectVisible, reportPresence])
+
   const reload = useCallback(
-    async (opts = {}) => {
-      const silent = opts.silent === true
-      const cid = String(clubId || '').trim()
+    async ({ force = false } = {}) => {
       if (!cid) {
         setCards([])
         setLoading(false)
         reportPresence(false)
         return
       }
-      if (!silent) setLoading(true)
+      const row = readPnkHomeGlanceSession(cid)
+      const cached = Array.isArray(row?.payload?.cards) ? row.payload.cards : []
+      if (cached.length) {
+        setCards(cached)
+        setLoading(false)
+        reportPresence(true)
+        if (!force && isPnkHomeGlanceFresh(row.savedAt)) return
+      } else {
+        setLoading(true)
+      }
+
       try {
         const data = await fetchPnkBundle({ clubId: cid })
         const next = buildPnkManagerHomeGlanceCards(data?.clients ?? [], { boardHref: href })
         setCards(next)
         setIndex((prev) => (prev >= next.length ? 0 : prev))
+        writePnkHomeGlanceSession(cid, next)
         reportPresence(next.length > 0)
       } catch {
-        if (!silent) {
+        if (!cached.length) {
           setCards([])
           setIndex(0)
+          reportPresence(false)
         }
-        reportPresence(false)
       } finally {
         setLoading(false)
       }
     },
-    [clubId, href, reportPresence],
+    [cid, href, reportPresence],
   )
 
   useEffect(() => {
@@ -107,11 +140,11 @@ export function ManagerPnkHomeGlance({
     if (card?.href) navigate(card.href)
   }
 
-  if (!String(clubId || '').trim()) return null
+  if (!cid) return null
 
-  /* В ряду «внимание» скелетон не резервируем — иначе план сжимается зря */
-  if (loading) {
-    if (compact) return null
+  /* Скелетон, если слот уже зарезервирован (presence) или ряд ещё не compact */
+  if (loading && !cards.length) {
+    if (compact && !expectVisible) return null
     return (
       <section
         className="trainer-task-glance manager-pnk-glance manager-pnk-glance--skel"
