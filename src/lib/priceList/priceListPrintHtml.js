@@ -280,7 +280,7 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
     }
     tbody tr { height: var(--row-h, auto); }
     th, td {
-      border: 0.32mm solid rgba(46, 255, 184, 0.42);
+      border: 0.35mm solid rgba(46, 255, 184, 0.5);
       padding: 1.6mm 1mm;
       text-align: center;
       vertical-align: middle;
@@ -288,6 +288,10 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
       color: ${P.text};
     }
     thead th { background: ${P.headBg}; font-weight: 700; color: ${P.muted}; }
+    th.tariff {
+      border: 0.45mm solid rgba(46, 255, 184, 0.78);
+      background: rgba(46, 255, 184, 0.1);
+    }
     th.axis, td.axis {
       width: 10%;
       font-weight: 800;

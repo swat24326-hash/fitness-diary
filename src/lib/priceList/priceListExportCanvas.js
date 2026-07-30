@@ -246,15 +246,15 @@ function drawTariffPanel(ctx, p) {
   const peopleFs = Math.round(sessionFs * 0.85)
   const axisHeadFs = Math.round(Math.min(axisW * 0.22, headH * 0.22, subFs * 0.95))
 
-  const grid = 'rgba(46, 255, 184, 0.48)'
-  const gridStrong = 'rgba(46, 255, 184, 0.68)'
+  const grid = 'rgba(46, 255, 184, 0.52)'
+  const gridStrong = 'rgba(46, 255, 184, 0.78)'
+  const frame = 'rgba(46, 255, 184, 0.92)'
   const gridW = Math.max(1.75, Math.round(u * 0.08))
   const gridWStrong = Math.max(2.25, Math.round(u * 0.1))
+  const frameW = Math.max(2.5, Math.round(u * 0.12))
 
-  roundRect(ctx, x, y, w, h, Math.round(u * 0.55), C.card, gridStrong)
-  ctx.strokeStyle = gridStrong
-  ctx.lineWidth = gridWStrong
-  ctx.strokeRect(x + 1, y + 1, w - 2, h - 2)
+  // Сначала заливка — рамку рисуем в конце, чтобы не «съедалась»
+  roundRect(ctx, x, y, w, h, Math.round(u * 0.55), C.card, null)
 
   ctx.fillStyle = C.headBg
   ctx.fillRect(x + 1, y + 1, w - 2, headH + subH - 2)
@@ -276,10 +276,8 @@ function drawTariffPanel(ctx, p) {
 
   tariffs.forEach((t, i) => {
     const tx = x + axisW + peopleW + i * pairW
-    if (t.is_vip) {
-      ctx.fillStyle = C.vipHead
-      ctx.fillRect(tx, y + 1, pairW, headH - 1)
-    }
+    ctx.fillStyle = t.is_vip ? C.vipHead : 'rgba(46, 255, 184, 0.1)'
+    ctx.fillRect(tx, y + 1, pairW, headH - 1)
     ctx.fillStyle = t.is_vip ? C.vip : C.accentBright
     ctx.font = `800 ${codeFs}px "Segoe UI", system-ui, sans-serif`
     ctx.fillText(truncate(ctx, String(t.code || ''), pairW - u * 0.8), tx + pairW / 2, y + headH * 0.62)
@@ -292,6 +290,8 @@ function drawTariffPanel(ctx, p) {
     ctx.fillText('−10%', tx + halfW * 1.5, y + headH + subH * 0.68)
   })
 
+  // Горизонтали шапки: под кодом карты и под «Базовая/−10%»
+  strokeLine(ctx, x, y + headH, x + w, y + headH, gridStrong, gridWStrong)
   strokeLine(ctx, x, y + headH + subH, x + w, y + headH + subH, gridStrong, gridWStrong)
 
   rows.forEach((row, ri) => {
@@ -344,16 +344,29 @@ function drawTariffPanel(ctx, p) {
     strokeLine(ctx, x, rowY + rowH, x + w, rowY + rowH, grid, gridW)
   })
 
-  strokeLine(ctx, x + axisW, y, x + axisW, y + h, grid, gridW)
+  strokeLine(ctx, x + axisW, y, x + axisW, y + h, gridStrong, gridWStrong)
   if (showPeople) {
-    strokeLine(ctx, x + axisW + peopleW, y, x + axisW + peopleW, y + h, grid, gridW)
+    strokeLine(ctx, x + axisW + peopleW, y, x + axisW + peopleW, y + h, gridStrong, gridWStrong)
   }
   tariffs.forEach((_, i) => {
     const tx = x + axisW + peopleW + i * pairW
-    strokeLine(ctx, tx, y, tx, y + h, grid, gridW)
+    // Вертикали колонок тарифов — ярче, чтобы рамка вокруг Br/Dm/El/Pl читалась
+    strokeLine(ctx, tx, y, tx, y + h, gridStrong, gridWStrong)
     strokeLine(ctx, tx + halfW, y + headH, tx + halfW, y + h, grid, gridW)
   })
-  strokeLine(ctx, x + w, y, x + w, y + h, gridStrong, gridWStrong)
+
+  // Явная рамка вокруг каждой ячейки с кодом карты (Br / Vip 1 …)
+  tariffs.forEach((_, i) => {
+    const tx = x + axisW + peopleW + i * pairW
+    ctx.strokeStyle = frame
+    ctx.lineWidth = gridWStrong
+    ctx.strokeRect(tx + 0.5, y + 0.5, pairW - 1, headH - 1)
+  })
+
+  // Внешний контур поверх всего — не пропадает на краях
+  ctx.strokeStyle = frame
+  ctx.lineWidth = frameW
+  ctx.strokeRect(x + frameW / 2, y + frameW / 2, w - frameW, h - frameW)
 }
 
 /**
