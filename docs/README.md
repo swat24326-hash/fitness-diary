@@ -52,6 +52,7 @@
 | [GROWTH_PLAYBOOK.md](./GROWTH_PLAYBOOK.md) | Журнал метрик клуба, когда переходить на Pro |
 | [CLIENT_ARCHIVE.md](./CLIENT_ARCHIVE.md) | Архив клиентов: sync и UI |
 | [OUTREACH_CHANNELS_ROADMAP.md](./OUTREACH_CHANNELS_ROADMAP.md) | Max ✅ + SMS «Мои Звонки» MVP |
+| [PRICE_LIST.md](./PRICE_LIST.md) | Прайс ПЗ по клубу (админ + облако `club_price_lists`) |
 
 ---
 

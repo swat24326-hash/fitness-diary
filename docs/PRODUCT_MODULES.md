@@ -13,6 +13,7 @@
 | **Планёрка / dispatch** | ✅ прод | iskra-dispatch + push | [ISKRA_PLANERKA.md](./ISKRA_PLANERKA.md), [PUSH_SETUP.md](./PUSH_SETUP.md) |
 | **Архив клиентов** | ✅ прод | archive + sync/agg | [CLIENT_ARCHIVE.md](./CLIENT_ARCHIVE.md) |
 | **Качество ведения** | ✅ MVP | coach quality + admin/trainer UI | [COACH_QUALITY.md](./COACH_QUALITY.md) |
+| **Прайс ПЗ** | ✅ облако + админ UI | `src/lib/priceList/`, `priceListHandlers`, вкладка Продажи → Прайс | [PRICE_LIST.md](./PRICE_LIST.md) |
 | **Управляющий** | 📋 ТЗ | — | [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md) |
 | **Сайт заявок** | ⏸ слой L2 | — | [PRODUCT_VISION.md](./PRODUCT_VISION.md) §5.3 |
 | **Касса (облако / физ.)** | ⏸ слой L3 | — | [PRODUCT_VISION.md](./PRODUCT_VISION.md) §5.4 |

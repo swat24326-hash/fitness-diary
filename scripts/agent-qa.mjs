@@ -48,6 +48,7 @@ run('membership type stats', 'node', ['scripts/verify-membership-type-stats.mjs'
 run('membership types pull', 'node', ['scripts/verify-membership-types-pull.mjs'])
 run('membership types merge', 'node', ['scripts/verify-membership-types-merge.mjs'])
 run('sales membership types access', 'node', ['scripts/verify-sales-membership-types-access.mjs'])
+run('price list core', 'node', ['scripts/verify-price-list.mjs'])
 run('membership push payload', 'node', ['scripts/verify-membership-push-payload.mjs'])
 run('membership delete confirm', 'node', ['scripts/verify-membership-delete.mjs'])
 run('membership early activate', 'node', ['scripts/verify-membership-early-activate.mjs'])

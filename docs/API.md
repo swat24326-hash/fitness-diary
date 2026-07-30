@@ -42,6 +42,7 @@
 | `coach-quality-settings` | GET: admin или тренер/продажи своего клуба; POST: admin | веса осей, доли внутри ведения/хвостов и тумблеры |
 | `health-cards`, `clubs` | admin | Медкарты, клубы |
 | `sales` | admin / sales_manager | Отчёты продаж |
+| `price-list` | GET: admin / sales_manager (свой клуб); POST: admin | Прайс ПЗ клуба (`club_price_lists`) |
 | `pnk` | admin / sales_manager | Доска / данные ПНК |
 | `gemini-analytics-prefetch` | admin | Prefetch ИСКРЫ |
 | `iskra-settings`, `iskra-learning`, `iskra-dispatch`, `iskra-tts` | admin (+ dispatch шире) | Настройки, обучение, задания, neural озвучка |
@@ -57,6 +58,7 @@
 |--------|-----|--------|
 | `sales-daily`, `sales-plan` | admin / sales_manager | День / план |
 | `sales-finance`, `create-sales-manager` | admin | Финансы, создание менеджера |
+| `price-list` | admin | Upsert прайса ПЗ клуба |
 | `gemini-analytics` | admin | Запрос к ИСКРЕ |
 | `iskra-settings`, `iskra-learning`, `iskra-dispatch`, `iskra-tts` | по op / роли | CRUD настроек, фидбек, задания, TTS |
 | `push-subscription` | auth user | Регистрация push |

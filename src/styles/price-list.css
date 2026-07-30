@@ -1,0 +1,509 @@
+/* Прайс ПЗ — витрина-матрица.
+ * Опора: sticky comparison matrix + акцент цены (UX pricing tables),
+ * тёмный glass Ось / Whoop-дисциплина (BRAND_SYSTEM). */
+
+.price-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  padding: clamp(1.05rem, 2.2vw, 1.5rem);
+  position: relative;
+  overflow: hidden;
+}
+
+.price-list__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.price-list__eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.price-list__title {
+  margin: 0.25rem 0 0.4rem;
+  font-size: clamp(1.35rem, 2.4vw, 1.7rem);
+  font-weight: 680;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  line-height: 1.15;
+}
+
+.price-list__lead {
+  margin: 0;
+  max-width: 40rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.price-list__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.price-list__actions .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 44px;
+}
+
+/* Шапка «стенда» — как poster header на прайсе зала */
+.price-list__stand {
+  position: relative;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--accent) 10%, transparent),
+      transparent 55%
+    ),
+    var(--bg-muted);
+  padding: 0.85rem 1rem;
+  overflow: hidden;
+}
+
+.price-list__stand-glow {
+  position: absolute;
+  inset: -40% auto auto 40%;
+  width: 280px;
+  height: 180px;
+  background: radial-gradient(circle, var(--accent-soft), transparent 70%);
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.price-list__meta {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
+}
+
+.price-list__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.price-list__field--grow {
+  grid-column: span 2;
+}
+
+@media (max-width: 720px) {
+  .price-list__field--grow {
+    grid-column: span 1;
+  }
+}
+
+.price-list__label {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.price-list__input-field {
+  min-height: 44px;
+}
+
+.price-list__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem 1.35rem;
+}
+
+.price-list__mode {
+  display: inline-flex;
+  padding: 0.22rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  gap: 0.15rem;
+  width: fit-content;
+}
+
+.price-list__mode-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 580;
+  padding: 0.5rem 1.05rem;
+  border-radius: 999px;
+  cursor: pointer;
+  min-height: 42px;
+  transition:
+    color 0.18s var(--ease-out),
+    background 0.18s var(--ease-out),
+    box-shadow 0.18s var(--ease-out);
+}
+
+.price-list__mode-btn.is-active {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.price-list__people {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.price-list__people-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.price-list__chip {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 620;
+  min-width: 2.4rem;
+  min-height: 40px;
+  padding: 0.3rem 0.55rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    color 0.15s var(--ease-out),
+    background 0.15s var(--ease-out),
+    border-color 0.15s var(--ease-out);
+}
+
+.price-list__chip.is-active {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.price-list__legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.1rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.price-list__legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.price-list__legend-swatch {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+}
+
+.price-list__legend-swatch--full {
+  background: var(--bg-muted);
+}
+
+.price-list__legend-swatch--off {
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.price-list__empty {
+  border: 1px dashed color-mix(in srgb, var(--accent) 28%, transparent);
+  border-radius: var(--radius-md);
+  padding: 1.35rem 1.2rem;
+  text-align: center;
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+.price-list__empty-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 620;
+  color: var(--text);
+}
+
+.price-list__hint {
+  margin: 0;
+}
+
+.price-list__matrix {
+  position: relative;
+}
+
+.price-list__scroll {
+  overflow: auto;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+  max-height: min(72vh, 680px);
+  -webkit-overflow-scrolling: touch;
+  box-shadow:
+    inset 0 1px 0 var(--premium-glass-highlight),
+    0 18px 40px rgba(0, 0, 0, 0.28);
+  /* подсказка, что справа есть ещё колонки */
+  mask-image: linear-gradient(to right, #000 0%, #000 calc(100% - 28px), transparent 100%);
+}
+
+.price-list__scroll:focus-within,
+.price-list__scroll:hover {
+  mask-image: none;
+}
+
+.price-list__scroll-hint {
+  margin: 0.45rem 0 0;
+  font-size: 0.75rem;
+  text-align: right;
+}
+
+.price-list__table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.price-list__table th,
+.price-list__table td {
+  border-bottom: 1px solid var(--border-soft);
+  border-right: 1px solid var(--border-soft);
+  padding: 0.4rem 0.45rem;
+  vertical-align: middle;
+}
+
+.price-list__table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: color-mix(in srgb, var(--bg-elevated) 94%, var(--bg));
+  backdrop-filter: blur(10px);
+  font-size: 0.78rem;
+  font-weight: 620;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.price-list__subhead-row th {
+  top: 2.65rem;
+  z-index: 3;
+  box-shadow: 0 1px 0 var(--border-soft);
+}
+
+.price-list__axis {
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  font-weight: 580;
+  min-width: 3.4rem;
+}
+
+.price-list__axis--head {
+  vertical-align: bottom;
+  padding-bottom: 0.55rem;
+}
+
+.price-list__sticky {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: color-mix(in srgb, var(--bg-elevated) 96%, var(--bg));
+}
+
+.price-list__sticky--2 {
+  left: 3.55rem;
+  border-right: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border-soft)) !important;
+}
+
+.price-list__table thead .price-list__sticky {
+  z-index: 5;
+}
+
+.price-list__tariff {
+  min-width: 9.5rem;
+  padding-top: 0.55rem !important;
+  border-bottom: 0 !important;
+}
+
+.price-list__tariff-top {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.price-list__tariff-code {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--text);
+}
+
+.price-list__vip-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  color: var(--accent-bright);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.price-list__tariff--vip {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  box-shadow: inset 0 2px 0 var(--accent-bright);
+}
+
+.price-list__tariff--vip .price-list__tariff-code {
+  color: var(--accent-bright);
+}
+
+.price-list__tariff-remove {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.price-list__tariff-remove:hover {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+}
+
+.price-list__subhead {
+  font-size: 0.66rem !important;
+  font-weight: 580 !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  min-width: 5rem;
+  padding-top: 0.25rem !important;
+  padding-bottom: 0.45rem !important;
+}
+
+.price-list__subhead--discount,
+.price-list__cell--discount {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+.price-list__row--alt td,
+.price-list__row--alt th {
+  background: color-mix(in srgb, var(--bg-muted) 55%, transparent);
+}
+
+.price-list__row--alt .price-list__sticky {
+  background: color-mix(in srgb, var(--bg-elevated) 90%, var(--bg-muted));
+}
+
+.price-list__row--alt .price-list__cell--discount {
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-muted));
+}
+
+.price-list__row--block-start td,
+.price-list__row--block-start th {
+  border-top: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border-soft));
+}
+
+.price-list__sessions-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.price-list__cell {
+  padding: 0.28rem !important;
+}
+
+.price-list__input {
+  width: 5.4rem;
+  min-height: 44px;
+  padding: 0.4rem 0.45rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: color-mix(in srgb, var(--bg) 35%, transparent);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.98rem;
+  font-weight: 620;
+  text-align: center;
+  transition:
+    border-color 0.15s var(--ease-out),
+    background 0.15s var(--ease-out),
+    box-shadow 0.15s var(--ease-out);
+}
+
+.price-list__input--discount {
+  font-weight: 720;
+  font-size: 1.02rem;
+  color: var(--accent-bright);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.price-list__input:hover {
+  background: var(--bg-muted);
+}
+
+.price-list__input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.price-list__input::-webkit-outer-spin-button,
+.price-list__input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.price-list__input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.price-list__footnote {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}

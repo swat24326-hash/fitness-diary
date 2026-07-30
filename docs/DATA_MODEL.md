@@ -55,6 +55,7 @@ Postgres (не IDB): **`club_sms_log`** — облачный журнал SMS к
 - Существующий прод: только миграции / скрипты `npm run db:migrate*`.
 - RLS: `policies.sql` + миграции политик; чеклист — [SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md).
 - `public.users.id` **=** Auth UID.
+- Прайс ПЗ: `club_price_lists` (один JSON-документ на `club_id`) — [PRICE_LIST.md](./PRICE_LIST.md).
 
 Объём и пороги pull: [DATA_VOLUME.md](./DATA_VOLUME.md).
 

@@ -9,6 +9,8 @@
 
 ## 2026-07
 
+- **Продажи / Прайс:** сохранение в облако (`club_price_lists`, `admin-data?action=price-list`); localStorage — кэш. Docs: [PRICE_LIST.md](./docs/PRICE_LIST.md).
+- **Продажи / Прайс:** вкладка «Прайс» у админа — единая сетка ПЗ по типам абонементов клуба (PL, VIP…), свой прайс на клуб. Docs: [PRICE_LIST.md](./docs/PRICE_LIST.md).
 - **Главная / ПНК:** карточка не «выскакивает» через секунду — last-good в session + слот сразу, если ПНК уже был.
 - **Главная без дёрганья:** сводка дня, продажи и CQ — last-good сразу (SWR); CQ в фиксированном soft-слоте; статистика CQ всегда свежая (не из home-TTL). Docs: [COACH_QUALITY.md](./docs/COACH_QUALITY.md).
 - **Продажи / АЗ:** новый тип (например R3+) сразу виден менеджеру после «Обновить» — раньше подставлялся старый кэш (менеджер не читал типы АЗ из облака). Миграция: `npm run db:migrate:membership-types-sm -- --linked`. Docs: [SALES_MANAGER.md](./docs/SALES_MANAGER.md), [SYNC.md](./docs/SYNC.md).

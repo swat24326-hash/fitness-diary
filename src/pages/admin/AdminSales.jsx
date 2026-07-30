@@ -71,6 +71,7 @@ import { SalesManagerStatsPanel } from '../../components/SalesManagerStatsPanel'
 import { SalesManagerAnalyticsPanel } from '../../components/SalesManagerAnalyticsPanel'
 import { SectionErrorBoundary } from '../../components/SectionErrorBoundary'
 import { AdminHomeAttentionRow } from '../../components/admin/AdminHomeAttentionRow'
+import { AdminPriceListSection } from '../../components/priceList/AdminPriceListSection.jsx'
 import '../../styles/sales-report.css'
 
 const MONTH_NAMES = [
@@ -108,6 +109,7 @@ export function AdminSales({ accessMode = 'admin' }) {
     if (salesTabParam === 'finance') return 'finance'
     if (salesTabParam === 'plan') return 'plan'
     if (salesTabParam === 'stats') return 'stats'
+    if (salesTabParam === 'price') return 'price'
     return 'daily'
   }, [isSalesManager, salesTabParam])
   const showSalesHero = !isSalesManager || salesTab === 'home'
@@ -115,7 +117,7 @@ export function AdminSales({ accessMode = 'admin' }) {
   const showInternalTabs = !isSalesManager
 
   useEffect(() => {
-    if (isSalesManager && (salesTabParam === 'finance' || salesTabParam === 'plan')) {
+    if (isSalesManager && (salesTabParam === 'finance' || salesTabParam === 'plan' || salesTabParam === 'price')) {
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev)
         next.delete('tab')
@@ -835,6 +837,17 @@ export function AdminSales({ accessMode = 'admin' }) {
               >
                 Финансы клуба
               </button>
+              <button
+                type="button"
+                className="tab"
+                role="tab"
+                id="sales-tab-price"
+                aria-selected={salesTab === 'price'}
+                aria-controls="sales-panel-price"
+                onClick={() => setSalesTab('price')}
+              >
+                Прайс
+              </button>
             </>
           ) : null}
         </div>
@@ -973,6 +986,12 @@ export function AdminSales({ accessMode = 'admin' }) {
             monthRows={monthDays}
             membershipTypes={membershipTypes}
           />
+        </div>
+      ) : !isSalesManager && salesTab === 'price' ? (
+        <div id="sales-panel-price" role="tabpanel" aria-labelledby="sales-tab-price">
+          <SectionErrorBoundary title="Прайс">
+            <AdminPriceListSection clubId={clubId} membershipTypes={membershipTypes} />
+          </SectionErrorBoundary>
         </div>
       ) : null}
 

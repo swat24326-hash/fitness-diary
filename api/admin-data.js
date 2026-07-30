@@ -38,6 +38,7 @@ import {
   handleSalesFinancePost,
   handleCreateSalesManagerPost,
 } from './_lib/adminData/salesHandlers.js'
+import { handlePriceListGet, handlePriceListPost } from './_lib/adminData/priceListHandlers.js'
 import { handlePnk } from './_lib/adminData/pnkHandlers.js'
 import { handleClubSmsGet, handleClubSmsPost } from './_lib/moiZvonkiHandler.js'
 
@@ -68,6 +69,7 @@ async function handler(req, res) {
       'set-trainer-active',
       'pnk',
       'club-sms',
+      'price-list',
     ])
     if (!postActions.has(action)) {
       sendJson(res, 405, { error: 'Method not allowed' })
@@ -156,6 +158,11 @@ async function handler(req, res) {
       const ctx = await requireAdmin(req, res)
       if (!ctx) return
       return handleSetTrainerActivePost(ctx, res, body)
+    }
+    if (action === 'price-list') {
+      const ctx = await requireAdmin(req, res)
+      if (!ctx) return
+      return handlePriceListPost(ctx, req, res, body)
     }
     const clubId = String(body?.club_id ?? '').trim()
     const ctx = await requireAdminOrSalesManager(req, res, clubId)
@@ -267,6 +274,13 @@ async function handler(req, res) {
     return handleSalesGet(ctx, req, res)
   }
 
+  if (action === 'price-list') {
+    const clubId = String(req.query?.club_id ?? '').trim()
+    const ctx = await requireAdminOrSalesManager(req, res, clubId)
+    if (!ctx) return
+    return handlePriceListGet(ctx, req, res)
+  }
+
   if (action === 'pnk') {
     const clubId = String(req.query?.club_id ?? '').trim()
     const ctx = await requireAdminOrSalesManager(req, res, clubId)
@@ -326,7 +340,7 @@ async function handler(req, res) {
     default:
       sendJson(res, 400, {
         error:
-          'Укажите action: search, journal, clients-last-trainings, club-stats, club-monthly, coach-quality, health-cards, sales, gemini-analytics-prefetch, iskra-settings, challenges, challenge-trainings, exercises, membership-types, clubs',
+          'Укажите action: search, journal, clients-last-trainings, club-stats, club-monthly, coach-quality, health-cards, sales, price-list, gemini-analytics-prefetch, iskra-settings, challenges, challenge-trainings, exercises, membership-types, clubs',
       })
   }
 }
