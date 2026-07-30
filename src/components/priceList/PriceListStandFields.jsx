@@ -27,15 +27,6 @@ export function PriceListStandFields({ doc, onValidFrom, onMeta, onExtras }) {
             placeholder="Персональный зал"
           />
         </label>
-        <label className="price-list__field">
-          <span className="price-list__label">Цены с</span>
-          <input
-            type="date"
-            className="input price-list__input-field"
-            value={doc.valid_from ?? ''}
-            onChange={(e) => onValidFrom(e.target.value)}
-          />
-        </label>
         <label className="price-list__field price-list__field--grow">
           <span className="price-list__label">Адрес на стенде</span>
           <input
@@ -97,6 +88,15 @@ export function PriceListStandFields({ doc, onValidFrom, onMeta, onExtras }) {
             value={extras.club_card ?? ''}
             onChange={(e) => onExtras({ club_card: e.target.value })}
             placeholder="500"
+          />
+        </label>
+        <label className="price-list__field price-list__field--grow">
+          <span className="price-list__label">Цены действительны с</span>
+          <input
+            type="date"
+            className="input price-list__input-field"
+            value={doc.valid_from ?? ''}
+            onChange={(e) => onValidFrom(e.target.value)}
           />
         </label>
       </div>
