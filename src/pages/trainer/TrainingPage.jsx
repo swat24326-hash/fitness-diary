@@ -159,14 +159,14 @@ export function TrainingPage() {
       const hc = await getHealthCard(clientIdParam)
       setHealthCard(hc ?? null)
       setContra((hc?.contraindications ?? '').trim())
+      const trainings = await listTrainingsForClient(clientIdParam)
       const prefilled = emptyTrainingData()
-      const fromHealth = suggestTrainingPreWeightInput(hc)
-      if (fromHealth) prefilled.pre_weight_kg = fromHealth
+      const fromPrior = suggestTrainingPreWeightInput(hc, trainings)
+      if (fromPrior) prefilled.pre_weight_kg = fromPrior
       setWorkoutState(prefilled)
       setTrainingType('Силовая')
       setTrainingDate(todayLocalIso())
       setMeta({ status: 'draft', trainingId: null })
-      const trainings = await listTrainingsForClient(clientIdParam)
       setOtherCompletedTrainings(
         trainings.filter((t) => String(t?.status ?? '') === 'completed').length,
       )

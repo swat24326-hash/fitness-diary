@@ -256,19 +256,29 @@ export async function upsertBaselineWeightEntry(clientId, entries, opts) {
   const weightKg = parseWeightKg(opts.weightKg)
   if (!date || weightKg == null) return null
 
-  const existing = findBaselineWeightEntry(entries)
-  if (existing?.id) {
-    const op = existing.synced === true ? 'update' : 'insert'
+  // Свежий снимок из IDB: не опираться только на устаревший `entries`, иначе можно
+  // перезаписать строку, которую импорт уже сделал source=training.
+  const latest = (await listWeightEntriesByClientId(clientId)).map(normalizeWeightEntryRow)
+  const existing = findBaselineWeightEntry(latest) ?? findBaselineWeightEntry(entries)
+  const existingId = existing?.id
+  const live = existingId ? latest.find((r) => r?.id === existingId) : null
+  const canReuseId =
+    Boolean(existingId) &&
+    (live == null || live.source === 'baseline' || live.source === 'initial_adjust') &&
+    (existing.source === 'baseline' || existing.source === 'initial_adjust')
+
+  if (canReuseId) {
+    const op = (live ?? existing).synced === true ? 'update' : 'insert'
     return saveWeightEntry({
       clientId,
-      id: existing.id,
+      id: existingId,
       date,
       weightKg,
       source: 'baseline',
       trainingId: null,
       note: null,
       operation: op,
-      remoteId: existing.id,
+      remoteId: existingId,
     })
   }
 

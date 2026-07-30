@@ -64,15 +64,41 @@ ok(sorted[0].date === '2026-06-10', 'sort entries desc')
 
 ok(weightEntrySourceLabelRu('baseline') === 'Исходный (карта здоровья)', 'source label baseline')
 
-ok(suggestTrainingPreWeightInput({ current_weight_kg: 72.5 }) === '72.5', 'suggest pre_weight from health')
-ok(suggestTrainingPreWeightInput({}) === '', 'suggest empty without health weight')
-ok(suggestTrainingPreWeightInput({ initial_weight_kg: 80 }) === '80', 'suggest from initial when no current')
+ok(
+  suggestTrainingPreWeightInput({ current_weight_kg: 72.5 }, []) === '',
+  'новая тренировка: вес из карты не подставляем',
+)
+ok(suggestTrainingPreWeightInput({}, []) === '', 'suggest empty without trainings')
+ok(
+  suggestTrainingPreWeightInput({ initial_weight_kg: 80 }, [
+    { id: '2', status: 'completed', date: '2026-06-22', data: { pre_weight_kg: 79.2 } },
+  ]) === '79.2',
+  'подставляем вес с последней завершённой тренировки',
+)
+ok(
+  suggestTrainingPreWeightInput({ current_weight_kg: 99 }, [
+    { id: 'd', status: 'draft', date: '2026-06-22', data: { pre_weight_kg: 88 } },
+  ]) === '',
+  'черновик не даёт подсказку веса',
+)
 
-const claim = findWeightEntryForTrainingUpsert(
+const noClaimBaseline = findWeightEntryForTrainingUpsert(
   [{ id: 'b1', date: '2026-07-17', source: 'baseline', weight_kg: 72, created_at: 'a' }],
   { trainingId: 't1', date: '2026-07-17' },
 )
-ok(claim.kind === 'claim' && claim.row?.id === 'b1', 'same-day baseline claimed by training')
+ok(noClaimBaseline.kind === 'insert', 'same-day baseline not claimed — keep исходный separate')
+
+const noClaimLegacy = findWeightEntryForTrainingUpsert(
+  [{ id: 'b2', date: '2026-07-17', source: 'initial_adjust', weight_kg: 72, created_at: 'a' }],
+  { trainingId: 't1', date: '2026-07-17' },
+)
+ok(noClaimLegacy.kind === 'insert', 'same-day initial_adjust not claimed')
+
+const claimManual = findWeightEntryForTrainingUpsert(
+  [{ id: 'm1', date: '2026-07-17', source: 'manual', weight_kg: 72, created_at: 'a' }],
+  { trainingId: 't1', date: '2026-07-17' },
+)
+ok(claimManual.kind === 'claim' && claimManual.row?.id === 'm1', 'same-day manual claimed by training')
 
 const update = findWeightEntryForTrainingUpsert(
   [{ id: 'tr', date: '2026-07-17', source: 'training', training_id: 't1', weight_kg: 72, created_at: 'a' }],

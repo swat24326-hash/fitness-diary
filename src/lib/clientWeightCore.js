@@ -145,20 +145,26 @@ function safeParseJson(raw) {
 }
 
 /**
- * Вес из карты здоровья для поля «Вес» в новой тренировке (строка для input).
- * Сначала актуальный, иначе исходный — чтобы после заполнения карты не вводить дважды.
- * @param {object | null | undefined} health
+ * Подсказка веса для поля «Вес» в новой тренировке (строка для input).
+ * Только с последней завершённой тренировки — не из карты здоровья:
+ * у нового клиента карта уже заполнена, а сегодняшние кг ещё неизвестны.
+ * @param {object | null | undefined} _health зарезервировано (раньше брали из карты)
+ * @param {object[] | null | undefined} [trainings]
  * @returns {string}
  */
-export function suggestTrainingPreWeightInput(health) {
-  const kg = getHealthCurrentWeightKg(health) ?? getHealthInitialWeightKg(health)
+export function suggestTrainingPreWeightInput(_health, trainings) {
+  const latest = pickLatestTrainingPreWeight(trainings)
+  const kg = latest?.weightKg
   if (kg == null) return ''
   return Number.isInteger(kg) ? String(kg) : String(kg)
 }
 
 /**
- * Куда писать вес с тренировки: обновить ту же тренировку, «забрать» запись за день
- * (карта здоровья / вручную), или создать новую. Так не появляется второй вес в один день.
+ * Куда писать вес с тренировки: обновить ту же тренировку, «забрать» ручную запись за день,
+ * или создать новую.
+ * Исходный вес (baseline / initial_adjust) никогда не claim’им: иначе тот же id становится
+ * «с тренировки», а параллельный repair может вернуть строку в baseline — вес с тренировки
+ * пропадает (типично, когда дата карты = дата тренировки).
  * @param {object[]} entries
  * @param {{ trainingId: string, date: string }} pick
  * @returns {{ kind: 'update' | 'claim' | 'insert', row: object | null }}
@@ -176,10 +182,10 @@ export function findWeightEntryForTrainingUpsert(entries, pick) {
   }
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(day)) {
-    const sameDayOther = [...list]
-      .filter((r) => String(r?.date ?? '').slice(0, 10) === day && r?.source !== 'training')
+    const sameDayManual = [...list]
+      .filter((r) => String(r?.date ?? '').slice(0, 10) === day && r?.source === 'manual')
       .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))[0]
-    if (sameDayOther) return { kind: 'claim', row: sameDayOther }
+    if (sameDayManual) return { kind: 'claim', row: sameDayManual }
   }
 
   return { kind: 'insert', row: null }
