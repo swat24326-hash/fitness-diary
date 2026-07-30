@@ -3,10 +3,10 @@
  * Стратегия: сначала обычные карты, затем VIP; на лист — до 4 колонок тарифов.
  */
 
-/** A4 landscape при ~150 dpi (мм → px ≈ 150/25.4). */
+/** A4 landscape при ~220 dpi — крупнее цифры на PNG без мыла. */
 export const PRICE_LIST_A4_LANDSCAPE = Object.freeze({
-  widthPx: 1754,
-  heightPx: 1240,
+  widthPx: 2570,
+  heightPx: 1818,
   /** Соотношение сторон листа (297/210). */
   aspect: 297 / 210,
 })
