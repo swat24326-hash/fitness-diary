@@ -9,6 +9,7 @@ import {
   PRICE_LIST_PEOPLE_OPTIONS,
   removePriceListTariff,
   setPriceListCell,
+  shouldShowPriceListPeopleColumn,
   syncTariffsFromMembershipTypes,
   togglePriceListPeople,
 } from '../../lib/priceList/priceListCore.js'
@@ -95,6 +96,7 @@ export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
   const rows = useMemo(() => buildPriceListRows(doc), [doc])
   const tariffs = doc.tariffs ?? []
   const peopleSet = useMemo(() => new Set(doc.people ?? []), [doc.people])
+  const showPeopleCol = shouldShowPriceListPeopleColumn(doc)
   const sessionBand = useMemo(() => {
     const map = new Map()
     let band = 0
@@ -422,13 +424,15 @@ export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
                   >
                     Трен./мес
                   </th>
-                  <th
-                    scope="col"
-                    rowSpan={2}
-                    className="price-list__sticky price-list__sticky--2 price-list__axis price-list__axis--head"
-                  >
-                    Людей
-                  </th>
+                  {showPeopleCol ? (
+                    <th
+                      scope="col"
+                      rowSpan={2}
+                      className="price-list__sticky price-list__sticky--2 price-list__axis price-list__axis--head"
+                    >
+                      Людей
+                    </th>
+                  ) : null}
                   {tariffs.map((t) => (
                     <th
                       key={t.membership_type_id}
@@ -481,9 +485,11 @@ export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
                           ''
                         )}
                       </th>
-                      <td className="price-list__sticky price-list__sticky--2 price-list__axis">
-                        {row.people}
-                      </td>
+                      {showPeopleCol ? (
+                        <td className="price-list__sticky price-list__sticky--2 price-list__axis">
+                          {row.people}
+                        </td>
+                      ) : null}
                       {tariffs.map((t) => {
                         const cell = getPriceListCell(doc, {
                           sessions: row.sessions,

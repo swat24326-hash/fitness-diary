@@ -8,6 +8,7 @@ import {
   getPriceListCell,
   normalizePriceListDocument,
   normalizePriceListMode,
+  shouldShowPriceListPeopleColumn,
 } from './priceListCore.js'
 import {
   buildPriceListPngFileName,
@@ -200,10 +201,11 @@ export async function renderPriceListPngSheets(doc, opts = {}) {
  */
 function drawTariffPanel(ctx, p) {
   const { x, y, w, h, tariffs, rows, normalized, mode } = p
+  const showPeople = shouldShowPriceListPeopleColumn(normalized)
   const headH = 56
   const subH = 30
   const axisW = Math.max(56, Math.min(78, w * 0.11))
-  const peopleW = Math.max(48, Math.min(64, w * 0.09))
+  const peopleW = showPeople ? Math.max(48, Math.min(64, w * 0.09)) : 0
   const pairW = Math.max(72, (w - axisW - peopleW) / Math.max(1, tariffs.length))
   const dataH = Math.max(1, h - headH - subH)
   const rowH = dataH / Math.max(1, rows.length)
@@ -217,7 +219,9 @@ function drawTariffPanel(ctx, p) {
   ctx.font = '700 13px "Segoe UI", system-ui, sans-serif'
   ctx.fillText('Трен.', x + axisW / 2, y + 24)
   ctx.fillText('/мес', x + axisW / 2, y + 42)
-  ctx.fillText('Людей', x + axisW + peopleW / 2, y + 34)
+  if (showPeople) {
+    ctx.fillText('Людей', x + axisW + peopleW / 2, y + 34)
+  }
 
   const codeFs = tariffs.length > 4 ? 15 : 18
   const priceFs = Math.max(12, Math.min(18, rowH * 0.38))
@@ -248,8 +252,10 @@ function drawTariffPanel(ctx, p) {
     ctx.fillStyle = C.text
     ctx.font = `700 ${Math.max(13, priceFs)}px "Segoe UI", system-ui, sans-serif`
     ctx.fillText(showSessions ? String(row.sessions) : '', x + axisW / 2, cy)
-    ctx.fillStyle = C.muted
-    ctx.fillText(String(row.people), x + axisW + peopleW / 2, cy)
+    if (showPeople) {
+      ctx.fillStyle = C.muted
+      ctx.fillText(String(row.people), x + axisW + peopleW / 2, cy)
+    }
 
     tariffs.forEach((t, i) => {
       const cell = getPriceListCell(normalized, {

@@ -331,6 +331,16 @@ export function buildPriceListRows(doc) {
 }
 
 /**
+ * Колонку «Людей» показываем только если в сетке больше одного значения
+ * (один человек на все строки — колонка лишняя).
+ * @param {object | null | undefined} doc
+ */
+export function shouldShowPriceListPeopleColumn(doc) {
+  const people = Array.isArray(doc?.people) && doc.people.length ? doc.people : DEFAULT_PEOPLE
+  return people.length > 1
+}
+
+/**
  * Нормализация документа после load/save.
  * @param {unknown} raw
  * @param {string} clubId

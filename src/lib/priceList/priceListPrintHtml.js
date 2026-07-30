@@ -7,6 +7,7 @@ import {
   getPriceListCell,
   normalizePriceListDocument,
   normalizePriceListMode,
+  shouldShowPriceListPeopleColumn,
 } from './priceListCore.js'
 import { formatPriceListMoney, priceListModePrintLabel } from './priceListExportCore.js'
 import {
@@ -39,6 +40,7 @@ function escapeHtml(text) {
  * @param {number} fontPt
  */
 function buildTariffTableHtml(normalized, tariffs, rows, mode, fontPt) {
+  const showPeople = shouldShowPriceListPeopleColumn(normalized)
   const headTariffs = tariffs
     .map((t) => {
       const code = escapeHtml(t.code || '')
@@ -65,17 +67,23 @@ function buildTariffTableHtml(normalized, tariffs, rows, mode, fontPt) {
           return `<td class="num">${escapeHtml(formatPriceListMoney(cell.price_full))}</td><td class="num off">${escapeHtml(formatPriceListMoney(cell.price_10))}</td>`
         })
         .join('')
-      return `<tr class="${ri % 2 ? 'alt' : ''}"><th class="axis">${showSessions ? escapeHtml(String(row.sessions)) : ''}</th><td class="axis">${escapeHtml(String(row.people))}</td>${cells}</tr>`
+      const peopleCell = showPeople
+        ? `<td class="axis">${escapeHtml(String(row.people))}</td>`
+        : ''
+      return `<tr class="${ri % 2 ? 'alt' : ''}"><th class="axis">${showSessions ? escapeHtml(String(row.sessions)) : ''}</th>${peopleCell}${cells}</tr>`
     })
     .join('')
 
   const rowPct = rows.length ? (100 / rows.length).toFixed(2) : '100'
+  const peopleHead = showPeople
+    ? `<th rowspan="2" class="axis">Людей</th>`
+    : ''
 
   return `<table style="font-size:${fontPt}pt">
       <thead>
         <tr>
           <th rowspan="2" class="axis">Трен./мес</th>
-          <th rowspan="2" class="axis">Людей</th>
+          ${peopleHead}
           ${headTariffs}
         </tr>
         <tr>${subHeads}</tr>

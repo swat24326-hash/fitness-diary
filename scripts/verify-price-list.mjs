@@ -13,6 +13,7 @@ import {
   removePriceListTariff,
   setPriceListCell,
   syncTariffsFromMembershipTypes,
+  shouldShowPriceListPeopleColumn,
   togglePriceListPeople,
 } from '../src/lib/priceList/priceListCore.js'
 import {
@@ -138,9 +139,11 @@ doc = togglePriceListPeople(doc, 3)
 doc = togglePriceListPeople(doc, 4)
 ok(JSON.stringify(doc.people) === JSON.stringify([1]), 'people can shrink to only 1')
 ok(buildPriceListRows(doc).length === 3, '3 session rows × 1 people')
+ok(!shouldShowPriceListPeopleColumn(doc), 'hide people col when only 1')
 
 doc = togglePriceListPeople(doc, 5)
 ok(doc.people.includes(5), 'people can include 5')
+ok(shouldShowPriceListPeopleColumn(doc), 'show people col when 2+')
 
 doc = removePriceListTariff(doc, 't-vip')
 ok(!doc.tariffs.some((t) => t.code === 'VIP'), 'remove tariff column')
