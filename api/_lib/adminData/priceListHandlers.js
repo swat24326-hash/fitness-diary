@@ -1,6 +1,10 @@
 import { sendJson } from '../adminSupabase.js'
 import { normalizePriceListDocument } from '../../../src/lib/priceList/priceListCore.js'
 import { priceListDocFromDbRow, priceListDocToDbRow } from '../../../src/lib/priceList/priceListDbCore.js'
+import {
+  assertPriceListClubAccess,
+  assertPriceListWriteAccess,
+} from '../../../src/lib/priceList/priceListAccessCore.js'
 import { parseJsonBody } from './salesHandlers.js'
 
 const SELECT_COLS =
@@ -8,23 +12,13 @@ const SELECT_COLS =
 
 /**
  * GET ?action=price-list&club_id=
- * Админ — любой клуб; менеджер — только свой (на будущее).
+ * Админ — любой клуб; менеджер — только свой.
  */
 export async function handlePriceListGet(ctx, req, res) {
   const clubId = String(req.query?.club_id ?? '').trim()
-  if (!clubId) {
-    sendJson(res, 400, { error: 'Укажите club_id' })
-    return
-  }
-  if (ctx.isSalesManager && !ctx.isAdmin) {
-    const own = String(ctx.profile?.club_id ?? ctx.user?.club_id ?? '').trim()
-    if (!own || own !== clubId) {
-      sendJson(res, 403, { error: 'Нет доступа к прайсу другого клуба' })
-      return
-    }
-  }
-  if (!ctx.isAdmin && !ctx.isSalesManager) {
-    sendJson(res, 403, { error: 'Нет доступа' })
+  const access = assertPriceListClubAccess(ctx, clubId)
+  if (!access.ok) {
+    sendJson(res, access.status, { error: access.error })
     return
   }
 
@@ -48,19 +42,17 @@ export async function handlePriceListGet(ctx, req, res) {
 }
 
 /**
- * POST ?action=price-list — только админ.
+ * POST ?action=price-list — админ (любой клуб) или менеджер своего клуба.
  * Body: { club_id, price_list }
  */
 export async function handlePriceListPost(ctx, req, res, body) {
-  if (!ctx.isAdmin) {
-    sendJson(res, 403, { error: 'Прайс может сохранять только администратор' })
-    return
-  }
   const clubId = String(body?.club_id ?? '').trim()
-  if (!clubId) {
-    sendJson(res, 400, { error: 'Укажите club_id' })
+  const access = assertPriceListWriteAccess(ctx, clubId)
+  if (!access.ok) {
+    sendJson(res, access.status, { error: access.error })
     return
   }
+
   const raw = body?.price_list
   if (!raw || typeof raw !== 'object') {
     sendJson(res, 400, { error: 'Укажите price_list' })

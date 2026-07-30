@@ -9,6 +9,7 @@
 
 ## 2026-07
 
+- **Продажи / Прайс:** менеджер своего клуба редактирует прайс (`/sales?tab=price`) — Excel, Save, печать, PNG, как у админа. Docs: [PRICE_LIST.md](./docs/PRICE_LIST.md), [SALES_MANAGER.md](./docs/SALES_MANAGER.md).
 - **Продажи / Прайс:** менеджер видит прайс своего клуба (`/sales?tab=price`) — просмотр, печать, PNG; правки только у админа. Docs: [PRICE_LIST.md](./docs/PRICE_LIST.md).
 - **Продажи / Прайс:** печать витрины и скачивание PNG (текущий режим: база / день). Docs: [PRICE_LIST.md](./docs/PRICE_LIST.md).
 - **Продажи / Прайс:** импорт Excel (.xlsx) с мастером сопоставления колонок к типам (PL, VIP…). Docs: [PRICE_LIST.md](./docs/PRICE_LIST.md).

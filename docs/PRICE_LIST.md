@@ -1,7 +1,7 @@
 # Прайс клуба (ПЗ)
 
 **Актуально:** 2026-07-30  
-**Статус:** ✅ админ (правка) + менеджер (просмотр) + облако `club_price_lists` + Excel/печать/PNG.
+**Статус:** ✅ админ + менеджер своего клуба (правка) + облако `club_price_lists` + Excel/печать/PNG.
 
 ## Ситуация → польза
 
@@ -11,8 +11,9 @@
 
 | Роль | Где |
 |------|-----|
-| Админ | `/admin/sales?tab=price` — правка, Excel, Save |
-| Менеджер | `/sales?tab=price` (плитка **Прайс**) — просмотр, печать, PNG |
+| Админ | `/admin/sales?tab=price` — правка, Excel, Save (любой клуб) |
+| Менеджер | `/sales?tab=price` (плитка **Прайс**) — правка, Excel, Save, печать, PNG (**только свой клуб**) |
+
 ## Правила
 
 | Правило | Смысл |
@@ -32,6 +33,7 @@
 | Роль | Путь |
 |------|------|
 | Модель | `src/lib/priceList/priceListCore.js` |
+| Доступ (роли) | `src/lib/priceList/priceListAccessCore.js` |
 | DB map | `src/lib/priceList/priceListDbCore.js` |
 | Облако | `src/lib/priceList/priceListCloudService.js` |
 | Локальный кэш | `src/lib/priceList/priceListLocalStorage.js` + `priceListCacheCore.js` |
@@ -69,7 +71,7 @@
 | **C** | Прайс: TTL 7д + вкладка без sales shell; session shell **6 ч** (не daily) | ✅ |
 | **P1** | Импорт xlsx + мастер PL/VIP | ✅ |
 | **P2** | Печать / PNG | ✅ |
-| **P3** | Менеджер: просмотр прайса на `/sales` | ✅ |
+| **P3** | Менеджер: правка прайса своего клуба на `/sales` | ✅ |
 
 Ускорение Продаж **обслуживает Прайс**: вкладка не ждёт полный bundle и не тянет `profile=shell`. Shell месяца кэшируется в session (вечерняя сверка); дневной ввод всегда с сети при открытии вкладки дня.
 

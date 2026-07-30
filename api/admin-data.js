@@ -160,7 +160,8 @@ async function handler(req, res) {
       return handleSetTrainerActivePost(ctx, res, body)
     }
     if (action === 'price-list') {
-      const ctx = await requireAdmin(req, res)
+      const clubId = String(body?.club_id ?? '').trim()
+      const ctx = await requireAdminOrSalesManager(req, res, clubId)
       if (!ctx) return
       return handlePriceListPost(ctx, req, res, body)
     }

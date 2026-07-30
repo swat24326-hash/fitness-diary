@@ -1172,11 +1172,7 @@ export function AdminSales({ accessMode = 'admin' }) {
       ) : salesTab === 'price' ? (
         <div id="sales-panel-price" role="tabpanel" aria-labelledby="sales-tab-price">
           <SectionErrorBoundary title="Прайс">
-            <AdminPriceListSection
-              clubId={clubId}
-              membershipTypes={membershipTypes}
-              readOnly={isSalesManager}
-            />
+            <AdminPriceListSection clubId={clubId} membershipTypes={membershipTypes} />
           </SectionErrorBoundary>
         </div>
       ) : null}

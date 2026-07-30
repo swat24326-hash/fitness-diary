@@ -35,6 +35,10 @@ import {
   suggestExcelColumnMapping,
 } from '../src/lib/priceList/priceListExcelImportCore.js'
 import {
+  assertPriceListClubAccess,
+  assertPriceListWriteAccess,
+} from '../src/lib/priceList/priceListAccessCore.js'
+import {
   buildPriceListPngFileName,
   formatPriceListMoney,
   priceListModePrintLabel,
@@ -230,5 +234,17 @@ ok(formatPriceListMoney(null) === '—', 'money empty')
 ok(priceListModePrintLabel('day') === 'Дневная скидка', 'mode day label')
 ok(buildPriceListPngFileName({ clubId: 'abc', mode: 'base', validFrom: '2026-07-21' }).includes('base'), 'png name mode')
 ok(buildPriceListPngFileName({ clubId: 'abc', mode: 'base', validFrom: '2026-07-21' }).endsWith('.png'), 'png ext')
+
+ok(assertPriceListClubAccess({ isAdmin: true }, 'club-1').ok === true, 'admin any club read')
+ok(assertPriceListClubAccess({ isAdmin: true, isSalesManager: true, salesClubId: 'club-2' }, 'club-1').ok === true, 'admin overrides manager club scope')
+ok(assertPriceListClubAccess({ isSalesManager: true, salesClubId: 'club-1' }, 'club-1').ok === true, 'manager own club read')
+ok(assertPriceListClubAccess({ isSalesManager: true, profile: { club_id: 'club-1' } }, 'club-1').ok === true, 'manager club from profile')
+ok(assertPriceListClubAccess({ isSalesManager: true, salesClubId: 'club-1' }, 'club-2').ok === false, 'manager other club denied')
+ok(assertPriceListClubAccess({}, 'club-1').ok === false, 'no role denied')
+ok(assertPriceListClubAccess({ isSalesManager: true }, '').ok === false, 'empty club_id rejected')
+
+ok(assertPriceListWriteAccess({ isAdmin: true }, 'club-9').ok === true, 'admin write any club')
+ok(assertPriceListWriteAccess({ isSalesManager: true, salesClubId: 'club-1' }, 'club-1').ok === true, 'manager write own club')
+ok(assertPriceListWriteAccess({ isSalesManager: true, salesClubId: 'club-1' }, 'club-2').ok === false, 'manager write other club denied')
 
 process.exit(failed > 0 ? 1 : 0)
