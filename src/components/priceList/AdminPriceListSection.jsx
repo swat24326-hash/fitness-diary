@@ -15,6 +15,7 @@ import {
 import { fetchPriceListForClub, savePriceListForClub } from '../../lib/priceList/priceListCloudService.js'
 import { readPriceListLocalEntry } from '../../lib/priceList/priceListLocalStorage.js'
 import { downloadPriceListPng, printPriceListSurface } from '../../lib/priceList/priceListExportCanvas.js'
+import { formatPriceListMoney, priceListModePrintLabel } from '../../lib/priceList/priceListExportCore.js'
 import { PriceListExcelImportWizard } from './PriceListExcelImportWizard.jsx'
 import '../../styles/price-list.css'
 
@@ -277,8 +278,28 @@ export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
         />
       ) : null}
 
-      <div className="price-list__print-surface" data-price-list-print-root>
-      <div className="price-list__stand" aria-label="Шапка стенда">
+      <div className="price-list__print-surface" data-price-list-print-root data-print-mode={mode}>
+      <header className="price-list__print-banner" aria-hidden="true">
+        <div className="price-list__print-banner-main">
+          <p className="price-list__print-title">{doc.meta?.title || 'Персональный зал'}</p>
+          <p className="price-list__print-mode">{priceListModePrintLabel(mode)}</p>
+        </div>
+        <div className="price-list__print-banner-meta">
+          {doc.valid_from ? (
+            <span>
+              Цены с{' '}
+              {(() => {
+                const m = String(doc.valid_from).match(/^(\d{4})-(\d{2})-(\d{2})/)
+                return m ? `${m[3]}.${m[2]}.${m[1]}` : doc.valid_from
+              })()}
+            </span>
+          ) : null}
+          {doc.meta?.address ? <span>{doc.meta.address}</span> : null}
+          {doc.meta?.phone ? <span>{doc.meta.phone}</span> : null}
+        </div>
+      </header>
+
+      <div className="price-list__stand price-list__no-print" aria-label="Шапка стенда">
         <div className="price-list__stand-glow" aria-hidden />
         <div className="price-list__meta">
           <label className="price-list__field">
@@ -313,7 +334,7 @@ export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
         </div>
       </div>
 
-      <div className="price-list__toolbar">
+      <div className="price-list__toolbar price-list__no-print">
         <div className="price-list__mode" role="tablist" aria-label="Режим цены">
           <button
             type="button"
@@ -335,7 +356,7 @@ export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
           </button>
         </div>
 
-        <div className="price-list__people price-list__no-print" role="group" aria-label="Число людей в сетке">
+        <div className="price-list__people" role="group" aria-label="Число людей в сетке">
           <span className="price-list__label">Людей</span>
           <div className="price-list__people-chips">
             {PRICE_LIST_PEOPLE_OPTIONS.map((n) => {
@@ -470,7 +491,7 @@ export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
                               <input
                                 type="number"
                                 inputMode="numeric"
-                                className="price-list__input"
+                                className="price-list__input price-list__screen-only"
                                 min={0}
                                 step={1}
                                 value={cell.price_full ?? ''}
@@ -486,12 +507,13 @@ export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
                                 aria-label={`${t.code}, ${row.sessions} трен., ${row.people} чел., базовая`}
                                 title="Базовая стоимость"
                               />
+                              <span className="price-list__print-cell">{formatPriceListMoney(cell.price_full)}</span>
                             </td>
                             <td className="price-list__cell price-list__cell--discount">
                               <input
                                 type="number"
                                 inputMode="numeric"
-                                className="price-list__input price-list__input--discount"
+                                className="price-list__input price-list__input--discount price-list__screen-only"
                                 min={0}
                                 step={1}
                                 value={cell.price_10 ?? ''}
@@ -507,6 +529,9 @@ export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
                                 aria-label={`${t.code}, ${row.sessions} трен., ${row.people} чел., −10%`}
                                 title="Цена со скидкой 10%"
                               />
+                              <span className="price-list__print-cell price-list__print-cell--discount">
+                                {formatPriceListMoney(cell.price_10)}
+                              </span>
                             </td>
                           </Fragment>
                         )

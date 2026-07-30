@@ -200,22 +200,27 @@ export async function downloadPriceListPng(doc, opts = {}) {
   return { ok: true, filename: name }
 }
 
-/** Печать витрины: класс на body + window.print */
+/** Печать витрины: A4 альбом, один лист (см. price-list.css @media print) */
 export function printPriceListSurface() {
   if (typeof document === 'undefined' || typeof window === 'undefined') {
     return { ok: false, error: 'Только в браузере' }
   }
   const root = document.querySelector('[data-price-list-print-root]')
   if (!root) return { ok: false, error: 'Нет блока для печати' }
+
+  const prevTitle = document.title
+  const mode = root.getAttribute('data-print-mode') === 'day' ? 'Дневная скидка' : 'Базовая сетка'
+  document.title = `Прайс · ${mode}`
+
   document.body.classList.add('price-list-printing')
   const cleanup = () => {
     document.body.classList.remove('price-list-printing')
+    document.title = prevTitle
     window.removeEventListener('afterprint', cleanup)
   }
   window.addEventListener('afterprint', cleanup)
   window.print()
-  // fallback если afterprint не сработал
-  setTimeout(cleanup, 2000)
+  setTimeout(cleanup, 2500)
   return { ok: true }
 }
 
