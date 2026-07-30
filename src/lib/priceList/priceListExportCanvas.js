@@ -19,22 +19,7 @@ import {
   PRICE_LIST_A4_LANDSCAPE,
   buildPriceListPrintSheets,
 } from './priceListPrintLayout.js'
-
-const C = {
-  bg: '#0a0e12',
-  card: '#121820',
-  border: 'rgba(148, 163, 184, 0.28)',
-  accent: '#38bdf8',
-  accentSoft: '#7dd3fc',
-  vip: '#fbbf24',
-  text: '#f1f5f9',
-  muted: '#94a3b8',
-  dim: '#64748b',
-  headBg: 'rgba(56, 189, 248, 0.12)',
-  rowAlt: 'rgba(148, 163, 184, 0.06)',
-  off: '#34d399',
-  full: '#cbd5e1',
-}
+import { PRICE_LIST_TRAINER_PALETTE as C } from './priceListBrandColors.js'
 
 /**
  * PNG одного листа A4 альбом (Карты или VIP).
@@ -75,9 +60,22 @@ export async function renderPriceListPng(doc, opts = {}) {
 
   ctx.fillStyle = C.bg
   ctx.fillRect(0, 0, width, height)
+  // Мягкое изумрудное свечение как у тренерского shell
+  const glow = ctx.createRadialGradient(
+    width * 0.72,
+    height * 0.08,
+    20,
+    width * 0.72,
+    height * 0.08,
+    width * 0.55,
+  )
+  glow.addColorStop(0, 'rgba(46, 255, 184, 0.12)')
+  glow.addColorStop(1, 'rgba(46, 255, 184, 0)')
+  ctx.fillStyle = glow
+  ctx.fillRect(0, 0, width, height)
 
   const title = String(normalized.meta?.title || 'Персональный зал').trim()
-  ctx.fillStyle = C.accentSoft
+  ctx.fillStyle = C.accentBright
   ctx.font = '800 42px "Segoe UI", system-ui, sans-serif'
   ctx.textAlign = 'left'
   ctx.fillText(truncate(ctx, title, width * 0.52), padX, padTop + 34)
@@ -200,7 +198,11 @@ function drawTariffPanel(ctx, p) {
   const priceFs = Math.max(12, Math.min(18, rowH * 0.38))
   tariffs.forEach((t, i) => {
     const tx = x + axisW + peopleW + i * pairW
-    ctx.fillStyle = t.is_vip ? C.vip : C.text
+    if (t.is_vip) {
+      ctx.fillStyle = C.vipHead
+      ctx.fillRect(tx, y + 1, pairW, headH - 1)
+    }
+    ctx.fillStyle = t.is_vip ? C.vip : C.accentBright
     ctx.font = `800 ${codeFs}px "Segoe UI", system-ui, sans-serif`
     ctx.fillText(truncate(ctx, String(t.code || ''), pairW - 10), tx + pairW / 2, y + 28)
     ctx.fillStyle = C.dim

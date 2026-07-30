@@ -13,6 +13,7 @@ import {
   buildPriceListPrintSheets,
   priceListPrintFontPt,
 } from './priceListPrintLayout.js'
+import { PRICE_LIST_TRAINER_PALETTE as P } from './priceListBrandColors.js'
 
 /** @param {unknown} iso */
 export function formatPriceListValidFromRu(iso) {
@@ -158,8 +159,8 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
     html, body {
       margin: 0;
       padding: 0;
-      background: #fff;
-      color: #111;
+      background: ${P.bg};
+      color: ${P.text};
       font-family: "Segoe UI", system-ui, sans-serif;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
@@ -174,6 +175,10 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
       overflow: hidden;
       page-break-inside: avoid;
       break-inside: avoid;
+      background:
+        radial-gradient(ellipse 55% 40% at 78% 0%, rgba(46, 255, 184, 0.12), transparent 70%),
+        ${P.bg};
+      color: ${P.text};
     }
     .sheet--break {
       page-break-after: always;
@@ -184,7 +189,7 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
       justify-content: space-between;
       align-items: flex-end;
       gap: 6mm;
-      border-bottom: 0.55mm solid #111;
+      border-bottom: 0.45mm solid ${P.border};
       padding-bottom: 2.5mm;
       flex-shrink: 0;
     }
@@ -194,6 +199,7 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
       font-weight: 800;
       letter-spacing: -0.02em;
       line-height: 1.08;
+      color: ${P.accentBright};
     }
     .head .mode {
       margin: 1.4mm 0 0;
@@ -201,21 +207,21 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.08em;
-      color: #333;
+      color: ${P.muted};
     }
     .head .group {
       margin: 1.2mm 0 0;
       font-size: 12pt;
       font-weight: 800;
       letter-spacing: 0.04em;
-      color: #111;
+      color: ${P.text};
     }
     .meta {
       max-width: 48%;
       text-align: right;
       font-size: 10pt;
       line-height: 1.45;
-      color: #222;
+      color: ${P.muted};
     }
     .meta span { display: block; }
     .table-wrap {
@@ -223,6 +229,10 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
       min-height: 0;
       display: flex;
       flex-direction: column;
+      border-radius: 3mm;
+      border: 0.35mm solid ${P.border};
+      background: ${P.card};
+      overflow: hidden;
     }
     table {
       width: 100%;
@@ -233,45 +243,49 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
     }
     tbody tr { height: var(--row-h, auto); }
     th, td {
-      border: 0.28mm solid #9ca3af;
+      border: 0.22mm solid ${P.borderSoft};
       padding: 2mm 1.2mm;
       text-align: center;
       vertical-align: middle;
       word-break: break-word;
+      color: ${P.text};
     }
-    thead th { background: #f3f4f6; font-weight: 700; }
+    thead th { background: ${P.headBg}; font-weight: 700; color: ${P.muted}; }
     th.axis, td.axis {
       width: 10%;
       font-weight: 800;
-      background: #fafafa;
+      background: rgba(6, 18, 16, 0.65);
       font-size: 1.15em;
+      color: ${P.text};
     }
-    .tariff .code { font-size: 1.12em; }
+    .tariff .code { font-size: 1.12em; color: ${P.accentBright}; }
     .vip {
       display: inline-block;
       margin-left: 1.2mm;
       padding: 0 1.4mm;
-      border: 0.22mm solid #111;
+      border: 0.22mm solid ${P.accentBright};
+      color: ${P.accentBright};
       font-size: 0.7em;
       font-weight: 700;
     }
-    .tariff-vip { background: #fffbeb; }
-    .sub { font-size: 0.88em; font-weight: 600; color: #444; }
-    .sub-off { color: #166534; }
-    td.num { font-variant-numeric: tabular-nums; color: #374151; }
-    td.off { font-weight: 800; color: #111; background: #f0fdf4; }
-    tr.alt td, tr.alt th.axis { background: #f9fafb; }
-    tr.alt td.off { background: #ecfdf5; }
+    .tariff-vip { background: ${P.vipHead}; }
+    .tariff-vip .code { color: ${P.vip}; }
+    .sub { font-size: 0.88em; font-weight: 600; color: ${P.dim}; }
+    .sub-off { color: ${P.off}; }
+    td.num { font-variant-numeric: tabular-nums; color: ${P.full}; }
+    td.off { font-weight: 800; color: ${P.off}; background: ${P.offBg}; }
+    tr.alt td, tr.alt th.axis { background: ${P.rowAlt}; }
+    tr.alt td.off { background: rgba(46, 255, 184, 0.12); }
     .empty {
       margin: auto;
       text-align: center;
-      color: #666;
+      color: ${P.muted};
       font-size: 12pt;
     }
     .foot {
       flex-shrink: 0;
       font-size: 8pt;
-      color: #6b7280;
+      color: ${P.dim};
       text-align: right;
       padding-top: 0.5mm;
     }

@@ -9,6 +9,7 @@
 
 ## 2026-07
 
+- **Продажи / Прайс:** печать и PNG в гамме тренера (чёрный + emerald), отдельные листы Карты / VIP. Docs: [PRICE_LIST.md](./docs/PRICE_LIST.md).
 - **Продажи / Прайс:** печать и PNG — отдельные листы **Карты** и **VIP** (до 4 колонок), одинаковая шапка с данными клуба. Docs: [PRICE_LIST.md](./docs/PRICE_LIST.md).
 - **Продажи / Прайс:** печать и PNG заполняют **A4 альбом**; при >4 тарифах — две симметричные панели. Docs: [PRICE_LIST.md](./docs/PRICE_LIST.md).
 - **Продажи / Прайс:** менеджер своего клуба редактирует прайс (`/sales?tab=price`) — Excel, Save, печать, PNG, как у админа. Docs: [PRICE_LIST.md](./docs/PRICE_LIST.md), [SALES_MANAGER.md](./docs/SALES_MANAGER.md).

@@ -50,6 +50,7 @@ import {
   buildPriceListPrintSheets,
   partitionPriceListTariffsByVip,
 } from '../src/lib/priceList/priceListPrintLayout.js'
+import { PRICE_LIST_TRAINER_PALETTE } from '../src/lib/priceList/priceListBrandColors.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -296,7 +297,10 @@ const printWide = buildPriceListPrintHtml(
 ok(printWide.includes('sheet--break'), 'print page break between sheets')
 ok(printWide.includes('VIP') && printWide.includes('Карты'), 'print has Карты and VIP sheets')
 ok((printWide.match(/class="sheet/g) || []).length === 2, 'print two sheet sections')
+ok(printWide.includes('#2effb8') || printWide.includes('#14d89a'), 'print trainer emerald palette')
 ok(buildPriceListPngFileName({ clubId: 'abc', mode: 'base', sheetSlug: 'vip', validFrom: '2026-07-21' }).includes('vip'), 'png name sheet slug')
+ok(PRICE_LIST_TRAINER_PALETTE.bg === '#030806', 'trainer palette bg')
+ok(PRICE_LIST_TRAINER_PALETTE.accentBright === '#2effb8', 'trainer palette neon')
 
 ok(assertPriceListClubAccess({ isAdmin: true }, 'club-1').ok === true, 'admin any club read')
 ok(assertPriceListClubAccess({ isAdmin: true, isSalesManager: true, salesClubId: 'club-2' }, 'club-1').ok === true, 'admin overrides manager club scope')
