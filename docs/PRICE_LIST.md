@@ -25,7 +25,7 @@
 | Людей | чипы 1…5 — можно только `1` или полный ряд |
 | Облако | `GET/POST admin-data?action=price-list`; localStorage + **TTL 7 суток** (force / Save — сразу сеть) |
 | Импорт Excel | кнопка **Excel** → сопоставить колонки с `code` типов; без автосоздания типов |
-| Печать / PNG | **Печать** — 1× A4 альбом; **PNG** текущего режима сетки |
+| Печать / PNG | **Печать** открывает лист **A4 альбом** (в диалоге выберите альбомную, если стоит книжная); **PNG** — файл |
 | Не путать | цена витрины ≠ ЗП тренера у типа; не в sync планшета |
 
 ## Код
@@ -38,7 +38,7 @@
 | Облако | `src/lib/priceList/priceListCloudService.js` |
 | Локальный кэш | `src/lib/priceList/priceListLocalStorage.js` + `priceListCacheCore.js` |
 | Импорт Excel | `priceListExcelImportCore.js` + `priceListExcelWorkbook.js` + `PriceListExcelImportWizard.jsx` |
-| Печать / PNG | `priceListExportCore.js` + `priceListExportCanvas.js` |
+| Печать / PNG | `priceListExportCore.js` + `priceListExportCanvas.js` + `priceListPrintHtml.js` |
 | Shell session | `src/lib/admin/salesShellSession.js` (6 ч, не daily) |
 | API | `api/_lib/adminData/priceListHandlers.js` |
 | UI | `src/components/priceList/AdminPriceListSection.jsx` |

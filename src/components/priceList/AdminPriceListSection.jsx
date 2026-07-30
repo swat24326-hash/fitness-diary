@@ -14,7 +14,7 @@ import {
 } from '../../lib/priceList/priceListCore.js'
 import { fetchPriceListForClub, savePriceListForClub } from '../../lib/priceList/priceListCloudService.js'
 import { readPriceListLocalEntry } from '../../lib/priceList/priceListLocalStorage.js'
-import { downloadPriceListPng, printPriceListSurface } from '../../lib/priceList/priceListExportCanvas.js'
+import { downloadPriceListPng, printPriceListDocument } from '../../lib/priceList/priceListExportCanvas.js'
 import { formatPriceListMoney, priceListModePrintLabel } from '../../lib/priceList/priceListExportCore.js'
 import { PriceListExcelImportWizard } from './PriceListExcelImportWizard.jsx'
 import '../../styles/price-list.css'
@@ -105,8 +105,9 @@ export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
   }
 
   const handlePrint = () => {
-    const result = printPriceListSurface()
+    const result = printPriceListDocument(doc, { mode })
     if (!result.ok) setToast(result.error || 'Печать недоступна')
+    else setToast('В окне печати выберите альбомную ориентацию (A4), если стоит книжная')
   }
 
   const handlePng = async () => {

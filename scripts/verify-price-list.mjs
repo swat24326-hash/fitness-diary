@@ -43,6 +43,7 @@ import {
   formatPriceListMoney,
   priceListModePrintLabel,
 } from '../src/lib/priceList/priceListExportCore.js'
+import { buildPriceListPrintHtml, formatPriceListValidFromRu } from '../src/lib/priceList/priceListPrintHtml.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -234,6 +235,21 @@ ok(formatPriceListMoney(null) === '—', 'money empty')
 ok(priceListModePrintLabel('day') === 'Дневная скидка', 'mode day label')
 ok(buildPriceListPngFileName({ clubId: 'abc', mode: 'base', validFrom: '2026-07-21' }).includes('base'), 'png name mode')
 ok(buildPriceListPngFileName({ clubId: 'abc', mode: 'base', validFrom: '2026-07-21' }).endsWith('.png'), 'png ext')
+ok(formatPriceListValidFromRu('2026-07-21') === '21.07.2026', 'valid_from ru')
+const printHtml = buildPriceListPrintHtml(
+  {
+    club_id: 'c1',
+    meta: { title: 'Персональный зал', address: 'Test', phone: '8-900' },
+    tariffs: [{ membership_type_id: 'pl', code: 'PL', print_label: 'PL', sort_order: 0, is_vip: false }],
+    sessions: [4],
+    people: [1],
+    cells: { 'base:4:1:pl': { price_full: 1000, price_10: 900 } },
+  },
+  { mode: 'base' },
+)
+ok(printHtml.includes('A4 landscape'), 'print html landscape page')
+ok(printHtml.includes('PL') && printHtml.includes('900'), 'print html has tariff prices')
+ok(!printHtml.includes('<script'), 'print html without scripts')
 
 ok(assertPriceListClubAccess({ isAdmin: true }, 'club-1').ok === true, 'admin any club read')
 ok(assertPriceListClubAccess({ isAdmin: true, isSalesManager: true, salesClubId: 'club-2' }, 'club-1').ok === true, 'admin overrides manager club scope')

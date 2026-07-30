@@ -14,6 +14,7 @@ import {
   formatPriceListMoney,
   priceListModePrintLabel,
 } from './priceListExportCore.js'
+import { buildPriceListPrintHtml } from './priceListPrintHtml.js'
 
 const PAD = 40
 const AXIS_W = 88
@@ -200,28 +201,60 @@ export async function downloadPriceListPng(doc, opts = {}) {
   return { ok: true, filename: name }
 }
 
-/** Печать витрины: A4 альбом, один лист (см. price-list.css @media print) */
-export function printPriceListSurface() {
-  if (typeof document === 'undefined' || typeof window === 'undefined') {
+/**
+ * Печать: отдельное окно с HTML на 1× A4 альбом (без «пустой» первой страницы SPA).
+ * @param {object} doc
+ * @param {{ mode?: string }} [opts]
+ */
+export function printPriceListDocument(doc, opts = {}) {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
     return { ok: false, error: 'Только в браузере' }
   }
-  const root = document.querySelector('[data-price-list-print-root]')
-  if (!root) return { ok: false, error: 'Нет блока для печати' }
-
-  const prevTitle = document.title
-  const mode = root.getAttribute('data-print-mode') === 'day' ? 'Дневная скидка' : 'Базовая сетка'
-  document.title = `Прайс · ${mode}`
-
-  document.body.classList.add('price-list-printing')
-  const cleanup = () => {
-    document.body.classList.remove('price-list-printing')
-    document.title = prevTitle
-    window.removeEventListener('afterprint', cleanup)
+  if (!(doc?.tariffs ?? []).length) {
+    return { ok: false, error: 'Нет колонок прайса для печати' }
   }
-  window.addEventListener('afterprint', cleanup)
-  window.print()
-  setTimeout(cleanup, 2500)
+
+  const html = buildPriceListPrintHtml(doc, opts)
+  const w = window.open('', '_blank', 'noopener,noreferrer,width=1100,height=780')
+  if (!w) {
+    return { ok: false, error: 'Разрешите всплывающие окна для печати' }
+  }
+
+  w.document.open()
+  w.document.write(html)
+  w.document.close()
+
+  const runPrint = () => {
+    try {
+      w.focus()
+      w.print()
+    } catch {
+      /* ignore */
+    }
+    // Закрываем после печати / отмены (Chrome шлёт afterprint)
+    const closeLater = () => {
+      try {
+        w.close()
+      } catch {
+        /* ignore */
+      }
+    }
+    w.addEventListener('afterprint', closeLater)
+    setTimeout(closeLater, 60_000)
+  }
+
+  if (w.document.readyState === 'complete') {
+    setTimeout(runPrint, 50)
+  } else {
+    w.addEventListener('load', () => setTimeout(runPrint, 50))
+  }
+
   return { ok: true }
+}
+
+/** @deprecated используйте printPriceListDocument(doc, { mode }) */
+export function printPriceListSurface() {
+  return { ok: false, error: 'Вызовите печать из экрана прайса ещё раз' }
 }
 
 function formatDateRu(iso) {
