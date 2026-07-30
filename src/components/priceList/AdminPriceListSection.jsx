@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
-import { RefreshCw, Save, X } from 'lucide-react'
+import { FileSpreadsheet, Printer, ImageDown, RefreshCw, Save, X } from 'lucide-react'
 import {
   buildPriceListRows,
   emptyPriceListDocument,
@@ -13,50 +13,76 @@ import {
   togglePriceListPeople,
 } from '../../lib/priceList/priceListCore.js'
 import { fetchPriceListForClub, savePriceListForClub } from '../../lib/priceList/priceListCloudService.js'
+import { readPriceListLocalEntry } from '../../lib/priceList/priceListLocalStorage.js'
+import { downloadPriceListPng, printPriceListSurface } from '../../lib/priceList/priceListExportCanvas.js'
+import { formatPriceListMoney } from '../../lib/priceList/priceListExportCore.js'
+import { PriceListExcelImportWizard } from './PriceListExcelImportWizard.jsx'
 import '../../styles/price-list.css'
 
 /**
- * Прайс ПЗ — админ, свой на клуб. Колонки = платные типы (без БЗ).
- * Витрина: матрица сравнения + базовая/−10% (канон Ось / Whoop-дисциплина).
+ * Прайс ПЗ — админ (редактирование) или менеджер (только просмотр + печать/PNG).
  *
- * @param {{ clubId: string, membershipTypes?: object[] }} props
+ * @param {{ clubId: string, membershipTypes?: object[], readOnly?: boolean }} props
  */
-export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
-  const [doc, setDoc] = useState(() => emptyPriceListDocument({ club_id: clubId }))
+export function AdminPriceListSection({ clubId, membershipTypes = [], readOnly = false }) {
+  const [doc, setDoc] = useState(() =>
+    clubId ? readPriceListLocalEntry(clubId).doc : emptyPriceListDocument({ club_id: clubId }),
+  )
   const [mode, setMode] = useState('base')
   const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState('')
   const [dirty, setDirty] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
 
   const catalogTypes = useMemo(() => filterPriceListCatalogTypes(membershipTypes), [membershipTypes])
 
-  const reload = useCallback(async () => {
-    if (!clubId) {
-      setDoc(emptyPriceListDocument())
-      setDirty(false)
-      setToast('')
-      return
-    }
-    setBusy(true)
-    const result = await fetchPriceListForClub(clubId)
-    setBusy(false)
+  const applyFetchResult = useCallback((result, { keepDirty = false } = {}) => {
     setDoc(result.doc)
-    setDirty(false)
+    if (!keepDirty) setDirty(false)
     if (!result.ok && result.error) {
       setToast(result.error)
       return
     }
     if (result.source === 'local' && result.error) {
       setToast(`Облако недоступно — показан локальный кэш. ${result.error}`)
+    } else if (result.fromCache && result.source === 'local') {
+      setToast('')
     } else if (result.source === 'cloud' || result.exists) {
       setToast('')
     }
-  }, [clubId])
+  }, [])
+
+  /** @param {{ force?: boolean }} [opts] */
+  const reload = useCallback(
+    async (opts = {}) => {
+      if (!clubId) {
+        setDoc(emptyPriceListDocument())
+        setDirty(false)
+        setToast('')
+        return
+      }
+      const force = Boolean(opts.force)
+      const entry = readPriceListLocalEntry(clubId)
+      // Сразу локальный кэш — без спиннера на всю сетку
+      if (entry.doc && (entry.doc.updated_at || entry.doc.tariffs?.length)) {
+        setDoc(entry.doc)
+        if (!force) setDirty(false)
+      }
+      if (!force && entry.fresh) {
+        setBusy(false)
+        return
+      }
+      setBusy(true)
+      const result = await fetchPriceListForClub(clubId, { force })
+      setBusy(false)
+      applyFetchResult(result)
+    },
+    [applyFetchResult, clubId],
+  )
 
   useEffect(() => {
-    void reload()
+    void reload({ force: false })
   }, [reload])
-
   const rows = useMemo(() => buildPriceListRows(doc), [doc])
   const tariffs = doc.tariffs ?? []
   const peopleSet = useMemo(() => new Set(doc.people ?? []), [doc.people])
@@ -76,6 +102,27 @@ export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
     setDoc((prev) => syncTariffsFromMembershipTypes(prev, membershipTypes, { replace: false }))
     setDirty(true)
     setToast('Колонки сверены: платные ПЗ без БЗ. Удалённые карты снова в сетке.')
+  }
+
+  const handlePrint = () => {
+    const result = printPriceListSurface()
+    if (!result.ok) setToast(result.error || 'Печать недоступна')
+  }
+
+  const handlePng = async () => {
+    if (!(doc.tariffs ?? []).length) {
+      setToast('Сначала соберите колонки («Сверить с типами» или Excel)')
+      return
+    }
+    setBusy(true)
+    try {
+      const result = await downloadPriceListPng(doc, { mode })
+      setToast(result.ok ? `PNG сохранён: ${result.filename}` : 'Не удалось сделать PNG')
+    } catch (e) {
+      setToast(e?.message ? String(e.message) : 'Ошибка PNG')
+    } finally {
+      setBusy(false)
+    }
   }
 
   const handleSave = async () => {
@@ -145,75 +192,150 @@ export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
           <p className="price-list__eyebrow">Витрина клуба</p>
           <h2 className="price-list__title">Прайс · персональный зал</h2>
           <p className="price-list__lead">
-            Сетка как на стенде: сравнение карт, две цены в колонке. БЗ не входит. Убранную карту вернёт
-            «Сверить с типами». Сохранение — в облако по клубу.
+            {readOnly
+              ? 'Актуальные цены клуба для ресепшена. Можно переключать базовую и дневную сетку, печатать или скачать PNG. Правки — у администратора.'
+              : 'Сетка как на стенде: сравнение карт, две цены в колонке. БЗ не входит. Убранную карту вернёт «Сверить с типами». Сохранение — в облако по клубу.'}
           </p>
         </div>
         <div className="price-list__actions">
           <button
             type="button"
             className="btn btn-secondary btn-sm"
-            onClick={handleSyncColumns}
-            disabled={!catalogTypes.length}
-            title="Собрать колонки из платных типов ПЗ и вернуть убранные"
+            onClick={handlePrint}
+            disabled={!(doc.tariffs ?? []).length}
+            title="Печать витрины (текущий режим сетки)"
           >
-            Сверить с типами
+            <Printer size={16} aria-hidden />
+            Печать
           </button>
           <button
             type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => void handlePng()}
+            disabled={busy || !(doc.tariffs ?? []).length}
+            title="Скачать PNG текущего режима"
+          >
+            <ImageDown size={16} aria-hidden />
+            PNG
+          </button>
+          {!readOnly ? (
+            <>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setImportOpen((v) => !v)}
+                title="Загрузить цены из Excel и сопоставить с типами"
+              >
+                <FileSpreadsheet size={16} aria-hidden />
+                Excel
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={handleSyncColumns}
+                disabled={!catalogTypes.length}
+                title="Собрать колонки из платных типов ПЗ и вернуть убранные"
+              >
+                Сверить с типами
+              </button>
+            </>
+          ) : null}
+          <button
+            type="button"
             className="btn btn-secondary btn-sm btn-icon-square"
-            onClick={() => void reload()}
+            onClick={() => void reload({ force: true })}
             disabled={busy}
             aria-label="Обновить из облака"
             title="Обновить из облака"
           >
             <RefreshCw size={16} aria-hidden />
           </button>
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            onClick={() => void handleSave()}
-            disabled={busy || !dirty}
-            aria-busy={busy}
-          >
-            <Save size={16} aria-hidden />
-            Сохранить
-          </button>
+          {!readOnly ? (
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => void handleSave()}
+              disabled={busy || !dirty}
+              aria-busy={busy}
+            >
+              <Save size={16} aria-hidden />
+              Сохранить
+            </button>
+          ) : null}
         </div>
       </header>
 
+      {!readOnly && importOpen ? (
+        <PriceListExcelImportWizard
+          clubId={clubId}
+          doc={doc}
+          membershipTypes={membershipTypes}
+          onClose={() => setImportOpen(false)}
+          onApply={(nextDoc, meta) => {
+            setDoc(nextDoc)
+            setDirty(true)
+            setImportOpen(false)
+            setToast(
+              `Импорт: ${meta.applied} ячеек` +
+                (meta.skippedUnmapped ? `, пропущено без типа: ${meta.skippedUnmapped}` : '') +
+                '. Сохраните в облако.',
+            )
+          }}
+        />
+      ) : null}
+
+      <div className="price-list__print-surface" data-price-list-print-root>
       <div className="price-list__stand" aria-label="Шапка стенда">
         <div className="price-list__stand-glow" aria-hidden />
         <div className="price-list__meta">
-          <label className="price-list__field">
-            <span className="price-list__label">Цены с</span>
-            <input
-              type="date"
-              className="input price-list__input-field"
-              value={doc.valid_from ?? ''}
-              onChange={(e) => handleValidFrom(e.target.value)}
-            />
-          </label>
-          <label className="price-list__field price-list__field--grow">
-            <span className="price-list__label">Адрес на стенде</span>
-            <input
-              type="text"
-              className="input price-list__input-field"
-              value={doc.meta?.address ?? ''}
-              onChange={(e) => handleMeta('address', e.target.value)}
-              placeholder="Город, улица, ТЦ…"
-            />
-          </label>
-          <label className="price-list__field">
-            <span className="price-list__label">Телефон</span>
-            <input
-              type="text"
-              className="input price-list__input-field"
-              value={doc.meta?.phone ?? ''}
-              onChange={(e) => handleMeta('phone', e.target.value)}
-              placeholder="8-…"
-            />
-          </label>
+          {readOnly ? (
+            <>
+              <div className="price-list__field">
+                <span className="price-list__label">Цены с</span>
+                <p className="price-list__readonly-value">{doc.valid_from || '—'}</p>
+              </div>
+              <div className="price-list__field price-list__field--grow">
+                <span className="price-list__label">Адрес на стенде</span>
+                <p className="price-list__readonly-value">{doc.meta?.address || '—'}</p>
+              </div>
+              <div className="price-list__field">
+                <span className="price-list__label">Телефон</span>
+                <p className="price-list__readonly-value">{doc.meta?.phone || '—'}</p>
+              </div>
+            </>
+          ) : (
+            <>
+              <label className="price-list__field">
+                <span className="price-list__label">Цены с</span>
+                <input
+                  type="date"
+                  className="input price-list__input-field"
+                  value={doc.valid_from ?? ''}
+                  onChange={(e) => handleValidFrom(e.target.value)}
+                />
+              </label>
+              <label className="price-list__field price-list__field--grow">
+                <span className="price-list__label">Адрес на стенде</span>
+                <input
+                  type="text"
+                  className="input price-list__input-field"
+                  value={doc.meta?.address ?? ''}
+                  onChange={(e) => handleMeta('address', e.target.value)}
+                  placeholder="Город, улица, ТЦ…"
+                />
+              </label>
+              <label className="price-list__field">
+                <span className="price-list__label">Телефон</span>
+                <input
+                  type="text"
+                  className="input price-list__input-field"
+                  value={doc.meta?.phone ?? ''}
+                  onChange={(e) => handleMeta('phone', e.target.value)}
+                  placeholder="8-…"
+                />
+              </label>
+            </>
+          )}
         </div>
       </div>
 
@@ -239,25 +361,27 @@ export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
           </button>
         </div>
 
-        <div className="price-list__people" role="group" aria-label="Число людей в сетке">
-          <span className="price-list__label">Людей</span>
-          <div className="price-list__people-chips">
-            {PRICE_LIST_PEOPLE_OPTIONS.map((n) => {
-              const on = peopleSet.has(n)
-              return (
-                <button
-                  key={n}
-                  type="button"
-                  className={`price-list__chip${on ? ' is-active' : ''}`}
-                  aria-pressed={on}
-                  onClick={() => handlePeopleToggle(n)}
-                >
-                  {n}
-                </button>
-              )
-            })}
+        {!readOnly ? (
+          <div className="price-list__people price-list__no-print" role="group" aria-label="Число людей в сетке">
+            <span className="price-list__label">Людей</span>
+            <div className="price-list__people-chips">
+              {PRICE_LIST_PEOPLE_OPTIONS.map((n) => {
+                const on = peopleSet.has(n)
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    className={`price-list__chip${on ? ' is-active' : ''}`}
+                    aria-pressed={on}
+                    onClick={() => handlePeopleToggle(n)}
+                  >
+                    {n}
+                  </button>
+                )
+              })}
+            </div>
           </div>
-        </div>
+        ) : null}
 
         <ul className="price-list__legend" aria-label="Легенда цен">
           <li>
@@ -271,17 +395,19 @@ export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
         </ul>
       </div>
 
-      {!catalogTypes.length ? (
+      {!catalogTypes.length && !readOnly ? (
         <p className="sync-feedback sync-feedback--warn" role="status">
           Нет платных типов ПЗ (БЗ не считается). Заведите карты в справочнике абонементов.
         </p>
       ) : null}
 
-      {!tariffs.length && catalogTypes.length ? (
+      {!tariffs.length ? (
         <div className="price-list__empty">
           <p className="price-list__empty-title">Сетка ещё пустая</p>
           <p className="muted price-list__hint">
-            Нажмите «Сверить с типами» — соберём колонки по кодам клуба (без БЗ).
+            {readOnly
+              ? 'Администратор ещё не заполнил прайс этого клуба.'
+              : 'Нажмите «Сверить с типами» — соберём колонки по кодам клуба (без БЗ).'}
           </p>
         </div>
       ) : null}
@@ -316,15 +442,17 @@ export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
                       <span className="price-list__tariff-top">
                         <span className="price-list__tariff-code">{t.code}</span>
                         {t.is_vip ? <span className="price-list__vip-badge">VIP</span> : null}
-                        <button
-                          type="button"
-                          className="price-list__tariff-remove"
-                          onClick={() => handleRemoveTariff(t.membership_type_id)}
-                          aria-label={`Убрать ${t.code} с прайса`}
-                          title="Убрать с прайса. Вернуть — «Сверить с типами»"
-                        >
-                          <X size={14} aria-hidden />
-                        </button>
+                        {!readOnly ? (
+                          <button
+                            type="button"
+                            className="price-list__tariff-remove"
+                            onClick={() => handleRemoveTariff(t.membership_type_id)}
+                            aria-label={`Убрать ${t.code} с прайса`}
+                            title="Убрать с прайса. Вернуть — «Сверить с типами»"
+                          >
+                            <X size={14} aria-hidden />
+                          </button>
+                        ) : null}
                       </span>
                     </th>
                   ))}
@@ -371,46 +499,56 @@ export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
                         return (
                           <Fragment key={t.membership_type_id}>
                             <td className="price-list__cell">
-                              <input
-                                type="number"
-                                inputMode="numeric"
-                                className="price-list__input"
-                                min={0}
-                                step={1}
-                                value={cell.price_full ?? ''}
-                                onChange={(e) =>
-                                  handleCellChange(
-                                    row.sessions,
-                                    row.people,
-                                    t.membership_type_id,
-                                    'full',
-                                    e.target.value,
-                                  )
-                                }
-                                aria-label={`${t.code}, ${row.sessions} трен., ${row.people} чел., базовая`}
-                                title="Базовая стоимость"
-                              />
+                              {readOnly ? (
+                                <span className="price-list__value">{formatPriceListMoney(cell.price_full)}</span>
+                              ) : (
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  className="price-list__input"
+                                  min={0}
+                                  step={1}
+                                  value={cell.price_full ?? ''}
+                                  onChange={(e) =>
+                                    handleCellChange(
+                                      row.sessions,
+                                      row.people,
+                                      t.membership_type_id,
+                                      'full',
+                                      e.target.value,
+                                    )
+                                  }
+                                  aria-label={`${t.code}, ${row.sessions} трен., ${row.people} чел., базовая`}
+                                  title="Базовая стоимость"
+                                />
+                              )}
                             </td>
                             <td className="price-list__cell price-list__cell--discount">
-                              <input
-                                type="number"
-                                inputMode="numeric"
-                                className="price-list__input price-list__input--discount"
-                                min={0}
-                                step={1}
-                                value={cell.price_10 ?? ''}
-                                onChange={(e) =>
-                                  handleCellChange(
-                                    row.sessions,
-                                    row.people,
-                                    t.membership_type_id,
-                                    '10',
-                                    e.target.value,
-                                  )
-                                }
-                                aria-label={`${t.code}, ${row.sessions} трен., ${row.people} чел., −10%`}
-                                title="Цена со скидкой 10%"
-                              />
+                              {readOnly ? (
+                                <span className="price-list__value price-list__value--discount">
+                                  {formatPriceListMoney(cell.price_10)}
+                                </span>
+                              ) : (
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  className="price-list__input price-list__input--discount"
+                                  min={0}
+                                  step={1}
+                                  value={cell.price_10 ?? ''}
+                                  onChange={(e) =>
+                                    handleCellChange(
+                                      row.sessions,
+                                      row.people,
+                                      t.membership_type_id,
+                                      '10',
+                                      e.target.value,
+                                    )
+                                  }
+                                  aria-label={`${t.code}, ${row.sessions} трен., ${row.people} чел., −10%`}
+                                  title="Цена со скидкой 10%"
+                                />
+                              )}
                             </td>
                           </Fragment>
                         )
@@ -421,12 +559,13 @@ export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
               </tbody>
             </table>
           </div>
-          <p className="price-list__scroll-hint muted">Листайте вбок, чтобы сравнить все карты</p>
+          <p className="price-list__scroll-hint muted price-list__no-print">Листайте вбок, чтобы сравнить все карты</p>
         </div>
       ) : null}
+      </div>
 
-      <p className="price-list__footnote muted">
-        Акцент на колонке «−10%» — как цена на стенде. VIP подсвечен. Печать / менеджер — следующим шагом.
+      <p className="price-list__footnote muted price-list__no-print">
+        Акцент на «−10%» — цена стенда. Печать и PNG — текущий режим (базовая / дневная).
       </p>
 
       {toast ? (

@@ -1,7 +1,7 @@
 # Прайс клуба (ПЗ)
 
 **Актуально:** 2026-07-30  
-**Статус:** ✅ админ + **облако** (`club_price_lists`). Печать/PNG и UI менеджера — дальше.
+**Статус:** ✅ админ (правка) + менеджер (просмотр) + облако `club_price_lists` + Excel/печать/PNG.
 
 ## Ситуация → польза
 
@@ -9,8 +9,10 @@
 
 ## Где в UI
 
-Админ → **Продажи** → вкладка **Прайс** (`/admin/sales?tab=price&club=…`).
-
+| Роль | Где |
+|------|-----|
+| Админ | `/admin/sales?tab=price` — правка, Excel, Save |
+| Менеджер | `/sales?tab=price` (плитка **Прайс**) — просмотр, печать, PNG |
 ## Правила
 
 | Правило | Смысл |
@@ -20,7 +22,9 @@
 | Режимы | `base` и `day` — две сетки одних карт |
 | Ячейка | **базовая** и **−10%** (как в Excel); правка одной пересчитывает другую |
 | Людей | чипы 1…5 — можно только `1` или полный ряд |
-| Облако | `GET/POST admin-data?action=price-list`; кэш в localStorage |
+| Облако | `GET/POST admin-data?action=price-list`; localStorage + **TTL 7 суток** (force / Save — сразу сеть) |
+| Импорт Excel | кнопка **Excel** → сопоставить колонки с `code` типов; без автосоздания типов |
+| Печать / PNG | **Печать** (витрина) и **PNG** текущего режима сетки |
 | Не путать | цена витрины ≠ ЗП тренера у типа; не в sync планшета |
 
 ## Код
@@ -30,7 +34,10 @@
 | Модель | `src/lib/priceList/priceListCore.js` |
 | DB map | `src/lib/priceList/priceListDbCore.js` |
 | Облако | `src/lib/priceList/priceListCloudService.js` |
-| Локальный кэш | `src/lib/priceList/priceListLocalStorage.js` |
+| Локальный кэш | `src/lib/priceList/priceListLocalStorage.js` + `priceListCacheCore.js` |
+| Импорт Excel | `priceListExcelImportCore.js` + `priceListExcelWorkbook.js` + `PriceListExcelImportWizard.jsx` |
+| Печать / PNG | `priceListExportCore.js` + `priceListExportCanvas.js` |
+| Shell session | `src/lib/admin/salesShellSession.js` (6 ч, не daily) |
 | API | `api/_lib/adminData/priceListHandlers.js` |
 | UI | `src/components/priceList/AdminPriceListSection.jsx` |
 | Миграция | `supabase/migrations/20260730120000_club_price_lists.sql` |
@@ -57,13 +64,13 @@
 
 | Шаг | Что | Статус |
 |-----|-----|--------|
-| **A** | API `sales&profile=shell\|daily\|month\|full` (+ `include_fit_city`) | ✅ в коде |
-| **B** | Клиент: shell для hero; **Прайс/План/Финансы** без daily+fit-city; daily лениво | ✅ в коде |
-| **C** | Ещё тоньше month payload / кэш shell | ⏸ |
-| **P1** | Импорт xlsx + мастер PL/VIP | ⏸ дальше |
-| **P2** | Печать / PNG | ⏸ дальше |
-| **P3** | Менеджер: просмотр прайса на `/sales` | ⏸ (API read уже есть) |
+| **A** | API `sales&profile=shell\|daily\|month\|full` (+ `include_fit_city`) | ✅ |
+| **B** | Клиент: shell для hero; **Прайс/План/Финансы** без daily+fit-city; daily лениво | ✅ |
+| **C** | Прайс: TTL 7д + вкладка без sales shell; session shell **6 ч** (не daily) | ✅ |
+| **P1** | Импорт xlsx + мастер PL/VIP | ✅ |
+| **P2** | Печать / PNG | ✅ |
+| **P3** | Менеджер: просмотр прайса на `/sales` | ✅ |
 
-Ускорение Продаж **обслуживает Прайс**: вкладка не ждёт полный bundle (memberships+trainings).
+Ускорение Продаж **обслуживает Прайс**: вкладка не ждёт полный bundle и не тянет `profile=shell`. Shell месяца кэшируется в session (вечерняя сверка); дневной ввод всегда с сети при открытии вкладки дня.
 
 Связано: [SALES_MANAGER.md](./SALES_MANAGER.md), [API.md](./API.md).

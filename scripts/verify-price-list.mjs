@@ -19,6 +19,26 @@ import {
   priceListDocFromDbRow,
   priceListDocToDbRow,
 } from '../src/lib/priceList/priceListDbCore.js'
+import {
+  isPriceListCloudFresh,
+  parsePriceListLocalCache,
+  PRICE_LIST_CLOUD_TTL_MS,
+  wrapPriceListLocalCache,
+} from '../src/lib/priceList/priceListCacheCore.js'
+import { SALES_SHELL_SESSION_TTL_MS } from '../src/lib/admin/salesShellSession.js'
+import {
+  applyExcelImportToPriceListDocument,
+  detectExcelTariffColumnPairs,
+  isExcelDiscount10ColumnLabel,
+  parsePriceListWorkbookSheets,
+  parsePzMatrixSheet,
+  suggestExcelColumnMapping,
+} from '../src/lib/priceList/priceListExcelImportCore.js'
+import {
+  buildPriceListPngFileName,
+  formatPriceListMoney,
+  priceListModePrintLabel,
+} from '../src/lib/priceList/priceListExportCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -118,5 +138,97 @@ ok(row.updated_by === 'user-1', 'db row updated_by')
 const fromDb = priceListDocFromDbRow(row, 'club-1')
 ok(fromDb.club_id === 'club-1', 'from db keeps club')
 ok(fromDb.tariffs.length === doc.tariffs.length, 'from db tariffs count')
+
+ok(PRICE_LIST_CLOUD_TTL_MS === 7 * 24 * 60 * 60 * 1000, 'price cloud TTL 7d')
+ok(isPriceListCloudFresh(Date.now() - 1000), 'fresh within TTL')
+ok(!isPriceListCloudFresh(Date.now() - PRICE_LIST_CLOUD_TTL_MS - 1), 'stale after TTL')
+ok(!isPriceListCloudFresh(0), 'fetchedAt 0 not fresh')
+const wrapped = wrapPriceListLocalCache(doc, 12345)
+ok(wrapped.v === 1 && wrapped.fetchedAt === 12345, 'wrap cache envelope')
+const parsedNew = parsePriceListLocalCache(wrapped)
+ok(parsedNew.fetchedAt === 12345 && parsedNew.doc?.club_id === 'club-1', 'parse v1 envelope')
+const parsedLegacy = parsePriceListLocalCache({ ...doc, club_id: 'club-1' })
+ok(parsedLegacy.fetchedAt === 0 && parsedLegacy.doc?.tariffs, 'legacy bare doc → fetchedAt 0')
+ok(SALES_SHELL_SESSION_TTL_MS === 6 * 60 * 60 * 1000, 'sales shell session TTL 6h')
+
+ok(matchMembershipTypeByExcelLabel('ВИП2', [
+  { id: 'vip', code: 'VIP' },
+  { id: 'vip2', code: 'VIP2' },
+])?.id === 'vip2', 'ВИП2 → VIP2 not VIP')
+
+ok(isExcelDiscount10ColumnLabel('Карта "Платинум" - 10%'), 'detect −10% column')
+ok(!isExcelDiscount10ColumnLabel('Карта "Платинум"'), 'full column not discount')
+
+const header = [
+  'кол-во тренировок в месяц',
+  'кол-во человек',
+  'Карта "Платинум"',
+  'Карта "Платинум" - 10%',
+  'разница в рублях',
+  'вип',
+  'вип - 10%',
+]
+const pairs = detectExcelTariffColumnPairs(header, 2)
+ok(pairs.length === 2 && pairs[0].excelLabel.includes('Платинум'), 'pair platinum + vip')
+ok(pairs[0].discountCol === 3, 'platinum discount col')
+
+const pzRows = [
+  ['г. Тест 8-900-000-00-00'],
+  [],
+  [],
+  ['Персональный зал'],
+  header,
+  [4, 1, 3258.5, 2962, 296, 4922, 4430],
+  [null, 2, 2122, 1910, 212, null, null],
+  ['Цены действительны с 21.07.2026'],
+]
+const pz = parsePzMatrixSheet(pzRows, 'base')
+ok(pz.ok && pz.cells.length === 3, 'pz matrix cells')
+ok(pz.meta?.valid_from === '2026-07-21', 'valid_from from excel')
+
+const wb = parsePriceListWorkbookSheets([
+  { name: 'ПЗ базовая стоимость', rows: pzRows },
+  {
+    name: 'VIP2',
+    rows: [
+      ['addr'],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      ['', '', 'Персональный зал'],
+      ['', '', 'Базовая'],
+      ['', '', 'Кол-во тренировок в месяц', 'Кол-во человек', 'ВИП2', '', 'ВИП2день'],
+      ['', '', '', '', 'Базовая', 'Скидка 10%', 'Базовая', 'Скидка 10%'],
+      ['', '', 4, 1, 5677, 5110, 5166, 4650],
+      ['', '', 8, null, 11053, 9948, 10200, 9180],
+    ],
+  },
+])
+ok(wb.ok && wb.excelLabels.includes('Карта "Платинум"'), 'workbook labels')
+const importTypes = [
+  { id: 'pl', code: 'PL', trainer_assignable: true, is_active: true },
+  { id: 'vip2', code: 'VIP2', trainer_assignable: true, is_active: true },
+]
+const map = suggestExcelColumnMapping(wb.excelLabels, importTypes)
+ok(map['Карта "Платинум"'] === 'pl', 'suggest PL')
+ok(map.ВИП2 === 'vip2' || map['ВИП2'] === 'vip2', 'suggest VIP2')
+const imported = applyExcelImportToPriceListDocument(
+  emptyPriceListDocument({ club_id: 'club-1' }),
+  wb,
+  map,
+  importTypes,
+)
+ok(imported.applied > 0, 'import applied cells')
+ok(imported.doc.cells['base:4:1:pl']?.price_10 === 2962, 'imported PL price_10')
+ok(imported.doc.tariffs.some((t) => t.code === 'VIP2'), 'VIP2 tariff from import')
+
+ok(formatPriceListMoney(2962) === '2 962', 'money spaced')
+ok(formatPriceListMoney(null) === '—', 'money empty')
+ok(priceListModePrintLabel('day') === 'Дневная скидка', 'mode day label')
+ok(buildPriceListPngFileName({ clubId: 'abc', mode: 'base', validFrom: '2026-07-21' }).includes('base'), 'png name mode')
+ok(buildPriceListPngFileName({ clubId: 'abc', mode: 'base', validFrom: '2026-07-21' }).endsWith('.png'), 'png ext')
 
 process.exit(failed > 0 ? 1 : 0)

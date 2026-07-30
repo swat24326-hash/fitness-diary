@@ -502,8 +502,178 @@
   appearance: textfield;
 }
 
-.price-list__footnote {
-  margin: 0;
-  font-size: 0.8rem;
-  line-height: 1.45;
+.price-list__readonly-value {
+  margin: 0.2rem 0 0;
+  font-size: 0.95rem;
+  color: var(--text);
+  line-height: 1.35;
 }
+
+.price-list__value {
+  display: block;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.92rem;
+  color: var(--text-muted);
+  padding: 0.35rem 0.2rem;
+}
+
+.price-list__value--discount {
+  color: color-mix(in srgb, var(--accent) 85%, #fff);
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+
+.price-list-import {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1rem 1.1rem;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated, var(--bg)) 92%, var(--accent) 4%);
+}
+
+.price-list-import__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.price-list-import__title {
+  margin: 0.15rem 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.price-list-import__lead {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  max-width: 42rem;
+}
+
+.price-list-import__file {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: fit-content;
+  padding: 0.55rem 0.9rem;
+  border-radius: 10px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 40%, var(--border));
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.price-list-import__file input {
+  display: none;
+}
+
+.price-list-import__error {
+  margin: 0;
+  color: var(--danger, #c44);
+  font-size: 0.88rem;
+}
+
+.price-list-import__stats {
+  margin: 0 0 0.35rem;
+  font-size: 0.82rem;
+}
+
+.price-list-import__map {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  max-height: min(42vh, 320px);
+  overflow: auto;
+}
+
+.price-list-import__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(7rem, 0.8fr);
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.price-list-import__excel {
+  font-size: 0.86rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.price-list-import__select {
+  min-height: 2.2rem;
+  font-size: 0.88rem;
+}
+
+.price-list-import__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+@media (max-width: 640px) {
+  .price-list-import__row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Печать витрины: только блок стенда + матрица */
+@media print {
+  body.price-list-printing * {
+    visibility: hidden !important;
+  }
+
+  body.price-list-printing [data-price-list-print-root],
+  body.price-list-printing [data-price-list-print-root] * {
+    visibility: visible !important;
+  }
+
+  body.price-list-printing [data-price-list-print-root] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0;
+    background: #fff !important;
+    color: #111 !important;
+    box-shadow: none !important;
+  }
+
+  body.price-list-printing .price-list__no-print,
+  body.price-list-printing .price-list__tariff-remove,
+  body.price-list-printing .price-list__stand-glow {
+    display: none !important;
+  }
+
+  body.price-list-printing .price-list__scroll {
+    overflow: visible !important;
+  }
+
+  body.price-list-printing .price-list__table {
+    width: 100%;
+  }
+
+  body.price-list-printing .price-list__input {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #111 !important;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  body.price-list-printing .price-list__input--discount {
+    font-weight: 700;
+  }
+}
+

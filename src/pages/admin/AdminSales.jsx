@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
-import { BarChart3, CalendarDays, ClipboardList, RefreshCw, TrendingUp, UserRound } from 'lucide-react'
+import { BarChart3, CalendarDays, ClipboardList, RefreshCw, Tags, TrendingUp, UserRound } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { addDaysToIso, clampIsoDateToToday, formatDateRu, todayLocalIso } from '../../lib/dateRu'
@@ -42,6 +42,12 @@ import {
   saveClubSalesPlan,
 } from '../../lib/admin/adminSalesService'
 import { clearSalesPlanGlanceSession } from '../../lib/admin/salesPlanGlanceSession.js'
+import {
+  invalidateSalesShellSession,
+  isSalesShellSessionFresh,
+  readSalesShellSession,
+  writeSalesShellSession,
+} from '../../lib/admin/salesShellSession.js'
 import { pickMembershipTypesForSalesReport } from '../../lib/admin/salesMembershipTypesAccessCore.js'
 import {
   buildDailyDraftPayload,
@@ -104,6 +110,7 @@ export function AdminSales({ accessMode = 'admin' }) {
       if (salesTabParam === 'stats') return 'stats'
       if (salesTabParam === 'report') return 'report'
       if (salesTabParam === 'analytics') return 'analytics'
+      if (salesTabParam === 'price') return 'price'
       return 'home'
     }
     if (salesTabParam === 'finance') return 'finance'
@@ -117,7 +124,7 @@ export function AdminSales({ accessMode = 'admin' }) {
   const showInternalTabs = !isSalesManager
 
   useEffect(() => {
-    if (isSalesManager && (salesTabParam === 'finance' || salesTabParam === 'plan' || salesTabParam === 'price')) {
+    if (isSalesManager && (salesTabParam === 'finance' || salesTabParam === 'plan')) {
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev)
         next.delete('tab')
@@ -248,29 +255,89 @@ export function AdminSales({ accessMode = 'admin' }) {
     return dailyResolved
   }, [])
 
+  const applyShellBundle = useCallback(
+    (bundle, cid, typesIn, draftHints) => {
+      let types = typesIn
+      if (bundle.year && bundle.month) {
+        setYearMonth({ year: bundle.year, month: bundle.month })
+      }
+      if (bundle.membershipTypes?.length) {
+        types = pickMembershipTypesForSalesReport(types, bundle.membershipTypes)
+        setMembershipTypes(types)
+      }
+      if (bundle.monthSummary != null) setMonthSummary(bundle.monthSummary)
+      if (Array.isArray(bundle.monthDays)) setMonthDays(bundle.monthDays)
+      const pe = applyPlanExpenseDrafts(bundle, cid)
+      if (pe.planResolved.restored) draftHints.push('план')
+      if (pe.expenseResolved.restored) draftHints.push('расход')
+      profilesRef.current.shell = true
+      return types
+    },
+    [applyPlanExpenseDrafts],
+  )
+
   const loadSalesProfiles = useCallback(
-    async ({ force = false, wantDaily = false, wantFitCity = false } = {}) => {
+    async ({ force = false, wantDaily = false, wantFitCity = false, wantShell = true } = {}) => {
       if (!clubId || !isSupabaseConfigured()) return
       const key = `${clubId}|${reportDate}`
       if (profilesRef.current.key !== key) {
         profilesRef.current = { key, shell: false, daily: false }
       }
 
-      const needShell = force || !profilesRef.current.shell
+      const needShell = wantShell && (force || !profilesRef.current.shell)
       const needDaily = wantDaily && (force || !profilesRef.current.daily)
-      if (!needShell && !needDaily && !wantFitCity) return
+      if (!needShell && !needDaily && !wantFitCity) {
+        // Прайс: только типы из IDB, без sales shell
+        if (!wantShell) {
+          const cachedTypes = await listMembershipTypesForClub(clubId)
+          if (cachedTypes.length) setMembershipTypes(cachedTypes)
+          else {
+            const ensured = await ensureMembershipTypesForClub(clubId, { force: true }).catch(() => ({
+              types: [],
+            }))
+            if (ensured.types?.length) setMembershipTypes(ensured.types)
+          }
+        }
+        return
+      }
 
       const seq = ++loadSeqRef.current
       setBusy(true)
       setError('')
-      if (force) setLoadHint('')
+      if (force) {
+        setLoadHint('')
+        invalidateSalesShellSession(clubId)
+      }
 
       try {
         const cachedTypes = await listMembershipTypesForClub(clubId)
         if (cachedTypes.length) setMembershipTypes(cachedTypes)
 
+        const cid = clubId
+        const date = reportDate
+        const draftHints = []
+        let types = cachedTypes
+        let shellFromSession = false
+
+        if (needShell && !force) {
+          const cached = readSalesShellSession(cid, date)
+          if (cached?.payload && isSalesShellSessionFresh(cached.savedAt)) {
+            types = applyShellBundle(cached.payload, cid, types, draftHints)
+            shellFromSession = true
+            if (!types.length) {
+              const ensured = await ensureMembershipTypesForClub(clubId, { force: true }).catch(() => ({
+                types: [],
+              }))
+              if (ensured.types?.length) {
+                types = ensured.types
+                setMembershipTypes(types)
+              }
+            }
+          }
+        }
+
         const tasks = []
-        if (needShell) {
+        if (needShell && !shellFromSession) {
           tasks.push(
             fetchClubSalesBundle({ clubId, reportDate, profile: 'shell' }).then((b) => ({
               kind: 'shell',
@@ -301,11 +368,6 @@ export function AdminSales({ accessMode = 'admin' }) {
         const results = await Promise.all(tasks)
         if (seq !== loadSeqRef.current) return
 
-        const cid = clubId
-        const date = reportDate
-        const draftHints = []
-        let types = cachedTypes
-
         for (const { kind, bundle } of results) {
           if (bundle.year && bundle.month) {
             setYearMonth({ year: bundle.year, month: bundle.month })
@@ -316,12 +378,8 @@ export function AdminSales({ accessMode = 'admin' }) {
           }
 
           if (kind === 'shell') {
-            if (bundle.monthSummary != null) setMonthSummary(bundle.monthSummary)
-            if (Array.isArray(bundle.monthDays)) setMonthDays(bundle.monthDays)
-            const pe = applyPlanExpenseDrafts(bundle, cid)
-            if (pe.planResolved.restored) draftHints.push('план')
-            if (pe.expenseResolved.restored) draftHints.push('расход')
-            profilesRef.current.shell = true
+            types = applyShellBundle(bundle, cid, types, draftHints)
+            writeSalesShellSession(cid, date, bundle)
             if (!types.length) {
               const ensured = await ensureMembershipTypesForClub(clubId, { force: true }).catch(() => ({
                 types: [],
@@ -370,22 +428,25 @@ export function AdminSales({ accessMode = 'admin' }) {
         if (seq === loadSeqRef.current) setBusy(false)
       }
     },
-    [applyDailyDrafts, applyPlanExpenseDrafts, clubId, reportDate],
+    [applyDailyDrafts, applyShellBundle, clubId, reportDate],
   )
 
   /** Ручное «Обновить» и после save — сброс кэша профилей и догрузка под вкладку. */
   const loadBundle = useCallback(async () => {
     profilesRef.current = { key: `${clubId}|${reportDate}`, shell: false, daily: false }
+    invalidateSalesShellSession(clubId)
     const wantDaily = isSalesManager
       ? salesTab === 'home' ||
         salesTab === 'report' ||
         salesTab === 'stats' ||
         salesTab === 'analytics'
       : salesTab === 'daily' || salesTab === 'stats'
+    const wantShell = salesTab !== 'price'
     await loadSalesProfiles({
       force: true,
       wantDaily,
       wantFitCity: wantDaily,
+      wantShell,
     })
   }, [clubId, isSalesManager, loadSalesProfiles, reportDate, salesTab])
 
@@ -394,13 +455,13 @@ export function AdminSales({ accessMode = 'admin' }) {
     const wantDaily = isSalesManager
       ? salesTab === 'home' || salesTab === 'report' || salesTab === 'stats' || salesTab === 'analytics'
       : salesTab === 'daily' || salesTab === 'stats'
-    void loadSalesProfiles({ wantDaily, wantFitCity: false }).then(() => {
+    const wantShell = salesTab !== 'price'
+    void loadSalesProfiles({ wantDaily, wantFitCity: false, wantShell }).then(() => {
       if (wantDaily) {
-        void loadSalesProfiles({ wantFitCity: true })
+        void loadSalesProfiles({ wantFitCity: true, wantShell: false })
       }
     })
   }, [clubId, reportDate, salesTab, isSalesManager, loadSalesProfiles])
-
   const persistDailyDraft = useCallback(() => {
     if (!clubId || !reportDate) return
     const serverFp = dailyBaselineFpRef.current
@@ -593,6 +654,7 @@ export function AdminSales({ accessMode = 'admin' }) {
       setAerobicMatrix(aerobicRowsToInputMap(normalizeAerobicRowsFromDb(row?.aerobic_sales_matrix)))
       clearSalesDraft(salesDailyDraftKey(clubId, reportDate))
       clearSalesPlanGlanceSession(clubId)
+      invalidateSalesShellSession(clubId)
       await loadBundle()
       setVesselPulse((k) => k + 1)
       showToast('Отчёт сохранён')
@@ -622,6 +684,7 @@ export function AdminSales({ accessMode = 'admin' }) {
       setPlanForm(planRowToForm(plan))
       clearSalesDraft(salesPlanDraftKey(clubId, yearMonth.year, yearMonth.month))
       clearSalesPlanGlanceSession(clubId)
+      invalidateSalesShellSession(clubId)
       await loadBundle()
       showToast('Уровни плана сохранены')
     } catch (e) {
@@ -650,6 +713,7 @@ export function AdminSales({ accessMode = 'admin' }) {
       setPlanForm(planRowToForm(plan))
       clearSalesDraft(salesPlanDraftKey(clubId, yearMonth.year, yearMonth.month))
       clearSalesPlanGlanceSession(clubId)
+      invalidateSalesShellSession(clubId)
       await loadBundle()
       showToast('План по направлениям сохранён')
     } catch (e) {
@@ -677,6 +741,7 @@ export function AdminSales({ accessMode = 'admin' }) {
       setExpenseForm(expenseRowToForm(expense))
       clearSalesDraft(salesFinanceDraftKey(clubId, yearMonth.year, yearMonth.month))
       clearSalesPlanGlanceSession(clubId)
+      invalidateSalesShellSession(clubId)
       await loadBundle()
       showToast('Расход сохранён')
     } catch (e) {
@@ -817,6 +882,12 @@ export function AdminSales({ accessMode = 'admin' }) {
                   </div>
                   <p className="sales-home__tile-title">Аналитика</p>
                 </Link>
+                <Link to="/sales?tab=price" className="sales-home__tile u-no-decoration">
+                  <div className="sales-home__tile-icon">
+                    <Tags size={44} aria-hidden />
+                  </div>
+                  <p className="sales-home__tile-title">Прайс</p>
+                </Link>
                 <Link
                   to="/sales/club-tasks"
                   className={`sales-home__tile u-no-decoration${attentionWidgets.hasPlanerka ? ' sales-home__tile--echo' : ''}`}
@@ -865,7 +936,13 @@ export function AdminSales({ accessMode = 'admin' }) {
           <div className="sales-home__hero-text">
             <p className="sales-home__eyebrow">{monthLabel}</p>
             <h1 className="sales-page__title">
-              {salesTab === 'report' ? 'Отчёт за день' : salesTab === 'analytics' ? 'Аналитика' : 'Статистика'}
+              {salesTab === 'report'
+                ? 'Отчёт за день'
+                : salesTab === 'analytics'
+                  ? 'Аналитика'
+                  : salesTab === 'price'
+                    ? 'Прайс'
+                    : 'Статистика'}
             </h1>
           </div>
           <button
@@ -1092,10 +1169,14 @@ export function AdminSales({ accessMode = 'admin' }) {
             membershipTypes={membershipTypes}
           />
         </div>
-      ) : !isSalesManager && salesTab === 'price' ? (
+      ) : salesTab === 'price' ? (
         <div id="sales-panel-price" role="tabpanel" aria-labelledby="sales-tab-price">
           <SectionErrorBoundary title="Прайс">
-            <AdminPriceListSection clubId={clubId} membershipTypes={membershipTypes} />
+            <AdminPriceListSection
+              clubId={clubId}
+              membershipTypes={membershipTypes}
+              readOnly={isSalesManager}
+            />
           </SectionErrorBoundary>
         </div>
       ) : null}

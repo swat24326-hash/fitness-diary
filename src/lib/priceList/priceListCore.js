@@ -114,22 +114,28 @@ export function matchMembershipTypeByExcelLabel(excelLabel, types) {
       code: String(t?.code ?? '').trim(),
     }))
     .filter((t) => t.id && t.code)
+    // Длиннее code раньше: VIP2/VIP3 до VIP
+    .sort((a, b) => b.code.length - a.code.length)
 
   const byCode = list.find((t) => normalizeMatchKey(t.code) === key)
   if (byCode) return byCode
 
-  const codeLower = (c) => normalizeMatchKey(c)
+  // Точное совпадение code ↔ ключ без «мягкого» includes (иначе VIP ⊂ VIP2).
   for (const t of list) {
-    const c = codeLower(t.code)
-    if (c && (key === c || key.includes(c) || c.includes(key))) return t
+    const c = normalizeMatchKey(t.code)
+    if (c && key === c) return t
   }
 
-  for (const [, aliases] of Object.entries(EXCEL_LABEL_ALIASES)) {
-    const hit = aliases.some((a) => key === a || key.includes(a))
-    if (!hit) continue
+  // Алиасы — только точное равенство ключа (платинум, вип2…), не includes.
+  const aliasEntries = Object.entries(EXCEL_LABEL_ALIASES).sort((a, b) => b[0].length - a[0].length)
+  for (const [canon, aliases] of aliasEntries) {
+    const keys = [normalizeMatchKey(canon), ...aliases.map((a) => normalizeMatchKey(a))]
+    if (!keys.some((a) => a && key === a)) continue
     for (const t of list) {
-      const c = codeLower(t.code)
-      if (aliases.some((a) => c === a || c.includes(a) || a.includes(c))) return t
+      const c = normalizeMatchKey(t.code)
+      if (keys.some((a) => a && (c === a || c === normalizeMatchKey(canon)))) return t
+      // code VIP ↔ алиас вип
+      if (keys.includes(c)) return t
     }
   }
 

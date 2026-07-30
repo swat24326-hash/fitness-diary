@@ -1,11 +1,12 @@
 /**
  * Облачный прайс клуба через /api/admin-data?action=price-list
+ * SWR: сразу local; сеть только если кэш старше TTL / force / после save.
  */
 
 import { getAccessTokenForAdminApi } from '../admin/adminApiClient.js'
 import { fetchWithAppTimeout } from '../networkReachability.js'
 import { emptyPriceListDocument, normalizePriceListDocument } from './priceListCore.js'
-import { readPriceListLocal, writePriceListLocal } from './priceListLocalStorage.js'
+import { readPriceListLocalEntry, writePriceListLocal } from './priceListLocalStorage.js'
 
 const apiOrigin = () => (typeof window !== 'undefined' ? window.location.origin : '')
 
@@ -21,18 +22,39 @@ async function parseJsonResponse(res) {
 
 /**
  * @param {string} clubId
- * @returns {Promise<{ ok: true, doc: object, source: 'cloud' | 'local' | 'empty', exists: boolean } | { ok: false, error: string, doc: object }>}
+ * @param {{ force?: boolean }} [opts]
+ * @returns {Promise<{
+ *   ok: boolean,
+ *   doc: object,
+ *   source: 'cloud' | 'local' | 'empty',
+ *   exists: boolean,
+ *   fromCache?: boolean,
+ *   error?: string,
+ * }>}
  */
-export async function fetchPriceListForClub(clubId) {
+export async function fetchPriceListForClub(clubId, opts = {}) {
   const id = String(clubId ?? '').trim()
-  if (!id) return { ok: false, error: 'Не выбран клуб', doc: emptyPriceListDocument() }
+  if (!id) return { ok: false, error: 'Не выбран клуб', doc: emptyPriceListDocument(), source: 'empty', exists: false }
 
-  const local = readPriceListLocal(id)
+  const force = Boolean(opts.force)
+  const localEntry = readPriceListLocalEntry(id)
+  const local = localEntry.doc
+  const hasLocal = Boolean(local.updated_at || local.tariffs?.length)
+
+  if (!force && localEntry.fresh && hasLocal) {
+    return {
+      ok: true,
+      doc: local,
+      source: 'local',
+      exists: Boolean(local.updated_at || local.tariffs?.length),
+      fromCache: true,
+    }
+  }
 
   try {
     const token = await getAccessTokenForAdminApi()
     if (!token) {
-      return { ok: true, doc: local, source: 'local', exists: Boolean(local.updated_at) }
+      return { ok: true, doc: local, source: 'local', exists: Boolean(local.updated_at), fromCache: true }
     }
     const res = await fetchWithAppTimeout(
       `${apiOrigin()}/api/admin-data?action=price-list&club_id=${encodeURIComponent(id)}`,
@@ -46,21 +68,25 @@ export async function fetchPriceListForClub(clubId) {
     const data = await parseJsonResponse(res)
     if (!res.ok) {
       if (res.status === 404 || res.status === 405) {
-        return { ok: true, doc: local, source: 'local', exists: Boolean(local.updated_at) }
+        return { ok: true, doc: local, source: 'local', exists: Boolean(local.updated_at), fromCache: true }
       }
       return {
         ok: false,
         error: data?.error ? String(data.error) : `Ошибка сервера (${res.status})`,
         doc: local,
+        source: 'local',
+        exists: Boolean(local.updated_at),
+        fromCache: true,
       }
     }
     const doc = normalizePriceListDocument(data?.price_list, id)
-    writePriceListLocal(id, doc)
+    writePriceListLocal(id, doc, { fetchedAt: Date.now() })
     return {
       ok: true,
       doc,
       source: data?.exists ? 'cloud' : doc.tariffs?.length || doc.updated_at ? 'cloud' : 'empty',
       exists: Boolean(data?.exists),
+      fromCache: false,
     }
   } catch (e) {
     return {
@@ -68,6 +94,7 @@ export async function fetchPriceListForClub(clubId) {
       doc: local,
       source: 'local',
       exists: Boolean(local.updated_at),
+      fromCache: true,
       error: e?.message ? String(e.message) : 'Сеть',
     }
   }
@@ -105,7 +132,7 @@ export async function savePriceListForClub(clubId, doc) {
       }
     }
     const saved = normalizePriceListDocument(data?.price_list ?? normalized, id)
-    writePriceListLocal(id, saved)
+    writePriceListLocal(id, saved, { fetchedAt: Date.now() })
     return { ok: true, doc: saved }
   } catch (e) {
     return { ok: false, error: e?.message ? String(e.message) : 'Сеть' }
