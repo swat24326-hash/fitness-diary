@@ -44,6 +44,11 @@ import {
   priceListModePrintLabel,
 } from '../src/lib/priceList/priceListExportCore.js'
 import { buildPriceListPrintHtml, formatPriceListValidFromRu } from '../src/lib/priceList/priceListPrintHtml.js'
+import {
+  PRICE_LIST_A4_LANDSCAPE,
+  shouldSplitPriceListTariffs,
+  splitPriceListTariffPanels,
+} from '../src/lib/priceList/priceListPrintLayout.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -250,6 +255,30 @@ const printHtml = buildPriceListPrintHtml(
 ok(printHtml.includes('A4 landscape'), 'print html landscape page')
 ok(printHtml.includes('PL') && printHtml.includes('900'), 'print html has tariff prices')
 ok(!printHtml.includes('<script'), 'print html without scripts')
+ok(printHtml.includes('panels--1'), 'print single panel for few tariffs')
+ok(Math.abs(PRICE_LIST_A4_LANDSCAPE.aspect - 297 / 210) < 0.001, 'png a4 landscape aspect')
+ok(!shouldSplitPriceListTariffs([{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }]), 'no split ≤4')
+ok(shouldSplitPriceListTariffs([{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }]), 'split >4')
+const panels = splitPriceListTariffPanels([1, 2, 3, 4, 5, 6, 7])
+ok(panels.length === 2 && panels[0].length === 4 && panels[1].length === 3, 'split 7 → 4+3')
+const printWide = buildPriceListPrintHtml(
+  {
+    club_id: 'c1',
+    meta: { title: 'ПЗ' },
+    tariffs: [1, 2, 3, 4, 5].map((n) => ({
+      membership_type_id: `t${n}`,
+      code: `T${n}`,
+      print_label: `T${n}`,
+      sort_order: n,
+      is_vip: false,
+    })),
+    sessions: [4],
+    people: [1],
+    cells: {},
+  },
+  { mode: 'base' },
+)
+ok(printWide.includes('panels--2'), 'print two panels for many tariffs')
 
 ok(assertPriceListClubAccess({ isAdmin: true }, 'club-1').ok === true, 'admin any club read')
 ok(assertPriceListClubAccess({ isAdmin: true, isSalesManager: true, salesClubId: 'club-2' }, 'club-1').ok === true, 'admin overrides manager club scope')

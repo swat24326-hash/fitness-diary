@@ -15,14 +15,11 @@ import {
   priceListModePrintLabel,
 } from './priceListExportCore.js'
 import { buildPriceListPrintHtml } from './priceListPrintHtml.js'
-
-const PAD = 40
-const AXIS_W = 88
-const PEOPLE_W = 72
-const PAIR_W = 168
-const ROW_H = 44
-const HEAD_H = 52
-const SUB_H = 32
+import {
+  PRICE_LIST_A4_LANDSCAPE,
+  shouldSplitPriceListTariffs,
+  splitPriceListTariffPanels,
+} from './priceListPrintLayout.js'
 
 const C = {
   bg: '#0a0e12',
@@ -41,6 +38,7 @@ const C = {
 }
 
 /**
+ * PNG под пропорции A4 landscape — при печати «на всю страницу» заполняет альбомный лист.
  * @param {object} doc
  * @param {{ mode?: string }} [opts]
  * @returns {Promise<Blob>}
@@ -53,10 +51,19 @@ export async function renderPriceListPng(doc, opts = {}) {
   if (!tariffs.length) throw new Error('Нет колонок прайса')
 
   const rows = buildPriceListRows(normalized)
-  const tableW = AXIS_W + PEOPLE_W + tariffs.length * PAIR_W
-  const width = Math.max(1080, PAD * 2 + tableW)
-  const metaH = 150
-  const height = PAD * 2 + metaH + HEAD_H + SUB_H + rows.length * ROW_H + 48
+  const panels = splitPriceListTariffPanels(tariffs)
+  const split = shouldSplitPriceListTariffs(tariffs)
+
+  const { widthPx: width, heightPx: height } = PRICE_LIST_A4_LANDSCAPE
+  const padX = 48
+  const padTop = 40
+  const padBottom = 36
+  const headerH = 118
+  const gap = split ? 28 : 0
+  const footH = 28
+  const bodyTop = padTop + headerH
+  const bodyH = height - bodyTop - padBottom - footH
+  const panelW = split ? (width - padX * 2 - gap) / 2 : width - padX * 2
 
   const canvas = document.createElement('canvas')
   canvas.width = width
@@ -67,82 +74,119 @@ export async function renderPriceListPng(doc, opts = {}) {
   ctx.fillStyle = C.bg
   ctx.fillRect(0, 0, width, height)
 
-  let y = PAD
   const title = String(normalized.meta?.title || 'Персональный зал').trim()
   ctx.fillStyle = C.accentSoft
-  ctx.font = '800 34px "Segoe UI", system-ui, sans-serif'
-  ctx.fillText(truncate(ctx, title, width - PAD * 2), PAD, y + 28)
-  y += 44
+  ctx.font = '800 42px "Segoe UI", system-ui, sans-serif'
+  ctx.textAlign = 'left'
+  ctx.fillText(truncate(ctx, title, width * 0.55), padX, padTop + 36)
 
   ctx.fillStyle = C.muted
   ctx.font = '700 18px "Segoe UI", system-ui, sans-serif'
-  ctx.fillText(priceListModePrintLabel(mode).toUpperCase(), PAD, y + 14)
-  y += 28
+  ctx.fillText(priceListModePrintLabel(mode).toUpperCase(), padX, padTop + 68)
 
   ctx.fillStyle = C.accent
-  ctx.fillRect(PAD, y, 72, 3)
-  y += 18
+  ctx.fillRect(padX, padTop + 82, 80, 3)
 
   const address = String(normalized.meta?.address ?? '').trim()
   const phone = String(normalized.meta?.phone ?? '').trim()
   const validFrom = String(normalized.valid_from ?? '').trim()
+  ctx.textAlign = 'right'
   ctx.fillStyle = C.text
-  ctx.font = '500 20px "Segoe UI", system-ui, sans-serif'
+  ctx.font = '500 18px "Segoe UI", system-ui, sans-serif'
+  let metaY = padTop + 28
   if (address) {
-    ctx.fillText(truncate(ctx, address, width - PAD * 2), PAD, y + 16)
-    y += 28
+    ctx.fillText(truncate(ctx, address, width * 0.4), width - padX, metaY)
+    metaY += 26
   }
-  const metaLine = [phone, validFrom ? `Цены с ${formatDateRu(validFrom)}` : '']
-    .filter(Boolean)
-    .join('  ·  ')
-  if (metaLine) {
+  if (phone) {
     ctx.fillStyle = C.muted
-    ctx.font = '500 18px "Segoe UI", system-ui, sans-serif'
-    ctx.fillText(truncate(ctx, metaLine, width - PAD * 2), PAD, y + 14)
-    y += 30
+    ctx.fillText(truncate(ctx, phone, width * 0.4), width - padX, metaY)
+    metaY += 24
   }
-  y += 8
+  if (validFrom) {
+    ctx.fillStyle = C.muted
+    ctx.fillText(`Цены с ${formatDateRu(validFrom)}`, width - padX, metaY)
+  }
+  ctx.textAlign = 'left'
 
-  const tableX = PAD
-  const tableTop = y
-  const tableH = HEAD_H + SUB_H + rows.length * ROW_H
-  roundRect(ctx, tableX, tableTop, tableW, tableH, 12, C.card, C.border)
-
-  // header
-  ctx.fillStyle = C.headBg
-  ctx.fillRect(tableX + 1, tableTop + 1, tableW - 2, HEAD_H + SUB_H - 2)
-
-  ctx.fillStyle = C.muted
-  ctx.font = '700 14px "Segoe UI", system-ui, sans-serif'
-  ctx.textAlign = 'center'
-  ctx.fillText('Трен.', tableX + AXIS_W / 2, tableTop + 28)
-  ctx.fillText('/мес', tableX + AXIS_W / 2, tableTop + 46)
-  ctx.fillText('Людей', tableX + AXIS_W + PEOPLE_W / 2, tableTop + 38)
-
-  tariffs.forEach((t, i) => {
-    const x = tableX + AXIS_W + PEOPLE_W + i * PAIR_W
-    ctx.fillStyle = t.is_vip ? C.vip : C.text
-    ctx.font = '800 18px "Segoe UI", system-ui, sans-serif'
-    ctx.fillText(truncate(ctx, String(t.code || ''), PAIR_W - 12), x + PAIR_W / 2, tableTop + 28)
-    ctx.fillStyle = C.dim
-    ctx.font = '600 12px "Segoe UI", system-ui, sans-serif'
-    ctx.fillText('баз.', x + PAIR_W * 0.25, tableTop + HEAD_H + 18)
-    ctx.fillStyle = C.off
-    ctx.fillText('−10%', x + PAIR_W * 0.75, tableTop + HEAD_H + 18)
+  panels.forEach((panel, pi) => {
+    const x = padX + pi * (panelW + gap)
+    drawTariffPanel(ctx, {
+      x,
+      y: bodyTop,
+      w: panelW,
+      h: bodyH,
+      tariffs: panel,
+      rows,
+      normalized,
+      mode,
+    })
   })
 
-  let rowY = tableTop + HEAD_H + SUB_H
+  ctx.textAlign = 'right'
+  ctx.fillStyle = C.dim
+  ctx.font = '500 15px "Segoe UI", system-ui, sans-serif'
+  ctx.fillText(
+    split ? 'Прайс клуба · A4 альбом · две панели' : 'Прайс клуба · A4 альбом',
+    width - padX,
+    height - 14,
+  )
+
+  return canvasToBlob(canvas)
+}
+
+/**
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {{ x: number, y: number, w: number, h: number, tariffs: object[], rows: object[], normalized: object, mode: string }} p
+ */
+function drawTariffPanel(ctx, p) {
+  const { x, y, w, h, tariffs, rows, normalized, mode } = p
+  const headH = 56
+  const subH = 30
+  const axisW = Math.max(56, Math.min(78, w * 0.11))
+  const peopleW = Math.max(48, Math.min(64, w * 0.09))
+  const pairW = Math.max(72, (w - axisW - peopleW) / Math.max(1, tariffs.length))
+  const dataH = Math.max(1, h - headH - subH)
+  const rowH = dataH / Math.max(1, rows.length)
+
+  roundRect(ctx, x, y, w, h, 14, C.card, C.border)
+  ctx.fillStyle = C.headBg
+  ctx.fillRect(x + 1, y + 1, w - 2, headH + subH - 2)
+
+  ctx.textAlign = 'center'
+  ctx.fillStyle = C.muted
+  ctx.font = '700 13px "Segoe UI", system-ui, sans-serif'
+  ctx.fillText('Трен.', x + axisW / 2, y + 24)
+  ctx.fillText('/мес', x + axisW / 2, y + 42)
+  ctx.fillText('Людей', x + axisW + peopleW / 2, y + 34)
+
+  const codeFs = tariffs.length > 4 ? 15 : 18
+  const priceFs = Math.max(12, Math.min(18, rowH * 0.38))
+  tariffs.forEach((t, i) => {
+    const tx = x + axisW + peopleW + i * pairW
+    ctx.fillStyle = t.is_vip ? C.vip : C.text
+    ctx.font = `800 ${codeFs}px "Segoe UI", system-ui, sans-serif`
+    ctx.fillText(truncate(ctx, String(t.code || ''), pairW - 10), tx + pairW / 2, y + 28)
+    ctx.fillStyle = C.dim
+    ctx.font = '600 12px "Segoe UI", system-ui, sans-serif'
+    ctx.fillText('баз.', tx + pairW * 0.25, y + headH + 18)
+    ctx.fillStyle = C.off
+    ctx.fillText('−10%', tx + pairW * 0.75, y + headH + 18)
+  })
+
   rows.forEach((row, ri) => {
+    const rowY = y + headH + subH + ri * rowH
     if (ri % 2 === 1) {
       ctx.fillStyle = C.rowAlt
-      ctx.fillRect(tableX + 1, rowY, tableW - 2, ROW_H)
+      ctx.fillRect(x + 1, rowY, w - 2, rowH)
     }
-    ctx.textAlign = 'center'
+    const cy = rowY + rowH * 0.62
+    const showSessions = ri === 0 || rows[ri - 1].sessions !== row.sessions
     ctx.fillStyle = C.text
-    ctx.font = '700 16px "Segoe UI", system-ui, sans-serif'
-    ctx.fillText(String(row.sessions), tableX + AXIS_W / 2, rowY + 28)
+    ctx.font = `700 ${Math.max(13, priceFs)}px "Segoe UI", system-ui, sans-serif`
+    ctx.fillText(showSessions ? String(row.sessions) : '', x + axisW / 2, cy)
     ctx.fillStyle = C.muted
-    ctx.fillText(String(row.people), tableX + AXIS_W + PEOPLE_W / 2, rowY + 28)
+    ctx.fillText(String(row.people), x + axisW + peopleW / 2, cy)
 
     tariffs.forEach((t, i) => {
       const cell = getPriceListCell(normalized, {
@@ -151,23 +195,15 @@ export async function renderPriceListPng(doc, opts = {}) {
         membershipTypeId: t.membership_type_id,
         mode,
       })
-      const x = tableX + AXIS_W + PEOPLE_W + i * PAIR_W
+      const tx = x + axisW + peopleW + i * pairW
       ctx.fillStyle = C.full
-      ctx.font = '500 15px "Segoe UI", system-ui, sans-serif'
-      ctx.fillText(formatPriceListMoney(cell.price_full), x + PAIR_W * 0.25, rowY + 28)
+      ctx.font = `500 ${priceFs}px "Segoe UI", system-ui, sans-serif`
+      ctx.fillText(formatPriceListMoney(cell.price_full), tx + pairW * 0.25, cy)
       ctx.fillStyle = C.off
-      ctx.font = '700 16px "Segoe UI", system-ui, sans-serif'
-      ctx.fillText(formatPriceListMoney(cell.price_10), x + PAIR_W * 0.75, rowY + 28)
+      ctx.font = `700 ${priceFs}px "Segoe UI", system-ui, sans-serif`
+      ctx.fillText(formatPriceListMoney(cell.price_10), tx + pairW * 0.75, cy)
     })
-    rowY += ROW_H
   })
-
-  ctx.textAlign = 'left'
-  ctx.fillStyle = C.dim
-  ctx.font = '500 14px "Segoe UI", system-ui, sans-serif'
-  ctx.fillText('Прайс клуба · для стенда', PAD, height - 18)
-
-  return canvasToBlob(canvas)
 }
 
 /**
@@ -228,7 +264,7 @@ export function printPriceListDocument(doc, opts = {}) {
   iframe.setAttribute('aria-hidden', 'true')
   // Не display:none и не 0×0 — иначе Chrome печатает пустой лист
   iframe.style.cssText =
-    'position:fixed;left:-10000px;top:0;width:1100px;height:800px;border:0;opacity:0;pointer-events:none;'
+    'position:fixed;left:-10000px;top:0;width:1123px;height:794px;border:0;opacity:0;pointer-events:none;'
   document.body.appendChild(iframe)
 
   let cleaned = false
