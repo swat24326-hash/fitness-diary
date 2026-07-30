@@ -4,6 +4,7 @@ import { BarChart3, CalendarDays, ClipboardList, RefreshCw, Tags, TrendingUp, Us
 import { useAuth } from '../../context/AuthContext'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { addDaysToIso, clampIsoDateToToday, formatDateRu, todayLocalIso } from '../../lib/dateRu'
+import { calendarYearMonthFromIso } from '../../lib/admin/salesPlanPzDkSuggestCore.js'
 import {
   dailyRowToForm,
   emptyDailyForm,
@@ -615,6 +616,20 @@ export function AdminSales({ accessMode = 'admin' }) {
     })
   }, [])
 
+  /** Месяц плана без clamp (нужен «следующий месяц» для ориентира ПЗ ДК). */
+  const selectPlanCalendarMonth = useCallback((ym) => {
+    const y = Number(ym?.year)
+    const m = Number(ym?.month)
+    if (!Number.isFinite(y) || !Number.isFinite(m) || m < 1 || m > 12) return
+    const today = todayLocalIso()
+    const cur = calendarYearMonthFromIso(today)
+    if (cur && cur.year === y && cur.month === m) {
+      setReportDate(today)
+      return
+    }
+    setReportDate(`${y}-${String(m).padStart(2, '0')}-01`)
+  }, [])
+
   const openDayReport = useCallback(
     (iso) => {
       setReportDate(clampIsoDateToToday(iso))
@@ -1154,8 +1169,14 @@ export function AdminSales({ accessMode = 'admin' }) {
         <div id="sales-panel-plan" role="tabpanel" aria-labelledby="sales-tab-plan">
           <SalesPlanSettingsPanel
             monthLabel={monthLabel}
+            clubId={clubId}
+            year={yearMonth.year}
+            month={yearMonth.month}
+            membershipTypes={membershipTypes}
+            monthDays={monthDays}
             planForm={planForm}
             onPlanChange={setPlanForm}
+            onSelectPlanMonth={selectPlanCalendarMonth}
             expenseForm={expenseForm}
             onExpenseChange={setExpenseForm}
             onSavePlan={() => void handleSavePlanLevels()}
@@ -1163,6 +1184,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             onSaveFinance={() => void handleSaveFinance()}
             savingPlan={savingPlan}
             savingFinance={savingFinance}
+            onToast={showToast}
           />
         </div>
       ) : !isSalesManager && salesTab === 'finance' ? (

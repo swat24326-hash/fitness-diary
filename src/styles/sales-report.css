@@ -4479,3 +4479,77 @@
   cursor: default;
 }
 
+/* Ориентир ПЗ ДК из прайса (план месяца) */
+.sales-plan-pz-dk-suggest {
+  margin: 0 0 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent-bright, #7dffb3) 22%, transparent);
+  background: color-mix(in srgb, var(--accent-bright, #7dffb3) 6%, transparent);
+}
+
+.sales-plan-pz-dk-suggest__lead {
+  margin: 0 0 0.45rem;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.sales-plan-pz-dk-suggest__hints {
+  margin: 0 0 0.55rem;
+  padding-left: 1.15rem;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.sales-plan-pz-dk-suggest__hints li {
+  margin: 0.15rem 0;
+}
+
+.sales-plan-pz-dk-suggest__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.55rem;
+}
+
+.sales-plan-pz-dk-suggest__pct {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.sales-plan-pz-dk-suggest__pct-input {
+  width: 4.5rem;
+  min-height: 2.4rem;
+}
+
+.sales-plan-pz-dk-suggest__pct-hint {
+  font-size: 0.75rem;
+  max-width: 16rem;
+  line-height: 1.3;
+  align-self: center;
+}
+
+.sales-plan-pz-dk-suggest__preview {
+  margin-top: 0.75rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent-bright, #7dffb3) 35%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated, #1a1f1c) 80%, transparent);
+}
+
+.sales-plan-pz-dk-suggest__preview-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.sales-plan-pz-dk-suggest__summary {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+

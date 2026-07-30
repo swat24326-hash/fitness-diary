@@ -53,6 +53,7 @@
 | Удаление абонемента (тексты confirm) | `verify-membership-delete.mjs` |
 | Менеджер: доступ к типам АЗ / выбор списка для отчёта | `verify-sales-membership-types-access.mjs` |
 | Прайс ПЗ: скидка 10%, Excel→code, импорт AOA, TTL кэша | `verify-price-list.mjs` |
+| План: ориентир ПЗ ДК из прайса (8 тр. × действующие) | `verify-sales-plan-pz-dk-suggest.mjs` |
 | Продажи: профили bundle shell/daily/month/full | `verify-sales-bundle-profile.mjs` |
 | Срок абонемента по умолчанию (+1 календарный месяц) | `verify-date-ru.mjs` |
 

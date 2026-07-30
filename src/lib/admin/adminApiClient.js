@@ -247,6 +247,7 @@ export async function fetchMembershipsForClubViaAdminApi(clubId) {
     return {
       memberships: Array.isArray(data.memberships) ? data.memberships : [],
       count: typeof data.count === 'number' ? data.count : (data.memberships?.length ?? 0),
+      truncated: Boolean(data.truncated),
     }
   }
 
