@@ -1,15 +1,22 @@
 /**
  * Session-кэш sales profile=shell (месяц / план / расход).
  * Дневной отчёт этим слоем не кэшируем — ввод идёт днём.
+ *
+ * SWR: last-good сразу, сеть при открытии (кроме очень свежего после своего save).
+ * TTL 6ч ломал шляпу: менеджер сохранил отчёт — у админа месяц оставался старым.
  */
 import { createGlanceCache } from '../homeGlanceCache.js'
 
+/** Показ last-good; «совсем не ходить в сеть» — только короткий skip. */
 const cache = createGlanceCache({
   ns: 'admin-sales-shell',
-  ttlMs: 6 * 60 * 60 * 1000,
+  ttlMs: 5 * 60 * 1000,
 })
 
 export const SALES_SHELL_SESSION_TTL_MS = cache.ttlMs
+
+/** После своего «Сохранить»/Обновить не дублировать shell-запрос. */
+export const SALES_SHELL_SKIP_NETWORK_MS = 45 * 1000
 
 function parts(clubId, reportDate) {
   return [String(clubId ?? '').trim(), String(reportDate ?? '').slice(0, 10)]
@@ -38,4 +45,9 @@ export function invalidateSalesShellSession(clubId) {
 
 export function isSalesShellSessionFresh(savedAt, ttlMs = SALES_SHELL_SESSION_TTL_MS) {
   return cache.isFresh(savedAt, ttlMs)
+}
+
+/** Можно ли пропустить сеть (только что сами сохранили/обновили). */
+export function shouldSkipSalesShellNetwork(savedAt) {
+  return cache.isFresh(savedAt, SALES_SHELL_SKIP_NETWORK_MS)
 }

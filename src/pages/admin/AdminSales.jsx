@@ -44,7 +44,7 @@ import {
 import { clearSalesPlanGlanceSession } from '../../lib/admin/salesPlanGlanceSession.js'
 import {
   invalidateSalesShellSession,
-  isSalesShellSessionFresh,
+  shouldSkipSalesShellNetwork,
   readSalesShellSession,
   writeSalesShellSession,
 } from '../../lib/admin/salesShellSession.js'
@@ -317,13 +317,13 @@ export function AdminSales({ accessMode = 'admin' }) {
         const date = reportDate
         const draftHints = []
         let types = cachedTypes
-        let shellFromSession = false
+        let skipShellNetwork = false
 
-        if (needShell && !force) {
+        if (needShell) {
           const cached = readSalesShellSession(cid, date)
-          if (cached?.payload && isSalesShellSessionFresh(cached.savedAt)) {
+          if (cached?.payload) {
+            // Last-good сразу (шляпа не пустая), сеть — если кэш не «только что свой».
             types = applyShellBundle(cached.payload, cid, types, draftHints)
-            shellFromSession = true
             if (!types.length) {
               const ensured = await ensureMembershipTypesForClub(clubId, { force: true }).catch(() => ({
                 types: [],
@@ -333,17 +333,23 @@ export function AdminSales({ accessMode = 'admin' }) {
                 setMembershipTypes(types)
               }
             }
+            if (!force && shouldSkipSalesShellNetwork(cached.savedAt)) {
+              skipShellNetwork = true
+            }
           }
         }
 
         const tasks = []
-        if (needShell && !shellFromSession) {
+        if (needShell && !skipShellNetwork) {
           tasks.push(
             fetchClubSalesBundle({ clubId, reportDate, profile: 'shell' }).then((b) => ({
               kind: 'shell',
               bundle: b,
             })),
           )
+        }
+        if (needShell && skipShellNetwork) {
+          profilesRef.current.shell = true
         }
         if (needDaily) {
           tasks.push(
@@ -380,6 +386,8 @@ export function AdminSales({ accessMode = 'admin' }) {
           if (kind === 'shell') {
             types = applyShellBundle(bundle, cid, types, draftHints)
             writeSalesShellSession(cid, date, bundle)
+            // Главная glance не должна жить дольше свежей шляпы после чужого отчёта.
+            clearSalesPlanGlanceSession(cid)
             if (!types.length) {
               const ensured = await ensureMembershipTypesForClub(clubId, { force: true }).catch(() => ({
                 types: [],

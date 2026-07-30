@@ -170,7 +170,7 @@ const parsedNew = parsePriceListLocalCache(wrapped)
 ok(parsedNew.fetchedAt === 12345 && parsedNew.doc?.club_id === 'club-1', 'parse v1 envelope')
 const parsedLegacy = parsePriceListLocalCache({ ...doc, club_id: 'club-1' })
 ok(parsedLegacy.fetchedAt === 0 && parsedLegacy.doc?.tariffs, 'legacy bare doc → fetchedAt 0')
-ok(SALES_SHELL_SESSION_TTL_MS === 6 * 60 * 60 * 1000, 'sales shell session TTL 6h')
+ok(SALES_SHELL_SESSION_TTL_MS === 5 * 60 * 1000, 'sales shell session TTL 5m')
 
 ok(matchMembershipTypeByExcelLabel('ВИП2', [
   { id: 'vip', code: 'VIP' },
