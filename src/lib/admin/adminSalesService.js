@@ -30,6 +30,7 @@ function mapApiSalesBundle(data, clubId, reportDate) {
     year: data.year,
     month: data.month,
     reportDate: data.report_date ?? reportDate,
+    profile: data.profile ?? 'full',
     daily: data.daily ?? null,
     monthDays: Array.isArray(data.month_days) ? data.month_days : [],
     plan: data.plan ?? null,
@@ -91,8 +92,10 @@ async function adminApiPost(path, token, body) {
   throw new Error(data?.error ? String(data.error) : `Ошибка сервера (${res.status})`)
 }
 
-/** GET /api/admin-data?action=sales — Supabase first, API если облако Supabase недоступно */
-export async function fetchClubSalesBundle({ clubId, reportDate }) {
+/** GET /api/admin-data?action=sales — Supabase first, API если облако Supabase недоступно
+ * @param {{ clubId: string, reportDate: string, profile?: string, includeFitCity?: boolean }} p
+ */
+export async function fetchClubSalesBundle({ clubId, reportDate, profile, includeFitCity }) {
   const token = await getAccessTokenForAdminApi()
   if (!token) throw new Error('Нет сессии — войдите снова')
 
@@ -101,6 +104,8 @@ export async function fetchClubSalesBundle({ clubId, reportDate }) {
     club_id: clubId,
     report_date: reportDate,
   })
+  if (profile) params.set('profile', String(profile))
+  if (includeFitCity) params.set('include_fit_city', '1')
 
   const loadViaApi = async () => {
     const { data, routeMissing } = await adminApiGet(`/api/admin-data?${params}`, token)
@@ -110,7 +115,7 @@ export async function fetchClubSalesBundle({ clubId, reportDate }) {
 
   let supabaseErr = null
   try {
-    return await fetchClubSalesBundleViaSupabase({ clubId, reportDate })
+    return await fetchClubSalesBundleViaSupabase({ clubId, reportDate, profile, includeFitCity })
   } catch (e) {
     supabaseErr = e
   }

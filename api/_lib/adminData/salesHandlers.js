@@ -30,6 +30,7 @@ import {
   buildAerobicPayRateMap,
 } from '../../../src/lib/admin/aerobicPayrollCore.js'
 import { filterAerobicSalesTypes } from '../../../src/lib/membershipTypesCore.js'
+import { salesBundleProfileFlags } from '../../../src/lib/admin/salesBundleProfileCore.js'
 import { TRAINER_ROLES } from './constants.js'
 import { fetchPaged } from './paging.js'
 
@@ -68,45 +69,73 @@ export async function handleSalesGet(ctx, req, res) {
     sendJson(res, 400, { error: 'Укажите club_id и report_date (YYYY-MM-DD)' })
     return
   }
+  const flags = salesBundleProfileFlags(req.query?.profile, req.query?.include_fit_city)
   const { year, month } = parts
   const { start, end } = monthDateRange(year, month)
   const { supabaseAdmin } = ctx
 
+  const tasks = {
+    daily: flags.needDaily
+      ? querySalesDailyRow(supabaseAdmin, clubId, reportDate)
+      : Promise.resolve({ data: null, error: null }),
+    month: flags.needMonth
+      ? querySalesMonthRows(supabaseAdmin, clubId, start, end)
+      : Promise.resolve({ data: [], error: null }),
+    plan: flags.needPlanExpense
+      ? querySalesPlanRow(supabaseAdmin, clubId, year, month)
+      : Promise.resolve({ data: null, error: null }),
+    expense: flags.needPlanExpense
+      ? supabaseAdmin
+          .from('club_supervisor_expense')
+          .select('amount, updated_at')
+          .eq('club_id', clubId)
+          .eq('year', year)
+          .eq('month', month)
+          .maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
+    types: flags.needTypes
+      ? supabaseAdmin
+          .from('membership_types')
+          .select('id, code, sort_order, is_active, trainer_assignable, trainer_pay_per_session, aerobic_pay_amount')
+          .eq('club_id', clubId)
+          .order('sort_order', { ascending: true })
+      : Promise.resolve({ data: [], error: null }),
+    trainers: flags.needTrainers
+      ? fetchClubTrainersForSales(supabaseAdmin, clubId)
+      : Promise.resolve([]),
+    trainingsDay: flags.needFitCity
+      ? fetchPaged(
+          supabaseAdmin,
+          'trainings',
+          'id, trainer_id, client_id, date, status, data',
+          clubId,
+          reportDate,
+          reportDate,
+        )
+      : Promise.resolve([]),
+    memberships: flags.needFitCity
+      ? fetchPaged(
+          supabaseAdmin,
+          'memberships',
+          'id, client_id, membership_type_id',
+          clubId,
+          null,
+          null,
+        )
+      : Promise.resolve([]),
+  }
+
   const [dailyRes, monthRes, planRes, expenseRes, typesRes, trainers, trainingsDay, memberships] =
     await Promise.all([
-    querySalesDailyRow(supabaseAdmin, clubId, reportDate),
-    querySalesMonthRows(supabaseAdmin, clubId, start, end),
-    querySalesPlanRow(supabaseAdmin, clubId, year, month),
-    supabaseAdmin
-      .from('club_supervisor_expense')
-      .select('amount, updated_at')
-      .eq('club_id', clubId)
-      .eq('year', year)
-      .eq('month', month)
-      .maybeSingle(),
-    supabaseAdmin
-      .from('membership_types')
-      .select('id, code, sort_order, is_active, trainer_assignable, trainer_pay_per_session, aerobic_pay_amount')
-      .eq('club_id', clubId)
-      .order('sort_order', { ascending: true }),
-    fetchClubTrainersForSales(supabaseAdmin, clubId),
-    fetchPaged(
-      supabaseAdmin,
-      'trainings',
-      'id, trainer_id, client_id, date, status, data',
-      clubId,
-      reportDate,
-      reportDate,
-    ),
-    fetchPaged(
-      supabaseAdmin,
-      'memberships',
-      'id, client_id, membership_type_id',
-      clubId,
-      null,
-      null,
-    ),
-  ])
+      tasks.daily,
+      tasks.month,
+      tasks.plan,
+      tasks.expense,
+      tasks.types,
+      tasks.trainers,
+      tasks.trainingsDay,
+      tasks.memberships,
+    ])
 
   const err = dailyRes.error || monthRes.error || planRes.error || expenseRes.error || typesRes.error
   if (err) {
@@ -138,13 +167,16 @@ export async function handleSalesGet(ctx, req, res) {
     monthAerobicPayroll.clubTotal,
   )
 
-  const fitCityTypeStats = aggregateMembershipTypeStats({
-    trainings: trainingsDay,
-    memberships,
-    membershipTypes,
-  })
+  let fitCityTypeStats = null
+  if (flags.needFitCity) {
+    fitCityTypeStats = aggregateMembershipTypeStats({
+      trainings: trainingsDay,
+      memberships,
+      membershipTypes,
+    })
+  }
 
-  const daily = dailyRes.data ?? null
+  let daily = dailyRes.data ?? null
   if (daily && daily.trainings_matrix != null) {
     daily.trainings_matrix = normalizeMatrixRowsFromDb(daily.trainings_matrix)
   }
@@ -152,20 +184,23 @@ export async function handleSalesGet(ctx, req, res) {
     daily.aerobic_sales_matrix = normalizeAerobicRowsFromDb(daily.aerobic_sales_matrix)
   }
 
-  sendJson(res, 200, stripSalesBundleForManager({
+  const payload = {
     club_id: clubId,
     year,
     month,
     report_date: reportDate,
-    daily,
-    month_days: monthRows,
-    plan: planRes.data ?? null,
-    expense: expenseRes.data ?? null,
-    month_summary: monthSummary,
-    membership_types: membershipTypes,
-    trainers,
+    profile: flags.profile,
+    daily: flags.needDaily ? daily : null,
+    month_days: flags.includeMonthDays ? monthRows : [],
+    plan: flags.needPlanExpense ? planRes.data ?? null : null,
+    expense: flags.needPlanExpense ? expenseRes.data ?? null : null,
+    month_summary: flags.needMonth ? monthSummary : null,
+    membership_types: flags.needTypes ? membershipTypes : [],
+    trainers: flags.needTrainers ? trainers : [],
     fit_city_type_stats: fitCityTypeStats,
-  }, ctx.isSalesManager === true))
+  }
+
+  sendJson(res, 200, stripSalesBundleForManager(payload, ctx.isSalesManager === true))
 }
 
 export async function handleSalesDailyPost(ctx, req, res, body) {

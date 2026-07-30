@@ -53,11 +53,17 @@
 
 Канон цвета/стекла — [BRAND_SYSTEM.md](./BRAND_SYSTEM.md).
 
-## Дальше
+## Дальше (объединённый план с ускорением Продаж)
 
-1. Импорт xlsx с мастером «Платинум → PL»  
-2. Печать / PNG  
-3. Менеджер: просмотр (+ печать) на `/sales` — API read уже готов  
-4. Опциональный мост подсказок при продаже  
+| Шаг | Что | Статус |
+|-----|-----|--------|
+| **A** | API `sales&profile=shell\|daily\|month\|full` (+ `include_fit_city`) | ✅ в коде |
+| **B** | Клиент: shell для hero; **Прайс/План/Финансы** без daily+fit-city; daily лениво | ✅ в коде |
+| **C** | Ещё тоньше month payload / кэш shell | ⏸ |
+| **P1** | Импорт xlsx + мастер PL/VIP | ⏸ дальше |
+| **P2** | Печать / PNG | ⏸ дальше |
+| **P3** | Менеджер: просмотр прайса на `/sales` | ⏸ (API read уже есть) |
 
-Связано: [SALES_MANAGER.md](./SALES_MANAGER.md), [PRODUCT_MODULES.md](./PRODUCT_MODULES.md), [API.md](./API.md).
+Ускорение Продаж **обслуживает Прайс**: вкладка не ждёт полный bundle (memberships+trainings).
+
+Связано: [SALES_MANAGER.md](./SALES_MANAGER.md), [API.md](./API.md).

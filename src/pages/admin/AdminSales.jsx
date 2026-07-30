@@ -183,118 +183,223 @@ export function AdminSales({ accessMode = 'admin' }) {
     return () => clearTimeout(t)
   }, [])
 
+  const loadSeqRef = useRef(0)
+  const profilesRef = useRef({ key: '', shell: false, daily: false })
+
+  const applyPlanExpenseDrafts = useCallback((bundle, cid) => {
+    let nextPlanForm = planRowToForm(bundle.plan)
+    const planServerFp = fingerprintPlanDraft(nextPlanForm)
+    planBaselineFpRef.current = planServerFp
+    const planDraft = readSalesDraft(salesPlanDraftKey(cid, bundle.year, bundle.month))
+    const planResolved = resolvePlanDraftAfterLoad({
+      draft: planDraft,
+      serverFp: planServerFp,
+      planForm: nextPlanForm,
+    })
+    nextPlanForm = planResolved.planForm
+
+    let nextExpenseForm = expenseRowToForm(bundle.expense)
+    const expenseServerFp = fingerprintExpenseDraft(nextExpenseForm)
+    expenseBaselineFpRef.current = expenseServerFp
+    const expenseDraft = readSalesDraft(salesFinanceDraftKey(cid, bundle.year, bundle.month))
+    const expenseResolved = resolveExpenseDraftAfterLoad({
+      draft: expenseDraft,
+      serverFp: expenseServerFp,
+      expenseForm: nextExpenseForm,
+    })
+    nextExpenseForm = expenseResolved.expenseForm
+
+    setPlanForm(nextPlanForm)
+    setExpenseForm(nextExpenseForm)
+    return { planResolved, expenseResolved }
+  }, [])
+
+  const applyDailyDrafts = useCallback((bundle, types, cid, date) => {
+    const cols = buildTrainingsMatrixColumns(types)
+    const matrixRows = normalizeMatrixRowsFromDb(bundle.daily?.trainings_matrix)
+    let nextDailyForm = dailyRowToForm(bundle.daily)
+    let nextTrainingsMatrix = clubAggregateInputMap(
+      matrixRowsToInputMap(matrixRows),
+      (bundle.trainers ?? []).map((t) => t.id),
+      cols,
+    )
+    let nextAerobicMatrix = aerobicRowsToInputMap(
+      normalizeAerobicRowsFromDb(bundle.daily?.aerobic_sales_matrix),
+    )
+    const dailyServerFp = fingerprintDailyDraft({
+      dailyForm: nextDailyForm,
+      trainingsMatrix: nextTrainingsMatrix,
+      aerobicMatrix: nextAerobicMatrix,
+    })
+    dailyBaselineFpRef.current = dailyServerFp
+    const dailyDraft = readSalesDraft(salesDailyDraftKey(cid, date))
+    const dailyResolved = resolveDailyDraftAfterLoad({
+      draft: dailyDraft,
+      serverFp: dailyServerFp,
+      dailyForm: nextDailyForm,
+      trainingsMatrix: nextTrainingsMatrix,
+      aerobicMatrix: nextAerobicMatrix,
+    })
+    setDailyForm(dailyResolved.dailyForm)
+    setTrainingsMatrix(dailyResolved.trainingsMatrix)
+    setAerobicMatrix(dailyResolved.aerobicMatrix)
+    if (Array.isArray(bundle.trainers)) setTrainers(bundle.trainers)
+    if (bundle.fitCityTypeStats != null) setFitCityTypeStats(bundle.fitCityTypeStats)
+    return dailyResolved
+  }, [])
+
+  const loadSalesProfiles = useCallback(
+    async ({ force = false, wantDaily = false, wantFitCity = false } = {}) => {
+      if (!clubId || !isSupabaseConfigured()) return
+      const key = `${clubId}|${reportDate}`
+      if (profilesRef.current.key !== key) {
+        profilesRef.current = { key, shell: false, daily: false }
+      }
+
+      const needShell = force || !profilesRef.current.shell
+      const needDaily = wantDaily && (force || !profilesRef.current.daily)
+      if (!needShell && !needDaily && !wantFitCity) return
+
+      const seq = ++loadSeqRef.current
+      setBusy(true)
+      setError('')
+      if (force) setLoadHint('')
+
+      try {
+        const cachedTypes = await listMembershipTypesForClub(clubId)
+        if (cachedTypes.length) setMembershipTypes(cachedTypes)
+
+        const tasks = []
+        if (needShell) {
+          tasks.push(
+            fetchClubSalesBundle({ clubId, reportDate, profile: 'shell' }).then((b) => ({
+              kind: 'shell',
+              bundle: b,
+            })),
+          )
+        }
+        if (needDaily) {
+          tasks.push(
+            fetchClubSalesBundle({
+              clubId,
+              reportDate,
+              profile: 'daily',
+              includeFitCity: wantFitCity,
+            }).then((b) => ({ kind: 'daily', bundle: b })),
+          )
+        } else if (wantFitCity && profilesRef.current.daily) {
+          tasks.push(
+            fetchClubSalesBundle({
+              clubId,
+              reportDate,
+              profile: 'daily',
+              includeFitCity: true,
+            }).then((b) => ({ kind: 'fit', bundle: b })),
+          )
+        }
+
+        const results = await Promise.all(tasks)
+        if (seq !== loadSeqRef.current) return
+
+        const cid = clubId
+        const date = reportDate
+        const draftHints = []
+        let types = cachedTypes
+
+        for (const { kind, bundle } of results) {
+          if (bundle.year && bundle.month) {
+            setYearMonth({ year: bundle.year, month: bundle.month })
+          }
+          if (bundle.membershipTypes?.length) {
+            types = pickMembershipTypesForSalesReport(types, bundle.membershipTypes)
+            setMembershipTypes(types)
+          }
+
+          if (kind === 'shell') {
+            if (bundle.monthSummary != null) setMonthSummary(bundle.monthSummary)
+            if (Array.isArray(bundle.monthDays)) setMonthDays(bundle.monthDays)
+            const pe = applyPlanExpenseDrafts(bundle, cid)
+            if (pe.planResolved.restored) draftHints.push('план')
+            if (pe.expenseResolved.restored) draftHints.push('расход')
+            profilesRef.current.shell = true
+            if (!types.length) {
+              const ensured = await ensureMembershipTypesForClub(clubId, { force: true }).catch(() => ({
+                types: [],
+              }))
+              if (ensured.types?.length) {
+                types = ensured.types
+                setMembershipTypes(types)
+              }
+            }
+          }
+
+          if (kind === 'daily') {
+            types = pickMembershipTypesForSalesReport(types, bundle.membershipTypes)
+            setMembershipTypes(types)
+            const dailyResolved = applyDailyDrafts(bundle, types, cid, date)
+            if (dailyResolved.restored) draftHints.push('дневной отчёт')
+            profilesRef.current.daily = true
+          }
+
+          if (kind === 'fit' && bundle.fitCityTypeStats != null) {
+            setFitCityTypeStats(bundle.fitCityTypeStats)
+          }
+
+          if (bundle.warnings?.length) {
+            setLoadHint((prev) =>
+              [prev, bundle.warnings.filter(Boolean).join(' ')].filter(Boolean).join(' '),
+            )
+          }
+        }
+
+        if (draftHints.length) {
+          setLoadHint(`Восстановлен несохранённый черновик: ${draftHints.join(', ')}.`)
+        }
+      } catch (e) {
+        if (seq !== loadSeqRef.current) return
+        const ensured = await ensureMembershipTypesForClub(clubId, { force: true }).catch(() => ({
+          types: [],
+        }))
+        if (ensured.types?.length) setMembershipTypes(ensured.types)
+        else {
+          const cached = await listMembershipTypesForClub(clubId)
+          if (cached.length) setMembershipTypes(cached)
+        }
+        setError(humanizeNetworkError(e) || e?.message || 'Ошибка загрузки')
+      } finally {
+        if (seq === loadSeqRef.current) setBusy(false)
+      }
+    },
+    [applyDailyDrafts, applyPlanExpenseDrafts, clubId, reportDate],
+  )
+
+  /** Ручное «Обновить» и после save — сброс кэша профилей и догрузка под вкладку. */
   const loadBundle = useCallback(async () => {
-    if (!clubId || !isSupabaseConfigured()) return
-    setBusy(true)
-    setError('')
-    setLoadHint('')
-    try {
-      const cachedTypes = await listMembershipTypesForClub(clubId)
-      if (cachedTypes.length) setMembershipTypes(cachedTypes)
-
-      const typesPromise = ensureMembershipTypesForClub(clubId, {
-        force: true,
-        forceFromCloud: true,
-      })
-      const bundle = await fetchClubSalesBundle({ clubId, reportDate })
-      const ensured = await typesPromise
-      const cid = clubId
-      const date = reportDate
-
-      setMonthSummary(bundle.monthSummary)
-      setMonthDays(bundle.monthDays ?? [])
-      setYearMonth({ year: bundle.year, month: bundle.month })
-
-      const types = pickMembershipTypesForSalesReport(bundle.membershipTypes, ensured.types)
-      setMembershipTypes(types)
-      setTrainers(bundle.trainers ?? [])
-      setFitCityTypeStats(bundle.fitCityTypeStats ?? null)
-
-      const cols = buildTrainingsMatrixColumns(types)
-      const matrixRows = normalizeMatrixRowsFromDb(bundle.daily?.trainings_matrix)
-      let nextDailyForm = dailyRowToForm(bundle.daily)
-      let nextTrainingsMatrix = clubAggregateInputMap(
-        matrixRowsToInputMap(matrixRows),
-        (bundle.trainers ?? []).map((t) => t.id),
-        cols,
-      )
-      let nextAerobicMatrix = aerobicRowsToInputMap(normalizeAerobicRowsFromDb(bundle.daily?.aerobic_sales_matrix))
-      const dailyServerFp = fingerprintDailyDraft({
-        dailyForm: nextDailyForm,
-        trainingsMatrix: nextTrainingsMatrix,
-        aerobicMatrix: nextAerobicMatrix,
-      })
-      dailyBaselineFpRef.current = dailyServerFp
-      const dailyDraft = readSalesDraft(salesDailyDraftKey(cid, date))
-      const dailyResolved = resolveDailyDraftAfterLoad({
-        draft: dailyDraft,
-        serverFp: dailyServerFp,
-        dailyForm: nextDailyForm,
-        trainingsMatrix: nextTrainingsMatrix,
-        aerobicMatrix: nextAerobicMatrix,
-      })
-      nextDailyForm = dailyResolved.dailyForm
-      nextTrainingsMatrix = dailyResolved.trainingsMatrix
-      nextAerobicMatrix = dailyResolved.aerobicMatrix
-
-      let nextPlanForm = planRowToForm(bundle.plan)
-      const planServerFp = fingerprintPlanDraft(nextPlanForm)
-      planBaselineFpRef.current = planServerFp
-      const planDraft = readSalesDraft(salesPlanDraftKey(cid, bundle.year, bundle.month))
-      const planResolved = resolvePlanDraftAfterLoad({
-        draft: planDraft,
-        serverFp: planServerFp,
-        planForm: nextPlanForm,
-      })
-      nextPlanForm = planResolved.planForm
-
-      let nextExpenseForm = expenseRowToForm(bundle.expense)
-      const expenseServerFp = fingerprintExpenseDraft(nextExpenseForm)
-      expenseBaselineFpRef.current = expenseServerFp
-      const expenseDraft = readSalesDraft(salesFinanceDraftKey(cid, bundle.year, bundle.month))
-      const expenseResolved = resolveExpenseDraftAfterLoad({
-        draft: expenseDraft,
-        serverFp: expenseServerFp,
-        expenseForm: nextExpenseForm,
-      })
-      nextExpenseForm = expenseResolved.expenseForm
-
-      setDailyForm(nextDailyForm)
-      setPlanForm(nextPlanForm)
-      setExpenseForm(nextExpenseForm)
-      setTrainingsMatrix(nextTrainingsMatrix)
-      setAerobicMatrix(nextAerobicMatrix)
-
-      const draftHints = []
-      if (dailyResolved.restored) draftHints.push('дневной отчёт')
-      if (planResolved.restored) draftHints.push('план')
-      if (expenseResolved.restored) draftHints.push('расход')
-      if (draftHints.length) {
-        setLoadHint(`Восстановлен несохранённый черновик: ${draftHints.join(', ')}.`)
-      }
-
-      if (bundle.warnings?.length) {
-        setLoadHint((prev) =>
-          [prev, bundle.warnings.filter(Boolean).join(' ')].filter(Boolean).join(' '),
-        )
-      }
-    } catch (e) {
-      const ensured = await ensureMembershipTypesForClub(clubId, { force: true }).catch(() => ({ types: [] }))
-      if (ensured.types?.length) {
-        setMembershipTypes(ensured.types)
-      } else {
-        const cached = await listMembershipTypesForClub(clubId)
-        if (cached.length) setMembershipTypes(cached)
-      }
-      setError(humanizeNetworkError(e) || e?.message || 'Ошибка загрузки')
-    } finally {
-      setBusy(false)
-    }
-  }, [clubId, reportDate])
+    profilesRef.current = { key: `${clubId}|${reportDate}`, shell: false, daily: false }
+    const wantDaily = isSalesManager
+      ? salesTab === 'home' ||
+        salesTab === 'report' ||
+        salesTab === 'stats' ||
+        salesTab === 'analytics'
+      : salesTab === 'daily' || salesTab === 'stats'
+    await loadSalesProfiles({
+      force: true,
+      wantDaily,
+      wantFitCity: wantDaily,
+    })
+  }, [clubId, isSalesManager, loadSalesProfiles, reportDate, salesTab])
 
   useEffect(() => {
-    void loadBundle()
-  }, [loadBundle])
+    if (!clubId) return
+    const wantDaily = isSalesManager
+      ? salesTab === 'home' || salesTab === 'report' || salesTab === 'stats' || salesTab === 'analytics'
+      : salesTab === 'daily' || salesTab === 'stats'
+    void loadSalesProfiles({ wantDaily, wantFitCity: false }).then(() => {
+      if (wantDaily) {
+        void loadSalesProfiles({ wantFitCity: true })
+      }
+    })
+  }, [clubId, reportDate, salesTab, isSalesManager, loadSalesProfiles])
 
   const persistDailyDraft = useCallback(() => {
     if (!clubId || !reportDate) return

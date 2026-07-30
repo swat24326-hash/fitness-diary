@@ -9,6 +9,7 @@
 
 ## 2026-07
 
+- **Продажи:** быстрее вход — `profile=shell/daily` (Прайс/План без тяжёлого fit-city); прайс в облаке. Docs: [PRICE_LIST.md](./docs/PRICE_LIST.md), [API.md](./docs/API.md).
 - **Продажи / Прайс:** сохранение в облако (`club_price_lists`, `admin-data?action=price-list`); localStorage — кэш. Docs: [PRICE_LIST.md](./docs/PRICE_LIST.md).
 - **Продажи / Прайс:** вкладка «Прайс» у админа — единая сетка ПЗ по типам абонементов клуба (PL, VIP…), свой прайс на клуб. Docs: [PRICE_LIST.md](./docs/PRICE_LIST.md).
 - **Главная / ПНК:** карточка не «выскакивает» через секунду — last-good в session + слот сразу, если ПНК уже был.

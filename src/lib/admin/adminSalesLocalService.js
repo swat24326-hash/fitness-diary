@@ -37,6 +37,7 @@ import {
   buildAerobicPayRateMap,
 } from './aerobicPayrollCore.js'
 import { filterAerobicSalesTypes } from '../membershipTypesCore.js'
+import { salesBundleProfileFlags } from './salesBundleProfileCore.js'
 
 const MIGRATION_HINT =
   'Таблицы продаж (club_sales) не найдены в Supabase — выполните миграцию supabase/migrations/20260624120000_club_sales.sql в SQL Editor.'
@@ -173,24 +174,30 @@ function mapBundle({
   }
 }
 
-/** @param {{ clubId: string, reportDate: string }} p */
-export async function fetchClubSalesBundleViaSupabase({ clubId, reportDate }) {
+/** @param {{ clubId: string, reportDate: string, profile?: string, includeFitCity?: boolean }} p */
+export async function fetchClubSalesBundleViaSupabase({ clubId, reportDate, profile, includeFitCity }) {
   const cid = String(clubId ?? '').trim()
   const date = String(reportDate ?? '').slice(0, 10)
   const parts = monthPartsFromIso(date)
   if (!cid || !parts) throw new Error('Укажите клуб и дату')
 
+  const flags = salesBundleProfileFlags(profile, includeFitCity)
   const { year, month } = parts
   const { start, end } = monthDateRange(year, month)
   const warnings = []
 
-  const membershipTypes = await loadMembershipTypes(cid, warnings)
+  let membershipTypes = []
+  if (flags.needTypes) {
+    membershipTypes = await loadMembershipTypes(cid, warnings)
+  }
 
   let trainers = []
-  try {
-    trainers = await fetchClubTrainers(cid)
-  } catch (e) {
-    warnings.push(`тренеры: ${humanizeNetworkError(e) || e?.message || 'ошибка'}`)
+  if (flags.needTrainers) {
+    try {
+      trainers = await fetchClubTrainers(cid)
+    } catch (e) {
+      warnings.push(`тренеры: ${humanizeNetworkError(e) || e?.message || 'ошибка'}`)
+    }
   }
 
   let daily = null
@@ -200,23 +207,27 @@ export async function fetchClubSalesBundleViaSupabase({ clubId, reportDate }) {
   let salesTablesOk = true
 
   try {
-    const dailyRes = await withSupabaseRetry(() => querySalesDailyRow(supabase, cid, date))
-    if (dailyRes.error) {
-      if (isMissingTableError(dailyRes.error)) {
-        salesTablesOk = false
-        warnings.push(MIGRATION_HINT)
+    if (flags.needDaily) {
+      const dailyRes = await withSupabaseRetry(() => querySalesDailyRow(supabase, cid, date))
+      if (dailyRes.error) {
+        if (isMissingTableError(dailyRes.error)) {
+          salesTablesOk = false
+          warnings.push(MIGRATION_HINT)
+        } else {
+          throw dailyRes.error
+        }
       } else {
-        throw dailyRes.error
+        daily = dailyRes.data ?? null
       }
-    } else {
-      daily = dailyRes.data ?? null
     }
 
-    if (salesTablesOk) {
+    if (salesTablesOk && flags.needMonth) {
       const monthRes = await withSupabaseRetry(() => querySalesMonthRows(supabase, cid, start, end))
       if (monthRes.error) throw monthRes.error
       monthRows = monthRes.data ?? []
+    }
 
+    if (salesTablesOk && flags.needPlanExpense) {
       const planRes = await withSupabaseRetry(() => querySalesPlanRow(supabase, cid, year, month))
       if (planRes.error) throw planRes.error
       plan = planRes.data ?? null
@@ -241,41 +252,45 @@ export async function fetchClubSalesBundleViaSupabase({ clubId, reportDate }) {
     }
   }
 
-  const monthSummary = aggregateMonthFromDailyRows(monthRows)
-  const expenseAmount = Number(expense?.amount) || 0
-  const aerobicTypes = filterAerobicSalesTypes(membershipTypes)
-  const payRateMap = buildTrainerPayRateMap(membershipTypes)
-  const aerobicRateMap = buildAerobicPayRateMap(aerobicTypes)
-  const monthPayroll = aggregatePayrollFromDailyRows(monthRows, payRateMap)
-  const monthAerobicPayroll = aggregateAerobicPayrollFromDailyRows(monthRows, aerobicRateMap)
-  monthSummary.expense = expenseAmount
-  monthSummary.trainerPayroll = monthPayroll.clubTotal
-  monthSummary.aerobicPayroll = monthAerobicPayroll.clubTotal
-  monthSummary.netProfit = computeNetProfitWithPayroll(
-    monthSummary.profitTotal,
-    monthPayroll.clubTotal,
-    expenseAmount,
-    monthAerobicPayroll.clubTotal,
-  )
-  monthSummary.hallFinance = buildHallFinanceSummary(
-    monthRows,
-    monthPayroll.clubTotal,
-    monthAerobicPayroll.clubTotal,
-  )
+  const monthSummary = flags.needMonth ? aggregateMonthFromDailyRows(monthRows) : null
+  if (monthSummary) {
+    const expenseAmount = Number(expense?.amount) || 0
+    const aerobicTypes = filterAerobicSalesTypes(membershipTypes)
+    const payRateMap = buildTrainerPayRateMap(membershipTypes)
+    const aerobicRateMap = buildAerobicPayRateMap(aerobicTypes)
+    const monthPayroll = aggregatePayrollFromDailyRows(monthRows, payRateMap)
+    const monthAerobicPayroll = aggregateAerobicPayrollFromDailyRows(monthRows, aerobicRateMap)
+    monthSummary.expense = expenseAmount
+    monthSummary.trainerPayroll = monthPayroll.clubTotal
+    monthSummary.aerobicPayroll = monthAerobicPayroll.clubTotal
+    monthSummary.netProfit = computeNetProfitWithPayroll(
+      monthSummary.profitTotal,
+      monthPayroll.clubTotal,
+      expenseAmount,
+      monthAerobicPayroll.clubTotal,
+    )
+    monthSummary.hallFinance = buildHallFinanceSummary(
+      monthRows,
+      monthPayroll.clubTotal,
+      monthAerobicPayroll.clubTotal,
+    )
+  }
 
   let fitCityTypeStats = null
-  try {
-    const [trainingsDay, memberships] = await Promise.all([
-      fetchPagedTrainings(cid, date, date),
-      fetchPagedMemberships(cid),
-    ])
-    fitCityTypeStats = aggregateMembershipTypeStats({
-      trainings: trainingsDay,
-      memberships,
-      membershipTypes,
-    })
-  } catch {
-    /* справка FIT-CITY необязательна */
+  if (flags.needFitCity) {
+    try {
+      const [trainingsDay, memberships] = await Promise.all([
+        fetchPagedTrainings(cid, date, date),
+        fetchPagedMemberships(cid),
+      ])
+      fitCityTypeStats = aggregateMembershipTypeStats({
+        trainings: trainingsDay,
+        memberships,
+        membershipTypes,
+      })
+    } catch {
+      /* справка FIT-CITY необязательна */
+    }
   }
 
   if (daily?.trainings_matrix != null) {
@@ -294,13 +309,13 @@ export async function fetchClubSalesBundleViaSupabase({ clubId, reportDate }) {
     reportDate: date,
     year,
     month,
-    daily,
-    monthRows,
-    plan,
-    expense,
+    daily: flags.needDaily ? daily : null,
+    monthRows: flags.includeMonthDays ? monthRows : [],
+    plan: flags.needPlanExpense ? plan : null,
+    expense: flags.needPlanExpense ? expense : null,
     monthSummary,
-    membershipTypes,
-    trainers,
+    membershipTypes: flags.needTypes ? membershipTypes : [],
+    trainers: flags.needTrainers ? trainers : [],
     fitCityTypeStats,
     warnings,
   })

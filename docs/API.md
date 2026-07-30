@@ -41,7 +41,7 @@
 | `coach-quality` | admin / trainer (свой клуб + свой id) | Отдельный расчёт CQ; `mode=full\|glance`. Статистика и главная грузят параллельно со сводкой |
 | `coach-quality-settings` | GET: admin или тренер/продажи своего клуба; POST: admin | веса осей, доли внутри ведения/хвостов и тумблеры |
 | `health-cards`, `clubs` | admin | Медкарты, клубы |
-| `sales` | admin / sales_manager | Отчёты продаж |
+| `sales` | admin / sales_manager | Отчёты продаж. Опционально `profile=shell\|daily\|month\|full` (default `full`); `include_fit_city=1` для подсказок типов |
 | `price-list` | GET: admin / sales_manager (свой клуб); POST: admin | Прайс ПЗ клуба (`club_price_lists`) |
 | `pnk` | admin / sales_manager | Доска / данные ПНК |
 | `gemini-analytics-prefetch` | admin | Prefetch ИСКРЫ |
