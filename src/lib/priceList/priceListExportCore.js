@@ -18,7 +18,7 @@ export function priceListModePrintLabel(mode) {
 }
 
 /**
- * @param {{ clubId?: string, mode?: string, validFrom?: string | null }} p
+ * @param {{ clubId?: string, mode?: string, validFrom?: string | null, sheetSlug?: string }} p
  */
 export function buildPriceListPngFileName(p = {}) {
   const club = String(p.clubId ?? 'club')
@@ -30,5 +30,11 @@ export function buildPriceListPngFileName(p = {}) {
     .slice(0, 10)
     .replace(/[^\d-]/g, '')
   const stamp = date || new Date().toISOString().slice(0, 10)
-  return `price-${club}-${mode}-${stamp}.png`
+  const sheet = String(p.sheetSlug ?? '')
+    .trim()
+    .replace(/[^\w-]+/g, '_')
+    .slice(0, 24)
+  return sheet
+    ? `price-${club}-${mode}-${sheet}-${stamp}.png`
+    : `price-${club}-${mode}-${stamp}.png`
 }

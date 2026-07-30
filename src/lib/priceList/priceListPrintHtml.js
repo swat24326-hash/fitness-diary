@@ -1,5 +1,5 @@
 /**
- * HTML для печати прайса на 1× A4 альбом — заполняет лист, при многих тарифах 2 панели.
+ * HTML для печати прайса: отдельные листы A4 альбом (Карты / VIP), до 4 колонок на лист.
  */
 
 import {
@@ -10,9 +10,8 @@ import {
 } from './priceListCore.js'
 import { formatPriceListMoney, priceListModePrintLabel } from './priceListExportCore.js'
 import {
+  buildPriceListPrintSheets,
   priceListPrintFontPt,
-  shouldSplitPriceListTariffs,
-  splitPriceListTariffPanels,
 } from './priceListPrintLayout.js'
 
 /** @param {unknown} iso */
@@ -106,30 +105,47 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
     phone,
   ].filter(Boolean)
 
-  const panels = splitPriceListTariffPanels(tariffs)
-  const split = shouldSplitPriceListTariffs(tariffs)
-  const maxTariffsInPanel = Math.max(1, ...panels.map((p) => p.length), 1)
-  const fontPt = priceListPrintFontPt({
-    tariffCount: maxTariffsInPanel,
-    rowCount: rows.length,
-    panels: panels.length || 1,
-  })
+  const sheets = buildPriceListPrintSheets(tariffs)
+  const sheetTotal = sheets.length
 
-  const emptyNote =
-    tariffs.length === 0
-      ? `<p class="empty">Нет колонок прайса — сначала сверните типы или импортируйте Excel.</p>`
-      : ''
+  const emptySheet = `<section class="sheet">
+    <header class="head">
+      <div>
+        <h1>${title}</h1>
+        <p class="mode">${modeLabel}</p>
+      </div>
+      <div class="meta">${metaBits.map((b) => `<span>${b}</span>`).join('')}</div>
+    </header>
+    <p class="empty">Нет колонок прайса — сначала сверните типы или импортируйте Excel.</p>
+    <p class="foot">Прайс клуба · A4 альбом</p>
+  </section>`
 
-  const bodyHtml =
-    emptyNote ||
-    (split
-      ? `<div class="panels panels--2">${panels
-          .map(
-            (panel) =>
-              `<div class="panel">${buildTariffTableHtml(normalized, panel, rows, mode, fontPt)}</div>`,
-          )
-          .join('')}</div>`
-      : `<div class="panels panels--1"><div class="panel">${buildTariffTableHtml(normalized, tariffs, rows, mode, fontPt)}</div></div>`)
+  const sheetsHtml =
+    sheetTotal === 0
+      ? emptySheet
+      : sheets
+          .map((sheet, si) => {
+            const fontPt = priceListPrintFontPt({
+              tariffCount: sheet.tariffs.length,
+              rowCount: rows.length,
+            })
+            const group = escapeHtml(sheet.sheetLabel)
+            const page = `${si + 1}/${sheetTotal}`
+            const isLast = si === sheetTotal - 1
+            return `<section class="sheet${isLast ? '' : ' sheet--break'}">
+    <header class="head">
+      <div>
+        <h1>${title}</h1>
+        <p class="mode">${modeLabel}</p>
+        <p class="group">${group}</p>
+      </div>
+      <div class="meta">${metaBits.map((b) => `<span>${b}</span>`).join('')}</div>
+    </header>
+    <div class="table-wrap">${buildTariffTableHtml(normalized, sheet.tariffs, rows, mode, fontPt)}</div>
+    <p class="foot">Прайс клуба · A4 альбом · лист ${page}</p>
+  </section>`
+          })
+          .join('')
 
   return `<!DOCTYPE html>
 <html lang="ru">
@@ -142,8 +158,6 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
     html, body {
       margin: 0;
       padding: 0;
-      width: 281mm;
-      height: 194mm;
       background: #fff;
       color: #111;
       font-family: "Segoe UI", system-ui, sans-serif;
@@ -153,55 +167,59 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
     .sheet {
       width: 281mm;
       height: 194mm;
-      padding: 3mm 4mm 2.5mm;
+      padding: 3.5mm 5mm 3mm;
       display: flex;
       flex-direction: column;
-      gap: 3mm;
+      gap: 3.5mm;
       overflow: hidden;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .sheet--break {
+      page-break-after: always;
+      break-after: page;
     }
     .head {
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
       gap: 6mm;
-      border-bottom: 0.5mm solid #111;
-      padding-bottom: 2mm;
+      border-bottom: 0.55mm solid #111;
+      padding-bottom: 2.5mm;
       flex-shrink: 0;
     }
     .head h1 {
       margin: 0;
-      font-size: 18pt;
+      font-size: 20pt;
       font-weight: 800;
       letter-spacing: -0.02em;
-      line-height: 1.1;
+      line-height: 1.08;
     }
     .head .mode {
-      margin: 1.2mm 0 0;
+      margin: 1.4mm 0 0;
       font-size: 10pt;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.08em;
       color: #333;
     }
+    .head .group {
+      margin: 1.2mm 0 0;
+      font-size: 12pt;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: #111;
+    }
     .meta {
-      max-width: 52%;
+      max-width: 48%;
       text-align: right;
-      font-size: 9pt;
-      line-height: 1.4;
+      font-size: 10pt;
+      line-height: 1.45;
       color: #222;
     }
     .meta span { display: block; }
-    .panels {
+    .table-wrap {
       flex: 1 1 auto;
-      min-height: 0;
-      display: grid;
-      gap: 4mm;
-      align-items: stretch;
-    }
-    .panels--1 { grid-template-columns: 1fr; }
-    .panels--2 { grid-template-columns: 1fr 1fr; }
-    .panel {
-      min-width: 0;
       min-height: 0;
       display: flex;
       flex-direction: column;
@@ -213,28 +231,28 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
       table-layout: fixed;
       line-height: 1.15;
     }
-    thead { height: auto; }
     tbody tr { height: var(--row-h, auto); }
     th, td {
       border: 0.28mm solid #9ca3af;
-      padding: 1.4mm 1mm;
+      padding: 2mm 1.2mm;
       text-align: center;
       vertical-align: middle;
       word-break: break-word;
     }
     thead th { background: #f3f4f6; font-weight: 700; }
     th.axis, td.axis {
-      width: 11%;
-      font-weight: 700;
+      width: 10%;
+      font-weight: 800;
       background: #fafafa;
+      font-size: 1.15em;
     }
-    .tariff .code { font-size: 1.08em; }
+    .tariff .code { font-size: 1.12em; }
     .vip {
       display: inline-block;
-      margin-left: 1mm;
-      padding: 0 1.2mm;
+      margin-left: 1.2mm;
+      padding: 0 1.4mm;
       border: 0.22mm solid #111;
-      font-size: 0.72em;
+      font-size: 0.7em;
       font-weight: 700;
     }
     .tariff-vip { background: #fffbeb; }
@@ -244,39 +262,30 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
     td.off { font-weight: 800; color: #111; background: #f0fdf4; }
     tr.alt td, tr.alt th.axis { background: #f9fafb; }
     tr.alt td.off { background: #ecfdf5; }
-    .empty { margin: auto; text-align: center; color: #666; font-size: 12pt; }
+    .empty {
+      margin: auto;
+      text-align: center;
+      color: #666;
+      font-size: 12pt;
+    }
     .foot {
       flex-shrink: 0;
-      font-size: 7.5pt;
+      font-size: 8pt;
       color: #6b7280;
       text-align: right;
       padding-top: 0.5mm;
     }
     @media print {
-      html, body, .sheet {
+      .sheet {
         width: 281mm;
         height: 194mm;
-      }
-      .sheet {
-        page-break-inside: avoid;
-        break-inside: avoid;
       }
       table { page-break-inside: avoid; break-inside: avoid; }
     }
   </style>
 </head>
 <body>
-  <div class="sheet">
-    <header class="head">
-      <div>
-        <h1>${title}</h1>
-        <p class="mode">${modeLabel}</p>
-      </div>
-      <div class="meta">${metaBits.map((b) => `<span>${b}</span>`).join('')}</div>
-    </header>
-    ${bodyHtml}
-    <p class="foot">Прайс клуба · один лист A4 альбом${split ? ' · две панели' : ''}</p>
-  </div>
+  ${sheetsHtml}
 </body>
 </html>`
 }

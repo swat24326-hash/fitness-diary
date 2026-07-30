@@ -126,7 +126,9 @@ export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
     setBusy(true)
     try {
       const result = await downloadPriceListPng(doc, { mode })
-      setToast(result.ok ? `PNG сохранён: ${result.filename}` : 'Не удалось сделать PNG')
+      if (!result.ok) setToast('Не удалось сделать PNG')
+      else if (result.count > 1) setToast(`PNG: ${result.count} листа (Карты / VIP)`)
+      else setToast(`PNG сохранён: ${result.filename}`)
     } catch (e) {
       setToast(e?.message ? String(e.message) : 'Ошибка PNG')
     } finally {

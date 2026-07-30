@@ -46,8 +46,9 @@ import {
 import { buildPriceListPrintHtml, formatPriceListValidFromRu } from '../src/lib/priceList/priceListPrintHtml.js'
 import {
   PRICE_LIST_A4_LANDSCAPE,
-  shouldSplitPriceListTariffs,
-  splitPriceListTariffPanels,
+  PRICE_LIST_PRINT_COLS_PER_SHEET,
+  buildPriceListPrintSheets,
+  partitionPriceListTariffsByVip,
 } from '../src/lib/priceList/priceListPrintLayout.js'
 
 let failed = 0
@@ -255,22 +256,36 @@ const printHtml = buildPriceListPrintHtml(
 ok(printHtml.includes('A4 landscape'), 'print html landscape page')
 ok(printHtml.includes('PL') && printHtml.includes('900'), 'print html has tariff prices')
 ok(!printHtml.includes('<script'), 'print html without scripts')
-ok(printHtml.includes('panels--1'), 'print single panel for few tariffs')
+ok(printHtml.includes('Карты') || printHtml.includes('group'), 'print sheet group label')
 ok(Math.abs(PRICE_LIST_A4_LANDSCAPE.aspect - 297 / 210) < 0.001, 'png a4 landscape aspect')
-ok(!shouldSplitPriceListTariffs([{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }]), 'no split ≤4')
-ok(shouldSplitPriceListTariffs([{ id: 1 }, { id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }]), 'split >4')
-const panels = splitPriceListTariffPanels([1, 2, 3, 4, 5, 6, 7])
-ok(panels.length === 2 && panels[0].length === 4 && panels[1].length === 3, 'split 7 → 4+3')
+ok(PRICE_LIST_PRINT_COLS_PER_SHEET === 4, 'max 4 tariff cols per sheet')
+
+const mixed = [
+  { code: 'Br', is_vip: false },
+  { code: 'Dm', is_vip: false },
+  { code: 'El', is_vip: false },
+  { code: 'Pl', is_vip: false },
+  { code: 'Vip1', is_vip: true },
+  { code: 'Vip2', is_vip: true },
+  { code: 'Vip3', is_vip: true },
+]
+const parts = partitionPriceListTariffsByVip(mixed)
+ok(parts.cards.length === 4 && parts.vip.length === 3, 'partition cards/vip')
+const sheets = buildPriceListPrintSheets(mixed)
+ok(sheets.length === 2, 'two sheets: cards + vip')
+ok(sheets[0].kind === 'cards' && sheets[0].tariffs.length === 4, 'sheet1 cards ×4')
+ok(sheets[1].kind === 'vip' && sheets[1].tariffs.length === 3, 'sheet2 vip ×3')
+
 const printWide = buildPriceListPrintHtml(
   {
     club_id: 'c1',
-    meta: { title: 'ПЗ' },
-    tariffs: [1, 2, 3, 4, 5].map((n) => ({
-      membership_type_id: `t${n}`,
-      code: `T${n}`,
-      print_label: `T${n}`,
-      sort_order: n,
-      is_vip: false,
+    meta: { title: 'ПЗ', address: 'Ул. Тест', phone: '8-900' },
+    tariffs: mixed.map((t, i) => ({
+      membership_type_id: `t${i}`,
+      code: t.code,
+      print_label: t.code,
+      sort_order: i,
+      is_vip: t.is_vip,
     })),
     sessions: [4],
     people: [1],
@@ -278,7 +293,10 @@ const printWide = buildPriceListPrintHtml(
   },
   { mode: 'base' },
 )
-ok(printWide.includes('panels--2'), 'print two panels for many tariffs')
+ok(printWide.includes('sheet--break'), 'print page break between sheets')
+ok(printWide.includes('VIP') && printWide.includes('Карты'), 'print has Карты and VIP sheets')
+ok((printWide.match(/class="sheet/g) || []).length === 2, 'print two sheet sections')
+ok(buildPriceListPngFileName({ clubId: 'abc', mode: 'base', sheetSlug: 'vip', validFrom: '2026-07-21' }).includes('vip'), 'png name sheet slug')
 
 ok(assertPriceListClubAccess({ isAdmin: true }, 'club-1').ok === true, 'admin any club read')
 ok(assertPriceListClubAccess({ isAdmin: true, isSalesManager: true, salesClubId: 'club-2' }, 'club-1').ok === true, 'admin overrides manager club scope')

@@ -17,8 +17,7 @@ import {
 import { buildPriceListPrintHtml } from './priceListPrintHtml.js'
 import {
   PRICE_LIST_A4_LANDSCAPE,
-  shouldSplitPriceListTariffs,
-  splitPriceListTariffPanels,
+  buildPriceListPrintSheets,
 } from './priceListPrintLayout.js'
 
 const C = {
@@ -38,32 +37,35 @@ const C = {
 }
 
 /**
- * PNG под пропорции A4 landscape — при печати «на всю страницу» заполняет альбомный лист.
+ * PNG одного листа A4 альбом (Карты или VIP).
  * @param {object} doc
- * @param {{ mode?: string }} [opts]
+ * @param {{ mode?: string, sheet?: { sheetLabel?: string, slug?: string, tariffs: object[] }, sheetIndex?: number, sheetTotal?: number }} [opts]
  * @returns {Promise<Blob>}
  */
 export async function renderPriceListPng(doc, opts = {}) {
   if (typeof document === 'undefined') throw new Error('Только в браузере')
   const mode = normalizePriceListMode(opts.mode)
   const normalized = normalizePriceListDocument(doc, doc?.club_id)
-  const tariffs = normalized.tariffs ?? []
-  if (!tariffs.length) throw new Error('Нет колонок прайса')
+  const allTariffs = normalized.tariffs ?? []
+  if (!allTariffs.length) throw new Error('Нет колонок прайса')
+
+  const sheets = buildPriceListPrintSheets(allTariffs)
+  const sheet = opts.sheet || sheets[0]
+  if (!sheet?.tariffs?.length) throw new Error('Нет колонок прайса')
 
   const rows = buildPriceListRows(normalized)
-  const panels = splitPriceListTariffPanels(tariffs)
-  const split = shouldSplitPriceListTariffs(tariffs)
+  const sheetIndex = opts.sheetIndex ?? 0
+  const sheetTotal = opts.sheetTotal ?? sheets.length
 
   const { widthPx: width, heightPx: height } = PRICE_LIST_A4_LANDSCAPE
   const padX = 48
   const padTop = 40
   const padBottom = 36
-  const headerH = 118
-  const gap = split ? 28 : 0
+  const headerH = 128
   const footH = 28
   const bodyTop = padTop + headerH
   const bodyH = height - bodyTop - padBottom - footH
-  const panelW = split ? (width - padX * 2 - gap) / 2 : width - padX * 2
+  const tableW = width - padX * 2
 
   const canvas = document.createElement('canvas')
   canvas.width = width
@@ -78,14 +80,18 @@ export async function renderPriceListPng(doc, opts = {}) {
   ctx.fillStyle = C.accentSoft
   ctx.font = '800 42px "Segoe UI", system-ui, sans-serif'
   ctx.textAlign = 'left'
-  ctx.fillText(truncate(ctx, title, width * 0.55), padX, padTop + 36)
+  ctx.fillText(truncate(ctx, title, width * 0.52), padX, padTop + 34)
 
   ctx.fillStyle = C.muted
-  ctx.font = '700 18px "Segoe UI", system-ui, sans-serif'
-  ctx.fillText(priceListModePrintLabel(mode).toUpperCase(), padX, padTop + 68)
+  ctx.font = '700 17px "Segoe UI", system-ui, sans-serif'
+  ctx.fillText(priceListModePrintLabel(mode).toUpperCase(), padX, padTop + 64)
+
+  ctx.fillStyle = C.text
+  ctx.font = '800 22px "Segoe UI", system-ui, sans-serif'
+  ctx.fillText(String(sheet.sheetLabel || 'Карты'), padX, padTop + 96)
 
   ctx.fillStyle = C.accent
-  ctx.fillRect(padX, padTop + 82, 80, 3)
+  ctx.fillRect(padX, padTop + 108, 80, 3)
 
   const address = String(normalized.meta?.address ?? '').trim()
   const phone = String(normalized.meta?.phone ?? '').trim()
@@ -95,12 +101,12 @@ export async function renderPriceListPng(doc, opts = {}) {
   ctx.font = '500 18px "Segoe UI", system-ui, sans-serif'
   let metaY = padTop + 28
   if (address) {
-    ctx.fillText(truncate(ctx, address, width * 0.4), width - padX, metaY)
+    ctx.fillText(truncate(ctx, address, width * 0.42), width - padX, metaY)
     metaY += 26
   }
   if (phone) {
     ctx.fillStyle = C.muted
-    ctx.fillText(truncate(ctx, phone, width * 0.4), width - padX, metaY)
+    ctx.fillText(truncate(ctx, phone, width * 0.42), width - padX, metaY)
     metaY += 24
   }
   if (validFrom) {
@@ -109,30 +115,60 @@ export async function renderPriceListPng(doc, opts = {}) {
   }
   ctx.textAlign = 'left'
 
-  panels.forEach((panel, pi) => {
-    const x = padX + pi * (panelW + gap)
-    drawTariffPanel(ctx, {
-      x,
-      y: bodyTop,
-      w: panelW,
-      h: bodyH,
-      tariffs: panel,
-      rows,
-      normalized,
-      mode,
-    })
+  drawTariffPanel(ctx, {
+    x: padX,
+    y: bodyTop,
+    w: tableW,
+    h: bodyH,
+    tariffs: sheet.tariffs,
+    rows,
+    normalized,
+    mode,
   })
 
   ctx.textAlign = 'right'
   ctx.fillStyle = C.dim
   ctx.font = '500 15px "Segoe UI", system-ui, sans-serif'
   ctx.fillText(
-    split ? 'Прайс клуба · A4 альбом · две панели' : 'Прайс клуба · A4 альбом',
+    `Прайс клуба · A4 альбом · лист ${sheetIndex + 1}/${Math.max(1, sheetTotal)}`,
     width - padX,
     height - 14,
   )
 
   return canvasToBlob(canvas)
+}
+
+/**
+ * Все листы PNG (Карты, VIP…).
+ * @param {object} doc
+ * @param {{ mode?: string }} [opts]
+ * @returns {Promise<Array<{ blob: Blob, filename: string, sheetLabel: string }>>}
+ */
+export async function renderPriceListPngSheets(doc, opts = {}) {
+  const mode = normalizePriceListMode(opts.mode)
+  const normalized = normalizePriceListDocument(doc, doc?.club_id)
+  const sheets = buildPriceListPrintSheets(normalized.tariffs ?? [])
+  if (!sheets.length) throw new Error('Нет колонок прайса')
+
+  /** @type {Array<{ blob: Blob, filename: string, sheetLabel: string }>} */
+  const out = []
+  for (let i = 0; i < sheets.length; i++) {
+    const sheet = sheets[i]
+    const blob = await renderPriceListPng(doc, {
+      mode,
+      sheet,
+      sheetIndex: i,
+      sheetTotal: sheets.length,
+    })
+    const filename = buildPriceListPngFileName({
+      clubId: doc?.club_id,
+      mode,
+      validFrom: doc?.valid_from,
+      sheetSlug: sheet.slug,
+    })
+    out.push({ blob, filename, sheetLabel: sheet.sheetLabel })
+  }
+  return out
 }
 
 /**
@@ -227,14 +263,21 @@ export function downloadPriceListPngBlob(blob, filename) {
  * @param {{ mode?: string }} [opts]
  */
 export async function downloadPriceListPng(doc, opts = {}) {
-  const blob = await renderPriceListPng(doc, opts)
-  const name = buildPriceListPngFileName({
-    clubId: doc?.club_id,
-    mode: opts.mode,
-    validFrom: doc?.valid_from,
-  })
-  downloadPriceListPngBlob(blob, name)
-  return { ok: true, filename: name }
+  const sheets = await renderPriceListPngSheets(doc, opts)
+  for (let i = 0; i < sheets.length; i++) {
+    const { blob, filename } = sheets[i]
+    downloadPriceListPngBlob(blob, filename)
+    if (i < sheets.length - 1) await sleep(350)
+  }
+  return {
+    ok: true,
+    filename: sheets.map((s) => s.filename).join(', '),
+    count: sheets.length,
+  }
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 /**
