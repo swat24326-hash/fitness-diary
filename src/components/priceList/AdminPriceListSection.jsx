@@ -83,6 +83,14 @@ export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
   useEffect(() => {
     void reload({ force: false })
   }, [reload])
+
+  useEffect(() => {
+    document.body.classList.remove('price-list-printing')
+    return () => {
+      document.body.classList.remove('price-list-printing')
+      document.querySelectorAll('iframe[data-price-list-print-frame]').forEach((el) => el.remove())
+    }
+  }, [])
   const rows = useMemo(() => buildPriceListRows(doc), [doc])
   const tariffs = doc.tariffs ?? []
   const peopleSet = useMemo(() => new Set(doc.people ?? []), [doc.people])
@@ -107,7 +115,7 @@ export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
   const handlePrint = () => {
     const result = printPriceListDocument(doc, { mode })
     if (!result.ok) setToast(result.error || 'Печать недоступна')
-    else setToast('В окне печати выберите альбомную ориентацию (A4), если стоит книжная')
+    else setToast('Если в диалоге стоит «Книжная» — переключите на «Альбомная»')
   }
 
   const handlePng = async () => {

@@ -202,7 +202,7 @@ export async function downloadPriceListPng(doc, opts = {}) {
 }
 
 /**
- * Печать: отдельное окно с HTML на 1× A4 альбом (без «пустой» первой страницы SPA).
+ * Печать через скрытый iframe + blob URL (без window.open — он давал пустой белый лист).
  * @param {object} doc
  * @param {{ mode?: string }} [opts]
  */
@@ -214,47 +214,66 @@ export function printPriceListDocument(doc, opts = {}) {
     return { ok: false, error: 'Нет колонок прайса для печати' }
   }
 
+  document.body.classList.remove('price-list-printing')
+
   const html = buildPriceListPrintHtml(doc, opts)
-  const w = window.open('', '_blank', 'noopener,noreferrer,width=1100,height=780')
-  if (!w) {
-    return { ok: false, error: 'Разрешите всплывающие окна для печати' }
-  }
+  document.querySelectorAll('iframe[data-price-list-print-frame]').forEach((el) => el.remove())
 
-  w.document.open()
-  w.document.write(html)
-  w.document.close()
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
 
-  const runPrint = () => {
+  const iframe = document.createElement('iframe')
+  iframe.setAttribute('data-price-list-print-frame', '1')
+  iframe.setAttribute('title', 'Печать прайса')
+  iframe.setAttribute('aria-hidden', 'true')
+  // Не display:none и не 0×0 — иначе Chrome печатает пустой лист
+  iframe.style.cssText =
+    'position:fixed;left:-10000px;top:0;width:1100px;height:800px;border:0;opacity:0;pointer-events:none;'
+  document.body.appendChild(iframe)
+
+  let cleaned = false
+  const cleanup = () => {
+    if (cleaned) return
+    cleaned = true
     try {
-      w.focus()
-      w.print()
+      iframe.remove()
     } catch {
       /* ignore */
     }
-    // Закрываем после печати / отмены (Chrome шлёт afterprint)
-    const closeLater = () => {
-      try {
-        w.close()
-      } catch {
-        /* ignore */
-      }
-    }
-    w.addEventListener('afterprint', closeLater)
-    setTimeout(closeLater, 60_000)
+    URL.revokeObjectURL(url)
   }
 
-  if (w.document.readyState === 'complete') {
-    setTimeout(runPrint, 50)
-  } else {
-    w.addEventListener('load', () => setTimeout(runPrint, 50))
+  const runPrint = () => {
+    const frameWin = iframe.contentWindow
+    if (!frameWin) {
+      cleanup()
+      return
+    }
+    try {
+      frameWin.focus()
+      frameWin.print()
+    } catch {
+      cleanup()
+      return
+    }
+    frameWin.addEventListener('afterprint', cleanup)
+    setTimeout(cleanup, 120_000)
   }
+
+  iframe.onload = () => {
+    // Дать браузеру отрисовать таблицу до print()
+    requestAnimationFrame(() => {
+      setTimeout(runPrint, 80)
+    })
+  }
+  iframe.src = url
 
   return { ok: true }
 }
 
-/** @deprecated используйте printPriceListDocument(doc, { mode }) */
+/** @deprecated */
 export function printPriceListSurface() {
-  return { ok: false, error: 'Вызовите печать из экрана прайса ещё раз' }
+  return { ok: false, error: 'Устаревший вызов печати' }
 }
 
 function formatDateRu(iso) {
