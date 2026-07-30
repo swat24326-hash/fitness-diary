@@ -221,7 +221,7 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
       gap: 4mm;
       align-items: end;
       border-bottom: 0.45mm solid ${P.accent};
-      padding-bottom: 2.2mm;
+      padding-bottom: 2.8mm;
       flex-shrink: 0;
     }
     .cap-club {
@@ -254,7 +254,7 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
       color: ${P.text};
     }
     .cap-title .group {
-      margin: 1.4mm 0 0;
+      margin: 1.4mm 0 1.6mm;
       font-size: 11pt;
       font-weight: 800;
       letter-spacing: 0.06em;
@@ -267,7 +267,7 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
       display: flex;
       flex-direction: column;
       border-radius: 3mm;
-      border: 0.35mm solid ${P.border};
+      border: 0.5mm solid ${P.accent};
       background: ${P.card};
       overflow: hidden;
     }
@@ -280,7 +280,7 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
     }
     tbody tr { height: var(--row-h, auto); }
     th, td {
-      border: 0.22mm solid ${P.borderSoft};
+      border: 0.32mm solid rgba(46, 255, 184, 0.42);
       padding: 1.6mm 1mm;
       text-align: center;
       vertical-align: middle;

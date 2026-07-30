@@ -62,7 +62,7 @@ export async function renderPriceListPng(doc, opts = {}) {
   const padX = Math.round(u * 2.2)
   const padTop = Math.round(u * 1.7)
   const padBottom = Math.round(u * 1.2)
-  const headerH = Math.round(u * 6.2)
+  const headerH = Math.round(u * 7.4)
   const basementH = Math.round(u * 4.2)
   const footH = Math.round(u * 1.1)
   const bodyTop = padTop + headerH
@@ -112,32 +112,31 @@ export async function renderPriceListPng(doc, opts = {}) {
     ctx.fillText(truncate(ctx, cap.phone, width * 0.34), padX, clubY + type.phone * 0.2)
   }
 
+  // Центр: title → subtitle → VIP; линия всегда НИЖЕ текста (не через буквы)
+  const titleY = padTop + type.title * 0.95
+  const subtitleY = titleY + type.subtitle * 1.35
+  const groupY = cap.sheetLabel ? subtitleY + type.group * 1.35 : subtitleY
+  // Базовая линия текста + зазор — без Math.min вверх, иначе линия режет VIP
+  const ruleY = (cap.sheetLabel ? groupY : subtitleY) + Math.round(u * 1.2)
+
   ctx.textAlign = 'center'
   ctx.fillStyle = C.accentBright
   ctx.font = `800 ${type.title}px "Segoe UI", system-ui, sans-serif`
-  ctx.fillText(truncate(ctx, cap.title, width * 0.52), width / 2, padTop + type.title * 0.95)
+  ctx.fillText(truncate(ctx, cap.title, width * 0.52), width / 2, titleY)
   ctx.fillStyle = C.text
   ctx.font = `600 ${type.subtitle}px "Segoe UI", system-ui, sans-serif`
-  ctx.fillText(
-    truncate(ctx, cap.subtitle, width * 0.52),
-    width / 2,
-    padTop + type.title * 1.15 + type.subtitle,
-  )
+  ctx.fillText(truncate(ctx, cap.subtitle, width * 0.52), width / 2, subtitleY)
   if (cap.sheetLabel) {
     ctx.fillStyle = C.accent
     ctx.font = `800 ${type.group}px "Segoe UI", system-ui, sans-serif`
-    ctx.fillText(
-      String(cap.sheetLabel).toUpperCase(),
-      width / 2,
-      padTop + type.title * 1.15 + type.subtitle * 1.2 + type.group,
-    )
+    ctx.fillText(String(cap.sheetLabel).toUpperCase(), width / 2, groupY)
   }
 
   ctx.strokeStyle = C.accent
   ctx.lineWidth = Math.max(2, Math.round(u * 0.1))
   ctx.beginPath()
-  ctx.moveTo(padX, padTop + headerH - Math.round(u * 0.45))
-  ctx.lineTo(width - padX, padTop + headerH - Math.round(u * 0.45))
+  ctx.moveTo(padX, ruleY)
+  ctx.lineTo(width - padX, ruleY)
   ctx.stroke()
 
   drawTariffPanel(ctx, {
@@ -247,7 +246,15 @@ function drawTariffPanel(ctx, p) {
   const peopleFs = Math.round(sessionFs * 0.85)
   const axisHeadFs = Math.round(Math.min(axisW * 0.22, headH * 0.22, subFs * 0.95))
 
-  roundRect(ctx, x, y, w, h, Math.round(u * 0.55), C.card, C.border)
+  const grid = 'rgba(46, 255, 184, 0.48)'
+  const gridStrong = 'rgba(46, 255, 184, 0.68)'
+  const gridW = Math.max(1.75, Math.round(u * 0.08))
+  const gridWStrong = Math.max(2.25, Math.round(u * 0.1))
+
+  roundRect(ctx, x, y, w, h, Math.round(u * 0.55), C.card, gridStrong)
+  ctx.strokeStyle = gridStrong
+  ctx.lineWidth = gridWStrong
+  ctx.strokeRect(x + 1, y + 1, w - 2, h - 2)
 
   ctx.fillStyle = C.headBg
   ctx.fillRect(x + 1, y + 1, w - 2, headH + subH - 2)
@@ -285,7 +292,7 @@ function drawTariffPanel(ctx, p) {
     ctx.fillText('−10%', tx + halfW * 1.5, y + headH + subH * 0.68)
   })
 
-  strokeLine(ctx, x, y + headH + subH, x + w, y + headH + subH, C.borderSoft, 1)
+  strokeLine(ctx, x, y + headH + subH, x + w, y + headH + subH, gridStrong, gridWStrong)
 
   rows.forEach((row, ri) => {
     const rowY = y + headH + subH + ri * rowH
@@ -334,19 +341,19 @@ function drawTariffPanel(ctx, p) {
       ctx.fillText(formatPriceListMoney(cell.price_10), tx + halfW * 1.5, cy)
     })
 
-    strokeLine(ctx, x, rowY + rowH, x + w, rowY + rowH, C.borderSoft, 1)
+    strokeLine(ctx, x, rowY + rowH, x + w, rowY + rowH, grid, gridW)
   })
 
-  strokeLine(ctx, x + axisW, y, x + axisW, y + h, C.borderSoft, 1)
+  strokeLine(ctx, x + axisW, y, x + axisW, y + h, grid, gridW)
   if (showPeople) {
-    strokeLine(ctx, x + axisW + peopleW, y, x + axisW + peopleW, y + h, C.borderSoft, 1)
+    strokeLine(ctx, x + axisW + peopleW, y, x + axisW + peopleW, y + h, grid, gridW)
   }
   tariffs.forEach((_, i) => {
     const tx = x + axisW + peopleW + i * pairW
-    strokeLine(ctx, tx, y, tx, y + h, C.borderSoft, 1)
-    strokeLine(ctx, tx + halfW, y + headH, tx + halfW, y + h, C.borderSoft, 1)
+    strokeLine(ctx, tx, y, tx, y + h, grid, gridW)
+    strokeLine(ctx, tx + halfW, y + headH, tx + halfW, y + h, grid, gridW)
   })
-  strokeLine(ctx, x + w, y, x + w, y + h, C.border, 1.5)
+  strokeLine(ctx, x + w, y, x + w, y + h, gridStrong, gridWStrong)
 }
 
 /**
