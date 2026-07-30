@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
-import { BarChart3, CalendarDays, ClipboardList, RefreshCw, Tags, TrendingUp, UserRound } from 'lucide-react'
+import { BarChart3, CalendarDays, ClipboardList, Compass, RefreshCw, Tags, TrendingUp, UserRound } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { addDaysToIso, clampIsoDateToToday, formatDateRu, todayLocalIso } from '../../lib/dateRu'
@@ -74,12 +74,14 @@ import { SalesDailyForm } from '../../components/SalesDailyForm'
 import { SalesDailyTaskAssign } from '../../components/sales/SalesDailyTaskAssign.jsx'
 import { SalesFinancePanel } from '../../components/SalesFinancePanel'
 import { SalesPlanSettingsPanel } from '../../components/SalesPlanSettingsPanel'
+import { SalesStrategyPanel } from '../../components/SalesStrategyPanel'
 import { SalesManagerStatsPanel } from '../../components/SalesManagerStatsPanel'
 import { SalesManagerAnalyticsPanel } from '../../components/SalesManagerAnalyticsPanel'
 import { SectionErrorBoundary } from '../../components/SectionErrorBoundary'
 import { AdminHomeAttentionRow } from '../../components/admin/AdminHomeAttentionRow'
 import { AdminPriceListSection } from '../../components/priceList/AdminPriceListSection.jsx'
 import '../../styles/sales-report.css'
+import '../../styles/sales-strategy.css'
 
 const MONTH_NAMES = [
   'январь',
@@ -112,10 +114,12 @@ export function AdminSales({ accessMode = 'admin' }) {
       if (salesTabParam === 'report') return 'report'
       if (salesTabParam === 'analytics') return 'analytics'
       if (salesTabParam === 'price') return 'price'
+      if (salesTabParam === 'strategy') return 'strategy'
       return 'home'
     }
     if (salesTabParam === 'finance') return 'finance'
     if (salesTabParam === 'plan') return 'plan'
+    if (salesTabParam === 'strategy') return 'strategy'
     if (salesTabParam === 'stats') return 'stats'
     if (salesTabParam === 'price') return 'price'
     return 'daily'
@@ -905,6 +909,12 @@ export function AdminSales({ accessMode = 'admin' }) {
                   </div>
                   <p className="sales-home__tile-title">Аналитика</p>
                 </Link>
+                <Link to="/sales?tab=strategy" className="sales-home__tile u-no-decoration">
+                  <div className="sales-home__tile-icon">
+                    <Compass size={44} aria-hidden />
+                  </div>
+                  <p className="sales-home__tile-title">Стратегия</p>
+                </Link>
                 <Link to="/sales?tab=price" className="sales-home__tile u-no-decoration">
                   <div className="sales-home__tile-icon">
                     <Tags size={44} aria-hidden />
@@ -965,7 +975,9 @@ export function AdminSales({ accessMode = 'admin' }) {
                   ? 'Аналитика'
                   : salesTab === 'price'
                     ? 'Прайс'
-                    : 'Статистика'}
+                    : salesTab === 'strategy'
+                      ? 'Стратегия'
+                      : 'Статистика'}
             </h1>
           </div>
           <button
@@ -1024,6 +1036,17 @@ export function AdminSales({ accessMode = 'admin' }) {
                 type="button"
                 className="tab"
                 role="tab"
+                id="sales-tab-strategy"
+                aria-selected={salesTab === 'strategy'}
+                aria-controls="sales-panel-strategy"
+                onClick={() => setSalesTab('strategy')}
+              >
+                Стратегия
+              </button>
+              <button
+                type="button"
+                className="tab"
+                role="tab"
                 id="sales-tab-plan"
                 aria-selected={salesTab === 'plan'}
                 aria-controls="sales-panel-plan"
@@ -1055,6 +1078,19 @@ export function AdminSales({ accessMode = 'admin' }) {
               </button>
             </>
           ) : null}
+        </div>
+      ) : null}
+
+      {isSalesManager && salesTab === 'strategy' ? (
+        <div id="sales-panel-strategy" className="sales-report__panel">
+          <SalesStrategyPanel
+            clubId={clubId}
+            membershipTypes={membershipTypes}
+            planForm={planForm}
+            onPlanChange={setPlanForm}
+            onSelectPlanMonth={selectPlanCalendarMonth}
+            onToast={showToast}
+          />
         </div>
       ) : null}
 
@@ -1165,18 +1201,23 @@ export function AdminSales({ accessMode = 'admin' }) {
             showPayroll
           />
         </div>
+      ) : !isSalesManager && salesTab === 'strategy' ? (
+        <div id="sales-panel-strategy" role="tabpanel" aria-labelledby="sales-tab-strategy">
+          <SalesStrategyPanel
+            clubId={clubId}
+            membershipTypes={membershipTypes}
+            planForm={planForm}
+            onPlanChange={setPlanForm}
+            onSelectPlanMonth={selectPlanCalendarMonth}
+            onToast={showToast}
+          />
+        </div>
       ) : !isSalesManager && salesTab === 'plan' ? (
         <div id="sales-panel-plan" role="tabpanel" aria-labelledby="sales-tab-plan">
           <SalesPlanSettingsPanel
             monthLabel={monthLabel}
-            clubId={clubId}
-            year={yearMonth.year}
-            month={yearMonth.month}
-            membershipTypes={membershipTypes}
-            monthDays={monthDays}
             planForm={planForm}
             onPlanChange={setPlanForm}
-            onSelectPlanMonth={selectPlanCalendarMonth}
             expenseForm={expenseForm}
             onExpenseChange={setExpenseForm}
             onSavePlan={() => void handleSavePlanLevels()}
@@ -1184,7 +1225,6 @@ export function AdminSales({ accessMode = 'admin' }) {
             onSaveFinance={() => void handleSaveFinance()}
             savingPlan={savingPlan}
             savingFinance={savingFinance}
-            onToast={showToast}
           />
         </div>
       ) : !isSalesManager && salesTab === 'finance' ? (

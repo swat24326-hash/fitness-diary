@@ -2,19 +2,12 @@ import { Save, Target } from 'lucide-react'
 import { PLAN_LEVEL_KEYS, PLAN_LEVEL_LABELS } from '../lib/admin/salesReportCore.js'
 import { SalesFinanceBlock } from './SalesFinanceBlock.jsx'
 import { SalesPlanDirectionsForm } from './SalesPlanDirectionsForm.jsx'
-import { SalesPlanPzDkSuggestBar } from './SalesPlanPzDkSuggestBar.jsx'
 
 /**
  * @param {{
  *   monthLabel: string,
- *   clubId?: string,
- *   year?: number,
- *   month?: number,
- *   membershipTypes?: object[],
- *   monthDays?: object[],
  *   planForm: Record<string, string>,
  *   onPlanChange: (next: Record<string, string>) => void,
- *   onSelectPlanMonth?: (ym: { year: number, month: number }) => void,
  *   expenseForm: Record<string, string>,
  *   onExpenseChange: (next: Record<string, string>) => void,
  *   onSavePlan: () => void,
@@ -22,19 +15,12 @@ import { SalesPlanPzDkSuggestBar } from './SalesPlanPzDkSuggestBar.jsx'
  *   onSaveFinance: () => void,
  *   savingPlan?: boolean,
  *   savingFinance?: boolean,
- *   onToast?: (text: string, tone?: 'ok' | 'err' | 'warn') => void,
  * }} props
  */
 export function SalesPlanSettingsPanel({
   monthLabel,
-  clubId = '',
-  year,
-  month,
-  membershipTypes = [],
-  monthDays = [],
   planForm,
   onPlanChange,
-  onSelectPlanMonth,
   expenseForm,
   onExpenseChange,
   onSavePlan,
@@ -42,7 +28,6 @@ export function SalesPlanSettingsPanel({
   onSaveFinance,
   savingPlan = false,
   savingFinance = false,
-  onToast,
 }) {
   const setPlan = (key, value) => onPlanChange({ ...planForm, [key]: value })
   const setExpense = (value) => onExpenseChange({ expense_month: value })
@@ -91,22 +76,8 @@ export function SalesPlanSettingsPanel({
         <SalesFinanceBlock
           step={2}
           title="План по направлениям"
-          hint="Количество × средний чек по НК/ДК/УК. Сумма направлений — не меньше уровня 3."
+          hint="Количество × средний чек по НК/ДК/УК. Ориентир ПЗ·ДК и якорь зала — вкладка «Стратегия». Сумма направлений — не меньше уровня 3."
         >
-          {clubId && year && month ? (
-            <SalesPlanPzDkSuggestBar
-              clubId={clubId}
-              year={year}
-              month={month}
-              membershipTypes={membershipTypes}
-              monthDays={monthDays}
-              planForm={planForm}
-              onPlanChange={onPlanChange}
-              onSelectPlanMonth={onSelectPlanMonth}
-              disabled={savingPlan}
-              onToast={onToast}
-            />
-          ) : null}
           <SalesPlanDirectionsForm
             embedded
             planForm={planForm}

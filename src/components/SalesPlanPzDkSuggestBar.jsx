@@ -1,20 +1,19 @@
-import { useEffect, useState } from 'react'
-import { Calculator, Check } from 'lucide-react'
+import { useState } from 'react'
+import { Calculator } from 'lucide-react'
 import { formatRub } from '../lib/admin/salesReportCore.js'
-import { todayLocalIso } from '../lib/dateRu.js'
 import {
   applyPzDkSuggestToPlanForm,
   clampRenewalPct,
   formatPzDkSuggestSummaryRu,
-  planMonthMatchesTarget,
   PZ_DK_DEFAULT_RENEWAL_PCT,
   PZ_DK_SUGGEST_SESSIONS,
-  resolveTargetPlanMonthForHorizon,
 } from '../lib/admin/salesPlanPzDkSuggestCore.js'
 import { loadPzDkPlanSuggestForClub } from '../lib/admin/salesPlanPzDkSuggestService.js'
+import { SalesPlanPzDkSuggestPreview } from './SalesPlanPzDkSuggestPreview.jsx'
 
 /**
- * Ориентир ПЗ ДК: текущий / следующий месяц, % продления, минус факт, превью → применить.
+ * Ориентир ПЗ ДК: % продления, минус факт (для current), превью → «В план».
+ * `fixedHorizon` — горизонт задаёт родитель (вкладка «Стратегия»).
  *
  * @param {{
  *   clubId: string,
@@ -24,9 +23,10 @@ import { loadPzDkPlanSuggestForClub } from '../lib/admin/salesPlanPzDkSuggestSer
  *   monthDays?: object[],
  *   planForm: Record<string, string>,
  *   onPlanChange: (next: Record<string, string>) => void,
- *   onSelectPlanMonth?: (ym: { year: number, month: number }) => void,
+ *   fixedHorizon?: 'current' | 'next',
  *   disabled?: boolean,
  *   onToast?: (text: string, tone?: 'ok' | 'err' | 'warn') => void,
+ *   applyHint?: string,
  * }} props
  */
 export function SalesPlanPzDkSuggestBar({
@@ -37,19 +37,21 @@ export function SalesPlanPzDkSuggestBar({
   monthDays = [],
   planForm,
   onPlanChange,
-  onSelectPlanMonth,
+  fixedHorizon,
   disabled = false,
   onToast,
+  applyHint = 'Сохраните направления во вкладке «План месяца».',
 }) {
-  const [busyHorizon, setBusyHorizon] = useState(/** @type {null | 'current' | 'next'} */ (null))
-  const [pendingHorizon, setPendingHorizon] = useState(/** @type {null | 'current' | 'next'} */ (null))
+  const [busy, setBusy] = useState(false)
   const [renewalPct, setRenewalPct] = useState(String(PZ_DK_DEFAULT_RENEWAL_PCT))
   const [preview, setPreview] = useState(/** @type {object | null} */ (null))
   const [lastSummary, setLastSummary] = useState('')
 
+  const locked = fixedHorizon === 'current' || fixedHorizon === 'next'
+
   const runCalculate = async (horizon) => {
-    if (!clubId || busyHorizon || disabled) return
-    setBusyHorizon(horizon)
+    if (!clubId || busy || disabled) return
+    setBusy(true)
     setPreview(null)
     try {
       const res = await loadPzDkPlanSuggestForClub({
@@ -76,66 +78,27 @@ export function SalesPlanPzDkSuggestBar({
       onToast?.(e?.message || 'Ошибка расчёта ориентира', 'err')
       setLastSummary('')
     } finally {
-      setBusyHorizon(null)
+      setBusy(false)
     }
   }
-
-  const startHorizon = (horizon) => {
-    if (!clubId || busyHorizon || disabled) return
-    const target = resolveTargetPlanMonthForHorizon(horizon, todayLocalIso())
-    if (!target) {
-      onToast?.('Не удалось определить месяц', 'err')
-      return
-    }
-    if (!planMonthMatchesTarget(year, month, target)) {
-      if (typeof onSelectPlanMonth !== 'function') {
-        onToast?.(
-          `Откройте план на ${target.month}.${target.year} и нажмите снова`,
-          'warn',
-        )
-        return
-      }
-      setPendingHorizon(horizon)
-      onSelectPlanMonth({ year: target.year, month: target.month })
-      onToast?.(
-        horizon === 'current'
-          ? 'Переключили на текущий месяц плана — считаем…'
-          : 'Переключили на следующий месяц плана — считаем…',
-        'ok',
-      )
-      return
-    }
-    void runCalculate(horizon)
-  }
-
-  useEffect(() => {
-    if (!pendingHorizon || busyHorizon) return
-    const target = resolveTargetPlanMonthForHorizon(pendingHorizon, todayLocalIso())
-    if (!target || !planMonthMatchesTarget(year, month, target)) return
-    const h = pendingHorizon
-    setPendingHorizon(null)
-    void runCalculate(h)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- только после смены месяца плана
-  }, [year, month, pendingHorizon, monthDays])
 
   const applyPreview = () => {
     if (!preview?.ok) return
     const next = applyPzDkSuggestToPlanForm(planForm, preview)
     onPlanChange(next)
-    onToast?.(
-      `ПЗ ДК в форме: ${preview.count} шт. → ${formatRub(preview.amount)}. Сохраните направления.`,
-      'ok',
-    )
+    onToast?.(`ПЗ ДК в форме: ${preview.count} шт. → ${formatRub(preview.amount)}. ${applyHint}`, 'ok')
   }
-
-  const busy = busyHorizon != null || pendingHorizon != null
 
   return (
     <div className="sales-plan-pz-dk-suggest" role="group" aria-label="Ориентир плана ПЗ ДК">
       <p className="sales-plan-pz-dk-suggest__lead muted">
-        План продлений ПЗ·ДК: прайс пакета <strong>{PZ_DK_SUGGEST_SESSIONS} тр.</strong> × действующие
-        по типам карт × <strong>% продления</strong>. Кнопка сама открывает нужный месяц плана.
-        Для текущего — вычитаем уже учтённые в отчётах шт. ПЗ ДК. Сначала превью, потом «В план».
+        Прайс пакета <strong>{PZ_DK_SUGGEST_SESSIONS} тр.</strong> × действующие по типам ×{' '}
+        <strong>% продления</strong>
+        {locked && fixedHorizon === 'current'
+          ? '. Для текущего месяца вычитаем уже учтённые в отчётах шт. ПЗ ДК.'
+          : locked
+            ? '. Срез накануне месяца плана (без вычета факта).'
+            : '.'}
       </p>
 
       <div className="sales-plan-pz-dk-suggest__controls">
@@ -158,54 +121,43 @@ export function SalesPlanPzDkSuggestBar({
         </span>
       </div>
 
-      <ul className="sales-plan-pz-dk-suggest__hints muted">
-        <li>
-          <strong>Текущий месяц</strong> — срез сегодня, минус факт ПЗ ДК в отчётах → остаток до конца месяца.
-        </li>
-        <li>
-          <strong>Следующий месяц</strong> — срез накануне того месяца → черновик продлений (без вычета факта).
-        </li>
-      </ul>
-
       <div className="sales-plan-pz-dk-suggest__row">
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={() => startHorizon('current')}
-          disabled={disabled || busy || !clubId}
-        >
-          <Calculator size={16} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
-          {busyHorizon === 'current' || pendingHorizon === 'current'
-            ? 'Считаем…'
-            : 'Считать · текущий месяц'}
-        </button>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={() => startHorizon('next')}
-          disabled={disabled || busy || !clubId}
-        >
-          <Calculator size={16} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
-          {busyHorizon === 'next' || pendingHorizon === 'next'
-            ? 'Считаем…'
-            : 'Считать · следующий месяц'}
-        </button>
+        {locked ? (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => void runCalculate(fixedHorizon)}
+            disabled={disabled || busy || !clubId}
+          >
+            <Calculator size={16} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
+            {busy ? 'Считаем…' : 'Считать ПЗ · ДК'}
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => void runCalculate('current')}
+              disabled={disabled || busy || !clubId}
+            >
+              <Calculator size={16} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
+              {busy ? 'Считаем…' : 'Считать · текущий месяц'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => void runCalculate('next')}
+              disabled={disabled || busy || !clubId}
+            >
+              <Calculator size={16} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
+              Считать · следующий месяц
+            </button>
+          </>
+        )}
       </div>
 
       {preview?.ok ? (
-        <div className="sales-plan-pz-dk-suggest__preview" role="status">
-          <p className="sales-plan-pz-dk-suggest__preview-title">Превью ПЗ · ДК</p>
-          <p className="sales-plan-pz-dk-suggest__summary">{formatPzDkSuggestSummaryRu(preview)}</p>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={applyPreview}
-            disabled={disabled}
-          >
-            <Check size={16} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
-            В план ({preview.count} шт. · {formatRub(preview.amount)})
-          </button>
-        </div>
+        <SalesPlanPzDkSuggestPreview suggest={preview} disabled={disabled} onApply={applyPreview} />
       ) : lastSummary ? (
         <p className="sales-plan-pz-dk-suggest__summary muted" role="status">
           {lastSummary}

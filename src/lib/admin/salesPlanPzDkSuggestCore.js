@@ -104,7 +104,78 @@ export function sumFactPzDkCountFromDailyRows(rows) {
 }
 
 /**
- * После сырого headcount: % продления и (для текущего) минус факт ПЗ ДК.
+ * Разбивка по типам карт после % продления (ещё до вычета факта).
+ * @param {Array<{ membershipTypeId?: string, code?: string, count?: number, priceRub?: number | null }>} byType
+ * @param {number} renewalPct
+ */
+export function buildPzDkByTypeAfterRenewal(byType, renewalPct) {
+  const pct = clampRenewalPct(renewalPct)
+  /** @type {Array<{ membershipTypeId: string, code: string, baseCount: number, planCount: number, priceRub: number, amount: number }>} */
+  const rows = []
+  for (const t of byType ?? []) {
+    const priceRub = Number(t?.priceRub)
+    if (!Number.isFinite(priceRub) || priceRub <= 0) continue
+    const baseCount = Math.max(0, Math.trunc(Number(t?.count) || 0))
+    if (baseCount <= 0) continue
+    const planCount = Math.max(0, Math.round((baseCount * pct) / 100))
+    if (planCount <= 0) continue
+    rows.push({
+      membershipTypeId: String(t.membershipTypeId ?? ''),
+      code: String(t.code ?? '').trim() || '—',
+      baseCount,
+      planCount,
+      priceRub: roundPlanRub(priceRub),
+      amount: planMatrixCellRub(planCount, priceRub),
+    })
+  }
+  return rows
+}
+
+/**
+ * Пропорционально уменьшить planCount по типам, чтобы сумма = targetTotal.
+ * @param {ReturnType<typeof buildPzDkByTypeAfterRenewal>} rows
+ * @param {number} targetTotal
+ */
+export function scalePzDkByTypeToTotal(rows, targetTotal) {
+  const target = Math.max(0, Math.trunc(Number(targetTotal) || 0))
+  const list = (rows ?? []).map((r) => ({ ...r }))
+  const sum = list.reduce((acc, r) => acc + r.planCount, 0)
+  if (target <= 0 || sum <= 0) {
+    return list.map((r) => ({ ...r, planCount: 0, amount: 0 }))
+  }
+  if (target === sum) {
+    return list.map((r) => ({
+      ...r,
+      amount: planMatrixCellRub(r.planCount, r.priceRub),
+    }))
+  }
+  /** @type {Array<{ i: number, exact: number, floor: number, frac: number }>} */
+  const parts = list.map((r, i) => {
+    const exact = (r.planCount / sum) * target
+    const floor = Math.floor(exact)
+    return { i, exact, floor, frac: exact - floor }
+  })
+  let used = parts.reduce((a, p) => a + p.floor, 0)
+  let left = target - used
+  parts.sort((a, b) => b.frac - a.frac)
+  for (const p of parts) {
+    if (left <= 0) break
+    p.floor += 1
+    left -= 1
+  }
+  return list.map((r, i) => {
+    const p = parts.find((x) => x.i === i)
+    const planCount = Math.max(0, p?.floor ?? 0)
+    return {
+      ...r,
+      planCount,
+      amount: planMatrixCellRub(planCount, r.priceRub),
+    }
+  })
+}
+
+/**
+ * После сырого headcount: % продления по типам карт и (для текущего) минус факт ПЗ ДК.
  * @param {object} suggest результат buildPzDk*
  * @param {{
  *   renewalPct?: unknown,
@@ -117,12 +188,19 @@ export function refinePzDkSuggestForPlan(suggest, opts = {}) {
   const horizon = normalizePzDkSuggestHorizon(opts.horizon) || normalizePzDkSuggestHorizon(suggest.horizon)
   const renewalPct = clampRenewalPct(opts.renewalPct)
   const rawCount = Math.max(0, Math.trunc(Number(suggest.count) || 0))
-  const avg_check = roundPlanRub(Number(suggest.avg_check) || 0)
-  const afterRate = Math.max(0, Math.round((rawCount * renewalPct) / 100))
+
+  let byTypePlan = buildPzDkByTypeAfterRenewal(suggest.byType, renewalPct)
+  const afterRate = byTypePlan.reduce((acc, r) => acc + r.planCount, 0)
   const factPzDkCount =
     horizon === 'current' ? Math.max(0, Math.trunc(Number(opts.factPzDkCount) || 0)) : 0
   const count = horizon === 'current' ? Math.max(0, afterRate - factPzDkCount) : afterRate
-  const amount = planMatrixCellRub(count, avg_check)
+
+  if (horizon === 'current' && factPzDkCount > 0 && afterRate > 0) {
+    byTypePlan = scalePzDkByTypeToTotal(byTypePlan, count)
+  }
+
+  const amount = byTypePlan.reduce((acc, r) => acc + r.amount, 0)
+  const avg_check = count > 0 ? roundPlanRub(amount / count) : roundPlanRub(Number(suggest.avg_check) || 0)
 
   if (count <= 0) {
     return {
@@ -139,6 +217,7 @@ export function refinePzDkSuggestForPlan(suggest, opts = {}) {
       count: 0,
       avg_check,
       amount: 0,
+      byTypePlan: [],
       horizon: horizon || suggest.horizon,
     }
   }
@@ -152,7 +231,8 @@ export function refinePzDkSuggestForPlan(suggest, opts = {}) {
     factPzDkCount,
     count,
     avg_check,
-    amount,
+    amount: roundPlanRub(amount),
+    byTypePlan,
     horizon: horizon || suggest.horizon,
   }
 }

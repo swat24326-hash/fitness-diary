@@ -74,10 +74,10 @@
 | **P1** | Импорт xlsx + мастер PL/VIP | ✅ |
 | **P2** | Печать / PNG | ✅ |
 | **P3** | Менеджер: правка прайса своего клуба на `/sales` | ✅ |
-| **P4** | План месяца: «Считать · текущий / следующий» — автопереключение месяца, **% продления** (80%), для текущего **− факт ПЗ ДК**, превью → «В план» | ✅ |
+| **P4** | Вкладка **Стратегия**: якорь часов/₽ × сезон + ориентир ПЗ ДК (% продления, −факт); «В план» → форма; сохранение в «План месяца» | ✅ |
 
 Ускорение Продаж **обслуживает Прайс**: вкладка не ждёт полный bundle и не тянет `profile=shell`. Shell месяца кэшируется в session (вечерняя сверка); дневной ввод всегда с сети при открытии вкладки дня.
 
-**Ориентир плана (P4):** `src/lib/admin/salesPlanPzDkSuggestCore.js` + `SalesPlanPzDkSuggestBar.jsx`; verify `scripts/verify-sales-plan-pz-dk-suggest.mjs`. Не автосохраняет — только заполняет форму; ТЗ/АЗ и другие ячейки не трогает.
+**Стратегия / ориентир (P4):** `salesSeasonCore.js`, `salesHallAnchorCore.js`, `salesPlanPzDkSuggestCore.js` + `SalesStrategyPanel.jsx` (`/sales?tab=strategy`). Verify: `verify-sales-hall-anchor.mjs`, `verify-sales-plan-pz-dk-suggest.mjs`. Не автосохраняет матрицу; не подставляет часы планшета как правду продаж.
 
 Связано: [SALES_MANAGER.md](./SALES_MANAGER.md), [API.md](./API.md).

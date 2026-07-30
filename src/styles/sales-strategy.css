@@ -1,0 +1,215 @@
+/* Вкладка Продажи → Стратегия */
+
+.sales-strategy {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 56rem;
+}
+
+.sales-strategy__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.sales-strategy__eyebrow {
+  margin: 0 0 0.25rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted, #8a93a3);
+}
+
+.sales-strategy__title {
+  margin: 0 0 0.4rem;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.sales-strategy__lead {
+  margin: 0;
+  max-width: 40rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.sales-strategy__horizon {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.sales-strategy__chip {
+  min-height: 2.5rem;
+  padding: 0.45rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border, #2a3344) 80%, transparent);
+  background: color-mix(in srgb, var(--surface, #151b26) 88%, transparent);
+  color: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sales-strategy__chip.is-active {
+  border-color: color-mix(in srgb, var(--accent, #2ecc71) 70%, transparent);
+  background: color-mix(in srgb, var(--accent, #2ecc71) 18%, transparent);
+  color: var(--accent-bright, #3ee089);
+}
+
+.sales-strategy__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.sales-strategy__card {
+  padding: 1rem 1.1rem;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border, #2a3344) 85%, transparent);
+  background: color-mix(in srgb, var(--surface, #151b26) 92%, transparent);
+}
+
+.sales-strategy__card--accent {
+  border-color: color-mix(in srgb, var(--accent, #2ecc71) 35%, transparent);
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--accent, #2ecc71) 12%, transparent),
+    color-mix(in srgb, var(--surface, #151b26) 94%, transparent) 55%
+  );
+}
+
+.sales-strategy__card-title {
+  margin: 0 0 0.2rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.sales-strategy__card-sub {
+  margin: 0 0 0.85rem;
+  font-size: 0.8rem;
+}
+
+.sales-strategy__kpis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.sales-strategy__kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.sales-strategy__kpi-label {
+  font-size: 0.72rem;
+  color: var(--muted, #8a93a3);
+}
+
+.sales-strategy__kpi-value {
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  word-break: break-word;
+}
+
+.sales-strategy__warn {
+  margin: 0.75rem 0 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  background: color-mix(in srgb, #e6a23c 16%, transparent);
+  color: #f0c674;
+}
+
+.sales-strategy__meta {
+  margin: 0.75rem 0 0;
+  font-size: 0.78rem;
+}
+
+.sales-strategy__season {
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border, #2a3344) 80%, transparent);
+  padding: 0.65rem 0.9rem;
+  background: color-mix(in srgb, var(--surface, #151b26) 70%, transparent);
+}
+
+.sales-strategy__season > summary {
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+}
+
+.sales-strategy__season > summary::-webkit-details-marker {
+  display: none;
+}
+
+.sales-strategy__season-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin-top: 0.75rem;
+}
+
+.sales-strategy__season-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.45rem 0.4rem;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  text-align: center;
+  background: color-mix(in srgb, var(--surface, #151b26) 90%, transparent);
+}
+
+.sales-strategy__season-cell--season {
+  border: 1px solid color-mix(in srgb, var(--accent, #2ecc71) 35%, transparent);
+}
+
+.sales-strategy__season-cell--soft {
+  border: 1px solid color-mix(in srgb, #e6a23c 30%, transparent);
+}
+
+.sales-strategy__season-cell--mixed {
+  border: 1px solid color-mix(in srgb, #5b8def 35%, transparent);
+}
+
+.sales-strategy__season-month {
+  font-weight: 700;
+  text-transform: lowercase;
+}
+
+.sales-strategy__section-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.sales-strategy__pz {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid color-mix(in srgb, var(--border, #2a3344) 70%, transparent);
+}
+
+.sales-strategy__pz-lead,
+.sales-strategy__pz-foot {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 720px) {
+  .sales-strategy__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sales-strategy__season-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

@@ -1,6 +1,7 @@
 import {
   applyPzDkSuggestToPlanForm,
   asOfIsoBeforePlanMonth,
+  buildPzDkByTypeAfterRenewal,
   buildPzDkPlanSuggest,
   buildPzDkSuggestFromHeadcounts,
   clampRenewalPct,
@@ -16,6 +17,7 @@ import {
   resolvePackagePriceRub,
   resolvePzDkSuggestAsOfIso,
   resolveTargetPlanMonthForHorizon,
+  scalePzDkByTypeToTotal,
   sumFactPzDkCountFromDailyRows,
 } from '../src/lib/admin/salesPlanPzDkSuggestCore.js'
 import {
@@ -176,7 +178,10 @@ ok(suggest.avg_check === 12000, `weighted avg 12000 (got ${suggest.avg_check})`)
 ok(suggest.amount === 36000, `amount 36000 (got ${suggest.amount})`)
 
 const refinedNext = refinePzDkSuggestForPlan(suggest, { renewalPct: 80, horizon: 'next' })
-ok(refinedNext.ok && refinedNext.count === 2, 'next 80% of 3 → 2')
+ok(refinedNext.ok && refinedNext.count === 3, `next 80% per-type sum (got ${refinedNext.count})`)
+ok(refinedNext.byTypePlan?.length === 2, 'byTypePlan has 2 cards')
+ok(refinedNext.byTypePlan.some((r) => r.code === 'PL' && r.baseCount === 2 && r.planCount === 2), 'PL after 80%')
+ok(refinedNext.byTypePlan.some((r) => r.code === 'VIP' && r.planCount === 1), 'VIP after 80%')
 ok(refinedNext.rawCount === 3 && refinedNext.renewalPct === 80, 'raw + pct kept')
 
 const refinedCur = refinePzDkSuggestForPlan(suggest, {
@@ -185,6 +190,10 @@ const refinedCur = refinePzDkSuggestForPlan(suggest, {
   factPzDkCount: 1,
 })
 ok(refinedCur.ok && refinedCur.count === 2, 'current 100% − fact 1 → 2')
+ok(
+  refinedCur.byTypePlan.reduce((a, r) => a + r.planCount, 0) === 2,
+  'byTypePlan sums to plan count after fact',
+)
 
 const refinedZero = refinePzDkSuggestForPlan(suggest, {
   renewalPct: 100,
@@ -192,6 +201,17 @@ const refinedZero = refinePzDkSuggestForPlan(suggest, {
   factPzDkCount: 10,
 })
 ok(refinedZero.ok === false, 'fact covers all → fail')
+
+const scaled = scalePzDkByTypeToTotal(
+  [
+    { code: 'A', baseCount: 10, planCount: 10, priceRub: 1000, amount: 10000, membershipTypeId: 'a' },
+    { code: 'B', baseCount: 5, planCount: 5, priceRub: 2000, amount: 10000, membershipTypeId: 'b' },
+  ],
+  9,
+)
+ok(scaled.reduce((a, r) => a + r.planCount, 0) === 9, 'scale to 9')
+ok(buildPzDkByTypeAfterRenewal([{ code: 'X', count: 10, priceRub: 1000, membershipTypeId: 'x' }], 50)[0].planCount === 5, '50% of 10')
+
 
 const form = applyPzDkSuggestToPlanForm(
   { plan_level_3: '100000', plan_pz_nk_count: '5', plan_pz_nk_avg: '1000' },
