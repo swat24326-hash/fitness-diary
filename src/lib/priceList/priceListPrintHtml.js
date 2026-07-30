@@ -14,13 +14,13 @@ import {
   priceListPrintFontPt,
 } from './priceListPrintLayout.js'
 import { PRICE_LIST_TRAINER_PALETTE as P } from './priceListBrandColors.js'
+import {
+  buildPriceListPrintBasement,
+  buildPriceListPrintCap,
+} from './priceListPrintChrome.js'
 
-/** @param {unknown} iso */
-export function formatPriceListValidFromRu(iso) {
-  const m = String(iso ?? '').match(/^(\d{4})-(\d{2})-(\d{2})/)
-  if (!m) return String(iso ?? '').trim()
-  return `${m[3]}.${m[2]}.${m[1]}`
-}
+/** Re-export для старых импортов verify / UI */
+export { formatPriceListValidFromRu } from './priceListExportCore.js'
 
 /** @param {unknown} text */
 function escapeHtml(text) {
@@ -94,32 +94,62 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
   const normalized = normalizePriceListDocument(doc, doc?.club_id)
   const tariffs = normalized.tariffs ?? []
   const rows = buildPriceListRows(normalized)
-  const title = escapeHtml(normalized.meta?.title || 'Персональный зал')
-  const modeLabel = escapeHtml(priceListModePrintLabel(mode))
-  const address = escapeHtml(normalized.meta?.address || '')
-  const phone = escapeHtml(normalized.meta?.phone || '')
-  const validFrom = formatPriceListValidFromRu(normalized.valid_from)
-
-  const metaBits = [
-    validFrom ? `Цены с ${escapeHtml(validFrom)}` : '',
-    address,
-    phone,
-  ].filter(Boolean)
-
+  const basement = buildPriceListPrintBasement(normalized)
   const sheets = buildPriceListPrintSheets(tariffs)
   const sheetTotal = sheets.length
+  const modeLabel = escapeHtml(priceListModePrintLabel(mode))
 
-  const emptySheet = `<section class="sheet">
-    <header class="head">
-      <div>
-        <h1>${title}</h1>
-        <p class="mode">${modeLabel}</p>
+  /**
+   * @param {{ sheetLabel?: string }} [sheet]
+   * @param {string} [pageLabel]
+   * @param {string} [bodyInner]
+   * @param {boolean} [withBreak]
+   */
+  function renderSheet(sheet, pageLabel, bodyInner, withBreak) {
+    const cap = buildPriceListPrintCap(normalized, {
+      mode,
+      sheetLabel: sheet?.sheetLabel || '',
+    })
+    const addrHtml = (cap.addressLines.length ? cap.addressLines : cap.address ? [cap.address] : [])
+      .map((line) => `<span class="cap-line">${escapeHtml(line)}</span>`)
+      .join('')
+    const phoneHtml = cap.phone
+      ? `<span class="cap-phone">${escapeHtml(cap.phone)}</span>`
+      : ''
+    const basementHtml = basement.hasContent
+      ? `<footer class="basement">
+      <div class="basement-row">
+        ${basement.oneTimeLine ? `<span>${escapeHtml(basement.oneTimeLine)}</span>` : ''}
+        ${basement.clubCardLine ? `<span>${escapeHtml(basement.clubCardLine)}</span>` : ''}
       </div>
-      <div class="meta">${metaBits.map((b) => `<span>${b}</span>`).join('')}</div>
+      ${basement.validLine ? `<p class="basement-valid">${escapeHtml(basement.validLine)}</p>` : ''}
+    </footer>`
+      : ''
+
+    return `<section class="sheet${withBreak ? ' sheet--break' : ''}">
+    <header class="cap">
+      <div class="cap-club">
+        ${addrHtml}
+        ${phoneHtml}
+      </div>
+      <div class="cap-title">
+        <h1>${escapeHtml(cap.title)}</h1>
+        <p class="subtitle">${escapeHtml(cap.subtitle)}</p>
+        ${cap.sheetLabel ? `<p class="group">${escapeHtml(cap.sheetLabel)}</p>` : ''}
+      </div>
     </header>
-    <p class="empty">Нет колонок прайса — сначала сверните типы или импортируйте Excel.</p>
-    <p class="foot">Прайс клуба · A4 альбом</p>
+    ${bodyInner}
+    ${basementHtml}
+    <p class="foot">Прайс клуба · A4 альбом${pageLabel ? ` · лист ${pageLabel}` : ''}</p>
   </section>`
+  }
+
+  const emptySheet = renderSheet(
+    {},
+    '',
+    `<p class="empty">Нет колонок прайса — сначала сверните типы или импортируйте Excel.</p>`,
+    false,
+  )
 
   const sheetsHtml =
     sheetTotal === 0
@@ -130,21 +160,14 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
               tariffCount: sheet.tariffs.length,
               rowCount: rows.length,
             })
-            const group = escapeHtml(sheet.sheetLabel)
             const page = `${si + 1}/${sheetTotal}`
             const isLast = si === sheetTotal - 1
-            return `<section class="sheet${isLast ? '' : ' sheet--break'}">
-    <header class="head">
-      <div>
-        <h1>${title}</h1>
-        <p class="mode">${modeLabel}</p>
-        <p class="group">${group}</p>
-      </div>
-      <div class="meta">${metaBits.map((b) => `<span>${b}</span>`).join('')}</div>
-    </header>
-    <div class="table-wrap">${buildTariffTableHtml(normalized, sheet.tariffs, rows, mode, fontPt)}</div>
-    <p class="foot">Прайс клуба · A4 альбом · лист ${page}</p>
-  </section>`
+            return renderSheet(
+              sheet,
+              page,
+              `<div class="table-wrap">${buildTariffTableHtml(normalized, sheet.tariffs, rows, mode, fontPt)}</div>`,
+              !isLast,
+            )
           })
           .join('')
 
@@ -168,10 +191,10 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
     .sheet {
       width: 281mm;
       height: 194mm;
-      padding: 3.5mm 5mm 3mm;
+      padding: 3mm 5mm 2.5mm;
       display: flex;
       flex-direction: column;
-      gap: 3.5mm;
+      gap: 2.5mm;
       overflow: hidden;
       page-break-inside: avoid;
       break-inside: avoid;
@@ -184,46 +207,52 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
       page-break-after: always;
       break-after: page;
     }
-    .head {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
-      gap: 6mm;
-      border-bottom: 0.45mm solid ${P.border};
-      padding-bottom: 2.5mm;
+    .cap {
+      display: grid;
+      grid-template-columns: 1.1fr 1.2fr;
+      gap: 4mm;
+      align-items: end;
+      border-bottom: 0.45mm solid ${P.accent};
+      padding-bottom: 2.2mm;
       flex-shrink: 0;
     }
-    .head h1 {
+    .cap-club {
+      font-size: 9pt;
+      line-height: 1.4;
+      color: ${P.muted};
+    }
+    .cap-line { display: block; }
+    .cap-phone {
+      display: block;
+      margin-top: 1mm;
+      font-weight: 700;
+      color: ${P.accentBright};
+      text-decoration: underline;
+      text-underline-offset: 1.2mm;
+    }
+    .cap-title { text-align: center; }
+    .cap-title h1 {
       margin: 0;
-      font-size: 20pt;
+      font-size: 18pt;
       font-weight: 800;
       letter-spacing: -0.02em;
       line-height: 1.08;
       color: ${P.accentBright};
     }
-    .head .mode {
-      margin: 1.4mm 0 0;
-      font-size: 10pt;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: ${P.muted};
-    }
-    .head .group {
+    .cap-title .subtitle {
       margin: 1.2mm 0 0;
-      font-size: 12pt;
-      font-weight: 800;
-      letter-spacing: 0.04em;
+      font-size: 10pt;
+      font-weight: 600;
       color: ${P.text};
     }
-    .meta {
-      max-width: 48%;
-      text-align: right;
-      font-size: 10pt;
-      line-height: 1.45;
-      color: ${P.muted};
+    .cap-title .group {
+      margin: 1.4mm 0 0;
+      font-size: 11pt;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: ${P.accent};
     }
-    .meta span { display: block; }
     .table-wrap {
       flex: 1 1 auto;
       min-height: 0;
@@ -244,7 +273,7 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
     tbody tr { height: var(--row-h, auto); }
     th, td {
       border: 0.22mm solid ${P.borderSoft};
-      padding: 2mm 1.2mm;
+      padding: 1.6mm 1mm;
       text-align: center;
       vertical-align: middle;
       word-break: break-word;
@@ -255,10 +284,10 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
       width: 10%;
       font-weight: 800;
       background: rgba(6, 18, 16, 0.65);
-      font-size: 1.15em;
+      font-size: 1.12em;
       color: ${P.text};
     }
-    .tariff .code { font-size: 1.12em; color: ${P.accentBright}; }
+    .tariff .code { font-size: 1.1em; color: ${P.accentBright}; }
     .vip {
       display: inline-block;
       margin-left: 1.2mm;
@@ -276,6 +305,30 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
     td.off { font-weight: 800; color: ${P.off}; background: ${P.offBg}; }
     tr.alt td, tr.alt th.axis { background: ${P.rowAlt}; }
     tr.alt td.off { background: rgba(46, 255, 184, 0.12); }
+    .basement {
+      flex-shrink: 0;
+      border-top: 0.35mm solid ${P.border};
+      padding-top: 2mm;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2mm;
+    }
+    .basement-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 2mm 8mm;
+      font-size: 10pt;
+      font-weight: 700;
+      color: ${P.text};
+    }
+    .basement-valid {
+      margin: 0;
+      text-align: center;
+      font-size: 9pt;
+      font-weight: 600;
+      color: ${P.accentBright};
+    }
     .empty {
       margin: auto;
       text-align: center;
@@ -284,16 +337,12 @@ export function buildPriceListPrintHtml(doc, opts = {}) {
     }
     .foot {
       flex-shrink: 0;
-      font-size: 8pt;
+      font-size: 7.5pt;
       color: ${P.dim};
       text-align: right;
-      padding-top: 0.5mm;
     }
     @media print {
-      .sheet {
-        width: 281mm;
-        height: 194mm;
-      }
+      .sheet { width: 281mm; height: 194mm; }
       table { page-break-inside: avoid; break-inside: avoid; }
     }
   </style>

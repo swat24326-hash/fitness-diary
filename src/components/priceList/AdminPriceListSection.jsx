@@ -17,6 +17,7 @@ import { readPriceListLocalEntry } from '../../lib/priceList/priceListLocalStora
 import { downloadPriceListPng, printPriceListDocument } from '../../lib/priceList/priceListExportCanvas.js'
 import { formatPriceListMoney, priceListModePrintLabel } from '../../lib/priceList/priceListExportCore.js'
 import { PriceListExcelImportWizard } from './PriceListExcelImportWizard.jsx'
+import { PriceListStandFields } from './PriceListStandFields.jsx'
 import '../../styles/price-list.css'
 
 /**
@@ -159,6 +160,28 @@ export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
       ...prev,
       meta: { ...prev.meta, [field]: value },
     }))
+    setDirty(true)
+  }
+
+  const handleExtras = (patch) => {
+    setDoc((prev) => {
+      const extras = { ...(prev.extras || {}) }
+      const one = { ...(extras.one_time || {}) }
+      if ('club_card' in patch) {
+        const t = String(patch.club_card ?? '').trim()
+        extras.club_card = t === '' ? null : Number(t)
+      }
+      if ('one_time_base' in patch) {
+        const t = String(patch.one_time_base ?? '').trim()
+        one.base = t === '' ? null : Number(t)
+      }
+      if ('one_time_day' in patch) {
+        const t = String(patch.one_time_day ?? '').trim()
+        one.day = t === '' ? null : Number(t)
+      }
+      extras.one_time = one
+      return { ...prev, extras }
+    })
     setDirty(true)
   }
 
@@ -310,40 +333,12 @@ export function AdminPriceListSection({ clubId, membershipTypes = [] }) {
         </div>
       </header>
 
-      <div className="price-list__stand price-list__no-print" aria-label="Шапка стенда">
-        <div className="price-list__stand-glow" aria-hidden />
-        <div className="price-list__meta">
-          <label className="price-list__field">
-            <span className="price-list__label">Цены с</span>
-            <input
-              type="date"
-              className="input price-list__input-field"
-              value={doc.valid_from ?? ''}
-              onChange={(e) => handleValidFrom(e.target.value)}
-            />
-          </label>
-          <label className="price-list__field price-list__field--grow">
-            <span className="price-list__label">Адрес на стенде</span>
-            <input
-              type="text"
-              className="input price-list__input-field"
-              value={doc.meta?.address ?? ''}
-              onChange={(e) => handleMeta('address', e.target.value)}
-              placeholder="Город, улица, ТЦ…"
-            />
-          </label>
-          <label className="price-list__field">
-            <span className="price-list__label">Телефон</span>
-            <input
-              type="text"
-              className="input price-list__input-field"
-              value={doc.meta?.phone ?? ''}
-              onChange={(e) => handleMeta('phone', e.target.value)}
-              placeholder="8-…"
-            />
-          </label>
-        </div>
-      </div>
+      <PriceListStandFields
+        doc={doc}
+        onValidFrom={handleValidFrom}
+        onMeta={handleMeta}
+        onExtras={handleExtras}
+      />
 
       <div className="price-list__toolbar price-list__no-print">
         <div className="price-list__mode" role="tablist" aria-label="Режим цены">

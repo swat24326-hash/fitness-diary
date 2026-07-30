@@ -216,6 +216,30 @@ export function extractExcelClubCard(rows) {
 }
 
 /**
+ * «Разовое занятие» → base / day (первые две суммы в строке).
+ * @param {unknown[][]} rows
+ * @returns {{ base: number | null, day: number | null } | null}
+ */
+export function extractExcelOneTime(rows) {
+  const list = Array.isArray(rows) ? rows : []
+  for (const row of list) {
+    const cells = row ?? []
+    for (let i = 0; i < cells.length; i++) {
+      if (!/разовое/i.test(cellStr(cells[i]))) continue
+      /** @type {number[]} */
+      const nums = []
+      for (let j = i + 1; j < cells.length && nums.length < 2; j++) {
+        const money = parseMoney(cells[j])
+        if (money != null) nums.push(money)
+      }
+      if (!nums.length) return null
+      return { base: nums[0] ?? null, day: nums[1] ?? null }
+    }
+  }
+  return null
+}
+
+/**
  * Разбор листа ПЗ (база или день): матрица sessions×people×карты.
  * @param {unknown[][]} rows
  * @param {'base' | 'day'} mode
@@ -270,6 +294,7 @@ export function parsePzMatrixSheet(rows, mode) {
     cells,
     meta: extractPriceListExcelMeta(rows),
     club_card: extractExcelClubCard(rows),
+    one_time: extractExcelOneTime(rows),
   }
 }
 
@@ -381,6 +406,7 @@ export function parseVipSheet(rows, sheetName) {
     cells,
     meta: extractPriceListExcelMeta(rows),
     club_card: extractExcelClubCard(rows),
+    one_time: extractExcelOneTime(rows),
   }
 }
 
@@ -396,6 +422,8 @@ export function parsePriceListWorkbookSheets(sheets) {
   const allLabels = []
   let meta = { address: '', phone: '', title: 'Персональный зал', valid_from: null }
   let club_card = null
+  /** @type {{ base: number | null, day: number | null } | null} */
+  let one_time = null
 
   for (const sheet of list) {
     const name = String(sheet?.name ?? '')
@@ -418,6 +446,7 @@ export function parsePriceListWorkbookSheets(sheets) {
       if (parsed.meta?.address && !meta.address) meta = { ...meta, ...parsed.meta }
       else if (parsed.meta?.valid_from && !meta.valid_from) meta = { ...meta, valid_from: parsed.meta.valid_from }
       if (parsed.club_card != null && club_card == null) club_card = parsed.club_card
+      if (parsed.one_time && one_time == null) one_time = parsed.one_time
     }
   }
 
@@ -427,6 +456,7 @@ export function parsePriceListWorkbookSheets(sheets) {
     excelLabels: allLabels,
     meta,
     club_card,
+    one_time,
   }
 }
 
@@ -529,6 +559,10 @@ export function applyExcelImportToPriceListDocument(doc, workbook, columnMapping
     extras: {
       ...next.extras,
       club_card: workbook.club_card ?? next.extras?.club_card ?? 500,
+      one_time: {
+        base: workbook.one_time?.base ?? next.extras?.one_time?.base ?? null,
+        day: workbook.one_time?.day ?? next.extras?.one_time?.day ?? null,
+      },
     },
   }
 

@@ -17,6 +17,13 @@ export function priceListModePrintLabel(mode) {
   return normalizePriceListMode(mode) === 'day' ? 'Дневная скидка' : 'Базовая сетка'
 }
 
+/** @param {unknown} iso */
+export function formatPriceListValidFromRu(iso) {
+  const m = String(iso ?? '').match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (!m) return String(iso ?? '').trim()
+  return `${m[3]}.${m[2]}.${m[1]}`
+}
+
 /**
  * @param {{ clubId?: string, mode?: string, validFrom?: string | null, sheetSlug?: string }} p
  */

@@ -29,6 +29,7 @@ import { SALES_SHELL_SESSION_TTL_MS } from '../src/lib/admin/salesShellSession.j
 import {
   applyExcelImportToPriceListDocument,
   detectExcelTariffColumnPairs,
+  extractExcelOneTime,
   isExcelDiscount10ColumnLabel,
   parsePriceListWorkbookSheets,
   parsePzMatrixSheet,
@@ -51,6 +52,11 @@ import {
   partitionPriceListTariffsByVip,
 } from '../src/lib/priceList/priceListPrintLayout.js'
 import { PRICE_LIST_TRAINER_PALETTE } from '../src/lib/priceList/priceListBrandColors.js'
+import {
+  buildPriceListPrintBasement,
+  buildPriceListPrintCap,
+  priceListModeStandSubtitle,
+} from '../src/lib/priceList/priceListPrintChrome.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -281,6 +287,8 @@ const printWide = buildPriceListPrintHtml(
   {
     club_id: 'c1',
     meta: { title: 'ПЗ', address: 'Ул. Тест', phone: '8-900' },
+    valid_from: '2026-07-21',
+    extras: { club_card: 500, one_time: { base: 1300, day: 1100 } },
     tariffs: mixed.map((t, i) => ({
       membership_type_id: `t${i}`,
       code: t.code,
@@ -298,9 +306,27 @@ ok(printWide.includes('sheet--break'), 'print page break between sheets')
 ok(printWide.includes('VIP') && printWide.includes('Карты'), 'print has Карты and VIP sheets')
 ok((printWide.match(/class="sheet/g) || []).length === 2, 'print two sheet sections')
 ok(printWide.includes('#2effb8') || printWide.includes('#14d89a'), 'print trainer emerald palette')
+ok(printWide.includes('cap-club') && printWide.includes('basement'), 'print cap + basement')
+ok(printWide.includes('Базовая стоимость абонемента'), 'print excel-like subtitle')
+ok(printWide.includes('Разовое занятие') && printWide.includes('Клубная карта'), 'print basement prices')
+ok(printWide.includes('Цены действительны с'), 'print valid-from basement')
 ok(buildPriceListPngFileName({ clubId: 'abc', mode: 'base', sheetSlug: 'vip', validFrom: '2026-07-21' }).includes('vip'), 'png name sheet slug')
 ok(PRICE_LIST_TRAINER_PALETTE.bg === '#030806', 'trainer palette bg')
 ok(PRICE_LIST_TRAINER_PALETTE.accentBright === '#2effb8', 'trainer palette neon')
+ok(priceListModeStandSubtitle('base').includes('Базовая стоимость'), 'stand subtitle base')
+const cap = buildPriceListPrintCap(
+  { meta: { title: 'ПЗ', address: 'Ул. 1', phone: '8-900' } },
+  { mode: 'base', sheetLabel: 'Карты' },
+)
+ok(cap.phone === '8-900' && cap.sheetLabel === 'Карты', 'print cap fields')
+const basement = buildPriceListPrintBasement({
+  valid_from: '2026-07-21',
+  extras: { club_card: 500, one_time: { base: 1300, day: 1100 } },
+})
+ok(basement.hasContent && basement.oneTimeLine.includes('1 300'), 'basement one-time')
+ok(basement.clubCardLine.includes('500'), 'basement club card')
+ok(extractExcelOneTime([['Разовое занятие', 1300, 1100]])?.base === 1300, 'excel one-time base')
+ok(extractExcelOneTime([['Разовое занятие', 1300, 1100]])?.day === 1100, 'excel one-time day')
 
 ok(assertPriceListClubAccess({ isAdmin: true }, 'club-1').ok === true, 'admin any club read')
 ok(assertPriceListClubAccess({ isAdmin: true, isSalesManager: true, salesClubId: 'club-2' }, 'club-1').ok === true, 'admin overrides manager club scope')

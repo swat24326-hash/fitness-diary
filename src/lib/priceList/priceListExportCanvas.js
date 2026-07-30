@@ -12,7 +12,6 @@ import {
 import {
   buildPriceListPngFileName,
   formatPriceListMoney,
-  priceListModePrintLabel,
 } from './priceListExportCore.js'
 import { buildPriceListPrintHtml } from './priceListPrintHtml.js'
 import {
@@ -20,6 +19,10 @@ import {
   buildPriceListPrintSheets,
 } from './priceListPrintLayout.js'
 import { PRICE_LIST_TRAINER_PALETTE as C } from './priceListBrandColors.js'
+import {
+  buildPriceListPrintBasement,
+  buildPriceListPrintCap,
+} from './priceListPrintChrome.js'
 
 /**
  * PNG одного листа A4 альбом (Карты или VIP).
@@ -44,12 +47,13 @@ export async function renderPriceListPng(doc, opts = {}) {
 
   const { widthPx: width, heightPx: height } = PRICE_LIST_A4_LANDSCAPE
   const padX = 48
-  const padTop = 40
-  const padBottom = 36
-  const headerH = 128
-  const footH = 28
+  const padTop = 36
+  const padBottom = 28
+  const headerH = 118
+  const basementH = 72
+  const footH = 22
   const bodyTop = padTop + headerH
-  const bodyH = height - bodyTop - padBottom - footH
+  const bodyH = height - bodyTop - basementH - padBottom - footH
   const tableW = width - padX * 2
 
   const canvas = document.createElement('canvas')
@@ -60,7 +64,6 @@ export async function renderPriceListPng(doc, opts = {}) {
 
   ctx.fillStyle = C.bg
   ctx.fillRect(0, 0, width, height)
-  // Мягкое изумрудное свечение как у тренерского shell
   const glow = ctx.createRadialGradient(
     width * 0.72,
     height * 0.08,
@@ -74,44 +77,47 @@ export async function renderPriceListPng(doc, opts = {}) {
   ctx.fillStyle = glow
   ctx.fillRect(0, 0, width, height)
 
-  const title = String(normalized.meta?.title || 'Персональный зал').trim()
-  ctx.fillStyle = C.accentBright
-  ctx.font = '800 42px "Segoe UI", system-ui, sans-serif'
-  ctx.textAlign = 'left'
-  ctx.fillText(truncate(ctx, title, width * 0.52), padX, padTop + 34)
+  const cap = buildPriceListPrintCap(normalized, {
+    mode,
+    sheetLabel: sheet.sheetLabel,
+  })
+  const basement = buildPriceListPrintBasement(normalized)
 
+  // Шапка: клуб слева, заголовок по центру
+  ctx.textAlign = 'left'
   ctx.fillStyle = C.muted
-  ctx.font = '700 17px "Segoe UI", system-ui, sans-serif'
-  ctx.fillText(priceListModePrintLabel(mode).toUpperCase(), padX, padTop + 64)
+  ctx.font = '500 16px "Segoe UI", system-ui, sans-serif'
+  let clubY = padTop + 22
+  const clubLines = cap.addressLines.length ? cap.addressLines : cap.address ? [cap.address] : []
+  for (const line of clubLines.slice(0, 3)) {
+    ctx.fillText(truncate(ctx, line, width * 0.38), padX, clubY)
+    clubY += 22
+  }
+  if (cap.phone) {
+    ctx.fillStyle = C.accentBright
+    ctx.font = '700 18px "Segoe UI", system-ui, sans-serif'
+    ctx.fillText(truncate(ctx, cap.phone, width * 0.38), padX, clubY + 4)
+  }
 
+  ctx.textAlign = 'center'
+  ctx.fillStyle = C.accentBright
+  ctx.font = '800 40px "Segoe UI", system-ui, sans-serif'
+  ctx.fillText(truncate(ctx, cap.title, width * 0.5), width / 2, padTop + 36)
   ctx.fillStyle = C.text
-  ctx.font = '800 22px "Segoe UI", system-ui, sans-serif'
-  ctx.fillText(String(sheet.sheetLabel || 'Карты'), padX, padTop + 96)
+  ctx.font = '600 18px "Segoe UI", system-ui, sans-serif'
+  ctx.fillText(truncate(ctx, cap.subtitle, width * 0.5), width / 2, padTop + 66)
+  if (cap.sheetLabel) {
+    ctx.fillStyle = C.accent
+    ctx.font = '800 20px "Segoe UI", system-ui, sans-serif'
+    ctx.fillText(String(cap.sheetLabel).toUpperCase(), width / 2, padTop + 94)
+  }
 
-  ctx.fillStyle = C.accent
-  ctx.fillRect(padX, padTop + 108, 80, 3)
-
-  const address = String(normalized.meta?.address ?? '').trim()
-  const phone = String(normalized.meta?.phone ?? '').trim()
-  const validFrom = String(normalized.valid_from ?? '').trim()
-  ctx.textAlign = 'right'
-  ctx.fillStyle = C.text
-  ctx.font = '500 18px "Segoe UI", system-ui, sans-serif'
-  let metaY = padTop + 28
-  if (address) {
-    ctx.fillText(truncate(ctx, address, width * 0.42), width - padX, metaY)
-    metaY += 26
-  }
-  if (phone) {
-    ctx.fillStyle = C.muted
-    ctx.fillText(truncate(ctx, phone, width * 0.42), width - padX, metaY)
-    metaY += 24
-  }
-  if (validFrom) {
-    ctx.fillStyle = C.muted
-    ctx.fillText(`Цены с ${formatDateRu(validFrom)}`, width - padX, metaY)
-  }
-  ctx.textAlign = 'left'
+  ctx.strokeStyle = C.accent
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  ctx.moveTo(padX, padTop + headerH - 10)
+  ctx.lineTo(width - padX, padTop + headerH - 10)
+  ctx.stroke()
 
   drawTariffPanel(ctx, {
     x: padX,
@@ -124,13 +130,32 @@ export async function renderPriceListPng(doc, opts = {}) {
     mode,
   })
 
+  // Подвал
+  const baseY = bodyTop + bodyH + 28
+  ctx.textAlign = 'left'
+  ctx.fillStyle = C.text
+  ctx.font = '700 18px "Segoe UI", system-ui, sans-serif'
+  if (basement.oneTimeLine) {
+    ctx.fillText(truncate(ctx, basement.oneTimeLine, width * 0.55), padX, baseY)
+  }
+  if (basement.clubCardLine) {
+    ctx.textAlign = 'right'
+    ctx.fillText(truncate(ctx, basement.clubCardLine, width * 0.4), width - padX, baseY)
+  }
+  if (basement.validLine) {
+    ctx.textAlign = 'center'
+    ctx.fillStyle = C.accentBright
+    ctx.font = '600 17px "Segoe UI", system-ui, sans-serif'
+    ctx.fillText(basement.validLine, width / 2, baseY + 32)
+  }
+
   ctx.textAlign = 'right'
   ctx.fillStyle = C.dim
-  ctx.font = '500 15px "Segoe UI", system-ui, sans-serif'
+  ctx.font = '500 14px "Segoe UI", system-ui, sans-serif'
   ctx.fillText(
     `Прайс клуба · A4 альбом · лист ${sheetIndex + 1}/${Math.max(1, sheetTotal)}`,
     width - padX,
-    height - 14,
+    height - 12,
   )
 
   return canvasToBlob(canvas)
@@ -355,12 +380,6 @@ export function printPriceListDocument(doc, opts = {}) {
 /** @deprecated */
 export function printPriceListSurface() {
   return { ok: false, error: 'Устаревший вызов печати' }
-}
-
-function formatDateRu(iso) {
-  const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/)
-  if (!m) return iso
-  return `${m[3]}.${m[2]}.${m[1]}`
 }
 
 function truncate(ctx, text, maxW) {

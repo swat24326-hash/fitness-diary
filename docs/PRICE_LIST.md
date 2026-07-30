@@ -25,7 +25,7 @@
 | Людей | чипы 1…5 — можно только `1` или полный ряд |
 | Облако | `GET/POST admin-data?action=price-list`; localStorage + **TTL 7 суток** (force / Save — сразу сеть) |
 | Импорт Excel | кнопка **Excel** → сопоставить колонки с `code` типов; без автосоздания типов |
-| Печать / PNG | **Печать** — листы **A4 альбом**: сначала **Карты** (до 4 колонок), затем **VIP**; шапка с адресом и телефоном; стиль **тренера** (чёрный + emerald). **PNG** — то же |
+| Печать / PNG | **Печать** — листы **A4 альбом** (Карты / VIP): **шапка** (адрес, телефон, заголовок), таблица, **подвал** (разовое, клубная карта, «цены с»); стиль тренера. **PNG** — то же |
 | Не путать | цена витрины ≠ ЗП тренера у типа; не в sync планшета |
 
 ## Код
@@ -38,7 +38,8 @@
 | Облако | `src/lib/priceList/priceListCloudService.js` |
 | Локальный кэш | `src/lib/priceList/priceListLocalStorage.js` + `priceListCacheCore.js` |
 | Импорт Excel | `priceListExcelImportCore.js` + `priceListExcelWorkbook.js` + `PriceListExcelImportWizard.jsx` |
-| Печать / PNG | `priceListExportCore.js` + `priceListExportCanvas.js` + `priceListPrintHtml.js` + `priceListPrintLayout.js` + `priceListBrandColors.js` |
+| Печать / PNG | `priceListExportCore.js` + `priceListExportCanvas.js` + `priceListPrintHtml.js` + `priceListPrintLayout.js` + `priceListBrandColors.js` + `priceListPrintChrome.js` |
+| Шапка / подвал UI | `PriceListStandFields.jsx` |
 | Shell session | `src/lib/admin/salesShellSession.js` (6 ч, не daily) |
 | API | `api/_lib/adminData/priceListHandlers.js` |
 | UI | `src/components/priceList/AdminPriceListSection.jsx` |
@@ -57,7 +58,8 @@
 | Цена крупнее сходств | Колонка **−10%** визуально главная (цена стенда) |
 | Выделение тарифа | VIP — badge + лёгкий accent |
 | Группы строк | Полосы по блокам тренировок (4 / 8 / 10) |
-| Шапка стенда | Адрес / телефон / «цены с» отдельной glass-полосой |
+| Шапка стенда | Адрес / телефон / заголовок — как в Excel |
+| Подвал | Разовое занятие, клубная карта, «Цены действительны с…» |
 | Скролл | Подсказка «листайте вбок» + мягкий fade справа |
 
 Канон цвета/стекла — [BRAND_SYSTEM.md](./BRAND_SYSTEM.md).
