@@ -1,15 +1,15 @@
 /**
- * Чтение .xlsx → листы AOA (браузер / Node). Зависит от `xlsx`.
+ * Чтение .xlsx → листы AOA. `xlsx` грузится лениво (не в основном бандле).
  */
 
-import * as XLSX from 'xlsx'
 import { parsePriceListWorkbookSheets } from './priceListExcelImportCore.js'
 
 /**
  * @param {ArrayBuffer | Uint8Array} data
- * @returns {Array<{ name: string, rows: unknown[][] }>}
+ * @returns {Promise<Array<{ name: string, rows: unknown[][] }>>}
  */
-export function workbookSheetsFromArrayBuffer(data) {
+export async function workbookSheetsFromArrayBuffer(data) {
+  const XLSX = await import('xlsx')
   const wb = XLSX.read(data, { type: 'array', cellDates: false })
   return (wb.SheetNames ?? []).map((name) => {
     const sheet = wb.Sheets[name]
@@ -21,8 +21,8 @@ export function workbookSheetsFromArrayBuffer(data) {
 /**
  * @param {ArrayBuffer | Uint8Array} data
  */
-export function parsePriceListXlsxArrayBuffer(data) {
-  const sheets = workbookSheetsFromArrayBuffer(data)
+export async function parsePriceListXlsxArrayBuffer(data) {
+  const sheets = await workbookSheetsFromArrayBuffer(data)
   return parsePriceListWorkbookSheets(sheets)
 }
 
