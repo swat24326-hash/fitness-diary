@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, BarChart3, Cake, CalendarClock, ChevronDown, ChevronUp, Clock, Gauge, History, TrendingUp, UserX } from 'lucide-react'
+import { AlertTriangle, BarChart3, Cake, CalendarClock, Clock, Gauge, History, TrendingUp, UserX } from 'lucide-react'
 import { formatIsoRu } from '../../lib/period'
 import {
   buildAdminDaySummaryCards,
-  splitDaySummarySpotlight,
+  groupAdminDaySummaryCards,
 } from '../../lib/admin/adminDaySummaryUiCore.js'
 
 const ICONS = {
@@ -17,6 +17,45 @@ const ICONS = {
   history: History,
   cake: Cake,
   calendarClock: CalendarClock,
+}
+
+/**
+ * @param {{
+ *   card: {
+ *     key: string,
+ *     count: number | string,
+ *     label: string,
+ *     hint: string,
+ *     icon: string,
+ *     to: string,
+ *     hot?: boolean,
+ *     warn?: boolean,
+ *     textCount?: boolean,
+ *     valueSuffix?: string | null,
+ *   },
+ * }} props
+ */
+function DaySummaryCard({ card }) {
+  const { count, label, hint, icon, to, hot, warn, textCount, valueSuffix } = card
+  const Icon = ICONS[icon] || BarChart3
+  return (
+    <li>
+      <Link
+        to={to}
+        className={`admin-day-summary__card u-no-decoration${hot ? ' admin-day-summary__card--hot' : ''}${warn ? ' admin-day-summary__card--warn' : ''}`}
+      >
+        <span className="admin-day-summary__card-icon" aria-hidden>
+          <Icon size={16} />
+        </span>
+        <span className={`admin-day-summary__card-count${textCount ? ' admin-day-summary__card-count--text' : ''}`}>
+          {count}
+          {valueSuffix ? <span className="admin-day-summary__card-suffix">{valueSuffix}</span> : null}
+        </span>
+        <span className="admin-day-summary__card-label">{label}</span>
+        <span className="admin-day-summary__card-hint muted">{hint}</span>
+      </Link>
+    </li>
+  )
 }
 
 /**
@@ -37,8 +76,6 @@ export function AdminClubDaySummaryPanel({
   coachQuality = null,
   coachQualityLoading = false,
 }) {
-  const [expanded, setExpanded] = useState(false)
-
   const cards = useMemo(
     () =>
       summary
@@ -52,15 +89,9 @@ export function AdminClubDaySummaryPanel({
     [summary, clubId, coachQuality, coachQualityLoading],
   )
 
-  const { spotlight, rest, hasMore } = useMemo(
-    () => splitDaySummarySpotlight(cards, { maxSpotlight: 2 }),
-    [cards],
-  )
+  const groups = useMemo(() => groupAdminDaySummaryCards(cards), [cards])
 
-  const actionableUi = useMemo(
-    () => cards.filter((c) => c.hot || c.warn).length,
-    [cards],
-  )
+  const actionableUi = useMemo(() => cards.filter((c) => c.hot || c.warn).length, [cards])
 
   if (noClub) {
     return (
@@ -93,8 +124,6 @@ export function AdminClubDaySummaryPanel({
 
   if (!summary) return null
 
-  const visible = expanded || !hasMore ? cards : spotlight
-
   return (
     <section
       className="admin-day-summary admin-day-summary--dense"
@@ -114,49 +143,21 @@ export function AdminClubDaySummaryPanel({
           </p>
         )}
       </div>
-      <ul className={`admin-day-summary__grid${expanded ? ' admin-day-summary__grid--expanded' : ''}`}>
-        {visible.map(({ key, count, label, hint, icon, to, hot, warn, textCount, valueSuffix }) => {
-          const Icon = ICONS[icon] || BarChart3
-          return (
-            <li key={key}>
-              <Link
-                to={to}
-                className={`admin-day-summary__card u-no-decoration${hot ? ' admin-day-summary__card--hot' : ''}${warn ? ' admin-day-summary__card--warn' : ''}`}
-              >
-                <span className="admin-day-summary__card-icon" aria-hidden>
-                  <Icon size={16} />
-                </span>
-                <span
-                  className={`admin-day-summary__card-count${textCount ? ' admin-day-summary__card-count--text' : ''}`}
-                >
-                  {count}
-                  {valueSuffix ? <span className="admin-day-summary__card-suffix">{valueSuffix}</span> : null}
-                </span>
-                <span className="admin-day-summary__card-label">{label}</span>
-                <span className="admin-day-summary__card-hint muted">{hint}</span>
-              </Link>
-            </li>
-          )
-        })}
-      </ul>
-      {hasMore ? (
-        <button
-          type="button"
-          className="admin-day-summary__more btn btn-ghost btn-sm"
-          aria-expanded={expanded}
-          onClick={() => setExpanded((v) => !v)}
-        >
-          {expanded ? (
-            <>
-              <ChevronUp size={16} aria-hidden /> Свернуть
-            </>
-          ) : (
-            <>
-              <ChevronDown size={16} aria-hidden /> Ещё {rest.length}
-            </>
-          )}
-        </button>
-      ) : null}
+
+      {groups.map((g) => (
+        <div key={g.id} className="admin-day-summary__section">
+          <h3 className="admin-day-summary__section-title">{g.title}</h3>
+          <ul
+            className={`admin-day-summary__grid admin-day-summary__grid--${g.id}`}
+            aria-label={g.title}
+          >
+            {g.cards.map((card) => (
+              <DaySummaryCard key={card.key} card={card} />
+            ))}
+          </ul>
+        </div>
+      ))}
+
       {summary.draftsToday > 0 ? (
         <p className="admin-day-summary__note muted">
           <AlertTriangle size={14} aria-hidden /> Черновиков тренировок сегодня: {summary.draftsToday}

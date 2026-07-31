@@ -3893,6 +3893,25 @@ tr:last-child td {
   font-size: 13px;
 }
 
+.admin-day-summary__section {
+  margin: 0;
+}
+
+.admin-day-summary__section + .admin-day-summary__section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.admin-day-summary__section-title {
+  margin: 0 0 10px;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
 .admin-day-summary__grid {
   list-style: none;
   margin: 0;
@@ -3900,6 +3919,30 @@ tr:last-child td {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 148px), 1fr));
   gap: clamp(10px, 2vw, 16px);
+}
+
+.admin-day-summary__grid--base {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.admin-day-summary__grid--path {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+@media (max-width: 1200px) {
+  .admin-day-summary__grid--path,
+  .admin-day-summary--dense .admin-day-summary__grid--path {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .admin-day-summary__grid--base,
+  .admin-day-summary__grid--path,
+  .admin-day-summary--dense .admin-day-summary__grid--base,
+  .admin-day-summary--dense .admin-day-summary__grid--path {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .admin-day-summary__card {
@@ -3972,8 +4015,15 @@ tr:last-child td {
 }
 
 .admin-day-summary--dense .admin-day-summary__grid {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
   gap: 10px;
+}
+
+.admin-day-summary--dense .admin-day-summary__grid--base {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.admin-day-summary--dense .admin-day-summary__grid--path {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .admin-day-summary--dense .admin-day-summary__card {
@@ -4216,7 +4266,11 @@ tr:last-child td {
     font-size: clamp(0.78rem, 1.1vw, 0.92rem);
   }
 
-  .app-shell--admin .admin-day-summary__grid {
+  .app-shell--admin .admin-day-summary__grid--base {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .app-shell--admin .admin-day-summary__grid--path {
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }

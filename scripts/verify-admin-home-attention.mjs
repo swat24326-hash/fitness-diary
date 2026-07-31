@@ -8,6 +8,7 @@ import {
 } from '../src/lib/admin/adminHomeSoftSignalsCore.js'
 import {
   buildAdminDaySummaryCards,
+  groupAdminDaySummaryCards,
   splitDaySummarySpotlight,
 } from '../src/lib/admin/adminDaySummaryUiCore.js'
 import {
@@ -117,6 +118,11 @@ const cards = buildAdminDaySummaryCards({
   coachQuality: { scorePct: 81, hot: false },
 })
 ok(cards.length === 8, 'day cards funnel + trainings + cq')
+ok(
+  cards.map((c) => c.key).join(',') ===
+    'birthdays,trainings,coachQuality,expiring,expired_recent,stale,inactive,awaiting_start',
+  'day cards order: base then path',
+)
 ok(!cards.some((c) => c.key === 'sales'), 'no sales card')
 const inactiveCard = cards.find((c) => c.key === 'inactive')
 ok(
@@ -135,9 +141,15 @@ ok(
   expiredCard?.to === '/admin/clients?club=club-1&filter=expired_recent',
   'expired_recent card → clients',
 )
+const groups = groupAdminDaySummaryCards(cards)
+ok(groups.length === 2, 'two day-summary groups')
+ok(groups[0]?.id === 'base' && groups[0].cards.length === 3, 'base: DR + trainings + CQ')
+ok(groups[1]?.id === 'path' && groups[1].cards.length === 5, 'path: abo funnel')
+ok(groups[0]?.title === 'База и поводы', 'base title')
+ok(groups[1]?.title === 'По абонементу', 'path title')
 const split = splitDaySummarySpotlight(cards, { maxSpotlight: 2 })
 ok(split.spotlight.length === 2, 'spotlight size')
-ok(split.spotlight.some((c) => c.key === 'inactive'), 'spotlight has inactive')
+ok(split.spotlight.some((c) => c.key === 'inactive' || c.key === 'expired_recent'), 'spotlight has urgent')
 ok(split.hasMore === true, 'has more')
 
 const softInactive = signals.find((s) => s.id === 'inactive')

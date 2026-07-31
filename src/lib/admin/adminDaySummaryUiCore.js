@@ -1,5 +1,19 @@
 import { buildAdminClubQueryHref } from './adminClientQuickFilters.js'
 
+/** Секции сводки дня — как блоки фильтров в Клиентах. */
+export const ADMIN_DAY_SUMMARY_GROUPS = [
+  {
+    id: 'base',
+    title: 'База и поводы',
+    keys: ['birthdays', 'trainings', 'coachQuality'],
+  },
+  {
+    id: 'path',
+    title: 'По абонементу',
+    keys: ['expiring', 'expired_recent', 'stale', 'inactive', 'awaiting_start'],
+  },
+]
+
 /**
  * Карточки сводки дня (без React) — для UI и spotlight.
  * Отчёт продаж на главной не показываем — смотрят в разделе «Продажи».
@@ -20,56 +34,9 @@ export function buildAdminDaySummaryCards(opts = {}) {
   const cqLoading = opts.coachQualityLoading === true
   const clients = (filter) => buildAdminClubQueryHref('/admin/clients', { clubId, filter })
 
-  return [
-    {
-      key: 'inactive',
-      count: summary.inactive,
-      label: 'Не активные',
-      hint: 'на сегодня · список в клиентах',
-      icon: 'userX',
-      to: clients('inactive'),
-      hot: summary.inactive > 0,
-      warn: false,
-      textCount: false,
-      valueSuffix: null,
-    },
-    {
-      key: 'expired_recent',
-      count: Number(summary.expired_recent) || 0,
-      label: 'Закончился',
-      hint: '0–13 дней после конца',
-      icon: 'alert',
-      to: clients('expired_recent'),
-      hot: (Number(summary.expired_recent) || 0) > 0,
-      warn: (Number(summary.expired_recent) || 0) > 0,
-      textCount: false,
-      valueSuffix: null,
-    },
-    {
-      key: 'stale',
-      count: Number(summary.stale) || 0,
-      label: 'Давно не был',
-      hint: '14–60 дней после конца',
-      icon: 'history',
-      to: clients('stale'),
-      hot: (Number(summary.stale) || 0) > 0,
-      warn: false,
-      textCount: false,
-      valueSuffix: null,
-    },
-    {
-      key: 'expiring',
-      count: summary.expiring,
-      label: 'Истекает абонемент',
-      hint: '≤ 3 дня',
-      icon: 'clock',
-      to: clients('expiring'),
-      hot: summary.expiring > 0,
-      warn: false,
-      textCount: false,
-      valueSuffix: null,
-    },
-    {
+  /** @type {Record<string, object>} */
+  const byKey = {
+    birthdays: {
       key: 'birthdays',
       count: Number(summary.birthdays) || 0,
       label: 'ДР сегодня',
@@ -81,19 +48,7 @@ export function buildAdminDaySummaryCards(opts = {}) {
       textCount: false,
       valueSuffix: null,
     },
-    {
-      key: 'awaiting_start',
-      count: Number(summary.awaiting_start) || 0,
-      label: 'Ждёт старт',
-      hint: 'абонемент куплен вперёд',
-      icon: 'calendarClock',
-      to: clients('awaiting_start'),
-      hot: false,
-      warn: false,
-      textCount: false,
-      valueSuffix: null,
-    },
-    {
+    trainings: {
       key: 'trainings',
       count: summary.trainingsToday,
       label: 'Тренировок сегодня',
@@ -105,7 +60,7 @@ export function buildAdminDaySummaryCards(opts = {}) {
       textCount: false,
       valueSuffix: null,
     },
-    {
+    coachQuality: {
       key: 'coachQuality',
       count: cqLoading && !cq ? '…' : cq?.scorePct != null ? cq.scorePct : '—',
       label: 'Качество ведения',
@@ -121,12 +76,87 @@ export function buildAdminDaySummaryCards(opts = {}) {
       textCount: cq?.scorePct == null,
       valueSuffix: cq?.scorePct != null ? '/100' : null,
     },
-  ]
+    expiring: {
+      key: 'expiring',
+      count: summary.expiring,
+      label: 'Истекает',
+      hint: '≤ 3 дня',
+      icon: 'clock',
+      to: clients('expiring'),
+      hot: summary.expiring > 0,
+      warn: false,
+      textCount: false,
+      valueSuffix: null,
+    },
+    expired_recent: {
+      key: 'expired_recent',
+      count: Number(summary.expired_recent) || 0,
+      label: 'Закончился',
+      hint: '0–13 дней после конца',
+      icon: 'alert',
+      to: clients('expired_recent'),
+      hot: (Number(summary.expired_recent) || 0) > 0,
+      warn: (Number(summary.expired_recent) || 0) > 0,
+      textCount: false,
+      valueSuffix: null,
+    },
+    stale: {
+      key: 'stale',
+      count: Number(summary.stale) || 0,
+      label: 'Давно не был',
+      hint: '14–60 дней после конца',
+      icon: 'history',
+      to: clients('stale'),
+      hot: (Number(summary.stale) || 0) > 0,
+      warn: false,
+      textCount: false,
+      valueSuffix: null,
+    },
+    inactive: {
+      key: 'inactive',
+      count: summary.inactive,
+      label: 'Не активные',
+      hint: 'на сегодня · список в клиентах',
+      icon: 'userX',
+      to: clients('inactive'),
+      hot: summary.inactive > 0,
+      warn: false,
+      textCount: false,
+      valueSuffix: null,
+    },
+    awaiting_start: {
+      key: 'awaiting_start',
+      count: Number(summary.awaiting_start) || 0,
+      label: 'Ждёт старт',
+      hint: 'абонемент куплен вперёд',
+      icon: 'calendarClock',
+      to: clients('awaiting_start'),
+      hot: false,
+      warn: false,
+      textCount: false,
+      valueSuffix: null,
+    },
+  }
+
+  return ADMIN_DAY_SUMMARY_GROUPS.flatMap((g) => g.keys.map((k) => byKey[k]).filter(Boolean))
+}
+
+/**
+ * Карточки по секциям (порядок как в Клиентах).
+ * @param {ReturnType<typeof buildAdminDaySummaryCards>} cards
+ */
+export function groupAdminDaySummaryCards(cards) {
+  const list = Array.isArray(cards) ? cards : []
+  const byKey = new Map(list.map((c) => [c.key, c]))
+  return ADMIN_DAY_SUMMARY_GROUPS.map((g) => ({
+    id: g.id,
+    title: g.title,
+    cards: g.keys.map((k) => byKey.get(k)).filter(Boolean),
+  })).filter((g) => g.cards.length > 0)
 }
 
 /**
  * До maxSpotlight «горячих» + добивка спокойными; остальное — «ещё».
- *
  * @param {ReturnType<typeof buildAdminDaySummaryCards>} cards
  * @param {{ maxSpotlight?: number }} [opts]
  */
