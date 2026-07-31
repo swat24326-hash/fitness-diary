@@ -1494,6 +1494,24 @@ button {
   transform: scale(0.98);
 }
 
+.btn:disabled,
+.btn[disabled] {
+  cursor: not-allowed;
+  opacity: 0.48;
+  transform: none;
+  box-shadow: none;
+  filter: none;
+}
+
+.btn:disabled:hover,
+.btn[disabled]:hover {
+  background: var(--bg-muted);
+  border-color: var(--border);
+  filter: none;
+  box-shadow: none;
+  transform: none;
+}
+
 .btn:focus-visible {
   outline: none;
   border-color: rgba(94, 232, 132, 0.48);
@@ -1510,6 +1528,23 @@ button {
 .btn-primary:hover {
   filter: brightness(1.06);
   box-shadow: 0 6px 28px var(--accent-glow);
+}
+
+.btn-primary:disabled,
+.btn-primary[disabled] {
+  background: color-mix(in srgb, var(--accent) 22%, var(--bg-muted, #122018));
+  border-color: color-mix(in srgb, var(--border) 80%, transparent);
+  color: color-mix(in srgb, #022c14 40%, var(--text-muted));
+  box-shadow: none;
+  filter: grayscale(0.4) brightness(0.9);
+  opacity: 0.72;
+}
+
+.btn-primary:disabled:hover,
+.btn-primary[disabled]:hover {
+  background: color-mix(in srgb, var(--accent) 22%, var(--bg-muted, #122018));
+  filter: grayscale(0.4) brightness(0.9);
+  box-shadow: none;
 }
 
 .btn-ghost {
@@ -7677,23 +7712,6 @@ tr:last-child td {
   padding-bottom: 8px;
 }
 
-.membership-view__toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  margin-top: 12px;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(46, 255, 184, 0.22);
-  background: rgba(46, 255, 184, 0.06);
-}
-
-.membership-view__toolbar .membership-view__writeoff {
-  flex: 1 1 12rem;
-  min-width: min(100%, 14rem);
-}
-
 .membership-view__usage-chip {
   flex: 0 0 auto;
   padding: 0.35rem 0.65rem;
@@ -7720,6 +7738,10 @@ tr:last-child td {
   position: sticky;
   bottom: 0;
   z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
   padding-top: 12px;
   padding-bottom: calc(4px + env(safe-area-inset-bottom, 0px));
   margin-top: 8px;
@@ -7729,9 +7751,16 @@ tr:last-child td {
 }
 
 .membership-view__writeoff {
-  width: 100%;
+  flex: 1 1 12rem;
+  min-width: min(100%, 12rem);
   justify-content: center;
   gap: 8px;
+}
+
+.membership-view__writeoff:disabled,
+.membership-view__writeoff[disabled] {
+  /* Лимит исчерпан — не «активный CTA», а приглушённая кнопка */
+  opacity: 0.55;
 }
 
 .membership-view__period {
