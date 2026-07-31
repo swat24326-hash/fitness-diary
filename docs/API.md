@@ -44,6 +44,7 @@
 | `sales` | admin / sales_manager | Отчёты продаж. Опционально `profile=shell\|daily\|month\|full` (default `full`); `include_fit_city=1` для подсказок типов |
 | `price-list` | GET: admin / sales_manager (свой клуб); POST: admin / sales_manager (свой клуб) | Прайс ПЗ клуба (`club_price_lists`) |
 | `tz-price-list` | GET/POST: admin / sales_manager (свой клуб) | Прайс ТЗ клуба (`club_tz_price_lists`) |
+| `az-price-list` | GET/POST: admin / sales_manager (свой клуб) | Прайс АЗ клуба (`club_az_price_lists`) |
 | `pnk` | admin / sales_manager | Доска / данные ПНК |
 | `gemini-analytics-prefetch` | admin | Prefetch ИСКРЫ |
 | `iskra-settings`, `iskra-learning`, `iskra-dispatch`, `iskra-tts` | admin (+ dispatch шире) | Настройки, обучение, задания, neural озвучка |
@@ -61,6 +62,7 @@
 | `sales-finance`, `create-sales-manager` | admin | Финансы, создание менеджера |
 | `price-list` | admin / sales_manager (свой клуб) | Upsert прайса ПЗ клуба |
 | `tz-price-list` | admin / sales_manager (свой клуб) | Upsert прайса ТЗ клуба |
+| `az-price-list` | admin / sales_manager (свой клуб) | Upsert прайса АЗ клуба |
 | `gemini-analytics` | admin | Запрос к ИСКРЕ |
 | `iskra-settings`, `iskra-learning`, `iskra-dispatch`, `iskra-tts` | по op / роли | CRUD настроек, фидбек, задания, TTS |
 | `push-subscription` | auth user | Регистрация push |

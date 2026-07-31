@@ -58,6 +58,8 @@
 | Стратегия: якорь зала × сезон | `verify-sales-hall-anchor.mjs` |
 | Прайс ТЗ: импорт Excel 1мес/акции | `verify-tz-price-list.mjs` |
 | Прайс ТЗ: печать HTML / имена PNG | `verify-tz-price-list-print.mjs` |
+| Прайс АЗ: импорт Excel Результат/групповые/доплаты | `verify-az-price-list.mjs` |
+| Прайс АЗ: печать HTML / имена PNG | `verify-az-price-list-print.mjs` |
 | Продажи: профили bundle shell/daily/month/full | `verify-sales-bundle-profile.mjs` |
 | Срок абонемента по умолчанию (+1 календарный месяц) | `verify-date-ru.mjs` |
 

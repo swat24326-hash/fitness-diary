@@ -232,13 +232,15 @@ export function TrainerClients() {
     let expired_recent = 0
     let birthdays = 0
     let stale = 0
+    let pnk = 0
     for (const c of base) {
       if (clientMatchesFilter(c, 'expiring')) expiring++
       if (clientMatchesFilter(c, 'expired_recent')) expired_recent++
       if (clientMatchesFilter(c, 'birthdays')) birthdays++
       if (clientMatchesFilter(c, 'stale')) stale++
+      if (clientMatchesFilter(c, 'pnk')) pnk++
     }
-    return { all, expiring, expired_recent, birthdays, stale }
+    return { all, expiring, expired_recent, birthdays, stale, pnk }
   }, [clients, archivedClients, clientsTab, clientMatchesFilter])
 
   useEffect(() => {
@@ -425,54 +427,59 @@ export function TrainerClients() {
             Поиск
           </h2>
           <div className="u-grow u-minw-0" style={{ maxWidth: 680, width: '100%' }}>
-            <div className="row" style={{ gap: 10, justifyContent: 'flex-start' }}>
+            <div className="row trainer-client-filters" style={{ gap: 10, justifyContent: 'flex-start' }}>
               <Search size={18} aria-hidden className="u-shrink-0" />
               <input className="input u-w-full" placeholder="Фамилия, телефон или номер карты…" value={query} onChange={(e) => setQuery(e.target.value)} />
-              <button
-                type="button"
-                className={filterBtnClass('expiring')}
-                onClick={() => applyFilter('expiring')}
-                aria-label="Фильтр: абонемент заканчивается через 1–3 дня"
-                title={`1–3 дня (${filterCounts.expiring})`}
-              >
-                <Clock size={20} aria-hidden />
-              </button>
-              <button
-                type="button"
-                className={filterBtnClass('expired_recent')}
-                onClick={() => applyFilter('expired_recent')}
-                aria-label={`Фильтр: абонемент закончился менее ${STALE_TRAINING_DAYS} дней назад`}
-                title={`Закончился (${filterCounts.expired_recent})`}
-              >
-                <AlertTriangle size={20} aria-hidden />
-              </button>
-              <button
-                type="button"
-                className={filterBtnClass('birthdays')}
-                onClick={() => applyFilter('birthdays')}
-                aria-label="Фильтр: день рождения сегодня"
-                title={`ДР сегодня (${filterCounts.birthdays})`}
-              >
-                <Cake size={20} aria-hidden />
-              </button>
-              <button
-                type="button"
-                className={filterBtnClass('stale')}
-                onClick={() => applyFilter('stale')}
-                aria-label={`Фильтр: абонемент закончился ${STALE_TRAINING_DAYS}–${STALE_MAX_DAYS} дней назад`}
-                title={`Давно не был ${STALE_TRAINING_DAYS}–${STALE_MAX_DAYS} дн. после конца (${filterCounts.stale})`}
-              >
-                <CalendarClock size={20} aria-hidden />
-              </button>
-              <button
-                type="button"
-                className={filterBtnClass('pnk')}
-                onClick={() => applyFilter('pnk')}
-                aria-label="Фильтр: потенциальные новые клиенты"
-                title="ПНК"
-              >
-                <UserRound size={20} aria-hidden />
-              </button>
+              <div className="trainer-client-filters__group" role="group" aria-label="База и поводы">
+                <button
+                  type="button"
+                  className={filterBtnClass('pnk')}
+                  onClick={() => applyFilter('pnk')}
+                  aria-label="Фильтр: потенциальные новые клиенты"
+                  title={`ПНК (${filterCounts.pnk})`}
+                >
+                  <UserRound size={20} aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  className={filterBtnClass('birthdays')}
+                  onClick={() => applyFilter('birthdays')}
+                  aria-label="Фильтр: день рождения сегодня"
+                  title={`ДР сегодня (${filterCounts.birthdays})`}
+                >
+                  <Cake size={20} aria-hidden />
+                </button>
+              </div>
+              <span className="trainer-client-filters__sep" aria-hidden />
+              <div className="trainer-client-filters__group" role="group" aria-label="По абонементу">
+                <button
+                  type="button"
+                  className={filterBtnClass('expiring')}
+                  onClick={() => applyFilter('expiring')}
+                  aria-label="Фильтр: абонемент заканчивается через 1–3 дня"
+                  title={`Истекает 1–3 дня (${filterCounts.expiring})`}
+                >
+                  <Clock size={20} aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  className={filterBtnClass('expired_recent')}
+                  onClick={() => applyFilter('expired_recent')}
+                  aria-label={`Фильтр: абонемент закончился менее ${STALE_TRAINING_DAYS} дней назад`}
+                  title={`Закончился (${filterCounts.expired_recent})`}
+                >
+                  <AlertTriangle size={20} aria-hidden />
+                </button>
+                <button
+                  type="button"
+                  className={filterBtnClass('stale')}
+                  onClick={() => applyFilter('stale')}
+                  aria-label={`Фильтр: абонемент закончился ${STALE_TRAINING_DAYS}–${STALE_MAX_DAYS} дней назад`}
+                  title={`Давно не был ${STALE_TRAINING_DAYS}–${STALE_MAX_DAYS} дн. после конца (${filterCounts.stale})`}
+                >
+                  <CalendarClock size={20} aria-hidden />
+                </button>
+              </div>
             </div>
           </div>
         </div>

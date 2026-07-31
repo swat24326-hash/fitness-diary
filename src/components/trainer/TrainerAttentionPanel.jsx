@@ -1,6 +1,17 @@
 import { Link } from 'react-router-dom'
 import { AlertTriangle, Cake, CalendarClock, Clock, UserPlus } from 'lucide-react'
-import { STALE_MAX_DAYS } from '../../lib/trainer/trainerClientOutreachCore.js'
+import {
+  buildTrainerAttentionItems,
+  groupTrainerAttentionItems,
+} from '../../lib/trainer/trainerAttentionUiCore.js'
+
+const ICONS = {
+  pnk: UserPlus,
+  birthdays: Cake,
+  expiring: Clock,
+  expired_recent: AlertTriangle,
+  stale: CalendarClock,
+}
 
 /**
  * @param {{
@@ -33,48 +44,7 @@ export function TrainerAttentionPanel({ summary, loading = false }) {
 
   if (!summary) return null
 
-  const items = [
-    {
-      key: 'pnk',
-      count: summary.pnk ?? 0,
-      label: 'ПНК',
-      hint: 'воронка',
-      icon: UserPlus,
-      to: '/trainer/clients?filter=pnk',
-    },
-    {
-      key: 'birthdays',
-      count: summary.birthdays,
-      label: 'ДР сегодня',
-      hint: 'поздравление',
-      icon: Cake,
-      to: '/trainer/clients?filter=birthdays',
-    },
-    {
-      key: 'expiring',
-      count: summary.expiring,
-      label: 'Истекает',
-      hint: '1–3 дня',
-      icon: Clock,
-      to: '/trainer/clients?filter=expiring',
-    },
-    {
-      key: 'expired_recent',
-      count: summary.expired_recent,
-      label: 'Закончился',
-      hint: `< ${summary.staleDays} дн. после конца`,
-      icon: AlertTriangle,
-      to: '/trainer/clients?filter=expired_recent',
-    },
-    {
-      key: 'stale',
-      count: summary.stale,
-      label: 'Давно не был',
-      hint: `${summary.staleDays}–${summary.staleMaxDays ?? STALE_MAX_DAYS} дн. после конца`,
-      icon: CalendarClock,
-      to: '/trainer/clients?filter=stale',
-    },
-  ]
+  const groups = groupTrainerAttentionItems(buildTrainerAttentionItems(summary))
 
   return (
     <section className="trainer-attention" aria-labelledby="trainer-attention-title">
@@ -91,23 +61,32 @@ export function TrainerAttentionPanel({ summary, loading = false }) {
           </p>
         )}
       </div>
-      <ul className="trainer-attention__grid">
-        {items.map(({ key, count, label, hint, icon: Icon, to }) => (
-          <li key={key}>
-            <Link
-              to={to}
-              className={`trainer-attention__card u-no-decoration${count > 0 ? ' trainer-attention__card--hot' : ''}`}
-            >
-              <span className="trainer-attention__card-icon" aria-hidden>
-                <Icon size={18} />
-              </span>
-              <span className="trainer-attention__card-count">{count}</span>
-              <span className="trainer-attention__card-label">{label}</span>
-              <span className="trainer-attention__card-hint muted">{hint}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+
+      {groups.map((g) => (
+        <div key={g.id} className="trainer-attention__section">
+          <h3 className="trainer-attention__section-title">{g.title}</h3>
+          <ul className={`trainer-attention__grid trainer-attention__grid--${g.id}`} aria-label={g.title}>
+            {g.cards.map(({ key, count, label, hint, to }) => {
+              const Icon = ICONS[key] || Clock
+              return (
+                <li key={key}>
+                  <Link
+                    to={to}
+                    className={`trainer-attention__card u-no-decoration${count > 0 ? ' trainer-attention__card--hot' : ''}`}
+                  >
+                    <span className="trainer-attention__card-icon" aria-hidden>
+                      <Icon size={18} />
+                    </span>
+                    <span className="trainer-attention__card-count">{count}</span>
+                    <span className="trainer-attention__card-label">{label}</span>
+                    <span className="trainer-attention__card-hint muted">{hint}</span>
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      ))}
     </section>
   )
 }

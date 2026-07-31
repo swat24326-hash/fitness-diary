@@ -9,6 +9,7 @@
 @import './styles/training-hr.css';
 @import './styles/trainer-rating.css';
 @import './styles/price-list.css';
+@import './styles/az-price-list.css';
 
 *,
 *::before,
@@ -3201,6 +3202,25 @@ tr:last-child td {
   font-size: 13px;
 }
 
+.trainer-attention__section {
+  margin: 0;
+}
+
+.trainer-attention__section + .trainer-attention__section {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.trainer-attention__section-title {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
 .trainer-cq-glance {
   width: 100%;
   max-width: 920px;
@@ -3266,15 +3286,43 @@ tr:last-child td {
   margin: 0;
   padding: 0;
   display: grid;
-  /* ПНК уже остальных — короткий ярлык «ПНК» */
-  grid-template-columns: minmax(0, 0.72fr) repeat(4, minmax(0, 1fr));
   gap: clamp(8px, 1.5vw, 12px);
 }
 
+.trainer-attention__grid--base {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.trainer-attention__grid--path {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 @media (max-width: 560px) {
-  .trainer-attention__grid {
+  .trainer-attention__grid--base,
+  .trainer-attention__grid--path {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+.trainer-client-filters {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.trainer-client-filters__group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.trainer-client-filters__sep {
+  width: 1px;
+  align-self: stretch;
+  min-height: 28px;
+  margin: 0 2px;
+  background: color-mix(in srgb, var(--border) 85%, transparent);
+  flex-shrink: 0;
 }
 
 .trainer-attention__card {
@@ -3466,8 +3514,13 @@ tr:last-child td {
     font-size: 0.82rem;
   }
 
-  .trainer-home .trainer-attention__grid {
-    grid-template-columns: minmax(0, 0.68fr) repeat(4, minmax(0, 1fr));
+  .trainer-home .trainer-attention__grid--base {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .trainer-home .trainer-attention__grid--path {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
   }
 
@@ -3550,8 +3603,12 @@ tr:last-child td {
     margin-top: 0;
   }
 
-  .trainer-home .trainer-attention__grid {
-    grid-template-columns: minmax(0, 0.65fr) repeat(4, minmax(0, 1fr));
+  .trainer-home .trainer-attention__grid--base {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .trainer-home .trainer-attention__grid--path {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .trainer-home .trainer-pnk-glance {
@@ -3560,8 +3617,12 @@ tr:last-child td {
 }
 
 @media (min-width: 1024px) {
-  .trainer-home .trainer-attention__grid {
-    grid-template-columns: minmax(0, 0.62fr) repeat(4, minmax(0, 1fr));
+  .trainer-home .trainer-attention__grid--base {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .trainer-home .trainer-attention__grid--path {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .trainer-home .trainer-pnk-glance {

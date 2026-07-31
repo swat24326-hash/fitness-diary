@@ -23,6 +23,10 @@ import {
 } from '../src/lib/trainer/trainerAttentionSummary.js'
 
 import { isMembershipExpiredRecently } from '../src/lib/trainer/trainerClientOutreachCore.js'
+import {
+  buildTrainerAttentionItems,
+  groupTrainerAttentionItems,
+} from '../src/lib/trainer/trainerAttentionUiCore.js'
 
 
 
@@ -322,7 +326,23 @@ ok(normalizeTrainerClientQuickFilter('expired_remaining') === 'expired_recent', 
 
 ok(!isTrainerClientQuickFilter('nope'), 'invalid filter')
 
-
+const uiItems = buildTrainerAttentionItems({
+  pnk: 2,
+  birthdays: 1,
+  expiring: 0,
+  expired_recent: 3,
+  stale: 4,
+  staleDays: STALE_TRAINING_DAYS,
+  staleMaxDays: 60,
+})
+ok(
+  uiItems.map((i) => i.key).join(',') === 'pnk,birthdays,expiring,expired_recent,stale',
+  'attention UI order: base then path',
+)
+const uiGroups = groupTrainerAttentionItems(uiItems)
+ok(uiGroups.length === 2, 'two attention UI groups')
+ok(uiGroups[0]?.id === 'base' && uiGroups[0].cards.length === 2, 'base: PNK + DR')
+ok(uiGroups[1]?.id === 'path' && uiGroups[1].cards.length === 3, 'path: abo funnel')
 
 if (failed) process.exit(1)
 
