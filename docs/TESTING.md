@@ -57,6 +57,7 @@
 | План: ориентир ПЗ ДК из прайса (8 тр. × действующие) | `verify-sales-plan-pz-dk-suggest.mjs` |
 | Стратегия: якорь зала × сезон | `verify-sales-hall-anchor.mjs` |
 | Прайс ТЗ: импорт Excel 1мес/акции | `verify-tz-price-list.mjs` |
+| Прайс ТЗ: печать HTML / имена PNG | `verify-tz-price-list-print.mjs` |
 | Продажи: профили bundle shell/daily/month/full | `verify-sales-bundle-profile.mjs` |
 | Срок абонемента по умолчанию (+1 календарный месяц) | `verify-date-ru.mjs` |
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { FileSpreadsheet, RefreshCw, Save } from 'lucide-react'
+import { FileSpreadsheet, ImageDown, Printer, RefreshCw, Save } from 'lucide-react'
 import {
   emptyTzPriceListDocument,
   formatTzMonthsLabel,
@@ -11,6 +11,11 @@ import { fetchTzPriceListForClub, saveTzPriceListForClub } from '../../lib/price
 import { readTzPriceListLocalEntry } from '../../lib/priceList/tzPriceListLocalStorage.js'
 import { importTzPriceListFromExcelBuffer } from '../../lib/priceList/tzPriceListExcelWorkbook.js'
 import { formatPriceListMoney } from '../../lib/priceList/priceListExportCore.js'
+import {
+  downloadTzPriceListPng,
+  printTzPriceListDocument,
+} from '../../lib/priceList/tzPriceListExportCanvas.js'
+import { buildTzPriceListPrintSheets } from '../../lib/priceList/tzPriceListPrintChrome.js'
 import { TzPriceListStandFields } from './TzPriceListStandFields.jsx'
 import '../../styles/price-list.css'
 import '../../styles/tz-price-list.css'
@@ -128,6 +133,30 @@ export function AdminTzPriceListSection({ clubId }) {
     }))
   }
 
+  const handlePrint = () => {
+    const result = printTzPriceListDocument(doc)
+    if (!result.ok) setToast(result.error || 'Печать недоступна')
+    else setToast('Если в диалоге стоит «Книжная» — переключите на «Альбомная»')
+  }
+
+  const handlePng = async () => {
+    if (!buildTzPriceListPrintSheets(doc).length) {
+      setToast('Сначала загрузите Excel / заполните сетку')
+      return
+    }
+    setBusy(true)
+    try {
+      const result = await downloadTzPriceListPng(doc)
+      if (!result.ok) setToast('Не удалось сделать PNG')
+      else if (result.count > 1) setToast(`PNG: ${result.count} листа (1 месяц / Акции)`)
+      else setToast(`PNG сохранён: ${result.filename}`)
+    } catch (e) {
+      setToast(e?.message ? String(e.message) : 'Ошибка PNG')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   if (!clubId) {
     return (
       <section className="card price-list" aria-label="Прайс ТЗ">
@@ -159,6 +188,26 @@ export function AdminTzPriceListSection({ clubId }) {
             className="sr-only"
             onChange={(e) => void onExcel(e.target.files?.[0])}
           />
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={handlePrint}
+            disabled={empty}
+            title="Печать витрины (все заполненные листы)"
+          >
+            <Printer size={16} aria-hidden />
+            Печать
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => void handlePng()}
+            disabled={busy || empty}
+            title="Скачать PNG всех заполненных листов"
+          >
+            <ImageDown size={16} aria-hidden />
+            PNG
+          </button>
           <button
             type="button"
             className="btn btn-secondary btn-sm"

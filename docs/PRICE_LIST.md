@@ -1,7 +1,7 @@
 # Прайс клуба (ПЗ + ТЗ)
 
 **Актуально:** 2026-07-31  
-**Статус:** ✅ ПЗ (админ + менеджер) · ✅ ТЗ (импорт Excel, правка, облако) · печать ТЗ — backlog.
+**Статус:** ✅ ПЗ (админ + менеджер) · ✅ ТЗ (импорт Excel, правка, облако, печать/PNG).
 
 ## Ситуация → польза
 
@@ -36,9 +36,11 @@
 | Облако | `club_tz_price_lists` · `action=tz-price-list` |
 | Импорт | кнопка **Excel** на вкладке ТЗ |
 
-Код ТЗ: `tzPriceListCore.js`, `tzPriceListExcel*.js`, UI `AdminTzPriceListSection.jsx` + `PriceListHallShell.jsx`.  
+Код ТЗ: `tzPriceListCore.js`, `tzPriceListExcel*.js`, `tzPriceListPrint*.js` / `tzPriceListExportCanvas.js`, UI `AdminTzPriceListSection.jsx` + `PriceListHallShell.jsx`.  
 Миграция: `npm run db:migrate:tz-price-list -- --linked`.  
-Verify: `scripts/verify-tz-price-list.mjs`.
+Verify: `scripts/verify-tz-price-list.mjs`, `scripts/verify-tz-price-list-print.mjs`.
+
+**Печать / PNG** — все заполненные листы («1 месяц», «Акции»), A4 альбом, гамма тренера, шапка/подвал из Excel. Пустой документ — toast «Сначала загрузите Excel…».
 
 **Дизайн витрины** — общий с ПЗ: `card` + `price-list__*` (шапка стенда, mode-btn, матрица, легенда, акцент колонки стенда/акции). Доп. классы ТЗ — только в `tz-price-list.css`.
 
@@ -48,7 +50,7 @@ Verify: `scripts/verify-tz-price-list.mjs`.
 |-----|-----|--------|
 | P4 | Стратегия / ПЗ ДК | ✅ |
 | **T1** | Прайс ТЗ: модель + Excel + Save | ✅ |
-| **T2** | Печать / PNG ТЗ | 📋 |
+| **T2** | Печать / PNG ТЗ | ✅ |
 | **T3** | Кабинет клиентов ТЗ | ⏸ после прайса |
 
 Связано: [SALES_MANAGER.md](./SALES_MANAGER.md), [API.md](./API.md).

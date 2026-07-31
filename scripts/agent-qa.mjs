@@ -68,6 +68,7 @@ run('sales plan matrix compare', 'node', ['scripts/verify-sales-plan-matrix-comp
 run('sales plan PZ DK suggest', 'node', ['scripts/verify-sales-plan-pz-dk-suggest.mjs'])
 run('sales hall anchor', 'node', ['scripts/verify-sales-hall-anchor.mjs'])
 run('tz price list', 'node', ['scripts/verify-tz-price-list.mjs'])
+run('tz price list print', 'node', ['scripts/verify-tz-price-list-print.mjs'])
 run('sales manager stats', 'node', ['scripts/verify-sales-manager-stats.mjs'])
 run('sales client segment', 'node', ['scripts/verify-sales-client-segment.mjs'])
 run('pnk funnel stages', 'node', ['scripts/verify-pnk-stages.mjs'])
