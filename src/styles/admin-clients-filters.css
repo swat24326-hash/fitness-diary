@@ -41,6 +41,10 @@
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
+.admin-clients-filters-grid--path-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .admin-clients-filter-tile-wrap {
   position: relative;
   min-width: 0;

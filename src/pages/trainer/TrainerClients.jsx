@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Cake, CalendarClock, Clock, Search, SkipForward, UserPlus, UserRound } from 'lucide-react'
+import { Search, SkipForward, UserPlus, UserRound } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { TrainerClientListItem } from '../../components/trainer/TrainerClientListItem'
+import {
+  TRAINER_CLIENTS_BROWSE_LABELS,
+  TrainerClientsBrowseFilters,
+} from '../../components/trainer/TrainerClientsBrowseFilters.jsx'
 import { useAuth } from '../../context/AuthContext'
 import { useTrainerOutreach } from '../../hooks/useTrainerOutreach'
 import { deleteClientAndAllData, listClubsLocal } from '../../lib/dataAccess'
@@ -41,6 +45,7 @@ import {
   loadCachedClubOutreachTemplates,
 } from '../../lib/trainer/trainerOutreachLogService'
 import { withPnkFieldsForInsert } from '../../lib/pnk/pnkLocalService'
+import '../../styles/trainer-clients.css'
 
 export function TrainerClients() {
   const { user, refreshUserProfile } = useAuth()
@@ -290,11 +295,21 @@ export function TrainerClients() {
     scrollToOutreachClient(nextOutreachClient.id)
   }, [nextOutreachClient, scrollToOutreachClient, showToast])
 
-  const filterBtnClass = (id) => `btn ${quickFilter === id ? 'btn-primary' : 'btn-ghost'} btn-icon-square`
-
   const applyFilter = (id) => {
+    if (id === 'all') {
+      setQuickFilter('all')
+      return
+    }
     setQuickFilter((cur) => (cur === id ? 'all' : id))
   }
+
+  const clearBrowseFilter = () => {
+    setQuickFilter('all')
+    setQuery('')
+  }
+
+  const activeBrowseLabel =
+    quickFilter && quickFilter !== 'all' ? TRAINER_CLIENTS_BROWSE_LABELS[quickFilter] ?? null : null
 
   const updateClientArchiveFlag = async (clientRow, archived) => {
     if (!clientRow?.id) return
@@ -406,9 +421,37 @@ export function TrainerClients() {
       <header className="trainer-path-head">
         <div className="trainer-path-head__left">
           <h1 className="trainer-path-head__title">Клиенты</h1>
-          <p className="trainer-path-head__lead">Поиск, фильтры и быстрый переход к карточке.</p>
+          <p className="trainer-path-head__lead">Найти клиента и открыть карточку. Очереди Max — чипами ниже.</p>
         </div>
-        <div className="trainer-path-head__actions">
+      </header>
+
+      <section className="card admin-clients-workspace trainer-clients-workspace" id="clients">
+        <div className="admin-clients-workspace__toolbar">
+          <div className="admin-clients-segment" role="tablist" aria-label="Раздел списка клиентов">
+            <button
+              type="button"
+              role="tab"
+              className="admin-clients-segment__btn"
+              aria-selected={clientsTab === 'active'}
+              onClick={() => setClientsTab('active')}
+            >
+              Активные
+              <span className="admin-clients-segment__count">{clients.length}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              className="admin-clients-segment__btn"
+              aria-selected={clientsTab === 'archive'}
+              onClick={() => {
+                setClientsTab('archive')
+                setQuickFilter('all')
+              }}
+            >
+              Архив
+              <span className="admin-clients-segment__count">{archivedClients.length}</span>
+            </button>
+          </div>
           <button
             type="button"
             className="btn btn-primary btn-icon-square btn-touch"
@@ -419,207 +462,166 @@ export function TrainerClients() {
             <UserPlus size={20} aria-hidden />
           </button>
         </div>
-      </header>
 
-      <section className="card">
-        <div className="row" style={{ justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-          <h2 className="section-title td-section-title" style={{ margin: 0 }}>
-            Поиск
-          </h2>
-          <div className="u-grow u-minw-0" style={{ maxWidth: 680, width: '100%' }}>
-            <div className="row trainer-client-filters" style={{ gap: 10, justifyContent: 'flex-start' }}>
-              <Search size={18} aria-hidden className="u-shrink-0" />
-              <input className="input u-w-full" placeholder="Фамилия, телефон или номер карты…" value={query} onChange={(e) => setQuery(e.target.value)} />
-              <div className="trainer-client-filters__group" role="group" aria-label="База и поводы">
-                <button
-                  type="button"
-                  className={filterBtnClass('pnk')}
-                  onClick={() => applyFilter('pnk')}
-                  aria-label="Фильтр: потенциальные новые клиенты"
-                  title={`ПНК (${filterCounts.pnk})`}
-                >
-                  <UserRound size={20} aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  className={filterBtnClass('birthdays')}
-                  onClick={() => applyFilter('birthdays')}
-                  aria-label="Фильтр: день рождения сегодня"
-                  title={`ДР сегодня (${filterCounts.birthdays})`}
-                >
-                  <Cake size={20} aria-hidden />
-                </button>
-              </div>
-              <span className="trainer-client-filters__sep" aria-hidden />
-              <div className="trainer-client-filters__group" role="group" aria-label="По абонементу">
-                <button
-                  type="button"
-                  className={filterBtnClass('expiring')}
-                  onClick={() => applyFilter('expiring')}
-                  aria-label="Фильтр: абонемент заканчивается через 1–3 дня"
-                  title={`Истекает 1–3 дня (${filterCounts.expiring})`}
-                >
-                  <Clock size={20} aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  className={filterBtnClass('expired_recent')}
-                  onClick={() => applyFilter('expired_recent')}
-                  aria-label={`Фильтр: абонемент закончился менее ${STALE_TRAINING_DAYS} дней назад`}
-                  title={`Закончился (${filterCounts.expired_recent})`}
-                >
-                  <AlertTriangle size={20} aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  className={filterBtnClass('stale')}
-                  onClick={() => applyFilter('stale')}
-                  aria-label={`Фильтр: абонемент закончился ${STALE_TRAINING_DAYS}–${STALE_MAX_DAYS} дней назад`}
-                  title={`Давно не был ${STALE_TRAINING_DAYS}–${STALE_MAX_DAYS} дн. после конца (${filterCounts.stale})`}
-                >
-                  <CalendarClock size={20} aria-hidden />
-                </button>
-              </div>
-            </div>
+        <p className="muted admin-clients-workspace__meta">
+          {trainerClubId ? (
+            <>
+              Только ваши клиенты · <strong>{myClubName ?? 'клуб'}</strong>
+            </>
+          ) : (
+            <>Клуб не назначен — список и «+» недоступны. Попросите админа назначить клуб.</>
+          )}
+        </p>
+
+        <div className="admin-clients-workspace__search" role="group" aria-label="Поиск клиента">
+          <div className="admin-clients-search-cell">
+            <Search size={18} aria-hidden className="muted u-shrink-0" />
+            <input
+              className="admin-clients-search-input"
+              type="search"
+              autoComplete="off"
+              placeholder="Фамилия, телефон или номер карты…"
+              aria-label="Поиск по клиенту"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
           </div>
         </div>
-      </section>
 
-      <section id="clients" className="card">
-        <div className="td-section-head">
-          <h2 className="section-title td-section-title" style={{ margin: 0 }}>
-            Список
-          </h2>
-        </div>
+        {clientsTab === 'active' ? (
+          <TrainerClientsBrowseFilters counts={filterCounts} quickFilter={quickFilter} onApply={applyFilter} />
+        ) : (
+          <p className="admin-clients-workspace__archive-hint muted">
+            Архивные карточки: просмотр и возврат. Поиск по имени, телефону или карте.
+          </p>
+        )}
 
-        {isOutreachScenario(quickFilter) && sortedFilteredClients.length > 0 ? (
-          <div
-            className={`trainer-outreach-progress${outreachProgress.pending === 0 && outreachProgress.total > 0 ? ' trainer-outreach-progress--done' : ''}`}
-            role="status"
-            aria-live="polite"
-            title={
-              nextOutreachClient
-                ? `Следующий: ${nextOutreachClient.name}`
-                : outreachProgress.pending === 0
-                  ? 'Все обработаны'
-                  : undefined
-            }
-          >
-            <strong className="trainer-outreach-progress__count">
-              {outreachProgress.done}/{outreachProgress.total}
-            </strong>
-            {outreachProgress.pending > 0 && nextOutreachClient ? (
+        <div className="admin-clients-workspace__results">
+          {isOutreachScenario(quickFilter) && sortedFilteredClients.length > 0 ? (
+            <div
+              className={`trainer-outreach-progress${outreachProgress.pending === 0 && outreachProgress.total > 0 ? ' trainer-outreach-progress--done' : ''}`}
+              role="status"
+              aria-live="polite"
+              title={
+                nextOutreachClient
+                  ? `Следующий: ${nextOutreachClient.name}`
+                  : outreachProgress.pending === 0
+                    ? 'Все обработаны'
+                    : undefined
+              }
+            >
+              <strong className="trainer-outreach-progress__count">
+                {outreachProgress.done}/{outreachProgress.total}
+              </strong>
+              {outreachProgress.pending > 0 && nextOutreachClient ? (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-icon-square btn-touch trainer-outreach-next-btn"
+                  onClick={handleNextOutreach}
+                  aria-label={`Следующий: ${nextOutreachClient.name}`}
+                  title={`Следующий: ${nextOutreachClient.name}`}
+                >
+                  <SkipForward size={20} aria-hidden />
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
+          {activeBrowseLabel || query.trim() ? (
+            <div className="admin-clients-results-bar">
+              <span className="admin-clients-results-bar__label">
+                Показано:{' '}
+                <strong>{activeBrowseLabel || 'поиск'}</strong>
+                {sortedFilteredClients.length > 0 ? (
+                  <span className="muted"> · {sortedFilteredClients.length}</span>
+                ) : null}
+              </span>
               <button
                 type="button"
-                className="btn btn-primary btn-icon-square btn-touch trainer-outreach-next-btn"
-                onClick={handleNextOutreach}
-                aria-label={`Следующий: ${nextOutreachClient.name}`}
-                title={`Следующий: ${nextOutreachClient.name}`}
+                className="btn btn-ghost btn-touch admin-clients-results-bar__clear"
+                onClick={clearBrowseFilter}
               >
-                <SkipForward size={20} aria-hidden />
+                Сбросить
               </button>
-            ) : null}
-          </div>
-        ) : null}
+            </div>
+          ) : null}
 
-        <div className="tabs" role="tablist" style={{ marginTop: 10 }}>
-          <button type="button" className="tab" aria-selected={clientsTab === 'active'} onClick={() => setClientsTab('active')}>
-            Активные ({clients.length})
-          </button>
-          <button type="button" className="tab" aria-selected={clientsTab === 'archive'} onClick={() => setClientsTab('archive')}>
-            Архив ({archivedClients.length})
-          </button>
-        </div>
-        {!workspaceReady ? (
-          <div className="td-list-loading" role="status" aria-live="polite" aria-busy="true">
-            <span className="app-loading__ring app-loading__ring--sm" aria-hidden />
-            <p className="muted td-list-loading__text">Загрузка клиентов…</p>
-          </div>
-        ) : (
-          <>
-            <p className="muted" style={{ fontSize: 13, margin: '6px 0 10px', lineHeight: 1.45 }}>
-              {trainerClubId ? (
-                <>
-                  Клуб: <strong>{myClubName ?? 'ваш клуб'}</strong>. Вы видите только своих клиентов этого клуба.
-                </>
-              ) : (
-                <>
-                  Клуб не назначен. Клиенты скрыты, создание тренировки/клиентов недоступно — попросите админа назначить клуб.
-                </>
-              )}
-            </p>
-            {sortedFilteredClients.length > 0 ? (
-              <>
-                <p className="muted client-list-meta">
-                  Показано {visibleClients.length} из {sortedFilteredClients.length}
-                  {clients.length !== sortedFilteredClients.length ? ` (всего у вас ${clients.length})` : ''}
-                </p>
-                <ul className="list os-enter">
-                  {visibleClients.map((c) => (
-                    <TrainerClientListItem
-                      key={c.id}
-                      rowId={`trainer-client-${c.id}`}
-                      client={c}
-                      today={today}
-                      memList={memByClient[c.id] ?? []}
-                      clientTrainings={trainingsByClientId[c.id] ?? []}
-                      lastTrainingIso={lastCompletedByClientId[c.id] ?? lastTrainingDateByClientId[c.id] ?? '—'}
-                      showBirthdayLabel={quickFilter === 'birthdays'}
-                      outreachScenario={isOutreachScenario(quickFilter) ? quickFilter : null}
-                      outreachHint={
-                        isOutreachScenario(quickFilter)
-                          ? buildOutreachScenarioHint(quickFilter, memByClient[c.id] ?? [], today)
-                          : null
-                      }
-                      highlighted={highlightClientId === String(c.id)}
-                      onWriteToMax={
-                        isOutreachScenario(quickFilter)
-                          ? async () => {
-                              const result = await outreach.handleWriteToMax({
-                                client: c,
-                                scenario: quickFilter,
-                                memList: memByClient[c.id] ?? [],
-                                today,
-                              })
-                              if (result?.ok) {
-                                setSentTodayIds((prev) => new Set([...prev, String(c.id)]))
-                              }
+          {!workspaceReady ? (
+            <div className="td-list-loading" role="status" aria-live="polite" aria-busy="true">
+              <span className="app-loading__ring app-loading__ring--sm" aria-hidden />
+              <p className="muted td-list-loading__text">Загрузка клиентов…</p>
+            </div>
+          ) : sortedFilteredClients.length > 0 ? (
+            <>
+              <ul className="list os-enter">
+                {visibleClients.map((c) => (
+                  <TrainerClientListItem
+                    key={c.id}
+                    rowId={`trainer-client-${c.id}`}
+                    client={c}
+                    today={today}
+                    memList={memByClient[c.id] ?? []}
+                    clientTrainings={trainingsByClientId[c.id] ?? []}
+                    lastTrainingIso={lastCompletedByClientId[c.id] ?? lastTrainingDateByClientId[c.id] ?? '—'}
+                    showBirthdayLabel={quickFilter === 'birthdays'}
+                    outreachScenario={isOutreachScenario(quickFilter) ? quickFilter : null}
+                    outreachHint={
+                      isOutreachScenario(quickFilter)
+                        ? buildOutreachScenarioHint(quickFilter, memByClient[c.id] ?? [], today)
+                        : null
+                    }
+                    highlighted={highlightClientId === String(c.id)}
+                    onWriteToMax={
+                      isOutreachScenario(quickFilter)
+                        ? async () => {
+                            const result = await outreach.handleWriteToMax({
+                              client: c,
+                              scenario: quickFilter,
+                              memList: memByClient[c.id] ?? [],
+                              today,
+                            })
+                            if (result?.ok) {
+                              setSentTodayIds((prev) => new Set([...prev, String(c.id)]))
                             }
-                          : null
-                      }
-                      outreachCopied={outreach.copiedClientId === c.id}
-                      outreachBusy={outreach.busyClientId === c.id}
-                      outreachSent={sentTodayIds.has(String(c.id))}
-                      mode={clientsTab}
-                      busy={busy}
-                      onDelete={(row) => setConfirmDelete({ id: row.id, name: row.name })}
-                      onArchive={(row) => void updateClientArchiveFlag(row, true)}
-                      onRestore={(row) => void updateClientArchiveFlag(row, false)}
-                    />
-                  ))}
-                </ul>
-                {hasMore ? (
-                  <div className="client-list-more">
-                    <button type="button" className="btn btn-ghost btn-touch" onClick={() => setVisibleCount((n) => n + CLIENT_LIST_PAGE_SIZE)}>
-                      Показать ещё {Math.min(CLIENT_LIST_PAGE_SIZE, sortedFilteredClients.length - visibleCount)}
-                    </button>
-                  </div>
-                ) : null}
-              </>
-            ) : (
-              <div className="trainer-path-empty" role="status">
-                <UserRound size={28} aria-hidden className="os-empty-card__icon" />
-                <p className="trainer-path-empty__text">
-                  {quickFilter !== 'all' || query.trim()
-                    ? emptyFilterMessage()
-                    : clients.length === 0
-                      ? 'Пока нет клиентов. Нажмите «+», чтобы добавить.'
-                      : 'Ничего не найдено.'}
-                </p>
-              </div>
-            )}
-          </>
-        )}
+                          }
+                        : null
+                    }
+                    outreachCopied={outreach.copiedClientId === c.id}
+                    outreachBusy={outreach.busyClientId === c.id}
+                    outreachSent={sentTodayIds.has(String(c.id))}
+                    mode={clientsTab}
+                    busy={busy}
+                    onDelete={(row) => setConfirmDelete({ id: row.id, name: row.name })}
+                    onArchive={(row) => void updateClientArchiveFlag(row, true)}
+                    onRestore={(row) => void updateClientArchiveFlag(row, false)}
+                  />
+                ))}
+              </ul>
+              {hasMore ? (
+                <div className="client-list-more">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-touch"
+                    onClick={() => setVisibleCount((n) => n + CLIENT_LIST_PAGE_SIZE)}
+                  >
+                    Показать ещё {Math.min(CLIENT_LIST_PAGE_SIZE, sortedFilteredClients.length - visibleCount)}
+                  </button>
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <div className="trainer-path-empty" role="status">
+              <UserRound size={28} aria-hidden className="os-empty-card__icon" />
+              <p className="trainer-path-empty__text">
+                {quickFilter !== 'all' || query.trim()
+                  ? emptyFilterMessage()
+                  : clients.length === 0
+                    ? 'Пока нет клиентов. Нажмите «+», чтобы добавить.'
+                    : 'Ничего не найдено.'}
+              </p>
+            </div>
+          )}
+        </div>
       </section>
 
       {confirmDelete && (

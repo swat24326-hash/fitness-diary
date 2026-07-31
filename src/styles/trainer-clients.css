@@ -1,0 +1,130 @@
+/**
+ * Клиенты тренера — планшет: быстрый поиск + компактные чипы, список сразу под рукой.
+ * Крупные плитки «сводки» остаются на главной («Сегодня внимание»), не дублируем здесь.
+ */
+
+.trainer-clients-workspace .admin-clients-workspace__search {
+  grid-template-columns: 1fr;
+  margin-bottom: 12px;
+}
+
+.trainer-clients-workspace .admin-clients-workspace__meta {
+  margin-bottom: 8px;
+}
+
+.trainer-clients-workspace .trainer-outreach-progress {
+  margin-bottom: 10px;
+}
+
+.trainer-clients-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 10px 0 2px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.trainer-clients-filters__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+}
+
+.trainer-clients-filters__legend {
+  flex: 0 0 auto;
+  min-width: 5.5rem;
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.trainer-clients-filters__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.trainer-clients-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+  background: color-mix(in srgb, var(--bg-subtle, #061210) 88%, transparent);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.trainer-clients-chip__icon {
+  display: inline-flex;
+  color: var(--accent-bright, var(--accent));
+  opacity: 0.9;
+}
+
+.trainer-clients-chip__label {
+  white-space: nowrap;
+}
+
+.trainer-clients-chip__count {
+  min-width: 1.35rem;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--text);
+}
+
+.trainer-clients-chip--hot:not(.trainer-clients-chip--active) {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+}
+
+.trainer-clients-chip--warn:not(.trainer-clients-chip--active) {
+  border-color: color-mix(in srgb, #f59e0b 48%, var(--border));
+}
+
+.trainer-clients-chip--warn .trainer-clients-chip__icon {
+  color: #fbbf24;
+}
+
+.trainer-clients-chip--warn .trainer-clients-chip__count {
+  background: color-mix(in srgb, #f59e0b 18%, transparent);
+}
+
+.trainer-clients-chip--active {
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--border));
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.trainer-clients-chip--active .trainer-clients-chip__count {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.trainer-clients-chip:hover {
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
+}
+
+@media (max-width: 560px) {
+  .trainer-clients-filters__legend {
+    min-width: 100%;
+    margin-bottom: -2px;
+  }
+}
