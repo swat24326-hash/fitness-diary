@@ -155,9 +155,18 @@ function periodSrcHasOldCqGate() {
     status: 'completed',
   })
   ok(n.data?.membership_id === 'm9', 'normalize membership_id for payroll')
+  const selfStatsSrc = readFileSync(join(root, 'api/_lib/trainerSelfStatsCore.js'), 'utf8')
   ok(
-    !readFileSync(join(root, 'api/_lib/trainerSelfStatsCore.js'), 'utf8').includes('code, name,'),
-    'trainer-self-stats не select name (колонки нет на проде)',
+    !selfStatsSrc.includes('code, name,'),
+    'trainer-self-stats не select name у membership_types (колонки нет на проде)',
+  )
+  ok(
+    /CLIENTS_SELECT\s*=\s*'[^']*\bname\b/.test(selfStatsSrc),
+    'trainer-self-stats select name у clients (список «Не активные»)',
+  )
+  ok(
+    /CLIENTS_SELECT\s*=\s*'[^']*\bphone\b/.test(selfStatsSrc),
+    'trainer-self-stats select phone у clients',
   )
   ok(
     !readFileSync(join(root, 'api/_lib/clubStatsFetch.js'), 'utf8').includes(

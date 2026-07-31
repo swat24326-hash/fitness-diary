@@ -1,83 +1,54 @@
-# Прайс клуба (ПЗ)
+# Прайс клуба (ПЗ + ТЗ)
 
-**Актуально:** 2026-07-30  
-**Статус:** ✅ админ + менеджер своего клуба (правка) + облако `club_price_lists` + Excel/печать/PNG.
+**Актуально:** 2026-07-31  
+**Статус:** ✅ ПЗ (админ + менеджер) · ✅ ТЗ (импорт Excel, правка, облако) · печать ТЗ — backlog.
 
 ## Ситуация → польза
 
-На ресепшене нужен актуальный прайс персонального зала: свои цены на **этот** клуб, одна сетка (карты + VIP), без отдельных Excel. Колонки совпадают с типами абонементов (код `PL`, `VIP`…), а не с маркетинговыми именами из файла.
+На ресепшене нужен актуальный прайс **персонального** и **тренажёрного** зала своего клуба. ПЗ — сетка карт; ТЗ — пакеты 1 мес и акции на несколько месяцев (эталон Excel `1kfs_TZ_*.xls`).
 
 ## Где в UI
 
 | Роль | Где |
 |------|-----|
-| Админ | `/admin/sales?tab=price` — правка, Excel, Save (любой клуб) |
-| Менеджер | `/sales?tab=price` (плитка **Прайс**) — правка, Excel, Save, печать, PNG (**только свой клуб**) |
+| Админ | `/admin/sales?tab=price` — переключатель **ПЗ \| ТЗ** |
+| Менеджер | `/sales?tab=price` — то же для своего клуба |
 
-## Правила
+## ПЗ (персональный)
 
 | Правило | Смысл |
 |---------|--------|
-| Свой прайс на клуб | `club_id`; другой клуб — другая сетка |
-| Эталон карт | `membership_types` ПЗ (`code`); **без БЗ**; VIP — обычная колонка |
-| Режимы | `base` и `day` — две сетки одних карт |
-| Ячейка | **базовая** и **−10%** (как в Excel); правка одной пересчитывает другую |
-| Людей | чипы 1…5 — можно только `1` или полный ряд |
-| Облако | `GET/POST admin-data?action=price-list`; localStorage + **TTL 7 суток** (force / Save — сразу сеть) |
-| Импорт Excel | кнопка **Excel** → сопоставить колонки с `code` типов; без автосоздания типов |
-| Печать / PNG | **Печать** — листы **A4 альбом** (Карты / VIP): **шапка** (адрес, телефон, заголовок), таблица, **подвал** (разовое, клубная карта, «цены с»); стиль тренера. **PNG** — то же |
-| Не путать | цена витрины ≠ ЗП тренера у типа; не в sync планшета |
+| Эталон карт | `membership_types` ПЗ (`code`); **без БЗ**; VIP — колонка |
+| Режимы | `base` и `day`; ячейка **базовая** и **−10%** |
+| Облако | `club_price_lists` · `action=price-list` |
 
-## Код
+Код ПЗ: `src/lib/priceList/priceList*.js`, UI `AdminPriceListSection.jsx`. Verify: `verify-price-list.mjs`.
 
-| Роль | Путь |
-|------|------|
-| Модель | `src/lib/priceList/priceListCore.js` |
-| Доступ (роли) | `src/lib/priceList/priceListAccessCore.js` |
-| DB map | `src/lib/priceList/priceListDbCore.js` |
-| Облако | `src/lib/priceList/priceListCloudService.js` |
-| Локальный кэш | `src/lib/priceList/priceListLocalStorage.js` + `priceListCacheCore.js` |
-| Импорт Excel | `priceListExcelImportCore.js` + `priceListExcelWorkbook.js` + `PriceListExcelImportWizard.jsx` |
-| Печать / PNG | `priceListExportCore.js` + `priceListExportCanvas.js` + `priceListPrintHtml.js` + `priceListPrintLayout.js` + `priceListBrandColors.js` + `priceListPrintChrome.js` |
-| Шапка / подвал UI | `PriceListStandFields.jsx` |
-| Shell session | `src/lib/admin/salesShellSession.js` (6 ч, не daily) |
-| API | `api/_lib/adminData/priceListHandlers.js` |
-| UI | `src/components/priceList/AdminPriceListSection.jsx` |
-| Миграция | `supabase/migrations/20260730120000_club_price_lists.sql` |
-| Verify | `scripts/verify-price-list.mjs` |
+## ТЗ (тренажёрный)
 
-Применить таблицу: `npm run db:migrate:price-list -- --linked`
+Эталон: `scripts/fixtures/tz-price-1kfs.xls`.
 
-## Дизайн витрины (ориентиры)
+| Блок | Смысл |
+|------|--------|
+| **1 месяц** | 8 / 10 / без лимита × база (полный день) и дневная; полная цена, стенд, экономия |
+| **Акции** | 1…12 мес без лимита: база, акция, экономия, ₽/мес |
+| Подвал | разовое, клубная карта, «цены с» |
+| Облако | `club_tz_price_lists` · `action=tz-price-list` |
+| Импорт | кнопка **Excel** на вкладке ТЗ |
 
-Не SaaS-карточки «3 тарифа + CTA», а **матрица сравнения** (как rate card / feature matrix):
+Код ТЗ: `tzPriceListCore.js`, `tzPriceListExcel*.js`, UI `AdminTzPriceListSection.jsx` + `PriceListHallShell.jsx`.  
+Миграция: `npm run db:migrate:tz-price-list -- --linked`.  
+Verify: `scripts/verify-tz-price-list.mjs`.
 
-| Паттерн | Как у нас |
-|---------|-----------|
-| Sticky оси + шапка | Трен./мес и люди слева; коды карт сверху при скролле |
-| Цена крупнее сходств | Колонка **−10%** визуально главная (цена стенда) |
-| Выделение тарифа | VIP — badge + лёгкий accent |
-| Группы строк | Полосы по блокам тренировок (4 / 8 / 10) |
-| Шапка стенда | Адрес / телефон / заголовок — как в Excel |
-| Подвал | Разовое занятие, клубная карта, «Цены действительны с…» |
-| Скролл | Подсказка «листайте вбок» + мягкий fade справа |
+**Дизайн витрины** — общий с ПЗ: `card` + `price-list__*` (шапка стенда, mode-btn, матрица, легенда, акцент колонки стенда/акции). Доп. классы ТЗ — только в `tz-price-list.css`.
 
-Канон цвета/стекла — [BRAND_SYSTEM.md](./BRAND_SYSTEM.md).
-
-## Дальше (объединённый план с ускорением Продаж)
+## Дальше
 
 | Шаг | Что | Статус |
 |-----|-----|--------|
-| **A** | API `sales&profile=shell\|daily\|month\|full` (+ `include_fit_city`) | ✅ |
-| **B** | Клиент: shell для hero; **Прайс/План/Финансы** без daily+fit-city; daily лениво | ✅ |
-| **C** | Прайс: TTL 7д + вкладка без sales shell; session shell **6 ч** (не daily) | ✅ |
-| **P1** | Импорт xlsx + мастер PL/VIP | ✅ |
-| **P2** | Печать / PNG | ✅ |
-| **P3** | Менеджер: правка прайса своего клуба на `/sales` | ✅ |
-| **P4** | Вкладка **Стратегия**: якорь часов/₽ × сезон + ориентир ПЗ ДК (% продления, −факт); «В план» → форма; сохранение в «План месяца» | ✅ |
-
-Ускорение Продаж **обслуживает Прайс**: вкладка не ждёт полный bundle и не тянет `profile=shell`. Shell месяца кэшируется в session (вечерняя сверка); дневной ввод всегда с сети при открытии вкладки дня.
-
-**Стратегия / ориентир (P4):** `salesSeasonCore.js`, `salesHallAnchorCore.js`, `salesPlanPzDkSuggestCore.js` + `SalesStrategyPanel.jsx` (`/sales?tab=strategy`). Verify: `verify-sales-hall-anchor.mjs`, `verify-sales-plan-pz-dk-suggest.mjs`. Не автосохраняет матрицу; **не меняет дату в шапке** при открытии (только после «В план»). Не подставляет часы планшета как правду продаж.
+| P4 | Стратегия / ПЗ ДК | ✅ |
+| **T1** | Прайс ТЗ: модель + Excel + Save | ✅ |
+| **T2** | Печать / PNG ТЗ | 📋 |
+| **T3** | Кабинет клиентов ТЗ | ⏸ после прайса |
 
 Связано: [SALES_MANAGER.md](./SALES_MANAGER.md), [API.md](./API.md).

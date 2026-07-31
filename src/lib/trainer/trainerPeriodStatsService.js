@@ -14,9 +14,30 @@ import {
 } from './trainerSelfStatsLastGood.js'
 import { coachQualityNeedsRemoteTrainings } from './coachQualityRemoteGate.js'
 import { fetchCoachQualityViaApi } from '../admin/adminApiClient.js'
+import {
+  enrichInactiveClientsFromLocal,
+  inactiveClientsNeedLocalNameEnrichment,
+} from './enrichInactiveClientsFromLocalCore.js'
 
 export { mergeLocalAndRemoteTrainings } from './trainerRemoteMerge.js'
 export { coachQualityNeedsRemoteTrainings } from './coachQualityRemoteGate.js'
+
+/**
+ * Если API/last-good отдал «Не активные» без ФИО — подтянуть имена из IndexedDB на планшете.
+ */
+async function withLocalInactiveClientNames(period, trainerId, clubId) {
+  if (!inactiveClientsNeedLocalNameEnrichment(period?.inactiveClients)) return period
+  try {
+    const { clients } = await loadTrainerWorkspaceSnapshot(trainerId, clubId || null)
+    return {
+      ...period,
+      inactiveClients: enrichInactiveClientsFromLocal(period.inactiveClients, clients),
+    }
+  } catch (e) {
+    console.warn('[trainer-stats] enrich inactive names', e)
+    return period
+  }
+}
 
 function flattenMemByClient(memByClient) {
   const out = []
@@ -255,12 +276,13 @@ export async function loadTrainerPeriodStats(p) {
       })
       if (api?.period && typeof api.period.totalCompleted === 'number') {
         writeTrainerSelfStatsLastGood(trainerId, dateFrom, dateTo, dayIso, api)
-        const period = {
+        let period = {
           ...api.period,
           source: 'api',
           fallbackReason: null,
           error: null,
         }
+        period = await withLocalInactiveClientNames(period, trainerId, clubId)
         if (!includeCoachQuality) return { ...period, coachQuality: period.coachQuality ?? null }
         return await ensureTrainerPeriodCoachQuality(period, { trainerId, clubId, dateFrom, dateTo })
       }
@@ -273,12 +295,13 @@ export async function loadTrainerPeriodStats(p) {
       const reason = e?.message ? String(e.message) : 'api_failed'
       const reasonShort = reason.slice(0, 160)
       if (lastGood?.period && typeof lastGood.period.totalCompleted === 'number') {
-        const period = {
+        let period = {
           ...lastGood.period,
           source: 'last_good',
           fallbackReason: reasonShort,
           error: null,
         }
+        period = await withLocalInactiveClientNames(period, trainerId, clubId)
         if (!includeCoachQuality) return { ...period, coachQuality: period.coachQuality ?? null }
         return await ensureTrainerPeriodCoachQuality(period, { trainerId, clubId, dateFrom, dateTo })
       }

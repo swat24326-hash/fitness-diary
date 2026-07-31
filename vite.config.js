@@ -16,6 +16,10 @@ export default defineConfig(({ mode }) => ({
   server:
     mode === 'development'
       ? {
+          // Windows: иначе Vite часто слушает только [::1], а браузер бьёт в 127.0.0.1 → ERR_CONNECTION_REFUSED
+          host: '127.0.0.1',
+          port: 5173,
+          strictPort: true,
           proxy: {
             '/api': {
               target: devApiProxyTarget,

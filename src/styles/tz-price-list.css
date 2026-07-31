@@ -1,0 +1,57 @@
+/* Прайс ТЗ — дополнение к price-list.css (та же витрина). */
+
+.price-list-hall__toolbar {
+  margin-bottom: 0.35rem;
+}
+
+.tz-price-list__hours {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1.25rem;
+  margin: -0.25rem 0 0.15rem;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.tz-price-list__table {
+  width: 100%;
+  min-width: 40rem;
+}
+
+.tz-price-list__col-stand {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+
+.tz-price-list__col-day {
+  background: color-mix(in srgb, #5b8def 7%, transparent);
+}
+
+.tz-price-list__legend-day {
+  background: color-mix(in srgb, #5b8def 45%, transparent);
+  border-color: color-mix(in srgb, #5b8def 55%, transparent);
+}
+
+.tz-price-list__computed {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+
+.tz-price-list__row--band td,
+.tz-price-list__row--band th {
+  background: color-mix(in srgb, var(--bg-muted) 35%, transparent);
+}
+
+.tz-price-list__row--band .tz-price-list__col-stand {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.tz-price-list__row--band .tz-price-list__col-day {
+  background: color-mix(in srgb, #5b8def 11%, transparent);
+}
+
+thead .tz-price-list__col-stand,
+thead .tz-price-list__col-day {
+  background: color-mix(in srgb, var(--bg-elevated) 94%, var(--bg));
+}

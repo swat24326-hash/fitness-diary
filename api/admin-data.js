@@ -39,6 +39,7 @@ import {
   handleCreateSalesManagerPost,
 } from './_lib/adminData/salesHandlers.js'
 import { handlePriceListGet, handlePriceListPost } from './_lib/adminData/priceListHandlers.js'
+import { handleTzPriceListGet, handleTzPriceListPost } from './_lib/adminData/tzPriceListHandlers.js'
 import { handlePnk } from './_lib/adminData/pnkHandlers.js'
 import { handleClubSmsGet, handleClubSmsPost } from './_lib/moiZvonkiHandler.js'
 
@@ -70,6 +71,7 @@ async function handler(req, res) {
       'pnk',
       'club-sms',
       'price-list',
+      'tz-price-list',
     ])
     if (!postActions.has(action)) {
       sendJson(res, 405, { error: 'Method not allowed' })
@@ -164,6 +166,12 @@ async function handler(req, res) {
       const ctx = await requireAdminOrSalesManager(req, res, clubId)
       if (!ctx) return
       return handlePriceListPost(ctx, req, res, body)
+    }
+    if (action === 'tz-price-list') {
+      const clubId = String(body?.club_id ?? '').trim()
+      const ctx = await requireAdminOrSalesManager(req, res, clubId)
+      if (!ctx) return
+      return handleTzPriceListPost(ctx, req, res, body)
     }
     const clubId = String(body?.club_id ?? '').trim()
     const ctx = await requireAdminOrSalesManager(req, res, clubId)
@@ -282,6 +290,13 @@ async function handler(req, res) {
     return handlePriceListGet(ctx, req, res)
   }
 
+  if (action === 'tz-price-list') {
+    const clubId = String(req.query?.club_id ?? '').trim()
+    const ctx = await requireAdminOrSalesManager(req, res, clubId)
+    if (!ctx) return
+    return handleTzPriceListGet(ctx, req, res)
+  }
+
   if (action === 'pnk') {
     const clubId = String(req.query?.club_id ?? '').trim()
     const ctx = await requireAdminOrSalesManager(req, res, clubId)
@@ -341,7 +356,7 @@ async function handler(req, res) {
     default:
       sendJson(res, 400, {
         error:
-          'Укажите action: search, journal, clients-last-trainings, club-stats, club-monthly, coach-quality, health-cards, sales, price-list, gemini-analytics-prefetch, iskra-settings, challenges, challenge-trainings, exercises, membership-types, clubs',
+          'Укажите action: search, journal, clients-last-trainings, club-stats, club-monthly, coach-quality, health-cards, sales, price-list, tz-price-list, gemini-analytics-prefetch, iskra-settings, challenges, challenge-trainings, exercises, membership-types, clubs',
       })
   }
 }

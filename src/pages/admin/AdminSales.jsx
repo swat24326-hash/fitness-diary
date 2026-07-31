@@ -79,7 +79,7 @@ import { SalesManagerStatsPanel } from '../../components/SalesManagerStatsPanel'
 import { SalesManagerAnalyticsPanel } from '../../components/SalesManagerAnalyticsPanel'
 import { SectionErrorBoundary } from '../../components/SectionErrorBoundary'
 import { AdminHomeAttentionRow } from '../../components/admin/AdminHomeAttentionRow'
-import { AdminPriceListSection } from '../../components/priceList/AdminPriceListSection.jsx'
+import { PriceListHallShell } from '../../components/priceList/PriceListHallShell.jsx'
 import '../../styles/sales-report.css'
 import '../../styles/sales-strategy.css'
 
@@ -1240,7 +1240,7 @@ export function AdminSales({ accessMode = 'admin' }) {
       ) : salesTab === 'price' ? (
         <div id="sales-panel-price" role="tabpanel" aria-labelledby="sales-tab-price">
           <SectionErrorBoundary title="Прайс">
-            <AdminPriceListSection clubId={clubId} membershipTypes={membershipTypes} />
+            <PriceListHallShell clubId={clubId} membershipTypes={membershipTypes} />
           </SectionErrorBoundary>
         </div>
       ) : null}

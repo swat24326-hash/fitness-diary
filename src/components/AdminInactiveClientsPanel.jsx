@@ -37,8 +37,8 @@ export function AdminInactiveClientsPanel({
       <p className="muted admin-stat-drilldown__hint" style={{ margin: '0 0 12px', fontSize: 13, lineHeight: 1.45 }}>
         {scopeLabel === 'trainer' ? 'Ваши клиенты' : 'Клиенты клуба'}, у которых в выбранном периоде нет абонемента, по которому
         можно провести тренировку (на сегодня, если период текущий; иначе — с учётом последнего дня действия абонемента в
-        периоде): закончились тренировки, истёк срок или абонемент ещё не начался. Период сводки:{' '}
-        {formatIsoRu(dateFrom)} — {formatIsoRu(dateTo)}.
+        периоде): закончились тренировки, истёк срок или абонемента нет. Клиенты с купленным абонементом «ждёт старт» сюда не
+        входят. Период сводки: {formatIsoRu(dateFrom)} — {formatIsoRu(dateTo)}.
       </p>
 
       {clients.length === 0 ? (

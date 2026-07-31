@@ -17,7 +17,8 @@ export { normalizeTrainingRowForPayroll } from './trainerSelfStatsNormalize.js'
 /** Только нужное для ЗП: membership_id из JSONB без тяжёлого data. */
 const TRAININGS_SELECT =
   'id, trainer_id, client_id, club_id, date, status, membership_id:data->>membership_id'
-const CLIENTS_SELECT = 'id, trainer_id, archived_at, lifecycle, club_id'
+/** name/phone нужны для списка «Не активные» на планшете; без них UI показывает «—». */
+const CLIENTS_SELECT = 'id, name, phone, trainer_id, archived_at, lifecycle, club_id'
 const MEM_SELECT =
   'id, client_id, club_id, start_date, end_date, total_trainings, used_trainings, membership_type_id'
 const TYPES_SELECT =
