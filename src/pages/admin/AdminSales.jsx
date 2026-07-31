@@ -1086,7 +1086,6 @@ export function AdminSales({ accessMode = 'admin' }) {
           <SalesStrategyPanel
             clubId={clubId}
             membershipTypes={membershipTypes}
-            planForm={planForm}
             onPlanChange={setPlanForm}
             onSelectPlanMonth={selectPlanCalendarMonth}
             onToast={showToast}
@@ -1206,7 +1205,6 @@ export function AdminSales({ accessMode = 'admin' }) {
           <SalesStrategyPanel
             clubId={clubId}
             membershipTypes={membershipTypes}
-            planForm={planForm}
             onPlanChange={setPlanForm}
             onSelectPlanMonth={selectPlanCalendarMonth}
             onToast={showToast}

@@ -78,6 +78,6 @@
 
 Ускорение Продаж **обслуживает Прайс**: вкладка не ждёт полный bundle и не тянет `profile=shell`. Shell месяца кэшируется в session (вечерняя сверка); дневной ввод всегда с сети при открытии вкладки дня.
 
-**Стратегия / ориентир (P4):** `salesSeasonCore.js`, `salesHallAnchorCore.js`, `salesPlanPzDkSuggestCore.js` + `SalesStrategyPanel.jsx` (`/sales?tab=strategy`). Verify: `verify-sales-hall-anchor.mjs`, `verify-sales-plan-pz-dk-suggest.mjs`. Не автосохраняет матрицу; не подставляет часы планшета как правду продаж.
+**Стратегия / ориентир (P4):** `salesSeasonCore.js`, `salesHallAnchorCore.js`, `salesPlanPzDkSuggestCore.js` + `SalesStrategyPanel.jsx` (`/sales?tab=strategy`). Verify: `verify-sales-hall-anchor.mjs`, `verify-sales-plan-pz-dk-suggest.mjs`. Не автосохраняет матрицу; **не меняет дату в шапке** при открытии (только после «В план»). Не подставляет часы планшета как правду продаж.
 
 Связано: [SALES_MANAGER.md](./SALES_MANAGER.md), [API.md](./API.md).

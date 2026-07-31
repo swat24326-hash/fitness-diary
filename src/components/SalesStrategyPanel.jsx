@@ -29,12 +29,13 @@ function monthTitle(year, month) {
 
 /**
  * Вкладка «Стратегия»: якорь часов/₽ × сезон + ориентир ПЗ·ДК.
+ * Не трогает дату отчёта в шапке — месяц плана живёт только внутри вкладки,
+ * пока пользователь не нажмёт «В план».
  *
  * @param {{
  *   clubId: string,
  *   membershipTypes?: object[],
- *   planForm: Record<string, string>,
- *   onPlanChange: (next: Record<string, string>) => void,
+ *   onPlanChange?: (next: Record<string, string>) => void,
  *   onSelectPlanMonth?: (ym: { year: number, month: number }) => void,
  *   onToast?: (text: string, tone?: 'ok' | 'err' | 'warn') => void,
  * }} props
@@ -42,15 +43,15 @@ function monthTitle(year, month) {
 export function SalesStrategyPanel({
   clubId,
   membershipTypes: typesProp = [],
-  planForm,
   onPlanChange,
   onSelectPlanMonth,
   onToast,
 }) {
-  const [horizon, setHorizon] = useState(/** @type {'current' | 'next'} */ ('next'))
+  const [horizon, setHorizon] = useState(/** @type {'current' | 'next'} */ ('current'))
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [payload, setPayload] = useState(/** @type {object | null} */ (null))
+  const [strategyPlanForm, setStrategyPlanForm] = useState(/** @type {Record<string, string>} */ ({}))
 
   const load = useCallback(async () => {
     if (!clubId) return
@@ -64,23 +65,31 @@ export function SalesStrategyPanel({
         return
       }
       setPayload(res)
-      if (res.planForm && typeof onPlanChange === 'function') {
-        onPlanChange(res.planForm)
-      }
-      if (res.target && typeof onSelectPlanMonth === 'function') {
-        onSelectPlanMonth({ year: res.target.year, month: res.target.month })
-      }
+      setStrategyPlanForm(res.planForm ?? {})
+      // Не вызываем onSelectPlanMonth / onPlanChange — иначе шапка прыгает на месяц плана.
     } catch (e) {
       setPayload(null)
       setError(e?.message || 'Ошибка загрузки')
     } finally {
       setBusy(false)
     }
-  }, [clubId, horizon, onPlanChange, onSelectPlanMonth])
+  }, [clubId, horizon])
 
   useEffect(() => {
     void load()
   }, [load])
+
+  const applyPlanForm = useCallback(
+    (next) => {
+      setStrategyPlanForm(next)
+      // Синхронизация с «План месяца» только по явному «В план».
+      if (payload?.target && typeof onSelectPlanMonth === 'function') {
+        onSelectPlanMonth({ year: payload.target.year, month: payload.target.month })
+      }
+      if (typeof onPlanChange === 'function') onPlanChange(next)
+    },
+    [onPlanChange, onSelectPlanMonth, payload?.target],
+  )
 
   const projection = payload?.projection
   const planYm = payload?.target
@@ -90,8 +99,8 @@ export function SalesStrategyPanel({
       ? gapToPlanLevel3(payload.planLevel3, projection.expectedRub)
       : null
 
-  const pzCount = Number(planForm?.[planMatrixCountField('pz_dk')]) || 0
-  const pzAvg = Number(String(planForm?.[planMatrixAvgField('pz_dk')] ?? '').replace(',', '.')) || 0
+  const pzCount = Number(strategyPlanForm?.[planMatrixCountField('pz_dk')]) || 0
+  const pzAvg = Number(String(strategyPlanForm?.[planMatrixAvgField('pz_dk')] ?? '').replace(',', '.')) || 0
   const pzAmount = pzCount > 0 && pzAvg > 0 ? Math.round(pzCount * pzAvg * 100) / 100 : null
   const share =
     projection?.ok && pzAmount != null ? pzDkShareOfAnchor(pzAmount, projection.expectedRub) : null
@@ -268,16 +277,16 @@ export function SalesStrategyPanel({
             month={planYm.month}
             membershipTypes={membershipTypes}
             monthDays={payload?.planMonthDays ?? []}
-            planForm={planForm}
-            onPlanChange={onPlanChange}
+            planForm={strategyPlanForm}
+            onPlanChange={applyPlanForm}
             fixedHorizon={horizon}
             disabled={busy}
             onToast={onToast}
-            applyHint="Откройте «План месяца», добейте ячейки до уровня 3 и сохраните направления."
+            applyHint="Месяц в шапке переключится на план — добейте ячейки во вкладке «План месяца» и сохраните."
           />
           <p className="muted sales-strategy__pz-foot">
-            «В план» заполняет только ПЗ·ДК в форме. Матрицу и сохранение — вкладка «План месяца»
-            (управляющий).
+            Просмотр Стратегии не меняет дату в шапке. «В план» подставит ПЗ·ДК и откроет нужный месяц
+            в «План месяца» для сохранения.
           </p>
         </div>
       ) : null}
