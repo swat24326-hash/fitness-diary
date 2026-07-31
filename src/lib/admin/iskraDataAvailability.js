@@ -65,14 +65,14 @@ export function buildIskraDataAvailability(snapshot, opts = {}) {
   pushTopic(topics, {
     id: 'month_forecast',
     label_ru: 'прогноз на конец месяца',
-    available: monthForecast?.available === true || clubFinance?.available === true,
-    reason: String(monthForecast?.reason ?? clubFinance?.reason ?? 'missing'),
-    hint_ru: monthForecastHint(monthForecast ?? clubFinance),
+    available: monthForecast?.available === true,
+    reason: String(monthForecast?.reason ?? 'missing'),
+    hint_ru: monthForecastHint(monthForecast),
   })
 
   pushTopic(topics, {
     id: 'club_finance',
-    label_ru: 'финансы клуба (прогноз и залы)',
+    label_ru: 'финансы клуба (факт, прогноз и залы)',
     available: clubFinance?.available === true,
     reason: String(clubFinance?.reason ?? 'missing'),
     hint_ru: monthForecastHint(clubFinance),

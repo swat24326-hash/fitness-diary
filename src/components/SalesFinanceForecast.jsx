@@ -45,7 +45,7 @@ export function SalesFinanceForecast({
     if (forecast.reason === 'not_current_month') {
       return (
         <p className="sales-finance-forecast__note sales-finance-forecast__note--info">
-          Прогноз доступен только для текущего месяца — выбранный период уже закрыт или ещё не начался.
+          Этот месяц ещё не начался — факт и прогноз появятся, когда период станет текущим или закроется.
         </p>
       )
     }
@@ -60,6 +60,7 @@ export function SalesFinanceForecast({
     return null
   }
 
+  const closedMonth = forecast.closedMonth === true
   const endDay = daysInCalendarMonth(year, month)
   const monthEndLabel = `${String(endDay).padStart(2, '0')}.${String(month).padStart(2, '0')}.${year}`
 
@@ -88,7 +89,7 @@ export function SalesFinanceForecast({
     <colgroup>
       <col className="sales-finance-forecast__col-label" />
       <col className="sales-finance-forecast__col-fact-width" />
-      <col className="sales-finance-forecast__col-forecast-width" />
+      {closedMonth ? null : <col className="sales-finance-forecast__col-forecast-width" />}
     </colgroup>
   )
 
@@ -99,9 +100,11 @@ export function SalesFinanceForecast({
         <th scope="col" className="sales-finance-forecast__col-num">
           Факт
         </th>
-        <th scope="col" className="sales-finance-forecast__col-num sales-finance-forecast__col-forecast">
-          Прогноз
-        </th>
+        {closedMonth ? null : (
+          <th scope="col" className="sales-finance-forecast__col-num sales-finance-forecast__col-forecast">
+            Прогноз
+          </th>
+        )}
       </tr>
     </thead>
   )
@@ -151,7 +154,9 @@ export function SalesFinanceForecast({
       <tr key={row.key} className={rowClass}>
         <th scope="row">{row.label}</th>
         <td className={factClass}>{formatValue(row.kind, factVal, { signed })}</td>
-        <td className={forecastClass}>{formatValue(row.kind, forecastVal, { signed })}</td>
+        {closedMonth ? null : (
+          <td className={forecastClass}>{formatValue(row.kind, forecastVal, { signed })}</td>
+        )}
       </tr>
     )
   }
@@ -200,11 +205,14 @@ export function SalesFinanceForecast({
       <header className="sales-finance-forecast__head">
         <h3 className="sales-finance-forecast__title" id="sales-finance-forecast-title">
           <TrendingUp size={20} aria-hidden className="sales-finance-forecast__title-icon" />
-          План и прогноз · до {monthEndLabel}
+          {closedMonth ? `Итоги месяца (факт) · до ${monthEndLabel}` : `План и прогноз · до ${monthEndLabel}`}
         </h3>
         <p className="sales-finance-forecast__hint">
-          Темп к норме на сегодня · прогноз на конец месяца
-          {forecast.method === 'weekday_weekend_remaining' ? ' · будни и выходные отдельно' : null}
+          {closedMonth
+            ? 'Месяц закрыт — цифры по заполненным отчётам. Прогноз строится только в текущем месяце.'
+            : `Темп к норме на сегодня · прогноз на конец месяца${
+                forecast.method === 'weekday_weekend_remaining' ? ' · будни и выходные отдельно' : ''
+              }`}
         </p>
       </header>
 
@@ -220,7 +228,7 @@ export function SalesFinanceForecast({
               <strong className="sales-finance-forecast__plan-kpi-value">{formatRub(plan.factGross)}</strong>
               <span className="sales-finance-forecast__plan-kpi-sub">{plan.factProgressPercent}% плана</span>
             </article>
-            {calendarNorm ? (
+            {!closedMonth && calendarNorm ? (
               <article
                 className={`sales-finance-forecast__plan-card sales-finance-forecast__plan-card--${calendarNorm.tone}`}
               >
@@ -235,16 +243,32 @@ export function SalesFinanceForecast({
                 ) : null}
               </article>
             ) : null}
-            <article className={`sales-finance-forecast__plan-card sales-finance-forecast__plan-card--${reach?.tone ?? 'ok'}`}>
-              <span className="sales-finance-forecast__plan-kpi-label">Прогноз</span>
-              <strong className={`sales-finance-forecast__plan-kpi-value sales-finance-forecast__reach--${reach?.tone ?? 'ok'}`}>
-                {plan.forecastProgressPercent}%
-              </strong>
-              <span className="sales-finance-forecast__plan-kpi-sub">{forecastSub}</span>
-            </article>
+            {closedMonth ? (
+              <article className={`sales-finance-forecast__plan-card sales-finance-forecast__plan-card--${reach?.tone ?? 'ok'}`}>
+                <span className="sales-finance-forecast__plan-kpi-label">Итог к плану</span>
+                <strong className={`sales-finance-forecast__plan-kpi-value sales-finance-forecast__reach--${reach?.tone ?? 'ok'}`}>
+                  {plan.factProgressPercent}%
+                </strong>
+                <span className="sales-finance-forecast__plan-kpi-sub">
+                  {reach?.willReach
+                    ? 'план выполнен'
+                    : reach?.gapRub
+                      ? `не хватило ${formatRub(reach.gapRub)}`
+                      : 'по факту отчётов'}
+                </span>
+              </article>
+            ) : (
+              <article className={`sales-finance-forecast__plan-card sales-finance-forecast__plan-card--${reach?.tone ?? 'ok'}`}>
+                <span className="sales-finance-forecast__plan-kpi-label">Прогноз</span>
+                <strong className={`sales-finance-forecast__plan-kpi-value sales-finance-forecast__reach--${reach?.tone ?? 'ok'}`}>
+                  {plan.forecastProgressPercent}%
+                </strong>
+                <span className="sales-finance-forecast__plan-kpi-sub">{forecastSub}</span>
+              </article>
+            )}
           </div>
 
-          {paceLabel ? (
+          {!closedMonth && paceLabel ? (
             <p
               className={`sales-finance-forecast__action sales-finance-forecast__action--${reach?.willReach ? 'ok' : 'focus'}`}
               role="status"
@@ -259,7 +283,7 @@ export function SalesFinanceForecast({
         <div className="sales-finance-forecast__section">
           <h4 className="sales-finance-forecast__section-title">
             <Target size={17} aria-hidden className="sales-finance-forecast__section-icon" />
-            Прогноз по направлениям
+            {closedMonth ? 'По направлениям' : 'Прогноз по направлениям'}
           </h4>
           <div className="sales-finance-forecast__table-wrap">
             <table className="sales-finance-forecast__table sales-finance-forecast__table--plan">
@@ -272,14 +296,16 @@ export function SalesFinanceForecast({
                   <th scope="col" className="sales-finance-forecast__col-num">
                     Факт
                   </th>
-                  <th scope="col" className="sales-finance-forecast__col-num sales-finance-forecast__col-forecast">
-                    Прогноз
-                  </th>
+                  {closedMonth ? null : (
+                    <th scope="col" className="sales-finance-forecast__col-num sales-finance-forecast__col-forecast">
+                      Прогноз
+                    </th>
+                  )}
                   <th scope="col" className="sales-finance-forecast__col-num">
                     % плана
                   </th>
                   <th scope="col" className="sales-finance-forecast__col-num">
-                    Не хватает
+                    {closedMonth ? 'Не хватило' : 'Не хватает'}
                   </th>
                 </tr>
               </thead>
@@ -298,9 +324,10 @@ export function SalesFinanceForecast({
                       ? '—'
                       : `${formatValue('count', dir.forecast)} трен.`
                   const planText = dir.planTarget > 0 ? formatRub(dir.planTarget) : '—'
+                  const progressPct = closedMonth ? dir.factProgressPercent : dir.forecastProgressPercent
                   const progressText =
                     isMoney && dir.planTarget > 0
-                      ? `${dir.forecastProgressPercent}%`
+                      ? `${progressPct}%`
                       : noRevenue
                         ? 'нет выручки по залу'
                         : '—'
@@ -308,10 +335,18 @@ export function SalesFinanceForecast({
                     isMoney && dir.planTarget > 0 && dir.reach?.willReach !== true && dir.reach?.gapRub > 0
                       ? `−${formatRub(dir.reach.gapRub)}`
                       : '—'
-                  const trainingsHint =
-                    noRevenue && (dir.trainingsFact > 0 || dir.trainingsForecast > 0)
-                      ? `трен. ${formatValue('count', dir.trainingsFact)} → ${formatValue('count', dir.trainingsForecast)} (не к плану ₽)`
-                      : null
+                  const trainingsHint = (() => {
+                    if (!noRevenue) return null
+                    if (closedMonth) {
+                      return dir.trainingsFact > 0 || dir.fact > 0
+                        ? `трен. ${formatValue('count', dir.trainingsFact ?? dir.fact)} (не к плану ₽)`
+                        : null
+                    }
+                    if (dir.trainingsFact > 0 || dir.trainingsForecast > 0) {
+                      return `трен. ${formatValue('count', dir.trainingsFact)} → ${formatValue('count', dir.trainingsForecast)} (не к плану ₽)`
+                    }
+                    return null
+                  })()
                   const rowClass =
                     isMoney && dir.planTarget > 0 && dir.reach?.willReach !== true
                       ? 'sales-finance-forecast__row--lag'
@@ -328,7 +363,11 @@ export function SalesFinanceForecast({
                       </th>
                       <td className="sales-finance-forecast__col-num">{planText}</td>
                       <td className="sales-finance-forecast__col-num sales-finance-forecast__col-fact">{factText}</td>
-                      <td className="sales-finance-forecast__col-num sales-finance-forecast__col-forecast">{forecastText}</td>
+                      {closedMonth ? null : (
+                        <td className="sales-finance-forecast__col-num sales-finance-forecast__col-forecast">
+                          {forecastText}
+                        </td>
+                      )}
                       <td className="sales-finance-forecast__col-num">
                         <span className={`sales-finance-forecast__badge sales-finance-forecast__badge--${dir.reach.tone}`}>
                           {progressText}

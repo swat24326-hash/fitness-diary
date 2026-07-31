@@ -79,7 +79,19 @@ const fcPast = buildClubFinanceForecast({
   expense: 0,
   today,
 })
-ok(!fcPast.ok && fcPast.reason === 'not_current_month', 'no forecast for past month')
+ok(fcPast.ok === true && fcPast.closedMonth === true, 'past month shows closed fact')
+ok(fcPast.method === 'closed_month_fact', 'closed month method is fact-only')
+ok(fcPast.forecast.earnings === fcPast.fact.earnings, 'past month forecast equals fact (no extrapolate)')
+ok(fcPast.forecast.pzTrainings === fcPast.fact.pzTrainings, 'past month trainings fact-only')
+
+const fcFuture = buildClubFinanceForecast({
+  monthRows: rows3,
+  year: 2026,
+  month: 12,
+  expense: 0,
+  today,
+})
+ok(!fcFuture.ok && fcFuture.reason === 'not_current_month', 'no fact/forecast for future month')
 
 const payrollTypes = [{ id: 't1', trainer_pay_per_session: 500, trainer_assignable: true }]
 const matrixRows = [

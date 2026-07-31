@@ -103,10 +103,25 @@ function roundCount(n) {
  * @param {Date} [today]
  */
 export function isCurrentCalendarMonth(year, month, today = new Date()) {
+  return calendarMonthRelation(year, month, today) === 0
+}
+
+/**
+ * Отношение выбранного месяца к «сегодня»: −1 прошлый, 0 текущий, 1 будущий.
+ * @param {number} year
+ * @param {number} month 1–12
+ * @param {Date} [today]
+ * @returns {-1|0|1}
+ */
+export function calendarMonthRelation(year, month, today = new Date()) {
   const y = Number(year)
   const m = Number(month)
-  if (!Number.isFinite(y) || !Number.isFinite(m)) return false
-  return y === today.getFullYear() && m === today.getMonth() + 1
+  if (!Number.isFinite(y) || !Number.isFinite(m)) return 0
+  const cy = today.getFullYear()
+  const cm = today.getMonth() + 1
+  if (y < cy || (y === cy && m < cm)) return -1
+  if (y > cy || (y === cy && m > cm)) return 1
+  return 0
 }
 
 /** @param {number} year @param {number} month */
@@ -192,6 +207,59 @@ export function buildDirectionForecastLagSummary(directionRows) {
     has_lag: lagging.length > 0,
     summary_ru: summaryRu,
   }
+}
+
+/**
+ * Направления за закрытый месяц — только факт (прогноз = факт).
+ * @param {Array<Record<string, unknown>>} monthRows
+ * @param {Record<string, number>} planDirections
+ */
+function buildDirectionFactRows(monthRows, planDirections) {
+  const factRub = sumDirectionRubFromDailyRows(monthRows)
+  return FORECAST_DIRECTION_KEYS.map((key) => {
+    const planKey = FORECAST_DIRECTION_PLAN_KEYS[key]
+    const planTarget = Number(planDirections?.[planKey]) || 0
+    const useRevenue = key === 'tz' ? true : hasDirectionRevenueForHall(monthRows, key)
+
+    if (useRevenue) {
+      const factRevenue = roundRub(factRub[key] || 0)
+      return {
+        key,
+        label: FORECAST_DIRECTION_LABELS[key],
+        mode: 'revenue',
+        planTarget,
+        fact: factRevenue,
+        forecast: factRevenue,
+        factProgressPercent: planProgressPercent(factRevenue, planTarget),
+        forecastProgressPercent: planProgressPercent(factRevenue, planTarget),
+        reach: describePlanForecastReach(
+          planProgressPercent(factRevenue, planTarget),
+          planTarget,
+          factRevenue,
+        ),
+      }
+    }
+
+    const factTrainings = roundCount(
+      monthRows.reduce(
+        (sum, row) => sum + (key === 'pz' ? pzTrainingsFromDailyRow(row) : azTrainingsFromDailyRow(row)),
+        0,
+      ),
+    )
+    return {
+      key,
+      label: FORECAST_DIRECTION_LABELS[key],
+      mode: 'no_revenue',
+      planTarget,
+      fact: factTrainings,
+      forecast: factTrainings,
+      trainingsFact: factTrainings,
+      trainingsForecast: factTrainings,
+      factProgressPercent: 0,
+      forecastProgressPercent: 0,
+      reach: describePlanForecastReach(0, 0, 0),
+    }
+  })
 }
 
 /**
@@ -285,12 +353,17 @@ export function buildClubFinanceForecast(opts) {
   const today = opts.today ?? new Date()
   const monthRows = opts.monthRows ?? []
   const reportDays = monthRows.length
+  const relation = calendarMonthRelation(year, month, today)
 
-  if (!isCurrentCalendarMonth(year, month, today)) {
+  /** Будущий месяц — ни факта, ни прогноза. */
+  if (relation === 1) {
     return { ok: false, reason: 'not_current_month' }
   }
 
-  if (reportDays < MIN_REPORT_DAYS_FOR_FORECAST) {
+  const closedMonth = relation === -1
+
+  /** Прогноз в текущем месяце — после минимума отчётов; закрытый месяц — факт даже с 0–2 днями. */
+  if (!closedMonth && reportDays < MIN_REPORT_DAYS_FOR_FORECAST) {
     return {
       ok: false,
       reason: 'insufficient_reports',
@@ -324,6 +397,85 @@ export function buildClubFinanceForecast(opts) {
   const trainerPayrollFact = aggregatePayrollFromDailyRows(monthRows, trainerRateMap).clubTotal
   const aerobicPayrollFact = aggregateAerobicPayrollFromDailyRows(monthRows, aerobicRateMap).clubTotal
   const expense = roundRub(opts.expense)
+
+  const factEarnings = roundRub(earningsTotal)
+  const factRefunds = roundRub(refundsTotal)
+  const factGross = roundRub(earningsGrossTotal)
+  const factNetProfit = computeNetProfitWithPayroll(
+    factEarnings,
+    trainerPayrollFact,
+    expense,
+    aerobicPayrollFact,
+  )
+
+  const planTargets = readPlanTargetsFromForm(opts.planForm)
+  const planLevel3 = planTargets.level3
+  const factPlanProgress = planProgressPercent(factGross, planLevel3)
+
+  /** Закрытый месяц: только факт (прогноз = факт, без экстраполяции на «дыры»). */
+  if (closedMonth) {
+    const factSnapshot = {
+      earnings: factEarnings,
+      earningsGross: factGross,
+      refunds: factRefunds,
+      pzTrainings: pzTrainingsTotal,
+      azTrainings: azTrainingsTotal,
+      trainerPayroll: trainerPayrollFact,
+      aerobicPayroll: aerobicPayrollFact,
+      expense,
+      netProfit: factNetProfit,
+    }
+    const directionRows = buildDirectionFactRows(monthRows, planTargets.directions)
+    const planReach = describePlanForecastReach(factPlanProgress, planLevel3, factGross)
+    return {
+      ok: true,
+      closedMonth: true,
+      reportDays,
+      daysInMonth,
+      method: 'closed_month_fact',
+      scale: 1,
+      dayType: {
+        weekdaySamples: 0,
+        weekendSamples: 0,
+        weekdayAvgGross: 0,
+        weekendAvgGross: 0,
+        remainingWeekdays: 0,
+        remainingWeekends: 0,
+      },
+      plan: {
+        level3: planLevel3,
+        factGross,
+        forecastGross: factGross,
+        factProgressPercent: factPlanProgress,
+        forecastProgressPercent: factPlanProgress,
+        reach: planReach,
+        directions: directionRows,
+        directionLag: buildDirectionForecastLagSummary(directionRows),
+        pace: null,
+        calendarNorm: null,
+      },
+      fact: factSnapshot,
+      forecast: { ...factSnapshot },
+      avgPerReportDay:
+        reportDays > 0
+          ? {
+              earnings: roundRub(earningsTotal / reportDays),
+              refunds: roundRub(refundsTotal / reportDays),
+              pzTrainings: roundRub(pzTrainingsTotal / reportDays),
+              azTrainings: roundRub(azTrainingsTotal / reportDays),
+              trainerPayroll: roundRub(trainerPayrollFact / reportDays),
+              aerobicPayroll: roundRub(aerobicPayrollFact / reportDays),
+            }
+          : {
+              earnings: 0,
+              refunds: 0,
+              pzTrainings: 0,
+              azTrainings: 0,
+              trainerPayroll: 0,
+              aerobicPayroll: 0,
+            },
+    }
+  }
 
   const grossProj = projectMonthMetric({
     monthRows,
@@ -361,9 +513,6 @@ export function buildClubFinanceForecast(opts) {
     roundFn: roundRub,
   })
 
-  const factEarnings = roundRub(earningsTotal)
-  const factRefunds = roundRub(refundsTotal)
-  const factGross = roundRub(earningsGrossTotal)
   const forecastGross = grossProj.forecastTotal
   /** Возвраты в прогнозе — только факт из отчётов, без экстраполяции на конец месяца. */
   const forecastRefunds = factRefunds
@@ -373,13 +522,6 @@ export function buildClubFinanceForecast(opts) {
   const forecastTrainerPayroll = trainerPayProj.forecastTotal
   const forecastAerobicPayroll = aerobicPayProj.forecastTotal
 
-  const factNetProfit = computeNetProfitWithPayroll(
-    factEarnings,
-    trainerPayrollFact,
-    expense,
-    aerobicPayrollFact,
-  )
-
   const forecastNetProfit = computeNetProfitWithPayroll(
     forecastEarnings,
     forecastTrainerPayroll,
@@ -387,9 +529,6 @@ export function buildClubFinanceForecast(opts) {
     forecastAerobicPayroll,
   )
 
-  const planTargets = readPlanTargetsFromForm(opts.planForm)
-  const planLevel3 = planTargets.level3
-  const factPlanProgress = planProgressPercent(factGross, planLevel3)
   const forecastPlanProgress = planProgressPercent(forecastGross, planLevel3)
   const planReach = describePlanForecastReach(forecastPlanProgress, planLevel3, forecastGross)
   const directionRows = buildDirectionForecastRows(monthRows, year, month, planTargets.directions)
@@ -415,6 +554,7 @@ export function buildClubFinanceForecast(opts) {
 
   return {
     ok: true,
+    closedMonth: false,
     reportDays,
     daysInMonth,
     method: grossProj.method,
@@ -506,6 +646,16 @@ export function buildIskraMonthForecastSummary(opts) {
     }
   }
 
+  /** Прогноз «на конец месяца» — только текущий; закрытый месяц смотрите в fact / club_finance. */
+  if (fc.closedMonth) {
+    return {
+      available: false,
+      reason: 'not_current_month',
+      report_days: fc.reportDays ?? 0,
+      min_report_days: MIN_REPORT_DAYS_FOR_FORECAST,
+    }
+  }
+
   const planLevel3 = fc.plan.level3
   const forecastGross = fc.plan.forecastGross
   const surplus =
@@ -585,6 +735,7 @@ export function buildIskraClubFinanceBlock(opts) {
   /** @type {Record<string, unknown>} */
   const block = {
     available: true,
+    closed_month: fc.closedMonth === true,
     method: fc.method ?? FORECAST_METHOD_UNIFORM,
     report_days: fc.reportDays,
     days_in_month: fc.daysInMonth,
