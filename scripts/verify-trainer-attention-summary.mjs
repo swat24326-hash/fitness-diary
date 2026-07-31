@@ -210,6 +210,42 @@ ok(
 
 
 
+ok(
+
+  isClientStaleForAttention({
+
+    memList: [{ start_date: '2026-01-01', end_date: '2026-05-16', total_trainings: 10, used_trainings: 10 }],
+
+    today: '2026-07-15',
+
+    staleDays: 14,
+
+  }),
+
+  'stale at exactly 60 days after end',
+
+)
+
+
+
+ok(
+
+  !isClientStaleForAttention({
+
+    memList: [{ start_date: '2026-01-01', end_date: '2026-05-15', total_trainings: 10, used_trainings: 10 }],
+
+    today: '2026-07-15',
+
+    staleDays: 14,
+
+  }),
+
+  'not stale at 61 days (only inactive)',
+
+)
+
+
+
 const gapMem = [
 
   { start_date: '2026-01-01', end_date: '2026-06-01', total_trainings: 10, used_trainings: 10 },

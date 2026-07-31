@@ -84,6 +84,11 @@ ok(!isClientStaleForAttention({ memList: day13, today }), 'day 13 not stale')
 ok(!isMembershipExpiredRecently(day14, today), 'day 14 not expired_recent')
 ok(isClientStaleForAttention({ memList: day14, today }), 'day 14 → stale')
 
+const day60 = [{ start_date: '2026-01-01', end_date: '2026-05-23', total_trainings: 10, used_trainings: 10 }]
+const day61 = [{ start_date: '2026-01-01', end_date: '2026-05-22', total_trainings: 10, used_trainings: 10 }]
+ok(isClientStaleForAttention({ memList: day60, today }), 'day 60 → still stale')
+ok(!isClientStaleForAttention({ memList: day61, today }), 'day 61 → out of stale window')
+
 const gap = [
   { start_date: '2026-01-01', end_date: '2026-07-01', total_trainings: 10, used_trainings: 10 },
   { start_date: '2026-08-01', end_date: '2026-09-01', total_trainings: 8, used_trainings: 0 },

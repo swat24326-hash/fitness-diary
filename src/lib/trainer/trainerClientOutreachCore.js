@@ -34,6 +34,12 @@ export const OUTREACH_SCENARIOS = ['birthdays', 'expiring', 'expired_recent', 's
 /** Дней после конца абонемента — переход из «закончился» в «давно не был». */
 export const STALE_TRAINING_DAYS = 14
 
+/**
+ * Верхняя граница «давно не был» (включительно).
+ * После этого дня клиент остаётся только в «Не активные» (учёт), не в очереди холодного возврата.
+ */
+export const STALE_MAX_DAYS = 60
+
 export const OUTREACH_SCENARIO_LABELS = {
   birthdays: 'День рождения',
   expiring: 'Истекает абонемент',
@@ -184,16 +190,18 @@ export function pickRecentlyExpiredMembership(list, todayIso, staleDays = STALE_
 }
 
 /**
- * «Давно не был»: абонемент закончился ≥ staleDays назад.
+ * «Давно не был»: абонемент закончился staleDays…staleMaxDays дней назад (включительно).
  * @param {{
  *   memList?: object[],
  *   today?: string,
  *   staleDays?: number,
+ *   staleMaxDays?: number,
  * }} ctx
  */
 export function isClientStaleForAttention(ctx = {}) {
   const today = String(ctx.today ?? todayLocalIso())
   const staleDays = Number(ctx.staleDays) > 0 ? Number(ctx.staleDays) : STALE_TRAINING_DAYS
+  const staleMaxDays = Number(ctx.staleMaxDays) > 0 ? Number(ctx.staleMaxDays) : STALE_MAX_DAYS
   const memList = ctx.memList ?? []
 
   if (pickUsableMembershipForDate(memList, today)) return false
@@ -202,7 +210,7 @@ export function isClientStaleForAttention(ctx = {}) {
 
   const days = membershipDaysSinceLatestEnd(memList, today)
   if (days == null) return false
-  return days >= staleDays
+  return days >= staleDays && days <= staleMaxDays
 }
 
 /**
@@ -230,6 +238,8 @@ export function isBirthdayToday(birthDateIso, todayIso) {
  *   memList?: object[],
  *   today?: string,
  *   isStale?: boolean,
+ *   staleDays?: number,
+ *   staleMaxDays?: number,
  * }} ctx
  */
 export function clientMatchesOutreachFilter(scenario, ctx = {}) {
@@ -244,6 +254,7 @@ export function clientMatchesOutreachFilter(scenario, ctx = {}) {
       memList,
       today,
       staleDays: ctx.staleDays,
+      staleMaxDays: ctx.staleMaxDays,
     })
   }
   return false

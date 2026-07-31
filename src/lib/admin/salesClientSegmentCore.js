@@ -3,7 +3,7 @@
  *
  * ДК — абонемент действует (в т.ч. «истекает»).
  * УК1 (горячий) — после конца абонемента, дней 0 … (gap−1) ≈ фильтр «закончился».
- * УК2 (холодный) — ≥ gap дней после конца ≈ «давно не был».
+ * УК2 (холодный) — ≥ gap дней после конца (как вход в «давно не был»; для продажи без верхней границы).
  * НК — до продажи не было ни одной завершённой тренировки (и не попал в УК/ДК).
  *
  * Приоритет: УК2 → УК1 → ДК → НК.
@@ -95,7 +95,7 @@ export function classifySaleClientSegment(input = {}) {
   const ended = pickLatestEndedMembership(memList, saleDate)
   if (ended) daysSinceEnd = daysSinceIsoDate(ended.end_date, saleDate)
 
-  // УК2 — холодно: ≥ gap после конца (фильтр тренера «давно не был»)
+  // УК2 — холодно: ≥ gap после конца (продажа-возврат; фильтр «давно не был» в UI обрезан сверху)
   if (!hasUsableMembership && daysSinceEnd != null && daysSinceEnd >= gapDays) {
     return {
       segment: 'uk2',

@@ -98,7 +98,7 @@ export function buildAdminHomeSoftSignals(opts = {}) {
     out.push({
       id: 'stale',
       title: stale === 1 ? 'Давно не был' : `${stale} давно не были`,
-      subtitle: '14+ дней · возврат',
+      subtitle: '14–60 дней · возврат',
       href: clients('stale'),
       tone: 'hot',
     })

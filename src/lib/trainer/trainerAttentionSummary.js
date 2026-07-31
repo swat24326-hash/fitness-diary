@@ -5,13 +5,19 @@ import {
   isClientStaleForAttention,
   isMembershipExpiredRecently,
   STALE_TRAINING_DAYS,
+  STALE_MAX_DAYS,
 } from './trainerClientOutreachCore.js'
 import {
   buildTrainerAttentionSummaryByPrimaryScenario,
   sortClientsForOutreachFilter,
 } from './trainerOutreachQueue.js'
 
-export { STALE_TRAINING_DAYS, daysSinceIsoDate, isClientStaleForAttention } from './trainerClientOutreachCore.js'
+export {
+  STALE_TRAINING_DAYS,
+  STALE_MAX_DAYS,
+  daysSinceIsoDate,
+  isClientStaleForAttention,
+} from './trainerClientOutreachCore.js'
 
 export const TRAINER_CLIENT_QUICK_FILTERS = ['expiring', 'expired_recent', 'birthdays', 'stale', 'pnk']
 
@@ -70,12 +76,14 @@ export function buildTrainerAttentionSummary(input = {}) {
  *   scenario: string,
  *   today?: string,
  *   staleDays?: number,
+ *   staleMaxDays?: number,
  * }} input
  */
 export function findFirstOutreachClient(input = {}) {
   const today = String(input.today ?? todayLocalIso())
   const scenario = String(input.scenario ?? '')
   const staleDays = Number(input.staleDays) > 0 ? Number(input.staleDays) : STALE_TRAINING_DAYS
+  const staleMaxDays = Number(input.staleMaxDays) > 0 ? Number(input.staleMaxDays) : STALE_MAX_DAYS
 
   /** @type {object[]} */
   const matched = []
@@ -85,7 +93,9 @@ export function findFirstOutreachClient(input = {}) {
     if (scenario === 'birthdays' && isBirthdayToday(c.birth_date, today)) matched.push(c)
     else if (scenario === 'expiring' && membershipSignal(memList, today).key === 'expiring') matched.push(c)
     else if (scenario === 'expired_recent' && isMembershipExpiredRecently(memList, today)) matched.push(c)
-    else if (scenario === 'stale' && isClientStaleForAttention({ memList, today, staleDays })) matched.push(c)
+    else if (scenario === 'stale' && isClientStaleForAttention({ memList, today, staleDays, staleMaxDays })) {
+      matched.push(c)
+    }
   }
 
   const sorted = sortClientsForOutreachFilter(matched, scenario, input.memByClient ?? {}, new Set(), today)

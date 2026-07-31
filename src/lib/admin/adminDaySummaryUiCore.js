@@ -49,7 +49,7 @@ export function buildAdminDaySummaryCards(opts = {}) {
       key: 'stale',
       count: Number(summary.stale) || 0,
       label: 'Давно не был',
-      hint: '14+ дней после конца',
+      hint: '14–60 дней после конца',
       icon: 'history',
       to: clients('stale'),
       hot: (Number(summary.stale) || 0) > 0,

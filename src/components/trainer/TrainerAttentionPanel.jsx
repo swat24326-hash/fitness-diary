@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { AlertTriangle, Cake, CalendarClock, Clock, UserPlus } from 'lucide-react'
+import { STALE_MAX_DAYS } from '../../lib/trainer/trainerClientOutreachCore.js'
 
 /**
  * @param {{
@@ -11,6 +12,7 @@ import { AlertTriangle, Cake, CalendarClock, Clock, UserPlus } from 'lucide-reac
  *     pnk?: number,
  *     actionable: number,
  *     staleDays: number,
+ *     staleMaxDays?: number,
  *   } | null,
  *   loading?: boolean,
  * }} props
@@ -68,7 +70,7 @@ export function TrainerAttentionPanel({ summary, loading = false }) {
       key: 'stale',
       count: summary.stale,
       label: 'Давно не был',
-      hint: `${summary.staleDays}+ дн. после конца`,
+      hint: `${summary.staleDays}–${summary.staleMaxDays ?? STALE_MAX_DAYS} дн. после конца`,
       icon: CalendarClock,
       to: '/trainer/clients?filter=stale',
     },

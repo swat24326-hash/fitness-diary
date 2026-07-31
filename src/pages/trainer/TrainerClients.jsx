@@ -29,6 +29,7 @@ import {
   isClientStaleForAttention,
   normalizeTrainerClientQuickFilter,
   STALE_TRAINING_DAYS,
+  STALE_MAX_DAYS,
 } from '../../lib/trainer/trainerAttentionSummary'
 import {
   buildOutreachScenarioHint,
@@ -180,6 +181,7 @@ export function TrainerClients() {
           memList,
           today,
           staleDays: STALE_TRAINING_DAYS,
+          staleMaxDays: STALE_MAX_DAYS,
         })
       }
       return false
@@ -385,7 +387,7 @@ export function TrainerClients() {
       return `Нет абонементов, закончившихся за последние ${STALE_TRAINING_DAYS - 1} дней.`
     }
     if (quickFilter === 'stale') {
-      return `Нет клиентов, у которых абонемент закончился ${STALE_TRAINING_DAYS}+ дней назад.`
+      return `Нет клиентов, у которых абонемент закончился ${STALE_TRAINING_DAYS}–${STALE_MAX_DAYS} дней назад.`
     }
     if (quickFilter === 'pnk') return 'Нет клиентов в воронке ПНК.'
     return 'Нет клиентов по фильтру.'
@@ -457,8 +459,8 @@ export function TrainerClients() {
                 type="button"
                 className={filterBtnClass('stale')}
                 onClick={() => applyFilter('stale')}
-                aria-label={`Фильтр: абонемент закончился ${STALE_TRAINING_DAYS}+ дней назад`}
-                title={`Давно не был ${STALE_TRAINING_DAYS}+ дн. после конца (${filterCounts.stale})`}
+                aria-label={`Фильтр: абонемент закончился ${STALE_TRAINING_DAYS}–${STALE_MAX_DAYS} дней назад`}
+                title={`Давно не был ${STALE_TRAINING_DAYS}–${STALE_MAX_DAYS} дн. после конца (${filterCounts.stale})`}
               >
                 <CalendarClock size={20} aria-hidden />
               </button>

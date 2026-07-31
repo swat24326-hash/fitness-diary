@@ -7,6 +7,7 @@ import {
   membershipDaysUntilEnd,
   pickLatestEndedMembership,
   STALE_TRAINING_DAYS,
+  STALE_MAX_DAYS,
   daysSinceIsoDate,
   isClientStaleForAttention,
 } from './trainerClientOutreachCore.js'
@@ -21,19 +22,21 @@ export const OUTREACH_SCENARIO_PRIORITY = ['birthdays', 'expiring', 'expired_rec
  *   memList?: object[],
  *   today?: string,
  *   staleDays?: number,
+ *   staleMaxDays?: number,
  * }} ctx
  * @returns {import('./trainerClientOutreachCore.js').OutreachScenario | null}
  */
 export function resolvePrimaryOutreachScenarioForClient(ctx = {}) {
   const today = String(ctx.today ?? todayLocalIso())
   const staleDays = Number(ctx.staleDays) > 0 ? Number(ctx.staleDays) : STALE_TRAINING_DAYS
+  const staleMaxDays = Number(ctx.staleMaxDays) > 0 ? Number(ctx.staleMaxDays) : STALE_MAX_DAYS
   const memList = ctx.memList ?? []
   const client = ctx.client ?? {}
 
   if (isBirthdayToday(client.birth_date, today)) return 'birthdays'
   if (membershipSignal(memList, today).key === 'expiring') return 'expiring'
   if (isMembershipExpiredRecently(memList, today)) return 'expired_recent'
-  if (isClientStaleForAttention({ memList, today, staleDays })) return 'stale'
+  if (isClientStaleForAttention({ memList, today, staleDays, staleMaxDays })) return 'stale'
   return null
 }
 
@@ -137,11 +140,13 @@ export function pickNextOutreachClient(clients, sentTodayIds) {
  *   memByClient?: Record<string, object[]>,
  *   today?: string,
  *   staleDays?: number,
+ *   staleMaxDays?: number,
  * }} input
  */
 export function buildTrainerAttentionSummaryByPrimaryScenario(input = {}) {
   const today = String(input.today ?? todayLocalIso())
   const staleDays = Number(input.staleDays) > 0 ? Number(input.staleDays) : STALE_TRAINING_DAYS
+  const staleMaxDays = Number(input.staleMaxDays) > 0 ? Number(input.staleMaxDays) : STALE_MAX_DAYS
   const memByClient = input.memByClient ?? {}
 
   let birthdays = 0
@@ -158,6 +163,7 @@ export function buildTrainerAttentionSummaryByPrimaryScenario(input = {}) {
       memList: memByClient[c.id] ?? [],
       today,
       staleDays,
+      staleMaxDays,
     })
     if (primary === 'birthdays') birthdays++
     else if (primary === 'expiring') expiring++
@@ -173,5 +179,6 @@ export function buildTrainerAttentionSummaryByPrimaryScenario(input = {}) {
     pnk,
     actionable: birthdays + expiring + expired_recent + stale + pnk,
     staleDays,
+    staleMaxDays,
   }
 }
