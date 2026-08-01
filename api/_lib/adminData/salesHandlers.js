@@ -33,18 +33,20 @@ import { filterAerobicSalesTypes } from '../../../src/lib/membershipTypesCore.js
 import { salesBundleProfileFlags } from '../../../src/lib/admin/salesBundleProfileCore.js'
 import { TRAINER_ROLES } from './constants.js'
 import { fetchPaged } from './paging.js'
+import { isHoldingTrainerUser } from '../../../src/lib/admin/deskClosingImportCore.js'
 
 const TRAINER_ROLES_SALES = new Set(TRAINER_ROLES)
 
 export async function fetchClubTrainersForSales(supabaseAdmin, clubId) {
   const { data, error } = await supabaseAdmin
     .from('users')
-    .select('id, name, email, login, phone, is_active, role, club_id')
+    .select('id, name, email, login, phone, is_active, role, club_id, is_system_placeholder')
     .eq('club_id', clubId)
     .order('name', { ascending: true })
   if (error) throw error
   return (data ?? []).filter((u) => {
     if (u?.is_active === false) return false
+    if (isHoldingTrainerUser(u)) return false
     return TRAINER_ROLES_SALES.has(String(u?.role ?? '').trim().toLowerCase())
   })
 }

@@ -52,9 +52,9 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 
 ## Allowlist push (`PUSH_ALLOWED_TABLES`)
 
-`clients`, `memberships`, `trainings`, `health_cards`, `body_measurements`, `client_weight_entries`, `challenges`, `exercises`, `membership_types`, `nutrition_products`, `homework_presets`.
+`clients`, `memberships`, `trainings`, `health_cards`, `body_measurements`, `client_weight_entries`, `challenges`, `exercises`, `membership_types`, `nutrition_products`, `homework_presets`, `pnk_funnel_events`, `sale_clips`.
 
-Продажи daily/plan, ИСКРА dispatch/settings, push subscriptions — обычно через **`admin-data`**, не через эту очередь.
+Создание клипа менеджером — через **`admin-data?action=sale-clips`**; тренер закрывает клип (`done` + `memberships.clip_id`) через очередь push.
 
 ---
 

@@ -1,6 +1,6 @@
 /** Агрегация статистики клуба (дублирует логику src/lib/admin/adminClubStatsService.js). */
 
-import { filterOperationalClients } from './clientArchive.js'
+import { filterHallOperationalClients } from '../../src/lib/admin/holdingClientsCore.js'
 
 export function aggregateTrainings(rows) {
   const dayMap = new Map()
@@ -211,10 +211,10 @@ function inactiveMembershipDetail(memberships, dateIso) {
   return { reason, inactiveDetail: labels.expired }
 }
 
-export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, dateTo, asOf) {
+export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, dateTo, asOf, opts = {}) {
   const from = String(dateFrom ?? '').slice(0, 10)
   const to = String(dateTo ?? '').slice(0, 10)
-  const operational = filterOperationalClients(clientRows).filter(
+  const operational = filterHallOperationalClients(clientRows, opts?.holdingTrainerIds).filter(
     (c) => String(c?.lifecycle ?? 'active') !== 'pnk',
   )
   const totalClients = operational.length

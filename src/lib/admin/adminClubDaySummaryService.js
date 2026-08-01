@@ -10,6 +10,8 @@ import { querySalesDailyRow } from './adminSalesQueryResilience.js'
 import { loadClubTrainingStats } from './adminClubStatsService.js'
 import { refreshMembershipsForStats } from '../membershipCacheRefresh.js'
 import { isAppOnline } from '../syncService.js'
+import { collectHoldingTrainerIds } from './holdingClientsCore.js'
+import { fetchTrainersViaAdminApi } from './adminApiClient.js'
 
 /**
  * @param {string} clubId
@@ -33,6 +35,16 @@ export async function loadAdminClubDaySummary(clubId) {
     listMembershipsByClubId(cid),
     listTrainingsByClubIdInRange(cid, yesterday, today),
   ])
+  let holdingTrainerIds = new Set()
+  try {
+    const viaApi = await fetchTrainersViaAdminApi()
+    const trainers = (viaApi?.trainers ?? []).filter(
+      (t) => String(t.club_id ?? '') === cid || !t.club_id,
+    )
+    holdingTrainerIds = collectHoldingTrainerIds(trainers)
+  } catch {
+    holdingTrainerIds = new Set()
+  }
 
   let inactiveOverride = null
   let trainingsTodayOverride = null
@@ -89,6 +101,7 @@ export async function loadAdminClubDaySummary(clubId) {
       inactiveOverride,
       trainingsTodayOverride,
       trainingsYesterdayOverride,
+      holdingTrainerIds,
     }),
     source: 'local',
   }

@@ -114,11 +114,11 @@ export function SalesDailyPaymentsImportSection({
 
   return (
     <section className="sales-report__card sales-payments-import" aria-label="Импорт отчёта по оплатам">
-      <h3 className="sales-report__section-title">Импорт из 1С (отчёт по оплатам)</h3>
+      <h3 className="sales-report__section-title">Каждый день: Excel оплат из 1С</h3>
       <p className="sales-report__hint">
-        Загрузите Excel за день. Ось предложит НК/ДК/УК где уверена; для ТЗ/АЗ без абона в базе — только вручную.
-        Касса / DDS не импортируются. После подстановки нажмите «Сохранить» у отчёта.
-        Уже сохранённые вручную дни по старой методике сами не переписываются — импорт только в открытую дату формы.
+        Файл как «отчёт по оплатам» / <strong>31.xlsx</strong> — не закрытия и не касса/DDS. Загрузите за день →
+        проверьте НК/ДК/УК → «Подставить» → ниже нажмите «Сохранить» у отчёта. Уже сохранённые вручную дни сами не
+        переписываются.
       </p>
       <label className="sales-payments-import__file">
         <FileSpreadsheet size={18} aria-hidden />

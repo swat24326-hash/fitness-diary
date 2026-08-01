@@ -64,4 +64,17 @@ const badOrder = normalizeMembershipPushPayload(
 )
 ok(!badOrder.ok && /раньше начала/i.test(badOrder.error), 'insert rejects end before start')
 
+const paidOk = normalizeMembershipPushPayload({
+  id: 'm6',
+  used_trainings: 0,
+  paid_amount: '12 500,50',
+})
+ok(paidOk.ok && paidOk.data.paid_amount === 12500.5, 'paid_amount parsed')
+
+const paidNull = normalizeMembershipPushPayload({ id: 'm7', paid_amount: '' })
+ok(paidNull.ok && paidNull.data.paid_amount === null, 'empty paid_amount -> null')
+
+const paidBad = normalizeMembershipPushPayload({ id: 'm8', paid_amount: -1 })
+ok(!paidBad.ok, 'rejects negative paid_amount')
+
 console.log('verify-membership-push-payload: all passed')

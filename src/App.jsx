@@ -11,6 +11,7 @@ import { BreadcrumbsBar } from './components/BreadcrumbsBar'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { AdminDashboard } from './pages/admin/AdminDashboard'
 import { AdminClients } from './pages/admin/AdminClients'
+import { AdminExcelLists } from './pages/admin/AdminExcelLists'
 import { AdminStructure } from './pages/admin/AdminStructure'
 import { AdminStatistics } from './pages/admin/AdminStatistics'
 import { AdminSales } from './pages/admin/AdminSales'
@@ -205,6 +206,7 @@ export default function App() {
                 <Route path="pnk" element={<SalesPnk />} />
                 <Route path="clients" element={<AdminClients />} />
                 <Route path="clients/:id" element={<ClientCard />} />
+                <Route path="excel-lists" element={<AdminExcelLists />} />
                 <Route path="diaries" element={<AdminDiariesRedirect />} />
                 <Route path="exercises" element={<AdminLegacyExercisesRedirect />} />
                 <Route path="challenges" element={<AdminChallenges />} />

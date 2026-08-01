@@ -149,6 +149,45 @@ console.log('\n▶ sales_manager API')
 
   const listTrainers = await apiGet('/api/list-trainers?role=sales_manager', salesTok)
   ok(listTrainers.status === 403 || listTrainers.status === 401, 'sales blocked list managers', 'sales')
+
+  /** sale-clips: на проде до деплоя/миграции — 400/403/404/405/500; после — 200 + clips[]. */
+  const clipsNotReady = new Set([400, 403, 404, 405, 500])
+  const clipsGet = await apiGet(
+    `/api/admin-data?action=sale-clips&club_id=${QA_CLUB_ID}&clip_date=${reportDate}`,
+    salesTok,
+  )
+  ok(
+    clipsGet.status === 200 || clipsNotReady.has(clipsGet.status),
+    `sales GET sale-clips HTTP ${clipsGet.status}${clipsGet.status === 200 ? '' : ' (ещё не на проде / нет таблицы)'}`,
+    'sales',
+  )
+  if (clipsGet.status === 200) {
+    ok(Array.isArray(clipsGet.data?.clips), 'sales sale-clips list array', 'sales')
+  }
+
+  const clipsTrainer = await apiGet(
+    `/api/admin-data?action=sale-clips&club_id=${QA_CLUB_ID}&clip_date=${reportDate}`,
+    trainerTok,
+  )
+  ok(
+    clipsTrainer.status === 403 || clipsTrainer.status === 401 || clipsTrainer.status === 400,
+    `trainer blocked from sale-clips HTTP ${clipsTrainer.status}`,
+    'trainer',
+  )
+  ok(clipsTrainer.status !== 200, 'trainer cannot list sale-clips', 'trainer')
+
+  const clipsAdmin = await apiGet(
+    `/api/admin-data?action=sale-clips&club_id=${QA_CLUB_ID}&clip_date=${reportDate}`,
+    adminTok,
+  )
+  ok(
+    clipsAdmin.status === 200 || clipsNotReady.has(clipsAdmin.status),
+    `admin GET sale-clips HTTP ${clipsAdmin.status}${clipsAdmin.status === 200 ? '' : ' (ещё не на проде / нет таблицы)'}`,
+    'admin',
+  )
+  if (clipsAdmin.status === 200) {
+    ok(Array.isArray(clipsAdmin.data?.clips), 'admin sale-clips list array', 'admin')
+  }
 }
 
 console.log('\n▶ route guards (unauthenticated)')

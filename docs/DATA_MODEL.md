@@ -1,17 +1,17 @@
 # Модель данных — IDB, сущности, Postgres
 
-**Актуально:** 2026-07-29. Эталон схемы: `supabase/schema.sql` + идемпотентные `supabase/migrations/`.  
+**Актуально:** 2026-08-01. Эталон схемы: `supabase/schema.sql` + идемпотентные `supabase/migrations/`.  
 Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/lib/membershipRules.js`.
 
 ---
 
-## IndexedDB (`fitness-diary`, version **14**)
+## IndexedDB (`fitness-diary`, version **16**)
 
 | Store | keyPath | Заметки |
 |-------|---------|---------|
 | `meta` | key (string) | Флаги, служебное |
-| `clients` | `id` | индексы `club_id`, `trainer_id`; поля ПНК / архив |
-| `memberships` | `id` | `client_id`, `club_id`; «активность» — в коде, не слепо по `status` |
+| `clients` | `id` | индексы `club_id`, `trainer_id`; поля ПНК / архив; `desk_hall` (`tz`\|`az`\|null) для desk из Excel закрытий |
+| `memberships` | `id` | `client_id`, `club_id`; опционально `clip_id`; `paid_amount` (₽ покупки, desk ТЗ/АЗ) |
 | `trainings` | `id` | `draft` \| `completed`; `data` JSON формы (в т.ч. опционально `hr_session` — сводка пульса BLE, см. [TRAINING_HR.md](./TRAINING_HR.md)) |
 | `exercises` | `id` | Справочник |
 | `body_measurements` | `id` | обмеры |
@@ -25,6 +25,8 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | `client_weight_entries` | `id` | Вес |
 | `outreach_log` | `id` | Касания / Max-очередь (локальный журнал; кэш club SMS) |
 | `club_iskra_settings` | `club_id` | Настройки ИСКРЫ на клуб (`outreach_templates` — Max тренера; `club_sms_templates` — SMS клуба) |
+| `pnk_funnel_events` | `id` | Журнал ПНК |
+| `sale_clips` | `id` | Клип-карты (awaiting → done на планшете); pull тренеру |
 
 Postgres (не IDB): **`club_sms_log`** — облачный журнал SMS клуба (кто / кому / сценарий / превью); API `admin-data?action=club-sms`.
 
@@ -37,7 +39,7 @@ Postgres (не IDB): **`club_sms_log`** — облачный журнал SMS к
 | Сущность | Смысл |
 |----------|--------|
 | **clients** | Тренер, клуб, контакты, флаги архива, поля жизненного цикла **ПНК** |
-| **memberships** | Период, лимит тренировок, тип карты; списание при завершении тренировки; удаление с карточки клиента только без связанных тренировок (иначе — сначала удалить их в списке абонемента) |
+| **memberships** | Период, лимит тренировок, тип карты, опционально `paid_amount` (учёт цены на desk ТЗ/АЗ); списание при завершении тренировки; удаление с карточки клиента только без связанных тренировок (иначе — сначала удалить их в списке абонемента) |
 | **trainings** | Дата, тип, статус, JSON `data` из `TrainingForm` (упражнения, вес, опционально снимок `hr_session`) |
 | **health_cards** | Рост, вес, цель (`goal`), тексты медкарты |
 | **body_measurements** | Поля из `BODY_MEASURE_FIELDS` (+ legacy-имена в читалке) |

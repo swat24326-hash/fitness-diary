@@ -1,0 +1,85 @@
+.admin-excel-lists-maps {
+  display: grid;
+  gap: 1.25rem;
+  margin-top: 0.5rem;
+}
+
+@media (min-width: 960px) {
+  .admin-excel-lists-maps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+.admin-excel-map-card {
+  padding: 1rem 1.1rem 1.15rem;
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid color-mix(in srgb, var(--border, #444) 80%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated, #1a1a1a) 94%, transparent);
+  min-width: 0;
+}
+
+.admin-excel-map-card--tz {
+  border-color: color-mix(in srgb, #5b8def 35%, transparent);
+}
+
+.admin-excel-map-card--az {
+  border-color: color-mix(in srgb, #3db88a 35%, transparent);
+}
+
+.admin-excel-map-card--pz {
+  border-color: color-mix(in srgb, var(--accent-bright, #e8a838) 35%, transparent);
+  border-style: dashed;
+}
+
+.admin-excel-map-card__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.admin-excel-map-card__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  background: color-mix(in srgb, var(--accent-bright, #e8a838) 18%, transparent);
+  color: var(--text, #eee);
+}
+
+.admin-excel-map-card--tz .admin-excel-map-card__badge {
+  background: color-mix(in srgb, #5b8def 28%, transparent);
+}
+
+.admin-excel-map-card--az .admin-excel-map-card__badge {
+  background: color-mix(in srgb, #3db88a 28%, transparent);
+}
+
+.admin-excel-map-card .admin-desk-closing {
+  margin: 0;
+}
+
+.admin-excel-map-card .admin-section-title {
+  font-size: 1.05rem;
+  margin: 0 0 0.35rem;
+}
+
+.admin-excel-map-card__note {
+  margin-top: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.sales-payments-import__file--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.sales-payments-import__file--disabled input {
+  pointer-events: none;
+}

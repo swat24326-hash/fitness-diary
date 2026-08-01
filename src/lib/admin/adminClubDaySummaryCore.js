@@ -1,4 +1,4 @@
-import { filterOperationalClients } from '../clientArchive.js'
+import { filterHallOperationalClients } from './holdingClientsCore.js'
 import { membershipSignal } from '../clientListSignals.js'
 import { todayLocalIso } from '../dateRu.js'
 import { aggregateClubClientPeriod } from './clubClientPeriodAgg.js'
@@ -39,11 +39,12 @@ export function buildMembershipsByClientId(membershipRows) {
  * @param {object[]} clientRows
  * @param {object[]} membershipRows
  * @param {string} today
+ * @param {Set<string>|string[]|null} [holdingTrainerIds]
  */
-export function countClubExpiringMemberships(clientRows, membershipRows, today = todayLocalIso()) {
+export function countClubExpiringMemberships(clientRows, membershipRows, today = todayLocalIso(), holdingTrainerIds) {
   const byClient = buildMembershipsByClientId(membershipRows)
   let count = 0
-  for (const c of filterOperationalClients(clientRows)) {
+  for (const c of filterHallOperationalClients(clientRows, holdingTrainerIds)) {
     const id = String(c?.id ?? '').trim()
     if (!id) continue
     if (membershipSignal(byClient.get(id) ?? [], today).key === 'expiring') count++
@@ -75,6 +76,7 @@ export function countTrainingsOnDate(trainings, iso) {
  *   inactiveOverride?: number | null,
  *   trainingsTodayOverride?: number | null,
  *   trainingsYesterdayOverride?: number | null,
+ *   holdingTrainerIds?: Set<string>|string[],
  * }} input
  */
 export function buildAdminClubDaySummary(input = {}) {
@@ -83,15 +85,21 @@ export function buildAdminClubDaySummary(input = {}) {
   const clients = input.clients ?? []
   const memberships = input.memberships ?? []
   const trainings = input.trainings ?? []
+  const holdingTrainerIds = input.holdingTrainerIds
 
-  const period = aggregateClubClientPeriod(clients, memberships, today, today, today)
+  const period = aggregateClubClientPeriod(clients, memberships, today, today, today, { holdingTrainerIds })
   const todayTrainings = countTrainingsOnDate(trainings, today)
   const yesterdayTrainings = countTrainingsOnDate(trainings, yesterday)
   const byClientMap = buildMembershipsByClientId(memberships)
   /** @type {Record<string, object[]>} */
   const memByClient = Object.fromEntries(byClientMap)
   const inactiveIds = new Set(period.inactiveClients.map((c) => c.id).filter(Boolean))
-  const funnel = countAdminFunnelFilters(filterOperationalClients(clients), memByClient, today, inactiveIds)
+  const funnel = countAdminFunnelFilters(
+    filterHallOperationalClients(clients, holdingTrainerIds),
+    memByClient,
+    today,
+    inactiveIds,
+  )
 
   const inactive =
     Number.isFinite(input.inactiveOverride) ? Number(input.inactiveOverride) : period.inactiveInPeriod

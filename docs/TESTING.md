@@ -61,7 +61,11 @@
 | Прайс АЗ: импорт Excel Результат/групповые/доплаты | `verify-az-price-list.mjs` |
 | Прайс АЗ: печать HTML / имена PNG | `verify-az-price-list-print.mjs` |
 | Импорт отчёта по оплатам (1С → дневной) | `verify-sales-payments-import.mjs` |
-| Desk-сид закрытий (карта + end_date) | `verify-desk-closing-import.mjs` |
+| Desk-сид закрытий (карта + end_date + цена; UI `/admin/excel-lists`) | `verify-desk-closing-import.mjs` |
+| Desk ledger абонов (действующий / цена) | `verify-desk-membership-ledger.mjs` |
+| Вкладки Клиенты / ТЗ / АЗ (`desk_hall`) | `verify-desk-hall-clients.mjs` |
+| Миграция desk на linked Supabase | `npm run db:migrate:desk-hall -- --linked` |
+| Клип-карта: match / holding / checklist | `verify-sale-clips.mjs` |
 | Продажи: профили bundle shell/daily/month/full | `verify-sales-bundle-profile.mjs` |
 | Срок абонемента по умолчанию (+1 календарный месяц) | `verify-date-ru.mjs` |
 

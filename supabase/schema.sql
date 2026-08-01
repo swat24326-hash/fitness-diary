@@ -65,12 +65,15 @@ CREATE TABLE clients (
   pnk_lost_at TIMESTAMPTZ,
   pnk_lost_reason TEXT,
   pnk_created_at TIMESTAMPTZ,
+  desk_hall TEXT CHECK (desk_hall IS NULL OR desk_hall IN ('tz', 'az')),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_clients_trainer_id ON clients (trainer_id);
 CREATE INDEX IF NOT EXISTS idx_clients_club_id ON clients (club_id);
 CREATE INDEX IF NOT EXISTS idx_clients_club_archived_at ON clients (club_id, archived_at);
+CREATE INDEX IF NOT EXISTS idx_clients_club_desk_hall ON clients (club_id, desk_hall)
+  WHERE desk_hall IS NOT NULL;
 
 -- ------------------------------------------------------------
 -- Типы абонементов (справочник клуба)
@@ -109,6 +112,7 @@ CREATE TABLE memberships (
   status TEXT DEFAULT 'active' CHECK (status IN ('active', 'expired', 'closed')),
   club_id UUID NOT NULL REFERENCES clubs (id),
   membership_type_id UUID REFERENCES membership_types (id) ON DELETE SET NULL,
+  paid_amount NUMERIC(12, 2) NULL CHECK (paid_amount IS NULL OR paid_amount >= 0),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

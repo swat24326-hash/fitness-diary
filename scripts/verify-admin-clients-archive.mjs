@@ -49,6 +49,10 @@ ok(
   shouldShowAdminClientsList({ query: '', trainerQuery: '', browseMode: 'none', clientsTab: 'archive' }) === true,
   'archive tab opens list',
 )
+ok(
+  shouldShowAdminClientsList({ query: '', trainerQuery: '', browseMode: 'none', clientsTab: 'tz' }) === true,
+  'tz tab opens list',
+)
 
 const local = [
   { id: 'c1', name: 'Вася' },

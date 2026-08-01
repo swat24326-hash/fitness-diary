@@ -7,7 +7,7 @@
   padding-bottom: 2rem;
 }
 
-/* Продажи и статистика менеджера — на десктопе на всю ширину экрана */
+/* ??????? ? ?????????? ????????? ? ?? ???????? ?? ??? ?????? ?????? */
 .sales-report--wide,
 .sales-report--manager {
   max-width: none;
@@ -99,7 +99,7 @@
   width: 100%;
 }
 
-/* —— График плана с анимацией —— */
+/* ?? ?????? ????? ? ????????? ?? */
 .sales-report__plan-track {
   position: relative;
   width: 100%;
@@ -392,7 +392,7 @@
   border: none;
   cursor: pointer;
   z-index: 2;
-  /* iOS/Android: нулевой opacity иногда глотает tap */
+  /* iOS/Android: ??????? opacity ?????? ??????? tap */
   opacity: 0.01;
 }
 
@@ -2007,7 +2007,7 @@
   vertical-align: middle;
 }
 
-/* —— Статистика менеджера —— */
+/* ?? ?????????? ????????? ?? */
 .sales-report__stats {
   display: flex;
   flex-direction: column;
@@ -2485,7 +2485,7 @@
   }
 }
 
-/* —— Столбчатый график (прибыль по дням) —— */
+/* ?? ?????????? ?????? (??????? ?? ????) ?? */
 .sales-column-chart {
   display: flex;
   flex-direction: column;
@@ -2736,7 +2736,7 @@
   padding: clamp(1.25rem, 2.5vh, 2rem) clamp(1.5rem, 3.5vw, 2.75rem) clamp(0.75rem, 1.5vh, 1.35rem);
 }
 
-/* Ряд «внимание» на главной менеджера — тот же каркас, что у админа */
+/* ??? ?????????? ?? ??????? ????????? ? ??? ?? ??????, ??? ? ?????? */
 .sales-home--fill .admin-home-attention {
   flex: 0 0 auto;
   margin-bottom: clamp(12px, 2vh, 20px);
@@ -3150,7 +3150,7 @@
   min-height: 100dvh;
 }
 
-/* Логотип менеджера по продажам в общей шапке */
+/* ??????? ????????? ?? ???????? ? ????? ????? */
 .sales-header__brand {
   display: flex;
   align-items: center;
@@ -3181,7 +3181,7 @@
   border: 1px solid color-mix(in srgb, var(--accent-bright) 25%, transparent);
 }
 
-/* План по направлениям — матрица кол-во × ср. чек */
+/* ???? ?? ???????????? ? ??????? ???-?? ? ??. ??? */
 .sales-report__matrix-scroll--plan {
   margin-top: 0.5rem;
 }
@@ -3207,7 +3207,7 @@
   color: var(--accent-bright);
 }
 
-/* План vs факт — блок сравнения */
+/* ???? vs ???? ? ???? ????????? */
 .sales-report__stats-block--plan-compare {
   border-color: color-mix(in srgb, var(--accent-bright) 18%, transparent);
 }
@@ -4392,7 +4392,7 @@
   font-size: 0.78rem;
 }
 
-/* Расшифровка АЗ по дням (статистика месяца) */
+/* ??????????? ?? ?? ???? (?????????? ??????) */
 .sales-aerobic-day-modal__list {
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -4479,7 +4479,7 @@
   cursor: default;
 }
 
-/* Ориентир ПЗ ДК из прайса (план месяца) */
+/* ???????? ?? ?? ?? ?????? (???? ??????) */
 .sales-plan-pz-dk-suggest {
   margin: 0 0 1rem;
   padding: 0.9rem 1rem;
@@ -4717,7 +4717,7 @@
 
 
 
-/* ������ ������ �� ������� (1�) */
+/* ?????? ?????? ?? ??????? (1?) */
 .sales-payments-import {
   margin-bottom: 1rem;
 }
@@ -4775,4 +4775,198 @@
   max-width: 14rem;
   color: var(--text-muted);
   font-size: 0.8rem;
+}
+
+/* ????-????? / ???????? match */
+.sales-clip-section__tip,
+.sales-evening-match .sales-clip-section__tip {
+  margin: 0 0 0.75rem;
+  max-width: 52rem;
+}
+.sales-clip-checklist {
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid color-mix(in srgb, var(--accent-bright, #e8a838) 35%, transparent);
+  background: color-mix(in srgb, var(--accent-bright, #e8a838) 8%, transparent);
+}
+.sales-clip-checklist ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.2rem;
+}
+.sales-clip-form,
+.admin-desk-client-card__form {
+  display: grid;
+  gap: 0.65rem 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  margin-bottom: 1.25rem;
+}
+.sales-clip-form label,
+.admin-desk-client-card__form label,
+.sales-evening-match label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+.sales-clip-form__note {
+  grid-column: 1 / -1;
+}
+.sales-clip-form input,
+.sales-clip-form select,
+.admin-desk-client-card__form input,
+.admin-desk-client-card__form select,
+.sales-evening-match input,
+.sales-evening-match textarea {
+  min-height: 2.5rem;
+  padding: 0.4rem 0.55rem;
+}
+.sales-evening-match textarea {
+  min-height: 5rem;
+  resize: vertical;
+}
+.sales-clip-warnings {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: color-mix(in srgb, var(--accent-bright, #e8a838) 90%, var(--text));
+}
+.sales-clip-list,
+.trainer-sale-clips__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+.sales-clip-list li,
+.trainer-sale-clips__list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--text-muted) 18%, transparent);
+  border-radius: var(--radius-md, 10px);
+}
+.sales-evening-match__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 0.65rem 1rem;
+  margin: 0.75rem 0;
+}
+.sales-evening-match__result {
+  margin-top: 0.75rem;
+}
+.admin-desk-client-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  grid-column: 1 / -1;
+}
+.admin-desk-membership-ledger {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid color-mix(in srgb, var(--border, #444) 70%, transparent);
+}
+.admin-desk-membership-ledger__table select,
+.admin-desk-membership-ledger__table input {
+  width: 100%;
+  min-width: 0;
+  max-width: 9rem;
+}
+.admin-desk-membership-ledger__row--active {
+  background: color-mix(in srgb, var(--accent-bright, #e8a838) 10%, transparent);
+}
+.admin-desk-membership-ledger__kind {
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+.admin-desk-membership-ledger__kind--active {
+  font-weight: 700;
+  color: var(--accent-bright, #e8a838);
+}
+.trainer-sale-clips {
+  margin: 0.75rem 0 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid color-mix(in srgb, var(--accent-bright, #e8a838) 28%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated, #1a1a1a) 92%, transparent);
+}
+.trainer-sale-clips--empty {
+  border-style: dashed;
+  opacity: 0.92;
+}
+.trainer-sale-clips__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.sales-clip-section__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.35rem;
+}
+.sales-clip-section__head .sales-report__section-title {
+  margin-bottom: 0;
+}
+.sales-clip-section__day {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+}
+.sales-evening-match__actions {
+  margin: 0.35rem 0 0.75rem;
+}
+
+/* ?????????? ?????????????? (??? ?????): ?????? / ?? ?????? / ?? */
+.sales-visual-alert {
+  margin: 0.75rem 0;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-md, 10px);
+  border: 2px solid transparent;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+.sales-visual-alert__title {
+  margin: 0 0 0.35rem;
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+.sales-visual-alert__body {
+  margin: 0;
+}
+.sales-visual-alert__body p,
+.sales-visual-alert__body ul {
+  margin: 0.35rem 0 0;
+}
+.sales-visual-alert__body ul {
+  padding-left: 1.2rem;
+}
+.sales-visual-alert--error {
+  border-color: color-mix(in srgb, #c62828 70%, transparent);
+  background: color-mix(in srgb, #c62828 16%, var(--bg-elevated, #1a1a1a));
+  color: var(--text, #f5f5f5);
+}
+.sales-visual-alert--warn {
+  border-color: color-mix(in srgb, #e8a838 75%, transparent);
+  background: color-mix(in srgb, #e8a838 14%, var(--bg-elevated, #1a1a1a));
+}
+.sales-visual-alert--ok {
+  border-color: color-mix(in srgb, #2e7d32 65%, transparent);
+  background: color-mix(in srgb, #2e7d32 12%, var(--bg-elevated, #1a1a1a));
+}
+.sales-visual-alert--info {
+  border-color: color-mix(in srgb, var(--text-muted) 35%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated, #1a1a1a) 90%, transparent);
+}
+.sales-clip-form .sales-visual-alert {
+  grid-column: 1 / -1;
 }

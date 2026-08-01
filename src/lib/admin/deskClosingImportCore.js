@@ -4,11 +4,12 @@
  */
 
 import {
-  matchClientsByCardNumber,
+  matchClientByCardThenPhone,
   normalizeSalesCardNumber,
   looksLikeSalesCardNumber,
 } from './salesClientMatchCore.js'
 import { cellText, detectSalesHallFromLabel } from './salesPaymentsImportCore.js'
+import { normalizeDeskHall } from './deskHallClientsCore.js'
 
 export const HOLDING_TRAINER_DISPLAY_NAME = 'Не назначен'
 
@@ -16,13 +17,14 @@ export const HOLDING_TRAINER_DISPLAY_NAME = 'Не назначен'
  * @param {object|null|undefined} user
  */
 export function isHoldingTrainerUser(user) {
+  if (user?.is_system_placeholder === true) return true
   const name = String(user?.name ?? '').trim().toLowerCase()
   return name === HOLDING_TRAINER_DISPLAY_NAME.toLowerCase()
 }
 
 /**
  * @param {string} header
- * @returns {'card'|'name'|'phone'|'end'|'start'|'hall'|'type'|'external'|null}
+ * @returns {'card'|'name'|'phone'|'end'|'start'|'hall'|'type'|'external'|'price'|null}
  */
 export function mapClosingHeader(header) {
   const h = cellText(header).toLowerCase()
@@ -30,6 +32,7 @@ export function mapClosingHeader(header) {
   if (/(карт|card)/.test(h) && !/тип/.test(h)) return 'card'
   if (/(фио|клиент|имя|name|фамилия)/.test(h)) return 'name'
   if (/(телефон|phone|тел\.?)/.test(h)) return 'phone'
+  if (/(цен[аые]|стоимость|сумма|оплат|price|paid|₽|руб)/.test(h) && !/тип/.test(h)) return 'price'
   if (/(оконч|end|действует по|по\b|до\b|закрыт)/.test(h)) return 'end'
   if (/(начало|start|действует с|с\b)/.test(h) && !/оконч/.test(h)) return 'start'
   if (/(зал|направл|hall|пз|тз|аз)/.test(h)) return 'hall'
@@ -67,6 +70,22 @@ export function parseClosingDateCell(raw) {
 }
 
 /**
+ * @param {unknown} raw
+ * @returns {number|null}
+ */
+export function parseClosingPriceCell(raw) {
+  if (raw === null || raw === undefined || raw === '') return null
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0) {
+    return Math.round(raw * 100) / 100
+  }
+  const t = cellText(raw).replace(/\s/g, '').replace(/₽|руб\.?/gi, '').replace(',', '.')
+  if (!t) return null
+  const n = Number(t)
+  if (!Number.isFinite(n) || n < 0) return null
+  return Math.round(n * 100) / 100
+}
+
+/**
  * @param {unknown[][]} rows
  */
 export function parseClosingAgreementsAoA(rows) {
@@ -100,7 +119,7 @@ export function parseClosingAgreementsAoA(rows) {
   }
 
   const reasons = []
-  /** @type {Array<{ cardNumber: string, name: string, phone: string, endDate: string|null, startDate: string|null, hall: string|null, typeName: string, externalRef: string }>} */
+  /** @type {Array<{ cardNumber: string, name: string, phone: string, endDate: string|null, startDate: string|null, hall: string|null, typeName: string, externalRef: string, paidAmount: number|null }>} */
   const out = []
 
   for (let r = headerIdx + 1; r < list.length; r++) {
@@ -119,6 +138,7 @@ export function parseClosingAgreementsAoA(rows) {
     if (headerMap.hall != null) hall = detectSalesHallFromLabel(row[headerMap.hall])
     const typeName = headerMap.type != null ? cellText(row[headerMap.type]) : ''
     const externalRef = headerMap.external != null ? cellText(row[headerMap.external]) : ''
+    const paidAmount = headerMap.price != null ? parseClosingPriceCell(row[headerMap.price]) : null
 
     if (!endDate) {
       reasons.push(`Карта ${cardNumber}: нет даты окончания — строка в превью, create без end рискован`)
@@ -132,10 +152,32 @@ export function parseClosingAgreementsAoA(rows) {
       hall,
       typeName,
       externalRef,
+      paidAmount,
     })
   }
 
   return { rows: out, reasons, headerMap }
+}
+
+/**
+ * Привязать строки закрытий к карте зала (ТЗ / АЗ).
+ * Если в файле нет колонки зала — весь список считается этим залом.
+ * Если зал есть — оставляем совпадения (+ пустой зал помечаем как target).
+ *
+ * @param {ReturnType<typeof parseClosingAgreementsAoA>['rows']} rows
+ * @param {'tz'|'az'|null|undefined} hallCode
+ */
+export function scopeClosingRowsToHall(rows, hallCode) {
+  const hall = hallCode === 'tz' || hallCode === 'az' ? hallCode : null
+  const list = Array.isArray(rows) ? rows : []
+  if (!hall) return list
+  const hasAnyHall = list.some((r) => r?.hall === 'tz' || r?.hall === 'az' || r?.hall === 'pz')
+  if (!hasAnyHall) {
+    return list.map((r) => ({ ...r, hall }))
+  }
+  return list
+    .filter((r) => !r.hall || r.hall === hall)
+    .map((r) => ({ ...r, hall: r.hall || hall }))
 }
 
 /**
@@ -151,9 +193,14 @@ export function planDeskClosingImport(input) {
   let create = 0
   let skip = 0
   let conflict = 0
+  let tagHall = 0
 
   for (const row of input.parsedRows ?? []) {
-    const match = matchClientsByCardNumber(input.clients, row.cardNumber)
+    const match = matchClientByCardThenPhone({
+      clients: input.clients,
+      cardNumber: row.cardNumber,
+      phone: row.phone,
+    })
     if (match.status === 'conflict') {
       conflict += 1
       actions.push({
@@ -166,6 +213,20 @@ export function planDeskClosingImport(input) {
     }
     if (match.status === 'one') {
       const cid = String(match.client.id)
+      const rowHall = row.hall === 'tz' || row.hall === 'az' ? row.hall : null
+      const curHall = normalizeDeskHall(match.client?.desk_hall)
+      if (rowHall && curHall !== rowHall) {
+        tagHall += 1
+        actions.push({
+          ...row,
+          hall: rowHall,
+          action: 'tag_hall',
+          reason: curHall
+            ? `Сменить desk-зал ${curHall.toUpperCase()} → ${rowHall.toUpperCase()}`
+            : `Проставить desk-зал ${rowHall.toUpperCase()} (вкладка ${rowHall.toUpperCase()})`,
+          clientId: cid,
+        })
+      }
       const mems = input.membershipsByClientId?.[cid] ?? []
       const hasCloseEnd =
         row.endDate &&
@@ -175,7 +236,7 @@ export function planDeskClosingImport(input) {
         actions.push({
           ...row,
           action: 'skip',
-          reason: 'Уже есть клиент и абонемент с этой датой окончания',
+          reason: `Уже есть клиент и абонемент с этой датой окончания (${match.matchedBy === 'phone' ? 'телефон' : 'карта'})`,
           clientId: cid,
         })
       } else {
@@ -208,5 +269,5 @@ export function planDeskClosingImport(input) {
     })
   }
 
-  return { actions, counts: { create, skip, conflict, total: actions.length } }
+  return { actions, counts: { create, skip, conflict, tagHall, total: actions.length } }
 }

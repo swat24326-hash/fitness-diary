@@ -50,5 +50,18 @@ export function normalizeMembershipPushPayload(payload, { insert = false } = {})
     return { ok: false, error: 'Дата окончания не может быть раньше начала' }
   }
 
+  if (Object.prototype.hasOwnProperty.call(next, 'paid_amount')) {
+    const raw = next.paid_amount
+    if (raw === null || raw === undefined || raw === '') {
+      next.paid_amount = null
+    } else {
+      const n = typeof raw === 'number' ? raw : Number(String(raw).replace(/\s/g, '').replace(',', '.'))
+      if (!Number.isFinite(n) || n < 0) {
+        return { ok: false, error: 'Цена абонемента должна быть числом ≥ 0' }
+      }
+      next.paid_amount = Math.round(n * 100) / 100
+    }
+  }
+
   return { ok: true, data: next }
 }

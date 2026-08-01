@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
-import { BarChart3, CalendarDays, ClipboardList, Compass, RefreshCw, Tags, TrendingUp, UserRound } from 'lucide-react'
+import { BarChart3, CalendarDays, ClipboardList, Compass, RefreshCw, Tags, Ticket, TrendingUp, UserRound } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { addDaysToIso, clampIsoDateToToday, formatDateRu, todayLocalIso } from '../../lib/dateRu'
@@ -73,6 +73,8 @@ import { AdminHomeSalesGlanceMetrics } from '../../components/admin/AdminHomeSal
 import { SalesDailyForm } from '../../components/SalesDailyForm'
 import { SalesDailyPaymentsImportSection } from '../../components/SalesDailyPaymentsImportSection.jsx'
 import { SalesDailyTaskAssign } from '../../components/sales/SalesDailyTaskAssign.jsx'
+import { SalesClipCreateSection } from '../../components/sales/SalesClipCreateSection.jsx'
+import { SalesEveningMatchSection } from '../../components/sales/SalesEveningMatchSection.jsx'
 import { SalesFinancePanel } from '../../components/SalesFinancePanel'
 import { SalesPlanSettingsPanel } from '../../components/SalesPlanSettingsPanel'
 import { SalesStrategyPanel } from '../../components/SalesStrategyPanel'
@@ -116,6 +118,7 @@ export function AdminSales({ accessMode = 'admin' }) {
       if (salesTabParam === 'analytics') return 'analytics'
       if (salesTabParam === 'price') return 'price'
       if (salesTabParam === 'strategy') return 'strategy'
+      if (salesTabParam === 'clips') return 'clips'
       return 'home'
     }
     if (salesTabParam === 'finance') return 'finance'
@@ -123,6 +126,7 @@ export function AdminSales({ accessMode = 'admin' }) {
     if (salesTabParam === 'strategy') return 'strategy'
     if (salesTabParam === 'stats') return 'stats'
     if (salesTabParam === 'price') return 'price'
+    if (salesTabParam === 'clips') return 'clips'
     return 'daily'
   }, [isSalesManager, salesTabParam])
   const showSalesHero = !isSalesManager || salesTab === 'home'
@@ -922,6 +926,12 @@ export function AdminSales({ accessMode = 'admin' }) {
                   </div>
                   <p className="sales-home__tile-title">Прайс</p>
                 </Link>
+                <Link to="/sales?tab=clips" className="sales-home__tile u-no-decoration">
+                  <div className="sales-home__tile-icon">
+                    <Ticket size={44} aria-hidden />
+                  </div>
+                  <p className="sales-home__tile-title">Заявка тренеру</p>
+                </Link>
                 <Link
                   to="/sales/club-tasks"
                   className={`sales-home__tile u-no-decoration${attentionWidgets.hasPlanerka ? ' sales-home__tile--echo' : ''}`}
@@ -978,7 +988,9 @@ export function AdminSales({ accessMode = 'admin' }) {
                     ? 'Прайс'
                     : salesTab === 'strategy'
                       ? 'Стратегия'
-                      : 'Статистика'}
+                      : salesTab === 'clips'
+                        ? 'Заявка тренеру на абон'
+                        : 'Статистика'}
             </h1>
           </div>
           <button
@@ -1019,6 +1031,17 @@ export function AdminSales({ accessMode = 'admin' }) {
             onClick={() => setSalesTab('daily')}
           >
             Отчёт за день
+          </button>
+          <button
+            type="button"
+            className="tab"
+            role="tab"
+            id="sales-tab-clips"
+            aria-selected={salesTab === 'clips'}
+            aria-controls="sales-panel-clips-admin"
+            onClick={() => setSalesTab('clips')}
+          >
+            Заявка тренеру
           </button>
           <button
             type="button"
@@ -1094,6 +1117,20 @@ export function AdminSales({ accessMode = 'admin' }) {
         </div>
       ) : null}
 
+      {isSalesManager && salesTab === 'clips' ? (
+        <div id="sales-panel-clips" className="sales-report__panel grid" style={{ gap: 18 }}>
+          <SalesClipCreateSection
+            clubId={clubId}
+            trainers={trainers}
+            membershipTypes={membershipTypes}
+            reportDate={reportDate}
+            onReportDateChange={(iso) => setReportDate(clampIsoDateToToday(iso))}
+            canOpenAdminClient={false}
+          />
+          <SalesEveningMatchSection clubId={clubId} />
+        </div>
+      ) : null}
+
       {isSalesManager && salesTab === 'report' ? (
         <div id="sales-panel-report" className="sales-report__panel">
           {clubId ? (
@@ -1162,6 +1199,20 @@ export function AdminSales({ accessMode = 'admin' }) {
             onOpenDay={openDayReport}
             showPayroll={false}
           />
+        </div>
+      ) : null}
+
+      {!isSalesManager && salesTab === 'clips' ? (
+        <div id="sales-panel-clips-admin" role="tabpanel" aria-labelledby="sales-tab-clips" className="grid" style={{ gap: 18 }}>
+          <SalesClipCreateSection
+            clubId={clubId}
+            trainers={trainers}
+            membershipTypes={membershipTypes}
+            reportDate={reportDate}
+            onReportDateChange={(iso) => setReportDate(clampIsoDateToToday(iso))}
+            canOpenAdminClient
+          />
+          <SalesEveningMatchSection clubId={clubId} />
         </div>
       ) : null}
 

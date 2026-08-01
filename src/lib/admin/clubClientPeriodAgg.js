@@ -5,19 +5,20 @@ import {
   inactiveMembershipDetail,
   inactiveMembershipReferenceDate,
 } from '../membershipRules.js'
-import { filterOperationalClients } from '../clientArchive.js'
+import { filterHallOperationalClients } from './holdingClientsCore.js'
 
 /**
  * @param {{ id: string, name?: string, phone?: string, trainer_id?: string }[]} clientRows
  * @param {Array<{ client_id?: string, start_date?: string, end_date?: string, total_trainings?: number, used_trainings?: number }>} membershipRows
  * @param {string} dateFrom yyyy-mm-dd
  * @param {string} dateTo yyyy-mm-dd
+ * @param {string} [asOf] yyyy-mm-dd — «сегодня» для отчёта (по умолчанию локальная дата устройства)
+ * @param {{ holdingTrainerIds?: Set<string>|string[] }} [opts]
  */
-/** @param {string} [asOf] yyyy-mm-dd — «сегодня» для отчёта (по умолчанию локальная дата устройства) */
-export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, dateTo, asOf) {
+export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, dateTo, asOf, opts = {}) {
   const from = String(dateFrom ?? '').slice(0, 10)
   const to = String(dateTo ?? '').slice(0, 10)
-  const operational = filterOperationalClients(clientRows).filter(
+  const operational = filterHallOperationalClients(clientRows, opts?.holdingTrainerIds).filter(
     (c) => String(c?.lifecycle ?? 'active') !== 'pnk',
   )
   const totalClients = operational.length

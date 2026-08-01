@@ -27,6 +27,7 @@ import { BmiScaleBar } from '../../components/BmiScaleBar'
 import { AppToast } from '../../components/AppToast'
 import { CloseButton } from '../../components/CloseButton'
 import { MembershipManager } from '../../components/MembershipManager'
+import { TrainerSaleClipsPanel } from '../../components/trainer/TrainerSaleClipsPanel.jsx'
 import { ModalHeader } from '../../components/ModalHeader'
 import { calcBmiFromHeightWeight, getBmiMeta } from '../../lib/bmiScaleCore'
 import { useAppToast } from '../../hooks/useAppToast'
@@ -402,17 +403,28 @@ export function ClientOverview({
           </>
         )}
         {!readOnly ? (
-          <MembershipManager
-            clientId={client.id}
-            clubId={client.club_id}
-            recordTrainerId={client.trainer_id}
-            autoOpenNew={membershipAutoOpen}
-            preferPaidType={membershipPreferPaid}
-            onChanged={() => {
-              void reloadLocal()
-              void onReload?.()
-            }}
-          />
+          <>
+            <TrainerSaleClipsPanel
+              clientId={client.id}
+              clubId={client.club_id}
+              mode="client"
+              onCreated={() => {
+                void reloadLocal()
+                void onReload?.()
+              }}
+            />
+            <MembershipManager
+              clientId={client.id}
+              clubId={client.club_id}
+              recordTrainerId={client.trainer_id}
+              autoOpenNew={membershipAutoOpen}
+              preferPaidType={membershipPreferPaid}
+              onChanged={() => {
+                void reloadLocal()
+                void onReload?.()
+              }}
+            />
+          </>
         ) : (
           <p className="muted" style={{ margin: '10px 0 0' }}>
             Клиент в архиве — абонементы можно менять только после «Вернуть из архива».

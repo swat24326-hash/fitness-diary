@@ -2,7 +2,7 @@
  * Режимы списка клиентов админки: поиск-first + мини-сводка «на сегодня».
  */
 
-import { filterOperationalClients } from '../clientArchive.js'
+import { filterHallOperationalClients } from './holdingClientsCore.js'
 import { todayLocalIso } from '../dateRu.js'
 import { hasUsableMembershipForPeriodStats } from '../membershipRules.js'
 import { aggregateClubClientPeriod } from './clubClientPeriodAgg.js'
@@ -28,11 +28,12 @@ export function isAdminClientsBrowseMode(mode) {
  * @param {object[]} clientRows
  * @param {object[]} membershipRows
  * @param {string} [today]
+ * @param {Set<string>|string[]} [holdingTrainerIds]
  */
-export function buildAdminClientsTodaySnapshot(clientRows, membershipRows, today = todayLocalIso()) {
+export function buildAdminClientsTodaySnapshot(clientRows, membershipRows, today = todayLocalIso(), holdingTrainerIds) {
   const day = String(today ?? '').slice(0, 10)
-  const operational = filterOperationalClients(clientRows)
-  const period = aggregateClubClientPeriod(operational, membershipRows, day, day, day)
+  const operational = filterHallOperationalClients(clientRows, holdingTrainerIds)
+  const period = aggregateClubClientPeriod(operational, membershipRows, day, day, day, { holdingTrainerIds })
 
   const inactiveDetailById = new Map()
   for (const row of period.inactiveClients) {
@@ -76,7 +77,8 @@ export function buildAdminClientsTodaySnapshot(clientRows, membershipRows, today
  * }} p
  */
 export function shouldShowAdminClientsList(p) {
-  if (String(p?.clientsTab ?? '') === 'archive') return true
+  const tab = String(p?.clientsTab ?? '')
+  if (tab === 'archive' || tab === 'tz' || tab === 'az') return true
   const min = Number(p?.minSearchLen) > 0 ? Number(p.minSearchLen) : 2
   if (String(p?.query ?? '').trim().length >= min) return true
   if (String(p?.trainerQuery ?? '').trim().length >= min) return true

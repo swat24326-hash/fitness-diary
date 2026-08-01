@@ -76,6 +76,7 @@ async function cacheTrainerPull(
     client_weight_entries,
     trainings,
     pnk_funnel_events,
+    sale_clips,
     club_id,
     outreach_templates,
   },
@@ -95,6 +96,7 @@ async function cacheTrainerPull(
   }
   for (const row of trainings ?? []) await putStoreUnlessPendingSync('trainings', row, pending)
   for (const row of pnk_funnel_events ?? []) await putStoreUnlessPendingSync('pnk_funnel_events', row, pending)
+  for (const row of sale_clips ?? []) await putStoreUnlessPendingSync('sale_clips', row, pending)
   const pruned_trainings =
     mode === 'active' ? 0 : await pruneOrphanTrainingsForTrainerClients(clients, trainings, pending?.trainings ?? null)
   const pruned = await pruneOrphanTrainerClients(trainerId, clients, { preserveArchived })

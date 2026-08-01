@@ -229,7 +229,11 @@ for (const fx of fixtures) {
 
 console.log('\n— После отказа цифры в статистике —')
 const mid = fixtures.find((f) => f.key === 'nutrition')
-const ev = buildPnkLostFunnelEvent(mid.client, { reason: 'Дорого', id: 'ev-mid' }).event
+const ev = buildPnkLostFunnelEvent(mid.client, {
+  reason: 'Дорого',
+  id: 'ev-mid',
+  occurredAt: '2026-07-20T12:00:00.000Z',
+}).event
 const stats = aggregatePnkFunnelStats([], { dateFrom: '2026-07-01', dateTo: '2026-07-31' }, [ev])
 ok(stats.entered === 1 && stats.lost === 1 && stats.open === 0, `статистика без карточки: ${stats.entered}/${stats.lost}`)
 

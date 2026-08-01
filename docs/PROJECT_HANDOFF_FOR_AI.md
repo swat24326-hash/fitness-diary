@@ -109,7 +109,7 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 |------|------|
 | trainer | `/trainer`, `/trainer/clients`, `/trainer/clients/:id`, `/trainer/workouts/:id`, `/trainer/profile`, челленджи |
 | sales_manager | `/sales`, `/sales/club-tasks`, `/sales/pnk` |
-| admin | `/admin/*` (clients, statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. diagnostics / iskra-settings, …), `/admin/workouts/:id` |
+| admin | `/admin/*` (clients, **excel-lists**, statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. diagnostics / iskra-settings, …), `/admin/workouts/:id` |
 
 **Менеджер и типы АЗ:** справочник `membership_types` (ПЗ + АЗ) нужен для колонок «Тренировки в аэробном зале». Доступ: RLS `fit_membership_types_sales_manager_read` + `admin-data?action=membership-types`. Sync менеджера тянет типы; на отчёте — ещё «Обновить». Подробнее: [SALES_MANAGER.md](./SALES_MANAGER.md), [SYNC.md](./SYNC.md).
 

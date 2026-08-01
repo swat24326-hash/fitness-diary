@@ -46,6 +46,7 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
     'nutrition_products',
     'homework_presets',
     'pnk_funnel_events',
+    'sale_clips',
   ])
   if (!allowed.has(table_name)) {
     return { ok: false, error: 'Таблица не поддерживается для синхронизации' }
@@ -178,6 +179,22 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
       const { data: prof } = await supabaseAdmin.from('users').select('club_id').eq('id', user.id).maybeSingle()
       if (String(prof?.club_id ?? '') !== String(payload.club_id ?? '')) {
         return { ok: false, error: 'Событие ПНК другого клуба' }
+      }
+      return { ok: true }
+    }
+
+    if (table_name === 'sale_clips') {
+      if (op === 'delete') return { ok: false, error: 'Клип нельзя удалить с планшета' }
+      if (op === 'insert') return { ok: false, error: 'Клип создаёт только менеджер/админ' }
+      const id = remote_id || payload.id
+      const { data: clip } = await supabaseAdmin
+        .from('sale_clips')
+        .select('id, trainer_id, club_id, status')
+        .eq('id', id)
+        .maybeSingle()
+      if (!clip) return { ok: true }
+      if (String(clip.trainer_id ?? '') !== String(user.id)) {
+        return { ok: false, error: 'Клип другого тренера' }
       }
       return { ok: true }
     }

@@ -7,6 +7,7 @@ import { TrainerCoachQualityGlance } from '../../components/trainer/TrainerCoach
 import { TrainerTaskGlanceWidget } from '../../components/iskra/TrainerTaskGlanceWidget.jsx'
 import { TrainerPnkGlanceWidget } from '../../components/pnk/TrainerPnkGlanceWidget.jsx'
 import { TrainerPushPrompt } from '../../components/iskra/TrainerPushPrompt.jsx'
+import { TrainerSaleClipsPanel } from '../../components/trainer/TrainerSaleClipsPanel.jsx'
 import { useAuth } from '../../context/AuthContext'
 import {
   loadContextForChallengeLeaderboard,
@@ -340,6 +341,7 @@ export function TrainerHome() {
       <TrainerTaskGlanceWidget clubId={clubId} />
       <TrainerPnkGlanceWidget clubId={clubId} />
       <TrainerPushPrompt clubId={clubId} />
+      <TrainerSaleClipsPanel mode="trainer" clubId={clubId} />
 
       <TrainerAttentionPanel summary={attentionSummary} loading={attentionLoading} />
       <TrainerCoachQualityGlance glance={cqGlance} loading={cqGlanceLoading} />

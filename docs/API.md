@@ -46,6 +46,7 @@
 | `tz-price-list` | GET/POST: admin / sales_manager (свой клуб) | Прайс ТЗ клуба (`club_tz_price_lists`) |
 | `az-price-list` | GET/POST: admin / sales_manager (свой клуб) | Прайс АЗ клуба (`club_az_price_lists`) |
 | `pnk` | admin / sales_manager | Доска / данные ПНК |
+| `sale-clips` | admin / sales_manager | Клип-карты дня (список) |
 | `gemini-analytics-prefetch` | admin | Prefetch ИСКРЫ |
 | `iskra-settings`, `iskra-learning`, `iskra-dispatch`, `iskra-tts` | admin (+ dispatch шире) | Настройки, обучение, задания, neural озвучка |
 | `challenges`, `challenge-trainings`, `exercises`, `exercises-meta` | admin / trainer | Справочники |
@@ -68,6 +69,7 @@
 | `push-subscription` | auth user | Регистрация push |
 | `reset-trainer-password`, `set-trainer-active` | admin | Управление тренером |
 | `pnk` | admin / sales_manager | Мутации ПНК |
+| `sale-clips` | admin / sales_manager | POST create / cancel / match клипа |
 | `club-sms` | admin / sales_manager | SMS клиенту через Мои Звонки (`client_id`, `scenario` / `text`); после успеха — запись в `club_sms_log` |
 
 ---

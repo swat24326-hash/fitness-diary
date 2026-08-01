@@ -43,6 +43,7 @@ import { handleTzPriceListGet, handleTzPriceListPost } from './_lib/adminData/tz
 import { handleAzPriceListGet, handleAzPriceListPost } from './_lib/adminData/azPriceListHandlers.js'
 import { handlePnk } from './_lib/adminData/pnkHandlers.js'
 import { handleClubSmsGet, handleClubSmsPost } from './_lib/moiZvonkiHandler.js'
+import { handleSaleClipsGet, handleSaleClipsPost } from './_lib/adminData/saleClipsHandlers.js'
 
 async function handler(req, res) {
   setCors(res, 'GET, POST, OPTIONS')
@@ -70,6 +71,7 @@ async function handler(req, res) {
       'reset-trainer-password',
       'set-trainer-active',
       'pnk',
+      'sale-clips',
       'club-sms',
       'price-list',
       'tz-price-list',
@@ -185,6 +187,7 @@ async function handler(req, res) {
     const ctx = await requireAdminOrSalesManager(req, res, clubId)
     if (!ctx) return
     if (action === 'pnk') return handlePnk(ctx, req, res)
+    if (action === 'sale-clips') return handleSaleClipsPost(ctx, req, res)
     if (action === 'sales-daily') return handleSalesDailyPost(ctx, req, res, body)
     if (action === 'sales-plan') {
       const scope =
@@ -317,6 +320,13 @@ async function handler(req, res) {
     const ctx = await requireAdminOrSalesManager(req, res, clubId)
     if (!ctx) return
     return handlePnk(ctx, req, res)
+  }
+
+  if (action === 'sale-clips') {
+    const clubId = String(req.query?.club_id ?? '').trim()
+    const ctx = await requireAdminOrSalesManager(req, res, clubId)
+    if (!ctx) return
+    return handleSaleClipsGet(ctx, req, res)
   }
 
   if (action === 'club-sms') {

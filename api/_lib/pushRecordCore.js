@@ -23,6 +23,7 @@ export const PUSH_ALLOWED_TABLES = new Set([
   'nutrition_products',
   'homework_presets',
   'pnk_funnel_events',
+  'sale_clips',
 ])
 
 function friendlyExerciseDbError(error, operation) {

@@ -85,6 +85,11 @@ export function aggregateCoachQuality(input) {
   const hadMeasureBy = input.hadMeasureEverByClientId ?? {}
   const weightsBy = input.weightEntriesByClientId ?? {}
   const types = input.membershipTypes ?? []
+  const holdingTrainerIds = input.holdingTrainerIds
+  const holdingSet =
+    holdingTrainerIds instanceof Set
+      ? holdingTrainerIds
+      : new Set((holdingTrainerIds ?? []).map(String).filter(Boolean))
 
   /** @type {Map<string, object[]>} */
   const memByClient = new Map()
@@ -99,6 +104,7 @@ export function aggregateCoachQuality(input) {
   const byTrainer = new Map()
 
   function ensureTrainer(tid) {
+    if (holdingSet.has(tid)) return null
     if (!byTrainer.has(tid)) {
       byTrainer.set(tid, {
         completed: 0,
@@ -118,6 +124,7 @@ export function aggregateCoachQuality(input) {
     if (!tid) continue
     if (trainerFilter && tid !== trainerFilter) continue
     const tr = ensureTrainer(tid)
+    if (!tr) continue
     tr.completed++
     const data = t.data && typeof t.data === 'object' ? t.data : t
     if (cfg.toggleThinTrainings && isThinCompletedTraining(data)) tr.thin++
@@ -133,7 +140,7 @@ export function aggregateCoachQuality(input) {
   for (const c of input.clients ?? []) {
     if (c?.archived_at) continue
     const tid = String(c.trainer_id ?? '')
-    if (!tid) continue
+    if (!tid || holdingSet.has(tid)) continue
     if (trainerFilter && tid !== trainerFilter) continue
     ensureTrainer(tid)
   }
@@ -157,7 +164,10 @@ export function aggregateCoachQuality(input) {
     let bagDamageSum = 0
 
     const rosterClients = (input.clients ?? []).filter(
-      (c) => String(c?.trainer_id ?? '') === trainerId && !c?.archived_at,
+      (c) =>
+        String(c?.trainer_id ?? '') === trainerId &&
+        !c?.archived_at &&
+        !holdingSet.has(String(c?.trainer_id ?? '')),
     )
     const clientNameById = new Map(
       (input.clients ?? []).map((c) => [String(c.id), String(c.name ?? '').trim() || String(c.id)]),

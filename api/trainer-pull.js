@@ -289,6 +289,22 @@ async function handler(req, res) {
     pnk_funnel_events = []
   }
 
+  let sale_clips = []
+  try {
+    const { data: clipRows, error: clipErr } = await supabaseAdmin
+      .from('sale_clips')
+      .select(
+        'id, club_id, trainer_id, client_id, membership_id, status, clip_date, client_name, phone, card_number, birth_date, membership_type_id, membership_type_label, total_trainings, start_date, end_date, note, created_by, created_at, updated_at, done_at',
+      )
+      .eq('trainer_id', trainerId)
+      .eq('status', 'awaiting')
+      .order('created_at', { ascending: false })
+      .limit(100)
+    if (!clipErr) sale_clips = clipRows ?? []
+  } catch {
+    sale_clips = []
+  }
+
   sendJson(res, 200, {
     clients,
     memberships,
@@ -297,6 +313,7 @@ async function handler(req, res) {
     client_weight_entries,
     trainings,
     pnk_funnel_events,
+    sale_clips,
     club_id: trainerClubId || null,
     outreach_templates,
     trainings_truncated: trainingsTruncated,
@@ -314,6 +331,7 @@ async function handler(req, res) {
       client_weight_entries: client_weight_entries.length,
       trainings: trainings.length,
       pnk_funnel_events: pnk_funnel_events.length,
+      sale_clips: sale_clips.length,
     },
   })
 }

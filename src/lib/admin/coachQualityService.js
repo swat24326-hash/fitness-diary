@@ -83,6 +83,7 @@ export async function buildCoachQualityForScope(input) {
     hadMeasureEverByClientId,
     weightEntriesByClientId,
     trainerIdFilter: input.trainerIdFilter ?? null,
+    holdingTrainerIds: input.holdingTrainerIds,
     config,
   }
 

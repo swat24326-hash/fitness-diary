@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
 import { Archive, RefreshCw, RotateCcw, Search, Trash2, UserCircle, UserCog, UserSearch } from 'lucide-react'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
-import { AdminDeskClosingImportSection } from '../../components/admin/AdminDeskClosingImportSection.jsx'
 import { AdminClientClubSmsButton } from '../../components/admin/AdminClientClubSmsButton.jsx'
 import { AdminClientsBrowseFilters } from '../../components/admin/AdminClientsBrowseFilters.jsx'
 import { ClientRowMoreMenu } from '../../components/ClientRowMoreMenu.jsx'
@@ -15,6 +14,11 @@ import {
 } from '../../lib/dataAccess'
 import { isAdminClientQuickFilter, normalizeAdminClientQuickFilter } from '../../lib/admin/adminClientQuickFilters'
 import { buildAdminClientsTodaySnapshot, shouldShowAdminClientsList } from '../../lib/admin/adminClientsBrowseCore'
+import {
+  countClientsByAdminListTab,
+  filterClientsByAdminListTab,
+  normalizeAdminClientsListTab,
+} from '../../lib/admin/deskHallClientsCore.js'
 import {
   clientMatchesAdminFunnelFilter,
   countAdminFunnelFilters,
@@ -83,6 +87,7 @@ export function AdminClients() {
   const [searchParams, setSearchParams] = useSearchParams()
   const club = searchParams.get('club') ?? clubIdCtx ?? ''
   const filterFromUrl = searchParams.get('filter')
+  const listTabFromUrl = searchParams.get('clientsTab') || searchParams.get('list')
 
   const [clients, setClients] = useState([])
   const [memByClient, setMemByClient] = useState({})
@@ -98,7 +103,7 @@ export function AdminClients() {
     const n = normalizeAdminClientQuickFilter(filterFromUrl)
     return isAdminClientQuickFilter(n) ? n : 'none'
   })
-  const [clientsTab, setClientsTab] = useState('active') // active | archive
+  const [clientsTab, setClientsTab] = useState(() => normalizeAdminClientsListTab(listTabFromUrl))
   const [archiveBusy, setArchiveBusy] = useState(false)
   const [source, setSource] = useState('local')
   const [fallback, setFallback] = useState(null)
@@ -311,15 +316,14 @@ export function AdminClients() {
     [query, trainerQuery, quickFilter, clientsTab],
   )
 
-  const operationalClients = useMemo(() => clients.filter((c) => !c?.archived_at), [clients])
-  const archivedCount = useMemo(() => clients.filter((c) => Boolean(c?.archived_at)).length, [clients])
+  const listTabCounts = useMemo(() => countClientsByAdminListTab(clients), [clients])
+  const isDeskHallTab = clientsTab === 'tz' || clientsTab === 'az'
 
   const filteredClients = useMemo(() => {
     const q = query.trim().toLowerCase()
     const tq = trainerQuery.trim().toLowerCase()
 
-    const tabBase = clientsTab === 'archive' ? clients.filter((c) => Boolean(c?.archived_at)) : clients.filter((c) => !c?.archived_at)
-    let base = tabBase
+    let base = filterClientsByAdminListTab(clients, clientsTab)
     if (q) {
       base = base.filter((c) => {
         const name = String(c.name ?? '').toLowerCase()
@@ -328,14 +332,14 @@ export function AdminClients() {
         return name.includes(q) || phone.includes(q) || card.includes(q)
       })
     }
-    if (tq) {
+    if (tq && !isDeskHallTab) {
       base = base.filter((c) => {
         const trainerName = String(trainerNameById[c.trainer_id] ?? '').toLowerCase()
         return trainerName && trainerName.includes(tq)
       })
     }
 
-    if (quickFilter === 'none') return base
+    if (isDeskHallTab || quickFilter === 'none') return base
     if (quickFilter === 'all') {
       return base.filter((c) => String(c?.lifecycle ?? '') !== 'pnk')
     }
@@ -347,7 +351,18 @@ export function AdminClients() {
         inactiveIds: todaySnapshot.inactiveIds,
       }),
     )
-  }, [clients, clientsTab, query, trainerQuery, quickFilter, memByClient, today, trainerNameById, todaySnapshot])
+  }, [
+    clients,
+    clientsTab,
+    query,
+    trainerQuery,
+    quickFilter,
+    memByClient,
+    today,
+    trainerNameById,
+    todaySnapshot,
+    isDeskHallTab,
+  ])
 
   const totalPages = Math.max(1, Math.ceil(filteredClients.length / ADMIN_CLIENTS_PAGE_SIZE))
 
@@ -406,7 +421,7 @@ export function AdminClients() {
   }, [club, pagedClients])
 
   const filterCounts = useMemo(() => {
-    const tabBase = clientsTab === 'archive' ? clients.filter((c) => Boolean(c?.archived_at)) : operationalClients
+    const tabBase = filterClientsByAdminListTab(clients, clientsTab === 'archive' ? 'archive' : 'active')
     const funnel = countAdminFunnelFilters(tabBase, memByClient, today, todaySnapshot.inactiveIds)
     return {
       all: todaySnapshot.totalOperational,
@@ -418,7 +433,7 @@ export function AdminClients() {
       expired_recent: funnel.expired_recent,
       stale: funnel.stale,
     }
-  }, [clients, clientsTab, memByClient, today, operationalClients, todaySnapshot])
+  }, [clients, clientsTab, memByClient, today, todaySnapshot])
 
   const browseFilterLabels = {
     all: 'Все клиенты',
@@ -471,8 +486,19 @@ export function AdminClients() {
   }
 
   const switchClientsTab = (tab) => {
-    setClientsTab(tab)
-    if (tab === 'archive') clearBrowseFilter()
+    const next = normalizeAdminClientsListTab(tab)
+    setClientsTab(next)
+    if (next === 'archive' || next === 'tz' || next === 'az') clearBrowseFilter()
+    setSearchParams(
+      (prev) => {
+        const p = new URLSearchParams(prev)
+        if (next === 'active') p.delete('clientsTab')
+        else p.set('clientsTab', next)
+        p.delete('list')
+        return p
+      },
+      { replace: true },
+    )
   }
 
   const applyFilter = (id) => {
@@ -615,10 +641,8 @@ export function AdminClients() {
       <AdminSectionHeader
         icon={UserCircle}
         title="Клиенты"
-        lead="Список как у тренера: абонемент и последняя тренировка. У каждого клиента указан закреплённый тренер (владелец карточки)."
+        lead="Вкладки: обычные клиенты с тренером · desk ТЗ · desk АЗ · архив. Списки закрытий грузятся в «Excel-списки»."
       />
-
-      {club ? <AdminDeskClosingImportSection clubId={club} onDone={() => void reload({ silent: true })} /> : null}
 
     <div className="grid stagger td-grid">
       <section className="card admin-clients-workspace" id="clients">
@@ -631,8 +655,28 @@ export function AdminClients() {
               aria-selected={clientsTab === 'active'}
               onClick={() => switchClientsTab('active')}
             >
-              Активные
-              <span className="admin-clients-segment__count">{operationalClients.length}</span>
+              Клиенты
+              <span className="admin-clients-segment__count">{listTabCounts.active}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              className="admin-clients-segment__btn"
+              aria-selected={clientsTab === 'tz'}
+              onClick={() => switchClientsTab('tz')}
+            >
+              ТЗ
+              <span className="admin-clients-segment__count">{listTabCounts.tz}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              className="admin-clients-segment__btn"
+              aria-selected={clientsTab === 'az'}
+              onClick={() => switchClientsTab('az')}
+            >
+              АЗ
+              <span className="admin-clients-segment__count">{listTabCounts.az}</span>
             </button>
             <button
               type="button"
@@ -642,7 +686,7 @@ export function AdminClients() {
               onClick={() => switchClientsTab('archive')}
             >
               Архив
-              <span className="admin-clients-segment__count">{archivedCount}</span>
+              <span className="admin-clients-segment__count">{listTabCounts.archive}</span>
             </button>
           </div>
           <button
@@ -715,18 +759,20 @@ export function AdminClients() {
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
-          <div className="admin-clients-search-cell">
-            <UserSearch size={18} aria-hidden className="muted u-shrink-0" />
-            <input
-              className="admin-clients-search-input"
-              type="search"
-              autoComplete="off"
-              placeholder="Тренер: ФИО…"
-              aria-label="Поиск по закреплённому тренеру"
-              value={trainerQuery}
-              onChange={(e) => setTrainerQuery(e.target.value)}
-            />
-          </div>
+          {!isDeskHallTab ? (
+            <div className="admin-clients-search-cell">
+              <UserSearch size={18} aria-hidden className="muted u-shrink-0" />
+              <input
+                className="admin-clients-search-input"
+                type="search"
+                autoComplete="off"
+                placeholder="Тренер: ФИО…"
+                aria-label="Поиск по закреплённому тренеру"
+                value={trainerQuery}
+                onChange={(e) => setTrainerQuery(e.target.value)}
+              />
+            </div>
+          ) : null}
         </div>
 
         {clientsTab === 'active' ? (
@@ -735,6 +781,11 @@ export function AdminClients() {
             quickFilter={quickFilter}
             onApply={applyFilter}
           />
+        ) : isDeskHallTab ? (
+          <p className="admin-clients-workspace__archive-hint muted">
+            Desk {clientsTab === 'tz' ? 'ТЗ' : 'АЗ'}: клиенты из Excel закрытий, без персонального тренера. Список сразу;
+            карточка — контакты и учёт абонов. Загрузка файлов — в «Excel-списки».
+          </p>
         ) : (
           <p className="admin-clients-workspace__archive-hint muted">
             Архивные карточки: просмотр и возврат. Поиск по имени, телефону или тренеру — от 2 символов.
@@ -761,7 +812,9 @@ export function AdminClients() {
               <Search size={28} aria-hidden className="admin-clients-empty__icon" />
               <p className="admin-clients-empty__title">Список скрыт</p>
               <p className="muted admin-clients-empty__text">
-                Введите поиск от 2 символов, нажмите карточку сводки{clientsTab === 'active' ? '' : ' или оставайтесь в архиве'} — тогда появятся карточки клиентов.
+                {isDeskHallTab
+                  ? 'Нет клиентов в этой вкладке. Загрузите закрытия в «Excel-списки» (карта ТЗ или АЗ).'
+                  : `Введите поиск от 2 символов, нажмите карточку сводки${clientsTab === 'active' ? '' : ' или оставайтесь в архиве'} — тогда появятся карточки клиентов.`}
               </p>
             </div>
           ) : null}
@@ -882,7 +935,7 @@ export function AdminClients() {
                           disabled={busy}
                           ariaLabel={`Ещё действия: ${c.name ?? c.id}`}
                           items={[
-                            clientsTab === 'active'
+                            clientsTab !== 'archive'
                               ? {
                                   id: 'archive',
                                   label: 'В архив',
