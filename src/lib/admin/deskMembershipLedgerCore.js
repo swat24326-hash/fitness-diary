@@ -25,6 +25,43 @@ export function deskPackageEndIso(startIso, months) {
 }
 
 /**
+ * Старт пакета по дате окончания и числу месяцев (обратно к deskPackageEndIso).
+ * @param {string} endIso
+ * @param {number} months
+ */
+export function deskPackageStartIso(endIso, months) {
+  const end = String(endIso ?? '').slice(0, 10)
+  const n = Math.trunc(Number(months))
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(end) || !(n > 0)) return ''
+  return addMonthsToIso(addDaysToIso(end, 1), -n)
+}
+
+/**
+ * Даты абона desk при импорте: end обязателен; start из Excel или из срока пакета.
+ * @param {string} endIso
+ * @param {string|null|undefined} startIso
+ * @param {number|null|undefined} packageMonths
+ * @returns {{ start_date: string, end_date: string } | null}
+ */
+export function resolveDeskMembershipDates(endIso, startIso, packageMonths) {
+  const end = String(endIso ?? '').slice(0, 10)
+  let start = String(startIso ?? '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(end)) return null
+  const months = Math.trunc(Number(packageMonths))
+  const hasMonths = Number.isFinite(months) && months > 0 && months <= 36
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) {
+    if (hasMonths) {
+      start = deskPackageStartIso(end, months)
+    } else {
+      // без срока в Excel — пакет 1 месяц (не «−30 дней»)
+      start = deskPackageStartIso(end, 1)
+    }
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return null
+  return { start_date: start, end_date: end }
+}
+
+/**
  * @param {number|null|undefined} months
  */
 export function formatDeskPackageMonthsLabel(months) {

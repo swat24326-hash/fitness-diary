@@ -6,6 +6,7 @@ import {
   deskMembershipLedgerKindLabel,
   deskMembershipSignal,
   deskPackageEndIso,
+  deskPackageStartIso,
   formatDeskPackageMonthsLabel,
   inferDeskPackageMonths,
   parseDeskPaidAmountInput,
@@ -42,9 +43,13 @@ ok(parseDeskPaidAmountInput('1 200') === 1200, 'parse paid')
 ok(parseDeskPaidAmountInput('') == null, 'empty paid')
 
 ok(deskPackageEndIso('2026-07-21', 1) === '2026-08-20', '1 month end 21.07→20.08')
+ok(deskPackageStartIso('2026-08-20', 1) === '2026-07-21', '1 month start reverse')
+ok(deskPackageStartIso('2026-08-18', 6) === '2026-02-19', '6 month start reverse')
 ok(inferDeskPackageMonths('2026-07-21', '2026-08-20') === 1, 'infer 1 month')
+ok(inferDeskPackageMonths('2026-02-19', '2026-08-18') === 6, 'infer 6 months')
 ok(formatDeskPackageMonthsLabel(1) === '1 месяц', 'label 1 month')
 ok(formatDeskPackageMonthsLabel(3) === '3 месяца', 'label 3 months')
+ok(formatDeskPackageMonthsLabel(6) === '6 месяцев', 'label 6 months')
 
 const sig = deskMembershipSignal(
   [{ id: 'm', start_date: '2026-07-21', end_date: '2026-08-20', total_trainings: 0 }],

@@ -3,7 +3,7 @@
  * Несколько листов (июнь/июль/август) — склеиваем строки.
  */
 
-import { parseClosingAgreementsAoA } from './deskClosingImportCore.js'
+import { dedupeClosingRowsByCard, parseClosingAgreementsAoA } from './deskClosingImportCore.js'
 
 /**
  * @param {ArrayBuffer | Uint8Array} data
@@ -46,10 +46,13 @@ export async function parseDeskClosingXlsxArrayBuffer(data) {
       headerMap: {},
     }
   }
-  if (names.length > 1) {
-    reasons.unshift(`Листов: ${names.length}, уникальных строк: ${merged.length}`)
+  const deduped = dedupeClosingRowsByCard(merged)
+  if (names.length > 1 || deduped.length < merged.length) {
+    reasons.unshift(
+      `Листов: ${names.length}, строк после склейки: ${merged.length}, уникальных карт: ${deduped.length}`,
+    )
   }
-  return { rows: merged, reasons, headerMap }
+  return { rows: deduped, reasons, headerMap }
 }
 
 /**

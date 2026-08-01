@@ -24,10 +24,10 @@ export function isHoldingTrainerUser(user) {
 
 /**
  * @param {string} header
- * @returns {'card'|'name'|'phone'|'end'|'start'|'hall'|'type'|'external'|'price'|null}
+ * @returns {'card'|'name'|'phone'|'end'|'start'|'hall'|'type'|'duration'|'external'|'price'|null}
  */
 export function mapClosingHeader(header) {
-  const h = cellText(header).toLowerCase()
+  const h = cellText(header).toLowerCase().replace(/ё/g, 'е')
   if (!h) return null
   // 1С: «Клиент» = код/№ карты, «Физическое лицо» = ФИО
   if (h === 'клиент' || h === 'код клиента' || h === '№ клиента') return 'card'
@@ -44,8 +44,33 @@ export function mapClosingHeader(header) {
   if (/(карт|card)/.test(h) && !/тип/.test(h)) return 'card'
   // «Абонемент.Сотрудник» — не тип абона
   if (/сотрудник|тренер/.test(h)) return null
-  if (/(тип|тариф|пакет)/.test(h) && !/карт/.test(h)) return 'type'
+  // «6 мес», срок пакета (не путать с датами)
+  if (/(срок|длительн|пакет|кол-?во\s*мес|месяц)/.test(h) && !/оконч|начало|карт|зал/.test(h)) {
+    return 'duration'
+  }
+  if (/(тип|тариф)/.test(h) && !/карт/.test(h)) return 'type'
   if (/(1с|external|договор|номер дог)/.test(h)) return 'external'
+  return null
+}
+
+/**
+ * «6 мес», «6 месяцев», «1 месяц» → число месяцев.
+ * @param {unknown} raw
+ * @returns {number|null}
+ */
+export function parseClosingPackageMonths(raw) {
+  const t = cellText(raw)
+    .toLowerCase()
+    .replace(/ё/g, 'е')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!t) return null
+  const m = t.match(/(\d+)\s*мес/)
+  if (m) {
+    const n = Number(m[1])
+    return Number.isFinite(n) && n > 0 && n <= 36 ? n : null
+  }
+  if (/^(1\s*)?месяц$/.test(t)) return 1
   return null
 }
 
@@ -132,7 +157,7 @@ export function parseClosingAgreementsAoA(rows) {
   }
 
   const reasons = []
-  /** @type {Array<{ cardNumber: string, name: string, phone: string, endDate: string|null, startDate: string|null, hall: string|null, typeName: string, externalRef: string, paidAmount: number|null }>} */
+  /** @type {Array<{ cardNumber: string, name: string, phone: string, endDate: string|null, startDate: string|null, hall: string|null, typeName: string, packageMonths: number|null, externalRef: string, paidAmount: number|null }>} */
   const out = []
 
   for (let r = headerIdx + 1; r < list.length; r++) {
@@ -150,6 +175,19 @@ export function parseClosingAgreementsAoA(rows) {
     let hall = null
     if (headerMap.hall != null) hall = detectSalesHallFromLabel(row[headerMap.hall])
     const typeName = headerMap.type != null ? cellText(row[headerMap.type]) : ''
+    const durationRaw = headerMap.duration != null ? row[headerMap.duration] : ''
+    let packageMonths =
+      parseClosingPackageMonths(durationRaw) || parseClosingPackageMonths(typeName)
+    // Заголовок срока в 1С бывает пустым — ищем «6 мес» в ячейках строки
+    if (packageMonths == null) {
+      for (const cell of row) {
+        const pm = parseClosingPackageMonths(cell)
+        if (pm != null) {
+          packageMonths = pm
+          break
+        }
+      }
+    }
     const externalRef = headerMap.external != null ? cellText(row[headerMap.external]) : ''
     const paidAmount = headerMap.price != null ? parseClosingPriceCell(row[headerMap.price]) : null
 
@@ -164,12 +202,47 @@ export function parseClosingAgreementsAoA(rows) {
       startDate,
       hall,
       typeName,
+      packageMonths,
       externalRef,
       paidAmount,
     })
   }
 
   return { rows: out, reasons, headerMap }
+}
+
+/**
+ * Одна карта → одна строка (несколько листов 1С). Берём более поздний end_date.
+ * @param {ReturnType<typeof parseClosingAgreementsAoA>['rows']} rows
+ */
+export function dedupeClosingRowsByCard(rows) {
+  /** @type {Map<string, (typeof rows)[number]>} */
+  const byCard = new Map()
+  for (const row of rows ?? []) {
+    const key = normalizeSalesCardNumber(row?.cardNumber)
+    if (!key) continue
+    const prev = byCard.get(key)
+    if (!prev) {
+      byCard.set(key, row)
+      continue
+    }
+    const endA = String(prev.endDate ?? '')
+    const endB = String(row.endDate ?? '')
+    const newer = endB > endA ? row : endA > endB ? prev : row
+    const older = newer === row ? prev : row
+    byCard.set(key, {
+      ...newer,
+      name: newer.name || older.name,
+      phone: newer.phone || older.phone,
+      hall: newer.hall || older.hall,
+      typeName: newer.typeName || older.typeName,
+      packageMonths: newer.packageMonths ?? older.packageMonths,
+      paidAmount: newer.paidAmount ?? older.paidAmount,
+      startDate: newer.startDate || older.startDate,
+      externalRef: newer.externalRef || older.externalRef,
+    })
+  }
+  return [...byCard.values()]
 }
 
 /**

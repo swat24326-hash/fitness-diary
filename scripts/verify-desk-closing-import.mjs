@@ -3,14 +3,17 @@
  */
 import {
   HOLDING_TRAINER_DISPLAY_NAME,
+  dedupeClosingRowsByCard,
   isHoldingTrainerUser,
   mapClosingHeader,
   parseClosingAgreementsAoA,
   parseClosingDateCell,
+  parseClosingPackageMonths,
   parseClosingPriceCell,
   planDeskClosingImport,
   scopeClosingRowsToHall,
 } from '../src/lib/admin/deskClosingImportCore.js'
+import { resolveDeskMembershipDates } from '../src/lib/admin/deskMembershipLedgerCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -36,6 +39,9 @@ ok(mapClosingHeader('Цена') === 'price', 'header price')
 ok(mapClosingHeader('Стоимость') === 'price', 'header price synonym')
 ok(mapClosingHeader('Абонемент.Тип карты') === 'hall', '1c type card = hall')
 ok(mapClosingHeader('Абонемент.Сотрудник') == null, '1c employee not type')
+ok(mapClosingHeader('Срок') === 'duration', 'header duration')
+ok(parseClosingPackageMonths('6 мес') === 6, 'parse 6 мес')
+ok(parseClosingPackageMonths('1 месяц') === 1, 'parse 1 месяц')
 ok(parseClosingPriceCell('12 500') === 12500, 'price spaces')
 ok(parseClosingPriceCell('9900,5') === 9900.5, 'price comma')
 ok(parseClosingPriceCell('2,000.00') === 2000, 'price us thousands')
@@ -52,18 +58,38 @@ const aoa1c = [
     'Абонемент.Факт окончание',
     'Абонемент.Тип карты',
     'Абонемент.Цена',
+    'Срок',
   ],
-  ['1148', 'Афанасенко Елена', '89208479633', '31.08.2026 23:59:59', 'ТЗ', '2,000.00'],
-  ['1654', 'Знаковская Оксана', '89208428331', '25.08.2026 23:59:59', 'АЗ', '6,755.00'],
-  ['1702', 'Мисников Дмитрий', '', '25.08.2026 23:59:59', 'ТЗ Утро', '1,300.00'],
+  ['1148', 'Афанасенко Елена', '89208479633', '31.08.2026 23:59:59', 'ТЗ', '2,000.00', '1 мес'],
+  ['1654', 'Знаковская Оксана', '89208428331', '25.08.2026 23:59:59', 'АЗ', '6,755.00', ''],
+  ['1702', 'Мисников Дмитрий', '', '25.08.2026 23:59:59', 'ТЗ Утро', '1,300.00', '6 мес'],
+  ['164', 'Елисейкина Татьяна', '89208390419', '18.08.2026 23:59:59', 'ТЗ', '6,072.00', '6 мес'],
 ]
 const parsed1c = parseClosingAgreementsAoA(aoa1c)
-ok(parsed1c.rows.length === 3, '1c rows')
+ok(parsed1c.rows.length === 4, '1c rows')
 ok(parsed1c.rows[0].cardNumber === '1148' && parsed1c.rows[0].name.includes('Афанасенко'), '1c card+name')
 ok(parsed1c.rows[0].endDate === '2026-08-31' && parsed1c.rows[0].paidAmount === 2000, '1c end+price')
 ok(parsed1c.rows[0].hall === 'tz' && parsed1c.rows[1].hall === 'az', '1c hall tz/az')
 ok(parsed1c.rows[2].hall === 'tz', '1c ТЗ Утро = tz')
-ok(scopeClosingRowsToHall(parsed1c.rows, 'tz').length === 2, '1c scope tz')
+ok(parsed1c.rows[3].packageMonths === 6, '1c package 6 мес')
+ok(scopeClosingRowsToHall(parsed1c.rows, 'tz').length === 3, '1c scope tz')
+
+const dates6 = resolveDeskMembershipDates('2026-08-18', null, 6)
+ok(dates6?.start_date === '2026-02-19' && dates6?.end_date === '2026-08-18', 'dates from 6 мес')
+ok(
+  dedupeClosingRowsByCard([
+    { cardNumber: '164', endDate: '2026-07-18', packageMonths: 1 },
+    { cardNumber: '164', endDate: '2026-08-18', packageMonths: 6 },
+  ]).length === 1,
+  'dedupe by card keeps one',
+)
+ok(
+  dedupeClosingRowsByCard([
+    { cardNumber: '164', endDate: '2026-07-18', packageMonths: 1 },
+    { cardNumber: '164', endDate: '2026-08-18', packageMonths: 6 },
+  ])[0].packageMonths === 6,
+  'dedupe keeps newer end + package',
+)
 
 const aoa = [
   ['№ карты', 'ФИО', 'Телефон', 'Зал', 'Тип', 'Дата окончания', 'Цена'],
@@ -94,11 +120,15 @@ const planMixed = planDeskClosingImport({
   clients: [],
   membershipsByClientId: {},
 })
-ok(planMixed.counts.create === 3, '1c mixed create all with hall')
-ok(planMixed.counts.hallTz === 2 && planMixed.counts.hallAz === 1, '1c hallTz/hallAz')
+ok(planMixed.counts.create === 4, '1c mixed create all with hall')
+ok(planMixed.counts.hallTz === 3 && planMixed.counts.hallAz === 1, '1c hallTz/hallAz')
 ok(
-  planMixed.actions.filter((a) => a.action === 'create' && a.hall === 'tz').length === 2,
+  planMixed.actions.filter((a) => a.action === 'create' && a.hall === 'tz').length === 3,
   '1c creates stamp tz',
+)
+ok(
+  planMixed.actions.find((a) => a.cardNumber === '164')?.packageMonths === 6,
+  '1c create keeps packageMonths 6',
 )
 ok(
   planMixed.actions.some((a) => a.action === 'create' && a.hall === 'az'),

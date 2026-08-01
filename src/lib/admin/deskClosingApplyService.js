@@ -5,26 +5,11 @@
 
 import { getLocalClient } from '../dataAccess.js'
 import { saveLocalWithSync } from '../syncService.js'
-
-/**
- * @param {string} endIso
- * @param {string|null} startIso
- */
-export function resolveDeskMembershipDates(endIso, startIso) {
-  const end = String(endIso ?? '').slice(0, 10)
-  let start = String(startIso ?? '').slice(0, 10)
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(end)) return null
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) {
-    const d = new Date(`${end}T12:00:00`)
-    d.setDate(d.getDate() - 30)
-    start = d.toISOString().slice(0, 10)
-  }
-  return { start_date: start, end_date: end }
-}
+import { resolveDeskMembershipDates } from './deskMembershipLedgerCore.js'
 
 /**
  * @param {{
- *   actions: Array<{ action: string, cardNumber: string, name: string, phone?: string, endDate?: string|null, startDate?: string|null, typeName?: string, paidAmount?: number|null, hall?: string|null, clientId?: string|null }>,
+ *   actions: Array<{ action: string, cardNumber: string, name: string, phone?: string, endDate?: string|null, startDate?: string|null, packageMonths?: number|null, typeName?: string, paidAmount?: number|null, hall?: string|null, clientId?: string|null }>,
  *   clubId: string,
  *   membershipTypeId?: string|null,
  *   defaultHall?: 'tz'|'az'|null,
@@ -39,6 +24,8 @@ export async function applyDeskClosingCreates(input) {
   let created = 0
   let tagged = 0
   const errors = []
+  /** @type {Set<string>} */
+  const createdCards = new Set()
 
   for (const a of input.actions ?? []) {
     if (a.action === 'tag_hall') {
@@ -75,7 +62,11 @@ export async function applyDeskClosingCreates(input) {
     }
 
     if (a.action !== 'create') continue
-    const dates = resolveDeskMembershipDates(a.endDate, a.startDate)
+    const cardKey = String(a.cardNumber ?? '').trim().toLowerCase()
+    if (cardKey && createdCards.has(cardKey)) {
+      continue
+    }
+    const dates = resolveDeskMembershipDates(a.endDate, a.startDate, a.packageMonths)
     if (!dates) {
       errors.push(`${a.cardNumber}: нет даты окончания`)
       continue
@@ -126,6 +117,7 @@ export async function applyDeskClosingCreates(input) {
         remote_id: null,
       })
       created += 1
+      if (cardKey) createdCards.add(cardKey)
     } catch (e) {
       errors.push(`${a.cardNumber}: ${e?.message || 'ошибка сохранения'}`)
     }
