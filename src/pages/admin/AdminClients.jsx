@@ -848,9 +848,16 @@ export function AdminClients() {
                 : membershipSignal(mlist, today)
               const expiredLeft =
                 active || isDeskClient ? null : pickExpiredMembershipWithRemaining(mlist, today)
-              const deskPkg = active
+              const deskMemForPkg =
+                active ||
+                (isDeskClient && mlist.length
+                  ? [...mlist].sort((a, b) =>
+                      String(b.end_date ?? '').localeCompare(String(a.end_date ?? '')),
+                    )[0]
+                  : null)
+              const deskPkg = deskMemForPkg
                 ? formatDeskPackageMonthsLabel(
-                    inferDeskPackageMonths(active.start_date, active.end_date),
+                    inferDeskPackageMonths(deskMemForPkg.start_date, deskMemForPkg.end_date),
                   )
                 : null
               const last = lastTrainingDateFromMap(lastTrainingByClient, c.id)
@@ -885,24 +892,34 @@ export function AdminClients() {
                           <span className="td-client-fact__label">Карта</span>
                           <span className="td-client-fact__value">{String(c.card_number ?? '').trim() || '—'}</span>
                         </div>
-                        <div className="td-client-fact">
-                          <span className="td-client-fact__label">Тренер</span>
-                          <span className="td-client-fact__value">{trainerLabel(c.trainer_id)}</span>
-                        </div>
+                        {isDeskClient ? (
+                          <div className="td-client-fact">
+                            <span className="td-client-fact__label">Пакет</span>
+                            <span className="td-client-fact__value">
+                              {deskPkg && deskPkg !== '—' ? deskPkg : '—'}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="td-client-fact">
+                            <span className="td-client-fact__label">Тренер</span>
+                            <span className="td-client-fact__value">{trainerLabel(c.trainer_id)}</span>
+                          </div>
+                        )}
                         <div className="td-client-fact">
                           <span className="td-client-fact__label">Абонемент</span>
                           <span className="td-client-fact__value">
-                            {active ? (
+                            {isDeskClient ? (
+                              active ? (
+                                <>до {formatDateRu(active.end_date)}</>
+                              ) : (
+                                sig.factLabel || 'нет абонемента'
+                              )
+                            ) : active ? (
                               <>
                                 до {formatDateRu(active.end_date)}
                                 <span className="td-client-fact__sub">
                                   {' '}
-                                  ·{' '}
-                                  {isDeskClient
-                                    ? deskPkg && deskPkg !== '—'
-                                      ? deskPkg
-                                      : 'по сроку'
-                                    : membershipUsageLabel(active, clientTrainings)}
+                                  · {membershipUsageLabel(active, clientTrainings)}
                                 </span>
                               </>
                             ) : expiredLeft ? (
@@ -918,10 +935,12 @@ export function AdminClients() {
                             )}
                           </span>
                         </div>
-                        <div className="td-client-fact">
-                          <span className="td-client-fact__label">Последняя</span>
-                          <span className="td-client-fact__value">{last}</span>
-                        </div>
+                        {!isDeskClient ? (
+                          <div className="td-client-fact">
+                            <span className="td-client-fact__label">Последняя</span>
+                            <span className="td-client-fact__value">{last}</span>
+                          </div>
+                        ) : null}
                       </div>
                       <div className="row td-client-actions">
                         <AdminClientClubSmsButton
