@@ -6,7 +6,7 @@
 
 @media (min-width: 960px) {
   .admin-excel-lists-maps {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
     align-items: start;
   }
 }
@@ -17,6 +17,30 @@
   border: 1px solid color-mix(in srgb, var(--border, #444) 80%, transparent);
   background: color-mix(in srgb, var(--bg-elevated, #1a1a1a) 94%, transparent);
   min-width: 0;
+}
+
+.admin-excel-map-card--closings {
+  border-color: color-mix(in srgb, #5b8def 40%, transparent);
+}
+
+.admin-excel-map-card--closings .admin-excel-map-card__badge {
+  background: color-mix(in srgb, #5b8def 28%, transparent);
+}
+
+.admin-excel-map-card__steps {
+  margin: 0 0 0.65rem;
+  padding-left: 1.2rem;
+  color: color-mix(in srgb, var(--text, #eee) 88%, transparent);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.admin-excel-map-card__steps li + li {
+  margin-top: 0.35rem;
+}
+
+.admin-excel-map-card__ready {
+  margin: 0 0 0.75rem;
 }
 
 .admin-excel-map-card--tz {

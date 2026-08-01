@@ -29,14 +29,22 @@ export function isHoldingTrainerUser(user) {
 export function mapClosingHeader(header) {
   const h = cellText(header).toLowerCase()
   if (!h) return null
-  if (/(карт|card)/.test(h) && !/тип/.test(h)) return 'card'
-  if (/(фио|клиент|имя|name|фамилия)/.test(h)) return 'name'
+  // 1С: «Клиент» = код/№ карты, «Физическое лицо» = ФИО
+  if (h === 'клиент' || h === 'код клиента' || h === '№ клиента') return 'card'
+  if (/(физическ|фио|фамилия)/.test(h) || (/(имя|name)/.test(h) && !/абонемент/.test(h))) return 'name'
   if (/(телефон|phone|тел\.?)/.test(h)) return 'phone'
   if (/(цен[аые]|стоимость|сумма|оплат|price|paid|₽|руб)/.test(h) && !/тип/.test(h)) return 'price'
-  if (/(оконч|end|действует по|по\b|до\b|закрыт)/.test(h)) return 'end'
-  if (/(начало|start|действует с|с\b)/.test(h) && !/оконч/.test(h)) return 'start'
-  if (/(зал|направл|hall|пз|тз|аз)/.test(h)) return 'hall'
-  if (/(тип|абонемент|тариф|пакет)/.test(h)) return 'type'
+  if (/(оконч|факт\s*оконч|end|действует по|закрыт)/.test(h)) return 'end'
+  if (/(начало|start|действует с)/.test(h) && !/оконч/.test(h)) return 'start'
+  // 1С: «Абонемент.Тип карты» = ТЗ / АЗ / ТЗ Утро → зал
+  if (/тип\s*карт/.test(h)) return 'hall'
+  if (/(зал|направл|hall)/.test(h) || (/(^|\b)(пз|тз|аз)(\b|$)/.test(h) && !/тип|карт|сотруд/.test(h))) {
+    return 'hall'
+  }
+  if (/(карт|card)/.test(h) && !/тип/.test(h)) return 'card'
+  // «Абонемент.Сотрудник» — не тип абона
+  if (/сотрудник|тренер/.test(h)) return null
+  if (/(тип|тариф|пакет)/.test(h) && !/карт/.test(h)) return 'type'
   if (/(1с|external|договор|номер дог)/.test(h)) return 'external'
   return null
 }
@@ -62,7 +70,8 @@ export function parseClosingDateCell(raw) {
     }
   }
   const t = cellText(raw)
-  const m = t.match(/^(\d{2})\.(\d{2})\.(\d{4})$/)
+  // 1С: «31.08.2026 23:59:59»
+  const m = t.match(/^(\d{2})\.(\d{2})\.(\d{4})(?:\s|$)/)
   if (m) return `${m[3]}-${m[2]}-${m[1]}`
   const m2 = t.match(/^(\d{4})-(\d{2})-(\d{2})/)
   if (m2) return `${m2[1]}-${m2[2]}-${m2[3]}`
@@ -78,8 +87,12 @@ export function parseClosingPriceCell(raw) {
   if (typeof raw === 'number' && Number.isFinite(raw) && raw >= 0) {
     return Math.round(raw * 100) / 100
   }
-  const t = cellText(raw).replace(/\s/g, '').replace(/₽|руб\.?/gi, '').replace(',', '.')
+  let t = cellText(raw).replace(/\s/g, '').replace(/₽|руб\.?/gi, '')
   if (!t) return null
+  // 2,000.00 (US) или 2.000,00 (EU)
+  if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(t)) t = t.replace(/,/g, '')
+  else if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(t)) t = t.replace(/\./g, '').replace(',', '.')
+  else t = t.replace(',', '.')
   const n = Number(t)
   if (!Number.isFinite(n) || n < 0) return null
   return Math.round(n * 100) / 100
@@ -260,14 +273,48 @@ export function planDeskClosingImport(input) {
       })
       continue
     }
+    const createHall = row.hall === 'tz' || row.hall === 'az' ? row.hall : null
+    if (!createHall) {
+      skip += 1
+      actions.push({
+        ...row,
+        action: 'skip',
+        reason:
+          'Нет зала ТЗ/АЗ в строке (тип карты) — некуда положить карточку; проверьте колонку «Абонемент.Тип карты»',
+        clientId: null,
+      })
+      continue
+    }
     create += 1
     actions.push({
       ...row,
+      hall: createHall,
       action: 'create',
-      reason: 'Новая desk-карточка + membership с end_date',
+      reason: `Новая desk-карточка ${createHall.toUpperCase()} + membership с end_date`,
       clientId: null,
     })
   }
 
-  return { actions, counts: { create, skip, conflict, tagHall, total: actions.length } }
+  let hallTz = 0
+  let hallAz = 0
+  let hallUnknown = 0
+  for (const row of input.parsedRows ?? []) {
+    if (row?.hall === 'tz') hallTz += 1
+    else if (row?.hall === 'az') hallAz += 1
+    else hallUnknown += 1
+  }
+
+  return {
+    actions,
+    counts: {
+      create,
+      skip,
+      conflict,
+      tagHall,
+      total: actions.length,
+      hallTz,
+      hallAz,
+      hallUnknown,
+    },
+  }
 }

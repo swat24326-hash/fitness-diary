@@ -86,6 +86,10 @@ export async function applyDeskClosingCreates(input) {
       continue
     }
     const hall = a.hall === 'tz' || a.hall === 'az' ? a.hall : defaultHall
+    if (!hall) {
+      errors.push(`${a.cardNumber}: нет зала ТЗ/АЗ — карточку не создаём`)
+      continue
+    }
     const clientId = crypto.randomUUID()
     const now = new Date().toISOString()
     const client = {

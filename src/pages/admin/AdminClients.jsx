@@ -641,7 +641,7 @@ export function AdminClients() {
       <AdminSectionHeader
         icon={UserCircle}
         title="Клиенты"
-        lead="Вкладки: обычные клиенты с тренером · desk ТЗ · desk АЗ · архив. Списки закрытий грузятся в «Excel-списки»."
+        lead="Вкладки: клиенты с тренером · ТЗ · АЗ · архив. Список заканчивающихся загружают в «Списки из Excel»."
       />
 
     <div className="grid stagger td-grid">
@@ -783,8 +783,8 @@ export function AdminClients() {
           />
         ) : isDeskHallTab ? (
           <p className="admin-clients-workspace__archive-hint muted">
-            Desk {clientsTab === 'tz' ? 'ТЗ' : 'АЗ'}: клиенты из Excel закрытий, без персонального тренера. Список сразу;
-            карточка — контакты и учёт абонов. Загрузка файлов — в «Excel-списки».
+            Вкладка {clientsTab === 'tz' ? 'ТЗ' : 'АЗ'}: люди из списка заканчивающихся, без живого тренера.
+            Карточка — контакты и абонементы. Загрузка файла — в «Списки из Excel».
           </p>
         ) : (
           <p className="admin-clients-workspace__archive-hint muted">
@@ -813,7 +813,7 @@ export function AdminClients() {
               <p className="admin-clients-empty__title">Список скрыт</p>
               <p className="muted admin-clients-empty__text">
                 {isDeskHallTab
-                  ? 'Нет клиентов в этой вкладке. Загрузите закрытия в «Excel-списки» (карта ТЗ или АЗ).'
+                  ? 'В этой вкладке пока пусто. Загрузите список заканчивающихся в «Списки из Excel» (один файл на ТЗ и АЗ).'
                   : `Введите поиск от 2 символов, нажмите карточку сводки${clientsTab === 'active' ? '' : ' или оставайтесь в архиве'} — тогда появятся карточки клиентов.`}
               </p>
             </div>

@@ -21,6 +21,8 @@ const HALL_LABEL = { tz: 'ТЗ', az: 'АЗ' }
  *   defaultHall?: 'tz'|'az'|null,
  *   title?: string,
  *   hint?: string,
+ *   fileButtonLabel?: string,
+ *   children?: import('react').ReactNode,
  * }} props
  */
 export function AdminDeskClosingImportSection({
@@ -29,6 +31,8 @@ export function AdminDeskClosingImportSection({
   defaultHall = null,
   title,
   hint,
+  fileButtonLabel,
+  children,
 }) {
   const [busy, setBusy] = useState(false)
   const [fileName, setFileName] = useState('')
@@ -115,7 +119,7 @@ export function AdminDeskClosingImportSection({
     if (!createN && !tagN) return
     if (!holdingId) {
       setError(
-        `Сначала создайте тренера с именем «${HOLDING_TRAINER_DISPLAY_NAME}» в этом клубе (Организация), затем повторите.`,
+        `В клубе нет служебного тренера «${HOLDING_TRAINER_DISPLAY_NAME}». Структура → Организация → добавьте тренера с этим именем, затем повторите.`,
       )
       return
     }
@@ -151,36 +155,44 @@ export function AdminDeskClosingImportSection({
   const hallTitle =
     title ||
     (defaultHall === 'tz'
-      ? 'Карта ТЗ: закрытия договоров'
+      ? 'Список заканчивающихся — только ТЗ'
       : defaultHall === 'az'
-        ? 'Карта АЗ: закрытия договоров'
-        : 'Раз в период: закрытия договоров (не оплаты)')
+        ? 'Список заканчивающихся — только АЗ'
+        : 'Список заканчивающихся (ТЗ и АЗ)')
   const hallHint =
     hint ||
     (defaultHall
-      ? `Excel для ${HALL_LABEL[defaultHall]}: карта + ФИО + дата окончания (+ цена). Без колонки «зал» — весь файл считается ${HALL_LABEL[defaultHall]}. Новые — на «${HOLDING_TRAINER_DISPLAY_NAME}». Не путать с оплатами 31.xlsx.`
-      : `Excel: карта + ФИО + дата окончания (+ цена; не оплаты 31.xlsx). Новые — на «${HOLDING_TRAINER_DISPLAY_NAME}». Живые абоны не затираем.`)
+      ? `Файл только для ${HALL_LABEL[defaultHall]}. Нужны: номер карты, ФИО, дата окончания (цена — по желанию).`
+      : null)
+  const pickLabel = fileButtonLabel || 'Загрузить выгрузку из 1С'
 
   return (
     <section
       className="admin-desk-closing"
       aria-label={hallTitle}
-      data-hall={defaultHall || undefined}
+      data-hall={defaultHall || 'mixed'}
     >
-      <h3 className="admin-section-title">{hallTitle}</h3>
-      <p className="muted" style={{ marginBottom: '0.75rem' }}>
-        {hallHint}
-      </p>
+      {title ? <h3 className="admin-section-title">{hallTitle}</h3> : null}
+      {children ||
+        (hallHint ? (
+          <p className="muted" style={{ marginBottom: '0.75rem' }}>
+            {hallHint}
+          </p>
+        ) : null)}
       {!holdingId ? (
         <p className="sales-report__error">
-          Нет тренера «{HOLDING_TRAINER_DISPLAY_NAME}» в клубе — создайте в Организации, иначе сид не запишет.
+          Чтобы сохранить список, сначала создайте в <strong>Структура → Организация</strong> тренера с
+          именем «{HOLDING_TRAINER_DISPLAY_NAME}» (служебный, не живой тренер зала).
         </p>
       ) : (
-        <p className="muted">Новые карточки пойдут на «{HOLDING_TRAINER_DISPLAY_NAME}».</p>
+        <p className="muted admin-excel-map-card__ready">
+          Готово к сохранению: новые люди попадут к «{HOLDING_TRAINER_DISPLAY_NAME}», без назначения
+          живого тренера.
+        </p>
       )}
       <label className="sales-payments-import__file">
         <FileSpreadsheet size={18} aria-hidden />
-        <span>{busy ? 'Читаю…' : fileName || 'Выбрать .xlsx закрытий'}</span>
+        <span>{busy ? 'Читаю файл…' : fileName || pickLabel}</span>
         <input
           type="file"
           accept=".xlsx,.xls"
@@ -204,14 +216,19 @@ export function AdminDeskClosingImportSection({
       {plan ? (
         <>
           <p>
-            Итого: создать {plan.counts.create}, зал{' '}
-            {plan.counts.tagHall ?? 0}, пропуск {plan.counts.skip}, конфликт {plan.counts.conflict}
+            В файле: ТЗ {plan.counts.hallTz ?? 0}, АЗ {plan.counts.hallAz ?? 0}
+            {Number(plan.counts.hallUnknown) > 0
+              ? `, без зала ${plan.counts.hallUnknown}`
+              : ''}
+            . Итого: создать {plan.counts.create}, зал {plan.counts.tagHall ?? 0}, пропуск{' '}
+            {plan.counts.skip}, конфликт {plan.counts.conflict}
           </p>
           <div className="sales-payments-import__table-wrap">
             <table className="sales-payments-import__table">
               <thead>
                 <tr>
                   <th>Что сделаем</th>
+                  <th>Зал</th>
                   <th>Карта</th>
                   <th>ФИО</th>
                   <th>Конец</th>
@@ -233,6 +250,7 @@ export function AdminDeskClosingImportSection({
                               ? 'конфликт'
                               : a.action}
                     </td>
+                    <td>{a.hall === 'tz' || a.hall === 'az' ? HALL_LABEL[a.hall] : '—'}</td>
                     <td>{a.cardNumber}</td>
                     <td>{a.name}</td>
                     <td>{a.endDate || '—'}</td>

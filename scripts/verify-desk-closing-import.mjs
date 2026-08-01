@@ -26,16 +26,44 @@ ok(!isHoldingTrainerUser({ name: 'Семенов' }), 'not holding')
 ok(HOLDING_TRAINER_DISPLAY_NAME === 'Не назначен', 'const name')
 
 ok(mapClosingHeader('№ карты') === 'card', 'header card')
+ok(mapClosingHeader('Клиент') === 'card', '1c client code = card')
 ok(mapClosingHeader('ФИО') === 'name', 'header name')
+ok(mapClosingHeader('Физическое лицо') === 'name', '1c person = name')
 ok(mapClosingHeader('Дата окончания') === 'end', 'header end')
+ok(mapClosingHeader('Абонемент.Факт окончание') === 'end', '1c end')
 ok(mapClosingHeader('Телефон') === 'phone', 'header phone')
 ok(mapClosingHeader('Цена') === 'price', 'header price')
 ok(mapClosingHeader('Стоимость') === 'price', 'header price synonym')
+ok(mapClosingHeader('Абонемент.Тип карты') === 'hall', '1c type card = hall')
+ok(mapClosingHeader('Абонемент.Сотрудник') == null, '1c employee not type')
 ok(parseClosingPriceCell('12 500') === 12500, 'price spaces')
 ok(parseClosingPriceCell('9900,5') === 9900.5, 'price comma')
+ok(parseClosingPriceCell('2,000.00') === 2000, 'price us thousands')
 
 ok(parseClosingDateCell('21.09.2026') === '2026-09-21', 'date dmy')
+ok(parseClosingDateCell('31.08.2026 23:59:59') === '2026-08-31', 'date with time')
 ok(parseClosingDateCell('2026-09-21') === '2026-09-21', 'date iso')
+
+const aoa1c = [
+  [
+    'Клиент',
+    'Физическое лицо',
+    'Телефон мобильный',
+    'Абонемент.Факт окончание',
+    'Абонемент.Тип карты',
+    'Абонемент.Цена',
+  ],
+  ['1148', 'Афанасенко Елена', '89208479633', '31.08.2026 23:59:59', 'ТЗ', '2,000.00'],
+  ['1654', 'Знаковская Оксана', '89208428331', '25.08.2026 23:59:59', 'АЗ', '6,755.00'],
+  ['1702', 'Мисников Дмитрий', '', '25.08.2026 23:59:59', 'ТЗ Утро', '1,300.00'],
+]
+const parsed1c = parseClosingAgreementsAoA(aoa1c)
+ok(parsed1c.rows.length === 3, '1c rows')
+ok(parsed1c.rows[0].cardNumber === '1148' && parsed1c.rows[0].name.includes('Афанасенко'), '1c card+name')
+ok(parsed1c.rows[0].endDate === '2026-08-31' && parsed1c.rows[0].paidAmount === 2000, '1c end+price')
+ok(parsed1c.rows[0].hall === 'tz' && parsed1c.rows[1].hall === 'az', '1c hall tz/az')
+ok(parsed1c.rows[2].hall === 'tz', '1c ТЗ Утро = tz')
+ok(scopeClosingRowsToHall(parsed1c.rows, 'tz').length === 2, '1c scope tz')
 
 const aoa = [
   ['№ карты', 'ФИО', 'Телефон', 'Зал', 'Тип', 'Дата окончания', 'Цена'],
@@ -55,24 +83,46 @@ const planNew = planDeskClosingImport({
   clients: [],
   membershipsByClientId: {},
 })
-ok(planNew.counts.create === 2, 'create 2 new')
-ok(planNew.actions.every((a) => a.action === 'create'), 'all create')
+ok(planNew.counts.create === 1, 'create only TZ (PZ skipped — no desk hall)')
+ok(planNew.counts.skip === 1, 'skip PZ without tz/az')
+ok(planNew.actions.find((a) => a.cardNumber === '5678')?.action === 'create', 'tz create')
+ok(planNew.actions.find((a) => a.cardNumber === '5426')?.action === 'skip', 'pz skip')
+ok(planNew.counts.hallTz === 1 && planNew.counts.hallAz === 0, 'hall counts from file')
+
+const planMixed = planDeskClosingImport({
+  parsedRows: parsed1c.rows,
+  clients: [],
+  membershipsByClientId: {},
+})
+ok(planMixed.counts.create === 3, '1c mixed create all with hall')
+ok(planMixed.counts.hallTz === 2 && planMixed.counts.hallAz === 1, '1c hallTz/hallAz')
+ok(
+  planMixed.actions.filter((a) => a.action === 'create' && a.hall === 'tz').length === 2,
+  '1c creates stamp tz',
+)
+ok(
+  planMixed.actions.some((a) => a.action === 'create' && a.hall === 'az'),
+  '1c creates stamp az',
+)
 
 const planSkip = planDeskClosingImport({
-  parsedRows: parsed.rows,
-  clients: [{ id: 'c1', card_number: '5426', name: 'X' }],
+  parsedRows: parsed.rows.filter((r) => r.hall === 'tz' || r.hall === 'az'),
+  clients: [{ id: 'c1', card_number: '5678', name: 'X' }],
   membershipsByClientId: {
-    c1: [{ end_date: '2026-09-21', total_trainings: 8, used_trainings: 0 }],
+    c1: [{ end_date: '2026-08-31', total_trainings: 8, used_trainings: 0 }],
   },
 })
-ok(planSkip.actions.find((a) => a.cardNumber === '5426')?.action === 'skip', 'skip existing')
-ok(planSkip.actions.find((a) => a.cardNumber === '5678')?.action === 'create', 'other still create')
+ok(
+  planSkip.actions.some((a) => a.cardNumber === '5678' && a.action === 'skip'),
+  'skip existing tz',
+)
+ok(planSkip.counts.create === 0, 'no create when client exists')
 
 const conflict = planDeskClosingImport({
-  parsedRows: [parsed.rows[0]],
+  parsedRows: [parsed.rows.find((r) => r.cardNumber === '5678')],
   clients: [
-    { id: 'a', card_number: '5426' },
-    { id: 'b', card_number: '5426' },
+    { id: 'a', card_number: '5678' },
+    { id: 'b', card_number: '5678' },
   ],
 })
 ok(conflict.counts.conflict === 1, 'conflict')

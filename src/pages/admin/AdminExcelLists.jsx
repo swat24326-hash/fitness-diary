@@ -5,7 +5,7 @@ import { AdminExcelListsMaps } from '../../components/admin/AdminExcelListsMaps.
 import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
 
 /**
- * Админ: отдельные Excel-карты (ТЗ/АЗ закрытия, ПЗ без планшета).
+ * Админ: Excel закрытий (ТЗ+АЗ из одного файла) и карта ПЗ без планшета.
  */
 export function AdminExcelLists() {
   const outlet = useOutletContext() ?? {}
@@ -16,8 +16,8 @@ export function AdminExcelLists() {
     <section className="admin-section-shell admin-section-shell--wide admin-excel-lists">
       <AdminSectionHeader
         icon={FileSpreadsheet}
-        title="Excel-списки"
-        lead="Карты для стратегии: закрытия ТЗ и АЗ (разово / по мере выгрузки) и позже — занятия ПЗ у тренеров без планшета. Дневные оплаты 31.xlsx остаются в отчёте продаж."
+        title="Списки из Excel"
+        lead="Здесь загружают периодические списки из 1С. Слева — кто заканчивается (ТЗ и АЗ в одном файле). Справа — часы ПЗ, пока недоступно. Дневные оплаты (31.xlsx) — не сюда, а в «Отчёт продаж»."
       />
       <AdminExcelListsMaps
         clubId={clubId}

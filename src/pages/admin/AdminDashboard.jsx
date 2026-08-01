@@ -248,7 +248,7 @@ export function AdminDashboard() {
                 <div className="feature-tile__icon">
                   <FileSpreadsheet size={44} aria-hidden />
                 </div>
-                <p className="feature-tile__title">Excel-списки</p>
+                <p className="feature-tile__title">Списки из Excel</p>
               </NavLink>
               <NavLink to={tab('statistics')} className={adminTileClass}>
                 <div className="feature-tile__icon">

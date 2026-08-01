@@ -57,9 +57,12 @@ export function detectSalesHallFromLabel(text) {
   const t = cellText(text).toLowerCase()
   if (!t) return null
   if (t.includes('клубн') && t.includes('карт')) return 'dop'
-  if (t.includes('персональн') || (t.includes('персон') && t.includes('зал')) || t === 'пз') return 'pz'
-  if ((t.includes('тренаж') && t.includes('зал')) || t === 'тз') return 'tz'
-  if ((t.includes('аэроб') && t.includes('зал')) || t === 'аз') return 'az'
+  if (t.includes('персональн') || (t.includes('персон') && t.includes('зал')) || t === 'пз' || t.startsWith('пз ')) {
+    return 'pz'
+  }
+  // «ТЗ», «ТЗ Утро» — \b плохо работает с кириллицей
+  if ((t.includes('тренаж') && t.includes('зал')) || t === 'тз' || t.startsWith('тз ')) return 'tz'
+  if ((t.includes('аэроб') && t.includes('зал')) || t === 'аз' || t.startsWith('аз ')) return 'az'
   return null
 }
 
