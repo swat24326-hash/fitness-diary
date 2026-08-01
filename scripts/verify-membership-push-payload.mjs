@@ -77,4 +77,18 @@ ok(paidNull.ok && paidNull.data.paid_amount === null, 'empty paid_amount -> null
 const paidBad = normalizeMembershipPushPayload({ id: 'm8', paid_amount: -1 })
 ok(!paidBad.ok, 'rejects negative paid_amount')
 
+const stripUpdated = normalizeMembershipPushPayload(
+  {
+    id: 'm9',
+    client_id: 'c1',
+    club_id: 'cl1',
+    start_date: '2026-07-01',
+    end_date: '2026-08-01',
+    total_trainings: 0,
+    updated_at: '2026-08-01T12:00:00.000Z',
+  },
+  { insert: true },
+)
+ok(stripUpdated.ok && !('updated_at' in stripUpdated.data), 'strips updated_at (not in DB)')
+
 console.log('verify-membership-push-payload: all passed')

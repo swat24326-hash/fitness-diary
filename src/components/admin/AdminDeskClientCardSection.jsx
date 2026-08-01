@@ -68,7 +68,6 @@ export function AdminDeskClientCardSection({
         card_number: String(form.card_number ?? '').trim() || null,
         trainer_id: null,
         desk_hall: hall,
-        updated_at: new Date().toISOString(),
       }
       await saveLocalWithSync('clients', clientRow, {
         table_name: 'clients',

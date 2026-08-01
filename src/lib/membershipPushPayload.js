@@ -19,6 +19,8 @@ export function normalizeMembershipPushPayload(payload, { insert = false } = {})
   }
 
   const next = { ...payload }
+  // В public.memberships нет updated_at — локальные поля ломают PostgREST schema cache.
+  delete next.updated_at
 
   for (const key of ['start_date', 'end_date']) {
     if (!Object.prototype.hasOwnProperty.call(next, key)) continue

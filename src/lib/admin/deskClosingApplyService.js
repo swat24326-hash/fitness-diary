@@ -60,7 +60,6 @@ export async function applyDeskClosingCreates(input) {
             ...prev,
             desk_hall: hall,
             trainer_id: null,
-            updated_at: new Date().toISOString(),
           },
           {
             table_name: 'clients',
@@ -98,7 +97,6 @@ export async function applyDeskClosingCreates(input) {
       lifecycle: 'active',
       desk_hall: hall,
       created_at: now,
-      updated_at: now,
     }
     try {
       await saveLocalWithSync('clients', client, {
@@ -121,7 +119,6 @@ export async function applyDeskClosingCreates(input) {
         membership_type_id: input.membershipTypeId || null,
         paid_amount: paid,
         created_at: now,
-        updated_at: now,
       }
       await saveLocalWithSync('memberships', membership, {
         table_name: 'memberships',

@@ -98,7 +98,18 @@ function friendlyClientsDbError(error) {
   if (/lifecycle|pnk_/i.test(msg) && /schema cache|could not find|column/i.test(msg)) {
     return 'Колонки воронки ПНК не созданы в Supabase — выполните миграцию pnk_funnel'
   }
+  if (/updated_at/i.test(msg) && /schema cache|could not find|column/i.test(msg)) {
+    return 'Лишнее поле updated_at у клиента — обновите приложение и повторите Sync'
+  }
   return msg || 'Ошибка базы данных'
+}
+
+/** clients/memberships в проде без колонки updated_at */
+function stripUnknownClientFields(payload) {
+  if (!payload || typeof payload !== 'object') return payload
+  const next = { ...payload }
+  delete next.updated_at
+  return next
 }
 
 async function validateMembershipTypeLink(supabaseAdmin, payload, operation) {
@@ -149,6 +160,9 @@ export async function executePushRecord(ctx, item) {
   try {
     if (operation === 'insert') {
       let payload = data
+      if (table_name === 'clients') {
+        payload = stripUnknownClientFields(payload)
+      }
       if (table_name === 'challenges') {
         const prep = await prepareChallengePayload(supabaseAdmin, data)
         if (!prep.ok) {
@@ -226,6 +240,9 @@ export async function executePushRecord(ctx, item) {
 
     if (operation === 'update' && remote_id) {
       let payload = table_name === 'trainings' ? normalizeTrainingPayload(data) : data
+      if (table_name === 'clients') {
+        payload = stripUnknownClientFields(payload)
+      }
       if (table_name === 'challenges') {
         const prep = await prepareChallengePayload(supabaseAdmin, data)
         if (!prep.ok) {
