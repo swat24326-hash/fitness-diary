@@ -4,6 +4,10 @@
 import {
   deskMembershipLedgerKind,
   deskMembershipLedgerKindLabel,
+  deskMembershipSignal,
+  deskPackageEndIso,
+  formatDeskPackageMonthsLabel,
+  inferDeskPackageMonths,
   parseDeskPaidAmountInput,
   pickDeskActiveMembership,
   sortDeskMembershipLedger,
@@ -36,6 +40,21 @@ ok(sorted[0].id === 'fut', 'sort end desc')
 
 ok(parseDeskPaidAmountInput('1 200') === 1200, 'parse paid')
 ok(parseDeskPaidAmountInput('') == null, 'empty paid')
+
+ok(deskPackageEndIso('2026-07-21', 1) === '2026-08-20', '1 month end 21.07→20.08')
+ok(inferDeskPackageMonths('2026-07-21', '2026-08-20') === 1, 'infer 1 month')
+ok(formatDeskPackageMonthsLabel(1) === '1 месяц', 'label 1 month')
+ok(formatDeskPackageMonthsLabel(3) === '3 месяца', 'label 3 months')
+
+const sig = deskMembershipSignal(
+  [{ id: 'm', start_date: '2026-07-21', end_date: '2026-08-20', total_trainings: 0 }],
+  '2026-08-01',
+)
+ok(sig.key === 'active' && /месяц/.test(sig.label), 'desk signal active not depleted')
+ok(sig.color === '#22c55e', 'desk signal green')
+
+const depletedWouldBe = deskMembershipSignal([], '2026-08-01')
+ok(depletedWouldBe.key === 'no_membership', 'empty desk list')
 
 if (failed) {
   console.error(`\n${failed} failed`)

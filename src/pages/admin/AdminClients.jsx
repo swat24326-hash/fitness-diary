@@ -51,6 +51,13 @@ import {
   membershipSignal,
   pickExpiredMembershipWithRemaining,
 } from '../../lib/clientListSignals'
+import { clientDeskHall } from '../../lib/admin/deskHallClientsCore.js'
+import {
+  deskMembershipSignal,
+  formatDeskPackageMonthsLabel,
+  inferDeskPackageMonths,
+  pickDeskActiveMembership,
+} from '../../lib/admin/deskMembershipLedgerCore.js'
 import '../../styles/pnk-funnel.css'
 
 function lastTrainingDateFromMap(map, clientId) {
@@ -832,9 +839,20 @@ export function AdminClients() {
             {pagedClients.map((c) => {
               const mlist = memByClient[c.id] ?? []
               const clientTrainings = pageTrainings.filter((t) => t.client_id === c.id)
-              const active = pickUsableMembershipForDate(mlist, today)
-              const sig = membershipSignal(mlist, today)
-              const expiredLeft = active ? null : pickExpiredMembershipWithRemaining(mlist, today)
+              const isDeskClient = clientDeskHall(c) != null
+              const active = isDeskClient
+                ? pickDeskActiveMembership(mlist, today)
+                : pickUsableMembershipForDate(mlist, today)
+              const sig = isDeskClient
+                ? deskMembershipSignal(mlist, today)
+                : membershipSignal(mlist, today)
+              const expiredLeft =
+                active || isDeskClient ? null : pickExpiredMembershipWithRemaining(mlist, today)
+              const deskPkg = active
+                ? formatDeskPackageMonthsLabel(
+                    inferDeskPackageMonths(active.start_date, active.end_date),
+                  )
+                : null
               const last = lastTrainingDateFromMap(lastTrainingByClient, c.id)
               const inactiveRow = todaySnapshot.inactiveDetailById.get(c.id)
               const inactiveLabel =
@@ -877,7 +895,15 @@ export function AdminClients() {
                             {active ? (
                               <>
                                 до {formatDateRu(active.end_date)}
-                                <span className="td-client-fact__sub"> · {membershipUsageLabel(active, clientTrainings)}</span>
+                                <span className="td-client-fact__sub">
+                                  {' '}
+                                  ·{' '}
+                                  {isDeskClient
+                                    ? deskPkg && deskPkg !== '—'
+                                      ? deskPkg
+                                      : 'по сроку'
+                                    : membershipUsageLabel(active, clientTrainings)}
+                                </span>
                               </>
                             ) : expiredLeft ? (
                               <>

@@ -1,0 +1,45 @@
+.admin-desk-client-card__nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 0.85rem;
+  margin-bottom: 0.65rem;
+}
+
+.admin-desk-client-card__nav-note {
+  font-size: 0.85rem;
+}
+
+.admin-desk-client-card__hall-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.admin-desk-client-card__hall-badge--tz {
+  background: color-mix(in srgb, #5b8def 28%, transparent);
+}
+
+.admin-desk-client-card__hall-badge--az {
+  background: color-mix(in srgb, #3db88a 28%, transparent);
+}
+
+.admin-desk-client-card__title {
+  margin: 0 0 1rem;
+  font-size: 1.35rem;
+}
+
+.admin-desk-client-card__error {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.admin-desk-membership-ledger__hint {
+  margin-bottom: 0.75rem;
+}

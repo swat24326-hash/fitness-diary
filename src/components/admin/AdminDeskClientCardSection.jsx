@@ -6,17 +6,10 @@ import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
 import { normalizeDeskHall } from '../../lib/admin/deskHallClientsCore.js'
 import { formatClientName } from '../../lib/clientNameFormat.js'
 import { AdminDeskMembershipLedger } from './AdminDeskMembershipLedger.jsx'
+import '../../styles/admin-desk.css'
 
 /**
- * Desk-карточка ТЗ/АЗ без тренера: контакты + учёт абонов (тип, цена, действующий).
- *
- * @param {{
- *   client: object,
- *   memberships?: object[],
- *   clubId?: string,
- *   listHref?: string,
- *   onSaved?: () => void,
- * }} props
+ * Desk-карточка ТЗ/АЗ без тренера: контакты + учёт абонов (пакет по сроку, цена).
  */
 export function AdminDeskClientCardSection({
   client,
@@ -44,6 +37,7 @@ export function AdminDeskClientCardSection({
   }, [client])
 
   const setField = (key, value) => setForm((f) => ({ ...f, [key]: value }))
+  const hall = normalizeDeskHall(form.desk_hall)
 
   const save = async (e) => {
     e?.preventDefault?.()
@@ -53,7 +47,6 @@ export function AdminDeskClientCardSection({
       setError('Укажите ФИО')
       return
     }
-    const hall = normalizeDeskHall(form.desk_hall)
     if (!hall) {
       setError('Укажите зал: ТЗ или АЗ — иначе клиент не попадёт во вкладку')
       return
@@ -85,12 +78,16 @@ export function AdminDeskClientCardSection({
 
   return (
     <section className="admin-desk-client-card card" aria-label="Desk-карточка клиента ТЗ/АЗ">
-      <p className="muted" style={{ marginBottom: '0.75rem' }}>
+      <div className="admin-desk-client-card__nav">
         <Link to={listHref}>← К списку</Link>
-        {' · '}
-        Клиент desk без тренера. Зал ТЗ/АЗ нужен для вкладки в списке. Ниже — учёт абонементов.
-      </p>
-      <h2 style={{ marginTop: 0 }}>{form.name || 'Клиент'}</h2>
+        {hall ? (
+          <span className={`admin-desk-client-card__hall-badge admin-desk-client-card__hall-badge--${hall}`}>
+            {hall === 'tz' ? 'ТЗ' : 'АЗ'}
+          </span>
+        ) : null}
+        <span className="muted admin-desk-client-card__nav-note">Без тренера · учёт по сроку</span>
+      </div>
+      <h2 className="admin-desk-client-card__title">{form.name || 'Клиент'}</h2>
       <form className="admin-desk-client-card__form" onSubmit={(e) => void save(e)}>
         <label>
           ФИО
@@ -105,7 +102,7 @@ export function AdminDeskClientCardSection({
           <input value={form.card_number} onChange={(e) => setField('card_number', e.target.value)} />
         </label>
         <label>
-          Зал (вкладка)
+          Зал
           <select
             value={form.desk_hall}
             onChange={(e) => setField('desk_hall', e.target.value)}
@@ -116,11 +113,7 @@ export function AdminDeskClientCardSection({
             <option value="az">АЗ</option>
           </select>
         </label>
-        <label>
-          Тренер
-          <input type="text" value="Нет" readOnly disabled title="У клиентов ТЗ/АЗ тренера нет" />
-        </label>
-        {error ? <p className="sales-report__error">{error}</p> : null}
+        {error ? <p className="sales-report__error admin-desk-client-card__error">{error}</p> : null}
         <div className="admin-desk-client-card__actions">
           <button type="submit" className="btn btn-primary" disabled={busy}>
             <Save size={16} aria-hidden /> Сохранить

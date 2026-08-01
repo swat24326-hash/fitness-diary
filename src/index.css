@@ -11,6 +11,7 @@
 @import './styles/price-list.css';
 @import './styles/az-price-list.css';
 @import './styles/admin-excel-lists.css';
+@import './styles/admin-desk.css';
 
 *,
 *::before,
