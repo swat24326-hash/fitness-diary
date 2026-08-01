@@ -60,6 +60,8 @@
 | Прайс ТЗ: печать HTML / имена PNG | `verify-tz-price-list-print.mjs` |
 | Прайс АЗ: импорт Excel Результат/групповые/доплаты | `verify-az-price-list.mjs` |
 | Прайс АЗ: печать HTML / имена PNG | `verify-az-price-list-print.mjs` |
+| Импорт отчёта по оплатам (1С → дневной) | `verify-sales-payments-import.mjs` |
+| Desk-сид закрытий (карта + end_date) | `verify-desk-closing-import.mjs` |
 | Продажи: профили bundle shell/daily/month/full | `verify-sales-bundle-profile.mjs` |
 | Срок абонемента по умолчанию (+1 календарный месяц) | `verify-date-ru.mjs` |
 

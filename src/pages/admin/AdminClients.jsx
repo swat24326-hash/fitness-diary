@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
 import { Archive, RefreshCw, RotateCcw, Search, Trash2, UserCircle, UserCog, UserSearch } from 'lucide-react'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
+import { AdminDeskClosingImportSection } from '../../components/admin/AdminDeskClosingImportSection.jsx'
 import { AdminClientClubSmsButton } from '../../components/admin/AdminClientClubSmsButton.jsx'
 import { AdminClientsBrowseFilters } from '../../components/admin/AdminClientsBrowseFilters.jsx'
 import { ClientRowMoreMenu } from '../../components/ClientRowMoreMenu.jsx'
@@ -616,6 +617,8 @@ export function AdminClients() {
         title="Клиенты"
         lead="Список как у тренера: абонемент и последняя тренировка. У каждого клиента указан закреплённый тренер (владелец карточки)."
       />
+
+      {club ? <AdminDeskClosingImportSection clubId={club} onDone={() => void reload({ silent: true })} /> : null}
 
     <div className="grid stagger td-grid">
       <section className="card admin-clients-workspace" id="clients">

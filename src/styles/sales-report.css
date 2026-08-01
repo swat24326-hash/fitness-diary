@@ -4716,3 +4716,63 @@
 }
 
 
+
+/* Импорт отчёта по оплатам (1С) */
+.sales-payments-import {
+  margin-bottom: 1rem;
+}
+.sales-payments-import__file {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.9rem;
+  border-radius: var(--radius-md, 10px);
+  border: 1px dashed color-mix(in srgb, var(--text-muted) 40%, transparent);
+  cursor: pointer;
+  margin: 0.5rem 0 0.75rem;
+}
+.sales-payments-import__file input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+}
+.sales-payments-import__table-wrap {
+  overflow-x: auto;
+  margin: 0.75rem 0 1rem;
+  max-height: min(420px, 50vh);
+  overflow-y: auto;
+}
+.sales-payments-import__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.sales-payments-import__table th,
+.sales-payments-import__table td {
+  padding: 0.35rem 0.45rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--text-muted) 18%, transparent);
+  text-align: left;
+  vertical-align: top;
+}
+.sales-payments-import__table tr.is-skipped {
+  opacity: 0.45;
+}
+.sales-payments-import__buckets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.65rem;
+}
+.sales-payments-import__bucket {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sales-payments-import__reason {
+  max-width: 14rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
