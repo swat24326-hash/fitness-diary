@@ -4794,15 +4794,13 @@
   margin: 0.35rem 0 0;
   padding-left: 1.2rem;
 }
-.sales-clip-form,
-.admin-desk-client-card__form {
+.sales-clip-form {
   display: grid;
   gap: 0.65rem 1rem;
   grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
   margin-bottom: 1.25rem;
 }
 .sales-clip-form label,
-.admin-desk-client-card__form label,
 .sales-evening-match label {
   display: flex;
   flex-direction: column;
@@ -4814,8 +4812,6 @@
 }
 .sales-clip-form input,
 .sales-clip-form select,
-.admin-desk-client-card__form input,
-.admin-desk-client-card__form select,
 .sales-evening-match input,
 .sales-evening-match textarea {
   min-height: 2.5rem;
@@ -4857,34 +4853,6 @@
 }
 .sales-evening-match__result {
   margin-top: 0.75rem;
-}
-.admin-desk-client-card__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  grid-column: 1 / -1;
-}
-.admin-desk-membership-ledger {
-  margin-top: 1.25rem;
-  padding-top: 1rem;
-  border-top: 1px solid color-mix(in srgb, var(--border, #444) 70%, transparent);
-}
-.admin-desk-membership-ledger__table select,
-.admin-desk-membership-ledger__table input {
-  width: 100%;
-  min-width: 0;
-  max-width: 9rem;
-}
-.admin-desk-membership-ledger__row--active {
-  background: color-mix(in srgb, var(--accent-bright, #e8a838) 10%, transparent);
-}
-.admin-desk-membership-ledger__kind {
-  font-size: 0.85rem;
-  white-space: nowrap;
-}
-.admin-desk-membership-ledger__kind--active {
-  font-weight: 700;
-  color: var(--accent-bright, #e8a838);
 }
 .trainer-sale-clips {
   margin: 0.75rem 0 1rem;

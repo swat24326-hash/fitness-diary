@@ -77,7 +77,7 @@ export function AdminDeskClientCardSection({
   }
 
   return (
-    <section className="admin-desk-client-card card" aria-label="Desk-карточка клиента ТЗ/АЗ">
+    <section className="admin-desk-client-card" aria-label="Desk-карточка клиента ТЗ/АЗ">
       <div className="admin-desk-client-card__nav">
         <Link to={listHref}>← К списку</Link>
         {hall ? (
@@ -85,13 +85,13 @@ export function AdminDeskClientCardSection({
             {hall === 'tz' ? 'ТЗ' : 'АЗ'}
           </span>
         ) : null}
-        <span className="muted admin-desk-client-card__nav-note">Без тренера · учёт по сроку</span>
+        <span className="admin-desk-client-card__nav-note">Без тренера · учёт по сроку</span>
       </div>
-      <h2 className="admin-desk-client-card__title">{form.name || 'Клиент'}</h2>
+      <h1 className="admin-desk-client-card__title">{form.name || 'Клиент'}</h1>
       <form className="admin-desk-client-card__form" onSubmit={(e) => void save(e)}>
         <label>
           ФИО
-          <input value={form.name} onChange={(e) => setField('name', e.target.value)} required />
+          <input value={form.name} onChange={(e) => setField('name', e.target.value)} required autoComplete="name" />
         </label>
         <label>
           Телефон
@@ -103,11 +103,7 @@ export function AdminDeskClientCardSection({
         </label>
         <label>
           Зал
-          <select
-            value={form.desk_hall}
-            onChange={(e) => setField('desk_hall', e.target.value)}
-            required
-          >
+          <select value={form.desk_hall} onChange={(e) => setField('desk_hall', e.target.value)} required>
             <option value="">Выберите…</option>
             <option value="tz">ТЗ</option>
             <option value="az">АЗ</option>
@@ -116,7 +112,7 @@ export function AdminDeskClientCardSection({
         {error ? <p className="sales-report__error admin-desk-client-card__error">{error}</p> : null}
         <div className="admin-desk-client-card__actions">
           <button type="submit" className="btn btn-primary" disabled={busy}>
-            <Save size={16} aria-hidden /> Сохранить
+            <Save size={18} aria-hidden /> {busy ? 'Сохраняю…' : 'Сохранить'}
           </button>
         </div>
       </form>

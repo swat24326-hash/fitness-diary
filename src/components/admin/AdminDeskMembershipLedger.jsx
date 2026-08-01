@@ -28,8 +28,24 @@ function rowDraftFromMembership(m) {
   }
 }
 
+function PackageSelect({ value, onChange }) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} aria-label="Пакет по сроку">
+      <option value="">—</option>
+      {DESK_PACKAGE_MONTH_OPTIONS.map((n) => (
+        <option key={n} value={String(n)}>
+          {formatDeskPackageMonthsLabel(n)}
+        </option>
+      ))}
+      {value && !DESK_PACKAGE_MONTH_OPTIONS.includes(Number(value)) ? (
+        <option value={value}>{formatDeskPackageMonthsLabel(Number(value))}</option>
+      ) : null}
+    </select>
+  )
+}
+
 /**
- * История абонов desk ТЗ/АЗ: пакет (месяцы), даты, цена, действующий.
+ * История абонов desk ТЗ/АЗ — карточки в стиле Оси.
  */
 export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '', onChanged }) {
   const today = todayLocalIso()
@@ -76,6 +92,25 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
     })
   }
 
+  const setNewField = (key, value) => {
+    setNewRow((r) => {
+      const cur = { ...r, [key]: value }
+      if (key === 'package_months' && cur.start_date && value) {
+        const end = deskPackageEndIso(cur.start_date, Number(value))
+        if (end) cur.end_date = end
+      }
+      if (key === 'start_date' && cur.package_months && value) {
+        const end = deskPackageEndIso(value, Number(cur.package_months))
+        if (end) cur.end_date = end
+      }
+      if (key === 'end_date' || key === 'start_date') {
+        const inferred = inferDeskPackageMonths(cur.start_date, cur.end_date)
+        if (inferred != null) cur.package_months = String(inferred)
+      }
+      return cur
+    })
+  }
+
   const saveRow = async (m) => {
     const id = String(m.id)
     const d = drafts[id] || rowDraftFromMembership(m)
@@ -114,25 +149,6 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
     } finally {
       setBusyId('')
     }
-  }
-
-  const setNewField = (key, value) => {
-    setNewRow((r) => {
-      const cur = { ...r, [key]: value }
-      if (key === 'package_months' && cur.start_date && value) {
-        const end = deskPackageEndIso(cur.start_date, Number(value))
-        if (end) cur.end_date = end
-      }
-      if (key === 'start_date' && cur.package_months && value) {
-        const end = deskPackageEndIso(value, Number(cur.package_months))
-        if (end) cur.end_date = end
-      }
-      if (key === 'end_date' || key === 'start_date') {
-        const inferred = inferDeskPackageMonths(cur.start_date, cur.end_date)
-        if (inferred != null) cur.package_months = String(inferred)
-      }
-      return cur
-    })
   }
 
   const addRow = async () => {
@@ -187,155 +203,106 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
     }
   }
 
-  const packageSelect = (value, onChange) => (
-    <select value={value} onChange={(e) => onChange(e.target.value)} aria-label="Пакет по сроку">
-      <option value="">—</option>
-      {DESK_PACKAGE_MONTH_OPTIONS.map((n) => (
-        <option key={n} value={String(n)}>
-          {formatDeskPackageMonthsLabel(n)}
-        </option>
-      ))}
-      {value && !DESK_PACKAGE_MONTH_OPTIONS.includes(Number(value)) ? (
-        <option value={value}>{formatDeskPackageMonthsLabel(Number(value))}</option>
-      ) : null}
-    </select>
+  const renderFields = (d, onField) => (
+    <div className="admin-desk-mem-card__fields">
+      <label>
+        Пакет
+        <PackageSelect value={d.package_months} onChange={(v) => onField('package_months', v)} />
+      </label>
+      <label>
+        Начало
+        <input type="date" value={d.start_date} onChange={(e) => onField('start_date', e.target.value)} />
+      </label>
+      <label>
+        Конец
+        <input type="date" value={d.end_date} onChange={(e) => onField('end_date', e.target.value)} />
+      </label>
+      <label>
+        Цена ₽
+        <input
+          type="text"
+          inputMode="decimal"
+          value={d.paid_amount}
+          onChange={(e) => onField('paid_amount', e.target.value)}
+          placeholder="—"
+        />
+      </label>
+    </div>
   )
 
   return (
     <section className="admin-desk-membership-ledger" aria-label="Абонементы для учёта">
       <h3 className="admin-section-title">Абонементы</h3>
-      <p className="muted admin-desk-membership-ledger__hint">
-        Пакет — срок из прайса ТЗ/АЗ (1 месяц, 2…), не типы карт ПЗ. «Действующий» — по датам на сегодня.
+      <p className="admin-desk-membership-ledger__hint">
+        Пакет — срок из прайса ТЗ/АЗ (1 месяц, 2…). «Действующий» — по датам на сегодня, не по лимиту
+        тренировок.
       </p>
       {error ? <p className="sales-report__error">{error}</p> : null}
+
       {!sorted.length && !adding ? (
         <p className="muted">Абонов пока нет — добавьте вручную или загрузите список из Excel.</p>
       ) : (
-        <div className="sales-payments-import__table-wrap">
-          <table className="sales-payments-import__table admin-desk-membership-ledger__table">
-            <thead>
-              <tr>
-                <th>Статус</th>
-                <th>Пакет</th>
-                <th>Начало</th>
-                <th>Конец</th>
-                <th>Цена ₽</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map((m) => {
-                const id = String(m.id)
-                const d = drafts[id] || rowDraftFromMembership(m)
-                const kind = deskMembershipLedgerKind(m, today, activeId)
-                return (
-                  <tr
-                    key={id}
-                    className={kind === 'active' ? 'admin-desk-membership-ledger__row--active' : undefined}
+        <div className="admin-desk-membership-ledger__list">
+          {sorted.map((m) => {
+            const id = String(m.id)
+            const d = drafts[id] || rowDraftFromMembership(m)
+            const kind = deskMembershipLedgerKind(m, today, activeId)
+            return (
+              <article
+                key={id}
+                className={`admin-desk-mem-card${kind === 'active' ? ' admin-desk-mem-card--active' : ''}`}
+              >
+                <div className="admin-desk-mem-card__head">
+                  <span className={`admin-desk-mem-card__kind admin-desk-mem-card__kind--${kind}`}>
+                    {deskMembershipLedgerKindLabel(kind)}
+                  </span>
+                </div>
+                {renderFields(d, (key, value) => setDraftField(id, key, value))}
+                <div className="admin-desk-mem-card__foot">
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    disabled={Boolean(busyId)}
+                    onClick={() => void saveRow(m)}
                   >
-                    <td>
-                      <span
-                        className={`admin-desk-membership-ledger__kind admin-desk-membership-ledger__kind--${kind}`}
-                      >
-                        {deskMembershipLedgerKindLabel(kind)}
-                      </span>
-                    </td>
-                    <td>{packageSelect(d.package_months, (v) => setDraftField(id, 'package_months', v))}</td>
-                    <td>
-                      <input
-                        type="date"
-                        value={d.start_date}
-                        onChange={(e) => setDraftField(id, 'start_date', e.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="date"
-                        value={d.end_date}
-                        onChange={(e) => setDraftField(id, 'end_date', e.target.value)}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        value={d.paid_amount}
-                        onChange={(e) => setDraftField(id, 'paid_amount', e.target.value)}
-                        placeholder="—"
-                      />
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className="btn btn-xs"
-                        disabled={Boolean(busyId)}
-                        onClick={() => void saveRow(m)}
-                      >
-                        <Save size={14} aria-hidden /> {busyId === id ? '…' : 'Сохранить'}
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-              {adding ? (
-                <tr>
-                  <td>
-                    <span className="muted">новый</span>
-                  </td>
-                  <td>{packageSelect(newRow.package_months, (v) => setNewField('package_months', v))}</td>
-                  <td>
-                    <input
-                      type="date"
-                      value={newRow.start_date}
-                      onChange={(e) => setNewField('start_date', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="date"
-                      value={newRow.end_date}
-                      onChange={(e) => setNewField('end_date', e.target.value)}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={newRow.paid_amount}
-                      onChange={(e) => setNewField('paid_amount', e.target.value)}
-                      placeholder="0"
-                    />
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      className="btn btn-xs btn-primary"
-                      disabled={Boolean(busyId)}
-                      onClick={() => void addRow()}
-                    >
-                      {busyId === 'new' ? '…' : 'Добавить'}
-                    </button>
-                  </td>
-                </tr>
-              ) : null}
-            </tbody>
-          </table>
+                    <Save size={16} aria-hidden /> {busyId === id ? 'Сохраняю…' : 'Сохранить абон'}
+                  </button>
+                </div>
+              </article>
+            )
+          })}
+
+          {adding ? (
+            <article className="admin-desk-mem-card admin-desk-mem-card--active">
+              <div className="admin-desk-mem-card__head">
+                <span className="admin-desk-mem-card__kind">новый</span>
+              </div>
+              {renderFields(newRow, setNewField)}
+              <div className="admin-desk-mem-card__foot">
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  disabled={Boolean(busyId)}
+                  onClick={() => void addRow()}
+                >
+                  {busyId === 'new' ? 'Добавляю…' : 'Добавить'}
+                </button>
+                <button type="button" className="btn btn-ghost btn-sm" disabled={Boolean(busyId)} onClick={() => setAdding(false)}>
+                  Отмена
+                </button>
+              </div>
+            </article>
+          ) : null}
         </div>
       )}
-      {!adding ? (
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          style={{ marginTop: '0.75rem' }}
-          onClick={() => setAdding(true)}
-        >
-          <Plus size={16} aria-hidden /> Добавить абон
-        </button>
-      ) : (
-        <button type="button" className="btn btn-sm" style={{ marginTop: '0.75rem' }} onClick={() => setAdding(false)}>
-          Отмена
-        </button>
-      )}
+
+      <div className="admin-desk-membership-ledger__toolbar">
+        {!adding ? (
+          <button type="button" className="btn btn-secondary" onClick={() => setAdding(true)}>
+            <Plus size={18} aria-hidden /> Добавить абон
+          </button>
+        ) : null}
+      </div>
     </section>
   )
 }
