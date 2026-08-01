@@ -118,15 +118,18 @@ ok(
 )
 ok(planSkip.counts.create === 0, 'no create when client exists')
 
-const conflict = planDeskClosingImport({
+const dupCards = planDeskClosingImport({
   parsedRows: [parsed.rows.find((r) => r.cardNumber === '5678')],
   clients: [
     { id: 'a', card_number: '5678' },
     { id: 'b', card_number: '5678' },
   ],
 })
-ok(conflict.counts.conflict === 1, 'conflict')
-ok(conflict.actions[0].reason.includes('Два'), 'conflict reason ru')
+ok(dupCards.counts.conflict === 0, 'desk import resolves duplicate cards')
+ok(
+  dupCards.actions.some((a) => a.action === 'skip' || a.action === 'tag_hall'),
+  'duplicate cards → skip/tag not conflict',
+)
 
 const tzOnly = scopeClosingRowsToHall(parsed.rows, 'tz')
 const tagPlan = planDeskClosingImport({

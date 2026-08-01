@@ -43,6 +43,14 @@
   margin: 0 0 0.75rem;
 }
 
+.admin-desk-closing__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.75rem;
+}
+
 .admin-excel-map-card--tz {
   border-color: color-mix(in srgb, #5b8def 35%, transparent);
 }

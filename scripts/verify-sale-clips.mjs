@@ -56,6 +56,26 @@ const conflict = matchClientByCardThenPhone({
 })
 ok(conflict.status === 'conflict' && /Два/i.test(conflict.reason), 'conflict reason')
 
+const preferArch = matchClientByCardThenPhone({
+  clients: [
+    { id: 'old', card_number: '77', archived_at: '2026-01-01' },
+    { id: 'live', card_number: '77' },
+  ],
+  cardNumber: '77',
+  preferOperational: true,
+})
+ok(preferArch.status === 'one' && preferArch.client?.id === 'live', 'prefer non-archived')
+
+const deskResolve = matchClientByCardThenPhone({
+  clients: [
+    { id: 't1', card_number: '88', trainer_id: 'tr' },
+    { id: 'd1', card_number: '88', desk_hall: 'tz', trainer_id: null },
+  ],
+  cardNumber: '88',
+  deskImportResolve: true,
+})
+ok(deskResolve.status === 'one' && deskResolve.client?.id === 'd1', 'desk import prefers desk row')
+
 ok(isHoldingTrainerUser({ name: 'Не назначен' }), 'holding by name')
 ok(isHoldingTrainerUser({ is_system_placeholder: true, name: 'X' }), 'holding by flag')
 const holdIds = collectHoldingTrainerIds([

@@ -3,6 +3,39 @@
  * Без React / IDB.
  */
 
+import { isClientArchived } from '../clientArchive.js'
+
+/**
+ * Сузить кандидатов: без архива; для desk-импорта — один desk или один живой (не conflict).
+ * @param {object[]} matches
+ * @param {{ preferOperational?: boolean, deskImportResolve?: boolean }} [opts]
+ * @returns {object[]}
+ */
+export function narrowClientMatchCandidates(matches, opts = {}) {
+  let list = Array.isArray(matches) ? [...matches] : []
+  if (!list.length) return list
+
+  if (opts.preferOperational || opts.deskImportResolve) {
+    const ops = list.filter((c) => !isClientArchived(c))
+    if (ops.length > 0) list = ops
+    else if (opts.deskImportResolve) return []
+  }
+
+  if (opts.deskImportResolve && list.length > 1) {
+    const desk = list.filter((c) => {
+      const h = String(c?.desk_hall ?? '')
+        .trim()
+        .toLowerCase()
+      return h === 'tz' || h === 'az' || h === 'тз' || h === 'аз'
+    })
+    const pool = desk.length > 0 ? desk : list
+    pool.sort((a, b) => String(a?.id ?? '').localeCompare(String(b?.id ?? '')))
+    return [pool[0]]
+  }
+
+  return list
+}
+
 /**
  * @param {unknown} raw
  * @returns {string}
@@ -46,9 +79,10 @@ export function looksLikeSalesCardNumber(raw) {
 /**
  * @param {object[]} clients
  * @param {string} cardNumber
+ * @param {{ preferOperational?: boolean, deskImportResolve?: boolean }} [opts]
  * @returns {{ status: 'empty'|'none'|'one'|'conflict', client?: object, matches: object[], reason: string }}
  */
-export function matchClientsByCardNumber(clients, cardNumber) {
+export function matchClientsByCardNumber(clients, cardNumber, opts = {}) {
   const n = normalizeSalesCardNumber(cardNumber)
   if (!n) {
     return {
@@ -57,9 +91,8 @@ export function matchClientsByCardNumber(clients, cardNumber) {
       reason: 'Нет номера карты — укажите сегмент вручную или пропустите',
     }
   }
-  const matches = (clients ?? []).filter(
-    (c) => normalizeSalesCardNumber(c?.card_number) === n,
-  )
+  const raw = (clients ?? []).filter((c) => normalizeSalesCardNumber(c?.card_number) === n)
+  const matches = narrowClientMatchCandidates(raw, opts)
   if (matches.length === 1) {
     return { status: 'one', client: matches[0], matches, reason: `Найден по карте №${n}` }
   }
@@ -80,9 +113,10 @@ export function matchClientsByCardNumber(clients, cardNumber) {
 /**
  * @param {object[]} clients
  * @param {string} phone
+ * @param {{ preferOperational?: boolean, deskImportResolve?: boolean }} [opts]
  * @returns {{ status: 'empty'|'none'|'one'|'conflict', client?: object, matches: object[], reason: string }}
  */
-export function matchClientsByPhone(clients, phone) {
+export function matchClientsByPhone(clients, phone, opts = {}) {
   const n = normalizeSalesPhoneDigits(phone)
   if (!n || n.length < 10) {
     return {
@@ -91,10 +125,11 @@ export function matchClientsByPhone(clients, phone) {
       reason: 'Нет телефона для поиска — слабый match без карты',
     }
   }
-  const matches = (clients ?? []).filter((c) => {
+  const raw = (clients ?? []).filter((c) => {
     const p = normalizeSalesPhoneDigits(c?.phone)
     return p && p === n
   })
+  const matches = narrowClientMatchCandidates(raw, opts)
   if (matches.length === 1) {
     return { status: 'one', client: matches[0], matches, reason: `Найден по телефону …${n.slice(-4)}` }
   }
@@ -134,6 +169,10 @@ export function matchClientByCardThenPhone(input) {
   const clients = input?.clients ?? []
   const card = normalizeSalesCardNumber(input?.cardNumber)
   const phone = normalizeSalesPhoneDigits(input?.phone)
+  const matchOpts = {
+    preferOperational: Boolean(input?.preferOperational),
+    deskImportResolve: Boolean(input?.deskImportResolve),
+  }
 
   if (!card && !phone) {
     return {
@@ -146,7 +185,7 @@ export function matchClientByCardThenPhone(input) {
   }
 
   if (card) {
-    const byCard = matchClientsByCardNumber(clients, card)
+    const byCard = matchClientsByCardNumber(clients, card, matchOpts)
     if (byCard.status === 'one' || byCard.status === 'conflict') {
       return {
         ...byCard,
@@ -158,7 +197,7 @@ export function matchClientByCardThenPhone(input) {
   }
 
   if (phone) {
-    const byPhone = matchClientsByPhone(clients, phone)
+    const byPhone = matchClientsByPhone(clients, phone, matchOpts)
     if (byPhone.status === 'one') {
       const c = byPhone.client
       const existingCard = normalizeSalesCardNumber(c?.card_number)

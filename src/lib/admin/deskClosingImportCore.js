@@ -213,6 +213,8 @@ export function planDeskClosingImport(input) {
       clients: input.clients,
       cardNumber: row.cardNumber,
       phone: row.phone,
+      preferOperational: true,
+      deskImportResolve: true,
     })
     if (match.status === 'conflict') {
       conflict += 1

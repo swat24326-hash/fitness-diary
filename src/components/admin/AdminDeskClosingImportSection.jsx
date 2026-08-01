@@ -81,6 +81,14 @@ export function AdminDeskClosingImportSection({
     }
   }
 
+  const handleReset = () => {
+    setPlan(null)
+    setParseReasons([])
+    setFileName('')
+    setError('')
+    setResultMsg('')
+  }
+
   const handleApply = async () => {
     const createN = Number(plan?.counts?.create) || 0
     const tagN = Number(plan?.counts?.tagHall) || 0
@@ -214,18 +222,29 @@ export function AdminDeskClosingImportSection({
               </tbody>
             </table>
           </div>
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={
-              busy || (!(Number(plan.counts.create) > 0) && !(Number(plan.counts.tagHall) > 0))
-            }
-            onClick={() => void handleApply()}
-          >
-            Применить
-            {Number(plan.counts.create) > 0 ? ` · создать ${plan.counts.create}` : ''}
-            {Number(plan.counts.tagHall) > 0 ? ` · зал ${plan.counts.tagHall}` : ''}
-          </button>
+          <div className="admin-desk-closing__actions">
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={
+                busy || (!(Number(plan.counts.create) > 0) && !(Number(plan.counts.tagHall) > 0))
+              }
+              onClick={() => void handleApply()}
+            >
+              Применить
+              {Number(plan.counts.create) > 0 ? ` · создать ${plan.counts.create}` : ''}
+              {Number(plan.counts.tagHall) > 0 ? ` · зал ${plan.counts.tagHall}` : ''}
+            </button>
+            <button type="button" className="btn btn-ghost" disabled={busy} onClick={handleReset}>
+              Сбросить
+            </button>
+          </div>
+          {!(Number(plan.counts.create) > 0) && !(Number(plan.counts.tagHall) > 0) ? (
+            <p className="muted" style={{ marginTop: '0.5rem' }}>
+              Создавать нечего: все строки — пропуск или конфликт. В «Клиенты» ничего нового не
+              появится, пока есть строки «создать» или «зал» и вы нажмёте «Применить».
+            </p>
+          ) : null}
         </>
       ) : null}
     </section>
