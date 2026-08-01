@@ -91,6 +91,13 @@ export function aggregateCoachQuality(input) {
       ? holdingTrainerIds
       : new Set((holdingTrainerIds ?? []).map(String).filter(Boolean))
 
+  const isDeskClient = (c) => {
+    const h = String(c?.desk_hall ?? '')
+      .trim()
+      .toLowerCase()
+    return h === 'tz' || h === 'az' || h === 'тз' || h === 'аз'
+  }
+
   /** @type {Map<string, object[]>} */
   const memByClient = new Map()
   for (const m of input.memberships ?? []) {
@@ -138,7 +145,7 @@ export function aggregateCoachQuality(input) {
 
   // Тренеры с клиентами на клубе без тренировок в периоде — для оси bag
   for (const c of input.clients ?? []) {
-    if (c?.archived_at) continue
+    if (c?.archived_at || isDeskClient(c)) continue
     const tid = String(c.trainer_id ?? '')
     if (!tid || holdingSet.has(tid)) continue
     if (trainerFilter && tid !== trainerFilter) continue
@@ -167,6 +174,7 @@ export function aggregateCoachQuality(input) {
       (c) =>
         String(c?.trainer_id ?? '') === trainerId &&
         !c?.archived_at &&
+        !isDeskClient(c) &&
         !holdingSet.has(String(c?.trainer_id ?? '')),
     )
     const clientNameById = new Map(

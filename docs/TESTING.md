@@ -64,7 +64,8 @@
 | Desk-сид закрытий (карта + end_date + цена; UI `/admin/excel-lists`) | `verify-desk-closing-import.mjs` |
 | Desk ledger абонов (действующий / цена) | `verify-desk-membership-ledger.mjs` |
 | Вкладки Клиенты / ТЗ / АЗ (`desk_hall`) | `verify-desk-hall-clients.mjs` |
-| Миграция desk на linked Supabase | `npm run db:migrate:desk-hall -- --linked` |
+| Desk без тренера + вне KPI (operational filter) | `verify-sale-clips.mjs` (блок hall/desk) |
+| Миграция desk на linked Supabase | `npm run db:migrate:desk-hall -- --linked` затем `npm run db:migrate:desk-null-trainer -- --linked` |
 | Клип-карта: match / holding / checklist | `verify-sale-clips.mjs` |
 | Продажи: профили bundle shell/daily/month/full | `verify-sales-bundle-profile.mjs` |
 | Срок абонемента по умолчанию (+1 календарный месяц) | `verify-date-ru.mjs` |

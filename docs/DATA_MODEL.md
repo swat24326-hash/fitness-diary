@@ -10,7 +10,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | Store | keyPath | Заметки |
 |-------|---------|---------|
 | `meta` | key (string) | Флаги, служебное |
-| `clients` | `id` | индексы `club_id`, `trainer_id`; поля ПНК / архив; `desk_hall` (`tz`\|`az`\|null) для desk из Excel закрытий |
+| `clients` | `id` | индексы `club_id`, `trainer_id`; поля ПНК / архив; `desk_hall` (`tz`\|`az`\|null); `trainer_id` nullable только вместе с desk (`CHECK trainer OR desk_hall`) |
 | `memberships` | `id` | `client_id`, `club_id`; опционально `clip_id`; `paid_amount` (₽ покупки, desk ТЗ/АЗ) |
 | `trainings` | `id` | `draft` \| `completed`; `data` JSON формы (в т.ч. опционально `hr_session` — сводка пульса BLE, см. [TRAINING_HR.md](./TRAINING_HR.md)) |
 | `exercises` | `id` | Справочник |

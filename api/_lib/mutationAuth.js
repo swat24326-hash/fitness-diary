@@ -70,14 +70,27 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
     if (table_name === 'clients') {
       const id = remote_id || payload.id
       if (op === 'insert') {
-        if (String(payload.trainer_id) !== String(user.id)) {
+        if (!payload.trainer_id || String(payload.trainer_id) !== String(user.id)) {
           return { ok: false, error: 'Клиент должен быть закреплён за вами' }
+        }
+        if (payload.desk_hall === 'tz' || payload.desk_hall === 'az') {
+          return { ok: false, error: 'Desk ТЗ/АЗ может создавать только администратор' }
         }
         return { ok: true }
       }
       if (!(await canAccessClient(ctx, id))) return { ok: false, error: 'Нет доступа к клиенту' }
-      if (op === 'update' && payload.trainer_id != null && String(payload.trainer_id) !== String(user.id)) {
-        return { ok: false, error: 'Нельзя переназначить клиента другому тренеру' }
+      if (op === 'update') {
+        if (Object.prototype.hasOwnProperty.call(payload, 'trainer_id')) {
+          if (payload.trainer_id == null || String(payload.trainer_id) === '') {
+            return { ok: false, error: 'Нельзя снять тренера с клиента' }
+          }
+          if (String(payload.trainer_id) !== String(user.id)) {
+            return { ok: false, error: 'Нельзя переназначить клиента другому тренеру' }
+          }
+        }
+        if (payload.desk_hall === 'tz' || payload.desk_hall === 'az') {
+          return { ok: false, error: 'Desk ТЗ/АЗ может менять только администратор' }
+        }
       }
       return { ok: true }
     }

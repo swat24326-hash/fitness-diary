@@ -1,20 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 import { FileSpreadsheet } from 'lucide-react'
 import { listClientsByClubId, listMembershipsByClubId } from '../../lib/localDbClubQuery.js'
-import { listTrainerSummariesForAdmin, dispatchLocalDataChanged } from '../../lib/dataAccess.js'
-import {
-  HOLDING_TRAINER_DISPLAY_NAME,
-  isHoldingTrainerUser,
-  planDeskClosingImport,
-  scopeClosingRowsToHall,
-} from '../../lib/admin/deskClosingImportCore.js'
+import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
+import { planDeskClosingImport, scopeClosingRowsToHall } from '../../lib/admin/deskClosingImportCore.js'
 import { parseDeskClosingXlsxFile } from '../../lib/admin/deskClosingImportWorkbook.js'
 import { applyDeskClosingCreates } from '../../lib/admin/deskClosingApplyService.js'
 
 const HALL_LABEL = { tz: 'ТЗ', az: 'АЗ' }
 
 /**
- * Сид закрывающихся договоров → desk-карточки (только admin).
+ * Сид закрывающихся договоров → desk-карточки без тренера (только admin).
  * @param {{
  *   clubId: string,
  *   onDone?: () => void,
@@ -40,33 +35,6 @@ export function AdminDeskClosingImportSection({
   const [parseReasons, setParseReasons] = useState([])
   const [error, setError] = useState('')
   const [resultMsg, setResultMsg] = useState('')
-  const [trainers, setTrainers] = useState([])
-
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const list = await listTrainerSummariesForAdmin()
-        if (!cancelled) setTrainers(Array.isArray(list) ? list : [])
-      } catch {
-        if (!cancelled) setTrainers([])
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [clubId])
-
-  const holdingTrainers = useMemo(
-    () =>
-      (trainers ?? []).filter((t) => {
-        if (!isHoldingTrainerUser(t)) return false
-        const tidClub = String(t.club_id ?? '')
-        return !tidClub || tidClub === String(clubId)
-      }),
-    [trainers, clubId],
-  )
-  const holdingId = holdingTrainers[0]?.id ? String(holdingTrainers[0].id) : ''
 
   const handleFile = async (file) => {
     if (!file || !clubId) return
@@ -117,19 +85,12 @@ export function AdminDeskClosingImportSection({
     const createN = Number(plan?.counts?.create) || 0
     const tagN = Number(plan?.counts?.tagHall) || 0
     if (!createN && !tagN) return
-    if (!holdingId) {
-      setError(
-        `В клубе нет служебного тренера «${HOLDING_TRAINER_DISPLAY_NAME}». Структура → Организация → добавьте тренера с этим именем, затем повторите.`,
-      )
-      return
-    }
     setBusy(true)
     setError('')
     try {
       const res = await applyDeskClosingCreates({
         actions: plan.actions,
         clubId,
-        holdingTrainerId: holdingId,
         defaultHall: defaultHall === 'tz' || defaultHall === 'az' ? defaultHall : null,
       })
       if (!res.ok && !res.created && !res.tagged) {
@@ -179,17 +140,9 @@ export function AdminDeskClosingImportSection({
             {hallHint}
           </p>
         ) : null)}
-      {!holdingId ? (
-        <p className="sales-report__error">
-          Чтобы сохранить список, сначала создайте в <strong>Структура → Организация</strong> тренера с
-          именем «{HOLDING_TRAINER_DISPLAY_NAME}» (служебный, не живой тренер зала).
-        </p>
-      ) : (
-        <p className="muted admin-excel-map-card__ready">
-          Готово к сохранению: новые люди попадут к «{HOLDING_TRAINER_DISPLAY_NAME}», без назначения
-          живого тренера.
-        </p>
-      )}
+      <p className="muted admin-excel-map-card__ready">
+        Новые карточки без тренера — только вкладки ТЗ / АЗ в «Клиентах».
+      </p>
       <label className="sales-payments-import__file">
         <FileSpreadsheet size={18} aria-hidden />
         <span>{busy ? 'Читаю файл…' : fileName || pickLabel}</span>
@@ -265,9 +218,7 @@ export function AdminDeskClosingImportSection({
             type="button"
             className="btn btn-primary"
             disabled={
-              busy ||
-              !holdingId ||
-              (!(Number(plan.counts.create) > 0) && !(Number(plan.counts.tagHall) > 0))
+              busy || (!(Number(plan.counts.create) > 0) && !(Number(plan.counts.tagHall) > 0))
             }
             onClick={() => void handleApply()}
           >

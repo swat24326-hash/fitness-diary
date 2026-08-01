@@ -3,14 +3,12 @@ import { Link } from 'react-router-dom'
 import { Save } from 'lucide-react'
 import { saveLocalWithSync } from '../../lib/syncService.js'
 import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
-import { HOLDING_TRAINER_DISPLAY_NAME } from '../../lib/admin/deskClosingImportCore.js'
 import { normalizeDeskHall } from '../../lib/admin/deskHallClientsCore.js'
 import { formatClientName } from '../../lib/clientNameFormat.js'
 import { AdminDeskMembershipLedger } from './AdminDeskMembershipLedger.jsx'
 
 /**
- * Desk-карточка ТЗ/АЗ (holding «Не назначен»): контакты + учёт абонов (тип, цена, действующий).
- * Реального тренера не назначаем.
+ * Desk-карточка ТЗ/АЗ без тренера: контакты + учёт абонов (тип, цена, действующий).
  *
  * @param {{
  *   client: object,
@@ -68,7 +66,7 @@ export function AdminDeskClientCardSection({
         name,
         phone: String(form.phone ?? '').trim() || null,
         card_number: String(form.card_number ?? '').trim() || null,
-        trainer_id: client.trainer_id,
+        trainer_id: null,
         desk_hall: hall,
         updated_at: new Date().toISOString(),
       }
@@ -91,8 +89,7 @@ export function AdminDeskClientCardSection({
       <p className="muted" style={{ marginBottom: '0.75rem' }}>
         <Link to={listHref}>← К списку</Link>
         {' · '}
-        Клиент desk без персонального тренера (технически «{HOLDING_TRAINER_DISPLAY_NAME}»).
-        Зал ТЗ/АЗ нужен для вкладки в списке клиентов. Ниже — учёт абонементов.
+        Клиент desk без тренера. Зал ТЗ/АЗ нужен для вкладки в списке. Ниже — учёт абонементов.
       </p>
       <h2 style={{ marginTop: 0 }}>{form.name || 'Клиент'}</h2>
       <form className="admin-desk-client-card__form" onSubmit={(e) => void save(e)}>
@@ -122,7 +119,7 @@ export function AdminDeskClientCardSection({
         </label>
         <label>
           Тренер
-          <input type="text" value={HOLDING_TRAINER_DISPLAY_NAME} readOnly disabled title="У клиентов ТЗ/АЗ тренера нет" />
+          <input type="text" value="Нет" readOnly disabled title="У клиентов ТЗ/АЗ тренера нет" />
         </label>
         {error ? <p className="sales-report__error">{error}</p> : null}
         <div className="admin-desk-client-card__actions">

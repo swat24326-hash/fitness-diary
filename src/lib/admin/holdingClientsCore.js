@@ -1,10 +1,11 @@
 /**
- * Holding «Не назначен» — вне операционных KPI / внимания / «Не активные».
+ * Holding «Не назначен» (легаси) + desk ТЗ/АЗ без тренера — вне операционных KPI.
  * Без React / IDB.
  */
 
 import { isClientArchived } from '../clientArchive.js'
 import { HOLDING_TRAINER_DISPLAY_NAME, isHoldingTrainerUser } from './deskClosingImportCore.js'
+import { clientDeskHall } from './deskHallClientsCore.js'
 
 /**
  * @param {Iterable<object>|null|undefined} trainers
@@ -22,6 +23,14 @@ export function collectHoldingTrainerIds(trainers) {
 }
 
 /**
+ * Desk ТЗ/АЗ (по hall), тренер не нужен.
+ * @param {object|null|undefined} client
+ */
+export function isDeskHallClient(client) {
+  return clientDeskHall(client) != null
+}
+
+/**
  * @param {object|null|undefined} client
  * @param {Set<string>|string[]|null|undefined} holdingTrainerIds
  */
@@ -35,19 +44,26 @@ export function isClientOnHoldingTrainer(client, holdingTrainerIds) {
 }
 
 /**
- * Оперативные клиенты зала: не архив и не на holding-тренере.
+ * Не операционный клиент зала: архив, desk ТЗ/АЗ или holding (легаси).
+ * @param {object|null|undefined} client
+ * @param {Set<string>|string[]|null|undefined} [holdingTrainerIds]
+ */
+export function isNonOperationalClient(client, holdingTrainerIds) {
+  if (!client) return true
+  if (isClientArchived(client)) return true
+  if (isDeskHallClient(client)) return true
+  if (isClientOnHoldingTrainer(client, holdingTrainerIds)) return true
+  return false
+}
+
+/**
+ * Оперативные клиенты зала: не архив, не desk ТЗ/АЗ, не holding.
+ * desk_hall исключается всегда (даже без списка holding).
  * @param {object[]} clientRows
  * @param {Set<string>|string[]|null|undefined} [holdingTrainerIds]
  */
 export function filterHallOperationalClients(clientRows, holdingTrainerIds) {
-  const hasHolding =
-    (holdingTrainerIds instanceof Set && holdingTrainerIds.size > 0) ||
-    (Array.isArray(holdingTrainerIds) && holdingTrainerIds.length > 0)
-  return (clientRows ?? []).filter((c) => {
-    if (isClientArchived(c)) return false
-    if (hasHolding && isClientOnHoldingTrainer(c, holdingTrainerIds)) return false
-    return true
-  })
+  return (clientRows ?? []).filter((c) => !isNonOperationalClient(c, holdingTrainerIds))
 }
 
 export { HOLDING_TRAINER_DISPLAY_NAME, isHoldingTrainerUser }

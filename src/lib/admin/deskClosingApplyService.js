@@ -1,10 +1,10 @@
 /**
  * Применение плана desk-сида (create + проставление desk_hall).
+ * Desk-клиент: trainer_id = null, зал в desk_hall.
  */
 
 import { getLocalClient } from '../dataAccess.js'
 import { saveLocalWithSync } from '../syncService.js'
-import { HOLDING_TRAINER_DISPLAY_NAME } from './deskClosingImportCore.js'
 
 /**
  * @param {string} endIso
@@ -26,20 +26,15 @@ export function resolveDeskMembershipDates(endIso, startIso) {
  * @param {{
  *   actions: Array<{ action: string, cardNumber: string, name: string, phone?: string, endDate?: string|null, startDate?: string|null, typeName?: string, paidAmount?: number|null, hall?: string|null, clientId?: string|null }>,
  *   clubId: string,
- *   holdingTrainerId: string,
  *   membershipTypeId?: string|null,
  *   defaultHall?: 'tz'|'az'|null,
  * }} input
  */
 export async function applyDeskClosingCreates(input) {
   const clubId = String(input.clubId ?? '')
-  const holdingTrainerId = String(input.holdingTrainerId ?? '')
   const defaultHall =
     input.defaultHall === 'tz' || input.defaultHall === 'az' ? input.defaultHall : null
   if (!clubId) return { ok: false, error: 'Нет клуба' }
-  if (!holdingTrainerId) {
-    return { ok: false, error: `Укажите тренера «${HOLDING_TRAINER_DISPLAY_NAME}»` }
-  }
 
   let created = 0
   let tagged = 0
@@ -64,6 +59,7 @@ export async function applyDeskClosingCreates(input) {
           {
             ...prev,
             desk_hall: hall,
+            trainer_id: null,
             updated_at: new Date().toISOString(),
           },
           {
@@ -98,7 +94,7 @@ export async function applyDeskClosingCreates(input) {
       phone: a.phone ? String(a.phone).trim() : null,
       card_number: String(a.cardNumber),
       club_id: clubId,
-      trainer_id: holdingTrainerId,
+      trainer_id: null,
       lifecycle: 'active',
       desk_hall: hall,
       created_at: now,

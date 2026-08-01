@@ -3,6 +3,7 @@ import { aggregateMembershipTypeStats } from '../admin/membershipTypeStatsAgg'
 import { listMembershipTypesForClub } from '../membershipTypesService'
 import { buildCoachQualityForScope } from '../admin/coachQualityService.js'
 import { previousEqualPeriod } from '../admin/coachQualityBriefCore.js'
+import { filterHallOperationalClients } from '../admin/holdingClientsCore.js'
 
 function trainingsInRange(trainings, dateFrom, dateTo) {
   return (trainings ?? []).filter((t) => {
@@ -51,6 +52,8 @@ export async function buildScopePeriodStats(input) {
   const memberships = membershipsIn ?? flattenMemberships(memByClient)
   const inRange = trainingsInRange(trainings, dateFrom, dateTo)
   const membershipTypes = typesIn ?? (clubId ? await listMembershipTypesForClub(clubId) : [])
+  // desk ТЗ/АЗ и holding — вне операционной сводки (даже без списка holding ids)
+  const operationalClients = filterHallOperationalClients(clients)
 
   let coachQuality = null
   if (includeCoachQuality) {
@@ -58,7 +61,7 @@ export async function buildScopePeriodStats(input) {
       const prev = previousEqualPeriod(dateFrom, dateTo)
       const previousTrainings = prev ? trainingsInRange(trainings, prev.dateFrom, prev.dateTo) : []
       coachQuality = await buildCoachQualityForScope({
-        clients,
+        clients: operationalClients,
         trainings: inRange,
         memberships,
         clubId,
@@ -75,7 +78,7 @@ export async function buildScopePeriodStats(input) {
 
   return {
     ...aggregateTrainings(inRange),
-    ...aggregateClubClientPeriod(clients, memberships, dateFrom, dateTo),
+    ...aggregateClubClientPeriod(operationalClients, memberships, dateFrom, dateTo),
     ...aggregateMembershipTypeStats({
       trainings: inRange,
       memberships,

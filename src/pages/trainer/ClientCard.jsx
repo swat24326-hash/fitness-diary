@@ -6,7 +6,7 @@ import { ClientOverview } from './ClientOverview'
 import { ClientNutritionPage } from './ClientNutritionPage'
 import { ClientHomeworkPage } from './ClientHomeworkPage'
 import { Statistics } from './Statistics'
-import { getHealthCard, getLocalClient, hydrateAdminClientWorkspace, listMemberships, listTrainingsForClient, listTrainerSummariesForAdmin } from '../../lib/dataAccess'
+import { getHealthCard, getLocalClient, hydrateAdminClientWorkspace, listMemberships, listTrainingsForClient } from '../../lib/dataAccess'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { hasUsableMembershipOnDate } from '../../lib/membershipRules'
 import { saveLocalWithSync } from '../../lib/syncService'
@@ -32,7 +32,7 @@ import {
   resolveClientGreetingName,
 } from '../../lib/trainer/trainerClientOutreachCore.js'
 import { AdminDeskClientCardSection } from '../../components/admin/AdminDeskClientCardSection.jsx'
-import { isHoldingTrainerUser } from '../../lib/admin/deskClosingImportCore.js'
+import { isDeskHallClient } from '../../lib/admin/holdingClientsCore.js'
 
 export function ClientCard() {
   const { id } = useParams()
@@ -72,30 +72,8 @@ export function ClientCard() {
   const [archiveBusy, setArchiveBusy] = useState(false)
   const [taskModalOpen, setTaskModalOpen] = useState(false)
   const [outreachLogs, setOutreachLogs] = useState([])
-  const [holdingTrainerIds, setHoldingTrainerIds] = useState(() => new Set())
 
-  useEffect(() => {
-    if (!isAdmin) return
-    let cancelled = false
-    ;(async () => {
-      try {
-        const list = await listTrainerSummariesForAdmin()
-        const ids = new Set(
-          (list ?? []).filter((t) => isHoldingTrainerUser(t)).map((t) => String(t.id)),
-        )
-        if (!cancelled) setHoldingTrainerIds(ids)
-      } catch {
-        if (!cancelled) setHoldingTrainerIds(new Set())
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [isAdmin])
-
-  const isDeskHoldingClient = Boolean(
-    isAdmin && client?.trainer_id && holdingTrainerIds.has(String(client.trainer_id)),
-  )
+  const isDeskHoldingClient = Boolean(isAdmin && isDeskHallClient(client))
 
   const syncPnkTab = useCallback(
     (c, ctx) => {

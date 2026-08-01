@@ -26,7 +26,7 @@ export function AdminExcelListsMaps({ clubId, onClosingDone }) {
           <ol className="admin-excel-map-card__steps">
             <li>Возьмите из 1С файл закрытий — один на оба зала (ТЗ и АЗ вместе).</li>
             <li>Загрузите его сюда. Программа сама поставит зал по колонке «Тип карты».</li>
-            <li>Проверьте таблицу ниже и нажмите «Применить».</li>
+            <li>Проверьте таблицу ниже и нажмите «Применить» — тренер не нужен.</li>
             <li>
               Смотрите результат: <strong>Клиенты</strong> → вкладки <strong>ТЗ</strong> и{' '}
               <strong>АЗ</strong>.

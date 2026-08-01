@@ -3,7 +3,7 @@
  * Изолирован от контура продаж (матрица менеджера).
  */
 
-import { filterOperationalClients } from '../clientArchive.js'
+import { filterHallOperationalClients } from './holdingClientsCore.js'
 import { aggregateClubClientPeriod } from './clubClientPeriodAgg.js'
 import {
   MEMBERSHIP_TYPE_UNLABELED,
@@ -104,7 +104,7 @@ export function buildGeminiTrainerContour(opts) {
   const dateTo = String(opts.dateTo ?? '').slice(0, 10)
   const year = Number(opts.year)
   const membershipById = buildMembershipById(opts.memberships)
-  const operationalClients = filterOperationalClients(opts.clients ?? [])
+  const operationalClients = filterHallOperationalClients(opts.clients ?? [], opts.holdingTrainerIds)
   const selectedTrainerId = String(opts.selectedTrainerId ?? '').trim() || null
 
   /** @type {Array<Record<string, unknown>>} */

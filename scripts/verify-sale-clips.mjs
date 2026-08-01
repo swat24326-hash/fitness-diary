@@ -67,6 +67,17 @@ ok(isClientOnHoldingTrainer(clients[1], holdIds), 'client on holding')
 const hall = filterHallOperationalClients(clients, holdIds)
 ok(hall.length === 1 && hall[0].id === 'c1', 'exclude holding from hall ops')
 
+const withDesk = [
+  ...clients,
+  { id: 'desk1', card_number: '9', name: 'Desk', trainer_id: null, desk_hall: 'tz' },
+]
+const hallDesk = filterHallOperationalClients(withDesk, holdIds)
+ok(hallDesk.length === 1 && hallDesk[0].id === 'c1', 'exclude desk null trainer from hall ops')
+ok(
+  filterHallOperationalClients([{ id: 'd', desk_hall: 'az', trainer_id: null }]).length === 0,
+  'desk excluded without holding ids',
+)
+
 const bad = validateSaleClipDraft({ club_id: 'club', client_name: '', trainer_id: 't1', card_number: '1' })
 ok(!bad.ok && /ФИО/i.test(bad.reason), 'draft requires name')
 

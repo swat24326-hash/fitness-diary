@@ -47,7 +47,7 @@ CREATE TABLE clients (
   card_number TEXT,
   outreach_name TEXT,
   max_chat_url TEXT,
-  trainer_id UUID NOT NULL REFERENCES users (id),
+  trainer_id UUID REFERENCES users (id),
   club_id UUID NOT NULL REFERENCES clubs (id),
   archived_at TIMESTAMPTZ,
   lifecycle TEXT NOT NULL DEFAULT 'active' CHECK (lifecycle IN ('active', 'pnk', 'pnk_lost')),
@@ -66,7 +66,11 @@ CREATE TABLE clients (
   pnk_lost_reason TEXT,
   pnk_created_at TIMESTAMPTZ,
   desk_hall TEXT CHECK (desk_hall IS NULL OR desk_hall IN ('tz', 'az')),
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT clients_trainer_or_desk_hall_chk CHECK (
+    trainer_id IS NOT NULL
+    OR desk_hall IN ('tz', 'az')
+  )
 );
 
 CREATE INDEX IF NOT EXISTS idx_clients_trainer_id ON clients (trainer_id);
