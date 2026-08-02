@@ -5,6 +5,7 @@ import {
   deskMembershipLedgerKind,
   deskMembershipLedgerKindLabel,
   deskMembershipSignal,
+  deskAzDirectionLabel,
   deskPackageEndIso,
   deskPackageStartIso,
   formatDeskPackageMonthsLabel,
@@ -50,6 +51,9 @@ ok(inferDeskPackageMonths('2026-02-19', '2026-08-18') === 6, 'infer 6 months')
 ok(formatDeskPackageMonthsLabel(1) === '1 месяц', 'label 1 month')
 ok(formatDeskPackageMonthsLabel(3) === '3 месяца', 'label 3 months')
 ok(formatDeskPackageMonthsLabel(6) === '6 месяцев', 'label 6 months')
+ok(deskAzDirectionLabel(null, [{ id: 't1', name: 'Бокс' }]) === '—', 'az direction empty')
+ok(deskAzDirectionLabel('t1', [{ id: 't1', name: 'Бокс' }]) === 'Бокс', 'az direction box')
+ok(deskAzDirectionLabel('t2', [{ id: 't2', name: 'Техника дня' }]) === 'Техника дня', 'az direction tech day')
 
 const sig = deskMembershipSignal(
   [{ id: 'm', start_date: '2026-07-21', end_date: '2026-08-20', total_trainings: 0 }],

@@ -15,9 +15,13 @@ import { todayLocalIso } from '../../lib/dateRu'
 import { listMembershipTypesForClub } from '../../lib/membershipTypesService'
 import { loadTrainerWorkspaceSnapshot } from '../../lib/trainerWorkspaceCache'
 import { pullTrainerWorkspaceFromCloud } from '../../lib/trainerPullService'
-import { isAppOnline } from '../../lib/syncService'
 import { useDebouncedStorageReload, shouldReloadTrainerClientList } from '../../lib/useDebouncedStorageReload'
-import { flushSyncQueue, saveLocalWithSync } from '../../lib/syncService'
+import {
+  criticalWriteCloudWarning,
+  flushCriticalWritesToCloud,
+  isAppOnline,
+  saveLocalWithSync,
+} from '../../lib/syncService'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { formatClientName } from '../../lib/clientNameFormat'
 import {
@@ -320,9 +324,10 @@ export function TrainerClients() {
         table_name: 'clients',
         operation: 'update',
         remote_id: row.id,
-        data: row,
       })
-      await flushSyncQueue()
+      const flush = await flushCriticalWritesToCloud()
+      const warn = criticalWriteCloudWarning(flush, archived ? 'Архив' : 'Возврат из архива')
+      if (warn) alert(warn)
       await reload({ silent: true })
     } catch (err) {
       alert(err?.message ?? 'Не удалось обновить архив')
@@ -361,9 +366,10 @@ export function TrainerClients() {
         table_name: 'clients',
         operation: 'insert',
         remote_id: id,
-        data: row,
       })
-      await flushSyncQueue()
+      const flush = await flushCriticalWritesToCloud()
+      const warn = criticalWriteCloudWarning(flush, 'Новый клиент')
+      if (warn) alert(warn)
       setShowNewClient(false)
       setNewClientForm({
         name: '',
@@ -388,6 +394,9 @@ export function TrainerClients() {
     setBusy(true)
     try {
       await deleteClientAndAllData(confirmDelete.id)
+      const flush = await flushCriticalWritesToCloud()
+      const warn = criticalWriteCloudWarning(flush, 'Удаление')
+      if (warn) alert(warn)
       setConfirmDelete(null)
       await reload()
     } catch (err) {

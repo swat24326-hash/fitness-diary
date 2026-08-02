@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Plus, Save } from 'lucide-react'
-import { saveLocalWithSync } from '../../lib/syncService.js'
+import {
+  criticalWriteCloudWarning,
+  flushCriticalWritesToCloud,
+  saveLocalWithSync,
+} from '../../lib/syncService.js'
 import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
 import { todayLocalIso } from '../../lib/dateRu.js'
+import { normalizeDeskHall } from '../../lib/admin/deskHallClientsCore.js'
+import { listMembershipTypesForClub } from '../../lib/membershipTypesService.js'
 import {
   DESK_PACKAGE_MONTH_OPTIONS,
   deskMembershipLedgerKind,
@@ -25,6 +31,7 @@ function rowDraftFromMembership(m) {
     start_date: start,
     end_date: end,
     paid_amount: m?.paid_amount != null && m.paid_amount !== '' ? String(m.paid_amount) : '',
+    membership_type_id: m?.membership_type_id ? String(m.membership_type_id) : '',
   }
 }
 
@@ -46,13 +53,17 @@ function PackageSelect({ value, onChange }) {
 
 /**
  * История абонов desk ТЗ/АЗ — карточки в стиле Оси.
+ * Для АЗ — ещё направление (Бокс / Техника дня… из типов абон. АЗ).
  */
 export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '', onChanged }) {
   const today = todayLocalIso()
+  const hall = normalizeDeskHall(client?.desk_hall)
+  const showAzDirection = hall === 'az'
   const active = useMemo(() => pickDeskActiveMembership(memberships, today), [memberships, today])
   const activeId = active?.id ? String(active.id) : null
   const sorted = useMemo(() => sortDeskMembershipLedger(memberships), [memberships])
 
+  const [azTypes, setAzTypes] = useState([])
   const [drafts, setDrafts] = useState(() => ({}))
   const [busyId, setBusyId] = useState('')
   const [error, setError] = useState('')
@@ -62,7 +73,26 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
     start_date: today,
     end_date: deskPackageEndIso(today, 1),
     paid_amount: '',
+    membership_type_id: '',
   })
+
+  useEffect(() => {
+    let alive = true
+    if (!showAzDirection || !clubId) {
+      setAzTypes([])
+      return undefined
+    }
+    void listMembershipTypesForClub(clubId, { aerobicOnly: true, activeOnly: true })
+      .then((list) => {
+        if (alive) setAzTypes(Array.isArray(list) ? list : [])
+      })
+      .catch(() => {
+        if (alive) setAzTypes([])
+      })
+    return () => {
+      alive = false
+    }
+  }, [showAzDirection, clubId])
 
   useEffect(() => {
     const next = {}
@@ -111,6 +141,12 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
     })
   }
 
+  const resolveTypeId = (draftTypeId) => {
+    if (!showAzDirection) return null
+    const id = String(draftTypeId ?? '').trim()
+    return id || null
+  }
+
   const saveRow = async (m) => {
     const id = String(m.id)
     const d = drafts[id] || rowDraftFromMembership(m)
@@ -132,7 +168,7 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
     try {
       const row = {
         ...m,
-        membership_type_id: null,
+        membership_type_id: resolveTypeId(d.membership_type_id),
         start_date: d.start_date,
         end_date: d.end_date,
         paid_amount: paid,
@@ -142,6 +178,9 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
         operation: 'update',
         remote_id: id,
       })
+      const flush = await flushCriticalWritesToCloud()
+      const warn = criticalWriteCloudWarning(flush, 'Абонемент')
+      if (warn) setError(warn)
       dispatchLocalDataChanged({ reason: 'desk-membership-ledger' })
       onChanged?.()
     } catch (e) {
@@ -174,7 +213,7 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
         id: crypto.randomUUID(),
         client_id: client.id,
         club_id: String(clubId || client.club_id || ''),
-        membership_type_id: null,
+        membership_type_id: resolveTypeId(newRow.membership_type_id),
         start_date: newRow.start_date,
         end_date: newRow.end_date,
         paid_amount: paid,
@@ -187,12 +226,16 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
         operation: 'insert',
         remote_id: null,
       })
+      const flush = await flushCriticalWritesToCloud()
+      const warn = criticalWriteCloudWarning(flush, 'Абонемент')
+      if (warn) setError(warn)
       setAdding(false)
       setNewRow({
         package_months: '1',
         start_date: today,
         end_date: deskPackageEndIso(today, 1),
         paid_amount: '',
+        membership_type_id: '',
       })
       dispatchLocalDataChanged({ reason: 'desk-membership-ledger' })
       onChanged?.()
@@ -205,6 +248,23 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
 
   const renderFields = (d, onField) => (
     <div className="admin-desk-mem-card__fields">
+      {showAzDirection ? (
+        <label>
+          Направление
+          <select
+            value={d.membership_type_id || ''}
+            onChange={(e) => onField('membership_type_id', e.target.value)}
+            aria-label="Направление АЗ"
+          >
+            <option value="">—</option>
+            {azTypes.map((t) => (
+              <option key={t.id} value={String(t.id)}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
       <label>
         Пакет
         <PackageSelect value={d.package_months} onChange={(v) => onField('package_months', v)} />
@@ -234,9 +294,16 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
     <section className="admin-desk-membership-ledger" aria-label="Абонементы для учёта">
       <h3 className="admin-section-title">Абонементы</h3>
       <p className="admin-desk-membership-ledger__hint">
-        Пакет — срок из прайса ТЗ/АЗ (1 месяц, 2…). «Действующий» — по датам на сегодня, не по лимиту
-        тренировок.
+        Пакет — срок из прайса (1 месяц, 2…). «Действующий» — по датам на сегодня.
+        {showAzDirection
+          ? ' Направление (Бокс, Техника дня…) — из Структура → Типы абон. → АЗ.'
+          : null}
       </p>
+      {showAzDirection && !azTypes.length ? (
+        <p className="muted admin-desk-membership-ledger__hint">
+          Типов АЗ пока нет — добавьте «Бокс», «Техника дня» и др. в Структура → Типы абон.
+        </p>
+      ) : null}
       {error ? <p className="sales-report__error">{error}</p> : null}
 
       {!sorted.length && !adding ? (

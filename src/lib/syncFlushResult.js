@@ -181,3 +181,20 @@ export function describeFlushQueueResult(flush) {
   }
   return { part: flush.reason ? `очередь: ${flush.reason}` : null, hadError: true }
 }
+
+/**
+ * Сообщение после важного действия (архив, удаление), если облако не приняло очередь.
+ * null = всё ушло, отдельный alert не нужен.
+ * @param {{ ok?: boolean, reason?: string, remaining?: number } | null | undefined} flush
+ * @param {string} actionLabel — «Архив», «Удаление»…
+ */
+export function criticalWriteCloudWarning(flush, actionLabel) {
+  const label = String(actionLabel || 'Изменение').trim() || 'Изменение'
+  const d = describeFlushQueueResult(flush)
+  if (flush?.ok && !d.hadError) return null
+  if (d.offline || flush?.reason === 'offline_or_stub') {
+    return `${label} сохранено на этом устройстве. Нет сети — нажмите Sync, когда появится интернет.`
+  }
+  const detail = d.part || d.message || flush?.reason || 'неизвестно'
+  return `${label} на устройстве есть, но в облако не ушло. Нажмите Sync.\n\n${detail}`
+}

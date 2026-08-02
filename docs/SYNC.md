@@ -83,3 +83,13 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 - Изменения sync/offline → `npm run qa:local` или целевой `scripts/verify-sync*.mjs`.
 - Новые типы АЗ у менеджера → `scripts/verify-sales-membership-types-access.mjs`.
 - Не использовать `navigate(0)` после Sync — событие обновления данных.
+
+---
+
+## ⏸ Backlog — админ без обязательного Sync (online-first)
+
+**Статус:** отложено; тренерский офлайн/очередь **не трогаем**.
+
+Админ (и по возможности менеджер) за ПК с сетью: запись сразу через `/api/admin-data?action=…` (auth на сервере), без обязательного ритуала Sync; кнопка Sync у админа → скорее «Обновить данные». MVP при старте: desk-импорт + абоны на карточке, затем правки клиентов; не смешивать с `saveLocalWithSync` на одном экране. Образец уже есть: создание `sale_clips` через API.
+
+**Сейчас (временный UX):** после архива / возврата / удаления / смены тренера / нового клиента вызывается `flushCriticalWritesToCloud` — очередь дожимается без кнопки Sync; если не ушло — alert с просьбой нажать Sync.

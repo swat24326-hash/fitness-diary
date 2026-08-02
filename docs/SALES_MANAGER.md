@@ -79,6 +79,7 @@
 
 - UI: **Админ → Списки из Excel**. Результат: **Клиенты** → вкладки **ТЗ** / **АЗ**; с живым тренером — вкладка **Клиенты**.
 - После сида: `desk_hall` = tz|az, без тренера; карточка **упрощённая** + блок **«Абонементы»**. KPI / «неактивные» desk не считают.
+- **АЗ — направление:** на вкладке АЗ колонка «Направление» (Бокс, Техника дня…); задаётся на карточке в абонементе через типы АЗ (`Структура → Типы абон.` → АЗ → `membership_type_id`).
 - Старые без зала: выбрать ТЗ/АЗ на карточке **или** снова загрузить Excel → действие «зал» (и `trainer_id` обнулится).
 - Миграции: `npm run db:migrate:desk-hall -- --linked`, затем `npm run db:migrate:desk-null-trainer -- --linked`.
 - Core: `deskClosingImportCore.js` / `deskClosingApplyService.js` / `holdingClientsCore.js` / `deskHallClientsCore.js`

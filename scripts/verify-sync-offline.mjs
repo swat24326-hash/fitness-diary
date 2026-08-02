@@ -3,6 +3,7 @@
  * node scripts/verify-sync-offline.mjs
  */
 import {
+  criticalWriteCloudWarning,
   describeFlushQueueResult,
   isDuplicateInsertError,
   isSyncQueueOrphanForCloudClients,
@@ -108,6 +109,11 @@ assert(!isDuplicateInsertError(null), 'null not duplicate')
 {
   const tBg = describeFlushQueueResult({ ok: false, reason: 'timeout', remaining: 5, stillRunning: true })
   assert(tBg.hadError && tBg.part.includes('продолжается'), 'timeout still running hint')
+}
+{
+  assert(criticalWriteCloudWarning({ ok: true }, 'Архив') == null, 'critical flush ok → no warning')
+  const offlineWarn = criticalWriteCloudWarning({ ok: false, reason: 'offline_or_stub' }, 'Удаление')
+  assert(offlineWarn?.includes('Sync') && offlineWarn.includes('Удаление'), 'critical flush offline warns Sync')
 }
 
 /* --- orphan purge (офлайн insert не трогаем) --- */

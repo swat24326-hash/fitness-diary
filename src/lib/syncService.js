@@ -26,7 +26,7 @@ import { invalidateAdminClubWorkspaceCache } from './admin/adminClubWorkspaceCac
 import { isDuplicateInsertError } from './syncFlushResult'
 import { reportQueueFlushProgress, setQueueFlushProgressReporter } from './syncProgress'
 
-export { isDuplicateInsertError, describeFlushQueueResult } from './syncFlushResult'
+export { isDuplicateInsertError, describeFlushQueueResult, criticalWriteCloudWarning } from './syncFlushResult'
 
 const TRAINER_CACHE_STORES = new Set(['clients', 'memberships', 'trainings', 'health_cards', 'body_measurements', 'client_weight_entries'])
 
@@ -330,6 +330,17 @@ async function reportFlushOutcomeToJournal(result, opts) {
     queueCount: left,
     hadError: queueFailed || (result?.ok === false && left === 0),
   })
+}
+
+/**
+ * После архива / удаления / смены тренера: дожать очередь в облако без кнопки Sync.
+ * Вызов flushSyncQueue() без force почти ничего не шлёт — здесь всегда force + waitUntilDone.
+ */
+export async function flushCriticalWritesToCloud() {
+  if (!isAppOnline() || !isSupabaseConfigured()) {
+    return { ok: false, reason: 'offline_or_stub' }
+  }
+  return flushSyncQueue({ force: true, waitUntilDone: true })
 }
 
 export async function flushSyncQueue(opts = {}) {

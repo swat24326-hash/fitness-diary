@@ -9,7 +9,11 @@ import { Statistics } from './Statistics'
 import { getHealthCard, getLocalClient, hydrateAdminClientWorkspace, listMemberships, listTrainingsForClient } from '../../lib/dataAccess'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { hasUsableMembershipOnDate } from '../../lib/membershipRules'
-import { saveLocalWithSync } from '../../lib/syncService'
+import {
+  criticalWriteCloudWarning,
+  flushCriticalWritesToCloud,
+  saveLocalWithSync,
+} from '../../lib/syncService'
 import { useAuth } from '../../context/AuthContext'
 import { useDebouncedStorageReload, shouldReloadTrainerClientStats } from '../../lib/useDebouncedStorageReload'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
@@ -214,6 +218,9 @@ export function ClientCard() {
     try {
       const row = { ...client, archived_at: null }
       await saveLocalWithSync('clients', row, { table_name: 'clients', operation: 'update', remote_id: client.id })
+      const flush = await flushCriticalWritesToCloud()
+      const warn = criticalWriteCloudWarning(flush, 'Возврат из архива')
+      if (warn) alert(warn)
       await reloadLocal()
     } catch (err) {
       alert(err?.message ?? 'Не удалось вернуть из архива')

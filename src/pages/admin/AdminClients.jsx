@@ -39,7 +39,11 @@ import { useDebouncedStorageReload, shouldReloadAdminClientsPage } from '../../l
 import { ADMIN_CLIENTS_PAGE_SIZE, ADMIN_CLIENTS_REMOTE_LIMIT } from '../../lib/admin/adminConstants'
 import { isSupabaseConfigured, supabase } from '../../lib/supabase'
 import { USERS_TRAINER_ROLES } from '../../lib/userRoleConstants'
-import { saveLocalWithSync } from '../../lib/syncService'
+import {
+  criticalWriteCloudWarning,
+  flushCriticalWritesToCloud,
+  saveLocalWithSync,
+} from '../../lib/syncService'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 import {
   countedUsedTrainingsOnMembership,
@@ -53,11 +57,13 @@ import {
 } from '../../lib/clientListSignals'
 import { clientDeskHall } from '../../lib/admin/deskHallClientsCore.js'
 import {
+  deskAzDirectionLabel,
   deskMembershipSignal,
   formatDeskPackageMonthsLabel,
   inferDeskPackageMonths,
   pickDeskActiveMembership,
 } from '../../lib/admin/deskMembershipLedgerCore.js'
+import { listMembershipTypesForClub } from '../../lib/membershipTypesService.js'
 import '../../styles/pnk-funnel.css'
 
 function lastTrainingDateFromMap(map, clientId) {
@@ -128,6 +134,7 @@ export function AdminClients() {
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [refreshMsg, setRefreshMsg] = useState('')
   const [smsFeedback, setSmsFeedback] = useState(null)
+  const [azMembershipTypes, setAzMembershipTypes] = useState([])
   const [clubSmsConfigured, setClubSmsConfigured] = useState(null)
   const [clubSmsTemplates, setClubSmsTemplates] = useState(null)
   const [clubSmsClubName, setClubSmsClubName] = useState('')
@@ -267,6 +274,25 @@ export function AdminClients() {
       cancelled = true
     }
   }, [clientsTab, club, reload])
+
+  // Типы АЗ (Бокс / Техника дня…) — колонка «Направление» на вкладке АЗ
+  useEffect(() => {
+    if (clientsTab !== 'az' || !club?.trim()) {
+      setAzMembershipTypes([])
+      return undefined
+    }
+    let cancelled = false
+    void listMembershipTypesForClub(club, { aerobicOnly: true, activeOnly: true })
+      .then((list) => {
+        if (!cancelled) setAzMembershipTypes(Array.isArray(list) ? list : [])
+      })
+      .catch(() => {
+        if (!cancelled) setAzMembershipTypes([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [clientsTab, club])
 
   const refreshFromCloud = useCallback(async () => {
     if (!club?.trim()) {
@@ -538,6 +564,9 @@ export function AdminClients() {
     const row = { ...full, archived_at: archived ? now : null }
     try {
       await saveLocalWithSync('clients', row, { table_name: 'clients', operation: 'update', remote_id: full.id })
+      const flush = await flushCriticalWritesToCloud()
+      const warn = criticalWriteCloudWarning(flush, archived ? 'Архив' : 'Возврат из архива')
+      if (warn) alert(warn)
       dispatchLocalDataChanged({ reason: 'client-archive-changed', clientId: full.id })
       await reload({ silent: true })
     } catch (err) {
@@ -619,6 +648,9 @@ export function AdminClients() {
       }
       const row = { ...full, trainer_id: tid, club_id: nextClubId }
       await saveLocalWithSync('clients', row, { table_name: 'clients', operation: 'update', remote_id: full.id })
+      const flush = await flushCriticalWritesToCloud()
+      const warn = criticalWriteCloudWarning(flush, 'Смена тренера')
+      if (warn) alert(warn)
       dispatchLocalDataChanged({ reason: 'client-trainer-reassigned', clientId: full.id })
       closeReassignModal()
       await reload()
@@ -634,6 +666,9 @@ export function AdminClients() {
     setDeleteBusy(true)
     try {
       await deleteClientAndAllData(confirmDelete.id)
+      const flush = await flushCriticalWritesToCloud()
+      const warn = criticalWriteCloudWarning(flush, 'Удаление')
+      if (warn) alert(warn)
       setConfirmDelete(null)
       await reload()
     } catch (e) {
@@ -905,6 +940,17 @@ export function AdminClients() {
                             <span className="td-client-fact__value">{trainerLabel(c.trainer_id)}</span>
                           </div>
                         )}
+                        {clientDeskHall(c) === 'az' ? (
+                          <div className="td-client-fact">
+                            <span className="td-client-fact__label">Направление</span>
+                            <span className="td-client-fact__value">
+                              {deskAzDirectionLabel(
+                                deskMemForPkg?.membership_type_id ?? active?.membership_type_id,
+                                azMembershipTypes,
+                              )}
+                            </span>
+                          </div>
+                        ) : null}
                         <div className="td-client-fact">
                           <span className="td-client-fact__label">Абонемент</span>
                           <span className="td-client-fact__value">

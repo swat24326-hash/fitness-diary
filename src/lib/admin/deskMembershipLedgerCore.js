@@ -73,6 +73,20 @@ export function formatDeskPackageMonthsLabel(months) {
 }
 
 /**
+ * Подпись направления АЗ (Бокс, Техника дня…) по membership_type_id.
+ * @param {string|null|undefined} membershipTypeId
+ * @param {Array<{ id?: string, name?: string }>|null|undefined} azTypes
+ */
+export function deskAzDirectionLabel(membershipTypeId, azTypes) {
+  const id = String(membershipTypeId ?? '').trim()
+  if (!id) return '—'
+  const list = Array.isArray(azTypes) ? azTypes : []
+  const hit = list.find((t) => String(t?.id ?? '') === id)
+  const name = String(hit?.name ?? '').trim()
+  return name || '—'
+}
+
+/**
  * Угадать пакет по датам (сначала точное совпадение с правилом клуба).
  * @param {string} startIso
  * @param {string} endIso
