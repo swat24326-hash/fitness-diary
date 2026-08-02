@@ -1,16 +1,10 @@
 import { useRef } from 'react'
 import { useHeartRateSessions } from '../../context/HeartRateSessionsContext'
-import { useAppToast } from '../../hooks/useAppToast'
-import { AppToast } from '../AppToast'
-import {
-  HR_AFTER_DOUBLE_TAP_MS,
-  hrAfterFillUserMessage,
-  hrAfterFromLiveSlot,
-} from '../../lib/hr/hrAfterFromLiveSlot.js'
+import { HR_AFTER_DOUBLE_TAP_MS, hrAfterFromLiveSlot } from '../../lib/hr/hrAfterFromLiveSlot.js'
 
 /**
  * Ячейка «Пульс» подхода: ручной ввод + двойной тап → текущий BPM с датчика клиента.
- * Визуал как у обычного input — без вспышек и кнопок.
+ * Визуал как у обычного input — без тостов и вспышек (при нет сигнала просто не подставляем).
  *
  * @param {{
  *   value: string,
@@ -21,7 +15,6 @@ import {
  */
 export function TrainingSetHrField({ value, onChange, clientId = '', title }) {
   const hr = useHeartRateSessions()
-  const { showToast, toast } = useAppToast(2400)
   const lastTapAtRef = useRef(0)
 
   const hint =
@@ -31,11 +24,7 @@ export function TrainingSetHrField({ value, onChange, clientId = '', title }) {
   const tryFillFromLive = () => {
     const slot = hr.slotForClient?.(clientId) ?? null
     const result = hrAfterFromLiveSlot(slot)
-    if (result.ok) {
-      onChange(result.value)
-      return
-    }
-    showToast(hrAfterFillUserMessage(result.reason), 'warn')
+    if (result.ok) onChange(result.value)
   }
 
   const onPointerDown = (e) => {
@@ -62,7 +51,6 @@ export function TrainingSetHrField({ value, onChange, clientId = '', title }) {
         onChange={(e) => onChange(e.target.value)}
         onPointerDown={onPointerDown}
       />
-      <AppToast toast={toast} />
     </div>
   )
 }
