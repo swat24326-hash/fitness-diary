@@ -22,6 +22,7 @@ import {
   toggleSupersetWithPrevious,
 } from '../lib/trainingSuperset'
 import { TrainingHrSessionSummary } from './trainer/TrainingHrSessionSummary.jsx'
+import { TrainingSetHrField } from './trainer/TrainingSetHrField.jsx'
 import {
   rememberTrainingFormStep,
   resolveTrainingFormStep,
@@ -578,20 +579,16 @@ export function TrainingForm({
                           }}
                         />
                       </div>
-                      <div className="field">
-                        <label className="label">Пульс</label>
-                        <input
-                          className="input"
-                          inputMode="numeric"
-                          title="Пульс после отрезка/подхода (уд/мин)"
-                          value={st.hr_after ?? ''}
-                          onChange={(e) => {
-                            const sets = ex.sets.slice()
-                            sets[setIdx] = { ...st, hr_after: e.target.value }
-                            patchExercise(exIdx, { ...ex, sets })
-                          }}
-                        />
-                      </div>
+                      <TrainingSetHrField
+                        value={st.hr_after ?? ''}
+                        clientId={clientId}
+                        title="Пульс после отрезка/подхода (уд/мин). Двойной тап — текущий пульс с датчика"
+                        onChange={(hr_after) => {
+                          const sets = ex.sets.slice()
+                          sets[setIdx] = { ...st, hr_after }
+                          patchExercise(exIdx, { ...ex, sets })
+                        }}
+                      />
                       <div className="field">
                         <label className="label">RPE</label>
                         <input
@@ -652,19 +649,15 @@ export function TrainingForm({
                         />
                       </div>
                       {withSetHr && (
-                        <div className="field">
-                          <label className="label">Пульс</label>
-                          <input
-                            className="input"
-                            inputMode="numeric"
-                            value={st.hr_after ?? ''}
-                            onChange={(e) => {
-                              const sets = ex.sets.slice()
-                              sets[setIdx] = { ...st, hr_after: e.target.value }
-                              patchExercise(exIdx, { ...ex, sets })
-                            }}
-                          />
-                        </div>
+                        <TrainingSetHrField
+                          value={st.hr_after ?? ''}
+                          clientId={clientId}
+                          onChange={(hr_after) => {
+                            const sets = ex.sets.slice()
+                            sets[setIdx] = { ...st, hr_after }
+                            patchExercise(exIdx, { ...ex, sets })
+                          }}
+                        />
                       )}
                     </>
                   )}

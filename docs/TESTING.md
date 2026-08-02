@@ -45,6 +45,7 @@
 | Home glance cache | `verify-home-glance-cache.mjs` (TTL / looksSame / профили) |
 | Пульс BLE (парсер + память датчика) | `verify-ble-heart-rate.mjs` |
 | Сводка пульса сессии (зоны, ккал) | `verify-hr-session-agg.mjs` |
+| Двойной тап → пульс подхода из слота | `verify-hr-after-from-live.mjs` |
 | Шаг формы при сплите черновиков | `verify-training-form-step-memory.mjs` |
 | Статистика тренера: облако за период (не только IDB) | `verify-trainer-period-stats-remote.mjs` |
 | Профиль тренера: ФИО в «Не активные» из локального кэша | `verify-enrich-inactive-clients-local.mjs` |
