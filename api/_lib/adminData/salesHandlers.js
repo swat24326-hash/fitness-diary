@@ -19,6 +19,7 @@ import {
   SALES_DAILY_SELECT_WITHOUT_REFUNDS,
   SALES_PLAN_SELECT_FULL,
   SALES_PLAN_SELECT_WITH_SNAPSHOT,
+  isMissingSalesColumnError,
 } from '../../../src/lib/admin/adminSalesQueryResilience.js'
 import { validateStrategySnapshotForSave } from '../../../src/lib/admin/salesStrategySnapshotCore.js'
 import { patchOrInsertClubSalesPlanRow } from '../../../src/lib/admin/salesPlanRowPersistCore.js'
@@ -304,10 +305,13 @@ export async function handleSalesPlanPost(ctx, req, res, body) {
       patch: { strategy_snapshot: snap.snapshot },
       selectCols,
     })
-    if (error && /strategy_snapshot/i.test(String(error.message ?? ''))) {
+    if (
+      error &&
+      (isMissingSalesColumnError(error) || /strategy_snapshot/i.test(String(error.message ?? '')))
+    ) {
       sendJson(res, 400, {
         error:
-          'Нет колонки strategy_snapshot — примените миграцию 20260803120000_club_sales_plan_strategy_snapshot.sql',
+          'Нет колонки strategy_snapshot — примените миграцию: npm run db:migrate:strategy-snapshot -- --linked',
       })
       return
     }
@@ -344,7 +348,7 @@ export async function handleSalesPlanPost(ctx, req, res, body) {
     patch,
     selectCols,
   })
-  if (error && /strategy_snapshot/i.test(String(error.message ?? ''))) {
+  if (error && (isMissingSalesColumnError(error) || /strategy_snapshot/i.test(String(error.message ?? '')))) {
     const { strategy_snapshot: _snap, ...patchWithoutSnap } = patch
     const retry = await patchOrInsertClubSalesPlanRow(supabaseAdmin, {
       clubId,

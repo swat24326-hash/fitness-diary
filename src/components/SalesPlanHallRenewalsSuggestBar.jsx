@@ -49,6 +49,9 @@ import { SalesStrategyArchiveDriftBanner } from './SalesStrategyArchiveDriftBann
  *     topUpPack?: object|null,
  *     snapshot?: object,
  *   } | null,
+ *   layout?: 'stack' | 'wide',
+ *   railBefore?: import('react').ReactNode,
+ *   railAfter?: import('react').ReactNode,
  * }} props
  */
 export function SalesPlanHallRenewalsSuggestBar({
@@ -66,6 +69,9 @@ export function SalesPlanHallRenewalsSuggestBar({
   onToast,
   applyHint = 'Сохраните направления во вкладке «План месяца».',
   initialStrategyHydration = null,
+  layout = 'stack',
+  railBefore = null,
+  railAfter = null,
 }) {
   const [busy, setBusy] = useState(false)
   const [renewalPct, setRenewalPct] = useState(String(HALL_RENEWALS_DEFAULT_PCT))
@@ -272,116 +278,128 @@ export function SalesPlanHallRenewalsSuggestBar({
   }
 
   return (
-    <div className="sales-plan-pz-dk-suggest" role="group" aria-label="Ориентир продлений и добора плана">
-      <p className="sales-plan-pz-dk-suggest__lead muted">
-        <strong>1.</strong> Кто кончается в месяце → ДК (история покупок или прайс) × % продления.
-        Архив не входит. <strong>2.</strong> Доп. 70%; добор НК/УК по доле ₽ зала за прошлый месяц.
-        <strong>3.</strong> «В план клуба» → «План месяца».
-        {snapshotMeta?.updatedAt ? (
-          <>
-            {' '}
-            Снимок с {formatDateRu(String(snapshotMeta.updatedAt).slice(0, 10))}
-            {String(snapshotMeta.updatedAt).length > 10
-              ? ` ${String(snapshotMeta.updatedAt).slice(11, 16)}`
-              : ''}
-            {' · '}
-            обновить — «Посчитать» (виден на всех устройствах).
-          </>
-        ) : null}
-      </p>
+    <div
+      className={`sales-plan-pz-dk-suggest${layout === 'wide' ? ' sales-plan-pz-dk-suggest--wide' : ''}`}
+      role="group"
+      aria-label="Ориентир продлений и добора плана"
+    >
+      <div className="sales-plan-pz-dk-suggest__rail">
+        {railBefore}
+        <p className="sales-plan-pz-dk-suggest__lead muted">
+          <strong>1.</strong> Кто кончается в месяце → ДК (история покупок или прайс) × % продления.
+          Архив не входит. <strong>2.</strong> Доп. 70%; добор НК/УК по доле ₽ зала за прошлый месяц.
+          <strong>3.</strong> «В план клуба» → «План месяца».
+          {snapshotMeta?.updatedAt ? (
+            <>
+              {' '}
+              Снимок с {formatDateRu(String(snapshotMeta.updatedAt).slice(0, 10))}
+              {String(snapshotMeta.updatedAt).length > 10
+                ? ` ${String(snapshotMeta.updatedAt).slice(11, 16)}`
+                : ''}
+              {' · '}
+              обновить — «Посчитать» (виден на всех устройствах).
+            </>
+          ) : null}
+        </p>
 
-      <div className="sales-plan-pz-dk-suggest__toolbar">
-        <label className="sales-plan-pz-dk-suggest__pct">
-          % продления
-          <input
-            type="number"
-            className="sales-plan-pz-dk-suggest__pct-input"
-            min={1}
-            max={100}
-            value={renewalPct}
-            disabled={busy || disabled}
-            onChange={(e) => setRenewalPct(e.target.value)}
-            onBlur={() => setRenewalPct(String(clampRenewalPct(renewalPct)))}
-          />
-        </label>
-        <label className="sales-plan-pz-dk-suggest__pct">
-          Ср. из покупок
-          <input
-            type="number"
-            className="sales-plan-pz-dk-suggest__pct-input"
-            min={1}
-            max={12}
-            value={historyDepth}
-            disabled={busy || disabled}
-            onChange={(e) => setHistoryDepth(e.target.value)}
-            onBlur={() => setHistoryDepth(String(clampPurchaseHistoryDepth(historyDepth)))}
-            title="Сколько последних покупок усреднять (1–12)"
-          />
-        </label>
-        {locked ? (
-          <button
-            type="button"
-            className="btn btn-secondary btn-touch"
-            disabled={busy || disabled || !clubId}
-            onClick={() => void runCalculate(fixedHorizon)}
-          >
-            <Calculator size={16} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
-            {busy ? 'Считаем…' : 'Посчитать'}
-          </button>
-        ) : (
-          <div className="sales-plan-pz-dk-suggest__row">
+        <div className="sales-plan-pz-dk-suggest__toolbar">
+          <label className="sales-plan-pz-dk-suggest__pct">
+            % продления
+            <input
+              type="number"
+              className="sales-plan-pz-dk-suggest__pct-input"
+              min={1}
+              max={100}
+              value={renewalPct}
+              disabled={busy || disabled}
+              onChange={(e) => setRenewalPct(e.target.value)}
+              onBlur={() => setRenewalPct(String(clampRenewalPct(renewalPct)))}
+            />
+          </label>
+          <label className="sales-plan-pz-dk-suggest__pct">
+            Ср. из покупок
+            <input
+              type="number"
+              className="sales-plan-pz-dk-suggest__pct-input"
+              min={1}
+              max={12}
+              value={historyDepth}
+              disabled={busy || disabled}
+              onChange={(e) => setHistoryDepth(e.target.value)}
+              onBlur={() => setHistoryDepth(String(clampPurchaseHistoryDepth(historyDepth)))}
+              title="Сколько последних покупок усреднять (1–12)"
+            />
+          </label>
+          {locked ? (
             <button
               type="button"
               className="btn btn-secondary btn-touch"
               disabled={busy || disabled || !clubId}
-              onClick={() => void runCalculate('current')}
+              onClick={() => void runCalculate(fixedHorizon)}
             >
-              Текущий месяц
+              <Calculator size={16} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
+              {busy ? 'Считаем…' : 'Посчитать'}
             </button>
-            <button
-              type="button"
-              className="btn btn-secondary btn-touch"
-              disabled={busy || disabled || !clubId}
-              onClick={() => void runCalculate('next')}
-            >
-              Следующий
-            </button>
-          </div>
-        )}
+          ) : (
+            <div className="sales-plan-pz-dk-suggest__row">
+              <button
+                type="button"
+                className="btn btn-secondary btn-touch"
+                disabled={busy || disabled || !clubId}
+                onClick={() => void runCalculate('current')}
+              >
+                Текущий месяц
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-touch"
+                disabled={busy || disabled || !clubId}
+                onClick={() => void runCalculate('next')}
+              >
+                Следующий
+              </button>
+            </div>
+          )}
+        </div>
+
+        {lastSummary && !preview?.ok ? (
+          <p className="muted sales-plan-pz-dk-suggest__summary">{lastSummary}</p>
+        ) : null}
+        {railAfter}
       </div>
 
-      {lastSummary && !preview?.ok ? (
-        <p className="muted" style={{ marginTop: '0.5rem' }}>
-          {lastSummary}
-        </p>
-      ) : null}
+      <div className="sales-plan-pz-dk-suggest__stage">
+        {preview?.ok ? (
+          <SalesPlanHallRenewalsSuggestPreview
+            suggest={preview}
+            topUpPack={topUpPack}
+            disabled={disabled}
+            onApply={applyPreview}
+          />
+        ) : (
+          <p className="muted sales-plan-pz-dk-suggest__stage-empty">
+            Нажмите «Посчитать» — справа появятся продления, доска и playbook по неделям.
+          </p>
+        )}
 
-      {preview?.ok ? (
-        <SalesPlanHallRenewalsSuggestPreview
-          suggest={preview}
-          topUpPack={topUpPack}
+        <SalesStrategyArchiveDriftBanner
+          drift={archiveDrift}
+          busy={busy}
           disabled={disabled}
-          onApply={applyPreview}
+          onRecalculate={() => void runCalculate(calcHorizon)}
         />
-      ) : null}
 
-      <SalesStrategyArchiveDriftBanner
-        drift={archiveDrift}
-        busy={busy}
-        disabled={disabled}
-        onRecalculate={() => void runCalculate(calcHorizon)}
-      />
-
-      {preview?.ok && topUpPack?.ok ? (
-        <SalesStrategyPlaybookSection
-          year={year}
-          month={month}
-          clubId={clubId}
-          renewalsSuggest={preview}
-          topUpPack={topUpPack}
-          monthDays={monthDays}
-        />
-      ) : null}
+        {preview?.ok && topUpPack?.ok ? (
+          <SalesStrategyPlaybookSection
+            year={year}
+            month={month}
+            clubId={clubId}
+            renewalsSuggest={preview}
+            topUpPack={topUpPack}
+            monthDays={monthDays}
+          />
+        ) : null}
+      </div>
     </div>
   )
 }

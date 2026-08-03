@@ -57,17 +57,29 @@ export const SALES_MONTH_DAILY_SELECT_LEGACY = [
 
 /** @param {unknown} err */
 export function isMissingSalesColumnError(err) {
-  const m = String(err?.message ?? err ?? '').toLowerCase()
+  const code = String(err?.code ?? '')
+  if (code === 'PGRST204' || code === '42703') return true
+  const blob = [
+    err?.message,
+    err?.details,
+    err?.hint,
+    typeof err === 'string' ? err : '',
+  ]
+    .map((x) => String(x ?? '').toLowerCase())
+    .join(' ')
   return (
-    m.includes('matrix_amounts') ||
-    m.includes('aerobic_sales_matrix') ||
-    m.includes('plan_extra') ||
-    m.includes('refunds_amount') ||
-    m.includes('dop_nk') ||
-    m.includes('dop_dk') ||
-    m.includes('dop_uk') ||
-    m.includes('does not exist') ||
-    m.includes('column')
+    blob.includes('strategy_snapshot') ||
+    blob.includes('matrix_amounts') ||
+    blob.includes('aerobic_sales_matrix') ||
+    blob.includes('plan_extra') ||
+    blob.includes('refunds_amount') ||
+    blob.includes('dop_nk') ||
+    blob.includes('dop_dk') ||
+    blob.includes('dop_uk') ||
+    blob.includes('does not exist') ||
+    blob.includes('schema cache') ||
+    blob.includes('could not find') ||
+    blob.includes('column')
   )
 }
 

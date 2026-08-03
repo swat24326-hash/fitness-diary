@@ -4492,6 +4492,25 @@
   );
 }
 
+.sales-plan-pz-dk-suggest--wide {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+.sales-plan-pz-dk-suggest--wide .sales-plan-pz-dk-suggest__rail {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent-bright, #7dffb3) 20%, transparent);
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--accent-bright, #7dffb3) 8%, transparent),
+    color-mix(in srgb, var(--bg-elevated, #141816) 88%, transparent) 45%
+  );
+}
+
 .sales-plan-pz-dk-suggest__lead {
   margin: 0 0 0.7rem;
   font-size: 0.84rem;
@@ -4499,11 +4518,30 @@
   max-width: 42rem;
 }
 
+.sales-plan-pz-dk-suggest--wide .sales-plan-pz-dk-suggest__lead {
+  max-width: none;
+}
+
 .sales-plan-pz-dk-suggest__toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   gap: 0.75rem 1.1rem;
+}
+
+.sales-plan-pz-dk-suggest--wide .sales-plan-pz-dk-suggest__toolbar {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.sales-plan-pz-dk-suggest--wide .sales-plan-pz-dk-suggest__toolbar .btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.sales-plan-pz-dk-suggest--wide .sales-plan-pz-dk-suggest__pct-input {
+  width: 100%;
+  max-width: 100%;
 }
 
 .sales-plan-pz-dk-suggest__pct {
@@ -4537,6 +4575,10 @@
   border: 1px solid color-mix(in srgb, var(--accent-bright, #7dffb3) 28%, transparent);
   background: color-mix(in srgb, #0c100e 92%, var(--accent-bright, #7dffb3));
   box-shadow: 0 12px 40px color-mix(in srgb, #000 35%, transparent);
+}
+
+.sales-plan-pz-dk-suggest--wide .sales-plan-pz-dk-preview {
+  margin-top: 0;
 }
 
 .sales-plan-pz-dk-preview__head {
@@ -4775,6 +4817,19 @@
   max-width: 14rem;
   color: var(--text-muted);
   font-size: 0.8rem;
+}
+
+.sales-payments-link {
+  margin-top: 1.25rem;
+}
+.sales-payments-link__pz {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 11rem;
+}
+.sales-payments-link__pz .select {
+  max-width: 16rem;
 }
 
 /* ????-????? / ???????? match */

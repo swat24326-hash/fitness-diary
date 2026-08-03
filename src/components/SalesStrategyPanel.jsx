@@ -145,25 +145,6 @@ export function SalesStrategyPanel({
         </button>
       </header>
 
-      <div className="sales-strategy__horizon" role="group" aria-label="Месяц плана">
-        <button
-          type="button"
-          className={`sales-strategy__chip${horizon === 'current' ? ' is-active' : ''}`}
-          onClick={() => setHorizon('current')}
-          disabled={busy}
-        >
-          Текущий месяц
-        </button>
-        <button
-          type="button"
-          className={`sales-strategy__chip${horizon === 'next' ? ' is-active' : ''}`}
-          onClick={() => setHorizon('next')}
-          disabled={busy}
-        >
-          Следующий месяц
-        </button>
-      </div>
-
       {error ? (
         <p className="sync-feedback sync-feedback--err" role="alert">
           {error}
@@ -176,48 +157,104 @@ export function SalesStrategyPanel({
         </p>
       ) : null}
 
-      {planYm ? (
-        <SalesStrategyPlanBrief
-          monthLabel={planMonthLabel}
-          planLevel3={planLevel3 > 0 ? planLevel3 : null}
-          prevMonthLabel={prevMonthLabel}
-        />
-      ) : null}
-
       {planYm && clubId ? (
-        <div className="sales-strategy__pz">
-          <h3 className="sales-strategy__section-title">Продления + НК/УК → playbook</h3>
-          <p className="muted sales-strategy__pz-lead">
-            «Посчитать» — список закрытий ДК и пакет до ур. 3. Архив в список не входит.
-          </p>
-          <SalesPlanHallRenewalsSuggestBar
-            key={`${planYm.year}-${planYm.month}-${horizon}`}
-            clubId={clubId}
-            year={planYm.year}
-            month={planYm.month}
-            monthDays={payload?.planMonthDays ?? []}
-            prevMonthDays={payload?.prevMonthDays ?? []}
-            prevMonthYear={payload?.baseYm?.year}
-            prevMonthMonth={payload?.baseYm?.month}
-            planForm={strategyPlanForm}
-            onPlanChange={applyPlanForm}
-            fixedHorizon={horizon}
-            disabled={busy}
-            onToast={onToast}
-            applyHint="Месяц в шапке переключится на план — сохраните во вкладке «План месяца»."
-            initialStrategyHydration={payload?.strategySnapshot ?? null}
+        <SalesPlanHallRenewalsSuggestBar
+          key={`${planYm.year}-${planYm.month}-${horizon}`}
+          clubId={clubId}
+          year={planYm.year}
+          month={planYm.month}
+          monthDays={payload?.planMonthDays ?? []}
+          prevMonthDays={payload?.prevMonthDays ?? []}
+          prevMonthYear={payload?.baseYm?.year}
+          prevMonthMonth={payload?.baseYm?.month}
+          planForm={strategyPlanForm}
+          onPlanChange={applyPlanForm}
+          fixedHorizon={horizon}
+          disabled={busy}
+          onToast={onToast}
+          applyHint="Месяц в шапке переключится на план — сохраните во вкладке «План месяца»."
+          initialStrategyHydration={payload?.strategySnapshot ?? null}
+          layout="wide"
+          railBefore={
+            <>
+              <div className="sales-strategy__horizon" role="group" aria-label="Месяц плана">
+                <button
+                  type="button"
+                  className={`sales-strategy__chip${horizon === 'current' ? ' is-active' : ''}`}
+                  onClick={() => setHorizon('current')}
+                  disabled={busy}
+                >
+                  Текущий месяц
+                </button>
+                <button
+                  type="button"
+                  className={`sales-strategy__chip${horizon === 'next' ? ' is-active' : ''}`}
+                  onClick={() => setHorizon('next')}
+                  disabled={busy}
+                >
+                  Следующий месяц
+                </button>
+              </div>
+              <SalesStrategyPlanBrief
+                monthLabel={planMonthLabel}
+                planLevel3={planLevel3 > 0 ? planLevel3 : null}
+                prevMonthLabel={prevMonthLabel}
+              />
+              <div className="sales-strategy__pz-intro">
+                <h3 className="sales-strategy__section-title">Продления + НК/УК → playbook</h3>
+                <p className="muted sales-strategy__pz-lead">
+                  «Посчитать» — список закрытий ДК и пакет до ур. 3. Архив в список не входит.
+                </p>
+              </div>
+            </>
+          }
+          railAfter={
+            <>
+              <p className="muted sales-strategy__pz-foot">
+                «В план клуба» заполняет матрицу и направления. Сохранение — только в «План месяца».
+              </p>
+              <SalesStrategyReferenceDetails
+                projection={payload?.projection}
+                planLevel3={planLevel3 > 0 ? planLevel3 : null}
+                planMonthLabel={planMonthLabel}
+              />
+            </>
+          }
+        />
+      ) : (
+        <>
+          <div className="sales-strategy__horizon" role="group" aria-label="Месяц плана">
+            <button
+              type="button"
+              className={`sales-strategy__chip${horizon === 'current' ? ' is-active' : ''}`}
+              onClick={() => setHorizon('current')}
+              disabled={busy}
+            >
+              Текущий месяц
+            </button>
+            <button
+              type="button"
+              className={`sales-strategy__chip${horizon === 'next' ? ' is-active' : ''}`}
+              onClick={() => setHorizon('next')}
+              disabled={busy}
+            >
+              Следующий месяц
+            </button>
+          </div>
+          {planYm ? (
+            <SalesStrategyPlanBrief
+              monthLabel={planMonthLabel}
+              planLevel3={planLevel3 > 0 ? planLevel3 : null}
+              prevMonthLabel={prevMonthLabel}
+            />
+          ) : null}
+          <SalesStrategyReferenceDetails
+            projection={payload?.projection}
+            planLevel3={planLevel3 > 0 ? planLevel3 : null}
+            planMonthLabel={planMonthLabel}
           />
-          <p className="muted sales-strategy__pz-foot">
-            «В план клуба» заполняет матрицу и направления. Сохранение — только в «План месяца».
-          </p>
-        </div>
-      ) : null}
-
-      <SalesStrategyReferenceDetails
-        projection={payload?.projection}
-        planLevel3={planLevel3 > 0 ? planLevel3 : null}
-        planMonthLabel={planMonthLabel}
-      />
+        </>
+      )}
     </section>
   )
 }

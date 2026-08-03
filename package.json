@@ -26,6 +26,8 @@
     "db:migrate:az-price-list": "node scripts/apply-club-az-price-lists-migration.mjs",
     "db:migrate:desk-hall": "node scripts/apply-desk-hall-migrations.mjs",
     "db:migrate:desk-null-trainer": "node scripts/apply-desk-null-trainer-migration.mjs",
+    "db:migrate:users-uses-tablet": "node scripts/apply-users-uses-tablet-migration.mjs",
+    "db:migrate:strategy-snapshot": "node scripts/apply-club-sales-plan-strategy-snapshot.mjs",
     "check:volume": "node scripts/check-data-volume.mjs",
     "gen:icons": "node scripts/generate-icons.mjs",
     "qa": "node scripts/agent-qa.mjs",
