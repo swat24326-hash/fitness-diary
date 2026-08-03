@@ -49,9 +49,15 @@ import { SalesStrategyArchiveDriftBanner } from './SalesStrategyArchiveDriftBann
  *     topUpPack?: object|null,
  *     snapshot?: object,
  *   } | null,
- *   layout?: 'stack' | 'wide',
+ *   layout?: 'stack' | 'wide' | 'dashboard',
  *   railBefore?: import('react').ReactNode,
  *   railAfter?: import('react').ReactNode,
+ *   renderChrome?: (parts: {
+ *     controls: import('react').ReactNode,
+ *     packColumn: import('react').ReactNode,
+ *     playbookColumn: import('react').ReactNode,
+ *     emptyHint: import('react').ReactNode,
+ *   }) => import('react').ReactNode,
  * }} props
  */
 export function SalesPlanHallRenewalsSuggestBar({
@@ -72,6 +78,7 @@ export function SalesPlanHallRenewalsSuggestBar({
   layout = 'stack',
   railBefore = null,
   railAfter = null,
+  renderChrome = null,
 }) {
   const [busy, setBusy] = useState(false)
   const [renewalPct, setRenewalPct] = useState(String(HALL_RENEWALS_DEFAULT_PCT))
@@ -277,6 +284,131 @@ export function SalesPlanHallRenewalsSuggestBar({
     )
   }
 
+  const controls = (
+    <div className="sales-plan-pz-dk-suggest__toolbar">
+      <label className="sales-plan-pz-dk-suggest__pct">
+        % продления
+        <input
+          type="number"
+          className="sales-plan-pz-dk-suggest__pct-input"
+          min={1}
+          max={100}
+          value={renewalPct}
+          disabled={busy || disabled}
+          onChange={(e) => setRenewalPct(e.target.value)}
+          onBlur={() => setRenewalPct(String(clampRenewalPct(renewalPct)))}
+        />
+      </label>
+      <label className="sales-plan-pz-dk-suggest__pct">
+        Ср. из покупок
+        <input
+          type="number"
+          className="sales-plan-pz-dk-suggest__pct-input"
+          min={1}
+          max={12}
+          value={historyDepth}
+          disabled={busy || disabled}
+          onChange={(e) => setHistoryDepth(e.target.value)}
+          onBlur={() => setHistoryDepth(String(clampPurchaseHistoryDepth(historyDepth)))}
+          title="Сколько последних покупок усреднять (1–12)"
+        />
+      </label>
+      {locked ? (
+        <button
+          type="button"
+          className="btn btn-primary btn-touch"
+          disabled={busy || disabled || !clubId}
+          onClick={() => void runCalculate(fixedHorizon)}
+        >
+          <Calculator size={16} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
+          {busy ? 'Считаем…' : 'Посчитать'}
+        </button>
+      ) : (
+        <div className="sales-plan-pz-dk-suggest__row">
+          <button
+            type="button"
+            className="btn btn-secondary btn-touch"
+            disabled={busy || disabled || !clubId}
+            onClick={() => void runCalculate('current')}
+          >
+            Текущий месяц
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary btn-touch"
+            disabled={busy || disabled || !clubId}
+            onClick={() => void runCalculate('next')}
+          >
+            Следующий
+          </button>
+        </div>
+      )}
+    </div>
+  )
+
+  const packColumn = (
+    <>
+      {preview?.ok ? (
+        <SalesPlanHallRenewalsSuggestPreview
+          suggest={preview}
+          topUpPack={topUpPack}
+          disabled={disabled}
+          onApply={applyPreview}
+        />
+      ) : null}
+      {lastSummary && !preview?.ok ? (
+        <p className="muted sales-plan-pz-dk-suggest__summary">{lastSummary}</p>
+      ) : null}
+      <SalesStrategyArchiveDriftBanner
+        drift={archiveDrift}
+        busy={busy}
+        disabled={disabled}
+        onRecalculate={() => void runCalculate(calcHorizon)}
+      />
+      {snapshotMeta?.updatedAt ? (
+        <p className="muted sales-plan-pz-dk-suggest__snap-meta">
+          Снимок с {formatDateRu(String(snapshotMeta.updatedAt).slice(0, 10))}
+          {String(snapshotMeta.updatedAt).length > 10
+            ? ` ${String(snapshotMeta.updatedAt).slice(11, 16)}`
+            : ''}
+          {' · '}
+          обновить — «Посчитать».
+        </p>
+      ) : null}
+    </>
+  )
+
+  const playbookColumn =
+    preview?.ok && topUpPack?.ok ? (
+      <SalesStrategyPlaybookSection
+        year={year}
+        month={month}
+        clubId={clubId}
+        renewalsSuggest={preview}
+        topUpPack={topUpPack}
+        monthDays={monthDays}
+      />
+    ) : null
+
+  const emptyHint =
+    !preview?.ok && layout === 'dashboard' ? (
+      <p className="muted sales-plan-pz-dk-suggest__stage-empty">
+        Нажмите «Посчитать» в шапке — слева пакет и продления, справа playbook по неделям.
+      </p>
+    ) : !preview?.ok && layout === 'wide' ? (
+      <p className="muted sales-plan-pz-dk-suggest__stage-empty">
+        Нажмите «Посчитать» — справа появятся продления, доска и playbook по неделям.
+      </p>
+    ) : null
+
+  if (layout === 'dashboard' && typeof renderChrome === 'function') {
+    return (
+      <div className="sales-plan-pz-dk-suggest sales-plan-pz-dk-suggest--dashboard" role="group" aria-label="Ориентир продлений и добора плана">
+        {renderChrome({ controls, packColumn, playbookColumn, emptyHint })}
+      </div>
+    )
+  }
+
   return (
     <div
       className={`sales-plan-pz-dk-suggest${layout === 'wide' ? ' sales-plan-pz-dk-suggest--wide' : ''}`}
@@ -289,79 +421,8 @@ export function SalesPlanHallRenewalsSuggestBar({
           <strong>1.</strong> Кто кончается в месяце → ДК (история покупок или прайс) × % продления.
           Архив не входит. <strong>2.</strong> Доп. 70%; добор НК/УК по доле ₽ зала за прошлый месяц.
           <strong>3.</strong> «В план клуба» → «План месяца».
-          {snapshotMeta?.updatedAt ? (
-            <>
-              {' '}
-              Снимок с {formatDateRu(String(snapshotMeta.updatedAt).slice(0, 10))}
-              {String(snapshotMeta.updatedAt).length > 10
-                ? ` ${String(snapshotMeta.updatedAt).slice(11, 16)}`
-                : ''}
-              {' · '}
-              обновить — «Посчитать» (виден на всех устройствах).
-            </>
-          ) : null}
         </p>
-
-        <div className="sales-plan-pz-dk-suggest__toolbar">
-          <label className="sales-plan-pz-dk-suggest__pct">
-            % продления
-            <input
-              type="number"
-              className="sales-plan-pz-dk-suggest__pct-input"
-              min={1}
-              max={100}
-              value={renewalPct}
-              disabled={busy || disabled}
-              onChange={(e) => setRenewalPct(e.target.value)}
-              onBlur={() => setRenewalPct(String(clampRenewalPct(renewalPct)))}
-            />
-          </label>
-          <label className="sales-plan-pz-dk-suggest__pct">
-            Ср. из покупок
-            <input
-              type="number"
-              className="sales-plan-pz-dk-suggest__pct-input"
-              min={1}
-              max={12}
-              value={historyDepth}
-              disabled={busy || disabled}
-              onChange={(e) => setHistoryDepth(e.target.value)}
-              onBlur={() => setHistoryDepth(String(clampPurchaseHistoryDepth(historyDepth)))}
-              title="Сколько последних покупок усреднять (1–12)"
-            />
-          </label>
-          {locked ? (
-            <button
-              type="button"
-              className="btn btn-secondary btn-touch"
-              disabled={busy || disabled || !clubId}
-              onClick={() => void runCalculate(fixedHorizon)}
-            >
-              <Calculator size={16} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
-              {busy ? 'Считаем…' : 'Посчитать'}
-            </button>
-          ) : (
-            <div className="sales-plan-pz-dk-suggest__row">
-              <button
-                type="button"
-                className="btn btn-secondary btn-touch"
-                disabled={busy || disabled || !clubId}
-                onClick={() => void runCalculate('current')}
-              >
-                Текущий месяц
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary btn-touch"
-                disabled={busy || disabled || !clubId}
-                onClick={() => void runCalculate('next')}
-              >
-                Следующий
-              </button>
-            </div>
-          )}
-        </div>
-
+        {controls}
         {lastSummary && !preview?.ok ? (
           <p className="muted sales-plan-pz-dk-suggest__summary">{lastSummary}</p>
         ) : null}
@@ -377,28 +438,15 @@ export function SalesPlanHallRenewalsSuggestBar({
             onApply={applyPreview}
           />
         ) : (
-          <p className="muted sales-plan-pz-dk-suggest__stage-empty">
-            Нажмите «Посчитать» — справа появятся продления, доска и playbook по неделям.
-          </p>
+          emptyHint
         )}
-
         <SalesStrategyArchiveDriftBanner
           drift={archiveDrift}
           busy={busy}
           disabled={disabled}
           onRecalculate={() => void runCalculate(calcHorizon)}
         />
-
-        {preview?.ok && topUpPack?.ok ? (
-          <SalesStrategyPlaybookSection
-            year={year}
-            month={month}
-            clubId={clubId}
-            renewalsSuggest={preview}
-            topUpPack={topUpPack}
-            monthDays={monthDays}
-          />
-        ) : null}
+        {playbookColumn}
       </div>
     </div>
   )

@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Compass, RefreshCw } from 'lucide-react'
 import { mergeStrategyPlanFormWithClub } from '../lib/admin/salesHallAnchorCore.js'
 import { loadSalesStrategyAnchor } from '../lib/admin/salesHallAnchorService.js'
 import { resolvePlanFinalTarget } from '../lib/admin/salesReportCore.js'
 import { SalesPlanHallRenewalsSuggestBar } from './SalesPlanHallRenewalsSuggestBar.jsx'
-import { SalesStrategyPlanBrief } from './SalesStrategyPlanBrief.jsx'
+import { SalesStrategyHat } from './SalesStrategyHat.jsx'
 import { SalesStrategyReferenceDetails } from './SalesStrategyReferenceDetails.jsx'
 
 const MONTH_RU = [
@@ -28,8 +27,7 @@ function monthTitle(year, month) {
 }
 
 /**
- * Вкладка «Стратегия»: ядро — закрытия ДК + добор НК/УК до ур. 3 + playbook.
- * Уровни плана берутся из облака/черновика и из живой формы шапки (тот же месяц).
+ * Вкладка «Стратегия»: шапка (месяц / ур. 3 / Посчитать) + рабочая зона на всю ширину.
  *
  * @param {{
  *   clubId: string,
@@ -120,31 +118,7 @@ export function SalesStrategyPanel({
   })
 
   return (
-    <section className="sales-strategy" aria-labelledby="sales-strategy-title">
-      <header className="sales-strategy__head">
-        <div className="sales-strategy__head-text">
-          <p className="sales-strategy__eyebrow">Продажи · план месяца</p>
-          <h2 className="sales-strategy__title" id="sales-strategy-title">
-            <Compass size={22} aria-hidden style={{ verticalAlign: -4, marginRight: 8 }} />
-            Стратегия
-          </h2>
-          <p className="sales-strategy__lead muted">
-            Считаем снизу: кто кончается (без архива) → продления ДК → добор НК/УК до уровня 3 →
-            playbook по неделям. «В план» заполняет матрицу; сохранение — во вкладке «План месяца».
-          </p>
-        </div>
-        <button
-          type="button"
-          className="btn btn-icon-square"
-          onClick={() => void load()}
-          disabled={busy || !clubId}
-          aria-label="Обновить"
-          title="Обновить"
-        >
-          <RefreshCw size={16} aria-hidden className={busy ? 'icon-spin' : undefined} />
-        </button>
-      </header>
-
+    <section className="sales-strategy sales-strategy--dashboard" aria-labelledby="sales-strategy-title">
       {error ? (
         <p className="sync-feedback sync-feedback--err" role="alert">
           {error}
@@ -174,80 +148,47 @@ export function SalesStrategyPanel({
           onToast={onToast}
           applyHint="Месяц в шапке переключится на план — сохраните во вкладке «План месяца»."
           initialStrategyHydration={payload?.strategySnapshot ?? null}
-          layout="wide"
-          railBefore={
+          layout="dashboard"
+          renderChrome={({ controls, packColumn, playbookColumn, emptyHint }) => (
             <>
-              <div className="sales-strategy__horizon" role="group" aria-label="Месяц плана">
-                <button
-                  type="button"
-                  className={`sales-strategy__chip${horizon === 'current' ? ' is-active' : ''}`}
-                  onClick={() => setHorizon('current')}
-                  disabled={busy}
-                >
-                  Текущий месяц
-                </button>
-                <button
-                  type="button"
-                  className={`sales-strategy__chip${horizon === 'next' ? ' is-active' : ''}`}
-                  onClick={() => setHorizon('next')}
-                  disabled={busy}
-                >
-                  Следующий месяц
-                </button>
-              </div>
-              <SalesStrategyPlanBrief
+              <SalesStrategyHat
+                busy={busy}
+                canRefresh={Boolean(clubId)}
+                onRefresh={() => void load()}
+                horizon={horizon}
+                onHorizon={setHorizon}
                 monthLabel={planMonthLabel}
                 planLevel3={planLevel3 > 0 ? planLevel3 : null}
                 prevMonthLabel={prevMonthLabel}
+                controls={controls}
               />
-              <div className="sales-strategy__pz-intro">
-                <h3 className="sales-strategy__section-title">Продления + НК/УК → playbook</h3>
-                <p className="muted sales-strategy__pz-lead">
-                  «Посчитать» — список закрытий ДК и пакет до ур. 3. Архив в список не входит.
-                </p>
+              <div className="sales-strategy__workspace">
+                <div className="sales-strategy__workspace-pack">
+                  {packColumn}
+                  {emptyHint}
+                </div>
+                <div className="sales-strategy__workspace-playbook">{playbookColumn}</div>
               </div>
-            </>
-          }
-          railAfter={
-            <>
-              <p className="muted sales-strategy__pz-foot">
-                «В план клуба» заполняет матрицу и направления. Сохранение — только в «План месяца».
-              </p>
               <SalesStrategyReferenceDetails
                 projection={payload?.projection}
                 planLevel3={planLevel3 > 0 ? planLevel3 : null}
                 planMonthLabel={planMonthLabel}
               />
             </>
-          }
+          )}
         />
       ) : (
         <>
-          <div className="sales-strategy__horizon" role="group" aria-label="Месяц плана">
-            <button
-              type="button"
-              className={`sales-strategy__chip${horizon === 'current' ? ' is-active' : ''}`}
-              onClick={() => setHorizon('current')}
-              disabled={busy}
-            >
-              Текущий месяц
-            </button>
-            <button
-              type="button"
-              className={`sales-strategy__chip${horizon === 'next' ? ' is-active' : ''}`}
-              onClick={() => setHorizon('next')}
-              disabled={busy}
-            >
-              Следующий месяц
-            </button>
-          </div>
-          {planYm ? (
-            <SalesStrategyPlanBrief
-              monthLabel={planMonthLabel}
-              planLevel3={planLevel3 > 0 ? planLevel3 : null}
-              prevMonthLabel={prevMonthLabel}
-            />
-          ) : null}
+          <SalesStrategyHat
+            busy={busy}
+            canRefresh={Boolean(clubId)}
+            onRefresh={() => void load()}
+            horizon={horizon}
+            onHorizon={setHorizon}
+            monthLabel={planMonthLabel}
+            planLevel3={planLevel3 > 0 ? planLevel3 : null}
+            prevMonthLabel={prevMonthLabel}
+          />
           <SalesStrategyReferenceDetails
             projection={payload?.projection}
             planLevel3={planLevel3 > 0 ? planLevel3 : null}
