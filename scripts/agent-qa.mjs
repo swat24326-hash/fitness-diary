@@ -71,6 +71,7 @@ run('sales plan hall top-up', 'node', ['scripts/verify-sales-plan-hall-top-up.mj
 run('sales strategy playbook', 'node', ['scripts/verify-sales-strategy-playbook.mjs'])
 run('sales strategy archive drift', 'node', ['scripts/verify-sales-strategy-archive-drift.mjs'])
 run('sales strategy snapshot', 'node', ['scripts/verify-sales-strategy-snapshot.mjs'])
+run('sales plan row persist', 'node', ['scripts/verify-sales-plan-row-persist.mjs'])
 run('sales strategy package board', 'node', ['scripts/verify-sales-strategy-package-board.mjs'])
 run('sales hall anchor', 'node', ['scripts/verify-sales-hall-anchor.mjs'])
 run('tz price list', 'node', ['scripts/verify-tz-price-list.mjs'])
