@@ -25,6 +25,7 @@ import {
   SALES_DAILY_SELECT_FULL,
   SALES_DAILY_SELECT_WITHOUT_REFUNDS,
 } from './adminSalesQueryResilience.js'
+import { patchOrInsertClubSalesPlanRow } from './salesPlanRowPersistCore.js'
 import { normalizeMatrixRowsFromDb } from './salesTrainingsMatrix.js'
 import { normalizeAerobicRowsFromDb } from './aerobicSalesMatrix.js'
 import {
@@ -392,15 +393,16 @@ export async function saveClubSalesDailyViaSupabase({
 export async function saveClubSalesPlanViaSupabase({ clubId, year, month, form, scope }) {
   const parsed = planFormToPayload(form, { scope })
   if (!parsed.ok) throw new Error(parsed.error)
+  const selectCols =
+    'plan_total, plan_level_1, plan_level_2, plan_level_3, plan_pz, plan_tz, plan_az, plan_extra, plan_matrix, updated_at'
   const { data, error } = await withSupabaseRetry(() =>
-    supabase
-      .from('club_sales_plan')
-      .upsert(
-        { club_id: clubId, year, month, ...parsed.payload, updated_at: new Date().toISOString() },
-        { onConflict: 'club_id,year,month' },
-      )
-      .select('plan_total, plan_level_1, plan_level_2, plan_level_3, plan_pz, plan_tz, plan_az, plan_extra, plan_matrix, updated_at')
-      .single(),
+    patchOrInsertClubSalesPlanRow(supabase, {
+      clubId,
+      year,
+      month,
+      patch: { ...parsed.payload, updated_at: new Date().toISOString() },
+      selectCols,
+    }),
   )
   if (error) {
     if (isMissingTableError(error)) throw new Error(MIGRATION_HINT)

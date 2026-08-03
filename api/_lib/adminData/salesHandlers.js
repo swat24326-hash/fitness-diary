@@ -21,6 +21,7 @@ import {
   SALES_PLAN_SELECT_WITH_SNAPSHOT,
 } from '../../../src/lib/admin/adminSalesQueryResilience.js'
 import { validateStrategySnapshotForSave } from '../../../src/lib/admin/salesStrategySnapshotCore.js'
+import { patchOrInsertClubSalesPlanRow } from '../../../src/lib/admin/salesPlanRowPersistCore.js'
 import { normalizeMatrixRowsFromDb } from '../../../src/lib/admin/salesTrainingsMatrix.js'
 import { normalizeAerobicRowsFromDb } from '../../../src/lib/admin/aerobicSalesMatrix.js'
 import {
@@ -295,18 +296,14 @@ export async function handleSalesPlanPost(ctx, req, res, body) {
       sendJson(res, 400, { error: snap.error })
       return
     }
-    const row = {
-      club_id: clubId,
+    // Не upsert: частичное тело обнуляет уровни/матрицу плана.
+    let { data, error } = await patchOrInsertClubSalesPlanRow(supabaseAdmin, {
+      clubId,
       year,
       month,
-      strategy_snapshot: snap.snapshot,
-      updated_at: new Date().toISOString(),
-    }
-    let { data, error } = await supabaseAdmin
-      .from('club_sales_plan')
-      .upsert(row, { onConflict: 'club_id,year,month' })
-      .select(selectCols)
-      .single()
+      patch: { strategy_snapshot: snap.snapshot },
+      selectCols,
+    })
     if (error && /strategy_snapshot/i.test(String(error.message ?? ''))) {
       sendJson(res, 400, {
         error:
@@ -328,10 +325,7 @@ export async function handleSalesPlanPost(ctx, req, res, body) {
     return
   }
   /** @type {Record<string, unknown>} */
-  const row = {
-    club_id: clubId,
-    year,
-    month,
+  const patch = {
     ...parsed.payload,
     updated_at: new Date().toISOString(),
   }
@@ -341,28 +335,24 @@ export async function handleSalesPlanPost(ctx, req, res, body) {
       sendJson(res, 400, { error: snap.error })
       return
     }
-    row.strategy_snapshot = snap.snapshot
+    patch.strategy_snapshot = snap.snapshot
   }
-  let { data, error } = await supabaseAdmin
-    .from('club_sales_plan')
-    .upsert(row, { onConflict: 'club_id,year,month' })
-    .select(selectCols)
-    .single()
+  let { data, error } = await patchOrInsertClubSalesPlanRow(supabaseAdmin, {
+    clubId,
+    year,
+    month,
+    patch,
+    selectCols,
+  })
   if (error && /strategy_snapshot/i.test(String(error.message ?? ''))) {
-    const retry = await supabaseAdmin
-      .from('club_sales_plan')
-      .upsert(
-        {
-          club_id: clubId,
-          year,
-          month,
-          ...parsed.payload,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'club_id,year,month' },
-      )
-      .select(SALES_PLAN_SELECT_FULL)
-      .single()
+    const { strategy_snapshot: _snap, ...patchWithoutSnap } = patch
+    const retry = await patchOrInsertClubSalesPlanRow(supabaseAdmin, {
+      clubId,
+      year,
+      month,
+      patch: patchWithoutSnap,
+      selectCols: SALES_PLAN_SELECT_FULL,
+    })
     data = retry.data
     error = retry.error
   }

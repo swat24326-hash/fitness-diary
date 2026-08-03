@@ -111,8 +111,22 @@ const rows = endingRowsFromRenewalsSuggest({
     },
   ],
 })
-ok(rows[0].amount === 5000, 'ending amount applies renewal %')
+ok(rows[0].amount === 10000, 'ending amount = check (no renewal % on row)')
 ok(rows[0].phone === '+7 900' && rows[0].cardNumber === '12345', 'ending keeps phone and card')
+
+const paidRow = endingRowsFromRenewalsSuggest({
+  renewalPct: 80,
+  candidates: [
+    {
+      clientId: 'paid',
+      hall: 'tz',
+      endDate: '2026-07-09',
+      avgRub: 3000,
+      paidRub: 2290,
+    },
+  ],
+})
+ok(paidRow[0].amount === 2290, 'ending amount prefers membership paidRub over avg')
 
 const mixed = endingRowsFromRenewalsSuggest({
   renewalPct: 80,
@@ -131,10 +145,16 @@ const mixed = endingRowsFromRenewalsSuggest({
     },
   ],
 })
-ok(mixed.length === 2, 'open + confirmed ending rows')
-const doneRow = mixed.find((r) => r.clientId === 'done1')
-ok(doneRow?.confirmed === true && doneRow.amount === 8000, 'confirmed orient without renewal %')
-ok(doneRow?.factAmount === 9500, 'confirmed keeps factAmount')
+ok(mixed.length === 1 && mixed[0].clientId === 'open1', 'playbook rows = open only (not confirmed)')
+ok(!mixed.some((r) => r.clientId === 'done1'), 'already-purchased successor not in closings list')
+ok(
+  endingRowsFromRenewalsSuggest({
+    confirmedClosings: [
+      { clientId: 'd2', hall: 'pz', endDate: '2026-07-01', avgRub: 8000, confirmed: true },
+    ],
+  }).length === 0,
+  'confirmed-only suggest → empty closings list',
+)
 
 const mixBuckets = bucketEndingsByWeek(mixed, weeks)
 const mixPlaybook = buildStrategyPlaybook({
@@ -149,28 +169,19 @@ const mixPlaybook = buildStrategyPlaybook({
   endingRows: mixed,
   monthDays: [],
 })
-ok(mixPlaybook.ok, 'playbook with confirmed ok')
-ok(mixPlaybook.endingsConfirmedTotal === 1, 'month confirmed total')
+ok(mixPlaybook.ok, 'playbook open-only ok')
+ok(mixPlaybook.endingsConfirmedTotal === 0, 'month confirmed total 0 when not in rows')
 ok(mixPlaybook.endingsOpenTotal === 1, 'month open total')
-const weekWithDone = mixPlaybook.weeks.find((w) => w.endingsConfirmedCount > 0)
-ok(weekWithDone?.endingsConfirmedCount === 1, 'week has confirmed count')
-ok(weekWithDone?.endingsOpenCount === 0 || weekWithDone?.endings.some((e) => e.confirmed), 'confirmed in week endings')
+ok(
+  mixPlaybook.weeks.every((w) => w.endingsConfirmedCount === 0),
+  'weeks have no confirmed closings',
+)
 
-const onlyConfirmedCounts = mixBuckets.map((b) => b.filter((r) => r.confirmed).length)
 const openOnlyCounts = mixBuckets.map((b) => b.filter((r) => !r.confirmed).length)
 const paceOpen = paceWeekTargets(100000, weeks, openOnlyCounts)
-const paceAll = paceWeekTargets(
-  100000,
-  weeks,
-  mixBuckets.map((b) => b.length),
-)
 ok(
   Math.abs(paceOpen.reduce((a, b) => a + b, 0) - 100000) < 1,
   'pace from open counts sums to pack',
-)
-ok(
-  paceOpen.some((t, i) => t !== paceAll[i]) || onlyConfirmedCounts.some((n) => n > 0),
-  'confirmed would skew pace if counted (sanity)',
 )
 
 const deduped = endingRowsFromRenewalsSuggest({
@@ -190,7 +201,7 @@ const deduped = endingRowsFromRenewalsSuggest({
     },
   ],
 })
-ok(deduped.length === 1 && deduped[0].confirmed, 'confirmed wins dedupe over open')
+ok(deduped.length === 1 && !deduped[0].confirmed && deduped[0].amount === 10000, 'open kept; confirmed ignored in list')
 
 if (failed) {
   console.error(`\n${failed} strategy playbook check(s) failed`)

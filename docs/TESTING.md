@@ -61,6 +61,7 @@
 | Стратегия: playbook недель / закрытия / темп | `verify-sales-strategy-playbook.mjs` |
 | Стратегия: дрейф при архиве клиентов | `verify-sales-strategy-archive-drift.mjs` |
 | Стратегия: снимок playbook (галочки на всех устройствах) | `verify-sales-strategy-snapshot.mjs` |
+| План: частичное сохранение без затирания матрицы/уровней | `verify-sales-plan-row-persist.mjs` |
 | Стратегия: сводная доска пакета (шт / ₽ / доп / ур. 3) | `verify-sales-strategy-package-board.mjs` |
 | Стратегия: якорь зала × сезон | `verify-sales-hall-anchor.mjs` |
 | Прайс ТЗ: импорт Excel 1мес/акции | `verify-tz-price-list.mjs` |

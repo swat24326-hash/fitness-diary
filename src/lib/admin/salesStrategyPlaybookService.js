@@ -1,19 +1,19 @@
 /**
- * Сборка playbook из suggest (candidates + confirmed) + пакета top-up + дней факта.
+ * Сборка playbook из suggest (только open candidates) + пакета top-up + дней факта.
+ * Уже купившие следующий абон (confirmedClosings) — не в списке закрытий: в месяце
+ * им нечего покупать; остаются в suggest как счётчик «Уже купили след.».
  */
 
 import { todayLocalIso } from '../dateRu.js'
-import { clampRenewalPct } from './salesPlanHallRenewalsSuggestCore.js'
 import { roundPlanRub } from './salesPlanMatrixCore.js'
 import { buildStrategyPlaybook } from './salesStrategyPlaybookCore.js'
 
 /**
- * Кандидаты + подтверждённые продления → строки закрытий для недель.
- * Open: ориентир × % продления. Confirmed: ориентир чека без ×%, + factAmount.
+ * Только открытые кандидаты → строки закрытий для недель.
+ * В списке — чек покупки (paidRub / avg / прайс), без ×% продления: % только в пакете ДК.
  * @param {object} suggest
  */
 export function endingRowsFromRenewalsSuggest(suggest) {
-  const pct = clampRenewalPct(suggest?.renewalPct)
   /** @type {Map<string, object>} */
   const byKey = new Map()
 
@@ -25,6 +25,11 @@ export function endingRowsFromRenewalsSuggest(suggest) {
     const key = `${clientId}|${endDate}|${hall}`
     if (!clientId || !endDate || byKey.has(key)) continue
     const avg = Math.max(0, Number(c?.avgRub) || 0)
+    const paidRaw = c?.paidRub
+    const paid =
+      paidRaw == null || paidRaw === ''
+        ? null
+        : Math.max(0, Number(paidRaw) || 0) || null
     byKey.set(key, {
       clientId,
       clientName: String(c?.clientName ?? '').trim(),
@@ -32,44 +37,12 @@ export function endingRowsFromRenewalsSuggest(suggest) {
       cardNumber: String(c?.cardNumber ?? c?.card_number ?? '').trim(),
       hall,
       endDate,
-      amount: roundPlanRub((avg * pct) / 100),
+      // В списке — цена абона из карточки, иначе среднее/прайс. % продления не режем здесь.
+      amount: roundPlanRub(paid != null ? paid : avg),
       source: c?.source || '',
       avgRub: avg,
       confirmed: false,
       factAmount: null,
-    })
-  }
-
-  const confirmedList = Array.isArray(suggest?.confirmedClosings) ? suggest.confirmedClosings : []
-  for (const c of confirmedList) {
-    const clientId = String(c?.clientId ?? '')
-    const endDate = String(c?.endDate ?? '').slice(0, 10)
-    const hall = c?.hall === 'tz' || c?.hall === 'az' ? c.hall : 'pz'
-    const key = `${clientId}|${endDate}|${hall}`
-    if (!clientId || !endDate) continue
-    const avgRaw = c?.avgRub
-    const avg =
-      avgRaw == null || avgRaw === ''
-        ? null
-        : Math.max(0, Number(avgRaw) || 0)
-    const factRaw = c?.factAmount
-    const factAmount =
-      factRaw == null || factRaw === ''
-        ? null
-        : roundPlanRub(Math.max(0, Number(factRaw) || 0)) || null
-    // Confirmed побеждает open при том же ключе.
-    byKey.set(key, {
-      clientId,
-      clientName: String(c?.clientName ?? '').trim(),
-      phone: String(c?.phone ?? '').trim(),
-      cardNumber: String(c?.cardNumber ?? c?.card_number ?? '').trim(),
-      hall,
-      endDate,
-      amount: avg != null ? roundPlanRub(avg) : 0,
-      source: c?.source || '',
-      avgRub: avg,
-      confirmed: true,
-      factAmount,
     })
   }
 

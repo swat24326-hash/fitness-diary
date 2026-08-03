@@ -381,6 +381,8 @@ export function collectHallRenewalCandidates(input) {
       hall,
       endDate,
       avgRub: orient.avgRub,
+      /** Цена текущего (кончающегося) абона — для списка закрытий «как в карточке». */
+      paidRub: parsePaidAmountRub(endingMembership?.paid_amount),
       sampleCount: orient.sampleCount,
       source: orient.source,
     })
