@@ -59,6 +59,133 @@
   color: var(--accent-bright, #3ee089);
 }
 
+.sales-strategy-board {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0.85rem 0 0.35rem;
+  padding: 1rem 1.1rem;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent, #2ecc71) 40%, transparent);
+  background: linear-gradient(
+    155deg,
+    color-mix(in srgb, var(--accent, #2ecc71) 16%, transparent),
+    color-mix(in srgb, var(--surface, #151b26) 94%, transparent) 60%
+  );
+}
+
+.sales-strategy-board__hero {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+}
+
+.sales-strategy-board__hero-cell,
+.sales-strategy-board__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.sales-strategy-board__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem 0.85rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid color-mix(in srgb, var(--border, #2a3344) 70%, transparent);
+}
+
+.sales-strategy-board__label {
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted, #8a93a3);
+}
+
+.sales-strategy-board__value {
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.sales-strategy-board__value--lg {
+  font-size: 1.45rem;
+}
+
+.sales-strategy-board__hint {
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.sales-strategy-board__cell--accent .sales-strategy-board__value {
+  color: var(--accent-bright, #3ee089);
+}
+
+.sales-strategy__brief {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+  padding: 0.9rem 1.05rem;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent, #2ecc71) 35%, transparent);
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--accent, #2ecc71) 12%, transparent),
+    color-mix(in srgb, var(--surface, #151b26) 94%, transparent) 55%
+  );
+}
+
+.sales-strategy__brief-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.sales-strategy__brief-label {
+  font-size: 0.72rem;
+  color: var(--muted, #8a93a3);
+}
+
+.sales-strategy__brief-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.sales-strategy__brief-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.sales-strategy__ref-lead {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.sales-strategy__ref-kpis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.sales-strategy__ref-kpis .sales-strategy__kpi-value {
+  display: block;
+  margin: 0.15rem 0;
+}
+
+.sales-strategy__ref-sub {
+  display: block;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
 .sales-strategy__grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -205,7 +332,11 @@
 }
 
 @media (max-width: 720px) {
-  .sales-strategy__grid {
+  .sales-strategy__brief,
+  .sales-strategy__grid,
+  .sales-strategy__ref-kpis,
+  .sales-strategy-board__hero,
+  .sales-strategy-board__grid {
     grid-template-columns: 1fr;
   }
 

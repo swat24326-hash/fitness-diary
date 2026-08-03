@@ -24,7 +24,7 @@ async function handler(req, res) {
   const ctx = await requireAuthUser(req, res)
   if (!ctx) return
 
-  if (!ctx.isAdmin && !ctx.isTrainer) {
+  if (!ctx.isAdmin && !ctx.isTrainer && !ctx.isSalesManager) {
     sendJson(res, 403, { error: 'Нет доступа' })
     return
   }
@@ -50,7 +50,14 @@ async function handler(req, res) {
     return
   }
 
-  if (!ctx.isAdmin && String(client.trainer_id) !== String(ctx.user.id)) {
+  if (ctx.isSalesManager && !ctx.isAdmin) {
+    const profileClub = String(ctx.profile?.club_id ?? '').trim()
+    const clientClub = String(client.club_id ?? '').trim()
+    if (!profileClub || !clientClub || profileClub !== clientClub) {
+      sendJson(res, 403, { error: 'Нет доступа к этому клиенту' })
+      return
+    }
+  } else if (!ctx.isAdmin && String(client.trainer_id) !== String(ctx.user.id)) {
     sendJson(res, 403, { error: 'Этот клиент закреплён за другим тренером' })
     return
   }

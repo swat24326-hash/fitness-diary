@@ -141,3 +141,42 @@ export function gapToPlanLevel3(planLevel3, expectedRub) {
   if (!(target > 0)) return null
   return Math.max(0, Math.round((target - exp) * 100) / 100)
 }
+
+const PLAN_LEVEL_KEYS = /** @type {const} */ ([
+  'plan_level_1',
+  'plan_level_2',
+  'plan_level_3',
+])
+
+/**
+ * Уровни из живой формы шапки при том же месяце — источник правды для Стратегии.
+ * @param {Record<string, string>|null|undefined} strategyForm
+ * @param {Record<string, string>|null|undefined} clubForm
+ * @param {{ year: number, month: number }|null|undefined} targetYm
+ * @param {{ year: number, month: number }|null|undefined} clubYm
+ */
+export function mergeStrategyPlanFormWithClub(strategyForm, clubForm, targetYm, clubYm) {
+  const base =
+    strategyForm && typeof strategyForm === 'object' ? { ...strategyForm } : {}
+  const ty = Number(targetYm?.year)
+  const tm = Number(targetYm?.month)
+  const cy = Number(clubYm?.year)
+  const cm = Number(clubYm?.month)
+  if (
+    !clubForm ||
+    typeof clubForm !== 'object' ||
+    !Number.isFinite(ty) ||
+    !Number.isFinite(tm) ||
+    ty !== cy ||
+    tm !== cm
+  ) {
+    return base
+  }
+  for (const k of PLAN_LEVEL_KEYS) {
+    const live = Number(String(clubForm[k] ?? '').replace(/\s/g, '').replace(',', '.'))
+    if (live > 0) {
+      base[k] = String(clubForm[k]).trim() || String(live)
+    }
+  }
+  return base
+}

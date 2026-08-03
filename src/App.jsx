@@ -193,6 +193,7 @@ export default function App() {
               <Route path="/sales" element={<AdminSales accessMode="sales_manager" />} />
               <Route path="/sales/club-tasks" element={<SalesClubTasks />} />
               <Route path="/sales/pnk" element={<SalesPnk />} />
+              <Route path="/sales/clients/:id" element={<ClientCard />} />
             </Route>
             <Route element={<RoleOutlet roles={['admin']} />}>
               <Route path="/admin/workouts/:id" element={<TrainingPage />} />

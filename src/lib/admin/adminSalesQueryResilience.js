@@ -17,6 +17,9 @@ export const SALES_DAILY_SELECT_WITHOUT_REFUNDS =
 export const SALES_DAILY_SELECT_BASE =
   'id, club_id, report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, dop_nk, dop_dk, dop_uk, updated_at'
 
+export const SALES_PLAN_SELECT_WITH_SNAPSHOT =
+  'plan_total, plan_level_1, plan_level_2, plan_level_3, plan_pz, plan_tz, plan_az, plan_extra, plan_matrix, strategy_snapshot, updated_at'
+
 export const SALES_PLAN_SELECT_FULL =
   'plan_total, plan_level_1, plan_level_2, plan_level_3, plan_pz, plan_tz, plan_az, plan_extra, plan_matrix, updated_at'
 
@@ -132,7 +135,10 @@ export async function querySalesPlanRow(client, clubId, year, month) {
       .eq('month', month)
       .maybeSingle()
 
-  let res = await run(SALES_PLAN_SELECT_FULL)
+  let res = await run(SALES_PLAN_SELECT_WITH_SNAPSHOT)
+  if (res.error && isMissingSalesColumnError(res.error)) {
+    res = await run(SALES_PLAN_SELECT_FULL)
+  }
   if (res.error && isMissingSalesColumnError(res.error)) {
     res = await run(SALES_PLAN_SELECT_WITHOUT_MATRIX)
   }

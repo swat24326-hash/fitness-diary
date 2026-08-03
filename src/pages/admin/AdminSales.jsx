@@ -85,6 +85,7 @@ import { AdminHomeAttentionRow } from '../../components/admin/AdminHomeAttention
 import { PriceListHallShell } from '../../components/priceList/PriceListHallShell.jsx'
 import '../../styles/sales-report.css'
 import '../../styles/sales-strategy.css'
+import '../../styles/sales-strategy-playbook.css'
 
 const MONTH_NAMES = [
   'январь',
@@ -132,6 +133,11 @@ export function AdminSales({ accessMode = 'admin' }) {
   const showSalesHero = !isSalesManager || salesTab === 'home'
   const showFinanceTab = !isSalesManager
   const showInternalTabs = !isSalesManager
+  /** Не размонтировать Стратегию при уходе на другие вкладки — иначе playbook пропадает до «Посчитать». */
+  const [keepStrategyPanel, setKeepStrategyPanel] = useState(false)
+  useEffect(() => {
+    if (salesTab === 'strategy') setKeepStrategyPanel(true)
+  }, [salesTab])
 
   useEffect(() => {
     if (isSalesManager && (salesTabParam === 'finance' || salesTabParam === 'plan')) {
@@ -1105,11 +1111,19 @@ export function AdminSales({ accessMode = 'admin' }) {
         </div>
       ) : null}
 
-      {isSalesManager && salesTab === 'strategy' ? (
-        <div id="sales-panel-strategy" className="sales-report__panel">
+      {isSalesManager && keepStrategyPanel ? (
+        <div
+          id="sales-panel-strategy"
+          className="sales-report__panel"
+          hidden={salesTab !== 'strategy'}
+          aria-hidden={salesTab !== 'strategy'}
+        >
           <SalesStrategyPanel
             clubId={clubId}
             membershipTypes={membershipTypes}
+            clubPlanForm={planForm}
+            clubPlanYear={yearMonth.year}
+            clubPlanMonth={yearMonth.month}
             onPlanChange={setPlanForm}
             onSelectPlanMonth={selectPlanCalendarMonth}
             onToast={showToast}
@@ -1216,6 +1230,27 @@ export function AdminSales({ accessMode = 'admin' }) {
         </div>
       ) : null}
 
+      {!isSalesManager && keepStrategyPanel ? (
+        <div
+          id="sales-panel-strategy"
+          role="tabpanel"
+          aria-labelledby="sales-tab-strategy"
+          hidden={salesTab !== 'strategy'}
+          aria-hidden={salesTab !== 'strategy'}
+        >
+          <SalesStrategyPanel
+            clubId={clubId}
+            membershipTypes={membershipTypes}
+            clubPlanForm={planForm}
+            clubPlanYear={yearMonth.year}
+            clubPlanMonth={yearMonth.month}
+            onPlanChange={setPlanForm}
+            onSelectPlanMonth={selectPlanCalendarMonth}
+            onToast={showToast}
+          />
+        </div>
+      ) : null}
+
       {!isSalesManager && salesTab === 'daily' ? (
         <div id="sales-panel-daily" role="tabpanel" aria-labelledby="sales-tab-daily">
           {clubId ? <SalesDailyTaskAssign clubId={clubId} reportDate={reportDate} /> : null}
@@ -1270,16 +1305,6 @@ export function AdminSales({ accessMode = 'admin' }) {
             onNextMonth={() => shiftReportMonth(1)}
             onOpenDay={openDayReport}
             showPayroll
-          />
-        </div>
-      ) : !isSalesManager && salesTab === 'strategy' ? (
-        <div id="sales-panel-strategy" role="tabpanel" aria-labelledby="sales-tab-strategy">
-          <SalesStrategyPanel
-            clubId={clubId}
-            membershipTypes={membershipTypes}
-            onPlanChange={setPlanForm}
-            onSelectPlanMonth={selectPlanCalendarMonth}
-            onToast={showToast}
           />
         </div>
       ) : !isSalesManager && salesTab === 'plan' ? (

@@ -7,6 +7,7 @@ import {
   buildHallAnchorProjection,
   daysInCalendarMonth,
   gapToPlanLevel3,
+  mergeStrategyPlanFormWithClub,
   previousCalendarYearMonth,
   pzDkShareOfAnchor,
   summarizeHallMonthFromDailyRows,
@@ -90,6 +91,29 @@ ok(gapToPlanLevel3(300000, 200000) === 100000, 'gap to L3')
 ok(gapToPlanLevel3(100000, 200000) === 0, 'no gap if above')
 ok(pzDkShareOfAnchor(50000, 200000) === 0.25, 'pz share 25%')
 ok(pzDkShareOfAnchor(0, 0) == null, 'share null if no anchor')
+
+const merged = mergeStrategyPlanFormWithClub(
+  { plan_level_3: '' },
+  { plan_level_3: '1200000', plan_level_1: '1000000' },
+  { year: 2026, month: 8 },
+  { year: 2026, month: 8 },
+)
+ok(merged.plan_level_3 === '1200000', 'merge L3 from club form')
+ok(merged.plan_level_1 === '1000000', 'merge L1 from club form')
+const overwritten = mergeStrategyPlanFormWithClub(
+  { plan_level_3: '999' },
+  { plan_level_3: '1200000' },
+  { year: 2026, month: 8 },
+  { year: 2026, month: 8 },
+)
+ok(overwritten.plan_level_3 === '1200000', 'club L3 overwrites strategy')
+const noMerge = mergeStrategyPlanFormWithClub(
+  { plan_level_3: '' },
+  { plan_level_3: '1200000' },
+  { year: 2026, month: 8 },
+  { year: 2026, month: 9 },
+)
+ok(noMerge.plan_level_3 === '', 'no merge if month mismatch')
 
 if (failed) {
   console.error(`\n${failed} failed`)

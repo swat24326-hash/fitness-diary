@@ -24,6 +24,7 @@ ok(!isSalesManagerRole('trainer'), 'not trainer')
 ok(canSalesManagerAccessClub('a', 'a'), 'same club')
 ok(!canSalesManagerAccessClub('a', 'b'), 'different club')
 ok(assertSalesPlanScopeForRole('directions', true).ok, 'manager directions ok')
+ok(assertSalesPlanScopeForRole('strategy_snapshot', true).ok, 'manager strategy snapshot ok')
 ok(!assertSalesPlanScopeForRole('levels', true).ok, 'manager levels blocked')
 
 const stripped = stripSalesBundleForManager(

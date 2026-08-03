@@ -30,7 +30,7 @@ export function canSalesManagerAccessClub(profileClubId, requestedClubId) {
  */
 export function assertSalesPlanScopeForRole(scope, isSalesManager) {
   if (!isSalesManager) return { ok: true }
-  if (scope === 'directions') return { ok: true }
+  if (scope === 'directions' || scope === 'strategy_snapshot') return { ok: true }
   return { ok: false, error: 'Только администратор может менять уровни плана и финансы' }
 }
 

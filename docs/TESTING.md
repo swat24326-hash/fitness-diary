@@ -56,6 +56,12 @@
 | Менеджер: доступ к типам АЗ / выбор списка для отчёта | `verify-sales-membership-types-access.mjs` |
 | Прайс ПЗ: скидка 10%, Excel→code, импорт AOA, TTL кэша | `verify-price-list.mjs` |
 | План: ориентир ПЗ ДК из прайса (8 тр. × действующие) | `verify-sales-plan-pz-dk-suggest.mjs` |
+| Стратегия: продления ДК ПЗ/ТЗ/АЗ (конец месяца × ср. покупок) | `verify-sales-plan-hall-renewals.mjs` |
+| Стратегия: НК/УК + добор до плана по долям прошлого месяца | `verify-sales-plan-hall-top-up.mjs` |
+| Стратегия: playbook недель / закрытия / темп | `verify-sales-strategy-playbook.mjs` |
+| Стратегия: дрейф при архиве клиентов | `verify-sales-strategy-archive-drift.mjs` |
+| Стратегия: снимок playbook (галочки на всех устройствах) | `verify-sales-strategy-snapshot.mjs` |
+| Стратегия: сводная доска пакета (шт / ₽ / доп / ур. 3) | `verify-sales-strategy-package-board.mjs` |
 | Стратегия: якорь зала × сезон | `verify-sales-hall-anchor.mjs` |
 | Прайс ТЗ: импорт Excel 1мес/акции | `verify-tz-price-list.mjs` |
 | Прайс ТЗ: печать HTML / имена PNG | `verify-tz-price-list-print.mjs` |

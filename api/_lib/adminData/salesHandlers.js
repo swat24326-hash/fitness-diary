@@ -17,7 +17,10 @@ import {
   SALES_DAILY_SELECT_BASE,
   SALES_DAILY_SELECT_FULL,
   SALES_DAILY_SELECT_WITHOUT_REFUNDS,
+  SALES_PLAN_SELECT_FULL,
+  SALES_PLAN_SELECT_WITH_SNAPSHOT,
 } from '../../../src/lib/admin/adminSalesQueryResilience.js'
+import { validateStrategySnapshotForSave } from '../../../src/lib/admin/salesStrategySnapshotCore.js'
 import { normalizeMatrixRowsFromDb } from '../../../src/lib/admin/salesTrainingsMatrix.js'
 import { normalizeAerobicRowsFromDb } from '../../../src/lib/admin/aerobicSalesMatrix.js'
 import {
@@ -277,13 +280,54 @@ export async function handleSalesPlanPost(ctx, req, res, body) {
     return
   }
   const scope =
-    body?.scope === 'levels' || body?.scope === 'directions' ? body.scope : 'all'
+    body?.scope === 'levels' ||
+    body?.scope === 'directions' ||
+    body?.scope === 'strategy_snapshot'
+      ? body.scope
+      : 'all'
+
+  const { supabaseAdmin } = ctx
+  const selectCols = SALES_PLAN_SELECT_WITH_SNAPSHOT
+
+  if (scope === 'strategy_snapshot') {
+    const snap = validateStrategySnapshotForSave(body?.strategy_snapshot ?? body?.snapshot)
+    if (!snap.ok) {
+      sendJson(res, 400, { error: snap.error })
+      return
+    }
+    const row = {
+      club_id: clubId,
+      year,
+      month,
+      strategy_snapshot: snap.snapshot,
+      updated_at: new Date().toISOString(),
+    }
+    let { data, error } = await supabaseAdmin
+      .from('club_sales_plan')
+      .upsert(row, { onConflict: 'club_id,year,month' })
+      .select(selectCols)
+      .single()
+    if (error && /strategy_snapshot/i.test(String(error.message ?? ''))) {
+      sendJson(res, 400, {
+        error:
+          'Нет колонки strategy_snapshot — примените миграцию 20260803120000_club_sales_plan_strategy_snapshot.sql',
+      })
+      return
+    }
+    if (error) {
+      sendJson(res, 400, { error: error.message })
+      return
+    }
+    sendJson(res, 200, { plan: data })
+    return
+  }
+
   const parsed = planFormToPayload(body?.form ?? body, { scope })
   if (!parsed.ok) {
     sendJson(res, 400, { error: parsed.error })
     return
   }
-  const { supabaseAdmin } = ctx
+  /** @type {Record<string, unknown>} */
   const row = {
     club_id: clubId,
     year,
@@ -291,11 +335,37 @@ export async function handleSalesPlanPost(ctx, req, res, body) {
     ...parsed.payload,
     updated_at: new Date().toISOString(),
   }
-  const { data, error } = await supabaseAdmin
+  if (body?.strategy_snapshot != null) {
+    const snap = validateStrategySnapshotForSave(body.strategy_snapshot)
+    if (!snap.ok) {
+      sendJson(res, 400, { error: snap.error })
+      return
+    }
+    row.strategy_snapshot = snap.snapshot
+  }
+  let { data, error } = await supabaseAdmin
     .from('club_sales_plan')
     .upsert(row, { onConflict: 'club_id,year,month' })
-    .select('plan_total, plan_level_1, plan_level_2, plan_level_3, plan_pz, plan_tz, plan_az, plan_extra, plan_matrix, updated_at')
+    .select(selectCols)
     .single()
+  if (error && /strategy_snapshot/i.test(String(error.message ?? ''))) {
+    const retry = await supabaseAdmin
+      .from('club_sales_plan')
+      .upsert(
+        {
+          club_id: clubId,
+          year,
+          month,
+          ...parsed.payload,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'club_id,year,month' },
+      )
+      .select(SALES_PLAN_SELECT_FULL)
+      .single()
+    data = retry.data
+    error = retry.error
+  }
   if (error) {
     sendJson(res, 400, { error: error.message })
     return

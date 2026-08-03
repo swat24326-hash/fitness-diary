@@ -11,7 +11,14 @@ import {
 } from './salesHallAnchorCore.js'
 import { calendarYearMonthFromIso } from './salesPlanPzDkSuggestCore.js'
 import { resolveTargetPlanMonthForHorizon } from './salesPlanPzDkSuggestCore.js'
+import {
+  fingerprintPlanDraft,
+  readSalesDraft,
+  resolvePlanDraftAfterLoad,
+  salesPlanDraftKey,
+} from './adminSalesDraftStorage.js'
 import { planRowToForm, resolvePlanFinalTarget } from './salesReportCore.js'
+import { hydrateStrategyFromPlanRow } from './salesStrategySnapshotCore.js'
 
 /**
  * @param {{
@@ -38,7 +45,7 @@ export async function loadSalesStrategyAnchor(opts) {
 
   const [baseBundle, planBundle] = await Promise.all([
     fetchClubSalesBundle({ clubId, reportDate: baseDate, profile: 'month' }),
-    // current: нужны monthDays для −факт ПЗ ДК; next: shell достаточно (дни пустые)
+    // current: дни месяца плана (playbook); next: shell достаточно
     fetchClubSalesBundle({
       clubId,
       reportDate: planDate,
@@ -58,12 +65,29 @@ export async function loadSalesStrategyAnchor(opts) {
     return { ok: false, error: projection.error || 'Не удалось посчитать якорь', horizon, target, baseYm }
   }
 
-  const planForm = planRowToForm(planBundle?.plan)
+  let planForm = planRowToForm(planBundle?.plan)
+  // Тот же черновик «План месяца», что видит шапка — иначе ур. 3 «не задан» при несохранённом плане.
+  const planServerFp = fingerprintPlanDraft(planForm)
+  const planDraft = readSalesDraft(salesPlanDraftKey(clubId, target.year, target.month))
+  planForm = resolvePlanDraftAfterLoad({
+    draft: planDraft,
+    serverFp: planServerFp,
+    planForm,
+  }).planForm
+
   const planLevel3 = resolvePlanFinalTarget({
     plan_level_1: Number(planForm.plan_level_1) || 0,
     plan_level_2: Number(planForm.plan_level_2) || 0,
     plan_level_3: Number(planForm.plan_level_3) || 0,
   })
+
+  const strategyHydrated = hydrateStrategyFromPlanRow(planBundle?.plan)
+  const strategySnapshot =
+    strategyHydrated.ok &&
+    strategyHydrated.snapshot?.year === target.year &&
+    strategyHydrated.snapshot?.month === target.month
+      ? strategyHydrated
+      : null
 
   return {
     ok: true,
@@ -76,6 +100,10 @@ export async function loadSalesStrategyAnchor(opts) {
     planForm,
     planLevel3: planLevel3 > 0 ? planLevel3 : 0,
     planMonthDays: planBundle?.monthDays ?? [],
+    /** Дни прошлого месяца (база якоря) — доли НК/ДК/УК для добора плана. */
+    prevMonthDays: baseBundle?.monthDays ?? [],
     membershipTypes: planBundle?.membershipTypes ?? baseBundle?.membershipTypes ?? [],
+    /** Снимок playbook с галочками (если сохраняли после «Посчитать»). */
+    strategySnapshot,
   }
 }

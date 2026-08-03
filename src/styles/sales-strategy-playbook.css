@@ -1,0 +1,472 @@
+/* Стратегия → playbook выполнения плана */
+
+.sales-playbook {
+  margin-top: 1.35rem;
+  padding: 1.15rem 1.2rem 1.25rem;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--border, #2a3344) 88%, transparent);
+  background:
+    radial-gradient(
+      120% 80% at 0% 0%,
+      color-mix(in srgb, var(--accent, #2ecc71) 10%, transparent),
+      transparent 55%
+    ),
+    color-mix(in srgb, var(--surface, #151b26) 94%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation: fade-in-up 0.45s ease-out both;
+}
+
+.sales-playbook__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.sales-playbook__eyebrow {
+  margin: 0 0 0.2rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted, #8a93a3);
+}
+
+.sales-playbook__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.sales-playbook__lead {
+  margin: 0;
+  max-width: 36rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.sales-playbook__month-kpi {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+  min-width: 11rem;
+  font-size: 0.85rem;
+}
+
+.sales-playbook__month-kpi strong {
+  font-size: 1.05rem;
+}
+
+.sales-playbook__weeks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.sales-playbook__week-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  min-width: 4.5rem;
+  min-height: 3.4rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border, #2a3344) 85%, transparent);
+  background: color-mix(in srgb, var(--surface, #0f141c) 70%, transparent);
+  color: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    transform 0.15s ease;
+}
+
+.sales-playbook__week-chip:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent, #2ecc71) 40%, transparent);
+}
+
+.sales-playbook__week-chip.is-active {
+  border-color: color-mix(in srgb, var(--accent, #2ecc71) 65%, transparent);
+  background: color-mix(in srgb, var(--accent, #2ecc71) 14%, transparent);
+}
+
+.sales-playbook__week-chip.is-current:not(.is-active) {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent, #2ecc71) 35%, transparent);
+}
+
+.sales-playbook__week-chip-label {
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.sales-playbook__week-chip-pct {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--accent, #2ecc71) 85%, #fff);
+}
+
+.sales-playbook__week-chip-meta {
+  font-size: 0.7rem;
+}
+
+.sales-playbook__card {
+  padding: 1rem 1.05rem 1.1rem;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border, #2a3344) 80%, transparent);
+  background: color-mix(in srgb, var(--surface, #0f141c) 88%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  animation: fade-in-up 0.35s ease-out both;
+}
+
+.sales-playbook__card-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.sales-playbook__card-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 650;
+}
+
+.sales-playbook__card-target {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+}
+
+.sales-playbook__card-target strong {
+  font-size: 1.35rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.sales-playbook__bar {
+  height: 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--border, #2a3344) 70%, transparent);
+  overflow: hidden;
+}
+
+.sales-playbook__bar--month {
+  width: 100%;
+  margin-top: 0.15rem;
+}
+
+.sales-playbook__bar-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent, #2ecc71) 75%, #1a8f4a),
+    var(--accent, #2ecc71)
+  );
+  transition: width 0.4s ease;
+}
+
+.sales-playbook__progress-meta {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.sales-playbook__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.sales-playbook__chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.4rem 0.65rem;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  border: 1px solid transparent;
+  background: color-mix(in srgb, var(--surface, #151b26) 80%, transparent);
+}
+
+.sales-playbook__chip--nk {
+  border-color: color-mix(in srgb, #5dade2 45%, transparent);
+  background: color-mix(in srgb, #5dade2 12%, transparent);
+}
+
+.sales-playbook__chip--dk {
+  border-color: color-mix(in srgb, var(--accent, #2ecc71) 45%, transparent);
+  background: color-mix(in srgb, var(--accent, #2ecc71) 12%, transparent);
+}
+
+.sales-playbook__chip--uk {
+  border-color: color-mix(in srgb, #f5b041 45%, transparent);
+  background: color-mix(in srgb, #f5b041 12%, transparent);
+}
+
+.sales-playbook__warn {
+  margin: 0;
+  font-size: 0.82rem;
+  color: color-mix(in srgb, #f5b041 90%, #fff);
+}
+
+.sales-playbook__list-title {
+  margin: 0.25rem 0 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted, #8a93a3);
+  font-weight: 650;
+}
+
+.sales-playbook__empty {
+  margin: 0;
+  font-size: 0.88rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 10px;
+  border: 1px dashed color-mix(in srgb, var(--border, #2a3344) 90%, transparent);
+}
+
+.sales-playbook__closings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 16rem;
+  overflow: auto;
+}
+
+.sales-playbook__closing {
+  display: grid;
+  grid-template-columns: 2.2rem minmax(0, 1fr) auto auto auto;
+  gap: 0.5rem 0.55rem;
+  align-items: center;
+  padding: 0.5rem 0.55rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface, #151b26) 55%, transparent);
+  font-size: 0.88rem;
+}
+
+.sales-playbook__closing-hall {
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  color: color-mix(in srgb, var(--accent, #2ecc71) 80%, #fff);
+  align-self: start;
+  margin-top: 0.15rem;
+}
+
+.sales-playbook__closing-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.sales-playbook__closing-name {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 550;
+}
+
+.sales-playbook__closing-check {
+  flex-shrink: 0;
+  color: color-mix(in srgb, var(--accent, #2ecc71) 85%, #fff);
+}
+
+.sales-playbook__closing.is-confirmed {
+  border: 1px solid color-mix(in srgb, var(--accent, #2ecc71) 35%, transparent);
+}
+
+.sales-playbook__closing-meta {
+  font-size: 0.78rem;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sales-playbook__closing-fact {
+  font-size: 0.78rem;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+
+.sales-playbook__closing-date {
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.sales-playbook__closing-rub {
+  font-weight: 650;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.sales-playbook__closing-open {
+  flex-shrink: 0;
+}
+
+.sales-playbook__closing-open-placeholder {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+@media (max-width: 720px) {
+  .sales-playbook__month-kpi {
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .sales-playbook__closing {
+    grid-template-columns: 2rem minmax(0, 1fr) auto;
+  }
+
+  .sales-playbook__closing-date {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .sales-playbook__closing-rub {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .sales-playbook__closing-open,
+  .sales-playbook__closing-open-placeholder {
+    grid-column: 3;
+    grid-row: 2;
+    justify-self: end;
+  }
+}
+
+/* Дрейф стратегии: архив клиентов */
+
+.sales-archive-drift {
+  margin-top: 1rem;
+  padding: 0.95rem 1.05rem;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border, #2a3344) 85%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  animation: fade-in-up 0.35s ease-out both;
+}
+
+.sales-archive-drift--warn {
+  border-color: color-mix(in srgb, #f5b041 55%, transparent);
+  background: color-mix(in srgb, #f5b041 10%, transparent);
+}
+
+.sales-archive-drift--info {
+  border-color: color-mix(in srgb, #5dade2 45%, transparent);
+  background: color-mix(in srgb, #5dade2 8%, transparent);
+}
+
+.sales-archive-drift__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.sales-archive-drift__icon {
+  flex-shrink: 0;
+  margin-top: 0.15rem;
+  color: #f5b041;
+}
+
+.sales-archive-drift--info .sales-archive-drift__icon {
+  color: #5dade2;
+}
+
+.sales-archive-drift__head-text {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.sales-archive-drift__title {
+  margin: 0 0 0.3rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.sales-archive-drift__lead {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--muted, #8a93a3);
+}
+
+.sales-archive-drift__lead strong {
+  color: inherit;
+  font-weight: 700;
+}
+
+.sales-archive-drift__cta {
+  flex-shrink: 0;
+}
+
+.sales-archive-drift__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.sales-archive-drift__row {
+  display: grid;
+  grid-template-columns: 2.2rem minmax(0, 1fr) auto auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.4rem 0.5rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface, #0f141c) 70%, transparent);
+  font-size: 0.86rem;
+}
+
+.sales-archive-drift__hall {
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+}
+
+.sales-archive-drift__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 550;
+}
+
+.sales-archive-drift__date {
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.sales-archive-drift__rub {
+  font-weight: 650;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.sales-archive-drift__more {
+  margin: 0;
+  font-size: 0.8rem;
+}

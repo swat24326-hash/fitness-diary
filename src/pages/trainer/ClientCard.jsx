@@ -6,7 +6,7 @@ import { ClientOverview } from './ClientOverview'
 import { ClientNutritionPage } from './ClientNutritionPage'
 import { ClientHomeworkPage } from './ClientHomeworkPage'
 import { Statistics } from './Statistics'
-import { getHealthCard, getLocalClient, hydrateAdminClientWorkspace, listMemberships, listTrainingsForClient } from '../../lib/dataAccess'
+import { getHealthCard, getLocalClient, hydrateAdminClientWorkspace, listMemberships, listTrainingsForClient, listTrainerSummariesForAdmin } from '../../lib/dataAccess'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { hasUsableMembershipOnDate } from '../../lib/membershipRules'
 import {
@@ -36,17 +36,23 @@ import {
   resolveClientGreetingName,
 } from '../../lib/trainer/trainerClientOutreachCore.js'
 import { AdminDeskClientCardSection } from '../../components/admin/AdminDeskClientCardSection.jsx'
+import { AdminLitePzClientCardSection } from '../../components/admin/AdminLitePzClientCardSection.jsx'
 import { isDeskHallClient } from '../../lib/admin/holdingClientsCore.js'
+import { isTrainerWithoutTablet } from '../../lib/admin/trainerTabletModeCore.js'
 
 export function ClientCard() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { isAdmin, isTrainer } = useAuth()
+  const { isAdmin, isTrainer, isSalesManager, user } = useAuth()
+  /** Админ и менеджер продаж тянут карточку через /api/get-client. */
+  const canCloudHydrateClient = Boolean(isAdmin || isSalesManager)
   const adminClientsListHref = useMemo(() => {
     const c = searchParams.get('club')
     return `/admin/clients${c ? `?club=${encodeURIComponent(c)}` : ''}`
   }, [searchParams])
+  const salesBackHref = '/sales'
+  const clientsListHref = isAdmin ? adminClientsListHref : isSalesManager ? salesBackHref : '/trainer/clients'
   const adminClubQs = useMemo(() => {
     const c = searchParams.get('club')
     return c ? `?club=${encodeURIComponent(c)}` : ''
@@ -76,8 +82,72 @@ export function ClientCard() {
   const [archiveBusy, setArchiveBusy] = useState(false)
   const [taskModalOpen, setTaskModalOpen] = useState(false)
   const [outreachLogs, setOutreachLogs] = useState([])
+  const [trainerById, setTrainerById] = useState({})
+  const [trainersModeReady, setTrainersModeReady] = useState(!isAdmin)
 
-  const isDeskHoldingClient = Boolean(isAdmin && isDeskHallClient(client))
+  useEffect(() => {
+    if (!isAdmin) {
+      setTrainersModeReady(true)
+      return undefined
+    }
+    let alive = true
+    setTrainersModeReady(false)
+    void listTrainerSummariesForAdmin()
+      .then((rows) => {
+        if (!alive) return
+        const map = {}
+        for (const t of rows ?? []) {
+          if (t?.id) map[t.id] = t
+        }
+        setTrainerById(map)
+        setTrainersModeReady(true)
+      })
+      .catch(() => {
+        if (!alive) return
+        setTrainerById({})
+        setTrainersModeReady(true)
+      })
+    return () => {
+      alive = false
+    }
+  }, [isAdmin])
+
+  const isDeskClient = Boolean(isAdmin && isDeskHallClient(client))
+  const clientTrainerRow = useMemo(() => {
+    const tid = String(client?.trainer_id ?? '').trim()
+    if (!tid) return null
+    return trainerById[tid] ?? null
+  }, [client, trainerById])
+  const isLitePz = useMemo(() => {
+    if (!client || isDeskHallClient(client)) return false
+    if (isAdmin) {
+      if (!trainersModeReady || !clientTrainerRow) return false
+      return isTrainerWithoutTablet(clientTrainerRow)
+    }
+    if (isTrainer && isTrainerWithoutTablet(user) && String(client.trainer_id ?? '') === String(user?.id ?? '')) {
+      return true
+    }
+    return false
+  }, [client, isAdmin, isTrainer, user, trainersModeReady, clientTrainerRow])
+  const adminModePending = Boolean(
+    isAdmin && client && !isDeskHallClient(client) && client.trainer_id && !trainersModeReady,
+  )
+  const adminModeUnknown = Boolean(
+    isAdmin &&
+      client &&
+      !isDeskHallClient(client) &&
+      client.trainer_id &&
+      trainersModeReady &&
+      !clientTrainerRow,
+  )
+  const liteListHref = isAdmin ? adminClientsListHref : '/trainer/clients'
+  const liteTrainerName = useMemo(() => {
+    const tid = String(client?.trainer_id ?? '')
+    if (!tid) return ''
+    if (trainerById[tid]?.name) return trainerById[tid].name
+    if (String(user?.id ?? '') === tid) return user?.name ?? ''
+    return ''
+  }, [client, trainerById, user])
 
   const syncPnkTab = useCallback(
     (c, ctx) => {
@@ -182,7 +252,7 @@ export function ClientCard() {
 
   const reloadFromCloud = useCallback(async () => {
     await reloadLocal()
-    if (isAdmin && isSupabaseConfigured()) {
+    if (canCloudHydrateClient && isSupabaseConfigured()) {
       setHydrateError(null)
       const h = await hydrateAdminClientWorkspace(id)
       if (h.ok) {
@@ -197,7 +267,7 @@ export function ClientCard() {
         setHydrateError(h.error ?? h.reason ?? 'Ошибка загрузки с сервера')
       }
     }
-  }, [id, isAdmin, reloadLocal])
+  }, [id, canCloudHydrateClient, reloadLocal])
 
   const hasActiveMembership = useMemo(() => {
     const today = todayLocalIso()
@@ -230,7 +300,7 @@ export function ClientCard() {
   }, [client, reloadLocal])
 
   useEffect(() => {
-    if (isTrainer && !isAdmin) {
+    if (isTrainer && !canCloudHydrateClient) {
       void reloadLocal()
       if (typeof navigator !== 'undefined' && navigator.onLine) {
         void hydrateFromCloudInBackground()
@@ -238,7 +308,7 @@ export function ClientCard() {
       return
     }
     void reloadFromCloud()
-  }, [isTrainer, isAdmin, reloadLocal, reloadFromCloud, hydrateFromCloudInBackground])
+  }, [isTrainer, canCloudHydrateClient, reloadLocal, reloadFromCloud, hydrateFromCloudInBackground])
 
   useDebouncedStorageReload(
     () => {
@@ -246,11 +316,11 @@ export function ClientCard() {
         void reloadLocal()
         return
       }
-      if (isTrainer && !isAdmin) {
+      if (isTrainer && !canCloudHydrateClient) {
         void hydrateFromCloudInBackground()
         return
       }
-      if (isAdmin) {
+      if (canCloudHydrateClient) {
         void reloadFromCloud()
       }
     },
@@ -337,18 +407,16 @@ export function ClientCard() {
   }, [client, isArchived, reloadLocal, healthCard, bzCompletedCount])
 
   if (!client) {
-    const backTo = isAdmin ? adminClientsListHref : '/trainer/clients'
-    const backLabel = isAdmin ? 'к списку клиентов' : 'к списку клиентов'
     return (
       <div className="trainer-path-empty" role="status">
         <p className="trainer-path-empty__text">
-          Клиент не найден. <Link to={backTo}>Назад {backLabel}</Link>
+          Клиент не найден. <Link to={clientsListHref}>Назад к списку клиентов</Link>
         </p>
       </div>
     )
   }
 
-  if (isDeskHoldingClient) {
+  if (isDeskClient) {
     return (
       <div className="grid trainer-path-card" style={{ gap: 18 }}>
         <AdminDeskClientCardSection
@@ -356,6 +424,48 @@ export function ClientCard() {
           memberships={memberships}
           clubId={String(client.club_id ?? searchParams.get('club') ?? '')}
           listHref={adminClientsListHref}
+          onSaved={() => {
+            void reloadFromCloud()
+          }}
+        />
+      </div>
+    )
+  }
+
+  if (adminModePending) {
+    return (
+      <div className="grid trainer-path-card" style={{ gap: 18 }}>
+        <p className="muted" role="status" style={{ margin: 0 }}>
+          Определяю режим тренера (планшет / без)…
+        </p>
+      </div>
+    )
+  }
+
+  if (adminModeUnknown) {
+    return (
+      <div className="grid trainer-path-card" style={{ gap: 18 }}>
+        <p className="muted" role="alert" style={{ margin: 0 }}>
+          Не удалось узнать режим тренера (есть планшет или нет). Обновите страницу и откройте карточку снова.
+        </p>
+        <p style={{ margin: 0 }}>
+          <Link to={adminClientsListHref} className="u-no-decoration muted" style={{ fontSize: 14 }}>
+            ← К списку клиентов
+          </Link>
+        </p>
+      </div>
+    )
+  }
+
+  if (isLitePz) {
+    return (
+      <div className="grid trainer-path-card" style={{ gap: 18 }}>
+        <AdminLitePzClientCardSection
+          client={client}
+          memberships={memberships}
+          clubId={String(client.club_id ?? searchParams.get('club') ?? '')}
+          trainerName={liteTrainerName}
+          listHref={liteListHref}
           onSaved={() => {
             void reloadFromCloud()
           }}
