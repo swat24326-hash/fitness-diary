@@ -118,6 +118,7 @@ CREATE TABLE memberships (
   club_id UUID NOT NULL REFERENCES clubs (id),
   membership_type_id UUID REFERENCES membership_types (id) ON DELETE SET NULL,
   paid_amount NUMERIC(12, 2) NULL CHECK (paid_amount IS NULL OR paid_amount >= 0),
+  session_visits JSONB NOT NULL DEFAULT '[]'::jsonb,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

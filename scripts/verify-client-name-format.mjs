@@ -15,6 +15,7 @@ function ok(cond, msg) {
 
 ok(formatClientName('плетнёв роман') === 'Плетнёв Роман', 'surname + name')
 ok(formatClientName('плетнёв роман александрович') === 'Плетнёв Роман Александрович', 'surname + name + patronymic')
+ok(formatClientName('анна сергеевна') === 'Анна Сергеевна', 'name + patronymic')
 ok(formatClientName('Плетнёв Р.А.') === 'Плетнёв Р.А.', 'surname + initials dotted')
 ok(formatClientName('Плетнёв РА') === 'Плетнёв Р.А.', 'surname + RA uppercase')
 ok(formatClientName('Плетнёв р а') === 'Плетнёв Р.А.', 'surname + spaced initials')

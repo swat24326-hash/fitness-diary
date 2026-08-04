@@ -285,3 +285,68 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Направления АЗ */
+.admin-clients-az-dirs {
+  margin: 12px 0 0;
+  padding: 12px 0 0;
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.admin-clients-az-dirs__title {
+  margin: 0 0 10px;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.admin-clients-az-dirs__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-clients-az-dirs__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 40px;
+  padding: 0.35rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border, #334) 85%, transparent);
+  background: color-mix(in srgb, var(--bg-subtle, #0a1210) 80%, transparent);
+  color: var(--text, #f2f5fa);
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.admin-clients-az-dirs__chip:hover {
+  border-color: color-mix(in srgb, var(--accent-bright, #7dffb3) 40%, transparent);
+}
+
+.admin-clients-az-dirs__chip.is-active {
+  border-color: color-mix(in srgb, var(--accent-bright, #7dffb3) 55%, transparent);
+  background: color-mix(in srgb, var(--accent-bright, #7dffb3) 12%, transparent);
+  font-weight: 650;
+}
+
+.admin-clients-az-dirs__chip-count {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding: 0.1rem 0.4rem;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bg, #000) 35%, transparent);
+}
+
+.admin-clients-az-dirs__chip.is-active .admin-clients-az-dirs__chip-count {
+  color: var(--text, #f2f5fa);
+}
+

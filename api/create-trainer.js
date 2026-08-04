@@ -5,6 +5,7 @@
  */
 import { createClient } from '@supabase/supabase-js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
+import { formatClientName } from '../src/lib/clientNameFormat.js'
 
 function readEnv() {
   const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').replace(/\/$/, '')
@@ -96,7 +97,7 @@ async function handler(req, res) {
     return
   }
 
-  const name = String(body.name ?? '').trim()
+  const name = formatClientName(body.name)
   const login = String(body.login ?? '')
     .trim()
     .toLowerCase()
@@ -110,7 +111,7 @@ async function handler(req, res) {
       : null
 
   if (!name || !login || !password) {
-    sendJson(res, 400, { error: 'Укажите имя, логин и пароль' })
+    sendJson(res, 400, { error: 'Укажите ФИО, логин и пароль' })
     return
   }
   if (password.length < 6) {

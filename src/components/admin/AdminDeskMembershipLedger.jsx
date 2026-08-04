@@ -25,6 +25,12 @@ import {
   sortDeskMembershipLedger,
 } from '../../lib/admin/deskMembershipLedgerCore.js'
 import { AdminDeskMemDateField } from './AdminDeskMemDateField.jsx'
+import { AdminDeskAzDeductButton } from './AdminDeskAzDeductButton.jsx'
+import { AdminDeskAzSessionHistoryButton } from './AdminDeskAzSessionHistoryButton.jsx'
+import {
+  deskAzSessionUsage,
+  formatDeskAzSessionUsageRu,
+} from '../../lib/admin/deskAzSessionDeductCore.js'
 
 function PackageSelect({ value, onChange }) {
   return (
@@ -322,7 +328,7 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
       </label>
       {showAzDirection ? (
         <label>
-          Занятий
+          Занятий (лимит)
           <input
             type="text"
             inputMode="numeric"
@@ -351,7 +357,7 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
       <h3 className="admin-section-title">Абонементы</h3>
       <p className="admin-desk-membership-ledger__hint">
         {showAzDirection
-          ? 'АЗ: направление, сроки и кол-во занятий. «Действующий» — по датам на сегодня. Даты — дд.мм.гггг или календарь. Направление — из Структура → Типы абон. → АЗ.'
+          ? 'АЗ: направление, сроки и лимит занятий. «Действующий» — срок на сегодня и есть остаток занятий. Списание — кнопка ниже (с подтверждением и датой). Журнал — правки дат. Направление — из Структура → Типы абон. → АЗ.'
           : 'Пакет — срок из прайса (1 месяц, 2…). «Действующий» — по датам на сегодня. Даты — дд.мм.гггг или календарь.'}
       </p>
       {showAzDirection && !azTypes.length ? (
@@ -369,6 +375,7 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
             const id = String(m.id)
             const d = drafts[id] || deskMembershipRowDraft(m)
             const kind = deskMembershipLedgerKind(m, today, activeId)
+            const usage = showAzDirection ? deskAzSessionUsage(m) : null
             return (
               <article
                 key={id}
@@ -378,6 +385,12 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
                   <span className={`admin-desk-mem-card__kind admin-desk-mem-card__kind--${kind}`}>
                     {deskMembershipLedgerKindLabel(kind)}
                   </span>
+                  {usage && usage.total > 0 ? (
+                    <span className="admin-desk-mem-card__usage muted">
+                      занято {formatDeskAzSessionUsageRu(m)}
+                      {usage.remaining != null ? ` · осталось ${usage.remaining}` : ''}
+                    </span>
+                  ) : null}
                 </div>
                 {renderFields(d, (key, value) => setDraftField(id, key, value))}
                 <div className="admin-desk-mem-card__foot">
@@ -389,6 +402,21 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
                   >
                     <Save size={16} aria-hidden /> {busyId === id ? 'Сохраняю…' : 'Сохранить абон'}
                   </button>
+                  {showAzDirection ? (
+                    <>
+                      <AdminDeskAzDeductButton
+                        membership={m}
+                        clientName={String(client?.name ?? '')}
+                        onDone={() => onChanged?.()}
+                        onToast={(msg) => setError(msg)}
+                      />
+                      <AdminDeskAzSessionHistoryButton
+                        membership={m}
+                        onChanged={() => onChanged?.()}
+                        onToast={(msg) => setError(msg)}
+                      />
+                    </>
+                  ) : null}
                 </div>
               </article>
             )

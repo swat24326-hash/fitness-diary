@@ -11,7 +11,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 |-------|---------|---------|
 | `meta` | key (string) | Флаги, служебное |
 | `clients` | `id` | индексы `club_id`, `trainer_id`; поля ПНК / архив; `desk_hall` (`tz`\|`az`\|null); `trainer_id` nullable только вместе с desk (`CHECK trainer OR desk_hall`). Lite-ПЗ = обычный клиент с живым тренером, у которого `users.uses_tablet = false` (не desk). |
-| `memberships` | `id` | `client_id`, `club_id`; опционально `clip_id`; `paid_amount` (₽ покупки, desk ТЗ/АЗ) |
+| `memberships` | `id` | `client_id`, `club_id`; опционально `clip_id`; `paid_amount` (₽ покупки, desk ТЗ/АЗ); `session_visits` JSONB — журнал списаний desk АЗ `[{id,date,created_at}]` |
 | `trainings` | `id` | `draft` \| `completed`; `data` JSON формы (в т.ч. опционально `hr_session` — сводка пульса BLE, см. [TRAINING_HR.md](./TRAINING_HR.md)) |
 | `exercises` | `id` | Справочник |
 | `body_measurements` | `id` | обмеры |
@@ -39,7 +39,7 @@ Postgres (не IDB): **`club_sms_log`** — облачный журнал SMS к
 | Сущность | Смысл |
 |----------|--------|
 | **clients** | Тренер, клуб, контакты, флаги архива, поля жизненного цикла **ПНК** |
-| **memberships** | Период, лимит тренировок, тип карты, опционально `paid_amount` (учёт цены на desk ТЗ/АЗ); списание при завершении тренировки; удаление с карточки клиента только без связанных тренировок (иначе — сначала удалить их в списке абонемента) |
+| **memberships** | Период, лимит тренировок, тип карты, опционально `paid_amount` (учёт цены на desk ТЗ/АЗ); desk АЗ — `used_trainings` + `session_visits` (списание с датой, не дневник ПЗ); у ПЗ списание при завершении тренировки; удаление с карточки клиента только без связанных тренировок (иначе — сначала удалить их в списке абонемента) |
 | **trainings** | Дата, тип, статус, JSON `data` из `TrainingForm` (упражнения, вес, опционально снимок `hr_session`) |
 | **health_cards** | Рост, вес, цель (`goal`), тексты медкарты |
 | **body_measurements** | Поля из `BODY_MEASURE_FIELDS` (+ legacy-имена в читалке) |

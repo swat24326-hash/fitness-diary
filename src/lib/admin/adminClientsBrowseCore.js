@@ -100,6 +100,7 @@ export function buildAdminClientsTodaySnapshot(
  *   trainerQuery?: string,
  *   browseMode?: string,
  *   clientsTab?: string,
+ *   azDirectionFilter?: string,
  *   minSearchLen?: number,
  * }} p
  */
@@ -110,6 +111,8 @@ export function shouldShowAdminClientsList(p) {
   if (String(p?.query ?? '').trim().length >= min) return true
   if (String(p?.trainerQuery ?? '').trim().length >= min) return true
   if (isAdminClientsBrowseMode(p?.browseMode)) return true
+  // Вкладка АЗ: выбранное направление само открывает список
+  if (String(p?.azDirectionFilter ?? '').trim()) return true
   return false
 }
 

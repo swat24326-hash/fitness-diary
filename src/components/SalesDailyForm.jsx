@@ -17,6 +17,7 @@ import {
 import { openNativeDatePicker, todayLocalIso } from '../lib/dateRu.js'
 import { SalesTrainingsMatrix } from './SalesTrainingsMatrix.jsx'
 import { SalesAerobicMatrix } from './SalesAerobicMatrix.jsx'
+import { SalesAerobicAzSessionsHint } from './SalesAerobicAzSessionsHint.jsx'
 
 const MATRIX_HALL_ROWS = SALES_MATRIX_HALL_ROWS
 const MATRIX_COLS = SALES_MATRIX_COLS
@@ -169,6 +170,16 @@ export function SalesDailyForm({
         <h3 className="sales-report__section-title" style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>
           Тренировки в аэробном зале
         </h3>
+        {clubId && reportDate ? (
+          <SalesAerobicAzSessionsHint
+            clubId={clubId}
+            reportDate={reportDate}
+            matrix={aerobicMatrix}
+            onMatrixChange={onAerobicMatrixChange ?? (() => {})}
+            azTypes={aerobicMembershipTypes}
+            canEdit={canEdit}
+          />
+        ) : null}
         <SalesAerobicMatrix
           columns={aerobicTypeColumns}
           membershipTypes={aerobicMembershipTypes}

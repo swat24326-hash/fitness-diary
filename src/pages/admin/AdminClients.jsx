@@ -5,6 +5,8 @@ import { useAuth } from '../../context/AuthContext.jsx'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { AdminClientClubSmsButton } from '../../components/admin/AdminClientClubSmsButton.jsx'
 import { AdminClientsBrowseFilters } from '../../components/admin/AdminClientsBrowseFilters.jsx'
+import { AdminClientsAzDirectionFilters } from '../../components/admin/AdminClientsAzDirectionFilters.jsx'
+import { AdminDeskAzDeductButton } from '../../components/admin/AdminDeskAzDeductButton.jsx'
 import { ClientRowMoreMenu } from '../../components/ClientRowMoreMenu.jsx'
 import {
   deleteClientAndAllData,
@@ -14,6 +16,16 @@ import {
   listTrainerSummariesForAdmin,
 } from '../../lib/dataAccess'
 import { isAdminClientQuickFilter, normalizeAdminClientQuickFilter } from '../../lib/admin/adminClientQuickFilters'
+import {
+  AZ_DIRECTION_FILTER_ALL,
+  buildAzDirectionFilterOptions,
+  clientMatchesAzDirectionFilter,
+  normalizeAzDirectionFilterId,
+} from '../../lib/admin/adminClientsAzDirectionFilterCore.js'
+import {
+  formatDeskAzSessionUsageRu,
+  pickAzMembershipForDeduct,
+} from '../../lib/admin/deskAzSessionDeductCore.js'
 import { buildAdminClientsTodaySnapshot, shouldShowAdminClientsList } from '../../lib/admin/adminClientsBrowseCore'
 import {
   countClientsByAdminListTab,
@@ -162,6 +174,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
   const [refreshMsg, setRefreshMsg] = useState('')
   const [smsFeedback, setSmsFeedback] = useState(null)
   const [azMembershipTypes, setAzMembershipTypes] = useState([])
+  const [azDirectionFilter, setAzDirectionFilter] = useState(AZ_DIRECTION_FILTER_ALL)
   const [clubSmsConfigured, setClubSmsConfigured] = useState(null)
   const [clubSmsTemplates, setClubSmsTemplates] = useState(null)
   const [clubSmsClubName, setClubSmsClubName] = useState('')
@@ -409,10 +422,10 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     }
   }, [clientsTab, club, reload])
 
-  // Типы АЗ (Бокс / Техника дня…) — колонка «Направление» на вкладке АЗ
   useEffect(() => {
     if (clientsTab !== 'az' || !club?.trim()) {
       setAzMembershipTypes([])
+      setAzDirectionFilter(AZ_DIRECTION_FILTER_ALL)
       return undefined
     }
     let cancelled = false
@@ -479,8 +492,9 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         trainerQuery,
         browseMode: quickFilter,
         clientsTab,
+        azDirectionFilter: clientsTab === 'az' ? azDirectionFilter : '',
       }),
-    [query, trainerQuery, quickFilter, clientsTab],
+    [query, trainerQuery, quickFilter, clientsTab, azDirectionFilter],
   )
 
   const listTabCounts = useMemo(() => countClientsByAdminListTab(clients), [clients])
@@ -506,31 +520,62 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       })
     }
 
-    if (quickFilter === 'none') return base
-    if (quickFilter === 'all') {
-      return base.filter((c) => String(c?.lifecycle ?? '') !== 'pnk')
+    if (quickFilter === 'none') {
+      /* keep base for search / az direction */
+    } else if (quickFilter === 'all') {
+      base = base.filter((c) => String(c?.lifecycle ?? '') !== 'pnk')
+    } else {
+      base = base.filter((c) =>
+        clientMatchesAdminFunnelFilter(quickFilter, {
+          client: c,
+          memList: memByClient[c.id] ?? [],
+          today,
+          inactiveIds: todaySnapshot.inactiveIds,
+          hallMode: isDeskHallTab ? clientsTab : 'pz',
+        }),
+      )
     }
-    return base.filter((c) =>
-      clientMatchesAdminFunnelFilter(quickFilter, {
-        client: c,
-        memList: memByClient[c.id] ?? [],
-        today,
-        inactiveIds: todaySnapshot.inactiveIds,
-        hallMode: isDeskHallTab ? clientsTab : 'pz',
-      }),
-    )
+
+    if (clientsTab === 'az' && normalizeAzDirectionFilterId(azDirectionFilter)) {
+      base = base.filter((c) =>
+        clientMatchesAzDirectionFilter(memByClient[c.id] ?? [], azDirectionFilter, today),
+      )
+    }
+
+    return base
   }, [
     clients,
     clientsTab,
     query,
     trainerQuery,
     quickFilter,
+    azDirectionFilter,
     memByClient,
     today,
     trainerNameById,
     todaySnapshot,
     isDeskHallTab,
   ])
+
+  const azDirectionOptions = useMemo(() => {
+    if (clientsTab !== 'az') return []
+    const q = query.trim().toLowerCase()
+    let pool = filterClientsByAdminListTab(clients, 'az')
+    if (q) {
+      pool = pool.filter((c) => {
+        const name = String(c.name ?? '').toLowerCase()
+        const phone = String(c.phone ?? '').toLowerCase()
+        const card = String(c.card_number ?? '').toLowerCase()
+        return name.includes(q) || phone.includes(q) || card.includes(q)
+      })
+    }
+    return buildAzDirectionFilterOptions({
+      clients: pool,
+      memByClient,
+      azTypes: azMembershipTypes,
+      todayIso: today,
+    })
+  }, [clientsTab, clients, query, memByClient, azMembershipTypes, today])
 
   const totalPages = Math.max(1, Math.ceil(filteredClients.length / ADMIN_CLIENTS_PAGE_SIZE))
 
@@ -680,6 +725,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     const next = normalizeAdminClientsListTab(tab)
     setClientsTab(next)
     setListPage(0)
+    setAzDirectionFilter(AZ_DIRECTION_FILTER_ALL)
     if (next === 'archive' || next === 'tz' || next === 'az') {
       setQuickFilter('none')
     }
@@ -689,6 +735,23 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       p.delete('list')
       if (next === 'archive' || next === 'tz' || next === 'az') p.delete('filter')
     }, { resetPage: true })
+  }
+
+  const applyAzDirectionFilter = (id) => {
+    const next = normalizeAzDirectionFilterId(id)
+    setAzDirectionFilter(next)
+    setListPage(0)
+    if (next && quickFilter === 'none') {
+      setQuickFilter('all')
+      patchListSearch((p) => {
+        p.set('filter', 'all')
+        p.delete('page')
+      })
+      return
+    }
+    patchListSearch((p) => {
+      p.delete('page')
+    })
   }
 
   const applyFilter = (id) => {
@@ -1061,10 +1124,20 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               onApply={applyFilter}
               hidePnk={isDeskHallTab}
             />
+            {clientsTab === 'az' ? (
+              <AdminClientsAzDirectionFilters
+                options={azDirectionOptions}
+                value={azDirectionFilter}
+                onChange={applyAzDirectionFilter}
+              />
+            ) : null}
             {isDeskHallTab ? (
               <p className="admin-clients-workspace__archive-hint muted">
                 Вкладка {clientsTab === 'tz' ? 'ТЗ' : 'АЗ'}: люди из списка заканчивающихся, без живого тренера.
                 Карточка — контакты и абонементы. Загрузка файла — в «Списки из Excel».
+                {clientsTab === 'az'
+                  ? ' Направления — типы абон. АЗ. Списание занятий — кнопка рядом с профилем (и в карточке); журнал дат — в абонементе.'
+                  : ''}
               </p>
             ) : null}
           </>
@@ -1133,6 +1206,8 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                     inferDeskPackageMonths(deskMemForPkg.start_date, deskMemForPkg.end_date),
                   )
                 : null
+              const azDeductMem =
+                hall === 'az' ? pickAzMembershipForDeduct(mlist, today) || deskMemForPkg : null
               const last = lastTrainingDateFromMap(lastTrainingByClient, c.id)
               const inactiveRow = todaySnapshot.inactiveDetailById.get(c.id)
               const inactiveLabel =
@@ -1196,6 +1271,14 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                                 deskMemForPkg?.membership_type_id ?? active?.membership_type_id,
                                 azMembershipTypes,
                               )}
+                            </span>
+                          </div>
+                        ) : null}
+                        {clientDeskHall(c) === 'az' && (deskMemForPkg || active) ? (
+                          <div className="td-client-fact">
+                            <span className="td-client-fact__label">Занятия</span>
+                            <span className="td-client-fact__value">
+                              {formatDeskAzSessionUsageRu(deskMemForPkg || active)}
                             </span>
                           </div>
                         ) : null}
@@ -1271,6 +1354,15 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                         >
                           <UserCircle size={20} aria-hidden />
                         </Link>
+                        {clientsTab === 'az' && azDeductMem ? (
+                          <AdminDeskAzDeductButton
+                            membership={azDeductMem}
+                            clientName={String(c.name ?? '')}
+                            compact
+                            onDone={() => void reload({ silent: true })}
+                            onToast={(msg) => setRefreshMsg(msg)}
+                          />
+                        ) : null}
                         <ClientRowMoreMenu
                           disabled={busy}
                           ariaLabel={`Ещё действия: ${c.name ?? c.id}`}

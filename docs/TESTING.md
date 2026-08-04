@@ -80,6 +80,8 @@
 | Карточка: scope glance/full + lite + nav seed + memory list | `verify-client-workspace-scope.mjs` |
 | Клиенты: keep-alive путь список/карточка | `verify-admin-clients-keepalive.mjs` |
 | Вкладки Клиенты / ТЗ / АЗ (`desk_hall`) | `verify-desk-hall-clients.mjs` |
+| АЗ: фильтр по направлениям | `verify-admin-clients-az-direction-filter.mjs` |
+| АЗ: списание занятий + журнал дат | `verify-desk-az-session-deduct.mjs` |
 | Desk без тренера + вне KPI (operational filter) | `verify-sale-clips.mjs` (блок hall/desk) |
 | Миграция desk на linked Supabase | `npm run db:migrate:desk-hall -- --linked` затем `npm run db:migrate:desk-null-trainer -- --linked` |
 | Клип-карта: match / holding / checklist | `verify-sale-clips.mjs` |

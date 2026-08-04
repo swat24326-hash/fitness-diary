@@ -65,5 +65,31 @@ export function normalizeMembershipPushPayload(payload, { insert = false } = {})
     }
   }
 
+  if (Object.prototype.hasOwnProperty.call(next, 'session_visits')) {
+    const raw = next.session_visits
+    if (raw == null) {
+      next.session_visits = []
+    } else if (!Array.isArray(raw)) {
+      return { ok: false, error: 'Журнал списаний АЗ должен быть списком' }
+    } else {
+      const visits = []
+      for (const row of raw) {
+        const id = String(row?.id ?? '').trim()
+        const date = String(row?.date ?? '').slice(0, 10)
+        if (!id || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          return { ok: false, error: 'Журнал списаний АЗ: нужен id и дата' }
+        }
+        const typeId = String(row?.membership_type_id ?? '').trim()
+        visits.push({
+          id,
+          date,
+          created_at: String(row?.created_at ?? '') || `${date}T12:00:00.000Z`,
+          ...(typeId ? { membership_type_id: typeId } : {}),
+        })
+      }
+      next.session_visits = visits
+    }
+  }
+
   return { ok: true, data: next }
 }
