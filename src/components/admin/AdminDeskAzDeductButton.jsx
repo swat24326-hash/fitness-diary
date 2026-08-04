@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MinusCircle } from 'lucide-react'
+import { TicketMinus } from 'lucide-react'
 import { todayLocalIso } from '../../lib/dateRu.js'
 import {
   canDeductDeskAzSession,
@@ -87,7 +87,7 @@ export function AdminDeskAzDeductButton({
         aria-label={check.ok ? 'Списать занятие АЗ' : `Списать нельзя: ${check.error}`}
         onClick={onTrigger}
       >
-        <MinusCircle size={compact ? 20 : 16} aria-hidden />
+        <TicketMinus size={compact ? 20 : 16} aria-hidden />
         {compact ? null : ' Списать занятие'}
       </button>
       {!compact && !check.ok ? (
