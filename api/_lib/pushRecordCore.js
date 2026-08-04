@@ -112,7 +112,7 @@ function stripUnknownClientFields(payload) {
   return next
 }
 
-async function validateMembershipTypeLink(supabaseAdmin, payload, operation) {
+async function validateMembershipTypeLink(supabaseAdmin, payload, operation, opts = {}) {
   const typeId = String(payload?.membership_type_id ?? '').trim()
   if (!typeId) return { ok: true, data: payload }
   const clubId = String(payload?.club_id ?? '').trim()
@@ -126,10 +126,15 @@ async function validateMembershipTypeLink(supabaseAdmin, payload, operation) {
   if (clubId && String(mt.club_id) !== clubId) {
     return { ok: false, error: 'Тип абонемента принадлежит другому клубу' }
   }
-      if (operation === 'insert' && mt.is_active === false) {
+  if (operation === 'insert' && mt.is_active === false) {
     return { ok: false, error: 'Этот тип абонемента отключён — выберите другой' }
   }
-  if (operation === 'insert' && mt.trainer_assignable === false) {
+  // АЗ (trainer_assignable=false) — только админ/менеджер (desk), не тренер.
+  if (
+    operation === 'insert' &&
+    mt.trainer_assignable === false &&
+    !opts.allowDeskAerobicTypes
+  ) {
     return { ok: false, error: 'Этот тип абонемента недоступен для оформления тренером' }
   }
   return { ok: true, data: payload }
@@ -156,6 +161,7 @@ export async function executePushRecord(ctx, item) {
   }
 
   const { supabaseAdmin } = ctx
+  const allowDeskAerobicTypes = Boolean(ctx.isAdmin || ctx.isSalesManager)
 
   try {
     if (operation === 'insert') {
@@ -176,7 +182,9 @@ export async function executePushRecord(ctx, item) {
       if (table_name === 'memberships') {
         const prep = normalizeMembershipPushPayload(payload, { insert: true })
         if (!prep.ok) return { ok: false, status: 400, error: prep.error }
-        const link = await validateMembershipTypeLink(supabaseAdmin, prep.data, 'insert')
+        const link = await validateMembershipTypeLink(supabaseAdmin, prep.data, 'insert', {
+          allowDeskAerobicTypes,
+        })
         if (!link.ok) return { ok: false, status: 400, error: link.error }
         payload = link.data
       }
@@ -253,7 +261,9 @@ export async function executePushRecord(ctx, item) {
       if (table_name === 'memberships') {
         const prep = normalizeMembershipPushPayload(payload)
         if (!prep.ok) return { ok: false, status: 400, error: prep.error }
-        const link = await validateMembershipTypeLink(supabaseAdmin, prep.data, 'update')
+        const link = await validateMembershipTypeLink(supabaseAdmin, prep.data, 'update', {
+          allowDeskAerobicTypes,
+        })
         if (!link.ok) return { ok: false, status: 400, error: link.error }
         payload = link.data
       }

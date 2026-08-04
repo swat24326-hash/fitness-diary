@@ -122,7 +122,7 @@ async function hydrateViaBrowserSupabase(clientId) {
       client_weight_entries,
       trainings,
     },
-    { respectSyncQueue: false },
+    { respectSyncQueue: true },
   )
   return { ok: true, source: 'browser' }
 }
@@ -141,7 +141,7 @@ export async function hydrateAdminClientWorkspace(clientId, opts = {}) {
     const viaApi = await fetchClientWorkspaceViaAdminApi(clientId)
     if (viaApi?.notFound) return { ok: false, reason: 'not_found' }
     if (viaApi?.client) {
-      await cacheWorkspace(viaApi, { respectSyncQueue: !allowBrowserFallback })
+      await cacheWorkspace(viaApi, { respectSyncQueue: true })
       return { ok: true, source: 'admin_api' }
     }
   } catch (e) {

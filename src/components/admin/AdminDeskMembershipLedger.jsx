@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, Save } from 'lucide-react'
 import {
   criticalWriteCloudWarning,
@@ -70,6 +70,8 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
 
   const [azTypes, setAzTypes] = useState([])
   const [drafts, setDrafts] = useState(() => ({}))
+  /** Не затирать поля, которые пользователь уже правил, при reload memberships. */
+  const dirtyIdsRef = useRef(new Set())
   const [busyId, setBusyId] = useState('')
   const [error, setError] = useState('')
   const [adding, setAdding] = useState(false)
@@ -102,16 +104,29 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
   }, [showAzDirection, clubId])
 
   useEffect(() => {
-    const next = {}
-    for (const m of sorted) {
-      next[String(m.id)] = rowDraftFromMembership(m)
-    }
-    setDrafts(next)
+    setDrafts((prev) => {
+      const next = {}
+      const alive = new Set()
+      for (const m of sorted) {
+        const id = String(m.id)
+        alive.add(id)
+        if (dirtyIdsRef.current.has(id) && prev[id]) {
+          next[id] = prev[id]
+        } else {
+          next[id] = rowDraftFromMembership(m)
+        }
+      }
+      for (const id of dirtyIdsRef.current) {
+        if (!alive.has(id)) dirtyIdsRef.current.delete(id)
+      }
+      return next
+    })
   }, [sorted])
 
   const setDraftField = (id, key, value) => {
+    dirtyIdsRef.current.add(id)
     setDrafts((prev) => {
-      const cur = { ...prev[id] }
+      const cur = { ...(prev[id] || {}) }
       cur[key] = value
       if (key === 'package_months' && cur.start_date && value) {
         const end = deskPackageEndIso(cur.start_date, Number(value))
@@ -173,9 +188,11 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
     setBusyId(id)
     setError('')
     try {
+      const typeId = resolveTypeId(d.membership_type_id)
       const row = {
         ...m,
-        membership_type_id: resolveTypeId(d.membership_type_id),
+        club_id: String(m.club_id || clubId || client?.club_id || '').trim() || m.club_id,
+        membership_type_id: typeId,
         start_date: d.start_date,
         end_date: d.end_date,
         paid_amount: paid,
@@ -188,6 +205,8 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
       const flush = await flushCriticalWritesToCloud()
       const warn = criticalWriteCloudWarning(flush, 'Абонемент')
       if (warn) setError(warn)
+      dirtyIdsRef.current.delete(id)
+      setDrafts((prev) => ({ ...prev, [id]: rowDraftFromMembership(row) }))
       dispatchLocalDataChanged({ reason: 'desk-membership-ledger' })
       onChanged?.()
     } catch (e) {
@@ -273,6 +292,10 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
                 </option>
               )
             })}
+            {d.membership_type_id &&
+            !azTypes.some((t) => String(t.id) === String(d.membership_type_id)) ? (
+              <option value={String(d.membership_type_id)}>Сохранённый тип</option>
+            ) : null}
           </select>
         </label>
       ) : null}
