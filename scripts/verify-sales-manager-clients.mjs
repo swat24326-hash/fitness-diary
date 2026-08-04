@@ -8,6 +8,7 @@ import {
   assertSalesManagerDeskClientDelete,
   assertSalesManagerSameClub,
   canSalesManagerHardDeleteClient,
+  canUseSyncPushApi,
   isDeskHallTzOrAz,
   isSalesManagerClientPushTable,
   SALES_MANAGER_CLIENT_PUSH_TABLES,
@@ -28,6 +29,11 @@ ok(SALES_MANAGER_CLIENT_PUSH_TABLES.includes('clients'), 'push clients')
 ok(SALES_MANAGER_CLIENT_PUSH_TABLES.includes('memberships'), 'push memberships')
 ok(isSalesManagerClientPushTable('clients'), 'is clients table')
 ok(!isSalesManagerClientPushTable('trainings'), 'no trainings push (write)')
+ok(canUseSyncPushApi({ isSalesManager: true }), 'manager may call push-record')
+ok(canUseSyncPushApi({ isTrainer: true }), 'trainer may call push-record')
+ok(canUseSyncPushApi({ isAdmin: true }), 'admin may call push-record')
+ok(!canUseSyncPushApi({}), 'anonymous blocked from push-record')
+ok(isDeskHallTzOrAz('тз') && isDeskHallTzOrAz('аз'), 'cyrillic desk hall')
 
 ok(assertSalesManagerSameClub('c1', 'c1').ok, 'same club')
 ok(!assertSalesManagerSameClub('c1', 'c2').ok, 'other club blocked')

@@ -5,6 +5,7 @@
 import { requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 import { executePushRecord } from './_lib/pushRecordCore.js'
+import { canUseSyncPushApi } from '../src/lib/admin/salesManagerClientsAccessCore.js'
 
 async function handler(req, res) {
   setCors(res, 'POST, OPTIONS')
@@ -23,7 +24,7 @@ async function handler(req, res) {
   const ctx = await requireAuthUser(req, res)
   if (!ctx) return
 
-  if (!ctx.isAdmin && !ctx.isTrainer) {
+  if (!canUseSyncPushApi(ctx)) {
     sendJson(res, 403, { error: 'Нет доступа' })
     return
   }

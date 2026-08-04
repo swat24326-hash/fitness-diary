@@ -39,6 +39,7 @@ import { AdminDeskClientCardSection } from '../../components/admin/AdminDeskClie
 import { AdminLitePzClientCardSection } from '../../components/admin/AdminLitePzClientCardSection.jsx'
 import { isDeskHallClient } from '../../lib/admin/holdingClientsCore.js'
 import { isTrainerWithoutTablet } from '../../lib/admin/trainerTabletModeCore.js'
+import { buildAdminClientsBackHref } from '../../lib/admin/adminClientsListHrefCore.js'
 
 export function ClientCard() {
   const { id } = useParams()
@@ -49,16 +50,11 @@ export function ClientCard() {
   const canCloudHydrateClient = Boolean(isAdmin || isSalesManager)
   /** Коммерческий контур клуба: desk / lite / список клиентов. */
   const canManageClubClients = Boolean(isAdmin || isSalesManager)
-  const adminClientsListHref = useMemo(() => {
-    const c = searchParams.get('club')
-    return `/admin/clients${c ? `?club=${encodeURIComponent(c)}` : ''}`
-  }, [searchParams])
-  const salesClientsListHref = '/sales/clients'
-  const clientsListHref = isAdmin
-    ? adminClientsListHref
-    : isSalesManager
-      ? salesClientsListHref
-      : '/trainer/clients'
+  const clientsListHref = useMemo(() => {
+    if (isAdmin) return buildAdminClientsBackHref('/admin/clients', searchParams)
+    if (isSalesManager) return buildAdminClientsBackHref('/sales/clients', searchParams)
+    return '/trainer/clients'
+  }, [isAdmin, isSalesManager, searchParams])
   const adminClubQs = useMemo(() => {
     const c = searchParams.get('club')
     return c ? `?club=${encodeURIComponent(c)}` : ''

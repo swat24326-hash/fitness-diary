@@ -3,6 +3,8 @@
  * Список/карточка/абоны своего club_id; без чужих клубов и без справочников.
  */
 
+import { normalizeDeskHall } from './deskHallClientsCore.js'
+
 /** Таблицы, которые менеджер может писать через push (коммерческий контур). */
 export const SALES_MANAGER_CLIENT_PUSH_TABLES = Object.freeze(['clients', 'memberships'])
 
@@ -16,6 +18,14 @@ export const SALES_MANAGER_DESK_DELETE_EXTRA_TABLES = Object.freeze([
   'body_measurements',
   'client_weight_entries',
 ])
+
+/**
+ * Вход в /api/push-record(s): админ, тренер или менеджер (дальше — authorizePush).
+ * @param {{ isAdmin?: boolean, isTrainer?: boolean, isSalesManager?: boolean } | null | undefined} ctx
+ */
+export function canUseSyncPushApi(ctx) {
+  return Boolean(ctx?.isAdmin || ctx?.isTrainer || ctx?.isSalesManager)
+}
 
 /** @param {string} [tableName] */
 export function isSalesManagerClientPushTable(tableName) {
@@ -43,10 +53,7 @@ export function assertSalesManagerSameClub(profileClubId, rowClubId) {
 
 /** @param {unknown} deskHall */
 export function isDeskHallTzOrAz(deskHall) {
-  const d = String(deskHall ?? '')
-    .trim()
-    .toLowerCase()
-  return d === 'tz' || d === 'az'
+  return normalizeDeskHall(deskHall) != null
 }
 
 /**

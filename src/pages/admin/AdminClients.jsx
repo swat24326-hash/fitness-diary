@@ -64,6 +64,10 @@ import {
   inferDeskPackageMonths,
   pickDeskActiveMembership,
 } from '../../lib/admin/deskMembershipLedgerCore.js'
+import {
+  buildAdminClientCardHref,
+  parseAdminClientsListPage,
+} from '../../lib/admin/adminClientsListHrefCore.js'
 import { collectNoTabletTrainerIds, isLitePzClient } from '../../lib/admin/trainerTabletModeCore.js'
 import { canSalesManagerHardDeleteClient } from '../../lib/admin/salesManagerClientsAccessCore.js'
 import { AdminLitePzCreateModal } from '../../components/admin/AdminLitePzCreateModal.jsx'
@@ -127,10 +131,10 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
   const [noTabletTrainerIds, setNoTabletTrainerIds] = useState(() => new Set())
   const [liteCreateOpen, setLiteCreateOpen] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [listPage, setListPage] = useState(0)
+  const [listPage, setListPage] = useState(() => parseAdminClientsListPage(searchParams.get('page')))
   const [pageTrainingsBusy, setPageTrainingsBusy] = useState(false)
-  const [query, setQuery] = useState('')
-  const [trainerQuery, setTrainerQuery] = useState('')
+  const [query, setQuery] = useState(() => String(searchParams.get('q') ?? ''))
+  const [trainerQuery, setTrainerQuery] = useState(() => String(searchParams.get('trainer') ?? ''))
   const [quickFilter, setQuickFilter] = useState(() => {
     const n = normalizeAdminClientQuickFilter(filterFromUrl)
     return isAdminClientQuickFilter(n) ? n : 'none'
@@ -159,6 +163,8 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
   const [clubSmsClubName, setClubSmsClubName] = useState('')
   /** @type {[object[], function]} */
   const [clubSmsLogs, setClubSmsLogs] = useState([])
+  /** Не сбрасывать page из URL, пока список ещё не подгрузился. */
+  const [listReady, setListReady] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -252,6 +258,7 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
       setCloudNeedsClub(false)
       setListTruncated(false)
     } finally {
+      setListReady(true)
       if (!silent) setBusy(false)
     }
   }, [club, isSalesManager])
@@ -262,10 +269,11 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
 
   useDebouncedStorageReload(() => reload({ silent: true }), { shouldRun: shouldReloadAdminClientsPage })
 
+  /** Восстановление списка после «назад» с карточки (вкладка / фильтр / страница / поиск). */
   useEffect(() => {
-    const raw = searchParams.get('filter')
-    const n = normalizeAdminClientQuickFilter(raw)
-    if (raw === 'expired_remaining' || raw === 'active_today') {
+    const rawFilter = searchParams.get('filter')
+    let n = normalizeAdminClientQuickFilter(rawFilter)
+    if (rawFilter === 'expired_remaining' || rawFilter === 'active_today') {
       setSearchParams(
         (prev) => {
           const p = new URLSearchParams(prev)
@@ -277,8 +285,30 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
       )
     }
     if (isAdminClientQuickFilter(n)) setQuickFilter(n)
-    else if (!raw) setQuickFilter('none')
+    else if (!rawFilter) setQuickFilter('none')
+
+    setClientsTab(normalizeAdminClientsListTab(searchParams.get('clientsTab') || searchParams.get('list')))
+    setListPage(parseAdminClientsListPage(searchParams.get('page')))
+    setQuery(String(searchParams.get('q') ?? ''))
+    setTrainerQuery(String(searchParams.get('trainer') ?? ''))
   }, [searchParams, setSearchParams])
+
+  const patchListSearch = useCallback(
+    (mutate, { resetPage = false } = {}) => {
+      setSearchParams(
+        (prev) => {
+          const p = new URLSearchParams(prev)
+          mutate(p)
+          if (resetPage) p.delete('page')
+          if (isSalesManager) p.delete('club')
+          else if (club) p.set('club', club)
+          return p
+        },
+        { replace: true },
+      )
+    },
+    [setSearchParams, isSalesManager, club],
+  )
 
   // Доп. pull архива при вкладке (основной снимок уже в active+archive merge при загрузке).
   useEffect(() => {
@@ -425,12 +455,40 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
   const totalPages = Math.max(1, Math.ceil(filteredClients.length / ADMIN_CLIENTS_PAGE_SIZE))
 
   useEffect(() => {
-    setListPage(0)
-  }, [clientsTab, query, trainerQuery, quickFilter, club])
+    if (!listReady) return
+    if (listPage > totalPages - 1) {
+      const next = Math.max(0, totalPages - 1)
+      setListPage(next)
+      patchListSearch((p) => {
+        if (next <= 0) p.delete('page')
+        else p.set('page', String(next + 1))
+      })
+    }
+  }, [listReady, listPage, totalPages, patchListSearch])
 
-  useEffect(() => {
-    if (listPage > totalPages - 1) setListPage(Math.max(0, totalPages - 1))
-  }, [listPage, totalPages])
+  const goListPage = useCallback(
+    (nextPage) => {
+      const next = Math.max(0, Math.min(totalPages - 1, nextPage))
+      setListPage(next)
+      patchListSearch((p) => {
+        if (next <= 0) p.delete('page')
+        else p.set('page', String(next + 1))
+      })
+    },
+    [totalPages, patchListSearch],
+  )
+
+  const listNavState = useMemo(
+    () => ({
+      clubId: isSalesManager ? '' : club,
+      clientsTab,
+      filter: quickFilter,
+      page: listPage + 1,
+      query,
+      trainerQuery,
+    }),
+    [isSalesManager, club, clientsTab, quickFilter, listPage, query, trainerQuery],
+  )
 
   const pagedClients = useMemo(() => {
     const start = listPage * ADMIN_CLIENTS_PAGE_SIZE
@@ -533,44 +591,55 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
 
   const clearBrowseFilter = () => {
     setQuickFilter('none')
-    setSearchParams(
-      (prev) => {
-        const p = new URLSearchParams(prev)
-        p.delete('filter')
-        return p
-      },
-      { replace: true },
-    )
+    setListPage(0)
+    patchListSearch((p) => {
+      p.delete('filter')
+    }, { resetPage: true })
   }
 
   const switchClientsTab = (tab) => {
     const next = normalizeAdminClientsListTab(tab)
     setClientsTab(next)
-    if (next === 'archive' || next === 'tz' || next === 'az') clearBrowseFilter()
-    setSearchParams(
-      (prev) => {
-        const p = new URLSearchParams(prev)
-        if (next === 'active') p.delete('clientsTab')
-        else p.set('clientsTab', next)
-        p.delete('list')
-        return p
-      },
-      { replace: true },
-    )
+    setListPage(0)
+    if (next === 'archive' || next === 'tz' || next === 'az') {
+      setQuickFilter('none')
+    }
+    patchListSearch((p) => {
+      if (next === 'active') p.delete('clientsTab')
+      else p.set('clientsTab', next)
+      p.delete('list')
+      if (next === 'archive' || next === 'tz' || next === 'az') p.delete('filter')
+    }, { resetPage: true })
   }
 
   const applyFilter = (id) => {
     const next = quickFilter === id ? 'none' : id
     setQuickFilter(next)
-    setSearchParams(
-      (prev) => {
-        const p = new URLSearchParams(prev)
-        if (next === 'none') p.delete('filter')
-        else p.set('filter', next)
-        return p
-      },
-      { replace: true },
-    )
+    setListPage(0)
+    patchListSearch((p) => {
+      if (next === 'none') p.delete('filter')
+      else p.set('filter', next)
+    }, { resetPage: true })
+  }
+
+  const onQueryChange = (value) => {
+    setQuery(value)
+    setListPage(0)
+    patchListSearch((p) => {
+      const v = String(value ?? '').trim()
+      if (v) p.set('q', v)
+      else p.delete('q')
+    }, { resetPage: true })
+  }
+
+  const onTrainerQueryChange = (value) => {
+    setTrainerQuery(value)
+    setListPage(0)
+    patchListSearch((p) => {
+      const v = String(value ?? '').trim()
+      if (v) p.set('trainer', v)
+      else p.delete('trainer')
+    }, { resetPage: true })
   }
 
   const updateClientArchiveFlag = async (clientRow, archived) => {
@@ -605,8 +674,6 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
     if (!tid) return '—'
     return trainerNameById[tid] ?? (String(tid).length > 10 ? `Тренер ${String(tid).slice(0, 8)}…` : tid)
   }
-
-  const clubQs = club ? `?club=${encodeURIComponent(club)}` : ''
 
   const closeReassignModal = () => {
     if (reassignBusy) return
@@ -885,7 +952,7 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
               placeholder="Фамилия, телефон или номер карты…"
               aria-label="Поиск по клиенту"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => onQueryChange(e.target.value)}
             />
           </div>
           {!isDeskHallTab ? (
@@ -898,7 +965,7 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
                 placeholder="Тренер: ФИО…"
                 aria-label="Поиск по закреплённому тренеру"
                 value={trainerQuery}
-                onChange={(e) => setTrainerQuery(e.target.value)}
+                onChange={(e) => onTrainerQueryChange(e.target.value)}
               />
             </div>
           ) : null}
@@ -1112,7 +1179,7 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
                           onSent={onClubSmsSent}
                         />
                         <Link
-                          to={`${clientsBasePath}/${c.id}${clubQs}`}
+                          to={buildAdminClientCardHref(clientsBasePath, c.id, listNavState)}
                           className="btn btn-primary btn-icon-square btn-touch u-no-decoration"
                           aria-label="Карточка клиента"
                           title="Карточка клиента"
@@ -1184,7 +1251,7 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
                 type="button"
                 className="btn btn-ghost btn-touch"
                 disabled={listPage <= 0 || busy}
-                onClick={() => setListPage((p) => Math.max(0, p - 1))}
+                onClick={() => goListPage(listPage - 1)}
               >
                 Назад
               </button>
@@ -1192,7 +1259,7 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
                 type="button"
                 className="btn btn-ghost btn-touch"
                 disabled={listPage >= totalPages - 1 || busy}
-                onClick={() => setListPage((p) => Math.min(totalPages - 1, p + 1))}
+                onClick={() => goListPage(listPage + 1)}
               >
                 Вперёд
               </button>
@@ -1300,8 +1367,7 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
         onCreated={(clientId) => {
           void reload().then(() => {
             if (!clientId) return
-            const qs = club ? `?club=${encodeURIComponent(club)}` : ''
-            navigate(`${clientsBasePath}/${clientId}${qs}`)
+            navigate(buildAdminClientCardHref(clientsBasePath, clientId, listNavState))
           })
         }}
       />

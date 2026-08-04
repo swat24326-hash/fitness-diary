@@ -65,6 +65,11 @@ ok(
   labels('/sales/clients/cid').join(' › ') === 'План продаж › Клиенты › Карточка клиента',
   'manager client card',
 )
+ok(
+  buildBreadcrumbs('/sales/clients/cid', '?clientsTab=tz&page=2')[1].to ===
+    '/sales/clients?clientsTab=tz&page=2',
+  'manager client card → list keeps tab/page',
+)
 
 ok(
   labels('/trainer/workouts/w1').join(' › ') === 'Главная › Клиенты › Тренировка',
@@ -82,6 +87,11 @@ ok(
 ok(
   labels('/admin/clients/cid', '?club=c1').join(' › ') === 'Админка › Клиенты › Карточка клиента',
   'admin client card',
+)
+ok(
+  buildBreadcrumbs('/admin/clients/cid', '?club=c1&clientsTab=az&filter=birthdays&page=3')[1].to ===
+    '/admin/clients?club=c1&clientsTab=az&filter=birthdays&page=3',
+  'admin client card → list keeps state',
 )
 ok(
   labels('/trainer/clients/cid').join(' › ') === 'Главная › Клиенты › Карточка',

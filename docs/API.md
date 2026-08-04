@@ -13,8 +13,8 @@
 |----------|------------|
 | `/api/admin-data` | Объединённый GET/POST админки, продаж, ИСКРЫ, справочников (`?action=`) |
 | `/api/trainer-pull` | Pull данных на планшет тренера |
-| `/api/push-record` | Одна запись из sync-очереди |
-| `/api/push-records` | Пакетный flush очереди |
+| `/api/push-record` | Одна запись из sync-очереди (admin / trainer / sales_manager; права по таблице — `authorizePush`) |
+| `/api/push-records` | Пакетный flush очереди (те же роли) |
 | `/api/auth-sign-in` | Вход (логин/пароль → сессия), когда нужен server path |
 | `/api/me-profile` | Профиль текущего пользователя |
 | `/api/list-clients` | Список клиентов клуба (admin / sales_manager своего клуба) |
