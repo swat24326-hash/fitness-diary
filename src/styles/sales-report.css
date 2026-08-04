@@ -3274,6 +3274,10 @@
   min-width: 4.5rem;
 }
 
+.sales-report__matrix--plan .sales-report__matrix-input--dk:focus {
+  outline-color: color-mix(in srgb, #e6b84d 70%, transparent);
+}
+
 .sales-report__matrix--compare .sales-report__matrix-computed {
   font-size: 0.82rem;
   white-space: nowrap;

@@ -11,29 +11,20 @@ import { normalizeDeskHall } from '../../lib/admin/deskHallClientsCore.js'
 import { ensureMembershipTypesForClub } from '../../lib/membershipTypesService.js'
 import {
   DESK_PACKAGE_MONTH_OPTIONS,
+  applyDeskMembershipDraftField,
+  deskMembershipDraftEquals,
   deskMembershipLedgerKind,
   deskMembershipLedgerKindLabel,
+  deskMembershipRowDraft,
+  deskMembershipsContentSig,
   deskPackageEndIso,
   formatDeskPackageMonthsLabel,
-  inferDeskPackageMonths,
   parseDeskPaidAmountInput,
+  parseDeskTotalTrainingsInput,
   pickDeskActiveMembership,
   sortDeskMembershipLedger,
 } from '../../lib/admin/deskMembershipLedgerCore.js'
-
-function rowDraftFromMembership(m) {
-  const start = m?.start_date ? String(m.start_date).slice(0, 10) : ''
-  const end = m?.end_date ? String(m.end_date).slice(0, 10) : ''
-  const months = inferDeskPackageMonths(start, end)
-  return {
-    id: String(m?.id ?? ''),
-    package_months: months != null ? String(months) : '',
-    start_date: start,
-    end_date: end,
-    paid_amount: m?.paid_amount != null && m.paid_amount !== '' ? String(m.paid_amount) : '',
-    membership_type_id: m?.membership_type_id ? String(m.membership_type_id) : '',
-  }
-}
+import { AdminDeskMemDateField } from './AdminDeskMemDateField.jsx'
 
 function PackageSelect({ value, onChange }) {
   return (
@@ -66,7 +57,10 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
   const showAzDirection = hall === 'az'
   const active = useMemo(() => pickDeskActiveMembership(memberships, today), [memberships, today])
   const activeId = active?.id ? String(active.id) : null
-  const sorted = useMemo(() => sortDeskMembershipLedger(memberships), [memberships])
+  const membershipsSig = useMemo(() => deskMembershipsContentSig(memberships), [memberships])
+  const membershipsRef = useRef(memberships)
+  membershipsRef.current = memberships
+  const sorted = useMemo(() => sortDeskMembershipLedger(membershipsRef.current), [membershipsSig])
 
   const [azTypes, setAzTypes] = useState([])
   const [drafts, setDrafts] = useState(() => ({}))
@@ -81,6 +75,7 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
     end_date: deskPackageEndIso(today, 1),
     paid_amount: '',
     membership_type_id: '',
+    total_trainings: '',
   })
 
   useEffect(() => {
@@ -110,10 +105,16 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
       for (const m of sorted) {
         const id = String(m.id)
         alive.add(id)
+        const fromMem = deskMembershipRowDraft(m)
         if (dirtyIdsRef.current.has(id) && prev[id]) {
-          next[id] = prev[id]
+          if (deskMembershipDraftEquals(prev[id], fromMem)) {
+            dirtyIdsRef.current.delete(id)
+            next[id] = fromMem
+          } else {
+            next[id] = prev[id]
+          }
         } else {
-          next[id] = rowDraftFromMembership(m)
+          next[id] = fromMem
         }
       }
       for (const id of dirtyIdsRef.current) {
@@ -126,41 +127,13 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
   const setDraftField = (id, key, value) => {
     dirtyIdsRef.current.add(id)
     setDrafts((prev) => {
-      const cur = { ...(prev[id] || {}) }
-      cur[key] = value
-      if (key === 'package_months' && cur.start_date && value) {
-        const end = deskPackageEndIso(cur.start_date, Number(value))
-        if (end) cur.end_date = end
-      }
-      if (key === 'start_date' && cur.package_months && value) {
-        const end = deskPackageEndIso(value, Number(cur.package_months))
-        if (end) cur.end_date = end
-      }
-      if (key === 'end_date' || key === 'start_date') {
-        const inferred = inferDeskPackageMonths(cur.start_date, cur.end_date)
-        if (inferred != null) cur.package_months = String(inferred)
-      }
-      return { ...prev, [id]: cur }
+      const cur = prev[id] || deskMembershipRowDraft({ id })
+      return { ...prev, [id]: applyDeskMembershipDraftField(cur, key, value) }
     })
   }
 
   const setNewField = (key, value) => {
-    setNewRow((r) => {
-      const cur = { ...r, [key]: value }
-      if (key === 'package_months' && cur.start_date && value) {
-        const end = deskPackageEndIso(cur.start_date, Number(value))
-        if (end) cur.end_date = end
-      }
-      if (key === 'start_date' && cur.package_months && value) {
-        const end = deskPackageEndIso(value, Number(cur.package_months))
-        if (end) cur.end_date = end
-      }
-      if (key === 'end_date' || key === 'start_date') {
-        const inferred = inferDeskPackageMonths(cur.start_date, cur.end_date)
-        if (inferred != null) cur.package_months = String(inferred)
-      }
-      return cur
-    })
+    setNewRow((r) => applyDeskMembershipDraftField(r, key, value))
   }
 
   const resolveTypeId = (draftTypeId) => {
@@ -170,7 +143,7 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
 
   const saveRow = async (m) => {
     const id = String(m.id)
-    const d = drafts[id] || rowDraftFromMembership(m)
+    const d = drafts[id] || deskMembershipRowDraft(m)
     if (!d.start_date || !d.end_date) {
       setError('Укажите даты начала и окончания')
       return
@@ -184,6 +157,14 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
       setError('Цена должна быть числом ≥ 0')
       return
     }
+    let sessions = null
+    if (showAzDirection) {
+      sessions = parseDeskTotalTrainingsInput(d.total_trainings)
+      if (d.total_trainings !== '' && sessions == null) {
+        setError('Кол-во занятий — целое число ≥ 0')
+        return
+      }
+    }
     setBusyId(id)
     setError('')
     try {
@@ -195,9 +176,10 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
         end_date: d.end_date,
         paid_amount: paid,
       }
-      // АЗ: направление из селекта. ТЗ/прочее: не затирать membership_type_id в null.
+      // АЗ: направление + кол-во занятий. ТЗ: пакет по сроку, без лимита занятий.
       if (showAzDirection) {
         row.membership_type_id = resolveTypeId(d.membership_type_id)
+        row.total_trainings = sessions ?? 0
       }
       await saveLocalWithSync('memberships', row, {
         table_name: 'memberships',
@@ -207,8 +189,10 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
       const flush = await flushCriticalWritesToCloud()
       const warn = criticalWriteCloudWarning(flush, 'Абонемент')
       if (warn) setError(warn)
-      dirtyIdsRef.current.delete(id)
-      setDrafts((prev) => ({ ...prev, [id]: rowDraftFromMembership(row) }))
+      // Держим dirty, пока reload/hydrate не подтвердит те же даты — иначе облако может откатить UI.
+      const savedDraft = deskMembershipRowDraft(row)
+      dirtyIdsRef.current.add(id)
+      setDrafts((prev) => ({ ...prev, [id]: savedDraft }))
       dispatchLocalDataChanged({ reason: 'desk-membership-ledger' })
       onChanged?.()
     } catch (e) {
@@ -233,6 +217,15 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
       setError('Цена должна быть числом ≥ 0')
       return
     }
+    let sessions = 0
+    if (showAzDirection) {
+      const parsed = parseDeskTotalTrainingsInput(newRow.total_trainings)
+      if (newRow.total_trainings !== '' && parsed == null) {
+        setError('Кол-во занятий — целое число ≥ 0')
+        return
+      }
+      sessions = parsed ?? 0
+    }
     setBusyId('new')
     setError('')
     try {
@@ -245,7 +238,7 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
         start_date: newRow.start_date,
         end_date: newRow.end_date,
         paid_amount: paid,
-        total_trainings: 0,
+        total_trainings: sessions,
         used_trainings: 0,
         created_at: now,
       }
@@ -264,6 +257,7 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
         end_date: deskPackageEndIso(today, 1),
         paid_amount: '',
         membership_type_id: '',
+        total_trainings: '',
       })
       dispatchLocalDataChanged({ reason: 'desk-membership-ledger' })
       onChanged?.()
@@ -301,18 +295,41 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
           </select>
         </label>
       ) : null}
-      <label>
-        Пакет
-        <PackageSelect value={d.package_months} onChange={(v) => onField('package_months', v)} />
-      </label>
+      {showAzDirection ? null : (
+        <label>
+          Пакет
+          <PackageSelect value={d.package_months} onChange={(v) => onField('package_months', v)} />
+        </label>
+      )}
       <label>
         Начало
-        <input type="date" value={d.start_date} onChange={(e) => onField('start_date', e.target.value)} />
+        <AdminDeskMemDateField
+          value={d.start_date}
+          onChange={(v) => onField('start_date', v)}
+          aria-label="Дата начала"
+        />
       </label>
       <label>
         Конец
-        <input type="date" value={d.end_date} onChange={(e) => onField('end_date', e.target.value)} />
+        <AdminDeskMemDateField
+          value={d.end_date}
+          onChange={(v) => onField('end_date', v)}
+          aria-label="Дата окончания"
+        />
       </label>
+      {showAzDirection ? (
+        <label>
+          Занятий
+          <input
+            type="text"
+            inputMode="numeric"
+            value={d.total_trainings ?? ''}
+            onChange={(e) => onField('total_trainings', e.target.value)}
+            placeholder="шт"
+            aria-label="Количество занятий"
+          />
+        </label>
+      ) : null}
       <label>
         Цена ₽
         <input
@@ -330,10 +347,9 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
     <section className="admin-desk-membership-ledger" aria-label="Абонементы для учёта">
       <h3 className="admin-section-title">Абонементы</h3>
       <p className="admin-desk-membership-ledger__hint">
-        Пакет — срок из прайса (1 месяц, 2…). «Действующий» — по датам на сегодня.
         {showAzDirection
-          ? ' Направление (Бокс, Техника дня…) — из Структура → Типы абон. → АЗ.'
-          : null}
+          ? 'АЗ: направление, сроки и кол-во занятий. «Действующий» — по датам на сегодня. Даты — дд.мм.гггг или календарь. Направление — из Структура → Типы абон. → АЗ.'
+          : 'Пакет — срок из прайса (1 месяц, 2…). «Действующий» — по датам на сегодня. Даты — дд.мм.гггг или календарь.'}
       </p>
       {showAzDirection && !azTypes.length ? (
         <p className="muted admin-desk-membership-ledger__hint">
@@ -348,7 +364,7 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
         <div className="admin-desk-membership-ledger__list">
           {sorted.map((m) => {
             const id = String(m.id)
-            const d = drafts[id] || rowDraftFromMembership(m)
+            const d = drafts[id] || deskMembershipRowDraft(m)
             const kind = deskMembershipLedgerKind(m, today, activeId)
             return (
               <article

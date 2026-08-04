@@ -74,8 +74,8 @@ ok(parsed1c.rows[2].hall === 'tz', '1c ТЗ Утро = tz')
 ok(parsed1c.rows[3].packageMonths === 6, '1c package 6 мес')
 ok(scopeClosingRowsToHall(parsed1c.rows, 'tz').length === 3, '1c scope tz')
 
-const dates6 = resolveDeskMembershipDates('2026-08-18', null, 6)
-ok(dates6?.start_date === '2026-02-19' && dates6?.end_date === '2026-08-18', 'dates from 6 мес')
+const dates6 = resolveDeskMembershipDates('2026-08-20', null, 6)
+ok(dates6?.start_date === '2026-02-20' && dates6?.end_date === '2026-08-20', 'dates from 6 мес inclusive')
 ok(
   dedupeClosingRowsByCard([
     { cardNumber: '164', endDate: '2026-07-18', packageMonths: 1 },

@@ -65,6 +65,7 @@
 | Стратегия: админ-полоса часов / ЗП / возвратов / чистой | `verify-sales-strategy-admin-finance.mjs` |
 | Стратегия: правка НК/УК перед «В план» | `verify-sales-strategy-nk-uk-edit.mjs` |
 | План: частичное сохранение без затирания матрицы/уровней | `verify-sales-plan-row-persist.mjs` |
+| План: предупреждение при ручной правке ДК | `verify-sales-plan-dk-edit-warn.mjs` |
 | Стратегия: сводная доска пакета (шт / ₽ / доп / ур. 3) | `verify-sales-strategy-package-board.mjs` |
 | Стратегия: якорь зала × сезон | `verify-sales-hall-anchor.mjs` |
 | Прайс ТЗ: импорт Excel 1мес/акции | `verify-tz-price-list.mjs` |

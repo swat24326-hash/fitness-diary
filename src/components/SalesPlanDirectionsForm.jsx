@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Save } from 'lucide-react'
 import {
   evaluatePlanDirectionsForm,
@@ -11,6 +11,10 @@ import {
   planMatrixCellRubFromForm,
   planMatrixCountField,
 } from '../lib/admin/salesPlanMatrixCore.js'
+import {
+  isPlanMatrixDkFieldKey,
+  PLAN_DK_EDIT_WARN_RU,
+} from '../lib/admin/salesPlanDkEditWarnCore.js'
 
 /**
  * @param {{
@@ -28,7 +32,12 @@ export function SalesPlanDirectionsForm({
   saving = false,
   embedded = false,
 }) {
-  const setPlan = (key, value) => onPlanChange({ ...planForm, [key]: value })
+  const [dkEdited, setDkEdited] = useState(false)
+
+  const setPlan = (key, value) => {
+    if (isPlanMatrixDkFieldKey(key)) setDkEdited(true)
+    onPlanChange({ ...planForm, [key]: value })
+  }
 
   const directions = useMemo(() => evaluatePlanDirectionsForm(planForm), [planForm])
   const {
@@ -57,13 +66,23 @@ export function SalesPlanDirectionsForm({
           Сначала задайте уровень 3 в блоке «План по уровням».
         </p>
       ) : null}
+      {dkEdited ? (
+        <p className="sales-report__plan-sum-hint sales-report__plan-sum-hint--warn" role="status">
+          {PLAN_DK_EDIT_WARN_RU}
+        </p>
+      ) : null}
       <div className="sales-report__matrix-scroll sales-report__matrix-scroll--plan">
         <table className="sales-report__matrix sales-report__matrix--plan">
           <thead>
             <tr>
               <th rowSpan={2} className="sales-report__matrix-row-label" scope="col" />
               {SALES_MATRIX_COLS.map((col) => (
-                <th key={col.suffix} colSpan={3} className={`sales-report__matrix-group-head sales-report__matrix-group-head--${col.suffix}`} scope="col">
+                <th
+                  key={col.suffix}
+                  colSpan={3}
+                  className={`sales-report__matrix-group-head sales-report__matrix-group-head--${col.suffix}`}
+                  scope="col"
+                >
                   {col.label}
                 </th>
               ))}
@@ -98,12 +117,18 @@ export function SalesPlanDirectionsForm({
                     const countField = planMatrixCountField(cellKey)
                     const avgField = planMatrixAvgField(cellKey)
                     const cellRub = planMatrixCellRubFromForm(planForm, cellKey)
+                    const isDk = col.suffix === 'dk'
                     return [
                       <td key={`${cellKey}-cnt`} className="sales-report__matrix-field">
                         <input
                           type="text"
                           inputMode="numeric"
-                          className="sales-report__matrix-input"
+                          className={[
+                            'sales-report__matrix-input',
+                            isDk ? 'sales-report__matrix-input--dk' : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' ')}
                           aria-label={`${row.label} ${col.label} количество`}
                           value={planForm[countField] ?? ''}
                           onChange={(e) => setPlan(countField, e.target.value)}
@@ -115,7 +140,12 @@ export function SalesPlanDirectionsForm({
                         <input
                           type="text"
                           inputMode="decimal"
-                          className="sales-report__matrix-input"
+                          className={[
+                            'sales-report__matrix-input',
+                            isDk ? 'sales-report__matrix-input--dk' : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' ')}
                           aria-label={`${row.label} ${col.label} средний чек`}
                           value={planForm[avgField] ?? ''}
                           onChange={(e) => setPlan(avgField, e.target.value)}
@@ -123,7 +153,10 @@ export function SalesPlanDirectionsForm({
                           placeholder="0"
                         />
                       </td>,
-                      <td key={`${cellKey}-sum`} className="sales-report__matrix-computed sales-report__matrix-cell-avg">
+                      <td
+                        key={`${cellKey}-sum`}
+                        className="sales-report__matrix-computed sales-report__matrix-cell-avg"
+                      >
                         {cellRub > 0 ? formatRub(cellRub) : '—'}
                       </td>,
                     ]
@@ -178,7 +211,11 @@ export function SalesPlanDirectionsForm({
       style={{ marginBottom: '1rem' }}
       aria-labelledby="sales-plan-directions-title"
     >
-      <h2 className="sales-report__section-title" id="sales-plan-directions-title" style={{ fontSize: '1rem' }}>
+      <h2
+        className="sales-report__section-title"
+        id="sales-plan-directions-title"
+        style={{ fontSize: '1rem' }}
+      >
         План по направлениям
       </h2>
       {body}

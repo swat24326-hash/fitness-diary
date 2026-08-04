@@ -6,14 +6,14 @@
  */
 
 import { membershipCoversDate, membershipPeriodDayCount } from '../membershipRules.js'
-import { addDaysToIso, addMonthsToIso, formatDateRu, todayLocalIso } from '../dateRu.js'
+import { addMonthsToIso, formatDateRu, parseFlexibleDateToIso, todayLocalIso } from '../dateRu.js'
 import { MEMBERSHIP_SIGNAL_COLORS } from '../clientListSignals.js'
 
 /** Варианты пакета для ТЗ/АЗ (как в прайсе: месяц, два…). */
 export const DESK_PACKAGE_MONTH_OPTIONS = [1, 2, 3, 6, 12]
 
 /**
- * Конец пакета: старт + N календарных месяцев − 1 день (21.07 → 20.08).
+ * Конец пакета: старт + N календарных месяцев, последний день включён (20.02 → 20.08 при 6 мес).
  * @param {string} startIso
  * @param {number} months
  */
@@ -21,7 +21,7 @@ export function deskPackageEndIso(startIso, months) {
   const start = String(startIso ?? '').slice(0, 10)
   const n = Math.trunc(Number(months))
   if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !(n > 0)) return ''
-  return addDaysToIso(addMonthsToIso(start, n), -1)
+  return addMonthsToIso(start, n)
 }
 
 /**
@@ -33,7 +33,7 @@ export function deskPackageStartIso(endIso, months) {
   const end = String(endIso ?? '').slice(0, 10)
   const n = Math.trunc(Number(months))
   if (!/^\d{4}-\d{2}-\d{2}$/.test(end) || !(n > 0)) return ''
-  return addMonthsToIso(addDaysToIso(end, 1), -n)
+  return addMonthsToIso(end, -n)
 }
 
 /**
@@ -245,6 +245,18 @@ export function parseDeskPaidAmountInput(raw) {
 }
 
 /**
+ * Кол-во занятий (АЗ). Пусто → null; иначе целое ≥ 0.
+ * @param {unknown} raw
+ * @returns {number|null}
+ */
+export function parseDeskTotalTrainingsInput(raw) {
+  if (raw === null || raw === undefined || raw === '') return null
+  const n = typeof raw === 'number' ? raw : Number(String(raw).replace(/\s/g, '').replace(',', '.'))
+  if (!Number.isFinite(n) || n < 0 || !Number.isInteger(n)) return null
+  return n
+}
+
+/**
  * @param {unknown} amount
  */
 export function formatDeskPaidAmountRu(amount) {
@@ -252,4 +264,83 @@ export function formatDeskPaidAmountRu(amount) {
   const n = Number(amount)
   if (!Number.isFinite(n)) return '—'
   return `${n.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ₽`
+}
+
+/**
+ * Черновик полей карточки абона (даты нормализуем в ISO).
+ * @param {object|null|undefined} m
+ */
+export function deskMembershipRowDraft(m) {
+  const start = parseFlexibleDateToIso(m?.start_date) || ''
+  const end = parseFlexibleDateToIso(m?.end_date) || ''
+  const months = inferDeskPackageMonths(start, end)
+  const total = Number(m?.total_trainings)
+  return {
+    id: String(m?.id ?? ''),
+    package_months: months != null ? String(months) : '',
+    start_date: start,
+    end_date: end,
+    paid_amount: m?.paid_amount != null && m.paid_amount !== '' ? String(m.paid_amount) : '',
+    membership_type_id: m?.membership_type_id ? String(m.membership_type_id) : '',
+    total_trainings: Number.isFinite(total) && total > 0 ? String(Math.trunc(total)) : '',
+  }
+}
+
+/**
+ * Сигнатура списка абонов — чтобы не дёргать drafts при новом массиве с тем же содержимым.
+ * @param {object[]|null|undefined} memberships
+ */
+export function deskMembershipsContentSig(memberships) {
+  const list = Array.isArray(memberships) ? memberships : []
+  return list
+    .map((m) => {
+      const id = String(m?.id ?? '')
+      const start = parseFlexibleDateToIso(m?.start_date) || String(m?.start_date ?? '').slice(0, 10)
+      const end = parseFlexibleDateToIso(m?.end_date) || String(m?.end_date ?? '').slice(0, 10)
+      const paid = m?.paid_amount == null || m.paid_amount === '' ? '' : String(m.paid_amount)
+      const type = m?.membership_type_id ? String(m.membership_type_id) : ''
+      const total = Number(m?.total_trainings)
+      const sessions = Number.isFinite(total) && total > 0 ? String(Math.trunc(total)) : ''
+      return `${id}|${start}|${end}|${paid}|${type}|${sessions}`
+    })
+    .join(';')
+}
+
+/**
+ * @param {object} a
+ * @param {object} b
+ */
+export function deskMembershipDraftEquals(a, b) {
+  if (!a || !b) return false
+  return (
+    String(a.start_date ?? '') === String(b.start_date ?? '') &&
+    String(a.end_date ?? '') === String(b.end_date ?? '') &&
+    String(a.paid_amount ?? '') === String(b.paid_amount ?? '') &&
+    String(a.membership_type_id ?? '') === String(b.membership_type_id ?? '') &&
+    String(a.package_months ?? '') === String(b.package_months ?? '') &&
+    String(a.total_trainings ?? '') === String(b.total_trainings ?? '')
+  )
+}
+
+/**
+ * Пакет меняет конец; правки дат свободны (пакет только подстраивается).
+ * @param {object} cur
+ * @param {string} key
+ * @param {string} value
+ */
+export function applyDeskMembershipDraftField(cur, key, value) {
+  const next = { ...cur, [key]: value }
+  if (key === 'package_months' && next.start_date && value) {
+    const end = deskPackageEndIso(next.start_date, Number(value))
+    if (end) next.end_date = end
+  }
+  if (key === 'end_date' || key === 'start_date') {
+    const start = parseFlexibleDateToIso(next.start_date) || String(next.start_date ?? '').slice(0, 10)
+    const end = parseFlexibleDateToIso(next.end_date) || String(next.end_date ?? '').slice(0, 10)
+    if (key === 'start_date') next.start_date = start
+    if (key === 'end_date') next.end_date = end
+    const inferred = inferDeskPackageMonths(next.start_date, next.end_date)
+    if (inferred != null) next.package_months = String(inferred)
+  }
+  return next
 }

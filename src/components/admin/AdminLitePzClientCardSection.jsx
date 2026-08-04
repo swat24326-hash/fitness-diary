@@ -85,20 +85,39 @@ export function AdminLitePzClientCardSection({
           Тренер: {trainerName || '—'} · карта, абон и оплата
         </span>
       </div>
-      <h1 className="admin-desk-client-card__title">{form.name || 'Клиент'}</h1>
+
       <form className="admin-desk-client-card__form" onSubmit={(e) => void save(e)}>
-        <label>
-          ФИО
-          <input value={form.name} onChange={(e) => setField('name', e.target.value)} required autoComplete="name" />
-        </label>
-        <label>
-          Телефон
-          <input value={form.phone} onChange={(e) => setField('phone', e.target.value)} inputMode="tel" />
-        </label>
-        <label>
-          № карты
-          <input value={form.card_number} onChange={(e) => setField('card_number', e.target.value)} />
-        </label>
+        <div className="admin-desk-client-card__identity">
+          <label className="admin-desk-client-card__name-field">
+            ФИО
+            <input
+              value={form.name}
+              onChange={(e) => setField('name', e.target.value)}
+              required
+              autoComplete="name"
+              spellCheck={false}
+            />
+          </label>
+          <div className="admin-desk-client-card__meta">
+            <label>
+              Телефон
+              <input
+                value={form.phone}
+                onChange={(e) => setField('phone', e.target.value)}
+                inputMode="tel"
+                autoComplete="tel"
+              />
+            </label>
+            <label>
+              № карты
+              <input
+                value={form.card_number}
+                onChange={(e) => setField('card_number', e.target.value)}
+                inputMode="numeric"
+              />
+            </label>
+          </div>
+        </div>
         {error ? <p className="sales-report__error admin-desk-client-card__error">{error}</p> : null}
         <div className="admin-desk-client-card__actions">
           <button type="submit" className="btn btn-primary" disabled={busy}>

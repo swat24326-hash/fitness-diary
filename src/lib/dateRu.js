@@ -75,6 +75,36 @@ export function formatDateRu(isoLike) {
   return `${d}.${m}.${y}`
 }
 
+/**
+ * Гибкий разбор даты для админ/менеджерских полей: ISO или дд.мм.гггг.
+ * @param {unknown} raw
+ * @returns {string} YYYY-MM-DD или ''
+ */
+export function parseFlexibleDateToIso(raw) {
+  const s = String(raw ?? '').trim()
+  if (!s) return ''
+
+  const tryYmd = (y, m, d) => {
+    const yy = Number(y)
+    const mm = Number(m)
+    const dd = Number(d)
+    if (!Number.isFinite(yy) || !Number.isFinite(mm) || !Number.isFinite(dd)) return ''
+    if (yy < 1990 || yy > 2100 || mm < 1 || mm > 12 || dd < 1 || dd > 31) return ''
+    const dt = new Date(yy, mm - 1, dd)
+    if (dt.getFullYear() !== yy || dt.getMonth() !== mm - 1 || dt.getDate() !== dd) return ''
+    return `${yy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    return tryYmd(s.slice(0, 4), s.slice(5, 7), s.slice(8, 10))
+  }
+
+  const ru = s.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/)
+  if (ru) return tryYmd(ru[3], ru[2], ru[1])
+
+  return ''
+}
+
 export function formatDateTimeRu(isoLike) {
   if (!isoLike) return '—'
   const s = String(isoLike)
