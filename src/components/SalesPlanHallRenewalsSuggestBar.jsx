@@ -14,6 +14,7 @@ import {
   applyHallPlanTopUpToPlanForm,
   buildHallPlanTopUpPackage,
 } from '../lib/admin/salesPlanHallTopUpCore.js'
+import { setTopUpPackNkUkCell } from '../lib/admin/salesStrategyNkUkEditCore.js'
 import { loadStrategyArchiveDrift } from '../lib/admin/salesStrategyArchiveDriftService.js'
 import { buildStrategySnapshot } from '../lib/admin/salesStrategySnapshotCore.js'
 import { saveStrategySnapshotForClub } from '../lib/admin/salesStrategySnapshotService.js'
@@ -268,10 +269,11 @@ export function SalesPlanHallRenewalsSuggestBar({
       const extra = Number(topUpPack.planExtraRub) || 0
       const total = Number(topUpPack.totalWithExtra) || Number(topUpPack.totalAmount) || 0
       const l3 = Number(topUpPack.level3Budget) || 0
+      const manualNote = topUpPack.manualNkUk ? ' (с ручными НК/УК)' : ''
       onToast?.(
         `План: залы ${formatRub(topUpPack.totalAmount)}${
           extra > 0 ? ` + доп. ${formatRub(extra)}` : ''
-        } = ${formatRub(total)}${l3 > 0 ? ` · ур. 3 ${formatRub(l3)}` : ''}. ${applyHint}`,
+        } = ${formatRub(total)}${l3 > 0 ? ` · ур. 3 ${formatRub(l3)}` : ''}${manualNote}. ${applyHint}`,
         'ok',
       )
       return
@@ -283,6 +285,19 @@ export function SalesPlanHallRenewalsSuggestBar({
       'ok',
     )
   }
+
+  const handleNkUkChange = useCallback((hall, category, field, value) => {
+    setTopUpPack((prev) => {
+      if (!prev?.ok) return prev
+      const patch = field === 'count' ? { count: value } : { avg_check: value }
+      const res = setTopUpPackNkUkCell(prev, hall, category, patch)
+      if (!res.ok) {
+        onToast?.(res.error || 'Некорректное значение', 'warn')
+        return prev
+      }
+      return res.pack
+    })
+  }, [onToast])
 
   const controls = (
     <div className="sales-plan-pz-dk-suggest__toolbar">
@@ -354,6 +369,7 @@ export function SalesPlanHallRenewalsSuggestBar({
           topUpPack={topUpPack}
           disabled={disabled}
           onApply={applyPreview}
+          onNkUkChange={handleNkUkChange}
         />
       ) : null}
       {lastSummary && !preview?.ok ? (

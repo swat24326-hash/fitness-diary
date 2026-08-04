@@ -186,6 +186,7 @@
 3. **Playbook месяца** (после «Посчитать»): недели W1…, закрытия ДК — **только кому ещё нужно продление**. Уже купившие следующий абон **не в списке** (число — «Уже купили след.»). В строке — цена абона/покупки (не ×% продления). Снимок: sessionStorage + strategy_snapshot (**update**, не partial upsert — иначе затирались уровни/матрица). Прогресс — Σ profit_day.
 4. **Архив и дрейф:** архив не в ДК-пакете; CTA «Пересчитать» только при дрейфе кандидата в архив. Verify: `verify-sales-plan-hall-renewals.mjs`, `verify-sales-plan-hall-top-up.mjs`, `verify-sales-strategy-playbook.mjs`, `verify-sales-strategy-archive-drift.mjs`, `verify-sales-strategy-snapshot.mjs`, `verify-sales-strategy-package-board.mjs`.
 5. **Админ-полоса «нагрузка и чистая»** (только админ, менеджеру нет): тренировки ПЗ/АЗ → ЗП → возвраты (темп, если ≥2 дня с возвратом) → чистая к концу месяца; для «следующего» месяца — факт прошлого. Verify: `verify-sales-strategy-admin-finance.mjs`. Общий прогноз финансов: `verify-club-finance-forecast.mjs`.
+6. **Утверждение НК/УК по направлениям ПЗ/ТЗ/АЗ:** после «Посчитать» — три карточки залов; в каждой правятся шт и ср. чек только у НК и УК; ДК из закрытий (чтение). Справка «Как считаем» в блоке. Verify: `verify-sales-strategy-nk-uk-edit.mjs`.
 
 **Дата в шапке не меняется** при открытии вкладки. Месяц плана в шапке — только после «В план». Сохранение матрицы — вкладка «План месяца». Docs: [PRICE_LIST.md](./PRICE_LIST.md) §P4. Verify якоря (фон): `scripts/verify-sales-hall-anchor.mjs`.
 

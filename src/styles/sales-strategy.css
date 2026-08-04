@@ -623,3 +623,196 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* ——— Утверждение НК / УК по направлениям ——— */
+.sales-strategy-nkuk {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sales-strategy-nkuk__how {
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border, #2a3344) 80%, transparent);
+  background: color-mix(in srgb, var(--bg, #0f141c) 40%, transparent);
+  font-size: 0.84rem;
+}
+
+.sales-strategy-nkuk__how > summary {
+  cursor: pointer;
+  font-weight: 650;
+  list-style: none;
+}
+
+.sales-strategy-nkuk__how > summary::-webkit-details-marker {
+  display: none;
+}
+
+.sales-strategy-nkuk__how-list {
+  margin: 0.55rem 0 0.15rem;
+  padding-left: 1.15rem;
+  color: var(--muted, #8a93a3);
+  line-height: 1.45;
+}
+
+.sales-strategy-nkuk__how-list li + li {
+  margin-top: 0.35rem;
+}
+
+.sales-strategy-nkuk__lead {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.sales-strategy-nkuk__halls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.sales-strategy-nkuk__hall {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent, #2ecc71) 28%, transparent);
+  background: color-mix(in srgb, var(--surface, #151b26) 92%, transparent);
+}
+
+.sales-strategy-nkuk__hall-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.sales-strategy-nkuk__hall-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 750;
+}
+
+.sales-strategy-nkuk__hall-total {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95rem;
+}
+
+.sales-strategy-nkuk__dk-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.sales-strategy-nkuk__cats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.sales-strategy-nkuk__cat {
+  display: grid;
+  grid-template-columns: 1.6rem minmax(0, 1fr) minmax(0, 1.15fr) auto;
+  gap: 0.4rem 0.45rem;
+  align-items: end;
+}
+
+.sales-strategy-nkuk__cat-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted, #8a93a3);
+  padding-bottom: 0.4rem;
+}
+
+.sales-strategy-nkuk__ctl {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted, #8a93a3);
+}
+
+.sales-strategy-nkuk__input {
+  width: 100%;
+  min-height: 2.35rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--border, #3a4558) 90%, transparent);
+  background: color-mix(in srgb, var(--bg, #0f141c) 75%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.sales-strategy-nkuk__input:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent, #2ecc71) 55%, transparent);
+  outline-offset: 1px;
+  border-color: transparent;
+}
+
+.sales-strategy-nkuk__input:disabled {
+  opacity: 0.55;
+}
+
+.sales-strategy-nkuk__cat-rub {
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  padding-bottom: 0.45rem;
+  white-space: nowrap;
+}
+
+.sales-strategy-nkuk__foot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-top: 0.15rem;
+}
+
+.sales-strategy-nkuk__pack-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 1rem;
+}
+
+.sales-strategy-nkuk__pack-label {
+  color: var(--muted, #8a93a3);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.sales-strategy-nkuk__delta {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.sales-strategy-nkuk__delta--ok {
+  color: color-mix(in srgb, var(--accent, #2ecc71) 85%, white);
+}
+
+.sales-strategy-nkuk__delta--warn {
+  color: color-mix(in srgb, #e6b84d 80%, white);
+}
+
+@media (max-width: 1100px) {
+  .sales-strategy-nkuk__halls {
+    grid-template-columns: 1fr;
+  }
+}

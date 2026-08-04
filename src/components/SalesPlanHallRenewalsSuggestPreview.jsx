@@ -7,6 +7,7 @@ import {
 import { formatHallPlanTopUpSummaryRu } from '../lib/admin/salesPlanHallTopUpCore.js'
 import { pzDkSuggestHorizonLabelRu } from '../lib/admin/salesPlanPzDkSuggestCore.js'
 import { SalesStrategyPackageBoard } from './SalesStrategyPackageBoard.jsx'
+import { SalesStrategyNkUkEditTable } from './SalesStrategyNkUkEditTable.jsx'
 
 /**
  * @param {{
@@ -14,6 +15,7 @@ import { SalesStrategyPackageBoard } from './SalesStrategyPackageBoard.jsx'
  *   topUpPack?: object | null,
  *   disabled?: boolean,
  *   onApply: () => void,
+ *   onNkUkChange?: (hall: 'pz'|'tz'|'az', category: 'nk'|'uk', field: 'count'|'avg_check', value: string) => void,
  * }} props
  */
 export function SalesPlanHallRenewalsSuggestPreview({
@@ -21,6 +23,7 @@ export function SalesPlanHallRenewalsSuggestPreview({
   topUpPack = null,
   disabled = false,
   onApply,
+  onNkUkChange,
 }) {
   if (!suggest?.ok) return null
 
@@ -138,75 +141,83 @@ export function SalesPlanHallRenewalsSuggestPreview({
               {topUpPack.targets?.fitted === false
                 ? 'Сумма ДК продлений больше бюджета залов (ур. 3 − доп.) — не уместились.'
                 : (Number(topUpPack.budgetDelta) || 0) < 0
-                  ? 'Пакет залов ниже (ур. 3 − доп.) — пересчитайте или проверьте чеки.'
+                  ? 'Пакет залов ниже (ур. 3 − доп.) — поправьте НК/УК или пересчитайте.'
                   : 'Пакет залов выше цели больше допуска +15 000 ₽.'}
             </p>
           ) : null}
-          <div className="sales-plan-pz-dk-preview__table-wrap">
-            <table className="sales-plan-pz-dk-preview__table">
-              <thead>
-                <tr>
-                  <th scope="col">Зал</th>
-                  <th scope="col" className="sales-plan-pz-dk-preview__num">
-                    НК
-                  </th>
-                  <th scope="col" className="sales-plan-pz-dk-preview__num">
-                    ДК
-                  </th>
-                  <th scope="col" className="sales-plan-pz-dk-preview__num">
-                    УК
-                  </th>
-                  <th scope="col" className="sales-plan-pz-dk-preview__num">
-                    Итого
-                  </th>
-                  <th scope="col" className="sales-plan-pz-dk-preview__num">
-                    Цель
-                  </th>
-                  <th scope="col" className="sales-plan-pz-dk-preview__num">
-                    Добор
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {HALL_RENEWALS_HALLS.map((def) => {
-                  const row = topUpPack.byHall?.[def.hall]
-                  if (!row) return null
-                  return (
-                    <tr key={def.hall}>
-                      <th scope="row" className="sales-plan-pz-dk-preview__code">
-                        {def.label}
-                      </th>
-                      <td className="sales-plan-pz-dk-preview__num">{formatRub(row.nk)}</td>
-                      <td className="sales-plan-pz-dk-preview__num">{formatRub(row.dk)}</td>
-                      <td className="sales-plan-pz-dk-preview__num">{formatRub(row.uk)}</td>
-                      <td className="sales-plan-pz-dk-preview__num">
-                        <strong>{formatRub(row.total)}</strong>
-                      </td>
-                      <td className="sales-plan-pz-dk-preview__num">
-                        {row.planTarget > 0 ? formatRub(row.planTarget) : '—'}
-                      </td>
-                      <td className="sales-plan-pz-dk-preview__num">
-                        {row.topUp > 0 ? formatRub(row.topUp) : '—'}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <th scope="row">Итого</th>
-                  <td className="sales-plan-pz-dk-preview__num" colSpan={3} />
-                  <td className="sales-plan-pz-dk-preview__num">
-                    <strong>{formatRub(topUpPack.totalAmount)}</strong>
-                  </td>
-                  <td className="sales-plan-pz-dk-preview__num" />
-                  <td className="sales-plan-pz-dk-preview__num">
-                    {topUpPack.totalTopUp > 0 ? formatRub(topUpPack.totalTopUp) : '—'}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+          {typeof onNkUkChange === 'function' ? (
+            <SalesStrategyNkUkEditTable
+              topUpPack={topUpPack}
+              disabled={disabled}
+              onNkUkChange={onNkUkChange}
+            />
+          ) : (
+            <div className="sales-plan-pz-dk-preview__table-wrap">
+              <table className="sales-plan-pz-dk-preview__table">
+                <thead>
+                  <tr>
+                    <th scope="col">Зал</th>
+                    <th scope="col" className="sales-plan-pz-dk-preview__num">
+                      НК
+                    </th>
+                    <th scope="col" className="sales-plan-pz-dk-preview__num">
+                      ДК
+                    </th>
+                    <th scope="col" className="sales-plan-pz-dk-preview__num">
+                      УК
+                    </th>
+                    <th scope="col" className="sales-plan-pz-dk-preview__num">
+                      Итого
+                    </th>
+                    <th scope="col" className="sales-plan-pz-dk-preview__num">
+                      Цель
+                    </th>
+                    <th scope="col" className="sales-plan-pz-dk-preview__num">
+                      Добор
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {HALL_RENEWALS_HALLS.map((def) => {
+                    const row = topUpPack.byHall?.[def.hall]
+                    if (!row) return null
+                    return (
+                      <tr key={def.hall}>
+                        <th scope="row" className="sales-plan-pz-dk-preview__code">
+                          {def.label}
+                        </th>
+                        <td className="sales-plan-pz-dk-preview__num">{formatRub(row.nk)}</td>
+                        <td className="sales-plan-pz-dk-preview__num">{formatRub(row.dk)}</td>
+                        <td className="sales-plan-pz-dk-preview__num">{formatRub(row.uk)}</td>
+                        <td className="sales-plan-pz-dk-preview__num">
+                          <strong>{formatRub(row.total)}</strong>
+                        </td>
+                        <td className="sales-plan-pz-dk-preview__num">
+                          {row.planTarget > 0 ? formatRub(row.planTarget) : '—'}
+                        </td>
+                        <td className="sales-plan-pz-dk-preview__num">
+                          {row.topUp > 0 ? formatRub(row.topUp) : '—'}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <th scope="row">Итого</th>
+                    <td className="sales-plan-pz-dk-preview__num" colSpan={3} />
+                    <td className="sales-plan-pz-dk-preview__num">
+                      <strong>{formatRub(topUpPack.totalAmount)}</strong>
+                    </td>
+                    <td className="sales-plan-pz-dk-preview__num" />
+                    <td className="sales-plan-pz-dk-preview__num">
+                      {topUpPack.totalTopUp > 0 ? formatRub(topUpPack.totalTopUp) : '—'}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
           <p className="muted" style={{ margin: '0.5rem 0 0' }}>
             {formatHallPlanTopUpSummaryRu(topUpPack)}
           </p>

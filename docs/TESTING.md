@@ -63,6 +63,7 @@
 | Стратегия: дрейф при архиве клиентов | `verify-sales-strategy-archive-drift.mjs` |
 | Стратегия: снимок playbook (галочки на всех устройствах) | `verify-sales-strategy-snapshot.mjs` |
 | Стратегия: админ-полоса часов / ЗП / возвратов / чистой | `verify-sales-strategy-admin-finance.mjs` |
+| Стратегия: правка НК/УК перед «В план» | `verify-sales-strategy-nk-uk-edit.mjs` |
 | План: частичное сохранение без затирания матрицы/уровней | `verify-sales-plan-row-persist.mjs` |
 | Стратегия: сводная доска пакета (шт / ₽ / доп / ур. 3) | `verify-sales-strategy-package-board.mjs` |
 | Стратегия: якорь зала × сезон | `verify-sales-hall-anchor.mjs` |
