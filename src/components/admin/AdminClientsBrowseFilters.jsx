@@ -31,9 +31,10 @@ export const ADMIN_CLIENTS_FILTER_HELP = {
  *   },
  *   quickFilter: string,
  *   onApply: (id: string) => void,
+ *   hidePnk?: boolean,
  * }} props
  */
-export function AdminClientsBrowseFilters({ counts, quickFilter, onApply }) {
+export function AdminClientsBrowseFilters({ counts, quickFilter, onApply, hidePnk = false }) {
   const tile = (id, extra = {}) => ({
     active: quickFilter === id,
     hot: Boolean(extra.hot),
@@ -50,19 +51,26 @@ export function AdminClientsBrowseFilters({ counts, quickFilter, onApply }) {
         <h3 id="admin-clients-filters-base" className="admin-clients-filters-section__title">
           База и поводы
         </h3>
-        <ul className="admin-clients-filters-grid admin-clients-filters-grid--base" aria-label="База и поводы">
+        <ul
+          className={`admin-clients-filters-grid admin-clients-filters-grid--base${
+            hidePnk ? ' admin-clients-filters-grid--base-2' : ''
+          }`}
+          aria-label="База и поводы"
+        >
           <AdminClientsFilterTile
             icon={<Users size={18} strokeWidth={2} />}
             count={counts.all}
             label="Все клиенты"
             {...tile('all')}
           />
-          <AdminClientsFilterTile
-            icon={<Sparkles size={18} strokeWidth={2} />}
-            count={counts.pnk}
-            label="ПНК"
-            {...tile('pnk', { hot: counts.pnk > 0 })}
-          />
+          {!hidePnk ? (
+            <AdminClientsFilterTile
+              icon={<Sparkles size={18} strokeWidth={2} />}
+              count={counts.pnk}
+              label="ПНК"
+              {...tile('pnk', { hot: counts.pnk > 0 })}
+            />
+          ) : null}
           <AdminClientsFilterTile
             icon={<Cake size={18} strokeWidth={2} />}
             count={counts.birthdays}

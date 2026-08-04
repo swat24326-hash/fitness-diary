@@ -77,6 +77,7 @@
 | Desk-сид закрытий (карта + end_date + цена; UI `/admin/excel-lists`) | `verify-desk-closing-import.mjs` |
 | Desk ledger абонов (действующий / цена) | `verify-desk-membership-ledger.mjs` |
 | Карточка: scope glance/full + lite + nav seed + memory list | `verify-client-workspace-scope.mjs` |
+| Клиенты: keep-alive путь список/карточка | `verify-admin-clients-keepalive.mjs` |
 | Вкладки Клиенты / ТЗ / АЗ (`desk_hall`) | `verify-desk-hall-clients.mjs` |
 | Desk без тренера + вне KPI (operational filter) | `verify-sale-clips.mjs` (блок hall/desk) |
 | Миграция desk на linked Supabase | `npm run db:migrate:desk-hall -- --linked` затем `npm run db:migrate:desk-null-trainer -- --linked` |

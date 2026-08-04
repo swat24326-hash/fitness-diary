@@ -56,19 +56,17 @@ import {
   countedUsedTrainingsOnMembership,
   formatInactiveClientListLabel,
   membershipUsageLabel,
-  pickUsableMembershipForDate,
 } from '../../lib/membershipRules'
 import {
-  membershipSignal,
   pickExpiredMembershipWithRemaining,
 } from '../../lib/clientListSignals'
 import { clientDeskHall } from '../../lib/admin/deskHallClientsCore.js'
 import {
   deskAzDirectionLabel,
-  deskMembershipSignal,
   formatDeskPackageMonthsLabel,
+  hallMembershipListSignal,
   inferDeskPackageMonths,
-  pickDeskActiveMembership,
+  pickHallActiveMembership,
 } from '../../lib/admin/deskMembershipLedgerCore.js'
 import {
   buildAdminClientCardHref,
@@ -110,9 +108,9 @@ function remainingTrainingsOnMembership(membership, clientTrainings) {
 }
 
 /**
- * @param {{ accessMode?: 'admin' | 'sales_manager' }} [props]
+ * @param {{ accessMode?: 'admin' | 'sales_manager', listUiActive?: boolean }} [props]
  */
-export function AdminClients({ accessMode = 'admin' } = {}) {
+export function AdminClients({ accessMode = 'admin', listUiActive = true } = {}) {
   const isSalesManager = accessMode === 'sales_manager'
   const { user } = useAuth()
   const ctx = useOutletContext()
@@ -350,6 +348,7 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
 
   /** Восстановление списка после «назад» с карточки (вкладка / фильтр / страница / поиск). */
   useEffect(() => {
+    if (!listUiActive) return
     const rawFilter = searchParams.get('filter')
     let n = normalizeAdminClientQuickFilter(rawFilter)
     if (rawFilter === 'expired_remaining' || rawFilter === 'active_today') {
@@ -370,10 +369,11 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
     setListPage(parseAdminClientsListPage(searchParams.get('page')))
     setQuery(String(searchParams.get('q') ?? ''))
     setTrainerQuery(String(searchParams.get('trainer') ?? ''))
-  }, [searchParams, setSearchParams])
+  }, [searchParams, setSearchParams, listUiActive])
 
   const patchListSearch = useCallback(
     (mutate, { resetPage = false } = {}) => {
+      if (!listUiActive) return
       setSearchParams(
         (prev) => {
           const p = new URLSearchParams(prev)
@@ -386,7 +386,7 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
         { replace: true },
       )
     },
-    [setSearchParams, isSalesManager, club],
+    [setSearchParams, isSalesManager, club, listUiActive],
   )
 
   // Доп. pull архива при вкладке (основной снимок уже в active+archive merge при загрузке).
@@ -506,7 +506,7 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
       })
     }
 
-    if (isDeskHallTab || quickFilter === 'none') return base
+    if (quickFilter === 'none') return base
     if (quickFilter === 'all') {
       return base.filter((c) => String(c?.lifecycle ?? '') !== 'pnk')
     }
@@ -516,6 +516,7 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
         memList: memByClient[c.id] ?? [],
         today,
         inactiveIds: todaySnapshot.inactiveIds,
+        hallMode: isDeskHallTab ? clientsTab : 'pz',
       }),
     )
   }, [
@@ -616,17 +617,16 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
   }, [club, pagedClients])
 
   const filterCounts = useMemo(() => {
-    const tabBase = filterClientsByAdminListTab(clients, clientsTab === 'archive' ? 'archive' : 'active')
-    const funnel = countAdminFunnelFilters(tabBase, memByClient, today, todaySnapshot.inactiveIds)
+    const tab = clientsTab === 'archive' ? 'active' : clientsTab
+    const tabBase = filterClientsByAdminListTab(clients, tab)
+    const hallMode = tab === 'tz' || tab === 'az' ? tab : 'pz'
+    const funnel = countAdminFunnelFilters(tabBase, memByClient, today, todaySnapshot.inactiveIds, { hallMode })
+    if (hallMode !== 'pz') return funnel
+    // ПЗ: «все» / «неактивные» — как сводка клуба (commercial/operational), не сырой tabBase.
     return {
+      ...funnel,
       all: todaySnapshot.totalOperational,
-      pnk: funnel.pnk,
       inactive: todaySnapshot.inactiveCount,
-      awaiting_start: funnel.awaiting_start,
-      birthdays: funnel.birthdays,
-      expiring: funnel.expiring,
-      expired_recent: funnel.expired_recent,
-      stale: funnel.stale,
     }
   }, [clients, clientsTab, memByClient, today, todaySnapshot])
 
@@ -1053,17 +1053,21 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
           ) : null}
         </div>
 
-        {clientsTab === 'active' ? (
-          <AdminClientsBrowseFilters
-            counts={filterCounts}
-            quickFilter={quickFilter}
-            onApply={applyFilter}
-          />
-        ) : isDeskHallTab ? (
-          <p className="admin-clients-workspace__archive-hint muted">
-            Вкладка {clientsTab === 'tz' ? 'ТЗ' : 'АЗ'}: люди из списка заканчивающихся, без живого тренера.
-            Карточка — контакты и абонементы. Загрузка файла — в «Списки из Excel».
-          </p>
+        {clientsTab === 'active' || isDeskHallTab ? (
+          <>
+            <AdminClientsBrowseFilters
+              counts={filterCounts}
+              quickFilter={quickFilter}
+              onApply={applyFilter}
+              hidePnk={isDeskHallTab}
+            />
+            {isDeskHallTab ? (
+              <p className="admin-clients-workspace__archive-hint muted">
+                Вкладка {clientsTab === 'tz' ? 'ТЗ' : 'АЗ'}: люди из списка заканчивающихся, без живого тренера.
+                Карточка — контакты и абонементы. Загрузка файла — в «Списки из Excel».
+              </p>
+            ) : null}
+          </>
         ) : (
           <p className="admin-clients-workspace__archive-hint muted">
             Архивные карточки: просмотр и возврат. Поиск по имени, телефону или тренеру — от 2 символов.
@@ -1091,7 +1095,7 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
               <p className="admin-clients-empty__title">Список скрыт</p>
               <p className="muted admin-clients-empty__text">
                 {isDeskHallTab
-                  ? 'В этой вкладке пока пусто. Загрузите список заканчивающихся в «Списки из Excel» (один файл на ТЗ и АЗ).'
+                  ? 'Выберите карточку сводки или введите поиск от 2 символов. Загрузка файла — в «Списки из Excel».'
                   : `Введите поиск от 2 символов, нажмите карточку сводки${clientsTab === 'active' ? '' : ' или оставайтесь в архиве'} — тогда появятся карточки клиентов.`}
               </p>
             </div>
@@ -1110,15 +1114,13 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
             {pagedClients.map((c) => {
               const mlist = memByClient[c.id] ?? []
               const clientTrainings = pageTrainings.filter((t) => t.client_id === c.id)
-              const isDeskClient = clientDeskHall(c) != null
-              const active = isDeskClient
-                ? pickDeskActiveMembership(mlist, today)
-                : pickUsableMembershipForDate(mlist, today)
-              const sig = isDeskClient
-                ? deskMembershipSignal(mlist, today)
-                : membershipSignal(mlist, today)
+              const hall = clientDeskHall(c)
+              const isDeskClient = hall != null
+              const isTzDesk = hall === 'tz'
+              const active = pickHallActiveMembership(mlist, today, hall)
+              const sig = hallMembershipListSignal(mlist, today, hall)
               const expiredLeft =
-                active || isDeskClient ? null : pickExpiredMembershipWithRemaining(mlist, today)
+                active || isTzDesk ? null : pickExpiredMembershipWithRemaining(mlist, today)
               const deskMemForPkg =
                 active ||
                 (isDeskClient && mlist.length

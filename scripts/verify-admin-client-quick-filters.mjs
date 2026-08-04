@@ -171,5 +171,104 @@ ok(
   'awaiting_start not in inactive set',
 )
 
+const deskToday = '2026-07-22'
+const deskExpiring = [{ start_date: '2026-01-01', end_date: '2026-07-24', total_trainings: 0, used_trainings: 0 }]
+const deskExpired = [{ start_date: '2026-01-01', end_date: '2026-07-15', total_trainings: 0, used_trainings: 0 }]
+const deskFuture = [{ start_date: '2026-08-01', end_date: '2026-09-01', total_trainings: 0, used_trainings: 0 }]
+ok(
+  clientMatchesAdminFunnelFilter('expiring', {
+    client: { id: 'd1' },
+    memList: deskExpiring,
+    today: deskToday,
+    hallMode: 'tz',
+  }),
+  'tz expiring by calendar',
+)
+ok(
+  clientMatchesAdminFunnelFilter('expired_recent', {
+    client: { id: 'd2' },
+    memList: deskExpired,
+    today: deskToday,
+    hallMode: 'tz',
+  }),
+  'tz expired_recent by calendar',
+)
+ok(
+  clientMatchesAdminFunnelFilter('awaiting_start', {
+    client: { id: 'd3' },
+    memList: deskFuture,
+    today: deskToday,
+    hallMode: 'tz',
+  }),
+  'tz awaiting_start by calendar',
+)
+ok(
+  !clientMatchesAdminFunnelFilter('pnk', {
+    client: { id: 'd4', lifecycle: 'pnk' },
+    today: deskToday,
+    hallMode: 'tz',
+  }),
+  'tz mode ignores pnk',
+)
+const deskCounts = countAdminFunnelFilters(
+  [
+    { id: 'd1' },
+    { id: 'd2' },
+    { id: 'd3' },
+  ],
+  { d1: deskExpiring, d2: deskExpired, d3: deskFuture },
+  deskToday,
+  new Set(),
+  { hallMode: 'tz' },
+)
+ok(deskCounts.pnk === 0 && deskCounts.expiring === 1 && deskCounts.awaiting_start === 1, 'tz counts')
+
+// АЗ: календарь покрывает, но занятия = 0 → не «жив» (как ПЗ)
+const azCoveredNoSessions = [
+  { start_date: '2026-01-01', end_date: '2026-12-01', total_trainings: 0, used_trainings: 0 },
+]
+const azUsable = [
+  { start_date: '2026-01-01', end_date: '2026-12-01', total_trainings: 8, used_trainings: 2 },
+]
+const azDepletedInPeriod = [
+  { start_date: '2026-01-01', end_date: '2026-12-01', total_trainings: 8, used_trainings: 8 },
+]
+ok(
+  !clientMatchesAdminFunnelFilter('expiring', {
+    client: { id: 'az0' },
+    memList: azCoveredNoSessions,
+    today: deskToday,
+    hallMode: 'az',
+  }),
+  'az calendar-only package not expiring (needs sessions)',
+)
+ok(
+  clientMatchesAdminFunnelFilter('inactive', {
+    client: { id: 'az0' },
+    memList: azCoveredNoSessions,
+    today: deskToday,
+    hallMode: 'az',
+  }),
+  'az no sessions → inactive',
+)
+ok(
+  !clientMatchesAdminFunnelFilter('inactive', {
+    client: { id: 'az1' },
+    memList: azUsable,
+    today: deskToday,
+    hallMode: 'az',
+  }),
+  'az with remaining not inactive',
+)
+ok(
+  clientMatchesAdminFunnelFilter('inactive', {
+    client: { id: 'az2' },
+    memList: azDepletedInPeriod,
+    today: deskToday,
+    hallMode: 'az',
+  }),
+  'az depleted sessions → inactive even if dates cover',
+)
+
 if (failed) process.exit(1)
 console.log('verify-admin-client-quick-filters: all passed')

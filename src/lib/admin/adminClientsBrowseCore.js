@@ -105,7 +105,7 @@ export function buildAdminClientsTodaySnapshot(
  */
 export function shouldShowAdminClientsList(p) {
   const tab = String(p?.clientsTab ?? '')
-  if (tab === 'archive' || tab === 'tz' || tab === 'az') return true
+  if (tab === 'archive') return true
   const min = Number(p?.minSearchLen) > 0 ? Number(p.minSearchLen) : 2
   if (String(p?.query ?? '').trim().length >= min) return true
   if (String(p?.trainerQuery ?? '').trim().length >= min) return true

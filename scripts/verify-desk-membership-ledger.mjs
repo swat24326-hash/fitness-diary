@@ -17,6 +17,8 @@ import {
   parseDeskPaidAmountInput,
   parseDeskTotalTrainingsInput,
   pickDeskActiveMembership,
+  pickHallActiveMembership,
+  hallMembershipListSignal,
   sortDeskMembershipLedger,
 } from '../src/lib/admin/deskMembershipLedgerCore.js'
 import { parseFlexibleDateToIso } from '../src/lib/dateRu.js'
@@ -102,6 +104,12 @@ ok(
     deskMembershipsContentSig([{ id: 'a', start_date: '2026-01-01', end_date: '2026-02-01', paid_amount: null }]),
   'sig ignores null paid vs missing',
 )
+
+const azDead = [{ id: 'az', start_date: '2026-07-01', end_date: '2026-09-30', total_trainings: 10, used_trainings: 10 }]
+ok(pickHallActiveMembership(azDead, today, 'tz')?.id === 'az', 'tz ignores session limit')
+ok(pickHallActiveMembership(azDead, today, 'az') == null, 'az depleted not active')
+ok(hallMembershipListSignal(azDead, today, 'az').key !== 'active', 'az signal not active when depleted')
+ok(hallMembershipListSignal(azDead, today, 'tz').key === 'expiring' || hallMembershipListSignal(azDead, today, 'tz').key === 'active', 'tz still calendar-alive')
 
 if (failed) {
   console.error(`\n${failed} failed`)

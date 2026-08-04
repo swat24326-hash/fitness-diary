@@ -93,6 +93,11 @@
   min-height: 2.75rem;
 }
 
+.sales-playbook__burger.is-active {
+  border-color: color-mix(in srgb, var(--accent, #c9a227) 55%, transparent);
+  background: color-mix(in srgb, var(--accent, #c9a227) 14%, transparent);
+}
+
 .sales-playbook__burger-panel {
   position: absolute;
   top: calc(100% + 0.35rem);
@@ -132,7 +137,8 @@
 }
 
 .sales-playbook__burger-item:hover,
-.sales-playbook__burger-item:focus-visible {
+.sales-playbook__burger-item:focus-visible,
+.sales-playbook__burger-item.is-active {
   background: color-mix(in srgb, var(--accent, #c9a227) 16%, transparent);
   outline: none;
 }
@@ -147,32 +153,167 @@
   font-variant-numeric: tabular-nums;
 }
 
-.sales-playbook__hall-list {
-  width: min(100%, 36rem);
-  max-width: 100vw;
-  padding: 0.75rem 0.85rem;
-  border-radius: 14px;
-  border: 1px solid color-mix(in srgb, var(--accent, #c9a227) 32%, transparent);
-  background: color-mix(in srgb, var(--surface, #151b26) 94%, transparent);
-}
-
-.sales-playbook__hall-list-head {
+/* Полный список зала — на всю ширину под чипами недель */
+.sales-playbook__hall-sheet {
+  flex: 1 1 100%;
+  width: 100%;
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  flex-direction: column;
   gap: 0.75rem;
-  margin-bottom: 0.65rem;
+  min-height: 0;
+  max-height: min(72vh, 36rem);
+  padding: 0.9rem 1rem 1rem;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent, #c9a227) 36%, transparent);
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--accent, #c9a227) 10%, transparent),
+      transparent 42%
+    ),
+    color-mix(in srgb, var(--surface, #151b26) 96%, transparent);
 }
 
-.sales-playbook__hall-list-title {
-  margin: 0 0 0.2rem;
-  font-size: 1rem;
+.sales-playbook__hall-sheet-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.75rem 1rem;
+  align-items: start;
+}
+
+.sales-playbook__hall-sheet-titles {
+  min-width: 0;
+}
+
+.sales-playbook__hall-sheet-title {
+  margin: 0 0 0.25rem;
+  font-size: 1.15rem;
   font-weight: 750;
+  line-height: 1.2;
 }
 
-.sales-playbook__hall-list-sub {
+.sales-playbook__hall-sheet-meta {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: 0.95rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--accent, #c9a227) 88%, #fff);
+}
+
+.sales-playbook__hall-sheet-hint {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+}
+
+.sales-playbook__hall-sheet-kpis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  justify-content: flex-end;
+}
+
+.sales-playbook__hall-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 6.5rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg, #0f141c) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border, #2a3344) 80%, transparent);
+}
+
+.sales-playbook__hall-kpi--accent {
+  border-color: color-mix(in srgb, var(--accent, #c9a227) 40%, transparent);
+  background: color-mix(in srgb, var(--accent, #c9a227) 12%, transparent);
+}
+
+.sales-playbook__hall-kpi-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted, #8a93a3);
+}
+
+.sales-playbook__hall-kpi-value {
+  font-size: 1.05rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.sales-playbook__hall-sheet-close {
+  justify-self: end;
+}
+
+.sales-playbook__hall-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.sales-playbook__hall-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  min-width: 5.5rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border, #2a3344) 85%, transparent);
+  background: color-mix(in srgb, var(--bg, #0f141c) 50%, transparent);
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.sales-playbook__hall-tab:hover,
+.sales-playbook__hall-tab.is-active {
+  border-color: color-mix(in srgb, var(--accent, #c9a227) 55%, transparent);
+  background: color-mix(in srgb, var(--accent, #c9a227) 14%, transparent);
+}
+
+.sales-playbook__hall-tab-label {
+  font-weight: 750;
+  font-size: 0.95rem;
+}
+
+.sales-playbook__hall-tab-meta {
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.sales-playbook__hall-sheet-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 0.15rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sales-playbook__hall-sheet-body .sales-playbook__closings {
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .sales-playbook__hall-sheet-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .sales-playbook__hall-sheet-kpis {
+    grid-column: 1 / -1;
+    justify-content: stretch;
+  }
+
+  .sales-playbook__hall-kpi {
+    flex: 1 1 0;
+  }
+
+  .sales-playbook__hall-sheet-close {
+    grid-column: 2;
+    grid-row: 1;
+  }
 }
 
 .sales-playbook__week-chip {

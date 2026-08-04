@@ -82,3 +82,30 @@ export const PLAYBOOK_HALL_LIST_TITLES = Object.freeze({
   tz: 'Все закрытия ТЗ',
   az: 'Все закрытия АЗ',
 })
+
+/**
+ * Сводка шапки списка: «57 в списке на сумму 123 456 ₽».
+ * @param {{ count?: number, amount?: number }} opts
+ */
+export function describeHallClosingsListMetaRu(opts) {
+  const count = Math.max(0, Math.trunc(Number(opts?.count) || 0))
+  const amount = roundPlanRub(Number(opts?.amount) || 0)
+  const countLabel = new Intl.NumberFormat('ru-RU').format(count)
+  if (!(amount > 0)) {
+    return count === 1 ? '1 в списке' : `${countLabel} в списке`
+  }
+  const sumLabel = new Intl.NumberFormat('ru-RU').format(Math.round(amount))
+  return `${countLabel} в списке на сумму ${sumLabel} ₽`
+}
+
+/**
+ * Сумма ориентиров по строкам закрытий.
+ * @param {object[]} endings
+ */
+export function sumPlaybookClosingsAmount(endings) {
+  let sum = 0
+  for (const row of endings ?? []) {
+    sum += Number(row?.amount) || 0
+  }
+  return roundPlanRub(sum)
+}

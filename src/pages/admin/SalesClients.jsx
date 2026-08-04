@@ -1,6 +1,6 @@
-import { AdminClients } from './AdminClients.jsx'
+import { AdminClientsKeepAliveLayout } from '../../components/admin/AdminClientsKeepAliveLayout.jsx'
 
-/** Список клиентов клуба для менеджера продаж — те же фильтры, что у админа. */
+/** Список + keep-alive карточки для менеджера продаж. */
 export function SalesClients() {
-  return <AdminClients accessMode="sales_manager" />
+  return <AdminClientsKeepAliveLayout accessMode="sales_manager" />
 }

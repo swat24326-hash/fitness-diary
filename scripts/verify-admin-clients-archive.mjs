@@ -50,8 +50,8 @@ ok(
   'archive tab opens list',
 )
 ok(
-  shouldShowAdminClientsList({ query: '', trainerQuery: '', browseMode: 'none', clientsTab: 'tz' }) === true,
-  'tz tab opens list',
+  shouldShowAdminClientsList({ query: '', trainerQuery: '', browseMode: 'none', clientsTab: 'tz' }) === false,
+  'tz tab hides list until filter',
 )
 
 const local = [

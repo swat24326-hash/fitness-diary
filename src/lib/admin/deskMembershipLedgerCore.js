@@ -1,13 +1,13 @@
 /**
  * Учёт абонов на desk-карточке ТЗ/АЗ (без React).
- * «Действующий» — по календарю (даты), без остатка тренировок:
- * у закрытий ТЗ/АЗ часто total_trainings = 0.
- * Тип пакета — срок в месяцах (1 / 2 / 3…), не типы карт ПЗ.
+ * ТЗ: «действующий» только по календарю (пакет по сроку, занятия не лимит).
+ * АЗ: как ПЗ — срок И остаток занятий.
  */
 
-import { membershipCoversDate, membershipPeriodDayCount } from '../membershipRules.js'
+import { membershipCoversDate, membershipPeriodDayCount, pickUsableMembershipForDate } from '../membershipRules.js'
 import { addMonthsToIso, formatDateRu, parseFlexibleDateToIso, todayLocalIso } from '../dateRu.js'
-import { MEMBERSHIP_SIGNAL_COLORS } from '../clientListSignals.js'
+import { MEMBERSHIP_SIGNAL_COLORS, membershipSignal } from '../clientListSignals.js'
+import { normalizeDeskHall } from './deskHallClientsCore.js'
 
 /** Варианты пакета для ТЗ/АЗ (как в прайсе: месяц, два…). */
 export const DESK_PACKAGE_MONTH_OPTIONS = [1, 2, 3, 6, 12]
@@ -128,7 +128,29 @@ export function pickDeskActiveMembership(memberships, todayIso = todayLocalIso()
 }
 
 /**
- * Сигнал для списка Клиенты (вкладки ТЗ/АЗ): по сроку, не по лимиту тренировок.
+ * Действующий абон зала: ТЗ — календарь; АЗ / без hall — срок + занятия (как ПЗ).
+ * @param {object[]|null|undefined} memberships
+ * @param {string} [todayIso]
+ * @param {unknown} [hall]
+ */
+export function pickHallActiveMembership(memberships, todayIso = todayLocalIso(), hall = null) {
+  if (normalizeDeskHall(hall) === 'tz') return pickDeskActiveMembership(memberships, todayIso)
+  return pickUsableMembershipForDate(memberships ?? [], String(todayIso ?? '').slice(0, 10))
+}
+
+/**
+ * Сигнал списка: ТЗ — календарь; АЗ — как ПЗ (занятия + срок).
+ * @param {object[]|null|undefined} memberships
+ * @param {string} [todayIso]
+ * @param {unknown} [hall]
+ */
+export function hallMembershipListSignal(memberships, todayIso = todayLocalIso(), hall = null) {
+  if (normalizeDeskHall(hall) === 'tz') return deskMembershipSignal(memberships, todayIso)
+  return membershipSignal(memberships, todayIso)
+}
+
+/**
+ * Сигнал для списка Клиенты (вкладки ТЗ): по сроку, не по лимиту тренировок.
  * @param {object[]|null|undefined} memberships
  * @param {string} [todayIso]
  */

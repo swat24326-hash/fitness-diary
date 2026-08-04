@@ -42,12 +42,20 @@ const counts = countClientsByAdminListTab(clients)
 ok(counts.active === 1 && counts.tz === 1 && counts.az === 1 && counts.archive === 1, 'counts')
 
 ok(
-  shouldShowAdminClientsList({ query: '', trainerQuery: '', browseMode: 'none', clientsTab: 'tz' }) === true,
-  'tz tab shows list',
+  shouldShowAdminClientsList({ query: '', trainerQuery: '', browseMode: 'none', clientsTab: 'tz' }) === false,
+  'tz tab hides list until filter',
 )
 ok(
-  shouldShowAdminClientsList({ query: '', trainerQuery: '', browseMode: 'none', clientsTab: 'az' }) === true,
-  'az tab shows list',
+  shouldShowAdminClientsList({ query: '', trainerQuery: '', browseMode: 'expiring', clientsTab: 'tz' }) === true,
+  'tz filter opens list',
+)
+ok(
+  shouldShowAdminClientsList({ query: '', trainerQuery: '', browseMode: 'none', clientsTab: 'az' }) === false,
+  'az tab hides list until filter',
+)
+ok(
+  shouldShowAdminClientsList({ query: '', trainerQuery: '', browseMode: 'all', clientsTab: 'az' }) === true,
+  'az all opens list',
 )
 
 if (failed) {

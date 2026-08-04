@@ -1,9 +1,11 @@
 import {
+  describeHallClosingsListMetaRu,
   filterPlaybookClosingsByHall,
   flattenPlaybookEndings,
   normalizePlaybookHall,
   PLAYBOOK_HALL_LIST_TITLES,
   summarizePlaybookClosingsByHall,
+  sumPlaybookClosingsAmount,
 } from '../src/lib/admin/salesStrategyPlaybookHallListsCore.js'
 
 let failed = 0
@@ -48,6 +50,15 @@ ok(sum.byHall.pz.count === 2 && sum.byHall.pz.openCount === 2, 'pz counts')
 ok(sum.byHall.tz.count === 1 && sum.byHall.tz.openCount === 0, 'tz confirmed not open')
 ok(sum.byHall.az.amount === 2000, 'az amount')
 ok(sum.total === 4, 'total 4')
+
+ok(
+  describeHallClosingsListMetaRu({ count: 57, amount: 123456 }) ===
+    '57 в списке на сумму 123 456 ₽' ||
+    describeHallClosingsListMetaRu({ count: 57, amount: 123456 }).includes('на сумму'),
+  'meta count + sum',
+)
+ok(describeHallClosingsListMetaRu({ count: 0, amount: 0 }) === '0 в списке', 'meta empty')
+ok(sumPlaybookClosingsAmount(pz) === 4000, 'sum pz amounts')
 
 if (failed) {
   console.error(`\n${failed} failed`)

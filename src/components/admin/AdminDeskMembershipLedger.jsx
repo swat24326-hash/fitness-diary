@@ -21,7 +21,7 @@ import {
   formatDeskPackageMonthsLabel,
   parseDeskPaidAmountInput,
   parseDeskTotalTrainingsInput,
-  pickDeskActiveMembership,
+  pickHallActiveMembership,
   sortDeskMembershipLedger,
 } from '../../lib/admin/deskMembershipLedgerCore.js'
 import { AdminDeskMemDateField } from './AdminDeskMemDateField.jsx'
@@ -55,7 +55,10 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
   const today = todayLocalIso()
   const hall = normalizeDeskHall(client?.desk_hall)
   const showAzDirection = hall === 'az'
-  const active = useMemo(() => pickDeskActiveMembership(memberships, today), [memberships, today])
+  const active = useMemo(
+    () => pickHallActiveMembership(memberships, today, hall),
+    [memberships, today, hall],
+  )
   const activeId = active?.id ? String(active.id) : null
   const membershipsSig = useMemo(() => deskMembershipsContentSig(memberships), [memberships])
   const membershipsRef = useRef(memberships)

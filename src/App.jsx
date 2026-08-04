@@ -10,7 +10,7 @@ import { DraftTabsBar } from './components/DraftTabsBar'
 import { BreadcrumbsBar } from './components/BreadcrumbsBar'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { AdminDashboard } from './pages/admin/AdminDashboard'
-import { AdminClients } from './pages/admin/AdminClients'
+import { AdminClientsKeepAliveLayout } from './components/admin/AdminClientsKeepAliveLayout.jsx'
 import { SalesClients } from './pages/admin/SalesClients'
 import { AdminExcelLists } from './pages/admin/AdminExcelLists'
 import { AdminStructure } from './pages/admin/AdminStructure'
@@ -215,8 +215,10 @@ export default function App() {
               <Route path="/sales" element={<AdminSales accessMode="sales_manager" />} />
               <Route path="/sales/club-tasks" element={<SalesClubTasks />} />
               <Route path="/sales/pnk" element={<SalesPnk />} />
-              <Route path="/sales/clients" element={<SalesClients />} />
-              <Route path="/sales/clients/:id" element={<ClientCard />} />
+              <Route path="/sales/clients" element={<SalesClients />}>
+                <Route index element={null} />
+                <Route path=":id" element={<ClientCard />} />
+              </Route>
             </Route>
             <Route element={<RoleOutlet roles={['admin']} />}>
               <Route path="/admin/workouts/:id" element={<TrainingPage />} />
@@ -228,8 +230,10 @@ export default function App() {
                 <Route path="statistics" element={<AdminStatistics />} />
                 <Route path="sales" element={<AdminSales />} />
                 <Route path="pnk" element={<SalesPnk />} />
-                <Route path="clients" element={<AdminClients />} />
-                <Route path="clients/:id" element={<ClientCard />} />
+                <Route path="clients" element={<AdminClientsKeepAliveLayout />}>
+                  <Route index element={null} />
+                  <Route path=":id" element={<ClientCard />} />
+                </Route>
                 <Route path="excel-lists" element={<AdminExcelLists />} />
                 <Route path="diaries" element={<AdminDiariesRedirect />} />
                 <Route path="exercises" element={<AdminLegacyExercisesRedirect />} />
