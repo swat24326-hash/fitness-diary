@@ -6,9 +6,25 @@
 /** Таблицы, которые менеджер может писать через push (коммерческий контур). */
 export const SALES_MANAGER_CLIENT_PUSH_TABLES = Object.freeze(['clients', 'memberships'])
 
+/**
+ * Каскад удаления desk ТЗ/АЗ может затронуть эти таблицы (обычно пустые).
+ * Разрешаем только delete и только для desk своего клуба.
+ */
+export const SALES_MANAGER_DESK_DELETE_EXTRA_TABLES = Object.freeze([
+  'trainings',
+  'health_cards',
+  'body_measurements',
+  'client_weight_entries',
+])
+
 /** @param {string} [tableName] */
 export function isSalesManagerClientPushTable(tableName) {
   return SALES_MANAGER_CLIENT_PUSH_TABLES.includes(String(tableName ?? '').trim())
+}
+
+/** @param {string} [tableName] */
+export function isSalesManagerDeskDeleteExtraTable(tableName) {
+  return SALES_MANAGER_DESK_DELETE_EXTRA_TABLES.includes(String(tableName ?? '').trim())
 }
 
 /**
@@ -23,6 +39,38 @@ export function assertSalesManagerSameClub(profileClubId, rowClubId) {
   if (!row) return { ok: false, error: 'У записи нет club_id' }
   if (profile !== row) return { ok: false, error: 'Нет доступа к клиентам другого клуба' }
   return { ok: true }
+}
+
+/** @param {unknown} deskHall */
+export function isDeskHallTzOrAz(deskHall) {
+  const d = String(deskHall ?? '')
+    .trim()
+    .toLowerCase()
+  return d === 'tz' || d === 'az'
+}
+
+/**
+ * Менеджер может жёстко удалить только desk ТЗ/АЗ своего клуба (не ПЗ / lite).
+ * @param {string} [profileClubId]
+ * @param {{ club_id?: unknown, desk_hall?: unknown }} [client]
+ */
+export function assertSalesManagerDeskClientDelete(profileClubId, client) {
+  const clubCheck = assertSalesManagerSameClub(profileClubId, client?.club_id)
+  if (!clubCheck.ok) return clubCheck
+  if (!isDeskHallTzOrAz(client?.desk_hall)) {
+    return { ok: false, error: 'Менеджер может удалять только клиентов ТЗ/АЗ (desk)' }
+  }
+  return { ok: true }
+}
+
+/**
+ * UI: показывать «Удалить» менеджеру только на desk ТЗ/АЗ.
+ * @param {boolean} isSalesManager
+ * @param {{ desk_hall?: unknown } | null | undefined} client
+ */
+export function canSalesManagerHardDeleteClient(isSalesManager, client) {
+  if (!isSalesManager) return true
+  return isDeskHallTzOrAz(client?.desk_hall)
 }
 
 /**

@@ -1,8 +1,10 @@
 import {
   assertSalesManagerClientInsert,
   assertSalesManagerClientUpdate,
+  assertSalesManagerDeskClientDelete,
   assertSalesManagerSameClub,
   isSalesManagerClientPushTable,
+  isSalesManagerDeskDeleteExtraTable,
 } from '../../src/lib/admin/salesManagerClientsAccessCore.js'
 
 const UUID_RE =
@@ -13,7 +15,11 @@ export function isUuid(v) {
 }
 
 async function getClientRow(supabaseAdmin, clientId) {
-  const { data, error } = await supabaseAdmin.from('clients').select('id, trainer_id, club_id').eq('id', clientId).maybeSingle()
+  const { data, error } = await supabaseAdmin
+    .from('clients')
+    .select('id, trainer_id, club_id, desk_hall')
+    .eq('id', clientId)
+    .maybeSingle()
   if (error) throw error
   return data
 }
@@ -33,7 +39,7 @@ export async function canAccessClient(ctx, clientId) {
 }
 
 /**
- * Менеджер продаж: только clients/memberships своего клуба (desk + lite-ПЗ + правка).
+ * Менеджер продаж: clients/memberships своего клуба; удаление desk ТЗ/АЗ + каскад.
  * @returns {Promise<{ ok: true } | { ok: false, error: string }>}
  */
 async function authorizeSalesManagerPush(ctx, table_name, operation, data, remote_id) {
@@ -41,7 +47,7 @@ async function authorizeSalesManagerPush(ctx, table_name, operation, data, remot
   const payload = data ?? {}
   const profileClub = String(ctx.profile?.club_id ?? ctx.salesClubId ?? '').trim()
 
-  if (!isSalesManagerClientPushTable(table_name)) {
+  if (!isSalesManagerClientPushTable(table_name) && !(op === 'delete' && isSalesManagerDeskDeleteExtraTable(table_name))) {
     return { ok: false, error: 'Менеджер может менять только клиентов и абонементы своего клуба' }
   }
 
@@ -54,7 +60,7 @@ async function authorizeSalesManagerPush(ctx, table_name, operation, data, remot
       const existing = await getClientRow(ctx.supabaseAdmin, id)
       if (!existing) return op === 'delete' ? { ok: true } : { ok: false, error: 'Клиент не найден' }
       if (op === 'delete') {
-        return assertSalesManagerSameClub(profileClub, existing.club_id)
+        return assertSalesManagerDeskClientDelete(profileClub, existing)
       }
       return assertSalesManagerClientUpdate(profileClub, existing.club_id, payload)
     }
@@ -80,6 +86,22 @@ async function authorizeSalesManagerPush(ctx, table_name, operation, data, remot
         if (!clubCheck.ok) return clubCheck
       }
       return { ok: true }
+    }
+
+    if (op === 'delete' && isSalesManagerDeskDeleteExtraTable(table_name)) {
+      let clientId = payload.client_id
+      if (!clientId && remote_id) {
+        const { data: row } = await ctx.supabaseAdmin
+          .from(table_name)
+          .select('client_id')
+          .eq('id', remote_id)
+          .maybeSingle()
+        if (!row?.client_id) return { ok: true }
+        clientId = row.client_id
+      }
+      const existing = await getClientRow(ctx.supabaseAdmin, clientId)
+      if (!existing) return { ok: true }
+      return assertSalesManagerDeskClientDelete(profileClub, existing)
     }
 
     return { ok: false, error: 'Нет доступа' }

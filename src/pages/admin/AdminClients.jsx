@@ -65,6 +65,7 @@ import {
   pickDeskActiveMembership,
 } from '../../lib/admin/deskMembershipLedgerCore.js'
 import { collectNoTabletTrainerIds, isLitePzClient } from '../../lib/admin/trainerTabletModeCore.js'
+import { canSalesManagerHardDeleteClient } from '../../lib/admin/salesManagerClientsAccessCore.js'
 import { AdminLitePzCreateModal } from '../../components/admin/AdminLitePzCreateModal.jsx'
 import { listMembershipTypesForClub } from '../../lib/membershipTypesService.js'
 import '../../styles/pnk-funnel.css'
@@ -110,8 +111,6 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
     ? String(user?.club_id ?? '').trim()
     : String(ctx?.clubId ?? '').trim()
   const clientsBasePath = isSalesManager ? '/sales/clients' : '/admin/clients'
-  /** Жёсткое удаление каскадом трогает тренировки — только админ. */
-  const canHardDeleteClients = !isSalesManager
   const [searchParams, setSearchParams] = useSearchParams()
   const club = isSalesManager
     ? clubIdCtx
@@ -1143,7 +1142,7 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
                               icon: UserCog,
                               onSelect: () => void openReassignModal(c),
                             },
-                            canHardDeleteClients
+                            canSalesManagerHardDeleteClient(isSalesManager, c)
                               ? {
                                   id: 'delete',
                                   label: 'Удалить',

@@ -5,7 +5,10 @@
 import {
   assertSalesManagerClientInsert,
   assertSalesManagerClientUpdate,
+  assertSalesManagerDeskClientDelete,
   assertSalesManagerSameClub,
+  canSalesManagerHardDeleteClient,
+  isDeskHallTzOrAz,
   isSalesManagerClientPushTable,
   SALES_MANAGER_CLIENT_PUSH_TABLES,
 } from '../src/lib/admin/salesManagerClientsAccessCore.js'
@@ -24,7 +27,7 @@ function ok(cond, msg) {
 ok(SALES_MANAGER_CLIENT_PUSH_TABLES.includes('clients'), 'push clients')
 ok(SALES_MANAGER_CLIENT_PUSH_TABLES.includes('memberships'), 'push memberships')
 ok(isSalesManagerClientPushTable('clients'), 'is clients table')
-ok(!isSalesManagerClientPushTable('trainings'), 'no trainings push')
+ok(!isSalesManagerClientPushTable('trainings'), 'no trainings push (write)')
 
 ok(assertSalesManagerSameClub('c1', 'c1').ok, 'same club')
 ok(!assertSalesManagerSameClub('c1', 'c2').ok, 'other club blocked')
@@ -48,6 +51,16 @@ ok(!assertSalesManagerClientInsert('c1', { club_id: 'c1' }).ok, 'no trainer no d
 ok(assertSalesManagerClientUpdate('c1', 'c1', { name: 'A' }).ok, 'update same club')
 ok(!assertSalesManagerClientUpdate('c1', 'c2', { name: 'A' }).ok, 'update other club')
 ok(!assertSalesManagerClientUpdate('c1', 'c1', { club_id: 'c2' }).ok, 'move club blocked')
+
+ok(isDeskHallTzOrAz('tz') && isDeskHallTzOrAz('az'), 'desk hall flags')
+ok(!isDeskHallTzOrAz(null) && !isDeskHallTzOrAz(''), 'not desk')
+ok(assertSalesManagerDeskClientDelete('c1', { club_id: 'c1', desk_hall: 'tz' }).ok, 'delete desk tz')
+ok(assertSalesManagerDeskClientDelete('c1', { club_id: 'c1', desk_hall: 'az' }).ok, 'delete desk az')
+ok(!assertSalesManagerDeskClientDelete('c1', { club_id: 'c1', desk_hall: null }).ok, 'no delete pz')
+ok(!assertSalesManagerDeskClientDelete('c1', { club_id: 'c2', desk_hall: 'tz' }).ok, 'no delete other club')
+ok(canSalesManagerHardDeleteClient(false, { desk_hall: null }), 'admin can delete any')
+ok(canSalesManagerHardDeleteClient(true, { desk_hall: 'tz' }), 'manager delete desk')
+ok(!canSalesManagerHardDeleteClient(true, { desk_hall: null }), 'manager no delete pz')
 
 ok(buildClientCardDeepLink('cid', { forSales: true }) === '/sales/clients/cid', 'sales deep link')
 ok(
