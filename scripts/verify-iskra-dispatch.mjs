@@ -286,7 +286,15 @@ ok(severalIds.length === 2, 'several mode ids')
 ok(dispatchRecipientSendLabel('all', 0, 5) === 'Поставить всем (5)', 'send label all')
 ok(dispatchRecipientSendLabel('several', 3, 5) === 'Поставить (3)', 'send label several')
 
-const dueDate = resolveDispatchDueAt({ due_preset: 'date', due_date: '2026-08-01' })
+const futureDueIso = (() => {
+  const d = new Date()
+  d.setDate(d.getDate() + 14)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+})()
+const dueDate = resolveDispatchDueAt({ due_preset: 'date', due_date: futureDueIso })
 ok(dueDate.due_at && dueDate.due_mode === 'date', 'due from calendar date')
 
 const dueTomorrow = resolveDueAtFromMode('tomorrow', { now: new Date('2026-07-10T10:00:00Z') })

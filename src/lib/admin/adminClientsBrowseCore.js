@@ -2,10 +2,25 @@
  * Режимы списка клиентов админки: поиск-first + мини-сводка «на сегодня».
  */
 
-import { filterHallOperationalClients } from './holdingClientsCore.js'
+import { filterCommercialClients } from './holdingClientsCore.js'
 import { todayLocalIso } from '../dateRu.js'
-import { hasUsableMembershipForPeriodStats } from '../membershipRules.js'
+import {
+  hasUsableMembershipForPeriodStats,
+  membershipCoversDate,
+  inactiveMembershipReferenceDate,
+} from '../membershipRules.js'
 import { aggregateClubClientPeriod } from './clubClientPeriodAgg.js'
+
+function hasCommercialActiveOnDay(memList, day) {
+  if (hasUsableMembershipForPeriodStats(memList, day, day, day)) return true
+  const ref = inactiveMembershipReferenceDate(day, day, day)
+  for (const m of memList ?? []) {
+    const total = Number(m?.total_trainings ?? 0)
+    if (Number.isFinite(total) && total > 0) continue
+    if (membershipCoversDate(m, ref)) return true
+  }
+  return false
+}
 
 /** Режимы, при которых показываем список без строки поиска. */
 export const ADMIN_CLIENTS_BROWSE_MODES = [
@@ -24,16 +39,25 @@ export function isAdminClientsBrowseMode(mode) {
 }
 
 /**
- * Сводка «на сегодня» — те же правила, что сводка дня и «Не активные» в статистике.
+ * Сводка «на сегодня» — абоны (в т.ч. lite ПЗ); «Неактивные» без lite (пустой дневник).
  * @param {object[]} clientRows
  * @param {object[]} membershipRows
  * @param {string} [today]
  * @param {Set<string>|string[]} [holdingTrainerIds]
+ * @param {Set<string>|string[]} [noTabletTrainerIds]
  */
-export function buildAdminClientsTodaySnapshot(clientRows, membershipRows, today = todayLocalIso(), holdingTrainerIds) {
+export function buildAdminClientsTodaySnapshot(
+  clientRows,
+  membershipRows,
+  today = todayLocalIso(),
+  holdingTrainerIds,
+  noTabletTrainerIds,
+) {
   const day = String(today ?? '').slice(0, 10)
-  const operational = filterHallOperationalClients(clientRows, holdingTrainerIds)
-  const period = aggregateClubClientPeriod(operational, membershipRows, day, day, day, { holdingTrainerIds })
+  const period = aggregateClubClientPeriod(clientRows, membershipRows, day, day, day, {
+    holdingTrainerIds,
+    noTabletTrainerIds,
+  })
 
   const inactiveDetailById = new Map()
   for (const row of period.inactiveClients) {
@@ -48,10 +72,13 @@ export function buildAdminClientsTodaySnapshot(clientRows, membershipRows, today
     if (!memByClient.has(cid)) memByClient.set(cid, [])
     memByClient.get(cid).push(m)
   }
-  for (const c of operational) {
+  const commercial = filterCommercialClients(clientRows, holdingTrainerIds).filter(
+    (c) => String(c?.lifecycle ?? 'active') !== 'pnk',
+  )
+  for (const c of commercial) {
     const id = String(c?.id ?? '').trim()
     if (!id) continue
-    if (hasUsableMembershipForPeriodStats(memByClient.get(id) ?? [], day, day, day)) {
+    if (hasCommercialActiveOnDay(memByClient.get(id) ?? [], day)) {
       activeTodayIds.add(id)
     }
   }
@@ -109,13 +136,13 @@ export function planAdminClubReconcilePrune(localClients, remoteRows, pendingCli
 }
 
 /**
- * ID клиентов клуба, которые reconcile не должен удалять: активные + архивные в облаке.
  * @param {object[]} remoteRows
+ * @returns {Set<string>}
  */
 export function remoteClientIdsForReconcile(remoteRows) {
   const ids = new Set()
-  for (const row of remoteRows ?? []) {
-    const id = String(row?.id ?? '').trim()
+  for (const r of remoteRows ?? []) {
+    const id = String(r?.id ?? '').trim()
     if (id) ids.add(id)
   }
   return ids

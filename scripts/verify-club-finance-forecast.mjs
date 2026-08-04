@@ -60,12 +60,28 @@ ok(fc3.method === FORECAST_METHOD_UNIFORM, 'no dates → uniform method')
 ok(fc3.reportDays === 3, 'report days = 3')
 ok(fc3.fact.earnings === 29400, 'fact earnings net of refunds')
 ok(fc3.fact.refunds === 600, 'fact refunds sum')
-ok(fc3.forecast.refunds === fc3.fact.refunds, 'forecast refunds static (fact sum)')
+ok(fc3.forecast.refunds > fc3.fact.refunds, 'forecast refunds paced above fact (≥2 days with refund)')
+ok(fc3.refundsPace?.paced === true, 'refunds pace flag')
 ok(
-  fc3.forecast.earnings === Math.round((30000 * (daysInMonth / 3) - 600) * 100) / 100,
-  'forecast earnings = scaled gross minus static refunds',
+  fc3.forecast.earnings === Math.round((30000 * (daysInMonth / 3) - fc3.forecast.refunds) * 100) / 100,
+  'forecast earnings = scaled gross minus paced refunds',
 )
 ok(fc3.forecast.netProfit === fc3.forecast.earnings - fc3.forecast.expense, 'net without payroll when empty types')
+
+const rowsRefundSparse = [
+  { profit_nk: 10000, profit_dk: 0, profit_uk: 0, refunds_amount: 500 },
+  { profit_nk: 10000, profit_dk: 0, profit_uk: 0, refunds_amount: 0 },
+  { profit_nk: 10000, profit_dk: 0, profit_uk: 0, refunds_amount: 0 },
+]
+const fcSparseRefunds = buildClubFinanceForecast({
+  monthRows: rowsRefundSparse,
+  year,
+  month,
+  expense: 0,
+  today,
+})
+ok(fcSparseRefunds.ok && fcSparseRefunds.forecast.refunds === 500, 'sparse refunds stay fact')
+ok(fcSparseRefunds.refundsPace?.paced === false, 'sparse refunds not paced')
 
 const rows2 = rows3.slice(0, 2)
 const fc2 = buildClubFinanceForecast({ monthRows: rows2, year, month, expense: 0, today })
@@ -127,13 +143,14 @@ const fcPay = buildClubFinanceForecast({
 ok(fcPay.ok, 'forecast with payroll types')
 ok(fcPay.fact.trainerPayroll === 6000, 'fact trainer payroll 2+4+6 × 500')
 ok(
-  fcPay.forecast.trainerPayroll === Math.round(6000 * (daysInMonth / 3) * 100) / 100,
-  'forecast payroll scaled',
-)
-ok(
   fcPay.forecast.pzTrainings === Math.round(12 * (daysInMonth / 3)),
   'forecast pz trainings scaled',
 )
+ok(
+  fcPay.forecast.trainerPayroll === Math.round(fcPay.forecast.pzTrainings * 500 * 100) / 100,
+  'forecast payroll from hours × rate',
+)
+ok(fcPay.payrollPace?.trainer === 'payroll_from_hours', 'payroll linked to hours')
 ok(
   fcPay.forecast.netProfit ===
     fcPay.forecast.earnings - fcPay.forecast.trainerPayroll - fcPay.forecast.expense,

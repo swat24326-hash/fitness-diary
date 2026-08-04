@@ -1,3 +1,10 @@
+import {
+  assertSalesManagerClientInsert,
+  assertSalesManagerClientUpdate,
+  assertSalesManagerSameClub,
+  isSalesManagerClientPushTable,
+} from '../../src/lib/admin/salesManagerClientsAccessCore.js'
+
 const UUID_RE =
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/
 
@@ -11,13 +18,74 @@ async function getClientRow(supabaseAdmin, clientId) {
   return data
 }
 
-/** Тренер — только свои клиенты; админ — любые. */
+/** Админ — любые; менеджер продаж — свой клуб; тренер — только свои. */
 export async function canAccessClient(ctx, clientId) {
   if (!isUuid(clientId)) return false
   if (ctx.isAdmin) return true
-  if (!ctx.isTrainer) return false
   const c = await getClientRow(ctx.supabaseAdmin, clientId)
-  return c && String(c.trainer_id) === String(ctx.user.id)
+  if (!c) return false
+  if (ctx.isSalesManager) {
+    const club = String(ctx.profile?.club_id ?? ctx.salesClubId ?? '').trim()
+    return Boolean(club && String(c.club_id ?? '') === club)
+  }
+  if (!ctx.isTrainer) return false
+  return String(c.trainer_id) === String(ctx.user.id)
+}
+
+/**
+ * Менеджер продаж: только clients/memberships своего клуба (desk + lite-ПЗ + правка).
+ * @returns {Promise<{ ok: true } | { ok: false, error: string }>}
+ */
+async function authorizeSalesManagerPush(ctx, table_name, operation, data, remote_id) {
+  const op = String(operation ?? '')
+  const payload = data ?? {}
+  const profileClub = String(ctx.profile?.club_id ?? ctx.salesClubId ?? '').trim()
+
+  if (!isSalesManagerClientPushTable(table_name)) {
+    return { ok: false, error: 'Менеджер может менять только клиентов и абонементы своего клуба' }
+  }
+
+  try {
+    if (table_name === 'clients') {
+      const id = remote_id || payload.id
+      if (op === 'insert') {
+        return assertSalesManagerClientInsert(profileClub, payload)
+      }
+      const existing = await getClientRow(ctx.supabaseAdmin, id)
+      if (!existing) return op === 'delete' ? { ok: true } : { ok: false, error: 'Клиент не найден' }
+      if (op === 'delete') {
+        return assertSalesManagerSameClub(profileClub, existing.club_id)
+      }
+      return assertSalesManagerClientUpdate(profileClub, existing.club_id, payload)
+    }
+
+    if (table_name === 'memberships') {
+      if (op === 'delete') {
+        const { data: m } = await ctx.supabaseAdmin
+          .from('memberships')
+          .select('client_id')
+          .eq('id', remote_id)
+          .maybeSingle()
+        if (!m?.client_id) return { ok: true }
+        return (await canAccessClient(ctx, m.client_id))
+          ? { ok: true }
+          : { ok: false, error: 'Нет доступа' }
+      }
+      const clientId = payload.client_id
+      if (!(await canAccessClient(ctx, clientId))) {
+        return { ok: false, error: 'Нет доступа к клиенту' }
+      }
+      if (Object.prototype.hasOwnProperty.call(payload, 'club_id')) {
+        const clubCheck = assertSalesManagerSameClub(profileClub, payload.club_id)
+        if (!clubCheck.ok) return clubCheck
+      }
+      return { ok: true }
+    }
+
+    return { ok: false, error: 'Нет доступа' }
+  } catch (e) {
+    return { ok: false, error: e?.message ? String(e.message) : 'Ошибка проверки доступа' }
+  }
 }
 
 /**
@@ -25,7 +93,7 @@ export async function canAccessClient(ctx, clientId) {
  * @returns {Promise<{ ok: true } | { ok: false, error: string }>}
  */
 export async function authorizePush(ctx, table_name, operation, data, remote_id) {
-  const { supabaseAdmin, user, isAdmin, isTrainer } = ctx
+  const { supabaseAdmin, user, isAdmin, isTrainer, isSalesManager } = ctx
   const op = String(operation ?? '')
   const payload = data ?? {}
 
@@ -53,6 +121,10 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
   }
 
   if (isAdmin) return { ok: true }
+
+  if (isSalesManager) {
+    return authorizeSalesManagerPush(ctx, table_name, operation, data, remote_id)
+  }
 
   if (
     table_name === 'membership_types' ||

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
-import { Archive, RefreshCw, RotateCcw, Search, Trash2, UserCircle, UserCog, UserSearch } from 'lucide-react'
+import { Link, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom'
+import { Archive, ArrowLeft, RefreshCw, RotateCcw, Search, Trash2, UserCircle, UserCog, UserPlus, UserSearch } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext.jsx'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { AdminClientClubSmsButton } from '../../components/admin/AdminClientClubSmsButton.jsx'
 import { AdminClientsBrowseFilters } from '../../components/admin/AdminClientsBrowseFilters.jsx'
@@ -63,8 +64,11 @@ import {
   inferDeskPackageMonths,
   pickDeskActiveMembership,
 } from '../../lib/admin/deskMembershipLedgerCore.js'
+import { collectNoTabletTrainerIds, isLitePzClient } from '../../lib/admin/trainerTabletModeCore.js'
+import { AdminLitePzCreateModal } from '../../components/admin/AdminLitePzCreateModal.jsx'
 import { listMembershipTypesForClub } from '../../lib/membershipTypesService.js'
 import '../../styles/pnk-funnel.css'
+import '../../styles/sales-clients.css'
 
 function lastTrainingDateFromMap(map, clientId) {
   const d = map?.[String(clientId ?? '')]
@@ -94,11 +98,24 @@ function remainingTrainingsOnMembership(membership, clientTrainings) {
   return Math.max(0, total - used)
 }
 
-export function AdminClients() {
+/**
+ * @param {{ accessMode?: 'admin' | 'sales_manager' }} [props]
+ */
+export function AdminClients({ accessMode = 'admin' } = {}) {
+  const isSalesManager = accessMode === 'sales_manager'
+  const { profile } = useAuth()
   const ctx = useOutletContext()
-  const clubIdCtx = ctx?.clubId ?? ''
+  const navigate = useNavigate()
+  const clubIdCtx = isSalesManager
+    ? String(profile?.club_id ?? '').trim()
+    : String(ctx?.clubId ?? '').trim()
+  const clientsBasePath = isSalesManager ? '/sales/clients' : '/admin/clients'
+  /** Жёсткое удаление каскадом трогает тренировки — только админ. */
+  const canHardDeleteClients = !isSalesManager
   const [searchParams, setSearchParams] = useSearchParams()
-  const club = searchParams.get('club') ?? clubIdCtx ?? ''
+  const club = isSalesManager
+    ? clubIdCtx
+    : searchParams.get('club') ?? clubIdCtx ?? ''
   const filterFromUrl = searchParams.get('filter')
   const listTabFromUrl = searchParams.get('clientsTab') || searchParams.get('list')
 
@@ -107,6 +124,9 @@ export function AdminClients() {
   const [lastTrainingByClient, setLastTrainingByClient] = useState({})
   const [pageTrainings, setPageTrainings] = useState([])
   const [trainerNameById, setTrainerNameById] = useState({})
+  const [trainersForClub, setTrainersForClub] = useState([])
+  const [noTabletTrainerIds, setNoTabletTrainerIds] = useState(() => new Set())
+  const [liteCreateOpen, setLiteCreateOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [listPage, setListPage] = useState(0)
   const [pageTrainingsBusy, setPageTrainingsBusy] = useState(false)
@@ -208,6 +228,12 @@ export function AdminClients() {
         nm[u.id] = u.name?.trim() || '—'
       }
       setTrainerNameById(nm)
+      let clubTrainers = Array.isArray(trainers) ? trainers : []
+      if (isSalesManager && club) {
+        clubTrainers = clubTrainers.filter((t) => String(t.club_id ?? '').trim() === String(club))
+      }
+      setTrainersForClub(clubTrainers)
+      setNoTabletTrainerIds(collectNoTabletTrainerIds(clubTrainers))
 
       const arr = Array.isArray(list) ? list : []
       setClients(arr)
@@ -229,7 +255,7 @@ export function AdminClients() {
     } finally {
       if (!silent) setBusy(false)
     }
-  }, [club])
+  }, [club, isSalesManager])
 
   useEffect(() => {
     void reload()
@@ -334,8 +360,8 @@ export function AdminClients() {
   }, [memByClient])
 
   const todaySnapshot = useMemo(
-    () => buildAdminClientsTodaySnapshot(clients, allMemberships, today),
-    [clients, allMemberships, today],
+    () => buildAdminClientsTodaySnapshot(clients, allMemberships, today, undefined, noTabletTrainerIds),
+    [clients, allMemberships, today, noTabletTrainerIds],
   )
 
   const showClientList = useMemo(
@@ -600,7 +626,10 @@ export function AdminClients() {
     setReassignClient({ id: c.id, name: c.name ?? 'Клиент', trainer_id: c.trainer_id })
     try {
       const list = await listTrainerSummariesForAdmin()
-      const arr = Array.isArray(list) ? list : []
+      let arr = Array.isArray(list) ? list : []
+      if (isSalesManager && club) {
+        arr = arr.filter((t) => String(t.club_id ?? '').trim() === String(club))
+      }
       setTrainerOptions(arr)
       if (!arr.length && isSupabaseConfigured()) {
         setReassignLoadErr('Список тренеров пуст или нет доступа (RLS). Можно ввести UUID вручную ниже.')
@@ -611,7 +640,7 @@ export function AdminClients() {
     } catch {
       setReassignLoadErr('Не удалось загрузить список тренеров. Укажите UUID вручную.')
     }
-  }, [])
+  }, [club, isSalesManager])
 
   const applyReassignTrainer = async () => {
     if (!reassignClient?.id) return
@@ -625,6 +654,20 @@ export function AdminClients() {
     if (tid === reassignClient.trainer_id) {
       closeReassignModal()
       return
+    }
+    const fromTrainer = trainersForClub.find((t) => String(t.id) === String(reassignClient.trainer_id))
+    const toTrainer =
+      trainerOptions.find((u) => u.id === tid) ||
+      trainersForClub.find((t) => String(t.id) === String(tid))
+    const fromLite = fromTrainer?.uses_tablet === false
+    const toLite = toTrainer?.uses_tablet === false
+    if (fromLite !== toLite) {
+      const ok = window.confirm(
+        toLite
+          ? 'Новый тренер без планшета: карточку будет вести админ (карта и абон), не полный дневник. Продолжить?'
+          : 'Новый тренер с планшетом: карточка станет полным дневником. Продолжить?',
+      )
+      if (!ok) return
     }
     const full = await getLocalClient(reassignClient.id)
     if (!full) {
@@ -679,12 +722,41 @@ export function AdminClients() {
   }
 
   return (
-    <section className="admin-section-shell admin-section-shell--wide">
-      <AdminSectionHeader
-        icon={UserCircle}
-        title="Клиенты"
-        lead="Вкладки: клиенты с тренером · ТЗ · АЗ · архив. Список заканчивающихся загружают в «Списки из Excel»."
-      />
+    <section
+      className={
+        isSalesManager
+          ? 'sales-clients sales-report sales-report--wide sales-report--manager'
+          : 'admin-section-shell admin-section-shell--wide'
+      }
+    >
+      {isSalesManager ? (
+        <header className="sales-clients__topbar">
+          <div className="sales-clients__topbar-text">
+            <p className="sales-home__eyebrow">Клуб · день</p>
+            <h1 className="sales-page__title">Клиенты</h1>
+            <p className="sales-clients__lead">
+              Те же фильтры, что у админа: ДР, воронки, ТЗ/АЗ, lite-ПЗ. Только ваш клуб.
+            </p>
+          </div>
+          <div className="sales-clients__actions">
+            <Link to="/sales" className="btn btn-ghost btn-sm btn-icon-square btn-touch" title="На главную" aria-label="На главную продаж">
+              <ArrowLeft size={16} aria-hidden />
+            </Link>
+          </div>
+        </header>
+      ) : (
+        <AdminSectionHeader
+          icon={UserCircle}
+          title="Клиенты"
+          lead="С тренером · ТЗ · АЗ · архив. Персонал без планшета — кнопка «Новый клиент ПЗ». ТЗ/АЗ — из «Списки из Excel»."
+        />
+      )}
+
+      {!club && isSalesManager ? (
+        <p className="sales-clients__empty" role="status">
+          Клуб не привязан к учётке. Обратитесь к администратору — без club_id список клиентов недоступен.
+        </p>
+      ) : null}
 
     <div className="grid stagger td-grid">
       <section className="card admin-clients-workspace" id="clients">
@@ -731,6 +803,18 @@ export function AdminClients() {
               <span className="admin-clients-segment__count">{listTabCounts.archive}</span>
             </button>
           </div>
+          {clientsTab === 'active' ? (
+            <button
+              type="button"
+              className="btn btn-secondary btn-icon-square btn-touch"
+              disabled={busy}
+              onClick={() => setLiteCreateOpen(true)}
+              aria-label="Новый клиент ПЗ"
+              title="Клиент персонального зала для тренера без планшета (карта, абон, оплата)"
+            >
+              <UserPlus size={20} aria-hidden />
+            </button>
+          ) : null}
           <button
             type="button"
             className="btn btn-primary btn-icon-square btn-touch"
@@ -767,7 +851,7 @@ export function AdminClients() {
             ) : (
               <>
                 С <strong>устройства</strong> (IndexedDB).
-                {!club ? ' Выберите клуб в шапке.' : null}
+                {!club ? (isSalesManager ? ' Нужен club_id в профиле.' : ' Выберите клуб в шапке.') : null}
               </>
             )}
           </p>
@@ -899,6 +983,7 @@ export function AdminClients() {
               const inactiveRow = todaySnapshot.inactiveDetailById.get(c.id)
               const inactiveLabel =
                 quickFilter === 'inactive' && inactiveRow ? formatInactiveClientListLabel(inactiveRow) : ''
+              const isLiteRow = isLitePzClient(c, noTabletTrainerIds)
               return (
                 <li key={c.id} className="list-item td-client-item">
                   <div className="td-client-card">
@@ -908,6 +993,15 @@ export function AdminClients() {
                         <div className="td-client-card__who-text">
                           <strong className="td-client-card__name">
                             {c.name}
+                            {isLiteRow ? (
+                              <span
+                                className="pnk-badge"
+                                style={{ marginLeft: 8 }}
+                                title="Тренер без планшета — карточку ведёт админ (карта и абон), не полный дневник"
+                              >
+                                ведёт админ
+                              </span>
+                            ) : null}
                             {String(c.lifecycle ?? '') === 'pnk' ? (
                               <span className="pnk-badge" style={{ marginLeft: 8 }}>
                                 ПНК
@@ -1015,7 +1109,7 @@ export function AdminClients() {
                           onSent={onClubSmsSent}
                         />
                         <Link
-                          to={`/admin/clients/${c.id}${clubQs}`}
+                          to={`${clientsBasePath}/${c.id}${clubQs}`}
                           className="btn btn-primary btn-icon-square btn-touch u-no-decoration"
                           aria-label="Карточка клиента"
                           title="Карточка клиента"
@@ -1045,14 +1139,16 @@ export function AdminClients() {
                               icon: UserCog,
                               onSelect: () => void openReassignModal(c),
                             },
-                            {
-                              id: 'delete',
-                              label: 'Удалить',
-                              icon: Trash2,
-                              danger: true,
-                              onSelect: () => setConfirmDelete({ id: c.id, name: c.name ?? 'Клиент' }),
-                            },
-                          ]}
+                            canHardDeleteClients
+                              ? {
+                                  id: 'delete',
+                                  label: 'Удалить',
+                                  icon: Trash2,
+                                  danger: true,
+                                  onSelect: () => setConfirmDelete({ id: c.id, name: c.name ?? 'Клиент' }),
+                                }
+                              : null,
+                          ].filter(Boolean)}
                         />
                       </div>
                     </div>
@@ -1192,6 +1288,20 @@ export function AdminClients() {
           </div>
         </div>
       )}
+
+      <AdminLitePzCreateModal
+        open={liteCreateOpen}
+        clubId={club}
+        trainers={trainersForClub}
+        onClose={() => setLiteCreateOpen(false)}
+        onCreated={(clientId) => {
+          void reload().then(() => {
+            if (!clientId) return
+            const qs = club ? `?club=${encodeURIComponent(club)}` : ''
+            navigate(`${clientsBasePath}/${clientId}${qs}`)
+          })
+        }}
+      />
     </div>
     </section>
   )

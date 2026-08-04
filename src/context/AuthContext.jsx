@@ -103,11 +103,18 @@ function resolveRole(profile, sessionUser) {
 }
 
 function applyUserFromSession(session, profile, identityHint) {
+  let usesTablet = true
+  if (profile && Object.prototype.hasOwnProperty.call(profile, 'uses_tablet')) {
+    usesTablet = profile.uses_tablet !== false
+  } else if (identityHint && identityHint.uses_tablet !== undefined) {
+    usesTablet = identityHint.uses_tablet !== false
+  }
   const base = {
     id: session.user.id,
     email: session.user.email,
     name: profile?.name ?? identityHint?.name ?? session.user.email,
     club_id: profile?.club_id ?? identityHint?.club_id ?? null,
+    uses_tablet: usesTablet,
   }
   return identityHint ? mergeIdentityCacheIntoUser(identityHint, base) : base
 }
@@ -119,6 +126,7 @@ function persistIdentity(user, role) {
     email: user.email,
     name: user.name,
     club_id: user.club_id,
+    uses_tablet: user.uses_tablet,
     role,
   })
 }
@@ -210,22 +218,39 @@ export function AuthProvider({ children }) {
   )
 
   const queryUserRow = useCallback(async (applyFilter) => {
-    const fields = 'role, name, email, phone, login, club_id'
+    const fields = 'role, name, email, phone, login, club_id, uses_tablet'
     let q = supabase.from('users').select(fields)
     q = applyFilter(q)
     const { data, error } = await withSupabaseRetry(() => q.maybeSingle())
     if (error) {
       const m = String(error.message ?? '').toLowerCase()
+      if (m.includes('uses_tablet')) {
+        let q2 = supabase.from('users').select('role, name, email, phone, login, club_id')
+        q2 = applyFilter(q2)
+        const { data: d2, error: e2 } = await withSupabaseRetry(() => q2.maybeSingle())
+        if (e2) {
+          const m2 = String(e2.message ?? '').toLowerCase()
+          if (m2.includes('club_id')) {
+            let q3 = supabase.from('users').select('role, name, email, phone, login')
+            q3 = applyFilter(q3)
+            const { data: d3, error: e3 } = await withSupabaseRetry(() => q3.maybeSingle())
+            if (e3) throw e3
+            return d3 ? { ...d3, club_id: null, uses_tablet: true } : null
+          }
+          throw e2
+        }
+        return d2 ? { ...d2, uses_tablet: true } : null
+      }
       if (m.includes('club_id')) {
         let q2 = supabase.from('users').select('role, name, email, phone, login')
         q2 = applyFilter(q2)
         const { data: d2, error: e2 } = await withSupabaseRetry(() => q2.maybeSingle())
         if (e2) throw e2
-        return d2 ? { ...d2, club_id: null } : null
+        return d2 ? { ...d2, club_id: null, uses_tablet: true } : null
       }
       throw error
     }
-    return data
+    return data ? { ...data, uses_tablet: data.uses_tablet !== false } : null
   }, [])
 
   const refreshProfile = useCallback(

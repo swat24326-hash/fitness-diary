@@ -11,6 +11,7 @@ import { BreadcrumbsBar } from './components/BreadcrumbsBar'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { AdminDashboard } from './pages/admin/AdminDashboard'
 import { AdminClients } from './pages/admin/AdminClients'
+import { SalesClients } from './pages/admin/SalesClients'
 import { AdminExcelLists } from './pages/admin/AdminExcelLists'
 import { AdminStructure } from './pages/admin/AdminStructure'
 import { AdminStatistics } from './pages/admin/AdminStatistics'
@@ -193,6 +194,7 @@ export default function App() {
               <Route path="/sales" element={<AdminSales accessMode="sales_manager" />} />
               <Route path="/sales/club-tasks" element={<SalesClubTasks />} />
               <Route path="/sales/pnk" element={<SalesPnk />} />
+              <Route path="/sales/clients" element={<SalesClients />} />
               <Route path="/sales/clients/:id" element={<ClientCard />} />
             </Route>
             <Route element={<RoleOutlet roles={['admin']} />}>

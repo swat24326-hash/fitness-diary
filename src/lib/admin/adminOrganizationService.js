@@ -9,7 +9,7 @@ import { USERS_TRAINER_ROLES } from '../userRoleConstants'
 import { fetchTrainersViaAdminApi } from './adminApiClient'
 import { updateTrainerClubViaApi } from '../profileApiClient'
 
-const TRAINER_FIELDS = 'id, name, phone, email, login, is_active, role, club_id'
+const TRAINER_FIELDS = 'id, name, phone, email, login, is_active, uses_tablet, role, club_id'
 
 /**
  * @returns {Promise<{ trainers: object[], clubColumn: boolean, listSource: 'admin_api' | 'supabase' | 'none' }>}
@@ -49,6 +49,20 @@ export async function listTrainersWithClubForAdmin() {
   if (!tryFull.error) {
     return { trainers: tryFull.data ?? [], clubColumn: true, listSource: 'supabase' }
   }
+  const errMsg = String(tryFull.error?.message ?? '').toLowerCase()
+  if (errMsg.includes('uses_tablet')) {
+    const tryNoFlag = await withSupabaseRetry(() =>
+      supabase
+        .from('users')
+        .select('id, name, phone, email, login, is_active, role, club_id')
+        .in('role', USERS_TRAINER_ROLES)
+        .order('name', { ascending: true }),
+    )
+    if (!tryNoFlag.error) {
+      const trainers = (tryNoFlag.data ?? []).map((u) => ({ ...u, uses_tablet: true }))
+      return { trainers, clubColumn: true, listSource: 'supabase' }
+    }
+  }
   const basic = await withSupabaseRetry(() =>
     supabase
       .from('users')
@@ -57,7 +71,7 @@ export async function listTrainersWithClubForAdmin() {
       .order('name', { ascending: true }),
   )
   if (basic.error) throw basic.error
-  const rows = (basic.data ?? []).map((u) => ({ ...u, club_id: null }))
+  const rows = (basic.data ?? []).map((u) => ({ ...u, club_id: null, uses_tablet: true }))
   return { trainers: rows, clubColumn: false, listSource: 'supabase' }
 }
 

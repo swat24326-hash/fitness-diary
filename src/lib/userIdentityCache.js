@@ -27,6 +27,7 @@ function parseIdentityRow(o, uid, email) {
     name: String(o.name ?? o.email ?? ''),
     club_id: o.club_id ? String(o.club_id) : null,
     role: String(o.role ?? 'trainer'),
+    uses_tablet: o.uses_tablet !== false,
     at: Number(o.at) || 0,
   }
 }
@@ -76,6 +77,10 @@ export function writeIdentityCache(user) {
           ? String(user.club_id).trim()
           : prev.club_id ?? null,
         role: String(user.role ?? prev.role ?? 'trainer'),
+        uses_tablet:
+          user.uses_tablet !== undefined
+            ? user.uses_tablet !== false
+            : prev.uses_tablet !== false,
         at: Date.now(),
       }),
     )
@@ -164,5 +169,7 @@ export function mergeIdentityCacheIntoUser(cached, user) {
     ...user,
     name: user.name || cached.name || user.email,
     club_id: user.club_id ?? cached.club_id ?? null,
+    uses_tablet:
+      user.uses_tablet !== undefined ? user.uses_tablet !== false : cached.uses_tablet !== false,
   }
 }

@@ -18,6 +18,8 @@ import {
   collectClubTrainerDirectory,
 } from '../../src/lib/admin/geminiTrainerContour.js'
 import { getCachedGeminiSnapshot, setCachedGeminiSnapshot } from './geminiAnalyticsCache.js'
+import { collectHoldingTrainerIds } from '../../src/lib/admin/holdingClientsCore.js'
+import { collectNoTabletTrainerIds } from '../../src/lib/admin/trainerTabletModeCore.js'
 
 const SALES_MONTH_SELECT =
   'report_date, profit_nk, profit_dk, profit_uk, profit_day, refunds_amount, pnk_total, trainings_count, trainings_matrix, aerobic_sales_matrix, matrix_amounts, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, dop_nk, dop_dk, dop_uk'
@@ -54,10 +56,18 @@ async function loadMonthRaw(supabaseAdmin, clubId, year, month) {
       dateTo: end,
       membershipTypesSelect,
     }),
-    supabaseAdmin.from('users').select('id, name, role').eq('club_id', clubId),
+    supabaseAdmin.from('users').select('id, name, role, uses_tablet').eq('club_id', clubId),
   ])
 
-  const err = monthRes.error || planRes.error || expenseRes.error || usersRes.error
+  let usersErr = usersRes.error
+  let usersRows = usersRes.data ?? []
+  if (usersErr && String(usersErr.message ?? '').toLowerCase().includes('uses_tablet')) {
+    const retry = await supabaseAdmin.from('users').select('id, name, role').eq('club_id', clubId)
+    usersErr = retry.error
+    usersRows = (retry.data ?? []).map((u) => ({ ...u, uses_tablet: true }))
+  }
+
+  const err = monthRes.error || planRes.error || expenseRes.error || usersErr
   if (err) throw err
 
   const trainings = clubStatsRaw.trainings
@@ -73,7 +83,13 @@ async function loadMonthRaw(supabaseAdmin, clubId, year, month) {
   const payroll = aggregatePayrollFromDailyRows(monthRows, payRateMap)
   const aerobicPayroll = aggregateAerobicPayrollFromDailyRows(monthRows, aerobicRateMap)
   const trainingAgg = aggregateTrainings(trainings)
-  const clientPeriod = aggregateClubClientPeriod(clients, memberships, start, end)
+  const users = usersRows
+  const holdingTrainerIds = collectHoldingTrainerIds(users)
+  const noTabletTrainerIds = collectNoTabletTrainerIds(users)
+  const clientPeriod = aggregateClubClientPeriod(clients, memberships, start, end, undefined, {
+    holdingTrainerIds,
+    noTabletTrainerIds,
+  })
   const typeStats = aggregateMembershipTypeStats({ trainings, memberships, membershipTypes })
   const fitCityCompleted = typeStats?.totalCounted ?? trainingAgg.totalCompleted
 
@@ -87,13 +103,15 @@ async function loadMonthRaw(supabaseAdmin, clubId, year, month) {
     inactiveInPeriod: clientPeriod.inactiveInPeriod ?? 0,
     fitCityCompleted,
     membershipTypes,
-    users: usersRes.data ?? [],
+    users,
     clients,
     trainings,
     memberships,
     dateFrom: start,
     dateTo: end,
     stats_truncated: statsTruncated,
+    holdingTrainerIds,
+    noTabletTrainerIds,
   }
 }
 
@@ -144,6 +162,8 @@ export async function loadGeminiSnapshotForMonth(supabaseAdmin, clubId, year, mo
     dateTo: raw.dateTo,
     year,
     selectedTrainerId: null,
+    holdingTrainerIds: raw.holdingTrainerIds,
+    noTabletTrainerIds: raw.noTabletTrainerIds,
   })
 
   setCachedGeminiSnapshot(clubId, year, month, snapshot, includeFinance)

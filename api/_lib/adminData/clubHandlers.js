@@ -19,6 +19,7 @@ import {
   buildClubCoachQualityPayload,
   parseIncludeCqFlag,
 } from '../clubCoachQualityCore.js'
+import { fetchClubTrainerModeIds } from '../clubTrainerModeIds.js'
 
 export async function handleClubStats(ctx, req, res) {
   const clubId = String(req.query?.club_id ?? '').trim()
@@ -31,10 +32,17 @@ export async function handleClubStats(ctx, req, res) {
   }
   try {
     const { supabaseAdmin } = ctx
-    const raw = await fetchClubStatsRaw(supabaseAdmin, { clubId, dateFrom, dateTo })
+    const [raw, modeIds] = await Promise.all([
+      fetchClubStatsRaw(supabaseAdmin, { clubId, dateFrom, dateTo }),
+      fetchClubTrainerModeIds(supabaseAdmin, clubId),
+    ])
+    const periodOpts = {
+      holdingTrainerIds: modeIds.holdingTrainerIds,
+      noTabletTrainerIds: modeIds.noTabletTrainerIds,
+    }
     const base = {
       ...aggregateTrainings(raw.trainings),
-      ...aggregateClubClientPeriod(raw.clients, raw.memberships, dateFrom, dateTo),
+      ...aggregateClubClientPeriod(raw.clients, raw.memberships, dateFrom, dateTo, undefined, periodOpts),
       ...aggregateMembershipTypeStats({
         trainings: raw.trainings,
         memberships: raw.memberships,
@@ -55,6 +63,7 @@ export async function handleClubStats(ctx, req, res) {
       dateTo,
       mode: 'full',
       raw,
+      ...periodOpts,
     })
     sendJson(res, 200, { ...base, coachQuality })
   } catch (e) {

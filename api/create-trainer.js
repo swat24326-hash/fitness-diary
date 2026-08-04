@@ -147,6 +147,8 @@ async function handler(req, res) {
     role: 'trainer',
     password_hash: 'supabase-auth',
     is_active: true,
+    // Новый: по умолчанию без планшета; явно uses_tablet: true → с планшетом
+    uses_tablet: body.uses_tablet === true || body.uses_tablet === 'true',
     club_id,
   }
 

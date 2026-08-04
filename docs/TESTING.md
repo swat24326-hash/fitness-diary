@@ -54,6 +54,7 @@
 | Push абонементов (даты NOT NULL) | `verify-membership-push-payload.mjs` |
 | Удаление абонемента (тексты confirm) | `verify-membership-delete.mjs` |
 | Менеджер: доступ к типам АЗ / выбор списка для отчёта | `verify-sales-membership-types-access.mjs` |
+| Менеджер: клиенты клуба (push/club/deep-link) | `verify-sales-manager-clients.mjs` |
 | Прайс ПЗ: скидка 10%, Excel→code, импорт AOA, TTL кэша | `verify-price-list.mjs` |
 | План: ориентир ПЗ ДК из прайса (8 тр. × действующие) | `verify-sales-plan-pz-dk-suggest.mjs` |
 | Стратегия: продления ДК ПЗ/ТЗ/АЗ (конец месяца × ср. покупок) | `verify-sales-plan-hall-renewals.mjs` |
@@ -61,6 +62,7 @@
 | Стратегия: playbook недель / закрытия / темп | `verify-sales-strategy-playbook.mjs` |
 | Стратегия: дрейф при архиве клиентов | `verify-sales-strategy-archive-drift.mjs` |
 | Стратегия: снимок playbook (галочки на всех устройствах) | `verify-sales-strategy-snapshot.mjs` |
+| Стратегия: админ-полоса часов / ЗП / возвратов / чистой | `verify-sales-strategy-admin-finance.mjs` |
 | План: частичное сохранение без затирания матрицы/уровней | `verify-sales-plan-row-persist.mjs` |
 | Стратегия: сводная доска пакета (шт / ₽ / доп / ур. 3) | `verify-sales-strategy-package-board.mjs` |
 | Стратегия: якорь зала × сезон | `verify-sales-hall-anchor.mjs` |

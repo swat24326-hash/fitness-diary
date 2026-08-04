@@ -3,6 +3,7 @@ import { mergeStrategyPlanFormWithClub } from '../lib/admin/salesHallAnchorCore.
 import { loadSalesStrategyAnchor } from '../lib/admin/salesHallAnchorService.js'
 import { resolvePlanFinalTarget } from '../lib/admin/salesReportCore.js'
 import { SalesPlanHallRenewalsSuggestBar } from './SalesPlanHallRenewalsSuggestBar.jsx'
+import { SalesStrategyAdminFinanceBar } from './SalesStrategyAdminFinanceBar.jsx'
 import { SalesStrategyHat } from './SalesStrategyHat.jsx'
 import { SalesStrategyReferenceDetails } from './SalesStrategyReferenceDetails.jsx'
 
@@ -38,17 +39,19 @@ function monthTitle(year, month) {
  *   onPlanChange?: (next: Record<string, string>) => void,
  *   onSelectPlanMonth?: (ym: { year: number, month: number }) => void,
  *   onToast?: (text: string, tone?: 'ok' | 'err' | 'warn') => void,
+ *   showAdminFinanceBar?: boolean,
  * }} props
  */
 export function SalesStrategyPanel({
   clubId,
-  membershipTypes: _membershipTypes = [],
+  membershipTypes = [],
   clubPlanForm = null,
   clubPlanYear,
   clubPlanMonth,
   onPlanChange,
   onSelectPlanMonth,
   onToast,
+  showAdminFinanceBar = false,
 }) {
   const [horizon, setHorizon] = useState(/** @type {'current' | 'next'} */ ('current'))
   const [busy, setBusy] = useState(false)
@@ -117,6 +120,30 @@ export function SalesStrategyPanel({
     plan_level_3: Number(strategyPlanForm.plan_level_3) || 0,
   })
 
+  const typesForFinance =
+    membershipTypes?.length > 0 ? membershipTypes : payload?.membershipTypes ?? []
+  const expenseAmount =
+    horizon === 'next'
+      ? Number(payload?.baseExpenseAmount) || 0
+      : Number(payload?.expenseAmount) || 0
+
+  const adminFinanceBar =
+    showAdminFinanceBar && planYm ? (
+      <SalesStrategyAdminFinanceBar
+        showAdminFinanceBar
+        horizon={horizon}
+        targetYear={planYm.year}
+        targetMonth={planYm.month}
+        baseYear={baseYm?.year}
+        baseMonth={baseYm?.month}
+        planMonthDays={payload?.planMonthDays ?? []}
+        prevMonthDays={payload?.prevMonthDays ?? []}
+        membershipTypes={typesForFinance}
+        planForm={strategyPlanForm}
+        expense={expenseAmount}
+      />
+    ) : null
+
   return (
     <section className="sales-strategy sales-strategy--dashboard" aria-labelledby="sales-strategy-title">
       {error ? (
@@ -162,6 +189,7 @@ export function SalesStrategyPanel({
                 prevMonthLabel={prevMonthLabel}
                 controls={controls}
               />
+              {adminFinanceBar}
               <div className="sales-strategy__workspace">
                 <div className="sales-strategy__workspace-pack">
                   {packColumn}
@@ -189,6 +217,7 @@ export function SalesStrategyPanel({
             planLevel3={planLevel3 > 0 ? planLevel3 : null}
             prevMonthLabel={prevMonthLabel}
           />
+          {adminFinanceBar}
           <SalesStrategyReferenceDetails
             projection={payload?.projection}
             planLevel3={planLevel3 > 0 ? planLevel3 : null}

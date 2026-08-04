@@ -32,6 +32,8 @@ function flattenMemberships(memByClient) {
  *   dateTo: string,
  *   trainerIdFilter?: string | null,
  *   membershipTypes?: object[],
+ *   holdingTrainerIds?: Set<string>|string[]|null,
+ *   noTabletTrainerIds?: Set<string>|string[]|null,
  *   includeCoachQuality?: boolean,
  * }} input
  */
@@ -46,14 +48,16 @@ export async function buildScopePeriodStats(input) {
     dateTo,
     trainerIdFilter = null,
     membershipTypes: typesIn,
+    holdingTrainerIds = null,
+    noTabletTrainerIds = null,
     includeCoachQuality = true,
   } = input
 
   const memberships = membershipsIn ?? flattenMemberships(memByClient)
   const inRange = trainingsInRange(trainings, dateFrom, dateTo)
   const membershipTypes = typesIn ?? (clubId ? await listMembershipTypesForClub(clubId) : [])
-  // desk ТЗ/АЗ и holding — вне операционной сводки (даже без списка holding ids)
-  const operationalClients = filterHallOperationalClients(clients)
+  const operationalClients = filterHallOperationalClients(clients, holdingTrainerIds, noTabletTrainerIds)
+  const periodOpts = { holdingTrainerIds, noTabletTrainerIds }
 
   let coachQuality = null
   if (includeCoachQuality) {
@@ -70,6 +74,8 @@ export async function buildScopePeriodStats(input) {
         trainerIdFilter: trainerIdFilter || null,
         membershipTypes,
         previousTrainings,
+        holdingTrainerIds,
+        noTabletTrainerIds,
       })
     } catch (e) {
       console.warn('[stats] coachQuality', e)
@@ -78,7 +84,7 @@ export async function buildScopePeriodStats(input) {
 
   return {
     ...aggregateTrainings(inRange),
-    ...aggregateClubClientPeriod(operationalClients, memberships, dateFrom, dateTo),
+    ...aggregateClubClientPeriod(clients, memberships, dateFrom, dateTo, undefined, periodOpts),
     ...aggregateMembershipTypeStats({
       trainings: inRange,
       memberships,

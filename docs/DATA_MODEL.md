@@ -1,6 +1,6 @@
 # Модель данных — IDB, сущности, Postgres
 
-**Актуально:** 2026-08-01. Эталон схемы: `supabase/schema.sql` + идемпотентные `supabase/migrations/`.  
+**Актуально:** 2026-08-03. Эталон схемы: `supabase/schema.sql` + идемпотентные `supabase/migrations/`.  
 Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/lib/membershipRules.js`.
 
 ---
@@ -10,7 +10,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | Store | keyPath | Заметки |
 |-------|---------|---------|
 | `meta` | key (string) | Флаги, служебное |
-| `clients` | `id` | индексы `club_id`, `trainer_id`; поля ПНК / архив; `desk_hall` (`tz`\|`az`\|null); `trainer_id` nullable только вместе с desk (`CHECK trainer OR desk_hall`) |
+| `clients` | `id` | индексы `club_id`, `trainer_id`; поля ПНК / архив; `desk_hall` (`tz`\|`az`\|null); `trainer_id` nullable только вместе с desk (`CHECK trainer OR desk_hall`). Lite-ПЗ = обычный клиент с живым тренером, у которого `users.uses_tablet = false` (не desk). |
 | `memberships` | `id` | `client_id`, `club_id`; опционально `clip_id`; `paid_amount` (₽ покупки, desk ТЗ/АЗ) |
 | `trainings` | `id` | `draft` \| `completed`; `data` JSON формы (в т.ч. опционально `hr_session` — сводка пульса BLE, см. [TRAINING_HR.md](./TRAINING_HR.md)) |
 | `exercises` | `id` | Справочник |
@@ -43,7 +43,7 @@ Postgres (не IDB): **`club_sms_log`** — облачный журнал SMS к
 | **trainings** | Дата, тип, статус, JSON `data` из `TrainingForm` (упражнения, вес, опционально снимок `hr_session`) |
 | **health_cards** | Рост, вес, цель (`goal`), тексты медкарты |
 | **body_measurements** | Поля из `BODY_MEASURE_FIELDS` (+ legacy-имена в читалке) |
-| **Продажи** | Daily / plan / finance в Postgres; UI `/sales`, `/admin/sales` — через API, не IDB-очередь |
+| **Продажи** | Daily / plan / finance в Postgres; UI `/sales`, `/admin/sales` — через API, не IDB-очередь. `club_sales_plan.strategy_snapshot` (jsonb) — снимок playbook Стратегии (закрытия + галочки) на все устройства; миграция `20260803120000_club_sales_plan_strategy_snapshot.sql` |
 | **ИСКРА** | Settings, learning, dispatch — сервер + частичный кэш settings |
 | **Архив** | Правила UI/sync/agg — [CLIENT_ARCHIVE.md](./CLIENT_ARCHIVE.md) |
 
@@ -57,6 +57,7 @@ Postgres (не IDB): **`club_sms_log`** — облачный журнал SMS к
 - Существующий прод: только миграции / скрипты `npm run db:migrate*`.
 - RLS: `policies.sql` + миграции политик; чеклист — [SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md).
 - `public.users.id` **=** Auth UID.
+- `public.users.uses_tablet` — тренер с планшетом (`true`, default) или без (`false` → lite-ПЗ клиентов ведёт админ). Миграция `db:migrate:users-uses-tablet`. См. [PZ_CLIENTS_ONBOARD.md](./PZ_CLIENTS_ONBOARD.md).
 - Прайс ПЗ: `club_price_lists` (один JSON-документ на `club_id`) — [PRICE_LIST.md](./PRICE_LIST.md).
 - Прайс ТЗ: `club_tz_price_lists` — [PRICE_LIST.md](./PRICE_LIST.md).
 - Прайс АЗ: `club_az_price_lists` — [PRICE_LIST.md](./PRICE_LIST.md).

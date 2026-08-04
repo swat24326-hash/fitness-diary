@@ -11,6 +11,7 @@ import { loadClubTrainingStats } from './adminClubStatsService.js'
 import { refreshMembershipsForStats } from '../membershipCacheRefresh.js'
 import { isAppOnline } from '../syncService.js'
 import { collectHoldingTrainerIds } from './holdingClientsCore.js'
+import { collectNoTabletTrainerIds } from './trainerTabletModeCore.js'
 import { fetchTrainersViaAdminApi } from './adminApiClient.js'
 
 /**
@@ -36,14 +37,17 @@ export async function loadAdminClubDaySummary(clubId) {
     listTrainingsByClubIdInRange(cid, yesterday, today),
   ])
   let holdingTrainerIds = new Set()
+  let noTabletTrainerIds = new Set()
   try {
     const viaApi = await fetchTrainersViaAdminApi()
     const trainers = (viaApi?.trainers ?? []).filter(
       (t) => String(t.club_id ?? '') === cid || !t.club_id,
     )
     holdingTrainerIds = collectHoldingTrainerIds(trainers)
+    noTabletTrainerIds = collectNoTabletTrainerIds(trainers)
   } catch {
     holdingTrainerIds = new Set()
+    noTabletTrainerIds = new Set()
   }
 
   let inactiveOverride = null
@@ -102,6 +106,7 @@ export async function loadAdminClubDaySummary(clubId) {
       trainingsTodayOverride,
       trainingsYesterdayOverride,
       holdingTrainerIds,
+      noTabletTrainerIds,
     }),
     source: 'local',
   }

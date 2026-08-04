@@ -519,3 +519,107 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
+
+/* ——— Админ: нагрузка и чистая ——— */
+.sales-strategy-admin-finance {
+  width: 100%;
+  padding: 0.85rem 1.05rem;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border, #2a3344) 80%, transparent);
+  background: color-mix(in srgb, var(--surface, #151b26) 92%, transparent);
+}
+
+.sales-strategy-admin-finance--hint {
+  padding: 0.65rem 1rem;
+}
+
+.sales-strategy-admin-finance__hint {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.sales-strategy-admin-finance__head {
+  margin-bottom: 0.75rem;
+}
+
+.sales-strategy-admin-finance__title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.sales-strategy-admin-finance__title-icon {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.sales-strategy-admin-finance__subtitle,
+.sales-strategy-admin-finance__note {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.sales-strategy-admin-finance__note {
+  margin-top: 0.35rem;
+}
+
+.sales-strategy-admin-finance__grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.sales-strategy-admin-finance__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg, #0f141c) 55%, transparent);
+  border: 1px solid transparent;
+}
+
+.sales-strategy-admin-finance__cell--primary {
+  border-color: color-mix(in srgb, var(--accent, #2ecc71) 40%, transparent);
+  background: color-mix(in srgb, var(--accent, #2ecc71) 10%, transparent);
+}
+
+.sales-strategy-admin-finance__label {
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted, #8a93a3);
+}
+
+.sales-strategy-admin-finance__value {
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.sales-strategy-admin-finance__cell--negative .sales-strategy-admin-finance__value {
+  color: color-mix(in srgb, #e74c3c 85%, white);
+}
+
+.sales-strategy-admin-finance__fact {
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 1100px) {
+  .sales-strategy-admin-finance__grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .sales-strategy-admin-finance__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

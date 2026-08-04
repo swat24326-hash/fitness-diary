@@ -29,6 +29,7 @@ CREATE TABLE users (
   login TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   is_active BOOLEAN DEFAULT TRUE,
+  uses_tablet BOOLEAN NOT NULL DEFAULT true,
   club_id UUID REFERENCES clubs (id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );

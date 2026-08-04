@@ -105,3 +105,46 @@ export async function handleSetTrainerActivePost(ctx, res, body) {
     name: row.name ?? null,
   })
 }
+
+/**
+ * @param {{ supabaseAdmin: import('@supabase/supabase-js').SupabaseClient }} ctx
+ * @param {import('http').ServerResponse} res
+ * @param {Record<string, unknown>} body
+ */
+export async function handleSetTrainerUsesTabletPost(ctx, res, body) {
+  const parsed = parseTrainerIdForAdmin(body?.trainer_id)
+  if (!parsed.ok) {
+    sendJson(res, 400, { error: parsed.error })
+    return
+  }
+
+  if (body?.uses_tablet === undefined || body?.uses_tablet === null) {
+    sendJson(res, 400, { error: 'Укажите uses_tablet: true или false' })
+    return
+  }
+  const usesTablet = body.uses_tablet === true || body.uses_tablet === 'true'
+
+  const { row, error: loadErr } = await loadTrainerRow(ctx.supabaseAdmin, parsed.id)
+  if (loadErr) {
+    sendJson(res, 400, { error: loadErr })
+    return
+  }
+
+  const { error: updErr } = await ctx.supabaseAdmin
+    .from('users')
+    .update({ uses_tablet: usesTablet })
+    .eq('id', parsed.id)
+    .in('role', TRAINER_ROLES)
+
+  if (updErr) {
+    sendJson(res, 400, { error: updErr.message })
+    return
+  }
+
+  sendJson(res, 200, {
+    ok: true,
+    trainer_id: parsed.id,
+    uses_tablet: usesTablet,
+    name: row.name ?? null,
+  })
+}

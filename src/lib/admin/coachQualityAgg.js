@@ -90,6 +90,11 @@ export function aggregateCoachQuality(input) {
     holdingTrainerIds instanceof Set
       ? holdingTrainerIds
       : new Set((holdingTrainerIds ?? []).map(String).filter(Boolean))
+  const noTabletRaw = input.noTabletTrainerIds
+  const noTabletSet =
+    noTabletRaw instanceof Set
+      ? noTabletRaw
+      : new Set((noTabletRaw ?? []).map(String).filter(Boolean))
 
   const isDeskClient = (c) => {
     const h = String(c?.desk_hall ?? '')
@@ -97,6 +102,8 @@ export function aggregateCoachQuality(input) {
       .toLowerCase()
     return h === 'tz' || h === 'az' || h === 'тз' || h === 'аз'
   }
+
+  const skipTrainer = (tid) => holdingSet.has(tid) || noTabletSet.has(tid)
 
   /** @type {Map<string, object[]>} */
   const memByClient = new Map()
@@ -111,7 +118,7 @@ export function aggregateCoachQuality(input) {
   const byTrainer = new Map()
 
   function ensureTrainer(tid) {
-    if (holdingSet.has(tid)) return null
+    if (skipTrainer(tid)) return null
     if (!byTrainer.has(tid)) {
       byTrainer.set(tid, {
         completed: 0,
@@ -147,7 +154,7 @@ export function aggregateCoachQuality(input) {
   for (const c of input.clients ?? []) {
     if (c?.archived_at || isDeskClient(c)) continue
     const tid = String(c.trainer_id ?? '')
-    if (!tid || holdingSet.has(tid)) continue
+    if (!tid || skipTrainer(tid)) continue
     if (trainerFilter && tid !== trainerFilter) continue
     ensureTrainer(tid)
   }
@@ -175,7 +182,7 @@ export function aggregateCoachQuality(input) {
         String(c?.trainer_id ?? '') === trainerId &&
         !c?.archived_at &&
         !isDeskClient(c) &&
-        !holdingSet.has(String(c?.trainer_id ?? '')),
+        !skipTrainer(String(c?.trainer_id ?? '')),
     )
     const clientNameById = new Map(
       (input.clients ?? []).map((c) => [String(c.id), String(c.name ?? '').trim() || String(c.id)]),

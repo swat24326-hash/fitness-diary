@@ -1,6 +1,6 @@
 # Описание проекта для передачи другой нейросети / разработчику
 
-**Актуально:** 2026-07-19. Документ самодостаточен: по нему можно продолжить работу без истории чата. Язык UI — **русский**. Репозиторий: **fitness-diary**. Продукт: **Ось** (AXIS). Клуб-эталон: **FIT-CITY** (тенант, не имя системы). Канон: [BRAND_SYSTEM.md](./BRAND_SYSTEM.md).
+**Актуально:** 2026-08-02. Документ самодостаточен: по нему можно продолжить работу без истории чата. Язык UI — **русский**. Репозиторий: **fitness-diary**. Продукт: **Ось** (AXIS). Клуб-эталон: **FIT-CITY** (тенант, не имя системы). Канон: [BRAND_SYSTEM.md](./BRAND_SYSTEM.md).
 
 **Сначала:** крупная цель [PRODUCT_VISION.md](./PRODUCT_VISION.md) → этот файл (что в коде сегодня) → карта [README.md](./README.md) → при углублении [API.md](./API.md), [SYNC.md](./SYNC.md), [DATA_MODEL.md](./DATA_MODEL.md), [TESTING.md](./TESTING.md), [PWA.md](./PWA.md). Модули рядом с ядром: [PRODUCT_MODULES.md](./PRODUCT_MODULES.md).
 
@@ -21,7 +21,8 @@
 - медкарта, обмеры, цель; **питание** и **ДЗ** (домашние задания);
 - воронка **ПНК** (потенциальный новый клиент): менеджер создаёт → тренер ведёт мастер на карточке;
 - справочник упражнений, челленджи;
-- организация: клубы, тренеры (создание/удаление через API / Edge);
+- организация: клубы, тренеры (создание/удаление через API; флаг `uses_tablet` — с/без планшета);
+- **lite-ПЗ:** клиенты тренеров без планшета — лёгкая карточка у админа и менеджера продаж (карта/абон); см. [PZ_CLIENTS_ONBOARD.md](./PZ_CLIENTS_ONBOARD.md);
 - статистика клуба, продажи / финансы, **ИСКРА** (AI-советник админки), качество ведения;
 - офлайн: **IndexedDB** + **очередь sync** → `/api/push-record(s)` → pull (`trainer-pull`, `admin-data`).
 
@@ -108,7 +109,7 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 | Роль | Пути |
 |------|------|
 | trainer | `/trainer`, `/trainer/clients`, `/trainer/clients/:id`, `/trainer/workouts/:id`, `/trainer/profile`, челленджи |
-| sales_manager | `/sales`, `/sales/club-tasks`, `/sales/pnk` |
+| sales_manager | `/sales`, `/sales/clients`, `/sales/club-tasks`, `/sales/pnk` |
 | admin | `/admin/*` (clients, **excel-lists**, statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. diagnostics / iskra-settings, …), `/admin/workouts/:id` |
 
 **Менеджер и типы АЗ:** справочник `membership_types` (ПЗ + АЗ) нужен для колонок «Тренировки в аэробном зале». Доступ: RLS `fit_membership_types_sales_manager_read` + `admin-data?action=membership-types`. Sync менеджера тянет типы; на отчёте — ещё «Обновить». Подробнее: [SALES_MANAGER.md](./SALES_MANAGER.md), [SYNC.md](./SYNC.md).

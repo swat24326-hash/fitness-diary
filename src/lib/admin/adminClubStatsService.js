@@ -10,12 +10,30 @@ import {
   listTrainingsByClubIdInRange,
 } from '../localDbClubQuery.js'
 import { aggregateClubClientPeriod } from './clubClientPeriodAgg'
-import { fetchClubTrainingStatsViaApi } from './adminApiClient'
+import { fetchClubTrainingStatsViaApi, fetchTrainersViaAdminApi } from './adminApiClient'
 import { ADMIN_SYNC_BATCH_SIZE } from './adminConstants'
 import { aggregateMembershipTypeStats } from './membershipTypeStatsAgg'
 import { listMembershipTypesForClub } from '../membershipTypesService'
 import { buildCoachQualityForScope } from './coachQualityService.js'
+import { collectHoldingTrainerIds } from './holdingClientsCore.js'
+import { collectNoTabletTrainerIds } from './trainerTabletModeCore.js'
 import { previousEqualPeriod } from './coachQualityBriefCore.js'
+
+async function loadTrainerModeIdsForClub(clubId) {
+  const cid = String(clubId ?? '').trim()
+  try {
+    const viaApi = await fetchTrainersViaAdminApi()
+    const trainers = (viaApi?.trainers ?? []).filter(
+      (t) => !cid || String(t.club_id ?? '') === cid || !t.club_id,
+    )
+    return {
+      holdingTrainerIds: collectHoldingTrainerIds(trainers),
+      noTabletTrainerIds: collectNoTabletTrainerIds(trainers),
+    }
+  } catch {
+    return { holdingTrainerIds: new Set(), noTabletTrainerIds: new Set() }
+  }
+}
 
 export function aggregateTrainings(rows) {
   const dayMap = new Map()
@@ -170,7 +188,7 @@ async function membershipTypeStatsSlice(clubId, trainings, memberships) {
   return aggregateMembershipTypeStats({ trainings, memberships, membershipTypes })
 }
 
-async function attachCoachQuality(stats, { clubId, dateFrom, dateTo, clients, trainings, memberships }) {
+async function attachCoachQuality(stats, { clubId, dateFrom, dateTo, clients, trainings, memberships, holdingTrainerIds, noTabletTrainerIds }) {
   try {
     const prevRange = previousEqualPeriod(dateFrom, dateTo)
     let previousTrainings = []
@@ -189,6 +207,8 @@ async function attachCoachQuality(stats, { clubId, dateFrom, dateTo, clients, tr
       trainings,
       memberships,
       previousTrainings,
+      holdingTrainerIds,
+      noTabletTrainerIds,
     })
     return { ...stats, coachQuality }
   } catch (e) {
@@ -276,10 +296,12 @@ export async function loadClubTrainingStats(p) {
     return { ...base, error: !clubId ? 'no_club' : 'bad_range' }
   }
 
-  const clientSlice = (clients, memberships) => aggregateClubClientPeriod(clients, memberships, dateFrom, dateTo)
+  const modeIds = await loadTrainerModeIdsForClub(clubId)
+  const clientSlice = (clients, memberships) =>
+    aggregateClubClientPeriod(clients, memberships, dateFrom, dateTo, undefined, modeIds)
   const maybeAttach = async (stats, ctx) => {
     if (!includeCoachQuality) return { ...stats, coachQuality: stats.coachQuality ?? null }
-    return attachCoachQuality(stats, ctx)
+    return attachCoachQuality(stats, { ...ctx, ...modeIds })
   }
 
   if (!isSupabaseConfigured()) {

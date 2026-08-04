@@ -71,7 +71,7 @@ export function SalesFinanceForecast({
   ]
 
   const deductionRows = [
-    { key: 'refunds', label: 'Возвраты', kind: 'money', static: true },
+    { key: 'refunds', label: 'Возвраты', kind: 'money' },
     { key: 'trainerPayroll', label: 'ЗП персонального зала', kind: 'money' },
     { key: 'aerobicPayroll', label: 'ЗП аэробного зала', kind: 'money' },
     { key: 'expense', label: 'Расход управляющего', kind: 'money', static: true },
@@ -211,7 +211,11 @@ export function SalesFinanceForecast({
           {closedMonth
             ? 'Месяц закрыт — цифры по заполненным отчётам. Прогноз строится только в текущем месяце.'
             : `Темп к норме на сегодня · прогноз на конец месяца${
-                forecast.method === 'weekday_weekend_remaining' ? ' · будни и выходные отдельно' : ''
+                forecast.method === 'mix_and_profit_blend'
+                  ? ' · с учётом матрицы покупок'
+                  : forecast.method === 'weekday_weekend_remaining'
+                    ? ' · будни и выходные отдельно'
+                    : ''
               }`}
         </p>
       </header>

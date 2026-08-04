@@ -104,7 +104,11 @@ export function buildGeminiTrainerContour(opts) {
   const dateTo = String(opts.dateTo ?? '').slice(0, 10)
   const year = Number(opts.year)
   const membershipById = buildMembershipById(opts.memberships)
-  const operationalClients = filterHallOperationalClients(opts.clients ?? [], opts.holdingTrainerIds)
+  const operationalClients = filterHallOperationalClients(
+    opts.clients ?? [],
+    opts.holdingTrainerIds,
+    opts.noTabletTrainerIds,
+  )
   const selectedTrainerId = String(opts.selectedTrainerId ?? '').trim() || null
 
   /** @type {Array<Record<string, unknown>>} */
@@ -115,7 +119,10 @@ export function buildGeminiTrainerContour(opts) {
     if (!trainerId) continue
 
     const myClients = operationalClients.filter((c) => String(c.trainer_id ?? '').trim() === trainerId)
-    const clientPeriod = aggregateClubClientPeriod(myClients, opts.memberships ?? [], dateFrom, dateTo)
+  const clientPeriod = aggregateClubClientPeriod(myClients, opts.memberships ?? [], dateFrom, dateTo, undefined, {
+    holdingTrainerIds: opts.holdingTrainerIds,
+    noTabletTrainerIds: opts.noTabletTrainerIds,
+  })
     const completed = trainingsInRange(opts.trainings, dateFrom, dateTo, trainerId).length
     const noType = countNoTypeCompleted(opts.trainings, membershipById, trainerId, dateFrom, dateTo)
     const personalSalary = computeTrainerSelfPayroll({

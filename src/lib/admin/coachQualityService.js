@@ -47,6 +47,8 @@ async function loadRowsByClientIds(clientIds, loader) {
  *   dateTo: string,
  *   trainerIdFilter?: string|null,
  *   membershipTypes?: object[],
+ *   holdingTrainerIds?: Set<string>|string[]|null,
+ *   noTabletTrainerIds?: Set<string>|string[]|null,
  *   previousTrainings?: object[]|null,
  *   trainerNameById?: Record<string, string>,
  *   skipBrief?: boolean,
@@ -84,6 +86,7 @@ export async function buildCoachQualityForScope(input) {
     weightEntriesByClientId,
     trainerIdFilter: input.trainerIdFilter ?? null,
     holdingTrainerIds: input.holdingTrainerIds,
+    noTabletTrainerIds: input.noTabletTrainerIds,
     config,
   }
 

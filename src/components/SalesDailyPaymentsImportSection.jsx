@@ -7,6 +7,7 @@ import {
 } from '../lib/admin/salesPaymentsImportCore.js'
 import { parseSalesPaymentsXlsxFile } from '../lib/admin/salesPaymentsImportWorkbook.js'
 import { emptyDailyForm } from '../lib/admin/salesReportCore.js'
+import { SalesPaymentsClientLinkSection } from './SalesPaymentsClientLinkSection.jsx'
 
 const BUCKETS = [
   { key: 'nk', label: 'НК' },
@@ -117,8 +118,8 @@ export function SalesDailyPaymentsImportSection({
       <h3 className="sales-report__section-title">Каждый день: Excel оплат из 1С</h3>
       <p className="sales-report__hint">
         Файл как «отчёт по оплатам» / <strong>31.xlsx</strong> — не закрытия и не касса/DDS. Загрузите за день →
-        проверьте НК/ДК/УК → «Подставить» → ниже нажмите «Сохранить» у отчёта. Уже сохранённые вручную дни сами не
-        переписываются.
+        проверьте НК/ДК/УК → «Подставить» → «Сохранить» у отчёта. Ниже — создать карточки (ПЗ lite/клип, АЗ/ТЗ desk),
+        кого ещё нет в Оси.
       </p>
       <label className="sales-payments-import__file">
         <FileSpreadsheet size={18} aria-hidden />
@@ -202,6 +203,14 @@ export function SalesDailyPaymentsImportSection({
           <button type="button" className="btn btn-primary" onClick={applyToForm} disabled={busy}>
             <Upload size={16} aria-hidden /> Подставить в форму дня
           </button>
+
+          <SalesPaymentsClientLinkSection
+            clubId={clubId}
+            reportDate={meta?.reportDate || reportDate}
+            lines={lines}
+            canEdit={canEdit}
+            onToast={onToast}
+          />
         </>
       ) : null}
     </section>

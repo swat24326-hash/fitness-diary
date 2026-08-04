@@ -1,6 +1,7 @@
 /** Агрегация статистики клуба (дублирует логику src/lib/admin/adminClubStatsService.js). */
 
-import { filterHallOperationalClients } from '../../src/lib/admin/holdingClientsCore.js'
+import { filterCommercialClients } from '../../src/lib/admin/holdingClientsCore.js'
+import { isClientOnNoTabletTrainer } from '../../src/lib/admin/trainerTabletModeCore.js'
 
 export function aggregateTrainings(rows) {
   const dayMap = new Map()
@@ -214,13 +215,13 @@ function inactiveMembershipDetail(memberships, dateIso) {
 export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, dateTo, asOf, opts = {}) {
   const from = String(dateFrom ?? '').slice(0, 10)
   const to = String(dateTo ?? '').slice(0, 10)
-  const operational = filterHallOperationalClients(clientRows, opts?.holdingTrainerIds).filter(
+  const commercial = filterCommercialClients(clientRows, opts?.holdingTrainerIds).filter(
     (c) => String(c?.lifecycle ?? 'active') !== 'pnk',
   )
-  const totalClients = operational.length
-  const clientIdSet = new Set(operational.map((c) => c.id).filter(Boolean))
+  const totalClients = commercial.length
+  const clientIdSet = new Set(commercial.map((c) => c.id).filter(Boolean))
   const clientById = new Map()
-  for (const c of operational) {
+  for (const c of commercial) {
     const id = String(c?.id ?? '').trim()
     if (id) clientById.set(id, c)
   }
@@ -232,17 +233,28 @@ export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, 
     byClient.get(cid).push(m)
   }
 
+  const ref = inactiveMembershipReferenceDate(from, to, asOf)
+  const hasCommercialActive = (mems) => {
+    if (hasUsableMembershipForPeriodStats(mems, from, to, asOf)) return true
+    for (const m of mems ?? []) {
+      const total = Number(m?.total_trainings ?? 0)
+      if (Number.isFinite(total) && total > 0) continue
+      if (membershipCoversDate(m, ref)) return true
+    }
+    return false
+  }
+
   let activeWithMembership = 0
   const inactiveClients = []
 
   for (const id of clientIdSet) {
     const mems = byClient.get(id) ?? []
-    if (hasUsableMembershipForPeriodStats(mems, from, to, asOf)) {
+    if (hasCommercialActive(mems)) {
       activeWithMembership++
       continue
     }
     const client = clientById.get(id)
-    const ref = inactiveMembershipReferenceDate(from, to, asOf)
+    if (isClientOnNoTabletTrainer(client, opts?.noTabletTrainerIds)) continue
     const { reason, inactiveDetail, membershipEndDate, membershipStartDate } = inactiveMembershipDetail(mems, ref)
     if (reason === 'not_started') continue
     inactiveClients.push({

@@ -25,6 +25,9 @@ export function resolveDispatchDeepLink(row) {
       const clubQs = clubId ? `?club=${encodeURIComponent(clubId)}` : ''
       return `/admin/clients/${clientId}${clubQs}`
     }
+    if (role === 'sales_manager') {
+      return `/sales/clients/${clientId}`
+    }
     return `/trainer/clients/${clientId}`
   }
 
@@ -50,11 +53,10 @@ export function resolveDispatchDeepLink(row) {
 export function buildClientCardDeepLink(clientId, opts = {}) {
   const id = String(clientId ?? '').trim()
   if (!id) return '/trainer/clients'
-  if (opts.forAdmin) {
-    const clubId = String(opts.clubId ?? '').trim()
-    const clubQs = clubId ? `?club=${encodeURIComponent(clubId)}` : ''
-    return `/admin/clients/${id}${clubQs}`
-  }
+  const clubId = String(opts.clubId ?? '').trim()
+  const clubQs = clubId ? `?club=${encodeURIComponent(clubId)}` : ''
+  if (opts.forSales) return `/sales/clients/${id}${clubQs}`
+  if (opts.forAdmin) return `/admin/clients/${id}${clubQs}`
   return `/trainer/clients/${id}`
 }
 

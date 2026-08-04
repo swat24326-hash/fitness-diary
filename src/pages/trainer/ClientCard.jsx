@@ -47,12 +47,18 @@ export function ClientCard() {
   const { isAdmin, isTrainer, isSalesManager, user } = useAuth()
   /** Админ и менеджер продаж тянут карточку через /api/get-client. */
   const canCloudHydrateClient = Boolean(isAdmin || isSalesManager)
+  /** Коммерческий контур клуба: desk / lite / список клиентов. */
+  const canManageClubClients = Boolean(isAdmin || isSalesManager)
   const adminClientsListHref = useMemo(() => {
     const c = searchParams.get('club')
     return `/admin/clients${c ? `?club=${encodeURIComponent(c)}` : ''}`
   }, [searchParams])
-  const salesBackHref = '/sales'
-  const clientsListHref = isAdmin ? adminClientsListHref : isSalesManager ? salesBackHref : '/trainer/clients'
+  const salesClientsListHref = '/sales/clients'
+  const clientsListHref = isAdmin
+    ? adminClientsListHref
+    : isSalesManager
+      ? salesClientsListHref
+      : '/trainer/clients'
   const adminClubQs = useMemo(() => {
     const c = searchParams.get('club')
     return c ? `?club=${encodeURIComponent(c)}` : ''
@@ -83,10 +89,10 @@ export function ClientCard() {
   const [taskModalOpen, setTaskModalOpen] = useState(false)
   const [outreachLogs, setOutreachLogs] = useState([])
   const [trainerById, setTrainerById] = useState({})
-  const [trainersModeReady, setTrainersModeReady] = useState(!isAdmin)
+  const [trainersModeReady, setTrainersModeReady] = useState(!canManageClubClients)
 
   useEffect(() => {
-    if (!isAdmin) {
+    if (!canManageClubClients) {
       setTrainersModeReady(true)
       return undefined
     }
@@ -110,9 +116,9 @@ export function ClientCard() {
     return () => {
       alive = false
     }
-  }, [isAdmin])
+  }, [canManageClubClients])
 
-  const isDeskClient = Boolean(isAdmin && isDeskHallClient(client))
+  const isDeskClient = Boolean(canManageClubClients && isDeskHallClient(client))
   const clientTrainerRow = useMemo(() => {
     const tid = String(client?.trainer_id ?? '').trim()
     if (!tid) return null
@@ -120,7 +126,7 @@ export function ClientCard() {
   }, [client, trainerById])
   const isLitePz = useMemo(() => {
     if (!client || isDeskHallClient(client)) return false
-    if (isAdmin) {
+    if (canManageClubClients) {
       if (!trainersModeReady || !clientTrainerRow) return false
       return isTrainerWithoutTablet(clientTrainerRow)
     }
@@ -128,19 +134,19 @@ export function ClientCard() {
       return true
     }
     return false
-  }, [client, isAdmin, isTrainer, user, trainersModeReady, clientTrainerRow])
+  }, [client, canManageClubClients, isTrainer, user, trainersModeReady, clientTrainerRow])
   const adminModePending = Boolean(
-    isAdmin && client && !isDeskHallClient(client) && client.trainer_id && !trainersModeReady,
+    canManageClubClients && client && !isDeskHallClient(client) && client.trainer_id && !trainersModeReady,
   )
   const adminModeUnknown = Boolean(
-    isAdmin &&
+    canManageClubClients &&
       client &&
       !isDeskHallClient(client) &&
       client.trainer_id &&
       trainersModeReady &&
       !clientTrainerRow,
   )
-  const liteListHref = isAdmin ? adminClientsListHref : '/trainer/clients'
+  const liteListHref = clientsListHref
   const liteTrainerName = useMemo(() => {
     const tid = String(client?.trainer_id ?? '')
     if (!tid) return ''
@@ -423,7 +429,7 @@ export function ClientCard() {
           client={client}
           memberships={memberships}
           clubId={String(client.club_id ?? searchParams.get('club') ?? '')}
-          listHref={adminClientsListHref}
+          listHref={clientsListHref}
           onSaved={() => {
             void reloadFromCloud()
           }}
@@ -449,7 +455,7 @@ export function ClientCard() {
           Не удалось узнать режим тренера (есть планшет или нет). Обновите страницу и откройте карточку снова.
         </p>
         <p style={{ margin: 0 }}>
-          <Link to={adminClientsListHref} className="u-no-decoration muted" style={{ fontSize: 14 }}>
+          <Link to={clientsListHref} className="u-no-decoration muted" style={{ fontSize: 14 }}>
             ← К списку клиентов
           </Link>
         </p>
@@ -476,9 +482,9 @@ export function ClientCard() {
 
   return (
     <div className="grid trainer-path-card" style={{ gap: 18 }}>
-      {isAdmin ? (
+      {canManageClubClients ? (
         <p style={{ margin: 0 }}>
-          <Link to={adminClientsListHref} className="u-no-decoration muted" style={{ fontSize: 14 }}>
+          <Link to={clientsListHref} className="u-no-decoration muted" style={{ fontSize: 14 }}>
             ← К списку клиентов
           </Link>
         </p>
@@ -623,7 +629,7 @@ export function ClientCard() {
             </div>
           ) : null}
         </div>
-        {!isAdmin ? (
+        {isTrainer ? (
           <div className="trainer-path-head__actions">
             {isArchived ? (
               <button
@@ -672,9 +678,9 @@ export function ClientCard() {
           </div>
         ) : null}
       </header>
-      {isAdmin ? (
+      {canManageClubClients ? (
         <p className="muted" style={{ fontSize: 13, margin: '10px 0 0', lineHeight: 1.45 }}>
-          Переназначить тренера или удалить клиента — в списке «Клиенты». Новую тренировку «с нуля» начинает только тренер; правки и черновики доступны здесь и в конструкторе.
+          Переназначить тренера или архив — в списке «Клиенты». Новую тренировку «с нуля» начинает только тренер; правки и черновики доступны здесь и в конструкторе.
         </p>
       ) : null}
 
@@ -688,14 +694,14 @@ export function ClientCard() {
           void reloadLocal()
         }}
         onRefused={() => {
-          navigate(isAdmin ? adminClientsListHref : '/trainer', { replace: true })
+          navigate(canManageClubClients ? clientsListHref : '/trainer', { replace: true })
         }}
         onOpenDiaries={() => setTab('diaries')}
         onOpenTab={onOpenPnkTab}
         onStartTraining={isArchived ? undefined : () => startPnkTraining()}
       />
 
-      {isAdmin && shouldShowPnkVisitQuality(client) ? (
+      {canManageClubClients && shouldShowPnkVisitQuality(client) ? (
         <PnkVisitQualityReport
           report={buildPnkVisitQualityReport(client, {
             healthCard,

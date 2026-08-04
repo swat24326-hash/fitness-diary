@@ -82,6 +82,7 @@
 | [TRAINING_HR.md](./TRAINING_HR.md) | ✅ MVP | Пульс BLE в шапке (зоны/reconnect) + сводка на Итоге |
 | [PRODUCT_MODULES.md](./PRODUCT_MODULES.md) | карта | Питание, ДЗ, outreach, ИСКРА — куда код и docs |
 | [SALES_MANAGER.md](./SALES_MANAGER.md) | ✅ роль/отчёт в проде; ТЗ — справочник | Менеджер продаж + финансы |
+| [PZ_CLIENTS_ONBOARD.md](./PZ_CLIENTS_ONBOARD.md) | ✅ шпаргалка | Как завести клиентов ПЗ (по шагам, без Excel) |
 | [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md) | 📋 ТЗ | Управляющий клуба (ещё не роль в коде) |
 | [CLUB_OPERATIONS_PLAN.md](./CLUB_OPERATIONS_PLAN.md) | план | Операции клуба в продукте |
 | [RELAY_OPERATIONS.md](./RELAY_OPERATIONS.md) | stub | Внешний «Релей» отложен |

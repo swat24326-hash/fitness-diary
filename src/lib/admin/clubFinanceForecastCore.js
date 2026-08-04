@@ -1,4 +1,4 @@
-/** Прогноз «Финансы клуба»: факт + средние будни/выходных на незаполненные дни (fallback — среднее × дней месяца). Возвраты — статическая сумма. */
+/** Прогноз «Финансы клуба»: факт + средние будни/выходных на незаполненные дни (fallback — среднее × дней месяца). Возвраты — темп дня при ≥2 днях с возвратом, иначе факт. */
 
 import { filterAerobicSalesTypes, filterTrainerAssignableTypes } from '../membershipTypesCore.js'
 import { normalizeAerobicRowsFromDb, sumAerobicRows } from './aerobicSalesMatrix.js'
@@ -8,6 +8,7 @@ import {
   parseSalesMoney,
   formatRub,
   resolveDailyProfitFromRow,
+  refundsFromDailyRow,
   sumDirectionRubFromDailyRows,
   buildHallFinanceSummary,
 } from './salesReportCore.js'
@@ -25,6 +26,7 @@ import {
   projectMonthMetric,
 } from './clubFinanceForecastProjection.js'
 import { buildGeminiMonthCalendarContext } from './geminiMonthCalendarContext.js'
+import { buildPurchaseMixForecast } from './clubFinancePurchaseMixForecastCore.js'
 
 export { FORECAST_METHOD_UNIFORM, FORECAST_METHOD_WEEKDAY_WEEKEND, computePlanPaceNeeded, computePlanMoneyNormToDate }
 
@@ -82,6 +84,9 @@ export function buildPlanCalendarNorm(opts) {
 
 export const MIN_REPORT_DAYS_FOR_FORECAST = 3
 
+/** Минимум дней с возвратом > 0, чтобы экстраполировать возвраты на конец месяца. */
+export const MIN_REFUND_POSITIVE_DAYS_FOR_PACE = 2
+
 /** Направления для прогноза плана (без доп. продаж в таблице направлений). */
 export const FORECAST_DIRECTION_KEYS = ['pz', 'tz', 'az']
 
@@ -137,6 +142,75 @@ export function pzTrainingsFromDailyRow(row) {
 /** @param {Record<string, unknown> | null | undefined} row */
 export function azTrainingsFromDailyRow(row) {
   return sumAerobicRows(normalizeAerobicRowsFromDb(row?.aerobic_sales_matrix))
+}
+
+/** @param {Array<Record<string, unknown>>} monthRows */
+export function countDaysWithPositiveRefunds(monthRows) {
+  let n = 0
+  for (const row of monthRows ?? []) {
+    if (refundsFromDailyRow(row) > 0) n += 1
+  }
+  return n
+}
+
+/**
+ * Возвраты к концу месяца: темп будни/выходные, если хватает дней с возвратом; иначе только факт.
+ * @param {{
+ *   monthRows: Array<Record<string, unknown>>,
+ *   year: number,
+ *   month: number,
+ *   factRefunds: number,
+ * }} opts
+ */
+export function resolveForecastRefunds(opts) {
+  const factRefunds = roundRub(opts.factRefunds)
+  const positiveDays = countDaysWithPositiveRefunds(opts.monthRows)
+  if (positiveDays < MIN_REFUND_POSITIVE_DAYS_FOR_PACE) {
+    return {
+      forecastRefunds: factRefunds,
+      method: 'refunds_static_sparse',
+      positiveDays,
+      paced: false,
+    }
+  }
+  const proj = projectMonthMetric({
+    monthRows: opts.monthRows,
+    year: opts.year,
+    month: opts.month,
+    getValue: (row) => refundsFromDailyRow(row),
+    roundFn: roundRub,
+  })
+  return {
+    forecastRefunds: Math.max(factRefunds, proj.forecastTotal),
+    method: proj.method,
+    positiveDays,
+    paced: true,
+  }
+}
+
+/**
+ * ЗП от прогноза часов × средняя ставка за тренировку (чтобы часы и ЗП не разъезжались).
+ * @param {{
+ *   factHours: number,
+ *   factPayroll: number,
+ *   forecastHours: number,
+ *   fallbackPayroll: number,
+ * }} opts
+ */
+export function resolvePayrollFromHoursPace(opts) {
+  const factHours = Number(opts.factHours) || 0
+  const factPayroll = roundRub(opts.factPayroll)
+  const forecastHours = Math.max(0, Number(opts.forecastHours) || 0)
+  const fallback = roundRub(opts.fallbackPayroll)
+  if (factHours <= 0 || factPayroll <= 0) {
+    return { payroll: fallback, method: 'payroll_pace_fallback', ratePerSession: null }
+  }
+  const rate = factPayroll / factHours
+  return {
+    payroll: roundRub(forecastHours * rate),
+    method: 'payroll_from_hours',
+    ratePerSession: roundRub(rate),
+  }
 }
 
 /** @param {Array<Record<string, unknown>>} monthRows @param {'pz'|'tz'|'az'} hall */
@@ -427,6 +501,15 @@ export function buildClubFinanceForecast(opts) {
     }
     const directionRows = buildDirectionFactRows(monthRows, planTargets.directions)
     const planReach = describePlanForecastReach(factPlanProgress, planLevel3, factGross)
+    const purchaseMix = buildPurchaseMixForecast({
+      monthRows,
+      year,
+      month,
+      planForm: opts.planForm,
+      closedMonth: true,
+      factProfitGross: factGross,
+      profitPaceGross: factGross,
+    })
     return {
       ok: true,
       closedMonth: true,
@@ -453,6 +536,7 @@ export function buildClubFinanceForecast(opts) {
         directionLag: buildDirectionForecastLagSummary(directionRows),
         pace: null,
         calendarNorm: null,
+        purchaseMix,
       },
       fact: factSnapshot,
       forecast: { ...factSnapshot },
@@ -513,14 +597,41 @@ export function buildClubFinanceForecast(opts) {
     roundFn: roundRub,
   })
 
-  const forecastGross = grossProj.forecastTotal
-  /** Возвраты в прогнозе — только факт из отчётов, без экстраполяции на конец месяца. */
-  const forecastRefunds = factRefunds
+  const profitPaceGross = grossProj.forecastTotal
+  const purchaseMix = buildPurchaseMixForecast({
+    monthRows,
+    year,
+    month,
+    planForm: opts.planForm,
+    closedMonth: false,
+    factProfitGross: factGross,
+    profitPaceGross,
+  })
+  const forecastGross = purchaseMix.clubBlend.forecastGross
+  const refundsProj = resolveForecastRefunds({
+    monthRows,
+    year,
+    month,
+    factRefunds,
+  })
+  const forecastRefunds = refundsProj.forecastRefunds
   const forecastEarnings = roundRub(forecastGross - forecastRefunds)
   const forecastPzTrainings = pzTrainProj.forecastTotal
   const forecastAzTrainings = azTrainProj.forecastTotal
-  const forecastTrainerPayroll = trainerPayProj.forecastTotal
-  const forecastAerobicPayroll = aerobicPayProj.forecastTotal
+  const trainerPayFromHours = resolvePayrollFromHoursPace({
+    factHours: pzTrainingsTotal,
+    factPayroll: trainerPayrollFact,
+    forecastHours: forecastPzTrainings,
+    fallbackPayroll: trainerPayProj.forecastTotal,
+  })
+  const aerobicPayFromHours = resolvePayrollFromHoursPace({
+    factHours: azTrainingsTotal,
+    factPayroll: aerobicPayrollFact,
+    forecastHours: forecastAzTrainings,
+    fallbackPayroll: aerobicPayProj.forecastTotal,
+  })
+  const forecastTrainerPayroll = trainerPayFromHours.payroll
+  const forecastAerobicPayroll = aerobicPayFromHours.payroll
 
   const forecastNetProfit = computeNetProfitWithPayroll(
     forecastEarnings,
@@ -531,7 +642,28 @@ export function buildClubFinanceForecast(opts) {
 
   const forecastPlanProgress = planProgressPercent(forecastGross, planLevel3)
   const planReach = describePlanForecastReach(forecastPlanProgress, planLevel3, forecastGross)
-  const directionRows = buildDirectionForecastRows(monthRows, year, month, planTargets.directions)
+  let directionRows = buildDirectionForecastRows(monthRows, year, month, planTargets.directions)
+  if (purchaseMix.clubBlend.trusted) {
+    directionRows = directionRows.map((dir) => {
+      const mixHall = purchaseMix.byHall?.[dir.key]
+      if (!mixHall || dir.mode !== 'revenue') return dir
+      const forecastRevenue = roundRub(mixHall.forecast)
+      const factRevenue = roundRub(mixHall.fact)
+      return {
+        ...dir,
+        fact: factRevenue,
+        forecast: forecastRevenue,
+        factProgressPercent: planProgressPercent(factRevenue, dir.planTarget),
+        forecastProgressPercent: planProgressPercent(forecastRevenue, dir.planTarget),
+        reach: describePlanForecastReach(
+          planProgressPercent(forecastRevenue, dir.planTarget),
+          dir.planTarget,
+          forecastRevenue,
+        ),
+        fromPurchaseMix: true,
+      }
+    })
+  }
   const directionLag = buildDirectionForecastLagSummary(directionRows)
   const pace = computePlanPaceNeeded({
     planTarget: planLevel3,
@@ -557,7 +689,9 @@ export function buildClubFinanceForecast(opts) {
     closedMonth: false,
     reportDays,
     daysInMonth,
-    method: grossProj.method,
+    method: purchaseMix.clubBlend.trusted
+      ? purchaseMix.clubBlend.method
+      : grossProj.method,
     scale: grossProj.scale,
     dayType: {
       weekdaySamples: grossProj.weekdaySamples,
@@ -578,6 +712,8 @@ export function buildClubFinanceForecast(opts) {
       directionLag,
       pace,
       calendarNorm,
+      purchaseMix,
+      profitPaceGross,
     },
     fact: {
       earnings: factEarnings,
@@ -600,6 +736,17 @@ export function buildClubFinanceForecast(opts) {
       aerobicPayroll: forecastAerobicPayroll,
       expense,
       netProfit: forecastNetProfit,
+    },
+    refundsPace: {
+      method: refundsProj.method,
+      paced: refundsProj.paced,
+      positiveDays: refundsProj.positiveDays,
+    },
+    payrollPace: {
+      trainer: trainerPayFromHours.method,
+      aerobic: aerobicPayFromHours.method,
+      trainerRatePerSession: trainerPayFromHours.ratePerSession,
+      aerobicRatePerSession: aerobicPayFromHours.ratePerSession,
     },
     avgPerReportDay: {
       earnings: roundRub(earningsTotal / reportDays),

@@ -1,4 +1,4 @@
-import { filterHallOperationalClients } from './holdingClientsCore.js'
+import { filterCommercialClients } from './holdingClientsCore.js'
 import { membershipSignal } from '../clientListSignals.js'
 import { todayLocalIso } from '../dateRu.js'
 import { aggregateClubClientPeriod } from './clubClientPeriodAgg.js'
@@ -41,10 +41,16 @@ export function buildMembershipsByClientId(membershipRows) {
  * @param {string} today
  * @param {Set<string>|string[]|null} [holdingTrainerIds]
  */
-export function countClubExpiringMemberships(clientRows, membershipRows, today = todayLocalIso(), holdingTrainerIds) {
+export function countClubExpiringMemberships(
+  clientRows,
+  membershipRows,
+  today = todayLocalIso(),
+  holdingTrainerIds,
+  _noTabletTrainerIds,
+) {
   const byClient = buildMembershipsByClientId(membershipRows)
   let count = 0
-  for (const c of filterHallOperationalClients(clientRows, holdingTrainerIds)) {
+  for (const c of filterCommercialClients(clientRows, holdingTrainerIds)) {
     const id = String(c?.id ?? '').trim()
     if (!id) continue
     if (membershipSignal(byClient.get(id) ?? [], today).key === 'expiring') count++
@@ -77,6 +83,7 @@ export function countTrainingsOnDate(trainings, iso) {
  *   trainingsTodayOverride?: number | null,
  *   trainingsYesterdayOverride?: number | null,
  *   holdingTrainerIds?: Set<string>|string[],
+ *   noTabletTrainerIds?: Set<string>|string[],
  * }} input
  */
 export function buildAdminClubDaySummary(input = {}) {
@@ -86,8 +93,12 @@ export function buildAdminClubDaySummary(input = {}) {
   const memberships = input.memberships ?? []
   const trainings = input.trainings ?? []
   const holdingTrainerIds = input.holdingTrainerIds
+  const noTabletTrainerIds = input.noTabletTrainerIds
 
-  const period = aggregateClubClientPeriod(clients, memberships, today, today, today, { holdingTrainerIds })
+  const period = aggregateClubClientPeriod(clients, memberships, today, today, today, {
+    holdingTrainerIds,
+    noTabletTrainerIds,
+  })
   const todayTrainings = countTrainingsOnDate(trainings, today)
   const yesterdayTrainings = countTrainingsOnDate(trainings, yesterday)
   const byClientMap = buildMembershipsByClientId(memberships)
@@ -95,7 +106,7 @@ export function buildAdminClubDaySummary(input = {}) {
   const memByClient = Object.fromEntries(byClientMap)
   const inactiveIds = new Set(period.inactiveClients.map((c) => c.id).filter(Boolean))
   const funnel = countAdminFunnelFilters(
-    filterHallOperationalClients(clients, holdingTrainerIds),
+    filterCommercialClients(clients, holdingTrainerIds),
     memByClient,
     today,
     inactiveIds,

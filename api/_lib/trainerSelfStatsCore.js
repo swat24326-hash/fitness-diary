@@ -78,7 +78,22 @@ export async function buildTrainerSelfStatsPayload(supabaseAdmin, p) {
   })
 
   const trainingAgg = aggregateTrainings(periodTrainings)
-  const clientAgg = aggregateClubClientPeriod(clients, memberships.rows, dateFrom, dateTo)
+  let noTabletTrainerIds = null
+  try {
+    const { data: trainerRow } = await supabaseAdmin
+      .from('users')
+      .select('uses_tablet')
+      .eq('id', trainerId)
+      .maybeSingle()
+    if (trainerRow && trainerRow.uses_tablet === false) {
+      noTabletTrainerIds = new Set([trainerId])
+    }
+  } catch {
+    /* колонка ещё не на проде — считаем как с планшетом */
+  }
+  const clientAgg = aggregateClubClientPeriod(clients, memberships.rows, dateFrom, dateTo, undefined, {
+    noTabletTrainerIds,
+  })
   const membershipRows = memberships.rows
 
   const typeStats = aggregateMembershipTypeStats({

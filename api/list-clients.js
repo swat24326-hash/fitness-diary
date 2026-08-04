@@ -1,8 +1,8 @@
 /**
- * Список клиентов клуба для админки (service role, без ERR_CONNECTION_RESET в браузере).
- * GET ?club_id=<uuid>
+ * Список клиентов клуба для админки / менеджера продаж (service role).
+ * GET ?club_id=<uuid> — менеджер только свой клуб.
  */
-import { requireAdmin, sendJson, setCors } from './_lib/adminSupabase.js'
+import { requireAdminOrSalesManager, sendJson, setCors } from './_lib/adminSupabase.js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 import { LIST_CLIENTS_MAX, LIST_CLIENTS_PAGE_SIZE } from './_lib/apiLimits.js'
 
@@ -22,9 +22,6 @@ async function handler(req, res) {
     return
   }
 
-  const ctx = await requireAdmin(req, res)
-  if (!ctx) return
-
   const rawClub = String(req.query?.club_id ?? req.query?.clubId ?? '').trim()
   if (
     !rawClub ||
@@ -33,6 +30,9 @@ async function handler(req, res) {
     sendJson(res, 400, { error: 'Укажите club_id (UUID клуба)' })
     return
   }
+
+  const ctx = await requireAdminOrSalesManager(req, res, rawClub)
+  if (!ctx) return
 
   const { supabaseAdmin } = ctx
   const includeArchived = String(req.query?.include_archived ?? req.query?.includeArchived ?? '').trim() === '1'

@@ -192,6 +192,8 @@ function mapTrainerSummaries(rows) {
     id: u.id,
     name: u.name,
     club_id: u.club_id ?? null,
+    uses_tablet: u.uses_tablet !== false,
+    is_active: u.is_active !== false,
   }))
 }
 

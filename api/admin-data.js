@@ -16,7 +16,7 @@ import { handleIskraLearningGet, handleIskraLearningPost } from './_lib/iskraLea
 import { handleIskraDispatchGet, handleIskraDispatchPost } from './_lib/iskraDispatchHandler.js'
 import { handleIskraTtsPost } from './_lib/iskraTtsHandler.js'
 import { handlePushSubscriptionGet, handlePushSubscriptionPost } from './_lib/pushSubscriptionHandler.js'
-import { handleResetTrainerPasswordPost, handleSetTrainerActivePost } from './_lib/trainerAuthAdmin.js'
+import { handleResetTrainerPasswordPost, handleSetTrainerActivePost, handleSetTrainerUsesTabletPost } from './_lib/trainerAuthAdmin.js'
 import { handleTrainerSelfStatsGet } from './_lib/adminData/trainerSelfStatsHandler.js'
 import { handleSearch, handleJournal, handleClientsLastTrainings } from './_lib/adminData/journalHandlers.js'
 import { handleClubStats, handleCoachQuality, handleHealthCards, handleClubMonthly } from './_lib/adminData/clubHandlers.js'
@@ -70,6 +70,7 @@ async function handler(req, res) {
       'push-subscription',
       'reset-trainer-password',
       'set-trainer-active',
+      'set-trainer-uses-tablet',
       'pnk',
       'sale-clips',
       'club-sms',
@@ -165,6 +166,11 @@ async function handler(req, res) {
       if (!ctx) return
       return handleSetTrainerActivePost(ctx, res, body)
     }
+    if (action === 'set-trainer-uses-tablet') {
+      const ctx = await requireAdmin(req, res)
+      if (!ctx) return
+      return handleSetTrainerUsesTabletPost(ctx, res, body)
+    }
     if (action === 'price-list') {
       const clubId = String(body?.club_id ?? '').trim()
       const ctx = await requireAdminOrSalesManager(req, res, clubId)
@@ -191,7 +197,11 @@ async function handler(req, res) {
     if (action === 'sales-daily') return handleSalesDailyPost(ctx, req, res, body)
     if (action === 'sales-plan') {
       const scope =
-        body?.scope === 'levels' || body?.scope === 'directions' ? body.scope : 'all'
+        body?.scope === 'levels' ||
+        body?.scope === 'directions' ||
+        body?.scope === 'strategy_snapshot'
+          ? body.scope
+          : 'all'
       const scopeCheck = assertSalesPlanScopeForRole(scope, ctx.isSalesManager === true)
       if (!scopeCheck.ok) {
         sendJson(res, 403, { error: scopeCheck.error })
@@ -352,16 +362,24 @@ async function handler(req, res) {
     return
   }
 
+  if (action === 'search' || action === 'clients-last-trainings') {
+    const clubId = String(req.query?.club_id ?? req.query?.clubId ?? '').trim()
+    const ctx = await requireAdminOrSalesManager(req, res, clubId)
+    if (!ctx) return
+    if (ctx.isSalesManager && !clubId) {
+      sendJson(res, 400, { error: 'Укажите club_id' })
+      return
+    }
+    if (action === 'search') return handleSearch(ctx, req, res)
+    return handleClientsLastTrainings(ctx, req, res)
+  }
+
   const ctx = await requireAdmin(req, res)
   if (!ctx) return
 
   switch (action) {
-    case 'search':
-      return handleSearch(ctx, req, res)
     case 'journal':
       return handleJournal(ctx, req, res)
-    case 'clients-last-trainings':
-      return handleClientsLastTrainings(ctx, req, res)
     case 'club-stats':
       return handleClubStats(ctx, req, res)
     case 'club-monthly':

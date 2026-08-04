@@ -50,3 +50,10 @@ export async function resetTrainerPasswordForAdmin(body) {
 export async function setTrainerActiveForAdmin(body) {
   return postTrainerAuthAction('set-trainer-active', body)
 }
+
+/**
+ * @param {{ trainer_id: string, uses_tablet: boolean }} body
+ */
+export async function setTrainerUsesTabletForAdmin(body) {
+  return postTrainerAuthAction('set-trainer-uses-tablet', body)
+}

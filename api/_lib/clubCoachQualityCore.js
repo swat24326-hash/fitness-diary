@@ -12,6 +12,7 @@ import {
   fetchCoachQualityCareInputs,
 } from './coachQualityCareFetch.js'
 import { loadClubCoachQualitySettings } from './coachQualitySettingsHandler.js'
+import { fetchClubTrainerModeIds } from './clubTrainerModeIds.js'
 import { fetchPagedLimited } from './fetchPagedLimited.js'
 import { fetchClubStatsRaw } from './clubStatsFetch.js'
 import { CLUB_STATS_MAX_TRAININGS } from './apiLimits.js'
@@ -25,6 +26,8 @@ import { CLUB_STATS_MAX_TRAININGS } from './apiLimits.js'
  *   trainerIdFilter?: string | null,
  *   mode?: 'full' | 'glance',
  *   raw?: object | null,
+ *   holdingTrainerIds?: Set<string>|string[]|null,
+ *   noTabletTrainerIds?: Set<string>|string[]|null,
  * }} opts
  */
 export async function buildClubCoachQualityPayload(supabaseAdmin, opts) {
@@ -38,6 +41,14 @@ export async function buildClubCoachQualityPayload(supabaseAdmin, opts) {
   const raw =
     opts.raw ??
     (await fetchClubStatsRaw(supabaseAdmin, { clubId, dateFrom, dateTo }))
+
+  let holdingTrainerIds = opts.holdingTrainerIds
+  let noTabletTrainerIds = opts.noTabletTrainerIds
+  if (!holdingTrainerIds || !noTabletTrainerIds) {
+    const modeIds = await fetchClubTrainerModeIds(supabaseAdmin, clubId)
+    holdingTrainerIds = holdingTrainerIds ?? modeIds.holdingTrainerIds
+    noTabletTrainerIds = noTabletTrainerIds ?? modeIds.noTabletTrainerIds
+  }
 
   let trainings = raw.trainings ?? []
   if (trainerIdFilter) {
@@ -69,16 +80,22 @@ export async function buildClubCoachQualityPayload(supabaseAdmin, opts) {
     ? (raw.clients ?? []).filter((c) => String(c?.trainer_id ?? '') === trainerIdFilter)
     : raw.clients ?? []
 
-  const currentAgg = aggregateCoachQuality({
+  const shared = {
     trainings,
     clients,
     memberships: raw.memberships,
     membershipTypes: raw.membershipTypes,
     ...careInputs,
+    trainerIdFilter: trainerIdFilter || null,
+    holdingTrainerIds,
+    noTabletTrainerIds,
+    config: cqConfig,
+  }
+
+  const currentAgg = aggregateCoachQuality({
+    ...shared,
     dateFrom,
     dateTo,
-    trainerIdFilter: trainerIdFilter || null,
-    config: cqConfig,
   })
 
   let previousAgg = null
@@ -99,15 +116,10 @@ export async function buildClubCoachQualityPayload(supabaseAdmin, opts) {
           prevTrainings = prevTrainings.filter((t) => String(t?.trainer_id ?? '') === trainerIdFilter)
         }
         previousAgg = aggregateCoachQuality({
+          ...shared,
           trainings: prevTrainings,
-          clients,
-          memberships: raw.memberships,
-          membershipTypes: raw.membershipTypes,
-          ...careInputs,
           dateFrom: prevRange.dateFrom,
           dateTo: prevRange.dateTo,
-          trainerIdFilter: trainerIdFilter || null,
-          config: cqConfig,
         })
       } catch (prevErr) {
         console.warn('[coach-quality] previous period', prevErr)

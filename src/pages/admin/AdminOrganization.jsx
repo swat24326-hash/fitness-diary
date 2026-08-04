@@ -22,6 +22,7 @@ import { createTrainerForAdmin } from '../../lib/admin/createTrainerService'
 import {
   resetTrainerPasswordForAdmin,
   setTrainerActiveForAdmin,
+  setTrainerUsesTabletForAdmin,
 } from '../../lib/admin/trainerAuthAdminService'
 import { validateTrainerPasswordConfirm } from '../../lib/admin/trainerAuthAdminCore'
 import { humanizeNetworkError } from '../../lib/supabaseRetry'
@@ -45,6 +46,8 @@ const initialTrainerForm = () => ({
   email: '',
   password: '',
   club_id: '',
+  /** Новый тренер по умолчанию без планшета → админ ведёт lite-клиентов */
+  without_tablet: true,
 })
 
 export function AdminOrganization({ mode = 'both' } = {}) {
@@ -83,6 +86,7 @@ export function AdminOrganization({ mode = 'both' } = {}) {
   const [passwordBusy, setPasswordBusy] = useState(false)
   const [passwordErr, setPasswordErr] = useState('')
   const [toggleActiveBusyId, setToggleActiveBusyId] = useState('')
+  const [toggleTabletBusyId, setToggleTabletBusyId] = useState('')
 
   const reloadClubsList = useCallback(async (opts = {}) => {
     if (!opts.keepMsg) setClubMsg('')
@@ -403,8 +407,9 @@ export function AdminOrganization({ mode = 'both' } = {}) {
       phone: trainerForm.phone.trim() || null,
       password,
       email: trainerForm.email.trim() || undefined,
+      club_id: cid,
+      uses_tablet: trainerForm.without_tablet !== true,
     }
-    body.club_id = cid
 
     setCreateBusy(true)
     try {
@@ -499,6 +504,29 @@ export function AdminOrganization({ mode = 'both' } = {}) {
     }
   }
 
+  const onToggleTrainerTablet = async (trainer, withoutTablet) => {
+    if (!trainer?.id || toggleTabletBusyId) return
+    const usesTablet = !withoutTablet
+    const name = trainer.name ?? 'тренер'
+    setToggleTabletBusyId(trainer.id)
+    setTrainerMsg('')
+    try {
+      await setTrainerUsesTabletForAdmin({ trainer_id: trainer.id, uses_tablet: usesTablet })
+      setTrainers((prev) =>
+        prev.map((t) => (t.id === trainer.id ? { ...t, uses_tablet: usesTablet } : t)),
+      )
+      setTrainerMsg(
+        usesTablet
+          ? `«${name}»: есть планшет — клиенты открываются как полный дневник (после Sync на устройстве).`
+          : `«${name}»: без планшета — новых клиентов заводите в «Клиенты → Новый клиент ПЗ» (карта и абон).`,
+      )
+    } catch (err) {
+      setTrainerMsg(humanizeNetworkError(err) || err?.message || 'Не удалось сохранить режим планшета')
+    } finally {
+      setToggleTabletBusyId('')
+    }
+  }
+
   const trainersByClub = useMemo(() => {
     const byId = new Map(clubs.map((c) => [c.id, []]))
     const unassigned = []
@@ -528,6 +556,7 @@ export function AdminOrganization({ mode = 'both' } = {}) {
                 <th>Телефон</th>
                 <th>Логин</th>
                 <th>Статус</th>
+                <th>Без планшета</th>
                 <th>Клиентов</th>
                 {clubColumn ? <th>Клуб</th> : null}
                 <th>Действия</th>
@@ -551,6 +580,21 @@ export function AdminOrganization({ mode = 'both' } = {}) {
                     >
                       {tr.is_active === false ? 'заблокирован' : 'активен'}
                     </span>
+                  </td>
+                  <td>
+                    <label
+                      className="admin-trainers-table__tablet"
+                      title="Галка: клиентов этого тренера ведёт админ (карта и абон). Снята — полный дневник на планшете."
+                    >
+                      <input
+                        type="checkbox"
+                        checked={tr.uses_tablet === false}
+                        disabled={!isSupabaseConfigured() || toggleTabletBusyId === tr.id || trainerBusy}
+                        onChange={(e) => void onToggleTrainerTablet(tr, e.target.checked)}
+                        aria-label={`Без планшета: ${tr.name ?? 'тренер'}`}
+                      />
+                      <span>{tr.uses_tablet === false ? 'да' : 'нет'}</span>
+                    </label>
                   </td>
                   <td>{clientCounts[tr.id] ?? 0}</td>
                   {clubColumn ? (
@@ -978,6 +1022,21 @@ export function AdminOrganization({ mode = 'both' } = {}) {
                     Временный пароль
                   </label>
                   <input id="org-tr-pass" type="password" className="input" value={trainerForm.password} onChange={(e) => setTrainerForm((f) => ({ ...f, password: e.target.value }))} disabled={createBusy} />
+                </div>
+                <div className="field">
+                  <label className="label" htmlFor="org-tr-no-tablet" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input
+                      id="org-tr-no-tablet"
+                      type="checkbox"
+                      checked={trainerForm.without_tablet === true}
+                      onChange={(e) => setTrainerForm((f) => ({ ...f, without_tablet: e.target.checked }))}
+                      disabled={createBusy}
+                    />
+                    Без планшета — клиентов ведёт админ
+                  </label>
+                  <p className="muted" style={{ fontSize: 12, margin: '6px 0 0' }}>
+                    Оставьте галку, если планшета ещё нет: админ заведёт клиента в «Клиенты». Снимите, когда выдадите планшет — тот же клиент станет полным дневником.
+                  </p>
                 </div>
                 {createErr ? (
                   <p className="muted" style={{ color: 'var(--danger, #f87171)', margin: 0 }}>

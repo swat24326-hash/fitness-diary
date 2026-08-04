@@ -17,10 +17,10 @@
 | `/api/push-records` | Пакетный flush очереди |
 | `/api/auth-sign-in` | Вход (логин/пароль → сессия), когда нужен server path |
 | `/api/me-profile` | Профиль текущего пользователя |
-| `/api/list-clients` | Список клиентов (облако) |
-| `/api/list-trainers` | Список тренеров |
+| `/api/list-clients` | Список клиентов клуба (admin / sales_manager своего клуба) |
+| `/api/list-trainers` | Список тренеров (admin / trainer; sales_manager — только свой клуб) |
 | `/api/list-memberships` | Абонементы |
-| `/api/get-client` | Один клиент |
+| `/api/get-client` | Один клиент (admin / trainer свои / sales_manager своего клуба) |
 | `/api/create-trainer` | Создание тренера (service role на сервере) |
 | `/api/update-trainer-club` | Смена клуба тренера |
 
@@ -36,7 +36,8 @@
 
 | action | Кто | Зачем |
 |--------|-----|--------|
-| `search`, `journal`, `clients-last-trainings` | admin | Поиск / журнал / даты последних тренировок по id (список клиентов) |
+| `search`, `clients-last-trainings` | admin / sales_manager (свой `club_id`) | Поиск / даты последних тренировок по id (список клиентов) |
+| `journal` | admin | Журнал тренировок |
 | `club-stats`, `club-monthly` | admin | Сводка и год. `club-stats&include_cq=0` — лёгкая сводка без CQ (default `include_cq=1` для совместимости) |
 | `coach-quality` | admin / trainer (свой клуб + свой id) | Отдельный расчёт CQ; `mode=full\|glance`. Статистика и главная грузят параллельно со сводкой |
 | `coach-quality-settings` | GET: admin или тренер/продажи своего клуба; POST: admin | веса осей, доли внутри ведения/хвостов и тумблеры |
@@ -67,7 +68,7 @@
 | `gemini-analytics` | admin | Запрос к ИСКРЕ |
 | `iskra-settings`, `iskra-learning`, `iskra-dispatch`, `iskra-tts` | по op / роли | CRUD настроек, фидбек, задания, TTS |
 | `push-subscription` | auth user | Регистрация push |
-| `reset-trainer-password`, `set-trainer-active` | admin | Управление тренером |
+| `reset-trainer-password`, `set-trainer-active`, `set-trainer-uses-tablet` | admin | Управление тренером (пароль / блок / планшет) |
 | `pnk` | admin / sales_manager | Мутации ПНК |
 | `sale-clips` | admin / sales_manager | POST create / cancel / match клипа |
 | `club-sms` | admin / sales_manager | SMS клиенту через Мои Звонки (`client_id`, `scenario` / `text`); после успеха — запись в `club_sms_log` |

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
-import { BarChart3, CalendarDays, ClipboardList, Compass, RefreshCw, Tags, Ticket, TrendingUp, UserRound } from 'lucide-react'
+import { useOutletContext, useSearchParams } from 'react-router-dom'
+import { RefreshCw } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
+import { SalesHomeTiles } from '../../components/SalesHomeTiles.jsx'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { addDaysToIso, clampIsoDateToToday, formatDateRu, todayLocalIso } from '../../lib/dateRu'
 import { calendarYearMonthFromIso } from '../../lib/admin/salesPlanPzDkSuggestCore.js'
@@ -887,69 +888,7 @@ export function AdminSales({ accessMode = 'admin' }) {
           )}
 
           {salesTab === 'home' ? (
-            <section className="sales-home__tiles" aria-labelledby="sales-home-sections">
-              <h2 id="sales-home-sections" className="sales-home__tiles-heading">
-                Разделы
-              </h2>
-              <div className="sales-home__tile-grid">
-                <Link
-                  to="/sales/pnk"
-                  className={`sales-home__tile sales-home__tile--pnk u-no-decoration${attentionWidgets.hasPnk ? ' sales-home__tile--echo' : ''}`}
-                  title={attentionWidgets.hasPnk ? 'ПНК уже на главной выше' : undefined}
-                >
-                  <div className="sales-home__tile-icon">
-                    <UserRound size={44} aria-hidden />
-                  </div>
-                  <p className="sales-home__tile-title">ПНК</p>
-                </Link>
-                <Link to="/sales?tab=report" className="sales-home__tile u-no-decoration">
-                  <div className="sales-home__tile-icon">
-                    <CalendarDays size={44} aria-hidden />
-                  </div>
-                  <p className="sales-home__tile-title">Отчёт</p>
-                </Link>
-                <Link to="/sales?tab=stats" className="sales-home__tile u-no-decoration">
-                  <div className="sales-home__tile-icon">
-                    <BarChart3 size={44} aria-hidden />
-                  </div>
-                  <p className="sales-home__tile-title">Статистика</p>
-                </Link>
-                <Link to="/sales?tab=analytics" className="sales-home__tile u-no-decoration">
-                  <div className="sales-home__tile-icon">
-                    <TrendingUp size={44} aria-hidden />
-                  </div>
-                  <p className="sales-home__tile-title">Аналитика</p>
-                </Link>
-                <Link to="/sales?tab=strategy" className="sales-home__tile u-no-decoration">
-                  <div className="sales-home__tile-icon">
-                    <Compass size={44} aria-hidden />
-                  </div>
-                  <p className="sales-home__tile-title">Стратегия</p>
-                </Link>
-                <Link to="/sales?tab=price" className="sales-home__tile u-no-decoration">
-                  <div className="sales-home__tile-icon">
-                    <Tags size={44} aria-hidden />
-                  </div>
-                  <p className="sales-home__tile-title">Прайс</p>
-                </Link>
-                <Link to="/sales?tab=clips" className="sales-home__tile u-no-decoration">
-                  <div className="sales-home__tile-icon">
-                    <Ticket size={44} aria-hidden />
-                  </div>
-                  <p className="sales-home__tile-title">Заявка тренеру</p>
-                </Link>
-                <Link
-                  to="/sales/club-tasks"
-                  className={`sales-home__tile u-no-decoration${attentionWidgets.hasPlanerka ? ' sales-home__tile--echo' : ''}`}
-                  title={attentionWidgets.hasPlanerka ? 'Планёрка уже на главной выше' : undefined}
-                >
-                  <div className="sales-home__tile-icon">
-                    <ClipboardList size={44} aria-hidden />
-                  </div>
-                  <p className="sales-home__tile-title">Планёрка</p>
-                </Link>
-              </div>
-            </section>
+            <SalesHomeTiles attentionWidgets={attentionWidgets} />
           ) : null}
         </div>
       ) : showSalesHero ? (
@@ -1247,6 +1186,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             onPlanChange={setPlanForm}
             onSelectPlanMonth={selectPlanCalendarMonth}
             onToast={showToast}
+            showAdminFinanceBar
           />
         </div>
       ) : null}

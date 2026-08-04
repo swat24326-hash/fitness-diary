@@ -1,93 +1,9 @@
-import { Link, matchPath, useLocation } from 'react-router-dom'
-
-/** Сохраняем ?club= при переходе по крошкам внутри админки. */
-function adminClubQs(search) {
-  try {
-    const x = new URLSearchParams(search ?? '').get('club')
-    return x ? `?club=${encodeURIComponent(x)}` : ''
-  } catch {
-    return ''
-  }
-}
-
-function buildCrumbs(pathname, search) {
-  const p = pathname || '/'
-  const clubQs = adminClubQs(search)
-
-  const admin = [{ label: 'Админка', to: `/admin${clubQs}` }]
-  const trainer = [{ label: 'Главная', to: '/trainer' }]
-
-  if (p === '/' || p === '/trainer') return trainer
-
-  // Trainer
-  if (p === '/trainer/clients') return [...trainer, { label: 'Клиенты', to: '/trainer/clients' }]
-  if (p === '/trainer/profile') return [...trainer, { label: 'Профиль', to: '/trainer/profile' }]
-  if (matchPath('/trainer/clients/:id', p)) return [...trainer, { label: 'Клиенты', to: '/trainer/clients' }, { label: 'Карточка', to: p }]
-  if (matchPath('/trainer/workouts/:id', p)) return [...trainer, { label: 'Тренировка', to: p }]
-  if (matchPath('/trainer/challenges/:challengeId', p)) {
-    const full = `${p}${search || ''}`
-    return [...trainer, { label: 'Челлендж', to: full }]
-  }
-
-  // Admin (nested under AdminDashboard)
-  if (p === '/admin') return []
-  if (p === '/admin/structure') {
-    let tab = 'clubs'
-    try {
-      tab = new URLSearchParams(search ?? '').get('tab') ?? 'clubs'
-    } catch {
-      /* ignore */
-    }
-    const tabLabels = {
-      clubs: 'Клубы',
-      trainers: 'Тренеры',
-      'sales-managers': 'Менеджеры',
-      'membership-types': 'Типы абон.',
-      'nutrition-products': 'Питание',
-      'homework-presets': 'ДЗ',
-      exercises: 'Упражнения',
-      'max-messages': 'Max и SMS',
-      'coach-quality': 'Качество ведения',
-      diagnostics: 'Диагностика',
-      'iskra-settings': 'ИСКРА',
-    }
-    const sub = tabLabels[tab] ?? 'Клубы'
-    const structureBase = `/admin/structure${clubQs}`
-    const full = `${p}${search || ''}`
-    return [...admin, { label: 'Структура', to: structureBase }, { label: sub, to: full }]
-  }
-  if (p === '/admin/clients') return [...admin, { label: 'Клиенты', to: `/admin/clients${clubQs}` }]
-  if (p === '/admin/excel-lists') return [...admin, { label: 'Списки из Excel', to: `/admin/excel-lists${clubQs}` }]
-  if (p === '/admin/statistics') return [...admin, { label: 'Статистика', to: `/admin/statistics${clubQs}` }]
-  if (p === '/admin/sales') return [...admin, { label: 'Продажи', to: `/admin/sales${clubQs}` }]
-  if (p === '/admin/challenges') return [...admin, { label: 'Челленджи', to: `/admin/challenges${clubQs}` }]
-  if (p === '/admin/club-tasks') return [...admin, { label: 'Планёрка', to: `/admin/club-tasks${clubQs}` }]
-  if (p === '/admin/pnk') return [...admin, { label: 'ПНК', to: `/admin/pnk${clubQs}` }]
-  if (p === '/sales/club-tasks') return [{ label: 'План продаж', to: '/sales' }, { label: 'Планёрка', to: '/sales/club-tasks' }]
-  if (p === '/sales/pnk') return [{ label: 'План продаж', to: '/sales' }, { label: 'ПНК', to: '/sales/pnk' }]
-  if (matchPath('/admin/challenges/:challengeId', p)) {
-    const full = `${p}${search || ''}`
-    return [...admin, { label: 'Челленджи', to: `/admin/challenges${clubQs}` }, { label: 'Рейтинг', to: full }]
-  }
-  if (matchPath('/admin/clients/:id', p)) {
-    const full = `${p}${search || ''}`
-    return [...admin, { label: 'Клиенты', to: `/admin/clients${clubQs}` }, { label: 'Карточка клиента', to: full }]
-  }
-  if (matchPath('/admin/workouts/:id', p)) {
-    const full = `${p}${search || ''}`
-    return [...admin, { label: 'Тренировка', to: full }]
-  }
-
-  // Fallback: показываем только корень раздела
-  if (p.startsWith('/admin')) return admin
-  if (p.startsWith('/sales')) return [{ label: 'План продаж', to: '/sales' }]
-  if (p.startsWith('/trainer')) return trainer
-  return [{ label: 'Главная', to: '/' }]
-}
+import { Link, useLocation } from 'react-router-dom'
+import { buildBreadcrumbs } from '../lib/breadcrumbsCore.js'
 
 export function BreadcrumbsBar() {
   const loc = useLocation()
-  const crumbs = buildCrumbs(loc.pathname, loc.search)
+  const crumbs = buildBreadcrumbs(loc.pathname, loc.search)
   if (!crumbs?.length || crumbs.length === 1) return null
 
   return (

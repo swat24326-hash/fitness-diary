@@ -103,6 +103,10 @@ export async function loadSalesStrategyAnchor(opts) {
     /** Дни прошлого месяца (база якоря) — доли НК/ДК/УК для добора плана. */
     prevMonthDays: baseBundle?.monthDays ?? [],
     membershipTypes: planBundle?.membershipTypes ?? baseBundle?.membershipTypes ?? [],
+    /** Расход управляющего целевого месяца — только для админ-полосы. */
+    expenseAmount: Number(planBundle?.expense?.amount) || 0,
+    /** Расход прошлого месяца (база) — для горизонта «следующий». */
+    baseExpenseAmount: Number(baseBundle?.expense?.amount) || 0,
     /** Снимок playbook с галочками (если сохраняли после «Посчитать»). */
     strategySnapshot,
   }
