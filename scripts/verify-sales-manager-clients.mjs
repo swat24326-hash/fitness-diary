@@ -70,6 +70,10 @@ ok(!canSalesManagerHardDeleteClient(true, { desk_hall: null }), 'manager no dele
 
 ok(buildClientCardDeepLink('cid', { forSales: true }) === '/sales/clients/cid', 'sales deep link')
 ok(
+  buildClientCardDeepLink('cid', { forSales: true, from: 'strategy' }).includes('from=strategy'),
+  'sales deep link from strategy',
+)
+ok(
   resolveDispatchDeepLink({
     recipient_role: 'sales_manager',
     context_json: { client_id: 'cid' },

@@ -16,6 +16,7 @@ export function AdminDeskClientCardSection({
   memberships = [],
   clubId = '',
   listHref = '/admin/clients',
+  listBackLabel = '← К списку',
   onSaved,
 }) {
   const [busy, setBusy] = useState(false)
@@ -79,7 +80,7 @@ export function AdminDeskClientCardSection({
   return (
     <section className="admin-desk-client-card" aria-label="Desk-карточка клиента ТЗ/АЗ">
       <div className="admin-desk-client-card__nav">
-        <Link to={listHref}>← К списку</Link>
+        <Link to={listHref}>{listBackLabel}</Link>
         {hall ? (
           <span className={`admin-desk-client-card__hall-badge admin-desk-client-card__hall-badge--${hall}`}>
             {hall === 'tz' ? 'ТЗ' : 'АЗ'}

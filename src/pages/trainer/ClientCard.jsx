@@ -39,7 +39,10 @@ import { AdminDeskClientCardSection } from '../../components/admin/AdminDeskClie
 import { AdminLitePzClientCardSection } from '../../components/admin/AdminLitePzClientCardSection.jsx'
 import { isDeskHallClient } from '../../lib/admin/holdingClientsCore.js'
 import { isTrainerWithoutTablet } from '../../lib/admin/trainerTabletModeCore.js'
-import { buildAdminClientsBackHref } from '../../lib/admin/adminClientsListHrefCore.js'
+import {
+  clientCardBackLabel,
+  resolveClientCardBackHref,
+} from '../../lib/admin/clientCardReturnCore.js'
 
 export function ClientCard() {
   const { id } = useParams()
@@ -50,11 +53,14 @@ export function ClientCard() {
   const canCloudHydrateClient = Boolean(isAdmin || isSalesManager)
   /** Коммерческий контур клуба: desk / lite / список клиентов. */
   const canManageClubClients = Boolean(isAdmin || isSalesManager)
-  const clientsListHref = useMemo(() => {
-    if (isAdmin) return buildAdminClientsBackHref('/admin/clients', searchParams)
-    if (isSalesManager) return buildAdminClientsBackHref('/sales/clients', searchParams)
-    return '/trainer/clients'
-  }, [isAdmin, isSalesManager, searchParams])
+  const clientsListHref = useMemo(
+    () => resolveClientCardBackHref(searchParams, { isAdmin, isSalesManager }),
+    [isAdmin, isSalesManager, searchParams],
+  )
+  const clientsBackLabel = useMemo(
+    () => clientCardBackLabel(searchParams.get('from')),
+    [searchParams],
+  )
   const adminClubQs = useMemo(() => {
     const c = searchParams.get('club')
     return c ? `?club=${encodeURIComponent(c)}` : ''
@@ -412,7 +418,7 @@ export function ClientCard() {
     return (
       <div className="trainer-path-empty" role="status">
         <p className="trainer-path-empty__text">
-          Клиент не найден. <Link to={clientsListHref}>Назад к списку клиентов</Link>
+          Клиент не найден. <Link to={clientsListHref}>{clientsBackLabel.replace(/^←\s*/, '') || 'Назад'}</Link>
         </p>
       </div>
     )
@@ -426,6 +432,7 @@ export function ClientCard() {
           memberships={memberships}
           clubId={String(client.club_id ?? searchParams.get('club') ?? '')}
           listHref={clientsListHref}
+          listBackLabel={clientsBackLabel}
           onSaved={() => {
             void reloadFromCloud()
           }}
@@ -452,7 +459,7 @@ export function ClientCard() {
         </p>
         <p style={{ margin: 0 }}>
           <Link to={clientsListHref} className="u-no-decoration muted" style={{ fontSize: 14 }}>
-            ← К списку клиентов
+            {clientsBackLabel}
           </Link>
         </p>
       </div>
@@ -468,6 +475,7 @@ export function ClientCard() {
           clubId={String(client.club_id ?? searchParams.get('club') ?? '')}
           trainerName={liteTrainerName}
           listHref={liteListHref}
+          listBackLabel={clientsBackLabel}
           onSaved={() => {
             void reloadFromCloud()
           }}
@@ -481,7 +489,7 @@ export function ClientCard() {
       {canManageClubClients ? (
         <p style={{ margin: 0 }}>
           <Link to={clientsListHref} className="u-no-decoration muted" style={{ fontSize: 14 }}>
-            ← К списку клиентов
+            {clientsBackLabel}
           </Link>
         </p>
       ) : null}

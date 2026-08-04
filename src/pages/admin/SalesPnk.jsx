@@ -11,6 +11,7 @@ import {
   buildPnkDemoScenarioForm,
   matchesPnkBoardFilter,
 } from '../../lib/pnk/pnkStagesCore'
+import { buildClientCardDeepLink } from '../../lib/admin/staffTaskDeepLinkCore.js'
 import '../../styles/sales-report.css'
 import '../../styles/pnk-funnel.css'
 
@@ -182,7 +183,7 @@ export function SalesPnk() {
 
   function clientHref(c) {
     if (!isAdmin) return null
-    return `/admin/clients/${encodeURIComponent(c.id)}${clubQs}`
+    return buildClientCardDeepLink(c.id, { clubId, forAdmin: true, from: 'pnk' })
   }
 
   return (

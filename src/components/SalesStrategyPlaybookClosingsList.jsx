@@ -45,6 +45,7 @@ export function SalesStrategyPlaybookClosingsList({ endings = [], clubId = '' })
               clubId,
               forAdmin: Boolean(isAdmin),
               forSales: Boolean(isSalesManager) && !isAdmin,
+              from: 'strategy',
             })
           : ''
         const phone = String(row.phone ?? '').trim()

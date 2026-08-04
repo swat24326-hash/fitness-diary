@@ -70,6 +70,10 @@ ok(
     '/sales/clients?clientsTab=tz&page=2',
   'manager client card → list keeps tab/page',
 )
+ok(
+  buildBreadcrumbs('/sales/clients/cid', '?from=strategy')[1].to === '/sales?tab=strategy',
+  'manager client card → strategy when from=strategy',
+)
 
 ok(
   labels('/trainer/workouts/w1').join(' › ') === 'Главная › Клиенты › Тренировка',

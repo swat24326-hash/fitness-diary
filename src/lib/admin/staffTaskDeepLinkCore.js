@@ -3,6 +3,7 @@
  */
 
 import { resolveDeepLinkForTaskKind } from './iskraTaskKindsCore.js'
+import { normalizeClientCardFrom } from './clientCardReturnCore.js'
 
 /**
  * @param {{
@@ -48,16 +49,22 @@ export function resolveDispatchDeepLink(row) {
 
 /**
  * @param {string} clientId
- * @param {{ clubId?: string, forAdmin?: boolean }} [opts]
+ * @param {{ clubId?: string, forAdmin?: boolean, forSales?: boolean, from?: string }} [opts]
  */
 export function buildClientCardDeepLink(clientId, opts = {}) {
   const id = String(clientId ?? '').trim()
   if (!id) return '/trainer/clients'
+  const qs = new URLSearchParams()
   const clubId = String(opts.clubId ?? '').trim()
-  const clubQs = clubId ? `?club=${encodeURIComponent(clubId)}` : ''
-  if (opts.forSales) return `/sales/clients/${id}${clubQs}`
-  if (opts.forAdmin) return `/admin/clients/${id}${clubQs}`
-  return `/trainer/clients/${id}`
+  if (clubId) qs.set('club', clubId)
+  const from = normalizeClientCardFrom(opts.from)
+  if (from) qs.set('from', from)
+  const tail = qs.toString()
+  let path
+  if (opts.forSales) path = `/sales/clients/${id}`
+  else if (opts.forAdmin) path = `/admin/clients/${id}`
+  else path = `/trainer/clients/${id}`
+  return tail ? `${path}?${tail}` : path
 }
 
 /**

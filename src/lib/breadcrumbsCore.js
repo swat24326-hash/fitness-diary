@@ -3,7 +3,11 @@
  * @typedef {{ label: string, to: string }} Crumb
  */
 
-import { buildAdminClientsBackHref } from './admin/adminClientsListHrefCore.js'
+import {
+  clientCardParentCrumbLabel,
+  normalizeClientCardFrom,
+  resolveClientCardBackHref,
+} from './admin/clientCardReturnCore.js'
 
 /** @param {string} [search] */
 export function adminClubQs(search) {
@@ -129,8 +133,10 @@ export function buildBreadcrumbs(pathname, search = '') {
     return [...admin, { label: 'Челленджи', to: `/admin/challenges${clubQs}` }, { label: 'Рейтинг', to: full }]
   }
   if (matchPathSimple('/admin/clients/:id', p)) {
-    const clientsTo = buildAdminClientsBackHref('/admin/clients', search)
-    return [...admin, { label: 'Клиенты', to: clientsTo }, { label: 'Карточка клиента', to: full }]
+    const from = normalizeClientCardFrom(new URLSearchParams(search.startsWith('?') ? search.slice(1) : search).get('from'))
+    const backTo = resolveClientCardBackHref(search, { isAdmin: true })
+    const parentLabel = clientCardParentCrumbLabel(from)
+    return [...admin, { label: parentLabel, to: backTo }, { label: 'Карточка клиента', to: full }]
   }
   if (matchPathSimple('/admin/workouts/:id', p)) {
     return [...admin, { label: 'Клиенты', to: `/admin/clients${clubQs}` }, { label: 'Тренировка', to: full }]
@@ -148,8 +154,10 @@ export function buildBreadcrumbs(pathname, search = '') {
   if (p === '/sales/pnk') return [...salesRoot, { label: 'ПНК', to: '/sales/pnk' }]
   if (p === '/sales/clients') return [...salesRoot, { label: 'Клиенты', to: '/sales/clients' }]
   if (matchPathSimple('/sales/clients/:id', p)) {
-    const clientsTo = buildAdminClientsBackHref('/sales/clients', search)
-    return [...salesRoot, { label: 'Клиенты', to: clientsTo }, { label: 'Карточка клиента', to: full }]
+    const from = normalizeClientCardFrom(new URLSearchParams(search.startsWith('?') ? search.slice(1) : search).get('from'))
+    const backTo = resolveClientCardBackHref(search, { isSalesManager: true })
+    const parentLabel = clientCardParentCrumbLabel(from)
+    return [...salesRoot, { label: parentLabel, to: backTo }, { label: 'Карточка клиента', to: full }]
   }
 
   // Fallback

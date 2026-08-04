@@ -359,7 +359,11 @@ export function SalesClipCreateSection({
                   {canOpenAdminClient && c.client_id ? (
                     <>
                       {' · '}
-                      <Link to={`/admin/clients/${c.client_id}?club=${encodeURIComponent(clubId)}`}>карточка</Link>
+                      <Link
+                        to={`/admin/clients/${c.client_id}?club=${encodeURIComponent(clubId)}&from=clips`}
+                      >
+                        карточка
+                      </Link>
                     </>
                   ) : null}
                 </div>
