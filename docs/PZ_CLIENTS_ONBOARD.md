@@ -30,10 +30,10 @@
 
 1. **Продажи → Отчёт** — загрузить `31.xlsx`.
 2. Проставить НК/ДК/УК → **Подставить** → **Сохранить** день.
-3. В блоке **«Карточки из оплат»**:
-   - ПЗ без карточки → тренер без планшета → **Создать** (lite);
-   - ПЗ → тренер с планшетом → **Создать** (клип на планшет);
-   - АЗ/ТЗ → desk (направление АЗ из тарифа).
+3. В блоке **«Карточки из оплат»** смотрите KPI **«ПЗ без карточки»** (число + сумма):
+   - у каждой строки **обязательно** выбрать тренера (без планшета → lite, с планшетом → клип);
+   - **Создать** / **Создать готовые** — без тренера кнопка не активна;
+   - АЗ/ТЗ ниже — desk (направление АЗ из тарифа).
 
 Имя менеджера в файле пока не используем.
 
@@ -111,5 +111,5 @@
 ## Код (для разработки)
 
 - Флаг: `users.uses_tablet` · core: `trainerTabletModeCore.js` · create: `litePzClientCreateCore.js`
-- UI: Организация, `AdminLitePzCreateModal`, `AdminLitePzClientCardSection`
-- Verify: `node scripts/verify-trainer-tablet-mode.mjs`
+- UI: Организация, `AdminLitePzCreateModal`, `AdminLitePzClientCardSection`, `SalesPaymentsClientLinkSection`
+- Verify: `node scripts/verify-trainer-tablet-mode.mjs`, `node scripts/verify-sales-payments-link.mjs`

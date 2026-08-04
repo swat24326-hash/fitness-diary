@@ -1,17 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link2, UserPlus } from 'lucide-react'
+import { formatRub } from '../lib/admin/salesReportCore.js'
 import { listTrainerSummariesForAdmin } from '../lib/dataAccess.js'
 import { listMembershipTypesForClub } from '../lib/membershipTypesService.js'
 import {
   buildPaymentClientLinkActions,
+  describePzMissingFromPaymentsMetaRu,
+  isPaymentLinkActionReady,
+  partitionPaymentClientLinkNeedWork,
   resolvePzLinkMode,
+  sortTrainersForPzPaymentLink,
+  summarizePaymentClientLinkActions,
 } from '../lib/admin/salesPaymentsLinkCore.js'
 import { applyPaymentClientLinkAction } from '../lib/admin/salesPaymentsLinkApplyService.js'
 import { isTrainerWithoutTablet } from '../lib/admin/trainerTabletModeCore.js'
 import { isHoldingTrainerUser } from '../lib/admin/deskClosingImportCore.js'
 
 /**
- * После превью оплат: создать lite / клип / desk по строкам без клиента в Оси.
+ * После превью оплат: приоритетно закрыть ПЗ без карточки (lite / клип), затем desk ТЗ/АЗ.
  */
 export function SalesPaymentsClientLinkSection({
   clubId = '',
@@ -24,6 +30,7 @@ export function SalesPaymentsClientLinkSection({
   const [azTypes, setAzTypes] = useState([])
   const [actions, setActions] = useState([])
   const [busyId, setBusyId] = useState('')
+  const [bulkBusy, setBulkBusy] = useState(false)
   const [error, setError] = useState('')
 
   const toast = (msg) => {
@@ -43,11 +50,13 @@ export function SalesPaymentsClientLinkSection({
           listMembershipTypesForClub(clubId, { aerobicOnly: true, activeOnly: true }).catch(() => []),
         ])
         if (!alive) return
-        const clubTrainers = (tr ?? []).filter(
-          (t) =>
-            !isHoldingTrainerUser(t) &&
-            t?.is_active !== false &&
-            (!t.club_id || String(t.club_id) === String(clubId)),
+        const clubTrainers = sortTrainersForPzPaymentLink(
+          (tr ?? []).filter(
+            (t) =>
+              !isHoldingTrainerUser(t) &&
+              t?.is_active !== false &&
+              (!t.club_id || String(t.club_id) === String(clubId)),
+          ),
         )
         setTrainers(clubTrainers)
         setAzTypes(Array.isArray(types) ? types : [])
@@ -61,13 +70,23 @@ export function SalesPaymentsClientLinkSection({
     }
   }, [clubId, lines])
 
-  const needWork = useMemo(
-    () => (actions ?? []).filter((a) => a.kind !== 'skip_matched' && a.status !== 'done'),
+  const summary = useMemo(() => summarizePaymentClientLinkActions(actions), [actions])
+  const { pz: pzRows, desk: deskRows } = useMemo(
+    () => partitionPaymentClientLinkNeedWork(actions),
     [actions],
   )
-  const matched = useMemo(
-    () => (actions ?? []).filter((a) => a.kind === 'skip_matched').length,
-    [actions],
+  const pzMeta = describePzMissingFromPaymentsMetaRu({
+    count: summary.pzPending,
+    amount: summary.pzAmount,
+  })
+
+  const trainersNoTablet = useMemo(
+    () => trainers.filter((t) => t?.id && isTrainerWithoutTablet(t)),
+    [trainers],
+  )
+  const trainersWithTablet = useMemo(
+    () => trainers.filter((t) => t?.id && !isTrainerWithoutTablet(t)),
+    [trainers],
   )
 
   const patchAction = (id, patch) => {
@@ -75,7 +94,7 @@ export function SalesPaymentsClientLinkSection({
   }
 
   const runOne = async (action) => {
-    if (!canEdit || !clubId) return
+    if (!canEdit || !clubId) return { ok: false }
     setBusyId(action.id)
     setError('')
     try {
@@ -88,7 +107,7 @@ export function SalesPaymentsClientLinkSection({
       if (!res.ok) {
         patchAction(action.id, { error: res.error, status: 'pending' })
         setError(res.error || 'Ошибка')
-        return
+        return { ok: false }
       }
       patchAction(action.id, { status: 'done', error: '', result: res.result })
       if (res.warning) toast(res.warning)
@@ -97,19 +116,42 @@ export function SalesPaymentsClientLinkSection({
       else if (res.result === 'az' || res.result === 'tz') {
         toast(`Desk ${String(res.result).toUpperCase()}: ${action.clientName}`)
       }
+      return { ok: true }
     } catch (e) {
       const msg = e?.message || 'Ошибка'
       patchAction(action.id, { error: msg })
       setError(msg)
+      return { ok: false }
     } finally {
       setBusyId('')
     }
   }
 
+  const runReadyPz = async () => {
+    if (!canEdit || bulkBusy) return
+    const ready = pzRows.filter((a) => {
+      const trainer = trainers.find((t) => String(t.id) === String(a.trainerId))
+      return isPaymentLinkActionReady(a, trainer)
+    })
+    if (!ready.length) {
+      setError('Сначала выберите тренера у строк ПЗ')
+      return
+    }
+    setBulkBusy(true)
+    setError('')
+    let okCount = 0
+    for (const a of ready) {
+      const res = await runOne(a)
+      if (res.ok) okCount += 1
+    }
+    setBulkBusy(false)
+    if (okCount) toast(`Создано ПЗ: ${okCount}`)
+  }
+
   if (!canEdit || !lines?.length) return null
   if (!actions.length) return null
 
-  const realTrainers = trainers.filter((t) => t?.id)
+  const anyBusy = Boolean(busyId) || bulkBusy
 
   return (
     <section className="sales-report__card sales-payments-link" aria-label="Связка оплат с карточками">
@@ -118,31 +160,173 @@ export function SalesPaymentsClientLinkSection({
         Карточки из оплат
       </h3>
       <p className="sales-report__hint">
-        Отчёт дня — выше («Подставить»). Здесь: кого ещё нет в Оси. ПЗ — выберите тренера (без планшета = lite, с
-        планшетом = клип). АЗ/ТЗ — desk без тренера; направление АЗ — из тарифа (последняя покупка по карте).
-        {matched ? ` Уже в Оси: ${matched}.` : ''}
+        Отчёт дня — выше («Подставить»). Здесь — кого ещё нет в Оси. Сначала закройте{' '}
+        <strong>ПЗ без карточки</strong> (тренер обязателен: без планшета → lite, с планшетом → клип). ТЗ/АЗ —
+        desk без тренера.
       </p>
+
+      <div className="sales-payments-link__kpis" role="group" aria-label="Сводка по файлу">
+        <div className="sales-payments-link__kpi">
+          <span className="sales-payments-link__kpi-label">Уже в Оси</span>
+          <strong className="sales-payments-link__kpi-value">{summary.matched}</strong>
+        </div>
+        <div
+          className={`sales-payments-link__kpi${summary.pzPending ? ' sales-payments-link__kpi--accent' : ''}`}
+        >
+          <span className="sales-payments-link__kpi-label">ПЗ без карточки</span>
+          <strong className="sales-payments-link__kpi-value">{summary.pzPending}</strong>
+          {summary.pzAmount > 0 ? (
+            <span className="sales-payments-link__kpi-sub">{formatRub(summary.pzAmount)}</span>
+          ) : null}
+        </div>
+        <div className="sales-payments-link__kpi">
+          <span className="sales-payments-link__kpi-label">ТЗ / АЗ desk</span>
+          <strong className="sales-payments-link__kpi-value">{summary.deskPending}</strong>
+        </div>
+      </div>
+
       {error ? <p className="sales-report__error">{error}</p> : null}
-      {!needWork.length ? (
+
+      {!summary.needWork ? (
         <p className="sales-report__hint">Все строки из файла уже есть в Оси или не требуют карточки.</p>
-      ) : (
-        <div className="sales-payments-import__table-wrap">
-          <table className="sales-payments-import__table">
-            <thead>
-              <tr>
-                <th>Карта</th>
-                <th>Клиент</th>
-                <th>Зал</th>
-                <th>Тариф / срок</th>
-                <th>Действие</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {needWork.map((a) => {
-                const trainer = realTrainers.find((t) => String(t.id) === String(a.trainerId))
-                const mode = resolvePzLinkMode(trainer)
-                return (
+      ) : null}
+
+      {pzRows.length ? (
+        <div className="sales-payments-link__block sales-payments-link__block--pz">
+          <div className="sales-payments-link__block-head">
+            <div>
+              <h4 className="sales-payments-link__block-title">ПЗ без карточки</h4>
+              <p className="sales-payments-link__block-meta">{pzMeta}</p>
+              <p className="muted sales-payments-link__block-hint">
+                Без тренера создать нельзя. Тренеры без планшета — вверху списка.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              disabled={anyBusy || summary.pzReady === 0}
+              onClick={() => void runReadyPz()}
+              title={
+                summary.pzReady === 0
+                  ? 'Выберите тренера в строках'
+                  : `Создать ${summary.pzReady} с выбранным тренером`
+              }
+            >
+              <UserPlus size={14} aria-hidden />
+              {bulkBusy ? 'Создаём…' : `Создать готовые (${summary.pzReady})`}
+            </button>
+          </div>
+
+          <div className="sales-payments-import__table-wrap">
+            <table className="sales-payments-import__table">
+              <thead>
+                <tr>
+                  <th>Карта</th>
+                  <th>Клиент</th>
+                  <th>Тариф / срок</th>
+                  <th>Сумма</th>
+                  <th>Тренер (обязательно)</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {pzRows.map((a) => {
+                  const trainer = trainers.find((t) => String(t.id) === String(a.trainerId))
+                  const mode = resolvePzLinkMode(trainer)
+                  const ready = isPaymentLinkActionReady(a, trainer)
+                  return (
+                    <tr key={a.id} className="sales-payments-link__row--pz">
+                      <td>{a.cardNumber}</td>
+                      <td>{a.clientName}</td>
+                      <td>
+                        <div>{a.tariffName || '—'}</div>
+                        <div className="sales-report__hint">{a.packageMonths} мес</div>
+                      </td>
+                      <td>{a.amount > 0 ? formatRub(a.amount) : '—'}</td>
+                      <td>
+                        <div className="sales-payments-link__pz">
+                          <select
+                            className="select"
+                            value={a.trainerId}
+                            required
+                            onChange={(e) =>
+                              patchAction(a.id, { trainerId: e.target.value, error: '' })
+                            }
+                            disabled={anyBusy || a.status === 'done'}
+                            aria-label={`Тренер для ${a.clientName}`}
+                          >
+                            <option value="">Выберите тренера…</option>
+                            {trainersNoTablet.length ? (
+                              <optgroup label="Без планшета → lite">
+                                {trainersNoTablet.map((t) => (
+                                  <option key={t.id} value={t.id}>
+                                    {t.name ?? '—'}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            ) : null}
+                            {trainersWithTablet.length ? (
+                              <optgroup label="С планшетом → клип">
+                                {trainersWithTablet.map((t) => (
+                                  <option key={t.id} value={t.id}>
+                                    {t.name ?? '—'}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            ) : null}
+                          </select>
+                          {mode ? (
+                            <span className="sales-payments-link__mode">
+                              {mode === 'lite' ? '→ lite (ведёт админ/менеджер)' : '→ клип на планшет'}
+                            </span>
+                          ) : (
+                            <span className="sales-payments-link__mode sales-payments-link__mode--warn">
+                              Тренер не выбран
+                            </span>
+                          )}
+                        </div>
+                        {a.error ? <div className="sales-report__error">{a.error}</div> : null}
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          disabled={anyBusy || !ready}
+                          onClick={() => void runOne(a)}
+                        >
+                          <UserPlus size={14} aria-hidden />
+                          {busyId === a.id ? '…' : 'Создать'}
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
+
+      {deskRows.length ? (
+        <div className="sales-payments-link__block">
+          <h4 className="sales-payments-link__block-title">ТЗ / АЗ — desk</h4>
+          <p className="muted sales-payments-link__block-hint">
+            Без живого тренера. Направление АЗ — из тарифа или выберите вручную.
+          </p>
+          <div className="sales-payments-import__table-wrap">
+            <table className="sales-payments-import__table">
+              <thead>
+                <tr>
+                  <th>Карта</th>
+                  <th>Клиент</th>
+                  <th>Зал</th>
+                  <th>Тариф / срок</th>
+                  <th>Действие</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {deskRows.map((a) => (
                   <tr key={a.id}>
                     <td>{a.cardNumber}</td>
                     <td>{a.clientName}</td>
@@ -154,35 +338,12 @@ export function SalesPaymentsClientLinkSection({
                         {a.kind === 'az_desk' && a.membershipTypeLabel
                           ? ` · ${a.membershipTypeLabel}`
                           : a.kind === 'az_desk'
-                            ? ' · направление вручную на карточке'
+                            ? ' · направление вручную'
                             : ''}
                       </div>
                     </td>
                     <td>
-                      {a.kind === 'pz_need_trainer' ? (
-                        <div className="sales-payments-link__pz">
-                          <select
-                            className="select"
-                            value={a.trainerId}
-                            onChange={(e) => patchAction(a.id, { trainerId: e.target.value, error: '' })}
-                            disabled={busyId === a.id || a.status === 'done'}
-                            aria-label="Тренер"
-                          >
-                            <option value="">Тренер…</option>
-                            {realTrainers.map((t) => (
-                              <option key={t.id} value={t.id}>
-                                {t.name ?? '—'}
-                                {isTrainerWithoutTablet(t) ? ' · без планшета' : ' · планшет'}
-                              </option>
-                            ))}
-                          </select>
-                          {mode ? (
-                            <span className="sales-report__hint">
-                              {mode === 'lite' ? '→ lite (админ)' : '→ клип на планшет'}
-                            </span>
-                          ) : null}
-                        </div>
-                      ) : a.kind === 'az_desk' ? (
+                      {a.kind === 'az_desk' ? (
                         <select
                           className="select"
                           value={a.membershipTypeId}
@@ -194,7 +355,7 @@ export function SalesPaymentsClientLinkSection({
                               membershipTypeLabel: t ? String(t.name || t.code || '') : '',
                             })
                           }}
-                          disabled={busyId === a.id || a.status === 'done'}
+                          disabled={anyBusy || a.status === 'done'}
                           aria-label="Направление АЗ"
                         >
                           <option value="">Направление…</option>
@@ -208,15 +369,12 @@ export function SalesPaymentsClientLinkSection({
                         <span className="sales-report__hint">{a.label}</span>
                       )}
                       {a.error ? <div className="sales-report__error">{a.error}</div> : null}
-                      {a.status === 'done' ? (
-                        <div className="sales-report__hint">Готово{a.result ? `: ${a.result}` : ''}</div>
-                      ) : null}
                     </td>
                     <td>
                       <button
                         type="button"
                         className="btn btn-secondary btn-sm"
-                        disabled={busyId === a.id || a.status === 'done'}
+                        disabled={anyBusy}
                         onClick={() => void runOne(a)}
                       >
                         <UserPlus size={14} aria-hidden />
@@ -224,12 +382,12 @@ export function SalesPaymentsClientLinkSection({
                       </button>
                     </td>
                   </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      )}
+      ) : null}
     </section>
   )
 }

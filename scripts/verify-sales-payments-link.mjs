@@ -4,9 +4,14 @@
 import {
   buildPaymentClientLinkActions,
   collapsePaymentLinesByCardLastWins,
+  describePzMissingFromPaymentsMetaRu,
   inferPackageMonthsFromTariff,
+  isPaymentLinkActionReady,
   matchAzDirectionFromTariff,
+  partitionPaymentClientLinkNeedWork,
   resolvePzLinkMode,
+  sortTrainersForPzPaymentLink,
+  summarizePaymentClientLinkActions,
   validatePaymentLinkAction,
 } from '../src/lib/admin/salesPaymentsLinkCore.js'
 
@@ -95,6 +100,39 @@ const good = validatePaymentLinkAction(
   { id: 't1', uses_tablet: false },
 )
 ok(good.ok && good.mode === 'lite', 'pz lite ok')
+ok(
+  !isPaymentLinkActionReady({ kind: 'pz_need_trainer', trainerId: '' }, null),
+  'ready false without trainer',
+)
+ok(
+  isPaymentLinkActionReady(
+    { kind: 'pz_need_trainer', trainerId: 't1' },
+    { id: 't1', uses_tablet: false },
+  ),
+  'ready true with trainer',
+)
+
+const summary = summarizePaymentClientLinkActions(actions)
+ok(summary.pzPending === 1, 'summary pz pending')
+ok(summary.matched === 1, 'summary matched')
+ok(summary.deskPending === 1, 'summary desk')
+ok(summary.pzAmount === 10000, 'summary pz amount')
+
+const parts = partitionPaymentClientLinkNeedWork(actions)
+ok(parts.pz.length === 1 && parts.desk.length === 1, 'partition pz/desk')
+
+ok(
+  describePzMissingFromPaymentsMetaRu({ count: 3, amount: 28360 }).includes('на сумму'),
+  'meta count + sum',
+)
+ok(describePzMissingFromPaymentsMetaRu({ count: 0 }).includes('Нет ПЗ'), 'meta empty')
+
+const sorted = sortTrainersForPzPaymentLink([
+  { id: 'a', name: 'Яков', uses_tablet: true },
+  { id: 'b', name: 'Анна', uses_tablet: false },
+  { id: 'c', name: 'Борис', uses_tablet: false },
+])
+ok(sorted[0].id === 'b' && sorted[1].id === 'c', 'no-tablet trainers first')
 
 if (failed) {
   console.error(`\n${failed} failed`)

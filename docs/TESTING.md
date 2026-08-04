@@ -74,6 +74,7 @@
 | Прайс АЗ: импорт Excel Результат/групповые/доплаты | `verify-az-price-list.mjs` |
 | Прайс АЗ: печать HTML / имена PNG | `verify-az-price-list-print.mjs` |
 | Импорт отчёта по оплатам (1С → дневной) | `verify-sales-payments-import.mjs` |
+| Связка оплат → lite/клип/desk (ПЗ без карточки) | `verify-sales-payments-link.mjs` |
 | Desk-сид закрытий (карта + end_date + цена; UI `/admin/excel-lists`) | `verify-desk-closing-import.mjs` |
 | Desk ledger абонов (действующий / цена) | `verify-desk-membership-ledger.mjs` |
 | Карточка: scope glance/full + lite + nav seed + memory list | `verify-client-workspace-scope.mjs` |

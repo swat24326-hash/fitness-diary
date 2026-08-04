@@ -19,6 +19,7 @@ import {
   updateTrainerClubForAdmin,
 } from '../../lib/dataAccess'
 import { createTrainerForAdmin } from '../../lib/admin/createTrainerService'
+import { formatClientName } from '../../lib/clientNameFormat.js'
 import {
   resetTrainerPasswordForAdmin,
   setTrainerActiveForAdmin,
@@ -383,11 +384,11 @@ export function AdminOrganization({ mode = 'both' } = {}) {
       setCreateErr('Нужны переменные Supabase в .env')
       return
     }
-    const name = trainerForm.name.trim()
+    const name = formatClientName(trainerForm.name)
     const login = trainerForm.login.trim().toLowerCase()
     const password = trainerForm.password
     if (!name || !login || !password) {
-      setCreateErr('Заполните имя, логин и пароль.')
+      setCreateErr('Заполните ФИО, логин и пароль.')
       return
     }
     if (password.length < 6) {
@@ -995,9 +996,21 @@ export function AdminOrganization({ mode = 'both' } = {}) {
                 </div>
                 <div className="field">
                   <label className="label" htmlFor="org-tr-name">
-                    Имя
+                    ФИО
                   </label>
-                  <input id="org-tr-name" className="input" value={trainerForm.name} onChange={(e) => setTrainerForm((f) => ({ ...f, name: e.target.value }))} disabled={createBusy} />
+                  <input
+                    id="org-tr-name"
+                    className="input"
+                    value={trainerForm.name}
+                    onChange={(e) => setTrainerForm((f) => ({ ...f, name: e.target.value }))}
+                    disabled={createBusy}
+                    placeholder="Анна Сергеевна или Иванова Анна Сергеевна"
+                    autoComplete="name"
+                    spellCheck={false}
+                  />
+                  <p className="muted" style={{ fontSize: 12, margin: '6px 0 0' }}>
+                    Можно имя и отчество или фамилию, имя и отчество — как на бейдже в зале.
+                  </p>
                 </div>
                 <div className="field">
                   <label className="label" htmlFor="org-tr-login">

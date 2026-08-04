@@ -215,3 +215,99 @@ export function validatePaymentLinkAction(action, trainer) {
   }
   return { ok: false, error: 'Неизвестное действие' }
 }
+
+/**
+ * Сводка блока «Карточки из оплат» (без React).
+ * @param {object[]} actions
+ */
+export function summarizePaymentClientLinkActions(actions) {
+  let matched = 0
+  let done = 0
+  let pzPending = 0
+  let deskPending = 0
+  let pzAmount = 0
+  let pzReady = 0
+  for (const a of actions ?? []) {
+    if (a?.status === 'done') {
+      done += 1
+      continue
+    }
+    if (a?.kind === 'skip_matched') {
+      matched += 1
+      continue
+    }
+    if (a?.kind === 'pz_need_trainer') {
+      pzPending += 1
+      pzAmount += Number(a?.amount) || 0
+      if (String(a?.trainerId ?? '').trim()) pzReady += 1
+      continue
+    }
+    if (a?.kind === 'az_desk' || a?.kind === 'tz_desk') {
+      deskPending += 1
+    }
+  }
+  return {
+    matched,
+    done,
+    pzPending,
+    deskPending,
+    pzReady,
+    pzAmount: Math.round(pzAmount),
+    needWork: pzPending + deskPending,
+  }
+}
+
+/**
+ * Шапка приоритетного списка: «3 ПЗ без карточки на сумму 28 360 ₽».
+ * @param {{ count?: number, amount?: number }} opts
+ */
+export function describePzMissingFromPaymentsMetaRu(opts) {
+  const count = Math.max(0, Math.trunc(Number(opts?.count) || 0))
+  const amount = Math.round(Number(opts?.amount) || 0)
+  const countLabel = new Intl.NumberFormat('ru-RU').format(count)
+  if (count === 0) return 'Нет ПЗ без карточки в файле'
+  const people =
+    count === 1 ? '1 ПЗ без карточки' : `${countLabel} ПЗ без карточки`
+  if (!(amount > 0)) return people
+  const sumLabel = new Intl.NumberFormat('ru-RU').format(amount)
+  return `${people} на сумму ${sumLabel} ₽`
+}
+
+/**
+ * Строки, которые ещё нужно создать: ПЗ отдельно от desk.
+ * @param {object[]} actions
+ */
+export function partitionPaymentClientLinkNeedWork(actions) {
+  /** @type {object[]} */
+  const pz = []
+  /** @type {object[]} */
+  const desk = []
+  for (const a of actions ?? []) {
+    if (!a || a.status === 'done' || a.kind === 'skip_matched') continue
+    if (a.kind === 'pz_need_trainer') pz.push(a)
+    else if (a.kind === 'az_desk' || a.kind === 'tz_desk') desk.push(a)
+  }
+  return { pz, desk }
+}
+
+/**
+ * Тренеры без планшета выше — менеджер быстрее закрывает lite.
+ * @param {object[]} trainers
+ */
+export function sortTrainersForPzPaymentLink(trainers) {
+  return [...(trainers ?? [])].sort((a, b) => {
+    const aNo = isTrainerWithoutTablet(a) ? 0 : 1
+    const bNo = isTrainerWithoutTablet(b) ? 0 : 1
+    if (aNo !== bNo) return aNo - bNo
+    return String(a?.name ?? '').localeCompare(String(b?.name ?? ''), 'ru')
+  })
+}
+
+/**
+ * Можно ли жать «Создать» (для UI disable).
+ * @param {object} action
+ * @param {object|null|undefined} trainer
+ */
+export function isPaymentLinkActionReady(action, trainer) {
+  return validatePaymentLinkAction(action, trainer).ok === true
+}
