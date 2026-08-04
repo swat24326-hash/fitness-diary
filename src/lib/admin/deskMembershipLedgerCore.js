@@ -83,7 +83,8 @@ export function deskAzDirectionLabel(membershipTypeId, azTypes) {
   const list = Array.isArray(azTypes) ? azTypes : []
   const hit = list.find((t) => String(t?.id ?? '') === id)
   const name = String(hit?.name ?? '').trim()
-  return name || '—'
+  const code = String(hit?.code ?? '').trim()
+  return name || code || '—'
 }
 
 /**

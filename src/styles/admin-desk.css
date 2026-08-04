@@ -214,6 +214,13 @@
   background: color-mix(in srgb, var(--bg-elevated, #1a1a1a) 94%, transparent);
   color: var(--text, #eee);
   font-size: 0.92rem;
+  color-scheme: dark;
+}
+
+/* Нативный список option: иначе на Win/Chrome тёмный select → серый «пустой» попап. */
+.admin-desk-mem-card__fields select option {
+  background-color: #1c1f1d;
+  color: #f2f4f3;
 }
 
 .admin-desk-mem-card__fields input:focus,

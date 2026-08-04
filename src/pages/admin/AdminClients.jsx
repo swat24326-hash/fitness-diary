@@ -71,7 +71,7 @@ import {
 import { collectNoTabletTrainerIds, isLitePzClient } from '../../lib/admin/trainerTabletModeCore.js'
 import { canSalesManagerHardDeleteClient } from '../../lib/admin/salesManagerClientsAccessCore.js'
 import { AdminLitePzCreateModal } from '../../components/admin/AdminLitePzCreateModal.jsx'
-import { listMembershipTypesForClub } from '../../lib/membershipTypesService.js'
+import { ensureMembershipTypesForClub } from '../../lib/membershipTypesService.js'
 import '../../styles/pnk-funnel.css'
 import '../../styles/sales-clients.css'
 
@@ -337,9 +337,9 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
       return undefined
     }
     let cancelled = false
-    void listMembershipTypesForClub(club, { aerobicOnly: true, activeOnly: true })
-      .then((list) => {
-        if (!cancelled) setAzMembershipTypes(Array.isArray(list) ? list : [])
+    void ensureMembershipTypesForClub(club, { aerobicOnly: true, activeOnly: true })
+      .then((res) => {
+        if (!cancelled) setAzMembershipTypes(Array.isArray(res?.types) ? res.types : [])
       })
       .catch(() => {
         if (!cancelled) setAzMembershipTypes([])

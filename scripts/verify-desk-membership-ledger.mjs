@@ -54,6 +54,7 @@ ok(formatDeskPackageMonthsLabel(6) === '6 месяцев', 'label 6 months')
 ok(deskAzDirectionLabel(null, [{ id: 't1', name: 'Бокс' }]) === '—', 'az direction empty')
 ok(deskAzDirectionLabel('t1', [{ id: 't1', name: 'Бокс' }]) === 'Бокс', 'az direction box')
 ok(deskAzDirectionLabel('t2', [{ id: 't2', name: 'Техника дня' }]) === 'Техника дня', 'az direction tech day')
+ok(deskAzDirectionLabel('t3', [{ id: 't3', name: '', code: 'BOX' }]) === 'BOX', 'az direction falls back to code')
 
 const sig = deskMembershipSignal(
   [{ id: 'm', start_date: '2026-07-21', end_date: '2026-08-20', total_trainings: 0 }],

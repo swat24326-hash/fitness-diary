@@ -8,7 +8,7 @@ import {
 import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
 import { todayLocalIso } from '../../lib/dateRu.js'
 import { normalizeDeskHall } from '../../lib/admin/deskHallClientsCore.js'
-import { listMembershipTypesForClub } from '../../lib/membershipTypesService.js'
+import { ensureMembershipTypesForClub } from '../../lib/membershipTypesService.js'
 import {
   DESK_PACKAGE_MONTH_OPTIONS,
   deskMembershipLedgerKind,
@@ -37,7 +37,12 @@ function rowDraftFromMembership(m) {
 
 function PackageSelect({ value, onChange }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)} aria-label="Пакет по сроку">
+    <select
+      className="admin-desk-mem-card__select"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      aria-label="Пакет по сроку"
+    >
       <option value="">—</option>
       {DESK_PACKAGE_MONTH_OPTIONS.map((n) => (
         <option key={n} value={String(n)}>
@@ -82,9 +87,11 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
       setAzTypes([])
       return undefined
     }
-    void listMembershipTypesForClub(clubId, { aerobicOnly: true, activeOnly: true })
-      .then((list) => {
-        if (alive) setAzTypes(Array.isArray(list) ? list : [])
+    void ensureMembershipTypesForClub(clubId, { aerobicOnly: true, activeOnly: true })
+      .then((res) => {
+        if (!alive) return
+        const list = Array.isArray(res?.types) ? res.types : []
+        setAzTypes(list)
       })
       .catch(() => {
         if (alive) setAzTypes([])
@@ -252,16 +259,20 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
         <label>
           Направление
           <select
+            className="admin-desk-mem-card__select"
             value={d.membership_type_id || ''}
             onChange={(e) => onField('membership_type_id', e.target.value)}
             aria-label="Направление АЗ"
           >
             <option value="">—</option>
-            {azTypes.map((t) => (
-              <option key={t.id} value={String(t.id)}>
-                {t.name}
-              </option>
-            ))}
+            {azTypes.map((t) => {
+              const label = String(t?.name ?? '').trim() || String(t?.code ?? '').trim() || 'Без названия'
+              return (
+                <option key={t.id} value={String(t.id)}>
+                  {label}
+                </option>
+              )
+            })}
           </select>
         </label>
       ) : null}
