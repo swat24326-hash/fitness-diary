@@ -434,7 +434,9 @@ export function ClientCard() {
           listHref={clientsListHref}
           listBackLabel={clientsBackLabel}
           onSaved={() => {
-            void reloadFromCloud()
+            void reloadLocal().then(() => {
+              if (canCloudHydrateClient) void hydrateFromCloudInBackground()
+            })
           }}
         />
       </div>
@@ -477,7 +479,9 @@ export function ClientCard() {
           listHref={liteListHref}
           listBackLabel={clientsBackLabel}
           onSaved={() => {
-            void reloadFromCloud()
+            void reloadLocal().then(() => {
+              if (canCloudHydrateClient) void hydrateFromCloudInBackground()
+            })
           }}
         />
       </div>

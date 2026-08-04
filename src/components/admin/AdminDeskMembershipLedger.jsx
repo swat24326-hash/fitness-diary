@@ -164,7 +164,6 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
   }
 
   const resolveTypeId = (draftTypeId) => {
-    if (!showAzDirection) return null
     const id = String(draftTypeId ?? '').trim()
     return id || null
   }
@@ -188,14 +187,17 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
     setBusyId(id)
     setError('')
     try {
-      const typeId = resolveTypeId(d.membership_type_id)
+      const club = String(m.club_id || clubId || client?.club_id || '').trim()
       const row = {
         ...m,
-        club_id: String(m.club_id || clubId || client?.club_id || '').trim() || m.club_id,
-        membership_type_id: typeId,
+        club_id: club || m.club_id || null,
         start_date: d.start_date,
         end_date: d.end_date,
         paid_amount: paid,
+      }
+      // АЗ: направление из селекта. ТЗ/прочее: не затирать membership_type_id в null.
+      if (showAzDirection) {
+        row.membership_type_id = resolveTypeId(d.membership_type_id)
       }
       await saveLocalWithSync('memberships', row, {
         table_name: 'memberships',
@@ -239,7 +241,7 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
         id: crypto.randomUUID(),
         client_id: client.id,
         club_id: String(clubId || client.club_id || ''),
-        membership_type_id: resolveTypeId(newRow.membership_type_id),
+        membership_type_id: showAzDirection ? resolveTypeId(newRow.membership_type_id) : null,
         start_date: newRow.start_date,
         end_date: newRow.end_date,
         paid_amount: paid,
