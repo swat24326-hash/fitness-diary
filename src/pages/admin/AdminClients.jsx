@@ -1203,12 +1203,14 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
                                   icon: RotateCcw,
                                   onSelect: () => void updateClientArchiveFlag(c, false),
                                 },
-                            {
-                              id: 'reassign',
-                              label: 'Переназначить тренера',
-                              icon: UserCog,
-                              onSelect: () => void openReassignModal(c),
-                            },
+                            !isDeskClient
+                              ? {
+                                  id: 'reassign',
+                                  label: 'Переназначить тренера',
+                                  icon: UserCog,
+                                  onSelect: () => void openReassignModal(c),
+                                }
+                              : null,
                             canSalesManagerHardDeleteClient(isSalesManager, c)
                               ? {
                                   id: 'delete',
