@@ -35,7 +35,13 @@ import {
   resolveClientClubSmsScenario,
 } from '../../lib/admin/clubSmsSentMarkCore.js'
 import { resolveClubSmsMode } from '../../lib/admin/clubSmsModeCore.js'
-import { pullAdminClientsFromCloud } from '../../lib/admin/adminClientsListService'
+import { peekAdminClientsListLocal, pullAdminClientsFromCloud } from '../../lib/admin/adminClientsListService'
+import { buildClientCardNavSeed } from '../../lib/admin/clientWorkspaceScopeCore.js'
+import {
+  invalidateAdminClientsListMemory,
+  peekAdminClientsListMemory,
+  writeAdminClientsListMemory,
+} from '../../lib/admin/adminClientsListMemoryCache.js'
 import { useDebouncedStorageReload, shouldReloadAdminClientsPage } from '../../lib/useDebouncedStorageReload'
 import { ADMIN_CLIENTS_PAGE_SIZE, ADMIN_CLIENTS_REMOTE_LIMIT } from '../../lib/admin/adminConstants'
 import { isSupabaseConfigured, supabase } from '../../lib/supabase'
@@ -219,10 +225,71 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
   const reload = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setBusy(true)
     try {
-      const [{ clients: list, source: src, fallbackReason, cloudNeedsClub: need, truncated: trunc }, trainers] = await Promise.all([
-        listAdminClientsForClub({ clubId: club || '' }),
-        listTrainerSummariesForAdmin(),
-      ])
+      // Фаза 0: память (синхронно по смыслу — мгновенный «назад»).
+      if (club) {
+        const mem = peekAdminClientsListMemory(club)
+        if (mem?.clients?.length) {
+          setClients(mem.clients)
+          setMemByClient(mem.memByClient ?? {})
+          setTrainerNameById(mem.trainerNameById ?? {})
+          setNoTabletTrainerIds(mem.noTabletTrainerIds ?? [])
+          setListTruncated(!!mem.truncated)
+          setSource(mem.source || 'local')
+          setFallback(null)
+          setCloudNeedsClub(false)
+          setListReady(true)
+          if (!silent) setBusy(false)
+        }
+      }
+
+      // Фаза 1: IndexedDB.
+      if (club) {
+        try {
+          const [peek, trainersPeek] = await Promise.all([
+            peekAdminClientsListLocal(club),
+            listTrainerSummariesForAdmin(),
+          ])
+          const nmPeek = {}
+          for (const u of trainersPeek) {
+            nmPeek[u.id] = u.name?.trim() || '—'
+          }
+          setTrainerNameById(nmPeek)
+          let clubTrainersPeek = Array.isArray(trainersPeek) ? trainersPeek : []
+          if (isSalesManager && club) {
+            clubTrainersPeek = clubTrainersPeek.filter((t) => String(t.club_id ?? '').trim() === String(club))
+          }
+          setTrainersForClub(clubTrainersPeek)
+          const noTabletPeek = collectNoTabletTrainerIds(clubTrainersPeek)
+          setNoTabletTrainerIds(noTabletPeek)
+          if (peek.clients?.length) {
+            setClients(peek.clients)
+            setListTruncated(!!peek.truncated)
+            setSource('local')
+            setFallback(null)
+            setCloudNeedsClub(false)
+            const mapPeek = await loadAdminClubMembershipsMap(club)
+            setMemByClient(mapPeek)
+            writeAdminClientsListMemory(club, {
+              clients: peek.clients,
+              memByClient: mapPeek,
+              trainerNameById: nmPeek,
+              noTabletTrainerIds: noTabletPeek,
+              truncated: !!peek.truncated,
+              source: 'local',
+            })
+            setListReady(true)
+            if (!silent) setBusy(false)
+          }
+        } catch {
+          /* фаза 2 всё равно подтянет */
+        }
+      }
+
+      const [{ clients: list, source: src, fallbackReason, cloudNeedsClub: need, truncated: trunc }, trainers] =
+        await Promise.all([
+          listAdminClientsForClub({ clubId: club || '' }),
+          listTrainerSummariesForAdmin(),
+        ])
       setListTruncated(!!trunc)
       setCloudNeedsClub(!!need)
       setSource(src)
@@ -238,7 +305,8 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
         clubTrainers = clubTrainers.filter((t) => String(t.club_id ?? '').trim() === String(club))
       }
       setTrainersForClub(clubTrainers)
-      setNoTabletTrainerIds(collectNoTabletTrainerIds(clubTrainers))
+      const noTablet = collectNoTabletTrainerIds(clubTrainers)
+      setNoTabletTrainerIds(noTablet)
 
       const arr = Array.isArray(list) ? list : []
       setClients(arr)
@@ -247,6 +315,16 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
 
       const map = club ? await loadAdminClubMembershipsMap(club) : {}
       setMemByClient(map)
+      if (club && arr.length) {
+        writeAdminClientsListMemory(club, {
+          clients: arr,
+          memByClient: map,
+          trainerNameById: nm,
+          noTabletTrainerIds: noTablet,
+          truncated: !!trunc,
+          source: src || 'remote',
+        })
+      }
     } catch {
       setClients([])
       setMemByClient({})
@@ -257,6 +335,7 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
       setFallback(null)
       setCloudNeedsClub(false)
       setListTruncated(false)
+      if (club) invalidateAdminClientsListMemory(club)
     } finally {
       setListReady(true)
       if (!silent) setBusy(false)
@@ -662,6 +741,7 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
       const warn = criticalWriteCloudWarning(flush, archived ? 'Архив' : 'Возврат из архива')
       if (warn) alert(warn)
       dispatchLocalDataChanged({ reason: 'client-archive-changed', clientId: full.id })
+      if (club) invalidateAdminClientsListMemory(club)
       await reload({ silent: true })
     } catch (err) {
       alert(err?.message ?? 'Не удалось обновить архив')
@@ -762,6 +842,7 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
       if (warn) alert(warn)
       dispatchLocalDataChanged({ reason: 'client-trainer-reassigned', clientId: full.id })
       closeReassignModal()
+      if (club) invalidateAdminClientsListMemory(club)
       await reload()
     } catch (e) {
       alert(e?.message ?? 'Ошибка сохранения')
@@ -779,6 +860,7 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
       const warn = criticalWriteCloudWarning(flush, 'Удаление')
       if (warn) alert(warn)
       setConfirmDelete(null)
+      if (club) invalidateAdminClientsListMemory(club)
       await reload()
     } catch (e) {
       alert(e?.message ?? 'Не удалось удалить клиента')
@@ -1180,6 +1262,7 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
                         />
                         <Link
                           to={buildAdminClientCardHref(clientsBasePath, c.id, listNavState)}
+                          state={{ clientSeed: buildClientCardNavSeed(c) }}
                           className="btn btn-primary btn-icon-square btn-touch u-no-decoration"
                           aria-label="Карточка клиента"
                           title="Карточка клиента"
@@ -1367,6 +1450,7 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
         trainers={trainersForClub}
         onClose={() => setLiteCreateOpen(false)}
         onCreated={(clientId) => {
+          if (club) invalidateAdminClientsListMemory(club)
           void reload().then(() => {
             if (!clientId) return
             navigate(buildAdminClientCardHref(clientsBasePath, clientId, listNavState))

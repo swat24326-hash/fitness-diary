@@ -67,6 +67,114 @@
   gap: 0.45rem;
 }
 
+.sales-playbook__weeks-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.5rem 0.65rem;
+}
+
+.sales-playbook__weeks-row .sales-playbook__weeks {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.sales-playbook__hall-menu {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.55rem;
+}
+
+.sales-playbook__burger {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+}
+
+.sales-playbook__burger-panel {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 5;
+  min-width: min(18rem, 86vw);
+  padding: 0.55rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--accent, #c9a227) 40%, transparent);
+  background: color-mix(in srgb, var(--surface, #151b26) 96%, #000);
+  box-shadow: 0 10px 28px color-mix(in srgb, #000 45%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sales-playbook__burger-lead {
+  margin: 0 0.2rem 0.25rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.sales-playbook__burger-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border: 0;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg, #0f141c) 55%, transparent);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.sales-playbook__burger-item:hover,
+.sales-playbook__burger-item:focus-visible {
+  background: color-mix(in srgb, var(--accent, #c9a227) 16%, transparent);
+  outline: none;
+}
+
+.sales-playbook__burger-item-title {
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.sales-playbook__burger-item-meta {
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.sales-playbook__hall-list {
+  width: min(100%, 36rem);
+  max-width: 100vw;
+  padding: 0.75rem 0.85rem;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent, #c9a227) 32%, transparent);
+  background: color-mix(in srgb, var(--surface, #151b26) 94%, transparent);
+}
+
+.sales-playbook__hall-list-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.sales-playbook__hall-list-title {
+  margin: 0 0 0.2rem;
+  font-size: 1rem;
+  font-weight: 750;
+}
+
+.sales-playbook__hall-list-sub {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
 .sales-playbook__week-chip {
   display: flex;
   flex-direction: column;

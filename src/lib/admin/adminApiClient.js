@@ -257,10 +257,12 @@ export async function fetchMembershipsForClubViaAdminApi(clubId) {
 }
 
 /**
- * GET /api/get-client?client_id=… — null если маршрута нет.
- * @returns {Promise<{ client: object, memberships: object[], health_card: object | null, body_measurements: object[], trainings: object[] } | null>}
+ * GET /api/get-client?client_id=…&scope=full|glance — null если маршрута нет.
+ * @param {string} clientId
+ * @param {{ scope?: 'glance' | 'full' }} [opts]
+ * @returns {Promise<{ client: object, memberships: object[], health_card: object | null, body_measurements: object[], trainings: object[], scope?: string } | { notFound: true } | null>}
  */
-export async function fetchClientWorkspaceViaAdminApi(clientId) {
+export async function fetchClientWorkspaceViaAdminApi(clientId, opts = {}) {
   const cid = String(clientId ?? '').trim()
   if (!cid) return null
 
@@ -269,9 +271,12 @@ export async function fetchClientWorkspaceViaAdminApi(clientId) {
     throw new Error('Нет сессии — войдите снова.')
   }
 
+  const scope = String(opts.scope ?? 'full').trim() === 'glance' ? 'glance' : 'full'
+  const qs = `client_id=${encodeURIComponent(cid)}&scope=${encodeURIComponent(scope)}`
+
   let res
   try {
-    res = await fetch(`${apiOrigin()}/api/get-client?client_id=${encodeURIComponent(cid)}`, {
+    res = await fetch(`${apiOrigin()}/api/get-client?${qs}`, {
       method: 'GET',
       headers: { Authorization: `Bearer ${token}` },
       credentials: 'same-origin',
@@ -292,6 +297,7 @@ export async function fetchClientWorkspaceViaAdminApi(clientId) {
       body_measurements: Array.isArray(data.body_measurements) ? data.body_measurements : [],
       client_weight_entries: Array.isArray(data.client_weight_entries) ? data.client_weight_entries : [],
       trainings: Array.isArray(data.trainings) ? data.trainings : [],
+      scope: data.scope === 'glance' ? 'glance' : 'full',
     }
   }
 

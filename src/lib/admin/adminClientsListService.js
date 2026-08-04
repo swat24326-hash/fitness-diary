@@ -247,6 +247,16 @@ async function listAdminClientsFromLocalCache(clubId) {
 }
 
 /**
+ * Быстрый кадр списка из IndexedDB (без облака) — для «назад» с карточки.
+ * @param {string} clubId
+ */
+export async function peekAdminClientsListLocal(clubId) {
+  const id = String(clubId ?? '').trim()
+  if (!id) return { clients: [], truncated: false }
+  return listAdminClientsFromLocalCache(id)
+}
+
+/**
  * @param {{ clubId?: string }} p
  * @returns {Promise<{ clients: object[], source: string, fallbackReason: string | null, cloudNeedsClub?: boolean, truncated?: boolean }>}
  */

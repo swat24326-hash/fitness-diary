@@ -60,6 +60,7 @@
 | Стратегия: продления ДК ПЗ/ТЗ/АЗ (конец месяца × ср. покупок) | `verify-sales-plan-hall-renewals.mjs` |
 | Стратегия: НК/УК + добор до плана по долям прошлого месяца | `verify-sales-plan-hall-top-up.mjs` |
 | Стратегия: playbook недель / закрытия / темп | `verify-sales-strategy-playbook.mjs` |
+| Стратегия: полные списки закрытий ПЗ/ТЗ/АЗ | `verify-sales-strategy-playbook-hall-lists.mjs` |
 | Стратегия: дрейф при архиве клиентов | `verify-sales-strategy-archive-drift.mjs` |
 | Стратегия: снимок playbook (галочки на всех устройствах) | `verify-sales-strategy-snapshot.mjs` |
 | Стратегия: админ-полоса часов / ЗП / возвратов / чистой | `verify-sales-strategy-admin-finance.mjs` |
@@ -75,6 +76,7 @@
 | Импорт отчёта по оплатам (1С → дневной) | `verify-sales-payments-import.mjs` |
 | Desk-сид закрытий (карта + end_date + цена; UI `/admin/excel-lists`) | `verify-desk-closing-import.mjs` |
 | Desk ledger абонов (действующий / цена) | `verify-desk-membership-ledger.mjs` |
+| Карточка: scope glance/full + lite + nav seed + memory list | `verify-client-workspace-scope.mjs` |
 | Вкладки Клиенты / ТЗ / АЗ (`desk_hall`) | `verify-desk-hall-clients.mjs` |
 | Desk без тренера + вне KPI (operational filter) | `verify-sale-clips.mjs` (блок hall/desk) |
 | Миграция desk на linked Supabase | `npm run db:migrate:desk-hall -- --linked` затем `npm run db:migrate:desk-null-trainer -- --linked` |

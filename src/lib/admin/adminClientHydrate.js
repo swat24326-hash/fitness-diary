@@ -13,6 +13,7 @@ import { ADMIN_SYNC_BATCH_SIZE } from './adminConstants'
 import { fetchClientWorkspaceViaAdminApi } from './adminApiClient'
 import { invalidateAdminClubWorkspaceCache } from './adminClubWorkspaceCache'
 import { invalidateTrainerWorkspaceCache } from '../trainerWorkspaceCache'
+import { normalizeClientWorkspaceScope } from './clientWorkspaceScopeCore.js'
 
 function notifyHydrated(clientId, pruned_trainings = 0) {
   invalidateTrainerWorkspaceCache()
@@ -33,9 +34,17 @@ async function cacheWorkspace({ client, memberships, health_card, body_measureme
   const pending = opts.respectSyncQueue ? await buildPendingSyncKeysByTable() : null
   const save = (store, row) =>
     pending ? putStoreUnlessPendingSync(store, row, pending) : putStore(store, markRecordFromCloud(row))
+  const glance = opts.scope === 'glance'
 
   if (client) await save('clients', client)
   for (const m of memberships ?? []) await save('memberships', m)
+
+  // glance: не трогаем дневник в IDB и не prune-им тренировки (пустой список = «всё удалить»).
+  if (glance) {
+    notifyHydrated(client?.id, 0)
+    return { pruned_trainings: 0 }
+  }
+
   if (health_card) await save('health_cards', health_card)
   for (const row of body_measurements ?? []) await save('body_measurements', normalizeBodyMeasurementRow(row))
   for (const row of client_weight_entries ?? []) await save('client_weight_entries', normalizeWeightEntryRow(row))
@@ -129,20 +138,23 @@ async function hydrateViaBrowserSupabase(clientId) {
 
 /**
  * @param {string} clientId
- * @param {{ allowBrowserFallback?: boolean }} [opts] — для тренера: false (только API)
+ * @param {{ allowBrowserFallback?: boolean, scope?: 'glance' | 'full' }} [opts]
+ *   — для тренера: allowBrowserFallback false (только API)
+ *   — scope=glance: клиент + абоны (desk / быстрый кадр); full — весь workspace
  */
 export async function hydrateAdminClientWorkspace(clientId, opts = {}) {
   const allowBrowserFallback = opts.allowBrowserFallback !== false
+  const scope = normalizeClientWorkspaceScope(opts.scope)
   if (!clientId || !isSupabaseConfigured()) {
     return { ok: false, reason: 'no_client_or_supabase' }
   }
 
   try {
-    const viaApi = await fetchClientWorkspaceViaAdminApi(clientId)
+    const viaApi = await fetchClientWorkspaceViaAdminApi(clientId, { scope })
     if (viaApi?.notFound) return { ok: false, reason: 'not_found' }
     if (viaApi?.client) {
-      await cacheWorkspace(viaApi, { respectSyncQueue: true })
-      return { ok: true, source: 'admin_api' }
+      await cacheWorkspace(viaApi, { respectSyncQueue: true, scope })
+      return { ok: true, source: 'admin_api', scope: viaApi.scope || scope }
     }
   } catch (e) {
     const msg = String(e?.message ?? e ?? '')
@@ -155,6 +167,11 @@ export async function hydrateAdminClientWorkspace(clientId, opts = {}) {
   }
 
   if (!allowBrowserFallback) {
+    return { ok: false, reason: 'offline' }
+  }
+
+  // Browser fallback — полный набор (старый путь); glance через API предпочтителен.
+  if (scope === 'glance') {
     return { ok: false, reason: 'offline' }
   }
 

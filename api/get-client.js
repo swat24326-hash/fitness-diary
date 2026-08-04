@@ -1,9 +1,14 @@
 /**
  * Данные клиента для карточки (админ — любой клиент; тренер — только свои).
- * GET ?client_id=<uuid>
+ * GET ?client_id=<uuid>&scope=full|glance
+ * glance — клиент + абоны (desk ТЗ/АЗ / быстрый первый кадр).
  */
 import { requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
+import {
+  clientWorkspaceIncludes,
+  normalizeClientWorkspaceScope,
+} from '../src/lib/admin/clientWorkspaceScopeCore.js'
 
 const PAGE = 500
 
@@ -38,6 +43,9 @@ async function handler(req, res) {
     return
   }
 
+  const scope = normalizeClientWorkspaceScope(req.query?.scope)
+  const include = clientWorkspaceIncludes(scope)
+
   const { supabaseAdmin } = ctx
 
   const { data: client, error: ce } = await supabaseAdmin.from('clients').select('*').eq('id', clientId).maybeSingle()
@@ -65,6 +73,19 @@ async function handler(req, res) {
   const { data: memberships, error: me } = await supabaseAdmin.from('memberships').select('*').eq('client_id', clientId)
   if (me) {
     sendJson(res, 400, { error: me.message })
+    return
+  }
+
+  if (!include.health_card) {
+    sendJson(res, 200, {
+      client,
+      memberships: memberships ?? [],
+      health_card: null,
+      body_measurements: [],
+      client_weight_entries: [],
+      trainings: [],
+      scope: 'glance',
+    })
     return
   }
 
@@ -145,6 +166,7 @@ async function handler(req, res) {
     body_measurements,
     client_weight_entries,
     trainings,
+    scope: 'full',
   })
 }
 

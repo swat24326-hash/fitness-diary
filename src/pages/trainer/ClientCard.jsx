@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Dumbbell, ClipboardList, Pencil } from 'lucide-react'
 import { ClientDiaries } from '../../components/ClientDiaries'
 import { ClientOverview } from './ClientOverview'
@@ -43,10 +43,15 @@ import {
   clientCardBackLabel,
   resolveClientCardBackHref,
 } from '../../lib/admin/clientCardReturnCore.js'
+import {
+  clientCardUsesGlanceLocal,
+  clientWorkspaceScopeForClient,
+} from '../../lib/admin/clientWorkspaceScopeCore.js'
 
 export function ClientCard() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
   const { isAdmin, isTrainer, isSalesManager, user } = useAuth()
   /** Админ и менеджер продаж тянут карточку через /api/get-client. */
@@ -79,7 +84,12 @@ export function ClientCard() {
     }
     return 'health'
   })
-  const [client, setClient] = useState(null)
+  const seedClient = useMemo(() => {
+    const seed = location.state?.clientSeed
+    if (!seed || String(seed.id) !== String(id)) return null
+    return seed
+  }, [location.state, id])
+  const [client, setClient] = useState(() => seedClient)
   const [memberships, setMemberships] = useState([])
   const [healthCard, setHealthCard] = useState(null)
   const [bzCompletedCount, setBzCompletedCount] = useState(0)
@@ -92,6 +102,8 @@ export function ClientCard() {
   const [outreachLogs, setOutreachLogs] = useState([])
   const [trainerById, setTrainerById] = useState({})
   const [trainersModeReady, setTrainersModeReady] = useState(!canManageClubClients)
+  const [bootstrapping, setBootstrapping] = useState(true)
+  const hydrateGenRef = useRef(0)
 
   useEffect(() => {
     if (!canManageClubClients) {
@@ -205,6 +217,25 @@ export function ClientCard() {
       setHasMeasurements(false)
       return
     }
+    const tid = String(local.trainer_id ?? '').trim()
+    const trainerRow = tid ? trainerById[tid] ?? null : null
+    const liteGuess =
+      !isDeskHallClient(local) &&
+      Boolean(
+        (canManageClubClients && trainersModeReady && trainerRow && isTrainerWithoutTablet(trainerRow)) ||
+          (isTrainer &&
+            isTrainerWithoutTablet(user) &&
+            String(local.trainer_id ?? '') === String(user?.id ?? '')),
+      )
+    // Desk / lite: только абоны — без тяжёлых getAll trainings/measurements.
+    if (clientCardUsesGlanceLocal(local, { litePz: liteGuess })) {
+      const mems = await listMemberships(id)
+      setMemberships(mems)
+      setHealthCard(null)
+      setBzCompletedCount(0)
+      setHasMeasurements(false)
+      return
+    }
     const [mems, hc, trainings, measures] = await Promise.all([
       listMemberships(id),
       getHealthCard(id),
@@ -216,7 +247,7 @@ export function ClientCard() {
     const completed = (trainings ?? []).filter((t) => String(t?.status ?? '') === 'completed').length
     setBzCompletedCount(Math.min(2, completed))
     setHasMeasurements((measures ?? []).length > 0)
-  }, [id])
+  }, [id, trainerById, trainersModeReady, canManageClubClients, isTrainer, user])
 
   useEffect(() => {
     if (!id || isAdmin) return
@@ -239,15 +270,24 @@ export function ClientCard() {
 
   const hydrateFromCloudInBackground = useCallback(async () => {
     if (!isSupabaseConfigured() || !navigator.onLine) return
+    const gen = ++hydrateGenRef.current
     setHydrateError(null)
-    const h = await hydrateAdminClientWorkspace(id, { allowBrowserFallback: false })
+    const local = await getLocalClient(id)
+    if (gen !== hydrateGenRef.current) return
+    const scope = clientWorkspaceScopeForClient(local || client, { litePz: isLitePz })
+    const h = await hydrateAdminClientWorkspace(id, {
+      allowBrowserFallback: Boolean(canCloudHydrateClient),
+      scope,
+    })
+    if (gen !== hydrateGenRef.current) return
     if (h.ok) {
       await reloadLocal()
       return
     }
     if (h.reason === 'not_found') {
-      const local = await getLocalClient(id)
-      if (!local) {
+      const again = await getLocalClient(id)
+      if (gen !== hydrateGenRef.current) return
+      if (!again) {
         setClient(null)
         setMemberships([])
       }
@@ -256,26 +296,7 @@ export function ClientCard() {
     if (!h.ok && h.reason !== 'not_found') {
       setHydrateError(h.error ?? h.reason ?? 'Ошибка загрузки с сервера')
     }
-  }, [id, reloadLocal])
-
-  const reloadFromCloud = useCallback(async () => {
-    await reloadLocal()
-    if (canCloudHydrateClient && isSupabaseConfigured()) {
-      setHydrateError(null)
-      const h = await hydrateAdminClientWorkspace(id)
-      if (h.ok) {
-        await reloadLocal()
-      } else if (h.reason === 'not_found') {
-        const local = await getLocalClient(id)
-        if (!local) {
-          setClient(null)
-          setMemberships([])
-        }
-      } else if (!h.ok && h.reason !== 'not_found') {
-        setHydrateError(h.error ?? h.reason ?? 'Ошибка загрузки с сервера')
-      }
-    }
-  }, [id, canCloudHydrateClient, reloadLocal])
+  }, [id, reloadLocal, client, canCloudHydrateClient, isLitePz])
 
   const hasActiveMembership = useMemo(() => {
     const today = todayLocalIso()
@@ -308,29 +329,44 @@ export function ClientCard() {
   }, [client, reloadLocal])
 
   useEffect(() => {
-    if (isTrainer && !canCloudHydrateClient) {
-      void reloadLocal()
-      if (typeof navigator !== 'undefined' && navigator.onLine) {
+    hydrateGenRef.current += 1
+    let alive = true
+    // Local-first: UI из IDB/seed; hydrate — когда известен desk или готовы тренеры (lite vs full).
+    void reloadLocal()
+      .then(async () => {
+        if (!alive) return
+        setBootstrapping(false)
+        if (typeof navigator === 'undefined' || !navigator.onLine) return
+        if (!(canCloudHydrateClient || isTrainer)) return
+        const local = await getLocalClient(id)
+        if (!alive) return
+        if (isDeskHallClient(local)) {
+          void hydrateFromCloudInBackground()
+          return
+        }
+        if (canManageClubClients && !trainersModeReady) return
         void hydrateFromCloudInBackground()
-      }
-      return
+      })
+      .catch(() => {
+        if (alive) setBootstrapping(false)
+      })
+    return () => {
+      alive = false
+      hydrateGenRef.current += 1
     }
-    void reloadFromCloud()
-  }, [isTrainer, canCloudHydrateClient, reloadLocal, reloadFromCloud, hydrateFromCloudInBackground])
+  }, [
+    id,
+    isTrainer,
+    canCloudHydrateClient,
+    canManageClubClients,
+    trainersModeReady,
+    reloadLocal,
+    hydrateFromCloudInBackground,
+  ])
 
   useDebouncedStorageReload(
     () => {
-      if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        void reloadLocal()
-        return
-      }
-      if (isTrainer && !canCloudHydrateClient) {
-        void hydrateFromCloudInBackground()
-        return
-      }
-      if (canCloudHydrateClient) {
-        void reloadFromCloud()
-      }
+      void reloadLocal()
     },
     { shouldRun: shouldReloadTrainerClientStats },
   )
@@ -413,6 +449,14 @@ export function ClientCard() {
       void reloadLocal()
     }
   }, [client, isArchived, reloadLocal, healthCard, bzCompletedCount])
+
+  if (bootstrapping && !client) {
+    return (
+      <div className="trainer-path-empty" role="status">
+        <p className="trainer-path-empty__text">Загружаю карточку…</p>
+      </div>
+    )
+  }
 
   if (!client) {
     return (

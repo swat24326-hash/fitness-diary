@@ -3,6 +3,7 @@ import { Route } from 'lucide-react'
 import { formatRub } from '../lib/admin/salesReportCore.js'
 import { buildStrategyPlaybookFromSuggest } from '../lib/admin/salesStrategyPlaybookService.js'
 import { SalesStrategyPlaybookWeekCard } from './SalesStrategyPlaybookWeekCard.jsx'
+import { SalesStrategyPlaybookHallListsMenu } from './SalesStrategyPlaybookHallListsMenu.jsx'
 
 /**
  * Пошаговое выполнение плана: недели после расчёта пакета.
@@ -58,7 +59,8 @@ export function SalesStrategyPlaybookSection({
           <p className="muted sales-playbook__lead">
             Недели с темпом от пакета, закрытия ДК на неделю и ориентир НК/УК. Прогресс месяца — из
             отчётов продаж (не из галочек). Галочка «купил» — когда в базе уже есть следующий абон;
-            после вечера / планшета нажмите «Посчитать» ещё раз.
+            после вечера / планшета нажмите «Посчитать» ещё раз. Бургер справа от недель — все
+            закрытия зала за месяц.
           </p>
         </div>
         <div className="sales-playbook__month-kpi">
@@ -79,29 +81,32 @@ export function SalesStrategyPlaybookSection({
         </div>
       </header>
 
-      <div className="sales-playbook__weeks" role="tablist" aria-label="Недели плана">
-        {playbook.weeks.map((w, i) => {
-          const done = Math.min(100, Math.max(0, Number(w.progress?.pct) || 0))
-          return (
-            <button
-              key={w.label}
-              type="button"
-              role="tab"
-              aria-selected={i === active}
-              className={`sales-playbook__week-chip${i === active ? ' is-active' : ''}${
-                w.isCurrent ? ' is-current' : ''
-              }${w.isPast ? ' is-past' : ''}`}
-              onClick={() => setActive(i)}
-            >
-              <span className="sales-playbook__week-chip-label">{w.label}</span>
-              <span className="sales-playbook__week-chip-pct">{done}%</span>
-              <span className="sales-playbook__week-chip-meta muted">
-                {w.endingsOpenCount ?? w.endingsCount} откр.
-                {(w.endingsConfirmedCount ?? 0) > 0 ? ` · ${w.endingsConfirmedCount} ✓` : ''}
-              </span>
-            </button>
-          )
-        })}
+      <div className="sales-playbook__weeks-row">
+        <div className="sales-playbook__weeks" role="tablist" aria-label="Недели плана">
+          {playbook.weeks.map((w, i) => {
+            const done = Math.min(100, Math.max(0, Number(w.progress?.pct) || 0))
+            return (
+              <button
+                key={w.label}
+                type="button"
+                role="tab"
+                aria-selected={i === active}
+                className={`sales-playbook__week-chip${i === active ? ' is-active' : ''}${
+                  w.isCurrent ? ' is-current' : ''
+                }${w.isPast ? ' is-past' : ''}`}
+                onClick={() => setActive(i)}
+              >
+                <span className="sales-playbook__week-chip-label">{w.label}</span>
+                <span className="sales-playbook__week-chip-pct">{done}%</span>
+                <span className="sales-playbook__week-chip-meta muted">
+                  {w.endingsOpenCount ?? w.endingsCount} откр.
+                  {(w.endingsConfirmedCount ?? 0) > 0 ? ` · ${w.endingsConfirmedCount} ✓` : ''}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+        <SalesStrategyPlaybookHallListsMenu playbook={playbook} clubId={clubId} />
       </div>
 
       <SalesStrategyPlaybookWeekCard week={week} clubId={clubId} />
