@@ -103,11 +103,11 @@ function remainingTrainingsOnMembership(membership, clientTrainings) {
  */
 export function AdminClients({ accessMode = 'admin' } = {}) {
   const isSalesManager = accessMode === 'sales_manager'
-  const { profile } = useAuth()
+  const { user } = useAuth()
   const ctx = useOutletContext()
   const navigate = useNavigate()
   const clubIdCtx = isSalesManager
-    ? String(profile?.club_id ?? '').trim()
+    ? String(user?.club_id ?? '').trim()
     : String(ctx?.clubId ?? '').trim()
   const clientsBasePath = isSalesManager ? '/sales/clients' : '/admin/clients'
   /** Жёсткое удаление каскадом трогает тренировки — только админ. */
@@ -840,11 +840,15 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
             {smsFeedback.msg}
           </p>
         ) : null}
-        {cloudNeedsClub ? (
+        {cloudNeedsClub && !isSalesManager ? (
           <p className="muted admin-clients-workspace__note">
             В облачном режиме выберите <strong>клуб</strong> в панели выше — иначе список клиентов не загружается.
           </p>
-        ) : (
+        ) : cloudNeedsClub && isSalesManager && club ? (
+          <p className="muted admin-clients-workspace__note">
+            Не удалось подтянуть список из облака — показан локальный кэш. Нажмите обновить.
+          </p>
+        ) : !cloudNeedsClub ? (
           <p className="muted admin-clients-workspace__meta">
             {source === 'remote' || source === 'admin_api' ? (
               <>Данные из <strong>Supabase</strong>{source === 'admin_api' ? ' (через сервер приложения)' : ''}</>
@@ -855,7 +859,7 @@ export function AdminClients({ accessMode = 'admin' } = {}) {
               </>
             )}
           </p>
-        )}
+        ) : null}
         {fallback ? (
           <p className="admin-inline-note admin-clients-workspace__note" style={{ color: 'var(--danger)' }} role="alert">
             Не удалось загрузить с сервера: {fallback}
