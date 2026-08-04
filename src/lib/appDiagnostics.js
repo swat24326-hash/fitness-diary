@@ -85,7 +85,7 @@ export function suggestErrorHint(row) {
     return 'Запись уже есть в облаке. Обычно помогает повторная синхронизация.'
   }
   if (
-    /dynamically imported module|failed to fetch dynamically|importing a module script failed|loading chunk|chunkloaderror|vite:preload/i.test(
+    /dynamically imported module|failed to fetch dynamically|importing a module script failed|loading chunk|chunkloaderror|vite:preload|MIME type of ["']?text\/html|Expected a JavaScript-or-Wasm module script|reading ['"]PwaUpdatePrompt['"]|reading ['"]AppUpdatedBanner['"]/i.test(
       text,
     )
   ) {

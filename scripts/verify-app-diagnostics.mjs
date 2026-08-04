@@ -64,6 +64,16 @@ assert.ok(
   ),
   'stale chunk detector',
 )
+assert.ok(
+  isViteStaleChunkError(
+    new Error('Failed to load module script: Expected a JavaScript-or-Wasm module script but the server responded with a MIME type of "text/html".'),
+  ),
+  'mime html as js is stale chunk',
+)
+assert.ok(
+  isViteStaleChunkError(new Error("Cannot read properties of undefined (reading 'PwaUpdatePrompt')")),
+  'broken lazy export is stale chunk',
+)
 assert.ok(!isViteStaleChunkError(new Error('Failed to fetch')), 'ordinary network is not chunk')
 
 const queue = [{ table_name: 'trainings', operation: 'insert', local_id: 'abc', retry_count: 1 }]

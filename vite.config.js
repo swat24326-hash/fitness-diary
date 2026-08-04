@@ -82,8 +82,27 @@ export default defineConfig(({ mode }) => ({
           /* Supabase (PostgREST / Auth) — не регистрировать в SW: иначе при сбое сети Workbox
              отдаёт no-response вместо нормальной ошибки fetch, и приложение «висит» на загрузке. */
           {
+            /* JS: не CacheFirst — иначе после деплоя HTML-fallback 404 кэшируется как «скрипт». */
+            urlPattern: ({ request }) => request.destination === 'script',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'assets-scripts',
+              networkTimeoutSeconds: 4,
+              expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 7 },
+              plugins: [
+                {
+                  cacheWillUpdate: async ({ response }) => {
+                    if (!response || !response.ok) return null
+                    const ct = String(response.headers.get('content-type') || '')
+                    if (ct.includes('text/html')) return null
+                    return response
+                  },
+                },
+              ],
+            },
+          },
+          {
             urlPattern: ({ request }) =>
-              request.destination === 'script' ||
               request.destination === 'style' ||
               request.destination === 'image' ||
               request.destination === 'font',

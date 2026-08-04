@@ -32,13 +32,34 @@ import { TrainerChallengeDetail } from './pages/trainer/TrainerChallengeDetail'
 import { TrainingPage } from './pages/trainer/TrainingPage'
 
 /** В dev virtual:pwa-register недоступен — только prod, внутри Router (нужен useLocation). */
-const PwaUpdatePromptLazy = import.meta.env.PROD
-  ? lazy(() => import('./components/PwaUpdatePrompt.jsx').then((m) => ({ default: m.PwaUpdatePrompt })))
-  : () => null
+function lazyPwaOverlay(importer, exportName) {
+  if (!import.meta.env.PROD) return () => null
+  return lazy(() =>
+    importer()
+      .then((m) => {
+        const Comp = m?.[exportName]
+        if (!Comp) {
+          throw new Error(`Failed to fetch dynamically imported module: ${exportName}`)
+        }
+        return { default: Comp }
+      })
+      .catch(async (err) => {
+        const { recoverFromStaleViteDeploy } = await import('./lib/viteChunkReload.js')
+        await recoverFromStaleViteDeploy()
+        throw err
+      }),
+  )
+}
 
-const AppUpdatedBannerLazy = import.meta.env.PROD
-  ? lazy(() => import('./components/AppUpdatedBanner.jsx').then((m) => ({ default: m.AppUpdatedBanner })))
-  : () => null
+const PwaUpdatePromptLazy = lazyPwaOverlay(
+  () => import('./components/PwaUpdatePrompt.jsx'),
+  'PwaUpdatePrompt',
+)
+
+const AppUpdatedBannerLazy = lazyPwaOverlay(
+  () => import('./components/AppUpdatedBanner.jsx'),
+  'AppUpdatedBanner',
+)
 
 function AppPwaOverlays() {
   if (!import.meta.env.PROD) return null

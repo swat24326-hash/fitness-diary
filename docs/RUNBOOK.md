@@ -63,7 +63,7 @@
 
 **Причины:** кэш PWA (service worker), старая вкладка. Подробнее про установку и SW: [PWA.md](./PWA.md).
 
-**В журнале:** `Failed to fetch dynamically imported module: …/PwaUpdatePrompt-….js` (или другой chunk) — старая вкладка после деплоя, **не** сеть и не Sync. **Ctrl+F5** или закрыть/открыть PWA; в новых сборках — один авто-reload (`viteChunkReload.js`).
+**В журнале:** `Failed to fetch dynamically imported module: …/PwaUpdatePrompt-….js`, MIME `text/html` вместо JS, или чёрный экран после деплоя — старая вкладка/кэш PWA, **не** сеть и не Sync. **Ctrl+F5**; если не помогло — очистить данные сайта для fitness-diary / переустановить ярлык PWA. В новых сборках — авто-reload + сброс SW (`viteChunkReload.js`).
 
 **Действия (актуальные сборки):**
 
