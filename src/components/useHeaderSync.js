@@ -286,10 +286,25 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
       if (isSupabaseConfigured() && !flushDesc.offline) {
         try {
           if (isSalesManager) {
-            // Очередь + типы абон. (АЗ-колонки отчёта). Цифры дня — через «Обновить» на странице продаж.
+            // Очередь + клиенты/абоны клуба + типы абон. Цифры дня — «Обновить» на странице продаж.
             const club = String(user?.club_id ?? '').trim()
             if (club) {
-              bumpSyncProgress(82, 'Типы абонементов…')
+              bumpSyncProgress(80, 'Клиенты клуба…')
+              try {
+                const pull = await pullAdminClientsFromCloud(club)
+                if (pull?.ok) {
+                  parts.push(`клиенты (${pull.count ?? 0})`)
+                } else {
+                  hadError = true
+                  parts.push(`клиенты: ${pull?.reason ?? pull?.error ?? 'ошибка'}`)
+                  recordSyncPullIssue('клиенты клуба', pull?.reason ?? pull?.error)
+                }
+              } catch (e) {
+                hadError = true
+                parts.push(`клиенты: ${e?.message ?? 'ошибка'}`)
+                recordSyncPullIssue('клиенты клуба', e?.message)
+              }
+              bumpSyncProgress(86, 'Типы абонементов…')
               try {
                 const { pullMembershipTypesForClubFromCloud } = await import('../lib/pullReferenceData')
                 const mtPull = await pullMembershipTypesForClubFromCloud(club, { forceFromCloud: true })

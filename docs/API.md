@@ -19,7 +19,7 @@
 | `/api/me-profile` | Профиль текущего пользователя |
 | `/api/list-clients` | Список клиентов клуба (admin / sales_manager своего клуба) |
 | `/api/list-trainers` | Список тренеров (admin / trainer; sales_manager — только свой клуб) |
-| `/api/list-memberships` | Абонементы |
+| `/api/list-memberships` | Абонементы клуба (admin / sales_manager своего клуба) |
 | `/api/get-client` | Один клиент (admin / trainer свои / sales_manager своего клуба). Query: `client_id`, опционально `scope=full\|glance` (glance — клиент + абоны, без дневника; desk ТЗ/АЗ и lite-ПЗ без планшета) |
 | `/api/create-trainer` | Создание тренера (service role на сервере) |
 | `/api/update-trainer-club` | Смена клуба тренера |

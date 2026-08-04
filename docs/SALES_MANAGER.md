@@ -177,7 +177,7 @@
 - Карточка из **Стратегии** (закрытия ДК): `from=strategy` — «назад» снова на Стратегию, не в Клиенты. То же для ПНК/заявок (`from=pnk|clips`).
 - Главная менеджера: плитки **двумя рядами** — «День в зале» (Клиенты · ПНК · Заявка · Планёрка) и «Отчёты и рост» (Отчёт · Статистика · Аналитика · Стратегия · Прайс); у каждой короткая подпись.
 - Карточка: `/sales/clients/:id` — desk / lite / полный просмотр; тренировки не стартует. Открытие local-first + лёгкий `get-client?scope=glance` для desk ТЗ/АЗ и lite-ПЗ. Список **keep-alive**: при карточке не размонтируется (скрыт) — «назад» без мигания; плюс memory/IDB кэш.
-- API: `list-clients`, `get-client`, `search`, `clients-last-trainings`, `list-trainers` (свой клуб); push `clients` + `memberships` только своего клуба.
+- API: `list-clients`, `list-memberships`, `get-client`, `search`, `clients-last-trainings`, `list-trainers` (свой клуб); push `clients` + `memberships` только своего клуба. Sync менеджера подтягивает клиентов и абоны клуба.
 - **Не** отдаём: финансы (зона B), жёсткое удаление ПЗ/lite, чужой клуб. Удаление desk **ТЗ/АЗ** — да (меню «Удалить» на вкладках ТЗ/АЗ); push через `/api/push-record(s)` (роль менеджера допускается, дальше `authorizePush`).
 - Verify: `scripts/verify-sales-manager-clients.mjs`.
 
