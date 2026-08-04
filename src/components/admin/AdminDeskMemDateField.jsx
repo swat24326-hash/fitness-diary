@@ -3,9 +3,20 @@ import { Calendar } from 'lucide-react'
 import { formatDateRu, openNativeDatePicker, parseFlexibleDateToIso } from '../../lib/dateRu.js'
 
 /**
- * Дата абона desk: ввод дд.мм.гггг + кнопка календаря (нативный type=date на тёмной теме часто «не кликается»).
+ * Дата desk: ввод дд.мм.гггг + кнопка календаря (нативный type=date на тёмной теме часто «не кликается»).
+ * @param {{
+ *   value?: string,
+ *   onChange?: (iso: string) => void,
+ *   'aria-label'?: string,
+ *   allowEmpty?: boolean,
+ * }} props
  */
-export function AdminDeskMemDateField({ value = '', onChange, 'aria-label': ariaLabel = 'Дата' }) {
+export function AdminDeskMemDateField({
+  value = '',
+  onChange,
+  'aria-label': ariaLabel = 'Дата',
+  allowEmpty = false,
+}) {
   const iso = parseFlexibleDateToIso(value) || ''
   const [text, setText] = useState(() => (iso ? formatDateRu(iso) : ''))
   const nativeRef = useRef(null)
@@ -16,7 +27,14 @@ export function AdminDeskMemDateField({ value = '', onChange, 'aria-label': aria
   }, [value])
 
   const commitText = (raw) => {
-    const parsed = parseFlexibleDateToIso(raw)
+    const trimmed = String(raw ?? '').trim()
+    if (!trimmed) {
+      setText('')
+      if (allowEmpty && iso) onChange?.('')
+      else if (!allowEmpty && iso) setText(formatDateRu(iso))
+      return
+    }
+    const parsed = parseFlexibleDateToIso(trimmed)
     if (parsed) {
       setText(formatDateRu(parsed))
       if (parsed !== iso) onChange?.(parsed)
@@ -61,7 +79,13 @@ export function AdminDeskMemDateField({ value = '', onChange, 'aria-label': aria
         aria-hidden
         onChange={(e) => {
           const v = String(e.target.value || '').slice(0, 10)
-          if (!v) return
+          if (!v) {
+            if (allowEmpty) {
+              setText('')
+              onChange?.('')
+            }
+            return
+          }
           setText(formatDateRu(v))
           onChange?.(v)
         }}

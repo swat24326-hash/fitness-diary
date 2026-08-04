@@ -5,10 +5,12 @@ import { saveLocalWithSync } from '../../lib/syncService.js'
 import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
 import { formatClientName } from '../../lib/clientNameFormat.js'
 import { AdminDeskMembershipLedger } from './AdminDeskMembershipLedger.jsx'
+import { AdminDeskMemDateField } from './AdminDeskMemDateField.jsx'
+import { parseFlexibleDateToIso } from '../../lib/dateRu.js'
 import '../../styles/admin-desk.css'
 
 /**
- * Лёгкая карточка ПЗ: тренер без планшета — контакты + учёт абонов (не desk ТЗ/АЗ).
+ * Лёгкая карточка ПЗ: тренер без планшета — контакты + ДР + учёт абонов (не desk ТЗ/АЗ).
  */
 export function AdminLitePzClientCardSection({
   client,
@@ -25,6 +27,7 @@ export function AdminLitePzClientCardSection({
     name: '',
     phone: '',
     card_number: '',
+    birth_date: '',
   })
 
   useEffect(() => {
@@ -32,6 +35,7 @@ export function AdminLitePzClientCardSection({
       name: client?.name ?? '',
       phone: client?.phone ?? '',
       card_number: client?.card_number ?? '',
+      birth_date: parseFlexibleDateToIso(client?.birth_date) || '',
     })
   }, [client])
 
@@ -52,11 +56,13 @@ export function AdminLitePzClientCardSection({
     setBusy(true)
     setError('')
     try {
+      const birthIso = parseFlexibleDateToIso(form.birth_date) || null
       const clientRow = {
         ...client,
         name,
         phone: String(form.phone ?? '').trim() || null,
         card_number: String(form.card_number ?? '').trim() || null,
+        birth_date: birthIso,
         trainer_id: client.trainer_id,
         desk_hall: null,
       }
@@ -114,6 +120,15 @@ export function AdminLitePzClientCardSection({
                 value={form.card_number}
                 onChange={(e) => setField('card_number', e.target.value)}
                 inputMode="numeric"
+              />
+            </label>
+            <label>
+              Дата рождения
+              <AdminDeskMemDateField
+                value={form.birth_date}
+                allowEmpty
+                aria-label="Дата рождения"
+                onChange={(iso) => setField('birth_date', iso)}
               />
             </label>
           </div>

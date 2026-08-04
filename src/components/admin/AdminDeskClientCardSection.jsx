@@ -6,10 +6,12 @@ import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
 import { normalizeDeskHall } from '../../lib/admin/deskHallClientsCore.js'
 import { formatClientName } from '../../lib/clientNameFormat.js'
 import { AdminDeskMembershipLedger } from './AdminDeskMembershipLedger.jsx'
+import { AdminDeskMemDateField } from './AdminDeskMemDateField.jsx'
+import { parseFlexibleDateToIso } from '../../lib/dateRu.js'
 import '../../styles/admin-desk.css'
 
 /**
- * Desk-карточка ТЗ/АЗ без тренера: контакты + учёт абонов (пакет по сроку, цена).
+ * Desk-карточка ТЗ/АЗ без тренера: контакты + ДР + учёт абонов.
  */
 export function AdminDeskClientCardSection({
   client,
@@ -26,6 +28,7 @@ export function AdminDeskClientCardSection({
     phone: '',
     card_number: '',
     desk_hall: '',
+    birth_date: '',
   })
 
   useEffect(() => {
@@ -34,6 +37,7 @@ export function AdminDeskClientCardSection({
       phone: client?.phone ?? '',
       card_number: client?.card_number ?? '',
       desk_hall: normalizeDeskHall(client?.desk_hall) || '',
+      birth_date: parseFlexibleDateToIso(client?.birth_date) || '',
     })
   }, [client])
 
@@ -55,11 +59,13 @@ export function AdminDeskClientCardSection({
     setBusy(true)
     setError('')
     try {
+      const birthIso = parseFlexibleDateToIso(form.birth_date) || null
       const clientRow = {
         ...client,
         name,
         phone: String(form.phone ?? '').trim() || null,
         card_number: String(form.card_number ?? '').trim() || null,
+        birth_date: birthIso,
         trainer_id: null,
         desk_hall: hall,
       }
@@ -126,6 +132,15 @@ export function AdminDeskClientCardSection({
                 <option value="tz">ТЗ</option>
                 <option value="az">АЗ</option>
               </select>
+            </label>
+            <label>
+              Дата рождения
+              <AdminDeskMemDateField
+                value={form.birth_date}
+                allowEmpty
+                aria-label="Дата рождения"
+                onChange={(iso) => setField('birth_date', iso)}
+              />
             </label>
           </div>
         </div>
