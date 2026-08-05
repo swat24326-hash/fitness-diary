@@ -25,6 +25,23 @@
   max-width: 52rem;
 }
 
+.deletion-audit__memo {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 14px;
+  line-height: 1.45;
+  max-width: 52rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent, #3d8) 35%, transparent);
+  background: color-mix(in srgb, var(--accent, #3d8) 12%, transparent);
+}
+
+.deletion-audit__code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1.05em;
+  letter-spacing: 0.06em;
+}
+
 .deletion-audit__toolbar {
   display: flex;
   flex-wrap: wrap;

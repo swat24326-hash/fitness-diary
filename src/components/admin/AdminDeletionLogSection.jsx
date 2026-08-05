@@ -7,6 +7,7 @@ import {
   formatDeletionAuditClient,
   formatDeletionAuditMeta,
 } from '../../lib/admin/deletionAuditFormatCore.js'
+import { CLIENT_HARD_DELETE_CONFIRM_CODE } from '../../lib/clientHardDeleteConfirmCore.js'
 import { formatDateRu } from '../../lib/dateRu.js'
 import '../../styles/deletion-audit.css'
 
@@ -73,6 +74,11 @@ export function AdminDeletionLogSection({ clubId = '', listBackHref = '/admin/cl
       <p className="muted deletion-audit__hint">
         Кто и когда удалил карточку клиента (не архив). История тренировок при удалении не восстанавливается —
         запись нужна, чтобы закрыть спор «куда пропала карточка».
+      </p>
+      <p className="deletion-audit__memo" role="note">
+        <strong>Памятка:</strong> код подтверждения полного удаления карточки —{' '}
+        <code className="deletion-audit__code">{CLIENT_HARD_DELETE_CONFIRM_CODE}</code>
+        . В модалке код не подсказывают; лучше архивировать, чем стирать.
       </p>
       <div className="deletion-audit__toolbar">
         <input

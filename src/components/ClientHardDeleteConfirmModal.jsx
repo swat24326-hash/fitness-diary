@@ -1,11 +1,10 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import {
-  CLIENT_HARD_DELETE_CONFIRM_CODE,
   isClientHardDeleteConfirmCode,
 } from '../lib/clientHardDeleteConfirmCore.js'
 
 /**
- * Модалка жёсткого удаления клиента: без кода 0000 кнопка «Да, удалить» неактивна.
+ * Модалка жёсткого удаления клиента: без верного кода кнопка «Да, удалить» неактивна.
  * @param {{
  *   open: boolean,
  *   clientName?: string,
@@ -65,7 +64,7 @@ export function ClientHardDeleteConfirmModal({
           {extraNote}
         </p>
         <label className="field" style={{ display: 'block', marginTop: 16 }}>
-          <span className="label">Для подтверждения введите код {CLIENT_HARD_DELETE_CONFIRM_CODE}</span>
+          <span className="label">Код подтверждения</span>
           <input
             ref={inputRef}
             className="input"
@@ -75,7 +74,6 @@ export function ClientHardDeleteConfirmModal({
             maxLength={8}
             value={code}
             disabled={busy}
-            placeholder={CLIENT_HARD_DELETE_CONFIRM_CODE}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && codeOk && !busy) {
@@ -83,7 +81,7 @@ export function ClientHardDeleteConfirmModal({
                 onConfirm?.()
               }
             }}
-            aria-label={`Код подтверждения удаления ${CLIENT_HARD_DELETE_CONFIRM_CODE}`}
+            aria-label="Код подтверждения удаления"
           />
         </label>
         {!codeOk && code.length > 0 ? (

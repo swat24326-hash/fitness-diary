@@ -15,11 +15,11 @@ function ok(cond, msg) {
   }
 }
 
-ok(CLIENT_HARD_DELETE_CONFIRM_CODE === '0000', 'code constant')
-ok(isClientHardDeleteConfirmCode('0000'), 'exact')
-ok(isClientHardDeleteConfirmCode(' 0000 '), 'trim')
-ok(!isClientHardDeleteConfirmCode('000'), 'too short')
-ok(!isClientHardDeleteConfirmCode('0001'), 'wrong')
+ok(CLIENT_HARD_DELETE_CONFIRM_CODE === '124578', 'code constant')
+ok(isClientHardDeleteConfirmCode('124578'), 'exact')
+ok(isClientHardDeleteConfirmCode(' 124578 '), 'trim')
+ok(!isClientHardDeleteConfirmCode('12457'), 'too short')
+ok(!isClientHardDeleteConfirmCode('0000'), 'old code')
 ok(!isClientHardDeleteConfirmCode(''), 'empty')
 
 if (failed) process.exit(1)
