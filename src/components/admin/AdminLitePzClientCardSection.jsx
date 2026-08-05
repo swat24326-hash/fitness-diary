@@ -6,7 +6,7 @@ import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
 import { formatClientName } from '../../lib/clientNameFormat.js'
 import { AdminDeskMembershipLedger } from './AdminDeskMembershipLedger.jsx'
 import { AdminDeskMemDateField } from './AdminDeskMemDateField.jsx'
-import { parseFlexibleDateToIso } from '../../lib/dateRu.js'
+import { parseFlexibleDateToIso, birthDateYearBounds } from '../../lib/dateRu.js'
 import '../../styles/admin-desk.css'
 
 /**
@@ -35,7 +35,7 @@ export function AdminLitePzClientCardSection({
       name: client?.name ?? '',
       phone: client?.phone ?? '',
       card_number: client?.card_number ?? '',
-      birth_date: parseFlexibleDateToIso(client?.birth_date) || '',
+      birth_date: parseFlexibleDateToIso(client?.birth_date, birthDateYearBounds()) || '',
     })
   }, [client])
 
@@ -56,7 +56,7 @@ export function AdminLitePzClientCardSection({
     setBusy(true)
     setError('')
     try {
-      const birthIso = parseFlexibleDateToIso(form.birth_date) || null
+      const birthIso = parseFlexibleDateToIso(form.birth_date, birthDateYearBounds()) || null
       const clientRow = {
         ...client,
         name,
@@ -127,6 +127,7 @@ export function AdminLitePzClientCardSection({
               <AdminDeskMemDateField
                 value={form.birth_date}
                 allowEmpty
+                birthDate
                 aria-label="Дата рождения"
                 onChange={(iso) => setField('birth_date', iso)}
               />

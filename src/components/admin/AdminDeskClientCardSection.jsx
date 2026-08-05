@@ -7,7 +7,7 @@ import { normalizeDeskHall } from '../../lib/admin/deskHallClientsCore.js'
 import { formatClientName } from '../../lib/clientNameFormat.js'
 import { AdminDeskMembershipLedger } from './AdminDeskMembershipLedger.jsx'
 import { AdminDeskMemDateField } from './AdminDeskMemDateField.jsx'
-import { parseFlexibleDateToIso } from '../../lib/dateRu.js'
+import { birthDateYearBounds, parseFlexibleDateToIso } from '../../lib/dateRu.js'
 import '../../styles/admin-desk.css'
 
 /**
@@ -37,7 +37,7 @@ export function AdminDeskClientCardSection({
       phone: client?.phone ?? '',
       card_number: client?.card_number ?? '',
       desk_hall: normalizeDeskHall(client?.desk_hall) || '',
-      birth_date: parseFlexibleDateToIso(client?.birth_date) || '',
+      birth_date: parseFlexibleDateToIso(client?.birth_date, birthDateYearBounds()) || '',
     })
   }, [client])
 
@@ -59,7 +59,7 @@ export function AdminDeskClientCardSection({
     setBusy(true)
     setError('')
     try {
-      const birthIso = parseFlexibleDateToIso(form.birth_date) || null
+      const birthIso = parseFlexibleDateToIso(form.birth_date, birthDateYearBounds()) || null
       const clientRow = {
         ...client,
         name,
@@ -138,6 +138,7 @@ export function AdminDeskClientCardSection({
               <AdminDeskMemDateField
                 value={form.birth_date}
                 allowEmpty
+                birthDate
                 aria-label="Дата рождения"
                 onChange={(iso) => setField('birth_date', iso)}
               />

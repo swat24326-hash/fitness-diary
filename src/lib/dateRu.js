@@ -76,20 +76,36 @@ export function formatDateRu(isoLike) {
 }
 
 /**
- * Гибкий разбор даты для админ/менеджерских полей: ISO или дд.мм.гггг.
+ * Маска ввода дд.мм.гггг пока печатают цифры (01031999 → 01.03.1999).
  * @param {unknown} raw
+ * @returns {string}
+ */
+export function maskRuDateDigitsInput(raw) {
+  const digits = String(raw ?? '').replace(/\D/g, '').slice(0, 8)
+  if (digits.length <= 2) return digits
+  if (digits.length <= 4) return `${digits.slice(0, 2)}.${digits.slice(2)}`
+  return `${digits.slice(0, 2)}.${digits.slice(2, 4)}.${digits.slice(4)}`
+}
+
+/**
+ * Гибкий разбор даты для админ/менеджерских полей: ISO, дд.мм.гггг или 8 цифр.
+ * @param {unknown} raw
+ * @param {{ minYear?: number, maxYear?: number }} [opts]
  * @returns {string} YYYY-MM-DD или ''
  */
-export function parseFlexibleDateToIso(raw) {
+export function parseFlexibleDateToIso(raw, opts = {}) {
   const s = String(raw ?? '').trim()
   if (!s) return ''
+
+  const minYear = Number.isFinite(Number(opts?.minYear)) ? Number(opts.minYear) : 1920
+  const maxYear = Number.isFinite(Number(opts?.maxYear)) ? Number(opts.maxYear) : 2100
 
   const tryYmd = (y, m, d) => {
     const yy = Number(y)
     const mm = Number(m)
     const dd = Number(d)
     if (!Number.isFinite(yy) || !Number.isFinite(mm) || !Number.isFinite(dd)) return ''
-    if (yy < 1990 || yy > 2100 || mm < 1 || mm > 12 || dd < 1 || dd > 31) return ''
+    if (yy < minYear || yy > maxYear || mm < 1 || mm > 12 || dd < 1 || dd > 31) return ''
     const dt = new Date(yy, mm - 1, dd)
     if (dt.getFullYear() !== yy || dt.getMonth() !== mm - 1 || dt.getDate() !== dd) return ''
     return `${yy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`
@@ -102,7 +118,21 @@ export function parseFlexibleDateToIso(raw) {
   const ru = s.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/)
   if (ru) return tryYmd(ru[3], ru[2], ru[1])
 
+  const digits = s.replace(/\D/g, '')
+  if (digits.length === 8) {
+    return tryYmd(digits.slice(4, 8), digits.slice(2, 4), digits.slice(0, 2))
+  }
+
   return ''
+}
+
+/**
+ * Годы для даты рождения (не абонементный горизонт 1990+).
+ * @returns {{ minYear: number, maxYear: number }}
+ */
+export function birthDateYearBounds() {
+  const maxYear = Number(todayLocalIso().slice(0, 4)) || new Date().getFullYear()
+  return { minYear: 1920, maxYear }
 }
 
 export function formatDateTimeRu(isoLike) {
