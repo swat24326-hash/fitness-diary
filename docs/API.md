@@ -52,6 +52,7 @@
 | `iskra-settings`, `iskra-learning`, `iskra-dispatch`, `iskra-tts` | admin (+ dispatch шире) | Настройки, обучение, задания, neural озвучка |
 | `challenges`, `challenge-trainings`, `exercises`, `exercises-meta` | admin / trainer | Справочники |
 | `trainer-self-stats` | trainer (свой клуб) / admin+trainer_id | ЗП день/месяц + сводка периода (сервер) |
+| `trainer-self-journal` | trainer (свой клуб) / admin+trainer_id | Список завершённых тренировок за период (для журнала на планшете; тот же контур, что цифры stats) |
 | `push-subscription` | admin / trainer / sales_manager | VAPID public key |
 | `membership-types` | admin / trainer / sales_manager (свой клуб) | Справочник типов абон. включая АЗ для колонок отчёта |
 | `club-sms` | admin / sales_manager | Статус Мои Звонки (`configured`, `templates`, `club_name`); `&logs=1&since_days=` — журнал `club_sms_log` |

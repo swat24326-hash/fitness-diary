@@ -18,6 +18,7 @@ import { handleIskraTtsPost } from './_lib/iskraTtsHandler.js'
 import { handlePushSubscriptionGet, handlePushSubscriptionPost } from './_lib/pushSubscriptionHandler.js'
 import { handleResetTrainerPasswordPost, handleSetTrainerActivePost, handleSetTrainerUsesTabletPost } from './_lib/trainerAuthAdmin.js'
 import { handleTrainerSelfStatsGet } from './_lib/adminData/trainerSelfStatsHandler.js'
+import { handleTrainerSelfJournalGet } from './_lib/adminData/trainerSelfJournalHandler.js'
 import { handleSearch, handleJournal, handleClientsLastTrainings } from './_lib/adminData/journalHandlers.js'
 import { handleClubStats, handleCoachQuality, handleHealthCards, handleClubMonthly } from './_lib/adminData/clubHandlers.js'
 import {
@@ -226,6 +227,7 @@ async function handler(req, res) {
     'iskra-dispatch',
     'push-subscription',
     'trainer-self-stats',
+    'trainer-self-journal',
     'coach-quality',
   ])
 
@@ -238,6 +240,13 @@ async function handler(req, res) {
         return
       }
       return handleTrainerSelfStatsGet(authCtx, req, res)
+    }
+    if (action === 'trainer-self-journal') {
+      if (!authCtx.isAdmin && !authCtx.isTrainer) {
+        sendJson(res, 403, { error: 'Нет доступа' })
+        return
+      }
+      return handleTrainerSelfJournalGet(authCtx, req, res)
     }
     if (action === 'coach-quality') {
       if (authCtx.isAdmin) {

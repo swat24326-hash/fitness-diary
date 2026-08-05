@@ -49,6 +49,7 @@
 | Шаг формы при сплите черновиков | `verify-training-form-step-memory.mjs` |
 | Статистика тренера: облако за период (не только IDB) | `verify-trainer-period-stats-remote.mjs` |
 | Журнал тренировок: ФИО архивных клиентов (не UUID) | `verify-trainer-journal-clients.mjs` |
+| Журнал тренера: фильтр completed за период | `verify-trainer-journal-filter.mjs` |
 | Профиль тренера: ФИО в «Не активные» из локального кэша | `verify-enrich-inactive-clients-local.mjs` |
 | Главная: ряд внимания / soft signals | `verify-admin-home-attention.mjs` |
 | Список клиентов: точка/подпись абонемента | `verify-client-list-signals.mjs` |

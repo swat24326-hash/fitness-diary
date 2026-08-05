@@ -93,6 +93,8 @@ export function TrainerStatisticsSection() {
 
   const [filteredTrainings, setFilteredTrainings] = useState([])
   const [clients, setClients] = useState({})
+  const [journalSource, setJournalSource] = useState('local')
+  const [journalFallback, setJournalFallback] = useState(null)
   const [page, setPage] = useState(0)
   const [pageSize, setPageSize] = useState(ADMIN_JOURNAL_DEFAULT_PAGE_SIZE)
   const [previewTraining, setPreviewTraining] = useState(null)
@@ -162,6 +164,8 @@ export function TrainerStatisticsSection() {
     if (!journalOpen || !trainerId || !statsRange.start || !statsRange.end) {
       setFilteredTrainings([])
       setClients({})
+      setJournalSource('local')
+      setJournalFallback(null)
       setHealthByClientId({})
       return
     }
@@ -177,10 +181,14 @@ export function TrainerStatisticsSection() {
       if (seq !== loadSeqRef.current) return
       setClients(j.clientsById)
       setFilteredTrainings(j.trainings)
+      setJournalSource(j.source || 'local')
+      setJournalFallback(j.fallbackReason ?? null)
     } catch {
       if (seq !== loadSeqRef.current) return
       setFilteredTrainings([])
       setClients({})
+      setJournalSource('local')
+      setJournalFallback('Не удалось загрузить журнал')
     } finally {
       if (seq === loadSeqRef.current && !silent) setBusy(false)
     }
@@ -321,8 +329,21 @@ export function TrainerStatisticsSection() {
           </div>
           <p className="muted" style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.45 }}>
             Завершённые тренировки по вашим клиентам за период (
-            {statsRange.start && statsRange.end ? `${formatDateRu(statsRange.start)} — ${formatDateRu(statsRange.end)}` : '…'}). Данные с{' '}
-            <strong>устройства</strong> (IndexedDB).
+            {statsRange.start && statsRange.end
+              ? `${formatDateRu(statsRange.start)} — ${formatDateRu(statsRange.end)}`
+              : '…'}
+            ).{' '}
+            {journalSource === 'api' || journalSource === 'remote' || journalSource === 'remote_partial' ? (
+              <>
+                Данные с <strong>сервера</strong>
+                {journalSource === 'remote_partial' ? ' (частично)' : ''}.
+              </>
+            ) : (
+              <>
+                Данные с <strong>устройства</strong> (IndexedDB)
+                {journalFallback ? ` · запасной режим: ${journalFallback}` : ''}.
+              </>
+            )}
           </p>
           <div className="table-wrap">
             <table>
