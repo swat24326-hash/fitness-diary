@@ -4,7 +4,7 @@
 
 **С чего начать:** [PRODUCT_VISION.md](./PRODUCT_VISION.md) — крупная цель (ОС + CRM, замена 1С в операционке) → [BRAND_SYSTEM.md](./BRAND_SYSTEM.md) — продукт Ось vs клуб FIT-CITY → [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) — что в коде сегодня.
 
-**Системная карта (тонкие доки):** [API.md](./API.md) · [SYNC.md](./SYNC.md) · [DATA_MODEL.md](./DATA_MODEL.md) · [TESTING.md](./TESTING.md) · [PWA.md](./PWA.md)
+**Системная карта (тонкие доки):** [API.md](./API.md) · [SYNC.md](./SYNC.md) · [DATA_MODEL.md](./DATA_MODEL.md) · [TESTING.md](./TESTING.md) · [PWA.md](./PWA.md) · [ENGINEERING_MATURITY.md](./ENGINEERING_MATURITY.md)
 
 Также в корне: [CHANGELOG.md](../CHANGELOG.md) (заметки для зала), [CONTRIBUTING.md](../CONTRIBUTING.md) (как вносить изменения).
 
@@ -20,7 +20,7 @@
 | [RUNBOOK.md](./RUNBOOK.md) | Типовые инциденты: sync, PWA, клубы ≠ облако, статистика |
 | [SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md) | Auth, RLS, `users.id` перед крупным клубом |
 | [PUSH_SETUP.md](./PUSH_SETUP.md) | Web Push / VAPID (планёрка, задания) |
-| [MOIZVONKI_SETUP.md](./MOIZVONKI_SETUP.md) | Клубные SMS через «Мои Звонки» (env + MVP) |
+| [MOIZVONKI_SETUP.md](./MOIZVONKI_SETUP.md) | Клубные SMS «Мои Звонки»: **per-club** + запасной env |
 | [PWA.md](./PWA.md) | Установка на планшет, SW, обновление после деплоя |
 | [PAID_TIER_MIGRATION.md](./PAID_TIER_MIGRATION.md) | Переход Vercel/Supabase на платные тарифы |
 | [DEEP_AUDIT.md](./DEEP_AUDIT.md) | Глубокий аудит критических зон перед релизом |
@@ -36,6 +36,7 @@
 | [SYNC.md](./SYNC.md) | Очередь, flush → pull, allowlist таблиц |
 | [DATA_MODEL.md](./DATA_MODEL.md) | IDB stores ↔ сущности ↔ Postgres |
 | [TESTING.md](./TESTING.md) | `lint` / `qa:local` / verify / когда писать тест |
+| [ENGINEERING_MATURITY.md](./ENGINEERING_MATURITY.md) | Уровень разработки (слои, роли, что до FitBase-класса) |
 
 ---
 
@@ -51,7 +52,7 @@
 | [DATA_VOLUME.md](./DATA_VOLUME.md) | Оценка объёма БД, пороги pull-by-period |
 | [GROWTH_PLAYBOOK.md](./GROWTH_PLAYBOOK.md) | Журнал метрик клуба, когда переходить на Pro |
 | [CLIENT_ARCHIVE.md](./CLIENT_ARCHIVE.md) | Архив клиентов: sync и UI |
-| [OUTREACH_CHANNELS_ROADMAP.md](./OUTREACH_CHANNELS_ROADMAP.md) | Max ✅ + SMS «Мои Звонки» MVP |
+| [OUTREACH_CHANNELS_ROADMAP.md](./OUTREACH_CHANNELS_ROADMAP.md) | Max ✅ + SMS Мои Звонки ✅ (в т.ч. на клуб) + Max на доске менеджера |
 | [PRICE_LIST.md](./PRICE_LIST.md) | Прайс ПЗ по клубу (админ + облако `club_price_lists`) |
 
 ---
@@ -84,8 +85,8 @@
 | [SALES_MANAGER.md](./SALES_MANAGER.md) | ✅ роль/отчёт в проде; Excel = мост | Менеджер продаж + финансы |
 | [PZ_CLIENTS_ONBOARD.md](./PZ_CLIENTS_ONBOARD.md) | ✅ шпаргалка | Как завести клиентов ПЗ (вечерний Excel — переход; MVP оплат) |
 | [AZ_CLIENTS_ONBOARD.md](./AZ_CLIENTS_ONBOARD.md) | ✅ шпаргалка | Desk АЗ: сид, направления, списания; связь с доменом оплат |
-| [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) | 📋 ТЗ | Домен платежа; **MVP = ПЗ + АЗ** |
-| [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md) | ✅ код + миграция | Управляющий ≈ админ клуба; Настройки = Max/SMS; Структура → «Управляющие» |
+| [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) | 📋 ТЗ | Домен платежа; **MVP = ПЗ + АЗ**; потом касса на клуб |
+| [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md) | ✅ в проде | Управляющий ≠ тренер ≠ менеджер продаж; `/club` |
 | [CLUB_OPERATIONS_PLAN.md](./CLUB_OPERATIONS_PLAN.md) | план | Операции клуба в продукте |
 | [RELAY_OPERATIONS.md](./RELAY_OPERATIONS.md) | stub | Внешний «Релей» отложен |
 

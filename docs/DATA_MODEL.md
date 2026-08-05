@@ -1,6 +1,6 @@
 # Модель данных — IDB, сущности, Postgres
 
-**Актуально:** 2026-08-05. Эталон схемы: `supabase/schema.sql` + идемпотентные `supabase/migrations/`.  
+**Актуально:** 2026-08-06. Эталон схемы: `supabase/schema.sql` + идемпотентные `supabase/migrations/`.  
 Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/lib/membershipRules.js`.
 
 ---
@@ -24,11 +24,23 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | `homework_presets` | `id` | Шаблоны ДЗ |
 | `client_weight_entries` | `id` | Вес |
 | `outreach_log` | `id` | Касания / Max-очередь (локальный журнал; кэш club SMS) |
-| `club_iskra_settings` | `club_id` | Настройки ИСКРЫ на клуб (`outreach_templates` — Max тренера; `club_sms_templates` — SMS клуба) |
+| `club_iskra_settings` | `club_id` | ИСКРА + outreach: `outreach_templates` (Max тренера); `club_sms_templates` (SMS клуба); **`moizvonki`** jsonb — аккаунт «Мои Звонки» на клуб (`api_key`, `user_email`, `api_base`; только server-side) |
 | `pnk_funnel_events` | `id` | Журнал ПНК |
 | `sale_clips` | `id` | Клип-карты (awaiting → done на планшете); pull тренеру |
 
-Postgres (не IDB): **`club_sms_log`** — облачный журнал SMS клуба (кто / кому / сценарий / превью); API `admin-data?action=club-sms`.
+Postgres (не IDB): **`club_sms_log`** — облачный журнал SMS клуба (кто / кому / сценарий / превью); API `admin-data?action=club-sms`.  
+Миграции: `club_sms_templates`, `club_sms_log`, `20260805230000_club_iskra_moizvonki.sql` (`moizvonki`).
+
+### Роли `users.role` (Postgres)
+
+| Значение | UI | Не путать |
+|----------|-----|-----------|
+| `trainer` / `тренер` | Тренер (планшет) | — |
+| `sales_manager` / `менеджер по продажам` | Менеджер продаж `/sales` | не «Управляющий» |
+| `supervisor` / `управляющий` | Управляющий `/club` | не тренер и не менеджер продаж |
+| `admin` / `администратор` | Админ сети | — |
+
+Список staff: `GET /api/list-trainers` без `role` → тренеры; `?role=sales_manager` / `?role=supervisor` — отдельные вкладки Структуры.
 
 Охрана pull: см. [SYNC.md](./SYNC.md).
 
@@ -44,7 +56,7 @@ Postgres (не IDB): **`club_sms_log`** — облачный журнал SMS к
 | **health_cards** | Рост, вес, цель (`goal`), тексты медкарты |
 | **body_measurements** | Поля из `BODY_MEASURE_FIELDS` (+ legacy-имена в читалке) |
 | **Продажи** | Daily / plan / finance в Postgres; UI `/sales`, `/admin/sales` — через API, не IDB-очередь. `club_sales_plan.strategy_snapshot` (jsonb) — снимок playbook Стратегии |
-| **Оплаты (платёж)** | 📋 ТЗ — отдельная сущность ledger ещё **нет**; сейчас деньги дня = агрегаты `club_sales_daily` + мост Excel. Канон и фазы: [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) |
+| **Оплаты (платёж)** | 📋 ТЗ — отдельная сущность ledger ещё **нет**; сейчас деньги дня = агрегаты `club_sales_daily` + мост Excel. Канон и фазы: [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md). **Следующий L3** после правды платежа — касса **на клуб** (как `moizvonki`). |
 | **ИСКРА** | Settings, learning, dispatch — сервер + частичный кэш settings |
 | **Архив** | Правила UI/sync/agg — [CLIENT_ARCHIVE.md](./CLIENT_ARCHIVE.md) |
 
@@ -58,7 +70,9 @@ Postgres (не IDB): **`club_sms_log`** — облачный журнал SMS к
 - Существующий прод: только миграции / скрипты `npm run db:migrate*`.
 - RLS: `policies.sql` + миграции политик; чеклист — [SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md).
 - `public.users.id` **=** Auth UID.
+- `public.users.role` — `admin` | `trainer` | `sales_manager` | `supervisor` (+ кириллические синонимы); см. таблицу ролей выше.
 - `public.users.uses_tablet` — тренер с планшетом (`true`, default) или без (`false` → lite-ПЗ клиентов ведёт админ). Миграция `db:migrate:users-uses-tablet`. См. [PZ_CLIENTS_ONBOARD.md](./PZ_CLIENTS_ONBOARD.md).
+- `club_iskra_settings.moizvonki` — jsonb аккаунта Мои Звонки на клуб (не в IDB-смысле секрета для клиента).
 - Прайс ПЗ: `club_price_lists` (один JSON-документ на `club_id`) — [PRICE_LIST.md](./PRICE_LIST.md).
 - Прайс ТЗ: `club_tz_price_lists` — [PRICE_LIST.md](./PRICE_LIST.md).
 - Прайс АЗ: `club_az_price_lists` — [PRICE_LIST.md](./PRICE_LIST.md).

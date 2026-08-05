@@ -1,7 +1,19 @@
-# Роль «Управляющий» (club supervisor) — ТЗ
+# Роль «Управляющий» (club supervisor)
 
-**Статус:** модель согласована (2026-08-05); **создание учётки и оболочка `/club` — в коде** (нужна миграция `20260805220000_users_supervisor_role.sql` на проде).  
-**Не путать с:** [SALES_MANAGER.md](./SALES_MANAGER.md) — менеджер по продажам (роль `sales_manager` уже в коде).
+**Статус:** ✅ в проде (2026-08-05+): учётка, оболочка `/club`, вкладка Структура → **Управляющие**, миграция `20260805220000_users_supervisor_role.sql`.  
+**Не путать с:** [SALES_MANAGER.md](./SALES_MANAGER.md) — менеджер по продажам (`sales_manager`).
+
+---
+
+## Три разные роли в Структуре (не смешивать)
+
+| Вкладка | `users.role` | Кто это |
+|---------|--------------|---------|
+| **Тренеры** | `trainer` | Планшет / зал, офлайн, свои клиенты |
+| **Менеджеры** | `sales_manager` | Продажи `/sales`, отчёт, ПНК, SMS/Max с доски |
+| **Управляющие** | `supervisor` | Почти админ **одного** клуба `/club` |
+
+Список через `GET /api/list-trainers?role=…` (`supervisor` / `sales_manager`); без `role` — только тренеры. Иначе вкладка покажет чужую роль.
 
 ---
 
@@ -11,7 +23,7 @@
 Учётка создаётся **на конкретный клуб** (`users.club_id` обязателен, выбора клуба нет).  
 На клуб — **один** управляющий. Создаёт учётку **только админ сети**.
 
-В коде (план): `users.role = 'supervisor'`, в UI — **«Управляющий»**.
+В коде: `users.role = 'supervisor'` (или `управляющий`), в UI — **«Управляющий»**.
 
 **Не смешиваем** с тренером в одной учётке. Если управляющий сам ведёт клиентов в зале — админ создаёт ему **отдельный профиль тренера** (вторая учётка), как любому тренеру клуба.
 
@@ -30,25 +42,24 @@
 | Решение | |
 |---------|---|
 | Оболочка | Как админ клуба (тот же каркас главной / плиток), **без** выбора клуба |
-| После входа | Главная клуба: сводка дня + `AdminHomeAttentionRow` (план / ПНК / планёрка / мягкие сигналы) |
-| URL (план) | `/club/*` или `/admin/*` с `accessMode="supervisor"` и `club_id` из профиля — на усмотрение реализации |
+| После входа | Главная клуба: сводка дня + `AdminHomeAttentionRow` |
+| URL | `/club/*` с `accessMode="supervisor"` и `club_id` из профиля |
 | Вкладки как у админа клуба | Клиенты, статистика, продажи, ПНК, челленджи, планёрка |
-| Вместо «Структура» | Плитка / раздел **«Настройки»** — только Max и SMS |
-| Только админ сети | Журнал удалений; полная Структура; упражнения; типы абон.; питание; ДЗ; клубы/тренеры/менеджеры; диагностика; настройки ИСКРЫ; Excel-списки |
+| Вместо «Структура» | **«Настройки»** — только Max и SMS (+ Мои Звонки клуба у админа в Структуре) |
+| Только админ сети | Журнал удалений; полная Структура; упражнения; типы абон.; питание; ДЗ; клубы/тренеры/менеджеры/управляющие; диагностика; ИСКРА; Excel-списки |
 | Планшет / зал | **Не** в этой учётке. Нужен зал → отдельный логин тренера |
 
 ```
-/club (или admin accessMode=supervisor)
+/club
   ├─ /                 — главная (сводка + внимание)
-  ├─ /clients          — все клиенты клуба
+  ├─ /clients
   ├─ /statistics
-  ├─ /sales            — как админ этого клуба
+  ├─ /sales
   ├─ /pnk
   ├─ /challenges
   ├─ /club-tasks       — планёрка
-  └─ /settings         — только Max и SMS (не полная Структура)
+  └─ /settings         — Max и SMS
 ```
-
 ---
 
 ## Матрица доступа
@@ -87,16 +98,16 @@
 
 ---
 
-## Технические следствия (когда будем делать)
+## Технические следствия (сделано / держать)
 
-1. **Миграция:** `role` + `supervisor` в CHECK; `fit_auth_is_supervisor()`; RLS / scope по `users.club_id`.
-2. **API:** `isSupervisor` — права **как admin на один клуб**, не глобальный `isAdmin`.  
-   Исключения: мутации справочников Структуры (кроме Max/SMS), создание клубов/тренеров/ролей.
-3. **`authorizePush` / `mutationAuth`:** clients, memberships, trainings (правка в клубе), sales, pnk, challenges, dispatch — club scope; справочники сети — отказ.
-4. **`admin-data?action=`:** те же action, что у админа для клуба, с проверкой `club_id === profile.club_id`; Max/SMS — разрешить; CQ-settings / iskra-settings / exercises — нет.
-5. **UI:** переиспользовать админ-страницы с `accessMode="supervisor"` (как уже сделано для `sales_manager`); плитка **«Настройки»** = только `AdminMaxOutreach` (или эквивалент), не весь `AdminStructure`.
-6. **Создание учётки:** `create-supervisor` (только admin) — логин, пароль, имя, `club_id`.
-7. **Verify:** club scope, запрет Структуры, паритет продаж/статистики с admin на одном клубе; `npm run lint` + релевантный qa.
+1. **Миграция:** `role` + `supervisor` в CHECK; `fit_auth_is_supervisor()`; scope по `users.club_id`.
+2. **API:** `isSupervisor` — права **как admin на один клуб**, не глобальный `isAdmin`.
+3. **`authorizePush` / `mutationAuth`:** club scope; справочники сети — отказ.
+4. **UI:** `accessMode="supervisor"`; «Настройки» = Max и SMS.
+5. **Создание:** `create-supervisor` (только admin) — один на клуб.
+6. **Verify:** `scripts/verify-supervisor-access.mjs`; list-trainers `role=supervisor` — `listStaffRoleFilterCore.js`.
+
+Подробнее handoff: [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md). Уровень инженерии: [ENGINEERING_MATURITY.md](./ENGINEERING_MATURITY.md).
 
 **Лимит Vercel 12 functions:** новые endpoint не плодить — `admin-data?action=` / тот же путь, что `create-sales-manager`.
 
@@ -111,7 +122,7 @@
 | 2 | API: admin-data / push с club scope; запрет справочников | ✅ в репо |
 | 3 | UI: Структура → Управляющие; оболочка `/club` + Настройки | ✅ в репо |
 | 4 | verify + lint | ✅ `verify-supervisor-access.mjs` |
-| 5 | prod migration + deploy | 📋 применить `20260805220000_users_supervisor_role.sql` |
+| 5 | prod migration + deploy | ✅ миграция на проде |
 
 ---
 
