@@ -7,6 +7,7 @@ import {
   normalizeSupervisorRole,
   supervisorHomePath,
 } from '../src/lib/admin/supervisorAccessCore.js'
+import { resolveListTrainersRoleParam } from '../src/lib/admin/listStaffRoleFilterCore.js'
 import { USERS_SUPERVISOR_ROLES } from '../src/lib/userRoleConstants.js'
 
 let failed = 0
@@ -49,5 +50,10 @@ ok(!canAccessDeletionAuditLog({}), 'anon no')
 
 ok(supervisorHomePath() === '/club', 'home')
 ok(supervisorHomePath('settings') === '/club/settings', 'settings')
+
+ok(resolveListTrainersRoleParam('supervisor') === 'supervisor', 'list-trainers role=supervisor')
+ok(resolveListTrainersRoleParam('sales_manager') === 'sales_manager', 'list-trainers role=sales_manager')
+ok(resolveListTrainersRoleParam('trainer') === null, 'list-trainers default trainers (no param)')
+ok(resolveListTrainersRoleParam(undefined) === null, 'list-trainers empty → trainers')
 
 process.exit(failed > 0 ? 1 : 0)

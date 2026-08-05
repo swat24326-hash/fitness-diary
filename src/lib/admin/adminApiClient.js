@@ -50,9 +50,11 @@ export async function getAccessTokenForAdminApi() {
   return session?.access_token ?? null
 }
 
+import { resolveListTrainersRoleParam } from './listStaffRoleFilterCore.js'
+
 /**
  * GET /api/list-trainers — null только если маршрута нет (старый деплой без api/).
- * @param {{ role?: 'trainer'|'sales_manager' }} [opts]
+ * @param {{ role?: 'trainer'|'sales_manager'|'supervisor' }} [opts]
  * @returns {Promise<{ trainers: object[], clubColumn: boolean } | null>}
  */
 export async function fetchTrainersViaAdminApi(opts = {}) {
@@ -62,7 +64,8 @@ export async function fetchTrainersViaAdminApi(opts = {}) {
   }
 
   const params = new URLSearchParams()
-  if (opts.role === 'sales_manager') params.set('role', 'sales_manager')
+  const roleParam = resolveListTrainersRoleParam(opts.role)
+  if (roleParam) params.set('role', roleParam)
   const qs = params.toString()
   const url = `${apiOrigin()}/api/list-trainers${qs ? `?${qs}` : ''}`
   const headers = { Authorization: `Bearer ${token}` }
