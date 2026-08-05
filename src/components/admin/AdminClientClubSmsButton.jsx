@@ -57,7 +57,7 @@ export function AdminClientClubSmsButton({
       return
     }
     if (configured === false) {
-      onFeedback?.('Мои Звонки не настроены на сервере (см. docs/MOIZVONKI_SETUP.md)', 'warn')
+      onFeedback?.('Мои Звонки не настроены для клуба (Структура → Max и SMS)', 'warn')
       return
     }
     setOpen(true)
@@ -66,7 +66,7 @@ export function AdminClientClubSmsButton({
   const disabled = busy || !hasPhone || configured === false
   const title =
     configured === false
-      ? 'Мои Звонки не настроены на сервере'
+      ? 'Мои Звонки не настроены для клуба'
       : !hasPhone
         ? 'Нет телефона'
         : sentMarked

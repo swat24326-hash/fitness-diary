@@ -7,11 +7,16 @@ import {
   shapeClubSmsLogApiRow,
 } from '../../src/lib/admin/clubSmsLogCore.js'
 import {
+  getMoiZvonkiConfigFromEnv,
   checkClubSmsRateLimit,
-  isMoiZvonkiConfigured,
+  isMoiZvonkiConfigReady,
   isValidMoiZvonkiPhone,
   sendMoiZvonkiSms,
 } from './moiZvonkiCore.js'
+import {
+  resolveMoiZvonkiConfig,
+  shapeMoiZvonkiPublicStatus,
+} from '../../src/lib/admin/moiZvonkiClubConfigCore.js'
 import {
   OUTREACH_SCENARIOS,
   buildOutreachMessage,
@@ -22,6 +27,40 @@ import { resolveClubSmsTemplates } from '../../src/lib/admin/clubSmsTemplatesCor
 import { resolveClientClubSmsScenario } from '../../src/lib/admin/clubSmsSentMarkCore.js'
 import { pickUsableMembershipForDate } from '../../src/lib/membershipRules.js'
 import { todayLocalIso } from '../../src/lib/dateRu.js'
+
+/**
+ * @param {object} ctx
+ * @param {string} clubId
+ */
+async function loadClubMoiZvonkiResolved(ctx, clubId) {
+  let clubStored = null
+  if (clubId && ctx?.supabaseAdmin) {
+    try {
+      const { data } = await ctx.supabaseAdmin
+        .from('club_iskra_settings')
+        .select('moizvonki, club_sms_templates')
+        .eq('club_id', clubId)
+        .maybeSingle()
+      clubStored = data?.moizvonki ?? null
+      return {
+        resolved: resolveMoiZvonkiConfig({
+          clubStored,
+          envConfig: getMoiZvonkiConfigFromEnv(),
+        }),
+        clubSmsTemplates: data?.club_sms_templates ?? null,
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+  return {
+    resolved: resolveMoiZvonkiConfig({
+      clubStored: null,
+      envConfig: getMoiZvonkiConfigFromEnv(),
+    }),
+    clubSmsTemplates: null,
+  }
+}
 
 /**
  * GET admin-data?action=club-sms&club_id=
@@ -37,19 +76,27 @@ export async function handleClubSmsGet(ctx, req, res) {
     String(req.query?.logs ?? '').toLowerCase() === 'true'
   let templates = resolveClubSmsTemplates(null)
   let clubName = ''
+  let mzPublic = shapeMoiZvonkiPublicStatus(
+    resolveMoiZvonkiConfig({ envConfig: getMoiZvonkiConfigFromEnv() }),
+  )
 
   if (clubId && ctx?.supabaseAdmin) {
     try {
       const [{ data: settings }, { data: club }] = await Promise.all([
         ctx.supabaseAdmin
           .from('club_iskra_settings')
-          .select('club_sms_templates')
+          .select('club_sms_templates, moizvonki')
           .eq('club_id', clubId)
           .maybeSingle(),
         ctx.supabaseAdmin.from('clubs').select('name').eq('id', clubId).maybeSingle(),
       ])
       templates = resolveClubSmsTemplates(settings?.club_sms_templates ?? null)
       clubName = String(club?.name ?? '').trim()
+      const resolved = resolveMoiZvonkiConfig({
+        clubStored: settings?.moizvonki ?? null,
+        envConfig: getMoiZvonkiConfigFromEnv(),
+      })
+      mzPublic = shapeMoiZvonkiPublicStatus(resolved)
     } catch {
       templates = resolveClubSmsTemplates(null)
     }
@@ -69,7 +116,8 @@ export async function handleClubSmsGet(ctx, req, res) {
 
   sendJson(res, 200, {
     ok: true,
-    configured: isMoiZvonkiConfigured(),
+    configured: mzPublic.configured,
+    moizvonki: mzPublic,
     scenarios: [...OUTREACH_SCENARIOS],
     club_id: clubId || null,
     club_name: clubName,
@@ -143,19 +191,21 @@ async function fetchClubSmsLogsForClub(ctx, clubId, sinceDaysRaw) {
  * @param {object} body
  */
 export async function handleClubSmsPost(ctx, res, body) {
-  if (!isMoiZvonkiConfigured()) {
-    sendJson(res, 503, {
-      ok: false,
-      error: 'Мои Звонки не настроены на сервере. Администратору: MOIZVONKI_* в env (см. docs/MOIZVONKI_SETUP.md).',
-      code: 'not_configured',
-    })
-    return
-  }
-
   const clubId = String(body?.club_id ?? '').trim()
   const clientId = String(body?.client_id ?? '').trim()
   if (!clubId || !clientId) {
     sendJson(res, 400, { ok: false, error: 'Нужны club_id и client_id', code: 'bad_request' })
+    return
+  }
+
+  const { resolved: mzCfg } = await loadClubMoiZvonkiResolved(ctx, clubId)
+  if (!isMoiZvonkiConfigReady(mzCfg)) {
+    sendJson(res, 503, {
+      ok: false,
+      error:
+        'Мои Звонки не настроены для этого клуба. Админ: Структура → Max и SMS → блок «Мои Звонки», либо MOIZVONKI_* в env.',
+      code: 'not_configured',
+    })
     return
   }
 
@@ -272,7 +322,7 @@ export async function handleClubSmsPost(ctx, res, body) {
     return
   }
 
-  const result = await sendMoiZvonkiSms({ to: client.phone, text })
+  const result = await sendMoiZvonkiSms({ to: client.phone, text, config: mzCfg })
   if (!result.ok) {
     const status =
       result.code === 'not_configured' ? 503 : result.code === 'bad_phone' ? 400 : 502
@@ -330,6 +380,7 @@ export async function handleClubSmsPost(ctx, res, body) {
     scenario: logScenario,
     preview: text.length > 80 ? `${text.slice(0, 79)}…` : text,
     log_id,
+    moizvonki_source: mzCfg.source,
     ...(log_warning ? { log_warning } : {}),
   })
 }

@@ -62,6 +62,8 @@
 | Менеджер: доступ к типам АЗ / выбор списка для отчёта | `verify-sales-membership-types-access.mjs` |
 | Менеджер: клиенты клуба (push/club/deep-link) | `verify-sales-manager-clients.mjs` |
 | Управляющий: club scope / один на клуб / без журнала удалений | `verify-supervisor-access.mjs` |
+| Мои Звонки: конфиг на клуб + merge с env | `verify-moi-zvonki-club-config.mjs` |
+| Доска клиентов: Max (чат) рядом с SMS | `verify-club-client-max-outreach.mjs` |
 | Прайс ПЗ: скидка 10%, Excel→code, импорт AOA, TTL кэша | `verify-price-list.mjs` |
 | План: ориентир ПЗ ДК из прайса (8 тр. × действующие) | `verify-sales-plan-pz-dk-suggest.mjs` |
 | Стратегия: продления ДК ПЗ/ТЗ/АЗ (конец месяца × ср. покупок) | `verify-sales-plan-hall-renewals.mjs` |
@@ -82,6 +84,7 @@
 | Прайс АЗ: печать HTML / имена PNG | `verify-az-price-list-print.mjs` |
 | Импорт отчёта по оплатам (1С → дневной) — **мост** | `verify-sales-payments-import.mjs` |
 | Связка оплат → lite/клип/desk (ПЗ без карточки) | `verify-sales-payments-link.mjs` |
+| Импорт часов ПЗ (`otchet_pz` → матрица тренер×тип) | `verify-pz-trainings-report-import.mjs` |
 | Домен платежа (когда появится код) | ТЗ: [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md); verify — в той же задаче |
 | Desk-сид закрытий (карта + end_date + цена; UI `/admin/excel-lists`) | `verify-desk-closing-import.mjs` |
 | Desk ledger абонов (действующий / цена) | `verify-desk-membership-ledger.mjs` |

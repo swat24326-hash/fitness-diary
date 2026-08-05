@@ -56,7 +56,7 @@
 | `deletion-audit-log` | admin / sales_manager (свой клуб) | Журнал жёстких удалений клиентов (`deletion_audit_log`) |
 | `push-subscription` | admin / trainer / sales_manager | VAPID public key |
 | `membership-types` | admin / trainer / sales_manager (свой клуб) | Справочник типов абон. включая АЗ для колонок отчёта |
-| `club-sms` | admin / sales_manager | Статус Мои Звонки (`configured`, `templates`, `club_name`); `&logs=1&since_days=` — журнал `club_sms_log` |
+| `club-sms` | admin / sales_manager / supervisor | Статус Мои Звонки (`configured`, `moizvonki`, `templates`, `club_name`); `&logs=1&since_days=` — журнал `club_sms_log` |
 
 ### POST (фрагмент)
 
@@ -73,7 +73,8 @@
 | `reset-trainer-password`, `set-trainer-active`, `set-trainer-uses-tablet` | admin | Управление тренером (пароль / блок / планшет) |
 | `pnk` | admin / sales_manager | Мутации ПНК |
 | `sale-clips` | admin / sales_manager | POST create / cancel / match клипа |
-| `club-sms` | admin / sales_manager | SMS клиенту через Мои Звонки (`client_id`, `scenario` / `text`); после успеха — запись в `club_sms_log` |
+| `club-sms` | admin / sales_manager / supervisor | SMS клиенту через Мои Звонки клуба (`client_id`, `scenario` / `text`); после успеха — запись в `club_sms_log` |
+| `iskra-settings` | admin | в т.ч. `moizvonki` — аккаунт Мои Звонки на клуб (ключ в ответе не отдаём) |
 
 ---
 

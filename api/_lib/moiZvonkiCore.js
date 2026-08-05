@@ -37,6 +37,14 @@ export function isMoiZvonkiConfigured(env = process.env) {
   return Boolean(c.apiKey && c.userEmail && c.apiBase)
 }
 
+/**
+ * Готов ли переданный конфиг (клуб / env / merge).
+ * @param {{ apiKey?: string, userEmail?: string, apiBase?: string } | null | undefined} cfg
+ */
+export function isMoiZvonkiConfigReady(cfg) {
+  return Boolean(cfg?.apiKey && cfg?.userEmail && cfg?.apiBase)
+}
+
 /** @param {string | null | undefined} raw */
 export function normalizePhoneDigits(raw) {
   return String(raw ?? '').replace(/\D/g, '')
@@ -136,20 +144,22 @@ export function mapMoiZvonkiHttpErrorToRu(status, body) {
  *   to: string,
  *   text: string,
  *   env?: NodeJS.ProcessEnv | Record<string, string | undefined>,
+ *   config?: { apiKey: string, userEmail: string, apiBase: string } | null,
  *   fetchImpl?: typeof fetch,
  * }} opts
  * @returns {Promise<{ ok: true, phone: string } | { ok: false, error: string, code?: string }>}
  */
 export async function sendMoiZvonkiSms(opts) {
   const env = opts.env ?? process.env
-  if (!isMoiZvonkiConfigured(env)) {
+  const cfg = opts.config ?? getMoiZvonkiConfigFromEnv(env)
+  if (!isMoiZvonkiConfigReady(cfg)) {
     return {
       ok: false,
       code: 'not_configured',
-      error: 'Мои Звонки не настроены на сервере (MOIZVONKI_API_BASE / KEY / USER_EMAIL).',
+      error:
+        'Мои Звонки не настроены для клуба (Структура → Max и SMS) и нет запасного MOIZVONKI_* в env.',
     }
   }
-  const cfg = getMoiZvonkiConfigFromEnv(env)
   if (!isValidMoiZvonkiPhone(opts.to)) {
     return { ok: false, code: 'bad_phone', error: 'Некорректный номер телефона клиента' }
   }

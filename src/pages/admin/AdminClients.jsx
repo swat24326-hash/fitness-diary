@@ -4,6 +4,7 @@ import { Archive, ArrowLeft, RefreshCw, RotateCcw, Search, Trash2, UserCircle, U
 import { useAuth } from '../../context/AuthContext.jsx'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { AdminClientClubSmsButton } from '../../components/admin/AdminClientClubSmsButton.jsx'
+import { AdminClientMaxButton } from '../../components/admin/AdminClientMaxButton.jsx'
 import { AdminClientsBrowseFilters } from '../../components/admin/AdminClientsBrowseFilters.jsx'
 import { AdminClientsAzDirectionFilters } from '../../components/admin/AdminClientsAzDirectionFilters.jsx'
 import { AdminClientsArchiveHallFilters } from '../../components/admin/AdminClientsArchiveHallFilters.jsx'
@@ -1398,6 +1399,19 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                         ) : null}
                       </div>
                       <div className="row td-client-actions">
+                        <AdminClientMaxButton
+                          client={c}
+                          mode={smsMode.mode}
+                          scenario={smsMode.scenario}
+                          scenarioLabel={smsMode.label}
+                          memList={mlist}
+                          trainerName={trainerNameById[String(c.trainer_id ?? '')] || ''}
+                          clubName={clubSmsClubName}
+                          today={today}
+                          templates={clubSmsTemplates}
+                          busy={busy}
+                          onFeedback={onSmsFeedback}
+                        />
                         <AdminClientClubSmsButton
                           clubId={club}
                           client={c}

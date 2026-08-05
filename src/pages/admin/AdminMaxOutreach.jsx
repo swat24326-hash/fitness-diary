@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useOutletContext, useSearchParams } from 'react-router-dom'
 import { AdminClubSmsTemplatesSection } from '../../components/admin/AdminClubSmsTemplatesSection.jsx'
 import { AdminClubSmsJournalSection } from '../../components/admin/AdminClubSmsJournalSection.jsx'
+import { AdminClubMoizvonkiSection } from '../../components/admin/AdminClubMoizvonkiSection.jsx'
 import { AdminOutreachTemplatesSection } from '../../components/admin/AdminOutreachTemplatesSection.jsx'
 import { listClubsLocal, pullClubsFromSupabase } from '../../lib/dataAccess'
 import { useAuth } from '../../context/AuthContext'
@@ -47,8 +48,10 @@ export function AdminMaxOutreach() {
   return (
     <div className="admin-outreach-templates">
       <p className="muted admin-outreach-templates__notice">
-        Два набора текстов: сообщения тренера в Max и SMS с телефона клуба. Не путайте каналы.
+        Max у тренера, Max/SMS у менеджера с доски клиентов, SMS через Мои Звонки с телефона клуба. У каждого
+        клуба может быть свой аккаунт Мои Звонки.
       </p>
+      <AdminClubMoizvonkiSection clubId={clubId} clubName={clubName} />
       <AdminOutreachTemplatesSection clubId={clubId} clubName={clubName} />
       <AdminClubSmsTemplatesSection clubId={clubId} clubName={clubName} />
       <AdminClubSmsJournalSection clubId={clubId} />

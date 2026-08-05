@@ -42,6 +42,8 @@ export async function fetchIskraSettings(clubId) {
  *   resetOutreachTemplates?: boolean,
  *   clubSmsTemplates?: unknown,
  *   resetClubSmsTemplates?: boolean,
+ *   moizvonki?: unknown,
+ *   clearMoizvonki?: boolean,
  *   sparkBriefEnabled?: boolean,
  * }} payload
  */
@@ -75,6 +77,12 @@ export async function saveIskraSettings(clubId, payload = {}) {
     body.club_sms_templates = null
   } else if (Object.prototype.hasOwnProperty.call(payload, 'clubSmsTemplates')) {
     body.club_sms_templates = payload.clubSmsTemplates
+  }
+
+  if (payload.clearMoizvonki === true) {
+    body.moizvonki = null
+  } else if (Object.prototype.hasOwnProperty.call(payload, 'moizvonki')) {
+    body.moizvonki = payload.moizvonki
   }
 
   const res = await fetch(`${apiOrigin()}/api/admin-data?action=iskra-settings`, {

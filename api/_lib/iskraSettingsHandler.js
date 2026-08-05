@@ -18,6 +18,14 @@ import {
   resolveClubSmsTemplates,
   validateClubSmsTemplatesForSave,
 } from '../../src/lib/admin/clubSmsTemplatesCore.js'
+import {
+  mergeMoiZvonkiClubConfigForStore,
+  parseStoredMoiZvonkiClubConfig,
+  resolveMoiZvonkiConfig,
+  shapeMoiZvonkiPublicStatus,
+  validateMoiZvonkiClubConfigForSave,
+} from '../../src/lib/admin/moiZvonkiClubConfigCore.js'
+import { getMoiZvonkiConfigFromEnv } from './moiZvonkiCore.js'
 
 /**
  * @param {import('@supabase/supabase-js').SupabaseClient} supabaseAdmin
@@ -27,7 +35,7 @@ export async function loadClubIskraSettings(supabaseAdmin, clubId) {
   const { data, error } = await supabaseAdmin
     .from('club_iskra_settings')
     .select(
-      'prompt_append, quick_chips, spark_brief_enabled, outreach_templates, club_sms_templates, updated_at',
+      'prompt_append, quick_chips, spark_brief_enabled, outreach_templates, club_sms_templates, moizvonki, updated_at',
     )
     .eq('club_id', clubId)
     .maybeSingle()
@@ -38,6 +46,7 @@ export async function loadClubIskraSettings(supabaseAdmin, clubId) {
     spark_brief_enabled: data?.spark_brief_enabled !== false,
     outreach_templates: data?.outreach_templates ?? null,
     club_sms_templates: data?.club_sms_templates ?? null,
+    moizvonki: data?.moizvonki ?? null,
     updated_at: data?.updated_at ?? null,
   }
 }
@@ -66,6 +75,11 @@ export async function handleIskraSettingsGet(ctx, req, res) {
     const outreachTemplates = storedOutreach ?? resolveOutreachTemplates(null)
     const storedClubSms = parseStoredClubSmsTemplates(settings.club_sms_templates)
     const clubSmsTemplates = storedClubSms ?? resolveClubSmsTemplates(null)
+    const mzResolved = resolveMoiZvonkiConfig({
+      clubStored: settings.moizvonki,
+      envConfig: getMoiZvonkiConfigFromEnv(),
+    })
+    const clubMz = parseStoredMoiZvonkiClubConfig(settings.moizvonki)
 
     sendJson(res, 200, {
       ok: true,
@@ -81,6 +95,12 @@ export async function handleIskraSettingsGet(ctx, req, res) {
       club_sms_templates: clubSmsTemplates,
       club_sms_templates_custom: storedClubSms != null,
       default_club_sms_templates: defaultClubSmsTemplates(),
+      moizvonki: shapeMoiZvonkiPublicStatus(mzResolved),
+      moizvonki_club: {
+        user_email: clubMz.userEmail || '',
+        api_base: clubMz.apiBase || '',
+        has_api_key: Boolean(clubMz.apiKey),
+      },
       updated_at: settings.updated_at,
       spark_brief_enabled: settings.spark_brief_enabled,
       default_prompt_preview: buildIskraSystemPrompt(clubName || 'клуб'),
@@ -140,6 +160,16 @@ export async function handleIskraSettingsPost(ctx, res, body) {
     clubSmsTemplatesToStore = validated.templates
   }
 
+  let moizvonkiToStore = undefined
+  if (Object.prototype.hasOwnProperty.call(body ?? {}, 'moizvonki')) {
+    const validated = validateMoiZvonkiClubConfigForSave(body.moizvonki)
+    if (!validated.ok) {
+      sendJson(res, 400, { error: validated.error })
+      return
+    }
+    moizvonkiToStore = validated
+  }
+
   try {
     const existing = await loadClubIskraSettings(ctx.supabaseAdmin, clubId)
     const row = {
@@ -172,11 +202,27 @@ export async function handleIskraSettingsPost(ctx, res, body) {
       row.club_sms_templates = existing.club_sms_templates
     }
 
+    if (moizvonkiToStore !== undefined) {
+      row.moizvonki = mergeMoiZvonkiClubConfigForStore(
+        existing.moizvonki,
+        moizvonkiToStore.patch,
+        moizvonkiToStore.clear,
+      )
+      if (!moizvonkiToStore.clear && row.moizvonki == null) {
+        sendJson(res, 400, {
+          error: 'Укажите API-ключ Мои Звонки (при первой настройке клуба ключ обязателен)',
+        })
+        return
+      }
+    } else {
+      row.moizvonki = existing.moizvonki
+    }
+
     const { data, error } = await ctx.supabaseAdmin
       .from('club_iskra_settings')
       .upsert(row, { onConflict: 'club_id' })
       .select(
-        'prompt_append, quick_chips, spark_brief_enabled, outreach_templates, club_sms_templates, updated_at',
+        'prompt_append, quick_chips, spark_brief_enabled, outreach_templates, club_sms_templates, moizvonki, updated_at',
       )
       .maybeSingle()
     if (error) throw error
@@ -185,6 +231,11 @@ export async function handleIskraSettingsPost(ctx, res, body) {
     const outreachResolved = parseStoredOutreachTemplates(data?.outreach_templates) ?? resolveOutreachTemplates(null)
     const clubSmsResolved =
       parseStoredClubSmsTemplates(data?.club_sms_templates) ?? resolveClubSmsTemplates(null)
+    const mzResolved = resolveMoiZvonkiConfig({
+      clubStored: data?.moizvonki,
+      envConfig: getMoiZvonkiConfigFromEnv(),
+    })
+    const clubMz = parseStoredMoiZvonkiClubConfig(data?.moizvonki)
 
     sendJson(res, 200, {
       ok: true,
@@ -196,6 +247,12 @@ export async function handleIskraSettingsPost(ctx, res, body) {
       outreach_templates_custom: data?.outreach_templates != null,
       club_sms_templates: clubSmsResolved,
       club_sms_templates_custom: data?.club_sms_templates != null,
+      moizvonki: shapeMoiZvonkiPublicStatus(mzResolved),
+      moizvonki_club: {
+        user_email: clubMz.userEmail || '',
+        api_base: clubMz.apiBase || '',
+        has_api_key: Boolean(clubMz.apiKey),
+      },
       spark_brief_enabled: data?.spark_brief_enabled !== false,
       updated_at: data?.updated_at ?? null,
     })
