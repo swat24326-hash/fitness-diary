@@ -51,6 +51,7 @@
 | Журнал тренировок: ФИО архивных клиентов (не UUID) | `verify-trainer-journal-clients.mjs` |
 | Журнал тренера: фильтр completed за период | `verify-trainer-journal-filter.mjs` |
 | Pull: orphan-prune опасен при неполном remote | `verify-client-trainings-prune-truncated.mjs` |
+| Карточка: полный дневник с сервера (не только если IDB пуст) | `verify-client-trainings-ensure.mjs` |
 | Профиль тренера: ФИО в «Не активные» из локального кэша | `verify-enrich-inactive-clients-local.mjs` |
 | Главная: ряд внимания / soft signals | `verify-admin-home-attention.mjs` |
 | Список клиентов: точка/подпись абонемента | `verify-client-list-signals.mjs` |
