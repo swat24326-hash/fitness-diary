@@ -6,6 +6,7 @@ import {
   isSalesManagerClientPushTable,
   isSalesManagerDeskDeleteExtraTable,
 } from '../../src/lib/admin/salesManagerClientsAccessCore.js'
+import { isSupervisorDeniedPushTable } from '../../src/lib/admin/supervisorAccessCore.js'
 
 const UUID_RE =
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/
@@ -24,14 +25,14 @@ async function getClientRow(supabaseAdmin, clientId) {
   return data
 }
 
-/** Админ — любые; менеджер продаж — свой клуб; тренер — только свои. */
+/** Админ — любые; управляющий / менеджер — свой клуб; тренер — только свои. */
 export async function canAccessClient(ctx, clientId) {
   if (!isUuid(clientId)) return false
   if (ctx.isAdmin) return true
   const c = await getClientRow(ctx.supabaseAdmin, clientId)
   if (!c) return false
-  if (ctx.isSalesManager) {
-    const club = String(ctx.profile?.club_id ?? ctx.salesClubId ?? '').trim()
+  if (ctx.isSupervisor || ctx.isSalesManager) {
+    const club = String(ctx.profile?.club_id ?? ctx.supervisorClubId ?? ctx.salesClubId ?? '').trim()
     return Boolean(club && String(c.club_id ?? '') === club)
   }
   if (!ctx.isTrainer) return false
@@ -111,11 +112,127 @@ async function authorizeSalesManagerPush(ctx, table_name, operation, data, remot
 }
 
 /**
+ * Управляющий: почти админ клуба; справочники сети и создание тренировок — нет.
+ * @returns {Promise<{ ok: true } | { ok: false, error: string }>}
+ */
+async function authorizeSupervisorPush(ctx, table_name, operation, data, remote_id) {
+  const op = String(operation ?? '')
+  const payload = data ?? {}
+  const profileClub = String(ctx.profile?.club_id ?? ctx.supervisorClubId ?? '').trim()
+  const { supabaseAdmin } = ctx
+
+  if (!profileClub) {
+    return { ok: false, error: 'У управляющего не задан club_id' }
+  }
+  if (isSupervisorDeniedPushTable(table_name)) {
+    return { ok: false, error: 'Справочник может менять только администратор сети' }
+  }
+
+  try {
+    if (table_name === 'clients') {
+      const id = remote_id || payload.id
+      if (op === 'insert') {
+        const clubId = payload.club_id != null && payload.club_id !== '' ? payload.club_id : profileClub
+        const clubCheck = assertSalesManagerSameClub(profileClub, clubId)
+        if (!clubCheck.ok) return clubCheck
+        return { ok: true }
+      }
+      const existing = await getClientRow(supabaseAdmin, id)
+      if (!existing) return op === 'delete' ? { ok: true } : { ok: false, error: 'Клиент не найден' }
+      if (String(existing.club_id ?? '') !== profileClub) {
+        return { ok: false, error: 'Нет доступа к клиенту другого клуба' }
+      }
+      if (Object.prototype.hasOwnProperty.call(payload, 'club_id')) {
+        const clubCheck = assertSalesManagerSameClub(profileClub, payload.club_id)
+        if (!clubCheck.ok) return clubCheck
+      }
+      return { ok: true }
+    }
+
+    if (table_name === 'memberships') {
+      if (op === 'delete') {
+        const { data: m } = await supabaseAdmin.from('memberships').select('client_id').eq('id', remote_id).maybeSingle()
+        if (!m?.client_id) return { ok: true }
+        return (await canAccessClient(ctx, m.client_id)) ? { ok: true } : { ok: false, error: 'Нет доступа' }
+      }
+      const clientId = payload.client_id
+      if (!(await canAccessClient(ctx, clientId))) {
+        return { ok: false, error: 'Нет доступа к клиенту' }
+      }
+      if (Object.prototype.hasOwnProperty.call(payload, 'club_id')) {
+        const clubCheck = assertSalesManagerSameClub(profileClub, payload.club_id)
+        if (!clubCheck.ok) return clubCheck
+      }
+      return { ok: true }
+    }
+
+    if (table_name === 'trainings') {
+      if (op === 'insert') {
+        return { ok: false, error: 'Управляющий не проводит тренировки в этой учётке — нужен профиль тренера' }
+      }
+      const tid = remote_id || payload.id
+      const { data: t } = await supabaseAdmin
+        .from('trainings')
+        .select('id, client_id, club_id, trainer_id')
+        .eq('id', tid)
+        .maybeSingle()
+      if (!t) return op === 'delete' ? { ok: true } : { ok: false, error: 'Тренировка не найдена' }
+      if (t.client_id && (await canAccessClient(ctx, t.client_id))) return { ok: true }
+      if (t.club_id && String(t.club_id) === profileClub) return { ok: true }
+      return { ok: false, error: 'Нет доступа к тренировке другого клуба' }
+    }
+
+    if (
+      table_name === 'health_cards' ||
+      table_name === 'body_measurements' ||
+      table_name === 'client_weight_entries'
+    ) {
+      let clientId = payload.client_id
+      if (op === 'delete' && remote_id) {
+        const { data: row } = await supabaseAdmin.from(table_name).select('client_id').eq('id', remote_id).maybeSingle()
+        clientId = row?.client_id ?? clientId
+        if (!clientId) return { ok: true }
+      }
+      return (await canAccessClient(ctx, clientId)) ? { ok: true } : { ok: false, error: 'Нет доступа' }
+    }
+
+    if (table_name === 'challenges') {
+      let challengeClubId = payload.club_id
+      if (op === 'delete' || (op === 'update' && remote_id)) {
+        const { data: ch } = await supabaseAdmin.from('challenges').select('club_id').eq('id', remote_id).maybeSingle()
+        if (op === 'delete' && !ch) return { ok: true }
+        if (ch) challengeClubId = ch.club_id
+      }
+      if (String(challengeClubId ?? '') === profileClub) return { ok: true }
+      return { ok: false, error: 'Челлендж другого клуба' }
+    }
+
+    if (table_name === 'pnk_funnel_events' || table_name === 'sale_clips') {
+      const rowClub = payload.club_id
+      if (op === 'delete' && remote_id && !rowClub) {
+        const { data: row } = await supabaseAdmin.from(table_name).select('club_id').eq('id', remote_id).maybeSingle()
+        if (!row) return { ok: true }
+        return String(row.club_id ?? '') === profileClub
+          ? { ok: true }
+          : { ok: false, error: 'Нет доступа' }
+      }
+      return String(rowClub ?? '') === profileClub || (payload.client_id && (await canAccessClient(ctx, payload.client_id)))
+        ? { ok: true }
+        : { ok: false, error: 'Нет доступа' }
+    }
+
+    return { ok: false, error: 'Нет доступа' }
+  } catch (e) {
+    return { ok: false, error: e?.message ? String(e.message) : 'Ошибка проверки доступа' }
+  }
+}
+
+/**
  * Проверка права на запись в таблицу (перед push-record).
  * @returns {Promise<{ ok: true } | { ok: false, error: string }>}
  */
 export async function authorizePush(ctx, table_name, operation, data, remote_id) {
-  const { supabaseAdmin, user, isAdmin, isTrainer, isSalesManager } = ctx
+  const { supabaseAdmin, user, isAdmin, isTrainer, isSalesManager, isSupervisor } = ctx
   const op = String(operation ?? '')
   const payload = data ?? {}
 
@@ -143,6 +260,10 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
   }
 
   if (isAdmin) return { ok: true }
+
+  if (isSupervisor) {
+    return authorizeSupervisorPush(ctx, table_name, operation, data, remote_id)
+  }
 
   if (isSalesManager) {
     return authorizeSalesManagerPush(ctx, table_name, operation, data, remote_id)

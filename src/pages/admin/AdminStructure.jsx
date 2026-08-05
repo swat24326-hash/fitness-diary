@@ -4,6 +4,7 @@ import { AdminOrganization } from './AdminOrganization'
 import { AdminExercises } from './AdminExercises'
 import { AdminMembershipTypes } from './AdminMembershipTypes'
 import { AdminSalesManagers } from './AdminSalesManagers'
+import { AdminSupervisors } from './AdminSupervisors'
 import { AdminNutritionProducts } from './AdminNutritionProducts'
 import { AdminHomeworkPresets } from './AdminHomeworkPresets'
 import { AdminMaxOutreach } from './AdminMaxOutreach'
@@ -15,6 +16,7 @@ const TAB_IDS = [
   'clubs',
   'trainers',
   'sales-managers',
+  'supervisors',
   'membership-types',
   'nutrition-products',
   'homework-presets',
@@ -29,6 +31,7 @@ const TABS = [
   { id: 'clubs', label: 'Клубы' },
   { id: 'trainers', label: 'Тренеры' },
   { id: 'sales-managers', label: 'Менеджеры' },
+  { id: 'supervisors', label: 'Управляющие' },
   { id: 'membership-types', label: 'Типы абон.' },
   { id: 'nutrition-products', label: 'Питание' },
   { id: 'homework-presets', label: 'ДЗ' },
@@ -111,6 +114,15 @@ export function AdminStructure() {
           className="admin-structure__panel"
         >
           {tab === 'sales-managers' ? <AdminSalesManagers /> : null}
+        </div>
+        <div
+          id="admin-structure-panel-supervisors"
+          role="tabpanel"
+          aria-labelledby="admin-structure-tab-supervisors"
+          hidden={tab !== 'supervisors'}
+          className="admin-structure__panel"
+        >
+          {tab === 'supervisors' ? <AdminSupervisors /> : null}
         </div>
         <div
           id="admin-structure-panel-membership-types"

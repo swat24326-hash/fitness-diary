@@ -5,6 +5,7 @@ import { canAccessTrainerOrAdminApis, requireAuthUser, sendJson, setCors } from 
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 import { LIST_TRAINERS_MAX_USERS } from './_lib/apiLimits.js'
 import { isSalesManagerRole } from '../src/lib/admin/salesAccessCore.js'
+import { isSupervisorRole } from '../src/lib/admin/supervisorAccessCore.js'
 import { isQaAutoUser } from '../src/lib/admin/qaAutoUserCore.js'
 
 const TRAINER_FIELDS = 'id, name, phone, email, login, is_active, uses_tablet, role, club_id'
@@ -54,21 +55,24 @@ async function handler(req, res) {
 
   const roleFilter = String(req.query?.role ?? '').trim().toLowerCase()
   const wantSalesManagers = roleFilter === 'sales_manager'
-  const salesClubId =
-    ctx.isSalesManager && !ctx.isAdmin ? String(ctx.profile?.club_id ?? '').trim() : ''
+  const wantSupervisors = roleFilter === 'supervisor'
+  const boundClubId =
+    (ctx.isSalesManager || ctx.isSupervisor) && !ctx.isAdmin
+      ? String(ctx.profile?.club_id ?? '').trim()
+      : ''
 
-  if (wantSalesManagers) {
+  if (wantSalesManagers || wantSupervisors) {
     if (!ctx.isAdmin) {
       sendJson(res, 403, { error: 'Только администратор' })
       return
     }
-  } else if (ctx.isSalesManager && !ctx.isAdmin) {
-    if (!salesClubId) {
-      sendJson(res, 403, { error: 'У менеджера не задан club_id' })
+  } else if ((ctx.isSalesManager || ctx.isSupervisor) && !ctx.isAdmin) {
+    if (!boundClubId) {
+      sendJson(res, 403, { error: 'В профиле не задан club_id' })
       return
     }
   } else if (!canAccessTrainerOrAdminApis(ctx)) {
-    sendJson(res, 403, { error: 'Только администратор, тренер или менеджер продаж' })
+    sendJson(res, 403, { error: 'Только администратор, тренер, менеджер или управляющий' })
     return
   }
 
@@ -76,11 +80,14 @@ async function handler(req, res) {
 
   /** @param {object[]} rows */
   function filterTrainerRows(rows) {
-    let list = (rows ?? []).filter(
-      (u) => !isQaAutoUser(u) && (wantSalesManagers ? isSalesManagerRole(u.role) : isTrainerRole(u.role)),
-    )
-    if (salesClubId) {
-      list = list.filter((u) => String(u.club_id ?? '').trim() === salesClubId)
+    let list = (rows ?? []).filter((u) => {
+      if (isQaAutoUser(u)) return false
+      if (wantSalesManagers) return isSalesManagerRole(u.role)
+      if (wantSupervisors) return isSupervisorRole(u.role)
+      return isTrainerRole(u.role)
+    })
+    if (boundClubId) {
+      list = list.filter((u) => String(u.club_id ?? '').trim() === boundClubId)
     }
     return list
   }
@@ -123,8 +130,8 @@ async function handler(req, res) {
     return
   }
 
-  if (salesClubId) {
-    sendJson(res, 400, { error: 'Нет колонки club_id у users — нельзя ограничить тренеров клубом менеджера' })
+  if (boundClubId) {
+    sendJson(res, 400, { error: 'Нет колонки club_id у users — нельзя ограничить список клубом' })
     return
   }
 

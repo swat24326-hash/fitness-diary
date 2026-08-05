@@ -3142,6 +3142,11 @@
   gap: clamp(1rem, 2.5vw, 1.75rem);
 }
 
+/* display:flex выше перебивает UA [hidden] — иначе Стратегия остаётся на экране у менеджера */
+.sales-report__panel[hidden] {
+  display: none !important;
+}
+
 .sales-report__toolbar {
   display: flex;
   align-items: flex-start;

@@ -11,6 +11,6 @@ export function pickMembershipTypesForSalesReport(bundleTypes, ensuredTypes) {
 }
 
 /** Роли, которым разрешён GET action=membership-types */
-export function canFetchMembershipTypesViaApi({ isAdmin, isTrainer, isSalesManager }) {
-  return Boolean(isAdmin || isTrainer || isSalesManager)
+export function canFetchMembershipTypesViaApi({ isAdmin, isTrainer, isSalesManager, isSupervisor }) {
+  return Boolean(isAdmin || isTrainer || isSalesManager || isSupervisor)
 }

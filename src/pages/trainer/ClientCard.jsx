@@ -53,14 +53,16 @@ export function ClientCard() {
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams] = useSearchParams()
-  const { isAdmin, isTrainer, isSalesManager, user } = useAuth()
-  /** Админ и менеджер продаж тянут карточку через /api/get-client. */
-  const canCloudHydrateClient = Boolean(isAdmin || isSalesManager)
+  const { isAdmin, isTrainer, isSalesManager, isSupervisor, user } = useAuth()
+  /** Админ, управляющий и менеджер тянут карточку через /api/get-client. */
+  const canCloudHydrateClient = Boolean(isAdmin || isSalesManager || isSupervisor)
   /** Коммерческий контур клуба: desk / lite / список клиентов. */
-  const canManageClubClients = Boolean(isAdmin || isSalesManager)
+  const canManageClubClients = Boolean(isAdmin || isSalesManager || isSupervisor)
+  /** Планёрка с карточки — админ сети и управляющий. */
+  const canAssignClubTasks = Boolean(isAdmin || isSupervisor)
   const clientsListHref = useMemo(
-    () => resolveClientCardBackHref(searchParams, { isAdmin, isSalesManager }),
-    [isAdmin, isSalesManager, searchParams],
+    () => resolveClientCardBackHref(searchParams, { isAdmin, isSalesManager, isSupervisor }),
+    [isAdmin, isSalesManager, isSupervisor, searchParams],
   )
   const clientsBackLabel = useMemo(
     () => clientCardBackLabel(searchParams.get('from')),
@@ -198,13 +200,13 @@ export function ClientCard() {
   }, [])
 
   const taskClubId = useMemo(() => {
-    if (!isAdmin || !client) return ''
-    return String(client.club_id ?? searchParams.get('club') ?? '').trim()
-  }, [isAdmin, client, searchParams])
+    if (!canAssignClubTasks || !client) return ''
+    return String(client.club_id ?? searchParams.get('club') ?? user?.club_id ?? '').trim()
+  }, [canAssignClubTasks, client, searchParams, user?.club_id])
   const { recipients: taskRecipients } = useClubDispatchRecipients(taskClubId, { includeSalesManagers: true })
   const clientTaskDraft = useMemo(
-    () => (client && isAdmin ? buildClientCardTaskDraft(client) : null),
-    [client, isAdmin],
+    () => (client && canAssignClubTasks ? buildClientCardTaskDraft(client) : null),
+    [client, canAssignClubTasks],
   )
 
   const reloadLocal = useCallback(async () => {
@@ -250,9 +252,9 @@ export function ClientCard() {
   }, [id, trainerById, trainersModeReady, canManageClubClients, isTrainer, user])
 
   useEffect(() => {
-    if (!id || isAdmin) return
+    if (!id || canManageClubClients) return
     void listOutreachLogByClientId(id, 3).then(setOutreachLogs)
-  }, [id, isAdmin])
+  }, [id, canManageClubClients])
 
   useEffect(() => {
     const t = searchParams.get('tab')
@@ -643,7 +645,7 @@ export function ClientCard() {
             <button type="button" className="btn btn-ghost btn-icon-square" aria-label="Редактировать данные клиента" title="Редактировать" onClick={openEdit} disabled={isArchived}>
               <Pencil size={16} aria-hidden />
             </button>
-            {isAdmin ? (
+            {canAssignClubTasks ? (
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
@@ -668,7 +670,7 @@ export function ClientCard() {
             <div>{client.birth_date ? formatDateRu(client.birth_date) : '—'}</div>
             {client.card_number ? <div>Карта: {client.card_number}</div> : null}
           </div>
-          {!isAdmin && outreachLogs.length > 0 ? (
+          {!canManageClubClients && outreachLogs.length > 0 ? (
             <div className="trainer-outreach-history muted" style={{ marginTop: 8, fontSize: 12 }}>
               <strong style={{ color: 'var(--text)' }}>Сообщения в Max:</strong>
               <ul className="trainer-outreach-history__list">
@@ -818,7 +820,7 @@ export function ClientCard() {
       {tab === 'diaries' &&
         (!isOpenPnkClient(client) || isPnkCardTabVisible(client, 'diaries', { healthCard, bzCompletedCount })) && (
         <>
-          {isOpenPnkClient(client) && !isArchived && !isAdmin ? (
+          {isOpenPnkClient(client) && !isArchived && !canManageClubClients ? (
             <div className="pnk-conduct-banner" style={{ marginBottom: 12 }}>
               <p className="muted" style={{ margin: '0 0 8px', fontSize: '0.92rem' }}>
                 Здесь список уже проведённых. Чтобы записать упражнения — нажмите кнопку.
@@ -833,11 +835,16 @@ export function ClientCard() {
               </button>
             </div>
           ) : null}
-          <ClientDiaries client={client} onDataChange={reloadLocal} clubQs={isAdmin ? adminClubQs : ''} readOnly={isArchived} />
+          <ClientDiaries
+            client={client}
+            onDataChange={reloadLocal}
+            clubQs={isAdmin ? adminClubQs : ''}
+            readOnly={isArchived}
+          />
         </>
       )}
 
-      {isAdmin && clientTaskDraft ? (
+      {canAssignClubTasks && clientTaskDraft ? (
         <IskraDispatchModal
           open={taskModalOpen}
           onClose={() => setTaskModalOpen(false)}

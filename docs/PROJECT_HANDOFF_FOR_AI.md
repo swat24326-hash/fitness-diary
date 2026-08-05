@@ -52,7 +52,7 @@ Production: https://fitness-diary-bice.vercel.app
 
 ```
 src/
-  App.jsx                 — маршруты, RoleOutlet (admin | trainer | sales_manager)
+  App.jsx                 — маршруты, RoleOutlet (admin | trainer | sales_manager | supervisor)
   context/AuthContext.jsx — сессия, роль, isAdmin / isTrainer / isSalesManager
   lib/
     localDb.js, syncService.js, syncApiClient.js, membershipRules.js
@@ -100,7 +100,15 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 
 ## 5. Аутентификация и роли
 
-- **`AuthContext`**: `role` ∈ `'admin' | 'trainer' | 'sales_manager'`; флаги `isAdmin`, `isTrainer`, `isSalesManager`.
+- **`AuthContext`**: `role` ∈ `'admin' | 'trainer' | 'sales_manager' | 'supervisor'`; флаги `isAdmin`, `isTrainer`, `isSalesManager`, `isSupervisor`.
+- После входа: admin → `/admin`, sales_manager → `/sales`, supervisor → `/club`, иначе → `/trainer`.
+
+| Роль | Основные маршруты |
+|------|-------------------|
+| trainer | `/trainer`, `/trainer/clients`, … |
+| sales_manager | `/sales`, `/sales/clients`, `/sales/club-tasks`, `/sales/pnk` |
+| supervisor | `/club/*` (клиенты, статистика, продажи, ПНК, челленджи, планёрка, settings=Max/SMS) |
+| admin | `/admin/*` (clients, **deletion-log**, **excel-lists**, statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. **supervisors** / diagnostics / iskra-settings, …), `/admin/workouts/:id` |
 - Без Supabase: fallback в `localStorage`, демо-данные.
 - С Supabase: `signInWithPassword` (+ при необходимости `/api/auth-sign-in`), профиль из `users`.
 
@@ -110,15 +118,14 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 |------|------|
 | trainer | `/trainer`, `/trainer/clients`, `/trainer/clients/:id`, `/trainer/workouts/:id`, `/trainer/profile`, челленджи |
 | sales_manager | `/sales`, `/sales/clients`, `/sales/club-tasks`, `/sales/pnk` |
-| admin | `/admin/*` (clients, **deletion-log**, **excel-lists**, statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. diagnostics / iskra-settings, …), `/admin/workouts/:id` |
+| supervisor | `/club`, `/club/clients`, `/club/statistics`, `/club/sales`, `/club/pnk`, `/club/challenges`, `/club/club-tasks`, `/club/settings`, `/club/workouts/:id` |
+| admin | `/admin/*` (clients, **deletion-log**, **excel-lists**, statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. **supervisors** / diagnostics / iskra-settings, …), `/admin/workouts/:id` |
 
 **Менеджер и типы АЗ:** справочник `membership_types` (ПЗ + АЗ) нужен для колонок «Тренировки в аэробном зале». Доступ: RLS `fit_membership_types_sales_manager_read` + `admin-data?action=membership-types`. Sync менеджера тянет типы; на отчёте — ещё «Обновить». Подробнее: [SALES_MANAGER.md](./SALES_MANAGER.md), [SYNC.md](./SYNC.md).
 
 Карточка клиента (`ClientCard`) общая для тренера и админа.
 
-**Главная админа / менеджера продаж:** ряд «внимание» — `AdminHomeAttentionRow` (план + ПНК + планёрка + мягкие сигналы в пустые слоты). Сводка дня — spotlight + «Ещё». Тот же каркас при будущих ролях управляющего/куратора ([CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md), [ISKRA_CURATOR.md](./ISKRA_CURATOR.md)).
-
-**В планах (не роли в коде):** управляющий клуба — [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md).
+**Главная админа / менеджера / управляющего:** ряд «внимание» — `AdminHomeAttentionRow`. Управляющий: [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md) (миграция `20260805220000_users_supervisor_role.sql`). Куратор сети — позже ([ISKRA_CURATOR.md](./ISKRA_CURATOR.md)).
 
 ---
 

@@ -47,4 +47,17 @@ ok(clientCardParentCrumbLabel('strategy') === 'Стратегия', 'crumb label
 const crumbs = buildBreadcrumbs('/sales/clients/cid', '?from=strategy&club=c1')
 ok(crumbs[1]?.label === 'Стратегия' && crumbs[1]?.to === '/sales?tab=strategy', 'breadcrumb strategy')
 
+ok(
+  resolveClientCardBackHref('from=pnk', { isSupervisor: true }) === '/club/pnk',
+  'supervisor back to pnk',
+)
+ok(
+  resolveClientCardBackHref('clientsTab=tz', { isSupervisor: true }) === '/club/clients?clientsTab=tz',
+  'supervisor back to clients',
+)
+ok(
+  buildClientCardDeepLink('cid', { forSupervisor: true, from: 'pnk' }) === '/club/clients/cid?from=pnk',
+  'supervisor deep link',
+)
+
 process.exit(failed > 0 ? 1 : 0)

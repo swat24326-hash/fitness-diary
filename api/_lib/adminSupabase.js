@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { isSalesManagerRole } from '../../src/lib/admin/salesAccessCore.js'
+import { isSupervisorRole } from '../../src/lib/admin/supervisorAccessCore.js'
 
 export function readEnv() {
   const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').replace(/\/$/, '')
@@ -41,8 +42,12 @@ function isSalesManagerRoleNorm(roleNorm) {
   return SALES_MANAGER_ROLES.has(roleNorm) || isSalesManagerRole(roleNorm)
 }
 
+function isSupervisorRoleNorm(roleNorm) {
+  return isSupervisorRole(roleNorm)
+}
+
 /**
- * @returns {Promise<{ supabaseAdmin: import('@supabase/supabase-js').SupabaseClient, user: object, profile: object | null, roleNorm: string, isAdmin: boolean, isTrainer: boolean, isSalesManager: boolean } | null>}
+ * @returns {Promise<{ supabaseAdmin: import('@supabase/supabase-js').SupabaseClient, user: object, profile: object | null, roleNorm: string, isAdmin: boolean, isTrainer: boolean, isSalesManager: boolean, isSupervisor: boolean } | null>}
  */
 export async function requireAuthUser(req, res) {
   const { url, serviceKey, anonKey } = readEnv()
@@ -89,11 +94,13 @@ export async function requireAuthUser(req, res) {
   const roleNorm = normalizeRole(profile?.role)
   const isAdmin = isAdminRole(roleNorm, callerEmail)
   const isSalesManager = isSalesManagerRoleNorm(roleNorm)
+  const isSupervisor = isSupervisorRoleNorm(roleNorm)
   /** Пустая role у не-админа — типичный тренер (в Table Editor не заполнили). */
   const isTrainer =
-    isTrainerRole(roleNorm) || (!isAdmin && !isSalesManager && !!profile && !roleNorm)
+    isTrainerRole(roleNorm) ||
+    (!isAdmin && !isSalesManager && !isSupervisor && !!profile && !roleNorm)
 
-  return { supabaseAdmin, user, profile, roleNorm, isAdmin, isTrainer, isSalesManager }
+  return { supabaseAdmin, user, profile, roleNorm, isAdmin, isTrainer, isSalesManager, isSupervisor }
 }
 
 /** Доступ к list-trainers и trainer-pull: админ или тренер (в т.ч. без role в users). */
@@ -103,12 +110,35 @@ export function canAccessTrainerOrAdminApis(ctx) {
   return false
 }
 
-/** @returns {Promise<(typeof ctx & { isSalesManager?: boolean, salesClubId?: string }) | null>} */
+/**
+ * Админ сети, менеджер продаж или управляющий — с проверкой club_id для club-ролей.
+ * Управляющий получает isSalesManager=false (полный sales bundle, как админ клуба).
+ * @returns {Promise<(typeof ctx & { isSalesManager?: boolean, isSupervisor?: boolean, salesClubId?: string, supervisorClubId?: string }) | null>}
+ */
 export async function requireAdminOrSalesManager(req, res, clubId) {
   const ctx = await requireAuthUser(req, res)
   if (!ctx) return null
   if (ctx.isAdmin) {
-    return { ...ctx, isSalesManager: false }
+    return { ...ctx, isSalesManager: false, isSupervisor: false }
+  }
+  if (ctx.isSupervisor) {
+    const profileClub = String(ctx.profile?.club_id ?? '').trim()
+    const requested = String(clubId ?? '').trim()
+    if (!profileClub) {
+      sendJson(res, 403, { error: 'У управляющего не задан club_id — обратитесь к администратору' })
+      return null
+    }
+    if (requested && requested !== profileClub) {
+      sendJson(res, 403, { error: 'Нет доступа к этому клубу' })
+      return null
+    }
+    return {
+      ...ctx,
+      isSalesManager: false,
+      isSupervisor: true,
+      salesClubId: profileClub,
+      supervisorClubId: profileClub,
+    }
   }
   if (!ctx.isSalesManager) {
     sendJson(res, 403, { error: 'Нет доступа' })
@@ -124,7 +154,31 @@ export async function requireAdminOrSalesManager(req, res, clubId) {
     sendJson(res, 403, { error: 'Нет доступа к этому клубу' })
     return null
   }
-  return { ...ctx, isSalesManager: true, salesClubId: profileClub }
+  return { ...ctx, isSalesManager: true, isSupervisor: false, salesClubId: profileClub }
+}
+
+/** Админ или управляющий своего клуба (статистика, журнал). */
+export async function requireAdminOrSupervisor(req, res, clubId) {
+  const ctx = await requireAuthUser(req, res)
+  if (!ctx) return null
+  if (ctx.isAdmin) {
+    return { ...ctx, isSupervisor: false }
+  }
+  if (!ctx.isSupervisor) {
+    sendJson(res, 403, { error: 'Нет доступа' })
+    return null
+  }
+  const profileClub = String(ctx.profile?.club_id ?? '').trim()
+  const requested = String(clubId ?? '').trim()
+  if (!profileClub) {
+    sendJson(res, 403, { error: 'У управляющего не задан club_id — обратитесь к администратору' })
+    return null
+  }
+  if (requested && requested !== profileClub) {
+    sendJson(res, 403, { error: 'Нет доступа к этому клубу' })
+    return null
+  }
+  return { ...ctx, isSupervisor: true, supervisorClubId: profileClub }
 }
 
 /** @returns {Promise<Awaited<ReturnType<typeof requireAuthUser>> | null>} */

@@ -85,7 +85,7 @@
 | [PZ_CLIENTS_ONBOARD.md](./PZ_CLIENTS_ONBOARD.md) | ✅ шпаргалка | Как завести клиентов ПЗ (вечерний Excel — переход; MVP оплат) |
 | [AZ_CLIENTS_ONBOARD.md](./AZ_CLIENTS_ONBOARD.md) | ✅ шпаргалка | Desk АЗ: сид, направления, списания; связь с доменом оплат |
 | [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) | 📋 ТЗ | Домен платежа; **MVP = ПЗ + АЗ** |
-| [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md) | 📋 ТЗ | Управляющий клуба (ещё не роль в коде) |
+| [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md) | ✅ код + миграция | Управляющий ≈ админ клуба; Настройки = Max/SMS; Структура → «Управляющие» |
 | [CLUB_OPERATIONS_PLAN.md](./CLUB_OPERATIONS_PLAN.md) | план | Операции клуба в продукте |
 | [RELAY_OPERATIONS.md](./RELAY_OPERATIONS.md) | stub | Внешний «Релей» отложен |
 

@@ -115,8 +115,12 @@ export async function handleMembershipTypes(authCtx, req, res) {
       return
     }
     if (!profileClub) {
-      if (authCtx.isSalesManager) {
-        sendJson(res, 403, { error: 'Клуб не привязан к учётке менеджера' })
+      if (authCtx.isSalesManager || authCtx.isSupervisor) {
+        sendJson(res, 403, {
+          error: authCtx.isSupervisor
+            ? 'Клуб не привязан к учётке управляющего'
+            : 'Клуб не привязан к учётке менеджера',
+        })
         return
       }
       const { data: sample } = await authCtx.supabaseAdmin

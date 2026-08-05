@@ -49,19 +49,20 @@ export function resolveDispatchDeepLink(row) {
 
 /**
  * @param {string} clientId
- * @param {{ clubId?: string, forAdmin?: boolean, forSales?: boolean, from?: string }} [opts]
+ * @param {{ clubId?: string, forAdmin?: boolean, forSales?: boolean, forSupervisor?: boolean, from?: string }} [opts]
  */
 export function buildClientCardDeepLink(clientId, opts = {}) {
   const id = String(clientId ?? '').trim()
   if (!id) return '/trainer/clients'
   const qs = new URLSearchParams()
   const clubId = String(opts.clubId ?? '').trim()
-  if (clubId) qs.set('club', clubId)
+  if (clubId && !opts.forSupervisor && !opts.forSales) qs.set('club', clubId)
   const from = normalizeClientCardFrom(opts.from)
   if (from) qs.set('from', from)
   const tail = qs.toString()
   let path
-  if (opts.forSales) path = `/sales/clients/${id}`
+  if (opts.forSupervisor) path = `/club/clients/${id}`
+  else if (opts.forSales) path = `/sales/clients/${id}`
   else if (opts.forAdmin) path = `/admin/clients/${id}`
   else path = `/trainer/clients/${id}`
   return tail ? `${path}?${tail}` : path

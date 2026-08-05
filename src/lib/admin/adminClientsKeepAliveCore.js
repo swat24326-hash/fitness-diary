@@ -3,15 +3,17 @@
  */
 
 /**
- * @param {'admin' | 'sales_manager'} [accessMode]
+ * @param {'admin' | 'sales_manager' | 'supervisor'} [accessMode]
  * @returns {string}
  */
 export function adminClientsListBasePath(accessMode = 'admin') {
-  return accessMode === 'sales_manager' ? '/sales/clients' : '/admin/clients'
+  if (accessMode === 'sales_manager') return '/sales/clients'
+  if (accessMode === 'supervisor') return '/club/clients'
+  return '/admin/clients'
 }
 
 /**
- * `/admin/clients/:id` или `/sales/clients/:id` — карточка; иначе список (или чужой путь).
+ * `/admin/clients/:id` или `/sales/clients/:id` или `/club/clients/:id` — карточка.
  * @param {string} pathname
  * @param {string} listBasePath
  */

@@ -24,7 +24,7 @@ export const SALES_MANAGER_DESK_DELETE_EXTRA_TABLES = Object.freeze([
  * @param {{ isAdmin?: boolean, isTrainer?: boolean, isSalesManager?: boolean } | null | undefined} ctx
  */
 export function canUseSyncPushApi(ctx) {
-  return Boolean(ctx?.isAdmin || ctx?.isTrainer || ctx?.isSalesManager)
+  return Boolean(ctx?.isAdmin || ctx?.isTrainer || ctx?.isSalesManager || ctx?.isSupervisor)
 }
 
 /** @param {string} [tableName] */

@@ -2,7 +2,7 @@
  * Объединённый GET API админки/тренера (лимит Vercel Hobby: 12 functions).
  * ?action=search|journal|club-stats|health-cards|challenges|challenge-trainings|exercises|clubs
  */
-import { requireAdmin, requireAdminOrSalesManager, requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
+import { requireAdmin, requireAdminOrSalesManager, requireAdminOrSupervisor, requireAuthUser, sendJson, setCors } from './_lib/adminSupabase.js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 import { assertSalesPlanScopeForRole } from '../src/lib/admin/salesAccessCore.js'
 import { canViewClubDispatchSent } from '../src/lib/admin/iskraDispatchAccessCore.js'
@@ -40,6 +40,7 @@ import {
   handleSalesFinancePost,
   handleCreateSalesManagerPost,
 } from './_lib/adminData/salesHandlers.js'
+import { handleCreateSupervisorPost } from './_lib/adminData/supervisorHandlers.js'
 import { handlePriceListGet, handlePriceListPost } from './_lib/adminData/priceListHandlers.js'
 import { handleTzPriceListGet, handleTzPriceListPost } from './_lib/adminData/tzPriceListHandlers.js'
 import { handleAzPriceListGet, handleAzPriceListPost } from './_lib/adminData/azPriceListHandlers.js'
@@ -64,6 +65,7 @@ async function handler(req, res) {
       'sales-finance',
       'gemini-analytics',
       'create-sales-manager',
+      'create-supervisor',
       'iskra-settings',
       'coach-quality-settings',
       'iskra-learning',
@@ -106,7 +108,8 @@ async function handler(req, res) {
       return handleIskraTtsPost(ctx, res, body)
     }
     if (action === 'sales-finance') {
-      const ctx = await requireAdmin(req, res)
+      const clubId = String(body?.club_id ?? '').trim()
+      const ctx = await requireAdminOrSupervisor(req, res, clubId)
       if (!ctx) return
       return handleSalesFinancePost(ctx, req, res, body)
     }
@@ -114,6 +117,11 @@ async function handler(req, res) {
       const ctx = await requireAdmin(req, res)
       if (!ctx) return
       return handleCreateSalesManagerPost(ctx, res, body)
+    }
+    if (action === 'create-supervisor') {
+      const ctx = await requireAdmin(req, res)
+      if (!ctx) return
+      return handleCreateSupervisorPost(ctx, res, body)
     }
     if (action === 'iskra-settings') {
       const ctx = await requireAdmin(req, res)
@@ -250,10 +258,7 @@ async function handler(req, res) {
       return handleTrainerSelfJournalGet(authCtx, req, res)
     }
     if (action === 'coach-quality') {
-      if (authCtx.isAdmin) {
-        return handleCoachQuality(authCtx, req, res)
-      }
-      if (authCtx.isTrainer) {
+      if (authCtx.isAdmin || authCtx.isTrainer || authCtx.isSupervisor) {
         return handleCoachQuality(authCtx, req, res)
       }
       sendJson(res, 403, { error: 'Нет доступа' })
@@ -266,21 +271,21 @@ async function handler(req, res) {
           sendJson(res, 403, { error: 'Нет доступа к списку заданий' })
           return
         }
-      } else if (!authCtx.isAdmin && !authCtx.isTrainer && !authCtx.isSalesManager) {
+      } else if (!authCtx.isAdmin && !authCtx.isTrainer && !authCtx.isSalesManager && !authCtx.isSupervisor) {
         sendJson(res, 403, { error: 'Нет доступа' })
         return
       }
       return handleIskraDispatchGet(authCtx, req, res)
     }
-    // VAPID public key + своя подписка: тренер, админ и менеджер продаж
+    // VAPID public key + своя подписка: тренер, админ, менеджер, управляющий
     if (action === 'push-subscription') {
-      if (!authCtx.isAdmin && !authCtx.isTrainer && !authCtx.isSalesManager) {
+      if (!authCtx.isAdmin && !authCtx.isTrainer && !authCtx.isSalesManager && !authCtx.isSupervisor) {
         sendJson(res, 403, { error: 'Нет доступа' })
         return
       }
       return handlePushSubscriptionGet(authCtx, res)
     }
-    // Типы абон. (в т.ч. АЗ) нужны менеджеру для колонок отчёта продаж
+    // Типы абон. (в т.ч. АЗ) нужны менеджеру/управляющему для колонок отчёта продаж
     if (action === 'membership-types') {
       const { canFetchMembershipTypesViaApi } = await import('../src/lib/admin/salesMembershipTypesAccessCore.js')
       if (
@@ -288,6 +293,7 @@ async function handler(req, res) {
           isAdmin: authCtx.isAdmin,
           isTrainer: authCtx.isTrainer,
           isSalesManager: authCtx.isSalesManager,
+          isSupervisor: authCtx.isSupervisor,
         })
       ) {
         sendJson(res, 403, { error: 'Нет доступа' })
@@ -295,14 +301,28 @@ async function handler(req, res) {
       }
       return handleMembershipTypes(authCtx, req, res)
     }
-    if (!authCtx.isAdmin && !authCtx.isTrainer) {
+    if (!authCtx.isAdmin && !authCtx.isTrainer && !authCtx.isSupervisor) {
       sendJson(res, 403, { error: 'Нет доступа' })
       return
     }
     if (action === 'challenges') return handleChallenges(authCtx, req, res)
     if (action === 'challenge-trainings') return handleChallengeTrainings(authCtx, req, res)
+    // Управляющий не правит справочник упражнений — только чтение для челленджей/карточек
     if (action === 'exercises-meta') return handleExercisesMeta(authCtx, res)
-    if (action === 'exercises') return handleExercises(authCtx, res)
+    if (action === 'exercises') {
+      if (authCtx.isSupervisor && !authCtx.isAdmin) {
+        return handleExercises(authCtx, res)
+      }
+      if (!authCtx.isAdmin && !authCtx.isTrainer) {
+        sendJson(res, 403, { error: 'Нет доступа' })
+        return
+      }
+      return handleExercises(authCtx, res)
+    }
+    if (authCtx.isSupervisor && !authCtx.isAdmin) {
+      sendJson(res, 403, { error: 'Справочник доступен только администратору сети' })
+      return
+    }
     if (action === 'nutrition-products') return handleNutritionProducts(authCtx, req, res)
     if (action === 'homework-presets') return handleHomeworkPresets(authCtx, req, res)
   }
@@ -356,7 +376,6 @@ async function handler(req, res) {
     return handleClubSmsGet(ctx, req, res)
   }
 
-  /** Настройки качества ведения: чтение — админ или сотрудник своего клуба; запись — только админ (POST). */
   if (action === 'coach-quality-settings') {
     const clubId = String(req.query?.club_id ?? '').trim()
     const authCtx = await requireAuthUser(req, res)
@@ -365,38 +384,53 @@ async function handler(req, res) {
       return handleCoachQualitySettingsGet(authCtx, req, res)
     }
     const userClub = String(authCtx.profile?.club_id ?? '').trim()
-    if ((authCtx.isTrainer || authCtx.isSalesManager) && clubId && userClub === clubId) {
+    if (
+      (authCtx.isTrainer || authCtx.isSalesManager || authCtx.isSupervisor) &&
+      clubId &&
+      userClub === clubId
+    ) {
       return handleCoachQualitySettingsGet(authCtx, req, res)
     }
     sendJson(res, 403, { error: 'Нет доступа к настройкам качества этого клуба' })
     return
   }
 
-  if (action === 'search' || action === 'clients-last-trainings' || action === 'deletion-audit-log') {
+  if (action === 'deletion-audit-log') {
+    const ctx = await requireAdmin(req, res)
+    if (!ctx) return
+    return handleDeletionAuditLogGet(ctx, req, res)
+  }
+
+  if (action === 'search' || action === 'clients-last-trainings') {
     const clubId = String(req.query?.club_id ?? req.query?.clubId ?? '').trim()
     const ctx = await requireAdminOrSalesManager(req, res, clubId)
     if (!ctx) return
-    if (ctx.isSalesManager && !clubId && action !== 'deletion-audit-log') {
+    if ((ctx.isSalesManager || ctx.isSupervisor) && !clubId) {
       sendJson(res, 400, { error: 'Укажите club_id' })
       return
     }
     if (action === 'search') return handleSearch(ctx, req, res)
-    if (action === 'deletion-audit-log') return handleDeletionAuditLogGet(ctx, req, res)
     return handleClientsLastTrainings(ctx, req, res)
+  }
+
+  if (action === 'journal' || action === 'club-stats' || action === 'club-monthly' || action === 'health-cards') {
+    const clubId = String(req.query?.club_id ?? req.query?.clubId ?? '').trim()
+    const ctx = await requireAdminOrSupervisor(req, res, clubId)
+    if (!ctx) return
+    if (ctx.isSupervisor && !clubId) {
+      sendJson(res, 400, { error: 'Укажите club_id' })
+      return
+    }
+    if (action === 'journal') return handleJournal(ctx, req, res)
+    if (action === 'club-stats') return handleClubStats(ctx, req, res)
+    if (action === 'club-monthly') return handleClubMonthly(ctx, req, res)
+    return handleHealthCards(ctx, req, res)
   }
 
   const ctx = await requireAdmin(req, res)
   if (!ctx) return
 
   switch (action) {
-    case 'journal':
-      return handleJournal(ctx, req, res)
-    case 'club-stats':
-      return handleClubStats(ctx, req, res)
-    case 'club-monthly':
-      return handleClubMonthly(ctx, req, res)
-    case 'health-cards':
-      return handleHealthCards(ctx, req, res)
     case 'clubs':
       return handleClubs(ctx, res)
     case 'gemini-analytics-prefetch':
@@ -410,7 +444,7 @@ async function handler(req, res) {
     default:
       sendJson(res, 400, {
         error:
-          'Укажите action: search, journal, clients-last-trainings, deletion-audit-log, club-stats, club-monthly, coach-quality, health-cards, sales, price-list, tz-price-list, az-price-list, gemini-analytics-prefetch, iskra-settings, challenges, challenge-trainings, exercises, membership-types, clubs',
+          'Укажите action: search, journal, clients-last-trainings, deletion-audit-log, club-stats, club-monthly, coach-quality, health-cards, sales, price-list, tz-price-list, az-price-list, gemini-analytics-prefetch, iskra-settings, challenges, challenge-trainings, exercises, membership-types, clubs, create-supervisor',
       })
   }
 }

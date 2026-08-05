@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, Trash2, Trophy } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 import {
   dispatchLocalDataChanged,
   getChallengeByIdLocal,
@@ -25,11 +26,15 @@ function medalForRank(rank) {
 export function AdminChallengeDetail() {
   const { challengeId } = useParams()
   const navigate = useNavigate()
+  const { isSupervisor } = useAuth()
+  const location = useLocation()
   const ctx = useOutletContext()
   const [search] = useSearchParams()
   const clubIdCtx = ctx?.clubId ?? ''
   const clubQsParam = search.get('club') ?? clubIdCtx ?? ''
-  const clubQs = clubQsParam ? `?club=${encodeURIComponent(clubQsParam)}` : ''
+  const clubQs = clubQsParam && !isSupervisor ? `?club=${encodeURIComponent(clubQsParam)}` : ''
+  const challengesBase =
+    isSupervisor || location.pathname.startsWith('/club') ? '/club/challenges' : '/admin/challenges'
 
   const [challenge, setChallenge] = useState(null)
   const [rows, setRows] = useState([])
@@ -143,7 +148,7 @@ export function AdminChallengeDetail() {
     try {
       await deleteChallengeById(challenge.id)
       dispatchLocalDataChanged({ reason: 'challenge-deleted' })
-      navigate(`/admin/challenges${clubQs}`)
+      navigate(`${challengesBase}${clubQs}`)
     } catch (e) {
       alert(e?.message ?? 'Не удалось удалить')
     } finally {
@@ -159,7 +164,7 @@ export function AdminChallengeDetail() {
     return (
       <div className="challenge-admin-shell">
         <p>Челлендж не найден в локальном кэше.</p>
-        <Link to={`/admin/challenges${clubQs}`} className="btn btn-primary">
+        <Link to={`${challengesBase}${clubQs}`} className="btn btn-primary">
           К списку
         </Link>
       </div>
@@ -171,7 +176,7 @@ export function AdminChallengeDetail() {
   return (
     <div className="challenge-admin-shell challenge-detail">
       <div className="challenge-detail__toolbar">
-        <Link to={`/admin/challenges${clubQs}`} className="btn btn-ghost challenge-detail__back">
+        <Link to={`${challengesBase}${clubQs}`} className="btn btn-ghost challenge-detail__back">
           <ChevronLeft size={18} aria-hidden />
           Все челленджи
         </Link>

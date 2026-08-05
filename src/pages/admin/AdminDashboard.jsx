@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 import { useCallback, useMemo, useState } from 'react'
-import { BarChart3, Building2, ClipboardList, FileSpreadsheet, Shield, Trash2, TrendingUp, Trophy, UserCircle, UserPlus } from 'lucide-react'
+import { BarChart3, Building2, ClipboardList, FileSpreadsheet, Settings, Shield, Trash2, TrendingUp, Trophy, UserCircle, UserPlus } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 import { AdminClubDaySummaryPanel } from '../../components/admin/AdminClubDaySummaryPanel'
 import { AdminHomeAttentionRow } from '../../components/admin/AdminHomeAttentionRow'
 import { dispatchLocalDataChanged } from '../../lib/dataAccess'
@@ -49,22 +50,27 @@ function adminTileClass({ isActive }) {
   return `feature-tile u-no-decoration${isActive ? ' feature-tile--active' : ''}`
 }
 
-export function AdminDashboard() {
+export function AdminDashboard({ accessMode = 'admin' } = {}) {
+  const { user } = useAuth()
   const [search] = useSearchParams()
   const location = useLocation()
+  const isSupervisor = accessMode === 'supervisor'
+  const basePath = isSupervisor ? '/club' : '/admin'
 
   const reloadClubs = useCallback(() => {
     dispatchLocalDataChanged({ reason: 'clubs-refresh' })
   }, [])
 
-  const clubId = search.get('club') ?? ''
-  const clubQs = clubId ? `?club=${encodeURIComponent(clubId)}` : ''
-  const tab = (path) => `/admin/${path}${clubQs}`
+  const clubId = isSupervisor
+    ? String(user?.club_id ?? '').trim()
+    : search.get('club') ?? ''
+  const clubQs = !isSupervisor && clubId ? `?club=${encodeURIComponent(clubId)}` : ''
+  const tab = (path) => `${basePath}/${path}${clubQs}`
 
   const isAdminHome = useMemo(() => {
     const p = (location.pathname || '/').replace(/\/$/, '') || '/'
-    return p === '/admin'
-  }, [location.pathname])
+    return p === basePath
+  }, [location.pathname, basePath])
 
   const [attentionWidgets, setAttentionWidgets] = useState({
     hasPnk: false,
@@ -232,30 +238,43 @@ export function AdminDashboard() {
                 </div>
                 <p className="feature-tile__title">ПНК</p>
               </NavLink>
-              <NavLink to={tab('structure')} className={adminTileClass}>
-                <div className="feature-tile__icon">
-                  <Building2 size={44} aria-hidden />
-                </div>
-                <p className="feature-tile__title">Структура</p>
-              </NavLink>
+              {isSupervisor ? (
+                <NavLink to={tab('settings')} className={adminTileClass}>
+                  <div className="feature-tile__icon">
+                    <Settings size={44} aria-hidden />
+                  </div>
+                  <p className="feature-tile__title">Настройки</p>
+                </NavLink>
+              ) : (
+                <NavLink to={tab('structure')} className={adminTileClass}>
+                  <div className="feature-tile__icon">
+                    <Building2 size={44} aria-hidden />
+                  </div>
+                  <p className="feature-tile__title">Структура</p>
+                </NavLink>
+              )}
               <NavLink to={tab('clients')} className={adminTileClass}>
                 <div className="feature-tile__icon">
                   <UserCircle size={44} aria-hidden />
                 </div>
                 <p className="feature-tile__title">Клиенты</p>
               </NavLink>
-              <NavLink to={tab('deletion-log')} className={adminTileClass}>
-                <div className="feature-tile__icon">
-                  <Trash2 size={44} aria-hidden />
-                </div>
-                <p className="feature-tile__title">Журнал удалений</p>
-              </NavLink>
-              <NavLink to={tab('excel-lists')} className={adminTileClass}>
-                <div className="feature-tile__icon">
-                  <FileSpreadsheet size={44} aria-hidden />
-                </div>
-                <p className="feature-tile__title">Списки из Excel</p>
-              </NavLink>
+              {!isSupervisor ? (
+                <NavLink to={tab('deletion-log')} className={adminTileClass}>
+                  <div className="feature-tile__icon">
+                    <Trash2 size={44} aria-hidden />
+                  </div>
+                  <p className="feature-tile__title">Журнал удалений</p>
+                </NavLink>
+              ) : null}
+              {!isSupervisor ? (
+                <NavLink to={tab('excel-lists')} className={adminTileClass}>
+                  <div className="feature-tile__icon">
+                    <FileSpreadsheet size={44} aria-hidden />
+                  </div>
+                  <p className="feature-tile__title">Списки из Excel</p>
+                </NavLink>
+              ) : null}
               <NavLink to={tab('statistics')} className={adminTileClass}>
                 <div className="feature-tile__icon">
                   <BarChart3 size={44} aria-hidden />

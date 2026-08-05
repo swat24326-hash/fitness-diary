@@ -3,7 +3,7 @@
  */
 
 /**
- * @param {{ isAdmin?: boolean, isSalesManager?: boolean, salesClubId?: string, profile?: { club_id?: string }, user?: { club_id?: string } }} ctx
+ * @param {{ isAdmin?: boolean, isSalesManager?: boolean, isSupervisor?: boolean, salesClubId?: string, supervisorClubId?: string, profile?: { club_id?: string }, user?: { club_id?: string } }} ctx
  * @param {string} clubId
  * @returns {{ ok: true } | { ok: false, error: string, status: number }}
  */
@@ -13,13 +13,16 @@ export function assertPriceListClubAccess(ctx, clubId) {
 
   const isAdmin = ctx?.isAdmin === true
   const isSalesManager = ctx?.isSalesManager === true
+  const isSupervisor = ctx?.isSupervisor === true
 
-  if (!isAdmin && !isSalesManager) {
+  if (!isAdmin && !isSalesManager && !isSupervisor) {
     return { ok: false, status: 403, error: 'Нет доступа' }
   }
 
-  if (isSalesManager && !isAdmin) {
-    const own = String(ctx?.salesClubId ?? ctx?.profile?.club_id ?? ctx?.user?.club_id ?? '').trim()
+  if ((isSalesManager || isSupervisor) && !isAdmin) {
+    const own = String(
+      ctx?.supervisorClubId ?? ctx?.salesClubId ?? ctx?.profile?.club_id ?? ctx?.user?.club_id ?? '',
+    ).trim()
     if (!own || own !== id) {
       return { ok: false, status: 403, error: 'Нет доступа к прайсу другого клуба' }
     }

@@ -130,19 +130,26 @@ function remainingTrainingsOnMembership(membership, clientTrainings) {
 }
 
 /**
- * @param {{ accessMode?: 'admin' | 'sales_manager', listUiActive?: boolean }} [props]
+ * @param {{ accessMode?: 'admin' | 'sales_manager' | 'supervisor', listUiActive?: boolean }} [props]
  */
 export function AdminClients({ accessMode = 'admin', listUiActive = true } = {}) {
   const isSalesManager = accessMode === 'sales_manager'
+  const isSupervisor = accessMode === 'supervisor'
+  const clubBound = isSalesManager || isSupervisor
   const { user } = useAuth()
   const ctx = useOutletContext()
   const navigate = useNavigate()
-  const clubIdCtx = isSalesManager
+  const clubIdCtx = clubBound
     ? String(user?.club_id ?? '').trim()
     : String(ctx?.clubId ?? '').trim()
-  const clientsBasePath = isSalesManager ? '/sales/clients' : '/admin/clients'
+  const clientsBasePath =
+    accessMode === 'sales_manager'
+      ? '/sales/clients'
+      : accessMode === 'supervisor'
+        ? '/club/clients'
+        : '/admin/clients'
   const [searchParams, setSearchParams] = useSearchParams()
-  const club = isSalesManager
+  const club = clubBound
     ? clubIdCtx
     : searchParams.get('club') ?? clubIdCtx ?? ''
   const filterFromUrl = searchParams.get('filter')
@@ -279,7 +286,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
           }
           setTrainerNameById(nmPeek)
           let clubTrainersPeek = Array.isArray(trainersPeek) ? trainersPeek : []
-          if (isSalesManager && club) {
+          if (clubBound && club) {
             clubTrainersPeek = clubTrainersPeek.filter((t) => String(t.club_id ?? '').trim() === String(club))
           }
           setTrainersForClub(clubTrainersPeek)
@@ -325,7 +332,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       }
       setTrainerNameById(nm)
       let clubTrainers = Array.isArray(trainers) ? trainers : []
-      if (isSalesManager && club) {
+      if (clubBound && club) {
         clubTrainers = clubTrainers.filter((t) => String(t.club_id ?? '').trim() === String(club))
       }
       setTrainersForClub(clubTrainers)
@@ -364,7 +371,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       setListReady(true)
       if (!silent) setBusy(false)
     }
-  }, [club, isSalesManager])
+  }, [club, clubBound])
 
   useEffect(() => {
     void reload()
@@ -406,14 +413,14 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
           const p = new URLSearchParams(prev)
           mutate(p)
           if (resetPage) p.delete('page')
-          if (isSalesManager) p.delete('club')
+          if (clubBound) p.delete('club')
           else if (club) p.set('club', club)
           return p
         },
         { replace: true },
       )
     },
-    [setSearchParams, isSalesManager, club, listUiActive],
+    [setSearchParams, clubBound, club, listUiActive],
   )
 
   // Доп. pull архива при вкладке (основной снимок уже в active+archive merge при загрузке).
@@ -631,7 +638,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
 
   const listNavState = useMemo(
     () => ({
-      clubId: isSalesManager ? '' : club,
+      clubId: clubBound ? '' : club,
       clientsTab,
       archiveHall: clientsTab === 'archive' ? archiveHallFilter : '',
       filter: quickFilter,
@@ -639,7 +646,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       query,
       trainerQuery,
     }),
-    [isSalesManager, club, clientsTab, archiveHallFilter, quickFilter, listPage, query, trainerQuery],
+    [clubBound, club, clientsTab, archiveHallFilter, quickFilter, listPage, query, trainerQuery],
   )
 
   const pagedClients = useMemo(() => {
@@ -880,7 +887,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     try {
       const list = await listTrainerSummariesForAdmin()
       let arr = Array.isArray(list) ? list : []
-      if (isSalesManager && club) {
+      if (clubBound && club) {
         arr = arr.filter((t) => String(t.club_id ?? '').trim() === String(club))
       }
       setTrainerOptions(arr)
@@ -893,7 +900,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     } catch {
       setReassignLoadErr('Не удалось загрузить список тренеров. Укажите UUID вручную.')
     }
-  }, [club, isSalesManager])
+  }, [club, clubBound])
 
   const applyReassignTrainer = async () => {
     if (!reassignClient?.id) return
@@ -1007,7 +1014,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         />
       )}
 
-      {!club && isSalesManager ? (
+      {!club && clubBound ? (
         <p className="sales-clients__empty" role="status">
           Клуб не привязан к учётке. Обратитесь к администратору — без club_id список клиентов недоступен.
         </p>
@@ -1095,11 +1102,11 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
             {smsFeedback.msg}
           </p>
         ) : null}
-        {cloudNeedsClub && !isSalesManager ? (
+        {cloudNeedsClub && !clubBound ? (
           <p className="muted admin-clients-workspace__note">
             В облачном режиме выберите <strong>клуб</strong> в панели выше — иначе список клиентов не загружается.
           </p>
-        ) : cloudNeedsClub && isSalesManager && club ? (
+        ) : cloudNeedsClub && clubBound && club ? (
           <p className="muted admin-clients-workspace__note">
             Не удалось подтянуть список из облака — показан локальный кэш. Нажмите обновить.
           </p>
@@ -1110,7 +1117,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
             ) : (
               <>
                 С <strong>устройства</strong> (IndexedDB).
-                {!club ? (isSalesManager ? ' Нужен club_id в профиле.' : ' Выберите клуб в шапке.') : null}
+                {!club ? (clubBound ? ' Нужен club_id в профиле.' : ' Выберите клуб в шапке.') : null}
               </>
             )}
           </p>
@@ -1199,17 +1206,21 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                 : ''}{' '}
               Поиск по имени, телефону
               {showTrainerSearch ? ' или тренеру' : ''} — от 2 символов.{' '}
-              <Link
-                to={
-                  isSalesManager
-                    ? '/sales/deletion-log'
-                    : `/admin/deletion-log${club ? `?club=${encodeURIComponent(club)}` : ''}`
-                }
-              >
-                Журнал удалений
-              </Link>
-              {' '}
-              — кто стёр карточку совсем (не архив).
+              {isSupervisor ? null : (
+                <>
+                  <Link
+                    to={
+                      isSalesManager
+                        ? '/sales/deletion-log'
+                        : `/admin/deletion-log${club ? `?club=${encodeURIComponent(club)}` : ''}`
+                    }
+                  >
+                    Журнал удалений
+                  </Link>
+                  {' '}
+                  — кто стёр карточку совсем (не архив).
+                </>
+              )}
             </p>
           </>
         )}

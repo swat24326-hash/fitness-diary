@@ -12,7 +12,7 @@ import {
  *
  * Deep-link сразу на карточку: список монтируется только после первого визита списка.
  *
- * @param {{ accessMode?: 'admin' | 'sales_manager' }} [props]
+ * @param {{ accessMode?: 'admin' | 'sales_manager' | 'supervisor' }} [props]
  */
 export function AdminClientsKeepAliveLayout({ accessMode = 'admin' } = {}) {
   const location = useLocation()

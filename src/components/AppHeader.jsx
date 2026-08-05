@@ -41,7 +41,7 @@ function menuNavClass({ isActive }) {
 }
 
 export function AppHeader() {
-  const { user, signOut, isAdmin, isSalesManager, supabaseReady, refreshUserProfile, refreshSessionOnWake } = useAuth()
+  const { user, signOut, isAdmin, isSalesManager, isSupervisor, supabaseReady, refreshUserProfile, refreshSessionOnWake } = useAuth()
   const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const [online, setOnline] = useState(() => (typeof navigator !== 'undefined' ? isAppOnline() : true))
@@ -85,7 +85,7 @@ export function AppHeader() {
     errorJournalOpen,
     setErrorJournalOpen,
     openErrorJournal,
-  } = useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, searchParams, menuOpen, closeMenu })
+  } = useHeaderSync({ user, isAdmin, isSalesManager: isSalesManager || isSupervisor, supabaseReady, searchParams, menuOpen, closeMenu })
 
   const showAdminClubSelect = isAdmin && location.pathname.startsWith('/admin')
   const adminClubValue = searchParams.get('club') ?? ''
@@ -180,8 +180,8 @@ export function AppHeader() {
     }
   }, [isAdmin, user?.club_id])
 
-  const isTrainer = !isAdmin && !isSalesManager && !!user
-  const isDispatchInboxUser = (isTrainer || isSalesManager) && !!user
+  const isTrainer = !isAdmin && !isSalesManager && !isSupervisor && !!user
+  const isDispatchInboxUser = (isTrainer || isSalesManager || isSupervisor) && !!user
 
   useEffect(() => {
     if (!isDispatchInboxUser || !supabaseReady) {
@@ -306,14 +306,14 @@ export function AppHeader() {
     }
   }
 
-  const homeTo = isAdmin ? `/admin${adminQs}` : isSalesManager ? '/sales' : '/trainer'
+  const homeTo = isAdmin ? `/admin${adminQs}` : isSalesManager ? '/sales' : isSupervisor ? '/club' : '/trainer'
 
   const journalContext = useMemo(() => {
     const clubId = isAdmin ? adminClubValue : String(user?.club_id ?? '').trim()
     const club = adminClubs.find((c) => String(c.id) === clubId)
     return {
       user,
-      role: isAdmin ? 'admin' : isSalesManager ? 'sales_manager' : 'trainer',
+      role: isAdmin ? 'admin' : isSalesManager ? 'sales_manager' : isSupervisor ? 'supervisor' : 'trainer',
       isAdmin,
       online,
       supabaseReady: supabaseReady && isSupabaseConfigured(),
@@ -329,6 +329,7 @@ export function AppHeader() {
     user,
     isAdmin,
     isSalesManager,
+    isSupervisor,
     online,
     supabaseReady,
     adminClubValue,
@@ -450,6 +451,33 @@ export function AppHeader() {
               </span>
             </NavLink>
           </>
+        ) : isSupervisor ? (
+          <>
+            <NavLink to="/club" end className={headerNavClass}>
+              <span className="app-header__nav-with-icon">
+                <LayoutDashboard size={18} aria-hidden />
+                Главная
+              </span>
+            </NavLink>
+            <NavLink to="/club/clients" className={headerNavClass}>
+              <span className="app-header__nav-with-icon">
+                <UserCircle size={18} aria-hidden />
+                Клиенты
+              </span>
+            </NavLink>
+            <NavLink to="/club/statistics" className={headerNavClass}>
+              <span className="app-header__nav-with-icon">
+                <BarChart3 size={18} aria-hidden />
+                Статистика
+              </span>
+            </NavLink>
+            <NavLink to="/club/settings" className={headerNavClass}>
+              <span className="app-header__nav-with-icon">
+                <Building2 size={18} aria-hidden />
+                Настройки
+              </span>
+            </NavLink>
+          </>
         ) : isSalesManager ? (
           <>
             <NavLink to="/sales" end className={() => headerNavClass({ isActive: salesHomeActive })}>
@@ -518,8 +546,8 @@ export function AppHeader() {
             <IskraOrb state="idle" size={26} className="app-header__vasya-orb" />
           </button>
         ) : null}
-        {!isAdmin && !isSalesManager && user ? <HeaderHeartRate /> : null}
-        {!isAdmin && !isSalesManager && user ? <HeaderStopwatch /> : null}
+        {!isAdmin && !isSalesManager && !isSupervisor && user ? <HeaderHeartRate /> : null}
+        {!isAdmin && !isSalesManager && !isSupervisor && user ? <HeaderStopwatch /> : null}
         {isDispatchInboxUser && supabaseReady ? (
           <button
             type="button"
@@ -617,6 +645,21 @@ export function AppHeader() {
                   </NavLink>
                   <NavLink to={`/admin/challenges${adminQs}`} className={menuNavClass} onClick={() => setMenuOpen(false)}>
                     Челленджи
+                  </NavLink>
+                </>
+              ) : isSupervisor ? (
+                <>
+                  <NavLink to="/club" end className={menuNavClass} onClick={() => setMenuOpen(false)}>
+                    Главная
+                  </NavLink>
+                  <NavLink to="/club/clients" className={menuNavClass} onClick={() => setMenuOpen(false)}>
+                    Клиенты
+                  </NavLink>
+                  <NavLink to="/club/statistics" className={menuNavClass} onClick={() => setMenuOpen(false)}>
+                    Статистика
+                  </NavLink>
+                  <NavLink to="/club/settings" className={menuNavClass} onClick={() => setMenuOpen(false)}>
+                    Настройки
                   </NavLink>
                 </>
               ) : isSalesManager ? (

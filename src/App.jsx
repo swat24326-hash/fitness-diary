@@ -22,6 +22,9 @@ import { AdminClubTasks } from './pages/admin/AdminClubTasks'
 import { SalesClubTasks } from './pages/admin/SalesClubTasks'
 import { SalesPnk } from './pages/admin/SalesPnk'
 import { AdminDeletionLogPage } from './pages/admin/AdminDeletionLogPage.jsx'
+import { ClubSupervisorSettings } from './pages/admin/ClubSupervisorSettings'
+import { ClubSupervisorClubTasks } from './pages/admin/ClubSupervisorClubTasks'
+import { ClubSupervisorClients } from './pages/admin/ClubSupervisorClients'
 import { IskraPanelProvider } from './context/IskraPanelContext'
 import { HeartRateSessionsProvider } from './context/HeartRateSessionsContext'
 import { Login } from './pages/Login'
@@ -95,7 +98,8 @@ function LoggedInLayout() {
 
   const isSalesManager = role === 'sales_manager'
   const isAdmin = role === 'admin'
-  const shellRole = isAdmin ? 'admin' : isSalesManager ? 'sales' : 'trainer'
+  const isSupervisor = role === 'supervisor'
+  const shellRole = isAdmin ? 'admin' : isSalesManager ? 'sales' : isSupervisor ? 'admin' : 'trainer'
 
   return (
     <div className={`app-shell app-shell--${shellRole}`}>
@@ -120,6 +124,7 @@ function LoggedInLayout() {
 function roleHomePath(role) {
   if (role === 'admin') return '/admin'
   if (role === 'sales_manager') return '/sales'
+  if (role === 'supervisor') return '/club'
   return '/trainer'
 }
 
@@ -221,6 +226,23 @@ export default function App() {
                 <Route path=":id" element={<ClientCard />} />
               </Route>
               <Route path="/sales/deletion-log" element={<AdminDeletionLogPage accessMode="sales_manager" />} />
+            </Route>
+            <Route element={<RoleOutlet roles={['supervisor']} />}>
+              <Route path="/club/workouts/:id" element={<TrainingPage />} />
+              <Route path="/club" element={<AdminDashboard accessMode="supervisor" />}>
+                <Route index element={null} />
+                <Route path="statistics" element={<AdminStatistics />} />
+                <Route path="sales" element={<AdminSales accessMode="supervisor" />} />
+                <Route path="pnk" element={<SalesPnk />} />
+                <Route path="clients" element={<ClubSupervisorClients />}>
+                  <Route index element={null} />
+                  <Route path=":id" element={<ClientCard />} />
+                </Route>
+                <Route path="challenges" element={<AdminChallenges />} />
+                <Route path="challenges/:challengeId" element={<AdminChallengeDetail />} />
+                <Route path="club-tasks" element={<ClubSupervisorClubTasks />} />
+                <Route path="settings" element={<ClubSupervisorSettings />} />
+              </Route>
             </Route>
             <Route element={<RoleOutlet roles={['admin']} />}>
               <Route path="/admin/workouts/:id" element={<TrainingPage />} />

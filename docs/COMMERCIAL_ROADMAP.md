@@ -77,7 +77,7 @@ Cutover **не в текущих спринтах**. Сейчас — тольк
 | Список клиентов: пагинация + индексы тренировок | ✅ фаза A, см. [CLIENT_ARCHIVE.md](./CLIENT_ARCHIVE.md) |
 | Ручной архив клиентов (тренер + админ) | ✅ фаза B, [CLIENT_ARCHIVE.md](./CLIENT_ARCHIVE.md) — миграция `20260602120000`, UI, sync, agg |
 | Создание клуба / CONNECTION_RESET (§15 handoff) | открыто |
-| **Управляющий** (supervisor, один на клуб) | 📋 ТЗ: [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md), реализация позже |
+| **Управляющий** (supervisor, один на клуб) | 📋 ТЗ обновлён 2026-08-05: ≈ админ клуба + «Настройки» (Max/SMS); зал — отдельный тренер. [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md) |
 | Менеджер по продажам | ✅ роль + ежедневный отчёт / план в проде; ТЗ-справочник: [SALES_MANAGER.md](./SALES_MANAGER.md) |
 | **Воронка ПНК** | ✅ в проде (2026-07) — [PNK_FUNNEL.md](./PNK_FUNNEL.md); доска `/sales/pnk`, мастер на карточке |
 | **Планёрка** (задания команде) | ✅ v1 + лента в ИСКРЕ — [ISKRA_PLANERKA.md](./ISKRA_PLANERKA.md), [ISKRA_PRO.md](./ISKRA_PRO.md) |

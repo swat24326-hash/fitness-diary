@@ -105,11 +105,13 @@ const MONTH_NAMES = [
 
 export function AdminSales({ accessMode = 'admin' }) {
   const isSalesManager = accessMode === 'sales_manager'
+  const isSupervisor = accessMode === 'supervisor'
+  const clubBound = isSalesManager || isSupervisor
   const { user, profilePending, refreshUserProfile } = useAuth()
   const ctx = useOutletContext()
   const clubIdCtx = ctx?.clubId ?? ''
   const [searchParams, setSearchParams] = useSearchParams()
-  const clubId = isSalesManager
+  const clubId = clubBound
     ? String(user?.club_id ?? '').trim()
     : searchParams.get('club') ?? clubIdCtx ?? ''
   const salesTabParam = searchParams.get('tab')

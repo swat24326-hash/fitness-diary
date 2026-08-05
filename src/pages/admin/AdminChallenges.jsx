@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useOutletContext, useSearchParams } from 'react-router-dom'
 import { Plus, RefreshCw, Trash2, Trophy } from 'lucide-react'
 import { CloseButton } from '../../components/CloseButton'
+import { useAuth } from '../../context/AuthContext'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import {
   dispatchLocalDataChanged,
@@ -42,12 +43,16 @@ function statusClass(status) {
 }
 
 export function AdminChallenges() {
+  const { isSupervisor } = useAuth()
+  const location = useLocation()
   const ctx = useOutletContext()
   const [search] = useSearchParams()
   const clubIdCtx = ctx?.clubId ?? ''
   const clubId = search.get('club') ?? clubIdCtx ?? ''
+  const challengesBase =
+    isSupervisor || location.pathname.startsWith('/club') ? '/club/challenges' : '/admin/challenges'
 
-  const clubQs = clubId ? `?club=${encodeURIComponent(clubId)}` : ''
+  const clubQs = clubId && !isSupervisor ? `?club=${encodeURIComponent(clubId)}` : ''
 
   const [tab, setTab] = useState('active')
   const [busy, setBusy] = useState(false)
@@ -316,7 +321,7 @@ export function AdminChallenges() {
                 <div className="challenge-list-card__top">
                   <span className={statusClass(ch.status)}>{statusLabel(ch.status)}</span>
                   <div className="challenge-list-card__actions">
-                    <Link className="btn btn-sm btn-primary" to={`/admin/challenges/${ch.id}${clubQs}`}>
+                    <Link className="btn btn-sm btn-primary" to={`${challengesBase}/${ch.id}${clubQs}`}>
                       Рейтинг
                     </Link>
                     <button
@@ -413,15 +418,26 @@ export function AdminChallenges() {
                 </select>
                 {!exercisesModalBusy && exercises.length === 0 ? (
                   <p className="muted" style={{ margin: '8px 0 0', fontSize: 13, lineHeight: 1.45 }}>
-                    Сначала заведите упражнения в разделе{' '}
-                    <Link
-                      to={`/admin/structure${clubQs ? `${clubQs}&` : '?'}tab=exercises`}
-                      className="u-no-decoration"
-                      style={{ color: 'var(--accent-bright, #2effb8)' }}
-                    >
-                      Упражнения
-                    </Link>
-                    {isSupabaseConfigured() ? ' (при онлайне список подтягивается из Supabase).' : ' (локально — добавьте вручную).'}
+                    {isSupervisor ? (
+                      <>
+                        Справочник упражнений пуст — попросите администратора сети завести упражнения в Структуре.
+                        {isSupabaseConfigured() ? ' При онлайне список подтягивается из облака.' : ''}
+                      </>
+                    ) : (
+                      <>
+                        Сначала заведите упражнения в разделе{' '}
+                        <Link
+                          to={`/admin/structure${clubQs ? `${clubQs}&` : '?'}tab=exercises`}
+                          className="u-no-decoration"
+                          style={{ color: 'var(--accent-bright, #2effb8)' }}
+                        >
+                          Упражнения
+                        </Link>
+                        {isSupabaseConfigured()
+                          ? ' (при онлайне список подтягивается из Supabase).'
+                          : ' (локально — добавьте вручную).'}
+                      </>
+                    )}
                   </p>
                 ) : null}
               </label>

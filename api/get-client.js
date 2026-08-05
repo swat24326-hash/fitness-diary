@@ -29,7 +29,7 @@ async function handler(req, res) {
   const ctx = await requireAuthUser(req, res)
   if (!ctx) return
 
-  if (!ctx.isAdmin && !ctx.isTrainer && !ctx.isSalesManager) {
+  if (!ctx.isAdmin && !ctx.isTrainer && !ctx.isSalesManager && !ctx.isSupervisor) {
     sendJson(res, 403, { error: 'Нет доступа' })
     return
   }
@@ -58,7 +58,7 @@ async function handler(req, res) {
     return
   }
 
-  if (ctx.isSalesManager && !ctx.isAdmin) {
+  if ((ctx.isSalesManager || ctx.isSupervisor) && !ctx.isAdmin) {
     const profileClub = String(ctx.profile?.club_id ?? '').trim()
     const clientClub = String(client.club_id ?? '').trim()
     if (!profileClub || !clientClub || profileClub !== clientClub) {

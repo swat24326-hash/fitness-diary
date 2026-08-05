@@ -27,10 +27,11 @@ export function normalizeClientCardFrom(raw) {
 }
 
 /**
- * @param {{ forAdmin?: boolean, clubId?: string }} [opts]
+ * @param {{ forAdmin?: boolean, forSupervisor?: boolean, clubId?: string }} [opts]
  */
 export function buildSalesStrategyReturnHref(opts = {}) {
   const clubId = String(opts.clubId ?? '').trim()
+  if (opts.forSupervisor) return '/club/sales?tab=strategy'
   if (opts.forAdmin) {
     const qs = new URLSearchParams()
     if (clubId) qs.set('club', clubId)
@@ -41,10 +42,11 @@ export function buildSalesStrategyReturnHref(opts = {}) {
 }
 
 /**
- * @param {{ forAdmin?: boolean, clubId?: string }} [opts]
+ * @param {{ forAdmin?: boolean, forSupervisor?: boolean, clubId?: string }} [opts]
  */
 export function buildSalesPnkReturnHref(opts = {}) {
   const clubId = String(opts.clubId ?? '').trim()
+  if (opts.forSupervisor) return '/club/pnk'
   if (opts.forAdmin) {
     return clubId ? `/admin/pnk?club=${encodeURIComponent(clubId)}` : '/admin/pnk'
   }
@@ -52,10 +54,11 @@ export function buildSalesPnkReturnHref(opts = {}) {
 }
 
 /**
- * @param {{ forAdmin?: boolean, clubId?: string }} [opts]
+ * @param {{ forAdmin?: boolean, forSupervisor?: boolean, clubId?: string }} [opts]
  */
 export function buildSalesClipsReturnHref(opts = {}) {
   const clubId = String(opts.clubId ?? '').trim()
+  if (opts.forSupervisor) return '/club/sales?tab=clips'
   if (opts.forAdmin) {
     const qs = new URLSearchParams()
     if (clubId) qs.set('club', clubId)
@@ -90,7 +93,7 @@ export function clientCardParentCrumbLabel(from) {
 
 /**
  * @param {URLSearchParams | string | null | undefined} searchParams
- * @param {{ isAdmin?: boolean, isSalesManager?: boolean }} role
+ * @param {{ isAdmin?: boolean, isSalesManager?: boolean, isSupervisor?: boolean }} role
  */
 export function resolveClientCardBackHref(searchParams, role = {}) {
   let src
@@ -102,21 +105,28 @@ export function resolveClientCardBackHref(searchParams, role = {}) {
   const from = normalizeClientCardFrom(src.get('from'))
   const clubId = String(src.get('club') ?? '').trim()
   const forAdmin = Boolean(role.isAdmin)
+  const forSupervisor = Boolean(role.isSupervisor)
 
   if (from === CLIENT_CARD_FROM.strategy) {
-    return buildSalesStrategyReturnHref({ forAdmin, clubId })
+    return buildSalesStrategyReturnHref({ forAdmin, forSupervisor, clubId })
   }
   if (from === CLIENT_CARD_FROM.pnk) {
-    return buildSalesPnkReturnHref({ forAdmin, clubId })
+    return buildSalesPnkReturnHref({ forAdmin, forSupervisor, clubId })
   }
   if (from === CLIENT_CARD_FROM.clips) {
-    return buildSalesClipsReturnHref({ forAdmin, clubId })
+    return buildSalesClipsReturnHref({ forAdmin, forSupervisor, clubId })
   }
 
   if (role.isAdmin) {
     const withoutFrom = new URLSearchParams(src)
     withoutFrom.delete('from')
     return buildAdminClientsBackHref('/admin/clients', withoutFrom)
+  }
+  if (role.isSupervisor) {
+    const withoutFrom = new URLSearchParams(src)
+    withoutFrom.delete('from')
+    withoutFrom.delete('club')
+    return buildAdminClientsBackHref('/club/clients', withoutFrom)
   }
   if (role.isSalesManager) {
     const withoutClub = new URLSearchParams(src)

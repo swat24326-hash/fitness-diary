@@ -162,6 +162,7 @@ function normalizeRole(role) {
   if (r === 'admin' || r === 'администратор') return 'admin'
   if (r === 'trainer' || r === 'тренер') return 'trainer'
   if (r === 'sales_manager' || r === 'менеджер по продажам') return 'sales_manager'
+  if (r === 'supervisor' || r === 'управляющий') return 'supervisor'
   return 'trainer'
 }
 
@@ -712,6 +713,7 @@ export function AuthProvider({ children }) {
       isAdmin: role === 'admin',
       isTrainer: role === 'trainer',
       isSalesManager: role === 'sales_manager',
+      isSupervisor: role === 'supervisor',
       supabaseReady: isSupabaseConfigured(),
     }),
     [

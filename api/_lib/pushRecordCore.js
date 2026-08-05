@@ -162,7 +162,7 @@ export async function executePushRecord(ctx, item) {
   }
 
   const { supabaseAdmin } = ctx
-  const allowDeskAerobicTypes = Boolean(ctx.isAdmin || ctx.isSalesManager)
+  const allowDeskAerobicTypes = Boolean(ctx.isAdmin || ctx.isSalesManager || ctx.isSupervisor)
 
   try {
     if (operation === 'insert') {

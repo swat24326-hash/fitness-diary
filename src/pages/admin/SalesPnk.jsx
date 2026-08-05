@@ -19,13 +19,13 @@ import '../../styles/pnk-funnel.css'
  * Контроль воронки ПНК: менеджер продаж и админ (клуб из шапки).
  */
 export function SalesPnk() {
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, isSupervisor } = useAuth()
   const [searchParams] = useSearchParams()
   const clubId = isAdmin
     ? String(searchParams.get('club') ?? '').trim()
     : String(user?.club_id ?? '').trim()
   const clubQs = clubId ? `?club=${encodeURIComponent(clubId)}` : ''
-  const backTo = isAdmin ? `/admin/sales${clubQs}` : '/sales'
+  const backTo = isAdmin ? `/admin/sales${clubQs}` : isSupervisor ? '/club' : '/sales'
   const focusId = String(searchParams.get('focus') ?? '').trim()
 
   const [busy, setBusy] = useState(false)
@@ -182,8 +182,13 @@ export function SalesPnk() {
   }
 
   function clientHref(c) {
-    if (!isAdmin) return null
-    return buildClientCardDeepLink(c.id, { clubId, forAdmin: true, from: 'pnk' })
+    if (isSupervisor) {
+      return buildClientCardDeepLink(c.id, { clubId, forSupervisor: true, from: 'pnk' })
+    }
+    if (isAdmin) {
+      return buildClientCardDeepLink(c.id, { clubId, forAdmin: true, from: 'pnk' })
+    }
+    return buildClientCardDeepLink(c.id, { clubId, forSales: true, from: 'pnk' })
   }
 
   return (
@@ -265,7 +270,7 @@ export function SalesPnk() {
             trainers={bundle?.trainers ?? []}
             managerName={user?.name || ''}
             busy={busy}
-            clientHref={isAdmin ? clientHref : undefined}
+            clientHref={clientHref}
             onNotifyResult={toastFromNotify}
             onComment={onComment}
             onDelete={onDelete}

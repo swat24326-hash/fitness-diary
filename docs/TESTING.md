@@ -61,6 +61,7 @@
 | Удаление абонемента (тексты confirm) | `verify-membership-delete.mjs` |
 | Менеджер: доступ к типам АЗ / выбор списка для отчёта | `verify-sales-membership-types-access.mjs` |
 | Менеджер: клиенты клуба (push/club/deep-link) | `verify-sales-manager-clients.mjs` |
+| Управляющий: club scope / один на клуб / без журнала удалений | `verify-supervisor-access.mjs` |
 | Прайс ПЗ: скидка 10%, Excel→code, импорт AOA, TTL кэша | `verify-price-list.mjs` |
 | План: ориентир ПЗ ДК из прайса (8 тр. × действующие) | `verify-sales-plan-pz-dk-suggest.mjs` |
 | Стратегия: продления ДК ПЗ/ТЗ/АЗ (конец месяца × ср. покупок) | `verify-sales-plan-hall-renewals.mjs` |

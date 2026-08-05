@@ -278,8 +278,8 @@ function TrainingViewModal({ training, clientName, trainerName, memberships, all
  * Вкладка «Дневники»: список тренировок клиента с поиском, фильтрами и карточками.
  */
 export function ClientDiaries({ client, onDataChange, clubQs = '', readOnly = false }) {
-  const { user, isAdmin } = useAuth()
-  const workoutPrefix = isAdmin ? '/admin/workouts' : '/trainer/workouts'
+  const { user, isAdmin, isSupervisor } = useAuth()
+  const workoutPrefix = isAdmin ? '/admin/workouts' : isSupervisor ? '/club/workouts' : '/trainer/workouts'
   const [trainings, setTrainings] = useState([])
   const [memberships, setMemberships] = useState([])
 

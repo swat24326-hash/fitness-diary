@@ -32,6 +32,7 @@ export const STRUCTURE_TAB_LABELS = {
   clubs: 'Клубы',
   trainers: 'Тренеры',
   'sales-managers': 'Менеджеры',
+  supervisors: 'Управляющие',
   'membership-types': 'Типы абон.',
   'nutrition-products': 'Питание',
   'homework-presets': 'ДЗ',
@@ -142,6 +143,34 @@ export function buildBreadcrumbs(pathname, search = '') {
     return [...admin, { label: 'Клиенты', to: `/admin/clients${clubQs}` }, { label: 'Тренировка', to: full }]
   }
 
+  // Club supervisor (/club)
+  const clubRoot = [{ label: 'Клуб', to: '/club' }]
+  if (p === '/club') return []
+  if (p === '/club/clients') return [...clubRoot, { label: 'Клиенты', to: '/club/clients' }]
+  if (p === '/club/statistics') return [...clubRoot, { label: 'Статистика', to: '/club/statistics' }]
+  if (p === '/club/sales') {
+    const tabRaw = tabFromSearch(search, 'daily')
+    const tab = ADMIN_SALES_TAB_LABELS[tabRaw] ? tabRaw : 'daily'
+    const sub = ADMIN_SALES_TAB_LABELS[tab]
+    return [...clubRoot, { label: 'Продажи', to: '/club/sales' }, { label: sub, to: full }]
+  }
+  if (p === '/club/pnk') return [...clubRoot, { label: 'ПНК', to: '/club/pnk' }]
+  if (p === '/club/challenges') return [...clubRoot, { label: 'Челленджи', to: '/club/challenges' }]
+  if (p === '/club/club-tasks') return [...clubRoot, { label: 'Планёрка', to: '/club/club-tasks' }]
+  if (p === '/club/settings') return [...clubRoot, { label: 'Настройки', to: '/club/settings' }]
+  if (matchPathSimple('/club/challenges/:challengeId', p)) {
+    return [...clubRoot, { label: 'Челленджи', to: '/club/challenges' }, { label: 'Рейтинг', to: full }]
+  }
+  if (matchPathSimple('/club/clients/:id', p)) {
+    const from = normalizeClientCardFrom(new URLSearchParams(search.startsWith('?') ? search.slice(1) : search).get('from'))
+    const backTo = resolveClientCardBackHref(search, { isSupervisor: true })
+    const parentLabel = clientCardParentCrumbLabel(from)
+    return [...clubRoot, { label: parentLabel, to: backTo }, { label: 'Карточка клиента', to: full }]
+  }
+  if (matchPathSimple('/club/workouts/:id', p)) {
+    return [...clubRoot, { label: 'Клиенты', to: '/club/clients' }, { label: 'Тренировка', to: full }]
+  }
+
   // Sales manager
   if (p === '/sales') {
     const tabRaw = tabFromSearch(search, 'home')
@@ -162,6 +191,7 @@ export function buildBreadcrumbs(pathname, search = '') {
 
   // Fallback
   if (p.startsWith('/admin')) return admin
+  if (p.startsWith('/club')) return clubRoot
   if (p.startsWith('/sales')) return salesRoot
   if (p.startsWith('/trainer')) return trainer
   return [{ label: 'Главная', to: '/' }]

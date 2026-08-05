@@ -8,6 +8,7 @@ export function normalizeAppRole(role) {
   if (r === 'admin' || r === 'администратор') return 'admin'
   if (r === 'trainer' || r === 'тренер') return 'trainer'
   if (USERS_SALES_MANAGER_ROLES.includes(r)) return 'sales_manager'
+  if (r === 'supervisor' || r === 'управляющий') return 'supervisor'
   return r || 'trainer'
 }
 

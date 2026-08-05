@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useOutletContext, useSearchParams } from 'react-router-dom'
 import { AdminClubSmsTemplatesSection } from '../../components/admin/AdminClubSmsTemplatesSection.jsx'
 import { AdminClubSmsJournalSection } from '../../components/admin/AdminClubSmsJournalSection.jsx'
 import { AdminOutreachTemplatesSection } from '../../components/admin/AdminOutreachTemplatesSection.jsx'
@@ -7,9 +7,13 @@ import { listClubsLocal, pullClubsFromSupabase } from '../../lib/dataAccess'
 import { useAuth } from '../../context/AuthContext'
 
 export function AdminMaxOutreach() {
-  const { supabaseReady } = useAuth()
+  const { user, isSupervisor, supabaseReady } = useAuth()
+  const outlet = useOutletContext()
   const [searchParams] = useSearchParams()
-  const clubId = searchParams.get('club')?.trim() ?? ''
+  const clubId =
+    searchParams.get('club')?.trim() ||
+    String(outlet?.clubId ?? '').trim() ||
+    (isSupervisor ? String(user?.club_id ?? '').trim() : '')
   const [clubName, setClubName] = useState('—')
 
   useEffect(() => {
