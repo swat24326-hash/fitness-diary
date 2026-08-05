@@ -29,10 +29,14 @@ export function AdminDeskMemDateField({
   const iso = parseFlexibleDateToIso(value, yearOpts) || ''
   const [text, setText] = useState(() => (iso ? formatDateRu(iso) : ''))
   const nativeRef = useRef(null)
+  const focusedRef = useRef(false)
 
   useEffect(() => {
+    // Пока печатают — не затирать маску извне (иначе после 8-й цифры года поле «сбрасывается»).
+    if (focusedRef.current) return
     const next = parseFlexibleDateToIso(value, yearOpts) || ''
-    setText(next ? formatDateRu(next) : '')
+    const formatted = next ? formatDateRu(next) : ''
+    setText((prev) => (prev === formatted ? prev : formatted))
   }, [value, yearOpts])
 
   const commitText = (raw) => {
@@ -50,6 +54,7 @@ export function AdminDeskMemDateField({
       if (parsed !== iso) onChange?.(parsed)
       return
     }
+    // Невалидный хвост: вернуть последнюю принятую дату, не в пустоту во время правки.
     setText(iso ? formatDateRu(iso) : '')
   }
 
@@ -61,6 +66,9 @@ export function AdminDeskMemDateField({
         autoComplete="off"
         placeholder="дд.мм.гггг"
         value={text}
+        onFocus={() => {
+          focusedRef.current = true
+        }}
         onChange={(e) => {
           const masked = maskRuDateDigitsInput(e.target.value)
           setText(masked)
@@ -73,7 +81,10 @@ export function AdminDeskMemDateField({
             onChange?.('')
           }
         }}
-        onBlur={(e) => commitText(e.target.value)}
+        onBlur={(e) => {
+          focusedRef.current = false
+          commitText(e.target.value)
+        }}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault()
@@ -102,13 +113,8 @@ export function AdminDeskMemDateField({
         aria-hidden
         onChange={(e) => {
           const v = String(e.target.value || '').slice(0, 10)
-          if (!v) {
-            if (allowEmpty) {
-              setText('')
-              onChange?.('')
-            }
-            return
-          }
+          // Пустой type=date часто стреляет сам при программной подстановке ISO — не затираем текст.
+          if (!v) return
           const parsed = parseFlexibleDateToIso(v, yearOpts)
           if (!parsed) return
           setText(formatDateRu(parsed))

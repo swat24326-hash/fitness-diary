@@ -5,6 +5,10 @@ import { CloseButton } from '../../components/CloseButton'
 import { useAuth } from '../../context/AuthContext'
 import { loadAdminHealthCardsByClientIds } from '../../lib/dataAccess'
 import { loadTrainerJournalFiltered } from '../../lib/trainer/trainerJournalService'
+import {
+  journalClientCardNumber,
+  journalClientDisplayName,
+} from '../../lib/trainer/trainerJournalClientsCore.js'
 import { useDebouncedStorageReload, shouldReloadTrainerClientList } from '../../lib/useDebouncedStorageReload'
 import {
   ADMIN_JOURNAL_DEFAULT_PAGE_SIZE,
@@ -335,8 +339,8 @@ export function TrainerStatisticsSection() {
               <tbody>
                 {rows.map((t) => (
                   <tr key={t.id}>
-                    <td>{clients[t.client_id]?.name ?? t.client_id}</td>
-                    <td className="muted">{String(clients[t.client_id]?.card_number ?? '').trim() || '—'}</td>
+                    <td>{journalClientDisplayName(clients, t.client_id)}</td>
+                    <td className="muted">{journalClientCardNumber(clients, t.client_id)}</td>
                     <td>{formatDateRu(t.date)}</td>
                     <td>{membershipCardTypeLabelForTraining(t, membershipById, typeCodeById)}</td>
                     <td>
@@ -437,7 +441,7 @@ export function TrainerStatisticsSection() {
               <CloseButton touch onClick={() => setPreviewTraining(null)} size={20} />
             </div>
             <p className="muted" style={{ margin: '0 0 12px', fontSize: 13 }}>
-              Клиент: <strong>{clients[previewTraining.client_id]?.name ?? previewTraining.client_id}</strong>{' '}
+              Клиент: <strong>{journalClientDisplayName(clients, previewTraining.client_id)}</strong>{' '}
               <Link
                 to={clientLinkTo(previewTraining.client_id)}
                 className="u-no-decoration"

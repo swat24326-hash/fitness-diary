@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Save } from 'lucide-react'
 import { saveLocalWithSync } from '../../lib/syncService.js'
@@ -29,14 +29,19 @@ export function AdminLitePzClientCardSection({
     card_number: '',
     birth_date: '',
   })
+  const formClientIdRef = useRef('')
 
   useEffect(() => {
-    setForm({
+    const id = String(client?.id ?? '')
+    const switched = formClientIdRef.current !== id
+    formClientIdRef.current = id
+    const fromClientBirth = parseFlexibleDateToIso(client?.birth_date, birthDateYearBounds()) || ''
+    setForm((prev) => ({
       name: client?.name ?? '',
       phone: client?.phone ?? '',
       card_number: client?.card_number ?? '',
-      birth_date: parseFlexibleDateToIso(client?.birth_date, birthDateYearBounds()) || '',
-    })
+      birth_date: fromClientBirth || (!switched ? prev.birth_date : '') || '',
+    }))
   }, [client])
 
   const setField = (key, value) => setForm((f) => ({ ...f, [key]: value }))

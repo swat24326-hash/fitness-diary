@@ -15,6 +15,10 @@ import {
   ADMIN_JOURNAL_PAGE_SIZE_OPTIONS,
 } from '../../lib/admin/adminConstants'
 import { formatDateRu } from '../../lib/dateRu'
+import {
+  journalClientCardNumber,
+  journalClientDisplayName,
+} from '../../lib/trainer/trainerJournalClientsCore.js'
 import { fetchMembershipsForClubViaAdminApi } from '../../lib/admin/adminApiClient'
 import { membershipCardTypeLabelForTraining } from '../../lib/admin/membershipTypeStatsAgg'
 import { listMembershipsByClubId } from '../../lib/localDbClubQuery'
@@ -460,8 +464,8 @@ export function AdminStatistics() {
                 <tbody>
                   {rows.map((t) => (
                     <tr key={t.id}>
-                      <td>{clients[t.client_id]?.name ?? t.client_id}</td>
-                      <td className="muted">{String(clients[t.client_id]?.card_number ?? '').trim() || '—'}</td>
+                      <td>{journalClientDisplayName(clients, t.client_id)}</td>
+                      <td className="muted">{journalClientCardNumber(clients, t.client_id)}</td>
                       <td className="muted" title={t.trainer_id}>
                         {trainerCell(t.trainer_id)}
                       </td>
@@ -574,7 +578,7 @@ export function AdminStatistics() {
             </div>
 
             <p className="muted" style={{ margin: '0 0 12px', fontSize: 13 }}>
-              Клиент: <strong>{clients[previewTraining.client_id]?.name ?? previewTraining.client_id}</strong>
+              Клиент: <strong>{journalClientDisplayName(clients, previewTraining.client_id)}</strong>
               {clients[previewTraining.client_id]?.phone ? ` · ${clients[previewTraining.client_id].phone}` : ''}{' '}
               <Link
                 to={`/admin/clients/${previewTraining.client_id}${club ? `?club=${encodeURIComponent(club)}` : ''}`}
