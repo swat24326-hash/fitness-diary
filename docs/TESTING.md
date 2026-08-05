@@ -82,6 +82,8 @@
 | Карточка: scope glance/full + lite + nav seed + memory list | `verify-client-workspace-scope.mjs` |
 | Клиенты: keep-alive путь список/карточка | `verify-admin-clients-keepalive.mjs` |
 | Вкладки ПЗ / ТЗ / АЗ (`desk_hall`) | `verify-desk-hall-clients.mjs` |
+| Desk: очистка ДР без отката при hydrate | `verify-desk-client-birth-form.mjs` |
+| Архив: подвкладки ПЗ / ТЗ / АЗ | `verify-admin-clients-archive-hall.mjs` |
 | АЗ: фильтр по направлениям | `verify-admin-clients-az-direction-filter.mjs` |
 | АЗ: списание занятий + журнал дат | `verify-desk-az-session-deduct.mjs` |
 | Desk без тренера + вне KPI (operational filter) | `verify-sale-clips.mjs` (блок hall/desk) |

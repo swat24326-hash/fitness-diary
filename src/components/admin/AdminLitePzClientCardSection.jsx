@@ -4,6 +4,7 @@ import { Save } from 'lucide-react'
 import { saveLocalWithSync } from '../../lib/syncService.js'
 import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
 import { formatClientName } from '../../lib/clientNameFormat.js'
+import { mergeDeskClientBirthForm } from '../../lib/admin/deskClientBirthFormCore.js'
 import { AdminDeskMembershipLedger } from './AdminDeskMembershipLedger.jsx'
 import { AdminDeskMemDateField } from './AdminDeskMemDateField.jsx'
 import { parseFlexibleDateToIso, birthDateYearBounds } from '../../lib/dateRu.js'
@@ -30,21 +31,43 @@ export function AdminLitePzClientCardSection({
     birth_date: '',
   })
   const formClientIdRef = useRef('')
+  const birthDirtyRef = useRef(false)
+  /** Ожидаемая ДР после Save, пока props.client ещё со старой датой. */
+  const savedBirthRef = useRef(/** @type {string | undefined} */ (undefined))
 
   useEffect(() => {
     const id = String(client?.id ?? '')
     const switched = formClientIdRef.current !== id
     formClientIdRef.current = id
+    if (switched) {
+      birthDirtyRef.current = false
+      savedBirthRef.current = undefined
+    }
     const fromClientBirth = parseFlexibleDateToIso(client?.birth_date, birthDateYearBounds()) || ''
+    if (
+      savedBirthRef.current !== undefined &&
+      fromClientBirth === savedBirthRef.current
+    ) {
+      birthDirtyRef.current = false
+      savedBirthRef.current = undefined
+    }
     setForm((prev) => ({
       name: client?.name ?? '',
       phone: client?.phone ?? '',
       card_number: client?.card_number ?? '',
-      birth_date: fromClientBirth || (!switched ? prev.birth_date : '') || '',
+      birth_date: mergeDeskClientBirthForm({
+        fromClientBirth,
+        prevBirth: prev.birth_date,
+        switched,
+        birthDirty: birthDirtyRef.current,
+      }),
     }))
   }, [client])
 
-  const setField = (key, value) => setForm((f) => ({ ...f, [key]: value }))
+  const setField = (key, value) => {
+    if (key === 'birth_date') birthDirtyRef.current = true
+    setForm((f) => ({ ...f, [key]: value }))
+  }
 
   const save = async (e) => {
     e?.preventDefault?.()
@@ -62,6 +85,7 @@ export function AdminLitePzClientCardSection({
     setError('')
     try {
       const birthIso = parseFlexibleDateToIso(form.birth_date, birthDateYearBounds()) || null
+      const savedBirth = birthIso || ''
       const clientRow = {
         ...client,
         name,
@@ -76,6 +100,9 @@ export function AdminLitePzClientCardSection({
         operation: 'update',
         remote_id: client.id,
       })
+      savedBirthRef.current = savedBirth
+      birthDirtyRef.current = true
+      setForm((f) => ({ ...f, birth_date: savedBirth }))
       dispatchLocalDataChanged()
       onSaved?.()
     } catch (err) {

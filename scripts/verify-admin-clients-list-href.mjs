@@ -3,6 +3,7 @@
  * node scripts/verify-admin-clients-list-href.mjs
  */
 import {
+  ADMIN_CLIENTS_LIST_QS_KEYS,
   buildAdminClientCardHref,
   buildAdminClientsBackHref,
   buildAdminClientsListHref,
@@ -46,14 +47,32 @@ const card = buildAdminClientCardHref('/sales/clients', 'cid', {
 ok(card.startsWith('/sales/clients/cid?'), 'card path')
 ok(card.includes('clientsTab=az') && card.includes('page=2'), 'card keeps list qs')
 
+const archiveList = buildAdminClientsListHref('/admin/clients', {
+  clubId: 'c1',
+  clientsTab: 'archive',
+  archiveHall: 'az',
+})
+ok(archiveList.includes('clientsTab=archive') && archiveList.includes('archiveHall=az'), 'archive hall in href')
+
+const archiveAll = buildAdminClientsListSearch({ clientsTab: 'archive', archiveHall: '' })
+ok(archiveAll.get('clientsTab') === 'archive' && !archiveAll.has('archiveHall'), 'archive all omits hall')
+
 const back = buildAdminClientsBackHref('/sales/clients', new URLSearchParams('club=c1&clientsTab=tz&page=2&tab=health'))
 ok(back.includes('clientsTab=tz') && back.includes('page=2'), 'back keeps list keys')
 ok(!back.includes('tab=health'), 'back drops card-only keys')
 
+const backArch = buildAdminClientsBackHref(
+  '/admin/clients',
+  new URLSearchParams('clientsTab=archive&archiveHall=pz&page=1'),
+)
+ok(backArch.includes('archiveHall=pz'), 'back keeps archiveHall')
+
 const activeOnly = buildAdminClientsListSearch({ clientsTab: 'active', page: 1 })
 ok(!activeOnly.has('clientsTab') && !activeOnly.has('page'), 'defaults omitted')
+ok(ADMIN_CLIENTS_LIST_QS_KEYS.includes('archiveHall'), 'archiveHall in list keys')
 
-const picked = pickAdminClientsListSearchParams('club=x&page=2&foo=1')
+const picked = pickAdminClientsListSearchParams('club=x&page=2&foo=1&archiveHall=tz')
 ok(picked.get('club') === 'x' && picked.get('page') === '2' && !picked.has('foo'), 'pick keys')
+ok(picked.get('archiveHall') === 'tz', 'pick archiveHall')
 
 process.exit(failed > 0 ? 1 : 0)

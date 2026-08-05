@@ -5,6 +5,7 @@ import { saveLocalWithSync } from '../../lib/syncService.js'
 import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
 import { normalizeDeskHall } from '../../lib/admin/deskHallClientsCore.js'
 import { formatClientName } from '../../lib/clientNameFormat.js'
+import { mergeDeskClientBirthForm } from '../../lib/admin/deskClientBirthFormCore.js'
 import { AdminDeskMembershipLedger } from './AdminDeskMembershipLedger.jsx'
 import { AdminDeskMemDateField } from './AdminDeskMemDateField.jsx'
 import { birthDateYearBounds, parseFlexibleDateToIso } from '../../lib/dateRu.js'
@@ -31,23 +32,44 @@ export function AdminDeskClientCardSection({
     birth_date: '',
   })
   const formClientIdRef = useRef('')
+  const birthDirtyRef = useRef(false)
+  /** Ожидаемая ДР после Save, пока props.client ещё со старой датой. */
+  const savedBirthRef = useRef(/** @type {string | undefined} */ (undefined))
 
   useEffect(() => {
     const id = String(client?.id ?? '')
     const switched = formClientIdRef.current !== id
     formClientIdRef.current = id
+    if (switched) {
+      birthDirtyRef.current = false
+      savedBirthRef.current = undefined
+    }
     const fromClientBirth = parseFlexibleDateToIso(client?.birth_date, birthDateYearBounds()) || ''
+    if (
+      savedBirthRef.current !== undefined &&
+      fromClientBirth === savedBirthRef.current
+    ) {
+      birthDirtyRef.current = false
+      savedBirthRef.current = undefined
+    }
     setForm((prev) => ({
       name: client?.name ?? '',
       phone: client?.phone ?? '',
       card_number: client?.card_number ?? '',
       desk_hall: normalizeDeskHall(client?.desk_hall) || '',
-      // Hydrate без ДР не должен затирать только что введённую дату.
-      birth_date: fromClientBirth || (!switched ? prev.birth_date : '') || '',
+      birth_date: mergeDeskClientBirthForm({
+        fromClientBirth,
+        prevBirth: prev.birth_date,
+        switched,
+        birthDirty: birthDirtyRef.current,
+      }),
     }))
   }, [client])
 
-  const setField = (key, value) => setForm((f) => ({ ...f, [key]: value }))
+  const setField = (key, value) => {
+    if (key === 'birth_date') birthDirtyRef.current = true
+    setForm((f) => ({ ...f, [key]: value }))
+  }
   const hall = normalizeDeskHall(form.desk_hall)
 
   const save = async (e) => {
@@ -66,6 +88,7 @@ export function AdminDeskClientCardSection({
     setError('')
     try {
       const birthIso = parseFlexibleDateToIso(form.birth_date, birthDateYearBounds()) || null
+      const savedBirth = birthIso || ''
       const clientRow = {
         ...client,
         name,
@@ -80,6 +103,10 @@ export function AdminDeskClientCardSection({
         operation: 'update',
         remote_id: client.id,
       })
+      // Не снимать dirty сразу: props.client ещё может держать старую ДР до onSaved.
+      savedBirthRef.current = savedBirth
+      birthDirtyRef.current = true
+      setForm((f) => ({ ...f, birth_date: savedBirth }))
       dispatchLocalDataChanged()
       onSaved?.()
     } catch (err) {

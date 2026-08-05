@@ -6,6 +6,7 @@ import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.js
 import { AdminClientClubSmsButton } from '../../components/admin/AdminClientClubSmsButton.jsx'
 import { AdminClientsBrowseFilters } from '../../components/admin/AdminClientsBrowseFilters.jsx'
 import { AdminClientsAzDirectionFilters } from '../../components/admin/AdminClientsAzDirectionFilters.jsx'
+import { AdminClientsArchiveHallFilters } from '../../components/admin/AdminClientsArchiveHallFilters.jsx'
 import { AdminDeskAzDeductButton } from '../../components/admin/AdminDeskAzDeductButton.jsx'
 import { ClientRowMoreMenu } from '../../components/ClientRowMoreMenu.jsx'
 import {
@@ -22,6 +23,13 @@ import {
   clientMatchesAzDirectionFilter,
   normalizeAzDirectionFilterId,
 } from '../../lib/admin/adminClientsAzDirectionFilterCore.js'
+import {
+  ARCHIVE_HALL_FILTER_ALL,
+  ARCHIVE_HALL_FILTER_LABELS,
+  buildArchiveHallFilterOptions,
+  clientMatchesArchiveHallFilter,
+  normalizeArchiveHallFilter,
+} from '../../lib/admin/adminClientsArchiveHallCore.js'
 import {
   formatDeskAzSessionUsageRu,
   pickAzMembershipForDeduct,
@@ -157,6 +165,9 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     return isAdminClientQuickFilter(n) ? n : 'none'
   })
   const [clientsTab, setClientsTab] = useState(() => normalizeAdminClientsListTab(listTabFromUrl))
+  const [archiveHallFilter, setArchiveHallFilter] = useState(() =>
+    normalizeArchiveHallFilter(searchParams.get('archiveHall')),
+  )
   const [archiveBusy, setArchiveBusy] = useState(false)
   const [source, setSource] = useState('local')
   const [fallback, setFallback] = useState(null)
@@ -380,6 +391,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     else if (!rawFilter) setQuickFilter('none')
 
     setClientsTab(normalizeAdminClientsListTab(searchParams.get('clientsTab') || searchParams.get('list')))
+    setArchiveHallFilter(normalizeArchiveHallFilter(searchParams.get('archiveHall')))
     setListPage(parseAdminClientsListPage(searchParams.get('page')))
     setQuery(String(searchParams.get('q') ?? ''))
     setTrainerQuery(String(searchParams.get('trainer') ?? ''))
@@ -500,12 +512,22 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
 
   const listTabCounts = useMemo(() => countClientsByAdminListTab(clients), [clients])
   const isDeskHallTab = clientsTab === 'tz' || clientsTab === 'az'
+  const archiveHallOptions = useMemo(
+    () => (clientsTab === 'archive' ? buildArchiveHallFilterOptions(clients) : []),
+    [clientsTab, clients],
+  )
+  const showTrainerSearch =
+    !isDeskHallTab &&
+    !(clientsTab === 'archive' && (archiveHallFilter === 'tz' || archiveHallFilter === 'az'))
 
   const filteredClients = useMemo(() => {
     const q = query.trim().toLowerCase()
     const tq = trainerQuery.trim().toLowerCase()
 
     let base = filterClientsByAdminListTab(clients, clientsTab)
+    if (clientsTab === 'archive' && normalizeArchiveHallFilter(archiveHallFilter)) {
+      base = base.filter((c) => clientMatchesArchiveHallFilter(c, archiveHallFilter))
+    }
     if (q) {
       base = base.filter((c) => {
         const name = String(c.name ?? '').toLowerCase()
@@ -514,7 +536,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         return name.includes(q) || phone.includes(q) || card.includes(q)
       })
     }
-    if (tq && !isDeskHallTab) {
+    if (tq && showTrainerSearch) {
       base = base.filter((c) => {
         const trainerName = String(trainerNameById[c.trainer_id] ?? '').toLowerCase()
         return trainerName && trainerName.includes(tq)
@@ -547,6 +569,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
   }, [
     clients,
     clientsTab,
+    archiveHallFilter,
     query,
     trainerQuery,
     quickFilter,
@@ -556,6 +579,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     trainerNameById,
     todaySnapshot,
     isDeskHallTab,
+    showTrainerSearch,
   ])
 
   const azDirectionOptions = useMemo(() => {
@@ -608,12 +632,13 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     () => ({
       clubId: isSalesManager ? '' : club,
       clientsTab,
+      archiveHall: clientsTab === 'archive' ? archiveHallFilter : '',
       filter: quickFilter,
       page: listPage + 1,
       query,
       trainerQuery,
     }),
-    [isSalesManager, club, clientsTab, quickFilter, listPage, query, trainerQuery],
+    [isSalesManager, club, clientsTab, archiveHallFilter, quickFilter, listPage, query, trainerQuery],
   )
 
   const pagedClients = useMemo(() => {
@@ -727,6 +752,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     setClientsTab(next)
     setListPage(0)
     setAzDirectionFilter(AZ_DIRECTION_FILTER_ALL)
+    if (next !== 'archive') setArchiveHallFilter(ARCHIVE_HALL_FILTER_ALL)
     if (next === 'archive' || next === 'tz' || next === 'az') {
       setQuickFilter('none')
     }
@@ -734,8 +760,24 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       if (next === 'active') p.delete('clientsTab')
       else p.set('clientsTab', next)
       p.delete('list')
+      if (next !== 'archive') p.delete('archiveHall')
       if (next === 'archive' || next === 'tz' || next === 'az') p.delete('filter')
     }, { resetPage: true })
+  }
+
+  const applyArchiveHallFilter = (id) => {
+    const next = normalizeArchiveHallFilter(id)
+    setArchiveHallFilter(next)
+    setListPage(0)
+    if (next === 'tz' || next === 'az') {
+      setTrainerQuery('')
+    }
+    patchListSearch((p) => {
+      if (!next) p.delete('archiveHall')
+      else p.set('archiveHall', next)
+      if (next === 'tz' || next === 'az') p.delete('trainer')
+      p.delete('page')
+    })
   }
 
   const applyAzDirectionFilter = (id) => {
@@ -1101,7 +1143,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               onChange={(e) => onQueryChange(e.target.value)}
             />
           </div>
-          {!isDeskHallTab ? (
+          {!showTrainerSearch ? null : (
             <div className="admin-clients-search-cell">
               <UserSearch size={18} aria-hidden className="muted u-shrink-0" />
               <input
@@ -1114,7 +1156,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                 onChange={(e) => onTrainerQueryChange(e.target.value)}
               />
             </div>
-          ) : null}
+          )}
         </div>
 
         {clientsTab === 'active' || isDeskHallTab ? (
@@ -1143,9 +1185,21 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
             ) : null}
           </>
         ) : (
-          <p className="admin-clients-workspace__archive-hint muted">
-            Архивные карточки: просмотр и возврат. Поиск по имени, телефону или тренеру — от 2 символов.
-          </p>
+          <>
+            <AdminClientsArchiveHallFilters
+              options={archiveHallOptions}
+              value={archiveHallFilter}
+              onChange={applyArchiveHallFilter}
+            />
+            <p className="admin-clients-workspace__archive-hint muted">
+              Архивные карточки: просмотр и возврат. Подвкладки — тот же зал, что у живых ПЗ/ТЗ/АЗ.
+              {archiveHallFilter
+                ? ` Сейчас: ${ARCHIVE_HALL_FILTER_LABELS[archiveHallFilter] || archiveHallFilter}.`
+                : ''}{' '}
+              Поиск по имени, телефону
+              {showTrainerSearch ? ' или тренеру' : ''} — от 2 символов.
+            </p>
+          </>
         )}
 
         <div className="admin-clients-workspace__results">

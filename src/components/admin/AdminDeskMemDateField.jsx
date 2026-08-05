@@ -44,8 +44,8 @@ export function AdminDeskMemDateField({
     const trimmed = String(masked ?? '').trim()
     if (!trimmed) {
       setText('')
-      if (allowEmpty && iso) onChange?.('')
-      else if (!allowEmpty && iso) setText(formatDateRu(iso))
+      if (allowEmpty) onChange?.('')
+      else if (iso) setText(formatDateRu(iso))
       return
     }
     const parsed = parseFlexibleDateToIso(trimmed, yearOpts)
@@ -77,7 +77,7 @@ export function AdminDeskMemDateField({
             if (parsed !== iso) onChange?.(parsed)
             return
           }
-          if (allowEmpty && !masked.replace(/\D/g, '').length && iso) {
+          if (allowEmpty && !masked.replace(/\D/g, '').length) {
             onChange?.('')
           }
         }}

@@ -1,9 +1,10 @@
 /**
  * Ссылки списка/карточки клиентов админа и менеджера продаж.
- * Состояние списка в query: club, clientsTab, filter, page, q, trainer.
+ * Состояние списка в query: club, clientsTab, archiveHall, filter, page, q, trainer.
  */
 
 import { normalizeAdminClientQuickFilter } from './adminClientsFunnelCore.js'
+import { normalizeArchiveHallFilter } from './adminClientsArchiveHallCore.js'
 import { normalizeAdminClientsListTab } from './deskHallClientsCore.js'
 
 /** Ключи списка — переносятся на карточку и обратно. */
@@ -11,6 +12,7 @@ export const ADMIN_CLIENTS_LIST_QS_KEYS = Object.freeze([
   'club',
   'clientsTab',
   'list',
+  'archiveHall',
   'filter',
   'page',
   'q',
@@ -40,6 +42,7 @@ export function pickAdminClientsListSearchParams(source) {
  * @param {{
  *   clubId?: string,
  *   clientsTab?: string,
+ *   archiveHall?: string,
  *   filter?: string,
  *   page?: number,
  *   query?: string,
@@ -53,6 +56,9 @@ export function buildAdminClientsListSearch(opts = {}) {
 
   const tab = normalizeAdminClientsListTab(opts.clientsTab)
   if (tab && tab !== 'active') qs.set('clientsTab', tab)
+
+  const archiveHall = normalizeArchiveHallFilter(opts.archiveHall)
+  if (tab === 'archive' && archiveHall) qs.set('archiveHall', archiveHall)
 
   const filter = normalizeAdminClientQuickFilter(opts.filter)
   if (filter && filter !== 'none') qs.set('filter', filter)
