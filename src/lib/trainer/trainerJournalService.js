@@ -6,6 +6,7 @@ import { filterCompletedTrainingsInDateRange } from './trainerJournalFilterCore.
 import { fetchTrainerSelfJournalViaApi } from './trainerSelfJournalApi.js'
 import { fetchTrainerTrainingsRemoteInRange } from './trainerPeriodStatsService.js'
 import { mergeLocalAndRemoteTrainings } from './trainerRemoteMerge.js'
+import { cacheCloudTrainingsLocally } from '../cacheCloudTrainingsLocally.js'
 import { isSupabaseConfigured } from '../supabase'
 import { isAppOnline } from '../syncService'
 
@@ -47,6 +48,11 @@ export async function loadTrainerJournalFiltered(p) {
         clubId: p.clubId ?? null,
       })
       const filtered = filterCompletedTrainingsInDateRange(viaApi.trainings, dateFrom, dateTo)
+      try {
+        await cacheCloudTrainingsLocally(filtered)
+      } catch (e) {
+        console.warn('[trainer-journal] cache local', e)
+      }
       let clientsById = { ...(viaApi.clientsById ?? {}) }
       const missingIds = [
         ...new Set(
@@ -89,6 +95,13 @@ export async function loadTrainerJournalFiltered(p) {
         source = remote.partial ? 'remote_partial' : 'remote'
         if (remote.partial && remote.warn) {
           fallbackReason = `частично: ${remote.warn}`
+        }
+        try {
+          await cacheCloudTrainingsLocally(
+            filterCompletedTrainingsInDateRange(remote.rows, dateFrom, dateTo),
+          )
+        } catch (e) {
+          console.warn('[trainer-journal] cache remote', e)
         }
       }
     } catch (e) {

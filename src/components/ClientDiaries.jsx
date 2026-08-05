@@ -16,7 +16,7 @@ import {
 import { CloseButton } from './CloseButton'
 import { useAuth } from '../context/AuthContext'
 import { listMemberships } from '../lib/dataAccess'
-import { listTrainingsByClientId } from '../lib/localDbClubQuery'
+import { ensureClientTrainingsCached } from '../lib/clientTrainingsEnsure.js'
 import {
   membershipCoversDate,
   membershipHasRemaining,
@@ -291,7 +291,7 @@ export function ClientDiaries({ client, onDataChange, clubQs = '', readOnly = fa
 
   const load = useCallback(async () => {
     if (!client?.id) return
-    const mine = [...(await listTrainingsByClientId(client.id))].sort(compareDiaryListOrder)
+    const mine = [...(await ensureClientTrainingsCached(client.id))].sort(compareDiaryListOrder)
     setTrainings(mine)
     setMemberships(await listMemberships(client.id))
   }, [client?.id])

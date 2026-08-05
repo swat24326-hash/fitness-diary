@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { listMemberships, listTrainingsForClient } from '../lib/dataAccess'
+import { ensureClientTrainingsCached } from '../lib/clientTrainingsEnsure.js'
 import { getDb } from '../lib/localDb'
 import { deleteLocalWithSync, saveLocalWithSync } from '../lib/syncService'
 import { defaultMembershipEndIso, formatDateRu, formatDateTimeRu, todayLocalIso } from '../lib/dateRu'
@@ -243,6 +244,7 @@ export function MembershipManager({
   onChangedRef.current = onChanged
 
   const reload = useCallback(async () => {
+    await ensureClientTrainingsCached(clientId)
     const [m0, t0] = await Promise.all([listMemberships(clientId), listTrainingsForClient(clientId)])
     setTrainings(t0)
 

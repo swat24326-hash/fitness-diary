@@ -74,6 +74,8 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 | Pull тренера | `/api/trainer-pull` |
 | Админ / справочники / продажи | `/api/admin-data?action=…` |
 
+Если на планшете **пустой дневник** в карточке, а в «Статистика → Проведённые» тренировки видны: журнал/`get-client` дописывают строки в IndexedDB; обрезанный pull **не** чистит «лишние» локальные тренировки.
+
 Каталог: [API.md](./API.md).
 
 ---

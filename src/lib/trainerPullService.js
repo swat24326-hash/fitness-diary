@@ -98,7 +98,9 @@ async function cacheTrainerPull(
   for (const row of pnk_funnel_events ?? []) await putStoreUnlessPendingSync('pnk_funnel_events', row, pending)
   for (const row of sale_clips ?? []) await putStoreUnlessPendingSync('sale_clips', row, pending)
   const pruned_trainings =
-    mode === 'active' ? 0 : await pruneOrphanTrainingsForTrainerClients(clients, trainings, pending?.trainings ?? null)
+    mode === 'active' || opts?.trainingsTruncated === true
+      ? 0
+      : await pruneOrphanTrainingsForTrainerClients(clients, trainings, pending?.trainings ?? null)
   const pruned = await pruneOrphanTrainerClients(trainerId, clients, { preserveArchived })
   if (mode !== 'active') {
     await purgeSyncQueueForMissingClients((clients ?? []).map((c) => c.id))
@@ -148,7 +150,10 @@ export async function pullTrainerWorkspaceFromCloud(trainerId, opts = {}) {
   try {
     const viaApi = await fetchTrainerPullWithIncremental(tid, mode)
     if (viaApi) {
-      const pruned = await cacheTrainerPull(tid, viaApi, { mode })
+      const pruned = await cacheTrainerPull(tid, viaApi, {
+        mode,
+        trainingsTruncated: viaApi.trainings_truncated === true,
+      })
       if (mode === 'active') {
         await setMeta(META_TRAINER_PULL_AT, Date.now())
         const pending = await buildPendingSyncKeysByTable()
