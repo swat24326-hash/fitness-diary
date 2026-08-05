@@ -2,13 +2,7 @@
   display: grid;
   gap: 1.25rem;
   margin-top: 0.5rem;
-}
-
-@media (min-width: 960px) {
-  .admin-excel-lists-maps {
-    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-    align-items: start;
-  }
+  max-width: 52rem;
 }
 
 .admin-excel-map-card {

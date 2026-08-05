@@ -224,19 +224,81 @@ export function normalizeMatrixRowsFromDb(raw) {
 }
 
 /**
- * ЗП персонального зала за день из строки «По клубу» × ставки типов ПЗ.
+ * Есть ли в карте/строках детализация по реальным тренерам (формат New).
+ * @param {Record<string, string>|null|undefined} inputMap
+ * @param {Array<{ trainer_id?: string, count?: number }>|null|undefined} [rows]
+ */
+export function trainingsMatrixHasTrainerDetail(inputMap, rows) {
+  if (Array.isArray(rows)) {
+    return rows.some((row) => {
+      const tid = String(row?.trainer_id ?? '').trim()
+      return tid && tid !== SALES_TRAINING_CLUB_ID && (Number(row?.count) || 0) > 0
+    })
+  }
+  for (const [key, raw] of Object.entries(inputMap ?? {})) {
+    const tid = String(key).split('|')[0] ?? ''
+    if (!tid || tid === SALES_TRAINING_CLUB_ID) continue
+    if (parseMatrixCellCount(raw) > 0) return true
+  }
+  return false
+}
+
+/**
+ * Persist: в одном дне либо только __club__, либо только реальные trainer_id (без double).
+ * @param {Record<string, string>} inputMap
+ * @param {string[]} clubTrainerIds
+ * @param {Array<{ id: string }>} membershipTypes
+ * @returns {{ ok: true, rows: Array<{ trainer_id: string, membership_type_id: string|null, count: number }>, trainerIds: string[] } | { ok: false, error: string }}
+ */
+export function resolveTrainingsMatrixForPersist(inputMap, clubTrainerIds, membershipTypes) {
+  const realIds = (clubTrainerIds ?? []).map((id) => String(id ?? '').trim()).filter(Boolean)
+  const useTrainers = trainingsMatrixHasTrainerDetail(inputMap)
+  const trainerIds = useTrainers ? realIds : [SALES_TRAINING_CLUB_ID]
+  const parsed = inputMapToMatrixRows(inputMap, trainerIds, membershipTypes)
+  if (!parsed.ok) return parsed
+  const rows = useTrainers
+    ? parsed.rows.filter((r) => String(r.trainer_id) !== SALES_TRAINING_CLUB_ID)
+    : parsed.rows.filter((r) => String(r.trainer_id) === SALES_TRAINING_CLUB_ID)
+  return { ok: true, rows, trainerIds }
+}
+
+/**
+ * Загрузка в форму: ключи из БД как есть (Old = club, New = trainers). Не схлопывать в один club.
+ * @param {Array<{ trainer_id?: string, membership_type_id?: string|null, count?: number }>} rows
+ */
+export function hydrateTrainingsMatrixInputMap(rows) {
+  return matrixRowsToInputMap(rows)
+}
+
+/**
+ * Число в ячейке «По клубу» для UI: из __club__ (Old) или сумма тренеров (New).
+ * @param {Record<string, string>} inputMap
+ * @param {string[]} trainerIds
+ * @param {string} typeId
+ */
+export function clubDisplayCountForType(inputMap, trainerIds, typeId) {
+  const typeKey = typeId === SALES_TRAINING_TYPE_NONE ? null : typeId
+  if (!trainingsMatrixHasTrainerDetail(inputMap)) {
+    return parseMatrixCellCount(inputMap?.[salesTrainingCellKey(SALES_TRAINING_CLUB_ID, typeKey)])
+  }
+  let sum = 0
+  for (const trainerId of trainerIds ?? []) {
+    const tid = String(trainerId ?? '').trim()
+    if (!tid || tid === SALES_TRAINING_CLUB_ID) continue
+    sum += parseMatrixCellCount(inputMap?.[salesTrainingCellKey(tid, typeKey)])
+  }
+  return sum
+}
+
+/**
+ * ЗП персонального зала за день: Old — из «По клубу»; New — из строк тренеров (без double).
  * @param {Record<string, string>} inputMap
  * @param {Array<{ id: string, trainer_pay_per_session?: number | string }>} membershipTypes
+ * @param {string[]} [trainerIds]
  */
-export function computeClubTrainingsPayrollFromInputMap(inputMap, membershipTypes) {
+export function computeClubTrainingsPayrollFromInputMap(inputMap, membershipTypes, trainerIds = []) {
   const rateMap = buildTrainerPayRateMap(membershipTypes)
-  const rows = []
-  for (const t of membershipTypes ?? []) {
-    const typeId = String(t?.id ?? '').trim()
-    if (!typeId) continue
-    const count = parseMatrixCellCount(inputMap?.[salesTrainingCellKey(SALES_TRAINING_CLUB_ID, typeId)])
-    if (count <= 0) continue
-    rows.push({ trainer_id: SALES_TRAINING_CLUB_ID, membership_type_id: typeId, count })
-  }
-  return computePayrollFromMatrixRows(rows, rateMap).clubTotal
+  const resolved = resolveTrainingsMatrixForPersist(inputMap, trainerIds, membershipTypes)
+  if (!resolved.ok) return 0
+  return computePayrollFromMatrixRows(resolved.rows, rateMap).clubTotal
 }

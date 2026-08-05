@@ -160,7 +160,7 @@ export function SalesDailyForm({
           onMatrixChange={onTrainingsMatrixChange ?? (() => {})}
           fitCityStats={fitCityTypeStats}
           canEdit={canEdit}
-          aggregateOnly
+          aggregateOnly={false}
           clubId={clubId}
           showPayroll={showPayroll}
         />

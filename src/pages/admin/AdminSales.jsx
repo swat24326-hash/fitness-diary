@@ -21,10 +21,8 @@ import { buildClubFinanceForecast } from '../../lib/admin/clubFinanceForecastCor
 import { computePlanDirectionsFromForm, buildPlanMatrixJsonFromForm } from '../../lib/admin/salesPlanMatrixCore'
 import {
   buildTrainingsMatrixColumns,
-  clubAggregateInputMap,
-  matrixRowsToInputMap,
+  hydrateTrainingsMatrixInputMap,
   normalizeMatrixRowsFromDb,
-  SALES_TRAINING_CLUB_ID,
 } from '../../lib/admin/salesTrainingsMatrix'
 import {
   aerobicRowsToInputMap,
@@ -73,6 +71,7 @@ import { SalesPlanVessel } from '../../components/SalesPlanVessel'
 import { AdminHomeSalesGlanceMetrics } from '../../components/admin/AdminHomeSalesGlanceMetrics.jsx'
 import { SalesDailyForm } from '../../components/SalesDailyForm'
 import { SalesDailyPaymentsImportSection } from '../../components/SalesDailyPaymentsImportSection.jsx'
+import { SalesDailyPzTrainingsImportSection } from '../../components/SalesDailyPzTrainingsImportSection.jsx'
 import { SalesDailyTaskAssign } from '../../components/sales/SalesDailyTaskAssign.jsx'
 import { SalesClipCreateSection } from '../../components/sales/SalesClipCreateSection.jsx'
 import { SalesEveningMatchSection } from '../../components/sales/SalesEveningMatchSection.jsx'
@@ -241,14 +240,9 @@ export function AdminSales({ accessMode = 'admin' }) {
   }, [])
 
   const applyDailyDrafts = useCallback((bundle, types, cid, date) => {
-    const cols = buildTrainingsMatrixColumns(types)
     const matrixRows = normalizeMatrixRowsFromDb(bundle.daily?.trainings_matrix)
     let nextDailyForm = dailyRowToForm(bundle.daily)
-    let nextTrainingsMatrix = clubAggregateInputMap(
-      matrixRowsToInputMap(matrixRows),
-      (bundle.trainers ?? []).map((t) => t.id),
-      cols,
-    )
+    let nextTrainingsMatrix = hydrateTrainingsMatrixInputMap(matrixRows)
     let nextAerobicMatrix = aerobicRowsToInputMap(
       normalizeAerobicRowsFromDb(bundle.daily?.aerobic_sales_matrix),
     )
@@ -675,7 +669,7 @@ export function AdminSales({ accessMode = 'admin' }) {
         form: dailyForm,
         trainingsMatrixInput: trainingsMatrix,
         aerobicMatrixInput: aerobicMatrix,
-        trainerIds: [SALES_TRAINING_CLUB_ID],
+        trainerIds: trainers.map((t) => t.id).filter(Boolean),
         membershipTypes,
         aerobicMembershipTypes,
       })
@@ -684,14 +678,7 @@ export function AdminSales({ accessMode = 'admin' }) {
         return
       }
       setDailyForm(dailyRowToForm(row))
-      const cols = buildTrainingsMatrixColumns(membershipTypes)
-      setTrainingsMatrix(
-        clubAggregateInputMap(
-          matrixRowsToInputMap(normalizeMatrixRowsFromDb(row?.trainings_matrix)),
-          trainers.map((t) => t.id),
-          cols,
-        ),
-      )
+      setTrainingsMatrix(hydrateTrainingsMatrixInputMap(normalizeMatrixRowsFromDb(row?.trainings_matrix)))
       setAerobicMatrix(aerobicRowsToInputMap(normalizeAerobicRowsFromDb(row?.aerobic_sales_matrix)))
       clearSalesDraft(salesDailyDraftKey(clubId, reportDate))
       clearSalesPlanGlanceSession(clubId)
@@ -1089,14 +1076,25 @@ export function AdminSales({ accessMode = 'admin' }) {
       {isSalesManager && salesTab === 'report' ? (
         <div id="sales-panel-report" className="sales-report__panel">
           {clubId ? (
-            <SalesDailyPaymentsImportSection
-              clubId={clubId}
-              reportDate={reportDate}
-              canEdit
-              onApplyForm={setDailyForm}
-              onToast={showToast}
-              onReportDateHint={(iso) => setReportDate(clampIsoDateToToday(iso))}
-            />
+            <div className="sales-daily-excel-row">
+              <SalesDailyPaymentsImportSection
+                clubId={clubId}
+                reportDate={reportDate}
+                canEdit
+                onApplyForm={setDailyForm}
+                onToast={showToast}
+                onReportDateHint={(iso) => setReportDate(clampIsoDateToToday(iso))}
+              />
+              <SalesDailyPzTrainingsImportSection
+                clubId={clubId}
+                reportDate={reportDate}
+                trainers={trainers}
+                membershipTypes={membershipTypes}
+                canEdit
+                onApplyMatrix={setTrainingsMatrix}
+                onToast={showToast}
+              />
+            </div>
           ) : null}
           <SalesDailyForm
             reportDate={reportDate}
@@ -1197,14 +1195,25 @@ export function AdminSales({ accessMode = 'admin' }) {
         <div id="sales-panel-daily" role="tabpanel" aria-labelledby="sales-tab-daily">
           {clubId ? <SalesDailyTaskAssign clubId={clubId} reportDate={reportDate} /> : null}
           {clubId ? (
-            <SalesDailyPaymentsImportSection
-              clubId={clubId}
-              reportDate={reportDate}
-              canEdit
-              onApplyForm={setDailyForm}
-              onToast={showToast}
-              onReportDateHint={(iso) => setReportDate(clampIsoDateToToday(iso))}
-            />
+            <div className="sales-daily-excel-row">
+              <SalesDailyPaymentsImportSection
+                clubId={clubId}
+                reportDate={reportDate}
+                canEdit
+                onApplyForm={setDailyForm}
+                onToast={showToast}
+                onReportDateHint={(iso) => setReportDate(clampIsoDateToToday(iso))}
+              />
+              <SalesDailyPzTrainingsImportSection
+                clubId={clubId}
+                reportDate={reportDate}
+                trainers={trainers}
+                membershipTypes={membershipTypes}
+                canEdit
+                onApplyMatrix={setTrainingsMatrix}
+                onToast={showToast}
+              />
+            </div>
           ) : null}
           <SalesDailyForm
             reportDate={reportDate}

@@ -1,8 +1,8 @@
 import { AdminDeskClosingImportSection } from './AdminDeskClosingImportSection.jsx'
-import { AdminExcelPzHoursMapCard } from './AdminExcelPzHoursMapCard.jsx'
 
 /**
- * Excel-карты админа: список заканчивающихся (ТЗ+АЗ) + заглушка часов ПЗ.
+ * Excel-карты админа: список заканчивающихся (ТЗ+АЗ).
+ * Часы ПЗ — ежедневно в «Отчёт продаж», не здесь.
  * @param {{ clubId: string, onClosingDone?: () => void }} props
  */
 export function AdminExcelListsMaps({ clubId, onClosingDone }) {
@@ -33,12 +33,11 @@ export function AdminExcelListsMaps({ clubId, onClosingDone }) {
             </li>
           </ol>
           <p className="muted admin-excel-map-card__note">
-            Не этот файл: дневные оплаты вроде <strong>31.xlsx</strong> — только в «Отчёт продаж».
+            Не сюда: дневные оплаты (<strong>31.xlsx</strong>) и часы ПЗ (<strong>otchet_pz.xlsx</strong>) — в
+            «Отчёт продаж».
           </p>
         </AdminDeskClosingImportSection>
       </article>
-
-      <AdminExcelPzHoursMapCard />
     </div>
   )
 }

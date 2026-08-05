@@ -6,6 +6,8 @@ import {
   salesTrainingCellKey,
   typedTrainingsMatrixColumns,
   computeClubTrainingsPayrollFromInputMap,
+  trainingsMatrixHasTrainerDetail,
+  clubDisplayCountForType,
 } from '../lib/admin/salesTrainingsMatrix.js'
 import { MembershipTypeStatsTable } from './MembershipTypeStatsTable.jsx'
 import { formatRub } from '../lib/admin/salesReportCore.js'
@@ -32,11 +34,17 @@ export function SalesTrainingsMatrix({
   onMatrixChange,
   fitCityStats = null,
   canEdit = true,
-  aggregateOnly = true,
+  aggregateOnly = false,
   clubId = '',
   showPayroll = true,
 }) {
   const typedColumns = useMemo(() => typedTrainingsMatrixColumns(columns), [columns])
+  const trainerIds = useMemo(
+    () => trainers.map((t) => String(t.id ?? '').trim()).filter(Boolean),
+    [trainers],
+  )
+  const detailMode = trainingsMatrixHasTrainerDetail(matrix)
+  const clubEditable = canEdit && !detailMode
 
   const trainerLabel = (id) => {
     const tr = trainers.find((t) => String(t.id) === String(id))
@@ -50,11 +58,18 @@ export function SalesTrainingsMatrix({
   }
 
   const cellValue = (trainerId, typeId) => {
+    if (trainerId === SALES_TRAINING_CLUB_ID && detailMode) {
+      const n = clubDisplayCountForType(matrix, trainerIds, typeId)
+      return n > 0 ? String(n) : ''
+    }
     const key = salesTrainingCellKey(trainerId, typeId === SALES_TRAINING_TYPE_NONE ? null : typeId)
     return matrix[key] ?? ''
   }
 
   const countCell = (trainerId, colTypeId) => {
+    if (trainerId === SALES_TRAINING_CLUB_ID) {
+      return clubDisplayCountForType(matrix, trainerIds, colTypeId)
+    }
     const raw = cellValue(trainerId, colTypeId)
     if (raw === '') return 0
     const n = Math.floor(Number(String(raw).replace(/\s/g, '')))
@@ -68,11 +83,16 @@ export function SalesTrainingsMatrix({
   }
 
   const dayPay = useMemo(
-    () => computeClubTrainingsPayrollFromInputMap(matrix, _membershipTypes),
-    [_membershipTypes, matrix],
+    () => computeClubTrainingsPayrollFromInputMap(matrix, _membershipTypes, trainerIds),
+    [_membershipTypes, matrix, trainerIds],
   )
 
   const typesHref = clubId ? `/admin/membership-types?club=${encodeURIComponent(clubId)}` : '/admin/membership-types'
+
+  const visibleTrainers = useMemo(() => {
+    if (aggregateOnly && !detailMode) return []
+    return trainers
+  }, [aggregateOnly, detailMode, trainers])
 
   if (!typedColumns.length) {
     return (
@@ -89,17 +109,19 @@ export function SalesTrainingsMatrix({
 
   const renderCell = (trainerId, col, editable) => {
     const isNone = col.typeId === SALES_TRAINING_TYPE_NONE
+    const isClub = trainerId === SALES_TRAINING_CLUB_ID
+    const edit = editable && !(isClub && detailMode)
     return (
       <td
         key={col.typeId}
         className={`admin-mem-type-table__num${isNone ? ' sales-trainings-matrix__none-col' : ''}${col.inactive ? ' sales-trainings-matrix__inactive-col' : ''}`}
       >
-        {editable ? (
+        {edit ? (
           <input
             type="text"
             inputMode="numeric"
             className="sales-trainings-matrix__input"
-            aria-label={`${aggregateOnly ? 'По клубу' : trainerLabel(trainerId)} ${col.code}`}
+            aria-label={`${isClub ? 'По клубу' : trainerLabel(trainerId)} ${col.code}`}
             value={cellValue(trainerId, col.typeId)}
             onChange={(e) => setCell(trainerId, col.typeId, e.target.value)}
             placeholder="0"
@@ -113,13 +135,25 @@ export function SalesTrainingsMatrix({
 
   return (
     <div className="sales-trainings-matrix">
+      {detailMode ? (
+        <p className="muted" style={{ margin: '0 0 0.5rem', fontSize: 12 }}>
+          Разбивка по тренерам (из Excel или ввода). «По клубу» — сумма, без двойного учёта. Не путать со
+          статистикой планшетов.
+        </p>
+      ) : null}
       <div className="table-wrap admin-mem-type-table-wrap sales-trainings-matrix__scroll">
         <table className="admin-mem-type-table sales-trainings-matrix__table">
           <thead>
             <tr>
-              <th className="admin-mem-type-table__trainer-col">{aggregateOnly ? 'Клуб' : 'Тренер'}</th>
+              <th className="admin-mem-type-table__trainer-col">
+                {visibleTrainers.length ? 'Тренер' : 'Клуб'}
+              </th>
               {typedColumns.map((c) => (
-                <th key={c.typeId} className="admin-mem-type-table__type-col" title={c.inactive ? 'Неактивный тип' : undefined}>
+                <th
+                  key={c.typeId}
+                  className="admin-mem-type-table__type-col"
+                  title={c.inactive ? 'Неактивный тип' : undefined}
+                >
                   {c.code}
                   {c.inactive ? <span className="sales-trainings-matrix__inactive-tag"> off</span> : null}
                 </th>
@@ -136,8 +170,8 @@ export function SalesTrainingsMatrix({
               <td className="admin-mem-type-table__trainer-col">
                 <strong>По клубу</strong>
               </td>
-              {typedColumns.map((c) => renderCell(SALES_TRAINING_CLUB_ID, c, canEdit))}
-              {noneColumn ? renderCell(SALES_TRAINING_CLUB_ID, noneColumn, canEdit) : null}
+              {typedColumns.map((c) => renderCell(SALES_TRAINING_CLUB_ID, c, clubEditable))}
+              {noneColumn ? renderCell(SALES_TRAINING_CLUB_ID, noneColumn, clubEditable) : null}
               <td className="admin-mem-type-table__num admin-mem-type-table__sum-col">
                 <strong>{typedTotal(SALES_TRAINING_CLUB_ID)}</strong>
               </td>
@@ -147,6 +181,20 @@ export function SalesTrainingsMatrix({
                 </td>
               ) : null}
             </tr>
+            {visibleTrainers.map((tr) => {
+              const tid = String(tr.id)
+              return (
+                <tr key={tid}>
+                  <td className="admin-mem-type-table__trainer-col">{trainerLabel(tid)}</td>
+                  {typedColumns.map((c) => renderCell(tid, c, canEdit))}
+                  {noneColumn ? renderCell(tid, noneColumn, canEdit) : null}
+                  <td className="admin-mem-type-table__num admin-mem-type-table__sum-col">
+                    {typedTotal(tid) || '—'}
+                  </td>
+                  {showPayroll ? <td className="admin-mem-type-table__num sales-trainings-matrix__total-col">—</td> : null}
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>
@@ -154,7 +202,7 @@ export function SalesTrainingsMatrix({
       {fitCityStats?.byType?.length ? (
         <details className="sales-trainings-matrix__hint">
           <summary className="sales-trainings-matrix__hint-summary muted">
-            Справка FIT-CITY за этот день (завершённые и списания)
+            Справка FIT-CITY за этот день (завершённые и списания) — другой контур, не Excel отчёта
           </summary>
           <div style={{ marginTop: '0.75rem' }}>
             <MembershipTypeStatsTable

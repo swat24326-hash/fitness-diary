@@ -2,7 +2,7 @@
 
 
 
-import { inputMapToMatrixRows, sumMatrixRows } from './salesTrainingsMatrix.js'
+import { resolveTrainingsMatrixForPersist, sumMatrixRows } from './salesTrainingsMatrix.js'
 import { aerobicInputMapToRows } from './aerobicSalesMatrix.js'
 
 
@@ -843,19 +843,19 @@ export function dailyFormToPayload(form, opts = null) {
 
     const trainerTypes = (opts.membershipTypes ?? []).filter((t) => t?.trainer_assignable !== false)
 
-    const parsedMatrix = inputMapToMatrixRows(
+    const clubTrainerIds = opts.trainerIds
+      .map((id) => String(id ?? '').trim())
+      .filter((id) => id && id !== '__club__')
 
+    const resolved = resolveTrainingsMatrixForPersist(
       opts.matrixInput,
-
-      opts.trainerIds,
-
+      clubTrainerIds.length ? clubTrainerIds : opts.trainerIds,
       trainerTypes,
-
     )
 
-    if (!parsedMatrix.ok) return parsedMatrix
+    if (!resolved.ok) return resolved
 
-    trainings_matrix = parsedMatrix.rows
+    trainings_matrix = resolved.rows
 
     trainings_count = sumMatrixRows(trainings_matrix)
 

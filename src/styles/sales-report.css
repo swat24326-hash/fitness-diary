@@ -4853,6 +4853,34 @@
 
 
 /* ?????? ?????? ?? ??????? (1?) */
+.sales-daily-excel-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  align-items: stretch;
+}
+@media (max-width: 900px) {
+  .sales-daily-excel-row {
+    grid-template-columns: 1fr;
+  }
+}
+.sales-daily-excel-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 11rem;
+  margin-bottom: 0;
+}
+.sales-daily-excel-card__lead {
+  font-size: 0.88rem;
+  line-height: 1.4;
+  margin: 0.35rem 0 0.25rem;
+}
+.sales-daily-excel-card__preview {
+  margin-top: auto;
+  padding-top: 0.35rem;
+}
+
 .sales-payments-import {
   margin-bottom: 1rem;
 }

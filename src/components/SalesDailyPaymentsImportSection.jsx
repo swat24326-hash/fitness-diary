@@ -116,10 +116,9 @@ export function SalesDailyPaymentsImportSection({
   return (
     <section className="sales-report__card sales-payments-import" aria-label="Импорт отчёта по оплатам">
       <h3 className="sales-report__section-title">Каждый день: Excel оплат из 1С</h3>
-      <p className="sales-report__hint">
-        Файл как «отчёт по оплатам» / <strong>31.xlsx</strong> — не закрытия и не касса/DDS. Загрузите за день →
-        проверьте НК/ДК/УК → «Подставить» → «Сохранить» у отчёта. Ниже — создать карточки (ПЗ lite/клип, АЗ/ТЗ desk),
-        кого ещё нет в Оси.
+      <p className="sales-report__hint sales-daily-excel-card__lead">
+        Файл <strong>31.xlsx</strong> — оплаты за день (не закрытия). НК/ДК/УК → «Подставить» → «Сохранить».
+        Ниже — карточки, кого ещё нет в Оси.
       </p>
       <label className="sales-payments-import__file">
         <FileSpreadsheet size={18} aria-hidden />
