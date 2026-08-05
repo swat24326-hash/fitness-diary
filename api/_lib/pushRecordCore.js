@@ -9,6 +9,7 @@ import { normalizeNutritionProductPushPayload } from '../../src/lib/admin/nutrit
 import { normalizeHomeworkPresetPushPayload } from '../../src/lib/admin/homeworkPresetPushPayload.js'
 import { normalizeHealthCardPushPayload } from '../../src/lib/healthCardCore.js'
 import { normalizePnkFunnelEventPushPayload } from '../../src/lib/pnk/pnkFunnelEventsCore.js'
+import { recordClientDeletionAudit } from './deletionAuditWrite.js'
 
 export const PUSH_ALLOWED_TABLES = new Set([
   'clients',
@@ -299,6 +300,9 @@ export async function executePushRecord(ctx, item) {
     }
 
     if (operation === 'delete' && remote_id) {
+      if (table_name === 'clients') {
+        await recordClientDeletionAudit(ctx, remote_id, data, { source: 'push' })
+      }
       const { error } = await supabaseAdmin.from(table_name).delete().eq('id', remote_id)
       if (error) {
         const errMsg = table_name === 'exercises' ? friendlyExerciseDbError(error, 'delete') : error.message

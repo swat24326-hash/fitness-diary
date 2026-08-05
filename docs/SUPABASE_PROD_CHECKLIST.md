@@ -37,7 +37,7 @@ order by u.role, u.email;
 - [ ] Таблицы приложения: clients, trainings, memberships, health_cards, body_measurements — политики из репозитория.
 - [ ] Для `clubs`, `exercises`, `challenges`, `membership_types` — политики соответствуют тому, что ожидает приложение (см. комментарии в `policies.sql`).
 - [ ] `membership_types`: есть `fit_membership_types_sales_manager_read` (менеджер читает **все** типы своего клуба, включая АЗ) — миграция `20260729120000_membership_types_sales_manager_read.sql` или `npm run db:migrate:membership-types-sm -- --linked`.
-- [ ] Тест: вход тренером → видит только своих клиентов; админ → клуб по выбору.
+- [ ] Таблица `deletion_audit_log` (журнал удалений клиентов) — миграция `20260805210000_deletion_audit_log.sql` + RLS admin / SM read.
 
 ## 5. Схема БД
 

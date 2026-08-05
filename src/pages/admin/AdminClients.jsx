@@ -95,6 +95,7 @@ import {
 } from '../../lib/admin/adminClientsListHrefCore.js'
 import { collectNoTabletTrainerIds, isLitePzClient } from '../../lib/admin/trainerTabletModeCore.js'
 import { canSalesManagerHardDeleteClient } from '../../lib/admin/salesManagerClientsAccessCore.js'
+import { ClientHardDeleteConfirmModal } from '../../components/ClientHardDeleteConfirmModal.jsx'
 import { AdminLitePzCreateModal } from '../../components/admin/AdminLitePzCreateModal.jsx'
 import { ensureMembershipTypesForClub } from '../../lib/membershipTypesService.js'
 import '../../styles/pnk-funnel.css'
@@ -1197,7 +1198,18 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                 ? ` Сейчас: ${ARCHIVE_HALL_FILTER_LABELS[archiveHallFilter] || archiveHallFilter}.`
                 : ''}{' '}
               Поиск по имени, телефону
-              {showTrainerSearch ? ' или тренеру' : ''} — от 2 символов.
+              {showTrainerSearch ? ' или тренеру' : ''} — от 2 символов.{' '}
+              <Link
+                to={
+                  isSalesManager
+                    ? '/sales/deletion-log'
+                    : `/admin/deletion-log${club ? `?club=${encodeURIComponent(club)}` : ''}`
+                }
+              >
+                Журнал удалений
+              </Link>
+              {' '}
+              — кто стёр карточку совсем (не архив).
             </p>
           </>
         )}
@@ -1563,35 +1575,14 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         </div>
       )}
 
-      {confirmDelete && (
-        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="adm-delete-client-title" onClick={() => !deleteBusy && setConfirmDelete(null)}>
-          <div className="modal-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
-            <h2 id="adm-delete-client-title" className="section-title" style={{ marginTop: 0 }}>
-              Удалить клиента?
-            </h2>
-            <p className="muted" style={{ marginTop: 8 }}>
-              Удаляем <strong style={{ color: 'var(--text)' }}>{confirmDelete.name}</strong> без возможности восстановления.
-            </p>
-            <p className="muted" style={{ marginTop: 10, fontSize: '0.9rem' }}>
-              Удалятся все тренировки, абонементы, замеры тела и медкарта этого клиента.
-            </p>
-            <div className="row td-modal-actions" style={{ marginTop: 18 }}>
-              <button type="button" className="btn btn-ghost btn-touch" disabled={deleteBusy} onClick={() => setConfirmDelete(null)}>
-                Отмена
-              </button>
-              <button
-                type="button"
-                className="btn btn-touch"
-                style={{ background: 'rgba(248,113,113,0.2)', borderColor: 'rgba(248,113,113,0.45)', color: '#fecaca' }}
-                disabled={deleteBusy}
-                onClick={() => void runDeleteClient()}
-              >
-                {deleteBusy ? 'Удаление…' : 'Да, удалить'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ClientHardDeleteConfirmModal
+        open={Boolean(confirmDelete)}
+        clientName={confirmDelete?.name}
+        busy={deleteBusy}
+        aria-labelledby="adm-delete-client-title"
+        onCancel={() => !deleteBusy && setConfirmDelete(null)}
+        onConfirm={() => void runDeleteClient()}
+      />
 
       <AdminLitePzCreateModal
         open={liteCreateOpen}

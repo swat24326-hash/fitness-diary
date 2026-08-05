@@ -21,6 +21,7 @@ import { AdminChallengeDetail } from './pages/admin/AdminChallengeDetail'
 import { AdminClubTasks } from './pages/admin/AdminClubTasks'
 import { SalesClubTasks } from './pages/admin/SalesClubTasks'
 import { SalesPnk } from './pages/admin/SalesPnk'
+import { AdminDeletionLogPage } from './pages/admin/AdminDeletionLogPage.jsx'
 import { IskraPanelProvider } from './context/IskraPanelContext'
 import { HeartRateSessionsProvider } from './context/HeartRateSessionsContext'
 import { Login } from './pages/Login'
@@ -219,6 +220,7 @@ export default function App() {
                 <Route index element={null} />
                 <Route path=":id" element={<ClientCard />} />
               </Route>
+              <Route path="/sales/deletion-log" element={<AdminDeletionLogPage accessMode="sales_manager" />} />
             </Route>
             <Route element={<RoleOutlet roles={['admin']} />}>
               <Route path="/admin/workouts/:id" element={<TrainingPage />} />
@@ -234,6 +236,7 @@ export default function App() {
                   <Route index element={null} />
                   <Route path=":id" element={<ClientCard />} />
                 </Route>
+                <Route path="deletion-log" element={<AdminDeletionLogPage />} />
                 <Route path="excel-lists" element={<AdminExcelLists />} />
                 <Route path="diaries" element={<AdminDiariesRedirect />} />
                 <Route path="exercises" element={<AdminLegacyExercisesRedirect />} />

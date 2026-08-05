@@ -9,6 +9,7 @@ import {
 import { useAuth } from '../../context/AuthContext'
 import { useTrainerOutreach } from '../../hooks/useTrainerOutreach'
 import { deleteClientAndAllData, listClubsLocal } from '../../lib/dataAccess'
+import { ClientHardDeleteConfirmModal } from '../../components/ClientHardDeleteConfirmModal.jsx'
 import { membershipSignal } from '../../lib/clientListSignals'
 import { CLIENT_LIST_PAGE_SIZE } from '../../lib/clientListPagination'
 import { todayLocalIso } from '../../lib/dateRu'
@@ -633,29 +634,14 @@ export function TrainerClients() {
         </div>
       </section>
 
-      {confirmDelete && (
-        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="delete-client-title" onClick={() => !busy && setConfirmDelete(null)}>
-          <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
-            <h2 id="delete-client-title" className="section-title" style={{ marginTop: 0 }}>
-              Удалить клиента?
-            </h2>
-            <p className="muted" style={{ marginTop: 8 }}>
-              Действительно удаляем <strong style={{ color: 'var(--text)' }}>{confirmDelete.name}</strong>?
-            </p>
-            <p className="muted" style={{ marginTop: 10, fontSize: '0.9rem' }}>
-              Безвозвратно удалятся все тренировки, абонементы, замеры тела и медкарта этого клиента.
-            </p>
-            <div className="row td-modal-actions" style={{ marginTop: 18 }}>
-              <button type="button" className="btn btn-ghost btn-touch" disabled={busy} onClick={() => setConfirmDelete(null)}>
-                Отмена
-              </button>
-              <button type="button" className="btn btn-touch" style={{ background: 'rgba(248,113,113,0.2)', borderColor: 'rgba(248,113,113,0.45)', color: '#fecaca' }} disabled={busy} onClick={() => void runDeleteClient()}>
-                {busy ? 'Удаление…' : 'Да, удалить'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ClientHardDeleteConfirmModal
+        open={Boolean(confirmDelete)}
+        clientName={confirmDelete?.name}
+        busy={busy}
+        aria-labelledby="delete-client-title"
+        onCancel={() => !busy && setConfirmDelete(null)}
+        onConfirm={() => void runDeleteClient()}
+      />
 
       {showNewClient && (
         <div className="modal-overlay" onClick={() => setShowNewClient(false)}>

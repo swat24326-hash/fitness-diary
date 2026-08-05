@@ -305,6 +305,7 @@ async function purgeSyncQueuePendingForClient({
  * ставит операции delete в очередь синхронизации.
  */
 export async function deleteClientAndAllData(clientId) {
+  const clientSnap = await getLocalClient(clientId)
   const hc = await getHealthCard(clientId)
   const healthCardRemoteId = hc?.id ?? null
 
@@ -335,7 +336,20 @@ export async function deleteClientAndAllData(clientId) {
 
   await deleteHealthCardByClientId(clientId)
 
-  await deleteLocalWithSync('clients', clientId, 'clients')
+  await deleteLocalWithSync('clients', clientId, 'clients', {
+    id: clientId,
+    name: clientSnap?.name ?? null,
+    phone: clientSnap?.phone ?? null,
+    card_number: clientSnap?.card_number ?? null,
+    club_id: clientSnap?.club_id ?? null,
+    trainer_id: clientSnap?.trainer_id ?? null,
+    desk_hall: clientSnap?.desk_hall ?? null,
+    archived_at: clientSnap?.archived_at ?? null,
+    __audit: {
+      trainings_count: trainings.length,
+      memberships_count: mems.length,
+    },
+  })
 
   await purgeSyncQueuePendingForClient({
     clientId,

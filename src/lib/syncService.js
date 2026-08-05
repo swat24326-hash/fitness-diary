@@ -607,25 +607,26 @@ export async function saveLocalWithSync(storeName, record, { table_name, operati
   return queueRow.local_id
 }
 
-export async function deleteLocalWithSync(storeName, key, table_name) {
+export async function deleteLocalWithSync(storeName, key, table_name, data = {}) {
   const db = await getDb()
   await db.delete(storeName, key)
   if (TRAINER_CACHE_STORES.has(storeName)) {
     invalidateTrainerWorkspaceCache()
     invalidateAdminClubWorkspaceCache()
   }
+  const payload = data && typeof data === 'object' ? data : {}
   const queueRow = await enqueueSync({
     table_name,
     operation: 'delete',
     remote_id: key,
-    data: {},
+    data: payload,
   })
   if (AUTO_PUSH_TABLES.has(table_name) && !backgroundSyncPaused) {
     schedulePushRecordViaApi({
       table_name,
       operation: 'delete',
       remote_id: key,
-      data: {},
+      data: payload,
       local_id: queueRow.local_id,
     })
     scheduleBackgroundSyncDrain()

@@ -1,0 +1,48 @@
+.deletion-audit {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.deletion-audit__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.deletion-audit__title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.deletion-audit__hint {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  max-width: 52rem;
+}
+
+.deletion-audit__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.deletion-audit__search {
+  flex: 1 1 220px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border, #334) 80%, transparent);
+  background: color-mix(in srgb, var(--surface, #122) 90%, transparent);
+  color: inherit;
+}
+
+.deletion-audit__table th,
+.deletion-audit__table td {
+  vertical-align: top;
+}

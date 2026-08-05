@@ -8,6 +8,7 @@ import {
   pickPnkBoardSelectedId,
 } from '../../lib/pnk/pnkManagerBoardCore.js'
 import { formatDateRu } from '../../lib/dateRu.js'
+import { ClientHardDeleteConfirmModal } from '../ClientHardDeleteConfirmModal.jsx'
 
 /**
  * Доска контроля ПНК: квадратная сетка + панель оценки (layout split).
@@ -188,42 +189,20 @@ export function PnkManagerControlBoard({
         {assessExtras}
       </div>
 
-      {confirmDelete ? (
-        <div
-          className="modal-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="pnk-delete-title"
-          onClick={() => !busy && setConfirmDelete(null)}
-        >
-          <div className="modal-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
-            <h2 id="pnk-delete-title" className="section-title" style={{ marginTop: 0 }}>
-              Удалить ПНК?
-            </h2>
-            <p className="muted" style={{ marginTop: 8 }}>
-              Карточка <strong style={{ color: 'var(--text)' }}>{confirmDelete.name}</strong> будет удалена без
-              восстановления. Связанные тренировки и абонементы этой карточки тоже уйдут.
-            </p>
-            <div className="row td-modal-actions" style={{ marginTop: 18 }}>
-              <button type="button" className="btn btn-ghost btn-touch" disabled={busy} onClick={() => setConfirmDelete(null)}>
-                Отмена
-              </button>
-              <button
-                type="button"
-                className="btn btn-touch pnk-control-card__delete-confirm"
-                disabled={busy}
-                onClick={() => {
-                  const id = confirmDelete.id
-                  setConfirmDelete(null)
-                  void onDelete?.(id)
-                }}
-              >
-                {busy ? 'Удаление…' : 'Да, удалить'}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <ClientHardDeleteConfirmModal
+        open={Boolean(confirmDelete)}
+        title="Удалить ПНК?"
+        clientName={confirmDelete?.name}
+        busy={busy}
+        aria-labelledby="pnk-delete-title"
+        extraNote="Связанные тренировки и абонементы этой карточки тоже уйдут."
+        onCancel={() => !busy && setConfirmDelete(null)}
+        onConfirm={() => {
+          const id = confirmDelete?.id
+          setConfirmDelete(null)
+          if (id) void onDelete?.(id)
+        }}
+      />
     </section>
   )
 }

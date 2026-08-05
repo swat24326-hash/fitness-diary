@@ -20,6 +20,7 @@ import { handleResetTrainerPasswordPost, handleSetTrainerActivePost, handleSetTr
 import { handleTrainerSelfStatsGet } from './_lib/adminData/trainerSelfStatsHandler.js'
 import { handleTrainerSelfJournalGet } from './_lib/adminData/trainerSelfJournalHandler.js'
 import { handleSearch, handleJournal, handleClientsLastTrainings } from './_lib/adminData/journalHandlers.js'
+import { handleDeletionAuditLogGet } from './_lib/adminData/deletionAuditLogHandler.js'
 import { handleClubStats, handleCoachQuality, handleHealthCards, handleClubMonthly } from './_lib/adminData/clubHandlers.js'
 import {
   handleChallenges,
@@ -371,15 +372,16 @@ async function handler(req, res) {
     return
   }
 
-  if (action === 'search' || action === 'clients-last-trainings') {
+  if (action === 'search' || action === 'clients-last-trainings' || action === 'deletion-audit-log') {
     const clubId = String(req.query?.club_id ?? req.query?.clubId ?? '').trim()
     const ctx = await requireAdminOrSalesManager(req, res, clubId)
     if (!ctx) return
-    if (ctx.isSalesManager && !clubId) {
+    if (ctx.isSalesManager && !clubId && action !== 'deletion-audit-log') {
       sendJson(res, 400, { error: 'Укажите club_id' })
       return
     }
     if (action === 'search') return handleSearch(ctx, req, res)
+    if (action === 'deletion-audit-log') return handleDeletionAuditLogGet(ctx, req, res)
     return handleClientsLastTrainings(ctx, req, res)
   }
 
@@ -408,7 +410,7 @@ async function handler(req, res) {
     default:
       sendJson(res, 400, {
         error:
-          'Укажите action: search, journal, clients-last-trainings, club-stats, club-monthly, coach-quality, health-cards, sales, price-list, tz-price-list, az-price-list, gemini-analytics-prefetch, iskra-settings, challenges, challenge-trainings, exercises, membership-types, clubs',
+          'Укажите action: search, journal, clients-last-trainings, deletion-audit-log, club-stats, club-monthly, coach-quality, health-cards, sales, price-list, tz-price-list, az-price-list, gemini-analytics-prefetch, iskra-settings, challenges, challenge-trainings, exercises, membership-types, clubs',
       })
   }
 }
