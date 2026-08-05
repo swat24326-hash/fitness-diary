@@ -1,11 +1,12 @@
 # Модули продукта (кроме ядра тренировок)
 
-**Актуально:** 2026-07-19. Крупная цель продукта — [PRODUCT_VISION.md](./PRODUCT_VISION.md). Ядро (клиент / абонемент / тренировка / sync) — handoff и [DATA_MODEL.md](./DATA_MODEL.md). Здесь — соседние контуры, чтобы не искать по репо вслепую.
+**Актуально:** 2026-08-05. Крупная цель продукта — [PRODUCT_VISION.md](./PRODUCT_VISION.md). Ядро (клиент / абонемент / тренировка / sync) — handoff и [DATA_MODEL.md](./DATA_MODEL.md). Здесь — соседние контуры, чтобы не искать по репо вслепую.
 
 | Модуль | Статус | Где код | Документ |
 |--------|--------|---------|----------|
 | **ПНК** | ✅ прод | `src/lib/pnk/`, `components/pnk/`, `api/_lib/adminData/pnkHandlers.js` | [PNK_FUNNEL.md](./PNK_FUNNEL.md) |
 | **Продажи** | ✅ прод | `src/lib/admin/sales*`, `AdminSales`, salesHandlers | [SALES_MANAGER.md](./SALES_MANAGER.md) |
+| **Оплаты (домен платежа)** | 📋 ТЗ, MVP ПЗ+АЗ | — (импорт Excel = мост) | [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md), [PZ_CLIENTS_ONBOARD.md](./PZ_CLIENTS_ONBOARD.md), [AZ_CLIENTS_ONBOARD.md](./AZ_CLIENTS_ONBOARD.md) |
 | **Питание** | ✅ в карточке | `src/lib/nutrition/*`, store `nutrition_products` | вкладка «Питание»; push в allowlist |
 | **ДЗ (домашние)** | ✅ в карточке | `src/lib/homework/*`, store `homework_presets` | вкладка «ДЗ»; push в allowlist |
 | **Max / outreach** | Max ✅; SMS MVP | `outreach_log`, фильтры тренера, `club-sms` | [OUTREACH_CHANNELS_ROADMAP.md](./OUTREACH_CHANNELS_ROADMAP.md), [MOIZVONKI_SETUP.md](./MOIZVONKI_SETUP.md) |
@@ -15,8 +16,8 @@
 | **Качество ведения** | ✅ MVP | coach quality + admin/trainer UI | [COACH_QUALITY.md](./COACH_QUALITY.md) |
 | **Прайс ПЗ** | ✅ облако + админ UI | `src/lib/priceList/`, `priceListHandlers`, вкладка Продажи → Прайс | [PRICE_LIST.md](./PRICE_LIST.md) |
 | **Управляющий** | 📋 ТЗ | — | [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md) |
-| **Сайт заявок** | ⏸ слой L2 | — | [PRODUCT_VISION.md](./PRODUCT_VISION.md) §5.3 |
-| **Касса (облако / физ.)** | ⏸ слой L3 | — | [PRODUCT_VISION.md](./PRODUCT_VISION.md) §5.4 |
+| **Сайт заявок** | ⏸ слой L2 | — | [PRODUCT_VISION.md](./PRODUCT_VISION.md) §7.3 |
+| **Касса (облако / физ.)** | ⏸ после домена платежа (L3) | — | [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) фазы D–E; [PRODUCT_VISION.md](./PRODUCT_VISION.md) §7.4 |
 
 ### Питание и ДЗ (ориентир)
 

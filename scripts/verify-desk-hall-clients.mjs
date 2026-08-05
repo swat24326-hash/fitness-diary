@@ -2,6 +2,7 @@
  * node scripts/verify-desk-hall-clients.mjs
  */
 import {
+  ADMIN_CLIENTS_LIST_TAB_LABELS,
   clientMatchesAdminListTab,
   countClientsByAdminListTab,
   filterClientsByAdminListTab,
@@ -18,6 +19,11 @@ function ok(cond, msg) {
     failed++
   }
 }
+
+ok(ADMIN_CLIENTS_LIST_TAB_LABELS.active === 'ПЗ', 'label ПЗ')
+ok(ADMIN_CLIENTS_LIST_TAB_LABELS.tz === 'ТЗ', 'label ТЗ')
+ok(ADMIN_CLIENTS_LIST_TAB_LABELS.az === 'АЗ', 'label АЗ')
+ok(ADMIN_CLIENTS_LIST_TAB_LABELS.archive === 'Архив', 'label Архив')
 
 ok(normalizeDeskHall('ТЗ') === 'tz', 'hall tz')
 ok(normalizeDeskHall('az') === 'az', 'hall az')

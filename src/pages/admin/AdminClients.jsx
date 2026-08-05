@@ -28,6 +28,8 @@ import {
 } from '../../lib/admin/deskAzSessionDeductCore.js'
 import { buildAdminClientsTodaySnapshot, shouldShowAdminClientsList } from '../../lib/admin/adminClientsBrowseCore'
 import {
+  ADMIN_CLIENTS_LIST_TAB_LABELS,
+  clientDeskHall,
   countClientsByAdminListTab,
   filterClientsByAdminListTab,
   normalizeAdminClientsListTab,
@@ -72,7 +74,6 @@ import {
 import {
   pickExpiredMembershipWithRemaining,
 } from '../../lib/clientListSignals'
-import { clientDeskHall } from '../../lib/admin/deskHallClientsCore.js'
 import {
   deskAzDirectionLabel,
   formatDeskPackageMonthsLabel,
@@ -959,7 +960,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         <AdminSectionHeader
           icon={UserCircle}
           title="Клиенты"
-          lead="С тренером · ТЗ · АЗ · архив. Персонал без планшета — кнопка «Новый клиент ПЗ». ТЗ/АЗ — из «Списки из Excel»."
+          lead="ПЗ · ТЗ · АЗ · архив. Персонал без планшета — кнопка «Новый клиент ПЗ». ТЗ/АЗ — из «Списки из Excel»."
         />
       )}
 
@@ -972,7 +973,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     <div className="grid stagger td-grid">
       <section className="card admin-clients-workspace" id="clients">
         <div className="admin-clients-workspace__toolbar">
-          <div className="admin-clients-segment" role="tablist" aria-label="Раздел списка клиентов">
+          <div className="admin-clients-segment" role="tablist" aria-label="Зал: ПЗ, ТЗ, АЗ или архив">
             <button
               type="button"
               role="tab"
@@ -980,7 +981,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               aria-selected={clientsTab === 'active'}
               onClick={() => switchClientsTab('active')}
             >
-              Клиенты
+              {ADMIN_CLIENTS_LIST_TAB_LABELS.active}
               <span className="admin-clients-segment__count">{listTabCounts.active}</span>
             </button>
             <button
@@ -990,7 +991,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               aria-selected={clientsTab === 'tz'}
               onClick={() => switchClientsTab('tz')}
             >
-              ТЗ
+              {ADMIN_CLIENTS_LIST_TAB_LABELS.tz}
               <span className="admin-clients-segment__count">{listTabCounts.tz}</span>
             </button>
             <button
@@ -1000,7 +1001,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               aria-selected={clientsTab === 'az'}
               onClick={() => switchClientsTab('az')}
             >
-              АЗ
+              {ADMIN_CLIENTS_LIST_TAB_LABELS.az}
               <span className="admin-clients-segment__count">{listTabCounts.az}</span>
             </button>
             <button
@@ -1010,7 +1011,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               aria-selected={clientsTab === 'archive'}
               onClick={() => switchClientsTab('archive')}
             >
-              Архив
+              {ADMIN_CLIENTS_LIST_TAB_LABELS.archive}
               <span className="admin-clients-segment__count">{listTabCounts.archive}</span>
             </button>
           </div>

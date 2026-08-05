@@ -149,7 +149,7 @@ export function AdminDeskClosingImportSection({
           </p>
         ) : null)}
       <p className="muted admin-excel-map-card__ready">
-        Новые карточки без тренера — только вкладки ТЗ / АЗ в «Клиентах».
+        Новые карточки без тренера — только вкладки ТЗ / АЗ в разделе «Клиенты».
       </p>
       <label className="sales-payments-import__file">
         <FileSpreadsheet size={18} aria-hidden />

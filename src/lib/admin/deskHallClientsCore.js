@@ -1,10 +1,19 @@
 /**
- * Вкладки списка клиентов: обычные / desk ТЗ / desk АЗ.
+ * Вкладки списка клиентов: ПЗ / ТЗ / АЗ / Архив.
+ * ПЗ = персональный зал (с тренером / lite); ТЗ/АЗ = desk без тренера (`desk_hall`).
  */
 
 /** @typedef {'active'|'tz'|'az'|'archive'} AdminClientsListTab */
 
 export const ADMIN_CLIENTS_LIST_TABS = ['active', 'tz', 'az', 'archive']
+
+/** Подписи вкладок списка (страница по-прежнему «Клиенты»). */
+export const ADMIN_CLIENTS_LIST_TAB_LABELS = {
+  active: 'ПЗ',
+  tz: 'ТЗ',
+  az: 'АЗ',
+  archive: 'Архив',
+}
 
 /**
  * @param {unknown} raw
@@ -48,7 +57,7 @@ export function clientMatchesAdminListTab(client, tab) {
   const hall = clientDeskHall(client)
   if (t === 'tz') return hall === 'tz'
   if (t === 'az') return hall === 'az'
-  // active = обычные клиенты (не desk ТЗ/АЗ)
+  // active = ПЗ (не desk ТЗ/АЗ)
   return hall == null
 }
 

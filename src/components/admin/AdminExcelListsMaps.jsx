@@ -29,7 +29,7 @@ export function AdminExcelListsMaps({ clubId, onClosingDone }) {
             <li>Проверьте таблицу ниже и нажмите «Применить» — тренер не нужен.</li>
             <li>
               Смотрите результат: <strong>Клиенты</strong> → вкладки <strong>ТЗ</strong> и{' '}
-              <strong>АЗ</strong>.
+              <strong>АЗ</strong> (персональный зал — вкладка <strong>ПЗ</strong>).
             </li>
           </ol>
           <p className="muted admin-excel-map-card__note">
