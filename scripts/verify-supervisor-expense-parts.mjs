@@ -62,7 +62,8 @@ const partsRow = expenseRowToForm({
   amount_accounting: 50000,
 })
 ok(partsRow.expense_rent === '100000', 'row rent')
-ok(partsRow.expense_deposits === '10000', 'row deposits')
+ok(partsRow.expense_deposits === '10000', 'row оклады (amount_deposits)')
+ok(SUPERVISOR_EXPENSE_PART_LABELS.expense_deposits === 'Оклады', 'label Оклады')
 ok(partsRow.expense_month === '360000', 'row total')
 
 if (failed) process.exit(1)

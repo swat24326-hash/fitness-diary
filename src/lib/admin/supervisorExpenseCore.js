@@ -24,7 +24,7 @@ export const SUPERVISOR_EXPENSE_PART_DB = /** @type {const} */ ({
 export const SUPERVISOR_EXPENSE_PART_LABELS = /** @type {const} */ ({
   expense_rent: 'Аренда',
   expense_expenses: 'Расходы',
-  expense_deposits: 'Депозиты',
+  expense_deposits: 'Оклады',
   expense_accounting: 'Бухгалтерия',
 })
 

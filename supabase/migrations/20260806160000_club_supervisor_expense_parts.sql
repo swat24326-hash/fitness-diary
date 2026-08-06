@@ -21,5 +21,5 @@ COMMENT ON COLUMN public.club_supervisor_expense.amount IS
   'Итого расхода за месяц (сумма статей); для чистой прибыли';
 COMMENT ON COLUMN public.club_supervisor_expense.amount_rent IS 'Аренда';
 COMMENT ON COLUMN public.club_supervisor_expense.amount_expenses IS 'Расходы (операционные)';
-COMMENT ON COLUMN public.club_supervisor_expense.amount_deposits IS 'Депозиты';
+COMMENT ON COLUMN public.club_supervisor_expense.amount_deposits IS 'Оклады';
 COMMENT ON COLUMN public.club_supervisor_expense.amount_accounting IS 'Бухгалтерия';
