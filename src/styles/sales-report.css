@@ -5416,33 +5416,52 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem 0.85rem;
+}
+@media (min-width: 720px) {
+  .sales-daily-promos__list {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 .sales-daily-promos__row {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem 1rem;
+  gap: 0.45rem 0.65rem;
+  min-width: 0;
+  padding: 0.5rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--text-muted, #9a9a9a) 22%, transparent);
+  background: color-mix(in srgb, var(--card-bg, #121212) 88%, #fff 4%);
 }
 .sales-daily-promos__meta {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.12rem;
   min-width: 0;
+  flex: 1 1 auto;
 }
 .sales-daily-promos__name {
   font-weight: 600;
+  font-size: 0.92rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.sales-daily-promos__seg {
+  font-size: 0.8rem;
+  line-height: 1.25;
 }
 .sales-daily-promos__qty {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.35rem;
+  flex: 0 0 auto;
 }
 .sales-daily-promos__qty .sales-finance-block__input {
-  width: 4.5rem;
+  width: 3.75rem;
+  text-align: center;
 }
 .sales-promotions-compare {
   margin-top: 1rem;
