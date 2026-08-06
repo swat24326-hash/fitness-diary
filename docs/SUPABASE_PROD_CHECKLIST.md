@@ -42,7 +42,7 @@ order by u.role, u.email;
 ## 5. Схема БД
 
 - [ ] Все миграции из `supabase/migrations/` применены на **том же** проекте, что и prod-приложение.
-- [ ] `club_sales_plan.strategy_snapshot` (jsonb) — снимок playbook Стратегии / галочки на всех устройствах: `20260803120000_club_sales_plan_strategy_snapshot.sql`.
+- [ ] `club_supervisor_expense.amount_*` (rent / expenses / deposits / accounting) — разбивка расхода управляющего: `20260806160000_club_supervisor_expense_parts.sql`.
 - [ ] Нет «второго» Supabase-проекта с устаревшей схемой, к которому случайно смотрят в Table Editor.
 
 ## 6. Edge Functions

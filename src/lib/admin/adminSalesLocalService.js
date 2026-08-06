@@ -15,6 +15,7 @@ import {
   monthDateRange,
   monthPartsFromIso,
   planFormToPayload,
+  SUPERVISOR_EXPENSE_SELECT_COLS,
 } from './salesReportCore.js'
 import {
   isMissingSalesColumnError,
@@ -236,7 +237,7 @@ export async function fetchClubSalesBundleViaSupabase({ clubId, reportDate, prof
       const expenseRes = await withSupabaseRetry(() =>
         supabase
           .from('club_supervisor_expense')
-          .select('amount, updated_at')
+          .select(SUPERVISOR_EXPENSE_SELECT_COLS)
           .eq('club_id', cid)
           .eq('year', year)
           .eq('month', month)
@@ -421,7 +422,7 @@ export async function saveClubSalesFinanceViaSupabase({ clubId, year, month, for
         { club_id: clubId, year, month, ...parsed.payload, updated_at: new Date().toISOString() },
         { onConflict: 'club_id,year,month' },
       )
-      .select('amount, updated_at')
+      .select(SUPERVISOR_EXPENSE_SELECT_COLS)
       .single(),
   )
   if (error) {

@@ -9,6 +9,7 @@ import {
   monthDateRange,
   monthPartsFromIso,
   planFormToPayload,
+  SUPERVISOR_EXPENSE_SELECT_COLS,
 } from '../../../src/lib/admin/salesReportCore.js'
 import {
   querySalesDailyRow,
@@ -94,7 +95,7 @@ export async function handleSalesGet(ctx, req, res) {
     expense: flags.needPlanExpense
       ? supabaseAdmin
           .from('club_supervisor_expense')
-          .select('amount, updated_at')
+          .select(SUPERVISOR_EXPENSE_SELECT_COLS)
           .eq('club_id', clubId)
           .eq('year', year)
           .eq('month', month)
@@ -385,13 +386,13 @@ export async function handleSalesFinancePost(ctx, req, res, body) {
     club_id: clubId,
     year,
     month,
-    amount: parsed.payload.amount,
+    ...parsed.payload,
     updated_at: new Date().toISOString(),
   }
   const { data, error } = await supabaseAdmin
     .from('club_supervisor_expense')
     .upsert(row, { onConflict: 'club_id,year,month' })
-    .select('amount, updated_at')
+    .select(SUPERVISOR_EXPENSE_SELECT_COLS)
     .single()
   if (error) {
     sendJson(res, 400, { error: error.message })

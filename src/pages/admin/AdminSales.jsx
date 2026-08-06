@@ -969,17 +969,6 @@ export function AdminSales({ accessMode = 'admin' }) {
             type="button"
             className="tab"
             role="tab"
-            id="sales-tab-clips"
-            aria-selected={salesTab === 'clips'}
-            aria-controls="sales-panel-clips-admin"
-            onClick={() => setSalesTab('clips')}
-          >
-            Заявка тренеру
-          </button>
-          <button
-            type="button"
-            className="tab"
-            role="tab"
             id="sales-tab-stats"
             aria-selected={salesTab === 'stats'}
             aria-controls="sales-panel-stats"
@@ -1000,11 +989,22 @@ export function AdminSales({ accessMode = 'admin' }) {
               Финансы клуба
             </button>
           ) : null}
+          <button
+            type="button"
+            className="tab tab--sales-planning sales-report__tab--push-end"
+            role="tab"
+            id="sales-tab-clips"
+            aria-selected={salesTab === 'clips'}
+            aria-controls="sales-panel-clips-admin"
+            onClick={() => setSalesTab('clips')}
+          >
+            Заявка тренеру
+          </button>
           {showFinanceTab ? (
             <>
               <button
                 type="button"
-                className="tab tab--sales-planning sales-report__tab--push-end"
+                className="tab tab--sales-planning"
                 role="tab"
                 id="sales-tab-strategy"
                 aria-selected={salesTab === 'strategy'}

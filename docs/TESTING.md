@@ -63,6 +63,7 @@
 | Менеджер: доступ к типам АЗ / выбор списка для отчёта | `verify-sales-membership-types-access.mjs` |
 | Менеджер: клиенты клуба (push/club/deep-link) | `verify-sales-manager-clients.mjs` |
 | Управляющий: club scope / один на клуб / без журнала удалений | `verify-supervisor-access.mjs` |
+| Расход управляющего: статьи + итог / legacy → «Расходы» | `verify-supervisor-expense-parts.mjs` |
 | Структура: фильтр тренеров/менеджеров/управляющих по `?club=` | `verify-filter-staff-by-club.mjs` |
 | Мои Звонки: конфиг на клуб + merge с env | `verify-moi-zvonki-club-config.mjs` |
 | Доска клиентов: Max (чат) рядом с SMS | `verify-club-client-max-outreach.mjs` |

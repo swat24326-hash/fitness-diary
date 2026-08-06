@@ -1,4 +1,4 @@
-/** Чистая логика отчётов продаж (без React / IDB). */
+﻿/** Чистая логика отчётов продаж (без React / IDB). */
 
 
 
@@ -1166,21 +1166,16 @@ export {
   planMatrixFormToPayload as planFormToPayload,
 } from './salesPlanMatrixCore.js'
 
-
-
-/** @param {Record<string, string>} form */
-
-export function expenseFormToPayload(form) {
-
-  const amount = parseSalesMoney(form.expense_month)
-
-  if (Number.isNaN(amount)) return { ok: false, error: 'Расход: неотрицательная сумма' }
-
-  return { ok: true, payload: { amount } }
-
-}
-
-
+export {
+  emptyExpenseForm,
+  expenseFormToPayload,
+  expenseRowToForm,
+  patchExpenseFormPart,
+  sumExpenseParts,
+  SUPERVISOR_EXPENSE_PART_KEYS,
+  SUPERVISOR_EXPENSE_PART_LABELS,
+  SUPERVISOR_EXPENSE_SELECT_COLS,
+} from './supervisorExpenseCore.js'
 
 export function emptyPlanForm() {
   /** @type {Record<string, string>} */
@@ -1234,23 +1229,3 @@ export function planRowToForm(row) {
   }
   return f
 }
-
-
-
-export function emptyExpenseForm() {
-
-  return { expense_month: '' }
-
-}
-
-
-
-export function expenseRowToForm(row) {
-
-  if (!row || row.amount == null) return emptyExpenseForm()
-
-  return { expense_month: String(row.amount) }
-
-}
-
-

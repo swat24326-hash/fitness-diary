@@ -1,5 +1,11 @@
 import { Save, Target } from 'lucide-react'
-import { PLAN_LEVEL_KEYS, PLAN_LEVEL_LABELS } from '../lib/admin/salesReportCore.js'
+import { PLAN_LEVEL_KEYS, PLAN_LEVEL_LABELS, formatRub } from '../lib/admin/salesReportCore.js'
+import {
+  SUPERVISOR_EXPENSE_PART_KEYS,
+  SUPERVISOR_EXPENSE_PART_LABELS,
+  patchExpenseFormPart,
+  sumExpenseParts,
+} from '../lib/admin/supervisorExpenseCore.js'
 import { SalesFinanceBlock } from './SalesFinanceBlock.jsx'
 import { SalesPlanDirectionsForm } from './SalesPlanDirectionsForm.jsx'
 
@@ -30,7 +36,10 @@ export function SalesPlanSettingsPanel({
   savingFinance = false,
 }) {
   const setPlan = (key, value) => onPlanChange({ ...planForm, [key]: value })
-  const setExpense = (value) => onExpenseChange({ expense_month: value })
+  const setExpensePart = (key, value) => onExpenseChange(patchExpenseFormPart(expenseForm, key, value))
+  const expenseTotal = sumExpenseParts(expenseForm)
+  const expenseTotalLabel =
+    Number.isFinite(expenseTotal) && !Number.isNaN(expenseTotal) ? formatRub(expenseTotal) : '—'
 
   return (
     <section className="sales-report__finance" aria-labelledby="sales-plan-settings-title">
@@ -90,7 +99,7 @@ export function SalesPlanSettingsPanel({
         <SalesFinanceBlock
           step={3}
           title="Расход управляющего"
-          hint="Фиксированный расход клуба за месяц — учитывается в чистой прибыли."
+          hint="Четыре статьи за месяц; «Итого» считается само и уходит в чистую прибыль."
           footer={
             <button type="button" className="btn btn-secondary" onClick={onSaveFinance} disabled={savingFinance}>
               <Save size={16} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
@@ -98,17 +107,31 @@ export function SalesPlanSettingsPanel({
             </button>
           }
         >
-          <div className="sales-finance-block__grid sales-finance-block__grid--single">
-            <div className="sales-finance-block__field">
-              <label htmlFor="plan-settings-expense-month">Сумма за месяц</label>
+          <div className="sales-finance-block__grid sales-finance-block__grid--expense-parts">
+            {SUPERVISOR_EXPENSE_PART_KEYS.map((key) => (
+              <div className="sales-finance-block__field" key={key}>
+                <label htmlFor={`plan-settings-${key}`}>{SUPERVISOR_EXPENSE_PART_LABELS[key]}</label>
+                <input
+                  id={`plan-settings-${key}`}
+                  type="text"
+                  inputMode="decimal"
+                  className="sales-finance-block__input"
+                  value={expenseForm[key] ?? ''}
+                  onChange={(e) => setExpensePart(key, e.target.value)}
+                  placeholder="0"
+                />
+              </div>
+            ))}
+            <div className="sales-finance-block__field sales-finance-block__field--total">
+              <label htmlFor="plan-settings-expense-total">Итого за месяц</label>
               <input
-                id="plan-settings-expense-month"
+                id="plan-settings-expense-total"
                 type="text"
-                inputMode="decimal"
-                className="sales-finance-block__input"
-                value={expenseForm.expense_month}
-                onChange={(e) => setExpense(e.target.value)}
-                placeholder="0"
+                className="sales-finance-block__input sales-finance-block__input--readonly"
+                value={expenseTotalLabel}
+                readOnly
+                tabIndex={-1}
+                aria-live="polite"
               />
             </div>
           </div>
