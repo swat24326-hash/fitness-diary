@@ -28,7 +28,7 @@ export function SalesPlanPromotionsCompare({ promotions, monthRows = [] }) {
           <thead>
             <tr>
               <th scope="col">Акция</th>
-              <th scope="col">Сегмент</th>
+              <th scope="col">Направления</th>
               <th scope="col">Срок</th>
               <th scope="col">Заложено</th>
               <th scope="col">Продано</th>

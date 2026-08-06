@@ -10,12 +10,18 @@ import {
   SALES_DOP_ROW,
 } from './salesReportCore.js'
 
-/** @typedef {{ id: string, name: string, start_date: string, end_date: string, segment_key: string, goal_qty: number, note?: string, price_promo_ref?: string | null }} SalesPromotion */
+/** @typedef {{ id: string, name: string, start_date: string, end_date: string, segment_key: string, segment_keys: string[], goal_qty: number, note?: string, price_promo_ref?: string | null }} SalesPromotion */
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 /** Сегменты матрицы + доп. (как в дневном отчёте). */
 export const SALES_PROMO_SEGMENT_KEYS = [...SALES_MATRIX_KEYS]
+
+/** Направления в акции: ПЗ / ТЗ / АЗ / доп. */
+export const SALES_PROMO_HALL_OPTIONS = [...SALES_MATRIX_HALL_ROWS, SALES_DOP_ROW]
+
+/** НК / ДК / УК */
+export const SALES_PROMO_COL_OPTIONS = [...SALES_MATRIX_COLS]
 
 /** @param {string} key */
 export function isSalesPromoSegmentKey(key) {
@@ -36,6 +42,98 @@ export function salesPromoSegmentLabel(segmentKey) {
   return key || '—'
 }
 
+/**
+ * @param {string[]} keys
+ * @returns {{ hallKeys: string[], colSuffixes: string[] }}
+ */
+export function promoAxesFromSegmentKeys(keys) {
+  /** @type {string[]} */
+  const hallKeys = []
+  /** @type {string[]} */
+  const colSuffixes = []
+  for (const raw of keys ?? []) {
+    const key = String(raw ?? '').trim()
+    if (!isSalesPromoSegmentKey(key)) continue
+    const m = key.match(/^(pz|tz|az|dop)_(nk|dk|uk)$/)
+    if (!m) continue
+    if (!hallKeys.includes(m[1])) hallKeys.push(m[1])
+    if (!colSuffixes.includes(m[2])) colSuffixes.push(m[2])
+  }
+  return { hallKeys, colSuffixes }
+}
+
+/**
+ * Декартово произведение направлений × НК/ДК/УК → ключи сегментов.
+ * @param {string[]} hallKeys
+ * @param {string[]} colSuffixes
+ */
+export function buildPromoSegmentKeysFromAxes(hallKeys, colSuffixes) {
+  /** @type {string[]} */
+  const halls = []
+  for (const h of hallKeys ?? []) {
+    const s = String(h ?? '').trim()
+    if (s && !halls.includes(s)) halls.push(s)
+  }
+  /** @type {string[]} */
+  const cols = []
+  for (const c of colSuffixes ?? []) {
+    const s = String(c ?? '').trim()
+    if (s && !cols.includes(s)) cols.push(s)
+  }
+  if (!halls.length || !cols.length) return []
+  /** @type {string[]} */
+  const out = []
+  for (const h of halls) {
+    for (const c of cols) {
+      const key = `${h}_${c}`
+      if (isSalesPromoSegmentKey(key) && !out.includes(key)) out.push(key)
+    }
+  }
+  return out
+}
+
+/** @param {string[] | null | undefined} keys */
+export function salesPromoSegmentsLabel(keys) {
+  const list = []
+  for (const k of keys ?? []) {
+    const s = String(k ?? '').trim()
+    if (isSalesPromoSegmentKey(s) && !list.includes(s)) list.push(s)
+  }
+  if (!list.length) return '—'
+  if (list.length === 1) return salesPromoSegmentLabel(list[0])
+  const axes = promoAxesFromSegmentKeys(list)
+  const product = buildPromoSegmentKeysFromAxes(axes.hallKeys, axes.colSuffixes)
+  const isFullProduct =
+    product.length === list.length && product.every((k) => list.includes(k))
+  if (isFullProduct && axes.hallKeys.length && axes.colSuffixes.length) {
+    const halls = axes.hallKeys
+      .map((h) => SALES_PROMO_HALL_OPTIONS.find((o) => o.key === h)?.label ?? h)
+      .join('+')
+    const cols = axes.colSuffixes
+      .map((c) => SALES_PROMO_COL_OPTIONS.find((o) => o.suffix === c)?.label ?? c.toUpperCase())
+      .join('+')
+    return `${halls} · ${cols}`
+  }
+  return list.map((k) => salesPromoSegmentLabel(k)).join(', ')
+}
+
+/** @param {unknown} item */
+export function resolvePromoSegmentKeysFromDraft(item) {
+  if (!item || typeof item !== 'object') return []
+  const raw = /** @type {{ segment_keys?: unknown, segment_key?: unknown }} */ (item)
+  if (Array.isArray(raw.segment_keys) && raw.segment_keys.length) {
+    /** @type {string[]} */
+    const uniq = []
+    for (const k of raw.segment_keys) {
+      const s = String(k ?? '').trim()
+      if (isSalesPromoSegmentKey(s) && !uniq.includes(s)) uniq.push(s)
+    }
+    if (uniq.length) return uniq
+  }
+  const one = String(raw.segment_key ?? '').trim()
+  return isSalesPromoSegmentKey(one) ? [one] : []
+}
+
 /** @param {unknown} raw */
 export function normalizePromotionsFromDb(raw) {
   if (raw == null) return []
@@ -48,10 +146,10 @@ export function normalizePromotionsFromDb(raw) {
     const name = String(item.name ?? '').trim()
     const start_date = String(item.start_date ?? '').trim()
     const end_date = String(item.end_date ?? '').trim()
-    const segment_key = String(item.segment_key ?? '').trim()
+    const segment_keys = resolvePromoSegmentKeysFromDraft(item)
     const goal_qty = Math.max(0, Math.trunc(Number(item.goal_qty) || 0))
     if (!id || !name || !ISO_DATE_RE.test(start_date) || !ISO_DATE_RE.test(end_date)) continue
-    if (!isSalesPromoSegmentKey(segment_key)) continue
+    if (!segment_keys.length) continue
     if (end_date < start_date) continue
     /** @type {SalesPromotion} */
     const row = {
@@ -59,7 +157,8 @@ export function normalizePromotionsFromDb(raw) {
       name,
       start_date,
       end_date,
-      segment_key,
+      segment_key: segment_keys[0],
+      segment_keys,
       goal_qty,
     }
     const note = String(item.note ?? '').trim()
@@ -124,65 +223,16 @@ export function promoSalesToFormMap(promoSales) {
   return out
 }
 
-/** @param {unknown} item */
-export function resolvePromoSegmentKeysFromDraft(item) {
-  if (!item || typeof item !== 'object') return []
-  const raw = /** @type {{ segment_keys?: unknown, segment_key?: unknown }} */ (item)
-  if (Array.isArray(raw.segment_keys) && raw.segment_keys.length) {
-    /** @type {string[]} */
-    const uniq = []
-    for (const k of raw.segment_keys) {
-      const s = String(k ?? '').trim()
-      if (s && !uniq.includes(s)) uniq.push(s)
-    }
-    return uniq
-  }
-  const one = String(raw.segment_key ?? '').trim()
-  return one ? [one] : []
-}
-
-/**
- * Несколько сегментов в черновике → отдельные акции (одна цель на каждый сегмент).
- * Исходный id сохраняется за исходным segment_key, если он ещё выбран; иначе — за первым.
- * @param {unknown} list
- * @param {{ createId?: () => string }} [opts]
- */
-export function expandPromotionsBySegments(list, opts = {}) {
-  const createId = typeof opts.createId === 'function' ? opts.createId : createSalesPromotionId
-  if (!Array.isArray(list)) return []
-  /** @type {Array<Record<string, unknown>>} */
-  const out = []
-  for (const item of list) {
-    if (!item || typeof item !== 'object') continue
-    const keys = resolvePromoSegmentKeysFromDraft(item)
-    if (!keys.length) {
-      out.push(/** @type {Record<string, unknown>} */ ({ ...item }))
-      continue
-    }
-    const row = /** @type {Record<string, unknown>} */ (item)
-    const origKey = String(row.segment_key ?? '').trim()
-    const origId = String(row.id ?? '').trim() || createId()
-    const keepKey = keys.includes(origKey) ? origKey : keys[0]
-    for (const segment_key of keys) {
-      const next = { ...row, segment_key, id: segment_key === keepKey ? origId : createId() }
-      delete next.segment_keys
-      out.push(next)
-    }
-  }
-  return out
-}
-
-/** @param {SalesPromotion[]} list */
+/** @param {unknown} list */
 export function validatePromotionsForSave(list) {
   if (!Array.isArray(list)) {
     return { ok: false, error: 'Акции: ожидается список' }
   }
-  const expanded = expandPromotionsBySegments(list)
-  const normalized = normalizePromotionsFromDb(expanded)
-  if (expanded.length !== normalized.length) {
+  const normalized = normalizePromotionsFromDb(list)
+  if (list.length !== normalized.length) {
     return {
       ok: false,
-      error: 'Акции: проверьте название, даты (ГГГГ-ММ-ДД), сегмент(ы) и цель ≥ 0',
+      error: 'Акции: проверьте название, даты (ГГГГ-ММ-ДД), направления / НК·ДК·УК и цель ≥ 0',
     }
   }
   const ids = new Set()
@@ -230,7 +280,8 @@ export function hasNonZeroPromoSales(promoSales) {
 }
 
 /**
- * Σ шт по акциям сегмента S ≤ факт ячейки S. Только при ненулевых акциях.
+ * Односегментные акции: Σ шт по S ≤ ячейка S.
+ * Несколько сегментов у одной акции: шт акции ≤ сумма ячеек выбранных сегментов (общая цель).
  * @param {{
  *   promo_sales?: Record<string, number> | null,
  *   promotions?: SalesPromotion[] | null,
@@ -245,6 +296,7 @@ export function validateDayPromoSales(args) {
   const byId = new Map(promotions.map((p) => [p.id, p]))
   /** @type {Record<string, number>} */
   const bySegment = {}
+  const matrix = args?.matrixCounts ?? {}
 
   for (const [promoId, qty] of Object.entries(promoSales)) {
     const n = Math.trunc(Number(qty) || 0)
@@ -253,10 +305,25 @@ export function validateDayPromoSales(args) {
     if (!promo) {
       return { ok: false, error: `Акция не найдена в плане месяца (${promoId.slice(0, 8)}…)` }
     }
-    bySegment[promo.segment_key] = (bySegment[promo.segment_key] || 0) + n
+    const keys = promo.segment_keys?.length ? promo.segment_keys : [promo.segment_key]
+    if (keys.length <= 1) {
+      const sk = keys[0] || promo.segment_key
+      bySegment[sk] = (bySegment[sk] || 0) + n
+      continue
+    }
+    let pool = 0
+    for (const sk of keys) {
+      pool += Math.trunc(Number(matrix[sk]) || 0)
+    }
+    if (n > pool) {
+      const label = salesPromoSegmentsLabel(keys)
+      return {
+        ok: false,
+        error: `По акции «${promo.name}» (${label}) указано ${n} шт., в матрице по выбранным сегментам — ${pool}. Уменьшите акции или увеличьте факт.`,
+      }
+    }
   }
 
-  const matrix = args?.matrixCounts ?? {}
   for (const [segmentKey, promoQty] of Object.entries(bySegment)) {
     const cell = Math.trunc(Number(matrix[segmentKey]) || 0)
     if (promoQty > cell) {
@@ -294,7 +361,8 @@ export function buildPromotionsComparison(args) {
       id: p.id,
       name: p.name,
       segment_key: p.segment_key,
-      segment_label: salesPromoSegmentLabel(p.segment_key),
+      segment_keys: p.segment_keys,
+      segment_label: salesPromoSegmentsLabel(p.segment_keys),
       start_date: p.start_date,
       end_date: p.end_date,
       goal_qty: goal,
@@ -336,6 +404,7 @@ export function emptySalesPromotionDraft(ym) {
     start_date: start,
     end_date: end,
     segment_key: 'pz_nk',
+    segment_keys: ['pz_nk'],
     goal_qty: 0,
     note: '',
   }

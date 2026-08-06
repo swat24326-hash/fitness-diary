@@ -1,14 +1,16 @@
 import {
   activePromotionsOnDate,
   buildPromotionsComparison,
+  buildPromoSegmentKeysFromAxes,
   emptySalesPromotionDraft,
-  expandPromotionsBySegments,
   hasNonZeroPromoSales,
   normalizePromoSalesFromDb,
   normalizePromotionsFromDb,
+  promoAxesFromSegmentKeys,
   promoSalesFormToPayload,
   promoSalesToFormMap,
   resolvePromoSegmentKeysFromDraft,
+  salesPromoSegmentsLabel,
   sumPromoFact,
   validateDayPromoSales,
   validatePromotionsForSave,
@@ -208,7 +210,7 @@ const pzRow = (matrixCmp.rows || []).find((r) => r.cellKey === 'pz_nk')
 ok(pzRow && pzRow.fact?.count === 2, 'segment fact from matrix count, not promo')
 ok(pzRow && pzRow.promo == null, 'segment row has no promo field (separate block)')
 
-console.log('\n— multi segment expand (same goal each) —')
+console.log('\n— multi segment one goal (no split) —')
 ok(
   resolvePromoSegmentKeysFromDraft({ segment_key: 'tz_nk' }).join() === 'tz_nk',
   'resolve single key',
@@ -218,29 +220,21 @@ ok(
     'pz_nk,pz_dk',
   'resolve uniq keys',
 )
-let idSeq = 0
-const expanded = expandPromotionsBySegments(
-  [
-    {
-      id: 'keep-me',
-      name: 'День семьи',
-      start_date: '2026-08-01',
-      end_date: '2026-08-31',
-      segment_key: 'pz_dk',
-      segment_keys: ['pz_nk', 'pz_dk', 'pz_uk'],
-      goal_qty: 5,
-    },
-  ],
-  { createId: () => `new-${++idSeq}` },
-)
-ok(expanded.length === 3, 'expand → 3 rows')
-ok(expanded.find((p) => p.segment_key === 'pz_dk')?.id === 'keep-me', 'orig id stays on orig segment')
 ok(
-  expanded.filter((p) => p.segment_key !== 'pz_dk').every((p) => String(p.id).startsWith('new-')),
-  'other segments get new ids',
+  buildPromoSegmentKeysFromAxes(['pz'], ['nk', 'dk', 'uk']).join() === 'pz_nk,pz_dk,pz_uk',
+  'axes → keys',
 )
-ok(expanded.every((p) => p.goal_qty === 5), 'goal copied to each')
-ok(expanded.every((p) => p.segment_keys == null), 'segment_keys stripped')
+ok(
+  salesPromoSegmentsLabel(['pz_nk', 'pz_dk', 'pz_uk']) === 'ПЗ · НК+ДК+УК',
+  'compact label one hall',
+)
+ok(
+  salesPromoSegmentsLabel(['pz_nk', 'tz_nk']).includes('ПЗ') &&
+    salesPromoSegmentsLabel(['pz_nk', 'tz_nk']).includes('ТЗ'),
+  'compact label multi hall',
+)
+const axes = promoAxesFromSegmentKeys(['pz_nk', 'pz_dk', 'pz_uk'])
+ok(axes.hallKeys.join() === 'pz' && axes.colSuffixes.join() === 'nk,dk,uk', 'axes from keys')
 
 const multiSave = validatePromotionsForSave([
   {
@@ -253,16 +247,32 @@ const multiSave = validatePromotionsForSave([
     goal_qty: 10,
   },
 ])
-ok(multiSave.ok === true && multiSave.promotions.length === 3, 'validate expands multi segments')
-ok(
-  multiSave.promotions.every((p) => p.goal_qty === 10),
-  'validated goals equal',
-)
-ok(
-  new Set(multiSave.promotions.map((p) => p.segment_key)).size === 3,
-  'three distinct segments saved',
-)
-ok(multiSave.promotions.find((p) => p.segment_key === 'tz_nk')?.id === 'multi-1', 'keep id on tz_nk')
+ok(multiSave.ok === true && multiSave.promotions.length === 1, 'validate keeps one promo')
+ok(multiSave.promotions[0].goal_qty === 10, 'one shared goal')
+ok(multiSave.promotions[0].segment_keys.join() === 'tz_nk,tz_dk,tz_uk', 'keys persisted')
+ok(multiSave.promotions[0].id === 'multi-1', 'same id')
+
+const multiPoolOk = validateDayPromoSales({
+  promo_sales: { 'multi-1': 5 },
+  promotions: multiSave.promotions,
+  matrixCounts: { tz_nk: 2, tz_dk: 2, tz_uk: 2 },
+})
+ok(multiPoolOk.ok === true, 'multi promo ≤ sum of cells')
+
+const multiPoolOver = validateDayPromoSales({
+  promo_sales: { 'multi-1': 7 },
+  promotions: multiSave.promotions,
+  matrixCounts: { tz_nk: 2, tz_dk: 2, tz_uk: 2 },
+})
+ok(multiPoolOver.ok === false, 'multi promo > sum of cells blocked')
+
+const multiCmp = buildPromotionsComparison({
+  promotions: multiSave.promotions,
+  monthRows: [{ report_date: '2026-08-01', promo_sales: { 'multi-1': 4 } }],
+  todayIso: '2026-08-06',
+})
+ok(multiCmp.rows.length === 1 && multiCmp.rows[0].sold_qty === 4, 'compare one row shared sold')
+ok(multiCmp.rows[0].goal_qty === 10, 'compare shared goal')
 
 if (failed) {
   console.error(`\n${failed} failed`)

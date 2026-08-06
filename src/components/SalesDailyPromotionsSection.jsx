@@ -1,7 +1,7 @@
 import { Tag } from 'lucide-react'
 import {
   activePromotionsOnDate,
-  salesPromoSegmentLabel,
+  salesPromoSegmentsLabel,
 } from '../lib/admin/salesPromotionsCore.js'
 
 /**
@@ -36,14 +36,17 @@ export function SalesDailyPromotionsSection({
         Акции за день
       </h3>
       <p className="muted sales-daily-promos__hint">
-        Сколько штук продано по акции. Не больше факта сегмента в матрице выше.
+        Сколько штук продано по акции (одна цифра на всю акцию). Не больше факта выбранных сегментов в
+        матрице выше.
       </p>
       <ul className="sales-daily-promos__list">
         {active.map((p) => (
           <li key={p.id} className="sales-daily-promos__row">
             <div className="sales-daily-promos__meta">
               <span className="sales-daily-promos__name">{p.name}</span>
-              <span className="muted sales-daily-promos__seg">{salesPromoSegmentLabel(p.segment_key)}</span>
+              <span className="muted sales-daily-promos__seg">
+                {salesPromoSegmentsLabel(p.segment_keys ?? [p.segment_key])}
+              </span>
             </div>
             <label className="sales-daily-promos__qty" htmlFor={`daily-promo-${p.id}`}>
               <span className="sr-only">Штук по акции {p.name}</span>

@@ -5486,7 +5486,10 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-muted, #9aa4ad);
-  margin-bottom: 0.35rem;
+  margin: 0.45rem 0 0.35rem;
+}
+.sales-promotions__seg-label:first-child {
+  margin-top: 0;
 }
 .sales-promotions__seg-multi {
   display: flex;

@@ -1,15 +1,17 @@
 import { Plus, Save, Trash2 } from 'lucide-react'
 import { SalesFinanceBlock } from './SalesFinanceBlock.jsx'
 import {
-  SALES_PROMO_SEGMENT_KEYS,
+  SALES_PROMO_COL_OPTIONS,
+  SALES_PROMO_HALL_OPTIONS,
+  buildPromoSegmentKeysFromAxes,
   emptySalesPromotionDraft,
+  promoAxesFromSegmentKeys,
   resolvePromoSegmentKeysFromDraft,
-  salesPromoSegmentLabel,
 } from '../lib/admin/salesPromotionsCore.js'
 
 /**
  * CRUD акций в плане месяца.
- * Несколько сегментов в строке → при сохранении отдельные акции (одна цель на каждый).
+ * Направления + НК/ДК/УК → одна акция с общей целью (без разбиения по сегментам).
  * @param {{
  *   year: number,
  *   month: number,
@@ -38,32 +40,35 @@ export function SalesPlanPromotionsSection({
     onChange(next)
   }
 
-  const setSegmentsAt = (idx, keys) => {
-    const uniq = []
-    for (const k of keys) {
-      const s = String(k ?? '').trim()
-      if (s && !uniq.includes(s)) uniq.push(s)
-    }
-    const nextKeys = uniq.length ? uniq : ['pz_nk']
+  const setAxesAt = (idx, hallKeys, colSuffixes) => {
+    const halls = hallKeys.length ? hallKeys : ['pz']
+    const cols = colSuffixes.length ? colSuffixes : ['nk']
+    const segment_keys = buildPromoSegmentKeysFromAxes(halls, cols)
+    const keys = segment_keys.length ? segment_keys : ['pz_nk']
     updateAt(idx, {
-      segment_keys: nextKeys,
-      segment_key: nextKeys[0],
+      segment_keys: keys,
+      segment_key: keys[0],
     })
   }
 
-  const toggleSegmentAt = (idx, key) => {
-    const row = list[idx]
-    const cur = resolvePromoSegmentKeysFromDraft(row)
-    const has = cur.includes(key)
-    if (has) {
-      if (cur.length <= 1) return
-      setSegmentsAt(
-        idx,
-        cur.filter((k) => k !== key),
-      )
-      return
-    }
-    setSegmentsAt(idx, [...cur, key])
+  const toggleHallAt = (idx, hallKey) => {
+    const axes = promoAxesFromSegmentKeys(resolvePromoSegmentKeysFromDraft(list[idx]))
+    const has = axes.hallKeys.includes(hallKey)
+    const nextHalls = has
+      ? axes.hallKeys.filter((h) => h !== hallKey)
+      : [...axes.hallKeys, hallKey]
+    if (!nextHalls.length) return
+    setAxesAt(idx, nextHalls, axes.colSuffixes.length ? axes.colSuffixes : ['nk'])
+  }
+
+  const toggleColAt = (idx, colSuffix) => {
+    const axes = promoAxesFromSegmentKeys(resolvePromoSegmentKeysFromDraft(list[idx]))
+    const has = axes.colSuffixes.includes(colSuffix)
+    const nextCols = has
+      ? axes.colSuffixes.filter((c) => c !== colSuffix)
+      : [...axes.colSuffixes, colSuffix]
+    if (!nextCols.length) return
+    setAxesAt(idx, axes.hallKeys.length ? axes.hallKeys : ['pz'], nextCols)
   }
 
   const removeAt = (idx) => {
@@ -78,7 +83,7 @@ export function SalesPlanPromotionsSection({
     <SalesFinanceBlock
       step={step}
       title="Акции"
-      hint="Сроки и цель в штуках. Несколько сегментов — при сохранении отдельная акция на каждый (цель копируется). Не входят в матрицу направлений и ур. 3."
+      hint="Сроки и одна общая цель в штуках. Выберите направления (ПЗ/ТЗ/АЗ/доп.) и НК/ДК/УК — продано считается по всей акции, без разбиения. Не входят в матрицу направлений и ур. 3."
       footer={
         canEdit ? (
           <button type="button" className="btn btn-secondary" onClick={onSave} disabled={saving}>
@@ -93,7 +98,7 @@ export function SalesPlanPromotionsSection({
       ) : (
         <ul className="sales-promotions__list">
           {list.map((row, idx) => {
-            const selected = resolvePromoSegmentKeysFromDraft(row)
+            const axes = promoAxesFromSegmentKeys(resolvePromoSegmentKeysFromDraft(row))
             return (
               <li key={String(row.id || idx)} className="sales-promotions__row">
                 <div className="sales-finance-block__field sales-promotions__field--name">
@@ -131,26 +136,50 @@ export function SalesPlanPromotionsSection({
                   />
                 </div>
                 <div className="sales-finance-block__field sales-promotions__field--seg">
-                  <span className="sales-promotions__seg-label" id={`promo-seg-label-${idx}`}>
-                    Сегменты
+                  <span className="sales-promotions__seg-label" id={`promo-hall-label-${idx}`}>
+                    Направления
                   </span>
                   <div
                     className="sales-promotions__seg-multi"
                     role="group"
-                    aria-labelledby={`promo-seg-label-${idx}`}
+                    aria-labelledby={`promo-hall-label-${idx}`}
                   >
-                    {SALES_PROMO_SEGMENT_KEYS.map((key) => {
-                      const on = selected.includes(key)
+                    {SALES_PROMO_HALL_OPTIONS.map((hall) => {
+                      const on = axes.hallKeys.includes(hall.key)
                       return (
                         <button
-                          key={key}
+                          key={hall.key}
                           type="button"
                           className={`sales-promotions__seg-chip${on ? ' is-on' : ''}`}
                           disabled={!canEdit}
                           aria-pressed={on}
-                          onClick={() => toggleSegmentAt(idx, key)}
+                          onClick={() => toggleHallAt(idx, hall.key)}
                         >
-                          {salesPromoSegmentLabel(key)}
+                          {hall.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <span className="sales-promotions__seg-label" id={`promo-col-label-${idx}`}>
+                    НК / ДК / УК
+                  </span>
+                  <div
+                    className="sales-promotions__seg-multi"
+                    role="group"
+                    aria-labelledby={`promo-col-label-${idx}`}
+                  >
+                    {SALES_PROMO_COL_OPTIONS.map((col) => {
+                      const on = axes.colSuffixes.includes(col.suffix)
+                      return (
+                        <button
+                          key={col.suffix}
+                          type="button"
+                          className={`sales-promotions__seg-chip${on ? ' is-on' : ''}`}
+                          disabled={!canEdit}
+                          aria-pressed={on}
+                          onClick={() => toggleColAt(idx, col.suffix)}
+                        >
+                          {col.label}
                         </button>
                       )
                     })}
