@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { FileSpreadsheet, Upload } from 'lucide-react'
 import { listClientsByClubId, listMembershipsByClubId } from '../lib/localDbClubQuery.js'
 import {
@@ -39,18 +39,31 @@ export function SalesDailyPaymentsImportSection({
   const [lines, setLines] = useState(null)
   const [meta, setMeta] = useState(null)
   const [error, setError] = useState('')
+  const loadGenRef = useRef(0)
 
   const toast = (msg) => {
     if (typeof onToast === 'function') onToast(msg)
   }
 
+  /** Сброс превью файла (уже подставленную форму дня не трогаем). */
+  const clearImport = () => {
+    loadGenRef.current += 1
+    setBusy(false)
+    setFileName('')
+    setLines(null)
+    setMeta(null)
+    setError('')
+  }
+
   const handleFile = async (file) => {
     if (!file || !clubId || !canEdit) return
+    const gen = ++loadGenRef.current
     setBusy(true)
     setError('')
     setFileName(file.name || '')
     try {
       const parsed = await parseSalesPaymentsXlsxFile(file)
+      if (gen !== loadGenRef.current) return
       if (!parsed.lines.length) {
         setLines([])
         setMeta(parsed)
@@ -61,6 +74,7 @@ export function SalesDailyPaymentsImportSection({
         listClientsByClubId(clubId),
         listMembershipsByClubId(clubId),
       ])
+      if (gen !== loadGenRef.current) return
       /** @type {Record<string, object[]>} */
       const membershipsByClientId = {}
       for (const m of memberships ?? []) {
@@ -79,15 +93,17 @@ export function SalesDailyPaymentsImportSection({
         clients: clients ?? [],
         membershipsByClientId,
       })
+      if (gen !== loadGenRef.current) return
       setLines(enriched)
       setMeta(parsed)
       toast(`Разобрано строк: ${enriched.length}`)
     } catch (e) {
+      if (gen !== loadGenRef.current) return
       console.error(e)
       setError(e?.message || 'Не удалось прочитать файл')
       setLines(null)
     } finally {
-      setBusy(false)
+      if (gen === loadGenRef.current) setBusy(false)
     }
   }
 
@@ -111,6 +127,8 @@ export function SalesDailyPaymentsImportSection({
     )
   }
 
+  const hasImport = Boolean(fileName || meta || error || lines !== null)
+
   if (!canEdit) return null
 
   return (
@@ -118,7 +136,7 @@ export function SalesDailyPaymentsImportSection({
       <h3 className="sales-report__section-title">Каждый день: Excel оплат из 1С</h3>
       <p className="sales-report__hint sales-daily-excel-card__lead">
         Файл <strong>31.xlsx</strong> — оплаты за день (не закрытия). НК/ДК/УК → «Подставить» → «Сохранить».
-        Ниже — карточки, кого ещё нет в базе данных.
+        Ниже — карточки, кого ещё нет в базе данных. «Отмена» — сбросить выбранный файл.
       </p>
       <label className="sales-payments-import__file">
         <FileSpreadsheet size={18} aria-hidden />
@@ -143,74 +161,89 @@ export function SalesDailyPaymentsImportSection({
       {error ? <p className="sales-report__error">{error}</p> : null}
 
       {lines?.length ? (
-        <>
-          <div className="sales-payments-import__table-wrap">
-            <table className="sales-payments-import__table">
-              <thead>
-                <tr>
-                  <th>В отчёт</th>
-                  <th>Карта</th>
-                  <th>Клиент</th>
-                  <th>Зал</th>
-                  <th>Тариф</th>
-                  <th>₽</th>
-                  <th>Сегмент</th>
-                  <th>Подсказка</th>
+        <div className="sales-payments-import__table-wrap">
+          <table className="sales-payments-import__table">
+            <thead>
+              <tr>
+                <th>В отчёт</th>
+                <th>Карта</th>
+                <th>Клиент</th>
+                <th>Зал</th>
+                <th>Тариф</th>
+                <th>₽</th>
+                <th>Сегмент</th>
+                <th>Подсказка</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lines.map((l) => (
+                <tr key={l.id} className={l.include === false ? 'is-skipped' : undefined}>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={l.include !== false}
+                      onChange={(e) => patchLine(l.id, { include: e.target.checked })}
+                      aria-label="Включить в отчёт"
+                    />
+                  </td>
+                  <td>{l.cardNumber}</td>
+                  <td>{l.clientName || l.name}</td>
+                  <td>{String(l.hall || '—').toUpperCase()}</td>
+                  <td>{l.tariffName}</td>
+                  <td>{l.amount}</td>
+                  <td>
+                    {l.hall === 'dop' ? (
+                      <span className="sales-report__hint">доп.</span>
+                    ) : (
+                      <div className="sales-payments-import__buckets" role="group" aria-label="НК ДК УК">
+                        {BUCKETS.map((b) => (
+                          <label key={b.key} className="sales-payments-import__bucket">
+                            <input
+                              type="radio"
+                              name={`bucket-${l.id}`}
+                              checked={l.profitBucket === b.key}
+                              onChange={() => patchLine(l.id, { profitBucket: b.key })}
+                            />
+                            {b.label}
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </td>
+                  <td className="sales-payments-import__reason">{l.bucketReason || l.matchReason}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {lines.map((l) => (
-                  <tr key={l.id} className={l.include === false ? 'is-skipped' : undefined}>
-                    <td>
-                      <input
-                        type="checkbox"
-                        checked={l.include !== false}
-                        onChange={(e) => patchLine(l.id, { include: e.target.checked })}
-                        aria-label="Включить в отчёт"
-                      />
-                    </td>
-                    <td>{l.cardNumber}</td>
-                    <td>{l.clientName || l.name}</td>
-                    <td>{String(l.hall || '—').toUpperCase()}</td>
-                    <td>{l.tariffName}</td>
-                    <td>{l.amount}</td>
-                    <td>
-                      {l.hall === 'dop' ? (
-                        <span className="sales-report__hint">доп.</span>
-                      ) : (
-                        <div className="sales-payments-import__buckets" role="group" aria-label="НК ДК УК">
-                          {BUCKETS.map((b) => (
-                            <label key={b.key} className="sales-payments-import__bucket">
-                              <input
-                                type="radio"
-                                name={`bucket-${l.id}`}
-                                checked={l.profitBucket === b.key}
-                                onChange={() => patchLine(l.id, { profitBucket: b.key })}
-                              />
-                              {b.label}
-                            </label>
-                          ))}
-                        </div>
-                      )}
-                    </td>
-                    <td className="sales-payments-import__reason">{l.bucketReason || l.matchReason}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <button type="button" className="btn btn-primary" onClick={applyToForm} disabled={busy}>
-            <Upload size={16} aria-hidden /> Подставить в форму дня
-          </button>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
 
-          <SalesPaymentsClientLinkSection
-            clubId={clubId}
-            reportDate={meta?.reportDate || reportDate}
-            lines={lines}
-            canEdit={canEdit}
-            onToast={onToast}
-          />
-        </>
+      {hasImport ? (
+        <div className="sales-excel-import__actions">
+          <button
+            type="button"
+            className="btn btn-ghost btn-touch"
+            onClick={clearImport}
+            title="Сбросить выбранный файл и таблицу (форму дня не откатывает)"
+          >
+            Отмена
+          </button>
+          {lines?.length ? (
+            <button type="button" className="btn btn-primary btn-touch" onClick={applyToForm} disabled={busy}>
+              <Upload size={16} aria-hidden /> Подставить в форму дня
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {lines?.length ? (
+        <SalesPaymentsClientLinkSection
+          clubId={clubId}
+          reportDate={meta?.reportDate || reportDate}
+          lines={lines}
+          canEdit={canEdit}
+          onToast={onToast}
+        />
       ) : null}
     </section>
   )

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { FileSpreadsheet } from 'lucide-react'
 import { parsePzTrainingsReportXlsxFile } from '../lib/admin/pzTrainingsReportImportWorkbook.js'
 import { pzTrainingsReportDateMatches } from '../lib/admin/pzTrainingsReportImportCore.js'
@@ -43,13 +43,24 @@ export function SalesDailyPzTrainingsImportSection({
   const [fileName, setFileName] = useState('')
   const [preview, setPreview] = useState(null)
   const [error, setError] = useState('')
+  const loadGenRef = useRef(0)
 
   const toast = (msg, opts) => {
     if (typeof onToast === 'function') onToast(msg, opts)
   }
 
+  /** Сброс превью файла (уже подставленную матрицу не трогаем). */
+  const clearImport = () => {
+    loadGenRef.current += 1
+    setBusy(false)
+    setFileName('')
+    setPreview(null)
+    setError('')
+  }
+
   const handleFile = async (file) => {
     if (!file || !clubId || !canEdit) return
+    const gen = ++loadGenRef.current
     setBusy(true)
     setError('')
     setPreview(null)
@@ -58,9 +69,11 @@ export function SalesDailyPzTrainingsImportSection({
       let trainerList = trainersForClub(trainers, clubId)
       if (trainerList.length === 0) {
         const summaries = await listTrainerSummariesForAdmin()
+        if (gen !== loadGenRef.current) return
         trainerList = trainersForClub(summaries, clubId)
       }
       if (trainerList.length === 0) {
+        if (gen !== loadGenRef.current) return
         setError('Список тренеров клуба не загружен. Нажмите «Обновить» на странице отчёта и выберите файл снова.')
         return
       }
@@ -69,6 +82,7 @@ export function SalesDailyPzTrainingsImportSection({
         trainers: trainerList,
         membershipTypes,
       })
+      if (gen !== loadGenRef.current) return
       if (!result.ok) {
         setError(result.error || 'Не удалось прочитать файл')
         return
@@ -81,9 +95,10 @@ export function SalesDailyPzTrainingsImportSection({
         )
       }
     } catch (e) {
+      if (gen !== loadGenRef.current) return
       setError(e?.message ?? 'Ошибка чтения Excel')
     } finally {
-      setBusy(false)
+      if (gen === loadGenRef.current) setBusy(false)
     }
   }
 
@@ -99,14 +114,15 @@ export function SalesDailyPzTrainingsImportSection({
     preview.matchedTotal > 0 &&
     typeof onApplyMatrix === 'function'
 
+  const hasImport = Boolean(fileName || preview || error)
+
   const apply = () => {
     if (!canApply) return
     onApplyMatrix(preview.matrixInput)
     toast(
       `Часы ПЗ: подставлено ${preview.matchedTotal} из ${preview.fileTotal} (файл). Сохраните отчёт.`,
     )
-    setPreview(null)
-    setFileName('')
+    clearImport()
   }
 
   return (
@@ -114,7 +130,7 @@ export function SalesDailyPzTrainingsImportSection({
       <h3 className="sales-report__section-title">Каждый день: Excel часов ПЗ</h3>
       <p className="sales-report__hint sales-daily-excel-card__lead">
         Файл <strong>otchet_pz.xlsx</strong> — тренер × тип карты. Отчёт менеджера, не статистика планшетов.
-        «Подставить» → матрица ниже → «Сохранить».
+        «Подставить» → матрица ниже → «Сохранить». «Отмена» — сбросить выбранный файл.
       </p>
       <label className={`sales-payments-import__file${canEdit ? '' : ' sales-payments-import__file--disabled'}`}>
         <FileSpreadsheet size={18} aria-hidden />
@@ -159,15 +175,23 @@ export function SalesDailyPzTrainingsImportSection({
               Не сопоставлены типы: {preview.unmatchedColumns.join(', ')}
             </p>
           ) : null}
+        </div>
+      ) : null}
+      {hasImport ? (
+        <div className="sales-excel-import__actions">
           <button
             type="button"
-            className="btn btn-primary btn-touch"
-            disabled={!canApply}
-            onClick={apply}
-            style={{ marginTop: '0.5rem' }}
+            className="btn btn-ghost btn-touch"
+            onClick={clearImport}
+            title="Сбросить выбранный файл и превью (матрицу дня не откатывает)"
           >
-            Подставить в матрицу
+            Отмена
           </button>
+          {preview ? (
+            <button type="button" className="btn btn-primary btn-touch" disabled={!canApply} onClick={apply}>
+              Подставить в матрицу
+            </button>
+          ) : null}
         </div>
       ) : null}
     </section>
