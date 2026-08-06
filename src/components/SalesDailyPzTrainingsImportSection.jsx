@@ -26,7 +26,7 @@ function trainersForClub(list, clubId) {
  *   trainers?: Array<{ id: string, name?: string, club_id?: string|null }>,
  *   membershipTypes?: Array<{ id: string, code?: string, trainer_assignable?: boolean }>,
  *   canEdit?: boolean,
- *   onApplyMatrix: (matrix: Record<string, string>) => void,
+ *   onApplyMatrix: (matrix: Record<string, string>, meta?: { matchedTrainers?: Array<{ id: string, name?: string }> }) => void,
  *   onToast?: (msg: string, opts?: { variant?: string }) => void,
  * }} props
  */
@@ -118,7 +118,9 @@ export function SalesDailyPzTrainingsImportSection({
 
   const apply = () => {
     if (!canApply) return
-    onApplyMatrix(preview.matrixInput)
+    onApplyMatrix(preview.matrixInput, {
+      matchedTrainers: preview.matchedTrainers ?? [],
+    })
     toast(
       `Часы ПЗ: подставлено ${preview.matchedTotal} из ${preview.fileTotal} (файл). Сохраните отчёт.`,
     )

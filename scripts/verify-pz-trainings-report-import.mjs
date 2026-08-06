@@ -148,6 +148,12 @@ ok(!trainingsMatrixHasTrainerDetail(oldMap), 'old has no trainer detail')
 ok(trainingsMatrixHasTrainerDetail(parsed.matrixInput), 'new has trainer detail')
 ok(Object.keys(hydrateTrainingsMatrixInputMap(resolvedNew.rows)).length > 0, 'hydrate')
 
+ok(
+  resolveTrainingsMatrixForPersist(parsed.matrixInput, [], types).ok &&
+    sumTypedMatrixRows(resolveTrainingsMatrixForPersist(parsed.matrixInput, [], types).rows) === 16,
+  'persist from matrix ids when trainer list empty',
+)
+
 if (failed) {
   console.error(`\n${failed} failed`)
   process.exit(1)

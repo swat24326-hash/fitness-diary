@@ -23,6 +23,7 @@ import {
   buildTrainingsMatrixColumns,
   hydrateTrainingsMatrixInputMap,
   normalizeMatrixRowsFromDb,
+  trainerIdsFromTrainingsMatrixInput,
 } from '../../lib/admin/salesTrainingsMatrix'
 import {
   aerobicRowsToInputMap,
@@ -686,13 +687,19 @@ export function AdminSales({ accessMode = 'admin' }) {
     setSavingDaily(true)
     setError('')
     try {
+      const trainerIdsForSave = [
+        ...new Set([
+          ...trainers.map((t) => String(t.id ?? '').trim()).filter(Boolean),
+          ...trainerIdsFromTrainingsMatrixInput(trainingsMatrix),
+        ]),
+      ]
       const row = await saveClubSalesDaily({
         clubId,
         reportDate,
         form: dailyForm,
         trainingsMatrixInput: trainingsMatrix,
         aerobicMatrixInput: aerobicMatrix,
-        trainerIds: trainers.map((t) => t.id).filter(Boolean),
+        trainerIds: trainerIdsForSave,
         membershipTypes,
         aerobicMembershipTypes,
         promoSales,
@@ -718,6 +725,36 @@ export function AdminSales({ accessMode = 'admin' }) {
       setSavingDaily(false)
     }
   }
+
+  const applyPzTrainingsMatrix = useCallback(
+    (matrix, meta) => {
+      setTrainingsMatrix(matrix ?? {})
+      const matched = Array.isArray(meta?.matchedTrainers) ? meta.matchedTrainers : []
+      if (!matched.length) return
+      setTrainers((prev) => {
+        const byId = new Map((prev ?? []).map((t) => [String(t.id ?? '').trim(), t]))
+        let changed = false
+        for (const m of matched) {
+          const id = String(m?.id ?? '').trim()
+          if (!id) continue
+          const existing = byId.get(id)
+          const name = String(m?.name ?? '').trim()
+          if (!existing) {
+            byId.set(id, { id, name: name || id, club_id: clubId })
+            changed = true
+          } else if (name && !String(existing.name ?? '').trim()) {
+            byId.set(id, { ...existing, name })
+            changed = true
+          }
+        }
+        if (!changed) return prev
+        return [...byId.values()].sort((a, b) =>
+          String(a.name ?? '').localeCompare(String(b.name ?? ''), 'ru'),
+        )
+      })
+    },
+    [clubId],
+  )
 
   const handleSavePlanLevels = async () => {
     if (!clubId) return
@@ -1174,7 +1211,7 @@ export function AdminSales({ accessMode = 'admin' }) {
                 trainers={trainers}
                 membershipTypes={membershipTypes}
                 canEdit
-                onApplyMatrix={setTrainingsMatrix}
+                onApplyMatrix={applyPzTrainingsMatrix}
                 onToast={showToast}
               />
             </div>
@@ -1300,7 +1337,7 @@ export function AdminSales({ accessMode = 'admin' }) {
                 trainers={trainers}
                 membershipTypes={membershipTypes}
                 canEdit
-                onApplyMatrix={setTrainingsMatrix}
+                onApplyMatrix={applyPzTrainingsMatrix}
                 onToast={showToast}
               />
             </div>

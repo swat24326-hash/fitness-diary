@@ -224,6 +224,22 @@ export function normalizeMatrixRowsFromDb(raw) {
 }
 
 /**
+ * Id тренеров из ключей матрицы (без __club__), только с count > 0.
+ * @param {Record<string, string>|null|undefined} inputMap
+ * @returns {string[]}
+ */
+export function trainerIdsFromTrainingsMatrixInput(inputMap) {
+  /** @type {Set<string>} */
+  const ids = new Set()
+  for (const [key, raw] of Object.entries(inputMap ?? {})) {
+    const tid = String(key).split('|')[0] ?? ''
+    if (!tid || tid === SALES_TRAINING_CLUB_ID) continue
+    if (parseMatrixCellCount(raw) > 0) ids.add(tid)
+  }
+  return [...ids]
+}
+
+/**
  * Есть ли в карте/строках детализация по реальным тренерам (формат New).
  * @param {Record<string, string>|null|undefined} inputMap
  * @param {Array<{ trainer_id?: string, count?: number }>|null|undefined} [rows]
@@ -235,16 +251,12 @@ export function trainingsMatrixHasTrainerDetail(inputMap, rows) {
       return tid && tid !== SALES_TRAINING_CLUB_ID && (Number(row?.count) || 0) > 0
     })
   }
-  for (const [key, raw] of Object.entries(inputMap ?? {})) {
-    const tid = String(key).split('|')[0] ?? ''
-    if (!tid || tid === SALES_TRAINING_CLUB_ID) continue
-    if (parseMatrixCellCount(raw) > 0) return true
-  }
-  return false
+  return trainerIdsFromTrainingsMatrixInput(inputMap).length > 0
 }
 
 /**
  * Persist: в одном дне либо только __club__, либо только реальные trainer_id (без double).
+ * Id тренеров — из списка клуба и из самой матрицы (Excel мог подставить, пока список ещё пуст).
  * @param {Record<string, string>} inputMap
  * @param {string[]} clubTrainerIds
  * @param {Array<{ id: string }>} membershipTypes
@@ -253,7 +265,10 @@ export function trainingsMatrixHasTrainerDetail(inputMap, rows) {
 export function resolveTrainingsMatrixForPersist(inputMap, clubTrainerIds, membershipTypes) {
   const realIds = (clubTrainerIds ?? []).map((id) => String(id ?? '').trim()).filter(Boolean)
   const useTrainers = trainingsMatrixHasTrainerDetail(inputMap)
-  const trainerIds = useTrainers ? realIds : [SALES_TRAINING_CLUB_ID]
+  const fromMap = trainerIdsFromTrainingsMatrixInput(inputMap)
+  const trainerIds = useTrainers
+    ? [...new Set([...realIds, ...fromMap])]
+    : [SALES_TRAINING_CLUB_ID]
   const parsed = inputMapToMatrixRows(inputMap, trainerIds, membershipTypes)
   if (!parsed.ok) return parsed
   const rows = useTrainers
@@ -281,11 +296,16 @@ export function clubDisplayCountForType(inputMap, trainerIds, typeId) {
   if (!trainingsMatrixHasTrainerDetail(inputMap)) {
     return parseMatrixCellCount(inputMap?.[salesTrainingCellKey(SALES_TRAINING_CLUB_ID, typeKey)])
   }
+  const ids = [
+    ...new Set([
+      ...(trainerIds ?? []).map((id) => String(id ?? '').trim()).filter(Boolean),
+      ...trainerIdsFromTrainingsMatrixInput(inputMap),
+    ]),
+  ]
   let sum = 0
-  for (const trainerId of trainerIds ?? []) {
-    const tid = String(trainerId ?? '').trim()
-    if (!tid || tid === SALES_TRAINING_CLUB_ID) continue
-    sum += parseMatrixCellCount(inputMap?.[salesTrainingCellKey(tid, typeKey)])
+  for (const trainerId of ids) {
+    if (!trainerId || trainerId === SALES_TRAINING_CLUB_ID) continue
+    sum += parseMatrixCellCount(inputMap?.[salesTrainingCellKey(trainerId, typeKey)])
   }
   return sum
 }

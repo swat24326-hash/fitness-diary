@@ -7,6 +7,7 @@ import {
   typedTrainingsMatrixColumns,
   computeClubTrainingsPayrollFromInputMap,
   trainingsMatrixHasTrainerDetail,
+  trainerIdsFromTrainingsMatrixInput,
   clubDisplayCountForType,
 } from '../lib/admin/salesTrainingsMatrix.js'
 import { MembershipTypeStatsTable } from './MembershipTypeStatsTable.jsx'
@@ -90,9 +91,15 @@ export function SalesTrainingsMatrix({
   const typesHref = clubId ? `/admin/membership-types?club=${encodeURIComponent(clubId)}` : '/admin/membership-types'
 
   const visibleTrainers = useMemo(() => {
-    if (aggregateOnly && !detailMode) return []
-    return trainers
-  }, [aggregateOnly, detailMode, trainers])
+    const base = aggregateOnly && !detailMode ? [] : [...(trainers ?? [])]
+    const byId = new Map(base.map((t) => [String(t.id ?? '').trim(), t]))
+    for (const id of trainerIdsFromTrainingsMatrixInput(matrix)) {
+      if (!id || byId.has(id)) continue
+      byId.set(id, { id, name: id })
+      base.push({ id, name: id })
+    }
+    return base
+  }, [aggregateOnly, detailMode, trainers, matrix])
 
   if (!typedColumns.length) {
     return (
