@@ -5461,7 +5461,7 @@
   grid-column: 1 / -1;
 }
 
-/* —— Акции продаж —— */
+/* ????? ?????? */
 .sales-promotions__list {
   list-style: none;
   margin: 0;
@@ -5472,9 +5472,46 @@
 }
 .sales-promotions__row {
   display: grid;
-  grid-template-columns: minmax(8rem, 1.4fr) repeat(4, minmax(5.5rem, 1fr)) auto;
+  grid-template-columns: minmax(8rem, 1.4fr) repeat(3, minmax(5.5rem, 1fr)) minmax(4.5rem, 0.7fr) auto;
   gap: 0.55rem 0.65rem;
   align-items: end;
+}
+.sales-promotions__field--seg {
+  grid-column: 1 / -1;
+  align-self: start;
+}
+.sales-promotions__seg-label {
+  display: block;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted, #9aa4ad);
+  margin-bottom: 0.35rem;
+}
+.sales-promotions__seg-multi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.sales-promotions__seg-chip {
+  appearance: none;
+  border: 1px solid color-mix(in srgb, var(--text-muted, #9aa4ad) 45%, transparent);
+  background: color-mix(in srgb, var(--surface, #122) 80%, transparent);
+  color: var(--text, #e8eef2);
+  border-radius: 8px;
+  padding: 0.28rem 0.55rem;
+  font-size: 0.78rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+.sales-promotions__seg-chip:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.sales-promotions__seg-chip.is-on {
+  border-color: color-mix(in srgb, var(--accent, #c9a227) 70%, transparent);
+  background: color-mix(in srgb, var(--accent, #c9a227) 18%, transparent);
+  color: var(--text, #fff);
 }
 .sales-promotions__empty {
   margin: 0 0 0.75rem;
@@ -5488,6 +5525,9 @@
 @media (max-width: 900px) {
   .sales-promotions__row {
     grid-template-columns: 1fr 1fr;
+  }
+  .sales-promotions__field--seg {
+    grid-column: 1 / -1;
   }
 }
 .sales-daily-promos {

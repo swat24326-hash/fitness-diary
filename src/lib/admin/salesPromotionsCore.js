@@ -124,16 +124,65 @@ export function promoSalesToFormMap(promoSales) {
   return out
 }
 
+/** @param {unknown} item */
+export function resolvePromoSegmentKeysFromDraft(item) {
+  if (!item || typeof item !== 'object') return []
+  const raw = /** @type {{ segment_keys?: unknown, segment_key?: unknown }} */ (item)
+  if (Array.isArray(raw.segment_keys) && raw.segment_keys.length) {
+    /** @type {string[]} */
+    const uniq = []
+    for (const k of raw.segment_keys) {
+      const s = String(k ?? '').trim()
+      if (s && !uniq.includes(s)) uniq.push(s)
+    }
+    return uniq
+  }
+  const one = String(raw.segment_key ?? '').trim()
+  return one ? [one] : []
+}
+
+/**
+ * Несколько сегментов в черновике → отдельные акции (одна цель на каждый сегмент).
+ * Исходный id сохраняется за исходным segment_key, если он ещё выбран; иначе — за первым.
+ * @param {unknown} list
+ * @param {{ createId?: () => string }} [opts]
+ */
+export function expandPromotionsBySegments(list, opts = {}) {
+  const createId = typeof opts.createId === 'function' ? opts.createId : createSalesPromotionId
+  if (!Array.isArray(list)) return []
+  /** @type {Array<Record<string, unknown>>} */
+  const out = []
+  for (const item of list) {
+    if (!item || typeof item !== 'object') continue
+    const keys = resolvePromoSegmentKeysFromDraft(item)
+    if (!keys.length) {
+      out.push(/** @type {Record<string, unknown>} */ ({ ...item }))
+      continue
+    }
+    const row = /** @type {Record<string, unknown>} */ (item)
+    const origKey = String(row.segment_key ?? '').trim()
+    const origId = String(row.id ?? '').trim() || createId()
+    const keepKey = keys.includes(origKey) ? origKey : keys[0]
+    for (const segment_key of keys) {
+      const next = { ...row, segment_key, id: segment_key === keepKey ? origId : createId() }
+      delete next.segment_keys
+      out.push(next)
+    }
+  }
+  return out
+}
+
 /** @param {SalesPromotion[]} list */
 export function validatePromotionsForSave(list) {
-  const normalized = normalizePromotionsFromDb(list)
   if (!Array.isArray(list)) {
     return { ok: false, error: 'Акции: ожидается список' }
   }
-  if (list.length !== normalized.length) {
+  const expanded = expandPromotionsBySegments(list)
+  const normalized = normalizePromotionsFromDb(expanded)
+  if (expanded.length !== normalized.length) {
     return {
       ok: false,
-      error: 'Акции: проверьте название, даты (ГГГГ-ММ-ДД), сегмент и цель ≥ 0',
+      error: 'Акции: проверьте название, даты (ГГГГ-ММ-ДД), сегмент(ы) и цель ≥ 0',
     }
   }
   const ids = new Set()

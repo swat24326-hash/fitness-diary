@@ -2,11 +2,13 @@ import {
   activePromotionsOnDate,
   buildPromotionsComparison,
   emptySalesPromotionDraft,
+  expandPromotionsBySegments,
   hasNonZeroPromoSales,
   normalizePromoSalesFromDb,
   normalizePromotionsFromDb,
   promoSalesFormToPayload,
   promoSalesToFormMap,
+  resolvePromoSegmentKeysFromDraft,
   sumPromoFact,
   validateDayPromoSales,
   validatePromotionsForSave,
@@ -70,7 +72,9 @@ ok(saved.promotions[0].goal_qty === 10, 'goal kept')
 const bad = validatePromotionsForSave([{ ...draft, end_date: '2026-07-01' }])
 ok(bad.ok === false, 'end before start rejected')
 
-const badSeg = validatePromotionsForSave([{ ...draft, segment_key: 'xx_yy' }])
+const badSeg = validatePromotionsForSave([
+  { ...draft, segment_key: 'xx_yy', segment_keys: ['xx_yy'] },
+])
 ok(badSeg.ok === false, 'bad segment rejected')
 
 const dup = validatePromotionsForSave([draft, { ...draft, name: 'Другая' }])
@@ -203,6 +207,62 @@ ok(matrixCmp.has_plan_matrix === true, 'segment compare still works with promo_s
 const pzRow = (matrixCmp.rows || []).find((r) => r.cellKey === 'pz_nk')
 ok(pzRow && pzRow.fact?.count === 2, 'segment fact from matrix count, not promo')
 ok(pzRow && pzRow.promo == null, 'segment row has no promo field (separate block)')
+
+console.log('\n— multi segment expand (same goal each) —')
+ok(
+  resolvePromoSegmentKeysFromDraft({ segment_key: 'tz_nk' }).join() === 'tz_nk',
+  'resolve single key',
+)
+ok(
+  resolvePromoSegmentKeysFromDraft({ segment_keys: ['pz_nk', 'pz_dk', 'pz_nk'] }).join() ===
+    'pz_nk,pz_dk',
+  'resolve uniq keys',
+)
+let idSeq = 0
+const expanded = expandPromotionsBySegments(
+  [
+    {
+      id: 'keep-me',
+      name: 'День семьи',
+      start_date: '2026-08-01',
+      end_date: '2026-08-31',
+      segment_key: 'pz_dk',
+      segment_keys: ['pz_nk', 'pz_dk', 'pz_uk'],
+      goal_qty: 5,
+    },
+  ],
+  { createId: () => `new-${++idSeq}` },
+)
+ok(expanded.length === 3, 'expand → 3 rows')
+ok(expanded.find((p) => p.segment_key === 'pz_dk')?.id === 'keep-me', 'orig id stays on orig segment')
+ok(
+  expanded.filter((p) => p.segment_key !== 'pz_dk').every((p) => String(p.id).startsWith('new-')),
+  'other segments get new ids',
+)
+ok(expanded.every((p) => p.goal_qty === 5), 'goal copied to each')
+ok(expanded.every((p) => p.segment_keys == null), 'segment_keys stripped')
+
+const multiSave = validatePromotionsForSave([
+  {
+    id: 'multi-1',
+    name: 'ТЗ год',
+    start_date: '2026-08-01',
+    end_date: '2026-08-31',
+    segment_key: 'tz_nk',
+    segment_keys: ['tz_nk', 'tz_dk', 'tz_uk'],
+    goal_qty: 10,
+  },
+])
+ok(multiSave.ok === true && multiSave.promotions.length === 3, 'validate expands multi segments')
+ok(
+  multiSave.promotions.every((p) => p.goal_qty === 10),
+  'validated goals equal',
+)
+ok(
+  new Set(multiSave.promotions.map((p) => p.segment_key)).size === 3,
+  'three distinct segments saved',
+)
+ok(multiSave.promotions.find((p) => p.segment_key === 'tz_nk')?.id === 'multi-1', 'keep id on tz_nk')
 
 if (failed) {
   console.error(`\n${failed} failed`)
