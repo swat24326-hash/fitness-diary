@@ -1228,16 +1228,61 @@
   font-size: 0.85rem;
 }
 
+.sales-report__tabs-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem 0.65rem;
+  margin: 0.25rem 0 0.5rem;
+  padding: 0.35rem 0.4rem;
+  border-radius: var(--radius-md, 12px);
+  background: rgba(8, 28, 22, 0.35);
+  border: 1px solid color-mix(in srgb, var(--text-muted) 10%, transparent);
+}
+
 .sales-report__tabs {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin: 0.25rem 0 0.5rem;
-  padding: 0.2rem;
-  border-radius: var(--radius-md, 12px);
-  background: rgba(8, 28, 22, 0.35);
-  border: 1px solid color-mix(in srgb, var(--text-muted) 10%, transparent);
+  min-width: 0;
+}
+
+.sales-report__tabs--start {
+  justify-content: flex-start;
+}
+
+.sales-report__tabs--end {
+  justify-content: flex-end;
+}
+
+.sales-report__tabs-period {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.sales-report__date-stepper--tabs {
+  gap: 0.35rem;
+}
+
+.sales-report__date-stepper--tabs .sales-report__date-btn {
+  width: 2rem;
+  height: 2rem;
+}
+
+.sales-report__date-stepper--tabs .sales-report__date-pill {
+  padding: 0.35rem 0.7rem;
+  min-height: 2rem;
+}
+
+.sales-report__date-pill--static {
+  cursor: default;
+}
+
+.sales-report__date-pill--static:hover {
+  border-color: color-mix(in srgb, var(--text-muted) 25%, transparent);
 }
 
 .sales-report__tabs .tab {
@@ -1248,10 +1293,6 @@
   background: color-mix(in srgb, var(--accent-bright) 12%, transparent);
   border-color: color-mix(in srgb, var(--accent-bright) 25%, transparent);
   color: var(--accent-bright);
-}
-
-.sales-report__tabs .tab.sales-report__tab--push-end {
-  margin-left: auto;
 }
 
 .sales-report__tabs .tab.tab--sales-planning {
@@ -1267,6 +1308,24 @@
   color: #ff8a8a;
   background: rgba(255, 107, 107, 0.12);
   border-color: rgba(255, 107, 107, 0.35);
+}
+
+@media (max-width: 960px) {
+  .sales-report__tabs-bar {
+    grid-template-columns: 1fr;
+    justify-items: stretch;
+  }
+
+  .sales-report__tabs-period {
+    order: -1;
+    justify-content: center;
+    padding-bottom: 0.15rem;
+  }
+
+  .sales-report__tabs--start,
+  .sales-report__tabs--end {
+    justify-content: flex-start;
+  }
 }
 
 .sales-report__finance {

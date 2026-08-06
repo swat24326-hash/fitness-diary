@@ -21,10 +21,11 @@ import { SalesPlanMatrixCompareTable } from './SalesPlanMatrixCompareTable.jsx'
  *   planMatrix?: unknown,
  *   membershipTypes?: Array<{ id: string, code?: string }>,
  *   trainers?: Array<{ id: string, full_name?: string, name?: string }>,
- *   onPrevMonth: () => void,
- *   onNextMonth: () => void,
+ *   onPrevMonth?: () => void,
+ *   onNextMonth?: () => void,
  *   onOpenDay: (iso: string) => void,
  *   showPayroll?: boolean,
+ *   showMonthNav?: boolean,
  * }} props
  */
 export function SalesManagerStatsPanel({
@@ -41,6 +42,7 @@ export function SalesManagerStatsPanel({
   onNextMonth,
   onOpenDay,
   showPayroll = false,
+  showMonthNav = true,
 }) {
   const trainerLabel = useMemo(() => {
     const byId = new Map(
@@ -92,15 +94,19 @@ export function SalesManagerStatsPanel({
           <BarChart3 size={20} style={{ verticalAlign: -3, marginRight: 8 }} aria-hidden />
           Статистика месяца
         </h2>
-        <div className="sales-report__stats-month-nav">
-          <button type="button" className="btn btn-secondary btn-sm" onClick={onPrevMonth} aria-label="Предыдущий месяц">
-            <ChevronLeft size={16} aria-hidden />
-          </button>
-          <span className="sales-report__stats-month-label">{monthLabel}</span>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={onNextMonth} aria-label="Следующий месяц">
-            <ChevronRight size={16} aria-hidden />
-          </button>
-        </div>
+        {showMonthNav ? (
+          <div className="sales-report__stats-month-nav">
+            <button type="button" className="btn btn-secondary btn-sm" onClick={onPrevMonth} aria-label="Предыдущий месяц">
+              <ChevronLeft size={16} aria-hidden />
+            </button>
+            <span className="sales-report__stats-month-label">{monthLabel}</span>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={onNextMonth} aria-label="Следующий месяц">
+              <ChevronRight size={16} aria-hidden />
+            </button>
+          </div>
+        ) : (
+          <p className="sales-report__stats-month-label muted">{monthLabel}</p>
+        )}
       </div>
 
       <div className="sales-report__kpi-grid sales-report__stats-kpi">

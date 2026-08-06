@@ -79,6 +79,7 @@ import { SalesPlanSettingsPanel } from '../../components/SalesPlanSettingsPanel'
 import { SalesStrategyPanel } from '../../components/SalesStrategyPanel'
 import { SalesManagerStatsPanel } from '../../components/SalesManagerStatsPanel'
 import { SalesManagerAnalyticsPanel } from '../../components/SalesManagerAnalyticsPanel'
+import { SalesPeriodStepper } from '../../components/SalesPeriodStepper.jsx'
 import { SectionErrorBoundary } from '../../components/SectionErrorBoundary'
 import { AdminHomeAttentionRow } from '../../components/admin/AdminHomeAttentionRow'
 import { PriceListHallShell } from '../../components/priceList/PriceListHallShell.jsx'
@@ -972,90 +973,112 @@ export function AdminSales({ accessMode = 'admin' }) {
       ) : null}
 
       {showInternalTabs ? (
-        <div className="tabs sales-report__tabs" role="tablist" aria-label="Разделы продаж">
-          <button
-            type="button"
-            className="tab"
-            role="tab"
-            id="sales-tab-daily"
-            aria-selected={salesTab === 'daily'}
-            aria-controls="sales-panel-daily"
-            onClick={() => setSalesTab('daily')}
-          >
-            Отчёт за день
-          </button>
-          <button
-            type="button"
-            className="tab"
-            role="tab"
-            id="sales-tab-stats"
-            aria-selected={salesTab === 'stats'}
-            aria-controls="sales-panel-stats"
-            onClick={() => setSalesTab('stats')}
-          >
-            Статистика
-          </button>
-          {showFinanceTab ? (
+        <div className="sales-report__tabs-bar">
+          <div className="tabs sales-report__tabs sales-report__tabs--start" role="tablist" aria-label="Операционные разделы продаж">
             <button
               type="button"
               className="tab"
               role="tab"
-              id="sales-tab-finance"
-              aria-selected={salesTab === 'finance'}
-              aria-controls="sales-panel-finance"
-              onClick={() => setSalesTab('finance')}
+              id="sales-tab-daily"
+              aria-selected={salesTab === 'daily'}
+              aria-controls="sales-panel-daily"
+              onClick={() => setSalesTab('daily')}
             >
-              Финансы клуба
+              Отчёт за день
             </button>
-          ) : null}
-          <button
-            type="button"
-            className="tab tab--sales-planning sales-report__tab--push-end"
-            role="tab"
-            id="sales-tab-clips"
-            aria-selected={salesTab === 'clips'}
-            aria-controls="sales-panel-clips-admin"
-            onClick={() => setSalesTab('clips')}
-          >
-            Заявка тренеру
-          </button>
-          {showFinanceTab ? (
-            <>
+            <button
+              type="button"
+              className="tab"
+              role="tab"
+              id="sales-tab-stats"
+              aria-selected={salesTab === 'stats'}
+              aria-controls="sales-panel-stats"
+              onClick={() => setSalesTab('stats')}
+            >
+              Статистика
+            </button>
+            {showFinanceTab ? (
               <button
                 type="button"
-                className="tab tab--sales-planning"
+                className="tab"
                 role="tab"
-                id="sales-tab-strategy"
-                aria-selected={salesTab === 'strategy'}
-                aria-controls="sales-panel-strategy"
-                onClick={() => setSalesTab('strategy')}
+                id="sales-tab-finance"
+                aria-selected={salesTab === 'finance'}
+                aria-controls="sales-panel-finance"
+                onClick={() => setSalesTab('finance')}
               >
-                Стратегия
+                Финансы клуба
               </button>
-              <button
-                type="button"
-                className="tab tab--sales-planning"
-                role="tab"
-                id="sales-tab-plan"
-                aria-selected={salesTab === 'plan'}
-                aria-controls="sales-panel-plan"
-                onClick={() => setSalesTab('plan')}
-              >
-                План месяца
-              </button>
-              <button
-                type="button"
-                className="tab tab--sales-planning"
-                role="tab"
-                id="sales-tab-price"
-                aria-selected={salesTab === 'price'}
-                aria-controls="sales-panel-price"
-                onClick={() => setSalesTab('price')}
-              >
-                Прайс
-              </button>
-            </>
-          ) : null}
+            ) : null}
+          </div>
+          <div className="sales-report__tabs-period">
+            <SalesPeriodStepper
+              mode={salesTab === 'daily' || salesTab === 'clips' ? 'day' : 'month'}
+              label={salesTab === 'daily' || salesTab === 'clips' ? formatDateRu(reportDate) : monthLabel}
+              reportDate={reportDate}
+              onPrev={
+                salesTab === 'daily' || salesTab === 'clips'
+                  ? () => setReportDate((d) => addDaysToIso(d, -1))
+                  : () => shiftReportMonth(-1)
+              }
+              onNext={
+                salesTab === 'daily' || salesTab === 'clips'
+                  ? () => setReportDate((d) => clampIsoDateToToday(addDaysToIso(d, 1)))
+                  : () => shiftReportMonth(1)
+              }
+              onDateChange={(iso) => setReportDate(clampIsoDateToToday(iso))}
+            />
+          </div>
+          <div className="tabs sales-report__tabs sales-report__tabs--end" role="tablist" aria-label="Планирование продаж">
+            <button
+              type="button"
+              className="tab tab--sales-planning"
+              role="tab"
+              id="sales-tab-clips"
+              aria-selected={salesTab === 'clips'}
+              aria-controls="sales-panel-clips-admin"
+              onClick={() => setSalesTab('clips')}
+            >
+              Заявка тренеру
+            </button>
+            {showFinanceTab ? (
+              <>
+                <button
+                  type="button"
+                  className="tab tab--sales-planning"
+                  role="tab"
+                  id="sales-tab-strategy"
+                  aria-selected={salesTab === 'strategy'}
+                  aria-controls="sales-panel-strategy"
+                  onClick={() => setSalesTab('strategy')}
+                >
+                  Стратегия
+                </button>
+                <button
+                  type="button"
+                  className="tab tab--sales-planning"
+                  role="tab"
+                  id="sales-tab-plan"
+                  aria-selected={salesTab === 'plan'}
+                  aria-controls="sales-panel-plan"
+                  onClick={() => setSalesTab('plan')}
+                >
+                  План месяца
+                </button>
+                <button
+                  type="button"
+                  className="tab tab--sales-planning"
+                  role="tab"
+                  id="sales-tab-price"
+                  aria-selected={salesTab === 'price'}
+                  aria-controls="sales-panel-price"
+                  onClick={() => setSalesTab('price')}
+                >
+                  Прайс
+                </button>
+              </>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
@@ -1256,6 +1279,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             fitCityTypeStats={fitCityTypeStats}
             clubId={clubId}
             showPayroll
+            hideDateStepper
           />
         </div>
       ) : !isSalesManager && salesTab === 'stats' ? (
@@ -1274,6 +1298,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             onNextMonth={() => shiftReportMonth(1)}
             onOpenDay={openDayReport}
             showPayroll
+            showMonthNav={false}
           />
         </div>
       ) : !isSalesManager && salesTab === 'plan' ? (

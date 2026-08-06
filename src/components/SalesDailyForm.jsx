@@ -54,6 +54,7 @@ function MatrixEmptyCells({ prefix }) {
  *   fitCityTypeStats?: object | null,
  *   clubId?: string,
  *   showPayroll?: boolean,
+ *   hideDateStepper?: boolean,
  * }} props
  */
 export function SalesDailyForm({
@@ -79,6 +80,7 @@ export function SalesDailyForm({
   fitCityTypeStats = null,
   clubId = '',
   showPayroll = true,
+  hideDateStepper = false,
 }) {
   const dateInputRef = useRef(null)
   const profit = useMemo(() => {
@@ -102,34 +104,36 @@ export function SalesDailyForm({
         Отчёт за день
       </h2>
 
-      <div className="sales-report__date-stepper">
-        <button type="button" className="sales-report__date-btn" onClick={onPrevDay} aria-label="Предыдущий день">
-          <ChevronLeft size={18} />
-        </button>
-        <label
-          className="sales-report__date-pill"
-          title="Выбрать дату в календаре"
-          onClick={openReportDatePicker}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') openReportDatePicker(e)
-          }}
-        >
-          <Calendar size={16} aria-hidden />
-          <span className="sales-report__date-text">{dateLabel}</span>
-          <input
-            ref={dateInputRef}
-            type="date"
-            className="sales-report__date-input-overlay"
-            value={reportDate}
-            max={todayLocalIso()}
-            onChange={(e) => onDateChange(e.target.value)}
-            aria-label="Дата отчёта — открыть календарь"
-          />
-        </label>
-        <button type="button" className="sales-report__date-btn" onClick={onNextDay} aria-label="Следующий день">
-          <ChevronRight size={18} />
-        </button>
-      </div>
+      {!hideDateStepper ? (
+        <div className="sales-report__date-stepper">
+          <button type="button" className="sales-report__date-btn" onClick={onPrevDay} aria-label="Предыдущий день">
+            <ChevronLeft size={18} />
+          </button>
+          <label
+            className="sales-report__date-pill"
+            title="Выбрать дату в календаре"
+            onClick={openReportDatePicker}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') openReportDatePicker(e)
+            }}
+          >
+            <Calendar size={16} aria-hidden />
+            <span className="sales-report__date-text">{dateLabel}</span>
+            <input
+              ref={dateInputRef}
+              type="date"
+              className="sales-report__date-input-overlay"
+              value={reportDate}
+              max={todayLocalIso()}
+              onChange={(e) => onDateChange(e.target.value)}
+              aria-label="Дата отчёта — открыть календарь"
+            />
+          </label>
+          <button type="button" className="sales-report__date-btn" onClick={onNextDay} aria-label="Следующий день">
+            <ChevronRight size={18} />
+          </button>
+        </div>
+      ) : null}
 
       <div className="sales-report__mini-row" style={{ marginTop: '1rem' }}>
         <div className="sales-report__mini-card">
