@@ -171,6 +171,7 @@ export function AdminSales({ accessMode = 'admin' }) {
   const [loadHint, setLoadHint] = useState('')
   const [vesselPulse, setVesselPulse] = useState(0)
   const [toast, setToast] = useState(null)
+  const [financeFeedback, setFinanceFeedback] = useState(null)
   const [yearMonth, setYearMonth] = useState({ year: new Date().getFullYear(), month: new Date().getMonth() + 1 })
   const [membershipTypes, setMembershipTypes] = useState([])
   const [trainers, setTrainers] = useState([])
@@ -185,6 +186,8 @@ export function AdminSales({ accessMode = 'admin' }) {
   const dailyBaselineFpRef = useRef('')
   const planBaselineFpRef = useRef('')
   const expenseBaselineFpRef = useRef('')
+  const toastTimerRef = useRef(0)
+  const financeFeedbackTimerRef = useRef(0)
 
   const membershipTypeColumns = useMemo(
     () => buildTrainingsMatrixColumns(membershipTypes),
@@ -202,10 +205,21 @@ export function AdminSales({ accessMode = 'admin' }) {
   )
 
   const showToast = useCallback((text, tone = 'ok') => {
-    setToast({ text, tone })
-    const t = setTimeout(() => setToast(null), 3200)
-    return () => clearTimeout(t)
+    const msg = String(text ?? '').trim()
+    if (!msg) return
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current)
+    setToast({ text: msg, tone })
+    toastTimerRef.current = window.setTimeout(() => setToast(null), 3600)
   }, [])
+
+  const showFinanceFeedback = useCallback((text, tone = 'ok') => {
+    const msg = String(text ?? '').trim()
+    if (!msg) return
+    if (financeFeedbackTimerRef.current) window.clearTimeout(financeFeedbackTimerRef.current)
+    setFinanceFeedback({ text: msg, tone })
+    showToast(msg, tone)
+    financeFeedbackTimerRef.current = window.setTimeout(() => setFinanceFeedback(null), 5000)
+  }, [showToast])
 
   const loadSeqRef = useRef(0)
   const profilesRef = useRef({ key: '', shell: false, daily: false })
@@ -754,6 +768,7 @@ export function AdminSales({ accessMode = 'admin' }) {
     if (!clubId) return
     setSavingFinance(true)
     setError('')
+    setFinanceFeedback(null)
     try {
       const expense = await saveClubSalesFinance({
         clubId,
@@ -762,7 +777,9 @@ export function AdminSales({ accessMode = 'admin' }) {
         form: expenseForm,
       })
       if (!expense) {
-        setError('API продаж недоступен')
+        const msg = 'API продаж недоступен'
+        setError(msg)
+        showFinanceFeedback(msg, 'err')
         return
       }
       setExpenseForm(expenseRowToForm(expense))
@@ -770,9 +787,11 @@ export function AdminSales({ accessMode = 'admin' }) {
       clearSalesPlanGlanceSession(clubId)
       invalidateSalesShellSession(clubId)
       await loadBundle()
-      showToast('Расход сохранён')
+      showFinanceFeedback('Расход сохранён')
     } catch (e) {
-      setError(e?.message ?? 'Ошибка сохранения расхода')
+      const msg = e?.message ?? 'Ошибка сохранения расхода'
+      setError(msg)
+      showFinanceFeedback(msg, 'err')
     } finally {
       setSavingFinance(false)
     }
@@ -1270,6 +1289,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             onSaveFinance={() => void handleSaveFinance()}
             savingPlan={savingPlan}
             savingFinance={savingFinance}
+            financeFeedback={financeFeedback}
           />
         </div>
       ) : !isSalesManager && salesTab === 'finance' ? (
@@ -1294,8 +1314,9 @@ export function AdminSales({ accessMode = 'admin' }) {
 
       {toast ? (
         <div
-          className={`sync-feedback sync-feedback--${toast.tone} sales-report__toast`}
+          className={`sales-report__toast sales-report__toast--${toast.tone === 'err' ? 'err' : toast.tone === 'warn' ? 'warn' : 'ok'}`}
           role="status"
+          aria-live="polite"
         >
           {toast.text}
         </div>

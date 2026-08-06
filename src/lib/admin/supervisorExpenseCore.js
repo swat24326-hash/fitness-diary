@@ -3,7 +3,7 @@
  * Без React / IndexedDB.
  */
 
-/** @typedef {'expense_rent' | 'expense_expenses' | 'expense_deposits' | 'expense_accounting'} ExpensePartFormKey */
+/** @typedef {'expense_rent' | 'expense_expenses' | 'expense_deposits' | 'expense_accounting' | 'expense_sales'} ExpensePartFormKey */
 
 /** Ключи формы (строки ввода). */
 export const SUPERVISOR_EXPENSE_PART_KEYS = /** @type {const} */ ([
@@ -11,6 +11,7 @@ export const SUPERVISOR_EXPENSE_PART_KEYS = /** @type {const} */ ([
   'expense_expenses',
   'expense_deposits',
   'expense_accounting',
+  'expense_sales',
 ])
 
 /** Колонки БД ↔ ключ формы. */
@@ -19,6 +20,7 @@ export const SUPERVISOR_EXPENSE_PART_DB = /** @type {const} */ ({
   expense_expenses: 'amount_expenses',
   expense_deposits: 'amount_deposits',
   expense_accounting: 'amount_accounting',
+  expense_sales: 'amount_sales',
 })
 
 export const SUPERVISOR_EXPENSE_PART_LABELS = /** @type {const} */ ({
@@ -26,11 +28,12 @@ export const SUPERVISOR_EXPENSE_PART_LABELS = /** @type {const} */ ({
   expense_expenses: 'Расходы',
   expense_deposits: 'Оклады',
   expense_accounting: 'Бухгалтерия',
+  expense_sales: 'Отдел продаж',
 })
 
 /** Колонки для select/upsert. */
 export const SUPERVISOR_EXPENSE_SELECT_COLS =
-  'amount, amount_rent, amount_expenses, amount_deposits, amount_accounting, updated_at'
+  'amount, amount_rent, amount_expenses, amount_deposits, amount_accounting, amount_sales, updated_at'
 
 /**
  * Как parseSalesMoney: пусто → 0; отрицательное / мусор → NaN.
@@ -62,13 +65,10 @@ export function sumExpenseParts(form) {
 }
 
 export function emptyExpenseForm() {
-  return {
-    expense_rent: '',
-    expense_expenses: '',
-    expense_deposits: '',
-    expense_accounting: '',
-    expense_month: '',
-  }
+  /** @type {Record<string, string>} */
+  const form = { expense_month: '' }
+  for (const key of SUPERVISOR_EXPENSE_PART_KEYS) form[key] = ''
+  return form
 }
 
 /**
@@ -77,22 +77,30 @@ export function emptyExpenseForm() {
 export function expenseRowToForm(row) {
   if (!row) return emptyExpenseForm()
 
-  const rent = Number(row.amount_rent) || 0
-  const expenses = Number(row.amount_expenses) || 0
-  const deposits = Number(row.amount_deposits) || 0
-  const accounting = Number(row.amount_accounting) || 0
-  const partsSum = Math.round((rent + expenses + deposits + accounting) * 100) / 100
+  /** @type {Record<string, number>} */
+  const partAmounts = {}
+  let partsSum = 0
+  for (const key of SUPERVISOR_EXPENSE_PART_KEYS) {
+    const dbCol = SUPERVISOR_EXPENSE_PART_DB[key]
+    const n = Number(row[dbCol]) || 0
+    partAmounts[key] = n
+    partsSum += n
+  }
+  partsSum = Math.round(partsSum * 100) / 100
   const total = Number(row.amount) || 0
 
   /** Legacy: одна сумма без статей → всё в «Расходы». */
   const legacyOnly = partsSum <= 0 && total > 0
 
-  const form = {
-    expense_rent: rent > 0 ? String(rent) : '',
-    expense_expenses: legacyOnly ? String(total) : expenses > 0 ? String(expenses) : '',
-    expense_deposits: deposits > 0 ? String(deposits) : '',
-    expense_accounting: accounting > 0 ? String(accounting) : '',
-    expense_month: '',
+  /** @type {Record<string, string>} */
+  const form = { expense_month: '' }
+  for (const key of SUPERVISOR_EXPENSE_PART_KEYS) {
+    if (legacyOnly && key === 'expense_expenses') {
+      form[key] = String(total)
+    } else {
+      const n = partAmounts[key]
+      form[key] = n > 0 ? String(n) : ''
+    }
   }
   const sum = sumExpenseParts(form)
   form.expense_month = Number.isFinite(sum) && sum > 0 ? String(sum) : total > 0 ? String(total) : ''
@@ -113,10 +121,7 @@ export function expenseFormToPayload(form) {
     }
     parts[SUPERVISOR_EXPENSE_PART_DB[key]] = n
   }
-  const amount =
-    Math.round(
-      (parts.amount_rent + parts.amount_expenses + parts.amount_deposits + parts.amount_accounting) * 100,
-    ) / 100
+  const amount = Math.round(Object.values(parts).reduce((a, b) => a + b, 0) * 100) / 100
   return {
     ok: true,
     payload: {

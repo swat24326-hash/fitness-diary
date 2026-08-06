@@ -201,38 +201,37 @@ export function SalesPlanMatrixCompareTable({ comparison, monthRows = [], year, 
                     <span className="sales-report__compare-segment-col">{String(row.label).split(' ')[1]}</span>
                   </th>
                   <td className={`sales-report__compare-status${statusClass}`} title={st.title ?? ''}>
-                    <span className="sales-report__compare-status-main">
-                      <span className="sales-report__compare-status-icon" aria-hidden>
-                        {st.status === 'ok' ? (
-                          <Check size={18} strokeWidth={2.5} />
-                        ) : st.status === 'lag' ? (
-                          <Minus size={18} strokeWidth={2.5} />
-                        ) : (
-                          '—'
-                        )}
-                      </span>
-                      <span className="sales-report__compare-status-label">{st.label ?? '—'}</span>
-                    </span>
-                    {Array.isArray(st.problems) && st.problems.length > 0 ? (
-                      <span className="sales-report__compare-problems" aria-label={st.title ?? 'Где отстаём'}>
-                        {st.problems.map((problem, idx) => (
-                          <span key={problem.key} className="sales-report__compare-problem-wrap">
-                            {idx > 0 ? (
-                              <span className="sales-report__compare-problem-sep" aria-hidden>
-                                ·
-                              </span>
-                            ) : null}
-                            <span
+                    <div className="sales-report__compare-status-stack">
+                      <div className="sales-report__compare-status-main">
+                        <span className="sales-report__compare-status-icon" aria-hidden>
+                          {st.status === 'ok' ? (
+                            <Check size={16} strokeWidth={2.5} />
+                          ) : st.status === 'lag' ? (
+                            <Minus size={16} strokeWidth={2.5} />
+                          ) : (
+                            '—'
+                          )}
+                        </span>
+                        <span className="sales-report__compare-status-label">{st.label ?? '—'}</span>
+                      </div>
+                      {Array.isArray(st.problems) && st.problems.length > 0 ? (
+                        <ul
+                          className={`sales-report__compare-problems${st.status === 'ok' ? ' sales-report__compare-problems--risk' : ''}`}
+                          aria-label={st.title ?? 'Где отстаём'}
+                        >
+                          {st.problems.map((problem) => (
+                            <li
+                              key={problem.key}
                               className={`sales-report__compare-problem sales-report__compare-problem--${problem.key}`}
                               title={problem.detail ?? ''}
                             >
                               <span className="sales-report__compare-problem-label">{problem.label}</span>
                               <span className="sales-report__compare-problem-delta">{problem.delta_text}</span>
-                            </span>
-                          </span>
-                        ))}
-                      </span>
-                    ) : null}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </div>
                   </td>
                   <td className="sales-report__matrix-computed sales-report__compare-num">{row.plan.count}</td>
                   <td className="sales-report__matrix-computed sales-report__compare-num sales-report__compare-num--fact">

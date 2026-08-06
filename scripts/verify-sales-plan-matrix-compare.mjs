@@ -119,7 +119,7 @@ ok(
 )
 ok(
   moneyOkAvgRisk.problems?.some(
-    (p) => p.key === 'avg' && p.label === 'средний чек' && String(p.delta_text).includes('2'),
+    (p) => p.key === 'avg' && p.label === 'чек' && String(p.delta_text).includes('2'),
   ) === true,
   'avg problem shows readable label and delta',
 )
@@ -148,7 +148,7 @@ ok(
   moneyOkCountRisk.problems?.some(
     (p) =>
       p.key === 'count' &&
-      p.label === 'количество абонементов' &&
+      p.label === 'абоны' &&
       p.delta_text === '−50',
   ) === true,
   'count problem uses expected−fact shortfall',

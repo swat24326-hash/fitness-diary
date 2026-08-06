@@ -42,7 +42,7 @@ order by u.role, u.email;
 ## 5. Схема БД
 
 - [ ] Все миграции из `supabase/migrations/` применены на **том же** проекте, что и prod-приложение.
-- [ ] `club_supervisor_expense.amount_*` (rent / expenses / deposits / accounting) — разбивка расхода управляющего: `20260806160000_club_supervisor_expense_parts.sql`.
+- [ ] `club_supervisor_expense.amount_*` (rent / expenses / deposits=оклады / accounting / sales) — разбивка расхода: `20260806160000_…_parts.sql`, `20260806170000_…_sales.sql`.
 - [ ] Нет «второго» Supabase-проекта с устаревшей схемой, к которому случайно смотрят в Table Editor.
 
 ## 6. Edge Functions

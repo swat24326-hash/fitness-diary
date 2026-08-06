@@ -21,6 +21,7 @@ import { SalesPlanDirectionsForm } from './SalesPlanDirectionsForm.jsx'
  *   onSaveFinance: () => void,
  *   savingPlan?: boolean,
  *   savingFinance?: boolean,
+ *   financeFeedback?: { text: string, tone?: 'ok' | 'err' } | null,
  * }} props
  */
 export function SalesPlanSettingsPanel({
@@ -34,6 +35,7 @@ export function SalesPlanSettingsPanel({
   onSaveFinance,
   savingPlan = false,
   savingFinance = false,
+  financeFeedback = null,
 }) {
   const setPlan = (key, value) => onPlanChange({ ...planForm, [key]: value })
   const setExpensePart = (key, value) => onExpenseChange(patchExpenseFormPart(expenseForm, key, value))
@@ -99,12 +101,23 @@ export function SalesPlanSettingsPanel({
         <SalesFinanceBlock
           step={3}
           title="Расход управляющего"
-          hint="Четыре статьи за месяц; «Итого» считается само и уходит в чистую прибыль."
+          hint="Пять статей за месяц; «Итого» считается само и уходит в чистую прибыль."
           footer={
-            <button type="button" className="btn btn-secondary" onClick={onSaveFinance} disabled={savingFinance}>
-              <Save size={16} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
-              {savingFinance ? 'Сохранение…' : 'Сохранить расход'}
-            </button>
+            <>
+              <button type="button" className="btn btn-secondary" onClick={onSaveFinance} disabled={savingFinance}>
+                <Save size={16} aria-hidden style={{ marginRight: 6, verticalAlign: -2 }} />
+                {savingFinance ? 'Сохранение…' : 'Сохранить расход'}
+              </button>
+              {financeFeedback?.text ? (
+                <p
+                  className={`sales-finance-block__status sales-finance-block__status--${financeFeedback.tone === 'err' ? 'err' : 'ok'}`}
+                  role="status"
+                  aria-live="polite"
+                >
+                  {financeFeedback.text}
+                </p>
+              ) : null}
+            </>
           }
         >
           <div className="sales-finance-block__grid sales-finance-block__grid--expense-parts">

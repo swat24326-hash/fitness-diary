@@ -292,8 +292,8 @@ export function resolvePlanMatrixCellStatus(row, calendar) {
     }
     problems.push({
       key: 'count',
-      label: 'количество абонементов',
-                    delta_text: formatPlanStatusSignedCount(-shortfall),
+      label: 'абоны',
+      delta_text: formatPlanStatusSignedCount(-shortfall),
       detail:
         shortfall > 0
           ? `не хватает ${shortfall} абонементов до темпа / прогноза`
@@ -305,7 +305,7 @@ export function resolvePlanMatrixCellStatus(row, calendar) {
     const gap = Number(avgGap)
     problems.push({
       key: 'avg',
-      label: 'средний чек',
+      label: 'чек',
       delta_text: formatPlanStatusSignedRub(gap),
       detail: 'средний чек ниже плана',
     })

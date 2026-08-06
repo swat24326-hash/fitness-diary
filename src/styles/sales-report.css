@@ -1160,16 +1160,62 @@
   }
 }
 
+/* Отдельные стили: не наследовать .sync-feedback (sticky + бледный фон — текст «пропадал»). */
 .sales-report__toast {
   position: fixed;
   bottom: 1.5rem;
   left: 50%;
+  top: auto;
   transform: translateX(-50%);
-  z-index: 200;
-  padding: 0.65rem 1.25rem;
+  z-index: 400;
+  margin: 0;
+  max-width: min(420px, calc(100vw - 2rem));
+  padding: 0.75rem 1.35rem;
   border-radius: 999px;
+  border: 1px solid rgba(46, 255, 184, 0.4);
+  border-bottom: 1px solid rgba(46, 255, 184, 0.4);
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  color: #ecfdf5;
+  background: rgba(8, 42, 32, 0.96);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  animation: fade-in-up 0.3s var(--ease-out, ease-out) backwards;
+}
+
+.sales-report__toast--ok {
+  color: #ecfdf5;
+  background: rgba(8, 42, 32, 0.96);
+  border-color: rgba(46, 255, 184, 0.45);
+}
+
+.sales-report__toast--warn {
+  color: #fef3c7;
+  background: rgba(55, 40, 10, 0.96);
+  border-color: rgba(251, 191, 36, 0.45);
+}
+
+.sales-report__toast--err {
+  color: #fecaca;
+  background: rgba(55, 18, 18, 0.96);
+  border-color: rgba(248, 113, 113, 0.45);
+}
+
+.sales-finance-block__status {
+  margin: 0;
+  flex: 1 1 12rem;
   font-size: 0.9rem;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.sales-finance-block__status--ok {
+  color: #6ee7b7;
+}
+
+.sales-finance-block__status--err {
+  color: #fca5a5;
 }
 
 .sales-report__busy {
@@ -1315,14 +1361,14 @@
   color: var(--accent-bright, #e8a838);
 }
 
-@media (min-width: 720px) {
+@media (min-width: 900px) {
   .sales-finance-block__grid--expense-parts {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .sales-finance-block__field--total {
-    grid-column: auto;
-    max-width: none;
+    grid-column: 1 / -1;
+    max-width: 16rem;
   }
 }
 
@@ -3551,21 +3597,30 @@
 }
 
 .sales-report__compare-status-head {
-  min-width: 12rem;
+  min-width: 10.5rem;
   text-align: left;
 }
 
 .sales-report__compare-status {
   text-align: left;
-  vertical-align: middle;
-  padding: 0.4rem 0.55rem;
+  vertical-align: top;
+  padding: 0.45rem 0.6rem;
+  min-width: 10.5rem;
+  max-width: 13.5rem;
+}
+
+.sales-report__compare-status-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  min-width: 0;
 }
 
 .sales-report__compare-status-main {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  vertical-align: middle;
+  gap: 0.35rem;
 }
 
 .sales-report__compare-status-icon {
@@ -3573,8 +3628,8 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 1.85rem;
-  height: 1.85rem;
+  width: 1.55rem;
+  height: 1.55rem;
   border-radius: 999px;
   margin: 0;
 }
@@ -3593,11 +3648,12 @@
 
 .sales-report__compare-status-label {
   display: inline;
-  font-size: 0.92rem;
+  font-size: 0.88rem;
   font-weight: 700;
   line-height: 1.2;
   letter-spacing: 0.01em;
   color: rgba(255, 255, 255, 0.78);
+  white-space: nowrap;
 }
 
 .sales-report__compare-status--lag .sales-report__compare-status-label {
@@ -3609,31 +3665,22 @@
 }
 
 .sales-report__compare-problems {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.15rem 0.2rem;
-  margin-left: 0.55rem;
-  max-width: 22rem;
-  vertical-align: middle;
-}
-
-.sales-report__compare-problem-wrap {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.2rem;
-}
-
-.sales-report__compare-problem-sep {
-  color: rgba(255, 138, 138, 0.55);
-  font-weight: 600;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.14rem;
+  width: 100%;
+  max-width: 12.5rem;
 }
 
 .sales-report__compare-problem {
-  display: inline-flex;
-  flex-wrap: wrap;
+  display: flex;
   align-items: baseline;
-  gap: 0.2rem;
+  justify-content: space-between;
+  gap: 0.55rem;
+  margin: 0;
   font-size: 0.72rem;
   font-weight: 650;
   line-height: 1.25;
@@ -3641,13 +3688,30 @@
 }
 
 .sales-report__compare-problem-label {
-  color: #ff9b9b;
+  flex: 0 0 auto;
+  color: rgba(255, 170, 170, 0.78);
+  font-weight: 600;
 }
 
 .sales-report__compare-problem-delta {
+  flex: 1 1 auto;
+  text-align: right;
   font-variant-numeric: tabular-nums;
   font-weight: 800;
   color: #ff6b6b;
+  white-space: nowrap;
+}
+
+.sales-report__compare-problems--risk .sales-report__compare-problem {
+  color: #fbbf24;
+}
+
+.sales-report__compare-problems--risk .sales-report__compare-problem-label {
+  color: rgba(251, 191, 36, 0.78);
+}
+
+.sales-report__compare-problems--risk .sales-report__compare-problem-delta {
+  color: #f59e0b;
 }
 
 .sales-report__compare-num--fact {
