@@ -22,6 +22,8 @@ import { computePlanDirectionsFromForm, buildPlanMatrixJsonFromForm } from '../.
 import {
   buildTrainingsMatrixColumns,
   hydrateTrainingsMatrixInputMap,
+  mergeTrainersWithMatrixNames,
+  matrixTrainerLabelsNeedEnrich,
   normalizeMatrixRowsFromDb,
   trainerIdsFromTrainingsMatrixInput,
 } from '../../lib/admin/salesTrainingsMatrix'
@@ -287,7 +289,15 @@ export function AdminSales({ accessMode = 'admin' }) {
     setTrainingsMatrix(dailyResolved.trainingsMatrix)
     setAerobicMatrix(dailyResolved.aerobicMatrix)
     setPromoSales(nextPromoSales)
-    if (Array.isArray(bundle.trainers)) setTrainers(bundle.trainers)
+    if (Array.isArray(bundle.trainers)) {
+      setTrainers((prev) =>
+        mergeTrainersWithMatrixNames(
+          bundle.trainers,
+          dailyResolved.trainingsMatrix,
+          prev,
+        ),
+      )
+    }
     if (bundle.fitCityTypeStats != null) setFitCityTypeStats(bundle.fitCityTypeStats)
     return dailyResolved
   }, [])
@@ -728,33 +738,37 @@ export function AdminSales({ accessMode = 'admin' }) {
 
   const applyPzTrainingsMatrix = useCallback(
     (matrix, meta) => {
-      setTrainingsMatrix(matrix ?? {})
+      const nextMatrix = matrix ?? {}
+      setTrainingsMatrix(nextMatrix)
       const matched = Array.isArray(meta?.matchedTrainers) ? meta.matchedTrainers : []
-      if (!matched.length) return
-      setTrainers((prev) => {
-        const byId = new Map((prev ?? []).map((t) => [String(t.id ?? '').trim(), t]))
-        let changed = false
-        for (const m of matched) {
-          const id = String(m?.id ?? '').trim()
-          if (!id) continue
-          const existing = byId.get(id)
-          const name = String(m?.name ?? '').trim()
-          if (!existing) {
-            byId.set(id, { id, name: name || id, club_id: clubId })
-            changed = true
-          } else if (name && !String(existing.name ?? '').trim()) {
-            byId.set(id, { ...existing, name })
-            changed = true
-          }
-        }
-        if (!changed) return prev
-        return [...byId.values()].sort((a, b) =>
-          String(a.name ?? '').localeCompare(String(b.name ?? ''), 'ru'),
-        )
-      })
+      setTrainers((prev) => mergeTrainersWithMatrixNames(prev, nextMatrix, matched))
     },
-    [clubId],
+    [],
   )
+
+  useEffect(() => {
+    if (!clubId || !isSupabaseConfigured()) return
+    if (!matrixTrainerLabelsNeedEnrich(trainers, trainingsMatrix)) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const { listTrainerSummariesForAdmin } = await import('../../lib/dataAccess.js')
+        const catalog = await listTrainerSummariesForAdmin()
+        if (cancelled || !catalog?.length) return
+        setTrainers((prev) => {
+          const next = mergeTrainersWithMatrixNames(prev, trainingsMatrix, catalog)
+          const prevKey = (prev ?? []).map((t) => `${t.id}:${t.name}`).join('|')
+          const nextKey = next.map((t) => `${t.id}:${t.name}`).join('|')
+          return prevKey === nextKey ? prev : next
+        })
+      } catch {
+        /* ignore */
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [clubId, trainers, trainingsMatrix])
 
   const handleSavePlanLevels = async () => {
     if (!clubId) return

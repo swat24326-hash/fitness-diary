@@ -15,6 +15,9 @@ import {
 import {
   clubDisplayCountForType,
   hydrateTrainingsMatrixInputMap,
+  isLikelyTrainerUuidLabel,
+  mergeTrainersWithMatrixNames,
+  matrixTrainerLabelsNeedEnrich,
   resolveTrainingsMatrixForPersist,
   SALES_TRAINING_CLUB_ID,
   SALES_TRAINING_TYPE_NONE,
@@ -219,6 +222,27 @@ ok(
 ok(salesTrainingCellKey('a1', 't-vip1') === 'a1|t-vip1', 'cell key')
 ok(salesTrainingCellKey('a1', null) === `a1|${SALES_TRAINING_TYPE_NONE}`, 'cell key none')
 ok(salesTrainingCellKey(SALES_TRAINING_CLUB_ID, 't-br') === `${SALES_TRAINING_CLUB_ID}|t-br`, 'club cell key')
+
+ok(isLikelyTrainerUuidLabel('63023a0d-1bb5-4428-b0f4-dab34d03fe9c'), 'uuid label detected')
+ok(!isLikelyTrainerUuidLabel('Анжелика Кожемякина'), 'fio not uuid')
+const uuidMatrix = {
+  [`63023a0d-1bb5-4428-b0f4-dab34d03fe9c|t-vip1`]: '3',
+}
+ok(matrixTrainerLabelsNeedEnrich([], uuidMatrix), 'need enrich when no trainers')
+ok(
+  matrixTrainerLabelsNeedEnrich(
+    [{ id: '63023a0d-1bb5-4428-b0f4-dab34d03fe9c', name: '63023a0d-1bb5-4428-b0f4-dab34d03fe9c' }],
+    uuidMatrix,
+  ),
+  'need enrich when name is uuid',
+)
+const mergedNames = mergeTrainersWithMatrixNames(
+  [],
+  uuidMatrix,
+  [{ id: '63023a0d-1bb5-4428-b0f4-dab34d03fe9c', name: 'Анжелика Кожемякина' }],
+)
+ok(mergedNames[0]?.name === 'Анжелика Кожемякина', 'merge puts fio on matrix id')
+ok(!matrixTrainerLabelsNeedEnrich(mergedNames, uuidMatrix), 'enriched no longer needs enrich')
 
 if (failed) {
   console.error(`\n${failed} failed`)

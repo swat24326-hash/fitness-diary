@@ -239,6 +239,81 @@ export function trainerIdsFromTrainingsMatrixInput(inputMap) {
   return [...ids]
 }
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+/** @param {unknown} value */
+export function isLikelyTrainerUuidLabel(value) {
+  return UUID_RE.test(String(value ?? '').trim())
+}
+
+/**
+ * Нужно ли подтянуть ФИО для id из матрицы (на экране UUID / пусто).
+ * @param {Array<{ id?: string, name?: string }>|null|undefined} trainers
+ * @param {Record<string, string>|null|undefined} matrix
+ */
+export function matrixTrainerLabelsNeedEnrich(trainers, matrix) {
+  const list = trainers ?? []
+  for (const id of trainerIdsFromTrainingsMatrixInput(matrix)) {
+    const row = list.find((t) => String(t?.id ?? '').trim() === id)
+    const name = String(row?.name ?? row?.email ?? '').trim()
+    if (!row || !name || isLikelyTrainerUuidLabel(name)) return true
+  }
+  return false
+}
+
+/**
+ * Свести список тренеров + ФИО из каталога, не теряя строки матрицы.
+ * @param {Array<{ id?: string, name?: string, email?: string, club_id?: string|null }>|null|undefined} primary
+ * @param {Record<string, string>|null|undefined} matrix
+ * @param {Array<{ id?: string, name?: string, email?: string, club_id?: string|null }>|null|undefined} [nameCatalog]
+ */
+export function mergeTrainersWithMatrixNames(primary, matrix, nameCatalog = []) {
+  /** @type {Map<string, string>} */
+  const names = new Map()
+  /** @type {Map<string, string|null>} */
+  const clubs = new Map()
+  for (const t of [...(nameCatalog ?? []), ...(primary ?? [])]) {
+    const id = String(t?.id ?? '').trim()
+    if (!id) continue
+    const n = String(t?.name ?? t?.email ?? '').trim()
+    if (n && !isLikelyTrainerUuidLabel(n)) names.set(id, n)
+    else if (n && !names.has(id)) names.set(id, n)
+    if (t?.club_id != null && String(t.club_id).trim()) {
+      clubs.set(id, String(t.club_id).trim())
+    }
+  }
+
+  /** @type {Map<string, { id: string, name: string, club_id?: string|null }>} */
+  const byId = new Map()
+  for (const t of primary ?? []) {
+    const id = String(t?.id ?? '').trim()
+    if (!id) continue
+    const nice = names.get(id)
+    const rawName = String(t?.name ?? t?.email ?? '').trim()
+    byId.set(id, {
+      ...t,
+      id,
+      name: nice || rawName || id,
+      club_id: t?.club_id ?? clubs.get(id) ?? null,
+    })
+  }
+  for (const id of trainerIdsFromTrainingsMatrixInput(matrix)) {
+    const cur = byId.get(id)
+    const nice = names.get(id)
+    if (!cur) {
+      byId.set(id, { id, name: nice || id, club_id: clubs.get(id) ?? null })
+      continue
+    }
+    if (nice && (isLikelyTrainerUuidLabel(cur.name) || !String(cur.name ?? '').trim())) {
+      byId.set(id, { ...cur, name: nice })
+    }
+  }
+  return [...byId.values()].sort((a, b) =>
+    String(a.name ?? '').localeCompare(String(b.name ?? ''), 'ru'),
+  )
+}
+
 /**
  * Есть ли в карте/строках детализация по реальным тренерам (формат New).
  * @param {Record<string, string>|null|undefined} inputMap

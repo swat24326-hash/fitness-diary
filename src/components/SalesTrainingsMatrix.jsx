@@ -9,6 +9,7 @@ import {
   trainingsMatrixHasTrainerDetail,
   trainerIdsFromTrainingsMatrixInput,
   clubDisplayCountForType,
+  isLikelyTrainerUuidLabel,
 } from '../lib/admin/salesTrainingsMatrix.js'
 import { MembershipTypeStatsTable } from './MembershipTypeStatsTable.jsx'
 import { formatRub } from '../lib/admin/salesReportCore.js'
@@ -49,9 +50,11 @@ export function SalesTrainingsMatrix({
   const clubEditable = canEdit && !detailMode
 
   const trainerLabel = (id) => {
-    const tr = trainers.find((t) => String(t.id) === String(id))
-    if (!tr) return id || '—'
-    return String(tr.name ?? tr.email ?? id).trim() || id
+    const sid = String(id ?? '').trim()
+    const fromProp = trainers.find((t) => String(t.id) === sid)
+    const name = String(fromProp?.name ?? fromProp?.email ?? '').trim()
+    if (name && !isLikelyTrainerUuidLabel(name)) return name
+    return name || 'Тренер'
   }
 
   const setCell = (trainerId, typeId, value) => {
@@ -96,8 +99,14 @@ export function SalesTrainingsMatrix({
     const byId = new Map(base.map((t) => [String(t.id ?? '').trim(), t]))
     for (const id of trainerIdsFromTrainingsMatrixInput(matrix)) {
       if (!id || byId.has(id)) continue
-      byId.set(id, { id, name: id })
-      base.push({ id, name: id })
+      const known = trainers.find((t) => String(t.id) === id)
+      const name = String(known?.name ?? '').trim()
+      const row = {
+        id,
+        name: name && !isLikelyTrainerUuidLabel(name) ? name : 'Тренер',
+      }
+      byId.set(id, row)
+      base.push(row)
     }
     return base
   }, [aggregateOnly, detailMode, trainers, matrix])

@@ -5169,6 +5169,14 @@
   border: 1px dashed color-mix(in srgb, var(--text-muted) 40%, transparent);
   cursor: pointer;
   margin: 0.5rem 0 0.75rem;
+  align-self: flex-start;
+  width: fit-content;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.sales-payments-import__file--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 .sales-payments-import__file input {
   position: absolute;

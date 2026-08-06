@@ -132,7 +132,7 @@ export function SalesDailyPaymentsImportSection({
   if (!canEdit) return null
 
   return (
-    <section className="sales-report__card sales-payments-import" aria-label="Импорт отчёта по оплатам">
+    <section className="sales-report__card sales-payments-import sales-daily-excel-card" aria-label="Импорт отчёта по оплатам">
       <h3 className="sales-report__section-title">Каждый день: Excel оплат из 1С</h3>
       <p className="sales-report__hint sales-daily-excel-card__lead">
         Файл <strong>31.xlsx</strong> — оплаты за день (не закрытия). НК/ДК/УК → «Подставить» → «Сохранить».
