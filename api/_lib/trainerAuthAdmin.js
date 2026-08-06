@@ -2,6 +2,7 @@ import { sendJson } from './adminSupabase.js'
 import {
   assertTrainerDeletableByClientCount,
   parseTrainerIdForAdmin,
+  validateTrainerNameForAdmin,
   validateTrainerPasswordForAdmin,
 } from '../../src/lib/admin/trainerAuthAdminCore.js'
 
@@ -104,6 +105,50 @@ export async function handleSetTrainerActivePost(ctx, res, body) {
     trainer_id: parsed.id,
     is_active: isActive,
     name: row.name ?? null,
+  })
+}
+
+/**
+ * Смена ФИО тренера в public.users (логин / Auth не трогаем).
+ * @param {{ supabaseAdmin: import('@supabase/supabase-js').SupabaseClient }} ctx
+ * @param {import('http').ServerResponse} res
+ * @param {Record<string, unknown>} body
+ */
+export async function handleSetTrainerNamePost(ctx, res, body) {
+  const parsed = parseTrainerIdForAdmin(body?.trainer_id)
+  if (!parsed.ok) {
+    sendJson(res, 400, { error: parsed.error })
+    return
+  }
+
+  const nameCheck = validateTrainerNameForAdmin(body?.name)
+  if (!nameCheck.ok) {
+    sendJson(res, 400, { error: nameCheck.error })
+    return
+  }
+
+  const { row, error: loadErr } = await loadTrainerRow(ctx.supabaseAdmin, parsed.id)
+  if (loadErr) {
+    sendJson(res, 400, { error: loadErr })
+    return
+  }
+
+  const { error: updErr } = await ctx.supabaseAdmin
+    .from('users')
+    .update({ name: nameCheck.name })
+    .eq('id', parsed.id)
+    .in('role', TRAINER_ROLES)
+
+  if (updErr) {
+    sendJson(res, 400, { error: updErr.message })
+    return
+  }
+
+  sendJson(res, 200, {
+    ok: true,
+    trainer_id: parsed.id,
+    name: nameCheck.name,
+    previous_name: row.name ?? null,
   })
 }
 

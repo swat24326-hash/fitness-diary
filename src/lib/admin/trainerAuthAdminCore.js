@@ -1,6 +1,9 @@
-/** Правила смены пароля и блокировки тренера (клиент + сервер). */
+/** Правила смены пароля, ФИО и блокировки тренера (клиент + сервер). */
+
+import { formatClientName } from '../clientNameFormat.js'
 
 export const TRAINER_PASSWORD_MIN_LEN = 6
+export const TRAINER_NAME_MAX_LEN = 120
 
 const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/
 
@@ -37,6 +40,22 @@ export function validateTrainerPasswordConfirm(password, confirm) {
     return { ok: false, error: 'Пароли не совпадают' }
   }
   return { ok: true, error: null }
+}
+
+/**
+ * Нормализация и проверка ФИО тренера (как при создании).
+ * @param {unknown} rawName
+ * @returns {{ ok: true, name: string, error: null } | { ok: false, name: string, error: string }}
+ */
+export function validateTrainerNameForAdmin(rawName) {
+  const name = formatClientName(rawName)
+  if (!name) {
+    return { ok: false, name: '', error: 'Укажите ФИО тренера' }
+  }
+  if (name.length > TRAINER_NAME_MAX_LEN) {
+    return { ok: false, name: '', error: `ФИО не длиннее ${TRAINER_NAME_MAX_LEN} символов` }
+  }
+  return { ok: true, name, error: null }
 }
 
 /**

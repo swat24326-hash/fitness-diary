@@ -52,6 +52,39 @@ export async function setTrainerActiveForAdmin(body) {
 }
 
 /**
+ * Подправить имя в sessionStorage-кэше списка тренеров (другие экраны админки).
+ * @param {string} trainerId
+ * @param {string} name
+ */
+export function patchTrainerNameInAdminSessionCache(trainerId, name) {
+  const tid = String(trainerId ?? '').trim()
+  const nextName = String(name ?? '').trim()
+  if (!tid || !nextName || typeof sessionStorage === 'undefined') return
+  try {
+    const raw = sessionStorage.getItem('fit-admin-trainers-cache')
+    if (!raw) return
+    const cached = JSON.parse(raw)
+    if (!Array.isArray(cached) || cached.length === 0) return
+    let changed = false
+    const next = cached.map((row) => {
+      if (String(row?.id ?? '') !== tid) return row
+      changed = true
+      return { ...row, name: nextName }
+    })
+    if (changed) sessionStorage.setItem('fit-admin-trainers-cache', JSON.stringify(next))
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * @param {{ trainer_id: string, name: string }} body
+ */
+export async function setTrainerNameForAdmin(body) {
+  return postTrainerAuthAction('set-trainer-name', body)
+}
+
+/**
  * @param {{ trainer_id: string, uses_tablet: boolean }} body
  */
 export async function setTrainerUsesTabletForAdmin(body) {

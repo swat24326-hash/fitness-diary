@@ -16,7 +16,13 @@ import { handleIskraLearningGet, handleIskraLearningPost } from './_lib/iskraLea
 import { handleIskraDispatchGet, handleIskraDispatchPost } from './_lib/iskraDispatchHandler.js'
 import { handleIskraTtsPost } from './_lib/iskraTtsHandler.js'
 import { handlePushSubscriptionGet, handlePushSubscriptionPost } from './_lib/pushSubscriptionHandler.js'
-import { handleResetTrainerPasswordPost, handleSetTrainerActivePost, handleSetTrainerUsesTabletPost, handleDeleteTrainerPost } from './_lib/trainerAuthAdmin.js'
+import {
+  handleResetTrainerPasswordPost,
+  handleSetTrainerActivePost,
+  handleSetTrainerNamePost,
+  handleSetTrainerUsesTabletPost,
+  handleDeleteTrainerPost,
+} from './_lib/trainerAuthAdmin.js'
 import { handleTrainerSelfStatsGet } from './_lib/adminData/trainerSelfStatsHandler.js'
 import { handleTrainerSelfJournalGet } from './_lib/adminData/trainerSelfJournalHandler.js'
 import { handleSearch, handleJournal, handleClientsLastTrainings } from './_lib/adminData/journalHandlers.js'
@@ -74,6 +80,7 @@ async function handler(req, res) {
       'push-subscription',
       'reset-trainer-password',
       'set-trainer-active',
+      'set-trainer-name',
       'set-trainer-uses-tablet',
       'delete-trainer',
       'pnk',
@@ -176,6 +183,11 @@ async function handler(req, res) {
       const ctx = await requireAdmin(req, res)
       if (!ctx) return
       return handleSetTrainerActivePost(ctx, res, body)
+    }
+    if (action === 'set-trainer-name') {
+      const ctx = await requireAdmin(req, res)
+      if (!ctx) return
+      return handleSetTrainerNamePost(ctx, res, body)
     }
     if (action === 'set-trainer-uses-tablet') {
       const ctx = await requireAdmin(req, res)

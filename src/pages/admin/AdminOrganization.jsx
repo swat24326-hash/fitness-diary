@@ -29,9 +29,15 @@ import { formatClientName } from '../../lib/clientNameFormat.js'
 import {
   resetTrainerPasswordForAdmin,
   setTrainerActiveForAdmin,
+  setTrainerNameForAdmin,
   setTrainerUsesTabletForAdmin,
+  patchTrainerNameInAdminSessionCache,
 } from '../../lib/admin/trainerAuthAdminService'
-import { validateTrainerPasswordConfirm } from '../../lib/admin/trainerAuthAdminCore'
+import {
+  validateTrainerNameForAdmin,
+  validateTrainerPasswordConfirm,
+} from '../../lib/admin/trainerAuthAdminCore'
+import { AdminTrainerNameEditModal } from '../../components/admin/AdminTrainerNameEditModal.jsx'
 import { humanizeNetworkError } from '../../lib/supabaseRetry'
 import { useIskraPanel } from '../../context/IskraPanelContext.jsx'
 
@@ -92,6 +98,10 @@ export function AdminOrganization({ mode = 'both' } = {}) {
   const [passwordForm, setPasswordForm] = useState({ password: '', confirm: '' })
   const [passwordBusy, setPasswordBusy] = useState(false)
   const [passwordErr, setPasswordErr] = useState('')
+  const [nameModalTrainer, setNameModalTrainer] = useState(null)
+  const [nameFormValue, setNameFormValue] = useState('')
+  const [nameBusy, setNameBusy] = useState(false)
+  const [nameErr, setNameErr] = useState('')
   const [toggleActiveBusyId, setToggleActiveBusyId] = useState('')
   const [toggleTabletBusyId, setToggleTabletBusyId] = useState('')
 
@@ -461,6 +471,52 @@ export function AdminOrganization({ mode = 'both' } = {}) {
     setPasswordErr('')
   }
 
+  const openNameModal = (trainer) => {
+    setNameModalTrainer(trainer)
+    setNameFormValue(String(trainer?.name ?? ''))
+    setNameErr('')
+  }
+
+  const closeNameModal = () => {
+    setNameModalTrainer(null)
+    setNameFormValue('')
+    setNameErr('')
+  }
+
+  const submitTrainerName = async (e) => {
+    e.preventDefault()
+    if (!nameModalTrainer?.id) return
+    const check = validateTrainerNameForAdmin(nameFormValue)
+    if (!check.ok) {
+      setNameErr(check.error)
+      return
+    }
+    const current = validateTrainerNameForAdmin(nameModalTrainer.name)
+    if (current.ok && current.name === check.name) {
+      closeNameModal()
+      return
+    }
+    setNameBusy(true)
+    setNameErr('')
+    try {
+      await setTrainerNameForAdmin({
+        trainer_id: nameModalTrainer.id,
+        name: check.name,
+      })
+      setTrainers((prev) =>
+        prev.map((t) => (t.id === nameModalTrainer.id ? { ...t, name: check.name } : t)),
+      )
+      patchTrainerNameInAdminSessionCache(nameModalTrainer.id, check.name)
+      const prevLabel = String(nameModalTrainer.name ?? '').trim() || 'тренер'
+      setTrainerMsg(`ФИО обновлено: «${prevLabel}» → «${check.name}».`)
+      closeNameModal()
+    } catch (err) {
+      setNameErr(humanizeNetworkError(err) || err?.message || 'Не удалось сохранить ФИО')
+    } finally {
+      setNameBusy(false)
+    }
+  }
+
   const submitPasswordReset = async (e) => {
     e.preventDefault()
     if (!passwordModalTrainer?.id) return
@@ -650,6 +706,16 @@ export function AdminOrganization({ mode = 'both' } = {}) {
                   ) : null}
                   <td>
                     <div className="admin-trainers-table__actions">
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-icon-square btn-touch"
+                        disabled={!isSupabaseConfigured() || nameBusy || trainerBusy}
+                        aria-label={`Изменить ФИО: ${tr.name ?? 'тренер'}`}
+                        title="Изменить ФИО"
+                        onClick={() => openNameModal(tr)}
+                      >
+                        <Pencil size={16} aria-hidden />
+                      </button>
                       <button
                         type="button"
                         className="btn btn-secondary btn-sm"
@@ -927,6 +993,18 @@ export function AdminOrganization({ mode = 'both' } = {}) {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {showTrainers && nameModalTrainer ? (
+        <AdminTrainerNameEditModal
+          trainer={nameModalTrainer}
+          nameValue={nameFormValue}
+          busy={nameBusy}
+          error={nameErr}
+          onNameChange={setNameFormValue}
+          onClose={closeNameModal}
+          onSubmit={(e) => void submitTrainerName(e)}
+        />
       ) : null}
 
       {showTrainers && passwordModalTrainer ? (

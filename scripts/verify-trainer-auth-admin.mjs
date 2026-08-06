@@ -1,6 +1,7 @@
 import {
   assertTrainerDeletableByClientCount,
   parseTrainerIdForAdmin,
+  validateTrainerNameForAdmin,
   validateTrainerPasswordConfirm,
   validateTrainerPasswordForAdmin,
 } from '../src/lib/admin/trainerAuthAdminCore.js'
@@ -29,5 +30,11 @@ ok(
   String(assertTrainerDeletableByClientCount(2).error).includes('2'),
   'delete error mentions count',
 )
+
+ok(validateTrainerNameForAdmin('').ok === false, 'empty name rejected')
+ok(validateTrainerNameForAdmin('   ').ok === false, 'blank name rejected')
+const nameOk = validateTrainerNameForAdmin('иванов иван')
+ok(nameOk.ok && nameOk.name === 'Иванов Иван', 'name normalized')
+ok(validateTrainerNameForAdmin('а'.repeat(200)).ok === false, 'too long name rejected')
 
 console.log('verify-trainer-auth-admin: all passed')
