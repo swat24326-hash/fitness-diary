@@ -142,7 +142,7 @@ export function buildPaymentClientLinkActions(input) {
       actions.push({
         ...base,
         kind: 'skip_matched',
-        label: 'Уже в Оси',
+        label: 'Уже в базе',
       })
       continue
     }

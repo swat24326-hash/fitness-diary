@@ -71,12 +71,14 @@ export function normalizeTrainerNameKey(name) {
   return pzReportCellText(name)
     .toLowerCase()
     .replace(/ё/g, 'е')
+    .replace(/[\u00a0\u202f\u2007\u2009\u200a]/g, ' ')
+    .replace(/[^\p{L}\p{N}\s.-]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim()
 }
 
 /**
- * Ключ без порядка слов: 1С часто «Фамилия Имя», в Оси — «Имя Фамилия».
+ * Ключ без порядка слов: 1С часто «Фамилия Имя», в карточке — «Имя Фамилия».
  * @param {string} name
  */
 export function trainerNameTokensKey(name) {

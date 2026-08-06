@@ -106,7 +106,7 @@ export function matchClientsByCardNumber(clients, cardNumber, opts = {}) {
   return {
     status: 'none',
     matches: [],
-    reason: `Клиент с картой №${n} не найден в Оси`,
+    reason: `Клиент с картой №${n} не найден в базе данных`,
   }
 }
 
@@ -143,7 +143,7 @@ export function matchClientsByPhone(clients, phone, opts = {}) {
   return {
     status: 'none',
     matches: [],
-    reason: 'Клиент с таким телефоном не найден в Оси',
+    reason: 'Клиент с таким телефоном не найден в базе данных',
   }
 }
 
@@ -237,7 +237,7 @@ export function matchClientByCardThenPhone(input) {
       matches: [],
       reason: phone
         ? `Клиент с картой №${card} не найден; по телефону тоже нет`
-        : `Клиент с картой №${card} не найден в Оси`,
+        : `Клиент с картой №${card} не найден в базе данных`,
       matchedBy: null,
       weakMatch: false,
     }

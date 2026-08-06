@@ -3,6 +3,18 @@ import { FileSpreadsheet } from 'lucide-react'
 import { parsePzTrainingsReportXlsxFile } from '../lib/admin/pzTrainingsReportImportWorkbook.js'
 import { pzTrainingsReportDateMatches } from '../lib/admin/pzTrainingsReportImportCore.js'
 import { productBrandImportWillLandPrefix } from '../lib/productBrand.js'
+import { listTrainerSummariesForAdmin } from '../lib/dataAccess.js'
+
+/**
+ * @param {Array<{ id?: string, name?: string, club_id?: string|null }>} list
+ * @param {string} clubId
+ */
+function trainersForClub(list, clubId) {
+  const cid = String(clubId ?? '').trim()
+  const rows = Array.isArray(list) ? list : []
+  if (!cid) return rows.filter((t) => t?.id)
+  return rows.filter((t) => t?.id && String(t.club_id ?? '') === cid)
+}
 
 /**
  * Ежедневный Excel часов ПЗ (otchet_pz) → матрица тренер × тип.
@@ -11,7 +23,7 @@ import { productBrandImportWillLandPrefix } from '../lib/productBrand.js'
  * @param {{
  *   clubId: string,
  *   reportDate: string,
- *   trainers?: Array<{ id: string, name?: string }>,
+ *   trainers?: Array<{ id: string, name?: string, club_id?: string|null }>,
  *   membershipTypes?: Array<{ id: string, code?: string, trainer_assignable?: boolean }>,
  *   canEdit?: boolean,
  *   onApplyMatrix: (matrix: Record<string, string>) => void,
@@ -43,8 +55,18 @@ export function SalesDailyPzTrainingsImportSection({
     setPreview(null)
     setFileName(file.name || '')
     try {
+      let trainerList = trainersForClub(trainers, clubId)
+      if (trainerList.length === 0) {
+        const summaries = await listTrainerSummariesForAdmin()
+        trainerList = trainersForClub(summaries, clubId)
+      }
+      if (trainerList.length === 0) {
+        setError('Список тренеров клуба не загружен. Нажмите «Обновить» на странице отчёта и выберите файл снова.')
+        return
+      }
+
       const result = await parsePzTrainingsReportXlsxFile(file, {
-        trainers,
+        trainers: trainerList,
         membershipTypes,
       })
       if (!result.ok) {
@@ -128,7 +150,7 @@ export function SalesDailyPzTrainingsImportSection({
           </p>
           {preview.unmatchedTrainers?.length ? (
             <p className="muted" style={{ fontSize: 12, margin: '0.25rem 0' }}>
-              Нет в Оси (тренеры): {preview.unmatchedTrainers.slice(0, 6).join(', ')}
+              Нет в базе данных (тренеры): {preview.unmatchedTrainers.slice(0, 6).join(', ')}
               {preview.unmatchedTrainers.length > 6 ? '…' : ''}
             </p>
           ) : null}

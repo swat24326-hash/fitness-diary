@@ -160,14 +160,14 @@ export function SalesPaymentsClientLinkSection({
         Карточки из оплат
       </h3>
       <p className="sales-report__hint">
-        Отчёт дня — выше («Подставить»). Здесь — кого ещё нет в Оси. Сначала закройте{' '}
+        Отчёт дня — выше («Подставить»). Здесь — кого ещё нет в базе данных. Сначала закройте{' '}
         <strong>ПЗ без карточки</strong> (тренер обязателен: без планшета → lite, с планшетом → клип). ТЗ/АЗ —
         desk без тренера.
       </p>
 
       <div className="sales-payments-link__kpis" role="group" aria-label="Сводка по файлу">
         <div className="sales-payments-link__kpi">
-          <span className="sales-payments-link__kpi-label">Уже в Оси</span>
+          <span className="sales-payments-link__kpi-label">Уже в базе</span>
           <strong className="sales-payments-link__kpi-value">{summary.matched}</strong>
         </div>
         <div
@@ -188,7 +188,7 @@ export function SalesPaymentsClientLinkSection({
       {error ? <p className="sales-report__error">{error}</p> : null}
 
       {!summary.needWork ? (
-        <p className="sales-report__hint">Все строки из файла уже есть в Оси или не требуют карточки.</p>
+        <p className="sales-report__hint">Все строки из файла уже есть в базе данных или не требуют карточки.</p>
       ) : null}
 
       {pzRows.length ? (

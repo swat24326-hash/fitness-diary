@@ -250,7 +250,7 @@ export function suggestImportProfitBucket(input) {
       confident: false,
       reason:
         hall === 'tz' || hall === 'az'
-          ? 'Нет клиента/абона в Оси (ТЗ/АЗ) — укажите сегмент вручную'
+          ? 'Нет клиента/абона в базе данных (ТЗ/АЗ) — укажите сегмент вручную'
           : 'Клиент не найден — укажите НК/ДК/УК вручную',
       segment: null,
     }
