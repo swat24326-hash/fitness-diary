@@ -342,7 +342,7 @@ export function AdminOrganization({ mode = 'both' } = {}) {
 
   const onDeleteTrainer = async (tr) => {
     if (!tr?.id || !isSupabaseConfigured()) {
-      setTrainerMsg('Удаление тренера доступно только при настроенном Supabase и развёрнутой функции delete-trainer.')
+      setTrainerMsg('Удаление тренера доступно только при настроенном облаке (нужен вход администратора).')
       return
     }
     setTrainerMsg('')
@@ -821,8 +821,8 @@ export function AdminOrganization({ mode = 'both' } = {}) {
           </span>
         </label>
         <p className="muted" style={{ fontSize: 13, margin: '0 0 10px', lineHeight: 1.45 }}>
-          Тренер в приложении видит только клиентов своего клуба (поле <code className="muted">users.club_id</code> в Supabase). Смена пароля и блокировка — кнопками в таблице (без Supabase Dashboard). Удаление тренера — из Auth и{' '}
-          <code className="muted">users</code>, только если у него нет клиентов; нужна Edge Function <code className="muted">delete-trainer</code>.{' '}
+          Тренер в приложении видит только клиентов своего клуба (поле <code className="muted">users.club_id</code>). Смена пароля и блокировка — кнопками в таблице. Удаление тренера — из Auth и{' '}
+          <code className="muted">users</code>, только если у него нет клиентов (через сервер приложения).{' '}
           {clientCountsSource === 'remote'
             ? '«Клиентов» в таблице — по облаку.'
             : isSupabaseConfigured()

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { FileSpreadsheet } from 'lucide-react'
 import { parsePzTrainingsReportXlsxFile } from '../lib/admin/pzTrainingsReportImportWorkbook.js'
 import { pzTrainingsReportDateMatches } from '../lib/admin/pzTrainingsReportImportCore.js'
+import { productBrandImportWillLandPrefix } from '../lib/productBrand.js'
 
 /**
  * Ежедневный Excel часов ПЗ (otchet_pz) → матрица тренер × тип.
@@ -115,7 +116,7 @@ export function SalesDailyPzTrainingsImportSection({
       {preview ? (
         <div className="sales-daily-excel-card__preview">
           <p className="muted" style={{ margin: '0.5rem 0', fontSize: 13 }}>
-            Файл: <strong>{preview.fileTotal}</strong> · в Ось попадёт:{' '}
+            Файл: <strong>{preview.fileTotal}</strong> · {productBrandImportWillLandPrefix()}:{' '}
             <strong>{preview.matchedTotal}</strong>
             {preview.reportDate ? (
               <>

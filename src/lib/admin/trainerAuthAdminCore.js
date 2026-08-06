@@ -38,3 +38,19 @@ export function validateTrainerPasswordConfirm(password, confirm) {
   }
   return { ok: true, error: null }
 }
+
+/**
+ * Удалять тренера можно только без клиентов (клиент + сервер).
+ * @param {number} clientCount
+ */
+export function assertTrainerDeletableByClientCount(clientCount) {
+  const n = Number(clientCount)
+  const count = Number.isFinite(n) && n > 0 ? Math.floor(n) : 0
+  if (count > 0) {
+    return {
+      ok: false,
+      error: `У тренера есть клиенты (${count}). Сначала переназначьте их.`,
+    }
+  }
+  return { ok: true, error: null }
+}

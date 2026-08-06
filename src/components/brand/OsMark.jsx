@@ -1,8 +1,9 @@
 import { PRODUCT_BRAND_LOCKUP, PRODUCT_BRAND_NAME } from '../../lib/productBrand.js'
+import { PRODUCT_BRAND_MARK_VIEWBOX } from '../../lib/productBrandMark.js'
 
 /**
- * Знак Ось: три шеврона «вперёд» (марка от Порыва).
- * Плоская геометрия в духе Лебедева. Цвет — currentColor / accent роли.
+ * Знак продукта: ядро и орбиты (канон Ядро).
+ * Плоская геометрия; цвет — currentColor / accent роли.
  */
 export function OsMark({ size = 28, className = '', title } = {}) {
   const label = title || PRODUCT_BRAND_NAME
@@ -11,21 +12,40 @@ export function OsMark({ size = 28, className = '', title } = {}) {
       className={className}
       width={size}
       height={size}
-      viewBox="0 0 32 32"
+      viewBox={PRODUCT_BRAND_MARK_VIEWBOX}
       fill="currentColor"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden={title ? undefined : true}
       role={title ? 'img' : undefined}
     >
       {title ? <title>{label}</title> : null}
-      <path d="M2 7.5L11 16L2 24.5L5.8 24.5L14.8 16L5.8 7.5Z" />
-      <path d="M10.5 7.5L19.5 16L10.5 24.5L14.3 24.5L23.3 16L14.3 7.5Z" />
-      <path d="M19 7.5L28 16L19 24.5L22.8 24.5L31.8 16L22.8 7.5Z" />
+      <g fill="none" stroke="currentColor" strokeWidth="2.7" strokeLinecap="butt">
+        <circle
+          cx="16"
+          cy="16"
+          r="13"
+          pathLength="100"
+          strokeDasharray="36 14 36 14"
+          transform="rotate(48 16 16)"
+        />
+        <circle
+          cx="16"
+          cy="16"
+          r="8.2"
+          pathLength="100"
+          strokeDasharray="78 22"
+          transform="rotate(-32 16 16)"
+        />
+      </g>
+      <circle cx="16" cy="16" r="3.9" fill="currentColor" />
+      <circle cx="22.05" cy="10.05" r="2.05" fill="currentColor" />
+      <circle cx="7.05" cy="7.35" r="2.05" fill="currentColor" />
+      <circle cx="16" cy="29.05" r="2.05" fill="currentColor" />
     </svg>
   )
 }
 
-/** Полный блок: шевроны + wordmark ОСЬ */
+/** Полный логотип: знак + wordmark из PRODUCT_BRAND_LOCKUP */
 export function OsWordmark({
   markSize = 28,
   className = '',

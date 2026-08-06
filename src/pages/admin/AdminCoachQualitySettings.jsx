@@ -18,6 +18,10 @@ import { invalidateAdminCoachQualityGlance } from '../../lib/admin/coachQualityG
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { listClubsLocal, pullClubsFromSupabase } from '../../lib/dataAccess'
 import { useAuth } from '../../context/AuthContext'
+import {
+  productBrandResetToStandardConfirm,
+  productBrandStandardLabel,
+} from '../../lib/productBrand.js'
 
 /**
  * Структура → Качество ведения: веса осей и тумблеры правил.
@@ -146,7 +150,7 @@ export function AdminCoachQualitySettings() {
 
   const onReset = async () => {
     if (!clubId) return
-    if (!window.confirm('Сбросить к стандарту Ось (40/40/20, все тумблеры вкл)?')) return
+    if (!window.confirm(productBrandResetToStandardConfirm())) return
     setBusy(true)
     setErr('')
     setMsg('')
@@ -343,7 +347,7 @@ export function AdminCoachQualitySettings() {
               onClick={() => void onReset()}
             >
               <RotateCcw size={16} aria-hidden />
-              Стандарт Ось
+              {productBrandStandardLabel()}
             </button>
           </div>
           {!canSave && clubId && !busy ? (

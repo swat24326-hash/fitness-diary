@@ -1,6 +1,8 @@
 /**
- * Edge Function: удалить тренера из Auth и public.users (роль trainer).
- * Требует JWT администратора. Развёртывание: `supabase functions deploy delete-trainer`
+ * Legacy Edge Function: удалить тренера из Auth и public.users (роль trainer).
+ * С 2026-08-06 прод использует `/api/admin-data?action=delete-trainer` (см. api/_lib/trainerAuthAdmin.js).
+ * Этот файл оставлен для справки / старых деплоев; новый деплой Edge для delete не требуется.
+ * Развёртывание (если всё же нужно): `supabase functions deploy delete-trainer`
  */
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'

@@ -1,8 +1,8 @@
-# Документация fitness-diary (**Ось**)
+# Документация fitness-diary (**Ядро**)
 
 Карта файлов в `docs/`. Правила для Cursor — в `.cursor/rules/` (не дублируем политику здесь).
 
-**С чего начать:** [PRODUCT_VISION.md](./PRODUCT_VISION.md) — крупная цель (ОС + CRM, замена 1С в операционке) → [BRAND_SYSTEM.md](./BRAND_SYSTEM.md) — продукт Ось vs клуб FIT-CITY → [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) — что в коде сегодня.
+**С чего начать:** [PRODUCT_VISION.md](./PRODUCT_VISION.md) — крупная цель (ОС + CRM, замена 1С в операционке) → [BRAND_SYSTEM.md](./BRAND_SYSTEM.md) — продукт Ядро vs клуб FIT-CITY → [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) — что в коде сегодня.
 
 **Системная карта (тонкие доки):** [API.md](./API.md) · [SYNC.md](./SYNC.md) · [DATA_MODEL.md](./DATA_MODEL.md) · [TESTING.md](./TESTING.md) · [PWA.md](./PWA.md) · [ENGINEERING_MATURITY.md](./ENGINEERING_MATURITY.md)
 
@@ -47,6 +47,7 @@
 | [PRODUCT_VISION.md](./PRODUCT_VISION.md) | **Крупная цель:** ОС + CRM клуба; замена 1С в операционке; проекция цели на фичи; слои L0–L4 |
 | [BRAND_SYSTEM.md](./BRAND_SYSTEM.md) | **Фирменный стиль:** Whoop-опора, ролевые цвета, токены, driving prompt |
 | [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md) | Стратегия + РФ: курс **C2 + Yandex**; чеклист §5.4.0; security §5.7; продукт после переезда P1–P3 §5.8 |
+| [AUTH_C2_MAP.md](./AUTH_C2_MAP.md) | Вход сейчас (Supabase) vs свой Auth на Yandex — простыми словами; без кода до R2 |
 | [COMMERCIAL_ROADMAP.md](./COMMERCIAL_ROADMAP.md) | Фазы 0–4: что сделано и ongoing |
 | [ROADMAP_MULTI_CLUB_AND_PAID.md](./ROADMAP_MULTI_CLUB_AND_PAID.md) | 2+ клубов и платные тарифы |
 | [DATA_VOLUME.md](./DATA_VOLUME.md) | Оценка объёма БД, пороги pull-by-period |

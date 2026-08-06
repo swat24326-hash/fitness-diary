@@ -1,4 +1,4 @@
-# Changelog (Ось)
+# Changelog (Ядро)
 
 Краткие заметки для клуба и команды: **что изменилось для зала**, не полный git log.  
 Детали для разработчиков — коммиты и [docs/README.md](./docs/README.md).
@@ -9,6 +9,8 @@
 
 ## 2026-08
 
+- **Бренд:** продукт **Ядро** (код `CORE`); знак — ядро и орбиты; смена имени — `productBrand.js` + `sync:brand` / `gen:icons` + `verify-product-brand`. Канон: [BRAND_SYSTEM.md](./docs/BRAND_SYSTEM.md).
+- **Подготовка к РФ-хостингу (без смены адреса клуба):** удаление тренера через сервер приложения (не Edge Supabase); карта входа на Yandex — [AUTH_C2_MAP.md](./docs/AUTH_C2_MAP.md); чеклист владельца — [STRATEGY §5.4.0](./docs/STRATEGY_SCALE_AND_RU_HOSTING.md).
 - **Структура / Управляющие:** вкладка больше не показывает тренеров — в запрос уходил фильтр только для менеджеров продаж, `supervisor` терялся.
 - **Менеджер / Клиенты:** две кнопки рядом — **Max** (чат) и **SMS** (телефон клуба через Мои Звонки). Docs: [MOIZVONKI_SETUP.md](./docs/MOIZVONKI_SETUP.md).
 - **Мои Звонки на клуб:** свой аккаунт в Структуре → Max и SMS; общий env — запасной. Касса на клуб — позже ([PAYMENTS_DOMAIN.md](./docs/PAYMENTS_DOMAIN.md)).

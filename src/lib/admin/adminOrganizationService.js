@@ -8,6 +8,8 @@ import { withSupabaseRetry } from '../supabaseRetry'
 import { USERS_TRAINER_ROLES } from '../userRoleConstants'
 import { fetchTrainersViaAdminApi } from './adminApiClient'
 import { updateTrainerClubViaApi } from '../profileApiClient'
+import { assertTrainerDeletableByClientCount } from './trainerAuthAdminCore'
+import { deleteTrainerViaAdminApi } from './trainerAuthAdminService'
 
 const TRAINER_FIELDS = 'id, name, phone, email, login, is_active, uses_tablet, role, club_id'
 
@@ -113,30 +115,15 @@ export async function countClientsByTrainer(trainerId) {
 }
 
 /**
- * Удаление тренера (Auth + users). Edge Function `delete-trainer` с service role.
+ * Удаление тренера (Auth + users) через /api/admin-data?action=delete-trainer.
  * Клиентов у тренера быть не должно — иначе ошибка.
  */
 export async function deleteTrainerForAdmin(trainerId) {
   const tid = String(trainerId ?? '').trim()
   if (!tid) throw new Error('Не указан тренер')
-  if (!isSupabaseConfigured()) throw new Error('Удаление тренера доступно только при подключённом Supabase')
+  if (!isSupabaseConfigured()) throw new Error('Удаление тренера доступно только при подключённом облаке')
   const n = await countClientsByTrainer(tid)
-  if (n > 0) throw new Error(`У тренера есть клиенты (${n}). Переназначьте или удалите их.`)
-  const { data, error } = await supabase.functions.invoke('delete-trainer', { body: { trainer_id: tid } })
-  if (error) {
-    let detail = error.message
-    try {
-      const res = error.context
-      if (res && typeof res.json === 'function') {
-        const blob = await res.json()
-        if (blob?.error) detail = String(blob.error)
-      }
-    } catch {
-      /* ignore */
-    }
-    throw new Error(detail || 'Вызов delete-trainer не удался')
-  }
-  if (data && typeof data === 'object' && 'error' in data && data.error) {
-    throw new Error(String(data.error))
-  }
+  const gate = assertTrainerDeletableByClientCount(n)
+  if (!gate.ok) throw new Error(gate.error)
+  await deleteTrainerViaAdminApi(tid)
 }

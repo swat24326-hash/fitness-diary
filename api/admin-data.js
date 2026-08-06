@@ -16,7 +16,7 @@ import { handleIskraLearningGet, handleIskraLearningPost } from './_lib/iskraLea
 import { handleIskraDispatchGet, handleIskraDispatchPost } from './_lib/iskraDispatchHandler.js'
 import { handleIskraTtsPost } from './_lib/iskraTtsHandler.js'
 import { handlePushSubscriptionGet, handlePushSubscriptionPost } from './_lib/pushSubscriptionHandler.js'
-import { handleResetTrainerPasswordPost, handleSetTrainerActivePost, handleSetTrainerUsesTabletPost } from './_lib/trainerAuthAdmin.js'
+import { handleResetTrainerPasswordPost, handleSetTrainerActivePost, handleSetTrainerUsesTabletPost, handleDeleteTrainerPost } from './_lib/trainerAuthAdmin.js'
 import { handleTrainerSelfStatsGet } from './_lib/adminData/trainerSelfStatsHandler.js'
 import { handleTrainerSelfJournalGet } from './_lib/adminData/trainerSelfJournalHandler.js'
 import { handleSearch, handleJournal, handleClientsLastTrainings } from './_lib/adminData/journalHandlers.js'
@@ -75,6 +75,7 @@ async function handler(req, res) {
       'reset-trainer-password',
       'set-trainer-active',
       'set-trainer-uses-tablet',
+      'delete-trainer',
       'pnk',
       'sale-clips',
       'club-sms',
@@ -180,6 +181,11 @@ async function handler(req, res) {
       const ctx = await requireAdmin(req, res)
       if (!ctx) return
       return handleSetTrainerUsesTabletPost(ctx, res, body)
+    }
+    if (action === 'delete-trainer') {
+      const ctx = await requireAdmin(req, res)
+      if (!ctx) return
+      return handleDeleteTrainerPost(ctx, res, body)
     }
     if (action === 'price-list') {
       const clubId = String(body?.club_id ?? '').trim()

@@ -1,6 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="#111111" aria-hidden="true">
-  <!-- Знак Ось = шевроны Порыва -->
-  <path d="M2 7.5L11 16L2 24.5L5.8 24.5L14.8 16L5.8 7.5Z"/>
-  <path d="M10.5 7.5L19.5 16L10.5 24.5L14.3 24.5L23.3 16L14.3 7.5Z"/>
-  <path d="M19 7.5L28 16L19 24.5L22.8 24.5L31.8 16L22.8 7.5Z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="#111111" aria-hidden="false">
+  <title>Ядро</title>
+  <g fill="none" stroke="#111111" stroke-width="2.7" stroke-linecap="butt">
+    <circle cx="16" cy="16" r="13" pathLength="100" stroke-dasharray="36 14 36 14" transform="rotate(48 16 16)"/>
+    <circle cx="16" cy="16" r="8.2" pathLength="100" stroke-dasharray="78 22" transform="rotate(-32 16 16)"/>
+  </g>
+  <circle cx="16" cy="16" r="3.9" fill="#111111"/>
+  <circle cx="22.05" cy="10.05" r="2.05" fill="#111111"/>
+  <circle cx="7.05" cy="7.35" r="2.05" fill="#111111"/>
+  <circle cx="16" cy="29.05" r="2.05" fill="#111111"/>
 </svg>

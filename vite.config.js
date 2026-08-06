@@ -1,6 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import {
+  PRODUCT_BRAND_NAME,
+  PRODUCT_BRAND_PWA_DESCRIPTION,
+  PRODUCT_BRAND_SHORT,
+} from './src/lib/productBrand.js'
 
 /** Локальный `npm run dev`: куда проксировать `/api`. Переопределение — VITE_DEV_API_PROXY. */
 const DEFAULT_DEV_API_PROXY = 'https://fitness-diary-bice.vercel.app'
@@ -33,9 +38,10 @@ export default defineConfig(({ mode }) => ({
     {
       name: 'fitness-diary-build-meta',
       transformIndexHtml(html) {
+        const title = `<title>${PRODUCT_BRAND_NAME}</title>`
         return html.replace(
-          '<title>Ось</title>',
-          `<meta name="fitness-diary-build-time" content="${appBuildTimeIso}" />\n    <title>Ось</title>`,
+          title,
+          `<meta name="fitness-diary-build-time" content="${appBuildTimeIso}" />\n    ${title}`,
         )
       },
     },
@@ -54,9 +60,9 @@ export default defineConfig(({ mode }) => ({
         'icons/icon-512.png',
       ],
       manifest: {
-        name: 'Ось',
-        short_name: 'Ось',
-        description: 'Операционная система фитнес-клуба: зал, продажи, управление',
+        name: PRODUCT_BRAND_NAME,
+        short_name: PRODUCT_BRAND_SHORT,
+        description: PRODUCT_BRAND_PWA_DESCRIPTION,
         start_url: '/',
         display: 'standalone',
         theme_color: '#0a0a0a',

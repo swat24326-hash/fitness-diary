@@ -1,5 +1,6 @@
 import { sendJson } from './adminSupabase.js'
 import {
+  assertTrainerDeletableByClientCount,
   parseTrainerIdForAdmin,
   validateTrainerPasswordForAdmin,
 } from '../../src/lib/admin/trainerAuthAdminCore.js'
@@ -145,6 +146,64 @@ export async function handleSetTrainerUsesTabletPost(ctx, res, body) {
     ok: true,
     trainer_id: parsed.id,
     uses_tablet: usesTablet,
+    name: row.name ?? null,
+  })
+}
+
+/**
+ * Удаление тренера из Auth + public.users (только без клиентов).
+ * @param {{ supabaseAdmin: import('@supabase/supabase-js').SupabaseClient }} ctx
+ * @param {import('http').ServerResponse} res
+ * @param {Record<string, unknown>} body
+ */
+export async function handleDeleteTrainerPost(ctx, res, body) {
+  const parsed = parseTrainerIdForAdmin(body?.trainer_id)
+  if (!parsed.ok) {
+    sendJson(res, 400, { error: parsed.error })
+    return
+  }
+
+  const { count, error: cntErr } = await ctx.supabaseAdmin
+    .from('clients')
+    .select('id', { count: 'exact', head: true })
+    .eq('trainer_id', parsed.id)
+
+  if (cntErr) {
+    sendJson(res, 400, { error: cntErr.message })
+    return
+  }
+
+  const deletable = assertTrainerDeletableByClientCount(count ?? 0)
+  if (!deletable.ok) {
+    sendJson(res, 400, { error: deletable.error })
+    return
+  }
+
+  const { row, error: loadErr } = await loadTrainerRow(ctx.supabaseAdmin, parsed.id)
+  if (loadErr) {
+    sendJson(res, loadErr === 'Тренер не найден' ? 404 : 400, { error: loadErr })
+    return
+  }
+
+  const { error: delUserRow } = await ctx.supabaseAdmin
+    .from('users')
+    .delete()
+    .eq('id', parsed.id)
+    .in('role', TRAINER_ROLES)
+  if (delUserRow) {
+    sendJson(res, 400, { error: delUserRow.message })
+    return
+  }
+
+  const { error: delAuth } = await ctx.supabaseAdmin.auth.admin.deleteUser(parsed.id)
+  if (delAuth) {
+    sendJson(res, 400, { error: delAuth.message })
+    return
+  }
+
+  sendJson(res, 200, {
+    ok: true,
+    trainer_id: parsed.id,
     name: row.name ?? null,
   })
 }

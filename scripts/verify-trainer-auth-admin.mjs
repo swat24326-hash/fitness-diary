@@ -1,4 +1,5 @@
 import {
+  assertTrainerDeletableByClientCount,
   parseTrainerIdForAdmin,
   validateTrainerPasswordConfirm,
   validateTrainerPasswordForAdmin,
@@ -21,5 +22,12 @@ const uuid = 'a1b2c3d4-e5f6-4789-a012-3456789abcde'
 const parsed = parseTrainerIdForAdmin(uuid)
 ok(parsed.ok && parsed.id === uuid, 'uuid parsed')
 ok(parseTrainerIdForAdmin('bad').ok === false, 'bad id rejected')
+
+ok(assertTrainerDeletableByClientCount(0).ok === true, 'zero clients deletable')
+ok(assertTrainerDeletableByClientCount(3).ok === false, 'clients block delete')
+ok(
+  String(assertTrainerDeletableByClientCount(2).error).includes('2'),
+  'delete error mentions count',
+)
 
 console.log('verify-trainer-auth-admin: all passed')

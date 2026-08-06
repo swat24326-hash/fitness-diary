@@ -1,4 +1,5 @@
-const origin = 'https://fitness-diary-bice.vercel.app'
+/** Другой хост: QA_ORIGIN=https://… node scripts/verify-prod-features.mjs */
+const origin = process.env.QA_ORIGIN ?? 'https://fitness-diary-bice.vercel.app'
 const html = await fetch(origin + '/').then((r) => r.text())
 const m = html.match(/\/assets\/(index-[^"]+\.js)/)
 if (!m) {

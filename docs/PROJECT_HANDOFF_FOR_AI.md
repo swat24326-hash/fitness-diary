@@ -1,12 +1,12 @@
 # Описание проекта для передачи другой нейросети / разработчику
 
-**Актуально:** 2026-08-06. Документ самодостаточен: по нему можно продолжить работу без истории чата. Язык UI — **русский**. Репозиторий: **fitness-diary**. Продукт: **Ось** (AXIS). Клуб-эталон: **FIT-CITY** (тенант, не имя системы). Канон: [BRAND_SYSTEM.md](./BRAND_SYSTEM.md).
+**Актуально:** 2026-08-06. Документ самодостаточен: по нему можно продолжить работу без истории чата. Язык UI — **русский**. Репозиторий: **fitness-diary**. Продукт: **Ядро** (код `CORE`). Клуб-эталон: **FIT-CITY** (тенант, не имя системы). Канон: [BRAND_SYSTEM.md](./BRAND_SYSTEM.md).
 
-**Сначала:** крупная цель [PRODUCT_VISION.md](./PRODUCT_VISION.md) (замена 1С в операционке + CRM в Оси; новые фичи — через проекцию цели) → этот файл (что в коде сегодня) → карта [README.md](./README.md) → при углублении [API.md](./API.md), [SYNC.md](./SYNC.md), [DATA_MODEL.md](./DATA_MODEL.md), [TESTING.md](./TESTING.md), [PWA.md](./PWA.md). Уровень инженерии: [ENGINEERING_MATURITY.md](./ENGINEERING_MATURITY.md). Оплаты (ещё ТЗ): [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) — **следующий L3:** правда платежа, потом касса **на клуб**. Модули: [PRODUCT_MODULES.md](./PRODUCT_MODULES.md).
+**Сначала:** крупная цель [PRODUCT_VISION.md](./PRODUCT_VISION.md) (замена 1С в операционке + CRM в Ядре; новые фичи — через проекцию цели) → этот файл (что в коде сегодня) → карта [README.md](./README.md) → при углублении [API.md](./API.md), [SYNC.md](./SYNC.md), [DATA_MODEL.md](./DATA_MODEL.md), [TESTING.md](./TESTING.md), [PWA.md](./PWA.md). Уровень инженерии: [ENGINEERING_MATURITY.md](./ENGINEERING_MATURITY.md). Оплаты (ещё ТЗ): [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) — **следующий L3:** правда платежа, потом касса **на клуб**. Модули: [PRODUCT_MODULES.md](./PRODUCT_MODULES.md).
 
 Правила кода для Cursor — `.cursor/rules/` (политика). Этот handoff — **нарратив**: что за продукт и куда смотреть. Не дублировать политику целиком.
 
-**Хостинг:** сейчас Vercel + Supabase. Переезд на **российские серверы — в будущем**; при разработке уже учитывать портативность (env, стабильный `/api/*`, логика в `_lib`) — [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md), правило `fitness-diary-hosting-portability.mdc`. Cutover не делать без явной команды.  
+**Хостинг:** сейчас Vercel + Supabase. Переезд на **российские серверы — в будущем** (курс C2 + Yandex). Идёт подготовка R0/R1 без cutover; карта входа — [AUTH_C2_MAP.md](./AUTH_C2_MAP.md). При разработке учитывать портативность (env, стабильный `/api/*`, логика в `_lib`) — [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md), правило `fitness-diary-hosting-portability.mdc`. Стенд R2 / cutover — только по явной команде.  
 **Безопасность (усиление):** ⏸ после РФ — STRATEGY §5.7; до cutover не кодить rate limit / админ-email без команды. Гигиена в фичах — `fitness-diary-security.mdc`.
 
 ---

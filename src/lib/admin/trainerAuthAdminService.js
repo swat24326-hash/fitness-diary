@@ -57,3 +57,11 @@ export async function setTrainerActiveForAdmin(body) {
 export async function setTrainerUsesTabletForAdmin(body) {
   return postTrainerAuthAction('set-trainer-uses-tablet', body)
 }
+
+/**
+ * Удаление тренера (Auth + users) через /api/admin-data?action=delete-trainer.
+ * @param {string} trainerId
+ */
+export async function deleteTrainerViaAdminApi(trainerId) {
+  return postTrainerAuthAction('delete-trainer', { trainer_id: trainerId })
+}

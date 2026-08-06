@@ -352,7 +352,7 @@ export function AppHeader() {
     return club?.name?.trim() || ''
   }, [adminClubs, adminClubValue])
 
-  /** В шапке герой — клуб; Ось только микро-знаком (docs/BRAND_SYSTEM.md). */
+  /** В шапке герой — клуб; продукт только микро-знаком (docs/BRAND_SYSTEM.md). */
   const headerClubTitle = isAdmin
     ? adminClubName || (adminClubsLoading && adminClubs.length === 0 ? '…' : 'Выберите клуб')
     : trainerClubLabel === null

@@ -42,6 +42,7 @@
 | Админ: статистика / ИСКРА | agg, snapshot |
 | ПНК мастер / KPI | целевые `verify-pnk-*.mjs` |
 | Качество ведения тренера | `verify-coach-quality.mjs` (TECH + COACH + MANAGER сценарии) |
+| Имя продукта (без хардкода в UI) | `verify-product-brand.mjs`; смена имени — `productBrand.js` → `npm run sync:brand` → `gen:icons` |
 | Home glance cache | `verify-home-glance-cache.mjs` (TTL / looksSame / профили) |
 | Пульс BLE (парсер + память датчика) | `verify-ble-heart-rate.mjs` |
 | Сводка пульса сессии (зоны, ккал) | `verify-hr-session-agg.mjs` |

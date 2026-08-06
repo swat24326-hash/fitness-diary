@@ -1,6 +1,6 @@
 # API — каталог endpoints
 
-**Актуально:** 2026-07-29. Vercel Hobby **≤12** serverless functions в `api/*.js`. Новое действие — сначала `admin-data?action=`, не новый файл.
+**Актуально:** 2026-08-06. Vercel Hobby **≤12** serverless functions в `api/*.js`. Новое действие — сначала `admin-data?action=`, не новый файл.
 
 Политика: `.cursor/rules/fitness-diary-supabase.mdc`, `fitness-diary-architecture.mdc`.  
 Ядро: **`api/_lib/`** (не `api/lib/`).
@@ -24,7 +24,7 @@
 | `/api/create-trainer` | Создание тренера (service role на сервере) |
 | `/api/update-trainer-club` | Смена клуба тренера |
 
-Считать лимит перед добавлением 13-го файла. Edge Functions Supabase (`create-trainer` / `delete-trainer` в `supabase/functions/`) — отдельно от Vercel.
+Считать лимит перед добавлением 13-го файла. Удаление тренера — **не** отдельный `api/*.js`: `admin-data?action=delete-trainer` (с 2026-08-06). Legacy Edge `supabase/functions/delete-trainer` для прода не нужен.
 
 ---
 
@@ -70,7 +70,7 @@
 | `gemini-analytics` | admin | Запрос к ИСКРЕ |
 | `iskra-settings`, `iskra-learning`, `iskra-dispatch`, `iskra-tts` | по op / роли | CRUD настроек, фидбек, задания, TTS |
 | `push-subscription` | auth user | Регистрация push |
-| `reset-trainer-password`, `set-trainer-active`, `set-trainer-uses-tablet` | admin | Управление тренером (пароль / блок / планшет) |
+| `reset-trainer-password`, `set-trainer-active`, `set-trainer-uses-tablet`, `delete-trainer` | admin | Управление тренером (пароль / блок / планшет / удаление без клиентов) |
 | `pnk` | admin / sales_manager | Мутации ПНК |
 | `sale-clips` | admin / sales_manager | POST create / cancel / match клипа |
 | `club-sms` | admin / sales_manager / supervisor | SMS клиенту через Мои Звонки клуба (`client_id`, `scenario` / `text`); после успеха — запись в `club_sms_log` |
