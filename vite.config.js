@@ -5,6 +5,7 @@ import {
   PRODUCT_BRAND_NAME,
   PRODUCT_BRAND_PWA_DESCRIPTION,
   PRODUCT_BRAND_SHORT,
+  productBrandIconPath,
 } from './src/lib/productBrand.js'
 
 /** Локальный `npm run dev`: куда проксировать `/api`. Переопределение — VITE_DEV_API_PROXY. */
@@ -68,16 +69,11 @@ export default defineConfig(({ mode }) => ({
         theme_color: '#0a0a0a',
         background_color: '#0a0a0a',
         orientation: 'portrait',
-        icons: [
-          { src: '/icons/icon-72.png', sizes: '72x72', type: 'image/png' },
-          { src: '/icons/icon-96.png', sizes: '96x96', type: 'image/png' },
-          { src: '/icons/icon-128.png', sizes: '128x128', type: 'image/png' },
-          { src: '/icons/icon-144.png', sizes: '144x144', type: 'image/png' },
-          { src: '/icons/icon-152.png', sizes: '152x152', type: 'image/png' },
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/icon-384.png', sizes: '384x384', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-        ],
+        icons: [72, 96, 128, 144, 152, 192, 384, 512].map((size) => ({
+          src: productBrandIconPath(size),
+          sizes: `${size}x${size}`,
+          type: 'image/png',
+        })),
       },
       workbox: {
         maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,

@@ -121,4 +121,9 @@ ok(manifest.short_name === PRODUCT_BRAND_SHORT, 'manifest.short_name synced')
 const lockup = fs.readFileSync(path.join(root, 'public/brand/os-lockup.svg'), 'utf8')
 ok(lockup.includes(`>${PRODUCT_BRAND_LOCKUP}</text>`), 'os-lockup.svg lockup synced')
 
+const { PRODUCT_BRAND_ASSETS_VERSION, productBrandIconPath } = brand
+ok(String(PRODUCT_BRAND_ASSETS_VERSION).length > 0, 'assets version set')
+ok(productBrandIconPath(192).includes(`v=${PRODUCT_BRAND_ASSETS_VERSION}`), 'icon path cache-bust')
+ok(indexHtml.includes(productBrandIconPath(192)), 'index.html icon cache-bust')
+
 console.log('verify-product-brand: all passed')

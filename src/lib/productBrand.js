@@ -41,6 +41,17 @@ export const PRODUCT_BRAND_PWA_DESCRIPTION =
 export const REFERENCE_CLUB_NAME = 'FIT-CITY'
 
 /**
+ * Версия ассетов знака/иконок — для сброса кэша PWA при смене логотипа.
+ * Увеличивайте при смене геометрии знака (не при каждой смене имени).
+ */
+export const PRODUCT_BRAND_ASSETS_VERSION = '3'
+
+/** Путь к иконке PWA с cache-bust */
+export function productBrandIconPath(size) {
+  return `/icons/icon-${size}.png?v=${PRODUCT_BRAND_ASSETS_VERSION}`
+}
+
+/**
  * Старые имена продукта — verify ругается, если снова появятся в UI-коде.
  * (Не трогает «ось» графика и «ось ведения» в качестве тренера.)
  */

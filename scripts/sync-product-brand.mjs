@@ -20,6 +20,8 @@ const {
   PRODUCT_BRAND_LOCKUP,
   PRODUCT_BRAND_PWA_DESCRIPTION,
   PRODUCT_BRAND_TAGLINE,
+  PRODUCT_BRAND_ASSETS_VERSION,
+  productBrandIconPath,
 } = brand
 
 function write(rel, content) {
@@ -28,18 +30,20 @@ function write(rel, content) {
   console.log('OK:', rel)
 }
 
+const icon192 = productBrandIconPath(192)
+
 const indexHtml = `<!DOCTYPE html>
 <html lang="ru" dir="ltr">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/icons/icon-192.png" />
+    <link rel="icon" type="image/png" href="${icon192}" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <link rel="manifest" href="/manifest.json" />
+    <link rel="manifest" href="/manifest.json?v=${PRODUCT_BRAND_ASSETS_VERSION}" />
     <meta name="theme-color" content="#070908" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="${PRODUCT_BRAND_SHORT}" />
-    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="${icon192}" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
@@ -54,6 +58,7 @@ const indexHtml = `<!DOCTYPE html>
 
 write('index.html', indexHtml)
 
+const iconSizes = [72, 96, 128, 144, 152, 192, 384, 512]
 const manifest = {
   name: PRODUCT_BRAND_NAME,
   short_name: PRODUCT_BRAND_SHORT,
@@ -63,16 +68,11 @@ const manifest = {
   theme_color: '#0a0a0a',
   background_color: '#0a0a0a',
   orientation: 'portrait',
-  icons: [
-    { src: '/icons/icon-72.png', sizes: '72x72', type: 'image/png' },
-    { src: '/icons/icon-96.png', sizes: '96x96', type: 'image/png' },
-    { src: '/icons/icon-128.png', sizes: '128x128', type: 'image/png' },
-    { src: '/icons/icon-144.png', sizes: '144x144', type: 'image/png' },
-    { src: '/icons/icon-152.png', sizes: '152x152', type: 'image/png' },
-    { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-    { src: '/icons/icon-384.png', sizes: '384x384', type: 'image/png' },
-    { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-  ],
+  icons: iconSizes.map((size) => ({
+    src: productBrandIconPath(size),
+    sizes: `${size}x${size}`,
+    type: 'image/png',
+  })),
 }
 write('public/manifest.json', `${JSON.stringify(manifest, null, 2)}\n`)
 
