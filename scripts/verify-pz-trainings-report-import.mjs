@@ -47,9 +47,48 @@ ok(matchMembershipTypeByExcelHeader('.VIP', types)?.id === 't-vip1', 'match vip1
 const trainers = [
   { id: 'tr1', name: 'Житомирский Евгений' },
   { id: 'tr2', name: 'Кожемякина Анжелика' },
+  { id: 'tr3', name: 'Евгений Житомирский' },
+  { id: 'tr4', name: 'Анжелика Кожемякина' },
+  { id: 'tr5', name: 'Дмитрий Семенов' },
 ]
-ok(matchTrainerByExcelName('Житомирский  Евгений ', trainers)?.id === 'tr1', 'match trainer')
+ok(matchTrainerByExcelName('Житомирский  Евгений ', trainers)?.id === 'tr1', 'match trainer exact')
+ok(matchTrainerByExcelName('Житомирский Евгений', [{ id: 'tr3', name: 'Евгений Житомирский' }])?.id === 'tr3', 'match reversed order')
+ok(matchTrainerByExcelName('Семенов Дмитрий', [{ id: 'tr5', name: 'Дмитрий Семенов' }])?.id === 'tr5', 'match семенов reversed')
 ok(matchTrainerByExcelName('Неизвестный', trainers) == null, 'unmatched trainer')
+
+const axisLikeTrainers = [
+  { id: 'a1', name: 'Евгений Житомирский' },
+  { id: 'a2', name: 'Анжелика Кожемякина' },
+  { id: 'a3', name: 'Кирилл Лисицын' },
+  { id: 'a4', name: 'Дмитрий Семенов' },
+  { id: 'a5', name: 'Светлана Филатова' },
+  { id: 'a6', name: 'Захар Шкурат' },
+  { id: 'a7', name: 'Роман Шутский' },
+]
+
+const realLikeAoa = [
+  ['Параметры:', 'Период: 06.08.2026 - 06.08.2026'],
+  ['Отбор:', 'Персональный зал'],
+  [],
+  ['Тренер', '    .VIP 3', '    VIP 2', '   .VIP', '   Brilliant', '  .Diamond', 'см', 'Итого'],
+  ['', 'Кол занятий групп', 'Кол занятий групп', 'Кол занятий групп', 'Кол занятий групп', 'Кол занятий групп', 'Кол занятий групп', 'Кол занятий групп'],
+  ['Житомирский  Евгений ', '', '', 3, '', '', '', 3],
+  ['Кожемякина Анжелика ', 3, 1, '', '', '', '', 4],
+  ['Лисицын Кирилл ', '', '', '', 1, '', '', 1],
+  ['Семенов Дмитрий', '', 1, '', 2, '', '', 3],
+  ['Филатова  Светлана ', '', '', 2, 5, '', '', 7],
+  ['Шкурат Захар ', '', '', 6, '', 1, '', 7],
+  ['Шутский Роман ', '', '', '', 4, 3, 1, 8],
+  ['Итого', 3, 2, 11, 12, 4, 1, 33],
+]
+const realParsed = parsePzTrainingsReportAoA(realLikeAoa, {
+  trainers: axisLikeTrainers,
+  membershipTypes: types,
+})
+ok(realParsed.ok === true, 'real-like parse ok')
+ok(realParsed.unmatchedTrainers.length === 0, `real-like all trainers matched (${realParsed.unmatchedTrainers.join(', ')})`)
+ok(realParsed.matchedTotal === 33, `real-like matched total ${realParsed.matchedTotal}`)
+ok(realParsed.fileTotal === 33, 'real-like file total')
 
 const aoa = [
   ['Параметры:', 'Период: 05.08.2026 - 05.08.2026'],

@@ -76,6 +76,16 @@ export function normalizeTrainerNameKey(name) {
 }
 
 /**
+ * Ключ без порядка слов: 1С часто «Фамилия Имя», в Оси — «Имя Фамилия».
+ * @param {string} name
+ */
+export function trainerNameTokensKey(name) {
+  const parts = normalizeTrainerNameKey(name).split(' ').filter(Boolean)
+  if (!parts.length) return ''
+  return [...parts].sort().join(' ')
+}
+
+/**
  * @param {string} excelName
  * @param {Array<{ id: string, name?: string, email?: string }>} trainers
  * @returns {{ id: string, name: string }|null}
@@ -84,24 +94,35 @@ export function matchTrainerByExcelName(excelName, trainers) {
   const key = normalizeTrainerNameKey(excelName)
   if (!key) return null
   const list = trainers ?? []
+  const pick = (t) => ({ id: String(t.id), name: String(t.name ?? '').trim() })
+
   for (const t of list) {
     const n = normalizeTrainerNameKey(t?.name ?? '')
-    if (n && n === key) return { id: String(t.id), name: String(t.name ?? '').trim() }
+    if (n && n === key) return pick(t)
   }
+
+  const excelTokensKey = trainerNameTokensKey(excelName)
+  if (excelTokensKey.includes(' ')) {
+    for (const t of list) {
+      const n = normalizeTrainerNameKey(t?.name ?? '')
+      if (!n || !n.includes(' ')) continue
+      if (trainerNameTokensKey(n) === excelTokensKey) return pick(t)
+    }
+  }
+
   for (const t of list) {
     const n = normalizeTrainerNameKey(t?.name ?? '')
     if (!n) continue
-    if (n.startsWith(key) || key.startsWith(n)) {
-      return { id: String(t.id), name: String(t.name ?? '').trim() }
-    }
+    if (n.startsWith(key) || key.startsWith(n)) return pick(t)
   }
+
   const keyParts = key.split(' ').filter(Boolean)
   if (keyParts.length >= 2) {
     for (const t of list) {
       const n = normalizeTrainerNameKey(t?.name ?? '')
       const parts = n.split(' ').filter(Boolean)
       if (parts.length >= 2 && parts[0] === keyParts[0] && parts[1] === keyParts[1]) {
-        return { id: String(t.id), name: String(t.name ?? '').trim() }
+        return pick(t)
       }
     }
   }

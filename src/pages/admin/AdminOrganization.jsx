@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useOutletContext, useSearchParams } from 'react-router-dom'
-import { Pencil, RefreshCw, Sparkles, Trash2, UserPlus } from 'lucide-react'
+import { Ban, KeyRound, Pencil, RefreshCw, Sparkles, Trash2, UserPlus } from 'lucide-react'
+import { ClientRowMoreMenu } from '../../components/ClientRowMoreMenu.jsx'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import {
   countClientsByTrainer,
@@ -732,38 +733,39 @@ export function AdminOrganization({ mode = 'both' } = {}) {
                         <Sparkles size={14} aria-hidden />
                         ИСКРА
                       </button>
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-touch"
-                        disabled={!isSupabaseConfigured() || passwordBusy}
-                        onClick={() => openPasswordModal(tr)}
-                      >
-                        Сбросить пароль
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-touch"
-                        disabled={!isSupabaseConfigured() || toggleActiveBusyId === tr.id || trainerBusy}
-                        onClick={() => void onToggleTrainerActive(tr)}
-                      >
-                        {toggleActiveBusyId === tr.id
-                          ? '…'
-                          : tr.is_active === false
-                            ? 'Разблокировать'
-                            : 'Заблокировать'}
-                      </button>
-                      {isSupabaseConfigured() ? (
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-icon-square btn-touch td-client-delete"
-                          disabled={trainerDeleteBusyId === tr.id || trainerBusy}
-                          aria-label="Удалить тренера"
-                          title="Удалить тренера (Auth + users, без клиентов)"
-                          onClick={() => void onDeleteTrainer(tr)}
-                        >
-                          <Trash2 size={16} aria-hidden />
-                        </button>
-                      ) : null}
+                      <ClientRowMoreMenu
+                        disabled={!isSupabaseConfigured() || trainerBusy}
+                        ariaLabel={`Ещё действия: ${tr.name ?? 'тренер'}`}
+                        items={[
+                          {
+                            id: 'password',
+                            label: 'Сбросить пароль',
+                            icon: KeyRound,
+                            disabled: passwordBusy,
+                            onSelect: () => openPasswordModal(tr),
+                          },
+                          {
+                            id: 'active',
+                            label:
+                              toggleActiveBusyId === tr.id
+                                ? '…'
+                                : tr.is_active === false
+                                  ? 'Разблокировать'
+                                  : 'Заблокировать',
+                            icon: Ban,
+                            disabled: toggleActiveBusyId === tr.id,
+                            onSelect: () => void onToggleTrainerActive(tr),
+                          },
+                          {
+                            id: 'delete',
+                            label: trainerDeleteBusyId === tr.id ? 'Удаление…' : 'Удалить',
+                            icon: Trash2,
+                            danger: true,
+                            disabled: trainerDeleteBusyId === tr.id,
+                            onSelect: () => void onDeleteTrainer(tr),
+                          },
+                        ]}
+                      />
                     </div>
                   </td>
                 </tr>
