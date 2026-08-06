@@ -240,7 +240,7 @@ button {
   }
 
   .app-header--admin.app-header--with-club .app-header__club-select {
-    max-width: min(176px, 46vw);
+    max-width: min(220px, 48vw);
   }
 }
 
@@ -256,7 +256,7 @@ button {
     }
 
     .app-header--admin.app-header--with-club .app-header__club-select {
-      max-width: min(176px, 46vw);
+      max-width: min(220px, 48vw);
     }
   }
 }
@@ -355,33 +355,51 @@ button {
   -webkit-appearance: none;
   width: auto;
   flex: 0 1 auto;
-  max-width: min(148px, 32vw);
+  max-width: min(200px, 42vw);
   min-width: 0;
   padding: 8px 26px 8px 10px;
   font-size: 0.8rem;
   font-weight: 500;
   letter-spacing: -0.01em;
-  color: var(--text);
-  background: rgba(0, 0, 0, 0.42);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #f4f7f5;
+  background-color: rgba(6, 18, 14, 0.92);
+  border: 1px solid rgba(46, 255, 184, 0.28);
   border-radius: 10px;
   cursor: pointer;
   line-height: 1.2;
-  background-image: linear-gradient(45deg, transparent 50%, rgba(255, 255, 255, 0.55) 50%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.55) 50%, transparent 50%);
+  color-scheme: dark;
+  background-image: linear-gradient(45deg, transparent 50%, rgba(255, 255, 255, 0.7) 50%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.7) 50%, transparent 50%);
   background-position: calc(100% - 12px) calc(50% - 3px), calc(100% - 7px) calc(50% - 3px);
   background-size: 5px 5px, 5px 5px;
   background-repeat: no-repeat;
 }
 
 .app-header__club-select:hover {
-  border-color: rgba(255, 255, 255, 0.22);
+  border-color: rgba(46, 255, 184, 0.45);
+  background-color: rgba(8, 28, 22, 0.96);
 }
 
 .app-header__club-select:focus {
   outline: none;
-  border-color: rgba(34, 197, 94, 0.45);
-  box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.18);
+  border-color: rgba(46, 255, 184, 0.55);
+  box-shadow: 0 0 0 2px rgba(46, 255, 184, 0.2);
+}
+
+.app-header__club-select option {
+  color: #f4f7f5;
+  background-color: #0c1a16;
+  font-weight: 500;
+}
+
+.app-header__club-select option:disabled {
+  color: #9db0a8;
+  background-color: #0c1a16;
+}
+
+.app-header__club-select option:checked {
+  color: #0a1210;
+  background-color: #6ee7b7;
 }
 
 .app-header__burger--has-errors {

@@ -522,10 +522,8 @@ export function AppHeader() {
           >
             {adminClubsLoading && adminClubs.length === 0 ? (
               <option value="">Загрузка клубов…</option>
-            ) : adminClubs.length !== 1 ? (
-              <option value="" disabled={!!adminClubValue}>
-                Выберите клуб…
-              </option>
+            ) : !adminClubValue && adminClubs.length !== 1 ? (
+              <option value="">Выберите клуб…</option>
             ) : null}
             {adminClubs.map((c) => (
               <option key={c.id} value={c.id}>
