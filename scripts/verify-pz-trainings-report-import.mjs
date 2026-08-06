@@ -1,19 +1,26 @@
 /**
  * node scripts/verify-pz-trainings-report-import.mjs
+ * Сценарии: матч имён, Excel→матрица, persist при пустом списке тренеров, UI «По клубу», повторная подстановка.
  */
 import {
   canonicalizePzExcelTypeHeader,
   matchMembershipTypeByExcelHeader,
   matchTrainerByExcelName,
+  normalizeTrainerNameKey,
   parsePzReportPeriodDate,
   parsePzTrainingsReportAoA,
   pzTrainingsReportDateMatches,
+  trainerNameTokensKey,
 } from '../src/lib/admin/pzTrainingsReportImportCore.js'
 import {
+  clubDisplayCountForType,
   hydrateTrainingsMatrixInputMap,
   resolveTrainingsMatrixForPersist,
   SALES_TRAINING_CLUB_ID,
+  SALES_TRAINING_TYPE_NONE,
+  salesTrainingCellKey,
   sumTypedMatrixRows,
+  trainerIdsFromTrainingsMatrixInput,
   trainingsMatrixHasTrainerDetail,
 } from '../src/lib/admin/salesTrainingsMatrix.js'
 
@@ -43,6 +50,7 @@ const types = [
 ]
 ok(matchMembershipTypeByExcelHeader('VIP 3', types)?.id === 't-vip3', 'match vip3')
 ok(matchMembershipTypeByExcelHeader('.VIP', types)?.id === 't-vip1', 'match vip1')
+ok(matchMembershipTypeByExcelHeader('  .Diamond', types)?.id === 't-dm', 'match diamond header')
 
 const trainers = [
   { id: 'tr1', name: 'Житомирский Евгений' },
@@ -54,7 +62,15 @@ const trainers = [
 ok(matchTrainerByExcelName('Житомирский  Евгений ', trainers)?.id === 'tr1', 'match trainer exact')
 ok(matchTrainerByExcelName('Житомирский Евгений', [{ id: 'tr3', name: 'Евгений Житомирский' }])?.id === 'tr3', 'match reversed order')
 ok(matchTrainerByExcelName('Семенов Дмитрий', [{ id: 'tr5', name: 'Дмитрий Семенов' }])?.id === 'tr5', 'match семенов reversed')
+ok(matchTrainerByExcelName('Семёнов Дмитрий', [{ id: 'tr5', name: 'Дмитрий Семенов' }])?.id === 'tr5', 'match ё/е')
+ok(
+  matchTrainerByExcelName('Житомирский\u00a0\u00a0Евгений', [{ id: 'tr3', name: 'Евгений Житомирский' }])?.id ===
+    'tr3',
+  'match nbsp in excel name',
+)
 ok(matchTrainerByExcelName('Неизвестный', trainers) == null, 'unmatched trainer')
+ok(trainerNameTokensKey('Иванов Иван') === trainerNameTokensKey('Иван Иванов'), 'tokens key order-free')
+ok(normalizeTrainerNameKey('  А  Б  ') === 'а б', 'normalize spaces')
 
 const axisLikeTrainers = [
   { id: 'a1', name: 'Евгений Житомирский' },
@@ -89,6 +105,7 @@ ok(realParsed.ok === true, 'real-like parse ok')
 ok(realParsed.unmatchedTrainers.length === 0, `real-like all trainers matched (${realParsed.unmatchedTrainers.join(', ')})`)
 ok(realParsed.matchedTotal === 33, `real-like matched total ${realParsed.matchedTotal}`)
 ok(realParsed.fileTotal === 33, 'real-like file total')
+ok(realParsed.matchedTrainers.length === 7, 'real-like 7 matched trainers')
 
 const aoa = [
   ['Параметры:', 'Период: 05.08.2026 - 05.08.2026'],
@@ -148,11 +165,60 @@ ok(!trainingsMatrixHasTrainerDetail(oldMap), 'old has no trainer detail')
 ok(trainingsMatrixHasTrainerDetail(parsed.matrixInput), 'new has trainer detail')
 ok(Object.keys(hydrateTrainingsMatrixInputMap(resolvedNew.rows)).length > 0, 'hydrate')
 
+const emptyListPersist = resolveTrainingsMatrixForPersist(parsed.matrixInput, [], types)
+ok(emptyListPersist.ok === true, 'persist empty trainer list ok')
+ok(sumTypedMatrixRows(emptyListPersist.rows) === 16, 'persist empty list keeps 16')
+ok(emptyListPersist.trainerIds.includes('tr1') && emptyListPersist.trainerIds.includes('tr2'), 'persist ids from matrix')
+ok(trainerIdsFromTrainingsMatrixInput(parsed.matrixInput).sort().join() === 'tr1,tr2', 'ids from matrix keys')
+
+ok(clubDisplayCountForType(parsed.matrixInput, [], 't-vip1') === 3, 'UI club total vip1 without trainer list')
+ok(clubDisplayCountForType(parsed.matrixInput, [], 't-br') === 2, 'UI club total br without trainer list')
 ok(
-  resolveTrainingsMatrixForPersist(parsed.matrixInput, [], types).ok &&
-    sumTypedMatrixRows(resolveTrainingsMatrixForPersist(parsed.matrixInput, [], types).rows) === 16,
-  'persist from matrix ids when trainer list empty',
+  clubDisplayCountForType(parsed.matrixInput, [], 't-vip3') +
+    clubDisplayCountForType(parsed.matrixInput, [], 't-vip2') +
+    clubDisplayCountForType(parsed.matrixInput, [], 't-vip1') +
+    clubDisplayCountForType(parsed.matrixInput, [], 't-br') +
+    clubDisplayCountForType(parsed.matrixInput, [], 't-dm') +
+    clubDisplayCountForType(parsed.matrixInput, [], 't-el') +
+    clubDisplayCountForType(parsed.matrixInput, [], 't-cm') ===
+    16,
+  'UI club typed sum 16 without trainer list',
 )
+ok(clubDisplayCountForType(oldMap, [], 't-vip1') === 10, 'UI old club mode vip1')
+
+/** Повторная подстановка: второй apply заменяет карту, сумма та же. */
+const secondApply = { ...parsed.matrixInput }
+const secondPersist = resolveTrainingsMatrixForPersist(secondApply, [], types)
+ok(secondPersist.ok && sumTypedMatrixRows(secondPersist.rows) === 16, 'second apply persist same 16')
+
+/** После save→hydrate цикл не теряет часы. */
+const roundTrip = hydrateTrainingsMatrixInputMap(emptyListPersist.rows)
+ok(trainingsMatrixHasTrainerDetail(roundTrip), 'hydrate keeps trainer detail')
+ok(sumTypedMatrixRows(resolveTrainingsMatrixForPersist(roundTrip, [], types).rows) === 16, 'round-trip persist 16')
+ok(clubDisplayCountForType(roundTrip, [], 't-vip1') === 3, 'round-trip UI vip1')
+
+/** Полный день как PZ.xlsx: 33 → persist при пустом списке → UI Итого 33. */
+const realEmptyPersist = resolveTrainingsMatrixForPersist(realParsed.matrixInput, [], types)
+ok(realEmptyPersist.ok && sumTypedMatrixRows(realEmptyPersist.rows) === 33, 'real-like persist 33 empty list')
+const realUiTotal =
+  clubDisplayCountForType(realParsed.matrixInput, [], 't-vip3') +
+  clubDisplayCountForType(realParsed.matrixInput, [], 't-vip2') +
+  clubDisplayCountForType(realParsed.matrixInput, [], 't-vip1') +
+  clubDisplayCountForType(realParsed.matrixInput, [], 't-br') +
+  clubDisplayCountForType(realParsed.matrixInput, [], 't-dm') +
+  clubDisplayCountForType(realParsed.matrixInput, [], 't-cm')
+ok(realUiTotal === 33, `real-like UI club typed sum ${realUiTotal}`)
+
+/** Сценарий бага: тост 33, trainerIds=[], старый код писал 0 строк. */
+ok(realEmptyPersist.rows.length > 0, 'bugfix: empty list still yields rows')
+ok(
+  !realEmptyPersist.rows.some((r) => r.trainer_id === SALES_TRAINING_CLUB_ID),
+  'bugfix: no synthetic club rows when trainers in matrix',
+)
+
+ok(salesTrainingCellKey('a1', 't-vip1') === 'a1|t-vip1', 'cell key')
+ok(salesTrainingCellKey('a1', null) === `a1|${SALES_TRAINING_TYPE_NONE}`, 'cell key none')
+ok(salesTrainingCellKey(SALES_TRAINING_CLUB_ID, 't-br') === `${SALES_TRAINING_CLUB_ID}|t-br`, 'club cell key')
 
 if (failed) {
   console.error(`\n${failed} failed`)
