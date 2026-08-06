@@ -8,12 +8,18 @@ import {
 } from '../lib/admin/supervisorExpenseCore.js'
 import { SalesFinanceBlock } from './SalesFinanceBlock.jsx'
 import { SalesPlanDirectionsForm } from './SalesPlanDirectionsForm.jsx'
+import { SalesPlanPromotionsSection } from './SalesPlanPromotionsSection.jsx'
 
 /**
  * @param {{
  *   monthLabel: string,
+ *   year: number,
+ *   month: number,
  *   planForm: Record<string, string>,
  *   onPlanChange: (next: Record<string, string>) => void,
+ *   promotions?: Array<Record<string, unknown>>,
+ *   onPromotionsChange?: (next: Array<Record<string, unknown>>) => void,
+ *   onSavePromotions?: () => void,
  *   expenseForm: Record<string, string>,
  *   onExpenseChange: (next: Record<string, string>) => void,
  *   onSavePlan: () => void,
@@ -26,8 +32,13 @@ import { SalesPlanDirectionsForm } from './SalesPlanDirectionsForm.jsx'
  */
 export function SalesPlanSettingsPanel({
   monthLabel,
+  year,
+  month,
   planForm,
   onPlanChange,
+  promotions = [],
+  onPromotionsChange,
+  onSavePromotions,
   expenseForm,
   onExpenseChange,
   onSavePlan,
@@ -98,8 +109,19 @@ export function SalesPlanSettingsPanel({
           />
         </SalesFinanceBlock>
 
+        {typeof onPromotionsChange === 'function' && typeof onSavePromotions === 'function' ? (
+          <SalesPlanPromotionsSection
+            year={year}
+            month={month}
+            promotions={promotions}
+            onChange={onPromotionsChange}
+            onSave={onSavePromotions}
+            saving={savingPlan}
+          />
+        ) : null}
+
         <SalesFinanceBlock
-          step={3}
+          step={4}
           title="Расход управляющего"
           hint="Пять статей за месяц; «Итого» считается само и уходит в чистую прибыль."
           footer={

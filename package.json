@@ -29,6 +29,7 @@
     "db:migrate:memberships-session-visits": "node scripts/apply-memberships-session-visits-migration.mjs",
     "db:migrate:users-uses-tablet": "node scripts/apply-users-uses-tablet-migration.mjs",
     "db:migrate:strategy-snapshot": "node scripts/apply-club-sales-plan-strategy-snapshot.mjs",
+    "db:migrate:sales-promotions": "node scripts/apply-club-sales-promotions.mjs",
     "check:volume": "node scripts/check-data-volume.mjs",
     "sync:brand": "node scripts/sync-product-brand.mjs",
     "gen:icons": "node scripts/sync-product-brand.mjs && node scripts/generate-icons.mjs",

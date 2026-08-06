@@ -9,6 +9,8 @@ import { SalesDayBarChart } from './SalesDayBarChart.jsx'
 import { SalesProfitDayChart } from './SalesProfitDayChart.jsx'
 import { SalesStructureBlock } from './SalesStructureBlock.jsx'
 import { SalesPlanMatrixCompareTable } from './SalesPlanMatrixCompareTable.jsx'
+import { SalesPlanPromotionsCompare } from './SalesPlanPromotionsCompare.jsx'
+import { SalesPlanPromotionsSection } from './SalesPlanPromotionsSection.jsx'
 
 /**
  * @param {{
@@ -19,6 +21,11 @@ import { SalesPlanMatrixCompareTable } from './SalesPlanMatrixCompareTable.jsx'
  *   planLevels: { level1?: number, level2?: number, level3?: number },
  *   planDirections?: { plan_pz?: number, plan_tz?: number, plan_az?: number, plan_extra?: number },
  *   planMatrix?: unknown,
+ *   promotions?: Array<Record<string, unknown>>,
+ *   onPromotionsChange?: (next: Array<Record<string, unknown>>) => void,
+ *   onSavePromotions?: () => void,
+ *   savingPromotions?: boolean,
+ *   canEditPromotions?: boolean,
  *   membershipTypes?: Array<{ id: string, code?: string }>,
  *   trainers?: Array<{ id: string, full_name?: string, name?: string }>,
  *   onPrevMonth?: () => void,
@@ -36,6 +43,11 @@ export function SalesManagerStatsPanel({
   planLevels,
   planDirections = {},
   planMatrix = {},
+  promotions = [],
+  onPromotionsChange,
+  onSavePromotions,
+  savingPromotions = false,
+  canEditPromotions = false,
   membershipTypes = [],
   trainers = [],
   onPrevMonth,
@@ -302,6 +314,21 @@ export function SalesManagerStatsPanel({
             onOpenDay={onOpenDay}
           />
         </div>
+      ) : null}
+
+      <SalesPlanPromotionsCompare promotions={promotions} monthRows={monthRows} />
+
+      {canEditPromotions && typeof onPromotionsChange === 'function' && typeof onSavePromotions === 'function' ? (
+        <SalesPlanPromotionsSection
+          year={year}
+          month={month}
+          promotions={Array.isArray(promotions) ? promotions : []}
+          onChange={onPromotionsChange}
+          onSave={onSavePromotions}
+          saving={savingPromotions}
+          canEdit
+          step="А"
+        />
       ) : null}
 
       <div className="sales-report__card sales-report__stats-block">

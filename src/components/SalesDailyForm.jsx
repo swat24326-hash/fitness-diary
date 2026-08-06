@@ -18,6 +18,7 @@ import { openNativeDatePicker, todayLocalIso } from '../lib/dateRu.js'
 import { SalesTrainingsMatrix } from './SalesTrainingsMatrix.jsx'
 import { SalesAerobicMatrix } from './SalesAerobicMatrix.jsx'
 import { SalesAerobicAzSessionsHint } from './SalesAerobicAzSessionsHint.jsx'
+import { SalesDailyPromotionsSection } from './SalesDailyPromotionsSection.jsx'
 
 const MATRIX_HALL_ROWS = SALES_MATRIX_HALL_ROWS
 const MATRIX_COLS = SALES_MATRIX_COLS
@@ -55,6 +56,9 @@ function MatrixEmptyCells({ prefix }) {
  *   clubId?: string,
  *   showPayroll?: boolean,
  *   hideDateStepper?: boolean,
+ *   promotions?: Array<Record<string, unknown>>,
+ *   promoSales?: Record<string, string>,
+ *   onPromoSalesChange?: (next: Record<string, string>) => void,
  * }} props
  */
 export function SalesDailyForm({
@@ -81,6 +85,9 @@ export function SalesDailyForm({
   clubId = '',
   showPayroll = true,
   hideDateStepper = false,
+  promotions = [],
+  promoSales = {},
+  onPromoSalesChange,
 }) {
   const dateInputRef = useRef(null)
   const profit = useMemo(() => {
@@ -349,6 +356,14 @@ export function SalesDailyForm({
           </tbody>
         </table>
       </div>
+
+      <SalesDailyPromotionsSection
+        reportDate={reportDate}
+        promotions={promotions}
+        promoSales={promoSales}
+        onPromoSalesChange={onPromoSalesChange}
+        canEdit={canEdit}
+      />
 
       {canEdit ? (
         <div className="sales-report__actions" style={{ marginTop: '1.25rem' }}>

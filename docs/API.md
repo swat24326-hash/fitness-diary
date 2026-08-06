@@ -62,7 +62,7 @@
 
 | action | Кто | Зачем |
 |--------|-----|--------|
-| `sales-daily`, `sales-plan` | admin / sales_manager | День / план. `sales-plan` scope `strategy_snapshot` — снимок playbook Стратегии (галочки закрытий) без затирания матрицы |
+| `sales-daily`, `sales-plan` | admin / sales_manager | День / план. `sales-plan` scope `strategy_snapshot` — снимок playbook Стратегии; `promotions` — акции месяца (цели шт). В дне — `promo_sales` + список `promotions` для проверки ≤ факта сегмента |
 | `sales-finance`, `create-sales-manager`, `create-supervisor` | admin (`sales-finance` также supervisor своего клуба) | Финансы клуба; создание менеджера / управляющего |
 | `price-list` | admin / sales_manager (свой клуб) | Upsert прайса ПЗ клуба |
 | `tz-price-list` | admin / sales_manager (свой клуб) | Upsert прайса ТЗ клуба |

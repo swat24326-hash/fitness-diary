@@ -24,9 +24,19 @@ import {
   querySalesPlanRow,
   SALES_DAILY_SELECT_BASE,
   SALES_DAILY_SELECT_FULL,
+  SALES_DAILY_SELECT_WITHOUT_PROMO,
   SALES_DAILY_SELECT_WITHOUT_REFUNDS,
+  SALES_PLAN_SELECT_WITH_PROMOTIONS,
+  SALES_PLAN_SELECT_WITH_SNAPSHOT,
+  SALES_PLAN_SELECT_FULL,
 } from './adminSalesQueryResilience.js'
 import { patchOrInsertClubSalesPlanRow } from './salesPlanRowPersistCore.js'
+import {
+  normalizePromotionsFromDb,
+  promoSalesFormToPayload,
+  validateDayPromoSales,
+  validatePromotionsForSave,
+} from './salesPromotionsCore.js'
 import { normalizeMatrixRowsFromDb } from './salesTrainingsMatrix.js'
 import { normalizeAerobicRowsFromDb } from './aerobicSalesMatrix.js'
 import {
@@ -340,6 +350,8 @@ export async function saveClubSalesDailyViaSupabase({
   trainerIds,
   membershipTypes,
   aerobicMembershipTypes,
+  promoSales,
+  promotions,
 }) {
   const parsed = dailyFormToPayload(form, {
     matrixInput: trainingsMatrixInput,
@@ -350,10 +362,26 @@ export async function saveClubSalesDailyViaSupabase({
   })
   if (!parsed.ok) throw new Error(parsed.error)
 
+  /** @type {Record<string, unknown>} */
+  const payload = { ...parsed.payload }
+  if (promoSales != null) {
+    const promoParsed = promoSalesFormToPayload(promoSales)
+    if (!promoParsed.ok) throw new Error(promoParsed.error)
+    const check = validateDayPromoSales({
+      promo_sales: promoParsed.promo_sales,
+      promotions: normalizePromotionsFromDb(promotions),
+      matrixCounts: Object.fromEntries(
+        Object.entries(payload).filter(([k]) => /^(pz|tz|az|dop)_(nk|dk|uk)$/.test(k)),
+      ),
+    })
+    if (!check.ok) throw new Error(check.error)
+    payload.promo_sales = promoParsed.promo_sales
+  }
+
   const row = {
     club_id: clubId,
     report_date: reportDate,
-    ...parsed.payload,
+    ...payload,
     updated_at: new Date().toISOString(),
     updated_by: await currentUserId(),
   }
@@ -365,8 +393,25 @@ export async function saveClubSalesDailyViaSupabase({
     throw new Error(MIGRATION_HINT)
   }
   if (res.error && isMissingSalesColumnError(res.error)) {
-    const { refunds_amount: _refunds, ...rowWithoutRefunds } = row
+    if (payload.promo_sales != null && Object.keys(payload.promo_sales).length > 0) {
+      throw new Error(
+        'Нет колонки promo_sales — примените миграцию: npm run db:migrate:sales-promotions -- --linked',
+      )
+    }
+    const { promo_sales: _promo, ...rowWithoutPromo } = row
+    void _promo
+    res = await withSupabaseRetry(() =>
+      supabase
+        .from('club_sales_daily')
+        .upsert(rowWithoutPromo, { onConflict: 'club_id,report_date' })
+        .select(SALES_DAILY_SELECT_WITHOUT_PROMO)
+        .single(),
+    )
+  }
+  if (res.error && isMissingSalesColumnError(res.error)) {
+    const { refunds_amount: _refunds, promo_sales: _promo2, ...rowWithoutRefunds } = row
     void _refunds
+    void _promo2
     res = await withSupabaseRetry(() =>
       supabase
         .from('club_sales_daily')
@@ -376,9 +421,11 @@ export async function saveClubSalesDailyViaSupabase({
     )
   }
   if (res.error && isMissingSalesColumnError(res.error)) {
-    const { matrix_amounts: _drop, refunds_amount: _refunds2, ...rowWithoutAmounts } = row
+    const { matrix_amounts: _drop, refunds_amount: _refunds2, promo_sales: _promo3, ...rowWithoutAmounts } =
+      row
     void _drop
     void _refunds2
+    void _promo3
     res = await withSupabaseRetry(() =>
       supabase
         .from('club_sales_daily')
@@ -391,12 +438,35 @@ export async function saveClubSalesDailyViaSupabase({
   return res.data
 }
 
-export async function saveClubSalesPlanViaSupabase({ clubId, year, month, form, scope }) {
+export async function saveClubSalesPlanViaSupabase({ clubId, year, month, form, scope, promotions }) {
+  if (scope === 'promotions') {
+    const validated = validatePromotionsForSave(promotions ?? [])
+    if (!validated.ok) throw new Error(validated.error)
+    const { data, error } = await withSupabaseRetry(() =>
+      patchOrInsertClubSalesPlanRow(supabase, {
+        clubId,
+        year,
+        month,
+        patch: { promotions: validated.promotions, updated_at: new Date().toISOString() },
+        selectCols: SALES_PLAN_SELECT_WITH_PROMOTIONS,
+      }),
+    )
+    if (error) {
+      if (isMissingTableError(error)) throw new Error(MIGRATION_HINT)
+      if (isMissingSalesColumnError(error) || /promotions/i.test(String(error.message ?? ''))) {
+        throw new Error(
+          'Нет колонки promotions — примените миграцию: npm run db:migrate:sales-promotions -- --linked',
+        )
+      }
+      throw error
+    }
+    return data
+  }
+
   const parsed = planFormToPayload(form, { scope })
   if (!parsed.ok) throw new Error(parsed.error)
-  const selectCols =
-    'plan_total, plan_level_1, plan_level_2, plan_level_3, plan_pz, plan_tz, plan_az, plan_extra, plan_matrix, updated_at'
-  const { data, error } = await withSupabaseRetry(() =>
+  const selectCols = SALES_PLAN_SELECT_WITH_PROMOTIONS
+  let { data, error } = await withSupabaseRetry(() =>
     patchOrInsertClubSalesPlanRow(supabase, {
       clubId,
       year,
@@ -405,6 +475,32 @@ export async function saveClubSalesPlanViaSupabase({ clubId, year, month, form, 
       selectCols,
     }),
   )
+  if (error && isMissingSalesColumnError(error)) {
+    const retry = await withSupabaseRetry(() =>
+      patchOrInsertClubSalesPlanRow(supabase, {
+        clubId,
+        year,
+        month,
+        patch: { ...parsed.payload, updated_at: new Date().toISOString() },
+        selectCols: SALES_PLAN_SELECT_WITH_SNAPSHOT,
+      }),
+    )
+    data = retry.data
+    error = retry.error
+  }
+  if (error && isMissingSalesColumnError(error)) {
+    const retry = await withSupabaseRetry(() =>
+      patchOrInsertClubSalesPlanRow(supabase, {
+        clubId,
+        year,
+        month,
+        patch: { ...parsed.payload, updated_at: new Date().toISOString() },
+        selectCols: SALES_PLAN_SELECT_FULL,
+      }),
+    )
+    data = retry.data
+    error = retry.error
+  }
   if (error) {
     if (isMissingTableError(error)) throw new Error(MIGRATION_HINT)
     throw error

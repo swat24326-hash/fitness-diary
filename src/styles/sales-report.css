@@ -5367,3 +5367,83 @@
 .sales-clip-form .sales-visual-alert {
   grid-column: 1 / -1;
 }
+
+/* —— Акции продаж —— */
+.sales-promotions__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+.sales-promotions__row {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1.4fr) repeat(4, minmax(5.5rem, 1fr)) auto;
+  gap: 0.55rem 0.65rem;
+  align-items: end;
+}
+.sales-promotions__empty {
+  margin: 0 0 0.75rem;
+}
+.sales-promotions__add {
+  margin-top: 0.85rem;
+}
+.sales-promotions__remove {
+  margin-bottom: 0.15rem;
+}
+@media (max-width: 900px) {
+  .sales-promotions__row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.sales-daily-promos {
+  margin-top: 1.25rem;
+}
+.sales-daily-promos__hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+}
+.sales-daily-promos__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.sales-daily-promos__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+.sales-daily-promos__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+.sales-daily-promos__name {
+  font-weight: 600;
+}
+.sales-daily-promos__qty {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.sales-daily-promos__qty .sales-finance-block__input {
+  width: 4.5rem;
+}
+.sales-promotions-compare {
+  margin-top: 1rem;
+}
+.sales-promotions-compare__badge {
+  font-size: 0.8rem;
+  color: var(--text-muted, #9a9a9a);
+}
+.sales-promotions-compare__badge--on {
+  color: color-mix(in srgb, #2e7d32 85%, var(--text, #f5f5f5));
+  font-weight: 600;
+}

@@ -3,12 +3,16 @@
  */
 import {
   SALES_MONTH_DAILY_SELECT,
+  SALES_MONTH_DAILY_SELECT_WITHOUT_PROMO,
   SALES_MONTH_DAILY_SELECT_WITHOUT_REFUNDS,
   SALES_MATRIX_HALL_KEYS,
   SALES_MATRIX_KEYS,
 } from './salesReportCore.js'
 
 export const SALES_DAILY_SELECT_FULL =
+  'id, club_id, report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, aerobic_sales_matrix, matrix_amounts, refunds_amount, promo_sales, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, dop_nk, dop_dk, dop_uk, updated_at'
+
+export const SALES_DAILY_SELECT_WITHOUT_PROMO =
   'id, club_id, report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, aerobic_sales_matrix, matrix_amounts, refunds_amount, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, dop_nk, dop_dk, dop_uk, updated_at'
 
 export const SALES_DAILY_SELECT_WITHOUT_REFUNDS =
@@ -16,6 +20,9 @@ export const SALES_DAILY_SELECT_WITHOUT_REFUNDS =
 
 export const SALES_DAILY_SELECT_BASE =
   'id, club_id, report_date, profit_nk, profit_dk, profit_uk, profit_day, pnk_total, trainings_count, trainings_matrix, pz_nk, pz_dk, pz_uk, tz_nk, tz_dk, tz_uk, az_nk, az_dk, az_uk, dop_nk, dop_dk, dop_uk, updated_at'
+
+export const SALES_PLAN_SELECT_WITH_PROMOTIONS =
+  'plan_total, plan_level_1, plan_level_2, plan_level_3, plan_pz, plan_tz, plan_az, plan_extra, plan_matrix, strategy_snapshot, promotions, updated_at'
 
 export const SALES_PLAN_SELECT_WITH_SNAPSHOT =
   'plan_total, plan_level_1, plan_level_2, plan_level_3, plan_pz, plan_tz, plan_az, plan_extra, plan_matrix, strategy_snapshot, updated_at'
@@ -69,6 +76,8 @@ export function isMissingSalesColumnError(err) {
     .join(' ')
   return (
     blob.includes('strategy_snapshot') ||
+    blob.includes('promotions') ||
+    blob.includes('promo_sales') ||
     blob.includes('matrix_amounts') ||
     blob.includes('aerobic_sales_matrix') ||
     blob.includes('plan_extra') ||
@@ -94,6 +103,9 @@ export async function querySalesDailyRow(client, clubId, reportDate) {
 
   let res = await run(SALES_DAILY_SELECT_FULL)
   if (res.error && isMissingSalesColumnError(res.error)) {
+    res = await run(SALES_DAILY_SELECT_WITHOUT_PROMO)
+  }
+  if (res.error && isMissingSalesColumnError(res.error)) {
     res = await run(SALES_DAILY_SELECT_WITHOUT_REFUNDS)
   }
   if (res.error && isMissingSalesColumnError(res.error)) {
@@ -111,6 +123,7 @@ export async function querySalesDailyRow(client, clubId, reportDate) {
 export async function querySalesMonthRows(client, clubId, start, end) {
   const selects = [
     SALES_MONTH_DAILY_SELECT,
+    SALES_MONTH_DAILY_SELECT_WITHOUT_PROMO,
     SALES_MONTH_DAILY_SELECT_WITHOUT_REFUNDS,
     SALES_MONTH_DAILY_SELECT_NO_AMOUNTS,
     SALES_MONTH_DAILY_SELECT_LEGACY,
@@ -147,7 +160,10 @@ export async function querySalesPlanRow(client, clubId, year, month) {
       .eq('month', month)
       .maybeSingle()
 
-  let res = await run(SALES_PLAN_SELECT_WITH_SNAPSHOT)
+  let res = await run(SALES_PLAN_SELECT_WITH_PROMOTIONS)
+  if (res.error && isMissingSalesColumnError(res.error)) {
+    res = await run(SALES_PLAN_SELECT_WITH_SNAPSHOT)
+  }
   if (res.error && isMissingSalesColumnError(res.error)) {
     res = await run(SALES_PLAN_SELECT_FULL)
   }

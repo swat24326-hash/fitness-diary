@@ -215,7 +215,8 @@ async function handler(req, res) {
       const scope =
         body?.scope === 'levels' ||
         body?.scope === 'directions' ||
-        body?.scope === 'strategy_snapshot'
+        body?.scope === 'strategy_snapshot' ||
+        body?.scope === 'promotions'
           ? body.scope
           : 'all'
       const scopeCheck = assertSalesPlanScopeForRole(scope, ctx.isSalesManager === true)

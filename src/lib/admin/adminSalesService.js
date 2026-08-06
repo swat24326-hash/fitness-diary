@@ -148,6 +148,8 @@ export async function saveClubSalesDaily({
   trainerIds,
   membershipTypes,
   aerobicMembershipTypes,
+  promoSales,
+  promotions,
 }) {
   const token = await getAccessTokenForAdminApi()
   if (!token) throw new Error('Нет сессии — войдите снова')
@@ -161,6 +163,8 @@ export async function saveClubSalesDaily({
     trainer_ids: trainerIds,
     membership_types: membershipTypes,
     aerobic_membership_types: aerobicMembershipTypes,
+    promo_sales: promoSales ?? {},
+    promotions: promotions ?? [],
   }
 
   try {
@@ -181,11 +185,13 @@ export async function saveClubSalesDaily({
     trainerIds,
     membershipTypes,
     aerobicMembershipTypes,
+    promoSales,
+    promotions,
   })
 }
 
 /** POST /api/admin-data?action=sales-plan */
-export async function saveClubSalesPlan({ clubId, year, month, form, scope }) {
+export async function saveClubSalesPlan({ clubId, year, month, form, scope, promotions }) {
   const token = await getAccessTokenForAdminApi()
   if (!token) throw new Error('Нет сессии — войдите снова')
 
@@ -197,6 +203,7 @@ export async function saveClubSalesPlan({ clubId, year, month, form, scope }) {
         month,
         form,
         scope,
+        promotions,
       })
       if (!routeMissing && data?.plan) return data.plan
     }
@@ -204,7 +211,7 @@ export async function saveClubSalesPlan({ clubId, year, month, form, scope }) {
     if (!isApiTransportError(e)) throw e
   }
 
-  return saveClubSalesPlanViaSupabase({ clubId, year, month, form, scope })
+  return saveClubSalesPlanViaSupabase({ clubId, year, month, form, scope, promotions })
 }
 
 /** POST /api/admin-data?action=sales-finance */

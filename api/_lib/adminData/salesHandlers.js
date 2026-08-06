@@ -17,12 +17,20 @@ import {
   querySalesPlanRow,
   SALES_DAILY_SELECT_BASE,
   SALES_DAILY_SELECT_FULL,
+  SALES_DAILY_SELECT_WITHOUT_PROMO,
   SALES_DAILY_SELECT_WITHOUT_REFUNDS,
   SALES_PLAN_SELECT_FULL,
+  SALES_PLAN_SELECT_WITH_PROMOTIONS,
   SALES_PLAN_SELECT_WITH_SNAPSHOT,
   isMissingSalesColumnError,
 } from '../../../src/lib/admin/adminSalesQueryResilience.js'
 import { validateStrategySnapshotForSave } from '../../../src/lib/admin/salesStrategySnapshotCore.js'
+import {
+  normalizePromotionsFromDb,
+  promoSalesFormToPayload,
+  validateDayPromoSales,
+  validatePromotionsForSave,
+} from '../../../src/lib/admin/salesPromotionsCore.js'
 import { patchOrInsertClubSalesPlanRow } from '../../../src/lib/admin/salesPlanRowPersistCore.js'
 import { normalizeMatrixRowsFromDb } from '../../../src/lib/admin/salesTrainingsMatrix.js'
 import { normalizeAerobicRowsFromDb } from '../../../src/lib/admin/aerobicSalesMatrix.js'
@@ -231,11 +239,37 @@ export async function handleSalesDailyPost(ctx, req, res, body) {
     sendJson(res, 400, { error: parsed.error })
     return
   }
+
+  /** @type {Record<string, unknown>} */
+  const payload = { ...parsed.payload }
+  if (body?.promo_sales != null || body?.promoSales != null) {
+    const promoParsed = promoSalesFormToPayload(body.promo_sales ?? body.promoSales)
+    if (!promoParsed.ok) {
+      sendJson(res, 400, { error: promoParsed.error })
+      return
+    }
+    const promotions = normalizePromotionsFromDb(body?.promotions)
+    const matrixCounts = {}
+    for (const key of Object.keys(payload)) {
+      if (/^(pz|tz|az|dop)_(nk|dk|uk)$/.test(key)) matrixCounts[key] = payload[key]
+    }
+    const check = validateDayPromoSales({
+      promo_sales: promoParsed.promo_sales,
+      promotions,
+      matrixCounts,
+    })
+    if (!check.ok) {
+      sendJson(res, 400, { error: check.error })
+      return
+    }
+    payload.promo_sales = promoParsed.promo_sales
+  }
+
   const { supabaseAdmin, user } = ctx
   const row = {
     club_id: clubId,
     report_date: reportDate,
-    ...parsed.payload,
+    ...payload,
     updated_at: new Date().toISOString(),
     updated_by: user?.id ?? null,
   }
@@ -244,9 +278,28 @@ export async function handleSalesDailyPost(ctx, req, res, body) {
     .upsert(row, { onConflict: 'club_id,report_date' })
     .select(SALES_DAILY_SELECT_FULL)
     .single()
+  if (error && (isMissingSalesColumnError(error) || /promo_sales/i.test(String(error.message ?? '')))) {
+    if (payload.promo_sales != null && Object.keys(payload.promo_sales).length > 0) {
+      sendJson(res, 400, {
+        error:
+          'Нет колонки promo_sales — примените миграцию: npm run db:migrate:sales-promotions -- --linked',
+      })
+      return
+    }
+    const { promo_sales: _promo, ...rowWithoutPromo } = row
+    void _promo
+    const retry = await supabaseAdmin
+      .from('club_sales_daily')
+      .upsert(rowWithoutPromo, { onConflict: 'club_id,report_date' })
+      .select(SALES_DAILY_SELECT_WITHOUT_PROMO)
+      .single()
+    data = retry.data
+    error = retry.error
+  }
   if (error) {
-    const { refunds_amount: _refunds, ...rowWithoutRefunds } = row
+    const { refunds_amount: _refunds, promo_sales: _promo2, ...rowWithoutRefunds } = row
     void _refunds
+    void _promo2
     const retry = await supabaseAdmin
       .from('club_sales_daily')
       .upsert(rowWithoutRefunds, { onConflict: 'club_id,report_date' })
@@ -256,9 +309,11 @@ export async function handleSalesDailyPost(ctx, req, res, body) {
     error = retry.error
   }
   if (error) {
-    const { matrix_amounts: _drop, refunds_amount: _refunds2, ...rowWithoutAmounts } = row
+    const { matrix_amounts: _drop, refunds_amount: _refunds2, promo_sales: _promo3, ...rowWithoutAmounts } =
+      row
     void _drop
     void _refunds2
+    void _promo3
     const retry = await supabaseAdmin
       .from('club_sales_daily')
       .upsert(rowWithoutAmounts, { onConflict: 'club_id,report_date' })
@@ -285,12 +340,44 @@ export async function handleSalesPlanPost(ctx, req, res, body) {
   const scope =
     body?.scope === 'levels' ||
     body?.scope === 'directions' ||
-    body?.scope === 'strategy_snapshot'
+    body?.scope === 'strategy_snapshot' ||
+    body?.scope === 'promotions'
       ? body.scope
       : 'all'
 
   const { supabaseAdmin } = ctx
-  const selectCols = SALES_PLAN_SELECT_WITH_SNAPSHOT
+  const selectCols = SALES_PLAN_SELECT_WITH_PROMOTIONS
+
+  if (scope === 'promotions') {
+    const validated = validatePromotionsForSave(body?.promotions ?? [])
+    if (!validated.ok) {
+      sendJson(res, 400, { error: validated.error })
+      return
+    }
+    let { data, error } = await patchOrInsertClubSalesPlanRow(supabaseAdmin, {
+      clubId,
+      year,
+      month,
+      patch: { promotions: validated.promotions, updated_at: new Date().toISOString() },
+      selectCols,
+    })
+    if (
+      error &&
+      (isMissingSalesColumnError(error) || /promotions/i.test(String(error.message ?? '')))
+    ) {
+      sendJson(res, 400, {
+        error:
+          'Нет колонки promotions — примените миграцию: npm run db:migrate:sales-promotions -- --linked',
+      })
+      return
+    }
+    if (error) {
+      sendJson(res, 400, { error: error.message })
+      return
+    }
+    sendJson(res, 200, { plan: data })
+    return
+  }
 
   if (scope === 'strategy_snapshot') {
     const snap = validateStrategySnapshotForSave(body?.strategy_snapshot ?? body?.snapshot)
@@ -304,8 +391,22 @@ export async function handleSalesPlanPost(ctx, req, res, body) {
       year,
       month,
       patch: { strategy_snapshot: snap.snapshot },
-      selectCols,
+      selectCols: SALES_PLAN_SELECT_WITH_PROMOTIONS,
     })
+    if (
+      error &&
+      (isMissingSalesColumnError(error) || /promotions/i.test(String(error.message ?? '')))
+    ) {
+      const retrySnap = await patchOrInsertClubSalesPlanRow(supabaseAdmin, {
+        clubId,
+        year,
+        month,
+        patch: { strategy_snapshot: snap.snapshot },
+        selectCols: SALES_PLAN_SELECT_WITH_SNAPSHOT,
+      })
+      data = retrySnap.data
+      error = retrySnap.error
+    }
     if (
       error &&
       (isMissingSalesColumnError(error) || /strategy_snapshot/i.test(String(error.message ?? '')))
@@ -349,8 +450,23 @@ export async function handleSalesPlanPost(ctx, req, res, body) {
     patch,
     selectCols,
   })
+  if (error && (isMissingSalesColumnError(error) || /promotions/i.test(String(error.message ?? '')))) {
+    const { promotions: _promo, ...patchWithoutPromo } = patch
+    void _promo
+    const retryPromo = await patchOrInsertClubSalesPlanRow(supabaseAdmin, {
+      clubId,
+      year,
+      month,
+      patch: patchWithoutPromo,
+      selectCols: SALES_PLAN_SELECT_WITH_SNAPSHOT,
+    })
+    data = retryPromo.data
+    error = retryPromo.error
+  }
   if (error && (isMissingSalesColumnError(error) || /strategy_snapshot/i.test(String(error.message ?? '')))) {
-    const { strategy_snapshot: _snap, ...patchWithoutSnap } = patch
+    const { strategy_snapshot: _snap, promotions: _promo2, ...patchWithoutSnap } = patch
+    void _snap
+    void _promo2
     const retry = await patchOrInsertClubSalesPlanRow(supabaseAdmin, {
       clubId,
       year,

@@ -1330,8 +1330,9 @@ button.pnk-chip:disabled {
   margin: 0;
   padding: 0 2px 4px 0;
   display: grid;
-  /* Квадратные плитки в ряд; min ~13rem — даты и имя не сжимаются */
-  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  /* Карточки по высоте контента — шкала шагов не обрезается */
+  grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr));
+  align-items: start;
   gap: 10px;
   max-height: min(58vh, 560px);
   overflow-y: auto;
@@ -1344,15 +1345,13 @@ button.pnk-chip:disabled {
   margin: 0;
   padding: 0;
   min-width: 0;
-  min-height: 0;
-  aspect-ratio: 1 / 1;
   height: auto;
   display: flex;
   flex-direction: column;
   border-radius: var(--radius);
   background: var(--bg-elevated);
   border: 1px solid var(--border);
-  overflow: hidden;
+  overflow: visible;
   transition:
     border-color 0.2s var(--ease-out),
     box-shadow 0.2s var(--ease-out);
@@ -1370,12 +1369,12 @@ button.pnk-chip:disabled {
 
 .pnk-control-tile__btn {
   width: 100%;
-  flex: 1;
+  flex: 0 0 auto;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 2.6em) 1.3em minmax(0, 2.6em) minmax(0, 2.5em) auto;
-  gap: 5px;
-  padding: 10px;
+  grid-template-rows: auto auto auto auto auto auto;
+  gap: 6px;
+  padding: 12px;
   border: 0;
   background: transparent;
   color: inherit;
@@ -1655,9 +1654,9 @@ button.pnk-chip:disabled {
     top: 0.75rem;
   }
 
-  /* Квадратные плитки слева — несколько в ряд */
+  /* Плитки слева — несколько в ряд, высота по содержимому */
   .pnk-control-board__grid {
-    grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr));
     max-height: min(72vh, 780px);
   }
 }

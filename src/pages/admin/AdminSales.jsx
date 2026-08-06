@@ -41,6 +41,10 @@ import {
   saveClubSalesFinance,
   saveClubSalesPlan,
 } from '../../lib/admin/adminSalesService'
+import {
+  normalizePromotionsFromDb,
+  promoSalesToFormMap,
+} from '../../lib/admin/salesPromotionsCore.js'
 import { clearSalesPlanGlanceSession } from '../../lib/admin/salesPlanGlanceSession.js'
 import {
   invalidateSalesShellSession,
@@ -179,6 +183,8 @@ export function AdminSales({ accessMode = 'admin' }) {
   const [fitCityTypeStats, setFitCityTypeStats] = useState(null)
   const [trainingsMatrix, setTrainingsMatrix] = useState({})
   const [aerobicMatrix, setAerobicMatrix] = useState({})
+  const [planPromotions, setPlanPromotions] = useState([])
+  const [promoSales, setPromoSales] = useState({})
   const [attentionWidgets, setAttentionWidgets] = useState({
     hasPnk: false,
     hasPlanerka: false,
@@ -249,6 +255,7 @@ export function AdminSales({ accessMode = 'admin' }) {
     nextExpenseForm = expenseResolved.expenseForm
 
     setPlanForm(nextPlanForm)
+    setPlanPromotions(normalizePromotionsFromDb(bundle.plan?.promotions))
     setExpenseForm(nextExpenseForm)
     return { planResolved, expenseResolved }
   }, [])
@@ -260,6 +267,7 @@ export function AdminSales({ accessMode = 'admin' }) {
     let nextAerobicMatrix = aerobicRowsToInputMap(
       normalizeAerobicRowsFromDb(bundle.daily?.aerobic_sales_matrix),
     )
+    const nextPromoSales = promoSalesToFormMap(bundle.daily?.promo_sales)
     const dailyServerFp = fingerprintDailyDraft({
       dailyForm: nextDailyForm,
       trainingsMatrix: nextTrainingsMatrix,
@@ -277,6 +285,7 @@ export function AdminSales({ accessMode = 'admin' }) {
     setDailyForm(dailyResolved.dailyForm)
     setTrainingsMatrix(dailyResolved.trainingsMatrix)
     setAerobicMatrix(dailyResolved.aerobicMatrix)
+    setPromoSales(nextPromoSales)
     if (Array.isArray(bundle.trainers)) setTrainers(bundle.trainers)
     if (bundle.fitCityTypeStats != null) setFitCityTypeStats(bundle.fitCityTypeStats)
     return dailyResolved
@@ -686,6 +695,8 @@ export function AdminSales({ accessMode = 'admin' }) {
         trainerIds: trainers.map((t) => t.id).filter(Boolean),
         membershipTypes,
         aerobicMembershipTypes,
+        promoSales,
+        promotions: planPromotions,
       })
       if (!row) {
         setError('API продаж недоступен')
@@ -694,6 +705,7 @@ export function AdminSales({ accessMode = 'admin' }) {
       setDailyForm(dailyRowToForm(row))
       setTrainingsMatrix(hydrateTrainingsMatrixInputMap(normalizeMatrixRowsFromDb(row?.trainings_matrix)))
       setAerobicMatrix(aerobicRowsToInputMap(normalizeAerobicRowsFromDb(row?.aerobic_sales_matrix)))
+      setPromoSales(promoSalesToFormMap(row?.promo_sales))
       clearSalesDraft(salesDailyDraftKey(clubId, reportDate))
       clearSalesPlanGlanceSession(clubId)
       invalidateSalesShellSession(clubId)
@@ -760,6 +772,35 @@ export function AdminSales({ accessMode = 'admin' }) {
       showToast('План по направлениям сохранён')
     } catch (e) {
       setError(e?.message ?? 'Ошибка сохранения плана')
+    } finally {
+      setSavingPlan(false)
+    }
+  }
+
+  const handleSavePromotions = async () => {
+    if (!clubId) return
+    setSavingPlan(true)
+    setError('')
+    try {
+      const plan = await saveClubSalesPlan({
+        clubId,
+        year: yearMonth.year,
+        month: yearMonth.month,
+        form: planForm,
+        scope: 'promotions',
+        promotions: planPromotions,
+      })
+      if (!plan) {
+        setError('API продаж недоступен')
+        return
+      }
+      setPlanPromotions(normalizePromotionsFromDb(plan?.promotions))
+      clearSalesPlanGlanceSession(clubId)
+      invalidateSalesShellSession(clubId)
+      await loadBundle()
+      showToast('Акции сохранены')
+    } catch (e) {
+      setError(e?.message ?? 'Ошибка сохранения акций')
     } finally {
       setSavingPlan(false)
     }
@@ -1161,6 +1202,9 @@ export function AdminSales({ accessMode = 'admin' }) {
             fitCityTypeStats={fitCityTypeStats}
             clubId={clubId}
             showPayroll={!isSalesManager}
+            promotions={planPromotions}
+            promoSales={promoSales}
+            onPromoSalesChange={setPromoSales}
           />
         </div>
       ) : null}
@@ -1187,6 +1231,11 @@ export function AdminSales({ accessMode = 'admin' }) {
             planLevels={planLevels}
             planDirections={planDirections}
             planMatrix={planMatrix}
+            promotions={planPromotions}
+            onPromotionsChange={setPlanPromotions}
+            onSavePromotions={() => void handleSavePromotions()}
+            savingPromotions={savingPlan}
+            canEditPromotions
             membershipTypes={membershipTypes}
             trainers={trainers}
             onPrevMonth={() => shiftReportMonth(-1)}
@@ -1280,6 +1329,9 @@ export function AdminSales({ accessMode = 'admin' }) {
             clubId={clubId}
             showPayroll
             hideDateStepper
+            promotions={planPromotions}
+            promoSales={promoSales}
+            onPromoSalesChange={setPromoSales}
           />
         </div>
       ) : !isSalesManager && salesTab === 'stats' ? (
@@ -1292,6 +1344,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             planLevels={planLevels}
             planDirections={planDirections}
             planMatrix={planMatrix}
+            promotions={planPromotions}
             membershipTypes={membershipTypes}
             trainers={trainers}
             onPrevMonth={() => shiftReportMonth(-1)}
@@ -1305,8 +1358,13 @@ export function AdminSales({ accessMode = 'admin' }) {
         <div id="sales-panel-plan" role="tabpanel" aria-labelledby="sales-tab-plan">
           <SalesPlanSettingsPanel
             monthLabel={monthLabel}
+            year={yearMonth.year}
+            month={yearMonth.month}
             planForm={planForm}
             onPlanChange={setPlanForm}
+            promotions={planPromotions}
+            onPromotionsChange={setPlanPromotions}
+            onSavePromotions={() => void handleSavePromotions()}
             expenseForm={expenseForm}
             onExpenseChange={setExpenseForm}
             onSavePlan={() => void handleSavePlanLevels()}

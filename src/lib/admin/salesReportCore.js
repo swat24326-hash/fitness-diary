@@ -116,6 +116,23 @@ export const SALES_MONTH_DAILY_SELECT = [
   'aerobic_sales_matrix',
   'matrix_amounts',
   'refunds_amount',
+  'promo_sales',
+  ...SALES_MATRIX_KEYS,
+].join(', ')
+
+/** Месяц без promo_sales (до миграции акций). */
+export const SALES_MONTH_DAILY_SELECT_WITHOUT_PROMO = [
+  'report_date',
+  'profit_nk',
+  'profit_dk',
+  'profit_uk',
+  'profit_day',
+  'pnk_total',
+  'trainings_count',
+  'trainings_matrix',
+  'aerobic_sales_matrix',
+  'matrix_amounts',
+  'refunds_amount',
   ...SALES_MATRIX_KEYS,
 ].join(', ')
 
