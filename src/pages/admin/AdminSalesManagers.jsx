@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useSearchParams } from 'react-router-dom'
 import { RefreshCw, UserPlus } from 'lucide-react'
 import { CloseButton } from '../../components/CloseButton'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { fetchTrainersViaAdminApi } from '../../lib/admin/adminApiClient'
 import { createSalesManagerForAdmin } from '../../lib/admin/createSalesManagerService'
+import {
+  clubsForStaffSections,
+  filterStaffByClub,
+  normalizeClubFilterId,
+  shouldShowUnassignedStaff,
+} from '../../lib/admin/filterStaffByClub'
 import { listClubsLocal, pullClubsFromSupabase } from '../../lib/dataAccess'
 
 const EMPTY_FORM = {
@@ -17,6 +24,8 @@ const EMPTY_FORM = {
 }
 
 export function AdminSalesManagers() {
+  const [searchParams] = useSearchParams()
+  const clubFilterId = normalizeClubFilterId(searchParams.get('club'))
   const [clubs, setClubs] = useState([])
   const [managers, setManagers] = useState([])
   const [busy, setBusy] = useState(false)
@@ -64,20 +73,40 @@ export function AdminSalesManagers() {
     return () => window.removeEventListener('keydown', onKey)
   }, [createOpen, saving])
 
+  const openCreate = () => {
+    setForm({ ...EMPTY_FORM, club_id: clubFilterId || '' })
+    setCreateOpen(true)
+  }
+
   const closeCreate = () => {
     if (saving) return
     setCreateOpen(false)
   }
 
+  const filteredManagers = useMemo(
+    () => filterStaffByClub(managers, clubFilterId),
+    [managers, clubFilterId],
+  )
+
   const managersByClub = useMemo(() => {
     const map = new Map()
-    for (const m of managers) {
+    for (const m of filteredManagers) {
       const cid = String(m.club_id ?? '').trim() || '__none__'
       if (!map.has(cid)) map.set(cid, [])
       map.get(cid).push(m)
     }
     return map
-  }, [managers])
+  }, [filteredManagers])
+
+  const clubsForSections = useMemo(
+    () => clubsForStaffSections(clubs, clubFilterId),
+    [clubs, clubFilterId],
+  )
+  const showUnassigned = shouldShowUnassignedStaff(clubFilterId)
+  const filteredClubName = useMemo(() => {
+    if (!clubFilterId) return ''
+    return clubs.find((c) => String(c.id) === clubFilterId)?.name ?? ''
+  }, [clubs, clubFilterId])
 
   const submitCreate = async (e) => {
     e.preventDefault()
@@ -199,7 +228,7 @@ export function AdminSalesManagers() {
           <button
             type="button"
             className="btn btn-primary btn-icon-square btn-touch"
-            onClick={() => setCreateOpen(true)}
+            onClick={openCreate}
             aria-label="Новый менеджер"
             title="Новый менеджер"
           >
@@ -216,14 +245,17 @@ export function AdminSalesManagers() {
       </p>
 
       {managers.length === 0 && !busy ? <p className="muted">Менеджеров пока нет.</p> : null}
+      {clubFilterId && managers.length > 0 && filteredManagers.length === 0 && !busy ? (
+        <p className="muted">В выбранном клубе менеджеров нет.</p>
+      ) : null}
 
-      {clubs.map((club) => {
+      {clubsForSections.map((club) => {
         const rows = managersByClub.get(club.id) ?? []
         if (!rows.length) return null
         return (
           <div key={club.id} style={{ marginBottom: 16 }}>
             <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 8px' }}>
-              {club.name}
+              {clubFilterId ? `Менеджеры: ${filteredClubName || club.name}` : club.name}
             </h3>
             <div className="table-wrap">
               <table className="table">
@@ -249,7 +281,7 @@ export function AdminSalesManagers() {
         )
       })}
 
-      {(managersByClub.get('__none__') ?? []).length > 0 ? (
+      {showUnassigned && (managersByClub.get('__none__') ?? []).length > 0 ? (
         <div style={{ marginBottom: 16 }}>
           <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 8px' }}>
             Без клуба

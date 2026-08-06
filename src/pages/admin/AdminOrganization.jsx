@@ -19,6 +19,12 @@ import {
   updateTrainerClubForAdmin,
 } from '../../lib/dataAccess'
 import { createTrainerForAdmin } from '../../lib/admin/createTrainerService'
+import {
+  clubsForStaffSections,
+  filterStaffByClub,
+  normalizeClubFilterId,
+  shouldShowUnassignedStaff,
+} from '../../lib/admin/filterStaffByClub'
 import { formatClientName } from '../../lib/clientNameFormat.js'
 import {
   resetTrainerPasswordForAdmin,
@@ -542,6 +548,21 @@ export function AdminOrganization({ mode = 'both' } = {}) {
     return { byId, unassigned }
   }, [trainers, clubs])
 
+  const clubFilterId = normalizeClubFilterId(defaultClubFromUrl)
+  const filteredTrainers = useMemo(
+    () => filterStaffByClub(trainers, clubFilterId),
+    [trainers, clubFilterId],
+  )
+  const clubsForTrainerSections = useMemo(
+    () => clubsForStaffSections(clubs, clubFilterId),
+    [clubs, clubFilterId],
+  )
+  const showUnassignedTrainers = shouldShowUnassignedStaff(clubFilterId)
+  const filteredClubName = useMemo(() => {
+    if (!clubFilterId) return ''
+    return clubs.find((c) => String(c.id) === clubFilterId)?.name ?? ''
+  }, [clubs, clubFilterId])
+
   const TrainerTable = ({ rows, title }) => {
     if (!rows.length) return null
     return (
@@ -834,15 +855,32 @@ export function AdminOrganization({ mode = 'both' } = {}) {
           <p className="muted">Нет тренеров с ролью trainer в users.</p>
         ) : null}
 
-        {trainers.length > 0 ? (
-          <TrainerTable rows={trainers} title={`Все тренеры (${trainers.length})`} />
-        ) : null}
+        {clubFilterId ? (
+          <>
+            {filteredTrainers.length > 0 ? (
+              <TrainerTable
+                rows={filteredTrainers}
+                title={`Тренеры: ${filteredClubName || 'клуб'} (${filteredTrainers.length})`}
+              />
+            ) : !trainerBusy && trainers.length > 0 ? (
+              <p className="muted">В выбранном клубе тренеров нет.</p>
+            ) : null}
+          </>
+        ) : (
+          <>
+            {trainers.length > 0 ? (
+              <TrainerTable rows={trainers} title={`Все тренеры (${trainers.length})`} />
+            ) : null}
 
-        {clubs.map((c) => (
-          <TrainerTable key={c.id} rows={trainersByClub.byId.get(c) ?? []} title={c.name} />
-        ))}
+            {clubsForTrainerSections.map((c) => (
+              <TrainerTable key={c.id} rows={trainersByClub.byId.get(c.id) ?? []} title={c.name} />
+            ))}
 
-        <TrainerTable rows={trainersByClub.unassigned} title="Без привязки к клубу" />
+            {showUnassignedTrainers ? (
+              <TrainerTable rows={trainersByClub.unassigned} title="Без привязки к клубу" />
+            ) : null}
+          </>
+        )}
       </section>
       ) : null}
 

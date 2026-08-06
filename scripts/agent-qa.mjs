@@ -71,6 +71,7 @@ run('sales strategy nk uk edit', 'node', ['scripts/verify-sales-strategy-nk-uk-e
 run('trainer payroll', 'node', ['scripts/verify-trainer-payroll.mjs'])
 run('trainer auth admin', 'node', ['scripts/verify-trainer-auth-admin.mjs'])
 run('trainer tablet mode', 'node', ['scripts/verify-trainer-tablet-mode.mjs'])
+run('filter staff by club', 'node', ['scripts/verify-filter-staff-by-club.mjs'])
 run('aerobic payroll', 'node', ['scripts/verify-aerobic-payroll.mjs'])
 run('sales plan progress', 'node', ['scripts/verify-sales-plan-progress.mjs'])
 run('sales plan levels', 'node', ['scripts/verify-sales-plan-levels.mjs'])
