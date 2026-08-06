@@ -1183,6 +1183,10 @@
 }
 
 .sales-report__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
   margin: 0.25rem 0 0.5rem;
   padding: 0.2rem;
   border-radius: var(--radius-md, 12px);
@@ -1198,6 +1202,25 @@
   background: color-mix(in srgb, var(--accent-bright) 12%, transparent);
   border-color: color-mix(in srgb, var(--accent-bright) 25%, transparent);
   color: var(--accent-bright);
+}
+
+.sales-report__tabs .tab.sales-report__tab--push-end {
+  margin-left: auto;
+}
+
+.sales-report__tabs .tab.tab--sales-planning {
+  color: #ff6b6b;
+}
+
+.sales-report__tabs .tab.tab--sales-planning:hover {
+  color: #ff8a8a;
+  border-color: rgba(255, 107, 107, 0.35);
+}
+
+.sales-report__tabs .tab.tab--sales-planning[aria-selected='true'] {
+  color: #ff8a8a;
+  background: rgba(255, 107, 107, 0.12);
+  border-color: rgba(255, 107, 107, 0.35);
 }
 
 .sales-report__finance {
@@ -3501,24 +3524,32 @@
 }
 
 .sales-report__compare-status-head {
-  min-width: 5.5rem;
-  text-align: center;
+  min-width: 12rem;
+  text-align: left;
 }
 
 .sales-report__compare-status {
-  text-align: center;
+  text-align: left;
   vertical-align: middle;
-  padding: 0.35rem 0.4rem;
+  padding: 0.4rem 0.55rem;
+}
+
+.sales-report__compare-status-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  vertical-align: middle;
 }
 
 .sales-report__compare-status-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   width: 1.85rem;
   height: 1.85rem;
   border-radius: 999px;
-  margin: 0 auto 0.2rem;
+  margin: 0;
 }
 
 .sales-report__compare-status--ok .sales-report__compare-status-icon {
@@ -3528,50 +3559,68 @@
 }
 
 .sales-report__compare-status--lag .sales-report__compare-status-icon {
-  color: #f5b84d;
-  background: rgba(245, 184, 77, 0.12);
-  box-shadow: 0 0 0 1px rgba(245, 184, 77, 0.28);
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.14);
+  box-shadow: 0 0 0 1px rgba(255, 107, 107, 0.35);
 }
 
 .sales-report__compare-status-label {
-  display: block;
-  font-size: 0.65rem;
-  line-height: 1.2;
-  color: rgba(255, 255, 255, 0.55);
-}
-
-.sales-report__compare-risks {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.2rem;
-  margin-top: 0.28rem;
-}
-
-.sales-report__compare-risk {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.08rem 0.38rem;
-  border-radius: 999px;
-  font-size: 0.58rem;
+  display: inline;
+  font-size: 0.92rem;
   font-weight: 700;
-  letter-spacing: 0.01em;
   line-height: 1.2;
-  color: #f0a878;
-  background: rgba(240, 168, 120, 0.12);
-  border: 1px solid rgba(240, 168, 120, 0.32);
+  letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.78);
 }
 
-.sales-report__compare-risk--count {
-  color: #f5b84d;
-  background: rgba(245, 184, 77, 0.1);
-  border-color: rgba(245, 184, 77, 0.3);
+.sales-report__compare-status--lag .sales-report__compare-status-label {
+  color: #ff8a8a;
 }
 
-.sales-report__compare-risk--avg {
-  color: #f0a878;
-  background: rgba(240, 168, 120, 0.12);
-  border-color: rgba(240, 168, 120, 0.32);
+.sales-report__compare-status--ok .sales-report__compare-status-label {
+  color: color-mix(in srgb, var(--accent-bright) 88%, #fff);
+}
+
+.sales-report__compare-problems {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem 0.2rem;
+  margin-left: 0.55rem;
+  max-width: 22rem;
+  vertical-align: middle;
+}
+
+.sales-report__compare-problem-wrap {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.2rem;
+}
+
+.sales-report__compare-problem-sep {
+  color: rgba(255, 138, 138, 0.55);
+  font-weight: 600;
+}
+
+.sales-report__compare-problem {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1.25;
+  color: #ff8a8a;
+}
+
+.sales-report__compare-problem-label {
+  color: #ff9b9b;
+}
+
+.sales-report__compare-problem-delta {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  color: #ff6b6b;
 }
 
 .sales-report__compare-num--fact {
@@ -5029,9 +5078,7 @@
   color: color-mix(in srgb, var(--accent-bright, #e8a838) 85%, #fff);
 }
 
-/* ????-????? / ???????? match */
-.sales-clip-section__tip,
-.sales-evening-match .sales-clip-section__tip {
+.sales-clip-section__tip {
   margin: 0 0 0.75rem;
   max-width: 52rem;
 }
@@ -5052,8 +5099,7 @@
   grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
   margin-bottom: 1.25rem;
 }
-.sales-clip-form label,
-.sales-evening-match label {
+.sales-clip-form label {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
@@ -5063,15 +5109,9 @@
   grid-column: 1 / -1;
 }
 .sales-clip-form input,
-.sales-clip-form select,
-.sales-evening-match input,
-.sales-evening-match textarea {
+.sales-clip-form select {
   min-height: 2.5rem;
   padding: 0.4rem 0.55rem;
-}
-.sales-evening-match textarea {
-  min-height: 5rem;
-  resize: vertical;
 }
 .sales-clip-warnings {
   grid-column: 1 / -1;
@@ -5096,15 +5136,6 @@
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--text-muted) 18%, transparent);
   border-radius: var(--radius-md, 10px);
-}
-.sales-evening-match__fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
-  gap: 0.65rem 1rem;
-  margin: 0.75rem 0;
-}
-.sales-evening-match__result {
-  margin-top: 0.75rem;
 }
 .trainer-sale-clips {
   margin: 0.75rem 0 1rem;
@@ -5142,11 +5173,7 @@
   align-items: center;
   gap: 0.35rem 0.5rem;
 }
-.sales-evening-match__actions {
-  margin: 0.35rem 0 0.75rem;
-}
 
-/* ?????????? ?????????????? (??? ?????): ?????? / ?? ?????? / ?? */
 .sales-visual-alert {
   margin: 0.75rem 0;
   padding: 0.85rem 1rem;

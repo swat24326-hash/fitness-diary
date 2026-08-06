@@ -6,6 +6,7 @@ import {
   SALES_MATRIX_HALL_ROWS,
   sumMatrix3x3AmountsFromDailyRows,
   matrixAmountsFromDb,
+  formatRub,
 } from './salesReportCore.js'
 import {
   hasPlanMatrixData,
@@ -200,13 +201,38 @@ export function resolveSegmentChartPlanLines(plan, daysInMonth) {
 }
 
 /**
+ * @param {number} n
+ * @returns {string}
+ */
+export function formatPlanStatusSignedCount(n) {
+  const v = Math.trunc(Number(n) || 0)
+  const abs = Math.abs(v)
+  if (v < 0) return `−${abs}`
+  if (v > 0) return `+${abs}`
+  return '0'
+}
+
+/**
+ * @param {number} n
+ * @returns {string}
+ */
+export function formatPlanStatusSignedRub(n) {
+  const v = roundPlanRub(n)
+  if (!Number.isFinite(v)) return '—'
+  const absBody = formatRub(Math.abs(v))
+  if (v < 0) return `−${absBody}`
+  if (v > 0) return `+${absBody}`
+  return absBody
+}
+
+/**
  * @param {{
  *   plan?: { count?: number, avg_check?: number, amount?: number },
  *   fact?: { count?: number, avg_check?: number | null, amount?: number },
  *   count_progress_pct?: number,
  *   amount_progress_pct?: number,
  *   avg_gap_rub?: number | null,
- *   pace?: { on_pace?: boolean },
+ *   pace?: { on_pace?: boolean, expected_count?: number },
  * }} row
  * @param {{ month_relation?: string, expected_plan_progress_pct?: number } | null | undefined} calendar
  */
@@ -215,7 +241,9 @@ export function resolvePlanMatrixCellStatus(row, calendar) {
   const elapsedPct = relation === 'current' ? Number(calendar?.expected_plan_progress_pct) || 0 : relation === 'past' ? 100 : 0
 
   const planAmount = Number(row.plan?.amount) || 0
+  const planCount = Math.trunc(Number(row.plan?.count) || 0)
   const factAmount = Number(row.fact?.amount) || 0
+  const factCount = Math.trunc(Number(row.fact?.count) || 0)
   const countPct = Number(row.count_progress_pct) || 0
   const amountPct = Number(row.amount_progress_pct) || 0
 
@@ -226,10 +254,13 @@ export function resolvePlanMatrixCellStatus(row, calendar) {
       title: 'План по ячейке не задан',
       forecast_amount: 0,
       forecast_pct: 0,
+      risks: [],
+      problems: [],
     }
   }
 
   const forecastAmount = forecastPlanMatrixAmount(factAmount, calendar)
+  const forecastCount = forecastPlanMatrixCount(factCount, calendar)
   const forecastPct = planProgressPercent(forecastAmount, planAmount)
   const forecastOk = forecastPct >= 99.5
 
@@ -241,17 +272,57 @@ export function resolvePlanMatrixCellStatus(row, calendar) {
   const avgGap = row.avg_gap_rub
   const avgOk = avgGap == null || Number(avgGap) >= -0.01 || factAmount <= 0
 
-  // Статус строки — по деньгам (сумма к темпу + прогноз). Штуки и чек — отдельные риски.
+  // Статус строки — по деньгам (сумма к темпу + прогноз). Объём и чек — отдельные пояснения.
   const ok = amountOk && forecastOk
 
-  /** @type {Array<{ key: 'count' | 'avg', label: string, detail: string }>} */
-  const risks = []
+  /** @type {Array<{ key: 'count' | 'avg' | 'forecast', label: string, delta_text: string, detail: string }>} */
+  const problems = []
+
   if (!countOk) {
-    risks.push({ key: 'count', label: 'штуки', detail: 'объём штук отстаёт от темпа месяца' })
+    const expected = Math.trunc(Number(row.pace?.expected_count) || 0)
+    let shortfall = 0
+    if (relation === 'current' && expected > 0) {
+      shortfall = Math.max(0, expected - factCount)
+    }
+    if (shortfall <= 0) {
+      shortfall = Math.max(0, planCount - forecastCount)
+    }
+    if (shortfall <= 0) {
+      shortfall = Math.max(0, -Math.trunc(Number(row.count_gap) || 0))
+    }
+    problems.push({
+      key: 'count',
+      label: 'количество абонементов',
+                    delta_text: formatPlanStatusSignedCount(-shortfall),
+      detail:
+        shortfall > 0
+          ? `не хватает ${shortfall} абонементов до темпа / прогноза`
+          : 'объём абонементов отстаёт от темпа месяца',
+    })
   }
+
   if (!avgOk) {
-    risks.push({ key: 'avg', label: 'чек', detail: 'средний чек ниже плана' })
+    const gap = Number(avgGap)
+    problems.push({
+      key: 'avg',
+      label: 'средний чек',
+      delta_text: formatPlanStatusSignedRub(gap),
+      detail: 'средний чек ниже плана',
+    })
   }
+
+  const forecastShortfall = roundPlanRub(planAmount - forecastAmount)
+  if (!ok && forecastShortfall > 0) {
+    problems.push({
+      key: 'forecast',
+      label: 'прогноз',
+      delta_text: formatPlanStatusSignedRub(-forecastShortfall),
+      detail: 'прогноз к концу месяца не дотягивает до плана',
+    })
+  }
+
+  /** @type {Array<{ key: 'count' | 'avg', label: string, delta_text: string, detail: string }>} */
+  const risks = problems.filter((p) => p.key === 'count' || p.key === 'avg')
 
   /** @type {string[]} */
   const lagReasons = []
@@ -275,6 +346,7 @@ export function resolvePlanMatrixCellStatus(row, calendar) {
     label: ok ? 'В темпе' : 'Отстаём',
     title,
     risks,
+    problems,
     forecast_amount: forecastAmount,
     forecast_pct: forecastPct,
     count_on_pace: countOk,

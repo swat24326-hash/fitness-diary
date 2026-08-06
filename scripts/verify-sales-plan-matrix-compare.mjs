@@ -99,6 +99,7 @@ const okRow = resolvePlanMatrixCellStatus(
 )
 ok(okRow.status === 'ok', 'status ok when pace and forecast meet plan')
 ok((okRow.risks ?? []).length === 0, 'no risks when count and avg on plan')
+ok((okRow.problems ?? []).length === 0, 'no problems when fully on pace')
 
 const moneyOkAvgRisk = resolvePlanMatrixCellStatus(
   {
@@ -116,6 +117,16 @@ ok(
   moneyOkAvgRisk.risks?.some((r) => r.key === 'avg') === true,
   'avg risk chip when average check below plan',
 )
+ok(
+  moneyOkAvgRisk.problems?.some(
+    (p) => p.key === 'avg' && p.label === 'средний чек' && String(p.delta_text).includes('2'),
+  ) === true,
+  'avg problem shows readable label and delta',
+)
+ok(
+  moneyOkAvgRisk.problems?.every((p) => p.key !== 'forecast') === true,
+  'no forecast problem when money status ok',
+)
 
 const moneyOkCountRisk = resolvePlanMatrixCellStatus(
   {
@@ -124,7 +135,7 @@ const moneyOkCountRisk = resolvePlanMatrixCellStatus(
     count_progress_pct: 40,
     amount_progress_pct: 95,
     avg_gap_rub: 5000,
-    pace: { on_pace: false },
+    pace: { on_pace: false, expected_count: 90 },
   },
   { month_relation: 'current', expected_plan_progress_pct: 90 },
 )
@@ -132,6 +143,15 @@ ok(moneyOkCountRisk.status === 'ok', 'status ok when money ok despite volume lag
 ok(
   moneyOkCountRisk.risks?.some((r) => r.key === 'count') === true,
   'count risk chip when volume behind pace',
+)
+ok(
+  moneyOkCountRisk.problems?.some(
+    (p) =>
+      p.key === 'count' &&
+      p.label === 'количество абонементов' &&
+      p.delta_text === '−50',
+  ) === true,
+  'count problem uses expected−fact shortfall',
 )
 
 const moneyLag = resolvePlanMatrixCellStatus(
@@ -147,6 +167,12 @@ const moneyLag = resolvePlanMatrixCellStatus(
 )
 ok(moneyLag.status === 'lag', 'status lag when amount/forecast behind')
 ok(moneyLag.risks?.some((r) => r.key === 'avg') === true, 'risks still listed when money lags')
+ok(
+  moneyLag.problems?.some((p) => p.key === 'forecast' && p.label === 'прогноз') === true,
+  'forecast shortfall problem when status lags',
+)
+ok(moneyLag.label === 'Отстаём', 'lag label is Отстаём')
+ok(String(moneyLag.problems?.find((p) => p.key === 'forecast')?.delta_text ?? '').startsWith('−'), 'forecast delta negative')
 
 const forecast = forecastPlanMatrixAmount(90000, { month_relation: 'current', expected_plan_progress_pct: 50 })
 ok(forecast === 180000, 'linear forecast to month end')

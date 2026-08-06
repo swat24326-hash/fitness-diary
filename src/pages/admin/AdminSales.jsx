@@ -74,7 +74,6 @@ import { SalesDailyPaymentsImportSection } from '../../components/SalesDailyPaym
 import { SalesDailyPzTrainingsImportSection } from '../../components/SalesDailyPzTrainingsImportSection.jsx'
 import { SalesDailyTaskAssign } from '../../components/sales/SalesDailyTaskAssign.jsx'
 import { SalesClipCreateSection } from '../../components/sales/SalesClipCreateSection.jsx'
-import { SalesEveningMatchSection } from '../../components/sales/SalesEveningMatchSection.jsx'
 import { SalesFinancePanel } from '../../components/SalesFinancePanel'
 import { SalesPlanSettingsPanel } from '../../components/SalesPlanSettingsPanel'
 import { SalesStrategyPanel } from '../../components/SalesStrategyPanel'
@@ -989,10 +988,23 @@ export function AdminSales({ accessMode = 'admin' }) {
             Статистика
           </button>
           {showFinanceTab ? (
+            <button
+              type="button"
+              className="tab"
+              role="tab"
+              id="sales-tab-finance"
+              aria-selected={salesTab === 'finance'}
+              aria-controls="sales-panel-finance"
+              onClick={() => setSalesTab('finance')}
+            >
+              Финансы клуба
+            </button>
+          ) : null}
+          {showFinanceTab ? (
             <>
               <button
                 type="button"
-                className="tab"
+                className="tab tab--sales-planning sales-report__tab--push-end"
                 role="tab"
                 id="sales-tab-strategy"
                 aria-selected={salesTab === 'strategy'}
@@ -1003,7 +1015,7 @@ export function AdminSales({ accessMode = 'admin' }) {
               </button>
               <button
                 type="button"
-                className="tab"
+                className="tab tab--sales-planning"
                 role="tab"
                 id="sales-tab-plan"
                 aria-selected={salesTab === 'plan'}
@@ -1014,18 +1026,7 @@ export function AdminSales({ accessMode = 'admin' }) {
               </button>
               <button
                 type="button"
-                className="tab"
-                role="tab"
-                id="sales-tab-finance"
-                aria-selected={salesTab === 'finance'}
-                aria-controls="sales-panel-finance"
-                onClick={() => setSalesTab('finance')}
-              >
-                Финансы клуба
-              </button>
-              <button
-                type="button"
-                className="tab"
+                className="tab tab--sales-planning"
                 role="tab"
                 id="sales-tab-price"
                 aria-selected={salesTab === 'price'}
@@ -1069,7 +1070,6 @@ export function AdminSales({ accessMode = 'admin' }) {
             onReportDateChange={(iso) => setReportDate(clampIsoDateToToday(iso))}
             canOpenAdminClient={false}
           />
-          <SalesEveningMatchSection clubId={clubId} />
         </div>
       ) : null}
 
@@ -1165,7 +1165,6 @@ export function AdminSales({ accessMode = 'admin' }) {
             onReportDateChange={(iso) => setReportDate(clampIsoDateToToday(iso))}
             canOpenAdminClient
           />
-          <SalesEveningMatchSection clubId={clubId} />
         </div>
       ) : null}
 

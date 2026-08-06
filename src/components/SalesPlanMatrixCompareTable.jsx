@@ -107,8 +107,8 @@ export function SalesPlanMatrixCompareTable({ comparison, monthRows = [], year, 
         </div>
         {elapsedPct > 0 && elapsedPct < 100 ? (
           <p className="sales-report__plan-compare-forecast-hint">
-            Статус — по сумме и прогнозу к концу месяца. Чипы «штуки» / «чек» — риск по объёму или среднему
-            чеку. Прогноз: факт ÷ {Math.round(elapsedPct)}% календаря × 100%.
+            Статус — по сумме и прогнозу к концу месяца. Рядом красным — где отстаём: количество абонементов,
+            средний чек, прогноз (с цифрами). Прогноз: факт ÷ {Math.round(elapsedPct)}% календаря × 100%.
           </p>
         ) : null}
       </div>
@@ -201,25 +201,34 @@ export function SalesPlanMatrixCompareTable({ comparison, monthRows = [], year, 
                     <span className="sales-report__compare-segment-col">{String(row.label).split(' ')[1]}</span>
                   </th>
                   <td className={`sales-report__compare-status${statusClass}`} title={st.title ?? ''}>
-                    <span className="sales-report__compare-status-icon" aria-hidden>
-                      {st.status === 'ok' ? (
-                        <Check size={18} strokeWidth={2.5} />
-                      ) : st.status === 'lag' ? (
-                        <Minus size={18} strokeWidth={2.5} />
-                      ) : (
-                        '—'
-                      )}
+                    <span className="sales-report__compare-status-main">
+                      <span className="sales-report__compare-status-icon" aria-hidden>
+                        {st.status === 'ok' ? (
+                          <Check size={18} strokeWidth={2.5} />
+                        ) : st.status === 'lag' ? (
+                          <Minus size={18} strokeWidth={2.5} />
+                        ) : (
+                          '—'
+                        )}
+                      </span>
+                      <span className="sales-report__compare-status-label">{st.label ?? '—'}</span>
                     </span>
-                    <span className="sales-report__compare-status-label">{st.label ?? '—'}</span>
-                    {Array.isArray(st.risks) && st.risks.length > 0 ? (
-                      <span className="sales-report__compare-risks" aria-label={st.title ?? 'Риски по ячейке'}>
-                        {st.risks.map((risk) => (
-                          <span
-                            key={risk.key}
-                            className={`sales-report__compare-risk sales-report__compare-risk--${risk.key}`}
-                            title={risk.detail ?? ''}
-                          >
-                            {risk.label}
+                    {Array.isArray(st.problems) && st.problems.length > 0 ? (
+                      <span className="sales-report__compare-problems" aria-label={st.title ?? 'Где отстаём'}>
+                        {st.problems.map((problem, idx) => (
+                          <span key={problem.key} className="sales-report__compare-problem-wrap">
+                            {idx > 0 ? (
+                              <span className="sales-report__compare-problem-sep" aria-hidden>
+                                ·
+                              </span>
+                            ) : null}
+                            <span
+                              className={`sales-report__compare-problem sales-report__compare-problem--${problem.key}`}
+                              title={problem.detail ?? ''}
+                            >
+                              <span className="sales-report__compare-problem-label">{problem.label}</span>
+                              <span className="sales-report__compare-problem-delta">{problem.delta_text}</span>
+                            </span>
                           </span>
                         ))}
                       </span>
