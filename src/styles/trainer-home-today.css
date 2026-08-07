@@ -177,7 +177,7 @@ a.trainer-today-tile:hover {
   }
 }
 
-/* —— Планшет: та же структура, плотная доска под один экран —— */
+/* —— Планшет: плотные этажи внимания под один экран —— */
 @media (min-width: 768px) {
   .trainer-home .trainer-today-strip {
     max-width: none;
@@ -185,63 +185,89 @@ a.trainer-today-tile:hover {
     margin-inline: 0;
   }
 
-  .trainer-today-strip__head {
-    margin-bottom: 6px;
+  .trainer-home--board .trainer-today-strip__head {
+    margin-bottom: 4px;
   }
 
-  .trainer-today-strip__hint {
+  .trainer-home--board .trainer-today-strip__hint {
     font-size: 11px;
   }
 
-  .trainer-today-strip__rail {
-    gap: clamp(6px, 1vh, 10px);
+  .trainer-home--board .trainer-today-strip__rail {
+    gap: clamp(4px, 0.8vh, 8px);
   }
 
-  .trainer-today-strip__block-title {
-    margin-bottom: 4px;
-    font-size: 0.64rem;
+  .trainer-home--board .trainer-today-strip__block-title {
+    margin-bottom: 3px;
+    font-size: 0.6rem;
   }
 
-  .trainer-today-strip__cluster {
-    gap: 6px;
-  }
-
-  .trainer-today-tile {
-    min-height: clamp(3.5rem, 7.5vh, 4.15rem);
-    padding: clamp(8px, 1.1vh, 11px) clamp(10px, 1.2vw, 12px);
-    border-radius: 10px;
-    row-gap: 2px;
-  }
-
-  .trainer-today-tile__count {
-    font-size: clamp(1.15rem, 2.2vh, 1.4rem);
-  }
-
-  .trainer-today-tile__label {
-    font-size: 0.74rem;
-  }
-
-  .trainer-today-tile__hint {
-    font-size: 0.62rem;
-  }
-}
-
-/* Низкий альбом планшета — ещё плотнее */
-@media (min-width: 768px) and (max-height: 820px) {
-  .trainer-today-strip__hint {
-    display: none;
-  }
-
-  .trainer-today-strip__rail {
+  .trainer-home--board .trainer-today-strip__cluster {
     gap: 5px;
   }
 
-  .trainer-today-tile {
-    min-height: 3.25rem;
-    padding: 7px 10px;
+  .trainer-home--board .trainer-today-tile {
+    min-height: clamp(2.85rem, 6.2vh, 3.55rem);
+    padding: clamp(6px, 0.9vh, 9px) clamp(8px, 1vw, 11px);
+    border-radius: 10px;
+    row-gap: 1px;
   }
 
-  .trainer-today-tile__hint {
-    font-size: 0.6rem;
+  .trainer-home--board .trainer-today-tile__count {
+    font-size: clamp(1.05rem, 2vh, 1.3rem);
+  }
+
+  .trainer-home--board .trainer-today-tile__label {
+    font-size: 0.72rem;
+  }
+
+  .trainer-home--board .trainer-today-tile__hint {
+    font-size: 0.58rem;
+  }
+}
+
+@media (min-width: 768px) and (max-height: 820px) {
+  .trainer-home--board .trainer-today-strip__hint {
+    display: none;
+  }
+
+  .trainer-home--board .trainer-today-strip__rail {
+    gap: 3px;
+  }
+
+  .trainer-home--board .trainer-today-tile {
+    min-height: clamp(2.65rem, 5.8vh, 3.15rem);
+    padding: 5px 8px;
+  }
+}
+
+/* Подсказки сверху съели высоту — этажи внимания ещё плотнее */
+@media (min-width: 768px) {
+  .trainer-home--board:has(> .trainer-pnk-glance) .trainer-today-strip__hint,
+  .trainer-home--board:has(> .trainer-task-glance:not(.trainer-pnk-glance)) .trainer-today-strip__hint,
+  .trainer-home--board:has(> .trainer-sync-banner) .trainer-today-strip__hint {
+    display: none;
+  }
+
+  .trainer-home--board:has(> .trainer-pnk-glance) .trainer-today-strip__rail,
+  .trainer-home--board:has(> .trainer-task-glance:not(.trainer-pnk-glance)) .trainer-today-strip__rail,
+  .trainer-home--board:has(> .trainer-sync-banner) .trainer-today-strip__rail {
+    gap: 3px;
+  }
+
+  .trainer-home--board:has(> .trainer-pnk-glance) .trainer-today-tile,
+  .trainer-home--board:has(> .trainer-task-glance:not(.trainer-pnk-glance)) .trainer-today-tile,
+  .trainer-home--board:has(> .trainer-sync-banner) .trainer-today-tile {
+    min-height: clamp(2.5rem, 5.4vh, 3.1rem);
+    padding: 5px 8px;
+  }
+
+  /* Список заявок раскрыт — скролл внутри полосы внимания, низ экрана не съедаем */
+  .trainer-home--board .trainer-today-strip__clips-detail {
+    margin-top: 6px;
+    padding: 8px 10px;
+    max-height: min(28vh, 220px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 }

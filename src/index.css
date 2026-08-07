@@ -3860,54 +3860,56 @@ tr:last-child td {
 }
 
 /**
- * Доска главной тренера (планшет): 5 этажей столбиком.
- * Пропорции по контенту — «Клиенты/Профиль» не растягиваем на пустоту экрана.
+ * Доска главной тренера (планшет): 5 этажей влезают в экран.
+ * «Клиенты/Профиль» ~×1.5 плиток внимания; верхние этажи жмутся по vh.
  */
 @media (min-width: 768px) {
   .app-main:has(.trainer-home--board) {
     max-width: min(1480px, 100%);
-    padding-top: clamp(6px, 1vh, 12px);
-    padding-bottom: clamp(6px, 1vh, 12px);
+    padding-top: clamp(4px, 0.7vh, 10px);
+    padding-bottom: clamp(4px, 0.7vh, 10px);
   }
 
   .trainer-home--board {
     display: flex;
     flex-direction: column;
-    gap: clamp(8px, 1.2vh, 14px);
+    gap: clamp(5px, 0.9vh, 10px);
     width: 100%;
     box-sizing: border-box;
+    max-height: calc(100dvh - 4.5rem - env(safe-area-inset-bottom, 0px));
+    overflow: hidden;
   }
 
   .trainer-home--board > .trainer-home__hero {
     flex: 0 0 auto;
-    grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.5fr);
-    gap: clamp(8px, 1.5vw, 16px);
-    padding: clamp(12px, 1.8vh, 18px) clamp(14px, 2.2vw, 22px);
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.45fr);
+    gap: clamp(6px, 1vw, 12px);
+    padding: clamp(8px, 1.2vh, 14px) clamp(12px, 2vw, 18px);
   }
 
   .trainer-home--board .trainer-home__hero-text {
-    gap: 10px;
+    gap: clamp(6px, 1vh, 10px);
   }
 
   .trainer-home--board .trainer-home__title {
-    gap: 0.55em;
+    gap: 0.45em;
   }
 
   .trainer-home--board .trainer-home__title-eyebrow {
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     letter-spacing: 0.28em;
-    line-height: 1.35;
+    line-height: 1.3;
   }
 
   .trainer-home--board .trainer-home__title-display {
-    font-size: clamp(1.5rem, 3.6vw, 2.25rem);
+    font-size: clamp(1.35rem, 2.8vh, 2.1rem);
     line-height: 1.08;
   }
 
   .trainer-home--board .trainer-home__lead {
-    font-size: 0.82rem;
-    line-height: 1.4;
-    margin-top: 2px;
+    font-size: clamp(0.74rem, 1.4vh, 0.84rem);
+    line-height: 1.35;
+    margin-top: 0;
   }
 
   .trainer-home--board .trainer-home__hero-visual {
@@ -3915,7 +3917,7 @@ tr:last-child td {
   }
 
   .trainer-home--board .trainer-home__hero-dumbbell-fa {
-    font-size: clamp(44px, 7vw, 80px);
+    font-size: clamp(36px, 6.5vh, 72px);
   }
 
   .trainer-home--board > .trainer-sync-banner,
@@ -3928,8 +3930,105 @@ tr:last-child td {
     margin: 0;
   }
 
+  /* Подсказки (ПНК / задание / Sync): компактная лента, не «вторая главная» */
+  .trainer-home--board > .trainer-task-glance .trainer-task-glance__card,
+  .trainer-home--board > .trainer-pnk-glance .trainer-task-glance__card {
+    padding: 6px 8px;
+  }
+
+  .trainer-home--board > .trainer-task-glance .trainer-task-glance__caption,
+  .trainer-home--board > .trainer-task-glance .trainer-task-glance__from {
+    display: none;
+  }
+
+  .trainer-home--board > .trainer-task-glance .trainer-task-glance__task-title {
+    font-size: 0.88rem;
+    line-height: 1.25;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .trainer-home--board > .trainer-pnk-glance .pnk-glance-face__status {
+    padding: 4px 6px;
+    font-size: 0.7rem;
+  }
+
+  .trainer-home--board > .trainer-sync-banner {
+    padding: 6px 10px;
+    gap: 8px;
+  }
+
+  .trainer-home--board > .trainer-sync-banner .trainer-sync-banner__text {
+    font-size: 0.78rem;
+    line-height: 1.25;
+  }
+
+  /*
+   * Когда сверху есть живые подсказки — доска уплотняется сама (:has),
+   * иначе «Клиенты/Профиль» и этажи внимания вылезают за экран.
+   * Середина (внимание) — единственная зона скролла при переполнении.
+   * Важно: .trainer-pnk-glance тоже несёт .trainer-task-glance — задание
+   * ловим только как .trainer-task-glance:not(.trainer-pnk-glance).
+   */
+  .trainer-home--board:has(> .trainer-pnk-glance),
+  .trainer-home--board:has(> .trainer-task-glance:not(.trainer-pnk-glance)),
+  .trainer-home--board:has(> .trainer-sync-banner) {
+    gap: 4px;
+  }
+
+  .trainer-home--board:has(> .trainer-pnk-glance) .trainer-home__lead,
+  .trainer-home--board:has(> .trainer-task-glance:not(.trainer-pnk-glance)) .trainer-home__lead,
+  .trainer-home--board:has(> .trainer-sync-banner) .trainer-home__lead {
+    display: none;
+  }
+
+  .trainer-home--board:has(> .trainer-pnk-glance) > .trainer-home__hero,
+  .trainer-home--board:has(> .trainer-task-glance:not(.trainer-pnk-glance)) > .trainer-home__hero,
+  .trainer-home--board:has(> .trainer-sync-banner) > .trainer-home__hero {
+    padding: 6px 12px;
+  }
+
+  .trainer-home--board:has(> .trainer-pnk-glance) .trainer-home__title-display,
+  .trainer-home--board:has(> .trainer-task-glance:not(.trainer-pnk-glance)) .trainer-home__title-display,
+  .trainer-home--board:has(> .trainer-sync-banner) .trainer-home__title-display {
+    font-size: clamp(1.2rem, 2.4vh, 1.75rem);
+  }
+
+  .trainer-home--board:has(> .trainer-pnk-glance) .feature-tile,
+  .trainer-home--board:has(> .trainer-task-glance:not(.trainer-pnk-glance)) .feature-tile,
+  .trainer-home--board:has(> .trainer-sync-banner) .feature-tile {
+    min-height: clamp(4.75rem, 11.5vh, 6.25rem);
+    padding: 9px 12px;
+    gap: 8px;
+  }
+
+  .trainer-home--board:has(> .trainer-pnk-glance) .trainer-challenges__soon,
+  .trainer-home--board:has(> .trainer-task-glance:not(.trainer-pnk-glance)) .trainer-challenges__soon,
+  .trainer-home--board:has(> .trainer-sync-banner) .trainer-challenges__soon {
+    padding: 5px 10px;
+  }
+
+  /* ПНК + задание Искры сразу — ещё плотнее */
+  .trainer-home--board:has(> .trainer-pnk-glance):has(> .trainer-task-glance:not(.trainer-pnk-glance)) .feature-tile {
+    min-height: clamp(4.4rem, 10.5vh, 5.75rem);
+  }
+
+  .trainer-home--board:has(> .trainer-pnk-glance) > .trainer-push-prompt:not(:focus-within),
+  .trainer-home--board:has(> .trainer-task-glance:not(.trainer-pnk-glance)) > .trainer-push-prompt:not(:focus-within),
+  .trainer-home--board:has(> .trainer-sync-banner) > .trainer-push-prompt:not(:focus-within) {
+    display: none;
+  }
+
   .trainer-home--board > .trainer-today-strip {
-    flex: 0 0 auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
 
   .trainer-home--board > .trainer-challenges {
@@ -3939,95 +4038,109 @@ tr:last-child td {
   }
 
   .trainer-home--board .trainer-challenges__head {
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }
 
   .trainer-home--board .trainer-challenges__title {
-    font-size: 0.88rem;
+    font-size: 0.82rem;
   }
 
   .trainer-home--board .trainer-challenges__soon {
     min-height: 0;
-    gap: 6px;
-    padding: 10px 14px;
+    gap: 4px;
+    padding: clamp(6px, 1vh, 10px) 12px;
   }
 
   .trainer-home--board .trainer-challenges__soon-icon {
-    transform: scale(0.7);
+    transform: scale(0.62);
   }
 
   .trainer-home--board .trainer-challenges__soon-text {
-    font-size: 0.86rem;
+    font-size: 0.8rem;
   }
 
-  /* Разделы — компактные кнопки, не «простыня» на пол-экрана */
+  /* ×1.5 от компактных плиток внимания, но ограничено vh — чтобы влезало */
   .trainer-home--board > .trainer-home__tiles {
     flex: 0 0 auto;
     margin-top: 0;
   }
 
   .trainer-home--board .trainer-home__tiles-heading {
-    margin: 0 0 8px;
-    font-size: 0.62rem;
+    margin: 0 0 5px;
+    font-size: 0.6rem;
   }
 
   .trainer-home--board .trainer-home__tile-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: clamp(8px, 1.2vw, 12px);
     align-content: start;
   }
 
   .trainer-home--board .feature-tile {
-    min-height: 0;
+    min-height: clamp(5.25rem, 13.5vh, 7rem);
     height: auto;
-    padding: 12px 14px;
-    gap: 8px;
+    padding: clamp(10px, 1.6vh, 16px) 14px;
+    gap: clamp(8px, 1.2vh, 12px);
   }
 
   .trainer-home--board .feature-tile__icon {
-    width: 40px;
-    height: 40px;
+    width: clamp(44px, 7vh, 56px);
+    height: clamp(44px, 7vh, 56px);
   }
 
   .trainer-home--board .feature-tile__icon svg {
-    width: 22px;
-    height: 22px;
+    width: clamp(24px, 3.8vh, 30px);
+    height: clamp(24px, 3.8vh, 30px);
   }
 
   .trainer-home--board .feature-tile__title {
-    font-size: 0.95rem;
+    font-size: clamp(0.95rem, 2vh, 1.08rem);
     line-height: 1.25;
+    font-weight: 650;
+  }
+}
+
+@media (min-width: 768px) and (max-height: 780px) {
+  .trainer-home--board > .trainer-push-prompt:not(:focus-within) {
+    display: none;
   }
 }
 
 @media (min-width: 768px) and (max-height: 820px) {
   .trainer-home--board {
-    gap: 6px;
+    gap: 4px;
+    max-height: calc(100dvh - 4.25rem - env(safe-area-inset-bottom, 0px));
   }
 
   .trainer-home--board > .trainer-home__hero {
-    padding: 10px 14px;
+    padding: 7px 12px;
   }
 
   .trainer-home--board .trainer-home__hero-text {
-    gap: 8px;
+    gap: 5px;
   }
 
   .trainer-home--board .trainer-home__title {
-    gap: 0.45em;
+    gap: 0.35em;
   }
 
   .trainer-home--board .trainer-home__title-display {
-    font-size: clamp(1.35rem, 3.2vw, 1.85rem);
+    font-size: clamp(1.25rem, 3.2vw, 1.7rem);
+  }
+
+  .trainer-home--board .trainer-home__lead {
+    display: none;
   }
 
   .trainer-home--board .trainer-challenges__soon {
-    padding: 8px 12px;
+    padding: 5px 10px;
   }
 
   .trainer-home--board .feature-tile {
+    min-height: clamp(5rem, 12.5vh, 6.25rem);
     padding: 10px 12px;
+    gap: 8px;
   }
 }
 
