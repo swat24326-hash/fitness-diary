@@ -17,9 +17,25 @@ const ICONS = {
   stale: CalendarClock,
 }
 
+function AttentionTile({ card }) {
+  const Icon = ICONS[card.key] || Clock
+  return (
+    <li>
+      <Link to={card.to} className="trainer-today-tile u-no-decoration">
+        <span className="trainer-today-tile__icon" aria-hidden>
+          <Icon size={18} />
+        </span>
+        <span className="trainer-today-tile__count">{card.count}</span>
+        <span className="trainer-today-tile__label">{card.label}</span>
+        <span className="trainer-today-tile__hint muted">{card.hint}</span>
+      </Link>
+    </li>
+  )
+}
+
 /**
- * Главная тренера: заявки / качество / фильтры клиентов — одна полоса.
- * Слева операции зала, справа поводы по клиентам (визуальный раздел).
+ * Главная тренера: «Сегодня внимание» — три логичных блока в одном ряду.
+ * 1) Заявки / качество  2) База и поводы (ПНК-воронка, ДР)  3) По абонементу
  */
 export function TrainerHomeTodayStrip({
   clubId = '',
@@ -36,7 +52,8 @@ export function TrainerHomeTodayStrip({
   })
 
   const groups = summary ? groupTrainerAttentionItems(buildTrainerAttentionItems(summary)) : []
-  const clientCards = groups.flatMap((g) => g.cards)
+  const baseGroup = groups.find((g) => g.id === 'base')
+  const pathGroup = groups.find((g) => g.id === 'path')
   const showCq = Boolean(cqGlance?.hasSignal && cqGlance.headline) || (cqLoading && !cqGlance?.headline)
   const clipCount = clips.length
   const opsCols = 1 + (showCq ? 1 : 0)
@@ -65,83 +82,85 @@ export function TrainerHomeTodayStrip({
         )}
       </div>
 
-      <div
-        className="trainer-today-strip__rail"
-        style={{ '--today-ops': String(opsCols) }}
-      >
-        <div className="trainer-today-strip__cluster trainer-today-strip__cluster--ops" aria-label="Заявки и качество">
+      <div className="trainer-today-strip__rail" style={{ '--today-ops': String(opsCols) }}>
+        <div className="trainer-today-strip__block trainer-today-strip__block--ops">
+          <h3 className="trainer-today-strip__block-title">Зал</h3>
           <div
-            className={`trainer-today-tile trainer-today-tile--clips${clipCount > 0 ? ' trainer-today-tile--hot' : ''}`}
-            role="status"
-            title={
-              clipCount > 0
-                ? 'Ниже — создать абонемент по заявке'
-                : 'Заявок нет. Если менеджер только что отправил — Sync в шапке'
-            }
+            className="trainer-today-strip__cluster trainer-today-strip__cluster--ops"
+            aria-label="Заявки и качество"
           >
-            <span className="trainer-today-tile__icon" aria-hidden>
-              <Ticket size={18} />
-            </span>
-            <span className="trainer-today-tile__count">{clipCount}</span>
-            <span className="trainer-today-tile__label">Заявки</span>
-            <span className="trainer-today-tile__hint muted">на абон</span>
-          </div>
+            <div
+              className={`trainer-today-tile trainer-today-tile--clips${clipCount > 0 ? '' : ' trainer-today-tile--quiet'}`}
+              role="status"
+              title={
+                clipCount > 0
+                  ? 'Ниже — создать абонемент по заявке'
+                  : 'Заявок нет. Если менеджер только что отправил — Sync в шапке'
+              }
+            >
+              <span className="trainer-today-tile__icon" aria-hidden>
+                <Ticket size={18} />
+              </span>
+              <span className="trainer-today-tile__count">{clipCount}</span>
+              <span className="trainer-today-tile__label">Заявки</span>
+              <span className="trainer-today-tile__hint muted">на абон</span>
+            </div>
 
-          {showCq ? (
-            cqLoading && !cqGlance?.headline ? (
-              <div className="trainer-today-tile trainer-today-tile--cq" aria-busy="true">
-                <span className="trainer-today-tile__icon" aria-hidden>
-                  <Gauge size={18} />
-                </span>
-                <span className="trainer-today-tile__count muted">…</span>
-                <span className="trainer-today-tile__label">Качество</span>
-                <span className="trainer-today-tile__hint muted">загрузка</span>
-              </div>
-            ) : (
-              <Link
-                to="/trainer/profile"
-                className="trainer-today-tile trainer-today-tile--cq trainer-today-tile--hot u-no-decoration"
-                title={cqGlance.headline}
-              >
-                <span className="trainer-today-tile__icon" aria-hidden>
-                  <Gauge size={18} />
-                </span>
-                <span className="trainer-today-tile__count">
-                  {(() => {
-                    const n = (Number(cqGlance.thin) || 0) + (Number(cqGlance.stuck) || 0)
-                    return n > 0 ? n : '!'
-                  })()}
-                </span>
-                <span className="trainer-today-tile__label">Качество</span>
-                <span className="trainer-today-tile__hint muted">подробнее</span>
-              </Link>
-            )
-          ) : null}
+            {showCq ? (
+              cqLoading && !cqGlance?.headline ? (
+                <div className="trainer-today-tile trainer-today-tile--cq" aria-busy="true">
+                  <span className="trainer-today-tile__icon" aria-hidden>
+                    <Gauge size={18} />
+                  </span>
+                  <span className="trainer-today-tile__count muted">…</span>
+                  <span className="trainer-today-tile__label">Качество</span>
+                  <span className="trainer-today-tile__hint muted">загрузка</span>
+                </div>
+              ) : (
+                <Link
+                  to="/trainer/profile"
+                  className="trainer-today-tile trainer-today-tile--cq u-no-decoration"
+                  title={cqGlance.headline}
+                >
+                  <span className="trainer-today-tile__icon" aria-hidden>
+                    <Gauge size={18} />
+                  </span>
+                  <span className="trainer-today-tile__count">
+                    {(() => {
+                      const n = (Number(cqGlance.thin) || 0) + (Number(cqGlance.stuck) || 0)
+                      return n > 0 ? n : '!'
+                    })()}
+                  </span>
+                  <span className="trainer-today-tile__label">Качество</span>
+                  <span className="trainer-today-tile__hint muted">подробнее</span>
+                </Link>
+              )
+            ) : null}
+          </div>
         </div>
 
-        <div className="trainer-today-strip__cluster trainer-today-strip__cluster--clients" aria-label="Клиенты">
+        <div className="trainer-today-strip__block trainer-today-strip__block--base">
+          <h3 className="trainer-today-strip__block-title">База и поводы</h3>
           {attentionLoading && !summary ? (
-            <p className="trainer-today-strip__clients-loading muted">Клиенты…</p>
+            <p className="trainer-today-strip__clients-loading muted">…</p>
           ) : (
-            <ul className="trainer-today-strip__client-grid">
-              {clientCards.map(({ key, count, label, hint, to }) => {
-                const Icon = ICONS[key] || Clock
-                return (
-                  <li key={key}>
-                    <Link
-                      to={to}
-                      className={`trainer-today-tile u-no-decoration${count > 0 ? ' trainer-today-tile--hot' : ''}`}
-                    >
-                      <span className="trainer-today-tile__icon" aria-hidden>
-                        <Icon size={18} />
-                      </span>
-                      <span className="trainer-today-tile__count">{count}</span>
-                      <span className="trainer-today-tile__label">{label}</span>
-                      <span className="trainer-today-tile__hint muted">{hint}</span>
-                    </Link>
-                  </li>
-                )
-              })}
+            <ul className="trainer-today-strip__cluster trainer-today-strip__cluster--base" aria-label="База и поводы">
+              {(baseGroup?.cards ?? []).map((card) => (
+                <AttentionTile key={card.key} card={card} />
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="trainer-today-strip__block trainer-today-strip__block--path">
+          <h3 className="trainer-today-strip__block-title">По абонементу</h3>
+          {attentionLoading && !summary ? (
+            <p className="trainer-today-strip__clients-loading muted">…</p>
+          ) : (
+            <ul className="trainer-today-strip__cluster trainer-today-strip__cluster--path" aria-label="По абонементу">
+              {(pathGroup?.cards ?? []).map((card) => (
+                <AttentionTile key={card.key} card={card} />
+              ))}
             </ul>
           )}
         </div>

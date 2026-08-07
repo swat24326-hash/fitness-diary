@@ -1,4 +1,4 @@
-/* Главная тренера: полоса «Сегодня внимание» — операции + клиенты в один ряд */
+/* Главная тренера: «Сегодня внимание» — Зал | База и поводы | По абонементу */
 
 .trainer-today-strip {
   width: 100%;
@@ -28,34 +28,43 @@
 }
 
 .trainer-today-strip__rail {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
-  gap: 10px 12px;
-}
-
-.trainer-today-strip__cluster--ops {
   display: grid;
-  grid-template-columns: repeat(var(--today-ops, 1), minmax(0, 1fr));
-  gap: 8px;
-  flex: 0 1 auto;
-  min-width: min(100%, calc(var(--today-ops, 1) * 7.25rem));
+  grid-template-columns: 1fr;
+  gap: 14px 16px;
+  align-items: start;
 }
 
-.trainer-today-strip__cluster--clients {
-  flex: 1 1 14rem;
+.trainer-today-strip__block {
   min-width: 0;
-  padding-left: 12px;
-  border-left: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
 }
 
-.trainer-today-strip__client-grid {
+.trainer-today-strip__block-title {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.trainer-today-strip__cluster {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
+}
+
+.trainer-today-strip__cluster--ops {
+  grid-template-columns: repeat(var(--today-ops, 1), minmax(0, 1fr));
+}
+
+.trainer-today-strip__cluster--base {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.trainer-today-strip__cluster--path {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .trainer-today-strip__clients-loading {
@@ -84,8 +93,7 @@
   color: inherit;
   transition:
     border-color 0.15s ease,
-    background 0.15s ease,
-    transform 0.15s ease;
+    background 0.15s ease;
 }
 
 a.trainer-today-tile:hover {
@@ -93,12 +101,7 @@ a.trainer-today-tile:hover {
   background: color-mix(in srgb, var(--accent, #2effb8) 8%, var(--bg-elevated, #152018));
 }
 
-.trainer-today-tile--hot {
-  border-color: color-mix(in srgb, var(--accent, #2effb8) 42%, var(--border));
-  background: color-mix(in srgb, var(--accent, #2effb8) 10%, var(--bg-elevated, #152018));
-}
-
-.trainer-today-tile--clips:not(.trainer-today-tile--hot) {
+.trainer-today-tile--quiet {
   border-style: dashed;
 }
 
@@ -163,25 +166,8 @@ a.trainer-today-tile:hover {
   margin-top: 3px;
 }
 
-@media (max-width: 899px) {
-  .trainer-today-strip__rail {
-    flex-direction: column;
-  }
-
-  .trainer-today-strip__cluster--ops {
-    width: 100%;
-    min-width: 0;
-    grid-template-columns: repeat(var(--today-ops, 1), minmax(0, 1fr));
-  }
-
-  .trainer-today-strip__cluster--clients {
-    padding-left: 0;
-    border-left: 0;
-    padding-top: 10px;
-    border-top: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
-  }
-
-  .trainer-today-strip__client-grid {
+@media (max-width: 699px) {
+  .trainer-today-strip__cluster--path {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -194,28 +180,30 @@ a.trainer-today-tile:hover {
   }
 }
 
-@media (min-width: 900px) and (max-width: 1199px) {
-  .trainer-today-strip__client-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 1200px) {
+/* Планшет: три блока в один ряд */
+@media (min-width: 900px) {
   .trainer-today-strip__rail {
-    flex-wrap: nowrap;
-    gap: 14px;
+    grid-template-columns:
+      minmax(7.5rem, 0.9fr)
+      minmax(10rem, 1.1fr)
+      minmax(14rem, 1.6fr);
+    gap: 12px 18px;
+    align-items: stretch;
   }
 
-  .trainer-today-strip__cluster--ops {
-    flex: 0 0 auto;
-  }
-
-  .trainer-today-strip__client-grid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+  .trainer-today-strip__block + .trainer-today-strip__block {
+    padding-left: 14px;
+    border-left: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
   }
 
   .trainer-today-tile {
     min-height: 5rem;
     padding: 11px 12px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .trainer-today-strip__rail {
+    gap: 14px 22px;
   }
 }
