@@ -11,26 +11,26 @@
   flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 6px 16px;
-  margin-bottom: 12px;
+  gap: 4px 12px;
+  margin-bottom: 8px;
 }
 
 .trainer-today-strip__title {
   margin: 0;
-  font-size: clamp(1rem, 2.4vw, 1.15rem);
+  font-size: clamp(0.95rem, 2.2vw, 1.1rem);
   font-weight: 650;
   letter-spacing: 0.02em;
 }
 
 .trainer-today-strip__hint {
   margin: 0;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .trainer-today-strip__rail {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 14px 16px;
+  gap: 12px;
   align-items: start;
 }
 
@@ -39,8 +39,8 @@
 }
 
 .trainer-today-strip__block-title {
-  margin: 0 0 8px;
-  font-size: 0.72rem;
+  margin: 0 0 6px;
+  font-size: 0.68rem;
   font-weight: 650;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -52,7 +52,7 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .trainer-today-strip__cluster--ops {
@@ -69,7 +69,7 @@
 
 .trainer-today-strip__clients-loading {
   margin: 0;
-  padding: 12px 4px;
+  padding: 8px 4px;
   font-size: 13px;
 }
 
@@ -81,13 +81,13 @@
     'icon count'
     'icon label'
     'icon hint';
-  column-gap: 8px;
-  row-gap: 1px;
+  column-gap: 7px;
+  row-gap: 0;
   align-content: start;
   min-width: 0;
-  min-height: 4.75rem;
-  padding: 10px 10px 9px;
-  border-radius: 12px;
+  min-height: 4.25rem;
+  padding: 8px 9px;
+  border-radius: 10px;
   border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
   background: color-mix(in srgb, var(--bg-elevated, #152018) 72%, transparent);
   color: inherit;
@@ -116,7 +116,7 @@ a.trainer-today-tile:hover {
 
 .trainer-today-tile__count {
   grid-area: count;
-  font-size: clamp(1.25rem, 2.4vw, 1.55rem);
+  font-size: clamp(1.15rem, 2.2vw, 1.4rem);
   font-weight: 750;
   line-height: 1.1;
   letter-spacing: -0.02em;
@@ -125,9 +125,9 @@ a.trainer-today-tile:hover {
 
 .trainer-today-tile__label {
   grid-area: label;
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 650;
-  line-height: 1.2;
+  line-height: 1.15;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -135,35 +135,35 @@ a.trainer-today-tile:hover {
 
 .trainer-today-tile__hint {
   grid-area: hint;
-  font-size: 0.68rem;
-  line-height: 1.2;
+  font-size: 0.64rem;
+  line-height: 1.15;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .trainer-today-strip__clips-detail {
-  margin-top: 12px;
-  padding: 12px 14px;
+  margin-top: 10px;
+  padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--accent, #2effb8) 28%, var(--border));
   background: color-mix(in srgb, var(--accent, #2effb8) 6%, var(--bg-elevated, #152018));
 }
 
 .trainer-today-strip__clips-lead {
-  margin: 0 0 10px;
-  font-size: 0.85rem;
+  margin: 0 0 8px;
+  font-size: 0.82rem;
 }
 
 .trainer-today-strip__cq-facts {
-  margin: 10px 0 0;
+  margin: 8px 0 0;
   padding-left: 1.1rem;
-  font-size: 0.85rem;
-  line-height: 1.4;
+  font-size: 0.8rem;
+  line-height: 1.35;
 }
 
 .trainer-today-strip__cq-facts li + li {
-  margin-top: 3px;
+  margin-top: 2px;
 }
 
 @media (max-width: 699px) {
@@ -172,38 +172,96 @@ a.trainer-today-tile:hover {
   }
 }
 
+/* Планшет и шире: три блока в один ряд + плотные плитки */
 @media (min-width: 768px) {
   .trainer-home .trainer-today-strip {
     max-width: none;
     margin-inline: 0;
     width: 100%;
   }
-}
 
-/* Планшет: три блока в один ряд */
-@media (min-width: 900px) {
   .trainer-today-strip__rail {
     grid-template-columns:
-      minmax(7.5rem, 0.9fr)
-      minmax(10rem, 1.1fr)
-      minmax(14rem, 1.6fr);
-    gap: 12px 18px;
+      minmax(6.5rem, 0.85fr)
+      minmax(9rem, 1.05fr)
+      minmax(12rem, 1.55fr);
+    gap: 8px 12px;
     align-items: stretch;
   }
 
   .trainer-today-strip__block + .trainer-today-strip__block {
-    padding-left: 14px;
+    padding-left: 10px;
     border-left: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
   }
 
+  .trainer-today-strip__block-title {
+    margin-bottom: 5px;
+    font-size: 0.64rem;
+  }
+
+  .trainer-today-strip__head {
+    margin-bottom: 6px;
+  }
+
   .trainer-today-tile {
-    min-height: 5rem;
-    padding: 11px 12px;
+    min-height: 3.6rem;
+    padding: 7px 8px;
+    border-radius: 9px;
+  }
+
+  .trainer-today-tile__count {
+    font-size: 1.2rem;
+  }
+
+  .trainer-today-tile__label {
+    font-size: 0.7rem;
+  }
+
+  .trainer-today-tile__hint {
+    font-size: 0.6rem;
+  }
+
+  .trainer-today-tile__icon svg {
+    width: 15px;
+    height: 15px;
   }
 }
 
-@media (min-width: 1200px) {
+/* Низкий экран планшета (альбом): ещё плотнее, чтобы влезло без скролла */
+@media (min-width: 768px) and (max-height: 900px) {
+  .trainer-today-strip__head {
+    margin-bottom: 4px;
+  }
+
+  .trainer-today-strip__hint {
+    display: none;
+  }
+
+  .trainer-today-tile {
+    min-height: 3.25rem;
+    padding: 6px 7px;
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      'icon count'
+      'icon label';
+  }
+
+  .trainer-today-tile__hint {
+    display: none;
+  }
+
+  .trainer-today-strip__cq-facts {
+    display: none;
+  }
+}
+
+@media (min-width: 1100px) {
   .trainer-today-strip__rail {
-    gap: 14px 22px;
+    gap: 10px 16px;
+  }
+
+  .trainer-today-tile {
+    min-height: 3.85rem;
+    padding: 8px 10px;
   }
 }

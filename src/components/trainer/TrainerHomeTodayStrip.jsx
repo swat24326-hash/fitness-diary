@@ -77,7 +77,6 @@ export function TrainerHomeTodayStrip({
             {summary?.actionable > 0
               ? `${summary.actionable} ${summary.actionable === 1 ? 'повод' : summary.actionable < 5 ? 'повода' : 'поводов'}`
               : null}
-            {showCq && cqGlance?.hasSignal ? (summary?.actionable > 0 || clipCount > 0 ? ' · ' : '') + 'качество' : null}
           </p>
         )}
       </div>
