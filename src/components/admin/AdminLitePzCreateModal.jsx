@@ -6,6 +6,7 @@ import {
   saveLocalWithSync,
 } from '../../lib/syncService.js'
 import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
+import { listClientsByClubId } from '../../lib/localDbClubQuery.js'
 import { todayLocalIso } from '../../lib/dateRu.js'
 import {
   DESK_PACKAGE_MONTH_OPTIONS,
@@ -77,14 +78,15 @@ export function AdminLitePzCreateModal({
 
   const submit = async (e) => {
     e.preventDefault()
-    const checked = validateLitePzCreateForm({ ...form, club_id: clubId }, noTabletTrainers)
-    if (!checked.ok) {
-      setError(checked.error)
-      return
-    }
     setBusy(true)
     setError('')
     try {
+      const clubClients = clubId ? await listClientsByClubId(clubId) : []
+      const checked = validateLitePzCreateForm({ ...form, club_id: clubId }, noTabletTrainers, clubClients)
+      if (!checked.ok) {
+        setError(checked.error)
+        return
+      }
       const now = new Date().toISOString()
       const clientId = crypto.randomUUID()
       const clientRow = {

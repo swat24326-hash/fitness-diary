@@ -251,3 +251,76 @@ export function matchClientByCardThenPhone(input) {
     weakMatch: true,
   }
 }
+
+/**
+ * Клиент с этой картой в указанном клубе (сеть: тот же номер в другом клубе — не конфликт).
+ * Предпочитает неархивных; если только архив — возвращает его (карта всё равно занята в клубе).
+ * @param {object[]|null|undefined} clients
+ * @param {string|null|undefined} clubId
+ * @param {unknown} cardNumber
+ * @returns {object|null}
+ */
+export function findClubClientByCard(clients, clubId, cardNumber) {
+  const cid = String(clubId ?? '').trim()
+  const n = normalizeSalesCardNumber(cardNumber)
+  if (!cid || !n) return null
+  const inClub = (clients ?? []).filter(
+    (c) =>
+      String(c?.club_id ?? '').trim() === cid && normalizeSalesCardNumber(c?.card_number) === n,
+  )
+  if (!inClub.length) return null
+  const ops = inClub.filter((c) => !isClientArchived(c))
+  const pool = ops.length > 0 ? ops : inClub
+  pool.sort((a, b) => String(a?.id ?? '').localeCompare(String(b?.id ?? '')))
+  return pool[0] ?? null
+}
+
+/**
+ * Текст предупреждения при попытке создать карточку с занятой в клубе картой.
+ * @param {object|null|undefined} client
+ * @param {unknown} [cardNumber]
+ * @returns {string}
+ */
+export function cardConflictCreateError(client, cardNumber) {
+  const n =
+    normalizeSalesCardNumber(cardNumber) || normalizeSalesCardNumber(client?.card_number) || '—'
+  const name = String(client?.name ?? '').trim() || 'без имени'
+  const archived = isClientArchived(client) ? ' (в архиве)' : ''
+  return `В этом клубе клиент с картой №${n} уже есть: ${name}${archived}. Новую карточку не создаём.`
+}
+
+/**
+ * Можно ли назначить карту клиенту в клубе (создание или смена номера).
+ * Пустая карта — всегда ok (как partial UNIQUE в SQL).
+ * @param {object[]|null|undefined} clients
+ * @param {string|null|undefined} clubId
+ * @param {unknown} cardNumber
+ * @param {{ excludeClientId?: string|null }} [opts] при правке — не считать себя конфликтом
+ * @returns {{ ok: true } | { ok: false, error: string, client: object }}
+ */
+export function assertClubCardAvailableForCreate(clients, clubId, cardNumber, opts = {}) {
+  const n = normalizeSalesCardNumber(cardNumber)
+  if (!n) return { ok: true }
+  const cid = String(clubId ?? '').trim()
+  if (!cid) return { ok: true }
+  const excludeId = String(opts.excludeClientId ?? '').trim()
+  const matches = (clients ?? []).filter(
+    (c) =>
+      String(c?.club_id ?? '').trim() === cid &&
+      normalizeSalesCardNumber(c?.card_number) === n &&
+      (!excludeId || String(c?.id ?? '') !== excludeId),
+  )
+  if (!matches.length) return { ok: true }
+  const ops = matches.filter((c) => !isClientArchived(c))
+  const pool = ops.length > 0 ? ops : matches
+  pool.sort((a, b) => String(a?.id ?? '').localeCompare(String(b?.id ?? '')))
+  const hit = pool[0]
+  const base = cardConflictCreateError(hit, n)
+  const error = excludeId
+    ? base.replace(
+        'Новую карточку не создаём.',
+        'Выберите другой номер или откройте существующую карточку.',
+      )
+    : base
+  return { ok: false, error, client: hit }
+}

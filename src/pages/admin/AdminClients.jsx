@@ -96,6 +96,8 @@ import {
 } from '../../lib/admin/adminClientsListHrefCore.js'
 import { collectNoTabletTrainerIds, isLitePzClient } from '../../lib/admin/trainerTabletModeCore.js'
 import { canSalesManagerHardDeleteClient } from '../../lib/admin/salesManagerClientsAccessCore.js'
+import { assertClubCardAvailableForCreate } from '../../lib/admin/salesClientMatchCore.js'
+import { listClientsByClubId } from '../../lib/localDbClubQuery.js'
 import { ClientHardDeleteConfirmModal } from '../../components/ClientHardDeleteConfirmModal.jsx'
 import { AdminLitePzCreateModal } from '../../components/admin/AdminLitePzCreateModal.jsx'
 import { ensureMembershipTypesForClub } from '../../lib/membershipTypesService.js'
@@ -951,6 +953,23 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         if (trRow) nextClubId = trRow.club_id ?? nextClubId
       }
       const row = { ...full, trainer_id: tid, club_id: nextClubId }
+      const card = String(full.card_number ?? '').trim()
+      const oldClub = String(full.club_id ?? '').trim()
+      const newClub = String(nextClubId ?? '').trim()
+      if (card && newClub && newClub !== oldClub) {
+        try {
+          const clubClients = await listClientsByClubId(newClub)
+          const cardCheck = assertClubCardAvailableForCreate(clubClients, newClub, card, {
+            excludeClientId: full.id,
+          })
+          if (!cardCheck.ok) {
+            alert(cardCheck.error)
+            return
+          }
+        } catch {
+          /* офлайн — облако отловит unique */
+        }
+      }
       await saveLocalWithSync('clients', row, { table_name: 'clients', operation: 'update', remote_id: full.id })
       const flush = await flushCriticalWritesToCloud()
       const warn = criticalWriteCloudWarning(flush, 'Смена тренера')

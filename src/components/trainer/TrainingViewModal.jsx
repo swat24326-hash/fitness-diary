@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { CheckCircle2, Heart, Timer } from 'lucide-react'
 import { CloseButton } from '../CloseButton'
 import { TrainingExercisesReadonly } from '../TrainingExercisesReadonly'
@@ -8,6 +9,7 @@ import { normalizeHrSessionSnapshot } from '../../lib/hr/hrSessionAgg.js'
 
 /**
  * Просмотр сохранённой тренировки (дневник клиента).
+ * Полноэкранный оверлей в document.body — как «Тренировки абонемента», не внутри колонки дневника.
  * @param {{
  *   training: object,
  *   clientName?: string,
@@ -26,12 +28,18 @@ export function TrainingViewModal({
   onClose,
 }) {
   useEffect(() => {
+    if (!training) return undefined
     const onKey = (e) => {
       if (e.key === 'Escape') onClose()
     }
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
+    return () => {
+      document.body.style.overflow = prevOverflow
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [training, onClose])
 
   if (!training) return null
 
@@ -46,15 +54,18 @@ export function TrainingViewModal({
   const hasSurvey = Boolean(data.survey_notes || data.readiness)
   const hasSummary = Boolean(data.rpe || data.stars || data.trainer_comment)
 
-  return (
+  return createPortal(
     <div
-      className="modal-overlay modal-overlay--center training-view-overlay"
+      className="modal-overlay modal-overlay--center modal-overlay--membership-view training-view-overlay"
       role="dialog"
       aria-modal="true"
       aria-labelledby="diary-modal-title"
       onClick={onClose}
     >
-      <div className="modal-panel training-view" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal-panel modal-panel--membership-view training-view"
+        onClick={(e) => e.stopPropagation()}
+      >
         <header className="training-view__head">
           <div className="training-view__head-text">
             <p className="training-view__kicker">Просмотр тренировки</p>
@@ -213,6 +224,7 @@ export function TrainingViewModal({
           <p className="training-view__footer muted">Клиент: {clientName}</p>
         ) : null}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

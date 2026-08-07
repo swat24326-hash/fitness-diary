@@ -1,11 +1,13 @@
-/* Просмотр тренировки (дневник → глаз) */
+/* Просмотр тренировки (дневник → глаз). Оверлей — portal в body. */
 
 .training-view-overlay {
+  z-index: 1200;
   padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px));
 }
 
-.modal-panel.training-view {
+.modal-panel.modal-panel--membership-view.training-view {
   width: min(720px, 100%);
+  height: min(92dvh, calc(100dvh - 32px));
   max-height: min(92dvh, calc(100dvh - 32px));
   display: flex;
   flex-direction: column;
@@ -260,8 +262,9 @@
 }
 
 @media (max-width: 560px) {
-  .modal-panel.training-view {
+  .modal-panel.modal-panel--membership-view.training-view {
     width: 100%;
+    height: calc(100dvh - 16px);
     max-height: calc(100dvh - 16px);
     border-radius: 16px;
   }

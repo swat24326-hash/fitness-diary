@@ -17,6 +17,8 @@ import {
   validatePaymentLinkAction,
 } from './salesPaymentsLinkCore.js'
 import { isTrainerWithoutTablet } from './trainerTabletModeCore.js'
+import { listClientsByClubId } from '../localDbClubQuery.js'
+import { assertClubCardAvailableForCreate } from './salesClientMatchCore.js'
 
 /**
  * @param {{
@@ -73,7 +75,8 @@ async function applyLiteFromPayment({ action, clubId, reportDate, trainers }) {
     package_months: months,
     paid_amount: action.amount > 0 ? String(action.amount) : '',
   }
-  const validated = validateLitePzCreateForm(form, noTab)
+  const clubClients = await listClientsByClubId(clubId)
+  const validated = validateLitePzCreateForm(form, noTab, clubClients)
   if (!validated.ok) return { ok: false, error: validated.error }
 
   const now = new Date().toISOString()
@@ -127,6 +130,10 @@ async function applyDeskFromPayment({ action, clubId, reportDate }) {
   const start = reportDate
   const end = deskPackageEndIso(start, months)
   if (!end) return { ok: false, error: 'Не удалось посчитать срок абона' }
+
+  const clubClients = await listClientsByClubId(clubId)
+  const cardCheck = assertClubCardAvailableForCreate(clubClients, clubId, action.cardNumber)
+  if (!cardCheck.ok) return { ok: false, error: cardCheck.error }
 
   const now = new Date().toISOString()
   const clientId = crypto.randomUUID()

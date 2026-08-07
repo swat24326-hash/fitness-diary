@@ -4,8 +4,13 @@
  */
 
 import { getLocalClient } from '../dataAccess.js'
+import { listClientsByClubId } from '../localDbClubQuery.js'
 import { saveLocalWithSync } from '../syncService.js'
 import { resolveDeskMembershipDates } from './deskMembershipLedgerCore.js'
+import {
+  assertClubCardAvailableForCreate,
+  normalizeSalesCardNumber,
+} from './salesClientMatchCore.js'
 
 /**
  * @param {{
@@ -13,6 +18,7 @@ import { resolveDeskMembershipDates } from './deskMembershipLedgerCore.js'
  *   clubId: string,
  *   membershipTypeId?: string|null,
  *   defaultHall?: 'tz'|'az'|null,
+ *   clients?: object[]|null,
  * }} input
  */
 export async function applyDeskClosingCreates(input) {
@@ -26,6 +32,12 @@ export async function applyDeskClosingCreates(input) {
   const errors = []
   /** @type {Set<string>} */
   const createdCards = new Set()
+
+  /** @type {object[]} */
+  let clubClients =
+    Array.isArray(input.clients) && input.clients.length
+      ? [...input.clients]
+      : await listClientsByClubId(clubId)
 
   for (const a of input.actions ?? []) {
     if (a.action === 'tag_hall') {
@@ -62,8 +74,13 @@ export async function applyDeskClosingCreates(input) {
     }
 
     if (a.action !== 'create') continue
-    const cardKey = String(a.cardNumber ?? '').trim().toLowerCase()
-    if (cardKey && createdCards.has(cardKey)) {
+    const cardNorm = normalizeSalesCardNumber(a.cardNumber)
+    if (cardNorm && createdCards.has(cardNorm)) {
+      continue
+    }
+    const cardCheck = assertClubCardAvailableForCreate(clubClients, clubId, a.cardNumber)
+    if (!cardCheck.ok) {
+      errors.push(cardCheck.error)
       continue
     }
     const dates = resolveDeskMembershipDates(a.endDate, a.startDate, a.packageMonths)
@@ -117,7 +134,8 @@ export async function applyDeskClosingCreates(input) {
         remote_id: null,
       })
       created += 1
-      if (cardKey) createdCards.add(cardKey)
+      if (cardNorm) createdCards.add(cardNorm)
+      clubClients = [...clubClients, client]
     } catch (e) {
       errors.push(`${a.cardNumber}: ${e?.message || 'ошибка сохранения'}`)
     }

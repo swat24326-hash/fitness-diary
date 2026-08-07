@@ -26,7 +26,8 @@ import { PnkVisitQualityReport } from '../../components/pnk/PnkVisitQualityRepor
 import { formatClientName } from '../../lib/clientNameFormat.js'
 import { isOpenPnkClient, isPnkCardTabVisible, resolvePnkTrainerUiStep } from '../../lib/pnk/pnkStagesCore.js'
 import { buildPnkVisitQualityReport, shouldShowPnkVisitQuality } from '../../lib/pnk/pnkVisitQualityCore.js'
-import { listMeasurementsByClientId } from '../../lib/localDbClubQuery.js'
+import { listClientsByClubId, listMeasurementsByClientId } from '../../lib/localDbClubQuery.js'
+import { assertClubCardAvailableForCreate } from '../../lib/admin/salesClientMatchCore.js'
 import { preparePnkTrialTraining, patchPnkClientLocal } from '../../lib/pnk/pnkLocalService.js'
 import { canStartPnkTrialTraining } from '../../lib/pnk/pnkWizardCore.js'
 import {
@@ -399,12 +400,28 @@ export function ClientCard() {
     if (!name) return
     const outreach_name = normalizeOutreachName(editForm.outreach_name) || null
     const max_chat_url = normalizeMaxChatUrl(editForm.max_chat_url) || null
+    const card_number = String(editForm.card_number ?? '').trim() || null
+    const clubId = client.club_id ?? user?.club_id
+    if (card_number && clubId) {
+      try {
+        const clubClients = await listClientsByClubId(clubId)
+        const cardCheck = assertClubCardAvailableForCreate(clubClients, clubId, card_number, {
+          excludeClientId: client.id,
+        })
+        if (!cardCheck.ok) {
+          alert(cardCheck.error)
+          return
+        }
+      } catch {
+        /* офлайн — облако отловит unique при Sync */
+      }
+    }
     const row = {
       ...client,
       name,
       phone: String(editForm.phone ?? '').trim() || null,
       birth_date: editForm.birth_date || null,
-      card_number: String(editForm.card_number ?? '').trim() || null,
+      card_number,
       outreach_name,
       max_chat_url,
     }

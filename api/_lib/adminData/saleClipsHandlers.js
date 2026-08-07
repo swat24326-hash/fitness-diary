@@ -3,9 +3,13 @@
  */
 import { sendJson } from '../adminSupabase.js'
 import { planSaleClipCreate, normalizeSaleClipStatus } from '../../../src/lib/admin/saleClipCore.js'
-import { matchClientByCardThenPhone } from '../../../src/lib/admin/salesClientMatchCore.js'
+import {
+  assertClubCardAvailableForCreate,
+  matchClientByCardThenPhone,
+} from '../../../src/lib/admin/salesClientMatchCore.js'
 import { isHoldingTrainerUser } from '../../../src/lib/admin/deskClosingImportCore.js'
 import { isOpenPnkClient } from '../../../src/lib/pnk/pnkStagesCore.js'
+import { isClientArchived } from '../../../src/lib/clientArchive.js'
 
 const CLIP_SELECT =
   'id, club_id, trainer_id, client_id, membership_id, status, clip_date, client_name, phone, card_number, birth_date, membership_type_id, membership_type_label, total_trainings, start_date, end_date, note, created_by, created_at, updated_at, done_at'
@@ -188,14 +192,14 @@ export async function handleSaleClipsPost(ctx, req, res) {
     .from('clients')
     .select('id, name, phone, card_number, trainer_id, club_id, lifecycle, archived_at, pnk_stage')
     .eq('club_id', clubId)
-    .is('archived_at', null)
     .limit(5000)
   if (cErr) {
     sendJson(res, 400, { error: cErr.message || 'Не удалось загрузить клиентов' })
     return
   }
 
-  const clients = clubClients ?? []
+  const allClubClients = clubClients ?? []
+  const clients = allClubClients.filter((c) => !isClientArchived(c))
   const clientIds = clients.map((c) => c.id).filter(Boolean)
   /** @type {Record<string, object[]>} */
   const membershipsByClientId = {}
@@ -242,6 +246,15 @@ export async function handleSaleClipsPost(ctx, req, res) {
   const now = new Date().toISOString()
 
   if (!clientId) {
+    const cardCheck = assertClubCardAvailableForCreate(
+      allClubClients,
+      clubId,
+      plan.clip.card_number,
+    )
+    if (!cardCheck.ok) {
+      sendJson(res, 400, { error: cardCheck.error, reason: cardCheck.error })
+      return
+    }
     const newId = crypto.randomUUID()
     const insertClient = {
       id: newId,
@@ -266,7 +279,16 @@ export async function handleSaleClipsPost(ctx, req, res) {
   } else {
     const existing = clients.find((c) => String(c.id) === String(clientId))
     const patch = { updated_at: now }
-    if (plan.match?.fillCard) patch.card_number = plan.match.fillCard
+    if (plan.match?.fillCard) {
+      const fillCheck = assertClubCardAvailableForCreate(allClubClients, clubId, plan.match.fillCard, {
+        excludeClientId: clientId,
+      })
+      if (!fillCheck.ok) {
+        sendJson(res, 400, { error: fillCheck.error, reason: fillCheck.error })
+        return
+      }
+      patch.card_number = plan.match.fillCard
+    }
     if (isOpenPnkClient(existing)) {
       patch.lifecycle = 'active'
       patch.pnk_won_at = now

@@ -50,6 +50,8 @@ import {
   loadCachedClubOutreachTemplates,
 } from '../../lib/trainer/trainerOutreachLogService'
 import { withPnkFieldsForInsert } from '../../lib/pnk/pnkLocalService'
+import { assertClubCardAvailableForCreate } from '../../lib/admin/salesClientMatchCore.js'
+import { listClientsByClubId } from '../../lib/localDbClubQuery.js'
 import '../../styles/trainer-clients.css'
 
 export function TrainerClients() {
@@ -343,6 +345,21 @@ export function TrainerClients() {
       alert('Клуб не назначен — попросите администратора назначить клуб в профиле.')
       return
     }
+    const cardRaw = String(newClientForm.card_number ?? '').trim() || null
+    if (cardRaw) {
+      let pool = [...clients, ...archivedClients]
+      try {
+        const clubWide = await listClientsByClubId(trainerClubId)
+        if (clubWide?.length) pool = clubWide
+      } catch {
+        /* офлайн — проверяем хотя бы своих */
+      }
+      const cardCheck = assertClubCardAvailableForCreate(pool, trainerClubId, cardRaw)
+      if (!cardCheck.ok) {
+        alert(cardCheck.error)
+        return
+      }
+    }
     setBusy(true)
     try {
       const id = crypto.randomUUID()
@@ -354,7 +371,7 @@ export function TrainerClients() {
         name: formatClientName(newClientForm.name),
         phone: newClientForm.phone.trim() || null,
         birth_date: newClientForm.birth_date || null,
-        card_number: String(newClientForm.card_number ?? '').trim() || null,
+        card_number: cardRaw,
         outreach_name: normalizeOutreachName(newClientForm.outreach_name) || null,
         max_chat_url: normalizeMaxChatUrl(newClientForm.max_chat_url) || null,
         created_at: now,

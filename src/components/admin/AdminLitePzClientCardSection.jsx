@@ -5,6 +5,8 @@ import { saveLocalWithSync } from '../../lib/syncService.js'
 import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
 import { formatClientName } from '../../lib/clientNameFormat.js'
 import { mergeDeskClientBirthForm } from '../../lib/admin/deskClientBirthFormCore.js'
+import { assertClubCardAvailableForCreate } from '../../lib/admin/salesClientMatchCore.js'
+import { listClientsByClubId } from '../../lib/localDbClubQuery.js'
 import { AdminDeskMembershipLedger } from './AdminDeskMembershipLedger.jsx'
 import { AdminDeskMemDateField } from './AdminDeskMemDateField.jsx'
 import { parseFlexibleDateToIso, birthDateYearBounds } from '../../lib/dateRu.js'
@@ -84,13 +86,25 @@ export function AdminLitePzClientCardSection({
     setBusy(true)
     setError('')
     try {
+      const card_number = String(form.card_number ?? '').trim() || null
+      const cid = clubId || client.club_id
+      if (card_number && cid) {
+        const clubClients = await listClientsByClubId(cid)
+        const cardCheck = assertClubCardAvailableForCreate(clubClients, cid, card_number, {
+          excludeClientId: client.id,
+        })
+        if (!cardCheck.ok) {
+          setError(cardCheck.error)
+          return
+        }
+      }
       const birthIso = parseFlexibleDateToIso(form.birth_date, birthDateYearBounds()) || null
       const savedBirth = birthIso || ''
       const clientRow = {
         ...client,
         name,
         phone: String(form.phone ?? '').trim() || null,
-        card_number: String(form.card_number ?? '').trim() || null,
+        card_number,
         birth_date: birthIso,
         trainer_id: client.trainer_id,
         desk_hall: null,

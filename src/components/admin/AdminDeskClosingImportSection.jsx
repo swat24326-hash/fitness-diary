@@ -100,6 +100,7 @@ export function AdminDeskClosingImportSection({
         actions: plan.actions,
         clubId,
         defaultHall: defaultHall === 'tz' || defaultHall === 'az' ? defaultHall : null,
+        clients: await listClientsByClubId(clubId),
       })
       if (!res.ok && !res.created && !res.tagged) {
         setError(res.error || res.errors?.join('; ') || 'Не применено')

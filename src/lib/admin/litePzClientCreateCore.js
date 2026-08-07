@@ -6,6 +6,7 @@
 import { isTrainerWithoutTablet } from './trainerTabletModeCore.js'
 import { deskPackageEndIso, parseDeskPaidAmountInput } from './deskMembershipLedgerCore.js'
 import { formatClientName } from '../clientNameFormat.js'
+import { assertClubCardAvailableForCreate } from './salesClientMatchCore.js'
 
 /**
  * @param {object[]} trainers
@@ -34,8 +35,9 @@ export function listNoTabletTrainersForClub(trainers, clubId) {
  *   paid_amount?: string|number,
  * }} form
  * @param {object[]} noTabletTrainers
+ * @param {object[]|null|undefined} [clubClients] клиенты клуба для проверки уникальности карты
  */
-export function validateLitePzCreateForm(form, noTabletTrainers) {
+export function validateLitePzCreateForm(form, noTabletTrainers, clubClients) {
   const name = formatClientName(form?.name)
   if (!name) return { ok: false, error: 'Укажите ФИО' }
 
@@ -66,12 +68,18 @@ export function validateLitePzCreateForm(form, noTabletTrainers) {
     return { ok: false, error: 'Цена должна быть числом ≥ 0' }
   }
 
+  const cardRaw = String(form?.card_number ?? '').trim() || null
+  if (clubClients != null) {
+    const cardCheck = assertClubCardAvailableForCreate(clubClients, clubId, cardRaw)
+    if (!cardCheck.ok) return { ok: false, error: cardCheck.error }
+  }
+
   return {
     ok: true,
     client: {
       name,
       phone: String(form?.phone ?? '').trim() || null,
-      card_number: String(form?.card_number ?? '').trim() || null,
+      card_number: cardRaw,
       trainer_id: trainerId,
       club_id: clubId,
       desk_hall: null,

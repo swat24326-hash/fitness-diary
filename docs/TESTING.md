@@ -86,6 +86,7 @@
 | Прайс АЗ: импорт Excel Результат/групповые/доплаты | `verify-az-price-list.mjs` |
 | Прайс АЗ: печать HTML / имена PNG | `verify-az-price-list-print.mjs` |
 | Импорт отчёта по оплатам (1С → дневной) — **мост** | `verify-sales-payments-import.mjs` |
+| Уникальность карты в клубе (не сети) при создании | `verify-client-card-unique.mjs` |
 | Связка оплат → lite/клип/desk (ПЗ без карточки) | `verify-sales-payments-link.mjs` |
 | Импорт часов ПЗ (`otchet_pz` → матрица тренер×тип) | `verify-pz-trainings-report-import.mjs` |
 | Домен платежа (когда появится код) | ТЗ: [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md); verify — в той же задаче |
