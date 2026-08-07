@@ -6,6 +6,7 @@ import {
   ClipboardList,
   Copy,
   Eye,
+  Heart,
   Layers,
   Pencil,
   Play,
@@ -13,7 +14,6 @@ import {
   Timer,
   Trash2,
 } from 'lucide-react'
-import { CloseButton } from './CloseButton'
 import { useAuth } from '../context/AuthContext'
 import { listMemberships } from '../lib/dataAccess'
 import { ensureClientTrainingsCached } from '../lib/clientTrainingsEnsure.js'
@@ -27,7 +27,8 @@ import {
 import { useDebouncedStorageReload, shouldReloadTrainerClientStats } from '../lib/useDebouncedStorageReload'
 import { deleteLocalWithSync, saveLocalWithSync } from '../lib/syncService'
 import { formatDateRu } from '../lib/dateRu'
-import { TrainingExercisesReadonly } from './TrainingExercisesReadonly'
+import { normalizeHrSessionSnapshot } from '../lib/hr/hrSessionAgg.js'
+import { TrainingViewModal } from './trainer/TrainingViewModal'
 
 const RU_WEEKDAYS = ['ВС', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ']
 
@@ -167,113 +168,6 @@ function MembershipBanner({ training, memberships, allTrainings }) {
   return <div className={`diary-membership diary-membership--${m.tone}`}>{m.label}</div>
 }
 
-function TrainingViewModal({ training, clientName, trainerName, memberships, allTrainings, onClose }) {
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose])
-
-  if (!training) return null
-
-  const data = training.data && typeof training.data === 'object' ? training.data : {}
-  const mem = membershipForTrainingDate(training.date, memberships, training, allTrainings)
-
-  return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="diary-modal-title" onClick={onClose}>
-      <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
-        <div className="row u-items-start">
-          <h2 id="diary-modal-title">Просмотр тренировки · {formatDiaryDate(training.date)}</h2>
-          <CloseButton onClick={onClose} size={20} />
-        </div>
-        <p className="muted u-mt-0 u-mb-8">
-          {formatDateRu(training.date)} · {training.type ?? '—'} · {trainerName ?? 'Тренер'}
-        </p>
-        <div className={`diary-status ${training.status === 'draft' ? 'diary-status--draft' : 'diary-status--done'} u-mb-8`}>
-          {training.status === 'completed' ? (
-            <>
-              <CheckCircle2 size={16} aria-hidden /> Завершена
-            </>
-          ) : (
-            <>
-              <Timer size={16} aria-hidden /> Черновик
-            </>
-          )}
-        </div>
-        <div className={`diary-membership diary-membership--${mem.tone}`}>{mem.label}</div>
-        {data.pre_weight_kg || data.pre_hr ? (
-          <div className="modal-section">
-            <h3>Замеры до</h3>
-            <p className="modal-kv">
-              {data.pre_weight_kg ? (
-                <>
-                  <strong>Вес:</strong> {data.pre_weight_kg} кг{' '}
-                </>
-              ) : null}
-              {data.pre_hr ? (
-                <>
-                  <strong>Пульс:</strong> {data.pre_hr}
-                </>
-              ) : null}
-            </p>
-          </div>
-        ) : null}
-        {(data.survey_notes || data.readiness) && (
-          <div className="modal-section">
-            <h3>Опрос</h3>
-            {data.readiness ? (
-              <p className="modal-kv">
-                <strong>Готовность:</strong> {data.readiness}/10
-              </p>
-            ) : null}
-            {data.survey_notes ? <p className="modal-kv">{data.survey_notes}</p> : null}
-          </div>
-        )}
-        {data.warmup ? (
-          <div className="modal-section">
-            <h3>Разминка</h3>
-            <p className="modal-kv">{data.warmup}</p>
-          </div>
-        ) : null}
-        {data.training_focus?.trim() ? (
-          <div className="modal-section">
-            <h3>Направленность тренировки</h3>
-            <p className="modal-kv">{data.training_focus.trim()}</p>
-          </div>
-        ) : null}
-        {data.exercises?.length ? (
-          <div className="modal-section">
-            <h3>Упражнения</h3>
-            <TrainingExercisesReadonly exercises={data.exercises} sessionType={training.type} />
-          </div>
-        ) : null}
-        {data.cooldown ? (
-          <div className="modal-section">
-            <h3>Заминка</h3>
-            <p className="modal-kv">{data.cooldown}</p>
-          </div>
-        ) : null}
-        {(data.rpe || data.trainer_comment) && (
-          <div className="modal-section">
-            <h3>Итог</h3>
-            {data.rpe ? (
-              <p className="modal-kv">
-                <strong>RPE:</strong> {data.rpe}
-              </p>
-            ) : null}
-            {data.trainer_comment ? <p className="modal-kv">{data.trainer_comment}</p> : null}
-          </div>
-        )}
-        <p className="muted u-mt-12 u-text-xs">
-          Клиент: {clientName}
-        </p>
-      </div>
-    </div>
-  )
-}
-
 /**
  * Вкладка «Дневники»: список тренировок клиента с поиском, фильтрами и карточками.
  */
@@ -343,6 +237,8 @@ export function ClientDiaries({ client, onDataChange, clubQs = '', readOnly = fa
     const now = new Date().toISOString()
     const today = now.slice(0, 10)
     const newId = crypto.randomUUID()
+    const rawData = clone(t.data ?? {})
+    if (rawData && typeof rawData === 'object') delete rawData.hr_session
     const row = {
       id: newId,
       client_id: client.id,
@@ -351,7 +247,7 @@ export function ClientDiaries({ client, onDataChange, clubQs = '', readOnly = fa
       date: today,
       type: t.type ?? 'Силовая',
       status: 'draft',
-      data: clone(t.data ?? {}),
+      data: rawData,
       created_at: now,
       synced: false,
     }
@@ -422,6 +318,7 @@ export function ClientDiaries({ client, onDataChange, clubQs = '', readOnly = fa
         {filtered.map((t) => {
           const data = t.data && typeof t.data === 'object' ? t.data : {}
           const isDraft = t.status === 'draft'
+          const hrSnap = normalizeHrSessionSnapshot(data.hr_session)
           return (
             <article key={t.id} className="diary-card diary-card--compact">
               <div className="diary-card__head">
@@ -487,6 +384,13 @@ export function ClientDiaries({ client, onDataChange, clubQs = '', readOnly = fa
                       <strong>Вес:</strong> {data.pre_weight_kg} кг
                     </p>
                   ) : null}
+                  {hrSnap?.avg ? (
+                    <p className="diary-card__hr" title="Средний пульс сессии">
+                      <Heart size={12} aria-hidden strokeWidth={2.25} fill="currentColor" />
+                      ср. {hrSnap.avg}
+                      {hrSnap.kcal_est != null ? ` · ~${hrSnap.kcal_est} ккал` : ''}
+                    </p>
+                  ) : null}
                 </div>
               </div>
 
@@ -518,11 +422,15 @@ export function ClientDiaries({ client, onDataChange, clubQs = '', readOnly = fa
           training={viewTraining}
           clientName={client.name}
           trainerName={user?.name}
-          memberships={memberships}
-          allTrainings={trainings}
+          membership={membershipForTrainingDate(
+            viewTraining.date,
+            memberships,
+            viewTraining,
+            trainings,
+          )}
+          dateLabel={formatDiaryDate(viewTraining.date)}
           onClose={() => setViewTraining(null)}
         />
-
       )}
     </div>
   )

@@ -1,12 +1,13 @@
 import { Flame, Heart } from 'lucide-react'
 
 /**
- * Сводка пульса сессии на шаге «Итог».
- * @param {{ summary: object | null | undefined }} props
+ * Сводка пульса сессии на шаге «Итог» или в просмотре дневника.
+ * @param {{ summary: object | null | undefined, variant?: 'live' | 'readonly' }} props
  */
-export function TrainingHrSessionSummary({ summary }) {
+export function TrainingHrSessionSummary({ summary, variant = 'live' }) {
   if (!summary || summary.avg == null) return null
 
+  const readonly = variant === 'readonly'
   const durationMin =
     summary.duration_sec != null ? Math.max(1, Math.round(summary.duration_sec / 60)) : null
   const zones = summary.zones
@@ -15,7 +16,7 @@ export function TrainingHrSessionSummary({ summary }) {
 
   return (
     <div
-      className="training-hr-summary"
+      className={`training-hr-summary${readonly ? ' training-hr-summary--readonly' : ''}`}
       role="region"
       aria-label="Пульс сессии"
       style={{ ['--hr-summary-beat']: `${beatSec}s` }}
@@ -73,7 +74,7 @@ export function TrainingHrSessionSummary({ summary }) {
             <span className="training-hr-summary__zone-label">Высокая {zones.hard_pct}%</span>
           </div>
         </div>
-      ) : (
+      ) : readonly ? null : (
         <p className="training-hr-summary__hint muted">Зоны недоступны — укажите дату рождения клиента</p>
       )}
 
@@ -84,7 +85,7 @@ export function TrainingHrSessionSummary({ summary }) {
             ~{summary.kcal_est} ккал <span className="training-hr-summary__kcal-note">(оценка)</span>
           </span>
         </p>
-      ) : (
+      ) : readonly ? null : (
         <p className="training-hr-summary__hint muted">
           Оценка ккал: нужны пол и вес в карте / поле «Вес»
         </p>

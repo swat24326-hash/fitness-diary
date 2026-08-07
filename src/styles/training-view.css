@@ -1,0 +1,291 @@
+/* Просмотр тренировки (дневник → глаз) */
+
+.training-view-overlay {
+  padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+}
+
+.modal-panel.training-view {
+  width: min(720px, 100%);
+  max-height: min(92dvh, calc(100dvh - 32px));
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  background:
+    linear-gradient(165deg, color-mix(in srgb, var(--accent, #2effb8) 8%, #121816), #0c100f 42%, #0a0e0d);
+  border-color: color-mix(in srgb, var(--accent, #2effb8) 22%, var(--border));
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent);
+}
+
+.training-view__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  flex-shrink: 0;
+}
+
+.training-view__head-text {
+  min-width: 0;
+}
+
+.training-view__kicker {
+  margin: 0 0 4px;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.training-view__title {
+  margin: 0 !important;
+  font-size: 1.28rem !important;
+  line-height: 1.25;
+  color: var(--text) !important;
+  font-weight: 700;
+}
+
+.training-view__meta {
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 2px;
+}
+
+.training-view__dot {
+  opacity: 0.55;
+  margin: 0 4px;
+}
+
+.training-view__badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px 0;
+  flex-shrink: 0;
+}
+
+.training-view__focus-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--accent-bright, #2effb8);
+  background: color-mix(in srgb, var(--accent, #2effb8) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent, #2effb8) 28%, transparent);
+}
+
+.training-view__hr-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: color-mix(in srgb, #ff6b7a 88%, #fff);
+  background: color-mix(in srgb, #ff6b7a 14%, transparent);
+  border: 1px solid color-mix(in srgb, #ff6b7a 32%, transparent);
+}
+
+.training-view__membership {
+  margin: 12px 20px 0;
+  flex-shrink: 0;
+}
+
+.training-view__body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 20px 18px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.training-view__section {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+}
+
+.training-view__section:first-child {
+  border-top: 0;
+  margin-top: 10px;
+  padding-top: 8px;
+}
+
+.training-view__section--hr {
+  border-top: 0;
+  padding-top: 4px;
+}
+
+.training-view__section--hr .training-hr-summary {
+  margin: 0;
+}
+
+.training-view__section-title {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.training-view__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.training-view__chip {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 4.5rem;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, #fff 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
+}
+
+.training-view__chip-k {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.training-view__chip-v {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.training-view__kv {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+}
+
+.training-view__kv-k {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.training-view__kv-v {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.training-view__text {
+  margin: 0;
+  font-size: 0.98rem;
+  line-height: 1.45;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+.training-view__text--emph {
+  font-weight: 650;
+  font-size: 1.05rem;
+}
+
+.training-view__footer {
+  margin: 0;
+  padding: 10px 20px 16px;
+  font-size: 0.78rem;
+  border-top: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+  flex-shrink: 0;
+}
+
+/* Упражнения читаемее внутри просмотра */
+.training-view .training-exercises-readonly__block {
+  margin-bottom: 12px !important;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, #fff 3.5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.training-view .training-exercises-readonly__block .modal-kv {
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.training-view .training-exercises-readonly__block .modal-kv strong {
+  font-size: 0.98rem;
+}
+
+.training-view .training-exercises-readonly__superset {
+  margin-bottom: 12px;
+  padding: 10px 12px 4px;
+  border-radius: 14px;
+  border: 1px dashed color-mix(in srgb, var(--accent, #2effb8) 35%, var(--border));
+  background: color-mix(in srgb, var(--accent, #2effb8) 5%, transparent);
+}
+
+.training-view .training-exercises-readonly__superset .training-exercises-readonly__block {
+  background: color-mix(in srgb, #000 18%, transparent);
+}
+
+/* Чип пульса на карточке дневника */
+.diary-card__hr {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: color-mix(in srgb, #ff8a96 90%, #fff);
+}
+
+.diary-card__hr svg {
+  flex-shrink: 0;
+}
+
+@media (max-width: 560px) {
+  .modal-panel.training-view {
+    width: 100%;
+    max-height: calc(100dvh - 16px);
+    border-radius: 16px;
+  }
+
+  .training-view__head,
+  .training-view__badges,
+  .training-view__body,
+  .training-view__footer {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .training-view__membership {
+    margin-left: 14px;
+    margin-right: 14px;
+  }
+
+  .training-view__title {
+    font-size: 1.12rem !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .training-view .training-hr-summary__heart {
+    animation: none;
+  }
+}

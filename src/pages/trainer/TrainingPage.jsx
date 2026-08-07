@@ -430,6 +430,11 @@ export function TrainingPage() {
       }
 
       if (row.status === 'completed') {
+        try {
+          hr.clearSessionSamples(cid)
+        } catch {
+          /* ignore */
+        }
         const completedCount =
           otherCompletedTrainings + (prev?.status === 'completed' ? 0 : 1)
         if (!skipNavigate && shouldOfferMarkPnkTrialDone(client, completedCount)) {
@@ -610,8 +615,28 @@ export function TrainingPage() {
   const daysTileLabel =
     daysUntilMembershipEnd == null ? '—' : daysUntilMembershipEnd < 0 ? '0' : String(daysUntilMembershipEnd)
 
+  /** Буфер сэмплов по clientId переживал вкладку и следующие тренировки — сброс на новой. */
+  const hrBufferClearedForNewRef = useRef(false)
+  useEffect(() => {
+    if (!isNew) {
+      hrBufferClearedForNewRef.current = false
+      return
+    }
+    if (loadState !== 'ok' || hrBufferClearedForNewRef.current) return
+    const cid = String(client?.id ?? clientIdParam ?? '').trim()
+    if (!cid) return
+    hrBufferClearedForNewRef.current = true
+    hr.clearSessionSamples(cid)
+    setWorkoutState((w) => {
+      if (!w?.hr_session) return w
+      const next = { ...w }
+      delete next.hr_session
+      return next
+    })
+  }, [client?.id, clientIdParam, hr.clearSessionSamples, isNew, loadState])
+
   const liveHrSummary = useMemo(() => {
-    if (!clientKey) return null
+    if (!clientKey || meta.status === 'completed') return null
     const samples = hr.getSessionSamples(clientKey)
     if (!samples.length) return null
     const weight = workoutState.pre_weight_kg || healthCard?.weight_kg || null
@@ -627,14 +652,18 @@ export function TrainingPage() {
     healthCard,
     hr.getSessionSamples,
     hr.samplesEpoch,
+    meta.status,
     trainingDate,
     workoutState.pre_weight_kg,
   ])
 
-  const displayHrSummary = liveHrSummary ?? normalizeHrSessionSnapshot(workoutState.hr_session)
+  const displayHrSummary =
+    meta.status === 'completed'
+      ? normalizeHrSessionSnapshot(workoutState.hr_session)
+      : liveHrSummary ?? normalizeHrSessionSnapshot(workoutState.hr_session)
 
   useEffect(() => {
-    if (!liveHrSummary) return
+    if (!liveHrSummary || meta.status === 'completed') return
     setWorkoutState((w) => {
       const prev = normalizeHrSessionSnapshot(w.hr_session)
       if (
@@ -649,7 +678,7 @@ export function TrainingPage() {
       }
       return { ...w, hr_session: liveHrSummary }
     })
-  }, [liveHrSummary])
+  }, [liveHrSummary, meta.status])
 
   if (isNew && isAdmin) {
     return (

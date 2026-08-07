@@ -11,6 +11,9 @@ export const HR_SAMPLE_INTERVAL_MS = 5000
 /** Макс. точек в RAM на клиента (~3 ч). */
 export const HR_SAMPLE_MAX_POINTS = 2200
 
+/** Окно сэмплов для сводки: старее относительно последнего — отбрасываем (хвост чужой тренировки). */
+export const HR_SESSION_MAX_SPAN_MS = 4 * 60 * 60 * 1000
+
 /**
  * @param {string | null | undefined} birthDateIso YYYY-MM-DATE
  * @param {string | null | undefined} [asOfIso]
@@ -86,10 +89,14 @@ export function estimateKcalKeytel(p) {
 }
 
 /**
+ * Оставить сэмплы в окне [last.t − maxSpanMs, last.t] — иначе duration = дни между старыми точками.
  * @param {Array<{ t?: number, bpm?: number }>} samples
- * @returns {{ avg: number, min: number, max: number, duration_sec: number, samples_n: number } | null}
+ * @param {number} [maxSpanMs]
+ * @returns {Array<{ t: number, bpm: number }>}
  */
-export function aggregateHrSamples(samples) {
+export function pruneHrSamplesToRecentWindow(samples, maxSpanMs = HR_SESSION_MAX_SPAN_MS) {
+  const span = Number(maxSpanMs)
+  const maxSpan = Number.isFinite(span) && span > 0 ? span : HR_SESSION_MAX_SPAN_MS
   const list = (samples ?? [])
     .map((s) => ({
       t: Number(s?.t),
@@ -97,6 +104,17 @@ export function aggregateHrSamples(samples) {
     }))
     .filter((s) => Number.isFinite(s.t) && Number.isFinite(s.bpm) && s.bpm > 0 && s.bpm <= 300)
     .sort((a, b) => a.t - b.t)
+  if (list.length === 0) return []
+  const cutoff = list[list.length - 1].t - maxSpan
+  return list.filter((s) => s.t >= cutoff)
+}
+
+/**
+ * @param {Array<{ t?: number, bpm?: number }>} samples
+ * @returns {{ avg: number, min: number, max: number, duration_sec: number, samples_n: number } | null}
+ */
+export function aggregateHrSamples(samples) {
+  const list = pruneHrSamplesToRecentWindow(samples)
 
   if (list.length === 0) return null
 
@@ -202,12 +220,13 @@ export function normalizeHrSessionSnapshot(raw) {
  * }} [ctx]
  */
 export function buildHrSessionSummary(samples, ctx = {}) {
-  const base = aggregateHrSamples(samples)
+  const pruned = pruneHrSamplesToRecentWindow(samples)
+  const base = aggregateHrSamples(pruned)
   if (!base) return null
 
   const age = ageYearsFromBirthDate(ctx.birthDate, ctx.asOfIso)
   const maxHr = estimateMaxHr(age)
-  const zones = computeHrZonePercents(samples, maxHr)
+  const zones = computeHrZonePercents(pruned, maxHr)
   const weightKg = Number(ctx.weightKg)
   const sex = normalizeHealthSex(ctx.sex)
   const durationMin = (base.duration_sec || 0) / 60

@@ -4,6 +4,7 @@
  */
 import {
   HR_SAMPLE_INTERVAL_MS,
+  HR_SESSION_MAX_SPAN_MS,
   ageYearsFromBirthDate,
   aggregateHrSamples,
   appendHrSample,
@@ -13,6 +14,7 @@ import {
   estimateMaxHr,
   hrZoneForBpm,
   normalizeHrSessionSnapshot,
+  pruneHrSamplesToRecentWindow,
 } from '../src/lib/hr/hrSessionAgg.js'
 
 function ok(cond, msg) {
@@ -94,6 +96,20 @@ ok(hrZoneForBpm(160, 184) === 'hard', 'зона высокая')
   ok(buf.length === 1 && buf[0].bpm === 110, 'downsample обновляет последний')
   buf = appendHrSample(buf, 120, 1000 + HR_SAMPLE_INTERVAL_MS + 50)
   ok(buf.length === 2 && buf[1].bpm === 120, 'новый сэмпл после интервала')
+}
+
+{
+  const last = 10_000_000
+  const stale = [
+    { t: last - HR_SESSION_MAX_SPAN_MS - 60_000, bpm: 50 },
+    { t: last - 60_000, bpm: 100 },
+    { t: last, bpm: 120 },
+  ]
+  const pruned = pruneHrSamplesToRecentWindow(stale)
+  ok(pruned.length === 2 && pruned[0].bpm === 100, 'prune отбрасывает хвост старше окна')
+  const agg = aggregateHrSamples(stale)
+  ok(agg?.duration_sec === 60, 'duration по окну, не по дням')
+  ok(agg?.min === 100 && agg?.avg === 110, 'agg без stale bpm')
 }
 
 console.log('verify-hr-session-agg: all passed')
