@@ -310,7 +310,7 @@ export function TrainerHome() {
   const challengeCards = useMemo(() => challengesView.items, [challengesView.items])
 
   return (
-    <div className="trainer-home">
+    <div className="trainer-home trainer-home--board">
       <section className="trainer-home__hero" aria-labelledby="trainer-home-title">
         <div className="trainer-home__hero-text">
           <h1 id="trainer-home-title" className="trainer-home__title">

@@ -1,4 +1,14 @@
-/* Главная тренера: «Сегодня внимание» — Зал | База и поводы | По абонементу */
+/**
+ * Главная тренера — «Сегодня внимание».
+ *
+ * Выбранный вариант (как на скрине / 5 этажей под hero):
+ *   1 Зал (заявки + качество) → 2 База и поводы → 3 По абонементу
+ *   4 Челленджи → 5 Разделы
+ * Этажи 1–3 всегда столбиком (не в один горизонтальный ряд).
+ * Планшет: та же структура + плотность под один экран (vh).
+ *
+ * Отвергнуто: один ряд из трёх колонок — ломает чтение «воронки» и этажей.
+ */
 
 .trainer-today-strip {
   width: 100%;
@@ -17,7 +27,7 @@
 
 .trainer-today-strip__title {
   margin: 0;
-  font-size: clamp(0.95rem, 2.2vw, 1.1rem);
+  font-size: clamp(0.95rem, 2.2vw, 1.12rem);
   font-weight: 650;
   letter-spacing: 0.02em;
 }
@@ -28,10 +38,9 @@
 }
 
 .trainer-today-strip__rail {
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
-  align-items: start;
 }
 
 .trainer-today-strip__block {
@@ -42,7 +51,7 @@
   margin: 0 0 6px;
   font-size: 0.68rem;
   font-weight: 650;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
@@ -52,13 +61,10 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 6px;
+  gap: 8px;
 }
 
-.trainer-today-strip__cluster--ops {
-  grid-template-columns: repeat(var(--today-ops, 1), minmax(0, 1fr));
-}
-
+.trainer-today-strip__cluster--ops,
 .trainer-today-strip__cluster--base {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -81,13 +87,13 @@
     'icon count'
     'icon label'
     'icon hint';
-  column-gap: 7px;
-  row-gap: 0;
+  column-gap: 8px;
+  row-gap: 1px;
   align-content: start;
   min-width: 0;
-  min-height: 4.25rem;
-  padding: 8px 9px;
-  border-radius: 10px;
+  min-height: 4.5rem;
+  padding: 10px 11px;
+  border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
   background: color-mix(in srgb, var(--bg-elevated, #152018) 72%, transparent);
   color: inherit;
@@ -116,7 +122,7 @@ a.trainer-today-tile:hover {
 
 .trainer-today-tile__count {
   grid-area: count;
-  font-size: clamp(1.15rem, 2.2vw, 1.4rem);
+  font-size: clamp(1.25rem, 2.4vw, 1.55rem);
   font-weight: 750;
   line-height: 1.1;
   letter-spacing: -0.02em;
@@ -125,9 +131,9 @@ a.trainer-today-tile:hover {
 
 .trainer-today-tile__label {
   grid-area: label;
-  font-size: 0.74rem;
+  font-size: 0.8rem;
   font-weight: 650;
-  line-height: 1.15;
+  line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -135,8 +141,8 @@ a.trainer-today-tile:hover {
 
 .trainer-today-tile__hint {
   grid-area: hint;
-  font-size: 0.64rem;
-  line-height: 1.15;
+  font-size: 0.68rem;
+  line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -155,91 +161,81 @@ a.trainer-today-tile:hover {
   font-size: 0.82rem;
 }
 
-.trainer-today-strip__cq-facts {
-  margin: 8px 0 0;
-  padding-left: 1.1rem;
-  font-size: 0.8rem;
-  line-height: 1.35;
-}
-
-.trainer-today-strip__cq-facts li + li {
-  margin-top: 2px;
-}
-
-@media (max-width: 699px) {
+@media (max-width: 560px) {
+  /* Телефон: 3 плитки абонов — 2+1, без сжатия подписей в одну узкую строку */
   .trainer-today-strip__cluster--path {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-/* Планшет и шире: три блока в один ряд + плотные плитки */
+/* Планшет и шире: 3 плитки абонов всегда в ряд (этаж «По абонементу») */
+@media (min-width: 561px) {
+  .trainer-today-strip__cluster--path {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* —— Планшет: та же структура, плотная доска под один экран —— */
 @media (min-width: 768px) {
   .trainer-home .trainer-today-strip {
     max-width: none;
-    margin-inline: 0;
     width: 100%;
-  }
-
-  .trainer-today-strip__rail {
-    grid-template-columns:
-      minmax(6.5rem, 0.85fr)
-      minmax(9rem, 1.05fr)
-      minmax(12rem, 1.55fr);
-    gap: 8px 12px;
-    align-items: stretch;
-  }
-
-  .trainer-today-strip__block + .trainer-today-strip__block {
-    padding-left: 10px;
-    border-left: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
-  }
-
-  .trainer-today-strip__block-title {
-    margin-bottom: 5px;
-    font-size: 0.64rem;
+    margin-inline: 0;
   }
 
   .trainer-today-strip__head {
     margin-bottom: 6px;
   }
 
+  .trainer-today-strip__hint {
+    font-size: 11px;
+  }
+
+  .trainer-today-strip__rail {
+    gap: clamp(6px, 1vh, 10px);
+  }
+
+  .trainer-today-strip__block-title {
+    margin-bottom: 4px;
+    font-size: 0.64rem;
+  }
+
+  .trainer-today-strip__cluster {
+    gap: 6px;
+  }
+
   .trainer-today-tile {
-    min-height: 3.6rem;
-    padding: 7px 8px;
-    border-radius: 9px;
+    min-height: clamp(3.2rem, 7.2vh, 4rem);
+    padding: clamp(6px, 1vh, 9px) clamp(8px, 1.2vw, 11px);
+    border-radius: 10px;
   }
 
   .trainer-today-tile__count {
-    font-size: 1.2rem;
+    font-size: clamp(1.15rem, 2.2vh, 1.4rem);
   }
 
   .trainer-today-tile__label {
-    font-size: 0.7rem;
+    font-size: 0.74rem;
   }
 
   .trainer-today-tile__hint {
-    font-size: 0.6rem;
-  }
-
-  .trainer-today-tile__icon svg {
-    width: 15px;
-    height: 15px;
+    font-size: 0.62rem;
   }
 }
 
-/* Низкий экран планшета (альбом): ещё плотнее, чтобы влезло без скролла */
-@media (min-width: 768px) and (max-height: 900px) {
-  .trainer-today-strip__head {
-    margin-bottom: 4px;
-  }
-
+/* Низкий альбом планшета — ещё плотнее */
+@media (min-width: 768px) and (max-height: 820px) {
   .trainer-today-strip__hint {
     display: none;
   }
 
+  .trainer-today-strip__rail {
+    gap: 5px;
+  }
+
   .trainer-today-tile {
-    min-height: 3.25rem;
-    padding: 6px 7px;
+    min-height: 3.05rem;
+    padding: 6px 8px;
     grid-template-rows: auto auto;
     grid-template-areas:
       'icon count'
@@ -248,20 +244,5 @@ a.trainer-today-tile:hover {
 
   .trainer-today-tile__hint {
     display: none;
-  }
-
-  .trainer-today-strip__cq-facts {
-    display: none;
-  }
-}
-
-@media (min-width: 1100px) {
-  .trainer-today-strip__rail {
-    gap: 10px 16px;
-  }
-
-  .trainer-today-tile {
-    min-height: 3.85rem;
-    padding: 8px 10px;
   }
 }

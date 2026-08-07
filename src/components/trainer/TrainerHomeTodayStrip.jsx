@@ -34,8 +34,9 @@ function AttentionTile({ card }) {
 }
 
 /**
- * Главная тренера: «Сегодня внимание» — три логичных блока в одном ряду.
- * 1) Заявки / качество  2) База и поводы (ПНК-воронка, ДР)  3) По абонементу
+ * Главная тренера — как на скрине планшета:
+ * Сегодня внимание → Зал → База и поводы → По абонементу (столбиком).
+ * Качество всегда в ряду «Зал», чтобы сетка не прыгала.
  */
 export function TrainerHomeTodayStrip({
   clubId = '',
@@ -54,9 +55,10 @@ export function TrainerHomeTodayStrip({
   const groups = summary ? groupTrainerAttentionItems(buildTrainerAttentionItems(summary)) : []
   const baseGroup = groups.find((g) => g.id === 'base')
   const pathGroup = groups.find((g) => g.id === 'path')
-  const showCq = Boolean(cqGlance?.hasSignal && cqGlance.headline) || (cqLoading && !cqGlance?.headline)
   const clipCount = clips.length
-  const opsCols = 1 + (showCq ? 1 : 0)
+  const cqCount = (Number(cqGlance?.thin) || 0) + (Number(cqGlance?.stuck) || 0)
+  const cqHeadline = cqGlance?.hasSignal ? cqGlance.headline : 'Качество ведения — в профиле'
+  const cqBusy = cqLoading && !cqGlance
 
   return (
     <section className="trainer-today-strip" aria-labelledby="trainer-today-strip-title">
@@ -68,26 +70,20 @@ export function TrainerHomeTodayStrip({
           <p className="trainer-today-strip__hint muted" role="status">
             Загрузка…
           </p>
-        ) : summary?.actionable === 0 && clipCount === 0 && !showCq ? (
-          <p className="trainer-today-strip__hint muted">Всё спокойно — срочных напоминаний нет.</p>
-        ) : (
+        ) : summary?.actionable === 0 && clipCount === 0 && cqCount === 0 ? (
+          <p className="trainer-today-strip__hint muted">Всё спокойно</p>
+        ) : summary?.actionable > 0 ? (
           <p className="trainer-today-strip__hint muted">
-            {clipCount > 0 ? `${clipCount} заявк${clipCount === 1 ? 'а' : clipCount < 5 ? 'и' : 'ок'}` : null}
-            {clipCount > 0 && (summary?.actionable > 0 || showCq) ? ' · ' : null}
-            {summary?.actionable > 0
-              ? `${summary.actionable} ${summary.actionable === 1 ? 'повод' : summary.actionable < 5 ? 'повода' : 'поводов'}`
-              : null}
+            {summary.actionable}{' '}
+            {summary.actionable === 1 ? 'повод' : summary.actionable < 5 ? 'повода' : 'поводов'}
           </p>
-        )}
+        ) : null}
       </div>
 
-      <div className="trainer-today-strip__rail" style={{ '--today-ops': String(opsCols) }}>
+      <div className="trainer-today-strip__rail">
         <div className="trainer-today-strip__block trainer-today-strip__block--ops">
           <h3 className="trainer-today-strip__block-title">Зал</h3>
-          <div
-            className="trainer-today-strip__cluster trainer-today-strip__cluster--ops"
-            aria-label="Заявки и качество"
-          >
+          <div className="trainer-today-strip__cluster trainer-today-strip__cluster--ops" aria-label="Зал">
             <div
               className={`trainer-today-tile trainer-today-tile--clips${clipCount > 0 ? '' : ' trainer-today-tile--quiet'}`}
               role="status"
@@ -105,36 +101,29 @@ export function TrainerHomeTodayStrip({
               <span className="trainer-today-tile__hint muted">на абон</span>
             </div>
 
-            {showCq ? (
-              cqLoading && !cqGlance?.headline ? (
-                <div className="trainer-today-tile trainer-today-tile--cq" aria-busy="true">
-                  <span className="trainer-today-tile__icon" aria-hidden>
-                    <Gauge size={18} />
-                  </span>
-                  <span className="trainer-today-tile__count muted">…</span>
-                  <span className="trainer-today-tile__label">Качество</span>
-                  <span className="trainer-today-tile__hint muted">загрузка</span>
-                </div>
-              ) : (
-                <Link
-                  to="/trainer/profile"
-                  className="trainer-today-tile trainer-today-tile--cq u-no-decoration"
-                  title={cqGlance.headline}
-                >
-                  <span className="trainer-today-tile__icon" aria-hidden>
-                    <Gauge size={18} />
-                  </span>
-                  <span className="trainer-today-tile__count">
-                    {(() => {
-                      const n = (Number(cqGlance.thin) || 0) + (Number(cqGlance.stuck) || 0)
-                      return n > 0 ? n : '!'
-                    })()}
-                  </span>
-                  <span className="trainer-today-tile__label">Качество</span>
-                  <span className="trainer-today-tile__hint muted">подробнее</span>
-                </Link>
-              )
-            ) : null}
+            {cqBusy ? (
+              <div className="trainer-today-tile trainer-today-tile--cq" aria-busy="true">
+                <span className="trainer-today-tile__icon" aria-hidden>
+                  <Gauge size={18} />
+                </span>
+                <span className="trainer-today-tile__count muted">…</span>
+                <span className="trainer-today-tile__label">Качество</span>
+                <span className="trainer-today-tile__hint muted">загрузка</span>
+              </div>
+            ) : (
+              <Link
+                to="/trainer/profile"
+                className="trainer-today-tile trainer-today-tile--cq u-no-decoration"
+                title={cqHeadline || undefined}
+              >
+                <span className="trainer-today-tile__icon" aria-hidden>
+                  <Gauge size={18} />
+                </span>
+                <span className="trainer-today-tile__count">{cqCount}</span>
+                <span className="trainer-today-tile__label">Качество</span>
+                <span className="trainer-today-tile__hint muted">подробнее</span>
+              </Link>
+            )}
           </div>
         </div>
 
@@ -214,20 +203,6 @@ export function TrainerHomeTodayStrip({
             })}
           </ul>
         </div>
-      ) : null}
-
-      {showCq && cqGlance?.factsPreview?.length ? (
-        <ul className="trainer-today-strip__cq-facts">
-          {cqGlance.factsPreview.map((f) => (
-            <li key={`${f.kind}-${f.clientId}`}>
-              <Link to={`/trainer/clients/${f.clientId}`}>{f.clientName}</Link>
-              <span className="muted">
-                {' '}
-                · {f.kind === 'thin_training' ? 'тонкая' : f.kind === 'stuck_bz' ? 'хвост БЗ' : 'хвост ДК'}
-              </span>
-            </li>
-          ))}
-        </ul>
       ) : null}
     </section>
   )
