@@ -31,7 +31,9 @@ import {
 } from '../src/lib/hr/rememberedHrDevice.js'
 import {
   clearHrSamples,
+  clearLegacyHrSamples,
   hrSamplesStorageKey,
+  migrateHrSamplesScope,
   parseHrSamples,
   readHrSamples,
   writeHrSamples,
@@ -230,19 +232,45 @@ function bytes(...arr) {
   }
 
   ok(
-    hrSamplesStorageKey('t1', 'c1') === 'fitness-diary-hr-samples-v1:t1:c1',
-    'samples key',
+    hrSamplesStorageKey('t1', 'c1', 'w1') === 'fitness-diary-hr-samples-v2:t1:c1:w1',
+    'samples key v2',
   )
   ok(parseHrSamples('[]').length === 0, 'parse empty samples')
   ok(parseHrSamples([{ t: 1, bpm: 90 }, { t: 2, bpm: 0 }]).length === 1, 'drop bpm 0')
-  writeHrSamples('t1', 'c1', [
+  writeHrSamples('t1', 'c1', 'w1', [
     { t: 1000, bpm: 100 },
     { t: 2000, bpm: 110 },
   ])
-  const samples = readHrSamples('t1', 'c1')
+  const samples = readHrSamples('t1', 'c1', 'w1')
   ok(samples.length === 2 && samples[1].bpm === 110, 'write/read samples')
-  clearHrSamples('t1', 'c1')
-  ok(readHrSamples('t1', 'c1').length === 0, 'clear samples')
+  ok(readHrSamples('t1', 'c1', 'w2').length === 0, 'другая тренировка — пусто')
+  clearHrSamples('t1', 'c1', 'w1')
+  ok(readHrSamples('t1', 'c1', 'w1').length === 0, 'clear samples')
+
+  // legacy v1 не читается как рабочий буфер
+  globalThis.sessionStorage.setItem('fitness-diary-hr-samples-v1:t1:c1', JSON.stringify([{ t: 1, bpm: 99 }]))
+  ok(readHrSamples('t1', 'c1', 'w1').length === 0, 'legacy v1 не подмешивается')
+  clearLegacyHrSamples('t1', 'c1')
+  ok(globalThis.sessionStorage.getItem('fitness-diary-hr-samples-v1:t1:c1') == null, 'legacy cleared')
+
+  writeHrSamples('t1', 'c1', 'pending', [{ t: 5, bpm: 120 }])
+  migrateHrSamplesScope('t1', 'c1', 'pending', 'real-id')
+  ok(readHrSamples('t1', 'c1', 'pending').length === 0, 'migrate: from cleared')
+  ok(readHrSamples('t1', 'c1', 'real-id')[0]?.bpm === 120, 'migrate: to has samples')
+  clearHrSamples('t1', 'c1', 'real-id')
+
+  // изоляция двух тренировок одного клиента
+  writeHrSamples('t1', 'c1', 'w-a', [{ t: 1, bpm: 80 }])
+  writeHrSamples('t1', 'c1', 'w-b', [{ t: 1, bpm: 150 }])
+  ok(readHrSamples('t1', 'c1', 'w-a')[0].bpm === 80, 'scope A')
+  ok(readHrSamples('t1', 'c1', 'w-b')[0].bpm === 150, 'scope B')
+  clearHrSamples('t1', 'c1', 'w-a')
+  ok(readHrSamples('t1', 'c1', 'w-b')[0].bpm === 150, 'clear A не трогает B')
+  clearHrSamples('t1', 'c1', 'w-b')
+
+  // без trainingId — пусто (нельзя читать «общий» хвост)
+  ok(readHrSamples('t1', 'c1', '').length === 0, 'пусто без trainingId')
+  ok(readHrSamples('t1', 'c1', null).length === 0, 'пусто trainingId null')
 
   ok(hrClientDeviceMapKey('t1') === 'fitness-diary-hr-client-device-v1:t1', 'client-device key')
   ok(parseHrClientDeviceMap({ a: 'dev' }).a === 'dev', 'parse map')

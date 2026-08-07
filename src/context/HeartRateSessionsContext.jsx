@@ -35,6 +35,8 @@ import {
 } from '../lib/hr/hrClientDeviceMap'
 import {
   clearHrSamples,
+  clearLegacyHrSamples,
+  migrateHrSamplesScope,
   readHrSamples,
   writeHrSamples,
 } from '../lib/hr/hrSampleBufferStore'
@@ -55,6 +57,8 @@ export function HeartRateSessionsProvider({ children }) {
   const runtimeRef = useRef(new Map())
   /** @type {React.MutableRefObject<Map<string, Array<{ t: number, bpm: number }>>>} */
   const samplesRef = useRef(new Map())
+  /** clientId → trainingId (буфер только этой тренировки) */
+  const trainingScopeRef = useRef(new Map())
   const maxHrRef = useRef(new Map())
   const persistTimerRef = useRef(new Map())
   const staleTimerRef = useRef(null)
@@ -65,19 +69,62 @@ export function HeartRateSessionsProvider({ children }) {
   const slotsRef = useRef(slots)
   slotsRef.current = slots
 
+  const scopeFor = useCallback((clientId) => {
+    const tid = trainingScopeRef.current.get(String(clientId ?? ''))
+    return tid ? String(tid) : ''
+  }, [])
+
   const schedulePersist = useCallback(
     (clientId) => {
       const id = String(clientId)
       if (!trainerUserId) return
+      const tid = scopeFor(id)
+      if (!tid) return
       const prev = persistTimerRef.current.get(id)
       if (prev) clearTimeout(prev)
       persistTimerRef.current.set(
         id,
         setTimeout(() => {
           persistTimerRef.current.delete(id)
-          writeHrSamples(trainerUserId, id, samplesRef.current.get(id) ?? [])
+          writeHrSamples(trainerUserId, id, tid, samplesRef.current.get(id) ?? [])
         }, 400),
       )
+    },
+    [scopeFor, trainerUserId],
+  )
+
+  const bindTrainingScope = useCallback(
+    (clientId, trainingId) => {
+      const id = String(clientId ?? '').trim()
+      const tid = String(trainingId ?? '').trim()
+      if (!id || !tid) return
+      const prev = trainingScopeRef.current.get(id)
+      if (trainerUserId) clearLegacyHrSamples(trainerUserId, id)
+      if (prev === tid) return
+      trainingScopeRef.current.set(id, tid)
+      // Другая тренировка — не тащим RAM/хвост прошлой
+      samplesRef.current.delete(id)
+      const fromStore = trainerUserId ? readHrSamples(trainerUserId, id, tid) : []
+      if (fromStore.length) samplesRef.current.set(id, fromStore)
+      setSamplesEpoch((n) => n + 1)
+    },
+    [trainerUserId],
+  )
+
+  const migrateTrainingScope = useCallback(
+    (clientId, fromTrainingId, toTrainingId) => {
+      const id = String(clientId ?? '').trim()
+      const from = String(fromTrainingId ?? '').trim()
+      const to = String(toTrainingId ?? '').trim()
+      if (!id || !from || !to || from === to) return
+      if (trainerUserId) {
+        migrateHrSamplesScope(trainerUserId, id, from, to)
+        // RAM мог быть новее storage (debounce persist) — сразу пишем в новый ключ
+        const ram = samplesRef.current.get(id)
+        if (ram?.length) writeHrSamples(trainerUserId, id, to, ram)
+      }
+      trainingScopeRef.current.set(id, to)
+      setSamplesEpoch((n) => n + 1)
     },
     [trainerUserId],
   )
@@ -158,10 +205,11 @@ export function HeartRateSessionsProvider({ children }) {
         runtimeRef.current.delete(id)
       }
 
-      // Не обнуляем буфер: RAM → sessionStorage → продолжаем
+      // Не обнуляем буфер этой тренировки: RAM → sessionStorage → продолжаем
+      const tid = scopeFor(id)
       const existing =
         samplesRef.current.get(id) ??
-        (trainerUserId ? readHrSamples(trainerUserId, id) : [])
+        (trainerUserId && tid ? readHrSamples(trainerUserId, id, tid) : [])
       samplesRef.current.set(id, existing)
       setSamplesEpoch((n) => n + 1)
 
@@ -222,7 +270,7 @@ export function HeartRateSessionsProvider({ children }) {
       })
       setBannerError('')
     },
-    [patchSlot, schedulePersist, trainerUserId],
+    [patchSlot, schedulePersist, scopeFor, trainerUserId],
   )
 
   const connectForClient = useCallback(
@@ -377,9 +425,11 @@ export function HeartRateSessionsProvider({ children }) {
     (clientId) => {
       const id = String(clientId ?? '')
       if (!id) return []
+      const tid = scopeFor(id)
+      if (!tid) return []
       if (samplesRef.current.has(id)) return samplesRef.current.get(id).slice()
       if (trainerUserId) {
-        const fromStore = readHrSamples(trainerUserId, id)
+        const fromStore = readHrSamples(trainerUserId, id, tid)
         if (fromStore.length) {
           samplesRef.current.set(id, fromStore)
           return fromStore.slice()
@@ -387,7 +437,7 @@ export function HeartRateSessionsProvider({ children }) {
       }
       return []
     },
-    [trainerUserId],
+    [scopeFor, trainerUserId],
   )
 
   const summarizeSession = useCallback(
@@ -403,10 +453,14 @@ export function HeartRateSessionsProvider({ children }) {
       const id = String(clientId ?? '')
       if (!id) return
       samplesRef.current.delete(id)
-      if (trainerUserId) clearHrSamples(trainerUserId, id)
+      const tid = scopeFor(id)
+      if (trainerUserId) {
+        clearLegacyHrSamples(trainerUserId, id)
+        if (tid) clearHrSamples(trainerUserId, id, tid)
+      }
       setSamplesEpoch((n) => n + 1)
     },
-    [trainerUserId],
+    [scopeFor, trainerUserId],
   )
 
   const liveCount = slots.filter((s) => s.status === 'live').length
@@ -427,17 +481,21 @@ export function HeartRateSessionsProvider({ children }) {
       getSessionSamples,
       summarizeSession,
       clearSessionSamples,
+      bindTrainingScope,
+      migrateTrainingScope,
       isConnectedForClient: (clientId) => runtimeRef.current.has(String(clientId)),
       slotForClient: (clientId) => slots.find((s) => s.clientId === String(clientId)) ?? null,
       surname: hrChipSurname,
     }),
     [
       bannerError,
+      bindTrainingScope,
       clearSessionSamples,
       connectForClient,
       disconnectClient,
       getSessionSamples,
       liveCount,
+      migrateTrainingScope,
       pickOtherForClient,
       samplesEpoch,
       slots,
@@ -471,6 +529,8 @@ export function useHeartRateSessions() {
       getSessionSamples: () => [],
       summarizeSession: () => null,
       clearSessionSamples: () => {},
+      bindTrainingScope: () => {},
+      migrateTrainingScope: () => {},
     }
   }
   return ctx

@@ -135,6 +135,8 @@ export function TrainingPage() {
   const [hydrateVersion, bumpHydrateVersion] = useState(0)
   const autosaveTimerRef = useRef(null)
   const draftTrainingIdRef = useRef(null)
+  /** Временный id буфера пульса до первого сохранения /workouts/new */
+  const pendingHrScopeRef = useRef(null)
   const autosaveUiTimerRef = useRef(null)
   const userEditedRef = useRef(false)
   const baselineContentSnapshotRef = useRef('')
@@ -173,6 +175,8 @@ export function TrainingPage() {
       const ms = await activeMembershipSummary(clientIdParam)
       setMembershipSummary(ms)
       draftTrainingIdRef.current = null
+      // pending scope создаёт bind-эффект; не сбрасываем тут при каждом load —
+      // иначе mid-workout reload load() сотрёт буфер до первого save.
       if (!c) {
         setEarlyActivateProposal(null)
         setLoadState('missing')
@@ -224,6 +228,7 @@ export function TrainingPage() {
     )
     setMembershipSummary(await activeMembershipSummary(t.client_id))
     draftTrainingIdRef.current = t.id
+    pendingHrScopeRef.current = null
     setLoadState('ok')
     bumpHydrateVersion((v) => v + 1)
   }, [user?.id, isNew, clientIdParam, id, isAdmin])
@@ -232,6 +237,11 @@ export function TrainingPage() {
     if (isNew && isAdmin) return
     void load()
   }, [load, isNew, isAdmin])
+
+  /** Смена URL-тренировки / клиента — новый scope пульса (не путать черновики). */
+  useEffect(() => {
+    pendingHrScopeRef.current = null
+  }, [id, clientIdParam])
 
   /** Сохранение тренировки. `silent=true` для автосохранения (не показывает “Сохранено”). */
   const persist = async (status, opts = {}) => {
@@ -401,6 +411,16 @@ export function TrainingPage() {
       }
 
       setMeta({ status: row.status, trainingId: row.id })
+      try {
+        const pending = pendingHrScopeRef.current
+        if (pending && row.id && pending !== row.id) {
+          hr.migrateTrainingScope(cid, pending, row.id)
+          pendingHrScopeRef.current = null
+        }
+        if (row.id) hr.bindTrainingScope(cid, row.id)
+      } catch {
+        /* ignore */
+      }
       const fpAfter = trainingContentFingerprint({
         clientId: cid,
         trainingType,
@@ -615,25 +635,18 @@ export function TrainingPage() {
   const daysTileLabel =
     daysUntilMembershipEnd == null ? '—' : daysUntilMembershipEnd < 0 ? '0' : String(daysUntilMembershipEnd)
 
-  /** Буфер сэмплов по clientId переживал вкладку и следующие тренировки — сброс на новой. */
-  const hrBufferClearedForNewRef = useRef(false)
+  /** Буфер пульса привязан к trainingId — не к клиенту целиком. */
   useEffect(() => {
-    if (!isNew) {
-      hrBufferClearedForNewRef.current = false
-      return
-    }
-    if (loadState !== 'ok' || hrBufferClearedForNewRef.current) return
+    if (loadState !== 'ok') return
     const cid = String(client?.id ?? clientIdParam ?? '').trim()
     if (!cid) return
-    hrBufferClearedForNewRef.current = true
-    hr.clearSessionSamples(cid)
-    setWorkoutState((w) => {
-      if (!w?.hr_session) return w
-      const next = { ...w }
-      delete next.hr_session
-      return next
-    })
-  }, [client?.id, clientIdParam, hr.clearSessionSamples, isNew, loadState])
+    let tid = meta.trainingId || draftTrainingIdRef.current
+    if (!tid || tid === 'new') {
+      if (!pendingHrScopeRef.current) pendingHrScopeRef.current = crypto.randomUUID()
+      tid = pendingHrScopeRef.current
+    }
+    hr.bindTrainingScope(cid, tid)
+  }, [client?.id, clientIdParam, hr.bindTrainingScope, loadState, meta.trainingId, id])
 
   const liveHrSummary = useMemo(() => {
     if (!clientKey || meta.status === 'completed') return null
@@ -657,26 +670,36 @@ export function TrainingPage() {
     workoutState.pre_weight_kg,
   ])
 
+  // Черновик: только живые сэмплы этой тренировки. Завершённая: снимок из дневника.
   const displayHrSummary =
     meta.status === 'completed'
       ? normalizeHrSessionSnapshot(workoutState.hr_session)
-      : liveHrSummary ?? normalizeHrSessionSnapshot(workoutState.hr_session)
+      : liveHrSummary
 
   useEffect(() => {
-    if (!liveHrSummary || meta.status === 'completed') return
+    if (meta.status === 'completed') return
+    if (liveHrSummary) {
+      setWorkoutState((w) => {
+        const prev = normalizeHrSessionSnapshot(w.hr_session)
+        if (
+          prev &&
+          prev.avg === liveHrSummary.avg &&
+          prev.max === liveHrSummary.max &&
+          prev.min === liveHrSummary.min &&
+          prev.samples_n === liveHrSummary.samples_n &&
+          prev.kcal_est === liveHrSummary.kcal_est
+        ) {
+          return w
+        }
+        return { ...w, hr_session: liveHrSummary }
+      })
+      return
+    }
     setWorkoutState((w) => {
-      const prev = normalizeHrSessionSnapshot(w.hr_session)
-      if (
-        prev &&
-        prev.avg === liveHrSummary.avg &&
-        prev.max === liveHrSummary.max &&
-        prev.min === liveHrSummary.min &&
-        prev.samples_n === liveHrSummary.samples_n &&
-        prev.kcal_est === liveHrSummary.kcal_est
-      ) {
-        return w
-      }
-      return { ...w, hr_session: liveHrSummary }
+      if (!w?.hr_session) return w
+      const next = { ...w }
+      delete next.hr_session
+      return next
     })
   }, [liveHrSummary, meta.status])
 
