@@ -9,6 +9,7 @@
 @import './styles/iskra-orb.css';
 @import './styles/training-hr.css';
 @import './styles/training-view.css';
+@import './styles/trainer-home-today.css';
 @import './styles/trainer-rating.css';
 @import './styles/price-list.css';
 @import './styles/az-price-list.css';
@@ -3526,6 +3527,7 @@ tr:last-child td {
   }
 
   .trainer-home .trainer-attention,
+  .trainer-home .trainer-today-strip,
   .trainer-home .trainer-cq-glance,
   .trainer-home .trainer-task-glance,
   .trainer-home .trainer-pnk-glance,
@@ -3686,6 +3688,7 @@ tr:last-child td {
   .trainer-home > .trainer-sync-banner,
   .trainer-home > .trainer-push-prompt,
   .trainer-home > .trainer-attention,
+  .trainer-home > .trainer-today-strip,
   .trainer-home > .trainer-challenges,
   .trainer-home > .trainer-home__tiles {
     grid-column: 1 / -1;
@@ -3693,7 +3696,8 @@ tr:last-child td {
 
   .trainer-home .trainer-cq-glance,
   .trainer-home .trainer-task-glance,
-  .trainer-home .trainer-attention {
+  .trainer-home .trainer-attention,
+  .trainer-home .trainer-today-strip {
     margin-top: 0;
   }
 

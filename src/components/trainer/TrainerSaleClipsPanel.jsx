@@ -1,70 +1,22 @@
-import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Ticket } from 'lucide-react'
-import {
-  createMembershipFromSaleClip,
-  listAwaitingSaleClipsForClient,
-  listAwaitingSaleClipsForTrainer,
-  saleClipAwaitingHours,
-} from '../../lib/admin/saleClipLocalService.js'
+import { saleClipAwaitingHours } from '../../lib/admin/saleClipLocalService.js'
 import { useAuth } from '../../context/AuthContext'
-import { useDebouncedStorageReload } from '../../lib/useDebouncedStorageReload'
+import { useAwaitingSaleClips } from '../../hooks/useAwaitingSaleClips.js'
 import { SalesVisualAlert } from '../sales/SalesVisualAlert.jsx'
 
 /**
- * Панель «создать по клипу» на планшете (клиент или домашний список тренера).
+ * Панель «создать по клипу» на карточке клиента (полная). На главной — TrainerHomeTodayStrip.
  */
 export function TrainerSaleClipsPanel({ clientId, clubId, mode = 'client', onCreated }) {
   const { user } = useAuth()
-  const [clips, setClips] = useState([])
-  const [busyId, setBusyId] = useState('')
-  const [error, setError] = useState('')
-  const [info, setInfo] = useState('')
-
-  const reload = useCallback(async () => {
-    try {
-      if (mode === 'trainer') {
-        const tid = String(user?.id ?? '')
-        setClips(await listAwaitingSaleClipsForTrainer(tid))
-      } else {
-        setClips(await listAwaitingSaleClipsForClient(clientId))
-      }
-    } catch {
-      setClips([])
-    }
-  }, [mode, clientId, user?.id])
-
-  useEffect(() => {
-    void reload()
-  }, [reload])
-
-  useDebouncedStorageReload(() => {
-    void reload()
-  }, { debounceMs: 400 })
-
-  const createFrom = async (clip) => {
-    setBusyId(String(clip.id))
-    setError('')
-    setInfo('')
-    try {
-      const res = await createMembershipFromSaleClip({
-        clip,
-        clientId: clientId || clip.client_id,
-        clubId: clubId || clip.club_id,
-      })
-      if (!res.ok) {
-        setError(res.reason || 'Не удалось создать абон по клипу')
-        return
-      }
-      setInfo(res.reason)
-      await reload()
-      onCreated?.()
-    } catch (e) {
-      setError(e?.message || 'Облако не приняло — клип остаётся «ждём планшет». Нажмите Sync позже.')
-    } finally {
-      setBusyId('')
-    }
-  }
+  const { clips, busyId, error, info, createFrom } = useAwaitingSaleClips({
+    mode,
+    clientId,
+    clubId,
+    userId: user?.id,
+    onCreated,
+  })
 
   if (!clips.length) {
     if (mode !== 'trainer') return null

@@ -1,13 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { User, Users, Trophy, Swords } from 'lucide-react'
-import { TrainerAttentionPanel } from '../../components/trainer/TrainerAttentionPanel'
 import { TrainerSyncPendingBanner } from '../../components/trainer/TrainerSyncPendingBanner'
-import { TrainerCoachQualityGlance } from '../../components/trainer/TrainerCoachQualityGlance'
+import { TrainerHomeTodayStrip } from '../../components/trainer/TrainerHomeTodayStrip.jsx'
 import { TrainerTaskGlanceWidget } from '../../components/iskra/TrainerTaskGlanceWidget.jsx'
 import { TrainerPnkGlanceWidget } from '../../components/pnk/TrainerPnkGlanceWidget.jsx'
 import { TrainerPushPrompt } from '../../components/iskra/TrainerPushPrompt.jsx'
-import { TrainerSaleClipsPanel } from '../../components/trainer/TrainerSaleClipsPanel.jsx'
 import { useAuth } from '../../context/AuthContext'
 import {
   loadContextForChallengeLeaderboard,
@@ -341,10 +339,14 @@ export function TrainerHome() {
       <TrainerTaskGlanceWidget clubId={clubId} />
       <TrainerPnkGlanceWidget clubId={clubId} />
       <TrainerPushPrompt clubId={clubId} />
-      <TrainerSaleClipsPanel mode="trainer" clubId={clubId} />
 
-      <TrainerAttentionPanel summary={attentionSummary} loading={attentionLoading} />
-      <TrainerCoachQualityGlance glance={cqGlance} loading={cqGlanceLoading} />
+      <TrainerHomeTodayStrip
+        clubId={clubId}
+        summary={attentionSummary}
+        attentionLoading={attentionLoading}
+        cqGlance={cqGlance}
+        cqLoading={cqGlanceLoading}
+      />
 
       <section className="trainer-challenges" aria-labelledby="trainer-challenges-title">
         <div className="trainer-challenges__head">
