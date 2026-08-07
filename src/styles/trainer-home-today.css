@@ -87,12 +87,12 @@
     'icon count'
     'icon label'
     'icon hint';
-  column-gap: 8px;
-  row-gap: 1px;
-  align-content: start;
+  column-gap: 10px;
+  row-gap: 3px;
+  align-content: center;
   min-width: 0;
-  min-height: 4.5rem;
-  padding: 10px 11px;
+  min-height: 4.35rem;
+  padding: 11px 12px;
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
   background: color-mix(in srgb, var(--bg-elevated, #152018) 72%, transparent);
@@ -133,19 +133,21 @@ a.trainer-today-tile:hover {
   grid-area: label;
   font-size: 0.8rem;
   font-weight: 650;
-  line-height: 1.2;
+  line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-top: 1px;
 }
 
 .trainer-today-tile__hint {
   grid-area: hint;
   font-size: 0.68rem;
-  line-height: 1.2;
+  line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  opacity: 0.85;
 }
 
 .trainer-today-strip__clips-detail {
@@ -205,9 +207,10 @@ a.trainer-today-tile:hover {
   }
 
   .trainer-today-tile {
-    min-height: clamp(3.2rem, 7.2vh, 4rem);
-    padding: clamp(6px, 1vh, 9px) clamp(8px, 1.2vw, 11px);
+    min-height: clamp(3.5rem, 7.5vh, 4.15rem);
+    padding: clamp(8px, 1.1vh, 11px) clamp(10px, 1.2vw, 12px);
     border-radius: 10px;
+    row-gap: 2px;
   }
 
   .trainer-today-tile__count {
@@ -234,15 +237,11 @@ a.trainer-today-tile:hover {
   }
 
   .trainer-today-tile {
-    min-height: 3.05rem;
-    padding: 6px 8px;
-    grid-template-rows: auto auto;
-    grid-template-areas:
-      'icon count'
-      'icon label';
+    min-height: 3.25rem;
+    padding: 7px 10px;
   }
 
   .trainer-today-tile__hint {
-    display: none;
+    font-size: 0.6rem;
   }
 }
