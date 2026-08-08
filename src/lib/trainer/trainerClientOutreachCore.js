@@ -41,18 +41,30 @@ export const STALE_TRAINING_DAYS = 14
 export const STALE_MAX_DAYS = 60
 
 /**
- * «Не активные» на сегодня (учёт): нет usable-абона и не ждёт старт.
- * Не ПНК и не архив. Список — в Клиентах (`?filter=inactive`), не outreach Max.
+ * «Не активные» — финал воронки абона (не пересекается с другими чипами):
+ * - после «Давно не был» (≥ STALE_MAX_DAYS+1 дней с даты конца), или
+ * - странный/пустой абон (нет записей, нет дат, нельзя посчитать этап).
+ * Не ПНК и не архив. Не «Ждёт старт» / «Закончился» / «Давно».
+ * Список — в Клиентах (`?filter=inactive`), не outreach Max.
+ *
  * @param {{ lifecycle?: string | null, archived_at?: string | null } | null | undefined} client
  * @param {object[]} memList
  * @param {string} [todayIso]
+ * @param {{ staleDays?: number, staleMaxDays?: number }} [opts]
  */
-export function isTrainerClientInactiveToday(client, memList, todayIso = todayLocalIso()) {
+export function isTrainerClientInactiveToday(client, memList, todayIso = todayLocalIso(), opts = {}) {
   if (client?.archived_at) return false
   if (String(client?.lifecycle ?? '') === 'pnk') return false
   const today = String(todayIso ?? '').slice(0, 10)
-  if (pickUsableMembershipForDate(memList ?? [], today)) return false
-  if (hasUpcomingMembership(memList ?? [], today)) return false
+  const staleDays = Number(opts.staleDays) > 0 ? Number(opts.staleDays) : STALE_TRAINING_DAYS
+  const staleMaxDays = Number(opts.staleMaxDays) > 0 ? Number(opts.staleMaxDays) : STALE_MAX_DAYS
+  const list = memList ?? []
+
+  if (pickUsableMembershipForDate(list, today)) return false
+  if (hasUpcomingMembership(list, today)) return false
+  // Более ранние ступени воронки — не дублируем здесь.
+  if (isMembershipExpiredRecently(list, today, staleDays)) return false
+  if (isClientStaleForAttention({ memList: list, today, staleDays, staleMaxDays })) return false
   return true
 }
 

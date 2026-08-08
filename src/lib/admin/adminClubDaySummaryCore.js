@@ -112,8 +112,9 @@ export function buildAdminClubDaySummary(input = {}) {
     inactiveIds,
   )
 
+  // Чип/карточка «Не активные» на дашборде = финал воронки (не широкий census периода).
   const inactive =
-    Number.isFinite(input.inactiveOverride) ? Number(input.inactiveOverride) : period.inactiveInPeriod
+    Number.isFinite(input.inactiveOverride) ? Number(input.inactiveOverride) : funnel.inactive
   const trainingsToday =
     Number.isFinite(input.trainingsTodayOverride) ? Number(input.trainingsTodayOverride) : todayTrainings.completed
   const trainingsYesterday =

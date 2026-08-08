@@ -187,6 +187,13 @@ export function TrainerClients() {
       const memList = memByClient[c.id] ?? []
       if (filterId === 'pnk') return String(c.lifecycle ?? '') === 'pnk'
       if (filterId === 'birthdays') return isBirthdayToday(c.birth_date, today)
+      // Открытый ПНК — только в чипе «ПНК» (пробный лимит ≠ «закончился ДК»).
+      if (
+        String(c.lifecycle ?? '') === 'pnk' &&
+        (filterId === 'expiring' || filterId === 'expired_recent' || filterId === 'stale')
+      ) {
+        return false
+      }
       if (filterId === 'expiring') return membershipSignal(memList, today).key === 'expiring'
       if (filterId === 'expired_recent') return isMembershipExpiredRecently(memList, today)
       if (filterId === 'stale') {
@@ -440,7 +447,7 @@ export function TrainerClients() {
       return `Нет клиентов, у которых абонемент закончился ${STALE_TRAINING_DAYS}–${STALE_MAX_DAYS} дней назад.`
     }
     if (quickFilter === 'inactive') {
-      return 'Нет клиентов без действующего абонемента (и не ожидающих старт).'
+      return `Нет клиентов в финале воронки (>${STALE_MAX_DAYS} дн. после конца или странный/пустой абон).`
     }
     if (quickFilter === 'pnk') return 'Нет клиентов в воронке ПНК.'
     return 'Нет клиентов по фильтру.'

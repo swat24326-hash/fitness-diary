@@ -129,7 +129,7 @@ ok(
   inactiveCard?.to === '/admin/clients?club=club-1&filter=inactive',
   'inactive card → clients',
 )
-ok(/клиент/i.test(inactiveCard?.hint || ''), 'inactive hint mentions clients')
+ok(/финал|>\d+|странн/i.test(inactiveCard?.hint || ''), 'inactive hint = funnel tail')
 const awaitingCard = cards.find((c) => c.key === 'awaiting_start')
 ok(
   awaitingCard?.to === '/admin/clients?club=club-1&filter=awaiting_start',

@@ -79,5 +79,24 @@ ok(next?.id === 'e', 'pick next skips sent')
 const sortedExpiring = sortClientsForOutreachFilter([clients[0]], 'expiring', memByClient, new Set(), today)
 ok(sortedExpiring[0]?.id === 'a', 'expiring sort keeps client')
 
+const pnkDepleted = {
+  id: 'pnk1',
+  name: 'Pnk Trial',
+  lifecycle: 'pnk',
+  phone: '+79006666666',
+}
+const pnkMem = [{ start_date: '2026-07-01', end_date: '2026-08-31', total_trainings: 1, used_trainings: 1 }]
+ok(
+  resolvePrimaryOutreachScenarioForClient({ client: pnkDepleted, memList: pnkMem, today }) == null,
+  'open PNK with depleted trial has no Max abon scenario',
+)
+const withPnk = buildTrainerAttentionSummaryByPrimaryScenario({
+  clients: [...clients, pnkDepleted],
+  memByClient: { ...memByClient, pnk1: pnkMem },
+  today,
+})
+ok(withPnk.pnk === 1, 'PNK counted in pnk bucket')
+ok(withPnk.expired_recent === 2, 'PNK depleted trial not added to expired_recent')
+
 if (failed) process.exit(1)
 console.log('verify-trainer-outreach-queue: all passed')

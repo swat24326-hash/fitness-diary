@@ -119,6 +119,8 @@ const clients = [
   { id: 's', birth_date: '1990-01-01' },
   { id: 'a', birth_date: '1990-01-01' },
   { id: 'p', birth_date: '1990-01-01', lifecycle: 'pnk' },
+  { id: 't', birth_date: '1990-01-01' },
+  { id: 'n', birth_date: '1990-01-01' },
 ]
 const memByClient = {
   b: [{ start_date: '2026-01-01', end_date: '2026-12-01', total_trainings: 10, used_trainings: 1 }],
@@ -127,8 +129,10 @@ const memByClient = {
   s: day14,
   a: gap,
   p: [],
+  t: day61,
+  n: [],
 }
-const inactiveIds = new Set(['r', 's'])
+const inactiveIds = new Set(['r', 's', 't', 'n'])
 const counts = countAdminFunnelFilters(clients, memByClient, today, inactiveIds)
 ok(counts.pnk === 1, 'count pnk')
 ok(counts.birthdays === 1, 'count birthdays')
@@ -136,7 +140,39 @@ ok(counts.awaiting_start === 1, 'count awaiting_start')
 ok(counts.expiring === 1, 'count expiring')
 ok(counts.expired_recent === 1, 'count expired_recent')
 ok(counts.stale === 1, 'count stale')
-
+ok(counts.inactive === 2, 'count inactive = tail 61+ + no membership (not r/s)')
+ok(
+  !clientMatchesAdminFunnelFilter('inactive', {
+    client: { id: 'r' },
+    memList: day13,
+    today,
+  }),
+  'expired_recent not in inactive',
+)
+ok(
+  !clientMatchesAdminFunnelFilter('inactive', {
+    client: { id: 's' },
+    memList: day14,
+    today,
+  }),
+  'stale not in inactive',
+)
+ok(
+  clientMatchesAdminFunnelFilter('inactive', {
+    client: { id: 't' },
+    memList: day61,
+    today,
+  }),
+  'day 61 → inactive funnel tail',
+)
+ok(
+  clientMatchesAdminFunnelFilter('inactive', {
+    client: { id: 'n' },
+    memList: [],
+    today,
+  }),
+  'no membership → inactive (strange/empty)',
+)
 ok(
   clientMatchesAdminFunnelFilter('pnk', { client: { id: 'p', lifecycle: 'pnk' }, today }),
   'match pnk',
@@ -249,7 +285,7 @@ ok(
     today: deskToday,
     hallMode: 'az',
   }),
-  'az no sessions → inactive',
+  'az calendar-only total=0 covering → inactive (strange for session hall)',
 )
 ok(
   !clientMatchesAdminFunnelFilter('inactive', {
@@ -261,13 +297,13 @@ ok(
   'az with remaining not inactive',
 )
 ok(
-  clientMatchesAdminFunnelFilter('inactive', {
+  !clientMatchesAdminFunnelFilter('inactive', {
     client: { id: 'az2' },
     memList: azDepletedInPeriod,
     today: deskToday,
     hallMode: 'az',
   }),
-  'az depleted sessions → inactive even if dates cover',
+  'az depleted → not inactive (earlier stage Закончился)',
 )
 ok(
   clientMatchesAdminFunnelFilter('expired_recent', {
@@ -276,11 +312,55 @@ ok(
     today: deskToday,
     hallMode: 'az',
   }),
-  'az depleted sessions → also expired_recent (hot renew)',
+  'az depleted sessions → expired_recent (hot renew)',
 )
 ok(
   isMembershipExpiredRecently(azDepletedInPeriod, deskToday),
   'isMembershipExpiredRecently includes depleted-in-period',
+)
+
+const pnkTrialDepleted = [
+  { start_date: '2026-07-01', end_date: '2026-08-31', total_trainings: 1, used_trainings: 1 },
+]
+ok(
+  isMembershipExpiredRecently(pnkTrialDepleted, deskToday),
+  'trial 1/1 depleted matches membership rule',
+)
+ok(
+  !clientMatchesAdminFunnelFilter('expired_recent', {
+    client: { id: 'pnk1', lifecycle: 'pnk' },
+    memList: pnkTrialDepleted,
+    today: deskToday,
+    hallMode: 'pz',
+  }),
+  'open PNK not in expired_recent (funnel chip only)',
+)
+ok(
+  !clientMatchesAdminFunnelFilter('expiring', {
+    client: { id: 'pnk1', lifecycle: 'pnk' },
+    memList: [{ start_date: '2026-07-01', end_date: '2026-07-24', total_trainings: 1, used_trainings: 0 }],
+    today: deskToday,
+    hallMode: 'pz',
+  }),
+  'open PNK not in expiring',
+)
+ok(
+  clientMatchesAdminFunnelFilter('pnk', {
+    client: { id: 'pnk1', lifecycle: 'pnk' },
+    memList: pnkTrialDepleted,
+    today: deskToday,
+    hallMode: 'pz',
+  }),
+  'open PNK still matches pnk filter',
+)
+ok(
+  clientMatchesAdminFunnelFilter('expired_recent', {
+    client: { id: 'dk1', lifecycle: 'active' },
+    memList: pnkTrialDepleted,
+    today: deskToday,
+    hallMode: 'pz',
+  }),
+  'regular client with depleted package still expired_recent',
 )
 
 if (failed) process.exit(1)

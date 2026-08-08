@@ -715,7 +715,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
   const browseFilterLabels = {
     all: 'Все клиенты',
     pnk: 'Воронка ПНК',
-    inactive: 'Не активные на сегодня',
+    inactive: 'Не активные (финал воронки)',
     awaiting_start: 'Ждёт старт абонемента',
     birthdays: 'ДР сегодня',
     expiring: 'Истекает абонемент',

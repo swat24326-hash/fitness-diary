@@ -286,6 +286,29 @@ ok(
 
 ok(
   !isTrainerClientInactiveToday(
+    { id: 'hot' },
+    [{ start_date: '2026-01-01', end_date: '2026-07-10', total_trainings: 10, used_trainings: 10 }],
+    '2026-07-15',
+  ),
+  'expired_recent (5d) not inactive',
+)
+
+ok(
+  !isTrainerClientInactiveToday(
+    { id: 'cold' },
+    [{ start_date: '2026-01-01', end_date: '2026-06-20', total_trainings: 10, used_trainings: 10 }],
+    '2026-07-15',
+  ),
+  'stale (25d) not inactive',
+)
+
+ok(
+  isTrainerClientInactiveToday({ id: 'empty' }, [], '2026-07-15'),
+  'no membership → inactive tail/orphan',
+)
+
+ok(
+  !isTrainerClientInactiveToday(
     { id: 'y', lifecycle: 'pnk' },
     [],
     '2026-07-15',
@@ -349,6 +372,8 @@ const summary = buildTrainerAttentionSummary({
 
     { id: 'e' },
 
+    { id: 'f' },
+
   ],
 
   memByClient: {
@@ -363,6 +388,8 @@ const summary = buildTrainerAttentionSummary({
 
     e: [{ start_date: '2026-01-01', end_date: '2026-07-10', total_trainings: 8, used_trainings: 8 }],
 
+    f: [{ start_date: '2026-01-01', end_date: '2026-05-10', total_trainings: 10, used_trainings: 10 }],
+
   },
 
 })
@@ -376,7 +403,7 @@ ok(summary.expiring === 0, 'expiring not counted when birthday is primary')
 ok(summary.expired_recent === 2, 'expired recent: yesterday (b) and 5 days ago (e)')
 
 ok(summary.stale === 1, 'stale only d (abo ended 25 days ago)')
-ok(summary.inactive >= 1, 'inactive includes clients without usable abo')
+ok(summary.inactive === 1, 'inactive = funnel tail only (f, 61+ days)')
 ok(summary.actionable === 4, 'actionable without overlap (primary scenario; inactive not double-counted)')
 
 ok(isTrainerClientQuickFilter('stale'), 'stale is valid filter')

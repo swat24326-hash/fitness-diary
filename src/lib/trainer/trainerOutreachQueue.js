@@ -1,6 +1,5 @@
 import { membershipSignal } from '../clientListSignals.js'
 import { todayLocalIso } from '../dateRu.js'
-import { isOpenPnkClient } from '../pnk/pnkStagesCore.js'
 import { isMembershipDepletedInPeriod } from '../membershipRules.js'
 import {
   isBirthdayToday,
@@ -34,6 +33,9 @@ export function resolvePrimaryOutreachScenarioForClient(ctx = {}) {
   const staleMaxDays = Number(ctx.staleMaxDays) > 0 ? Number(ctx.staleMaxDays) : STALE_MAX_DAYS
   const memList = ctx.memList ?? []
   const client = ctx.client ?? {}
+
+  // Открытый ПНК (lifecycle) — воронка, не Max «продлить абон» (пробный 1/1 часто depleted).
+  if (String(client?.lifecycle ?? '') === 'pnk') return null
 
   if (isBirthdayToday(client.birth_date, today)) return 'birthdays'
   if (membershipSignal(memList, today).key === 'expiring') return 'expiring'
@@ -166,7 +168,7 @@ export function buildTrainerAttentionSummaryByPrimaryScenario(input = {}) {
 
   for (const c of input.clients ?? []) {
     if (c?.archived_at) continue
-    if (isOpenPnkClient(c)) pnk++
+    if (String(c?.lifecycle ?? '') === 'pnk') pnk++
     const memList = memByClient[c.id] ?? []
     if (isTrainerClientInactiveToday(c, memList, today)) inactive++
     const primary = resolvePrimaryOutreachScenarioForClient({

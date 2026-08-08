@@ -75,7 +75,7 @@ export function buildTrainerAttentionItems(summary) {
       key: 'inactive',
       count: Number(summary.inactive) || 0,
       label: 'Не активные',
-      hint: 'без абона · список в клиентах',
+      hint: `финал · >${staleMaxDays} дн. / странный абон`,
       to: '/trainer/clients?filter=inactive',
     },
   }

@@ -97,6 +97,8 @@ export function findFirstOutreachClient(input = {}) {
   const matched = []
   for (const c of input.clients ?? []) {
     if (c?.archived_at) continue
+    // ПНК не в Max-сценариях абона (см. resolvePrimaryOutreachScenarioForClient).
+    if (String(c?.lifecycle ?? '') === 'pnk') continue
     const memList = input.memByClient?.[c.id] ?? []
     if (scenario === 'birthdays' && isBirthdayToday(c.birth_date, today)) matched.push(c)
     else if (scenario === 'expiring' && membershipSignal(memList, today).key === 'expiring') matched.push(c)

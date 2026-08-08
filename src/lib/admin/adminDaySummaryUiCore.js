@@ -1,5 +1,6 @@
 import { buildAdminClubQueryHref } from './adminClientQuickFilters.js'
 import { MEMBERSHIP_EXPIRING_WITHIN_DAYS } from '../clientListSignals.js'
+import { STALE_MAX_DAYS } from '../trainer/trainerClientOutreachCore.js'
 
 /** Секции сводки дня — как блоки фильтров в Клиентах. */
 export const ADMIN_DAY_SUMMARY_GROUPS = [
@@ -117,7 +118,7 @@ export function buildAdminDaySummaryCards(opts = {}) {
       key: 'inactive',
       count: summary.inactive,
       label: 'Не активные',
-      hint: 'на сегодня · список в клиентах',
+      hint: `финал · >${STALE_MAX_DAYS} дн. / странный абон`,
       icon: 'userX',
       to: clients('inactive'),
       hot: summary.inactive > 0,

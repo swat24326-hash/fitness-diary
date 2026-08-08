@@ -10,6 +10,7 @@ import {
   isBirthdayToday,
   isClientStaleForAttention,
   isMembershipExpiredRecently,
+  isTrainerClientInactiveToday,
   membershipDaysSinceLatestEnd,
   STALE_MAX_DAYS,
   STALE_TRAINING_DAYS,
@@ -73,8 +74,20 @@ export function isTzAwaitingMembershipStart(memList, todayIso) {
 
 /** ТЗ: нет действующего по сроку и нет будущего. */
 export function isTzClientInactiveToday(memList, todayIso) {
-  const key = deskMembershipSignal(memList, todayIso).key
-  return key !== 'active' && key !== 'expiring' && key !== 'not_started'
+  return isTzClientFunnelInactive(memList, todayIso)
+}
+
+/**
+ * ТЗ: финал воронки — после «Закончился»/«Давно», либо странный абон.
+ * Живой календарный пакет (active/expiring) и «ждёт старт» сюда не входят.
+ */
+export function isTzClientFunnelInactive(memList, todayIso, opts = {}) {
+  const today = String(todayIso ?? '').slice(0, 10)
+  const key = deskMembershipSignal(memList, today).key
+  if (key === 'active' || key === 'expiring' || key === 'not_started') return false
+  if (isTzMembershipExpiredRecently(memList, today, opts.staleDays)) return false
+  if (isTzClientStaleForAttention(memList, today, opts)) return false
+  return true
 }
 
 /** ТЗ: закончился 0…13 дней назад. */
@@ -102,15 +115,13 @@ export function isTzClientStaleForAttention(memList, todayIso, opts = {}) {
 }
 
 /**
- * АЗ (и локальный расчёт без club inactiveIds): нет usable и не ждёт старт.
+ * АЗ / ПЗ: финал воронки (после «Закончился»/«Давно» или странный абон).
  * @param {object[]} memList
  * @param {string} todayIso
+ * @param {{ client?: object, staleDays?: number, staleMaxDays?: number }} [opts]
  */
-export function isSessionLimitedClientInactiveToday(memList, todayIso) {
-  const today = String(todayIso ?? '').slice(0, 10)
-  if (pickUsableMembershipForDate(memList ?? [], today)) return false
-  if (isAwaitingMembershipStart(memList, today)) return false
-  return true
+export function isSessionLimitedClientInactiveToday(memList, todayIso, opts = {}) {
+  return isTrainerClientInactiveToday(opts.client ?? {}, memList, todayIso, opts)
 }
 
 /** @deprecated имя: ТЗ-календарь; оставлено для старых импортов */
@@ -138,15 +149,27 @@ export function clientMatchesAdminFunnelFilter(filter, ctx = {}) {
   const today = String(ctx.today ?? '').slice(0, 10)
   const client = ctx.client ?? {}
   const memList = ctx.memList ?? []
-  const id = String(client.id ?? '')
   const hall = normalizeAdminFunnelHallMode(ctx.hallMode, { deskMode: ctx.deskMode })
 
   if (mode === 'all' || mode === 'none') return true
   if (mode === 'pnk') return hall === 'pz' ? isAdminPnkClient(client) : false
   if (mode === 'birthdays') return isBirthdayToday(client.birth_date, today)
 
+  // Открытый ПНК — только в чипе «ПНК», не в «Истекает / Закончился / …»
+  // (пробный лимит 1–2 часто «исчерпан» — это воронка, не продление ДК).
+  if (
+    isAdminPnkClient(client) &&
+    (mode === 'inactive' ||
+      mode === 'awaiting_start' ||
+      mode === 'expiring' ||
+      mode === 'expired_recent' ||
+      mode === 'stale')
+  ) {
+    return false
+  }
+
   if (hall === 'tz') {
-    if (mode === 'inactive') return isTzClientInactiveToday(memList, today)
+    if (mode === 'inactive') return isTzClientFunnelInactive(memList, today)
     if (mode === 'awaiting_start') return isTzAwaitingMembershipStart(memList, today)
     if (mode === 'expiring') return deskMembershipSignal(memList, today).key === 'expiring'
     if (mode === 'expired_recent') return isTzMembershipExpiredRecently(memList, today)
@@ -154,10 +177,9 @@ export function clientMatchesAdminFunnelFilter(filter, ctx = {}) {
     return false
   }
 
-  // ПЗ и АЗ: срок + занятия
+  // ПЗ и АЗ: срок + занятия — финал воронки без пересечений
   if (mode === 'inactive') {
-    if (hall === 'az') return isSessionLimitedClientInactiveToday(memList, today)
-    return Boolean(ctx.inactiveIds?.has(id))
+    return isTrainerClientInactiveToday(client, memList, today)
   }
   if (mode === 'awaiting_start') return isAwaitingMembershipStart(memList, today)
   if (mode === 'expiring') return membershipSignal(memList, today).key === 'expiring'
