@@ -40,6 +40,10 @@ import {
   computeNetProfitWithPayroll,
 } from '../../../src/lib/admin/trainerPayrollCore.js'
 import {
+  loadTrainerPayrollContext,
+  payrollOptsFromContext,
+} from '../trainerPayrollContext.js'
+import {
   aggregateAerobicPayrollFromDailyRows,
   buildAerobicPayRateMap,
 } from '../../../src/lib/admin/aerobicPayrollCore.js'
@@ -112,7 +116,7 @@ export async function handleSalesGet(ctx, req, res) {
     types: flags.needTypes
       ? supabaseAdmin
           .from('membership_types')
-          .select('id, code, sort_order, is_active, trainer_assignable, trainer_pay_per_session, aerobic_pay_amount')
+          .select('id, code, sort_order, is_active, trainer_assignable, trainer_pay_per_session, trainer_pay_l1, trainer_pay_l2, trainer_pay_l3, aerobic_pay_amount')
           .eq('club_id', clubId)
           .order('sort_order', { ascending: true })
       : Promise.resolve({ data: [], error: null }),
@@ -166,7 +170,12 @@ export async function handleSalesGet(ctx, req, res) {
   const aerobicTypes = filterAerobicSalesTypes(membershipTypes)
   const payRateMap = buildTrainerPayRateMap(membershipTypes)
   const aerobicRateMap = buildAerobicPayRateMap(aerobicTypes)
-  const monthPayroll = aggregatePayrollFromDailyRows(monthRows, payRateMap)
+  const payrollCtx = await loadTrainerPayrollContext(supabaseAdmin, clubId)
+  const monthPayroll = aggregatePayrollFromDailyRows(
+    monthRows,
+    payRateMap,
+    payrollOptsFromContext(payrollCtx, membershipTypes),
+  )
   const monthAerobicPayroll = aggregateAerobicPayrollFromDailyRows(monthRows, aerobicRateMap)
   monthSummary.expense = expenseAmount
   monthSummary.trainerPayroll = monthPayroll.clubTotal

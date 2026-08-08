@@ -12,6 +12,14 @@ import {
   handleCoachQualitySettingsGet,
   handleCoachQualitySettingsPost,
 } from './_lib/coachQualitySettingsHandler.js'
+import {
+  handleTrainerPayPlanSettingsGet,
+  handleTrainerPayPlanSettingsPost,
+} from './_lib/trainerPayPlanSettingsHandler.js'
+import {
+  handleTrainerPayProfilesGet,
+  handleTrainerPayProfilesPost,
+} from './_lib/trainerPayProfileSettingsHandler.js'
 import { handleIskraLearningGet, handleIskraLearningPost } from './_lib/iskraLearningHandler.js'
 import { handleIskraDispatchGet, handleIskraDispatchPost } from './_lib/iskraDispatchHandler.js'
 import { handleIskraTtsPost } from './_lib/iskraTtsHandler.js'
@@ -74,6 +82,8 @@ async function handler(req, res) {
       'create-supervisor',
       'iskra-settings',
       'coach-quality-settings',
+      'trainer-pay-plan-settings',
+      'trainer-pay-profiles',
       'iskra-learning',
       'iskra-dispatch',
       'iskra-tts',
@@ -140,6 +150,16 @@ async function handler(req, res) {
       const ctx = await requireAdmin(req, res)
       if (!ctx) return
       return handleCoachQualitySettingsPost(ctx, res, body)
+    }
+    if (action === 'trainer-pay-plan-settings') {
+      const ctx = await requireAdmin(req, res)
+      if (!ctx) return
+      return handleTrainerPayPlanSettingsPost(ctx, res, body)
+    }
+    if (action === 'trainer-pay-profiles') {
+      const ctx = await requireAdmin(req, res)
+      if (!ctx) return
+      return handleTrainerPayProfilesPost(ctx, res, body)
     }
     if (action === 'iskra-learning') {
       const ctx = await requireAdmin(req, res)
@@ -412,6 +432,18 @@ async function handler(req, res) {
     }
     sendJson(res, 403, { error: 'Нет доступа к настройкам качества этого клуба' })
     return
+  }
+
+  if (action === 'trainer-pay-plan-settings') {
+    const ctx = await requireAdmin(req, res)
+    if (!ctx) return
+    return handleTrainerPayPlanSettingsGet(ctx, req, res)
+  }
+
+  if (action === 'trainer-pay-profiles') {
+    const ctx = await requireAdmin(req, res)
+    if (!ctx) return
+    return handleTrainerPayProfilesGet(ctx, req, res)
   }
 
   if (action === 'deletion-audit-log') {

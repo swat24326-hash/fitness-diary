@@ -212,6 +212,14 @@ export function buildSalesManagerMonthStats(opts) {
   const trainerPayrollTotal = aggregatePayrollFromDailyRows(
     monthRows,
     buildTrainerPayRateMap(trainerTypes),
+    trainerTypes.length
+      ? {
+          membershipTypes: trainerTypes,
+          planConfig: opts.planConfig,
+          profilesByTrainerId: opts.profilesByTrainerId,
+          clubId: opts.clubId,
+        }
+      : undefined,
   ).clubTotal
   const aerobicPayrollTotal = aggregateAerobicPayrollFromDailyRows(
     monthRows,

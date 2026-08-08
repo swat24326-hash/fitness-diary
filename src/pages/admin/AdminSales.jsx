@@ -18,6 +18,7 @@ import {
   resolvePlanFactFromMonthSummary,
 } from '../../lib/admin/salesReportCore'
 import { buildClubFinanceForecast } from '../../lib/admin/clubFinanceForecastCore'
+import { loadTrainerPayrollContextClient } from '../../lib/admin/trainerPayrollContextClient.js'
 import { computePlanDirectionsFromForm, buildPlanMatrixJsonFromForm } from '../../lib/admin/salesPlanMatrixCore'
 import {
   buildTrainingsMatrixColumns,
@@ -183,6 +184,11 @@ export function AdminSales({ accessMode = 'admin' }) {
   const [yearMonth, setYearMonth] = useState({ year: new Date().getFullYear(), month: new Date().getMonth() + 1 })
   const [membershipTypes, setMembershipTypes] = useState([])
   const [trainers, setTrainers] = useState([])
+  const [payrollCtx, setPayrollCtx] = useState(() => ({
+    planConfig: null,
+    profilesByTrainerId: null,
+    clubId: '',
+  }))
   const [fitCityTypeStats, setFitCityTypeStats] = useState(null)
   const [trainingsMatrix, setTrainingsMatrix] = useState({})
   const [aerobicMatrix, setAerobicMatrix] = useState({})
@@ -595,6 +601,21 @@ export function AdminSales({ accessMode = 'admin' }) {
 
   const factMonth = resolvePlanFactFromMonthSummary(monthSummary)
 
+  useEffect(() => {
+    const cid = String(clubId || '').trim()
+    if (!cid || !isSupabaseConfigured()) {
+      setPayrollCtx({ planConfig: null, profilesByTrainerId: null, clubId: '' })
+      return
+    }
+    let cancelled = false
+    void loadTrainerPayrollContextClient(cid).then((ctx) => {
+      if (!cancelled) setPayrollCtx(ctx)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [clubId])
+
   const heroFinanceForecast = useMemo(() => {
     if (isSalesManager) return null
     const expenseRaw = parseSalesMoney(expenseForm.expense_month)
@@ -605,6 +626,9 @@ export function AdminSales({ accessMode = 'admin' }) {
       expense: Number.isFinite(expenseRaw) ? expenseRaw : 0,
       membershipTypes,
       planForm,
+      planConfig: payrollCtx.planConfig,
+      profilesByTrainerId: payrollCtx.profilesByTrainerId,
+      clubId,
     })
   }, [
     isSalesManager,
@@ -614,6 +638,8 @@ export function AdminSales({ accessMode = 'admin' }) {
     expenseForm.expense_month,
     membershipTypes,
     planForm,
+    payrollCtx,
+    clubId,
   ])
 
   const softSignals = useMemo(() => [], [])
@@ -1328,6 +1354,8 @@ export function AdminSales({ accessMode = 'admin' }) {
             onSelectPlanMonth={selectPlanCalendarMonth}
             onToast={showToast}
             showAdminFinanceBar
+            planConfig={payrollCtx.planConfig}
+            profilesByTrainerId={payrollCtx.profilesByTrainerId}
           />
         </div>
       ) : null}
@@ -1403,6 +1431,9 @@ export function AdminSales({ accessMode = 'admin' }) {
             onOpenDay={openDayReport}
             showPayroll
             showMonthNav={false}
+            planConfig={payrollCtx.planConfig}
+            profilesByTrainerId={payrollCtx.profilesByTrainerId}
+            clubId={clubId}
           />
         </div>
       ) : !isSalesManager && salesTab === 'plan' ? (
@@ -1436,6 +1467,9 @@ export function AdminSales({ accessMode = 'admin' }) {
             month={yearMonth.month}
             monthRows={monthDays}
             membershipTypes={membershipTypes}
+            planConfig={payrollCtx.planConfig}
+            profilesByTrainerId={payrollCtx.profilesByTrainerId}
+            clubId={clubId}
           />
         </div>
       ) : salesTab === 'price' ? (

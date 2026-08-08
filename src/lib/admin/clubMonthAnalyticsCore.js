@@ -396,6 +396,9 @@ export function buildClubMonthAnalytics(opts) {
     membershipTypes,
     year,
     month,
+    planConfig: opts.planConfig,
+    profilesByTrainerId: opts.profilesByTrainerId,
+    clubId: opts.clubId,
   })
 
   const summary = stats.summary
@@ -446,6 +449,9 @@ export function buildClubMonthAnalytics(opts) {
     planForm: opts.plan,
     includeFinance,
     today: opts.today,
+    planConfig: opts.planConfig,
+    profilesByTrainerId: opts.profilesByTrainerId,
+    clubId: opts.clubId,
   })
 
   const clubFinance = buildIskraClubFinanceBlock({
@@ -457,6 +463,9 @@ export function buildClubMonthAnalytics(opts) {
     planForm: opts.plan,
     includeFinance,
     today: opts.today,
+    planConfig: opts.planConfig,
+    profilesByTrainerId: opts.profilesByTrainerId,
+    clubId: opts.clubId,
   })
 
   return {

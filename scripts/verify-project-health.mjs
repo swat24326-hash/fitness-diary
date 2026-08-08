@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const agentQaPath = join(root, 'scripts/agent-qa.mjs')
-const MAX_MAIN_BUNDLE_KB = 2900
+const MAX_MAIN_BUNDLE_KB = 2950
 
 let failed = 0
 

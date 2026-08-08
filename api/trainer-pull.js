@@ -43,7 +43,7 @@ async function handleTrainerPayrollGet(ctx, req, res) {
   const [typesRes, dailyRes] = await Promise.all([
     supabaseAdmin
       .from('membership_types')
-      .select('id, code, sort_order, is_active, trainer_assignable, trainer_pay_per_session')
+      .select('id, code, sort_order, is_active, trainer_assignable, trainer_pay_per_session, trainer_pay_l1, trainer_pay_l2, trainer_pay_l3')
       .eq('club_id', clubId)
       .eq('trainer_assignable', true)
       .order('sort_order', { ascending: true }),
@@ -68,7 +68,13 @@ async function handleTrainerPayrollGet(ctx, req, res) {
     ...row,
     trainings_matrix: normalizeMatrixRowsFromDb(row.trainings_matrix),
   }))
-  const payroll = aggregatePayrollFromDailyRows(dailyRows, rateMap, { trainerIdFilter: trainerId })
+  const { loadTrainerPayrollContext, payrollOptsFromContext } = await import('./_lib/trainerPayrollContext.js')
+  const payrollCtx = await loadTrainerPayrollContext(supabaseAdmin, clubId)
+  const payroll = aggregatePayrollFromDailyRows(
+    dailyRows,
+    rateMap,
+    payrollOptsFromContext(payrollCtx, membershipTypes, { trainerIdFilter: trainerId }),
+  )
   const entry = payroll.byTrainer.get(trainerId)
 
   sendJson(res, 200, {
@@ -80,6 +86,9 @@ async function handleTrainerPayrollGet(ctx, req, res) {
       id: t.id,
       code: t.code,
       trainer_pay_per_session: Number(t.trainer_pay_per_session) || 0,
+      trainer_pay_l1: Number(t.trainer_pay_l1 ?? t.trainer_pay_per_session) || 0,
+      trainer_pay_l2: Number(t.trainer_pay_l2 ?? t.trainer_pay_per_session) || 0,
+      trainer_pay_l3: Number(t.trainer_pay_l3 ?? t.trainer_pay_per_session) || 0,
       is_active: t.is_active !== false,
     })),
     report_payroll: {

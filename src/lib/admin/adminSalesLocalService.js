@@ -141,7 +141,7 @@ async function loadMembershipTypes(clubId, warnings) {
     const typesRes = await withSupabaseRetry(() =>
       supabase
         .from('membership_types')
-        .select('id, code, sort_order, is_active, trainer_assignable, trainer_pay_per_session, aerobic_pay_amount')
+        .select('id, code, sort_order, is_active, trainer_assignable, trainer_pay_per_session, trainer_pay_l1, trainer_pay_l2, trainer_pay_l3, aerobic_pay_amount')
         .eq('club_id', clubId)
         .order('sort_order', { ascending: true }),
     )
@@ -270,7 +270,14 @@ export async function fetchClubSalesBundleViaSupabase({ clubId, reportDate, prof
     const aerobicTypes = filterAerobicSalesTypes(membershipTypes)
     const payRateMap = buildTrainerPayRateMap(membershipTypes)
     const aerobicRateMap = buildAerobicPayRateMap(aerobicTypes)
-    const monthPayroll = aggregatePayrollFromDailyRows(monthRows, payRateMap)
+    const { loadTrainerPayrollContextClient } = await import('./trainerPayrollContextClient.js')
+    const payrollCtx = await loadTrainerPayrollContextClient(cid)
+    const monthPayroll = aggregatePayrollFromDailyRows(monthRows, payRateMap, {
+      membershipTypes,
+      planConfig: payrollCtx.planConfig,
+      profilesByTrainerId: payrollCtx.profilesByTrainerId,
+      clubId: cid,
+    })
     const monthAerobicPayroll = aggregateAerobicPayrollFromDailyRows(monthRows, aerobicRateMap)
     monthSummary.expense = expenseAmount
     monthSummary.trainerPayroll = monthPayroll.clubTotal

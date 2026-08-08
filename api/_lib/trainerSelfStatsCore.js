@@ -9,8 +9,10 @@ import { CLUB_STATS_MAX_TRAININGS, CLUB_STATS_MAX_CLIENTS, CLUB_STATS_MAX_MEMBER
 import {
   buildTrainerPayRateMap,
   computePayrollFromMembershipStats,
+  sumWorkoutsByTrainerFromMatrixRows,
 } from '../../src/lib/admin/trainerPayrollCore.js'
 import { normalizeTrainingRowForPayroll } from './trainerSelfStatsNormalize.js'
+import { loadTrainerPayrollContext, payrollOptsFromContext } from './trainerPayrollContext.js'
 
 export { normalizeTrainingRowForPayroll } from './trainerSelfStatsNormalize.js'
 
@@ -22,7 +24,7 @@ const CLIENTS_SELECT = 'id, name, phone, trainer_id, archived_at, lifecycle, clu
 const MEM_SELECT =
   'id, client_id, club_id, start_date, end_date, total_trainings, used_trainings, membership_type_id'
 const TYPES_SELECT =
-  'id, code, sort_order, is_active, is_pnk_trial, trainer_assignable, trainer_pay_per_session, aerobic_pay_amount'
+  'id, code, sort_order, is_active, is_pnk_trial, trainer_assignable, trainer_pay_per_session, trainer_pay_l1, trainer_pay_l2, trainer_pay_l3, aerobic_pay_amount'
 
 /**
  * @param {import('@supabase/supabase-js').SupabaseClient} supabaseAdmin
@@ -104,9 +106,9 @@ export async function buildTrainerSelfStatsPayload(supabaseAdmin, p) {
   })
 
   const rateMap = buildTrainerPayRateMap(membershipTypes)
-  const monthPay = computePayrollFromMembershipStats(typeStats, rateMap, {
-    trainerIdFilter: trainerId,
-  }).clubTotal
+  const payrollCtx = await loadTrainerPayrollContext(supabaseAdmin, clubId)
+  const payOpts = payrollOptsFromContext(payrollCtx, membershipTypes, { trainerIdFilter: trainerId })
+  const monthPay = computePayrollFromMembershipStats(typeStats, rateMap, payOpts).clubTotal
 
   const dayTrainings = trainings.filter((t) => {
     const d = String(t.date ?? '').slice(0, 10)
@@ -118,8 +120,23 @@ export async function buildTrainerSelfStatsPayload(supabaseAdmin, p) {
     membershipTypes,
     trainerIdFilter: trainerId,
   })
+  // Уровень ставки — по тренировкам всего месяца, не только дня.
+  const monthMatrixRows = []
+  for (const tr of typeStats?.byTrainerByType ?? []) {
+    const tid = String(tr.trainerId ?? '').trim()
+    for (const t of tr.byType ?? []) {
+      if (t.typeId == null) continue
+      monthMatrixRows.push({
+        trainer_id: tid,
+        membership_type_id: t.typeId,
+        count: Math.trunc(Number(t.count) || 0),
+      })
+    }
+  }
+  const workoutsByTrainer = sumWorkoutsByTrainerFromMatrixRows(monthMatrixRows)
   const dayPay = computePayrollFromMembershipStats(dayTypeStats, rateMap, {
-    trainerIdFilter: trainerId,
+    ...payOpts,
+    workoutsByTrainer,
   }).clubTotal
 
   return {

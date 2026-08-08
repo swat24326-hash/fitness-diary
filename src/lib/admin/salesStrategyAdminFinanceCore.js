@@ -25,6 +25,9 @@ import { formatRub } from './salesReportCore.js'
  *   planForm?: Record<string, string | number | undefined> | null,
  *   expense?: number,
  *   today?: Date,
+ *   planConfig?: object | null,
+ *   profilesByTrainerId?: Map|object|null,
+ *   clubId?: string,
  * }} opts
  */
 export function buildStrategyAdminFinanceBar(opts) {
@@ -37,6 +40,11 @@ export function buildStrategyAdminFinanceBar(opts) {
   const membershipTypes = opts.membershipTypes ?? []
   const planForm = opts.planForm ?? null
   const today = opts.today ?? new Date()
+  const payrollOpts = {
+    planConfig: opts.planConfig,
+    profilesByTrainerId: opts.profilesByTrainerId,
+    clubId: opts.clubId,
+  }
 
   if (horizon === 'next') {
     const year = Number(opts.baseYear)
@@ -57,6 +65,7 @@ export function buildStrategyAdminFinanceBar(opts) {
       membershipTypes,
       planForm,
       today,
+      ...payrollOpts,
     })
     if (!fc.ok) {
       return {
@@ -103,6 +112,7 @@ export function buildStrategyAdminFinanceBar(opts) {
     membershipTypes,
     planForm,
     today,
+    ...payrollOpts,
   })
 
   if (!fc.ok) {

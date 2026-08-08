@@ -37,6 +37,9 @@ order by u.role, u.email;
 - [ ] Таблицы приложения: clients, trainings, memberships, health_cards, body_measurements — политики из репозитория.
 - [ ] Для `clubs`, `exercises`, `challenges`, `membership_types` — политики соответствуют тому, что ожидает приложение (см. комментарии в `policies.sql`).
 - [ ] `membership_types`: есть `fit_membership_types_sales_manager_read` (менеджер читает **все** типы своего клуба, включая АЗ) — миграция `20260729120000_membership_types_sales_manager_read.sql` или `npm run db:migrate:membership-types-sm -- --linked`.
+- [x] `membership_types`: колонки `trainer_pay_l1`, `trainer_pay_l2`, `trainer_pay_l3` — `npm run db:migrate:trainer-pay-tiers -- --linked` (миграция `20260808120000_membership_types_trainer_pay_tiers.sql`). Применено на linked (2026-08-08).
+- [x] `club_trainer_pay_plan_settings`: пороги тренировок плана ЗП — `npm run db:migrate:trainer-pay-plan -- --linked`. Применено на linked (2026-08-08).
+- [x] `trainer_pay_profiles`: кабинет тренера (план / ±₽) — `npm run db:migrate:trainer-pay-profiles -- --linked` (миграция `20260808140000_trainer_pay_profiles.sql`). Применено на linked (2026-08-08).
 - [ ] Таблица `deletion_audit_log` (журнал удалений клиентов) — миграция `20260805210000_deletion_audit_log.sql` + RLS admin / SM read.
 
 ## 5. Схема БД

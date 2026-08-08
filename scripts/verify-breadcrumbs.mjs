@@ -32,6 +32,7 @@ ok(
   'structure trainers + club',
 )
 ok(STRUCTURE_TAB_LABELS['coach-quality'] === 'Качество ведения', 'structure coach-quality label')
+ok(STRUCTURE_TAB_LABELS['club-plan'] === 'План ЗП', 'structure club-plan label')
 
 ok(
   labels('/admin/sales', '?club=c1').join(' › ') === 'Админка › Продажи › Отчёт за день',

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { RefreshCw, Trash2 } from 'lucide-react'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import {
@@ -14,6 +14,7 @@ import {
   filterTrainerAssignableTypes,
 } from '../../lib/membershipTypesService'
 import { pullMembershipTypesForClubFromCloud } from '../../lib/pullReferenceData'
+import { resolveTrainerPayTiers } from '../../lib/admin/trainerPayTiersCore'
 
 function splitActiveInactive(items) {
   const active = []
@@ -81,6 +82,7 @@ export function AdminMembershipTypes() {
   const [busy, setBusy] = useState(false)
   const [pullBusy, setPullBusy] = useState(false)
   const [confirmId, setConfirmId] = useState(null)
+  /** @type {Record<string, { l1: string, l2: string, l3: string }>} */
   const [payDraft, setPayDraft] = useState({})
   const [aerobicPayDraft, setAerobicPayDraft] = useState({})
   const [paySavingId, setPaySavingId] = useState(null)
@@ -129,8 +131,12 @@ export function AdminMembershipTypes() {
     const draft = {}
     const aerobicDraft = {}
     for (const t of items) {
-      const pay = t.trainer_pay_per_session
-      draft[t.id] = pay == null || pay === '' ? '' : String(pay)
+      const tiers = resolveTrainerPayTiers(t)
+      draft[t.id] = {
+        l1: String(tiers.l1),
+        l2: String(tiers.l2),
+        l3: String(tiers.l3),
+      }
       const aerobicPay = t.aerobic_pay_amount
       aerobicDraft[t.id] = aerobicPay == null || aerobicPay === '' ? '' : String(aerobicPay)
     }
@@ -141,19 +147,32 @@ export function AdminMembershipTypes() {
   const trainerItems = useMemo(() => filterTrainerAssignableTypes(items), [items])
   const aerobicItems = useMemo(() => filterAerobicSalesTypes(items), [items])
 
+  const setPayTierDraft = (typeId, level, value) => {
+    setPayDraft((prev) => ({
+      ...prev,
+      [typeId]: {
+        l1: prev[typeId]?.l1 ?? '',
+        l2: prev[typeId]?.l2 ?? '',
+        l3: prev[typeId]?.l3 ?? '',
+        [level]: value,
+      },
+    }))
+  }
+
   const savePay = async (typeId) => {
     const id = String(typeId ?? '').trim()
     if (!id) return
     setMsg('')
     setPaySavingId(id)
     try {
-      const cloud = await updateMembershipTypePay(id, payDraft[id] ?? '')
+      const d = payDraft[id] ?? {}
+      const cloud = await updateMembershipTypePay(id, { l1: d.l1, l2: d.l2, l3: d.l3 })
       if (!cloud.cloudOk) {
-        setMsg(`Ставка сохранена локально, в облако не ушла: ${cloud.cloudError}. Нажмите Sync.`)
+        setMsg(`Ставки сохранены локально, в облако не ушли: ${cloud.cloudError}. Нажмите Sync.`)
       }
       await reloadLocal()
     } catch (err) {
-      setMsg(err?.message ?? 'Ошибка сохранения ставки')
+      setMsg(err?.message ?? 'Ошибка сохранения ставок')
     } finally {
       setPaySavingId(null)
     }
@@ -359,9 +378,12 @@ export function AdminMembershipTypes() {
           <ZoneBadge zone="pz" /> ПЗ — тренерский зал
         </h3>
         <p className="muted admin-mt-zone__lead">
-          Тренер выбирает эти типы при создании абонемента. Колонка «Оплата за трен.» — ставка для расчёта ЗП
-          персонального зала
-          тренеров.
+          Тренер выбирает эти типы при создании абонемента. Три ставки (ур. 1–3) — оплата тренеру за тренировку.
+          Пороги тренировок месяца — во вкладке{' '}
+          <Link to={clubId ? `/admin/structure?tab=club-plan&club=${encodeURIComponent(clubId)}` : '/admin/structure?tab=club-plan'}>
+            План ЗП
+          </Link>
+          . Сейчас в расчёте ЗП используется уровень 1.
         </p>
 
         <form onSubmit={addType} className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 12 }}>
@@ -391,13 +413,18 @@ export function AdminMembershipTypes() {
                 <tr>
                   <th className="admin-mt-table__zone">Зал</th>
                   <th>Тип</th>
-                  <th>Оплата за трен. (₽)</th>
+                  <th title="Уровень 1 — базовая ставка (сейчас в ЗП)">Ур. 1 ₽</th>
+                  <th title="Уровень 2 — средний порог тренировок">Ур. 2 ₽</th>
+                  <th title="Уровень 3 — максимум / без плана">Ур. 3 ₽</th>
                   <th>Статус</th>
                   <th style={{ width: 56 }} />
                 </tr>
               </thead>
               <tbody>
-                {trainerItems.map((t) => (
+                {trainerItems.map((t) => {
+                  const draft = payDraft[t.id] ?? { l1: '', l2: '', l3: '' }
+                  const saving = busy || paySavingId === t.id
+                  return (
                   <tr key={t.id} className={t.is_active === false ? 'muted' : undefined}>
                     <td className="admin-mt-table__zone">
                       <ZoneBadge zone="pz" />
@@ -405,19 +432,20 @@ export function AdminMembershipTypes() {
                     <td>
                       <strong>{t.code}</strong>
                     </td>
-                    <td>
-                      <input
-                        className="input"
-                        type="text"
-                        inputMode="decimal"
-                        style={{ maxWidth: 120, minWidth: 88 }}
-                        aria-label={`Оплата за тренировку ${t.code}`}
-                        value={payDraft[t.id] ?? ''}
-                        disabled={busy || paySavingId === t.id}
-                        onChange={(e) => setPayDraft((prev) => ({ ...prev, [t.id]: e.target.value }))}
-                        onBlur={() => void savePay(t.id)}
-                      />
-                    </td>
+                    {(['l1', 'l2', 'l3']).map((level, idx) => (
+                      <td key={level}>
+                        <input
+                          className="input admin-mt-pay-tier"
+                          type="text"
+                          inputMode="decimal"
+                          aria-label={`${t.code}: ставка уровня ${idx + 1}`}
+                          value={draft[level] ?? ''}
+                          disabled={saving}
+                          onChange={(e) => setPayTierDraft(t.id, level, e.target.value)}
+                          onBlur={() => void savePay(t.id)}
+                        />
+                      </td>
+                    ))}
                     <td>{t.is_active === false ? 'Отключён' : 'Активен'}</td>
                     <td>
                       {t.is_active !== false ? (
@@ -434,7 +462,8 @@ export function AdminMembershipTypes() {
                       ) : null}
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>

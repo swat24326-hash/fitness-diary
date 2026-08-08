@@ -30,6 +30,9 @@ import { SalesFinanceForecast } from './SalesFinanceForecast.jsx'
  *   month: number,
  *   monthRows?: Array<Record<string, unknown>>,
  *   membershipTypes?: Array<Record<string, unknown>>,
+ *   planConfig?: object | null,
+ *   profilesByTrainerId?: Map|object|null,
+ *   clubId?: string,
  * }} props
  */
 export function SalesFinancePanel({
@@ -40,6 +43,9 @@ export function SalesFinancePanel({
   month,
   monthRows = [],
   membershipTypes = [],
+  planConfig = null,
+  profilesByTrainerId = null,
+  clubId = '',
 }) {
   const summary = monthSummary ?? {}
   const expense = summary.expense ?? 0
@@ -54,8 +60,11 @@ export function SalesFinancePanel({
         expense,
         membershipTypes,
         planForm,
+        planConfig,
+        profilesByTrainerId,
+        clubId,
       }).ok === true,
-    [monthRows, year, month, expense, membershipTypes, planForm],
+    [monthRows, year, month, expense, membershipTypes, planForm, planConfig, profilesByTrainerId, clubId],
   )
 
   return (
@@ -73,6 +82,9 @@ export function SalesFinancePanel({
         membershipTypes={membershipTypes}
         planForm={planForm}
         expense={expense}
+        planConfig={planConfig}
+        profilesByTrainerId={profilesByTrainerId}
+        clubId={clubId}
       />
 
       {!forecastShowsFact ? (

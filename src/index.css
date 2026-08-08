@@ -15,6 +15,7 @@
 @import './styles/az-price-list.css';
 @import './styles/admin-excel-lists.css';
 @import './styles/admin-desk.css';
+@import './styles/admin-club-plan.css';
 
 *,
 *::before,
@@ -5268,6 +5269,11 @@ tr:last-child td {
 .admin-mt-table__caption {
   margin: 0 0 8px;
   font-size: 0.85rem;
+}
+
+.admin-mt-pay-tier {
+  max-width: 96px;
+  min-width: 72px;
 }
 
 .admin-mt-zone {

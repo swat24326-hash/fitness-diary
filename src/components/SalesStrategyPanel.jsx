@@ -40,6 +40,8 @@ function monthTitle(year, month) {
  *   onSelectPlanMonth?: (ym: { year: number, month: number }) => void,
  *   onToast?: (text: string, tone?: 'ok' | 'err' | 'warn') => void,
  *   showAdminFinanceBar?: boolean,
+ *   planConfig?: object | null,
+ *   profilesByTrainerId?: Map|object|null,
  * }} props
  */
 export function SalesStrategyPanel({
@@ -52,6 +54,8 @@ export function SalesStrategyPanel({
   onSelectPlanMonth,
   onToast,
   showAdminFinanceBar = false,
+  planConfig = null,
+  profilesByTrainerId = null,
 }) {
   const [horizon, setHorizon] = useState(/** @type {'current' | 'next'} */ ('current'))
   const [busy, setBusy] = useState(false)
@@ -141,6 +145,9 @@ export function SalesStrategyPanel({
         membershipTypes={typesForFinance}
         planForm={strategyPlanForm}
         expense={expenseAmount}
+        planConfig={planConfig}
+        profilesByTrainerId={profilesByTrainerId}
+        clubId={clubId}
       />
     ) : null
 

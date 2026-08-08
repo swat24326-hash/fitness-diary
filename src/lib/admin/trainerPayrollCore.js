@@ -2,6 +2,13 @@
 
 import { parseSalesMoney } from './salesReportCore.js'
 import { normalizeMatrixRowsFromDb } from './salesTrainingsMatrix.js'
+import { normalizeTrainerPayPlanConfig } from './trainerPayPlanCore.js'
+import {
+  effectiveSessionRate,
+  getTrainerPayProfile,
+  pickMembershipTypeTierRate,
+  resolveTrainerPayLevel,
+} from './trainerPayProfileCore.js'
 
 export function parseTrainerPayRate(raw) {
   if (raw == null || raw === '') return 0
@@ -46,21 +53,117 @@ function mergeByTypeLines(target, lines) {
 }
 
 /**
+ * @param {Array<{ trainer_id: string, membership_type_id?: string | null, count?: number }>} matrixRows
+ * @returns {Map<string, number>}
+ */
+export function sumWorkoutsByTrainerFromMatrixRows(matrixRows) {
+  const map = new Map()
+  for (const row of matrixRows ?? []) {
+    const trainerId = String(row?.trainer_id ?? '').trim()
+    if (!trainerId) continue
+    const countN = Math.trunc(Number(row.count) || 0)
+    if (countN <= 0) continue
+    map.set(trainerId, (map.get(trainerId) ?? 0) + countN)
+  }
+  return map
+}
+
+/**
+ * @param {Array<{ id?: string }>} membershipTypes
+ * @returns {Map<string, object>}
+ */
+function indexTypesById(membershipTypes) {
+  const map = new Map()
+  for (const t of membershipTypes ?? []) {
+    const id = String(t?.id ?? '').trim()
+    if (id) map.set(id, t)
+  }
+  return map
+}
+
+/**
+ * @param {string} trainerId
+ * @param {string|null} typeId
+ * @param {{
+ *   typeById: Map<string, object>,
+ *   workoutsByTrainer: Map<string, number>,
+ *   planConfig: object,
+ *   profilesByTrainerId?: Map|object|null,
+ *   clubId?: string,
+ * }} ctx
+ */
+function sessionRateForTrainerType(trainerId, typeId, ctx) {
+  const tid = typeId == null || typeId === '' ? null : String(typeId).trim()
+  if (!tid) return 0
+  const typeRow = ctx.typeById.get(tid)
+  if (!typeRow) return 0
+  const profile = getTrainerPayProfile(ctx.profilesByTrainerId, trainerId, ctx.clubId ?? '')
+  const workouts = ctx.workoutsByTrainer.get(trainerId) ?? 0
+  const level = resolveTrainerPayLevel({
+    workouts,
+    onPlan: profile.on_plan,
+    planConfig: ctx.planConfig,
+  })
+  const base = pickMembershipTypeTierRate(typeRow, level)
+  return effectiveSessionRate(base, profile.rate_adjustment_rub)
+}
+
+/**
  * @param {Array<{ trainer_id: string, membership_type_id: string | null, count: number }>} matrixRows
- * @param {Map<string, number>} rateMap
- * @param {{ trainerIdFilter?: string | null }} [opts]
+ * @param {Map<string, number>|null|undefined} rateMap
+ * @param {{
+ *   trainerIdFilter?: string | null,
+ *   membershipTypes?: Array<object>,
+ *   planConfig?: object | null,
+ *   profilesByTrainerId?: Map|object|null,
+ *   workoutsByTrainer?: Map<string, number>|null,
+ *   clubId?: string,
+ * }} [opts]
  */
 export function computePayrollFromMatrixRows(matrixRows, rateMap, opts = {}) {
   const filter = opts.trainerIdFilter ? String(opts.trainerIdFilter).trim() : null
+  const useTiers = Array.isArray(opts.membershipTypes) && opts.membershipTypes.length > 0
   const byTrainer = new Map()
   let clubTotal = 0
+
+  let tierCtx = null
+  if (useTiers) {
+    const workoutsByTrainer =
+      opts.workoutsByTrainer instanceof Map
+        ? opts.workoutsByTrainer
+        : sumWorkoutsByTrainerFromMatrixRows(matrixRows)
+    tierCtx = {
+      typeById: indexTypesById(opts.membershipTypes),
+      workoutsByTrainer,
+      planConfig: normalizeTrainerPayPlanConfig(opts.planConfig),
+      profilesByTrainerId: opts.profilesByTrainerId,
+      clubId: String(opts.clubId ?? '').trim(),
+    }
+  }
+
+  const legacyMap = rateMap instanceof Map ? rateMap : new Map()
 
   for (const row of matrixRows ?? []) {
     const trainerId = String(row?.trainer_id ?? '').trim()
     if (!trainerId) continue
     if (filter && trainerId !== filter) continue
-    const amount = payForCell(row.count, row.membership_type_id, rateMap)
-    if (amount <= 0) continue
+    const typeId =
+      row.membership_type_id == null || row.membership_type_id === ''
+        ? null
+        : String(row.membership_type_id).trim()
+    const countN = Math.trunc(Number(row.count) || 0)
+    if (countN <= 0) continue
+
+    let amount = 0
+    if (tierCtx) {
+      if (!typeId) continue
+      if (!tierCtx.typeById.has(typeId)) continue
+      const rate = sessionRateForTrainerType(trainerId, typeId, tierCtx)
+      amount = roundRub(countN * rate)
+    } else {
+      amount = payForCell(countN, typeId, legacyMap)
+      if (amount <= 0) continue
+    }
 
     clubTotal += amount
     if (!byTrainer.has(trainerId)) {
@@ -68,15 +171,11 @@ export function computePayrollFromMatrixRows(matrixRows, rateMap, opts = {}) {
     }
     const entry = byTrainer.get(trainerId)
     entry.total = roundRub(entry.total + amount)
-    const typeId =
-      row.membership_type_id == null || row.membership_type_id === ''
-        ? null
-        : String(row.membership_type_id).trim()
     if (!typeId) continue
     mergeByTypeLines(entry.byType, [
       {
         typeId,
-        count: Math.trunc(Number(row.count) || 0),
+        count: countN,
         amount,
       },
     ])
@@ -91,8 +190,22 @@ export function computePayrollFromDailyRow(dailyRow, rateMap, opts = {}) {
   return computePayrollFromMatrixRows(rows, rateMap, opts)
 }
 
-/** @param {Array<Record<string, unknown>>} dailyRows */
+/**
+ * @param {Array<Record<string, unknown>>} dailyRows
+ * @param {Map<string, number>|null|undefined} rateMap
+ * @param {Parameters<typeof computePayrollFromMatrixRows>[2]} [opts]
+ */
 export function aggregatePayrollFromDailyRows(dailyRows, rateMap, opts = {}) {
+  const useTiers = Array.isArray(opts.membershipTypes) && opts.membershipTypes.length > 0
+  if (useTiers) {
+    const allRows = []
+    for (const day of dailyRows ?? []) {
+      allRows.push(...normalizeMatrixRowsFromDb(day?.trainings_matrix))
+    }
+    const workoutsByTrainer = sumWorkoutsByTrainerFromMatrixRows(allRows)
+    return computePayrollFromMatrixRows(allRows, rateMap, { ...opts, workoutsByTrainer })
+  }
+
   const byTrainer = new Map()
   let clubTotal = 0
 

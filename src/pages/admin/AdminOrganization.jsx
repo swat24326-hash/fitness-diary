@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useOutletContext, useSearchParams } from 'react-router-dom'
-import { Ban, KeyRound, Pencil, RefreshCw, Sparkles, Trash2, UserPlus } from 'lucide-react'
+import { Ban, KeyRound, Pencil, RefreshCw, Sparkles, Trash2, UserPlus, Wallet } from 'lucide-react'
 import { ClientRowMoreMenu } from '../../components/ClientRowMoreMenu.jsx'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import {
@@ -39,6 +39,7 @@ import {
   validateTrainerPasswordConfirm,
 } from '../../lib/admin/trainerAuthAdminCore'
 import { AdminTrainerNameEditModal } from '../../components/admin/AdminTrainerNameEditModal.jsx'
+import { AdminTrainerPayOfficeModal } from '../../components/admin/AdminTrainerPayOfficeModal.jsx'
 import { humanizeNetworkError } from '../../lib/supabaseRetry'
 import { useIskraPanel } from '../../context/IskraPanelContext.jsx'
 
@@ -100,6 +101,7 @@ export function AdminOrganization({ mode = 'both' } = {}) {
   const [passwordBusy, setPasswordBusy] = useState(false)
   const [passwordErr, setPasswordErr] = useState('')
   const [nameModalTrainer, setNameModalTrainer] = useState(null)
+  const [payOfficeTrainer, setPayOfficeTrainer] = useState(null)
   const [nameFormValue, setNameFormValue] = useState('')
   const [nameBusy, setNameBusy] = useState(false)
   const [nameErr, setNameErr] = useState('')
@@ -472,6 +474,10 @@ export function AdminOrganization({ mode = 'both' } = {}) {
     setPasswordErr('')
   }
 
+  const openPayOffice = (trainer) => {
+    setPayOfficeTrainer(trainer)
+  }
+
   const openNameModal = (trainer) => {
     setNameModalTrainer(trainer)
     setNameFormValue(String(trainer?.name ?? ''))
@@ -716,6 +722,20 @@ export function AdminOrganization({ mode = 'both' } = {}) {
                         onClick={() => openNameModal(tr)}
                       >
                         <Pencil size={16} aria-hidden />
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-icon-square btn-touch"
+                        disabled={
+                          !isSupabaseConfigured() ||
+                          trainerBusy ||
+                          !(tr.club_id || defaultClubFromUrl)
+                        }
+                        aria-label={`Кабинет ЗП: ${tr.name ?? 'тренер'}`}
+                        title="Кабинет: план и надбавка"
+                        onClick={() => openPayOffice(tr)}
+                      >
+                        <Wallet size={16} aria-hidden />
                       </button>
                       <button
                         type="button"
@@ -1006,6 +1026,16 @@ export function AdminOrganization({ mode = 'both' } = {}) {
           onNameChange={setNameFormValue}
           onClose={closeNameModal}
           onSubmit={(e) => void submitTrainerName(e)}
+        />
+      ) : null}
+
+      {showTrainers ? (
+        <AdminTrainerPayOfficeModal
+          open={Boolean(payOfficeTrainer?.id)}
+          trainer={payOfficeTrainer}
+          clubId={String(payOfficeTrainer?.club_id || defaultClubFromUrl || '')}
+          onClose={() => setPayOfficeTrainer(null)}
+          onSaved={() => setTrainerMsg(`Кабинет сохранён: ${payOfficeTrainer?.name ?? 'тренер'}.`)}
         />
       ) : null}
 

@@ -9,6 +9,7 @@ import { AdminNutritionProducts } from './AdminNutritionProducts'
 import { AdminHomeworkPresets } from './AdminHomeworkPresets'
 import { AdminMaxOutreach } from './AdminMaxOutreach'
 import { AdminCoachQualitySettings } from './AdminCoachQualitySettings'
+import { AdminClubPlanSettings } from './AdminClubPlanSettings'
 import { AdminDiagnostics } from './AdminDiagnostics'
 import { AdminIskraSettings } from './AdminIskraSettings'
 
@@ -18,6 +19,7 @@ const TAB_IDS = [
   'sales-managers',
   'supervisors',
   'membership-types',
+  'club-plan',
   'nutrition-products',
   'homework-presets',
   'exercises',
@@ -33,6 +35,7 @@ const TABS = [
   { id: 'sales-managers', label: 'Менеджеры' },
   { id: 'supervisors', label: 'Управляющие' },
   { id: 'membership-types', label: 'Типы абон.' },
+  { id: 'club-plan', label: 'План ЗП' },
   { id: 'nutrition-products', label: 'Питание' },
   { id: 'homework-presets', label: 'ДЗ' },
   { id: 'exercises', label: 'Упражнения' },
@@ -132,6 +135,15 @@ export function AdminStructure() {
           className="admin-structure__panel"
         >
           {tab === 'membership-types' ? <AdminMembershipTypes /> : null}
+        </div>
+        <div
+          id="admin-structure-panel-club-plan"
+          role="tabpanel"
+          aria-labelledby="admin-structure-tab-club-plan"
+          hidden={tab !== 'club-plan'}
+          className="admin-structure__panel"
+        >
+          {tab === 'club-plan' ? <AdminClubPlanSettings /> : null}
         </div>
         <div
           id="admin-structure-panel-nutrition-products"

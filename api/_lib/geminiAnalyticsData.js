@@ -7,6 +7,10 @@ import {
   buildTrainerPayRateMap,
 } from '../../src/lib/admin/trainerPayrollCore.js'
 import {
+  loadTrainerPayrollContext,
+  payrollOptsFromContext,
+} from './trainerPayrollContext.js'
+import {
   aggregateAerobicPayrollFromDailyRows,
   buildAerobicPayRateMap,
 } from '../../src/lib/admin/aerobicPayrollCore.js'
@@ -27,7 +31,7 @@ const SALES_MONTH_SELECT =
 async function loadMonthRaw(supabaseAdmin, clubId, year, month) {
   const { start, end } = monthDateRange(year, month)
   const membershipTypesSelect =
-    'id, code, trainer_assignable, trainer_pay_per_session, aerobic_pay_amount'
+    'id, code, trainer_assignable, trainer_pay_per_session, trainer_pay_l1, trainer_pay_l2, trainer_pay_l3, aerobic_pay_amount'
   const [monthRes, planRes, expenseRes, clubStatsRaw, usersRes] = await Promise.all([
     supabaseAdmin
       .from('club_sales_daily')
@@ -80,7 +84,12 @@ async function loadMonthRaw(supabaseAdmin, clubId, year, month) {
   const aerobicTypes = filterAerobicSalesTypes(membershipTypes)
   const payRateMap = buildTrainerPayRateMap(membershipTypes)
   const aerobicRateMap = buildAerobicPayRateMap(aerobicTypes)
-  const payroll = aggregatePayrollFromDailyRows(monthRows, payRateMap)
+  const payrollCtx = await loadTrainerPayrollContext(supabaseAdmin, clubId)
+  const payroll = aggregatePayrollFromDailyRows(
+    monthRows,
+    payRateMap,
+    payrollOptsFromContext(payrollCtx, membershipTypes),
+  )
   const aerobicPayroll = aggregateAerobicPayrollFromDailyRows(monthRows, aerobicRateMap)
   const trainingAgg = aggregateTrainings(trainings)
   const users = usersRows
@@ -99,6 +108,9 @@ async function loadMonthRaw(supabaseAdmin, clubId, year, month) {
     expenseAmount: Number(expenseRes.data?.amount) || 0,
     payrollClubTotal: payroll.clubTotal,
     aerobicPayrollClubTotal: aerobicPayroll.clubTotal,
+    planConfig: payrollCtx.planConfig,
+    profilesByTrainerId: payrollCtx.profilesByTrainerId,
+    clubId,
     trainingAgg,
     inactiveInPeriod: clientPeriod.inactiveInPeriod ?? 0,
     fitCityCompleted,
@@ -149,6 +161,9 @@ export async function loadGeminiSnapshotForMonth(supabaseAdmin, clubId, year, mo
     trainingDraft: raw.trainingAgg.totalDraft,
     membershipTypes: raw.membershipTypes,
     includeFinance,
+    planConfig: raw.planConfig,
+    profilesByTrainerId: raw.profilesByTrainerId,
+    clubId,
   })
 
   const trainers = collectClubTrainerDirectory(raw.users, raw.clients)

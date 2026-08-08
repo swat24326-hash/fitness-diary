@@ -79,8 +79,8 @@ function friendlyMembershipTypeDbError(error) {
   if (code === '23505' || /unique|duplicate/i.test(msg)) {
     return 'Тип с таким названием уже есть в этом клубе'
   }
-  if (/trainer_pay_per_session/i.test(msg) && /schema cache|could not find/i.test(msg)) {
-    return 'Колонка оплаты не создана в Supabase — выполните миграцию trainer_pay_per_session'
+  if (/trainer_pay_per_session|trainer_pay_l[123]/i.test(msg) && /schema cache|could not find/i.test(msg)) {
+    return 'Колонки оплаты тренера не созданы в Supabase — выполните миграцию trainer_pay (в т.ч. уровни l1–l3)'
   }
   if (/aerobic_pay_amount|trainer_assignable/i.test(msg) && /schema cache|could not find/i.test(msg)) {
     return 'Колонки АЗ не созданы в Supabase — выполните миграцию membership_types_aerobic'

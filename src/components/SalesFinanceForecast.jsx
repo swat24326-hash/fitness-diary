@@ -16,6 +16,9 @@ import { formatRub } from '../lib/admin/salesReportCore.js'
  *   planForm?: Record<string, string>,
  *   expense?: number,
  *   variant?: 'full' | 'plan',
+ *   planConfig?: object | null,
+ *   profilesByTrainerId?: Map|object|null,
+ *   clubId?: string,
  * }} props
  */
 export function SalesFinanceForecast({
@@ -26,6 +29,9 @@ export function SalesFinanceForecast({
   planForm = {},
   expense = 0,
   variant = 'full',
+  planConfig = null,
+  profilesByTrainerId = null,
+  clubId = '',
 }) {
   const showFinanceLoad = variant === 'full'
   const forecast = useMemo(
@@ -37,8 +43,11 @@ export function SalesFinanceForecast({
         expense,
         membershipTypes,
         planForm,
+        planConfig,
+        profilesByTrainerId,
+        clubId,
       }),
-    [monthRows, year, month, expense, membershipTypes, planForm],
+    [monthRows, year, month, expense, membershipTypes, planForm, planConfig, profilesByTrainerId, clubId],
   )
 
   if (!forecast.ok) {

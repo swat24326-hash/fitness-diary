@@ -11,6 +11,11 @@ import { markRecordFromCloud, recordForPush } from './syncUnsyncedCore'
 import { parseTrainerPayRate } from './admin/trainerPayrollCore.js'
 import { parseAerobicPayRate } from './admin/aerobicPayrollCore.js'
 import {
+  normalizeTrainerPayTiersInput,
+  resolveTrainerPayTiers,
+  trainerPayTiersToRowFields,
+} from './admin/trainerPayTiersCore.js'
+import {
   filterAerobicSalesTypes,
   filterTrainerAssignableTypes,
   isTrainerAssignableMembershipType,
@@ -35,8 +40,7 @@ export function normalizeMembershipTypeCode(raw) {
 
 function normalizeRow(row) {
   const codeRaw = row.code ?? row.name
-  const payRaw = row.trainer_pay_per_session
-  const payParsed = payRaw == null || payRaw === '' ? 0 : parseTrainerPayRate(payRaw)
+  const tiers = resolveTrainerPayTiers(row)
   const aerobicRaw = row.aerobic_pay_amount
   const aerobicParsed = aerobicRaw == null || aerobicRaw === '' ? 0 : parseAerobicPayRate(aerobicRaw)
   const trainerAssignable = row.trainer_assignable !== false
@@ -47,7 +51,7 @@ function normalizeRow(row) {
     sort_order: Number(row.sort_order) || 0,
     is_active: row.is_active !== false,
     trainer_assignable: trainerAssignable,
-    trainer_pay_per_session: Number.isNaN(payParsed) ? 0 : payParsed,
+    ...trainerPayTiersToRowFields(tiers),
     aerobic_pay_amount: Number.isNaN(aerobicParsed) ? 0 : aerobicParsed,
   }
 }
@@ -196,6 +200,9 @@ export async function insertMembershipType({
     is_active: true,
     trainer_assignable: trainer_assignable !== false,
     trainer_pay_per_session: 0,
+    trainer_pay_l1: 0,
+    trainer_pay_l2: 0,
+    trainer_pay_l3: 0,
     aerobic_pay_amount: 0,
     created_at: now,
   })
@@ -225,14 +232,10 @@ export async function deactivateMembershipType(id) {
   return pushTypeOp('update', row, tid)
 }
 
-/** @param {string} id @param {string|number} rawPay */
-export async function updateMembershipTypePay(id, rawPay) {
+/** @param {string} id @param {string|number|{ l1?: unknown, l2?: unknown, l3?: unknown }} rawPayOrTiers */
+export async function updateMembershipTypePay(id, rawPayOrTiers) {
   const tid = String(id ?? '').trim()
   if (!tid) return { cloudOk: false, cloudError: 'Нет id типа' }
-  const pay = parseTrainerPayRate(rawPay)
-  if (Number.isNaN(pay)) {
-    return { cloudOk: false, cloudError: 'Оплата: неотрицательное число' }
-  }
 
   const db = await getDb()
   const prev = await db.get('membership_types', tid)
@@ -241,7 +244,21 @@ export async function updateMembershipTypePay(id, rawPay) {
     return { cloudOk: false, cloudError: 'Тип относится к АЗ — меняйте стоимость в разделе аэробного зала' }
   }
 
-  const row = normalizeRow({ ...prev, trainer_pay_per_session: pay })
+  let tiers
+  if (rawPayOrTiers != null && typeof rawPayOrTiers === 'object' && !Array.isArray(rawPayOrTiers)) {
+    const parsed = normalizeTrainerPayTiersInput(rawPayOrTiers)
+    if (!parsed.ok) return { cloudOk: false, cloudError: parsed.error }
+    tiers = { l1: parsed.l1, l2: parsed.l2, l3: parsed.l3 }
+  } else {
+    const pay = parseTrainerPayRate(rawPayOrTiers)
+    if (Number.isNaN(pay)) {
+      return { cloudOk: false, cloudError: 'Оплата: неотрицательное число' }
+    }
+    // Старый вызов с одной ставкой — все три уровня одинаковые (миграция UI).
+    tiers = { l1: pay, l2: pay, l3: pay }
+  }
+
+  const row = normalizeRow({ ...prev, ...trainerPayTiersToRowFields(tiers) })
   await saveLocalWithSync('membership_types', row, {
     table_name: 'membership_types',
     operation: 'update',

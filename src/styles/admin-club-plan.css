@@ -1,0 +1,103 @@
+/* Структура → План ЗП */
+
+.admin-club-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.admin-club-plan__note {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.admin-club-plan__card {
+  padding: 16px 18px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--card);
+  box-shadow: inset 3px 0 0 rgba(59, 130, 246, 0.45);
+}
+
+.admin-club-plan__card-title {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.admin-club-plan__card-lead {
+  margin: 0 0 14px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.admin-club-plan__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.admin-club-plan__fields .field {
+  margin: 0;
+}
+
+.admin-club-plan__bands {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  list-style: none;
+  border-radius: calc(var(--radius) - 2px);
+  background: color-mix(in srgb, var(--bg) 70%, transparent);
+  border: 1px dashed var(--border);
+  display: grid;
+  gap: 6px;
+  font-size: 0.92rem;
+}
+
+.admin-club-plan__hint {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+}
+
+.admin-club-plan__hint--warn {
+  color: var(--danger, #b91c1c);
+}
+
+.admin-club-plan__footer {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+/* Кабинет тренера (модалка) */
+.admin-trainer-pay-office {
+  max-width: 440px;
+}
+
+.admin-trainer-pay-office__plan {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  display: grid;
+  gap: 8px;
+}
+
+.admin-trainer-pay-office__plan legend {
+  padding: 0 4px;
+}
+
+.admin-trainer-pay-office__radio {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.92rem;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.admin-trainer-pay-office__hint {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}

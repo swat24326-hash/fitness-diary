@@ -2,6 +2,11 @@
 
 import { parseAerobicPayRate } from './aerobicPayrollCore.js'
 import { parseTrainerPayRate } from './trainerPayrollCore.js'
+import {
+  normalizeTrainerPayTiersInput,
+  resolveTrainerPayTiers,
+  trainerPayTiersToRowFields,
+} from './trainerPayTiersCore.js'
 
 export const MEMBERSHIP_TYPE_DB_FIELDS = [
   'id',
@@ -11,6 +16,9 @@ export const MEMBERSHIP_TYPE_DB_FIELDS = [
   'is_active',
   'trainer_assignable',
   'trainer_pay_per_session',
+  'trainer_pay_l1',
+  'trainer_pay_l2',
+  'trainer_pay_l3',
   'aerobic_pay_amount',
   'is_pnk_trial',
   'created_at',
@@ -27,12 +35,38 @@ export function pickMembershipTypeDbFields(obj) {
   return out
 }
 
+function payFieldPresent(v) {
+  return v != null && v !== ''
+}
+
 export function normalizeMembershipTypePushPayload(payload, { insert = false } = {}) {
-  const payRaw = payload?.trainer_pay_per_session
-  const pay = payRaw == null || payRaw === '' ? 0 : parseTrainerPayRate(payRaw)
-  if (Number.isNaN(pay)) {
+  const resolved = resolveTrainerPayTiers(payload)
+  const hasExplicitTiers =
+    payFieldPresent(payload?.trainer_pay_l1) ||
+    payFieldPresent(payload?.trainer_pay_l2) ||
+    payFieldPresent(payload?.trainer_pay_l3)
+
+  // Только legacy session (старые клиенты) — все три уровня = session.
+  const onlyLegacy =
+    !hasExplicitTiers && payFieldPresent(payload?.trainer_pay_per_session)
+  const payLegacy = onlyLegacy ? parseTrainerPayRate(payload.trainer_pay_per_session) : null
+  if (onlyLegacy && Number.isNaN(payLegacy)) {
     return { ok: false, error: 'Оплата за тренировку: неотрицательное число' }
   }
+
+  let tiers
+  if (onlyLegacy) {
+    tiers = { l1: payLegacy, l2: payLegacy, l3: payLegacy }
+  } else {
+    const tiersIn = normalizeTrainerPayTiersInput({
+      l1: payFieldPresent(payload?.trainer_pay_l1) ? payload.trainer_pay_l1 : resolved.l1,
+      l2: payFieldPresent(payload?.trainer_pay_l2) ? payload.trainer_pay_l2 : resolved.l2,
+      l3: payFieldPresent(payload?.trainer_pay_l3) ? payload.trainer_pay_l3 : resolved.l3,
+    })
+    if (!tiersIn.ok) return tiersIn
+    tiers = { l1: tiersIn.l1, l2: tiersIn.l2, l3: tiersIn.l3 }
+  }
+
   const aerobicRaw = payload?.aerobic_pay_amount
   const aerobicPay = aerobicRaw == null || aerobicRaw === '' ? 0 : parseAerobicPayRate(aerobicRaw)
   if (Number.isNaN(aerobicPay)) {
@@ -45,7 +79,7 @@ export function normalizeMembershipTypePushPayload(payload, { insert = false } =
     club_id: String(payload?.club_id ?? '').trim(),
     is_active: payload?.is_active !== false,
     trainer_assignable: trainerAssignable,
-    trainer_pay_per_session: pay,
+    ...trainerPayTiersToRowFields(tiers),
     aerobic_pay_amount: aerobicPay,
     is_pnk_trial: payload?.is_pnk_trial === true,
   })

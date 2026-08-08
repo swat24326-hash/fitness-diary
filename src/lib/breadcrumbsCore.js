@@ -34,6 +34,7 @@ export const STRUCTURE_TAB_LABELS = {
   'sales-managers': 'Менеджеры',
   supervisors: 'Управляющие',
   'membership-types': 'Типы абон.',
+  'club-plan': 'План ЗП',
   'nutrition-products': 'Питание',
   'homework-presets': 'ДЗ',
   exercises: 'Упражнения',

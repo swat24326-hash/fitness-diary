@@ -12,6 +12,7 @@ import {
   resolvePlanFactFromMonthSummary,
 } from '../../lib/admin/salesReportCore.js'
 import { buildClubFinanceForecast } from '../../lib/admin/clubFinanceForecastCore.js'
+import { loadTrainerPayrollContextClient } from '../../lib/admin/trainerPayrollContextClient.js'
 import { todayLocalIso } from '../../lib/dateRu.js'
 import { buildAdminClubQueryHref } from '../../lib/admin/adminClientQuickFilters.js'
 import {
@@ -52,6 +53,7 @@ async function fetchSalesPlanGlancePayload(clubId) {
   }
   const expenseForm = expenseRowToForm(bundle.expense)
   const expenseRaw = parseSalesMoney(expenseForm.expense_month)
+  const payrollCtx = await loadTrainerPayrollContextClient(clubId)
   return {
     monthLabel: parts ? `${name} ${parts.year}` : '',
     fact: resolvePlanFactFromMonthSummary(bundle.monthSummary),
@@ -63,6 +65,9 @@ async function fetchSalesPlanGlancePayload(clubId) {
       membershipTypes: Array.isArray(bundle.membershipTypes) ? bundle.membershipTypes : [],
       planForm: form,
       expense: Number.isFinite(expenseRaw) ? expenseRaw : 0,
+      planConfig: payrollCtx.planConfig,
+      profilesByTrainerId: payrollCtx.profilesByTrainerId,
+      clubId,
     },
   }
 }
@@ -126,6 +131,9 @@ const showSkel = loading && !data
       expense: forecastBundle.expense,
       membershipTypes: forecastBundle.membershipTypes,
       planForm: forecastBundle.planForm,
+      planConfig: forecastBundle.planConfig,
+      profilesByTrainerId: forecastBundle.profilesByTrainerId,
+      clubId: forecastBundle.clubId,
     })
   }, [forecastBundle])
 

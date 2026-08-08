@@ -90,12 +90,18 @@ CREATE TABLE membership_types (
   sort_order INTEGER NOT NULL DEFAULT 0,
   is_active BOOLEAN NOT NULL DEFAULT true,
   trainer_pay_per_session NUMERIC(10, 2) NOT NULL DEFAULT 0,
+  trainer_pay_l1 NUMERIC(10, 2) NOT NULL DEFAULT 0,
+  trainer_pay_l2 NUMERIC(10, 2) NOT NULL DEFAULT 0,
+  trainer_pay_l3 NUMERIC(10, 2) NOT NULL DEFAULT 0,
   trainer_assignable BOOLEAN NOT NULL DEFAULT true,
   aerobic_pay_amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
   is_pnk_trial BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   CONSTRAINT membership_types_code_len CHECK (char_length(trim(code)) >= 1 AND char_length(trim(code)) <= 12),
   CONSTRAINT membership_types_trainer_pay_nonneg CHECK (trainer_pay_per_session >= 0),
+  CONSTRAINT membership_types_trainer_pay_l1_nonneg CHECK (trainer_pay_l1 >= 0),
+  CONSTRAINT membership_types_trainer_pay_l2_nonneg CHECK (trainer_pay_l2 >= 0),
+  CONSTRAINT membership_types_trainer_pay_l3_nonneg CHECK (trainer_pay_l3 >= 0),
   CONSTRAINT membership_types_aerobic_pay_nonneg CHECK (aerobic_pay_amount >= 0)
 );
 
@@ -103,6 +109,28 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_membership_types_club_code_lower
   ON membership_types (club_id, lower(trim(code)));
 
 CREATE INDEX IF NOT EXISTS idx_membership_types_club_id ON membership_types (club_id);
+
+-- ------------------------------------------------------------
+-- План ЗП клуба (пороги тренировок → уровни 1–3)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS club_trainer_pay_plan_settings (
+  club_id UUID PRIMARY KEY REFERENCES clubs (id) ON DELETE CASCADE,
+  config JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ------------------------------------------------------------
+-- Кабинет тренера: on_plan + ±₽ к ставке за тренировку
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS trainer_pay_profiles (
+  trainer_id UUID PRIMARY KEY REFERENCES users (id) ON DELETE CASCADE,
+  club_id UUID NOT NULL REFERENCES clubs (id) ON DELETE CASCADE,
+  on_plan BOOLEAN NOT NULL DEFAULT true,
+  rate_adjustment_rub NUMERIC(10, 2) NOT NULL DEFAULT 0,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_trainer_pay_profiles_club_id ON trainer_pay_profiles (club_id);
 
 -- ------------------------------------------------------------
 -- Абонементы

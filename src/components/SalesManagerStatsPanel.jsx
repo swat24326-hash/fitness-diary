@@ -33,6 +33,9 @@ import { SalesPlanPromotionsSection } from './SalesPlanPromotionsSection.jsx'
  *   onOpenDay: (iso: string) => void,
  *   showPayroll?: boolean,
  *   showMonthNav?: boolean,
+ *   planConfig?: object | null,
+ *   profilesByTrainerId?: Map|object|null,
+ *   clubId?: string,
  * }} props
  */
 export function SalesManagerStatsPanel({
@@ -55,6 +58,9 @@ export function SalesManagerStatsPanel({
   onOpenDay,
   showPayroll = false,
   showMonthNav = true,
+  planConfig = null,
+  profilesByTrainerId = null,
+  clubId = '',
 }) {
   const trainerLabel = useMemo(() => {
     const byId = new Map(
@@ -76,8 +82,22 @@ export function SalesManagerStatsPanel({
         membershipTypes,
         year,
         month,
+        planConfig,
+        profilesByTrainerId,
+        clubId,
       }),
-    [monthRows, planLevels, planDirections, planMatrix, membershipTypes, year, month],
+    [
+      monthRows,
+      planLevels,
+      planDirections,
+      planMatrix,
+      membershipTypes,
+      year,
+      month,
+      planConfig,
+      profilesByTrainerId,
+      clubId,
+    ],
   )
 
   const {

@@ -190,6 +190,79 @@ console.log('\n▶ sales_manager API')
   }
 }
 
+console.log('\n▶ trainer-pay-profiles (кабинет ЗП)')
+{
+  /** До деплоя action/таблицы — 400/404/405/500; после — 200 (+ migration_needed если нет таблицы). */
+  const payNotReady = new Set([400, 404, 405, 500])
+  const payPath = `/api/admin-data?action=trainer-pay-profiles&club_id=${QA_CLUB_ID}`
+  const adminPay = await apiGet(payPath, adminTok)
+  ok(
+    adminPay.status === 200 || payNotReady.has(adminPay.status),
+    `admin GET trainer-pay-profiles HTTP ${adminPay.status}${adminPay.status === 200 ? '' : ' (ещё не на проде)'}`,
+    'admin',
+  )
+  if (adminPay.status === 200) {
+    ok(adminPay.data?.ok === true, 'admin pay-profiles ok', 'admin')
+    ok(Array.isArray(adminPay.data?.profiles), 'admin pay-profiles list', 'admin')
+  }
+
+  const trainerPay = await apiGet(payPath, trainerTok)
+  ok(
+    trainerPay.status === 403 || trainerPay.status === 401,
+    `trainer blocked trainer-pay-profiles HTTP ${trainerPay.status}`,
+    'trainer',
+  )
+  ok(trainerPay.status !== 200, 'trainer cannot list pay-profiles', 'trainer')
+
+  const salesPay = await apiGet(payPath, salesTok)
+  ok(
+    salesPay.status === 403 || salesPay.status === 401,
+    `sales blocked trainer-pay-profiles HTTP ${salesPay.status}`,
+    'sales',
+  )
+  ok(salesPay.status !== 200, 'sales cannot list pay-profiles', 'sales')
+
+  const trainerId = report.created.find((u) => u.login === `${QA_PREFIX}trainer`)?.id
+  if (adminPay.status === 200 && trainerId && !adminPay.data?.migration_needed) {
+    const save = await apiPost('/api/admin-data?action=trainer-pay-profiles', adminTok, {
+      trainer_id: trainerId,
+      club_id: QA_CLUB_ID,
+      on_plan: false,
+      rate_adjustment_rub: 25,
+    })
+    ok(save.status === 200 && save.data?.profile?.on_plan === false, 'admin upsert pay-profile', 'admin')
+    ok(Number(save.data?.profile?.rate_adjustment_rub) === 25, 'admin upsert adj 25', 'admin')
+
+    const salesSave = await apiPost('/api/admin-data?action=trainer-pay-profiles', salesTok, {
+      trainer_id: trainerId,
+      club_id: QA_CLUB_ID,
+      on_plan: true,
+      rate_adjustment_rub: 0,
+    })
+    ok(
+      salesSave.status === 403 || salesSave.status === 401,
+      `sales blocked POST pay-profiles HTTP ${salesSave.status}`,
+      'sales',
+    )
+
+    await admin.from('trainer_pay_profiles').delete().eq('trainer_id', trainerId)
+  }
+
+  const planPath = `/api/admin-data?action=trainer-pay-plan-settings&club_id=${QA_CLUB_ID}`
+  const adminPlan = await apiGet(planPath, adminTok)
+  ok(
+    adminPlan.status === 200 || payNotReady.has(adminPlan.status),
+    `admin GET trainer-pay-plan-settings HTTP ${adminPlan.status}${adminPlan.status === 200 ? '' : ' (ещё не на проде)'}`,
+    'admin',
+  )
+  const salesPlan = await apiGet(planPath, salesTok)
+  ok(
+    salesPlan.status === 403 || salesPlan.status === 401,
+    `sales blocked pay-plan-settings HTTP ${salesPlan.status}`,
+    'sales',
+  )
+}
+
 console.log('\n▶ route guards (unauthenticated)')
 {
   const home = await fetch(`${PROD_ORIGIN}/`)

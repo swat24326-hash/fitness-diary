@@ -419,6 +419,9 @@ function buildDirectionForecastRows(monthRows, year, month, planDirections) {
  *   membershipTypes?: Array<Record<string, unknown>>,
  *   planForm?: Record<string, string | number | undefined>,
  *   today?: Date,
+ *   planConfig?: object | null,
+ *   profilesByTrainerId?: Map|object|null,
+ *   clubId?: string,
  * }} opts
  */
 export function buildClubFinanceForecast(opts) {
@@ -468,7 +471,18 @@ export function buildClubFinanceForecast(opts) {
   const trainerRateMap = buildTrainerPayRateMap(trainerTypes)
   const aerobicRateMap = buildAerobicPayRateMap(aerobicTypes)
 
-  const trainerPayrollFact = aggregatePayrollFromDailyRows(monthRows, trainerRateMap).clubTotal
+  const trainerPayrollFact = aggregatePayrollFromDailyRows(
+    monthRows,
+    trainerRateMap,
+    trainerTypes.length
+      ? {
+          membershipTypes: trainerTypes,
+          planConfig: opts.planConfig,
+          profilesByTrainerId: opts.profilesByTrainerId,
+          clubId: opts.clubId,
+        }
+      : undefined,
+  ).clubTotal
   const aerobicPayrollFact = aggregateAerobicPayrollFromDailyRows(monthRows, aerobicRateMap).clubTotal
   const expense = roundRub(opts.expense)
 
@@ -770,6 +784,9 @@ export function buildClubFinanceForecast(opts) {
  *   planForm?: Record<string, string | number | undefined> | null,
  *   includeFinance?: boolean,
  *   today?: Date,
+ *   planConfig?: object | null,
+ *   profilesByTrainerId?: Map|object|null,
+ *   clubId?: string,
  * }} opts
  */
 export function buildIskraMonthForecastSummary(opts) {
@@ -782,6 +799,9 @@ export function buildIskraMonthForecastSummary(opts) {
     membershipTypes: opts.membershipTypes,
     planForm: opts.planForm ?? undefined,
     today: opts.today,
+    planConfig: opts.planConfig,
+    profilesByTrainerId: opts.profilesByTrainerId,
+    clubId: opts.clubId,
   })
 
   if (!fc.ok) {
@@ -843,6 +863,9 @@ export function buildIskraMonthForecastSummary(opts) {
  *   planForm?: Record<string, string | number | undefined> | null,
  *   includeFinance?: boolean,
  *   today?: Date,
+ *   planConfig?: object | null,
+ *   profilesByTrainerId?: Map|object|null,
+ *   clubId?: string,
  * }} opts
  */
 export function buildIskraClubFinanceBlock(opts) {
@@ -855,6 +878,9 @@ export function buildIskraClubFinanceBlock(opts) {
     membershipTypes: opts.membershipTypes,
     planForm: opts.planForm ?? undefined,
     today: opts.today,
+    planConfig: opts.planConfig,
+    profilesByTrainerId: opts.profilesByTrainerId,
+    clubId: opts.clubId,
   })
 
   if (!fc.ok) {
