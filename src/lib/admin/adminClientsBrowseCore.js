@@ -150,3 +150,16 @@ export function remoteClientIdsForReconcile(remoteRows) {
   }
   return ids
 }
+
+/**
+ * ПЗ-чипы: «все» из operational census; остальные — воронка списка
+ * («Не активные» = финал воронки, не широкий period.inactiveInPeriod).
+ * @param {object} funnel
+ * @param {{ totalOperational?: number }} [snapshot]
+ */
+export function mergeAdminPzBrowseFilterCounts(funnel, snapshot = {}) {
+  return {
+    ...funnel,
+    all: Number(snapshot.totalOperational) || 0,
+  }
+}

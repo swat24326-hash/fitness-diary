@@ -1,5 +1,6 @@
 import {
   buildAdminClientsTodaySnapshot,
+  mergeAdminPzBrowseFilterCounts,
   planAdminClubReconcilePrune,
   remoteClientIdsForReconcile,
   shouldShowAdminClientsList,
@@ -70,6 +71,14 @@ ok(pruneCombined.length === 0, 'active+archive remote keeps trainer-archived cli
 
 const remoteIds = remoteClientIdsForReconcile(combined)
 ok(remoteIds.has('c1') && remoteIds.has('c2'), 'combined remote ids')
+
+const merged = mergeAdminPzBrowseFilterCounts(
+  { all: 99, inactive: 1, expired_recent: 3, pnk: 2 },
+  { totalOperational: 101, inactiveCount: 4 },
+)
+ok(merged.all === 101, 'PZ merge: all from operational census')
+ok(merged.inactive === 1, 'PZ merge: inactive stays funnel (not snapshot.inactiveCount=4)')
+ok(merged.expired_recent === 3 && merged.pnk === 2, 'PZ merge: other funnel counts kept')
 
 if (failed > 0) {
   console.error(`\n${failed} check(s) failed`)

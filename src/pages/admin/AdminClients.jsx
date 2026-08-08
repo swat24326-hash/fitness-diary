@@ -35,7 +35,7 @@ import {
   formatDeskAzSessionUsageRu,
   pickAzMembershipForDeduct,
 } from '../../lib/admin/deskAzSessionDeductCore.js'
-import { buildAdminClientsTodaySnapshot, shouldShowAdminClientsList } from '../../lib/admin/adminClientsBrowseCore'
+import { buildAdminClientsTodaySnapshot, mergeAdminPzBrowseFilterCounts, shouldShowAdminClientsList } from '../../lib/admin/adminClientsBrowseCore'
 import {
   ADMIN_CLIENTS_LIST_TAB_LABELS,
   clientDeskHall,
@@ -704,12 +704,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     const hallMode = tab === 'tz' || tab === 'az' ? tab : 'pz'
     const funnel = countAdminFunnelFilters(tabBase, memByClient, today, todaySnapshot.inactiveIds, { hallMode })
     if (hallMode !== 'pz') return funnel
-    // ПЗ: «все» / «неактивные» — как сводка клуба (commercial/operational), не сырой tabBase.
-    return {
-      ...funnel,
-      all: todaySnapshot.totalOperational,
-      inactive: todaySnapshot.inactiveCount,
-    }
+    return mergeAdminPzBrowseFilterCounts(funnel, todaySnapshot)
   }, [clients, clientsTab, memByClient, today, todaySnapshot])
 
   const browseFilterLabels = {
