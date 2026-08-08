@@ -1,5 +1,6 @@
-import { AlertTriangle, Cake, CalendarClock, Clock, Sparkles, Users } from 'lucide-react'
+import { AlertTriangle, Cake, CalendarClock, Clock, Sparkles, UserX, Users } from 'lucide-react'
 import { STALE_TRAINING_DAYS, STALE_MAX_DAYS } from '../../lib/trainer/trainerClientOutreachCore.js'
+import { MEMBERSHIP_EXPIRING_WITHIN_DAYS } from '../../lib/clientListSignals.js'
 import '../../styles/trainer-clients.css'
 
 export const TRAINER_CLIENTS_BROWSE_LABELS = {
@@ -9,6 +10,7 @@ export const TRAINER_CLIENTS_BROWSE_LABELS = {
   expiring: 'Истекает абонемент',
   expired_recent: 'Абонемент закончился',
   stale: 'Давно не был',
+  inactive: 'Не активные',
 }
 
 /** Короткие title для чипов (длинный смысл — в title). */
@@ -16,9 +18,10 @@ const CHIP_HINT = {
   all: 'Все ваши активные клиенты',
   pnk: 'Воронка ПНК',
   birthdays: 'День рождения сегодня',
-  expiring: 'Абонемент заканчивается ≤ 3 дней',
-  expired_recent: `Закончился меньше ${STALE_TRAINING_DAYS} дней назад`,
+  expiring: `Абонемент заканчивается ≤ ${MEMBERSHIP_EXPIRING_WITHIN_DAYS} дней`,
+  expired_recent: `Срок вышел меньше ${STALE_TRAINING_DAYS} дней назад — или тренировки исчерпаны при ещё идущем сроке. Пора продлить.`,
   stale: `Давно не был: ${STALE_TRAINING_DAYS}–${STALE_MAX_DAYS} дней после конца`,
+  inactive: 'Без действующего абонемента на сегодня (список в клиентах)',
 }
 
 /**
@@ -74,6 +77,7 @@ function TrainerFilterChip({ id, label, count, icon, active, hot = false, warn =
  *     expiring: number,
  *     expired_recent: number,
  *     stale: number,
+ *     inactive: number,
  *   },
  *   quickFilter: string,
  *   onApply: (id: string) => void,
@@ -113,6 +117,9 @@ export function TrainerClientsBrowseFilters({ counts, quickFilter, onApply }) {
             warn: true,
           })}
           {chip('stale', <CalendarClock size={16} strokeWidth={2} />, 'Давно', { hot: counts.stale > 0 })}
+          {chip('inactive', <UserX size={16} strokeWidth={2} />, 'Не активные', {
+            hot: counts.inactive > 0,
+          })}
         </div>
       </div>
     </div>

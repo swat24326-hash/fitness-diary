@@ -1,6 +1,7 @@
 import { membershipSignal } from '../clientListSignals.js'
 import { todayLocalIso } from '../dateRu.js'
 import { isOpenPnkClient } from '../pnk/pnkStagesCore.js'
+import { isMembershipDepletedInPeriod } from '../membershipRules.js'
 import {
   isBirthdayToday,
   isMembershipExpiredRecently,
@@ -10,6 +11,7 @@ import {
   STALE_MAX_DAYS,
   daysSinceIsoDate,
   isClientStaleForAttention,
+  isTrainerClientInactiveToday,
 } from './trainerClientOutreachCore.js'
 
 /** Порядок важности — один клиент = одно сообщение в день. */
@@ -53,6 +55,7 @@ export function buildOutreachScenarioHint(scenario, memList, today = todayLocalI
   const ended = pickLatestEndedMembership(mem, today)
   const daysSinceEnd = ended ? daysSinceIsoDate(ended.end_date, today) : null
   if (scenario === 'expired_recent') {
+    if (isMembershipDepletedInPeriod(mem, today)) return 'Тренировки закончились — пора продлить'
     if (daysSinceEnd == null) return 'Абонемент закончился'
     if (daysSinceEnd === 0) return 'Закончился сегодня'
     if (daysSinceEnd === 1) return 'Закончился вчера'
@@ -80,10 +83,15 @@ export function outreachClientSortKey(client, scenario, memList, today = todayLo
     const days = membershipDaysUntilEnd(memList ?? [], today)
     urgency = days != null ? days : 999
   } else if (scenario === 'expired_recent' || scenario === 'stale') {
-    const ended = pickLatestEndedMembership(memList ?? [], today)
-    const days = ended ? daysSinceIsoDate(ended.end_date, today) : null
-    urgency = days != null ? days : 9999
-    if (scenario === 'stale') urgency = -urgency
+    if (scenario === 'expired_recent' && isMembershipDepletedInPeriod(memList ?? [], today)) {
+      // Лимит 0 при живом сроке — самый горячий хвост продления
+      urgency = 0
+    } else {
+      const ended = pickLatestEndedMembership(memList ?? [], today)
+      const days = ended ? daysSinceIsoDate(ended.end_date, today) : null
+      urgency = days != null ? days : 9999
+      if (scenario === 'stale') urgency = -urgency
+    }
   } else if (scenario === 'birthdays') {
     urgency = 0
   }
@@ -154,13 +162,16 @@ export function buildTrainerAttentionSummaryByPrimaryScenario(input = {}) {
   let expired_recent = 0
   let stale = 0
   let pnk = 0
+  let inactive = 0
 
   for (const c of input.clients ?? []) {
     if (c?.archived_at) continue
     if (isOpenPnkClient(c)) pnk++
+    const memList = memByClient[c.id] ?? []
+    if (isTrainerClientInactiveToday(c, memList, today)) inactive++
     const primary = resolvePrimaryOutreachScenarioForClient({
       client: c,
-      memList: memByClient[c.id] ?? [],
+      memList,
       today,
       staleDays,
       staleMaxDays,
@@ -176,7 +187,9 @@ export function buildTrainerAttentionSummaryByPrimaryScenario(input = {}) {
     expiring,
     expired_recent,
     stale,
+    inactive,
     pnk,
+    // «Не активные» — учётный список (может пересекаться с закончился/давно); в «поводы» Max не дублируем
     actionable: birthdays + expiring + expired_recent + stale + pnk,
     staleDays,
     staleMaxDays,

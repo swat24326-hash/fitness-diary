@@ -2,7 +2,7 @@
 
 Карта файлов в `docs/`. Правила для Cursor — в `.cursor/rules/` (не дублируем политику здесь).
 
-**С чего начать:** [PRODUCT_VISION.md](./PRODUCT_VISION.md) — крупная цель (ОС + CRM, замена 1С в операционке) → [BRAND_SYSTEM.md](./BRAND_SYSTEM.md) — продукт Ядро vs клуб FIT-CITY → [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) — что в коде сегодня.
+**С чего начать:** [PRODUCT_VISION.md](./PRODUCT_VISION.md) — крупная цель (ОС + CRM, замена 1С в операционке) → [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) — сейчас→дальше и как вести процесс → [BRAND_SYSTEM.md](./BRAND_SYSTEM.md) — продукт Ядро vs клуб FIT-CITY → [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) — что в коде сегодня.
 
 **Системная карта (тонкие доки):** [API.md](./API.md) · [SYNC.md](./SYNC.md) · [DATA_MODEL.md](./DATA_MODEL.md) · [TESTING.md](./TESTING.md) · [PWA.md](./PWA.md) · [ENGINEERING_MATURITY.md](./ENGINEERING_MATURITY.md)
 
@@ -45,8 +45,9 @@
 | Файл | Когда читать |
 |------|--------------|
 | [PRODUCT_VISION.md](./PRODUCT_VISION.md) | **Крупная цель:** ОС + CRM клуба; замена 1С в операционке; проекция цели на фичи; слои L0–L4 |
+| [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) | **Путь к цели:** разрывы воронки, сейчас→дальше, очередь ставок, ритуал ведения процесса агентом |
 | [BRAND_SYSTEM.md](./BRAND_SYSTEM.md) | **Фирменный стиль:** Whoop-опора, ролевые цвета, токены, driving prompt |
-| [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md) | Стратегия + РФ: курс **C2 + Yandex**; чеклист §5.4.0; security §5.7; продукт после переезда P1–P3 §5.8 |
+| [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md) | Стратегия + РФ: курс **C2 + Yandex**; чеклист §5.4.0; security §5.7; продукт P1–P3 §5.8; стек/TS vs переезд **§5.9** |
 | [AUTH_C2_MAP.md](./AUTH_C2_MAP.md) | Вход сейчас (Supabase) vs свой Auth на Yandex — простыми словами; без кода до R2 |
 | [COMMERCIAL_ROADMAP.md](./COMMERCIAL_ROADMAP.md) | Фазы 0–4: что сделано и ongoing |
 | [ROADMAP_MULTI_CLUB_AND_PAID.md](./ROADMAP_MULTI_CLUB_AND_PAID.md) | 2+ клубов и платные тарифы |
@@ -86,7 +87,7 @@
 | [SALES_MANAGER.md](./SALES_MANAGER.md) | ✅ роль/отчёт в проде; Excel = мост | Менеджер продаж + финансы |
 | [PZ_CLIENTS_ONBOARD.md](./PZ_CLIENTS_ONBOARD.md) | ✅ шпаргалка | Как завести клиентов ПЗ (вечерний Excel — переход; MVP оплат) |
 | [AZ_CLIENTS_ONBOARD.md](./AZ_CLIENTS_ONBOARD.md) | ✅ шпаргалка | Desk АЗ: сид, направления, списания; связь с доменом оплат |
-| [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) | 📋 ТЗ | Домен платежа; **MVP = ПЗ + АЗ**; потом касса на клуб |
+| [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) | 📋 ТЗ; **⏸ код после РФ (R3+)** | Домен платежа; MVP = ПЗ + АЗ; потом касса на клуб |
 | [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md) | ✅ в проде | Управляющий ≠ тренер ≠ менеджер продаж; `/club` |
 | [CLUB_OPERATIONS_PLAN.md](./CLUB_OPERATIONS_PLAN.md) | план | Операции клуба в продукте |
 | [RELAY_OPERATIONS.md](./RELAY_OPERATIONS.md) | stub | Внешний «Релей» отложен |

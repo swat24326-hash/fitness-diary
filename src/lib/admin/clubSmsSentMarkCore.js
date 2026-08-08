@@ -2,7 +2,7 @@
  * Отметка «SMS уже слали» в списке клиентов админки.
  *
  * Длинные окна (как длительность корзины / каденс):
- * - Истекает: 3 дня
+ * - Истекает: MEMBERSHIP_EXPIRING_WITHIN_DAYS (сейчас 5)
  * - Закончился (0–13 дн.): 14 дней
  * - Давно не был (фильтр 14–60 дн.): отметка 14 дней (повторное касание, не «навсегда»)
  *
@@ -11,7 +11,7 @@
  * либо любая SMS за сегодня.
  */
 
-import { membershipSignal } from '../clientListSignals.js'
+import { membershipSignal, MEMBERSHIP_EXPIRING_WITHIN_DAYS } from '../clientListSignals.js'
 import {
   isBirthdayToday,
   isClientStaleForAttention,
@@ -21,7 +21,7 @@ import {
 
 /** @type {Record<string, number>} */
 export const CLUB_SMS_MARK_WINDOW_DAYS = {
-  expiring: 3,
+  expiring: MEMBERSHIP_EXPIRING_WITHIN_DAYS,
   expired_recent: STALE_TRAINING_DAYS,
   stale: STALE_TRAINING_DAYS,
 }

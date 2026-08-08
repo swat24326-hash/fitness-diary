@@ -1,4 +1,5 @@
 import { buildAdminClubQueryHref } from './adminClientQuickFilters.js'
+import { MEMBERSHIP_EXPIRING_WITHIN_DAYS } from '../clientListSignals.js'
 
 /** Секции сводки дня — как блоки фильтров в Клиентах. */
 export const ADMIN_DAY_SUMMARY_GROUPS = [
@@ -80,7 +81,7 @@ export function buildAdminDaySummaryCards(opts = {}) {
       key: 'expiring',
       count: summary.expiring,
       label: 'Истекает',
-      hint: '≤ 3 дня',
+      hint: `≤ ${MEMBERSHIP_EXPIRING_WITHIN_DAYS} дней`,
       icon: 'clock',
       to: clients('expiring'),
       hot: summary.expiring > 0,
@@ -92,7 +93,7 @@ export function buildAdminDaySummaryCards(opts = {}) {
       key: 'expired_recent',
       count: Number(summary.expired_recent) || 0,
       label: 'Закончился',
-      hint: '0–13 дней после конца',
+      hint: '0–13 дн. или лимит 0',
       icon: 'alert',
       to: clients('expired_recent'),
       hot: (Number(summary.expired_recent) || 0) > 0,

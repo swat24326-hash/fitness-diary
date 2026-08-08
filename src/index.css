@@ -3389,13 +3389,19 @@ tr:last-child td {
 }
 
 .trainer-attention__grid--path {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 @media (max-width: 560px) {
   .trainer-attention__grid--base,
   .trainer-attention__grid--path {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 561px) {
+  .trainer-attention__grid--path {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -3625,7 +3631,7 @@ tr:last-child td {
   }
 
   .trainer-home .trainer-attention__grid--path {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 8px;
   }
 
@@ -3736,7 +3742,7 @@ tr:last-child td {
   }
 
   .trainer-home .trainer-attention__grid--path {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .trainer-home .trainer-pnk-glance {
@@ -3750,7 +3756,7 @@ tr:last-child td {
   }
 
   .trainer-home .trainer-attention__grid--path {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .trainer-home .trainer-pnk-glance {

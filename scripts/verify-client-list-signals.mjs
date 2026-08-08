@@ -4,6 +4,7 @@
 import {
   membershipSignal,
   membershipSignalDotClass,
+  MEMBERSHIP_EXPIRING_WITHIN_DAYS,
 } from '../src/lib/clientListSignals.js'
 
 let failed = 0
@@ -28,7 +29,20 @@ const expiring = membershipSignal(
   [{ start_date: '2026-01-01', end_date: '2026-07-30', total_trainings: 10, used_trainings: 2 }],
   today,
 )
-ok(expiring.key === 'expiring', 'expiring ≤3d')
+ok(expiring.key === 'expiring', `expiring ≤${MEMBERSHIP_EXPIRING_WITHIN_DAYS}d (2d left)`)
+
+const expiringDay5 = membershipSignal(
+  [{ start_date: '2026-01-01', end_date: '2026-08-02', total_trainings: 10, used_trainings: 2 }],
+  today,
+)
+ok(expiringDay5.key === 'expiring', 'expiring at exactly 5d left')
+
+const stillActiveDay6 = membershipSignal(
+  [{ start_date: '2026-01-01', end_date: '2026-08-03', total_trainings: 10, used_trainings: 2 }],
+  today,
+)
+ok(stillActiveDay6.key === 'active', 'active when 6d left')
+ok(MEMBERSHIP_EXPIRING_WITHIN_DAYS === 5, 'expiring window constant is 5')
 
 const awaiting = membershipSignal(
   [

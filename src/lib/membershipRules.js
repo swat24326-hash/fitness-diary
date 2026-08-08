@@ -15,6 +15,44 @@ export function membershipHasRemaining(m) {
   return Number.isFinite(total) && total > 0 && Number.isFinite(used) && used < total
 }
 
+/**
+ * Пакет с лимитом тренировок: срок ещё кроет дату, но остаток 0.
+ * Не путать с ТЗ/календарём (`total_trainings = 0` — без лимита занятий).
+ * Такие клиенты — горячие для продления, не «холодный» хвост «Не активные» alone.
+ *
+ * @param {object[]|null|undefined} memberships
+ * @param {string} dateIso
+ */
+export function isMembershipDepletedInPeriod(memberships, dateIso) {
+  const d = String(dateIso ?? '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return false
+  for (const m of memberships ?? []) {
+    const total = Number(m?.total_trainings ?? 0)
+    if (!(Number.isFinite(total) && total > 0)) continue
+    if (!membershipCoversDate(m, d)) continue
+    if (!membershipHasRemaining(m)) return true
+  }
+  return false
+}
+
+/**
+ * Абон с исчерпанным лимитом, покрывающий дату (для подписей / Max).
+ * @param {object[]|null|undefined} memberships
+ * @param {string} dateIso
+ */
+export function pickDepletedMembershipInPeriod(memberships, dateIso) {
+  const d = String(dateIso ?? '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return null
+  const candidates = (memberships ?? []).filter((m) => {
+    const total = Number(m?.total_trainings ?? 0)
+    if (!(Number.isFinite(total) && total > 0)) return false
+    if (!membershipCoversDate(m, d)) return false
+    return !membershipHasRemaining(m)
+  })
+  if (!candidates.length) return null
+  return candidates.sort((a, b) => String(b.end_date ?? '').localeCompare(String(a.end_date ?? '')))[0]
+}
+
 /** “Действующий” абонемент на дату: внутри периода и есть остаток тренировок. Поле status не используем. */
 export function membershipIsUsableOn(m, dateIso) {
   return membershipCoversDate(m, dateIso) && membershipHasRemaining(m)

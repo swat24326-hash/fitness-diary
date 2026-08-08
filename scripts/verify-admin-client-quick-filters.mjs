@@ -269,6 +269,19 @@ ok(
   }),
   'az depleted sessions → inactive even if dates cover',
 )
+ok(
+  clientMatchesAdminFunnelFilter('expired_recent', {
+    client: { id: 'az2' },
+    memList: azDepletedInPeriod,
+    today: deskToday,
+    hallMode: 'az',
+  }),
+  'az depleted sessions → also expired_recent (hot renew)',
+)
+ok(
+  isMembershipExpiredRecently(azDepletedInPeriod, deskToday),
+  'isMembershipExpiredRecently includes depleted-in-period',
+)
 
 if (failed) process.exit(1)
 console.log('verify-admin-client-quick-filters: all passed')

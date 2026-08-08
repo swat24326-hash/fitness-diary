@@ -1,4 +1,5 @@
 import { STALE_MAX_DAYS, STALE_TRAINING_DAYS } from './trainerClientOutreachCore.js'
+import { MEMBERSHIP_EXPIRING_WITHIN_DAYS } from '../clientListSignals.js'
 
 /** Секции «Сегодня внимание» — как блоки фильтров у админа. */
 export const TRAINER_ATTENTION_GROUPS = [
@@ -10,7 +11,7 @@ export const TRAINER_ATTENTION_GROUPS = [
   {
     id: 'path',
     title: 'По абонементу',
-    keys: ['expiring', 'expired_recent', 'stale'],
+    keys: ['expiring', 'expired_recent', 'stale', 'inactive'],
   },
 ]
 
@@ -21,6 +22,7 @@ export const TRAINER_ATTENTION_GROUPS = [
  *   expiring?: number,
  *   expired_recent?: number,
  *   stale?: number,
+ *   inactive?: number,
  *   pnk?: number,
  *   staleDays?: number,
  *   staleMaxDays?: number,
@@ -52,14 +54,14 @@ export function buildTrainerAttentionItems(summary) {
       key: 'expiring',
       count: Number(summary.expiring) || 0,
       label: 'Истекает',
-      hint: '1–3 дня',
+      hint: `1–${MEMBERSHIP_EXPIRING_WITHIN_DAYS} дней`,
       to: '/trainer/clients?filter=expiring',
     },
     expired_recent: {
       key: 'expired_recent',
       count: Number(summary.expired_recent) || 0,
       label: 'Закончился',
-      hint: `< ${staleDays} дн. после конца`,
+      hint: `< ${staleDays} дн. / лимит 0`,
       to: '/trainer/clients?filter=expired_recent',
     },
     stale: {
@@ -68,6 +70,13 @@ export function buildTrainerAttentionItems(summary) {
       label: 'Давно не был',
       hint: `${staleDays}–${staleMaxDays} дн. после конца`,
       to: '/trainer/clients?filter=stale',
+    },
+    inactive: {
+      key: 'inactive',
+      count: Number(summary.inactive) || 0,
+      label: 'Не активные',
+      hint: 'без абона · список в клиентах',
+      to: '/trainer/clients?filter=inactive',
     },
   }
 

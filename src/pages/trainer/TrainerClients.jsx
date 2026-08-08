@@ -10,7 +10,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useTrainerOutreach } from '../../hooks/useTrainerOutreach'
 import { deleteClientAndAllData, listClubsLocal } from '../../lib/dataAccess'
 import { ClientHardDeleteConfirmModal } from '../../components/ClientHardDeleteConfirmModal.jsx'
-import { membershipSignal } from '../../lib/clientListSignals'
+import { membershipSignal, MEMBERSHIP_EXPIRING_WITHIN_DAYS } from '../../lib/clientListSignals'
 import { CLIENT_LIST_PAGE_SIZE } from '../../lib/clientListPagination'
 import { todayLocalIso } from '../../lib/dateRu'
 import { listMembershipTypesForClub } from '../../lib/membershipTypesService'
@@ -36,6 +36,7 @@ import {
 import {
   buildLastCompletedTrainingDateByClientId,
   isClientStaleForAttention,
+  isTrainerClientInactiveToday,
   normalizeTrainerClientQuickFilter,
   STALE_TRAINING_DAYS,
   STALE_MAX_DAYS,
@@ -196,6 +197,7 @@ export function TrainerClients() {
           staleMaxDays: STALE_MAX_DAYS,
         })
       }
+      if (filterId === 'inactive') return isTrainerClientInactiveToday(c, memList, today)
       return false
     },
     [memByClient, today],
@@ -244,15 +246,17 @@ export function TrainerClients() {
     let expired_recent = 0
     let birthdays = 0
     let stale = 0
+    let inactive = 0
     let pnk = 0
     for (const c of base) {
       if (clientMatchesFilter(c, 'expiring')) expiring++
       if (clientMatchesFilter(c, 'expired_recent')) expired_recent++
       if (clientMatchesFilter(c, 'birthdays')) birthdays++
       if (clientMatchesFilter(c, 'stale')) stale++
+      if (clientMatchesFilter(c, 'inactive')) inactive++
       if (clientMatchesFilter(c, 'pnk')) pnk++
     }
-    return { all, expiring, expired_recent, birthdays, stale, pnk }
+    return { all, expiring, expired_recent, birthdays, stale, inactive, pnk }
   }, [clients, archivedClients, clientsTab, clientMatchesFilter])
 
   useEffect(() => {
@@ -426,12 +430,17 @@ export function TrainerClients() {
 
   const emptyFilterMessage = () => {
     if (quickFilter === 'birthdays') return 'Сегодня дней рождения нет (укажите дату в карточке клиента).'
-    if (quickFilter === 'expiring') return 'Нет абонементов, которые заканчиваются через 1–3 дня.'
+    if (quickFilter === 'expiring') {
+      return `Нет абонементов, которые заканчиваются через 1–${MEMBERSHIP_EXPIRING_WITHIN_DAYS} дней.`
+    }
     if (quickFilter === 'expired_recent') {
-      return `Нет абонементов, закончившихся за последние ${STALE_TRAINING_DAYS - 1} дней.`
+      return `Нет клиентов с недавно закончившимся сроком (меньше ${STALE_TRAINING_DAYS} дн.) или с исчерпанным лимитом тренировок.`
     }
     if (quickFilter === 'stale') {
       return `Нет клиентов, у которых абонемент закончился ${STALE_TRAINING_DAYS}–${STALE_MAX_DAYS} дней назад.`
+    }
+    if (quickFilter === 'inactive') {
+      return 'Нет клиентов без действующего абонемента (и не ожидающих старт).'
     }
     if (quickFilter === 'pnk') return 'Нет клиентов в воронке ПНК.'
     return 'Нет клиентов по фильтру.'

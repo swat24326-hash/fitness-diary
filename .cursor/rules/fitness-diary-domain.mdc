@@ -11,6 +11,7 @@ alwaysApply: false
 ## Абонемент
 
 - **Действующий на дату:** `membershipCoversDate` + `membershipHasRemaining` (`used < total`). Поле `status` в Row **не** используем.
+- **«Закончился» (hot):** срок вышел 0…13 дн. **или** лимит тренировок исчерпан при ещё кроющем сроке (`isMembershipDepletedInPeriod` / `isMembershipExpiredRecently`). Пакеты без лимита занятий (`total_trainings = 0`) — только по дате.
 - **UI-счётчик** «N/M»: `countedUsedTrainingsOnMembership` / `membershipUsageLabel` — по завершённым тренировкам дневника, не только `used_trainings`.
 - **Списание при `completed`:** `pickUsableMembershipForDate`; дата — тренер **сегодня**, админ **`trainingDate`** (`TrainingPage`).
 - **Ранняя активация:** если нет usable, но есть upcoming — сдвиг дат той же длины через подтверждение (`proposeEarlyMembershipActivation` / `earlyMembershipActivateService`), затем обычный старт. Не активировать, пока старый ещё usable.

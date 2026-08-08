@@ -254,7 +254,7 @@ export async function handleClubSmsPost(ctx, res, body) {
     if (!isOutreachScenario(scenario)) {
       sendJson(res, 400, {
         ok: false,
-        error: 'Укажите текст SMS или выберите фильтр со сценарием (например «Истекает ≤ 3 дня»)',
+        error: 'Укажите текст SMS или выберите фильтр со сценарием (например «Истекает ≤ 5 дней»)',
         code: 'need_text_or_scenario',
       })
       return

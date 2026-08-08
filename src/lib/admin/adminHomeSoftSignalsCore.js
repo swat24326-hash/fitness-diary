@@ -1,4 +1,5 @@
 import { buildAdminClubQueryHref } from './adminClientQuickFilters.js'
+import { MEMBERSHIP_EXPIRING_WITHIN_DAYS } from '../clientListSignals.js'
 
 /**
  * Мягкие сигналы для пустых слотов ряда «внимание» (когда нет ПНК / планёрки).
@@ -87,7 +88,7 @@ export function buildAdminHomeSoftSignals(opts = {}) {
     out.push({
       id: 'expired_recent',
       title: expiredRecent === 1 ? 'Абонемент закончился' : `${expiredRecent} закончились`,
-      subtitle: '0–13 дней · продлить',
+      subtitle: '0–13 дн. / лимит 0 · продлить',
       href: clients('expired_recent'),
       tone: 'warn',
     })
@@ -109,7 +110,7 @@ export function buildAdminHomeSoftSignals(opts = {}) {
     out.push({
       id: 'expiring',
       title: expiring === 1 ? 'Истекает абонемент' : `${expiring} истекают`,
-      subtitle: '≤ 3 дня',
+      subtitle: `≤ ${MEMBERSHIP_EXPIRING_WITHIN_DAYS} дней`,
       href: hrefExpiring,
       tone: 'warn',
     })

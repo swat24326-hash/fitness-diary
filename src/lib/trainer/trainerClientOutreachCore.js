@@ -1,6 +1,6 @@
 import { daysUntilNextBirthday } from '../clientBirthdays.js'
 import { membershipSignal } from '../clientListSignals.js'
-import { hasUpcomingMembership, pickUsableMembershipForDate } from '../membershipRules.js'
+import { hasUpcomingMembership, pickUsableMembershipForDate, isMembershipDepletedInPeriod, pickDepletedMembershipInPeriod } from '../membershipRules.js'
 import { todayLocalIso } from '../dateRu.js'
 
 /** @param {number} n */
@@ -39,6 +39,22 @@ export const STALE_TRAINING_DAYS = 14
  * После этого дня клиент остаётся только в «Не активные» (учёт), не в очереди холодного возврата.
  */
 export const STALE_MAX_DAYS = 60
+
+/**
+ * «Не активные» на сегодня (учёт): нет usable-абона и не ждёт старт.
+ * Не ПНК и не архив. Список — в Клиентах (`?filter=inactive`), не outreach Max.
+ * @param {{ lifecycle?: string | null, archived_at?: string | null } | null | undefined} client
+ * @param {object[]} memList
+ * @param {string} [todayIso]
+ */
+export function isTrainerClientInactiveToday(client, memList, todayIso = todayLocalIso()) {
+  if (client?.archived_at) return false
+  if (String(client?.lifecycle ?? '') === 'pnk') return false
+  const today = String(todayIso ?? '').slice(0, 10)
+  if (pickUsableMembershipForDate(memList ?? [], today)) return false
+  if (hasUpcomingMembership(memList ?? [], today)) return false
+  return true
+}
 
 export const OUTREACH_SCENARIO_LABELS = {
   birthdays: 'День рождения',
@@ -161,8 +177,11 @@ export function membershipDaysSinceLatestEnd(list, todayIso) {
 }
 
 /**
- * Абонемент закончился недавно: 0 … (staleDays − 1) дней назад, без активного абонемента.
- * На 14-й день клиент переходит в «давно не был».
+ * «Закончился» — горячее продление:
+ * - срок абона вышел 0 … (staleDays − 1) дней назад, или
+ * - лимит тренировок исчерпан, а календарный срок ещё идёт (пакет с total > 0).
+ * На 14-й день после конца даты клиент переходит в «давно не был».
+ * ТЗ/календарь без лимита занятий (`total_trainings = 0`) сюда по лимиту не попадает.
  *
  * @param {object[]} list
  * @param {string} todayIso
@@ -174,6 +193,8 @@ export function isMembershipExpiredRecently(list, todayIso, staleDays = STALE_TR
   if (pickUsableMembershipForDate(list ?? [], today)) return false
   // Уже куплен следующий абонемент — не «закончился» для возврата/продажи.
   if (hasUpcomingMembership(list ?? [], today)) return false
+  // Горячий: тренировки кончились, срок ещё действует.
+  if (isMembershipDepletedInPeriod(list, today)) return true
   const days = membershipDaysSinceLatestEnd(list, today)
   if (days == null) return false
   return days >= 0 && days < threshold
@@ -186,6 +207,8 @@ export function isMembershipExpiredRecently(list, todayIso, staleDays = STALE_TR
  */
 export function pickRecentlyExpiredMembership(list, todayIso, staleDays = STALE_TRAINING_DAYS) {
   if (!isMembershipExpiredRecently(list, todayIso, staleDays)) return null
+  const depleted = pickDepletedMembershipInPeriod(list, todayIso)
+  if (depleted) return depleted
   return pickLatestEndedMembership(list, todayIso)
 }
 

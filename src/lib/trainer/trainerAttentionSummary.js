@@ -17,9 +17,17 @@ export {
   STALE_MAX_DAYS,
   daysSinceIsoDate,
   isClientStaleForAttention,
+  isTrainerClientInactiveToday,
 } from './trainerClientOutreachCore.js'
 
-export const TRAINER_CLIENT_QUICK_FILTERS = ['expiring', 'expired_recent', 'birthdays', 'stale', 'pnk']
+export const TRAINER_CLIENT_QUICK_FILTERS = [
+  'expiring',
+  'expired_recent',
+  'birthdays',
+  'stale',
+  'inactive',
+  'pnk',
+]
 
 /** @param {string} filter */
 export function normalizeTrainerClientQuickFilter(filter) {

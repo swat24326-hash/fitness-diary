@@ -5,6 +5,12 @@ import {
 } from './membershipRules.js'
 import { formatDateRu } from './dateRu.js'
 
+/**
+ * Окно «Истекает»: осталось дней до конца абона (включительно, 0 = сегодня).
+ * Один источник для списков тренера/админа, ТЗ-календаря и SMS-отметок.
+ */
+export const MEMBERSHIP_EXPIRING_WITHIN_DAYS = 5
+
 /** Цвета точки в списках (админ / дашборд тренера — inline). */
 export const MEMBERSHIP_SIGNAL_COLORS = {
   active: '#22c55e',
@@ -121,7 +127,7 @@ export function membershipSignal(list, today) {
   const end = new Date(active.end_date)
   const d0 = new Date(today)
   const days = Math.ceil((end - d0) / 86400000)
-  if (days <= 3) {
+  if (days <= MEMBERSHIP_EXPIRING_WITHIN_DAYS) {
     return {
       key: 'expiring',
       label: `≤${days}д`,

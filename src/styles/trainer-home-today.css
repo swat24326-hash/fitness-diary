@@ -70,7 +70,7 @@
 }
 
 .trainer-today-strip__cluster--path {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .trainer-today-strip__clients-loading {
@@ -164,16 +164,16 @@ a.trainer-today-tile:hover {
 }
 
 @media (max-width: 560px) {
-  /* Телефон: 3 плитки абонов — 2+1, без сжатия подписей в одну узкую строку */
+  /* Телефон: 4 плитки абонов — 2×2 */
   .trainer-today-strip__cluster--path {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-/* Планшет и шире: 3 плитки абонов всегда в ряд (этаж «По абонементу») */
+/* Планшет и шире: 4 плитки «По абонементу» в ряд */
 @media (min-width: 561px) {
   .trainer-today-strip__cluster--path {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 

@@ -6,7 +6,7 @@
 
 import { membershipCoversDate, membershipPeriodDayCount, pickUsableMembershipForDate } from '../membershipRules.js'
 import { addMonthsToIso, formatDateRu, parseFlexibleDateToIso, todayLocalIso } from '../dateRu.js'
-import { MEMBERSHIP_SIGNAL_COLORS, membershipSignal } from '../clientListSignals.js'
+import { MEMBERSHIP_SIGNAL_COLORS, MEMBERSHIP_EXPIRING_WITHIN_DAYS, membershipSignal } from '../clientListSignals.js'
 import { normalizeDeskHall } from './deskHallClientsCore.js'
 
 /** Варианты пакета для ТЗ/АЗ (как в прайсе: месяц, два…). */
@@ -164,7 +164,7 @@ export function deskMembershipSignal(memberships, todayIso = todayLocalIso()) {
     const endD = new Date(`${end}T12:00:00`)
     const d0 = new Date(`${today}T12:00:00`)
     const daysLeft = Number.isFinite(endD - d0) ? Math.ceil((endD - d0) / 86400000) : null
-    if (daysLeft != null && daysLeft <= 3) {
+    if (daysLeft != null && daysLeft <= MEMBERSHIP_EXPIRING_WITHIN_DAYS) {
       return {
         key: 'expiring',
         label: `≤${Math.max(0, daysLeft)}д · ${pkg}`,

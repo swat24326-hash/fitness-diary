@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { AlertTriangle, Cake, CalendarClock, Clock, Gauge, Ticket, UserPlus } from 'lucide-react'
+import { AlertTriangle, Cake, CalendarClock, Clock, Gauge, Ticket, UserPlus, UserX } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useAwaitingSaleClips } from '../../hooks/useAwaitingSaleClips.js'
 import {
@@ -15,6 +15,7 @@ const ICONS = {
   expiring: Clock,
   expired_recent: AlertTriangle,
   stale: CalendarClock,
+  inactive: UserX,
 }
 
 function AttentionTile({ card }) {

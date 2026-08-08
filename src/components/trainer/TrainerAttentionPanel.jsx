@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { AlertTriangle, Cake, CalendarClock, Clock, UserPlus } from 'lucide-react'
+import { AlertTriangle, Cake, CalendarClock, Clock, UserPlus, UserX } from 'lucide-react'
 import {
   buildTrainerAttentionItems,
   groupTrainerAttentionItems,
@@ -11,6 +11,7 @@ const ICONS = {
   expiring: Clock,
   expired_recent: AlertTriangle,
   stale: CalendarClock,
+  inactive: UserX,
 }
 
 /**
@@ -20,6 +21,7 @@ const ICONS = {
  *     expiring: number,
  *     expired_recent: number,
  *     stale: number,
+ *     inactive?: number,
  *     pnk?: number,
  *     actionable: number,
  *     staleDays: number,
