@@ -119,12 +119,15 @@ export function pickMembershipTypeTierRate(typeRow, level) {
 }
 
 /**
+ * Ставка за тренировку с надбавкой кабинета.
+ * Карта с оплатой 0 ₽ (база уровня) — ±₽ не применяем: нельзя «накрутить» или увести в минус нулевую ставку.
  * @param {number} baseRate
  * @param {number} adjustment
  * @returns {number}
  */
 export function effectiveSessionRate(baseRate, adjustment) {
   const base = Number(baseRate) || 0
+  if (base <= 0) return 0
   const adj = Number(adjustment) || 0
   const n = Math.round((base + adj) * 100) / 100
   return n < 0 ? 0 : n

@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Wallet } from 'lucide-react'
 import {
   defaultTrainerPayProfile,
+  effectiveSessionRate,
   normalizeTrainerPayProfile,
   validateTrainerPayProfileForSave,
 } from '../../lib/admin/trainerPayProfileCore.js'
@@ -88,7 +89,7 @@ export function AdminTrainerPayOfficeModal({ trainer, clubId, open, onClose, onS
 
   const exampleBase = 500
   const adjNum = draftCheck.ok ? draftCheck.profile.rate_adjustment_rub : Number(adjDraft) || 0
-  const exampleEff = Math.max(0, Math.round((exampleBase + adjNum) * 100) / 100)
+  const exampleEff = effectiveSessionRate(exampleBase, adjNum)
 
   return (
     <div
@@ -105,7 +106,8 @@ export function AdminTrainerPayOfficeModal({ trainer, clubId, open, onClose, onS
         </h2>
         <p className="muted" style={{ margin: '0 0 12px', lineHeight: 1.45 }}>
           <strong>{trainer?.name ?? 'Тренер'}</strong>. План — уровни по числу тренировок месяца (пороги в «План
-          ЗП»). Без плана — всегда уровень 3. Надбавка/минус — к ставке <em>каждой</em> тренировки.
+          ЗП»). Без плана — всегда уровень 3. Надбавка/минус — к ставке <em>каждой</em> тренировки, но не к
+          картам с оплатой 0 ₽ (там ставка остаётся 0).
         </p>
 
         {migrationNeeded ? (
@@ -155,7 +157,8 @@ export function AdminTrainerPayOfficeModal({ trainer, clubId, open, onClose, onS
             />
             <p className="muted admin-trainer-pay-office__hint">
               Пример: VIP {exampleBase} ₽ {adjNum >= 0 ? '+' : ''}
-              {adjNum} → <strong>{exampleEff} ₽</strong> за тренировку (не ниже 0).
+              {adjNum} → <strong>{exampleEff} ₽</strong> за тренировку (не ниже 0). Тип карты с ставкой 0 ₽ —
+              без ±, всегда 0.
             </p>
           </div>
 

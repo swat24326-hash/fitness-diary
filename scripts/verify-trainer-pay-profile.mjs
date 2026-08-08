@@ -79,6 +79,8 @@ ok(effectiveSessionRate(500, 100) === 600, 'VIP +100')
 ok(effectiveSessionRate(500, -200) === 300, 'VIP -200')
 ok(effectiveSessionRate(100, -200) === 0, 'floor at 0')
 ok(effectiveSessionRate(500, 0) === 500, 'zero adj')
+ok(effectiveSessionRate(0, 100) === 0, 'zero-pay card ignores +adj')
+ok(effectiveSessionRate(0, -50) === 0, 'zero-pay card ignores -adj')
 
 ok(parseRateAdjustmentRub('-50') === -50, 'adj ascii minus')
 ok(parseRateAdjustmentRub('−50') === -50, 'adj unicode minus')
@@ -217,6 +219,29 @@ ok(filtered.clubTotal === 35000 && filtered.byTrainer.size === 1, 'trainerIdFilt
 // Пустая матрица
 const empty = computePayrollFromMatrixRows([], null, { membershipTypes: types, planConfig: plan })
 ok(empty.clubTotal === 0 && empty.byTrainer.size === 0, 'empty matrix')
+
+// Карта с оплатой 0 + adj не даёт денег
+const free = {
+  id: 'free',
+  trainer_pay_l1: 0,
+  trainer_pay_l2: 0,
+  trainer_pay_l3: 0,
+  trainer_pay_per_session: 0,
+}
+const zeroCard = computePayrollFromMatrixRows(
+  [
+    { trainer_id: 'tr9', membership_type_id: 'free', count: 10 },
+    { trainer_id: 'tr9', membership_type_id: 'vip', count: 2 },
+  ],
+  null,
+  {
+    membershipTypes: [...types, free],
+    planConfig: plan,
+    profilesByTrainerId: { tr9: { on_plan: false, rate_adjustment_rub: 100 } },
+  },
+)
+// free: 0×10; VIP L3 500+100=600×2 = 1200
+ok(zeroCard.clubTotal === 1200, 'zero-pay type not boosted by adj')
 
 // Без плана при огромном объёме + надбавка на двух типах
 const offPlan = aggregatePayrollFromDailyRows(
