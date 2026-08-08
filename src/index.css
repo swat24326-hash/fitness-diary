@@ -4519,6 +4519,25 @@ tr:last-child td {
   font-size: 0.82rem;
 }
 
+/* CQ: полный glance в ряду внимания — в сводке только тихая цифра */
+.admin-day-summary__card--cq-echo {
+  opacity: 0.82;
+  border-color: color-mix(in srgb, var(--border) 85%, transparent);
+  box-shadow: none;
+}
+
+.admin-day-summary__card--cq-echo:hover {
+  opacity: 1;
+}
+
+.admin-day-summary__card--compact .admin-day-summary__card-count {
+  font-size: 1.1rem;
+}
+
+.admin-day-summary__card--compact .admin-day-summary__card-hint {
+  font-size: 0.72rem;
+}
+
 .admin-day-summary__more {
   margin-top: 10px;
   display: inline-flex;

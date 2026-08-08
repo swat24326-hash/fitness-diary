@@ -404,6 +404,7 @@
   flex-direction: column;
 }
 
+/* Мобилка: пустые слоты не занимают место */
 .admin-home-attention__side.is-empty {
   display: none;
 }
@@ -806,12 +807,19 @@
 }
 
 @media (min-width: 960px) {
-  .admin-home-attention--sides-1 {
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  /* Стабильная сетка: всегда 3 колонки — план не прыгает при появлении ПНК/CQ */
+  .admin-home-attention--stable,
+  .admin-home-attention--sides-1,
+  .admin-home-attention--sides-2 {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) minmax(0, 1fr);
+    min-height: 12.5rem;
   }
 
-  .admin-home-attention--sides-2 {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+  .admin-home-attention--stable .admin-home-attention__side.is-empty {
+    display: flex;
+    min-height: 12.5rem;
+    visibility: hidden;
+    pointer-events: none;
   }
 
   .admin-home-sales-plan--compact .admin-home-sales-plan__vessel .sales-report__plan-chart {

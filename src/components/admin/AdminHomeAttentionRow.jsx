@@ -13,6 +13,7 @@ import '../../styles/admin-path.css'
 /**
  * Верхний ряд главной: план + ПНК / планёрка / мягкие сигналы.
  * Presence из session — слоты не прыгают с false→true после первого fetch.
+ * Сетка на широком экране всегда 3 колонки (пустые слоты резервируют высоту).
  *
  * @param {{
  *   clubId: string,
@@ -58,7 +59,8 @@ export function AdminHomeAttentionRow({
   const primarySides = (hasPnk ? 1 : 0) + (hasPlanerka ? 1 : 0)
   const softCount = (softForPnk ? 1 : 0) + (softForPlanerka ? 1 : 0)
   const sideCount = primarySides + softCount
-  const compact = sideCount > 0
+  // План всегда compact на главной — иначе при появлении ПНК/CQ прыгает высота.
+  const compact = true
 
   useEffect(() => {
     onWidgetsPresence?.({ hasPnk, hasPlanerka, sideCount })
@@ -69,9 +71,13 @@ export function AdminHomeAttentionRow({
   const pnkSlotFilled = hasPnk || Boolean(softForPnk)
   const planerkaSlotFilled = hasPlanerka || Boolean(softForPlanerka)
 
+  /** CQ в ряду — полный glance (шкала), даже если соседние слоты заполнены. */
+  const softPnkCompact = softForPnk?.id === 'coach-quality' ? false : compact
+  const softPlanerkaCompact = softForPlanerka?.id === 'coach-quality' ? false : compact
+
   return (
     <section
-      className={`admin-home-attention admin-home-attention--sides-${sideCount}`}
+      className={`admin-home-attention admin-home-attention--stable admin-home-attention--sides-${sideCount}`}
       aria-label="План, ПНК и планёрка"
     >
       <div className="admin-home-attention__plan">
@@ -84,6 +90,7 @@ export function AdminHomeAttentionRow({
 
       <div
         className={`admin-home-attention__side admin-home-attention__side--pnk${pnkSlotFilled ? '' : ' is-empty'}`}
+        aria-hidden={pnkSlotFilled ? undefined : true}
       >
         <ManagerPnkHomeGlance
           clubId={cid}
@@ -104,13 +111,14 @@ export function AdminHomeAttentionRow({
             reviewCount={softForPnk.reviewCount}
             attentionCount={softForPnk.attentionCount}
             droppedCount={softForPnk.droppedCount}
-            compact={compact}
+            compact={softPnkCompact}
           />
         ) : null}
       </div>
 
       <div
         className={`admin-home-attention__side admin-home-attention__side--planerka${planerkaSlotFilled ? '' : ' is-empty'}`}
+        aria-hidden={planerkaSlotFilled ? undefined : true}
       >
         <AdminPlanerkaHomeGlance
           clubId={cid}
@@ -131,7 +139,7 @@ export function AdminHomeAttentionRow({
             reviewCount={softForPlanerka.reviewCount}
             attentionCount={softForPlanerka.attentionCount}
             droppedCount={softForPlanerka.droppedCount}
-            compact={compact}
+            compact={softPlanerkaCompact}
           />
         ) : null}
       </div>

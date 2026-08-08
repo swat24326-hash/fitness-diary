@@ -26,6 +26,7 @@ export const ADMIN_DAY_SUMMARY_GROUPS = [
  *   clubId?: string,
  *   coachQuality?: { scorePct?: number | null, chipLabel?: string | null, hot?: boolean } | null,
  *   coachQualityLoading?: boolean,
+ *   coachQualityHeroInAttention?: boolean,
  * }} opts
  */
 export function buildAdminDaySummaryCards(opts = {}) {
@@ -34,6 +35,7 @@ export function buildAdminDaySummaryCards(opts = {}) {
   const clubId = String(opts.clubId ?? '').trim()
   const cq = opts.coachQuality ?? null
   const cqLoading = opts.coachQualityLoading === true
+  const cqHeroAbove = opts.coachQualityHeroInAttention === true && (cq != null || cqLoading)
   const clients = (filter) => buildAdminClubQueryHref('/admin/clients', { clubId, filter })
 
   /** @type {Record<string, object>} */
@@ -66,17 +68,21 @@ export function buildAdminDaySummaryCards(opts = {}) {
       key: 'coachQuality',
       count: cqLoading && !cq ? '…' : cq?.scorePct != null ? cq.scorePct : '—',
       label: 'Качество ведения',
-      hint: cq?.chipLabel || 'за месяц · таблица в статистике',
+      hint: cqHeroAbove
+        ? 'цифра · детали в ряду выше'
+        : cq?.chipLabel || 'за месяц · таблица в статистике',
       icon: 'gauge',
       to: buildAdminClubQueryHref('/admin/statistics', {
         clubId,
         period: 'month',
         panel: 'coachQuality',
       }),
-      hot: Boolean(cq?.hot),
+      // Герой CQ уже в ряду внимания — в сводке не дублируем «горячесть» шкалы.
+      hot: cqHeroAbove ? false : Boolean(cq?.hot),
       warn: false,
       textCount: cq?.scorePct == null,
       valueSuffix: cq?.scorePct != null ? '/100' : null,
+      compact: cqHeroAbove,
     },
     expiring: {
       key: 'expiring',

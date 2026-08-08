@@ -219,6 +219,7 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
             noClub={!clubId}
             coachQuality={coachQualityHome}
             coachQualityLoading={coachQualityHomeLoading}
+            coachQualityHeroInAttention={Boolean(coachQualityHome) || coachQualityHomeLoading}
           />
 
           <h2 className="admin-home__tiles-heading" id="admin-home-sections">

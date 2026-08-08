@@ -141,6 +141,51 @@ ok(
   expiredCard?.to === '/admin/clients?club=club-1&filter=expired_recent',
   'expired_recent card → clients',
 )
+
+const cqHeroCards = buildAdminDaySummaryCards({
+  clubId: 'club-1',
+  summary: {
+    today: '2026-07-20',
+    yesterday: '2026-07-19',
+    inactive: 0,
+    expiring: 0,
+    expired_recent: 0,
+    stale: 0,
+    birthdays: 0,
+    awaiting_start: 0,
+    trainingsToday: 1,
+    trainingsYesterday: 0,
+    salesReportFilled: true,
+  },
+  coachQuality: { scorePct: 72, hot: true, chipLabel: 'на разбор' },
+  coachQualityHeroInAttention: true,
+})
+const cqEcho = cqHeroCards.find((c) => c.key === 'coachQuality')
+ok(cqEcho?.compact === true, 'CQ in day summary compact when hero above')
+ok(cqEcho?.hot === false, 'CQ echo card not hot (hero owns urgency)')
+ok(/ряду выше/i.test(cqEcho?.hint || ''), 'CQ echo hint points to attention row')
+
+const cqSolo = buildAdminDaySummaryCards({
+  clubId: 'club-1',
+  summary: {
+    today: '2026-07-20',
+    yesterday: '2026-07-19',
+    inactive: 0,
+    expiring: 0,
+    expired_recent: 0,
+    stale: 0,
+    birthdays: 0,
+    awaiting_start: 0,
+    trainingsToday: 0,
+    trainingsYesterday: 0,
+    salesReportFilled: true,
+  },
+  coachQuality: { scorePct: 72, hot: true, chipLabel: 'на разбор' },
+  coachQualityHeroInAttention: false,
+})
+const cqFull = cqSolo.find((c) => c.key === 'coachQuality')
+ok(cqFull?.compact !== true, 'CQ full card when no hero above')
+ok(cqFull?.hot === true, 'CQ full card keeps hot')
 const groups = groupAdminDaySummaryCards(cards)
 ok(groups.length === 2, 'two day-summary groups')
 ok(groups[0]?.id === 'base' && groups[0].cards.length === 3, 'base: DR + trainings + CQ')

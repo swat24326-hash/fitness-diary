@@ -7,6 +7,7 @@
 **Марка:** [`src/components/brand/OsMark.jsx`](../src/components/brand/OsMark.jsx)  
 **Токены:** [`src/styles/tokens.css`](../src/styles/tokens.css)  
 **Правило UI:** [`.cursor/rules/fitness-diary-ui.mdc`](../.cursor/rules/fitness-diary-ui.mdc)  
+(полировка только через токены Ядра; внешние generic design-skills **не** используем — риск чужой палитры и регресса планшета.)
 **ИСКРА:** [ISKRA_NORTH_STAR.md](./ISKRA_NORTH_STAR.md)  
 **Продуктовая цель:** [PRODUCT_VISION.md](./PRODUCT_VISION.md)
 

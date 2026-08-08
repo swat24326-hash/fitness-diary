@@ -36,16 +36,16 @@ const ICONS = {
  * }} props
  */
 function DaySummaryCard({ card }) {
-  const { count, label, hint, icon, to, hot, warn, textCount, valueSuffix } = card
+  const { count, label, hint, icon, to, hot, warn, textCount, valueSuffix, compact } = card
   const Icon = ICONS[icon] || BarChart3
   return (
     <li>
       <Link
         to={to}
-        className={`admin-day-summary__card u-no-decoration${hot ? ' admin-day-summary__card--hot' : ''}${warn ? ' admin-day-summary__card--warn' : ''}`}
+        className={`admin-day-summary__card u-no-decoration${hot ? ' admin-day-summary__card--hot' : ''}${warn ? ' admin-day-summary__card--warn' : ''}${compact ? ' admin-day-summary__card--compact' : ''}${card.key === 'coachQuality' && compact ? ' admin-day-summary__card--cq-echo' : ''}`}
       >
         <span className="admin-day-summary__card-icon" aria-hidden>
-          <Icon size={16} />
+          <Icon size={compact ? 14 : 16} />
         </span>
         <span className={`admin-day-summary__card-count${textCount ? ' admin-day-summary__card-count--text' : ''}`}>
           {count}
@@ -66,6 +66,7 @@ function DaySummaryCard({ card }) {
  *   noClub?: boolean,
  *   coachQuality?: object | null,
  *   coachQualityLoading?: boolean,
+ *   coachQualityHeroInAttention?: boolean,
  * }} props
  */
 export function AdminClubDaySummaryPanel({
@@ -75,6 +76,7 @@ export function AdminClubDaySummaryPanel({
   noClub = false,
   coachQuality = null,
   coachQualityLoading = false,
+  coachQualityHeroInAttention = false,
 }) {
   const cards = useMemo(
     () =>
@@ -84,9 +86,10 @@ export function AdminClubDaySummaryPanel({
             clubId,
             coachQuality,
             coachQualityLoading,
+            coachQualityHeroInAttention,
           })
         : [],
-    [summary, clubId, coachQuality, coachQualityLoading],
+    [summary, clubId, coachQuality, coachQualityLoading, coachQualityHeroInAttention],
   )
 
   const groups = useMemo(() => groupAdminDaySummaryCards(cards), [cards])
