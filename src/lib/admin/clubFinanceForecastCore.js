@@ -27,8 +27,25 @@ import {
 } from './clubFinanceForecastProjection.js'
 import { buildGeminiMonthCalendarContext } from './geminiMonthCalendarContext.js'
 import { buildPurchaseMixForecast } from './clubFinancePurchaseMixForecastCore.js'
+import {
+  alignDirectionFactsToClubGross,
+  appendUnallocatedPlanRow,
+  buildDirectionTotals,
+  pruneEmptyExtraDirection,
+  reconcileDirectionForecastsToClubGross,
+} from './clubFinanceForecastReconcileCore.js'
 
 export { FORECAST_METHOD_UNIFORM, FORECAST_METHOD_WEEKDAY_WEEKEND, computePlanPaceNeeded, computePlanMoneyNormToDate }
+export {
+  alignDirectionFactsToClubGross,
+  appendUnallocatedPlanRow,
+  buildDirectionTotals,
+  pruneEmptyExtraDirection,
+  reconcileDirectionForecastsToClubGross,
+  sumDirectionPlanTargets,
+  sumRevenueDirectionFact,
+  sumRevenueDirectionForecast,
+} from './clubFinanceForecastReconcileCore.js'
 
 /**
  * Норма к дате в ₽ для блока прогноза (текущий месяц).
@@ -87,12 +104,17 @@ export const MIN_REPORT_DAYS_FOR_FORECAST = 3
 /** Минимум дней с возвратом > 0, чтобы экстраполировать возвраты на конец месяца. */
 export const MIN_REFUND_POSITIVE_DAYS_FOR_PACE = 2
 
-/** Направления для прогноза плана (без доп. продаж в таблице направлений). */
-export const FORECAST_DIRECTION_KEYS = ['pz', 'tz', 'az']
+/** Направления для прогноза плана: залы + доп. продажи (чтобы сумма билась с клубом). */
+export const FORECAST_DIRECTION_KEYS = ['pz', 'tz', 'az', 'extra']
 
-const FORECAST_DIRECTION_LABELS = { pz: 'ПЗ', tz: 'ТЗ', az: 'АЗ' }
+const FORECAST_DIRECTION_LABELS = { pz: 'ПЗ', tz: 'ТЗ', az: 'АЗ', extra: 'Доп. продажи' }
 
-const FORECAST_DIRECTION_PLAN_KEYS = { pz: 'plan_pz', tz: 'plan_tz', az: 'plan_az' }
+const FORECAST_DIRECTION_PLAN_KEYS = {
+  pz: 'plan_pz',
+  tz: 'plan_tz',
+  az: 'plan_az',
+  extra: 'plan_extra',
+}
 
 function roundRub(n) {
   return Math.round((Number(n) || 0) * 100) / 100
@@ -224,12 +246,17 @@ export function hasDirectionRevenueForHall(monthRows, hall) {
  */
 export function readPlanTargetsFromForm(planForm) {
   const level3 = parseSalesMoney(planForm?.plan_level_3)
+  const parseDir = (key) => {
+    const n = parseSalesMoney(planForm?.[key])
+    return Number.isNaN(n) ? 0 : roundRub(n)
+  }
   return {
     level3: Number.isNaN(level3) ? 0 : roundRub(level3),
     directions: {
-      plan_pz: Number.isNaN(parseSalesMoney(planForm?.plan_pz)) ? 0 : roundRub(parseSalesMoney(planForm?.plan_pz)),
-      plan_tz: Number.isNaN(parseSalesMoney(planForm?.plan_tz)) ? 0 : roundRub(parseSalesMoney(planForm?.plan_tz)),
-      plan_az: Number.isNaN(parseSalesMoney(planForm?.plan_az)) ? 0 : roundRub(parseSalesMoney(planForm?.plan_az)),
+      plan_pz: parseDir('plan_pz'),
+      plan_tz: parseDir('plan_tz'),
+      plan_az: parseDir('plan_az'),
+      plan_extra: parseDir('plan_extra'),
     },
   }
 }
@@ -252,7 +279,7 @@ export function describePlanForecastReach(forecastProgress, target, forecastAmou
 }
 
 /**
- * Залы (ПЗ/ТЗ/АЗ), по которым прогноз выручки не дотягивает до плана направления.
+ * Направления, по которым прогноз выручки не дотягивает до плана направления.
  * @param {Array<{ key?: string, label?: string, mode?: string, planTarget?: number, forecast?: number, forecastProgressPercent?: number, reach?: { willReach?: boolean, gapRub?: number } }>} directionRows
  */
 export function buildDirectionForecastLagSummary(directionRows) {
@@ -271,9 +298,9 @@ export function buildDirectionForecastLagSummary(directionRows) {
   let summaryRu = ''
   if (lagging.length === 1) {
     const d = lagging[0]
-    summaryRu = `По залу ${d.label}: прогноз ${formatRub(d.forecast)} при плане ${formatRub(d.planTarget)} — не хватает ${formatRub(d.gapRub)}.`
+    summaryRu = `По ${d.label}: прогноз ${formatRub(d.forecast)} при плане ${formatRub(d.planTarget)} — не хватает ${formatRub(d.gapRub)}.`
   } else if (lagging.length > 1) {
-    summaryRu = `Отставание по залам: ${lagging.map((d) => `${d.label} −${formatRub(d.gapRub)}`).join(', ')}.`
+    summaryRu = `Отставание по направлениям: ${lagging.map((d) => `${d.label} −${formatRub(d.gapRub)}`).join(', ')}.`
   }
 
   return {
@@ -281,6 +308,47 @@ export function buildDirectionForecastLagSummary(directionRows) {
     has_lag: lagging.length > 0,
     summary_ru: summaryRu,
   }
+}
+
+/**
+ * @param {string} key
+ * @param {Array<Record<string, unknown>>} monthRows
+ */
+function directionUsesRevenueMode(key, monthRows) {
+  if (key === 'tz' || key === 'extra') return true
+  return hasDirectionRevenueForHall(monthRows, key)
+}
+
+/**
+ * Согласовать строки направлений с клубным фактом/прогнозом и финалом плана.
+ * @param {Array<object>} directionRows
+ * @param {{
+ *   factGross: number,
+ *   forecastGross: number,
+ *   level3: number,
+ *   closedMonth: boolean,
+ * }} opts
+ * @returns {{ directions: Array<object>, totals: ReturnType<typeof buildDirectionTotals> }}
+ */
+function finalizeDirectionTable(directionRows, opts) {
+  const describeReach = describePlanForecastReach
+  let rows = alignDirectionFactsToClubGross(directionRows, opts.factGross, {
+    syncForecast: opts.closedMonth === true,
+    describeReach,
+  })
+  if (!opts.closedMonth) {
+    rows = reconcileDirectionForecastsToClubGross(rows, opts.forecastGross, { describeReach })
+  }
+  rows = pruneEmptyExtraDirection(rows)
+  rows = appendUnallocatedPlanRow(rows, opts.level3, describeReach)
+  const totals = buildDirectionTotals({
+    directions: rows,
+    level3: opts.level3,
+    factGross: opts.factGross,
+    forecastGross: opts.forecastGross,
+    closedMonth: opts.closedMonth,
+  })
+  return { directions: rows, totals }
 }
 
 /**
@@ -293,7 +361,7 @@ function buildDirectionFactRows(monthRows, planDirections) {
   return FORECAST_DIRECTION_KEYS.map((key) => {
     const planKey = FORECAST_DIRECTION_PLAN_KEYS[key]
     const planTarget = Number(planDirections?.[planKey]) || 0
-    const useRevenue = key === 'tz' ? true : hasDirectionRevenueForHall(monthRows, key)
+    const useRevenue = directionUsesRevenueMode(key, monthRows)
 
     if (useRevenue) {
       const factRevenue = roundRub(factRub[key] || 0)
@@ -347,7 +415,7 @@ function buildDirectionForecastRows(monthRows, year, month, planDirections) {
   return FORECAST_DIRECTION_KEYS.map((key) => {
     const planKey = FORECAST_DIRECTION_PLAN_KEYS[key]
     const planTarget = Number(planDirections?.[planKey]) || 0
-    const useRevenue = key === 'tz' ? true : hasDirectionRevenueForHall(monthRows, key)
+    const useRevenue = directionUsesRevenueMode(key, monthRows)
 
     if (useRevenue) {
       const projected = projectMonthMetric({
@@ -513,7 +581,10 @@ export function buildClubFinanceForecast(opts) {
       expense,
       netProfit: factNetProfit,
     }
-    const directionRows = buildDirectionFactRows(monthRows, planTargets.directions)
+    const { directions: directionRows, totals: directionTotals } = finalizeDirectionTable(
+      buildDirectionFactRows(monthRows, planTargets.directions),
+      { factGross, forecastGross: factGross, level3: planLevel3, closedMonth: true },
+    )
     const planReach = describePlanForecastReach(factPlanProgress, planLevel3, factGross)
     const purchaseMix = buildPurchaseMixForecast({
       monthRows,
@@ -547,6 +618,7 @@ export function buildClubFinanceForecast(opts) {
         forecastProgressPercent: factPlanProgress,
         reach: planReach,
         directions: directionRows,
+        totals: directionTotals,
         directionLag: buildDirectionForecastLagSummary(directionRows),
         pace: null,
         calendarNorm: null,
@@ -660,7 +732,7 @@ export function buildClubFinanceForecast(opts) {
   if (purchaseMix.clubBlend.trusted) {
     directionRows = directionRows.map((dir) => {
       const mixHall = purchaseMix.byHall?.[dir.key]
-      if (!mixHall || dir.mode !== 'revenue') return dir
+      if (!mixHall || dir.mode !== 'revenue' || dir.key === 'extra') return dir
       const forecastRevenue = roundRub(mixHall.forecast)
       const factRevenue = roundRub(mixHall.fact)
       return {
@@ -678,6 +750,14 @@ export function buildClubFinanceForecast(opts) {
       }
     })
   }
+  const finalized = finalizeDirectionTable(directionRows, {
+    factGross,
+    forecastGross,
+    level3: planLevel3,
+    closedMonth: false,
+  })
+  directionRows = finalized.directions
+  const directionTotals = finalized.totals
   const directionLag = buildDirectionForecastLagSummary(directionRows)
   const pace = computePlanPaceNeeded({
     planTarget: planLevel3,
@@ -723,6 +803,7 @@ export function buildClubFinanceForecast(opts) {
       forecastProgressPercent: forecastPlanProgress,
       reach: planReach,
       directions: directionRows,
+      totals: directionTotals,
       directionLag,
       pace,
       calendarNorm,
@@ -951,8 +1032,22 @@ export function buildIskraClubFinanceBlock(opts) {
         note_ru: d.noteRu ?? null,
         trainings_fact: d.trainingsFact ?? null,
         trainings_forecast: d.trainingsForecast ?? null,
+        unallocated_plan: d.unallocatedPlan === true,
       })),
       direction_lag: fc.plan.directionLag ?? { lagging: [], has_lag: false, summary_ru: '' },
+      totals: fc.plan.totals
+        ? {
+            plan_sum_rub: fc.plan.totals.planSum,
+            fact_sum_rub: fc.plan.totals.factSum,
+            forecast_sum_rub: fc.plan.totals.forecastSum,
+            club_gap_rub: fc.plan.totals.clubGapRub,
+            plan_vs_level3_rub: fc.plan.totals.planVsLevel3,
+            unallocated_rub: fc.plan.totals.unallocatedRub,
+            directions_below: fc.plan.totals.directionsBelow,
+            directions_above: fc.plan.totals.directionsAbove,
+            plan_note_ru: fc.plan.totals.planNoteRu,
+          }
+        : null,
     },
   }
 

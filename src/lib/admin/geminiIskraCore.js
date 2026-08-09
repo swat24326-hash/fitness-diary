@@ -139,7 +139,7 @@ export function buildIskraSalesFocusRule() {
   return [
     'ФОКУС: продажи и деньги клуба — план, прогноз (club_finance), чистая прибыль, ПЗ/ТЗ/АЗ, НК/ДК/УК.',
     'Про тренеров и планшеты — только по запросу или analysis_focus=trainer.',
-    'Прогноз: club_finance.forecast — вал к концу месяца, plan_pct, shortfall/surplus, net_profit_rub, directions.',
+    'Прогноз: club_finance.forecast — вал к концу месяца, plan_pct, shortfall/surplus, net_profit_rub, directions, totals (суммы строк = клуб; unallocated — неразнесённый план).',
     'На «кто ты» — чем помогаете бизнесу, не список полей JSON.',
     buildIskraAnalysisFocusRule('sales'),
   ].join('\n')

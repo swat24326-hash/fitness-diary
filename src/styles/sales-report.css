@@ -1900,6 +1900,42 @@
   color: #fecaca;
 }
 
+.sales-finance-forecast__row--unallocated th[scope='row'],
+.sales-finance-forecast__row--unallocated td {
+  color: color-mix(in srgb, var(--text-muted) 92%, transparent);
+  font-style: italic;
+}
+
+.sales-finance-forecast__row--total th,
+.sales-finance-forecast__row--total td {
+  border-bottom: none;
+  border-top: 1px solid color-mix(in srgb, var(--text-muted) 28%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated) 55%, transparent) !important;
+  font-weight: 800;
+  padding-top: 0.85rem;
+  padding-bottom: 0.85rem;
+}
+
+.sales-finance-forecast__row--total th[scope='row'] {
+  color: #f8fafc;
+  font-style: normal;
+}
+
+.sales-finance-forecast__plan-align-note {
+  margin: 0 0 0.65rem;
+  font-size: 0.86rem;
+  font-weight: 650;
+  line-height: 1.35;
+  color: #fde68a;
+}
+
+.sales-finance-forecast__table-footnote {
+  margin: 0.55rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--text-muted) 92%, transparent);
+}
+
 .sales-finance-forecast__row--no-revenue th[scope='row'] {
   color: color-mix(in srgb, var(--text-muted) 85%, transparent);
 }

@@ -5,6 +5,7 @@
 
 import {
   SALES_MATRIX_HALL_KEYS,
+  dopRubFromDailyRow,
   matrixAmountsFromDb,
   planProgressPercent,
 } from './salesReportCore.js'
@@ -238,12 +239,37 @@ export function buildPurchaseMixForecast(input) {
     )
   }
 
-  const factMixGross = roundPlanRub(cells.reduce((a, c) => a + c.factRub, 0))
+  let factDop = 0
+  for (const row of monthRows) {
+    factDop += dopRubFromDailyRow(row)
+  }
+  factDop = roundPlanRub(factDop)
+
+  let dopForecast = factDop
+  let dopPaceMethod = 'closed_month_fact'
+  if (!closedMonth) {
+    const dopProj = projectMonthMetric({
+      monthRows,
+      year,
+      month,
+      getValue: (row) => dopRubFromDailyRow(row),
+      roundFn: roundPlanRub,
+    })
+    dopForecast = dopProj.forecastTotal
+    dopPaceMethod = dopProj.method
+  }
+
+  const factMatrixGross = roundPlanRub(cells.reduce((a, c) => a + c.factRub, 0))
   const planMixGross = roundPlanRub(cells.reduce((a, c) => a + c.planRub, 0))
-  const mixForecastGross = roundPlanRub(cells.reduce((a, c) => a + c.forecastRub, 0))
+  const mixMatrixForecastGross = roundPlanRub(cells.reduce((a, c) => a + c.forecastRub, 0))
+  /** Матрица 3×3 + доп. продажи — покрытие ближе к club gross. */
+  const factMixGross = roundPlanRub(factMatrixGross + factDop)
+  const mixForecastGross = roundPlanRub(
+    (closedMonth ? factMatrixGross : mixMatrixForecastGross) + (closedMonth ? factDop : dopForecast),
+  )
 
   const clubBlend = blendClubGrossForecast({
-    mixForecastGross: closedMonth ? factMixGross : mixForecastGross,
+    mixForecastGross,
     profitPaceGross: closedMonth
       ? Number(input?.factProfitGross) || factMixGross
       : Number(input?.profitPaceGross) || mixForecastGross,
@@ -288,8 +314,15 @@ export function buildPurchaseMixForecast(input) {
     hallRows,
     categoryRows,
     factMixGross,
+    factMatrixGross,
     planMixGross,
-    mixForecastGross: closedMonth ? factMixGross : mixForecastGross,
+    mixForecastGross,
+    mixMatrixForecastGross: closedMonth ? factMatrixGross : mixMatrixForecastGross,
+    dop: {
+      fact: factDop,
+      forecast: closedMonth ? factDop : dopForecast,
+      paceMethod: dopPaceMethod,
+    },
     clubBlend,
   }
 }

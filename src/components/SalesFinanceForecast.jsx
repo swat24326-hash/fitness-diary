@@ -298,6 +298,11 @@ export function SalesFinanceForecast({
             <Target size={17} aria-hidden className="sales-finance-forecast__section-icon" />
             {closedMonth ? 'По направлениям' : 'Прогноз по направлениям'}
           </h4>
+          {plan.totals?.planNoteRu ? (
+            <p className="sales-finance-forecast__plan-align-note" role="status">
+              {plan.totals.planNoteRu}
+            </p>
+          ) : null}
           <div className="sales-finance-forecast__table-wrap">
             <table className="sales-finance-forecast__table sales-finance-forecast__table--plan">
               <thead>
@@ -318,7 +323,7 @@ export function SalesFinanceForecast({
                     % плана
                   </th>
                   <th scope="col" className="sales-finance-forecast__col-num">
-                    {closedMonth ? 'Не хватило' : 'Не хватает'}
+                    До плана напр.
                   </th>
                 </tr>
               </thead>
@@ -326,6 +331,7 @@ export function SalesFinanceForecast({
                 {plan.directions.map((dir) => {
                   const isMoney = dir.mode === 'revenue'
                   const noRevenue = dir.mode === 'no_revenue'
+                  const isUnallocated = dir.unallocatedPlan === true || dir.key === 'unallocated'
                   const factText = isMoney
                     ? formatRub(dir.fact)
                     : noRevenue
@@ -360,12 +366,16 @@ export function SalesFinanceForecast({
                     }
                     return null
                   })()
-                  const rowClass =
-                    isMoney && dir.planTarget > 0 && dir.reach?.willReach !== true
-                      ? 'sales-finance-forecast__row--lag'
-                      : noRevenue
-                        ? 'sales-finance-forecast__row--no-revenue'
-                        : undefined
+                  const rowClass = [
+                    isUnallocated
+                      ? 'sales-finance-forecast__row--unallocated'
+                      : isMoney && dir.planTarget > 0 && dir.reach?.willReach !== true
+                        ? 'sales-finance-forecast__row--lag'
+                        : undefined,
+                    noRevenue ? 'sales-finance-forecast__row--no-revenue' : undefined,
+                  ]
+                    .filter(Boolean)
+                    .join(' ') || undefined
                   return (
                     <tr key={dir.key} className={rowClass}>
                       <th scope="row">
@@ -391,8 +401,38 @@ export function SalesFinanceForecast({
                   )
                 })}
               </tbody>
+              {plan.totals ? (
+                <tfoot>
+                  <tr className="sales-finance-forecast__row--total">
+                    <th scope="row">Итого</th>
+                    <td className="sales-finance-forecast__col-num">
+                      {plan.totals.planSum > 0 ? formatRub(plan.totals.planSum) : '—'}
+                    </td>
+                    <td className="sales-finance-forecast__col-num sales-finance-forecast__col-fact">
+                      {formatRub(plan.totals.factSum)}
+                    </td>
+                    {closedMonth ? null : (
+                      <td className="sales-finance-forecast__col-num sales-finance-forecast__col-forecast">
+                        {formatRub(plan.totals.forecastSum)}
+                      </td>
+                    )}
+                    <td className="sales-finance-forecast__col-num">
+                      {plan.level3 > 0
+                        ? `${closedMonth ? plan.factProgressPercent : plan.forecastProgressPercent}%`
+                        : '—'}
+                    </td>
+                    <td className="sales-finance-forecast__col-num sales-finance-forecast__col-gap">
+                      {plan.totals.clubGapRub > 0 ? `−${formatRub(plan.totals.clubGapRub)}` : '—'}
+                    </td>
+                  </tr>
+                </tfoot>
+              ) : null}
             </table>
           </div>
+          <p className="sales-finance-forecast__table-footnote">
+            Итого факт и прогноз = карточки клуба. В строках «До плана напр.» — до плана направления, не сумма в
+            карточку «Прогноз».
+          </p>
         </div>
       ) : null}
 

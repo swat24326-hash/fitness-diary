@@ -99,6 +99,36 @@ ok(mix.byCategory.dk.fact === 20000, 'dk fact')
 ok(mix.byHall.pz.plan === 20000, 'pz plan from matrix')
 ok(mix.byHall.tz.plan === 5000, 'tz plan')
 ok(mix.factMixGross === 25000, 'fact mix sum')
+ok(mix.factMatrixGross === 25000 && mix.dop.fact === 0, 'matrix gross without dop')
+
+const rowsWithDop = [
+  {
+    report_date: '2026-08-01',
+    matrix_amounts: { pz_dk: 10000, tz_nk: 5000, dop_total: 2000 },
+    pz_dk: 1,
+    tz_nk: 1,
+  },
+  {
+    report_date: '2026-08-02',
+    matrix_amounts: { pz_dk: 10000, dop_total: 1000 },
+    pz_dk: 1,
+  },
+]
+const mixDop = buildPurchaseMixForecast({
+  monthRows: rowsWithDop,
+  year: 2026,
+  month: 8,
+  planForm,
+  closedMonth: false,
+  factProfitGross: 28000,
+  profitPaceGross: 50000,
+})
+ok(mixDop.ok, 'mix with dop ok')
+ok(mixDop.dop.fact === 3000, 'dop fact from rows')
+ok(mixDop.factMixGross === 28000, 'fact mix includes dop')
+ok(mixDop.factMatrixGross === 25000, 'matrix-only gross separate')
+ok(mixDop.mixForecastGross >= mixDop.factMixGross, 'mix forecast includes paced dop')
+ok(mixDop.clubBlend.coverage >= 0.99, 'dop raises mix coverage vs profit')
 
 if (failed) {
   console.error(`\n${failed} purchase mix check(s) failed`)

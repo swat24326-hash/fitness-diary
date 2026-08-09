@@ -2,12 +2,20 @@ import {
   MIN_REPORT_DAYS_FOR_FORECAST,
   FORECAST_METHOD_UNIFORM,
   FORECAST_METHOD_WEEKDAY_WEEKEND,
+  appendUnallocatedPlanRow,
   buildClubFinanceForecast,
   buildDirectionForecastLagSummary,
+  buildDirectionTotals,
+  buildIskraClubFinanceBlock,
   buildIskraMonthForecastSummary,
   buildPlanCalendarNorm,
   daysInCalendarMonth,
+  describePlanForecastReach,
   isCurrentCalendarMonth,
+  reconcileDirectionForecastsToClubGross,
+  sumDirectionPlanTargets,
+  sumRevenueDirectionFact,
+  sumRevenueDirectionForecast,
 } from '../src/lib/admin/clubFinanceForecastCore.js'
 import {
   MIN_WEEKDAY_SAMPLES_FOR_SPLIT,
@@ -185,11 +193,28 @@ ok(
   'plan forecast gross scaled',
 )
 ok(fcPlan.plan.reach.willReach === fcPlan.plan.forecastProgressPercent >= 100, 'plan reach flag')
-ok(fcPlan.plan.directions.length === 3, 'three direction rows')
+ok(
+  fcPlan.plan.directions.filter((d) => d.key === 'pz' || d.key === 'tz' || d.key === 'az').length === 3,
+  'three hall direction rows',
+)
 ok(fcPlan.plan.directions[0].mode === 'revenue', 'pz uses revenue when matrix filled')
 ok(
-  fcPlan.plan.directions[0].forecast === Math.round(240000 * (daysInMonth / 3) * 100) / 100,
-  'pz direction forecast scaled',
+  sumRevenueDirectionForecast(fcPlan.plan.directions) === fcPlan.plan.forecastGross,
+  'direction forecasts sum to club forecast',
+)
+ok(
+  sumRevenueDirectionFact(fcPlan.plan.directions) === fcPlan.plan.factGross,
+  'direction facts sum to club fact',
+)
+ok(fcPlan.plan.totals?.factMatchesClub && fcPlan.plan.totals?.forecastMatchesClub, 'plan.totals match club')
+ok(fcPlan.plan.directions.some((d) => d.key === 'unallocated'), 'unallocated row when directions below level3')
+ok(fcPlan.plan.totals?.planMatchesLevel3, 'plan sum with unallocated matches level3')
+ok(fcPlan.plan.totals?.clubGapRub === fcPlan.plan.reach.gapRub, 'totals club gap = reach gap')
+ok(
+  Math.abs(
+    fcPlan.plan.directions[0].forecast - Math.round(240000 * (daysInMonth / 3) * 100) / 100,
+  ) < 1,
+  'pz direction forecast near pace (club reconcile may nudge копейки)',
 )
 
 const lagUnit = buildDirectionForecastLagSummary([
@@ -214,6 +239,128 @@ const lagUnit = buildDirectionForecastLagSummary([
 ])
 ok(lagUnit.has_lag && lagUnit.lagging.length === 1 && lagUnit.lagging[0].key === 'pz', 'lag summary picks pz only')
 ok(lagUnit.summary_ru.includes('ПЗ'), 'lag summary mentions hall label')
+
+const reconcileUnit = reconcileDirectionForecastsToClubGross(
+  [
+    { key: 'pz', mode: 'revenue', planTarget: 1000, fact: 90, forecast: 200 },
+    { key: 'tz', mode: 'revenue', planTarget: 1000, fact: 90, forecast: 200 },
+    { key: 'az', mode: 'revenue', planTarget: 1000, fact: 90, forecast: 200 },
+  ],
+  300,
+  { describeReach: describePlanForecastReach },
+)
+ok(sumRevenueDirectionForecast(reconcileUnit) === 300, 'reconcile preserves club target with floors')
+ok(
+  reconcileUnit.every((d) => d.forecast >= d.fact - 0.001),
+  'reconcile never below fact',
+)
+const reconcileFloor = reconcileDirectionForecastsToClubGross(
+  [
+    { key: 'pz', mode: 'revenue', planTarget: 1000, fact: 90, forecast: 200 },
+    { key: 'tz', mode: 'revenue', planTarget: 1000, fact: 90, forecast: 200 },
+    { key: 'az', mode: 'revenue', planTarget: 1000, fact: 90, forecast: 200 },
+  ],
+  200,
+  { describeReach: describePlanForecastReach },
+)
+ok(
+  sumRevenueDirectionForecast(reconcileFloor) === 270,
+  'reconcile cannot go below sum of facts',
+)
+
+const dopRows = [
+  {
+    profit_nk: 99000,
+    profit_dk: 0,
+    profit_uk: 0,
+    matrix_amounts: { pz_nk: 80000, tz_nk: 10000, az_nk: 9000, dop_total: 1000 },
+  },
+  {
+    profit_nk: 99000,
+    profit_dk: 0,
+    profit_uk: 0,
+    matrix_amounts: { pz_nk: 80000, tz_nk: 10000, az_nk: 9000, dop_total: 1000 },
+  },
+  {
+    profit_nk: 99000,
+    profit_dk: 0,
+    profit_uk: 0,
+    matrix_amounts: { pz_nk: 80000, tz_nk: 10000, az_nk: 9000, dop_total: 1000 },
+  },
+]
+const fcDop = buildClubFinanceForecast({
+  monthRows: dopRows,
+  year,
+  month,
+  expense: 0,
+  today,
+  planForm: {
+    plan_level_3: '1300000',
+    plan_pz: '1000000',
+    plan_tz: '150000',
+    plan_az: '120000',
+    plan_extra: '30000',
+  },
+})
+ok(fcDop.ok, 'forecast with dop')
+ok(fcDop.plan.directions.some((d) => d.key === 'extra'), 'extra direction row shown')
+ok(sumRevenueDirectionFact(fcDop.plan.directions) === fcDop.plan.factGross, 'dop facts sum to club')
+ok(
+  sumRevenueDirectionForecast(fcDop.plan.directions) === fcDop.plan.forecastGross,
+  'dop forecasts sum to club',
+)
+
+const unallocUnit = appendUnallocatedPlanRow(
+  [
+    { key: 'pz', mode: 'revenue', planTarget: 400, fact: 10, forecast: 50 },
+    { key: 'tz', mode: 'revenue', planTarget: 400, fact: 10, forecast: 50 },
+  ],
+  1000,
+  describePlanForecastReach,
+)
+ok(unallocUnit.some((d) => d.key === 'unallocated' && d.planTarget === 200), 'append unallocated 200')
+ok(sumDirectionPlanTargets(unallocUnit) === 1000, 'unallocated fills plan to level3')
+const totalsUnit = buildDirectionTotals({
+  directions: unallocUnit,
+  level3: 1000,
+  factGross: 20,
+  forecastGross: 100,
+  closedMonth: false,
+})
+ok(totalsUnit.clubGapRub === 900, 'totals club gap to level3')
+ok(totalsUnit.directionsBelow && totalsUnit.unallocatedRub === 200, 'totals marks directions below')
+
+const fcSurplus = buildClubFinanceForecast({
+  monthRows: planRows,
+  year,
+  month,
+  expense: 0,
+  today,
+  planForm: {
+    plan_level_3: '1000000',
+    plan_pz: '1067805',
+    plan_tz: '130455',
+    plan_az: '93200',
+  },
+})
+ok(fcSurplus.ok && !fcSurplus.plan.directions.some((d) => d.key === 'unallocated'), 'no unallocated when above level3')
+ok(fcSurplus.plan.totals?.directionsAbove, 'totals marks directions above')
+ok(fcSurplus.plan.totals?.planNoteRu.includes('выше финала'), 'surplus note ru')
+
+const iskraClub = buildIskraClubFinanceBlock({
+  monthRows: planRows,
+  year,
+  month,
+  expense: 0,
+  today,
+  planForm: {
+    plan_level_3: '1300000',
+    plan_pz: '1067805',
+    plan_tz: '130455',
+    plan_az: '93200',
+  },
+})
+ok(iskraClub.available && iskraClub.forecast?.totals?.unallocated_rub > 0, 'iskra exposes direction totals')
 
 const fcPlanLag = buildClubFinanceForecast({
   monthRows: planRows,
