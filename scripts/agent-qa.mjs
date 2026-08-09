@@ -117,6 +117,7 @@ run('pnk refuse scenario buttons', 'node', ['scripts/verify-pnk-refuse-scenario.
 run('pnk wizard steps', 'node', ['scripts/verify-pnk-wizard.mjs'])
 run('pnk wizard nav hat', 'node', ['scripts/verify-pnk-wizard-nav.mjs'])
 run('pnk visit quality', 'node', ['scripts/verify-pnk-visit-quality.mjs'])
+run('pnk bz completed count', 'node', ['scripts/verify-pnk-bz-completed.mjs'])
 run('pnk trial training start', 'node', ['scripts/verify-pnk-trial-training.mjs'])
 run('pnk coach notify', 'node', ['scripts/verify-pnk-coach-notify.mjs'])
 run('pnk client notify', 'node', ['scripts/verify-pnk-client-notify.mjs'])

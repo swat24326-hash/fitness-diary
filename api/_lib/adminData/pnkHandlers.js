@@ -4,6 +4,7 @@ import { applyPnkStagePatch, canDeletePnkClient, isOpenPnkClient } from '../../.
 import { mergeNewPnkOntoClient, normalizeClientPnkFields, pickClientPnkFields } from '../../../src/lib/pnk/pnkClientFields.js'
 import { buildPnkLostFunnelEvent, normalizePnkFunnelEventPushPayload } from '../../../src/lib/pnk/pnkFunnelEventsCore.js'
 import { aggregatePnkFunnelStats, listPnkAttentionClients } from '../../../src/lib/pnk/pnkStatsAgg.js'
+import { buildPnkBzCompletedByClientId } from '../../../src/lib/pnk/pnkBzCompletedCore.js'
 import { fetchClubTrainersForSales, parseJsonBody } from './salesHandlers.js'
 import { recordClientDeletionAudit } from '../deletionAuditWrite.js'
 
@@ -19,6 +20,33 @@ function canAccessClub(ctx, clubId) {
   if (ctx.isAdmin) return Boolean(clubId)
   if (ctx.isSalesManager) return clubId && clubId === String(ctx.salesClubId ?? ctx.profile?.club_id ?? '').trim()
   return false
+}
+
+/**
+ * Completed trainings для открытых ПНК (только client_id + status) → карта 0…2.
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabaseAdmin
+ * @param {string} clubId
+ * @param {object[]} openClients
+ */
+async function fetchPnkBzCompletedByClient(supabaseAdmin, clubId, openClients) {
+  const ids = (Array.isArray(openClients) ? openClients : [])
+    .map((c) => String(c?.id ?? '').trim())
+    .filter(Boolean)
+  if (!ids.length) return {}
+
+  const { data, error } = await supabaseAdmin
+    .from('trainings')
+    .select('client_id, status')
+    .eq('club_id', clubId)
+    .eq('status', 'completed')
+    .in('client_id', ids)
+    .limit(Math.min(2000, ids.length * 8))
+
+  if (error) {
+    console.warn('[pnk] bz_completed trainings:', error.message)
+    return {}
+  }
+  return buildPnkBzCompletedByClientId(data ?? [])
 }
 
 /**
@@ -85,6 +113,8 @@ async function handlePnkGet(ctx, req, res) {
   )
   const attention = listPnkAttentionClients(open)
 
+  const bzCompletedByClient = await fetchPnkBzCompletedByClient(supabaseAdmin, clubId, open)
+
   sendJson(res, 200, {
     club_id: clubId,
     clients: open.map((c) => ({
@@ -112,6 +142,7 @@ async function handlePnkGet(ctx, req, res) {
       })),
     },
     attention,
+    bz_completed_by_client: bzCompletedByClient,
     trainers: trainers.map((t) => ({
       id: t.id,
       name: t.name || t.login || t.email || '—',

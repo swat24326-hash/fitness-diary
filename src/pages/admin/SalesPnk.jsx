@@ -283,6 +283,7 @@ export function SalesPnk() {
             onDelete={onDelete}
             initialFocusId={focusId}
             showVisitQuality
+            bzCompletedByClient={bundle?.bz_completed_by_client ?? null}
             workExtras={
               <>
                 {createOpen ? (

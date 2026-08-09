@@ -25,6 +25,7 @@ import { ClientPnkPanel } from '../../components/trainer/ClientPnkPanel.jsx'
 import { PnkVisitQualityReport } from '../../components/pnk/PnkVisitQualityReport.jsx'
 import { formatClientName } from '../../lib/clientNameFormat.js'
 import { isOpenPnkClient, isPnkCardTabVisible, resolvePnkTrainerUiStep } from '../../lib/pnk/pnkStagesCore.js'
+import { countPnkBzCompletedFromTrainings } from '../../lib/pnk/pnkBzCompletedCore.js'
 import { buildPnkVisitQualityReport, shouldShowPnkVisitQuality } from '../../lib/pnk/pnkVisitQualityCore.js'
 import { listClientsByClubId, listMeasurementsByClientId } from '../../lib/localDbClubQuery.js'
 import { assertClubCardAvailableForCreate } from '../../lib/admin/salesClientMatchCore.js'
@@ -247,8 +248,7 @@ export function ClientCard() {
     ])
     setMemberships(mems)
     setHealthCard(hc ?? null)
-    const completed = (trainings ?? []).filter((t) => String(t?.status ?? '') === 'completed').length
-    setBzCompletedCount(Math.min(2, completed))
+    setBzCompletedCount(countPnkBzCompletedFromTrainings(trainings))
     setHasMeasurements((measures ?? []).length > 0)
   }, [id, trainerById, trainersModeReady, canManageClubClients, isTrainer, user])
 
@@ -801,7 +801,12 @@ export function ClientCard() {
 
       {tab === 'health' &&
         (!isOpenPnkClient(client) || isPnkCardTabVisible(client, 'health', { healthCard, bzCompletedCount })) && (
-          <ClientOverview client={client} onReload={reloadLocal} section="health" readOnly={isArchived} />
+          <ClientOverview
+            client={client}
+            onReload={reloadLocal}
+            section="health"
+            readOnly={isArchived || isSalesManager}
+          />
         )}
       {tab === 'nutrition' &&
         (!isOpenPnkClient(client) || isPnkCardTabVisible(client, 'nutrition', { healthCard, bzCompletedCount })) && (

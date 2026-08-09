@@ -217,7 +217,7 @@ export function ClientOverview({
   const saveHealth = async (e) => {
     e.preventDefault()
     if (readOnly) {
-      alert('Клиент в архиве — изменения недоступны. Нажмите «Вернуть из архива».')
+      alert('Изменения недоступны (архив или роль без прав на медкарту/замеры).')
       return
     }
     const toNumOrNull = (v) => {
@@ -249,7 +249,7 @@ export function ClientOverview({
   const applyWeightsFromTrainings = useCallback(
     async (opts = {}) => {
       if (readOnly || weightImportBusy) {
-        if (readOnly) alert('Клиент в архиве — изменения недоступны.')
+        if (readOnly) alert('Изменения недоступны (архив или роль без прав на медкарту/замеры).')
         return null
       }
       setWeightImportBusy(true)
@@ -280,7 +280,7 @@ export function ClientOverview({
   const saveMeasurement = async (e) => {
     e.preventDefault()
     if (readOnly) {
-      alert('Клиент в архиве — изменения недоступны. Нажмите «Вернуть из архива».')
+      alert('Изменения недоступны (архив или роль без прав на медкарту/замеры).')
       return
     }
     const id = editingMeasureId ?? crypto.randomUUID()
@@ -328,7 +328,7 @@ export function ClientOverview({
 
   const openNewMeasurement = () => {
     if (readOnly) {
-      alert('Клиент в архиве — изменения недоступны. Нажмите «Вернуть из архива».')
+      alert('Изменения недоступны (архив или роль без прав на медкарту/замеры).')
       return
     }
     setEditingMeasureId(null)

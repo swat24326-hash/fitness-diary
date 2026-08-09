@@ -51,7 +51,7 @@
 ---
 
 ### 3. Цифры и роли
-Как раньше: доска менеджера/админа, glance на главной. **Главная и доска — один список открытых:** «Обновить» на доске пишет кэш + событие `fd-pnk-home-glance-changed`; сеть на главной не чаще **25 с** (debounce под активную админку / ×10 клубов). Отметка бесплатной (`trial` / `trial2`) автоматически ставит `visit_started`, если его ещё не было. Автопроверки: `verify-pnk-wizard`, `verify-pnk-stages`, `verify-pnk-manager-home-glance`, `verify-pnk-home-glance-revalidate`, … в `qa:local`.
+Как раньше: доска менеджера/админа, glance на главной. **Главная и доска — один список открытых:** «Обновить» на доске пишет кэш + событие `fd-pnk-home-glance-changed`; сеть на главной не чаще **25 с** (debounce под активную админку / ×10 клубов). Отметка бесплатной (`trial` / `trial2`) автоматически ставит `visit_started`, если его ещё не было. **Итог визита** на доске получает `bz_completed_by_client` (завершённые тренировки 0…2) — пункт «Тренировка» не остаётся «частично» без факта зала. Автопроверки: `verify-pnk-wizard`, `verify-pnk-stages`, `verify-pnk-bz-completed`, `verify-pnk-visit-quality`, … в `qa:local`.
 
 ## Deliverables
 

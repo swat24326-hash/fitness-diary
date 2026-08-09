@@ -49,7 +49,7 @@
 | `price-list` | GET: admin / sales_manager (свой клуб); POST: admin / sales_manager (свой клуб) | Прайс ПЗ клуба (`club_price_lists`) |
 | `tz-price-list` | GET/POST: admin / sales_manager (свой клуб) | Прайс ТЗ клуба (`club_tz_price_lists`) |
 | `az-price-list` | GET/POST: admin / sales_manager (свой клуб) | Прайс АЗ клуба (`club_az_price_lists`) |
-| `pnk` | admin / sales_manager | Доска / данные ПНК |
+| `pnk` | admin / sales_manager | Доска / данные ПНК; в ответе `bz_completed_by_client` (id → 0…2) для «Итога визита» |
 | `sale-clips` | admin / sales_manager | Клип-карты дня (список) |
 | `gemini-analytics-prefetch` | admin | Prefetch ИСКРЫ |
 | `iskra-settings`, `iskra-learning`, `iskra-dispatch`, `iskra-tts` | admin (+ dispatch шире) | Настройки, обучение, задания, neural озвучка |

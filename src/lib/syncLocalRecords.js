@@ -54,6 +54,7 @@ export async function markRecordSynced(table_name, data) {
     memberships: 'memberships',
     trainings: 'trainings',
     body_measurements: 'body_measurements',
+    client_weight_entries: 'client_weight_entries',
     challenges: 'challenges',
     membership_types: 'membership_types',
     exercises: 'exercises',

@@ -7,6 +7,7 @@ import {
   buildPnkManagerControlCards,
   pickPnkBoardSelectedId,
 } from '../../lib/pnk/pnkManagerBoardCore.js'
+import { peekPnkBzCompletedCount } from '../../lib/pnk/pnkBzCompletedCore.js'
 import { formatDateRu } from '../../lib/dateRu.js'
 import { ClientHardDeleteConfirmModal } from '../ClientHardDeleteConfirmModal.jsx'
 
@@ -30,6 +31,7 @@ export function PnkManagerControlBoard({
   workExtras = null,
   assessExtras = null,
   showVisitQuality = false,
+  bzCompletedByClient = null,
 }) {
   const [trainerId, setTrainerId] = useState('')
   const [query, setQuery] = useState('')
@@ -185,6 +187,7 @@ export function PnkManagerControlBoard({
           onComment={onComment}
           onRequestDelete={canDelete ? setConfirmDelete : undefined}
           showVisitQuality={showVisitQuality}
+          bzCompletedCount={peekPnkBzCompletedCount(bzCompletedByClient, selected?.id)}
         />
         {assessExtras}
       </div>

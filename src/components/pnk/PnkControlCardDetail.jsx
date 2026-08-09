@@ -7,6 +7,7 @@ import { PnkAttentionChips } from './PnkStatusChips'
 import { PnkVisitQualityReport } from './PnkVisitQualityReport.jsx'
 import { buildPnkAttentionFlags, canDeletePnkClient } from '../../lib/pnk/pnkStagesCore.js'
 import { buildPnkVisitQualityReport } from '../../lib/pnk/pnkVisitQualityCore.js'
+import { normalizePnkBzCompletedCount } from '../../lib/pnk/pnkBzCompletedCore.js'
 
 /**
  * Правая панель оценки выбранного ПНК (master–detail).
@@ -21,6 +22,7 @@ export function PnkControlCardDetail({
   onRequestDelete,
   showVisitQuality = false,
   visitQualityReport = null,
+  bzCompletedCount = 0,
 }) {
   if (!card) {
     return (
@@ -64,7 +66,12 @@ export function PnkControlCardDetail({
 
       {showVisitQuality ? (
         <PnkVisitQualityReport
-          report={visitQualityReport || buildPnkVisitQualityReport(card.client)}
+          report={
+            visitQualityReport ||
+            buildPnkVisitQualityReport(card.client, {
+              bzCompletedCount: normalizePnkBzCompletedCount(bzCompletedCount),
+            })
+          }
           className="pnk-visit-quality--compact"
         />
       ) : null}

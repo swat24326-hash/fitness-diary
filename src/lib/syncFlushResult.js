@@ -70,6 +70,7 @@ export function isUnrecoverablePushError(status, message) {
     msg.includes('должен быть закреплён') ||
     msg.includes('нельзя переназначить') ||
     msg.includes('только администратор') ||
+    msg.includes('только клиентов и абонементы') ||
     msg.includes('другого клуба') ||
     msg.includes('нет доступа') ||
     msg.includes('не найден')
