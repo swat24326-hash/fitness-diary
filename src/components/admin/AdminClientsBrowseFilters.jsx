@@ -1,6 +1,7 @@
 import { AlertTriangle, Cake, CalendarClock, Clock, History, Sparkles, Users, UserX } from 'lucide-react'
 import { AdminClientsFilterTile } from './AdminClientsFilterTile.jsx'
 import { MEMBERSHIP_EXPIRING_WITHIN_DAYS } from '../../lib/clientListSignals.js'
+import { BIRTHDAY_WINDOW_DAYS } from '../../lib/clientBirthdays.js'
 import { STALE_TRAINING_DAYS, STALE_MAX_DAYS } from '../../lib/trainer/trainerClientOutreachCore.js'
 import '../../styles/admin-clients-filters.css'
 
@@ -12,7 +13,7 @@ export const ADMIN_CLIENTS_FILTER_HELP = {
     `Финал воронки абона: больше ${STALE_MAX_DAYS} дней после конца — или странный/пустой абон (нет дат, нельзя отнести к этапу). Не пересекается с «Закончился» и «Давно не был». ПНК сюда не входят.`,
   awaiting_start:
     'Следующий абонемент уже куплен, старт ещё впереди. Не цель для SMS «вернись / купи» — клиент удержан.',
-  birthdays: 'День рождения сегодня. Отдельный срез для поздравления (SMS от клуба).',
+  birthdays: `Цифра на плитке — ДР сегодня. По клику: сегодня и ближайшие ${BIRTHDAY_WINDOW_DAYS} дней (два блока). SMS-поздравление — только у кого ДР сегодня.`,
   expiring: `Абонемент ещё действует и заканчивается в ближайшие ${MEMBERSHIP_EXPIRING_WITHIN_DAYS} дней. Предупреждаем до конца.`,
   expired_recent: `Абонемент уже не действует: с даты конца прошло меньше ${STALE_TRAINING_DAYS} дней — или тренировки исчерпаны, а календарный срок ещё идёт. Пора продлить. Открытые ПНК сюда не входят — только чип «ПНК».`,
   stale: `Абонемент закончился ${STALE_TRAINING_DAYS}–${STALE_MAX_DAYS} дней назад, нового со стартом впереди нет. Холодный возврат. Дальше — «Не активные».`,

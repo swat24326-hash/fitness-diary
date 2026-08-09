@@ -43,6 +43,11 @@ export function isBirthdayWithinNextDays(birthDateIso, todayIso = todayLocalIso(
   return d >= 0 && d <= maxDays
 }
 
+/** Фильтр списка «ДР»: сегодня + ближайшие в окне (чип считает только сегодня). */
+export function isBirthdayBrowseMatch(birthDateIso, todayIso = todayLocalIso(), maxDays = BIRTHDAY_WINDOW_DAYS) {
+  return isBirthdayWithinNextDays(birthDateIso, todayIso, maxDays)
+}
+
 export function upcomingBirthdayIso(birthDateIso, todayIso = todayLocalIso()) {
   const next = nextBirthdayDate(birthDateIso, todayIso)
   if (!next) return null
@@ -76,6 +81,78 @@ export function compareByUpcomingBirthday(a, b, todayIso = todayLocalIso()) {
   if (db == null) return -1
   if (da !== db) return da - db
   return String(a?.name ?? '').localeCompare(String(b?.name ?? ''), 'ru')
+}
+
+export function sortClientsForBirthdayBrowse(clients, todayIso = todayLocalIso()) {
+  return [...(clients ?? [])].sort((a, b) => compareByUpcomingBirthday(a, b, todayIso))
+}
+
+/**
+ * @param {string | null | undefined} birthDateIso
+ * @param {string} [todayIso]
+ * @returns {'today' | 'upcoming' | null}
+ */
+export function birthdayBrowseSectionKey(birthDateIso, todayIso = todayLocalIso()) {
+  const d = daysUntilNextBirthday(birthDateIso, todayIso)
+  if (d === 0) return 'today'
+  if (d != null && d >= 1 && d <= BIRTHDAY_WINDOW_DAYS) return 'upcoming'
+  return null
+}
+
+export function birthdayBrowseSectionTitle(key) {
+  if (key === 'today') return 'Сегодня'
+  if (key === 'upcoming') return `Ближайшие ${BIRTHDAY_WINDOW_DAYS} дней`
+  return ''
+}
+
+/**
+ * Разбить отсортированный список на блоки для UI.
+ * @param {object[]} clients
+ * @param {string} [todayIso]
+ * @returns {{ today: object[], upcoming: object[] }}
+ */
+export function partitionBirthdayBrowseClients(clients, todayIso = todayLocalIso()) {
+  /** @type {object[]} */
+  const today = []
+  /** @type {object[]} */
+  const upcoming = []
+  for (const c of clients ?? []) {
+    const key = birthdayBrowseSectionKey(c?.birth_date, todayIso)
+    if (key === 'today') today.push(c)
+    else if (key === 'upcoming') upcoming.push(c)
+  }
+  return {
+    today: sortClientsForBirthdayBrowse(today, todayIso),
+    upcoming: sortClientsForBirthdayBrowse(upcoming, todayIso),
+  }
+}
+
+/**
+ * Вставить заголовки секций в уже отсортированный список страницы.
+ * @param {object[]} clients
+ * @param {string} [todayIso]
+ * @returns {Array<{ type: 'section', key: string, title: string } | { type: 'client', client: object }>}
+ */
+export function withBirthdayBrowseSectionBreaks(clients, todayIso = todayLocalIso(), sectionCounts = null) {
+  /** @type {Array<{ type: 'section', key: string, title: string, count?: number } | { type: 'client', client: object }>} */
+  const out = []
+  let last = /** @type {string | null} */ (null)
+  for (const c of clients ?? []) {
+    const key = birthdayBrowseSectionKey(c?.birth_date, todayIso)
+    if (key && key !== last) {
+      const count =
+        sectionCounts && typeof sectionCounts === 'object' ? Number(sectionCounts[key]) || 0 : undefined
+      out.push({
+        type: 'section',
+        key,
+        title: birthdayBrowseSectionTitle(key),
+        ...(count != null ? { count } : {}),
+      })
+      last = key
+    }
+    out.push({ type: 'client', client: c })
+  }
+  return out
 }
 
 export { BIRTHDAY_WINDOW_DAYS }

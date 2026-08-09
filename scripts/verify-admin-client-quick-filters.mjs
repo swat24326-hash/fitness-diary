@@ -187,8 +187,23 @@ ok(
     memList: memByClient.b,
     today,
   }),
-  'match birthday',
+  'match birthday today',
 )
+ok(
+  clientMatchesAdminFunnelFilter('birthdays', {
+    client: { id: 'soon', birth_date: '1990-08-01' },
+    today,
+  }),
+  'match birthday upcoming within 30 days',
+)
+ok(
+  !clientMatchesAdminFunnelFilter('birthdays', {
+    client: { id: 'far', birth_date: '1990-10-01' },
+    today,
+  }),
+  'no match birthday beyond 30 days',
+)
+ok(counts.birthdays === 1, 'chip count birthdays = today only')
 ok(
   clientMatchesAdminFunnelFilter('awaiting_start', {
     client: { id: 'a' },

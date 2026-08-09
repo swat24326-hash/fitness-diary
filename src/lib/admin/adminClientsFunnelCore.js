@@ -15,6 +15,7 @@ import {
   STALE_MAX_DAYS,
   STALE_TRAINING_DAYS,
 } from '../trainer/trainerClientOutreachCore.js'
+import { isBirthdayBrowseMatch } from '../clientBirthdays.js'
 import { deskMembershipSignal } from './deskMembershipLedgerCore.js'
 
 export const ADMIN_CLIENT_FUNNEL_FILTERS = [
@@ -153,7 +154,8 @@ export function clientMatchesAdminFunnelFilter(filter, ctx = {}) {
 
   if (mode === 'all' || mode === 'none') return true
   if (mode === 'pnk') return hall === 'pz' ? isAdminPnkClient(client) : false
-  if (mode === 'birthdays') return isBirthdayToday(client.birth_date, today)
+  // Список: сегодня + ближайшие; цифра на чипе — только сегодня (см. countAdminFunnelFilters).
+  if (mode === 'birthdays') return isBirthdayBrowseMatch(client.birth_date, today)
 
   // Открытый ПНК — только в чипе «ПНК», не в «Истекает / Закончился / …»
   // (пробный лимит 1–2 часто «исчерпан» — это воронка, не продление ДК).
@@ -212,7 +214,7 @@ export function countAdminFunnelFilters(clients, memByClient, today, inactiveIds
     if (!isAdminPnkClient(c)) all++
     if (clientMatchesAdminFunnelFilter('pnk', ctx)) pnk++
     if (clientMatchesAdminFunnelFilter('inactive', ctx)) inactive++
-    if (clientMatchesAdminFunnelFilter('birthdays', ctx)) birthdays++
+    if (isBirthdayToday(c.birth_date, today)) birthdays++
     if (clientMatchesAdminFunnelFilter('awaiting_start', ctx)) awaiting_start++
     if (clientMatchesAdminFunnelFilter('expiring', ctx)) expiring++
     if (clientMatchesAdminFunnelFilter('expired_recent', ctx)) expired_recent++

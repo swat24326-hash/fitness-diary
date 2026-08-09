@@ -4,9 +4,10 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { fetchPnkBundle } from '../../lib/pnk/pnkApiService.js'
 import { buildPnkManagerHomeGlanceCards } from '../../lib/pnk/pnkManagerHomeGlanceCore.js'
 import {
-  isPnkHomeGlanceFresh,
+  PNK_HOME_GLANCE_CHANGED_EVENT,
   peekPnkHomeGlanceCards,
   readPnkHomeGlanceSession,
+  shouldNetworkRevalidatePnkHomeGlance,
   writePnkHomeGlanceSession,
 } from '../../lib/pnk/pnkHomeGlanceSession.js'
 import { PnkGlanceCardFace } from './PnkGlanceCardFace.jsx'
@@ -15,7 +16,7 @@ import '../../styles/pnk-funnel.css'
 const SWIPE_THRESHOLD_PX = 42
 
 /**
- * ПНК на главной менеджера / админа — last-good сразу, без выскакивания в ряду.
+ * ПНК на главной менеджера / админа — last-good сразу, сеть с debounce под ×10 клубов.
  * @param {{
  *   clubId: string,
  *   href?: string,
@@ -48,6 +49,17 @@ export function ManagerPnkHomeGlance({
     [onPresenceChange],
   )
 
+  const applySessionCards = useCallback(
+    (list) => {
+      const next = Array.isArray(list) ? list : []
+      setCards(next)
+      setIndex((prev) => (prev >= next.length ? 0 : prev))
+      setLoading(false)
+      reportPresence(next.length > 0)
+    },
+    [reportPresence],
+  )
+
   useLayoutEffect(() => {
     if (!cid) {
       reportPresence(false)
@@ -64,7 +76,7 @@ export function ManagerPnkHomeGlance({
   }, [cid, expectVisible, reportPresence])
 
   const reload = useCallback(
-    async ({ force = false } = {}) => {
+    async ({ silent = false, force = false } = {}) => {
       if (!cid) {
         setCards([])
         setLoading(false)
@@ -74,23 +86,25 @@ export function ManagerPnkHomeGlance({
       const row = readPnkHomeGlanceSession(cid)
       const cached = Array.isArray(row?.payload?.cards) ? row.payload.cards : []
       if (cached.length) {
-        setCards(cached)
-        setLoading(false)
-        reportPresence(true)
-        if (!force && isPnkHomeGlanceFresh(row.savedAt)) return
-      } else {
+        applySessionCards(cached)
+      } else if (!silent) {
         setLoading(true)
       }
+
+      const needNetwork = shouldNetworkRevalidatePnkHomeGlance({
+        savedAt: row?.savedAt,
+        hasCachedCards: cached.length > 0,
+        force,
+      })
+      if (!needNetwork) return
 
       try {
         const data = await fetchPnkBundle({ clubId: cid })
         const next = buildPnkManagerHomeGlanceCards(data?.clients ?? [], { boardHref: href })
-        setCards(next)
-        setIndex((prev) => (prev >= next.length ? 0 : prev))
         writePnkHomeGlanceSession(cid, next)
-        reportPresence(next.length > 0)
+        applySessionCards(next)
       } catch {
-        if (!cached.length) {
+        if (!cached.length && !silent) {
           setCards([])
           setIndex(0)
           reportPresence(false)
@@ -99,12 +113,29 @@ export function ManagerPnkHomeGlance({
         setLoading(false)
       }
     },
-    [cid, href, reportPresence],
+    [cid, href, reportPresence, applySessionCards],
   )
 
   useEffect(() => {
     void reload()
-  }, [reload])
+    const t = window.setInterval(() => void reload({ silent: true }), 120_000)
+    const onVis = () => {
+      if (document.visibilityState === 'visible') void reload({ silent: true })
+    }
+    const onChanged = (ev) => {
+      const eventClub = String(ev?.detail?.clubId ?? '').trim()
+      if (!eventClub || eventClub !== cid) return
+      const next = peekPnkHomeGlanceCards(cid) ?? []
+      applySessionCards(next)
+    }
+    document.addEventListener('visibilitychange', onVis)
+    window.addEventListener(PNK_HOME_GLANCE_CHANGED_EVENT, onChanged)
+    return () => {
+      window.clearInterval(t)
+      document.removeEventListener('visibilitychange', onVis)
+      window.removeEventListener(PNK_HOME_GLANCE_CHANGED_EVENT, onChanged)
+    }
+  }, [reload, cid, applySessionCards])
 
   const goPrev = useCallback(() => {
     setIndex((i) => Math.max(0, i - 1))
@@ -142,7 +173,6 @@ export function ManagerPnkHomeGlance({
 
   if (!cid) return null
 
-  /* Скелетон, если слот уже зарезервирован (presence) или ряд ещё не compact */
   if (loading && !cards.length) {
     if (compact && !expectVisible) return null
     return (

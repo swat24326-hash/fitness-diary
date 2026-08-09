@@ -305,6 +305,18 @@ export function applyPnkStagePatch(input = {}) {
       Object.assign(client, m.client)
     }
   }
+  // После бесплатной в зале — «начало визита» не должно висеть серым на доске менеджера.
+  if (
+    input.deliverable === 'trial' ||
+    input.deliverable === 'trial2' ||
+    client.pnk_stage === 'trial_done'
+  ) {
+    const d = parsePnkDeliverables(client.pnk_deliverables)
+    if (!d.visit_started) {
+      const m = markPnkDeliverable(client, 'visit_started')
+      Object.assign(client, m.client)
+    }
+  }
   if (client.pnk_stage === 'followup' || input.deliverable === 'followup') {
     const d = parsePnkDeliverables(client.pnk_deliverables)
     if (!d.followup) {

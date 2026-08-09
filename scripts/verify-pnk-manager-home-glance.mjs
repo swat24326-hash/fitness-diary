@@ -5,6 +5,7 @@ import {
   buildPnkManagerHomeGlance,
   buildPnkManagerHomeGlanceCards,
 } from '../src/lib/pnk/pnkManagerHomeGlanceCore.js'
+import { syncPnkHomeGlanceFromBoard } from '../src/lib/pnk/pnkHomeGlanceSession.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -72,6 +73,13 @@ const adminCards = buildPnkManagerHomeGlanceCards(clients, {
   now,
 })
 ok(adminCards[0].href.includes('club=c1') && adminCards[0].href.includes('focus='), 'admin href keeps club')
+
+const synced = syncPnkHomeGlanceFromBoard('club-x', clients, {
+  boardHref: '/sales/pnk',
+  now,
+})
+ok(synced.length === 2 && synced.every((c) => c.id === '1' || c.id === '2'), 'sync from board returns open cards')
+ok(syncPnkHomeGlanceFromBoard('club-x', [], { now }).length === 0, 'sync empty clears to zero cards')
 
 if (failed) {
   console.error(`\n${failed} failed`)

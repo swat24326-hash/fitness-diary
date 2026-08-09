@@ -47,6 +47,15 @@ import {
   clientMatchesAdminFunnelFilter,
   countAdminFunnelFilters,
 } from '../../lib/admin/adminClientsFunnelCore.js'
+import {
+  BIRTHDAY_WINDOW_DAYS,
+  formatUpcomingBirthdayLabel,
+  isBirthdayToday,
+  partitionBirthdayBrowseClients,
+  sortClientsForBirthdayBrowse,
+  withBirthdayBrowseSectionBreaks,
+} from '../../lib/clientBirthdays.js'
+import { BirthdayBrowseSectionHeader } from '../../components/clients/BirthdayBrowseSectionHeader.jsx'
 import { loadAdminClubMembershipsMap, loadAdminClubTrainingsForClientIds } from '../../lib/admin/adminClubWorkspaceCache'
 import { fetchClientsLastTrainingsViaApi } from '../../lib/admin/adminApiClient'
 import { fetchClubSmsStatus } from '../../lib/admin/clubSmsService.js'
@@ -576,6 +585,10 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       )
     }
 
+    if (quickFilter === 'birthdays') {
+      base = sortClientsForBirthdayBrowse(base, today)
+    }
+
     return base
   }, [
     clients,
@@ -657,6 +670,19 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     return filteredClients.slice(start, start + ADMIN_CLIENTS_PAGE_SIZE)
   }, [filteredClients, listPage])
 
+  const birthdaySectionCounts = useMemo(() => {
+    if (quickFilter !== 'birthdays') return null
+    const parts = partitionBirthdayBrowseClients(filteredClients, today)
+    return { today: parts.today.length, upcoming: parts.upcoming.length }
+  }, [quickFilter, filteredClients, today])
+
+  const pagedListItems = useMemo(() => {
+    if (quickFilter === 'birthdays') {
+      return withBirthdayBrowseSectionBreaks(pagedClients, today, birthdaySectionCounts)
+    }
+    return pagedClients.map((client) => ({ type: 'client', client }))
+  }, [quickFilter, pagedClients, today, birthdaySectionCounts])
+
   useEffect(() => {
     const ids = pagedClients.map((c) => c.id).filter(Boolean)
     if (!club?.trim() || !ids.length) {
@@ -712,7 +738,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     pnk: 'Воронка ПНК',
     inactive: 'Не активные (финал воронки)',
     awaiting_start: 'Ждёт старт абонемента',
-    birthdays: 'ДР сегодня',
+    birthdays: `ДР: сегодня и ближайшие ${BIRTHDAY_WINDOW_DAYS} дн.`,
     expiring: 'Истекает абонемент',
     expired_recent: 'Абонемент закончился',
     stale: 'Давно не был',
@@ -1270,14 +1296,28 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
           {!cloudNeedsClub && showClientList && filteredClients.length === 0 ? (
             <div className="admin-clients-empty admin-clients-empty--compact" role="status">
               <p className="muted admin-clients-empty__text" style={{ margin: 0 }}>
-                {clients.length === 0 ? 'Нет клиентов по выбранным условиям.' : 'Никто не подходит под фильтр или поиск.'}
+                {clients.length === 0
+                  ? 'Нет клиентов по выбранным условиям.'
+                  : quickFilter === 'birthdays'
+                    ? `Нет дней рождения сегодня и в ближайшие ${BIRTHDAY_WINDOW_DAYS} дней (проверьте дату в карточке).`
+                    : 'Никто не подходит под фильтр или поиск.'}
               </p>
             </div>
           ) : null}
 
           {!cloudNeedsClub && showClientList && filteredClients.length > 0 ? (
           <ul className="list admin-clients-list">
-            {pagedClients.map((c) => {
+            {pagedListItems.map((item) => {
+              if (item.type === 'section') {
+                return (
+                  <BirthdayBrowseSectionHeader
+                    key={`bd-sec-${item.key}`}
+                    title={item.title}
+                    count={item.count}
+                  />
+                )
+              }
+              const c = item.client
               const mlist = memByClient[c.id] ?? []
               const clientTrainings = pageTrainings.filter((t) => t.client_id === c.id)
               const hall = clientDeskHall(c)
@@ -1306,6 +1346,13 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               const inactiveLabel =
                 quickFilter === 'inactive' && inactiveRow ? formatInactiveClientListLabel(inactiveRow) : ''
               const isLiteRow = isLitePzClient(c, noTabletTrainerIds)
+              const birthdayLabel =
+                quickFilter === 'birthdays' ? formatUpcomingBirthdayLabel(c.birth_date, today) : null
+              const birthdayIsToday = quickFilter === 'birthdays' && isBirthdayToday(c.birth_date, today)
+              const rowSmsMode =
+                quickFilter === 'birthdays' && !birthdayIsToday
+                  ? { mode: 'custom', scenario: null, label: 'Свой текст' }
+                  : smsMode
               return (
                 <li key={c.id} className="list-item td-client-item">
                   <div className="td-client-card">
@@ -1411,13 +1458,19 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                             <span className="td-client-fact__value">{last}</span>
                           </div>
                         ) : null}
+                        {birthdayLabel ? (
+                          <div className="td-client-fact">
+                            <span className="td-client-fact__label">ДР</span>
+                            <span className="td-client-fact__value">{birthdayLabel}</span>
+                          </div>
+                        ) : null}
                       </div>
                       <div className="row td-client-actions">
                         <AdminClientMaxButton
                           client={c}
-                          mode={smsMode.mode}
-                          scenario={smsMode.scenario}
-                          scenarioLabel={smsMode.label}
+                          mode={rowSmsMode.mode}
+                          scenario={rowSmsMode.scenario}
+                          scenarioLabel={rowSmsMode.label}
                           memList={mlist}
                           trainerName={trainerNameById[String(c.trainer_id ?? '')] || ''}
                           clubName={clubSmsClubName}
@@ -1429,9 +1482,9 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                         <AdminClientClubSmsButton
                           clubId={club}
                           client={c}
-                          mode={smsMode.mode}
-                          scenario={smsMode.scenario}
-                          scenarioLabel={smsMode.label}
+                          mode={rowSmsMode.mode}
+                          scenario={rowSmsMode.scenario}
+                          scenarioLabel={rowSmsMode.label}
                           memList={mlist}
                           trainerName={trainerNameById[String(c.trainer_id ?? '')] || ''}
                           clubName={clubSmsClubName}

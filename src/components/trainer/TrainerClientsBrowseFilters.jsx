@@ -1,12 +1,13 @@
 import { AlertTriangle, Cake, CalendarClock, Clock, Sparkles, UserX, Users } from 'lucide-react'
 import { STALE_TRAINING_DAYS, STALE_MAX_DAYS } from '../../lib/trainer/trainerClientOutreachCore.js'
 import { MEMBERSHIP_EXPIRING_WITHIN_DAYS } from '../../lib/clientListSignals.js'
+import { BIRTHDAY_WINDOW_DAYS } from '../../lib/clientBirthdays.js'
 import '../../styles/trainer-clients.css'
 
 export const TRAINER_CLIENTS_BROWSE_LABELS = {
   all: 'Все клиенты',
   pnk: 'ПНК',
-  birthdays: 'ДР сегодня',
+  birthdays: 'ДР: сегодня и ближайшие',
   expiring: 'Истекает абонемент',
   expired_recent: 'Абонемент закончился',
   stale: 'Давно не был',
@@ -17,7 +18,7 @@ export const TRAINER_CLIENTS_BROWSE_LABELS = {
 const CHIP_HINT = {
   all: 'Все ваши активные клиенты',
   pnk: 'Воронка ПНК',
-  birthdays: 'День рождения сегодня',
+  birthdays: `Цифра — ДР сегодня; в списке ещё ближайшие ${BIRTHDAY_WINDOW_DAYS} дней`,
   expiring: `Абонемент заканчивается ≤ ${MEMBERSHIP_EXPIRING_WITHIN_DAYS} дней`,
   expired_recent: `Срок вышел меньше ${STALE_TRAINING_DAYS} дней назад — или тренировки исчерпаны при ещё идущем сроке. Пора продлить. Открытые ПНК — в чипе «ПНК», не здесь.`,
   stale: `Давно не был: ${STALE_TRAINING_DAYS}–${STALE_MAX_DAYS} дней после конца`,

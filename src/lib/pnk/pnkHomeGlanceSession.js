@@ -1,7 +1,9 @@
 /**
- * Glance ПНК на главной админа/менеджера — last-good, чтобы слот не «выскакивал».
+ * Glance ПНК на главной админа/менеджера — last-good + сеть с debounce (×10 клубов).
  */
 import { createGlanceCache } from '../homeGlanceCache.js'
+import { buildPnkManagerHomeGlanceCards } from './pnkManagerHomeGlanceCore.js'
+import { notifyPnkHomeGlanceChanged } from './pnkHomeGlanceRevalidateCore.js'
 
 const cache = createGlanceCache({
   ns: 'admin-pnk-home',
@@ -9,6 +11,13 @@ const cache = createGlanceCache({
 })
 
 export const PNK_HOME_GLANCE_TTL_MS = cache.ttlMs
+
+export {
+  PNK_HOME_GLANCE_CHANGED_EVENT,
+  PNK_HOME_GLANCE_REVALIDATE_MIN_MS,
+  shouldNetworkRevalidatePnkHomeGlance,
+  notifyPnkHomeGlanceChanged,
+} from './pnkHomeGlanceRevalidateCore.js'
 
 function parts(clubId) {
   return [String(clubId ?? '').trim()]
@@ -37,6 +46,25 @@ export function writePnkHomeGlanceSession(clubId, cards) {
 
 export function clearPnkHomeGlanceSession(clubId) {
   cache.invalidate({ clubId })
+}
+
+/**
+ * Подтянуть last-good главной из свежего бандла доски (после Обновить / Sync правды).
+ * @param {string} clubId
+ * @param {object[]} clients — открытые ПНК из API
+ * @param {{ boardHref?: string, now?: Date, notify?: boolean }} [opts]
+ */
+export function syncPnkHomeGlanceFromBoard(clubId, clients, opts = {}) {
+  const cid = String(clubId ?? '').trim()
+  if (!cid) return []
+  const boardHref = String(opts.boardHref ?? '').trim() || '/sales/pnk'
+  const cards = buildPnkManagerHomeGlanceCards(clients, {
+    boardHref,
+    now: opts.now,
+  })
+  writePnkHomeGlanceSession(cid, cards)
+  if (opts.notify !== false) notifyPnkHomeGlanceChanged(cid, { source: 'board' })
+  return cards
 }
 
 export function isPnkHomeGlanceFresh(savedAt, ttlMs = PNK_HOME_GLANCE_TTL_MS) {

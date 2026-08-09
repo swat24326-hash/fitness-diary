@@ -90,6 +90,21 @@ const trialDone = applyPnkStagePatch({
   deliverable: 'trial',
 })
 ok(trialDone.ok && trialDone.client.pnk_deliverables.trial, 'trial done')
+ok(Boolean(trialDone.client.pnk_deliverables.visit_started), 'trial also marks visit_started')
+
+const trialHealOnly = applyPnkStagePatch({
+  client: {
+    ...agreed.client,
+    pnk_deliverables: { contact: 'x', health: 'x', nutrition: 'x' },
+  },
+  deliverable: 'trial',
+})
+ok(
+  trialHealOnly.ok &&
+    trialHealOnly.client.pnk_deliverables.trial &&
+    trialHealOnly.client.pnk_deliverables.visit_started,
+  'deliverable trial heals missing visit_started',
+)
 
 let pkgClient = trialDone.client
 pkgClient = markPnkDeliverable(pkgClient, 'nutrition').client

@@ -61,7 +61,8 @@ export function createGlanceCache({ ns, ttlMs }) {
       if (typeof scope === 'string' && scope.trim()) {
         prefix = scope.startsWith(PREFIX) ? scope : `${PREFIX}${scope.trim()}`
       } else if (scope && typeof scope === 'object' && scope.clubId) {
-        prefix = `${PREFIX}${String(scope.clubId).trim()}:`
+        // Ключ клуба может быть `…:clubId` или `…:clubId:extra` — без лишнего «:» в конце.
+        prefix = `${PREFIX}${String(scope.clubId).trim()}`
       }
       const toRemove = []
       for (let i = 0; i < sessionStorage.length; i++) {

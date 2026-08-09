@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import { monthPartsFromIso, monthDateRange } from '../../lib/admin/salesReportCore'
 import { todayLocalIso } from '../../lib/dateRu'
 import { createPnkClient, deletePnkClient, fetchPnkBundle, patchPnkClient } from '../../lib/pnk/pnkApiService'
+import { syncPnkHomeGlanceFromBoard } from '../../lib/pnk/pnkHomeGlanceSession.js'
 import { PnkCoachNotifyChip } from '../../components/pnk/PnkCoachNotifyChip'
 import { PnkManagerControlBoard } from '../../components/pnk/PnkManagerControlBoard'
 import {
@@ -34,7 +35,6 @@ export function SalesPnk() {
   const [form, setForm] = useState({ name: '', phone: '', trainer_id: '', pnk_trial_sessions: 1 })
   const [createOpen, setCreateOpen] = useState(false)
   const [boardFilter, setBoardFilter] = useState('all')
-  const [attentionFilterSeeded, setAttentionFilterSeeded] = useState(false)
   const [toast, setToast] = useState('')
   const [lastCreated, setLastCreated] = useState(null)
 
@@ -64,6 +64,12 @@ export function SalesPnk() {
     return { dateFrom: start, dateTo: end }
   }, [])
 
+  const boardHref = isAdmin
+    ? `/admin/pnk${clubQs}`
+    : isSupervisor
+      ? `/club/pnk${clubQs}`
+      : '/sales/pnk'
+
   const load = useCallback(async () => {
     if (!clubId) {
       setError(isAdmin ? 'Выберите клуб в шапке' : 'У менеджера не задан клуб')
@@ -78,13 +84,21 @@ export function SalesPnk() {
         dateTo: period.dateTo,
       })
       setBundle(data)
+      syncPnkHomeGlanceFromBoard(clubId, data?.clients ?? [], { boardHref })
       setForm((f) => (f.trainer_id || !data.trainers?.[0]?.id ? f : { ...f, trainer_id: data.trainers[0].id }))
+      if (focusId) {
+        const openIds = new Set((data?.clients ?? []).map((c) => String(c.id)))
+        if (!openIds.has(focusId)) {
+          setToast('Этот ПНК уже не в работе — на главной могла остаться старая карточка')
+          setTimeout(() => setToast(''), 4500)
+        }
+      }
     } catch (e) {
       setError(String(e?.message ?? e))
     } finally {
       setBusy(false)
     }
-  }, [clubId, period.dateFrom, period.dateTo, isAdmin])
+  }, [clubId, period.dateFrom, period.dateTo, isAdmin, boardHref, focusId])
 
   useEffect(() => {
     void load()
@@ -164,13 +178,6 @@ export function SalesPnk() {
     }
     return counts
   }, [clients, attentionIds])
-
-  // Первый заход без ?focus= — сразу фильтр «Внимание», если есть горящие
-  useEffect(() => {
-    if (attentionFilterSeeded || focusId || !bundle) return
-    setAttentionFilterSeeded(true)
-    if (attention.length > 0) setBoardFilter('attention')
-  }, [attentionFilterSeeded, focusId, bundle, attention.length])
 
   function fillDemoScenario() {
     const tid = form.trainer_id || bundle?.trainers?.[0]?.id || ''

@@ -26,6 +26,14 @@ import {
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { formatClientName } from '../../lib/clientNameFormat'
 import {
+  BIRTHDAY_WINDOW_DAYS,
+  isBirthdayBrowseMatch,
+  sortClientsForBirthdayBrowse,
+  withBirthdayBrowseSectionBreaks,
+  partitionBirthdayBrowseClients,
+} from '../../lib/clientBirthdays.js'
+import { BirthdayBrowseSectionHeader } from '../../components/clients/BirthdayBrowseSectionHeader.jsx'
+import {
   isBirthdayToday,
   isMembershipExpiredRecently,
   isOutreachScenario,
@@ -186,7 +194,7 @@ export function TrainerClients() {
     (c, filterId) => {
       const memList = memByClient[c.id] ?? []
       if (filterId === 'pnk') return String(c.lifecycle ?? '') === 'pnk'
-      if (filterId === 'birthdays') return isBirthdayToday(c.birth_date, today)
+      if (filterId === 'birthdays') return isBirthdayBrowseMatch(c.birth_date, today)
       // Открытый ПНК — только в чипе «ПНК» (пробный лимит ≠ «закончился ДК»).
       if (
         String(c.lifecycle ?? '') === 'pnk' &&
@@ -227,14 +235,27 @@ export function TrainerClients() {
   }, [clients, archivedClients, clientsTab, query, quickFilter, clientMatchesFilter])
 
   const sortedFilteredClients = useMemo(() => {
+    if (quickFilter === 'birthdays') {
+      return sortClientsForBirthdayBrowse(filteredClients, today)
+    }
     if (!isOutreachScenario(quickFilter)) return filteredClients
     return sortClientsForOutreachFilter(filteredClients, quickFilter, memByClient, sentTodayIds, today)
   }, [filteredClients, quickFilter, memByClient, sentTodayIds, today])
 
+  const birthdaySectionCounts = useMemo(() => {
+    if (quickFilter !== 'birthdays') return null
+    const parts = partitionBirthdayBrowseClients(sortedFilteredClients, today)
+    return { today: parts.today.length, upcoming: parts.upcoming.length }
+  }, [quickFilter, sortedFilteredClients, today])
+
   const nextOutreachClient = useMemo(() => {
     if (!isOutreachScenario(quickFilter)) return null
-    return pickNextOutreachClient(sortedFilteredClients, sentTodayIds)
-  }, [sortedFilteredClients, quickFilter, sentTodayIds])
+    const pool =
+      quickFilter === 'birthdays'
+        ? sortedFilteredClients.filter((c) => isBirthdayToday(c.birth_date, today))
+        : sortedFilteredClients
+    return pickNextOutreachClient(pool, sentTodayIds)
+  }, [sortedFilteredClients, quickFilter, sentTodayIds, today])
 
   useEffect(() => {
     setVisibleCount(CLIENT_LIST_PAGE_SIZE)
@@ -245,6 +266,13 @@ export function TrainerClients() {
     [sortedFilteredClients, visibleCount],
   )
   const hasMore = sortedFilteredClients.length > visibleCount
+
+  const visibleListItems = useMemo(() => {
+    if (quickFilter === 'birthdays') {
+      return withBirthdayBrowseSectionBreaks(visibleClients, today, birthdaySectionCounts)
+    }
+    return visibleClients.map((client) => ({ type: 'client', client }))
+  }, [quickFilter, visibleClients, today, birthdaySectionCounts])
 
   const filterCounts = useMemo(() => {
     const base = clientsTab === 'archive' ? archivedClients : clients
@@ -258,13 +286,13 @@ export function TrainerClients() {
     for (const c of base) {
       if (clientMatchesFilter(c, 'expiring')) expiring++
       if (clientMatchesFilter(c, 'expired_recent')) expired_recent++
-      if (clientMatchesFilter(c, 'birthdays')) birthdays++
+      if (isBirthdayToday(c.birth_date, today)) birthdays++
       if (clientMatchesFilter(c, 'stale')) stale++
       if (clientMatchesFilter(c, 'inactive')) inactive++
       if (clientMatchesFilter(c, 'pnk')) pnk++
     }
     return { all, expiring, expired_recent, birthdays, stale, inactive, pnk }
-  }, [clients, archivedClients, clientsTab, clientMatchesFilter])
+  }, [clients, archivedClients, clientsTab, clientMatchesFilter, today])
 
   useEffect(() => {
     if (!user?.id || !isOutreachScenario(quickFilter)) {
@@ -284,10 +312,14 @@ export function TrainerClients() {
 
   const outreachProgress = useMemo(() => {
     if (!isOutreachScenario(quickFilter)) return { pending: 0, total: 0, done: 0 }
-    const withPhone = sortedFilteredClients.filter((c) => String(c.phone ?? '').trim())
+    const pool =
+      quickFilter === 'birthdays'
+        ? sortedFilteredClients.filter((c) => isBirthdayToday(c.birth_date, today))
+        : sortedFilteredClients
+    const withPhone = pool.filter((c) => String(c.phone ?? '').trim())
     const pending = withPhone.filter((c) => !sentTodayIds.has(String(c.id)))
     return { pending: pending.length, total: withPhone.length, done: withPhone.length - pending.length }
-  }, [sortedFilteredClients, quickFilter, sentTodayIds])
+  }, [sortedFilteredClients, quickFilter, sentTodayIds, today])
 
   const scrollToOutreachClient = useCallback(
     (clientId) => {
@@ -436,7 +468,9 @@ export function TrainerClients() {
   }
 
   const emptyFilterMessage = () => {
-    if (quickFilter === 'birthdays') return 'Сегодня дней рождения нет (укажите дату в карточке клиента).'
+    if (quickFilter === 'birthdays') {
+      return `Нет дней рождения сегодня и в ближайшие ${BIRTHDAY_WINDOW_DAYS} дней (укажите дату в карточке).`
+    }
     if (quickFilter === 'expiring') {
       return `Нет абонементов, которые заканчиваются через 1–${MEMBERSHIP_EXPIRING_WITHIN_DAYS} дней.`
     }
@@ -597,7 +631,22 @@ export function TrainerClients() {
           ) : sortedFilteredClients.length > 0 ? (
             <>
               <ul className="list os-enter">
-                {visibleClients.map((c) => (
+                {visibleListItems.map((item) => {
+                  if (item.type === 'section') {
+                    return (
+                      <BirthdayBrowseSectionHeader
+                        key={`bd-sec-${item.key}`}
+                        title={item.title}
+                        count={item.count}
+                      />
+                    )
+                  }
+                  const c = item.client
+                  const birthdayIsToday = isBirthdayToday(c.birth_date, today)
+                  const outreachOn =
+                    isOutreachScenario(quickFilter) &&
+                    (quickFilter !== 'birthdays' || birthdayIsToday)
+                  return (
                   <TrainerClientListItem
                     key={c.id}
                     rowId={`trainer-client-${c.id}`}
@@ -607,15 +656,15 @@ export function TrainerClients() {
                     clientTrainings={trainingsByClientId[c.id] ?? []}
                     lastTrainingIso={lastCompletedByClientId[c.id] ?? lastTrainingDateByClientId[c.id] ?? '—'}
                     showBirthdayLabel={quickFilter === 'birthdays'}
-                    outreachScenario={isOutreachScenario(quickFilter) ? quickFilter : null}
+                    outreachScenario={outreachOn ? quickFilter : null}
                     outreachHint={
-                      isOutreachScenario(quickFilter)
+                      outreachOn
                         ? buildOutreachScenarioHint(quickFilter, memByClient[c.id] ?? [], today)
                         : null
                     }
                     highlighted={highlightClientId === String(c.id)}
                     onWriteToMax={
-                      isOutreachScenario(quickFilter)
+                      outreachOn
                         ? async () => {
                             const result = await outreach.handleWriteToMax({
                               client: c,
@@ -638,7 +687,8 @@ export function TrainerClients() {
                     onArchive={(row) => void updateClientArchiveFlag(row, true)}
                     onRestore={(row) => void updateClientArchiveFlag(row, false)}
                   />
-                ))}
+                  )
+                })}
               </ul>
               {hasMore ? (
                 <div className="client-list-more">
