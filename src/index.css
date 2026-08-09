@@ -5278,6 +5278,18 @@ tr:last-child td {
   min-width: 72px;
 }
 
+.admin-mt-table__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.admin-mt-rename-modal__hint {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
 .admin-mt-zone {
   padding: 16px;
   border-radius: var(--radius);

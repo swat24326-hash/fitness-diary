@@ -19,7 +19,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | `clubs` | `id` | Кэш клубов |
 | `sync_queue` | `local_id` | Очередь push |
 | `challenges` | `id` | Челленджи |
-| `membership_types` | `id` | Типы карт: **ПЗ** (`trainer_assignable≠false`) и **АЗ** (`trainer_assignable=false`); также БЗ / `is_pnk_trial`. ПЗ: ставки тренеру `trainer_pay_l1/l2/l3` (₽ за тренировку; `trainer_pay_per_session` = l1 для совместимости ЗП). Менеджер продаж читает все типы своего клуба (RLS `fit_membership_types_sales_manager_read`) |
+| `membership_types` | `id` | Типы карт: **ПЗ** (`trainer_assignable≠false`) и **АЗ** (`trainer_assignable=false`); также БЗ / `is_pnk_trial`. Поле `code` (до 12 символов) — отображаемое название; уникально в клубе без учёта регистра; **переименование** через админ «Типы абон.» не отвязывает абонементы (`membership_type_id`). ПЗ: ставки тренеру `trainer_pay_l1/l2/l3` (₽ за тренировку; `trainer_pay_per_session` = l1 для совместимости ЗП). Менеджер продаж читает все типы своего клуба (RLS `fit_membership_types_sales_manager_read`) |
 | `nutrition_products` | `id` | Питание |
 | `homework_presets` | `id` | Шаблоны ДЗ |
 | `client_weight_entries` | `id` | Вес |

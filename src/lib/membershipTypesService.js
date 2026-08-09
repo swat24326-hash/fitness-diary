@@ -19,6 +19,8 @@ import {
   filterAerobicSalesTypes,
   filterTrainerAssignableTypes,
   isTrainerAssignableMembershipType,
+  normalizeMembershipTypeCode,
+  validateMembershipTypeCodeChange,
 } from './membershipTypesCore.js'
 import {
   buildPendingMembershipTypeKeys,
@@ -29,13 +31,12 @@ import {
 export {
   filterAerobicSalesTypes,
   filterTrainerAssignableTypes,
+  findMembershipTypeByCode,
   isAerobicSalesMembershipType,
   isTrainerAssignableMembershipType,
+  normalizeMembershipTypeCode,
+  validateMembershipTypeCodeChange,
 } from './membershipTypesCore.js'
-
-export function normalizeMembershipTypeCode(raw) {
-  return String(raw ?? '').trim().slice(0, 12)
-}
 
 
 function normalizeRow(row) {
@@ -230,6 +231,49 @@ export async function deactivateMembershipType(id) {
     remote_id: tid,
   })
   return pushTypeOp('update', row, tid)
+}
+
+/**
+ * Переименовать тип карты (поле code). Абонементы держат membership_type_id — не отвязываются.
+ * Уникальность code в клубе — как у unique index (без учёта регистра).
+ * @param {string} id
+ * @param {string} newCode
+ * @returns {Promise<{ cloudOk: boolean, cloudError?: string, unchanged?: boolean, saved?: boolean }>}
+ */
+export async function updateMembershipTypeCode(id, newCode) {
+  const tid = String(id ?? '').trim()
+  if (!tid) return { cloudOk: false, cloudError: 'Нет id типа', saved: false }
+
+  const db = await getDb()
+  const prev = await db.get('membership_types', tid)
+  if (!prev) return { cloudOk: false, cloudError: 'Тип не найден', saved: false }
+
+  const clubId = String(prev.club_id ?? '').trim()
+  const clubTypes = clubId ? await listMembershipTypesForClub(clubId) : []
+  const validated = validateMembershipTypeCodeChange({
+    nextCode: newCode,
+    previousCode: prev.code,
+    existingTypes: clubTypes,
+    excludeId: tid,
+  })
+  if (!validated.ok) {
+    return { cloudOk: false, cloudError: validated.error, saved: false }
+  }
+  if (validated.unchanged) {
+    return { cloudOk: true, unchanged: true, saved: false }
+  }
+
+  const row = normalizeRow({ ...prev, code: validated.code })
+  await saveLocalWithSync('membership_types', row, {
+    table_name: 'membership_types',
+    operation: 'update',
+    remote_id: tid,
+  })
+  const push = await pushTypeOp('update', row, tid)
+  if (clubId) {
+    notifyMembershipTypesChanged(clubId, { reason: 'rename-code', id: tid, code: validated.code })
+  }
+  return { ...push, saved: true }
 }
 
 /** @param {string} id @param {string|number|{ l1?: unknown, l2?: unknown, l3?: unknown }} rawPayOrTiers */

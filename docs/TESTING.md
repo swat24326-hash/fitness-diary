@@ -63,6 +63,7 @@
 | Push абонементов (даты NOT NULL) | `verify-membership-push-payload.mjs` |
 | Удаление абонемента (тексты confirm) | `verify-membership-delete.mjs` |
 | Менеджер: доступ к типам АЗ / выбор списка для отчёта | `verify-sales-membership-types-access.mjs` |
+| Переименование code типа карты (уникальность в клубе) | `verify-membership-type-code.mjs` |
 | Менеджер: клиенты клуба (push/club/deep-link) | `verify-sales-manager-clients.mjs` |
 | Управляющий: club scope / один на клуб / без журнала удалений | `verify-supervisor-access.mjs` |
 | Расход управляющего: статьи + итог / legacy → «Расходы» | `verify-supervisor-expense-parts.mjs` |

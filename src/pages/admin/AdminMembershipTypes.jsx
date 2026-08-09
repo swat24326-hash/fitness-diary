@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { RefreshCw, Trash2 } from 'lucide-react'
+import { AdminMembershipTypeRenameButton } from '../../components/admin/AdminMembershipTypeRenameButton.jsx'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import {
   deactivateMembershipType,
+  findMembershipTypeByCode,
   insertMembershipType,
   insertAerobicMembershipType,
   listMembershipTypesForClub,
   normalizeMembershipTypeCode,
+  updateMembershipTypeCode,
   updateMembershipTypePay,
   updateAerobicMembershipPay,
   filterAerobicSalesTypes,
@@ -222,9 +225,7 @@ export function AdminMembershipTypes() {
       setMsg('Введите короткое название типа.')
       return
     }
-    const duplicate = items.find(
-      (t) => String(t.code ?? '').toLowerCase() === normalized.toLowerCase(),
-    )
+    const duplicate = findMembershipTypeByCode(items, normalized)
     if (duplicate) {
       setMsg(
         duplicate.is_active === false
@@ -260,9 +261,7 @@ export function AdminMembershipTypes() {
       setMsg('Введите короткое название типа.')
       return
     }
-    const duplicate = items.find(
-      (t) => String(t.code ?? '').toLowerCase() === normalized.toLowerCase(),
-    )
+    const duplicate = findMembershipTypeByCode(items, normalized)
     if (duplicate) {
       setMsg(
         duplicate.is_active === false
@@ -300,6 +299,30 @@ export function AdminMembershipTypes() {
       await reloadLocal()
     } catch (err) {
       setMsg(err?.message ?? 'Ошибка')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const renameType = async (typeId, nextCode) => {
+    setMsg('')
+    setBusy(true)
+    try {
+      const cloud = await updateMembershipTypeCode(typeId, nextCode)
+      if (cloud.unchanged) return
+      if (!cloud.cloudOk && cloud.saved === false) {
+        setMsg(cloud.cloudError ?? 'Не удалось переименовать')
+        throw new Error(cloud.cloudError ?? 'Не удалось переименовать')
+      }
+      if (!cloud.cloudOk) {
+        setMsg(`Название сохранено локально, в облако не ушло: ${cloud.cloudError}. Нажмите Sync.`)
+      }
+      await reloadLocal()
+    } catch (err) {
+      if (!String(err?.message ?? '').trim()) {
+        setMsg('Ошибка переименования')
+      }
+      throw err
     } finally {
       setBusy(false)
     }
@@ -379,7 +402,7 @@ export function AdminMembershipTypes() {
         </h3>
         <p className="muted admin-mt-zone__lead">
           Тренер выбирает эти типы при создании абонемента. Три ставки (ур. 1–3) — оплата тренеру за тренировку.
-          Пороги тренировок месяца — во вкладке{' '}
+          Карандаш — переименовать тип (абонементы не отвязываются). Пороги тренировок месяца — во вкладке{' '}
           <Link to={clubId ? `/admin/structure?tab=club-plan&club=${encodeURIComponent(clubId)}` : '/admin/structure?tab=club-plan'}>
             План ЗП
           </Link>
@@ -417,7 +440,7 @@ export function AdminMembershipTypes() {
                   <th title="Уровень 2 — средний порог тренировок">Ур. 2 ₽</th>
                   <th title="Уровень 3 — максимум / без плана">Ур. 3 ₽</th>
                   <th>Статус</th>
-                  <th style={{ width: 56 }} />
+                  <th style={{ width: 104 }} />
                 </tr>
               </thead>
               <tbody>
@@ -448,18 +471,26 @@ export function AdminMembershipTypes() {
                     ))}
                     <td>{t.is_active === false ? 'Отключён' : 'Активен'}</td>
                     <td>
-                      {t.is_active !== false ? (
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-icon-square"
-                          aria-label={`Отключить тип ${t.code}`}
-                          title="Отключить"
+                      <div className="admin-mt-table__actions">
+                        <AdminMembershipTypeRenameButton
+                          type={t}
                           disabled={busy}
-                          onClick={() => setConfirmId(t.id)}
-                        >
-                          <Trash2 size={16} aria-hidden />
-                        </button>
-                      ) : null}
+                          busy={saving}
+                          onRename={renameType}
+                        />
+                        {t.is_active !== false ? (
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-icon-square"
+                            aria-label={`Отключить тип ${t.code}`}
+                            title="Отключить"
+                            disabled={busy}
+                            onClick={() => setConfirmId(t.id)}
+                          >
+                            <Trash2 size={16} aria-hidden />
+                          </button>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                   )
@@ -478,7 +509,7 @@ export function AdminMembershipTypes() {
         </h3>
         <p className="muted admin-mt-zone__lead">
           Только для отчёта менеджера по продажам. «Стоимость / ЗП» — сумма зарплаты АЗ за одну продажу этого
-          типа. Тренер эти типы не видит.
+          типа. Карандаш — переименовать. Тренер эти типы не видит.
         </p>
 
         <form
@@ -514,7 +545,7 @@ export function AdminMembershipTypes() {
                   <th>Тип</th>
                   <th>Стоимость / ЗП (₽)</th>
                   <th>Статус</th>
-                  <th style={{ width: 56 }} />
+                  <th style={{ width: 104 }} />
                 </tr>
               </thead>
               <tbody>
@@ -541,18 +572,26 @@ export function AdminMembershipTypes() {
                     </td>
                     <td>{t.is_active === false ? 'Отключён' : 'Активен'}</td>
                     <td>
-                      {t.is_active !== false ? (
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-icon-square"
-                          aria-label={`Отключить тип ${t.code}`}
-                          title="Отключить"
+                      <div className="admin-mt-table__actions">
+                        <AdminMembershipTypeRenameButton
+                          type={t}
                           disabled={busy}
-                          onClick={() => setConfirmId(t.id)}
-                        >
-                          <Trash2 size={16} aria-hidden />
-                        </button>
-                      ) : null}
+                          busy={busy || aerobicPaySavingId === t.id}
+                          onRename={renameType}
+                        />
+                        {t.is_active !== false ? (
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-icon-square"
+                            aria-label={`Отключить тип ${t.code}`}
+                            title="Отключить"
+                            disabled={busy}
+                            onClick={() => setConfirmId(t.id)}
+                          >
+                            <Trash2 size={16} aria-hidden />
+                          </button>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 ))}
