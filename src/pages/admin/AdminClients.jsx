@@ -50,11 +50,11 @@ import {
 import {
   BIRTHDAY_WINDOW_DAYS,
   formatUpcomingBirthdayLabel,
-  isBirthdayToday,
   partitionBirthdayBrowseClients,
   sortClientsForBirthdayBrowse,
   withBirthdayBrowseSectionBreaks,
 } from '../../lib/clientBirthdays.js'
+import { isBirthdayToday } from '../../lib/trainer/trainerClientOutreachCore.js'
 import { BirthdayBrowseSectionHeader } from '../../components/clients/BirthdayBrowseSectionHeader.jsx'
 import { loadAdminClubMembershipsMap, loadAdminClubTrainingsForClientIds } from '../../lib/admin/adminClubWorkspaceCache'
 import { fetchClientsLastTrainingsViaApi } from '../../lib/admin/adminApiClient'
