@@ -187,7 +187,9 @@ export function AdminSales({ accessMode = 'admin' }) {
   const [payrollCtx, setPayrollCtx] = useState(() => ({
     planConfig: null,
     profilesByTrainerId: null,
+    membershipTypes: null,
     clubId: '',
+    frozen: false,
   }))
   const [fitCityTypeStats, setFitCityTypeStats] = useState(null)
   const [trainingsMatrix, setTrainingsMatrix] = useState({})
@@ -604,17 +606,31 @@ export function AdminSales({ accessMode = 'admin' }) {
   useEffect(() => {
     const cid = String(clubId || '').trim()
     if (!cid || !isSupabaseConfigured()) {
-      setPayrollCtx({ planConfig: null, profilesByTrainerId: null, clubId: '' })
+      setPayrollCtx({ planConfig: null, profilesByTrainerId: null, clubId: '', membershipTypes: null })
       return
     }
     let cancelled = false
-    void loadTrainerPayrollContextClient(cid).then((ctx) => {
+    void loadTrainerPayrollContextClient(cid, {
+      year: yearMonth.year,
+      month: yearMonth.month,
+    }).then((ctx) => {
       if (!cancelled) setPayrollCtx(ctx)
     })
     return () => {
       cancelled = true
     }
-  }, [clubId])
+  }, [clubId, yearMonth.year, yearMonth.month])
+
+  const payrollMembershipTypes = useMemo(() => {
+    if (
+      payrollCtx.frozen &&
+      Array.isArray(payrollCtx.membershipTypes) &&
+      payrollCtx.membershipTypes.length
+    ) {
+      return payrollCtx.membershipTypes
+    }
+    return membershipTypes
+  }, [payrollCtx.frozen, payrollCtx.membershipTypes, membershipTypes])
 
   const heroFinanceForecast = useMemo(() => {
     if (isSalesManager) return null
@@ -624,7 +640,7 @@ export function AdminSales({ accessMode = 'admin' }) {
       year: yearMonth.year,
       month: yearMonth.month,
       expense: Number.isFinite(expenseRaw) ? expenseRaw : 0,
-      membershipTypes,
+      membershipTypes: payrollMembershipTypes,
       planForm,
       planConfig: payrollCtx.planConfig,
       profilesByTrainerId: payrollCtx.profilesByTrainerId,
@@ -636,7 +652,7 @@ export function AdminSales({ accessMode = 'admin' }) {
     yearMonth.year,
     yearMonth.month,
     expenseForm.expense_month,
-    membershipTypes,
+    payrollMembershipTypes,
     planForm,
     payrollCtx,
     clubId,
@@ -1346,7 +1362,7 @@ export function AdminSales({ accessMode = 'admin' }) {
         >
           <SalesStrategyPanel
             clubId={clubId}
-            membershipTypes={membershipTypes}
+            membershipTypes={payrollMembershipTypes}
             clubPlanForm={planForm}
             clubPlanYear={yearMonth.year}
             clubPlanMonth={yearMonth.month}
@@ -1424,7 +1440,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             planDirections={planDirections}
             planMatrix={planMatrix}
             promotions={planPromotions}
-            membershipTypes={membershipTypes}
+            membershipTypes={payrollMembershipTypes}
             trainers={trainers}
             onPrevMonth={() => shiftReportMonth(-1)}
             onNextMonth={() => shiftReportMonth(1)}
@@ -1466,7 +1482,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             year={yearMonth.year}
             month={yearMonth.month}
             monthRows={monthDays}
-            membershipTypes={membershipTypes}
+            membershipTypes={payrollMembershipTypes}
             planConfig={payrollCtx.planConfig}
             profilesByTrainerId={payrollCtx.profilesByTrainerId}
             clubId={clubId}

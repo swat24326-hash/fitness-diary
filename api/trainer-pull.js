@@ -63,18 +63,31 @@ async function handleTrainerPayrollGet(ctx, req, res) {
   }
 
   const membershipTypes = typesRes.data ?? []
-  const rateMap = buildTrainerPayRateMap(membershipTypes)
   const dailyRows = (dailyRes.data ?? []).map((row) => ({
     ...row,
     trainings_matrix: normalizeMatrixRowsFromDb(row.trainings_matrix),
   }))
-  const { loadTrainerPayrollContext, payrollOptsFromContext } = await import('./_lib/trainerPayrollContext.js')
-  const payrollCtx = await loadTrainerPayrollContext(supabaseAdmin, clubId)
+  const {
+    loadTrainerPayrollContext,
+    payrollOptsFromContext,
+    payrollYearMonthFromIso,
+  } = await import('./_lib/trainerPayrollContext.js')
+  const ym = payrollYearMonthFromIso(dateTo) ?? payrollYearMonthFromIso(dateFrom)
+  const payrollCtx = await loadTrainerPayrollContext(supabaseAdmin, clubId, {
+    year: ym?.year,
+    month: ym?.month,
+    membershipTypes,
+  })
+  const payTypes =
+    payrollCtx.frozen && payrollCtx.membershipTypes?.length
+      ? payrollCtx.membershipTypes
+      : membershipTypes
   const payroll = aggregatePayrollFromDailyRows(
     dailyRows,
-    rateMap,
+    buildTrainerPayRateMap(payTypes),
     payrollOptsFromContext(payrollCtx, membershipTypes, { trainerIdFilter: trainerId }),
   )
+
   const entry = payroll.byTrainer.get(trainerId)
 
   sendJson(res, 200, {
@@ -96,7 +109,9 @@ async function handleTrainerPayrollGet(ctx, req, res) {
       by_type: entry?.byType ?? [],
       day_count: dailyRows.length,
     },
-    rates_note: 'Расчёт по текущим ставкам типов абонементов; «Без типа» не оплачивается.',
+    rates_note: payrollCtx.frozen
+      ? 'Расчёт по замороженным ставкам закрытого месяца; «Без типа» не оплачивается.'
+      : 'Расчёт по текущим ставкам типов абонементов; «Без типа» не оплачивается.',
   })
 }
 

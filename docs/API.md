@@ -43,6 +43,7 @@
 | `coach-quality-settings` | GET: admin или тренер/продажи своего клуба; POST: admin | веса осей, доли внутри ведения/хвостов и тумблеры |
 | `trainer-pay-plan-settings` | GET/POST: admin | пороги тренировок месяца → уровни ЗП 1–3 (`workouts_l2_min`, `workouts_l3_min`; старые `hours_*` читаются) |
 | `trainer-pay-profiles` | GET/POST: admin | кабинеты тренеров клуба: `on_plan`, `rate_adjustment_rub`; GET `club_id` (+ опц. `trainer_id`); POST upsert |
+| `trainer-pay-payroll-context` | GET: admin / sales_manager (свой клуб) | контекст ЗП на `year`+`month`: live или снимок (`frozen`); при первом запросе прошлого месяца создаёт snapshot |
 | `health-cards`, `clubs` | admin | Медкарты, клубы |
 | `sales` | admin / sales_manager | Отчёты продаж. Опционально `profile=shell\|daily\|month\|full` (default `full`); `include_fit_city=1` для подсказок типов |
 | `price-list` | GET: admin / sales_manager (свой клуб); POST: admin / sales_manager (свой клуб) | Прайс ПЗ клуба (`club_price_lists`) |

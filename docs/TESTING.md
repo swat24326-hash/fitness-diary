@@ -43,6 +43,7 @@
 | ПНК мастер / KPI | целевые `verify-pnk-*.mjs` |
 | Качество ведения тренера | `verify-coach-quality.mjs` (TECH + COACH + MANAGER сценарии) |
 | Кабинет ЗП тренера (план / ±₽) | `verify-trainer-pay-profile.mjs`; ставки типов — `verify-trainer-pay-tiers.mjs`; база ЗП — `verify-trainer-payroll.mjs`; роли на prod — блок `trainer-pay-profiles` в `npm run qa:roles` (admin OK / trainer+sales 403) |
+| Заморозка ЗП месяца | `verify-trainer-pay-month-snapshot.mjs`; прошлый месяц → snapshot, текущий → live |
 | Имя продукта (без хардкода в UI) | `verify-product-brand.mjs`; смена имени — `productBrand.js` → `npm run sync:brand` → `gen:icons` |
 | Home glance cache | `verify-home-glance-cache.mjs` (TTL / looksSame / профили) |
 | Пульс BLE (парсер + память датчика) | `verify-ble-heart-rate.mjs` |

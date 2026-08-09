@@ -24,6 +24,7 @@
     "db:migrate:trainer-pay-tiers": "node scripts/apply-membership-types-trainer-pay-tiers.mjs",
     "db:migrate:trainer-pay-plan": "node scripts/apply-club-trainer-pay-plan-settings.mjs",
     "db:migrate:trainer-pay-profiles": "node scripts/apply-trainer-pay-profiles.mjs",
+    "db:migrate:trainer-pay-month-snapshots": "node scripts/apply-club-trainer-pay-month-snapshots.mjs",
     "db:migrate:price-list": "node scripts/apply-club-price-lists-migration.mjs",
     "db:migrate:tz-price-list": "node scripts/apply-club-tz-price-lists-migration.mjs",
     "db:migrate:az-price-list": "node scripts/apply-club-az-price-lists-migration.mjs",

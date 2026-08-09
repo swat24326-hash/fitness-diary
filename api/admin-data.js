@@ -20,6 +20,7 @@ import {
   handleTrainerPayProfilesGet,
   handleTrainerPayProfilesPost,
 } from './_lib/trainerPayProfileSettingsHandler.js'
+import { handleTrainerPayPayrollContextGet } from './_lib/trainerPayPayrollContextHandler.js'
 import { handleIskraLearningGet, handleIskraLearningPost } from './_lib/iskraLearningHandler.js'
 import { handleIskraDispatchGet, handleIskraDispatchPost } from './_lib/iskraDispatchHandler.js'
 import { handleIskraTtsPost } from './_lib/iskraTtsHandler.js'
@@ -84,6 +85,7 @@ async function handler(req, res) {
       'coach-quality-settings',
       'trainer-pay-plan-settings',
       'trainer-pay-profiles',
+      'trainer-pay-payroll-context',
       'iskra-learning',
       'iskra-dispatch',
       'iskra-tts',
@@ -444,6 +446,13 @@ async function handler(req, res) {
     const ctx = await requireAdmin(req, res)
     if (!ctx) return
     return handleTrainerPayProfilesGet(ctx, req, res)
+  }
+
+  if (action === 'trainer-pay-payroll-context') {
+    const clubId = String(req.query?.club_id ?? '').trim()
+    const ctx = await requireAdminOrSalesManager(req, res, clubId)
+    if (!ctx) return
+    return handleTrainerPayPayrollContextGet(ctx, req, res)
   }
 
   if (action === 'deletion-audit-log') {

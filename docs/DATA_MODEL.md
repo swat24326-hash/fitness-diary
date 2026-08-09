@@ -28,6 +28,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | `club_coach_quality_settings` | `club_id` | Качество ведения: веса/тумблеры |
 | `club_trainer_pay_plan_settings` | `club_id` | План ЗП: пороги тренировок месяца → ур. 1–3 (`config.workouts_l2_min`, `workouts_l3_min`); ставки ₽ — на `membership_types` |
 | `trainer_pay_profiles` | `trainer_id` | Кабинет ЗП: `on_plan` (без плана → всегда ур. 3) + `rate_adjustment_rub` (±₽ к ставке за тренировку; если ставка типа 0 ₽ — adj не применяется); клуб в `club_id` |
+| `club_trainer_pay_month_snapshots` | `(club_id, year, month)` | Заморозка правил ЗП прошлого календарного месяца: `payload` = planConfig + profiles + membershipTypes (ставки). Текущий месяц — live |
 | `pnk_funnel_events` | `id` | Журнал ПНК |
 | `sale_clips` | `id` | Клип-карты (awaiting → done на планшете); pull тренеру |
 

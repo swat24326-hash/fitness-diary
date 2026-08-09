@@ -53,7 +53,16 @@ async function fetchSalesPlanGlancePayload(clubId) {
   }
   const expenseForm = expenseRowToForm(bundle.expense)
   const expenseRaw = parseSalesMoney(expenseForm.expense_month)
-  const payrollCtx = await loadTrainerPayrollContextClient(clubId)
+  const payrollCtx = await loadTrainerPayrollContextClient(clubId, {
+    year: Number(bundle.year) || parts?.year,
+    month: Number(bundle.month) || parts?.month,
+  })
+  const payTypes =
+    payrollCtx.frozen && Array.isArray(payrollCtx.membershipTypes) && payrollCtx.membershipTypes.length
+      ? payrollCtx.membershipTypes
+      : Array.isArray(bundle.membershipTypes)
+        ? bundle.membershipTypes
+        : []
   return {
     monthLabel: parts ? `${name} ${parts.year}` : '',
     fact: resolvePlanFactFromMonthSummary(bundle.monthSummary),
@@ -62,7 +71,7 @@ async function fetchSalesPlanGlancePayload(clubId) {
       year: Number(bundle.year) || parts?.year || 0,
       month: Number(bundle.month) || parts?.month || 0,
       monthRows: Array.isArray(bundle.monthDays) ? bundle.monthDays : [],
-      membershipTypes: Array.isArray(bundle.membershipTypes) ? bundle.membershipTypes : [],
+      membershipTypes: payTypes,
       planForm: form,
       expense: Number.isFinite(expenseRaw) ? expenseRaw : 0,
       planConfig: payrollCtx.planConfig,

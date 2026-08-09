@@ -133,6 +133,18 @@ CREATE TABLE IF NOT EXISTS trainer_pay_profiles (
 CREATE INDEX IF NOT EXISTS idx_trainer_pay_profiles_club_id ON trainer_pay_profiles (club_id);
 
 -- ------------------------------------------------------------
+-- Снимок правил ЗП на календарный месяц
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS club_trainer_pay_month_snapshots (
+  club_id UUID NOT NULL REFERENCES clubs (id) ON DELETE CASCADE,
+  year INTEGER NOT NULL CHECK (year >= 2000 AND year <= 2100),
+  month INTEGER NOT NULL CHECK (month >= 1 AND month <= 12),
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  frozen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (club_id, year, month)
+);
+
+-- ------------------------------------------------------------
 -- Абонементы
 -- ------------------------------------------------------------
 CREATE TABLE memberships (

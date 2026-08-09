@@ -12,7 +12,7 @@ import {
   sumWorkoutsByTrainerFromMatrixRows,
 } from '../../src/lib/admin/trainerPayrollCore.js'
 import { normalizeTrainingRowForPayroll } from './trainerSelfStatsNormalize.js'
-import { loadTrainerPayrollContext, payrollOptsFromContext } from './trainerPayrollContext.js'
+import { loadTrainerPayrollContext, payrollOptsFromContext, payrollYearMonthFromIso } from './trainerPayrollContext.js'
 
 export { normalizeTrainingRowForPayroll } from './trainerSelfStatsNormalize.js'
 
@@ -105,10 +105,19 @@ export async function buildTrainerSelfStatsPayload(supabaseAdmin, p) {
     trainerIdFilter: trainerId,
   })
 
-  const rateMap = buildTrainerPayRateMap(membershipTypes)
-  const payrollCtx = await loadTrainerPayrollContext(supabaseAdmin, clubId)
+  const ym = payrollYearMonthFromIso(dateTo) ?? payrollYearMonthFromIso(dateFrom)
+  const payrollCtx = await loadTrainerPayrollContext(supabaseAdmin, clubId, {
+    year: ym?.year,
+    month: ym?.month,
+    membershipTypes,
+  })
   const payOpts = payrollOptsFromContext(payrollCtx, membershipTypes, { trainerIdFilter: trainerId })
-  const monthPay = computePayrollFromMembershipStats(typeStats, rateMap, payOpts).clubTotal
+  const payRateMap = buildTrainerPayRateMap(
+    payrollCtx.frozen && payrollCtx.membershipTypes?.length
+      ? payrollCtx.membershipTypes
+      : membershipTypes,
+  )
+  const monthPay = computePayrollFromMembershipStats(typeStats, payRateMap, payOpts).clubTotal
 
   const dayTrainings = trainings.filter((t) => {
     const d = String(t.date ?? '').slice(0, 10)
@@ -134,7 +143,7 @@ export async function buildTrainerSelfStatsPayload(supabaseAdmin, p) {
     }
   }
   const workoutsByTrainer = sumWorkoutsByTrainerFromMatrixRows(monthMatrixRows)
-  const dayPay = computePayrollFromMembershipStats(dayTypeStats, rateMap, {
+  const dayPay = computePayrollFromMembershipStats(dayTypeStats, payRateMap, {
     ...payOpts,
     workoutsByTrainer,
   }).clubTotal
