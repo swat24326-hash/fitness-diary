@@ -1,0 +1,69 @@
+/**
+ * Стек залов в выдаче поиска клиентов (ПЗ / ТЗ / АЗ).
+ */
+
+.admin-client-hall-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  flex-basis: 100%;
+  margin-top: 4px;
+}
+
+.admin-client-hall-stack__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-2, var(--bg-elevated, #1a2420)) 88%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+}
+
+.admin-client-hall-stack__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--accent, #c9a227);
+}
+
+.admin-client-hall-stack__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.admin-client-hall-stack__hall {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.admin-client-hall-stack__summary {
+  font-size: 0.9rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-client-hall-stack__open {
+  flex-shrink: 0;
+  text-decoration: none;
+}
+
+@media (max-width: 640px) {
+  .admin-client-hall-stack__row {
+    flex-wrap: wrap;
+  }
+  .admin-client-hall-stack__open {
+    width: 100%;
+    justify-content: center;
+  }
+}

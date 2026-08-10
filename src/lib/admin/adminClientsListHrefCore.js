@@ -98,11 +98,18 @@ export function buildAdminClientCardHref(basePath, clientId, listState = {}) {
   if (!id) return buildAdminClientsListHref(path, typeof listState === 'object' && !(listState instanceof URLSearchParams) ? listState : {})
 
   let qs
+  let hall = ''
   if (listState instanceof URLSearchParams || typeof listState === 'string') {
     qs = pickAdminClientsListSearchParams(listState)
+    if (listState instanceof URLSearchParams) {
+      hall = String(listState.get('hall') ?? '').trim()
+    }
   } else {
-    qs = buildAdminClientsListSearch(listState || {})
+    const state = listState || {}
+    qs = buildAdminClientsListSearch(state)
+    hall = String(state.hall ?? '').trim()
   }
+  if (hall === 'pz' || hall === 'tz' || hall === 'az') qs.set('hall', hall)
   const tail = qs.toString()
   return tail ? `${path}/${id}?${tail}` : `${path}/${id}`
 }

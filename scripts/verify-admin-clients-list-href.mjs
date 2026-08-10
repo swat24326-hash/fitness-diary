@@ -47,6 +47,13 @@ const card = buildAdminClientCardHref('/sales/clients', 'cid', {
 ok(card.startsWith('/sales/clients/cid?'), 'card path')
 ok(card.includes('clientsTab=az') && card.includes('page=2'), 'card keeps list qs')
 
+const cardHall = buildAdminClientCardHref('/admin/clients', 'cid', {
+  clubId: 'c1',
+  hall: 'tz',
+  query: 'миш',
+})
+ok(cardHall.includes('hall=tz') && cardHall.includes('q='), 'card href can set hall for multi-hall')
+
 const archiveList = buildAdminClientsListHref('/admin/clients', {
   clubId: 'c1',
   clientsTab: 'archive',

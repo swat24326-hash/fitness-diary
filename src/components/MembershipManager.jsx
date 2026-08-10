@@ -18,6 +18,11 @@ import { CheckCircle2, Eye, Pencil, Plus, Trash2 } from 'lucide-react'
 import { ModalHeader } from './ModalHeader'
 import { ClientRowMoreMenu } from './ClientRowMoreMenu'
 import { useAuth } from '../context/AuthContext'
+import { AdminMembershipPaidAmountField } from './admin/AdminMembershipPaidAmountField.jsx'
+import {
+  formatMembershipPaidAmountCell,
+  paidAmountFromMembershipForm,
+} from '../lib/admin/membershipPaidAmountCore.js'
 
 function newId() {
   return crypto.randomUUID()
@@ -98,12 +103,26 @@ export function MembershipManager({
   preferPaidType = false,
   /** Вкладка зала: по умолчанию только ПЗ (тренер не видит ТЗ/АЗ). */
   membershipHall = 'pz',
+  /** Админ / менеджер: цена пакета на абоне (paid_amount). Тренер планшета — скрыто. */
+  showPaidAmount = false,
 }) {
   const { user } = useAuth()
   const [items, setItems] = useState([])
   const [selectedId, setSelectedId] = useState(null)
-  const [form, setForm] = useState({ start_date: '', end_date: '', total_trainings: 12, membership_type_id: '' })
-  const [edit, setEdit] = useState({ start_date: '', end_date: '', total_trainings: 0, membership_type_id: '' })
+  const [form, setForm] = useState({
+    start_date: '',
+    end_date: '',
+    total_trainings: 12,
+    membership_type_id: '',
+    paid_amount: '',
+  })
+  const [edit, setEdit] = useState({
+    start_date: '',
+    end_date: '',
+    total_trainings: 0,
+    membership_type_id: '',
+    paid_amount: '',
+  })
   const [editOpenId, setEditOpenId] = useState(null)
   const [newOpen, setNewOpen] = useState(false)
   const [membershipTypes, setMembershipTypes] = useState([])
@@ -302,6 +321,14 @@ export function MembershipManager({
       alert('Дата окончания не может быть раньше начала')
       return
     }
+    let paid_amount = null
+    if (showPaidAmount) {
+      if (String(form.paid_amount ?? '').trim() !== '' && paidAmountFromMembershipForm(form.paid_amount) == null) {
+        alert('Цена пакета: число ≥ 0')
+        return
+      }
+      paid_amount = paidAmountFromMembershipForm(form.paid_amount)
+    }
     const row = {
       id,
       client_id: clientId,
@@ -314,9 +341,10 @@ export function MembershipManager({
       hall: hallFilter,
       created_at: now,
     }
+    if (showPaidAmount) row.paid_amount = paid_amount
     await saveLocalWithSync('memberships', row, { table_name: 'memberships', operation: 'insert', remote_id: null })
     setSelectedId(id)
-    setForm({ start_date: '', end_date: '', total_trainings: 12, membership_type_id: '' })
+    setForm({ start_date: '', end_date: '', total_trainings: 12, membership_type_id: '', paid_amount: '' })
     await notify()
     setNewOpen(false)
   }
@@ -341,6 +369,8 @@ export function MembershipManager({
       end_date: selected.end_date ?? '',
       total_trainings: Number(selected.total_trainings ?? 0),
       membership_type_id: selected.membership_type_id ?? '',
+      paid_amount:
+        selected.paid_amount != null && selected.paid_amount !== '' ? String(selected.paid_amount) : '',
     })
   }, [selectedId, selected])
 
@@ -366,6 +396,13 @@ export function MembershipManager({
       end_date: end,
       total_trainings: Number(edit.total_trainings) || 0,
       membership_type_id: edit.membership_type_id?.trim() || null,
+    }
+    if (showPaidAmount) {
+      if (String(edit.paid_amount ?? '').trim() !== '' && paidAmountFromMembershipForm(edit.paid_amount) == null) {
+        alert('Цена пакета: число ≥ 0')
+        return
+      }
+      patch.paid_amount = paidAmountFromMembershipForm(edit.paid_amount)
     }
     await patchMembership(selected.id, patch)
     setEditOpenId(null)
@@ -603,6 +640,13 @@ export function MembershipManager({
                     </p>
                   ) : null}
                 </div>
+                {showPaidAmount ? (
+                  <AdminMembershipPaidAmountField
+                    id="membership-new-paid"
+                    value={form.paid_amount}
+                    onChange={(v) => setForm((f) => ({ ...f, paid_amount: v }))}
+                  />
+                ) : null}
                 <div className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
                   <button type="submit" className="btn btn-primary btn-touch">
                     Добавить
@@ -656,6 +700,14 @@ export function MembershipManager({
                     ))}
                   </select>
                 </div>
+
+                {showPaidAmount ? (
+                  <AdminMembershipPaidAmountField
+                    id="membership-edit-paid"
+                    value={edit.paid_amount}
+                    onChange={(v) => setEdit((s) => ({ ...s, paid_amount: v }))}
+                  />
+                ) : null}
 
                 <div className="muted" style={{ fontSize: 13 }}>
                   Использовано: <strong>{selected.used_trainings ?? 0}</strong>
@@ -901,6 +953,7 @@ export function MembershipManager({
                 <th className="mem-col-type">Тип</th>
                 <th>Статус</th>
                 <th>Использовано</th>
+                {showPaidAmount ? <th>Оплата</th> : null}
                 <th>Создан</th>
                 <th />
               </tr>
@@ -920,6 +973,9 @@ export function MembershipManager({
                   <td>
                     {m.used_trainings ?? 0}/{m.total_trainings ?? '—'}
                   </td>
+                  {showPaidAmount ? (
+                    <td title="Цена пакета на абонементе">{formatMembershipPaidAmountCell(m.paid_amount)}</td>
+                  ) : null}
                   <td className="muted">{formatDateTimeRu(m.created_at)}</td>
                   <td style={{ width: 56 }}>
                     <div className="mem-actions">

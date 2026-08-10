@@ -101,6 +101,13 @@ import {
   pickHallActiveMembership,
 } from '../../lib/admin/deskMembershipLedgerCore.js'
 import {
+  buildClientHallStack,
+  clientMatchesAdminSearchQuery,
+  resolveAdminClientsSearchPool,
+  shouldSearchAcrossHalls,
+} from '../../lib/admin/adminClientsCrossHallSearchCore.js'
+import { AdminClientHallStack } from '../../components/admin/AdminClientHallStack.jsx'
+import {
   buildAdminClientCardHref,
   parseAdminClientsListPage,
 } from '../../lib/admin/adminClientsListHrefCore.js'
@@ -544,21 +551,24 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     !isDeskHallTab &&
     !(clientsTab === 'archive' && (archiveHallFilter === 'tz' || archiveHallFilter === 'az'))
 
+  const crossHallSearch = shouldSearchAcrossHalls(query, clientsTab)
+
   const filteredClients = useMemo(() => {
     const q = query.trim().toLowerCase()
     const tq = trainerQuery.trim().toLowerCase()
 
-    let base = filterClientsByAdminListTab(clients, clientsTab, memByClient)
+    let base = resolveAdminClientsSearchPool({
+      clients,
+      clientsTab,
+      query,
+      memByClient,
+      filterByTab: filterClientsByAdminListTab,
+    })
     if (clientsTab === 'archive' && normalizeArchiveHallFilter(archiveHallFilter)) {
       base = base.filter((c) => clientMatchesArchiveHallFilter(c, archiveHallFilter))
     }
     if (q) {
-      base = base.filter((c) => {
-        const name = String(c.name ?? '').toLowerCase()
-        const phone = String(c.phone ?? '').toLowerCase()
-        const card = String(c.card_number ?? '').toLowerCase()
-        return name.includes(q) || phone.includes(q) || card.includes(q)
-      })
+      base = base.filter((c) => clientMatchesAdminSearchQuery(c, q))
     }
     if (tq && showTrainerSearch) {
       base = base.filter((c) => {
@@ -578,12 +588,16 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
           memList: memByClient[c.id] ?? [],
           today,
           inactiveIds: todaySnapshot.inactiveIds,
-          hallMode: isDeskHallTab ? clientsTab : 'pz',
+          hallMode: isDeskHallTab && !shouldSearchAcrossHalls(query, clientsTab) ? clientsTab : 'pz',
         }),
       )
     }
 
-    if (clientsTab === 'az' && normalizeAzDirectionFilterId(azDirectionFilter)) {
+    if (
+      clientsTab === 'az' &&
+      !shouldSearchAcrossHalls(query, clientsTab) &&
+      normalizeAzDirectionFilterId(azDirectionFilter)
+    ) {
       base = base.filter((c) =>
         clientMatchesAzDirectionFilter(memByClient[c.id] ?? [], azDirectionFilter, today),
       )
@@ -1211,6 +1225,11 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
             </div>
           )}
         </div>
+        {crossHallSearch ? (
+          <p className="muted admin-inline-note" role="status" style={{ margin: '8px 0 0', fontSize: 13 }}>
+            Поиск по всему клубу (ПЗ, ТЗ и АЗ). В карточке выдачи — блоки залов, где есть абон.
+          </p>
+        ) : null}
 
         {clientsTab === 'active' || isDeskHallTab ? (
           <>
@@ -1360,6 +1379,13 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                 quickFilter === 'birthdays' && !birthdayIsToday
                   ? { mode: 'custom', scenario: null, label: 'Свой текст' }
                   : smsMode
+              const hallStack = crossHallSearch
+                ? buildClientHallStack(c, mlistAll, {
+                    today,
+                    trainerName: trainerNameById[String(c.trainer_id ?? '')] || '',
+                  })
+                : []
+              const cardNavSeed = { clientSeed: buildClientCardNavSeed(c) }
               return (
                 <li key={c.id} className="list-item td-client-item">
                   <div className="td-client-card">
@@ -1397,6 +1423,27 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                           <span className="td-client-fact__label">Карта</span>
                           <span className="td-client-fact__value">{String(c.card_number ?? '').trim() || '—'}</span>
                         </div>
+                        {crossHallSearch ? (
+                          <>
+                            <AdminClientHallStack
+                              items={hallStack}
+                              linkState={cardNavSeed}
+                              buildHref={(hall) =>
+                                buildAdminClientCardHref(clientsBasePath, c.id, {
+                                  ...listNavState,
+                                  hall,
+                                })
+                              }
+                            />
+                            {birthdayLabel ? (
+                              <div className="td-client-fact">
+                                <span className="td-client-fact__label">ДР</span>
+                                <span className="td-client-fact__value">{birthdayLabel}</span>
+                              </div>
+                            ) : null}
+                          </>
+                        ) : (
+                          <>
                         {isDeskClient ? (
                           <div className="td-client-fact">
                             <span className="td-client-fact__label">Пакет</span>
@@ -1471,6 +1518,8 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                             <span className="td-client-fact__value">{birthdayLabel}</span>
                           </div>
                         ) : null}
+                          </>
+                        )}
                       </div>
                       <div className="row td-client-actions">
                         <AdminClientMaxButton
@@ -1478,7 +1527,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                           mode={rowSmsMode.mode}
                           scenario={rowSmsMode.scenario}
                           scenarioLabel={rowSmsMode.label}
-                          memList={mlist}
+                          memList={crossHallSearch ? mlistAll : mlist}
                           trainerName={trainerNameById[String(c.trainer_id ?? '')] || ''}
                           clubName={clubSmsClubName}
                           today={today}
@@ -1492,7 +1541,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                           mode={rowSmsMode.mode}
                           scenario={rowSmsMode.scenario}
                           scenarioLabel={rowSmsMode.label}
-                          memList={mlist}
+                          memList={crossHallSearch ? mlistAll : mlist}
                           trainerName={trainerNameById[String(c.trainer_id ?? '')] || ''}
                           clubName={clubSmsClubName}
                           today={today}
@@ -1513,7 +1562,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                         />
                         <Link
                           to={buildAdminClientCardHref(clientsBasePath, c.id, listNavState)}
-                          state={{ clientSeed: buildClientCardNavSeed(c) }}
+                          state={cardNavSeed}
                           className="btn btn-primary btn-icon-square btn-touch u-no-decoration"
                           aria-label="Карточка клиента"
                           title="Карточка клиента"

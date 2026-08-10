@@ -99,6 +99,8 @@
 | Desk ledger абонов (действующий / цена) | `verify-desk-membership-ledger.mjs` |
 | Карточка: scope glance/full + lite + nav seed + memory list | `verify-client-workspace-scope.mjs` |
 | Клиенты: keep-alive путь список/карточка | `verify-admin-clients-keepalive.mjs` |
+| Клиенты: поиск по всем залам + стек ПЗ/ТЗ/АЗ | `verify-admin-clients-cross-hall-search.mjs` |
+| Абоны: цена пакета paid_amount (форма) | `verify-membership-paid-amount.mjs` |
 | Вкладки ПЗ / ТЗ / АЗ (списки + `memberships.hall`) | `verify-desk-hall-clients.mjs`, `verify-membership-hall.mjs` |
 | Desk: очистка ДР без отката при hydrate | `verify-desk-client-birth-form.mjs` |
 | Архив: подвкладки ПЗ / ТЗ / АЗ | `verify-admin-clients-archive-hall.mjs` |

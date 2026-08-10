@@ -222,6 +222,7 @@ export function AdminMultiHallClientCardSection({
             clubId={resolvedClubId}
             recordTrainerId={form.trainer_id || client.trainer_id}
             membershipHall="pz"
+            showPaidAmount
             onChanged={onSaved}
           />
         </div>
