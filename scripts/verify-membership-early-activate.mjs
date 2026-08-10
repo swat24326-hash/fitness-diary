@@ -3,6 +3,7 @@
  */
 import {
   canOfferEarlyMembershipActivation,
+  canStartNewTrainingForMemberships,
   membershipPeriodDayCount,
   pickEarliestUpcomingMembership,
   proposeEarlyMembershipActivation,
@@ -49,6 +50,16 @@ ok(pickEarliestUpcomingMembership([oldEnded, upcoming], today)?.id === 'm2', 'pi
 ok(!pickUsableMembershipForDate([oldEnded, upcoming], today), 'no usable on gap day')
 ok(canOfferEarlyMembershipActivation([oldEnded, upcoming], today), 'offer on gap')
 ok(!canOfferEarlyMembershipActivation([stillUsable, upcoming], today), 'no offer while old usable')
+ok(canStartNewTrainingForMemberships([oldEnded, upcoming], today), 'list button allows start on gap')
+ok(canStartNewTrainingForMemberships([stillUsable, upcoming], today), 'list button allows start when usable')
+ok(!canStartNewTrainingForMemberships([oldEnded], today), 'list button blocked without upcoming')
+ok(
+  canStartNewTrainingForMemberships(
+    [{ id: 'm', start_date: '2026-08-14', end_date: '2026-09-14', total_trainings: 8, used_trainings: 0 }],
+    '2026-08-10',
+  ),
+  'Semenov-like: start 14, today 10 → can open new training',
+)
 
 const prop = proposeEarlyMembershipActivation(upcoming, today)
 ok(prop.ok === true, 'propose ok')

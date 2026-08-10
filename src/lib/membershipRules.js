@@ -182,6 +182,19 @@ export function canOfferEarlyMembershipActivation(memberships, dateIso) {
 }
 
 /**
+ * Можно ли открыть «Новую тренировку» (действующий абон или ранняя активация upcoming).
+ * Кнопки списка/карточки не должны резать переход алертом — экран тренировки сам предложит сдвиг дат.
+ * @param {object[]} memberships
+ * @param {string} dateIso
+ */
+export function canStartNewTrainingForMemberships(memberships, dateIso) {
+  const d = String(dateIso ?? '').slice(0, 10)
+  if (!d) return false
+  if (hasUsableMembershipOnDate(memberships, d)) return true
+  return canOfferEarlyMembershipActivation(memberships, d)
+}
+
+/**
  * Отчётная дата для «активных / не активных» в сводке за период:
  * сегодня, если период текущий; иначе последний день периода.
  * @param {string} [asOf] yyyy-mm-dd (для тестов; по умолчанию — сегодня на устройстве)

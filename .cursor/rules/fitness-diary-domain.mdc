@@ -16,7 +16,7 @@ alwaysApply: false
 - **«Не активные» (финал воронки клиентов):** после окна «Давно» (>60 дн.) **или** странный/пустой абон; **не** пересекается с «Закончился»/«Давно». ПНК и «ждёт старт» — вне. `isTrainerClientInactiveToday` / `isTzClientFunnelInactive`.
 - **UI-счётчик** «N/M»: `countedUsedTrainingsOnMembership` / `membershipUsageLabel` — по завершённым тренировкам дневника, не только `used_trainings`.
 - **Списание при `completed`:** `pickUsableMembershipForDate`; дата — тренер **сегодня**, админ **`trainingDate`** (`TrainingPage`).
-- **Ранняя активация:** если нет usable, но есть upcoming — сдвиг дат той же длины через подтверждение (`proposeEarlyMembershipActivation` / `earlyMembershipActivateService`), затем обычный старт. Не активировать, пока старый ещё usable.
+- **Ранняя активация:** если нет usable, но есть upcoming — сдвиг дат той же длины через подтверждение (`proposeEarlyMembershipActivation` / `earlyMembershipActivateService`), затем обычный старт. Не активировать, пока старый ещё usable. Кнопки списка/карточки: `canStartNewTrainingForMemberships` (не резать алертом «нет абона»).
 - Причины неактивности (статистика периода): `inactiveMembershipReason` + `INACTIVE_MEMBERSHIP_REASON_LABELS`.
 
 ## Статистика клуба / тренера

@@ -11,7 +11,10 @@ import { formatIsoRu, getDateRange, isDateInRange, PERIOD_PRESETS } from '../../
 import { flushSyncQueue, saveLocalWithSync } from '../../lib/syncService'
 import { subscribeNetworkStatus } from '../../lib/networkReachability'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
-import { pickUsableMembershipForDate } from '../../lib/membershipRules'
+import {
+  canStartNewTrainingForMemberships,
+  pickUsableMembershipForDate,
+} from '../../lib/membershipRules'
 import { membershipSignal } from '../../lib/clientListSignals'
 import { aggregateMembershipTypeStats } from '../../lib/admin/membershipTypeStatsAgg'
 import { listMembershipTypesForClub } from '../../lib/membershipTypesService'
@@ -312,6 +315,7 @@ export function TrainerDashboard() {
           {clients.map((c) => {
             const mlist = memByClient[c.id] ?? []
             const active = pickUsableMembershipForDate(mlist, today)
+            const canStartTraining = canStartNewTrainingForMemberships(mlist, today)
             const sig = membershipSignal(mlist, today)
             const last = lastTrainingDate(trainings, c.id)
             return (
@@ -327,12 +331,16 @@ export function TrainerDashboard() {
                     </div>
                   </div>
                   <div className="row td-client-actions">
-                    {active ? (
+                    {canStartTraining ? (
                       <Link
                         to={`/trainer/workouts/new?clientId=${c.id}`}
                         className="btn btn-primary btn-icon-square btn-touch u-no-decoration"
                         aria-label="Новая тренировка"
-                        title="Новая тренировка"
+                        title={
+                          active
+                            ? 'Новая тренировка'
+                            : 'Начать тренировку — предложим активировать абонемент раньше'
+                        }
                       >
                         <Dumbbell size={20} aria-hidden />
                       </Link>

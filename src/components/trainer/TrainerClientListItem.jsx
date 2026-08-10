@@ -8,7 +8,11 @@ import {
   membershipSignalDotClass,
   pickExpiredMembershipWithRemaining,
 } from '../../lib/clientListSignals'
-import { membershipUsageLabel, pickUsableMembershipForDate } from '../../lib/membershipRules'
+import {
+  canStartNewTrainingForMemberships,
+  membershipUsageLabel,
+  pickUsableMembershipForDate,
+} from '../../lib/membershipRules'
 import { ClientRowMoreMenu } from '../ClientRowMoreMenu'
 import '../../styles/pnk-funnel.css'
 
@@ -34,6 +38,7 @@ export function TrainerClientListItem({
   onRestore,
 }) {
   const active = pickUsableMembershipForDate(memList, today)
+  const canStartTraining = canStartNewTrainingForMemberships(memList, today)
   const sig = membershipSignal(memList, today)
   const expiredLeft = active ? null : pickExpiredMembershipWithRemaining(memList, today)
   const last = formatLastTrainingDate(lastTrainingIso)
@@ -142,12 +147,16 @@ export function TrainerClientListItem({
               </button>
             ) : null}
             {mode === 'active' ? (
-              active ? (
+              canStartTraining ? (
                 <Link
                   to={`/trainer/workouts/new?clientId=${client.id}`}
                   className="btn btn-primary btn-icon-square btn-touch u-no-decoration"
                   aria-label="Новая тренировка"
-                  title="Новая тренировка"
+                  title={
+                    active
+                      ? 'Новая тренировка'
+                      : 'Начать тренировку — предложим активировать абонемент раньше'
+                  }
                 >
                   <Dumbbell size={20} aria-hidden />
                 </Link>

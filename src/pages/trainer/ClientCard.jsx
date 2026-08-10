@@ -8,7 +8,7 @@ import { ClientHomeworkPage } from './ClientHomeworkPage'
 import { Statistics } from './Statistics'
 import { getHealthCard, getLocalClient, hydrateAdminClientWorkspace, listMemberships, listTrainingsForClient, listTrainerSummariesForAdmin } from '../../lib/dataAccess'
 import { isSupabaseConfigured } from '../../lib/supabase'
-import { hasUsableMembershipOnDate } from '../../lib/membershipRules'
+import { canStartNewTrainingForMemberships } from '../../lib/membershipRules'
 import {
   criticalWriteCloudWarning,
   flushCriticalWritesToCloud,
@@ -347,9 +347,9 @@ export function ClientCard() {
     })
   }, [canCloudHydrateClient, hydrateFromCloudInBackground, reloadLocal])
 
-  const hasActiveMembership = useMemo(() => {
+  const canStartTraining = useMemo(() => {
     const today = todayLocalIso()
-    return hasUsableMembershipOnDate(memberships, today)
+    return canStartNewTrainingForMemberships(memberships, today)
   }, [memberships])
 
   const pnkCloseMemberships = useMemo(() => {
@@ -865,7 +865,7 @@ export function ClientCard() {
               >
                 <Dumbbell size={20} aria-hidden />
               </button>
-            ) : hasActiveMembership ? (
+            ) : canStartTraining ? (
               <Link
                 to={`/trainer/workouts/new?clientId=${client.id}`}
                 className="btn btn-primary btn-icon-square btn-touch u-no-decoration"
