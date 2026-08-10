@@ -141,7 +141,7 @@ async function loadMembershipTypes(clubId, warnings) {
     const typesRes = await withSupabaseRetry(() =>
       supabase
         .from('membership_types')
-        .select('id, code, sort_order, is_active, trainer_assignable, trainer_pay_per_session, trainer_pay_l1, trainer_pay_l2, trainer_pay_l3, aerobic_pay_amount')
+        .select('id, code, sort_order, is_active, trainer_assignable, trainer_pay_per_session, trainer_pay_l1, trainer_pay_l2, trainer_pay_l3, aerobic_pay_amount, counts_toward_pay_plan')
         .eq('club_id', clubId)
         .order('sort_order', { ascending: true }),
     )

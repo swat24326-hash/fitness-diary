@@ -31,7 +31,7 @@ const SALES_MONTH_SELECT =
 async function loadMonthRaw(supabaseAdmin, clubId, year, month) {
   const { start, end } = monthDateRange(year, month)
   const membershipTypesSelect =
-    'id, code, trainer_assignable, trainer_pay_per_session, trainer_pay_l1, trainer_pay_l2, trainer_pay_l3, aerobic_pay_amount'
+    'id, code, trainer_assignable, trainer_pay_per_session, trainer_pay_l1, trainer_pay_l2, trainer_pay_l3, aerobic_pay_amount, counts_toward_pay_plan'
   const [monthRes, planRes, expenseRes, clubStatsRaw, usersRes] = await Promise.all([
     supabaseAdmin
       .from('club_sales_daily')

@@ -107,6 +107,32 @@ ok(
 ok(membershipTypeCountsTowardPayPlan({ trainer_pay_per_session: 200 }) === true, 'legacy paid session in plan')
 ok(membershipTypeCountsTowardPayPlan({ trainer_pay_per_session: 0 }) === false, 'legacy zero not in plan')
 
+ok(
+  membershipTypeCountsTowardPayPlan({
+    counts_toward_pay_plan: true,
+    trainer_pay_l1: 0,
+    trainer_pay_l2: 0,
+    trainer_pay_l3: 0,
+  }) === true,
+  'explicit flag true overrides zero rates',
+)
+ok(
+  membershipTypeCountsTowardPayPlan({
+    counts_toward_pay_plan: false,
+    trainer_pay_l1: 500,
+    trainer_pay_l2: 500,
+    trainer_pay_l3: 500,
+  }) === false,
+  'explicit flag false excludes paid type from plan',
+)
+ok(
+  membershipTypeCountsTowardPayPlan({
+    counts_toward_pay_plan: 'false',
+    trainer_pay_l1: 100,
+  }) === false,
+  'string false coerces off plan',
+)
+
 if (failed > 0) {
   console.error(`\n${failed} failed`)
   process.exit(1)

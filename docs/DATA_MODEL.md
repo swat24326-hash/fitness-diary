@@ -20,14 +20,14 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | `clubs` | `id` | Кэш клубов |
 | `sync_queue` | `local_id` | Очередь push |
 | `challenges` | `id` | Челленджи |
-| `membership_types` | `id` | Типы карт: **ПЗ** (`trainer_assignable≠false`) и **АЗ** (`trainer_assignable=false`); также БЗ / `is_pnk_trial`. Поле `code` (до 12 символов) — отображаемое название; уникально в клубе без учёта регистра; **переименование** через админ «Типы абон.» не отвязывает абонементы (`membership_type_id`). ПЗ: ставки тренеру `trainer_pay_l1/l2/l3` (₽ за тренировку; `trainer_pay_per_session` = l1 для совместимости ЗП). Менеджер продаж читает все типы своего клуба (RLS `fit_membership_types_sales_manager_read`) |
+| `membership_types` | `id` | Типы карт: **ПЗ** (`trainer_assignable≠false`) и **АЗ** (`trainer_assignable=false`); также БЗ / `is_pnk_trial`. Поле `code` (до 12 символов) — отображаемое название; уникально в клубе без учёта регистра; **переименование** через админ «Типы абон.» не отвязывает абонементы (`membership_type_id`). ПЗ: ставки тренеру `trainer_pay_l1/l2/l3` (₽ за тренировку; `trainer_pay_per_session` = l1 для совместимости ЗП); галочка `counts_toward_pay_plan` — участие в порогах плана ЗП. Менеджер продаж читает все типы своего клуба (RLS `fit_membership_types_sales_manager_read`) |
 | `nutrition_products` | `id` | Питание |
 | `homework_presets` | `id` | Шаблоны ДЗ |
 | `client_weight_entries` | `id` | Вес |
 | `outreach_log` | `id` | Касания / Max-очередь (локальный журнал; кэш club SMS) |
 | `club_iskra_settings` | `club_id` | ИСКРА + outreach: `outreach_templates` (Max тренера); `club_sms_templates` (SMS клуба); **`moizvonki`** jsonb — аккаунт «Мои Звонки» на клуб (`api_key`, `user_email`, `api_base`; только server-side) |
 | `club_coach_quality_settings` | `club_id` | Качество ведения: веса/тумблеры |
-| `club_trainer_pay_plan_settings` | `club_id` | План ЗП: пороги тренировок месяца → ур. 1–3 (`config.workouts_l2_min`, `workouts_l3_min`); в пороги идут только типы с оплатой тренеру > 0 ₽; ставки ₽ — на `membership_types` |
+| `club_trainer_pay_plan_settings` | `club_id` | План ЗП: пороги тренировок месяца → ур. 1–3 (`config.workouts_l2_min`, `workouts_l3_min`); в пороги идут типы с `counts_toward_pay_plan`; ставки ₽ — на `membership_types` |
 | `trainer_pay_profiles` | `trainer_id` | Кабинет ЗП: `on_plan` (без плана → всегда ур. 3) + `rate_adjustment_rub` (±₽ к ставке за тренировку; если ставка типа 0 ₽ — adj не применяется); клуб в `club_id` |
 | `club_trainer_pay_month_snapshots` | `(club_id, year, month)` | Заморозка правил ЗП прошлого календарного месяца: `payload` = planConfig + profiles + membershipTypes (ставки). Текущий месяц — live |
 | `pnk_funnel_events` | `id` | Журнал ПНК |

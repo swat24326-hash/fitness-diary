@@ -84,12 +84,19 @@ export function trainerPayTiersToRowFields(tiers) {
 }
 
 /**
- * Карта с оплатой тренеру (хотя бы один уровень > 0) идёт в пороги плана ЗП.
- * Тип со всеми ставками 0 ₽ — бесплатная/нулевая карта: в план не считается.
- * @param {Parameters<typeof resolveTrainerPayTiers>[0]} typeRow
+ * Участвует ли тип карты в порогах плана ЗП (ур. 1–3).
+ * Явный `counts_toward_pay_plan` — источник правды.
+ * Если флага нет (старый кэш/снимок) — фолбэк: любая ставка > 0 ₽.
+ * @param {Parameters<typeof resolveTrainerPayTiers>[0] & { counts_toward_pay_plan?: boolean|null }} typeRow
  * @returns {boolean}
  */
 export function membershipTypeCountsTowardPayPlan(typeRow) {
+  if (typeRow && Object.prototype.hasOwnProperty.call(typeRow, 'counts_toward_pay_plan')) {
+    const raw = typeRow.counts_toward_pay_plan
+    if (raw === false || raw === 0 || raw === '0') return false
+    if (typeof raw === 'string' && raw.trim().toLowerCase() === 'false') return false
+    return Boolean(raw)
+  }
   const tiers = resolveTrainerPayTiers(typeRow)
   return tiers.l1 > 0 || tiers.l2 > 0 || tiers.l3 > 0
 }

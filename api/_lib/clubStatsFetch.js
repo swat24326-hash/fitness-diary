@@ -6,7 +6,7 @@ import {
 } from './apiLimits.js'
 
 const MEMBERSHIP_TYPES_SELECT =
-  'id, code, sort_order, is_active, is_pnk_trial, trainer_assignable, trainer_pay_per_session, trainer_pay_l1, trainer_pay_l2, trainer_pay_l3, aerobic_pay_amount'
+  'id, code, sort_order, is_active, is_pnk_trial, trainer_assignable, trainer_pay_per_session, trainer_pay_l1, trainer_pay_l2, trainer_pay_l3, aerobic_pay_amount, counts_toward_pay_plan'
 
 /**
  * Общая загрузка сырых данных для club-stats и ИСКРА (лимиты памяти Vercel).

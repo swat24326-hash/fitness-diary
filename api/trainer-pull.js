@@ -11,6 +11,7 @@ import {
   aggregatePayrollFromDailyRows,
   buildTrainerPayRateMap,
 } from '../src/lib/admin/trainerPayrollCore.js'
+import { membershipTypeCountsTowardPayPlan } from '../src/lib/admin/trainerPayTiersCore.js'
 
 const PAGE = 500
 const IN_CHUNK = 80
@@ -43,7 +44,7 @@ async function handleTrainerPayrollGet(ctx, req, res) {
   const [typesRes, dailyRes] = await Promise.all([
     supabaseAdmin
       .from('membership_types')
-      .select('id, code, sort_order, is_active, trainer_assignable, trainer_pay_per_session, trainer_pay_l1, trainer_pay_l2, trainer_pay_l3')
+      .select('id, code, sort_order, is_active, trainer_assignable, trainer_pay_per_session, trainer_pay_l1, trainer_pay_l2, trainer_pay_l3, counts_toward_pay_plan')
       .eq('club_id', clubId)
       .eq('trainer_assignable', true)
       .order('sort_order', { ascending: true }),
@@ -102,6 +103,7 @@ async function handleTrainerPayrollGet(ctx, req, res) {
       trainer_pay_l1: Number(t.trainer_pay_l1 ?? t.trainer_pay_per_session) || 0,
       trainer_pay_l2: Number(t.trainer_pay_l2 ?? t.trainer_pay_per_session) || 0,
       trainer_pay_l3: Number(t.trainer_pay_l3 ?? t.trainer_pay_per_session) || 0,
+      counts_toward_pay_plan: membershipTypeCountsTowardPayPlan(t),
       is_active: t.is_active !== false,
     })),
     report_payroll: {

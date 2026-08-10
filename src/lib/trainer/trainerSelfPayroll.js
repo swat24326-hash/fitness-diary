@@ -16,6 +16,9 @@ import {
  *   trainerId: string,
  *   dateFrom: string,
  *   dateTo: string,
+ *   planConfig?: object | null,
+ *   profilesByTrainerId?: Map|object|null,
+ *   clubId?: string,
  * }} input
  */
 export function computeTrainerSelfPayroll(input) {
@@ -38,7 +41,14 @@ export function computeTrainerSelfPayroll(input) {
     trainerIdFilter: trainerId,
   })
   const rateMap = buildTrainerPayRateMap(input.membershipTypes ?? [])
-  const pay = computePayrollFromMembershipStats(stats, rateMap, { trainerIdFilter: trainerId })
+  const types = input.membershipTypes ?? []
+  const pay = computePayrollFromMembershipStats(stats, rateMap, {
+    trainerIdFilter: trainerId,
+    membershipTypes: types,
+    planConfig: input.planConfig ?? null,
+    profilesByTrainerId: input.profilesByTrainerId ?? null,
+    clubId: String(input.clubId ?? '').trim(),
+  })
   return pay.clubTotal
 }
 

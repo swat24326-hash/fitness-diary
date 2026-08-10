@@ -24,7 +24,7 @@ const CLIENTS_SELECT = 'id, name, phone, trainer_id, archived_at, lifecycle, clu
 const MEM_SELECT =
   'id, client_id, club_id, start_date, end_date, total_trainings, used_trainings, membership_type_id'
 const TYPES_SELECT =
-  'id, code, sort_order, is_active, is_pnk_trial, trainer_assignable, trainer_pay_per_session, trainer_pay_l1, trainer_pay_l2, trainer_pay_l3, aerobic_pay_amount'
+  'id, code, sort_order, is_active, is_pnk_trial, trainer_assignable, trainer_pay_per_session, trainer_pay_l1, trainer_pay_l2, trainer_pay_l3, aerobic_pay_amount, counts_toward_pay_plan'
 
 /**
  * @param {import('@supabase/supabase-js').SupabaseClient} supabaseAdmin

@@ -2,6 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { RefreshCw, Trash2 } from 'lucide-react'
 import { AdminMembershipTypeRenameButton } from '../../components/admin/AdminMembershipTypeRenameButton.jsx'
+import {
+  AdminMembershipTypesPzPayTable,
+  AdminMembershipTypeZoneBadge,
+} from '../../components/admin/AdminMembershipTypesPzPayTable.jsx'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import {
   deactivateMembershipType,
@@ -12,6 +16,7 @@ import {
   normalizeMembershipTypeCode,
   updateMembershipTypeCode,
   updateMembershipTypePay,
+  updateMembershipTypeCountsTowardPayPlan,
   updateAerobicMembershipPay,
   filterAerobicSalesTypes,
   filterTrainerAssignableTypes,
@@ -29,11 +34,6 @@ function splitActiveInactive(items) {
   return { active, inactive }
 }
 
-function ZoneBadge({ zone }) {
-  const label = zone === 'az' ? 'АЗ' : 'ПЗ'
-  return <span className={`admin-mt-badge admin-mt-badge--${zone}`}>{label}</span>
-}
-
 function TypeChips({ items, zone, emptyLabel }) {
   const { active, inactive } = splitActiveInactive(items)
   if (!items?.length) {
@@ -46,7 +46,7 @@ function TypeChips({ items, zone, emptyLabel }) {
           {active.map((t) => (
             <li key={t.id}>
               <span className={`admin-mt-chip admin-mt-chip--${zone} admin-mt-chip--active`}>
-                <ZoneBadge zone={zone} />
+                <AdminMembershipTypeZoneBadge zone={zone} />
                 <span className="admin-mt-chip__code">{t.code}</span>
               </span>
             </li>
@@ -62,7 +62,7 @@ function TypeChips({ items, zone, emptyLabel }) {
             {inactive.map((t) => (
               <li key={t.id}>
                 <span className={`admin-mt-chip admin-mt-chip--${zone} admin-mt-chip--inactive`}>
-                  <ZoneBadge zone={zone} />
+                  <AdminMembershipTypeZoneBadge zone={zone} />
                   <span className="admin-mt-chip__code">{t.code}</span>
                 </span>
               </li>
@@ -89,6 +89,7 @@ export function AdminMembershipTypes() {
   const [payDraft, setPayDraft] = useState({})
   const [aerobicPayDraft, setAerobicPayDraft] = useState({})
   const [paySavingId, setPaySavingId] = useState(null)
+  const [planSavingId, setPlanSavingId] = useState(null)
   const [aerobicPaySavingId, setAerobicPaySavingId] = useState(null)
 
   const reloadLocal = useCallback(async () => {
@@ -178,6 +179,24 @@ export function AdminMembershipTypes() {
       setMsg(err?.message ?? 'Ошибка сохранения ставок')
     } finally {
       setPaySavingId(null)
+    }
+  }
+
+  const savePlanFlag = async (typeId, next) => {
+    const id = String(typeId ?? '').trim()
+    if (!id) return
+    setMsg('')
+    setPlanSavingId(id)
+    try {
+      const cloud = await updateMembershipTypeCountsTowardPayPlan(id, next === true)
+      if (!cloud.cloudOk) {
+        setMsg(`«В план» сохранено локально, в облако не ушло: ${cloud.cloudError}. Нажмите Sync.`)
+      }
+      await reloadLocal()
+    } catch (err) {
+      setMsg(err?.message ?? 'Ошибка сохранения «В план»')
+    } finally {
+      setPlanSavingId(null)
     }
   }
 
@@ -381,14 +400,14 @@ export function AdminMembershipTypes() {
         <div className="admin-mt-overview">
           <div className="admin-mt-overview__col">
             <p className="admin-mt-overview__label">
-              <ZoneBadge zone="pz" />
+              <AdminMembershipTypeZoneBadge zone="pz" />
               ПЗ — тренеры
             </p>
             <TypeChips items={trainerItems} zone="pz" emptyLabel="Типов ПЗ пока нет." />
           </div>
           <div className="admin-mt-overview__col">
             <p className="admin-mt-overview__label">
-              <ZoneBadge zone="az" />
+              <AdminMembershipTypeZoneBadge zone="az" />
               АЗ — отчёт продаж
             </p>
             <TypeChips items={aerobicItems} zone="az" emptyLabel="Типов АЗ пока нет." />
@@ -398,15 +417,15 @@ export function AdminMembershipTypes() {
 
       <section className="admin-mt-zone admin-mt-zone--pz" aria-labelledby="admin-mt-pz-title">
         <h3 id="admin-mt-pz-title" className="admin-mt-zone__title">
-          <ZoneBadge zone="pz" /> ПЗ — тренерский зал
+          <AdminMembershipTypeZoneBadge zone="pz" /> ПЗ — тренерский зал
         </h3>
         <p className="muted admin-mt-zone__lead">
-          Тренер выбирает эти типы при создании абонемента. Три ставки (ур. 1–3) — оплата тренеру за тренировку.
-          Карандаш — переименовать тип (абонементы не отвязываются). Пороги тренировок месяца — во вкладке{' '}
+          Тренер выбирает эти типы при создании абонемента. Ставки (ур. 1–3) — оплата тренеру за тренировку.
+          Галочка «В план» — учитывать тренировки в порогах вкладки{' '}
           <Link to={clubId ? `/admin/structure?tab=club-plan&club=${encodeURIComponent(clubId)}` : '/admin/structure?tab=club-plan'}>
             План ЗП
           </Link>
-          . Сейчас в расчёте ЗП используется уровень 1.
+          (независимо от ₽). Карандаш — переименовать тип (абонементы не отвязываются).
         </p>
 
         <form onSubmit={addType} className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 12 }}>
@@ -429,83 +448,23 @@ export function AdminMembershipTypes() {
           </button>
         </form>
 
-        {trainerItems.length > 0 ? (
-          <div className="table-wrap admin-mt-table">
-            <table>
-              <thead>
-                <tr>
-                  <th className="admin-mt-table__zone">Зал</th>
-                  <th>Тип</th>
-                  <th title="Уровень 1 — базовая ставка (сейчас в ЗП)">Ур. 1 ₽</th>
-                  <th title="Уровень 2 — средний порог тренировок">Ур. 2 ₽</th>
-                  <th title="Уровень 3 — максимум / без плана">Ур. 3 ₽</th>
-                  <th>Статус</th>
-                  <th style={{ width: 104 }} />
-                </tr>
-              </thead>
-              <tbody>
-                {trainerItems.map((t) => {
-                  const draft = payDraft[t.id] ?? { l1: '', l2: '', l3: '' }
-                  const saving = busy || paySavingId === t.id
-                  return (
-                  <tr key={t.id} className={t.is_active === false ? 'muted' : undefined}>
-                    <td className="admin-mt-table__zone">
-                      <ZoneBadge zone="pz" />
-                    </td>
-                    <td>
-                      <strong>{t.code}</strong>
-                    </td>
-                    {(['l1', 'l2', 'l3']).map((level, idx) => (
-                      <td key={level}>
-                        <input
-                          className="input admin-mt-pay-tier"
-                          type="text"
-                          inputMode="decimal"
-                          aria-label={`${t.code}: ставка уровня ${idx + 1}`}
-                          value={draft[level] ?? ''}
-                          disabled={saving}
-                          onChange={(e) => setPayTierDraft(t.id, level, e.target.value)}
-                          onBlur={() => void savePay(t.id)}
-                        />
-                      </td>
-                    ))}
-                    <td>{t.is_active === false ? 'Отключён' : 'Активен'}</td>
-                    <td>
-                      <div className="admin-mt-table__actions">
-                        <AdminMembershipTypeRenameButton
-                          type={t}
-                          disabled={busy}
-                          busy={saving}
-                          onRename={renameType}
-                        />
-                        {t.is_active !== false ? (
-                          <button
-                            type="button"
-                            className="btn btn-ghost btn-icon-square"
-                            aria-label={`Отключить тип ${t.code}`}
-                            title="Отключить"
-                            disabled={busy}
-                            onClick={() => setConfirmId(t.id)}
-                          >
-                            <Trash2 size={16} aria-hidden />
-                          </button>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="muted admin-mt-catalog__empty">Список ПЗ пуст.</p>
-        )}
+        <AdminMembershipTypesPzPayTable
+          items={trainerItems}
+          payDraft={payDraft}
+          busy={busy}
+          paySavingId={paySavingId}
+          planSavingId={planSavingId}
+          onPayTierChange={setPayTierDraft}
+          onPayBlur={(id) => void savePay(id)}
+          onPlanToggle={(id, next) => void savePlanFlag(id, next)}
+          onRename={renameType}
+          onRequestDeactivate={setConfirmId}
+        />
       </section>
 
       <section className="admin-mt-zone admin-mt-zone--az" aria-labelledby="admin-mt-az-title">
         <h3 id="admin-mt-az-title" className="admin-mt-zone__title">
-          <ZoneBadge zone="az" /> АЗ — аэробный зал
+          <AdminMembershipTypeZoneBadge zone="az" /> АЗ — аэробный зал
         </h3>
         <p className="muted admin-mt-zone__lead">
           Только для отчёта менеджера по продажам. «Стоимость / ЗП» — сумма зарплаты АЗ за одну продажу этого
@@ -552,7 +511,7 @@ export function AdminMembershipTypes() {
                 {aerobicItems.map((t) => (
                   <tr key={t.id} className={t.is_active === false ? 'muted' : undefined}>
                     <td className="admin-mt-table__zone">
-                      <ZoneBadge zone="az" />
+                      <AdminMembershipTypeZoneBadge zone="az" />
                     </td>
                     <td>
                       <strong>{t.code}</strong>

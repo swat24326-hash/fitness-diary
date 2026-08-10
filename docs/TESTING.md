@@ -1,6 +1,6 @@
 # Тестирование и QA
 
-**Актуально:** 2026-07-17. Политика: `.cursor/rules/fitness-diary-ship.mdc`, `fitness-diary-stability.mdc`.
+**Актуально:** 2026-08-09. Политика: `.cursor/rules/fitness-diary-ship.mdc`, `fitness-diary-stability.mdc`.
 
 ---
 
@@ -42,7 +42,7 @@
 | Админ: статистика / ИСКРА | agg, snapshot |
 | ПНК мастер / KPI | целевые `verify-pnk-*.mjs` |
 | Качество ведения тренера | `verify-coach-quality.mjs` (TECH + COACH + MANAGER сценарии) |
-| Кабинет ЗП тренера (план / ±₽) | `verify-trainer-pay-profile.mjs`; ставки типов — `verify-trainer-pay-tiers.mjs`; база ЗП — `verify-trainer-payroll.mjs`; роли на prod — блок `trainer-pay-profiles` в `npm run qa:roles` (admin OK / trainer+sales 403) |
+| Кабинет ЗП тренера (план / ±₽) | `verify-trainer-pay-profile.mjs`; ставки типов и галочка «В план» — `verify-trainer-pay-tiers.mjs`; база ЗП — `verify-trainer-payroll.mjs`; роли на prod — блок `trainer-pay-profiles` в `npm run qa:roles` (admin OK / trainer+sales 403) |
 | Заморозка ЗП месяца | `verify-trainer-pay-month-snapshot.mjs`; прошлый месяц → snapshot, текущий → live |
 | Имя продукта (без хардкода в UI) | `verify-product-brand.mjs`; смена имени — `productBrand.js` → `npm run sync:brand` → `gen:icons` |
 | Home glance cache | `verify-home-glance-cache.mjs` (TTL / looksSame / профили) |
@@ -64,6 +64,8 @@
 | Удаление абонемента (тексты confirm) | `verify-membership-delete.mjs` |
 | Менеджер: доступ к типам АЗ / выбор списка для отчёта | `verify-sales-membership-types-access.mjs` |
 | Переименование code типа карты (уникальность в клубе) | `verify-membership-type-code.mjs` |
+| R2 / bare PG: порядок migrate + stub auth.* + SSL | `verify-pg-migrate-order.mjs` |
+| Portable host: `/api/health` | `verify-portable-host.mjs` |
 | Менеджер: клиенты клуба (push/club/deep-link) | `verify-sales-manager-clients.mjs` |
 | Управляющий: club scope / один на клуб / без журнала удалений | `verify-supervisor-access.mjs` |
 | Расход управляющего: статьи + итог / legacy → «Расходы» | `verify-supervisor-expense-parts.mjs` |

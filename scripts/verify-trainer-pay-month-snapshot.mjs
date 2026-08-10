@@ -40,6 +40,11 @@ const snapPayload = buildPayMonthSnapshotPayload({
 })
 ok(snapPayload.membershipTypes[0].trainer_pay_l3 === 500, 'snapshot keeps L3')
 ok(slimMembershipTypeForPaySnapshot(vipLive).trainer_pay_l1 === 200, 'slim L1')
+ok(slimMembershipTypeForPaySnapshot(vipLive).counts_toward_pay_plan === true, 'slim plan flag from rates fallback')
+ok(
+  slimMembershipTypeForPaySnapshot({ ...vipLive, counts_toward_pay_plan: false }).counts_toward_pay_plan === false,
+  'slim keeps explicit false',
+)
 
 const matrix = [{ trainer_id: 'tr1', membership_type_id: 'vip', count: 100 }]
 const daily = [{ trainings_matrix: matrix }]

@@ -39,12 +39,19 @@ export {
 } from './membershipTypesCore.js'
 
 
+function coerceCountsTowardPayPlanFlag(raw) {
+  if (raw === false || raw === 0 || raw === '0') return false
+  if (typeof raw === 'string' && raw.trim().toLowerCase() === 'false') return false
+  return Boolean(raw)
+}
+
 function normalizeRow(row) {
   const codeRaw = row.code ?? row.name
   const tiers = resolveTrainerPayTiers(row)
   const aerobicRaw = row.aerobic_pay_amount
   const aerobicParsed = aerobicRaw == null || aerobicRaw === '' ? 0 : parseAerobicPayRate(aerobicRaw)
   const trainerAssignable = row.trainer_assignable !== false
+  const hasPlanFlag = Object.prototype.hasOwnProperty.call(row ?? {}, 'counts_toward_pay_plan')
   return {
     ...row,
     code: normalizeMembershipTypeCode(codeRaw),
@@ -54,6 +61,7 @@ function normalizeRow(row) {
     trainer_assignable: trainerAssignable,
     ...trainerPayTiersToRowFields(tiers),
     aerobic_pay_amount: Number.isNaN(aerobicParsed) ? 0 : aerobicParsed,
+    ...(hasPlanFlag ? { counts_toward_pay_plan: coerceCountsTowardPayPlanFlag(row.counts_toward_pay_plan) } : {}),
   }
 }
 
@@ -205,6 +213,7 @@ export async function insertMembershipType({
     trainer_pay_l2: 0,
     trainer_pay_l3: 0,
     aerobic_pay_amount: 0,
+    counts_toward_pay_plan: false,
     created_at: now,
   })
   await saveLocalWithSync('membership_types', row, {
@@ -303,6 +312,34 @@ export async function updateMembershipTypePay(id, rawPayOrTiers) {
   }
 
   const row = normalizeRow({ ...prev, ...trainerPayTiersToRowFields(tiers) })
+  await saveLocalWithSync('membership_types', row, {
+    table_name: 'membership_types',
+    operation: 'update',
+    remote_id: tid,
+  })
+  return pushTypeOp('update', row, tid)
+}
+
+/**
+ * Галочка «В план» — участие типа в порогах плана ЗП (независимо от ставок ₽).
+ * @param {string} id
+ * @param {boolean} countsTowardPayPlan
+ */
+export async function updateMembershipTypeCountsTowardPayPlan(id, countsTowardPayPlan) {
+  const tid = String(id ?? '').trim()
+  if (!tid) return { cloudOk: false, cloudError: 'Нет id типа' }
+
+  const db = await getDb()
+  const prev = await db.get('membership_types', tid)
+  if (!prev) return { cloudOk: false, cloudError: 'Тип не найден' }
+  if (!isTrainerAssignableMembershipType(prev)) {
+    return { cloudOk: false, cloudError: 'Галочка «В план» только для типов ПЗ' }
+  }
+
+  const row = normalizeRow({
+    ...prev,
+    counts_toward_pay_plan: countsTowardPayPlan === true,
+  })
   await saveLocalWithSync('membership_types', row, {
     table_name: 'membership_types',
     operation: 'update',

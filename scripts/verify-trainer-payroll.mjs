@@ -99,6 +99,40 @@ const selfPay = computeTrainerSelfPayroll({
 })
 ok(selfPay === 800, 'trainer self payroll one completed typed training')
 
+const selfTypesPlan = [
+  { id: 't1', trainer_pay_per_session: 200, trainer_pay_l1: 200, trainer_pay_l2: 350, trainer_pay_l3: 500, counts_toward_pay_plan: true },
+  { id: 'free', trainer_pay_per_session: 0, trainer_pay_l1: 0, trainer_pay_l2: 0, trainer_pay_l3: 0, counts_toward_pay_plan: false },
+]
+const selfPayPlan = computeTrainerSelfPayroll({
+  trainerId: 'tr1',
+  dateFrom: '2026-06-01',
+  dateTo: '2026-06-30',
+  membershipTypes: selfTypesPlan,
+  planConfig: { workouts_l2_min: 80, workouts_l3_min: 120 },
+  memberships: [
+    { id: 'm1', membership_type_id: 't1' },
+    { id: 'mf', membership_type_id: 'free' },
+  ],
+  trainings: [
+    ...Array.from({ length: 79 }, (_, i) => ({
+      trainer_id: 'tr1',
+      status: 'completed',
+      date: '2026-06-10',
+      data: { membership_id: 'm1' },
+      id: `p${i}`,
+    })),
+    ...Array.from({ length: 50 }, (_, i) => ({
+      trainer_id: 'tr1',
+      status: 'completed',
+      date: '2026-06-11',
+      data: { membership_id: 'mf' },
+      id: `f${i}`,
+    })),
+  ],
+})
+// 79 in-plan → L1 200×79; 50 free out of plan → 0; not L3 from 129
+ok(selfPayPlan === 15800, 'self payroll respects counts_toward_pay_plan for tier')
+
 ok(/нестабильн|медленн|кэш|Sync/i.test(payrollFallbackLabel('timeout') ?? ''), 'payroll timeout label is human')
 
 const clubMap = {

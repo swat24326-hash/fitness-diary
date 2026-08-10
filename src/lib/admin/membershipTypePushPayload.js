@@ -21,6 +21,7 @@ export const MEMBERSHIP_TYPE_DB_FIELDS = [
   'trainer_pay_l3',
   'aerobic_pay_amount',
   'is_pnk_trial',
+  'counts_toward_pay_plan',
   'created_at',
 ]
 
@@ -73,6 +74,16 @@ export function normalizeMembershipTypePushPayload(payload, { insert = false } =
     return { ok: false, error: 'Стоимость АЗ: неотрицательное число' }
   }
   const trainerAssignable = payload?.trainer_assignable !== false
+  const hasPlanFlag = Object.prototype.hasOwnProperty.call(payload ?? {}, 'counts_toward_pay_plan')
+  const countsTowardPayPlan = hasPlanFlag
+    ? !(
+        payload.counts_toward_pay_plan === false ||
+        payload.counts_toward_pay_plan === 0 ||
+        payload.counts_toward_pay_plan === '0' ||
+        (typeof payload.counts_toward_pay_plan === 'string' &&
+          payload.counts_toward_pay_plan.trim().toLowerCase() === 'false')
+      )
+    : undefined
   const next = pickMembershipTypeDbFields({
     ...payload,
     code: String(payload?.code ?? '').trim().slice(0, 12),
@@ -82,7 +93,11 @@ export function normalizeMembershipTypePushPayload(payload, { insert = false } =
     ...trainerPayTiersToRowFields(tiers),
     aerobic_pay_amount: aerobicPay,
     is_pnk_trial: payload?.is_pnk_trial === true,
+    ...(hasPlanFlag ? { counts_toward_pay_plan: countsTowardPayPlan } : {}),
   })
+  if (insert && !hasPlanFlag) {
+    next.counts_toward_pay_plan = false
+  }
   if (insert && (!next.code || !next.club_id)) {
     return { ok: false, error: 'Укажите клуб и название типа' }
   }

@@ -220,7 +220,7 @@ ok(filtered.clubTotal === 35000 && filtered.byTrainer.size === 1, 'trainerIdFilt
 const empty = computePayrollFromMatrixRows([], null, { membershipTypes: types, planConfig: plan })
 ok(empty.clubTotal === 0 && empty.byTrainer.size === 0, 'empty matrix')
 
-// Карта с оплатой 0 + adj не даёт денег
+// Карты вне плана (галочка) не двигают пороги; ставки 0 без флага — фолбэк «не в план»
 const free = {
   id: 'free',
   trainer_pay_l1: 0,
@@ -228,6 +228,15 @@ const free = {
   trainer_pay_l3: 0,
   trainer_pay_per_session: 0,
 }
+const outOfPlanPaid = {
+  id: 'out',
+  trainer_pay_l1: 200,
+  trainer_pay_l2: 350,
+  trainer_pay_l3: 500,
+  trainer_pay_per_session: 200,
+  counts_toward_pay_plan: false,
+}
+const inPlanVip = { ...vip, counts_toward_pay_plan: true }
 const zeroCard = computePayrollFromMatrixRows(
   [
     { trainer_id: 'tr9', membership_type_id: 'free', count: 10 },
@@ -243,7 +252,7 @@ const zeroCard = computePayrollFromMatrixRows(
 // free: 0×10; VIP L3 500+100=600×2 = 1200
 ok(zeroCard.clubTotal === 1200, 'zero-pay type not boosted by adj')
 
-// Карты с оплатой 0 не двигают пороги плана (только оплачиваемые)
+// Без флага: 100 free ignored → 79 vip → L1
 const planOnlyPaid = computePayrollFromMatrixRows(
   [
     { trainer_id: 'tr10', membership_type_id: 'free', count: 100 },
@@ -256,8 +265,7 @@ const planOnlyPaid = computePayrollFromMatrixRows(
     profilesByTrainerId: { tr10: { on_plan: true, rate_adjustment_rub: 0 } },
   },
 )
-// 100 free ignored → 79 paid → L1 → 200×79 = 15800 (не L3 от 179)
-ok(planOnlyPaid.clubTotal === 15800, 'zero-pay workouts excluded from plan tier')
+ok(planOnlyPaid.clubTotal === 15800, 'zero-pay workouts excluded from plan tier (fallback)')
 ok(planOnlyPaid.byTrainer.get('tr10')?.byType.find((x) => x.typeId === 'free')?.count === 100, 'zero-pay still listed at 0₽')
 
 const planCrossesL2 = computePayrollFromMatrixRows(
@@ -272,8 +280,47 @@ const planCrossesL2 = computePayrollFromMatrixRows(
     profilesByTrainerId: { tr11: { on_plan: true, rate_adjustment_rub: 0 } },
   },
 )
-// 80 paid → L2 → 350×80; free 50 at 0
 ok(planCrossesL2.clubTotal === 28000, 'paid-only count reaches L2 without free inflate')
+
+// Явная галочка false у платной карты — не в пороги; деньги всё равно платятся по уровню от других
+const flagOff = computePayrollFromMatrixRows(
+  [
+    { trainer_id: 'tr12', membership_type_id: 'out', count: 100 },
+    { trainer_id: 'tr12', membership_type_id: 'vip', count: 79 },
+  ],
+  null,
+  {
+    membershipTypes: [inPlanVip, std, outOfPlanPaid],
+    planConfig: plan,
+    profilesByTrainerId: { tr12: { on_plan: true, rate_adjustment_rub: 0 } },
+  },
+)
+// 79 in-plan → L1: out 200×100 + vip 200×79 = 20000+15800 = 35800
+ok(flagOff.clubTotal === 35800, 'counts_toward_pay_plan false skips tier count but pays')
+
+// Нулевая ставка + галочка true — в план, денег 0
+const freeInPlan = {
+  id: 'free_in',
+  trainer_pay_l1: 0,
+  trainer_pay_l2: 0,
+  trainer_pay_l3: 0,
+  trainer_pay_per_session: 0,
+  counts_toward_pay_plan: true,
+}
+const zeroInPlan = computePayrollFromMatrixRows(
+  [
+    { trainer_id: 'tr13', membership_type_id: 'free_in', count: 100 },
+    { trainer_id: 'tr13', membership_type_id: 'vip', count: 20 },
+  ],
+  null,
+  {
+    membershipTypes: [inPlanVip, freeInPlan],
+    planConfig: plan,
+    profilesByTrainerId: { tr13: { on_plan: true, rate_adjustment_rub: 0 } },
+  },
+)
+// 120 workouts → L3: free 0 + vip 500×20 = 10000
+ok(zeroInPlan.clubTotal === 10000, 'zero-rate with flag true counts toward L3')
 
 // Без плана при огромном объёме + надбавка на двух типах
 const offPlan = aggregatePayrollFromDailyRows(

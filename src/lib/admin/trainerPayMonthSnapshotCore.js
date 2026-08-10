@@ -8,7 +8,7 @@ import {
   indexTrainerPayProfilesByTrainerId,
   normalizeTrainerPayProfile,
 } from './trainerPayProfileCore.js'
-import { resolveTrainerPayTiers } from './trainerPayTiersCore.js'
+import { resolveTrainerPayTiers, membershipTypeCountsTowardPayPlan } from './trainerPayTiersCore.js'
 
 /**
  * Урезанная строка типа для снимка / расчёта ЗП.
@@ -25,6 +25,7 @@ export function slimMembershipTypeForPaySnapshot(row) {
     trainer_pay_l2: tiers.l2,
     trainer_pay_l3: tiers.l3,
     trainer_assignable: row?.trainer_assignable !== false,
+    counts_toward_pay_plan: membershipTypeCountsTowardPayPlan(row),
   }
 }
 
