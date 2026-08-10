@@ -91,16 +91,6 @@ export function SalesFinancePanel({
         <>
           <h3 className="sales-finance-actual__title">Итоги месяца (факт)</h3>
           <div className="sales-report__kpi-grid sales-finance-summary">
-            <div className="sales-report__kpi">
-              <span className="sales-report__kpi-label">Заработок месяца</span>
-              <span className="sales-report__kpi-value">{formatRub(summary.profitTotal ?? 0)}</span>
-              {(summary.refundsTotal ?? 0) > 0 ? (
-                <span className="sales-report__kpi-note muted">
-                  без возвратов {formatRub(summary.profitGrossTotal ?? summary.profitTotal ?? 0)} · возвраты −
-                  {formatRub(summary.refundsTotal ?? 0)}
-                </span>
-              ) : null}
-            </div>
             {(summary.refundsTotal ?? 0) > 0 ? (
               <div className="sales-report__kpi">
                 <span className="sales-report__kpi-label">Возвраты за месяц</span>

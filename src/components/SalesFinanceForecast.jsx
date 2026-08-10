@@ -74,7 +74,6 @@ export function SalesFinanceForecast({
   const monthEndLabel = `${String(endDay).padStart(2, '0')}.${String(month).padStart(2, '0')}.${year}`
 
   const incomeRows = [
-    { key: 'earnings', label: 'Заработок месяца', kind: 'money' },
     { key: 'pzTrainings', label: 'Тренировки ПЗ', kind: 'count' },
     { key: 'azTrainings', label: 'Тренировки АЗ', kind: 'count' },
   ]
@@ -139,7 +138,7 @@ export function SalesFinanceForecast({
   )
 
   const financeBlocks = [
-    { id: 'income', title: 'Доходы и нагрузка', rows: incomeRows, tone: 'income' },
+    { id: 'income', title: 'Нагрузка', rows: incomeRows, tone: 'income' },
     { id: 'deduction', title: 'Вычитается', rows: deductionRows, tone: 'deduction' },
     { id: 'total', title: null, rows: [netProfitRow], tone: 'primary' },
   ]

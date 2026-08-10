@@ -150,10 +150,6 @@ export function SalesManagerStatsPanel({
       </div>
 
       <div className="sales-report__kpi-grid sales-report__stats-kpi">
-        <div className="sales-report__kpi sales-report__kpi--primary">
-          <span className="sales-report__kpi-label">Заработок</span>
-          <span className="sales-report__kpi-value">{formatRub(summary.profitTotal)}</span>
-        </div>
         {(summary.refundsTotal ?? 0) > 0 ? (
           <div className="sales-report__kpi">
             <span className="sales-report__kpi-label">Возвраты</span>
