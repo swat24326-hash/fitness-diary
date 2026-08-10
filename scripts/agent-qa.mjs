@@ -112,6 +112,7 @@ run('desk membership ledger', 'node', ['scripts/verify-desk-membership-ledger.mj
 run('desk az session deduct', 'node', ['scripts/verify-desk-az-session-deduct.mjs'])
 run('desk hall clients tabs', 'node', ['scripts/verify-desk-hall-clients.mjs'])
 run('membership hall multi', 'node', ['scripts/verify-membership-hall.mjs'])
+run('client trainer reassign', 'node', ['scripts/verify-client-trainer-reassign.mjs'])
 run('membership paid_amount field', 'node', ['scripts/verify-membership-paid-amount.mjs'])
 run('desk client birth form', 'node', ['scripts/verify-desk-client-birth-form.mjs'])
 run('deletion audit', 'node', ['scripts/verify-deletion-audit.mjs'])

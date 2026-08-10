@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Save } from 'lucide-react'
-import { saveLocalWithSync } from '../../lib/syncService.js'
+import {
+  criticalWriteCloudWarning,
+  flushCriticalWritesToCloud,
+  saveLocalWithSync,
+} from '../../lib/syncService.js'
 import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
 import { normalizeDeskHall } from '../../lib/admin/deskHallClientsCore.js'
 import { formatClientName } from '../../lib/clientNameFormat.js'
@@ -9,6 +13,7 @@ import { mergeDeskClientBirthForm } from '../../lib/admin/deskClientBirthFormCor
 import { assertClubCardAvailableForCreate } from '../../lib/admin/salesClientMatchCore.js'
 import { listClientsByClubId } from '../../lib/localDbClubQuery.js'
 import { resolveInitialClientHallTab } from '../../lib/admin/clientHallTabsCore.js'
+import { prepareClientTrainerReassign } from '../../lib/admin/clientTrainerReassignService.js'
 import { AdminClientHallTabs } from './AdminClientHallTabs.jsx'
 import { AdminDeskMembershipLedger } from './AdminDeskMembershipLedger.jsx'
 import { AdminMultiHallTrainerField } from './AdminMultiHallTrainerField.jsx'
@@ -32,6 +37,7 @@ import '../../styles/admin-desk.css'
  *   hallTab?: 'pz'|'tz'|'az',
  *   onHallTabChange?: (hall: 'pz'|'tz'|'az') => void,
  *   omitPzPane?: boolean,
+ *   trainerListScope?: 'club' | 'all',
  * }} props
  */
 export function AdminMultiHallClientCardSection({
@@ -46,6 +52,8 @@ export function AdminMultiHallClientCardSection({
   onHallTabChange,
   /** ПЗ-контент рисует родитель (вкладки тренера / lite) — здесь только шапка и ТЗ/АЗ. */
   omitPzPane = false,
+  /** Менеджер/управляющий — только свой клуб; админ сети — все тренеры. */
+  trainerListScope = 'club',
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -68,6 +76,7 @@ export function AdminMultiHallClientCardSection({
   const formClientIdRef = useRef('')
   const birthDirtyRef = useRef(false)
   const savedBirthRef = useRef(/** @type {string | undefined} */ (undefined))
+  const trainersCatalogRef = useRef(/** @type {object[]} */ ([]))
 
   useEffect(() => {
     const next = resolveInitialClientHallTab(client, memberships, preferredHall)
@@ -119,8 +128,18 @@ export function AdminMultiHallClientCardSection({
     setBusy(true)
     setError('')
     try {
+      const reassign = await prepareClientTrainerReassign({
+        client,
+        nextTrainerId: form.trainer_id,
+        trainersCatalog: trainersCatalogRef.current,
+      })
+      if (!reassign.ok) {
+        if (!reassign.cancelled) setError(reassign.error || 'Не удалось сменить тренера')
+        return
+      }
+
       const card_number = String(form.card_number ?? '').trim() || null
-      const cid = clubId || client.club_id
+      const cid = reassign.club_id || clubId || client.club_id
       if (card_number && cid) {
         const clubClients = await listClientsByClubId(cid)
         const cardCheck = assertClubCardAvailableForCreate(clubClients, cid, card_number, {
@@ -133,7 +152,7 @@ export function AdminMultiHallClientCardSection({
       }
       const birthIso = parseFlexibleDateToIso(form.birth_date, birthDateYearBounds()) || null
       const savedBirth = birthIso || ''
-      const trainer_id = String(form.trainer_id ?? '').trim() || null
+      const trainer_id = reassign.trainer_id
       const clientRow = {
         ...client,
         name,
@@ -141,6 +160,7 @@ export function AdminMultiHallClientCardSection({
         card_number,
         birth_date: birthIso,
         trainer_id,
+        club_id: reassign.club_id ?? client.club_id ?? null,
         // legacy desk_hall: не затираем, если нет тренера (constraint); зал абонов — memberships.hall
         desk_hall: trainer_id ? legacyDesk : legacyDesk || null,
       }
@@ -149,10 +169,13 @@ export function AdminMultiHallClientCardSection({
         operation: 'update',
         remote_id: client.id,
       })
+      const flush = await flushCriticalWritesToCloud()
+      const warn = criticalWriteCloudWarning(flush, 'Смена тренера')
+      if (warn) setError(warn)
       savedBirthRef.current = savedBirth
       birthDirtyRef.current = true
       setForm((f) => ({ ...f, birth_date: savedBirth, trainer_id: trainer_id || '' }))
-      dispatchLocalDataChanged()
+      dispatchLocalDataChanged({ reason: 'client-trainer-reassigned', clientId: client.id })
       onSaved?.()
     } catch (err) {
       setError(err?.message || 'Не удалось сохранить')
@@ -215,6 +238,10 @@ export function AdminMultiHallClientCardSection({
               value={form.trainer_id}
               onChange={(id) => setField('trainer_id', id)}
               disabled={busy}
+              listScope={trainerListScope}
+              onCatalogChange={(list) => {
+                trainersCatalogRef.current = list
+              }}
             />
           </div>
         </div>

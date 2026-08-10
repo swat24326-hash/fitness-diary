@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom'
-import { Archive, ArrowLeft, RefreshCw, RotateCcw, Search, Trash2, UserCircle, UserCog, UserPlus, UserSearch } from 'lucide-react'
+import { Archive, ArrowLeft, RefreshCw, RotateCcw, Search, Trash2, UserCircle, UserPlus, UserSearch } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { AdminClientClubSmsButton } from '../../components/admin/AdminClientClubSmsButton.jsx'
@@ -76,8 +76,7 @@ import {
 } from '../../lib/admin/adminClientsListMemoryCache.js'
 import { useDebouncedStorageReload, shouldReloadAdminClientsPage } from '../../lib/useDebouncedStorageReload'
 import { ADMIN_CLIENTS_PAGE_SIZE, ADMIN_CLIENTS_REMOTE_LIMIT } from '../../lib/admin/adminConstants'
-import { isSupabaseConfigured, supabase } from '../../lib/supabase'
-import { USERS_TRAINER_ROLES } from '../../lib/userRoleConstants'
+import { isSupabaseConfigured } from '../../lib/supabase'
 import {
   criticalWriteCloudWarning,
   flushCriticalWritesToCloud,
@@ -113,8 +112,6 @@ import {
 } from '../../lib/admin/adminClientsListHrefCore.js'
 import { collectNoTabletTrainerIds, isLitePzClient } from '../../lib/admin/trainerTabletModeCore.js'
 import { canSalesManagerHardDeleteClient } from '../../lib/admin/salesManagerClientsAccessCore.js'
-import { assertClubCardAvailableForCreate } from '../../lib/admin/salesClientMatchCore.js'
-import { listClientsByClubId } from '../../lib/localDbClubQuery.js'
 import { ClientHardDeleteConfirmModal } from '../../components/ClientHardDeleteConfirmModal.jsx'
 import { AdminLitePzCreateModal } from '../../components/admin/AdminLitePzCreateModal.jsx'
 import { ensureMembershipTypesForClub } from '../../lib/membershipTypesService.js'
@@ -201,13 +198,6 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
   const [fallback, setFallback] = useState(null)
   const [cloudNeedsClub, setCloudNeedsClub] = useState(false)
   const [listTruncated, setListTruncated] = useState(false)
-
-  const [reassignClient, setReassignClient] = useState(null)
-  const [trainerOptions, setTrainerOptions] = useState([])
-  const [reassignTrainerId, setReassignTrainerId] = useState('')
-  const [reassignManualUuid, setReassignManualUuid] = useState('')
-  const [reassignLoadErr, setReassignLoadErr] = useState('')
-  const [reassignBusy, setReassignBusy] = useState(false)
 
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
@@ -911,119 +901,6 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     return trainerNameById[tid] ?? (String(tid).length > 10 ? `Тренер ${String(tid).slice(0, 8)}…` : tid)
   }
 
-  const closeReassignModal = () => {
-    if (reassignBusy) return
-    setReassignClient(null)
-    setReassignLoadErr('')
-    setReassignManualUuid('')
-    setTrainerOptions([])
-  }
-
-  const openReassignModal = useCallback(async (c) => {
-    if (!c?.id) return
-    setReassignLoadErr('')
-    setReassignManualUuid('')
-    setReassignTrainerId(String(c.trainer_id ?? ''))
-    setTrainerOptions([])
-    setReassignClient({ id: c.id, name: c.name ?? 'Клиент', trainer_id: c.trainer_id })
-    try {
-      const list = await listTrainerSummariesForAdmin()
-      let arr = Array.isArray(list) ? list : []
-      if (clubBound && club) {
-        arr = arr.filter((t) => String(t.club_id ?? '').trim() === String(club))
-      }
-      setTrainerOptions(arr)
-      if (!arr.length && isSupabaseConfigured()) {
-        setReassignLoadErr('Список тренеров пуст или нет доступа (RLS). Можно ввести UUID вручную ниже.')
-      }
-      if (!arr.length && !isSupabaseConfigured()) {
-        setReassignLoadErr('Облако не подключено — укажите UUID нового тренера вручную.')
-      }
-    } catch {
-      setReassignLoadErr('Не удалось загрузить список тренеров. Укажите UUID вручную.')
-    }
-  }, [club, clubBound])
-
-  const applyReassignTrainer = async () => {
-    if (!reassignClient?.id) return
-    const fromList = reassignTrainerId.trim()
-    const fromManual = reassignManualUuid.trim()
-    const tid = trainerOptions.length > 0 ? fromList : fromManual
-    if (!tid) {
-      alert('Выберите тренера или введите UUID.')
-      return
-    }
-    if (tid === reassignClient.trainer_id) {
-      closeReassignModal()
-      return
-    }
-    const fromTrainer = trainersForClub.find((t) => String(t.id) === String(reassignClient.trainer_id))
-    const toTrainer =
-      trainerOptions.find((u) => u.id === tid) ||
-      trainersForClub.find((t) => String(t.id) === String(tid))
-    const fromLite = fromTrainer?.uses_tablet === false
-    const toLite = toTrainer?.uses_tablet === false
-    if (fromLite !== toLite) {
-      const ok = window.confirm(
-        toLite
-          ? 'Новый тренер без планшета: карточку будет вести админ (карта и абон), не полный дневник. Продолжить?'
-          : 'Новый тренер с планшетом: карточка станет полным дневником. Продолжить?',
-      )
-      if (!ok) return
-    }
-    const full = await getLocalClient(reassignClient.id)
-    if (!full) {
-      alert('Клиент не найден в локальном кэше. Обновите список.')
-      return
-    }
-    setReassignBusy(true)
-    try {
-      let nextClubId = full.club_id ?? null
-      const picked = trainerOptions.find((u) => u.id === tid)
-      if (trainerOptions.length > 0 && picked) {
-        nextClubId = picked.club_id ?? null
-      } else if (isSupabaseConfigured()) {
-        const { data: trRow } = await supabase
-          .from('users')
-          .select('club_id')
-          .eq('id', tid)
-          .in('role', USERS_TRAINER_ROLES)
-          .maybeSingle()
-        if (trRow) nextClubId = trRow.club_id ?? nextClubId
-      }
-      const row = { ...full, trainer_id: tid, club_id: nextClubId }
-      const card = String(full.card_number ?? '').trim()
-      const oldClub = String(full.club_id ?? '').trim()
-      const newClub = String(nextClubId ?? '').trim()
-      if (card && newClub && newClub !== oldClub) {
-        try {
-          const clubClients = await listClientsByClubId(newClub)
-          const cardCheck = assertClubCardAvailableForCreate(clubClients, newClub, card, {
-            excludeClientId: full.id,
-          })
-          if (!cardCheck.ok) {
-            alert(cardCheck.error)
-            return
-          }
-        } catch {
-          /* офлайн — облако отловит unique */
-        }
-      }
-      await saveLocalWithSync('clients', row, { table_name: 'clients', operation: 'update', remote_id: full.id })
-      const flush = await flushCriticalWritesToCloud()
-      const warn = criticalWriteCloudWarning(flush, 'Смена тренера')
-      if (warn) alert(warn)
-      dispatchLocalDataChanged({ reason: 'client-trainer-reassigned', clientId: full.id })
-      closeReassignModal()
-      if (club) invalidateAdminClientsListMemory(club)
-      await reload()
-    } catch (e) {
-      alert(e?.message ?? 'Ошибка сохранения')
-    } finally {
-      setReassignBusy(false)
-    }
-  }
-
   const runDeleteClient = async () => {
     if (!confirmDelete?.id) return
     setDeleteBusy(true)
@@ -1583,14 +1460,6 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                                   icon: RotateCcw,
                                   onSelect: () => void updateClientArchiveFlag(c, false),
                                 },
-                            !isDeskClient
-                              ? {
-                                  id: 'reassign',
-                                  label: 'Переназначить тренера',
-                                  icon: UserCog,
-                                  onSelect: () => void openReassignModal(c),
-                                }
-                              : null,
                             canSalesManagerHardDeleteClient(isSalesManager, c)
                               ? {
                                   id: 'delete',
@@ -1662,66 +1531,6 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         ) : null}
         </div>
       </section>
-
-      {reassignClient && (
-        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="adm-reassign-trainer-title" onClick={closeReassignModal}>
-          <div className="modal-panel" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
-            <h2 id="adm-reassign-trainer-title" className="section-title td-section-title" style={{ marginTop: 0 }}>
-              Переназначить тренера
-            </h2>
-            <p className="muted" style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.45 }}>
-              Клиент <strong>{reassignClient.name}</strong> появится в списке выбранного тренера. Клуб клиента (зал в карточке) не меняется автоматически.
-            </p>
-            {reassignLoadErr ? <p className="muted admin-inline-note">{reassignLoadErr}</p> : null}
-            {trainerOptions.length > 0 ? (
-              <div className="field" style={{ marginBottom: 12 }}>
-                <label className="label" htmlFor="adm-reassign-tr-select">
-                  Тренер
-                </label>
-                <select
-                  id="adm-reassign-tr-select"
-                  className="select"
-                  value={reassignTrainerId}
-                  onChange={(e) => setReassignTrainerId(e.target.value)}
-                  disabled={reassignBusy}
-                >
-                  {reassignClient.trainer_id && !trainerOptions.some((t) => t.id === reassignClient.trainer_id) ? (
-                    <option value={reassignClient.trainer_id}>Текущий тренер (не в списке)</option>
-                  ) : null}
-                  {trainerOptions.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name ?? t.id}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <div className="field" style={{ marginBottom: 12 }}>
-                <label className="label" htmlFor="adm-reassign-tr-uuid">
-                  UUID тренера (trainer_id)
-                </label>
-                <input
-                  id="adm-reassign-tr-uuid"
-                  className="input"
-                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                  value={reassignManualUuid}
-                  onChange={(e) => setReassignManualUuid(e.target.value)}
-                  disabled={reassignBusy}
-                  autoComplete="off"
-                />
-              </div>
-            )}
-            <div className="row td-modal-actions" style={{ marginTop: 8 }}>
-              <button type="button" className="btn btn-ghost btn-touch" onClick={closeReassignModal} disabled={reassignBusy}>
-                Отмена
-              </button>
-              <button type="button" className="btn btn-primary btn-touch" disabled={reassignBusy} onClick={() => void applyReassignTrainer()}>
-                {reassignBusy ? 'Сохранение…' : 'Сохранить'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <ClientHardDeleteConfirmModal
         open={Boolean(confirmDelete)}

@@ -176,6 +176,7 @@ export function ClientCard() {
     () => String(client?.club_id ?? searchParams.get('club') ?? ''),
     [client?.club_id, searchParams],
   )
+  const trainerListScope = isSalesManager || isSupervisor ? 'club' : 'all'
   const clientTrainerRow = useMemo(() => {
     const tid = String(client?.trainer_id ?? '').trim()
     if (!tid) return null
@@ -544,6 +545,7 @@ export function ClientCard() {
           preferredHall={searchParams.get('hall')}
           hallTab={multiHallTab}
           onHallTabChange={onMultiHallTabChange}
+          trainerListScope={trainerListScope}
           onSaved={onMultiHallSaved}
         />
       </div>
@@ -563,6 +565,7 @@ export function ClientCard() {
           hallTab="pz"
           onHallTabChange={onMultiHallTabChange}
           omitPzPane
+          trainerListScope={trainerListScope}
           onSaved={onMultiHallSaved}
         />
         <p className="muted" role="status" style={{ margin: 0 }}>
@@ -585,6 +588,7 @@ export function ClientCard() {
           hallTab="pz"
           onHallTabChange={onMultiHallTabChange}
           omitPzPane
+          trainerListScope={trainerListScope}
           onSaved={onMultiHallSaved}
         />
         <p className="muted" role="alert" style={{ margin: 0 }}>
@@ -611,6 +615,7 @@ export function ClientCard() {
           preferredHall={searchParams.get('hall')}
           hallTab="pz"
           onHallTabChange={onMultiHallTabChange}
+          trainerListScope={trainerListScope}
           onSaved={onMultiHallSaved}
         />
       </div>
@@ -686,6 +691,7 @@ export function ClientCard() {
           hallTab="pz"
           onHallTabChange={onMultiHallTabChange}
           omitPzPane
+          trainerListScope={trainerListScope}
           onSaved={onMultiHallSaved}
         />
       ) : canManageClubClients ? (
@@ -886,7 +892,7 @@ export function ClientCard() {
       </header>
       {canManageClubClients ? (
         <p className="muted" style={{ fontSize: 13, margin: '10px 0 0', lineHeight: 1.45 }}>
-          Переназначить тренера или архив — в списке «Клиенты». Новую тренировку «с нуля» начинает только тренер; правки и черновики доступны здесь и в конструкторе.
+          Тренера ПЗ меняют в поле выше и «Сохранить»; архив — в списке «Клиенты». Новую тренировку «с нуля» начинает только тренер; правки и черновики доступны здесь и в конструкторе.
         </p>
       ) : null}
 
