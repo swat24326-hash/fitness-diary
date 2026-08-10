@@ -18,6 +18,7 @@ import {
   buildTrainerPayRateMap,
   computeNetProfitWithPayroll,
 } from './trainerPayrollCore.js'
+import { forecastTrainerMonthPayroll } from './trainerMonthPayrollForecastCore.js'
 import {
   FORECAST_METHOD_UNIFORM,
   FORECAST_METHOD_WEEKDAY_WEEKEND,
@@ -704,10 +705,15 @@ export function buildClubFinanceForecast(opts) {
   const forecastEarnings = roundRub(forecastGross - forecastRefunds)
   const forecastPzTrainings = pzTrainProj.forecastTotal
   const forecastAzTrainings = azTrainProj.forecastTotal
-  const trainerPayFromHours = resolvePayrollFromHoursPace({
-    factHours: pzTrainingsTotal,
+  const trainerPayFromHours = forecastTrainerMonthPayroll({
+    monthRows,
+    membershipTypes: trainerTypes,
+    planConfig: opts.planConfig,
+    profilesByTrainerId: opts.profilesByTrainerId,
+    clubId: opts.clubId,
+    forecastClubHours: forecastPzTrainings,
+    factClubHours: pzTrainingsTotal,
     factPayroll: trainerPayrollFact,
-    forecastHours: forecastPzTrainings,
     fallbackPayroll: trainerPayProj.forecastTotal,
   })
   const aerobicPayFromHours = resolvePayrollFromHoursPace({

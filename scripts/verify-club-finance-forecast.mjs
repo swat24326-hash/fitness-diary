@@ -156,13 +156,49 @@ ok(
 )
 ok(
   fcPay.forecast.trainerPayroll === Math.round(fcPay.forecast.pzTrainings * 500 * 100) / 100,
-  'forecast payroll from hours × rate',
+  'forecast payroll = hours × rate (tiers equal to session)',
 )
-ok(fcPay.payrollPace?.trainer === 'payroll_from_hours', 'payroll linked to hours')
+ok(fcPay.payrollPace?.trainer === 'payroll_from_projected_tiers', 'payroll uses projected tiers')
 ok(
   fcPay.forecast.netProfit ===
     fcPay.forecast.earnings - fcPay.forecast.trainerPayroll - fcPay.forecast.expense,
   'forecast net profit formula',
+)
+
+// С ростом уровня прогноз ЗП выше, чем замороженная средняя MTD.
+const tierTypes = [
+  {
+    id: 't1',
+    trainer_pay_per_session: 200,
+    trainer_pay_l1: 200,
+    trainer_pay_l2: 350,
+    trainer_pay_l3: 500,
+    trainer_assignable: true,
+    counts_toward_pay_plan: true,
+  },
+]
+const tierProfiles = new Map([
+  ['tr1', { trainer_id: 'tr1', club_id: 'c1', on_plan: true, rate_adjustment_rub: 0 }],
+])
+const fcTier = buildClubFinanceForecast({
+  monthRows: matrixRows,
+  year,
+  month,
+  expense: 0,
+  membershipTypes: tierTypes,
+  planConfig: { workouts_l2_min: 80, workouts_l3_min: 120 },
+  profilesByTrainerId: tierProfiles,
+  clubId: 'c1',
+  today,
+})
+const frozenAvg =
+  Math.round(((fcTier.fact.trainerPayroll / fcTier.fact.pzTrainings) * fcTier.forecast.pzTrainings) * 100) / 100
+ok(fcTier.payrollPace?.trainer === 'payroll_from_projected_tiers', 'tier climb uses projected method')
+ok(fcTier.forecast.trainerPayroll > frozenAvg, 'tier climb: forecast ZP > frozen MTD average')
+ok(
+  fcTier.forecast.netProfit ===
+    fcTier.forecast.earnings - fcTier.forecast.trainerPayroll - fcTier.forecast.expense,
+  'net still earnings − ZP − expense',
 )
 
 const planRows = [

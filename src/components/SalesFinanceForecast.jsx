@@ -86,6 +86,17 @@ export function SalesFinanceForecast({
     { key: 'expense', label: 'Расход управляющего', kind: 'money', static: true },
   ]
 
+  const trainerPayrollMethod = forecast.payrollPace?.trainer
+  const trainerRate = forecast.payrollPace?.trainerRatePerSession
+  const trainerPayrollHint =
+    !closedMonth && trainerPayrollMethod === 'payroll_from_projected_tiers'
+      ? `Прогноз ЗП ПЗ: уровни плана к концу месяца + надбавки кабинета${
+          trainerRate != null ? ` · ср. ~${formatRub(trainerRate)}/зан.` : ''
+        }.`
+      : !closedMonth && trainerRate != null
+        ? `Прогноз ЗП ПЗ: темп часов × ср. ${formatRub(trainerRate)}/зан.`
+        : null
+
   const netProfitRow = { key: 'netProfit', label: 'Чистая прибыль', kind: 'money', primary: true, signed: true }
 
   const formatValue = (kind, value, { signed = false } = {}) => {
@@ -463,6 +474,11 @@ export function SalesFinanceForecast({
               </div>
             </div>
           ))}
+          {trainerPayrollHint ? (
+            <p className="sales-finance-forecast__table-footnote" role="note">
+              {trainerPayrollHint}
+            </p>
+          ) : null}
         </div>
       </div>
       ) : null}

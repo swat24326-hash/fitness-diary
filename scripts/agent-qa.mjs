@@ -74,6 +74,7 @@ run('sales strategy admin finance', 'node', ['scripts/verify-sales-strategy-admi
 run('sales strategy nk uk edit', 'node', ['scripts/verify-sales-strategy-nk-uk-edit.mjs'])
 run('trainer payroll', 'node', ['scripts/verify-trainer-payroll.mjs'])
 run('trainer day payroll forecast', 'node', ['scripts/verify-trainer-day-payroll-forecast.mjs'])
+run('trainer month payroll forecast', 'node', ['scripts/verify-trainer-month-payroll-forecast.mjs'])
 run('trainer pay tiers', 'node', ['scripts/verify-trainer-pay-tiers.mjs'])
 run('trainer pay plan', 'node', ['scripts/verify-trainer-pay-plan.mjs'])
 run('trainer pay profile', 'node', ['scripts/verify-trainer-pay-profile.mjs'])
