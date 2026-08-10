@@ -142,7 +142,12 @@ export async function buildTrainerSelfStatsPayload(supabaseAdmin, p) {
       })
     }
   }
-  const workoutsByTrainer = sumWorkoutsByTrainerFromMatrixRows(monthMatrixRows)
+  const workoutsByTrainer = sumWorkoutsByTrainerFromMatrixRows(
+    monthMatrixRows,
+    payrollCtx.frozen && payrollCtx.membershipTypes?.length
+      ? payrollCtx.membershipTypes
+      : membershipTypes,
+  )
   const dayPay = computePayrollFromMembershipStats(dayTypeStats, payRateMap, {
     ...payOpts,
     workoutsByTrainer,

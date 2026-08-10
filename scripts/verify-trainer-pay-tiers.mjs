@@ -2,6 +2,7 @@
  * Три ставки ЗП тренера на типе карты (l1–l3) + совместимость с trainer_pay_per_session.
  */
 import {
+  membershipTypeCountsTowardPayPlan,
   normalizeTrainerPayTiersInput,
   resolveTrainerPayTiers,
   trainerPayTiersToRowFields,
@@ -94,6 +95,17 @@ const rateMap = buildTrainerPayRateMap([
   },
 ])
 ok(rateMap.get('t2') === 200, 'current payroll still uses session (= l1)')
+
+ok(
+  membershipTypeCountsTowardPayPlan({ trainer_pay_l1: 0, trainer_pay_l2: 0, trainer_pay_l3: 0 }) === false,
+  'all-zero type not in plan',
+)
+ok(
+  membershipTypeCountsTowardPayPlan({ trainer_pay_l1: 0, trainer_pay_l2: 100, trainer_pay_l3: 0 }) === true,
+  'any positive tier counts toward plan',
+)
+ok(membershipTypeCountsTowardPayPlan({ trainer_pay_per_session: 200 }) === true, 'legacy paid session in plan')
+ok(membershipTypeCountsTowardPayPlan({ trainer_pay_per_session: 0 }) === false, 'legacy zero not in plan')
 
 if (failed > 0) {
   console.error(`\n${failed} failed`)

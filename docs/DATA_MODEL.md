@@ -1,6 +1,7 @@
 # Модель данных — IDB, сущности, Postgres
 
-**Актуально:** 2026-08-06. Эталон схемы: `supabase/schema.sql` + идемпотентные `supabase/migrations/`.  
+**Актуально:** 2026-08-09. Эталон схемы: `supabase/schema.sql` + идемпотентные `supabase/migrations/`.  
+На bare Postgres (C2 / Yandex): сначала `supabase/c2_auth_stub.sql` через `npm run db:migrate:pg` — см. [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md).  
 Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/lib/membershipRules.js`.
 
 ---
@@ -26,7 +27,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | `outreach_log` | `id` | Касания / Max-очередь (локальный журнал; кэш club SMS) |
 | `club_iskra_settings` | `club_id` | ИСКРА + outreach: `outreach_templates` (Max тренера); `club_sms_templates` (SMS клуба); **`moizvonki`** jsonb — аккаунт «Мои Звонки» на клуб (`api_key`, `user_email`, `api_base`; только server-side) |
 | `club_coach_quality_settings` | `club_id` | Качество ведения: веса/тумблеры |
-| `club_trainer_pay_plan_settings` | `club_id` | План ЗП: пороги тренировок месяца → ур. 1–3 (`config.workouts_l2_min`, `workouts_l3_min`); ставки ₽ — на `membership_types` |
+| `club_trainer_pay_plan_settings` | `club_id` | План ЗП: пороги тренировок месяца → ур. 1–3 (`config.workouts_l2_min`, `workouts_l3_min`); в пороги идут только типы с оплатой тренеру > 0 ₽; ставки ₽ — на `membership_types` |
 | `trainer_pay_profiles` | `trainer_id` | Кабинет ЗП: `on_plan` (без плана → всегда ур. 3) + `rate_adjustment_rub` (±₽ к ставке за тренировку; если ставка типа 0 ₽ — adj не применяется); клуб в `club_id` |
 | `club_trainer_pay_month_snapshots` | `(club_id, year, month)` | Заморозка правил ЗП прошлого календарного месяца: `payload` = planConfig + profiles + membershipTypes (ставки). Текущий месяц — live |
 | `pnk_funnel_events` | `id` | Журнал ПНК |
@@ -70,7 +71,8 @@ Postgres (не IDB): **`club_sms_log`** — облачный журнал SMS к
 
 ## Postgres
 
-- Новый проект: `schema.sql`, затем актуальные `migrations/` (порядок по имени файла).
+- Новый проект / bare PG (C2): `npm run db:migrate:pg` → stub `c2_auth_stub.sql` → `schema.sql` → `migrations/` (порядок по имени). `policies.sql` — только с `--with-policies`.
+- Прод Supabase: `schema.sql`, затем актуальные `migrations/` (порядок по имени файла) через привычные `db:migrate:*` / CLI.
 - Существующий прод: только миграции / скрипты `npm run db:migrate*`.
 - RLS: `policies.sql` + миграции политик; чеклист — [SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md).
 - `public.users.id` **=** Auth UID.

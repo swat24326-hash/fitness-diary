@@ -1,6 +1,6 @@
 # Описание проекта для передачи другой нейросети / разработчику
 
-**Актуально:** 2026-08-06. Документ самодостаточен: по нему можно продолжить работу без истории чата. Язык UI — **русский**. Репозиторий: **fitness-diary**. Продукт: **Ядро** (код `CORE`). Клуб-эталон: **FIT-CITY** (тенант, не имя системы). Канон: [BRAND_SYSTEM.md](./BRAND_SYSTEM.md).
+**Актуально:** 2026-08-09. Документ самодостаточен: по нему можно продолжить работу без истории чата. Язык UI — **русский**. Репозиторий: **fitness-diary**. Продукт: **Ядро** (код `CORE`). Клуб-эталон: **FIT-CITY** (тенант, не имя системы). Канон: [BRAND_SYSTEM.md](./BRAND_SYSTEM.md).
 
 **Сначала:** крупная цель [PRODUCT_VISION.md](./PRODUCT_VISION.md) → нарезка и ведение [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) → этот файл (что в коде сегодня) → карта [README.md](./README.md) → при углублении [API.md](./API.md), [SYNC.md](./SYNC.md), [DATA_MODEL.md](./DATA_MODEL.md), [TESTING.md](./TESTING.md), [PWA.md](./PWA.md). Уровень инженерии: [ENGINEERING_MATURITY.md](./ENGINEERING_MATURITY.md). Оплаты: [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) — ТЗ готово; **код L3/кассы — после стабильного переезда РФ (R3+)**. Модули: [PRODUCT_MODULES.md](./PRODUCT_MODULES.md).
 
@@ -8,7 +8,7 @@
 
 Правила кода для Cursor — `.cursor/rules/` (политика). Этот handoff — **нарратив**: что за продукт и куда смотреть. Не дублировать политику целиком.
 
-**Хостинг:** сейчас Vercel + Supabase. Переезд на **российские серверы — в будущем** (курс C2 + Yandex). Идёт подготовка R0/R1 без cutover; карта входа — [AUTH_C2_MAP.md](./AUTH_C2_MAP.md). При разработке учитывать портативность (env, стабильный `/api/*`, логика в `_lib`) — [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md), правило `fitness-diary-hosting-portability.mdc`. Стек / TypeScript vs переезд — STRATEGY **§5.9** (не big-bang TS до/во время cutover). Стенд R2 / cutover — только по явной команде.  
+**Хостинг:** сейчас Vercel + Supabase. Переезд на **российские серверы — в будущем** (курс C2 + Yandex). **R1 prep в коде (2026-08-09):** portable `server/` + Docker + `db:migrate:pg` (stub `auth.*`) + `/api/health` + шов Auth — [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md), [AUTH_C2_MAP.md](./AUTH_C2_MAP.md). День 1 R2 = **hybrid** (хост на РФ, данные пока Supabase). Прод не переключали. Стенд R2 / cutover — только по явной команде. Портативность — [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md), правило `fitness-diary-hosting-portability.mdc`. Стек / TypeScript vs переезд — STRATEGY **§5.9**.  
 **Безопасность (усиление):** ⏸ после РФ — STRATEGY §5.7; до cutover не кодить rate limit / админ-email без команды. Гигиена в фичах — `fitness-diary-security.mdc`.
 
 ---
@@ -164,7 +164,7 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 Agg: `src/lib/admin/*Agg.js` ↔ зеркало `api/_lib/*Agg.js` + `scripts/verify-*.mjs`.  
 UI: карточки, drill-down. Домен: `.cursor/rules/fitness-diary-domain.mdc`.  
 **Качество ведения** (care / depth / хвосты ДК+БЗ): [COACH_QUALITY.md](./COACH_QUALITY.md) — статистика + настройка весов/тумблеров в **Структура → Качество ведения**.  
-**План ЗП тренеров:** пороги тренировок месяца (ур. 2 / 3) — **Структура → План ЗП**; ставки ₽ — **Типы абон.** (`trainer_pay_l1/l2/l3`); кабинет сотрудника (с планом / без плана + ±₽ за тренировку) — **Структура → Тренеры → кабинет** (иконка кошелька). Расчёт ЗП: уровень из порогов+профиля × ставка типа + adjustment (не ниже 0; карта с оплатой 0 — без adj). **Прошлый календарный месяц** — по снимку правил (`club_trainer_pay_month_snapshots`), текущий — live.  
+**План ЗП тренеров:** пороги тренировок месяца (ур. 2 / 3) — **Структура → План ЗП**; ставки ₽ — **Типы абон.** (`trainer_pay_l1/l2/l3`); кабинет сотрудника (с планом / без плана + ±₽ за тренировку) — **Структура → Тренеры → кабинет** (иконка кошелька). Расчёт ЗП: уровень из порогов+профиля × ставка типа + adjustment (не ниже 0; карта с оплатой 0 — без adj и **не считается в пороги плана**). **Прошлый календарный месяц** — по снимку правил (`club_trainer_pay_month_snapshots`), текущий — live.  
 Главная = **glance** (session last-good + фоновая перепроверка с debounce 25 с для ПНК, `homeGlanceCache`: CQ, продажи, сводка дня, presence ПНК/планёрки); экран статистики = **detail** (всегда свежий `coach-quality`, без glance-TTL). **ПНК на главной:** после доски — event без второго refetch; сеть не чаще 25 с (закладка под ×10 клубов).
 
 ---

@@ -82,3 +82,14 @@ export function trainerPayTiersToRowFields(tiers) {
     trainer_pay_per_session: l1,
   }
 }
+
+/**
+ * Карта с оплатой тренеру (хотя бы один уровень > 0) идёт в пороги плана ЗП.
+ * Тип со всеми ставками 0 ₽ — бесплатная/нулевая карта: в план не считается.
+ * @param {Parameters<typeof resolveTrainerPayTiers>[0]} typeRow
+ * @returns {boolean}
+ */
+export function membershipTypeCountsTowardPayPlan(typeRow) {
+  const tiers = resolveTrainerPayTiers(typeRow)
+  return tiers.l1 > 0 || tiers.l2 > 0 || tiers.l3 > 0
+}

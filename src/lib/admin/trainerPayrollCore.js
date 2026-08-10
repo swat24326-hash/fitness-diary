@@ -9,6 +9,7 @@ import {
   pickMembershipTypeTierRate,
   resolveTrainerPayLevel,
 } from './trainerPayProfileCore.js'
+import { membershipTypeCountsTowardPayPlan } from './trainerPayTiersCore.js'
 
 export function parseTrainerPayRate(raw) {
   if (raw == null || raw === '') return 0
@@ -53,16 +54,32 @@ function mergeByTypeLines(target, lines) {
 }
 
 /**
+ * Число тренировок месяца для порогов плана ЗП (ур. 1–3).
+ * Без типов — все строки (legacy). С типами — только карты с оплатой > 0 ₽;
+ * «Без типа» и типы со ставками 0 не двигают план.
+ *
  * @param {Array<{ trainer_id: string, membership_type_id?: string | null, count?: number }>} matrixRows
+ * @param {Array<object>|null|undefined} [membershipTypes]
  * @returns {Map<string, number>}
  */
-export function sumWorkoutsByTrainerFromMatrixRows(matrixRows) {
+export function sumWorkoutsByTrainerFromMatrixRows(matrixRows, membershipTypes) {
+  const typeById =
+    Array.isArray(membershipTypes) && membershipTypes.length > 0 ? indexTypesById(membershipTypes) : null
   const map = new Map()
   for (const row of matrixRows ?? []) {
     const trainerId = String(row?.trainer_id ?? '').trim()
     if (!trainerId) continue
     const countN = Math.trunc(Number(row.count) || 0)
     if (countN <= 0) continue
+    if (typeById) {
+      const typeId =
+        row.membership_type_id == null || row.membership_type_id === ''
+          ? null
+          : String(row.membership_type_id).trim()
+      if (!typeId) continue
+      const typeRow = typeById.get(typeId)
+      if (!typeRow || !membershipTypeCountsTowardPayPlan(typeRow)) continue
+    }
     map.set(trainerId, (map.get(trainerId) ?? 0) + countN)
   }
   return map
@@ -131,7 +148,7 @@ export function computePayrollFromMatrixRows(matrixRows, rateMap, opts = {}) {
     const workoutsByTrainer =
       opts.workoutsByTrainer instanceof Map
         ? opts.workoutsByTrainer
-        : sumWorkoutsByTrainerFromMatrixRows(matrixRows)
+        : sumWorkoutsByTrainerFromMatrixRows(matrixRows, opts.membershipTypes)
     tierCtx = {
       typeById: indexTypesById(opts.membershipTypes),
       workoutsByTrainer,
@@ -202,7 +219,7 @@ export function aggregatePayrollFromDailyRows(dailyRows, rateMap, opts = {}) {
     for (const day of dailyRows ?? []) {
       allRows.push(...normalizeMatrixRowsFromDb(day?.trainings_matrix))
     }
-    const workoutsByTrainer = sumWorkoutsByTrainerFromMatrixRows(allRows)
+    const workoutsByTrainer = sumWorkoutsByTrainerFromMatrixRows(allRows, opts.membershipTypes)
     return computePayrollFromMatrixRows(allRows, rateMap, { ...opts, workoutsByTrainer })
   }
 
