@@ -90,6 +90,7 @@ export function validateLitePzCreateForm(form, noTabletTrainers, clubClients) {
       paid_amount: paid,
       total_trainings: 0,
       used_trainings: 0,
+      hall: 'pz',
     },
   }
 }

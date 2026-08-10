@@ -35,6 +35,7 @@
     "db:migrate:desk-hall": "node scripts/apply-desk-hall-migrations.mjs",
     "db:migrate:desk-null-trainer": "node scripts/apply-desk-null-trainer-migration.mjs",
     "db:migrate:memberships-session-visits": "node scripts/apply-memberships-session-visits-migration.mjs",
+    "db:migrate:memberships-hall": "node scripts/apply-memberships-hall-migration.mjs",
     "db:migrate:users-uses-tablet": "node scripts/apply-users-uses-tablet-migration.mjs",
     "db:migrate:strategy-snapshot": "node scripts/apply-club-sales-plan-strategy-snapshot.mjs",
     "db:migrate:sales-promotions": "node scripts/apply-club-sales-promotions.mjs",

@@ -122,6 +122,14 @@ const enriched = enrichSalesPaymentLines({
 const vip = enriched.find((l) => l.cardNumber === '5426')
 ok(vip?.profitBucket === 'dk', 'enrich vip → dk')
 
+const crossEnrich = enrichSalesPaymentLines({
+  lines: [{ id: 'x', hall: 'tz', cardNumber: '7199', name: 'Цымбал', amount: 1, tariffName: '' }],
+  reportDate: '2026-07-31',
+  clients: [{ id: 'c-pz', card_number: '7199', name: 'Цымбал', trainer_id: 't1', desk_hall: null }],
+})
+ok(crossEnrich[0]?.matchStatus === 'one', 'enrich finds PZ card')
+ok(crossEnrich[0]?.matchedHallKind === 'pz', 'enrich matchedHallKind = pz for TZ line')
+
 const withBuckets = enriched.map((l) => {
   if (l.hall === 'dop') return l
   if (l.profitBucket) return l

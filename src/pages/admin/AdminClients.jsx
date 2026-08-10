@@ -89,6 +89,7 @@ import {
   formatInactiveClientListLabel,
   membershipUsageLabel,
 } from '../../lib/membershipRules'
+import { filterMembershipsByHall } from '../../lib/membershipHallCore.js'
 import {
   pickExpiredMembershipWithRemaining,
 } from '../../lib/clientListSignals'
@@ -530,7 +531,10 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     [query, trainerQuery, quickFilter, clientsTab, azDirectionFilter],
   )
 
-  const listTabCounts = useMemo(() => countClientsByAdminListTab(clients), [clients])
+  const listTabCounts = useMemo(
+    () => countClientsByAdminListTab(clients, memByClient),
+    [clients, memByClient],
+  )
   const isDeskHallTab = clientsTab === 'tz' || clientsTab === 'az'
   const archiveHallOptions = useMemo(
     () => (clientsTab === 'archive' ? buildArchiveHallFilterOptions(clients) : []),
@@ -544,7 +548,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     const q = query.trim().toLowerCase()
     const tq = trainerQuery.trim().toLowerCase()
 
-    let base = filterClientsByAdminListTab(clients, clientsTab)
+    let base = filterClientsByAdminListTab(clients, clientsTab, memByClient)
     if (clientsTab === 'archive' && normalizeArchiveHallFilter(archiveHallFilter)) {
       base = base.filter((c) => clientMatchesArchiveHallFilter(c, archiveHallFilter))
     }
@@ -609,7 +613,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
   const azDirectionOptions = useMemo(() => {
     if (clientsTab !== 'az') return []
     const q = query.trim().toLowerCase()
-    let pool = filterClientsByAdminListTab(clients, 'az')
+    let pool = filterClientsByAdminListTab(clients, 'az', memByClient)
     if (q) {
       pool = pool.filter((c) => {
         const name = String(c.name ?? '').toLowerCase()
@@ -726,7 +730,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
 
   const filterCounts = useMemo(() => {
     const tab = clientsTab === 'archive' ? 'active' : clientsTab
-    const tabBase = filterClientsByAdminListTab(clients, tab)
+    const tabBase = filterClientsByAdminListTab(clients, tab, memByClient)
     const hallMode = tab === 'tz' || tab === 'az' ? tab : 'pz'
     const funnel = countAdminFunnelFilters(tabBase, memByClient, today, todaySnapshot.inactiveIds, { hallMode })
     if (hallMode !== 'pz') return funnel
@@ -1318,13 +1322,16 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                 )
               }
               const c = item.client
-              const mlist = memByClient[c.id] ?? []
+              const mlistAll = memByClient[c.id] ?? []
+              const tabHall =
+                clientsTab === 'tz' ? 'tz' : clientsTab === 'az' ? 'az' : clientsTab === 'active' ? 'pz' : null
+              const hall = tabHall || clientDeskHall(c)
+              const mlist = hall ? filterMembershipsByHall(mlistAll, hall, c) : mlistAll
               const clientTrainings = pageTrainings.filter((t) => t.client_id === c.id)
-              const hall = clientDeskHall(c)
-              const isDeskClient = hall != null
+              const isDeskClient = hall === 'tz' || hall === 'az'
               const isTzDesk = hall === 'tz'
-              const active = pickHallActiveMembership(mlist, today, hall)
-              const sig = hallMembershipListSignal(mlist, today, hall)
+              const active = pickHallActiveMembership(mlistAll, today, hall)
+              const sig = hallMembershipListSignal(mlistAll, today, hall)
               const expiredLeft =
                 active || isTzDesk ? null : pickExpiredMembershipWithRemaining(mlist, today)
               const deskMemForPkg =

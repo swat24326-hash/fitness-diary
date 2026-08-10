@@ -40,7 +40,7 @@ export async function fetchPnkBundle(opts) {
 }
 
 /**
- * @param {{ clubId: string, name: string, phone?: string, trainer_id: string, pnk_source?: string, pnk_trial_sessions?: 1|2 }} payload
+ * @param {{ clubId: string, name: string, phone?: string, card_number?: string, trainer_id: string, pnk_source?: string, pnk_trial_sessions?: 1|2 }} payload
  */
 export async function createPnkClient(payload) {
   const clubId = String(payload.clubId ?? '').trim()
@@ -58,6 +58,7 @@ export async function createPnkClient(payload) {
         club_id: clubId,
         name: payload.name,
         phone: payload.phone,
+        card_number: payload.card_number,
         trainer_id: payload.trainer_id,
         pnk_source: payload.pnk_source || 'manager',
         pnk_trial_sessions: payload.pnk_trial_sessions,
@@ -65,7 +66,7 @@ export async function createPnkClient(payload) {
     })
     const data = await parseJson(res)
     if (!res.ok) throw new Error(data.error || `Ошибка ${res.status}`)
-    return data.client
+    return { client: data.client, attached: Boolean(data.attached), matchedBy: data.matchedBy ?? null }
   } catch (e) {
     throw new Error(humanizeNetworkError(e))
   }

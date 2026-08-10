@@ -17,6 +17,7 @@ import {
 } from '../trainer/trainerClientOutreachCore.js'
 import { isBirthdayBrowseMatch } from '../clientBirthdays.js'
 import { deskMembershipSignal } from './deskMembershipLedgerCore.js'
+import { filterMembershipsByHall } from '../membershipHallCore.js'
 
 export const ADMIN_CLIENT_FUNNEL_FILTERS = [
   'all',
@@ -149,8 +150,8 @@ export function clientMatchesAdminFunnelFilter(filter, ctx = {}) {
   const mode = normalizeAdminClientQuickFilter(filter)
   const today = String(ctx.today ?? '').slice(0, 10)
   const client = ctx.client ?? {}
-  const memList = ctx.memList ?? []
   const hall = normalizeAdminFunnelHallMode(ctx.hallMode, { deskMode: ctx.deskMode })
+  const memList = filterMembershipsByHall(ctx.memList ?? [], hall, client)
 
   if (mode === 'all' || mode === 'none') return true
   if (mode === 'pnk') return hall === 'pz' ? isAdminPnkClient(client) : false
@@ -209,7 +210,8 @@ export function countAdminFunnelFilters(clients, memByClient, today, inactiveIds
   let inactive = 0
   let all = 0
   for (const c of clients ?? []) {
-    const memList = memByClient[c.id] ?? memByClient[String(c.id)] ?? []
+    const memAll = memByClient[c.id] ?? memByClient[String(c.id)] ?? []
+    const memList = filterMembershipsByHall(memAll, hall, c)
     const ctx = { client: c, memList, today, inactiveIds, hallMode: hall }
     if (!isAdminPnkClient(c)) all++
     if (clientMatchesAdminFunnelFilter('pnk', ctx)) pnk++

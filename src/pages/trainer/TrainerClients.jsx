@@ -399,7 +399,9 @@ export function TrainerClients() {
       }
       const cardCheck = assertClubCardAvailableForCreate(pool, trainerClubId, cardRaw)
       if (!cardCheck.ok) {
-        alert(cardCheck.error)
+        alert(
+          `${cardCheck.error}\n\nКлиент уже в базе клуба. Обратитесь к администратору или менеджеру — они добавят абонемент ПЗ к существующей карточке.`,
+        )
         return
       }
     }

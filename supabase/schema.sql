@@ -160,6 +160,7 @@ CREATE TABLE memberships (
   membership_type_id UUID REFERENCES membership_types (id) ON DELETE SET NULL,
   paid_amount NUMERIC(12, 2) NULL CHECK (paid_amount IS NULL OR paid_amount >= 0),
   session_visits JSONB NOT NULL DEFAULT '[]'::jsonb,
+  hall TEXT NOT NULL DEFAULT 'pz' CHECK (hall IN ('pz', 'tz', 'az')),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -167,6 +168,7 @@ CREATE INDEX IF NOT EXISTS idx_memberships_client_id ON memberships (client_id);
 CREATE INDEX IF NOT EXISTS idx_memberships_club_id ON memberships (club_id);
 CREATE INDEX IF NOT EXISTS idx_memberships_membership_type_id ON memberships (membership_type_id)
   WHERE membership_type_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_memberships_client_hall ON memberships (client_id, hall);
 
 -- ------------------------------------------------------------
 -- Справочник упражнений

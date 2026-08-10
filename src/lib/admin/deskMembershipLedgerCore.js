@@ -8,6 +8,7 @@ import { membershipCoversDate, membershipPeriodDayCount, pickUsableMembershipFor
 import { addMonthsToIso, formatDateRu, parseFlexibleDateToIso, todayLocalIso } from '../dateRu.js'
 import { MEMBERSHIP_SIGNAL_COLORS, MEMBERSHIP_EXPIRING_WITHIN_DAYS, membershipSignal } from '../clientListSignals.js'
 import { normalizeDeskHall } from './deskHallClientsCore.js'
+import { filterMembershipsByHall, normalizeMembershipHall } from '../membershipHallCore.js'
 
 /** Варианты пакета для ТЗ/АЗ (как в прайсе: месяц, два…). */
 export const DESK_PACKAGE_MONTH_OPTIONS = [1, 2, 3, 6, 12]
@@ -128,25 +129,31 @@ export function pickDeskActiveMembership(memberships, todayIso = todayLocalIso()
 }
 
 /**
- * Действующий абон зала: ТЗ — календарь; АЗ / без hall — срок + занятия (как ПЗ).
+ * Действующий абон зала: ТЗ — календарь; АЗ / ПЗ — срок + занятия.
+ * При указанном hall смотрит только абоны этого зала (multi-hall).
  * @param {object[]|null|undefined} memberships
  * @param {string} [todayIso]
  * @param {unknown} [hall]
  */
 export function pickHallActiveMembership(memberships, todayIso = todayLocalIso(), hall = null) {
-  if (normalizeDeskHall(hall) === 'tz') return pickDeskActiveMembership(memberships, todayIso)
-  return pickUsableMembershipForDate(memberships ?? [], String(todayIso ?? '').slice(0, 10))
+  const want = normalizeMembershipHall(hall) || normalizeDeskHall(hall)
+  const list = want ? filterMembershipsByHall(memberships, want) : memberships ?? []
+  if (want === 'tz') return pickDeskActiveMembership(list, todayIso)
+  return pickUsableMembershipForDate(list, String(todayIso ?? '').slice(0, 10))
 }
 
 /**
- * Сигнал списка: ТЗ — календарь; АЗ — как ПЗ (занятия + срок).
+ * Сигнал списка: ТЗ — календарь; АЗ / ПЗ — занятия + срок.
+ * При указанном hall — только абоны этого зала.
  * @param {object[]|null|undefined} memberships
  * @param {string} [todayIso]
  * @param {unknown} [hall]
  */
 export function hallMembershipListSignal(memberships, todayIso = todayLocalIso(), hall = null) {
-  if (normalizeDeskHall(hall) === 'tz') return deskMembershipSignal(memberships, todayIso)
-  return membershipSignal(memberships, todayIso)
+  const want = normalizeMembershipHall(hall) || normalizeDeskHall(hall)
+  const list = want ? filterMembershipsByHall(memberships, want) : memberships ?? []
+  if (want === 'tz') return deskMembershipSignal(list, todayIso)
+  return membershipSignal(list, todayIso)
 }
 
 /**

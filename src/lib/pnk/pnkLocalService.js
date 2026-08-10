@@ -4,6 +4,7 @@ import { pickUsableMembershipForDate } from '../membershipRules.js'
 import { ensureMembershipTypesForClub } from '../membershipTypesService.js'
 import { listClientsByClubId, listPnkFunnelEventsByClubId } from '../localDbClubQuery.js'
 import { saveLocalWithSync } from '../syncService.js'
+import { canFullyDeleteClientOnPnkRefuse } from '../membershipHallCore.js'
 import { applyPnkStagePatch, buildNewPnkClientFields, isOpenPnkClient } from './pnkStagesCore.js'
 import { normalizeClientPnkFields } from './pnkClientFields.js'
 import { buildPnkLostFunnelEvent } from './pnkFunnelEventsCore.js'
@@ -82,7 +83,7 @@ export async function patchPnkClientLocal(client, patch = {}) {
 }
 
 /**
- * Отказ: запись в анонимный журнал + полное удаление карточки (и абонементов).
+ * Отказ: журнал + либо полное удаление (чистый ПНК), либо снятие ПНК с сохранением ТЗ/АЗ.
  * @param {object} client
  * @param {{ lost_reason?: string }} [opts]
  */
@@ -99,6 +100,44 @@ export async function refuseAndDeletePnkClientLocal(client, opts = {}) {
     operation: 'insert',
     remote_id: built.event.id,
   })
+
+  const memberships = await listMemberships(base.id)
+  if (!canFullyDeleteClientOnPnkRefuse(base, memberships)) {
+    const now = new Date().toISOString()
+    // закрыть/убрать только БЗ (короткие trial) — платные pz и tz/az не трогаем
+    for (const m of memberships ?? []) {
+      const hall = String(m?.hall ?? '').toLowerCase()
+      const isDesk = hall === 'tz' || hall === 'az'
+      if (isDesk) continue
+      const paid = Number(m?.paid_amount)
+      if (Number.isFinite(paid) && paid > 0) continue
+      const total = Number(m?.total_trainings)
+      // БЗ обычно 1–2 тренировки без цены
+      if (Number.isFinite(total) && total > 0 && total <= 2) {
+        await saveLocalWithSync(
+          'memberships',
+          { ...m, status: 'closed', end_date: String(m.end_date ?? '').slice(0, 10) },
+          { table_name: 'memberships', operation: 'update', remote_id: m.id },
+        )
+      }
+    }
+    const cleared = {
+      ...base,
+      lifecycle: null,
+      pnk_stage: null,
+      pnk_lost_at: now,
+      pnk_lost_reason: opts.lost_reason || 'Отказ',
+      trainer_id: null,
+      updated_at: now,
+    }
+    await saveLocalWithSync('clients', cleared, {
+      table_name: 'clients',
+      operation: 'update',
+      remote_id: base.id,
+    })
+    return { ok: true, event: built.event, client_id: base.id, preserved: true }
+  }
+
   await deleteClientAndAllData(base.id)
   return { ok: true, event: built.event, client_id: base.id }
 }

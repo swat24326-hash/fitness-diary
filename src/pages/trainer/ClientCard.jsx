@@ -39,6 +39,11 @@ import {
 } from '../../lib/trainer/trainerClientOutreachCore.js'
 import { AdminDeskClientCardSection } from '../../components/admin/AdminDeskClientCardSection.jsx'
 import { AdminLitePzClientCardSection } from '../../components/admin/AdminLitePzClientCardSection.jsx'
+import { AdminMultiHallClientCardSection } from '../../components/admin/AdminMultiHallClientCardSection.jsx'
+import {
+  clientNeedsMultiHallCard,
+  roleCanManageMultiHallClientCard,
+} from '../../lib/admin/clientHallTabsCore.js'
 import { isDeskHallClient } from '../../lib/admin/holdingClientsCore.js'
 import { isTrainerWithoutTablet } from '../../lib/admin/trainerTabletModeCore.js'
 import {
@@ -59,7 +64,11 @@ export function ClientCard() {
   /** Админ, управляющий и менеджер тянут карточку через /api/get-client. */
   const canCloudHydrateClient = Boolean(isAdmin || isSalesManager || isSupervisor)
   /** Коммерческий контур клуба: desk / lite / список клиентов. */
-  const canManageClubClients = Boolean(isAdmin || isSalesManager || isSupervisor)
+  const canManageClubClients = roleCanManageMultiHallClientCard({
+    isAdmin,
+    isSalesManager,
+    isSupervisor,
+  })
   /** Планёрка с карточки — админ сети и управляющий. */
   const canAssignClubTasks = Boolean(isAdmin || isSupervisor)
   const clientsListHref = useMemo(
@@ -137,6 +146,9 @@ export function ClientCard() {
   }, [canManageClubClients])
 
   const isDeskClient = Boolean(canManageClubClients && isDeskHallClient(client))
+  const isMultiHallCard = Boolean(
+    canManageClubClients && client && clientNeedsMultiHallCard(client, memberships),
+  )
   const clientTrainerRow = useMemo(() => {
     const tid = String(client?.trainer_id ?? '').trim()
     if (!tid) return null
@@ -483,6 +495,26 @@ export function ClientCard() {
         <p className="trainer-path-empty__text">
           Клиент не найден. <Link to={clientsListHref}>{clientsBackLabel.replace(/^←\s*/, '') || 'Назад'}</Link>
         </p>
+      </div>
+    )
+  }
+
+  if (isMultiHallCard) {
+    return (
+      <div className="grid trainer-path-card" style={{ gap: 18 }}>
+        <AdminMultiHallClientCardSection
+          client={client}
+          memberships={memberships}
+          clubId={String(client.club_id ?? searchParams.get('club') ?? '')}
+          listHref={clientsListHref}
+          listBackLabel={clientsBackLabel}
+          preferredHall={searchParams.get('hall')}
+          onSaved={() => {
+            void reloadLocal().then(() => {
+              if (canCloudHydrateClient) void hydrateFromCloudInBackground()
+            })
+          }}
+        />
       </div>
     )
   }

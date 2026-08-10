@@ -32,7 +32,13 @@ export function SalesPnk() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [bundle, setBundle] = useState(null)
-  const [form, setForm] = useState({ name: '', phone: '', trainer_id: '', pnk_trial_sessions: 1 })
+  const [form, setForm] = useState({
+    name: '',
+    phone: '',
+    card_number: '',
+    trainer_id: '',
+    pnk_trial_sessions: 1,
+  })
   const [createOpen, setCreateOpen] = useState(false)
   const [boardFilter, setBoardFilter] = useState('all')
   const [toast, setToast] = useState('')
@@ -109,20 +115,26 @@ export function SalesPnk() {
     setBusy(true)
     setError('')
     try {
-      const client = await createPnkClient({
+      const created = await createPnkClient({
         clubId,
         name: form.name,
         phone: form.phone,
+        card_number: form.card_number,
         trainer_id: form.trainer_id,
         pnk_trial_sessions: Number(form.pnk_trial_sessions) === 2 ? 2 : 1,
       })
+      const client = created?.client ?? created
       const trainer = (bundle?.trainers ?? []).find((t) => t.id === form.trainer_id)
       setLastCreated({
         client,
         trainerName: trainer?.name || '',
         trainerPhone: trainer?.phone || null,
       })
-      setForm((f) => ({ ...f, name: '', phone: '', pnk_trial_sessions: 1 }))
+      if (created?.attached) {
+        setToast('ПНК привязан к существующей карточке (тот же № карты / телефон)')
+        setTimeout(() => setToast(''), 4000)
+      }
+      setForm((f) => ({ ...f, name: '', phone: '', card_number: '', pnk_trial_sessions: 1 }))
       setCreateOpen(false)
       await load()
     } catch (err) {
@@ -316,6 +328,16 @@ export function SalesPnk() {
                         className="input"
                         value={form.phone}
                         onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                      />
+                    </label>
+                    <label>
+                      № карты
+                      <input
+                        className="input"
+                        value={form.card_number}
+                        onChange={(e) => setForm((f) => ({ ...f, card_number: e.target.value }))}
+                        inputMode="numeric"
+                        placeholder="если уже в клубе — привяжем"
                       />
                     </label>
                     <label>

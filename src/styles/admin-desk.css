@@ -457,3 +457,54 @@
   opacity: 0.72;
 }
 
+.admin-client-hall-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 1rem 0 0.75rem;
+}
+
+.admin-client-hall-tabs__btn {
+  position: relative;
+  min-width: 3.2rem;
+  min-height: 2.5rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border, #3a3a3a) 85%, transparent);
+  background: color-mix(in srgb, var(--bg-elevated, #1a1a1a) 88%, transparent);
+  color: color-mix(in srgb, var(--text, #eee) 72%, transparent);
+  font-weight: 600;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.admin-client-hall-tabs__btn.is-active {
+  border-color: color-mix(in srgb, var(--accent-bright, #e8a838) 55%, transparent);
+  color: var(--text, #eee);
+  background: color-mix(in srgb, var(--accent-bright, #e8a838) 16%, transparent);
+}
+
+.admin-client-hall-tabs__btn.is-empty {
+  opacity: 0.72;
+}
+
+.admin-client-hall-tabs__dot {
+  display: inline-block;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin-left: 0.35rem;
+  border-radius: 50%;
+  background: var(--accent-bright, #e8a838);
+  vertical-align: middle;
+}
+
+.admin-multi-hall-pane {
+  margin-top: 0.5rem;
+}
+
+.admin-multi-hall-pane__hint {
+  margin: 0 0 0.75rem;
+  font-size: 0.88rem;
+}
+
+

@@ -91,6 +91,7 @@ export function buildPnkTrialMembershipRow(p) {
     total_trainings: total,
     used_trainings: 0,
     membership_type_id: p.membershipTypeId,
+    hall: 'pz',
     created_at: p.nowIso || new Date().toISOString(),
   }
 }

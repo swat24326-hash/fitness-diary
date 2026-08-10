@@ -105,11 +105,42 @@ ok(
   'sig ignores null paid vs missing',
 )
 
-const azDead = [{ id: 'az', start_date: '2026-07-01', end_date: '2026-09-30', total_trainings: 10, used_trainings: 10 }]
-ok(pickHallActiveMembership(azDead, today, 'tz')?.id === 'az', 'tz ignores session limit')
+const azDead = [
+  { id: 'az', hall: 'az', start_date: '2026-07-01', end_date: '2026-09-30', total_trainings: 10, used_trainings: 10 },
+]
+const tzLive = [
+  { id: 'tz', hall: 'tz', start_date: '2026-07-01', end_date: '2026-09-30', total_trainings: 10, used_trainings: 10 },
+]
+ok(pickHallActiveMembership(tzLive, today, 'tz')?.id === 'tz', 'tz ignores session limit')
 ok(pickHallActiveMembership(azDead, today, 'az') == null, 'az depleted not active')
 ok(hallMembershipListSignal(azDead, today, 'az').key !== 'active', 'az signal not active when depleted')
-ok(hallMembershipListSignal(azDead, today, 'tz').key === 'expiring' || hallMembershipListSignal(azDead, today, 'tz').key === 'active', 'tz still calendar-alive')
+ok(
+  hallMembershipListSignal(tzLive, today, 'tz').key === 'expiring' ||
+    hallMembershipListSignal(tzLive, today, 'tz').key === 'active',
+  'tz still calendar-alive',
+)
+
+const mixedHall = [
+  {
+    id: 'pz1',
+    hall: 'pz',
+    start_date: '2026-07-01',
+    end_date: '2026-12-31',
+    total_trainings: 12,
+    used_trainings: 0,
+  },
+  {
+    id: 'tz1',
+    hall: 'tz',
+    start_date: '2026-07-01',
+    end_date: '2026-12-31',
+    total_trainings: 0,
+    used_trainings: 0,
+  },
+]
+ok(pickHallActiveMembership(mixedHall, today, 'tz')?.id === 'tz1', 'multi-hall: tz pick ignores pz')
+ok(pickHallActiveMembership(mixedHall, today, 'pz')?.id === 'pz1', 'multi-hall: pz pick ignores tz')
+ok(pickHallActiveMembership(mixedHall, today, 'az') == null, 'multi-hall: no az row')
 
 if (failed) {
   console.error(`\n${failed} failed`)

@@ -592,6 +592,7 @@ export function buildPnkDemoScenarioForm(trainerId = '') {
   return {
     name: 'Сценарий ПНК Иванов',
     phone: '+79001234567',
+    card_number: '',
     trainer_id: String(trainerId ?? '').trim(),
   }
 }

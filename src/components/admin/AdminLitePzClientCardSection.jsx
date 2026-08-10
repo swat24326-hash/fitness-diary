@@ -192,6 +192,7 @@ export function AdminLitePzClientCardSection({
         client={client}
         memberships={memberships}
         clubId={clubId}
+        hall="pz"
         onChanged={onSaved}
       />
     </section>

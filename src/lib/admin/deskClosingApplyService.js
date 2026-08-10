@@ -126,6 +126,7 @@ export async function applyDeskClosingCreates(input) {
         used_trainings: 0,
         membership_type_id: input.membershipTypeId || null,
         paid_amount: paid,
+        hall,
         created_at: now,
       }
       await saveLocalWithSync('memberships', membership, {

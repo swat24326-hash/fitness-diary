@@ -5356,6 +5356,33 @@
 .sales-payments-link__mode--warn {
   color: color-mix(in srgb, var(--accent-bright, #e8a838) 85%, #fff);
 }
+.sales-payments-link__tariff-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  margin-top: 0.25rem;
+}
+.sales-payments-link__months-wrap {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+.sales-payments-link__months {
+  min-width: 7.5rem;
+  max-width: 11rem;
+}
+.sales-payments-link__months-custom {
+  width: 4.75rem;
+  min-height: 2.5rem;
+  padding: 0.35rem 0.45rem;
+}
+.sales-payments-link__sibling {
+  margin-top: 0.35rem;
+  max-width: 22rem;
+  line-height: 1.35;
+}
 
 .sales-clip-section__tip {
   margin: 0 0 0.75rem;

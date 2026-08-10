@@ -1,5 +1,6 @@
 /**
  * Применение действий связки оплат → lite / клип / desk.
+ * Один № карты = один client; другой зал → дописать membership.
  */
 
 import { formatClientName } from '../clientNameFormat.js'
@@ -15,10 +16,29 @@ import { createSaleClip } from './saleClipService.js'
 import {
   resolvePzLinkMode,
   validatePaymentLinkAction,
+  parsePaymentLinkCustomPackageMonths,
 } from './salesPaymentsLinkCore.js'
 import { isTrainerWithoutTablet } from './trainerTabletModeCore.js'
 import { listClientsByClubId } from '../localDbClubQuery.js'
-import { assertClubCardAvailableForCreate } from './salesClientMatchCore.js'
+import {
+  assertClubCardAvailableForCreate,
+  normalizeSalesCardNumber,
+} from './salesClientMatchCore.js'
+import { isClientArchived } from '../clientArchive.js'
+
+function findClubClientByCard(clubClients, clubId, cardNumber) {
+  const n = normalizeSalesCardNumber(cardNumber)
+  const cid = String(clubId ?? '').trim()
+  if (!n || !cid) return null
+  const matches = (clubClients ?? []).filter(
+    (c) =>
+      String(c?.club_id ?? '').trim() === cid && normalizeSalesCardNumber(c?.card_number) === n,
+  )
+  const ops = matches.filter((c) => !isClientArchived(c))
+  const pool = ops.length ? ops : matches
+  pool.sort((a, b) => String(a?.id ?? '').localeCompare(String(b?.id ?? '')))
+  return pool[0] ?? null
+}
 
 /**
  * @param {{
@@ -36,7 +56,7 @@ export async function applyPaymentClientLinkAction(input) {
   if (!clubId) return { ok: false, error: 'Нет клуба' }
   if (!action) return { ok: false, error: 'Нет действия' }
 
-  if (action.kind === 'skip_matched') {
+  if (action.kind === 'skip_matched' || action.kind === 'skip_cross_hall') {
     return { ok: true, result: 'skipped' }
   }
 
@@ -61,9 +81,52 @@ export async function applyPaymentClientLinkAction(input) {
 
 async function applyLiteFromPayment({ action, clubId, reportDate, trainers }) {
   const noTab = listNoTabletTrainersForClub(trainers, clubId)
-  const months = Number(action.packageMonths) > 0 ? Number(action.packageMonths) : 1
+  const months = parsePaymentLinkCustomPackageMonths(action.packageMonths)
+  if (months == null) return { ok: false, error: 'Укажите срок пакета' }
   const start = reportDate
   const end = deskPackageEndIso(start, months)
+  const clubClients = await listClientsByClubId(clubId)
+  const existing =
+    (action.attachClientId && clubClients.find((c) => String(c.id) === String(action.attachClientId))) ||
+    findClubClientByCard(clubClients, clubId, action.cardNumber)
+
+  if (existing?.id) {
+    const now = new Date().toISOString()
+    const clientId = String(existing.id)
+    const patch = {
+      ...existing,
+      trainer_id: action.trainerId || existing.trainer_id,
+      name: formatClientName(action.clientName) || existing.name,
+      updated_at: now,
+    }
+    await saveLocalWithSync('clients', patch, {
+      table_name: 'clients',
+      operation: 'update',
+      remote_id: clientId,
+    })
+    await saveLocalWithSync(
+      'memberships',
+      {
+        id: crypto.randomUUID(),
+        client_id: clientId,
+        club_id: clubId,
+        membership_type_id: null,
+        start_date: start,
+        end_date: end,
+        total_trainings: 0,
+        used_trainings: 0,
+        paid_amount: action.amount > 0 ? action.amount : null,
+        hall: 'pz',
+        created_at: now,
+      },
+      { table_name: 'memberships', operation: 'insert', remote_id: null },
+    )
+    const flush = await flushCriticalWritesToCloud()
+    const warn = criticalWriteCloudWarning(flush, 'Lite ПЗ к существующей карточке')
+    dispatchLocalDataChanged({ reason: 'payments-link-lite-attach', clientId })
+    return { ok: true, result: 'lite', clientId, attached: true, warning: warn || null }
+  }
+
   const form = {
     name: action.clientName,
     phone: '',
@@ -75,7 +138,6 @@ async function applyLiteFromPayment({ action, clubId, reportDate, trainers }) {
     package_months: months,
     paid_amount: action.amount > 0 ? String(action.amount) : '',
   }
-  const clubClients = await listClientsByClubId(clubId)
   const validated = validateLitePzCreateForm(form, noTab, clubClients)
   if (!validated.ok) return { ok: false, error: validated.error }
 
@@ -94,6 +156,7 @@ async function applyLiteFromPayment({ action, clubId, reportDate, trainers }) {
       club_id: clubId,
       membership_type_id: null,
       ...validated.membership,
+      hall: 'pz',
       created_at: now,
     },
     { table_name: 'memberships', operation: 'insert', remote_id: null },
@@ -108,7 +171,8 @@ async function applyClipFromPayment({ action, clubId, reportDate, trainer }) {
   if (isTrainerWithoutTablet(trainer)) {
     return { ok: false, error: 'Для тренера без планшета нужен lite, не клип' }
   }
-  const months = Number(action.packageMonths) > 0 ? Number(action.packageMonths) : 1
+  const months = parsePaymentLinkCustomPackageMonths(action.packageMonths)
+  if (months == null) return { ok: false, error: 'Укажите срок пакета' }
   const start = reportDate
   const end = deskPackageEndIso(start, months)
   const data = await createSaleClip({
@@ -126,16 +190,48 @@ async function applyClipFromPayment({ action, clubId, reportDate, trainer }) {
 
 async function applyDeskFromPayment({ action, clubId, reportDate }) {
   const hall = action.kind === 'az_desk' ? 'az' : 'tz'
-  const months = Number(action.packageMonths) > 0 ? Number(action.packageMonths) : 1
+  const months = parsePaymentLinkCustomPackageMonths(action.packageMonths)
+  if (months == null) return { ok: false, error: 'Укажите срок пакета' }
   const start = reportDate
   const end = deskPackageEndIso(start, months)
   if (!end) return { ok: false, error: 'Не удалось посчитать срок абона' }
 
   const clubClients = await listClientsByClubId(clubId)
+  const existing =
+    (action.attachClientId && clubClients.find((c) => String(c.id) === String(action.attachClientId))) ||
+    findClubClientByCard(clubClients, clubId, action.cardNumber)
+
+  const now = new Date().toISOString()
+  const memRow = {
+    id: crypto.randomUUID(),
+    club_id: clubId,
+    membership_type_id: hall === 'az' && action.membershipTypeId ? action.membershipTypeId : null,
+    start_date: start,
+    end_date: end,
+    paid_amount: action.amount > 0 ? action.amount : null,
+    total_trainings: 0,
+    used_trainings: 0,
+    hall,
+    created_at: now,
+  }
+
+  if (existing?.id) {
+    const clientId = String(existing.id)
+    await saveLocalWithSync(
+      'memberships',
+      { ...memRow, client_id: clientId },
+      { table_name: 'memberships', operation: 'insert', remote_id: null },
+    )
+    // legacy desk_hall: если клиент был чистый ПЗ — не затираем trainer; desk_hall можно не ставить
+    const flush = await flushCriticalWritesToCloud()
+    const warn = criticalWriteCloudWarning(flush, 'Desk-абон к карточке')
+    dispatchLocalDataChanged({ reason: 'payments-link-desk-attach', clientId })
+    return { ok: true, result: hall, clientId, attached: true, warning: warn || null }
+  }
+
   const cardCheck = assertClubCardAvailableForCreate(clubClients, clubId, action.cardNumber)
   if (!cardCheck.ok) return { ok: false, error: cardCheck.error }
 
-  const now = new Date().toISOString()
   const clientId = crypto.randomUUID()
   const name = formatClientName(action.clientName)
   await saveLocalWithSync(
@@ -154,18 +250,7 @@ async function applyDeskFromPayment({ action, clubId, reportDate }) {
   )
   await saveLocalWithSync(
     'memberships',
-    {
-      id: crypto.randomUUID(),
-      client_id: clientId,
-      club_id: clubId,
-      membership_type_id: hall === 'az' && action.membershipTypeId ? action.membershipTypeId : null,
-      start_date: start,
-      end_date: end,
-      paid_amount: action.amount > 0 ? action.amount : null,
-      total_trainings: 0,
-      used_trainings: 0,
-      created_at: now,
-    },
+    { ...memRow, client_id: clientId },
     { table_name: 'memberships', operation: 'insert', remote_id: null },
   )
   const flush = await flushCriticalWritesToCloud()

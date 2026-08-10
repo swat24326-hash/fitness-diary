@@ -7,14 +7,18 @@ import {
   buildPaymentClientLinkActions,
   describePzMissingFromPaymentsMetaRu,
   isPaymentLinkActionReady,
+  markPaymentLinkSameCardSiblingsBlocked,
   partitionPaymentClientLinkNeedWork,
+  paymentLinkHallLabelRu,
   resolvePzLinkMode,
+  siblingPaymentLinkActionsSameCard,
   sortTrainersForPzPaymentLink,
   summarizePaymentClientLinkActions,
 } from '../lib/admin/salesPaymentsLinkCore.js'
 import { applyPaymentClientLinkAction } from '../lib/admin/salesPaymentsLinkApplyService.js'
 import { isTrainerWithoutTablet } from '../lib/admin/trainerTabletModeCore.js'
 import { isHoldingTrainerUser } from '../lib/admin/deskClosingImportCore.js'
+import { SalesPaymentsPackageMonthsSelect } from './SalesPaymentsPackageMonthsSelect.jsx'
 
 /**
  * После превью оплат: приоритетно закрыть ПЗ без карточки (lite / клип), затем desk ТЗ/АЗ.
@@ -109,12 +113,32 @@ export function SalesPaymentsClientLinkSection({
         setError(res.error || 'Ошибка')
         return { ok: false }
       }
-      patchAction(action.id, { status: 'done', error: '', result: res.result })
+      setActions((prev) => {
+        const withDone = prev.map((a) =>
+          a.id === action.id ? { ...a, status: 'done', error: '', result: res.result } : a,
+        )
+        return markPaymentLinkSameCardSiblingsBlocked(withDone, { ...action, status: 'done' })
+      })
+      const sibs = siblingPaymentLinkActionsSameCard(actions, action)
       if (res.warning) toast(res.warning)
-      else if (res.result === 'lite') toast(`Создан lite ПЗ: ${action.clientName}`)
-      else if (res.result === 'clip') toast(`Клип тренеру: ${action.clientName}`)
+      else if (res.result === 'lite') {
+        toast(
+          res.attached
+            ? `ПЗ-абон к карточке: ${action.clientName}`
+            : `Создан lite ПЗ: ${action.clientName}`,
+        )
+      } else if (res.result === 'clip') toast(`Клип тренеру: ${action.clientName}`)
       else if (res.result === 'az' || res.result === 'tz') {
-        toast(`Desk ${String(res.result).toUpperCase()}: ${action.clientName}`)
+        toast(
+          res.attached
+            ? `Абон ${String(res.result).toUpperCase()} к карточке: ${action.clientName}`
+            : `Desk ${String(res.result).toUpperCase()}: ${action.clientName}`,
+        )
+      }
+      if (sibs.length && !res.attached) {
+        toast(
+          `Карта №${action.cardNumber}: можно также создать абон ${sibs.map((s) => paymentLinkHallLabelRu(s.hall)).join('/')} к той же карточке`,
+        )
       }
       return { ok: true }
     } catch (e) {
@@ -153,6 +177,13 @@ export function SalesPaymentsClientLinkSection({
 
   const anyBusy = Boolean(busyId) || bulkBusy
 
+  const siblingHint = (action) => {
+    const sibs = siblingPaymentLinkActionsSameCard(actions, action)
+    if (!sibs.length) return null
+    const halls = [...new Set(sibs.map((s) => paymentLinkHallLabelRu(s.hall)))].join(', ')
+    return `Та же карта ещё в ${halls}. Абон другого зала допишется к этой карточке (один клиент в Ядре).`
+  }
+
   return (
     <section className="sales-report__card sales-payments-link" aria-label="Связка оплат с карточками">
       <h3 className="sales-report__section-title">
@@ -160,9 +191,11 @@ export function SalesPaymentsClientLinkSection({
         Карточки из оплат
       </h3>
       <p className="sales-report__hint">
-        Отчёт дня — выше («Подставить»). Здесь — кого ещё нет в базе данных. Сначала закройте{' '}
-        <strong>ПЗ без карточки</strong> (тренер обязателен: без планшета → lite, с планшетом → клип). ТЗ/АЗ —
-        desk без тренера.
+        Отчёт дня — выше («Подставить»). Здесь — кого ещё нет в базе или кому нужен абон другого зала. Сначала
+        закройте <strong>ПЗ без карточки</strong> (тренер обязателен: без планшета → lite, с планшетом → клип).
+        ТЗ/АЗ — desk без тренера или <strong>абон к уже существующей карточке</strong> того же №. Срок пакета —
+        из тарифа: пресеты 1 / 2 / 3 / 6 / 12 или «Другое…». Если в файле одна карта и ПЗ, и ТЗ — обе строки
+        здесь: второй зал допишется к той же карточке (один клиент в Ядре).
       </p>
 
       <div className="sales-payments-link__kpis" role="group" aria-label="Сводка по файлу">
@@ -234,13 +267,24 @@ export function SalesPaymentsClientLinkSection({
                   const trainer = trainers.find((t) => String(t.id) === String(a.trainerId))
                   const mode = resolvePzLinkMode(trainer)
                   const ready = isPaymentLinkActionReady(a, trainer)
+                  const sameCardHint = siblingHint(a)
                   return (
                     <tr key={a.id} className="sales-payments-link__row--pz">
                       <td>{a.cardNumber}</td>
                       <td>{a.clientName}</td>
                       <td>
                         <div>{a.tariffName || '—'}</div>
-                        <div className="sales-report__hint">{a.packageMonths} мес</div>
+                        <SalesPaymentsPackageMonthsSelect
+                          value={a.packageMonths}
+                          disabled={anyBusy || a.status === 'done'}
+                          ariaLabel={`Срок пакета для ${a.clientName}`}
+                          onChange={(months) =>
+                            patchAction(a.id, {
+                              packageMonths: months,
+                              error: '',
+                            })
+                          }
+                        />
                       </td>
                       <td>{a.amount > 0 ? formatRub(a.amount) : '—'}</td>
                       <td>
@@ -285,6 +329,9 @@ export function SalesPaymentsClientLinkSection({
                             </span>
                           )}
                         </div>
+                        {sameCardHint ? (
+                          <div className="sales-report__hint sales-payments-link__sibling">{sameCardHint}</div>
+                        ) : null}
                         {a.error ? <div className="sales-report__error">{a.error}</div> : null}
                       </td>
                       <td>
@@ -311,7 +358,8 @@ export function SalesPaymentsClientLinkSection({
         <div className="sales-payments-link__block">
           <h4 className="sales-payments-link__block-title">ТЗ / АЗ — desk</h4>
           <p className="muted sales-payments-link__block-hint">
-            Без живого тренера. Направление АЗ — из тарифа или выберите вручную.
+            Без живого тренера. Срок — пресет или «Другое…» (своё число месяцев). Направление АЗ — из тарифа
+            или вручную.
           </p>
           <div className="sales-payments-import__table-wrap">
             <table className="sales-payments-import__table">
@@ -326,63 +374,80 @@ export function SalesPaymentsClientLinkSection({
                 </tr>
               </thead>
               <tbody>
-                {deskRows.map((a) => (
-                  <tr key={a.id}>
-                    <td>{a.cardNumber}</td>
-                    <td>{a.clientName}</td>
-                    <td>{String(a.hall || '—').toUpperCase()}</td>
-                    <td>
-                      <div>{a.tariffName || '—'}</div>
-                      <div className="sales-report__hint">
-                        {a.packageMonths} мес
-                        {a.kind === 'az_desk' && a.membershipTypeLabel
-                          ? ` · ${a.membershipTypeLabel}`
-                          : a.kind === 'az_desk'
-                            ? ' · направление вручную'
-                            : ''}
-                      </div>
-                    </td>
-                    <td>
-                      {a.kind === 'az_desk' ? (
-                        <select
-                          className="select"
-                          value={a.membershipTypeId}
-                          onChange={(e) => {
-                            const id = e.target.value
-                            const t = azTypes.find((x) => String(x.id) === id)
-                            patchAction(a.id, {
-                              membershipTypeId: id,
-                              membershipTypeLabel: t ? String(t.name || t.code || '') : '',
-                            })
-                          }}
-                          disabled={anyBusy || a.status === 'done'}
-                          aria-label="Направление АЗ"
+                {deskRows.map((a) => {
+                  const ready = isPaymentLinkActionReady(a, null)
+                  const sameCardHint = siblingHint(a)
+                  return (
+                    <tr key={a.id}>
+                      <td>{a.cardNumber}</td>
+                      <td>{a.clientName}</td>
+                      <td>{String(a.hall || '—').toUpperCase()}</td>
+                      <td>
+                        <div>{a.tariffName || '—'}</div>
+                        <div className="sales-payments-link__tariff-meta">
+                          <SalesPaymentsPackageMonthsSelect
+                            value={a.packageMonths}
+                            disabled={anyBusy || a.status === 'done'}
+                            ariaLabel={`Срок пакета для ${a.clientName}`}
+                            onChange={(months) =>
+                              patchAction(a.id, {
+                                packageMonths: months,
+                                error: '',
+                              })
+                            }
+                          />
+                          {a.kind === 'az_desk' && a.membershipTypeLabel ? (
+                            <span className="sales-report__hint">· {a.membershipTypeLabel}</span>
+                          ) : a.kind === 'az_desk' ? (
+                            <span className="sales-report__hint">· направление вручную</span>
+                          ) : null}
+                        </div>
+                      </td>
+                      <td>
+                        {a.kind === 'az_desk' ? (
+                          <select
+                            className="select"
+                            value={a.membershipTypeId}
+                            onChange={(e) => {
+                              const id = e.target.value
+                              const t = azTypes.find((x) => String(x.id) === id)
+                              patchAction(a.id, {
+                                membershipTypeId: id,
+                                membershipTypeLabel: t ? String(t.name || t.code || '') : '',
+                              })
+                            }}
+                            disabled={anyBusy || a.status === 'done'}
+                            aria-label="Направление АЗ"
+                          >
+                            <option value="">Направление…</option>
+                            {azTypes.map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.name || t.code}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="sales-report__hint">{a.label}</span>
+                        )}
+                        {sameCardHint ? (
+                          <div className="sales-report__hint sales-payments-link__sibling">{sameCardHint}</div>
+                        ) : null}
+                        {a.error ? <div className="sales-report__error">{a.error}</div> : null}
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          disabled={anyBusy || !ready}
+                          onClick={() => void runOne(a)}
                         >
-                          <option value="">Направление…</option>
-                          {azTypes.map((t) => (
-                            <option key={t.id} value={t.id}>
-                              {t.name || t.code}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <span className="sales-report__hint">{a.label}</span>
-                      )}
-                      {a.error ? <div className="sales-report__error">{a.error}</div> : null}
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        disabled={anyBusy}
-                        onClick={() => void runOne(a)}
-                      >
-                        <UserPlus size={14} aria-hidden />
-                        {busyId === a.id ? '…' : 'Создать'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                          <UserPlus size={14} aria-hidden />
+                          {busyId === a.id ? '…' : 'Создать'}
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

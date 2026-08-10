@@ -7,6 +7,12 @@ import { normalizeSalesCardNumber } from './salesClientMatchCore.js'
 import { isTrainerWithoutTablet } from './trainerTabletModeCore.js'
 import { DESK_PACKAGE_MONTH_OPTIONS } from './deskMembershipLedgerCore.js'
 
+/** Sentinel UI: пункт «Другое…» в select срока. */
+export const PAYMENT_LINK_PACKAGE_MONTHS_CUSTOM = '__custom__'
+
+/** Верхняя граница произвольного срока (месяцы) — как в validate. */
+export const PAYMENT_LINK_PACKAGE_MONTHS_MAX = 36
+
 function normKey(s) {
   return String(s ?? '')
     .toLowerCase()
@@ -16,6 +22,7 @@ function normKey(s) {
 
 /**
  * Срок пакета из названия тарифа (1 / 1.5 / 2 мес). По умолчанию 1.
+ * Угадывание — только старт черновика; менеджер может сменить срок в UI.
  * @param {string} tariffName
  * @returns {number}
  */
@@ -54,6 +61,66 @@ function pickNearestPackageMonths(n) {
 }
 
 /**
+ * Пресет прайса (1 / 2 / 3 / 6 / 12), не «Другое».
+ * @param {unknown} months
+ */
+export function isPaymentLinkPackageMonthsPreset(months) {
+  const n = Number(months)
+  return Number.isFinite(n) && DESK_PACKAGE_MONTH_OPTIONS.includes(n)
+}
+
+/**
+ * Разбор поля «Другое» / произвольного срока.
+ * Пусто или мусор → null (кнопка «Создать» не готова).
+ * @param {unknown} raw
+ * @returns {number|null}
+ */
+export function parsePaymentLinkCustomPackageMonths(raw) {
+  if (raw === PAYMENT_LINK_PACKAGE_MONTHS_CUSTOM) return null
+  if (raw == null) return null
+  const s = String(raw).trim()
+  if (!s || s === PAYMENT_LINK_PACKAGE_MONTHS_CUSTOM) return null
+  const n = Number(s.replace(',', '.'))
+  if (!Number.isFinite(n)) return null
+  const t = Math.trunc(n)
+  if (t < 1 || t > PAYMENT_LINK_PACKAGE_MONTHS_MAX) return null
+  return t
+}
+
+/**
+ * Нормализация срока для черновика из тарифа / apply (никогда null).
+ * Пустое → 1. Произвольное целое 1…36 сохраняется.
+ * @param {unknown} raw
+ * @returns {number}
+ */
+export function normalizePaymentLinkPackageMonths(raw) {
+  const parsed = parsePaymentLinkCustomPackageMonths(raw)
+  if (parsed != null) return parsed
+  return 1
+}
+
+/**
+ * Значение `<select>`: пресет или sentinel «Другое».
+ * @param {unknown} months
+ * @param {boolean} [forceCustom]
+ */
+export function paymentLinkPackageMonthsSelectValue(months, forceCustom = false) {
+  if (forceCustom) return PAYMENT_LINK_PACKAGE_MONTHS_CUSTOM
+  if (months == null || months === '') return PAYMENT_LINK_PACKAGE_MONTHS_CUSTOM
+  if (isPaymentLinkPackageMonthsPreset(months)) return String(Number(months))
+  return PAYMENT_LINK_PACKAGE_MONTHS_CUSTOM
+}
+
+/**
+ * Срок готов к созданию карточки.
+ * @param {unknown} months
+ */
+export function isPaymentLinkPackageMonthsReady(months) {
+  const n = parsePaymentLinkCustomPackageMonths(months)
+  return n != null
+}
+
+/**
  * Направление АЗ из названия тарифа («10 занятий Бокс» → тип Бокс).
  * @param {string} tariffName
  * @param {object[]} azTypes — { id, code, name }
@@ -83,22 +150,73 @@ export function matchAzDirectionFromTariff(tariffName, azTypes) {
 }
 
 /**
- * Последняя строка по карте (для АЗ — последнее направление).
+ * Схлопывание строк оплат для связки карточек.
+ * Ключ = карта + зал: ПЗ и ТЗ на одном номере — две строки (не затирают друг друга).
+ * Несколько строк одного зала (АЗ: смена направления) — last wins.
  * @param {object[]} lines — enriched payment lines
  * @returns {object[]}
  */
-export function collapsePaymentLinesByCardLastWins(lines) {
+export function collapsePaymentLinesByCardHallLastWins(lines) {
   /** @type {Map<string, object>} */
-  const byCard = new Map()
+  const byKey = new Map()
   for (const l of lines ?? []) {
     if (l?.include === false) continue
     const hall = l?.hall
     if (hall === 'dop' || !hall) continue
     const card = normalizeSalesCardNumber(l.cardNumber ?? l.card_number)
     if (!card) continue
-    byCard.set(card, l)
+    byKey.set(`${card}::${hall}`, l)
   }
-  return [...byCard.values()]
+  return [...byKey.values()]
+}
+
+/**
+ * @deprecated имя; то же, что collapsePaymentLinesByCardHallLastWins
+ * @param {object[]} lines
+ */
+export function collapsePaymentLinesByCardLastWins(lines) {
+  return collapsePaymentLinesByCardHallLastWins(lines)
+}
+
+/**
+ * Другие незакрытые действия с той же картой (другой зал) — для подсказки в UI.
+ * @param {object[]} actions
+ * @param {object} action
+ * @returns {object[]}
+ */
+export function siblingPaymentLinkActionsSameCard(actions, action) {
+  const card = normalizeSalesCardNumber(action?.cardNumber)
+  const hall = String(action?.hall ?? '')
+  if (!card || !hall) return []
+  return (actions ?? []).filter((a) => {
+    if (!a || a === action) return false
+    if (a.status === 'done' || a.kind === 'skip_matched' || a.kind === 'skip_cross_hall') return false
+    if (normalizeSalesCardNumber(a.cardNumber) !== card) return false
+    return String(a.hall ?? '') !== hall
+  })
+}
+
+/**
+ * После успешного создания: siblings с той же картой остаются (допишут membership).
+ * Раньше блокировали — это противоречило модели «один client, много залов».
+ * @param {object[]} actions
+ * @param {object} _createdAction
+ * @returns {object[]}
+ */
+export function markPaymentLinkSameCardSiblingsBlocked(actions, _createdAction) {
+  return actions ?? []
+}
+
+/**
+ * Подпись зала для UI.
+ * @param {unknown} hall
+ */
+export function paymentLinkHallLabelRu(hall) {
+  const h = String(hall ?? '').toLowerCase()
+  if (h === 'pz') return 'ПЗ'
+  if (h === 'tz') return 'ТЗ'
+  if (h === 'az') return 'АЗ'
+  return String(hall ?? '').toUpperCase() || '—'
 }
 
 /**
@@ -109,7 +227,7 @@ export function collapsePaymentLinesByCardLastWins(lines) {
  * }} input
  */
 export function buildPaymentClientLinkActions(input) {
-  const collapsed = collapsePaymentLinesByCardLastWins(input.lines ?? [])
+  const collapsed = collapsePaymentLinesByCardHallLastWins(input.lines ?? [])
   const azTypes = input.azTypes ?? []
   /** @type {object[]} */
   const actions = []
@@ -120,9 +238,10 @@ export function buildPaymentClientLinkActions(input) {
     const hall = l.hall
     const matchStatus = String(l.matchStatus ?? '')
     const clientId = l.clientId ? String(l.clientId) : null
-    const packageMonths = inferPackageMonthsFromTariff(l.tariffName)
+    const matchedHallKind = l.matchedHallKind ? String(l.matchedHallKind) : null
+    const packageMonths = normalizePaymentLinkPackageMonths(inferPackageMonthsFromTariff(l.tariffName))
     const base = {
-      id: String(l.id ?? card),
+      id: String(l.id ?? `${card}:${hall}`),
       lineId: l.id,
       cardNumber: card,
       clientName: name,
@@ -131,6 +250,7 @@ export function buildPaymentClientLinkActions(input) {
       tariffName: String(l.tariffName ?? ''),
       matchStatus,
       clientId,
+      matchedHallKind,
       packageMonths,
       trainerId: '',
       membershipTypeId: '',
@@ -139,19 +259,24 @@ export function buildPaymentClientLinkActions(input) {
     }
 
     if (matchStatus === 'one' && clientId) {
-      actions.push({
-        ...base,
-        kind: 'skip_matched',
-        label: 'Уже в базе',
-      })
-      continue
+      // Тот же зал CRM — уже есть карточка этого контура
+      if (!matchedHallKind || matchedHallKind === hall) {
+        actions.push({
+          ...base,
+          kind: 'skip_matched',
+          label: 'Уже в базе',
+        })
+        continue
+      }
+      // Другой зал на той же карте — допишем membership (не второй client)
+      base.attachClientId = clientId
     }
 
     if (hall === 'pz') {
       actions.push({
         ...base,
         kind: 'pz_need_trainer',
-        label: 'ПЗ: выбрать тренера',
+        label: base.attachClientId ? 'ПЗ: абон к существующей карточке' : 'ПЗ: выбрать тренера',
       })
       continue
     }
@@ -161,7 +286,7 @@ export function buildPaymentClientLinkActions(input) {
       actions.push({
         ...base,
         kind: 'az_desk',
-        label: 'АЗ: desk-карточка',
+        label: base.attachClientId ? 'АЗ: абон к карточке' : 'АЗ: desk-карточка',
         membershipTypeId: dir?.id ? String(dir.id) : '',
         membershipTypeLabel: dir ? String(dir.name || dir.code || '') : '',
       })
@@ -172,7 +297,7 @@ export function buildPaymentClientLinkActions(input) {
       actions.push({
         ...base,
         kind: 'tz_desk',
-        label: 'ТЗ: desk-карточка',
+        label: base.attachClientId ? 'ТЗ: абон к карточке' : 'ТЗ: desk-карточка',
       })
       continue
     }
@@ -197,8 +322,12 @@ export function resolvePzLinkMode(trainer) {
  */
 export function validatePaymentLinkAction(action, trainer) {
   const kind = action?.kind
-  if (kind === 'skip_matched') return { ok: true }
+  if (kind === 'skip_matched' || kind === 'skip_cross_hall') return { ok: true }
+
+  const monthsOk = isPaymentLinkPackageMonthsReady(action?.packageMonths)
+
   if (kind === 'pz_need_trainer') {
+    if (!monthsOk) return { ok: false, error: 'Укажите срок пакета' }
     if (!String(action?.trainerId ?? '').trim()) {
       return { ok: false, error: 'Выберите тренера' }
     }
@@ -211,6 +340,7 @@ export function validatePaymentLinkAction(action, trainer) {
     if (!action?.cardNumber || !action?.clientName) {
       return { ok: false, error: 'Нет карты или ФИО' }
     }
+    if (!monthsOk) return { ok: false, error: 'Укажите срок пакета' }
     return { ok: true }
   }
   return { ok: false, error: 'Неизвестное действие' }
@@ -228,12 +358,12 @@ export function summarizePaymentClientLinkActions(actions) {
   let pzAmount = 0
   let pzReady = 0
   for (const a of actions ?? []) {
-    if (a?.status === 'done') {
-      done += 1
+    if (a?.kind === 'skip_matched' || a?.kind === 'skip_cross_hall') {
+      matched += 1
       continue
     }
-    if (a?.kind === 'skip_matched') {
-      matched += 1
+    if (a?.status === 'done') {
+      done += 1
       continue
     }
     if (a?.kind === 'pz_need_trainer') {
@@ -283,7 +413,7 @@ export function partitionPaymentClientLinkNeedWork(actions) {
   /** @type {object[]} */
   const desk = []
   for (const a of actions ?? []) {
-    if (!a || a.status === 'done' || a.kind === 'skip_matched') continue
+    if (!a || a.status === 'done' || a.kind === 'skip_matched' || a.kind === 'skip_cross_hall') continue
     if (a.kind === 'pz_need_trainer') pz.push(a)
     else if (a.kind === 'az_desk' || a.kind === 'tz_desk') desk.push(a)
   }

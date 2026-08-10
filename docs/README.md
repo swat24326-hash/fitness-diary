@@ -48,7 +48,8 @@
 | [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) | **Путь к цели:** разрывы воронки, сейчас→дальше, очередь ставок, ритуал ведения процесса агентом |
 | [BRAND_SYSTEM.md](./BRAND_SYSTEM.md) | **Фирменный стиль:** Whoop-опора, ролевые цвета, токены, driving prompt |
 | [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md) | Стратегия + РФ: курс **C2 + Yandex**; чеклист §5.4.0; security §5.7; продукт P1–P3 §5.8; стек/TS vs переезд **§5.9** |
-| [AUTH_C2_MAP.md](./AUTH_C2_MAP.md) | Вход сейчас (Supabase) vs свой Auth на Yandex — простыми словами; без кода до R2 |
+| [AUTH_C2_MAP.md](./AUTH_C2_MAP.md) | Вход сейчас (Supabase) vs свой Auth на Yandex; шов `authPort` готов; JWT — по команде R2 |
+| [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md) | День стенда R2: migrate:pg, portable host / Docker, smoke, QA_ORIGIN |
 | [COMMERCIAL_ROADMAP.md](./COMMERCIAL_ROADMAP.md) | Фазы 0–4: что сделано и ongoing |
 | [ROADMAP_MULTI_CLUB_AND_PAID.md](./ROADMAP_MULTI_CLUB_AND_PAID.md) | 2+ клубов и платные тарифы |
 | [DATA_VOLUME.md](./DATA_VOLUME.md) | Оценка объёма БД, пороги pull-by-period |
@@ -88,6 +89,7 @@
 | [SALES_MANAGER.md](./SALES_MANAGER.md) | ✅ роль/отчёт в проде; Excel = мост | Менеджер продаж + финансы |
 | [PZ_CLIENTS_ONBOARD.md](./PZ_CLIENTS_ONBOARD.md) | ✅ шпаргалка | Как завести клиентов ПЗ (вечерний Excel — переход; MVP оплат) |
 | [AZ_CLIENTS_ONBOARD.md](./AZ_CLIENTS_ONBOARD.md) | ✅ шпаргалка | Desk АЗ: сид, направления, списания; связь с доменом оплат |
+| [CLIENT_MULTI_HALL.md](./CLIENT_MULTI_HALL.md) | ✅ фаза 1 в коде; migrate linked | Один client — абоны ПЗ/ТЗ/АЗ; списки, оплаты attach, ПНК |
 | [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) | 📋 ТЗ; **⏸ код после РФ (R3+)** | Домен платежа; MVP = ПЗ + АЗ; потом касса на клуб |
 | [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md) | ✅ в проде | Управляющий ≠ тренер ≠ менеджер продаж; `/club` |
 | [CLUB_OPERATIONS_PLAN.md](./CLUB_OPERATIONS_PLAN.md) | план | Операции клуба в продукте |

@@ -223,18 +223,73 @@ ok(
 )
 
 const deskToday = '2026-07-22'
-const deskExpiring = [{ start_date: '2026-01-01', end_date: '2026-07-24', total_trainings: 0, used_trainings: 0 }]
-const deskExpired = [{ start_date: '2026-01-01', end_date: '2026-07-15', total_trainings: 0, used_trainings: 0 }]
-const deskFuture = [{ start_date: '2026-08-01', end_date: '2026-09-01', total_trainings: 0, used_trainings: 0 }]
+const deskExpiring = [
+  { hall: 'tz', start_date: '2026-01-01', end_date: '2026-07-24', total_trainings: 0, used_trainings: 0 },
+]
+const deskExpired = [
+  { hall: 'tz', start_date: '2026-01-01', end_date: '2026-07-15', total_trainings: 0, used_trainings: 0 },
+]
+const deskFuture = [
+  { hall: 'tz', start_date: '2026-08-01', end_date: '2026-09-01', total_trainings: 0, used_trainings: 0 },
+]
 ok(
   clientMatchesAdminFunnelFilter('expiring', {
-    client: { id: 'd1' },
+    client: { id: 'd1', desk_hall: 'tz' },
     memList: deskExpiring,
     today: deskToday,
     hallMode: 'tz',
   }),
   'tz expiring by calendar',
 )
+ok(
+  !clientMatchesAdminFunnelFilter('expiring', {
+    client: { id: 'd-multi', desk_hall: null, trainer_id: 't1' },
+    memList: [
+      {
+        hall: 'pz',
+        start_date: '2026-01-01',
+        end_date: '2026-07-24',
+        total_trainings: 12,
+        used_trainings: 0,
+      },
+      {
+        hall: 'tz',
+        start_date: '2026-01-01',
+        end_date: '2027-01-01',
+        total_trainings: 0,
+        used_trainings: 0,
+      },
+    ],
+    today: deskToday,
+    hallMode: 'tz',
+  }),
+  'multi-hall: tz filter ignores expiring pz package',
+)
+ok(
+  clientMatchesAdminFunnelFilter('expiring', {
+    client: { id: 'd-multi2', desk_hall: null, trainer_id: 't1' },
+    memList: [
+      {
+        hall: 'pz',
+        start_date: '2026-01-01',
+        end_date: '2026-07-24',
+        total_trainings: 12,
+        used_trainings: 0,
+      },
+      {
+        hall: 'tz',
+        start_date: '2026-01-01',
+        end_date: '2026-07-24',
+        total_trainings: 0,
+        used_trainings: 0,
+      },
+    ],
+    today: deskToday,
+    hallMode: 'tz',
+  }),
+  'multi-hall: tz expiring uses tz row only',
+)
+
 ok(
   clientMatchesAdminFunnelFilter('expired_recent', {
     client: { id: 'd2' },
@@ -276,13 +331,13 @@ ok(deskCounts.pnk === 0 && deskCounts.expiring === 1 && deskCounts.awaiting_star
 
 // АЗ: календарь покрывает, но занятия = 0 → не «жив» (как ПЗ)
 const azCoveredNoSessions = [
-  { start_date: '2026-01-01', end_date: '2026-12-01', total_trainings: 0, used_trainings: 0 },
+  { hall: 'az', start_date: '2026-01-01', end_date: '2026-12-01', total_trainings: 0, used_trainings: 0 },
 ]
 const azUsable = [
-  { start_date: '2026-01-01', end_date: '2026-12-01', total_trainings: 8, used_trainings: 2 },
+  { hall: 'az', start_date: '2026-01-01', end_date: '2026-12-01', total_trainings: 8, used_trainings: 2 },
 ]
 const azDepletedInPeriod = [
-  { start_date: '2026-01-01', end_date: '2026-12-01', total_trainings: 8, used_trainings: 8 },
+  { hall: 'az', start_date: '2026-01-01', end_date: '2026-12-01', total_trainings: 8, used_trainings: 8 },
 ]
 ok(
   !clientMatchesAdminFunnelFilter('expiring', {

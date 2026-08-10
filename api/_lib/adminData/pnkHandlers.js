@@ -1,3 +1,4 @@
+import { canFullyDeleteClientOnPnkRefuse } from '../../../src/lib/membershipHallCore.js'
 import { sendJson } from '../adminSupabase.js'
 import { formatClientName } from '../../../src/lib/clientNameFormat.js'
 import { applyPnkStagePatch, canDeletePnkClient, isOpenPnkClient } from '../../../src/lib/pnk/pnkStagesCore.js'
@@ -5,6 +6,10 @@ import { mergeNewPnkOntoClient, normalizeClientPnkFields, pickClientPnkFields } 
 import { buildPnkLostFunnelEvent, normalizePnkFunnelEventPushPayload } from '../../../src/lib/pnk/pnkFunnelEventsCore.js'
 import { aggregatePnkFunnelStats, listPnkAttentionClients } from '../../../src/lib/pnk/pnkStatsAgg.js'
 import { buildPnkBzCompletedByClientId } from '../../../src/lib/pnk/pnkBzCompletedCore.js'
+import {
+  buildPnkAttachClientRow,
+  resolvePnkCreateAttachTarget,
+} from '../../../src/lib/pnk/pnkCreateAttachCore.js'
 import { fetchClubTrainersForSales, parseJsonBody } from './salesHandlers.js'
 import { recordClientDeletionAudit } from '../deletionAuditWrite.js'
 
@@ -168,6 +173,8 @@ async function handlePnkPost(ctx, req, res) {
   if (op === 'create') {
     const name = formatClientName(body.name)
     const trainerId = String(body.trainer_id ?? '').trim()
+    const phone = String(body.phone ?? '').trim() || null
+    const cardNumber = String(body.card_number ?? '').trim() || null
     if (!name) {
       sendJson(res, 400, { error: 'Укажите имя клиента' })
       return
@@ -182,6 +189,61 @@ async function handlePnkPost(ctx, req, res) {
       return
     }
 
+    if (phone || cardNumber) {
+      const { data: clubClients, error: listErr } = await supabaseAdmin
+        .from('clients')
+        .select(PNK_CLIENT_SELECT)
+        .eq('club_id', clubId)
+        .is('archived_at', null)
+        .limit(5000)
+      if (listErr) {
+        sendJson(res, 500, { error: listErr.message || 'Ошибка поиска клиентов' })
+        return
+      }
+      const target = resolvePnkCreateAttachTarget({
+        clients: clubClients ?? [],
+        phone,
+        cardNumber,
+      })
+      if (target.action === 'conflict') {
+        sendJson(res, 409, { error: target.error })
+        return
+      }
+      if (target.action === 'attach') {
+        const row = buildPnkAttachClientRow(target.client, {
+          name,
+          phone,
+          cardNumber,
+          trainerId,
+          pnk_source: body.pnk_source || 'manager',
+          pnk_trial_sessions: body.pnk_trial_sessions,
+        })
+        const { data, error } = await supabaseAdmin
+          .from('clients')
+          .update({
+            name: row.name,
+            phone: row.phone,
+            card_number: row.card_number,
+            trainer_id: row.trainer_id,
+            ...pickClientPnkFields(row),
+          })
+          .eq('id', target.client.id)
+          .eq('club_id', clubId)
+          .select(PNK_CLIENT_SELECT)
+          .single()
+        if (error) {
+          sendJson(res, 500, { error: error.message || 'Не удалось привязать ПНК' })
+          return
+        }
+        sendJson(res, 200, {
+          client: normalizeClientPnkFields(data),
+          attached: true,
+          matchedBy: target.matchedBy,
+        })
+        return
+      }
+    }
+
     const pnk = mergeNewPnkOntoClient({
       trainer_id: trainerId,
       pnk_source: body.pnk_source || 'manager',
@@ -189,8 +251,8 @@ async function handlePnkPost(ctx, req, res) {
     })
     const insert = {
       name,
-      phone: String(body.phone ?? '').trim() || null,
-      card_number: null,
+      phone,
+      card_number: cardNumber,
       trainer_id: trainerId,
       club_id: clubId,
       ...pickClientPnkFields(pnk),
@@ -201,7 +263,7 @@ async function handlePnkPost(ctx, req, res) {
       sendJson(res, 500, { error: error.message || 'Не удалось создать ПНК' })
       return
     }
-    sendJson(res, 200, { client: normalizeClientPnkFields(data) })
+    sendJson(res, 200, { client: normalizeClientPnkFields(data), attached: false })
     return
   }
 
@@ -299,6 +361,45 @@ async function handlePnkPost(ctx, req, res) {
         }
       }
     }
+
+    const { data: mems } = await supabaseAdmin
+      .from('memberships')
+      .select('id, hall, paid_amount, total_trainings, end_date, status')
+      .eq('client_id', clientId)
+    if (!canFullyDeleteClientOnPnkRefuse(row, mems ?? [])) {
+      const now = new Date().toISOString()
+      for (const m of mems ?? []) {
+        const hall = String(m?.hall ?? '').toLowerCase()
+        if (hall === 'tz' || hall === 'az') continue
+        const paid = Number(m?.paid_amount)
+        if (Number.isFinite(paid) && paid > 0) continue
+        const total = Number(m?.total_trainings)
+        if (Number.isFinite(total) && total > 0 && total <= 2) {
+          await supabaseAdmin
+            .from('memberships')
+            .update({ status: 'closed' })
+            .eq('id', m.id)
+        }
+      }
+      const { error: upErr } = await supabaseAdmin
+        .from('clients')
+        .update({
+          lifecycle: null,
+          pnk_stage: null,
+          pnk_lost_at: now,
+          pnk_lost_reason: body.lost_reason || row.pnk_lost_reason || 'Отказ',
+          trainer_id: null,
+        })
+        .eq('id', clientId)
+        .eq('club_id', clubId)
+      if (upErr) {
+        sendJson(res, 500, { error: upErr.message || 'Не удалось снять ПНК' })
+        return
+      }
+      sendJson(res, 200, { ok: true, client_id: clientId, preserved: true })
+      return
+    }
+
     await recordClientDeletionAudit(ctx, clientId, row, { source: 'pnk_api' })
     const { error } = await supabaseAdmin.from('clients').delete().eq('id', clientId).eq('club_id', clubId)
     if (error) {

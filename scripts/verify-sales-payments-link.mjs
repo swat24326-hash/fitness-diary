@@ -7,9 +7,16 @@ import {
   describePzMissingFromPaymentsMetaRu,
   inferPackageMonthsFromTariff,
   isPaymentLinkActionReady,
+  isPaymentLinkPackageMonthsReady,
   matchAzDirectionFromTariff,
+  normalizePaymentLinkPackageMonths,
+  parsePaymentLinkCustomPackageMonths,
+  PAYMENT_LINK_PACKAGE_MONTHS_CUSTOM,
+  paymentLinkPackageMonthsSelectValue,
+  markPaymentLinkSameCardSiblingsBlocked,
   partitionPaymentClientLinkNeedWork,
   resolvePzLinkMode,
+  siblingPaymentLinkActionsSameCard,
   sortTrainersForPzPaymentLink,
   summarizePaymentClientLinkActions,
   validatePaymentLinkAction,
@@ -27,6 +34,23 @@ function ok(cond, msg) {
 ok(inferPackageMonthsFromTariff('12/1 Elite утро') === 1, 'months from 12/1')
 ok(inferPackageMonthsFromTariff('8/1 Diamond') === 1, 'months from 8/1')
 ok(inferPackageMonthsFromTariff('абонемент 3 мес') === 3, 'months from мес')
+ok(inferPackageMonthsFromTariff('') === 1, 'empty tariff → 1')
+ok(normalizePaymentLinkPackageMonths(6) === 6, 'normalize keeps 6')
+ok(normalizePaymentLinkPackageMonths(0) === 1, 'normalize 0 → 1')
+ok(normalizePaymentLinkPackageMonths('12') === 12, 'normalize string 12')
+ok(normalizePaymentLinkPackageMonths(99) === 1, 'normalize out of range → 1')
+ok(parsePaymentLinkCustomPackageMonths(4) === 4, 'parse custom 4')
+ok(parsePaymentLinkCustomPackageMonths('') === null, 'parse empty → null')
+ok(parsePaymentLinkCustomPackageMonths(99) === null, 'parse >36 → null')
+ok(parsePaymentLinkCustomPackageMonths(PAYMENT_LINK_PACKAGE_MONTHS_CUSTOM) === null, 'parse sentinel')
+ok(isPaymentLinkPackageMonthsReady(4), 'ready custom 4')
+ok(!isPaymentLinkPackageMonthsReady(null), 'not ready null')
+ok(paymentLinkPackageMonthsSelectValue(1) === '1', 'select preset')
+ok(paymentLinkPackageMonthsSelectValue(4) === PAYMENT_LINK_PACKAGE_MONTHS_CUSTOM, 'select custom value')
+ok(
+  paymentLinkPackageMonthsSelectValue(1, true) === PAYMENT_LINK_PACKAGE_MONTHS_CUSTOM,
+  'select force custom',
+)
 
 const azTypes = [
   { id: 'b1', code: 'box', name: 'Бокс' },
@@ -77,26 +101,73 @@ const lines = [
     matchStatus: 'one',
     clientId: 'c-exist',
   },
+  {
+    id: '5',
+    include: true,
+    hall: 'tz',
+    cardNumber: '7199',
+    clientName: 'Цымбал',
+    tariffName: '',
+    amount: 17876,
+    matchStatus: 'none',
+  },
+  {
+    id: '6',
+    include: true,
+    hall: 'pz',
+    cardNumber: '7199',
+    clientName: 'Цымбал',
+    tariffName: '4/1 4 звезды Ф1+1',
+    amount: 8800,
+    matchStatus: 'none',
+  },
 ]
 
 const collapsed = collapsePaymentLinesByCardLastWins(lines)
-ok(collapsed.length === 3, 'collapse unique cards')
+ok(collapsed.length === 5, 'collapse by card+hall (PZ+TZ same card kept)')
 ok(collapsed.find((l) => l.cardNumber === '5802')?.tariffName.includes('Степ'), 'last AZ direction wins')
+ok(
+  collapsed.filter((l) => l.cardNumber === '7199').length === 2,
+  '7199 keeps both PZ and TZ lines',
+)
 
 const actions = buildPaymentClientLinkActions({ lines, azTypes })
 ok(actions.find((a) => a.cardNumber === '5802')?.kind === 'az_desk', 'az desk action')
 ok(actions.find((a) => a.cardNumber === '5802')?.membershipTypeId === 's1', 'az last direction step')
 ok(actions.find((a) => a.cardNumber === '5776')?.kind === 'pz_need_trainer', 'pz needs trainer')
 ok(actions.find((a) => a.cardNumber === '1111')?.kind === 'skip_matched', 'matched skip')
+const tzAction = actions.find((a) => a.cardNumber === '7199' && a.kind === 'tz_desk')
+const pz7199 = actions.find((a) => a.cardNumber === '7199' && a.kind === 'pz_need_trainer')
+ok(tzAction?.kind === 'tz_desk', 'tz desk action')
+ok(pz7199?.kind === 'pz_need_trainer', 'same card also PZ action')
+ok(tzAction?.packageMonths === 1, 'tz empty tariff defaults 1')
+ok(siblingPaymentLinkActionsSameCard(actions, tzAction).some((a) => a.kind === 'pz_need_trainer'), 'sibling PZ for TZ')
+ok(siblingPaymentLinkActionsSameCard(actions, pz7199).some((a) => a.kind === 'tz_desk'), 'sibling TZ for PZ')
+ok(
+  validatePaymentLinkAction({ ...tzAction, packageMonths: 6 }, null).ok,
+  'tz desk ok with overridden months',
+)
+ok(
+  validatePaymentLinkAction({ ...tzAction, packageMonths: 4 }, null).ok,
+  'tz desk ok with custom 4 months',
+)
+ok(
+  !validatePaymentLinkAction({ ...tzAction, packageMonths: null }, null).ok,
+  'tz desk rejects empty custom months',
+)
+ok(
+  !validatePaymentLinkAction({ ...tzAction, packageMonths: 0 }, null).ok,
+  'tz desk rejects months 0',
+)
 
 ok(resolvePzLinkMode({ id: 't1', uses_tablet: false }) === 'lite', 'no tablet → lite')
 ok(resolvePzLinkMode({ id: 't2', uses_tablet: true }) === 'clip', 'tablet → clip')
 
-const bad = validatePaymentLinkAction({ kind: 'pz_need_trainer', trainerId: '' }, null)
+const bad = validatePaymentLinkAction({ kind: 'pz_need_trainer', trainerId: '', packageMonths: 1 }, null)
 ok(!bad.ok, 'pz without trainer rejected')
 
 const good = validatePaymentLinkAction(
-  { kind: 'pz_need_trainer', trainerId: 't1' },
+  { kind: 'pz_need_trainer', trainerId: 't1', packageMonths: 1 },
   { id: 't1', uses_tablet: false },
 )
 ok(good.ok && good.mode === 'lite', 'pz lite ok')
@@ -106,20 +177,20 @@ ok(
 )
 ok(
   isPaymentLinkActionReady(
-    { kind: 'pz_need_trainer', trainerId: 't1' },
+    { kind: 'pz_need_trainer', trainerId: 't1', packageMonths: 1 },
     { id: 't1', uses_tablet: false },
   ),
   'ready true with trainer',
 )
 
 const summary = summarizePaymentClientLinkActions(actions)
-ok(summary.pzPending === 1, 'summary pz pending')
+ok(summary.pzPending === 2, 'summary pz pending')
 ok(summary.matched === 1, 'summary matched')
-ok(summary.deskPending === 1, 'summary desk')
-ok(summary.pzAmount === 10000, 'summary pz amount')
+ok(summary.deskPending === 2, 'summary desk')
+ok(summary.pzAmount === 18800, 'summary pz amount')
 
 const parts = partitionPaymentClientLinkNeedWork(actions)
-ok(parts.pz.length === 1 && parts.desk.length === 1, 'partition pz/desk')
+ok(parts.pz.length === 2 && parts.desk.length === 2, 'partition pz/desk')
 
 ok(
   describePzMissingFromPaymentsMetaRu({ count: 3, amount: 28360 }).includes('на сумму'),
@@ -133,6 +204,125 @@ const sorted = sortTrainersForPzPaymentLink([
   { id: 'c', name: 'Борис', uses_tablet: false },
 ])
 ok(sorted[0].id === 'b' && sorted[1].id === 'c', 'no-tablet trainers first')
+
+// —— матрица залов / exclude / sibling block / cross-hall ——
+const multiHall = collapsePaymentLinesByCardLastWins([
+  { id: 'a', include: true, hall: 'pz', cardNumber: '100', clientName: 'X', tariffName: '8/1', amount: 1, matchStatus: 'none' },
+  { id: 'b', include: true, hall: 'tz', cardNumber: '100', clientName: 'X', tariffName: '', amount: 2, matchStatus: 'none' },
+  { id: 'c', include: true, hall: 'az', cardNumber: '100', clientName: 'X', tariffName: 'Бокс', amount: 3, matchStatus: 'none' },
+  { id: 'd', include: false, hall: 'pz', cardNumber: '100', clientName: 'X', tariffName: 'skip', amount: 9, matchStatus: 'none' },
+  { id: 'e', include: true, hall: 'dop', cardNumber: '100', clientName: 'X', tariffName: 'клуб', amount: 9, matchStatus: 'none' },
+])
+ok(multiHall.length === 3, 'PZ+TZ+AZ kept; dop/include=false dropped')
+
+const multiActions = buildPaymentClientLinkActions({
+  lines: [
+    { id: 'a', include: true, hall: 'pz', cardNumber: '100', clientName: 'X', tariffName: '8/1', amount: 1, matchStatus: 'none' },
+    { id: 'b', include: true, hall: 'tz', cardNumber: '100', clientName: 'X', tariffName: '', amount: 2, matchStatus: 'none' },
+    { id: 'c', include: true, hall: 'az', cardNumber: '100', clientName: 'X', tariffName: '10 занятий Бокс', amount: 3, matchStatus: 'none' },
+  ],
+  azTypes,
+})
+ok(multiActions.filter((a) => a.kind === 'pz_need_trainer').length === 1, 'multi: PZ action')
+ok(multiActions.filter((a) => a.kind === 'tz_desk').length === 1, 'multi: TZ action')
+ok(multiActions.filter((a) => a.kind === 'az_desk').length === 1, 'multi: AZ action')
+
+const blocked = markPaymentLinkSameCardSiblingsBlocked(multiActions, multiActions.find((a) => a.kind === 'pz_need_trainer'))
+ok(blocked.length === multiActions.length, 'siblings no longer auto-blocked')
+ok(
+  partitionPaymentClientLinkNeedWork(blocked).desk.length === 2 &&
+    partitionPaymentClientLinkNeedWork(blocked).pz.length === 1,
+  'all halls stay in needWork',
+)
+
+const cross = buildPaymentClientLinkActions({
+  lines: [
+    {
+      id: 'tz1',
+      include: true,
+      hall: 'tz',
+      cardNumber: '555',
+      clientName: 'Y',
+      tariffName: '',
+      amount: 1,
+      matchStatus: 'one',
+      clientId: 'c-pz',
+      matchedHallKind: 'pz',
+    },
+  ],
+})
+ok(cross[0]?.kind === 'tz_desk', 'TZ line while card is PZ → attach desk action')
+ok(cross[0]?.attachClientId === 'c-pz', 'attachClientId set')
+ok(cross[0]?.status === 'pending', 'attach stays pending')
+ok(summarizePaymentClientLinkActions(cross).deskPending === 1, 'cross-hall desk pending')
+ok(summarizePaymentClientLinkActions(cross).needWork === 1, 'cross-hall needWork')
+ok(summarizePaymentClientLinkActions(cross).matched === 0, 'cross-hall not counted as «Уже в базе»')
+ok(String(cross[0]?.label || '').includes('абон к карточке'), 'daily report label: attach TZ')
+
+// —— дневной отчёт: KPI как на экране «Карточки из оплат» ——
+const dayReportBothNew = buildPaymentClientLinkActions({
+  lines: [
+    {
+      id: '7199-pz',
+      include: true,
+      hall: 'pz',
+      cardNumber: '7199',
+      clientName: 'Цымбал',
+      tariffName: '8/1',
+      amount: 10000,
+      matchStatus: 'none',
+    },
+    {
+      id: '7199-tz',
+      include: true,
+      hall: 'tz',
+      cardNumber: '7199',
+      clientName: 'Цымбал',
+      tariffName: '',
+      amount: 5000,
+      matchStatus: 'none',
+    },
+  ],
+})
+const dayKpiNew = summarizePaymentClientLinkActions(dayReportBothNew)
+ok(dayKpiNew.matched === 0, 'day report: new card matched=0')
+ok(dayKpiNew.pzPending === 1 && dayKpiNew.deskPending === 1, 'day report: PZ+TZ both pending')
+ok(dayKpiNew.needWork === 2, 'day report: needWork=2')
+
+const dayReportBothDone = buildPaymentClientLinkActions({
+  lines: [
+    {
+      id: '7199-pz2',
+      include: true,
+      hall: 'pz',
+      cardNumber: '7199',
+      clientName: 'Цымбал',
+      tariffName: '8/1',
+      amount: 1,
+      matchStatus: 'one',
+      clientId: 'c7199',
+      matchedHallKind: 'pz',
+    },
+    {
+      id: '7199-tz2',
+      include: true,
+      hall: 'tz',
+      cardNumber: '7199',
+      clientName: 'Цымбал',
+      tariffName: '',
+      amount: 1,
+      matchStatus: 'one',
+      clientId: 'c7199',
+      matchedHallKind: 'tz',
+    },
+  ],
+})
+const dayKpiDone = summarizePaymentClientLinkActions(dayReportBothDone)
+ok(dayKpiDone.matched === 2, 'day report: both halls matched')
+ok(dayKpiDone.needWork === 0 && dayKpiDone.pzPending === 0 && dayKpiDone.deskPending === 0, 'day report: no needWork')
+
+ok(inferPackageMonthsFromTariff('абонемент 6 мес') === 6, '6 мес from tariff')
+ok(parsePaymentLinkCustomPackageMonths('9') === 9, 'custom 9 months ok')
 
 if (failed) {
   console.error(`\n${failed} failed`)

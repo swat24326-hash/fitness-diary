@@ -90,5 +90,23 @@ const stripUpdated = normalizeMembershipPushPayload(
   { insert: true },
 )
 ok(stripUpdated.ok && !('updated_at' in stripUpdated.data), 'strips updated_at (not in DB)')
+ok(stripUpdated.data.hall === 'pz', 'insert default hall pz')
+
+const hallTz = normalizeMembershipPushPayload(
+  {
+    id: 'm10',
+    client_id: 'c1',
+    club_id: 'cl1',
+    start_date: '2026-07-01',
+    end_date: '2026-08-01',
+    total_trainings: 0,
+    hall: 'TZ',
+  },
+  { insert: true },
+)
+ok(hallTz.ok && hallTz.data.hall === 'tz', 'insert normalizes hall tz')
+
+const hallBadUpdate = normalizeMembershipPushPayload({ id: 'm11', hall: 'dop', used_trainings: 1 })
+ok(hallBadUpdate.ok && !('hall' in hallBadUpdate.data), 'update drops invalid hall')
 
 console.log('verify-membership-push-payload: all passed')

@@ -3,6 +3,7 @@
  */
 import {
   ADMIN_CLIENTS_LIST_TAB_LABELS,
+  clientCrmHallKind,
   clientMatchesAdminListTab,
   countClientsByAdminListTab,
   filterClientsByAdminListTab,
@@ -28,6 +29,10 @@ ok(ADMIN_CLIENTS_LIST_TAB_LABELS.archive === 'Архив', 'label Архив')
 ok(normalizeDeskHall('ТЗ') === 'tz', 'hall tz')
 ok(normalizeDeskHall('az') === 'az', 'hall az')
 ok(normalizeDeskHall('') == null, 'hall empty')
+ok(clientCrmHallKind({ trainer_id: 't1', desk_hall: null }) === 'pz', 'crm hall pz')
+ok(clientCrmHallKind({ trainer_id: null, desk_hall: 'tz' }) === 'tz', 'crm hall tz')
+ok(clientCrmHallKind({ trainer_id: null, desk_hall: 'az' }) === 'az', 'crm hall az')
+ok(clientCrmHallKind({}) == null, 'crm hall empty')
 ok(normalizeAdminClientsListTab('tz') === 'tz', 'tab tz')
 ok(normalizeAdminClientsListTab('x') === 'active', 'tab default')
 
@@ -46,6 +51,25 @@ ok(clientMatchesAdminListTab(clients[1], 'active') === false, 'tz not in clients
 
 const counts = countClientsByAdminListTab(clients)
 ok(counts.active === 1 && counts.tz === 1 && counts.az === 1 && counts.archive === 1, 'counts')
+
+const multiClient = { id: 'm', name: 'Multi', desk_hall: null, trainer_id: 't1' }
+const memBy = {
+  m: [
+    { id: 'a', hall: 'pz', client_id: 'm' },
+    { id: 'b', hall: 'tz', client_id: 'm' },
+  ],
+}
+ok(clientMatchesAdminListTab(multiClient, 'active', memBy.m) === true, 'multi in ПЗ')
+ok(clientMatchesAdminListTab(multiClient, 'tz', memBy.m) === true, 'multi in ТЗ')
+ok(
+  filterClientsByAdminListTab([multiClient], 'tz', memBy).map((c) => c.id).join() === 'm',
+  'filter tz with mem map',
+)
+ok(
+  countClientsByAdminListTab([multiClient], memBy).active === 1 &&
+    countClientsByAdminListTab([multiClient], memBy).tz === 1,
+  'counts multi not exclusive',
+)
 
 ok(
   shouldShowAdminClientsList({ query: '', trainerQuery: '', browseMode: 'none', clientsTab: 'tz' }) === false,

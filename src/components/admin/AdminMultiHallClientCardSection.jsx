@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Save } from 'lucide-react'
 import { saveLocalWithSync } from '../../lib/syncService.js'
@@ -8,35 +8,45 @@ import { formatClientName } from '../../lib/clientNameFormat.js'
 import { mergeDeskClientBirthForm } from '../../lib/admin/deskClientBirthFormCore.js'
 import { assertClubCardAvailableForCreate } from '../../lib/admin/salesClientMatchCore.js'
 import { listClientsByClubId } from '../../lib/localDbClubQuery.js'
+import { resolveInitialClientHallTab } from '../../lib/admin/clientHallTabsCore.js'
+import { AdminClientHallTabs } from './AdminClientHallTabs.jsx'
 import { AdminDeskMembershipLedger } from './AdminDeskMembershipLedger.jsx'
+import { MembershipManager } from '../MembershipManager.jsx'
 import { AdminDeskMemDateField } from './AdminDeskMemDateField.jsx'
 import { birthDateYearBounds, parseFlexibleDateToIso } from '../../lib/dateRu.js'
 import '../../styles/admin-desk.css'
 
 /**
- * Desk-карточка ТЗ/АЗ без тренера: контакты + ДР + учёт абонов.
+ * Одна CRM-карточка с вкладками ПЗ / ТЗ / АЗ.
+ * Не затирает trainer_id (в отличие от чистого desk-only save).
  */
-export function AdminDeskClientCardSection({
+export function AdminMultiHallClientCardSection({
   client,
   memberships = [],
   clubId = '',
   listHref = '/admin/clients',
   listBackLabel = '← К списку',
+  preferredHall = null,
   onSaved,
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [hallTab, setHallTab] = useState(() =>
+    resolveInitialClientHallTab(client, memberships, preferredHall),
+  )
   const [form, setForm] = useState({
     name: '',
     phone: '',
     card_number: '',
-    desk_hall: '',
     birth_date: '',
   })
   const formClientIdRef = useRef('')
   const birthDirtyRef = useRef(false)
-  /** Ожидаемая ДР после Save, пока props.client ещё со старой датой. */
   const savedBirthRef = useRef(/** @type {string | undefined} */ (undefined))
+
+  useEffect(() => {
+    setHallTab(resolveInitialClientHallTab(client, memberships, preferredHall))
+  }, [client?.id, preferredHall])
 
   useEffect(() => {
     const id = String(client?.id ?? '')
@@ -47,10 +57,7 @@ export function AdminDeskClientCardSection({
       savedBirthRef.current = undefined
     }
     const fromClientBirth = parseFlexibleDateToIso(client?.birth_date, birthDateYearBounds()) || ''
-    if (
-      savedBirthRef.current !== undefined &&
-      fromClientBirth === savedBirthRef.current
-    ) {
+    if (savedBirthRef.current !== undefined && fromClientBirth === savedBirthRef.current) {
       birthDirtyRef.current = false
       savedBirthRef.current = undefined
     }
@@ -58,7 +65,6 @@ export function AdminDeskClientCardSection({
       name: client?.name ?? '',
       phone: client?.phone ?? '',
       card_number: client?.card_number ?? '',
-      desk_hall: normalizeDeskHall(client?.desk_hall) || '',
       birth_date: mergeDeskClientBirthForm({
         fromClientBirth,
         prevBirth: prev.birth_date,
@@ -72,7 +78,8 @@ export function AdminDeskClientCardSection({
     if (key === 'birth_date') birthDirtyRef.current = true
     setForm((f) => ({ ...f, [key]: value }))
   }
-  const hall = normalizeDeskHall(form.desk_hall)
+
+  const legacyDesk = useMemo(() => normalizeDeskHall(client?.desk_hall), [client?.desk_hall])
 
   const save = async (e) => {
     e?.preventDefault?.()
@@ -80,10 +87,6 @@ export function AdminDeskClientCardSection({
     const name = formatClientName(form.name)
     if (!name) {
       setError('Укажите ФИО')
-      return
-    }
-    if (!hall) {
-      setError('Укажите зал: ТЗ или АЗ — иначе клиент не попадёт во вкладку')
       return
     }
     setBusy(true)
@@ -109,15 +112,15 @@ export function AdminDeskClientCardSection({
         phone: String(form.phone ?? '').trim() || null,
         card_number,
         birth_date: birthIso,
-        trainer_id: null,
-        desk_hall: hall,
+        // сохраняем trainer_id и desk_hall — зал теперь на memberships.hall
+        trainer_id: client.trainer_id ?? null,
+        desk_hall: legacyDesk,
       }
       await saveLocalWithSync('clients', clientRow, {
         table_name: 'clients',
         operation: 'update',
         remote_id: client.id,
       })
-      // Не снимать dirty сразу: props.client ещё может держать старую ДР до onSaved.
       savedBirthRef.current = savedBirth
       birthDirtyRef.current = true
       setForm((f) => ({ ...f, birth_date: savedBirth }))
@@ -130,16 +133,13 @@ export function AdminDeskClientCardSection({
     }
   }
 
+  const resolvedClubId = String(clubId || client?.club_id || '')
+
   return (
-    <section className="admin-desk-client-card" aria-label="Desk-карточка клиента ТЗ/АЗ">
+    <section className="admin-desk-client-card" aria-label="Карточка клиента — залы ПЗ ТЗ АЗ">
       <div className="admin-desk-client-card__nav">
         <Link to={listHref}>{listBackLabel}</Link>
-        {hall ? (
-          <span className={`admin-desk-client-card__hall-badge admin-desk-client-card__hall-badge--${hall}`}>
-            {hall === 'tz' ? 'ТЗ' : 'АЗ'}
-          </span>
-        ) : null}
-        <span className="admin-desk-client-card__nav-note">Без тренера · учёт по сроку</span>
+        <span className="admin-desk-client-card__nav-note">Один клиент · абоны по залам</span>
       </div>
 
       <form className="admin-desk-client-card__form" onSubmit={(e) => void save(e)}>
@@ -173,14 +173,6 @@ export function AdminDeskClientCardSection({
               />
             </label>
             <label>
-              Зал
-              <select value={form.desk_hall} onChange={(e) => setField('desk_hall', e.target.value)} required>
-                <option value="">Выберите…</option>
-                <option value="tz">ТЗ</option>
-                <option value="az">АЗ</option>
-              </select>
-            </label>
-            <label>
               Дата рождения
               <AdminDeskMemDateField
                 value={form.birth_date}
@@ -200,13 +192,39 @@ export function AdminDeskClientCardSection({
         </div>
       </form>
 
-      <AdminDeskMembershipLedger
+      <AdminClientHallTabs
         client={client}
         memberships={memberships}
-        clubId={clubId}
-        hall={hall || undefined}
-        onChanged={onSaved}
+        value={hallTab}
+        onChange={setHallTab}
       />
+
+      {hallTab === 'pz' ? (
+        <div className="admin-multi-hall-pane" role="tabpanel">
+          {!client?.trainer_id ? (
+            <p className="muted admin-multi-hall-pane__hint">
+              Для ПЗ с дневником назначьте тренера. Ниже — учёт пакета ПЗ на этой карточке.
+            </p>
+          ) : null}
+          <MembershipManager
+            clientId={client.id}
+            clubId={resolvedClubId}
+            recordTrainerId={client.trainer_id}
+            membershipHall="pz"
+            onChanged={onSaved}
+          />
+        </div>
+      ) : (
+        <div className="admin-multi-hall-pane" role="tabpanel">
+          <AdminDeskMembershipLedger
+            client={client}
+            memberships={memberships}
+            clubId={resolvedClubId}
+            hall={hallTab}
+            onChanged={onSaved}
+          />
+        </div>
+      )}
     </section>
   )
 }

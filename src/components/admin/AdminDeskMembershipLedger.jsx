@@ -8,6 +8,7 @@ import {
 import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
 import { todayLocalIso } from '../../lib/dateRu.js'
 import { normalizeDeskHall } from '../../lib/admin/deskHallClientsCore.js'
+import { filterMembershipsByHall, normalizeMembershipHall } from '../../lib/membershipHallCore.js'
 import { ensureMembershipTypesForClub } from '../../lib/membershipTypesService.js'
 import {
   DESK_PACKAGE_MONTH_OPTIONS,
@@ -57,18 +58,30 @@ function PackageSelect({ value, onChange }) {
  * История абонов desk ТЗ/АЗ — карточки в стиле Оси.
  * Для АЗ — ещё направление (Бокс / Техника дня… из типов абон. АЗ).
  */
-export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '', onChanged }) {
+export function AdminDeskMembershipLedger({
+  client,
+  memberships = [],
+  clubId = '',
+  onChanged,
+  /** Явный зал вкладки (multi-hall); иначе legacy clients.desk_hall. */
+  hall: hallProp = null,
+}) {
   const today = todayLocalIso()
-  const hall = normalizeDeskHall(client?.desk_hall)
-  const showAzDirection = hall === 'az'
+  const hall = normalizeMembershipHall(hallProp) || normalizeDeskHall(client?.desk_hall)
+  const deskKind = hall === 'tz' || hall === 'az' ? hall : normalizeDeskHall(client?.desk_hall)
+  const showAzDirection = deskKind === 'az' || hall === 'az'
+  const hallMemberships = useMemo(
+    () => (hall ? filterMembershipsByHall(memberships, hall, client) : memberships),
+    [memberships, hall, client],
+  )
   const active = useMemo(
-    () => pickHallActiveMembership(memberships, today, hall),
-    [memberships, today, hall],
+    () => pickHallActiveMembership(hallMemberships, today, deskKind || hall),
+    [hallMemberships, today, deskKind, hall],
   )
   const activeId = active?.id ? String(active.id) : null
-  const membershipsSig = useMemo(() => deskMembershipsContentSig(memberships), [memberships])
-  const membershipsRef = useRef(memberships)
-  membershipsRef.current = memberships
+  const membershipsSig = useMemo(() => deskMembershipsContentSig(hallMemberships), [hallMemberships])
+  const membershipsRef = useRef(hallMemberships)
+  membershipsRef.current = hallMemberships
   const sorted = useMemo(() => sortDeskMembershipLedger(membershipsRef.current), [membershipsSig])
 
   const [azTypes, setAzTypes] = useState([])
@@ -239,6 +252,7 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
     setError('')
     try {
       const now = new Date().toISOString()
+      const rowHall = hall || deskKind || 'pz'
       const row = {
         id: crypto.randomUUID(),
         client_id: client.id,
@@ -249,6 +263,7 @@ export function AdminDeskMembershipLedger({ client, memberships = [], clubId = '
         paid_amount: paid,
         total_trainings: sessions,
         used_trainings: 0,
+        hall: rowHall,
         created_at: now,
       }
       await saveLocalWithSync('memberships', row, {

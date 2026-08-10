@@ -17,6 +17,7 @@ import {
   matchClientsByCardNumber,
   normalizeSalesCardNumber,
 } from './salesClientMatchCore.js'
+import { clientCrmHallKind } from './deskHallClientsCore.js'
 
 /** @typedef {'pz'|'tz'|'az'|'dop'|null} SalesHallKey */
 /** @typedef {'nk'|'dk'|'uk'|null} ProfitBucket */
@@ -335,6 +336,7 @@ export function enrichSalesPaymentLines(input) {
       clientName: match.client?.name ? String(match.client.name) : line.name,
       matchStatus: match.status,
       matchReason: match.reason,
+      matchedHallKind: clientCrmHallKind(match.client),
       profitBucket: suggest.bucket,
       bucketConfident: suggest.confident,
       bucketReason: suggest.reason,

@@ -91,5 +91,20 @@ export function normalizeMembershipPushPayload(payload, { insert = false } = {})
     }
   }
 
+  if (Object.prototype.hasOwnProperty.call(next, 'hall')) {
+    const h = String(next.hall ?? '')
+      .trim()
+      .toLowerCase()
+    if (h === 'pz' || h === 'tz' || h === 'az') {
+      next.hall = h
+    } else if (!insert) {
+      delete next.hall
+    } else {
+      next.hall = 'pz'
+    }
+  } else if (insert) {
+    next.hall = 'pz'
+  }
+
   return { ok: true, data: next }
 }

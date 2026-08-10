@@ -82,6 +82,7 @@ export async function createMembershipFromSaleClip(input) {
     used_trainings: 0,
     membership_type_id: fields.membership_type_id || null,
     clip_id: String(clip.id),
+    hall: 'pz',
     created_at: now,
     updated_at: now,
   }

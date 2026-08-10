@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { listMemberships, listTrainingsForClient } from '../lib/dataAccess'
+import { filterMembershipsByHall, normalizeMembershipHall } from '../lib/membershipHallCore.js'
 import { ensureClientTrainingsCached } from '../lib/clientTrainingsEnsure.js'
 import { getDb } from '../lib/localDb'
 import { deleteLocalWithSync, saveLocalWithSync } from '../lib/syncService'
@@ -95,6 +96,8 @@ export function MembershipManager({
   autoOpenNew = false,
   /** По умолчанию выбирать платный тип, не БЗ. */
   preferPaidType = false,
+  /** Вкладка зала: по умолчанию только ПЗ (тренер не видит ТЗ/АЗ). */
+  membershipHall = 'pz',
 }) {
   const { user } = useAuth()
   const [items, setItems] = useState([])
@@ -113,6 +116,7 @@ export function MembershipManager({
   const autoOpenedRef = useRef(false)
 
   const todayIso = useMemo(() => todayLocalIso(), [])
+  const hallFilter = normalizeMembershipHall(membershipHall) || 'pz'
 
   const saleSegmentHint = useMemo(() => {
     if (!newOpen) return ''
@@ -245,8 +249,9 @@ export function MembershipManager({
 
   const reload = useCallback(async () => {
     await ensureClientTrainingsCached(clientId)
-    const [m0, t0] = await Promise.all([listMemberships(clientId), listTrainingsForClient(clientId)])
+    const [mAll, t0] = await Promise.all([listMemberships(clientId), listTrainingsForClient(clientId)])
     setTrainings(t0)
+    const m0 = filterMembershipsByHall(mAll, hallFilter)
 
     // reconcile used_trainings by фактическим завершённым тренировкам абонемента
     const next = []
@@ -271,7 +276,7 @@ export function MembershipManager({
     if (next.some((m, i) => Number(m?.used_trainings ?? 0) !== Number(m0[i]?.used_trainings ?? 0))) {
       onChangedRef.current?.()
     }
-  }, [clientId, computeMembershipTrainings])
+  }, [clientId, computeMembershipTrainings, hallFilter])
 
   useEffect(() => {
     reload()
@@ -306,6 +311,7 @@ export function MembershipManager({
       total_trainings: Number(form.total_trainings) || 0,
       used_trainings: 0,
       membership_type_id: form.membership_type_id?.trim() || null,
+      hall: hallFilter,
       created_at: now,
     }
     await saveLocalWithSync('memberships', row, { table_name: 'memberships', operation: 'insert', remote_id: null })
