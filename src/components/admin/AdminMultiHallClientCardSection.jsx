@@ -20,6 +20,19 @@ import '../../styles/admin-desk.css'
 /**
  * Одна CRM-карточка с вкладками ПЗ / ТЗ / АЗ.
  * Не затирает trainer_id (в отличие от чистого desk-only save).
+ *
+ * @param {{
+ *   client: object,
+ *   memberships?: object[],
+ *   clubId?: string,
+ *   listHref?: string,
+ *   listBackLabel?: string,
+ *   preferredHall?: string|null,
+ *   onSaved?: () => void,
+ *   hallTab?: 'pz'|'tz'|'az',
+ *   onHallTabChange?: (hall: 'pz'|'tz'|'az') => void,
+ *   omitPzPane?: boolean,
+ * }} props
  */
 export function AdminMultiHallClientCardSection({
   client,
@@ -29,12 +42,22 @@ export function AdminMultiHallClientCardSection({
   listBackLabel = '← К списку',
   preferredHall = null,
   onSaved,
+  hallTab: hallTabProp,
+  onHallTabChange,
+  /** ПЗ-контент рисует родитель (вкладки тренера / lite) — здесь только шапка и ТЗ/АЗ. */
+  omitPzPane = false,
 }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [hallTab, setHallTab] = useState(() =>
+  const [hallTabState, setHallTabState] = useState(() =>
     resolveInitialClientHallTab(client, memberships, preferredHall),
   )
+  const hallControlled = typeof onHallTabChange === 'function'
+  const hallTab = hallControlled ? hallTabProp || hallTabState : hallTabState
+  const setHallTab = (next) => {
+    if (!hallControlled) setHallTabState(next)
+    onHallTabChange?.(next)
+  }
   const [form, setForm] = useState({
     name: '',
     phone: '',
@@ -47,8 +70,9 @@ export function AdminMultiHallClientCardSection({
   const savedBirthRef = useRef(/** @type {string | undefined} */ (undefined))
 
   useEffect(() => {
-    setHallTab(resolveInitialClientHallTab(client, memberships, preferredHall))
-  }, [client?.id, preferredHall])
+    const next = resolveInitialClientHallTab(client, memberships, preferredHall)
+    if (!hallControlled) setHallTabState(next)
+  }, [client?.id, preferredHall, hallControlled, memberships])
 
   useEffect(() => {
     const id = String(client?.id ?? '')
@@ -210,22 +234,24 @@ export function AdminMultiHallClientCardSection({
       />
 
       {hallTab === 'pz' ? (
-        <div className="admin-multi-hall-pane" role="tabpanel">
-          {!form.trainer_id ? (
-            <p className="muted admin-multi-hall-pane__hint">
-              Назначьте тренера ПЗ выше и сохраните карточку — тогда клиент появится на планшете после Sync.
-              Ниже — абоны персонального зала на этой же карточке.
-            </p>
-          ) : null}
-          <MembershipManager
-            clientId={client.id}
-            clubId={resolvedClubId}
-            recordTrainerId={form.trainer_id || client.trainer_id}
-            membershipHall="pz"
-            showPaidAmount
-            onChanged={onSaved}
-          />
-        </div>
+        omitPzPane ? null : (
+          <div className="admin-multi-hall-pane" role="tabpanel">
+            {!form.trainer_id ? (
+              <p className="muted admin-multi-hall-pane__hint">
+                Назначьте тренера ПЗ выше и сохраните карточку — тогда клиент появится на планшете после Sync.
+                Ниже — абоны персонального зала на этой же карточке.
+              </p>
+            ) : null}
+            <MembershipManager
+              clientId={client.id}
+              clubId={resolvedClubId}
+              recordTrainerId={form.trainer_id || client.trainer_id}
+              membershipHall="pz"
+              showPaidAmount
+              onChanged={onSaved}
+            />
+          </div>
+        )
       ) : (
         <div className="admin-multi-hall-pane" role="tabpanel">
           <p className="muted admin-multi-hall-pane__hint">

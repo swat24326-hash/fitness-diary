@@ -35,7 +35,7 @@
 - Списки: `deskHallClientsCore.js` (+ memberships)
 - Поиск: `adminClientsCrossHallSearchCore.js`, UI `AdminClientHallStack.jsx`; verify `verify-admin-clients-cross-hall-search.mjs`
 - Оплаты: `salesPaymentsLinkCore.js` / `salesPaymentsLinkApplyService.js`
-- Карточка: `AdminMultiHallClientCardSection.jsx` — вкладки ПЗ/ТЗ/АЗ **всегда** для admin / менеджер / управляющий (дописать абон другого зала без второй карточки); тренер планшета — только свой ПЗ. На ПЗ у админа/менеджера — **цена пакета** (`paid_amount`, мост до [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md)).
+- Карточка: `AdminMultiHallClientCardSection.jsx` — вкладки ПЗ/ТЗ/АЗ **всегда** для admin / менеджер / управляющий (дописать абон другого зала без второй карточки); тренер планшета — только свой ПЗ. На вкладке **ПЗ** у клиента с планшетным тренером — те же разделы, что у тренера (здоровье, питание, ДЗ, абоны, тренировки, статистика); у lite (тренер без планшета) — только учёт абонов. ТЗ/АЗ — desk-учёт. На абонах ПЗ у админа/менеджера — **цена пакета** (`paid_amount`, мост до [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md)).
 - Verify: `scripts/verify-membership-hall.mjs`, `scripts/verify-membership-paid-amount.mjs`
 
 ## KPI

@@ -1424,24 +1424,12 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                           <span className="td-client-fact__value">{String(c.card_number ?? '').trim() || '—'}</span>
                         </div>
                         {crossHallSearch ? (
-                          <>
-                            <AdminClientHallStack
-                              items={hallStack}
-                              linkState={cardNavSeed}
-                              buildHref={(hall) =>
-                                buildAdminClientCardHref(clientsBasePath, c.id, {
-                                  ...listNavState,
-                                  hall,
-                                })
-                              }
-                            />
-                            {birthdayLabel ? (
-                              <div className="td-client-fact">
-                                <span className="td-client-fact__label">ДР</span>
-                                <span className="td-client-fact__value">{birthdayLabel}</span>
-                              </div>
-                            ) : null}
-                          </>
+                          birthdayLabel ? (
+                            <div className="td-client-fact">
+                              <span className="td-client-fact__label">ДР</span>
+                              <span className="td-client-fact__value">{birthdayLabel}</span>
+                            </div>
+                          ) : null
                         ) : (
                           <>
                         {isDeskClient ? (
@@ -1616,6 +1604,18 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                         />
                       </div>
                     </div>
+                    {crossHallSearch ? (
+                      <AdminClientHallStack
+                        items={hallStack}
+                        linkState={cardNavSeed}
+                        buildHref={(hall) =>
+                          buildAdminClientCardHref(clientsBasePath, c.id, {
+                            ...listNavState,
+                            hall,
+                          })
+                        }
+                      />
+                    ) : null}
                     {inactiveLabel ? (
                       <p className="td-client-card__alert" role="status">
                         {inactiveLabel}

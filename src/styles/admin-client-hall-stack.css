@@ -1,5 +1,6 @@
 /**
  * Стек залов в выдаче поиска клиентов (ПЗ / ТЗ / АЗ).
+ * Полная ширина под шапкой карточки — не внутри сетки фактов.
  */
 
 .admin-client-hall-stack {
@@ -7,8 +8,7 @@
   flex-direction: column;
   gap: 8px;
   width: 100%;
-  flex-basis: 100%;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .admin-client-hall-stack__row {
@@ -19,6 +19,7 @@
   border-radius: 10px;
   background: color-mix(in srgb, var(--surface-2, var(--bg-elevated, #1a2420)) 88%, transparent);
   border: 1px solid color-mix(in srgb, var(--border) 65%, transparent);
+  box-sizing: border-box;
 }
 
 .admin-client-hall-stack__dot {
@@ -56,6 +57,7 @@
 .admin-client-hall-stack__open {
   flex-shrink: 0;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 @media (max-width: 640px) {

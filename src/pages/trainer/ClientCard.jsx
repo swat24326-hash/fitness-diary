@@ -42,6 +42,7 @@ import { AdminLitePzClientCardSection } from '../../components/admin/AdminLitePz
 import { AdminMultiHallClientCardSection } from '../../components/admin/AdminMultiHallClientCardSection.jsx'
 import {
   adminUsesMultiHallClientCard,
+  resolveInitialClientHallTab,
   roleCanManageMultiHallClientCard,
 } from '../../lib/admin/clientHallTabsCore.js'
 import { isDeskHallClient } from '../../lib/admin/holdingClientsCore.js'
@@ -59,7 +60,7 @@ export function ClientCard() {
   const { id } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { isAdmin, isTrainer, isSalesManager, isSupervisor, user } = useAuth()
   /** Админ, управляющий и менеджер тянут карточку через /api/get-client. */
   const canCloudHydrateClient = Boolean(isAdmin || isSalesManager || isSupervisor)
@@ -150,6 +151,30 @@ export function ClientCard() {
   const isMultiHallCard = adminUsesMultiHallClientCard(
     { isAdmin, isSalesManager, isSupervisor },
     client,
+  )
+  const hallQuery = searchParams.get('hall')
+  const multiHallTab = useMemo(() => {
+    if (!client || !isMultiHallCard) return 'pz'
+    return resolveInitialClientHallTab(client, memberships, hallQuery)
+  }, [client, isMultiHallCard, memberships, hallQuery])
+  const onMultiHallTabChange = useCallback(
+    (hall) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          const h = String(hall ?? '').trim()
+          if (h) next.set('hall', h)
+          else next.delete('hall')
+          return next
+        },
+        { replace: true },
+      )
+    },
+    [setSearchParams],
+  )
+  const multiHallClubId = useMemo(
+    () => String(client?.club_id ?? searchParams.get('club') ?? ''),
+    [client?.club_id, searchParams],
   )
   const clientTrainerRow = useMemo(() => {
     const tid = String(client?.trainer_id ?? '').trim()
@@ -314,6 +339,12 @@ export function ClientCard() {
       setHydrateError(h.error ?? h.reason ?? 'Ошибка загрузки с сервера')
     }
   }, [id, reloadLocal, client, canCloudHydrateClient, isLitePz])
+
+  const onMultiHallSaved = useCallback(() => {
+    void reloadLocal().then(() => {
+      if (canCloudHydrateClient) void hydrateFromCloudInBackground()
+    })
+  }, [canCloudHydrateClient, hydrateFromCloudInBackground, reloadLocal])
 
   const hasActiveMembership = useMemo(() => {
     const today = todayLocalIso()
@@ -501,27 +532,92 @@ export function ClientCard() {
     )
   }
 
-  if (isMultiHallCard) {
+  if (isMultiHallCard && multiHallTab !== 'pz') {
     return (
       <div className="grid trainer-path-card" style={{ gap: 18 }}>
         <AdminMultiHallClientCardSection
           client={client}
           memberships={memberships}
-          clubId={String(client.club_id ?? searchParams.get('club') ?? '')}
+          clubId={multiHallClubId}
           listHref={clientsListHref}
           listBackLabel={clientsBackLabel}
           preferredHall={searchParams.get('hall')}
-          onSaved={() => {
-            void reloadLocal().then(() => {
-              if (canCloudHydrateClient) void hydrateFromCloudInBackground()
-            })
-          }}
+          hallTab={multiHallTab}
+          onHallTabChange={onMultiHallTabChange}
+          onSaved={onMultiHallSaved}
         />
       </div>
     )
   }
 
-  if (isDeskClient) {
+  if (isMultiHallCard && multiHallTab === 'pz' && adminModePending) {
+    return (
+      <div className="grid trainer-path-card" style={{ gap: 18 }}>
+        <AdminMultiHallClientCardSection
+          client={client}
+          memberships={memberships}
+          clubId={multiHallClubId}
+          listHref={clientsListHref}
+          listBackLabel={clientsBackLabel}
+          preferredHall={searchParams.get('hall')}
+          hallTab="pz"
+          onHallTabChange={onMultiHallTabChange}
+          omitPzPane
+          onSaved={onMultiHallSaved}
+        />
+        <p className="muted" role="status" style={{ margin: 0 }}>
+          Определяю режим тренера (планшет / без)…
+        </p>
+      </div>
+    )
+  }
+
+  if (isMultiHallCard && multiHallTab === 'pz' && adminModeUnknown) {
+    return (
+      <div className="grid trainer-path-card" style={{ gap: 18 }}>
+        <AdminMultiHallClientCardSection
+          client={client}
+          memberships={memberships}
+          clubId={multiHallClubId}
+          listHref={clientsListHref}
+          listBackLabel={clientsBackLabel}
+          preferredHall={searchParams.get('hall')}
+          hallTab="pz"
+          onHallTabChange={onMultiHallTabChange}
+          omitPzPane
+          onSaved={onMultiHallSaved}
+        />
+        <p className="muted" role="alert" style={{ margin: 0 }}>
+          Не удалось узнать режим тренера (есть планшет или нет). Обновите страницу и откройте карточку снова.
+        </p>
+        <p style={{ margin: 0 }}>
+          <Link to={clientsListHref} className="u-no-decoration muted" style={{ fontSize: 14 }}>
+            {clientsBackLabel}
+          </Link>
+        </p>
+      </div>
+    )
+  }
+
+  if (isMultiHallCard && multiHallTab === 'pz' && isLitePz) {
+    return (
+      <div className="grid trainer-path-card" style={{ gap: 18 }}>
+        <AdminMultiHallClientCardSection
+          client={client}
+          memberships={memberships}
+          clubId={multiHallClubId}
+          listHref={clientsListHref}
+          listBackLabel={clientsBackLabel}
+          preferredHall={searchParams.get('hall')}
+          hallTab="pz"
+          onHallTabChange={onMultiHallTabChange}
+          onSaved={onMultiHallSaved}
+        />
+      </div>
+    )
+  }
+
+  if (isDeskClient && !isMultiHallCard) {
     return (
       <div className="grid trainer-path-card" style={{ gap: 18 }}>
         <AdminDeskClientCardSection
@@ -530,17 +626,13 @@ export function ClientCard() {
           clubId={String(client.club_id ?? searchParams.get('club') ?? '')}
           listHref={clientsListHref}
           listBackLabel={clientsBackLabel}
-          onSaved={() => {
-            void reloadLocal().then(() => {
-              if (canCloudHydrateClient) void hydrateFromCloudInBackground()
-            })
-          }}
+          onSaved={onMultiHallSaved}
         />
       </div>
     )
   }
 
-  if (adminModePending) {
+  if (adminModePending && !isMultiHallCard) {
     return (
       <div className="grid trainer-path-card" style={{ gap: 18 }}>
         <p className="muted" role="status" style={{ margin: 0 }}>
@@ -550,7 +642,7 @@ export function ClientCard() {
     )
   }
 
-  if (adminModeUnknown) {
+  if (adminModeUnknown && !isMultiHallCard) {
     return (
       <div className="grid trainer-path-card" style={{ gap: 18 }}>
         <p className="muted" role="alert" style={{ margin: 0 }}>
@@ -565,7 +657,7 @@ export function ClientCard() {
     )
   }
 
-  if (isLitePz) {
+  if (isLitePz && !isMultiHallCard) {
     return (
       <div className="grid trainer-path-card" style={{ gap: 18 }}>
         <AdminLitePzClientCardSection
@@ -575,11 +667,7 @@ export function ClientCard() {
           trainerName={liteTrainerName}
           listHref={liteListHref}
           listBackLabel={clientsBackLabel}
-          onSaved={() => {
-            void reloadLocal().then(() => {
-              if (canCloudHydrateClient) void hydrateFromCloudInBackground()
-            })
-          }}
+          onSaved={onMultiHallSaved}
         />
       </div>
     )
@@ -587,7 +675,20 @@ export function ClientCard() {
 
   return (
     <div className="grid trainer-path-card" style={{ gap: 18 }}>
-      {canManageClubClients ? (
+      {isMultiHallCard ? (
+        <AdminMultiHallClientCardSection
+          client={client}
+          memberships={memberships}
+          clubId={multiHallClubId}
+          listHref={clientsListHref}
+          listBackLabel={clientsBackLabel}
+          preferredHall={searchParams.get('hall')}
+          hallTab="pz"
+          onHallTabChange={onMultiHallTabChange}
+          omitPzPane
+          onSaved={onMultiHallSaved}
+        />
+      ) : canManageClubClients ? (
         <p style={{ margin: 0 }}>
           <Link to={clientsListHref} className="u-no-decoration muted" style={{ fontSize: 14 }}>
             {clientsBackLabel}
@@ -867,6 +968,8 @@ export function ClientCard() {
             readOnly={isArchived}
             membershipAutoOpen={pnkCloseMemberships && !isArchived}
             membershipPreferPaid={pnkCloseMemberships}
+            showPaidAmount={canManageClubClients}
+            membershipHall="pz"
           />
         )}
       {tab === 'stats' &&

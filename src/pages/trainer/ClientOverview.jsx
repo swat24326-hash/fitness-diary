@@ -45,6 +45,8 @@ export function ClientOverview({
   readOnly = false,
   membershipAutoOpen = false,
   membershipPreferPaid = false,
+  showPaidAmount = false,
+  membershipHall = 'pz',
 }) {
   const location = useLocation()
   const { showToast, toast } = useAppToast()
@@ -417,6 +419,8 @@ export function ClientOverview({
               clientId={client.id}
               clubId={client.club_id}
               recordTrainerId={client.trainer_id}
+              membershipHall={membershipHall}
+              showPaidAmount={showPaidAmount}
               autoOpenNew={membershipAutoOpen}
               preferPaidType={membershipPreferPaid}
               onChanged={() => {
