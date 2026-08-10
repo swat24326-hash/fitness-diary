@@ -21,6 +21,7 @@ import {
   filterAerobicSalesTypes,
   filterTrainerAssignableTypes,
 } from '../../lib/membershipTypesService'
+import { MEMBERSHIP_TYPE_CODE_MAX_LEN } from '../../lib/membershipTypesCore'
 import { pullMembershipTypesForClubFromCloud } from '../../lib/pullReferenceData'
 import { resolveTrainerPayTiers } from '../../lib/admin/trainerPayTiersCore'
 
@@ -429,14 +430,14 @@ export function AdminMembershipTypes() {
         </p>
 
         <form onSubmit={addType} className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 12 }}>
-          <div className="field" style={{ margin: 0, minWidth: 120, flex: '1 1 140px' }}>
+          <div className="field" style={{ margin: 0, minWidth: 200, flex: '1 1 220px' }}>
             <label className="label" htmlFor="membership-type-code">
               Новый тип ПЗ
             </label>
             <input
               id="membership-type-code"
               className="input"
-              maxLength={12}
+              maxLength={MEMBERSHIP_TYPE_CODE_MAX_LEN}
               placeholder="Напр. Dm"
               value={code}
               onChange={(e) => setCode(e.target.value)}
@@ -476,14 +477,14 @@ export function AdminMembershipTypes() {
           className="row"
           style={{ gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 12 }}
         >
-          <div className="field" style={{ margin: 0, minWidth: 120, flex: '1 1 140px' }}>
+          <div className="field" style={{ margin: 0, minWidth: 200, flex: '1 1 220px' }}>
             <label className="label" htmlFor="aerobic-type-code">
               Новый тип АЗ
             </label>
             <input
               id="aerobic-type-code"
               className="input"
-              maxLength={12}
+              maxLength={MEMBERSHIP_TYPE_CODE_MAX_LEN}
               placeholder="Напр. Бокс"
               value={aerobicCode}
               onChange={(e) => setAerobicCode(e.target.value)}

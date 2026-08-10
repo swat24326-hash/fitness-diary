@@ -98,7 +98,7 @@ CREATE TABLE membership_types (
   is_pnk_trial BOOLEAN NOT NULL DEFAULT false,
   counts_toward_pay_plan BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  CONSTRAINT membership_types_code_len CHECK (char_length(trim(code)) >= 1 AND char_length(trim(code)) <= 12),
+  CONSTRAINT membership_types_code_len CHECK (char_length(trim(code)) >= 1 AND char_length(trim(code)) <= 40),
   CONSTRAINT membership_types_trainer_pay_nonneg CHECK (trainer_pay_per_session >= 0),
   CONSTRAINT membership_types_trainer_pay_l1_nonneg CHECK (trainer_pay_l1 >= 0),
   CONSTRAINT membership_types_trainer_pay_l2_nonneg CHECK (trainer_pay_l2 >= 0),

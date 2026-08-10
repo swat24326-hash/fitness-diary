@@ -25,6 +25,7 @@
     "db:migrate:membership-types-sm": "node scripts/apply-membership-types-sales-manager-read.mjs",
     "db:migrate:trainer-pay-tiers": "node scripts/apply-membership-types-trainer-pay-tiers.mjs",
     "db:migrate:counts-toward-pay-plan": "node scripts/apply-membership-types-counts-toward-pay-plan.mjs",
+    "db:migrate:membership-type-code-len": "node scripts/apply-membership-types-code-len-40.mjs",
     "db:migrate:trainer-pay-plan": "node scripts/apply-club-trainer-pay-plan-settings.mjs",
     "db:migrate:trainer-pay-profiles": "node scripts/apply-trainer-pay-profiles.mjs",
     "db:migrate:trainer-pay-month-snapshots": "node scripts/apply-club-trainer-pay-month-snapshots.mjs",

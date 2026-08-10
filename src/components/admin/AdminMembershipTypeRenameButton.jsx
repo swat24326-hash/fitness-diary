@@ -1,6 +1,6 @@
 import { Check, Pencil, X } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
-import { normalizeMembershipTypeCode } from '../../lib/membershipTypesCore.js'
+import { normalizeMembershipTypeCode, MEMBERSHIP_TYPE_CODE_MAX_LEN } from '../../lib/membershipTypesCore.js'
 
 /**
  * Переименование code типа абонемента (ПЗ/АЗ) — модалка + иконка.
@@ -76,7 +76,7 @@ export function AdminMembershipTypeRenameButton({ type, disabled, busy, onRename
                 <input
                   id={inputId}
                   className="input"
-                  maxLength={12}
+                  maxLength={MEMBERSHIP_TYPE_CODE_MAX_LEN}
                   autoFocus
                   value={draft}
                   disabled={saving}

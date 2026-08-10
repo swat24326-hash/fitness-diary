@@ -1,8 +1,13 @@
 /** Чистые правила типов абонементов (без IDB / Supabase). */
 
+/** Макс. длина названия типа карты (ПЗ/АЗ), символов. */
+export const MEMBERSHIP_TYPE_CODE_MAX_LEN = 40
+
 /** @param {unknown} raw */
 export function normalizeMembershipTypeCode(raw) {
-  return String(raw ?? '').trim().slice(0, 12)
+  return String(raw ?? '')
+    .trim()
+    .slice(0, MEMBERSHIP_TYPE_CODE_MAX_LEN)
 }
 
 /** @param {object | null | undefined} t */

@@ -18,7 +18,8 @@ function ok(cond, msg) {
 }
 
 ok(normalizeMembershipTypeCode('  Dm  ') === 'Dm', 'trim code')
-ok(normalizeMembershipTypeCode('x'.repeat(20)).length === 12, 'max 12')
+ok(normalizeMembershipTypeCode('x'.repeat(50)).length === 40, 'max 40')
+ok(normalizeMembershipTypeCode('Воздушная растяжка') === 'Воздушная растяжка', 'ru long name fits')
 
 const types = [
   { id: '1', code: 'Dm', is_active: true },

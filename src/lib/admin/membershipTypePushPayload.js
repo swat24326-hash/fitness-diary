@@ -2,6 +2,7 @@
 
 import { parseAerobicPayRate } from './aerobicPayrollCore.js'
 import { parseTrainerPayRate } from './trainerPayrollCore.js'
+import { MEMBERSHIP_TYPE_CODE_MAX_LEN } from '../membershipTypesCore.js'
 import {
   normalizeTrainerPayTiersInput,
   resolveTrainerPayTiers,
@@ -86,7 +87,7 @@ export function normalizeMembershipTypePushPayload(payload, { insert = false } =
     : undefined
   const next = pickMembershipTypeDbFields({
     ...payload,
-    code: String(payload?.code ?? '').trim().slice(0, 12),
+    code: String(payload?.code ?? '').trim().slice(0, MEMBERSHIP_TYPE_CODE_MAX_LEN),
     club_id: String(payload?.club_id ?? '').trim(),
     is_active: payload?.is_active !== false,
     trainer_assignable: trainerAssignable,
