@@ -386,7 +386,8 @@ export function clubDisplayCountForType(inputMap, trainerIds, typeId) {
 }
 
 /**
- * ЗП персонального зала за день: Old — из «По клубу»; New — из строк тренеров (без double).
+ * ЗП персонального зала за день (legacy L1): Old — из «По клубу»; New — из строк тренеров.
+ * Полный прогноз (план / надбавка / уровни) — `computeDayPayrollForecastFromInputMap`.
  * @param {Record<string, string>} inputMap
  * @param {Array<{ id: string, trainer_pay_per_session?: number | string }>} membershipTypes
  * @param {string[]} [trainerIds]

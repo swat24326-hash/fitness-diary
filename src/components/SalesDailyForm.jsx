@@ -59,6 +59,9 @@ function MatrixEmptyCells({ prefix }) {
  *   promotions?: Array<Record<string, unknown>>,
  *   promoSales?: Record<string, string>,
  *   onPromoSalesChange?: (next: Record<string, string>) => void,
+ *   planConfig?: object | null,
+ *   profilesByTrainerId?: Map|object|null,
+ *   monthRows?: Array<Record<string, unknown>>,
  * }} props
  */
 export function SalesDailyForm({
@@ -88,6 +91,9 @@ export function SalesDailyForm({
   promotions = [],
   promoSales = {},
   onPromoSalesChange,
+  planConfig = null,
+  profilesByTrainerId = null,
+  monthRows = null,
 }) {
   const dateInputRef = useRef(null)
   const profit = useMemo(() => {
@@ -174,6 +180,10 @@ export function SalesDailyForm({
           aggregateOnly={false}
           clubId={clubId}
           showPayroll={showPayroll}
+          planConfig={planConfig}
+          profilesByTrainerId={profilesByTrainerId}
+          monthRows={monthRows}
+          reportDate={reportDate}
         />
       </div>
 

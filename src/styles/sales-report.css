@@ -2244,6 +2244,27 @@
   font-variant-numeric: tabular-nums;
 }
 
+.sales-trainings-matrix__pay-col {
+  min-width: 5.5rem;
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+.sales-trainings-matrix__pay-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  line-height: 1.25;
+}
+
+.sales-trainings-matrix__pay-scenarios {
+  font-size: 0.7rem;
+  max-width: 11rem;
+  white-space: normal;
+  text-align: right;
+}
+
 .sales-trainings-matrix__dash {
   display: inline-block;
   min-width: 1ch;

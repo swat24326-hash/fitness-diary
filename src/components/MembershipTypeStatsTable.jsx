@@ -1,4 +1,7 @@
 import { useMemo } from 'react'
+import { computePeriodPayrollForecastFromTypeStats } from '../lib/admin/trainerPeriodPayrollForecastCore.js'
+import { formatRub } from '../lib/admin/salesReportCore.js'
+import { todayLocalIso } from '../lib/dateRu.js'
 
 function typeKey(row) {
   return row?.typeId ?? '__none__'
@@ -6,11 +9,44 @@ function typeKey(row) {
 
 const NONE_KEY = '__none__'
 
+function formatScenariosLine(scenarios) {
+  if (!scenarios) return null
+  return `1: ${formatRub(scenarios.l1)} · 2: ${formatRub(scenarios.l2)} · 3: ${formatRub(scenarios.l3)}`
+}
+
 /**
  * Таблица: строки — тренеры, столбцы — типы карт, ячейки — количество.
- * @param {{ byType: object[], byTrainerByType: object[], trainerLabel: (id: string) => string, note?: string }} props
+ * Опционально — прогноз ЗП (база / итого + подсказка по плану).
+ *
+ * @param {{
+ *   byType: object[],
+ *   byTrainerByType: object[],
+ *   trainerLabel: (id: string) => string,
+ *   note?: string,
+ *   showPayrollForecast?: boolean,
+ *   membershipTypes?: object[],
+ *   planConfig?: object | null,
+ *   profilesByTrainerId?: Map|object|null,
+ *   clubId?: string,
+ *   dateFrom?: string,
+ *   dateTo?: string,
+ *   asOfIso?: string,
+ * }} props
  */
-export function MembershipTypeStatsTable({ byType = [], byTrainerByType = [], trainerLabel, note }) {
+export function MembershipTypeStatsTable({
+  byType = [],
+  byTrainerByType = [],
+  trainerLabel,
+  note,
+  showPayrollForecast = false,
+  membershipTypes = [],
+  planConfig = null,
+  profilesByTrainerId = null,
+  clubId = '',
+  dateFrom = '',
+  dateTo = '',
+  asOfIso = '',
+}) {
   const label = trainerLabel ?? ((id) => id || '—')
 
   const columns = useMemo(() => {
@@ -38,6 +74,30 @@ export function MembershipTypeStatsTable({ byType = [], byTrainerByType = [], tr
     [byType],
   )
 
+  const payrollForecast = useMemo(() => {
+    if (!showPayrollForecast || !membershipTypes?.length) return null
+    return computePeriodPayrollForecastFromTypeStats({
+      byTrainerByType,
+      membershipTypes,
+      planConfig,
+      profilesByTrainerId,
+      clubId,
+      dateFrom,
+      dateTo,
+      asOfIso: asOfIso || todayLocalIso(),
+    })
+  }, [
+    showPayrollForecast,
+    membershipTypes,
+    byTrainerByType,
+    planConfig,
+    profilesByTrainerId,
+    clubId,
+    dateFrom,
+    dateTo,
+    asOfIso,
+  ])
+
   if (!columns.length && !byTrainerByType.length) {
     return (
       <p className="muted" style={{ margin: 0, fontSize: 13 }}>
@@ -61,11 +121,69 @@ export function MembershipTypeStatsTable({ byType = [], byTrainerByType = [], tr
     return row?.count ?? 0
   }
 
+  const renderPayCells = (trainerId) => {
+    if (!payrollForecast) return null
+    if (!trainerId) {
+      return (
+        <>
+          <td className="admin-mem-type-table__num mem-type-stats__pay-col">
+            <strong>{formatRub(payrollForecast.clubBaseRub)}</strong>
+          </td>
+          <td className="admin-mem-type-table__num mem-type-stats__pay-col">
+            <strong>{formatRub(payrollForecast.clubTotalRub)}</strong>
+          </td>
+        </>
+      )
+    }
+    const fc = payrollForecast.byTrainer.get(trainerId)
+    if (!fc) {
+      return (
+        <>
+          <td className="admin-mem-type-table__num mem-type-stats__pay-col">—</td>
+          <td className="admin-mem-type-table__num mem-type-stats__pay-col">—</td>
+        </>
+      )
+    }
+    const scen = formatScenariosLine(fc.scenarios)
+    const adjTitle =
+      fc.adjRubPerSession !== 0
+        ? `Надбавка ${fc.adjRubPerSession > 0 ? '+' : ''}${fc.adjRubPerSession} ₽ · ${fc.planHint}`
+        : fc.planHint
+    return (
+      <>
+        <td className="admin-mem-type-table__num mem-type-stats__pay-col">
+          <div className="mem-type-stats__pay-stack">
+            <strong title={`Факт ур. ${fc.levelFact}`}>{formatRub(fc.baseRub)}</strong>
+            {scen ? (
+              <span className="muted mem-type-stats__pay-scenarios" title="Сценарии ур. 1 / 2 / 3">
+                {scen}
+              </span>
+            ) : null}
+            {fc.planHint ? (
+              <span className="muted mem-type-stats__pay-hint" title={adjTitle}>
+                {fc.planHint}
+              </span>
+            ) : null}
+          </div>
+        </td>
+        <td className="admin-mem-type-table__num mem-type-stats__pay-col" title={adjTitle}>
+          <strong>{formatRub(fc.totalRub)}</strong>
+        </td>
+      </>
+    )
+  }
+
   return (
     <div className="mem-type-stats">
       {note ? (
         <p className="muted mem-type-stats__note" style={{ margin: '0 0 10px', fontSize: 13, lineHeight: 1.45 }}>
           {note}
+        </p>
+      ) : null}
+      {payrollForecast ? (
+        <p className="muted mem-type-stats__note" style={{ margin: '0 0 10px', fontSize: 12, lineHeight: 1.45 }}>
+          ЗП за период: база по текущему уровню плана; итого — с надбавкой кабинета. Без плана — ур. 3 и сценарии
+          1/2/3. Подсказка — линейный прогноз до конца периода.
         </p>
       ) : null}
       <div className="table-wrap admin-mem-type-table-wrap">
@@ -79,6 +197,12 @@ export function MembershipTypeStatsTable({ byType = [], byTrainerByType = [], tr
                 </th>
               ))}
               <th className="admin-mem-type-table__sum-col">Итого</th>
+              {payrollForecast ? (
+                <>
+                  <th className="admin-mem-type-table__num mem-type-stats__pay-col">База</th>
+                  <th className="admin-mem-type-table__num mem-type-stats__pay-col">Итого ЗП</th>
+                </>
+              ) : null}
             </tr>
           </thead>
           <tbody>
@@ -93,6 +217,7 @@ export function MembershipTypeStatsTable({ byType = [], byTrainerByType = [], tr
                 <td className="admin-mem-type-table__num admin-mem-type-table__sum-col">
                   <strong>{typedTotalForTrainer(tr)}</strong>
                 </td>
+                {renderPayCells(tr.trainerId)}
               </tr>
             ))}
             <tr className="admin-mem-type-table__club-row">
@@ -107,6 +232,7 @@ export function MembershipTypeStatsTable({ byType = [], byTrainerByType = [], tr
               <td className="admin-mem-type-table__num admin-mem-type-table__sum-col">
                 <strong>{clubTotalTyped}</strong>
               </td>
+              {renderPayCells('')}
             </tr>
           </tbody>
         </table>

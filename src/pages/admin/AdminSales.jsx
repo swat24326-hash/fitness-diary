@@ -1284,7 +1284,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             saving={savingDaily}
             canEdit
             trainers={trainers}
-            membershipTypes={membershipTypes}
+            membershipTypes={payrollMembershipTypes}
             membershipTypeColumns={membershipTypeColumns}
             trainingsMatrix={trainingsMatrix}
             onTrainingsMatrixChange={setTrainingsMatrix}
@@ -1298,6 +1298,9 @@ export function AdminSales({ accessMode = 'admin' }) {
             promotions={planPromotions}
             promoSales={promoSales}
             onPromoSalesChange={setPromoSales}
+            planConfig={payrollCtx.planConfig}
+            profilesByTrainerId={payrollCtx.profilesByTrainerId}
+            monthRows={monthDays}
           />
         </div>
       ) : null}
@@ -1412,7 +1415,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             saving={savingDaily}
             canEdit
             trainers={trainers}
-            membershipTypes={membershipTypes}
+            membershipTypes={payrollMembershipTypes}
             membershipTypeColumns={membershipTypeColumns}
             trainingsMatrix={trainingsMatrix}
             onTrainingsMatrixChange={setTrainingsMatrix}
@@ -1427,6 +1430,9 @@ export function AdminSales({ accessMode = 'admin' }) {
             promotions={planPromotions}
             promoSales={promoSales}
             onPromoSalesChange={setPromoSales}
+            planConfig={payrollCtx.planConfig}
+            profilesByTrainerId={payrollCtx.profilesByTrainerId}
+            monthRows={monthDays}
           />
         </div>
       ) : !isSalesManager && salesTab === 'stats' ? (

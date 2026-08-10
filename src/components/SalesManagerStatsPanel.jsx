@@ -12,6 +12,14 @@ import { SalesPlanMatrixCompareTable } from './SalesPlanMatrixCompareTable.jsx'
 import { SalesPlanPromotionsCompare } from './SalesPlanPromotionsCompare.jsx'
 import { SalesPlanPromotionsSection } from './SalesPlanPromotionsSection.jsx'
 
+function monthEndIso(year, month) {
+  const y = Number(year)
+  const m = Number(month)
+  if (!Number.isFinite(y) || !Number.isFinite(m) || m < 1 || m > 12) return ''
+  const last = new Date(y, m, 0).getDate()
+  return `${y}-${String(m).padStart(2, '0')}-${String(last).padStart(2, '0')}`
+}
+
 /**
  * @param {{
  *   monthLabel: string,
@@ -243,6 +251,13 @@ export function SalesManagerStatsPanel({
           byType={trainingsStats.byType}
           byTrainerByType={trainingsStats.byTrainerByType}
           trainerLabel={trainerLabel}
+          showPayrollForecast={Boolean(showPayroll && membershipTypes?.length)}
+          membershipTypes={membershipTypes}
+          planConfig={planConfig}
+          profilesByTrainerId={profilesByTrainerId}
+          clubId={clubId}
+          dateFrom={`${year}-${String(month).padStart(2, '0')}-01`}
+          dateTo={monthEndIso(year, month)}
         />
       </div>
 

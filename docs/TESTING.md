@@ -62,6 +62,7 @@
 | Список клиентов: точка/подпись абонемента | `verify-client-list-signals.mjs` |
 | Ранняя активация абона («ждёт старт» → сдвиг дат) + кнопка списка | `verify-membership-early-activate.mjs` |
 | Push абонементов (даты NOT NULL) | `verify-membership-push-payload.mjs` |
+| ЗП дня/периода: база + надбавка, сценарии без плана, прогноз ур. | `verify-trainer-day-payroll-forecast.mjs` |
 | Удаление абонемента (тексты confirm) | `verify-membership-delete.mjs` |
 | Менеджер: доступ к типам АЗ / выбор списка для отчёта | `verify-sales-membership-types-access.mjs` |
 | Переименование code типа карты (уникальность в клубе) | `verify-membership-type-code.mjs` |

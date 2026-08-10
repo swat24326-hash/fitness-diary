@@ -10,6 +10,8 @@ import { MembershipTypeStatsTable } from '../../components/MembershipTypeStatsTa
 import { CoachQualityPanel } from '../../components/CoachQualityPanel'
 import { TrainerRatingCard } from '../../components/admin/TrainerRatingCard'
 import { loadClubMonthlyStatsForYear, MONTHS_PER_CALENDAR_YEAR } from '../../lib/admin/adminClubMonthlyService'
+import { loadTrainerPayrollContextClient } from '../../lib/admin/trainerPayrollContextClient.js'
+import { listMembershipTypesForClub } from '../../lib/membershipTypesService'
 import { useIskraPanel } from '../../context/IskraPanelContext.jsx'
 import { useClubPeriodStatsLoad } from './useClubPeriodStatsLoad'
 
@@ -61,6 +63,11 @@ export function AdminClubStatsSection({
   const [monthlyChartYear, setMonthlyChartYear] = useState(() => new Date().getFullYear())
   const [monthlyYears, setMonthlyYears] = useState(() => [new Date().getFullYear()])
   const [monthlyYearSummary, setMonthlyYearSummary] = useState(null)
+  const [payrollCtx, setPayrollCtx] = useState(() => ({
+    planConfig: null,
+    profilesByTrainerId: null,
+    membershipTypes: null,
+  }))
   const monthlyCacheRef = useRef(new Map())
   const statsHelpRef = useRef(null)
   const deepLinkHandledRef = useRef('')
@@ -80,6 +87,35 @@ export function AdminClubStatsSection({
     scopeClubId,
     range,
   })
+
+  useEffect(() => {
+    const cid = String(scopeClubId || clubId || '').trim()
+    if (!cid || !isSupabaseConfigured() || isTrainerScope) {
+      setPayrollCtx({ planConfig: null, profilesByTrainerId: null, membershipTypes: null })
+      return
+    }
+    let cancelled = false
+    const end = String(range.end ?? '').slice(0, 10)
+    const year = Number(end.slice(0, 4)) || new Date().getFullYear()
+    const month = Number(end.slice(5, 7)) || new Date().getMonth() + 1
+    void Promise.all([
+      loadTrainerPayrollContextClient(cid, { year, month }),
+      listMembershipTypesForClub(cid).catch(() => []),
+    ]).then(([ctx, types]) => {
+      if (cancelled) return
+      setPayrollCtx({
+        planConfig: ctx?.planConfig ?? null,
+        profilesByTrainerId: ctx?.profilesByTrainerId ?? null,
+        membershipTypes:
+          ctx?.frozen && Array.isArray(ctx.membershipTypes) && ctx.membershipTypes.length
+            ? ctx.membershipTypes
+            : types,
+      })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [clubId, scopeClubId, isTrainerScope, range.end])
 
   const defaultChartYear = useMemo(() => {
     const end = String(range.end ?? '').slice(0, 10)
@@ -824,7 +860,18 @@ export function AdminClubStatsSection({
           <h3 className="section-title" style={{ fontSize: '1rem', margin: '0 0 10px' }}>
             По типам абонементов
           </h3>
-          <MembershipTypeStatsTable byType={byType} byTrainerByType={byTrainerByType} trainerLabel={trainerLabel} />
+          <MembershipTypeStatsTable
+            byType={byType}
+            byTrainerByType={byTrainerByType}
+            trainerLabel={trainerLabel}
+            showPayrollForecast={!isTrainerScope && Boolean(payrollCtx.membershipTypes?.length)}
+            membershipTypes={payrollCtx.membershipTypes ?? []}
+            planConfig={payrollCtx.planConfig}
+            profilesByTrainerId={payrollCtx.profilesByTrainerId}
+            clubId={scopeClubId || clubId}
+            dateFrom={range.start}
+            dateTo={range.end}
+          />
         </section>
       ) : null}
 

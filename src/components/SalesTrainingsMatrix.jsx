@@ -5,20 +5,25 @@ import {
   SALES_TRAINING_TYPE_NONE,
   salesTrainingCellKey,
   typedTrainingsMatrixColumns,
-  computeClubTrainingsPayrollFromInputMap,
   trainingsMatrixHasTrainerDetail,
   trainerIdsFromTrainingsMatrixInput,
   clubDisplayCountForType,
   isLikelyTrainerUuidLabel,
 } from '../lib/admin/salesTrainingsMatrix.js'
+import { computeDayPayrollForecastFromInputMap } from '../lib/admin/trainerDayPayrollForecastCore.js'
 import { MembershipTypeStatsTable } from './MembershipTypeStatsTable.jsx'
 import { formatRub } from '../lib/admin/salesReportCore.js'
+
+function formatScenariosLine(scenarios) {
+  if (!scenarios) return null
+  return `1: ${formatRub(scenarios.l1)} · 2: ${formatRub(scenarios.l2)} · 3: ${formatRub(scenarios.l3)}`
+}
 
 /**
  * @param {{
  *   trainers: Array<{ id: string, name?: string, email?: string }>,
  *   columns: Array<{ typeId: string, code: string, inactive?: boolean }>,
- *   membershipTypes?: Array<{ id: string, trainer_pay_per_session?: number | string, is_active?: boolean }>,
+ *   membershipTypes?: Array<object>,
  *   matrix: Record<string, string>,
  *   onMatrixChange: (next: Record<string, string>) => void,
  *   fitCityStats?: { byType?: object[], byTrainerByType?: object[] } | null,
@@ -26,6 +31,10 @@ import { formatRub } from '../lib/admin/salesReportCore.js'
  *   aggregateOnly?: boolean,
  *   clubId?: string,
  *   showPayroll?: boolean,
+ *   planConfig?: object | null,
+ *   profilesByTrainerId?: Map|object|null,
+ *   monthRows?: Array<Record<string, unknown>>,
+ *   reportDate?: string,
  * }} props
  */
 export function SalesTrainingsMatrix({
@@ -39,6 +48,10 @@ export function SalesTrainingsMatrix({
   aggregateOnly = false,
   clubId = '',
   showPayroll = true,
+  planConfig = null,
+  profilesByTrainerId = null,
+  monthRows = null,
+  reportDate = '',
 }) {
   const [showEmptyCols, setShowEmptyCols] = useState(false)
   const typedColumns = useMemo(() => typedTrainingsMatrixColumns(columns), [columns])
@@ -87,9 +100,28 @@ export function SalesTrainingsMatrix({
     return sum
   }
 
-  const dayPay = useMemo(
-    () => computeClubTrainingsPayrollFromInputMap(matrix, _membershipTypes, trainerIds),
-    [_membershipTypes, matrix, trainerIds],
+  const dayForecast = useMemo(
+    () =>
+      computeDayPayrollForecastFromInputMap({
+        inputMap: matrix,
+        membershipTypes: _membershipTypes,
+        trainerIds,
+        planConfig,
+        profilesByTrainerId,
+        clubId,
+        monthRows: Array.isArray(monthRows) ? monthRows : undefined,
+        reportDate,
+      }),
+    [
+      matrix,
+      _membershipTypes,
+      trainerIds,
+      planConfig,
+      profilesByTrainerId,
+      clubId,
+      monthRows,
+      reportDate,
+    ],
   )
 
   const typesHref = clubId ? `/admin/membership-types?club=${encodeURIComponent(clubId)}` : '/admin/membership-types'
@@ -111,7 +143,6 @@ export function SalesTrainingsMatrix({
     return base
   }, [aggregateOnly, detailMode, trainers, matrix])
 
-  /** В разбивке Excel — только типы с часами (ширина таблицы). */
   const displayTypedColumns = useMemo(() => {
     if (!detailMode || showEmptyCols) return typedColumns
     return typedColumns.filter((c) => countCell(SALES_TRAINING_CLUB_ID, c.typeId) > 0)
@@ -176,12 +207,67 @@ export function SalesTrainingsMatrix({
     )
   }
 
+  const renderPayrollCells = (trainerId) => {
+    if (!showPayroll) return null
+    if (trainerId === SALES_TRAINING_CLUB_ID) {
+      const title = dayForecast.clubOnly
+        ? 'Только «По клубу» без разбивки — ставка ур. 1 без надбавок кабинета'
+        : 'Сумма по тренерам (база / итого с надбавкой)'
+      return (
+        <>
+          <td className="admin-mem-type-table__num sales-trainings-matrix__pay-col" title={title}>
+            <strong>{formatRub(dayForecast.clubBaseRub)}</strong>
+          </td>
+          <td className="admin-mem-type-table__num sales-trainings-matrix__pay-col" title={title}>
+            <strong>{formatRub(dayForecast.clubTotalRub)}</strong>
+          </td>
+        </>
+      )
+    }
+    const fc = dayForecast.byTrainer?.get(trainerId)
+    if (!fc || (fc.baseRub <= 0 && fc.totalRub <= 0)) {
+      return (
+        <>
+          <td className="admin-mem-type-table__num sales-trainings-matrix__pay-col sales-trainings-matrix__cell--empty">
+            ·
+          </td>
+          <td className="admin-mem-type-table__num sales-trainings-matrix__pay-col sales-trainings-matrix__cell--empty">
+            ·
+          </td>
+        </>
+      )
+    }
+    const scenLine = formatScenariosLine(fc.scenarios)
+    const adjTitle =
+      fc.adjRubPerSession !== 0
+        ? `Надбавка ${fc.adjRubPerSession > 0 ? '+' : ''}${fc.adjRubPerSession} ₽ × ${fc.payableCount}`
+        : 'Без надбавки кабинета'
+    return (
+      <>
+        <td className="admin-mem-type-table__num sales-trainings-matrix__pay-col">
+          <div className="sales-trainings-matrix__pay-stack">
+            <strong title={`Ур. ${fc.level}${fc.onPlan ? '' : ' (без плана)'}`}>{formatRub(fc.baseRub)}</strong>
+            {scenLine ? (
+              <span className="muted sales-trainings-matrix__pay-scenarios" title="Сценарии по ур. 1 / 2 / 3">
+                {scenLine}
+              </span>
+            ) : null}
+          </div>
+        </td>
+        <td className="admin-mem-type-table__num sales-trainings-matrix__pay-col" title={adjTitle}>
+          <strong>{formatRub(fc.totalRub)}</strong>
+        </td>
+      </>
+    )
+  }
+
   return (
     <div className={`sales-trainings-matrix${detailMode ? ' sales-trainings-matrix--detail' : ''}`}>
       {detailMode ? (
         <div className="sales-trainings-matrix__toolbar">
           <p className="muted sales-trainings-matrix__note" style={{ margin: 0 }}>
-            Разбивка по тренерам. «По клубу» — сумма. Пустые типы и нулевые строки скрыты.
+            Разбивка по тренерам. «По клубу» — сумма. ЗП: база (ставки уровня) и итого с надбавкой кабинета. Без
+            плана — факт ур. 3 и сценарии 1/2/3 под базой.
           </p>
           {emptyColCount > 0 || showEmptyCols ? (
             <button
@@ -216,7 +302,17 @@ export function SalesTrainingsMatrix({
               ) : null}
               <th className="admin-mem-type-table__sum-col">Итого</th>
               {showPayroll ? (
-                <th className="admin-mem-type-table__num sales-trainings-matrix__total-col">ЗП дня</th>
+                <>
+                  <th className="admin-mem-type-table__num sales-trainings-matrix__pay-col" title="Сухой расчёт по ставкам уровня">
+                    База
+                  </th>
+                  <th
+                    className="admin-mem-type-table__num sales-trainings-matrix__pay-col"
+                    title="База + надбавка кабинета (±₽ за занятие)"
+                  >
+                    Итого ЗП
+                  </th>
+                </>
               ) : null}
             </tr>
           </thead>
@@ -230,11 +326,7 @@ export function SalesTrainingsMatrix({
               <td className="admin-mem-type-table__num admin-mem-type-table__sum-col">
                 <strong>{typedTotal(SALES_TRAINING_CLUB_ID)}</strong>
               </td>
-              {showPayroll ? (
-                <td className="admin-mem-type-table__num sales-trainings-matrix__total-col">
-                  <strong>{formatRub(dayPay)}</strong>
-                </td>
-              ) : null}
+              {renderPayrollCells(SALES_TRAINING_CLUB_ID)}
             </tr>
             {displayTrainers.map((tr) => {
               const tid = String(tr.id)
@@ -247,11 +339,7 @@ export function SalesTrainingsMatrix({
                   <td className="admin-mem-type-table__num admin-mem-type-table__sum-col">
                     {rowTotal || '—'}
                   </td>
-                  {showPayroll ? (
-                    <td className="admin-mem-type-table__num sales-trainings-matrix__total-col sales-trainings-matrix__cell--empty">
-                      ·
-                    </td>
-                  ) : null}
+                  {renderPayrollCells(tid)}
                 </tr>
               )
             })}
