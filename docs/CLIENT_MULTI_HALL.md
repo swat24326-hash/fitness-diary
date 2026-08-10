@@ -33,7 +33,7 @@
 - Чистая логика: `src/lib/membershipHallCore.js`, `clientHallTabsCore.js`, `pnkCreateAttachCore.js`
 - Списки: `deskHallClientsCore.js` (+ memberships)
 - Оплаты: `salesPaymentsLinkCore.js` / `salesPaymentsLinkApplyService.js`
-- Карточка: `AdminMultiHallClientCardSection.jsx` (вкладки ПЗ/ТЗ/АЗ)
+- Карточка: `AdminMultiHallClientCardSection.jsx` — вкладки ПЗ/ТЗ/АЗ **всегда** для admin / менеджер / управляющий (дописать абон другого зала без второй карточки); тренер планшета — только свой ПЗ
 - Verify: `scripts/verify-membership-hall.mjs`
 
 ## KPI

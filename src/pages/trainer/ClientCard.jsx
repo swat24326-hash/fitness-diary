@@ -41,7 +41,7 @@ import { AdminDeskClientCardSection } from '../../components/admin/AdminDeskClie
 import { AdminLitePzClientCardSection } from '../../components/admin/AdminLitePzClientCardSection.jsx'
 import { AdminMultiHallClientCardSection } from '../../components/admin/AdminMultiHallClientCardSection.jsx'
 import {
-  clientNeedsMultiHallCard,
+  adminUsesMultiHallClientCard,
   roleCanManageMultiHallClientCard,
 } from '../../lib/admin/clientHallTabsCore.js'
 import { isDeskHallClient } from '../../lib/admin/holdingClientsCore.js'
@@ -146,8 +146,10 @@ export function ClientCard() {
   }, [canManageClubClients])
 
   const isDeskClient = Boolean(canManageClubClients && isDeskHallClient(client))
-  const isMultiHallCard = Boolean(
-    canManageClubClients && client && clientNeedsMultiHallCard(client, memberships),
+  /** Одна карточка с переключателем ПЗ/ТЗ/АЗ — всегда для admin/sales/supervisor. */
+  const isMultiHallCard = adminUsesMultiHallClientCard(
+    { isAdmin, isSalesManager, isSupervisor },
+    client,
   )
   const clientTrainerRow = useMemo(() => {
     const tid = String(client?.trainer_id ?? '').trim()

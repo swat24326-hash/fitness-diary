@@ -11,6 +11,7 @@ import { listClientsByClubId } from '../../lib/localDbClubQuery.js'
 import { resolveInitialClientHallTab } from '../../lib/admin/clientHallTabsCore.js'
 import { AdminClientHallTabs } from './AdminClientHallTabs.jsx'
 import { AdminDeskMembershipLedger } from './AdminDeskMembershipLedger.jsx'
+import { AdminMultiHallTrainerField } from './AdminMultiHallTrainerField.jsx'
 import { MembershipManager } from '../MembershipManager.jsx'
 import { AdminDeskMemDateField } from './AdminDeskMemDateField.jsx'
 import { birthDateYearBounds, parseFlexibleDateToIso } from '../../lib/dateRu.js'
@@ -39,6 +40,7 @@ export function AdminMultiHallClientCardSection({
     phone: '',
     card_number: '',
     birth_date: '',
+    trainer_id: '',
   })
   const formClientIdRef = useRef('')
   const birthDirtyRef = useRef(false)
@@ -65,6 +67,7 @@ export function AdminMultiHallClientCardSection({
       name: client?.name ?? '',
       phone: client?.phone ?? '',
       card_number: client?.card_number ?? '',
+      trainer_id: String(client?.trainer_id ?? '').trim(),
       birth_date: mergeDeskClientBirthForm({
         fromClientBirth,
         prevBirth: prev.birth_date,
@@ -106,15 +109,16 @@ export function AdminMultiHallClientCardSection({
       }
       const birthIso = parseFlexibleDateToIso(form.birth_date, birthDateYearBounds()) || null
       const savedBirth = birthIso || ''
+      const trainer_id = String(form.trainer_id ?? '').trim() || null
       const clientRow = {
         ...client,
         name,
         phone: String(form.phone ?? '').trim() || null,
         card_number,
         birth_date: birthIso,
-        // сохраняем trainer_id и desk_hall — зал теперь на memberships.hall
-        trainer_id: client.trainer_id ?? null,
-        desk_hall: legacyDesk,
+        trainer_id,
+        // legacy desk_hall: не затираем, если нет тренера (constraint); зал абонов — memberships.hall
+        desk_hall: trainer_id ? legacyDesk : legacyDesk || null,
       }
       await saveLocalWithSync('clients', clientRow, {
         table_name: 'clients',
@@ -123,7 +127,7 @@ export function AdminMultiHallClientCardSection({
       })
       savedBirthRef.current = savedBirth
       birthDirtyRef.current = true
-      setForm((f) => ({ ...f, birth_date: savedBirth }))
+      setForm((f) => ({ ...f, birth_date: savedBirth, trainer_id: trainer_id || '' }))
       dispatchLocalDataChanged()
       onSaved?.()
     } catch (err) {
@@ -182,6 +186,12 @@ export function AdminMultiHallClientCardSection({
                 onChange={(iso) => setField('birth_date', iso)}
               />
             </label>
+            <AdminMultiHallTrainerField
+              clubId={resolvedClubId}
+              value={form.trainer_id}
+              onChange={(id) => setField('trainer_id', id)}
+              disabled={busy}
+            />
           </div>
         </div>
         {error ? <p className="sales-report__error admin-desk-client-card__error">{error}</p> : null}
@@ -201,21 +211,26 @@ export function AdminMultiHallClientCardSection({
 
       {hallTab === 'pz' ? (
         <div className="admin-multi-hall-pane" role="tabpanel">
-          {!client?.trainer_id ? (
+          {!form.trainer_id ? (
             <p className="muted admin-multi-hall-pane__hint">
-              Для ПЗ с дневником назначьте тренера. Ниже — учёт пакета ПЗ на этой карточке.
+              Назначьте тренера ПЗ выше и сохраните карточку — тогда клиент появится на планшете после Sync.
+              Ниже — абоны персонального зала на этой же карточке.
             </p>
           ) : null}
           <MembershipManager
             clientId={client.id}
             clubId={resolvedClubId}
-            recordTrainerId={client.trainer_id}
+            recordTrainerId={form.trainer_id || client.trainer_id}
             membershipHall="pz"
             onChanged={onSaved}
           />
         </div>
       ) : (
         <div className="admin-multi-hall-pane" role="tabpanel">
+          <p className="muted admin-multi-hall-pane__hint">
+            Абоны {hallTab === 'tz' ? 'ТЗ' : 'АЗ'} на той же карточке. Не создавайте второго клиента с тем же №
+            карты.
+          </p>
           <AdminDeskMembershipLedger
             client={client}
             memberships={memberships}

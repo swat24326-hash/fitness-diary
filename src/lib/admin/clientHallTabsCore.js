@@ -15,13 +15,23 @@ export const CLIENT_HALL_TAB_LABELS = {
 }
 
 /**
- * Нужна ли multi-hall карточка (есть desk-зал).
+ * Есть ли уже desk-зал (ТЗ/АЗ) — для точек на вкладках / эвристик.
  * @param {object|null|undefined} client
  * @param {object[]|null|undefined} memberships
  */
 export function clientNeedsMultiHallCard(client, memberships) {
   const halls = clientMembershipHallSet(client, memberships)
   return halls.has('tz') || halls.has('az')
+}
+
+/**
+ * Админ / менеджер / управляющий: всегда одна CRM-карточка с переключателем ПЗ/ТЗ/АЗ
+ * (можно дописать абон другого зала без второй карточки клиента).
+ * @param {{ isAdmin?: boolean, isSalesManager?: boolean, isSupervisor?: boolean }|null|undefined} access
+ * @param {object|null|undefined} client
+ */
+export function adminUsesMultiHallClientCard(access, client) {
+  return Boolean(client && roleCanManageMultiHallClientCard(access))
 }
 
 /**

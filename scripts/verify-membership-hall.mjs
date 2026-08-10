@@ -10,6 +10,7 @@ import {
   normalizeMembershipHall,
 } from '../src/lib/membershipHallCore.js'
 import {
+  adminUsesMultiHallClientCard,
   clientNeedsMultiHallCard,
   resolveInitialClientHallTab,
   roleCanManageMultiHallClientCard,
@@ -53,7 +54,17 @@ ok(
 ok(canFullyDeleteClientOnPnkRefuse({ lifecycle: 'pnk', trainer_id: 't' }, [{ hall: 'pz', total_trainings: 1 }]) === true, 'pure pnk deletable')
 
 ok(clientNeedsMultiHallCard({ desk_hall: 'tz' }, []) === true, 'needs multi desk')
-ok(clientNeedsMultiHallCard({ trainer_id: 't' }, [{ hall: 'pz' }]) === false, 'pure pz no multi')
+ok(clientNeedsMultiHallCard({ trainer_id: 't' }, [{ hall: 'pz' }]) === false, 'pure pz no desk halls')
+ok(
+  adminUsesMultiHallClientCard({ isAdmin: true }, { id: 'c1', trainer_id: 't' }) === true,
+  'admin always multi-hall UI',
+)
+ok(adminUsesMultiHallClientCard({ isAdmin: true }, null) === false, 'no client no card')
+ok(
+  adminUsesMultiHallClientCard({ isAdmin: false, isSalesManager: false, isSupervisor: false }, { id: 'c' }) ===
+    false,
+  'trainer role no multi-hall UI',
+)
 ok(resolveInitialClientHallTab({ desk_hall: 'az' }, [], null) === 'az', 'initial az')
 
 ok(roleCanManageMultiHallClientCard({ isAdmin: true }) === true, 'admin multi-hall card')
