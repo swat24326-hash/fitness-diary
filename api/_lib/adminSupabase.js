@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { isSalesManagerRole } from '../../src/lib/admin/salesAccessCore.js'
 import { isSupervisorRole } from '../../src/lib/admin/supervisorAccessCore.js'
+import { AUTH_ENV_MISSING_RU, verifyBearer } from './authPort.js'
 
 export function readEnv() {
   const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').replace(/\/$/, '')
@@ -52,10 +53,7 @@ function isSupervisorRoleNorm(roleNorm) {
 export async function requireAuthUser(req, res) {
   const { url, serviceKey, anonKey } = readEnv()
   if (!url || !serviceKey || !anonKey) {
-    sendJson(res, 500, {
-      error:
-        'На Vercel задайте SUPABASE_SERVICE_ROLE_KEY (и при необходимости SUPABASE_URL / SUPABASE_ANON_KEY), затем Redeploy.',
-    })
+    sendJson(res, 500, { error: AUTH_ENV_MISSING_RU })
     return null
   }
 
@@ -65,16 +63,10 @@ export async function requireAuthUser(req, res) {
     return null
   }
 
-  const supabaseAsCaller = createClient(url, anonKey, {
-    global: { headers: { Authorization: String(authHeader) } },
-  })
-
-  const {
-    data: { user },
-    error: userErr,
-  } = await supabaseAsCaller.auth.getUser()
+  const token = String(authHeader).slice('Bearer '.length).trim()
+  const { user, error: userErr } = await verifyBearer(url, anonKey, token)
   if (userErr || !user) {
-    sendJson(res, 401, { error: 'Сессия недействительна — войдите снова' })
+    sendJson(res, 401, { error: userErr || 'Сессия недействительна — войдите снова' })
     return null
   }
 

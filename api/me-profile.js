@@ -3,6 +3,7 @@
  */
 import { createClient } from '@supabase/supabase-js'
 import { readEnv, sendJson, setCors } from './_lib/adminSupabase.js'
+import { AUTH_ENV_MISSING_RU, verifyBearer } from './_lib/authPort.js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 
 async function handler(req, res) {
@@ -21,7 +22,7 @@ async function handler(req, res) {
 
   const { url, serviceKey, anonKey } = readEnv()
   if (!url || !serviceKey || !anonKey) {
-    sendJson(res, 500, { error: 'Сервер не настроен (Supabase env на Vercel).' })
+    sendJson(res, 500, { error: AUTH_ENV_MISSING_RU })
     return
   }
 
@@ -31,13 +32,8 @@ async function handler(req, res) {
     return
   }
 
-  const supabaseAsCaller = createClient(url, anonKey, {
-    global: { headers: { Authorization: String(authHeader) } },
-  })
-  const {
-    data: { user },
-    error: userErr,
-  } = await supabaseAsCaller.auth.getUser()
+  const token = String(authHeader).slice('Bearer '.length).trim()
+  const { user, error: userErr } = await verifyBearer(url, anonKey, token)
   if (userErr || !user) {
     sendJson(res, 401, { error: 'Unauthorized' })
     return

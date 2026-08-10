@@ -1,10 +1,11 @@
 /**
- * Vercel Serverless: создать тренера (Auth + public.users).
- * Секреты только на сервере: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY
+ * Создать тренера (Auth + public.users).
+ * Секреты только на сервере API: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SUPABASE_ANON_KEY
  * (или VITE_* для URL/anon — service role без префикса VITE_).
  */
 import { createClient } from '@supabase/supabase-js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
+import { AUTH_ENV_MISSING_RU, adminCreateUser, adminDeleteUser, verifyBearer } from './_lib/authPort.js'
 import { formatClientName } from '../src/lib/clientNameFormat.js'
 
 function readEnv() {
@@ -39,8 +40,7 @@ async function handler(req, res) {
   const { url, serviceKey, anonKey } = readEnv()
   if (!url || !serviceKey || !anonKey) {
     sendJson(res, 500, {
-      error:
-        'На Vercel задайте SUPABASE_SERVICE_ROLE_KEY (и при необходимости SUPABASE_URL / SUPABASE_ANON_KEY), затем Redeploy. Ключ service role — в Supabase → Settings → API.',
+      error: `${AUTH_ENV_MISSING_RU} Ключ service role — в настройках Auth/БД хостинга.`,
     })
     return
   }
@@ -51,14 +51,8 @@ async function handler(req, res) {
     return
   }
 
-  const supabaseAsCaller = createClient(url, anonKey, {
-    global: { headers: { Authorization: String(authHeader) } },
-  })
-
-  const {
-    data: { user },
-    error: userErr,
-  } = await supabaseAsCaller.auth.getUser()
+  const token = String(authHeader).slice('Bearer '.length).trim()
+  const { user, error: userErr } = await verifyBearer(url, anonKey, token)
   if (userErr || !user) {
     sendJson(res, 401, { error: 'Unauthorized' })
     return
@@ -126,18 +120,18 @@ async function handler(req, res) {
     email = `${login}@trainer.local`
   }
 
-  const { data: created, error: auErr } = await supabaseAdmin.auth.admin.createUser({
+  const { user: created, error: auErr } = await adminCreateUser(supabaseAdmin, {
     email,
     password,
     email_confirm: true,
   })
 
-  if (auErr || !created?.user) {
-    sendJson(res, 400, { error: auErr?.message ?? 'Не удалось создать пользователя в Auth' })
+  if (auErr || !created) {
+    sendJson(res, 400, { error: auErr ?? 'Не удалось создать пользователя в Auth' })
     return
   }
 
-  const uid = created.user.id
+  const uid = created.id
 
   const insertRow = {
     id: uid,
@@ -156,7 +150,7 @@ async function handler(req, res) {
   const { error: insErr } = await supabaseAdmin.from('users').insert(insertRow)
 
   if (insErr) {
-    await supabaseAdmin.auth.admin.deleteUser(uid)
+    await adminDeleteUser(supabaseAdmin, uid)
     sendJson(res, 400, { error: insErr.message })
     return
   }

@@ -1,0 +1,10 @@
+node_modules
+dist
+.git
+.cursor
+.env
+.env.local
+.env.*.local
+agent-transcripts
+coverage
+.vercel

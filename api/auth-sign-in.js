@@ -1,9 +1,10 @@
 /**
- * Вход через сервер Vercel (обход ERR_CONNECTION_RESET браузер → Supabase Auth).
+ * Вход через сервер API (обход ERR_CONNECTION_RESET браузер → Auth).
  * POST { login, password } — login может быть email или логин из users.login.
  */
 import { createClient } from '@supabase/supabase-js'
 import { readEnv, sendJson, setCors } from './_lib/adminSupabase.js'
+import { AUTH_ENV_MISSING_RU, signInWithPassword } from './_lib/authPort.js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 import { emailFromLoginRow, normalizeLoginInput, trainerLocalEmail } from './_lib/authLoginResolveCore.js'
 
@@ -56,9 +57,7 @@ async function handler(req, res) {
 
   const { url, serviceKey, anonKey } = readEnv()
   if (!url || !serviceKey || !anonKey) {
-    sendJson(res, 500, {
-      error: 'На Vercel задайте SUPABASE_SERVICE_ROLE_KEY и URL проекта, затем Redeploy.',
-    })
+    sendJson(res, 500, { error: AUTH_ENV_MISSING_RU })
     return
   }
 
@@ -108,14 +107,13 @@ async function handler(req, res) {
     sendJson(res, 403, { error: 'Учётная запись заблокирована' })
     return
   }
-  const supabaseAuth = createClient(url, anonKey)
-  const { data: authData, error: authErr } = await supabaseAuth.auth.signInWithPassword({
+  const { session, user: authUser, error: authErr } = await signInWithPassword(url, anonKey, {
     email: emailForAuth,
     password,
   })
 
-  if (authErr || !authData?.session) {
-    const msg = String(authErr?.message ?? 'Неверный логин или пароль')
+  if (authErr || !session) {
+    const msg = String(authErr ?? 'Неверный логин или пароль')
     if (/invalid login|invalid credentials|invalid password/i.test(msg)) {
       sendJson(res, 401, { error: 'Неверный логин или пароль' })
       return
@@ -124,7 +122,7 @@ async function handler(req, res) {
     return
   }
 
-  const uid = authData.user?.id
+  const uid = authUser?.id
   let profile = null
   if (uid) {
     const full = await supabaseAdmin
@@ -145,12 +143,12 @@ async function handler(req, res) {
 
   sendJson(res, 200, {
     session: {
-      access_token: authData.session.access_token,
-      refresh_token: authData.session.refresh_token,
-      expires_in: authData.session.expires_in,
-      expires_at: authData.session.expires_at,
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+      expires_in: session.expires_in,
+      expires_at: session.expires_at,
     },
-    user: authData.user,
+    user: authUser,
     profile,
   })
 }

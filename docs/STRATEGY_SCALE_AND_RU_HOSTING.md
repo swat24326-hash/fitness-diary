@@ -300,9 +300,11 @@ FIT-CITY ближе не к «сайту клуба», а к связке:
 - [x] Сборка статики: `npm run build` → `dist` на любом HTTPS (относительные `/api`, env для Supabase).
 - [x] API: handlers в `api/_lib/`; entrypoints тонкие (направление strangler).
 - [x] Smoke/QA: везде `QA_ORIGIN` (дефолт = текущий prod). В т.ч. `verify-prod-features` (2026-08-06).
-- [ ] Перед cutover: полный `qa:local` + `QA_ORIGIN=<staging>`.
+- [ ] Перед cutover: полный `qa:local` + `QA_ORIGIN=<staging>` (после появления staging URL на R2).
 - [x] Удаление тренера без Edge: `admin-data?action=delete-trainer` (лимит Hobby 12/12 — новый `api/*.js` не добавляли).
-- [x] Карта Auth сейчас vs C2: [AUTH_C2_MAP.md](./AUTH_C2_MAP.md) (реализация входа — на R2).
+- [x] Карта Auth сейчас vs C2: [AUTH_C2_MAP.md](./AUTH_C2_MAP.md); шов `api/_lib/authPort.js` (2026-08-09).
+- [x] Portable host + Docker + `db:migrate:pg` (+ `c2_auth_stub`, SSL, `/api/health`, verify): [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md) (2026-08-09). День 1 R2 = **hybrid** (хост на РФ, данные пока Supabase) → затем True C2 (Managed PG + свой Auth). Прод Vercel не переключали.
+- [ ] Runtime data-port (`pg` вместо PostgREST в API) — после живой схемы на стенде; не блокер hybrid day-1.
 
 *Dev-proxy:* `VITE_DEV_API_PROXY` (дефолт пока текущий prod) — только локальная разработка, не runtime клуба.
 
@@ -319,7 +321,7 @@ FIT-CITY ближе не к «сайту клуба», а к связке:
 | **Gemini** | `GEMINI_API_KEY` → `admin-data?action=gemini-analytics` | Проверить доступ из РФ; ключ в env API |
 | **Web Push** | `VAPID_*` на API; клиент с того же origin | Новые ключи ок; origin сменится → пользователи заново разрешают уведомления |
 | **Prod smoke** | `QA_ORIGIN` (дефолт `fitness-diary-bice.vercel.app`) | Сменить env на новый URL |
-| **Auth (карта)** | Supabase Auth + `/api/auth-sign-in` | План замены: [AUTH_C2_MAP.md](./AUTH_C2_MAP.md) |
+| **Auth (карта)** | Supabase Auth + `/api/auth-sign-in` + порт `authPort` | План замены: [AUTH_C2_MAP.md](./AUTH_C2_MAP.md); стенд: [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md) |
 
 **Ок оставить хардкод до переезда:** docs (RELEASE, RUNBOOK, handoff) с текущим prod URL; дефолты `QA_ORIGIN` / dev-proxy — это «адрес сегодняшнего боя», не бизнес-логика.
 
@@ -524,6 +526,7 @@ FIT-CITY ближе не к «сайту клуба», а к связке:
 | 2026-08-08 | Путь к цели + ведение | [PATH_TO_GOAL.md](./PATH_TO_GOAL.md): разрывы, ставки, ритуал агента; правило north-star-lead обновлено | Главный разрыв часто оплата; R2 по команде; не 5 ставок сразу |
 | 2026-08-08 | Ревизия docs путь/цель | Статус supervisor ✅; ритуал не на каждый lint; оплата ↔ абон в пути | Очередь PATH_TO_GOAL §4 как канон приоритета |
 | 2026-08-08 | Оплаты и касса | **После стабильного переезда (R3+)**; до этого Excel-мост; не кодить L3/кассу в R1–R3 | PATH_TO_GOAL §4; PAYMENTS_DOMAIN шапка; north-star-lead |
+| 2026-08-09 | R2 prep дожим | Hybrid day-1 зафиксирован; `c2_auth_stub` + SSL migrate; `/api/health`; Docker `VITE_*` build-args; verify host/migrate | Когда готовы — «стартуем R2 на Yandex, C2»; data-port runtime — после живой PG |
 | | | | |
 
 ---

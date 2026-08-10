@@ -1,4 +1,5 @@
 import { sendJson } from '../adminSupabase.js'
+import { adminCreateUser, adminDeleteUser } from '../authPort.js'
 import { assertCanCreateSupervisor } from '../../../src/lib/admin/supervisorAccessCore.js'
 import { USERS_SUPERVISOR_ROLES } from '../../../src/lib/userRoleConstants.js'
 
@@ -54,18 +55,18 @@ export async function handleCreateSupervisorPost(ctx, res, body) {
     return
   }
 
-  const { data: created, error: auErr } = await supabaseAdmin.auth.admin.createUser({
+  const { user: created, error: auErr } = await adminCreateUser(supabaseAdmin, {
     email,
     password,
     email_confirm: true,
   })
 
-  if (auErr || !created?.user) {
-    sendJson(res, 400, { error: auErr?.message ?? 'Не удалось создать пользователя в Auth' })
+  if (auErr || !created) {
+    sendJson(res, 400, { error: auErr ?? 'Не удалось создать пользователя в Auth' })
     return
   }
 
-  const uid = created.user.id
+  const uid = created.id
 
   const insertRow = {
     id: uid,
@@ -82,7 +83,7 @@ export async function handleCreateSupervisorPost(ctx, res, body) {
   const { error: insErr } = await supabaseAdmin.from('users').insert(insertRow)
 
   if (insErr) {
-    await supabaseAdmin.auth.admin.deleteUser(uid)
+    await adminDeleteUser(supabaseAdmin, uid)
     sendJson(res, 400, { error: insErr.message })
     return
   }

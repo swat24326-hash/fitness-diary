@@ -1,4 +1,5 @@
 import { sendJson } from './adminSupabase.js'
+import { adminDeleteUser, adminUpdatePassword } from './authPort.js'
 import {
   assertTrainerDeletableByClientCount,
   parseTrainerIdForAdmin,
@@ -53,11 +54,9 @@ export async function handleResetTrainerPasswordPost(ctx, res, body) {
     return
   }
 
-  const { error: authErr } = await ctx.supabaseAdmin.auth.admin.updateUserById(parsed.id, {
-    password: String(body.password),
-  })
+  const { error: authErr } = await adminUpdatePassword(ctx.supabaseAdmin, parsed.id, String(body.password))
   if (authErr) {
-    sendJson(res, 400, { error: authErr.message })
+    sendJson(res, 400, { error: authErr })
     return
   }
 
@@ -240,9 +239,9 @@ export async function handleDeleteTrainerPost(ctx, res, body) {
     return
   }
 
-  const { error: delAuth } = await ctx.supabaseAdmin.auth.admin.deleteUser(parsed.id)
+  const { error: delAuth } = await adminDeleteUser(ctx.supabaseAdmin, parsed.id)
   if (delAuth) {
-    sendJson(res, 400, { error: delAuth.message })
+    sendJson(res, 400, { error: delAuth })
     return
   }
 

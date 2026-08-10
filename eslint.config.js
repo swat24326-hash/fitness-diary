@@ -53,7 +53,7 @@ export default [
     },
   },
   {
-    files: ['api/**/*.{js,mjs}', 'scripts/**/*.{js,mjs}', '*.config.js'],
+    files: ['api/**/*.{js,mjs}', 'scripts/**/*.{js,mjs}', 'server/**/*.{js,mjs}', '*.config.js'],
     languageOptions: {
       globals: { ...globals.node },
     },
