@@ -26,10 +26,10 @@ import {
 } from './salesClientMatchCore.js'
 import { isClientArchived } from '../clientArchive.js'
 
-function findClubClientByCard(clubClients, clubId, cardNumber) {
+function findClubClientsByCard(clubClients, clubId, cardNumber) {
   const n = normalizeSalesCardNumber(cardNumber)
   const cid = String(clubId ?? '').trim()
-  if (!n || !cid) return null
+  if (!n || !cid) return []
   const matches = (clubClients ?? []).filter(
     (c) =>
       String(c?.club_id ?? '').trim() === cid && normalizeSalesCardNumber(c?.card_number) === n,
@@ -37,7 +37,23 @@ function findClubClientByCard(clubClients, clubId, cardNumber) {
   const ops = matches.filter((c) => !isClientArchived(c))
   const pool = ops.length ? ops : matches
   pool.sort((a, b) => String(a?.id ?? '').localeCompare(String(b?.id ?? '')))
-  return pool[0] ?? null
+  return pool
+}
+
+function pickExistingClientForPayment(clubClients, clubId, action) {
+  if (action?.attachClientId) {
+    const hit = (clubClients ?? []).find((c) => String(c.id) === String(action.attachClientId))
+    if (hit) return { ok: true, client: hit }
+  }
+  const pool = findClubClientsByCard(clubClients, clubId, action?.cardNumber)
+  if (pool.length > 1) {
+    return {
+      ok: false,
+      error: `Несколько клиентов с картой №${normalizeSalesCardNumber(action?.cardNumber)} — разберите в «Клиенты», не создавайте ещё одну`,
+    }
+  }
+  if (pool.length === 1) return { ok: true, client: pool[0] }
+  return { ok: true, client: null }
 }
 
 /**
@@ -58,6 +74,12 @@ export async function applyPaymentClientLinkAction(input) {
 
   if (action.kind === 'skip_matched' || action.kind === 'skip_cross_hall') {
     return { ok: true, result: 'skipped' }
+  }
+  if (action.kind === 'card_conflict') {
+    return {
+      ok: false,
+      error: String(action.error ?? '').trim() || 'Конфликт карты — сначала разберите дубли в «Клиенты»',
+    }
   }
 
   const trainer = trainers.find((t) => String(t.id) === String(action.trainerId ?? ''))
@@ -86,9 +108,9 @@ async function applyLiteFromPayment({ action, clubId, reportDate, trainers }) {
   const start = reportDate
   const end = deskPackageEndIso(start, months)
   const clubClients = await listClientsByClubId(clubId)
-  const existing =
-    (action.attachClientId && clubClients.find((c) => String(c.id) === String(action.attachClientId))) ||
-    findClubClientByCard(clubClients, clubId, action.cardNumber)
+  const existingPick = pickExistingClientForPayment(clubClients, clubId, action)
+  if (!existingPick.ok) return { ok: false, error: existingPick.error }
+  const existing = existingPick.client
 
   if (existing?.id) {
     const now = new Date().toISOString()
@@ -175,6 +197,45 @@ async function applyClipFromPayment({ action, clubId, reportDate, trainer }) {
   if (months == null) return { ok: false, error: 'Укажите срок пакета' }
   const start = reportDate
   const end = deskPackageEndIso(start, months)
+  const clubClients = await listClientsByClubId(clubId)
+  const existingPick = pickExistingClientForPayment(clubClients, clubId, action)
+  if (!existingPick.ok) return { ok: false, error: existingPick.error }
+  if (existingPick.client?.id) {
+    const now = new Date().toISOString()
+    const clientId = String(existingPick.client.id)
+    const patch = {
+      ...existingPick.client,
+      trainer_id: action.trainerId || existingPick.client.trainer_id,
+      name: formatClientName(action.clientName) || existingPick.client.name,
+      updated_at: now,
+    }
+    await saveLocalWithSync('clients', patch, {
+      table_name: 'clients',
+      operation: 'update',
+      remote_id: clientId,
+    })
+    await saveLocalWithSync(
+      'memberships',
+      {
+        id: crypto.randomUUID(),
+        client_id: clientId,
+        club_id: clubId,
+        membership_type_id: null,
+        start_date: start,
+        end_date: end,
+        total_trainings: 0,
+        used_trainings: 0,
+        paid_amount: action.amount > 0 ? action.amount : null,
+        hall: 'pz',
+        created_at: now,
+      },
+      { table_name: 'memberships', operation: 'insert', remote_id: null },
+    )
+    const flush = await flushCriticalWritesToCloud()
+    const warn = criticalWriteCloudWarning(flush, 'ПЗ-абон к существующей карточке')
+    dispatchLocalDataChanged({ reason: 'payments-link-pz-attach', clientId })
+    return { ok: true, result: 'clip', clientId, attached: true, warning: warn || null }
+  }
   const data = await createSaleClip({
     club_id: clubId,
     client_name: formatClientName(action.clientName),
@@ -197,9 +258,9 @@ async function applyDeskFromPayment({ action, clubId, reportDate }) {
   if (!end) return { ok: false, error: 'Не удалось посчитать срок абона' }
 
   const clubClients = await listClientsByClubId(clubId)
-  const existing =
-    (action.attachClientId && clubClients.find((c) => String(c.id) === String(action.attachClientId))) ||
-    findClubClientByCard(clubClients, clubId, action.cardNumber)
+  const existingPick = pickExistingClientForPayment(clubClients, clubId, action)
+  if (!existingPick.ok) return { ok: false, error: existingPick.error }
+  const existing = existingPick.client
 
   const now = new Date().toISOString()
   const memRow = {

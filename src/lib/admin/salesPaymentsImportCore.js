@@ -18,6 +18,7 @@ import {
   normalizeSalesCardNumber,
 } from './salesClientMatchCore.js'
 import { clientCrmHallKind } from './deskHallClientsCore.js'
+import { clientMembershipHallSet } from '../membershipHallCore.js'
 
 /** @typedef {'pz'|'tz'|'az'|'dop'|null} SalesHallKey */
 /** @typedef {'nk'|'dk'|'uk'|null} ProfitBucket */
@@ -318,10 +319,16 @@ export function suggestImportProfitBucket(input) {
 export function enrichSalesPaymentLines(input) {
   const saleDate = String(input.reportDate ?? '').slice(0, 10)
   return (input.lines ?? []).map((line) => {
-    const match = matchClientsByCardNumber(input.clients, line.cardNumber)
+    const match = matchClientsByCardNumber(input.clients, line.cardNumber, {
+      preferOperational: true,
+      paymentName: line.name,
+    })
     const clientId = match.client?.id != null ? String(match.client.id) : null
     const memList = clientId ? input.membershipsByClientId?.[clientId] ?? [] : []
     const trainings = clientId ? input.trainingsByClientId?.[clientId] ?? [] : []
+    const matchedHalls = match.client
+      ? [...clientMembershipHallSet(match.client, memList)]
+      : []
     const suggest = suggestImportProfitBucket({
       hall: line.hall,
       saleDate,
@@ -337,6 +344,7 @@ export function enrichSalesPaymentLines(input) {
       matchStatus: match.status,
       matchReason: match.reason,
       matchedHallKind: clientCrmHallKind(match.client),
+      matchedHalls,
       profitBucket: suggest.bucket,
       bucketConfident: suggest.confident,
       bucketReason: suggest.reason,

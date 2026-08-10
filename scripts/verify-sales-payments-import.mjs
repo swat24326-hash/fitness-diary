@@ -87,6 +87,27 @@ const matchConflict = matchClientsByCardNumber(
 )
 ok(matchConflict.status === 'conflict' && matchConflict.reason.includes('Два'), 'conflict reason')
 
+const matchByName = matchClientsByCardNumber(
+  [
+    { id: 'z', card_number: '5775', name: 'Зайцев Артем' },
+    { id: 's1', card_number: '5775', name: 'Шведов Даниил Дмитриевич' },
+    { id: 's2', card_number: '5775', name: 'Шведов Даниил Дмитриевич' },
+  ],
+  '5775',
+  { paymentName: 'Шведов Даниил Дмитриевич', preferOperational: true },
+)
+ok(matchByName.status === 'conflict' && matchByName.matches.length === 2, 'name narrows but two Шведов remain')
+
+const matchOneByName = matchClientsByCardNumber(
+  [
+    { id: 'z', card_number: '5775', name: 'Зайцев Артем' },
+    { id: 's1', card_number: '5775', name: 'Шведов Даниил' },
+  ],
+  '5775',
+  { paymentName: 'Шведов Даниил Дмитриевич' },
+)
+ok(matchOneByName.status === 'one' && matchOneByName.client?.id === 's1', 'name disambiguates to one')
+
 const tzEmpty = suggestImportProfitBucket({
   hall: 'tz',
   saleDate: '2026-07-31',

@@ -77,9 +77,57 @@ export function looksLikeSalesCardNumber(raw) {
 }
 
 /**
+ * Токены ФИО для сопоставления с оплатой (фамилия + имя).
+ * @param {unknown} raw
+ * @returns {string[]}
+ */
+export function normalizeSalesPersonNameTokens(raw) {
+  return String(raw ?? '')
+    .toLowerCase()
+    .replace(/ё/g, 'е')
+    .replace(/[^a-zа-я0-9\s]+/gi, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+}
+
+/**
+ * Совпадает ли ФИО карточки с ФИО из файла оплаты (фамилия обязательна).
+ * @param {unknown} clientName
+ * @param {unknown} paymentName
+ */
+export function clientNameMatchesPaymentName(clientName, paymentName) {
+  const a = normalizeSalesPersonNameTokens(clientName)
+  const b = normalizeSalesPersonNameTokens(paymentName)
+  if (!a.length || !b.length) return false
+  if (a[0] !== b[0]) return false
+  if (a.length >= 2 && b.length >= 2) {
+    if (a[1] === b[1]) return true
+    const ai = a[1][0]
+    const bi = b[1][0]
+    return Boolean(ai && bi && ai === bi)
+  }
+  return true
+}
+
+/**
+ * Сузить список кандидатов по ФИО из оплаты (конфликт карты → один человек).
+ * @param {object[]} matches
+ * @param {unknown} paymentName
+ * @returns {object[]}
+ */
+export function narrowClientMatchesByPaymentName(matches, paymentName) {
+  const list = Array.isArray(matches) ? matches : []
+  if (list.length <= 1) return list
+  const named = list.filter((c) => clientNameMatchesPaymentName(c?.name, paymentName))
+  if (named.length >= 1) return named
+  return list
+}
+
+/**
  * @param {object[]} clients
  * @param {string} cardNumber
- * @param {{ preferOperational?: boolean, deskImportResolve?: boolean }} [opts]
+ * @param {{ preferOperational?: boolean, deskImportResolve?: boolean, paymentName?: string|null }} [opts]
  * @returns {{ status: 'empty'|'none'|'one'|'conflict', client?: object, matches: object[], reason: string }}
  */
 export function matchClientsByCardNumber(clients, cardNumber, opts = {}) {
@@ -92,7 +140,10 @@ export function matchClientsByCardNumber(clients, cardNumber, opts = {}) {
     }
   }
   const raw = (clients ?? []).filter((c) => normalizeSalesCardNumber(c?.card_number) === n)
-  const matches = narrowClientMatchCandidates(raw, opts)
+  let matches = narrowClientMatchCandidates(raw, opts)
+  if (opts.paymentName != null && String(opts.paymentName).trim()) {
+    matches = narrowClientMatchesByPaymentName(matches, opts.paymentName)
+  }
   if (matches.length === 1) {
     return { status: 'one', client: matches[0], matches, reason: `Найден по карте №${n}` }
   }

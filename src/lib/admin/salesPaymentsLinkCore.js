@@ -239,6 +239,9 @@ export function buildPaymentClientLinkActions(input) {
     const matchStatus = String(l.matchStatus ?? '')
     const clientId = l.clientId ? String(l.clientId) : null
     const matchedHallKind = l.matchedHallKind ? String(l.matchedHallKind) : null
+    const matchedHalls = new Set(
+      Array.isArray(l.matchedHalls) ? l.matchedHalls.map((h) => String(h)) : [],
+    )
     const packageMonths = normalizePaymentLinkPackageMonths(inferPackageMonthsFromTariff(l.tariffName))
     const base = {
       id: String(l.id ?? `${card}:${hall}`),
@@ -251,6 +254,7 @@ export function buildPaymentClientLinkActions(input) {
       matchStatus,
       clientId,
       matchedHallKind,
+      matchedHalls: [...matchedHalls],
       packageMonths,
       trainerId: '',
       membershipTypeId: '',
@@ -258,9 +262,24 @@ export function buildPaymentClientLinkActions(input) {
       error: '',
     }
 
+    if (matchStatus === 'conflict') {
+      actions.push({
+        ...base,
+        kind: 'card_conflict',
+        label: 'Конфликт карты',
+        error:
+          String(l.matchReason ?? '').trim() ||
+          `Два или больше клиентов с картой №${card} — разберите вручную в «Клиенты»`,
+        status: 'pending',
+      })
+      continue
+    }
+
     if (matchStatus === 'one' && clientId) {
-      // Тот же зал CRM — уже есть карточка этого контура
-      if (!matchedHallKind || matchedHallKind === hall) {
+      // Уже есть абон/контур этого зала — не предлагать «Создать» снова
+      const alreadyHasHall =
+        matchedHalls.has(hall) || !matchedHallKind || matchedHallKind === hall
+      if (alreadyHasHall) {
         actions.push({
           ...base,
           kind: 'skip_matched',
@@ -323,6 +342,12 @@ export function resolvePzLinkMode(trainer) {
 export function validatePaymentLinkAction(action, trainer) {
   const kind = action?.kind
   if (kind === 'skip_matched' || kind === 'skip_cross_hall') return { ok: true }
+  if (kind === 'card_conflict') {
+    return {
+      ok: false,
+      error: String(action?.error ?? '').trim() || 'Конфликт карты — сначала разберите дубли в «Клиенты»',
+    }
+  }
 
   const monthsOk = isPaymentLinkPackageMonthsReady(action?.packageMonths)
 
@@ -355,11 +380,16 @@ export function summarizePaymentClientLinkActions(actions) {
   let done = 0
   let pzPending = 0
   let deskPending = 0
+  let cardConflict = 0
   let pzAmount = 0
   let pzReady = 0
   for (const a of actions ?? []) {
     if (a?.kind === 'skip_matched' || a?.kind === 'skip_cross_hall') {
       matched += 1
+      continue
+    }
+    if (a?.kind === 'card_conflict') {
+      cardConflict += 1
       continue
     }
     if (a?.status === 'done') {
@@ -381,9 +411,10 @@ export function summarizePaymentClientLinkActions(actions) {
     done,
     pzPending,
     deskPending,
+    cardConflict,
     pzReady,
     pzAmount: Math.round(pzAmount),
-    needWork: pzPending + deskPending,
+    needWork: pzPending + deskPending + cardConflict,
   }
 }
 
@@ -412,12 +443,15 @@ export function partitionPaymentClientLinkNeedWork(actions) {
   const pz = []
   /** @type {object[]} */
   const desk = []
+  /** @type {object[]} */
+  const conflicts = []
   for (const a of actions ?? []) {
     if (!a || a.status === 'done' || a.kind === 'skip_matched' || a.kind === 'skip_cross_hall') continue
-    if (a.kind === 'pz_need_trainer') pz.push(a)
+    if (a.kind === 'card_conflict') conflicts.push(a)
+    else if (a.kind === 'pz_need_trainer') pz.push(a)
     else if (a.kind === 'az_desk' || a.kind === 'tz_desk') desk.push(a)
   }
-  return { pz, desk }
+  return { pz, desk, conflicts }
 }
 
 /**

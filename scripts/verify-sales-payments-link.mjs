@@ -136,6 +136,28 @@ ok(actions.find((a) => a.cardNumber === '5802')?.kind === 'az_desk', 'az desk ac
 ok(actions.find((a) => a.cardNumber === '5802')?.membershipTypeId === 's1', 'az last direction step')
 ok(actions.find((a) => a.cardNumber === '5776')?.kind === 'pz_need_trainer', 'pz needs trainer')
 ok(actions.find((a) => a.cardNumber === '1111')?.kind === 'skip_matched', 'matched skip')
+
+const conflictActions = buildPaymentClientLinkActions({
+  lines: [
+    {
+      id: 'c1',
+      include: true,
+      hall: 'pz',
+      cardNumber: '5775',
+      clientName: 'Шведов',
+      tariffName: '4/1',
+      amount: 2968,
+      matchStatus: 'conflict',
+      matchReason: 'Два или больше клиентов с картой №5775 — разберите вручную',
+    },
+  ],
+  azTypes,
+})
+ok(conflictActions[0]?.kind === 'card_conflict', 'conflict → no create')
+ok(!isPaymentLinkActionReady(conflictActions[0], { id: 't1', uses_tablet: true }), 'conflict not ready')
+ok(summarizePaymentClientLinkActions(conflictActions).cardConflict === 1, 'summary conflict')
+ok(partitionPaymentClientLinkNeedWork(conflictActions).conflicts.length === 1, 'partition conflicts')
+ok(partitionPaymentClientLinkNeedWork(conflictActions).pz.length === 0, 'conflict not in pz create list')
 const tzAction = actions.find((a) => a.cardNumber === '7199' && a.kind === 'tz_desk')
 const pz7199 = actions.find((a) => a.cardNumber === '7199' && a.kind === 'pz_need_trainer')
 ok(tzAction?.kind === 'tz_desk', 'tz desk action')
@@ -258,6 +280,26 @@ ok(summarizePaymentClientLinkActions(cross).deskPending === 1, 'cross-hall desk 
 ok(summarizePaymentClientLinkActions(cross).needWork === 1, 'cross-hall needWork')
 ok(summarizePaymentClientLinkActions(cross).matched === 0, 'cross-hall not counted as «Уже в базе»')
 ok(String(cross[0]?.label || '').includes('абон к карточке'), 'daily report label: attach TZ')
+
+const alreadyAz = buildPaymentClientLinkActions({
+  lines: [
+    {
+      id: 'az-exist',
+      include: true,
+      hall: 'az',
+      cardNumber: '4430',
+      clientName: 'Шитая',
+      tariffName: 'Фитбол+',
+      amount: 3990,
+      matchStatus: 'one',
+      clientId: 'c-karina',
+      matchedHallKind: 'tz',
+      matchedHalls: ['tz', 'az'],
+    },
+  ],
+})
+ok(alreadyAz[0]?.kind === 'skip_matched', 'AZ payment skipped if AZ membership already exists')
+ok(summarizePaymentClientLinkActions(alreadyAz).matched === 1, 'already AZ counted as matched')
 
 // —— дневной отчёт: KPI как на экране «Карточки из оплат» ——
 const dayReportBothNew = buildPaymentClientLinkActions({

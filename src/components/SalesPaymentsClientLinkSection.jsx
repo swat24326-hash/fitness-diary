@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link2, UserPlus } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { AlertTriangle, Link2, UserPlus } from 'lucide-react'
 import { formatRub } from '../lib/admin/salesReportCore.js'
 import { listTrainerSummariesForAdmin } from '../lib/dataAccess.js'
 import { listMembershipTypesForClub } from '../lib/membershipTypesService.js'
@@ -19,6 +20,7 @@ import { applyPaymentClientLinkAction } from '../lib/admin/salesPaymentsLinkAppl
 import { isTrainerWithoutTablet } from '../lib/admin/trainerTabletModeCore.js'
 import { isHoldingTrainerUser } from '../lib/admin/deskClosingImportCore.js'
 import { SalesPaymentsPackageMonthsSelect } from './SalesPaymentsPackageMonthsSelect.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
 
 /**
  * После превью оплат: приоритетно закрыть ПЗ без карточки (lite / клип), затем desk ТЗ/АЗ.
@@ -30,6 +32,12 @@ export function SalesPaymentsClientLinkSection({
   canEdit = true,
   onToast,
 }) {
+  const { isSalesManager, isSupervisor } = useAuth()
+  const clientsSearchBase = isSalesManager
+    ? '/sales/clients'
+    : isSupervisor
+      ? '/club/clients'
+      : '/admin/clients'
   const [trainers, setTrainers] = useState([])
   const [azTypes, setAzTypes] = useState([])
   const [actions, setActions] = useState([])
@@ -75,7 +83,7 @@ export function SalesPaymentsClientLinkSection({
   }, [clubId, lines])
 
   const summary = useMemo(() => summarizePaymentClientLinkActions(actions), [actions])
-  const { pz: pzRows, desk: deskRows } = useMemo(
+  const { pz: pzRows, desk: deskRows, conflicts: conflictRows } = useMemo(
     () => partitionPaymentClientLinkNeedWork(actions),
     [actions],
   )
@@ -216,12 +224,65 @@ export function SalesPaymentsClientLinkSection({
           <span className="sales-payments-link__kpi-label">ТЗ / АЗ desk</span>
           <strong className="sales-payments-link__kpi-value">{summary.deskPending}</strong>
         </div>
+        {summary.cardConflict > 0 ? (
+          <div className="sales-payments-link__kpi sales-payments-link__kpi--accent">
+            <span className="sales-payments-link__kpi-label">Конфликт карты</span>
+            <strong className="sales-payments-link__kpi-value">{summary.cardConflict}</strong>
+          </div>
+        ) : null}
       </div>
 
       {error ? <p className="sales-report__error">{error}</p> : null}
 
       {!summary.needWork ? (
         <p className="sales-report__hint">Все строки из файла уже есть в базе данных или не требуют карточки.</p>
+      ) : null}
+
+      {conflictRows.length ? (
+        <div className="sales-payments-link__block">
+          <h4 className="sales-payments-link__block-title">
+            <AlertTriangle size={16} aria-hidden style={{ verticalAlign: -2, marginRight: 6 }} />
+            Дубли карты — не создавать
+          </h4>
+          <p className="muted sales-payments-link__block-hint">
+            В клубе уже несколько клиентов с этим № карты. «Создать» только усугубит. Откройте поиск, склейте или
+            поправьте карты вручную, затем снова загрузите оплаты.
+          </p>
+          <div className="sales-payments-import__table-wrap">
+            <table className="sales-payments-import__table">
+              <thead>
+                <tr>
+                  <th>Карта</th>
+                  <th>Клиент в файле</th>
+                  <th>Зал</th>
+                  <th>Сумма</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {conflictRows.map((a) => (
+                  <tr key={a.id}>
+                    <td>{a.cardNumber}</td>
+                    <td>
+                      <div>{a.clientName || '—'}</div>
+                      {a.error ? <div className="sales-report__error">{a.error}</div> : null}
+                    </td>
+                    <td>{paymentLinkHallLabelRu(a.hall)}</td>
+                    <td>{a.amount > 0 ? formatRub(a.amount) : '—'}</td>
+                    <td>
+                      <Link
+                        className="btn btn-ghost btn-sm u-no-decoration"
+                        to={`${clientsSearchBase}?q=${encodeURIComponent(a.cardNumber || '')}`}
+                      >
+                        Открыть в Клиентах
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       ) : null}
 
       {pzRows.length ? (
@@ -342,7 +403,7 @@ export function SalesPaymentsClientLinkSection({
                           onClick={() => void runOne(a)}
                         >
                           <UserPlus size={14} aria-hidden />
-                          {busyId === a.id ? '…' : 'Создать'}
+                          {busyId === a.id ? '…' : a.attachClientId ? 'Дописать абон' : 'Создать'}
                         </button>
                       </td>
                     </tr>
@@ -442,7 +503,7 @@ export function SalesPaymentsClientLinkSection({
                           onClick={() => void runOne(a)}
                         >
                           <UserPlus size={14} aria-hidden />
-                          {busyId === a.id ? '…' : 'Создать'}
+                          {busyId === a.id ? '…' : a.attachClientId ? 'Дописать абон' : 'Создать'}
                         </button>
                       </td>
                     </tr>

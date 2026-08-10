@@ -1,12 +1,14 @@
 import { useRef, useState } from 'react'
 import { FileSpreadsheet, Upload } from 'lucide-react'
 import { listClientsByClubId, listMembershipsByClubId } from '../lib/localDbClubQuery.js'
+import { pullAdminClientsFromCloud } from '../lib/admin/adminClientsListService.js'
 import {
   buildDailyFormFromPaymentLines,
   enrichSalesPaymentLines,
 } from '../lib/admin/salesPaymentsImportCore.js'
 import { parseSalesPaymentsXlsxFile } from '../lib/admin/salesPaymentsImportWorkbook.js'
 import { emptyDailyForm } from '../lib/admin/salesReportCore.js'
+import { isSupabaseConfigured } from '../lib/supabase'
 import { SalesPaymentsClientLinkSection } from './SalesPaymentsClientLinkSection.jsx'
 
 const BUCKETS = [
@@ -70,6 +72,14 @@ export function SalesDailyPaymentsImportSection({
         setError('В файле не найдено строк продаж (карта + сумма). Проверьте формат «Отчёт по оплатам».')
         return
       }
+      if (isSupabaseConfigured() && typeof navigator !== 'undefined' && navigator.onLine) {
+        try {
+          await pullAdminClientsFromCloud(clubId, { mode: 'active' })
+        } catch {
+          /* офлайн / API — ниже локальный кэш */
+        }
+      }
+      if (gen !== loadGenRef.current) return
       const [clients, memberships] = await Promise.all([
         listClientsByClubId(clubId),
         listMembershipsByClubId(clubId),
