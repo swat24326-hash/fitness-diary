@@ -5668,6 +5668,21 @@ tr:last-child td {
   font-weight: 700;
 }
 
+.mem-type-stats__empty {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.mem-type-stats__note {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.mem-type-stats__note--payroll {
+  font-size: 0.9rem;
+}
+
 .mem-type-stats__chips {
   display: flex;
   flex-wrap: wrap;
@@ -5735,7 +5750,7 @@ tr:last-child td {
 
 .mem-type-stats__pay-scenarios,
 .mem-type-stats__pay-hint {
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   max-width: 12rem;
   white-space: normal;
   text-align: right;
@@ -6022,7 +6037,7 @@ tr:last-child td {
 .admin-mem-type-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .admin-mem-type-table th,

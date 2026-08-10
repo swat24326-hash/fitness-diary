@@ -100,7 +100,7 @@ export function MembershipTypeStatsTable({
 
   if (!columns.length && !byTrainerByType.length) {
     return (
-      <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+      <p className="muted mem-type-stats__empty">
         Нет завершённых тренировок и списаний за период.
       </p>
     )
@@ -176,12 +176,10 @@ export function MembershipTypeStatsTable({
   return (
     <div className="mem-type-stats">
       {note ? (
-        <p className="muted mem-type-stats__note" style={{ margin: '0 0 10px', fontSize: 13, lineHeight: 1.45 }}>
-          {note}
-        </p>
+        <p className="muted mem-type-stats__note">{note}</p>
       ) : null}
       {payrollForecast ? (
-        <p className="muted mem-type-stats__note" style={{ margin: '0 0 10px', fontSize: 12, lineHeight: 1.45 }}>
+        <p className="muted mem-type-stats__note mem-type-stats__note--payroll">
           ЗП за период: база по текущему уровню плана; итого — с надбавкой кабинета. Без плана — ур. 3 и сценарии
           1/2/3. Подсказка — линейный прогноз до конца периода.
         </p>
