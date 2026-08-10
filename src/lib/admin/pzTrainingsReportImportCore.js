@@ -7,6 +7,7 @@ import {
   salesTrainingCellKey,
   SALES_TRAINING_TYPE_NONE,
 } from './salesTrainingsMatrix.js'
+import { foldLatinCyrillicLookalikes } from './textMatchNormalizeCore.js'
 
 /**
  * @param {unknown} cell
@@ -40,11 +41,13 @@ export function parsePzReportPeriodDate(text) {
 
 /** @param {string} raw */
 export function normalizePzTypeCodeKey(raw) {
-  return pzReportCellText(raw)
-    .toLowerCase()
-    .replace(/ё/g, 'е')
-    .replace(/[.\s_-]+/g, '')
-    .replace(/^vip(?=\d)/, 'vip')
+  return foldLatinCyrillicLookalikes(
+    pzReportCellText(raw)
+      .toLowerCase()
+      .replace(/ё/g, 'е')
+      .replace(/[.\s_-]+/g, '')
+      .replace(/^vip(?=\d)/, 'vip'),
+  )
 }
 
 /**
@@ -53,7 +56,7 @@ export function normalizePzTypeCodeKey(raw) {
  */
 export function canonicalizePzExcelTypeHeader(raw) {
   const k = normalizePzTypeCodeKey(raw)
-  if (!k || k === 'итого' || k === 'total') return null
+  if (!k || k === 'итого' || k === 'itogo' || k === 'total') return null
   if (k === 'см' || k === 'cm') return 'cm'
   if (k === 'brilliant' || k === 'br') return 'br'
   if (k === 'diamond' || k === 'dm') return 'dm'

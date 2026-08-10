@@ -41,6 +41,9 @@ ok(canonicalizePzExcelTypeHeader('.VIP 3') === 'vip3', 'vip3 header')
 ok(canonicalizePzExcelTypeHeader('Brilliant') === 'br', 'br header')
 ok(canonicalizePzExcelTypeHeader('см') === 'cm', 'cm header')
 ok(canonicalizePzExcelTypeHeader('Итого') == null, 'skip итого')
+ok(canonicalizePzExcelTypeHeader('СОТ') === 'cot', 'cyrillic СОТ → cot')
+ok(canonicalizePzExcelTypeHeader('COT') === 'cot', 'latin COT → cot')
+ok(canonicalizePzExcelTypeHeader('БЗ') === 'bz', 'cyrillic БЗ → bz')
 
 const types = [
   { id: 't-vip3', code: 'Vip 3', trainer_assignable: true },
@@ -50,10 +53,13 @@ const types = [
   { id: 't-dm', code: 'Dm', trainer_assignable: true },
   { id: 't-el', code: 'El', trainer_assignable: true },
   { id: 't-cm', code: 'CM', trainer_assignable: true },
+  { id: 't-cot', code: 'COT', trainer_assignable: true },
 ]
 ok(matchMembershipTypeByExcelHeader('VIP 3', types)?.id === 't-vip3', 'match vip3')
 ok(matchMembershipTypeByExcelHeader('.VIP', types)?.id === 't-vip1', 'match vip1')
 ok(matchMembershipTypeByExcelHeader('  .Diamond', types)?.id === 't-dm', 'match diamond header')
+ok(matchMembershipTypeByExcelHeader('СОТ', types)?.id === 't-cot', 'match cyrillic СОТ to latin COT')
+ok(matchMembershipTypeByExcelHeader('COT', types)?.id === 't-cot', 'match latin COT')
 
 const trainers = [
   { id: 'tr1', name: 'Житомирский Евгений' },
@@ -129,6 +135,26 @@ ok(parsed.matchedTotal === 16, `matched total ${parsed.matchedTotal}`)
 ok(parsed.unmatchedTrainers.some((n) => /Чужой/i.test(n)), 'unmatched trainer listed')
 ok(pzTrainingsReportDateMatches(parsed.reportDate, '2026-08-05'), 'date match')
 ok(!pzTrainingsReportDateMatches(parsed.reportDate, '2026-08-06'), 'date mismatch')
+
+const sotAoa = [
+  ['Параметры:', 'Период: 09.08.2026 - 09.08.2026'],
+  [],
+  ['Тренер', '4*', 'СОТ', 'Итого'],
+  ['', 'Кол занятий групп', 'Кол занятий групп', 'Кол занятий групп'],
+  ['Солоушкин Михаил', '4', '1', '5'],
+  ['Итого', '4', '1', '5'],
+]
+const sotParsed = parsePzTrainingsReportAoA(sotAoa, {
+  trainers: [{ id: 'tr-s', name: 'Солоушкин Михаил' }],
+  membershipTypes: [
+    { id: 't4', code: '4*', trainer_assignable: true },
+    { id: 't-cot', code: 'COT', trainer_assignable: true },
+  ],
+})
+ok(sotParsed.ok === true, 'СОТ file parse ok')
+ok(sotParsed.unmatchedColumns.length === 0, `СОТ matched columns (${sotParsed.unmatchedColumns.join(',')})`)
+ok(sotParsed.matchedTotal === 5, `СОТ matched total ${sotParsed.matchedTotal}`)
+ok(sotParsed.fileTotal === 5, 'СОТ file total')
 
 const resolvedNew = resolveTrainingsMatrixForPersist(parsed.matrixInput, ['tr1', 'tr2'], types)
 ok(resolvedNew.ok === true, 'persist new ok')
