@@ -275,7 +275,31 @@ export function buildPaymentClientLinkActions(input) {
       continue
     }
 
-    if (matchStatus === 'one' && clientId) {
+    if (matchStatus === 'archived') {
+      if (!clientId) {
+        actions.push({
+          ...base,
+          kind: 'card_conflict',
+          label: 'Архив без карточки',
+          error:
+            String(l.matchReason ?? '').trim() ||
+            `Клиент с картой №${card} в архиве, но id не определён — откройте «Клиенты», не создавайте дубль`,
+          status: 'pending',
+        })
+        continue
+      }
+      base.attachClientId = clientId
+      base.needsRestore = true
+      // Уже есть абон этого зала — только вернуть из архива, без второго абона
+      if (matchedHalls.has(hall)) {
+        actions.push({
+          ...base,
+          kind: 'restore_archived',
+          label: 'Вернуть из архива',
+        })
+        continue
+      }
+    } else if (matchStatus === 'one' && clientId) {
       // Уже есть абон/контур этого зала — не предлагать «Создать» снова
       const alreadyHasHall =
         matchedHalls.has(hall) || !matchedHallKind || matchedHallKind === hall
@@ -292,20 +316,30 @@ export function buildPaymentClientLinkActions(input) {
     }
 
     if (hall === 'pz') {
+      const restore = Boolean(base.needsRestore)
       actions.push({
         ...base,
         kind: 'pz_need_trainer',
-        label: base.attachClientId ? 'ПЗ: абон к существующей карточке' : 'ПЗ: выбрать тренера',
+        label: restore
+          ? 'ПЗ: вернуть из архива'
+          : base.attachClientId
+            ? 'ПЗ: абон к существующей карточке'
+            : 'ПЗ: выбрать тренера',
       })
       continue
     }
 
     if (hall === 'az') {
       const dir = matchAzDirectionFromTariff(l.tariffName, azTypes)
+      const restore = Boolean(base.needsRestore)
       actions.push({
         ...base,
         kind: 'az_desk',
-        label: base.attachClientId ? 'АЗ: абон к карточке' : 'АЗ: desk-карточка',
+        label: restore
+          ? 'АЗ: вернуть из архива'
+          : base.attachClientId
+            ? 'АЗ: абон к карточке'
+            : 'АЗ: desk-карточка',
         membershipTypeId: dir?.id ? String(dir.id) : '',
         membershipTypeLabel: dir ? String(dir.name || dir.code || '') : '',
       })
@@ -313,10 +347,15 @@ export function buildPaymentClientLinkActions(input) {
     }
 
     if (hall === 'tz') {
+      const restore = Boolean(base.needsRestore)
       actions.push({
         ...base,
         kind: 'tz_desk',
-        label: base.attachClientId ? 'ТЗ: абон к карточке' : 'ТЗ: desk-карточка',
+        label: restore
+          ? 'ТЗ: вернуть из архива'
+          : base.attachClientId
+            ? 'ТЗ: абон к карточке'
+            : 'ТЗ: desk-карточка',
       })
       continue
     }
@@ -342,6 +381,12 @@ export function resolvePzLinkMode(trainer) {
 export function validatePaymentLinkAction(action, trainer) {
   const kind = action?.kind
   if (kind === 'skip_matched' || kind === 'skip_cross_hall') return { ok: true }
+  if (kind === 'restore_archived') {
+    if (!String(action?.attachClientId || action?.clientId || '').trim()) {
+      return { ok: false, error: 'Нет карточки для возврата из архива' }
+    }
+    return { ok: true }
+  }
   if (kind === 'card_conflict') {
     return {
       ok: false,
@@ -381,6 +426,7 @@ export function summarizePaymentClientLinkActions(actions) {
   let pzPending = 0
   let deskPending = 0
   let cardConflict = 0
+  let restorePending = 0
   let pzAmount = 0
   let pzReady = 0
   for (const a of actions ?? []) {
@@ -394,6 +440,10 @@ export function summarizePaymentClientLinkActions(actions) {
     }
     if (a?.status === 'done') {
       done += 1
+      continue
+    }
+    if (a?.kind === 'restore_archived') {
+      restorePending += 1
       continue
     }
     if (a?.kind === 'pz_need_trainer') {
@@ -412,9 +462,10 @@ export function summarizePaymentClientLinkActions(actions) {
     pzPending,
     deskPending,
     cardConflict,
+    restorePending,
     pzReady,
     pzAmount: Math.round(pzAmount),
-    needWork: pzPending + deskPending + cardConflict,
+    needWork: pzPending + deskPending + cardConflict + restorePending,
   }
 }
 
@@ -445,13 +496,16 @@ export function partitionPaymentClientLinkNeedWork(actions) {
   const desk = []
   /** @type {object[]} */
   const conflicts = []
+  /** @type {object[]} */
+  const restores = []
   for (const a of actions ?? []) {
     if (!a || a.status === 'done' || a.kind === 'skip_matched' || a.kind === 'skip_cross_hall') continue
     if (a.kind === 'card_conflict') conflicts.push(a)
+    else if (a.kind === 'restore_archived') restores.push(a)
     else if (a.kind === 'pz_need_trainer') pz.push(a)
     else if (a.kind === 'az_desk' || a.kind === 'tz_desk') desk.push(a)
   }
-  return { pz, desk, conflicts }
+  return { pz, desk, conflicts, restores }
 }
 
 /**

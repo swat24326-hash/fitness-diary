@@ -366,6 +366,176 @@ ok(dayKpiDone.needWork === 0 && dayKpiDone.pzPending === 0 && dayKpiDone.deskPen
 ok(inferPackageMonthsFromTariff('абонемент 6 мес') === 6, '6 мес from tariff')
 ok(parsePaymentLinkCustomPackageMonths('9') === 9, 'custom 9 months ok')
 
+const archivedOnlyRestore = buildPaymentClientLinkActions({
+  lines: [
+    {
+      id: 'arch-1',
+      include: true,
+      hall: 'pz',
+      cardNumber: '9001',
+      clientName: 'Архивный',
+      tariffName: '8/1',
+      amount: 5000,
+      matchStatus: 'archived',
+      clientId: 'c-arch',
+      matchedHallKind: 'pz',
+      matchedHalls: ['pz'],
+    },
+  ],
+})
+ok(archivedOnlyRestore[0]?.kind === 'restore_archived', 'archived + hall abon → restore only')
+ok(archivedOnlyRestore[0]?.needsRestore === true, 'restore flag')
+ok(isPaymentLinkActionReady(archivedOnlyRestore[0], null), 'restore ready without trainer')
+ok(summarizePaymentClientLinkActions(archivedOnlyRestore).restorePending === 1, 'summary restore')
+ok(partitionPaymentClientLinkNeedWork(archivedOnlyRestore).restores.length === 1, 'partition restores')
+
+const archivedNeedAbon = buildPaymentClientLinkActions({
+  lines: [
+    {
+      id: 'arch-2',
+      include: true,
+      hall: 'tz',
+      cardNumber: '9001',
+      clientName: 'Архивный',
+      tariffName: '',
+      amount: 8000,
+      matchStatus: 'archived',
+      clientId: 'c-arch',
+      matchedHallKind: 'pz',
+      matchedHalls: ['pz'],
+    },
+  ],
+})
+ok(archivedNeedAbon[0]?.kind === 'tz_desk', 'archived without TZ abon → desk + restore')
+ok(archivedNeedAbon[0]?.needsRestore === true, 'desk restore flag')
+ok(archivedNeedAbon[0]?.attachClientId === 'c-arch', 'attach archived client')
+ok(String(archivedNeedAbon[0]?.label || '').includes('архив'), 'label mentions archive')
+
+const archivedPz = buildPaymentClientLinkActions({
+  lines: [
+    {
+      id: 'arch-3',
+      include: true,
+      hall: 'pz',
+      cardNumber: '9003',
+      clientName: 'Вернуть ПЗ',
+      tariffName: '4/1',
+      amount: 3000,
+      matchStatus: 'archived',
+      clientId: 'c-arch-pz',
+      matchedHalls: [],
+    },
+  ],
+})
+ok(archivedPz[0]?.kind === 'pz_need_trainer', 'archived PZ without abon → need trainer')
+ok(archivedPz[0]?.needsRestore === true, 'PZ restore flag')
+ok(!isPaymentLinkActionReady(archivedPz[0], null), 'PZ restore still needs trainer')
+
+// —— критические ветки: архив / дубли / не создать ——
+const archivedNoId = buildPaymentClientLinkActions({
+  lines: [
+    {
+      id: 'arch-bad',
+      include: true,
+      hall: 'pz',
+      cardNumber: '9090',
+      clientName: 'Без id',
+      tariffName: '8/1',
+      amount: 1,
+      matchStatus: 'archived',
+      clientId: null,
+    },
+  ],
+})
+ok(archivedNoId[0]?.kind === 'card_conflict', 'archived without clientId → no create')
+ok(!isPaymentLinkActionReady(archivedNoId[0], { id: 't1', uses_tablet: true }), 'archived no-id not ready')
+
+const archivedAz = buildPaymentClientLinkActions({
+  lines: [
+    {
+      id: 'arch-az',
+      include: true,
+      hall: 'az',
+      cardNumber: '9004',
+      clientName: 'АЗ архив',
+      tariffName: '10 занятий Бокс',
+      amount: 3600,
+      matchStatus: 'archived',
+      clientId: 'c-az-arch',
+      matchedHalls: [],
+    },
+  ],
+  azTypes,
+})
+ok(archivedAz[0]?.kind === 'az_desk' && archivedAz[0]?.needsRestore, 'archived AZ → desk restore')
+ok(archivedAz[0]?.membershipTypeId === 'b1', 'archived AZ keeps direction from tariff')
+ok(validatePaymentLinkAction(archivedAz[0], null).ok, 'archived AZ ready with months')
+
+ok(
+  !validatePaymentLinkAction({ kind: 'restore_archived', attachClientId: '' }, null).ok,
+  'restore_archived rejects empty id',
+)
+
+const archivedSibling = buildPaymentClientLinkActions({
+  lines: [
+    {
+      id: 's-pz',
+      include: true,
+      hall: 'pz',
+      cardNumber: '7777',
+      clientName: 'Сиблинг',
+      tariffName: '8/1',
+      amount: 1,
+      matchStatus: 'archived',
+      clientId: 'c-sib',
+      matchedHalls: ['pz'],
+    },
+    {
+      id: 's-tz',
+      include: true,
+      hall: 'tz',
+      cardNumber: '7777',
+      clientName: 'Сиблинг',
+      tariffName: '',
+      amount: 2,
+      matchStatus: 'archived',
+      clientId: 'c-sib',
+      matchedHalls: ['pz'],
+    },
+  ],
+})
+const sibRestore = archivedSibling.find((a) => a.kind === 'restore_archived')
+const sibTz = archivedSibling.find((a) => a.kind === 'tz_desk')
+ok(sibRestore && sibTz, 'same card: restore PZ abon + TZ attach')
+ok(sibTz?.needsRestore === true && sibTz?.attachClientId === 'c-sib', 'TZ sibling restores same archived')
+ok(
+  siblingPaymentLinkActionsSameCard(archivedSibling, sibRestore).some((a) => a.kind === 'tz_desk'),
+  'restore has TZ sibling hint',
+)
+
+const conflictBeatsArchive = buildPaymentClientLinkActions({
+  lines: [
+    {
+      id: 'cf',
+      include: true,
+      hall: 'pz',
+      cardNumber: '1',
+      clientName: 'X',
+      tariffName: '8/1',
+      amount: 1,
+      matchStatus: 'conflict',
+      clientId: 'ignored',
+    },
+  ],
+})
+ok(conflictBeatsArchive[0]?.kind === 'card_conflict', 'conflict status wins over any clientId')
+
+const sumArch = summarizePaymentClientLinkActions([...archivedOnlyRestore, ...archivedNeedAbon, ...archivedNoId])
+ok(sumArch.restorePending === 1, 'mixed summary: one restore_only')
+ok(sumArch.deskPending === 1, 'mixed summary: one desk restore+abon')
+ok(sumArch.cardConflict === 1, 'mixed summary: one conflict')
+ok(sumArch.needWork === 3, 'mixed summary needWork')
+
 if (failed) {
   console.error(`\n${failed} failed`)
   process.exit(1)

@@ -125,10 +125,43 @@ export function narrowClientMatchesByPaymentName(matches, paymentName) {
 }
 
 /**
+ * @param {object[]} matches
+ * @param {{ oneReason: string, archivedReason: string, conflictReason: string, noneReason: string }} labels
+ * @returns {{ status: 'none'|'one'|'archived'|'conflict', client?: object, matches: object[], reason: string }}
+ */
+function finalizeClientMatchResult(matches, labels) {
+  const list = Array.isArray(matches) ? matches : []
+  if (list.length === 1) {
+    const client = list[0]
+    if (isClientArchived(client)) {
+      return {
+        status: 'archived',
+        client,
+        matches: list,
+        reason: labels.archivedReason,
+      }
+    }
+    return { status: 'one', client, matches: list, reason: labels.oneReason }
+  }
+  if (list.length > 1) {
+    return {
+      status: 'conflict',
+      matches: list,
+      reason: labels.conflictReason,
+    }
+  }
+  return {
+    status: 'none',
+    matches: [],
+    reason: labels.noneReason,
+  }
+}
+
+/**
  * @param {object[]} clients
  * @param {string} cardNumber
  * @param {{ preferOperational?: boolean, deskImportResolve?: boolean, paymentName?: string|null }} [opts]
- * @returns {{ status: 'empty'|'none'|'one'|'conflict', client?: object, matches: object[], reason: string }}
+ * @returns {{ status: 'empty'|'none'|'one'|'archived'|'conflict', client?: object, matches: object[], reason: string }}
  */
 export function matchClientsByCardNumber(clients, cardNumber, opts = {}) {
   const n = normalizeSalesCardNumber(cardNumber)
@@ -144,28 +177,19 @@ export function matchClientsByCardNumber(clients, cardNumber, opts = {}) {
   if (opts.paymentName != null && String(opts.paymentName).trim()) {
     matches = narrowClientMatchesByPaymentName(matches, opts.paymentName)
   }
-  if (matches.length === 1) {
-    return { status: 'one', client: matches[0], matches, reason: `Найден по карте №${n}` }
-  }
-  if (matches.length > 1) {
-    return {
-      status: 'conflict',
-      matches,
-      reason: `Два или больше клиентов с картой №${n} — разберите вручную`,
-    }
-  }
-  return {
-    status: 'none',
-    matches: [],
-    reason: `Клиент с картой №${n} не найден в базе данных`,
-  }
+  return finalizeClientMatchResult(matches, {
+    oneReason: `Найден по карте №${n}`,
+    archivedReason: `Клиент с картой №${n} в архиве — можно вернуть`,
+    conflictReason: `Два или больше клиентов с картой №${n} — разберите вручную`,
+    noneReason: `Клиент с картой №${n} не найден в базе данных`,
+  })
 }
 
 /**
  * @param {object[]} clients
  * @param {string} phone
  * @param {{ preferOperational?: boolean, deskImportResolve?: boolean }} [opts]
- * @returns {{ status: 'empty'|'none'|'one'|'conflict', client?: object, matches: object[], reason: string }}
+ * @returns {{ status: 'empty'|'none'|'one'|'archived'|'conflict', client?: object, matches: object[], reason: string }}
  */
 export function matchClientsByPhone(clients, phone, opts = {}) {
   const n = normalizeSalesPhoneDigits(phone)
@@ -181,21 +205,12 @@ export function matchClientsByPhone(clients, phone, opts = {}) {
     return p && p === n
   })
   const matches = narrowClientMatchCandidates(raw, opts)
-  if (matches.length === 1) {
-    return { status: 'one', client: matches[0], matches, reason: `Найден по телефону …${n.slice(-4)}` }
-  }
-  if (matches.length > 1) {
-    return {
-      status: 'conflict',
-      matches,
-      reason: `Два или больше клиентов с телефоном …${n.slice(-4)} — разберите вручную`,
-    }
-  }
-  return {
-    status: 'none',
-    matches: [],
-    reason: 'Клиент с таким телефоном не найден в базе данных',
-  }
+  return finalizeClientMatchResult(matches, {
+    oneReason: `Найден по телефону …${n.slice(-4)}`,
+    archivedReason: `Клиент с телефоном …${n.slice(-4)} в архиве — можно вернуть`,
+    conflictReason: `Два или больше клиентов с телефоном …${n.slice(-4)} — разберите вручную`,
+    noneReason: 'Клиент с таким телефоном не найден в базе данных',
+  })
 }
 
 /**
@@ -207,7 +222,7 @@ export function matchClientsByPhone(clients, phone, opts = {}) {
  *   preferOperational?: boolean,
  * }} input
  * @returns {{
- *   status: 'empty'|'none'|'one'|'conflict',
+ *   status: 'empty'|'none'|'one'|'archived'|'conflict',
  *   client?: object,
  *   matches: object[],
  *   reason: string,
@@ -237,7 +252,7 @@ export function matchClientByCardThenPhone(input) {
 
   if (card) {
     const byCard = matchClientsByCardNumber(clients, card, matchOpts)
-    if (byCard.status === 'one' || byCard.status === 'conflict') {
+    if (byCard.status === 'one' || byCard.status === 'archived' || byCard.status === 'conflict') {
       return {
         ...byCard,
         matchedBy: 'card',
@@ -249,7 +264,7 @@ export function matchClientByCardThenPhone(input) {
 
   if (phone) {
     const byPhone = matchClientsByPhone(clients, phone, matchOpts)
-    if (byPhone.status === 'one') {
+    if (byPhone.status === 'one' || byPhone.status === 'archived') {
       const c = byPhone.client
       const existingCard = normalizeSalesCardNumber(c?.card_number)
       const fillCard = card && !existingCard ? card : null

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertTriangle, Link2, UserPlus } from 'lucide-react'
+import { AlertTriangle, ArchiveRestore, Link2, UserPlus } from 'lucide-react'
 import { formatRub } from '../lib/admin/salesReportCore.js'
 import { listTrainerSummariesForAdmin } from '../lib/dataAccess.js'
 import { listMembershipTypesForClub } from '../lib/membershipTypesService.js'
@@ -83,7 +83,7 @@ export function SalesPaymentsClientLinkSection({
   }, [clubId, lines])
 
   const summary = useMemo(() => summarizePaymentClientLinkActions(actions), [actions])
-  const { pz: pzRows, desk: deskRows, conflicts: conflictRows } = useMemo(
+  const { pz: pzRows, desk: deskRows, conflicts: conflictRows, restores: restoreRows } = useMemo(
     () => partitionPaymentClientLinkNeedWork(actions),
     [actions],
   )
@@ -129,18 +129,35 @@ export function SalesPaymentsClientLinkSection({
       })
       const sibs = siblingPaymentLinkActionsSameCard(actions, action)
       if (res.warning) toast(res.warning)
-      else if (res.result === 'lite') {
+      else if (res.result === 'restored') {
         toast(
-          res.attached
-            ? `ПЗ-абон к карточке: ${action.clientName}`
-            : `Создан lite ПЗ: ${action.clientName}`,
+          res.alreadyActive
+            ? `Уже не в архиве: ${action.clientName}`
+            : `Вернули из архива: ${action.clientName}`,
         )
-      } else if (res.result === 'clip') toast(`Клип тренеру: ${action.clientName}`)
-      else if (res.result === 'az' || res.result === 'tz') {
+      } else if (res.result === 'lite') {
         toast(
-          res.attached
-            ? `Абон ${String(res.result).toUpperCase()} к карточке: ${action.clientName}`
-            : `Desk ${String(res.result).toUpperCase()}: ${action.clientName}`,
+          res.restored
+            ? `Из архива + lite ПЗ: ${action.clientName}`
+            : res.attached
+              ? `ПЗ-абон к карточке: ${action.clientName}`
+              : `Создан lite ПЗ: ${action.clientName}`,
+        )
+      } else if (res.result === 'clip') {
+        toast(
+          res.restored
+            ? `Из архива + ПЗ: ${action.clientName}`
+            : res.attached
+              ? `ПЗ-абон к карточке: ${action.clientName}`
+              : `Клип тренеру: ${action.clientName}`,
+        )
+      } else if (res.result === 'az' || res.result === 'tz') {
+        toast(
+          res.restored
+            ? `Из архива + абон ${String(res.result).toUpperCase()}: ${action.clientName}`
+            : res.attached
+              ? `Абон ${String(res.result).toUpperCase()} к карточке: ${action.clientName}`
+              : `Desk ${String(res.result).toUpperCase()}: ${action.clientName}`,
         )
       }
       if (sibs.length && !res.attached) {
@@ -199,11 +216,12 @@ export function SalesPaymentsClientLinkSection({
         Карточки из оплат
       </h3>
       <p className="sales-report__hint">
-        Отчёт дня — выше («Подставить»). Здесь — кого ещё нет в базе или кому нужен абон другого зала. Сначала
-        закройте <strong>ПЗ без карточки</strong> (тренер обязателен: без планшета → lite, с планшетом → клип).
-        ТЗ/АЗ — desk без тренера или <strong>абон к уже существующей карточке</strong> того же №. Срок пакета —
-        из тарифа: пресеты 1 / 2 / 3 / 6 / 12 или «Другое…». Если в файле одна карта и ПЗ, и ТЗ — обе строки
-        здесь: второй зал допишется к той же карточке (один клиент в Ядре).
+        Отчёт дня — выше («Подставить»). Здесь — кого ещё нет в базе, кто <strong>в архиве</strong> (вернуть), или
+        кому нужен абон другого зала. Сначала закройте <strong>ПЗ без карточки</strong> (тренер обязателен: без
+        планшета → lite, с планшетом → клип). ТЗ/АЗ — desk без тренера или <strong>абон к уже существующей
+        карточке</strong> того же №. Срок пакета — из тарифа: пресеты 1 / 2 / 3 / 6 / 12 или «Другое…». Если в
+        файле одна карта и ПЗ, и ТЗ — обе строки здесь: второй зал допишется к той же карточке (один клиент в
+        Ядре).
       </p>
 
       <div className="sales-payments-link__kpis" role="group" aria-label="Сводка по файлу">
@@ -230,12 +248,72 @@ export function SalesPaymentsClientLinkSection({
             <strong className="sales-payments-link__kpi-value">{summary.cardConflict}</strong>
           </div>
         ) : null}
+        {summary.restorePending > 0 ? (
+          <div className="sales-payments-link__kpi sales-payments-link__kpi--accent">
+            <span className="sales-payments-link__kpi-label">Из архива</span>
+            <strong className="sales-payments-link__kpi-value">{summary.restorePending}</strong>
+          </div>
+        ) : null}
       </div>
 
       {error ? <p className="sales-report__error">{error}</p> : null}
 
       {!summary.needWork ? (
         <p className="sales-report__hint">Все строки из файла уже есть в базе данных или не требуют карточки.</p>
+      ) : null}
+
+      {restoreRows.length ? (
+        <div className="sales-payments-link__block">
+          <h4 className="sales-payments-link__block-title">
+            <ArchiveRestore size={16} aria-hidden style={{ verticalAlign: -2, marginRight: 6 }} />
+            Клиент в архиве
+          </h4>
+          <p className="muted sales-payments-link__block-hint">
+            Оплата пришла по карте человека из архива, абон этого зала уже есть. Верните карточку в работу — новую
+            не создаём.
+          </p>
+          <div className="sales-payments-import__table-wrap">
+            <table className="sales-payments-import__table">
+              <thead>
+                <tr>
+                  <th>Карта</th>
+                  <th>Клиент</th>
+                  <th>Зал</th>
+                  <th>Сумма</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {restoreRows.map((a) => {
+                  const ready = isPaymentLinkActionReady(a, null)
+                  return (
+                    <tr key={a.id}>
+                      <td>{a.cardNumber}</td>
+                      <td>
+                        <div>{a.clientName || '—'}</div>
+                        <div className="sales-report__hint">в архиве</div>
+                        {a.error ? <div className="sales-report__error">{a.error}</div> : null}
+                      </td>
+                      <td>{paymentLinkHallLabelRu(a.hall)}</td>
+                      <td>{a.amount > 0 ? formatRub(a.amount) : '—'}</td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          disabled={anyBusy || !ready}
+                          onClick={() => void runOne(a)}
+                        >
+                          <ArchiveRestore size={14} aria-hidden />
+                          {busyId === a.id ? '…' : 'Вернуть из архива'}
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       ) : null}
 
       {conflictRows.length ? (
@@ -332,7 +410,10 @@ export function SalesPaymentsClientLinkSection({
                   return (
                     <tr key={a.id} className="sales-payments-link__row--pz">
                       <td>{a.cardNumber}</td>
-                      <td>{a.clientName}</td>
+                      <td>
+                        <div>{a.clientName}</div>
+                        {a.needsRestore ? <div className="sales-report__hint">в архиве</div> : null}
+                      </td>
                       <td>
                         <div>{a.tariffName || '—'}</div>
                         <SalesPaymentsPackageMonthsSelect
@@ -403,7 +484,13 @@ export function SalesPaymentsClientLinkSection({
                           onClick={() => void runOne(a)}
                         >
                           <UserPlus size={14} aria-hidden />
-                          {busyId === a.id ? '…' : a.attachClientId ? 'Дописать абон' : 'Создать'}
+                          {busyId === a.id
+                            ? '…'
+                            : a.needsRestore
+                              ? 'Вернуть и абон'
+                              : a.attachClientId
+                                ? 'Дописать абон'
+                                : 'Создать'}
                         </button>
                       </td>
                     </tr>
@@ -441,7 +528,10 @@ export function SalesPaymentsClientLinkSection({
                   return (
                     <tr key={a.id}>
                       <td>{a.cardNumber}</td>
-                      <td>{a.clientName}</td>
+                      <td>
+                        <div>{a.clientName}</div>
+                        {a.needsRestore ? <div className="sales-report__hint">в архиве</div> : null}
+                      </td>
                       <td>{String(a.hall || '—').toUpperCase()}</td>
                       <td>
                         <div>{a.tariffName || '—'}</div>
@@ -503,7 +593,13 @@ export function SalesPaymentsClientLinkSection({
                           onClick={() => void runOne(a)}
                         >
                           <UserPlus size={14} aria-hidden />
-                          {busyId === a.id ? '…' : a.attachClientId ? 'Дописать абон' : 'Создать'}
+                          {busyId === a.id
+                            ? '…'
+                            : a.needsRestore
+                              ? 'Вернуть и абон'
+                              : a.attachClientId
+                                ? 'Дописать абон'
+                                : 'Создать'}
                         </button>
                       </td>
                     </tr>

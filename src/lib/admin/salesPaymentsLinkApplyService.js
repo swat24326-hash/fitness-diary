@@ -40,6 +40,25 @@ function findClubClientsByCard(clubClients, clubId, cardNumber) {
   return pool
 }
 
+/**
+ * @param {object} existing
+ * @param {object} action
+ * @param {Record<string, unknown>} [extra]
+ */
+function clientUpdatePatch(existing, action, extra = {}) {
+  const now = new Date().toISOString()
+  const patch = {
+    ...existing,
+    ...extra,
+    name: formatClientName(action.clientName) || existing.name,
+    updated_at: now,
+  }
+  if (action?.needsRestore || isClientArchived(existing)) {
+    patch.archived_at = null
+  }
+  return patch
+}
+
 function pickExistingClientForPayment(clubClients, clubId, action) {
   if (action?.attachClientId) {
     const hit = (clubClients ?? []).find((c) => String(c.id) === String(action.attachClientId))
@@ -81,6 +100,9 @@ export async function applyPaymentClientLinkAction(input) {
       error: String(action.error ?? '').trim() || 'Конфликт карты — сначала разберите дубли в «Клиенты»',
     }
   }
+  if (action.kind === 'restore_archived') {
+    return applyRestoreArchivedFromPayment({ action, clubId })
+  }
 
   const trainer = trainers.find((t) => String(t.id) === String(action.trainerId ?? ''))
   const checked = validatePaymentLinkAction(action, trainer)
@@ -101,6 +123,27 @@ export async function applyPaymentClientLinkAction(input) {
   return { ok: false, error: 'Неизвестное действие' }
 }
 
+async function applyRestoreArchivedFromPayment({ action, clubId }) {
+  const clientId = String(action.attachClientId || action.clientId || '').trim()
+  if (!clientId) return { ok: false, error: 'Нет карточки для возврата из архива' }
+  const clubClients = await listClientsByClubId(clubId)
+  const existing = (clubClients ?? []).find((c) => String(c.id) === clientId)
+  if (!existing) return { ok: false, error: 'Клиент не найден в клубе' }
+  if (!isClientArchived(existing)) {
+    return { ok: true, result: 'restored', clientId, alreadyActive: true }
+  }
+  const patch = clientUpdatePatch(existing, action)
+  await saveLocalWithSync('clients', patch, {
+    table_name: 'clients',
+    operation: 'update',
+    remote_id: clientId,
+  })
+  const flush = await flushCriticalWritesToCloud()
+  const warn = criticalWriteCloudWarning(flush, 'Возврат из архива')
+  dispatchLocalDataChanged({ reason: 'payments-link-restore', clientId })
+  return { ok: true, result: 'restored', clientId, warning: warn || null }
+}
+
 async function applyLiteFromPayment({ action, clubId, reportDate, trainers }) {
   const noTab = listNoTabletTrainersForClub(trainers, clubId)
   const months = parsePaymentLinkCustomPackageMonths(action.packageMonths)
@@ -115,12 +158,9 @@ async function applyLiteFromPayment({ action, clubId, reportDate, trainers }) {
   if (existing?.id) {
     const now = new Date().toISOString()
     const clientId = String(existing.id)
-    const patch = {
-      ...existing,
+    const patch = clientUpdatePatch(existing, action, {
       trainer_id: action.trainerId || existing.trainer_id,
-      name: formatClientName(action.clientName) || existing.name,
-      updated_at: now,
-    }
+    })
     await saveLocalWithSync('clients', patch, {
       table_name: 'clients',
       operation: 'update',
@@ -144,9 +184,12 @@ async function applyLiteFromPayment({ action, clubId, reportDate, trainers }) {
       { table_name: 'memberships', operation: 'insert', remote_id: null },
     )
     const flush = await flushCriticalWritesToCloud()
-    const warn = criticalWriteCloudWarning(flush, 'Lite ПЗ к существующей карточке')
+    const warn = criticalWriteCloudWarning(
+      flush,
+      action.needsRestore ? 'Lite ПЗ: возврат из архива' : 'Lite ПЗ к существующей карточке',
+    )
     dispatchLocalDataChanged({ reason: 'payments-link-lite-attach', clientId })
-    return { ok: true, result: 'lite', clientId, attached: true, warning: warn || null }
+    return { ok: true, result: 'lite', clientId, attached: true, restored: Boolean(action.needsRestore), warning: warn || null }
   }
 
   const form = {
@@ -203,12 +246,9 @@ async function applyClipFromPayment({ action, clubId, reportDate, trainer }) {
   if (existingPick.client?.id) {
     const now = new Date().toISOString()
     const clientId = String(existingPick.client.id)
-    const patch = {
-      ...existingPick.client,
+    const patch = clientUpdatePatch(existingPick.client, action, {
       trainer_id: action.trainerId || existingPick.client.trainer_id,
-      name: formatClientName(action.clientName) || existingPick.client.name,
-      updated_at: now,
-    }
+    })
     await saveLocalWithSync('clients', patch, {
       table_name: 'clients',
       operation: 'update',
@@ -232,9 +272,12 @@ async function applyClipFromPayment({ action, clubId, reportDate, trainer }) {
       { table_name: 'memberships', operation: 'insert', remote_id: null },
     )
     const flush = await flushCriticalWritesToCloud()
-    const warn = criticalWriteCloudWarning(flush, 'ПЗ-абон к существующей карточке')
+    const warn = criticalWriteCloudWarning(
+      flush,
+      action.needsRestore ? 'ПЗ: возврат из архива' : 'ПЗ-абон к существующей карточке',
+    )
     dispatchLocalDataChanged({ reason: 'payments-link-pz-attach', clientId })
-    return { ok: true, result: 'clip', clientId, attached: true, warning: warn || null }
+    return { ok: true, result: 'clip', clientId, attached: true, restored: Boolean(action.needsRestore), warning: warn || null }
   }
   const data = await createSaleClip({
     club_id: clubId,
@@ -278,6 +321,14 @@ async function applyDeskFromPayment({ action, clubId, reportDate }) {
 
   if (existing?.id) {
     const clientId = String(existing.id)
+    if (action.needsRestore || isClientArchived(existing)) {
+      const patch = clientUpdatePatch(existing, action)
+      await saveLocalWithSync('clients', patch, {
+        table_name: 'clients',
+        operation: 'update',
+        remote_id: clientId,
+      })
+    }
     await saveLocalWithSync(
       'memberships',
       { ...memRow, client_id: clientId },
@@ -285,9 +336,12 @@ async function applyDeskFromPayment({ action, clubId, reportDate }) {
     )
     // legacy desk_hall: если клиент был чистый ПЗ — не затираем trainer; desk_hall можно не ставить
     const flush = await flushCriticalWritesToCloud()
-    const warn = criticalWriteCloudWarning(flush, 'Desk-абон к карточке')
+    const warn = criticalWriteCloudWarning(
+      flush,
+      action.needsRestore ? 'Desk: возврат из архива' : 'Desk-абон к карточке',
+    )
     dispatchLocalDataChanged({ reason: 'payments-link-desk-attach', clientId })
-    return { ok: true, result: hall, clientId, attached: true, warning: warn || null }
+    return { ok: true, result: hall, clientId, attached: true, restored: Boolean(action.needsRestore), warning: warn || null }
   }
 
   const cardCheck = assertClubCardAvailableForCreate(clubClients, clubId, action.cardNumber)

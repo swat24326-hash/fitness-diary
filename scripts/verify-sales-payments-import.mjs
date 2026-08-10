@@ -12,7 +12,9 @@ import {
   tryParseClientSaleRow,
 } from '../src/lib/admin/salesPaymentsImportCore.js'
 import {
+  assertClubCardAvailableForCreate,
   looksLikeSalesCardNumber,
+  matchClientByCardThenPhone,
   matchClientsByCardNumber,
   normalizeSalesCardNumber,
 } from '../src/lib/admin/salesClientMatchCore.js'
@@ -107,6 +109,81 @@ const matchOneByName = matchClientsByCardNumber(
   { paymentName: 'Шведов Даниил Дмитриевич' },
 )
 ok(matchOneByName.status === 'one' && matchOneByName.client?.id === 's1', 'name disambiguates to one')
+
+const matchArchived = matchClientsByCardNumber(
+  [{ id: 'c-arch', card_number: '9001', name: 'Архивный', archived_at: '2026-01-01T00:00:00.000Z' }],
+  '9001',
+  { preferOperational: true },
+)
+ok(matchArchived.status === 'archived' && matchArchived.client?.id === 'c-arch', 'only archive → archived status')
+
+const matchPreferLive = matchClientsByCardNumber(
+  [
+    { id: 'c-live', card_number: '9002', name: 'Живой' },
+    { id: 'c-old', card_number: '9002', name: 'Старый', archived_at: '2026-01-01T00:00:00.000Z' },
+  ],
+  '9002',
+  { preferOperational: true },
+)
+ok(matchPreferLive.status === 'one' && matchPreferLive.client?.id === 'c-live', 'prefer live over archive')
+
+const archivedEnrich = enrichSalesPaymentLines({
+  lines: [{ id: 'a1', hall: 'pz', cardNumber: '9001', name: 'Архивный', amount: 1000, tariffName: '8/1' }],
+  reportDate: '2026-08-10',
+  clients: [{ id: 'c-arch', card_number: '9001', name: 'Архивный', archived_at: '2026-01-01T00:00:00.000Z' }],
+  membershipsByClientId: {},
+})
+ok(archivedEnrich[0]?.matchStatus === 'archived', 'enrich keeps archived status')
+ok(archivedEnrich[0]?.clientId === 'c-arch', 'enrich keeps archived clientId')
+
+const matchTwoArchived = matchClientsByCardNumber(
+  [
+    { id: 'a1', card_number: '9010', name: 'А один', archived_at: '2026-01-01T00:00:00.000Z' },
+    { id: 'a2', card_number: '9010', name: 'А два', archived_at: '2026-02-01T00:00:00.000Z' },
+  ],
+  '9010',
+  { preferOperational: true },
+)
+ok(matchTwoArchived.status === 'conflict', 'two archived same card → conflict (не угадываем)')
+
+const matchArchivedByName = matchClientsByCardNumber(
+  [
+    { id: 'a1', card_number: '9011', name: 'Иванов Иван', archived_at: '2026-01-01T00:00:00.000Z' },
+    { id: 'a2', card_number: '9011', name: 'Петров Пётр', archived_at: '2026-01-01T00:00:00.000Z' },
+  ],
+  '9011',
+  { preferOperational: true, paymentName: 'Иванов Иван Сергеевич' },
+)
+ok(
+  matchArchivedByName.status === 'archived' && matchArchivedByName.client?.id === 'a1',
+  'name disambiguates two archived → one restore candidate',
+)
+
+const createBlockedByArchive = assertClubCardAvailableForCreate(
+  [{ id: 'c-arch', club_id: 'club1', card_number: '9001', name: 'Архивный', archived_at: '2026-01-01' }],
+  'club1',
+  '9001',
+)
+ok(!createBlockedByArchive.ok, 'create blocked when only archived holds the card')
+ok(String(createBlockedByArchive.error || '').includes('архиве'), 'create error mentions archive')
+
+const cascadeArchived = matchClientByCardThenPhone({
+  clients: [{ id: 'c-arch', card_number: '9001', name: 'Архивный', archived_at: '2026-01-01T00:00:00.000Z' }],
+  cardNumber: '9001',
+  preferOperational: true,
+})
+ok(cascadeArchived.status === 'archived' && cascadeArchived.matchedBy === 'card', 'cascade returns archived')
+
+const archivedWithHalls = enrichSalesPaymentLines({
+  lines: [{ id: 'a2', hall: 'pz', cardNumber: '9001', name: 'Архивный', amount: 1, tariffName: '8/1' }],
+  reportDate: '2026-08-10',
+  clients: [{ id: 'c-arch', card_number: '9001', name: 'Архивный', archived_at: '2026-01-01T00:00:00.000Z', trainer_id: 't1' }],
+  membershipsByClientId: {
+    'c-arch': [{ start_date: '2025-01-01', end_date: '2025-06-01', hall: 'pz', total_trainings: 8, used_trainings: 8 }],
+  },
+})
+ok(archivedWithHalls[0]?.matchStatus === 'archived', 'enrich archived with old PZ mem')
+ok(archivedWithHalls[0]?.matchedHalls?.includes('pz'), 'enrich matchedHalls includes pz for restore-only')
 
 const tzEmpty = suggestImportProfitBucket({
   hall: 'tz',
