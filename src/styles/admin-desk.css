@@ -523,6 +523,93 @@
   background: color-mix(in srgb, var(--accent-bright, #e8a838) 16%, transparent);
 }
 
+/* Карточки сводки: три зоны одной высоты — цифры в одном ряду (не «пляшут»). */
+.admin-club-stats-board__grid {
+  align-items: stretch;
+}
+
+.admin-club-stat-card.card.stat-card {
+  display: grid;
+  grid-template-rows: 2.75rem minmax(2.85rem, 1fr) 2.7em;
+  gap: 8px;
+  align-content: stretch;
+  min-height: 168px;
+  height: 100%;
+}
+
+.admin-club-stat-card__head.stat-card__top {
+  min-height: 0;
+  height: 100%;
+  align-items: flex-start;
+  margin: 0;
+  gap: 8px;
+}
+
+.admin-club-stat-card__title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 0;
+  line-height: 1.25;
+  hyphens: auto;
+}
+
+.admin-club-stat-card__value.stat-card__value {
+  margin: 0;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  align-self: stretch;
+  flex: unset;
+}
+
+.admin-club-stat-card__value.stat-card__value.admin-club-stat-card__value--pnk,
+.admin-club-stat-card__value.stat-card__value:has(.admin-club-stat-card__value-unit),
+.admin-club-stat-card__value.stat-card__value.admin-club-stat-card__value--months {
+  align-items: flex-end;
+}
+
+.admin-club-stat-card__foot {
+  margin: 0;
+  min-height: 0;
+  height: 100%;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.35;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+@media (min-width: 900px) {
+  .app-shell--admin .admin-club-stat-card.card.stat-card {
+    min-height: 172px;
+    grid-template-rows: 2.85rem minmax(2.85rem, 1fr) 2.7em;
+  }
+
+  .app-shell--admin .admin-club-stat-card__title {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: 0;
+    font-size: 0.92rem;
+  }
+
+  .app-shell--admin .admin-club-stat-card__head.stat-card__top {
+    min-height: 0;
+    align-items: flex-start;
+  }
+
+  .app-shell--admin .admin-club-stat-card__foot {
+    min-height: 0;
+    font-size: 12px;
+  }
+}
+
 .admin-multi-hall-pane {
   margin-top: 0.5rem;
 }

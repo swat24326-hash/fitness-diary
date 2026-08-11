@@ -363,7 +363,6 @@ export function AdminClubStatsSection({
   }, [stats?.coachQuality?.trainers])
 
   const coachQualityAvg = stats?.coachQuality?.averageScorePct ?? null
-  const coachQualityBriefChip = !isTrainerScope ? stats?.coachQuality?.brief?.chipLabel ?? null : null
   const selfCoachQuality = isTrainerScope
     ? coachQualityByTrainer.get(String(scopeTrainerId)) ?? null
     : null
@@ -626,7 +625,7 @@ export function AdminClubStatsSection({
               {inlinePanel === 'pnk'
                 ? 'скрыть отчёт'
                 : isTrainerScope
-                  ? 'нажмите · мои оформления / ПНК'
+                  ? 'нажмите · ПНК'
                   : 'нажмите · оформления / ПНК'}
             </p>
           </button>
@@ -705,7 +704,7 @@ export function AdminClubStatsSection({
                 ? inlinePanel === 'byTypes'
                   ? 'скрыть таблицу'
                   : showPzOnlyCards
-                    ? 'нажмите для таблицы · «Итого» без «Без типа»'
+                    ? 'нажмите для таблицы'
                     : `абоны ${CLUB_STATS_HALL_LABELS[statsHall] || ''} · нажмите`
                 : showPzOnlyCards
                   ? 'за выбранный период'
@@ -735,8 +734,8 @@ export function AdminClubStatsSection({
             </p>
             <p className="admin-club-stat-card__foot">
               {inlinePanel === 'clubMonthly'
-                ? `скрыть · календарный ${monthlyChartYear}`
-                : `календарный ${defaultChartYear} · не период сверху`}
+                ? `скрыть · ${monthlyChartYear}`
+                : `год ${defaultChartYear} · не период сверху`}
             </p>
           </button>
           ) : null}
@@ -758,7 +757,7 @@ export function AdminClubStatsSection({
                 {byTrainer.length
                   ? inlinePanel === 'rating'
                     ? 'скрыть рейтинг'
-                    : `лидер: ${trainerLabel(byTrainer[0].trainerId)} · нажмите`
+                    : 'нажмите · рейтинг'
                   : 'за выбранный период'}
               </p>
             </button>
@@ -806,9 +805,7 @@ export function AdminClubStatsSection({
                     ? 'скрыть таблицу'
                     : isTrainerScope
                       ? 'нажмите · ваша оценка'
-                      : coachQualityBriefChip
-                        ? coachQualityBriefChip
-                        : 'средний балл · нажмите для таблицы'}
+                      : 'средний балл · нажмите'}
             </p>
           </button>
           ) : null}
