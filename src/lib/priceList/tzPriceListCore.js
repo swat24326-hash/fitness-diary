@@ -251,3 +251,159 @@ export function parseTzValidFrom(raw) {
   const d = String(Number(ru[1])).padStart(2, '0')
   return `${y}-${m}-${d}`
 }
+
+/** Типовая сетка «1 месяц» (как на стенде 1КФС) — без цен, только структура. */
+export const TZ_DEFAULT_MONTH1_SESSIONS = [8, 10, null]
+
+/** Типовые сроки акций (мес). */
+export const TZ_DEFAULT_PROMO_MONTHS = [1, 2, 3, 4, 6, 9, 12]
+
+const TZ_DEFAULT_BASE_HOURS = '9:00–22:00 (будни), 9:00–19:00 (вых.)'
+const TZ_DEFAULT_DAY_HOURS = '9:00–17:00 (будни и вых.)'
+
+/**
+ * Пустая типовая сетка ТЗ (как «Сверить с типами» у ПЗ) — можно править без Excel.
+ * @param {object} doc
+ * @param {{ replace?: boolean, includePromo?: boolean }} [opts]
+ */
+export function seedTzPriceListDefaults(doc, opts = {}) {
+  const n = normalizeTzPriceListDocument(doc)
+  const replace = Boolean(opts.replace)
+  const includePromo = opts.includePromo !== false
+  const month1_rows =
+    !replace && n.month1_rows.length
+      ? n.month1_rows
+      : TZ_DEFAULT_MONTH1_SESSIONS.map((sessions, i) =>
+          normalizeTzMonth1Row({ months: 1, sessions }, i),
+        )
+  const promo_rows =
+    !includePromo
+      ? n.promo_rows
+      : !replace && n.promo_rows.length
+        ? n.promo_rows
+        : TZ_DEFAULT_PROMO_MONTHS.map((months, i) =>
+            normalizeTzPromoRow({ months, sessions: null }, i),
+          )
+  return recomputeTzPriceListDerived({
+    ...n,
+    month1_rows,
+    promo_rows,
+    meta: {
+      ...n.meta,
+      base_hours_note: n.meta.base_hours_note || TZ_DEFAULT_BASE_HOURS,
+      day_hours_note: n.meta.day_hours_note || TZ_DEFAULT_DAY_HOURS,
+    },
+  })
+}
+
+/**
+ * @param {object} doc
+ * @param {{ months?: number, sessions?: number | null }} [row]
+ */
+export function addTzMonth1Row(doc, row = {}) {
+  const n = normalizeTzPriceListDocument(doc)
+  const next = normalizeTzMonth1Row(
+    {
+      months: row.months ?? 1,
+      sessions: row.sessions === undefined ? 8 : row.sessions,
+    },
+    n.month1_rows.length,
+  )
+  return recomputeTzPriceListDerived({
+    ...n,
+    month1_rows: [...n.month1_rows, next],
+  })
+}
+
+/**
+ * @param {object} doc
+ * @param {string} id
+ */
+export function removeTzMonth1Row(doc, id) {
+  const n = normalizeTzPriceListDocument(doc)
+  const want = String(id ?? '').trim()
+  return recomputeTzPriceListDerived({
+    ...n,
+    month1_rows: n.month1_rows.filter((r) => r.id !== want),
+  })
+}
+
+/**
+ * @param {object} doc
+ * @param {{ months?: number, sessions?: number | null }} [row]
+ */
+export function addTzPromoRow(doc, row = {}) {
+  const n = normalizeTzPriceListDocument(doc)
+  const next = normalizeTzPromoRow(
+    {
+      months: row.months ?? 3,
+      sessions: row.sessions === undefined ? null : row.sessions,
+    },
+    n.promo_rows.length,
+  )
+  return recomputeTzPriceListDerived({
+    ...n,
+    promo_rows: [...n.promo_rows, next],
+  })
+}
+
+/**
+ * @param {object} doc
+ * @param {string} id
+ */
+export function removeTzPromoRow(doc, id) {
+  const n = normalizeTzPriceListDocument(doc)
+  const want = String(id ?? '').trim()
+  return recomputeTzPriceListDerived({
+    ...n,
+    promo_rows: n.promo_rows.filter((r) => r.id !== want),
+  })
+}
+
+/**
+ * Правка оси строки (срок / кол-во занятий).
+ * @param {object} doc
+ * @param {'month1' | 'promo'} kind
+ * @param {string} id
+ * @param {{ months?: unknown, sessions?: unknown }} patch
+ */
+export function updateTzRowAxis(doc, kind, id, patch) {
+  const n = normalizeTzPriceListDocument(doc)
+  const want = String(id ?? '').trim()
+  if (kind === 'promo') {
+    return recomputeTzPriceListDerived({
+      ...n,
+      promo_rows: n.promo_rows.map((r, i) =>
+        r.id === want
+          ? normalizeTzPromoRow(
+              {
+                ...r,
+                months: patch.months !== undefined ? patch.months : r.months,
+                sessions: patch.sessions !== undefined ? patch.sessions : r.sessions,
+                save: undefined,
+                month_cost: undefined,
+              },
+              i,
+            )
+          : r,
+      ),
+    })
+  }
+  return recomputeTzPriceListDerived({
+    ...n,
+    month1_rows: n.month1_rows.map((r, i) =>
+      r.id === want
+        ? normalizeTzMonth1Row(
+            {
+              ...r,
+              months: patch.months !== undefined ? patch.months : r.months,
+              sessions: patch.sessions !== undefined ? patch.sessions : r.sessions,
+              base_save: undefined,
+              day_save: undefined,
+            },
+            i,
+          )
+        : r,
+    ),
+  })
+}

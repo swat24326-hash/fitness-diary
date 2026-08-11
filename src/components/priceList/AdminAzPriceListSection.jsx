@@ -1,12 +1,20 @@
-import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { FileSpreadsheet, ImageDown, Printer, RefreshCw, Save } from 'lucide-react'
 import {
+  addAzDirection,
+  addAzOtherFee,
+  addAzSessionCount,
   azPriceListHasGrid,
   emptyAzPriceListDocument,
-  getAzPriceListCell,
   normalizeAzPriceListDocument,
   parseAzMoney,
+  removeAzDirection,
+  removeAzOtherFee,
+  removeAzSessionCount,
+  renameAzDirection,
+  seedAzPriceListDefaults,
   setAzPriceListCell,
+  updateAzOtherFee,
 } from '../../lib/priceList/azPriceListCore.js'
 import { fetchAzPriceListForClub, saveAzPriceListForClub } from '../../lib/priceList/azPriceListCloudService.js'
 import { azPriceListLocalHasContent, readAzPriceListLocalEntry } from '../../lib/priceList/azPriceListLocalStorage.js'
@@ -16,8 +24,8 @@ import {
   printAzPriceListDocument,
 } from '../../lib/priceList/azPriceListExportCanvas.js'
 import { buildAzPriceListPrintSheets } from '../../lib/priceList/azPriceListPrintChrome.js'
-import { formatPriceListMoney } from '../../lib/priceList/priceListExportCore.js'
 import { AzPriceListStandFields } from './AzPriceListStandFields.jsx'
+import { AzPriceListMatrix } from './AzPriceListMatrix.jsx'
 import '../../styles/price-list.css'
 import '../../styles/az-price-list.css'
 
@@ -128,17 +136,26 @@ export function AdminAzPriceListSection({ clubId }) {
     )
   }
 
-  const setFeeAmount = (id, raw) => {
-    const amount = String(raw ?? '').trim() === '' ? null : parseAzMoney(raw)
-    patchDoc((prev) => ({
-      ...prev,
-      extras: {
-        ...prev.extras,
-        other_fees: (prev.extras?.other_fees ?? []).map((f) =>
-          f.id === id ? { ...f, amount } : f,
-        ),
-      },
-    }))
+  const handleSeed = () => {
+    const has =
+      (doc.result_directions?.length || 0) +
+      (doc.class_directions?.length || 0) +
+      (doc.session_counts?.length || 0)
+    if (has > 0 && !window.confirm('Заменить текущую сетку типовой? Цены в ячейках останутся, структура направлений сбросится.'))
+      return
+    patchDoc((prev) => seedAzPriceListDefaults(prev, { replace: true }))
+    setToast('Типовая сетка АЗ: Результат1+/2+/3+, Йога/Бокс/Степ, 4/8/10. Заполните цены и сохраните.')
+  }
+
+  const handleAddSession = () => {
+    const raw = window.prompt('Число занятий в новой строке', '12')
+    if (raw == null) return
+    const n = Number(String(raw).replace(/\D/g, ''))
+    if (!(n > 0)) {
+      setToast('Нужно целое число занятий больше 0')
+      return
+    }
+    patchDoc((prev) => addAzSessionCount(prev, n))
   }
 
   const handlePrint = () => {
@@ -149,7 +166,7 @@ export function AdminAzPriceListSection({ clubId }) {
 
   const handlePng = async () => {
     if (!buildAzPriceListPrintSheets(doc).length) {
-      setToast('Сначала загрузите Excel / заполните сетку')
+      setToast('Сначала создайте сетку / загрузите Excel')
       return
     }
     setBusy(true)
@@ -176,8 +193,7 @@ export function AdminAzPriceListSection({ clubId }) {
   const hasGrid = azPriceListHasGrid(doc)
   const hasFees = (doc.extras?.other_fees ?? []).length > 0 || doc.extras?.evening_pt_surcharge != null
   const empty = !hasGrid && !hasFees
-  const directions = view === 'classes' ? doc.class_directions ?? [] : doc.result_directions ?? []
-  const sessions = doc.session_counts ?? []
+  const dirKind = view === 'classes' ? 'classes' : 'result'
 
   return (
     <section className="card price-list az-price-list os-enter" aria-label="Прайс аэробного зала">
@@ -186,8 +202,8 @@ export function AdminAzPriceListSection({ clubId }) {
           <p className="price-list__eyebrow">Витрина клуба</p>
           <h2 className="price-list__title">Прайс · аэробный зал</h2>
           <p className="price-list__lead">
-            Как на стенде: направления × тренировки, две цены в колонке (полная / −10%). Импорт Excel —
-            правка — Сохранить. Печать и PNG — все заполненные листы (Результат, Групповые, Доплаты).
+            Как на стенде: направления × тренировки, полная и −10% (автосвязь). Сетка без Excel или
+            импорт — правка — Сохранить. Печать и PNG — все заполненные листы.
           </p>
         </div>
         <div className="price-list__actions">
@@ -227,6 +243,15 @@ export function AdminAzPriceListSection({ clubId }) {
           >
             <FileSpreadsheet size={16} aria-hidden />
             Excel
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            disabled={busy}
+            onClick={handleSeed}
+            title="Типовые направления Результат + групповые, 4/8/10"
+          >
+            Типовая сетка
           </button>
           <button
             type="button"
@@ -323,134 +348,29 @@ export function AdminAzPriceListSection({ clubId }) {
         <div className="price-list__empty">
           <p className="price-list__empty-title">Сетка ещё пустая</p>
           <p className="muted price-list__hint">
-            Нажмите «Excel» и загрузите прайс АЗ клуба (листы «АЗ», «Лист1», «Доплаты»).
+            «Типовая сетка» — направления как на стенде, или «Excel» с прайсом клуба.
           </p>
+          <button type="button" className="btn btn-primary btn-sm" onClick={handleSeed}>
+            Создать типовую сетку
+          </button>
         </div>
-      ) : null}
-
-      {!empty && (view === 'result' || view === 'classes') ? (
-        directions.length === 0 ? (
-          <p className="muted price-list__hint">Нет направлений на этом листе — загрузите Excel.</p>
-        ) : (
-          <div className="price-list__matrix">
-            <div className="price-list__scroll">
-              <table className="price-list__table az-price-list__table">
-                <thead>
-                  <tr>
-                    <th
-                      rowSpan={2}
-                      className="price-list__sticky price-list__axis price-list__axis--head"
-                    >
-                      Трен.
-                    </th>
-                    {directions.map((d) => (
-                      <th key={d.id} colSpan={2} className="price-list__tariff">
-                        {d.label}
-                      </th>
-                    ))}
-                  </tr>
-                  <tr className="price-list__subhead-row">
-                    {directions.map((d) => (
-                      <Fragment key={`${d.id}-sub`}>
-                        <th scope="col" className="price-list__subhead">
-                          Полная
-                        </th>
-                        <th
-                          scope="col"
-                          className="price-list__subhead price-list__subhead--discount az-price-list__col-stand"
-                        >
-                          −10%
-                        </th>
-                      </Fragment>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {sessions.map((s, ri) => (
-                    <tr key={s} className={ri % 2 ? 'az-price-list__row--band' : undefined}>
-                      <th className="price-list__sticky price-list__axis">{s}</th>
-                      {directions.map((d) => {
-                        const cell = getAzPriceListCell(doc, { sessions: s, directionId: d.id })
-                        return (
-                          <Fragment key={`${s}-${d.id}`}>
-                            <td>
-                              <input
-                                type="number"
-                                inputMode="numeric"
-                                className="input price-list__cell-input"
-                                min={0}
-                                step={1}
-                                value={cell.price_full ?? ''}
-                                onChange={(e) => setCell(s, d.id, 'full', e.target.value)}
-                                aria-label={`${d.label} полная, ${s} тр.`}
-                              />
-                            </td>
-                            <td className="az-price-list__col-stand">
-                              <input
-                                type="number"
-                                inputMode="numeric"
-                                className="input price-list__cell-input"
-                                min={0}
-                                step={1}
-                                value={cell.price_10 ?? ''}
-                                onChange={(e) => setCell(s, d.id, 'off', e.target.value)}
-                                aria-label={`${d.label} стенд, ${s} тр.`}
-                              />
-                            </td>
-                          </Fragment>
-                        )
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="price-list__scroll-hint muted">Колонка стенда — цена −10%</p>
-          </div>
-        )
-      ) : null}
-
-      {!empty && view === 'fees' ? (
-        <div className="az-price-list__fees">
-          {doc.extras?.evening_pt_surcharge != null ? (
-            <p className="az-price-list__fee-note">
-              Доплата ПТ по дневному абонементу вечером:{' '}
-              <strong>{formatPriceListMoney(doc.extras.evening_pt_surcharge)}</strong>
-            </p>
-          ) : null}
-          {(doc.extras?.other_fees ?? []).length === 0 ? (
-            <p className="muted">Нет прочих доплат — загрузите лист «Доплаты» из Excel.</p>
-          ) : (
-            <table className="price-list__table az-price-list__fees-table">
-              <thead>
-                <tr>
-                  <th>Наименование</th>
-                  <th>Сумма</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(doc.extras.other_fees ?? []).map((f) => (
-                  <tr key={f.id}>
-                    <td>{f.name}</td>
-                    <td>
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        className="input price-list__cell-input"
-                        min={0}
-                        step={1}
-                        value={f.amount ?? ''}
-                        onChange={(e) => setFeeAmount(f.id, e.target.value)}
-                        aria-label={f.name}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      ) : null}
+      ) : (
+        <AzPriceListMatrix
+          view={view}
+          doc={doc}
+          onCell={setCell}
+          onRenameDirection={(id, label) =>
+            patchDoc((prev) => renameAzDirection(prev, dirKind, id, label))
+          }
+          onRemoveDirection={(id) => patchDoc((prev) => removeAzDirection(prev, dirKind, id))}
+          onAddDirection={() => patchDoc((prev) => addAzDirection(prev, dirKind))}
+          onAddSession={handleAddSession}
+          onRemoveSession={(s) => patchDoc((prev) => removeAzSessionCount(prev, s))}
+          onFeeChange={(id, patch) => patchDoc((prev) => updateAzOtherFee(prev, id, patch))}
+          onAddFee={() => patchDoc((prev) => addAzOtherFee(prev))}
+          onRemoveFee={(id) => patchDoc((prev) => removeAzOtherFee(prev, id))}
+        />
+      )}
     </section>
   )
 }

@@ -48,6 +48,30 @@ export function TzPriceListStandFields({ doc, onValidFrom, onMeta, onExtras }) {
         </label>
       </div>
 
+      <p className="price-list__stand-label">Часы доступа (легенда стенда)</p>
+      <div className="price-list__meta">
+        <label className="price-list__field price-list__field--grow">
+          <span className="price-list__label">База (полный день)</span>
+          <input
+            type="text"
+            className="input price-list__input-field"
+            value={doc.meta?.base_hours_note ?? ''}
+            onChange={(e) => onMeta('base_hours_note', e.target.value)}
+            placeholder="9:00–22:00 (будни), 9:00–19:00 (вых.)"
+          />
+        </label>
+        <label className="price-list__field price-list__field--grow">
+          <span className="price-list__label">Дневная</span>
+          <input
+            type="text"
+            className="input price-list__input-field"
+            value={doc.meta?.day_hours_note ?? ''}
+            onChange={(e) => onMeta('day_hours_note', e.target.value)}
+            placeholder="9:00–17:00 (будни и вых.)"
+          />
+        </label>
+      </div>
+
       <p className="price-list__stand-label">Подвал (как в Excel)</p>
       <div className="price-list__meta">
         <label className="price-list__field">

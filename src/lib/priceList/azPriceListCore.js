@@ -3,7 +3,7 @@
  * Эталон: scripts/fixtures/az-price-1kfs.xlsx (листы «АЗ», «Лист1», «Доплаты»).
  */
 
-import { roundMoneyRub } from './priceListCore.js'
+import { priceFullFromDiscount10, priceWithDiscount10, roundMoneyRub } from './priceListCore.js'
 
 /** @typedef {'result' | 'classes' | 'fees'} AzPriceListView */
 
@@ -96,19 +96,44 @@ export function getAzPriceListCell(doc, p) {
 
 /**
  * @param {object} doc
- * @param {{ sessions: number, directionId: string, price_full?: number | null, price_10?: number | null }} p
+ * @param {{
+ *   sessions: number,
+ *   directionId: string,
+ *   price_full?: number | null,
+ *   price_10?: number | null,
+ *   linkDiscount?: boolean,
+ * }} p
  */
 export function setAzPriceListCell(doc, p) {
   const n = normalizeAzPriceListDocument(doc)
   const key = azPriceListCellKey(p.sessions, p.directionId)
   const prev = getAzPriceListCell(n, p)
-  const nextCell = {
-    price_full: p.price_full !== undefined ? parseAzMoney(p.price_full) : prev.price_full,
-    price_10: p.price_10 !== undefined ? parseAzMoney(p.price_10) : prev.price_10,
+  const link = p.linkDiscount !== false
+
+  let price_full = p.price_full !== undefined ? parseAzMoney(p.price_full) : undefined
+  let price_10 = p.price_10 !== undefined ? parseAzMoney(p.price_10) : undefined
+
+  // Как у ПЗ: правка полной ↔ стенд −10% (если link).
+  if (link) {
+    if (price_10 != null && price_full === undefined) price_full = priceFullFromDiscount10(price_10)
+    if (price_full != null && price_10 === undefined) price_10 = priceWithDiscount10(price_full)
   }
+
+  const nextFull = price_full !== undefined ? price_full : prev.price_full
+  const next10 = price_10 !== undefined ? price_10 : prev.price_10
+
+  if (nextFull == null && next10 == null) {
+    const next = { ...n.cells }
+    delete next[key]
+    return { ...n, cells: next }
+  }
+
   return {
     ...n,
-    cells: { ...n.cells, [key]: nextCell },
+    cells: {
+      ...n.cells,
+      [key]: { price_full: nextFull, price_10: next10 },
+    },
   }
 }
 
@@ -272,7 +297,217 @@ export function azPriceListHasGrid(doc) {
   const n = normalizeAzPriceListDocument(doc)
   return (
     (n.result_directions.length > 0 || n.class_directions.length > 0) &&
-    n.session_counts.length > 0 &&
-    Object.keys(n.cells).length > 0
+    n.session_counts.length > 0
   )
+}
+
+/** Типовые направления «Результат» (стенд 1КФС). */
+export const AZ_DEFAULT_RESULT_DIRECTIONS = [
+  { id: 'r1plus', label: 'Результат1+' },
+  { id: 'r2plus', label: 'Результат2+' },
+  { id: 'r3plus', label: 'Результат3+' },
+]
+
+/** Типовые групповые направления. */
+export const AZ_DEFAULT_CLASS_DIRECTIONS = [
+  { id: 'yoga', label: 'Йога' },
+  { id: 'box', label: 'Бокс' },
+  { id: 'step', label: 'Степ' },
+]
+
+export const AZ_DEFAULT_SESSION_COUNTS = [4, 8, 10]
+
+/**
+ * Пустая типовая сетка АЗ — правка без Excel (аналог «Сверить с типами» у ПЗ).
+ * @param {object} doc
+ * @param {{ replace?: boolean }} [opts]
+ */
+export function seedAzPriceListDefaults(doc, opts = {}) {
+  const n = normalizeAzPriceListDocument(doc)
+  const replace = Boolean(opts.replace)
+  const result_directions =
+    !replace && n.result_directions.length
+      ? n.result_directions
+      : AZ_DEFAULT_RESULT_DIRECTIONS.map((d, i) => normalizeAzDirection(d, i))
+  const class_directions =
+    !replace && n.class_directions.length
+      ? n.class_directions
+      : AZ_DEFAULT_CLASS_DIRECTIONS.map((d, i) => normalizeAzDirection(d, i))
+  const session_counts =
+    !replace && n.session_counts.length ? n.session_counts : [...AZ_DEFAULT_SESSION_COUNTS]
+  const extras = {
+    ...n.extras,
+    result_plus: n.extras.result_plus ?? 730,
+    one_time_result_plus: n.extras.one_time_result_plus ?? 750,
+    evening_pt_surcharge: n.extras.evening_pt_surcharge ?? 100,
+    other_fees:
+      !replace && n.extras.other_fees.length
+        ? n.extras.other_fees
+        : [
+            normalizeAzOtherFee({ name: 'Клубная карта', amount: 500 }, 0),
+            normalizeAzOtherFee({ name: 'Ключ', amount: 200 }, 1),
+          ],
+  }
+  return normalizeAzPriceListDocument({
+    ...n,
+    result_directions,
+    class_directions,
+    session_counts,
+    extras,
+  })
+}
+
+/**
+ * @param {object} doc
+ * @param {'result' | 'classes'} kind
+ * @param {{ id?: string, label?: string }} [dir]
+ */
+export function addAzDirection(doc, kind, dir = {}) {
+  const n = normalizeAzPriceListDocument(doc)
+  const listKey = kind === 'classes' ? 'class_directions' : 'result_directions'
+  const list = n[listKey]
+  const label = String(dir.label ?? '').trim() || (kind === 'classes' ? 'Новое направление' : 'Результат+')
+  const next = normalizeAzDirection(
+    { id: dir.id || slugAzDirection(label, `dir-${list.length}`), label },
+    list.length,
+  )
+  if (list.some((d) => d.id === next.id)) {
+    next.id = `${next.id}-${list.length + 1}`
+  }
+  return normalizeAzPriceListDocument({
+    ...n,
+    [listKey]: [...list, next],
+  })
+}
+
+/**
+ * @param {object} doc
+ * @param {'result' | 'classes'} kind
+ * @param {string} directionId
+ */
+export function removeAzDirection(doc, kind, directionId) {
+  const n = normalizeAzPriceListDocument(doc)
+  const want = String(directionId ?? '').trim()
+  const listKey = kind === 'classes' ? 'class_directions' : 'result_directions'
+  const cells = { ...n.cells }
+  for (const key of Object.keys(cells)) {
+    if (key.endsWith(`:${want}`)) delete cells[key]
+  }
+  return normalizeAzPriceListDocument({
+    ...n,
+    [listKey]: n[listKey].filter((d) => d.id !== want),
+    cells,
+  })
+}
+
+/**
+ * @param {object} doc
+ * @param {'result' | 'classes'} kind
+ * @param {string} directionId
+ * @param {string} label
+ */
+export function renameAzDirection(doc, kind, directionId, label) {
+  const n = normalizeAzPriceListDocument(doc)
+  const want = String(directionId ?? '').trim()
+  const listKey = kind === 'classes' ? 'class_directions' : 'result_directions'
+  return normalizeAzPriceListDocument({
+    ...n,
+    [listKey]: n[listKey].map((d) => (d.id === want ? { ...d, label: String(label ?? '').trim() || d.label } : d)),
+  })
+}
+
+/**
+ * @param {object} doc
+ * @param {number} sessions
+ */
+export function addAzSessionCount(doc, sessions) {
+  const n = normalizeAzPriceListDocument(doc)
+  const s = parseAzSessions(sessions)
+  if (s == null || n.session_counts.includes(s)) return n
+  return normalizeAzPriceListDocument({
+    ...n,
+    session_counts: [...n.session_counts, s].sort((a, b) => a - b),
+  })
+}
+
+/**
+ * @param {object} doc
+ * @param {number} sessions
+ */
+export function removeAzSessionCount(doc, sessions) {
+  const n = normalizeAzPriceListDocument(doc)
+  const s = parseAzSessions(sessions)
+  if (s == null) return n
+  const cells = { ...n.cells }
+  for (const key of Object.keys(cells)) {
+    if (key.startsWith(`${s}:`)) delete cells[key]
+  }
+  return normalizeAzPriceListDocument({
+    ...n,
+    session_counts: n.session_counts.filter((x) => x !== s),
+    cells,
+  })
+}
+
+/**
+ * @param {object} doc
+ * @param {{ name?: string, amount?: number | null }} [fee]
+ */
+export function addAzOtherFee(doc, fee = {}) {
+  const n = normalizeAzPriceListDocument(doc)
+  const next = normalizeAzOtherFee(
+    { name: fee.name || 'Доплата', amount: fee.amount ?? null },
+    n.extras.other_fees.length,
+  )
+  return normalizeAzPriceListDocument({
+    ...n,
+    extras: {
+      ...n.extras,
+      other_fees: [...n.extras.other_fees, next],
+    },
+  })
+}
+
+/**
+ * @param {object} doc
+ * @param {string} id
+ */
+export function removeAzOtherFee(doc, id) {
+  const n = normalizeAzPriceListDocument(doc)
+  const want = String(id ?? '').trim()
+  return normalizeAzPriceListDocument({
+    ...n,
+    extras: {
+      ...n.extras,
+      other_fees: n.extras.other_fees.filter((f) => f.id !== want),
+    },
+  })
+}
+
+/**
+ * @param {object} doc
+ * @param {string} id
+ * @param {{ name?: string, amount?: unknown }} patch
+ */
+export function updateAzOtherFee(doc, id, patch) {
+  const n = normalizeAzPriceListDocument(doc)
+  const want = String(id ?? '').trim()
+  return normalizeAzPriceListDocument({
+    ...n,
+    extras: {
+      ...n.extras,
+      other_fees: n.extras.other_fees.map((f, i) =>
+        f.id === want
+          ? normalizeAzOtherFee(
+              {
+                ...f,
+                name: patch.name !== undefined ? patch.name : f.name,
+                amount: patch.amount !== undefined ? patch.amount : f.amount,
+              },
+              i,
+            )
+          : f,
+      ),
+    },
+  })
 }

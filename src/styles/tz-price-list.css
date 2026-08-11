@@ -55,3 +55,20 @@ thead .tz-price-list__col-stand,
 thead .tz-price-list__col-day {
   background: color-mix(in srgb, var(--bg-elevated) 94%, var(--bg));
 }
+
+.tz-price-list__struct {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 0.55rem;
+}
+
+.tz-price-list__axis-input {
+  width: 4.5rem;
+  min-width: 3.5rem;
+}
+
+.tz-price-list__col-act {
+  width: 2.75rem;
+  text-align: center;
+}

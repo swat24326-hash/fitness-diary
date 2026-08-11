@@ -1,7 +1,7 @@
 # Прайс клуба (ПЗ + ТЗ + АЗ)
 
-**Актуально:** 2026-07-31  
-**Статус:** ✅ ПЗ · ✅ ТЗ (импорт, облако, печать/PNG) · ✅ АЗ (импорт, облако, печать/PNG).
+**Актуально:** 2026-08-11  
+**Статус:** ✅ ПЗ · ✅ ТЗ (импорт, типовая сетка, облако, печать/PNG) · ✅ АЗ (импорт, типовая сетка, облако, печать/PNG).
 
 ## Ситуация → польза
 
@@ -35,6 +35,7 @@
 | Подвал | разовое, клубная карта, «цены с» |
 | Облако | `club_tz_price_lists` · `action=tz-price-list` |
 | Импорт | кнопка **Excel** на вкладке ТЗ |
+| Структура без Excel | **Типовая сетка** (8 / 10 / без лимита + акции 1–12), добавить/удалить строку, правка срока и занятий, часы базы/дня |
 
 Код ТЗ: `tzPriceListCore.js`, `tzPriceListExcel*.js`, `tzPriceListPrint*.js` / `tzPriceListExportCanvas.js`, UI `AdminTzPriceListSection.jsx` + `PriceListHallShell.jsx`.  
 Миграция: `npm run db:migrate:tz-price-list -- --linked`.  
@@ -54,6 +55,7 @@ Verify: `scripts/verify-tz-price-list.mjs`, `scripts/verify-tz-price-list-print.
 | Extras стенда | Результат+ (730), разовое Результат+ (750) |
 | Облако | `club_az_price_lists` · `action=az-price-list` |
 | Импорт | кнопка **Excel** на вкладке АЗ |
+| Структура без Excel | **Типовая сетка** (Результат1+/2+/3+, Йога/Бокс/Степ, 4/8/10), направления и строки занятий, доплаты; полная ↔ −10% как у ПЗ |
 
 Код: `azPriceListCore.js`, `azPriceListExcel*.js`, `azPriceListPrint*.js` / `azPriceListExportCanvas.js`, UI `AdminAzPriceListSection.jsx`.  
 Миграция: `npm run db:migrate:az-price-list -- --linked`.  

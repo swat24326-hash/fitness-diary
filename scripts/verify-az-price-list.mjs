@@ -6,11 +6,15 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
+  addAzDirection,
   azPriceListCellKey,
+  emptyAzPriceListDocument,
   getAzPriceListCell,
   parseAzMoney,
   parseAzSessions,
   parseAzValidFrom,
+  seedAzPriceListDefaults,
+  setAzPriceListCell,
   slugAzDirection,
 } from '../src/lib/priceList/azPriceListCore.js'
 import { importAzPriceListFromExcelBuffer } from '../src/lib/priceList/azPriceListExcelWorkbook.js'
@@ -60,6 +64,16 @@ const row = azPriceListDocToDbRow(res.doc, 'club-test', 'user-1')
 ok(Array.isArray(row.result_directions) && row.result_directions.length === 3, 'db row directions')
 const round = azPriceListDocFromDbRow(row, 'club-test')
 ok(getAzPriceListCell(round, { sessions: 4, directionId: 'r3plus' }).price_full === 3498, 'db roundtrip r3')
+
+const seeded = seedAzPriceListDefaults(emptyAzPriceListDocument({ club_id: 'c2' }), { replace: true })
+ok(seeded.result_directions.length === 3, 'seed result dirs')
+ok(seeded.class_directions.length === 3, 'seed class dirs')
+ok(JSON.stringify(seeded.session_counts) === '[4,8,10]', 'seed sessions')
+
+const linked = setAzPriceListCell(seeded, { sessions: 4, directionId: 'r1plus', price_full: 2000 })
+ok(getAzPriceListCell(linked, { sessions: 4, directionId: 'r1plus' }).price_10 === 1800, 'link −10%')
+const withDir = addAzDirection(linked, 'classes', { label: 'Пилатес' })
+ok(withDir.class_directions.some((d) => /пилатес/i.test(d.label)), 'add class direction')
 
 if (failed) {
   console.error(`\n${failed} failed`)

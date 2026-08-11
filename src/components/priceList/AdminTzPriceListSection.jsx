@@ -1,22 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { FileSpreadsheet, ImageDown, Printer, RefreshCw, Save } from 'lucide-react'
 import {
+  addTzMonth1Row,
+  addTzPromoRow,
   emptyTzPriceListDocument,
-  formatTzMonthsLabel,
-  formatTzSessionsLabel,
   normalizeTzPriceListDocument,
   recomputeTzPriceListDerived,
+  removeTzMonth1Row,
+  removeTzPromoRow,
+  seedTzPriceListDefaults,
+  updateTzRowAxis,
 } from '../../lib/priceList/tzPriceListCore.js'
 import { fetchTzPriceListForClub, saveTzPriceListForClub } from '../../lib/priceList/tzPriceListCloudService.js'
 import { readTzPriceListLocalEntry } from '../../lib/priceList/tzPriceListLocalStorage.js'
 import { importTzPriceListFromExcelBuffer } from '../../lib/priceList/tzPriceListExcelWorkbook.js'
-import { formatPriceListMoney } from '../../lib/priceList/priceListExportCore.js'
 import {
   downloadTzPriceListPng,
   printTzPriceListDocument,
 } from '../../lib/priceList/tzPriceListExportCanvas.js'
 import { buildTzPriceListPrintSheets } from '../../lib/priceList/tzPriceListPrintChrome.js'
 import { TzPriceListStandFields } from './TzPriceListStandFields.jsx'
+import { TzPriceListMatrix } from './TzPriceListMatrix.jsx'
 import '../../styles/price-list.css'
 import '../../styles/tz-price-list.css'
 
@@ -133,6 +137,13 @@ export function AdminTzPriceListSection({ clubId }) {
     }))
   }
 
+  const handleSeed = () => {
+    const has = (doc.month1_rows?.length || 0) + (doc.promo_rows?.length || 0)
+    if (has > 0 && !window.confirm('Заменить текущую сетку типовой? Цены в строках сбросятся.')) return
+    patchDoc((prev) => seedTzPriceListDefaults(prev, { replace: true }))
+    setToast('Типовая сетка ТЗ: 8 / 10 / без лимита + акции 1–12 мес. Заполните цены и сохраните.')
+  }
+
   const handlePrint = () => {
     const result = printTzPriceListDocument(doc)
     if (!result.ok) setToast(result.error || 'Печать недоступна')
@@ -141,7 +152,7 @@ export function AdminTzPriceListSection({ clubId }) {
 
   const handlePng = async () => {
     if (!buildTzPriceListPrintSheets(doc).length) {
-      setToast('Сначала загрузите Excel / заполните сетку')
+      setToast('Сначала создайте сетку / загрузите Excel')
       return
     }
     setBusy(true)
@@ -176,8 +187,8 @@ export function AdminTzPriceListSection({ clubId }) {
           <p className="price-list__eyebrow">Витрина клуба</p>
           <h2 className="price-list__title">Прайс · тренажёрный зал</h2>
           <p className="price-list__lead">
-            Как на стенде: пакеты на 1 месяц (база / день) и акции на несколько месяцев. Импорт из
-            Excel клуба — затем правка и сохранение в облако.
+            Как на стенде: пакеты на 1 месяц (база / день) и акции на несколько месяцев. Сетка без
+            Excel или импорт — правка ячеек, строк и часов — сохранение в облако.
           </p>
         </div>
         <div className="price-list__actions">
@@ -217,6 +228,15 @@ export function AdminTzPriceListSection({ clubId }) {
           >
             <FileSpreadsheet size={16} aria-hidden />
             Excel
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            disabled={busy}
+            onClick={handleSeed}
+            title="Типовые строки 8/10/без лимита и акции 1–12 мес"
+          >
+            Типовая сетка
           </button>
           <button
             type="button"
@@ -327,138 +347,29 @@ export function AdminTzPriceListSection({ clubId }) {
         <div className="price-list__empty">
           <p className="price-list__empty-title">Сетка ещё пустая</p>
           <p className="muted price-list__hint">
-            Нажмите «Excel» и загрузите прайс ТЗ клуба (листы «1 мес» и «акции»).
+            «Типовая сетка» — строки как на стенде, или «Excel» с прайсом клуба.
           </p>
+          <button type="button" className="btn btn-primary btn-sm" onClick={handleSeed}>
+            Создать типовую сетку
+          </button>
         </div>
-      ) : null}
-
-      {!empty && view === 'month1' ? (
-        <div className="price-list__matrix">
-          <div className="price-list__scroll">
-            <table className="price-list__table tz-price-list__table">
-              <thead>
-                <tr>
-                  <th scope="col" className="price-list__sticky price-list__axis price-list__axis--head">
-                    Срок
-                  </th>
-                  <th scope="col" className="price-list__sticky price-list__sticky--2 price-list__axis">
-                    Тренировки
-                  </th>
-                  <th scope="col">База полная</th>
-                  <th scope="col" className="tz-price-list__col-stand">
-                    База стенд
-                  </th>
-                  <th scope="col">Экон.</th>
-                  <th scope="col" className="tz-price-list__col-day">
-                    День стенд
-                  </th>
-                  <th scope="col">Экон.</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(doc.month1_rows ?? []).map((r, idx) => (
-                  <tr key={r.id} className={idx % 2 ? 'tz-price-list__row--band' : undefined}>
-                    <th scope="row" className="price-list__sticky price-list__axis">
-                      {formatTzMonthsLabel(r.months)}
-                    </th>
-                    <td className="price-list__sticky price-list__sticky--2 price-list__axis">{formatTzSessionsLabel(r.sessions)}</td>
-                    <td>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        className="price-list__input"
-                        value={r.base_full ?? ''}
-                        onChange={(e) => setMonth1Field(r.id, 'base_full', e.target.value)}
-                        aria-label="База полная"
-                      />
-                    </td>
-                    <td className="tz-price-list__col-stand">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        className="price-list__input price-list__input--discount"
-                        value={r.base_stand ?? ''}
-                        onChange={(e) => setMonth1Field(r.id, 'base_stand', e.target.value)}
-                        aria-label="База стенд"
-                      />
-                    </td>
-                    <td className="tz-price-list__computed">{formatPriceListMoney(r.base_save)}</td>
-                    <td className="tz-price-list__col-day">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        className="price-list__input price-list__input--discount"
-                        value={r.day_stand ?? ''}
-                        onChange={(e) => setMonth1Field(r.id, 'day_stand', e.target.value)}
-                        aria-label="День стенд"
-                      />
-                    </td>
-                    <td className="tz-price-list__computed">{formatPriceListMoney(r.day_save)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="price-list__scroll-hint muted">Колонка «стенд» — цена на витрине</p>
-        </div>
-      ) : null}
-
-      {!empty && view === 'promo' ? (
-        <div className="price-list__matrix">
-          <div className="price-list__scroll">
-            <table className="price-list__table tz-price-list__table">
-              <thead>
-                <tr>
-                  <th scope="col" className="price-list__sticky price-list__axis price-list__axis--head">
-                    Срок
-                  </th>
-                  <th scope="col" className="price-list__sticky price-list__sticky--2 price-list__axis">
-                    Тренировки
-                  </th>
-                  <th scope="col">База</th>
-                  <th scope="col" className="tz-price-list__col-stand">
-                    Акция
-                  </th>
-                  <th scope="col">Экономия</th>
-                  <th scope="col">₽ / мес</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(doc.promo_rows ?? []).map((r, idx) => (
-                  <tr key={r.id} className={idx % 2 ? 'tz-price-list__row--band' : undefined}>
-                    <th scope="row" className="price-list__sticky price-list__axis">
-                      {formatTzMonthsLabel(r.months)}
-                    </th>
-                    <td className="price-list__sticky price-list__sticky--2 price-list__axis">{formatTzSessionsLabel(r.sessions)}</td>
-                    <td>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        className="price-list__input"
-                        value={r.base_full ?? ''}
-                        onChange={(e) => setPromoField(r.id, 'base_full', e.target.value)}
-                        aria-label="База"
-                      />
-                    </td>
-                    <td className="tz-price-list__col-stand">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        className="price-list__input price-list__input--discount"
-                        value={r.promo ?? ''}
-                        onChange={(e) => setPromoField(r.id, 'promo', e.target.value)}
-                        aria-label="Акция"
-                      />
-                    </td>
-                    <td className="tz-price-list__computed">{formatPriceListMoney(r.save)}</td>
-                    <td className="tz-price-list__computed">{formatPriceListMoney(r.month_cost)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      ) : null}
+      ) : (
+        <TzPriceListMatrix
+          view={view}
+          doc={doc}
+          onMonth1Field={setMonth1Field}
+          onPromoField={setPromoField}
+          onAxis={(kind, id, patch) => patchDoc((prev) => updateTzRowAxis(prev, kind, id, patch))}
+          onAddRow={() =>
+            patchDoc((prev) => (view === 'promo' ? addTzPromoRow(prev) : addTzMonth1Row(prev)))
+          }
+          onRemoveRow={(id) =>
+            patchDoc((prev) =>
+              view === 'promo' ? removeTzPromoRow(prev, id) : removeTzMonth1Row(prev, id),
+            )
+          }
+        />
+      )}
     </section>
   )
 }

@@ -6,12 +6,17 @@ import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
+  addTzMonth1Row,
+  emptyTzPriceListDocument,
   formatTzSessionsLabel,
   parseTzMoney,
   parseTzMonths,
   parseTzSessions,
   parseTzValidFrom,
   recomputeTzPriceListDerived,
+  removeTzMonth1Row,
+  seedTzPriceListDefaults,
+  updateTzRowAxis,
 } from '../src/lib/priceList/tzPriceListCore.js'
 import { importTzPriceListFromExcelBuffer } from '../src/lib/priceList/tzPriceListExcelWorkbook.js'
 
@@ -61,6 +66,18 @@ ok(String(res.doc.meta.phone || '').includes('930'), 'phone')
 const recomputed = recomputeTzPriceListDerived(res.doc)
 ok(recomputed.month1_rows[0].base_save === 1650, 'recompute base_save')
 ok(recomputed.promo_rows[0].month_cost === 2290, 'recompute month_cost 1м')
+
+const seeded = seedTzPriceListDefaults(emptyTzPriceListDocument({ club_id: 'c1' }), { replace: true })
+ok(seeded.month1_rows.length === 3, 'seed month1 3')
+ok(seeded.promo_rows.length === 7, 'seed promo 7')
+ok(Boolean(seeded.meta.base_hours_note), 'seed hours note')
+
+const withRow = addTzMonth1Row(seeded, { months: 1, sessions: 12 })
+ok(withRow.month1_rows.length === 4, 'add month1 row')
+const axis = updateTzRowAxis(withRow, 'month1', withRow.month1_rows[3].id, { sessions: 16 })
+ok(axis.month1_rows[3].sessions === 16, 'update axis sessions')
+const removed = removeTzMonth1Row(axis, axis.month1_rows[3].id)
+ok(removed.month1_rows.length === 3, 'remove month1 row')
 
 if (failed) {
   console.error(`\n${failed} failed`)

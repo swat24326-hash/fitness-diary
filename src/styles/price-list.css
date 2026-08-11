@@ -265,6 +265,10 @@
   margin: 0;
 }
 
+.price-list__empty .btn {
+  margin-top: 0.85rem;
+}
+
 .price-list__matrix {
   position: relative;
 }
