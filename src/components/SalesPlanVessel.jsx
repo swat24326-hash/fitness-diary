@@ -45,11 +45,11 @@ export function SalesPlanVessel({ fact, planLevels, pulseKey = 0 }) {
     <div className="sales-report__plan-chart" aria-label={ariaLabel}>
       <div className="sales-report__plan-track-wrap">
         <div className="sales-report__plan-track sales-report__plan-track--milestones" aria-hidden>
-          {milestone.milestones.map((m) => (
+          {milestone.milestones.map((m, idx) => (
             <span
               key={m.key}
               className={`sales-report__plan-milestone${m.reached ? ' sales-report__plan-milestone--reached' : ''}${m.isFinal ? ' sales-report__plan-milestone--final' : ''}`}
-              style={{ left: `${m.leftPercent}%` }}
+              style={{ left: `${m.leftPercent}%`, zIndex: 2 + idx }}
               title={`План ${m.key}: ${formatRub(m.amount)}`}
             />
           ))}
@@ -64,11 +64,12 @@ export function SalesPlanVessel({ fact, planLevels, pulseKey = 0 }) {
 
         {milestone.milestones.length ? (
           <div className="sales-report__plan-milestone-ruler" aria-hidden>
-            {milestone.milestones.map((m) => (
+            {milestone.milestones.map((m, idx) => (
               <span
                 key={`tag-${m.key}`}
                 className={`sales-report__plan-milestone-tag${m.reached ? ' is-reached' : ''}${m.isFinal ? ' is-final' : ''}`}
-                style={{ left: `${m.leftPercent}%` }}
+                style={{ left: `${m.leftPercent}%`, zIndex: 1 + idx }}
+                title={`План ${m.key}: ${formatRub(m.amount)}`}
               >
                 {m.key}
               </span>
