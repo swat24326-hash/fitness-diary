@@ -152,14 +152,12 @@ export function remoteClientIdsForReconcile(remoteRows) {
 }
 
 /**
- * ПЗ-чипы: «все» из operational census; остальные — воронка списка
- * («Не активные» = финал воронки, не широкий period.inactiveInPeriod).
+ * Плитки Клиентов = воронка текущей вкладки (в т.ч. «Все» = tabBase без ПНК).
+ * Клубной commercial/operational census (`totalOperational`) сюда не подмешивать —
+ * он для Статистики / сводки дня. Snapshot не трогает counts.
  * @param {object} funnel
- * @param {{ totalOperational?: number }} [snapshot]
+ * @param {{ totalOperational?: number }} [_snapshot]
  */
-export function mergeAdminPzBrowseFilterCounts(funnel, snapshot = {}) {
-  return {
-    ...funnel,
-    all: Number(snapshot.totalOperational) || 0,
-  }
+export function mergeAdminPzBrowseFilterCounts(funnel, _snapshot = {}) {
+  return { ...funnel }
 }

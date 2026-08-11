@@ -35,7 +35,7 @@ import {
   formatDeskAzSessionUsageRu,
   pickAzMembershipForDeduct,
 } from '../../lib/admin/deskAzSessionDeductCore.js'
-import { buildAdminClientsTodaySnapshot, mergeAdminPzBrowseFilterCounts, shouldShowAdminClientsList } from '../../lib/admin/adminClientsBrowseCore'
+import { buildAdminClientsTodaySnapshot, shouldShowAdminClientsList } from '../../lib/admin/adminClientsBrowseCore'
 import {
   ADMIN_CLIENTS_LIST_TAB_LABELS,
   clientDeskHall,
@@ -736,9 +736,8 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     const tab = clientsTab === 'archive' ? 'active' : clientsTab
     const tabBase = filterClientsByAdminListTab(clients, tab, memByClient)
     const hallMode = tab === 'tz' || tab === 'az' ? tab : 'pz'
-    const funnel = countAdminFunnelFilters(tabBase, memByClient, today, todaySnapshot.inactiveIds, { hallMode })
-    if (hallMode !== 'pz') return funnel
-    return mergeAdminPzBrowseFilterCounts(funnel, todaySnapshot)
+    // Плитки = воронка текущей вкладки (клик = та же длина списка). Не подменять «Все» клубным census.
+    return countAdminFunnelFilters(tabBase, memByClient, today, todaySnapshot.inactiveIds, { hallMode })
   }, [clients, clientsTab, memByClient, today, todaySnapshot])
 
   const browseFilterLabels = {

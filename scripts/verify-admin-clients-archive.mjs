@@ -76,9 +76,30 @@ const merged = mergeAdminPzBrowseFilterCounts(
   { all: 99, inactive: 1, expired_recent: 3, pnk: 2 },
   { totalOperational: 101, inactiveCount: 4 },
 )
-ok(merged.all === 101, 'PZ merge: all from operational census')
+ok(merged.all === 99, 'PZ merge: all stays funnel (not operational census 101)')
 ok(merged.inactive === 1, 'PZ merge: inactive stays funnel (not snapshot.inactiveCount=4)')
 ok(merged.expired_recent === 3 && merged.pnk === 2, 'PZ merge: other funnel counts kept')
+
+// Вкладка ПЗ шире commercial (мультизал / desk_hall) — плитка «Все» = funnel tab, не census
+const pzTabClients = [
+  { id: 'c1', name: 'ПЗ обычный', trainer_id: 't1' },
+  { id: 'c2', name: 'ПЗ lite', trainer_id: 't2' },
+  { id: 'c3', name: 'Мультизал', trainer_id: 't1', desk_hall: 'tz' },
+  { id: 'c4', name: 'Ещё ПЗ', trainer_id: 't1' },
+]
+const pzMems = [
+  { client_id: 'c1', hall: 'pz', start_date: '2026-01-01', end_date: '2026-06-01', total_trainings: 8, used_trainings: 8 },
+  { client_id: 'c2', hall: 'pz', start_date: '2026-01-01', end_date: '2026-06-01', total_trainings: 8, used_trainings: 8 },
+  { client_id: 'c3', hall: 'pz', start_date: '2026-01-01', end_date: '2026-06-01', total_trainings: 8, used_trainings: 8 },
+  { client_id: 'c4', hall: 'pz', start_date: '2026-01-01', end_date: '2026-06-01', total_trainings: 8, used_trainings: 8 },
+]
+const snapWide = buildAdminClientsTodaySnapshot(pzTabClients, pzMems, '2026-07-14')
+ok(snapWide.totalOperational === 3, 'commercial census excludes desk_hall tz (c3)')
+ok(pzTabClients.length === 4, 'PZ tab pool has 4')
+const funnelLike = { all: pzTabClients.length, inactive: 4 }
+const chipCounts = mergeAdminPzBrowseFilterCounts(funnelLike, snapWide)
+ok(chipCounts.all === 4, 'tile «Все» = tab funnel 4, not commercial 3')
+ok(chipCounts.all !== snapWide.totalOperational, 'tile must not equal smaller commercial census')
 
 if (failed > 0) {
   console.error(`\n${failed} check(s) failed`)
