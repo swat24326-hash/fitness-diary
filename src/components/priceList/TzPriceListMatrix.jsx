@@ -79,8 +79,8 @@ export function TzPriceListMatrix({
                   <td className="price-list__sticky price-list__sticky--2 price-list__axis">
                     <input
                       type="text"
-                      className="price-list__input tz-price-list__axis-input"
-                      value={r.sessions == null ? '' : String(r.sessions)}
+                      className="price-list__input tz-price-list__axis-input tz-price-list__axis-input--sessions"
+                      value={r.sessions == null ? 'без лимита' : String(r.sessions)}
                       placeholder="без лимита"
                       onChange={(e) => {
                         const t = e.target.value.trim()
@@ -89,7 +89,7 @@ export function TzPriceListMatrix({
                         })
                       }}
                       aria-label={`Тренировки: ${formatTzSessionsLabel(r.sessions)}`}
-                      title="Число занятий или пусто = без лимита"
+                      title="Число занятий или «без лимита»"
                     />
                   </td>
                   <td>
@@ -192,8 +192,8 @@ export function TzPriceListMatrix({
                 <td className="price-list__sticky price-list__sticky--2 price-list__axis">
                   <input
                     type="text"
-                    className="price-list__input tz-price-list__axis-input"
-                    value={r.sessions == null ? '' : String(r.sessions)}
+                    className="price-list__input tz-price-list__axis-input tz-price-list__axis-input--sessions"
+                    value={r.sessions == null ? 'без лимита' : String(r.sessions)}
                     placeholder="без лимита"
                     onChange={(e) => {
                       const t = e.target.value.trim()
@@ -202,6 +202,7 @@ export function TzPriceListMatrix({
                       })
                     }}
                     aria-label={`Тренировки: ${formatTzSessionsLabel(r.sessions)}`}
+                    title="Число занятий или «без лимита»"
                   />
                 </td>
                 <td>

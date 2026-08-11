@@ -15,7 +15,11 @@
 
 .tz-price-list__table {
   width: 100%;
-  min-width: 40rem;
+  min-width: 44rem;
+}
+
+.tz-price-list__table .price-list__sticky--2 {
+  min-width: 7.5rem;
 }
 
 .tz-price-list__col-stand {
@@ -66,6 +70,12 @@ thead .tz-price-list__col-day {
 .tz-price-list__axis-input {
   width: 4.5rem;
   min-width: 3.5rem;
+}
+
+/* «без лимита» целиком — колонка «Тренировки» */
+.tz-price-list__axis-input--sessions {
+  width: 7.25rem;
+  min-width: 6.75rem;
 }
 
 .tz-price-list__col-act {
