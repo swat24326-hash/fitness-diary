@@ -59,6 +59,7 @@ run('membership delete confirm', 'node', ['scripts/verify-membership-delete.mjs'
 run('membership early activate', 'node', ['scripts/verify-membership-early-activate.mjs'])
 run('date ru calendar month', 'node', ['scripts/verify-date-ru.mjs'])
 run('club client period', 'node', ['scripts/verify-club-client-period.mjs'])
+run('club stats hall', 'node', ['scripts/verify-club-stats-hall.mjs'])
 run('admin clients archive browse', 'node', ['scripts/verify-admin-clients-archive.mjs'])
 run('admin clients list href', 'node', ['scripts/verify-admin-clients-list-href.mjs'])
 run('admin clients cross-hall search', 'node', ['scripts/verify-admin-clients-cross-hall-search.mjs'])

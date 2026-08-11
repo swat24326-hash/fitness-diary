@@ -45,13 +45,13 @@ export async function fetchClubStatsRaw(
     }),
     fetchPagedLimited(supabaseAdmin, {
       table: 'clients',
-      select: 'id, name, phone, archived_at, trainer_id, lifecycle, pnk_stage',
+      select: 'id, name, phone, archived_at, trainer_id, lifecycle, pnk_stage, desk_hall',
       clubId: cid,
       maxRows: CLUB_STATS_MAX_CLIENTS,
     }),
     fetchPagedLimited(supabaseAdmin, {
       table: 'memberships',
-      select: 'id, client_id, start_date, end_date, total_trainings, used_trainings, membership_type_id',
+      select: 'id, client_id, start_date, end_date, total_trainings, used_trainings, membership_type_id, hall',
       clubId: cid,
       maxRows: CLUB_STATS_MAX_MEMBERSHIPS,
     }),

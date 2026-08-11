@@ -25,6 +25,8 @@ export function useClubPeriodStatsLoad({
   scopeTrainerId,
   scopeClubId,
   range,
+  /** @type {'pz'|'tz'|'az'|null|undefined} */
+  hall = null,
 }) {
   const [busy, setBusy] = useState(false)
   const [coachQualityBusy, setCoachQualityBusy] = useState(false)
@@ -33,6 +35,7 @@ export function useClubPeriodStatsLoad({
   const statsLoadGenRef = useRef(0)
 
   const loadPnkFunnelForRange = useCallback(async () => {
+    if (hall && hall !== 'pz') return null
     const clubFilter = isTrainerScope ? scopeClubId || clubId : clubId
     if (!clubFilter) return null
     if (!isTrainerScope && isSupabaseConfigured() && isAppOnline()) {
@@ -66,11 +69,12 @@ export function useClubPeriodStatsLoad({
       dateTo: range.end,
       trainerId: isTrainerScope ? scopeTrainerId : '',
     })
-  }, [clubId, scopeClubId, scopeTrainerId, isTrainerScope, range.start, range.end])
+  }, [clubId, scopeClubId, scopeTrainerId, isTrainerScope, range.start, range.end, hall])
 
   /** Detail: всегда сеть/ensure, без glance-TTL. */
   const fetchCoachQualityFresh = useCallback(
     async (periodStats) => {
+      if (hall && hall !== 'pz') return { ...periodStats, coachQuality: null }
       const clubForCq = isTrainerScope ? scopeClubId || clubId : clubId
       if (isSupabaseConfigured() && isAppOnline() && clubForCq) {
         try {
@@ -101,7 +105,7 @@ export function useClubPeriodStatsLoad({
             dateTo: range.end,
           })
     },
-    [clubId, scopeClubId, scopeTrainerId, isTrainerScope, range.start, range.end],
+    [clubId, scopeClubId, scopeTrainerId, isTrainerScope, range.start, range.end, hall],
   )
 
   const loadStats = useCallback(
@@ -139,13 +143,15 @@ export function useClubPeriodStatsLoad({
               dateFrom: range.start,
               dateTo: range.end,
               includeCoachQuality: false,
+              hall: hall || 'pz',
             })
 
         const pnkPromise = loadPnkFunnelForRange().catch(() => null)
 
+        const wantCq = !hall || hall === 'pz'
         const clubForCq = isTrainerScope ? scopeClubId || clubId : clubId
         const cqApiPromise =
-          isSupabaseConfigured() && isAppOnline() && clubForCq
+          wantCq && isSupabaseConfigured() && isAppOnline() && clubForCq
             ? fetchCoachQualityViaApi({
                 clubId: clubForCq,
                 dateFrom: range.start,
@@ -163,6 +169,11 @@ export function useClubPeriodStatsLoad({
         const pnk = await pnkPromise
         if (gen !== statsLoadGenRef.current) return
         setPnkFunnel(pnk)
+
+        if (!wantCq) {
+          if (gen === statsLoadGenRef.current) setCoachQualityBusy(false)
+          return
+        }
 
         try {
           let withCq = s
@@ -203,6 +214,7 @@ export function useClubPeriodStatsLoad({
       isTrainerScope,
       range.start,
       range.end,
+      hall,
       loadPnkFunnelForRange,
       fetchCoachQualityFresh,
     ],

@@ -26,6 +26,7 @@ import { listMembershipTypesForClub } from '../../lib/membershipTypesService'
 import { AdminInactiveClientsPanel } from '../../components/AdminInactiveClientsPanel'
 import { TrainingExercisesReadonly } from '../../components/TrainingExercisesReadonly'
 import { AdminClubStatsSection } from './AdminClubStatsSection'
+import { CLUB_STATS_HALL_LABELS } from '../../lib/admin/clubStatsHallFilterCore.js'
 import { SectionErrorBoundary } from '../../components/SectionErrorBoundary'
 import { getHealthCurrentWeightKg } from '../../lib/clientWeightCore'
 
@@ -126,15 +127,24 @@ export function AdminStatistics() {
   const [journalOpen, setJournalOpen] = useState(false)
   const [inactiveOpen, setInactiveOpen] = useState(false)
   const [inactiveClients, setInactiveClients] = useState([])
+  const [inactiveHallLabel, setInactiveHallLabel] = useState('')
   const onStatsRange = useCallback((r) => {
     setPage(0)
     setJournalOpen(false)
     setInactiveOpen(false)
+    setInactiveHallLabel('')
     if (!r?.start || !r?.end) {
       setStatsRange({ start: '', end: '' })
       return
     }
     setStatsRange({ start: r.start, end: r.end })
+  }, [])
+
+  const onStatsContextReset = useCallback(() => {
+    setPage(0)
+    setJournalOpen(false)
+    setInactiveOpen(false)
+    setInactiveHallLabel('')
   }, [])
 
   const [rows, setRows] = useState([])
@@ -285,17 +295,21 @@ export function AdminStatistics() {
     setPage(0)
     setJournalOpen(false)
     setInactiveOpen(false)
+    setInactiveHallLabel('')
   }, [club])
 
   const openCompletedJournal = useCallback(() => {
     setInactiveOpen(false)
+    setInactiveHallLabel('')
     setJournalOpen(true)
     setPage(0)
   }, [])
 
-  const openInactive = useCallback((clients) => {
+  const openInactive = useCallback((clients, meta) => {
     setJournalOpen(false)
     setInactiveClients(Array.isArray(clients) ? clients : [])
+    const hall = String(meta?.hall ?? '').trim()
+    setInactiveHallLabel(CLUB_STATS_HALL_LABELS[hall] || '')
     setInactiveOpen(true)
   }, [])
 
@@ -370,6 +384,7 @@ export function AdminStatistics() {
         onActiveRangeChange={onStatsRange}
         onOpenCompletedJournal={openCompletedJournal}
         onOpenInactive={openInactive}
+        onStatsContextReset={onStatsContextReset}
         hideSectionTitle
       />
 
@@ -377,7 +392,7 @@ export function AdminStatistics() {
         <section className="card" id="admin-inactive-panel">
           <div className="td-section-head">
             <h2 className="section-title td-section-title" style={{ margin: 0 }}>
-              Не активные — {inactiveClients.length}
+              Не активные{inactiveHallLabel ? ` · ${inactiveHallLabel}` : ''} — {inactiveClients.length}
             </h2>
             <button type="button" className="btn btn-ghost btn-touch" onClick={() => setInactiveOpen(false)}>
               Скрыть

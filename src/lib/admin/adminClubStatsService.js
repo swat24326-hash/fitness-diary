@@ -18,6 +18,12 @@ import { buildCoachQualityForScope } from './coachQualityService.js'
 import { collectHoldingTrainerIds } from './holdingClientsCore.js'
 import { collectNoTabletTrainerIds } from './trainerTabletModeCore.js'
 import { previousEqualPeriod } from './coachQualityBriefCore.js'
+import {
+  aggregateHallMembershipTypeCensus,
+  filterTrainingsByClubStatsHall,
+  normalizeClubStatsHall,
+  sliceClubStatsByHall,
+} from './clubStatsHallFilterCore.js'
 
 async function loadTrainerModeIdsForClub(clubId) {
   const cid = String(clubId ?? '').trim()
@@ -132,6 +138,7 @@ async function fetchClientsForClubLocal(clubId) {
     archived_at: c.archived_at,
     lifecycle: c.lifecycle ?? null,
     pnk_stage: c.pnk_stage ?? null,
+    desk_hall: c.desk_hall ?? null,
   }))
 }
 
@@ -146,7 +153,7 @@ async function fetchClientsForClubRemote(clubId) {
     const { data, error } = await withSupabaseRetry(() =>
       supabase
         .from('clients')
-        .select('id, name, phone, trainer_id, archived_at, lifecycle, pnk_stage')
+        .select('id, name, phone, trainer_id, archived_at, lifecycle, pnk_stage, desk_hall')
         .eq('club_id', clubId)
         .order('id', { ascending: true })
         .range(from, from + ADMIN_SYNC_BATCH_SIZE - 1),
@@ -167,7 +174,7 @@ async function fetchMembershipsForClubRemote(clubId) {
   for (;;) {
     const { data, error } = await supabase
       .from('memberships')
-      .select('id, client_id, start_date, end_date, total_trainings, used_trainings, membership_type_id')
+      .select('id, client_id, start_date, end_date, total_trainings, used_trainings, membership_type_id, hall')
       .eq('club_id', clubId)
       .order('id', { ascending: true })
       .range(from, from + ADMIN_SYNC_BATCH_SIZE - 1)
@@ -183,8 +190,15 @@ async function fetchMembershipsForClubRemote(clubId) {
 
 export { aggregateClubClientPeriod } from './clubClientPeriodAgg'
 
-async function membershipTypeStatsSlice(clubId, trainings, memberships) {
+async function membershipTypeStatsSlice(clubId, trainings, memberships, clients, hall) {
   const membershipTypes = await listMembershipTypesForClub(clubId)
+  if (hall === 'tz' || hall === 'az') {
+    const sliced = sliceClubStatsByHall(clients, memberships, hall)
+    return aggregateHallMembershipTypeCensus({
+      memberships: sliced.memberships,
+      membershipTypes,
+    })
+  }
   return aggregateMembershipTypeStats({ trainings, memberships, membershipTypes })
 }
 
@@ -265,11 +279,17 @@ export async function ensureClubPeriodCoachQuality(period, { clubId, dateFrom, d
  *   dateFrom: string,
  *   dateTo: string,
  *   includeCoachQuality?: boolean,
+ *   hall?: string|null,
  * }} p — даты ISO yyyy-mm-dd
  */
 export async function loadClubTrainingStats(p) {
   const { clubId, dateFrom, dateTo } = p
-  const includeCoachQuality = p.includeCoachQuality !== false
+  const hallExplicit =
+    Object.prototype.hasOwnProperty.call(p, 'hall') &&
+    p.hall != null &&
+    String(p.hall).trim() !== ''
+  const hall = hallExplicit ? normalizeClubStatsHall(p.hall) || 'pz' : null
+  const includeCoachQuality = p.includeCoachQuality !== false && (!hall || hall === 'pz')
   const base = {
     totalCompleted: 0,
     totalDraft: 0,
@@ -287,6 +307,7 @@ export async function loadClubTrainingStats(p) {
     notRenewedInPeriod: 0,
     notRenewedClients: [],
     coachQuality: null,
+    hall: hall || null,
     source: 'local',
     fallbackReason: null,
     error: null,
@@ -297,8 +318,11 @@ export async function loadClubTrainingStats(p) {
   }
 
   const modeIds = await loadTrainerModeIdsForClub(clubId)
+  const periodOpts = hall ? { ...modeIds, hall } : modeIds
   const clientSlice = (clients, memberships) =>
-    aggregateClubClientPeriod(clients, memberships, dateFrom, dateTo, undefined, modeIds)
+    aggregateClubClientPeriod(clients, memberships, dateFrom, dateTo, undefined, periodOpts)
+  const trainingSlice = (rows, memberships, clients) =>
+    hall ? filterTrainingsByClubStatsHall(rows, memberships, clients, hall) : rows
   const maybeAttach = async (stats, ctx) => {
     if (!includeCoachQuality) return { ...stats, coachQuality: stats.coachQuality ?? null }
     return attachCoachQuality(stats, { ...ctx, ...modeIds })
@@ -310,15 +334,16 @@ export async function loadClubTrainingStats(p) {
       fetchClientsForClubLocal(clubId),
       fetchMembershipsForClubLocal(clubId),
     ])
+    const hallRows = trainingSlice(rows, memberships, clients)
     return maybeAttach(
       {
         ...base,
-        ...aggregateTrainings(rows),
+        ...aggregateTrainings(hallRows),
         ...clientSlice(clients, memberships),
-        ...(await membershipTypeStatsSlice(clubId, rows, memberships)),
+        ...(await membershipTypeStatsSlice(clubId, hallRows, memberships, clients, hall)),
         source: 'local',
       },
-      { clubId, dateFrom, dateTo, clients, trainings: rows, memberships },
+      { clubId, dateFrom, dateTo, clients, trainings: hallRows, memberships },
     )
   }
 
@@ -328,6 +353,7 @@ export async function loadClubTrainingStats(p) {
       dateFrom,
       dateTo,
       includeCq: includeCoachQuality,
+      ...(hall ? { hall } : {}),
     })
     if (viaApi) {
       const stats = {
@@ -347,7 +373,7 @@ export async function loadClubTrainingStats(p) {
         inactiveClients: viaApi.inactiveClients ?? [],
         notRenewedInPeriod: viaApi.notRenewedInPeriod ?? 0,
         notRenewedClients: viaApi.notRenewedClients ?? [],
-        // Сервер считает по тем же trainings, что и сводка (без урезания RLS в браузере).
+        hall: viaApi.hall || hall,
         coachQuality: viaApi.coachQuality ?? null,
         source: 'admin_api',
         fallbackReason: null,
@@ -355,7 +381,6 @@ export async function loadClubTrainingStats(p) {
       }
       if (viaApi.coachQuality || !includeCoachQuality) return stats
 
-      // Старый API без coachQuality — fallback на локальный/remote кэш.
       let [rows, clients, memberships] = await Promise.all([
         fetchTrainingsForClubRangeLocal(clubId, dateFrom, dateTo).catch(() => []),
         fetchClientsForClubLocal(clubId).catch(() => []),
@@ -374,12 +399,13 @@ export async function loadClubTrainingStats(p) {
         }
       }
       if (clients.length) {
+        const hallRows = trainingSlice(rows, memberships, clients)
         return attachCoachQuality(stats, {
           clubId,
           dateFrom,
           dateTo,
           clients,
-          trainings: rows,
+          trainings: hallRows,
           memberships,
         })
       }
@@ -398,15 +424,16 @@ export async function loadClubTrainingStats(p) {
       fetchClientsForClubRemote(clubId),
       fetchMembershipsForClubRemote(clubId),
     ])
+    const hallRows = trainingSlice(rows, memberships, clients)
     return maybeAttach(
       {
         ...base,
-        ...aggregateTrainings(rows),
+        ...aggregateTrainings(hallRows),
         ...clientSlice(clients, memberships),
-        ...(await membershipTypeStatsSlice(clubId, rows, memberships)),
+        ...(await membershipTypeStatsSlice(clubId, hallRows, memberships, clients, hall)),
         source: 'remote',
       },
-      { clubId, dateFrom, dateTo, clients, trainings: rows, memberships },
+      { clubId, dateFrom, dateTo, clients, trainings: hallRows, memberships },
     )
   } catch (e) {
     const [rows, clients, memberships] = await Promise.all([
@@ -414,16 +441,17 @@ export async function loadClubTrainingStats(p) {
       fetchClientsForClubLocal(clubId),
       fetchMembershipsForClubLocal(clubId),
     ])
+    const hallRows = trainingSlice(rows, memberships, clients)
     return maybeAttach(
       {
         ...base,
-        ...aggregateTrainings(rows),
+        ...aggregateTrainings(hallRows),
         ...clientSlice(clients, memberships),
-        ...(await membershipTypeStatsSlice(clubId, rows, memberships)),
+        ...(await membershipTypeStatsSlice(clubId, hallRows, memberships, clients, hall)),
         source: 'local',
         fallbackReason: e?.message ? String(e.message) : 'Статистика с сервера недоступна',
       },
-      { clubId, dateFrom, dateTo, clients, trainings: rows, memberships },
+      { clubId, dateFrom, dateTo, clients, trainings: hallRows, memberships },
     )
   }
 }

@@ -2,6 +2,10 @@
 
 import { filterCommercialClients } from '../../src/lib/admin/holdingClientsCore.js'
 import { isClientOnNoTabletTrainer } from '../../src/lib/admin/trainerTabletModeCore.js'
+import {
+  normalizeClubStatsHall,
+  sliceClubStatsByHall,
+} from './clubStatsHallFilterCore.js'
 
 export function aggregateTrainings(rows) {
   const dayMap = new Map()
@@ -215,19 +219,34 @@ function inactiveMembershipDetail(memberships, dateIso) {
 export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, dateTo, asOf, opts = {}) {
   const from = String(dateFrom ?? '').slice(0, 10)
   const to = String(dateTo ?? '').slice(0, 10)
-  const commercial = filterCommercialClients(clientRows, opts?.holdingTrainerIds).filter(
-    (c) => String(c?.lifecycle ?? 'active') !== 'pnk',
-  )
-  const totalClients = commercial.length
-  const clientIdSet = new Set(commercial.map((c) => c.id).filter(Boolean))
+  const hall = normalizeClubStatsHall(opts?.hall)
+
+  let poolClients
+  let poolMemberships
+  if (hall) {
+    const sliced = sliceClubStatsByHall(clientRows, membershipRows, hall, {
+      holdingTrainerIds: opts?.holdingTrainerIds,
+    })
+    poolClients = sliced.clients
+    poolMemberships = sliced.memberships
+  } else {
+    poolClients = filterCommercialClients(clientRows, opts?.holdingTrainerIds).filter(
+      (c) => String(c?.lifecycle ?? 'active') !== 'pnk',
+    )
+    const idSet = new Set(poolClients.map((c) => c.id).filter(Boolean))
+    poolMemberships = (membershipRows ?? []).filter((m) => m?.client_id && idSet.has(m.client_id))
+  }
+
+  const totalClients = poolClients.length
+  const clientIdSet = new Set(poolClients.map((c) => c.id).filter(Boolean))
   const clientById = new Map()
-  for (const c of commercial) {
+  for (const c of poolClients) {
     const id = String(c?.id ?? '').trim()
     if (id) clientById.set(id, c)
   }
   const byClient = new Map()
   for (const id of clientIdSet) byClient.set(id, [])
-  for (const m of membershipRows) {
+  for (const m of poolMemberships) {
     const cid = m.client_id
     if (!cid || !clientIdSet.has(cid)) continue
     byClient.get(cid).push(m)
@@ -246,6 +265,7 @@ export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, 
 
   let activeWithMembership = 0
   const inactiveClients = []
+  const skipLiteInactive = hall === 'tz' || hall === 'az'
 
   for (const id of clientIdSet) {
     const mems = byClient.get(id) ?? []
@@ -254,7 +274,7 @@ export function aggregateClubClientPeriod(clientRows, membershipRows, dateFrom, 
       continue
     }
     const client = clientById.get(id)
-    if (isClientOnNoTabletTrainer(client, opts?.noTabletTrainerIds)) continue
+    if (!skipLiteInactive && isClientOnNoTabletTrainer(client, opts?.noTabletTrainerIds)) continue
     const { reason, inactiveDetail, membershipEndDate, membershipStartDate } = inactiveMembershipDetail(mems, ref)
     if (reason === 'not_started') continue
     inactiveClients.push({

@@ -38,7 +38,7 @@
 |--------|-----|--------|
 | `search`, `clients-last-trainings` | admin / sales_manager (свой `club_id`) | Поиск / даты последних тренировок по id (список клиентов) |
 | `journal` | admin | Журнал тренировок |
-| `club-stats`, `club-monthly` | admin | Сводка и год. `club-stats&include_cq=0` — лёгкая сводка без CQ (default `include_cq=1` для совместимости) |
+| `club-stats`, `club-monthly` | admin | Сводка и год. `club-stats&include_cq=0` — лёгкая сводка без CQ (default `include_cq=1`). Опционально `hall=pz\|tz\|az` — census и тренировки по залу; без `hall` — legacy commercial (без desk). На `hall=tz\|az` «по типам» = census абонов зала. CQ только для ПЗ / без hall |
 | `coach-quality` | admin / trainer (свой клуб + свой id) | Отдельный расчёт CQ; `mode=full\|glance`. Статистика и главная грузят параллельно со сводкой |
 | `coach-quality-settings` | GET: admin или тренер/продажи своего клуба; POST: admin | веса осей, доли внутри ведения/хвостов и тумблеры |
 | `trainer-pay-plan-settings` | GET/POST: admin | пороги тренировок месяца → уровни ЗП 1–3 (`workouts_l2_min`, `workouts_l3_min`; старые `hours_*` читаются) |

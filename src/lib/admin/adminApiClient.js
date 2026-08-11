@@ -402,7 +402,13 @@ export async function fetchClientsLastTrainingsViaApi({ clubId, clientIds }) {
 }
 
 /** GET /api/admin-data?action=club-stats */
-export async function fetchClubTrainingStatsViaApi({ clubId, dateFrom, dateTo, includeCq = true }) {
+export async function fetchClubTrainingStatsViaApi({
+  clubId,
+  dateFrom,
+  dateTo,
+  includeCq = true,
+  hall,
+}) {
   const token = await getAccessTokenForAdminApi()
   if (!token) throw new Error('Нет сессии администратора')
 
@@ -412,6 +418,9 @@ export async function fetchClubTrainingStatsViaApi({ clubId, dateFrom, dateTo, i
     date_to: dateTo,
     include_cq: includeCq ? '1' : '0',
   })
+  if (hall != null && String(hall).trim() !== '') {
+    params.set('hall', String(hall).trim())
+  }
   const { data, routeMissing } = await adminApiGet(
     `/api/admin-data?action=club-stats&${params}`,
     token,

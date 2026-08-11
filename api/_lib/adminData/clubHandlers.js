@@ -8,6 +8,12 @@ import {
 import { aggregateTrainings, aggregateClubClientPeriod } from '../clubStatsAgg.js'
 import { aggregateMembershipTypeStats } from '../membershipTypeStatsAgg.js'
 import {
+  aggregateHallMembershipTypeCensus,
+  filterTrainingsByClubStatsHall,
+  normalizeClubStatsHall,
+  sliceClubStatsByHall,
+} from '../clubStatsHallFilterCore.js'
+import {
   aggregateMonthlyTypedCompleted,
   aggregateMonthlyForCalendarYear,
   discoverMonthlyChartYearsFromBounds,
@@ -25,6 +31,9 @@ export async function handleClubStats(ctx, req, res) {
   const clubId = String(req.query?.club_id ?? '').trim()
   const dateFrom = String(req.query?.date_from ?? '').trim()
   const dateTo = String(req.query?.date_to ?? '').trim()
+  const hallParam = String(req.query?.hall ?? '').trim()
+  const hall = normalizeClubStatsHall(hallParam) || (hallParam ? 'pz' : null)
+  // UI всегда шлёт hall; без параметра — legacy commercial (совместимость day-summary / старых клиентов).
   const includeCq = parseIncludeCqFlag(req.query?.include_cq)
   if (!clubId || !dateFrom || !dateTo || dateFrom > dateTo) {
     sendJson(res, 400, { error: 'Укажите club_id, date_from, date_to' })
@@ -39,20 +48,34 @@ export async function handleClubStats(ctx, req, res) {
     const periodOpts = {
       holdingTrainerIds: modeIds.holdingTrainerIds,
       noTabletTrainerIds: modeIds.noTabletTrainerIds,
+      ...(hall ? { hall } : {}),
     }
+    const hallTrainings = hall
+      ? filterTrainingsByClubStatsHall(raw.trainings, raw.memberships, raw.clients, hall)
+      : raw.trainings
+    // ТЗ/АЗ: «По типам» = census абонов зала (не тренировки планшета ПЗ).
+    const typeStats =
+      hall === 'tz' || hall === 'az'
+        ? aggregateHallMembershipTypeCensus({
+            memberships: sliceClubStatsByHall(raw.clients, raw.memberships, hall, periodOpts)
+              .memberships,
+            membershipTypes: raw.membershipTypes,
+          })
+        : aggregateMembershipTypeStats({
+            trainings: hallTrainings,
+            memberships: raw.memberships,
+            membershipTypes: raw.membershipTypes,
+          })
     const base = {
-      ...aggregateTrainings(raw.trainings),
+      ...aggregateTrainings(hallTrainings),
       ...aggregateClubClientPeriod(raw.clients, raw.memberships, dateFrom, dateTo, undefined, periodOpts),
-      ...aggregateMembershipTypeStats({
-        trainings: raw.trainings,
-        memberships: raw.memberships,
-        membershipTypes: raw.membershipTypes,
-      }),
+      ...typeStats,
+      hall: hall || null,
       source: 'admin_api',
-      stats_truncated: raw.truncated,
+      stats_timestamp: raw.timestamp,
     }
 
-    if (!includeCq) {
+    if (!includeCq || (hall && hall !== 'pz')) {
       sendJson(res, 200, { ...base, coachQuality: null })
       return
     }
