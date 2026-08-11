@@ -19,11 +19,13 @@ export const ADMIN_DAY_SUMMARY_GROUPS = [
 /**
  * Карточки сводки дня (без React) — для UI и spotlight.
  * Отчёт продаж на главной не показываем — смотрят в разделе «Продажи».
- * Воронка клиентов — ссылки в /admin/clients?filter=.
+ * Воронка клиентов — ссылки в `{clientsPath}?filter=` (по умолчанию /admin/clients).
  *
  * @param {{
  *   summary: object,
  *   clubId?: string,
+ *   clientsPath?: string,
+ *   statsPath?: string,
  *   coachQuality?: { scorePct?: number | null, chipLabel?: string | null, hot?: boolean } | null,
  *   coachQualityLoading?: boolean,
  *   coachQualityHeroInAttention?: boolean,
@@ -33,10 +35,12 @@ export function buildAdminDaySummaryCards(opts = {}) {
   const summary = opts.summary
   if (!summary) return []
   const clubId = String(opts.clubId ?? '').trim()
+  const clientsPath = String(opts.clientsPath ?? '/admin/clients').trim() || '/admin/clients'
+  const statsPath = String(opts.statsPath ?? '/admin/statistics').trim() || '/admin/statistics'
   const cq = opts.coachQuality ?? null
   const cqLoading = opts.coachQualityLoading === true
   const cqHeroAbove = opts.coachQualityHeroInAttention === true && (cq != null || cqLoading)
-  const clients = (filter) => buildAdminClubQueryHref('/admin/clients', { clubId, filter })
+  const clients = (filter) => buildAdminClubQueryHref(clientsPath, { clubId, filter })
 
   /** @type {Record<string, object>} */
   const byKey = {
@@ -58,7 +62,7 @@ export function buildAdminDaySummaryCards(opts = {}) {
       label: 'Тренировок сегодня',
       hint: `вчера: ${summary.trainingsYesterday}`,
       icon: 'barChart',
-      to: buildAdminClubQueryHref('/admin/statistics', { clubId, period: 'today', panel: 'journal' }),
+      to: buildAdminClubQueryHref(statsPath, { clubId, period: 'today', panel: 'journal' }),
       hot: false,
       warn: false,
       textCount: false,
@@ -72,7 +76,7 @@ export function buildAdminDaySummaryCards(opts = {}) {
         ? 'цифра · детали в ряду выше'
         : cq?.chipLabel || 'за месяц · таблица в статистике',
       icon: 'gauge',
-      to: buildAdminClubQueryHref('/admin/statistics', {
+      to: buildAdminClubQueryHref(statsPath, {
         clubId,
         period: 'month',
         panel: 'coachQuality',

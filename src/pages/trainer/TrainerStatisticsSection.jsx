@@ -18,7 +18,6 @@ import { formatDateRu } from '../../lib/dateRu'
 import { membershipCardTypeLabelForTraining } from '../../lib/admin/membershipTypeStatsAgg'
 import { listMembershipsByClubId } from '../../lib/localDbClubQuery'
 import { listMembershipTypesForClub } from '../../lib/membershipTypesService'
-import { AdminInactiveClientsPanel } from '../../components/AdminInactiveClientsPanel'
 import { TrainingExercisesReadonly } from '../../components/TrainingExercisesReadonly'
 import { AdminClubStatsSection } from '../admin/AdminClubStatsSection'
 import { TrainerPayrollPanel } from '../../components/TrainerPayrollPanel'
@@ -88,8 +87,6 @@ export function TrainerStatisticsSection() {
 
   const [statsRange, setStatsRange] = useState({ start: '', end: '' })
   const [journalOpen, setJournalOpen] = useState(false)
-  const [inactiveOpen, setInactiveOpen] = useState(false)
-  const [inactiveClients, setInactiveClients] = useState([])
 
   const [filteredTrainings, setFilteredTrainings] = useState([])
   const [clients, setClients] = useState({})
@@ -115,7 +112,6 @@ export function TrainerStatisticsSection() {
   const onStatsRange = useCallback((r) => {
     setPage(0)
     setJournalOpen(false)
-    setInactiveOpen(false)
     if (!r?.start || !r?.end) {
       setStatsRange({ start: '', end: '' })
       return
@@ -225,23 +221,9 @@ export function TrainerStatisticsSection() {
   }, [journalOpen])
 
   const openCompletedJournal = useCallback(() => {
-    setInactiveOpen(false)
     setJournalOpen(true)
     setPage(0)
   }, [])
-
-  const openInactive = useCallback((list) => {
-    setJournalOpen(false)
-    setInactiveClients(Array.isArray(list) ? list : [])
-    setInactiveOpen(true)
-  }, [])
-
-  useEffect(() => {
-    if (!inactiveOpen) return
-    requestAnimationFrame(() => {
-      document.getElementById('trainer-inactive-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    })
-  }, [inactiveOpen])
 
   useDebouncedStorageReload(() => void load({ silent: true }), { shouldRun: shouldReloadTrainerClientList })
 
@@ -276,34 +258,7 @@ export function TrainerStatisticsSection() {
         }}
         onActiveRangeChange={onStatsRange}
         onOpenCompletedJournal={openCompletedJournal}
-        onOpenInactive={openInactive}
       />
-
-      {inactiveOpen ? (
-        <section className="card" id="trainer-inactive-panel">
-          <div className="td-section-head">
-            <h2 className="section-title td-section-title" style={{ margin: 0 }}>
-              Не активные — {inactiveClients.length}
-            </h2>
-            <button type="button" className="btn btn-ghost btn-touch" onClick={() => setInactiveOpen(false)}>
-              Скрыть
-            </button>
-          </div>
-          {statsRange.start && statsRange.end ? (
-            <AdminInactiveClientsPanel
-              clients={inactiveClients}
-              dateFrom={statsRange.start}
-              dateTo={statsRange.end}
-              clientLinkTo={clientLinkTo}
-              scopeLabel="trainer"
-            />
-          ) : (
-            <p className="muted" style={{ margin: 0, fontSize: 14 }}>
-              Выберите период в сводке выше.
-            </p>
-          )}
-        </section>
-      ) : null}
 
       {journalOpen ? (
         <section className="card" id="trainer-completed-trainings-journal">

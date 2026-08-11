@@ -24,35 +24,27 @@ import { MEMBERSHIP_EXPIRING_WITHIN_DAYS } from '../clientListSignals.js'
  *     droppedCount?: number,
  *   } | null,
  *   clubId?: string,
+ *   clientsPath?: string,
+ *   statsPath?: string,
  *   hrefClientsInactive?: string,
- *   hrefStatsInactive?: string,
  *   hrefStatsCoach?: string,
  *   hrefClientsExpiring?: string,
  * }} opts
- * @returns {Array<{
- *   id: string,
- *   title: string,
- *   subtitle: string,
- *   href: string,
- *   tone: 'warn' | 'hot' | 'neutral',
- *   scorePct?: number | null,
- *   reviewCount?: number,
- *   attentionCount?: number,
- *   droppedCount?: number,
- * }>}
  */
 export function buildAdminHomeSoftSignals(opts = {}) {
   const summary = opts.summary ?? null
   const cq = opts.coachQuality ?? null
   const clubId = String(opts.clubId ?? '').trim()
+  const clientsPath = String(opts.clientsPath ?? '/admin/clients').trim() || '/admin/clients'
+  const statsPath = String(opts.statsPath ?? '/admin/statistics').trim() || '/admin/statistics'
   const out = []
-  const clients = (filter) => buildAdminClubQueryHref('/admin/clients', { clubId, filter })
+  const clients = (filter) => buildAdminClubQueryHref(clientsPath, { clubId, filter })
 
-  const hrefInactive =
-    opts.hrefClientsInactive || opts.hrefStatsInactive || clients('inactive')
+  // «Не активные» → Клиенты (воронка). Статистика больше не держит эту карточку у админа.
+  const hrefInactive = opts.hrefClientsInactive || clients('inactive')
   const hrefCoach =
     opts.hrefStatsCoach ||
-    buildAdminClubQueryHref('/admin/statistics', { clubId, period: 'month', panel: 'coachQuality' })
+    buildAdminClubQueryHref(statsPath, { clubId, period: 'month', panel: 'coachQuality' })
   const hrefExpiring = opts.hrefClientsExpiring || clients('expiring')
 
   const scorePct = cq?.scorePct != null && Number.isFinite(Number(cq.scorePct)) ? Number(cq.scorePct) : null

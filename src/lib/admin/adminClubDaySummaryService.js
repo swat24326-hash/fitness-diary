@@ -50,13 +50,14 @@ export async function loadAdminClubDaySummary(clubId) {
     noTabletTrainerIds = new Set()
   }
 
-  let inactiveOverride = null
   let trainingsTodayOverride = null
   let trainingsYesterdayOverride = null
 
   if (isSupabaseConfigured() && isAppOnline()) {
     try {
-      // Один light-запрос: completed по byDay + inactive на конец периода (сегодня).
+      // Light-запрос только для счётчиков тренировок (byDay).
+      // «Не активные» на сводке дня = финал воронки из локального census+funnel,
+      // не широкий inactiveInPeriod из club-stats (тот дублировал статистику и расходился с «Клиентами»).
       const rangeStats = await loadClubTrainingStats({
         clubId: cid,
         dateFrom: yesterday,
@@ -64,7 +65,6 @@ export async function loadAdminClubDaySummary(clubId) {
         includeCoachQuality: false,
       })
       if (!rangeStats?.error) {
-        inactiveOverride = rangeStats.inactiveInPeriod ?? null
         const byDay = rangeStats.byDay ?? []
         const tRow = byDay.find((d) => String(d?.date ?? '').slice(0, 10) === today)
         const yRow = byDay.find((d) => String(d?.date ?? '').slice(0, 10) === yesterday)
@@ -102,7 +102,6 @@ export async function loadAdminClubDaySummary(clubId) {
       memberships,
       trainings,
       salesReportFilled,
-      inactiveOverride,
       trainingsTodayOverride,
       trainingsYesterdayOverride,
       holdingTrainerIds,

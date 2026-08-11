@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useOutletContext, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom'
 import { BarChart3, ChevronLeft, ChevronRight, Eye, RefreshCw, UserCircle } from 'lucide-react'
 import { CloseButton } from '../../components/CloseButton'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
@@ -23,10 +23,9 @@ import { fetchMembershipsForClubViaAdminApi } from '../../lib/admin/adminApiClie
 import { membershipCardTypeLabelForTraining } from '../../lib/admin/membershipTypeStatsAgg'
 import { listMembershipsByClubId } from '../../lib/localDbClubQuery'
 import { listMembershipTypesForClub } from '../../lib/membershipTypesService'
-import { AdminInactiveClientsPanel } from '../../components/AdminInactiveClientsPanel'
-import { TrainingExercisesReadonly } from '../../components/TrainingExercisesReadonly'
 import { AdminClubStatsSection } from './AdminClubStatsSection'
-import { CLUB_STATS_HALL_LABELS } from '../../lib/admin/clubStatsHallFilterCore.js'
+import { buildAdminClientsListHref } from '../../lib/admin/adminClientsListHrefCore.js'
+import { TrainingExercisesReadonly } from '../../components/TrainingExercisesReadonly'
 import { SectionErrorBoundary } from '../../components/SectionErrorBoundary'
 import { getHealthCurrentWeightKg } from '../../lib/clientWeightCore'
 
@@ -97,6 +96,9 @@ function AdminHealthReadonly({ health }) {
 
 export function AdminStatistics() {
   const ctx = useOutletContext()
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const clientsBase = pathname.startsWith('/club') ? '/club/clients' : '/admin/clients'
   const clubIdCtx = ctx?.clubId ?? ''
   const [searchParams, setSearchParams] = useSearchParams()
   const club = searchParams.get('club') ?? clubIdCtx ?? ''
@@ -104,13 +106,24 @@ export function AdminStatistics() {
   const initialPeriod = periodParam === 'today' || periodParam === 'month' ? periodParam : null
   const panelParam = searchParams.get('panel')
   const deepLinkPanel =
-    panelParam === 'inactive'
-      ? 'inactive'
-      : panelParam === 'journal'
-        ? 'journal'
-        : panelParam === 'coachQuality'
-          ? 'coachQuality'
-          : null
+    panelParam === 'journal'
+      ? 'journal'
+      : panelParam === 'coachQuality'
+        ? 'coachQuality'
+        : null
+
+  // Старые ссылки panel=inactive → Клиенты (воронка), не дубль на статистике.
+  useEffect(() => {
+    if (panelParam !== 'inactive') return
+    navigate(
+      buildAdminClientsListHref(clientsBase, {
+        clubId: club,
+        filter: 'inactive',
+        clientsTab: 'active',
+      }),
+      { replace: true },
+    )
+  }, [panelParam, club, clientsBase, navigate])
 
   const consumeDeepLink = useCallback(() => {
     setSearchParams(
@@ -125,14 +138,9 @@ export function AdminStatistics() {
 
   const [statsRange, setStatsRange] = useState({ start: '', end: '' })
   const [journalOpen, setJournalOpen] = useState(false)
-  const [inactiveOpen, setInactiveOpen] = useState(false)
-  const [inactiveClients, setInactiveClients] = useState([])
-  const [inactiveHallLabel, setInactiveHallLabel] = useState('')
   const onStatsRange = useCallback((r) => {
     setPage(0)
     setJournalOpen(false)
-    setInactiveOpen(false)
-    setInactiveHallLabel('')
     if (!r?.start || !r?.end) {
       setStatsRange({ start: '', end: '' })
       return
@@ -143,8 +151,6 @@ export function AdminStatistics() {
   const onStatsContextReset = useCallback(() => {
     setPage(0)
     setJournalOpen(false)
-    setInactiveOpen(false)
-    setInactiveHallLabel('')
   }, [])
 
   const [rows, setRows] = useState([])
@@ -294,59 +300,12 @@ export function AdminStatistics() {
   useEffect(() => {
     setPage(0)
     setJournalOpen(false)
-    setInactiveOpen(false)
-    setInactiveHallLabel('')
   }, [club])
 
   const openCompletedJournal = useCallback(() => {
-    setInactiveOpen(false)
-    setInactiveHallLabel('')
     setJournalOpen(true)
     setPage(0)
   }, [])
-
-  const openInactive = useCallback((clients, meta) => {
-    setJournalOpen(false)
-    setInactiveClients(Array.isArray(clients) ? clients : [])
-    const hall = String(meta?.hall ?? '').trim()
-    setInactiveHallLabel(CLUB_STATS_HALL_LABELS[hall] || '')
-    setInactiveOpen(true)
-  }, [])
-
-  useEffect(() => {
-    if (!inactiveOpen) return
-    requestAnimationFrame(() => {
-      document.getElementById('admin-inactive-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    })
-  }, [inactiveOpen])
-
-  useEffect(() => {
-    if (!inactiveOpen || !club) return
-    let cancelled = false
-    void (async () => {
-      try {
-        const fromApi = await listTrainerSummariesForAdmin()
-        if (cancelled) return
-        const nameById = {}
-        for (const u of fromApi) {
-          const id = String(u?.id ?? '').trim()
-          if (id) nameById[id] = u.name?.trim() || '—'
-        }
-        for (const c of inactiveClients) {
-          const tid = String(c?.trainerId ?? '').trim()
-          if (tid && !nameById[tid]) {
-            nameById[tid] = `Тренер ${tid.slice(0, 8)}…`
-          }
-        }
-        setTrainerNameById(nameById)
-      } catch {
-        if (!cancelled) setTrainerNameById({})
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [inactiveOpen, club, inactiveClients])
 
   useDebouncedStorageReload(() => void load({ silent: true }), { shouldRun: shouldReloadAdminStatsPage })
 
@@ -372,7 +331,7 @@ export function AdminStatistics() {
       <AdminSectionHeader
         icon={BarChart3}
         title="Статистика клуба"
-        lead="Цифры за период. Нажмите карточку — список или разбор. «Не активные» и тренировки открываются ниже."
+        lead="Цифры за период. Нажмите карточку — разбор или список тренировок. Клиенты и воронка абонов — в разделе «Клиенты»."
       />
 
     <div className="grid stagger td-grid">
@@ -383,36 +342,9 @@ export function AdminStatistics() {
         onDeepLinkConsumed={consumeDeepLink}
         onActiveRangeChange={onStatsRange}
         onOpenCompletedJournal={openCompletedJournal}
-        onOpenInactive={openInactive}
         onStatsContextReset={onStatsContextReset}
         hideSectionTitle
       />
-
-      {inactiveOpen ? (
-        <section className="card" id="admin-inactive-panel">
-          <div className="td-section-head">
-            <h2 className="section-title td-section-title" style={{ margin: 0 }}>
-              Не активные{inactiveHallLabel ? ` · ${inactiveHallLabel}` : ''} — {inactiveClients.length}
-            </h2>
-            <button type="button" className="btn btn-ghost btn-touch" onClick={() => setInactiveOpen(false)}>
-              Скрыть
-            </button>
-          </div>
-          {club && statsRange.start && statsRange.end ? (
-            <AdminInactiveClientsPanel
-              clients={inactiveClients}
-              dateFrom={statsRange.start}
-              dateTo={statsRange.end}
-              clubId={club}
-              trainerNameById={trainerNameById}
-            />
-          ) : (
-            <p className="muted" style={{ margin: 0, fontSize: 14 }}>
-              Выберите клуб и период в сводке выше.
-            </p>
-          )}
-        </section>
-      ) : null}
 
       {journalOpen ? (
       <section className="card" id="admin-completed-trainings-journal">
@@ -499,7 +431,7 @@ export function AdminStatistics() {
                       </td>
                       <td>
                         <Link
-                          to={`/admin/clients/${t.client_id}${club ? `?club=${encodeURIComponent(club)}` : ''}`}
+                          to={`${clientsBase}/${t.client_id}${club ? `?club=${encodeURIComponent(club)}` : ''}`}
                           className="btn btn-ghost btn-icon-square btn-touch u-no-decoration"
                           aria-label="Карточка клиента"
                           title="Карточка клиента"
@@ -596,7 +528,7 @@ export function AdminStatistics() {
               Клиент: <strong>{journalClientDisplayName(clients, previewTraining.client_id)}</strong>
               {clients[previewTraining.client_id]?.phone ? ` · ${clients[previewTraining.client_id].phone}` : ''}{' '}
               <Link
-                to={`/admin/clients/${previewTraining.client_id}${club ? `?club=${encodeURIComponent(club)}` : ''}`}
+                to={`${clientsBase}/${previewTraining.client_id}${club ? `?club=${encodeURIComponent(club)}` : ''}`}
                 className="u-no-decoration"
                 style={{ color: 'var(--accent-bright)' }}
                 onClick={() => setPreviewTraining(null)}

@@ -62,6 +62,8 @@ function DaySummaryCard({ card }) {
  * @param {{
  *   summary: object | null,
  *   clubId?: string,
+ *   clientsPath?: string,
+ *   statsPath?: string,
  *   loading?: boolean,
  *   noClub?: boolean,
  *   coachQuality?: object | null,
@@ -72,6 +74,8 @@ function DaySummaryCard({ card }) {
 export function AdminClubDaySummaryPanel({
   summary,
   clubId = '',
+  clientsPath = '/admin/clients',
+  statsPath = '/admin/statistics',
   loading = false,
   noClub = false,
   coachQuality = null,
@@ -84,12 +88,14 @@ export function AdminClubDaySummaryPanel({
         ? buildAdminDaySummaryCards({
             summary,
             clubId,
+            clientsPath,
+            statsPath,
             coachQuality,
             coachQualityLoading,
             coachQualityHeroInAttention,
           })
         : [],
-    [summary, clubId, coachQuality, coachQualityLoading, coachQualityHeroInAttention],
+    [summary, clubId, clientsPath, statsPath, coachQuality, coachQualityLoading, coachQualityHeroInAttention],
   )
 
   const groups = useMemo(() => groupAdminDaySummaryCards(cards), [cards])

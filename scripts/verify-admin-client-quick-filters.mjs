@@ -72,7 +72,12 @@ ok(
 ok(
   buildAdminClubQueryHref('/admin/statistics', { clubId: 'c1', period: 'today', panel: 'inactive' }) ===
     '/admin/statistics?club=c1&period=today&panel=inactive',
-  'statistics inactive href still builds',
+  'statistics panel=inactive URL still builds (UI redirects to Clients)',
+)
+ok(
+  buildAdminClubQueryHref('/admin/clients', { clubId: 'c1', filter: 'inactive' }) ===
+    '/admin/clients?club=c1&filter=inactive',
+  'clients inactive is canonical href',
 )
 
 const today = '2026-07-22'

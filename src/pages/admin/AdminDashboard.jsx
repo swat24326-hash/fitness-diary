@@ -168,8 +168,10 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
         summary: daySummary,
         coachQuality: coachQualityHome,
         clubId,
+        clientsPath: `${basePath}/clients`,
+        statsPath: `${basePath}/statistics`,
       }),
-    [daySummary, coachQualityHome, clubId],
+    [daySummary, coachQualityHome, clubId, basePath],
   )
 
   const onWidgetsPresence = useCallback((info) => {
@@ -215,6 +217,8 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
           <AdminClubDaySummaryPanel
             summary={daySummary}
             clubId={clubId}
+            clientsPath={`${basePath}/clients`}
+            statsPath={`${basePath}/statistics`}
             loading={daySummaryLoading}
             noClub={!clubId}
             coachQuality={coachQualityHome}
