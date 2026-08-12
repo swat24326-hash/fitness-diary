@@ -10,7 +10,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useTrainerOutreach } from '../../hooks/useTrainerOutreach'
 import { deleteClientAndAllData, listClubsLocal } from '../../lib/dataAccess'
 import { ClientHardDeleteConfirmModal } from '../../components/ClientHardDeleteConfirmModal.jsx'
-import { membershipSignal, MEMBERSHIP_EXPIRING_WITHIN_DAYS } from '../../lib/clientListSignals'
+import { MEMBERSHIP_EXPIRING_WITHIN_DAYS } from '../../lib/clientListSignals'
 import { CLIENT_LIST_PAGE_SIZE } from '../../lib/clientListPagination'
 import { todayLocalIso } from '../../lib/dateRu'
 import { listMembershipTypesForClub } from '../../lib/membershipTypesService'
@@ -27,7 +27,6 @@ import { isSupabaseConfigured } from '../../lib/supabase'
 import { formatClientName } from '../../lib/clientNameFormat'
 import {
   BIRTHDAY_WINDOW_DAYS,
-  isBirthdayBrowseMatch,
   sortClientsForBirthdayBrowse,
   withBirthdayBrowseSectionBreaks,
   partitionBirthdayBrowseClients,
@@ -35,7 +34,6 @@ import {
 import { BirthdayBrowseSectionHeader } from '../../components/clients/BirthdayBrowseSectionHeader.jsx'
 import {
   isBirthdayToday,
-  isMembershipExpiredRecently,
   isOutreachScenario,
   normalizeOutreachName,
   normalizeMaxChatUrl,
@@ -43,12 +41,14 @@ import {
 } from '../../lib/trainer/trainerClientOutreachCore'
 import {
   buildLastCompletedTrainingDateByClientId,
-  isClientStaleForAttention,
-  isTrainerClientInactiveToday,
   normalizeTrainerClientQuickFilter,
   STALE_TRAINING_DAYS,
   STALE_MAX_DAYS,
 } from '../../lib/trainer/trainerAttentionSummary'
+import {
+  buildTrainerClientsBrowseCounts,
+  filterTrainerClientsByBrowseMode,
+} from '../../lib/trainer/trainerClientsBrowseFilterCore.js'
 import {
   buildOutreachScenarioHint,
   pickNextOutreachClient,
@@ -190,49 +190,18 @@ export function TrainerClients() {
     onFeedback: showToast,
   })
 
-  const clientMatchesFilter = useCallback(
-    (c, filterId) => {
-      const memList = memByClient[c.id] ?? []
-      if (filterId === 'pnk') return String(c.lifecycle ?? '') === 'pnk'
-      if (filterId === 'birthdays') return isBirthdayBrowseMatch(c.birth_date, today)
-      // Открытый ПНК — только в чипе «ПНК» (пробный лимит ≠ «закончился ДК»).
-      if (
-        String(c.lifecycle ?? '') === 'pnk' &&
-        (filterId === 'expiring' || filterId === 'expired_recent' || filterId === 'stale')
-      ) {
-        return false
-      }
-      if (filterId === 'expiring') return membershipSignal(memList, today).key === 'expiring'
-      if (filterId === 'expired_recent') return isMembershipExpiredRecently(memList, today)
-      if (filterId === 'stale') {
-        return isClientStaleForAttention({
-          memList,
-          today,
-          staleDays: STALE_TRAINING_DAYS,
-          staleMaxDays: STALE_MAX_DAYS,
-        })
-      }
-      if (filterId === 'inactive') return isTrainerClientInactiveToday(c, memList, today)
-      return false
-    },
-    [memByClient, today],
-  )
-
   const filteredClients = useMemo(() => {
     const q = query.trim().toLowerCase()
     const source = clientsTab === 'archive' ? archivedClients : clients
-    const base = !q
-      ? source
-      : source.filter((c) => {
-          const name = String(c.name ?? '').toLowerCase()
-          const phone = String(c.phone ?? '').toLowerCase()
-          const card = String(c.card_number ?? '').toLowerCase()
-          return name.includes(q) || phone.includes(q) || card.includes(q)
-        })
-
-    if (quickFilter === 'all') return base
-    return base.filter((c) => clientMatchesFilter(c, quickFilter))
-  }, [clients, archivedClients, clientsTab, query, quickFilter, clientMatchesFilter])
+    const byFilter = filterTrainerClientsByBrowseMode(source, memByClient, today, quickFilter)
+    if (!q) return byFilter
+    return byFilter.filter((c) => {
+      const name = String(c.name ?? '').toLowerCase()
+      const phone = String(c.phone ?? '').toLowerCase()
+      const card = String(c.card_number ?? '').toLowerCase()
+      return name.includes(q) || phone.includes(q) || card.includes(q)
+    })
+  }, [clients, archivedClients, clientsTab, query, quickFilter, memByClient, today])
 
   const sortedFilteredClients = useMemo(() => {
     if (quickFilter === 'birthdays') {
@@ -276,23 +245,8 @@ export function TrainerClients() {
 
   const filterCounts = useMemo(() => {
     const base = clientsTab === 'archive' ? archivedClients : clients
-    const all = base.length
-    let expiring = 0
-    let expired_recent = 0
-    let birthdays = 0
-    let stale = 0
-    let inactive = 0
-    let pnk = 0
-    for (const c of base) {
-      if (clientMatchesFilter(c, 'expiring')) expiring++
-      if (clientMatchesFilter(c, 'expired_recent')) expired_recent++
-      if (isBirthdayToday(c.birth_date, today)) birthdays++
-      if (clientMatchesFilter(c, 'stale')) stale++
-      if (clientMatchesFilter(c, 'inactive')) inactive++
-      if (clientMatchesFilter(c, 'pnk')) pnk++
-    }
-    return { all, expiring, expired_recent, birthdays, stale, inactive, pnk }
-  }, [clients, archivedClients, clientsTab, clientMatchesFilter, today])
+    return buildTrainerClientsBrowseCounts(base, memByClient, today)
+  }, [clients, archivedClients, clientsTab, memByClient, today])
 
   useEffect(() => {
     if (!user?.id || !isOutreachScenario(quickFilter)) {

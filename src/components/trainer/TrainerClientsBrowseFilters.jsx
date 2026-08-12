@@ -18,7 +18,7 @@ export const TRAINER_CLIENTS_BROWSE_LABELS = {
 const CHIP_HINT = {
   all: 'Все ваши активные клиенты',
   pnk: 'Воронка ПНК',
-  birthdays: `Цифра — ДР сегодня; в списке ещё ближайшие ${BIRTHDAY_WINDOW_DAYS} дней`,
+  birthdays: `ДР сегодня и ближайшие ${BIRTHDAY_WINDOW_DAYS} дней — цифра = длина списка`,
   expiring: `Абонемент заканчивается ≤ ${MEMBERSHIP_EXPIRING_WITHIN_DAYS} дней`,
   expired_recent: `Срок вышел меньше ${STALE_TRAINING_DAYS} дней назад — или тренировки исчерпаны при ещё идущем сроке. Пора продлить. Открытые ПНК — в чипе «ПНК», не здесь.`,
   stale: `Давно не был: ${STALE_TRAINING_DAYS}–${STALE_MAX_DAYS} дней после конца`,
