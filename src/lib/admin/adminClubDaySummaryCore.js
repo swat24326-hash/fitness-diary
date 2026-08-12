@@ -3,6 +3,8 @@ import { membershipSignal } from '../clientListSignals.js'
 import { todayLocalIso } from '../dateRu.js'
 import { aggregateClubClientPeriod } from './clubClientPeriodAgg.js'
 import { countAdminFunnelFilters } from './adminClientsFunnelCore.js'
+import { resolveAdminClientsFunnelPool } from './adminClientsBrowseCore.js'
+import { filterClientsByAdminListTab } from './deskHallClientsCore.js'
 
 /** @param {string} todayIso yyyy-mm-dd */
 export function yesterdayIso(todayIso = todayLocalIso()) {
@@ -105,12 +107,14 @@ export function buildAdminClubDaySummary(input = {}) {
   /** @type {Record<string, object[]>} */
   const memByClient = Object.fromEntries(byClientMap)
   const inactiveIds = new Set(period.inactiveClients.map((c) => c.id).filter(Boolean))
-  const funnel = countAdminFunnelFilters(
-    filterCommercialClients(clients, holdingTrainerIds),
-    memByClient,
-    today,
-    inactiveIds,
+  const pzTabCommercial = resolveAdminClientsFunnelPool(
+    filterClientsByAdminListTab(clients, 'active', memByClient),
+    'active',
+    holdingTrainerIds,
   )
+  const funnel = countAdminFunnelFilters(pzTabCommercial, memByClient, today, inactiveIds, {
+    hallMode: 'pz',
+  })
 
   // Чип/карточка «Не активные» на дашборде = финал воронки (не широкий census периода).
   const inactive =

@@ -3,6 +3,7 @@
  */
 
 import { filterCommercialClients } from './holdingClientsCore.js'
+import { normalizeAdminClientsListTab } from './deskHallClientsCore.js'
 import { todayLocalIso } from '../dateRu.js'
 import {
   hasUsableMembershipForPeriodStats,
@@ -149,6 +150,21 @@ export function remoteClientIdsForReconcile(remoteRows) {
     if (id) ids.add(id)
   }
   return ids
+}
+
+/**
+ * Пул воронки: вкладка ПЗ — commercial (без holding/desk), ТЗ/АЗ — как tabBase.
+ * Совпадает со сводкой дня и ?filter=inactive на ПЗ.
+ * @param {object[]} tabClients — filterClientsByAdminListTab(...)
+ * @param {string} clientsTab
+ * @param {Set<string>|string[]|null|undefined} [holdingTrainerIds]
+ */
+export function resolveAdminClientsFunnelPool(tabClients, clientsTab, holdingTrainerIds) {
+  const tab = normalizeAdminClientsListTab(clientsTab)
+  if (tab === 'active') {
+    return filterCommercialClients(tabClients ?? [], holdingTrainerIds)
+  }
+  return Array.isArray(tabClients) ? tabClients : []
 }
 
 /**

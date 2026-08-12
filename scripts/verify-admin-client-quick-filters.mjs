@@ -12,6 +12,8 @@ import {
   countAdminFunnelFilters,
   isAwaitingMembershipStart,
 } from '../src/lib/admin/adminClientsFunnelCore.js'
+import { resolveAdminClientsFunnelPool } from '../src/lib/admin/adminClientsBrowseCore.js'
+import { filterClientsByAdminListTab } from '../src/lib/admin/deskHallClientsCore.js'
 import {
   hasUpcomingMembership,
   inactiveMembershipReason,
@@ -437,6 +439,37 @@ ok(
   }),
   'regular client with depleted package still expired_recent',
 )
+
+const holdingTrainerId = 'holding-trainer-1'
+const holdingSet = new Set([holdingTrainerId])
+const inactiveMem = [
+  { start_date: '2020-01-01', end_date: '2020-06-01', total_trainings: 10, used_trainings: 10, hall: 'pz' },
+]
+const poolClients = [
+  { id: 'lite-inactive', trainer_id: 'lite-trainer' },
+  { id: 'holding-inactive', trainer_id: holdingTrainerId },
+]
+const poolMemByClient = {
+  'lite-inactive': inactiveMem,
+  'holding-inactive': inactiveMem,
+}
+const pzTabBase = filterClientsByAdminListTab(poolClients, 'active', poolMemByClient)
+const pzFunnelPool = resolveAdminClientsFunnelPool(pzTabBase, 'active', holdingSet)
+ok(pzTabBase.length === 2, 'PZ tab includes holding client with pz abon')
+ok(pzFunnelPool.length === 1 && pzFunnelPool[0].id === 'lite-inactive', 'PZ funnel pool drops holding')
+const countsWide = countAdminFunnelFilters(pzTabBase, poolMemByClient, today, new Set(), { hallMode: 'pz' })
+const countsFunnel = countAdminFunnelFilters(pzFunnelPool, poolMemByClient, today, new Set(), { hallMode: 'pz' })
+ok(countsWide.inactive === 2, 'tab base counts holding in inactive')
+ok(countsFunnel.inactive === 1, 'funnel pool inactive matches day summary / clients chip')
+const listed = pzFunnelPool.filter((c) =>
+  clientMatchesAdminFunnelFilter('inactive', {
+    client: c,
+    memList: poolMemByClient[c.id] ?? [],
+    today,
+    hallMode: 'pz',
+  }),
+)
+ok(listed.length === countsFunnel.inactive, 'inactive chip count equals list length')
 
 if (failed) process.exit(1)
 console.log('verify-admin-client-quick-filters: all passed')

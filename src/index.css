@@ -4430,10 +4430,13 @@ tr:last-child td {
 }
 
 .admin-day-summary__card {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  display: grid;
+  grid-template-rows: 1.75rem minmax(2.25rem, 1fr) auto auto;
   gap: 4px;
+  align-content: stretch;
+  min-height: 132px;
+  height: 100%;
+  align-items: start;
   padding: clamp(12px, 2.5vw, 16px);
   border-radius: var(--radius);
   background: var(--bg-elevated);
@@ -4466,6 +4469,10 @@ tr:last-child td {
 }
 
 .admin-day-summary__card-count {
+  display: flex;
+  align-items: flex-end;
+  align-self: stretch;
+  min-height: 0;
   font-size: clamp(1.35rem, 4vw, 1.65rem);
   font-weight: 700;
   line-height: 1.1;
