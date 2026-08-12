@@ -36,17 +36,15 @@ import {
   pickAzMembershipForDeduct,
 } from '../../lib/admin/deskAzSessionDeductCore.js'
 import {
+  adminClientsAllTileLabel,
+  adminClientsCrossHallSearchNote,
   buildAdminClientsBrowseCounts,
   buildAdminClientsTodaySnapshot,
-  resolveAdminClientsBrowseHallMode,
-  adminClientBrowseMatchCtx,
+  filterAdminClientsByBrowseMode,
+  formatAdminClientsResultsShown,
   isAdminClientsBrowseMode,
   shouldShowAdminClientsList,
 } from '../../lib/admin/adminClientsBrowseCore'
-import {
-  clientMatchesAdminFunnelFilter,
-  isAdminPnkClient,
-} from '../../lib/admin/adminClientsFunnelCore.js'
 import {
   BIRTHDAY_WINDOW_DAYS,
   formatUpcomingBirthdayLabel,
@@ -559,6 +557,17 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
 
   const crossHallSearch = shouldSearchAcrossHalls(query, clientsTab)
 
+  // Cross-hall поиск: сбрасываем воронку — иначе chip≠list и hallMode врёт.
+  useEffect(() => {
+    if (!crossHallSearch) return
+    if (quickFilter === 'none') return
+    setQuickFilter('none')
+    setListPage(0)
+    patchListSearch((p) => {
+      p.delete('filter')
+    }, { resetPage: true })
+  }, [crossHallSearch]) // сброс воронки только при входе в cross-hall поиск
+
   const filteredClients = useMemo(() => {
     const q = query.trim().toLowerCase()
     const tq = trainerQuery.trim().toLowerCase()
@@ -583,24 +592,24 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       })
     }
 
-    if (quickFilter === 'none') {
-      /* keep base for search / az direction */
-    } else if (quickFilter === 'all') {
-      base = base.filter((c) => !isAdminPnkClient(c))
-    } else if (isAdminClientsBrowseMode(quickFilter)) {
-      const hallMode = resolveAdminClientsBrowseHallMode(clientsTab, { crossHallSearch })
-      base = base.filter((c) =>
-        clientMatchesAdminFunnelFilter(
-          quickFilter,
-          adminClientBrowseMatchCtx(c, today, hallMode, memByClient),
-        ),
+    // Воронка только без cross-hall: тот же контур, что плитки (вкл. АЗ-направление).
+    if (!crossHallSearch && quickFilter !== 'none' && isAdminClientsBrowseMode(quickFilter)) {
+      const allowed = new Set(
+        filterAdminClientsByBrowseMode({
+          clients,
+          memByClient,
+          clientsTab,
+          today,
+          browseMode: quickFilter,
+          azDirectionFilter: clientsTab === 'az' ? azDirectionFilter : '',
+        }).map((c) => String(c.id)),
       )
-    }
-
-    if (
+      base = base.filter((c) => allowed.has(String(c.id)))
+    } else if (
+      !crossHallSearch &&
       clientsTab === 'az' &&
-      !shouldSearchAcrossHalls(query, clientsTab) &&
-      normalizeAzDirectionFilterId(azDirectionFilter)
+      normalizeAzDirectionFilterId(azDirectionFilter) &&
+      (quickFilter === 'none' || !isAdminClientsBrowseMode(quickFilter))
     ) {
       base = base.filter((c) =>
         clientMatchesAzDirectionFilter(memByClient[c.id] ?? [], azDirectionFilter, today),
@@ -623,9 +632,9 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     memByClient,
     today,
     trainerNameById,
-    todaySnapshot,
     isDeskHallTab,
     showTrainerSearch,
+    crossHallSearch,
   ])
 
   const azDirectionOptions = useMemo(() => {
@@ -747,12 +756,21 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
   }, [club, pagedClients])
 
   const filterCounts = useMemo(
-    () => buildAdminClientsBrowseCounts({ clients, memByClient, clientsTab, today }),
-    [clients, clientsTab, memByClient, today],
+    () =>
+      buildAdminClientsBrowseCounts({
+        clients,
+        memByClient,
+        clientsTab,
+        today,
+        azDirectionFilter: clientsTab === 'az' ? azDirectionFilter : '',
+      }),
+    [clients, clientsTab, memByClient, today, azDirectionFilter],
   )
 
+  const allTileLabel = adminClientsAllTileLabel(clientsTab, filterCounts)
+
   const browseFilterLabels = {
-    all: 'Все клиенты',
+    all: allTileLabel,
     pnk: 'Воронка ПНК',
     inactive: 'Не активные (финал воронки)',
     awaiting_start: 'Ждёт старт абонемента',
@@ -762,7 +780,26 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     stale: 'Давно не был',
   }
 
-  const activeBrowseLabel = browseFilterLabels[quickFilter] ?? null
+  const azDirectionShownLabel = useMemo(() => {
+    if (clientsTab !== 'az') return null
+    const want = normalizeAzDirectionFilterId(azDirectionFilter)
+    if (!want) return null
+    const opt = azDirectionOptions.find((o) => o.id === want)
+    return opt?.label || want
+  }, [clientsTab, azDirectionFilter, azDirectionOptions])
+
+  const resultsShown = useMemo(
+    () =>
+      formatAdminClientsResultsShown({
+        crossHallSearch,
+        browseMode: quickFilter,
+        browseLabel: browseFilterLabels[quickFilter] ?? null,
+        azDirectionLabel: azDirectionShownLabel,
+        listLength: filteredClients.length,
+      }),
+    // browseFilterLabels стабилен по ключам; allTileLabel / BIRTHDAY в deps через quickFilter+allTileLabel
+    [crossHallSearch, quickFilter, allTileLabel, azDirectionShownLabel, filteredClients.length],
+  )
   const smsMode = useMemo(() => resolveClubSmsMode(quickFilter), [quickFilter])
   const clientSmsScenarioById = useMemo(() => {
     /** @type {Record<string, string>} */
@@ -849,6 +886,17 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
 
   const applyFilter = (id) => {
     const next = quickFilter === id ? 'none' : id
+    // Клик по сводке при поиске — выходим из cross-hall, иначе эффект снова сбросит filter.
+    if (crossHallSearch && next !== 'none') {
+      setQuery('')
+      setQuickFilter(next)
+      setListPage(0)
+      patchListSearch((p) => {
+        p.delete('q')
+        p.set('filter', next)
+      }, { resetPage: true })
+      return
+    }
     setQuickFilter(next)
     setListPage(0)
     patchListSearch((p) => {
@@ -1114,7 +1162,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         </div>
         {crossHallSearch ? (
           <p className="muted admin-inline-note" role="status" style={{ margin: '8px 0 0', fontSize: 13 }}>
-            Поиск по всему клубу (ПЗ, ТЗ и АЗ). В карточке выдачи — блоки залов, где есть абон.
+            {adminClientsCrossHallSearchNote()}
           </p>
         ) : null}
 
@@ -1125,6 +1173,8 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               quickFilter={quickFilter}
               onApply={applyFilter}
               hidePnk={isDeskHallTab}
+              allLabel={allTileLabel}
+              mutedBySearch={crossHallSearch}
             />
             {clientsTab === 'az' ? (
               <AdminClientsAzDirectionFilters
@@ -1177,17 +1227,38 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         )}
 
         <div className="admin-clients-workspace__results">
-          {showClientList && activeBrowseLabel ? (
+          {showClientList && resultsShown ? (
             <div className="admin-clients-results-bar">
               <span className="admin-clients-results-bar__label">
-                Показано: <strong>{activeBrowseLabel}</strong>
-                {filteredClients.length > 0 ? (
-                  <span className="muted"> · {filteredClients.length}</span>
+                Показано: <strong>{resultsShown.title}</strong>
+                {resultsShown.detail ? (
+                  <span className="muted"> ({resultsShown.detail})</span>
                 ) : null}
+                {resultsShown.suffix ? <span className="muted">{resultsShown.suffix}</span> : null}
               </span>
-              <button type="button" className="btn btn-ghost btn-touch admin-clients-results-bar__clear" onClick={clearBrowseFilter}>
-                Сбросить
-              </button>
+              {resultsShown.clearBrowse ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-touch admin-clients-results-bar__clear"
+                  onClick={clearBrowseFilter}
+                >
+                  Сбросить
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-touch admin-clients-results-bar__clear"
+                  onClick={() => {
+                    setQuery('')
+                    setListPage(0)
+                    patchListSearch((p) => {
+                      p.delete('q')
+                    }, { resetPage: true })
+                  }}
+                >
+                  Очистить поиск
+                </button>
+              )}
             </div>
           ) : null}
 

@@ -14,7 +14,10 @@ import {
 } from '../src/lib/admin/adminClientsFunnelCore.js'
 import { resolveAdminClientsFunnelPool } from '../src/lib/admin/adminClientsBrowseCore.js'
 import {
+  buildAdminClientsBrowseCounts,
   buildAdminPzDaySummaryBrowseCounts,
+  adminClientsAllTileLabel,
+  formatAdminClientsResultsShown,
   verifyAdminClientsBrowseChipParity,
 } from '../src/lib/admin/adminClientsBrowseFilterCore.js'
 import { filterClientsByAdminListTab } from '../src/lib/admin/deskHallClientsCore.js'
@@ -136,6 +139,7 @@ const clients = [
 ]
 const memByClient = {
   b: [{ start_date: '2026-01-01', end_date: '2026-12-01', total_trainings: 10, used_trainings: 1 }],
+  soon: [{ start_date: '2026-01-01', end_date: '2026-12-01', total_trainings: 10, used_trainings: 1 }],
   e: [{ start_date: '2026-01-01', end_date: '2026-07-24', total_trainings: 10, used_trainings: 1 }],
   r: day13,
   s: day14,
@@ -474,14 +478,6 @@ ok(tabCounts.all === 2, 'all chip = tab base without pnk')
 ok(tabCounts.inactive === 2, 'inactive on PZ tab includes holding in funnel')
 const allListed = pzTabBase.filter((c) => String(c?.lifecycle ?? '') !== 'pnk')
 ok(allListed.length === tabCounts.all, 'all chip count equals list length')
-const inactiveListed = pzTabBase.filter((c) =>
-  clientMatchesAdminFunnelFilter('inactive', {
-    client: c,
-    memList: poolMemByClient[c.id] ?? [],
-    today,
-    hallMode: 'pz',
-  }),
-)
 const parity = verifyAdminClientsBrowseChipParity({
   clients: poolClients,
   memByClient: poolMemByClient,
@@ -492,6 +488,81 @@ ok(parity.ok, `browse chip parity holding fixture: ${JSON.stringify(parity.misma
 
 const dayFunnel = buildAdminPzDaySummaryBrowseCounts(poolClients, poolMemByClient, today)
 ok(dayFunnel.inactive === tabCounts.inactive, 'day summary inactive = clients PZ chip')
+
+ok(
+  adminClientsAllTileLabel('active', { pnk: 2 }) === 'Все (без ПНК)',
+  'all tile labels без ПНК when pnk>0',
+)
+ok(adminClientsAllTileLabel('active', { pnk: 0 }) === 'Все клиенты', 'all tile plain when no pnk')
+
+const shownSearch = formatAdminClientsResultsShown({
+  crossHallSearch: true,
+  browseMode: 'inactive',
+  listLength: 7,
+})
+ok(shownSearch?.title === 'Поиск по клубу' && shownSearch.suffix === ' · 7', 'shown bar for cross-hall search')
+
+const shownAz = formatAdminClientsResultsShown({
+  browseMode: 'inactive',
+  browseLabel: 'Не активные (финал воронки)',
+  azDirectionLabel: 'Бокс',
+  listLength: 2,
+})
+ok(
+  shownAz?.title === 'Не активные (финал воронки) · Бокс' && shownAz.suffix === ' · 2',
+  'shown bar includes AZ direction',
+)
+
+const azType = 'type-box'
+const azClients = [
+  { id: 'az1', trainer_id: null, desk_hall: 'az' },
+  { id: 'az2', trainer_id: null, desk_hall: 'az' },
+]
+const azMem = {
+  az1: [
+    {
+      hall: 'az',
+      membership_type_id: azType,
+      start_date: '2020-01-01',
+      end_date: '2020-06-01',
+      total_trainings: 10,
+      used_trainings: 10,
+    },
+  ],
+  az2: [
+    {
+      hall: 'az',
+      membership_type_id: 'type-step',
+      start_date: '2020-01-01',
+      end_date: '2020-06-01',
+      total_trainings: 10,
+      used_trainings: 10,
+    },
+  ],
+}
+const azParityAll = verifyAdminClientsBrowseChipParity({
+  clients: azClients,
+  memByClient: azMem,
+  clientsTab: 'az',
+  today,
+})
+ok(azParityAll.ok, `az tab chip parity: ${JSON.stringify(azParityAll.mismatches)}`)
+const azParityDir = verifyAdminClientsBrowseChipParity({
+  clients: azClients,
+  memByClient: azMem,
+  clientsTab: 'az',
+  today,
+  azDirectionFilter: azType,
+})
+ok(azParityDir.ok, `az+direction chip parity: ${JSON.stringify(azParityDir.mismatches)}`)
+const azDirCounts = buildAdminClientsBrowseCounts({
+  clients: azClients,
+  memByClient: azMem,
+  clientsTab: 'az',
+  today,
+  azDirectionFilter: azType,
+})
+ok(azDirCounts.inactive === 1 && azDirCounts.all === 1, 'az direction narrows chips to one client')
 
 if (failed) process.exit(1)
 console.log('verify-admin-client-quick-filters: all passed')

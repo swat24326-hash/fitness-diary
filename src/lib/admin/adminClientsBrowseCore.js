@@ -162,10 +162,14 @@ export function mergeAdminPzBrowseFilterCounts(funnel, _snapshot = {}) {
 
 export {
   adminClientBrowseMatchCtx,
+  adminClientsAllTileLabel,
+  adminClientsCrossHallSearchNote,
+  applyAzDirectionToBrowsePool,
   buildAdminClientsBrowseCounts,
   buildAdminPzDaySummaryBrowseCounts,
   filterAdminClientsByBrowseMode,
   filterCommercialCensusOnAdminTab,
+  formatAdminClientsResultsShown,
   resolveAdminClientsBrowseHallMode,
   resolveAdminClientsFunnelPool,
   verifyAdminClientsBrowseChipParity,

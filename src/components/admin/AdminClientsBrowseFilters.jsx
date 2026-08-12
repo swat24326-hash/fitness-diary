@@ -7,7 +7,7 @@ import '../../styles/admin-clients-filters.css'
 
 /** Подсказки «что за фильтр» — по клику на ? */
 export const ADMIN_CLIENTS_FILTER_HELP = {
-  all: 'Клиенты на этой вкладке (ПЗ / ТЗ / АЗ) без архива и без открытой воронки ПНК. Цифра = длина списка по клику. Не «все люди клуба» и не census Статистики.',
+  all: 'Клиенты на этой вкладке без архива и без открытой воронки ПНК. На ПЗ подпись «без ПНК», если есть карточки ПНК. Цифра = длина списка по клику. Не «все люди клуба» и не census Статистики.',
   pnk: 'Открытые карточки воронки ПНК (пробная / ещё не ДК). Как у тренера: отдельно от «всех» клиентов клуба.',
   inactive:
     `Финал воронки абона: больше ${STALE_MAX_DAYS} дней после конца — или странный/пустой абон (нет дат, нельзя отнести к этапу). Не пересекается с «Закончился» и «Давно не был». ПНК сюда не входят.`,
@@ -34,11 +34,20 @@ export const ADMIN_CLIENTS_FILTER_HELP = {
  *   quickFilter: string,
  *   onApply: (id: string) => void,
  *   hidePnk?: boolean,
+ *   allLabel?: string,
+ *   mutedBySearch?: boolean,
  * }} props
  */
-export function AdminClientsBrowseFilters({ counts, quickFilter, onApply, hidePnk = false }) {
+export function AdminClientsBrowseFilters({
+  counts,
+  quickFilter,
+  onApply,
+  hidePnk = false,
+  allLabel = 'Все клиенты',
+  mutedBySearch = false,
+}) {
   const tile = (id, extra = {}) => ({
-    active: quickFilter === id,
+    active: !mutedBySearch && quickFilter === id,
     hot: Boolean(extra.hot),
     warn: Boolean(extra.warn),
     onSelect: () => onApply(id),
@@ -46,8 +55,14 @@ export function AdminClientsBrowseFilters({ counts, quickFilter, onApply, hidePn
   })
 
   return (
-    <div className="admin-clients-workspace__metrics">
-      <p className="admin-clients-workspace__metrics-title">Сводка на сегодня</p>
+    <div
+      className={`admin-clients-workspace__metrics${mutedBySearch ? ' admin-clients-workspace__metrics--muted' : ''}`}
+      aria-disabled={mutedBySearch ? true : undefined}
+    >
+      <p className="admin-clients-workspace__metrics-title">
+        Сводка на сегодня
+        {mutedBySearch ? <span className="muted"> · по вкладке, не по поиску</span> : null}
+      </p>
 
       <section className="admin-clients-filters-section" aria-labelledby="admin-clients-filters-base">
         <h3 id="admin-clients-filters-base" className="admin-clients-filters-section__title">
@@ -62,7 +77,7 @@ export function AdminClientsBrowseFilters({ counts, quickFilter, onApply, hidePn
           <AdminClientsFilterTile
             icon={<Users size={18} strokeWidth={2} />}
             count={counts.all}
-            label="Все клиенты"
+            label={allLabel}
             {...tile('all')}
           />
           {!hidePnk ? (

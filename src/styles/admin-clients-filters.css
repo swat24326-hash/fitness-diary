@@ -4,6 +4,18 @@
  * Цифра + подпись на виду; «?» — длинная подсказка.
  */
 
+.admin-clients-workspace__metrics-title {
+  margin: 0 0 10px;
+}
+
+.admin-clients-workspace__metrics--muted {
+  opacity: 0.72;
+}
+
+.admin-clients-workspace__metrics--muted .admin-clients-filter-tile--active {
+  box-shadow: none;
+}
+
 .admin-clients-filters-section {
   margin: 0;
   padding: 0;
