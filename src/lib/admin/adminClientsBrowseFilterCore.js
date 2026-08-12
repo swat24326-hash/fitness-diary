@@ -3,7 +3,7 @@
  * Census/commercial — только stats / period agg, не сюда.
  *
  * Критические правила:
- * - chip = list на вкладке (без поиска);
+ * - chip = list на вкладке (без поиска), кроме ДР: плитка = сегодня, список = окно;
  * - АЗ-направление сужает и chip, и list;
  * - cross-hall поиск → сброс воронки (иначе chip≠list и hallMode врёт).
  */
@@ -249,7 +249,8 @@ export function filterCommercialCensusOnAdminTab(tabClients, clientsTab, holding
 export const resolveAdminClientsFunnelPool = filterCommercialCensusOnAdminTab
 
 /**
- * Verify: chip N === list length для каждого browse-фильтра на вкладке.
+ * Verify: chip N === list length для browse-фильтров на вкладке.
+ * Исключение: `birthdays` — плитка только «сегодня», список = окно ближайших ДР.
  * @param {{
  *   clients: object[],
  *   memByClient: Record<string, object[]>,
@@ -266,6 +267,7 @@ export function verifyAdminClientsBrowseChipParity(p) {
   /** @type {Array<{ key: string, chip: number, list: number }>} */
   const mismatches = []
   for (const key of keys) {
+    if (key === 'birthdays') continue
     const listLen = filterAdminClientsByBrowseMode({ ...p, browseMode: key }).length
     const chip = Number(counts[key]) || 0
     if (chip !== listLen) mismatches.push({ key, chip, list: listLen })

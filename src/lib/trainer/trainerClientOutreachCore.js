@@ -1,4 +1,4 @@
-import { daysUntilNextBirthday } from '../clientBirthdays.js'
+import { isBirthdayToday } from '../clientBirthdays.js'
 import { membershipSignal } from '../clientListSignals.js'
 import { hasUpcomingMembership, pickUsableMembershipForDate, isMembershipDepletedInPeriod, pickDepletedMembershipInPeriod } from '../membershipRules.js'
 import { todayLocalIso } from '../dateRu.js'
@@ -262,9 +262,7 @@ export function membershipDaysUntilEnd(list, todayIso) {
 }
 
 /** @param {string | null | undefined} birthDateIso @param {string} todayIso */
-export function isBirthdayToday(birthDateIso, todayIso) {
-  return daysUntilNextBirthday(birthDateIso, todayIso) === 0
-}
+export { isBirthdayToday }
 
 /**
  * @param {OutreachScenario} scenario

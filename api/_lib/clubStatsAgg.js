@@ -128,7 +128,16 @@ function inactiveMembershipReason(memberships, dateIso) {
     return 'not_started'
   }
   const covering = list.filter((m) => membershipCoversDate(m, d))
-  if (covering.some((m) => !membershipHasRemaining(m))) return 'depleted'
+  const sessionDepleted = covering.some((m) => {
+    const total = Number(m?.total_trainings ?? 0)
+    return Number.isFinite(total) && total > 0 && !membershipHasRemaining(m)
+  })
+  if (sessionDepleted) return 'depleted'
+  const emptyPackage = covering.some((m) => {
+    const total = Number(m?.total_trainings ?? 0)
+    return !(Number.isFinite(total) && total > 0)
+  })
+  if (emptyPackage) return 'empty_package'
   return 'expired'
 }
 
@@ -158,6 +167,7 @@ function inactiveMembershipDetail(memberships, dateIso) {
   const withDates = list.filter((m) => m?.start_date && m?.end_date)
   const labels = {
     depleted: 'тренировки закончились',
+    empty_package: 'нет занятий в пакете',
     expired: 'срок абонемента прошёл',
     not_started: 'абонемент ещё не начался',
     no_membership: 'нет абонемента',
@@ -181,11 +191,11 @@ function inactiveMembershipDetail(memberships, dateIso) {
     const covering = withDates.filter((m) => membershipCoversDate(m, d))
     const depleted =
       covering
-        .filter((m) => !membershipHasRemaining(m))
-        .sort((a, b) => String(b.end_date).localeCompare(String(a.end_date)))[0] ??
-      withDates
-        .filter((m) => !membershipHasRemaining(m))
-        .sort((a, b) => String(b.end_date).localeCompare(String(a.end_date)))[0]
+        .filter((m) => {
+          const total = Number(m?.total_trainings ?? 0)
+          return Number.isFinite(total) && total > 0 && !membershipHasRemaining(m)
+        })
+        .sort((a, b) => String(b.end_date).localeCompare(String(a.end_date)))[0] ?? null
     if (depleted) {
       const used = Number(depleted.used_trainings ?? 0)
       const total = Number(depleted.total_trainings ?? 0)
@@ -196,6 +206,22 @@ function inactiveMembershipDetail(memberships, dateIso) {
       }
     }
     return { reason, inactiveDetail: labels.depleted }
+  }
+  if (reason === 'empty_package') {
+    const covering = withDates.filter((m) => {
+      if (!membershipCoversDate(m, d)) return false
+      const total = Number(m?.total_trainings ?? 0)
+      return !(Number.isFinite(total) && total > 0)
+    })
+    const empty = covering.sort((a, b) => String(b.end_date).localeCompare(String(a.end_date)))[0] ?? null
+    if (empty) {
+      return {
+        reason,
+        inactiveDetail: `нет занятий в пакете, срок до ${formatDateRu(empty.end_date)}`,
+        membershipEndDate: empty.end_date,
+      }
+    }
+    return { reason, inactiveDetail: labels.empty_package }
   }
   const expired = withDates
     .filter((m) => String(m.end_date) < d)

@@ -16,6 +16,39 @@ export function membershipHasRemaining(m) {
 }
 
 /**
+ * Пакет без лимита занятий (`total_trainings` не > 0): lite ПЗ / ТЗ-календарь / ошибочный 0/0.
+ * Не путать с исчерпанным лимитом (total > 0 и used ≥ total).
+ * @param {object|null|undefined} m
+ */
+export function isCalendarUnlimitedMembership(m) {
+  const total = Number(m?.total_trainings ?? 0)
+  return !(Number.isFinite(total) && total > 0)
+}
+
+/**
+ * Срок кроет дату, лимит занятий исчерпан (только пакеты с total > 0).
+ * @param {object|null|undefined} m
+ * @param {string} dateIso
+ */
+export function membershipIsSessionDepletedOn(m, dateIso) {
+  if (!m || isCalendarUnlimitedMembership(m)) return false
+  return membershipCoversDate(m, dateIso) && !membershipHasRemaining(m)
+}
+
+/**
+ * Есть абон по сроку без лимита занятий на дату.
+ * @param {object[]|null|undefined} memberships
+ * @param {string} dateIso
+ */
+export function hasCalendarUnlimitedCovering(memberships, dateIso) {
+  const d = String(dateIso ?? '').slice(0, 10)
+  if (!d) return false
+  return (memberships ?? []).some(
+    (m) => membershipCoversDate(m, d) && isCalendarUnlimitedMembership(m),
+  )
+}
+
+/**
  * Пакет с лимитом тренировок: срок ещё кроет дату, но остаток 0.
  * Не путать с ТЗ/календарём (`total_trainings = 0` — без лимита занятий).
  * Такие клиенты — горячие для продления, не «холодный» хвост «Не активные» alone.
@@ -26,13 +59,7 @@ export function membershipHasRemaining(m) {
 export function isMembershipDepletedInPeriod(memberships, dateIso) {
   const d = String(dateIso ?? '').slice(0, 10)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return false
-  for (const m of memberships ?? []) {
-    const total = Number(m?.total_trainings ?? 0)
-    if (!(Number.isFinite(total) && total > 0)) continue
-    if (!membershipCoversDate(m, d)) continue
-    if (!membershipHasRemaining(m)) return true
-  }
-  return false
+  return (memberships ?? []).some((m) => membershipIsSessionDepletedOn(m, d))
 }
 
 /**
@@ -43,12 +70,7 @@ export function isMembershipDepletedInPeriod(memberships, dateIso) {
 export function pickDepletedMembershipInPeriod(memberships, dateIso) {
   const d = String(dateIso ?? '').slice(0, 10)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return null
-  const candidates = (memberships ?? []).filter((m) => {
-    const total = Number(m?.total_trainings ?? 0)
-    if (!(Number.isFinite(total) && total > 0)) return false
-    if (!membershipCoversDate(m, d)) return false
-    return !membershipHasRemaining(m)
-  })
+  const candidates = (memberships ?? []).filter((m) => membershipIsSessionDepletedOn(m, d))
   if (!candidates.length) return null
   return candidates.sort((a, b) => String(b.end_date ?? '').localeCompare(String(a.end_date ?? '')))[0]
 }
@@ -230,7 +252,7 @@ export function hasUsableMembershipForPeriodStats(memberships, dateFrom, dateTo,
   return false
 }
 
-/** @returns {'depleted'|'expired'|'not_started'|'no_membership'} */
+/** @returns {'depleted'|'empty_package'|'expired'|'not_started'|'no_membership'|null} */
 export function inactiveMembershipReason(memberships, dateIso) {
   if (hasUsableMembershipOnDate(memberships, dateIso)) return null
   const list = memberships ?? []
@@ -241,12 +263,16 @@ export function inactiveMembershipReason(memberships, dateIso) {
     return 'not_started'
   }
   const covering = list.filter((m) => membershipCoversDate(m, d))
-  if (covering.some((m) => !membershipHasRemaining(m))) return 'depleted'
+  // Пакет с лимитом занятий исчерпан (total > 0, used ≥ total).
+  if (covering.some((m) => membershipIsSessionDepletedOn(m, d))) return 'depleted'
+  // Срок кроет, но занятий в пакете нет (0/0 авто-заглушка и т.п.) — всё ещё «не активный», не «лимит исчерпан».
+  if (covering.some((m) => isCalendarUnlimitedMembership(m))) return 'empty_package'
   return 'expired'
 }
 
 export const INACTIVE_MEMBERSHIP_REASON_LABELS = {
   depleted: 'тренировки закончились',
+  empty_package: 'нет занятий в пакете',
   expired: 'срок абонемента прошёл',
   not_started: 'абонемент ещё не начался',
   no_membership: 'нет абонемента',
@@ -257,7 +283,10 @@ export const INACTIVE_MEMBERSHIP_REASON_LABELS = {
  * @returns {{ reason: string, inactiveDetail: string, membershipEndDate?: string, membershipStartDate?: string }}
  */
 export function inactiveMembershipDetail(memberships, dateIso) {
-  const reason = inactiveMembershipReason(memberships, dateIso) ?? 'expired'
+  const reason = inactiveMembershipReason(memberships, dateIso)
+  if (reason == null) {
+    return { reason: 'none', inactiveDetail: '' }
+  }
   const list = memberships ?? []
   const d = String(dateIso ?? '').slice(0, 10)
   const withDates = list.filter((m) => m?.start_date && m?.end_date)
@@ -282,11 +311,8 @@ export function inactiveMembershipDetail(memberships, dateIso) {
     const covering = withDates.filter((m) => membershipCoversDate(m, d))
     const depleted =
       covering
-        .filter((m) => !membershipHasRemaining(m))
-        .sort((a, b) => String(b.end_date).localeCompare(String(a.end_date)))[0] ??
-      withDates
-        .filter((m) => !membershipHasRemaining(m))
-        .sort((a, b) => String(b.end_date).localeCompare(String(a.end_date)))[0]
+        .filter((m) => membershipIsSessionDepletedOn(m, d))
+        .sort((a, b) => String(b.end_date).localeCompare(String(a.end_date)))[0] ?? null
     if (depleted) {
       const used = Number(depleted.used_trainings ?? 0)
       const total = Number(depleted.total_trainings ?? 0)
@@ -298,6 +324,21 @@ export function inactiveMembershipDetail(memberships, dateIso) {
       }
     }
     return { reason, inactiveDetail: INACTIVE_MEMBERSHIP_REASON_LABELS.depleted }
+  }
+
+  if (reason === 'empty_package') {
+    const covering = withDates.filter((m) => membershipCoversDate(m, d) && isCalendarUnlimitedMembership(m))
+    const empty =
+      covering.sort((a, b) => String(b.end_date).localeCompare(String(a.end_date)))[0] ?? null
+    if (empty) {
+      const endRu = formatDateRu(empty.end_date)
+      return {
+        reason,
+        inactiveDetail: endRu ? `нет занятий в пакете, срок до ${endRu}` : INACTIVE_MEMBERSHIP_REASON_LABELS.empty_package,
+        membershipEndDate: empty.end_date,
+      }
+    }
+    return { reason, inactiveDetail: INACTIVE_MEMBERSHIP_REASON_LABELS.empty_package }
   }
 
   const expired = withDates
@@ -345,9 +386,14 @@ export function explainInactiveMembership(memberships, dateIso) {
   }
 
   const inWindow = withDates.filter((m) => membershipCoversDate(m, d))
-  const depleted = inWindow.find((m) => !membershipHasRemaining(m))
+  const depleted = inWindow.find((m) => membershipIsSessionDepletedOn(m, d))
   if (depleted) {
-    return 'Срок действует, но лимит тренировок исчерпан (0 из пакета).'
+    const used = Number(depleted.used_trainings ?? 0)
+    const total = Number(depleted.total_trainings ?? 0)
+    return `Срок действует, но лимит тренировок исчерпан (${used} из ${total}).`
+  }
+  if (inWindow.some((m) => isCalendarUnlimitedMembership(m))) {
+    return 'Срок действует, но в пакете нет занятий (0). Часто это авто-заглушка — укажите число тренировок или оформите нормальный абонемент.'
   }
 
   const expired = withDates

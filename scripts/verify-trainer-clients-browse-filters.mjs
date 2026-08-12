@@ -34,7 +34,11 @@ const memByClient = {
 
 const counts = buildTrainerClientsBrowseCounts(clients, memByClient, today)
 ok(counts.all === 5, 'all = roster length')
-ok(counts.birthdays === 2, 'birthdays chip = today + window (not today-only)')
+ok(counts.birthdays === 1, 'birthdays chip = today only')
+ok(
+  clientMatchesTrainerBrowseFilter(clients[1], 'birthdays', memByClient.soon, today),
+  'list includes soon in birthday window',
+)
 ok(counts.expiring === 1, 'expiring')
 ok(counts.pnk === 1, 'pnk')
 ok(counts.inactive === 1, 'inactive empty mem')

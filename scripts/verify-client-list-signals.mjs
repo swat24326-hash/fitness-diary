@@ -80,6 +80,13 @@ const depleted = membershipSignal(
 )
 ok(depleted.key === 'depleted' && depleted.factLabel === 'лимит исчерпан', 'depleted in window')
 
+const emptyPackage = membershipSignal(
+  [{ start_date: '2026-07-01', end_date: '2026-08-31', total_trainings: 0, used_trainings: 0 }],
+  today,
+)
+ok(emptyPackage.key === 'empty_package' && emptyPackage.factLabel === 'нет занятий в пакете', '0/0 covering → empty_package not depleted')
+ok(membershipSignalDotClass(emptyPackage.key) === 'none', 'empty_package red square')
+
 const expiredLeft = membershipSignal(
   [{ start_date: '2026-01-01', end_date: '2026-07-10', total_trainings: 10, used_trainings: 7 }],
   today,

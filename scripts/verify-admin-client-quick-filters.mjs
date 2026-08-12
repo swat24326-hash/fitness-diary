@@ -151,7 +151,23 @@ const memByClient = {
 const inactiveIds = new Set(['r', 's', 't', 'n'])
 const counts = countAdminFunnelFilters(clients, memByClient, today, inactiveIds)
 ok(counts.pnk === 1, 'count pnk')
-ok(counts.birthdays === 2, 'chip birthdays = browse window (today + soon)')
+ok(counts.birthdays === 1, 'chip birthdays = today only (soon in list, not on chip)')
+ok(
+  clientMatchesAdminFunnelFilter('birthdays', {
+    client: { id: 'soon', birth_date: '1990-08-01' },
+    memList: memByClient.soon,
+    today,
+  }),
+  'list birthdays includes soon (browse window)',
+)
+ok(
+  !clientMatchesAdminFunnelFilter('birthdays', {
+    client: { id: 'e', birth_date: '1990-01-01' },
+    memList: memByClient.e,
+    today,
+  }),
+  'list birthdays excludes far dates',
+)
 ok(counts.awaiting_start === 1, 'count awaiting_start')
 ok(counts.expiring === 1, 'count expiring')
 ok(counts.expired_recent === 1, 'count expired_recent')

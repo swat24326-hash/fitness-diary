@@ -1,10 +1,10 @@
 /**
  * Фильтры списка клиентов тренера: chip = list (без поиска).
- * Сценарии outreach на главной («ДР сегодня») — отдельно; здесь browse-окно ДР.
+ * Исключение ДР: плитка = сегодня, список = browse-окно (сегодня + ближайшие).
  */
 
 import { membershipSignal } from '../clientListSignals.js'
-import { isBirthdayBrowseMatch } from '../clientBirthdays.js'
+import { isBirthdayBrowseMatch, isBirthdayToday } from '../clientBirthdays.js'
 import {
   isClientStaleForAttention,
   isMembershipExpiredRecently,
@@ -33,7 +33,7 @@ export function clientMatchesTrainerBrowseFilter(client, filterId, memList, toda
   const mode = String(filterId ?? '').trim()
   if (!mode || mode === 'all') return true
   if (mode === 'pnk') return String(client?.lifecycle ?? '') === 'pnk'
-  // Список и chip: сегодня + ближайшие (как у админа).
+  // Список: сегодня + ближайшие. Цифра на чипе — только сегодня (см. buildTrainerClientsBrowseCounts).
   if (mode === 'birthdays') return isBirthdayBrowseMatch(client?.birth_date, today)
 
   if (
@@ -93,7 +93,7 @@ export function buildTrainerClientsBrowseCounts(clients, memByClient, today) {
     const memList = memByClient[c.id] ?? memByClient[String(c.id)] ?? []
     if (clientMatchesTrainerBrowseFilter(c, 'expiring', memList, today)) expiring++
     if (clientMatchesTrainerBrowseFilter(c, 'expired_recent', memList, today)) expired_recent++
-    if (clientMatchesTrainerBrowseFilter(c, 'birthdays', memList, today)) birthdays++
+    if (isBirthdayToday(c?.birth_date, today)) birthdays++
     if (clientMatchesTrainerBrowseFilter(c, 'stale', memList, today)) stale++
     if (clientMatchesTrainerBrowseFilter(c, 'inactive', memList, today)) inactive++
     if (clientMatchesTrainerBrowseFilter(c, 'pnk', memList, today)) pnk++
@@ -121,6 +121,7 @@ export function verifyTrainerClientsBrowseChipParity(clients, memByClient, today
   /** @type {Array<{ key: string, chip: number, list: number }>} */
   const mismatches = []
   for (const key of listKeys) {
+    if (key === 'birthdays') continue
     const listLen = filterTrainerClientsByBrowseMode(clients, memByClient, today, key).length
     const chip = Number(counts[key]) || 0
     if (chip !== listLen) mismatches.push({ key, chip, list: listLen })

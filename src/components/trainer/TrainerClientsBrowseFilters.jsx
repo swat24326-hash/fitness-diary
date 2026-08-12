@@ -7,7 +7,7 @@ import '../../styles/trainer-clients.css'
 export const TRAINER_CLIENTS_BROWSE_LABELS = {
   all: 'Все клиенты',
   pnk: 'ПНК',
-  birthdays: 'ДР: сегодня и ближайшие',
+  birthdays: 'ДР сегодня',
   expiring: 'Истекает абонемент',
   expired_recent: 'Абонемент закончился',
   stale: 'Давно не был',
@@ -18,7 +18,7 @@ export const TRAINER_CLIENTS_BROWSE_LABELS = {
 const CHIP_HINT = {
   all: 'Все ваши активные клиенты',
   pnk: 'Воронка ПНК',
-  birthdays: `ДР сегодня и ближайшие ${BIRTHDAY_WINDOW_DAYS} дней — цифра = длина списка`,
+  birthdays: `Цифра — только ДР сегодня; по клику — сегодня и ближайшие ${BIRTHDAY_WINDOW_DAYS} дней`,
   expiring: `Абонемент заканчивается ≤ ${MEMBERSHIP_EXPIRING_WITHIN_DAYS} дней`,
   expired_recent: `Срок вышел меньше ${STALE_TRAINING_DAYS} дней назад — или тренировки исчерпаны при ещё идущем сроке. Пора продлить. Открытые ПНК — в чипе «ПНК», не здесь.`,
   stale: `Давно не был: ${STALE_TRAINING_DAYS}–${STALE_MAX_DAYS} дней после конца`,

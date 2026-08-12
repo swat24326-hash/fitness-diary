@@ -21,6 +21,7 @@ export const MEMBERSHIP_SIGNAL_COLORS = {
   no_membership: '#f87171',
   expired: '#f87171',
   depleted: '#f87171',
+  empty_package: '#f87171',
   /** Ждёт старт — нейтральный, не «авария». */
   not_started: '#e8ece9',
 }
@@ -32,7 +33,9 @@ export const MEMBERSHIP_SIGNAL_COLORS = {
 export function membershipSignalDotClass(key) {
   const k = String(key ?? '')
   if (k === 'expired_remaining') return 'expired_recent'
-  if (k === 'depleted' || k === 'expired' || k === 'no_membership' || k === 'none') return 'none'
+  if (k === 'depleted' || k === 'empty_package' || k === 'expired' || k === 'no_membership' || k === 'none') {
+    return 'none'
+  }
   return k || 'none'
 }
 
@@ -90,6 +93,16 @@ export function membershipSignal(list, today) {
         label: String(detail.inactiveDetail ?? '').trim() || factLabel,
         factLabel,
         color: MEMBERSHIP_SIGNAL_COLORS.depleted,
+      }
+    }
+
+    if (detail.reason === 'empty_package') {
+      const factLabel = 'нет занятий в пакете'
+      return {
+        key: 'empty_package',
+        label: String(detail.inactiveDetail ?? '').trim() || factLabel,
+        factLabel,
+        color: MEMBERSHIP_SIGNAL_COLORS.empty_package,
       }
     }
 

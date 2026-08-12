@@ -43,9 +43,14 @@ export function isBirthdayWithinNextDays(birthDateIso, todayIso = todayLocalIso(
   return d >= 0 && d <= maxDays
 }
 
-/** Фильтр списка «ДР»: сегодня + ближайшие в окне (чип считает только сегодня). */
+/** Фильтр списка «ДР»: сегодня + ближайшие в окне. */
 export function isBirthdayBrowseMatch(birthDateIso, todayIso = todayLocalIso(), maxDays = BIRTHDAY_WINDOW_DAYS) {
   return isBirthdayWithinNextDays(birthDateIso, todayIso, maxDays)
+}
+
+/** Цифра на плитке «ДР сегодня» — только совпадение даты (клик открывает browse-окно). */
+export function isBirthdayToday(birthDateIso, todayIso = todayLocalIso()) {
+  return daysUntilNextBirthday(birthDateIso, todayIso) === 0
 }
 
 export function upcomingBirthdayIso(birthDateIso, todayIso = todayLocalIso()) {

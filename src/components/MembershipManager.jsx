@@ -45,6 +45,9 @@ function membershipVisualKind(m, todayIso) {
   const windowOk = membershipDateWindowOk(m, todayIso)
   const remainingOk = membershipRemainingOk(m)
   if (windowOk && remainingOk) return 'active'
+  // Срок кроет, но total=0 — не «тренировки закончились», а пустой/календарный пакет.
+  const total = Number(m?.total_trainings ?? 0)
+  if (windowOk && !(Number.isFinite(total) && total > 0)) return 'empty_package'
   if (windowOk && !remainingOk) return 'depleted'
   return 'no_window'
 }
@@ -54,6 +57,12 @@ function membershipVisualMeta(kind) {
     return {
       label: 'Действует',
       title: 'Действует: срок активен и есть остаток тренировок',
+    }
+  }
+  if (kind === 'empty_package') {
+    return {
+      label: 'Нет занятий в пакете',
+      title: 'Срок ещё действует, но число тренировок не задано (0) — часто авто-заглушка',
     }
   }
   if (kind === 'depleted') {
@@ -78,7 +87,7 @@ function MembershipStatusIcon({ kind }) {
       </svg>
     )
   }
-  if (kind === 'depleted') {
+  if (kind === 'depleted' || kind === 'empty_package') {
     return (
       <svg {...common} width="18" height="18" viewBox="0 0 18 18">
         <rect x="4" y="4" width="10" height="10" rx="2" fill="#ef4444" />

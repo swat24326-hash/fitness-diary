@@ -20,6 +20,8 @@ import { ensureClientTrainingsCached } from '../lib/clientTrainingsEnsure.js'
 import {
   membershipCoversDate,
   membershipHasRemaining,
+  membershipIsSessionDepletedOn,
+  isCalendarUnlimitedMembership,
   compareTrainingsChronological,
   completedWorkoutNumberOnMembership,
   resolveMembershipForDiaryTraining,
@@ -143,10 +145,16 @@ function membershipForTrainingDate(dateStr, memberships, training, allTrainings)
   }
 
   const depletedCover = [...memberships]
-    .filter((m) => membershipCoversDate(m, d) && !membershipHasRemaining(m))
+    .filter((m) => membershipIsSessionDepletedOn(m, d))
     .sort((a, b) => String(b.start_date ?? '').localeCompare(String(a.start_date ?? '')))[0]
   if (depletedCover) {
     return { tone: 'red', label: `Абонемент: лимит исчерпан (до ${endsOf(depletedCover)})` }
+  }
+  const emptyPackageCover = [...memberships]
+    .filter((m) => membershipCoversDate(m, d) && isCalendarUnlimitedMembership(m))
+    .sort((a, b) => String(b.start_date ?? '').localeCompare(String(a.start_date ?? '')))[0]
+  if (emptyPackageCover) {
+    return { tone: 'red', label: `Абонемент: нет занятий в пакете (до ${endsOf(emptyPackageCover)})` }
   }
   const endedBefore = [...memberships]
     .filter((m) => m.end_date < d)
