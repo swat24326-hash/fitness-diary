@@ -7,7 +7,6 @@
 import { membershipSignal } from '../clientListSignals.js'
 import { hasUpcomingMembership, pickUsableMembershipForDate } from '../membershipRules.js'
 import {
-  isBirthdayToday,
   isClientStaleForAttention,
   isMembershipExpiredRecently,
   isTrainerClientInactiveToday,
@@ -155,7 +154,7 @@ export function clientMatchesAdminFunnelFilter(filter, ctx = {}) {
 
   if (mode === 'all' || mode === 'none') return true
   if (mode === 'pnk') return hall === 'pz' ? isAdminPnkClient(client) : false
-  // Список: сегодня + ближайшие; цифра на чипе — только сегодня (см. countAdminFunnelFilters).
+  // Плитка и список по клику — один критерий (окно ДР, не только сегодня).
   if (mode === 'birthdays') return isBirthdayBrowseMatch(client.birth_date, today)
 
   // Открытый ПНК — только в чипе «ПНК», не в «Истекает / Закончился / …»
@@ -216,7 +215,7 @@ export function countAdminFunnelFilters(clients, memByClient, today, inactiveIds
     if (!isAdminPnkClient(c)) all++
     if (clientMatchesAdminFunnelFilter('pnk', ctx)) pnk++
     if (clientMatchesAdminFunnelFilter('inactive', ctx)) inactive++
-    if (isBirthdayToday(c.birth_date, today)) birthdays++
+    if (clientMatchesAdminFunnelFilter('birthdays', ctx)) birthdays++
     if (clientMatchesAdminFunnelFilter('awaiting_start', ctx)) awaiting_start++
     if (clientMatchesAdminFunnelFilter('expiring', ctx)) expiring++
     if (clientMatchesAdminFunnelFilter('expired_recent', ctx)) expired_recent++

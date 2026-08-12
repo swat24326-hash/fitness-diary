@@ -13,6 +13,10 @@ import {
   isAwaitingMembershipStart,
 } from '../src/lib/admin/adminClientsFunnelCore.js'
 import { resolveAdminClientsFunnelPool } from '../src/lib/admin/adminClientsBrowseCore.js'
+import {
+  buildAdminPzDaySummaryBrowseCounts,
+  verifyAdminClientsBrowseChipParity,
+} from '../src/lib/admin/adminClientsBrowseFilterCore.js'
 import { filterClientsByAdminListTab } from '../src/lib/admin/deskHallClientsCore.js'
 import {
   hasUpcomingMembership,
@@ -121,6 +125,7 @@ ok(
 
 const clients = [
   { id: 'b', birth_date: '1990-07-22' },
+  { id: 'soon', birth_date: '1990-08-01' },
   { id: 'e', birth_date: '1990-01-01' },
   { id: 'r', birth_date: '1990-01-01' },
   { id: 's', birth_date: '1990-01-01' },
@@ -142,7 +147,7 @@ const memByClient = {
 const inactiveIds = new Set(['r', 's', 't', 'n'])
 const counts = countAdminFunnelFilters(clients, memByClient, today, inactiveIds)
 ok(counts.pnk === 1, 'count pnk')
-ok(counts.birthdays === 1, 'count birthdays')
+ok(counts.birthdays === 2, 'chip birthdays = browse window (today + soon)')
 ok(counts.awaiting_start === 1, 'count awaiting_start')
 ok(counts.expiring === 1, 'count expiring')
 ok(counts.expired_recent === 1, 'count expired_recent')
@@ -210,7 +215,6 @@ ok(
   }),
   'no match birthday beyond 30 days',
 )
-ok(counts.birthdays === 1, 'chip count birthdays = today only')
 ok(
   clientMatchesAdminFunnelFilter('awaiting_start', {
     client: { id: 'a' },
@@ -440,6 +444,14 @@ ok(
   'regular client with depleted package still expired_recent',
 )
 
+const mainParity = verifyAdminClientsBrowseChipParity({
+  clients,
+  memByClient,
+  clientsTab: 'active',
+  today,
+})
+ok(mainParity.ok, `main fixture browse chip parity: ${JSON.stringify(mainParity.mismatches)}`)
+
 const holdingTrainerId = 'holding-trainer-1'
 const holdingSet = new Set([holdingTrainerId])
 const inactiveMem = [
@@ -470,7 +482,16 @@ const inactiveListed = pzTabBase.filter((c) =>
     hallMode: 'pz',
   }),
 )
-ok(inactiveListed.length === tabCounts.inactive, 'inactive chip count equals list length')
+const parity = verifyAdminClientsBrowseChipParity({
+  clients: poolClients,
+  memByClient: poolMemByClient,
+  clientsTab: 'active',
+  today,
+})
+ok(parity.ok, `browse chip parity holding fixture: ${JSON.stringify(parity.mismatches)}`)
+
+const dayFunnel = buildAdminPzDaySummaryBrowseCounts(poolClients, poolMemByClient, today)
+ok(dayFunnel.inactive === tabCounts.inactive, 'day summary inactive = clients PZ chip')
 
 if (failed) process.exit(1)
 console.log('verify-admin-client-quick-filters: all passed')

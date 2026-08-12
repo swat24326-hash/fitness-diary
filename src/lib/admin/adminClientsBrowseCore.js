@@ -3,7 +3,6 @@
  */
 
 import { filterCommercialClients } from './holdingClientsCore.js'
-import { normalizeAdminClientsListTab } from './deskHallClientsCore.js'
 import { todayLocalIso } from '../dateRu.js'
 import {
   hasUsableMembershipForPeriodStats,
@@ -153,27 +152,21 @@ export function remoteClientIdsForReconcile(remoteRows) {
 }
 
 /**
- * Commercial-пул для census/статистики (не для плиток Клиентов).
- * Плитки и списки на ПЗ = tabBase вкладки; holding виден во «Все» и в воронке на Clients.
- * @param {object[]} tabClients — filterClientsByAdminListTab(...)
- * @param {string} clientsTab
- * @param {Set<string>|string[]|null|undefined} [holdingTrainerIds]
- */
-export function resolveAdminClientsFunnelPool(tabClients, clientsTab, holdingTrainerIds) {
-  const tab = normalizeAdminClientsListTab(clientsTab)
-  if (tab === 'active') {
-    return filterCommercialClients(tabClients ?? [], holdingTrainerIds)
-  }
-  return Array.isArray(tabClients) ? tabClients : []
-}
-
-/**
- * Плитки Клиентов = воронка текущей вкладки (в т.ч. «Все» = tabBase без ПНК).
- * Клубной commercial/operational census (`totalOperational`) сюда не подмешивать —
- * он для Статистики / сводки дня. Snapshot не трогает counts.
+ * Плитки Клиентов = adminClientsBrowseFilterCore.js (tabBase + воронка).
  * @param {object} funnel
  * @param {{ totalOperational?: number }} [_snapshot]
  */
 export function mergeAdminPzBrowseFilterCounts(funnel, _snapshot = {}) {
   return { ...funnel }
 }
+
+export {
+  adminClientBrowseMatchCtx,
+  buildAdminClientsBrowseCounts,
+  buildAdminPzDaySummaryBrowseCounts,
+  filterAdminClientsByBrowseMode,
+  filterCommercialCensusOnAdminTab,
+  resolveAdminClientsBrowseHallMode,
+  resolveAdminClientsFunnelPool,
+  verifyAdminClientsBrowseChipParity,
+} from './adminClientsBrowseFilterCore.js'
