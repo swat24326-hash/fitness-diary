@@ -463,6 +463,29 @@ export function HeartRateSessionsProvider({ children }) {
     [scopeFor, trainerUserId],
   )
 
+  /**
+   * Удалили черновик/тренировку: убрать буфер этого trainingId.
+   * BLE не трогаем — датчик может сразу пойти в следующую тренировку.
+   */
+  const discardTrainingSamples = useCallback(
+    (clientId, trainingId) => {
+      const id = String(clientId ?? '').trim()
+      const tid = String(trainingId ?? '').trim()
+      if (!id || !tid) return
+      if (trainerUserId) {
+        clearHrSamples(trainerUserId, id, tid)
+        clearLegacyHrSamples(trainerUserId, id)
+      }
+      if (trainingScopeRef.current.get(id) === tid) {
+        samplesRef.current.delete(id)
+        // Scope сбрасываем: иначе сэмплы пишутся в ключ удалённой тренировки до следующего bind.
+        trainingScopeRef.current.delete(id)
+        setSamplesEpoch((n) => n + 1)
+      }
+    },
+    [trainerUserId],
+  )
+
   const liveCount = slots.filter((s) => s.status === 'live').length
 
   const value = useMemo(
@@ -481,6 +504,7 @@ export function HeartRateSessionsProvider({ children }) {
       getSessionSamples,
       summarizeSession,
       clearSessionSamples,
+      discardTrainingSamples,
       bindTrainingScope,
       migrateTrainingScope,
       isConnectedForClient: (clientId) => runtimeRef.current.has(String(clientId)),
@@ -493,6 +517,7 @@ export function HeartRateSessionsProvider({ children }) {
       clearSessionSamples,
       connectForClient,
       disconnectClient,
+      discardTrainingSamples,
       getSessionSamples,
       liveCount,
       migrateTrainingScope,
@@ -529,6 +554,7 @@ export function useHeartRateSessions() {
       getSessionSamples: () => [],
       summarizeSession: () => null,
       clearSessionSamples: () => {},
+      discardTrainingSamples: () => {},
       bindTrainingScope: () => {},
       migrateTrainingScope: () => {},
     }

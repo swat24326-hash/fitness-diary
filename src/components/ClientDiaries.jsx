@@ -15,6 +15,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
+import { useHeartRateSessions } from '../context/HeartRateSessionsContext'
 import { listMemberships } from '../lib/dataAccess'
 import { ensureClientTrainingsCached } from '../lib/clientTrainingsEnsure.js'
 import {
@@ -181,6 +182,7 @@ function MembershipBanner({ training, memberships, allTrainings }) {
  */
 export function ClientDiaries({ client, onDataChange, clubQs = '', readOnly = false }) {
   const { user, isAdmin, isSupervisor } = useAuth()
+  const hr = useHeartRateSessions()
   const workoutPrefix = isAdmin ? '/admin/workouts' : isSupervisor ? '/club/workouts' : '/trainer/workouts'
   const [trainings, setTrainings] = useState([])
   const [memberships, setMemberships] = useState([])
@@ -269,7 +271,13 @@ export function ClientDiaries({ client, onDataChange, clubQs = '', readOnly = fa
       return
     }
     if (!window.confirm('Удалить черновик тренировки?')) return
+    const cid = client?.id
     await deleteLocalWithSync('trainings', id, 'trainings')
+    try {
+      if (cid && id) hr.discardTrainingSamples(cid, id)
+    } catch {
+      /* пульс — локальный буфер, удаление черновика важнее */
+    }
     notify()
   }
 
