@@ -117,6 +117,7 @@ export async function sendClubSmsViaApi(opts) {
     const detail = data?.detail ? ` (${data.detail})` : ''
     const err = new Error((data?.error || 'Не удалось отправить SMS') + detail)
     err.code = data?.code
+    if (data?.retry_after_sec != null) err.retry_after_sec = Number(data.retry_after_sec) || 0
     throw err
   }
   return data

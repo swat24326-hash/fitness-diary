@@ -74,6 +74,7 @@
 | Расход управляющего: статьи + итог / legacy → «Расходы» | `verify-supervisor-expense-parts.mjs` |
 | Структура: фильтр тренеров/менеджеров/управляющих по `?club=` | `verify-filter-staff-by-club.mjs` |
 | Мои Звонки: конфиг на клуб + merge с env | `verify-moi-zvonki-club-config.mjs` |
+| Массовые SMS клуба: получатели, код, очередь, rate-limit | `verify-club-sms-campaign.mjs` |
 | Доска клиентов: Max (чат) рядом с SMS | `verify-club-client-max-outreach.mjs` |
 | Статистика клуба по залу ПЗ/ТЗ/АЗ | `verify-club-stats-hall.mjs` |
 | Прайс ПЗ: скидка 10%, Excel→code, импорт AOA, TTL кэша | `verify-price-list.mjs` |

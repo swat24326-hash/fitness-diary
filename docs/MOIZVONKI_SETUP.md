@@ -72,12 +72,25 @@
 
 Если ни клуб, ни env не настроены — кнопка SMS неактивна.
 
+## Массовые SMS (доска клиентов)
+
+Доступно **админу, менеджеру и управляющему** на экране Клиенты (`/admin/clients`, `/sales/clients`, `/club/clients`).
+
+1. Выберите фильтр/вкладку как обычно.  
+2. **Массовые SMS** → галочки (сразу все с телефоном; лишних снимите).  
+3. **Текст и отправка** → один общий текст (на сценарии подставится черновик шаблона клуба).  
+4. Окно: текст, кому, сколько SMS, примерное время → **код подтверждения** (тот же, что при удалении клиента) → очередь.  
+5. Отправка по одному через существующий `POST club-sms`, с паузой под лимит **20 SMS/мин** на клуб; при 429 — ждёт и повторяет. Можно **Остановить**.
+
+Код: `clubSmsCampaignCore.js`, `clubSmsCampaignRunner.js`, `useAdminClubSmsCampaign.js`.  
+Проверка: `node scripts/verify-club-sms-campaign.mjs`.
+
 ## API
 
 - `GET /api/admin-data?action=club-sms&club_id=` → `{ configured, moizvonki, templates, club_name }`
 - `GET …&logs=1&since_days=14` → то же + `logs[]`
 - `POST /api/admin-data?action=club-sms` body: `{ club_id, client_id, text? , scenario? }`  
-  Роли: admin / sales_manager / supervisor своего клуба.
+  Роли: admin / sales_manager / supervisor своего клуба. Массовая кампания = N таких POST с клиента.
 - Настройки аккаунта: `GET/POST` `action=iskra-settings` — поле `moizvonki` (admin; ключ в ответе не отдаём).
 
 Код: `api/_lib/moiZvonkiCore.js`, `moiZvonkiHandler.js`, `src/lib/admin/moiZvonkiClubConfigCore.js`, `clubSmsLogCore.js`.  
@@ -85,4 +98,4 @@
 
 ## Не в MVP
 
-Массовая рассылка, звонок (`calls.make_call`), webhook Мои Звонки как второй источник, кнопка SMS у тренера.
+Звонок (`calls.make_call`), webhook Мои Звонки как второй источник, кнопка SMS у тренера, отдельный batch-endpoint.

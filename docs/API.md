@@ -76,7 +76,7 @@
 | `reset-trainer-password`, `set-trainer-active`, `set-trainer-name`, `set-trainer-uses-tablet`, `delete-trainer` | admin | Управление тренером (пароль / блок / ФИО / планшет / удаление без клиентов) |
 | `pnk` | admin / sales_manager | Мутации ПНК |
 | `sale-clips` | admin / sales_manager | POST create / cancel / match клипа |
-| `club-sms` | admin / sales_manager / supervisor | SMS клиенту через Мои Звонки клуба (`client_id`, `scenario` / `text`); после успеха — запись в `club_sms_log` |
+| `club-sms` | admin / sales_manager / supervisor | SMS клиенту через Мои Звонки клуба (`client_id`, `scenario` / `text`); после успеха — запись в `club_sms_log`. Массовая кампания на доске = N таких запросов с клиента (очередь + код подтверждения) |
 | `iskra-settings` | admin | в т.ч. `moizvonki` — аккаунт Мои Звонки на клуб (ключ в ответе не отдаём) |
 
 ---

@@ -4,7 +4,12 @@ import { Archive, ArrowLeft, RefreshCw, RotateCcw, Search, Trash2, UserCircle, U
 import { useAuth } from '../../context/AuthContext.jsx'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { AdminClientClubSmsButton } from '../../components/admin/AdminClientClubSmsButton.jsx'
+import { AdminClubSmsCampaignBar } from '../../components/admin/AdminClubSmsCampaignBar.jsx'
+import { AdminClubSmsCampaignComposeSheet } from '../../components/admin/AdminClubSmsCampaignComposeSheet.jsx'
+import { AdminClubSmsCampaignConfirmModal } from '../../components/admin/AdminClubSmsCampaignConfirmModal.jsx'
+import { AdminClubSmsCampaignRowCheck } from '../../components/admin/AdminClubSmsCampaignRowCheck.jsx'
 import { AdminClientMaxButton } from '../../components/admin/AdminClientMaxButton.jsx'
+import { useAdminClubSmsCampaign } from './useAdminClubSmsCampaign.js'
 import { AdminClientsBrowseFilters } from '../../components/admin/AdminClientsBrowseFilters.jsx'
 import { AdminClientsAzDirectionFilters } from '../../components/admin/AdminClientsAzDirectionFilters.jsx'
 import { AdminClientsArchiveHallFilters } from '../../components/admin/AdminClientsArchiveHallFilters.jsx'
@@ -801,6 +806,19 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     [crossHallSearch, quickFilter, allTileLabel, azDirectionShownLabel, filteredClients.length],
   )
   const smsMode = useMemo(() => resolveClubSmsMode(quickFilter), [quickFilter])
+  const smsCampaign = useAdminClubSmsCampaign({
+    clubId: club,
+    filteredClients,
+    memByClient,
+    smsMode,
+    clubName: clubSmsClubName,
+    templates: clubSmsTemplates,
+    today,
+    trainerNameById,
+    configured: clubSmsConfigured,
+    onFeedback: onSmsFeedback,
+    onSent: onClubSmsSent,
+  })
   const clientSmsScenarioById = useMemo(() => {
     /** @type {Record<string, string>} */
     const out = {}
@@ -1089,7 +1107,11 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         {smsFeedback ? (
           <p
             className={`sync-feedback admin-clients-workspace__note${
-              smsFeedback.tone === 'warn' ? ' sync-feedback--warn' : ' sync-feedback--ok'
+              smsFeedback.tone === 'warn'
+                ? ' sync-feedback--warn'
+                : smsFeedback.tone === 'err'
+                  ? ' sync-feedback--err'
+                  : ' sync-feedback--ok'
             }`}
             role="status"
           >
@@ -1262,6 +1284,24 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
             </div>
           ) : null}
 
+          {!cloudNeedsClub && showClientList ? (
+            <AdminClubSmsCampaignBar
+              active={smsCampaign.active}
+              configured={clubSmsConfigured}
+              selectedCount={smsCampaign.selectedCount}
+              eligibleCount={smsCampaign.eligibleCount}
+              skippedNoPhone={smsCampaign.skippedNoPhone}
+              running={smsCampaign.running}
+              progressLabel={smsCampaign.progressLabel}
+              onEnter={smsCampaign.enter}
+              onExit={smsCampaign.exit}
+              onSelectAll={smsCampaign.selectAll}
+              onClear={smsCampaign.clearSelection}
+              onCompose={smsCampaign.openCompose}
+              onCancelRun={smsCampaign.cancelRun}
+            />
+          ) : null}
+
           {!cloudNeedsClub && !showClientList ? (
             <div className="admin-clients-empty" role="status">
               <Search size={28} aria-hidden className="admin-clients-empty__icon" />
@@ -1344,10 +1384,21 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                   })
                 : []
               const cardNavSeed = { clientSeed: buildClientCardNavSeed(c) }
+              const campaignNoPhone = smsCampaign.active && !smsCampaign.rowSelectable(c)
               return (
                 <li key={c.id} className="list-item td-client-item">
                   <div className="td-client-card">
                     <div className="td-client-card__top">
+                      {smsCampaign.active ? (
+                        <AdminClubSmsCampaignRowCheck
+                          clientId={c.id}
+                          clientName={c.name}
+                          checked={smsCampaign.isSelected(c.id)}
+                          disabled={smsCampaign.running}
+                          noPhone={campaignNoPhone}
+                          onChange={smsCampaign.toggle}
+                        />
+                      ) : null}
                       <div className="td-client-card__who">
                         <span title={sig.label} className="td-client-dot" style={{ background: sig.color }} />
                         <div className="td-client-card__who-text">
@@ -1612,6 +1663,26 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         ) : null}
         </div>
       </section>
+
+      <AdminClubSmsCampaignComposeSheet
+        open={smsCampaign.composeOpen}
+        clubName={clubSmsClubName}
+        scenarioLabel={smsCampaign.scenarioLabel}
+        initialText={smsCampaign.draftText}
+        recipients={smsCampaign.recipients}
+        onClose={smsCampaign.closeCompose}
+        onContinue={smsCampaign.continueToConfirm}
+      />
+
+      <AdminClubSmsCampaignConfirmModal
+        open={smsCampaign.confirmOpen}
+        busy={smsCampaign.running}
+        clubName={clubSmsClubName}
+        recipients={smsCampaign.recipients}
+        text={smsCampaign.draftText}
+        onCancel={smsCampaign.closeConfirm}
+        onConfirm={() => void smsCampaign.launch()}
+      />
 
       <ClientHardDeleteConfirmModal
         open={Boolean(confirmDelete)}

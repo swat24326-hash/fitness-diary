@@ -120,6 +120,7 @@ run('membership paid_amount field', 'node', ['scripts/verify-membership-paid-amo
 run('desk client birth form', 'node', ['scripts/verify-desk-client-birth-form.mjs'])
 run('deletion audit', 'node', ['scripts/verify-deletion-audit.mjs'])
 run('client hard delete confirm', 'node', ['scripts/verify-client-hard-delete-confirm.mjs'])
+run('club sms campaign', 'node', ['scripts/verify-club-sms-campaign.mjs'])
 run('sale clips match holding', 'node', ['scripts/verify-sale-clips.mjs'])
 run('pnk funnel stages', 'node', ['scripts/verify-pnk-stages.mjs'])
 run('pnk funnel events', 'node', ['scripts/verify-pnk-funnel-events.mjs'])

@@ -1,0 +1,149 @@
+/**
+ * Массовые клубные SMS на доске клиентов (канон Ядра: компактно, touch ≥44px).
+ */
+
+.club-sms-campaign-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  margin: 0.55rem 0 0.25rem;
+}
+
+.club-sms-campaign-bar--idle {
+  justify-content: flex-start;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.club-sms-campaign-bar--active {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-sm, 12px);
+  border: 1px solid color-mix(in srgb, var(--accent, #2effb8) 40%, transparent);
+  background: color-mix(in srgb, var(--bg-subtle, #061210) 92%, var(--accent, #2effb8) 8%);
+  backdrop-filter: blur(8px);
+}
+
+.club-sms-campaign-bar--running {
+  border-color: color-mix(in srgb, var(--warning, #fbbf24) 55%, transparent);
+  background: color-mix(in srgb, var(--bg-subtle, #061210) 90%, var(--warning, #fbbf24) 10%);
+}
+
+.club-sms-campaign-bar__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.club-sms-campaign-bar__main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.club-sms-campaign-bar__title {
+  font-size: 0.92rem;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.club-sms-campaign-bar__meta {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.club-sms-campaign-bar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.club-sms-campaign-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.club-sms-campaign-check--disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.club-sms-campaign-check__input {
+  width: 1.15rem;
+  height: 1.15rem;
+  accent-color: var(--accent, #2effb8);
+}
+
+.club-sms-campaign-modal-overlay {
+  z-index: 1400;
+}
+
+.club-sms-campaign-modal {
+  max-width: 460px;
+  width: min(460px, 100%);
+}
+
+.club-sms-campaign-modal__label {
+  margin: 12px 0 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.club-sms-campaign-modal__text {
+  margin: 0;
+  max-height: 8.5rem;
+  overflow: auto;
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--radius-sm, 12px);
+  border: 1px solid var(--border-strong, rgba(46, 255, 184, 0.32));
+  background: var(--bg, #030806);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.club-sms-campaign-modal__names {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.td-client-card__top:has(.club-sms-campaign-check) {
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+@media (min-width: 720px) {
+  .td-client-card__top:has(.club-sms-campaign-check) {
+    grid-template-columns: 44px minmax(140px, 0.9fr) minmax(0, 1.6fr) auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .club-sms-campaign-bar__actions {
+    width: 100%;
+  }
+
+  .club-sms-campaign-bar__actions .btn:not(.btn-icon-square) {
+    flex: 1 1 auto;
+  }
+}
