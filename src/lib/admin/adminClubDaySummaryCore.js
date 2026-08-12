@@ -3,7 +3,6 @@ import { membershipSignal } from '../clientListSignals.js'
 import { todayLocalIso } from '../dateRu.js'
 import { aggregateClubClientPeriod } from './clubClientPeriodAgg.js'
 import { countAdminFunnelFilters } from './adminClientsFunnelCore.js'
-import { resolveAdminClientsFunnelPool } from './adminClientsBrowseCore.js'
 import { filterClientsByAdminListTab } from './deskHallClientsCore.js'
 
 /** @param {string} todayIso yyyy-mm-dd */
@@ -107,12 +106,8 @@ export function buildAdminClubDaySummary(input = {}) {
   /** @type {Record<string, object[]>} */
   const memByClient = Object.fromEntries(byClientMap)
   const inactiveIds = new Set(period.inactiveClients.map((c) => c.id).filter(Boolean))
-  const pzTabCommercial = resolveAdminClientsFunnelPool(
-    filterClientsByAdminListTab(clients, 'active', memByClient),
-    'active',
-    holdingTrainerIds,
-  )
-  const funnel = countAdminFunnelFilters(pzTabCommercial, memByClient, today, inactiveIds, {
+  const pzTabClients = filterClientsByAdminListTab(clients, 'active', memByClient)
+  const funnel = countAdminFunnelFilters(pzTabClients, memByClient, today, inactiveIds, {
     hallMode: 'pz',
   })
 

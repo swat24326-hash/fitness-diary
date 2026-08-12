@@ -35,7 +35,7 @@ import {
   formatDeskAzSessionUsageRu,
   pickAzMembershipForDeduct,
 } from '../../lib/admin/deskAzSessionDeductCore.js'
-import { buildAdminClientsTodaySnapshot, isAdminClientsBrowseMode, resolveAdminClientsFunnelPool, shouldShowAdminClientsList } from '../../lib/admin/adminClientsBrowseCore'
+import { buildAdminClientsTodaySnapshot, shouldShowAdminClientsList } from '../../lib/admin/adminClientsBrowseCore'
 import {
   ADMIN_CLIENTS_LIST_TAB_LABELS,
   clientDeskHall,
@@ -111,7 +111,6 @@ import {
   parseAdminClientsListPage,
 } from '../../lib/admin/adminClientsListHrefCore.js'
 import { collectNoTabletTrainerIds, isLitePzClient } from '../../lib/admin/trainerTabletModeCore.js'
-import { collectHoldingTrainerIds } from '../../lib/admin/holdingClientsCore.js'
 import { canSalesManagerHardDeleteClient } from '../../lib/admin/salesManagerClientsAccessCore.js'
 import { ClientHardDeleteConfirmModal } from '../../components/ClientHardDeleteConfirmModal.jsx'
 import { AdminLitePzCreateModal } from '../../components/admin/AdminLitePzCreateModal.jsx'
@@ -180,7 +179,6 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
   const [trainerNameById, setTrainerNameById] = useState({})
   const [trainersForClub, setTrainersForClub] = useState([])
   const [noTabletTrainerIds, setNoTabletTrainerIds] = useState(() => new Set())
-  const [holdingTrainerIds, setHoldingTrainerIds] = useState(() => new Set())
   const [liteCreateOpen, setLiteCreateOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [listPage, setListPage] = useState(() => parseAdminClientsListPage(searchParams.get('page')))
@@ -276,7 +274,6 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
           setMemByClient(mem.memByClient ?? {})
           setTrainerNameById(mem.trainerNameById ?? {})
           setNoTabletTrainerIds(mem.noTabletTrainerIds ?? [])
-          setHoldingTrainerIds(mem.holdingTrainerIds ?? [])
           setListTruncated(!!mem.truncated)
           setSource(mem.source || 'local')
           setFallback(null)
@@ -304,9 +301,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
           }
           setTrainersForClub(clubTrainersPeek)
           const noTabletPeek = collectNoTabletTrainerIds(clubTrainersPeek)
-          const holdingPeek = collectHoldingTrainerIds(clubTrainersPeek)
           setNoTabletTrainerIds(noTabletPeek)
-          setHoldingTrainerIds(holdingPeek)
           if (peek.clients?.length) {
             setClients(peek.clients)
             setListTruncated(!!peek.truncated)
@@ -320,7 +315,6 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               memByClient: mapPeek,
               trainerNameById: nmPeek,
               noTabletTrainerIds: noTabletPeek,
-              holdingTrainerIds: holdingPeek,
               truncated: !!peek.truncated,
               source: 'local',
             })
@@ -353,9 +347,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       }
       setTrainersForClub(clubTrainers)
       const noTablet = collectNoTabletTrainerIds(clubTrainers)
-      const holding = collectHoldingTrainerIds(clubTrainers)
       setNoTabletTrainerIds(noTablet)
-      setHoldingTrainerIds(holding)
 
       const arr = Array.isArray(list) ? list : []
       setClients(arr)
@@ -370,7 +362,6 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
           memByClient: map,
           trainerNameById: nm,
           noTabletTrainerIds: noTablet,
-          holdingTrainerIds: holding,
           truncated: !!trunc,
           source: src || 'remote',
         })
@@ -576,18 +567,6 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       })
     }
 
-    if (quickFilter !== 'none' && quickFilter !== 'all' && isAdminClientsBrowseMode(quickFilter)) {
-      const tab = clientsTab === 'archive' ? 'active' : clientsTab
-      const funnelIds = new Set(
-        resolveAdminClientsFunnelPool(
-          filterClientsByAdminListTab(clients, tab, memByClient),
-          tab,
-          holdingTrainerIds,
-        ).map((c) => String(c.id)),
-      )
-      base = base.filter((c) => funnelIds.has(String(c.id)))
-    }
-
     if (quickFilter === 'none') {
       /* keep base for search / az direction */
     } else if (quickFilter === 'all') {
@@ -633,7 +612,6 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     todaySnapshot,
     isDeskHallTab,
     showTrainerSearch,
-    holdingTrainerIds,
   ])
 
   const azDirectionOptions = useMemo(() => {
@@ -758,10 +736,9 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     const tab = clientsTab === 'archive' ? 'active' : clientsTab
     const tabBase = filterClientsByAdminListTab(clients, tab, memByClient)
     const hallMode = tab === 'tz' || tab === 'az' ? tab : 'pz'
-    const funnelPool = resolveAdminClientsFunnelPool(tabBase, tab, holdingTrainerIds)
-    // Плитки = воронка текущей вкладки (клик = та же длина списка). Не подменять «Все» клубным census.
-    return countAdminFunnelFilters(funnelPool, memByClient, today, todaySnapshot.inactiveIds, { hallMode })
-  }, [clients, clientsTab, memByClient, today, todaySnapshot, holdingTrainerIds])
+    // Плитки = воронка текущей вкладки (клик = та же длина списка).
+    return countAdminFunnelFilters(tabBase, memByClient, today, todaySnapshot.inactiveIds, { hallMode })
+  }, [clients, clientsTab, memByClient, today, todaySnapshot])
 
   const browseFilterLabels = {
     all: 'Все клиенты',

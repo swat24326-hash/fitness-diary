@@ -153,8 +153,8 @@ export function remoteClientIdsForReconcile(remoteRows) {
 }
 
 /**
- * Пул воронки: вкладка ПЗ — commercial (без holding/desk), ТЗ/АЗ — как tabBase.
- * Совпадает со сводкой дня и ?filter=inactive на ПЗ.
+ * Commercial-пул для census/статистики (не для плиток Клиентов).
+ * Плитки и списки на ПЗ = tabBase вкладки; holding виден во «Все» и в воронке на Clients.
  * @param {object[]} tabClients — filterClientsByAdminListTab(...)
  * @param {string} clientsTab
  * @param {Set<string>|string[]|null|undefined} [holdingTrainerIds]

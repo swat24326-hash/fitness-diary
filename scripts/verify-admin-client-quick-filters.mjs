@@ -454,14 +454,15 @@ const poolMemByClient = {
   'holding-inactive': inactiveMem,
 }
 const pzTabBase = filterClientsByAdminListTab(poolClients, 'active', poolMemByClient)
-const pzFunnelPool = resolveAdminClientsFunnelPool(pzTabBase, 'active', holdingSet)
+const pzCommercial = resolveAdminClientsFunnelPool(pzTabBase, 'active', holdingSet)
 ok(pzTabBase.length === 2, 'PZ tab includes holding client with pz abon')
-ok(pzFunnelPool.length === 1 && pzFunnelPool[0].id === 'lite-inactive', 'PZ funnel pool drops holding')
-const countsWide = countAdminFunnelFilters(pzTabBase, poolMemByClient, today, new Set(), { hallMode: 'pz' })
-const countsFunnel = countAdminFunnelFilters(pzFunnelPool, poolMemByClient, today, new Set(), { hallMode: 'pz' })
-ok(countsWide.inactive === 2, 'tab base counts holding in inactive')
-ok(countsFunnel.inactive === 1, 'funnel pool inactive matches day summary / clients chip')
-const listed = pzFunnelPool.filter((c) =>
+ok(pzCommercial.length === 1, 'commercial pool drops holding (stats only)')
+const tabCounts = countAdminFunnelFilters(pzTabBase, poolMemByClient, today, new Set(), { hallMode: 'pz' })
+ok(tabCounts.all === 2, 'all chip = tab base without pnk')
+ok(tabCounts.inactive === 2, 'inactive on PZ tab includes holding in funnel')
+const allListed = pzTabBase.filter((c) => String(c?.lifecycle ?? '') !== 'pnk')
+ok(allListed.length === tabCounts.all, 'all chip count equals list length')
+const inactiveListed = pzTabBase.filter((c) =>
   clientMatchesAdminFunnelFilter('inactive', {
     client: c,
     memList: poolMemByClient[c.id] ?? [],
@@ -469,7 +470,7 @@ const listed = pzFunnelPool.filter((c) =>
     hallMode: 'pz',
   }),
 )
-ok(listed.length === countsFunnel.inactive, 'inactive chip count equals list length')
+ok(inactiveListed.length === tabCounts.inactive, 'inactive chip count equals list length')
 
 if (failed) process.exit(1)
 console.log('verify-admin-client-quick-filters: all passed')
