@@ -4,10 +4,11 @@ import { formatDateRu } from '../../lib/dateRu.js'
 import '../../styles/membership-early-activate.css'
 
 /**
- * Подтверждение ранней активации абонемента (сдвиг дат).
+ * Подтверждение сдвига дат абонемента (ранняя активация или от первой тренировки).
  *
  * @param {{
  *   open: boolean,
+ *   mode?: 'early' | 'late',
  *   proposal: {
  *     from: { start: string, end: string },
  *     to: { start: string, end: string },
@@ -16,23 +17,29 @@ import '../../styles/membership-early-activate.css'
  *   } | null,
  *   busy?: boolean,
  *   error?: string,
+ *   allowSkipWithoutShift?: boolean,
  *   onConfirm: () => void | Promise<void>,
  *   onCancel: () => void,
+ *   onSkipWithoutShift?: () => void,
  * }} props
  */
 export function EarlyMembershipActivateSheet({
   open,
+  mode = 'early',
   proposal,
   busy = false,
   error = '',
+  allowSkipWithoutShift = false,
   onConfirm,
   onCancel,
+  onSkipWithoutShift,
 }) {
   const titleId = useId()
   const [localBusy, setLocalBusy] = useState(false)
   if (!open || !proposal) return null
 
   const confirming = busy || localBusy
+  const isLate = mode === 'late'
 
   const handleConfirm = async () => {
     if (confirming) return
@@ -61,7 +68,7 @@ export function EarlyMembershipActivateSheet({
       >
         <div className="membership-early-activate-sheet__head">
           <h2 id={titleId} className="membership-early-activate-sheet__title">
-            Активировать абонемент раньше?
+            {isLate ? 'Сдвинуть срок от первой тренировки?' : 'Активировать абонемент раньше?'}
           </h2>
           <button
             type="button"
@@ -75,8 +82,9 @@ export function EarlyMembershipActivateSheet({
         </div>
 
         <p className="membership-early-activate-sheet__lead muted">
-          Клиент пришёл раньше планового старта. Срок абонемента сдвинется на ту же длину — затем
-          можно начать тренировку.
+          {isLate
+            ? 'Клиент пришёл после даты старта. Срок абонемента сдвинется от первой тренировки на ту же длину — затем можно начать занятие.'
+            : 'Клиент пришёл раньше планового старта. Срок абонемента сдвинется на ту же длину — затем можно начать тренировку.'}
         </p>
 
         <div className="membership-early-activate-sheet__dates">
@@ -94,7 +102,7 @@ export function EarlyMembershipActivateSheet({
           </div>
         </div>
 
-        {proposal.warnFar ? (
+        {!isLate && proposal.warnFar ? (
           <p className="membership-early-activate-sheet__warn" role="status">
             Плановый старт был больше чем через 14 дней — проверьте, что сдвиг нужен.
           </p>
@@ -110,6 +118,16 @@ export function EarlyMembershipActivateSheet({
           <button type="button" className="btn btn-ghost btn-touch" disabled={confirming} onClick={onCancel}>
             Отмена
           </button>
+          {allowSkipWithoutShift && onSkipWithoutShift ? (
+            <button
+              type="button"
+              className="btn btn-ghost btn-touch"
+              disabled={confirming}
+              onClick={onSkipWithoutShift}
+            >
+              Без сдвига
+            </button>
+          ) : null}
           <button
             type="button"
             className="btn btn-primary btn-touch"

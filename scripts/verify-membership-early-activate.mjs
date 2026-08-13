@@ -1,12 +1,17 @@
 /**
  * node scripts/verify-membership-early-activate.mjs
+ * Ранняя активация + поздний старт (сдвиг от первой тренировки).
  */
 import {
   canOfferEarlyMembershipActivation,
+  canOfferLateMembershipStart,
   canStartNewTrainingForMemberships,
+  inspectLateMembershipStart,
   membershipPeriodDayCount,
+  membershipPeriodsOverlap,
   pickEarliestUpcomingMembership,
   proposeEarlyMembershipActivation,
+  proposeLateMembershipStart,
   pickUsableMembershipForDate,
 } from '../src/lib/membershipRules.js'
 
@@ -87,6 +92,73 @@ ok(over14.ok && over14.daysShift === 15 && over14.warnFar === true, '15 days —
 
 ok(proposeEarlyMembershipActivation(upcoming, '2026-07-14').ok === false, 'activate on start → already_started')
 ok(proposeEarlyMembershipActivation(stillUsable, today).ok === false, 'usable not upcoming')
+
+// --- late start (первая тренировка после start_date) ---
+
+const lateBase = {
+  id: 'late1',
+  start_date: '2026-08-11',
+  end_date: '2026-09-10',
+  total_trainings: 8,
+  used_trainings: 0,
+}
+const firstVisit = '2026-08-12'
+ok(membershipPeriodDayCount(lateBase) === 31, 'late base period 31 days')
+
+const late1 = proposeLateMembershipStart(lateBase, firstVisit, { otherMemberships: [lateBase] })
+ok(late1.ok === true, 'late +1 day ok')
+ok(late1.to.start === '2026-08-12' && late1.to.end === '2026-09-11', 'late shift preserves length')
+ok(late1.daysShift === 1, 'late shift 1 day')
+ok(canOfferLateMembershipStart([lateBase], firstVisit), 'can offer late on +1')
+
+const lateAligned = proposeLateMembershipStart(lateBase, '2026-08-11')
+ok(lateAligned.ok === false && lateAligned.error === 'already_aligned', 'same day → already_aligned')
+
+const lateUsed = proposeLateMembershipStart({ ...lateBase, used_trainings: 1 }, firstVisit)
+ok(lateUsed.ok === false && lateUsed.error === 'already_used', 'used>0 → already_used')
+
+const lateAt14 = proposeLateMembershipStart(lateBase, '2026-08-25')
+ok(lateAt14.ok === true && lateAt14.daysShift === 14, 'exactly 14 days late ok')
+
+const late15 = proposeLateMembershipStart(lateBase, '2026-08-26')
+ok(late15.ok === false && late15.error === 'too_late', '15 days → too_late')
+ok(!canOfferLateMembershipStart([lateBase], '2026-08-26'), 'no offer when too late')
+
+const nextMem = {
+  id: 'late2',
+  start_date: '2026-09-10',
+  end_date: '2026-10-10',
+  total_trainings: 8,
+  used_trainings: 0,
+}
+ok(membershipPeriodsOverlap({ start_date: '2026-08-12', end_date: '2026-09-11' }, nextMem), 'overlap helper')
+const lateOverlap = proposeLateMembershipStart(lateBase, firstVisit, {
+  otherMemberships: [lateBase, nextMem],
+})
+ok(lateOverlap.ok === false && lateOverlap.error === 'overlap', 'late shift blocked by next membership')
+
+const diaryTrainings = [
+  {
+    id: 'tr1',
+    status: 'completed',
+    date: '2026-08-11',
+    data: { membership_id: 'late1' },
+  },
+]
+const lateDiary = proposeLateMembershipStart(lateBase, firstVisit, {
+  otherMemberships: [lateBase],
+  clientTrainings: diaryTrainings,
+})
+ok(lateDiary.ok === false && lateDiary.error === 'already_used', 'diary completed → already_used even if used_trainings=0')
+
+const inspOffer = inspectLateMembershipStart([lateBase], firstVisit, [])
+ok(inspOffer.status === 'offer', 'inspect offer')
+const inspOverlap = inspectLateMembershipStart([lateBase, nextMem], firstVisit, [])
+ok(inspOverlap.status === 'blocked' && inspOverlap.reason === 'overlap' && inspOverlap.message, 'inspect overlap blocked with message')
+const inspTooLate = inspectLateMembershipStart([lateBase], '2026-08-26', [])
+ok(inspTooLate.status === 'blocked' && inspTooLate.reason === 'too_late', 'inspect too_late blocked')
+const inspDiary = inspectLateMembershipStart([lateBase], firstVisit, diaryTrainings)
+ok(inspDiary.status === 'skip' && inspDiary.reason === 'already_used', 'inspect diary skip')
 
 if (failed) process.exit(1)
 console.log('\nverify-membership-early-activate: all passed')

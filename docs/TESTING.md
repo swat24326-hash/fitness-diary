@@ -60,7 +60,7 @@
 | Профиль тренера: ФИО в «Не активные» из локального кэша | `verify-enrich-inactive-clients-local.mjs` |
 | Главная: ряд внимания / soft signals | `verify-admin-home-attention.mjs` |
 | Список клиентов: точка/подпись абонемента | `verify-client-list-signals.mjs` |
-| Ранняя активация абона («ждёт старт» → сдвиг дат) + кнопка списка | `verify-membership-early-activate.mjs` |
+| Ранняя / поздняя активация абона (сдвиг дат, дневник vs used, overlap, inspect) | `verify-membership-early-activate.mjs` |
 | Push абонементов (даты NOT NULL) | `verify-membership-push-payload.mjs` |
 | ЗП дня/периода: база + надбавка, сценарии без плана, прогноз ур. | `verify-trainer-day-payroll-forecast.mjs` |
 | Прогноз ЗП месяца для чистой (уровни к концу + adj) | `verify-trainer-month-payroll-forecast.mjs` |
@@ -109,6 +109,8 @@
 | Вкладки ПЗ / ТЗ / АЗ (списки + `memberships.hall`) | `verify-desk-hall-clients.mjs`, `verify-membership-hall.mjs` |
 | Смена тренера ПЗ на карточке (клуб / lite) | `verify-client-trainer-reassign.mjs` |
 | Desk: очистка ДР без отката при hydrate | `verify-desk-client-birth-form.mjs` |
+| Desk: телефон / № карты / ФИО / ack Save / hydrate после flush | `verify-desk-client-form-merge.mjs` |
+| Смена тренера ПЗ: клуб, карта формы, каскад абонов | `verify-client-trainer-reassign.mjs` |
 | Архив: подвкладки ПЗ / ТЗ / АЗ | `verify-admin-clients-archive-hall.mjs` |
 | АЗ: фильтр по направлениям | `verify-admin-clients-az-direction-filter.mjs` |
 | АЗ: списание занятий + журнал дат | `verify-desk-az-session-deduct.mjs` |

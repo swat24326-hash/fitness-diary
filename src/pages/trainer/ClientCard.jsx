@@ -8,7 +8,7 @@ import { ClientHomeworkPage } from './ClientHomeworkPage'
 import { Statistics } from './Statistics'
 import { getHealthCard, getLocalClient, hydrateAdminClientWorkspace, listMemberships, listTrainingsForClient, listTrainerSummariesForAdmin } from '../../lib/dataAccess'
 import { isSupabaseConfigured } from '../../lib/supabase'
-import { canStartNewTrainingForMemberships } from '../../lib/membershipRules'
+import { canOfferLateMembershipStart, canStartNewTrainingForMemberships } from '../../lib/membershipRules'
 import {
   criticalWriteCloudWarning,
   flushCriticalWritesToCloud,
@@ -341,15 +341,21 @@ export function ClientCard() {
     }
   }, [id, reloadLocal, client, canCloudHydrateClient, isLitePz])
 
-  const onMultiHallSaved = useCallback(() => {
+  const onMultiHallSaved = useCallback((opts) => {
+    const cloudFlushed = opts?.cloudFlushed !== false
     void reloadLocal().then(() => {
-      if (canCloudHydrateClient) void hydrateFromCloudInBackground()
+      if (canCloudHydrateClient && cloudFlushed) void hydrateFromCloudInBackground()
     })
   }, [canCloudHydrateClient, hydrateFromCloudInBackground, reloadLocal])
 
   const canStartTraining = useMemo(() => {
     const today = todayLocalIso()
     return canStartNewTrainingForMemberships(memberships, today)
+  }, [memberships])
+
+  const lateStartOffer = useMemo(() => {
+    const today = todayLocalIso()
+    return canOfferLateMembershipStart(memberships, today)
   }, [memberships])
 
   const pnkCloseMemberships = useMemo(() => {
@@ -870,7 +876,11 @@ export function ClientCard() {
                 to={`/trainer/workouts/new?clientId=${client.id}`}
                 className="btn btn-primary btn-icon-square btn-touch u-no-decoration"
                 aria-label="Новая тренировка"
-                title="Новая тренировка"
+                title={
+                  lateStartOffer
+                    ? 'Новая тренировка — можно сдвинуть срок от первой тренировки'
+                    : 'Новая тренировка'
+                }
               >
                 <Dumbbell size={20} aria-hidden />
               </Link>

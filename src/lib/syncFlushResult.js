@@ -199,3 +199,14 @@ export function criticalWriteCloudWarning(flush, actionLabel) {
   const detail = d.part || d.message || flush?.reason || 'неизвестно'
   return `${label} на устройстве есть, но в облако не ушло. Нажмите Sync.\n\n${detail}`
 }
+
+/**
+ * После критичной записи: тянуть облако только если flush реально ушёл.
+ * Иначе hydrate может вернуть старые phone/card поверх локального сохранения.
+ * @param {{ ok?: boolean } | null | undefined} flush
+ * @param {string | null | undefined} warn — результат criticalWriteCloudWarning
+ */
+export function shouldCloudHydrateAfterCriticalSave(flush, warn) {
+  if (warn) return false
+  return Boolean(flush?.ok)
+}

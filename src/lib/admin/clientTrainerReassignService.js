@@ -5,26 +5,31 @@
 import {
   clubMoveConfirmMessage,
   needsCardUniquenessCheckOnClubMove,
+  resolveCardNumberForClubMoveCheck,
   resolveClientClubIdForTrainer,
   tabletModeChangeConfirmMessage,
 } from './clientTrainerReassignCore.js'
 import { assertClubCardAvailableForCreate } from './salesClientMatchCore.js'
-import { listClientsByClubId } from '../localDbClubQuery.js'
+import { listClientsByClubId as listClientsByClubIdDefault } from '../localDbClubQuery.js'
 
 /**
  * @param {{
  *   client: object,
  *   nextTrainerId: string|null,
+ *   proposedCardNumber?: string|null,
  *   trainersCatalog?: object[],
  *   confirmFn?: (msg: string) => boolean,
+ *   listClientsByClubIdFn?: (clubId: string) => Promise<object[]>,
  * }} opts
  * @returns {Promise<{ ok: true, trainer_id: string|null, club_id: string|null } | { ok: false, cancelled?: boolean, error?: string }>}
  */
 export async function prepareClientTrainerReassign({
   client,
   nextTrainerId,
+  proposedCardNumber,
   trainersCatalog = [],
   confirmFn = typeof window !== 'undefined' ? window.confirm.bind(window) : () => true,
+  listClientsByClubIdFn = listClientsByClubIdDefault,
 }) {
   const prevTid = String(client?.trainer_id ?? '').trim()
   const nextTid = String(nextTrainerId ?? '').trim()
@@ -67,26 +72,31 @@ export async function prepareClientTrainerReassign({
     return { ok: false, cancelled: true }
   }
 
+  const cardForCheck = resolveCardNumberForClubMoveCheck({
+    proposedCardNumber,
+    clientCardNumber: client?.card_number,
+  })
   if (
     needsCardUniquenessCheckOnClubMove({
       oldClubId: client?.club_id,
       newClubId: nextClubId,
-      cardNumber: client?.card_number,
+      cardNumber: cardForCheck,
     })
   ) {
     try {
-      const clubClients = await listClientsByClubId(nextClubId)
-      const cardCheck = assertClubCardAvailableForCreate(
-        clubClients,
-        nextClubId,
-        String(client.card_number ?? '').trim(),
-        { excludeClientId: client.id },
-      )
+      const clubClients = await listClientsByClubIdFn(nextClubId)
+      const cardCheck = assertClubCardAvailableForCreate(clubClients, nextClubId, cardForCheck, {
+        excludeClientId: client.id,
+      })
       if (!cardCheck.ok) {
         return { ok: false, error: cardCheck.error }
       }
     } catch {
-      /* офлайн — облако отловит unique */
+      return {
+        ok: false,
+        error:
+          'Не удалось проверить № карты в новом клубе. Нажмите Sync и повторите смену тренера.',
+      }
     }
   }
 

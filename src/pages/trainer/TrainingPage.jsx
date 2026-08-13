@@ -11,8 +11,11 @@ import { getDb } from '../../lib/localDb'
 import { pickUsableMembershipForDate } from '../../lib/membershipRules'
 import {
   applyEarlyMembershipActivation,
+  applyLateMembershipStart,
   loadEarlyActivationProposal,
-} from '../../lib/trainer/earlyMembershipActivateService.js'
+  loadLateStartInspection,
+  loadLateStartProposal,
+} from '../../lib/trainer/membershipStartShiftService.js'
 import { EarlyMembershipActivateSheet } from '../../components/trainer/EarlyMembershipActivateSheet.jsx'
 import { useHeartRateSessions } from '../../context/HeartRateSessionsContext.jsx'
 import { saveLocalWithSync } from '../../lib/syncService'
@@ -127,9 +130,13 @@ export function TrainingPage() {
   const [otherCompletedTrainings, setOtherCompletedTrainings] = useState(0)
   const [autosaveStatus, setAutosaveStatus] = useState('idle') // idle | saving | saved | error
   const [earlyActivateProposal, setEarlyActivateProposal] = useState(null)
+  const [membershipShiftMode, setMembershipShiftMode] = useState(/** @type {'early' | 'late' | null} */ (null))
   const [earlyActivateOpen, setEarlyActivateOpen] = useState(false)
   const [earlyActivateBusy, setEarlyActivateBusy] = useState(false)
   const [earlyActivateError, setEarlyActivateError] = useState('')
+  const [lateBlockedNotice, setLateBlockedNotice] = useState('')
+  const [lateDraftOffer, setLateDraftOffer] = useState(false)
+  const lateShiftDismissedRef = useRef(false)
 
   const saveMutexRef = useRef(Promise.resolve())
   const [hydrateVersion, bumpHydrateVersion] = useState(0)
@@ -179,21 +186,41 @@ export function TrainingPage() {
       // иначе mid-workout reload load() сотрёт буфер до первого save.
       if (!c) {
         setEarlyActivateProposal(null)
+        setMembershipShiftMode(null)
+        setLateBlockedNotice('')
+        setLateDraftOffer(false)
+        lateShiftDismissedRef.current = false
         setLoadState('missing')
         return
       }
+      lateShiftDismissedRef.current = false
+      setLateDraftOffer(false)
       if (!ms) {
         const offer = await loadEarlyActivationProposal(clientIdParam, todayLocalIso())
         if (offer.ok && offer.proposal) {
           setEarlyActivateProposal(offer.proposal)
+          setMembershipShiftMode('early')
+          setLateBlockedNotice('')
           setLoadState('awaiting_activate')
         } else {
           setEarlyActivateProposal(null)
+          setMembershipShiftMode(null)
+          setLateBlockedNotice('')
           setLoadState('no_membership')
         }
         return
       }
+      const lateInsp = await loadLateStartInspection(clientIdParam, todayLocalIso())
+      if (lateInsp.status === 'offer' && lateInsp.proposal) {
+        setEarlyActivateProposal(lateInsp.proposal)
+        setMembershipShiftMode('late')
+        setLateBlockedNotice('')
+        setLoadState('awaiting_activate')
+        return
+      }
       setEarlyActivateProposal(null)
+      setMembershipShiftMode(null)
+      setLateBlockedNotice(lateInsp.status === 'blocked' ? lateInsp.message || '' : '')
       setLoadState('ok')
       bumpHydrateVersion((v) => v + 1)
       return
@@ -206,6 +233,8 @@ export function TrainingPage() {
       setMeta({ status: 'draft', trainingId: null })
       draftTrainingIdRef.current = null
       setMembershipSummary(null)
+      setLateBlockedNotice('')
+      setLateDraftOffer(false)
       setLoadState('missing')
       return
     }
@@ -229,6 +258,24 @@ export function TrainingPage() {
     setMembershipSummary(await activeMembershipSummary(t.client_id))
     draftTrainingIdRef.current = t.id
     pendingHrScopeRef.current = null
+
+    setEarlyActivateProposal(null)
+    setMembershipShiftMode(null)
+    setLateDraftOffer(false)
+    setLateBlockedNotice('')
+    lateShiftDismissedRef.current = false
+    if (!isAdmin && String(t.status ?? '') === 'draft') {
+      const gateDay = String(loaded ?? today).slice(0, 10)
+      const lateInsp = await loadLateStartInspection(t.client_id, gateDay)
+      if (lateInsp.status === 'offer' && lateInsp.proposal) {
+        setEarlyActivateProposal(lateInsp.proposal)
+        setMembershipShiftMode('late')
+        setLateDraftOffer(true)
+      } else if (lateInsp.status === 'blocked') {
+        setLateBlockedNotice(lateInsp.message || '')
+      }
+    }
+
     setLoadState('ok')
     bumpHydrateVersion((v) => v + 1)
   }, [user?.id, isNew, clientIdParam, id, isAdmin])
@@ -309,6 +356,31 @@ export function TrainingPage() {
     if (nextStatus === 'completed' && !silent && isIsoDateAfterToday(effectiveDate)) {
       setSaveError('Нельзя завершить тренировку датой в будущем. Проверьте дату на устройстве.')
       return
+    }
+
+    // Черновик / повторный вход: не завершать первую тренировку, пока не решён сдвиг срока.
+    if (
+      nextStatus === 'completed' &&
+      !silent &&
+      !isAdmin &&
+      !lateShiftDismissedRef.current &&
+      prev?.status !== 'completed'
+    ) {
+      const lateCheck = await loadLateStartProposal(cid, effectiveDate)
+      if (lateCheck.ok && lateCheck.proposal) {
+        setEarlyActivateProposal(lateCheck.proposal)
+        setMembershipShiftMode('late')
+        setLateDraftOffer(true)
+        setEarlyActivateError('')
+        setEarlyActivateOpen(true)
+        setSaveError(
+          'Абонемент стартовал раньше первой тренировки. Сдвиньте срок или продолжите без сдвига — затем снова нажмите «Завершить».',
+        )
+        return
+      }
+      if (lateCheck.inspection?.status === 'blocked' && lateCheck.inspection.message) {
+        setLateBlockedNotice(lateCheck.inspection.message)
+      }
     }
 
     // club_id обязателен для записи. В dev/локальном режиме можно восстановить его
@@ -746,6 +818,7 @@ export function TrainingPage() {
   }
 
   if (loadState === 'awaiting_activate') {
+    const isLateShift = membershipShiftMode === 'late'
     return (
       <div className="grid" style={{ gap: 16 }}>
         <div className="card" style={{ display: 'grid', gap: 12 }}>
@@ -753,8 +826,9 @@ export function TrainingPage() {
             {client?.name || 'Клиент'}
           </h1>
           <p className="muted" style={{ margin: 0 }}>
-            Нет действующего абонемента на сегодня, но есть купленный со стартом впереди. Можно
-            активировать его раньше (даты сдвинутся) и сразу начать тренировку.
+            {isLateShift
+              ? 'Абонемент уже стартовал, но занятий ещё не было. Можно сдвинуть срок от сегодняшней первой тренировки (в пределах 14 дней после старта) и начать занятие.'
+              : 'Нет действующего абонемента на сегодня, но есть купленный со стартом впереди. Можно активировать его раньше (даты сдвинутся) и сразу начать тренировку.'}
           </p>
           <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
             <button
@@ -765,8 +839,25 @@ export function TrainingPage() {
                 setEarlyActivateOpen(true)
               }}
             >
-              Активировать и начать
+              {isLateShift ? 'Сдвинуть и начать' : 'Активировать и начать'}
             </button>
+            {isLateShift ? (
+              <button
+                type="button"
+                className="btn btn-ghost btn-touch"
+                onClick={() => {
+                  lateShiftDismissedRef.current = true
+                  setEarlyActivateOpen(false)
+                  setEarlyActivateProposal(null)
+                  setMembershipShiftMode(null)
+                  setLateDraftOffer(false)
+                  setLoadState('ok')
+                  bumpHydrateVersion((v) => v + 1)
+                }}
+              >
+                Начать без сдвига
+              </button>
+            ) : null}
             <Link
               to={`${clientsBase}/${clientIdParam}${preserveClubQs}`}
               className="btn btn-ghost btn-touch u-no-decoration"
@@ -777,28 +868,47 @@ export function TrainingPage() {
         </div>
         <EarlyMembershipActivateSheet
           open={earlyActivateOpen}
+          mode={isLateShift ? 'late' : 'early'}
           proposal={earlyActivateProposal}
           busy={earlyActivateBusy}
           error={earlyActivateError}
+          allowSkipWithoutShift={isLateShift}
           onCancel={() => {
             if (earlyActivateBusy) return
             setEarlyActivateOpen(false)
             setEarlyActivateError('')
+          }}
+          onSkipWithoutShift={() => {
+            if (earlyActivateBusy) return
+            lateShiftDismissedRef.current = true
+            setEarlyActivateOpen(false)
+            setEarlyActivateProposal(null)
+            setMembershipShiftMode(null)
+            setLateDraftOffer(false)
+            setLoadState('ok')
+            bumpHydrateVersion((v) => v + 1)
           }}
           onConfirm={async () => {
             if (!clientIdParam) return
             setEarlyActivateBusy(true)
             setEarlyActivateError('')
             try {
-              const res = await applyEarlyMembershipActivation(clientIdParam, todayLocalIso())
+              const res = isLateShift
+                ? await applyLateMembershipStart(clientIdParam, todayLocalIso())
+                : await applyEarlyMembershipActivation(clientIdParam, todayLocalIso())
               if (!res.ok) {
-                setEarlyActivateError(res.error || 'Не удалось активировать')
+                setEarlyActivateError(
+                  res.error || (isLateShift ? 'Не удалось сдвинуть срок' : 'Не удалось активировать'),
+                )
                 return
               }
+              lateShiftDismissedRef.current = true
               setEarlyActivateOpen(false)
               await load()
             } catch (e) {
-              setEarlyActivateError(e?.message || 'Не удалось активировать')
+              setEarlyActivateError(
+                e?.message || (isLateShift ? 'Не удалось сдвинуть срок' : 'Не удалось активировать'),
+              )
             } finally {
               setEarlyActivateBusy(false)
             }
@@ -922,6 +1032,47 @@ export function TrainingPage() {
           ) : null}
         </div>
       </div>
+
+      {lateBlockedNotice ? (
+        <div className="card" role="status" style={{ borderColor: 'var(--warning, #c9a227)' }}>
+          <p className="muted" style={{ margin: 0 }}>
+            {lateBlockedNotice}
+          </p>
+        </div>
+      ) : null}
+
+      {lateDraftOffer && earlyActivateProposal && membershipShiftMode === 'late' && !lateShiftDismissedRef.current ? (
+        <div className="card" style={{ display: 'grid', gap: 10 }}>
+          <p className="muted" style={{ margin: 0 }}>
+            Абонемент стартовал раньше этой тренировки. Можно сдвинуть срок от первой тренировки (длина та же).
+          </p>
+          <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
+            <button
+              type="button"
+              className="btn btn-primary btn-touch"
+              onClick={() => {
+                setEarlyActivateError('')
+                setEarlyActivateOpen(true)
+              }}
+            >
+              Сдвинуть срок
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost btn-touch"
+              onClick={() => {
+                lateShiftDismissedRef.current = true
+                setLateDraftOffer(false)
+                setEarlyActivateProposal(null)
+                setMembershipShiftMode(null)
+                setEarlyActivateOpen(false)
+              }}
+            >
+              Без сдвига
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="card">
         <div className="training-head">
@@ -1090,6 +1241,56 @@ export function TrainingPage() {
           </div>
         </div>
       ) : null}
+
+      <EarlyMembershipActivateSheet
+        open={earlyActivateOpen && membershipShiftMode === 'late' && !!earlyActivateProposal}
+        mode="late"
+        proposal={earlyActivateProposal}
+        busy={earlyActivateBusy}
+        error={earlyActivateError}
+        allowSkipWithoutShift
+        onCancel={() => {
+          if (earlyActivateBusy) return
+          setEarlyActivateOpen(false)
+          setEarlyActivateError('')
+        }}
+        onSkipWithoutShift={() => {
+          if (earlyActivateBusy) return
+          lateShiftDismissedRef.current = true
+          setLateDraftOffer(false)
+          setEarlyActivateOpen(false)
+          setEarlyActivateProposal(null)
+          setMembershipShiftMode(null)
+          setEarlyActivateError('')
+          setSaveError('')
+        }}
+        onConfirm={async () => {
+          const cid = client?.id ?? clientIdParam
+          if (!cid) return
+          setEarlyActivateBusy(true)
+          setEarlyActivateError('')
+          try {
+            const day = String(trainingDate || todayLocalIso()).slice(0, 10)
+            const res = await applyLateMembershipStart(cid, day)
+            if (!res.ok) {
+              setEarlyActivateError(res.error || 'Не удалось сдвинуть срок')
+              return
+            }
+            lateShiftDismissedRef.current = true
+            setLateDraftOffer(false)
+            setEarlyActivateOpen(false)
+            setEarlyActivateProposal(null)
+            setMembershipShiftMode(null)
+            setSaveError('')
+            setMembershipSummary(await activeMembershipSummary(cid))
+            setSaveNotice('Срок абонемента сдвинут от первой тренировки')
+          } catch (e) {
+            setEarlyActivateError(e?.message || 'Не удалось сдвинуть срок')
+          } finally {
+            setEarlyActivateBusy(false)
+          }
+        }}
+      />
     </div>
   )
 }

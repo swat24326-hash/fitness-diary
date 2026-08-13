@@ -35,8 +35,8 @@
 - Списки: `deskHallClientsCore.js` (+ memberships)
 - Поиск: `adminClientsCrossHallSearchCore.js`, UI `AdminClientHallStack.jsx`; verify `verify-admin-clients-cross-hall-search.mjs`
 - Оплаты: `salesPaymentsLinkCore.js` / `salesPaymentsLinkApplyService.js`
-- Карточка: `AdminMultiHallClientCardSection.jsx` — вкладки ПЗ/ТЗ/АЗ **всегда** для admin / менеджер / управляющий (дописать абон другого зала без второй карточки); тренер планшета — только свой ПЗ. На вкладке **ПЗ** у клиента с планшетным тренером — те же разделы, что у тренера (здоровье, питание, ДЗ, абоны, тренировки, статистика); у lite (тренер без планшета) — только учёт абонов. ТЗ/АЗ — desk-учёт. **Смена тренера ПЗ** — только в поле «Тренер ПЗ» на карточке (+ подтверждения планшет/lite и переезд в клуб тренера у админа сети); пункта в ⋮ списка больше нет. На абонах ПЗ у админа/менеджера — **цена пакета** (`paid_amount`, мост до [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md)).
-- Verify: `scripts/verify-membership-hall.mjs`, `scripts/verify-membership-paid-amount.mjs`, `scripts/verify-client-trainer-reassign.mjs`
+- Карточка: `AdminMultiHallClientCardSection.jsx` — вкладки ПЗ/ТЗ/АЗ **всегда** для admin / менеджер / управляющий (дописать абон другого зала без второй карточки); тренер планшета — только свой ПЗ. На вкладке **ПЗ** у клиента с планшетным тренером — те же разделы, что у тренера (здоровье, питание, ДЗ, абоны, тренировки, статистика); у lite (тренер без планшета) — только учёт абонов. ТЗ/АЗ — desk-учёт. **Смена тренера ПЗ** — только в поле «Тренер ПЗ» на карточке (+ подтверждения планшет/lite и переезд в клуб тренера у админа сети); при переезде — каскад `club_id` у абонов/тренировок, проверка **нового** № карты из формы; пункта в ⋮ списка больше нет. Контакты/карта/ДР не затираются при hydrate (`deskClientFormMergeCore`). На абонах ПЗ у админа/менеджера — **цена пакета** (`paid_amount`, мост до [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md)).
+- Verify: `scripts/verify-membership-hall.mjs`, `scripts/verify-membership-paid-amount.mjs`, `scripts/verify-client-trainer-reassign.mjs`, `scripts/verify-desk-client-form-merge.mjs`
 
 ## KPI
 

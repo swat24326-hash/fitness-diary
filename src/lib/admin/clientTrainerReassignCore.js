@@ -41,6 +41,18 @@ export function resolveClientClubIdForTrainer({ clientClubId, trainerRow } = {})
 }
 
 /**
+ * № карты для проверки уникальности при переезде: сначала форма, иначе карточка.
+ * @param {{ proposedCardNumber?: string|null, clientCardNumber?: string|null }} opts
+ * @returns {string}
+ */
+export function resolveCardNumberForClubMoveCheck({ proposedCardNumber, clientCardNumber } = {}) {
+  if (proposedCardNumber !== undefined && proposedCardNumber !== null) {
+    return String(proposedCardNumber).trim()
+  }
+  return String(clientCardNumber ?? '').trim()
+}
+
+/**
  * Нужна ли проверка уникальности карты при смене клуба.
  * @param {{ oldClubId?: string|null, newClubId?: string|null, cardNumber?: string|null }} opts
  */
@@ -67,6 +79,40 @@ export function clubMoveConfirmMessage({ oldClubId, newClubId, trainerName } = {
 }
 
 /**
+ * Патчи абонов/тренировок при переезде клиента в другой клуб.
+ * @param {{
+ *   memberships?: object[],
+ *   trainings?: object[],
+ *   oldClubId?: string|null,
+ *   nextClubId?: string|null,
+ * }} opts
+ * @returns {{ memberships: object[], trainings: object[] }}
+ */
+export function planClientClubMoveRelatedPatches({
+  memberships = [],
+  trainings = [],
+  oldClubId,
+  nextClubId,
+} = {}) {
+  const next = String(nextClubId ?? '').trim() || null
+  const old = String(oldClubId ?? '').trim() || null
+  if (!next || next === old) return { memberships: [], trainings: [] }
+  const memOut = []
+  for (const m of memberships ?? []) {
+    if (!m?.id) continue
+    if (String(m.club_id ?? '').trim() === next) continue
+    memOut.push({ ...m, club_id: next })
+  }
+  const trOut = []
+  for (const t of trainings ?? []) {
+    if (!t?.id) continue
+    if (String(t.club_id ?? '').trim() === next) continue
+    trOut.push({ ...t, club_id: next })
+  }
+  return { memberships: memOut, trainings: trOut }
+}
+
+/**
  * Подпись тренера в select (с клубом, если список сети).
  * @param {object|null|undefined} trainer
  * @param {{ showClub?: boolean, clubNameById?: Record<string, string> }} [opts]
@@ -77,6 +123,7 @@ export function formatTrainerSelectLabel(trainer, opts = {}) {
   if (!opts.showClub) return name
   const cid = String(trainer.club_id ?? '').trim()
   if (!cid) return name
-  const clubLabel = opts.clubNameById?.[cid] || `клуб ${cid.slice(0, 8)}…`
-  return `${name} · ${clubLabel}`
+  const mapped = opts.clubNameById?.[cid]
+  const clubLabel = mapped ? String(mapped).trim() : ''
+  return `${name} · ${clubLabel || `клуб ${cid.slice(0, 8)}…`}`
 }

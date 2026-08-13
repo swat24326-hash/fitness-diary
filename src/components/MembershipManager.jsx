@@ -230,16 +230,6 @@ export function MembershipManager({
   }, [autoOpenNew, typesLoading, openNewMembership, membershipTypes])
 
   useEffect(() => {
-    const onStorage = () => {
-      // Пока открыта форма — не дёргаем типы (native select иначе закрывается).
-      if (newOpen || editOpenId) return
-      void reloadTypes({ silent: true })
-    }
-    window.addEventListener('fitness-diary-storage', onStorage)
-    return () => window.removeEventListener('fitness-diary-storage', onStorage)
-  }, [reloadTypes, newOpen, editOpenId])
-
-  useEffect(() => {
     if (!editOpenId || !clubId) return undefined
     const activeCount = membershipTypes.filter((t) => t.is_active !== false).length
     if (activeCount === 0) void reloadTypes({ force: true })
@@ -305,6 +295,21 @@ export function MembershipManager({
       onChangedRef.current?.()
     }
   }, [clientId, computeMembershipTrainings, hallFilter])
+
+  useEffect(() => {
+    const onStorage = (e) => {
+      // Пока открыта форма — не дёргаем типы (native select иначе закрывается).
+      if (newOpen || editOpenId) return
+      const reason = String(e?.detail?.reason ?? '')
+      if (reason === 'membership-dates-shifted') {
+        void reload()
+        return
+      }
+      void reloadTypes({ silent: true })
+    }
+    window.addEventListener('fitness-diary-storage', onStorage)
+    return () => window.removeEventListener('fitness-diary-storage', onStorage)
+  }, [reloadTypes, newOpen, editOpenId, reload])
 
   useEffect(() => {
     reload()

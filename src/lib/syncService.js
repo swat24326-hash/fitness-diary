@@ -26,7 +26,7 @@ import { invalidateAdminClubWorkspaceCache } from './admin/adminClubWorkspaceCac
 import { isDuplicateInsertError } from './syncFlushResult'
 import { reportQueueFlushProgress, setQueueFlushProgressReporter } from './syncProgress'
 
-export { isDuplicateInsertError, describeFlushQueueResult, criticalWriteCloudWarning } from './syncFlushResult'
+export { isDuplicateInsertError, describeFlushQueueResult, criticalWriteCloudWarning, shouldCloudHydrateAfterCriticalSave } from './syncFlushResult'
 
 const TRAINER_CACHE_STORES = new Set(['clients', 'memberships', 'trainings', 'health_cards', 'body_measurements', 'client_weight_entries'])
 

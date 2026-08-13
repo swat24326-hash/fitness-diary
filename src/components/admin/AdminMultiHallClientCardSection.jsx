@@ -1,19 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Save } from 'lucide-react'
-import {
-  criticalWriteCloudWarning,
-  flushCriticalWritesToCloud,
-  saveLocalWithSync,
-} from '../../lib/syncService.js'
-import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
-import { normalizeDeskHall } from '../../lib/admin/deskHallClientsCore.js'
-import { formatClientName } from '../../lib/clientNameFormat.js'
 import { mergeDeskClientBirthForm } from '../../lib/admin/deskClientBirthFormCore.js'
+import { ackSavedDeskField, mergeDeskClientFormField } from '../../lib/admin/deskClientFormMergeCore.js'
 import { assertClubCardAvailableForCreate } from '../../lib/admin/salesClientMatchCore.js'
 import { listClientsByClubId } from '../../lib/localDbClubQuery.js'
 import { resolveInitialClientHallTab } from '../../lib/admin/clientHallTabsCore.js'
 import { prepareClientTrainerReassign } from '../../lib/admin/clientTrainerReassignService.js'
+import { cascadeClientClubMoveLocal } from '../../lib/admin/clientClubMoveCascadeService.js'
+import {
+  criticalWriteCloudWarning,
+  flushCriticalWritesToCloud,
+  saveLocalWithSync,
+  shouldCloudHydrateAfterCriticalSave,
+} from '../../lib/syncService.js'
+import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
+import { normalizeDeskHall } from '../../lib/admin/deskHallClientsCore.js'
+import { formatClientName } from '../../lib/clientNameFormat.js'
 import { AdminClientHallTabs } from './AdminClientHallTabs.jsx'
 import { AdminDeskMembershipLedger } from './AdminDeskMembershipLedger.jsx'
 import { AdminMultiHallTrainerField } from './AdminMultiHallTrainerField.jsx'
@@ -75,7 +78,15 @@ export function AdminMultiHallClientCardSection({
   })
   const formClientIdRef = useRef('')
   const birthDirtyRef = useRef(false)
+  const nameDirtyRef = useRef(false)
+  const phoneDirtyRef = useRef(false)
+  const cardDirtyRef = useRef(false)
+  const trainerDirtyRef = useRef(false)
   const savedBirthRef = useRef(/** @type {string | undefined} */ (undefined))
+  const savedNameRef = useRef(/** @type {string | undefined} */ (undefined))
+  const savedPhoneRef = useRef(/** @type {string | undefined} */ (undefined))
+  const savedCardRef = useRef(/** @type {string | undefined} */ (undefined))
+  const savedTrainerRef = useRef(/** @type {string | undefined} */ (undefined))
   const trainersCatalogRef = useRef(/** @type {object[]} */ ([]))
 
   useEffect(() => {
@@ -89,18 +100,66 @@ export function AdminMultiHallClientCardSection({
     formClientIdRef.current = id
     if (switched) {
       birthDirtyRef.current = false
+      nameDirtyRef.current = false
+      phoneDirtyRef.current = false
+      cardDirtyRef.current = false
+      trainerDirtyRef.current = false
       savedBirthRef.current = undefined
+      savedNameRef.current = undefined
+      savedPhoneRef.current = undefined
+      savedCardRef.current = undefined
+      savedTrainerRef.current = undefined
     }
     const fromClientBirth = parseFlexibleDateToIso(client?.birth_date, birthDateYearBounds()) || ''
-    if (savedBirthRef.current !== undefined && fromClientBirth === savedBirthRef.current) {
+    const fromClientName = String(client?.name ?? '').trim()
+    const fromClientPhone = String(client?.phone ?? '').trim()
+    const fromClientCard = String(client?.card_number ?? '').trim()
+    const fromClientTrainer = String(client?.trainer_id ?? '').trim()
+    if (ackSavedDeskField({ saved: savedBirthRef.current, fromClient: fromClientBirth })) {
       birthDirtyRef.current = false
       savedBirthRef.current = undefined
     }
+    if (ackSavedDeskField({ saved: savedNameRef.current, fromClient: fromClientName })) {
+      nameDirtyRef.current = false
+      savedNameRef.current = undefined
+    }
+    if (ackSavedDeskField({ saved: savedPhoneRef.current, fromClient: fromClientPhone })) {
+      phoneDirtyRef.current = false
+      savedPhoneRef.current = undefined
+    }
+    if (ackSavedDeskField({ saved: savedCardRef.current, fromClient: fromClientCard })) {
+      cardDirtyRef.current = false
+      savedCardRef.current = undefined
+    }
+    if (ackSavedDeskField({ saved: savedTrainerRef.current, fromClient: fromClientTrainer })) {
+      trainerDirtyRef.current = false
+      savedTrainerRef.current = undefined
+    }
     setForm((prev) => ({
-      name: client?.name ?? '',
-      phone: client?.phone ?? '',
-      card_number: client?.card_number ?? '',
-      trainer_id: String(client?.trainer_id ?? '').trim(),
+      name: mergeDeskClientFormField({
+        fromClient: fromClientName,
+        prev: prev.name,
+        switched,
+        dirty: nameDirtyRef.current,
+      }),
+      phone: mergeDeskClientFormField({
+        fromClient: fromClientPhone,
+        prev: prev.phone,
+        switched,
+        dirty: phoneDirtyRef.current,
+      }),
+      card_number: mergeDeskClientFormField({
+        fromClient: fromClientCard,
+        prev: prev.card_number,
+        switched,
+        dirty: cardDirtyRef.current,
+      }),
+      trainer_id: mergeDeskClientFormField({
+        fromClient: fromClientTrainer,
+        prev: prev.trainer_id,
+        switched,
+        dirty: trainerDirtyRef.current,
+      }),
       birth_date: mergeDeskClientBirthForm({
         fromClientBirth,
         prevBirth: prev.birth_date,
@@ -112,6 +171,10 @@ export function AdminMultiHallClientCardSection({
 
   const setField = (key, value) => {
     if (key === 'birth_date') birthDirtyRef.current = true
+    if (key === 'name') nameDirtyRef.current = true
+    if (key === 'phone') phoneDirtyRef.current = true
+    if (key === 'card_number') cardDirtyRef.current = true
+    if (key === 'trainer_id') trainerDirtyRef.current = true
     setForm((f) => ({ ...f, [key]: value }))
   }
 
@@ -131,6 +194,7 @@ export function AdminMultiHallClientCardSection({
       const reassign = await prepareClientTrainerReassign({
         client,
         nextTrainerId: form.trainer_id,
+        proposedCardNumber: form.card_number,
         trainersCatalog: trainersCatalogRef.current,
       })
       if (!reassign.ok) {
@@ -153,6 +217,8 @@ export function AdminMultiHallClientCardSection({
       const birthIso = parseFlexibleDateToIso(form.birth_date, birthDateYearBounds()) || null
       const savedBirth = birthIso || ''
       const trainer_id = reassign.trainer_id
+      const nextClubId = reassign.club_id ?? client.club_id ?? null
+      const oldClubId = client.club_id ?? null
       const clientRow = {
         ...client,
         name,
@@ -160,7 +226,7 @@ export function AdminMultiHallClientCardSection({
         card_number,
         birth_date: birthIso,
         trainer_id,
-        club_id: reassign.club_id ?? client.club_id ?? null,
+        club_id: nextClubId,
         // legacy desk_hall: не затираем, если нет тренера (constraint); зал абонов — memberships.hall
         desk_hall: trainer_id ? legacyDesk : legacyDesk || null,
       }
@@ -169,14 +235,37 @@ export function AdminMultiHallClientCardSection({
         operation: 'update',
         remote_id: client.id,
       })
+      await cascadeClientClubMoveLocal({
+        clientId: client.id,
+        oldClubId,
+        nextClubId,
+        memberships,
+      })
       const flush = await flushCriticalWritesToCloud()
-      const warn = criticalWriteCloudWarning(flush, 'Смена тренера')
+      const warn = criticalWriteCloudWarning(flush, 'Сохранение карточки')
       if (warn) setError(warn)
+      const savedPhone = String(form.phone ?? '').trim()
+      const savedCard = card_number || ''
       savedBirthRef.current = savedBirth
+      savedNameRef.current = name
+      savedPhoneRef.current = savedPhone
+      savedCardRef.current = savedCard
+      savedTrainerRef.current = trainer_id || ''
       birthDirtyRef.current = true
-      setForm((f) => ({ ...f, birth_date: savedBirth, trainer_id: trainer_id || '' }))
+      nameDirtyRef.current = true
+      phoneDirtyRef.current = true
+      cardDirtyRef.current = true
+      trainerDirtyRef.current = true
+      setForm((f) => ({
+        ...f,
+        name,
+        phone: savedPhone,
+        card_number: savedCard,
+        birth_date: savedBirth,
+        trainer_id: trainer_id || '',
+      }))
       dispatchLocalDataChanged({ reason: 'client-trainer-reassigned', clientId: client.id })
-      onSaved?.()
+      onSaved?.({ cloudFlushed: shouldCloudHydrateAfterCriticalSave(flush, warn) })
     } catch (err) {
       setError(err?.message || 'Не удалось сохранить')
     } finally {

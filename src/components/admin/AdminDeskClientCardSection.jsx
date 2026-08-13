@@ -6,6 +6,7 @@ import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
 import { normalizeDeskHall } from '../../lib/admin/deskHallClientsCore.js'
 import { formatClientName } from '../../lib/clientNameFormat.js'
 import { mergeDeskClientBirthForm } from '../../lib/admin/deskClientBirthFormCore.js'
+import { ackSavedDeskField, mergeDeskClientFormField } from '../../lib/admin/deskClientFormMergeCore.js'
 import { assertClubCardAvailableForCreate } from '../../lib/admin/salesClientMatchCore.js'
 import { listClientsByClubId } from '../../lib/localDbClubQuery.js'
 import { AdminDeskMembershipLedger } from './AdminDeskMembershipLedger.jsx'
@@ -35,8 +36,13 @@ export function AdminDeskClientCardSection({
   })
   const formClientIdRef = useRef('')
   const birthDirtyRef = useRef(false)
-  /** Ожидаемая ДР после Save, пока props.client ещё со старой датой. */
+  const nameDirtyRef = useRef(false)
+  const phoneDirtyRef = useRef(false)
+  const cardDirtyRef = useRef(false)
   const savedBirthRef = useRef(/** @type {string | undefined} */ (undefined))
+  const savedNameRef = useRef(/** @type {string | undefined} */ (undefined))
+  const savedPhoneRef = useRef(/** @type {string | undefined} */ (undefined))
+  const savedCardRef = useRef(/** @type {string | undefined} */ (undefined))
 
   useEffect(() => {
     const id = String(client?.id ?? '')
@@ -44,20 +50,53 @@ export function AdminDeskClientCardSection({
     formClientIdRef.current = id
     if (switched) {
       birthDirtyRef.current = false
+      nameDirtyRef.current = false
+      phoneDirtyRef.current = false
+      cardDirtyRef.current = false
       savedBirthRef.current = undefined
+      savedNameRef.current = undefined
+      savedPhoneRef.current = undefined
+      savedCardRef.current = undefined
     }
     const fromClientBirth = parseFlexibleDateToIso(client?.birth_date, birthDateYearBounds()) || ''
-    if (
-      savedBirthRef.current !== undefined &&
-      fromClientBirth === savedBirthRef.current
-    ) {
+    const fromClientName = String(client?.name ?? '').trim()
+    const fromClientPhone = String(client?.phone ?? '').trim()
+    const fromClientCard = String(client?.card_number ?? '').trim()
+    if (ackSavedDeskField({ saved: savedBirthRef.current, fromClient: fromClientBirth })) {
       birthDirtyRef.current = false
       savedBirthRef.current = undefined
     }
+    if (ackSavedDeskField({ saved: savedNameRef.current, fromClient: fromClientName })) {
+      nameDirtyRef.current = false
+      savedNameRef.current = undefined
+    }
+    if (ackSavedDeskField({ saved: savedPhoneRef.current, fromClient: fromClientPhone })) {
+      phoneDirtyRef.current = false
+      savedPhoneRef.current = undefined
+    }
+    if (ackSavedDeskField({ saved: savedCardRef.current, fromClient: fromClientCard })) {
+      cardDirtyRef.current = false
+      savedCardRef.current = undefined
+    }
     setForm((prev) => ({
-      name: client?.name ?? '',
-      phone: client?.phone ?? '',
-      card_number: client?.card_number ?? '',
+      name: mergeDeskClientFormField({
+        fromClient: fromClientName,
+        prev: prev.name,
+        switched,
+        dirty: nameDirtyRef.current,
+      }),
+      phone: mergeDeskClientFormField({
+        fromClient: fromClientPhone,
+        prev: prev.phone,
+        switched,
+        dirty: phoneDirtyRef.current,
+      }),
+      card_number: mergeDeskClientFormField({
+        fromClient: fromClientCard,
+        prev: prev.card_number,
+        switched,
+        dirty: cardDirtyRef.current,
+      }),
       desk_hall: normalizeDeskHall(client?.desk_hall) || '',
       birth_date: mergeDeskClientBirthForm({
         fromClientBirth,
@@ -70,6 +109,9 @@ export function AdminDeskClientCardSection({
 
   const setField = (key, value) => {
     if (key === 'birth_date') birthDirtyRef.current = true
+    if (key === 'name') nameDirtyRef.current = true
+    if (key === 'phone') phoneDirtyRef.current = true
+    if (key === 'card_number') cardDirtyRef.current = true
     setForm((f) => ({ ...f, [key]: value }))
   }
   const hall = normalizeDeskHall(form.desk_hall)
@@ -103,10 +145,12 @@ export function AdminDeskClientCardSection({
       }
       const birthIso = parseFlexibleDateToIso(form.birth_date, birthDateYearBounds()) || null
       const savedBirth = birthIso || ''
+      const savedPhone = String(form.phone ?? '').trim()
+      const savedCard = card_number || ''
       const clientRow = {
         ...client,
         name,
-        phone: String(form.phone ?? '').trim() || null,
+        phone: savedPhone || null,
         card_number,
         birth_date: birthIso,
         trainer_id: null,
@@ -117,10 +161,21 @@ export function AdminDeskClientCardSection({
         operation: 'update',
         remote_id: client.id,
       })
-      // Не снимать dirty сразу: props.client ещё может держать старую ДР до onSaved.
       savedBirthRef.current = savedBirth
+      savedNameRef.current = name
+      savedPhoneRef.current = savedPhone
+      savedCardRef.current = savedCard
       birthDirtyRef.current = true
-      setForm((f) => ({ ...f, birth_date: savedBirth }))
+      nameDirtyRef.current = true
+      phoneDirtyRef.current = true
+      cardDirtyRef.current = true
+      setForm((f) => ({
+        ...f,
+        name,
+        phone: savedPhone,
+        card_number: savedCard,
+        birth_date: savedBirth,
+      }))
       dispatchLocalDataChanged()
       onSaved?.()
     } catch (err) {

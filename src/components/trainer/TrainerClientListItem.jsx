@@ -9,6 +9,7 @@ import {
   pickExpiredMembershipWithRemaining,
 } from '../../lib/clientListSignals'
 import {
+  canOfferLateMembershipStart,
   canStartNewTrainingForMemberships,
   membershipUsageLabel,
   pickUsableMembershipForDate,
@@ -39,6 +40,7 @@ export function TrainerClientListItem({
 }) {
   const active = pickUsableMembershipForDate(memList, today)
   const canStartTraining = canStartNewTrainingForMemberships(memList, today)
+  const lateStartOffer = canOfferLateMembershipStart(memList, today, clientTrainings)
   const sig = membershipSignal(memList, today)
   const expiredLeft = active ? null : pickExpiredMembershipWithRemaining(memList, today)
   const last = formatLastTrainingDate(lastTrainingIso)
@@ -153,9 +155,11 @@ export function TrainerClientListItem({
                   className="btn btn-primary btn-icon-square btn-touch u-no-decoration"
                   aria-label="Новая тренировка"
                   title={
-                    active
-                      ? 'Новая тренировка'
-                      : 'Начать тренировку — предложим активировать абонемент раньше'
+                    lateStartOffer
+                      ? 'Новая тренировка — можно сдвинуть срок от первой тренировки'
+                      : active
+                        ? 'Новая тренировка'
+                        : 'Начать тренировку — предложим активировать абонемент раньше'
                   }
                 >
                   <Dumbbell size={20} aria-hidden />

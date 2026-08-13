@@ -141,6 +141,40 @@ export function pickEarliestUpcomingMembership(memberships, dateIso) {
 /** Порог предупреждения «старт был далеко» (дней сдвига). */
 export const EARLY_ACTIVATE_WARN_SHIFT_DAYS = 14
 
+/** Макс. опоздание первой тренировки после start_date для предложения сдвига (дней). */
+export const LATE_START_MAX_SHIFT_DAYS = 14
+
+/**
+ * Календарная разница isoA − isoB в днях (локальные даты YYYY-MM-DD).
+ * @param {string} isoA
+ * @param {string} isoB
+ */
+export function isoCalendarDaysDiff(isoA, isoB) {
+  const a = String(isoA ?? '').slice(0, 10)
+  const b = String(isoB ?? '').slice(0, 10)
+  if (!a || !b) return null
+  const pa = a.split('-').map(Number)
+  const pb = b.split('-').map(Number)
+  if (pa.length !== 3 || pb.length !== 3) return null
+  const da = new Date(pa[0], pa[1] - 1, pa[2])
+  const db = new Date(pb[0], pb[1] - 1, pb[2])
+  return Math.round((da - db) / 86400000)
+}
+
+/**
+ * Пересекаются ли периоды [start,end] включительно.
+ * @param {{ start_date?: string, end_date?: string } | null | undefined} a
+ * @param {{ start_date?: string, end_date?: string } | null | undefined} b
+ */
+export function membershipPeriodsOverlap(a, b) {
+  const as = String(a?.start_date ?? '').slice(0, 10)
+  const ae = String(a?.end_date ?? '').slice(0, 10)
+  const bs = String(b?.start_date ?? '').slice(0, 10)
+  const be = String(b?.end_date ?? '').slice(0, 10)
+  if (!as || !ae || !bs || !be || ae < as || be < bs) return false
+  return as <= be && bs <= ae
+}
+
 /**
  * Предложение сдвинуть даты upcoming-абонемента на activateOnIso (длина периода та же).
  * Не вызывать, если на дату уже есть usable — иначе два overlapping.
@@ -172,13 +206,8 @@ export function proposeEarlyMembershipActivation(membership, activateOnIso) {
 
   const toStart = activateOn
   const toEnd = addDaysToIso(toStart, periodDays - 1)
-  const daysShift = (() => {
-    const ps = fromStart.split('-').map(Number)
-    const pa = activateOn.split('-').map(Number)
-    const a = new Date(ps[0], ps[1] - 1, ps[2])
-    const b = new Date(pa[0], pa[1] - 1, pa[2])
-    return Math.round((a - b) / 86400000)
-  })()
+  const daysShift = isoCalendarDaysDiff(fromStart, activateOn)
+  if (daysShift == null) return { ok: false, error: 'bad_date' }
 
   return {
     ok: true,
@@ -201,6 +230,148 @@ export function canOfferEarlyMembershipActivation(memberships, dateIso) {
   if (!d) return false
   if (pickUsableMembershipForDate(memberships, d)) return false
   return pickEarliestUpcomingMembership(memberships, d) != null
+}
+
+/**
+ * Сдвиг срока уже стартовавшего абона на дату первой тренировки (длина та же).
+ * Только если ещё не списывали занятия (поле + дневник) и опоздание ≤ LATE_START_MAX_SHIFT_DAYS.
+ *
+ * @param {object | null | undefined} membership
+ * @param {string} activateOnIso
+ * @param {{ otherMemberships?: object[], clientTrainings?: object[] }} [opts]
+ * @returns {{
+ *   ok: true,
+ *   membershipId: string,
+ *   from: { start: string, end: string },
+ *   to: { start: string, end: string },
+ *   daysShift: number,
+ *   periodDays: number,
+ *   warnFar: boolean,
+ * } | { ok: false, error: string }}
+ */
+export function proposeLateMembershipStart(membership, activateOnIso, opts = {}) {
+  const activateOn = String(activateOnIso ?? '').slice(0, 10)
+  if (!membership?.id) return { ok: false, error: 'no_membership' }
+  if (!activateOn) return { ok: false, error: 'bad_date' }
+  const fromStart = String(membership.start_date ?? '').slice(0, 10)
+  const fromEnd = String(membership.end_date ?? '').slice(0, 10)
+  if (!fromStart || !fromEnd || fromEnd < fromStart) return { ok: false, error: 'bad_period' }
+  if (fromStart >= activateOn) return { ok: false, error: 'already_aligned' }
+  if (!membershipHasRemaining(membership)) return { ok: false, error: 'depleted' }
+  if (!membershipCoversDate(membership, activateOn)) return { ok: false, error: 'not_covering' }
+
+  const usedStored = Number(membership.used_trainings ?? 0)
+  const usedDiary = countedUsedTrainingsOnMembership(membership, opts.clientTrainings ?? [])
+  const used = Math.max(Number.isFinite(usedStored) ? usedStored : 0, usedDiary)
+  if (used > 0) return { ok: false, error: 'already_used' }
+
+  const daysShift = isoCalendarDaysDiff(activateOn, fromStart)
+  if (daysShift == null || daysShift < 1) return { ok: false, error: 'bad_date' }
+  if (daysShift > LATE_START_MAX_SHIFT_DAYS) return { ok: false, error: 'too_late' }
+
+  const periodDays = membershipPeriodDayCount(membership)
+  if (!periodDays || periodDays < 1) return { ok: false, error: 'bad_period' }
+
+  const toStart = activateOn
+  const toEnd = addDaysToIso(toStart, periodDays - 1)
+  const nextPeriod = { start_date: toStart, end_date: toEnd }
+  const selfId = String(membership.id)
+  const others = opts.otherMemberships ?? []
+  for (const other of others) {
+    if (!other || String(other.id ?? '') === selfId) continue
+    if (membershipPeriodsOverlap(nextPeriod, other)) {
+      return { ok: false, error: 'overlap' }
+    }
+  }
+
+  return {
+    ok: true,
+    membershipId: selfId,
+    from: { start: fromStart, end: fromEnd },
+    to: { start: toStart, end: toEnd },
+    daysShift,
+    periodDays,
+    warnFar: false,
+  }
+}
+
+/**
+ * Разбор позднего старта для UI: offer / blocked (можно тренировать) / skip.
+ * @param {object[]} memberships
+ * @param {string} dateIso
+ * @param {object[]} [clientTrainings]
+ * @returns {{
+ *   status: 'offer' | 'blocked' | 'skip',
+ *   reason: string | null,
+ *   proposal: object | null,
+ *   membership: object | null,
+ *   daysLate: number | null,
+ *   message: string | null,
+ * }}
+ */
+export function inspectLateMembershipStart(memberships, dateIso, clientTrainings = []) {
+  const d = String(dateIso ?? '').slice(0, 10)
+  if (!d) return { status: 'skip', reason: 'bad_date', proposal: null, membership: null, daysLate: null, message: null }
+  const usable = pickUsableMembershipForDate(memberships, d)
+  if (!usable) {
+    return { status: 'skip', reason: 'no_usable', proposal: null, membership: null, daysLate: null, message: null }
+  }
+  const fromStart = String(usable.start_date ?? '').slice(0, 10)
+  const daysLate = fromStart ? isoCalendarDaysDiff(d, fromStart) : null
+  const proposal = proposeLateMembershipStart(usable, d, {
+    otherMemberships: memberships,
+    clientTrainings,
+  })
+  if (proposal.ok) {
+    return {
+      status: 'offer',
+      reason: null,
+      proposal,
+      membership: usable,
+      daysLate: proposal.daysShift,
+      message: null,
+    }
+  }
+  if (proposal.error === 'overlap') {
+    return {
+      status: 'blocked',
+      reason: 'overlap',
+      proposal: null,
+      membership: usable,
+      daysLate,
+      message:
+        'Срок абонемента уже идёт, а сдвиг от первой тренировки нельзя: новые даты пересеклись бы со следующим абонементом. Можно провести тренировку без сдвига.',
+    }
+  }
+  if (proposal.error === 'too_late') {
+    return {
+      status: 'blocked',
+      reason: 'too_late',
+      proposal: null,
+      membership: usable,
+      daysLate,
+      message:
+        'С даты старта прошло больше 14 дней — срок не сдвигаем. Можно провести тренировку с текущими датами абонемента.',
+    }
+  }
+  return {
+    status: 'skip',
+    reason: proposal.error,
+    proposal: null,
+    membership: usable,
+    daysLate,
+    message: null,
+  }
+}
+
+/**
+ * Можно ли предложить сдвиг от первой тренировки (usable, used=0 по полю и дневнику, опоздание ≤14).
+ * @param {object[]} memberships
+ * @param {string} dateIso
+ * @param {object[]} [clientTrainings]
+ */
+export function canOfferLateMembershipStart(memberships, dateIso, clientTrainings = []) {
+  return inspectLateMembershipStart(memberships, dateIso, clientTrainings).status === 'offer'
 }
 
 /**
