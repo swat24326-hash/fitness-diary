@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react'
-import { X } from 'lucide-react'
+import { Phone, X } from 'lucide-react'
 import { makeClubCallViaApi } from '../../lib/admin/clubCallService.js'
 import '../../styles/club-call.css'
 
@@ -12,7 +12,7 @@ import '../../styles/club-call.css'
  *   clubId: string,
  *   client: { id: string, name?: string, phone?: string | null },
  *   clubName?: string,
- *   onFeedback?: (msg: string, tone?: string) => void,
+ *   onFeedback?: (msg: string, tone?: string, opts?: { durationMs?: number }) => void,
  *   onCalled?: (clientId: string) => void,
  * }} props
  */
@@ -26,13 +26,14 @@ export function AdminClientClubCallSheet({
   onCalled,
 }) {
   const titleId = useId()
-  const [calling, setCalling] = useState(false)
+  /** @type {['confirm' | 'calling' | 'launched', function]} */
+  const [phase, setPhase] = useState('confirm')
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (!open) return
     setError('')
-    setCalling(false)
+    setPhase('confirm')
   }, [open, client?.id])
 
   if (!open || !client) return null
@@ -40,22 +41,26 @@ export function AdminClientClubCallSheet({
   const clubLabel = clubName?.trim() || 'клуба'
   const phone = String(client.phone ?? '').trim() || '—'
   const name = String(client.name ?? '').trim() || 'Клиент'
+  const busy = phase === 'calling'
 
   const onConfirm = async () => {
-    if (calling || !clubId || !client.id) return
-    setCalling(true)
+    if (busy || phase === 'launched' || !clubId || !client.id) return
+    setPhase('calling')
     setError('')
     try {
       await makeClubCallViaApi({ clubId, clientId: client.id })
-      onFeedback?.('Звонок запущен с телефона клуба', 'ok')
+      setPhase('launched')
       onCalled?.(client.id)
-      onClose()
+      onFeedback?.(
+        'Команда ушла на Android клуба — смотрите набор на телефоне. Зелёная полоска на экране не означает конец звонка.',
+        'ok',
+        { durationMs: 12_000 },
+      )
     } catch (e) {
       const msg = e?.message ? String(e.message) : 'Не удалось запустить звонок'
       setError(msg)
+      setPhase('confirm')
       onFeedback?.(msg, 'warn')
-    } finally {
-      setCalling(false)
     }
   }
 
@@ -63,7 +68,7 @@ export function AdminClientClubCallSheet({
     <div
       className="club-call-sheet-backdrop"
       role="presentation"
-      onClick={() => !calling && onClose()}
+      onClick={() => !busy && onClose()}
     >
       <div
         className="club-call-sheet"
@@ -75,7 +80,9 @@ export function AdminClientClubCallSheet({
         <div className="club-call-sheet__head">
           <div>
             <h2 id={titleId} className="club-call-sheet__title">
-              Позвонить с телефона {clubLabel}?
+              {phase === 'launched'
+                ? 'Смотрите на телефон клуба'
+                : `Позвонить с телефона ${clubLabel}?`}
             </h2>
             <p className="club-call-sheet__meta">
               {name}
@@ -86,8 +93,8 @@ export function AdminClientClubCallSheet({
           <button
             type="button"
             className="btn btn-ghost btn-icon-square btn-touch"
-            onClick={() => !calling && onClose()}
-            disabled={calling}
+            onClick={() => !busy && onClose()}
+            disabled={busy}
             aria-label="Закрыть"
             title="Закрыть"
           >
@@ -95,11 +102,31 @@ export function AdminClientClubCallSheet({
           </button>
         </div>
 
-        <p className="club-call-sheet__hint">
-          Звонок пойдёт с Android клуба через Мои Звонки. Телефон должен быть онлайн (интернет),
-          приложение не убито энергосбережением. Email в настройках Мои Звонки — тот же, под которым
-          вошли в приложении на телефоне.
-        </p>
+        {phase === 'launched' ? (
+          <div className="club-call-sheet__launched" role="status">
+            <p className="club-call-sheet__launched-lead">
+              <Phone size={18} aria-hidden />
+              Команда отправлена в Мои Звонки.
+            </p>
+            <ul className="club-call-sheet__launched-list">
+              <li>На Android клуба должен начаться исходящий набор на этот номер.</li>
+              <li>
+                Короткая зелёная полоска сверху списка — только сообщение в приложении (~12 с), не
+                обрыв звонка.
+              </li>
+              <li>
+                Если на телефоне «пропущенный» на 1–2 сек: не звоните на тот же номер, что SIM
+                клуба; проверьте интернет и энергосбережение приложения Мои Звонки.
+              </li>
+            </ul>
+          </div>
+        ) : (
+          <p className="club-call-sheet__hint">
+            Звонок пойдёт с Android клуба через Мои Звонки. Телефон должен быть онлайн (интернет),
+            приложение не убито энергосбережением. Email в настройках Мои Звонки — тот же, под
+            которым вошли в приложении на телефоне.
+          </p>
+        )}
 
         {error ? (
           <p className="club-call-sheet__error" role="alert">
@@ -108,22 +135,30 @@ export function AdminClientClubCallSheet({
         ) : null}
 
         <div className="club-call-sheet__actions">
-          <button
-            type="button"
-            className="btn btn-ghost btn-touch"
-            onClick={() => !calling && onClose()}
-            disabled={calling}
-          >
-            Отмена
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary btn-touch"
-            onClick={() => void onConfirm()}
-            disabled={calling}
-          >
-            {calling ? 'Звоним…' : 'Позвонить'}
-          </button>
+          {phase === 'launched' ? (
+            <button type="button" className="btn btn-primary btn-touch" onClick={() => onClose()}>
+              Понятно
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="btn btn-ghost btn-touch"
+                onClick={() => !busy && onClose()}
+                disabled={busy}
+              >
+                Отмена
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-touch"
+                onClick={() => void onConfirm()}
+                disabled={busy}
+              >
+                {busy ? 'Звоним…' : 'Позвонить'}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

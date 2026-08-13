@@ -264,9 +264,10 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     }
   }, [club])
 
-  const onSmsFeedback = useCallback((msg, tone = 'ok') => {
+  const onSmsFeedback = useCallback((msg, tone = 'ok', opts = {}) => {
     setSmsFeedback({ msg, tone })
-    window.setTimeout(() => setSmsFeedback(null), 4000)
+    const ms = Number(opts?.durationMs) > 0 ? Number(opts.durationMs) : 4000
+    window.setTimeout(() => setSmsFeedback(null), ms)
   }, [])
 
   const onClubSmsSent = useCallback((clientId, scenario = 'custom') => {
