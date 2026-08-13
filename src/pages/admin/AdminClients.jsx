@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom'
-import { Archive, ArrowLeft, RefreshCw, RotateCcw, Search, Trash2, UserCircle, UserPlus, UserSearch } from 'lucide-react'
+import { Archive, ArrowLeft, Phone, RefreshCw, RotateCcw, Search, Trash2, UserCircle, UserPlus, UserSearch } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { AdminClientClubSmsButton } from '../../components/admin/AdminClientClubSmsButton.jsx'
+import { AdminClientClubCallButton } from '../../components/admin/AdminClientClubCallButton.jsx'
 import { AdminClubSmsCampaignBar } from '../../components/admin/AdminClubSmsCampaignBar.jsx'
 import { AdminClubSmsCampaignComposeSheet } from '../../components/admin/AdminClubSmsCampaignComposeSheet.jsx'
 import { AdminClubSmsCampaignConfirmModal } from '../../components/admin/AdminClubSmsCampaignConfirmModal.jsx'
@@ -182,6 +183,11 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
   const club = clubBound
     ? clubIdCtx
     : searchParams.get('club') ?? clubIdCtx ?? ''
+  const callLogHref = isSalesManager
+    ? '/sales/call-log'
+    : isSupervisor
+      ? '/club/call-log'
+      : `/admin/call-log${club ? `?club=${encodeURIComponent(club)}` : ''}`
   const filterFromUrl = searchParams.get('filter')
   const listTabFromUrl = searchParams.get('clientsTab') || searchParams.get('list')
 
@@ -1040,6 +1046,14 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
             </p>
           </div>
           <div className="sales-clients__actions">
+            <Link
+              to={callLogHref}
+              className="btn btn-ghost btn-sm btn-icon-square btn-touch"
+              title="Журнал звонков клуба"
+              aria-label="Журнал звонков клуба"
+            >
+              <Phone size={16} aria-hidden />
+            </Link>
             <Link to="/sales" className="btn btn-ghost btn-sm btn-icon-square btn-touch" title="На главную" aria-label="На главную продаж">
               <ArrowLeft size={16} aria-hidden />
             </Link>
@@ -1116,6 +1130,14 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               <UserPlus size={20} aria-hidden />
             </button>
           ) : null}
+          <Link
+            to={callLogHref}
+            className="btn btn-ghost btn-icon-square btn-touch"
+            title="Журнал звонков клуба"
+            aria-label="Журнал звонков клуба"
+          >
+            <Phone size={20} aria-hidden />
+          </Link>
           <button
             type="button"
             className="btn btn-primary btn-icon-square btn-touch"
@@ -1583,6 +1605,14 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                           )}
                           onFeedback={onSmsFeedback}
                           onSent={onClubSmsSent}
+                        />
+                        <AdminClientClubCallButton
+                          clubId={club}
+                          client={c}
+                          clubName={clubSmsClubName}
+                          configured={clubSmsConfigured}
+                          busy={busy}
+                          onFeedback={onSmsFeedback}
                         />
                         <Link
                           to={buildAdminClientCardHref(clientsBasePath, c.id, listNavState)}

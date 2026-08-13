@@ -40,6 +40,7 @@
     "db:migrate:strategy-snapshot": "node scripts/apply-club-sales-plan-strategy-snapshot.mjs",
     "db:migrate:sales-promotions": "node scripts/apply-club-sales-promotions.mjs",
     "db:migrate:club-sms-log-status": "node scripts/apply-club-sms-log-status-migration.mjs",
+    "db:migrate:club-call-log": "node scripts/apply-club-call-log-migration.mjs",
     "check:volume": "node scripts/check-data-volume.mjs",
     "sync:brand": "node scripts/sync-product-brand.mjs",
     "gen:icons": "node scripts/sync-product-brand.mjs && node scripts/generate-icons.mjs",

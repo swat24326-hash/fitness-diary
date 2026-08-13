@@ -125,6 +125,8 @@ export function buildBreadcrumbs(pathname, search = '') {
   }
 
   if (p === '/admin/clients') return [...admin, { label: 'Клиенты', to: `/admin/clients${clubQs}` }]
+  if (p === '/admin/call-log') return [...admin, { label: 'Журнал звонков', to: `/admin/call-log${clubQs}` }]
+  if (p === '/admin/deletion-log') return [...admin, { label: 'Журнал удалений', to: `/admin/deletion-log${clubQs}` }]
   if (p === '/admin/excel-lists') return [...admin, { label: 'Списки из Excel', to: `/admin/excel-lists${clubQs}` }]
   if (p === '/admin/statistics') return [...admin, { label: 'Статистика', to: `/admin/statistics${clubQs}` }]
   if (p === '/admin/challenges') return [...admin, { label: 'Челленджи', to: `/admin/challenges${clubQs}` }]
@@ -148,6 +150,7 @@ export function buildBreadcrumbs(pathname, search = '') {
   const clubRoot = [{ label: 'Клуб', to: '/club' }]
   if (p === '/club') return []
   if (p === '/club/clients') return [...clubRoot, { label: 'Клиенты', to: '/club/clients' }]
+  if (p === '/club/call-log') return [...clubRoot, { label: 'Журнал звонков', to: '/club/call-log' }]
   if (p === '/club/statistics') return [...clubRoot, { label: 'Статистика', to: '/club/statistics' }]
   if (p === '/club/sales') {
     const tabRaw = tabFromSearch(search, 'daily')
@@ -183,6 +186,8 @@ export function buildBreadcrumbs(pathname, search = '') {
   if (p === '/sales/club-tasks') return [...salesRoot, { label: 'Планёрка', to: '/sales/club-tasks' }]
   if (p === '/sales/pnk') return [...salesRoot, { label: 'ПНК', to: '/sales/pnk' }]
   if (p === '/sales/clients') return [...salesRoot, { label: 'Клиенты', to: '/sales/clients' }]
+  if (p === '/sales/call-log') return [...salesRoot, { label: 'Журнал звонков', to: '/sales/call-log' }]
+  if (p === '/sales/deletion-log') return [...salesRoot, { label: 'Журнал удалений', to: '/sales/deletion-log' }]
   if (matchPathSimple('/sales/clients/:id', p)) {
     const from = normalizeClientCardFrom(new URLSearchParams(search.startsWith('?') ? search.slice(1) : search).get('from'))
     const backTo = resolveClientCardBackHref(search, { isSalesManager: true })

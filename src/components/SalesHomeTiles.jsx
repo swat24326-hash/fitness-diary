@@ -4,6 +4,7 @@ import {
   CalendarDays,
   ClipboardList,
   Compass,
+  Phone,
   Tags,
   Ticket,
   TrendingUp,
@@ -39,6 +40,13 @@ export function SalesHomeTiles({ attentionWidgets = {} }) {
               </div>
               <p className="sales-home__tile-title">Клиенты</p>
               <p className="sales-home__tile-lead">Список, фильтры, карты</p>
+            </Link>
+            <Link to="/sales/call-log" className="sales-home__tile u-no-decoration">
+              <div className="sales-home__tile-icon">
+                <Phone size={44} aria-hidden />
+              </div>
+              <p className="sales-home__tile-title">Журнал звонков</p>
+              <p className="sales-home__tile-lead">Мои Звонки · клуб</p>
             </Link>
             <Link
               to="/sales/pnk"

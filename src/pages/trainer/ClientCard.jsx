@@ -22,6 +22,7 @@ import { buildClientCardTaskDraft } from '../../lib/admin/staffTaskCreateCore.js
 import { useClubDispatchRecipients } from '../../hooks/useClubDispatchRecipients.js'
 import { listOutreachLogByClientId } from '../../lib/trainer/trainerOutreachLogService.js'
 import { ClientPnkPanel } from '../../components/trainer/ClientPnkPanel.jsx'
+import { AdminClubCallJournalSection } from '../../components/admin/AdminClubCallJournalSection.jsx'
 import { PnkVisitQualityReport } from '../../components/pnk/PnkVisitQualityReport.jsx'
 import { formatClientName } from '../../lib/clientNameFormat.js'
 import { isOpenPnkClient, isPnkCardTabVisible, resolvePnkTrainerUiStep } from '../../lib/pnk/pnkStagesCore.js'
@@ -904,6 +905,14 @@ export function ClientCard() {
         <p className="muted" style={{ fontSize: 13, margin: '10px 0 0', lineHeight: 1.45 }}>
           Тренера ПЗ меняют в поле выше и «Сохранить»; архив — в списке «Клиенты». Новую тренировку «с нуля» начинает только тренер; правки и черновики доступны здесь и в конструкторе.
         </p>
+      ) : null}
+
+      {canManageClubClients && client?.club_id ? (
+        <AdminClubCallJournalSection
+          clubId={String(client.club_id)}
+          clientId={String(client.id)}
+          embedded
+        />
       ) : null}
 
       <ClientPnkPanel

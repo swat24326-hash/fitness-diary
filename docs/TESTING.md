@@ -78,6 +78,9 @@
 | Массовые SMS клуба: получатели, код, очередь, rate-limit | `verify-club-sms-campaign.mjs` |
 | Итог массовой SMS (ok/fail/abort) | `verify-club-sms-campaign-result.mjs` |
 | Журнал SMS: status ok/fail, фильтры, сводка | `verify-club-sms-log.mjs` |
+| Мои Звонки: make_call payload + rate limit | `verify-moi-zvonki-call.mjs` |
+| Журнал звонков: insert/shape/фильтры | `verify-club-call-log.mjs` |
+| Сводка звонков/SMS по журналу | `verify-club-outreach-stats.mjs` |
 | Доска клиентов: Max (чат) рядом с SMS | `verify-club-client-max-outreach.mjs` |
 | Статистика клуба по залу ПЗ/ТЗ/АЗ | `verify-club-stats-hall.mjs` |
 | Прайс ПЗ: скидка 10%, Excel→code, импорт AOA, TTL кэша | `verify-price-list.mjs` |

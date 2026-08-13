@@ -358,3 +358,27 @@ CREATE INDEX IF NOT EXISTS idx_club_sms_log_club_created
 
 CREATE INDEX IF NOT EXISTS idx_club_sms_log_club_client_created
   ON club_sms_log (club_id, client_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS club_call_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  club_id UUID NOT NULL REFERENCES clubs (id) ON DELETE CASCADE,
+  client_id UUID NOT NULL REFERENCES clients (id) ON DELETE CASCADE,
+  sent_by UUID REFERENCES users (id) ON DELETE SET NULL,
+  phone TEXT,
+  status TEXT NOT NULL DEFAULT 'ok',
+  error_message TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT club_call_log_status_check CHECK (status IN ('ok', 'fail')),
+  CONSTRAINT club_call_log_phone_len CHECK (
+    phone IS NULL OR char_length(phone) <= 20
+  ),
+  CONSTRAINT club_call_log_error_len CHECK (
+    error_message IS NULL OR char_length(error_message) <= 200
+  )
+);
+
+CREATE INDEX IF NOT EXISTS idx_club_call_log_club_created
+  ON club_call_log (club_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_club_call_log_club_client_created
+  ON club_call_log (club_id, client_id, created_at DESC);

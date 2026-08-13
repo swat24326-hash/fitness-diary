@@ -48,8 +48,9 @@ export function AdminMaxOutreach() {
   return (
     <div className="admin-outreach-templates">
       <p className="muted admin-outreach-templates__notice">
-        Max у тренера, Max/SMS у менеджера с доски клиентов, SMS через Мои Звонки с телефона клуба. У каждого
-        клуба может быть свой аккаунт Мои Звонки.
+        Max у тренера, Max/SMS/звонок у менеджера с доски клиентов; SMS и звонок — через Мои Звонки с
+        телефона клуба. Общий журнал звонков — отдельный раздел (не здесь). У каждого клуба может быть свой
+        аккаунт Мои Звонки.
       </p>
       <AdminClubMoizvonkiSection clubId={clubId} clubName={clubName} />
       <AdminOutreachTemplatesSection clubId={clubId} clubName={clubName} />

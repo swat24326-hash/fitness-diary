@@ -21,7 +21,7 @@
 | [RUNBOOK.md](./RUNBOOK.md) | Типовые инциденты: sync, PWA, клубы ≠ облако, статистика |
 | [SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md) | Auth, RLS, `users.id` перед крупным клубом |
 | [PUSH_SETUP.md](./PUSH_SETUP.md) | Web Push / VAPID (планёрка, задания) |
-| [MOIZVONKI_SETUP.md](./MOIZVONKI_SETUP.md) | Клубные SMS «Мои Звонки»: **per-club** + запасной env |
+| [MOIZVONKI_SETUP.md](./MOIZVONKI_SETUP.md) | Клубные SMS и звонки «Мои Звонки»: **per-club** + запасной env |
 | [PWA.md](./PWA.md) | Установка на планшет, SW, обновление после деплоя |
 | [PAID_TIER_MIGRATION.md](./PAID_TIER_MIGRATION.md) | Переход Vercel/Supabase на платные тарифы |
 | [DEEP_AUDIT.md](./DEEP_AUDIT.md) | Глубокий аудит критических зон перед релизом |
@@ -57,7 +57,7 @@
 | [BUNDLE_MEASURE.md](./BUNDLE_MEASURE.md) | Метрика размера JS-бандла (что тянет вес) |
 | [GROWTH_PLAYBOOK.md](./GROWTH_PLAYBOOK.md) | Журнал метрик клуба, когда переходить на Pro |
 | [CLIENT_ARCHIVE.md](./CLIENT_ARCHIVE.md) | Архив клиентов: sync и UI |
-| [OUTREACH_CHANNELS_ROADMAP.md](./OUTREACH_CHANNELS_ROADMAP.md) | Max ✅ + SMS Мои Звонки ✅ (в т.ч. на клуб) + Max на доске менеджера |
+| [OUTREACH_CHANNELS_ROADMAP.md](./OUTREACH_CHANNELS_ROADMAP.md) | Max ✅ + SMS/звонок Мои Звонки ✅ (в т.ч. на клуб) + Max на доске менеджера |
 | [PRICE_LIST.md](./PRICE_LIST.md) | Прайс ПЗ по клубу (админ + облако `club_price_lists`) |
 
 ---

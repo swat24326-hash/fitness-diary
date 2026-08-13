@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 import { useCallback, useMemo, useState } from 'react'
-import { BarChart3, Building2, ClipboardList, FileSpreadsheet, Settings, Shield, Trash2, TrendingUp, Trophy, UserCircle, UserPlus } from 'lucide-react'
+import { BarChart3, Building2, ClipboardList, FileSpreadsheet, Phone, Settings, Shield, Trash2, TrendingUp, Trophy, UserCircle, UserPlus } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { AdminClubDaySummaryPanel } from '../../components/admin/AdminClubDaySummaryPanel'
 import { AdminHomeAttentionRow } from '../../components/admin/AdminHomeAttentionRow'
@@ -263,6 +263,12 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
                   <UserCircle size={44} aria-hidden />
                 </div>
                 <p className="feature-tile__title">Клиенты</p>
+              </NavLink>
+              <NavLink to={tab('call-log')} className={adminTileClass}>
+                <div className="feature-tile__icon">
+                  <Phone size={44} aria-hidden />
+                </div>
+                <p className="feature-tile__title">Журнал звонков</p>
               </NavLink>
               {!isSupervisor ? (
                 <NavLink to={tab('deletion-log')} className={adminTileClass}>

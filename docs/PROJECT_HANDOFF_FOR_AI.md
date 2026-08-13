@@ -95,7 +95,7 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 - `SUPABASE_SERVICE_ROLE_KEY`, опционально `SUPABASE_URL` / `SUPABASE_ANON_KEY`
 - `GEMINI_API_KEY`, опционально `GEMINI_MODEL`
 - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
-- клубные SMS «Мои Звонки»: **сначала** `club_iskra_settings.moizvonki` на клуб (Структура → Max и SMS); запасной общий `MOIZVONKI_*` в env; журнал `club_sms_log` — [MOIZVONKI_SETUP.md](./MOIZVONKI_SETUP.md)
+- клубные SMS и звонки «Мои Звонки»: **сначала** `club_iskra_settings.moizvonki` на клуб (Структура → Max и SMS); запасной общий `MOIZVONKI_*` в env; журналы `club_sms_log` / `club_call_log` — [MOIZVONKI_SETUP.md](./MOIZVONKI_SETUP.md)
 
 См. `.env.example`. Без URL/ключа Supabase — локальный демо-режим.
 
@@ -110,9 +110,9 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 | Роль | Основные маршруты |
 |------|-------------------|
 | trainer | `/trainer`, `/trainer/clients`, … |
-| sales_manager | `/sales`, `/sales/clients`, `/sales/club-tasks`, `/sales/pnk`, `/sales/deletion-log` |
-| supervisor | `/club/*` (клиенты, статистика, продажи, ПНК, челленджи, планёрка, settings=Max/SMS) |
-| admin | `/admin/*` (clients, **deletion-log**, **excel-lists**, statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. **trainers / sales-managers / supervisors** / diagnostics / iskra-settings, …), `/admin/workouts/:id` |
+| sales_manager | `/sales`, `/sales/clients`, `/sales/club-tasks`, `/sales/pnk`, `/sales/deletion-log`, `/sales/call-log` |
+| supervisor | `/club/*` (клиенты, **call-log**, статистика, продажи, ПНК, челленджи, планёрка, settings=Max/SMS) |
+| admin | `/admin/*` (clients, **deletion-log**, **call-log**, **excel-lists**, statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. **trainers / sales-managers / supervisors** / diagnostics / iskra-settings, …), `/admin/workouts/:id` |
 - Без Supabase: fallback в `localStorage`, демо-данные.
 - С Supabase: `signInWithPassword` (+ при необходимости `/api/auth-sign-in`), профиль из `users`.
 
@@ -121,9 +121,9 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 | Роль | Пути |
 |------|------|
 | trainer | `/trainer`, `/trainer/clients`, `/trainer/clients/:id`, `/trainer/workouts/:id`, `/trainer/profile`, челленджи |
-| sales_manager | `/sales`, `/sales/clients`, `/sales/club-tasks`, `/sales/pnk`, `/sales/deletion-log` |
-| supervisor | `/club`, `/club/clients`, `/club/statistics`, `/club/sales`, `/club/pnk`, `/club/challenges`, `/club/club-tasks`, `/club/settings`, `/club/workouts/:id` |
-| admin | `/admin/*` (clients, **deletion-log**, **excel-lists**, statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. **supervisors** / diagnostics / iskra-settings, …), `/admin/workouts/:id` |
+| sales_manager | `/sales`, `/sales/clients`, `/sales/club-tasks`, `/sales/pnk`, `/sales/deletion-log`, `/sales/call-log` |
+| supervisor | `/club`, `/club/clients`, `/club/call-log`, `/club/statistics`, `/club/sales`, `/club/pnk`, `/club/challenges`, `/club/club-tasks`, `/club/settings`, `/club/workouts/:id` |
+| admin | `/admin/*` (clients, **deletion-log**, **call-log**, **excel-lists**, statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. **supervisors** / diagnostics / iskra-settings, …), `/admin/workouts/:id` |
 
 **Multi-hall (фаза 1):** один `client` — абоны ПЗ/ТЗ/АЗ (`memberships.hall`); вкладки списков и карточки; статистика `hall=`. Канон: [CLIENT_MULTI_HALL.md](./CLIENT_MULTI_HALL.md).
 

@@ -1,0 +1,286 @@
+/**
+ * Клубный звонок (Мои Звонки): кнопка, лист подтверждения, журнал.
+ */
+
+.club-call-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: max(12px, env(safe-area-inset-bottom, 12px)) 12px 12px;
+  background: rgba(2, 6, 23, 0.55);
+  backdrop-filter: blur(6px);
+}
+
+.club-call-sheet {
+  width: min(440px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 1rem 1rem 0.85rem;
+  border-radius: var(--radius-md, 16px);
+  border: 1px solid var(--border-strong, rgba(46, 255, 184, 0.32));
+  background: var(--bg-subtle, #061210);
+  box-shadow: var(--shadow, 0 24px 60px rgba(0, 0, 0, 0.55));
+  animation: club-call-sheet-in 0.28s var(--ease-out, ease) both;
+}
+
+@keyframes club-call-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.club-call-sheet__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.club-call-sheet__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.club-call-sheet__meta {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+}
+
+.club-call-sheet__hint {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.club-call-sheet__error {
+  margin: 0;
+  font-size: 0.86rem;
+  color: rgb(248, 113, 113);
+}
+
+.club-call-sheet__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.club-call-journal__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.club-call-journal__periods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0 1rem;
+}
+
+.club-call-journal__period--on {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.club-call-journal__empty {
+  margin: 0.25rem 0 0;
+}
+
+.club-call-journal__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  max-height: min(52dvh, 420px);
+  overflow: auto;
+}
+
+.club-call-journal__row {
+  padding: 0.7rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
+  background: color-mix(in srgb, var(--bg-subtle, #061210) 88%, #000);
+}
+
+.club-call-journal__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.75rem;
+  margin-bottom: 0.25rem;
+  font-size: 0.78rem;
+}
+
+.club-call-journal__when {
+  color: var(--text-muted);
+}
+
+.club-call-journal__who {
+  font-size: 0.92rem;
+  line-height: 1.3;
+}
+
+.club-call-journal__phone {
+  margin-top: 0.15rem;
+  font-size: 0.82rem;
+}
+
+.club-call-journal__summary {
+  margin: 0 0 0.65rem;
+  font-size: 0.86rem;
+}
+
+.club-call-journal__row--fail {
+  border-color: rgba(248, 113, 113, 0.4);
+  background: rgba(248, 113, 113, 0.06);
+}
+
+.club-call-journal__status {
+  font-weight: 700;
+  color: color-mix(in srgb, var(--accent) 70%, var(--text));
+}
+
+.club-call-journal__status--fail {
+  color: rgb(248, 113, 113);
+}
+
+.club-call-journal__error {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  color: rgb(248, 113, 113);
+}
+
+.club-call-journal--embedded {
+  margin-top: 0.85rem;
+  padding: 0.75rem 0 0;
+  border-top: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+}
+
+.club-call-journal__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.club-call-journal__intro {
+  margin: 0.25rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.club-call-journal__alert {
+  margin: 0.5rem 0;
+}
+
+.club-outreach-journal__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+}
+
+.club-outreach-journal__tab--on {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.club-call-stats__kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 0.65rem;
+  margin: 0 0 1rem;
+}
+
+.club-call-stats__kpi {
+  padding: 0.7rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
+  background: color-mix(in srgb, var(--bg-subtle, #061210) 88%, #000);
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.club-call-stats__kpi--ok {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+.club-call-stats__kpi--fail {
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+.club-call-stats__kpi-val {
+  font-size: 1.35rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.club-call-stats__kpi-lab {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.club-call-stats__h {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.club-call-stats__table {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.club-call-stats__row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+}
+
+.club-call-stats__row-name {
+  font-weight: 600;
+}
+
+.club-call-stats__row-nums {
+  font-size: 0.84rem;
+}
+
+.club-call-stats__note {
+  margin: 1rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.club-call-stats__empty {
+  margin: 0.5rem 0 0;
+}

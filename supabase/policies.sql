@@ -410,3 +410,31 @@ CREATE POLICY fit_club_sms_log_sales_manager
     public.fit_auth_is_sales_manager()
     AND club_id = public.fit_auth_sales_manager_club_id()
   );
+
+-- -----------------------------------------------------------------------------
+-- club_call_log
+-- -----------------------------------------------------------------------------
+ALTER TABLE public.club_call_log ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS fit_club_call_log_admin_all ON public.club_call_log;
+DROP POLICY IF EXISTS fit_club_call_log_sales_manager ON public.club_call_log;
+
+CREATE POLICY fit_club_call_log_admin_all
+  ON public.club_call_log
+  FOR ALL
+  TO authenticated
+  USING (public.fit_auth_is_admin())
+  WITH CHECK (public.fit_auth_is_admin());
+
+CREATE POLICY fit_club_call_log_sales_manager
+  ON public.club_call_log
+  FOR ALL
+  TO authenticated
+  USING (
+    public.fit_auth_is_sales_manager()
+    AND club_id = public.fit_auth_sales_manager_club_id()
+  )
+  WITH CHECK (
+    public.fit_auth_is_sales_manager()
+    AND club_id = public.fit_auth_sales_manager_club_id()
+  );

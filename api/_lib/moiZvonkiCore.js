@@ -6,6 +6,9 @@
 export const CLUB_SMS_MAX_TEXT_LEN = 500
 export const CLUB_SMS_RATE_LIMIT_PER_MIN = 20
 export const CLUB_SMS_RATE_WINDOW_MS = 60_000
+/** Исходящие звонки клуба (calls.make_call) — отдельный лимит от SMS. */
+export const CLUB_CALL_RATE_LIMIT_PER_MIN = 10
+export const CLUB_CALL_RATE_WINDOW_MS = 60_000
 
 /** @type {Map<string, number[]>} */
 const rateBuckets = new Map()
@@ -81,6 +84,19 @@ export function buildSendSmsRequestPayload(p) {
   }
 }
 
+/**
+ * Исходящий звонок с Android клуба.
+ * @param {{ userName: string, apiKey: string, to: string }} p
+ */
+export function buildMakeCallRequestPayload(p) {
+  return {
+    user_name: String(p.userName ?? '').trim(),
+    api_key: String(p.apiKey ?? '').trim(),
+    action: 'calls.make_call',
+    to: normalizeMoiZvonkiPhone(p.to),
+  }
+}
+
 /** @param {Record<string, unknown>} payload */
 export function buildMoiZvonkiFormBody(payload) {
   return new URLSearchParams({ request_data: JSON.stringify(payload) }).toString()
@@ -133,10 +149,28 @@ export function mapMoiZvonkiHttpErrorToRu(status, body) {
   if (status === 404) return 'Мои Звонки: неверный адрес API (домен).'
   if (status >= 500) return 'Мои Звонки временно недоступны. Попробуйте позже.'
   if (/confirm|подтверд/i.test(raw)) {
-    return 'Подтвердите отправку SMS в приложении на телефоне клуба (или включите режим без подтверждения).'
+    return 'Подтвердите действие в приложении на телефоне клуба (или включите режим без подтверждения).'
   }
   if (raw.trim()) return `Мои Звонки: ${raw.trim().slice(0, 160)}`
-  return 'Не удалось отправить SMS через Мои Звонки.'
+  return 'Не удалось выполнить запрос к Мои Звонки.'
+}
+
+/**
+ * @param {string} key
+ * @param {{ now?: number, limit?: number, windowMs?: number }} [opts]
+ */
+export function checkClubCallRateLimit(key, opts = {}) {
+  const result = checkClubSmsRateLimit(key, {
+    now: opts.now,
+    limit: opts.limit ?? CLUB_CALL_RATE_LIMIT_PER_MIN,
+    windowMs: opts.windowMs ?? CLUB_CALL_RATE_WINDOW_MS,
+  })
+  if (result.ok) return result
+  return {
+    ok: false,
+    error: 'too_many_calls',
+    retry_after_sec: result.retry_after_sec,
+  }
 }
 
 /**
@@ -173,6 +207,76 @@ export async function sendMoiZvonkiSms(opts) {
     apiKey: cfg.apiKey,
     to: opts.to,
     text,
+  })
+  const body = buildMoiZvonkiFormBody(payload)
+  const fetchImpl = opts.fetchImpl ?? globalThis.fetch
+  if (typeof fetchImpl !== 'function') {
+    return { ok: false, code: 'no_fetch', error: 'Fetch недоступен на сервере' }
+  }
+
+  let res
+  try {
+    res = await fetchImpl(cfg.apiBase, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        Accept: 'application/json, text/plain, */*',
+      },
+      body,
+    })
+  } catch {
+    return { ok: false, code: 'network', error: 'Нет связи с Мои Звонки. Проверьте сеть сервера.' }
+  }
+
+  const rawText = await res.text().catch(() => '')
+  let parsed = null
+  if (rawText) {
+    try {
+      parsed = JSON.parse(rawText)
+    } catch {
+      parsed = rawText
+    }
+  }
+
+  if (!res.ok) {
+    return {
+      ok: false,
+      code: 'http_error',
+      error: mapMoiZvonkiHttpErrorToRu(res.status, parsed ?? rawText),
+    }
+  }
+
+  return { ok: true, phone: payload.to }
+}
+
+/**
+ * @param {{
+ *   to: string,
+ *   env?: NodeJS.ProcessEnv | Record<string, string | undefined>,
+ *   config?: { apiKey: string, userEmail: string, apiBase: string } | null,
+ *   fetchImpl?: typeof fetch,
+ * }} opts
+ * @returns {Promise<{ ok: true, phone: string } | { ok: false, error: string, code?: string }>}
+ */
+export async function sendMoiZvonkiCall(opts) {
+  const env = opts.env ?? process.env
+  const cfg = opts.config ?? getMoiZvonkiConfigFromEnv(env)
+  if (!isMoiZvonkiConfigReady(cfg)) {
+    return {
+      ok: false,
+      code: 'not_configured',
+      error:
+        'Мои Звонки не настроены для клуба (Структура → Max и SMS) и нет запасного MOIZVONKI_* в env.',
+    }
+  }
+  if (!isValidMoiZvonkiPhone(opts.to)) {
+    return { ok: false, code: 'bad_phone', error: 'Некорректный номер телефона клиента' }
+  }
+
+  const payload = buildMakeCallRequestPayload({
+    userName: cfg.userEmail,
+    apiKey: cfg.apiKey,
+    to: opts.to,
   })
   const body = buildMoiZvonkiFormBody(payload)
   const fetchImpl = opts.fetchImpl ?? globalThis.fetch

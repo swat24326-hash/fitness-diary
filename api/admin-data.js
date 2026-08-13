@@ -61,6 +61,7 @@ import { handleTzPriceListGet, handleTzPriceListPost } from './_lib/adminData/tz
 import { handleAzPriceListGet, handleAzPriceListPost } from './_lib/adminData/azPriceListHandlers.js'
 import { handlePnk } from './_lib/adminData/pnkHandlers.js'
 import { handleClubSmsGet, handleClubSmsPost } from './_lib/moiZvonkiHandler.js'
+import { handleClubCallGet, handleClubCallPost } from './_lib/moiZvonkiCallHandler.js'
 import { handleSaleClipsGet, handleSaleClipsPost } from './_lib/adminData/saleClipsHandlers.js'
 
 async function handler(req, res) {
@@ -98,6 +99,7 @@ async function handler(req, res) {
       'pnk',
       'sale-clips',
       'club-sms',
+      'club-call',
       'price-list',
       'tz-price-list',
       'az-price-list',
@@ -116,6 +118,12 @@ async function handler(req, res) {
       const ctx = await requireAdminOrSalesManager(req, res, clubId)
       if (!ctx) return
       return handleClubSmsPost(ctx, res, body)
+    }
+    if (action === 'club-call') {
+      const clubId = String(body?.club_id ?? '').trim()
+      const ctx = await requireAdminOrSalesManager(req, res, clubId)
+      if (!ctx) return
+      return handleClubCallPost(ctx, res, body)
     }
     if (action === 'gemini-analytics') {
       const ctx = await requireAdmin(req, res)
@@ -415,6 +423,13 @@ async function handler(req, res) {
     const ctx = await requireAdminOrSalesManager(req, res, clubId)
     if (!ctx) return
     return handleClubSmsGet(ctx, req, res)
+  }
+
+  if (action === 'club-call') {
+    const clubId = String(req.query?.club_id ?? '').trim()
+    const ctx = await requireAdminOrSalesManager(req, res, clubId)
+    if (!ctx) return
+    return handleClubCallGet(ctx, req, res)
   }
 
   if (action === 'coach-quality-settings') {
