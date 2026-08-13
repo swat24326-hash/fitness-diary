@@ -8,16 +8,8 @@ import {
   formatDeletionAuditMeta,
 } from '../../lib/admin/deletionAuditFormatCore.js'
 import { CLIENT_HARD_DELETE_CONFIRM_CODE } from '../../lib/clientHardDeleteConfirmCore.js'
-import { formatDateRu } from '../../lib/dateRu.js'
+import { formatDateTimeRu } from '../../lib/dateRu.js'
 import '../../styles/deletion-audit.css'
-
-function formatWhen(iso) {
-  const s = String(iso ?? '')
-  const day = s.slice(0, 10)
-  const time = s.includes('T') ? s.slice(11, 16) : ''
-  const ru = day ? formatDateRu(day) : '—'
-  return time ? `${ru}, ${time}` : ru
-}
 
 /**
  * Журнал жёстких удалений клиентов клуба.
@@ -128,7 +120,7 @@ export function AdminDeletionLogSection({ clubId = '', listBackHref = '/admin/cl
             ) : null}
             {rows.map((r) => (
               <tr key={r.id}>
-                <td>{formatWhen(r.created_at)}</td>
+                <td>{formatDateTimeRu(r.created_at)}</td>
                 <td>{formatDeletionAuditClient(r)}</td>
                 <td>{String(r.trainer_name ?? '').trim() || '—'}</td>
                 <td>{formatDeletionAuditActor(r)}</td>

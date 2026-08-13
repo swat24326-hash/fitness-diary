@@ -5,7 +5,7 @@ import { fetchClubSmsLogs } from '../../lib/admin/clubSmsService.js'
 import { filterClubCallLogRowsByStatus } from '../../lib/admin/clubCallLogCore.js'
 import { filterClubSmsLogRowsByStatus } from '../../lib/admin/clubSmsLogCore.js'
 import { buildClubCallStats, buildClubSmsStats } from '../../lib/admin/clubOutreachStatsCore.js'
-import { formatDateRu } from '../../lib/dateRu.js'
+import { formatDateTimeRu } from '../../lib/dateRu.js'
 import { AdminClubOutreachStatsPanel } from './AdminClubOutreachStatsPanel.jsx'
 import '../../styles/club-call.css'
 
@@ -26,14 +26,6 @@ const STATUS_FILTERS = [
   { id: 'ok', label: 'Ушло' },
   { id: 'fail', label: 'Ошибки' },
 ]
-
-function formatWhen(iso) {
-  const s = String(iso ?? '')
-  const day = s.slice(0, 10)
-  const time = s.includes('T') ? s.slice(11, 16) : ''
-  const ru = day ? formatDateRu(day) : '—'
-  return time ? `${ru}, ${time}` : ru
-}
 
 function formatPhone(phone) {
   const d = String(phone ?? '').replace(/\D/g, '')
@@ -193,7 +185,7 @@ export function AdminClubOutreachJournalWorkspace({ clubId }) {
                     className={`club-call-journal__row${fail ? ' club-call-journal__row--fail' : ''}`}
                   >
                     <div className="club-call-journal__meta">
-                      <span className="club-call-journal__when">{formatWhen(row.created_at)}</span>
+                      <span className="club-call-journal__when">{formatDateTimeRu(row.created_at)}</span>
                       <span
                         className={`club-call-journal__status${fail ? ' club-call-journal__status--fail' : ''}`}
                       >
@@ -258,7 +250,7 @@ export function AdminClubOutreachJournalWorkspace({ clubId }) {
                       className={`club-call-journal__row${fail ? ' club-call-journal__row--fail' : ''}`}
                     >
                       <div className="club-call-journal__meta">
-                        <span className="club-call-journal__when">{formatWhen(row.created_at)}</span>
+                        <span className="club-call-journal__when">{formatDateTimeRu(row.created_at)}</span>
                         <span
                           className={`club-call-journal__status${fail ? ' club-call-journal__status--fail' : ''}`}
                         >

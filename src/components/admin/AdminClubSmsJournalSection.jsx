@@ -6,7 +6,7 @@ import {
   summarizeClubSmsLogRows,
 } from '../../lib/admin/clubSmsLogCore.js'
 import { OUTREACH_SCENARIO_LABELS } from '../../lib/trainer/trainerClientOutreachCore.js'
-import { formatDateRu } from '../../lib/dateRu.js'
+import { formatDateTimeRu } from '../../lib/dateRu.js'
 import '../../styles/club-sms-journal.css'
 
 const PERIODS = [
@@ -26,14 +26,6 @@ function scenarioLabel(scenario) {
   if (OUTREACH_SCENARIO_LABELS[s]) return OUTREACH_SCENARIO_LABELS[s]
   if (s === 'custom') return 'Свой текст'
   return s || '—'
-}
-
-function formatWhen(iso) {
-  const s = String(iso ?? '')
-  const day = s.slice(0, 10)
-  const time = s.includes('T') ? s.slice(11, 16) : ''
-  const ru = day ? formatDateRu(day) : '—'
-  return time ? `${ru}, ${time}` : ru
 }
 
 /**
@@ -163,7 +155,7 @@ export function AdminClubSmsJournalSection({ clubId }) {
                 className={`club-sms-journal__row${isFail ? ' club-sms-journal__row--fail' : ''}`}
               >
                 <div className="club-sms-journal__meta">
-                  <span className="club-sms-journal__when">{formatWhen(row.created_at)}</span>
+                  <span className="club-sms-journal__when">{formatDateTimeRu(row.created_at)}</span>
                   <span
                     className={`club-sms-journal__status${isFail ? ' club-sms-journal__status--fail' : ' club-sms-journal__status--ok'}`}
                   >

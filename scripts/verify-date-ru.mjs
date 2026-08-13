@@ -7,6 +7,7 @@ import {
   addMonthsToIso,
   birthDateYearBounds,
   defaultMembershipEndIso,
+  formatDateTimeRu,
   maskRuDateDigitsInput,
   parseFlexibleDateToIso,
 } from '../src/lib/dateRu.js'
@@ -43,6 +44,15 @@ const birthBounds = birthDateYearBounds()
 ok(birthBounds.minYear === 1920, 'birth min year')
 ok(birthBounds.maxYear >= 2026, 'birth max year')
 ok(parseFlexibleDateToIso('01.01.2110', birthBounds) === '', 'birth rejects far future')
+
+ok(
+  formatDateTimeRu('2026-08-13T20:13:00.000Z', { timeZone: 'Europe/Moscow' }) === '13.08.2026, 23:13',
+  'UTC → Moscow local (+3)',
+)
+ok(
+  formatDateTimeRu('2026-08-13T20:13:00.000Z', { timeZone: 'UTC' }) === '13.08.2026, 20:13',
+  'UTC display stays UTC',
+)
 
 if (failed) process.exit(1)
 console.log('verify-date-ru: all ok')

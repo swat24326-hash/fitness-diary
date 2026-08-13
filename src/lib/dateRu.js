@@ -135,16 +135,44 @@ export function birthDateYearBounds() {
   return { minYear: 1920, maxYear }
 }
 
-export function formatDateTimeRu(isoLike) {
+/**
+ * Дата и время для журналов (локальные часы устройства).
+ * ISO с Z / offset — не резать как UTC-строку: иначе Москва видит −3 ч.
+ * @param {string | null | undefined} isoLike
+ * @param {{ timeZone?: string }} [opts] — для verify: например `'Europe/Moscow'`
+ */
+export function formatDateTimeRu(isoLike, opts = {}) {
   if (!isoLike) return '—'
-  const s = String(isoLike)
-  // Expected ISO: 2026-04-28T20:11:00.000Z
-  const date = formatDateRu(s)
-  const timeMatch = s.match(/T(\d{2}):(\d{2})/)
-  if (!timeMatch) return date
-  const hh = timeMatch[1]
-  const mm = timeMatch[2]
-  return `${hh}:${mm} ${date}`
+  const d = new Date(isoLike)
+  if (Number.isNaN(d.getTime())) return '—'
+
+  const timeZone = opts.timeZone ? String(opts.timeZone) : undefined
+  try {
+    const parts = new Intl.DateTimeFormat('ru-RU', {
+      timeZone,
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).formatToParts(d)
+    const get = (type) => parts.find((p) => p.type === type)?.value ?? ''
+    const day = get('day')
+    const month = get('month')
+    const year = get('year')
+    const hour = get('hour')
+    const minute = get('minute')
+    if (!day || !month || !year) return '—'
+    return `${day}.${month}.${year}, ${hour}:${minute}`
+  } catch {
+    const day = String(d.getDate()).padStart(2, '0')
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const year = d.getFullYear()
+    const hour = String(d.getHours()).padStart(2, '0')
+    const minute = String(d.getMinutes()).padStart(2, '0')
+    return `${day}.${month}.${year}, ${hour}:${minute}`
+  }
 }
 
 /**
