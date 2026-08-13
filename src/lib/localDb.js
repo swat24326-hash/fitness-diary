@@ -1,4 +1,5 @@
 import { openDB } from 'idb'
+import { cloudPutAllowedOnPull } from './syncPullGuardCore.js'
 
 const DB_NAME = 'fitness-diary'
 /** Повышать при схемных правках; клиенты уже на max version не получают upgrade без нового номера. */
@@ -219,15 +220,6 @@ export async function putStore(storeName, record) {
   await db.put(storeName, record)
 }
 
-const PULL_MERGE_GUARD_STORES = new Set([
-  'clients',
-  'memberships',
-  'trainings',
-  'health_cards',
-  'body_measurements',
-  'client_weight_entries',
-])
-
 function syncQueueItemKey(tableName, item) {
   if (tableName === 'health_cards') {
     return String(item.data?.client_id ?? item.remote_id ?? item.data?.id ?? '').trim()
@@ -285,17 +277,8 @@ function cloudCachedRecord(record) {
  */
 export async function putStoreUnlessPendingSync(storeName, record, pending) {
   const fromCloud = cloudCachedRecord(record)
-  if (!PULL_MERGE_GUARD_STORES.has(storeName)) {
-    await putStore(storeName, fromCloud)
-    return true
-  }
   const key = recordKeyForStore(storeName, record)
-  if (!key) {
-    await putStore(storeName, fromCloud)
-    return true
-  }
-  // Любой pending (в т.ч. delete без локальной строки) — не трогаем из облака
-  if (pending?.[storeName]?.has(key)) return false
+  if (!cloudPutAllowedOnPull(storeName, key, pending)) return false
   await putStore(storeName, fromCloud)
   return true
 }

@@ -418,6 +418,8 @@ export function TrainingPage() {
 
     // Списание тренировки с абонемента: только при ПЕРВОМ переводе в completed.
     // Повторное "Завершить" после редактирования не меняет used_trainings.
+    // Сначала сохраняем completed-тренировку, потом debit (если save упадёт — used не растёт зря).
+    let membershipToDebit = null
     if (nextStatus === 'completed' && prev?.status !== 'completed') {
       let mems = []
       try {
@@ -438,14 +440,7 @@ export function TrainingPage() {
         if (!silent) setSaveError('Лимит тренировок по абонементу исчерпан — списание невозможно.')
         return
       }
-      const nextUsed = Number.isFinite(used) ? used + 1 : 1
-      try {
-        await saveLocalWithSync('memberships', { ...picked, used_trainings: nextUsed }, { table_name: 'memberships', operation: 'update', remote_id: picked.id })
-      } catch (e) {
-        if (silent) setAutosaveStatus('error')
-        if (!silent) setSaveError(e?.message ?? 'Не удалось списать тренировку с абонемента')
-        return
-      }
+      membershipToDebit = picked
       dataPayload.membership_id = picked.id
     }
     const trainerIdForRow = isAdmin ? prev?.trainer_id ?? client?.trainer_id ?? user.id : user.id
@@ -480,6 +475,27 @@ export function TrainingPage() {
         if (!silent) setSaveError(e?.message ?? 'Ошибка сохранения')
         if (silent) setAutosaveStatus('error')
         return
+      }
+
+      if (membershipToDebit) {
+        const used = Number(membershipToDebit.used_trainings ?? 0)
+        const nextUsed = Number.isFinite(used) ? used + 1 : 1
+        try {
+          await saveLocalWithSync(
+            'memberships',
+            { ...membershipToDebit, used_trainings: nextUsed },
+            { table_name: 'memberships', operation: 'update', remote_id: membershipToDebit.id },
+          )
+        } catch (e) {
+          if (silent) setAutosaveStatus('error')
+          if (!silent) {
+            setSaveError(
+              e?.message ??
+                'Тренировка сохранена, но списание с абонемента не удалось — нажмите Sync или откройте вкладку абонементов',
+            )
+          }
+          // Тренировка уже completed; reconcile / повторное открытие абонов догонит used.
+        }
       }
 
       setMeta({ status: row.status, trainingId: row.id })

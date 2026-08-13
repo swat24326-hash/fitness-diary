@@ -25,6 +25,47 @@ async function getClientRow(supabaseAdmin, clientId) {
   return data
 }
 
+/** Запрет подмены client_id в payload при update чужой/своей строки. */
+function assertPayloadClientMatchesExisting(payload, existingClientId) {
+  if (
+    payload &&
+    Object.prototype.hasOwnProperty.call(payload, 'client_id') &&
+    payload.client_id != null &&
+    String(payload.client_id) !== '' &&
+    String(payload.client_id) !== String(existingClientId ?? '')
+  ) {
+    return { ok: false, error: 'Нельзя переназначить запись другому клиенту' }
+  }
+  return { ok: true }
+}
+
+async function getMembershipExistingClientId(supabaseAdmin, remote_id) {
+  if (!remote_id) return null
+  const { data } = await supabaseAdmin.from('memberships').select('client_id').eq('id', remote_id).maybeSingle()
+  return data?.client_id ?? null
+}
+
+/**
+ * client_id владельца строки для update/delete.
+ * health_cards: remote_id может быть id строки или client_id (ключ IDB).
+ */
+async function resolveRowClientId(supabaseAdmin, table_name, remote_id, payloadClientId) {
+  if (remote_id) {
+    const { data: byId } = await supabaseAdmin.from(table_name).select('client_id').eq('id', remote_id).maybeSingle()
+    if (byId?.client_id) return byId.client_id
+    if (table_name === 'health_cards') {
+      const { data: byCid } = await supabaseAdmin
+        .from(table_name)
+        .select('client_id')
+        .eq('client_id', remote_id)
+        .maybeSingle()
+      if (byCid?.client_id) return byCid.client_id
+    }
+  }
+  return payloadClientId ?? null
+}
+
+
 /** Админ — любые; управляющий / менеджер — свой клуб; тренер — только свои. */
 export async function canAccessClient(ctx, clientId) {
   if (!isUuid(clientId)) return false
@@ -77,6 +118,20 @@ async function authorizeSalesManagerPush(ctx, table_name, operation, data, remot
         return (await canAccessClient(ctx, m.client_id))
           ? { ok: true }
           : { ok: false, error: 'Нет доступа' }
+      }
+      if (op === 'update') {
+        const existingClientId = await getMembershipExistingClientId(ctx.supabaseAdmin, remote_id)
+        if (!existingClientId) return { ok: false, error: 'Абонемент не найден' }
+        if (!(await canAccessClient(ctx, existingClientId))) {
+          return { ok: false, error: 'Нет доступа к клиенту' }
+        }
+        const reassign = assertPayloadClientMatchesExisting(payload, existingClientId)
+        if (!reassign.ok) return reassign
+        if (Object.prototype.hasOwnProperty.call(payload, 'club_id')) {
+          const clubCheck = assertSalesManagerSameClub(profileClub, payload.club_id)
+          if (!clubCheck.ok) return clubCheck
+        }
+        return { ok: true }
       }
       const clientId = payload.client_id
       if (!(await canAccessClient(ctx, clientId))) {
@@ -155,6 +210,20 @@ async function authorizeSupervisorPush(ctx, table_name, operation, data, remote_
         if (!m?.client_id) return { ok: true }
         return (await canAccessClient(ctx, m.client_id)) ? { ok: true } : { ok: false, error: 'Нет доступа' }
       }
+      if (op === 'update') {
+        const existingClientId = await getMembershipExistingClientId(supabaseAdmin, remote_id)
+        if (!existingClientId) return { ok: false, error: 'Абонемент не найден' }
+        if (!(await canAccessClient(ctx, existingClientId))) {
+          return { ok: false, error: 'Нет доступа к клиенту' }
+        }
+        const reassign = assertPayloadClientMatchesExisting(payload, existingClientId)
+        if (!reassign.ok) return reassign
+        if (Object.prototype.hasOwnProperty.call(payload, 'club_id')) {
+          const clubCheck = assertSalesManagerSameClub(profileClub, payload.club_id)
+          if (!clubCheck.ok) return clubCheck
+        }
+        return { ok: true }
+      }
       const clientId = payload.client_id
       if (!(await canAccessClient(ctx, clientId))) {
         return { ok: false, error: 'Нет доступа к клиенту' }
@@ -187,12 +256,20 @@ async function authorizeSupervisorPush(ctx, table_name, operation, data, remote_
       table_name === 'body_measurements' ||
       table_name === 'client_weight_entries'
     ) {
-      let clientId = payload.client_id
       if (op === 'delete' && remote_id) {
-        const { data: row } = await supabaseAdmin.from(table_name).select('client_id').eq('id', remote_id).maybeSingle()
-        clientId = row?.client_id ?? clientId
+        const clientId = await resolveRowClientId(supabaseAdmin, table_name, remote_id, payload.client_id)
         if (!clientId) return { ok: true }
+        return (await canAccessClient(ctx, clientId)) ? { ok: true } : { ok: false, error: 'Нет доступа' }
       }
+      if (op === 'update' && remote_id) {
+        const existingClientId = await resolveRowClientId(supabaseAdmin, table_name, remote_id, null)
+        if (!existingClientId) return { ok: false, error: 'Запись не найдена' }
+        if (!(await canAccessClient(ctx, existingClientId))) {
+          return { ok: false, error: 'Нет доступа' }
+        }
+        return assertPayloadClientMatchesExisting(payload, existingClientId)
+      }
+      const clientId = payload.client_id
       return (await canAccessClient(ctx, clientId)) ? { ok: true } : { ok: false, error: 'Нет доступа' }
     }
 
@@ -306,6 +383,12 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
         if (payload.desk_hall === 'tz' || payload.desk_hall === 'az') {
           return { ok: false, error: 'Desk ТЗ/АЗ может менять только администратор' }
         }
+        if (Object.prototype.hasOwnProperty.call(payload, 'club_id')) {
+          const existing = await getClientRow(ctx.supabaseAdmin, id)
+          if (existing && String(payload.club_id ?? '') !== String(existing.club_id ?? '')) {
+            return { ok: false, error: 'Нельзя сменить клуб клиента' }
+          }
+        }
       }
       return { ok: true }
     }
@@ -317,6 +400,25 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
         // Уже нет в облаке (удалили до insert / повтор delete) — успех, не 403.
         if (!m?.client_id) return { ok: true }
         return (await canAccessClient(ctx, m.client_id)) ? { ok: true } : { ok: false, error: 'Нет доступа' }
+      }
+      if (op === 'update') {
+        const existingClientId = await getMembershipExistingClientId(supabaseAdmin, remote_id)
+        if (!existingClientId) return { ok: false, error: 'Абонемент не найден' }
+        if (!(await canAccessClient(ctx, existingClientId))) return { ok: false, error: 'Нет доступа к клиенту' }
+        const reassign = assertPayloadClientMatchesExisting(payload, existingClientId)
+        if (!reassign.ok) return reassign
+        const typeId = payload.membership_type_id
+        if (typeId) {
+          const { data: mt } = await supabaseAdmin
+            .from('membership_types')
+            .select('trainer_assignable')
+            .eq('id', typeId)
+            .maybeSingle()
+          if (mt?.trainer_assignable === false) {
+            return { ok: false, error: 'Этот тип абонемента недоступен для оформления тренером' }
+          }
+        }
+        return { ok: true }
       }
       if (!(await canAccessClient(ctx, clientId))) return { ok: false, error: 'Нет доступа к клиенту' }
       const typeId = payload.membership_type_id
@@ -347,32 +449,54 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
       const { data: t } = await supabaseAdmin.from('trainings').select('trainer_id, client_id').eq('id', tid).maybeSingle()
       if (!t) return op === 'delete' ? { ok: true } : { ok: false, error: 'Тренировка не найдена' }
       if (String(t.trainer_id) !== String(user.id)) return { ok: false, error: 'Нет доступа' }
+      if (op === 'update') {
+        if (
+          Object.prototype.hasOwnProperty.call(payload, 'trainer_id') &&
+          payload.trainer_id != null &&
+          String(payload.trainer_id) !== '' &&
+          String(payload.trainer_id) !== String(t.trainer_id)
+        ) {
+          return { ok: false, error: 'Нельзя сменить тренера тренировки' }
+        }
+        const reassign = assertPayloadClientMatchesExisting(payload, t.client_id)
+        if (!reassign.ok) return reassign
+      }
       return { ok: true }
     }
 
     if (table_name === 'health_cards') {
-      const clientId = payload.client_id
       if (op === 'delete' && remote_id) {
-        const { data: h } = await supabaseAdmin.from('health_cards').select('client_id').eq('id', remote_id).maybeSingle()
-        const cid = h?.client_id ?? clientId
+        const cid = await resolveRowClientId(supabaseAdmin, 'health_cards', remote_id, payload.client_id)
         return (await canAccessClient(ctx, cid)) ? { ok: true } : { ok: false, error: 'Нет доступа' }
       }
+      if (op === 'update' && remote_id) {
+        const existingClientId = await resolveRowClientId(supabaseAdmin, 'health_cards', remote_id, null)
+        if (!existingClientId) return { ok: false, error: 'Запись не найдена' }
+        if (!(await canAccessClient(ctx, existingClientId))) return { ok: false, error: 'Нет доступа к клиенту' }
+        return assertPayloadClientMatchesExisting(payload, existingClientId)
+      }
+      const clientId = payload.client_id
       if (!(await canAccessClient(ctx, clientId))) return { ok: false, error: 'Нет доступа к клиенту' }
       return { ok: true }
     }
 
     if (table_name === 'body_measurements') {
-      const clientId = payload.client_id
       if (op === 'delete') {
         const { data: row } = await supabaseAdmin.from('body_measurements').select('client_id').eq('id', remote_id).maybeSingle()
         return (await canAccessClient(ctx, row?.client_id)) ? { ok: true } : { ok: false, error: 'Нет доступа' }
       }
+      if (op === 'update' && remote_id) {
+        const existingClientId = await resolveRowClientId(supabaseAdmin, 'body_measurements', remote_id, null)
+        if (!existingClientId) return { ok: false, error: 'Запись не найдена' }
+        if (!(await canAccessClient(ctx, existingClientId))) return { ok: false, error: 'Нет доступа к клиенту' }
+        return assertPayloadClientMatchesExisting(payload, existingClientId)
+      }
+      const clientId = payload.client_id
       if (!(await canAccessClient(ctx, clientId))) return { ok: false, error: 'Нет доступа к клиенту' }
       return { ok: true }
     }
 
     if (table_name === 'client_weight_entries') {
-      const clientId = payload.client_id
       if (op === 'delete') {
         const { data: row } = await supabaseAdmin
           .from('client_weight_entries')
@@ -381,6 +505,13 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
           .maybeSingle()
         return (await canAccessClient(ctx, row?.client_id)) ? { ok: true } : { ok: false, error: 'Нет доступа' }
       }
+      if (op === 'update' && remote_id) {
+        const existingClientId = await resolveRowClientId(supabaseAdmin, 'client_weight_entries', remote_id, null)
+        if (!existingClientId) return { ok: false, error: 'Запись не найдена' }
+        if (!(await canAccessClient(ctx, existingClientId))) return { ok: false, error: 'Нет доступа к клиенту' }
+        return assertPayloadClientMatchesExisting(payload, existingClientId)
+      }
+      const clientId = payload.client_id
       if (!(await canAccessClient(ctx, clientId))) return { ok: false, error: 'Нет доступа к клиенту' }
       return { ok: true }
     }

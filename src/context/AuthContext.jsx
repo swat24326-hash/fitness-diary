@@ -63,11 +63,9 @@ function writeRoleCache(uid, email, role) {
 
 function configuredAdminEmails() {
   const raw = String(import.meta.env.VITE_ADMIN_EMAILS ?? '').trim()
-  const fromEnv = raw
+  return raw
     ? raw.split(/[,;\s]+/).map((s) => s.trim().toLowerCase()).filter(Boolean)
     : []
-  if (fromEnv.length) return fromEnv
-  return ['admin@fit-city.ru']
 }
 
 function isConfiguredAdminEmail(email) {

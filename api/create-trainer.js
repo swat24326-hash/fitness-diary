@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 import { AUTH_ENV_MISSING_RU, adminCreateUser, adminDeleteUser, verifyBearer } from './_lib/authPort.js'
 import { formatClientName } from '../src/lib/clientNameFormat.js'
+import { isAdminByRole } from '../src/lib/admin/adminRoleCore.js'
 
 function readEnv() {
   const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').replace(/\/$/, '')
@@ -71,7 +72,7 @@ async function handler(req, res) {
       await supabaseAdmin.from('users').select('role, email').ilike('email', callerEmail).maybeSingle()
     ).data
   }
-  const isAdmin = profile?.role === 'admin' || callerEmail === 'admin@fit-city.ru'
+  const isAdmin = isAdminByRole(profile?.role)
   if (!isAdmin) {
     sendJson(res, 403, { error: 'Только администратор может создавать тренеров' })
     return

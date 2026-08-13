@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { isAdminByRole } from '../../src/lib/admin/adminRoleCore.js'
 import { isSalesManagerRole } from '../../src/lib/admin/salesAccessCore.js'
 import { isSupervisorRole } from '../../src/lib/admin/supervisorAccessCore.js'
 import { AUTH_ENV_MISSING_RU, verifyBearer } from './authPort.js'
@@ -22,17 +23,11 @@ export function setCors(res, methods = 'GET, POST, OPTIONS') {
   res.setHeader('Access-Control-Allow-Headers', 'authorization, content-type')
 }
 
-const ADMIN_ROLES = new Set(['admin', 'администратор'])
 const TRAINER_ROLES = new Set(['trainer', 'тренер'])
 const SALES_MANAGER_ROLES = new Set(['sales_manager', 'менеджер по продажам'])
 
 function normalizeRole(role) {
   return String(role ?? '').trim().toLowerCase()
-}
-
-function isAdminRole(roleNorm, email) {
-  const em = String(email ?? '').trim().toLowerCase()
-  return ADMIN_ROLES.has(roleNorm) || em === 'admin@fit-city.ru'
 }
 
 function isTrainerRole(roleNorm) {
@@ -84,7 +79,7 @@ export async function requireAuthUser(req, res) {
     ).data
   }
   const roleNorm = normalizeRole(profile?.role)
-  const isAdmin = isAdminRole(roleNorm, callerEmail)
+  const isAdmin = isAdminByRole(roleNorm)
   const isSalesManager = isSalesManagerRoleNorm(roleNorm)
   const isSupervisor = isSupervisorRoleNorm(roleNorm)
   /** Пустая role у не-админа — типичный тренер (в Table Editor не заполнили). */

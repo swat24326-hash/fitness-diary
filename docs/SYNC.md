@@ -61,9 +61,9 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 
 ---
 
-## Охрана pull (`PULL_MERGE_GUARD_STORES` в `localDb.js`)
+## Охрана pull (`PULL_MERGE_GUARD_STORES` в `syncPullGuardCore.js` → `localDb.js`)
 
-`clients`, `memberships`, `trainings`, `health_cards`, `body_measurements`, `client_weight_entries`.
+`clients`, `memberships`, `trainings`, `health_cards`, `body_measurements`, `client_weight_entries`, `pnk_funnel_events`, `sale_clips`.
 
 `health_cards` в IDB ключуется по **`client_id`**, не по `id` записи — учитывать в ключах очереди.
 
