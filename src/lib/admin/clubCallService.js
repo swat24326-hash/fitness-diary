@@ -1,5 +1,5 @@
 import { getAccessTokenForAdminApi, apiRouteMissing } from './adminApiClient.js'
-import { fetchWithAppTimeout } from '../networkReachability.js'
+import { fetchWithAppTimeout, MOIZVONKI_FETCH_TIMEOUT_MS } from '../networkReachability.js'
 import { CLUB_CALL_LOG_DEFAULT_LOOKBACK_DAYS } from './clubCallLogCore.js'
 
 function apiOrigin() {
@@ -91,16 +91,31 @@ export async function makeClubCallViaApi(opts) {
     client_id: String(opts.clientId ?? '').trim(),
   }
 
-  const res = await fetchWithAppTimeout(`${apiOrigin()}/api/admin-data?action=club-call`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    credentials: 'same-origin',
-    cache: 'no-store',
-    body: JSON.stringify(body),
-  })
+  let res
+  try {
+    res = await fetchWithAppTimeout(
+      `${apiOrigin()}/api/admin-data?action=club-call`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin',
+        cache: 'no-store',
+        body: JSON.stringify(body),
+      },
+      MOIZVONKI_FETCH_TIMEOUT_MS,
+    )
+  } catch (e) {
+    const msg = e?.message ? String(e.message) : ''
+    if (/таймаут/i.test(msg)) {
+      throw new Error(
+        'Сервер не успел ответить (часто холодный старт или медленный ответ Мои Звонки). Повторите через несколько секунд; Android клуба должен быть онлайн.',
+      )
+    }
+    throw e
+  }
   const ct = res.headers.get('content-type') || ''
   if (apiRouteMissing(res, ct)) {
     throw new Error('API club-call недоступен — нужен деплой с звонками Мои Звонки')

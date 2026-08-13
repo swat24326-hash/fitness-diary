@@ -151,8 +151,49 @@ export function mapMoiZvonkiHttpErrorToRu(status, body) {
   if (/confirm|подтверд/i.test(raw)) {
     return 'Подтвердите действие в приложении на телефоне клуба (или включите режим без подтверждения).'
   }
+  if (/offline|не в сети|not online|device.*(off|unavailable)|телефон.*(офлайн|недоступ)/i.test(raw)) {
+    return 'Телефон клуба не в сети в Мои Звонки. Включите интернет на Android и отключите жёсткое энергосбережение.'
+  }
+  if (/wrong request|could not decode|content-type/i.test(raw)) {
+    return 'Мои Звонки: неверный формат запроса. Обновите приложение (нужен деплой).'
+  }
   if (raw.trim()) return `Мои Звонки: ${raw.trim().slice(0, 160)}`
   return 'Не удалось выполнить запрос к Мои Звонки.'
+}
+
+/**
+ * Разбор ответа Мои Звонки: HTTP ≠200 или явное поле error в теле.
+ * @param {{ ok: boolean, status: number }} res
+ * @param {unknown} parsed
+ * @param {string} rawText
+ * @returns {{ ok: true } | { ok: false, code: string, error: string }}
+ */
+export function interpretMoiZvonkiHttpResult(res, parsed, rawText) {
+  if (!res.ok) {
+    return {
+      ok: false,
+      code: 'http_error',
+      error: mapMoiZvonkiHttpErrorToRu(res.status, parsed ?? rawText),
+    }
+  }
+  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+    const soft = String(/** @type {{ error?: unknown }} */ (parsed).error ?? '').trim()
+    if (soft) {
+      return {
+        ok: false,
+        code: 'api_error',
+        error: mapMoiZvonkiHttpErrorToRu(res.status || 200, parsed),
+      }
+    }
+  }
+  if (typeof parsed === 'string' && /wrong request|could not decode|error|ошиб/i.test(parsed)) {
+    return {
+      ok: false,
+      code: 'api_error',
+      error: mapMoiZvonkiHttpErrorToRu(200, parsed),
+    }
+  }
+  return { ok: true }
 }
 
 /**
@@ -238,12 +279,9 @@ export async function sendMoiZvonkiSms(opts) {
     }
   }
 
-  if (!res.ok) {
-    return {
-      ok: false,
-      code: 'http_error',
-      error: mapMoiZvonkiHttpErrorToRu(res.status, parsed ?? rawText),
-    }
+  const interpreted = interpretMoiZvonkiHttpResult(res, parsed, rawText)
+  if (!interpreted.ok) {
+    return { ok: false, code: interpreted.code, error: interpreted.error }
   }
 
   return { ok: true, phone: payload.to }
@@ -278,7 +316,8 @@ export async function sendMoiZvonkiCall(opts) {
     apiKey: cfg.apiKey,
     to: opts.to,
   })
-  const body = buildMoiZvonkiFormBody(payload)
+  // Канон API Мои Звонки: Content-Type application/json + JSON в теле (не form request_data).
+  const body = JSON.stringify(payload)
   const fetchImpl = opts.fetchImpl ?? globalThis.fetch
   if (typeof fetchImpl !== 'function') {
     return { ok: false, code: 'no_fetch', error: 'Fetch недоступен на сервере' }
@@ -289,7 +328,7 @@ export async function sendMoiZvonkiCall(opts) {
     res = await fetchImpl(cfg.apiBase, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'Content-Type': 'application/json',
         Accept: 'application/json, text/plain, */*',
       },
       body,
@@ -308,12 +347,9 @@ export async function sendMoiZvonkiCall(opts) {
     }
   }
 
-  if (!res.ok) {
-    return {
-      ok: false,
-      code: 'http_error',
-      error: mapMoiZvonkiHttpErrorToRu(res.status, parsed ?? rawText),
-    }
+  const interpreted = interpretMoiZvonkiHttpResult(res, parsed, rawText)
+  if (!interpreted.ok) {
+    return { ok: false, code: interpreted.code, error: interpreted.error }
   }
 
   return { ok: true, phone: payload.to }

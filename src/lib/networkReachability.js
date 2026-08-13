@@ -11,6 +11,11 @@ let cloudCheckedAt = 0
 export const ADMIN_FETCH_TIMEOUT_MS = 5_000
 /** club-stats тянет тренировки с data — 5 с мало на холодном старте Hobby. */
 export const CLUB_STATS_FETCH_TIMEOUT_MS = 45_000
+/**
+ * Исходящие Мои Звонки (SMS / make_call): Vercel cold start + ответ moizvonki.ru.
+ * Дефолтные 5 с обрывают звонок с «Таймаут связи с сервером».
+ */
+export const MOIZVONKI_FETCH_TIMEOUT_MS = 30_000
 
 function emitCloud() {
   if (typeof window === 'undefined') return

@@ -5,6 +5,8 @@ import {
   buildMakeCallRequestPayload,
   buildMoiZvonkiFormBody,
   checkClubCallRateLimit,
+  interpretMoiZvonkiHttpResult,
+  mapMoiZvonkiHttpErrorToRu,
   resetClubSmsRateLimitForTests,
   sendMoiZvonkiCall,
 } from '../api/_lib/moiZvonkiCore.js'
@@ -38,14 +40,28 @@ ok(checkClubCallRateLimit('c', { limit: 2, now: 1001 }).ok, 'call rate 2')
 const blocked = checkClubCallRateLimit('c', { limit: 2, now: 1002 })
 ok(!blocked.ok && blocked.error === 'too_many_calls', 'call rate blocked')
 
+ok(
+  mapMoiZvonkiHttpErrorToRu(400, { error: 'device offline' }).includes('не в сети'),
+  'offline mapped to ru',
+)
+ok(interpretMoiZvonkiHttpResult({ ok: true, status: 200 }, {}, '').ok, 'empty 200 ok')
+ok(
+  !interpretMoiZvonkiHttpResult({ ok: true, status: 200 }, { error: 'fail' }, '').ok,
+  'soft error on 200',
+)
+
 const mockFetch = async (_url, init) => {
   const body = String(init?.body ?? '')
-  ok(body.includes('request_data='), 'fetch body form')
-  ok(decodeURIComponent(body).includes('"action":"calls.make_call"'), 'fetch action make_call')
+  const ct = String(init?.headers?.['Content-Type'] ?? '')
+  ok(ct.includes('application/json'), 'content-type json')
+  ok(!body.includes('request_data='), 'body is raw json not form')
+  const parsed = JSON.parse(body)
+  ok(parsed.action === 'calls.make_call', 'fetch action make_call')
+  ok(parsed.to === '79991234567', 'fetch to normalized')
   return {
     ok: true,
     status: 200,
-    text: async () => '{"ok":true}',
+    text: async () => '{}',
   }
 }
 
@@ -77,6 +93,22 @@ const badPhone = await sendMoiZvonkiCall({
   fetchImpl: mockFetch,
 })
 ok(badPhone.ok === false && badPhone.code === 'bad_phone', 'call bad phone')
+
+const softFailFetch = async () => ({
+  ok: true,
+  status: 200,
+  text: async () => JSON.stringify({ error: 'User is offline' }),
+})
+const soft = await sendMoiZvonkiCall({
+  to: '79991234567',
+  env: {
+    MOIZVONKI_API_BASE: 'https://fitcity.moizvonki.ru/api/v1',
+    MOIZVONKI_API_KEY: 'k',
+    MOIZVONKI_USER_EMAIL: 'a@b.ru',
+  },
+  fetchImpl: softFailFetch,
+})
+ok(soft.ok === false && /не в сети/i.test(soft.error || ''), 'soft offline error')
 
 if (failed) process.exit(1)
 console.log('verify-moi-zvonki-call: all passed')

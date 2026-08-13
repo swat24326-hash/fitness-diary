@@ -1,5 +1,5 @@
 import { getAccessTokenForAdminApi, apiRouteMissing } from './adminApiClient.js'
-import { fetchWithAppTimeout } from '../networkReachability.js'
+import { fetchWithAppTimeout, MOIZVONKI_FETCH_TIMEOUT_MS } from '../networkReachability.js'
 import { CLUB_SMS_LOG_DEFAULT_LOOKBACK_DAYS } from './clubSmsLogCore.js'
 
 function apiOrigin() {
@@ -98,16 +98,20 @@ export async function sendClubSmsViaApi(opts) {
   if (opts.scenario) body.scenario = String(opts.scenario)
   if (opts.text) body.text = String(opts.text)
 
-  const res = await fetchWithAppTimeout(`${apiOrigin()}/api/admin-data?action=club-sms`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
+  const res = await fetchWithAppTimeout(
+    `${apiOrigin()}/api/admin-data?action=club-sms`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'same-origin',
+      cache: 'no-store',
+      body: JSON.stringify(body),
     },
-    credentials: 'same-origin',
-    cache: 'no-store',
-    body: JSON.stringify(body),
-  })
+    MOIZVONKI_FETCH_TIMEOUT_MS,
+  )
   const ct = res.headers.get('content-type') || ''
   if (apiRouteMissing(res, ct)) {
     throw new Error('API club-sms недоступен — нужен деплой с Мои Звонки')
