@@ -66,6 +66,38 @@
   line-height: 1.3;
 }
 
+.club-sms-journal__summary {
+  margin: 0 0 0.65rem;
+  font-size: 0.86rem;
+}
+
+.club-sms-journal__row--fail {
+  border-color: rgba(248, 113, 113, 0.4);
+  background: rgba(248, 113, 113, 0.06);
+}
+
+.club-sms-journal__status {
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.club-sms-journal__status--ok {
+  color: var(--accent, #2effb8);
+}
+
+.club-sms-journal__status--fail {
+  color: #fecaca;
+}
+
+.club-sms-journal__error {
+  margin: 0.3rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: #fecaca;
+}
+
 .club-sms-journal__preview {
   margin: 0.35rem 0 0;
   font-size: 0.8rem;

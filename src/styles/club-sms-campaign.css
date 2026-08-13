@@ -138,12 +138,44 @@
   }
 }
 
-@media (max-width: 720px) {
-  .club-sms-campaign-bar__actions {
-    width: 100%;
-  }
+.club-sms-campaign-result__headline {
+  margin: 8px 0 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+}
 
-  .club-sms-campaign-bar__actions .btn:not(.btn-icon-square) {
-    flex: 1 1 auto;
-  }
+.club-sms-campaign-result--ok .club-sms-campaign-result__headline {
+  color: var(--accent, #2effb8);
+}
+
+.club-sms-campaign-result--warn .club-sms-campaign-result__headline {
+  color: var(--warning, #fbbf24);
+}
+
+.club-sms-campaign-result--err .club-sms-campaign-result__headline {
+  color: #fecaca;
+}
+
+.club-sms-campaign-result__errors {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 12rem;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.club-sms-campaign-result__error {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--radius-sm, 12px);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.08);
+  font-size: 0.86rem;
+  line-height: 1.35;
 }

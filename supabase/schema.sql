@@ -338,12 +338,18 @@ CREATE TABLE IF NOT EXISTS club_sms_log (
   sent_by UUID REFERENCES users (id) ON DELETE SET NULL,
   scenario TEXT NOT NULL DEFAULT 'custom',
   message_preview TEXT,
+  status TEXT NOT NULL DEFAULT 'ok',
+  error_message TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT club_sms_log_scenario_check CHECK (
     scenario IN ('birthdays', 'expiring', 'expired_recent', 'stale', 'custom')
   ),
   CONSTRAINT club_sms_log_preview_len CHECK (
     message_preview IS NULL OR char_length(message_preview) <= 200
+  ),
+  CONSTRAINT club_sms_log_status_check CHECK (status IN ('ok', 'fail')),
+  CONSTRAINT club_sms_log_error_len CHECK (
+    error_message IS NULL OR char_length(error_message) <= 200
   )
 );
 

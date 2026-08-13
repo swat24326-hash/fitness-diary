@@ -7,7 +7,9 @@ import { AdminClientClubSmsButton } from '../../components/admin/AdminClientClub
 import { AdminClubSmsCampaignBar } from '../../components/admin/AdminClubSmsCampaignBar.jsx'
 import { AdminClubSmsCampaignComposeSheet } from '../../components/admin/AdminClubSmsCampaignComposeSheet.jsx'
 import { AdminClubSmsCampaignConfirmModal } from '../../components/admin/AdminClubSmsCampaignConfirmModal.jsx'
+import { AdminClubSmsCampaignResultModal } from '../../components/admin/AdminClubSmsCampaignResultModal.jsx'
 import { AdminClubSmsCampaignRowCheck } from '../../components/admin/AdminClubSmsCampaignRowCheck.jsx'
+import { AdminClubSmsJournalSection } from '../../components/admin/AdminClubSmsJournalSection.jsx'
 import { AdminClientMaxButton } from '../../components/admin/AdminClientMaxButton.jsx'
 import { useAdminClubSmsCampaign } from './useAdminClubSmsCampaign.js'
 import { AdminClientsBrowseFilters } from '../../components/admin/AdminClientsBrowseFilters.jsx'
@@ -61,7 +63,7 @@ import { isBirthdayToday } from '../../lib/trainer/trainerClientOutreachCore.js'
 import { BirthdayBrowseSectionHeader } from '../../components/clients/BirthdayBrowseSectionHeader.jsx'
 import { loadAdminClubMembershipsMap, loadAdminClubTrainingsForClientIds } from '../../lib/admin/adminClubWorkspaceCache'
 import { fetchClientsLastTrainingsViaApi } from '../../lib/admin/adminApiClient'
-import { fetchClubSmsStatus } from '../../lib/admin/clubSmsService.js'
+import { fetchClubSmsStatus, fetchClubSmsLogs } from '../../lib/admin/clubSmsService.js'
 import { listRecentClubSmsLogs } from '../../lib/admin/clubSmsLogService.js'
 import {
   clubSmsMarkChipLabel,
@@ -270,10 +272,32 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       club_id: club,
       scenario: String(scenario || 'custom'),
       channel: 'club_sms',
+      status: 'ok',
       created_at: new Date().toISOString(),
     }
     setClubSmsLogs((prev) => [...prev, entry])
   }, [club])
+
+  const refreshClubSmsLogsFromCloud = useCallback(async () => {
+    if (!club) return
+    try {
+      const cloud = await fetchClubSmsLogs(club, { sinceDays: 14 })
+      if (Array.isArray(cloud)) {
+        setClubSmsLogs(cloud)
+        return
+      }
+    } catch {
+      /* оставим локальный кэш */
+    }
+    try {
+      const local = await listRecentClubSmsLogs(club, { todayIso: todayLocalIso() })
+      setClubSmsLogs(local)
+    } catch {
+      /* ignore */
+    }
+  }, [club])
+
+  const [smsJournalOpen, setSmsJournalOpen] = useState(false)
 
   const reload = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setBusy(true)
@@ -818,6 +842,9 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     configured: clubSmsConfigured,
     onFeedback: onSmsFeedback,
     onSent: onClubSmsSent,
+    onCampaignDone: () => {
+      void refreshClubSmsLogsFromCloud()
+    },
   })
   const clientSmsScenarioById = useMemo(() => {
     /** @type {Record<string, string>} */
@@ -1683,6 +1710,44 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         onCancel={smsCampaign.closeConfirm}
         onConfirm={() => void smsCampaign.launch()}
       />
+
+      <AdminClubSmsCampaignResultModal
+        open={smsCampaign.resultOpen}
+        result={smsCampaign.lastResult}
+        recipientsCount={smsCampaign.resultRecipientsCount}
+        onClose={smsCampaign.closeResult}
+        onOpenJournal={() => {
+          smsCampaign.closeResult()
+          setSmsJournalOpen(true)
+        }}
+      />
+
+      {smsJournalOpen && club ? (
+        <div
+          className="modal-overlay club-sms-campaign-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Журнал SMS клуба"
+          onClick={() => setSmsJournalOpen(false)}
+        >
+          <div
+            className="modal-panel club-sms-campaign-modal"
+            style={{ maxWidth: 560, maxHeight: '90vh', overflow: 'auto' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="row" style={{ justifyContent: 'flex-end', marginBottom: 8 }}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-touch"
+                onClick={() => setSmsJournalOpen(false)}
+              >
+                Закрыть
+              </button>
+            </div>
+            <AdminClubSmsJournalSection clubId={club} />
+          </div>
+        </div>
+      ) : null}
 
       <ClientHardDeleteConfirmModal
         open={Boolean(confirmDelete)}

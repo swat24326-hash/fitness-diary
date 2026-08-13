@@ -70,6 +70,7 @@ ok(!buildClubSmsCampaignConfirmSummary({ recipients: [], text: 'x' }).canLaunch,
 ok(normalizeClubSmsCampaignText('x'.repeat(600)).length === 500, 'text max 500')
 
 const calls = []
+const logCalls = []
 const result = await runClubSmsCampaign({
   clubId: 'club1',
   text: 'Тест',
@@ -88,11 +89,15 @@ const result = await runClubSmsCampaign({
     return { ok: true, scenario: 'custom', log_id: `log_${p.clientId}` }
   },
   sleepFn: async () => {},
-  logFn: async () => {},
+  logFn: async (row) => {
+    logCalls.push(row)
+  },
 })
 ok(calls.join(',') === 'a,b', 'runner order')
 ok(result.ok === 1 && result.fail === 1, 'runner ok/fail')
 ok(result.errors[0]?.id === 'b', 'runner error id')
+ok(logCalls.some((r) => r.status === 'ok' && r.client_id === 'a'), 'runner logs ok')
+ok(logCalls.some((r) => r.status === 'fail' && r.client_id === 'b'), 'runner logs fail')
 
 let rateTries = 0
 const rateResult = await runClubSmsCampaign({

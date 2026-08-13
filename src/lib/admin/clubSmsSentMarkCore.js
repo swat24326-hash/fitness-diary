@@ -168,6 +168,7 @@ export function mapClubSmsMarksByClient(logs, ctx) {
   for (const row of logs ?? []) {
     const clientId = String(row?.client_id ?? '').trim()
     if (!clientId) continue
+    if (String(row?.status ?? 'ok').toLowerCase() === 'fail') continue
     if (
       !clubSmsLogMarksInFilter(row, {
         today: ctx.today,

@@ -39,9 +39,9 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | `club_trainer_pay_plan_settings` | `club_id` | План ЗП: пороги тренировок месяца → ур. 1–3 (`config.workouts_l2_min`, `workouts_l3_min`); в пороги идут типы с `counts_toward_pay_plan`; ставки ₽ — на `membership_types` |
 | `trainer_pay_profiles` | `trainer_id` | Кабинет ЗП: `on_plan` (без плана → всегда ур. 3) + `rate_adjustment_rub`; клуб в `club_id` |
 | `club_trainer_pay_month_snapshots` | `(club_id, year, month)` | Заморозка правил ЗП прошлого календарного месяца; текущий месяц — live |
-| `club_sms_log` | — | Облачный журнал SMS клуба; API `admin-data?action=club-sms` |
+| `club_sms_log` | — | Облачный журнал SMS клуба (`status` ok\|fail, `error_message`); API `admin-data?action=club-sms` |
 
-Миграции SMS / moizvonki: `club_sms_templates`, `club_sms_log`, `20260805230000_club_iskra_moizvonki.sql`.
+Миграции SMS / moizvonki: `club_sms_templates`, `club_sms_log`, `20260805230000_club_iskra_moizvonki.sql`, `20260813210000_club_sms_log_status.sql`.
 
 ### Роли `users.role` (Postgres)
 

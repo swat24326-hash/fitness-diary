@@ -1,6 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { fetchClubSmsLogs } from '../../lib/admin/clubSmsService.js'
+import {
+  filterClubSmsLogRowsByStatus,
+  summarizeClubSmsLogRows,
+} from '../../lib/admin/clubSmsLogCore.js'
 import { OUTREACH_SCENARIO_LABELS } from '../../lib/trainer/trainerClientOutreachCore.js'
 import { formatDateRu } from '../../lib/dateRu.js'
 import '../../styles/club-sms-journal.css'
@@ -8,6 +12,13 @@ import '../../styles/club-sms-journal.css'
 const PERIODS = [
   { id: '1', days: 1, label: 'Сегодня' },
   { id: '14', days: 14, label: '14 дней' },
+  { id: '30', days: 30, label: '30 дней' },
+]
+
+const STATUS_FILTERS = [
+  { id: 'all', label: 'Все' },
+  { id: 'ok', label: 'Ушло' },
+  { id: 'fail', label: 'Ошибки' },
 ]
 
 function scenarioLabel(scenario) {
@@ -26,11 +37,12 @@ function formatWhen(iso) {
 }
 
 /**
- * Журнал облачных SMS клуба — кто / кому / когда.
+ * Журнал облачных SMS клуба — кто / кому / когда / ушло или ошибка.
  * @param {{ clubId: string }} props
  */
 export function AdminClubSmsJournalSection({ clubId }) {
   const [period, setPeriod] = useState('14')
+  const [statusFilter, setStatusFilter] = useState('all')
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
@@ -60,13 +72,19 @@ export function AdminClubSmsJournalSection({ clubId }) {
     void reload()
   }, [reload])
 
+  const summary = useMemo(() => summarizeClubSmsLogRows(rows), [rows])
+  const visible = useMemo(
+    () => filterClubSmsLogRowsByStatus(rows, statusFilter),
+    [rows, statusFilter],
+  )
+
   return (
     <section className="card admin-outreach-templates__section club-sms-journal">
       <div className="club-sms-journal__head">
         <div>
           <h2 className="section-title">Журнал SMS клуба</h2>
           <p className="muted admin-outreach-templates__intro">
-            Общий список касаний: видят админ и менеджеры клуба на любом устройстве.
+            Ушло и ошибки на любом устройстве клуба. С доски «Клиенты» журнал открывается из итога массовой.
           </p>
         </div>
         <button
@@ -95,6 +113,30 @@ export function AdminClubSmsJournalSection({ clubId }) {
         ))}
       </div>
 
+      {!loading && !err && rows.length > 0 ? (
+        <p className="club-sms-journal__summary muted" role="status">
+          За период: <strong>{summary.total}</strong>
+          {' · '}
+          ушло <strong>{summary.ok}</strong>
+          {' · '}
+          ошибок <strong>{summary.fail}</strong>
+        </p>
+      ) : null}
+
+      <div className="club-sms-journal__periods" role="group" aria-label="Статус">
+        {STATUS_FILTERS.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            className={`btn btn-touch club-sms-journal__period${statusFilter === p.id ? ' club-sms-journal__period--on' : ' btn-ghost'}`}
+            onClick={() => setStatusFilter(p.id)}
+            disabled={loading}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
       {err ? (
         <p className="admin-outreach-templates__error" role="alert">
           {err}
@@ -103,32 +145,51 @@ export function AdminClubSmsJournalSection({ clubId }) {
 
       {loading ? <p className="muted">Загрузка журнала…</p> : null}
 
-      {!loading && !err && rows.length === 0 ? (
+      {!loading && !err && visible.length === 0 ? (
         <p className="muted club-sms-journal__empty">
-          За выбранный период SMS ещё не отправляли. Отметки появятся после отправки из списка
-          клиентов.
+          {rows.length === 0
+            ? 'За выбранный период SMS ещё не отправляли. Записи появятся после отправки из списка клиентов.'
+            : 'Нет записей с таким статусом.'}
         </p>
       ) : null}
 
-      {!loading && rows.length > 0 ? (
+      {!loading && visible.length > 0 ? (
         <ul className="club-sms-journal__list" aria-label="Записи журнала SMS">
-          {rows.map((row) => (
-            <li key={row.id || `${row.client_id}-${row.created_at}`} className="club-sms-journal__row">
-              <div className="club-sms-journal__meta">
-                <span className="club-sms-journal__when">{formatWhen(row.created_at)}</span>
-                <span className="club-sms-journal__scenario">{scenarioLabel(row.scenario)}</span>
-              </div>
-              <div className="club-sms-journal__who">
-                <strong>{row.client_name || 'Клиент'}</strong>
-                <span className="muted"> · {row.sent_by_name || 'сотрудник'}</span>
-              </div>
-              {row.message_preview ? (
-                <p className="club-sms-journal__preview muted">{row.message_preview}</p>
-              ) : null}
-            </li>
-          ))}
+          {visible.map((row) => {
+            const isFail = String(row.status ?? 'ok') === 'fail'
+            return (
+              <li
+                key={row.id || `${row.client_id}-${row.created_at}`}
+                className={`club-sms-journal__row${isFail ? ' club-sms-journal__row--fail' : ''}`}
+              >
+                <div className="club-sms-journal__meta">
+                  <span className="club-sms-journal__when">{formatWhen(row.created_at)}</span>
+                  <span
+                    className={`club-sms-journal__status${isFail ? ' club-sms-journal__status--fail' : ' club-sms-journal__status--ok'}`}
+                  >
+                    {isFail ? 'Ошибка' : 'Ушло'}
+                  </span>
+                  <span className="club-sms-journal__scenario">{scenarioLabel(row.scenario)}</span>
+                </div>
+                <div className="club-sms-journal__who">
+                  <strong>{row.client_name || 'Клиент'}</strong>
+                  <span className="muted"> · {row.sent_by_name || 'сотрудник'}</span>
+                </div>
+                {isFail && row.error_message ? (
+                  <p className="club-sms-journal__error">{row.error_message}</p>
+                ) : null}
+                {row.message_preview ? (
+                  <p className="club-sms-journal__preview muted">{row.message_preview}</p>
+                ) : null}
+              </li>
+            )
+          })}
         </ul>
       ) : null}
+
+      <p className="muted" style={{ marginTop: 12, fontSize: 13 }}>
+        Массовая рассылка — на доске «Клиенты»; после пачки откроется итог «ушло / ошибки».
+      </p>
     </section>
   )
 }

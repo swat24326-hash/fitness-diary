@@ -28,10 +28,11 @@ import { runClubSmsCampaign } from '../../lib/admin/clubSmsCampaignRunner.js'
  *   today?: string,
  *   trainerNameById?: Record<string, string>,
  *   configured?: boolean | null,
- *   onFeedback?: (msg: string, tone?: string) => void,
- *   onSent?: (clientId: string, scenario?: string) => void,
- * }} opts
- */
+   *   onFeedback?: (msg: string, tone?: string) => void,
+   *   onSent?: (clientId: string, scenario?: string) => void,
+   *   onCampaignDone?: (result: object) => void,
+   * }} opts
+   */
 export function useAdminClubSmsCampaign(opts) {
   const {
     clubId,
@@ -45,6 +46,7 @@ export function useAdminClubSmsCampaign(opts) {
     configured = null,
     onFeedback,
     onSent,
+    onCampaignDone,
   } = opts
 
   const [active, setActive] = useState(false)
@@ -54,6 +56,10 @@ export function useAdminClubSmsCampaign(opts) {
   const [draftText, setDraftText] = useState('')
   const [running, setRunning] = useState(false)
   const [progress, setProgress] = useState(null)
+  /** @type {[object | null, function]} */
+  const [lastResult, setLastResult] = useState(null)
+  const [resultOpen, setResultOpen] = useState(false)
+  const [resultRecipientsCount, setResultRecipientsCount] = useState(0)
   const abortRef = useRef(null)
 
   const partition = useMemo(
@@ -184,6 +190,9 @@ export function useAdminClubSmsCampaign(opts) {
     abortRef.current = ac
     setConfirmOpen(false)
     setRunning(true)
+    setLastResult(null)
+    setResultOpen(false)
+    setResultRecipientsCount(recipients.length)
     setProgress({
       index: 0,
       total: recipients.length,
@@ -209,19 +218,9 @@ export function useAdminClubSmsCampaign(opts) {
         },
       })
 
-      if (result.aborted) {
-        onFeedback?.(
-          `Остановлено: отправлено ${result.ok}, ошибок ${result.fail}`,
-          result.ok > 0 ? 'warn' : 'warn',
-        )
-      } else if (result.fail === 0) {
-        onFeedback?.(`Массовые SMS: отправлено ${result.ok}`, 'ok')
-      } else {
-        onFeedback?.(
-          `Массовые SMS: ок ${result.ok}, ошибок ${result.fail}`,
-          result.ok > 0 ? 'warn' : 'err',
-        )
-      }
+      setLastResult(result)
+      setResultOpen(true)
+      onCampaignDone?.(result)
       setActive(false)
       setSelectedIds(new Set())
       setDraftText('')
@@ -240,6 +239,7 @@ export function useAdminClubSmsCampaign(opts) {
     smsMode,
     onFeedback,
     onSent,
+    onCampaignDone,
   ])
 
   const progressLabel = useMemo(() => {
@@ -272,6 +272,9 @@ export function useAdminClubSmsCampaign(opts) {
     draftText,
     progressLabel,
     scenarioLabel: smsMode?.label || '',
+    resultOpen,
+    lastResult,
+    resultRecipientsCount,
     enter,
     exit,
     selectAll,
@@ -281,6 +284,10 @@ export function useAdminClubSmsCampaign(opts) {
     continueToConfirm,
     closeCompose: () => setComposeOpen(false),
     closeConfirm: () => !running && setConfirmOpen(false),
+    closeResult: () => {
+      setResultOpen(false)
+      setLastResult(null)
+    },
     launch,
     cancelRun,
     isSelected,

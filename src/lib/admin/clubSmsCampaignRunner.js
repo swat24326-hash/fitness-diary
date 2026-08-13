@@ -121,6 +121,7 @@ export async function runClubSmsCampaign(opts) {
               club_id: clubId,
               scenario: String(sendResult?.scenario ?? scenario ?? 'custom'),
               message_preview: text.slice(0, 120),
+              status: 'ok',
             })
           } catch {
             /* локальный журнал не критичен */
@@ -168,6 +169,20 @@ export async function runClubSmsCampaign(opts) {
     if (!sent) {
       fail += 1
       errors.push({ id: clientId, name: row?.name, error: lastError })
+      if (logFn) {
+        try {
+          await logFn({
+            client_id: clientId,
+            club_id: clubId,
+            scenario: String(scenario ?? 'custom'),
+            message_preview: text.slice(0, 120),
+            status: 'fail',
+            error_message: lastError,
+          })
+        } catch {
+          /* локальный журнал не критичен */
+        }
+      }
       opts.onProgress?.({
         index: i,
         total,

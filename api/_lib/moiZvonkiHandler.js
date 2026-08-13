@@ -137,7 +137,7 @@ async function fetchClubSmsLogsForClub(ctx, clubId, sinceDaysRaw) {
 
   const { data: rows, error } = await ctx.supabaseAdmin
     .from('club_sms_log')
-    .select('id, club_id, client_id, sent_by, scenario, message_preview, created_at')
+    .select('id, club_id, client_id, sent_by, scenario, message_preview, status, error_message, created_at')
     .eq('club_id', clubId)
     .gte('created_at', sinceIso)
     .order('created_at', { ascending: false })
@@ -181,6 +181,28 @@ async function fetchClubSmsLogsForClub(ctx, clubId, sinceDaysRaw) {
       }),
     )
     .filter(Boolean)
+}
+
+/**
+ * @param {object} ctx
+ * @param {Parameters<typeof buildClubSmsLogInsertRow>[0]} input
+ * @returns {Promise<{ log_id: string | null, log_warning?: string }>}
+ */
+async function insertClubSmsLogRow(ctx, input) {
+  const built = buildClubSmsLogInsertRow(input)
+  if (!built.ok) return { log_id: null, log_warning: built.error }
+  const { data: inserted, error: insertErr } = await ctx.supabaseAdmin
+    .from('club_sms_log')
+    .insert(built.row)
+    .select('id')
+    .maybeSingle()
+  if (insertErr) {
+    return {
+      log_id: null,
+      log_warning: String(insertErr.message ?? 'journal_insert_failed').slice(0, 160),
+    }
+  }
+  return { log_id: inserted?.id ? String(inserted.id) : null }
 }
 
 /**
@@ -239,22 +261,48 @@ export async function handleClubSmsPost(ctx, res, body) {
     sendJson(res, 404, { ok: false, error: 'Клиент не найден в этом клубе', code: 'not_found' })
     return
   }
+
+  const customText = String(body?.text ?? '').trim()
+  let scenarioHint = String(body?.scenario ?? '').trim().toLowerCase()
+  const sentBy = ctx?.user?.id ?? null
+
+  /** @param {string} errorMsg @param {string} [preview] @param {string} [scenario] */
+  const logFail = async (errorMsg, preview = customText, scenario = scenarioHint) => {
+    try {
+      await insertClubSmsLogRow(ctx, {
+        club_id: clubId,
+        client_id: clientId,
+        sent_by: sentBy,
+        scenario: isOutreachScenario(scenario) ? scenario : 'custom',
+        message_preview: preview || errorMsg,
+        status: 'fail',
+        error_message: errorMsg,
+      })
+    } catch {
+      /* журнал не должен ломать ответ об ошибке */
+    }
+  }
+
   if (!isValidMoiZvonkiPhone(client.phone)) {
-    sendJson(res, 400, { ok: false, error: 'У клиента нет корректного номера телефона', code: 'no_phone' })
+    const err = 'У клиента нет корректного номера телефона'
+    await logFail(err)
+    sendJson(res, 400, { ok: false, error: err, code: 'no_phone' })
     return
   }
 
-  const customText = String(body?.text ?? '').trim()
   let text = customText
-  let scenario = String(body?.scenario ?? '').trim().toLowerCase()
+  let scenario = scenarioHint
   /** @type {object[] | null} */
   let memListForLog = null
 
   if (!text) {
     if (!isOutreachScenario(scenario)) {
+      const err =
+        'Укажите текст SMS или выберите фильтр со сценарием (например «Истекает ≤ 5 дней»)'
+      await logFail(err)
       sendJson(res, 400, {
         ok: false,
-        error: 'Укажите текст SMS или выберите фильтр со сценарием (например «Истекает ≤ 5 дней»)',
+        error: err,
         code: 'need_text_or_scenario',
       })
       return
@@ -285,9 +333,11 @@ export async function handleClubSmsPost(ctx, res, body) {
       birthDate: client.birth_date,
     })
     if (!matches) {
+      const err = 'Клиент не подходит под этот сценарий — напишите свой текст SMS'
+      await logFail(err, '', scenario)
       sendJson(res, 400, {
         ok: false,
-        error: 'Клиент не подходит под этот сценарий — напишите свой текст SMS',
+        error: err,
         code: 'scenario_mismatch',
       })
       return
@@ -318,7 +368,9 @@ export async function handleClubSmsPost(ctx, res, body) {
   }
 
   if (!text) {
-    sendJson(res, 400, { ok: false, error: 'Не удалось собрать текст SMS', code: 'empty_text' })
+    const err = 'Не удалось собрать текст SMS'
+    await logFail(err)
+    sendJson(res, 400, { ok: false, error: err, code: 'empty_text' })
     return
   }
 
@@ -326,6 +378,7 @@ export async function handleClubSmsPost(ctx, res, body) {
   if (!result.ok) {
     const status =
       result.code === 'not_configured' ? 503 : result.code === 'bad_phone' ? 400 : 502
+    await logFail(result.error || 'Не удалось отправить SMS', text, scenario)
     sendJson(res, status, { ok: false, error: result.error, code: result.code ?? 'send_failed' })
     return
   }
@@ -350,37 +403,22 @@ export async function handleClubSmsPost(ctx, res, body) {
     }
   }
 
-  let log_id = null
-  let log_warning
-  const built = buildClubSmsLogInsertRow({
+  const inserted = await insertClubSmsLogRow(ctx, {
     club_id: clubId,
     client_id: clientId,
-    sent_by: ctx?.user?.id ?? null,
+    sent_by: sentBy,
     scenario: logScenario,
     message_preview: text,
+    status: 'ok',
   })
-  if (built.ok) {
-    const { data: inserted, error: insertErr } = await ctx.supabaseAdmin
-      .from('club_sms_log')
-      .insert(built.row)
-      .select('id')
-      .maybeSingle()
-    if (insertErr) {
-      log_warning = String(insertErr.message ?? 'journal_insert_failed').slice(0, 160)
-    } else {
-      log_id = inserted?.id ? String(inserted.id) : null
-    }
-  } else {
-    log_warning = built.error
-  }
 
   sendJson(res, 200, {
     ok: true,
     phone: result.phone,
     scenario: logScenario,
     preview: text.length > 80 ? `${text.slice(0, 79)}…` : text,
-    log_id,
+    log_id: inserted.log_id,
     moizvonki_source: mzCfg.source,
-    ...(log_warning ? { log_warning } : {}),
+    ...(inserted.log_warning ? { log_warning: inserted.log_warning } : {}),
   })
 }
