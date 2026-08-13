@@ -1,6 +1,6 @@
 # Описание проекта для передачи другой нейросети / разработчику
 
-**Актуально:** 2026-08-09. Документ самодостаточен: по нему можно продолжить работу без истории чата. Язык UI — **русский**. Репозиторий: **fitness-diary**. Продукт: **Ядро** (код `CORE`). Клуб-эталон: **FIT-CITY** (тенант, не имя системы). Канон: [BRAND_SYSTEM.md](./BRAND_SYSTEM.md).
+**Актуально:** 2026-08-13. Документ самодостаточен: по нему можно продолжить работу без истории чата. Язык UI — **русский**. Репозиторий: **fitness-diary**. Продукт: **Ядро** (код `CORE`). Клуб-эталон: **FIT-CITY** (тенант, не имя системы). Канон: [BRAND_SYSTEM.md](./BRAND_SYSTEM.md).
 
 **Сначала:** крупная цель [PRODUCT_VISION.md](./PRODUCT_VISION.md) → нарезка и ведение [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) → этот файл (что в коде сегодня) → карта [README.md](./README.md) → при углублении [API.md](./API.md), [SYNC.md](./SYNC.md), [DATA_MODEL.md](./DATA_MODEL.md), [TESTING.md](./TESTING.md), [PWA.md](./PWA.md). Уровень инженерии: [ENGINEERING_MATURITY.md](./ENGINEERING_MATURITY.md). Оплаты: [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) — ТЗ готово; **код L3/кассы — после стабильного переезда РФ (R3+)**. Модули: [PRODUCT_MODULES.md](./PRODUCT_MODULES.md).
 
@@ -40,7 +40,7 @@ Production: https://fitness-diary-bice.vercel.app
 | Сборка | Vite 6, `@vitejs/plugin-react` |
 | PWA | `vite-plugin-pwa` (SW в production) |
 | Бэкенд | Supabase (Postgres, Auth) + **Vercel serverless** `api/*.js` |
-| Локальное хранилище | `idb` → `src/lib/localDb.js` (версия IDB **14**) |
+| Локальное хранилище | `idb` → `src/lib/localDb.js` (версия IDB **16**) |
 | Стили | `src/index.css`, `src/styles/` |
 | AI | Gemini через `admin-data?action=gemini-analytics` (ключ только на сервере) |
 | Push | Web Push (VAPID) для планёрки / заданий |
@@ -55,26 +55,27 @@ Production: https://fitness-diary-bice.vercel.app
 ```
 src/
   App.jsx                 — маршруты, RoleOutlet (admin | trainer | sales_manager | supervisor)
-  context/AuthContext.jsx — сессия, роль, isAdmin / isTrainer / isSalesManager
+  context/AuthContext.jsx — сессия, роль, isAdmin / isTrainer / isSalesManager / isSupervisor
   lib/
     localDb.js, syncService.js, syncApiClient.js, membershipRules.js
     dataAccess.js         — реэкспорты; новое админское — в admin/
-    admin/                — статистика, продажи, организация, ИСКРА-клиент
+    admin/                — статистика, продажи, организация, ИСКРА-клиент, multi-hall / desk
     pnk/                  — этапы ПНК, wizard, glance, visit quality (*Core.js)
     trainer/              — статистика тренера, pull-хелперы
     hr/                   — BLE пульс в общей шапке, до 2 слотов (см. docs/TRAINING_HR.md)
   pages/
-    admin/                — дашборд, клиенты, статистика, sales, ИСКРА, челленджи
+    admin/                — дашборд, клиенты, статистика, Sales*, ИСКРА, челленджи, deletion-log,
+                            ClubSupervisor* (кабинет `/club`)
     trainer/              — home, clients, ClientCard, TrainingPage, profile
-    sales/                — при необходимости; SalesPnk / AdminSales под /sales
   components/pnk/         — UI воронки ПНК
 api/
   *.js                    — тонкие handlers (лимит Hobby ≤12 functions)
   _lib/                   — ядро: pushRecordCore, *Agg, adminData/*, iskra*, …
+server/                   — portable host + /api/health (prep R2 / РФ)
 supabase/
-  schema.sql, migrations/, functions/ (create-trainer, delete-trainer, …)
+  schema.sql, migrations/, functions/ (legacy create-trainer / delete-trainer — прод через api/)
 docs/                     — карта в README.md
-.cursor/rules/            — architecture, sync, domain, ship, features, …
+.cursor/rules/            — architecture, sync, domain, ship, features, adult-app, …
 scripts/                  — agent-qa.mjs, verify-*.mjs
 ```
 
@@ -109,7 +110,7 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 | Роль | Основные маршруты |
 |------|-------------------|
 | trainer | `/trainer`, `/trainer/clients`, … |
-| sales_manager | `/sales`, `/sales/clients`, `/sales/club-tasks`, `/sales/pnk` |
+| sales_manager | `/sales`, `/sales/clients`, `/sales/club-tasks`, `/sales/pnk`, `/sales/deletion-log` |
 | supervisor | `/club/*` (клиенты, статистика, продажи, ПНК, челленджи, планёрка, settings=Max/SMS) |
 | admin | `/admin/*` (clients, **deletion-log**, **excel-lists**, statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. **trainers / sales-managers / supervisors** / diagnostics / iskra-settings, …), `/admin/workouts/:id` |
 - Без Supabase: fallback в `localStorage`, демо-данные.
@@ -120,9 +121,11 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 | Роль | Пути |
 |------|------|
 | trainer | `/trainer`, `/trainer/clients`, `/trainer/clients/:id`, `/trainer/workouts/:id`, `/trainer/profile`, челленджи |
-| sales_manager | `/sales`, `/sales/clients`, `/sales/club-tasks`, `/sales/pnk` |
+| sales_manager | `/sales`, `/sales/clients`, `/sales/club-tasks`, `/sales/pnk`, `/sales/deletion-log` |
 | supervisor | `/club`, `/club/clients`, `/club/statistics`, `/club/sales`, `/club/pnk`, `/club/challenges`, `/club/club-tasks`, `/club/settings`, `/club/workouts/:id` |
 | admin | `/admin/*` (clients, **deletion-log**, **excel-lists**, statistics, sales, pnk, challenges, club-tasks, structure?tab=… в т.ч. **supervisors** / diagnostics / iskra-settings, …), `/admin/workouts/:id` |
+
+**Multi-hall (фаза 1):** один `client` — абоны ПЗ/ТЗ/АЗ (`memberships.hall`); вкладки списков и карточки; статистика `hall=`. Канон: [CLIENT_MULTI_HALL.md](./CLIENT_MULTI_HALL.md).
 
 **Менеджер и типы АЗ:** справочник `membership_types` (ПЗ + АЗ) нужен для колонок «Тренировки в аэробном зале». Доступ: RLS `fit_membership_types_sales_manager_read` + `admin-data?action=membership-types`. Sync менеджера тянет типы; на отчёте — ещё «Обновить». Подробнее: [SALES_MANAGER.md](./SALES_MANAGER.md), [SYNC.md](./SYNC.md).
 
@@ -136,7 +139,9 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 
 Полнее: [DATA_MODEL.md](./DATA_MODEL.md), [SYNC.md](./SYNC.md).
 
-**IDB stores:** `meta`, `clients`, `memberships`, `trainings`, `exercises`, `body_measurements`, `health_cards` (**keyPath: `client_id`**), `clubs`, `sync_queue`, `challenges`, `membership_types`, `nutrition_products`, `homework_presets`, `client_weight_entries`, `outreach_log`, `club_iskra_settings`.
+**IDB stores (v16):** `meta`, `clients`, `memberships`, `trainings`, `exercises`, `body_measurements`, `health_cards` (**keyPath: `client_id`**), `clubs`, `sync_queue`, `challenges`, `membership_types`, `nutrition_products`, `homework_presets`, `client_weight_entries`, `outreach_log`, `club_iskra_settings` (кэш шаблонов outreach; **не** полный `moizvonki` с ключом), `pnk_funnel_events`, `sale_clips`.
+
+Настройки **качества ведения** и **плана ЗП** — Postgres + `admin-data`, **без** offline-store в IDB. Полнее: [DATA_MODEL.md](./DATA_MODEL.md).
 
 **Поток записи:** UI → `saveLocalWithSync` → IDB + `sync_queue` → при online `/api/push-record` или `push-records` → ручной Sync: **сначала flush очереди**, потом **pull**. Pull не затирает строки с pending (`putStoreUnlessPendingSync`).
 
@@ -178,13 +183,14 @@ UI: карточки, drill-down. Домен: `.cursor/rules/fitness-diary-domai
 
 ---
 
-## 10. API и Edge
+## 10. API (Vercel serverless)
 
 Каталог endpoints: [API.md](./API.md).
 
-- Vercel: `admin-data`, `trainer-pull`, `push-record(s)`, auth, list-*, create-trainer, …
+- Vercel: `admin-data`, `trainer-pull`, `push-record(s)`, auth, list-*, **`create-trainer`**, `update-trainer-club`, …
+- Удаление тренера: `admin-data?action=delete-trainer` (не отдельный `api/*.js`).
 - Hobby **≤12** `api/*.js` — новое действие → `admin-data?action=`, не новый файл.
-- Edge Functions: `create-trainer`, `delete-trainer` (см. DEPLOY).
+- Edge Functions в `supabase/functions/` — **legacy**; прод ходит в `/api/*` (см. [DEPLOY.md](./DEPLOY.md)).
 
 ---
 
@@ -192,14 +198,16 @@ UI: карточки, drill-down. Домен: `.cursor/rules/fitness-diary-domai
 
 | Команда | Назначение |
 |---------|------------|
-| `npm run dev` | Разработка |
+| `npm run dev` | Разработка (Vite) |
+| `npm run dev:vercel` | Локально Vite + serverless `api/` |
 | `npm run build` / `preview` | Production-сборка |
 | `npm run lint` | ESLint — **всегда** перед «готово» |
-| `npm run qa:local` | build + verify + lint (без prod smoke) |
+| `npm run qa:local` | build + verify из `agent-qa.mjs` + lint (без prod smoke) |
 | `npm run qa` | + prod smoke |
 | `npm run qa:deep` / `qa:roles` | углублённые / ролевые проверки |
 | `npm run check:volume` | объём данных (см. DATA_VOLUME) |
-| `npm run db:migrate*` | policies, sales, pnk, iskra, … |
+| `npm run db:migrate*` / `db:migrate:pg` | policies, sales, pnk, iskra, portable PG… |
+| `npm start` | portable host (см. R2 runbook) |
 
 Подробнее: [TESTING.md](./TESTING.md), [RELEASE.md](./RELEASE.md), [DEPLOY.md](./DEPLOY.md).  
 CI: `.github/workflows/qa.yml` (`qa:local`), weekly prod smoke.
@@ -251,6 +259,9 @@ CI: `.github/workflows/qa.yml` (`qa:local`), weekly prod smoke.
 | `fitness-diary-supabase.mdc` | миграции, секреты, ≤12 functions |
 | `fitness-diary-ui.mdc` | планшет, русский UX, ПНК UI |
 | `fitness-diary-cursor-efficiency.mdc` | экономия контекста, понятные отчёты |
+| `fitness-diary-adult-app.mdc` | взрослое приложение: не наращивать костыли |
+| `fitness-diary-fix-comprehensive.mdc` | багфикс по всему контуру данных |
+| `fitness-diary-hosting-portability.mdc` | закладки под переезд на РФ |
 
 ---
 

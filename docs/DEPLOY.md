@@ -1,11 +1,13 @@
 # Первый выклад в интернет (фронт + Supabase)
 
-Проект — **одностраничное приложение (React + Vite)** с **PWA** и бэкендом **Supabase** (Postgres + Auth + Edge Functions). В браузере данные дублируются в **IndexedDB**; без Supabase приложение уходит в «локальный» режим с ограничениями.
+Проект — **одностраничное приложение (React + Vite)** с **PWA**, бэкендом **Supabase** (Postgres + Auth) и **serverless API** в папке `api/` (на проде — **Vercel**). В браузере данные дублируются в **IndexedDB**; без Supabase приложение уходит в «локальный» режим с ограничениями.
+
+**Хостинг сейчас:** Vercel + Supabase. Целевой переезд на РФ — [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md); cutover только по явной команде.
 
 ## 1. Что подготовить заранее
 
 - Аккаунт [Supabase](https://supabase.com) (бесплатный тариф подойдёт для старта).
-- Хостинг для **статики** из папки `dist` после `npm run build` (например **Netlify**, **Vercel**, **Cloudflare Pages** — в репозитории уже лежат заготовки конфигов).
+- Хостинг: для **полного** продукта (создание тренера, `admin-data`, push/pull) нужен хост с **Node serverless** из `api/` — на проде это **Vercel**. Чистая статика (`dist` на Netlify / Cloudflare Pages) подойдёт только для демо UI без этих API.
 - **Node.js** 18+ (рекомендуется 20 LTS) и `npm`.
 
 ## 2. Переменные окружения (обязательно для «облака»)
@@ -53,21 +55,20 @@ supabase db push
 
 Иначе вход по почте/паролю с прод-сайта может редиректить не туда.
 
-## 5. Edge Functions (создание / удаление тренера)
+## 5. API создания / удаления тренера (Vercel `api/`)
 
-В коде вызываются функции:
+В UI админки вызываются **не** Edge Functions, а serverless на том же домене:
 
-- `create-trainer`
-- `delete-trainer`
+| Действие | Endpoint |
+|----------|----------|
+| Создать тренера | `POST /api/create-trainer` |
+| Удалить тренера (без клиентов) | `POST /api/admin-data?action=delete-trainer` |
 
-Из каталога проекта (при установленном [Supabase CLI](https://supabase.com/docs/guides/cli)):
+Нужны **server env** на Vercel (без префикса `VITE_`): как минимум `SUPABASE_SERVICE_ROLE_KEY` (и при необходимости `SUPABASE_URL` / `SUPABASE_ANON_KEY`). Каталог: [API.md](./API.md).
 
-```bash
-supabase functions deploy create-trainer
-supabase functions deploy delete-trainer
-```
+Папки `supabase/functions/create-trainer` и `delete-trainer` — **legacy**; для прода деплоить Edge не нужно (браузер ходит в `/api/*`).
 
-Проверьте в **Dashboard → Edge Functions**, что функции появились и вызываются без ошибки (логи в той же панели).
+Локально API удобно гонять через `npm run dev:vercel` (или preview после деплоя на Vercel).
 
 ## 6. Сборка и проверка локально
 
@@ -84,23 +85,22 @@ npm run preview
 
 ## 7. Выкладка на хостинг
 
-### Netlify
+### Vercel (рекомендуется для прода)
 
-В репозитории есть **`netlify.toml`**: сборка `npm run build`, публикация **`dist`**, SPA-редирект на `index.html`.
+Файл **`vercel.json`** — fallback на `index.html` для маршрутов React Router. Папка **`api/`** деплоится как serverless functions (лимит Hobby ≤12 файлов в корне `api/*.js`).
 
-В Netlify: **Site settings → Environment variables** — добавьте `VITE_SUPABASE_URL` и `VITE_SUPABASE_ANON_KEY`, затем **Trigger deploy** (пересборка нужна, чтобы переменные попали в клиент).
+В настройках проекта: **Framework Preset** Vite или **Build** `npm run build`, **Output** `dist`.
 
-### Vercel
+Переменные:
 
-Файл **`vercel.json`** — fallback на `index.html` для маршрутов React Router.
+- клиент: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (+ опционально VAPID public);
+- сервер: `SUPABASE_SERVICE_ROLE_KEY`, при необходимости Gemini / VAPID private — см. `.env.example`.
 
-В настройках проекта: **Framework Preset** можно оставить Vite или указать **Build Command** `npm run build`, **Output** `dist`. Переменные окружения — те же `VITE_*`.
+Production-эталон: https://fitness-diary-bice.vercel.app
 
-### Cloudflare Pages
+### Netlify / Cloudflare Pages (только статика)
 
-В репозитории **`public/_redirects`** (попадает в корень `dist`) — правило SPA `/* → /index.html`.
-
-Build command: `npm run build`, output directory: `dist`, переменные `VITE_*` в настройках Pages.
+Есть `netlify.toml` и `public/_redirects` для SPA, но **без** serverless `api/` не заработают создание тренера, `admin-data`, push/pull. Для полного клуба — Vercel (или portable host — [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md)).
 
 ## 8. После выклада
 
@@ -114,7 +114,7 @@ Build command: `npm run build`, output directory: `dist`, переменные `
 |---------|----------------|
 | Всегда «локальный режим», нет облака | Переменные `VITE_*` на хостинге и **пересборка** после их добавления |
 | Ошибки 401 / пустые таблицы | RLS и политики в Supabase |
-| Не вызываются действия с тренерами | Задеплоены ли Edge Functions и не блокирует ли их CORS/ключ |
+| Не вызываются действия с тренерами | Есть ли деплой `api/` на Vercel и server env `SUPABASE_SERVICE_ROLE_KEY`; ответ `/api/create-trainer` не 404 |
 | Белый экран на прямом URL `/admin/...` | SPA-редирект на `index.html` (см. конфиги выше) |
 
 Подробности по схеме БД: **`supabase/schema.sql`** и папка **`supabase/migrations/`**.

@@ -1,6 +1,6 @@
 # Тестирование и QA
 
-**Актуально:** 2026-08-09. Политика: `.cursor/rules/fitness-diary-ship.mdc`, `fitness-diary-stability.mdc`.
+**Актуально:** 2026-08-13. Политика: `.cursor/rules/fitness-diary-ship.mdc`, `fitness-diary-stability.mdc`.
 
 ---
 
@@ -9,13 +9,13 @@
 | Команда | Что делает | Когда |
 |---------|------------|--------|
 | `npm run lint` | ESLint | **Всегда** перед «готово» |
-| `npm run qa:local` | build + `verify-*.mjs` + lint, без prod smoke | Sync, статистика, абонементы, API agg, форматы упражнений, офлайн |
+| `npm run qa:local` | build + **список** verify из `scripts/agent-qa.mjs` + lint, без prod smoke | Sync, статистика, абонементы, API agg, форматы упражнений, офлайн |
 | `npm run qa` | как local + prod smoke | Перед релизом / по CI weekly |
 | `npm run qa:deep` | Углублённый прогон (`deep-qa.mjs`) | Перед крупным релизом / аудит |
 | `npm run qa:roles` / `qa:roles:browser` | Ролевые сценарии | Смена ролей / auth |
 | `npm run check:volume` | Объём данных | Рост клуба; см. [DATA_VOLUME.md](./DATA_VOLUME.md) |
 
-Оркестратор verify: `scripts/agent-qa.mjs`. CI: `.github/workflows/qa.yml` → `qa:local` на push/PR.
+Оркестратор: `scripts/agent-qa.mjs` (явный список; на диске может быть больше `verify-*.mjs` — новый скрипт **регистрировать** в `agent-qa.mjs`). Таблица ниже — **критический поднабор**, не полный каталог. CI: `.github/workflows/qa.yml` → `qa:local` на push/PR.
 
 ---
 
@@ -107,10 +107,9 @@
 | Клиенты: поиск по всем залам + стек ПЗ/ТЗ/АЗ | `verify-admin-clients-cross-hall-search.mjs` |
 | Абоны: цена пакета paid_amount (форма) | `verify-membership-paid-amount.mjs` |
 | Вкладки ПЗ / ТЗ / АЗ (списки + `memberships.hall`) | `verify-desk-hall-clients.mjs`, `verify-membership-hall.mjs` |
-| Смена тренера ПЗ на карточке (клуб / lite) | `verify-client-trainer-reassign.mjs` |
+| Смена тренера ПЗ: клуб / lite / карта формы / каскад абонов | `verify-client-trainer-reassign.mjs` |
 | Desk: очистка ДР без отката при hydrate | `verify-desk-client-birth-form.mjs` |
 | Desk: телефон / № карты / ФИО / ack Save / hydrate после flush | `verify-desk-client-form-merge.mjs` |
-| Смена тренера ПЗ: клуб, карта формы, каскад абонов | `verify-client-trainer-reassign.mjs` |
 | Архив: подвкладки ПЗ / ТЗ / АЗ | `verify-admin-clients-archive-hall.mjs` |
 | АЗ: фильтр по направлениям | `verify-admin-clients-az-direction-filter.mjs` |
 | АЗ: списание занятий + журнал дат | `verify-desk-az-session-deduct.mjs` |

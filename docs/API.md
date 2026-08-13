@@ -1,9 +1,9 @@
 # API — каталог endpoints
 
-**Актуально:** 2026-08-06. Vercel Hobby **≤12** serverless functions в `api/*.js`. Новое действие — сначала `admin-data?action=`, не новый файл.
+**Актуально:** 2026-08-13. Vercel Hobby **≤12** serverless functions в `api/*.js`. Новое действие — сначала `admin-data?action=`, не новый файл.
 
 Политика: `.cursor/rules/fitness-diary-supabase.mdc`, `fitness-diary-architecture.mdc`.  
-Ядро: **`api/_lib/`** (не `api/lib/`).
+Ядро: **`api/_lib/`** (не `api/lib/`). Точный роутинг ролей — `api/admin-data.js` (таблица ниже — ориентир; при сомнении смотреть handler).
 
 ---
 
@@ -13,7 +13,7 @@
 |----------|------------|
 | `/api/admin-data` | Объединённый GET/POST админки, продаж, ИСКРЫ, справочников (`?action=`) |
 | `/api/trainer-pull` | Pull данных на планшет тренера |
-| `/api/push-record` | Одна запись из sync-очереди (admin / trainer / sales_manager; права по таблице — `authorizePush`) |
+| `/api/push-record` | Одна запись из sync-очереди (admin / trainer / sales_manager / **supervisor**; права по таблице — `authorizePush`) |
 | `/api/push-records` | Пакетный flush очереди (те же роли) |
 | `/api/auth-sign-in` | Вход (логин/пароль → сессия), когда нужен server path |
 | `/api/me-profile` | Профиль текущего пользователя |
@@ -24,7 +24,7 @@
 | `/api/create-trainer` | Создание тренера (service role на сервере) |
 | `/api/update-trainer-club` | Смена клуба тренера |
 
-Считать лимит перед добавлением 13-го файла. Удаление тренера — **не** отдельный `api/*.js`: `admin-data?action=delete-trainer` (с 2026-08-06). Legacy Edge `supabase/functions/delete-trainer` для прода не нужен.
+Считать лимит перед добавлением 13-го файла. Удаление тренера — **не** отдельный `api/*.js`: `admin-data?action=delete-trainer`. Legacy Edge `supabase/functions/*` для прода не нужен.
 
 ---
 
@@ -36,15 +36,15 @@
 
 | action | Кто | Зачем |
 |--------|-----|--------|
-| `search`, `clients-last-trainings` | admin / sales_manager (свой `club_id`) | Поиск / даты последних тренировок по id (список клиентов) |
-| `journal` | admin | Журнал тренировок |
-| `club-stats`, `club-monthly` | admin | Сводка и год. `club-stats&include_cq=0` — лёгкая сводка без CQ (default `include_cq=1`). Опционально `hall=pz\|tz\|az` — census и тренировки по залу; без `hall` — legacy commercial (без desk). На `hall=tz\|az` «по типам» = census абонов зала. CQ только для ПЗ / без hall |
-| `coach-quality` | admin / trainer (свой клуб + свой id) | Отдельный расчёт CQ; `mode=full\|glance`. Статистика и главная грузят параллельно со сводкой |
-| `coach-quality-settings` | GET: admin или тренер/продажи своего клуба; POST: admin | веса осей, доли внутри ведения/хвостов и тумблеры |
+| `search`, `clients-last-trainings` | admin / sales_manager / supervisor (свой `club_id`) | Поиск / даты последних тренировок по id (список клиентов) |
+| `journal` | admin / **supervisor** (свой клуб) | Журнал тренировок |
+| `club-stats`, `club-monthly` | admin / **supervisor** (свой клуб) | Сводка и год. `club-stats&include_cq=0` — лёгкая сводка без CQ (default `include_cq=1`). Опционально `hall=pz\|tz\|az` — census и тренировки по залу; без `hall` — legacy commercial (без desk). На `hall=tz\|az` «по типам» = census абонов зала. CQ только для ПЗ / без hall |
+| `coach-quality` | admin / trainer / **supervisor** (свой клуб + свой id у тренера) | Отдельный расчёт CQ; `mode=full\|glance`. Статистика и главная грузят параллельно со сводкой |
+| `coach-quality-settings` | GET: admin или trainer/sales/**supervisor** своего клуба; POST: admin | веса осей, доли внутри ведения/хвостов и тумблеры |
 | `trainer-pay-plan-settings` | GET/POST: admin | пороги тренировок месяца → уровни ЗП 1–3 (`workouts_l2_min`, `workouts_l3_min`; старые `hours_*` читаются) |
 | `trainer-pay-profiles` | GET/POST: admin | кабинеты тренеров клуба: `on_plan`, `rate_adjustment_rub`; GET `club_id` (+ опц. `trainer_id`); POST upsert |
 | `trainer-pay-payroll-context` | GET: admin / sales_manager (свой клуб) | контекст ЗП на `year`+`month`: live или снимок (`frozen`); при первом запросе прошлого месяца создаёт snapshot |
-| `health-cards`, `clubs` | admin | Медкарты, клубы |
+| `health-cards`, `clubs` | health-cards: admin / **supervisor**; clubs: admin | Медкарты, клубы |
 | `sales` | admin / sales_manager | Отчёты продаж. Опционально `profile=shell\|daily\|month\|full` (default `full`); `include_fit_city=1` для подсказок типов |
 | `price-list` | GET: admin / sales_manager (свой клуб); POST: admin / sales_manager (свой клуб) | Прайс ПЗ клуба (`club_price_lists`) |
 | `tz-price-list` | GET/POST: admin / sales_manager (свой клуб) | Прайс ТЗ клуба (`club_tz_price_lists`) |
@@ -52,13 +52,14 @@
 | `pnk` | admin / sales_manager | Доска / данные ПНК; в ответе `bz_completed_by_client` (id → 0…2) для «Итога визита» |
 | `sale-clips` | admin / sales_manager | Клип-карты дня (список) |
 | `gemini-analytics-prefetch` | admin | Prefetch ИСКРЫ |
-| `iskra-settings`, `iskra-learning`, `iskra-dispatch`, `iskra-tts` | admin (+ dispatch шире) | Настройки, обучение, задания, neural озвучка |
+| `iskra-settings`, `iskra-learning`, `iskra-dispatch` | admin (+ dispatch шире: trainer / sales / supervisor по view) | Настройки, обучение, задания |
 | `challenges`, `challenge-trainings`, `exercises`, `exercises-meta` | admin / trainer | Справочники |
+| `nutrition-products`, `homework-presets` | admin / trainer (как trainerActions) | Справочники питания и ДЗ |
 | `trainer-self-stats` | trainer (свой клуб) / admin+trainer_id | ЗП день/месяц + сводка периода (сервер) |
 | `trainer-self-journal` | trainer (свой клуб) / admin+trainer_id | Список завершённых тренировок за период (для журнала на планшете; тот же контур, что цифры stats) |
-| `deletion-audit-log` | admin / sales_manager (свой клуб) | Журнал жёстких удалений клиентов (`deletion_audit_log`) |
-| `push-subscription` | admin / trainer / sales_manager | VAPID public key |
-| `membership-types` | admin / trainer / sales_manager (свой клуб) | Справочник типов абон. включая АЗ для колонок отчёта |
+| `deletion-audit-log` | **admin** (HTTP: `requireAdmin`) | Журнал жёстких удалений клиентов (`deletion_audit_log`). UI `/sales/deletion-log` у менеджера — отдельный accessMode; API-лог — admin |
+| `push-subscription` | admin / trainer / sales_manager / **supervisor** | VAPID public key |
+| `membership-types` | admin / trainer / sales_manager / **supervisor** (свой клуб) | Справочник типов абон. включая АЗ для колонок отчёта |
 | `club-sms` | admin / sales_manager / supervisor | Статус Мои Звонки (`configured`, `moizvonki`, `templates`, `club_name`); `&logs=1&since_days=` — журнал `club_sms_log` |
 
 ### POST (фрагмент)
@@ -71,7 +72,7 @@
 | `tz-price-list` | admin / sales_manager (свой клуб) | Upsert прайса ТЗ клуба |
 | `az-price-list` | admin / sales_manager (свой клуб) | Upsert прайса АЗ клуба |
 | `gemini-analytics` | admin | Запрос к ИСКРЕ |
-| `iskra-settings`, `iskra-learning`, `iskra-dispatch`, `iskra-tts` | по op / роли | CRUD настроек, фидбек, задания, TTS |
+| `iskra-settings`, `iskra-learning`, `iskra-dispatch`, `iskra-tts` | по op / роли; **`iskra-tts` только POST** | CRUD настроек, фидбек, задания, neural озвучка |
 | `push-subscription` | auth user | Регистрация push |
 | `reset-trainer-password`, `set-trainer-active`, `set-trainer-name`, `set-trainer-uses-tablet`, `delete-trainer` | admin | Управление тренером (пароль / блок / ФИО / планшет / удаление без клиентов) |
 | `pnk` | admin / sales_manager | Мутации ПНК |
@@ -88,4 +89,4 @@
 3. Клиент: сервис в `src/lib/admin/` / `src/lib/pnk/`, не `supabase.from` с планшета для критичного пути.
 4. Обновить этот файл + при необходимости handoff.
 
-Auth helpers: `api/_lib/adminSupabase.js` (`requireAdmin`, `requireAdminOrSalesManager`, `requireAuthUser`).
+Auth helpers: `api/_lib/adminSupabase.js` (`requireAdmin`, `requireAdminOrSalesManager`, `requireAdminOrSupervisor`, `requireAuthUser`).

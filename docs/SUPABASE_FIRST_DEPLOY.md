@@ -2,71 +2,54 @@
 
 Шпаргалка на момент, когда вы заведёте проект в [Supabase](https://supabase.com) и подключите приложение к облаку. До этого шаги можно не выполнять — локально клубы живут в IndexedDB.
 
+Полная инструкция: [DEPLOY.md](./DEPLOY.md). **Сейчас** хостинг — Vercel + Supabase; целевой переезд на РФ — [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md).
+
 ## 1. Проект и переменные в приложении
 
 1. Создайте проект в Supabase (Dashboard).
-2. Скопируйте **Project URL** и **anon public** ключ: **Settings → API**.
-3. В корне репозитория создайте файл `.env` (можно отталкиваться от `.env.example`):
+2. Скопируйте **Project URL** и **anon public** ключ: **Settings → API** (JWT `eyJ…`, не `sb_publishable_…`).
+3. В корне репозитория создайте файл `.env` (отталкивайтесь от `.env.example`):
 
    - `VITE_SUPABASE_URL` — URL проекта  
    - `VITE_SUPABASE_ANON_KEY` — anon key  
 
-4. Перезапустите dev-сервер (`npm run dev`), чтобы Vite подхватил переменные.
+4. На **Vercel** (прод) задайте те же `VITE_*` **и** server env: `SUPABASE_SERVICE_ROLE_KEY` (создание тренера, push с service role). Без service role UI упрётся в «нет сервера `/api/create-trainer`».
+
+5. Перезапустите dev-сервер (`npm run dev`), чтобы Vite подхватил переменные. Для локального API — `npm run dev:vercel`.
 
 ## 2. Схема базы
 
 В **SQL Editor** в Supabase выполните SQL из репозитория:
 
 - **`supabase/schema.sql`** — полная схема таблиц (если база пустая).
+- Затем миграции из **`supabase/migrations/`** по имени файла (идемпотентны).
 
-Затем примените миграцию с привязкой тренера к клубу:
+Если уже используете Supabase CLI: `supabase link` + `supabase db push` / `npm run db:migrate*` — см. [DEPLOY.md](./DEPLOY.md).
 
-- **`supabase/migrations/20260210120000_users_club_id.sql`** — колонка `users.club_id` и индекс.
+## 3. Создание и удаление тренера (`/api/*`)
 
-Если вы уже используете Supabase CLI и связали папку `supabase/` с проектом, вместо ручного копирования можно выполнить `supabase db push` (как настроите у себя).
+Админка создаёт тренера через **`POST /api/create-trainer`** (код: `api/create-trainer.js` + `_lib`). Удаление — **`admin-data?action=delete-trainer`** (только если у тренера нет клиентов).
 
-## 3. Edge Function «создать тренера»
+Нужен деплой папки `api/` на Vercel и `SUPABASE_SERVICE_ROLE_KEY` в server env. Каталог: [API.md](./API.md).
 
-Админка создаёт тренера через функцию **`create-trainer`** (см. `supabase/functions/create-trainer/`).
-
-С установленным [Supabase CLI](https://supabase.com/docs/guides/cli):
-
-```bash
-supabase login
-supabase link --project-ref ВАШ_PROJECT_REF
-supabase functions deploy create-trainer
-```
-
-В Dashboard для функции включите **Verify JWT** (как в комментарии в коде функции). Секреты `SUPABASE_SERVICE_ROLE_KEY` и др. в рантайме функции подставляются автоматически.
-
-### Edge Function «удалить тренера»
-
-Удаление тренера из UI (**«Клубы и тренеры»** → иконка корзины) вызывает **`delete-trainer`** (`supabase/functions/delete-trainer/`). Допустимо только если у тренера нет клиентов в `clients`.
-
-```bash
-supabase functions deploy delete-trainer
-```
-
-Для функции также включите **Verify JWT**.
+Папки `supabase/functions/create-trainer` и `delete-trainer` — **legacy**; для прода Edge деплоить не нужно.
 
 ## 4. RLS (политики доступа)
 
-После включения **Row Level Security** на таблицах без политик клиентское приложение не увидит данные. Нужны политики под вашу модель (кто админ, кто тренер, по каким полям фильтровать).
+После включения **Row Level Security** на таблицах без политик клиентское приложение не увидит данные. Эталон: **`supabase/policies.sql`** + миграции политик. Чеклист: [SUPABASE_PROD_CHECKLIST.md](./SUPABASE_PROD_CHECKLIST.md).
 
-Черновик идей — в **`supabase/policies_admin_example.sql`**. Отдельно для раздела «Клубы и тренеры» админу нужен **`UPDATE` на `public.users`**, чтобы менять `club_id` у строк с ролью `trainer` (пример политики там же в комментариях).
-
-Настройка RLS сильно зависит от того, как у вас связаны `auth.users` и `public.users` (часто `users.id = auth.uid()`). Подставьте под свою схему.
+Черновик идей — в **`supabase/policies_admin_example.sql`**. `public.users.id` должен совпадать с Auth UID.
 
 ## 5. Первый админ и тренеры
 
-- Запись **админа** в `public.users` с `role = 'admin'` и `id`, совпадающим с пользователем из **Auth**, обычно делают вручную в SQL или через отдельный сценарий — в репозитории это не автоматизировано.
-- Создание тренера из UI после деплоя функции: раздел **«Клубы и тренеры»** → кнопка нового тренера; опционально передаётся `club_id` (в т.ч. из `?club=` в адресе).
+- Запись **админа** в `public.users` с `role = 'admin'` и `id`, совпадающим с пользователем из **Auth**, обычно делают вручную в SQL.
+- Создание тренера из UI после деплоя API: **Структура → Тренеры** → новый тренер; опционально `club_id` (в т.ч. из `?club=`).
 
 ## 6. Если что-то пошло не так
 
 - **Тренеры не грузятся** — проверьте RLS на `users`, `.env`, сеть.
-- **Нельзя сменить клуб тренеру** — проверьте, что выполнена миграция `club_id` и есть политика `UPDATE` для админа на `users`.
-- **Ошибка при создании тренера** — функция не задеплоена, выключен JWT, или вставка в `users` падает из‑за RLS/ограничений.
+- **Нельзя сменить клуб тренеру** — миграция `club_id` и политика `UPDATE` для админа на `users`.
+- **Ошибка при создании тренера** — нет деплоя `/api/create-trainer`, нет `SUPABASE_SERVICE_ROLE_KEY`, или вставка в `users` падает из‑за RLS.
 
 ---
 

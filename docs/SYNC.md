@@ -1,6 +1,6 @@
 # Sync — очередь, flush, pull
 
-**Актуально:** 2026-08-09. Политика кода: `.cursor/rules/fitness-diary-sync.mdc`. Инциденты: [RUNBOOK.md](./RUNBOOK.md).
+**Актуально:** 2026-08-13. Политика кода: `.cursor/rules/fitness-diary-sync.mdc`. Инциденты: [RUNBOOK.md](./RUNBOOK.md).
 
 ---
 
@@ -40,14 +40,16 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 3. **Pull merge:** для охраняемых stores не перезаписывать строку, если по ней есть pending в очереди.
 4. **memberships push:** `start_date` / `end_date` в БД NOT NULL. При **update** пустые/null даты **опускаются** из payload (`normalizeMembershipPushPayload`), чтобы списание `used_trainings` не затирало даты. При **insert** даты обязательны. Verify: `scripts/verify-membership-push-payload.mjs`.
 5. **Менеджер продаж + типы абон.:** Sync у менеджера — flush + pull `membership_types` (свой клуб). Колонки АЗ в дневном отчёте обновляются ещё кнопкой **«Обновить»** на `/sales`. API: `admin-data?action=membership-types` доступен менеджеру; RLS: `fit_membership_types_sales_manager_read`. Без этого «Обновить» мог показывать устаревший IDB без нового R3+. Док: [SALES_MANAGER.md](./SALES_MANAGER.md).
-6. **403 без прав (роль/клуб):** сообщения вроде «Менеджер может менять только клиентов и абонементы…», «Нет доступа…», «другого клуба» — **снимаем** запись из очереди (`isUnrecoverablePushError`), не крутим 12 раз. Менеджер **не** пишет медкарту/вес/замеры (UI read-only на вкладке здоровья).
-7. **Новая синхронизируемая таблица:**
+6. **Невосстановимые ошибки push:** 403 без прав (роль/клуб) и часть **400** по датам membership (`isUnrecoverablePushError` в `syncFlushResult.js`) — **снимаем** запись из очереди, не крутим 12 раз. Сообщения вроде «Менеджер может менять только клиентов и абонементы…», «Нет доступа…», «другого клуба». Менеджер **не** пишет медкарту/вес/замеры в обычном UI (read-only на вкладке здоровья), кроме **каскада удаления desk** ТЗ/АЗ: тогда разрешён delete по `trainings` / `health_cards` / `body_measurements` / `client_weight_entries` своего клуба (`SALES_MANAGER_DESK_DELETE_EXTRA_TABLES`).
+7. **Управляющий (`supervisor`):** может входить в `/api/push-record(s)` (`canUseSyncPushApi`); дальше `authorizePush` / `mutationAuth` режут чужой клуб и запрещённые таблицы (`isSupervisorDeniedPushTable`).
+8. **Новая синхронизируемая таблица:**
    - migration + RLS;
    - добавить в `PUSH_ALLOWED_TABLES` (`api/_lib/pushRecordCore.js`);
    - путь flush в sync-сервисе;
    - store/индексы в `localDb.js` при офлайн-кэше;
    - pull (trainer-pull / admin-data / reference), если данные нужны на устройстве;
    - обновить [DATA_MODEL.md](./DATA_MODEL.md) и этот файл при смене allowlist.
+   - права в `api/_lib/mutationAuth.js`.
 
 ---
 

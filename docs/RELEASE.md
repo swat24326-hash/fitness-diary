@@ -2,7 +2,8 @@
 
 Продукт **уже в эксплуатации** — один релиз = одна зона изменений. Не смешивать sync, статистику и крупный UI в одном выкладе.
 
-Production: **https://fitness-diary-bice.vercel.app**
+Production: **https://fitness-diary-bice.vercel.app**  
+**Хостинг сейчас:** Vercel + Supabase. Переезд на РФ — позже; см. [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md) (cutover только по явной команде).
 
 ## Перед merge в `main`
 

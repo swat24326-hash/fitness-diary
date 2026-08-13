@@ -2,7 +2,8 @@
 
 Выполнять **до** подключения нового клуба с большим числом тренеров или после смены домена/проекта Supabase.
 
-Production app: **https://fitness-diary-bice.vercel.app**
+Production app: **https://fitness-diary-bice.vercel.app**  
+Сейчас Vercel + Supabase; целевой переезд на РФ — [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md).
 
 ## 1. Проект и ключи
 
@@ -50,10 +51,11 @@ order by u.role, u.email;
 - [ ] `club_supervisor_expense.amount_*` (rent / expenses / deposits=оклады / accounting / sales) — разбивка расхода: `20260806160000_…_parts.sql`, `20260806170000_…_sales.sql`.
 - [ ] Нет «второго» Supabase-проекта с устаревшей схемой, к которому случайно смотрят в Table Editor.
 
-## 6. Edge Functions
+## 6. Edge Functions (legacy)
 
-- [ ] Задеплоены `create-trainer`, `delete-trainer` (см. `docs/DEPLOY.md`).
-- [ ] Создание тренера из админки **Организация** завершается без бесконечного «Сохраняем…».
+- [ ] **Не требуется** для прода: создание/удаление тренера идут через Vercel `/api/create-trainer` и `admin-data?action=delete-trainer` (см. [DEPLOY.md](./DEPLOY.md), [API.md](./API.md)).
+- [ ] На Vercel задан server env `SUPABASE_SERVICE_ROLE_KEY`.
+- [ ] Создание тренера из админки **Организация / Структура** завершается без бесконечного «Сохраняем…».
 
 ## 7. Лимиты бесплатного тарифа (контроль)
 

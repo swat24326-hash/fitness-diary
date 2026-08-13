@@ -2,7 +2,7 @@
 
 **Статус:** ✅ **в проде** (роль `sales_manager`, маршруты `/sales`, `/sales/clients`, `/sales/pnk`, `/sales/club-tasks`; админ — `/admin/sales`). Документ ниже — согласованное ТЗ и справочник полей; при расхождении с UI смотреть код (`AdminSales`, `AdminClients`/`SalesClients`, `api/_lib/adminData/salesHandlers.js`).  
 **Связано:** воронка ПНК — [PNK_FUNNEL.md](./PNK_FUNNEL.md).  
-**Не путать с:** [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md) — управляющий (`supervisor`, ещё не в коде): на своём клубе продажи **как у админа клуба**; не менеджер продаж.
+**Не путать с:** [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md) — управляющий (`supervisor`, ✅ в проде, `/club`): на своём клубе продажи **как у админа клуба**; не менеджер продаж.
 
 ---
 
@@ -381,7 +381,7 @@
 | Что | Статус / почему |
 |-----|-----------------|
 | Роль `sales_manager` | ✅ **в проде** (зона A, клиенты, ПНК…) |
-| Роль `supervisor` (продажи как админ клуба) | 📋 [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md) |
+| Роль `supervisor` (продажи как админ клуба) | ✅ [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md) |
 | ИИ / DeepSeek в отчёте | ⏸ до стабильной правды оплат |
 | ПНК по ПЗ / ТЗ / АЗ | ✅ только `pnk_total` |
 | Рубли в 9 ячейках матрицы | ✅ только **количества** |
