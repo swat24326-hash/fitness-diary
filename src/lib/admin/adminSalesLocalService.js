@@ -40,6 +40,12 @@ import {
 import { normalizeMatrixRowsFromDb } from './salesTrainingsMatrix.js'
 import { normalizeAerobicRowsFromDb } from './aerobicSalesMatrix.js'
 import {
+  mergeSalesTrainersForLabels,
+  unresolvedTrainerIdsForLabels,
+  trainerIdsFromMatrixRows,
+  trainerIdsFromSalesDailyRows,
+} from './salesTrainerLabelsCore.js'
+import {
   aggregatePayrollFromDailyRows,
   buildTrainerPayRateMap,
   computeNetProfitWithPayroll,
@@ -126,6 +132,42 @@ async function fetchClubTrainers(clubId) {
     if (u?.is_active === false) return false
     return roles.has(String(u?.role ?? '').trim().toLowerCase())
   })
+}
+
+/** Best-effort ФИО по id (RLS может не отдать чужой club_id — тогда API). */
+async function fetchUserNameRowsByIds(ids) {
+  const unique = [...new Set((ids ?? []).map((x) => String(x ?? '').trim()).filter(Boolean))]
+  if (!unique.length) return []
+  /** @type {object[]} */
+  const rows = []
+  const chunkSize = 80
+  for (let i = 0; i < unique.length; i += chunkSize) {
+    const chunk = unique.slice(i, i + chunkSize)
+    const { data, error } = await withSupabaseRetry(() =>
+      supabase.from('users').select('id, name, email, login, is_active, role, club_id').in('id', chunk),
+    )
+    if (error) break
+    rows.push(...(data ?? []))
+  }
+  return rows
+}
+
+async function enrichLocalSalesTrainers(clubTrainers, daily, monthRows) {
+  const base = Array.isArray(clubTrainers) ? clubTrainers : []
+  const matrixIds = [
+    ...trainerIdsFromSalesDailyRows(monthRows),
+    ...trainerIdsFromMatrixRows(normalizeMatrixRowsFromDb(daily?.trainings_matrix)),
+  ]
+  const missing = unresolvedTrainerIdsForLabels(base, matrixIds)
+  let nameCatalog = []
+  if (missing.length) {
+    try {
+      nameCatalog = await fetchUserNameRowsByIds(missing)
+    } catch {
+      nameCatalog = []
+    }
+  }
+  return mergeSalesTrainersForLabels(base, { daily, monthRows, nameCatalog })
 }
 
 async function loadMembershipTypes(clubId, warnings) {
@@ -322,6 +364,15 @@ export async function fetchClubSalesBundleViaSupabase({ clubId, reportDate, prof
     daily = { ...daily, aerobic_sales_matrix: normalizeAerobicRowsFromDb(daily.aerobic_sales_matrix) }
   }
 
+  let trainersOut = flags.needTrainers ? trainers : []
+  if (flags.needTrainers || flags.needMonth) {
+    trainersOut = await enrichLocalSalesTrainers(
+      trainersOut,
+      flags.needDaily ? daily : null,
+      flags.needMonth ? monthRows : [],
+    )
+  }
+
   if (!membershipTypes.length && !salesTablesOk && warnings.length) {
     throw new Error(warnings[0])
   }
@@ -337,7 +388,7 @@ export async function fetchClubSalesBundleViaSupabase({ clubId, reportDate, prof
     expense: flags.needPlanExpense ? expense : null,
     monthSummary,
     membershipTypes: flags.needTypes ? membershipTypes : [],
-    trainers: flags.needTrainers ? trainers : [],
+    trainers: trainersOut,
     fitCityTypeStats,
     warnings,
   })

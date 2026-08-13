@@ -3,6 +3,7 @@ import { BarChart3, Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { buildSalesManagerMonthStats } from '../lib/admin/salesManagerStatsAgg.js'
 import { formatRub } from '../lib/admin/salesReportCore.js'
 import { SALES_TRAINING_CLUB_ID } from '../lib/admin/salesTrainingsMatrix.js'
+import { salesTrainerDisplayLabel } from '../lib/admin/salesTrainerLabelsCore.js'
 import { MembershipTypeStatsTable } from './MembershipTypeStatsTable.jsx'
 import { SalesAerobicTypeDayModal } from './SalesAerobicTypeDayModal.jsx'
 import { SalesDayBarChart } from './SalesDayBarChart.jsx'
@@ -71,12 +72,10 @@ export function SalesManagerStatsPanel({
   clubId = '',
 }) {
   const trainerLabel = useMemo(() => {
-    const byId = new Map(
-      (trainers ?? []).map((t) => [String(t.id ?? ''), String(t.full_name ?? t.name ?? '').trim() || '—']),
-    )
+    const byId = new Map((trainers ?? []).map((t) => [String(t.id ?? ''), t]))
     return (id) => {
       if (id === SALES_TRAINING_CLUB_ID) return 'По клубу'
-      return byId.get(String(id ?? '')) ?? (id || '—')
+      return salesTrainerDisplayLabel(id, byId.get(String(id ?? '')))
     }
   }, [trainers])
 

@@ -10,6 +10,7 @@ import {
   clubDisplayCountForType,
   isLikelyTrainerUuidLabel,
 } from '../lib/admin/salesTrainingsMatrix.js'
+import { salesTrainerDisplayLabel } from '../lib/admin/salesTrainerLabelsCore.js'
 import { computeDayPayrollForecastFromInputMap } from '../lib/admin/trainerDayPayrollForecastCore.js'
 import { MembershipTypeStatsTable } from './MembershipTypeStatsTable.jsx'
 import { formatRub } from '../lib/admin/salesReportCore.js'
@@ -65,9 +66,7 @@ export function SalesTrainingsMatrix({
   const trainerLabel = (id) => {
     const sid = String(id ?? '').trim()
     const fromProp = trainers.find((t) => String(t.id) === sid)
-    const name = String(fromProp?.name ?? fromProp?.email ?? '').trim()
-    if (name && !isLikelyTrainerUuidLabel(name)) return name
-    return name || 'Тренер'
+    return salesTrainerDisplayLabel(sid, fromProp)
   }
 
   const setCell = (trainerId, typeId, value) => {

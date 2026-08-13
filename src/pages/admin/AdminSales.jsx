@@ -24,10 +24,13 @@ import {
   buildTrainingsMatrixColumns,
   hydrateTrainingsMatrixInputMap,
   mergeTrainersWithMatrixNames,
-  matrixTrainerLabelsNeedEnrich,
   normalizeMatrixRowsFromDb,
   trainerIdsFromTrainingsMatrixInput,
 } from '../../lib/admin/salesTrainingsMatrix'
+import {
+  salesTrainerLabelsNeedEnrich,
+  trainerIdsFromSalesDailyRows,
+} from '../../lib/admin/salesTrainerLabelsCore.js'
 import {
   aerobicRowsToInputMap,
   buildAerobicSalesMatrixColumns,
@@ -300,7 +303,7 @@ export function AdminSales({ accessMode = 'admin' }) {
     if (Array.isArray(bundle.trainers)) {
       setTrainers((prev) =>
         mergeTrainersWithMatrixNames(
-          bundle.trainers,
+          [...(prev ?? []), ...(bundle.trainers ?? [])],
           dailyResolved.trainingsMatrix,
           prev,
         ),
@@ -322,6 +325,16 @@ export function AdminSales({ accessMode = 'admin' }) {
       }
       if (bundle.monthSummary != null) setMonthSummary(bundle.monthSummary)
       if (Array.isArray(bundle.monthDays)) setMonthDays(bundle.monthDays)
+      if (Array.isArray(bundle.trainers)) {
+        setTrainers((prev) =>
+          mergeTrainersWithMatrixNames(
+            bundle.trainers,
+            {},
+            prev,
+            trainerIdsFromSalesDailyRows(bundle.monthDays),
+          ),
+        )
+      }
       const pe = applyPlanExpenseDrafts(bundle, cid)
       if (pe.planResolved.restored) draftHints.push('план')
       if (pe.expenseResolved.restored) draftHints.push('расход')
@@ -790,7 +803,7 @@ export function AdminSales({ accessMode = 'admin' }) {
 
   useEffect(() => {
     if (!clubId || !isSupabaseConfigured()) return
-    if (!matrixTrainerLabelsNeedEnrich(trainers, trainingsMatrix)) return
+    if (!salesTrainerLabelsNeedEnrich(trainers, trainingsMatrix, monthDays)) return
     let cancelled = false
     void (async () => {
       try {
@@ -798,7 +811,12 @@ export function AdminSales({ accessMode = 'admin' }) {
         const catalog = await listTrainerSummariesForAdmin()
         if (cancelled || !catalog?.length) return
         setTrainers((prev) => {
-          const next = mergeTrainersWithMatrixNames(prev, trainingsMatrix, catalog)
+          const next = mergeTrainersWithMatrixNames(
+            prev,
+            trainingsMatrix,
+            catalog,
+            trainerIdsFromSalesDailyRows(monthDays),
+          )
           const prevKey = (prev ?? []).map((t) => `${t.id}:${t.name}`).join('|')
           const nextKey = next.map((t) => `${t.id}:${t.name}`).join('|')
           return prevKey === nextKey ? prev : next
@@ -810,7 +828,7 @@ export function AdminSales({ accessMode = 'admin' }) {
     return () => {
       cancelled = true
     }
-  }, [clubId, trainers, trainingsMatrix])
+  }, [clubId, trainers, trainingsMatrix, monthDays])
 
   const handleSavePlanLevels = async () => {
     if (!clubId) return

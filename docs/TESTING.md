@@ -100,6 +100,7 @@
 | Уникальность карты в клубе (не сети) при создании | `verify-client-card-unique.mjs` |
 | Связка оплат → lite/клип/desk (ПЗ без карточки) | `verify-sales-payments-link.mjs` |
 | Импорт часов ПЗ (`otchet_pz` → матрица тренер×тип) | `verify-pz-trainings-report-import.mjs` |
+| Продажи: ФИО в матрице/статистике (не UUID) | тот же `verify-pz-trainings-report-import.mjs` (+ `salesTrainerLabelsCore`) |
 | Домен платежа (когда появится код) | ТЗ: [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md); verify — в той же задаче |
 | Desk-сид закрытий (карта + end_date + цена; UI `/admin/excel-lists`) | `verify-desk-closing-import.mjs` |
 | Desk ledger абонов (действующий / цена) | `verify-desk-membership-ledger.mjs` |

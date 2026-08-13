@@ -37,7 +37,9 @@ export function salesBundleProfileFlags(profileRaw, includeFitCityRaw) {
   const needDaily = profile === 'daily' || profile === 'full'
   const needPlanExpense = profile === 'shell' || profile === 'month' || profile === 'full'
   const needTypes = profile === 'shell' || profile === 'daily' || profile === 'month' || profile === 'full'
-  const needTrainers = profile === 'daily' || profile === 'full'
+  /** Тренеры нужны и в shell/month: статистика месяца показывает ФИО, не только дневная матрица. */
+  const needTrainers =
+    profile === 'daily' || profile === 'full' || profile === 'shell' || profile === 'month'
   /** Fit-city: только full или явный include (дорого: все memberships + trainings дня). */
   const needFitCity = profile === 'full' || (fitExplicit && needDaily)
 

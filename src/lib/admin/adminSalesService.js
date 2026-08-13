@@ -7,6 +7,8 @@ import {
 } from './adminSalesLocalService.js'
 import { isCloudReachable, fetchWithAppTimeout } from '../networkReachability.js'
 import { humanizeNetworkError } from '../supabaseRetry.js'
+import { salesTrainerLabelsNeedEnrich } from './salesTrainerLabelsCore.js'
+import { hydrateTrainingsMatrixInputMap, normalizeMatrixRowsFromDb } from './salesTrainingsMatrix.js'
 
 const apiOrigin = () => (typeof window !== 'undefined' ? window.location.origin : '')
 
@@ -115,7 +117,20 @@ export async function fetchClubSalesBundle({ clubId, reportDate, profile, includ
 
   let supabaseErr = null
   try {
-    return await fetchClubSalesBundleViaSupabase({ clubId, reportDate, profile, includeFitCity })
+    const local = await fetchClubSalesBundleViaSupabase({ clubId, reportDate, profile, includeFitCity })
+    const dayMatrix = hydrateTrainingsMatrixInputMap(
+      normalizeMatrixRowsFromDb(local.daily?.trainings_matrix),
+    )
+    const labelsGap = salesTrainerLabelsNeedEnrich(local.trainers, dayMatrix, local.monthDays)
+    // Менеджер: RLS часто не отдаёт ФИО тренеров с другим club_id — добираем через API (service role).
+    if (labelsGap && isCloudReachable()) {
+      try {
+        return await loadViaApi()
+      } catch {
+        return local
+      }
+    }
+    return local
   } catch (e) {
     supabaseErr = e
   }

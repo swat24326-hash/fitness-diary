@@ -26,6 +26,13 @@ import {
   trainerIdsFromTrainingsMatrixInput,
   trainingsMatrixHasTrainerDetail,
 } from '../src/lib/admin/salesTrainingsMatrix.js'
+import {
+  mergeSalesTrainersForLabels,
+  salesTrainerDisplayLabel,
+  salesTrainerLabelsNeedEnrich,
+  trainerIdsFromSalesDailyRows,
+  unresolvedTrainerIdsForLabels,
+} from '../src/lib/admin/salesTrainerLabelsCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -269,6 +276,33 @@ const mergedNames = mergeTrainersWithMatrixNames(
 )
 ok(mergedNames[0]?.name === 'Анжелика Кожемякина', 'merge puts fio on matrix id')
 ok(!matrixTrainerLabelsNeedEnrich(mergedNames, uuidMatrix), 'enriched no longer needs enrich')
+
+const monthOnlyId = 'a7334a0d-9c73-4f9b-b492-07059c6bb61b'
+const monthRowsLabel = [
+  {
+    trainings_matrix: [{ trainer_id: monthOnlyId, membership_type_id: 't1', count: 4 }],
+  },
+]
+ok(trainerIdsFromSalesDailyRows(monthRowsLabel).includes(monthOnlyId), 'month rows → trainer ids')
+ok(
+  salesTrainerLabelsNeedEnrich([{ id: 'active-1', name: 'Светлана' }], {}, monthRowsLabel),
+  'stats need enrich for month-only trainer',
+)
+ok(
+  unresolvedTrainerIdsForLabels([{ id: 'active-1', name: 'Светлана' }], [monthOnlyId]).includes(monthOnlyId),
+  'unresolved lists month-only id',
+)
+const labeled = mergeSalesTrainersForLabels([{ id: 'active-1', name: 'Светлана' }], {
+  monthRows: monthRowsLabel,
+  nameCatalog: [{ id: monthOnlyId, name: 'Роман Шуцкий' }],
+})
+ok(
+  labeled.some((t) => t.id === monthOnlyId && t.name === 'Роман Шуцкий'),
+  'mergeSalesTrainersForLabels adds FIO for month id',
+)
+ok(salesTrainerDisplayLabel(monthOnlyId, null) === 'Тренер', 'display never raw uuid')
+ok(salesTrainerDisplayLabel(monthOnlyId, { name: monthOnlyId }) === 'Тренер', 'display rejects uuid-as-name')
+ok(salesTrainerDisplayLabel(monthOnlyId, { name: 'Роман Шуцкий' }) === 'Роман Шуцкий', 'display FIO')
 
 if (failed) {
   console.error(`\n${failed} failed`)

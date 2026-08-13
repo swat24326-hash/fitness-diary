@@ -52,6 +52,7 @@ import { salesBundleProfileFlags } from '../../../src/lib/admin/salesBundleProfi
 import { TRAINER_ROLES } from './constants.js'
 import { fetchPaged } from './paging.js'
 import { isHoldingTrainerUser } from '../../../src/lib/admin/deskClosingImportCore.js'
+import { enrichSalesTrainersWithMatrixNames } from './salesTrainerLabels.js'
 
 const TRAINER_ROLES_SALES = new Set(TRAINER_ROLES)
 
@@ -216,6 +217,15 @@ export async function handleSalesGet(ctx, req, res) {
     daily.aerobic_sales_matrix = normalizeAerobicRowsFromDb(daily.aerobic_sales_matrix)
   }
 
+  /** ФИО для id из матриц месяца (неактивные / другой club_id) — иначе у менеджера UUID. */
+  let trainersOut = flags.needTrainers ? trainers : []
+  if (flags.needTrainers || flags.needMonth) {
+    trainersOut = await enrichSalesTrainersWithMatrixNames(supabaseAdmin, trainersOut, {
+      daily: flags.needDaily ? daily : null,
+      monthRows: flags.needMonth ? monthRows : [],
+    })
+  }
+
   const payload = {
     club_id: clubId,
     year,
@@ -228,7 +238,7 @@ export async function handleSalesGet(ctx, req, res) {
     expense: flags.needPlanExpense ? expenseRes.data ?? null : null,
     month_summary: flags.needMonth ? monthSummary : null,
     membership_types: flags.needTypes ? membershipTypes : [],
-    trainers: flags.needTrainers ? trainers : [],
+    trainers: trainersOut,
     fit_city_type_stats: fitCityTypeStats,
   }
 

@@ -263,12 +263,13 @@ export function matrixTrainerLabelsNeedEnrich(trainers, matrix) {
 }
 
 /**
- * Свести список тренеров + ФИО из каталога, не теряя строки матрицы.
+ * Свести список тренеров + ФИО из каталога, не теряя строки матрицы / месяца.
  * @param {Array<{ id?: string, name?: string, email?: string, club_id?: string|null }>|null|undefined} primary
  * @param {Record<string, string>|null|undefined} matrix
  * @param {Array<{ id?: string, name?: string, email?: string, club_id?: string|null }>|null|undefined} [nameCatalog]
+ * @param {Iterable<string>|null|undefined} [extraIds] — id из месяца / stats вне дневной карты
  */
-export function mergeTrainersWithMatrixNames(primary, matrix, nameCatalog = []) {
+export function mergeTrainersWithMatrixNames(primary, matrix, nameCatalog = [], extraIds = []) {
   /** @type {Map<string, string>} */
   const names = new Map()
   /** @type {Map<string, string|null>} */
@@ -298,7 +299,13 @@ export function mergeTrainersWithMatrixNames(primary, matrix, nameCatalog = []) 
       club_id: t?.club_id ?? clubs.get(id) ?? null,
     })
   }
-  for (const id of trainerIdsFromTrainingsMatrixInput(matrix)) {
+  /** @type {Set<string>} */
+  const ensureIds = new Set(trainerIdsFromTrainingsMatrixInput(matrix))
+  for (const raw of extraIds ?? []) {
+    const id = String(raw ?? '').trim()
+    if (id) ensureIds.add(id)
+  }
+  for (const id of ensureIds) {
     const cur = byId.get(id)
     const nice = names.get(id)
     if (!cur) {
