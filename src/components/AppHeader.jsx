@@ -444,6 +444,12 @@ export function AppHeader() {
                 Статистика
               </span>
             </NavLink>
+            <NavLink to={`/admin/sales${adminQs}`} className={headerNavClass}>
+              <span className="app-header__nav-with-icon">
+                <TrendingUp size={18} aria-hidden />
+                Продажи
+              </span>
+            </NavLink>
             <NavLink to={`/admin/challenges${adminQs}`} className={headerNavClass}>
               <span className="app-header__nav-with-icon">
                 <Trophy size={18} aria-hidden />
@@ -469,6 +475,12 @@ export function AppHeader() {
               <span className="app-header__nav-with-icon">
                 <BarChart3 size={18} aria-hidden />
                 Статистика
+              </span>
+            </NavLink>
+            <NavLink to="/club/sales" className={headerNavClass}>
+              <span className="app-header__nav-with-icon">
+                <TrendingUp size={18} aria-hidden />
+                Продажи
               </span>
             </NavLink>
             <NavLink to="/club/settings" className={headerNavClass}>
