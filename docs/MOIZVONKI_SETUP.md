@@ -1,8 +1,9 @@
 # Мои Звонки — клубные SMS и звонки
 
-**Статус:** ✅ SMS в проде; ✅ исходящий звонок (`calls.make_call`) — MVP на доске клиентов + журнал.  
+**Статус:** ✅ **в проде** (2026-08-13): SMS + исходящий звонок (`calls.make_call`) + журнал связи (список / сводка / учёт SMS) + история в карточке клиента.  
 **Per-club:** ✅ свой аккаунт на клуб (`club_iskra_settings.moizvonki`); общий `MOIZVONKI_*` — запасной.  
 **Не путать с:** Max у тренера (личный чат) и с номерным Max-шлюзом.
+**Прод:** https://fitness-diary-bice.vercel.app · миграция `club_call_log` применена на linked.
 
 ## Зачем
 
@@ -110,14 +111,14 @@
 Код: `api/_lib/moiZvonkiCore.js`, `moiZvonkiHandler.js`, `moiZvonkiCallHandler.js`, `src/lib/admin/moiZvonkiClubConfigCore.js`, `clubSmsLogCore.js`, `clubCallLogCore.js`.  
 Проверка: `node scripts/verify-moi-zvonki.mjs`, `node scripts/verify-moi-zvonki-call.mjs`, `node scripts/verify-club-call-log.mjs`, `node scripts/verify-club-outreach-stats.mjs`, `node scripts/verify-moi-zvonki-club-config.mjs`.
 
-## План работы и проверки (звонок + журнал)
+## Шип и проверки (звонок + журнал)
 
-### Перед продом
-1. Миграция: `npm run db:migrate:club-call-log -- --linked`
-2. Коммит + деплой (Vercel) с новым API `club-call`
-3. Мои Звонки клуба: Android онлайн, тот же аккаунт что для SMS
+### Уже сделано (прод)
+1. ✅ Миграция: `npm run db:migrate:club-call-log -- --linked` (таблица `club_call_log` на linked)
+2. ✅ Коммит + деплой Vercel (`club-call` API, журнал, сводка)
+3. ⬜ Живая сверка в зале: Android клуба онлайн, тот же аккаунт Мои Звонки что для SMS
 
-### Автотесты (уже зелёные локально)
+### Автотесты
 ```text
 node scripts/verify-moi-zvonki-call.mjs
 node scripts/verify-club-call-log.mjs
@@ -136,9 +137,5 @@ npm run lint
 | 6 | Выключить Android / неверный ключ | fail в журнале + понятный текст |
 | 7 | Тренер | Нет плитки журнала, нет блока в карточке, нет кнопки Позвонить |
 
-### Не в этой проверке
-Отвечен/пропущен/длительность (кабинет Мои Звонки / будущий webhook).
-
-## Не в MVP
-
-Webhook Мои Звонки (длительность / отвечен), массовый автообзвон, кнопка SMS/звонка у тренера, отдельный batch-endpoint, отметка «звонили» на строке.
+### Не в этой проверке / не в MVP
+Отвечен / пропущен / длительность (кабинет Мои Звонки / будущий webhook); массовый автообзвон; кнопка SMS/звонка у тренера; отметка «звонили» на строке доски.

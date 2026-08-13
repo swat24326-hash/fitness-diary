@@ -65,7 +65,7 @@ src/
     hr/                   — BLE пульс в общей шапке, до 2 слотов (см. docs/TRAINING_HR.md)
   pages/
     admin/                — дашборд, клиенты, статистика, Sales*, ИСКРА, челленджи, deletion-log,
-                            ClubSupervisor* (кабинет `/club`)
+                            call-log (журнал связи), ClubSupervisor* (кабинет `/club`)
     trainer/              — home, clients, ClientCard, TrainingPage, profile
   components/pnk/         — UI воронки ПНК
 api/

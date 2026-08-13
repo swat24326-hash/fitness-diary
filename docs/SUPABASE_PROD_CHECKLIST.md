@@ -44,6 +44,7 @@ order by u.role, u.email;
 - [x] `trainer_pay_profiles`: кабинет тренера (план / ±₽) — `npm run db:migrate:trainer-pay-profiles -- --linked` (миграция `20260808140000_trainer_pay_profiles.sql`). Применено на linked (2026-08-08).
 - [x] `club_trainer_pay_month_snapshots`: заморозка правил ЗП на месяц — `npm run db:migrate:trainer-pay-month-snapshots -- --linked` (миграция `20260809120000_club_trainer_pay_month_snapshots.sql`). Применено на linked (2026-08-09).
 - [x] `club_sms_log.status` / `error_message` — `npm run db:migrate:club-sms-log-status -- --linked` (миграция `20260813210000_club_sms_log_status.sql`). Применено на linked (2026-08-13).
+- [x] `club_call_log` — журнал исходящих звонков клуба — `npm run db:migrate:club-call-log -- --linked` (миграция `20260813220000_club_call_log.sql`). Применено на linked (2026-08-13).
 - [ ] Таблица `deletion_audit_log` (журнал удалений клиентов) — миграция `20260805210000_deletion_audit_log.sql` + RLS admin / SM read.
 
 ## 5. Схема БД
