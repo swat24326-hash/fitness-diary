@@ -57,14 +57,30 @@ async function fetchClubCallLogsForClub(ctx, clubId, sinceDaysRaw, clientId = ''
 
   let q = ctx.supabaseAdmin
     .from('club_call_log')
-    .select('id, club_id, client_id, sent_by, phone, status, error_message, created_at')
+    .select(
+      'id, club_id, client_id, sent_by, phone, status, error_message, created_at, outcome, answered, duration_sec, mz_db_call_id, src_number, finished_at',
+    )
     .eq('club_id', clubId)
     .gte('created_at', sinceIso)
     .order('created_at', { ascending: false })
     .limit(CLUB_CALL_LOG_MAX_ROWS)
   if (clientFilter) q = q.eq('client_id', clientFilter)
 
-  const { data: rows, error } = await q
+  let { data: rows, error } = await q
+
+  if (error && /outcome|duration_sec|finished_at|schema cache|column/i.test(String(error.message ?? ''))) {
+    let qLegacy = ctx.supabaseAdmin
+      .from('club_call_log')
+      .select('id, club_id, client_id, sent_by, phone, status, error_message, created_at')
+      .eq('club_id', clubId)
+      .gte('created_at', sinceIso)
+      .order('created_at', { ascending: false })
+      .limit(CLUB_CALL_LOG_MAX_ROWS)
+    if (clientFilter) qLegacy = qLegacy.eq('client_id', clientFilter)
+    const legacy = await qLegacy
+    rows = legacy.data
+    error = legacy.error
+  }
 
   if (error) throw new Error(error.message || 'club_call_log query failed')
 

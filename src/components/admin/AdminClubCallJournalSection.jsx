@@ -5,7 +5,7 @@ import {
   filterClubCallLogRowsByStatus,
   summarizeClubCallLogRows,
 } from '../../lib/admin/clubCallLogCore.js'
-import { formatDateTimeRu } from '../../lib/dateRu.js'
+import { AdminClubCallJournalRow } from './AdminClubCallJournalRow.jsx'
 import '../../styles/club-call.css'
 
 const PERIODS = [
@@ -16,17 +16,9 @@ const PERIODS = [
 
 const STATUS_FILTERS = [
   { id: 'all', label: 'Все' },
-  { id: 'ok', label: 'Ушло' },
+  { id: 'ok', label: 'Команда ушла' },
   { id: 'fail', label: 'Ошибки' },
 ]
-
-function formatPhone(phone) {
-  const d = String(phone ?? '').replace(/\D/g, '')
-  if (d.length === 11 && d.startsWith('7')) {
-    return `+7 ${d.slice(1, 4)} ${d.slice(4, 7)}-${d.slice(7, 9)}-${d.slice(9)}`
-  }
-  return phone || '—'
-}
 
 /**
  * Журнал звонков: клубный или по одному клиенту.
@@ -57,8 +49,8 @@ export function AdminClubCallJournalSection({
   const lead =
     intro ||
     (forClient
-      ? 'Исходящие через Мои Звонки с телефона клуба: успех и ошибки команды.'
-      : 'Команды «позвонить» через Мои Звонки: успех и ошибки API. Запись разговора — в кабинете Мои Звонки (если включена).')
+      ? 'Исходящие через Мои Звонки: «Команда ушла» — API принял запрос; «Отвечен / Пропущен / Короткий» — после webhook с Android.'
+      : '«Команда ушла» = сервер Мои Звонки принял make_call (не факт дозвона). Исход разговора появится после webhook call.finish.')
 
   const reload = useCallback(async () => {
     if (!clubId) {
@@ -137,9 +129,19 @@ export function AdminClubCallJournalSection({
         <p className="club-call-journal__summary muted" role="status">
           За период: <strong>{summary.total}</strong>
           {' · '}
-          ушло <strong>{summary.ok}</strong>
+          команда ок <strong>{summary.ok}</strong>
           {' · '}
           ошибок <strong>{summary.fail}</strong>
+          {summary.answered || summary.missed || summary.short ? (
+            <>
+              {' · '}
+              отвечен <strong>{summary.answered ?? 0}</strong>
+              {' · '}
+              пропущен <strong>{summary.missed ?? 0}</strong>
+              {' · '}
+              коротких <strong>{summary.short ?? 0}</strong>
+            </>
+          ) : null}
         </p>
       ) : null}
 
@@ -177,35 +179,13 @@ export function AdminClubCallJournalSection({
 
       {!loading && !err && visible.length > 0 ? (
         <ul className="club-call-journal__list">
-          {visible.map((row) => {
-            const fail = row.status === 'fail'
-            return (
-              <li
-                key={row.id}
-                className={`club-call-journal__row${fail ? ' club-call-journal__row--fail' : ''}`}
-              >
-                <div className="club-call-journal__meta">
-                  <span className="club-call-journal__when">{formatDateTimeRu(row.created_at)}</span>
-                  <span
-                    className={`club-call-journal__status${fail ? ' club-call-journal__status--fail' : ''}`}
-                  >
-                    {fail ? 'Ошибка' : 'Ушло'}
-                  </span>
-                </div>
-                <div className="club-call-journal__who">
-                  {forClient
-                    ? row.sent_by_name
-                      ? `Кто: ${row.sent_by_name}`
-                      : 'Кто: —'
-                    : `${row.client_name || 'Клиент'}${row.sent_by_name ? ` · ${row.sent_by_name}` : ''}`}
-                </div>
-                <div className="club-call-journal__phone muted">{formatPhone(row.phone)}</div>
-                {fail && row.error_message ? (
-                  <p className="club-call-journal__error">{row.error_message}</p>
-                ) : null}
-              </li>
-            )
-          })}
+          {visible.map((row) => (
+            <AdminClubCallJournalRow
+              key={row.id}
+              row={row}
+              mode={forClient ? 'client' : 'club'}
+            />
+          ))}
         </ul>
       ) : null}
     </section>

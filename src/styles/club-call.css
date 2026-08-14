@@ -192,8 +192,21 @@
   color: color-mix(in srgb, var(--accent) 70%, var(--text));
 }
 
-.club-call-journal__status--fail {
-  color: rgb(248, 113, 113);
+.club-call-journal__status--answered {
+  color: rgb(52, 211, 153);
+}
+
+.club-call-journal__status--short {
+  color: rgb(251, 191, 36);
+}
+
+.club-call-journal__status--missed {
+  color: rgb(148, 163, 184);
+}
+
+.club-call-journal__src {
+  margin: 0.15rem 0 0;
+  font-size: 0.75rem;
 }
 
 .club-call-journal__error {

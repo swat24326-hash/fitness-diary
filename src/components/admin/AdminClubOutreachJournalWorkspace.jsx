@@ -2,11 +2,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { fetchClubCallLogs } from '../../lib/admin/clubCallService.js'
 import { fetchClubSmsLogs } from '../../lib/admin/clubSmsService.js'
-import { filterClubCallLogRowsByStatus } from '../../lib/admin/clubCallLogCore.js'
+import {
+  filterClubCallLogRowsByStatus,
+  summarizeClubCallLogRows,
+} from '../../lib/admin/clubCallLogCore.js'
 import { filterClubSmsLogRowsByStatus } from '../../lib/admin/clubSmsLogCore.js'
 import { buildClubCallStats, buildClubSmsStats } from '../../lib/admin/clubOutreachStatsCore.js'
 import { formatDateTimeRu } from '../../lib/dateRu.js'
 import { AdminClubOutreachStatsPanel } from './AdminClubOutreachStatsPanel.jsx'
+import { AdminClubCallJournalRow } from './AdminClubCallJournalRow.jsx'
 import '../../styles/club-call.css'
 
 const PERIODS = [
@@ -23,17 +27,9 @@ const TABS = [
 
 const STATUS_FILTERS = [
   { id: 'all', label: 'Все' },
-  { id: 'ok', label: 'Ушло' },
+  { id: 'ok', label: 'Команда ушла' },
   { id: 'fail', label: 'Ошибки' },
 ]
-
-function formatPhone(phone) {
-  const d = String(phone ?? '').replace(/\D/g, '')
-  if (d.length === 11 && d.startsWith('7')) {
-    return `+7 ${d.slice(1, 4)} ${d.slice(4, 7)}-${d.slice(7, 9)}-${d.slice(9)}`
-  }
-  return phone || '—'
-}
 
 /**
  * Журнал связи клуба: список звонков + сводка + учёт SMS.
@@ -80,6 +76,7 @@ export function AdminClubOutreachJournalWorkspace({ clubId }) {
   }, [reload])
 
   const callStats = useMemo(() => buildClubCallStats(callRows), [callRows])
+  const callSummary = useMemo(() => summarizeClubCallLogRows(callRows), [callRows])
   const smsStats = useMemo(() => buildClubSmsStats(smsRows), [smsRows])
   const visibleCalls = useMemo(
     () => filterClubCallLogRowsByStatus(callRows, statusFilter),
@@ -96,8 +93,8 @@ export function AdminClubOutreachJournalWorkspace({ clubId }) {
         <div>
           <h2 className="section-title">Журнал связи клуба</h2>
           <p className="muted admin-outreach-templates__intro">
-            Список и сводка исходящих звонков (как учёт в зале) плюс отчётность по SMS. Период общий для
-            всех вкладок.
+            «Команда ушла» — API Мои Звонки принял make_call. «Отвечен / Пропущен / Короткий» — исход с
+            Android после webhook. SMS — отдельный учёт команд отправки.
           </p>
         </div>
         <button
@@ -164,11 +161,21 @@ export function AdminClubOutreachJournalWorkspace({ clubId }) {
           </div>
           {!loading && !err ? (
             <p className="club-call-journal__summary muted" role="status">
-              Звонков: <strong>{callStats.total}</strong>
+              Звонков: <strong>{callSummary.total}</strong>
               {' · '}
-              ушло <strong>{callStats.ok}</strong>
+              команда ок <strong>{callSummary.ok}</strong>
               {' · '}
-              ошибок <strong>{callStats.fail}</strong>
+              ошибок <strong>{callSummary.fail}</strong>
+              {callSummary.answered || callSummary.missed || callSummary.short ? (
+                <>
+                  {' · '}
+                  отвечен <strong>{callSummary.answered}</strong>
+                  {' · '}
+                  пропущен <strong>{callSummary.missed}</strong>
+                  {' · '}
+                  коротких <strong>{callSummary.short}</strong>
+                </>
+              ) : null}
             </p>
           ) : null}
           {loading ? <p className="muted">Загрузка…</p> : null}
@@ -177,32 +184,9 @@ export function AdminClubOutreachJournalWorkspace({ clubId }) {
           ) : null}
           {!loading && !err && visibleCalls.length > 0 ? (
             <ul className="club-call-journal__list">
-              {visibleCalls.map((row) => {
-                const fail = row.status === 'fail'
-                return (
-                  <li
-                    key={row.id}
-                    className={`club-call-journal__row${fail ? ' club-call-journal__row--fail' : ''}`}
-                  >
-                    <div className="club-call-journal__meta">
-                      <span className="club-call-journal__when">{formatDateTimeRu(row.created_at)}</span>
-                      <span
-                        className={`club-call-journal__status${fail ? ' club-call-journal__status--fail' : ''}`}
-                      >
-                        {fail ? 'Ошибка' : 'Ушло'}
-                      </span>
-                    </div>
-                    <div className="club-call-journal__who">
-                      {row.client_name || 'Клиент'}
-                      {row.sent_by_name ? ` · ${row.sent_by_name}` : ''}
-                    </div>
-                    <div className="club-call-journal__phone muted">{formatPhone(row.phone)}</div>
-                    {fail && row.error_message ? (
-                      <p className="club-call-journal__error">{row.error_message}</p>
-                    ) : null}
-                  </li>
-                )
-              })}
+              {visibleCalls.map((row) => (
+                <AdminClubCallJournalRow key={row.id} row={row} mode="club" />
+              ))}
             </ul>
           ) : null}
         </>
@@ -213,7 +197,7 @@ export function AdminClubOutreachJournalWorkspace({ clubId }) {
           stats={callStats}
           loading={loading}
           emptyHint="Нет звонков за период — сводка появится после первых вызовов."
-          okLabel="Ушло"
+          okLabel="Команда ок"
         />
       ) : null}
 

@@ -80,6 +80,7 @@
 | Журнал SMS: status ok/fail, фильтры, сводка | `verify-club-sms-log.mjs` |
 | Мои Звонки: make_call payload + rate limit | `verify-moi-zvonki-call.mjs` |
 | Журнал звонков: insert/shape/фильтры | `verify-club-call-log.mjs` |
+| Исход звонка (webhook finish / подписи) | `verify-club-call-outcome.mjs` |
 | Сводка звонков/SMS по журналу | `verify-club-outreach-stats.mjs` |
 | Доска клиентов: Max (чат) рядом с SMS | `verify-club-client-max-outreach.mjs` |
 | Статистика клуба по залу ПЗ/ТЗ/АЗ | `verify-club-stats-hall.mjs` |

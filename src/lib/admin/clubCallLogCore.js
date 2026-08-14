@@ -80,6 +80,12 @@ export function buildClubCallLogInsertRow(input) {
 export function shapeClubCallLogApiRow(row, extra = {}) {
   if (!row) return null
   const status = normalizeClubCallLogStatus(row.status)
+  const outcome = String(row.outcome ?? 'pending').trim().toLowerCase() || 'pending'
+  const durationRaw = row.duration_sec
+  const duration_sec =
+    durationRaw == null || durationRaw === ''
+      ? null
+      : Math.max(0, Math.floor(Number(durationRaw) || 0))
   return {
     id: String(row.id ?? ''),
     club_id: String(row.club_id ?? ''),
@@ -89,6 +95,12 @@ export function shapeClubCallLogApiRow(row, extra = {}) {
     status,
     error_message: status === 'fail' ? String(row.error_message ?? '') : '',
     created_at: String(row.created_at ?? ''),
+    outcome: ['answered', 'missed', 'short', 'unknown'].includes(outcome) ? outcome : 'pending',
+    answered: row.answered == null ? null : Boolean(row.answered),
+    duration_sec,
+    mz_db_call_id: row.mz_db_call_id ? String(row.mz_db_call_id) : null,
+    src_number: row.src_number ? String(row.src_number) : null,
+    finished_at: row.finished_at ? String(row.finished_at) : null,
     client_name: extra.clientName ? String(extra.clientName) : null,
     sent_by_name: extra.sentByName ? String(extra.sentByName) : null,
   }
@@ -102,15 +114,27 @@ export function filterClubCallLogRowsByStatus(logs, filter) {
   return Array.isArray(logs) ? [...logs] : []
 }
 
-/** @param {Array<{ status?: string }>} logs */
+/** @param {Array<{ status?: string, outcome?: string }>} logs */
 export function summarizeClubCallLogRows(logs) {
   let ok = 0
   let fail = 0
+  let answered = 0
+  let missed = 0
+  let short = 0
+  let pending = 0
   for (const row of logs ?? []) {
-    if (normalizeClubCallLogStatus(row?.status) === 'fail') fail += 1
-    else ok += 1
+    if (normalizeClubCallLogStatus(row?.status) === 'fail') {
+      fail += 1
+      continue
+    }
+    ok += 1
+    const outcome = String(row?.outcome ?? 'pending').toLowerCase()
+    if (outcome === 'answered') answered += 1
+    else if (outcome === 'missed') missed += 1
+    else if (outcome === 'short') short += 1
+    else pending += 1
   }
-  return { total: ok + fail, ok, fail }
+  return { total: ok + fail, ok, fail, answered, missed, short, pending }
 }
 
 /**
