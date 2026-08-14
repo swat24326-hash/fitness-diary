@@ -1,6 +1,7 @@
 import { getAccessTokenForAdminApi, apiRouteMissing } from './adminApiClient.js'
 import { fetchWithAppTimeout, MOIZVONKI_FETCH_TIMEOUT_MS } from '../networkReachability.js'
 import { CLUB_CALL_LOG_DEFAULT_LOOKBACK_DAYS } from './clubCallLogCore.js'
+import { CALL_TODAY_LOOKBACK_DAYS } from './salesCallTodayCore.js'
 
 function apiOrigin() {
   if (typeof window !== 'undefined' && window.location?.origin) {
@@ -79,6 +80,45 @@ export async function fetchClubCallLogs(clubId, opts = {}) {
 }
 
 /**
+ * GET admin-data?action=club-call&glance=1 — очередь «кому звонить» для главной.
+ * @param {string} clubId
+ * @param {{ sinceDays?: number }} [opts]
+ */
+export async function fetchClubCallTodayGlance(clubId, opts = {}) {
+  const token = await getAccessTokenForAdminApi()
+  if (!token) throw new Error('Нет сессии — войдите снова')
+  const sinceDays =
+    Number(opts.sinceDays) > 0 ? Number(opts.sinceDays) : CALL_TODAY_LOOKBACK_DAYS
+  const qs = new URLSearchParams({
+    club_id: String(clubId ?? '').trim(),
+    glance: '1',
+    since_days: String(sinceDays),
+  })
+  const res = await fetchWithAppTimeout(`${apiOrigin()}/api/admin-data?action=club-call&${qs}`, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}` },
+    credentials: 'same-origin',
+    cache: 'no-store',
+  })
+  const ct = res.headers.get('content-type') || ''
+  if (apiRouteMissing(res, ct)) {
+    throw new Error('API club-call недоступен — нужен деплой с очередью звонков')
+  }
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(data?.error || 'Не удалось загрузить очередь звонков')
+  }
+  if (data?.glance_error) {
+    throw new Error(String(data.glance_error).slice(0, 160))
+  }
+  const glance = data?.glance
+  return {
+    items: Array.isArray(glance?.items) ? glance.items : [],
+    total: Math.max(0, Number(glance?.total) || 0),
+  }
+}
+
+/**
  * POST admin-data?action=club-call — запуск звонка с телефона клуба.
  * @param {{ clubId: string, clientId: string }} opts
  */
@@ -126,6 +166,49 @@ export async function makeClubCallViaApi(opts) {
     const err = new Error((data?.error || 'Не удалось запустить звонок') + detail)
     err.code = data?.code
     if (data?.retry_after_sec != null) err.retry_after_sec = Number(data.retry_after_sec) || 0
+    throw err
+  }
+  return data
+}
+
+/**
+ * POST admin-data?action=club-call op=note — пометка к строке журнала.
+ * @param {{ clubId: string, logId: string, staffNote: string }} opts
+ */
+export async function saveClubCallStaffNoteViaApi(opts) {
+  const token = await getAccessTokenForAdminApi()
+  if (!token) throw new Error('Нет сессии — войдите снова')
+
+  const body = {
+    op: 'note',
+    club_id: String(opts.clubId ?? '').trim(),
+    log_id: String(opts.logId ?? '').trim(),
+    staff_note: opts.staffNote == null ? '' : String(opts.staffNote),
+  }
+
+  const res = await fetchWithAppTimeout(
+    `${apiOrigin()}/api/admin-data?action=club-call`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      credentials: 'same-origin',
+      cache: 'no-store',
+      body: JSON.stringify(body),
+    },
+    MOIZVONKI_FETCH_TIMEOUT_MS,
+  )
+  const ct = res.headers.get('content-type') || ''
+  if (apiRouteMissing(res, ct)) {
+    throw new Error('API club-call недоступен — нужен деплой с пометками к звонкам')
+  }
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok || data?.ok === false) {
+    const detail = data?.detail ? ` (${data.detail})` : ''
+    const err = new Error((data?.error || 'Не удалось сохранить пометку') + detail)
+    err.code = data?.code
     throw err
   }
   return data

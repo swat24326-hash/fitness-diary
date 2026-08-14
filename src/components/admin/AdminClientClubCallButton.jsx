@@ -14,6 +14,7 @@ import '../../styles/club-call.css'
  *   busy?: boolean,
  *   onFeedback?: (msg: string, tone?: string) => void,
  *   onCalled?: (clientId: string) => void,
+ *   onNoteSaved?: () => void,
  * }} props
  */
 export function AdminClientClubCallButton({
@@ -24,6 +25,7 @@ export function AdminClientClubCallButton({
   busy = false,
   onFeedback,
   onCalled,
+  onNoteSaved,
 }) {
   const [open, setOpen] = useState(false)
   const hasPhone = Boolean(String(client?.phone ?? '').trim())
@@ -69,6 +71,7 @@ export function AdminClientClubCallButton({
         clubName={clubName}
         onFeedback={onFeedback}
         onCalled={onCalled}
+        onNoteSaved={onNoteSaved}
       />
     </>
   )

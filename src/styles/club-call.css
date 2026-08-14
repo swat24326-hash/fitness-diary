@@ -120,6 +120,19 @@
   gap: 0.75rem;
 }
 
+.club-call-journal__head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.club-call-journal__dur {
+  font-variant-numeric: tabular-nums;
+}
+
 .club-call-journal__periods {
   display: flex;
   flex-wrap: wrap;
@@ -275,6 +288,22 @@
   margin: 0.5rem 0;
 }
 
+.client-card-call-toast {
+  margin: 0.5rem 0 0;
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  font-size: 0.86rem;
+  line-height: 1.35;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+
+.client-card-call-toast--err {
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.45);
+  color: rgb(254, 202, 202);
+}
+
 .club-outreach-journal__tabs {
   display: flex;
   flex-wrap: wrap;
@@ -366,3 +395,228 @@
 .club-call-stats__empty {
   margin: 0.5rem 0 0;
 }
+
+.club-call-note {
+  margin-top: 0.55rem;
+  padding-top: 0.45rem;
+  border-top: 1px dashed color-mix(in srgb, var(--border) 75%, transparent);
+}
+
+.club-call-note--compact {
+  margin-top: 0.4rem;
+}
+
+.club-call-note__text {
+  margin: 0 0 0.35rem;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  white-space: pre-wrap;
+}
+
+.club-call-note__empty {
+  margin: 0 0 0.25rem;
+  font-size: 0.8rem;
+}
+
+.club-call-note__edit {
+  min-height: 2.25rem;
+  padding-inline: 0.65rem;
+  font-size: 0.82rem;
+}
+
+.club-call-note__label {
+  display: block;
+  margin: 0 0 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.club-call-note__input {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 2.75rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
+  background: color-mix(in srgb, var(--bg-subtle, #061210) 92%, #000);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+
+.club-call-note__meta {
+  margin: 0.2rem 0 0;
+  font-size: 0.72rem;
+  text-align: right;
+}
+
+.club-call-note__error {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  color: rgb(248, 113, 113);
+}
+
+.club-call-note__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+}
+
+.club-call-sheet__note {
+  margin-top: 0.75rem;
+  text-align: left;
+}
+
+.club-call-sheet__note-ok {
+  margin: 0.55rem 0 0;
+  font-size: 0.86rem;
+}
+
+/* —— Glance «кому звонить» на главной —— */
+.sales-call-today-glance {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.sales-call-today-glance__card {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+  background: color-mix(in srgb, var(--bg-subtle, #061210) 90%, #000);
+  min-height: 12.5rem;
+  box-sizing: border-box;
+}
+
+.sales-call-today-glance--hot .sales-call-today-glance__card {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+.sales-call-today-glance__top {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+}
+
+.sales-call-today-glance__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 10px;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  flex-shrink: 0;
+}
+
+.sales-call-today-glance__head-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.sales-call-today-glance__eyebrow {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.25;
+}
+
+.sales-call-today-glance__meta {
+  margin: 0.15rem 0 0;
+  font-size: 0.75rem;
+}
+
+.sales-call-today-glance__badge {
+  flex-shrink: 0;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.sales-call-today-glance__main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  margin: 0.15rem 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+
+.sales-call-today-glance__name {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1.25;
+}
+
+.sales-call-today-glance__reason {
+  font-size: 0.84rem;
+  line-height: 1.35;
+  color: var(--text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.sales-call-today-glance__reason--hot {
+  color: color-mix(in srgb, var(--accent) 75%, var(--text));
+}
+
+.sales-call-today-glance__empty {
+  margin: 0.35rem 0 0;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.sales-call-today-glance__nav {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: auto;
+}
+
+.sales-call-today-glance__cta {
+  margin-top: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.sales-call-today-glance__cta:hover {
+  color: var(--accent);
+}
+
+.admin-home-attention__side--planerka .sales-call-today-glance,
+.admin-home-attention__side--planerka .sales-call-today-glance__card {
+  max-width: none;
+  width: 100%;
+  height: 100%;
+}
+

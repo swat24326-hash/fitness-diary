@@ -15,12 +15,13 @@ import {
 /**
  * Плитки главной менеджера продаж — группы «день» и «план».
  * @param {{
- *   attentionWidgets?: { hasPnk?: boolean, hasPlanerka?: boolean },
+ *   attentionWidgets?: { hasPnk?: boolean, hasPlanerka?: boolean, hasCallToday?: boolean, hasCallTodayQueue?: boolean },
  * }} props
  */
 export function SalesHomeTiles({ attentionWidgets = {} }) {
   const hasPnk = Boolean(attentionWidgets.hasPnk)
   const hasPlanerka = Boolean(attentionWidgets.hasPlanerka)
+  const hasCallTodayQueue = Boolean(attentionWidgets.hasCallTodayQueue)
 
   return (
     <section className="sales-home__tiles" aria-labelledby="sales-home-sections">
@@ -41,7 +42,11 @@ export function SalesHomeTiles({ attentionWidgets = {} }) {
               <p className="sales-home__tile-title">Клиенты</p>
               <p className="sales-home__tile-lead">Список, фильтры, карты</p>
             </Link>
-            <Link to="/sales/call-log" className="sales-home__tile u-no-decoration">
+            <Link
+              to="/sales/call-log"
+              className={`sales-home__tile u-no-decoration${hasCallTodayQueue ? ' sales-home__tile--echo' : ''}`}
+              title={hasCallTodayQueue ? 'Очередь звонков уже на главной выше' : undefined}
+            >
               <div className="sales-home__tile-icon">
                 <Phone size={44} aria-hidden />
               </div>

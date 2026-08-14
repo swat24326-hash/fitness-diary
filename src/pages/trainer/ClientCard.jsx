@@ -23,6 +23,8 @@ import { useClubDispatchRecipients } from '../../hooks/useClubDispatchRecipients
 import { listOutreachLogByClientId } from '../../lib/trainer/trainerOutreachLogService.js'
 import { ClientPnkPanel } from '../../components/trainer/ClientPnkPanel.jsx'
 import { AdminClubCallJournalSection } from '../../components/admin/AdminClubCallJournalSection.jsx'
+import { AdminClientClubCallButton } from '../../components/admin/AdminClientClubCallButton.jsx'
+import { fetchClubCallStatus } from '../../lib/admin/clubCallService.js'
 import { PnkVisitQualityReport } from '../../components/pnk/PnkVisitQualityReport.jsx'
 import { formatClientName } from '../../lib/clientNameFormat.js'
 import { isOpenPnkClient, isPnkCardTabVisible, resolvePnkTrainerUiStep } from '../../lib/pnk/pnkStagesCore.js'
@@ -115,10 +117,45 @@ export function ClientCard() {
   const [archiveBusy, setArchiveBusy] = useState(false)
   const [taskModalOpen, setTaskModalOpen] = useState(false)
   const [outreachLogs, setOutreachLogs] = useState([])
+  const [callHistTick, setCallHistTick] = useState(0)
+  const [callConfigured, setCallConfigured] = useState(null)
+  const [callClubName, setCallClubName] = useState('')
+  const [callToast, setCallToast] = useState(null)
   const [trainerById, setTrainerById] = useState({})
   const [trainersModeReady, setTrainersModeReady] = useState(!canManageClubClients)
   const [bootstrapping, setBootstrapping] = useState(true)
   const hydrateGenRef = useRef(0)
+
+  useEffect(() => {
+    if (!canManageClubClients || !client?.club_id) {
+      setCallConfigured(null)
+      setCallClubName('')
+      return undefined
+    }
+    let alive = true
+    void fetchClubCallStatus(String(client.club_id))
+      .then((s) => {
+        if (!alive) return
+        setCallConfigured(s?.configured === true)
+        setCallClubName(String(s?.clubName || '').trim())
+      })
+      .catch(() => {
+        if (alive) {
+          setCallConfigured(false)
+          setCallClubName('')
+        }
+      })
+    return () => {
+      alive = false
+    }
+  }, [canManageClubClients, client?.club_id])
+
+  useEffect(() => {
+    if (!callToast) return undefined
+    const ms = Number(callToast.ms) > 0 ? Number(callToast.ms) : 4000
+    const t = window.setTimeout(() => setCallToast(null), ms)
+    return () => window.clearTimeout(t)
+  }, [callToast])
 
   useEffect(() => {
     if (!canManageClubClients) {
@@ -912,7 +949,33 @@ export function ClientCard() {
           clubId={String(client.club_id)}
           clientId={String(client.id)}
           embedded
+          reloadToken={callHistTick}
+          headerActions={
+            <AdminClientClubCallButton
+              clubId={String(client.club_id)}
+              client={client}
+              clubName={callClubName}
+              configured={callConfigured}
+              onFeedback={(msg, tone, opts) => {
+                setCallToast({
+                  text: String(msg || ''),
+                  kind: tone === 'err' || tone === 'warn' ? 'err' : 'ok',
+                  ms: opts?.durationMs,
+                })
+              }}
+              onCalled={() => setCallHistTick((n) => n + 1)}
+              onNoteSaved={() => setCallHistTick((n) => n + 1)}
+            />
+          }
         />
+      ) : null}
+      {callToast ? (
+        <p
+          className={`client-card-call-toast${callToast.kind === 'err' ? ' client-card-call-toast--err' : ''}`}
+          role="status"
+        >
+          {callToast.text}
+        </p>
       ) : null}
 
       <ClientPnkPanel

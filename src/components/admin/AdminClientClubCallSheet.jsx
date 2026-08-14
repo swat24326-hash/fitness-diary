@@ -1,6 +1,8 @@
 import { useEffect, useId, useState } from 'react'
 import { Phone, X } from 'lucide-react'
-import { makeClubCallViaApi } from '../../lib/admin/clubCallService.js'
+import { makeClubCallViaApi, saveClubCallStaffNoteViaApi } from '../../lib/admin/clubCallService.js'
+import { CLUB_CALL_LOG_STAFF_NOTE_MAX } from '../../lib/admin/clubCallLogCore.js'
+import { notifyCallTodayHomeGlanceChanged } from '../../lib/admin/callTodayHomeGlanceSession.js'
 import '../../styles/club-call.css'
 
 /**
@@ -14,6 +16,7 @@ import '../../styles/club-call.css'
  *   clubName?: string,
  *   onFeedback?: (msg: string, tone?: string, opts?: { durationMs?: number }) => void,
  *   onCalled?: (clientId: string) => void,
+ *   onNoteSaved?: () => void,
  * }} props
  */
 export function AdminClientClubCallSheet({
@@ -24,16 +27,26 @@ export function AdminClientClubCallSheet({
   clubName = '',
   onFeedback,
   onCalled,
+  onNoteSaved,
 }) {
   const titleId = useId()
+  const noteId = useId()
   /** @type {['confirm' | 'calling' | 'launched', function]} */
   const [phase, setPhase] = useState('confirm')
   const [error, setError] = useState('')
+  const [logId, setLogId] = useState('')
+  const [noteDraft, setNoteDraft] = useState('')
+  const [noteBusy, setNoteBusy] = useState(false)
+  const [noteSaved, setNoteSaved] = useState(false)
 
   useEffect(() => {
     if (!open) return
     setError('')
     setPhase('confirm')
+    setLogId('')
+    setNoteDraft('')
+    setNoteBusy(false)
+    setNoteSaved(false)
   }, [open, client?.id])
 
   if (!open || !client) return null
@@ -48,11 +61,13 @@ export function AdminClientClubCallSheet({
     setPhase('calling')
     setError('')
     try {
-      await makeClubCallViaApi({ clubId, clientId: client.id })
+      const data = await makeClubCallViaApi({ clubId, clientId: client.id })
+      setLogId(data?.log_id ? String(data.log_id) : '')
       setPhase('launched')
       onCalled?.(client.id)
+      notifyCallTodayHomeGlanceChanged(clubId, { source: 'call_launched' })
       onFeedback?.(
-        'Команда ушла на Android клуба — смотрите набор на телефоне. Зелёная полоска на экране не означает конец звонка.',
+        'Команда ушла на Android клуба — смотрите набор на телефоне. Можно сразу оставить пометку.',
         'ok',
         { durationMs: 12_000 },
       )
@@ -64,11 +79,32 @@ export function AdminClientClubCallSheet({
     }
   }
 
+  const onSaveNote = async () => {
+    if (noteBusy || !clubId || !logId) return
+    setNoteBusy(true)
+    setError('')
+    try {
+      await saveClubCallStaffNoteViaApi({
+        clubId,
+        logId,
+        staffNote: noteDraft,
+      })
+      setNoteSaved(true)
+      notifyCallTodayHomeGlanceChanged(clubId, { source: 'call_sheet_note' })
+      onNoteSaved?.()
+      onFeedback?.('Пометка сохранена', 'ok')
+    } catch (e) {
+      setError(e?.message ? String(e.message) : 'Не удалось сохранить пометку')
+    } finally {
+      setNoteBusy(false)
+    }
+  }
+
   return (
     <div
       className="club-call-sheet-backdrop"
       role="presentation"
-      onClick={() => !busy && onClose()}
+      onClick={() => !busy && !noteBusy && onClose()}
     >
       <div
         className="club-call-sheet"
@@ -93,8 +129,8 @@ export function AdminClientClubCallSheet({
           <button
             type="button"
             className="btn btn-ghost btn-icon-square btn-touch"
-            onClick={() => !busy && onClose()}
-            disabled={busy}
+            onClick={() => !busy && !noteBusy && onClose()}
+            disabled={busy || noteBusy}
             aria-label="Закрыть"
             title="Закрыть"
           >
@@ -114,11 +150,27 @@ export function AdminClientClubCallSheet({
                 Короткая зелёная полоска сверху списка — только сообщение в приложении (~12 с), не
                 обрыв звонка.
               </li>
-              <li>
-                Если на телефоне «пропущенный» на 1–2 сек: не звоните на тот же номер, что SIM
-                клуба; проверьте интернет и энергосбережение приложения Мои Звонки.
-              </li>
             </ul>
+            {logId && !noteSaved ? (
+              <div className="club-call-sheet__note">
+                <label className="club-call-note__label" htmlFor={noteId}>
+                  Пометка к звонку (необязательно)
+                </label>
+                <textarea
+                  id={noteId}
+                  className="club-call-note__input"
+                  rows={2}
+                  maxLength={CLUB_CALL_LOG_STAFF_NOTE_MAX}
+                  value={noteDraft}
+                  onChange={(e) => setNoteDraft(e.target.value)}
+                  placeholder="Напр.: перезвонить в пятницу · думает про УК"
+                  disabled={noteBusy}
+                />
+              </div>
+            ) : null}
+            {noteSaved ? (
+              <p className="muted club-call-sheet__note-ok">Пометка сохранена в истории клиента.</p>
+            ) : null}
           </div>
         ) : (
           <p className="club-call-sheet__hint">
@@ -136,9 +188,26 @@ export function AdminClientClubCallSheet({
 
         <div className="club-call-sheet__actions">
           {phase === 'launched' ? (
-            <button type="button" className="btn btn-primary btn-touch" onClick={() => onClose()}>
-              Понятно
-            </button>
+            <>
+              {logId && !noteSaved ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-touch"
+                  onClick={() => void onSaveNote()}
+                  disabled={noteBusy || !String(noteDraft).trim()}
+                >
+                  {noteBusy ? 'Сохраняем…' : 'Сохранить пометку'}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="btn btn-primary btn-touch"
+                onClick={() => onClose()}
+                disabled={noteBusy}
+              >
+                {noteSaved ? 'Готово' : 'Понятно'}
+              </button>
+            </>
           ) : (
             <>
               <button

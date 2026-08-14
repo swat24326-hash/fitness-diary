@@ -61,7 +61,7 @@
 | `push-subscription` | admin / trainer / sales_manager / **supervisor** | VAPID public key |
 | `membership-types` | admin / trainer / sales_manager / **supervisor** (свой клуб) | Справочник типов абон. включая АЗ для колонок отчёта |
 | `club-sms` | admin / sales_manager / supervisor | Статус Мои Звонки (`configured`, `moizvonki`, `templates`, `club_name`); `&logs=1&since_days=` — журнал `club_sms_log` |
-| `club-call` | admin / sales_manager / supervisor | Статус Мои Звонки для звонка; `&logs=1&since_days=` — журнал `club_call_log` (команда + `outcome` после webhook); `&client_id=` — фильтр по клиенту |
+| `club-call` | admin / sales_manager / supervisor | Статус Мои Звонки для звонка; `&logs=1&since_days=` — журнал; `&glance=1` — очередь «кому звонить» (пометки + пропущенные); `&client_id=` — фильтр по клиенту |
 
 ### POST (фрагмент)
 
@@ -79,7 +79,7 @@
 | `pnk` | admin / sales_manager | Мутации ПНК |
 | `sale-clips` | admin / sales_manager | POST create / cancel / match клипа |
 | `club-sms` | admin / sales_manager / supervisor | SMS клиенту через Мои Звонки клуба (`client_id`, `scenario` / `text`); в `club_sms_log` пишется **ok** после успеха и **fail** при постоянной ошибке (не 429). Массовая кампания на доске = N таких запросов с клиента (очередь + код + окно итога) |
-| `club-call` | admin / sales_manager / supervisor | Исходящий звонок (`calls.make_call`, body: `club_id`, `client_id`); журнал `club_call_log` ok/fail (не 429); лимит ~10/мин на клуб; исход разговора — webhook |
+| `club-call` | admin / sales_manager / supervisor | Исходящий звонок (`calls.make_call`, body: `club_id`, `client_id`); журнал `club_call_log` ok/fail (не 429); лимит ~10/мин на клуб; исход разговора — webhook. Пометка: `op: 'note'`, body `{ club_id, log_id, staff_note }` |
 | `moizvonki-webhook` | секрет query/header | `call.finish` от Мои Звонки → `outcome` / `duration_sec` / `answered` / `recording_url` в `club_call_log` |
 | `iskra-settings` | admin | в т.ч. `moizvonki` — аккаунт Мои Звонки на клуб (ключ в ответе не отдаём) |
 

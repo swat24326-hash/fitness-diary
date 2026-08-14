@@ -6,11 +6,63 @@ import { normalizeClubCallRecordingUrl } from './clubCallOutcomeCore.js'
 
 export const CLUB_CALL_LOG_ERROR_MAX = 200
 export const CLUB_CALL_LOG_PHONE_MAX = 20
+export const CLUB_CALL_LOG_STAFF_NOTE_MAX = 400
 export const CLUB_CALL_LOG_DEFAULT_LOOKBACK_DAYS = 14
 export const CLUB_CALL_LOG_MAX_LOOKBACK_DAYS = 90
 export const CLUB_CALL_LOG_MAX_ROWS = 200
 
 export const CLUB_CALL_LOG_STATUSES = ['ok', 'fail']
+
+/**
+ * Нормализация пометки сотрудника к звонку.
+ * Пустая строка → null (сброс).
+ * @param {unknown} raw
+ * @returns {{ ok: true, note: string | null } | { ok: false, error: string }}
+ */
+export function normalizeClubCallStaffNote(raw) {
+  const t = String(raw ?? '').trim().replace(/\s+/g, ' ')
+  if (!t) return { ok: true, note: null }
+  if (t.length > CLUB_CALL_LOG_STAFF_NOTE_MAX) {
+    return {
+      ok: false,
+      error: `Пометка слишком длинная (макс. ${CLUB_CALL_LOG_STAFF_NOTE_MAX} символов)`,
+    }
+  }
+  return { ok: true, note: t }
+}
+
+/**
+ * Патч строки журнала: staff_note + кто/когда.
+ * @param {{
+ *   club_id: string,
+ *   log_id: string,
+ *   staff_note?: unknown,
+ *   staff_note_by?: string | null,
+ *   staff_note_at?: string,
+ * }} input
+ */
+export function buildClubCallStaffNotePatch(input) {
+  const club_id = String(input.club_id ?? '').trim()
+  const log_id = String(input.log_id ?? '').trim()
+  if (!club_id || !log_id) {
+    return { ok: false, error: 'Нужны club_id и log_id' }
+  }
+  const norm = normalizeClubCallStaffNote(input.staff_note)
+  if (!norm.ok) return { ok: false, error: norm.error }
+  const at =
+    String(input.staff_note_at ?? '').trim() ||
+    (norm.note ? new Date().toISOString() : null)
+  return {
+    ok: true,
+    club_id,
+    log_id,
+    patch: {
+      staff_note: norm.note,
+      staff_note_at: norm.note ? at : null,
+      staff_note_by: norm.note && input.staff_note_by ? String(input.staff_note_by) : null,
+    },
+  }
+}
 
 /** @param {unknown} raw */
 export function normalizeClubCallLogStatus(raw) {
@@ -104,17 +156,34 @@ export function shapeClubCallLogApiRow(row, extra = {}) {
     src_number: row.src_number ? String(row.src_number) : null,
     finished_at: row.finished_at ? String(row.finished_at) : null,
     recording_url: normalizeClubCallRecordingUrl(row.recording_url),
+    staff_note: row.staff_note != null && String(row.staff_note).trim() ? String(row.staff_note).trim() : null,
+    staff_note_at: row.staff_note_at ? String(row.staff_note_at) : null,
+    staff_note_by: row.staff_note_by ? String(row.staff_note_by) : null,
     client_name: extra.clientName ? String(extra.clientName) : null,
     sent_by_name: extra.sentByName ? String(extra.sentByName) : null,
   }
 }
 
-/** @param {Array<{ status?: string }>} logs @param {'all' | 'ok' | 'fail'} filter */
+/** @param {Array<{ status?: string, outcome?: string }>} logs @param {string} filter */
 export function filterClubCallLogRowsByStatus(logs, filter) {
-  const f = String(filter ?? 'all')
-  if (f === 'ok') return (logs ?? []).filter((r) => normalizeClubCallLogStatus(r?.status) === 'ok')
-  if (f === 'fail') return (logs ?? []).filter((r) => normalizeClubCallLogStatus(r?.status) === 'fail')
-  return Array.isArray(logs) ? [...logs] : []
+  const f = String(filter ?? 'all').trim().toLowerCase()
+  const list = Array.isArray(logs) ? logs : []
+  if (f === 'ok') return list.filter((r) => normalizeClubCallLogStatus(r?.status) === 'ok')
+  if (f === 'fail') return list.filter((r) => normalizeClubCallLogStatus(r?.status) === 'fail')
+  if (f === 'answered' || f === 'missed' || f === 'short' || f === 'pending') {
+    return list.filter((r) => String(r?.outcome ?? 'pending').trim().toLowerCase() === f)
+  }
+  return [...list]
+}
+
+/** Длительность для UI: «1:05» или пусто. @param {unknown} sec */
+export function formatClubCallDurationSec(sec) {
+  if (sec == null || sec === '') return ''
+  const n = Math.max(0, Math.floor(Number(sec) || 0))
+  if (!Number.isFinite(n) || n <= 0) return ''
+  const m = Math.floor(n / 60)
+  const s = n % 60
+  return `${m}:${String(s).padStart(2, '0')}`
 }
 
 /** @param {Array<{ status?: string, outcome?: string }>} logs */

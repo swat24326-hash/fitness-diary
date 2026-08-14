@@ -429,6 +429,13 @@
   margin: 0;
 }
 
+.admin-home-attention .sales-call-today-glance {
+  max-width: none;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+}
+
 .admin-home-attention .manager-pnk-glance__card,
 .admin-home-attention .admin-planerka-glance__card {
   height: 100%;

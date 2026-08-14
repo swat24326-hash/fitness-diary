@@ -5,8 +5,10 @@ import {
   clubCallJournalStatusLabel,
   clubCallJournalStatusTone,
 } from '../../lib/admin/clubCallOutcomeCore.js'
+import { formatClubCallDurationSec } from '../../lib/admin/clubCallLogCore.js'
 import { formatDateTimeRu } from '../../lib/dateRu.js'
 import { AdminClubCallRecordingPlayer } from './AdminClubCallRecordingPlayer.jsx'
+import { AdminClubCallJournalNote } from './AdminClubCallJournalNote.jsx'
 
 function formatPhone(phone) {
   const d = String(phone ?? '').replace(/\D/g, '')
@@ -17,9 +19,13 @@ function formatPhone(phone) {
 }
 
 /**
- * @param {{ row: object, mode?: 'club' | 'client' }} props
+ * @param {{
+ *   row: object,
+ *   mode?: 'club' | 'client',
+ *   onNoteSaved?: (logId: string, note: string | null) => void,
+ * }} props
  */
-export function AdminClubCallJournalRow({ row, mode = 'club' }) {
+export function AdminClubCallJournalRow({ row, mode = 'club', onNoteSaved }) {
   const fail = String(row.status ?? 'ok') === 'fail'
   const tone = clubCallJournalStatusTone(row)
   const statusClass = [
@@ -44,6 +50,9 @@ export function AdminClubCallJournalRow({ row, mode = 'club' }) {
       <div className="club-call-journal__meta">
         <span className="club-call-journal__when">{formatDateTimeRu(row.created_at)}</span>
         <span className={statusClass}>{clubCallJournalStatusLabel(row)}</span>
+        {formatClubCallDurationSec(row.duration_sec) ? (
+          <span className="club-call-journal__dur muted">{formatClubCallDurationSec(row.duration_sec)}</span>
+        ) : null}
       </div>
       <div className="club-call-journal__who">{who}</div>
       <div className="club-call-journal__phone muted">{formatPhone(row.phone)}</div>
@@ -53,6 +62,15 @@ export function AdminClubCallJournalRow({ row, mode = 'club' }) {
       {row.recording_url ? <AdminClubCallRecordingPlayer url={row.recording_url} /> : null}
       {fail && row.error_message ? (
         <p className="club-call-journal__error">{row.error_message}</p>
+      ) : null}
+      {row.club_id && row.id ? (
+        <AdminClubCallJournalNote
+          clubId={String(row.club_id)}
+          logId={String(row.id)}
+          note={row.staff_note}
+          compact={mode === 'client'}
+          onSaved={(next) => onNoteSaved?.(String(row.id), next)}
+        />
       ) : null}
     </li>
   )

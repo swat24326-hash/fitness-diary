@@ -1,11 +1,17 @@
 import { sendJson } from './adminSupabase.js'
 import {
   buildClubCallLogInsertRow,
+  buildClubCallStaffNotePatch,
   clampClubCallLogSinceDays,
   CLUB_CALL_LOG_MAX_ROWS,
   clubCallLogSinceIso,
   shapeClubCallLogApiRow,
 } from '../../src/lib/admin/clubCallLogCore.js'
+import {
+  buildCallTodayGlance,
+  CALL_TODAY_LOOKBACK_DAYS,
+  CALL_TODAY_MAX_ITEMS,
+} from '../../src/lib/admin/salesCallTodayCore.js'
 import {
   checkClubCallRateLimit,
   getMoiZvonkiConfigFromEnv,
@@ -58,7 +64,7 @@ async function fetchClubCallLogsForClub(ctx, clubId, sinceDaysRaw, clientId = ''
   let q = ctx.supabaseAdmin
     .from('club_call_log')
     .select(
-      'id, club_id, client_id, sent_by, phone, status, error_message, created_at, outcome, answered, duration_sec, mz_db_call_id, src_number, finished_at, recording_url',
+      'id, club_id, client_id, sent_by, phone, status, error_message, created_at, outcome, answered, duration_sec, mz_db_call_id, src_number, finished_at, recording_url, staff_note, staff_note_at, staff_note_by',
     )
     .eq('club_id', clubId)
     .gte('created_at', sinceIso)
@@ -67,6 +73,22 @@ async function fetchClubCallLogsForClub(ctx, clubId, sinceDaysRaw, clientId = ''
   if (clientFilter) q = q.eq('client_id', clientFilter)
 
   let { data: rows, error } = await q
+
+  if (error && /staff_note/i.test(String(error.message ?? ''))) {
+    let qNoNote = ctx.supabaseAdmin
+      .from('club_call_log')
+      .select(
+        'id, club_id, client_id, sent_by, phone, status, error_message, created_at, outcome, answered, duration_sec, mz_db_call_id, src_number, finished_at, recording_url',
+      )
+      .eq('club_id', clubId)
+      .gte('created_at', sinceIso)
+      .order('created_at', { ascending: false })
+      .limit(CLUB_CALL_LOG_MAX_ROWS)
+    if (clientFilter) qNoNote = qNoNote.eq('client_id', clientFilter)
+    const mid = await qNoNote
+    rows = mid.data
+    error = mid.error
+  }
 
   if (error && /outcome|duration_sec|finished_at|recording_url|schema cache|column/i.test(String(error.message ?? ''))) {
     let qLegacy = ctx.supabaseAdmin
@@ -146,6 +168,7 @@ async function insertClubCallLogRow(ctx, input) {
 /**
  * GET admin-data?action=club-call&club_id=
  * Опционально: &logs=1&since_days=14&client_id=
+ * Опционально: &glance=1 — очередь «кому звонить» из журнала/пометок
  * @param {object} ctx
  * @param {object} req
  * @param {object} res
@@ -156,6 +179,9 @@ export async function handleClubCallGet(ctx, req, res) {
   const wantLogs =
     String(req.query?.logs ?? '') === '1' ||
     String(req.query?.logs ?? '').toLowerCase() === 'true'
+  const wantGlance =
+    String(req.query?.glance ?? '') === '1' ||
+    String(req.query?.glance ?? '').toLowerCase() === 'true'
 
   let clubName = ''
   let mzPublic = shapeMoiZvonkiPublicStatus(
@@ -186,12 +212,61 @@ export async function handleClubCallGet(ctx, req, res) {
   /** @type {object[] | undefined} */
   let logs
   let logs_error
-  if (wantLogs && clubId && ctx?.supabaseAdmin) {
+  /** @type {{ items: object[], total: number } | undefined} */
+  let glance
+  let glance_error
+
+  if ((wantLogs || wantGlance) && clubId && ctx?.supabaseAdmin) {
     try {
-      logs = await fetchClubCallLogsForClub(ctx, clubId, req.query?.since_days, clientIdFilter)
+      const sinceForLogs = wantLogs ? req.query?.since_days : undefined
+      const sinceForGlance = wantGlance
+        ? req.query?.since_days || CALL_TODAY_LOOKBACK_DAYS
+        : sinceForLogs
+      const sinceRaw = wantGlance && !wantLogs ? sinceForGlance : sinceForLogs ?? sinceForGlance
+      logs = await fetchClubCallLogsForClub(
+        ctx,
+        clubId,
+        sinceRaw ?? (wantGlance ? CALL_TODAY_LOOKBACK_DAYS : undefined),
+        clientIdFilter,
+      )
+      if (wantGlance) {
+        const role = ctx.isSalesManager ? 'sales' : ctx.isSupervisor ? 'club' : 'admin'
+        const clientsBase =
+          role === 'sales' ? '/sales/clients' : role === 'club' ? '/club/clients' : '/admin/clients'
+        let archivedClientIds = []
+        const clientIds = [
+          ...new Set((logs ?? []).map((r) => String(r.client_id ?? '').trim()).filter(Boolean)),
+        ]
+        if (clientIds.length) {
+          try {
+            const { data: clients } = await ctx.supabaseAdmin
+              .from('clients')
+              .select('id, archived_at')
+              .in('id', clientIds)
+            archivedClientIds = (clients ?? [])
+              .filter((c) => c?.archived_at)
+              .map((c) => String(c.id))
+          } catch {
+            archivedClientIds = []
+          }
+        }
+        glance = buildCallTodayGlance(logs, {
+          clubId,
+          clientsBasePath: clientsBase,
+          maxItems: CALL_TODAY_MAX_ITEMS,
+          archivedClientIds,
+        })
+      }
+      if (!wantLogs) logs = undefined
     } catch (e) {
-      logs = []
-      logs_error = String(e?.message ?? e).slice(0, 160)
+      if (wantLogs) {
+        logs = []
+        logs_error = String(e?.message ?? e).slice(0, 160)
+      }
+      if (wantGlance) {
+        glance = { items: [], total: 0 }
+        glance_error = String(e?.message ?? e).slice(0, 160)
+      }
     }
   }
 
@@ -203,17 +278,24 @@ export async function handleClubCallGet(ctx, req, res) {
     club_name: clubName,
     ...(clientIdFilter ? { client_id: clientIdFilter } : {}),
     ...(wantLogs ? { logs, logs_error: logs_error || undefined } : {}),
+    ...(wantGlance ? { glance, glance_error: glance_error || undefined } : {}),
   })
 }
 
 /**
  * POST admin-data?action=club-call
- * body: { club_id, client_id }
+ * body: { club_id, client_id } — звонок
+ * body: { op: 'note', club_id, log_id, staff_note } — пометка к строке журнала
  * @param {object} ctx
  * @param {object} res
  * @param {object} body
  */
 export async function handleClubCallPost(ctx, res, body) {
+  const op = String(body?.op ?? '').trim().toLowerCase()
+  if (op === 'note') {
+    return handleClubCallStaffNotePost(ctx, res, body)
+  }
+
   const clubId = String(body?.club_id ?? '').trim()
   const clientId = String(body?.client_id ?? '').trim()
   if (!clubId || !clientId) {
@@ -314,3 +396,77 @@ export async function handleClubCallPost(ctx, res, body) {
     ...(inserted.log_warning ? { log_warning: inserted.log_warning } : {}),
   })
 }
+
+/**
+ * Пометка сотрудника к строке club_call_log.
+ * @param {object} ctx
+ * @param {object} res
+ * @param {object} body
+ */
+export async function handleClubCallStaffNotePost(ctx, res, body) {
+  const built = buildClubCallStaffNotePatch({
+    club_id: body?.club_id,
+    log_id: body?.log_id,
+    staff_note: body?.staff_note,
+    staff_note_by: ctx?.user?.id ?? null,
+  })
+  if (!built.ok) {
+    sendJson(res, 400, { ok: false, error: built.error, code: 'bad_request' })
+    return
+  }
+
+  const { data: existing, error: loadErr } = await ctx.supabaseAdmin
+    .from('club_call_log')
+    .select('id, club_id')
+    .eq('id', built.log_id)
+    .maybeSingle()
+
+  if (loadErr) {
+    sendJson(res, 500, {
+      ok: false,
+      error: 'Не удалось найти запись звонка',
+      code: 'db_error',
+      detail: String(loadErr.message ?? '').slice(0, 160) || undefined,
+    })
+    return
+  }
+  if (!existing || String(existing.club_id) !== built.club_id) {
+    sendJson(res, 404, { ok: false, error: 'Запись звонка не найдена в этом клубе', code: 'not_found' })
+    return
+  }
+
+  const { data: updated, error: updErr } = await ctx.supabaseAdmin
+    .from('club_call_log')
+    .update(built.patch)
+    .eq('id', built.log_id)
+    .eq('club_id', built.club_id)
+    .select(
+      'id, club_id, client_id, sent_by, phone, status, error_message, created_at, outcome, answered, duration_sec, mz_db_call_id, src_number, finished_at, recording_url, staff_note, staff_note_at, staff_note_by',
+    )
+    .maybeSingle()
+
+  if (updErr) {
+    const msg = String(updErr.message ?? '')
+    if (/staff_note|schema cache|column/i.test(msg)) {
+      sendJson(res, 503, {
+        ok: false,
+        error: 'Нужна миграция club_call_log staff_note на Supabase',
+        code: 'migration_required',
+      })
+      return
+    }
+    sendJson(res, 500, {
+      ok: false,
+      error: 'Не удалось сохранить пометку',
+      code: 'db_error',
+      detail: msg.slice(0, 160) || undefined,
+    })
+    return
+  }
+
+  sendJson(res, 200, {
+    ok: true,
+    log: shapeClubCallLogApiRow(updated),
+  })
+}
+

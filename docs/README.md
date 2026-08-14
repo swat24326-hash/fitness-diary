@@ -45,7 +45,7 @@
 
 | Файл | Когда читать |
 |------|--------------|
-| [PRODUCT_VISION.md](./PRODUCT_VISION.md) | **Крупная цель:** ОС + CRM клуба; замена 1С в операционке; проекция цели на фичи; слои L0–L4 |
+| [PRODUCT_VISION.md](./PRODUCT_VISION.md) | **Крупная цель:** ОС + CRM клуба; замена 1С в операционке; call-центры (§2.4); проекция цели на фичи; слои L0–L4 |
 | [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) | **Путь к цели:** разрывы воронки, сейчас→дальше, очередь ставок, ритуал ведения процесса агентом |
 | [BRAND_SYSTEM.md](./BRAND_SYSTEM.md) | **Фирменный стиль:** Whoop-опора, ролевые цвета, токены, driving prompt |
 | [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md) | Стратегия + РФ: курс **C2 + Yandex**; чеклист §5.4.0; security §5.7; продукт P1–P3 §5.8; стек/TS vs переезд **§5.9** |

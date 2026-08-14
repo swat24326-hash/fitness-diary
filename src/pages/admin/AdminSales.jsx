@@ -206,6 +206,8 @@ export function AdminSales({ accessMode = 'admin' }) {
   const [attentionWidgets, setAttentionWidgets] = useState({
     hasPnk: false,
     hasPlanerka: false,
+    hasCallToday: false,
+    hasCallTodayQueue: false,
     sideCount: 0,
   })
   const dailyBaselineFpRef = useRef('')
@@ -724,6 +726,8 @@ export function AdminSales({ accessMode = 'admin' }) {
     setAttentionWidgets({
       hasPnk: Boolean(info?.hasPnk),
       hasPlanerka: Boolean(info?.hasPlanerka),
+      hasCallToday: Boolean(info?.hasCallToday),
+      hasCallTodayQueue: Boolean(info?.hasCallTodayQueue),
       sideCount: Number(info?.sideCount) || 0,
     })
   }, [])
@@ -1056,6 +1060,8 @@ export function AdminSales({ accessMode = 'admin' }) {
               clubId={clubId}
               hrefPnk="/sales/pnk"
               hrefPlanerka="/sales/club-tasks"
+              hrefCallJournal="/sales/call-log"
+              enableCallToday
               softSignals={softSignals}
               onWidgetsPresence={onWidgetsPresence}
               renderPlan={({ compact }) => (

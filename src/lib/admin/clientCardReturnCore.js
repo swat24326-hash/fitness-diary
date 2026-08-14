@@ -10,6 +10,7 @@ export const CLIENT_CARD_FROM = Object.freeze({
   strategy: 'strategy',
   pnk: 'pnk',
   clips: 'clips',
+  callToday: 'call-today',
 })
 
 /**
@@ -23,7 +24,20 @@ export function normalizeClientCardFrom(raw) {
   if (v === CLIENT_CARD_FROM.strategy) return CLIENT_CARD_FROM.strategy
   if (v === CLIENT_CARD_FROM.pnk) return CLIENT_CARD_FROM.pnk
   if (v === CLIENT_CARD_FROM.clips) return CLIENT_CARD_FROM.clips
+  if (v === CLIENT_CARD_FROM.callToday || v === 'call_today') return CLIENT_CARD_FROM.callToday
   return ''
+}
+
+/**
+ * @param {{ forAdmin?: boolean, forSupervisor?: boolean, clubId?: string }} [opts]
+ */
+export function buildCallTodayReturnHref(opts = {}) {
+  const clubId = String(opts.clubId ?? '').trim()
+  if (opts.forSupervisor) return '/club'
+  if (opts.forAdmin) {
+    return clubId ? `/admin?club=${encodeURIComponent(clubId)}` : '/admin'
+  }
+  return '/sales'
 }
 
 /**
@@ -76,6 +90,7 @@ export function clientCardBackLabel(from) {
   if (f === CLIENT_CARD_FROM.strategy) return '← К стратегии'
   if (f === CLIENT_CARD_FROM.pnk) return '← К ПНК'
   if (f === CLIENT_CARD_FROM.clips) return '← К заявкам'
+  if (f === CLIENT_CARD_FROM.callToday) return '← На главную'
   return '← К списку клиентов'
 }
 
@@ -88,6 +103,7 @@ export function clientCardParentCrumbLabel(from) {
   if (f === CLIENT_CARD_FROM.strategy) return 'Стратегия'
   if (f === CLIENT_CARD_FROM.pnk) return 'ПНК'
   if (f === CLIENT_CARD_FROM.clips) return 'Заявка тренеру'
+  if (f === CLIENT_CARD_FROM.callToday) return 'Кому звонить'
   return 'Клиенты'
 }
 
@@ -115,6 +131,9 @@ export function resolveClientCardBackHref(searchParams, role = {}) {
   }
   if (from === CLIENT_CARD_FROM.clips) {
     return buildSalesClipsReturnHref({ forAdmin, forSupervisor, clubId })
+  }
+  if (from === CLIENT_CARD_FROM.callToday) {
+    return buildCallTodayReturnHref({ forAdmin, forSupervisor, clubId })
   }
 
   if (role.isAdmin) {

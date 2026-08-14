@@ -8,3 +8,4 @@ supabase/.temp
 .vercel
 vercel-deploy-log.txt
 qa-screenshots/
+.env*

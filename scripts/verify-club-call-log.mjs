@@ -3,15 +3,18 @@
  */
 import {
   buildClubCallLogInsertRow,
+  buildClubCallStaffNotePatch,
   clampClubCallLogSinceDays,
   clubCallLogSinceIso,
   filterClubCallLogRowsByStatus,
   normalizeClubCallLogStatus,
+  normalizeClubCallStaffNote,
   shapeClubCallLogApiRow,
   summarizeClubCallLogRows,
   truncateClubCallError,
   truncateClubCallPhone,
   CLUB_CALL_LOG_ERROR_MAX,
+  CLUB_CALL_LOG_STAFF_NOTE_MAX,
 } from '../src/lib/admin/clubCallLogCore.js'
 
 let failed = 0
@@ -91,6 +94,28 @@ const rows = [
 ok(summarizeClubCallLogRows(rows).ok === 2 && summarizeClubCallLogRows(rows).fail === 1, 'summary')
 ok(filterClubCallLogRowsByStatus(rows, 'fail').length === 1, 'filter fail')
 ok(filterClubCallLogRowsByStatus(rows, 'all').length === 3, 'filter all')
+
+ok(normalizeClubCallStaffNote('  перезвонить  ').ok && normalizeClubCallStaffNote('  перезвонить  ').note === 'перезвонить', 'note trim')
+ok(normalizeClubCallStaffNote('').note === null, 'note empty → null')
+ok(normalizeClubCallStaffNote('x'.repeat(CLUB_CALL_LOG_STAFF_NOTE_MAX + 1)).ok === false, 'note too long')
+ok(
+  shapeClubCallLogApiRow({
+    id: '4',
+    club_id: 'c1',
+    client_id: 'cli1',
+    status: 'ok',
+    staff_note: ' думает про УК ',
+  }).staff_note === 'думает про УК',
+  'shape staff_note',
+)
+const notePatch = buildClubCallStaffNotePatch({
+  club_id: 'c1',
+  log_id: 'l1',
+  staff_note: 'ок',
+  staff_note_by: 'u1',
+})
+ok(notePatch.ok && notePatch.patch.staff_note === 'ок' && notePatch.patch.staff_note_by === 'u1', 'note patch')
+ok(buildClubCallStaffNotePatch({ club_id: 'c1', log_id: 'l1', staff_note: '' }).patch.staff_note === null, 'note clear')
 
 if (failed) process.exit(1)
 console.log('verify-club-call-log: all passed')

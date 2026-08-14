@@ -1,5 +1,5 @@
 /**
- * Last-known presence ПНК / планёрки на главной — чтобы слоты soft не «прыгали»
+ * Last-known presence ПНК / планёрки / call-today на главной — чтобы слоты soft не «прыгали»
  * с false→true после первого fetch.
  */
 import { createGlanceCache } from '../homeGlanceCache.js'
@@ -14,7 +14,7 @@ function parts(clubId) {
 }
 
 /**
- * @returns {{ hasPnk: boolean, hasPlanerka: boolean } | null}
+ * @returns {{ hasPnk: boolean, hasPlanerka: boolean, hasCallToday: boolean } | null}
  */
 export function peekAttentionPresenceSession(clubId) {
   const payload = cache.peek(parts(clubId))
@@ -22,6 +22,7 @@ export function peekAttentionPresenceSession(clubId) {
   return {
     hasPnk: Boolean(payload.hasPnk),
     hasPlanerka: Boolean(payload.hasPlanerka),
+    hasCallToday: Boolean(payload.hasCallToday),
   }
 }
 
@@ -31,5 +32,6 @@ export function writeAttentionPresenceSession(clubId, presence) {
   cache.write(parts(cid), {
     hasPnk: Boolean(presence?.hasPnk),
     hasPlanerka: Boolean(presence?.hasPlanerka),
+    hasCallToday: Boolean(presence?.hasCallToday),
   })
 }
