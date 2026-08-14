@@ -1,6 +1,8 @@
 /**
  * Локальные черновики отчётов продаж — переживают перезагрузку вкладки на планшете.
  */
+import { salesPlanFormHasTarget } from './salesPlanPresenceCore.js'
+
 export const SALES_DRAFT_STORAGE_VERSION = 1
 export const SALES_DRAFT_PREFIX = `fit_sales_draft_v${SALES_DRAFT_STORAGE_VERSION}`
 
@@ -224,9 +226,17 @@ export function resolvePlanDraftAfterLoad({ draft, serverFp, planForm }) {
   if (!shouldRestoreSalesDraft(draft, serverFp)) {
     return { restored: false, planForm }
   }
+  const next =
+    draft.planForm && typeof draft.planForm === 'object'
+      ? /** @type {Record<string, string>} */ (draft.planForm)
+      : planForm
+  // Не затирать серверные уровни пустым локальным «хвостом» на телефоне менеджера.
+  if (salesPlanFormHasTarget(planForm) && !salesPlanFormHasTarget(next)) {
+    return { restored: false, planForm, discardStaleEmpty: true }
+  }
   return {
     restored: true,
-    planForm: draft.planForm && typeof draft.planForm === 'object' ? draft.planForm : planForm,
+    planForm: next,
   }
 }
 

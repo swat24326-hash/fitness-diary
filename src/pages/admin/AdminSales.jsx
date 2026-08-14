@@ -59,6 +59,7 @@ import {
   readSalesShellSession,
   writeSalesShellSession,
 } from '../../lib/admin/salesShellSession.js'
+import { salesPlanRowHasTarget } from '../../lib/admin/salesPlanPresenceCore.js'
 import { pickMembershipTypesForSalesReport } from '../../lib/admin/salesMembershipTypesAccessCore.js'
 import {
   buildDailyDraftPayload,
@@ -259,6 +260,9 @@ export function AdminSales({ accessMode = 'admin' }) {
       planForm: nextPlanForm,
     })
     nextPlanForm = planResolved.planForm
+    if (planResolved.discardStaleEmpty) {
+      clearSalesDraft(salesPlanDraftKey(cid, bundle.year, bundle.month))
+    }
 
     let nextExpenseForm = expenseRowToForm(bundle.expense)
     const expenseServerFp = fingerprintExpenseDraft(nextExpenseForm)
@@ -404,7 +408,11 @@ export function AdminSales({ accessMode = 'admin' }) {
                 setMembershipTypes(types)
               }
             }
-            if (!force && shouldSkipSalesShellNetwork(cached.savedAt)) {
+            if (
+              !force &&
+              shouldSkipSalesShellNetwork(cached.savedAt) &&
+              salesPlanRowHasTarget(cached.payload?.plan)
+            ) {
               skipShellNetwork = true
             }
           }
@@ -413,7 +421,12 @@ export function AdminSales({ accessMode = 'admin' }) {
         const tasks = []
         if (needShell && !skipShellNetwork) {
           tasks.push(
-            fetchClubSalesBundle({ clubId, reportDate, profile: 'shell' }).then((b) => ({
+            fetchClubSalesBundle({
+              clubId,
+              reportDate,
+              profile: 'shell',
+              preferApi: isSalesManager,
+            }).then((b) => ({
               kind: 'shell',
               bundle: b,
             })),
@@ -429,6 +442,7 @@ export function AdminSales({ accessMode = 'admin' }) {
               reportDate,
               profile: 'daily',
               includeFitCity: wantFitCity,
+              preferApi: isSalesManager,
             }).then((b) => ({ kind: 'daily', bundle: b })),
           )
         } else if (wantFitCity && profilesRef.current.daily) {
@@ -438,6 +452,7 @@ export function AdminSales({ accessMode = 'admin' }) {
               reportDate,
               profile: 'daily',
               includeFitCity: true,
+              preferApi: isSalesManager,
             }).then((b) => ({ kind: 'fit', bundle: b })),
           )
         }
@@ -523,7 +538,7 @@ export function AdminSales({ accessMode = 'admin' }) {
         if (seq === loadSeqRef.current) setBusy(false)
       }
     },
-    [applyDailyDrafts, applyShellBundle, clubId, reportDate],
+    [applyDailyDrafts, applyShellBundle, clubId, isSalesManager, reportDate],
   )
 
   /** Ручное «Обновить» и после save — сброс кэша профилей и догрузка под вкладку. */

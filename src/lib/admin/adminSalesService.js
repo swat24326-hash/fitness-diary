@@ -9,6 +9,8 @@ import { isCloudReachable, fetchWithAppTimeout } from '../networkReachability.js
 import { humanizeNetworkError } from '../supabaseRetry.js'
 import { salesTrainerLabelsNeedEnrich } from './salesTrainerLabelsCore.js'
 import { hydrateTrainingsMatrixInputMap, normalizeMatrixRowsFromDb } from './salesTrainingsMatrix.js'
+import { salesBundleProfileFlags } from './salesBundleProfileCore.js'
+import { salesPlanRowHasTarget } from './salesPlanPresenceCore.js'
 
 const apiOrigin = () => (typeof window !== 'undefined' ? window.location.origin : '')
 
@@ -95,9 +97,21 @@ async function adminApiPost(path, token, body) {
 }
 
 /** GET /api/admin-data?action=sales — Supabase first, API если облако Supabase недоступно
- * @param {{ clubId: string, reportDate: string, profile?: string, includeFitCity?: boolean }} p
+ * @param {{
+ *   clubId: string,
+ *   reportDate: string,
+ *   profile?: string,
+ *   includeFitCity?: boolean,
+ *   preferApi?: boolean,
+ * }} p
  */
-export async function fetchClubSalesBundle({ clubId, reportDate, profile, includeFitCity }) {
+export async function fetchClubSalesBundle({
+  clubId,
+  reportDate,
+  profile,
+  includeFitCity,
+  preferApi = false,
+}) {
   const token = await getAccessTokenForAdminApi()
   if (!token) throw new Error('Нет сессии — войдите снова')
 
@@ -126,6 +140,21 @@ export async function fetchClubSalesBundle({ clubId, reportDate, profile, includ
     }
   }
 
+  const flags = salesBundleProfileFlags(profile, includeFitCity)
+
+  /** Менеджер: RLS иногда не отдаёт club_sales_plan — сразу API (service role). */
+  if (preferApi && isCloudReachable()) {
+    try {
+      return await loadViaApiWithRetry()
+    } catch (apiErr) {
+      try {
+        return await fetchClubSalesBundleViaSupabase({ clubId, reportDate, profile, includeFitCity })
+      } catch {
+        throw apiErr
+      }
+    }
+  }
+
   let supabaseErr = null
   try {
     const local = await fetchClubSalesBundleViaSupabase({ clubId, reportDate, profile, includeFitCity })
@@ -133,8 +162,9 @@ export async function fetchClubSalesBundle({ clubId, reportDate, profile, includ
       normalizeMatrixRowsFromDb(local.daily?.trainings_matrix),
     )
     const labelsGap = salesTrainerLabelsNeedEnrich(local.trainers, dayMatrix, local.monthDays)
-    // Менеджер: RLS часто не отдаёт ФИО тренеров с другим club_id — добираем через API (service role).
-    if (labelsGap && isCloudReachable()) {
+    const planGap = flags.needPlanExpense && !salesPlanRowHasTarget(local.plan)
+    // Менеджер / RLS: ФИО тренеров или пустой план при живом факте — добираем через API.
+    if ((labelsGap || planGap) && isCloudReachable()) {
       try {
         return await loadViaApiWithRetry()
       } catch {
