@@ -19,6 +19,15 @@ function formatPhone(phone) {
 }
 
 /**
+ * Подпись статуса без длительности — длительность отдельным чипом справа.
+ * @param {object} row
+ */
+function statusLabelWithoutDuration(row) {
+  const full = clubCallJournalStatusLabel(row)
+  return String(full).replace(/\s*·\s*\d+\s*с\s*$/i, '').trim() || full
+}
+
+/**
  * @param {{
  *   row: object,
  *   mode?: 'club' | 'client',
@@ -38,40 +47,64 @@ export function AdminClubCallJournalRow({ row, mode = 'club', onNoteSaved }) {
     .filter(Boolean)
     .join(' ')
 
-  const who =
+  const dur = formatClubCallDurationSec(row.duration_sec)
+  const whoMain =
     mode === 'client'
       ? row.sent_by_name
-        ? `Кто: ${row.sent_by_name}`
-        : 'Кто: —'
-      : `${row.client_name || 'Клиент'}${row.sent_by_name ? ` · ${row.sent_by_name}` : ''}`
+        ? String(row.sent_by_name)
+        : 'Кто звонил — не указан'
+      : String(row.client_name || 'Клиент').trim() || 'Клиент'
+  const whoSub =
+    mode === 'client'
+      ? null
+      : row.sent_by_name
+        ? String(row.sent_by_name)
+        : null
 
   return (
     <li className={`club-call-journal__row${fail ? ' club-call-journal__row--fail' : ''}`}>
-      <div className="club-call-journal__meta">
-        <span className="club-call-journal__when">{formatDateTimeRu(row.created_at)}</span>
-        <span className={statusClass}>{clubCallJournalStatusLabel(row)}</span>
-        {formatClubCallDurationSec(row.duration_sec) ? (
-          <span className="club-call-journal__dur muted">{formatClubCallDurationSec(row.duration_sec)}</span>
+      <div className="club-call-journal__top">
+        <time className="club-call-journal__when" dateTime={row.created_at || undefined}>
+          {formatDateTimeRu(row.created_at)}
+        </time>
+        <div className="club-call-journal__badges">
+          <span className={statusClass}>{statusLabelWithoutDuration(row)}</span>
+          {dur ? <span className="club-call-journal__dur">{dur}</span> : null}
+        </div>
+      </div>
+
+      <div className="club-call-journal__body">
+        <div className="club-call-journal__identity">
+          <div className="club-call-journal__who">{whoMain}</div>
+          {whoSub ? <div className="club-call-journal__who-sub muted">{whoSub}</div> : null}
+          <div className="club-call-journal__phones">
+            <span className="club-call-journal__phone">{formatPhone(row.phone)}</span>
+            {row.src_number ? (
+              <span className="club-call-journal__src muted">SIM {formatPhone(row.src_number)}</span>
+            ) : null}
+          </div>
+        </div>
+
+        {row.recording_url ? (
+          <div className="club-call-journal__media">
+            <AdminClubCallRecordingPlayer url={row.recording_url} />
+          </div>
+        ) : null}
+
+        {fail && row.error_message ? (
+          <p className="club-call-journal__error">{row.error_message}</p>
+        ) : null}
+
+        {row.club_id && row.id ? (
+          <AdminClubCallJournalNote
+            clubId={String(row.club_id)}
+            logId={String(row.id)}
+            note={row.staff_note}
+            compact={mode === 'client'}
+            onSaved={(next) => onNoteSaved?.(String(row.id), next)}
+          />
         ) : null}
       </div>
-      <div className="club-call-journal__who">{who}</div>
-      <div className="club-call-journal__phone muted">{formatPhone(row.phone)}</div>
-      {row.src_number ? (
-        <p className="muted club-call-journal__src">с SIM {formatPhone(row.src_number)}</p>
-      ) : null}
-      {row.recording_url ? <AdminClubCallRecordingPlayer url={row.recording_url} /> : null}
-      {fail && row.error_message ? (
-        <p className="club-call-journal__error">{row.error_message}</p>
-      ) : null}
-      {row.club_id && row.id ? (
-        <AdminClubCallJournalNote
-          clubId={String(row.club_id)}
-          logId={String(row.id)}
-          note={row.staff_note}
-          compact={mode === 'client'}
-          onSaved={(next) => onNoteSaved?.(String(row.id), next)}
-        />
-      ) : null}
     </li>
   )
 }

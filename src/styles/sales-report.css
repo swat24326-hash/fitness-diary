@@ -3327,8 +3327,23 @@
   width: 100%;
 }
 
+/* «День в зале» — 5 плиток в один ряд на широком экране */
+.sales-home__tile-grid--day,
 .sales-home__tile-grid--plan {
   grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.sales-home__tile-grid--day .sales-home__tile {
+  padding: clamp(12px, 1.6vw, 16px) clamp(6px, 1vw, 12px);
+}
+
+.sales-home__tile-grid--day .sales-home__tile-title {
+  font-size: clamp(0.82rem, 1.35vw, 1.05rem);
+}
+
+.sales-home__tile-grid--day .sales-home__tile-lead {
+  font-size: clamp(0.65rem, 1vw, 0.75rem);
+  text-align: center;
 }
 
 .sales-home__tile {
@@ -3488,6 +3503,7 @@
 
 @media (max-width: 960px) {
   .sales-home__tile-grid,
+  .sales-home__tile-grid--day,
   .sales-home__tile-grid--plan {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -3499,6 +3515,7 @@
   }
 
   .sales-home__tile-grid,
+  .sales-home__tile-grid--day,
   .sales-home__tile-grid--plan {
     grid-template-columns: 1fr 1fr;
   }

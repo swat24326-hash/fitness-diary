@@ -145,49 +145,142 @@
   background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
-.club-call-journal__empty {
-  margin: 0.25rem 0 0;
-}
-
 .club-call-journal__list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 0.75rem;
   max-height: min(52dvh, 420px);
   overflow: auto;
 }
 
 .club-call-journal__row {
-  padding: 0.7rem 0.85rem;
-  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
   background: color-mix(in srgb, var(--bg-subtle, #061210) 88%, #000);
 }
 
-.club-call-journal__meta {
+.club-call-journal__top {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 0.45rem 0.75rem;
-  margin-bottom: 0.25rem;
-  font-size: 0.78rem;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .club-call-journal__when {
   color: var(--text-muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.club-call-journal__badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+.club-call-journal__status {
+  font-weight: 700;
+  font-size: 0.8rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--accent) 80%, var(--text));
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.club-call-journal__status--answered {
+  color: rgb(52, 211, 153);
+  background: rgba(52, 211, 153, 0.12);
+  border-color: rgba(52, 211, 153, 0.35);
+}
+
+.club-call-journal__status--short {
+  color: rgb(251, 191, 36);
+  background: rgba(251, 191, 36, 0.1);
+  border-color: rgba(251, 191, 36, 0.35);
+}
+
+.club-call-journal__status--missed {
+  color: rgb(148, 163, 184);
+  background: rgba(148, 163, 184, 0.1);
+  border-color: rgba(148, 163, 184, 0.3);
+}
+
+.club-call-journal__status--fail {
+  color: rgb(248, 113, 113);
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+.club-call-journal__dur {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  color: var(--text);
+  background: color-mix(in srgb, var(--bg, #0a0a0a) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+}
+
+.club-call-journal__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.club-call-journal__identity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
 }
 
 .club-call-journal__who {
-  font-size: 0.92rem;
+  font-size: 1.02rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text);
+}
+
+.club-call-journal__who-sub {
+  font-size: 0.82rem;
   line-height: 1.3;
 }
 
+.club-call-journal__phones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 1rem;
+  margin-top: 0.2rem;
+}
+
 .club-call-journal__phone {
-  margin-top: 0.15rem;
-  font-size: 0.82rem;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.club-call-journal__src {
+  margin: 0;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.club-call-journal__media {
+  width: 100%;
 }
 
 .club-call-journal__summary {
@@ -200,46 +293,35 @@
   background: rgba(248, 113, 113, 0.06);
 }
 
-.club-call-journal__status {
-  font-weight: 700;
-  color: color-mix(in srgb, var(--accent) 70%, var(--text));
-}
-
-.club-call-journal__status--answered {
-  color: rgb(52, 211, 153);
-}
-
-.club-call-journal__status--short {
-  color: rgb(251, 191, 36);
-}
-
-.club-call-journal__status--missed {
-  color: rgb(148, 163, 184);
-}
-
-.club-call-journal__src {
-  margin: 0.15rem 0 0;
-  font-size: 0.75rem;
-}
-
 .club-call-recording {
-  margin-top: 0.45rem;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  max-width: 100%;
+  gap: 0.4rem;
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  background: color-mix(in srgb, var(--bg, #0a0a0a) 55%, transparent);
+}
+
+.club-call-recording__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
 
 .club-call-recording__label {
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
 .club-call-recording__audio {
   width: 100%;
-  max-width: 22rem;
-  height: 2.25rem;
+  height: 2.35rem;
 }
 
 .club-call-recording__hint {
@@ -248,19 +330,24 @@
 }
 
 .club-call-recording__download {
-  align-self: flex-start;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--accent, #0b6e4f);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  min-height: 2.5rem;
   display: inline-flex;
   align-items: center;
+  gap: 0.35rem;
+  min-height: 2.5rem;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--accent);
+  border-radius: 10px;
+}
+
+.club-call-recording__download:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .club-call-journal__error {
-  margin: 0.35rem 0 0;
+  margin: 0;
   font-size: 0.82rem;
   color: rgb(248, 113, 113);
 }
@@ -286,6 +373,15 @@
 
 .club-call-journal__alert {
   margin: 0.5rem 0;
+}
+
+.club-call-journal__empty {
+  margin: 0.25rem 0 0;
+}
+
+.club-call-journal__meta {
+  /* legacy alias — layout moved to __top */
+  display: none;
 }
 
 .client-card-call-toast {
@@ -397,36 +493,57 @@
 }
 
 .club-call-note {
-  margin-top: 0.55rem;
-  padding-top: 0.45rem;
-  border-top: 1px dashed color-mix(in srgb, var(--border) 75%, transparent);
+  margin: 0;
+  padding-top: 0.55rem;
+  border-top: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
 }
 
 .club-call-note--compact {
-  margin-top: 0.4rem;
+  padding-top: 0.45rem;
+}
+
+.club-call-note--filled .club-call-note__text {
+  color: var(--text);
+}
+
+.club-call-note__bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.club-call-note__content {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .club-call-note__text {
-  margin: 0 0 0.35rem;
-  font-size: 0.88rem;
-  line-height: 1.35;
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
   white-space: pre-wrap;
 }
 
 .club-call-note__empty {
-  margin: 0 0 0.25rem;
-  font-size: 0.8rem;
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.35;
 }
 
 .club-call-note__edit {
-  min-height: 2.25rem;
-  padding-inline: 0.65rem;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.5rem;
+  padding-inline: 0.7rem;
   font-size: 0.82rem;
 }
 
 .club-call-note__label {
   display: block;
-  margin: 0 0 0.3rem;
+  margin: 0 0 0.35rem;
   font-size: 0.8rem;
   font-weight: 600;
 }
@@ -444,10 +561,19 @@
   resize: vertical;
 }
 
+.club-call-note__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.45rem;
+}
+
 .club-call-note__meta {
-  margin: 0.2rem 0 0;
+  margin: 0;
   font-size: 0.72rem;
-  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .club-call-note__error {
@@ -461,7 +587,7 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.4rem;
-  margin-top: 0.45rem;
+  margin-left: auto;
 }
 
 .club-call-sheet__note {

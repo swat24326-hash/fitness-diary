@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from 'react'
+import { Pencil, StickyNote } from 'lucide-react'
 import { CLUB_CALL_LOG_STAFF_NOTE_MAX } from '../../lib/admin/clubCallLogCore.js'
 import { saveClubCallStaffNoteViaApi } from '../../lib/admin/clubCallService.js'
 import { notifyCallTodayHomeGlanceChanged } from '../../lib/admin/callTodayHomeGlanceSession.js'
@@ -56,23 +57,30 @@ export function AdminClubCallJournalNote({
 
   if (!editing) {
     return (
-      <div className={`club-call-note${compact ? ' club-call-note--compact' : ''}`}>
-        {hasNote ? (
-          <p className="club-call-note__text">{note}</p>
-        ) : (
-          <p className="muted club-call-note__empty">Без пометки</p>
-        )}
-        <button
-          type="button"
-          className="btn btn-ghost btn-touch club-call-note__edit"
-          onClick={() => {
-            setErr('')
-            setDraft(String(note ?? ''))
-            setEditing(true)
-          }}
-        >
-          {hasNote ? 'Изменить' : 'Пометка'}
-        </button>
+      <div className={`club-call-note${compact ? ' club-call-note--compact' : ''}${hasNote ? ' club-call-note--filled' : ''}`}>
+        <div className="club-call-note__bar">
+          <div className="club-call-note__content">
+            {hasNote ? (
+              <p className="club-call-note__text">{note}</p>
+            ) : (
+              <p className="muted club-call-note__empty">Без пометки</p>
+            )}
+          </div>
+          <button
+            type="button"
+            className="btn btn-ghost btn-touch club-call-note__edit"
+            onClick={() => {
+              setErr('')
+              setDraft(String(note ?? ''))
+              setEditing(true)
+            }}
+            aria-label={hasNote ? 'Изменить пометку' : 'Добавить пометку'}
+            title={hasNote ? 'Изменить пометку' : 'Добавить пометку'}
+          >
+            {hasNote ? <Pencil size={16} aria-hidden /> : <StickyNote size={16} aria-hidden />}
+            <span>{hasNote ? 'Изменить' : 'Пометка'}</span>
+          </button>
+        </div>
       </div>
     )
   }
@@ -92,36 +100,38 @@ export function AdminClubCallJournalNote({
         placeholder="Напр.: перезвонить в пятницу · думает про УК"
         disabled={busy}
       />
-      <div className="club-call-note__meta muted">
-        {String(draft).trim().length}/{CLUB_CALL_LOG_STAFF_NOTE_MAX}
+      <div className="club-call-note__footer">
+        <span className="club-call-note__meta muted">
+          {String(draft).trim().length}/{CLUB_CALL_LOG_STAFF_NOTE_MAX}
+        </span>
+        <div className="club-call-note__actions">
+          <button
+            type="button"
+            className="btn btn-ghost btn-touch"
+            onClick={() => {
+              setEditing(false)
+              setErr('')
+              setDraft(String(note ?? ''))
+            }}
+            disabled={busy}
+          >
+            Отмена
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary btn-touch"
+            onClick={() => void onSave()}
+            disabled={busy}
+          >
+            {busy ? 'Сохраняем…' : 'Сохранить'}
+          </button>
+        </div>
       </div>
       {err ? (
         <p className="club-call-note__error" role="alert">
           {err}
         </p>
       ) : null}
-      <div className="club-call-note__actions">
-        <button
-          type="button"
-          className="btn btn-ghost btn-touch"
-          onClick={() => {
-            setEditing(false)
-            setErr('')
-            setDraft(String(note ?? ''))
-          }}
-          disabled={busy}
-        >
-          Отмена
-        </button>
-        <button
-          type="button"
-          className="btn btn-primary btn-touch"
-          onClick={() => void onSave()}
-          disabled={busy}
-        >
-          {busy ? 'Сохраняем…' : 'Сохранить'}
-        </button>
-      </div>
     </div>
   )
 }
