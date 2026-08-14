@@ -64,6 +64,7 @@ import {
   buildDailyDraftPayload,
   buildExpenseDraftPayload,
   buildPlanDraftPayload,
+  clearClubSalesDrafts,
   clearSalesDraft,
   fingerprintDailyDraft,
   fingerprintExpenseDraft,
@@ -76,8 +77,10 @@ import {
   salesFinanceDraftKey,
   salesPlanDraftKey,
   shouldPersistSalesDraft,
+  uniqueSalesDraftHints,
   writeSalesDraft,
 } from '../../lib/admin/adminSalesDraftStorage'
+import { SalesDraftRestoredBanner } from '../../components/SalesDraftRestoredBanner.jsx'
 import { SalesPlanVessel } from '../../components/SalesPlanVessel'
 import { AdminHomeSalesGlanceMetrics } from '../../components/admin/AdminHomeSalesGlanceMetrics.jsx'
 import { SalesDailyForm } from '../../components/SalesDailyForm'
@@ -486,8 +489,11 @@ export function AdminSales({ accessMode = 'admin' }) {
           }
         }
 
-        if (draftHints.length) {
-          setLoadHint(`Восстановлен несохранённый черновик: ${draftHints.join(', ')}.`)
+        const uniqueHints = uniqueSalesDraftHints(draftHints)
+        if (uniqueHints.length) {
+          setLoadHint(`Восстановлен несохранённый черновик: ${uniqueHints.join(', ')}.`)
+        } else {
+          setLoadHint('')
         }
       } catch (e) {
         if (seq !== loadSeqRef.current) return
@@ -525,6 +531,19 @@ export function AdminSales({ accessMode = 'admin' }) {
       wantShell,
     })
   }, [clubId, isSalesManager, loadSalesProfiles, reportDate, salesTab])
+
+  /** Сбросить «хвост» в localStorage и снова взять данные с сервера. */
+  const discardRestoredDrafts = useCallback(async () => {
+    if (!clubId) return
+    clearClubSalesDrafts({
+      clubId,
+      reportDate,
+      year: yearMonth.year,
+      month: yearMonth.month,
+    })
+    setLoadHint('')
+    await loadBundle()
+  }, [clubId, loadBundle, reportDate, yearMonth.month, yearMonth.year])
 
   useEffect(() => {
     if (!clubId) return
@@ -1118,11 +1137,11 @@ export function AdminSales({ accessMode = 'admin' }) {
         </p>
       ) : null}
 
-      {loadHint ? (
-        <p className="sync-feedback sync-feedback--warn" role="status">
-          {loadHint}
-        </p>
-      ) : null}
+      <SalesDraftRestoredBanner
+        text={loadHint}
+        busy={busy}
+        onDiscard={() => void discardRestoredDrafts()}
+      />
 
       {showInternalTabs ? (
         <div className="sales-report__tabs-bar">

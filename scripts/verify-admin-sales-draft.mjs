@@ -1,10 +1,12 @@
 import {
+  clearClubSalesDrafts,
   fingerprintPlanDraft,
   resolveDailyDraftAfterLoad,
   salesDailyDraftKey,
   salesFinanceDraftKey,
   salesPlanDraftKey,
   shouldRestoreSalesDraft,
+  uniqueSalesDraftHints,
 } from '../src/lib/admin/adminSalesDraftStorage.js'
 
 let failed = 0
@@ -53,5 +55,13 @@ ok(dailyResolved.restored && dailyResolved.dailyForm.pnk_total === '5', 'daily d
 
 ok(salesPlanDraftKey('c', 2026, 7).endsWith(':plan:2026-07'), 'plan draft key month padded')
 ok(salesFinanceDraftKey('c', 2026, 12).endsWith(':finance:2026-12'), 'finance draft key')
+
+ok(
+  uniqueSalesDraftHints(['план', 'план', 'расход', '', 'план']).join(',') === 'план,расход',
+  'unique draft hints drop duplicates',
+)
+
+clearClubSalesDrafts({ clubId: 'c', year: 2026, month: 8, reportDate: '2026-08-14' })
+ok(true, 'clearClubSalesDrafts runs without throw')
 
 process.exit(failed > 0 ? 1 : 0)

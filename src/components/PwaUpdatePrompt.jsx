@@ -2,7 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 import { APP_BUILD_STALE_EVENT, APP_WAKE_EVENT, onLongAppWake } from '../lib/appLifecycle'
-import { decideAppUpdate, shouldAutoApplyUpdate } from '../lib/appUpdatePolicy'
+import {
+  decideAppUpdate,
+  hasFreshSalesDraftInStorage,
+  isOnSalesReportPage,
+  shouldAutoApplyUpdate,
+} from '../lib/appUpdatePolicy'
+import { clearAllSalesDraftsInStorage } from '../lib/admin/adminSalesDraftStorage.js'
 import { clearAppUpdatePending, markAppUpdateApplied, setAppUpdatePending } from '../lib/appUpdateState'
 import { listSyncQueue } from '../lib/localDb'
 
@@ -123,13 +129,17 @@ export function PwaUpdatePrompt() {
   if (!showPrompt) return null
 
   const deferUpdate = updateDecision === 'defer'
+  const salesDraftBlocksUpdate =
+    deferUpdate && isOnSalesReportPage(location.pathname) && hasFreshSalesDraftInStorage()
 
   return (
     <div className="pwa-update" role="status" aria-live="polite">
       <div className="pwa-update__text">
-        {deferUpdate
-          ? 'Доступна новая версия — обновим, когда закончите тренировку или сохраните отчёт продаж.'
-          : 'Доступна новая версия. Нажмите один раз — всё обновится само.'}
+        {salesDraftBlocksUpdate
+          ? 'Доступна новая версия. На экране отчёта есть несохранённый черновик (часто «хвост» плана в телефоне). Сохраните план или сбросьте черновик — тогда можно обновить.'
+          : deferUpdate
+            ? 'Доступна новая версия — обновим, когда закончите тренировку или сохраните отчёт продаж.'
+            : 'Доступна новая версия. Нажмите один раз — всё обновится само.'}
         {!navigator.onLine && (
           <span className="muted"> Сейчас офлайн — обновление применится при появлении интернета.</span>
         )}
@@ -143,6 +153,19 @@ export function PwaUpdatePrompt() {
             onClick={() => void applyUpdate()}
           >
             {updating ? 'Обновление…' : 'Обновить сейчас'}
+          </button>
+        ) : null}
+        {salesDraftBlocksUpdate ? (
+          <button
+            type="button"
+            className="btn btn-primary btn-touch"
+            disabled={updating}
+            onClick={() => {
+              clearAllSalesDraftsInStorage()
+              void applyUpdate()
+            }}
+          >
+            {updating ? 'Обновление…' : 'Сбросить черновик и обновить'}
           </button>
         ) : null}
         <button

@@ -89,6 +89,73 @@ export function clearSalesDraft(key) {
 }
 
 /**
+ * Все ключи черновиков продаж в localStorage (план / расход / дневной).
+ * @returns {string[]}
+ */
+export function listSalesDraftKeysInStorage() {
+  if (typeof localStorage === 'undefined') return []
+  /** @type {string[]} */
+  const keys = []
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k?.startsWith(SALES_DRAFT_PREFIX)) keys.push(k)
+    }
+  } catch {
+    /* ignore */
+  }
+  return keys
+}
+
+/** Сбросить все локальные черновики отчёта/плана (например перед обновлением PWA). */
+export function clearAllSalesDraftsInStorage() {
+  for (const key of listSalesDraftKeysInStorage()) {
+    clearSalesDraft(key)
+  }
+}
+
+/**
+ * Черновики текущего клуба: план и расход месяца + дневной отчёт.
+ * @param {{
+ *   clubId: string,
+ *   reportDate?: string,
+ *   year?: number,
+ *   month?: number,
+ * }} opts
+ */
+export function clearClubSalesDrafts(opts) {
+  const clubId = String(opts?.clubId ?? '').trim()
+  if (!clubId) return
+  const year = Number(opts?.year)
+  const month = Number(opts?.month)
+  if (Number.isFinite(year) && Number.isFinite(month) && month >= 1 && month <= 12) {
+    clearSalesDraft(salesPlanDraftKey(clubId, year, month))
+    clearSalesDraft(salesFinanceDraftKey(clubId, year, month))
+  }
+  const date = String(opts?.reportDate ?? '').slice(0, 10)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    clearSalesDraft(salesDailyDraftKey(clubId, date))
+  }
+}
+
+/**
+ * Подписи для баннера без дублей («план, план» при cache+network).
+ * @param {string[]} hints
+ */
+export function uniqueSalesDraftHints(hints) {
+  const seen = new Set()
+  /** @type {string[]} */
+  const out = []
+  for (const raw of hints ?? []) {
+    const h = String(raw ?? '').trim()
+    if (!h || seen.has(h)) continue
+    seen.add(h)
+    out.push(h)
+  }
+  return out
+}
+
+/**
  * @param {{
  *   serverBaselineFp: string,
  *   dailyForm: Record<string, string>,
