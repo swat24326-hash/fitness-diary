@@ -24,7 +24,7 @@ import {
   resolveMoiZvonkiConfig,
   shapeMoiZvonkiPublicStatus,
 } from '../../src/lib/admin/moiZvonkiClubConfigCore.js'
-import { todayLocalIso } from '../../src/lib/dateRu.js'
+import { todayInTimeZoneIso, CLUB_OPS_TIMEZONE } from '../../src/lib/dateRu.js'
 
 /**
  * @param {object} ctx
@@ -58,7 +58,7 @@ async function loadClubMoiZvonkiResolved(ctx, clubId) {
  */
 async function fetchClubCallLogsForClub(ctx, clubId, sinceDaysRaw, clientId = '') {
   const sinceDays = clampClubCallLogSinceDays(sinceDaysRaw)
-  const sinceIso = clubCallLogSinceIso(todayLocalIso(), sinceDays)
+  const sinceIso = clubCallLogSinceIso(todayInTimeZoneIso(CLUB_OPS_TIMEZONE), sinceDays)
   const clientFilter = String(clientId ?? '').trim()
 
   let q = ctx.supabaseAdmin

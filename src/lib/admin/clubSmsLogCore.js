@@ -2,6 +2,8 @@
  * Чистые правила облачного журнала клубных SMS (без React / IDB).
  */
 
+import { calendarDayStartUtcIso, CLUB_OPS_TIMEZONE } from '../dateRu.js'
+
 export const CLUB_SMS_LOG_PREVIEW_MAX = 160
 export const CLUB_SMS_LOG_ERROR_MAX = 200
 export const CLUB_SMS_LOG_DEFAULT_LOOKBACK_DAYS = 14
@@ -144,7 +146,7 @@ export function summarizeClubSmsLogRows(logs) {
 }
 
 /**
- * ISO нижней границы для since_days (календарные дни назад от todayIso).
+ * ISO нижней границы для since_days — календарные дни клуба (Europe/Moscow).
  * @param {string} todayIso
  * @param {number} sinceDays
  */
@@ -152,11 +154,11 @@ export function clubSmsLogSinceIso(todayIso, sinceDays) {
   const day = String(todayIso ?? '').slice(0, 10)
   const days = clampClubSmsLogSinceDays(sinceDays)
   const m = day.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  if (!m) return `${day}T00:00:00.000Z`
+  if (!m) return calendarDayStartUtcIso(day, CLUB_OPS_TIMEZONE)
   const dt = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])))
   dt.setUTCDate(dt.getUTCDate() - (days - 1))
   const y = dt.getUTCFullYear()
   const mo = String(dt.getUTCMonth() + 1).padStart(2, '0')
   const d = String(dt.getUTCDate()).padStart(2, '0')
-  return `${y}-${mo}-${d}T00:00:00.000Z`
+  return calendarDayStartUtcIso(`${y}-${mo}-${d}`, CLUB_OPS_TIMEZONE)
 }

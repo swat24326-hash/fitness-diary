@@ -30,8 +30,8 @@ function ok(cond, msg) {
 ok(clampClubCallLogSinceDays(14) === 14, 'since 14')
 ok(clampClubCallLogSinceDays(0) === 14, 'since 0 → default')
 ok(clampClubCallLogSinceDays(999) === 90, 'since capped')
-ok(clubCallLogSinceIso('2026-08-13', 1).startsWith('2026-08-13'), 'since today')
-ok(clubCallLogSinceIso('2026-08-13', 14).startsWith('2026-07-31'), 'since 14 days window')
+ok(clubCallLogSinceIso('2026-08-13', 1) === '2026-08-12T21:00:00.000Z', 'since today = Moscow midnight')
+ok(clubCallLogSinceIso('2026-08-13', 14) === '2026-07-30T21:00:00.000Z', 'since 14 days window Moscow')
 
 ok(truncateClubCallPhone('+7 (999) 123-45-67') === '79991234567', 'phone digits')
 ok(truncateClubCallError('e'.repeat(CLUB_CALL_LOG_ERROR_MAX + 10)).length <= CLUB_CALL_LOG_ERROR_MAX, 'error truncated')

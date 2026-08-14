@@ -7,6 +7,93 @@ export function todayLocalIso() {
   return `${y}-${m}-${day}`
 }
 
+/** Календарь зала / сети (Vercel = UTC; «сегодня» для клуба — Москва). */
+export const CLUB_OPS_TIMEZONE = 'Europe/Moscow'
+
+/**
+ * Сегодня YYYY-MM-DD в заданной зоне (не TZ процесса Node/Vercel).
+ * @param {string} [timeZone]
+ * @param {Date} [now]
+ */
+export function todayInTimeZoneIso(timeZone = CLUB_OPS_TIMEZONE, now = new Date()) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: String(timeZone || CLUB_OPS_TIMEZONE),
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(now)
+    const y = parts.find((p) => p.type === 'year')?.value
+    const m = parts.find((p) => p.type === 'month')?.value
+    const d = parts.find((p) => p.type === 'day')?.value
+    if (y && m && d) return `${y}-${m}-${d}`
+  } catch {
+    /* fall through */
+  }
+  return todayLocalIso()
+}
+
+/**
+ * Начало календарного дня dayIso в timeZone → UTC ISO (для сравнения с created_at).
+ * @param {string} dayIso YYYY-MM-DD
+ * @param {string} [timeZone]
+ */
+export function calendarDayStartUtcIso(dayIso, timeZone = CLUB_OPS_TIMEZONE) {
+  const day = String(dayIso ?? '').slice(0, 10)
+  const m = day.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!m) return `${day}T00:00:00.000Z`
+  const yNum = Number(m[1])
+  const moNum = Number(m[2])
+  const dNum = Number(m[3])
+  const tz = String(timeZone || CLUB_OPS_TIMEZONE)
+
+  const wallParts = (ms) => {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: tz,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(new Date(ms))
+    const get = (type) => parts.find((p) => p.type === type)?.value ?? ''
+    return {
+      y: Number(get('year')),
+      mo: Number(get('month')),
+      d: Number(get('day')),
+      h: Number(get('hour')),
+      mi: Number(get('minute')),
+      s: Number(get('second')),
+    }
+  }
+
+  const rank = (p) =>
+    p.y * 1e10 + p.mo * 1e8 + p.d * 1e6 + p.h * 1e4 + p.mi * 100 + p.s
+  const target = rank({ y: yNum, mo: moNum, d: dNum, h: 0, mi: 0, s: 0 })
+
+  let lo = Date.UTC(yNum, moNum - 1, dNum) - 36 * 3600 * 1000
+  let hi = Date.UTC(yNum, moNum - 1, dNum) + 36 * 3600 * 1000
+  let found = lo
+  for (let i = 0; i < 48; i++) {
+    const mid = Math.floor((lo + hi) / 2)
+    const r = rank(wallParts(mid))
+    if (r === target) {
+      found = mid
+      break
+    }
+    if (r < target) lo = mid + 1
+    else hi = mid - 1
+    found = mid
+  }
+  // Секунда 00:00:00 стены → целые UTC ms без дробей от бинарного поиска
+  found = Math.floor(found / 1000) * 1000
+  while (found > 0 && rank(wallParts(found - 1000)) >= target) found -= 1000
+  while (rank(wallParts(found)) < target) found += 1000
+  return new Date(found).toISOString()
+}
+
 /** @param {string} iso yyyy-mm-dd */
 export function isIsoDateAfterToday(iso) {
   const d = String(iso ?? '').slice(0, 10)

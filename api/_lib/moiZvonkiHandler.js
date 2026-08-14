@@ -26,7 +26,7 @@ import {
 import { resolveClubSmsTemplates } from '../../src/lib/admin/clubSmsTemplatesCore.js'
 import { resolveClientClubSmsScenario } from '../../src/lib/admin/clubSmsSentMarkCore.js'
 import { pickUsableMembershipForDate } from '../../src/lib/membershipRules.js'
-import { todayLocalIso } from '../../src/lib/dateRu.js'
+import { todayInTimeZoneIso, CLUB_OPS_TIMEZONE, todayLocalIso } from '../../src/lib/dateRu.js'
 
 /**
  * @param {object} ctx
@@ -133,7 +133,7 @@ export async function handleClubSmsGet(ctx, req, res) {
  */
 async function fetchClubSmsLogsForClub(ctx, clubId, sinceDaysRaw) {
   const sinceDays = clampClubSmsLogSinceDays(sinceDaysRaw)
-  const sinceIso = clubSmsLogSinceIso(todayLocalIso(), sinceDays)
+  const sinceIso = clubSmsLogSinceIso(todayInTimeZoneIso(CLUB_OPS_TIMEZONE), sinceDays)
 
   const { data: rows, error } = await ctx.supabaseAdmin
     .from('club_sms_log')

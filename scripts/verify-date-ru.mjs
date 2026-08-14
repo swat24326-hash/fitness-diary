@@ -6,10 +6,12 @@ import {
   addDaysToIso,
   addMonthsToIso,
   birthDateYearBounds,
+  calendarDayStartUtcIso,
   defaultMembershipEndIso,
   formatDateTimeRu,
   maskRuDateDigitsInput,
   parseFlexibleDateToIso,
+  todayInTimeZoneIso,
 } from '../src/lib/dateRu.js'
 
 let failed = 0
@@ -52,6 +54,16 @@ ok(
 ok(
   formatDateTimeRu('2026-08-13T20:13:00.000Z', { timeZone: 'UTC' }) === '13.08.2026, 20:13',
   'UTC display stays UTC',
+)
+
+ok(calendarDayStartUtcIso('2026-08-15', 'Europe/Moscow') === '2026-08-14T21:00:00.000Z', 'MSK day start UTC')
+ok(
+  todayInTimeZoneIso('Europe/Moscow', new Date('2026-08-14T22:47:00.000Z')) === '2026-08-15',
+  'UTC late evening → next MSK calendar day',
+)
+ok(
+  todayInTimeZoneIso('UTC', new Date('2026-08-14T22:47:00.000Z')) === '2026-08-14',
+  'same instant still previous day in UTC',
 )
 
 if (failed) process.exit(1)

@@ -2,6 +2,7 @@
  * Чистые правила облачного журнала клубных звонков (Мои Звонки).
  */
 
+import { calendarDayStartUtcIso, CLUB_OPS_TIMEZONE } from '../dateRu.js'
 import { normalizeClubCallRecordingUrl } from './clubCallOutcomeCore.js'
 
 export const CLUB_CALL_LOG_ERROR_MAX = 200
@@ -210,6 +211,7 @@ export function summarizeClubCallLogRows(logs) {
 }
 
 /**
+ * Нижняя граница журнала: календарные дни клуба (Europe/Moscow), не UTC-полночь сервера.
  * @param {string} todayIso
  * @param {number} sinceDays
  */
@@ -217,11 +219,11 @@ export function clubCallLogSinceIso(todayIso, sinceDays) {
   const day = String(todayIso ?? '').slice(0, 10)
   const days = clampClubCallLogSinceDays(sinceDays)
   const m = day.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  if (!m) return `${day}T00:00:00.000Z`
+  if (!m) return calendarDayStartUtcIso(day, CLUB_OPS_TIMEZONE)
   const dt = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])))
   dt.setUTCDate(dt.getUTCDate() - (days - 1))
   const y = dt.getUTCFullYear()
   const mo = String(dt.getUTCMonth() + 1).padStart(2, '0')
   const d = String(dt.getUTCDate()).padStart(2, '0')
-  return `${y}-${mo}-${d}T00:00:00.000Z`
+  return calendarDayStartUtcIso(`${y}-${mo}-${d}`, CLUB_OPS_TIMEZONE)
 }
