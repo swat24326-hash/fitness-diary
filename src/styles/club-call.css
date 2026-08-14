@@ -209,14 +209,41 @@
   font-size: 0.75rem;
 }
 
-.club-call-journal__recording {
-  display: inline-block;
-  margin-top: 0.35rem;
-  font-size: 0.88rem;
+.club-call-recording {
+  margin-top: 0.45rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-width: 100%;
+}
+
+.club-call-recording__label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.club-call-recording__audio {
+  width: 100%;
+  max-width: 22rem;
+  height: 2.25rem;
+}
+
+.club-call-recording__hint {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.club-call-recording__download {
+  align-self: flex-start;
+  font-size: 0.82rem;
   font-weight: 600;
   color: var(--accent, #0b6e4f);
   text-decoration: underline;
   text-underline-offset: 2px;
+  min-height: 2.5rem;
+  display: inline-flex;
+  align-items: center;
 }
 
 .club-call-journal__error {
