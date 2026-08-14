@@ -11,6 +11,7 @@ import { buildClubCallStats, buildClubSmsStats } from '../../lib/admin/clubOutre
 import { formatDateTimeRu } from '../../lib/dateRu.js'
 import { AdminClubOutreachStatsPanel } from './AdminClubOutreachStatsPanel.jsx'
 import { AdminClubCallJournalRow } from './AdminClubCallJournalRow.jsx'
+import { ClubOutreachPeriodStepper } from './ClubOutreachPeriodStepper.jsx'
 import '../../styles/club-call.css'
 
 const PERIODS = [
@@ -20,13 +21,13 @@ const PERIODS = [
 ]
 
 const TABS = [
-  { id: 'list', label: 'Список звонков' },
-  { id: 'call-stats', label: 'Сводка звонков' },
-  { id: 'sms', label: 'Учёт SMS' },
+  { id: 'list', label: 'Список' },
+  { id: 'call-stats', label: 'Сводка' },
+  { id: 'sms', label: 'SMS' },
 ]
 
 const STATUS_FILTERS = [
-  { id: 'all', label: 'Все' },
+  { id: 'all', label: 'Все статусы' },
   { id: 'ok', label: 'Команда ушла' },
   { id: 'fail', label: 'Ошибки' },
 ]
@@ -109,34 +110,50 @@ export function AdminClubOutreachJournalWorkspace({ clubId }) {
         </button>
       </div>
 
-      <div className="club-call-journal__periods" role="group" aria-label="Период">
-        {PERIODS.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            className={`btn btn-touch club-call-journal__period${period === p.id ? ' club-call-journal__period--on' : ' btn-ghost'}`}
-            onClick={() => setPeriod(p.id)}
-            disabled={loading}
-          >
-            {p.label}
-          </button>
-        ))}
+      <div className="club-outreach-journal__toolbar">
+        <div className="tabs club-outreach-journal__tabs" role="tablist" aria-label="Разделы журнала">
+          {TABS.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.id}
+              className="tab"
+              onClick={() => setTab(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <ClubOutreachPeriodStepper
+          periods={PERIODS}
+          value={period}
+          onChange={setPeriod}
+          disabled={loading}
+        />
       </div>
 
-      <div className="club-outreach-journal__tabs" role="tablist" aria-label="Разделы журнала">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.id}
-            className={`btn btn-touch club-outreach-journal__tab${tab === t.id ? ' club-outreach-journal__tab--on' : ' btn-ghost'}`}
-            onClick={() => setTab(t.id)}
+      {tab === 'list' || tab === 'sms' ? (
+        <div className="club-call-journal__filters">
+          <label className="club-call-journal__filter-label" htmlFor="club-outreach-status">
+            Статус
+          </label>
+          <select
+            id="club-outreach-status"
+            className="select club-call-journal__status-select"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            disabled={loading}
+            aria-label={tab === 'sms' ? 'Статус SMS' : 'Статус звонка'}
           >
-            {t.label}
-          </button>
-        ))}
-      </div>
+            {STATUS_FILTERS.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
 
       {err ? (
         <p className="admin-outreach-templates__error" role="alert">
@@ -146,19 +163,6 @@ export function AdminClubOutreachJournalWorkspace({ clubId }) {
 
       {tab === 'list' ? (
         <>
-          <div className="club-call-journal__periods" role="group" aria-label="Статус">
-            {STATUS_FILTERS.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                className={`btn btn-touch club-call-journal__period${statusFilter === p.id ? ' club-call-journal__period--on' : ' btn-ghost'}`}
-                onClick={() => setStatusFilter(p.id)}
-                disabled={loading}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
           {!loading && !err ? (
             <p className="club-call-journal__summary muted" role="status">
               Звонков: <strong>{callSummary.total}</strong>
@@ -203,19 +207,6 @@ export function AdminClubOutreachJournalWorkspace({ clubId }) {
 
       {tab === 'sms' ? (
         <>
-          <div className="club-call-journal__periods" role="group" aria-label="Статус SMS">
-            {STATUS_FILTERS.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                className={`btn btn-touch club-call-journal__period${statusFilter === p.id ? ' club-call-journal__period--on' : ' btn-ghost'}`}
-                onClick={() => setStatusFilter(p.id)}
-                disabled={loading}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
           <AdminClubOutreachStatsPanel
             stats={smsStats}
             loading={loading}

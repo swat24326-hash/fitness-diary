@@ -7,7 +7,9 @@ import {
 } from '../../lib/admin/clubSmsLogCore.js'
 import { OUTREACH_SCENARIO_LABELS } from '../../lib/trainer/trainerClientOutreachCore.js'
 import { formatDateTimeRu } from '../../lib/dateRu.js'
+import { ClubOutreachPeriodStepper } from './ClubOutreachPeriodStepper.jsx'
 import '../../styles/club-sms-journal.css'
+import '../../styles/club-call.css'
 
 const PERIODS = [
   { id: '1', days: 1, label: 'Сегодня' },
@@ -16,7 +18,7 @@ const PERIODS = [
 ]
 
 const STATUS_FILTERS = [
-  { id: 'all', label: 'Все' },
+  { id: 'all', label: 'Все статусы' },
   { id: 'ok', label: 'Ушло' },
   { id: 'fail', label: 'Ошибки' },
 ]
@@ -91,18 +93,32 @@ export function AdminClubSmsJournalSection({ clubId }) {
         </button>
       </div>
 
-      <div className="club-sms-journal__periods" role="group" aria-label="Период">
-        {PERIODS.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            className={`btn btn-touch club-sms-journal__period${period === p.id ? ' club-sms-journal__period--on' : ' btn-ghost'}`}
-            onClick={() => setPeriod(p.id)}
+      <div className="club-call-journal__toolbar">
+        <ClubOutreachPeriodStepper
+          periods={PERIODS}
+          value={period}
+          onChange={setPeriod}
+          disabled={loading}
+        />
+        <div className="club-call-journal__filters club-call-journal__filters--inline">
+          <label className="club-call-journal__filter-label" htmlFor="club-sms-status">
+            Статус
+          </label>
+          <select
+            id="club-sms-status"
+            className="select club-call-journal__status-select"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
             disabled={loading}
+            aria-label="Статус SMS"
           >
-            {p.label}
-          </button>
-        ))}
+            {STATUS_FILTERS.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {!loading && !err && rows.length > 0 ? (
@@ -114,20 +130,6 @@ export function AdminClubSmsJournalSection({ clubId }) {
           ошибок <strong>{summary.fail}</strong>
         </p>
       ) : null}
-
-      <div className="club-sms-journal__periods" role="group" aria-label="Статус">
-        {STATUS_FILTERS.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            className={`btn btn-touch club-sms-journal__period${statusFilter === p.id ? ' club-sms-journal__period--on' : ' btn-ghost'}`}
-            onClick={() => setStatusFilter(p.id)}
-            disabled={loading}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
 
       {err ? (
         <p className="admin-outreach-templates__error" role="alert">

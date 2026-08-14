@@ -85,25 +85,30 @@ export function AdminClubCallJournalRow({ row, mode = 'club', onNoteSaved }) {
           </div>
         </div>
 
-        {row.recording_url ? (
-          <div className="club-call-journal__media">
-            <AdminClubCallRecordingPlayer url={row.recording_url} />
-          </div>
-        ) : null}
-
         {fail && row.error_message ? (
           <p className="club-call-journal__error">{row.error_message}</p>
         ) : null}
 
-        {row.club_id && row.id ? (
-          <AdminClubCallJournalNote
-            clubId={String(row.club_id)}
-            logId={String(row.id)}
-            note={row.staff_note}
-            compact={mode === 'client'}
-            onSaved={(next) => onNoteSaved?.(String(row.id), next)}
-          />
-        ) : null}
+        <div
+          className={`club-call-journal__tools${row.recording_url ? '' : ' club-call-journal__tools--note-only'}`}
+        >
+          {row.recording_url ? (
+            <div className="club-call-journal__media">
+              <AdminClubCallRecordingPlayer url={row.recording_url} />
+            </div>
+          ) : null}
+          {row.club_id && row.id ? (
+            <div className="club-call-journal__note-slot">
+              <AdminClubCallJournalNote
+                clubId={String(row.club_id)}
+                logId={String(row.id)}
+                note={row.staff_note}
+                compact={mode === 'client'}
+                onSaved={(next) => onNoteSaved?.(String(row.id), next)}
+              />
+            </div>
+          ) : null}
+        </div>
       </div>
     </li>
   )

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { fetchClubCallLogs } from '../../lib/admin/clubCallService.js'
 import {
@@ -6,6 +6,7 @@ import {
   summarizeClubCallLogRows,
 } from '../../lib/admin/clubCallLogCore.js'
 import { AdminClubCallJournalRow } from './AdminClubCallJournalRow.jsx'
+import { ClubOutreachPeriodStepper } from './ClubOutreachPeriodStepper.jsx'
 import '../../styles/club-call.css'
 
 const PERIODS_CLUB = [
@@ -21,13 +22,13 @@ const PERIODS_CLIENT = [
 ]
 
 const STATUS_FILTERS_CLUB = [
-  { id: 'all', label: 'Все' },
+  { id: 'all', label: 'Все статусы' },
   { id: 'ok', label: 'Команда ушла' },
   { id: 'fail', label: 'Ошибки' },
 ]
 
 const STATUS_FILTERS_CLIENT = [
-  { id: 'all', label: 'Все' },
+  { id: 'all', label: 'Все статусы' },
   { id: 'answered', label: 'Отвечен' },
   { id: 'missed', label: 'Пропущен' },
   { id: 'short', label: 'Короткий' },
@@ -58,6 +59,7 @@ export function AdminClubCallJournalSection({
   const forClient = Boolean(String(clientId ?? '').trim())
   const periods = forClient ? PERIODS_CLIENT : PERIODS_CLUB
   const statusFilters = forClient ? STATUS_FILTERS_CLIENT : STATUS_FILTERS_CLUB
+  const statusFieldId = useId()
   const [period, setPeriod] = useState(forClient ? '90' : '14')
   const [statusFilter, setStatusFilter] = useState('all')
   const [rows, setRows] = useState([])
@@ -134,18 +136,32 @@ export function AdminClubCallJournalSection({
         </div>
       </div>
 
-      <div className="club-call-journal__periods" role="group" aria-label="Период">
-        {periods.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            className={`btn btn-touch club-call-journal__period${period === p.id ? ' club-call-journal__period--on' : ' btn-ghost'}`}
-            onClick={() => setPeriod(p.id)}
+      <div className="club-call-journal__toolbar">
+        <ClubOutreachPeriodStepper
+          periods={periods}
+          value={period}
+          onChange={setPeriod}
+          disabled={loading}
+        />
+        <div className="club-call-journal__filters club-call-journal__filters--inline">
+          <label className="club-call-journal__filter-label" htmlFor={statusFieldId}>
+            Статус
+          </label>
+          <select
+            id={statusFieldId}
+            className="select club-call-journal__status-select"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
             disabled={loading}
+            aria-label="Фильтр по статусу"
           >
-            {p.label}
-          </button>
-        ))}
+            {statusFilters.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {!loading && !err && rows.length > 0 ? (
@@ -167,20 +183,6 @@ export function AdminClubCallJournalSection({
           ) : null}
         </p>
       ) : null}
-
-      <div className="club-call-journal__periods" role="group" aria-label="Фильтр">
-        {statusFilters.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            className={`btn btn-touch club-call-journal__period${statusFilter === p.id ? ' club-call-journal__period--on' : ' btn-ghost'}`}
-            onClick={() => setStatusFilter(p.id)}
-            disabled={loading}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
 
       {err ? (
         <p className="admin-outreach-templates__error club-call-journal__alert" role="alert">
