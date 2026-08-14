@@ -457,13 +457,15 @@ async function handler(req, res) {
   }
 
   if (action === 'trainer-pay-plan-settings') {
-    const ctx = await requireAdmin(req, res)
+    const clubId = String(req.query?.club_id ?? '').trim()
+    const ctx = await requireAdminOrSalesManager(req, res, clubId)
     if (!ctx) return
     return handleTrainerPayPlanSettingsGet(ctx, req, res)
   }
 
   if (action === 'trainer-pay-profiles') {
-    const ctx = await requireAdmin(req, res)
+    const clubId = String(req.query?.club_id ?? '').trim()
+    const ctx = await requireAdminOrSalesManager(req, res, clubId)
     if (!ctx) return
     return handleTrainerPayProfilesGet(ctx, req, res)
   }

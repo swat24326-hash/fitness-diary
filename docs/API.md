@@ -41,8 +41,8 @@
 | `club-stats`, `club-monthly` | admin / **supervisor** (свой клуб) | Сводка и год. `club-stats&include_cq=0` — лёгкая сводка без CQ (default `include_cq=1`). Опционально `hall=pz\|tz\|az` — census и тренировки по залу; без `hall` — legacy commercial (без desk). На `hall=tz\|az` «по типам» = census абонов зала. CQ только для ПЗ / без hall |
 | `coach-quality` | admin / trainer / **supervisor** (свой клуб + свой id у тренера) | Отдельный расчёт CQ; `mode=full\|glance`. Статистика и главная грузят параллельно со сводкой |
 | `coach-quality-settings` | GET: admin или trainer/sales/**supervisor** своего клуба; POST: admin | веса осей, доли внутри ведения/хвостов и тумблеры |
-| `trainer-pay-plan-settings` | GET/POST: admin | пороги тренировок месяца → уровни ЗП 1–3 (`workouts_l2_min`, `workouts_l3_min`; старые `hours_*` читаются) |
-| `trainer-pay-profiles` | GET/POST: admin | кабинеты тренеров клуба: `on_plan`, `rate_adjustment_rub`; GET `club_id` (+ опц. `trainer_id`); POST upsert |
+| `trainer-pay-plan-settings` | GET: admin / sales_manager / supervisor своего клуба; POST: admin | пороги тренировок месяца → уровни ЗП 1–3 |
+| `trainer-pay-profiles` | GET: admin / sales_manager / supervisor своего клуба; POST: admin | кабинеты тренеров: `on_plan`, `rate_adjustment_rub` |
 | `trainer-pay-payroll-context` | GET: admin / sales_manager (свой клуб) | контекст ЗП на `year`+`month`: live или снимок (`frozen`); при первом запросе прошлого месяца создаёт snapshot |
 | `health-cards`, `clubs` | health-cards: admin / **supervisor**; clubs: admin | Медкарты, клубы |
 | `sales` | admin / sales_manager | Отчёты продаж. Опционально `profile=shell\|daily\|month\|full` (default `full`); `include_fit_city=1` для подсказок типов |
