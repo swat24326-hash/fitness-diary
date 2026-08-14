@@ -58,7 +58,7 @@ async function fetchClubCallLogsForClub(ctx, clubId, sinceDaysRaw, clientId = ''
   let q = ctx.supabaseAdmin
     .from('club_call_log')
     .select(
-      'id, club_id, client_id, sent_by, phone, status, error_message, created_at, outcome, answered, duration_sec, mz_db_call_id, src_number, finished_at',
+      'id, club_id, client_id, sent_by, phone, status, error_message, created_at, outcome, answered, duration_sec, mz_db_call_id, src_number, finished_at, recording_url',
     )
     .eq('club_id', clubId)
     .gte('created_at', sinceIso)
@@ -68,7 +68,7 @@ async function fetchClubCallLogsForClub(ctx, clubId, sinceDaysRaw, clientId = ''
 
   let { data: rows, error } = await q
 
-  if (error && /outcome|duration_sec|finished_at|schema cache|column/i.test(String(error.message ?? ''))) {
+  if (error && /outcome|duration_sec|finished_at|recording_url|schema cache|column/i.test(String(error.message ?? ''))) {
     let qLegacy = ctx.supabaseAdmin
       .from('club_call_log')
       .select('id, club_id, client_id, sent_by, phone, status, error_message, created_at')

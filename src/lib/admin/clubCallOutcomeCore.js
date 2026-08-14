@@ -16,15 +16,53 @@ export const CLUB_CALL_RECORDING_URL_MAX = 500
 
 /**
  * Только http(s) ссылка на запись; иначе null.
+ * Относительный путь — с baseOrigin (например https://fitcity.moizvonki.ru).
  * @param {unknown} raw
+ * @param {string} [baseOrigin]
  * @returns {string | null}
  */
-export function normalizeClubCallRecordingUrl(raw) {
-  const s = String(raw ?? '').trim()
+export function normalizeClubCallRecordingUrl(raw, baseOrigin = '') {
+  let s = String(raw ?? '').trim()
   if (!s) return null
+  if (s.startsWith('//')) s = `https:${s}`
+  const base = String(baseOrigin ?? '')
+    .trim()
+    .replace(/\/$/, '')
+  if (!/^https?:\/\//i.test(s) && base && s.startsWith('/')) {
+    s = `${base}${s}`
+  }
   if (!/^https?:\/\//i.test(s)) return null
   if (s.length > CLUB_CALL_RECORDING_URL_MAX) return s.slice(0, CLUB_CALL_RECORDING_URL_MAX)
   return s
+}
+
+/**
+ * Сырое поле записи из event Мои Звонки (разные имена в доках/интеграциях).
+ * @param {Record<string, unknown>} event
+ */
+export function pickMoiZvonkiRecordingRaw(event) {
+  if (!event || typeof event !== 'object') return ''
+  const keys = [
+    'recording',
+    'recording_url',
+    'record_url',
+    'record',
+    'call_record',
+    'audio_url',
+    'file_url',
+    'file',
+  ]
+  for (const k of keys) {
+    const v = event[k]
+    if (v == null || v === '') continue
+    if (typeof v === 'object' && v !== null && 'url' in v) {
+      const u = String(/** @type {{ url?: unknown }} */ (v).url ?? '').trim()
+      if (u) return u
+    }
+    const s = String(v).trim()
+    if (s) return s
+  }
+  return ''
 }
 
 /** @param {string | null | undefined} raw */
@@ -138,7 +176,7 @@ export function parseMoiZvonkiWebhookBody(body) {
 /**
  * @param {Record<string, unknown>} event
  */
-export function shapeCallFinishFromMoiZvonkiEvent(event) {
+export function shapeCallFinishFromMoiZvonkiEvent(event, opts = {}) {
   const phone = normalizeCallOutcomePhone(
     String(event.client_number ?? event.to ?? event.phone ?? ''),
   )
@@ -149,6 +187,7 @@ export function shapeCallFinishFromMoiZvonkiEvent(event) {
   })
   const startTs = Number(event.start_time)
   const endTs = Number(event.end_time)
+  const baseOrigin = String(opts.baseOrigin ?? '').trim()
   return {
     phone,
     ...derived,
@@ -157,7 +196,7 @@ export function shapeCallFinishFromMoiZvonkiEvent(event) {
     src_number: event.src_number != null ? String(event.src_number).replace(/\D/g, '').slice(0, 20) : null,
     start_time_ms: Number.isFinite(startTs) && startTs > 0 ? startTs * (startTs < 1e12 ? 1000 : 1) : null,
     end_time_ms: Number.isFinite(endTs) && endTs > 0 ? endTs * (endTs < 1e12 ? 1000 : 1) : null,
-    recording_url: normalizeClubCallRecordingUrl(event.recording ?? event.recording_url),
+    recording_url: normalizeClubCallRecordingUrl(pickMoiZvonkiRecordingRaw(event), baseOrigin),
   }
 }
 

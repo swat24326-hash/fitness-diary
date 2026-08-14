@@ -79,7 +79,12 @@ export async function handleMoiZvonkiWebhookPost(req, res, body) {
     return
   }
 
-  const finish = shapeCallFinishFromMoiZvonkiEvent(parsed.event)
+  const envDomain = String(process.env.MOIZVONKI_DOMAIN ?? '')
+    .trim()
+    .replace(/^https?:\/\//i, '')
+    .replace(/\.moizvonki\.ru$/i, '')
+  const baseOrigin = envDomain ? `https://${envDomain}.moizvonki.ru` : ''
+  const finish = shapeCallFinishFromMoiZvonkiEvent(parsed.event, { baseOrigin })
   if (!finish.phone) {
     sendJson(res, 200, { ok: true, ignored: true, reason: 'no_phone' })
     return
@@ -197,6 +202,52 @@ export async function handleMoiZvonkiWebhookPost(req, res, body) {
     break
   }
 
+  // Повторный webhook / запись пришла позже: дописать recording_url к уже закрытой строке.
+  if (finish.recording_url) {
+    for (const clubId of clubIds) {
+      if (finish.mz_db_call_id) {
+        const { data: byMz } = await supabaseAdmin
+          .from('club_call_log')
+          .update({ recording_url: finish.recording_url })
+          .eq('club_id', clubId)
+          .eq('mz_db_call_id', finish.mz_db_call_id)
+          .is('recording_url', null)
+          .select('id')
+          .limit(1)
+        if (byMz?.[0]?.id) {
+          updatedId = updatedId || String(byMz[0].id)
+          matchedClubId = matchedClubId || clubId
+          break
+        }
+      }
+      const { data: recent } = await supabaseAdmin
+        .from('club_call_log')
+        .select('id, phone, status, finished_at, created_at, recording_url')
+        .eq('club_id', clubId)
+        .eq('status', 'ok')
+        .eq('phone', finish.phone)
+        .not('finished_at', 'is', null)
+        .is('recording_url', null)
+        .gte('created_at', sinceIso)
+        .order('created_at', { ascending: false })
+        .limit(10)
+      const row = (recent ?? [])[0]
+      if (!row?.id) continue
+      const { data: attached } = await supabaseAdmin
+        .from('club_call_log')
+        .update({ recording_url: finish.recording_url })
+        .eq('id', row.id)
+        .is('recording_url', null)
+        .select('id')
+        .maybeSingle()
+      if (attached?.id) {
+        updatedId = updatedId || String(attached.id)
+        matchedClubId = matchedClubId || clubId
+        break
+      }
+    }
+  }
+
   sendJson(res, 200, {
     ok: true,
     matched: Boolean(updatedId),
@@ -205,5 +256,6 @@ export async function handleMoiZvonkiWebhookPost(req, res, body) {
     outcome: patch.outcome,
     duration_sec: patch.duration_sec,
     phone: finish.phone,
+    has_recording: Boolean(finish.recording_url),
   })
 }

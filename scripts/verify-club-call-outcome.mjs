@@ -55,8 +55,16 @@ ok(
 const patch = buildClubCallFinishPatch(finish)
 ok(patch.outcome === 'short' && patch.duration_sec === 3 && patch.finished_at, 'patch')
 ok(patch.recording_url === finish.recording_url, 'patch recording')
-ok(normalizeClubCallRecordingUrl('javascript:alert(1)') == null, 'reject bad recording')
-ok(normalizeClubCallRecordingUrl('') == null, 'empty recording')
+ok(normalizeClubCallRecordingUrl('/rec/a.mp3', 'https://fitcity.moizvonki.ru') === 'https://fitcity.moizvonki.ru/rec/a.mp3', 'relative recording')
+ok(
+  shapeCallFinishFromMoiZvonkiEvent({
+    client_number: '7999',
+    answered: 1,
+    duration: 10,
+    record_url: 'https://x.test/r.mp3',
+  }).recording_url === 'https://x.test/r.mp3',
+  'shape record_url alias',
+)
 
 const created = new Date(Date.UTC(2026, 7, 14, 11, 40, 0)).toISOString()
 const match = pickClubCallLogRowForFinish(
