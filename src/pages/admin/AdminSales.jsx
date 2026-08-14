@@ -1393,10 +1393,10 @@ export function AdminSales({ accessMode = 'admin' }) {
             planDirections={planDirections}
             planMatrix={planMatrix}
             promotions={planPromotions}
-            onPromotionsChange={setPlanPromotions}
-            onSavePromotions={() => void handleSavePromotions()}
-            savingPromotions={savingPlan}
-            canEditPromotions
+            onPromotionsChange={undefined}
+            onSavePromotions={undefined}
+            savingPromotions={false}
+            canEditPromotions={false}
             membershipTypes={membershipTypes}
             trainers={trainers}
             onPrevMonth={() => shiftReportMonth(-1)}

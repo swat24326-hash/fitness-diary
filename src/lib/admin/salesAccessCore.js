@@ -31,8 +31,8 @@ export function canSalesManagerAccessClub(profileClubId, requestedClubId) {
  */
 export function assertSalesPlanScopeForRole(scope, isSalesManager) {
   if (!isSalesManager) return { ok: true }
-  if (scope === 'directions' || scope === 'strategy_snapshot' || scope === 'promotions') return { ok: true }
-  return { ok: false, error: 'Только администратор может менять уровни плана и финансы' }
+  if (scope === 'directions' || scope === 'strategy_snapshot') return { ok: true }
+  return { ok: false, error: 'Только администратор может менять уровни плана, акции и финансы' }
 }
 
 /** @param {boolean} isSalesManagerUser */

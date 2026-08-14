@@ -53,7 +53,7 @@ ok(dayOk.ok === true, 'legacy day validate skip')
 
 console.log('\n— roles (scope) —')
 ok(assertSalesPlanScopeForRole('promotions', false).ok, 'admin promotions ok')
-ok(assertSalesPlanScopeForRole('promotions', true).ok, 'manager promotions ok')
+ok(!assertSalesPlanScopeForRole('promotions', true).ok, 'manager promotions blocked')
 ok(assertSalesPlanScopeForRole('levels', false).ok, 'admin levels ok')
 ok(!assertSalesPlanScopeForRole('levels', true).ok, 'manager levels blocked')
 ok(assertSalesPlanScopeForRole('directions', true).ok, 'manager directions still ok')
