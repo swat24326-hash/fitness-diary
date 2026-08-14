@@ -71,6 +71,17 @@ const shaped = shapeClubCallLogApiRow(
 )
 ok(shaped.client_name === 'Иванов' && shaped.sent_by_name === 'Менеджер', 'shape names')
 ok(shaped.status === 'fail' && shaped.error_message === 'offline', 'shape fail')
+ok(
+  shapeClubCallLogApiRow({
+    id: '2',
+    club_id: 'c1',
+    client_id: 'cli1',
+    status: 'ok',
+    recording_url: 'https://fitcity.moizvonki.ru/r.mp3',
+  }).recording_url === 'https://fitcity.moizvonki.ru/r.mp3',
+  'shape recording',
+)
+ok(shapeClubCallLogApiRow({ id: '3', status: 'ok', recording_url: 'not-a-url' }).recording_url == null, 'shape bad recording')
 
 const rows = [
   { status: 'ok' },

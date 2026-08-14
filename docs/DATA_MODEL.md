@@ -40,9 +40,9 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | `trainer_pay_profiles` | `trainer_id` | Кабинет ЗП: `on_plan` (без плана → всегда ур. 3) + `rate_adjustment_rub`; клуб в `club_id` |
 | `club_trainer_pay_month_snapshots` | `(club_id, year, month)` | Заморозка правил ЗП прошлого календарного месяца; текущий месяц — live |
 | `club_sms_log` | — | Облачный журнал SMS клуба (`status` ok\|fail, `error_message`); API `admin-data?action=club-sms` |
-| `club_call_log` | — | Журнал звонков: команда API (`status` ok\|fail) + исход webhook (`outcome` pending\|answered\|missed\|short, `duration_sec`, `answered`); API `club-call` / `moizvonki-webhook` |
+| `club_call_log` | — | Журнал звонков: команда API (`status` ok\|fail) + исход webhook (`outcome`, `duration_sec`, `answered`, `recording_url`); API `club-call` / `moizvonki-webhook` |
 
-Миграции SMS / звонки / moizvonki: `club_sms_templates`, `club_sms_log`, `20260805230000_club_iskra_moizvonki.sql`, `20260813210000_club_sms_log_status.sql`, `20260813220000_club_call_log.sql`, `20260814153000_club_call_log_outcome.sql`.
+Миграции SMS / звонки / moizvonki: `club_sms_templates`, `club_sms_log`, `20260805230000_club_iskra_moizvonki.sql`, `20260813210000_club_sms_log_status.sql`, `20260813220000_club_call_log.sql`, `20260814153000_club_call_log_outcome.sql`, `20260814210000_club_call_log_recording.sql`.
 
 ### Роли `users.role` (Postgres)
 

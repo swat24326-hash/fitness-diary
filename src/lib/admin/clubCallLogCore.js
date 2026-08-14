@@ -2,6 +2,8 @@
  * Чистые правила облачного журнала клубных звонков (Мои Звонки).
  */
 
+import { normalizeClubCallRecordingUrl } from './clubCallOutcomeCore.js'
+
 export const CLUB_CALL_LOG_ERROR_MAX = 200
 export const CLUB_CALL_LOG_PHONE_MAX = 20
 export const CLUB_CALL_LOG_DEFAULT_LOOKBACK_DAYS = 14
@@ -101,6 +103,7 @@ export function shapeClubCallLogApiRow(row, extra = {}) {
     mz_db_call_id: row.mz_db_call_id ? String(row.mz_db_call_id) : null,
     src_number: row.src_number ? String(row.src_number) : null,
     finished_at: row.finished_at ? String(row.finished_at) : null,
+    recording_url: normalizeClubCallRecordingUrl(row.recording_url),
     client_name: extra.clientName ? String(extra.clientName) : null,
     sent_by_name: extra.sentByName ? String(extra.sentByName) : null,
   }

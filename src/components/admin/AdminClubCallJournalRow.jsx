@@ -49,6 +49,16 @@ export function AdminClubCallJournalRow({ row, mode = 'club' }) {
       {row.src_number ? (
         <p className="muted club-call-journal__src">с SIM {formatPhone(row.src_number)}</p>
       ) : null}
+      {row.recording_url ? (
+        <a
+          className="club-call-journal__recording"
+          href={row.recording_url}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Запись разговора
+        </a>
+      ) : null}
       {fail && row.error_message ? (
         <p className="club-call-journal__error">{row.error_message}</p>
       ) : null}

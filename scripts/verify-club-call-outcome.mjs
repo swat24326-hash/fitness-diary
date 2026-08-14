@@ -7,6 +7,7 @@ import {
   deriveClubCallOutcome,
   moiZvonkiWebhookSecretMatches,
   normalizeCallOutcomePhone,
+  normalizeClubCallRecordingUrl,
   parseMoiZvonkiWebhookBody,
   pickClubCallLogRowForFinish,
   shapeCallFinishFromMoiZvonkiEvent,
@@ -41,13 +42,21 @@ const parsed = parseMoiZvonkiWebhookBody({
     end_time: 1720000003,
     db_call_id: 99,
     event_pbx_call_id: 'pbx1',
+    recording: 'https://fitcity.moizvonki.ru/rec/abc.mp3',
   },
 })
 ok(parsed.ok && parsed.action === 'call.finish', 'parse finish')
 const finish = shapeCallFinishFromMoiZvonkiEvent(parsed.event)
 ok(finish.phone === '79532966840' && finish.outcome === 'short', 'shape finish short')
+ok(
+  finish.recording_url === 'https://fitcity.moizvonki.ru/rec/abc.mp3',
+  'shape recording url',
+)
 const patch = buildClubCallFinishPatch(finish)
 ok(patch.outcome === 'short' && patch.duration_sec === 3 && patch.finished_at, 'patch')
+ok(patch.recording_url === finish.recording_url, 'patch recording')
+ok(normalizeClubCallRecordingUrl('javascript:alert(1)') == null, 'reject bad recording')
+ok(normalizeClubCallRecordingUrl('') == null, 'empty recording')
 
 const created = new Date(Date.UTC(2026, 7, 14, 11, 40, 0)).toISOString()
 const match = pickClubCallLogRowForFinish(

@@ -179,7 +179,7 @@ export async function handleMoiZvonkiWebhookPost(req, res, body) {
     if (updErr) {
       // Колонок outcome ещё нет — мягкий ответ, чтобы Мои Звонки не долбили.
       const msg = String(updErr.message ?? '')
-      if (/outcome|duration_sec|finished_at|schema cache|column/i.test(msg)) {
+      if (/outcome|duration_sec|finished_at|recording_url|schema cache|column/i.test(msg)) {
         sendJson(res, 503, {
           ok: false,
           error: 'Нужна миграция club_call_log outcome на Supabase',

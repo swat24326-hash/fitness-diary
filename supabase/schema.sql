@@ -367,8 +367,19 @@ CREATE TABLE IF NOT EXISTS club_call_log (
   phone TEXT,
   status TEXT NOT NULL DEFAULT 'ok',
   error_message TEXT,
+  outcome TEXT NOT NULL DEFAULT 'pending',
+  answered BOOLEAN,
+  duration_sec INTEGER,
+  mz_db_call_id TEXT,
+  mz_pbx_call_id TEXT,
+  src_number TEXT,
+  finished_at TIMESTAMPTZ,
+  recording_url TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT club_call_log_status_check CHECK (status IN ('ok', 'fail')),
+  CONSTRAINT club_call_log_outcome_check CHECK (
+    outcome IN ('pending', 'answered', 'missed', 'short', 'unknown')
+  ),
   CONSTRAINT club_call_log_phone_len CHECK (
     phone IS NULL OR char_length(phone) <= 20
   ),

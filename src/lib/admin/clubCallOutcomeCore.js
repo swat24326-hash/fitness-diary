@@ -11,6 +11,22 @@ export const CLUB_CALL_SHORT_DURATION_SEC = 5
 /** Окно сопоставления finish ↔ наша команда make_call. */
 export const CLUB_CALL_FINISH_MATCH_WINDOW_MS = 45 * 60 * 1000
 
+/** Макс. длина URL записи в БД / UI. */
+export const CLUB_CALL_RECORDING_URL_MAX = 500
+
+/**
+ * Только http(s) ссылка на запись; иначе null.
+ * @param {unknown} raw
+ * @returns {string | null}
+ */
+export function normalizeClubCallRecordingUrl(raw) {
+  const s = String(raw ?? '').trim()
+  if (!s) return null
+  if (!/^https?:\/\//i.test(s)) return null
+  if (s.length > CLUB_CALL_RECORDING_URL_MAX) return s.slice(0, CLUB_CALL_RECORDING_URL_MAX)
+  return s
+}
+
 /** @param {string | null | undefined} raw */
 export function normalizeCallOutcomePhone(raw) {
   let d = String(raw ?? '').replace(/\D/g, '')
@@ -141,7 +157,7 @@ export function shapeCallFinishFromMoiZvonkiEvent(event) {
     src_number: event.src_number != null ? String(event.src_number).replace(/\D/g, '').slice(0, 20) : null,
     start_time_ms: Number.isFinite(startTs) && startTs > 0 ? startTs * (startTs < 1e12 ? 1000 : 1) : null,
     end_time_ms: Number.isFinite(endTs) && endTs > 0 ? endTs * (endTs < 1e12 ? 1000 : 1) : null,
-    recording: event.recording ? String(event.recording).slice(0, 500) : null,
+    recording_url: normalizeClubCallRecordingUrl(event.recording ?? event.recording_url),
   }
 }
 
@@ -193,6 +209,7 @@ export function buildClubCallFinishPatch(finish) {
     mz_pbx_call_id: finish.mz_pbx_call_id,
     src_number: finish.src_number,
     finished_at: finishedAt,
+    recording_url: finish.recording_url || null,
   }
 }
 
