@@ -47,7 +47,7 @@ function mapApiSalesBundle(data, clubId, reportDate) {
 
 function isApiTransportError(err) {
   const msg = String(err?.message ?? err ?? '')
-  return /failed to fetch|connection reset|connection refused|timeout|таймаут|err_connection|load failed|сеть/i.test(
+  return /failed to fetch|connection reset|connection refused|connection closed|network.?changed|timeout|таймаут|err_connection|err_network|load failed|сеть/i.test(
     msg,
   )
 }
@@ -115,6 +115,17 @@ export async function fetchClubSalesBundle({ clubId, reportDate, profile, includ
     return mapApiSalesBundle(data, clubId, reportDate)
   }
 
+  /** Один повтор при обрыве сети (ERR_NETWORK_CHANGED / CONNECTION_CLOSED). */
+  const loadViaApiWithRetry = async () => {
+    try {
+      return await loadViaApi()
+    } catch (e) {
+      if (!isApiTransportError(e)) throw e
+      await new Promise((r) => setTimeout(r, 450))
+      return loadViaApi()
+    }
+  }
+
   let supabaseErr = null
   try {
     const local = await fetchClubSalesBundleViaSupabase({ clubId, reportDate, profile, includeFitCity })
@@ -125,7 +136,7 @@ export async function fetchClubSalesBundle({ clubId, reportDate, profile, includ
     // Менеджер: RLS часто не отдаёт ФИО тренеров с другим club_id — добираем через API (service role).
     if (labelsGap && isCloudReachable()) {
       try {
-        return await loadViaApi()
+        return await loadViaApiWithRetry()
       } catch {
         return local
       }
@@ -137,7 +148,7 @@ export async function fetchClubSalesBundle({ clubId, reportDate, profile, includ
 
   if (isCloudReachable()) {
     try {
-      return await loadViaApi()
+      return await loadViaApiWithRetry()
     } catch (apiErr) {
       const directMsg = humanizeNetworkError(supabaseErr) || String(supabaseErr?.message ?? '')
       const apiMsg = humanizeNetworkError(apiErr) || String(apiErr?.message ?? '')

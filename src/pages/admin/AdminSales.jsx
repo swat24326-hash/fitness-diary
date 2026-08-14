@@ -442,10 +442,17 @@ export function AdminSales({ accessMode = 'admin' }) {
           )
         }
 
-        const results = await Promise.all(tasks)
+        const settled = await Promise.allSettled(tasks)
         if (seq !== loadSeqRef.current) return
 
-        for (const { kind, bundle } of results) {
+        /** @type {string[]} */
+        const loadFailures = []
+        for (const result of settled) {
+          if (result.status === 'rejected') {
+            loadFailures.push(humanizeNetworkError(result.reason) || result.reason?.message || 'Ошибка загрузки')
+            continue
+          }
+          const { kind, bundle } = result.value
           if (bundle.year && bundle.month) {
             setYearMonth({ year: bundle.year, month: bundle.month })
           }
@@ -492,8 +499,14 @@ export function AdminSales({ accessMode = 'admin' }) {
         const uniqueHints = uniqueSalesDraftHints(draftHints)
         if (uniqueHints.length) {
           setLoadHint(`Восстановлен несохранённый черновик: ${uniqueHints.join(', ')}.`)
-        } else {
+        } else if (!loadFailures.length) {
           setLoadHint('')
+        }
+        if (loadFailures.length) {
+          const allFailed = settled.length > 0 && settled.every((r) => r.status === 'rejected')
+          const msg = [...new Set(loadFailures)].join(' · ')
+          if (allFailed) setError(msg)
+          else setLoadHint((prev) => [prev, `Часть данных не подтянулась: ${msg}. Нажмите обновить.`].filter(Boolean).join(' '))
         }
       } catch (e) {
         if (seq !== loadSeqRef.current) return

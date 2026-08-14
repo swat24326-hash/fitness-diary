@@ -14,9 +14,10 @@ function formatRubAmount(amount) {
  *   fact: number,
  *   planLevels?: { level1?: number, level2?: number, level3?: number },
  *   pulseKey?: number,
+ *   emptyPlanHint?: string,
  * }} props
  */
-export function SalesPlanVessel({ fact, planLevels, pulseKey = 0 }) {
+export function SalesPlanVessel({ fact, planLevels, pulseKey = 0, emptyPlanHint = '' }) {
   const milestone = useMemo(() => buildPlanMilestoneVisual(fact, planLevels ?? {}), [fact, planLevels])
   const [mounted, setMounted] = useState(false)
   const [pulse, setPulse] = useState(false)
@@ -36,10 +37,13 @@ export function SalesPlanVessel({ fact, planLevels, pulseKey = 0 }) {
   const hasPlan = milestone.finalTarget > 0
   const achievedLabel =
     milestone.achievedLevel > 0 ? `Достигнут уровень ${milestone.achievedLevel}` : 'План не достигнут'
+  const emptyHint =
+    String(emptyPlanHint || '').trim() ||
+    'План месяца не задан (уровни 1–3). Их вносит администратор во вкладке «План месяца».'
 
   const ariaLabel = hasPlan
     ? `Факт ${formatRub(fact)}, финал ${formatRub(milestone.finalTarget)}, ${achievedLabel}`
-    : `Факт продаж за месяц: ${formatRub(fact)}`
+    : `Факт продаж за месяц: ${formatRub(fact)}. ${emptyHint}`
 
   return (
     <div className="sales-report__plan-chart" aria-label={ariaLabel}>
@@ -84,12 +88,13 @@ export function SalesPlanVessel({ fact, planLevels, pulseKey = 0 }) {
           <span className="sales-report__plan-fact">{formatRubAmount(fact)}</span>
           <span className="sales-report__plan-sep">/</span>
           <span className="sales-report__plan-target">
-            {hasPlan ? `${formatRubAmount(milestone.finalTarget)} ₽` : '—'}
+            {hasPlan ? `${formatRubAmount(milestone.finalTarget)} ₽` : 'не задан'}
           </span>
           {hasPlan && milestone.overflow ? (
             <span className="sales-report__plan-badge">+{milestone.overflowPercent}%</span>
           ) : null}
         </p>
+        {!hasPlan ? <p className="sales-report__plan-empty-hint muted">{emptyHint}</p> : null}
       </div>
 
       {hasPlan ? (
