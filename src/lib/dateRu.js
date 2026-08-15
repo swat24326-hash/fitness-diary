@@ -121,6 +121,65 @@ export function addDaysToIso(iso, days) {
 }
 
 /**
+ * Сдвиг YYYY-MM-DD по календарю (UTC-арифметика даты, без TZ устройства).
+ * @param {string} dayIso
+ * @param {number} days
+ */
+export function addCalendarDaysIso(dayIso, days) {
+  const day = String(dayIso ?? '').slice(0, 10)
+  const m = day.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!m) return ''
+  const dt = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])))
+  dt.setUTCDate(dt.getUTCDate() + (Number(days) || 0))
+  const y = dt.getUTCFullYear()
+  const mo = String(dt.getUTCMonth() + 1).padStart(2, '0')
+  const d = String(dt.getUTCDate()).padStart(2, '0')
+  return `${y}-${mo}-${d}`
+}
+
+/**
+ * День клуба YYYY-MM-DD: пустое → ''; будущие → сегодня.
+ * @param {unknown} raw
+ * @param {string} [todayIso]
+ */
+export function normalizeClubOpsDayIso(raw, todayIso = todayInTimeZoneIso()) {
+  const day = String(raw ?? '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return ''
+  const today = String(todayIso ?? todayInTimeZoneIso()).slice(0, 10)
+  if (day > today) return today
+  return day
+}
+
+/**
+ * Границы календарного дня клуба для сравнения с created_at (UTC ISO).
+ * @param {string} dayIso
+ * @param {string} [timeZone]
+ * @returns {{ day: string, gte: string, lt: string }}
+ */
+export function clubOpsDayBoundsUtc(dayIso, timeZone = CLUB_OPS_TIMEZONE) {
+  const today = todayInTimeZoneIso(timeZone)
+  const day = normalizeClubOpsDayIso(dayIso, today) || today
+  const gte = calendarDayStartUtcIso(day, timeZone)
+  const next = addCalendarDaysIso(day, 1)
+  const lt = calendarDayStartUtcIso(next, timeZone)
+  return { day, gte, lt }
+}
+
+/**
+ * Сколько календарных дней от from до to включительно (to >= from).
+ * @param {string} fromIso
+ * @param {string} toIso
+ */
+export function inclusiveCalendarDaysBetween(fromIso, toIso) {
+  const a = String(fromIso ?? '').slice(0, 10)
+  const b = String(toIso ?? '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(a) || !/^\d{4}-\d{2}-\d{2}$/.test(b) || a > b) return 0
+  const t0 = Date.UTC(Number(a.slice(0, 4)), Number(a.slice(5, 7)) - 1, Number(a.slice(8, 10)))
+  const t1 = Date.UTC(Number(b.slice(0, 4)), Number(b.slice(5, 7)) - 1, Number(b.slice(8, 10)))
+  return Math.floor((t1 - t0) / 86400000) + 1
+}
+
+/**
  * Календарные месяцы (не «+30 дней»): 24.07 → 24.08.
  * Если дня нет в целевом месяце (31.01 → февраль) — последний день месяца.
  * @param {string} iso YYYY-MM-DD

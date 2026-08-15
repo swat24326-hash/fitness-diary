@@ -62,8 +62,8 @@ export function callTodayReasonLabel(kind, row = {}) {
     if (note) return note.length > 72 ? `${note.slice(0, 71)}…` : note
     return 'Есть пометка'
   }
-  if (k === 'missed') return 'Пропущен — перезвонить'
-  if (k === 'short') return 'Короткий — уточнить'
+  if (k === 'missed') return 'Не взял — перезвонить'
+  if (k === 'short') return 'Сброс — уточнить'
   return clubCallJournalStatusLabel(row) || 'Звонок'
 }
 

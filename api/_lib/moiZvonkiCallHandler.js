@@ -24,7 +24,7 @@ import {
   resolveMoiZvonkiConfig,
   shapeMoiZvonkiPublicStatus,
 } from '../../src/lib/admin/moiZvonkiClubConfigCore.js'
-import { todayInTimeZoneIso, CLUB_OPS_TIMEZONE } from '../../src/lib/dateRu.js'
+import { todayInTimeZoneIso, CLUB_OPS_TIMEZONE, clubOpsDayBoundsUtc, normalizeClubOpsDayIso } from '../../src/lib/dateRu.js'
 
 /**
  * @param {object} ctx
@@ -55,35 +55,62 @@ async function loadClubMoiZvonkiResolved(ctx, clubId) {
  * @param {string} clubId
  * @param {unknown} sinceDaysRaw
  * @param {string} [clientId]
+ * @param {unknown} [dayRaw] — YYYY-MM-DD (календарь клуба МСК); иначе since_days
  */
-async function fetchClubCallLogsForClub(ctx, clubId, sinceDaysRaw, clientId = '') {
+async function fetchClubCallLogsForClub(ctx, clubId, sinceDaysRaw, clientId = '', dayRaw = '') {
+  const day = normalizeClubOpsDayIso(dayRaw, todayInTimeZoneIso(CLUB_OPS_TIMEZONE))
   const sinceDays = clampClubCallLogSinceDays(sinceDaysRaw)
   const sinceIso = clubCallLogSinceIso(todayInTimeZoneIso(CLUB_OPS_TIMEZONE), sinceDays)
+  const dayBounds = day ? clubOpsDayBoundsUtc(day, CLUB_OPS_TIMEZONE) : null
   const clientFilter = String(clientId ?? '').trim()
 
-  let q = ctx.supabaseAdmin
-    .from('club_call_log')
-    .select(
-      'id, club_id, client_id, sent_by, phone, status, error_message, created_at, outcome, answered, duration_sec, mz_db_call_id, src_number, finished_at, recording_url, staff_note, staff_note_at, staff_note_by',
-    )
-    .eq('club_id', clubId)
-    .gte('created_at', sinceIso)
-    .order('created_at', { ascending: false })
-    .limit(CLUB_CALL_LOG_MAX_ROWS)
+  const applyTime = (q) => {
+    if (dayBounds) return q.gte('created_at', dayBounds.gte).lt('created_at', dayBounds.lt)
+    return q.gte('created_at', sinceIso)
+  }
+
+  let q = applyTime(
+    ctx.supabaseAdmin
+      .from('club_call_log')
+      .select(
+        'id, club_id, client_id, sent_by, phone, status, error_message, created_at, direction, outcome, answered, duration_sec, mz_db_call_id, src_number, finished_at, recording_url, staff_note, staff_note_at, staff_note_by',
+      )
+      .eq('club_id', clubId)
+      .order('created_at', { ascending: false })
+      .limit(CLUB_CALL_LOG_MAX_ROWS),
+  )
   if (clientFilter) q = q.eq('client_id', clientFilter)
 
   let { data: rows, error } = await q
 
+  if (error && /direction/i.test(String(error.message ?? ''))) {
+    let qNoDir = applyTime(
+      ctx.supabaseAdmin
+        .from('club_call_log')
+        .select(
+          'id, club_id, client_id, sent_by, phone, status, error_message, created_at, outcome, answered, duration_sec, mz_db_call_id, src_number, finished_at, recording_url, staff_note, staff_note_at, staff_note_by',
+        )
+        .eq('club_id', clubId)
+        .order('created_at', { ascending: false })
+        .limit(CLUB_CALL_LOG_MAX_ROWS),
+    )
+    if (clientFilter) qNoDir = qNoDir.eq('client_id', clientFilter)
+    const midDir = await qNoDir
+    rows = midDir.data
+    error = midDir.error
+  }
+
   if (error && /staff_note/i.test(String(error.message ?? ''))) {
-    let qNoNote = ctx.supabaseAdmin
-      .from('club_call_log')
-      .select(
-        'id, club_id, client_id, sent_by, phone, status, error_message, created_at, outcome, answered, duration_sec, mz_db_call_id, src_number, finished_at, recording_url',
-      )
-      .eq('club_id', clubId)
-      .gte('created_at', sinceIso)
-      .order('created_at', { ascending: false })
-      .limit(CLUB_CALL_LOG_MAX_ROWS)
+    let qNoNote = applyTime(
+      ctx.supabaseAdmin
+        .from('club_call_log')
+        .select(
+          'id, club_id, client_id, sent_by, phone, status, error_message, created_at, outcome, answered, duration_sec, mz_db_call_id, src_number, finished_at, recording_url',
+        )
+        .eq('club_id', clubId)
+        .order('created_at', { ascending: false })
+        .limit(CLUB_CALL_LOG_MAX_ROWS),
+    )
     if (clientFilter) qNoNote = qNoNote.eq('client_id', clientFilter)
     const mid = await qNoNote
     rows = mid.data
@@ -91,13 +118,14 @@ async function fetchClubCallLogsForClub(ctx, clubId, sinceDaysRaw, clientId = ''
   }
 
   if (error && /outcome|duration_sec|finished_at|recording_url|schema cache|column/i.test(String(error.message ?? ''))) {
-    let qLegacy = ctx.supabaseAdmin
-      .from('club_call_log')
-      .select('id, club_id, client_id, sent_by, phone, status, error_message, created_at')
-      .eq('club_id', clubId)
-      .gte('created_at', sinceIso)
-      .order('created_at', { ascending: false })
-      .limit(CLUB_CALL_LOG_MAX_ROWS)
+    let qLegacy = applyTime(
+      ctx.supabaseAdmin
+        .from('club_call_log')
+        .select('id, club_id, client_id, sent_by, phone, status, error_message, created_at')
+        .eq('club_id', clubId)
+        .order('created_at', { ascending: false })
+        .limit(CLUB_CALL_LOG_MAX_ROWS),
+    )
     if (clientFilter) qLegacy = qLegacy.eq('client_id', clientFilter)
     const legacy = await qLegacy
     rows = legacy.data
@@ -151,11 +179,17 @@ async function fetchClubCallLogsForClub(ctx, clubId, sinceDaysRaw, clientId = ''
 async function insertClubCallLogRow(ctx, input) {
   const built = buildClubCallLogInsertRow(input)
   if (!built.ok) return { log_id: null, log_warning: built.error }
-  const { data: inserted, error: insertErr } = await ctx.supabaseAdmin
+  let { data: inserted, error: insertErr } = await ctx.supabaseAdmin
     .from('club_call_log')
     .insert(built.row)
     .select('id')
     .maybeSingle()
+  if (insertErr && /direction/i.test(String(insertErr.message ?? ''))) {
+    const { direction: _dir, ...withoutDir } = built.row
+    const retry = await ctx.supabaseAdmin.from('club_call_log').insert(withoutDir).select('id').maybeSingle()
+    inserted = retry.data
+    insertErr = retry.error
+  }
   if (insertErr) {
     return {
       log_id: null,
@@ -167,7 +201,7 @@ async function insertClubCallLogRow(ctx, input) {
 
 /**
  * GET admin-data?action=club-call&club_id=
- * Опционально: &logs=1&since_days=14&client_id=
+ * Опционально: &logs=1&since_days=14&day=YYYY-MM-DD&client_id=
  * Опционально: &glance=1 — очередь «кому звонить» из журнала/пометок
  * @param {object} ctx
  * @param {object} req
@@ -223,11 +257,13 @@ export async function handleClubCallGet(ctx, req, res) {
         ? req.query?.since_days || CALL_TODAY_LOOKBACK_DAYS
         : sinceForLogs
       const sinceRaw = wantGlance && !wantLogs ? sinceForGlance : sinceForLogs ?? sinceForGlance
+      const dayForLogs = wantLogs && !wantGlance ? req.query?.day : undefined
       logs = await fetchClubCallLogsForClub(
         ctx,
         clubId,
         sinceRaw ?? (wantGlance ? CALL_TODAY_LOOKBACK_DAYS : undefined),
         clientIdFilter,
+        dayForLogs,
       )
       if (wantGlance) {
         const role = ctx.isSalesManager ? 'sales' : ctx.isSupervisor ? 'club' : 'admin'

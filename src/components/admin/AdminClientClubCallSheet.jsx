@@ -67,7 +67,7 @@ export function AdminClientClubCallSheet({
       onCalled?.(client.id)
       notifyCallTodayHomeGlanceChanged(clubId, { source: 'call_launched' })
       onFeedback?.(
-        'Команда ушла на Android клуба — смотрите набор на телефоне. Можно сразу оставить пометку.',
+        'Набор на Android клуба — смотрите телефон. Можно сразу оставить пометку.',
         'ok',
         { durationMs: 12_000 },
       )
@@ -142,7 +142,7 @@ export function AdminClientClubCallSheet({
           <div className="club-call-sheet__launched" role="status">
             <p className="club-call-sheet__launched-lead">
               <Phone size={18} aria-hidden />
-              Команда отправлена в Мои Звонки.
+              Набор на телефоне клуба.
             </p>
             <ul className="club-call-sheet__launched-list">
               <li>На Android клуба должен начаться исходящий набор на этот номер.</li>

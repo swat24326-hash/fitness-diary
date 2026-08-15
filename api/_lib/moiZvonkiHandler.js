@@ -26,7 +26,7 @@ import {
 import { resolveClubSmsTemplates } from '../../src/lib/admin/clubSmsTemplatesCore.js'
 import { resolveClientClubSmsScenario } from '../../src/lib/admin/clubSmsSentMarkCore.js'
 import { pickUsableMembershipForDate } from '../../src/lib/membershipRules.js'
-import { todayInTimeZoneIso, CLUB_OPS_TIMEZONE, todayLocalIso } from '../../src/lib/dateRu.js'
+import { todayInTimeZoneIso, CLUB_OPS_TIMEZONE, todayLocalIso, clubOpsDayBoundsUtc, normalizeClubOpsDayIso } from '../../src/lib/dateRu.js'
 
 /**
  * @param {object} ctx
@@ -107,7 +107,7 @@ export async function handleClubSmsGet(ctx, req, res) {
   let logs_error
   if (wantLogs && clubId && ctx?.supabaseAdmin) {
     try {
-      logs = await fetchClubSmsLogsForClub(ctx, clubId, req.query?.since_days)
+      logs = await fetchClubSmsLogsForClub(ctx, clubId, req.query?.since_days, req.query?.day)
     } catch (e) {
       logs = []
       logs_error = String(e?.message ?? e).slice(0, 160)
@@ -130,18 +130,25 @@ export async function handleClubSmsGet(ctx, req, res) {
  * @param {object} ctx
  * @param {string} clubId
  * @param {unknown} sinceDaysRaw
+ * @param {unknown} [dayRaw]
  */
-async function fetchClubSmsLogsForClub(ctx, clubId, sinceDaysRaw) {
+async function fetchClubSmsLogsForClub(ctx, clubId, sinceDaysRaw, dayRaw = '') {
+  const day = normalizeClubOpsDayIso(dayRaw, todayInTimeZoneIso(CLUB_OPS_TIMEZONE))
   const sinceDays = clampClubSmsLogSinceDays(sinceDaysRaw)
   const sinceIso = clubSmsLogSinceIso(todayInTimeZoneIso(CLUB_OPS_TIMEZONE), sinceDays)
+  const dayBounds = day ? clubOpsDayBoundsUtc(day, CLUB_OPS_TIMEZONE) : null
 
-  const { data: rows, error } = await ctx.supabaseAdmin
+  let q = ctx.supabaseAdmin
     .from('club_sms_log')
     .select('id, club_id, client_id, sent_by, scenario, message_preview, status, error_message, created_at')
     .eq('club_id', clubId)
-    .gte('created_at', sinceIso)
     .order('created_at', { ascending: false })
     .limit(CLUB_SMS_LOG_MAX_ROWS)
+
+  if (dayBounds) q = q.gte('created_at', dayBounds.gte).lt('created_at', dayBounds.lt)
+  else q = q.gte('created_at', sinceIso)
+
+  const { data: rows, error } = await q
 
   if (error) throw new Error(error.message || 'club_sms_log query failed')
 

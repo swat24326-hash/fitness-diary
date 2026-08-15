@@ -10,15 +10,12 @@ import { filterClubSmsLogRowsByStatus } from '../../lib/admin/clubSmsLogCore.js'
 import { buildClubCallStats, buildClubSmsStats } from '../../lib/admin/clubOutreachStatsCore.js'
 import { formatDateTimeRu } from '../../lib/dateRu.js'
 import { AdminClubOutreachStatsPanel } from './AdminClubOutreachStatsPanel.jsx'
-import { AdminClubCallJournalRow } from './AdminClubCallJournalRow.jsx'
-import { ClubOutreachPeriodStepper } from './ClubOutreachPeriodStepper.jsx'
+import { AdminClubCallStatsPanel } from './AdminClubCallStatsPanel.jsx'
+import { AdminClubCallJournalTable } from './AdminClubCallJournalTable.jsx'
+import { ClubOutreachDayStepper } from './ClubOutreachDayStepper.jsx'
+import { CLUB_CALL_UI_LABEL } from '../../lib/admin/clubCallOutcomeCore.js'
+import { todayInTimeZoneIso } from '../../lib/dateRu.js'
 import '../../styles/club-call.css'
-
-const PERIODS = [
-  { id: '1', days: 1, label: 'Сегодня' },
-  { id: '14', days: 14, label: '14 дней' },
-  { id: '30', days: 30, label: '30 дней' },
-]
 
 const TABS = [
   { id: 'list', label: 'Список' },
@@ -27,9 +24,13 @@ const TABS = [
 ]
 
 const STATUS_FILTERS = [
-  { id: 'all', label: 'Все статусы' },
-  { id: 'ok', label: 'Команда ушла' },
-  { id: 'fail', label: 'Ошибки' },
+  { id: 'all', label: 'Все' },
+  { id: 'inbound', label: 'Входящие' },
+  { id: 'outbound', label: 'Исходящие' },
+  { id: 'inbound_missed', label: 'Проп. входящие' },
+  { id: 'answered', label: CLUB_CALL_UI_LABEL.answered },
+  { id: 'missed', label: CLUB_CALL_UI_LABEL.missed },
+  { id: 'fail', label: CLUB_CALL_UI_LABEL.fail },
 ]
 
 /**
@@ -38,15 +39,13 @@ const STATUS_FILTERS = [
  */
 export function AdminClubOutreachJournalWorkspace({ clubId, layout = 'card' }) {
   const isPage = layout === 'page'
-  const [period, setPeriod] = useState('14')
+  const [day, setDay] = useState(() => todayInTimeZoneIso())
   const [tab, setTab] = useState('list')
   const [statusFilter, setStatusFilter] = useState('all')
   const [callRows, setCallRows] = useState([])
   const [smsRows, setSmsRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
-
-  const sinceDays = PERIODS.find((p) => p.id === period)?.days ?? 14
 
   const reload = useCallback(async () => {
     if (!clubId) {
@@ -59,8 +58,8 @@ export function AdminClubOutreachJournalWorkspace({ clubId, layout = 'card' }) {
     setErr('')
     try {
       const [calls, sms] = await Promise.all([
-        fetchClubCallLogs(clubId, { sinceDays }),
-        fetchClubSmsLogs(clubId, { sinceDays }),
+        fetchClubCallLogs(clubId, { day }),
+        fetchClubSmsLogs(clubId, { day }),
       ])
       setCallRows(calls)
       setSmsRows(sms)
@@ -71,7 +70,7 @@ export function AdminClubOutreachJournalWorkspace({ clubId, layout = 'card' }) {
     } finally {
       setLoading(false)
     }
-  }, [clubId, sinceDays])
+  }, [clubId, day])
 
   useEffect(() => {
     void reload()
@@ -109,12 +108,12 @@ export function AdminClubOutreachJournalWorkspace({ clubId, layout = 'card' }) {
             <h2 className="section-title">{isPage ? 'Журнал звонков' : 'Журнал связи клуба'}</h2>
             {!isPage ? (
               <p className="muted admin-outreach-templates__intro">
-                «Команда ушла» — API Мои Звонки принял make_call. «Отвечен / Пропущен / Короткий» — исход с
-                Android после webhook. SMS — отдельный учёт команд отправки.
+                «Набор…» — команда ушла на телефон, ждём исход. «Дозвон / Не взял / Сброс» — после звонка.
+                SMS — отдельный учёт отправки.
               </p>
             ) : (
               <p className="muted club-outreach-journal__lead">
-                Список, сводка и SMS. «Команда ушла» ≠ дозвон — исход после webhook.
+                Журнал дня: список, сводка и SMS.
               </p>
             )}
           </div>
@@ -145,12 +144,7 @@ export function AdminClubOutreachJournalWorkspace({ clubId, layout = 'card' }) {
               </button>
             ))}
           </div>
-          <ClubOutreachPeriodStepper
-            periods={PERIODS}
-            value={period}
-            onChange={setPeriod}
-            disabled={loading}
-          />
+          <ClubOutreachDayStepper value={day} onChange={setDay} disabled={loading} />
         </div>
 
         {tab === 'list' || tab === 'sms' ? (
@@ -176,17 +170,17 @@ export function AdminClubOutreachJournalWorkspace({ clubId, layout = 'card' }) {
               <p className="club-call-journal__summary club-call-journal__summary--inline muted" role="status">
                 Звонков: <strong>{callSummary.total}</strong>
                 {' · '}
-                ок <strong>{callSummary.ok}</strong>
+                набор <strong>{callSummary.ok}</strong>
                 {' · '}
-                ош. <strong>{callSummary.fail}</strong>
+                сбой <strong>{callSummary.fail}</strong>
                 {callSummary.answered || callSummary.missed || callSummary.short ? (
                   <>
                     {' · '}
-                    отвечен <strong>{callSummary.answered}</strong>
+                    дозвон <strong>{callSummary.answered}</strong>
                     {' · '}
-                    проп. <strong>{callSummary.missed}</strong>
+                    не взял <strong>{callSummary.missed}</strong>
                     {' · '}
-                    кор. <strong>{callSummary.short}</strong>
+                    сброс <strong>{callSummary.short}</strong>
                   </>
                 ) : null}
               </p>
@@ -206,35 +200,29 @@ export function AdminClubOutreachJournalWorkspace({ clubId, layout = 'card' }) {
           <>
             {loading ? <p className="muted">Загрузка…</p> : null}
             {!loading && !err && visibleCalls.length === 0 ? (
-              <p className="muted">Нет звонков за период.</p>
+              <p className="muted">Нет звонков за этот день.</p>
             ) : null}
             {!loading && !err && visibleCalls.length > 0 ? (
-              <ul className="club-call-journal__list">
-                {visibleCalls.map((row) => (
-                  <AdminClubCallJournalRow
-                    key={row.id}
-                    row={row}
-                    mode="club"
-                    onNoteSaved={(logId, nextNote) => {
-                      setCallRows((prev) =>
-                        prev.map((r) =>
-                          String(r.id) === String(logId) ? { ...r, staff_note: nextNote } : r,
-                        ),
-                      )
-                    }}
-                  />
-                ))}
-              </ul>
+              <AdminClubCallJournalTable
+                rows={visibleCalls}
+                mode="club"
+                onNoteSaved={(logId, nextNote) => {
+                  setCallRows((prev) =>
+                    prev.map((r) =>
+                      String(r.id) === String(logId) ? { ...r, staff_note: nextNote } : r,
+                    ),
+                  )
+                }}
+              />
             ) : null}
           </>
         ) : null}
 
         {tab === 'call-stats' ? (
-          <AdminClubOutreachStatsPanel
+          <AdminClubCallStatsPanel
             stats={callStats}
             loading={loading}
-            emptyHint="Нет звонков за период — сводка появится после первых вызовов."
-            okLabel="Команда ок"
+            emptyHint="Нет звонков за этот день."
           />
         ) : null}
 
@@ -243,7 +231,7 @@ export function AdminClubOutreachJournalWorkspace({ clubId, layout = 'card' }) {
             <AdminClubOutreachStatsPanel
               stats={smsStats}
               loading={loading}
-              emptyHint="Нет SMS за период."
+              emptyHint="Нет SMS за этот день."
               okLabel="Ушло"
             />
             {!loading && !err && visibleSms.length > 0 ? (

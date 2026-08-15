@@ -5,34 +5,28 @@ import {
   filterClubCallLogRowsByStatus,
   summarizeClubCallLogRows,
 } from '../../lib/admin/clubCallLogCore.js'
-import { AdminClubCallJournalRow } from './AdminClubCallJournalRow.jsx'
-import { ClubOutreachPeriodStepper } from './ClubOutreachPeriodStepper.jsx'
+import { AdminClubCallJournalTable } from './AdminClubCallJournalTable.jsx'
+import { ClubOutreachDayStepper } from './ClubOutreachDayStepper.jsx'
+import { CLUB_CALL_UI_LABEL } from '../../lib/admin/clubCallOutcomeCore.js'
+import { todayInTimeZoneIso } from '../../lib/dateRu.js'
 import '../../styles/club-call.css'
 
-const PERIODS_CLUB = [
-  { id: '1', days: 1, label: 'Сегодня' },
-  { id: '14', days: 14, label: '14 дней' },
-  { id: '30', days: 30, label: '30 дней' },
-]
-
-const PERIODS_CLIENT = [
-  { id: '14', days: 14, label: '14 дней' },
-  { id: '30', days: 30, label: '30 дней' },
-  { id: '90', days: 90, label: '90 дней' },
-]
-
 const STATUS_FILTERS_CLUB = [
-  { id: 'all', label: 'Все статусы' },
-  { id: 'ok', label: 'Команда ушла' },
-  { id: 'fail', label: 'Ошибки' },
+  { id: 'all', label: 'Все' },
+  { id: 'inbound', label: 'Входящие' },
+  { id: 'outbound', label: 'Исходящие' },
+  { id: 'inbound_missed', label: 'Проп. входящие' },
+  { id: 'answered', label: CLUB_CALL_UI_LABEL.answered },
+  { id: 'missed', label: CLUB_CALL_UI_LABEL.missed },
+  { id: 'fail', label: CLUB_CALL_UI_LABEL.fail },
 ]
 
 const STATUS_FILTERS_CLIENT = [
   { id: 'all', label: 'Все статусы' },
-  { id: 'answered', label: 'Отвечен' },
-  { id: 'missed', label: 'Пропущен' },
-  { id: 'short', label: 'Короткий' },
-  { id: 'fail', label: 'Ошибки' },
+  { id: 'answered', label: CLUB_CALL_UI_LABEL.answered },
+  { id: 'missed', label: CLUB_CALL_UI_LABEL.missed },
+  { id: 'short', label: CLUB_CALL_UI_LABEL.short },
+  { id: 'fail', label: CLUB_CALL_UI_LABEL.fail },
 ]
 
 /**
@@ -57,22 +51,20 @@ export function AdminClubCallJournalSection({
   reloadToken = 0,
 }) {
   const forClient = Boolean(String(clientId ?? '').trim())
-  const periods = forClient ? PERIODS_CLIENT : PERIODS_CLUB
   const statusFilters = forClient ? STATUS_FILTERS_CLIENT : STATUS_FILTERS_CLUB
   const statusFieldId = useId()
-  const [period, setPeriod] = useState(forClient ? '90' : '14')
+  const [day, setDay] = useState(() => todayInTimeZoneIso())
   const [statusFilter, setStatusFilter] = useState('all')
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
 
-  const sinceDays = periods.find((p) => p.id === period)?.days ?? (forClient ? 90 : 14)
   const heading = title || (forClient ? 'История звонков' : 'Журнал звонков клуба')
   const lead =
     intro ||
     (forClient
-      ? 'Все исходящие с телефона клуба этому человеку: кто звонил, исход, длительность, запись и пометка.'
-      : '«Команда ушла» = сервер Мои Звонки принял make_call (не факт дозвона). Исход разговора появится после webhook call.finish. Пометку можно добавить в строке.')
+      ? 'Исходящие с телефона клуба этому человеку за выбранный день: кто звонил, исход, запись и пометка.'
+      : '«Набор…» = команда ушла на телефон, ждём исход. «Дозвон / Не взял / Сброс» — после звонка. Пометку можно добавить в строке.')
 
   const reload = useCallback(async () => {
     if (!clubId) {
@@ -84,7 +76,7 @@ export function AdminClubCallJournalSection({
     setErr('')
     try {
       const list = await fetchClubCallLogs(clubId, {
-        sinceDays,
+        day,
         clientId: forClient ? String(clientId) : undefined,
       })
       setRows(list)
@@ -94,7 +86,7 @@ export function AdminClubCallJournalSection({
     } finally {
       setLoading(false)
     }
-  }, [clubId, clientId, forClient, sinceDays])
+  }, [clubId, clientId, forClient, day])
 
   useEffect(() => {
     void reload()
@@ -137,12 +129,7 @@ export function AdminClubCallJournalSection({
       </div>
 
       <div className="club-call-journal__toolbar">
-        <ClubOutreachPeriodStepper
-          periods={periods}
-          value={period}
-          onChange={setPeriod}
-          disabled={loading}
-        />
+        <ClubOutreachDayStepper value={day} onChange={setDay} disabled={loading} />
         <div className="club-call-journal__filters club-call-journal__filters--inline">
           <label className="club-call-journal__filter-label" htmlFor={statusFieldId}>
             Статус
@@ -166,19 +153,19 @@ export function AdminClubCallJournalSection({
 
       {!loading && !err && rows.length > 0 ? (
         <p className="club-call-journal__summary muted" role="status">
-          За период: <strong>{summary.total}</strong>
+          За день: <strong>{summary.total}</strong>
           {' · '}
-          команда ок <strong>{summary.ok}</strong>
+          набор <strong>{summary.ok}</strong>
           {' · '}
-          ошибок <strong>{summary.fail}</strong>
+          сбой <strong>{summary.fail}</strong>
           {summary.answered || summary.missed || summary.short ? (
             <>
               {' · '}
-              отвечен <strong>{summary.answered ?? 0}</strong>
+              дозвон <strong>{summary.answered ?? 0}</strong>
               {' · '}
-              пропущен <strong>{summary.missed ?? 0}</strong>
+              не взял <strong>{summary.missed ?? 0}</strong>
               {' · '}
-              коротких <strong>{summary.short ?? 0}</strong>
+              сброс <strong>{summary.short ?? 0}</strong>
             </>
           ) : null}
         </p>
@@ -196,29 +183,24 @@ export function AdminClubCallJournalSection({
         <p className="muted club-call-journal__empty">
           {rows.length === 0
             ? forClient
-              ? 'По этому клиенту ещё нет звонков за период.'
-              : 'Пока нет звонков за выбранный период.'
+              ? 'По этому клиенту ещё нет звонков за этот день.'
+              : 'Пока нет звонков за выбранный день.'
             : 'Нет записей с этим фильтром.'}
         </p>
       ) : null}
 
       {!loading && !err && visible.length > 0 ? (
-        <ul className="club-call-journal__list">
-          {visible.map((row) => (
-            <AdminClubCallJournalRow
-              key={row.id}
-              row={row}
-              mode={forClient ? 'client' : 'club'}
-              onNoteSaved={(logId, nextNote) => {
-                setRows((prev) =>
-                  prev.map((r) =>
-                    String(r.id) === String(logId) ? { ...r, staff_note: nextNote } : r,
-                  ),
-                )
-              }}
-            />
-          ))}
-        </ul>
+        <AdminClubCallJournalTable
+          rows={visible}
+          mode={forClient ? 'client' : 'club'}
+          onNoteSaved={(logId, nextNote) => {
+            setRows((prev) =>
+              prev.map((r) =>
+                String(r.id) === String(logId) ? { ...r, staff_note: nextNote } : r,
+              ),
+            )
+          }}
+        />
       ) : null}
     </section>
   )

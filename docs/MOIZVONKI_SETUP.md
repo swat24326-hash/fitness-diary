@@ -1,6 +1,7 @@
 # Мои Звонки — клубные SMS и звонки
 
-**Статус:** ✅ **в проде** (2026-08-14): SMS + исходящий звонок (`calls.make_call`) + журнал связи + исход разговора через webhook `call.finish` (длительность / отвечен / короткий / ссылка на запись).  
+**Статус:** ✅ **в проде** (2026-08-14): SMS + исходящий звонок (`calls.make_call`) + журнал связи + исход через webhook `call.finish`.  
+**Входящие (MVP):** код + миграция `direction` (2026-08-16). Webhook создаёт «Вход.» **только** если Мои Звонки явно передали входящее направление (`direction`/`incoming`); иначе не угадываем. Один клуб на login МЗ. После деплоя API.
 **Per-club:** ✅ свой аккаунт на клуб (`club_iskra_settings.moizvonki`); общий `MOIZVONKI_*` — запасной.  
 **Не путать с:** Max у тренера (личный чат) и с номерным Max-шлюзом.
 **Прод:** https://fitness-diary-bice.vercel.app · миграции `club_call_log` + `outcome` (см. ниже).
@@ -72,7 +73,7 @@
    - **Давно не был** (фильтр 14–60 дн.) — отметка до **14** дней;
    - в **Все / неактивные** — видна, если горит отметка *текущей* корзины, либо SMS **сегодня**.
 6. После звонка: запись в **`club_call_log`** (ok / fail команды API). Зелёная полоска на экране Клиенты — **тост Оси**, не длительность разговора. Исход и **запись** (если Мои Звонки отдали URL) — в журнале: встроенный плеер + «Скачать». Короткий «пропущенный» на телефоне чаще всего из‑за Android/оператора.
-7. **Журнал звонков (общий):** отдельный раздел — плитка «Журнал звонков» (`/admin|sales|club/call-log`): экран на всю высоту main (список скроллится внутри карточки); вкладки **Список**, **Сводка**, **SMS**. Не в Структуре.
+7. **Журнал звонков (общий):** отдельный раздел — плитка «Журнал звонков» (`/admin|sales|club/call-log`): экран на всю высоту; вкладки **Список** (таблица), **Сводка**, **SMS**. Не в Структуре.
 8. **История звонков в карточке клиента** — блок «История звонков» (админ / менеджер / управляющий; тренеру не показывается): периоды 14/30/90 дней, фильтры по исходу, длительность, запись, **пометка** (до 400 символов: «перезвонить…»), кнопка «Позвонить» и обновление после команды. Пометку можно сразу после звонка или позже в строке журнала / общего журнала.
 9. **Главная менеджера «Кому звонить»** — третий слот рядом с планом и ПНК. В очередь: пометки-перезвон и пропущенные/короткие. **Не** в очередь: после успешного ответа без «перезвонить», свежий pending (~2 ч), пометка «отказ / не звонить», архив. Планёрка важнее слота.
 
@@ -103,19 +104,20 @@
 ## API
 
 - `GET /api/admin-data?action=club-sms&club_id=` → `{ configured, moizvonki, templates, club_name }`
-- `GET …&logs=1&since_days=14` → то же + `logs[]` журнала SMS
+- `GET …&logs=1&since_days=14` → то же + `logs[]` журнала SMS; `&day=YYYY-MM-DD` — один день по календарю клуба (МСК)
 - `POST /api/admin-data?action=club-sms` body: `{ club_id, client_id, text? , scenario? }`  
   Роли: admin / sales_manager / supervisor своего клуба. Массовая кампания = N таких POST с клиента.
-- `GET /api/admin-data?action=club-call&club_id=` → `{ configured, moizvonki, club_name }`; `&logs=1` — журнал; `&glance=1` — очередь «кому звонить» (`staff_note` + missed/short); опционально `&client_id=`
+- `GET /api/admin-data?action=club-call&club_id=` → `{ configured, moizvonki, club_name }`; `&logs=1` — журнал; `&day=YYYY-MM-DD` — один день МСК; `&glance=1` — очередь «кому звонить» (`staff_note` + missed/short); опционально `&client_id=`
 - `POST /api/admin-data?action=club-call` body: `{ club_id, client_id }` — `calls.make_call`; лимит ~10/мин; в журнал ok/fail (не 429); `outcome=pending` до webhook
 - `POST /api/admin-data?action=club-call` body: `{ op: 'note', club_id, log_id, staff_note }` — пометка к строке (пусто = сброс)
-- `POST /api/admin-data?action=moizvonki-webhook&secret=` — входящий webhook Мои Звонки (без Bearer); обрабатываем `call.finish` → длительность / отвечен / короткий / `recording_url`; секрет `MOIZVONKI_WEBHOOK_SECRET`
+- `POST /api/admin-data?action=moizvonki-webhook&secret=` — входящий webhook Мои Звонки (без Bearer); `call.finish` → исход исходящего **или** новая строка входящего (`direction=inbound`, клиент по телефону или без карточки); секрет `MOIZVONKI_WEBHOOK_SECRET`
 - Настройки аккаунта: `GET/POST` `action=iskra-settings` — поле `moizvonki` (admin; ключ в ответе не отдаём).
 
 Подписка webhook (один раз): задать секрет в Vercel + `node scripts/subscribe-moizvonki-call-webhook.mjs` (нужны `MOIZVONKI_*`).  
 Миграция исхода: `npm run db:migrate:club-call-outcome -- --linked`.  
 Миграция записи: `npm run db:migrate:club-call-recording -- --linked`.
-Миграция пометки: `npm run db:migrate:club-call-staff-note -- --linked`.
+Миграция пометки: `npm run db:migrate:club-call-staff-note -- --linked`.  
+Миграция входящих: `npm run db:migrate:club-call-inbound -- --linked`.
 
 Код: `api/_lib/moiZvonkiCore.js`, `moiZvonkiHandler.js`, `moiZvonkiCallHandler.js`, `moiZvonkiWebhookHandler.js`, `src/lib/admin/moiZvonkiClubConfigCore.js`, `clubSmsLogCore.js`, `clubCallLogCore.js`, `clubCallOutcomeCore.js`.  
 Проверка: `node scripts/verify-moi-zvonki.mjs`, `node scripts/verify-moi-zvonki-call.mjs`, `node scripts/verify-club-call-log.mjs`, `node scripts/verify-club-call-outcome.mjs`, `node scripts/verify-club-outreach-stats.mjs`, `node scripts/verify-moi-zvonki-club-config.mjs`.

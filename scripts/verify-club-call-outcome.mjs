@@ -28,9 +28,11 @@ ok(deriveClubCallOutcome({ answered: 1, duration: 40 }).outcome === 'answered', 
 ok(deriveClubCallOutcome({ answered: 0, duration: 2 }).outcome === 'short', 'short')
 ok(deriveClubCallOutcome({ answered: 0, duration: 28 }).outcome === 'missed', 'missed')
 
-ok(clubCallJournalStatusLabel({ status: 'ok' }) === 'Команда ушла', 'label command')
-ok(clubCallJournalStatusLabel({ status: 'ok', outcome: 'short', duration_sec: 2 }).includes('Короткий'), 'label short')
-ok(clubCallJournalStatusLabel({ status: 'fail' }) === 'Ошибка', 'label fail')
+ok(clubCallJournalStatusLabel({ status: 'ok' }) === 'Набор…', 'label pending')
+ok(clubCallJournalStatusLabel({ status: 'ok', outcome: 'short', duration_sec: 2 }).includes('Сброс'), 'label short')
+ok(clubCallJournalStatusLabel({ status: 'fail' }) === 'Сбой', 'label fail')
+ok(clubCallJournalStatusLabel({ status: 'ok', outcome: 'answered', duration_sec: 40 }).startsWith('Дозвон'), 'label answered')
+ok(clubCallJournalStatusLabel({ status: 'ok', outcome: 'missed' }).startsWith('Не взял'), 'label missed')
 
 const parsed = parseMoiZvonkiWebhookBody({
   webhook: { action: 'call.finish', user_login: 'a@b.ru', account_id: '1' },

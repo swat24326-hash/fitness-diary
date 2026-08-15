@@ -85,7 +85,8 @@ ok(glance.items[0].client_id === 'a' && glance.items[0].reason_kind === 'note_ca
 ok(glance.items[1].client_id === 'b', 'missed second')
 ok(glance.items[0].href.includes('/sales/clients/a'), 'href card')
 ok(glance.items[0].href.includes('from=call-today'), 'href from')
-ok(callTodayReasonLabel('missed').includes('Пропущен'), 'label missed')
+ok(callTodayReasonLabel('missed').includes('Не взял'), 'label missed')
+ok(callTodayReasonLabel('short').includes('Сброс'), 'label short')
 ok(callTodayGlanceEyebrow({ total: 2 }).includes('2'), 'eyebrow count')
 ok(callTodayGlanceEyebrow({ total: 0 }) === 'Кому звонить', 'eyebrow empty')
 

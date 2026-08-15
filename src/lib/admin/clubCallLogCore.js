@@ -3,7 +3,7 @@
  */
 
 import { calendarDayStartUtcIso, CLUB_OPS_TIMEZONE } from '../dateRu.js'
-import { normalizeClubCallRecordingUrl } from './clubCallOutcomeCore.js'
+import { normalizeCallOutcomePhone, normalizeClubCallRecordingUrl } from './clubCallOutcomeCore.js'
 
 export const CLUB_CALL_LOG_ERROR_MAX = 200
 export const CLUB_CALL_LOG_PHONE_MAX = 20
@@ -119,9 +119,10 @@ export function buildClubCallLogInsertRow(input) {
     club_id,
     client_id,
     sent_by: input.sent_by ? String(input.sent_by) : null,
-    phone: truncateClubCallPhone(input.phone) || null,
+    phone: truncateClubCallPhone(normalizeCallOutcomePhone(input.phone) || input.phone) || null,
     status,
     error_message: status === 'fail' ? truncateClubCallError(input.error_message) || null : null,
+    direction: 'outbound',
   }
   if (input.id) row.id = String(input.id)
   if (input.created_at) row.created_at = String(input.created_at)
@@ -144,12 +145,13 @@ export function shapeClubCallLogApiRow(row, extra = {}) {
   return {
     id: String(row.id ?? ''),
     club_id: String(row.club_id ?? ''),
-    client_id: String(row.client_id ?? ''),
+    client_id: row.client_id ? String(row.client_id) : null,
     sent_by: row.sent_by ? String(row.sent_by) : null,
     phone: String(row.phone ?? ''),
     status,
     error_message: status === 'fail' ? String(row.error_message ?? '') : '',
     created_at: String(row.created_at ?? ''),
+    direction: String(row.direction ?? '').toLowerCase() === 'inbound' ? 'inbound' : 'outbound',
     outcome: ['answered', 'missed', 'short', 'unknown'].includes(outcome) ? outcome : 'pending',
     answered: row.answered == null ? null : Boolean(row.answered),
     duration_sec,
@@ -165,12 +167,21 @@ export function shapeClubCallLogApiRow(row, extra = {}) {
   }
 }
 
-/** @param {Array<{ status?: string, outcome?: string }>} logs @param {string} filter */
+/** @param {Array<{ status?: string, outcome?: string, direction?: string }>} logs @param {string} filter */
 export function filterClubCallLogRowsByStatus(logs, filter) {
   const f = String(filter ?? 'all').trim().toLowerCase()
   const list = Array.isArray(logs) ? logs : []
   if (f === 'ok') return list.filter((r) => normalizeClubCallLogStatus(r?.status) === 'ok')
   if (f === 'fail') return list.filter((r) => normalizeClubCallLogStatus(r?.status) === 'fail')
+  if (f === 'inbound') return list.filter((r) => String(r?.direction ?? '') === 'inbound')
+  if (f === 'outbound') return list.filter((r) => String(r?.direction ?? 'outbound') !== 'inbound')
+  if (f === 'inbound_missed') {
+    return list.filter(
+      (r) =>
+        String(r?.direction ?? '') === 'inbound' &&
+        ['missed', 'short'].includes(String(r?.outcome ?? '').toLowerCase()),
+    )
+  }
   if (f === 'answered' || f === 'missed' || f === 'short' || f === 'pending') {
     return list.filter((r) => String(r?.outcome ?? 'pending').trim().toLowerCase() === f)
   }

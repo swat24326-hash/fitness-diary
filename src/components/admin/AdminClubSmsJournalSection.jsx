@@ -7,15 +7,10 @@ import {
 } from '../../lib/admin/clubSmsLogCore.js'
 import { OUTREACH_SCENARIO_LABELS } from '../../lib/trainer/trainerClientOutreachCore.js'
 import { formatDateTimeRu } from '../../lib/dateRu.js'
-import { ClubOutreachPeriodStepper } from './ClubOutreachPeriodStepper.jsx'
+import { ClubOutreachDayStepper } from './ClubOutreachDayStepper.jsx'
+import { todayInTimeZoneIso } from '../../lib/dateRu.js'
 import '../../styles/club-sms-journal.css'
 import '../../styles/club-call.css'
-
-const PERIODS = [
-  { id: '1', days: 1, label: 'Сегодня' },
-  { id: '14', days: 14, label: '14 дней' },
-  { id: '30', days: 30, label: '30 дней' },
-]
 
 const STATUS_FILTERS = [
   { id: 'all', label: 'Все статусы' },
@@ -35,13 +30,11 @@ function scenarioLabel(scenario) {
  * @param {{ clubId: string }} props
  */
 export function AdminClubSmsJournalSection({ clubId }) {
-  const [period, setPeriod] = useState('14')
+  const [day, setDay] = useState(() => todayInTimeZoneIso())
   const [statusFilter, setStatusFilter] = useState('all')
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
-
-  const sinceDays = PERIODS.find((p) => p.id === period)?.days ?? 14
 
   const reload = useCallback(async () => {
     if (!clubId) {
@@ -52,7 +45,7 @@ export function AdminClubSmsJournalSection({ clubId }) {
     setLoading(true)
     setErr('')
     try {
-      const list = await fetchClubSmsLogs(clubId, { sinceDays })
+      const list = await fetchClubSmsLogs(clubId, { day })
       setRows(list)
     } catch (e) {
       setRows([])
@@ -60,7 +53,7 @@ export function AdminClubSmsJournalSection({ clubId }) {
     } finally {
       setLoading(false)
     }
-  }, [clubId, sinceDays])
+  }, [clubId, day])
 
   useEffect(() => {
     void reload()
@@ -94,12 +87,7 @@ export function AdminClubSmsJournalSection({ clubId }) {
       </div>
 
       <div className="club-call-journal__toolbar">
-        <ClubOutreachPeriodStepper
-          periods={PERIODS}
-          value={period}
-          onChange={setPeriod}
-          disabled={loading}
-        />
+        <ClubOutreachDayStepper value={day} onChange={setDay} disabled={loading} />
         <div className="club-call-journal__filters club-call-journal__filters--inline">
           <label className="club-call-journal__filter-label" htmlFor="club-sms-status">
             Статус
@@ -123,7 +111,7 @@ export function AdminClubSmsJournalSection({ clubId }) {
 
       {!loading && !err && rows.length > 0 ? (
         <p className="club-sms-journal__summary muted" role="status">
-          За период: <strong>{summary.total}</strong>
+          За день: <strong>{summary.total}</strong>
           {' · '}
           ушло <strong>{summary.ok}</strong>
           {' · '}
@@ -142,7 +130,7 @@ export function AdminClubSmsJournalSection({ clubId }) {
       {!loading && !err && visible.length === 0 ? (
         <p className="muted club-sms-journal__empty">
           {rows.length === 0
-            ? 'За выбранный период SMS ещё не отправляли. Записи появятся после отправки из списка клиентов.'
+            ? 'За выбранный день SMS ещё не отправляли. Записи появятся после отправки из списка клиентов.'
             : 'Нет записей с таким статусом.'}
         </p>
       ) : null}

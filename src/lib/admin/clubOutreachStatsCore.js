@@ -1,9 +1,10 @@
 /**
  * Сводка по журналам клубной связи (звонки / SMS) — чистые правила.
- * Источник: наши club_*_log (команда API ok|fail), не полный кабинет Мои Звонки.
+ * Звонки: исходы webhook + команда API. SMS: ok|fail команды.
  */
 
 import { normalizeClubCallLogStatus } from './clubCallLogCore.js'
+import { normalizeClubCallOutcome } from './clubCallOutcomeCore.js'
 import { normalizeClubSmsLogStatus } from './clubSmsLogCore.js'
 
 /**
@@ -46,7 +47,8 @@ export function buildClubOutreachStats(logs, opts = {}) {
     }
 
     const senderKey = row?.sent_by ? String(row.sent_by) : '_unknown'
-    const senderName = String(row?.sent_by_name ?? '').trim() || (senderKey === '_unknown' ? 'Неизвестно' : 'Сотрудник')
+    const senderName =
+      String(row?.sent_by_name ?? '').trim() || (senderKey === '_unknown' ? 'Неизвестно' : 'Сотрудник')
     const sCur = bySenderMap.get(senderKey) ?? {
       key: senderKey,
       name: senderName,
@@ -77,9 +79,147 @@ export function buildClubOutreachStats(logs, opts = {}) {
   }
 }
 
-/** @param {Array<object>} logs */
+/**
+ * Пустой слот сотрудника в сводке звонков.
+ * @param {string} key
+ * @param {string} name
+ */
+function emptyCallSenderBucket(key, name) {
+  return {
+    key,
+    name,
+    total: 0,
+    fail: 0,
+    answered: 0,
+    missed: 0,
+    short: 0,
+    pending: 0,
+    successful: 0,
+    unsuccessful: 0,
+  }
+}
+
+/**
+ * Сводка звонков за выборку журнала: объём, исходы, % дозвона, время разговора, по сотрудникам.
+ * @param {Array<{
+ *   status?: string,
+ *   outcome?: string | null,
+ *   duration_sec?: number | null,
+ *   created_at?: string,
+ *   sent_by?: string | null,
+ *   sent_by_name?: string | null,
+ *   client_id?: string,
+ * }>} logs
+ */
 export function buildClubCallStats(logs) {
-  return buildClubOutreachStats(logs, { normalizeStatus: normalizeClubCallLogStatus })
+  let fail = 0
+  let answered = 0
+  let missed = 0
+  let short = 0
+  let pending = 0
+  let talkSecTotal = 0
+  let talkCount = 0
+  /** @type {Map<string, number>} */
+  const clientCounts = new Map()
+  /** @type {Map<string, ReturnType<typeof emptyCallSenderBucket>>} */
+  const bySenderMap = new Map()
+
+  for (const row of logs ?? []) {
+    const cid = String(row?.client_id ?? '').trim()
+    if (cid) clientCounts.set(cid, (clientCounts.get(cid) || 0) + 1)
+
+    const senderKey = row?.sent_by ? String(row.sent_by) : '_unknown'
+    const senderName =
+      String(row?.sent_by_name ?? '').trim() || (senderKey === '_unknown' ? 'Неизвестно' : 'Сотрудник')
+    const bucket = bySenderMap.get(senderKey) ?? emptyCallSenderBucket(senderKey, senderName)
+    if (row?.sent_by_name) bucket.name = String(row.sent_by_name).trim() || bucket.name
+    bucket.total += 1
+
+    if (normalizeClubCallLogStatus(row?.status) === 'fail') {
+      fail += 1
+      bucket.fail += 1
+      bySenderMap.set(senderKey, bucket)
+      continue
+    }
+
+    const outcome = normalizeClubCallOutcome(row?.outcome)
+    if (outcome === 'answered') {
+      answered += 1
+      bucket.answered += 1
+      bucket.successful += 1
+      const dur = Math.max(0, Math.floor(Number(row?.duration_sec) || 0))
+      if (dur > 0) {
+        talkSecTotal += dur
+        talkCount += 1
+      }
+    } else if (outcome === 'missed') {
+      missed += 1
+      bucket.missed += 1
+      bucket.unsuccessful += 1
+    } else if (outcome === 'short') {
+      short += 1
+      bucket.short += 1
+      bucket.unsuccessful += 1
+    } else {
+      pending += 1
+      bucket.pending += 1
+    }
+    bySenderMap.set(senderKey, bucket)
+  }
+
+  const successful = answered
+  const unsuccessful = missed + short
+  const finished = successful + unsuccessful
+  const total = answered + missed + short + pending + fail
+  let clientsRepeat = 0
+  for (const n of clientCounts.values()) {
+    if (n >= 2) clientsRepeat += 1
+  }
+
+  let inboundTotal = 0
+  let inboundAnswered = 0
+  let inboundMissed = 0
+  let outboundTotal = 0
+  for (const row of logs ?? []) {
+    const dir = String(row?.direction ?? 'outbound').toLowerCase() === 'inbound' ? 'inbound' : 'outbound'
+    if (dir === 'inbound') {
+      inboundTotal += 1
+      if (normalizeClubCallLogStatus(row?.status) === 'fail') continue
+      const outcome = normalizeClubCallOutcome(row?.outcome)
+      if (outcome === 'answered') inboundAnswered += 1
+      else if (outcome === 'missed' || outcome === 'short') inboundMissed += 1
+    } else {
+      outboundTotal += 1
+    }
+  }
+
+  const bySender = [...bySenderMap.values()].sort(
+    (a, b) => b.total - a.total || a.name.localeCompare(b.name, 'ru'),
+  )
+
+  return {
+    total,
+    fail,
+    answered,
+    missed,
+    short,
+    pending,
+    successful,
+    unsuccessful,
+    finished,
+    connect_rate_pct: finished > 0 ? Math.round((100 * successful) / finished) : null,
+    unique_clients: clientCounts.size,
+    clients_repeat: clientsRepeat,
+    talk_sec_total: talkSecTotal,
+    talk_sec_avg: talkCount > 0 ? Math.round(talkSecTotal / talkCount) : null,
+    inbound_total: inboundTotal,
+    inbound_answered: inboundAnswered,
+    inbound_missed: inboundMissed,
+    outbound_total: outboundTotal,
+    by_sender: bySender,
+    ok: answered + missed + short + pending,
+    by_day: [],
+  }
 }
 
 /** @param {Array<object>} logs */

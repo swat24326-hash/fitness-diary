@@ -5,6 +5,18 @@
 
 export const CLUB_CALL_OUTCOMES = ['pending', 'answered', 'missed', 'short', 'unknown']
 
+/** Подписи бейджа / фильтра (UI). Коды outcome в БД не меняем. */
+export const CLUB_CALL_UI_LABEL = {
+  pending: 'Набор…',
+  answered: 'Дозвон',
+  missed: 'Не взял',
+  short: 'Сброс',
+  fail: 'Сбой',
+  unknown: 'Без данных',
+  inbound: 'Вход.',
+  outbound: 'Исх.',
+}
+
 /** Секунды: короче — «короткий» сброс (типичный недозвон Android). */
 export const CLUB_CALL_SHORT_DURATION_SEC = 5
 
@@ -112,7 +124,7 @@ export function deriveClubCallOutcome(input = {}) {
  * @param {'ok' | 'fail'} status
  */
 export function clubCallCommandStatusLabel(status) {
-  return status === 'fail' ? 'Ошибка' : 'Команда ушла'
+  return status === 'fail' ? CLUB_CALL_UI_LABEL.fail : CLUB_CALL_UI_LABEL.pending
 }
 
 /**
@@ -125,15 +137,17 @@ export function clubCallCommandStatusLabel(status) {
  */
 export function clubCallJournalStatusLabel(row) {
   const status = String(row?.status ?? 'ok').toLowerCase() === 'fail' ? 'fail' : 'ok'
-  if (status === 'fail') return 'Ошибка'
+  if (status === 'fail') return CLUB_CALL_UI_LABEL.fail
   const outcome = normalizeClubCallOutcome(row?.outcome)
   const dur = Number(row?.duration_sec)
   const durLabel = Number.isFinite(dur) && dur > 0 ? ` · ${dur} с` : ''
-  if (outcome === 'answered') return `Отвечен${durLabel}`
-  if (outcome === 'short') return `Короткий${durLabel}`
-  if (outcome === 'missed') return `Пропущен${durLabel}`
-  if (outcome === 'unknown' && Number.isFinite(dur) && dur >= 0) return `Исход${durLabel}`
-  return 'Команда ушла'
+  if (outcome === 'answered') return `${CLUB_CALL_UI_LABEL.answered}${durLabel}`
+  if (outcome === 'short') return `${CLUB_CALL_UI_LABEL.short}${durLabel}`
+  if (outcome === 'missed') return `${CLUB_CALL_UI_LABEL.missed}${durLabel}`
+  if (outcome === 'unknown' && Number.isFinite(dur) && dur >= 0) {
+    return `${CLUB_CALL_UI_LABEL.unknown}${durLabel}`
+  }
+  return CLUB_CALL_UI_LABEL.pending
 }
 
 /**
@@ -219,6 +233,8 @@ export function pickClubCallLogRowForFinish(candidates, opts) {
   for (const row of candidates ?? []) {
     if (String(row?.status ?? 'ok').toLowerCase() === 'fail') continue
     if (row?.finished_at) continue
+    // Не цеплять finish исходящего к уже созданной входящей строке
+    if (String(row?.direction ?? '').toLowerCase() === 'inbound') continue
     const rowPhone = normalizeCallOutcomePhone(row?.phone)
     if (!rowPhone || rowPhone !== phone) continue
     const createdMs = Date.parse(String(row?.created_at ?? ''))

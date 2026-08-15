@@ -1,11 +1,13 @@
 /**
- * Общая строка журнала звонка (команда + исход webhook).
+ * Строка таблицы журнала звонка (+ деталь: запись / пометка).
  */
 import {
   clubCallJournalStatusLabel,
   clubCallJournalStatusTone,
+  CLUB_CALL_UI_LABEL,
 } from '../../lib/admin/clubCallOutcomeCore.js'
 import { formatClubCallDurationSec } from '../../lib/admin/clubCallLogCore.js'
+import { formatClientName } from '../../lib/clientNameFormat.js'
 import { formatDateTimeRu } from '../../lib/dateRu.js'
 import { AdminClubCallRecordingPlayer } from './AdminClubCallRecordingPlayer.jsx'
 import { AdminClubCallJournalNote } from './AdminClubCallJournalNote.jsx'
@@ -19,7 +21,18 @@ function formatPhone(phone) {
 }
 
 /**
- * Подпись статуса без длительности — длительность отдельным чипом справа.
+ * Фамилия отдельно, имя+отчество — второй строкой.
+ * @param {string} raw
+ * @returns {{ surname: string, given: string }}
+ */
+function splitClientDisplayName(raw) {
+  const full = formatClientName(raw) || String(raw ?? '').trim() || 'Клиент'
+  const parts = full.split(/\s+/).filter(Boolean)
+  if (parts.length <= 1) return { surname: full, given: '' }
+  return { surname: parts[0], given: parts.slice(1).join(' ') }
+}
+
+/**
  * @param {object} row
  */
 function statusLabelWithoutDuration(row) {
@@ -31,10 +44,11 @@ function statusLabelWithoutDuration(row) {
  * @param {{
  *   row: object,
  *   mode?: 'club' | 'client',
+ *   colSpan?: number,
  *   onNoteSaved?: (logId: string, note: string | null) => void,
  * }} props
  */
-export function AdminClubCallJournalRow({ row, mode = 'club', onNoteSaved }) {
+export function AdminClubCallJournalRow({ row, mode = 'club', colSpan = 6, onNoteSaved }) {
   const fail = String(row.status ?? 'ok') === 'fail'
   const tone = clubCallJournalStatusTone(row)
   const statusClass = [
@@ -48,72 +62,86 @@ export function AdminClubCallJournalRow({ row, mode = 'club', onNoteSaved }) {
     .join(' ')
 
   const dur = formatClubCallDurationSec(row.duration_sec)
-  const whoMain =
-    mode === 'client'
-      ? row.sent_by_name
-        ? String(row.sent_by_name)
-        : 'Кто звонил — не указан'
-      : String(row.client_name || 'Клиент').trim() || 'Клиент'
-  const whoSub =
-    mode === 'client'
-      ? null
-      : row.sent_by_name
-        ? String(row.sent_by_name)
-        : null
+  const isClub = mode === 'club'
+  const { surname, given } = splitClientDisplayName(
+    row.client_name || (row.client_id ? 'Клиент' : 'Неизвестный'),
+  )
+  const staffName = row.sent_by_name ? String(row.sent_by_name).trim() : ''
+  const sim = row.src_number ? formatPhone(row.src_number) : ''
+  const hasExtra = Boolean(staffName || sim)
+  const hasDetail = Boolean(row.recording_url || (row.club_id && row.id) || (fail && row.error_message))
 
   return (
-    <li className={`club-call-journal__row${fail ? ' club-call-journal__row--fail' : ''}`}>
-      <div className="club-call-journal__rail" aria-label="Карточка звонка">
-        <time className="club-call-journal__when" dateTime={row.created_at || undefined}>
-          {formatDateTimeRu(row.created_at)}
-        </time>
-
-        <div className="club-call-journal__person">
-          <div className="club-call-journal__who">{whoMain}</div>
-        </div>
-
-        <div className="club-call-journal__meta">
-          {whoSub ? <div className="club-call-journal__who-sub muted">{whoSub}</div> : null}
-          <div className="club-call-journal__phones">
-            <span className="club-call-journal__phone">{formatPhone(row.phone)}</span>
-            {row.src_number ? (
-              <span className="club-call-journal__src muted">SIM {formatPhone(row.src_number)}</span>
+    <>
+      <tr className={`club-call-table__data${fail ? ' club-call-table__data--fail' : ''}`}>
+        <td className="club-call-table__td club-call-table__td--when">
+          <time dateTime={row.created_at || undefined}>{formatDateTimeRu(row.created_at)}</time>
+        </td>
+        {isClub ? (
+          <td className="club-call-table__td club-call-table__td--client">
+            <span className="club-call-table__name">
+              <span className="club-call-table__surname">{surname}</span>
+              {given ? <span className="club-call-table__given">{given}</span> : null}
+            </span>
+          </td>
+        ) : null}
+        <td className="club-call-table__td club-call-table__td--phone">
+          <span className="club-call-table__phone">{formatPhone(row.phone)}</span>
+        </td>
+        <td className="club-call-table__td club-call-table__td--status">
+          <div className="club-call-table__status-wrap">
+            {String(row.direction ?? '') === 'inbound' ? (
+              <span className="club-call-table__dir club-call-table__dir--in">{CLUB_CALL_UI_LABEL.inbound}</span>
             ) : null}
+            <span className={statusClass}>{statusLabelWithoutDuration(row)}</span>
           </div>
-        </div>
-
-        <div className="club-call-journal__outcome">
-          <span className={statusClass}>{statusLabelWithoutDuration(row)}</span>
-          {dur ? <span className="club-call-journal__dur">{dur}</span> : null}
-        </div>
-      </div>
-
-      {fail && row.error_message ? (
-        <p className="club-call-journal__error">{row.error_message}</p>
-      ) : null}
-
-      {row.recording_url || (row.club_id && row.id) ? (
-        <div
-          className={`club-call-journal__tools${row.recording_url ? '' : ' club-call-journal__tools--note-only'}`}
-        >
-          {row.recording_url ? (
-            <div className="club-call-journal__media">
-              <AdminClubCallRecordingPlayer url={row.recording_url} />
+        </td>
+        <td className="club-call-table__td club-call-table__td--dur">
+          {dur ? <span className="club-call-journal__dur">{dur}</span> : <span className="muted">—</span>}
+        </td>
+        <td className="club-call-table__td club-call-table__td--extra">
+          {hasExtra ? (
+            <div className="club-call-table__extra">
+              {staffName ? <span className="club-call-table__extra-staff">{staffName}</span> : null}
+              {sim ? <span className="club-call-table__extra-sim">SIM {sim}</span> : null}
             </div>
-          ) : null}
-          {row.club_id && row.id ? (
-            <div className="club-call-journal__note-slot">
-              <AdminClubCallJournalNote
-                clubId={String(row.club_id)}
-                logId={String(row.id)}
-                note={row.staff_note}
-                compact={mode === 'client'}
-                onSaved={(next) => onNoteSaved?.(String(row.id), next)}
-              />
-            </div>
-          ) : null}
-        </div>
+          ) : (
+            <span className="muted">—</span>
+          )}
+        </td>
+      </tr>
+
+      {hasDetail ? (
+        <tr className={`club-call-table__detail${fail ? ' club-call-table__detail--fail' : ''}`}>
+          <td colSpan={colSpan}>
+            {fail && row.error_message ? (
+              <p className="club-call-journal__error">{row.error_message}</p>
+            ) : null}
+            {row.recording_url || (row.club_id && row.id) ? (
+              <div
+                className={`club-call-journal__tools${row.recording_url ? '' : ' club-call-journal__tools--note-only'}`}
+              >
+                {row.recording_url ? (
+                  <div className="club-call-journal__media">
+                    <AdminClubCallRecordingPlayer url={row.recording_url} />
+                  </div>
+                ) : null}
+                {row.club_id && row.id ? (
+                  <div className="club-call-journal__note-slot">
+                    <AdminClubCallJournalNote
+                      clubId={String(row.club_id)}
+                      logId={String(row.id)}
+                      note={row.staff_note}
+                      compact={mode === 'client'}
+                      onSaved={(next) => onNoteSaved?.(String(row.id), next)}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </td>
+        </tr>
       ) : null}
-    </li>
+    </>
   )
 }

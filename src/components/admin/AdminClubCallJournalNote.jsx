@@ -74,7 +74,7 @@ export function AdminClubCallJournalNote({
           </div>
           <button
             type="button"
-            className="btn btn-ghost btn-touch club-call-note__edit"
+            className="btn btn-ghost btn-icon-square btn-touch club-call-note__edit"
             onClick={() => {
               setErr('')
               setDraft(String(shownNote ?? note ?? ''))
@@ -84,7 +84,6 @@ export function AdminClubCallJournalNote({
             title={displayHasNote ? 'Изменить пометку' : 'Добавить пометку'}
           >
             {displayHasNote ? <Pencil size={16} aria-hidden /> : <StickyNote size={16} aria-hidden />}
-            <span>{displayHasNote ? 'Изменить' : 'Пометка'}</span>
           </button>
         </div>
       </div>

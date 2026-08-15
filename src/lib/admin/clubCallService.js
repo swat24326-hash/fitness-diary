@@ -1,7 +1,13 @@
 import { getAccessTokenForAdminApi, apiRouteMissing } from './adminApiClient.js'
 import { fetchWithAppTimeout, MOIZVONKI_FETCH_TIMEOUT_MS } from '../networkReachability.js'
-import { CLUB_CALL_LOG_DEFAULT_LOOKBACK_DAYS } from './clubCallLogCore.js'
+import { CLUB_CALL_LOG_DEFAULT_LOOKBACK_DAYS, CLUB_CALL_LOG_MAX_LOOKBACK_DAYS } from './clubCallLogCore.js'
 import { CALL_TODAY_LOOKBACK_DAYS } from './salesCallTodayCore.js'
+import {
+  inclusiveCalendarDaysBetween,
+  normalizeClubOpsDayIso,
+  todayInTimeZoneIso,
+  clubOpsDayBoundsUtc,
+} from '../dateRu.js'
 
 function apiOrigin() {
   if (typeof window !== 'undefined' && window.location?.origin) {
@@ -39,20 +45,29 @@ export async function fetchClubCallStatus(clubId) {
 }
 
 /**
- * Облачный журнал звонков клуба (опционально — одного клиента).
+ * Облачный журнал звонков клуба (опционально — одного клиента / одного дня МСК).
  * @param {string} clubId
- * @param {{ sinceDays?: number, clientId?: string }} [opts]
+ * @param {{ sinceDays?: number, clientId?: string, day?: string }} [opts]
  */
 export async function fetchClubCallLogs(clubId, opts = {}) {
   const token = await getAccessTokenForAdminApi()
   if (!token) throw new Error('Нет сессии — войдите снова')
-  const sinceDays =
-    Number(opts.sinceDays) > 0 ? Number(opts.sinceDays) : CLUB_CALL_LOG_DEFAULT_LOOKBACK_DAYS
+  const today = todayInTimeZoneIso()
+  const day = normalizeClubOpsDayIso(opts.day, today)
+  const sinceDays = day
+    ? Math.min(
+        CLUB_CALL_LOG_MAX_LOOKBACK_DAYS,
+        Math.max(1, inclusiveCalendarDaysBetween(day, today)),
+      )
+    : Number(opts.sinceDays) > 0
+      ? Number(opts.sinceDays)
+      : CLUB_CALL_LOG_DEFAULT_LOOKBACK_DAYS
   const qs = new URLSearchParams({
     club_id: String(clubId ?? '').trim(),
     logs: '1',
     since_days: String(sinceDays),
   })
+  if (day) qs.set('day', day)
   const clientId = String(opts.clientId ?? '').trim()
   if (clientId) qs.set('client_id', clientId)
   const res = await fetchWithAppTimeout(`${apiOrigin()}/api/admin-data?action=club-call&${qs}`, {
@@ -76,7 +91,16 @@ export async function fetchClubCallLogs(clubId, opts = {}) {
     }
     throw new Error(raw.slice(0, 160) || 'Не удалось загрузить журнал звонков')
   }
-  return Array.isArray(data?.logs) ? data.logs : []
+  let logs = Array.isArray(data?.logs) ? data.logs : []
+  // Запас: старый API без day= — отфильтруем календарный день на клиенте
+  if (day) {
+    const { gte, lt } = clubOpsDayBoundsUtc(day)
+    logs = logs.filter((row) => {
+      const t = String(row?.created_at ?? '')
+      return t && t >= gte && t < lt
+    })
+  }
+  return logs
 }
 
 /**

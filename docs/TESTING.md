@@ -81,6 +81,7 @@
 | Мои Звонки: make_call payload + rate limit | `verify-moi-zvonki-call.mjs` |
 | Журнал звонков: insert/shape/фильтры | `verify-club-call-log.mjs` |
 | Исход звонка (webhook finish / подписи) | `verify-club-call-outcome.mjs` |
+| Входящие звонки (direction / матчинг) | `verify-club-call-inbound.mjs` |
 | Очередь «кому звонить» (glance) | `verify-sales-call-today.mjs` |
 | Слоты главной: ПНК / планёрка / звонки | `verify-attention-side-placement.mjs` |
 | Сводка звонков/SMS по журналу | `verify-club-outreach-stats.mjs` |

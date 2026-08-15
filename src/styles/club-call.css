@@ -198,6 +198,34 @@
   text-align: center;
 }
 
+.club-call-period-stepper__pill--pick {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+}
+
+.club-call-period-stepper__pill--pick:focus-within {
+  outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.club-call-period-stepper__date-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+  font-size: 1rem; /* iOS: не меньше 16px, иначе зум */
+}
+
+.club-call-period-stepper__date-input:disabled {
+  cursor: not-allowed;
+}
+
 .club-call-journal__filters {
   display: flex;
   flex-wrap: wrap;
@@ -231,6 +259,205 @@
   gap: 0.75rem;
   max-height: min(52dvh, 420px);
   overflow: auto;
+}
+
+.club-call-table-wrap {
+  width: 100%;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+  background: color-mix(in srgb, var(--bg, #0a0a0a) 40%, transparent);
+}
+
+.club-outreach-journal--page .club-call-table-wrap {
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.club-call-journal--embedded .club-call-table-wrap {
+  max-height: min(48dvh, 380px);
+}
+
+.club-call-table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.club-call-table--client {
+  min-width: 560px;
+}
+
+.club-call-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 0.55rem 0.7rem;
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--bg-subtle, #061210) 94%, #000);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
+  white-space: nowrap;
+}
+
+.club-call-table__th--when {
+  width: 9.5rem;
+}
+
+.club-call-table__th--client {
+  width: 20%;
+}
+
+.club-call-table__th--phone {
+  width: 11.5rem;
+}
+
+.club-call-table__th--status {
+  width: 7.5rem;
+}
+
+.club-call-table__th--dur,
+.club-call-table__td--dur {
+  width: 4.5rem;
+  text-align: right;
+}
+
+.club-call-table__th--extra {
+  width: 18%;
+}
+
+.club-call-table__data td {
+  padding: 0.72rem 0.7rem;
+  vertical-align: middle;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+  background: color-mix(in srgb, var(--bg-subtle, #061210) 72%, #000);
+}
+
+.club-call-table__data:hover td {
+  background: color-mix(in srgb, var(--accent) 6%, var(--bg-subtle, #061210));
+}
+
+.club-call-table__data--fail td {
+  background: rgba(248, 113, 113, 0.06);
+}
+
+.club-call-table__td--when {
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.club-call-table__name {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.club-call-table__surname {
+  font-weight: 700;
+}
+
+.club-call-table__given {
+  font-size: 0.88em;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--text) 88%, var(--text-muted));
+}
+
+.club-call-table__phone {
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.club-call-table__extra {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.club-call-table__extra-staff,
+.club-call-table__extra-sim {
+  font-family: Georgia, 'Times New Roman', 'Liberation Serif', serif;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.club-call-table__extra-sim {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+.club-call-table__td--status {
+  white-space: nowrap;
+}
+
+.club-call-table__status-wrap {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.club-call-table__dir {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.35rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
+  color: var(--text-muted);
+}
+
+.club-call-table__dir--in {
+  border-color: color-mix(in srgb, #38bdf8 45%, var(--border));
+  color: #7dd3fc;
+  background: color-mix(in srgb, #0ea5e9 12%, transparent);
+}
+
+.club-call-table__td--dur {
+  font-variant-numeric: tabular-nums;
+}
+
+.club-call-table__detail td {
+  padding: 0.15rem 0.7rem 0.85rem;
+  vertical-align: top;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+  background: color-mix(in srgb, var(--bg, #0a0a0a) 55%, var(--bg-subtle, #061210));
+}
+
+.club-call-table__detail--fail td {
+  background: rgba(248, 113, 113, 0.04);
+}
+
+.club-call-table__detail .club-call-journal__error {
+  margin: 0 0 0.55rem;
+}
+
+.club-call-table__detail .club-call-journal__tools {
+  margin: 0;
 }
 
 /* --- Полноэкранный экран /admin|sales|club/call-log --- */
@@ -706,7 +933,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
   gap: 0.65rem;
-  margin: 0 0 1rem;
+  margin: 0 0 0.35rem;
 }
 
 .club-call-stats__kpi {
@@ -723,6 +950,19 @@
   border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
 }
 
+.club-call-stats__kpi--answered {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+
+.club-call-stats__kpi--missed,
+.club-call-stats__kpi--warn {
+  border-color: color-mix(in srgb, #f59e0b 40%, var(--border));
+}
+
+.club-call-stats__kpi--short {
+  border-color: color-mix(in srgb, #fb923c 35%, var(--border));
+}
+
 .club-call-stats__kpi--fail {
   border-color: rgba(248, 113, 113, 0.35);
 }
@@ -732,6 +972,7 @@
   font-weight: 750;
   letter-spacing: -0.02em;
   color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 
 .club-call-stats__kpi-lab {
@@ -739,10 +980,143 @@
   color: var(--text-muted);
 }
 
+.club-call-stats--dense {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.club-call-stats__hero {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+@media (max-width: 720px) {
+  .club-call-stats__hero {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.club-call-stats__hero-cell {
+  padding: 0.75rem 0.8rem;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--border) 88%, transparent);
+  background: color-mix(in srgb, var(--bg-subtle, #061210) 90%, #000);
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.club-call-stats__hero-cell--accent {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-subtle, #061210));
+}
+
+.club-call-stats__hero-val {
+  font-size: clamp(1.35rem, 2.4vw, 1.7rem);
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  line-height: 1.1;
+}
+
+.club-call-stats__hero-lab {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.club-call-stats__hero-sub {
+  color: color-mix(in srgb, var(--text-muted) 88%, var(--text));
+}
+
+.club-call-stats__strip {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.club-call-stats__chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  min-height: 2rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
+  background: color-mix(in srgb, var(--bg-subtle, #061210) 85%, #000);
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.club-call-stats__chip strong {
+  font-size: 0.95rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.club-call-stats__chip--answered {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+
+.club-call-stats__chip--missed {
+  border-color: color-mix(in srgb, #f59e0b 38%, var(--border));
+}
+
+.club-call-stats__chip--short {
+  border-color: color-mix(in srgb, #fb923c 32%, var(--border));
+}
+
+.club-call-stats__chip--fail {
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+.club-call-stats__chip--inbound {
+  border-color: color-mix(in srgb, #38bdf8 42%, var(--border));
+}
+
+.club-call-stats__chip--zero {
+  opacity: 0.42;
+}
+
+.club-call-stats__staff {
+  margin: 0;
+}
+
+.club-call-stats__block {
+  margin: 0 0 0.35rem;
+}
+
 .club-call-stats__h {
   margin: 1rem 0 0.5rem;
   font-size: 0.92rem;
   font-weight: 700;
+}
+
+.club-call-stats__h--first {
+  margin-top: 0.15rem;
+}
+
+.club-call-stats__h--tight {
+  margin: 0 0 0.45rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.club-call-stats__hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
 }
 
 .club-call-stats__table {
@@ -762,6 +1136,25 @@
   padding: 0.45rem 0.55rem;
   border-radius: 10px;
   border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+}
+
+.club-call-stats__row--staff {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.2rem;
+  padding: 0.55rem 0.65rem;
+}
+
+.club-call-stats__staff-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.club-call-stats__row-total {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .club-call-stats__row-name {
@@ -823,12 +1216,6 @@
 
 .club-call-note__edit {
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  min-height: 2.5rem;
-  padding-inline: 0.7rem;
-  font-size: 0.82rem;
 }
 
 .club-call-note__label {

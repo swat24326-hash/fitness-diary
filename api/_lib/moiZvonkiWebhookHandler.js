@@ -7,7 +7,13 @@ import {
   parseMoiZvonkiWebhookBody,
   pickClubCallLogRowForFinish,
   shapeCallFinishFromMoiZvonkiEvent,
+  normalizeCallOutcomePhone,
 } from '../../src/lib/admin/clubCallOutcomeCore.js'
+import {
+  buildClubCallInboundInsertRow,
+  resolveInboundClientByPhone,
+  shouldCreateInboundFromFinish,
+} from '../../src/lib/admin/clubCallInboundCore.js'
 
 /**
  * @param {import('http').IncomingMessage} req
@@ -145,12 +151,50 @@ export async function handleMoiZvonkiWebhookPost(req, res, body) {
   const patch = buildClubCallFinishPatch(finish)
   let updatedId = null
   let matchedClubId = null
+  let createdInbound = false
+
+  // Идемпотентность: уже есть строка с этим mz_db_call_id — допишем исход/запись, не создаём дубль
+  if (finish.mz_db_call_id) {
+    for (const clubId of clubIds) {
+      const { data: existing } = await supabaseAdmin
+        .from('club_call_log')
+        .select('id, club_id, recording_url, outcome, finished_at')
+        .eq('club_id', clubId)
+        .eq('mz_db_call_id', finish.mz_db_call_id)
+        .limit(1)
+      const row = existing?.[0]
+      if (!row?.id) continue
+      updatedId = String(row.id)
+      matchedClubId = clubId
+      const needPatch =
+        !row.finished_at ||
+        String(row.outcome ?? 'pending') === 'pending' ||
+        (finish.recording_url && !row.recording_url)
+      if (needPatch) {
+        const safePatch = { ...patch }
+        if (!safePatch.recording_url) delete safePatch.recording_url
+        await supabaseAdmin.from('club_call_log').update(safePatch).eq('id', row.id)
+      }
+      sendJson(res, 200, {
+        ok: true,
+        matched: true,
+        idempotent: true,
+        log_id: updatedId,
+        club_id: matchedClubId,
+        outcome: patch.outcome,
+        duration_sec: patch.duration_sec,
+        phone: finish.phone,
+        has_recording: Boolean(finish.recording_url || row.recording_url),
+      })
+      return
+    }
+  }
 
   for (const clubId of clubIds) {
     const { data: rows, error } = await supabaseAdmin
       .from('club_call_log')
       .select(
-        'id, club_id, client_id, phone, status, outcome, finished_at, created_at, duration_sec, answered',
+        'id, club_id, client_id, phone, status, outcome, finished_at, created_at, duration_sec, answered, direction',
       )
       .eq('club_id', clubId)
       .eq('status', 'ok')
@@ -160,6 +204,56 @@ export async function handleMoiZvonkiWebhookPost(req, res, body) {
       .limit(40)
 
     if (error) {
+      // Колонки direction может не быть — повторим без неё
+      if (/direction/i.test(String(error.message ?? ''))) {
+        const retry = await supabaseAdmin
+          .from('club_call_log')
+          .select(
+            'id, club_id, client_id, phone, status, outcome, finished_at, created_at, duration_sec, answered',
+          )
+          .eq('club_id', clubId)
+          .eq('status', 'ok')
+          .is('finished_at', null)
+          .gte('created_at', sinceIso)
+          .order('created_at', { ascending: false })
+          .limit(40)
+        if (retry.error) {
+          sendJson(res, 500, {
+            ok: false,
+            error: String(retry.error.message ?? retry.error).slice(0, 160),
+            code: 'db_error',
+          })
+          return
+        }
+        const match = pickClubCallLogRowForFinish(retry.data ?? [], {
+          phone: finish.phone,
+          start_time_ms: finish.start_time_ms,
+          end_time_ms: finish.end_time_ms,
+        })
+        if (!match?.id) continue
+        const { error: updErr } = await supabaseAdmin
+          .from('club_call_log')
+          .update(patch)
+          .eq('id', match.id)
+          .is('finished_at', null)
+        if (updErr) {
+          const msg = String(updErr.message ?? '')
+          if (/outcome|duration_sec|finished_at|recording_url|schema cache|column/i.test(msg)) {
+            sendJson(res, 503, {
+              ok: false,
+              error: 'Нужна миграция club_call_log outcome на Supabase',
+              code: 'migration_pending',
+              detail: msg.slice(0, 120),
+            })
+            return
+          }
+          sendJson(res, 500, { ok: false, error: msg.slice(0, 160), code: 'db_error' })
+          return
+        }
+        updatedId = String(match.id)
+        matchedClubId = clubId
+        break
+      }
       sendJson(res, 500, {
         ok: false,
         error: String(error.message ?? error).slice(0, 160),
@@ -182,7 +276,6 @@ export async function handleMoiZvonkiWebhookPost(req, res, body) {
       .is('finished_at', null)
 
     if (updErr) {
-      // Колонок outcome ещё нет — мягкий ответ, чтобы Мои Звонки не долбили.
       const msg = String(updErr.message ?? '')
       if (/outcome|duration_sec|finished_at|recording_url|schema cache|column/i.test(msg)) {
         sendJson(res, 503, {
@@ -202,48 +295,117 @@ export async function handleMoiZvonkiWebhookPost(req, res, body) {
     break
   }
 
-  // Повторный webhook / запись пришла позже: дописать recording_url к уже закрытой строке.
-  if (finish.recording_url) {
+  // Дописать recording_url только к уже найденной / mz-строке — не цеплять к чужому старому звонку по телефону
+  // (иначе блокируется создание входящего и портится чужая запись).
+  if (finish.recording_url && finish.mz_db_call_id && !updatedId) {
     for (const clubId of clubIds) {
-      if (finish.mz_db_call_id) {
-        const { data: byMz } = await supabaseAdmin
-          .from('club_call_log')
-          .update({ recording_url: finish.recording_url })
-          .eq('club_id', clubId)
-          .eq('mz_db_call_id', finish.mz_db_call_id)
-          .is('recording_url', null)
-          .select('id')
-          .limit(1)
-        if (byMz?.[0]?.id) {
-          updatedId = updatedId || String(byMz[0].id)
-          matchedClubId = matchedClubId || clubId
-          break
-        }
-      }
-      const { data: recent } = await supabaseAdmin
-        .from('club_call_log')
-        .select('id, phone, status, finished_at, created_at, recording_url')
-        .eq('club_id', clubId)
-        .eq('status', 'ok')
-        .eq('phone', finish.phone)
-        .not('finished_at', 'is', null)
-        .is('recording_url', null)
-        .gte('created_at', sinceIso)
-        .order('created_at', { ascending: false })
-        .limit(10)
-      const row = (recent ?? [])[0]
-      if (!row?.id) continue
-      const { data: attached } = await supabaseAdmin
+      const { data: byMz } = await supabaseAdmin
         .from('club_call_log')
         .update({ recording_url: finish.recording_url })
-        .eq('id', row.id)
+        .eq('club_id', clubId)
+        .eq('mz_db_call_id', finish.mz_db_call_id)
         .is('recording_url', null)
         .select('id')
-        .maybeSingle()
-      if (attached?.id) {
-        updatedId = updatedId || String(attached.id)
-        matchedClubId = matchedClubId || clubId
+        .limit(1)
+      if (byMz?.[0]?.id) {
+        updatedId = String(byMz[0].id)
+        matchedClubId = clubId
         break
+      }
+    }
+  } else if (finish.recording_url && updatedId) {
+    await supabaseAdmin
+      .from('club_call_log')
+      .update({ recording_url: finish.recording_url })
+      .eq('id', updatedId)
+      .is('recording_url', null)
+  }
+
+  // Входящий: только явный inbound + ровно один клуб на login (иначе риск чужого клуба).
+  let inboundSkippedReason = ''
+  if (!updatedId && shouldCreateInboundFromFinish(parsed.event, false)) {
+    if (clubIds.length !== 1) {
+      inboundSkippedReason = 'multi_club'
+    } else {
+      const clubId = clubIds[0]
+      const phone = normalizeCallOutcomePhone(finish.phone)
+      const tail = phone.slice(-10)
+      let clients = []
+      if (tail.length >= 7) {
+        const { data: cand } = await supabaseAdmin
+          .from('clients')
+          .select('id, phone, archived_at')
+          .eq('club_id', clubId)
+          .ilike('phone', `%${tail.slice(-7)}%`)
+          .limit(80)
+        clients = cand ?? []
+      }
+      const resolved = resolveInboundClientByPhone(clients, finish.phone)
+      const built = buildClubCallInboundInsertRow({
+        club_id: clubId,
+        client_id: resolved.client_id,
+        finish,
+      })
+      if (built.ok) {
+        // Повтор webhook без mz_db_call_id — не плодить дубли за короткое окно
+        if (!finish.mz_db_call_id && built.row.phone) {
+          const softSince = new Date(Date.now() - 10 * 60 * 1000).toISOString()
+          const { data: soft } = await supabaseAdmin
+            .from('club_call_log')
+            .select('id')
+            .eq('club_id', clubId)
+            .eq('direction', 'inbound')
+            .eq('phone', built.row.phone)
+            .gte('created_at', softSince)
+            .order('created_at', { ascending: false })
+            .limit(1)
+          if (soft?.[0]?.id) {
+            updatedId = String(soft[0].id)
+            matchedClubId = clubId
+            createdInbound = true
+            const softPatch = { ...patch }
+            if (!softPatch.recording_url) delete softPatch.recording_url
+            await supabaseAdmin.from('club_call_log').update(softPatch).eq('id', soft[0].id)
+          }
+        }
+
+        if (!updatedId) {
+          const { data: inserted, error: insErr } = await supabaseAdmin
+            .from('club_call_log')
+            .insert(built.row)
+            .select('id')
+            .maybeSingle()
+
+          if (insErr) {
+            const msg = String(insErr.message ?? '')
+            if (/direction|client_id|null value|schema cache|column/i.test(msg)) {
+              sendJson(res, 503, {
+                ok: false,
+                error: 'Нужна миграция club_call_log inbound на Supabase',
+                code: 'migration_pending',
+                detail: msg.slice(0, 120),
+              })
+              return
+            }
+            if (/duplicate|unique|idx_club_call_log_club_mz/i.test(msg) && finish.mz_db_call_id) {
+              const { data: again } = await supabaseAdmin
+                .from('club_call_log')
+                .select('id')
+                .eq('club_id', clubId)
+                .eq('mz_db_call_id', finish.mz_db_call_id)
+                .limit(1)
+              if (again?.[0]?.id) {
+                updatedId = String(again[0].id)
+                matchedClubId = clubId
+                createdInbound = true
+              }
+            }
+          } else if (inserted?.id) {
+            updatedId = String(inserted.id)
+            matchedClubId = clubId
+            createdInbound = true
+          }
+        }
       }
     }
   }
@@ -251,6 +413,8 @@ export async function handleMoiZvonkiWebhookPost(req, res, body) {
   sendJson(res, 200, {
     ok: true,
     matched: Boolean(updatedId),
+    inbound: createdInbound,
+    ...(inboundSkippedReason ? { inbound_skipped: inboundSkippedReason } : {}),
     log_id: updatedId,
     club_id: matchedClubId,
     outcome: patch.outcome,

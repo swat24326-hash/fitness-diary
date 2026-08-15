@@ -1,6 +1,12 @@
 import { getAccessTokenForAdminApi, apiRouteMissing } from './adminApiClient.js'
 import { fetchWithAppTimeout, MOIZVONKI_FETCH_TIMEOUT_MS } from '../networkReachability.js'
-import { CLUB_SMS_LOG_DEFAULT_LOOKBACK_DAYS } from './clubSmsLogCore.js'
+import { CLUB_SMS_LOG_DEFAULT_LOOKBACK_DAYS, CLUB_SMS_LOG_MAX_LOOKBACK_DAYS } from './clubSmsLogCore.js'
+import {
+  clubOpsDayBoundsUtc,
+  inclusiveCalendarDaysBetween,
+  normalizeClubOpsDayIso,
+  todayInTimeZoneIso,
+} from '../dateRu.js'
 
 function apiOrigin() {
   if (typeof window !== 'undefined' && window.location?.origin) {
@@ -42,18 +48,28 @@ export async function fetchClubSmsStatus(clubId) {
 /**
  * Облачный журнал SMS клуба.
  * @param {string} clubId
- * @param {{ sinceDays?: number }} [opts]
+ * @param {{ sinceDays?: number, day?: string }} [opts]
  * @returns {Promise<object[]>}
  */
 export async function fetchClubSmsLogs(clubId, opts = {}) {
   const token = await getAccessTokenForAdminApi()
   if (!token) throw new Error('Нет сессии — войдите снова')
-  const sinceDays = Number(opts.sinceDays) > 0 ? Number(opts.sinceDays) : CLUB_SMS_LOG_DEFAULT_LOOKBACK_DAYS
+  const today = todayInTimeZoneIso()
+  const day = normalizeClubOpsDayIso(opts.day, today)
+  const sinceDays = day
+    ? Math.min(
+        CLUB_SMS_LOG_MAX_LOOKBACK_DAYS,
+        Math.max(1, inclusiveCalendarDaysBetween(day, today)),
+      )
+    : Number(opts.sinceDays) > 0
+      ? Number(opts.sinceDays)
+      : CLUB_SMS_LOG_DEFAULT_LOOKBACK_DAYS
   const qs = new URLSearchParams({
     club_id: String(clubId ?? '').trim(),
     logs: '1',
     since_days: String(sinceDays),
   })
+  if (day) qs.set('day', day)
   const res = await fetchWithAppTimeout(`${apiOrigin()}/api/admin-data?action=club-sms&${qs}`, {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
@@ -75,7 +91,15 @@ export async function fetchClubSmsLogs(clubId, opts = {}) {
     }
     throw new Error(raw.slice(0, 160) || 'Не удалось загрузить журнал SMS')
   }
-  return Array.isArray(data?.logs) ? data.logs : []
+  let logs = Array.isArray(data?.logs) ? data.logs : []
+  if (day) {
+    const { gte, lt } = clubOpsDayBoundsUtc(day)
+    logs = logs.filter((row) => {
+      const t = String(row?.created_at ?? '')
+      return t && t >= gte && t < lt
+    })
+  }
+  return logs
 }
 
 /**

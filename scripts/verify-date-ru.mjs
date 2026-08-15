@@ -3,16 +3,21 @@
  * Календарный месяц для срока абонемента + маска/разбор дат.
  */
 import {
+  addCalendarDaysIso,
   addDaysToIso,
   addMonthsToIso,
   birthDateYearBounds,
   calendarDayStartUtcIso,
+  clubOpsDayBoundsUtc,
   defaultMembershipEndIso,
   formatDateTimeRu,
+  inclusiveCalendarDaysBetween,
   maskRuDateDigitsInput,
+  normalizeClubOpsDayIso,
   parseFlexibleDateToIso,
   todayInTimeZoneIso,
 } from '../src/lib/dateRu.js'
+import { filterOutreachRowsByClubDay } from '../src/lib/admin/clubOutreachDayFilter.js'
 
 let failed = 0
 
@@ -65,6 +70,29 @@ ok(
   todayInTimeZoneIso('UTC', new Date('2026-08-14T22:47:00.000Z')) === '2026-08-14',
   'same instant still previous day in UTC',
 )
+
+ok(addCalendarDaysIso('2026-08-15', -1) === '2026-08-14', 'addCalendarDaysIso -1')
+ok(addCalendarDaysIso('2026-03-01', -1) === '2026-02-28', 'addCalendarDaysIso month boundary')
+ok(normalizeClubOpsDayIso('2026-08-20', '2026-08-15') === '2026-08-15', 'future day clamps to today')
+ok(normalizeClubOpsDayIso('bad', '2026-08-15') === '', 'bad day → empty')
+ok(inclusiveCalendarDaysBetween('2026-08-10', '2026-08-15') === 6, 'inclusive days between')
+{
+  const b = clubOpsDayBoundsUtc('2026-08-15', 'Europe/Moscow')
+  ok(b.gte === '2026-08-14T21:00:00.000Z', 'day bounds gte')
+  ok(b.lt === '2026-08-15T21:00:00.000Z', 'day bounds lt')
+}
+{
+  const rows = filterOutreachRowsByClubDay(
+    [
+      { created_at: '2026-08-14T20:59:59.000Z' },
+      { created_at: '2026-08-14T21:00:00.000Z' },
+      { created_at: '2026-08-15T20:59:59.000Z' },
+      { created_at: '2026-08-15T21:00:00.000Z' },
+    ],
+    '2026-08-15',
+  )
+  ok(rows.length === 2, 'filterOutreachRowsByClubDay MSK day window')
+}
 
 if (failed) process.exit(1)
 console.log('verify-date-ru: all ok')
