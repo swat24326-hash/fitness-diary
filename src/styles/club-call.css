@@ -352,34 +352,94 @@
 .club-call-journal__row {
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
-  padding: 0.85rem 1rem;
+  gap: 0.75rem;
+  padding: 0.9rem 1.05rem;
   border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--border) 90%, transparent);
   background: color-mix(in srgb, var(--bg-subtle, #061210) 88%, #000);
 }
 
-.club-call-journal__top {
-  display: flex;
+/* Одна горизонтальная «рейка»: время · клиент · роль/телефоны · исход */
+.club-call-journal__rail {
+  display: grid;
+  grid-template-columns:
+    minmax(7.5rem, 10.5rem)
+    minmax(10rem, 1.35fr)
+    minmax(9rem, 1.15fr)
+    auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  flex-wrap: wrap;
+  column-gap: clamp(0.75rem, 2.2vw, 1.75rem);
+  row-gap: 0.45rem;
+  width: 100%;
 }
 
 .club-call-journal__when {
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.club-call-journal__person {
+  min-width: 0;
+}
+
+.club-call-journal__who {
+  font-size: 1.02rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.club-call-journal__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.club-call-journal__who-sub {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.3;
+}
+
+.club-call-journal__phones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.75rem;
+}
+
+.club-call-journal__phone {
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.club-call-journal__src {
+  margin: 0;
+  font-size: 0.78rem;
   font-variant-numeric: tabular-nums;
 }
 
-.club-call-journal__badges {
+.club-call-journal__outcome {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 0.4rem;
-  margin-left: auto;
+  justify-self: end;
+}
+
+.club-call-journal__sms-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
 }
 
 .club-call-journal__status {
@@ -390,6 +450,7 @@
   color: color-mix(in srgb, var(--accent) 80%, var(--text));
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+  white-space: nowrap;
 }
 
 .club-call-journal__status--answered {
@@ -427,49 +488,37 @@
   border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
 }
 
-.club-call-journal__body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.7rem;
+@media (max-width: 900px) {
+  .club-call-journal__rail {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'when outcome'
+      'person person'
+      'meta meta';
+  }
+
+  .club-call-journal__when {
+    grid-area: when;
+  }
+
+  .club-call-journal__person {
+    grid-area: person;
+  }
+
+  .club-call-journal__meta {
+    grid-area: meta;
+  }
+
+  .club-call-journal__outcome {
+    grid-area: outcome;
+    align-self: start;
+  }
 }
 
-.club-call-journal__identity {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  min-width: 0;
-}
-
-.club-call-journal__who {
-  font-size: 1.02rem;
-  font-weight: 700;
-  line-height: 1.3;
-  color: var(--text);
-}
-
-.club-call-journal__who-sub {
-  font-size: 0.82rem;
-  line-height: 1.3;
-}
-
-.club-call-journal__phones {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.35rem 1rem;
-  margin-top: 0.2rem;
-}
-
-.club-call-journal__phone {
-  font-size: 0.88rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-muted);
-}
-
-.club-call-journal__src {
-  margin: 0;
-  font-size: 0.78rem;
-  font-variant-numeric: tabular-nums;
+@media (max-width: 520px) {
+  .club-call-journal__when {
+    white-space: normal;
+  }
 }
 
 .club-call-journal__tools {
@@ -561,13 +610,6 @@
   background: color-mix(in srgb, var(--bg, #0a0a0a) 55%, transparent);
 }
 
-.club-call-recording__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-}
-
 .club-call-recording__label {
   font-size: 0.78rem;
   font-weight: 700;
@@ -579,6 +621,14 @@
 .club-call-recording__audio {
   width: 100%;
   height: 2.35rem;
+}
+
+.club-call-recording__fallback {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
 
 .club-call-recording__hint {
@@ -634,11 +684,6 @@
 
 .club-call-journal__empty {
   margin: 0.25rem 0 0;
-}
-
-.club-call-journal__meta {
-  /* legacy alias — layout moved to __top */
-  display: none;
 }
 
 .client-card-call-toast {

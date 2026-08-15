@@ -1,5 +1,6 @@
 /**
- * Прослушивание записи звонка в журнале (+ запасное скачивание).
+ * Прослушивание записи звонка в журнале.
+ * Скачивание — из меню плеера; отдельная кнопка только если воспроизведение не удалось.
  */
 import { useState } from 'react'
 import { Download } from 'lucide-react'
@@ -14,25 +15,25 @@ export function AdminClubCallRecordingPlayer({ url }) {
 
   return (
     <div className="club-call-recording">
-      <div className="club-call-recording__head">
-        <span className="club-call-recording__label">Запись</span>
-        <a
-          className="btn btn-ghost btn-touch club-call-recording__download"
-          href={src}
-          target="_blank"
-          rel="noopener noreferrer"
-          download
-          title="Скачать запись"
-          aria-label="Скачать запись"
-        >
-          <Download size={16} aria-hidden />
-          <span>Скачать</span>
-        </a>
-      </div>
+      <span className="club-call-recording__label">Запись</span>
       {failed ? (
-        <p className="muted club-call-recording__hint" role="status">
-          В браузере не удалось воспроизвести — скачайте файл.
-        </p>
+        <div className="club-call-recording__fallback">
+          <p className="muted club-call-recording__hint" role="status">
+            В браузере не удалось воспроизвести.
+          </p>
+          <a
+            className="btn btn-ghost btn-touch club-call-recording__download"
+            href={src}
+            target="_blank"
+            rel="noopener noreferrer"
+            download
+            title="Скачать запись"
+            aria-label="Скачать запись"
+          >
+            <Download size={16} aria-hidden />
+            <span>Скачать</span>
+          </a>
+        </div>
       ) : (
         <audio
           className="club-call-recording__audio"

@@ -28,11 +28,16 @@ export function AdminClubCallJournalNote({
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
 
+  const [shownNote, setShownNote] = useState(note ?? null)
+
   useEffect(() => {
-    if (!editing) setDraft(String(note ?? ''))
+    if (!editing) {
+      setDraft(String(note ?? ''))
+      setShownNote(note ?? null)
+    }
   }, [note, editing])
 
-  const hasNote = Boolean(String(note ?? '').trim())
+  const displayHasNote = Boolean(String(shownNote ?? '').trim())
 
   const onSave = async () => {
     if (busy || !clubId || !logId) return
@@ -45,6 +50,7 @@ export function AdminClubCallJournalNote({
         staffNote: draft,
       })
       const next = data?.log?.staff_note ?? (String(draft).trim() || null)
+      setShownNote(next)
       onSaved?.(next)
       notifyCallTodayHomeGlanceChanged(clubId, { source: 'staff_note' })
       setEditing(false)
@@ -57,11 +63,11 @@ export function AdminClubCallJournalNote({
 
   if (!editing) {
     return (
-      <div className={`club-call-note${compact ? ' club-call-note--compact' : ''}${hasNote ? ' club-call-note--filled' : ''}`}>
+      <div className={`club-call-note${compact ? ' club-call-note--compact' : ''}${displayHasNote ? ' club-call-note--filled' : ''}`}>
         <div className="club-call-note__bar">
           <div className="club-call-note__content">
-            {hasNote ? (
-              <p className="club-call-note__text">{note}</p>
+            {displayHasNote ? (
+              <p className="club-call-note__text">{shownNote}</p>
             ) : (
               <p className="muted club-call-note__empty">Без пометки</p>
             )}
@@ -71,14 +77,14 @@ export function AdminClubCallJournalNote({
             className="btn btn-ghost btn-touch club-call-note__edit"
             onClick={() => {
               setErr('')
-              setDraft(String(note ?? ''))
+              setDraft(String(shownNote ?? note ?? ''))
               setEditing(true)
             }}
-            aria-label={hasNote ? 'Изменить пометку' : 'Добавить пометку'}
-            title={hasNote ? 'Изменить пометку' : 'Добавить пометку'}
+            aria-label={displayHasNote ? 'Изменить пометку' : 'Добавить пометку'}
+            title={displayHasNote ? 'Изменить пометку' : 'Добавить пометку'}
           >
-            {hasNote ? <Pencil size={16} aria-hidden /> : <StickyNote size={16} aria-hidden />}
-            <span>{hasNote ? 'Изменить' : 'Пометка'}</span>
+            {displayHasNote ? <Pencil size={16} aria-hidden /> : <StickyNote size={16} aria-hidden />}
+            <span>{displayHasNote ? 'Изменить' : 'Пометка'}</span>
           </button>
         </div>
       </div>
@@ -111,7 +117,7 @@ export function AdminClubCallJournalNote({
             onClick={() => {
               setEditing(false)
               setErr('')
-              setDraft(String(note ?? ''))
+              setDraft(String(shownNote ?? note ?? ''))
             }}
             disabled={busy}
           >

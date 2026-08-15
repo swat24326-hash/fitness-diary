@@ -63,19 +63,16 @@ export function AdminClubCallJournalRow({ row, mode = 'club', onNoteSaved }) {
 
   return (
     <li className={`club-call-journal__row${fail ? ' club-call-journal__row--fail' : ''}`}>
-      <div className="club-call-journal__top">
+      <div className="club-call-journal__rail" aria-label="Карточка звонка">
         <time className="club-call-journal__when" dateTime={row.created_at || undefined}>
           {formatDateTimeRu(row.created_at)}
         </time>
-        <div className="club-call-journal__badges">
-          <span className={statusClass}>{statusLabelWithoutDuration(row)}</span>
-          {dur ? <span className="club-call-journal__dur">{dur}</span> : null}
-        </div>
-      </div>
 
-      <div className="club-call-journal__body">
-        <div className="club-call-journal__identity">
+        <div className="club-call-journal__person">
           <div className="club-call-journal__who">{whoMain}</div>
+        </div>
+
+        <div className="club-call-journal__meta">
           {whoSub ? <div className="club-call-journal__who-sub muted">{whoSub}</div> : null}
           <div className="club-call-journal__phones">
             <span className="club-call-journal__phone">{formatPhone(row.phone)}</span>
@@ -85,10 +82,17 @@ export function AdminClubCallJournalRow({ row, mode = 'club', onNoteSaved }) {
           </div>
         </div>
 
-        {fail && row.error_message ? (
-          <p className="club-call-journal__error">{row.error_message}</p>
-        ) : null}
+        <div className="club-call-journal__outcome">
+          <span className={statusClass}>{statusLabelWithoutDuration(row)}</span>
+          {dur ? <span className="club-call-journal__dur">{dur}</span> : null}
+        </div>
+      </div>
 
+      {fail && row.error_message ? (
+        <p className="club-call-journal__error">{row.error_message}</p>
+      ) : null}
+
+      {row.recording_url || (row.club_id && row.id) ? (
         <div
           className={`club-call-journal__tools${row.recording_url ? '' : ' club-call-journal__tools--note-only'}`}
         >
@@ -109,7 +113,7 @@ export function AdminClubCallJournalRow({ row, mode = 'club', onNoteSaved }) {
             </div>
           ) : null}
         </div>
-      </div>
+      ) : null}
     </li>
   )
 }

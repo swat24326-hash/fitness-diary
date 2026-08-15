@@ -211,7 +211,18 @@ export function AdminClubOutreachJournalWorkspace({ clubId, layout = 'card' }) {
             {!loading && !err && visibleCalls.length > 0 ? (
               <ul className="club-call-journal__list">
                 {visibleCalls.map((row) => (
-                  <AdminClubCallJournalRow key={row.id} row={row} mode="club" />
+                  <AdminClubCallJournalRow
+                    key={row.id}
+                    row={row}
+                    mode="club"
+                    onNoteSaved={(logId, nextNote) => {
+                      setCallRows((prev) =>
+                        prev.map((r) =>
+                          String(r.id) === String(logId) ? { ...r, staff_note: nextNote } : r,
+                        ),
+                      )
+                    }}
+                  />
                 ))}
               </ul>
             ) : null}
@@ -246,7 +257,7 @@ export function AdminClubOutreachJournalWorkspace({ clubId, layout = 'card' }) {
                         key={row.id}
                         className={`club-call-journal__row${fail ? ' club-call-journal__row--fail' : ''}`}
                       >
-                        <div className="club-call-journal__meta">
+                        <div className="club-call-journal__sms-head">
                           <span className="club-call-journal__when">{formatDateTimeRu(row.created_at)}</span>
                           <span
                             className={`club-call-journal__status${fail ? ' club-call-journal__status--fail' : ''}`}
