@@ -43,12 +43,13 @@ function statusLabelWithoutDuration(row) {
 /**
  * @param {{
  *   row: object,
+ *   index?: number,
  *   mode?: 'club' | 'client',
  *   colSpan?: number,
  *   onNoteSaved?: (logId: string, note: string | null) => void,
  * }} props
  */
-export function AdminClubCallJournalRow({ row, mode = 'club', colSpan = 6, onNoteSaved }) {
+export function AdminClubCallJournalRow({ row, index = 0, mode = 'club', colSpan = 7, onNoteSaved }) {
   const fail = String(row.status ?? 'ok') === 'fail'
   const tone = clubCallJournalStatusTone(row)
   const statusClass = [
@@ -74,6 +75,9 @@ export function AdminClubCallJournalRow({ row, mode = 'club', colSpan = 6, onNot
   return (
     <>
       <tr className={`club-call-table__data${fail ? ' club-call-table__data--fail' : ''}`}>
+        <td className="club-call-table__td club-call-table__td--num">
+          <span className="club-call-table__num">{index > 0 ? index : '—'}</span>
+        </td>
         <td className="club-call-table__td club-call-table__td--when">
           <time dateTime={row.created_at || undefined}>{formatDateTimeRu(row.created_at)}</time>
         </td>

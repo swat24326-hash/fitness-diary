@@ -314,6 +314,21 @@
   width: 9.5rem;
 }
 
+.club-call-table thead th.club-call-table__th--num,
+.club-call-table__td--num {
+  width: 2.5rem;
+  text-align: right;
+  padding-left: 0.45rem;
+  padding-right: 0.35rem;
+}
+
+.club-call-table__num {
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
 .club-call-table__th--client {
   width: 20%;
 }
@@ -326,10 +341,18 @@
   width: 7.5rem;
 }
 
-.club-call-table__th--dur,
+.club-call-table thead th.club-call-table__th--dur,
 .club-call-table__td--dur {
-  width: 4.5rem;
-  text-align: right;
+  width: 4.75rem;
+  text-align: center;
+}
+
+.club-call-table__td--dur {
+  font-variant-numeric: tabular-nums;
+}
+
+.club-call-table__td--dur .club-call-journal__dur {
+  display: inline-block;
 }
 
 .club-call-table__th--extra {
@@ -435,10 +458,6 @@
   border-color: color-mix(in srgb, #38bdf8 45%, var(--border));
   color: #7dd3fc;
   background: color-mix(in srgb, #0ea5e9 12%, transparent);
-}
-
-.club-call-table__td--dur {
-  font-variant-numeric: tabular-nums;
 }
 
 .club-call-table__detail td {

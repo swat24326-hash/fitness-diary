@@ -15,13 +15,16 @@ export function AdminClubCallJournalTable({ rows, mode = 'club', onNoteSaved }) 
   if (!list.length) return null
 
   const isClub = mode === 'club'
-  const colCount = isClub ? 6 : 5
+  const colCount = (isClub ? 6 : 5) + 1
 
   return (
     <div className="club-call-table-wrap">
       <table className={`club-call-table${isClub ? '' : ' club-call-table--client'}`}>
         <thead>
           <tr>
+            <th scope="col" className="club-call-table__th club-call-table__th--num">
+              №
+            </th>
             <th scope="col" className="club-call-table__th club-call-table__th--when">
               Когда
             </th>
@@ -45,10 +48,11 @@ export function AdminClubCallJournalTable({ rows, mode = 'club', onNoteSaved }) 
           </tr>
         </thead>
         <tbody>
-          {list.map((row) => (
+          {list.map((row, index) => (
             <AdminClubCallJournalRow
               key={row.id}
               row={row}
+              index={index + 1}
               mode={mode}
               colSpan={colCount}
               onNoteSaved={onNoteSaved}
