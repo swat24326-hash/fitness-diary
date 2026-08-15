@@ -34,9 +34,10 @@ const STATUS_FILTERS = [
 
 /**
  * Журнал связи клуба: список звонков + сводка + учёт SMS.
- * @param {{ clubId: string }} props
+ * @param {{ clubId: string, layout?: 'page' | 'card' }} props
  */
-export function AdminClubOutreachJournalWorkspace({ clubId }) {
+export function AdminClubOutreachJournalWorkspace({ clubId, layout = 'card' }) {
+  const isPage = layout === 'page'
   const [period, setPeriod] = useState('14')
   const [tab, setTab] = useState('list')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -88,168 +89,190 @@ export function AdminClubOutreachJournalWorkspace({ clubId }) {
     [smsRows, statusFilter],
   )
 
+  const sectionClass = [
+    'card',
+    'club-call-journal',
+    'club-outreach-journal',
+    isPage ? 'club-outreach-journal--page' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  const listScrollLabel =
+    tab === 'sms' ? 'Список SMS' : tab === 'call-stats' ? 'Сводка звонков' : 'Список звонков'
+
   return (
-    <section className="card club-call-journal club-outreach-journal">
-      <div className="club-call-journal__head">
-        <div>
-          <h2 className="section-title">Журнал связи клуба</h2>
-          <p className="muted admin-outreach-templates__intro">
-            «Команда ушла» — API Мои Звонки принял make_call. «Отвечен / Пропущен / Короткий» — исход с
-            Android после webhook. SMS — отдельный учёт команд отправки.
-          </p>
-        </div>
-        <button
-          type="button"
-          className="btn btn-ghost btn-icon-square btn-touch"
-          onClick={() => void reload()}
-          disabled={loading || !clubId}
-          aria-label="Обновить"
-          title="Обновить"
-        >
-          <RefreshCw size={18} aria-hidden />
-        </button>
-      </div>
-
-      <div className="club-outreach-journal__toolbar">
-        <div className="tabs club-outreach-journal__tabs" role="tablist" aria-label="Разделы журнала">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              role="tab"
-              aria-selected={tab === t.id}
-              className="tab"
-              onClick={() => setTab(t.id)}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-        <ClubOutreachPeriodStepper
-          periods={PERIODS}
-          value={period}
-          onChange={setPeriod}
-          disabled={loading}
-        />
-      </div>
-
-      {tab === 'list' || tab === 'sms' ? (
-        <div className="club-call-journal__filters">
-          <label className="club-call-journal__filter-label" htmlFor="club-outreach-status">
-            Статус
-          </label>
-          <select
-            id="club-outreach-status"
-            className="select club-call-journal__status-select"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            disabled={loading}
-            aria-label={tab === 'sms' ? 'Статус SMS' : 'Статус звонка'}
+    <section className={sectionClass} aria-label="Журнал связи клуба">
+      <div className="club-outreach-journal__chrome">
+        <div className="club-call-journal__head">
+          <div>
+            <h2 className="section-title">{isPage ? 'Журнал звонков' : 'Журнал связи клуба'}</h2>
+            {!isPage ? (
+              <p className="muted admin-outreach-templates__intro">
+                «Команда ушла» — API Мои Звонки принял make_call. «Отвечен / Пропущен / Короткий» — исход с
+                Android после webhook. SMS — отдельный учёт команд отправки.
+              </p>
+            ) : (
+              <p className="muted club-outreach-journal__lead">
+                Список, сводка и SMS. «Команда ушла» ≠ дозвон — исход после webhook.
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            className="btn btn-ghost btn-icon-square btn-touch"
+            onClick={() => void reload()}
+            disabled={loading || !clubId}
+            aria-label="Обновить"
+            title="Обновить"
           >
-            {STATUS_FILTERS.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.label}
-              </option>
-            ))}
-          </select>
+            <RefreshCw size={18} aria-hidden />
+          </button>
         </div>
-      ) : null}
 
-      {err ? (
-        <p className="admin-outreach-templates__error" role="alert">
-          {err}
-        </p>
-      ) : null}
-
-      {tab === 'list' ? (
-        <>
-          {!loading && !err ? (
-            <p className="club-call-journal__summary muted" role="status">
-              Звонков: <strong>{callSummary.total}</strong>
-              {' · '}
-              команда ок <strong>{callSummary.ok}</strong>
-              {' · '}
-              ошибок <strong>{callSummary.fail}</strong>
-              {callSummary.answered || callSummary.missed || callSummary.short ? (
-                <>
-                  {' · '}
-                  отвечен <strong>{callSummary.answered}</strong>
-                  {' · '}
-                  пропущен <strong>{callSummary.missed}</strong>
-                  {' · '}
-                  коротких <strong>{callSummary.short}</strong>
-                </>
-              ) : null}
-            </p>
-          ) : null}
-          {loading ? <p className="muted">Загрузка…</p> : null}
-          {!loading && !err && visibleCalls.length === 0 ? (
-            <p className="muted">Нет звонков за период.</p>
-          ) : null}
-          {!loading && !err && visibleCalls.length > 0 ? (
-            <ul className="club-call-journal__list">
-              {visibleCalls.map((row) => (
-                <AdminClubCallJournalRow key={row.id} row={row} mode="club" />
-              ))}
-            </ul>
-          ) : null}
-        </>
-      ) : null}
-
-      {tab === 'call-stats' ? (
-        <AdminClubOutreachStatsPanel
-          stats={callStats}
-          loading={loading}
-          emptyHint="Нет звонков за период — сводка появится после первых вызовов."
-          okLabel="Команда ок"
-        />
-      ) : null}
-
-      {tab === 'sms' ? (
-        <>
-          <AdminClubOutreachStatsPanel
-            stats={smsStats}
-            loading={loading}
-            emptyHint="Нет SMS за период."
-            okLabel="Ушло"
+        <div className="club-outreach-journal__toolbar">
+          <div className="tabs club-outreach-journal__tabs" role="tablist" aria-label="Разделы журнала">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={tab === t.id}
+                className="tab"
+                onClick={() => setTab(t.id)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <ClubOutreachPeriodStepper
+            periods={PERIODS}
+            value={period}
+            onChange={setPeriod}
+            disabled={loading}
           />
-          {!loading && !err && visibleSms.length > 0 ? (
-            <>
-              <h3 className="club-call-stats__h">Последние SMS</h3>
+        </div>
+
+        {tab === 'list' || tab === 'sms' ? (
+          <div className="club-call-journal__filters club-call-journal__filters--toolbar">
+            <label className="club-call-journal__filter-label" htmlFor="club-outreach-status">
+              Статус
+            </label>
+            <select
+              id="club-outreach-status"
+              className="select club-call-journal__status-select"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              disabled={loading}
+              aria-label={tab === 'sms' ? 'Статус SMS' : 'Статус звонка'}
+            >
+              {STATUS_FILTERS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+            {tab === 'list' && !loading && !err ? (
+              <p className="club-call-journal__summary club-call-journal__summary--inline muted" role="status">
+                Звонков: <strong>{callSummary.total}</strong>
+                {' · '}
+                ок <strong>{callSummary.ok}</strong>
+                {' · '}
+                ош. <strong>{callSummary.fail}</strong>
+                {callSummary.answered || callSummary.missed || callSummary.short ? (
+                  <>
+                    {' · '}
+                    отвечен <strong>{callSummary.answered}</strong>
+                    {' · '}
+                    проп. <strong>{callSummary.missed}</strong>
+                    {' · '}
+                    кор. <strong>{callSummary.short}</strong>
+                  </>
+                ) : null}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {err ? (
+          <p className="admin-outreach-templates__error" role="alert">
+            {err}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="club-outreach-journal__scroll" role="region" aria-label={listScrollLabel}>
+        {tab === 'list' ? (
+          <>
+            {loading ? <p className="muted">Загрузка…</p> : null}
+            {!loading && !err && visibleCalls.length === 0 ? (
+              <p className="muted">Нет звонков за период.</p>
+            ) : null}
+            {!loading && !err && visibleCalls.length > 0 ? (
               <ul className="club-call-journal__list">
-                {visibleSms.slice(0, 40).map((row) => {
-                  const fail = row.status === 'fail'
-                  return (
-                    <li
-                      key={row.id}
-                      className={`club-call-journal__row${fail ? ' club-call-journal__row--fail' : ''}`}
-                    >
-                      <div className="club-call-journal__meta">
-                        <span className="club-call-journal__when">{formatDateTimeRu(row.created_at)}</span>
-                        <span
-                          className={`club-call-journal__status${fail ? ' club-call-journal__status--fail' : ''}`}
-                        >
-                          {fail ? 'Ошибка' : 'Ушло'}
-                        </span>
-                      </div>
-                      <div className="club-call-journal__who">
-                        {row.client_name || 'Клиент'}
-                        {row.sent_by_name ? ` · ${row.sent_by_name}` : ''}
-                      </div>
-                      {row.message_preview ? (
-                        <p className="muted club-call-journal__phone">{row.message_preview}</p>
-                      ) : null}
-                      {fail && row.error_message ? (
-                        <p className="club-call-journal__error">{row.error_message}</p>
-                      ) : null}
-                    </li>
-                  )
-                })}
+                {visibleCalls.map((row) => (
+                  <AdminClubCallJournalRow key={row.id} row={row} mode="club" />
+                ))}
               </ul>
-            </>
-          ) : null}
-        </>
-      ) : null}
+            ) : null}
+          </>
+        ) : null}
+
+        {tab === 'call-stats' ? (
+          <AdminClubOutreachStatsPanel
+            stats={callStats}
+            loading={loading}
+            emptyHint="Нет звонков за период — сводка появится после первых вызовов."
+            okLabel="Команда ок"
+          />
+        ) : null}
+
+        {tab === 'sms' ? (
+          <>
+            <AdminClubOutreachStatsPanel
+              stats={smsStats}
+              loading={loading}
+              emptyHint="Нет SMS за период."
+              okLabel="Ушло"
+            />
+            {!loading && !err && visibleSms.length > 0 ? (
+              <>
+                <h3 className="club-call-stats__h">Последние SMS</h3>
+                <ul className="club-call-journal__list">
+                  {visibleSms.slice(0, 40).map((row) => {
+                    const fail = row.status === 'fail'
+                    return (
+                      <li
+                        key={row.id}
+                        className={`club-call-journal__row${fail ? ' club-call-journal__row--fail' : ''}`}
+                      >
+                        <div className="club-call-journal__meta">
+                          <span className="club-call-journal__when">{formatDateTimeRu(row.created_at)}</span>
+                          <span
+                            className={`club-call-journal__status${fail ? ' club-call-journal__status--fail' : ''}`}
+                          >
+                            {fail ? 'Ошибка' : 'Ушло'}
+                          </span>
+                        </div>
+                        <div className="club-call-journal__who">
+                          {row.client_name || 'Клиент'}
+                          {row.sent_by_name ? ` · ${row.sent_by_name}` : ''}
+                        </div>
+                        {row.message_preview ? (
+                          <p className="muted club-call-journal__phone">{row.message_preview}</p>
+                        ) : null}
+                        {fail && row.error_message ? (
+                          <p className="club-call-journal__error">{row.error_message}</p>
+                        ) : null}
+                      </li>
+                    )
+                  })}
+                </ul>
+              </>
+            ) : null}
+          </>
+        ) : null}
+      </div>
     </section>
   )
 }

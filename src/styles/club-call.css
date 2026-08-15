@@ -233,6 +233,122 @@
   overflow: auto;
 }
 
+/* --- Полноэкранный экран /admin|sales|club/call-log --- */
+
+.app-main:has(.club-call-log-page) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-top: clamp(10px, 1.4vh, 16px);
+  padding-bottom: clamp(10px, 1.4vh, 16px);
+}
+
+.app-shell:has(.club-call-log-page) {
+  min-height: 100dvh;
+}
+
+.club-call-log-page {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-height: calc(100dvh - var(--header-h, 72px) - 3.25rem);
+}
+
+.club-call-log-page__bar {
+  flex-shrink: 0;
+}
+
+.club-call-log-page__back {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--accent-bright, var(--accent)) 88%, #fff);
+  text-decoration: none;
+}
+
+.club-call-log-page__back:hover {
+  text-decoration: underline;
+}
+
+.club-call-log-page__empty {
+  margin: 0.75rem 0 0;
+}
+
+.club-outreach-journal--page {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  overflow: hidden;
+  margin: 0;
+  padding: clamp(0.85rem, 1.6vw, 1.15rem);
+}
+
+.club-outreach-journal--page .club-call-journal__head {
+  margin-bottom: 0;
+}
+
+.club-outreach-journal--page .section-title {
+  margin: 0;
+  font-size: clamp(1.15rem, 2.2vw, 1.35rem);
+}
+
+.club-outreach-journal__lead {
+  margin: 0.25rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.club-outreach-journal__chrome {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.club-outreach-journal--page .club-outreach-journal__chrome {
+  flex-shrink: 0;
+}
+
+.club-outreach-journal__scroll {
+  min-width: 0;
+}
+
+.club-outreach-journal--page .club-outreach-journal__scroll {
+  flex: 1 1 auto;
+  min-height: 12rem;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding-right: 2px;
+  margin: 0 -2px 0 0;
+}
+
+.club-outreach-journal--page .club-call-journal__list {
+  max-height: none;
+  overflow: visible;
+}
+
+.club-call-journal__filters--toolbar {
+  margin: 0;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.club-call-journal__summary--inline {
+  margin: 0;
+  flex: 1 1 12rem;
+  min-width: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.club-call-journal--embedded .club-call-journal__list {
+  max-height: min(48dvh, 380px);
+}
+
 .club-call-journal__row {
   display: flex;
   flex-direction: column;
@@ -423,6 +539,10 @@
 .club-call-journal__summary {
   margin: 0 0 0.65rem;
   font-size: 0.86rem;
+}
+
+.club-call-journal__summary--inline {
+  margin: 0;
 }
 
 .club-call-journal__row--fail {
