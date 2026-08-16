@@ -82,8 +82,10 @@
 | Журнал звонков: insert/shape/фильтры | `verify-club-call-log.mjs` |
 | Исход звонка (webhook finish / подписи) | `verify-club-call-outcome.mjs` |
 | Входящие звонки (direction / матчинг) | `verify-club-call-inbound.mjs` |
+| Кнопка записи (яркая / бледная / пусто) | `verify-club-call-recording-ui.mjs` |
 | Очередь «кому звонить» (glance) | `verify-sales-call-today.mjs` |
 | Слоты главной: ПНК / планёрка / звонки | `verify-attention-side-placement.mjs` |
+| Presence главной: админ не трёт звонки | `verify-attention-presence-session.mjs` |
 | Сводка звонков/SMS по журналу | `verify-club-outreach-stats.mjs` |
 | Доска клиентов: Max (чат) рядом с SMS | `verify-club-client-max-outreach.mjs` |
 | Статистика клуба по залу ПЗ/ТЗ/АЗ | `verify-club-stats-hall.mjs` |

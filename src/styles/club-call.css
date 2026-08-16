@@ -343,16 +343,12 @@
 
 .club-call-table thead th.club-call-table__th--dur,
 .club-call-table__td--dur {
-  width: 4.75rem;
+  width: 5.5rem;
   text-align: center;
 }
 
 .club-call-table__td--dur {
   font-variant-numeric: tabular-nums;
-}
-
-.club-call-table__td--dur .club-call-journal__dur {
-  display: inline-block;
 }
 
 .club-call-table__th--extra {
@@ -843,6 +839,102 @@
 .club-call-journal__row--fail {
   border-color: rgba(248, 113, 113, 0.4);
   background: rgba(248, 113, 113, 0.06);
+}
+
+.club-call-dur-rec {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  min-height: 1.85rem;
+  min-width: 3.6rem;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--text, #f5f5f5);
+  background: color-mix(in srgb, var(--bg, #0a0a0a) 70%, transparent);
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.club-call-dur-rec__icon {
+  flex-shrink: 0;
+  opacity: 0.95;
+}
+
+.club-call-dur-rec__time {
+  letter-spacing: 0.01em;
+}
+
+.club-call-dur-rec--none {
+  color: color-mix(in srgb, var(--text-muted) 90%, #fff);
+  border-color: color-mix(in srgb, var(--border) 70%, transparent);
+  background: color-mix(in srgb, var(--bg, #0a0a0a) 55%, transparent);
+}
+
+.club-call-dur-rec--bright {
+  color: #ecfdf5;
+  border-color: color-mix(in srgb, var(--accent, #34d399) 70%, #fff);
+  background: color-mix(in srgb, var(--accent, #34d399) 28%, #0b1a14);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent, #34d399) 35%, transparent);
+}
+
+.club-call-dur-rec--bright.club-call-dur-rec--playable {
+  cursor: pointer;
+}
+
+.club-call-dur-rec--bright.club-call-dur-rec--playable:hover,
+.club-call-dur-rec--bright.club-call-dur-rec--playable:focus-visible {
+  background: color-mix(in srgb, var(--accent, #34d399) 40%, #0b1a14);
+  outline: none;
+}
+
+.club-call-dur-rec--bright.club-call-dur-rec--open {
+  background: color-mix(in srgb, var(--accent, #34d399) 48%, #0b1a14);
+}
+
+.club-call-dur-rec--pale {
+  color: color-mix(in srgb, var(--text-muted) 92%, #fff);
+  border-color: color-mix(in srgb, var(--border) 90%, transparent);
+  background: color-mix(in srgb, var(--bg-subtle, #121212) 80%, transparent);
+  opacity: 0.78;
+}
+
+.club-call-dur-rec--pale.club-call-dur-rec--playable {
+  cursor: pointer;
+}
+
+.club-call-dur-rec--pale.club-call-dur-rec--playable:hover,
+.club-call-dur-rec--pale.club-call-dur-rec--playable:focus-visible {
+  opacity: 0.95;
+  outline: none;
+}
+
+.club-call-dur-rec--pale.club-call-dur-rec--open {
+  opacity: 1;
+  border-color: color-mix(in srgb, var(--border) 100%, #fff);
+}
+
+.club-call-dur-rec--empty {
+  color: color-mix(in srgb, var(--text-muted) 80%, transparent);
+  border-color: color-mix(in srgb, var(--border) 55%, transparent);
+  background: transparent;
+  opacity: 0.5;
+  cursor: default;
+}
+
+.club-call-dur-rec--empty .club-call-dur-rec__icon {
+  opacity: 0.55;
 }
 
 .club-call-recording {

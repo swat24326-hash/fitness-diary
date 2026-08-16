@@ -1,14 +1,17 @@
 /**
  * Строка таблицы журнала звонка (+ деталь: запись / пометка).
  */
+import { useState } from 'react'
 import {
   clubCallJournalStatusLabel,
   clubCallJournalStatusTone,
   CLUB_CALL_UI_LABEL,
 } from '../../lib/admin/clubCallOutcomeCore.js'
 import { formatClubCallDurationSec } from '../../lib/admin/clubCallLogCore.js'
+import { resolveClubCallRecordingUi } from '../../lib/admin/clubCallRecordingUiCore.js'
 import { formatClientName } from '../../lib/clientNameFormat.js'
 import { formatDateTimeRu } from '../../lib/dateRu.js'
+import { AdminClubCallDurRecWidget } from './AdminClubCallDurRecWidget.jsx'
 import { AdminClubCallRecordingPlayer } from './AdminClubCallRecordingPlayer.jsx'
 import { AdminClubCallJournalNote } from './AdminClubCallJournalNote.jsx'
 
@@ -52,6 +55,8 @@ function statusLabelWithoutDuration(row) {
 export function AdminClubCallJournalRow({ row, index = 0, mode = 'club', colSpan = 7, onNoteSaved }) {
   const fail = String(row.status ?? 'ok') === 'fail'
   const tone = clubCallJournalStatusTone(row)
+  const recUi = resolveClubCallRecordingUi(row)
+  const [playerOpen, setPlayerOpen] = useState(false)
   const statusClass = [
     'club-call-journal__status',
     fail || tone === 'fail' ? 'club-call-journal__status--fail' : '',
@@ -70,7 +75,11 @@ export function AdminClubCallJournalRow({ row, index = 0, mode = 'club', colSpan
   const staffName = row.sent_by_name ? String(row.sent_by_name).trim() : ''
   const sim = row.src_number ? formatPhone(row.src_number) : ''
   const hasExtra = Boolean(staffName || sim)
-  const hasDetail = Boolean(row.recording_url || (row.club_id && row.id) || (fail && row.error_message))
+  const showPlayer = Boolean(recUi.playable && playerOpen && recUi.url)
+  const showNote = Boolean(row.club_id && row.id)
+  const hasDetail = Boolean(
+    (fail && row.error_message) || showNote || showPlayer,
+  )
 
   return (
     <>
@@ -101,7 +110,14 @@ export function AdminClubCallJournalRow({ row, index = 0, mode = 'club', colSpan
           </div>
         </td>
         <td className="club-call-table__td club-call-table__td--dur">
-          {dur ? <span className="club-call-journal__dur">{dur}</span> : <span className="muted">—</span>}
+          <AdminClubCallDurRecWidget
+            durationLabel={dur || ''}
+            tone={recUi.tone}
+            title={recUi.title}
+            playable={recUi.playable}
+            expanded={showPlayer}
+            onToggle={() => setPlayerOpen((v) => !v)}
+          />
         </td>
         <td className="club-call-table__td club-call-table__td--extra">
           {hasExtra ? (
@@ -121,16 +137,16 @@ export function AdminClubCallJournalRow({ row, index = 0, mode = 'club', colSpan
             {fail && row.error_message ? (
               <p className="club-call-journal__error">{row.error_message}</p>
             ) : null}
-            {row.recording_url || (row.club_id && row.id) ? (
+            {showPlayer || showNote ? (
               <div
-                className={`club-call-journal__tools${row.recording_url ? '' : ' club-call-journal__tools--note-only'}`}
+                className={`club-call-journal__tools${showPlayer ? '' : ' club-call-journal__tools--note-only'}`}
               >
-                {row.recording_url ? (
+                {showPlayer ? (
                   <div className="club-call-journal__media">
-                    <AdminClubCallRecordingPlayer url={row.recording_url} />
+                    <AdminClubCallRecordingPlayer url={recUi.url} />
                   </div>
                 ) : null}
-                {row.club_id && row.id ? (
+                {showNote ? (
                   <div className="club-call-journal__note-slot">
                     <AdminClubCallJournalNote
                       clubId={String(row.club_id)}

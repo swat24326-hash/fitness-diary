@@ -13,16 +13,14 @@ import {
   peekAttentionPresenceSession,
   writeAttentionPresenceSession,
 } from '../../lib/admin/attentionPresenceSession.js'
+import { peekCallTodayHomeGlance } from '../../lib/admin/callTodayHomeGlanceSession.js'
 import '../../styles/admin-path.css'
 
 /**
  * Верхний ряд главной: план + ПНК / планёрка / «кому звонить» / мягкие сигналы.
  *
- * Договорённости слотов (см. attentionSidePlacementCore):
- * - Планёрка важнее «кому звонить» в правом слоте
- * - Если планёрка заняла право, а ПНК нет — «кому звонить» уходит в левый слот (без дыры)
- * - ПНК + планёрка → «кому звонить» скрыт (сетка 3 колонки не ломается)
- * - Soft только в по-настоящему пустой слот
+ * См. таблицу ситуаций в attentionSidePlacementCore.
+ * Скрытый probe звонков держит hasCallQueue актуальным, когда карточка не в слоте.
  *
  * @param {{
  *   clubId: string,
@@ -56,10 +54,10 @@ export function AdminHomeAttentionRow({
 
   const [hasPnk, setHasPnk] = useState(() => Boolean(cachedPresence?.hasPnk))
   const [hasPlanerka, setHasPlanerka] = useState(() => Boolean(cachedPresence?.hasPlanerka))
-  const [hasCallToday, setHasCallToday] = useState(() =>
-    enableCallToday ? Boolean(cachedPresence?.hasCallToday ?? true) : false,
-  )
-  const [hasCallTodayQueue, setHasCallTodayQueue] = useState(false)
+  const [hasCallTodayQueue, setHasCallTodayQueue] = useState(() => {
+    if (!enableCallToday || !cid) return false
+    return (peekCallTodayHomeGlance(cid)?.total ?? 0) > 0
+  })
 
   const onPnkPresence = useCallback((visible) => {
     setHasPnk(Boolean(visible))
@@ -69,19 +67,12 @@ export function AdminHomeAttentionRow({
     setHasPlanerka(Boolean(visible))
   }, [])
 
-  const onCallTodayPresence = useCallback((visible) => {
-    setHasCallToday(Boolean(visible))
-  }, [])
-
   const onCallTodayQueue = useCallback((hasQueue) => {
     setHasCallTodayQueue(Boolean(hasQueue))
   }, [])
 
   useEffect(() => {
-    if (!enableCallToday) {
-      setHasCallToday(false)
-      setHasCallTodayQueue(false)
-    }
+    if (!enableCallToday) setHasCallTodayQueue(false)
   }, [enableCallToday])
 
   useEffect(() => {
@@ -89,9 +80,10 @@ export function AdminHomeAttentionRow({
     writeAttentionPresenceSession(cid, {
       hasPnk,
       hasPlanerka,
-      hasCallToday: enableCallToday && hasCallToday,
+      hasCallToday: enableCallToday,
+      touchCallToday: enableCallToday,
     })
-  }, [cid, hasPnk, hasPlanerka, hasCallToday, enableCallToday])
+  }, [cid, hasPnk, hasPlanerka, enableCallToday])
 
   const placement = useMemo(
     () =>
@@ -99,15 +91,10 @@ export function AdminHomeAttentionRow({
         hasPnk,
         hasPlanerka,
         enableCallToday,
-        callTodayReady: hasCallToday,
+        hasCallQueue: hasCallTodayQueue,
       }),
-    [hasPnk, hasPlanerka, enableCallToday, hasCallToday],
+    [hasPnk, hasPlanerka, enableCallToday, hasCallTodayQueue],
   )
-
-  /** Карточка звонков скрыта — не подсвечивать плитку журнала. */
-  useEffect(() => {
-    if (!placement.callTodayShown) setHasCallTodayQueue(false)
-  }, [placement.callTodayShown])
 
   const softOcc = useMemo(() => attentionSoftOccupancy(placement), [placement])
 
@@ -120,6 +107,7 @@ export function AdminHomeAttentionRow({
   const planerkaShowsCall = placement.planerka === 'callToday'
   const pnkShowsPrimary = placement.pnk === 'pnk'
   const planerkaShowsPrimary = placement.planerka === 'planerka'
+  const needCallProbe = enableCallToday && !placement.callTodayShown
 
   const pnkSlotFilled = pnkShowsPrimary || pnkShowsCall || Boolean(softForPnk)
   const planerkaSlotFilled = planerkaShowsPrimary || planerkaShowsCall || Boolean(softForPlanerka)
@@ -134,14 +122,13 @@ export function AdminHomeAttentionRow({
     onWidgetsPresence?.({
       hasPnk,
       hasPlanerka,
-      hasCallToday: enableCallToday && hasCallToday,
+      hasCallToday: enableCallToday && placement.callTodayShown,
       hasCallTodayQueue: enableCallToday && hasCallTodayQueue && placement.callTodayShown,
       sideCount,
     })
   }, [
     hasPnk,
     hasPlanerka,
-    hasCallToday,
     hasCallTodayQueue,
     enableCallToday,
     placement.callTodayShown,
@@ -154,14 +141,14 @@ export function AdminHomeAttentionRow({
   const softPnkCompact = softForPnk?.id === 'coach-quality' ? false : compact
   const softPlanerkaCompact = softForPlanerka?.id === 'coach-quality' ? false : compact
 
-  const callTodayNode = (slot) => (
+  const callTodayNode = (slot, { suppressCard = false } = {}) => (
     <SalesCallTodayGlance
-      key={`call-today-${slot}`}
+      key={suppressCard ? 'call-today-probe' : `call-today-${slot}`}
       clubId={cid}
       hrefJournal={hrefCallJournal}
       compact={compact}
-      expectVisible={hasCallToday}
-      onPresenceChange={onCallTodayPresence}
+      expectVisible={placement.callTodayShown}
+      suppressCard={suppressCard}
       onQueueChange={onCallTodayQueue}
     />
   )
@@ -216,10 +203,12 @@ export function AdminHomeAttentionRow({
           clubId={cid}
           href={hrefPlanerka}
           compact={compact}
-          expectVisible={hasPlanerka}
+          expectVisible={hasPlanerka && planerkaShowsPrimary}
+          suppressCard={!planerkaShowsPrimary}
           onPresenceChange={onPlanerkaPresence}
         />
         {planerkaShowsCall ? callTodayNode('planerka') : null}
+        {needCallProbe ? callTodayNode('probe', { suppressCard: true }) : null}
         {!planerkaShowsPrimary && !planerkaShowsCall && softForPlanerka ? (
           <AdminHomeSoftSignalGlance
             id={softForPlanerka.id}

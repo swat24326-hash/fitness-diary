@@ -1,18 +1,38 @@
 /**
  * Размещение боковых карточек ряда «внимание» на главной.
- * План всегда слева. Слоты: ПНК | планёрка.
+ * План всегда слева. Слоты: ПНК | планёрка/звонки.
  *
- * Приоритет в слоте планёрки: планёрка > «кому звонить» > soft
- * Приоритет в слоте ПНК: ПНК > «кому звонить» (если планёрка заняла правый слот) > soft
- * Если оба слота заняты первичными (ПНК + планёрка) — «кому звонить» скрыт (не ломаем сетку).
+ * Критические ситуации (менеджер, enableCallToday):
+ *
+ * | ПНК | Планёрка | Очередь звонков | Результат |
+ * |-----|----------|----------------|-----------|
+ * | −   | −        | любая          | звонки справа (пустая = подсказка) |
+ * | +   | −        | любая          | ПНК + звонки |
+ * | −   | +        | любая          | звонки в слот ПНК, планёрка справа |
+ * | +   | +        | есть люди      | ПНК + звонки (планёрка → плитка) |
+ * | +   | +        | пусто          | ПНК + планёрка (не вытеснять пустой карточкой) |
+ *
+ * Админ без enableCallToday: только ПНК / планёрка / soft.
  */
+
+/**
+ * Вытеснять планёрку звонками только если в очереди есть кому звонить.
+ * Пустая «подсказка» не должна прятать срочное задание планёрки.
+ *
+ * @param {{ enableCallToday?: boolean, hasCallQueue?: boolean }} opts
+ */
+export function shouldDisplacePlanerkaForCallToday(opts = {}) {
+  return Boolean(opts.enableCallToday && opts.hasCallQueue)
+}
 
 /**
  * @param {{
  *   hasPnk?: boolean,
  *   hasPlanerka?: boolean,
  *   enableCallToday?: boolean,
+ *   hasCallQueue?: boolean,
  *   callTodayReady?: boolean,
+ *   preferCallTodayOverPlanerka?: boolean,
  * }} opts
  * @returns {{
  *   pnk: 'pnk' | 'callToday' | 'empty',
@@ -24,7 +44,14 @@
 export function resolveAttentionSidePlacement(opts = {}) {
   const hasPnk = Boolean(opts.hasPnk)
   const hasPlanerka = Boolean(opts.hasPlanerka)
-  const wantCall = Boolean(opts.enableCallToday && opts.callTodayReady)
+  const wantCall = Boolean(opts.enableCallToday)
+  const preferCall =
+    opts.preferCallTodayOverPlanerka != null
+      ? Boolean(opts.preferCallTodayOverPlanerka)
+      : shouldDisplacePlanerkaForCallToday({
+          enableCallToday: wantCall,
+          hasCallQueue: opts.hasCallQueue,
+        })
 
   /** @type {'pnk' | 'callToday' | 'empty'} */
   let pnk = hasPnk ? 'pnk' : 'empty'
@@ -39,9 +66,11 @@ export function resolveAttentionSidePlacement(opts = {}) {
       planerka = 'callToday'
       callTodaySlot = 'planerka'
     } else if (pnk === 'empty') {
-      // Планёрка заняла правый слот — не оставляем дыру слева
       pnk = 'callToday'
       callTodaySlot = 'pnk'
+    } else if (preferCall) {
+      planerka = 'callToday'
+      callTodaySlot = 'planerka'
     }
   }
 

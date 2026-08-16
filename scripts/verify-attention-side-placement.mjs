@@ -4,6 +4,7 @@
 import {
   attentionSoftOccupancy,
   resolveAttentionSidePlacement,
+  shouldDisplacePlanerkaForCallToday,
 } from '../src/lib/admin/attentionSidePlacementCore.js'
 
 let failed = 0
@@ -15,59 +16,77 @@ function ok(cond, msg) {
   }
 }
 
+ok(
+  shouldDisplacePlanerkaForCallToday({ enableCallToday: true, hasCallQueue: true }),
+  'displace when queue',
+)
+ok(
+  !shouldDisplacePlanerkaForCallToday({ enableCallToday: true, hasCallQueue: false }),
+  'no displace when empty queue',
+)
+ok(
+  !shouldDisplacePlanerkaForCallToday({ enableCallToday: false, hasCallQueue: true }),
+  'no displace when call disabled',
+)
+
 const empty = resolveAttentionSidePlacement({
   hasPnk: false,
   hasPlanerka: false,
   enableCallToday: true,
-  callTodayReady: true,
+  hasCallQueue: false,
 })
-ok(empty.planerka === 'callToday' && empty.pnk === 'empty', 'only call → right slot')
+ok(empty.planerka === 'callToday' && empty.pnk === 'empty', 'free slots → call even if empty queue')
 
 const pnkOnly = resolveAttentionSidePlacement({
   hasPnk: true,
   hasPlanerka: false,
   enableCallToday: true,
-  callTodayReady: true,
+  hasCallQueue: false,
 })
-ok(pnkOnly.pnk === 'pnk' && pnkOnly.planerka === 'callToday', 'pnk + call')
+ok(pnkOnly.pnk === 'pnk' && pnkOnly.planerka === 'callToday', 'pnk + empty call card')
 
 const planerkaOnly = resolveAttentionSidePlacement({
   hasPnk: false,
   hasPlanerka: true,
   enableCallToday: true,
-  callTodayReady: true,
+  hasCallQueue: true,
 })
-ok(planerkaOnly.planerka === 'planerka' && planerkaOnly.pnk === 'callToday', 'planerka + call fills left hole')
+ok(planerkaOnly.planerka === 'planerka' && planerkaOnly.pnk === 'callToday', 'planerka + call fills left')
 
-const both = resolveAttentionSidePlacement({
+const bothWithQueue = resolveAttentionSidePlacement({
   hasPnk: true,
   hasPlanerka: true,
   enableCallToday: true,
-  callTodayReady: true,
+  hasCallQueue: true,
 })
-ok(both.pnk === 'pnk' && both.planerka === 'planerka' && !both.callTodayShown, 'pnk+planerka hide call')
+ok(
+  bothWithQueue.pnk === 'pnk' && bothWithQueue.planerka === 'callToday' && bothWithQueue.callTodayShown,
+  'both + queue → call replaces planerka',
+)
+
+const bothEmptyQueue = resolveAttentionSidePlacement({
+  hasPnk: true,
+  hasPlanerka: true,
+  enableCallToday: true,
+  hasCallQueue: false,
+})
+ok(
+  bothEmptyQueue.pnk === 'pnk' &&
+    bothEmptyQueue.planerka === 'planerka' &&
+    !bothEmptyQueue.callTodayShown,
+  'both + empty queue → keep planerka',
+)
 
 const noCall = resolveAttentionSidePlacement({
-  hasPnk: false,
-  hasPlanerka: false,
+  hasPnk: true,
+  hasPlanerka: true,
   enableCallToday: false,
-  callTodayReady: true,
+  hasCallQueue: true,
 })
-ok(noCall.pnk === 'empty' && noCall.planerka === 'empty', 'call disabled')
-
-const notReady = resolveAttentionSidePlacement({
-  hasPnk: false,
-  hasPlanerka: false,
-  enableCallToday: true,
-  callTodayReady: false,
-})
-ok(notReady.planerka === 'empty', 'call not ready yet')
+ok(noCall.pnk === 'pnk' && noCall.planerka === 'planerka' && !noCall.callTodayShown, 'call disabled')
 
 const occ = attentionSoftOccupancy(planerkaOnly)
 ok(occ.hasPnk === true && occ.hasPlanerka === true, 'soft sees call as occupied')
-
-const occBoth = attentionSoftOccupancy(both)
-ok(occBoth.hasPnk && occBoth.hasPlanerka, 'soft blocked when both primary')
 
 if (failed) process.exit(1)
 console.log('verify-attention-side-placement: all passed')

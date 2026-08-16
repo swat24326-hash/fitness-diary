@@ -26,6 +26,7 @@ const SWIPE_THRESHOLD_PX = 42
  *   href?: string,
  *   compact?: boolean,
  *   expectVisible?: boolean,
+ *   suppressCard?: boolean,
  *   onPresenceChange?: (visible: boolean) => void,
  * }} props
  */
@@ -34,6 +35,7 @@ export function AdminPlanerkaHomeGlance({
   href = '/admin/club-tasks',
   compact = false,
   expectVisible = false,
+  suppressCard = false,
   onPresenceChange,
 }) {
   const navigate = useNavigate()
@@ -156,6 +158,8 @@ export function AdminPlanerkaHomeGlance({
   }
 
   if (!cid) return null
+
+  if (suppressCard) return null
 
   if (loading && !tasks.length) {
     if (compact && !expectVisible) return null

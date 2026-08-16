@@ -16,14 +16,16 @@ const SWIPE_THRESHOLD_PX = 42
 
 /**
  * Glance «кому звонить сегодня» — третий слот ряда на главной менеджера.
- * Слот всегда занимает место (пустая очередь = подсказка).
- * onQueueChange(true) — только когда есть кому звонить (для echo плитки).
+ * Слот всегда занимает место (пустая очередь = подсказка), кроме suppressCard
+ * (скрытый probe, чтобы знать hasCallQueue без показа карточки).
+ * onQueueChange(true) — только когда есть кому звонить (для echo плитки / placement).
  *
  * @param {{
  *   clubId: string,
  *   hrefJournal?: string,
  *   compact?: boolean,
  *   expectVisible?: boolean,
+ *   suppressCard?: boolean,
  *   onPresenceChange?: (visible: boolean) => void,
  *   onQueueChange?: (hasQueue: boolean) => void,
  * }} props
@@ -33,6 +35,7 @@ export function SalesCallTodayGlance({
   hrefJournal = '/sales/call-log',
   compact = false,
   expectVisible = false,
+  suppressCard = false,
   onPresenceChange,
   onQueueChange,
 }) {
@@ -194,6 +197,8 @@ export function SalesCallTodayGlance({
     if (card?.href) navigate(card.href)
     else navigate(hrefJournal)
   }
+
+  if (suppressCard) return null
 
   return (
     <div
