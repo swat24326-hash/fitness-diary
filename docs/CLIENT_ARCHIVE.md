@@ -22,7 +22,7 @@
 | `clients.archive_reason` | Текст до 200 символов |
 | `clients.archive_reason_at` | Когда указали / обновили |
 
-**UI:** модалка с чипами + «Другое» (`ClientArchiveReasonModal`); в списке Архив — факт «Причина»; на карточке — баннер с причиной.
+**UI:** модалка со свободным текстом причины (`ClientArchiveReasonModal`); в списке Архив — факт «Причина»; на карточке — баннер с причиной.
 
 **Правила:** `src/lib/clientArchiveReasonCore.js` · sync: `clientArchiveSyncService.js` · verify: `node scripts/verify-client-archive-reason.mjs`.
 

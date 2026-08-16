@@ -13,28 +13,6 @@
   font-size: 0.9rem;
 }
 
-.client-archive-reason-modal__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
-}
-
-.client-archive-reason-chip {
-  font-size: 0.9rem;
-  padding: 10px 12px;
-  min-height: 44px;
-  background: color-mix(in srgb, var(--surface-2, rgba(255, 255, 255, 0.06)) 100%, transparent);
-  border: 1px solid color-mix(in srgb, var(--border, rgba(255, 255, 255, 0.12)) 100%, transparent);
-  color: var(--text);
-}
-
-.client-archive-reason-chip--on {
-  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
-  color: var(--text);
-}
-
 .client-archive-reason-modal__field {
   display: block;
   margin-top: 14px;

@@ -1,11 +1,8 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import {
-  ARCHIVE_REASON_CHIPS,
   ARCHIVE_REASON_MAX_LEN,
-  ARCHIVE_REASON_OTHER_ID,
-  composeArchiveReason,
   isArchiveReasonReady,
-  matchArchiveReasonChip,
+  normalizeArchiveReasonText,
 } from '../lib/clientArchiveReasonCore.js'
 
 /**
@@ -32,28 +29,22 @@ export function ClientArchiveReasonModal({
   const titleId = useId()
   const inputRef = useRef(null)
   const submitGuardRef = useRef(false)
-  const seed = useMemo(() => matchArchiveReasonChip(initialReason), [initialReason])
-  const [chipId, setChipId] = useState(/** @type {string | null} */ (null))
   const [customText, setCustomText] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     if (!open) {
-      setChipId(null)
       setCustomText('')
       setSubmitting(false)
       submitGuardRef.current = false
       return
     }
-    setChipId(seed.chipId)
-    setCustomText(seed.customText)
+    setCustomText(normalizeArchiveReasonText(initialReason) || '')
     setSubmitting(false)
     submitGuardRef.current = false
-    const t = window.setTimeout(() => {
-      if (seed.chipId === ARCHIVE_REASON_OTHER_ID || !seed.chipId) inputRef.current?.focus?.()
-    }, 50)
+    const t = window.setTimeout(() => inputRef.current?.focus?.(), 50)
     return () => window.clearTimeout(t)
-  }, [open, seed.chipId, seed.customText])
+  }, [open, initialReason])
 
   useEffect(() => {
     if (!busy) {
@@ -64,12 +55,11 @@ export function ClientArchiveReasonModal({
 
   if (!open) return null
 
-  const reason = composeArchiveReason({ chipId, customText })
+  const reason = normalizeArchiveReasonText(customText)
   const ready = isArchiveReasonReady(reason)
   const isEnter = mode === 'enter'
   const title = isEnter ? 'В архив' : 'Причина архива'
   const confirmLabel = isEnter ? 'В архив' : 'Сохранить'
-  const needCustom = !chipId || chipId === ARCHIVE_REASON_OTHER_ID
   const locked = busy || submitting
 
   const submit = () => {
@@ -114,50 +104,24 @@ export function ClientArchiveReasonModal({
           </p>
         ) : null}
 
-        <div className="client-archive-reason-modal__chips" role="group" aria-label="Быстрые причины">
-          {ARCHIVE_REASON_CHIPS.map((chip) => {
-            const pressed = chipId === chip.id
-            return (
-              <button
-                key={chip.id}
-                type="button"
-                className={`btn btn-touch client-archive-reason-chip${pressed ? ' client-archive-reason-chip--on' : ''}`}
-                aria-pressed={pressed}
-                disabled={locked}
-                onClick={() => {
-                  setChipId(chip.id)
-                  if (chip.id !== ARCHIVE_REASON_OTHER_ID) setCustomText('')
-                }}
-              >
-                {chip.label}
-              </button>
-            )
-          })}
-        </div>
-
-        {needCustom ? (
-          <label className="field client-archive-reason-modal__field">
-            <span className="label">{chipId === ARCHIVE_REASON_OTHER_ID ? 'Своя причина *' : 'Или своими словами *'}</span>
-            <input
-              ref={inputRef}
-              className="input"
-              value={customText}
-              disabled={locked}
-              maxLength={ARCHIVE_REASON_MAX_LEN}
-              placeholder="Кратко: почему в архиве"
-              onChange={(e) => {
-                setCustomText(e.target.value)
-                if (!chipId) setChipId(ARCHIVE_REASON_OTHER_ID)
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && ready && !locked) {
-                  e.preventDefault()
-                  submit()
-                }
-              }}
-            />
-          </label>
-        ) : null}
+        <label className="field client-archive-reason-modal__field">
+          <span className="label">Причина *</span>
+          <input
+            ref={inputRef}
+            className="input"
+            value={customText}
+            disabled={locked}
+            maxLength={ARCHIVE_REASON_MAX_LEN}
+            placeholder="Кратко: почему в архиве"
+            onChange={(e) => setCustomText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && ready && !locked) {
+                e.preventDefault()
+                submit()
+              }
+            }}
+          />
+        </label>
 
         <div className="row td-modal-actions client-archive-reason-modal__actions">
           <button type="button" className="btn btn-ghost btn-touch" disabled={locked} onClick={() => onCancel?.()}>
