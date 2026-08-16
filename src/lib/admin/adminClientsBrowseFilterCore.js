@@ -60,6 +60,19 @@ export function filterAdminClientsBrowseTabBase(clients, clientsTab, memByClient
 }
 
 /**
+ * Воронку на список Архива не вешаем: tabBase подменяет archive→active,
+ * пересечение с архивным пулом даёт пустой список (ломает вкладку).
+ * @param {string} clientsTab
+ * @param {string} [browseMode]
+ */
+export function shouldApplyAdminClientsBrowseFilterToList(clientsTab, browseMode) {
+  if (normalizeAdminClientsListTab(clientsTab) === 'archive') return false
+  const mode = String(browseMode ?? '').trim()
+  if (!mode || mode === 'none') return false
+  return ADMIN_CLIENTS_BROWSE_FUNNEL_KEYS.includes(mode)
+}
+
+/**
  * Сужение АЗ по направлению (пустое = без сужения).
  * @param {object[]} clients
  * @param {Record<string, object[]>} memByClient

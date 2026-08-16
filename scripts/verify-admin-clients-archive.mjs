@@ -1,10 +1,16 @@
 import {
   buildAdminClientsTodaySnapshot,
+  filterAdminClientsByBrowseMode,
   mergeAdminPzBrowseFilterCounts,
   planAdminClubReconcilePrune,
   remoteClientIdsForReconcile,
+  shouldApplyAdminClientsBrowseFilterToList,
   shouldShowAdminClientsList,
 } from '../src/lib/admin/adminClientsBrowseCore.js'
+import {
+  filterClientsByAdminListTab,
+} from '../src/lib/admin/deskHallClientsCore.js'
+import { resolveAdminClientsSearchPool } from '../src/lib/admin/adminClientsCrossHallSearchCore.js'
 
 let failed = 0
 
@@ -100,6 +106,47 @@ const funnelLike = { all: pzTabClients.length, inactive: 4 }
 const chipCounts = mergeAdminPzBrowseFilterCounts(funnelLike, snapWide)
 ok(chipCounts.all === 4, 'tile «Все» = tab funnel 4, not commercial 3')
 ok(chipCounts.all !== snapWide.totalOperational, 'tile must not equal smaller commercial census')
+
+ok(
+  shouldApplyAdminClientsBrowseFilterToList('archive', 'all') === false,
+  'archive never applies browse funnel to list',
+)
+ok(
+  shouldApplyAdminClientsBrowseFilterToList('active', 'all') === true,
+  'active applies browse funnel',
+)
+ok(
+  shouldApplyAdminClientsBrowseFilterToList('archive', 'none') === false,
+  'archive + none = no funnel',
+)
+
+const mixClients = [
+  { id: 'live', name: 'Живой', archived_at: null },
+  { id: 'arch1', name: 'В архиве', archived_at: '2026-01-01' },
+]
+const memEmpty = {}
+const archivePool = resolveAdminClientsSearchPool({
+  clients: mixClients,
+  clientsTab: 'archive',
+  query: '',
+  memByClient: memEmpty,
+  filterByTab: filterClientsByAdminListTab,
+})
+const funnelOnArchiveTab = filterAdminClientsByBrowseMode({
+  clients: mixClients,
+  memByClient: memEmpty,
+  clientsTab: 'archive',
+  today: '2026-08-16',
+  browseMode: 'all',
+})
+const brokenIntersect = archivePool.filter((c) => funnelOnArchiveTab.some((x) => x.id === c.id))
+ok(archivePool.map((c) => c.id).join() === 'arch1', 'archive pool is archived only')
+ok(funnelOnArchiveTab.map((c) => c.id).join() === 'live', 'browse tabBase on archive counts as active')
+ok(brokenIntersect.length === 0, 'regression: archive∩funnel(active) is empty')
+ok(
+  shouldApplyAdminClientsBrowseFilterToList('archive', 'all') === false,
+  'guard prevents empty archive list',
+)
 
 if (failed > 0) {
   console.error(`\n${failed} check(s) failed`)

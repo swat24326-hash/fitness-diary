@@ -172,5 +172,6 @@ export {
   formatAdminClientsResultsShown,
   resolveAdminClientsBrowseHallMode,
   resolveAdminClientsFunnelPool,
+  shouldApplyAdminClientsBrowseFilterToList,
   verifyAdminClientsBrowseChipParity,
 } from './adminClientsBrowseFilterCore.js'

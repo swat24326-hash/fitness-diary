@@ -52,6 +52,7 @@ import {
   filterAdminClientsByBrowseMode,
   formatAdminClientsResultsShown,
   isAdminClientsBrowseMode,
+  shouldApplyAdminClientsBrowseFilterToList,
   shouldShowAdminClientsList,
 } from '../../lib/admin/adminClientsBrowseCore'
 import {
@@ -462,10 +463,29 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         { replace: true },
       )
     }
-    if (isAdminClientQuickFilter(n)) setQuickFilter(n)
-    else if (!rawFilter) setQuickFilter('none')
+    const nextTab = normalizeAdminClientsListTab(
+      searchParams.get('clientsTab') || searchParams.get('list'),
+    )
+    setClientsTab(nextTab)
+    // Архив + воронка из URL = пустой список (воронка считает живых). Сбрасываем.
+    if (nextTab === 'archive') {
+      setQuickFilter('none')
+      if (rawFilter) {
+        setSearchParams(
+          (prev) => {
+            const p = new URLSearchParams(prev)
+            p.delete('filter')
+            return p
+          },
+          { replace: true },
+        )
+      }
+    } else if (isAdminClientQuickFilter(n)) {
+      setQuickFilter(n)
+    } else if (!rawFilter) {
+      setQuickFilter('none')
+    }
 
-    setClientsTab(normalizeAdminClientsListTab(searchParams.get('clientsTab') || searchParams.get('list')))
     setArchiveHallFilter(normalizeArchiveHallFilter(searchParams.get('archiveHall')))
     setListPage(parseAdminClientsListPage(searchParams.get('page')))
     setQuery(String(searchParams.get('q') ?? ''))
@@ -653,8 +673,11 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       })
     }
 
-    // Воронка только без cross-hall: тот же контур, что плитки (вкл. АЗ-направление).
-    if (!crossHallSearch && quickFilter !== 'none' && isAdminClientsBrowseMode(quickFilter)) {
+    // Воронка только без cross-hall и не на Архиве (иначе archive∩active = пусто).
+    if (
+      !crossHallSearch &&
+      shouldApplyAdminClientsBrowseFilterToList(clientsTab, quickFilter)
+    ) {
       const allowed = new Set(
         filterAdminClientsByBrowseMode({
           clients,
@@ -853,13 +876,13 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     () =>
       formatAdminClientsResultsShown({
         crossHallSearch,
-        browseMode: quickFilter,
+        browseMode: clientsTab === 'archive' ? 'none' : quickFilter,
         browseLabel: browseFilterLabels[quickFilter] ?? null,
         azDirectionLabel: azDirectionShownLabel,
         listLength: filteredClients.length,
       }),
     // browseFilterLabels стабилен по ключам; allTileLabel / BIRTHDAY в deps через quickFilter+allTileLabel
-    [crossHallSearch, quickFilter, allTileLabel, azDirectionShownLabel, filteredClients.length],
+    [crossHallSearch, clientsTab, quickFilter, allTileLabel, azDirectionShownLabel, filteredClients.length],
   )
   const smsMode = useMemo(() => resolveClubSmsMode(quickFilter), [quickFilter])
   const smsCampaign = useAdminClubSmsCampaign({
