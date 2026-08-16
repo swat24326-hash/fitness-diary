@@ -1,0 +1,71 @@
+/* Причина архива клиента — модалка и факт в списке */
+
+.client-archive-reason-modal {
+  max-width: 440px;
+}
+
+.client-archive-reason-modal__lead {
+  margin-top: 8px;
+}
+
+.client-archive-reason-modal__note {
+  margin-top: 8px;
+  font-size: 0.9rem;
+}
+
+.client-archive-reason-modal__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.client-archive-reason-chip {
+  font-size: 0.9rem;
+  padding: 10px 12px;
+  min-height: 44px;
+  background: color-mix(in srgb, var(--surface-2, rgba(255, 255, 255, 0.06)) 100%, transparent);
+  border: 1px solid color-mix(in srgb, var(--border, rgba(255, 255, 255, 0.12)) 100%, transparent);
+  color: var(--text);
+}
+
+.client-archive-reason-chip--on {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--text);
+}
+
+.client-archive-reason-modal__field {
+  display: block;
+  margin-top: 14px;
+}
+
+.client-archive-reason-modal__actions {
+  margin-top: 18px;
+}
+
+.client-archive-reason-fact__value--missing {
+  color: var(--warning, #fbbf24);
+}
+
+.client-archive-reason-fact__btn {
+  margin-left: 4px;
+  vertical-align: baseline;
+}
+
+.client-archive-banner {
+  margin: 0;
+}
+
+.client-archive-banner__reason {
+  display: block;
+  margin-top: 6px;
+}
+
+.client-archive-banner__actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: 10px;
+  vertical-align: middle;
+}

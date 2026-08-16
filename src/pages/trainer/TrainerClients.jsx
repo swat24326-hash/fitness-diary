@@ -23,6 +23,12 @@ import {
   isAppOnline,
   saveLocalWithSync,
 } from '../../lib/syncService'
+import {
+  archiveClientWithReason,
+  restoreClientFromArchive,
+  setClientArchiveReason,
+} from '../../lib/clientArchiveSyncService.js'
+import { ClientArchiveReasonModal } from '../../components/ClientArchiveReasonModal.jsx'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { formatClientName } from '../../lib/clientNameFormat'
 import {
@@ -99,6 +105,8 @@ export function TrainerClients() {
   const [sentTodayIds, setSentTodayIds] = useState(() => new Set())
   const [workspaceReady, setWorkspaceReady] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(null)
+  /** @type {[{ mode: 'enter' | 'edit', client: object } | null, Function]} */
+  const [archiveReasonModal, setArchiveReasonModal] = useState(null)
   const [toast, setToast] = useState(null)
   const [highlightClientId, setHighlightClientId] = useState(null)
 
@@ -315,22 +323,34 @@ export function TrainerClients() {
   const activeBrowseLabel =
     quickFilter && quickFilter !== 'all' ? TRAINER_CLIENTS_BROWSE_LABELS[quickFilter] ?? null : null
 
-  const updateClientArchiveFlag = async (clientRow, archived) => {
+  const restoreClientArchive = async (clientRow) => {
     if (!clientRow?.id) return
     setBusy(true)
     try {
-      const row = { ...clientRow, archived_at: archived ? new Date().toISOString() : null }
-      await saveLocalWithSync('clients', row, {
-        table_name: 'clients',
-        operation: 'update',
-        remote_id: row.id,
-      })
-      const flush = await flushCriticalWritesToCloud()
-      const warn = criticalWriteCloudWarning(flush, archived ? 'Архив' : 'Возврат из архива')
+      const { warn } = await restoreClientFromArchive(clientRow)
       if (warn) alert(warn)
       await reload({ silent: true })
     } catch (err) {
       alert(err?.message ?? 'Не удалось обновить архив')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const confirmArchiveReason = async (reason) => {
+    const modal = archiveReasonModal
+    if (!modal?.client?.id) return
+    setBusy(true)
+    try {
+      const { warn } =
+        modal.mode === 'enter'
+          ? await archiveClientWithReason(modal.client, reason)
+          : await setClientArchiveReason(modal.client, reason)
+      if (warn) alert(warn)
+      setArchiveReasonModal(null)
+      await reload({ silent: true })
+    } catch (err) {
+      alert(err?.message ?? 'Не удалось сохранить причину архива')
     } finally {
       setBusy(false)
     }
@@ -640,8 +660,9 @@ export function TrainerClients() {
                     mode={clientsTab}
                     busy={busy}
                     onDelete={(row) => setConfirmDelete({ id: row.id, name: row.name })}
-                    onArchive={(row) => void updateClientArchiveFlag(row, true)}
-                    onRestore={(row) => void updateClientArchiveFlag(row, false)}
+                    onArchive={(row) => setArchiveReasonModal({ mode: 'enter', client: row })}
+                    onEditArchiveReason={(row) => setArchiveReasonModal({ mode: 'edit', client: row })}
+                    onRestore={(row) => void restoreClientArchive(row)}
                   />
                   )
                 })}
@@ -680,6 +701,16 @@ export function TrainerClients() {
         aria-labelledby="delete-client-title"
         onCancel={() => !busy && setConfirmDelete(null)}
         onConfirm={() => void runDeleteClient()}
+      />
+
+      <ClientArchiveReasonModal
+        open={Boolean(archiveReasonModal)}
+        mode={archiveReasonModal?.mode === 'edit' ? 'edit' : 'enter'}
+        clientName={archiveReasonModal?.client?.name}
+        initialReason={archiveReasonModal?.mode === 'edit' ? archiveReasonModal?.client?.archive_reason : null}
+        busy={busy}
+        onCancel={() => !busy && setArchiveReasonModal(null)}
+        onConfirm={(reason) => void confirmArchiveReason(reason)}
       />
 
       {showNewClient && (

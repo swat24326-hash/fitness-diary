@@ -11,7 +11,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | Store | keyPath | Заметки |
 |-------|---------|---------|
 | `meta` | key (string) | Флаги, служебное |
-| `clients` | `id` | индексы `club_id`, `trainer_id`; поля ПНК / архив; `desk_hall` (`tz`\|`az`\|null); `trainer_id` nullable только вместе с desk (`CHECK trainer OR desk_hall`). Lite-ПЗ = обычный клиент с живым тренером, у которого `users.uses_tablet = false` (не desk). |
+| `clients` | `id` | индексы `club_id`, `trainer_id`; поля ПНК / архив (`archived_at`, `archive_reason`, `archive_reason_at`); `desk_hall` (`tz`\|`az`\|null); `trainer_id` nullable только вместе с desk (`CHECK trainer OR desk_hall`). Lite-ПЗ = обычный клиент с живым тренером, у которого `users.uses_tablet = false` (не desk). |
 | `memberships` | `id` | `client_id`, `club_id`; **`hall`** (`pz`\|`tz`\|`az`) — зал абона (один client — несколько залов); опционально `clip_id`; `paid_amount` (₽ **цены покупки** desk/lite — **не** сущность платежа); `session_visits` JSONB — журнал списаний desk АЗ `[{id,date,created_at}]` |
 | `trainings` | `id` | `draft` \| `completed`; `data` JSON формы (в т.ч. опционально `hr_session` — сводка пульса BLE, см. [TRAINING_HR.md](./TRAINING_HR.md)) |
 | `exercises` | `id` | Справочник |

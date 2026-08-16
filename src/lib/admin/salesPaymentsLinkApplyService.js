@@ -25,6 +25,10 @@ import {
   normalizeSalesCardNumber,
 } from './salesClientMatchCore.js'
 import { isClientArchived } from '../clientArchive.js'
+import {
+  buildArchiveRestoreFields,
+  clientHasStaleArchiveReason,
+} from '../clientArchiveReasonCore.js'
 
 function findClubClientsByCard(clubClients, clubId, cardNumber) {
   const n = normalizeSalesCardNumber(cardNumber)
@@ -54,7 +58,7 @@ function clientUpdatePatch(existing, action, extra = {}) {
     updated_at: now,
   }
   if (action?.needsRestore || isClientArchived(existing)) {
-    patch.archived_at = null
+    Object.assign(patch, buildArchiveRestoreFields())
   }
   return patch
 }
@@ -129,10 +133,10 @@ async function applyRestoreArchivedFromPayment({ action, clubId }) {
   const clubClients = await listClientsByClubId(clubId)
   const existing = (clubClients ?? []).find((c) => String(c.id) === clientId)
   if (!existing) return { ok: false, error: 'Клиент не найден в клубе' }
-  if (!isClientArchived(existing)) {
+  if (!isClientArchived(existing) && !clientHasStaleArchiveReason(existing)) {
     return { ok: true, result: 'restored', clientId, alreadyActive: true }
   }
-  const patch = clientUpdatePatch(existing, action)
+  const patch = clientUpdatePatch(existing, { ...action, needsRestore: true })
   await saveLocalWithSync('clients', patch, {
     table_name: 'clients',
     operation: 'update',

@@ -10,10 +10,17 @@ import { getHealthCard, getLocalClient, hydrateAdminClientWorkspace, listMembers
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { canOfferLateMembershipStart, canStartNewTrainingForMemberships } from '../../lib/membershipRules'
 import {
-  criticalWriteCloudWarning,
-  flushCriticalWritesToCloud,
   saveLocalWithSync,
 } from '../../lib/syncService'
+import {
+  restoreClientFromArchive,
+  setClientArchiveReason,
+} from '../../lib/clientArchiveSyncService.js'
+import {
+  clientNeedsArchiveReason,
+  formatArchiveReasonDisplay,
+} from '../../lib/clientArchiveReasonCore.js'
+import { ClientArchiveReasonModal } from '../../components/ClientArchiveReasonModal.jsx'
 import { useAuth } from '../../context/AuthContext'
 import { useDebouncedStorageReload, shouldReloadTrainerClientStats } from '../../lib/useDebouncedStorageReload'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
@@ -114,6 +121,7 @@ export function ClientCard() {
   const [editForm, setEditForm] = useState({ name: '', phone: '', birth_date: '', card_number: '', outreach_name: '', max_chat_url: '' })
   const [hydrateError, setHydrateError] = useState(null)
   const [archiveBusy, setArchiveBusy] = useState(false)
+  const [archiveReasonModalOpen, setArchiveReasonModalOpen] = useState(false)
   const [taskModalOpen, setTaskModalOpen] = useState(false)
   const [outreachLogs, setOutreachLogs] = useState([])
   const [callHistTick, setCallHistTick] = useState(0)
@@ -407,10 +415,7 @@ export function ClientCard() {
     if (!client?.id) return
     setArchiveBusy(true)
     try {
-      const row = { ...client, archived_at: null }
-      await saveLocalWithSync('clients', row, { table_name: 'clients', operation: 'update', remote_id: client.id })
-      const flush = await flushCriticalWritesToCloud()
-      const warn = criticalWriteCloudWarning(flush, 'Возврат из архива')
+      const { warn } = await restoreClientFromArchive(client)
       if (warn) alert(warn)
       await reloadLocal()
     } catch (err) {
@@ -419,6 +424,24 @@ export function ClientCard() {
       setArchiveBusy(false)
     }
   }, [client, reloadLocal])
+
+  const saveArchiveReasonOnCard = useCallback(
+    async (reason) => {
+      if (!client?.id) return
+      setArchiveBusy(true)
+      try {
+        const { warn } = await setClientArchiveReason(client, reason)
+        if (warn) alert(warn)
+        setArchiveReasonModalOpen(false)
+        await reloadLocal()
+      } catch (err) {
+        alert(err?.message ?? 'Не удалось сохранить причину архива')
+      } finally {
+        setArchiveBusy(false)
+      }
+    },
+    [client, reloadLocal],
+  )
 
   useEffect(() => {
     hydrateGenRef.current += 1
@@ -750,15 +773,36 @@ export function ClientCard() {
         </p>
       ) : null}
       {isArchived ? (
-        <p className="admin-inline-note" style={{ margin: 0 }} role="status">
+        <p className="admin-inline-note client-archive-banner" style={{ margin: 0 }} role="status">
           Клиент в <strong>архиве</strong>. Просмотр доступен, но все действия (редактирование, абонементы, тренировки) — только после «Вернуть».
-          <span style={{ display: 'inline-block', marginLeft: 10 }}>
+          <span className="client-archive-banner__reason muted">
+            Причина: {formatArchiveReasonDisplay(client)}
+            {clientNeedsArchiveReason(client) ? ' — укажите, почему в архиве.' : ''}
+          </span>
+          <span className="client-archive-banner__actions">
+            <button
+              type="button"
+              className="btn btn-ghost btn-touch btn-xs"
+              disabled={archiveBusy}
+              onClick={() => setArchiveReasonModalOpen(true)}
+            >
+              {clientNeedsArchiveReason(client) ? 'Указать причину' : 'Изменить причину'}
+            </button>
             <button type="button" className="btn btn-primary btn-touch btn-xs" disabled={archiveBusy} onClick={() => void restoreFromArchive()}>
               {archiveBusy ? '…' : 'Вернуть из архива'}
             </button>
           </span>
         </p>
       ) : null}
+      <ClientArchiveReasonModal
+        open={archiveReasonModalOpen && isArchived}
+        mode="edit"
+        clientName={client?.name}
+        initialReason={client?.archive_reason}
+        busy={archiveBusy}
+        onCancel={() => !archiveBusy && setArchiveReasonModalOpen(false)}
+        onConfirm={(reason) => void saveArchiveReasonOnCard(reason)}
+      />
       {editOpen && (
         <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Редактирование клиента" onClick={() => setEditOpen(false)}>
           <div className="modal-panel" onClick={(e) => e.stopPropagation()}>

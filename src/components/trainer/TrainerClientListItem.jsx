@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Archive, Dumbbell, MessageCircle, RotateCcw, Trash2, UserCircle } from 'lucide-react'
+import { Archive, Dumbbell, MessageCircle, RotateCcw, Tag, Trash2, UserCircle } from 'lucide-react'
 import { formatUpcomingBirthdayLabel } from '../../lib/clientBirthdays'
 import { formatDateRu } from '../../lib/dateRu'
 import {
@@ -14,7 +14,9 @@ import {
   membershipUsageLabel,
   pickUsableMembershipForDate,
 } from '../../lib/membershipRules'
+import { clientNeedsArchiveReason } from '../../lib/clientArchiveReasonCore.js'
 import { ClientRowMoreMenu } from '../ClientRowMoreMenu'
+import { ClientArchiveReasonFact } from '../ClientArchiveReasonFact.jsx'
 import '../../styles/pnk-funnel.css'
 
 export function TrainerClientListItem({
@@ -36,6 +38,7 @@ export function TrainerClientListItem({
   busy,
   onDelete,
   onArchive,
+  onEditArchiveReason,
   onRestore,
 }) {
   const active = pickUsableMembershipForDate(memList, today)
@@ -123,6 +126,9 @@ export function TrainerClientListItem({
                 )}
               </span>
             </div>
+            {mode === 'archive' ? (
+              <ClientArchiveReasonFact client={client} busy={busy} onEdit={onEditArchiveReason} />
+            ) : null}
             <div className="td-client-fact">
               <span className="td-client-fact__label">Последняя</span>
               <span className="td-client-fact__value">{last}</span>
@@ -197,11 +203,19 @@ export function TrainerClientListItem({
                       onSelect: () => onArchive?.(client),
                     }
                   : {
+                      id: 'archive-reason',
+                      label: clientNeedsArchiveReason(client) ? 'Указать причину' : 'Изменить причину',
+                      icon: Tag,
+                      onSelect: () => onEditArchiveReason?.(client),
+                    },
+                mode === 'archive'
+                  ? {
                       id: 'restore',
                       label: 'Вернуть из архива',
                       icon: RotateCcw,
                       onSelect: () => onRestore?.(client),
-                    },
+                    }
+                  : null,
                 {
                   id: 'delete',
                   label: 'Удалить',
@@ -209,7 +223,7 @@ export function TrainerClientListItem({
                   danger: true,
                   onSelect: () => onDelete?.(client),
                 },
-              ]}
+              ].filter(Boolean)}
             />
           </div>
         </div>

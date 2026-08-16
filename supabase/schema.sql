@@ -51,6 +51,8 @@ CREATE TABLE clients (
   trainer_id UUID REFERENCES users (id),
   club_id UUID NOT NULL REFERENCES clubs (id),
   archived_at TIMESTAMPTZ,
+  archive_reason TEXT,
+  archive_reason_at TIMESTAMPTZ,
   lifecycle TEXT NOT NULL DEFAULT 'active' CHECK (lifecycle IN ('active', 'pnk', 'pnk_lost')),
   pnk_stage TEXT CHECK (
     pnk_stage IS NULL

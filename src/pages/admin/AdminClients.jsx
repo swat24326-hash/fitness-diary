@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom'
-import { Archive, ArrowLeft, History, Phone, RefreshCw, RotateCcw, Search, Trash2, UserCircle, UserPlus, UserSearch } from 'lucide-react'
+import { Archive, ArrowLeft, History, Phone, RefreshCw, RotateCcw, Search, Tag, Trash2, UserCircle, UserPlus, UserSearch } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { AdminClientClubSmsButton } from '../../components/admin/AdminClientClubSmsButton.jsx'
@@ -22,7 +22,6 @@ import { ClientRowMoreMenu } from '../../components/ClientRowMoreMenu.jsx'
 import {
   deleteClientAndAllData,
   dispatchLocalDataChanged,
-  getLocalClient,
   listAdminClientsForClub,
   listTrainerSummariesForAdmin,
 } from '../../lib/dataAccess'
@@ -88,7 +87,6 @@ import { isSupabaseConfigured } from '../../lib/supabase'
 import {
   criticalWriteCloudWarning,
   flushCriticalWritesToCloud,
-  saveLocalWithSync,
 } from '../../lib/syncService'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 import {
@@ -130,6 +128,14 @@ import { collectNoTabletTrainerIds, isLitePzClient } from '../../lib/admin/train
 import { collectHoldingTrainerIds } from '../../lib/admin/holdingClientsCore.js'
 import { canSalesManagerHardDeleteClient } from '../../lib/admin/salesManagerClientsAccessCore.js'
 import { ClientHardDeleteConfirmModal } from '../../components/ClientHardDeleteConfirmModal.jsx'
+import { ClientArchiveReasonModal } from '../../components/ClientArchiveReasonModal.jsx'
+import { ClientArchiveReasonFact } from '../../components/ClientArchiveReasonFact.jsx'
+import {
+  archiveClientWithReason,
+  restoreClientFromArchive,
+  setClientArchiveReason,
+} from '../../lib/clientArchiveSyncService.js'
+import { clientNeedsArchiveReason } from '../../lib/clientArchiveReasonCore.js'
 import { AdminClientListAbonFact } from '../../components/admin/AdminClientListAbonFact.jsx'
 import { AdminLitePzCreateModal } from '../../components/admin/AdminLitePzCreateModal.jsx'
 import { ensureMembershipTypesForClub } from '../../lib/membershipTypesService.js'
@@ -227,6 +233,8 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
   const [listTruncated, setListTruncated] = useState(false)
 
   const [confirmDelete, setConfirmDelete] = useState(null)
+  /** @type {[{ mode: 'enter' | 'edit', client: object } | null, Function]} */
+  const [archiveReasonModal, setArchiveReasonModal] = useState(null)
   const [deleteBusy, setDeleteBusy] = useState(false)
   const [refreshMsg, setRefreshMsg] = useState('')
   const [smsFeedback, setSmsFeedback] = useState(null)
@@ -1025,30 +1033,39 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     }, { resetPage: true })
   }
 
-  const updateClientArchiveFlag = async (clientRow, archived) => {
+  const restoreClientArchive = async (clientRow) => {
     if (!clientRow?.id) return
-    if (archived) {
-      const ok = window.confirm(`Убрать клиента в архив?\n\n${clientRow.name ?? 'Клиент'}\n\nВ архиве доступен просмотр карточки. Все действия — только после «Вернуть».`)
-      if (!ok) return
-    }
-    const full = await getLocalClient(clientRow.id)
-    if (!full) {
-      alert('Клиент не найден в локальном кэше. Обновите список.')
-      return
-    }
     setBusy(true)
-    const now = new Date().toISOString()
-    const row = { ...full, archived_at: archived ? now : null }
     try {
-      await saveLocalWithSync('clients', row, { table_name: 'clients', operation: 'update', remote_id: full.id })
-      const flush = await flushCriticalWritesToCloud()
-      const warn = criticalWriteCloudWarning(flush, archived ? 'Архив' : 'Возврат из архива')
+      const { warn } = await restoreClientFromArchive(clientRow)
       if (warn) alert(warn)
-      dispatchLocalDataChanged({ reason: 'client-archive-changed', clientId: full.id })
+      dispatchLocalDataChanged({ reason: 'client-archive-changed', clientId: clientRow.id })
       if (club) invalidateAdminClientsListMemory(club)
       await reload({ silent: true })
     } catch (err) {
       alert(err?.message ?? 'Не удалось обновить архив')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const confirmArchiveReason = async (reason) => {
+    const modal = archiveReasonModal
+    if (!modal?.client?.id) return
+    setBusy(true)
+    try {
+      const { warn } =
+        modal.mode === 'enter'
+          ? await archiveClientWithReason(modal.client, reason)
+          : await setClientArchiveReason(modal.client, reason)
+      if (warn) alert(warn)
+      const cid = modal.client.id
+      setArchiveReasonModal(null)
+      dispatchLocalDataChanged({ reason: 'client-archive-changed', clientId: cid })
+      if (club) invalidateAdminClientsListMemory(club)
+      await reload({ silent: true })
+    } catch (err) {
+      alert(err?.message ?? 'Не удалось сохранить причину архива')
     } finally {
       setBusy(false)
     }
@@ -1553,6 +1570,13 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                           <span className="td-client-fact__label">Карта</span>
                           <span className="td-client-fact__value">{String(c.card_number ?? '').trim() || '—'}</span>
                         </div>
+                        {clientsTab === 'archive' ? (
+                          <ClientArchiveReasonFact
+                            client={c}
+                            busy={busy}
+                            onEdit={(row) => setArchiveReasonModal({ mode: 'edit', client: row })}
+                          />
+                        ) : null}
                         {crossHallSearch ? (
                           <>
                             {!factIsDesk ? (
@@ -1760,14 +1784,22 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                                   id: 'archive',
                                   label: 'В архив',
                                   icon: Archive,
-                                  onSelect: () => void updateClientArchiveFlag(c, true),
+                                  onSelect: () => setArchiveReasonModal({ mode: 'enter', client: c }),
                                 }
                               : {
+                                  id: 'archive-reason',
+                                  label: clientNeedsArchiveReason(c) ? 'Указать причину' : 'Изменить причину',
+                                  icon: Tag,
+                                  onSelect: () => setArchiveReasonModal({ mode: 'edit', client: c }),
+                                },
+                            clientsTab === 'archive'
+                              ? {
                                   id: 'restore',
                                   label: 'Вернуть из архива',
                                   icon: RotateCcw,
-                                  onSelect: () => void updateClientArchiveFlag(c, false),
-                                },
+                                  onSelect: () => void restoreClientArchive(c),
+                                }
+                              : null,
                             canSalesManagerHardDeleteClient(isSalesManager, c)
                               ? {
                                   id: 'delete',
@@ -1918,6 +1950,16 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         aria-labelledby="adm-delete-client-title"
         onCancel={() => !deleteBusy && setConfirmDelete(null)}
         onConfirm={() => void runDeleteClient()}
+      />
+
+      <ClientArchiveReasonModal
+        open={Boolean(archiveReasonModal)}
+        mode={archiveReasonModal?.mode === 'edit' ? 'edit' : 'enter'}
+        clientName={archiveReasonModal?.client?.name}
+        initialReason={archiveReasonModal?.mode === 'edit' ? archiveReasonModal?.client?.archive_reason : null}
+        busy={busy}
+        onCancel={() => !busy && setArchiveReasonModal(null)}
+        onConfirm={(reason) => void confirmArchiveReason(reason)}
       />
 
       <AdminLitePzCreateModal

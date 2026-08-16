@@ -122,6 +122,7 @@ run('desk client birth form', 'node', ['scripts/verify-desk-client-birth-form.mj
 run('desk client form merge', 'node', ['scripts/verify-desk-client-form-merge.mjs'])
 run('deletion audit', 'node', ['scripts/verify-deletion-audit.mjs'])
 run('client hard delete confirm', 'node', ['scripts/verify-client-hard-delete-confirm.mjs'])
+run('client archive reason', 'node', ['scripts/verify-client-archive-reason.mjs'])
 run('club sms campaign', 'node', ['scripts/verify-club-sms-campaign.mjs'])
 run('club sms campaign result', 'node', ['scripts/verify-club-sms-campaign-result.mjs'])
 run('sale clips match holding', 'node', ['scripts/verify-sale-clips.mjs'])
