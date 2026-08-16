@@ -48,7 +48,7 @@ export async function fetchClubSmsStatus(clubId) {
 /**
  * Облачный журнал SMS клуба.
  * @param {string} clubId
- * @param {{ sinceDays?: number, day?: string }} [opts]
+ * @param {{ sinceDays?: number, day?: string, clientId?: string }} [opts]
  * @returns {Promise<object[]>}
  */
 export async function fetchClubSmsLogs(clubId, opts = {}) {
@@ -70,6 +70,8 @@ export async function fetchClubSmsLogs(clubId, opts = {}) {
     since_days: String(sinceDays),
   })
   if (day) qs.set('day', day)
+  const clientId = String(opts.clientId ?? '').trim()
+  if (clientId) qs.set('client_id', clientId)
   const res = await fetchWithAppTimeout(`${apiOrigin()}/api/admin-data?action=club-sms&${qs}`, {
     method: 'GET',
     headers: { Authorization: `Bearer ${token}` },
@@ -98,6 +100,9 @@ export async function fetchClubSmsLogs(clubId, opts = {}) {
       const t = String(row?.created_at ?? '')
       return t && t >= gte && t < lt
     })
+  }
+  if (clientId) {
+    logs = logs.filter((row) => String(row?.client_id ?? '').trim() === clientId)
   }
   return logs
 }

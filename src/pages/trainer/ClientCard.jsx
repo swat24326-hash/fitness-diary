@@ -22,8 +22,7 @@ import { buildClientCardTaskDraft } from '../../lib/admin/staffTaskCreateCore.js
 import { useClubDispatchRecipients } from '../../hooks/useClubDispatchRecipients.js'
 import { listOutreachLogByClientId } from '../../lib/trainer/trainerOutreachLogService.js'
 import { ClientPnkPanel } from '../../components/trainer/ClientPnkPanel.jsx'
-import { AdminClubCallJournalSection } from '../../components/admin/AdminClubCallJournalSection.jsx'
-import { AdminClientClubCallButton } from '../../components/admin/AdminClientClubCallButton.jsx'
+import { AdminClientCallHistoryButton } from '../../components/admin/AdminClientCallHistoryButton.jsx'
 import { fetchClubCallStatus } from '../../lib/admin/clubCallService.js'
 import { PnkVisitQualityReport } from '../../components/pnk/PnkVisitQualityReport.jsx'
 import { formatClientName } from '../../lib/clientNameFormat.js'
@@ -847,6 +846,25 @@ export function ClientCard() {
             <button type="button" className="btn btn-ghost btn-icon-square" aria-label="Редактировать данные клиента" title="Редактировать" onClick={openEdit} disabled={isArchived}>
               <Pencil size={16} aria-hidden />
             </button>
+            {canManageClubClients && client?.club_id ? (
+              <AdminClientCallHistoryButton
+                variant="icon"
+                clubId={String(client.club_id)}
+                client={client}
+                clubName={callClubName}
+                configured={callConfigured}
+                reloadToken={callHistTick}
+                onFeedback={(msg, tone, opts) => {
+                  setCallToast({
+                    text: String(msg || ''),
+                    kind: tone === 'err' || tone === 'warn' ? 'err' : 'ok',
+                    ms: opts?.durationMs,
+                  })
+                }}
+                onCalled={() => setCallHistTick((n) => n + 1)}
+                onNoteSaved={() => setCallHistTick((n) => n + 1)}
+              />
+            ) : null}
             {canAssignClubTasks ? (
               <button
                 type="button"
@@ -942,32 +960,6 @@ export function ClientCard() {
         <p className="muted" style={{ fontSize: 13, margin: '10px 0 0', lineHeight: 1.45 }}>
           Тренера ПЗ меняют в поле выше и «Сохранить»; архив — в списке «Клиенты». Новую тренировку «с нуля» начинает только тренер; правки и черновики доступны здесь и в конструкторе.
         </p>
-      ) : null}
-
-      {canManageClubClients && client?.club_id ? (
-        <AdminClubCallJournalSection
-          clubId={String(client.club_id)}
-          clientId={String(client.id)}
-          embedded
-          reloadToken={callHistTick}
-          headerActions={
-            <AdminClientClubCallButton
-              clubId={String(client.club_id)}
-              client={client}
-              clubName={callClubName}
-              configured={callConfigured}
-              onFeedback={(msg, tone, opts) => {
-                setCallToast({
-                  text: String(msg || ''),
-                  kind: tone === 'err' || tone === 'warn' ? 'err' : 'ok',
-                  ms: opts?.durationMs,
-                })
-              }}
-              onCalled={() => setCallHistTick((n) => n + 1)}
-              onNoteSaved={() => setCallHistTick((n) => n + 1)}
-            />
-          }
-        />
       ) : null}
       {callToast ? (
         <p

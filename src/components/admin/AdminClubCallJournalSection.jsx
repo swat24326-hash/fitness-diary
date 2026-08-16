@@ -1,13 +1,20 @@
-import { useCallback, useEffect, useId, useMemo, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { fetchClubCallLogs } from '../../lib/admin/clubCallService.js'
 import {
+  CLUB_CALL_LOG_MAX_LOOKBACK_DAYS,
   filterClubCallLogRowsByStatus,
   summarizeClubCallLogRows,
 } from '../../lib/admin/clubCallLogCore.js'
 import { AdminClubCallJournalTable } from './AdminClubCallJournalTable.jsx'
 import { ClubOutreachDayStepper } from './ClubOutreachDayStepper.jsx'
 import { CLUB_CALL_UI_LABEL } from '../../lib/admin/clubCallOutcomeCore.js'
+import {
+  CLIENT_OUTREACH_RANGE_ALL,
+  clientOutreachHistorySummaryPrefix,
+  normalizeClientOutreachRangeMode,
+  resolveClientOutreachHistoryFetchOpts,
+} from '../../lib/admin/clientOutreachHistoryRangeCore.js'
 import { todayInTimeZoneIso } from '../../lib/dateRu.js'
 import '../../styles/club-call.css'
 
@@ -39,6 +46,11 @@ const STATUS_FILTERS_CLIENT = [
  *   intro?: string,
  *   headerActions?: import('react').ReactNode,
  *   reloadToken?: number,
+ *   showHeading?: boolean,
+ *   rangeMode?: 'day' | 'all',
+ *   day?: string,
+ *   onDayChange?: (iso: string) => void,
+ *   showDayControls?: boolean,
  * }} props
  */
 export function AdminClubCallJournalSection({
@@ -49,11 +61,23 @@ export function AdminClubCallJournalSection({
   intro,
   headerActions = null,
   reloadToken = 0,
+  showHeading = true,
+  rangeMode: rangeModeProp,
+  day: dayProp,
+  onDayChange,
+  showDayControls = true,
 }) {
   const forClient = Boolean(String(clientId ?? '').trim())
   const statusFilters = forClient ? STATUS_FILTERS_CLIENT : STATUS_FILTERS_CLUB
   const statusFieldId = useId()
-  const [day, setDay] = useState(() => todayInTimeZoneIso())
+  const [dayLocal, setDayLocal] = useState(() => todayInTimeZoneIso())
+  const dayControlled = typeof onDayChange === 'function' && dayProp != null
+  const day = dayControlled ? String(dayProp).slice(0, 10) : dayLocal
+  const setDay = (iso) => {
+    if (dayControlled) onDayChange(iso)
+    else setDayLocal(iso)
+  }
+  const rangeMode = normalizeClientOutreachRangeMode(rangeModeProp ?? 'day')
   const [statusFilter, setStatusFilter] = useState('all')
   const [rows, setRows] = useState([])
   const [loading, setLoading] = useState(true)
@@ -63,30 +87,51 @@ export function AdminClubCallJournalSection({
   const lead =
     intro ||
     (forClient
-      ? 'Исходящие с телефона клуба этому человеку за выбранный день: кто звонил, исход, запись и пометка.'
+      ? 'Исходящие с телефона клуба этому человеку: кто звонил, исход, запись и пометка.'
       : '«Набор…» = команда ушла на телефон, ждём исход. «Дозвон / Не взял / Сброс» — после звонка. Пометку можно добавить в строке.')
 
+  const reloadGenRef = useRef(0)
+
   const reload = useCallback(async () => {
-    if (!clubId) {
+    const gen = ++reloadGenRef.current
+    if (!String(clubId ?? '').trim()) {
+      if (gen !== reloadGenRef.current) return
       setRows([])
+      setErr(forClient ? 'Выберите клуб, чтобы открыть историю звонков.' : 'Выберите клуб.')
       setLoading(false)
       return
     }
     setLoading(true)
     setErr('')
     try {
-      const list = await fetchClubCallLogs(clubId, {
+      const fetchOpts = resolveClientOutreachHistoryFetchOpts({
+        rangeMode: forClient ? rangeMode : 'day',
         day,
+        kind: 'calls',
+        todayIso: todayInTimeZoneIso(),
+      })
+      if (fetchOpts.summaryScope === 'day' && !fetchOpts.day) {
+        if (gen !== reloadGenRef.current) return
+        setRows([])
+        setErr('Не выбран день журнала')
+        setLoading(false)
+        return
+      }
+      const list = await fetchClubCallLogs(clubId, {
+        ...(fetchOpts.day ? { day: fetchOpts.day } : {}),
+        ...(fetchOpts.sinceDays && !fetchOpts.day ? { sinceDays: fetchOpts.sinceDays } : {}),
         clientId: forClient ? String(clientId) : undefined,
       })
+      if (gen !== reloadGenRef.current) return
       setRows(list)
     } catch (e) {
+      if (gen !== reloadGenRef.current) return
       setRows([])
       setErr(e?.message ? String(e.message) : 'Не удалось загрузить журнал')
     } finally {
-      setLoading(false)
+      if (gen === reloadGenRef.current) setLoading(false)
     }
-  }, [clubId, clientId, forClient, day])
+  }, [clubId, clientId, forClient, day, rangeMode])
 
   useEffect(() => {
     void reload()
@@ -97,22 +142,39 @@ export function AdminClubCallJournalSection({
     () => filterClubCallLogRowsByStatus(rows, statusFilter),
     [rows, statusFilter],
   )
+  const summaryPrefix = clientOutreachHistorySummaryPrefix(
+    forClient && rangeMode === CLIENT_OUTREACH_RANGE_ALL ? 'all' : 'day',
+    CLUB_CALL_LOG_MAX_LOOKBACK_DAYS,
+  )
+  const emptyDayHint = forClient
+    ? rangeMode === CLIENT_OUTREACH_RANGE_ALL
+      ? `По этому клиенту ещё нет звонков за ${CLUB_CALL_LOG_MAX_LOOKBACK_DAYS} дн.`
+      : 'По этому клиенту ещё нет звонков за этот день.'
+    : 'Пока нет звонков за выбранный день.'
 
-  const shellClass = embedded
-    ? 'club-call-journal club-call-journal--embedded'
-    : 'card admin-outreach-templates__section club-call-journal'
+  const shellClass = [
+    'club-call-journal',
+    embedded ? 'club-call-journal--embedded' : 'card admin-outreach-templates__section',
+    !showHeading ? 'club-call-journal--body-only' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   return (
     <section className={shellClass} aria-label={heading}>
       <div className="club-call-journal__head">
-        <div>
-          <h2 className={embedded ? 'club-call-journal__title' : 'section-title'}>{heading}</h2>
-          {!embedded ? (
-            <p className="muted admin-outreach-templates__intro">{lead}</p>
-          ) : (
-            <p className="muted club-call-journal__intro">{lead}</p>
-          )}
-        </div>
+        {showHeading ? (
+          <div>
+            <h2 className={embedded ? 'club-call-journal__title' : 'section-title'}>{heading}</h2>
+            {!embedded ? (
+              <p className="muted admin-outreach-templates__intro">{lead}</p>
+            ) : (
+              <p className="muted club-call-journal__intro">{lead}</p>
+            )}
+          </div>
+        ) : (
+          <div className="club-call-journal__head-spacer" aria-hidden />
+        )}
         <div className="club-call-journal__head-actions">
           {headerActions}
           <button
@@ -129,7 +191,9 @@ export function AdminClubCallJournalSection({
       </div>
 
       <div className="club-call-journal__toolbar">
-        <ClubOutreachDayStepper value={day} onChange={setDay} disabled={loading} />
+        {showDayControls ? (
+          <ClubOutreachDayStepper value={day} onChange={setDay} disabled={loading} />
+        ) : null}
         <div className="club-call-journal__filters club-call-journal__filters--inline">
           <label className="club-call-journal__filter-label" htmlFor={statusFieldId}>
             Статус
@@ -153,7 +217,7 @@ export function AdminClubCallJournalSection({
 
       {!loading && !err && rows.length > 0 ? (
         <p className="club-call-journal__summary muted" role="status">
-          За день: <strong>{summary.total}</strong>
+          {summaryPrefix}: <strong>{summary.total}</strong>
           {' · '}
           набор <strong>{summary.ok}</strong>
           {' · '}
@@ -181,11 +245,7 @@ export function AdminClubCallJournalSection({
 
       {!loading && !err && visible.length === 0 ? (
         <p className="muted club-call-journal__empty">
-          {rows.length === 0
-            ? forClient
-              ? 'По этому клиенту ещё нет звонков за этот день.'
-              : 'Пока нет звонков за выбранный день.'
-            : 'Нет записей с этим фильтром.'}
+          {rows.length === 0 ? emptyDayHint : 'Нет записей с этим фильтром.'}
         </p>
       ) : null}
 

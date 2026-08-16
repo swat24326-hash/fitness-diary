@@ -5,6 +5,7 @@ import {
   buildClientHallStack,
   clientMatchesAdminSearchQuery,
   resolveAdminClientsSearchPool,
+  resolveCrossHallSearchFactHall,
   shouldSearchAcrossHalls,
 } from '../src/lib/admin/adminClientsCrossHallSearchCore.js'
 import { filterClientsByAdminListTab } from '../src/lib/admin/deskHallClientsCore.js'
@@ -75,6 +76,9 @@ ok(stack[0].hall === 'pz' && stack[0].label === 'ПЗ', 'pz first')
 ok(stack[1].hall === 'tz' && stack[1].hrefHall === 'tz', 'tz second')
 ok(stack[0].summary.includes('Анжелика'), 'pz summary has trainer')
 ok(!stack.some((s) => s.hall === 'az'), 'no empty az window')
+ok(resolveCrossHallSearchFactHall(stack, 'tz') === 'pz', 'fact hall prefers stack first (pz)')
+ok(resolveCrossHallSearchFactHall([], 'az') === 'az', 'fact hall fallback')
+ok(resolveCrossHallSearchFactHall([], null) === '', 'fact hall empty')
 
 const emptyTz = buildClientHallStack({ trainer_id: 't' }, [{ hall: 'pz', start_date: '2026-01-01', end_date: '2026-12-31', total_trainings: 1 }], {
   today: '2026-08-10',

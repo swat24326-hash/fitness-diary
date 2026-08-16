@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom'
-import { Archive, ArrowLeft, Phone, RefreshCw, RotateCcw, Search, Trash2, UserCircle, UserPlus, UserSearch } from 'lucide-react'
+import { Archive, ArrowLeft, History, Phone, RefreshCw, RotateCcw, Search, Trash2, UserCircle, UserPlus, UserSearch } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { AdminClientClubSmsButton } from '../../components/admin/AdminClientClubSmsButton.jsx'
 import { AdminClientClubCallButton } from '../../components/admin/AdminClientClubCallButton.jsx'
+import { AdminClientCallHistorySheet } from '../../components/admin/AdminClientCallHistorySheet.jsx'
 import { AdminClubSmsCampaignBar } from '../../components/admin/AdminClubSmsCampaignBar.jsx'
 import { AdminClubSmsCampaignComposeSheet } from '../../components/admin/AdminClubSmsCampaignComposeSheet.jsx'
 import { AdminClubSmsCampaignConfirmModal } from '../../components/admin/AdminClubSmsCampaignConfirmModal.jsx'
@@ -109,6 +110,7 @@ import {
   buildClientHallStack,
   clientMatchesAdminSearchQuery,
   resolveAdminClientsSearchPool,
+  resolveCrossHallSearchFactHall,
   shouldSearchAcrossHalls,
 } from '../../lib/admin/adminClientsCrossHallSearchCore.js'
 import { AdminClientHallStack } from '../../components/admin/AdminClientHallStack.jsx'
@@ -202,6 +204,8 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
   const [noTabletTrainerIds, setNoTabletTrainerIds] = useState(() => new Set())
   const [holdingTrainerIds, setHoldingTrainerIds] = useState(() => new Set())
   const [liteCreateOpen, setLiteCreateOpen] = useState(false)
+  const [callHistoryClient, setCallHistoryClient] = useState(null)
+  const [callHistTick, setCallHistTick] = useState(0)
   const [busy, setBusy] = useState(false)
   const [listPage, setListPage] = useState(() => parseAdminClientsListPage(searchParams.get('page')))
   const [pageTrainingsBusy, setPageTrainingsBusy] = useState(false)
@@ -1454,6 +1458,29 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                     trainerName: trainerNameById[String(c.trainer_id ?? '')] || '',
                   })
                 : []
+              /** В cross-hall поиске факты абона — по первому залу стека (обычно ПЗ), иначе как у вкладки. */
+              const factHall = crossHallSearch
+                ? resolveCrossHallSearchFactHall(hallStack, hall)
+                : hall
+              const factMlist = factHall
+                ? filterMembershipsByHall(mlistAll, factHall, c)
+                : mlistAll
+              const factActive = pickHallActiveMembership(mlistAll, today, factHall || null)
+              const factSig = hallMembershipListSignal(mlistAll, today, factHall || null)
+              const factIsDesk = factHall === 'tz' || factHall === 'az'
+              const factExpiredLeft =
+                factActive || factHall === 'tz'
+                  ? null
+                  : pickExpiredMembershipWithRemaining(factMlist, today)
+              const abonTypeCode = resolveClientListMembershipTypeCode(
+                {
+                  active: factActive,
+                  expiredLeft: factExpiredLeft,
+                  memList: factMlist,
+                  todayIso: today,
+                },
+                membershipTypes,
+              )
               const cardNavSeed = { clientSeed: buildClientCardNavSeed(c) }
               const campaignNoPhone = smsCampaign.active && !smsCampaign.rowSelectable(c)
               return (
@@ -1504,12 +1531,54 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                           <span className="td-client-fact__value">{String(c.card_number ?? '').trim() || '—'}</span>
                         </div>
                         {crossHallSearch ? (
-                          birthdayLabel ? (
-                            <div className="td-client-fact">
-                              <span className="td-client-fact__label">ДР</span>
-                              <span className="td-client-fact__value">{birthdayLabel}</span>
-                            </div>
-                          ) : null
+                          <>
+                            {!factIsDesk ? (
+                              <div className="td-client-fact">
+                                <span className="td-client-fact__label">Тренер</span>
+                                <span className="td-client-fact__value">{trainerLabel(c.trainer_id)}</span>
+                              </div>
+                            ) : null}
+                            <AdminClientListAbonFact typeCode={abonTypeCode}>
+                              {factIsDesk ? (
+                                factActive ? (
+                                  <>до {formatDateRu(factActive.end_date)}</>
+                                ) : (
+                                  factSig.factLabel || 'нет абонемента'
+                                )
+                              ) : factActive ? (
+                                <>
+                                  до {formatDateRu(factActive.end_date)}
+                                  <span className="td-client-fact__sub">
+                                    {' '}
+                                    · {membershipUsageLabel(factActive, clientTrainings)}
+                                  </span>
+                                </>
+                              ) : factExpiredLeft ? (
+                                <>
+                                  срок {formatDateRu(factExpiredLeft.end_date)}
+                                  <span className="td-client-fact__sub">
+                                    {' '}
+                                    · осталось{' '}
+                                    {remainingTrainingsOnMembership(factExpiredLeft, clientTrainings) ?? '—'}
+                                  </span>
+                                </>
+                              ) : (
+                                factSig.factLabel || 'нет абонемента'
+                              )}
+                            </AdminClientListAbonFact>
+                            {!factIsDesk ? (
+                              <div className="td-client-fact">
+                                <span className="td-client-fact__label">Последняя</span>
+                                <span className="td-client-fact__value">{last}</span>
+                              </div>
+                            ) : null}
+                            {birthdayLabel ? (
+                              <div className="td-client-fact">
+                                <span className="td-client-fact__label">ДР</span>
+                                <span className="td-client-fact__value">{birthdayLabel}</span>
+                              </div>
+                            ) : null}
+                          </>
                         ) : (
                           <>
                         {isDeskClient ? (
@@ -1544,17 +1613,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                             </span>
                           </div>
                         ) : null}
-                        <AdminClientListAbonFact
-                          typeCode={resolveClientListMembershipTypeCode(
-                            {
-                              active,
-                              expiredLeft,
-                              memList: mlist,
-                              todayIso: today,
-                            },
-                            membershipTypes,
-                          )}
-                        >
+                        <AdminClientListAbonFact typeCode={abonTypeCode}>
                           {isDeskClient ? (
                             active ? (
                               <>до {formatDateRu(active.end_date)}</>
@@ -1665,6 +1724,14 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                           disabled={busy}
                           ariaLabel={`Ещё действия: ${c.name ?? c.id}`}
                           items={[
+                            club
+                              ? {
+                                  id: 'call-history',
+                                  label: 'История связи',
+                                  icon: History,
+                                  onSelect: () => setCallHistoryClient(c),
+                                }
+                              : null,
                             clientsTab !== 'archive'
                               ? {
                                   id: 'archive',
@@ -1749,6 +1816,19 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         ) : null}
         </div>
       </section>
+
+      <AdminClientCallHistorySheet
+        open={Boolean(callHistoryClient)}
+        onClose={() => setCallHistoryClient(null)}
+        clubId={club}
+        client={callHistoryClient}
+        clubName={clubSmsClubName}
+        configured={clubSmsConfigured}
+        reloadToken={callHistTick}
+        onFeedback={onSmsFeedback}
+        onCalled={() => setCallHistTick((n) => n + 1)}
+        onNoteSaved={() => setCallHistTick((n) => n + 1)}
+      />
 
       <AdminClubSmsCampaignComposeSheet
         open={smsCampaign.composeOpen}

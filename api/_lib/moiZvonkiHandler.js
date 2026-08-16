@@ -107,7 +107,13 @@ export async function handleClubSmsGet(ctx, req, res) {
   let logs_error
   if (wantLogs && clubId && ctx?.supabaseAdmin) {
     try {
-      logs = await fetchClubSmsLogsForClub(ctx, clubId, req.query?.since_days, req.query?.day)
+      logs = await fetchClubSmsLogsForClub(
+        ctx,
+        clubId,
+        req.query?.since_days,
+        req.query?.day,
+        req.query?.client_id,
+      )
     } catch (e) {
       logs = []
       logs_error = String(e?.message ?? e).slice(0, 160)
@@ -132,11 +138,12 @@ export async function handleClubSmsGet(ctx, req, res) {
  * @param {unknown} sinceDaysRaw
  * @param {unknown} [dayRaw]
  */
-async function fetchClubSmsLogsForClub(ctx, clubId, sinceDaysRaw, dayRaw = '') {
+async function fetchClubSmsLogsForClub(ctx, clubId, sinceDaysRaw, dayRaw = '', clientIdRaw = '') {
   const day = normalizeClubOpsDayIso(dayRaw, todayInTimeZoneIso(CLUB_OPS_TIMEZONE))
   const sinceDays = clampClubSmsLogSinceDays(sinceDaysRaw)
   const sinceIso = clubSmsLogSinceIso(todayInTimeZoneIso(CLUB_OPS_TIMEZONE), sinceDays)
   const dayBounds = day ? clubOpsDayBoundsUtc(day, CLUB_OPS_TIMEZONE) : null
+  const clientFilter = String(clientIdRaw ?? '').trim()
 
   let q = ctx.supabaseAdmin
     .from('club_sms_log')
@@ -145,6 +152,7 @@ async function fetchClubSmsLogsForClub(ctx, clubId, sinceDaysRaw, dayRaw = '') {
     .order('created_at', { ascending: false })
     .limit(CLUB_SMS_LOG_MAX_ROWS)
 
+  if (clientFilter) q = q.eq('client_id', clientFilter)
   if (dayBounds) q = q.gte('created_at', dayBounds.gte).lt('created_at', dayBounds.lt)
   else q = q.gte('created_at', sinceIso)
 

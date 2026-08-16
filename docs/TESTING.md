@@ -84,6 +84,10 @@
 | Исход звонка (webhook finish / подписи) | `verify-club-call-outcome.mjs` |
 | Входящие звонки (direction / матчинг) | `verify-club-call-inbound.mjs` |
 | Кнопка записи (яркая / бледная / пусто) | `verify-club-call-recording-ui.mjs` |
+| Лист звонка: чипы пометки | `verify-club-call-sheet-note-chips.mjs` |
+| Оверлей звонка: nested scroll lock | `verify-club-call-overlay-scroll-lock.mjs` |
+| История связи клиента: день / всё время / SMS | `verify-client-outreach-history-range.mjs` |
+| Живая сверка звонков в зале (A1–A10 / B1–B3) | [MOIZVONKI_SETUP.md](./MOIZVONKI_SETUP.md) § «Живая сверка в зале» |
 | Очередь «кому звонить» (glance) | `verify-sales-call-today.mjs` |
 | Слоты главной: ПНК / планёрка / звонки | `verify-attention-side-placement.mjs` |
 | Presence главной: админ не трёт звонки | `verify-attention-presence-session.mjs` |

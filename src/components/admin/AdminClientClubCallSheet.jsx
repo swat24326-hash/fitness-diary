@@ -1,13 +1,20 @@
-import { useEffect, useId, useState } from 'react'
-import { Phone, X } from 'lucide-react'
+/**
+ * Лист клубного звонка: подтверждение → набор → пометка (без инфо-простыни).
+ */
+import { useEffect, useId, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { X } from 'lucide-react'
 import { makeClubCallViaApi, saveClubCallStaffNoteViaApi } from '../../lib/admin/clubCallService.js'
 import { CLUB_CALL_LOG_STAFF_NOTE_MAX } from '../../lib/admin/clubCallLogCore.js'
+import {
+  CLUB_CALL_SHEET_NOTE_CHIPS,
+  clubCallSheetNoteFromChip,
+} from '../../lib/admin/clubCallSheetNoteChipsCore.js'
 import { notifyCallTodayHomeGlanceChanged } from '../../lib/admin/callTodayHomeGlanceSession.js'
+import { acquireClubCallOverlayScrollLock } from '../../lib/admin/clubCallOverlayScrollLock.js'
 import '../../styles/club-call.css'
 
 /**
- * Подтверждение перед исходящим звонком с телефона клуба.
- *
  * @param {{
  *   open: boolean,
  *   onClose: () => void,
@@ -31,6 +38,7 @@ export function AdminClientClubCallSheet({
 }) {
   const titleId = useId()
   const noteId = useId()
+  const noteRef = useRef(/** @type {HTMLTextAreaElement | null} */ (null))
   /** @type {['confirm' | 'calling' | 'launched', function]} */
   const [phase, setPhase] = useState('confirm')
   const [error, setError] = useState('')
@@ -38,6 +46,9 @@ export function AdminClientClubCallSheet({
   const [noteDraft, setNoteDraft] = useState('')
   const [noteBusy, setNoteBusy] = useState(false)
   const [noteSaved, setNoteSaved] = useState(false)
+
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
 
   useEffect(() => {
     if (!open) return
@@ -49,12 +60,39 @@ export function AdminClientClubCallSheet({
     setNoteSaved(false)
   }, [open, client?.id])
 
-  if (!open || !client) return null
+  useEffect(() => {
+    if (!open || phase !== 'launched' || !logId || noteSaved) return
+    const t = window.setTimeout(() => {
+      noteRef.current?.focus?.()
+    }, 80)
+    return () => window.clearTimeout(t)
+  }, [open, phase, logId, noteSaved])
+
+  useEffect(() => {
+    if (!open) return undefined
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return
+      e.stopPropagation()
+      e.preventDefault()
+      if (phase === 'calling' || noteBusy) return
+      onCloseRef.current?.()
+    }
+    window.addEventListener('keydown', onKey, true)
+    const release = acquireClubCallOverlayScrollLock()
+    return () => {
+      window.removeEventListener('keydown', onKey, true)
+      release()
+    }
+  }, [open, phase, noteBusy])
+
+  if (!open || !client || typeof document === 'undefined') return null
 
   const clubLabel = clubName?.trim() || 'клуба'
   const phone = String(client.phone ?? '').trim() || '—'
   const name = String(client.name ?? '').trim() || 'Клиент'
   const busy = phase === 'calling'
+  const canNote = Boolean(logId) && !noteSaved
+  const noteTrim = String(noteDraft).trim()
 
   const onConfirm = async () => {
     if (busy || phase === 'launched' || !clubId || !client.id) return
@@ -66,11 +104,7 @@ export function AdminClientClubCallSheet({
       setPhase('launched')
       onCalled?.(client.id)
       notifyCallTodayHomeGlanceChanged(clubId, { source: 'call_launched' })
-      onFeedback?.(
-        'Набор на Android клуба — смотрите телефон. Можно сразу оставить пометку.',
-        'ok',
-        { durationMs: 12_000 },
-      )
+      onFeedback?.('Набор на телефоне клуба', 'ok', { durationMs: 5000 })
     } catch (e) {
       const msg = e?.message ? String(e.message) : 'Не удалось запустить звонок'
       setError(msg)
@@ -79,8 +113,12 @@ export function AdminClientClubCallSheet({
     }
   }
 
-  const onSaveNote = async () => {
+  const onSaveNote = async ({ closeAfter = false } = {}) => {
     if (noteBusy || !clubId || !logId) return
+    if (!noteTrim) {
+      if (closeAfter) onClose()
+      return
+    }
     setNoteBusy(true)
     setError('')
     try {
@@ -93,6 +131,7 @@ export function AdminClientClubCallSheet({
       notifyCallTodayHomeGlanceChanged(clubId, { source: 'call_sheet_note' })
       onNoteSaved?.()
       onFeedback?.('Пометка сохранена', 'ok')
+      if (closeAfter) onClose()
     } catch (e) {
       setError(e?.message ? String(e.message) : 'Не удалось сохранить пометку')
     } finally {
@@ -100,14 +139,19 @@ export function AdminClientClubCallSheet({
     }
   }
 
-  return (
+  const onPickChip = (chipNote) => {
+    if (noteBusy || noteSaved) return
+    setNoteDraft(clubCallSheetNoteFromChip(chipNote, CLUB_CALL_LOG_STAFF_NOTE_MAX))
+  }
+
+  return createPortal(
     <div
       className="club-call-sheet-backdrop"
       role="presentation"
       onClick={() => !busy && !noteBusy && onClose()}
     >
       <div
-        className="club-call-sheet"
+        className={`club-call-sheet${phase === 'launched' ? ' club-call-sheet--note' : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -117,7 +161,9 @@ export function AdminClientClubCallSheet({
           <div>
             <h2 id={titleId} className="club-call-sheet__title">
               {phase === 'launched'
-                ? 'Смотрите на телефон клуба'
+                ? canNote || noteSaved
+                  ? 'Пометка к звонку'
+                  : 'Звонок запущен'
                 : `Позвонить с телефона ${clubLabel}?`}
             </h2>
             <p className="club-call-sheet__meta">
@@ -139,27 +185,35 @@ export function AdminClientClubCallSheet({
         </div>
 
         {phase === 'launched' ? (
-          <div className="club-call-sheet__launched" role="status">
-            <p className="club-call-sheet__launched-lead">
-              <Phone size={18} aria-hidden />
-              Набор на телефоне клуба.
+          <div className="club-call-sheet__launched club-call-sheet__launched--note" role="status">
+            <p className="club-call-sheet__status">
+              {logId
+                ? 'Набор на телефоне клуба. Пишите пометку во время разговора или сразу после — в журнал лезть не нужно.'
+                : 'Команда ушла на телефон клуба. Строка журнала не пришла — пометку добавьте позже в истории звонков.'}
             </p>
-            <ul className="club-call-sheet__launched-list">
-              <li>На Android клуба должен начаться исходящий набор на этот номер.</li>
-              <li>
-                Короткая зелёная полоска сверху списка — только сообщение в приложении (~12 с), не
-                обрыв звонка.
-              </li>
-            </ul>
-            {logId && !noteSaved ? (
+            {canNote ? (
               <div className="club-call-sheet__note">
                 <label className="club-call-note__label" htmlFor={noteId}>
-                  Пометка к звонку (необязательно)
+                  Что важно запомнить
                 </label>
+                <div className="club-call-sheet__chips" role="group" aria-label="Быстрые пометки">
+                  {CLUB_CALL_SHEET_NOTE_CHIPS.map((chip) => (
+                    <button
+                      key={chip.id}
+                      type="button"
+                      className="club-call-sheet__chip"
+                      disabled={noteBusy}
+                      onClick={() => onPickChip(chip.note)}
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
+                </div>
                 <textarea
+                  ref={noteRef}
                   id={noteId}
-                  className="club-call-note__input"
-                  rows={2}
+                  className="club-call-note__input club-call-sheet__note-input"
+                  rows={3}
                   maxLength={CLUB_CALL_LOG_STAFF_NOTE_MAX}
                   value={noteDraft}
                   onChange={(e) => setNoteDraft(e.target.value)}
@@ -174,9 +228,8 @@ export function AdminClientClubCallSheet({
           </div>
         ) : (
           <p className="club-call-sheet__hint">
-            Звонок пойдёт с Android клуба через Мои Звонки. Телефон должен быть онлайн (интернет),
-            приложение не убито энергосбережением. Email в настройках Мои Звонки — тот же, под
-            которым вошли в приложении на телефоне.
+            Звонок пойдёт с Android клуба (Мои Звонки). Телефон онлайн, приложение не убито
+            энергосбережением.
           </p>
         )}
 
@@ -189,23 +242,23 @@ export function AdminClientClubCallSheet({
         <div className="club-call-sheet__actions">
           {phase === 'launched' ? (
             <>
-              {logId && !noteSaved ? (
+              {canNote ? (
                 <button
                   type="button"
-                  className="btn btn-ghost btn-touch"
-                  onClick={() => void onSaveNote()}
-                  disabled={noteBusy || !String(noteDraft).trim()}
+                  className="btn btn-primary btn-touch"
+                  onClick={() => void onSaveNote({ closeAfter: true })}
+                  disabled={noteBusy || !noteTrim}
                 >
-                  {noteBusy ? 'Сохраняем…' : 'Сохранить пометку'}
+                  {noteBusy ? 'Сохраняем…' : 'Сохранить и закрыть'}
                 </button>
               ) : null}
               <button
                 type="button"
-                className="btn btn-primary btn-touch"
+                className={`btn btn-touch${canNote ? ' btn-ghost' : ' btn-primary'}`}
                 onClick={() => onClose()}
                 disabled={noteBusy}
               >
-                {noteSaved ? 'Готово' : 'Понятно'}
+                {noteSaved ? 'Готово' : canNote ? 'Закрыть без пометки' : 'Закрыть'}
               </button>
             </>
           ) : (
@@ -230,6 +283,7 @@ export function AdminClientClubCallSheet({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

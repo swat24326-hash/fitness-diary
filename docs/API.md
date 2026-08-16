@@ -60,7 +60,7 @@
 | `deletion-audit-log` | **admin** (HTTP: `requireAdmin`) | Журнал жёстких удалений клиентов (`deletion_audit_log`). UI `/sales/deletion-log` у менеджера — отдельный accessMode; API-лог — admin |
 | `push-subscription` | admin / trainer / sales_manager / **supervisor** | VAPID public key |
 | `membership-types` | admin / trainer / sales_manager / **supervisor** (свой клуб) | Справочник типов абон. включая АЗ для колонок отчёта |
-| `club-sms` | admin / sales_manager / supervisor | Статус Мои Звонки (`configured`, `moizvonki`, `templates`, `club_name`); `&logs=1&since_days=` — журнал `club_sms_log`; `&day=YYYY-MM-DD` — один день по календарю клуба (МСК) |
+| `club-sms` | admin / sales_manager / supervisor | Статус Мои Звонки (`configured`, `moizvonki`, `templates`, `club_name`); `&logs=1&since_days=` — журнал `club_sms_log`; `&day=YYYY-MM-DD` — один день МСК; `&client_id=` — фильтр по клиенту |
 | `club-call` | admin / sales_manager / supervisor | Статус Мои Звонки для звонка; `&logs=1&since_days=` — журнал; `&day=YYYY-MM-DD` — один день МСК; `&glance=1` — очередь «кому звонить» (пометки + пропущенные); `&client_id=` — фильтр по клиенту |
 
 ### POST (фрагмент)
