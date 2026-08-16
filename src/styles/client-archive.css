@@ -1,4 +1,4 @@
-/* Причина архива клиента — модалка и факт в списке */
+/* Причина архива клиента — модалка, факт и карандаш в ряду действий */
 
 .client-archive-reason-modal {
   max-width: 440px;
@@ -22,13 +22,21 @@
   margin-top: 18px;
 }
 
+.client-archive-reason-fact .td-client-fact__value {
+  display: block;
+  max-width: 11rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .client-archive-reason-fact__value--missing {
   color: var(--warning, #fbbf24);
 }
 
-.client-archive-reason-fact__btn {
-  margin-left: 4px;
-  vertical-align: baseline;
+.client-archive-reason-edit--missing {
+  border-color: color-mix(in srgb, var(--warning, #fbbf24) 45%, transparent);
+  color: var(--warning, #fbbf24);
 }
 
 .client-archive-banner {
@@ -44,6 +52,7 @@
   display: inline-flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
   margin-left: 10px;
   vertical-align: middle;
 }

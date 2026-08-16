@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { Archive, Dumbbell, MessageCircle, RotateCcw, Tag, Trash2, UserCircle } from 'lucide-react'
+import { Archive, Dumbbell, MessageCircle, Pencil, RotateCcw, Trash2, UserCircle } from 'lucide-react'
 import { formatUpcomingBirthdayLabel } from '../../lib/clientBirthdays'
 import { formatDateRu } from '../../lib/dateRu'
 import {
@@ -17,6 +17,7 @@ import {
 import { clientNeedsArchiveReason } from '../../lib/clientArchiveReasonCore.js'
 import { ClientRowMoreMenu } from '../ClientRowMoreMenu'
 import { ClientArchiveReasonFact } from '../ClientArchiveReasonFact.jsx'
+import { ClientArchiveReasonEditButton } from '../ClientArchiveReasonEditButton.jsx'
 import '../../styles/pnk-funnel.css'
 
 export function TrainerClientListItem({
@@ -126,9 +127,6 @@ export function TrainerClientListItem({
                 )}
               </span>
             </div>
-            {mode === 'archive' ? (
-              <ClientArchiveReasonFact client={client} busy={busy} onEdit={onEditArchiveReason} />
-            ) : null}
             <div className="td-client-fact">
               <span className="td-client-fact__label">Последняя</span>
               <span className="td-client-fact__value">{last}</span>
@@ -139,6 +137,7 @@ export function TrainerClientListItem({
                 <span className="td-client-fact__value">{birthdayLabel}</span>
               </div>
             ) : null}
+            {mode === 'archive' ? <ClientArchiveReasonFact client={client} /> : null}
           </div>
           <div className="row td-client-actions">
             {showOutreach ? (
@@ -191,6 +190,13 @@ export function TrainerClientListItem({
             >
               <UserCircle size={20} aria-hidden />
             </Link>
+            {mode === 'archive' ? (
+              <ClientArchiveReasonEditButton
+                client={client}
+                busy={busy}
+                onEdit={onEditArchiveReason}
+              />
+            ) : null}
             <ClientRowMoreMenu
               disabled={busy}
               ariaLabel={`Ещё действия: ${client.name}`}
@@ -205,7 +211,7 @@ export function TrainerClientListItem({
                   : {
                       id: 'archive-reason',
                       label: clientNeedsArchiveReason(client) ? 'Указать причину' : 'Изменить причину',
-                      icon: Tag,
+                      icon: Pencil,
                       onSelect: () => onEditArchiveReason?.(client),
                     },
                 mode === 'archive'

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom'
-import { Archive, ArrowLeft, History, Phone, RefreshCw, RotateCcw, Search, Tag, Trash2, UserCircle, UserPlus, UserSearch } from 'lucide-react'
+import { Archive, ArrowLeft, History, Phone, Pencil, RefreshCw, RotateCcw, Search, Trash2, UserCircle, UserPlus, UserSearch } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { AdminClientClubSmsButton } from '../../components/admin/AdminClientClubSmsButton.jsx'
@@ -130,6 +130,7 @@ import { canSalesManagerHardDeleteClient } from '../../lib/admin/salesManagerCli
 import { ClientHardDeleteConfirmModal } from '../../components/ClientHardDeleteConfirmModal.jsx'
 import { ClientArchiveReasonModal } from '../../components/ClientArchiveReasonModal.jsx'
 import { ClientArchiveReasonFact } from '../../components/ClientArchiveReasonFact.jsx'
+import { ClientArchiveReasonEditButton } from '../../components/ClientArchiveReasonEditButton.jsx'
 import {
   archiveClientWithReason,
   restoreClientFromArchive,
@@ -1570,13 +1571,6 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                           <span className="td-client-fact__label">Карта</span>
                           <span className="td-client-fact__value">{String(c.card_number ?? '').trim() || '—'}</span>
                         </div>
-                        {clientsTab === 'archive' ? (
-                          <ClientArchiveReasonFact
-                            client={c}
-                            busy={busy}
-                            onEdit={(row) => setArchiveReasonModal({ mode: 'edit', client: row })}
-                          />
-                        ) : null}
                         {crossHallSearch ? (
                           <>
                             {!factIsDesk ? (
@@ -1701,6 +1695,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                         ) : null}
                           </>
                         )}
+                        {clientsTab === 'archive' ? <ClientArchiveReasonFact client={c} /> : null}
                       </div>
                       <div className="row td-client-actions">
                         <AdminClientMaxButton
@@ -1758,6 +1753,13 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                         >
                           <UserCircle size={20} aria-hidden />
                         </Link>
+                        {clientsTab === 'archive' ? (
+                          <ClientArchiveReasonEditButton
+                            client={c}
+                            busy={busy}
+                            onEdit={(row) => setArchiveReasonModal({ mode: 'edit', client: row })}
+                          />
+                        ) : null}
                         {clientsTab === 'az' && azDeductMem ? (
                           <AdminDeskAzDeductButton
                             membership={azDeductMem}
@@ -1789,7 +1791,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                               : {
                                   id: 'archive-reason',
                                   label: clientNeedsArchiveReason(c) ? 'Указать причину' : 'Изменить причину',
-                                  icon: Tag,
+                                  icon: Pencil,
                                   onSelect: () => setArchiveReasonModal({ mode: 'edit', client: c }),
                                 },
                             clientsTab === 'archive'

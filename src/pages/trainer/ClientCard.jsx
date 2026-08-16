@@ -782,11 +782,13 @@ export function ClientCard() {
           <span className="client-archive-banner__actions">
             <button
               type="button"
-              className="btn btn-ghost btn-touch btn-xs"
+              className={`btn btn-ghost btn-icon-square btn-touch${clientNeedsArchiveReason(client) ? ' client-archive-reason-edit--missing' : ''}`}
               disabled={archiveBusy}
               onClick={() => setArchiveReasonModalOpen(true)}
+              title={clientNeedsArchiveReason(client) ? 'Указать причину архива' : 'Изменить причину архива'}
+              aria-label={clientNeedsArchiveReason(client) ? 'Указать причину архива' : 'Изменить причину архива'}
             >
-              {clientNeedsArchiveReason(client) ? 'Указать причину' : 'Изменить причину'}
+              <Pencil size={18} aria-hidden />
             </button>
             <button type="button" className="btn btn-primary btn-touch btn-xs" disabled={archiveBusy} onClick={() => void restoreFromArchive()}>
               {archiveBusy ? '…' : 'Вернуть из архива'}
