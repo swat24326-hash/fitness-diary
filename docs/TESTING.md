@@ -61,6 +61,7 @@
 | Профиль тренера: ФИО в «Не активные» из локального кэша | `verify-enrich-inactive-clients-local.mjs` |
 | Главная: ряд внимания / soft signals | `verify-admin-home-attention.mjs` |
 | Список клиентов: точка/подпись абонемента | `verify-client-list-signals.mjs` |
+| Список клиентов: код типа абона (Dm/El) | `verify-client-list-membership-type.mjs` |
 | Ранняя / поздняя активация абона (сдвиг дат, дневник vs used, overlap, inspect) | `verify-membership-early-activate.mjs` |
 | Push абонементов (даты NOT NULL) | `verify-membership-push-payload.mjs` |
 | ЗП дня/периода: база + надбавка, сценарии без плана, прогноз ур. | `verify-trainer-day-payroll-forecast.mjs` |

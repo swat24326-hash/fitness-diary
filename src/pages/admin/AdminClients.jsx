@@ -127,8 +127,10 @@ import { collectNoTabletTrainerIds, isLitePzClient } from '../../lib/admin/train
 import { collectHoldingTrainerIds } from '../../lib/admin/holdingClientsCore.js'
 import { canSalesManagerHardDeleteClient } from '../../lib/admin/salesManagerClientsAccessCore.js'
 import { ClientHardDeleteConfirmModal } from '../../components/ClientHardDeleteConfirmModal.jsx'
+import { AdminClientListAbonFact } from '../../components/admin/AdminClientListAbonFact.jsx'
 import { AdminLitePzCreateModal } from '../../components/admin/AdminLitePzCreateModal.jsx'
 import { ensureMembershipTypesForClub } from '../../lib/membershipTypesService.js'
+import { resolveClientListMembershipTypeCode } from '../../lib/admin/clientListMembershipTypeCore.js'
 import '../../styles/pnk-funnel.css'
 import '../../styles/sales-clients.css'
 
@@ -224,6 +226,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
   const [refreshMsg, setRefreshMsg] = useState('')
   const [smsFeedback, setSmsFeedback] = useState(null)
   const [azMembershipTypes, setAzMembershipTypes] = useState([])
+  const [membershipTypes, setMembershipTypes] = useState([])
   const [azDirectionFilter, setAzDirectionFilter] = useState(AZ_DIRECTION_FILTER_ALL)
   const [clubSmsConfigured, setClubSmsConfigured] = useState(null)
   const [clubSmsTemplates, setClubSmsTemplates] = useState(null)
@@ -502,6 +505,24 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       cancelled = true
     }
   }, [clientsTab, club, reload])
+
+  useEffect(() => {
+    if (!club?.trim()) {
+      setMembershipTypes([])
+      return undefined
+    }
+    let cancelled = false
+    void ensureMembershipTypesForClub(club)
+      .then((res) => {
+        if (!cancelled) setMembershipTypes(Array.isArray(res?.types) ? res.types : [])
+      })
+      .catch(() => {
+        if (!cancelled) setMembershipTypes([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [club])
 
   useEffect(() => {
     if (clientsTab !== 'az' || !club?.trim()) {
@@ -1523,36 +1544,43 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                             </span>
                           </div>
                         ) : null}
-                        <div className="td-client-fact">
-                          <span className="td-client-fact__label">Абонемент</span>
-                          <span className="td-client-fact__value">
-                            {isDeskClient ? (
-                              active ? (
-                                <>до {formatDateRu(active.end_date)}</>
-                              ) : (
-                                sig.factLabel || 'нет абонемента'
-                              )
-                            ) : active ? (
-                              <>
-                                до {formatDateRu(active.end_date)}
-                                <span className="td-client-fact__sub">
-                                  {' '}
-                                  · {membershipUsageLabel(active, clientTrainings)}
-                                </span>
-                              </>
-                            ) : expiredLeft ? (
-                              <>
-                                срок {formatDateRu(expiredLeft.end_date)}
-                                <span className="td-client-fact__sub">
-                                  {' '}
-                                  · осталось {remainingTrainingsOnMembership(expiredLeft, clientTrainings) ?? '—'}
-                                </span>
-                              </>
+                        <AdminClientListAbonFact
+                          typeCode={resolveClientListMembershipTypeCode(
+                            {
+                              active,
+                              expiredLeft,
+                              memList: mlist,
+                              todayIso: today,
+                            },
+                            membershipTypes,
+                          )}
+                        >
+                          {isDeskClient ? (
+                            active ? (
+                              <>до {formatDateRu(active.end_date)}</>
                             ) : (
                               sig.factLabel || 'нет абонемента'
-                            )}
-                          </span>
-                        </div>
+                            )
+                          ) : active ? (
+                            <>
+                              до {formatDateRu(active.end_date)}
+                              <span className="td-client-fact__sub">
+                                {' '}
+                                · {membershipUsageLabel(active, clientTrainings)}
+                              </span>
+                            </>
+                          ) : expiredLeft ? (
+                            <>
+                              срок {formatDateRu(expiredLeft.end_date)}
+                              <span className="td-client-fact__sub">
+                                {' '}
+                                · осталось {remainingTrainingsOnMembership(expiredLeft, clientTrainings) ?? '—'}
+                              </span>
+                            </>
+                          ) : (
+                            sig.factLabel || 'нет абонемента'
+                          )}
+                        </AdminClientListAbonFact>
                         {!isDeskClient ? (
                           <div className="td-client-fact">
                             <span className="td-client-fact__label">Последняя</span>

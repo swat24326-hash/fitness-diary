@@ -7374,6 +7374,33 @@ tr:last-child td {
   overflow-wrap: anywhere;
 }
 
+.td-client-fact__value--abon {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.45rem;
+}
+
+.td-client-abon-type {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.35rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--accent, #34d399) 35%, var(--border));
+  background: color-mix(in srgb, var(--accent, #34d399) 14%, transparent);
+  color: color-mix(in srgb, var(--accent, #34d399) 85%, #fff);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  line-height: 1;
+}
+
+.td-client-abon-status {
+  min-width: 0;
+}
+
 .td-client-fact__sub {
   font-weight: 500;
   color: var(--text-muted);

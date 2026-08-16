@@ -200,6 +200,7 @@ run('trainer journal filter', 'node', ['scripts/verify-trainer-journal-filter.mj
 run('client trainings prune truncated', 'node', ['scripts/verify-client-trainings-prune-truncated.mjs'])
 run('client trainings ensure', 'node', ['scripts/verify-client-trainings-ensure.mjs'])
 run('client list signals', 'node', ['scripts/verify-client-list-signals.mjs'])
+run('client list membership type', 'node', ['scripts/verify-client-list-membership-type.mjs'])
 run('trainer client outreach', 'node', ['scripts/verify-trainer-client-outreach.mjs'])
 run('trainer outreach queue', 'node', ['scripts/verify-trainer-outreach-queue.mjs'])
 run('moi zvonki club sms', 'node', ['scripts/verify-moi-zvonki.mjs'])
