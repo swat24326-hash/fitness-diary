@@ -12,9 +12,19 @@ import { HR_AFTER_DOUBLE_TAP_MS, hrAfterFromLiveSlot } from '../../lib/hr/hrAfte
  *   clientId?: string,
  *   title?: string,
  *   compact?: boolean,
+ *   micro?: boolean,
+ *   gridArea?: string,
  * }} props
  */
-export function TrainingSetHrField({ value, onChange, clientId = '', title, compact = false }) {
+export function TrainingSetHrField({
+  value,
+  onChange,
+  clientId = '',
+  title,
+  compact = false,
+  micro = false,
+  gridArea = '',
+}) {
   const hr = useHeartRateSessions()
   const lastTapAtRef = useRef(0)
 
@@ -41,12 +51,21 @@ export function TrainingSetHrField({ value, onChange, clientId = '', title, comp
   }
 
   return (
-    <div className={`field${compact ? ' set-row-compact__field' : ''}`}>
+    <div
+      className={[
+        'field',
+        compact ? 'set-row-compact__field' : '',
+        micro ? 'set-row-compact__field--hr-micro' : '',
+        gridArea,
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       {compact ? <label className="sr-only">Пульс</label> : <label className="label">Пульс</label>}
       <input
         className="input"
         inputMode="numeric"
-        placeholder={compact ? 'Пульс' : undefined}
+        placeholder={micro ? 'уд' : compact ? 'Пульс' : undefined}
         title={hint}
         aria-label={hint}
         value={value ?? ''}

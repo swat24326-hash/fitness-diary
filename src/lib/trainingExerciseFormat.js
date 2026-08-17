@@ -71,6 +71,7 @@ export function formatSetSummary(set, format) {
     if (String(st.tut_sec ?? '').trim()) parts.push(`${st.tut_sec} мин`)
     if (String(st.load ?? '').trim()) parts.push(`нагр. ${st.load}`)
     if (String(st.hr_after ?? '').trim()) parts.push(`пульс ${st.hr_after}`)
+    if (String(st.rpe ?? '').trim()) parts.push(`RPE ${st.rpe}`)
   } else {
     const lrLine = formatLateralitySetSummary(st)
     if (lrLine) {
@@ -78,9 +79,9 @@ export function formatSetSummary(set, format) {
     } else {
       if (String(st.weight_kg ?? '').trim()) parts.push(`${st.weight_kg} кг`)
       if (String(st.reps ?? '').trim()) parts.push(`${st.reps} повт.`)
+      if (exerciseFormatWithSetHr(fmt) && String(st.hr_after ?? '').trim()) parts.push(`пульс ${st.hr_after}`)
+      if (String(st.rpe ?? '').trim()) parts.push(`RPE ${st.rpe}`)
     }
-    if (exerciseFormatWithSetHr(fmt) && String(st.hr_after ?? '').trim()) parts.push(`пульс ${st.hr_after}`)
   }
-  if (String(st.rpe ?? '').trim()) parts.push(`RPE ${st.rpe}`)
   return parts.join(' · ') || '—'
 }

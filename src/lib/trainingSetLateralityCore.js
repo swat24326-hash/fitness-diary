@@ -3,6 +3,8 @@
 export const EXERCISE_LATERALITY_LR = 'lr'
 
 const SIDE_KEYS = ['reps_l', 'reps_r', 'weight_kg_l', 'weight_kg_r']
+const HR_SIDE_KEYS = ['hr_after_l', 'hr_after_r']
+const RPE_SIDE_KEYS = ['rpe_l', 'rpe_r']
 
 function trimField(v) {
   return String(v ?? '').trim()
@@ -15,7 +17,11 @@ export function emptyTrainingSetRow() {
     tut_sec: '',
     load: '',
     rpe: '',
+    rpe_l: '',
+    rpe_r: '',
     hr_after: '',
+    hr_after_l: '',
+    hr_after_r: '',
     reps_l: '',
     reps_r: '',
     weight_kg_l: '',
@@ -30,7 +36,7 @@ export function setHasLateralityFields(st) {
 
 export function trainingSetRowHasData(s) {
   if (!s || typeof s !== 'object') return false
-  const keys = ['reps', 'weight_kg', 'tut_sec', 'load', 'rpe', 'hr_after', ...SIDE_KEYS]
+  const keys = ['reps', 'weight_kg', 'tut_sec', 'load', 'rpe', 'hr_after', ...HR_SIDE_KEYS, ...RPE_SIDE_KEYS, ...SIDE_KEYS]
   return keys.some((k) => trimField(s[k]) !== '')
 }
 
@@ -62,12 +68,18 @@ export function expandSetToLaterality(st) {
   const s = st && typeof st === 'object' ? { ...emptyTrainingSetRow(), ...st } : emptyTrainingSetRow()
   const reps = pairFromBilateral(s.reps_l, s.reps_r, s.reps)
   const weight = pairFromBilateral(s.weight_kg_l, s.weight_kg_r, s.weight_kg)
+  const hr = pairFromBilateral(s.hr_after_l, s.hr_after_r, s.hr_after)
+  const rpe = pairFromBilateral(s.rpe_l, s.rpe_r, s.rpe)
   return {
     ...s,
     reps_l: reps.left,
     reps_r: reps.right,
     weight_kg_l: weight.left,
     weight_kg_r: weight.right,
+    hr_after_l: hr.left,
+    hr_after_r: hr.right,
+    rpe_l: rpe.left,
+    rpe_r: rpe.right,
   }
 }
 
@@ -88,14 +100,18 @@ export function collapseSetFromLaterality(st) {
   const s = st && typeof st === 'object' ? st : {}
   const reps = trimField(s.reps_l) || trimField(s.reps_r) || trimField(s.reps)
   const weight = trimField(s.weight_kg_l) || trimField(s.weight_kg_r) || trimField(s.weight_kg)
+  const rpe = trimField(s.rpe_l) || trimField(s.rpe_r) || trimField(s.rpe)
   return {
     ...s,
     reps,
     weight_kg: weight,
+    rpe,
     reps_l: '',
     reps_r: '',
     weight_kg_l: '',
     weight_kg_r: '',
+    rpe_l: '',
+    rpe_r: '',
   }
 }
 
@@ -144,10 +160,16 @@ export function normalizeSetForStorage(st, isLr) {
     ...base,
     reps: '',
     weight_kg: '',
+    hr_after: '',
+    rpe: '',
     reps_l: s.reps_l ?? '',
     reps_r: s.reps_r ?? '',
     weight_kg_l: s.weight_kg_l ?? '',
     weight_kg_r: s.weight_kg_r ?? '',
+    hr_after_l: s.hr_after_l ?? '',
+    hr_after_r: s.hr_after_r ?? '',
+    rpe_l: s.rpe_l ?? '',
+    rpe_r: s.rpe_r ?? '',
   }
 }
 
@@ -182,10 +204,12 @@ export function collectSetLoadNums(sets, key) {
   return nums
 }
 
-function sideLine(tag, weightKg, reps) {
+function sideLine(tag, weightKg, reps, hrAfter, rpeSide) {
   const bits = []
   if (trimField(weightKg)) bits.push(`${trimField(weightKg)} кг`)
   if (trimField(reps)) bits.push(`${trimField(reps)} повт.`)
+  if (trimField(hrAfter)) bits.push(`пульс ${trimField(hrAfter)}`)
+  if (trimField(rpeSide)) bits.push(`RPE ${trimField(rpeSide)}`)
   if (!bits.length) return ''
   return `${tag} ${bits.join(' ')}`
 }
@@ -194,9 +218,17 @@ function sideLine(tag, weightKg, reps) {
 export function formatLateralitySetSummary(st) {
   if (!setHasLateralityFields(st)) return null
   const s = st && typeof st === 'object' ? st : {}
+  const legacyHr = !trimField(s.hr_after_r) ? s.hr_after : ''
+  const legacyRpe = !trimField(s.rpe_r) ? s.rpe : ''
   const parts = [
-    sideLine('Л', s.weight_kg_l, s.reps_l),
-    sideLine('П', s.weight_kg_r, s.reps_r),
+    sideLine(
+      'Л',
+      s.weight_kg_l,
+      s.reps_l,
+      s.hr_after_l || legacyHr,
+      s.rpe_l || legacyRpe,
+    ),
+    sideLine('П', s.weight_kg_r, s.reps_r, s.hr_after_r, s.rpe_r),
   ].filter(Boolean)
   return parts.length ? parts.join(' · ') : null
 }

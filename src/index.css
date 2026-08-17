@@ -2383,14 +2383,14 @@ tr:last-child td {
 /* Компактный ряд подхода: № · повторы · вес · RPE · удалить */
 .set-row-compact {
   display: grid;
-  grid-template-columns: 26px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.9fr) 40px;
+  grid-template-columns: 26px minmax(0, 1fr) minmax(0, 1fr) 46px 40px;
   gap: 6px 8px;
   align-items: end;
   margin-bottom: 8px;
 }
 
 .set-row-compact--functional {
-  grid-template-columns: 26px minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 0.75fr) minmax(0, 0.75fr) 40px;
+  grid-template-columns: 26px minmax(0, 0.9fr) minmax(0, 0.9fr) 46px minmax(52px, 0.65fr) 40px;
 }
 
 .set-row-compact__idx {

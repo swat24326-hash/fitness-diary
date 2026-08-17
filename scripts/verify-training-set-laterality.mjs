@@ -188,6 +188,37 @@ ok(hydratedEdit.weight_kg_l === '20' && hydratedEdit.weight_kg_r === '20', 'edit
 const storedAfterEdit = normalizeSetForStorage(hydratedEdit, true)
 ok(storedAfterEdit.reps_r === '10' && storedAfterEdit.weight_kg_r === '20', 'hydrated edit persists other side')
 
+const hrExpanded = expandSetToLaterality({ hr_after: '140' })
+ok(hrExpanded.hr_after_l === '140' && hrExpanded.hr_after_r === '140', 'expand copies hr to both sides')
+
+const hrStored = normalizeSetForStorage(
+  { reps_l: '8', hr_after_l: '132', hr_after_r: '128', rpe: '7' },
+  true,
+)
+ok(hrStored.hr_after_l === '132' && hrStored.hr_after_r === '128' && hrStored.hr_after === '', 'lr storage keeps side hr')
+
+const rpeExpanded = expandSetToLaterality({ rpe: '8' })
+ok(rpeExpanded.rpe_l === '8' && rpeExpanded.rpe_r === '8', 'expand copies rpe to both sides')
+
+const rpeStored = normalizeSetForStorage({ reps_l: '8', rpe_l: '7', rpe_r: '9' }, true)
+ok(rpeStored.rpe_l === '7' && rpeStored.rpe_r === '9' && rpeStored.rpe === '', 'lr storage keeps side rpe')
+
+const hrDiary = formatSetSummary(
+  {
+    reps_l: '10',
+    weight_kg_l: '20',
+    hr_after_l: '130',
+    rpe_l: '8',
+    reps_r: '10',
+    weight_kg_r: '20',
+    hr_after_r: '135',
+    rpe_r: '9',
+  },
+  'Функциональная',
+)
+ok(hrDiary.includes('Л') && hrDiary.includes('пульс 130') && hrDiary.includes('пульс 135'), 'diary hr per side')
+ok(hrDiary.includes('RPE 8') && hrDiary.includes('RPE 9'), 'diary rpe per side')
+
 const fromLast = maybeEnableLateralityFromLast(
   { format: 'Силовая', sets: [emptyTrainingSetRow()] },
   { laterality: 'lr', sets: [{ reps_l: '10' }] },
