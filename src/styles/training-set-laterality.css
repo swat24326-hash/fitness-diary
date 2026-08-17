@@ -1,0 +1,65 @@
+/* Л/П в ряду формата и двухстрочный подход. */
+
+.exercise-format-row__split {
+  width: 1px;
+  height: 18px;
+  background: color-mix(in srgb, var(--text-muted) 45%, transparent);
+  margin: 0 2px;
+  flex: 0 0 auto;
+}
+
+.exercise-format-row__lr {
+  width: auto;
+  min-width: 42px;
+  padding: 0 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.set-row-compact--lr {
+  grid-template-columns: 26px minmax(0, 1fr) 40px;
+  align-items: start;
+}
+
+.set-row-compact--lr .set-row-compact__idx {
+  padding-top: 22px;
+  padding-bottom: 0;
+}
+
+.set-row-lr-body {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.set-row-lr-side {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px 8px;
+  align-items: end;
+}
+
+.set-row-lr-side__tag {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--accent-bright, #2effb8);
+  padding-bottom: 10px;
+  text-align: center;
+}
+
+.set-row-lr-meta {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr);
+  gap: 6px 8px;
+  align-items: end;
+}
+
+.set-row-lr-meta--hr {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 0.9fr);
+}
+
+.set-row-compact--lr > .btn {
+  align-self: start;
+  margin-top: 18px;
+}

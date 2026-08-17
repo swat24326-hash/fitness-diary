@@ -1,11 +1,6 @@
 /** Есть ли в строке подхода хотя бы одно заполненное поле */
 import { getHealthCardCompletionIssues } from './healthCardCore.js'
-
-function setRowHasData(s) {
-  if (!s || typeof s !== 'object') return false
-  const keys = ['reps', 'weight_kg', 'tut_sec', 'load', 'rpe', 'hr_after']
-  return keys.some((k) => String(s[k] ?? '').trim() !== '')
-}
+import { trainingSetRowHasData } from './trainingSetLateralityCore.js'
 
 function surveyBlockOk(w) {
   const mood = Number(String(w.mood ?? '').trim())
@@ -39,7 +34,7 @@ function exercisesBlockOk(w) {
   return exercises.some((ex) => {
     if (!ex?.catalog_exercise_id) return false
     const sets = Array.isArray(ex.sets) ? ex.sets : []
-    return sets.some((s) => setRowHasData(s))
+    return sets.some((s) => trainingSetRowHasData(s))
   })
 }
 

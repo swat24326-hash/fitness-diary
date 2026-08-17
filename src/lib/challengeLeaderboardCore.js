@@ -1,6 +1,7 @@
 /** Чистая логика рейтинга челленджей (без React / IDB / Supabase). */
 
 import { isClientArchived } from './clientArchive.js'
+import { iterSetLoadSides } from './trainingSetLateralityCore.js'
 
 export const CHALLENGE_METRICS = ['max_weight', 'max_reps', 'max_time_sec', 'max_distance_m']
 
@@ -36,19 +37,21 @@ export function bestMaxRepsFromSets(sets, referenceWeightKg = null) {
   let weightAtBest = null
 
   for (const set of sets ?? []) {
-    const reps = parseNum(set?.reps)
-    if (reps == null || reps < 1) continue
-    const w = parseNum(set?.weight_kg)
+    for (const side of iterSetLoadSides(set)) {
+      const reps = parseNum(side?.reps)
+      if (reps == null || reps < 1) continue
+      const w = parseNum(side?.weight_kg)
 
-    if (ref != null) {
-      if (!weightMatchesReferenceKg(w, ref)) continue
-      if (bestReps == null || reps > bestReps) {
+      if (ref != null) {
+        if (!weightMatchesReferenceKg(w, ref)) continue
+        if (bestReps == null || reps > bestReps) {
+          bestReps = reps
+          weightAtBest = ref
+        }
+      } else if (bestReps == null || reps > bestReps || (reps === bestReps && (w ?? 0) > (weightAtBest ?? -1))) {
         bestReps = reps
-        weightAtBest = ref
+        weightAtBest = w
       }
-    } else if (bestReps == null || reps > bestReps || (reps === bestReps && (w ?? 0) > (weightAtBest ?? -1))) {
-      bestReps = reps
-      weightAtBest = w
     }
   }
 
@@ -94,8 +97,10 @@ function bestMetricInExercise(ex, challenge) {
   let best = null
   for (const set of sets) {
     if (metric === 'max_weight') {
-      const v = parseNum(set?.weight_kg)
-      if (v != null && v > 0) best = best == null ? v : Math.max(best, v)
+      for (const side of iterSetLoadSides(set)) {
+        const sw = parseNum(side?.weight_kg)
+        if (sw != null && sw > 0) best = best == null ? sw : Math.max(best, sw)
+      }
     } else if (metric === 'max_time_sec') {
       const v = parseNum(set?.tut_sec)
       if (v != null && v > 0) best = best == null ? v : Math.max(best, v)

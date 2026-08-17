@@ -14,6 +14,7 @@ import { listMeasurements, listTrainingsForClient } from '../../lib/dataAccess'
 import { useDebouncedStorageReload, shouldReloadTrainerClientStats } from '../../lib/useDebouncedStorageReload'
 import { BODY_MEASURE_FIELDS, getMeasureValue } from '../../lib/bodyMeasures'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
+import { collectSetLoadNums } from '../../lib/trainingSetLateralityCore'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend)
 
@@ -227,10 +228,10 @@ export function Statistics({ clientId }) {
         for (const m of selectedExMetrics) {
           let val = null
           if (m === 'weight') {
-            const nums = sets.map((s) => Number(s.weight_kg)).filter((n) => !Number.isNaN(n) && n > 0)
+            const nums = collectSetLoadNums(sets, 'weight_kg')
             val = nums.length ? Math.max(...nums) : null
           } else if (m === 'reps') {
-            const nums = sets.map((s) => Number(s.reps)).filter((n) => !Number.isNaN(n) && n > 0)
+            const nums = collectSetLoadNums(sets, 'reps')
             val = nums.length ? Math.max(...nums) : null
           } else if (m === 'tut_sec') {
             const nums = sets.map((s) => Number(s.tut_sec)).filter((n) => !Number.isNaN(n) && n > 0)
@@ -290,10 +291,10 @@ export function Statistics({ clientId }) {
         const row = { date: t.date }
         for (const m of selectedExMetrics) {
           if (m === 'weight') {
-            const nums = sets.map((s) => Number(s.weight_kg)).filter((n) => !Number.isNaN(n) && n > 0)
+            const nums = collectSetLoadNums(sets, 'weight_kg')
             row[m] = nums.length ? Math.max(...nums) : '—'
           } else if (m === 'reps') {
-            const nums = sets.map((s) => Number(s.reps)).filter((n) => !Number.isNaN(n) && n > 0)
+            const nums = collectSetLoadNums(sets, 'reps')
             row[m] = nums.length ? Math.max(...nums) : '—'
           } else if (m === 'tut_sec') {
             const nums = sets.map((s) => Number(s.tut_sec)).filter((n) => !Number.isNaN(n) && n > 0)

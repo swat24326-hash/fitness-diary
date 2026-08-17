@@ -52,6 +52,7 @@ export function findLastExerciseResult(trainings, lookup, opts = {}) {
         trainingId: String(training.id ?? ''),
         date: String(training.date ?? '').slice(0, 10),
         format: ex.format,
+        laterality: ex.laterality ?? null,
         sets: Array.isArray(ex.sets) ? ex.sets : [],
         muscle_focus: String(ex.muscle_focus ?? '').trim(),
       }

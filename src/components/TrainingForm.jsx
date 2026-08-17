@@ -6,12 +6,21 @@ import { formatDateRu } from '../lib/dateRu'
 import { findLastExerciseResult } from '../lib/lastExerciseResult'
 import { stripDirectionControls } from '../lib/textInput'
 import {
-  TRAINING_EXERCISE_FORMATS,
+  exerciseFormatAllowsLaterality,
   exerciseFormatIsCardio,
   exerciseFormatWithSetHr,
   formatSetSummary,
   normalizeExerciseFormat,
 } from '../lib/trainingExerciseFormat'
+import {
+  applyExerciseLaterality,
+  emptyTrainingSetRow,
+  expandSetToLaterality,
+  exerciseLateralityIsLr,
+  maybeEnableLateralityFromLast,
+} from '../lib/trainingSetLateralityCore'
+import { TrainingExerciseFormatRow } from './TrainingExerciseFormatRow.jsx'
+import { TrainingSetRow } from './TrainingSetRow.jsx'
 import {
   SUPERSET_MAX_SIZE,
   cleanupSupersetGroups,
@@ -22,14 +31,13 @@ import {
   toggleSupersetWithPrevious,
 } from '../lib/trainingSuperset'
 import { TrainingHrSessionSummary } from './trainer/TrainingHrSessionSummary.jsx'
-import { TrainingSetHrField } from './trainer/TrainingSetHrField.jsx'
 import {
   rememberTrainingFormStep,
   resolveTrainingFormStep,
 } from '../lib/trainingFormStepMemory'
 
-function newEmptyExerciseRow(format = 'Силовая') {
-  return {
+function newEmptyExerciseRow(format = 'Силовая', laterality = null) {
+  const row = {
     id: crypto.randomUUID(),
     name: '',
     /** UUID из таблицы exercises; только выбор из справочника, при наборе текста без совпадения — null */
@@ -37,10 +45,12 @@ function newEmptyExerciseRow(format = 'Силовая') {
     muscle_focus: '',
     /** Силовая | Функциональная | Кардио — формат подходов для этого упражнения */
     format: normalizeExerciseFormat(format),
-    sets: [{ reps: '', weight_kg: '', tut_sec: '', load: '', rpe: '', hr_after: '' }],
+    laterality: null,
+    sets: [emptyTrainingSetRow()],
     /** A–Z: соседние упражнения с той же буквой — суперсет (2–3 подряд). */
     superset_group: null,
   }
+  return laterality === 'lr' ? applyExerciseLaterality(row, true) : row
 }
 
 const steps = [
@@ -135,7 +145,13 @@ export function TrainingForm({
   }
 
   const syncExercises = (next) => setWorkout({ exercises: cleanupSupersetGroups(next) })
-  const addExercise = () => syncExercises([...exercises, newEmptyExerciseRow(formatForNewExercise())])
+  const addExercise = () => {
+    const format = formatForNewExercise()
+    const lr =
+      exerciseFormatAllowsLaterality(format) &&
+      exerciseLateralityIsLr(exercises[exercises.length - 1])
+    syncExercises([...exercises, newEmptyExerciseRow(format, lr ? 'lr' : null)])
+  }
   const removeExercise = (idx) => {
     const next = exercises.filter((_, i) => i !== idx)
     syncExercises(next.length ? next : [newEmptyExerciseRow(sessionFallback)])
@@ -147,11 +163,32 @@ export function TrainingForm({
     syncExercises(next)
   }
 
+  const bindCatalogExercise = (ex, row) => {
+    const next = {
+      ...ex,
+      name: String(row?.name ?? '').trim(),
+      catalog_exercise_id: row?.id ?? null,
+    }
+    const last = findLastExerciseResult(
+      clientTrainings,
+      { catalogExerciseId: row?.id, name: row?.name },
+      { excludeTrainingId: currentTrainingId },
+    )
+    return maybeEnableLateralityFromLast(
+      next,
+      last,
+      exerciseFormatAllowsLaterality(next.format ?? sessionFallback),
+    )
+  }
+
   exercisesRef.current = exercises
 
   const addSet = (exIdx) => {
     const ex = exercises[exIdx]
-    const sets = [...ex.sets, { reps: '', weight_kg: '', tut_sec: '', load: '', rpe: '', hr_after: '' }]
+    const sets = [
+      ...ex.sets,
+      exerciseLateralityIsLr(ex) ? expandSetToLaterality(emptyTrainingSetRow()) : emptyTrainingSetRow(),
+    ]
     patchExercise(exIdx, { ...ex, sets })
   }
 
@@ -184,29 +221,28 @@ export function TrainingForm({
     )
   }, [focusEx, clientTrainings, currentTrainingId])
 
-  const exerciseFormatButtons = (ex, exIdx) => (
-    <div className="row exercise-format-row" style={{ gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-      <span className="muted" style={{ fontSize: 12 }}>
-        Формат
-      </span>
-      {TRAINING_EXERCISE_FORMATS.map((t, i) => {
-        const active = normalizeExerciseFormat(ex.format, sessionFallback) === t
-        return (
-          <button
-            key={t}
-            type="button"
-            className={`btn ${active ? 'btn-primary' : 'btn-ghost'} btn-icon-square btn-icon-xs`}
-            onClick={() => patchExercise(exIdx, { ...ex, format: t })}
-            title={`Формат ${i + 1}: ${t}`}
-            aria-label={`Формат ${i + 1}: ${t}`}
-            aria-pressed={active}
-          >
-            {i + 1}
-          </button>
-        )
-      })}
-    </div>
-  )
+  const exerciseFormatButtons = (ex, exIdx) => {
+    const fmt = normalizeExerciseFormat(ex.format, sessionFallback)
+    return (
+      <TrainingExerciseFormatRow
+        format={fmt}
+        lateralityOn={exerciseLateralityIsLr(ex)}
+        sessionFallback={sessionFallback}
+        onFormatChange={(t) => {
+          const next = { ...ex, format: t }
+          if (!exerciseFormatAllowsLaterality(t) && exerciseLateralityIsLr(ex)) {
+            patchExercise(exIdx, applyExerciseLaterality(next, false))
+            return
+          }
+          patchExercise(exIdx, next)
+        }}
+        onLateralityToggle={() => {
+          if (!exerciseFormatAllowsLaterality(fmt)) return
+          patchExercise(exIdx, applyExerciseLaterality(ex, !exerciseLateralityIsLr(ex)))
+        }}
+      />
+    )
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -433,7 +469,7 @@ export function TrainingForm({
                             return
                           }
                           if (row) {
-                            patchExercise(idx, { ...cur, name: String(row.name).trim(), catalog_exercise_id: row.id })
+                            patchExercise(idx, bindCatalogExercise(cur, row))
                             return
                           }
                           patchExercise(idx, { ...cur, name: '', catalog_exercise_id: null })
@@ -445,7 +481,7 @@ export function TrainingForm({
                           const list = filterExerciseCatalog(catalogList, ex.name)
                           const first = list[0]
                           if (first) {
-                            patchExercise(exIdx, { ...ex, name: String(first.name).trim(), catalog_exercise_id: first.id })
+                            patchExercise(exIdx, bindCatalogExercise(ex, first))
                             setSuggestOpenId(null)
                           }
                         }
@@ -488,7 +524,7 @@ export function TrainingForm({
                               className="exercise-catalog-suggest__item"
                               onMouseDown={(ev) => ev.preventDefault()}
                               onClick={() => {
-                                patchExercise(exIdx, { ...ex, name: String(row.name ?? '').trim(), catalog_exercise_id: row.id })
+                                patchExercise(exIdx, bindCatalogExercise(ex, row))
                                 setSuggestOpenId(null)
                               }}
                             >
@@ -542,129 +578,23 @@ export function TrainingForm({
               {exerciseFormatButtons(ex, exIdx)}
               {ex.sets.map((st, setIdx) => {
                 const exFormat = normalizeExerciseFormat(ex.format, sessionFallback)
-                const isCardio = exerciseFormatIsCardio(exFormat)
-                const withSetHr = exerciseFormatWithSetHr(exFormat)
                 return (
-                <div key={setIdx} className={`set-row-compact${withSetHr ? ' set-row-compact--functional' : ''}`}>
-                  <span className="set-row-compact__idx">{setIdx + 1}</span>
-                  {isCardio ? (
-                    <>
-                      <div className="field">
-                        <label className="label">Время под нагрузкой</label>
-                        <input
-                          className="input"
-                          inputMode="numeric"
-                          placeholder="мин"
-                          title="Сколько минут длился отрезок/подход"
-                          value={st.tut_sec ?? ''}
-                          onChange={(e) => {
-                            const sets = ex.sets.slice()
-                            sets[setIdx] = { ...st, tut_sec: e.target.value }
-                            patchExercise(exIdx, { ...ex, sets })
-                          }}
-                        />
-                      </div>
-                      <div className="field">
-                        <label className="label">Нагрузка</label>
-                        <input
-                          className="input"
-                          inputMode="decimal"
-                          placeholder="уровень/кг/км"
-                          title="Например: уровень дорожки/эллипса, скорость, сопротивление или кг"
-                          value={st.load ?? ''}
-                          onChange={(e) => {
-                            const sets = ex.sets.slice()
-                            sets[setIdx] = { ...st, load: e.target.value }
-                            patchExercise(exIdx, { ...ex, sets })
-                          }}
-                        />
-                      </div>
-                      <TrainingSetHrField
-                        value={st.hr_after ?? ''}
-                        clientId={clientId}
-                        title="Пульс после отрезка/подхода (уд/мин). Двойной тап — текущий пульс с датчика"
-                        onChange={(hr_after) => {
-                          const sets = ex.sets.slice()
-                          sets[setIdx] = { ...st, hr_after }
-                          patchExercise(exIdx, { ...ex, sets })
-                        }}
-                      />
-                      <div className="field">
-                        <label className="label">RPE</label>
-                        <input
-                          className="input"
-                          type="number"
-                          min={1}
-                          max={10}
-                          value={st.rpe ?? ''}
-                          onChange={(e) => {
-                            const sets = ex.sets.slice()
-                            sets[setIdx] = { ...st, rpe: e.target.value }
-                            patchExercise(exIdx, { ...ex, sets })
-                          }}
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="field">
-                        <label className="label">Повт.</label>
-                        <input
-                          className="input"
-                          inputMode="numeric"
-                          value={st.reps}
-                          onChange={(e) => {
-                            const sets = ex.sets.slice()
-                            sets[setIdx] = { ...st, reps: e.target.value }
-                            patchExercise(exIdx, { ...ex, sets })
-                          }}
-                        />
-                      </div>
-                      <div className="field">
-                        <label className="label">Вес, кг</label>
-                        <input
-                          className="input"
-                          inputMode="decimal"
-                          value={st.weight_kg}
-                          onChange={(e) => {
-                            const sets = ex.sets.slice()
-                            sets[setIdx] = { ...st, weight_kg: e.target.value }
-                            patchExercise(exIdx, { ...ex, sets })
-                          }}
-                        />
-                      </div>
-                      <div className="field">
-                        <label className="label">RPE</label>
-                        <input
-                          className="input"
-                          type="number"
-                          min={1}
-                          max={10}
-                          value={st.rpe ?? ''}
-                          onChange={(e) => {
-                            const sets = ex.sets.slice()
-                            sets[setIdx] = { ...st, rpe: e.target.value }
-                            patchExercise(exIdx, { ...ex, sets })
-                          }}
-                        />
-                      </div>
-                      {withSetHr && (
-                        <TrainingSetHrField
-                          value={st.hr_after ?? ''}
-                          clientId={clientId}
-                          onChange={(hr_after) => {
-                            const sets = ex.sets.slice()
-                            sets[setIdx] = { ...st, hr_after }
-                            patchExercise(exIdx, { ...ex, sets })
-                          }}
-                        />
-                      )}
-                    </>
-                  )}
-                  <button type="button" className="btn btn-ghost" style={{ marginBottom: 2, minHeight: 42 }} onClick={() => removeSet(exIdx, setIdx)} disabled={ex.sets.length < 2} aria-label="Удалить подход">
-                    <Trash2 size={18} aria-hidden />
-                  </button>
-                </div>
+                  <TrainingSetRow
+                    key={setIdx}
+                    setIndex={setIdx}
+                    set={st}
+                    isCardio={exerciseFormatIsCardio(exFormat)}
+                    withSetHr={exerciseFormatWithSetHr(exFormat)}
+                    isLr={exerciseLateralityIsLr(ex)}
+                    clientId={clientId}
+                    canRemove={ex.sets.length >= 2}
+                    onChange={(nextSet) => {
+                      const sets = ex.sets.slice()
+                      sets[setIdx] = nextSet
+                      patchExercise(exIdx, { ...ex, sets })
+                    }}
+                    onRemove={() => removeSet(exIdx, setIdx)}
+                  />
                 )
               })}
               <button
@@ -804,11 +734,7 @@ export function TrainingForm({
                           className="training-exercise-catalog__opt"
                           onClick={() => {
                             const ex = exercises[pickExerciseIdx]
-                            patchExercise(pickExerciseIdx, {
-                              ...ex,
-                              name: String(row.name ?? '').trim(),
-                              catalog_exercise_id: row.id,
-                            })
+                            patchExercise(pickExerciseIdx, bindCatalogExercise(ex, row))
                             setPickExerciseIdx(null)
                             setSuggestOpenId(null)
                           }}

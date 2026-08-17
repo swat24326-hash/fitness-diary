@@ -54,6 +54,16 @@ assert(cardioLine.includes('12 мин') && cardioLine.includes('нагр. 5'), '
 const strengthLine = formatSetSummary({ weight_kg: '60', reps: '8', rpe: '8' }, 'Силовая')
 assert(strengthLine.includes('60 кг') && strengthLine.includes('8 повт.'), 'strength summary')
 
+const lrStored = normalizeExercisesForStorage(
+  [{ name: 'Тяга', laterality: 'lr', format: 'Силовая', sets: [{ reps_l: '10', reps_r: '8', weight_kg_l: '20', weight_kg_r: '20' }] }],
+  'Силовая',
+)
+assert(lrStored[0].laterality === 'lr', 'laterality stored')
+assert(lrStored[0].sets[0].reps === '', 'lr storage does not keep fake bilateral reps')
+
+const lrSummary = formatSetSummary({ weight_kg_l: '20', reps_l: '10', weight_kg_r: '18', reps_r: '8' }, 'Силовая')
+assert(lrSummary.includes('Л') && lrSummary.includes('П'), 'laterality in diary summary')
+
 if (failed) {
   console.error(`\n${failed} check(s) failed`)
   process.exit(1)

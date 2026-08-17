@@ -51,6 +51,7 @@
 | Сводка пульса сессии (зоны, ккал) | `verify-hr-session-agg.mjs` |
 | Двойной тап → пульс подхода из слота | `verify-hr-after-from-live.mjs` |
 | Шаг формы при сплите черновиков | `verify-training-form-step-memory.mjs` |
+| Подход Л/П (стороны, сводка, челлендж, завершение) | `verify-training-set-laterality.mjs` |
 | Статистика тренера: облако за период (не только IDB) | `verify-trainer-period-stats-remote.mjs` |
 | Журнал тренировок: ФИО архивных клиентов (не UUID) | `verify-trainer-journal-clients.mjs` |
 | Журнал тренера: фильтр completed за период | `verify-trainer-journal-filter.mjs` |

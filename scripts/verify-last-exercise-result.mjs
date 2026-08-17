@@ -74,6 +74,29 @@ const last = findLastExerciseResult(
 ok(last?.trainingId === 't-new', 'latest completed')
 ok(last?.sets.length === 2, 'last sets count')
 ok(last?.muscle_focus === 'ягодицы', 'last muscle focus')
+ok(last?.laterality == null, 'bilateral last has no lr')
+
+const lastLr = findLastExerciseResult(
+  [
+    {
+      id: 't-lr',
+      status: 'completed',
+      date: '2026-07-01',
+      data: {
+        exercises: [
+          {
+            name: 'Тяга гантели',
+            catalog_exercise_id: 'ex-row',
+            laterality: 'lr',
+            sets: [{ reps_l: '10', reps_r: '8', weight_kg_l: '20', weight_kg_r: '20' }],
+          },
+        ],
+      },
+    },
+  ],
+  { catalogExerciseId: 'ex-row' },
+)
+ok(lastLr?.laterality === 'lr', 'last result keeps laterality flag')
 
 const excluded = findLastExerciseResult(trainings, { catalogExerciseId: catalogId }, { excludeTrainingId: 't-new' })
 ok(excluded?.trainingId === 't-old', 'exclude current training')

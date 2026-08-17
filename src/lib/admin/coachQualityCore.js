@@ -16,6 +16,7 @@ import {
   normalizeCoachQualityConfig,
   coachQualityRulesHelpFromConfig,
 } from './coachQualityConfigCore.js'
+import { trainingSetRowHasData } from '../trainingSetLateralityCore.js'
 
 export const COACH_QUALITY_PERIOD_DAYS = 30
 export const COACH_QUALITY_MIN_COMPLETED = 8
@@ -45,23 +46,17 @@ export function isThinCompletedTraining(workout) {
   for (const ex of exercises) {
     if (!ex?.catalog_exercise_id) continue
     const sets = Array.isArray(ex.sets) ? ex.sets : []
-    const has = sets.some((s) => setRowHasData(s))
+    const has = sets.some((s) => trainingSetRowHasData(s))
     if (!has) continue
     withData++
     for (const s of sets) {
-      if (setRowHasData(s)) setRows++
+      if (trainingSetRowHasData(s)) setRows++
     }
   }
   if (withData <= 0) return true
   if (withData === 1) return true
   if (setRows <= 2) return true
   return false
-}
-
-function setRowHasData(s) {
-  if (!s || typeof s !== 'object') return false
-  const keys = ['reps', 'weight_kg', 'tut_sec', 'load', 'rpe', 'hr_after']
-  return keys.some((k) => String(s[k] ?? '').trim() !== '')
 }
 
 /**

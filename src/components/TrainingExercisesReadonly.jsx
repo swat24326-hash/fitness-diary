@@ -1,5 +1,6 @@
 import { Paperclip } from 'lucide-react'
 import { formatSetSummary, normalizeExerciseFormat } from '../lib/trainingExerciseFormat'
+import { exerciseLateralityIsLr } from '../lib/trainingSetLateralityCore'
 import { groupExercisesForDisplay } from '../lib/trainingSuperset'
 
 function ExerciseBlock({ ex, sessionType }) {
@@ -10,6 +11,7 @@ function ExerciseBlock({ ex, sessionType }) {
         <span className="muted" style={{ fontWeight: 400 }}>
           {' '}
           · {normalizeExerciseFormat(ex?.format, sessionType)}
+          {exerciseLateralityIsLr(ex) ? ' · Л/П' : ''}
         </span>
       </p>
       {(ex?.sets ?? []).map((st, j) => (

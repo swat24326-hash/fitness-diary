@@ -35,6 +35,7 @@ function check(cond, label) {
 run('build', 'npm', ['run', 'build'])
 run('product brand', 'node', ['scripts/verify-product-brand.mjs'])
 run('exercise formats', 'node', ['scripts/verify-exercise-format.mjs'])
+run('training set laterality', 'node', ['scripts/verify-training-set-laterality.mjs'])
 run('sync offline-first', 'node', ['scripts/verify-sync-offline.mjs'])
 run('security L1 audit', 'node', ['scripts/verify-security-l1-audit.mjs'])
 run('network reachability', 'node', ['scripts/verify-network-reachability.mjs'])

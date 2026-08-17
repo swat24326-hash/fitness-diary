@@ -1,6 +1,6 @@
 # Модель данных — IDB, сущности, Postgres
 
-**Актуально:** 2026-08-13. Эталон схемы: `supabase/schema.sql` + идемпотентные `supabase/migrations/`.  
+**Актуально:** 2026-08-17. Эталон схемы: `supabase/schema.sql` + идемпотентные `supabase/migrations/`.  
 На bare Postgres (C2 / Yandex): сначала `supabase/c2_auth_stub.sql` через `npm run db:migrate:pg` — см. [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md).  
 Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/lib/membershipRules.js`.
 
@@ -13,7 +13,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | `meta` | key (string) | Флаги, служебное |
 | `clients` | `id` | индексы `club_id`, `trainer_id`; поля ПНК / архив (`archived_at`, `archive_reason`, `archive_reason_at`); `desk_hall` (`tz`\|`az`\|null); `trainer_id` nullable только вместе с desk (`CHECK trainer OR desk_hall`). Lite-ПЗ = обычный клиент с живым тренером, у которого `users.uses_tablet = false` (не desk). |
 | `memberships` | `id` | `client_id`, `club_id`; **`hall`** (`pz`\|`tz`\|`az`) — зал абона (один client — несколько залов); опционально `clip_id`; `paid_amount` (₽ **цены покупки** desk/lite — **не** сущность платежа); `session_visits` JSONB — журнал списаний desk АЗ `[{id,date,created_at}]` |
-| `trainings` | `id` | `draft` \| `completed`; `data` JSON формы (в т.ч. опционально `hr_session` — сводка пульса BLE, см. [TRAINING_HR.md](./TRAINING_HR.md)) |
+| `trainings` | `id` | `draft` \| `completed`; `data` JSON формы (упражнения: `format` 1–3, опционально `laterality: 'lr'` — левая/правая в одном подходе; опционально `hr_session` — сводка пульса BLE, см. [TRAINING_HR.md](./TRAINING_HR.md)) |
 | `exercises` | `id` | Справочник |
 | `body_measurements` | `id` | обмеры |
 | `health_cards` | **`client_id`** | Не путать с `id` строки в Postgres |
@@ -65,7 +65,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 |----------|--------|
 | **clients** | Тренер, клуб, контакты, флаги архива, поля жизненного цикла **ПНК** |
 | **memberships** | Период, лимит тренировок, тип карты, **`hall`** (pz/tz/az); опционально `paid_amount` (**цена** пакета на desk/lite, не ledger оплаты); desk АЗ — `used_trainings` + `session_visits`; у ПЗ списание при завершении тренировки; удаление с карточки только без связанных тренировок. Канон: [CLIENT_MULTI_HALL.md](./CLIENT_MULTI_HALL.md) |
-| **trainings** | Дата, тип, статус, JSON `data` из `TrainingForm` (упражнения, вес, опционально снимок `hr_session`) |
+| **trainings** | Дата, тип, статус, JSON `data` из `TrainingForm` (упражнения, вес, опционально `laterality: 'lr'` на упражнении и `reps_l`/`reps_r` в подходе, опционально снимок `hr_session`) |
 | **health_cards** | Рост, вес, цель (`goal`), тексты медкарты |
 | **body_measurements** | Поля из `BODY_MEASURE_FIELDS` (+ legacy-имена в читалке) |
 | **Продажи** | Daily / plan / finance в Postgres; UI `/sales`, `/admin/sales` — через API, не IDB-очередь. `club_sales_plan.strategy_snapshot` (jsonb) — снимок playbook Стратегии |
