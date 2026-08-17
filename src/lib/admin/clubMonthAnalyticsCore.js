@@ -13,6 +13,7 @@ import {
 } from './salesReportCore.js'
 import { buildSalesManagerMonthStats } from './salesManagerStatsAgg.js'
 import { computeNetProfitWithPayroll } from './trainerPayrollCore.js'
+import { buildNetProfitMarginMeta } from './clubNetProfitMarginCore.js'
 import { buildGeminiDataSourcesMeta } from './geminiAnalyticsDomain.js'
 import {
   buildGeminiMonthCalendarContext,
@@ -262,6 +263,7 @@ export function buildClubMonthInsights(opts) {
     const net = Number(finance.net_profit) || 0
     const payrollShare = gross > 0 ? round1((trainerPayroll / gross) * 100) : 0
     const aerobicShare = gross > 0 ? round1((aerobicPayroll / gross) * 100) : 0
+    const marginMeta = buildNetProfitMarginMeta(net, gross)
 
     insights.finance = {
       net_profit: net,
@@ -272,6 +274,9 @@ export function buildClubMonthInsights(opts) {
       payroll_share_pct: payrollShare,
       aerobic_payroll_share_pct: aerobicShare,
       margin_tone: payrollMarginTone(net, payrollShare),
+      net_profit_margin_pct: marginMeta.pct ?? undefined,
+      net_profit_margin_tone: marginMeta.tone,
+      net_profit_margin_label_ru: marginMeta.label_ru,
     }
   }
 
@@ -420,13 +425,19 @@ export function buildClubMonthAnalytics(opts) {
   /** @type {Record<string, unknown> | undefined} */
   let finance
   if (includeFinance) {
+    const netProfit = computeNetProfitWithPayroll(summary.profitTotal, payroll, expense, aerobicPayroll)
+    const grossBeforeExpense = summary.profitGrossTotal ?? summary.profitTotal
+    const marginMeta = buildNetProfitMarginMeta(netProfit, grossBeforeExpense)
     finance = {
       supervisor_expense: expense,
       trainer_payroll: payroll,
       aerobic_payroll: aerobicPayroll,
-      net_profit: computeNetProfitWithPayroll(summary.profitTotal, payroll, expense, aerobicPayroll),
-      gross_before_expense: summary.profitGrossTotal ?? summary.profitTotal,
+      net_profit: netProfit,
+      gross_before_expense: grossBeforeExpense,
       net_without_payroll: computeNetProfit(summary.profitTotal, expense),
+      net_profit_margin_pct: marginMeta.pct ?? undefined,
+      net_profit_margin_tone: marginMeta.tone,
+      net_profit_margin_label_ru: marginMeta.label_ru,
     }
   }
 

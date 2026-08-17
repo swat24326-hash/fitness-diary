@@ -58,10 +58,28 @@ export function filterSnapshotForAdvisorRole(snapshot, advisorRoleId) {
       delete insights.finance
       next.insights = insights
     }
-    if (next.club_finance?.forecast) {
-      const cf = { ...next.club_finance, forecast: { ...next.club_finance.forecast } }
-      delete cf.forecast.net_profit_rub
+    if (next.club_finance) {
+      const cf = {
+        ...next.club_finance,
+        fact: next.club_finance.fact ? { ...next.club_finance.fact } : undefined,
+        forecast: next.club_finance.forecast ? { ...next.club_finance.forecast } : undefined,
+      }
+      for (const side of [cf.fact, cf.forecast]) {
+        if (!side) continue
+        delete side.net_profit_rub
+        delete side.net_profit_margin_pct
+        delete side.net_profit_margin_tone
+        delete side.net_profit_margin_label_ru
+      }
       next.club_finance = cf
+    }
+    if (next.month_forecast) {
+      const mf = { ...next.month_forecast }
+      delete mf.forecast_net_profit
+      delete mf.forecast_net_profit_margin_pct
+      delete mf.forecast_net_profit_margin_tone
+      delete mf.forecast_net_profit_margin_label_ru
+      next.month_forecast = mf
     }
   }
 

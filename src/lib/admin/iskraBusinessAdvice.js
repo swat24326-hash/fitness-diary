@@ -131,6 +131,23 @@ export function buildIskraAdviceCards(snapshot, opts = {}) {
   }
 
   const finance = insights.finance
+  if (finance?.net_profit_margin_tone === 'weak' && finance?.net_profit_margin_pct != null) {
+    cards.push({
+      id: 'low_net_profit_margin',
+      priority: 82,
+      topic: 'finance',
+      headline:
+        Number(finance.net_profit_margin_pct) < 0
+          ? 'Клуб в минусе по чистой'
+          : 'Маржа по валу просела',
+      action:
+        Number(finance.net_profit_margin_pct) < 0
+          ? 'Срочно: возвраты, ЗП и расход против вала — сверить неделю и план до конца месяца'
+          : 'Сверить возвраты, ЗП зала и расход: маржа ниже 15% — дожать допродажи или снять давление затрат',
+      evidence: `Маржа ${String(finance.net_profit_margin_pct).replace('.', ',')}% (${finance.net_profit_margin_label_ru ?? 'риск'})`,
+      roleIds: ['app_admin', 'curator'],
+    })
+  }
   if (finance?.margin_tone === 'weak' || finance?.margin_tone === 'negative') {
     cards.push({
       id: 'payroll_pressure',

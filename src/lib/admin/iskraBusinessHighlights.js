@@ -36,8 +36,15 @@ export function buildIskraBusinessHighlights(snapshot) {
     if (netForecast != null && Number.isFinite(Number(netForecast))) {
       parts.push(`прибыль ${formatRubCompact(netForecast)}`)
     }
+    const marginForecast = cf.forecast?.net_profit_margin_pct
+    if (marginForecast != null && Number.isFinite(Number(marginForecast))) {
+      parts.push(`маржа ${String(marginForecast).replace('.', ',')}%`)
+    }
   } else if (finance?.net_profit != null) {
     parts.push(`прибыль ${formatRub(finance.net_profit)}`)
+    if (finance.net_profit_margin_pct != null) {
+      parts.push(`маржа ${String(finance.net_profit_margin_pct).replace('.', ',')}%`)
+    }
   }
 
   if (!parts.length) return null

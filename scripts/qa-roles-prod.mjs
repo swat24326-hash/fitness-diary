@@ -130,6 +130,7 @@ console.log('\n▶ sales_manager API')
   ok(sales.status === 200, 'sales GET own club', 'sales')
   ok(sales.data?.expense === undefined, 'sales expense stripped', 'sales')
   ok(!sales.data?.month_summary?.netProfit, 'sales netProfit stripped', 'sales')
+  ok(sales.data?.month_summary?.netProfitMargin === undefined, 'sales netProfitMargin stripped', 'sales')
 
   const otherClub = '00000000-0000-4000-8000-000000000001'
   const foreign = await apiGet(

@@ -103,11 +103,13 @@ const bar = buildStrategyAdminFinanceBar({
 
 ok(bar.visible && bar.ok, 'admin current bar ok')
 ok(bar.mode === 'month_forecast', 'current → month forecast')
-ok(bar.cells?.length === 6, 'six KPI cells')
+ok(bar.cells?.length === 7, 'seven KPI cells')
 ok(bar.forecast.pzTrainings > bar.fact.pzTrainings, 'pz hours paced up')
 ok(bar.forecast.refunds > bar.fact.refunds, 'refunds paced up')
 ok(bar.forecast.trainerPayroll > bar.fact.trainerPayroll, 'pz payroll paced')
 ok(typeof bar.forecast.netProfit === 'number', 'net profit present')
+ok(typeof bar.forecast.netProfitMargin === 'number', 'net profit margin present')
+ok(typeof bar.fact.netProfitMargin === 'number', 'fact net profit margin present')
 
 const few = buildStrategyAdminFinanceBar({
   showAdminFinanceBar: true,

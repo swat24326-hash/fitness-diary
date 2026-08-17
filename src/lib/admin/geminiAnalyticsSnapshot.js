@@ -156,6 +156,9 @@ export function compactSnapshotForPrompt(snapshot, selectedTrainerId = null) {
           trainer_payroll: snapshot.finance.trainer_payroll,
           aerobic_payroll: snapshot.finance.aerobic_payroll,
           supervisor_expense: snapshot.finance.supervisor_expense,
+          net_profit_margin_pct: snapshot.finance.net_profit_margin_pct,
+          net_profit_margin_tone: snapshot.finance.net_profit_margin_tone,
+          net_profit_margin_label_ru: snapshot.finance.net_profit_margin_label_ru,
         }
       : undefined,
     month_forecast: snapshot.month_forecast ?? null,

@@ -39,6 +39,7 @@ import {
   buildTrainerPayRateMap,
   computeNetProfitWithPayroll,
 } from '../../../src/lib/admin/trainerPayrollCore.js'
+import { buildNetProfitMarginMeta } from '../../../src/lib/admin/clubNetProfitMarginCore.js'
 import {
   loadTrainerPayrollContext,
   payrollOptsFromContext,
@@ -194,6 +195,10 @@ export async function handleSalesGet(ctx, req, res) {
     expenseAmount,
     monthAerobicPayroll.clubTotal,
   )
+  monthSummary.netProfitMargin = buildNetProfitMarginMeta(
+    monthSummary.netProfit,
+    monthSummary.profitGrossTotal,
+  ).pct
   monthSummary.hallFinance = buildHallFinanceSummary(
     monthRows,
     monthPayroll.clubTotal,

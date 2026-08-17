@@ -362,6 +362,21 @@
   color: var(--danger, #f87171);
 }
 
+.admin-home-sales-plan__metric-fact.is-margin-weak,
+.admin-home-sales-plan__metric-forecast.is-margin-weak {
+  color: #fca5a5;
+}
+
+.admin-home-sales-plan__metric-fact.is-margin-ok,
+.admin-home-sales-plan__metric-forecast.is-margin-ok {
+  color: #fef08a;
+}
+
+.admin-home-sales-plan__metric-fact.is-margin-strong,
+.admin-home-sales-plan__metric-forecast.is-margin-strong {
+  color: var(--accent-bright);
+}
+
 .admin-home-sales-plan__skel-metrics {
   display: grid;
   gap: 5px;

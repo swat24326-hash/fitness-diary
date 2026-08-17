@@ -15,6 +15,7 @@ import {
 } from './geminiPlanDirections.js'
 import { phrasePlanSnapshotLine } from './iskraReplyPhrasing.js'
 import { formatRub } from './salesReportCore.js'
+import { formatNetProfitMarginPercent } from './clubNetProfitMarginCore.js'
 import { periodLabelRu } from './geminiAnalyticsSnapshot.js'
 import { iskraReplyHeader, iskraTrainerHeader, joinIskraReply } from './iskraReplyCompact.js'
 import { buildIskraAdviceReply } from './iskraBusinessAdvice.js'
@@ -571,10 +572,22 @@ function buildFinanceReply(club, period, insights, _opener, _closer, seed, snaps
 
   const net = Number(fin?.net_profit ?? cf?.fact?.net_profit_rub) || 0
   const payroll = Number(fin?.trainer_payroll ?? cf?.fact?.trainer_payroll_rub) || 0
+  const marginPct =
+    fin?.net_profit_margin_pct ?? cf?.fact?.net_profit_margin_pct ?? cf?.forecast?.net_profit_margin_pct
+  const marginLabel = fin?.net_profit_margin_label_ru ?? cf?.fact?.net_profit_margin_label_ru
 
   let forecastLine = ''
   if (cf?.available && cf.forecast?.net_profit_rub != null) {
     forecastLine = ` Прогноз прибыли ${formatRub(cf.forecast.net_profit_rub)}.`
+    const fcMargin = cf.forecast?.net_profit_margin_pct
+    if (fcMargin != null && Number.isFinite(Number(fcMargin))) {
+      forecastLine += ` Маржа ${formatNetProfitMarginPercent(fcMargin)}.`
+    }
+  }
+
+  let marginLine = ''
+  if (marginPct != null && Number.isFinite(Number(marginPct))) {
+    marginLine = ` Маржа по валу ${formatNetProfitMarginPercent(marginPct)}${marginLabel ? ` (${marginLabel})` : ''}.`
   }
 
   const tone =
@@ -586,7 +599,7 @@ function buildFinanceReply(club, period, insights, _opener, _closer, seed, snaps
 
   return joinIskraReply(
     iskraReplyHeader(club, period),
-    `Прибыль ${formatRub(net)} — ${tone}. ЗП ПЗ ${formatRub(payroll)}.${forecastLine}`,
+    `Прибыль ${formatRub(net)} — ${tone}. ЗП ПЗ ${formatRub(payroll)}.${marginLine}${forecastLine}`,
   )
 }
 
@@ -891,6 +904,11 @@ function buildMonthForecastReply(club, period, snapshot, _opener, _closer, seed)
           ? pickWord(GEMINI_LEXICON_POOLS.praise, seed)
           : 'на нуле'
     profitLine = ` Прибыль ${formatRub(net)}, ${tone}.`
+    const fcMargin = cf?.forecast?.net_profit_margin_pct ?? mf?.forecast_net_profit_margin_pct
+    const fcMarginLabel = cf?.forecast?.net_profit_margin_label_ru ?? mf?.forecast_net_profit_margin_label_ru
+    if (fcMargin != null && Number.isFinite(Number(fcMargin))) {
+      profitLine += ` Маржа ${formatNetProfitMarginPercent(fcMargin)}${fcMarginLabel ? ` (${fcMarginLabel})` : ''}.`
+    }
   }
 
   let dirLine = ''

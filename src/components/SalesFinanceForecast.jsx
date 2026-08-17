@@ -6,6 +6,11 @@ import {
   daysInCalendarMonth,
 } from '../lib/admin/clubFinanceForecastCore.js'
 import { formatRub } from '../lib/admin/salesReportCore.js'
+import {
+  NET_PROFIT_MARGIN_HINT_RU,
+  describeNetProfitMarginTone,
+  formatNetProfitMarginPercent,
+} from '../lib/admin/clubNetProfitMarginCore.js'
 
 /**
  * @param {{
@@ -97,8 +102,15 @@ export function SalesFinanceForecast({
         : null
 
   const netProfitRow = { key: 'netProfit', label: 'Чистая прибыль', kind: 'money', primary: true, signed: true }
+  const netProfitMarginRow = {
+    key: 'netProfitMargin',
+    label: 'Маржа по валу',
+    kind: 'percent',
+    primary: true,
+  }
 
   const formatValue = (kind, value, { signed = false } = {}) => {
+    if (kind === 'percent') return formatNetProfitMarginPercent(value)
     if (kind === 'count') return new Intl.NumberFormat('ru-RU').format(value ?? 0)
     const n = Number(value) || 0
     return formatRub(signed ? n : Math.abs(n))
@@ -140,7 +152,7 @@ export function SalesFinanceForecast({
   const financeBlocks = [
     { id: 'income', title: 'Нагрузка', rows: incomeRows, tone: 'income' },
     { id: 'deduction', title: 'Вычитается', rows: deductionRows, tone: 'deduction' },
-    { id: 'total', title: null, rows: [netProfitRow], tone: 'primary' },
+    { id: 'total', title: null, rows: [netProfitRow, netProfitMarginRow], tone: 'primary' },
   ]
 
   const renderFinanceRow = (row, tone) => {
@@ -158,6 +170,9 @@ export function SalesFinanceForecast({
       'sales-finance-forecast__col-num',
       'sales-finance-forecast__col-fact',
       signed && Number(factVal) < 0 ? 'sales-finance-forecast__col-negative' : undefined,
+      row.kind === 'percent'
+        ? `sales-finance-forecast__col-margin--${describeNetProfitMarginTone(factVal).tone}`
+        : undefined,
     ]
       .filter(Boolean)
       .join(' ')
@@ -166,15 +181,41 @@ export function SalesFinanceForecast({
       'sales-finance-forecast__col-forecast',
       row.static ? 'sales-finance-forecast__col-static' : undefined,
       signed && Number(forecastVal) < 0 ? 'sales-finance-forecast__col-negative' : undefined,
+      row.kind === 'percent'
+        ? `sales-finance-forecast__col-margin--${describeNetProfitMarginTone(forecastVal).tone}`
+        : undefined,
     ]
       .filter(Boolean)
       .join(' ')
     return (
       <tr key={row.key} className={rowClass}>
-        <th scope="row">{row.label}</th>
-        <td className={factClass}>{formatValue(row.kind, factVal, { signed })}</td>
+        <th scope="row">
+          {row.label}
+          {row.kind === 'percent' ? (
+            <span className="sales-finance-forecast__row-note">{NET_PROFIT_MARGIN_HINT_RU}</span>
+          ) : null}
+        </th>
+        <td className={factClass}>
+          {formatValue(row.kind, factVal, { signed })}
+          {row.kind === 'percent' && factVal != null ? (
+            <span
+              className={`sales-finance-forecast__badge sales-finance-forecast__badge--${describeNetProfitMarginTone(factVal).tone}`}
+            >
+              {describeNetProfitMarginTone(factVal).labelRu}
+            </span>
+          ) : null}
+        </td>
         {closedMonth ? null : (
-          <td className={forecastClass}>{formatValue(row.kind, forecastVal, { signed })}</td>
+          <td className={forecastClass}>
+            {formatValue(row.kind, forecastVal, { signed })}
+            {row.kind === 'percent' && forecastVal != null ? (
+              <span
+                className={`sales-finance-forecast__badge sales-finance-forecast__badge--${describeNetProfitMarginTone(forecastVal).tone}`}
+              >
+                {describeNetProfitMarginTone(forecastVal).labelRu}
+              </span>
+            ) : null}
+          </td>
         )}
       </tr>
     )

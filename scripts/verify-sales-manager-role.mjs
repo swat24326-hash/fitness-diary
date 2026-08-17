@@ -31,12 +31,13 @@ ok(!assertSalesPlanScopeForRole('levels', true).ok, 'manager levels blocked')
 const stripped = stripSalesBundleForManager(
   {
     expense: { amount: 1 },
-    month_summary: { profitTotal: 100, expense: 1, trainerPayroll: 2, aerobicPayroll: 3, netProfit: 97 },
+    month_summary: { profitTotal: 100, expense: 1, trainerPayroll: 2, aerobicPayroll: 3, netProfit: 97, netProfitMargin: 9.7 },
   },
   true,
 )
 ok(stripped.expense === undefined, 'strip expense')
 ok(stripped.month_summary.netProfit === undefined, 'strip net profit')
+ok(stripped.month_summary.netProfitMargin === undefined, 'strip net profit margin')
 ok(stripped.month_summary.profitTotal === 100, 'keep profit total')
 ok(stripped.month_summary.trainerPayroll === undefined, 'strip trainer payroll')
 ok(stripped.month_summary.aerobicPayroll === undefined, 'strip aerobic payroll')

@@ -2,6 +2,10 @@ import { useMemo } from 'react'
 import { Wallet } from 'lucide-react'
 import { formatRub } from '../lib/admin/salesReportCore.js'
 import { buildClubFinanceForecast } from '../lib/admin/clubFinanceForecastCore.js'
+import {
+  describeNetProfitMarginTone,
+  formatNetProfitMarginPercent,
+} from '../lib/admin/clubNetProfitMarginCore.js'
 import { SalesFinanceForecast } from './SalesFinanceForecast.jsx'
 
 /**
@@ -12,6 +16,7 @@ import { SalesFinanceForecast } from './SalesFinanceForecast.jsx'
  *     profitTotal?: number,
  *     expense?: number,
  *     netProfit?: number,
+     netProfitMargin?: number | null,
  *     profitNk?: number,
  *     profitDk?: number,
  *     profitUk?: number,
@@ -115,6 +120,19 @@ export function SalesFinancePanel({
               <span className="sales-report__kpi-label">Чистая прибыль</span>
               <span className="sales-report__kpi-value">{formatRub(summary.netProfit ?? 0)}</span>
             </div>
+            {summary.netProfitMargin != null ? (
+              <div className="sales-report__kpi sales-report__kpi--primary">
+                <span className="sales-report__kpi-label">Маржа по валу</span>
+                <span
+                  className={`sales-report__kpi-value sales-report__kpi-value--margin-${describeNetProfitMarginTone(summary.netProfitMargin).tone}`}
+                >
+                  {formatNetProfitMarginPercent(summary.netProfitMargin)}
+                </span>
+                <span className="sales-report__kpi-note muted">
+                  {describeNetProfitMarginTone(summary.netProfitMargin).labelRu}
+                </span>
+              </div>
+            ) : null}
           </div>
         </>
       ) : null}

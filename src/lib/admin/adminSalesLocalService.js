@@ -50,6 +50,7 @@ import {
   buildTrainerPayRateMap,
   computeNetProfitWithPayroll,
 } from './trainerPayrollCore.js'
+import { buildNetProfitMarginMeta } from './clubNetProfitMarginCore.js'
 import {
   aggregateAerobicPayrollFromDailyRows,
   buildAerobicPayRateMap,
@@ -333,6 +334,10 @@ export async function fetchClubSalesBundleViaSupabase({ clubId, reportDate, prof
       expenseAmount,
       monthAerobicPayroll.clubTotal,
     )
+    monthSummary.netProfitMargin = buildNetProfitMarginMeta(
+      monthSummary.netProfit,
+      monthSummary.profitGrossTotal,
+    ).pct
     monthSummary.hallFinance = buildHallFinanceSummary(
       monthRows,
       monthPayroll.clubTotal,

@@ -3,6 +3,7 @@ import {
   buildStrategyAdminFinanceBar,
   formatStrategyAdminFinanceValue,
 } from '../lib/admin/salesStrategyAdminFinanceCore.js'
+import { describeNetProfitMarginTone } from '../lib/admin/clubNetProfitMarginCore.js'
 
 /**
  * Админ-полоса Стратегии: нагрузка и чистая. Менеджеру не показывается.
@@ -61,6 +62,12 @@ export function SalesStrategyAdminFinanceBar(props) {
           const negative =
             cell.signed &&
             ((cell.forecast != null ? Number(cell.forecast) : Number(cell.fact)) < 0)
+          const marginTone =
+            cell.kind === 'percent'
+              ? describeNetProfitMarginTone(
+                  cell.forecast != null ? cell.forecast : cell.fact,
+                ).tone
+              : null
           return (
             <article
               key={cell.key}
@@ -68,6 +75,9 @@ export function SalesStrategyAdminFinanceBar(props) {
                 'sales-strategy-admin-finance__cell',
                 cell.primary ? 'sales-strategy-admin-finance__cell--primary' : '',
                 negative ? 'sales-strategy-admin-finance__cell--negative' : '',
+                marginTone && marginTone !== 'muted'
+                  ? `sales-strategy-admin-finance__cell--margin-${marginTone}`
+                  : '',
               ]
                 .filter(Boolean)
                 .join(' ')}

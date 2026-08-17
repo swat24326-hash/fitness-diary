@@ -66,6 +66,8 @@ ok(analytics.insights?.fitcity?.status === 'manager_higher', 'fitcity status man
 ok(analytics.insights?.fitcity?.gap === 3, 'fitcity gap')
 ok(analytics.insights?.finance?.payroll_share_pct > 0, 'finance payroll share')
 ok(analytics.insights?.finance?.aerobic_payroll_share_pct > 0, 'finance aerobic share')
+ok(typeof analytics.insights?.finance?.net_profit_margin_pct === 'number', 'insights finance margin pct')
+ok(analytics.finance?.net_profit_margin_pct === analytics.insights?.finance?.net_profit_margin_pct, 'top finance margin matches insights')
 ok(analytics.insights?.highlights?.best_day?.profit === 5100, 'insights best day')
 ok(Array.isArray(analytics.insights?.structure?.rows), 'structure rows')
 ok(analytics.sales.structure_shares?.length === 4, 'structure shares include dop')

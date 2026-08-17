@@ -28,6 +28,7 @@ import {
 } from './clubFinanceForecastProjection.js'
 import { buildGeminiMonthCalendarContext } from './geminiMonthCalendarContext.js'
 import { buildPurchaseMixForecast } from './clubFinancePurchaseMixForecastCore.js'
+import { enrichFinanceSnapshotWithNetProfitMargin, buildNetProfitMarginMeta } from './clubNetProfitMarginCore.js'
 import {
   alignDirectionFactsToClubGross,
   appendUnallocatedPlanRow,
@@ -571,7 +572,7 @@ export function buildClubFinanceForecast(opts) {
 
   /** Закрытый месяц: только факт (прогноз = факт, без экстраполяции на «дыры»). */
   if (closedMonth) {
-    const factSnapshot = {
+    const factSnapshot = enrichFinanceSnapshotWithNetProfitMargin({
       earnings: factEarnings,
       earningsGross: factGross,
       refunds: factRefunds,
@@ -581,7 +582,7 @@ export function buildClubFinanceForecast(opts) {
       aerobicPayroll: aerobicPayrollFact,
       expense,
       netProfit: factNetProfit,
-    }
+    })
     const { directions: directionRows, totals: directionTotals } = finalizeDirectionTable(
       buildDirectionFactRows(monthRows, planTargets.directions),
       { factGross, forecastGross: factGross, level3: planLevel3, closedMonth: true },
@@ -816,7 +817,7 @@ export function buildClubFinanceForecast(opts) {
       purchaseMix,
       profitPaceGross,
     },
-    fact: {
+    fact: enrichFinanceSnapshotWithNetProfitMargin({
       earnings: factEarnings,
       earningsGross: factGross,
       refunds: factRefunds,
@@ -826,8 +827,8 @@ export function buildClubFinanceForecast(opts) {
       aerobicPayroll: aerobicPayrollFact,
       expense,
       netProfit: factNetProfit,
-    },
-    forecast: {
+    }),
+    forecast: enrichFinanceSnapshotWithNetProfitMargin({
       earnings: forecastEarnings,
       earningsGross: forecastGross,
       refunds: forecastRefunds,
@@ -837,7 +838,7 @@ export function buildClubFinanceForecast(opts) {
       aerobicPayroll: forecastAerobicPayroll,
       expense,
       netProfit: forecastNetProfit,
-    },
+    }),
     refundsPace: {
       method: refundsProj.method,
       paced: refundsProj.paced,
@@ -934,6 +935,10 @@ export function buildIskraMonthForecastSummary(opts) {
 
   if (includeFinance) {
     summary.forecast_net_profit = fc.forecast.netProfit
+    const margin = buildNetProfitMarginMeta(fc.forecast.netProfit, fc.forecast.earningsGross)
+    if (margin.pct != null) summary.forecast_net_profit_margin_pct = margin.pct
+    summary.forecast_net_profit_margin_tone = margin.tone
+    summary.forecast_net_profit_margin_label_ru = margin.label_ru
   }
 
   return summary
@@ -992,6 +997,9 @@ export function buildIskraClubFinanceBlock(opts) {
   const shortfall =
     planLevel3 > 0 && forecastGross < planLevel3 ? roundRub(planLevel3 - forecastGross) : 0
 
+  const factMargin = buildNetProfitMarginMeta(fc.fact.netProfit, fc.fact.earningsGross)
+  const forecastMargin = buildNetProfitMarginMeta(fc.forecast.netProfit, fc.forecast.earningsGross)
+
   /** @type {Record<string, unknown>} */
   const block = {
     available: true,
@@ -1009,6 +1017,10 @@ export function buildIskraClubFinanceBlock(opts) {
       trainer_payroll_rub: fc.fact.trainerPayroll,
       aerobic_payroll_rub: fc.fact.aerobicPayroll,
       supervisor_expense_rub: fc.fact.expense,
+      gross_rub: fc.fact.earningsGross,
+      net_profit_margin_pct: factMargin.pct ?? undefined,
+      net_profit_margin_tone: factMargin.tone,
+      net_profit_margin_label_ru: factMargin.label_ru,
       halls: {
         pz_net_profit_rub: hallFinance.pz?.netProfit ?? 0,
         pz_revenue_rub: hallFinance.pz?.revenue ?? 0,
@@ -1059,6 +1071,9 @@ export function buildIskraClubFinanceBlock(opts) {
 
   if (includeFinance) {
     block.forecast.net_profit_rub = fc.forecast.netProfit
+    block.forecast.net_profit_margin_pct = forecastMargin.pct ?? undefined
+    block.forecast.net_profit_margin_tone = forecastMargin.tone
+    block.forecast.net_profit_margin_label_ru = forecastMargin.label_ru
   }
 
   return block

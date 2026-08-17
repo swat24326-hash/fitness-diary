@@ -38,6 +38,16 @@ export function deriveSourceFactsForReply(snapshot, userMessage = '', meta = {})
   if (key.includes('finance') || key.includes('payroll')) {
     const net = snapshot.finance?.net_profit
     if (net != null) push(`Чистая прибыль: ${formatRubCompact(net)}`)
+    const margin = snapshot.finance?.net_profit_margin_pct ?? snapshot.club_finance?.fact?.net_profit_margin_pct
+    if (margin != null) {
+      const marginLabel =
+        snapshot.finance?.net_profit_margin_label_ru ?? snapshot.club_finance?.fact?.net_profit_margin_label_ru
+      push(
+        marginLabel
+          ? `Маржа по валу: ${String(margin).replace('.', ',')}% (${marginLabel})`
+          : `Маржа по валу: ${String(margin).replace('.', ',')}%`,
+      )
+    }
     const payroll = snapshot.finance?.trainer_payroll
     if (payroll != null) push(`ЗП зала (ПЗ): ${formatRubCompact(payroll)}`)
   }

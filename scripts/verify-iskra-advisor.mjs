@@ -96,11 +96,31 @@ const supervisorRole = resolveIskraAdvisorRole('club_supervisor')
 ok(!supervisorRole.active, 'supervisor role def inactive')
 const filteredSupervisor = filterSnapshotForAdvisorRole(snap, 'club_supervisor')
 ok(!filteredSupervisor.insights?.finance, 'supervisor scope hides finance when enabled later')
+ok(filteredSupervisor.club_finance?.fact?.net_profit_margin_pct === undefined, 'supervisor scope strips fact margin')
+ok(filteredSupervisor.club_finance?.forecast?.net_profit_margin_pct === undefined, 'supervisor scope strips forecast margin')
 
 const adminCards = buildIskraAdviceCards(snap, { advisorRoleId: 'app_admin' })
 ok(adminCards.length >= 1, 'advice cards for admin')
 const supervisorCards = buildIskraAdviceCards(snap, { advisorRoleId: 'club_supervisor' })
 ok(!supervisorCards.some((c) => c.id === 'payroll_pressure'), 'supervisor no payroll advice when scoped')
+
+const lowMarginSnap = buildGeminiSnapshot({
+  clubName: 'FIT-CITY Север',
+  year: 2026,
+  month: 6,
+  monthRows: [
+    { report_date: '2026-06-01', profit_nk: 100_000, profit_dk: 0, profit_uk: 0 },
+    { report_date: '2026-06-02', profit_nk: 100_000, profit_dk: 0, profit_uk: 0 },
+  ],
+  plan: { plan_total: 500_000 },
+  expenseAmount: 50_000,
+  payrollClubTotal: 140_000,
+  membershipTypes,
+  includeFinance: true,
+})
+ok(lowMarginSnap.insights?.finance?.net_profit_margin_tone === 'weak', 'low margin tone weak')
+const lowMarginCards = buildIskraAdviceCards(lowMarginSnap, { advisorRoleId: 'app_admin' })
+ok(lowMarginCards.some((c) => c.id === 'low_net_profit_margin'), 'advice card for low net profit margin')
 
 const summary = buildIskraAdviceSummary(snap, { advisorRoleId: 'app_admin', limit: 2 })
 ok(summary.has_actionable && summary.cards.length <= 2, 'advice summary compact')

@@ -477,6 +477,7 @@ ok(iskra.available, 'iskra forecast available')
 ok(iskra.forecast_gross_total === fc3.plan.forecastGross, 'iskra gross matches finance forecast')
 ok(iskra.shortfall_rub > 0 && iskra.surplus_rub === 0, 'iskra shortfall when below plan')
 ok(Number.isFinite(Number(iskra.forecast_net_profit)), 'iskra net profit when finance on')
+ok(Number.isFinite(Number(iskra.forecast_net_profit_margin_pct)), 'iskra forecast margin when finance on')
 
 const iskraNoFinance = buildIskraMonthForecastSummary({
   monthRows: rows3,

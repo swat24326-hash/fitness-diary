@@ -569,7 +569,7 @@
 
 .sales-strategy-admin-finance__grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 0.55rem;
 }
 
@@ -605,6 +605,18 @@
 
 .sales-strategy-admin-finance__cell--negative .sales-strategy-admin-finance__value {
   color: color-mix(in srgb, #e74c3c 85%, white);
+}
+
+.sales-strategy-admin-finance__cell--margin-weak .sales-strategy-admin-finance__value {
+  color: #fca5a5;
+}
+
+.sales-strategy-admin-finance__cell--margin-ok .sales-strategy-admin-finance__value {
+  color: #fef08a;
+}
+
+.sales-strategy-admin-finance__cell--margin-strong .sales-strategy-admin-finance__value {
+  color: var(--accent-bright);
 }
 
 .sales-strategy-admin-finance__fact {

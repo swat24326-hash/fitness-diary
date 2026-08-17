@@ -58,6 +58,7 @@ ok(salesRes.ok, `sales GET HTTP ${salesRes.status}`)
 ok(bundle.club_id === CLUB_ID, 'bundle club_id')
 ok(bundle.expense === undefined, 'expense stripped for manager')
 ok(!bundle.month_summary?.netProfit, 'netProfit stripped')
+ok(bundle.month_summary?.netProfitMargin === undefined, 'netProfitMargin stripped')
 ok(bundle.plan !== undefined || bundle.daily !== undefined || Array.isArray(bundle.month_days), 'bundle shape ok')
 
 const planLevelsRes = await fetch(`${BASE}/api/admin-data?action=sales-plan`, {

@@ -8,6 +8,10 @@ import {
   buildClubFinanceForecast,
 } from './clubFinanceForecastCore.js'
 import { formatRub } from './salesReportCore.js'
+import {
+  describeNetProfitMarginTone,
+  formatNetProfitMarginPercent,
+} from './clubNetProfitMarginCore.js'
 
 /** @typedef {'current' | 'next'} StrategyHorizon */
 
@@ -162,7 +166,7 @@ export function buildAdminFinanceCells(fc, opts = {}) {
   const forecast = fc.forecast
   const showForecast = !closed
 
-  /** @type {Array<{ key: string, label: string, kind: 'count' | 'money', fact: number, forecast: number | null, primary?: boolean, signed?: boolean }>} */
+  /** @type {Array<{ key: string, label: string, kind: 'count' | 'money' | 'percent', fact: number, forecast: number | null, primary?: boolean, signed?: boolean, marginTone?: string }>} */
   const cells = [
     {
       key: 'pzTrainings',
@@ -208,6 +212,17 @@ export function buildAdminFinanceCells(fc, opts = {}) {
       primary: true,
       signed: true,
     },
+    {
+      key: 'netProfitMargin',
+      label: 'Маржа',
+      kind: 'percent',
+      fact: fact.netProfitMargin,
+      forecast: showForecast ? forecast.netProfitMargin : null,
+      primary: true,
+      marginTone: describeNetProfitMarginTone(
+        showForecast ? forecast.netProfitMargin : fact.netProfitMargin,
+      ).tone,
+    },
   ]
   return cells
 }
@@ -219,6 +234,7 @@ export function buildAdminFinanceCells(fc, opts = {}) {
  */
 export function formatStrategyAdminFinanceValue(kind, value, opts = {}) {
   if (kind === 'count') return new Intl.NumberFormat('ru-RU').format(Number(value) || 0)
+  if (kind === 'percent') return formatNetProfitMarginPercent(value)
   const n = Number(value) || 0
   return formatRub(opts.signed ? n : Math.abs(n))
 }

@@ -39,6 +39,11 @@ export const ISKRA_ADVICE_DO_ACTIONS = {
     message: 'Как устроена чистая прибыль и маржа клуба за месяц?',
     label: 'Финансы',
   },
+  low_net_profit_margin: {
+    handlerId: 'finance',
+    message: 'Как устроена чистая прибыль и маржа клуба за месяц?',
+    label: 'Маржа',
+  },
   fitcity_gap: {
     handlerId: 'gap',
     message: 'Насколько отчёт менеджера совпадает с планшетами?',
@@ -112,6 +117,14 @@ export function estimateAdviceImpactRub(cardId, snapshot) {
       const margin = Number(insights.finance?.net_profit) || Number(cf?.net_profit) || 0
       if (margin <= 0) return null
       return Math.round(margin * 0.15)
+    }
+    case 'low_net_profit_margin': {
+      const gross = Number(insights.finance?.gross) || Number(sales.profit_gross_total) || profitTotal
+      if (gross <= 0) return null
+      const net = Number(insights.finance?.net_profit) || 0
+      const targetNet = gross * 0.2
+      if (net >= targetNet) return null
+      return Math.round(Math.max(0, targetNet - net))
     }
     case 'fitcity_gap': {
       const gap = Number(insights.fitcity?.gap) || 0
