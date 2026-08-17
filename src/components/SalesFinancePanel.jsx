@@ -3,6 +3,7 @@ import { Wallet } from 'lucide-react'
 import { formatRub } from '../lib/admin/salesReportCore.js'
 import { buildClubFinanceForecast } from '../lib/admin/clubFinanceForecastCore.js'
 import {
+  NET_PROFIT_MARGIN_LABEL_RU,
   describeNetProfitMarginTone,
   formatNetProfitMarginPercent,
 } from '../lib/admin/clubNetProfitMarginCore.js'
@@ -122,7 +123,7 @@ export function SalesFinancePanel({
             </div>
             {summary.netProfitMargin != null ? (
               <div className="sales-report__kpi sales-report__kpi--primary">
-                <span className="sales-report__kpi-label">Маржа по валу</span>
+                <span className="sales-report__kpi-label">{NET_PROFIT_MARGIN_LABEL_RU}</span>
                 <span
                   className={`sales-report__kpi-value sales-report__kpi-value--margin-${describeNetProfitMarginTone(summary.netProfitMargin).tone}`}
                 >

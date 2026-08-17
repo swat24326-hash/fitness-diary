@@ -139,12 +139,12 @@ export function buildIskraAdviceCards(snapshot, opts = {}) {
       headline:
         Number(finance.net_profit_margin_pct) < 0
           ? 'Клуб в минусе по чистой'
-          : 'Маржа по валу просела',
+          : 'Рентабельность по валу просела',
       action:
         Number(finance.net_profit_margin_pct) < 0
           ? 'Срочно: возвраты, ЗП и расход против вала — сверить неделю и план до конца месяца'
-          : 'Сверить возвраты, ЗП зала и расход: маржа ниже 15% — дожать допродажи или снять давление затрат',
-      evidence: `Маржа ${String(finance.net_profit_margin_pct).replace('.', ',')}% (${finance.net_profit_margin_label_ru ?? 'риск'})`,
+          : 'Сверить возвраты, ЗП зала и расход: рентабельность ниже 15% — дожать допродажи или снять давление затрат',
+      evidence: `Рент-ть ${String(finance.net_profit_margin_pct).replace('.', ',')}% (${finance.net_profit_margin_label_ru ?? 'риск'})`,
       roleIds: ['app_admin', 'curator'],
     })
   }

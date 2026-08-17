@@ -1,12 +1,13 @@
 import { formatRub } from '../../lib/admin/salesReportCore.js'
 import {
+  NET_PROFIT_MARGIN_LABEL_RU,
   describeNetProfitMarginTone,
   formatNetProfitMarginPercent,
 } from '../../lib/admin/clubNetProfitMarginCore.js'
 
 const ROWS = [
   { key: 'netProfit', label: 'Чистая прибыль', kind: 'money', signed: true },
-  { key: 'netProfitMargin', label: 'Маржа по валу', kind: 'percent' },
+  { key: 'netProfitMargin', label: NET_PROFIT_MARGIN_LABEL_RU, kind: 'percent' },
   { key: 'pzTrainings', label: 'Тренировки ПЗ', kind: 'count' },
   { key: 'azTrainings', label: 'Тренировки АЗ', kind: 'count' },
 ]

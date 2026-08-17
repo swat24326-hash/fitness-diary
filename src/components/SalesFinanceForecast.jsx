@@ -8,6 +8,7 @@ import {
 import { formatRub } from '../lib/admin/salesReportCore.js'
 import {
   NET_PROFIT_MARGIN_HINT_RU,
+  NET_PROFIT_MARGIN_LABEL_RU,
   describeNetProfitMarginTone,
   formatNetProfitMarginPercent,
 } from '../lib/admin/clubNetProfitMarginCore.js'
@@ -104,7 +105,7 @@ export function SalesFinanceForecast({
   const netProfitRow = { key: 'netProfit', label: 'Чистая прибыль', kind: 'money', primary: true, signed: true }
   const netProfitMarginRow = {
     key: 'netProfitMargin',
-    label: 'Маржа по валу',
+    label: NET_PROFIT_MARGIN_LABEL_RU,
     kind: 'percent',
     primary: true,
   }

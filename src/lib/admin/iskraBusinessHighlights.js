@@ -2,6 +2,7 @@
 
 import { formatRub } from './salesReportCore.js'
 import { phrasePlanProgress, formatRubCompact } from './iskraReplyPhrasing.js'
+import { NET_PROFIT_MARGIN_LABEL_SHORT_RU } from './clubNetProfitMarginCore.js'
 
 /**
  * @param {object | null | undefined} snapshot
@@ -38,12 +39,12 @@ export function buildIskraBusinessHighlights(snapshot) {
     }
     const marginForecast = cf.forecast?.net_profit_margin_pct
     if (marginForecast != null && Number.isFinite(Number(marginForecast))) {
-      parts.push(`маржа ${String(marginForecast).replace('.', ',')}%`)
+      parts.push(`${NET_PROFIT_MARGIN_LABEL_SHORT_RU} ${String(marginForecast).replace('.', ',')}%`)
     }
   } else if (finance?.net_profit != null) {
     parts.push(`прибыль ${formatRub(finance.net_profit)}`)
     if (finance.net_profit_margin_pct != null) {
-      parts.push(`маржа ${String(finance.net_profit_margin_pct).replace('.', ',')}%`)
+      parts.push(`${NET_PROFIT_MARGIN_LABEL_SHORT_RU} ${String(finance.net_profit_margin_pct).replace('.', ',')}%`)
     }
   }
 

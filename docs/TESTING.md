@@ -106,7 +106,7 @@
 | Стратегия: дрейф при архиве клиентов | `verify-sales-strategy-archive-drift.mjs` |
 | Стратегия: снимок playbook (галочки на всех устройствах) | `verify-sales-strategy-snapshot.mjs` |
 | Стратегия: админ-полоса часов / ЗП / возвратов / чистой | `verify-sales-strategy-admin-finance.mjs` |
-| Финансы: маржа по валу (чистая ÷ вал, пороги 15/20/25%) | `verify-club-net-profit-margin.mjs` |
+| Финансы: рентабельность по валу (чистая ÷ вал, пороги 15/20/25%) | `verify-club-net-profit-margin.mjs` |
 | Стратегия: правка НК/УК перед «В план» | `verify-sales-strategy-nk-uk-edit.mjs` |
 | План: частичное сохранение без затирания матрицы/уровней | `verify-sales-plan-row-persist.mjs` |
 | План: предупреждение при ручной правке ДК | `verify-sales-plan-dk-edit-warn.mjs` |

@@ -9,6 +9,7 @@ import {
 } from './clubFinanceForecastCore.js'
 import { formatRub } from './salesReportCore.js'
 import {
+  NET_PROFIT_MARGIN_LABEL_SHORT_RU,
   describeNetProfitMarginTone,
   formatNetProfitMarginPercent,
 } from './clubNetProfitMarginCore.js'
@@ -214,7 +215,7 @@ export function buildAdminFinanceCells(fc, opts = {}) {
     },
     {
       key: 'netProfitMargin',
-      label: 'Маржа',
+      label: NET_PROFIT_MARGIN_LABEL_SHORT_RU,
       kind: 'percent',
       fact: fact.netProfitMargin,
       forecast: showForecast ? forecast.netProfitMargin : null,

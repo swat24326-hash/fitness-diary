@@ -36,13 +36,13 @@ export const ISKRA_ADVICE_DO_ACTIONS = {
   },
   payroll_pressure: {
     handlerId: 'finance',
-    message: 'Как устроена чистая прибыль и маржа клуба за месяц?',
+    message: 'Как устроена чистая прибыль и рентабельность клуба за месяц?',
     label: 'Финансы',
   },
   low_net_profit_margin: {
     handlerId: 'finance',
-    message: 'Как устроена чистая прибыль и маржа клуба за месяц?',
-    label: 'Маржа',
+    message: 'Как устроена чистая прибыль и рентабельность клуба за месяц?',
+    label: 'Рентабельность',
   },
   fitcity_gap: {
     handlerId: 'gap',

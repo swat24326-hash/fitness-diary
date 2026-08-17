@@ -15,7 +15,7 @@ import {
 } from './geminiPlanDirections.js'
 import { phrasePlanSnapshotLine } from './iskraReplyPhrasing.js'
 import { formatRub } from './salesReportCore.js'
-import { formatNetProfitMarginPercent } from './clubNetProfitMarginCore.js'
+import { formatNetProfitMarginPercent, NET_PROFIT_MARGIN_LABEL_RU } from './clubNetProfitMarginCore.js'
 import { periodLabelRu } from './geminiAnalyticsSnapshot.js'
 import { iskraReplyHeader, iskraTrainerHeader, joinIskraReply } from './iskraReplyCompact.js'
 import { buildIskraAdviceReply } from './iskraBusinessAdvice.js'
@@ -71,7 +71,7 @@ export const GEMINI_INSTANT_CHIPS = [
   },
   {
     id: 'finance',
-    label: 'ЗП и маржа',
+    label: 'ЗП и рентабельность',
     message: 'ЗП залов и чистая прибыль — норм или давит?',
     compare: false,
     quick: true,
@@ -581,13 +581,13 @@ function buildFinanceReply(club, period, insights, _opener, _closer, seed, snaps
     forecastLine = ` Прогноз прибыли ${formatRub(cf.forecast.net_profit_rub)}.`
     const fcMargin = cf.forecast?.net_profit_margin_pct
     if (fcMargin != null && Number.isFinite(Number(fcMargin))) {
-      forecastLine += ` Маржа ${formatNetProfitMarginPercent(fcMargin)}.`
+      forecastLine += ` ${NET_PROFIT_MARGIN_LABEL_RU} ${formatNetProfitMarginPercent(fcMargin)}.`
     }
   }
 
   let marginLine = ''
   if (marginPct != null && Number.isFinite(Number(marginPct))) {
-    marginLine = ` Маржа по валу ${formatNetProfitMarginPercent(marginPct)}${marginLabel ? ` (${marginLabel})` : ''}.`
+    marginLine = ` ${NET_PROFIT_MARGIN_LABEL_RU} ${formatNetProfitMarginPercent(marginPct)}${marginLabel ? ` (${marginLabel})` : ''}.`
   }
 
   const tone =
@@ -907,7 +907,7 @@ function buildMonthForecastReply(club, period, snapshot, _opener, _closer, seed)
     const fcMargin = cf?.forecast?.net_profit_margin_pct ?? mf?.forecast_net_profit_margin_pct
     const fcMarginLabel = cf?.forecast?.net_profit_margin_label_ru ?? mf?.forecast_net_profit_margin_label_ru
     if (fcMargin != null && Number.isFinite(Number(fcMargin))) {
-      profitLine += ` Маржа ${formatNetProfitMarginPercent(fcMargin)}${fcMarginLabel ? ` (${fcMarginLabel})` : ''}.`
+      profitLine += ` ${NET_PROFIT_MARGIN_LABEL_RU} ${formatNetProfitMarginPercent(fcMargin)}${fcMarginLabel ? ` (${fcMarginLabel})` : ''}.`
     }
   }
 

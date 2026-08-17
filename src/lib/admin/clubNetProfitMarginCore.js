@@ -1,5 +1,5 @@
 /**
- * Маржа по валу: чистая прибыль ÷ валовая выручка × 100%.
+ * Рентабельность по валу: чистая прибыль ÷ валовая выручка × 100%.
  * Оценка для клуба: <15% риск, ~20% норма, ≥25% отлично.
  *
  * Вал = Σ profit_day (gross), как для плана; чистая = после возвратов, ЗП и расхода.
@@ -10,6 +10,12 @@
 export const NET_PROFIT_MARGIN_WEAK_BELOW = 15
 export const NET_PROFIT_MARGIN_OK_FROM = 20
 export const NET_PROFIT_MARGIN_STRONG_FROM = 25
+
+/** Каноническое имя показателя в UI и ИСКРЕ. */
+export const NET_PROFIT_MARGIN_LABEL_RU = 'Рентабельность по валу'
+
+/** Короткая подпись для компактных полос (Стратегия). */
+export const NET_PROFIT_MARGIN_LABEL_SHORT_RU = 'Рент-ть валу'
 
 export const NET_PROFIT_MARGIN_HINT_RU =
   'Чистая ÷ вал × 100%. Ниже 15% — риск, ~20% норма, от 25% — отлично.'

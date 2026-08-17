@@ -4,6 +4,7 @@
 
 import { deriveReplySignalKey } from './iskraLearningCore.js'
 import { formatRubCompact, formatPctPlain } from './iskraReplyPhrasing.js'
+import { NET_PROFIT_MARGIN_LABEL_RU } from './clubNetProfitMarginCore.js'
 
 /**
  * @param {object | null | undefined} snapshot
@@ -44,8 +45,8 @@ export function deriveSourceFactsForReply(snapshot, userMessage = '', meta = {})
         snapshot.finance?.net_profit_margin_label_ru ?? snapshot.club_finance?.fact?.net_profit_margin_label_ru
       push(
         marginLabel
-          ? `Маржа по валу: ${String(margin).replace('.', ',')}% (${marginLabel})`
-          : `Маржа по валу: ${String(margin).replace('.', ',')}%`,
+          ? `${NET_PROFIT_MARGIN_LABEL_RU}: ${String(margin).replace('.', ',')}% (${marginLabel})`
+          : `${NET_PROFIT_MARGIN_LABEL_RU}: ${String(margin).replace('.', ',')}%`,
       )
     }
     const payroll = snapshot.finance?.trainer_payroll
