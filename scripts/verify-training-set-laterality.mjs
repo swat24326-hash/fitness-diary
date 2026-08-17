@@ -14,6 +14,7 @@ import {
   collectSetLoadNums,
   maybeEnableLateralityFromLast,
   displayLateralityField,
+  patchLateralitySetField,
   resultHasLaterality,
 } from '../src/lib/trainingSetLateralityCore.js'
 import {
@@ -180,6 +181,12 @@ ok(inferred[0].sets[0].reps_r === '8', 'storage does not drop right side without
 ok(displayLateralityField({ reps: '10' }, 'reps_l', 'reps_r', 'reps') === '10', 'display fallback both empty')
 ok(displayLateralityField({ reps_l: '8', reps: '10' }, 'reps_l', 'reps_r', 'reps') === '8', 'display prefers side')
 ok(displayLateralityField({ reps_l: '8', reps: '10' }, 'reps_r', 'reps_l', 'reps') === '', 'display empty other side not fallback')
+
+const hydratedEdit = patchLateralitySetField({ reps: '10', weight_kg: '20' }, 'reps_l', '8')
+ok(hydratedEdit.reps_l === '8' && hydratedEdit.reps_r === '10', 'edit left hydrates right from bilateral')
+ok(hydratedEdit.weight_kg_l === '20' && hydratedEdit.weight_kg_r === '20', 'edit hydrates both weights')
+const storedAfterEdit = normalizeSetForStorage(hydratedEdit, true)
+ok(storedAfterEdit.reps_r === '10' && storedAfterEdit.weight_kg_r === '20', 'hydrated edit persists other side')
 
 const fromLast = maybeEnableLateralityFromLast(
   { format: 'Силовая', sets: [emptyTrainingSetRow()] },

@@ -40,6 +40,7 @@ import {
   readHrSamples,
   writeHrSamples,
 } from '../lib/hr/hrSampleBufferStore'
+import { hrScopeAllowsRecording } from '../lib/hr/hrSessionPersistCore.js'
 import {
   readRememberedHrDevices,
   removeRememberedHrDevice,
@@ -79,19 +80,28 @@ export function HeartRateSessionsProvider({ children }) {
       const id = String(clientId)
       if (!trainerUserId) return
       const tid = scopeFor(id)
-      if (!tid) return
+      if (!hrScopeAllowsRecording(tid)) return
       const prev = persistTimerRef.current.get(id)
       if (prev) clearTimeout(prev)
       persistTimerRef.current.set(
         id,
         setTimeout(() => {
           persistTimerRef.current.delete(id)
-          writeHrSamples(trainerUserId, id, tid, samplesRef.current.get(id) ?? [])
+          const stillTid = scopeFor(id)
+          if (!hrScopeAllowsRecording(stillTid)) return
+          writeHrSamples(trainerUserId, id, stillTid, samplesRef.current.get(id) ?? [])
         }, 400),
       )
     },
     [scopeFor, trainerUserId],
   )
+
+  const cancelScheduledPersist = useCallback((clientId) => {
+    const id = String(clientId ?? '')
+    const prev = persistTimerRef.current.get(id)
+    if (prev) clearTimeout(prev)
+    persistTimerRef.current.delete(id)
+  }, [])
 
   const bindTrainingScope = useCallback(
     (clientId, trainingId) => {
@@ -218,12 +228,15 @@ export function HeartRateSessionsProvider({ children }) {
           if (!aliveRef.current) return
           const rt = runtimeRef.current.get(id)
           if (rt) rt.lastBpmAt = Date.now()
-          const prev = samplesRef.current.get(id) ?? []
-          const next = appendHrSample(prev, bpm)
-          samplesRef.current.set(id, next)
-          if (next.length !== prev.length) {
-            setSamplesEpoch((n) => n + 1)
-            schedulePersist(id)
+          const tid = scopeFor(id)
+          if (hrScopeAllowsRecording(tid)) {
+            const prev = samplesRef.current.get(id) ?? []
+            const next = appendHrSample(prev, bpm)
+            samplesRef.current.set(id, next)
+            if (next.length !== prev.length) {
+              setSamplesEpoch((n) => n + 1)
+              schedulePersist(id)
+            }
           }
           const zone = hrZoneForBpm(bpm, maxHrRef.current.get(id) ?? DEFAULT_MAX_HR)
           patchSlot(id, { bpm, stale: false, status: 'live', error: '', zone })
@@ -452,6 +465,7 @@ export function HeartRateSessionsProvider({ children }) {
     (clientId) => {
       const id = String(clientId ?? '')
       if (!id) return
+      cancelScheduledPersist(id)
       samplesRef.current.delete(id)
       const tid = scopeFor(id)
       if (trainerUserId) {
@@ -460,7 +474,21 @@ export function HeartRateSessionsProvider({ children }) {
       }
       setSamplesEpoch((n) => n + 1)
     },
-    [scopeFor, trainerUserId],
+    [cancelScheduledPersist, scopeFor, trainerUserId],
+  )
+
+  /**
+   * Завершили тренировку: снимок уже в дневнике — буфер и scope этой сессии закрываем.
+   * Датчик отключает вызывающий (чип не должен остаться «живой сессией»).
+   */
+  const endTrainingHrSession = useCallback(
+    (clientId) => {
+      const id = String(clientId ?? '').trim()
+      if (!id) return
+      clearSessionSamples(id)
+      trainingScopeRef.current.delete(id)
+    },
+    [clearSessionSamples],
   )
 
   /**
@@ -472,6 +500,7 @@ export function HeartRateSessionsProvider({ children }) {
       const id = String(clientId ?? '').trim()
       const tid = String(trainingId ?? '').trim()
       if (!id || !tid) return
+      cancelScheduledPersist(id)
       if (trainerUserId) {
         clearHrSamples(trainerUserId, id, tid)
         clearLegacyHrSamples(trainerUserId, id)
@@ -483,7 +512,7 @@ export function HeartRateSessionsProvider({ children }) {
         setSamplesEpoch((n) => n + 1)
       }
     },
-    [trainerUserId],
+    [cancelScheduledPersist, trainerUserId],
   )
 
   const liveCount = slots.filter((s) => s.status === 'live').length
@@ -504,6 +533,7 @@ export function HeartRateSessionsProvider({ children }) {
       getSessionSamples,
       summarizeSession,
       clearSessionSamples,
+      endTrainingHrSession,
       discardTrainingSamples,
       bindTrainingScope,
       migrateTrainingScope,
@@ -518,6 +548,7 @@ export function HeartRateSessionsProvider({ children }) {
       connectForClient,
       disconnectClient,
       discardTrainingSamples,
+      endTrainingHrSession,
       getSessionSamples,
       liveCount,
       migrateTrainingScope,
@@ -554,6 +585,7 @@ export function useHeartRateSessions() {
       getSessionSamples: () => [],
       summarizeSession: () => null,
       clearSessionSamples: () => {},
+      endTrainingHrSession: () => {},
       discardTrainingSamples: () => {},
       bindTrainingScope: () => {},
       migrateTrainingScope: () => {},

@@ -22,6 +22,11 @@ import { saveLocalWithSync } from '../../lib/syncService'
 import { stripDirectionControls } from '../../lib/textInput'
 import { getTrainingCompletionIssues } from '../../lib/trainingCompletionValidation'
 import {
+  isTrainingFirstCompletion,
+  isTrainingStatusCompleted,
+  resolveTrainingPersistStatus,
+} from '../../lib/trainingPersistStatusCore'
+import {
   TRAINING_SESSION_TYPES,
   deriveTrainingTypeFromExercises,
   normalizeExerciseFormat,
@@ -39,6 +44,7 @@ import {
   normalizeHrSessionSnapshot,
 } from '../../lib/hr/hrSessionAgg.js'
 import { hrConnectProfileHint } from '../../lib/hr/hrSessionsCore.js'
+import { pickHrSessionForPersist } from '../../lib/hr/hrSessionPersistCore.js'
 
 const TRAINING_TYPES = TRAINING_SESSION_TYPES
 
@@ -327,13 +333,15 @@ export function TrainingPage() {
       prev = await db.get('trainings', meta.trainingId)
     }
 
-    const nextStatus = status ?? meta.status ?? 'draft'
-    if (nextStatus === 'completed' && !silent) {
+    const previousStatus = prev?.status ?? meta.status
+    const nextStatus = resolveTrainingPersistStatus(status, previousStatus)
+    const firstCompletion = isTrainingFirstCompletion(previousStatus, nextStatus)
+    if (firstCompletion && !silent) {
       const completedElsewhere = await listTrainingsForClient(cid)
       const otherCompleted = completedElsewhere.filter(
         (tr) => String(tr?.status ?? '') === 'completed' && tr.id !== (prev?.id ?? trainingId),
       ).length
-      const isFirstCompletion = prev?.status !== 'completed' && otherCompleted === 0
+      const isFirstCompletion = otherCompleted === 0
       const hc = healthCard ?? (await getHealthCard(cid))
       const blockers = getTrainingCompletionIssues(workoutState, { health: hc, isFirstCompletion })
       if (blockers.length > 0) {
@@ -350,7 +358,9 @@ export function TrainingPage() {
     // Для тренера: при первом завершении — «сегодня»; у уже завершённой — выбранная дата.
     const saveWithChosenDate = canEditTrainingDate(
       isAdmin,
-      prev?.status === 'completed' || meta.status === 'completed' ? 'completed' : 'draft',
+      isTrainingStatusCompleted(prev?.status) || isTrainingStatusCompleted(meta.status)
+        ? 'completed'
+        : 'draft',
     )
     const effectiveDate = saveWithChosenDate ? trainingDate : today
     if (nextStatus === 'completed' && !silent && isIsoDateAfterToday(effectiveDate)) {
@@ -359,13 +369,7 @@ export function TrainingPage() {
     }
 
     // Черновик / повторный вход: не завершать первую тренировку, пока не решён сдвиг срока.
-    if (
-      nextStatus === 'completed' &&
-      !silent &&
-      !isAdmin &&
-      !lateShiftDismissedRef.current &&
-      prev?.status !== 'completed'
-    ) {
+    if (firstCompletion && !silent && !isAdmin && !lateShiftDismissedRef.current) {
       const lateCheck = await loadLateStartProposal(cid, effectiveDate)
       if (lateCheck.ok && lateCheck.proposal) {
         setEarlyActivateProposal(lateCheck.proposal)
@@ -415,12 +419,24 @@ export function TrainingPage() {
       ...sanitizeWorkoutData(workoutState, { sessionFallback: trainingType }),
       duration_min: wm + cm > 0 ? wm + cm : workoutState.duration_min ?? '',
     }
+    const hrSnap = pickHrSessionForPersist({
+      firstCompletion,
+      liveSummary: hr.summarizeSession(cid, {
+        birthDate: client?.birth_date,
+        sex: getHealthSex(healthCard),
+        weightKg: workoutState.pre_weight_kg || healthCard?.weight_kg || null,
+        asOfIso: effectiveDate || today,
+      }),
+      storedSnapshot: dataPayload.hr_session,
+    })
+    if (hrSnap) dataPayload.hr_session = hrSnap
+    else delete dataPayload.hr_session
 
     // Списание тренировки с абонемента: только при ПЕРВОМ переводе в completed.
     // Повторное "Завершить" после редактирования не меняет used_trainings.
     // Сначала сохраняем completed-тренировку, потом debit (если save упадёт — used не растёт зря).
     let membershipToDebit = null
-    if (nextStatus === 'completed' && prev?.status !== 'completed') {
+    if (firstCompletion) {
       let mems = []
       try {
         mems = await listMemberships(cid)
@@ -500,12 +516,18 @@ export function TrainingPage() {
 
       setMeta({ status: row.status, trainingId: row.id })
       try {
-        const pending = pendingHrScopeRef.current
-        if (pending && row.id && pending !== row.id) {
-          hr.migrateTrainingScope(cid, pending, row.id)
+        if (firstCompletion) {
+          hr.endTrainingHrSession(cid)
+          hr.disconnectClient(cid)
           pendingHrScopeRef.current = null
+        } else if (row.status !== 'completed') {
+          const pending = pendingHrScopeRef.current
+          if (pending && row.id && pending !== row.id) {
+            hr.migrateTrainingScope(cid, pending, row.id)
+            pendingHrScopeRef.current = null
+          }
+          if (row.id) hr.bindTrainingScope(cid, row.id)
         }
-        if (row.id) hr.bindTrainingScope(cid, row.id)
       } catch {
         /* ignore */
       }
@@ -538,11 +560,6 @@ export function TrainingPage() {
       }
 
       if (row.status === 'completed') {
-        try {
-          hr.clearSessionSamples(cid)
-        } catch {
-          /* ignore */
-        }
         const completedCount =
           otherCompletedTrainings + (prev?.status === 'completed' ? 0 : 1)
         if (!skipNavigate && shouldOfferMarkPnkTrialDone(client, completedCount)) {
@@ -634,20 +651,24 @@ export function TrainingPage() {
     if (!user?.id) return
 
     let cancelled = false
-    const flush = () => {
-      if (cancelled) return
+    const persistFlush = () => {
+      if (!userEditedRef.current) return
       void persist('draft', { silent: true, skipNavigate: true })
     }
+    const onHide = () => {
+      if (cancelled) return
+      persistFlush()
+    }
 
-    document.addEventListener('visibilitychange', flush)
-    window.addEventListener('pagehide', flush)
+    document.addEventListener('visibilitychange', onHide)
+    window.addEventListener('pagehide', onHide)
     return () => {
       cancelled = true
-      document.removeEventListener('visibilitychange', flush)
-      window.removeEventListener('pagehide', flush)
-      flush()
+      document.removeEventListener('visibilitychange', onHide)
+      window.removeEventListener('pagehide', onHide)
+      persistFlush()
     }
-  }, [flushSnapshotKey, loadState, user?.id])
+  }, [flushSnapshotKey, loadState, user?.id, meta.status])
 
   const title = useMemo(() => {
     if (!client) return ''
@@ -723,9 +744,10 @@ export function TrainingPage() {
   const daysTileLabel =
     daysUntilMembershipEnd == null ? '—' : daysUntilMembershipEnd < 0 ? '0' : String(daysUntilMembershipEnd)
 
-  /** Буфер пульса привязан к trainingId — не к клиенту целиком. */
+  /** Буфер пульса привязан к trainingId черновика — в завершённую не пишем. */
   useEffect(() => {
     if (loadState !== 'ok') return
+    if (isTrainingStatusCompleted(meta.status)) return
     const cid = String(client?.id ?? clientIdParam ?? '').trim()
     if (!cid) return
     let tid = meta.trainingId || draftTrainingIdRef.current
@@ -734,7 +756,7 @@ export function TrainingPage() {
       tid = pendingHrScopeRef.current
     }
     hr.bindTrainingScope(cid, tid)
-  }, [client?.id, clientIdParam, hr.bindTrainingScope, loadState, meta.trainingId, id])
+  }, [client?.id, clientIdParam, hr.bindTrainingScope, loadState, meta.trainingId, meta.status, id])
 
   const liveHrSummary = useMemo(() => {
     if (!clientKey || meta.status === 'completed') return null
@@ -942,7 +964,7 @@ export function TrainingPage() {
           {contra ? <ContraindicationsToggle text={contra} size="sm" mode="modal" /> : null}
         </div>
         <div className="training-page-head-title__right">
-          {!isAdmin && clientKey ? (
+          {!isAdmin && clientKey && !isTrainingStatusCompleted(meta.status) ? (
             <div className="training-hr-idle">
               <button
                 type="button"
@@ -1195,7 +1217,20 @@ export function TrainingPage() {
       ) : null}
 
       <div className="row training-actions-row" style={{ flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
-          {canCompleteTraining ? (
+          {isTrainingStatusCompleted(meta.status) ? (
+            <span className="tip" data-tip="Сохранить правки. Статус «завершена» не снимается, абон повторно не списывается.">
+              <button
+                type="button"
+                className="btn btn-primary btn-touch"
+                onClick={() => {
+                  setShowCompletionHints(false)
+                  void persist('completed')
+                }}
+              >
+                Сохранить
+              </button>
+            </span>
+          ) : canCompleteTraining ? (
             <span className="tip" data-tip="Пометит тренировку как завершённую и сохранит. Если есть проблема — появится сообщение ниже.">
               <button
                 type="button"
@@ -1218,6 +1253,7 @@ export function TrainingPage() {
               Закончить тренировку
             </button>
           )}
+          {!isTrainingStatusCompleted(meta.status) ? (
           <span className="tip" data-tip="Сохранить черновик (можно продолжить позже).">
             <button
               type="button"
@@ -1229,6 +1265,7 @@ export function TrainingPage() {
               <Save size={22} strokeWidth={1.65} aria-hidden />
             </button>
           </span>
+          ) : null}
           {meta.status !== 'completed' ? (
             <span
               className={`autosave-pill${autosaveStatus === 'saving' ? ' autosave-pill--active' : ''}${autosaveStatus === 'error' ? ' autosave-pill--error' : ''}`}

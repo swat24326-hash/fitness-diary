@@ -71,6 +71,11 @@ export function expandSetToLaterality(st) {
   }
 }
 
+/** Правка Л/П: сначала разложить общий вес/повторы на стороны, иначе вторая сторона «видна», но не сохранится. */
+export function patchLateralitySetField(st, key, value) {
+  return { ...expandSetToLaterality(st), [key]: value }
+}
+
 /** Показ Л/П: пустая сторона не прячет общий вес, пока вторая тоже пуста. */
 export function displayLateralityField(st, sideKey, otherSideKey, bothKey) {
   const s = st && typeof st === 'object' ? st : {}

@@ -1,4 +1,4 @@
-/* Л/П в ряду формата и двухстрочный подход. */
+/* Формат 1/2/3 + Л/П. Подход — одна линия (подпись в placeholder). */
 
 .exercise-format-row__split {
   width: 1px;
@@ -17,49 +17,73 @@
   letter-spacing: 0.02em;
 }
 
-.set-row-compact--lr {
-  grid-template-columns: 26px minmax(0, 1fr) 40px;
-  align-items: start;
+.set-row-compact {
+  align-items: center;
 }
 
-.set-row-compact--lr .set-row-compact__idx {
-  padding-top: 22px;
+.set-row-compact__idx {
   padding-bottom: 0;
+  padding-top: 0;
+  line-height: 44px;
 }
 
-.set-row-lr-body {
-  display: grid;
-  gap: 6px;
+.set-row-compact__field {
+  margin-bottom: 0;
   min-width: 0;
 }
 
-.set-row-lr-side {
-  display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) minmax(0, 1fr);
-  gap: 6px 8px;
-  align-items: end;
+.set-row-compact__remove {
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+  margin-bottom: 0;
 }
 
-.set-row-lr-side__tag {
-  font-size: 0.72rem;
+.set-row-compact--lr {
+  grid-template-columns: 22px minmax(0, 1.35fr) minmax(0, 1.35fr) minmax(52px, 0.7fr) 42px;
+  align-items: center;
+  gap: 6px;
+}
+
+.set-row-compact--lr-hr {
+  grid-template-columns: 22px minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(48px, 0.62fr) minmax(48px, 0.62fr) 42px;
+}
+
+.set-row-lr-pair {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 4px;
+  align-items: center;
+  min-width: 0;
+  padding: 0 4px 0 2px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent-bright, #2effb8) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-bright, #2effb8) 22%, var(--border));
+}
+
+.set-row-lr-pair--r {
+  background: color-mix(in srgb, var(--text-muted) 12%, transparent);
+  border-color: color-mix(in srgb, var(--text-muted) 28%, var(--border));
+}
+
+.set-row-lr-pair__tag {
+  font-size: 0.68rem;
   font-weight: 800;
   color: var(--accent-bright, #2effb8);
-  padding-bottom: 10px;
   text-align: center;
+  line-height: 1;
 }
 
-.set-row-lr-meta {
-  display: grid;
-  grid-template-columns: minmax(0, 0.9fr);
-  gap: 6px 8px;
-  align-items: end;
+.set-row-lr-pair--r .set-row-lr-pair__tag {
+  color: var(--text);
 }
 
-.set-row-lr-meta--hr {
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 0.9fr);
+.set-row-lr-pair .input {
+  padding: 8px 6px;
+  min-height: 44px;
+  font-size: 0.9rem;
 }
 
-.set-row-compact--lr > .btn {
-  align-self: start;
-  margin-top: 18px;
+.set-row-compact--lr .set-row-compact__idx {
+  line-height: 44px;
 }

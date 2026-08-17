@@ -49,9 +49,11 @@
 | Home glance cache | `verify-home-glance-cache.mjs` (TTL / looksSame / профили) |
 | Пульс BLE (парсер + память датчика) | `verify-ble-heart-rate.mjs` |
 | Сводка пульса сессии (зоны, ккал) | `verify-hr-session-agg.mjs` |
+| Пульс при завершении: снимок в дневник, живой буфер не остаётся | `verify-hr-session-persist.mjs` |
 | Двойной тап → пульс подхода из слота | `verify-hr-after-from-live.mjs` |
 | Шаг формы при сплите черновиков | `verify-training-form-step-memory.mjs` |
 | Подход Л/П (стороны, сводка, челлендж, завершение) | `verify-training-set-laterality.mjs` |
+| Статус тренировки: completed не откатывается в draft | `verify-training-persist-status.mjs` |
 | Статистика тренера: облако за период (не только IDB) | `verify-trainer-period-stats-remote.mjs` |
 | Журнал тренировок: ФИО архивных клиентов (не UUID) | `verify-trainer-journal-clients.mjs` |
 | Журнал тренера: фильтр completed за период | `verify-trainer-journal-filter.mjs` |

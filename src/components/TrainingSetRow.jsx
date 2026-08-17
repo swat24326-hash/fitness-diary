@@ -1,19 +1,21 @@
 import { Trash2 } from 'lucide-react'
 import { TrainingSetHrField } from './trainer/TrainingSetHrField.jsx'
-import { displayLateralityField } from '../lib/trainingSetLateralityCore'
+import { displayLateralityField, patchLateralitySetField } from '../lib/trainingSetLateralityCore'
 
 function SetField({ label, value, onChange, inputMode, title, placeholder, type, min, max }) {
+  const shown = placeholder || label
   return (
-    <div className="field">
-      <label className="label">{label}</label>
+    <div className="field set-row-compact__field">
+      <label className="sr-only">{label}</label>
       <input
         className="input"
         inputMode={inputMode}
         type={type}
         min={min}
         max={max}
-        placeholder={placeholder}
-        title={title}
+        placeholder={shown}
+        title={title || label}
+        aria-label={label}
         value={value ?? ''}
         onChange={(e) => onChange(e.target.value)}
       />
@@ -25,8 +27,20 @@ function patch(st, key, value) {
   return { ...st, [key]: value }
 }
 
+function LrPair({ side, tag, ariaSide, reps, weight, onReps, onWeight }) {
+  return (
+    <div className={`set-row-lr-pair set-row-lr-pair--${side}`}>
+      <span className="set-row-lr-pair__tag" aria-hidden>
+        {tag}
+      </span>
+      <SetField label={`${ariaSide}, повторы`} placeholder="повт" inputMode="numeric" value={reps} onChange={onReps} />
+      <SetField label={`${ariaSide}, вес кг`} placeholder="кг" inputMode="decimal" value={weight} onChange={onWeight} />
+    </div>
+  )
+}
+
 /**
- * Одна строка подхода: обычные поля или две стороны Л/П.
+ * Одна строка подхода: обычные поля или Л/П в той же линии.
  */
 export function TrainingSetRow({
   setIndex,
@@ -39,11 +53,19 @@ export function TrainingSetRow({
   onChange,
   onRemove,
 }) {
-  const rowClass = `set-row-compact${withSetHr && !isLr ? ' set-row-compact--functional' : ''}${isLr && !isCardio ? ' set-row-compact--lr' : ''}`
+  const rowClass = [
+    'set-row-compact',
+    withSetHr && !isLr ? 'set-row-compact--functional' : '',
+    isLr && !isCardio ? 'set-row-compact--lr' : '',
+    isLr && withSetHr && !isCardio ? 'set-row-compact--lr-hr' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   const rpeField = (
     <SetField
       label="RPE"
+      placeholder="RPE"
       type="number"
       min={1}
       max={10}
@@ -54,6 +76,7 @@ export function TrainingSetRow({
 
   const hrField = withSetHr ? (
     <TrainingSetHrField
+      compact
       value={st.hr_after ?? ''}
       clientId={clientId}
       title={
@@ -68,8 +91,7 @@ export function TrainingSetRow({
   const removeBtn = (
     <button
       type="button"
-      className="btn btn-ghost"
-      style={{ marginBottom: 2, minHeight: 42 }}
+      className="btn btn-ghost btn-icon-square set-row-compact__remove"
       onClick={onRemove}
       disabled={!canRemove}
       aria-label="Удалить подход"
@@ -83,17 +105,17 @@ export function TrainingSetRow({
       <div className={rowClass}>
         <span className="set-row-compact__idx">{setIndex + 1}</span>
         <SetField
-          label="Время под нагрузкой"
-          inputMode="numeric"
+          label="Время под нагрузкой, мин"
           placeholder="мин"
+          inputMode="numeric"
           title="Сколько минут длился отрезок/подход"
           value={st.tut_sec ?? ''}
           onChange={(v) => onChange(patch(st, 'tut_sec', v))}
         />
         <SetField
           label="Нагрузка"
+          placeholder="нагр."
           inputMode="decimal"
-          placeholder="уровень/кг/км"
           title="Например: уровень дорожки/эллипса, скорость, сопротивление или кг"
           value={st.load ?? ''}
           onChange={(v) => onChange(patch(st, 'load', v))}
@@ -109,42 +131,26 @@ export function TrainingSetRow({
     return (
       <div className={rowClass}>
         <span className="set-row-compact__idx">{setIndex + 1}</span>
-        <div className="set-row-lr-body">
-          <div className="set-row-lr-side">
-            <span className="set-row-lr-side__tag">Л</span>
-            <SetField
-              label="Повт."
-              inputMode="numeric"
-              value={displayLateralityField(st, 'reps_l', 'reps_r', 'reps')}
-              onChange={(v) => onChange(patch(st, 'reps_l', v))}
-            />
-            <SetField
-              label="Вес, кг"
-              inputMode="decimal"
-              value={displayLateralityField(st, 'weight_kg_l', 'weight_kg_r', 'weight_kg')}
-              onChange={(v) => onChange(patch(st, 'weight_kg_l', v))}
-            />
-          </div>
-          <div className="set-row-lr-side">
-            <span className="set-row-lr-side__tag">П</span>
-            <SetField
-              label="Повт."
-              inputMode="numeric"
-              value={displayLateralityField(st, 'reps_r', 'reps_l', 'reps')}
-              onChange={(v) => onChange(patch(st, 'reps_r', v))}
-            />
-            <SetField
-              label="Вес, кг"
-              inputMode="decimal"
-              value={displayLateralityField(st, 'weight_kg_r', 'weight_kg_l', 'weight_kg')}
-              onChange={(v) => onChange(patch(st, 'weight_kg_r', v))}
-            />
-          </div>
-          <div className={`set-row-lr-meta${withSetHr ? ' set-row-lr-meta--hr' : ''}`}>
-            {rpeField}
-            {hrField}
-          </div>
-        </div>
+        <LrPair
+          side="l"
+          tag="Л"
+          ariaSide="Левая"
+          reps={displayLateralityField(st, 'reps_l', 'reps_r', 'reps')}
+          weight={displayLateralityField(st, 'weight_kg_l', 'weight_kg_r', 'weight_kg')}
+          onReps={(v) => onChange(patchLateralitySetField(st, 'reps_l', v))}
+          onWeight={(v) => onChange(patchLateralitySetField(st, 'weight_kg_l', v))}
+        />
+        <LrPair
+          side="r"
+          tag="П"
+          ariaSide="Правая"
+          reps={displayLateralityField(st, 'reps_r', 'reps_l', 'reps')}
+          weight={displayLateralityField(st, 'weight_kg_r', 'weight_kg_l', 'weight_kg')}
+          onReps={(v) => onChange(patchLateralitySetField(st, 'reps_r', v))}
+          onWeight={(v) => onChange(patchLateralitySetField(st, 'weight_kg_r', v))}
+        />
+        {rpeField}
+        {hrField}
         {removeBtn}
       </div>
     )
@@ -153,8 +159,8 @@ export function TrainingSetRow({
   return (
     <div className={rowClass}>
       <span className="set-row-compact__idx">{setIndex + 1}</span>
-      <SetField label="Повт." inputMode="numeric" value={st.reps} onChange={(v) => onChange(patch(st, 'reps', v))} />
-      <SetField label="Вес, кг" inputMode="decimal" value={st.weight_kg} onChange={(v) => onChange(patch(st, 'weight_kg', v))} />
+      <SetField label="Повторы" placeholder="Повт." inputMode="numeric" value={st.reps} onChange={(v) => onChange(patch(st, 'reps', v))} />
+      <SetField label="Вес, кг" placeholder="кг" inputMode="decimal" value={st.weight_kg} onChange={(v) => onChange(patch(st, 'weight_kg', v))} />
       {rpeField}
       {hrField}
       {removeBtn}
