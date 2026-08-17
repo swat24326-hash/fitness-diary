@@ -5,12 +5,18 @@ import {
   buildPaymentClientLinkActions,
   collapsePaymentLinesByCardLastWins,
   describePzMissingFromPaymentsMetaRu,
+  inferPackageDurationFromTariff,
   inferPackageMonthsFromTariff,
   isPaymentLinkActionReady,
+  isPaymentLinkDurationFromFile,
+  isPaymentLinkPackageDurationReady,
   isPaymentLinkPackageMonthsReady,
   matchAzDirectionFromTariff,
+  attachPaymentLinkSiblingsAfterCreate,
+  paymentLinkMembershipsIncludeHall,
   normalizePaymentLinkPackageMonths,
   parsePaymentLinkCustomPackageMonths,
+  paymentLinkMembershipDates,
   PAYMENT_LINK_PACKAGE_MONTHS_CUSTOM,
   paymentLinkPackageMonthsSelectValue,
   markPaymentLinkSameCardSiblingsBlocked,
@@ -35,6 +41,27 @@ ok(inferPackageMonthsFromTariff('12/1 Elite утро') === 1, 'months from 12/1'
 ok(inferPackageMonthsFromTariff('8/1 Diamond') === 1, 'months from 8/1')
 ok(inferPackageMonthsFromTariff('абонемент 3 мес') === 3, 'months from мес')
 ok(inferPackageMonthsFromTariff('') === 1, 'empty tariff → 1')
+ok(inferPackageDurationFromTariff('разовое ТЗ').unit === 'days', 'разовое → days')
+ok(inferPackageDurationFromTariff('разовое ТЗ').count === 1, 'разовое → 1 day')
+ok(inferPackageDurationFromTariff('7 дней').unit === 'days', 'N дн → days')
+ok(inferPackageDurationFromTariff('7 дней').count === 7, '7 дней → 7')
+ok(inferPackageDurationFromTariff('абонемент 3 мес').unit === 'months', 'мес → months')
+ok(inferPackageDurationFromTariff('12/1 Elite утро').count === 1, 'slash still months')
+ok(
+  paymentLinkMembershipDates({ packageUnit: 'days', packageCount: 1 }, '2026-08-17').end ===
+    '2026-08-17',
+  '1 day dates start=end',
+)
+ok(
+  paymentLinkMembershipDates({ packageUnit: 'days', packageCount: 7 }, '2026-08-17').end ===
+    '2026-08-23',
+  '7 day dates inclusive',
+)
+ok(
+  paymentLinkMembershipDates({ packageUnit: 'months', packageCount: 1 }, '2026-07-21').end ===
+    '2026-08-21',
+  '1 month dates unchanged',
+)
 ok(normalizePaymentLinkPackageMonths(6) === 6, 'normalize keeps 6')
 ok(normalizePaymentLinkPackageMonths(0) === 1, 'normalize 0 → 1')
 ok(normalizePaymentLinkPackageMonths('12') === 12, 'normalize string 12')
@@ -58,6 +85,13 @@ const azTypes = [
 ]
 ok(matchAzDirectionFromTariff('10 занятий Бокс', azTypes)?.id === 'b1', 'AZ direction boxing')
 ok(matchAzDirectionFromTariff('8 занятий Степ', azTypes)?.id === 's1', 'AZ direction step')
+ok(
+  matchAzDirectionFromTariff('Бокс', [
+    { id: 'long', name: 'Групповые: бокс, степ и всё подряд' },
+    { id: 'b1', name: 'Бокс', code: 'box' },
+  ])?.id === 'b1',
+  'AZ direction does not steal Бокс via long type name',
+)
 
 const lines = [
   {
@@ -162,25 +196,69 @@ const tzAction = actions.find((a) => a.cardNumber === '7199' && a.kind === 'tz_d
 const pz7199 = actions.find((a) => a.cardNumber === '7199' && a.kind === 'pz_need_trainer')
 ok(tzAction?.kind === 'tz_desk', 'tz desk action')
 ok(pz7199?.kind === 'pz_need_trainer', 'same card also PZ action')
-ok(tzAction?.packageMonths === 1, 'tz empty tariff defaults 1')
+ok(tzAction?.packageMonths === 1, 'tz empty tariff defaults 1 month')
+ok(tzAction?.packageUnit === 'months', 'tz empty tariff unit months')
+ok(tzAction?.packageCount === 1, 'tz empty tariff count 1')
+
+const oneTimeActions = buildPaymentClientLinkActions({
+  lines: [
+    {
+      id: 'ot',
+      include: true,
+      hall: 'tz',
+      cardNumber: 'p563',
+      clientName: 'Кашин',
+      tariffName: 'разовое ТЗ',
+      amount: 750,
+      matchStatus: 'none',
+    },
+  ],
+})
+ok(oneTimeActions[0]?.packageUnit === 'days', 'разовое ТЗ unit days')
+ok(oneTimeActions[0]?.packageCount === 1, 'разовое ТЗ count 1')
+ok(oneTimeActions[0]?.packageMonths == null, 'разовое ТЗ no fake months')
+ok(oneTimeActions[0]?.durationFromTariff === true, 'разовое marked from file')
+ok(isPaymentLinkDurationFromFile(oneTimeActions[0]), 'from-file hint while 1 day')
+ok(
+  !isPaymentLinkDurationFromFile({ ...oneTimeActions[0], packageUnit: 'months', packageCount: 1 }),
+  'from-file hint off after manual months',
+)
+ok(inferPackageDurationFromTariff('Разовый визит').unit === 'days', 'разовый → days')
+ok(inferPackageDurationFromTariff('ТЗ разовое').count === 1, 'ТЗ разовое → 1 day')
+ok(inferPackageDurationFromTariff('многоразовый абонемент').unit === 'months', 'многоразовый is not 1 day')
+ok(
+  !paymentLinkMembershipDates({ packageUnit: 'days', packageCount: 1 }, '').ok,
+  'no report date → no membership dates',
+)
 ok(siblingPaymentLinkActionsSameCard(actions, tzAction).some((a) => a.kind === 'pz_need_trainer'), 'sibling PZ for TZ')
 ok(siblingPaymentLinkActionsSameCard(actions, pz7199).some((a) => a.kind === 'tz_desk'), 'sibling TZ for PZ')
 ok(
-  validatePaymentLinkAction({ ...tzAction, packageMonths: 6 }, null).ok,
+  validatePaymentLinkAction({ ...tzAction, packageUnit: 'months', packageCount: 6, packageMonths: 6 }, null).ok,
   'tz desk ok with overridden months',
 )
 ok(
-  validatePaymentLinkAction({ ...tzAction, packageMonths: 4 }, null).ok,
+  validatePaymentLinkAction({ ...tzAction, packageUnit: 'months', packageCount: 4, packageMonths: 4 }, null).ok,
   'tz desk ok with custom 4 months',
 )
 ok(
-  !validatePaymentLinkAction({ ...tzAction, packageMonths: null }, null).ok,
+  !validatePaymentLinkAction(
+    { ...tzAction, packageUnit: 'months', packageCount: null, packageMonths: null },
+    null,
+  ).ok,
   'tz desk rejects empty custom months',
 )
 ok(
-  !validatePaymentLinkAction({ ...tzAction, packageMonths: 0 }, null).ok,
+  !validatePaymentLinkAction({ ...tzAction, packageUnit: 'months', packageCount: 0, packageMonths: 0 }, null)
+    .ok,
   'tz desk rejects months 0',
 )
+ok(
+  validatePaymentLinkAction({ ...tzAction, packageUnit: 'days', packageCount: 1, packageMonths: null }, null)
+    .ok,
+  'tz desk ok with 1 day',
+)
+ok(isPaymentLinkPackageDurationReady({ packageUnit: 'days', packageCount: 1 }), 'duration ready 1 day')
+ok(!isPaymentLinkPackageDurationReady({ packageUnit: 'days', packageCount: null }), 'duration not ready empty days')
 
 ok(resolvePzLinkMode({ id: 't1', uses_tablet: false }) === 'lite', 'no tablet → lite')
 ok(resolvePzLinkMode({ id: 't2', uses_tablet: true }) === 'clip', 'tablet → clip')
@@ -204,6 +282,81 @@ ok(
   ),
   'ready true with trainer',
 )
+ok(
+  isPaymentLinkActionReady(
+    { kind: 'tz_desk', cardNumber: '1', clientName: 'A', packageMonths: 1 },
+    null,
+  ),
+  'tz desk ready without extra choice',
+)
+ok(
+  !isPaymentLinkActionReady(
+    { kind: 'az_desk', cardNumber: '1', clientName: 'A', packageMonths: 1, membershipTypeId: '' },
+    null,
+  ),
+  'az desk not ready without direction',
+)
+ok(
+  isPaymentLinkActionReady(
+    {
+      kind: 'az_desk',
+      cardNumber: '1',
+      clientName: 'A',
+      packageMonths: 1,
+      membershipTypeId: 't-box',
+    },
+    null,
+  ),
+  'az desk ready with direction',
+)
+
+const deskReadySum = summarizePaymentClientLinkActions([
+  { kind: 'tz_desk', cardNumber: '1', clientName: 'A', packageMonths: 1 },
+  { kind: 'az_desk', cardNumber: '2', clientName: 'B', packageMonths: 1, membershipTypeId: '' },
+  { kind: 'az_desk', cardNumber: '3', clientName: 'C', packageMonths: 1, membershipTypeId: 'x' },
+])
+ok(deskReadySum.deskPending === 3, 'desk pending 3')
+ok(deskReadySum.deskReady === 2, 'deskReady = TZ + AZ with direction')
+
+ok(
+  paymentLinkMembershipsIncludeHall([{ hall: 'ТЗ' }], 'tz') === true,
+  'hall membership ru tz',
+)
+ok(
+  paymentLinkMembershipsIncludeHall([{ hall: 'pz' }], 'tz') === false,
+  'hall membership other hall',
+)
+
+const sibAttach = attachPaymentLinkSiblingsAfterCreate(
+  [
+    { id: 'tz', kind: 'tz_desk', cardNumber: '100', hall: 'tz', status: 'done' },
+    { id: 'az', kind: 'az_desk', cardNumber: '100', hall: 'az', status: 'pending' },
+    { id: 'other', kind: 'tz_desk', cardNumber: '999', hall: 'tz', status: 'pending' },
+  ],
+  { id: 'tz', cardNumber: '100' },
+  'client-1',
+)
+ok(sibAttach.find((a) => a.id === 'az')?.attachClientId === 'client-1', 'sibling gets attachClientId')
+ok(!sibAttach.find((a) => a.id === 'other')?.attachClientId, 'other card not attached')
+
+const emptyHallsKnown = buildPaymentClientLinkActions({
+  lines: [
+    {
+      id: 'tz-empty-halls',
+      include: true,
+      hall: 'tz',
+      cardNumber: '777',
+      clientName: 'Без залов',
+      tariffName: '',
+      amount: 1,
+      matchStatus: 'one',
+      clientId: 'c-empty',
+      matchedHalls: [],
+    },
+  ],
+})
+ok(emptyHallsKnown[0]?.kind === 'tz_desk', 'empty matchedHalls + unknown kind → attach, not skip')
+ok(emptyHallsKnown[0]?.attachClientId === 'c-empty', 'empty halls still attach to existing client')
 
 const summary = summarizePaymentClientLinkActions(actions)
 ok(summary.pzPending === 2, 'summary pz pending')

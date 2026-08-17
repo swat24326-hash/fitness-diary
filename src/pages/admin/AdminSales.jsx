@@ -4,7 +4,7 @@ import { RefreshCw } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { SalesHomeTiles } from '../../components/SalesHomeTiles.jsx'
 import { isSupabaseConfigured } from '../../lib/supabase'
-import { addDaysToIso, clampIsoDateToToday, formatDateRu, todayLocalIso } from '../../lib/dateRu'
+import { addDaysToIso, formatDateRu, normalizeClubOpsDayIso, todayInTimeZoneIso } from '../../lib/dateRu'
 import { calendarYearMonthFromIso } from '../../lib/admin/salesPlanPzDkSuggestCore.js'
 import {
   dailyRowToForm,
@@ -117,6 +117,10 @@ const MONTH_NAMES = [
   'декабрь',
 ]
 
+function clampSalesReportDate(iso) {
+  return normalizeClubOpsDayIso(iso) || todayInTimeZoneIso()
+}
+
 export function AdminSales({ accessMode = 'admin' }) {
   const isSalesManager = accessMode === 'sales_manager'
   const isSupervisor = accessMode === 'supervisor'
@@ -173,7 +177,7 @@ export function AdminSales({ accessMode = 'admin' }) {
     setSearchParams(next, { replace: true })
   }
 
-  const [reportDate, setReportDate] = useState(() => todayLocalIso())
+  const [reportDate, setReportDate] = useState(() => todayInTimeZoneIso())
   const [dailyForm, setDailyForm] = useState(emptyDailyForm)
   const [planForm, setPlanForm] = useState(emptyPlanForm)
   const [expenseForm, setExpenseForm] = useState(emptyExpenseForm)
@@ -764,7 +768,7 @@ export function AdminSales({ accessMode = 'admin' }) {
       }
       const day = Math.min(Number(String(current).slice(8, 10)) || 1, new Date(year, month, 0).getDate())
       const iso = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-      return clampIsoDateToToday(iso)
+      return clampSalesReportDate(iso)
     })
   }, [])
 
@@ -773,7 +777,7 @@ export function AdminSales({ accessMode = 'admin' }) {
     const y = Number(ym?.year)
     const m = Number(ym?.month)
     if (!Number.isFinite(y) || !Number.isFinite(m) || m < 1 || m > 12) return
-    const today = todayLocalIso()
+    const today = todayInTimeZoneIso()
     const cur = calendarYearMonthFromIso(today)
     if (cur && cur.year === y && cur.month === m) {
       setReportDate(today)
@@ -784,7 +788,7 @@ export function AdminSales({ accessMode = 'admin' }) {
 
   const openDayReport = useCallback(
     (iso) => {
-      setReportDate(clampIsoDateToToday(iso))
+      setReportDate(clampSalesReportDate(iso))
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev)
@@ -1228,10 +1232,10 @@ export function AdminSales({ accessMode = 'admin' }) {
               }
               onNext={
                 salesTab === 'daily' || salesTab === 'clips'
-                  ? () => setReportDate((d) => clampIsoDateToToday(addDaysToIso(d, 1)))
+                  ? () => setReportDate((d) => clampSalesReportDate(addDaysToIso(d, 1)))
                   : () => shiftReportMonth(1)
               }
-              onDateChange={(iso) => setReportDate(clampIsoDateToToday(iso))}
+              onDateChange={(iso) => setReportDate(clampSalesReportDate(iso))}
             />
           </div>
           <div className="tabs sales-report__tabs sales-report__tabs--end" role="tablist" aria-label="Планирование продаж">
@@ -1314,7 +1318,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             trainers={trainers}
             membershipTypes={membershipTypes}
             reportDate={reportDate}
-            onReportDateChange={(iso) => setReportDate(clampIsoDateToToday(iso))}
+            onReportDateChange={(iso) => setReportDate(clampSalesReportDate(iso))}
             canOpenAdminClient={false}
           />
         </div>
@@ -1327,10 +1331,11 @@ export function AdminSales({ accessMode = 'admin' }) {
               <SalesDailyPaymentsImportSection
                 clubId={clubId}
                 reportDate={reportDate}
+                dailyForm={dailyForm}
                 canEdit
                 onApplyForm={setDailyForm}
                 onToast={showToast}
-                onReportDateHint={(iso) => setReportDate(clampIsoDateToToday(iso))}
+                onReportDateHint={(iso) => setReportDate(clampSalesReportDate(iso))}
               />
               <SalesDailyPzTrainingsImportSection
                 clubId={clubId}
@@ -1349,8 +1354,8 @@ export function AdminSales({ accessMode = 'admin' }) {
             form={dailyForm}
             onFormChange={setDailyForm}
             onPrevDay={() => setReportDate((d) => addDaysToIso(d, -1))}
-            onNextDay={() => setReportDate((d) => clampIsoDateToToday(addDaysToIso(d, 1)))}
-            onDateChange={(iso) => setReportDate(clampIsoDateToToday(iso))}
+            onNextDay={() => setReportDate((d) => clampSalesReportDate(addDaysToIso(d, 1)))}
+            onDateChange={(iso) => setReportDate(clampSalesReportDate(iso))}
             onSave={() => void handleSaveDaily()}
             saving={savingDaily}
             canEdit
@@ -1420,7 +1425,7 @@ export function AdminSales({ accessMode = 'admin' }) {
             trainers={trainers}
             membershipTypes={membershipTypes}
             reportDate={reportDate}
-            onReportDateChange={(iso) => setReportDate(clampIsoDateToToday(iso))}
+            onReportDateChange={(iso) => setReportDate(clampSalesReportDate(iso))}
             canOpenAdminClient
           />
         </div>
@@ -1458,10 +1463,11 @@ export function AdminSales({ accessMode = 'admin' }) {
               <SalesDailyPaymentsImportSection
                 clubId={clubId}
                 reportDate={reportDate}
+                dailyForm={dailyForm}
                 canEdit
                 onApplyForm={setDailyForm}
                 onToast={showToast}
-                onReportDateHint={(iso) => setReportDate(clampIsoDateToToday(iso))}
+                onReportDateHint={(iso) => setReportDate(clampSalesReportDate(iso))}
               />
               <SalesDailyPzTrainingsImportSection
                 clubId={clubId}
@@ -1480,8 +1486,8 @@ export function AdminSales({ accessMode = 'admin' }) {
             form={dailyForm}
             onFormChange={setDailyForm}
             onPrevDay={() => setReportDate((d) => addDaysToIso(d, -1))}
-            onNextDay={() => setReportDate((d) => clampIsoDateToToday(addDaysToIso(d, 1)))}
-            onDateChange={(iso) => setReportDate(clampIsoDateToToday(iso))}
+            onNextDay={() => setReportDate((d) => clampSalesReportDate(addDaysToIso(d, 1)))}
+            onDateChange={(iso) => setReportDate(clampSalesReportDate(iso))}
             onSave={() => void handleSaveDaily()}
             saving={savingDaily}
             canEdit

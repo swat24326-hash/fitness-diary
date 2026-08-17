@@ -1,0 +1,43 @@
+/* Срок desk-пакета: дни | месяцы + число */
+
+.desk-package-duration {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.desk-package-duration__unit {
+  min-width: 6.25rem;
+  max-width: 8.5rem;
+}
+
+.desk-package-duration__count {
+  min-width: 7.5rem;
+  max-width: 11rem;
+}
+
+.desk-package-duration__custom {
+  width: 4.75rem;
+  min-height: 2.5rem;
+  padding: 0.35rem 0.45rem;
+}
+
+.admin-desk-mem-card__duration {
+  grid-column: 1 / -1;
+}
+
+.admin-desk-mem-card__duration .desk-package-duration {
+  width: 100%;
+}
+
+.admin-desk-mem-card__duration .desk-package-duration__unit,
+.admin-desk-mem-card__duration .desk-package-duration__count {
+  flex: 1 1 7rem;
+  min-width: 6.5rem;
+  max-width: none;
+}
+
+.admin-desk-mem-card__duration .desk-package-duration__custom {
+  min-height: 2.55rem;
+}

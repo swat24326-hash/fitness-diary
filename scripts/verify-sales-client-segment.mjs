@@ -83,5 +83,22 @@ const notDkAfterEnd = classifySaleClientSegment({
 })
 ok(notDkAfterEnd.segment === 'uk1', 'after end is UK1 not DK')
 
+const depleted = classifySaleClientSegment({
+  saleDate: '2026-07-15',
+  clientId: 'c1',
+  memList: [{ start_date: '2026-01-01', end_date: '2026-12-31', total_trainings: 8, used_trainings: 8 }],
+  trainings: [],
+})
+ok(depleted.segment === 'uk1' && depleted.reason === 'depleted_in_period', 'depleted in-date is UK1 not NK')
+
+const sameDayCard = classifySaleClientSegment({
+  saleDate: '2026-07-31',
+  clientId: 'c1',
+  ignoreMembershipsStartingOnSaleDate: true,
+  memList: [{ start_date: '2026-07-31', end_date: '2026-08-31', total_trainings: 8, used_trainings: 0 }],
+  trainings: [],
+})
+ok(sameDayCard.segment === 'nk', 'card created on sale day is NK for that sale')
+
 if (failed) process.exit(1)
 console.log('verify-sales-client-segment: all passed')

@@ -3,7 +3,7 @@
  * Точнее: ближайший пакет ТЗ/АЗ, медиана прайса ПЗ если тип не найден.
  */
 
-import { inferDeskPackageMonths } from './deskMembershipLedgerCore.js'
+import { inferDeskPackageDuration } from './deskMembershipLedgerCore.js'
 import { getPriceListCell } from '../priceList/priceListCore.js'
 import {
   PZ_DK_SUGGEST_MODE,
@@ -30,6 +30,16 @@ export function medianPositiveRub(values) {
   const mid = Math.floor(list.length / 2)
   if (list.length % 2) return roundPlanRub(list[mid])
   return roundPlanRub((list[mid - 1] + list[mid]) / 2)
+}
+
+/**
+ * Разовое ТЗ из подвала прайса. Не подставлять цену месячного пакета.
+ * @param {object|null|undefined} tzDoc
+ * @returns {number|null}
+ */
+export function resolveTzOneTimePriceRub(tzDoc) {
+  const doc = normalizeTzPriceListDocument(tzDoc)
+  return positiveRub(doc.extras?.one_time)
 }
 
 /**
@@ -164,10 +174,15 @@ export function resolvePriceListCheckRub(input) {
   }
 
   if (hall === 'tz') {
+    const duration = inferDeskPackageDuration(m.start_date, m.end_date)
+    if (duration?.unit === 'days') {
+      if (duration.count === 1) return resolveTzOneTimePriceRub(input.tzPriceListDoc)
+      return null
+    }
     const months =
-      inferDeskPackageMonths(m.start_date, m.end_date) ||
-      Math.trunc(Number(m.package_months) || 0) ||
-      1
+      duration?.unit === 'months'
+        ? duration.count
+        : Math.trunc(Number(m.package_months) || 0) || 1
     return resolveTzPackagePriceRub(input.tzPriceListDoc, months)
   }
 

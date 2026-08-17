@@ -7,6 +7,7 @@ import {
   salesTrainingCellKey,
   SALES_TRAINING_TYPE_NONE,
 } from './salesTrainingsMatrix.js'
+import { parse1cPeriodRange, parse1cPeriodSameDay } from './salesImportDateCore.js'
 import { foldLatinCyrillicLookalikes } from './textMatchNormalizeCore.js'
 
 /**
@@ -28,15 +29,18 @@ export function pzReportCellText(cell) {
 }
 
 /**
+ * Дата одного дня из шапки. Диапазон разных дат → null.
  * @param {string} text
  * @returns {string|null} YYYY-MM-DD
  */
 export function parsePzReportPeriodDate(text) {
   const s = pzReportCellText(text)
+  const same = parse1cPeriodSameDay(s)
+  if (same) return same
+  if (parse1cPeriodRange(s)) return null
   const m = s.match(/(\d{2})\.(\d{2})\.(\d{4})/)
   if (!m) return null
-  const [, dd, mm, yyyy] = m
-  return `${yyyy}-${mm}-${dd}`
+  return `${m[3]}-${m[2]}-${m[1]}`
 }
 
 /** @param {string} raw */
@@ -167,6 +171,20 @@ export function parsePzTrainingsReportAoA(aoa, opts = {}) {
   let reportDate = null
   for (let i = 0; i < Math.min(8, rows.length); i++) {
     const line = (rows[i] ?? []).map(pzReportCellText).join(' ')
+    const range = parse1cPeriodRange(line)
+    if (range && range.start !== range.end) {
+      return {
+        ok: false,
+        error: `Файл за период ${range.start} — ${range.end}, не за один день. Нужен отчёт часов за выбранную дату.`,
+        reportDate: null,
+        fileTotal: 0,
+        matchedTotal: 0,
+        matrixInput: {},
+        unmatchedTrainers: [],
+        unmatchedColumns: [],
+        matchedTrainers: [],
+      }
+    }
     const d = parsePzReportPeriodDate(line)
     if (d) {
       reportDate = d

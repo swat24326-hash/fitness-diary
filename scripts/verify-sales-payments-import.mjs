@@ -3,14 +3,20 @@
  */
 import {
   buildDailyFormFromPaymentLines,
+  canApplyPaymentsImportToReportDate,
   detectSalesHallFromLabel,
+  dailyFormHasFilledSalesMatrix,
   enrichSalesPaymentLines,
+  mergePaymentImportIntoDailyForm,
   parseImportMoney,
   parsePaymentsReportDate,
   parseSalesPaymentsAoA,
+  pickSaleRowAmount,
   suggestImportProfitBucket,
   tryParseClientSaleRow,
 } from '../src/lib/admin/salesPaymentsImportCore.js'
+import { excelSerialToIso, parse1cPeriodRange } from '../src/lib/admin/salesImportDateCore.js'
+import { buildPaymentClientLinkActions } from '../src/lib/admin/salesPaymentsLinkCore.js'
 import {
   assertClubCardAvailableForCreate,
   looksLikeSalesCardNumber,
@@ -37,6 +43,11 @@ ok(detectSalesHallFromLabel('Персональный зал') === 'pz', 'hall p
 ok(detectSalesHallFromLabel('Тренажерный зал') === 'tz', 'hall tz')
 ok(detectSalesHallFromLabel('Аэробный зал') === 'az', 'hall az')
 ok(detectSalesHallFromLabel('Клубная карта') === 'dop', 'hall dop')
+ok(detectSalesHallFromLabel('разовое ТЗ') == null, 'разовое ТЗ is tariff not hall')
+ok(detectSalesHallFromLabel('ТЗ разовое') == null, 'ТЗ разовое is tariff not hall')
+ok(detectSalesHallFromLabel('Тренажерный зал без лимита') == null, 'tariff with зал is not hall header')
+ok(detectSalesHallFromLabel('Персональный 8/1') == null, 'personal tariff is not hall header')
+ok(detectSalesHallFromLabel('ТЗ Утро') === 'tz', 'tz morning header')
 
 ok(parseImportMoney('18 360,00') === 18360, 'money spaces comma')
 ok(parseImportMoney(3600) === 3600, 'money number')
@@ -70,6 +81,22 @@ ok(parsed.lines.some((l) => l.cardNumber === '5426' && l.hall === 'pz'), 'VIP li
 ok(parsed.lines.some((l) => l.cardNumber === '5802' && l.hall === 'az'), 'box line az')
 ok(parsed.lines.some((l) => l.cardNumber === '5678' && l.hall === 'tz'), 'tz line')
 ok(parsed.lines.some((l) => l.cardNumber === '5829' && l.hall === 'dop'), 'club card dop')
+
+const oneTimeRows = [
+  ['Отчет по оплатам'],
+  ['Параметры:', 'Период: 17.08.2026 - 17.08.2026'],
+  ['Тренажерный зал', 750, 750],
+  ['разовое ТЗ', 750, 750],
+  ['p563', 'Кашин Андрей Андреевич', 750, 750],
+  ['Итого', 750, 750],
+]
+const oneTimeParsed = parseSalesPaymentsAoA(oneTimeRows)
+ok(oneTimeParsed.lines.length === 1, '31.xlsx разовое: one sale line')
+ok(oneTimeParsed.lines[0]?.tariffName === 'разовое ТЗ', '31.xlsx разовое keeps tariff')
+ok(oneTimeParsed.lines[0]?.hall === 'tz', '31.xlsx разовое hall tz')
+const oneTimeLink = buildPaymentClientLinkActions({ lines: oneTimeParsed.lines })
+ok(oneTimeLink[0]?.packageUnit === 'days' && oneTimeLink[0]?.packageCount === 1, '31.xlsx разовое → days/1')
+ok(oneTimeLink[0]?.durationFromTariff === true, '31.xlsx разовое from file')
 
 const clientRow = tryParseClientSaleRow([5426, 'Test User', 100, 100])
 ok(clientRow?.amount === 100, 'tryParseClientSaleRow')
@@ -237,6 +264,58 @@ const built = buildDailyFormFromPaymentLines(withBuckets)
 ok(Number(built.form.pz_dk) >= 1 || Number(built.form.pz_nk) >= 1, 'form has pz count')
 ok(Number(built.form.dop_sum) === 500, `dop_sum 500 got ${built.form.dop_sum}`)
 ok(built.needBucket === 0, 'all buckets set in test')
+
+ok(pickSaleRowAmount([5000, 4580, 9580]) === 9580, 'row amount uses total column')
+ok(pickSaleRowAmount([18360, 18360]) === 18360, 'duplicate cash/cashless not doubled')
+ok(tryParseClientSaleRow([5426, 'Test', 5000, 4580, 9580])?.amount === 9580, 'client row total')
+
+const monthRows = [
+  ['Отчет по оплатам'],
+  ['Параметры:', 'Период: 01.08.2026 - 31.08.2026'],
+  ['Тренажерный зал', 5000, 5000],
+  [5678, 'Брага Татьяна', 5000, 5000],
+]
+ok(parsePaymentsReportDate(monthRows) == null, 'month range is not a report day')
+const monthParsed = parseSalesPaymentsAoA(monthRows)
+ok(monthParsed.periodRange === true, 'periodRange flag')
+ok(canApplyPaymentsImportToReportDate(monthParsed, '2026-08-01').ok === false, 'refuse apply month file')
+
+ok(parse1cPeriodRange('Период: 31.07.2026 - 31.07.2026')?.start === '2026-07-31', 'same-day range')
+const serial = (Date.UTC(2026, 6, 31) - Date.UTC(1899, 11, 30)) / 86400000
+ok(excelSerialToIso(serial) === '2026-07-31', `excel serial ${serial} → 2026-07-31`)
+
+const refundParsed = parseSalesPaymentsAoA([
+  ['Параметры:', 'Период: 31.07.2026 - 31.07.2026'],
+  ['Тренажерный зал'],
+  [1111, 'Возврат Иван', -1500],
+  [2222, 'Покупка Пётр', 3000, 3000],
+])
+ok(refundParsed.refundsAmount === 1500, `refunds ${refundParsed.refundsAmount}`)
+ok(refundParsed.lines.length === 1 && refundParsed.lines[0].amount === 3000, 'refund not a sale line')
+
+const saleDayMem = suggestImportProfitBucket({
+  hall: 'pz',
+  saleDate: '2026-07-31',
+  matchStatus: 'one',
+  clientId: 'c-new',
+  memList: [{ start_date: '2026-07-31', end_date: '2026-08-31', total_trainings: 8, used_trainings: 0 }],
+  trainings: [],
+})
+ok(saleDayMem.bucket === 'nk', 'membership starting on sale date is not DK')
+
+const merged = mergePaymentImportIntoDailyForm(
+  { pnk_total: '4', trainings_count: '12', refunds_amount: '200', pz_nk: '9', pz_nk_sum: '1' },
+  { pz_nk: '1', pz_nk_sum: '5000', dop_sum: '100' },
+)
+ok(merged.pnk_total === '4', 'merge keeps pnk')
+ok(merged.trainings_count === '12', 'merge keeps trainings')
+ok(merged.refunds_amount === '200', 'merge keeps refunds when file has none')
+ok(merged.pz_nk === '1', 'merge replaces matrix count')
+ok(dailyFormHasFilledSalesMatrix({ pz_nk: '1' }) === true, 'filled matrix detected')
+
+const gateMismatch = canApplyPaymentsImportToReportDate({ reportDate: '2026-07-31' }, '2026-08-17')
+ok(gateMismatch.ok === false && gateMismatch.fileDate === '2026-07-31', 'apply blocked until day matches')
+ok(canApplyPaymentsImportToReportDate({ reportDate: '2026-07-31' }, '2026-07-31').ok === true, 'apply ok same day')
 
 if (failed) {
   console.error(`\n${failed} failed`)

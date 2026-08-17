@@ -44,6 +44,7 @@ function ok(cond, msg) {
 }
 
 ok(parsePzReportPeriodDate('Период: 05.08.2026 - 05.08.2026') === '2026-08-05', 'period date')
+ok(parsePzReportPeriodDate('Период: 01.08.2026 - 31.08.2026') == null, 'month range is not one day')
 ok(canonicalizePzExcelTypeHeader('.VIP 3') === 'vip3', 'vip3 header')
 ok(canonicalizePzExcelTypeHeader('Brilliant') === 'br', 'br header')
 ok(canonicalizePzExcelTypeHeader('см') === 'cm', 'cm header')
@@ -122,6 +123,16 @@ ok(realParsed.unmatchedTrainers.length === 0, `real-like all trainers matched ($
 ok(realParsed.matchedTotal === 33, `real-like matched total ${realParsed.matchedTotal}`)
 ok(realParsed.fileTotal === 33, 'real-like file total')
 ok(realParsed.matchedTrainers.length === 7, 'real-like 7 matched trainers')
+
+const monthPz = parsePzTrainingsReportAoA(
+  [
+    ['Параметры:', 'Период: 01.08.2026 - 31.08.2026'],
+    ['Тренер', 'VIP 3', 'Итого'],
+    ['Житомирский Евгений', 1, 1],
+  ],
+  { trainers: axisLikeTrainers, membershipTypes: types },
+)
+ok(monthPz.ok === false && /период/i.test(String(monthPz.error || '')), 'PZ month file refused')
 
 const aoa = [
   ['Параметры:', 'Период: 05.08.2026 - 05.08.2026'],

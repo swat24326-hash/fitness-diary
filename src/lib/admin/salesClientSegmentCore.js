@@ -8,7 +8,7 @@
  *
  * Приоритет: УК2 → УК1 → ДК → НК.
  */
-import { pickUsableMembershipForDate } from '../membershipRules.js'
+import { isMembershipDepletedInPeriod, pickUsableMembershipForDate } from '../membershipRules.js'
 import {
   daysSinceIsoDate,
   pickLatestEndedMembership,
@@ -63,12 +63,28 @@ export function countCompletedTrainingsBefore(trainings, saleDate, clientId) {
 }
 
 /**
+ * Абоны, которые начались в день продажи, — это часто карточка из этого же файла.
+ * Для сегмента продажи их не считаем «уже действующими».
+ * @param {object[]} memList
+ * @param {string} saleDate
+ */
+export function membershipsStartedBeforeSale(memList, saleDate) {
+  const sale = String(saleDate ?? '').slice(0, 10)
+  return (memList ?? []).filter((m) => {
+    const s = String(m?.start_date ?? '').slice(0, 10)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return true
+    return s < sale
+  })
+}
+
+/**
  * @param {{
  *   saleDate: string,
  *   memList?: object[],
  *   trainings?: object[],
  *   clientId?: string,
  *   returningGapDays?: number,
+ *   ignoreMembershipsStartingOnSaleDate?: boolean,
  * }} input
  * @returns {{
  *   segment: SaleClientSegment,
@@ -84,16 +100,32 @@ export function classifySaleClientSegment(input = {}) {
   const saleDate = String(input.saleDate ?? '').slice(0, 10)
   const gapDays =
     Number(input.returningGapDays) > 0 ? Number(input.returningGapDays) : SALE_RETURNING_GAP_DAYS
-  const memList = input.memList ?? []
+  const memList = input.ignoreMembershipsStartingOnSaleDate
+    ? membershipsStartedBeforeSale(input.memList ?? [], saleDate)
+    : input.memList ?? []
   const trainings = input.trainings ?? []
   const completedTrainingsBefore = countCompletedTrainingsBefore(trainings, saleDate, input.clientId)
 
   const usable = pickUsableMembershipForDate(memList, saleDate)
   const hasUsableMembership = Boolean(usable)
+  const depletedInPeriod = !hasUsableMembership && isMembershipDepletedInPeriod(memList, saleDate)
 
   let daysSinceEnd = null
   const ended = pickLatestEndedMembership(memList, saleDate)
   if (ended) daysSinceEnd = daysSinceIsoDate(ended.end_date, saleDate)
+
+  // Исчерпан лимит, срок ещё кроет дату — как «закончился» у тренера (не НК)
+  if (depletedInPeriod) {
+    return {
+      segment: 'uk1',
+      reason: 'depleted_in_period',
+      label: SALE_CLIENT_SEGMENT_LABELS.uk1,
+      completedTrainingsBefore,
+      daysSinceEnd,
+      hasUsableMembership,
+      profitBucket: 'uk',
+    }
+  }
 
   // УК2 — холодно: ≥ gap после конца (продажа-возврат; фильтр «давно не был» в UI обрезан сверху)
   if (!hasUsableMembership && daysSinceEnd != null && daysSinceEnd >= gapDays) {
@@ -167,6 +199,9 @@ export function saleClientSegmentHintRu(result) {
     return d != null
       ? `УК2 — ${d} дн. после конца (холодно, ≥${SALE_RETURNING_GAP_DAYS})`
       : 'УК2 — давно после конца абонемента'
+  }
+  if (result.reason === 'depleted_in_period') {
+    return 'УК1 — занятия по абонементу закончились, срок ещё идёт'
   }
   if (result.segment === 'uk1') {
     const d = result.daysSinceEnd

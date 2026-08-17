@@ -100,9 +100,9 @@ import {
 } from '../../lib/clientListSignals'
 import {
   deskAzDirectionLabel,
-  formatDeskPackageMonthsLabel,
+  formatDeskPackageDurationLabel,
   hallMembershipListSignal,
-  inferDeskPackageMonths,
+  inferDeskPackageDuration,
   pickHallActiveMembership,
 } from '../../lib/admin/deskMembershipLedgerCore.js'
 import {
@@ -1475,8 +1475,8 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                     )[0]
                   : null)
               const deskPkg = deskMemForPkg
-                ? formatDeskPackageMonthsLabel(
-                    inferDeskPackageMonths(deskMemForPkg.start_date, deskMemForPkg.end_date),
+                ? formatDeskPackageDurationLabel(
+                    inferDeskPackageDuration(deskMemForPkg.start_date, deskMemForPkg.end_date),
                   )
                 : null
               const azDeductMem =

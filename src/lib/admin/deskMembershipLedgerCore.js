@@ -4,37 +4,36 @@
  * АЗ: как ПЗ — срок И остаток занятий.
  */
 
-import { membershipCoversDate, membershipPeriodDayCount, pickUsableMembershipForDate } from '../membershipRules.js'
-import { addMonthsToIso, formatDateRu, parseFlexibleDateToIso, todayLocalIso } from '../dateRu.js'
+import { membershipCoversDate, pickUsableMembershipForDate } from '../membershipRules.js'
+import { formatDateRu, parseFlexibleDateToIso, todayLocalIso } from '../dateRu.js'
 import { MEMBERSHIP_SIGNAL_COLORS, MEMBERSHIP_EXPIRING_WITHIN_DAYS, membershipSignal } from '../clientListSignals.js'
 import { normalizeDeskHall } from './deskHallClientsCore.js'
 import { filterMembershipsByHall, normalizeMembershipHall } from '../membershipHallCore.js'
+import {
+  DESK_PACKAGE_MONTH_OPTIONS,
+  DESK_PACKAGE_UNIT_DAYS,
+  DESK_PACKAGE_UNIT_MONTHS,
+  deskPackageEndByDuration,
+  deskPackageEndIso,
+  deskPackageStartIso,
+  formatDeskPackageDurationLabel,
+  formatDeskPackageMonthsLabel,
+  inferDeskPackageDuration,
+  inferDeskPackageMonths,
+  isOneTimeTariffName,
+  normalizeDeskPackageUnit,
+} from './deskPackageDurationCore.js'
 
-/** Варианты пакета для ТЗ/АЗ (как в прайсе: месяц, два…). */
-export const DESK_PACKAGE_MONTH_OPTIONS = [1, 2, 3, 6, 12]
-
-/**
- * Конец пакета: старт + N календарных месяцев, последний день включён (20.02 → 20.08 при 6 мес).
- * @param {string} startIso
- * @param {number} months
- */
-export function deskPackageEndIso(startIso, months) {
-  const start = String(startIso ?? '').slice(0, 10)
-  const n = Math.trunc(Number(months))
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !(n > 0)) return ''
-  return addMonthsToIso(start, n)
-}
-
-/**
- * Старт пакета по дате окончания и числу месяцев (обратно к deskPackageEndIso).
- * @param {string} endIso
- * @param {number} months
- */
-export function deskPackageStartIso(endIso, months) {
-  const end = String(endIso ?? '').slice(0, 10)
-  const n = Math.trunc(Number(months))
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(end) || !(n > 0)) return ''
-  return addMonthsToIso(end, -n)
+export {
+  DESK_PACKAGE_MONTH_OPTIONS,
+  deskPackageEndByDuration,
+  deskPackageEndIso,
+  deskPackageStartIso,
+  formatDeskPackageDurationLabel,
+  formatDeskPackageMonthsLabel,
+  inferDeskPackageDuration,
+  inferDeskPackageMonths,
+  isOneTimeTariffName,
 }
 
 /**
@@ -63,17 +62,6 @@ export function resolveDeskMembershipDates(endIso, startIso, packageMonths) {
 }
 
 /**
- * @param {number|null|undefined} months
- */
-export function formatDeskPackageMonthsLabel(months) {
-  const n = Math.trunc(Number(months) || 0)
-  if (!(n > 0)) return '—'
-  if (n === 1) return '1 месяц'
-  if (n < 5) return `${n} месяца`
-  return `${n} месяцев`
-}
-
-/**
  * Подпись направления АЗ (Бокс, Техника дня…) по membership_type_id.
  * @param {string|null|undefined} membershipTypeId
  * @param {Array<{ id?: string, name?: string }>|null|undefined} azTypes
@@ -86,29 +74,6 @@ export function deskAzDirectionLabel(membershipTypeId, azTypes) {
   const name = String(hit?.name ?? '').trim()
   const code = String(hit?.code ?? '').trim()
   return name || code || '—'
-}
-
-/**
- * Угадать пакет по датам (сначала точное совпадение с правилом клуба).
- * @param {string} startIso
- * @param {string} endIso
- * @returns {number|null}
- */
-export function inferDeskPackageMonths(startIso, endIso) {
-  const start = String(startIso ?? '').slice(0, 10)
-  const end = String(endIso ?? '').slice(0, 10)
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end) || end < start) {
-    return null
-  }
-  for (let n = 1; n <= 24; n++) {
-    if (deskPackageEndIso(start, n) === end) return n
-  }
-  for (let n = 1; n <= 24; n++) {
-    if (addMonthsToIso(start, n) === end) return n
-  }
-  const days = membershipPeriodDayCount({ start_date: start, end_date: end })
-  if (!(days > 0)) return null
-  return Math.max(1, Math.round(days / 30))
 }
 
 /**
@@ -166,8 +131,9 @@ export function deskMembershipSignal(memberships, todayIso = todayLocalIso()) {
   const active = pickDeskActiveMembership(memberships, today)
   if (active) {
     const end = String(active.end_date ?? '').slice(0, 10)
-    const months = inferDeskPackageMonths(active.start_date, active.end_date)
-    const pkg = formatDeskPackageMonthsLabel(months)
+    const pkg = formatDeskPackageDurationLabel(
+      inferDeskPackageDuration(active.start_date, active.end_date),
+    )
     const endD = new Date(`${end}T12:00:00`)
     const d0 = new Date(`${today}T12:00:00`)
     const daysLeft = Number.isFinite(endD - d0) ? Math.ceil((endD - d0) / 86400000) : null
@@ -302,11 +268,13 @@ export function formatDeskPaidAmountRu(amount) {
 export function deskMembershipRowDraft(m) {
   const start = parseFlexibleDateToIso(m?.start_date) || ''
   const end = parseFlexibleDateToIso(m?.end_date) || ''
-  const months = inferDeskPackageMonths(start, end)
+  const duration = inferDeskPackageDuration(start, end)
   const total = Number(m?.total_trainings)
   return {
     id: String(m?.id ?? ''),
-    package_months: months != null ? String(months) : '',
+    package_unit: duration?.unit || DESK_PACKAGE_UNIT_MONTHS,
+    package_count: duration != null ? String(duration.count) : '',
+    package_months: duration?.unit === DESK_PACKAGE_UNIT_MONTHS && duration.count != null ? String(duration.count) : '',
     start_date: start,
     end_date: end,
     paid_amount: m?.paid_amount != null && m.paid_amount !== '' ? String(m.paid_amount) : '',
@@ -346,9 +314,31 @@ export function deskMembershipDraftEquals(a, b) {
     String(a.end_date ?? '') === String(b.end_date ?? '') &&
     String(a.paid_amount ?? '') === String(b.paid_amount ?? '') &&
     String(a.membership_type_id ?? '') === String(b.membership_type_id ?? '') &&
+    String(a.package_unit ?? '') === String(b.package_unit ?? '') &&
+    String(a.package_count ?? '') === String(b.package_count ?? '') &&
     String(a.package_months ?? '') === String(b.package_months ?? '') &&
     String(a.total_trainings ?? '') === String(b.total_trainings ?? '')
   )
+}
+
+/**
+ * Срок целиком (единица + число) — один шаг, без промежуточного сброса на 1.
+ * @param {object} cur
+ * @param {unknown} unit
+ * @param {unknown} count
+ */
+export function applyDeskMembershipDraftDuration(cur, unit, count) {
+  const nextUnit = normalizeDeskPackageUnit(unit)
+  const nextCount = count == null || count === '' ? '' : String(count)
+  const next = { ...cur, package_unit: nextUnit, package_count: nextCount }
+  const n = Number(nextCount)
+  if (next.start_date && Number.isFinite(n) && n > 0) {
+    const end = deskPackageEndByDuration(next.start_date, nextUnit, n)
+    if (end) next.end_date = end
+  }
+  next.package_months =
+    nextUnit === DESK_PACKAGE_UNIT_MONTHS && Number.isFinite(n) && n > 0 ? String(n) : ''
+  return next
 }
 
 /**
@@ -358,18 +348,38 @@ export function deskMembershipDraftEquals(a, b) {
  * @param {string} value
  */
 export function applyDeskMembershipDraftField(cur, key, value) {
+  if (key === 'package_unit' || key === 'package_count') {
+    const unit = key === 'package_unit' ? value : cur.package_unit
+    const count = key === 'package_count' ? value : key === 'package_unit' ? '1' : cur.package_count
+    return applyDeskMembershipDraftDuration(cur, unit, count)
+  }
   const next = { ...cur, [key]: value }
-  if (key === 'package_months' && next.start_date && value) {
-    const end = deskPackageEndIso(next.start_date, Number(value))
-    if (end) next.end_date = end
+  if (key === 'package_months' && value) {
+    return applyDeskMembershipDraftDuration(next, DESK_PACKAGE_UNIT_MONTHS, value)
   }
   if (key === 'end_date' || key === 'start_date') {
     const start = parseFlexibleDateToIso(next.start_date) || String(next.start_date ?? '').slice(0, 10)
     const end = parseFlexibleDateToIso(next.end_date) || String(next.end_date ?? '').slice(0, 10)
     if (key === 'start_date') next.start_date = start
     if (key === 'end_date') next.end_date = end
-    const inferred = inferDeskPackageMonths(next.start_date, next.end_date)
-    if (inferred != null) next.package_months = String(inferred)
+    const wasOneDay =
+      (normalizeDeskPackageUnit(cur.package_unit) === DESK_PACKAGE_UNIT_DAYS &&
+        Math.trunc(Number(cur.package_count)) === 1) ||
+      String(cur.start_date ?? '').slice(0, 10) === String(cur.end_date ?? '').slice(0, 10)
+    if (key === 'start_date' && wasOneDay && start) {
+      next.end_date = start
+      next.package_unit = DESK_PACKAGE_UNIT_DAYS
+      next.package_count = '1'
+      next.package_months = ''
+      return next
+    }
+    const inferred = inferDeskPackageDuration(next.start_date, next.end_date)
+    if (inferred) {
+      next.package_unit = inferred.unit
+      next.package_count = String(inferred.count)
+      next.package_months =
+        inferred.unit === DESK_PACKAGE_UNIT_MONTHS ? String(inferred.count) : ''
+    }
   }
   return next
 }

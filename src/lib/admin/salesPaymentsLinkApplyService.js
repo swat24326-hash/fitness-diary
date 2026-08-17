@@ -10,16 +10,11 @@ import {
   saveLocalWithSync,
 } from '../syncService.js'
 import { dispatchLocalDataChanged } from '../dataAccess.js'
-import { deskPackageEndIso } from './deskMembershipLedgerCore.js'
 import { validateLitePzCreateForm, listNoTabletTrainersForClub } from './litePzClientCreateCore.js'
 import { createSaleClip } from './saleClipService.js'
-import {
-  resolvePzLinkMode,
-  validatePaymentLinkAction,
-  parsePaymentLinkCustomPackageMonths,
-} from './salesPaymentsLinkCore.js'
+import { paymentLinkMembershipDates, paymentLinkMembershipsIncludeHall, resolvePzLinkMode, validatePaymentLinkAction } from './salesPaymentsLinkCore.js'
 import { isTrainerWithoutTablet } from './trainerTabletModeCore.js'
-import { listClientsByClubId } from '../localDbClubQuery.js'
+import { listClientsByClubId, listMembershipsByClientId } from '../localDbClubQuery.js'
 import {
   assertClubCardAvailableForCreate,
   normalizeSalesCardNumber,
@@ -76,7 +71,30 @@ function pickExistingClientForPayment(clubClients, clubId, action) {
     }
   }
   if (pool.length === 1) return { ok: true, client: pool[0] }
+  if (action?.attachClientId) {
+    return {
+      ok: false,
+      error: 'Карточка для дописи абона ещё не в базе — подождите Sync и повторите, не создавайте вторую',
+    }
+  }
   return { ok: true, client: null }
+}
+
+/**
+ * @param {string} clientId
+ * @param {string} hall
+ */
+async function rejectDuplicateHallMembership(clientId, hall) {
+  const cid = String(clientId ?? '').trim()
+  if (!cid) return { ok: true }
+  const mems = await listMembershipsByClientId(cid)
+  if (paymentLinkMembershipsIncludeHall(mems, hall)) {
+    return {
+      ok: false,
+      error: 'Абон этого зала у карточки уже есть — не создаём второй',
+    }
+  }
+  return { ok: true }
 }
 
 /**
@@ -150,10 +168,9 @@ async function applyRestoreArchivedFromPayment({ action, clubId }) {
 
 async function applyLiteFromPayment({ action, clubId, reportDate, trainers }) {
   const noTab = listNoTabletTrainersForClub(trainers, clubId)
-  const months = parsePaymentLinkCustomPackageMonths(action.packageMonths)
-  if (months == null) return { ok: false, error: 'Укажите срок пакета' }
-  const start = reportDate
-  const end = deskPackageEndIso(start, months)
+  const dates = paymentLinkMembershipDates(action, reportDate)
+  if (!dates.ok) return dates
+  const { start, end, duration } = dates
   const clubClients = await listClientsByClubId(clubId)
   const existingPick = pickExistingClientForPayment(clubClients, clubId, action)
   if (!existingPick.ok) return { ok: false, error: existingPick.error }
@@ -162,6 +179,8 @@ async function applyLiteFromPayment({ action, clubId, reportDate, trainers }) {
   if (existing?.id) {
     const now = new Date().toISOString()
     const clientId = String(existing.id)
+    const dup = await rejectDuplicateHallMembership(clientId, 'pz')
+    if (!dup.ok) return dup
     const patch = clientUpdatePatch(existing, action, {
       trainer_id: action.trainerId || existing.trainer_id,
     })
@@ -204,7 +223,7 @@ async function applyLiteFromPayment({ action, clubId, reportDate, trainers }) {
     club_id: clubId,
     start_date: start,
     end_date: end,
-    package_months: months,
+    package_months: duration.unit === 'months' ? duration.count : '',
     paid_amount: action.amount > 0 ? String(action.amount) : '',
   }
   const validated = validateLitePzCreateForm(form, noTab, clubClients)
@@ -240,16 +259,17 @@ async function applyClipFromPayment({ action, clubId, reportDate, trainer }) {
   if (isTrainerWithoutTablet(trainer)) {
     return { ok: false, error: 'Для тренера без планшета нужен lite, не клип' }
   }
-  const months = parsePaymentLinkCustomPackageMonths(action.packageMonths)
-  if (months == null) return { ok: false, error: 'Укажите срок пакета' }
-  const start = reportDate
-  const end = deskPackageEndIso(start, months)
+  const dates = paymentLinkMembershipDates(action, reportDate)
+  if (!dates.ok) return dates
+  const { start, end } = dates
   const clubClients = await listClientsByClubId(clubId)
   const existingPick = pickExistingClientForPayment(clubClients, clubId, action)
   if (!existingPick.ok) return { ok: false, error: existingPick.error }
   if (existingPick.client?.id) {
     const now = new Date().toISOString()
     const clientId = String(existingPick.client.id)
+    const dup = await rejectDuplicateHallMembership(clientId, 'pz')
+    if (!dup.ok) return dup
     const patch = clientUpdatePatch(existingPick.client, action, {
       trainer_id: action.trainerId || existingPick.client.trainer_id,
     })
@@ -298,11 +318,9 @@ async function applyClipFromPayment({ action, clubId, reportDate, trainer }) {
 
 async function applyDeskFromPayment({ action, clubId, reportDate }) {
   const hall = action.kind === 'az_desk' ? 'az' : 'tz'
-  const months = parsePaymentLinkCustomPackageMonths(action.packageMonths)
-  if (months == null) return { ok: false, error: 'Укажите срок пакета' }
-  const start = reportDate
-  const end = deskPackageEndIso(start, months)
-  if (!end) return { ok: false, error: 'Не удалось посчитать срок абона' }
+  const dates = paymentLinkMembershipDates(action, reportDate)
+  if (!dates.ok) return dates
+  const { start, end } = dates
 
   const clubClients = await listClientsByClubId(clubId)
   const existingPick = pickExistingClientForPayment(clubClients, clubId, action)
@@ -325,6 +343,8 @@ async function applyDeskFromPayment({ action, clubId, reportDate }) {
 
   if (existing?.id) {
     const clientId = String(existing.id)
+    const dup = await rejectDuplicateHallMembership(clientId, hall)
+    if (!dup.ok) return dup
     if (action.needsRestore || isClientArchived(existing)) {
       const patch = clientUpdatePatch(existing, action)
       await saveLocalWithSync('clients', patch, {

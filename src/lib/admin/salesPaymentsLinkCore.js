@@ -5,13 +5,26 @@
 
 import { normalizeSalesCardNumber } from './salesClientMatchCore.js'
 import { isTrainerWithoutTablet } from './trainerTabletModeCore.js'
-import { DESK_PACKAGE_MONTH_OPTIONS } from './deskMembershipLedgerCore.js'
+import {
+  DESK_PACKAGE_COUNT_CUSTOM,
+  DESK_PACKAGE_MONTHS_MAX,
+  DESK_PACKAGE_MONTH_OPTIONS,
+  DESK_PACKAGE_UNIT_DAYS,
+  DESK_PACKAGE_UNIT_MONTHS,
+  deskPackageCountSelectValue,
+  deskPackageEndByDuration,
+  isDeskPackageCountPreset,
+  isDeskPackageDurationReady,
+  isOneTimeTariffName,
+  normalizeDeskPackageUnit,
+  parseDeskPackageCount,
+} from './deskPackageDurationCore.js'
 
 /** Sentinel UI: пункт «Другое…» в select срока. */
-export const PAYMENT_LINK_PACKAGE_MONTHS_CUSTOM = '__custom__'
+export const PAYMENT_LINK_PACKAGE_MONTHS_CUSTOM = DESK_PACKAGE_COUNT_CUSTOM
 
 /** Верхняя граница произвольного срока (месяцы) — как в validate. */
-export const PAYMENT_LINK_PACKAGE_MONTHS_MAX = 36
+export const PAYMENT_LINK_PACKAGE_MONTHS_MAX = DESK_PACKAGE_MONTHS_MAX
 
 function normKey(s) {
   return String(s ?? '')
@@ -21,7 +34,7 @@ function normKey(s) {
 }
 
 /**
- * Срок пакета из названия тарифа (1 / 1.5 / 2 мес). По умолчанию 1.
+ * Срок пакета из названия тарифа (1 / 1.5 / 2 мес). По умолчанию 1 месяц.
  * Угадывание — только старт черновика; менеджер может сменить срок в UI.
  * @param {string} tariffName
  * @returns {number}
@@ -40,6 +53,27 @@ export function inferPackageMonthsFromTariff(tariffName) {
     if (Number.isFinite(n) && n > 0 && n <= 24) return pickNearestPackageMonths(n)
   }
   return 1
+}
+
+/**
+ * Срок из тарифа: «разовое» → 1 день; «N дн» → дни; иначе месяцы.
+ * @param {string} tariffName
+ * @returns {{ unit: 'days'|'months', count: number }}
+ */
+export function inferPackageDurationFromTariff(tariffName) {
+  const t = String(tariffName ?? '')
+  if (isOneTimeTariffName(t)) {
+    return { unit: DESK_PACKAGE_UNIT_DAYS, count: 1 }
+  }
+  const dayMatch = t.match(/(\d+)\s*дн/i)
+  if (dayMatch) {
+    const count = parseDeskPackageCount(DESK_PACKAGE_UNIT_DAYS, dayMatch[1])
+    if (count != null) return { unit: DESK_PACKAGE_UNIT_DAYS, count }
+  }
+  return {
+    unit: DESK_PACKAGE_UNIT_MONTHS,
+    count: inferPackageMonthsFromTariff(tariffName),
+  }
 }
 
 function pickNearestPackageMonths(n) {
@@ -65,8 +99,7 @@ function pickNearestPackageMonths(n) {
  * @param {unknown} months
  */
 export function isPaymentLinkPackageMonthsPreset(months) {
-  const n = Number(months)
-  return Number.isFinite(n) && DESK_PACKAGE_MONTH_OPTIONS.includes(n)
+  return isDeskPackageCountPreset(DESK_PACKAGE_UNIT_MONTHS, months)
 }
 
 /**
@@ -76,15 +109,7 @@ export function isPaymentLinkPackageMonthsPreset(months) {
  * @returns {number|null}
  */
 export function parsePaymentLinkCustomPackageMonths(raw) {
-  if (raw === PAYMENT_LINK_PACKAGE_MONTHS_CUSTOM) return null
-  if (raw == null) return null
-  const s = String(raw).trim()
-  if (!s || s === PAYMENT_LINK_PACKAGE_MONTHS_CUSTOM) return null
-  const n = Number(s.replace(',', '.'))
-  if (!Number.isFinite(n)) return null
-  const t = Math.trunc(n)
-  if (t < 1 || t > PAYMENT_LINK_PACKAGE_MONTHS_MAX) return null
-  return t
+  return parseDeskPackageCount(DESK_PACKAGE_UNIT_MONTHS, raw)
 }
 
 /**
@@ -105,10 +130,7 @@ export function normalizePaymentLinkPackageMonths(raw) {
  * @param {boolean} [forceCustom]
  */
 export function paymentLinkPackageMonthsSelectValue(months, forceCustom = false) {
-  if (forceCustom) return PAYMENT_LINK_PACKAGE_MONTHS_CUSTOM
-  if (months == null || months === '') return PAYMENT_LINK_PACKAGE_MONTHS_CUSTOM
-  if (isPaymentLinkPackageMonthsPreset(months)) return String(Number(months))
-  return PAYMENT_LINK_PACKAGE_MONTHS_CUSTOM
+  return deskPackageCountSelectValue(DESK_PACKAGE_UNIT_MONTHS, months, forceCustom)
 }
 
 /**
@@ -116,8 +138,55 @@ export function paymentLinkPackageMonthsSelectValue(months, forceCustom = false)
  * @param {unknown} months
  */
 export function isPaymentLinkPackageMonthsReady(months) {
-  const n = parsePaymentLinkCustomPackageMonths(months)
-  return n != null
+  return isDeskPackageDurationReady(DESK_PACKAGE_UNIT_MONTHS, months)
+}
+
+/**
+ * Срок из черновика оплаты (дни или месяцы).
+ * @param {object|null|undefined} action
+ * @returns {{ unit: 'days'|'months', count: number }|null}
+ */
+export function resolvePaymentLinkPackageDuration(action) {
+  const unit = normalizeDeskPackageUnit(action?.packageUnit)
+  const count = parseDeskPackageCount(unit, action?.packageCount ?? action?.packageMonths)
+  if (count == null) return null
+  return { unit, count }
+}
+
+/**
+ * Даты абона по сроку и дате отчёта.
+ * @param {object|null|undefined} action
+ * @param {string} startIso
+ * @returns {{ ok: true, start: string, end: string, duration: { unit: string, count: number } }|{ ok: false, error: string }}
+ */
+export function paymentLinkMembershipDates(action, startIso) {
+  const duration = resolvePaymentLinkPackageDuration(action)
+  if (!duration) return { ok: false, error: 'Укажите срок пакета' }
+  const start = String(startIso ?? '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) {
+    return { ok: false, error: 'Нет даты отчёта — не считаем срок абона' }
+  }
+  const end = deskPackageEndByDuration(start, duration.unit, duration.count)
+  if (!end) return { ok: false, error: 'Не удалось посчитать срок абона' }
+  return { ok: true, start, end, duration }
+}
+
+/**
+ * Срок готов к созданию карточки (дни или месяцы).
+ * @param {object|null|undefined} action
+ */
+export function isPaymentLinkPackageDurationReady(action) {
+  return resolvePaymentLinkPackageDuration(action) != null
+}
+
+/**
+ * Срок ещё тот, что угадали из «разовое» в файле (менеджер не менял).
+ * @param {object|null|undefined} action
+ */
+export function isPaymentLinkDurationFromFile(action) {
+  if (!action?.durationFromTariff) return false
+  const d = resolvePaymentLinkPackageDuration(action)
+  return d?.unit === DESK_PACKAGE_UNIT_DAYS && d.count === 1
 }
 
 /**
@@ -135,14 +204,14 @@ export function matchAzDirectionFromTariff(tariffName, azTypes) {
   for (const t of azTypes) {
     const id = String(t?.id ?? '').trim()
     if (!id) continue
-    const candidates = [t.name, t.code].map(normKey).filter(Boolean)
-    for (const c of candidates) {
-      if (c.length < 2) continue
-      if (key.includes(c) || c.includes(key)) {
-        if (c.length > bestLen) {
-          best = t
-          bestLen = c.length
-        }
+    const names = [t.name, t.code].map(normKey).filter((c) => c.length >= 2)
+    if (names.includes(key)) return t
+    for (const c of names) {
+      if (c.length < 3) continue
+      // только «тариф содержит имя типа», не наоборот — иначе длинный тип перехватывает «Бокс»
+      if (key.includes(c) && c.length > bestLen) {
+        best = t
+        bestLen = c.length
       }
     }
   }
@@ -208,6 +277,46 @@ export function markPaymentLinkSameCardSiblingsBlocked(actions, _createdAction) 
 }
 
 /**
+ * После создания карточки — той же карте в других залах ставим attachClientId,
+ * чтобы пачка не завела второго человека.
+ * @param {object[]} actions
+ * @param {object} createdAction
+ * @param {string} clientId
+ */
+export function attachPaymentLinkSiblingsAfterCreate(actions, createdAction, clientId) {
+  const card = normalizeSalesCardNumber(createdAction?.cardNumber)
+  const cid = String(clientId ?? '').trim()
+  if (!card || !cid) return actions ?? []
+  return (actions ?? []).map((a) => {
+    if (!a || a.id === createdAction?.id) return a
+    if (a.status === 'done') return a
+    if (normalizeSalesCardNumber(a.cardNumber) !== card) return a
+    if (String(a.attachClientId ?? '').trim()) return a
+    return { ...a, attachClientId: cid }
+  })
+}
+
+/**
+ * У клиента уже есть абон этого зала (не плодить второй из той же оплаты).
+ * @param {object[]} memberships
+ * @param {unknown} hall
+ */
+export function paymentLinkMembershipsIncludeHall(memberships, hall) {
+  const want = String(hall ?? '')
+    .trim()
+    .toLowerCase()
+  const wantNorm = want === 'пз' ? 'pz' : want === 'тз' ? 'tz' : want === 'аз' ? 'az' : want
+  if (wantNorm !== 'pz' && wantNorm !== 'tz' && wantNorm !== 'az') return false
+  return (memberships ?? []).some((m) => {
+    const h = String(m?.hall ?? '')
+      .trim()
+      .toLowerCase()
+    const got = h === 'пз' ? 'pz' : h === 'тз' ? 'tz' : h === 'аз' ? 'az' : h
+    return got === wantNorm
+  })
+}
+
+/**
  * Подпись зала для UI.
  * @param {unknown} hall
  */
@@ -239,10 +348,15 @@ export function buildPaymentClientLinkActions(input) {
     const matchStatus = String(l.matchStatus ?? '')
     const clientId = l.clientId ? String(l.clientId) : null
     const matchedHallKind = l.matchedHallKind ? String(l.matchedHallKind) : null
+    const hallsListed = Array.isArray(l.matchedHalls)
     const matchedHalls = new Set(
-      Array.isArray(l.matchedHalls) ? l.matchedHalls.map((h) => String(h)) : [],
+      hallsListed ? l.matchedHalls.map((h) => String(h)) : [],
     )
-    const packageMonths = normalizePaymentLinkPackageMonths(inferPackageMonthsFromTariff(l.tariffName))
+    const duration = inferPackageDurationFromTariff(l.tariffName)
+    const packageCount = duration.count
+    const packageUnit = duration.unit
+    const packageMonths = packageUnit === DESK_PACKAGE_UNIT_MONTHS ? packageCount : null
+    const durationFromTariff = isOneTimeTariffName(l.tariffName) && packageUnit === DESK_PACKAGE_UNIT_DAYS
     const base = {
       id: String(l.id ?? `${card}:${hall}`),
       lineId: l.id,
@@ -255,7 +369,10 @@ export function buildPaymentClientLinkActions(input) {
       clientId,
       matchedHallKind,
       matchedHalls: [...matchedHalls],
+      packageUnit,
+      packageCount,
       packageMonths,
+      durationFromTariff,
       trainerId: '',
       membershipTypeId: '',
       status: 'pending',
@@ -301,8 +418,11 @@ export function buildPaymentClientLinkActions(input) {
       }
     } else if (matchStatus === 'one' && clientId) {
       // Уже есть абон/контур этого зала — не предлагать «Создать» снова
-      const alreadyHasHall =
-        matchedHalls.has(hall) || !matchedHallKind || matchedHallKind === hall
+      const alreadyHasHall = hallsListed
+        ? matchedHalls.has(hall)
+        : matchedHallKind
+          ? matchedHallKind === hall
+          : true
       if (alreadyHasHall) {
         actions.push({
           ...base,
@@ -394,10 +514,10 @@ export function validatePaymentLinkAction(action, trainer) {
     }
   }
 
-  const monthsOk = isPaymentLinkPackageMonthsReady(action?.packageMonths)
+  const durationOk = isPaymentLinkPackageDurationReady(action)
 
   if (kind === 'pz_need_trainer') {
-    if (!monthsOk) return { ok: false, error: 'Укажите срок пакета' }
+    if (!durationOk) return { ok: false, error: 'Укажите срок пакета' }
     if (!String(action?.trainerId ?? '').trim()) {
       return { ok: false, error: 'Выберите тренера' }
     }
@@ -410,7 +530,10 @@ export function validatePaymentLinkAction(action, trainer) {
     if (!action?.cardNumber || !action?.clientName) {
       return { ok: false, error: 'Нет карты или ФИО' }
     }
-    if (!monthsOk) return { ok: false, error: 'Укажите срок пакета' }
+    if (!durationOk) return { ok: false, error: 'Укажите срок пакета' }
+    if (kind === 'az_desk' && !String(action?.membershipTypeId ?? '').trim()) {
+      return { ok: false, error: 'Выберите направление АЗ' }
+    }
     return { ok: true }
   }
   return { ok: false, error: 'Неизвестное действие' }
@@ -420,7 +543,7 @@ export function validatePaymentLinkAction(action, trainer) {
  * Сводка блока «Карточки из оплат» (без React).
  * @param {object[]} actions
  */
-export function summarizePaymentClientLinkActions(actions) {
+export function summarizePaymentClientLinkActions(actions, opts = {}) {
   let matched = 0
   let done = 0
   let pzPending = 0
@@ -429,6 +552,7 @@ export function summarizePaymentClientLinkActions(actions) {
   let restorePending = 0
   let pzAmount = 0
   let pzReady = 0
+  let deskReady = 0
   for (const a of actions ?? []) {
     if (a?.kind === 'skip_matched' || a?.kind === 'skip_cross_hall') {
       matched += 1
@@ -449,11 +573,16 @@ export function summarizePaymentClientLinkActions(actions) {
     if (a?.kind === 'pz_need_trainer') {
       pzPending += 1
       pzAmount += Number(a?.amount) || 0
-      if (String(a?.trainerId ?? '').trim()) pzReady += 1
+      if (String(a?.trainerId ?? '').trim()) {
+        const trainer = (opts.trainers ?? []).find((t) => String(t?.id) === String(a.trainerId))
+        if (isPaymentLinkActionReady(a, trainer ?? null)) pzReady += 1
+        else if (!(opts.trainers ?? []).length) pzReady += 1
+      }
       continue
     }
     if (a?.kind === 'az_desk' || a?.kind === 'tz_desk') {
       deskPending += 1
+      if (isPaymentLinkActionReady(a, null)) deskReady += 1
     }
   }
   return {
@@ -464,6 +593,7 @@ export function summarizePaymentClientLinkActions(actions) {
     cardConflict,
     restorePending,
     pzReady,
+    deskReady,
     pzAmount: Math.round(pzAmount),
     needWork: pzPending + deskPending + cardConflict + restorePending,
   }

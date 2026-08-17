@@ -1,14 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, ArchiveRestore, Link2, UserPlus } from 'lucide-react'
 import { formatRub } from '../lib/admin/salesReportCore.js'
 import { listTrainerSummariesForAdmin } from '../lib/dataAccess.js'
 import { listMembershipTypesForClub } from '../lib/membershipTypesService.js'
 import {
+  attachPaymentLinkSiblingsAfterCreate,
   buildPaymentClientLinkActions,
   describePzMissingFromPaymentsMetaRu,
   isPaymentLinkActionReady,
-  markPaymentLinkSameCardSiblingsBlocked,
+  isPaymentLinkDurationFromFile,
   partitionPaymentClientLinkNeedWork,
   paymentLinkHallLabelRu,
   resolvePzLinkMode,
@@ -19,12 +20,26 @@ import {
 import { applyPaymentClientLinkAction } from '../lib/admin/salesPaymentsLinkApplyService.js'
 import { isTrainerWithoutTablet } from '../lib/admin/trainerTabletModeCore.js'
 import { isHoldingTrainerUser } from '../lib/admin/deskClosingImportCore.js'
-import { SalesPaymentsPackageMonthsSelect } from './SalesPaymentsPackageMonthsSelect.jsx'
+import { DeskPackageDurationSelect } from './DeskPackageDurationSelect.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 
-/**
- * После превью оплат: приоритетно закрыть ПЗ без карточки (lite / клип), затем desk ТЗ/АЗ.
- */
+function PaymentLinkDurationFields({ action, disabled, onDuration }) {
+  return (
+    <>
+      <DeskPackageDurationSelect
+        unit={action.packageUnit}
+        count={action.packageCount ?? action.packageMonths}
+        disabled={disabled}
+        ariaLabel={`Срок пакета для ${action.clientName}`}
+        onChange={onDuration}
+      />
+      {isPaymentLinkDurationFromFile(action) ? (
+        <span className="sales-report__hint">из файла · 1 день</span>
+      ) : null}
+    </>
+  )
+}
+
 export function SalesPaymentsClientLinkSection({
   clubId = '',
   reportDate = '',
@@ -44,6 +59,7 @@ export function SalesPaymentsClientLinkSection({
   const [busyId, setBusyId] = useState('')
   const [bulkBusy, setBulkBusy] = useState(false)
   const [error, setError] = useState('')
+  const bulkLockRef = useRef(false)
 
   const toast = (msg) => {
     if (typeof onToast === 'function') onToast(msg)
@@ -82,7 +98,10 @@ export function SalesPaymentsClientLinkSection({
     }
   }, [clubId, lines])
 
-  const summary = useMemo(() => summarizePaymentClientLinkActions(actions), [actions])
+  const summary = useMemo(
+    () => summarizePaymentClientLinkActions(actions, { trainers }),
+    [actions, trainers],
+  )
   const { pz: pzRows, desk: deskRows, conflicts: conflictRows, restores: restoreRows } = useMemo(
     () => partitionPaymentClientLinkNeedWork(actions),
     [actions],
@@ -105,8 +124,9 @@ export function SalesPaymentsClientLinkSection({
     setActions((prev) => prev.map((a) => (a.id === id ? { ...a, ...patch } : a)))
   }
 
-  const runOne = async (action) => {
+  const runOne = async (action, opts = {}) => {
     if (!canEdit || !clubId) return { ok: false }
+    const silent = opts.silent === true
     setBusyId(action.id)
     setError('')
     try {
@@ -125,47 +145,53 @@ export function SalesPaymentsClientLinkSection({
         const withDone = prev.map((a) =>
           a.id === action.id ? { ...a, status: 'done', error: '', result: res.result } : a,
         )
-        return markPaymentLinkSameCardSiblingsBlocked(withDone, { ...action, status: 'done' })
+        return res.clientId
+          ? attachPaymentLinkSiblingsAfterCreate(withDone, action, res.clientId)
+          : withDone
       })
-      const sibs = siblingPaymentLinkActionsSameCard(actions, action)
-      if (res.warning) toast(res.warning)
-      else if (res.result === 'restored') {
-        toast(
-          res.alreadyActive
-            ? `Уже не в архиве: ${action.clientName}`
-            : `Вернули из архива: ${action.clientName}`,
-        )
-      } else if (res.result === 'lite') {
-        toast(
-          res.restored
-            ? `Из архива + lite ПЗ: ${action.clientName}`
-            : res.attached
-              ? `ПЗ-абон к карточке: ${action.clientName}`
-              : `Создан lite ПЗ: ${action.clientName}`,
-        )
-      } else if (res.result === 'clip') {
-        toast(
-          res.restored
-            ? `Из архива + ПЗ: ${action.clientName}`
-            : res.attached
-              ? `ПЗ-абон к карточке: ${action.clientName}`
-              : `Клип тренеру: ${action.clientName}`,
-        )
-      } else if (res.result === 'az' || res.result === 'tz') {
-        toast(
-          res.restored
-            ? `Из архива + абон ${String(res.result).toUpperCase()}: ${action.clientName}`
-            : res.attached
-              ? `Абон ${String(res.result).toUpperCase()} к карточке: ${action.clientName}`
-              : `Desk ${String(res.result).toUpperCase()}: ${action.clientName}`,
-        )
+      if (!silent) {
+        const sibs = siblingPaymentLinkActionsSameCard(actions, action)
+        if (res.warning) toast(res.warning)
+        else if (res.result === 'restored') {
+          toast(
+            res.alreadyActive
+              ? `Уже не в архиве: ${action.clientName}`
+              : `Вернули из архива: ${action.clientName}`,
+          )
+        } else if (res.result === 'lite') {
+          toast(
+            res.restored
+              ? `Из архива + lite ПЗ: ${action.clientName}`
+              : res.attached
+                ? `ПЗ-абон к карточке: ${action.clientName}`
+                : `Создан lite ПЗ: ${action.clientName}`,
+          )
+        } else if (res.result === 'clip') {
+          toast(
+            res.restored
+              ? `Из архива + ПЗ: ${action.clientName}`
+              : res.attached
+                ? `ПЗ-абон к карточке: ${action.clientName}`
+                : `Клип тренеру: ${action.clientName}`,
+          )
+        } else if (res.result === 'az' || res.result === 'tz') {
+          toast(
+            res.restored
+              ? `Из архива + абон ${String(res.result).toUpperCase()}: ${action.clientName}`
+              : res.attached
+                ? `Абон ${String(res.result).toUpperCase()} к карточке: ${action.clientName}`
+                : `Desk ${String(res.result).toUpperCase()}: ${action.clientName}`,
+          )
+        }
+        if (sibs.length && !res.attached) {
+          toast(
+            `Карта №${action.cardNumber}: можно также создать абон ${sibs.map((s) => paymentLinkHallLabelRu(s.hall)).join('/')} к той же карточке`,
+          )
+        }
+      } else if (res.warning) {
+        toast(res.warning)
       }
-      if (sibs.length && !res.attached) {
-        toast(
-          `Карта №${action.cardNumber}: можно также создать абон ${sibs.map((s) => paymentLinkHallLabelRu(s.hall)).join('/')} к той же карточке`,
-        )
-      }
-      return { ok: true }
+      return { ok: true, clientId: res.clientId || null }
     } catch (e) {
       const msg = e?.message || 'Ошибка'
       patchAction(action.id, { error: msg })
@@ -176,25 +202,57 @@ export function SalesPaymentsClientLinkSection({
     }
   }
 
+  const runReadyBatch = async (ready, emptyMsg, doneLabel) => {
+    if (!canEdit || bulkLockRef.current) return
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(reportDate ?? '').slice(0, 10))) {
+      setError('Нет даты отчёта — карточки не создаём')
+      return
+    }
+    if (!ready.length) {
+      setError(emptyMsg)
+      return
+    }
+    if (ready.length >= 2) {
+      const ok = window.confirm(
+        `Создать ${ready.length} карточек одним действием? Отменить пачкой нельзя.`,
+      )
+      if (!ok) return
+    }
+    bulkLockRef.current = true
+    setBulkBusy(true)
+    setError('')
+    let okCount = 0
+    let queue = [...ready]
+    try {
+      for (let i = 0; i < queue.length; i++) {
+        const a = queue[i]
+        if (a?.status === 'done') continue
+        const res = await runOne(a, { silent: true })
+        if (res.ok) {
+          okCount += 1
+          if (res.clientId) {
+            queue = attachPaymentLinkSiblingsAfterCreate(queue, a, res.clientId)
+          }
+        }
+      }
+    } finally {
+      bulkLockRef.current = false
+      setBulkBusy(false)
+    }
+    if (okCount) toast(`${doneLabel}: ${okCount}`)
+  }
+
   const runReadyPz = async () => {
-    if (!canEdit || bulkBusy) return
     const ready = pzRows.filter((a) => {
       const trainer = trainers.find((t) => String(t.id) === String(a.trainerId))
       return isPaymentLinkActionReady(a, trainer)
     })
-    if (!ready.length) {
-      setError('Сначала выберите тренера у строк ПЗ')
-      return
-    }
-    setBulkBusy(true)
-    setError('')
-    let okCount = 0
-    for (const a of ready) {
-      const res = await runOne(a)
-      if (res.ok) okCount += 1
-    }
-    setBulkBusy(false)
-    if (okCount) toast(`Создано ПЗ: ${okCount}`)
+    await runReadyBatch(ready, 'Сначала выберите тренера у строк ПЗ', 'Создано ПЗ')
+  }
+
+  const runReadyDesk = async () => {
+    const ready = deskRows.filter((a) => isPaymentLinkActionReady(a, null))
+    await runReadyBatch(ready, 'Сначала укажите направление у строк АЗ (ТЗ готовы без этого)', 'Создано ТЗ/АЗ')
   }
 
   if (!canEdit || !lines?.length) return null
@@ -219,7 +277,7 @@ export function SalesPaymentsClientLinkSection({
         Отчёт дня — выше («Подставить»). Здесь — кого ещё нет в базе, кто <strong>в архиве</strong> (вернуть), или
         кому нужен абон другого зала. Сначала закройте <strong>ПЗ без карточки</strong> (тренер обязателен: без
         планшета → lite, с планшетом → клип). ТЗ/АЗ — desk без тренера или <strong>абон к уже существующей
-        карточке</strong> того же №. Срок пакета — из тарифа: пресеты 1 / 2 / 3 / 6 / 12 или «Другое…». Если в
+        карточке</strong> того же №. Срок — дни или месяцы (разовое из тарифа сразу «1 день»). Если в
         файле одна карта и ПЗ, и ТЗ — обе строки здесь: второй зал допишется к той же карточке (один клиент в
         Ядре).
       </p>
@@ -416,13 +474,15 @@ export function SalesPaymentsClientLinkSection({
                       </td>
                       <td>
                         <div>{a.tariffName || '—'}</div>
-                        <SalesPaymentsPackageMonthsSelect
-                          value={a.packageMonths}
+                        <PaymentLinkDurationFields
+                          action={a}
                           disabled={anyBusy || a.status === 'done'}
-                          ariaLabel={`Срок пакета для ${a.clientName}`}
-                          onChange={(months) =>
+                          onDuration={({ unit, count }) =>
                             patchAction(a.id, {
-                              packageMonths: months,
+                              packageUnit: unit,
+                              packageCount: count,
+                              packageMonths: unit === 'months' ? count : null,
+                              durationFromTariff: false,
                               error: '',
                             })
                           }
@@ -504,11 +564,29 @@ export function SalesPaymentsClientLinkSection({
 
       {deskRows.length ? (
         <div className="sales-payments-link__block">
-          <h4 className="sales-payments-link__block-title">ТЗ / АЗ — desk</h4>
-          <p className="muted sales-payments-link__block-hint">
-            Без живого тренера. Срок — пресет или «Другое…» (своё число месяцев). Направление АЗ — из тарифа
-            или вручную.
-          </p>
+          <div className="sales-payments-link__block-head">
+            <div>
+              <h4 className="sales-payments-link__block-title">ТЗ / АЗ — desk</h4>
+              <p className="muted sales-payments-link__block-hint">
+                Без живого тренера. Срок — дни (разовое: 1 день) или месяцы. Направление АЗ — из тарифа или вручную.
+                Готовые строки (ТЗ сразу, АЗ после направления) можно создать пачкой.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              disabled={anyBusy || summary.deskReady === 0}
+              onClick={() => void runReadyDesk()}
+              title={
+                summary.deskReady === 0
+                  ? 'ТЗ готовы сразу. Для АЗ выберите направление'
+                  : `Создать ${summary.deskReady} готовых desk-карточек`
+              }
+            >
+              <UserPlus size={14} aria-hidden />
+              {bulkBusy ? 'Создаём…' : `Создать готовые (${summary.deskReady})`}
+            </button>
+          </div>
           <div className="sales-payments-import__table-wrap">
             <table className="sales-payments-import__table">
               <thead>
@@ -536,13 +614,15 @@ export function SalesPaymentsClientLinkSection({
                       <td>
                         <div>{a.tariffName || '—'}</div>
                         <div className="sales-payments-link__tariff-meta">
-                          <SalesPaymentsPackageMonthsSelect
-                            value={a.packageMonths}
+                          <PaymentLinkDurationFields
+                            action={a}
                             disabled={anyBusy || a.status === 'done'}
-                            ariaLabel={`Срок пакета для ${a.clientName}`}
-                            onChange={(months) =>
+                            onDuration={({ unit, count }) =>
                               patchAction(a.id, {
-                                packageMonths: months,
+                                packageUnit: unit,
+                                packageCount: count,
+                                packageMonths: unit === 'months' ? count : null,
+                                durationFromTariff: false,
                                 error: '',
                               })
                             }

@@ -140,6 +140,22 @@ const tzDoc = emptyTzPriceListDocument({
   month1_rows: [{ months: 6, base_stand: 4500, base_full: 5000 }],
 })
 ok(resolveTzPackagePriceRub(tzDoc, 6) === 4500, 'tz stand price')
+ok(
+  resolvePriceListCheckRub({
+    hall: 'tz',
+    membership: { start_date: '2026-08-17', end_date: '2026-08-17' },
+    tzPriceListDoc: tzDoc,
+  }) === 750,
+  'tz 1-day uses one_time not month package',
+)
+ok(
+  resolvePriceListCheckRub({
+    hall: 'tz',
+    membership: { start_date: '2026-08-17', end_date: '2026-08-23' },
+    tzPriceListDoc: tzDoc,
+  }) == null,
+  'tz 7-day does not fake 1 month price',
+)
 
 let pzDoc = emptyPriceListDocument({ club_id: 'c1' })
 pzDoc = setPriceListCell(pzDoc, {

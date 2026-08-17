@@ -11,20 +11,21 @@ import { normalizeDeskHall } from '../../lib/admin/deskHallClientsCore.js'
 import { filterMembershipsByHall, normalizeMembershipHall } from '../../lib/membershipHallCore.js'
 import { ensureMembershipTypesForClub } from '../../lib/membershipTypesService.js'
 import {
-  DESK_PACKAGE_MONTH_OPTIONS,
+  applyDeskMembershipDraftDuration,
   applyDeskMembershipDraftField,
   deskMembershipDraftEquals,
   deskMembershipLedgerKind,
   deskMembershipLedgerKindLabel,
   deskMembershipRowDraft,
   deskMembershipsContentSig,
-  deskPackageEndIso,
-  formatDeskPackageMonthsLabel,
+  deskPackageEndByDuration,
   parseDeskPaidAmountInput,
   parseDeskTotalTrainingsInput,
   pickHallActiveMembership,
   sortDeskMembershipLedger,
 } from '../../lib/admin/deskMembershipLedgerCore.js'
+import { DESK_PACKAGE_UNIT_MONTHS } from '../../lib/admin/deskPackageDurationCore.js'
+import { DeskPackageDurationSelect } from '../DeskPackageDurationSelect.jsx'
 import { AdminDeskMemDateField } from './AdminDeskMemDateField.jsx'
 import { AdminDeskAzDeductButton } from './AdminDeskAzDeductButton.jsx'
 import { AdminDeskAzSessionHistoryButton } from './AdminDeskAzSessionHistoryButton.jsx'
@@ -33,25 +34,17 @@ import {
   formatDeskAzSessionUsageRu,
 } from '../../lib/admin/deskAzSessionDeductCore.js'
 
-function PackageSelect({ value, onChange }) {
-  return (
-    <select
-      className="admin-desk-mem-card__select"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      aria-label="Пакет по сроку"
-    >
-      <option value="">—</option>
-      {DESK_PACKAGE_MONTH_OPTIONS.map((n) => (
-        <option key={n} value={String(n)}>
-          {formatDeskPackageMonthsLabel(n)}
-        </option>
-      ))}
-      {value && !DESK_PACKAGE_MONTH_OPTIONS.includes(Number(value)) ? (
-        <option value={value}>{formatDeskPackageMonthsLabel(Number(value))}</option>
-      ) : null}
-    </select>
-  )
+function emptyDeskMembershipDraft(today) {
+  return {
+    package_unit: DESK_PACKAGE_UNIT_MONTHS,
+    package_count: '1',
+    package_months: '1',
+    start_date: today,
+    end_date: deskPackageEndByDuration(today, DESK_PACKAGE_UNIT_MONTHS, 1),
+    paid_amount: '',
+    membership_type_id: '',
+    total_trainings: '',
+  }
 }
 
 /**
@@ -91,14 +84,7 @@ export function AdminDeskMembershipLedger({
   const [busyId, setBusyId] = useState('')
   const [error, setError] = useState('')
   const [adding, setAdding] = useState(false)
-  const [newRow, setNewRow] = useState({
-    package_months: '1',
-    start_date: today,
-    end_date: deskPackageEndIso(today, 1),
-    paid_amount: '',
-    membership_type_id: '',
-    total_trainings: '',
-  })
+  const [newRow, setNewRow] = useState(() => emptyDeskMembershipDraft(today))
 
   useEffect(() => {
     let alive = true
@@ -154,8 +140,20 @@ export function AdminDeskMembershipLedger({
     })
   }
 
+  const setDraftDuration = (id, unit, count) => {
+    dirtyIdsRef.current.add(id)
+    setDrafts((prev) => {
+      const cur = prev[id] || deskMembershipRowDraft({ id })
+      return { ...prev, [id]: applyDeskMembershipDraftDuration(cur, unit, count) }
+    })
+  }
+
   const setNewField = (key, value) => {
     setNewRow((r) => applyDeskMembershipDraftField(r, key, value))
+  }
+
+  const setNewDuration = (unit, count) => {
+    setNewRow((r) => applyDeskMembershipDraftDuration(r, unit, count))
   }
 
   const resolveTypeId = (draftTypeId) => {
@@ -275,14 +273,7 @@ export function AdminDeskMembershipLedger({
       const warn = criticalWriteCloudWarning(flush, 'Абонемент')
       if (warn) setError(warn)
       setAdding(false)
-      setNewRow({
-        package_months: '1',
-        start_date: today,
-        end_date: deskPackageEndIso(today, 1),
-        paid_amount: '',
-        membership_type_id: '',
-        total_trainings: '',
-      })
+      setNewRow(emptyDeskMembershipDraft(today))
       dispatchLocalDataChanged({ reason: 'desk-membership-ledger' })
       onChanged?.()
     } catch (e) {
@@ -292,7 +283,7 @@ export function AdminDeskMembershipLedger({
     }
   }
 
-  const renderFields = (d, onField) => (
+  const renderFields = (d, onField, onDuration) => (
     <div className="admin-desk-mem-card__fields">
       {showAzDirection ? (
         <label>
@@ -320,9 +311,15 @@ export function AdminDeskMembershipLedger({
         </label>
       ) : null}
       {showAzDirection ? null : (
-        <label>
-          Пакет
-          <PackageSelect value={d.package_months} onChange={(v) => onField('package_months', v)} />
+        <label className="admin-desk-mem-card__duration">
+          Срок
+          <DeskPackageDurationSelect
+            unit={d.package_unit}
+            count={d.package_count || d.package_months}
+            selectClassName="admin-desk-mem-card__select"
+            ariaLabel="Срок пакета"
+            onChange={({ unit, count }) => onDuration(unit, count)}
+          />
         </label>
       )}
       <label>
@@ -373,7 +370,7 @@ export function AdminDeskMembershipLedger({
       <p className="admin-desk-membership-ledger__hint">
         {showAzDirection
           ? 'АЗ: направление, сроки и лимит занятий. «Действующий» — срок на сегодня и есть остаток занятий. Списание — кнопка ниже (с подтверждением и датой). Журнал — правки дат. Направление — из Структура → Типы абон. → АЗ.'
-          : 'Пакет — срок из прайса (1 месяц, 2…). «Действующий» — по датам на сегодня. Даты — дд.мм.гггг или календарь.'}
+          : 'Срок — дни (разовое: тот же день) или месяцы из прайса. «Действующий» — по датам на сегодня. Даты — дд.мм.гггг или календарь.'}
       </p>
       {showAzDirection && !azTypes.length ? (
         <p className="muted admin-desk-membership-ledger__hint">
@@ -407,7 +404,11 @@ export function AdminDeskMembershipLedger({
                     </span>
                   ) : null}
                 </div>
-                {renderFields(d, (key, value) => setDraftField(id, key, value))}
+                {renderFields(
+                  d,
+                  (key, value) => setDraftField(id, key, value),
+                  (unit, count) => setDraftDuration(id, unit, count),
+                )}
                 <div className="admin-desk-mem-card__foot">
                   <button
                     type="button"
@@ -442,7 +443,7 @@ export function AdminDeskMembershipLedger({
               <div className="admin-desk-mem-card__head">
                 <span className="admin-desk-mem-card__kind">новый</span>
               </div>
-              {renderFields(newRow, setNewField)}
+              {renderFields(newRow, setNewField, setNewDuration)}
               <div className="admin-desk-mem-card__foot">
                 <button
                   type="button"

@@ -2,6 +2,7 @@
  * node scripts/verify-desk-membership-ledger.mjs
  */
 import {
+  applyDeskMembershipDraftDuration,
   applyDeskMembershipDraftField,
   deskMembershipDraftEquals,
   deskMembershipLedgerKind,
@@ -13,7 +14,10 @@ import {
   deskPackageEndIso,
   deskPackageStartIso,
   formatDeskPackageMonthsLabel,
+  inferDeskPackageDuration,
   inferDeskPackageMonths,
+  deskPackageEndByDuration,
+  formatDeskPackageDurationLabel,
   parseDeskPaidAmountInput,
   parseDeskTotalTrainingsInput,
   pickDeskActiveMembership,
@@ -60,6 +64,17 @@ ok(deskPackageStartIso('2026-08-21', 1) === '2026-07-21', '1 month start reverse
 ok(deskPackageStartIso('2026-08-20', 6) === '2026-02-20', '6 month start reverse')
 ok(inferDeskPackageMonths('2026-07-21', '2026-08-21') === 1, 'infer 1 month')
 ok(inferDeskPackageMonths('2026-02-20', '2026-08-20') === 6, 'infer 6 months')
+ok(inferDeskPackageMonths('2026-08-17', '2026-08-17') == null, '1 day is not a month')
+ok(deskPackageEndByDuration('2026-08-17', 'days', 1) === '2026-08-17', '1 day end is same day')
+ok(deskPackageEndByDuration('2026-08-17', 'days', 7) === '2026-08-23', '7 days inclusive')
+ok(deskPackageEndByDuration('2026-07-21', 'months', 1) === '2026-08-21', '1 month via duration')
+ok(inferDeskPackageDuration('2026-08-17', '2026-08-17')?.unit === 'days', 'infer 1 day unit')
+ok(inferDeskPackageDuration('2026-08-17', '2026-08-17')?.count === 1, 'infer 1 day count')
+ok(inferDeskPackageDuration('2026-08-17', '2026-08-23')?.count === 7, 'infer 7 days')
+ok(inferDeskPackageDuration('2026-01-01', '2026-04-30')?.unit === 'months', 'long non-month span → months not 120 days')
+ok(inferDeskPackageMonths('2026-01-01', '2026-04-30') === 4, '120 days ≈ 4 months for card UI')
+ok(formatDeskPackageDurationLabel({ unit: 'days', count: 1 }) === '1 день', 'label 1 day')
+ok(formatDeskPackageDurationLabel({ unit: 'days', count: 7 }) === '7 дней', 'label 7 days')
 ok(formatDeskPackageMonthsLabel(1) === '1 месяц', 'label 1 month')
 ok(formatDeskPackageMonthsLabel(3) === '3 месяца', 'label 3 months')
 ok(formatDeskPackageMonthsLabel(6) === '6 месяцев', 'label 6 months')
@@ -73,6 +88,15 @@ const sig = deskMembershipSignal(
   '2026-08-01',
 )
 ok(sig.key === 'active' && /месяц/.test(sig.label), 'desk signal active not depleted')
+
+const daySig = deskMembershipSignal(
+  [{ id: 'd', start_date: '2026-08-01', end_date: '2026-08-01', total_trainings: 0 }],
+  '2026-08-01',
+)
+ok(
+  (daySig.key === 'active' || daySig.key === 'expiring') && /день/.test(daySig.label) && !/месяц/.test(daySig.label),
+  'desk signal 1 day not month',
+)
 ok(sig.color === '#22c55e', 'desk signal green')
 
 const depletedWouldBe = deskMembershipSignal([], '2026-08-01')
@@ -97,6 +121,21 @@ ok(afterStart.end_date === '2026-08-18', 'start change does not force package en
 
 const afterPkg = applyDeskMembershipDraftField(afterStart, 'package_months', '1')
 ok(afterPkg.end_date === '2026-08-20', 'package recalculates end inclusive')
+
+const afterDays = applyDeskMembershipDraftField(afterStart, 'package_unit', 'days')
+ok(afterDays.end_date === afterDays.start_date, 'switch to days defaults 1 day')
+ok(afterDays.package_count === '1', 'switch to days count 1')
+
+const oneDayDraft = applyDeskMembershipDraftDuration(
+  { start_date: '2026-08-17', end_date: '2026-08-17', package_unit: 'days', package_count: '1' },
+  'days',
+  1,
+)
+const movedOneDay = applyDeskMembershipDraftField(oneDayDraft, 'start_date', '2026-08-20')
+ok(movedOneDay.start_date === '2026-08-20' && movedOneDay.end_date === '2026-08-20', '1 day start move keeps same day')
+
+const afterWeek = applyDeskMembershipDraftDuration(afterStart, 'days', 7)
+ok(afterWeek.end_date === '2026-07-26', '7 days from 20.07 → 26.07')
 
 ok(deskMembershipDraftEquals(draft0, { ...draft0 }), 'draft equals')
 ok(

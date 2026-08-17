@@ -25,7 +25,17 @@ export async function salesPaymentsWorkbookSheetsFromArrayBuffer(data) {
 export async function parseSalesPaymentsXlsxArrayBuffer(data) {
   const sheets = await salesPaymentsWorkbookSheetsFromArrayBuffer(data)
   if (!sheets.length) {
-    return { reportDate: null, lines: [], fileTotal: null, reasons: ['Файл без листов'] }
+    return {
+      reportDate: null,
+      periodStart: null,
+      periodEnd: null,
+      periodRange: false,
+      lines: [],
+      fileTotal: null,
+      linesSum: 0,
+      refundsAmount: 0,
+      reasons: ['Файл без листов'],
+    }
   }
   const preferred =
     sheets.find((s) => /оплат|приход|продаж/i.test(s.name)) ??

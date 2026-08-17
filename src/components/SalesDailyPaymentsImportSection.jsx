@@ -1,13 +1,16 @@
 import { useRef, useState } from 'react'
 import { FileSpreadsheet, Upload } from 'lucide-react'
-import { listClientsByClubId, listMembershipsByClubId } from '../lib/localDbClubQuery.js'
+import { listClientsByClubId, listMembershipsByClubId, listTrainingsForClientIds } from '../lib/localDbClubQuery.js'
 import { pullAdminClientsFromCloud } from '../lib/admin/adminClientsListService.js'
 import {
   buildDailyFormFromPaymentLines,
+  canApplyPaymentsImportToReportDate,
+  dailyFormHasFilledSalesMatrix,
   enrichSalesPaymentLines,
+  mergePaymentImportIntoDailyForm,
 } from '../lib/admin/salesPaymentsImportCore.js'
+import { matchClientsByCardNumber } from '../lib/admin/salesClientMatchCore.js'
 import { parseSalesPaymentsXlsxFile } from '../lib/admin/salesPaymentsImportWorkbook.js'
-import { emptyDailyForm } from '../lib/admin/salesReportCore.js'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { SalesPaymentsClientLinkSection } from './SalesPaymentsClientLinkSection.jsx'
 
@@ -22,8 +25,9 @@ const BUCKETS = [
  * @param {{
  *   clubId: string,
  *   reportDate: string,
+ *   dailyForm?: Record<string, string>,
  *   canEdit?: boolean,
- *   onApplyForm: (form: Record<string, string>) => void,
+ *   onApplyForm: (form: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => void,
  *   onToast?: (msg: string, opts?: { variant?: string }) => void,
  *   onReportDateHint?: (iso: string) => void,
  * }} props
@@ -31,6 +35,7 @@ const BUCKETS = [
 export function SalesDailyPaymentsImportSection({
   clubId,
   reportDate,
+  dailyForm,
   canEdit = true,
   onApplyForm,
   onToast,
@@ -43,8 +48,8 @@ export function SalesDailyPaymentsImportSection({
   const [error, setError] = useState('')
   const loadGenRef = useRef(0)
 
-  const toast = (msg) => {
-    if (typeof onToast === 'function') onToast(msg)
+  const toast = (msg, opts) => {
+    if (typeof onToast === 'function') onToast(msg, opts)
   }
 
   /** Сброс превью файла (уже подставленную форму дня не трогаем). */
@@ -66,10 +71,19 @@ export function SalesDailyPaymentsImportSection({
     try {
       const parsed = await parseSalesPaymentsXlsxFile(file)
       if (gen !== loadGenRef.current) return
+      if (parsed.periodRange) {
+        setLines([])
+        setMeta(parsed)
+        setError(parsed.reasons?.[0] || 'Файл за период, не за один день.')
+        return
+      }
       if (!parsed.lines.length) {
         setLines([])
         setMeta(parsed)
-        setError('В файле не найдено строк продаж (карта + сумма). Проверьте формат «Отчёт по оплатам».')
+        setError(
+          parsed.reasons?.find((r) => /даты периода/i.test(r)) ||
+            'В файле не найдено строк продаж (карта + сумма). Проверьте формат «Отчёт по оплатам».',
+        )
         return
       }
       if (isSupabaseConfigured() && typeof navigator !== 'undefined' && navigator.onLine) {
@@ -94,18 +108,41 @@ export function SalesDailyPaymentsImportSection({
         membershipsByClientId[cid].push(m)
       }
       const saleDate = parsed.reportDate || reportDate
-      if (parsed.reportDate && parsed.reportDate !== reportDate && onReportDateHint) {
-        onReportDateHint(parsed.reportDate)
+      const matchedIds = []
+      for (const line of parsed.lines) {
+        const match = matchClientsByCardNumber(clients ?? [], line.cardNumber, {
+          preferOperational: true,
+          paymentName: line.name,
+        })
+        if (match.client?.id) matchedIds.push(String(match.client.id))
+      }
+      const uniqueIds = [...new Set(matchedIds)]
+      const trainings = uniqueIds.length
+        ? await listTrainingsForClientIds(uniqueIds, { clubId })
+        : []
+      if (gen !== loadGenRef.current) return
+      /** @type {Record<string, object[]>} */
+      const trainingsByClientId = {}
+      for (const t of trainings) {
+        const cid = String(t?.client_id ?? '')
+        if (!cid) continue
+        if (!trainingsByClientId[cid]) trainingsByClientId[cid] = []
+        trainingsByClientId[cid].push(t)
       }
       const enriched = enrichSalesPaymentLines({
         lines: parsed.lines,
         reportDate: saleDate,
         clients: clients ?? [],
         membershipsByClientId,
+        trainingsByClientId,
       })
       if (gen !== loadGenRef.current) return
       setLines(enriched)
       setMeta(parsed)
+      const gate = canApplyPaymentsImportToReportDate(parsed, reportDate)
+      if (!gate.ok) {
+        setError(gate.error)
+      }
       toast(`Разобрано строк: ${enriched.length}`)
     } catch (e) {
       if (gen !== loadGenRef.current) return
@@ -123,14 +160,26 @@ export function SalesDailyPaymentsImportSection({
 
   const applyToForm = () => {
     if (!lines?.length) return
+    const gate = canApplyPaymentsImportToReportDate(meta ?? {}, reportDate)
+    if (!gate.ok) {
+      setError(gate.error)
+      return
+    }
     const need = lines.filter((l) => l.include !== false && l.hall !== 'dop' && !l.profitBucket)
     if (need.length) {
       setError(`Укажите НК/ДК/УК для ${need.length} строк (или снимите «в отчёт»)`)
       return
     }
+    if (dailyFormHasFilledSalesMatrix(dailyForm)) {
+      const ok = window.confirm(
+        'Подставить заменит суммы НК/ДК/УК и доп. в этом дне. ПНК, тренировки и возвраты (если их нет в файле) останутся. Продолжить?',
+      )
+      if (!ok) return
+    }
     const built = buildDailyFormFromPaymentLines(lines)
-    const next = { ...emptyDailyForm(), ...built.form }
-    onApplyForm(next)
+    onApplyForm((prev) =>
+      mergePaymentImportIntoDailyForm(prev, built.form, { refundsAmount: meta?.refundsAmount }),
+    )
     setError('')
     toast(
       `В форму: ${built.included} строк, сумма ячеек ≈ ${Math.round(built.matrixSum)} ₽. Проверьте и нажмите «Сохранить».`,
@@ -138,6 +187,12 @@ export function SalesDailyPaymentsImportSection({
   }
 
   const hasImport = Boolean(fileName || meta || error || lines !== null)
+  const dateGate = meta
+    ? canApplyPaymentsImportToReportDate(meta, reportDate)
+    : { ok: false }
+  const warningReasons = (meta?.reasons ?? []).filter(
+    (r) => !/не за один день|даты периода/i.test(r),
+  )
 
   if (!canEdit) return null
 
@@ -145,8 +200,8 @@ export function SalesDailyPaymentsImportSection({
     <section className="sales-report__card sales-payments-import sales-daily-excel-card" aria-label="Импорт отчёта по оплатам">
       <h3 className="sales-report__section-title">Каждый день: Excel оплат из 1С</h3>
       <p className="sales-report__hint sales-daily-excel-card__lead">
-        Файл <strong>31.xlsx</strong> — оплаты за день (не закрытия). НК/ДК/УК → «Подставить» → «Сохранить».
-        Ниже — карточки, кого ещё нет в базе данных. «Отмена» — сбросить выбранный файл.
+        Файл <strong>31.xlsx</strong> — оплаты <strong>за один день</strong> (не закрытия и не месяц). НК/ДК/УК →
+        «Подставить» → «Сохранить». Ниже — карточки, кого ещё нет в базе данных. «Отмена» — сбросить выбранный файл.
       </p>
       <label className="sales-payments-import__file">
         <FileSpreadsheet size={18} aria-hidden />
@@ -166,7 +221,27 @@ export function SalesDailyPaymentsImportSection({
         <p className="sales-report__hint">
           Дата в файле: <strong>{meta.reportDate}</strong>
           {meta.fileTotal != null ? ` · итог файла ${meta.fileTotal} ₽` : ''}
+          {meta.linesSum != null ? ` · в строках ${meta.linesSum} ₽` : ''}
         </p>
+      ) : null}
+      {dateGate.fileDate && !dateGate.ok && onReportDateHint ? (
+        <p className="sales-report__hint">
+          <button
+            type="button"
+            className="btn btn-ghost btn-touch"
+            onClick={() => onReportDateHint(dateGate.fileDate)}
+          >
+            Открыть день файла ({dateGate.fileDate})
+          </button>
+        </p>
+      ) : null}
+      {warningReasons.length ? (
+        <ul className="sales-payments-import__reasons">
+          {warningReasons.slice(0, 8).map((r) => (
+            <li key={r}>{r}</li>
+          ))}
+          {warningReasons.length > 8 ? <li>…ещё {warningReasons.length - 8}</li> : null}
+        </ul>
       ) : null}
       {error ? <p className="sales-report__error">{error}</p> : null}
 
@@ -239,7 +314,12 @@ export function SalesDailyPaymentsImportSection({
             Отмена
           </button>
           {lines?.length ? (
-            <button type="button" className="btn btn-primary btn-touch" onClick={applyToForm} disabled={busy}>
+            <button
+              type="button"
+              className="btn btn-primary btn-touch"
+              onClick={applyToForm}
+              disabled={busy || !dateGate.ok}
+            >
               <Upload size={16} aria-hidden /> Подставить в форму дня
             </button>
           ) : null}

@@ -3,14 +3,13 @@
  * Чистая логика без React / IDB / xlsx.
  */
 
-import {
-  classifySaleClientSegment,
-  saleSegmentToProfitBucket,
-} from './salesClientSegmentCore.js'
+import { classifySaleClientSegment, saleSegmentToProfitBucket } from './salesClientSegmentCore.js'
 import {
   emptyDailyForm,
   salesMatrixSumKey,
   SALES_DOP_FORM_SUM_KEY,
+  SALES_MATRIX_HALL_KEYS,
+  SALES_REFUNDS_FORM_KEY,
 } from './salesReportCore.js'
 import {
   looksLikeSalesCardNumber,
@@ -19,6 +18,8 @@ import {
 } from './salesClientMatchCore.js'
 import { clientCrmHallKind } from './deskHallClientsCore.js'
 import { clientMembershipHallSet } from '../membershipHallCore.js'
+import { isOneTimeTariffName } from './deskPackageDurationCore.js'
+import { parsePaymentsReportPeriod } from './salesImportDateCore.js'
 
 /** @typedef {'pz'|'tz'|'az'|'dop'|null} SalesHallKey */
 /** @typedef {'nk'|'dk'|'uk'|null} ProfitBucket */
@@ -56,33 +57,54 @@ export function parseImportMoney(raw) {
  * @returns {SalesHallKey}
  */
 export function detectSalesHallFromLabel(text) {
-  const t = cellText(text).toLowerCase()
+  const t = cellText(text).toLowerCase().replace(/ё/g, 'е').replace(/\s+/g, ' ').trim()
   if (!t) return null
-  if (t.includes('клубн') && t.includes('карт')) return 'dop'
-  if (t.includes('персональн') || (t.includes('персон') && t.includes('зал')) || t === 'пз' || t.startsWith('пз ')) {
-    return 'pz'
-  }
-  // «ТЗ», «ТЗ Утро» — \b плохо работает с кириллицей
-  if ((t.includes('тренаж') && t.includes('зал')) || t === 'тз' || t.startsWith('тз ')) return 'tz'
-  if ((t.includes('аэроб') && t.includes('зал')) || t === 'аз' || t.startsWith('аз ')) return 'az'
+  // «ТЗ разовое» / длинное имя тарифа — не смена зала
+  if (isOneTimeTariffName(t)) return null
+  if (t === 'клубная карта' || t === 'клубные карты') return 'dop'
+  if (t === 'пз' || t === 'персональный зал') return 'pz'
+  if (t === 'тз' || t === 'тренажерный зал' || t === 'тз утро') return 'tz'
+  if (t === 'аз' || t === 'аэробный зал' || t === 'аз утро') return 'az'
   return null
 }
 
 /**
+ * Дата одного дня из шапки файла. Период разных дат → null (не класть месяц на 1-е).
  * @param {unknown[][]} rows
  * @returns {string|null} YYYY-MM-DD
  */
 export function parsePaymentsReportDate(rows) {
-  for (const row of rows ?? []) {
-    for (const cell of row ?? []) {
-      const t = cellText(cell)
-      const m = t.match(/Период:\s*(\d{2})\.(\d{2})\.(\d{4})/i)
-      if (m) return `${m[3]}-${m[2]}-${m[1]}`
-      const m2 = t.match(/^(\d{2})\.(\d{2})\.(\d{4})\s*-\s*\1\.\2\.\3/)
-      if (m2) return `${m2[3]}-${m2[2]}-${m2[1]}`
-    }
+  const period = parsePaymentsReportPeriod(rows)
+  if (!period || !period.sameDay) return null
+  return period.start
+}
+
+/**
+ * Сумма строки: итог (нал+безнал), а не последнее число.
+ * @param {number[]} nums
+ * @returns {number}
+ */
+export function pickSaleRowAmount(nums) {
+  const values = (nums ?? []).filter((n) => Number.isFinite(n) && n !== 0)
+  if (!values.length) return NaN
+  const pos = values.filter((n) => n > 0)
+  const neg = values.filter((n) => n < 0)
+  if (neg.length && !pos.length) {
+    if (neg.length === 1) return neg[0]
+    const last = neg[neg.length - 1]
+    const restSum = neg.slice(0, -1).reduce((a, b) => a + b, 0)
+    if (Math.abs(last - restSum) < 0.05) return last
+    return last
   }
-  return null
+  if (pos.length === 1) return pos[0]
+  if (pos.length === 2) {
+    if (Math.abs(pos[0] - pos[1]) < 0.02) return pos[0]
+    return Math.round((pos[0] + pos[1]) * 100) / 100
+  }
+  const last = pos[pos.length - 1]
+  const restSum = pos.slice(0, -1).reduce((a, b) => a + b, 0)
+  if (Math.abs(last - restSum) < 0.05) return last
+  return last
 }
 
 /**
@@ -96,27 +118,15 @@ export function tryParseClientSaleRow(row) {
   if (!looksLikeSalesCardNumber(first)) return null
   const name = cells[1] || ''
   if (!name || detectSalesHallFromLabel(name)) return null
-  // менеджер без карты — отсев: имя из двух+ слов или одно, но не «Итого»
   if (/^итого$/i.test(name)) return null
-  let amount = NaN
-  for (let i = cells.length - 1; i >= 2; i--) {
+  /** @type {number[]} */
+  const money = []
+  for (let i = 2; i < cells.length; i++) {
     const n = parseImportMoney(cells[i])
-    if (!Number.isNaN(n) && n > 0) {
-      amount = n
-      break
-    }
+    if (!Number.isNaN(n) && n !== 0) money.push(n)
   }
-  if (Number.isNaN(amount) || amount <= 0) {
-    // иногда сумма во 2-й колонке при короткой строке
-    for (let i = 2; i < cells.length; i++) {
-      const n = parseImportMoney(cells[i])
-      if (!Number.isNaN(n) && n > 0) {
-        amount = n
-        break
-      }
-    }
-  }
-  if (Number.isNaN(amount) || amount <= 0) return null
+  const amount = pickSaleRowAmount(money)
+  if (Number.isNaN(amount) || amount === 0) return null
   return {
     cardNumber: normalizeSalesCardNumber(first),
     name,
@@ -138,18 +148,36 @@ export function tryParseClientSaleRow(row) {
  *     amount: number,
  *   }>,
  *   fileTotal: number|null,
+ *   linesSum: number,
+ *   refundsAmount: number,
+ *   periodStart: string|null,
+ *   periodEnd: string|null,
+ *   periodRange: boolean,
  *   reasons: string[],
  * }}
  */
 export function parseSalesPaymentsAoA(rows) {
   const reasons = []
-  const reportDate = parsePaymentsReportDate(rows)
+  const period = parsePaymentsReportPeriod(rows)
+  const periodStart = period?.start ?? null
+  const periodEnd = period?.end ?? null
+  const periodRange = Boolean(period && !period.sameDay)
+  const reportDate = period && period.sameDay ? period.start : null
+  if (periodRange) {
+    reasons.push(
+      `Файл за период ${periodStart} — ${periodEnd}, не за один день. В дневной отчёт такой файл не подставляем.`,
+    )
+  }
+  if (!period) {
+    reasons.push('В файле нет даты периода — не подставляем в «сегодня» наугад.')
+  }
   /** @type {SalesHallKey} */
   let hall = null
   let tariffName = ''
   /** @type {Array<{ id: string, cardNumber: string, name: string, tariffName: string, hall: SalesHallKey, amount: number }>} */
   const lines = []
   let fileTotal = null
+  let refundsAmount = 0
   let lineSeq = 0
 
   for (const row of rows ?? []) {
@@ -183,6 +211,11 @@ export function parseSalesPaymentsAoA(rows) {
 
     const client = tryParseClientSaleRow(row)
     if (client) {
+      if (client.amount < 0) {
+        refundsAmount = Math.round((refundsAmount + Math.abs(client.amount)) * 100) / 100
+        reasons.push(`Возврат ${client.cardNumber}: ${Math.abs(client.amount)} ₽`)
+        continue
+      }
       if (!hall) {
         reasons.push(`Строка ${client.cardNumber}: зал не определён — пропуск`)
         continue
@@ -210,7 +243,24 @@ export function parseSalesPaymentsAoA(rows) {
     }
   }
 
-  return { reportDate, lines, fileTotal, reasons }
+  const linesSum = Math.round(lines.reduce((s, l) => s + (Number(l.amount) || 0), 0) * 100) / 100
+  if (fileTotal != null && Math.abs(fileTotal - linesSum) > 1) {
+    reasons.push(
+      `Итог файла ${fileTotal} ₽, сумма разобранных строк ${linesSum} ₽ — проверьте пропуски и возвраты.`,
+    )
+  }
+
+  return {
+    reportDate,
+    periodStart,
+    periodEnd,
+    periodRange,
+    lines,
+    fileTotal,
+    linesSum,
+    refundsAmount,
+    reasons,
+  }
 }
 
 /**
@@ -263,6 +313,7 @@ export function suggestImportProfitBucket(input) {
     clientId: input.clientId ?? undefined,
     memList: input.memList ?? [],
     trainings: input.trainings ?? [],
+    ignoreMembershipsStartingOnSaleDate: true,
   })
   const bucket = saleSegmentToProfitBucket(classified.segment)
 
@@ -280,6 +331,15 @@ export function suggestImportProfitBucket(input) {
       bucket: /** @type {ProfitBucket} */ ('uk'),
       confident: true,
       reason: 'УК — абонемент уже закончился к дате продажи',
+      segment: classified.segment,
+    }
+  }
+
+  if (classified.reason === 'depleted_in_period' || classified.profitBucket === 'uk') {
+    return {
+      bucket: /** @type {ProfitBucket} */ ('uk'),
+      confident: true,
+      reason: 'УК — занятия закончились, срок абонемента ещё идёт',
       segment: classified.segment,
     }
   }
@@ -401,4 +461,70 @@ export function buildDailyFormFromPaymentLines(lines) {
     needBucket,
     matrixSum: Object.values(sums).reduce((a, b) => a + b, 0) + dopSum,
   }
+}
+
+/**
+ * Можно ли подставить разбор в открытый день отчёта.
+ * @param {{ reportDate?: string|null, periodRange?: boolean }} parsed
+ * @param {string} reportDate
+ */
+export function canApplyPaymentsImportToReportDate(parsed, reportDate) {
+  if (parsed?.periodRange) {
+    return {
+      ok: false,
+      error: 'Файл за период, не за один день. Выгрузите оплаты за нужную дату.',
+    }
+  }
+  const fileDate = String(parsed?.reportDate ?? '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fileDate)) {
+    return {
+      ok: false,
+      error: 'В файле нет даты одного дня. Не подставляем в открытый день наугад.',
+    }
+  }
+  const open = String(reportDate ?? '').slice(0, 10)
+  if (fileDate !== open) {
+    return {
+      ok: false,
+      error: `Файл за ${fileDate}, открыт день ${open || '—'}. Сначала откройте день файла.`,
+      fileDate,
+    }
+  }
+  return { ok: true, fileDate }
+}
+
+/**
+ * В форме уже есть суммы продаж (подстановка затрёт матрицу).
+ * @param {Record<string, string>|null|undefined} form
+ */
+export function dailyFormHasFilledSalesMatrix(form) {
+  if (!form) return false
+  for (const key of SALES_MATRIX_HALL_KEYS) {
+    if (Number(form[key]) > 0) return true
+    if (Number(form[salesMatrixSumKey(key)]) > 0) return true
+  }
+  if (Number(form[SALES_DOP_FORM_SUM_KEY]) > 0) return true
+  return false
+}
+
+/**
+ * Матрица НК/ДК/УК и доп. из Excel; ПНК, тренировки и возвраты (если файл без возвратов) не трогаем.
+ * @param {Record<string, string>|null|undefined} prev
+ * @param {Record<string, string>} builtForm
+ * @param {{ refundsAmount?: number }} [opts]
+ */
+export function mergePaymentImportIntoDailyForm(prev, builtForm, opts = {}) {
+  const base = prev && typeof prev === 'object' ? prev : emptyDailyForm()
+  const next = { ...base }
+  for (const key of SALES_MATRIX_HALL_KEYS) {
+    next[key] = builtForm?.[key] ?? ''
+    const sumKey = salesMatrixSumKey(key)
+    next[sumKey] = builtForm?.[sumKey] ?? ''
+  }
+  next[SALES_DOP_FORM_SUM_KEY] = builtForm?.[SALES_DOP_FORM_SUM_KEY] ?? ''
+  const refunds = Number(opts.refundsAmount)
+  if (Number.isFinite(refunds) && refunds > 0) {
+    next[SALES_REFUNDS_FORM_KEY] = String(Math.round(refunds * 100) / 100)
+  }
+  return next
 }
