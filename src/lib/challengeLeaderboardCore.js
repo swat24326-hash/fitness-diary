@@ -1,7 +1,7 @@
 /** Чистая логика рейтинга челленджей (без React / IDB / Supabase). */
 
 import { isClientArchived } from './clientArchive.js'
-import { iterSetLoadSides } from './trainingSetLateralityCore.js'
+import { iterSetLoadSides, iterSetRpeValues } from './trainingSetLateralityCore.js'
 
 export const CHALLENGE_METRICS = ['max_weight', 'max_reps', 'max_time_sec', 'max_distance_m']
 
@@ -111,8 +111,10 @@ function bestMetricInExercise(ex, challenge) {
       const v = parseNum(set?.points)
       if (v != null && v > 0) best = best == null ? v : Math.max(best, v)
     } else if (metric === 'max_rpe') {
-      const v = parseNum(set?.rpe)
-      if (v != null && v > 0) best = best == null ? v : Math.max(best, v)
+      for (const v of iterSetRpeValues(set)) {
+        const n = parseNum(v)
+        if (n != null && n > 0) best = best == null ? n : Math.max(best, n)
+      }
     }
   }
   return best

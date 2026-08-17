@@ -14,7 +14,7 @@ import { listMeasurements, listTrainingsForClient } from '../../lib/dataAccess'
 import { useDebouncedStorageReload, shouldReloadTrainerClientStats } from '../../lib/useDebouncedStorageReload'
 import { BODY_MEASURE_FIELDS, getMeasureValue } from '../../lib/bodyMeasures'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
-import { collectSetLoadNums } from '../../lib/trainingSetLateralityCore'
+import { collectSetLoadNums, collectSetHrAfterNums, collectSetRpeNums } from '../../lib/trainingSetLateralityCore'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend)
 
@@ -240,10 +240,10 @@ export function Statistics({ clientId }) {
             const nums = sets.map((s) => Number(s.load)).filter((n) => !Number.isNaN(n) && n > 0)
             val = nums.length ? Math.max(...nums) : null
           } else if (m === 'rpe') {
-            const nums = sets.map((s) => Number(s.rpe)).filter((n) => !Number.isNaN(n) && n > 0)
+            const nums = collectSetRpeNums(sets)
             val = nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null
           } else {
-            const nums = sets.map((s) => Number(s.hr_after)).filter((n) => !Number.isNaN(n) && n > 0)
+            const nums = collectSetHrAfterNums(sets)
             val = nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null
           }
           if (val != null) byMetric.get(m)?.set(t.date, val)
@@ -303,10 +303,10 @@ export function Statistics({ clientId }) {
             const nums = sets.map((s) => Number(s.load)).filter((n) => !Number.isNaN(n) && n > 0)
             row[m] = nums.length ? Math.max(...nums) : '—'
           } else if (m === 'rpe') {
-            const nums = sets.map((s) => Number(s.rpe)).filter((n) => !Number.isNaN(n) && n > 0)
+            const nums = collectSetRpeNums(sets)
             row[m] = nums.length ? Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 10) / 10 : '—'
           } else {
-            const nums = sets.map((s) => Number(s.hr_after)).filter((n) => !Number.isNaN(n) && n > 0)
+            const nums = collectSetHrAfterNums(sets)
             row[m] = nums.length ? Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 10) / 10 : '—'
           }
         }

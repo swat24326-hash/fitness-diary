@@ -126,5 +126,34 @@ const lbArch = buildChallengeLeaderboard({ ...challenge, reference_weight_kg: nu
 ok(lbArch.rows.length === 1 && lbArch.rows[0].client_id === 'c2', 'archived client excluded from leaderboard')
 ok(isClientArchived(archivedCtx.clients[0]), 'fixture archived')
 
+const rpeChallenge = {
+  id: 'ch-rpe',
+  club_id: 'club-1',
+  exercise_id: 'ex-1',
+  metric: 'max_rpe',
+  start_date: '2026-01-01',
+  end_date: '2026-12-31',
+}
+const lbRpe = buildChallengeLeaderboard(rpeChallenge, {
+  ...ctx,
+  trainings: [
+    {
+      client_id: 'c1',
+      club_id: 'club-1',
+      status: 'completed',
+      date: '2026-06-10',
+      data: {
+        exercises: [
+          {
+            catalog_exercise_id: 'ex-1',
+            sets: [{ reps_l: '10', weight_kg_l: '20', rpe_l: '8', rpe_r: '9' }],
+          },
+        ],
+      },
+    },
+  ],
+})
+ok(lbRpe.rows[0]?.value === 9, 'max_rpe challenge uses lr side rpe')
+
 if (failed) process.exit(1)
 console.log('verify-challenge-max-reps: all passed')

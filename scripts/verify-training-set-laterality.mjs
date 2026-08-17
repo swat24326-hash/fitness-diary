@@ -9,9 +9,13 @@ import {
   expandSetToLaterality,
   formatLateralitySetSummary,
   iterSetLoadSides,
+  iterSetRpeValues,
   normalizeSetForStorage,
   trainingSetRowHasData,
   collectSetLoadNums,
+  collectSetHrAfterNums,
+  collectSetRpeNums,
+  setHasAnyLateralityFields,
   maybeEnableLateralityFromLast,
   displayLateralityField,
   patchLateralitySetField,
@@ -219,6 +223,28 @@ const hrDiary = formatSetSummary(
 ok(hrDiary.includes('Л') && hrDiary.includes('пульс 130') && hrDiary.includes('пульс 135'), 'diary hr per side')
 ok(hrDiary.includes('RPE 8') && hrDiary.includes('RPE 9'), 'diary rpe per side')
 
+const hrCollapse = collapseSetFromLaterality({
+  reps_l: '10',
+  hr_after_l: '132',
+  hr_after_r: '128',
+  rpe_l: '7',
+  rpe_r: '9',
+})
+ok(hrCollapse.hr_after === '132' && hrCollapse.hr_after_l === '', 'collapse merges hr from left side')
+ok(hrCollapse.rpe === '7', 'collapse merges rpe from left side')
+
+const hrBilateral = normalizeSetForStorage(hrCollapse, false)
+ok(hrBilateral.hr_after === '132' && !('hr_after_l' in hrBilateral), 'bilateral storage keeps collapsed hr')
+
+const rpeStats = collectSetRpeNums([{ reps_l: '8', rpe_l: '7', rpe_r: '9' }])
+ok(rpeStats.length === 2 && rpeStats.includes(7) && rpeStats.includes(9), 'stats rpe collects both lr sides')
+
+const hrStats = collectSetHrAfterNums([{ reps_l: '8', hr_after_l: '130', hr_after_r: '135' }])
+ok(hrStats.length === 2 && hrStats.includes(130) && hrStats.includes(135), 'stats hr collects both lr sides')
+
+const onlyRightHr = collapseSetFromLaterality({ hr_after_r: '128' })
+ok(onlyRightHr.hr_after === '128', 'collapse keeps right hr if left empty')
+
 const fromLast = maybeEnableLateralityFromLast(
   { format: 'Силовая', sets: [emptyTrainingSetRow()] },
   { laterality: 'lr', sets: [{ reps_l: '10' }] },
@@ -237,6 +263,54 @@ ok(resultHasLaterality({ sets: [{ reps_r: '6' }] }), 'result sides count as late
 
 const onlyRight = collapseSetFromLaterality({ reps_r: '9', weight_kg_r: '14' })
 ok(onlyRight.reps === '9' && onlyRight.weight_kg === '14', 'collapse keeps right if left empty')
+
+const rpeOnlyInfer = normalizeExercisesForStorage(
+  [{ format: 'Силовая', sets: [{ rpe_l: '7', rpe_r: '9' }] }],
+  'Силовая',
+)
+ok(rpeOnlyInfer[0].laterality === 'lr', 'storage infers lr from side rpe only')
+ok(rpeOnlyInfer[0].sets[0].rpe_l === '7' && rpeOnlyInfer[0].sets[0].rpe_r === '9', 'storage keeps both side rpe')
+
+const metricsDiary = formatSetSummary({ rpe_l: '8', rpe_r: '9', hr_after_l: '130', hr_after_r: '135' }, 'Функциональная')
+ok(metricsDiary.includes('RPE 8') && metricsDiary.includes('RPE 9'), 'diary lr metrics without load sides')
+
+const lrOffFunctional = applyExerciseLaterality(
+  {
+    format: 'Функциональная',
+    laterality: 'lr',
+    sets: [{ reps_l: '10', hr_after_l: '130', hr_after_r: '140', rpe_l: '7', rpe_r: '9' }],
+  },
+  false,
+)
+ok(lrOffFunctional.sets[0].hr_after === '130' && lrOffFunctional.sets[0].rpe === '7', 'lr off keeps collapsed hr and rpe')
+
+const toCardio = normalizeExercisesForStorage(
+  [
+    {
+      format: 'Кардио',
+      sets: [
+        {
+          tut_sec: '12',
+          load: '5',
+          hr_after: '130',
+          rpe: '7',
+        },
+      ],
+    },
+  ],
+  'Кардио',
+)
+ok(toCardio[0].laterality == null && toCardio[0].sets[0].tut_sec === '12', 'cardio keeps time after lr collapse path')
+
+let maxRpe = null
+for (const v of iterSetRpeValues({ reps_l: '10', rpe_l: '8', rpe_r: '9' })) {
+  const n = Number(v)
+  if (n > 0) maxRpe = maxRpe == null ? n : Math.max(maxRpe, n)
+}
+ok(maxRpe === 9, 'max rpe picks best lr side')
+
+ok(setHasAnyLateralityFields({ rpe_l: '8' }), 'any laterality from side rpe')
+ok(!setHasAnyLateralityFields({ rpe: '8' }), 'bilateral rpe alone is not lr')
 
 if (failed) {
   console.error(`\n${failed} check(s) failed`)

@@ -2380,29 +2380,35 @@ tr:last-child td {
   gap: 8px;
 }
 
-/* Компактный ряд подхода: № · повторы · вес · RPE · удалить */
+/* Компактный ряд подхода: № · поля одинаковой ширины · удалить */
 .set-row-compact {
   display: grid;
-  grid-template-columns: 26px minmax(0, 1fr) minmax(0, 1fr) 46px 40px;
+  grid-template-columns: 26px repeat(3, minmax(0, 1fr)) 40px;
   gap: 6px 8px;
-  align-items: end;
+  align-items: center;
   margin-bottom: 8px;
 }
 
 .set-row-compact--functional {
-  grid-template-columns: 26px minmax(0, 0.9fr) minmax(0, 0.9fr) 46px minmax(52px, 0.65fr) 40px;
+  grid-template-columns: 26px repeat(4, minmax(0, 1fr)) 40px;
 }
 
 .set-row-compact__idx {
   font-size: 0.78rem;
   color: var(--text-muted);
   text-align: center;
-  padding-bottom: 10px;
+  padding-bottom: 0;
   font-variant-numeric: tabular-nums;
+  align-self: center;
+}
+
+.set-row-compact__field {
+  min-width: 0;
 }
 
 .set-row-compact .field {
   margin-bottom: 0;
+  min-width: 0;
 }
 
 .set-row-compact .label {
@@ -2411,8 +2417,11 @@ tr:last-child td {
 }
 
 .set-row-compact .input {
-  padding: 8px 8px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 6px;
   min-height: 42px;
+  text-align: center;
 }
 
 .exercise-format-row {

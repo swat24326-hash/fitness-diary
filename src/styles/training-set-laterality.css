@@ -17,19 +17,13 @@
   letter-spacing: 0.02em;
 }
 
-.set-row-compact__field--rpe {
-  max-width: 46px;
-}
-
 .set-row-compact__field--rpe .input {
   text-align: center;
-  padding-left: 4px;
-  padding-right: 4px;
 }
 
 .set-row-lr-stack {
   display: grid;
-  grid-template-columns: 26px 22px minmax(0, 1fr) minmax(0, 1fr) 46px 40px;
+  grid-template-columns: 26px 22px repeat(3, minmax(0, 1fr)) 40px;
   grid-template-areas:
     'idx tagL repsL wtL rpeL rm'
     'idx tagR repsR wtR rpeR rm';
@@ -39,10 +33,20 @@
 }
 
 .set-row-lr-stack--functional {
-  grid-template-columns: 26px 22px minmax(0, 1fr) minmax(0, 1fr) minmax(52px, 0.65fr) 46px 40px;
+  grid-template-columns: 26px 22px repeat(4, minmax(0, 1fr)) 40px;
   grid-template-areas:
     'idx tagL repsL wtL hrL rpeL rm'
     'idx tagR repsR wtR hrR rpeR rm';
+}
+
+.set-row-lr-stack .field {
+  min-width: 0;
+}
+
+.set-row-lr-stack .input {
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
 }
 
 .set-row-lr-stack__idx {

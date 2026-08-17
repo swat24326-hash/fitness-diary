@@ -210,7 +210,6 @@ export function TrainingSetRow({
       <span className="set-row-compact__idx">{setIndex + 1}</span>
       <SetField label="Повторы" placeholder="Повт." inputMode="numeric" value={st.reps} onChange={(v) => onChange(patch(st, 'reps', v))} />
       <SetField label="Вес, кг" placeholder="кг" inputMode="decimal" value={st.weight_kg} onChange={(v) => onChange(patch(st, 'weight_kg', v))} />
-      {bilateralRpeField}
       {withSetHr ? (
         <TrainingSetHrField
           compact
@@ -219,6 +218,7 @@ export function TrainingSetRow({
           onChange={(v) => onChange(patch(st, 'hr_after', v))}
         />
       ) : null}
+      {bilateralRpeField}
       {removeBtn}
     </div>
   )

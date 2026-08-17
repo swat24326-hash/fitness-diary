@@ -34,6 +34,16 @@ export function setHasLateralityFields(st) {
   return SIDE_KEYS.some((k) => trimField(st[k]) !== '')
 }
 
+/** Л/П по сторонам нагрузки или отдельным полям пульса/RPE (для infer, дневника, сохранения). */
+export function setHasAnyLateralityFields(st) {
+  if (!st || typeof st !== 'object') return false
+  if (setHasLateralityFields(st)) return true
+  return (
+    HR_SIDE_KEYS.some((k) => trimField(st[k]) !== '') ||
+    RPE_SIDE_KEYS.some((k) => trimField(st[k]) !== '')
+  )
+}
+
 export function trainingSetRowHasData(s) {
   if (!s || typeof s !== 'object') return false
   const keys = ['reps', 'weight_kg', 'tut_sec', 'load', 'rpe', 'hr_after', ...HR_SIDE_KEYS, ...RPE_SIDE_KEYS, ...SIDE_KEYS]
@@ -47,7 +57,7 @@ export function setsHaveLoadData(sets) {
 export function resultHasLaterality(result) {
   if (!result || typeof result !== 'object') return false
   if (String(result.laterality ?? '').trim().toLowerCase() === EXERCISE_LATERALITY_LR) return true
-  return (Array.isArray(result.sets) ? result.sets : []).some((s) => setHasLateralityFields(s))
+  return (Array.isArray(result.sets) ? result.sets : []).some((s) => setHasAnyLateralityFields(s))
 }
 
 /** Флаг или уже записанные стороны — иначе журнал видит Л/П, а форма нет. */
@@ -101,17 +111,21 @@ export function collapseSetFromLaterality(st) {
   const reps = trimField(s.reps_l) || trimField(s.reps_r) || trimField(s.reps)
   const weight = trimField(s.weight_kg_l) || trimField(s.weight_kg_r) || trimField(s.weight_kg)
   const rpe = trimField(s.rpe_l) || trimField(s.rpe_r) || trimField(s.rpe)
+  const hr_after = trimField(s.hr_after_l) || trimField(s.hr_after_r) || trimField(s.hr_after)
   return {
     ...s,
     reps,
     weight_kg: weight,
     rpe,
+    hr_after,
     reps_l: '',
     reps_r: '',
     weight_kg_l: '',
     weight_kg_r: '',
     rpe_l: '',
     rpe_r: '',
+    hr_after_l: '',
+    hr_after_r: '',
   }
 }
 
@@ -187,7 +201,7 @@ export function iterSetLoadSides(st) {
     if (trimField(s.reps_r) || trimField(s.weight_kg_r)) {
       sides.push({ reps: s.reps_r, weight_kg: s.weight_kg_r })
     }
-    return sides
+    if (sides.length) return sides
   }
   return [{ reps: s.reps, weight_kg: s.weight_kg }]
 }
@@ -204,6 +218,52 @@ export function collectSetLoadNums(sets, key) {
   return nums
 }
 
+function setUsesSideKeys(st, sideKeys) {
+  if (setHasLateralityFields(st)) return true
+  return sideKeys.some((k) => trimField(st?.[k]) !== '')
+}
+
+/** RPE или пульс: стороны Л/П или одно bilateral-поле. */
+export function iterSetSideOrBoth(st, sideKeys, bothKey) {
+  const s = st && typeof st === 'object' ? st : {}
+  if (setUsesSideKeys(s, sideKeys)) {
+    const vals = []
+    for (const k of sideKeys) {
+      if (trimField(s[k])) vals.push(trimField(s[k]))
+    }
+    if (!vals.length && trimField(s[bothKey])) vals.push(trimField(s[bothKey]))
+    return vals
+  }
+  if (trimField(s[bothKey])) return [trimField(s[bothKey])]
+  return []
+}
+
+export function collectSetRpeNums(sets) {
+  const nums = []
+  for (const st of sets ?? []) {
+    for (const v of iterSetSideOrBoth(st, RPE_SIDE_KEYS, 'rpe')) {
+      const n = Number(String(v).replace(',', '.'))
+      if (Number.isFinite(n) && n > 0) nums.push(n)
+    }
+  }
+  return nums
+}
+
+export function collectSetHrAfterNums(sets) {
+  const nums = []
+  for (const st of sets ?? []) {
+    for (const v of iterSetSideOrBoth(st, HR_SIDE_KEYS, 'hr_after')) {
+      const n = Number(String(v).replace(',', '.'))
+      if (Number.isFinite(n) && n > 0) nums.push(n)
+    }
+  }
+  return nums
+}
+
+export function iterSetRpeValues(st) {
+  return iterSetSideOrBoth(st, RPE_SIDE_KEYS, 'rpe')
+}
+
 function sideLine(tag, weightKg, reps, hrAfter, rpeSide) {
   const bits = []
   if (trimField(weightKg)) bits.push(`${trimField(weightKg)} кг`)
@@ -216,7 +276,7 @@ function sideLine(tag, weightKg, reps, hrAfter, rpeSide) {
 
 /** Текст Л/П для дневника; null если сторон нет. */
 export function formatLateralitySetSummary(st) {
-  if (!setHasLateralityFields(st)) return null
+  if (!setHasAnyLateralityFields(st)) return null
   const s = st && typeof st === 'object' ? st : {}
   const legacyHr = !trimField(s.hr_after_r) ? s.hr_after : ''
   const legacyRpe = !trimField(s.rpe_r) ? s.rpe : ''
