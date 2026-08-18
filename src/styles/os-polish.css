@@ -163,14 +163,10 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  align-self: stretch;
-  aspect-ratio: 1;
-  width: auto;
-  min-width: 34px;
-  border-radius: var(--radius-sm);
-  background: var(--accent-bright);
-  color: #022c14;
-  font-size: 0.9rem;
+  align-self: center;
+  min-width: 1.1em;
+  color: var(--accent-bright);
+  font-size: 1rem;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   line-height: 1;
