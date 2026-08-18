@@ -128,6 +128,11 @@ ok(isPnkCardTabVisible(pz, 'loyalty') === true, '6c не-ПНК: вкладка 
   ok(/id: 'loyalty'/.test(cardTabs), '13b вкладка Баллы в карточке')
   const lite = readFileSync(join(root, 'src/components/admin/AdminLitePzClientCardSection.jsx'), 'utf8')
   ok(/ClientLoyaltySection/.test(lite), '13c lite ПЗ показывает секцию баллов')
+  const glanceMap = readFileSync(join(root, 'src/hooks/useLoyaltyGlanceMap.js'), 'utf8')
+  ok(
+    /from '\.\.\/lib\/loyalty\/loyaltyGlanceCache\.js'/.test(glanceMap),
+    '13d хук списка: путь src/lib, не корень репо',
+  )
 }
 
 if (failed) {

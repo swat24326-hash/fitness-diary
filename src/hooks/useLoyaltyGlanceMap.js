@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { LOCAL_DATA_CHANGED } from '../../lib/localDataEvents.js'
-import { getLoyaltyGlanceMany } from '../../lib/loyalty/loyaltyGlanceCache.js'
-import { refreshLoyaltyGlanceForClients } from '../../lib/loyalty/loyaltyGlanceService.js'
-import { shouldShowLoyaltyUi } from '../../lib/loyalty/loyaltyGlanceUiCore.js'
+import { LOCAL_DATA_CHANGED } from '../lib/localDataEvents.js'
+import { getLoyaltyGlanceMany } from '../lib/loyalty/loyaltyGlanceCache.js'
+import { refreshLoyaltyGlanceForClients } from '../lib/loyalty/loyaltyGlanceService.js'
+import { shouldShowLoyaltyUi } from '../lib/loyalty/loyaltyGlanceUiCore.js'
 
 /**
  * Чипы списка: IDB сразу, GET glance по id страницы (не весь клуб).
