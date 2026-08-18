@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'rea
 import { isSupabaseConfigured } from './lib/supabase'
 import { clearPoisonedSyncQueue } from './lib/syncService'
 import { initTrainerWorkspaceCacheInvalidation } from './lib/trainerWorkspaceCache'
+import { AppChromeTop } from './components/AppChromeTop'
 import { AppHeader } from './components/AppHeader'
 import { AppErrorBoundary } from './components/AppErrorBoundary'
 import { AppWelcomeSplash } from './components/AppWelcomeSplash'
@@ -106,10 +107,10 @@ function LoggedInLayout() {
     <div className={`app-shell app-shell--${shellRole}`}>
       <HeartRateSessionsProvider>
         <IskraPanelProvider>
-          <div className="app-chrome-top">
+          <AppChromeTop>
             <AppHeader />
             {role === 'trainer' ? <DraftTabsBar /> : null}
-          </div>
+          </AppChromeTop>
           <BreadcrumbsBar />
           <main className="app-main">
             <AppErrorBoundary>

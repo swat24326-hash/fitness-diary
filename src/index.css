@@ -148,6 +148,11 @@ button {
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 20px rgba(0, 0, 0, 0.28);
 }
 
+/* Клавиатура планшета: sticky top = visualViewport.offsetTop — пульс в видимом верху. */
+.app-chrome-top.app-chrome-top--vv-pinned {
+  z-index: 80;
+}
+
 .app-header {
   display: flex;
   align-items: center;
