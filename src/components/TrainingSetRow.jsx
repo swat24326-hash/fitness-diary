@@ -67,7 +67,6 @@ export function TrainingSetRow({
   onChange,
   onRemove,
 }) {
-  const setOrderLabel = `П${setIndex + 1}`
   const rowClass = [
     'set-row-compact',
     withSetHr && !isLr ? 'set-row-compact--functional' : '',
@@ -115,7 +114,7 @@ export function TrainingSetRow({
   if (isCardio) {
     return (
       <div className={rowClass}>
-        <span className="set-row-compact__idx">{setOrderLabel}</span>
+        <span className="set-row-compact__idx">{setIndex + 1}</span>
         <SetField
           label="Время под нагрузкой, min"
           placeholder="мин"
@@ -155,7 +154,7 @@ export function TrainingSetRow({
 
     return (
       <div className={stackClass}>
-        <span className="set-row-compact__idx set-row-lr-stack__idx">{setOrderLabel}</span>
+        <span className="set-row-compact__idx set-row-lr-stack__idx">{setIndex + 1}</span>
 
         <span className="set-row-lr-stack__tag set-row-lr-stack__tag--l" aria-hidden>
           Л
@@ -208,7 +207,7 @@ export function TrainingSetRow({
 
   return (
     <div className={rowClass}>
-      <span className="set-row-compact__idx">{setOrderLabel}</span>
+      <span className="set-row-compact__idx">{setIndex + 1}</span>
       <SetField label="Повторы" placeholder="Повт." inputMode="numeric" value={st.reps} onChange={(v) => onChange(patch(st, 'reps', v))} />
       <SetField label="Вес, кг" placeholder="кг" inputMode="decimal" value={st.weight_kg} onChange={(v) => onChange(patch(st, 'weight_kg', v))} />
       {withSetHr ? (

@@ -162,16 +162,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 30px;
-  min-width: 58px;
-  padding: 0 10px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--accent-bright) 42%, var(--border));
-  background: color-mix(in srgb, var(--accent) 18%, transparent);
-  color: var(--text);
-  font-size: 0.74rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: 8px;
+  background: var(--accent-bright);
+  color: #022c14;
+  font-size: 0.9rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
   line-height: 1;
 }
 
