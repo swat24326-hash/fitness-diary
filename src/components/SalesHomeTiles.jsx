@@ -7,6 +7,7 @@ import {
   Phone,
   Tags,
   Ticket,
+  Gift,
   TrendingUp,
   UserRound,
   Users,
@@ -52,6 +53,13 @@ export function SalesHomeTiles({ attentionWidgets = {} }) {
               </div>
               <p className="sales-home__tile-title">Журнал звонков</p>
               <p className="sales-home__tile-lead">Мои Звонки · клуб</p>
+            </Link>
+            <Link to="/sales/loyalty" className="sales-home__tile u-no-decoration">
+              <div className="sales-home__tile-icon">
+                <Gift size={44} aria-hidden />
+              </div>
+              <p className="sales-home__tile-title">Журнал баллов</p>
+              <p className="sales-home__tile-lead">Списания куша ПЗ</p>
             </Link>
             <Link
               to="/sales/pnk"

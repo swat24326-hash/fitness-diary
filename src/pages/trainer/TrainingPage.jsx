@@ -45,6 +45,11 @@ import {
 } from '../../lib/hr/hrSessionAgg.js'
 import { hrConnectProfileHint } from '../../lib/hr/hrSessionsCore.js'
 import { pickHrSessionForPersist } from '../../lib/hr/hrSessionPersistCore.js'
+import {
+  applyLoyaltyOnTrainingPersist,
+  ensureLoyaltySessionStartedAt,
+} from '../../lib/loyalty/loyaltyPersistCore.js'
+import { loadLoyaltyCompleteSettings } from '../../lib/loyalty/loyaltyCompleteSettingsService.js'
 
 const TRAINING_TYPES = TRAINING_SESSION_TYPES
 
@@ -291,6 +296,20 @@ export function TrainingPage() {
     void load()
   }, [load, isNew, isAdmin])
 
+  /** Первый заход в форму: штамп старта сессии. Повтор / uuid — тот же ISO. */
+  useEffect(() => {
+    if (loadState !== 'ok') return
+    if (isTrainingStatusCompleted(meta.status)) return
+    const now = new Date().toISOString()
+    setWorkoutState((w) => {
+      const kept = ensureLoyaltySessionStartedAt(w?.loyalty?.session_started_at, now)
+      if (!kept) return w
+      if (w?.loyalty?.session_started_at === kept) return w
+      const prevStamp = w?.loyalty && typeof w.loyalty === 'object' ? w.loyalty : {}
+      return { ...w, loyalty: { ...prevStamp, session_started_at: kept } }
+    })
+  }, [hydrateVersion, loadState, meta.status])
+
   /** Смена URL-тренировки / клиента — новый scope пульса (не путать черновики). */
   useEffect(() => {
     pendingHrScopeRef.current = null
@@ -432,6 +451,8 @@ export function TrainingPage() {
     if (hrSnap) dataPayload.hr_session = hrSnap
     else delete dataPayload.hr_session
 
+    const persistType = deriveTrainingTypeFromExercises(dataPayload.exercises, trainingType)
+
     // Списание тренировки с абонемента: только при ПЕРВОМ переводе в completed.
     // Повторное "Завершить" после редактирования не меняет used_trainings.
     // Сначала сохраняем completed-тренировку, потом debit (если save упадёт — used не растёт зря).
@@ -459,6 +480,34 @@ export function TrainingPage() {
       membershipToDebit = picked
       dataPayload.membership_id = picked.id
     }
+    let loyaltySamples = []
+    let loyaltySettings = null
+    if (firstCompletion) {
+      try {
+        loyaltySamples = hr.getSessionSamples(cid) ?? []
+      } catch {
+        loyaltySamples = []
+      }
+      try {
+        loyaltySettings = await loadLoyaltyCompleteSettings(club_id)
+      } catch {
+        loyaltySettings = null
+      }
+    }
+    const dataWithLoyalty = applyLoyaltyOnTrainingPersist({
+      data: dataPayload,
+      type: persistType,
+      firstCompletion,
+      nowIso: now,
+      samples: loyaltySamples,
+      health: {
+        birthDate: client?.birth_date,
+        sex: getHealthSex(healthCard),
+        weightKg: workoutState.pre_weight_kg || healthCard?.weight_kg || null,
+        asOfIso: effectiveDate || today,
+      },
+      settings: loyaltySettings,
+    })
     const trainerIdForRow = isAdmin ? prev?.trainer_id ?? client?.trainer_id ?? user.id : user.id
     const row = {
       id: prev?.id ?? trainingId,
@@ -471,9 +520,9 @@ export function TrainingPage() {
           : isAdmin
             ? trainingDate
             : today,
-      type: deriveTrainingTypeFromExercises(dataPayload.exercises, trainingType),
+      type: persistType,
       status: nextStatus,
-      data: dataPayload,
+      data: dataWithLoyalty,
       created_at: prev?.created_at ?? now,
       synced: false,
     }

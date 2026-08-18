@@ -57,6 +57,8 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 
 `clients`, `memberships`, `trainings`, `health_cards`, `body_measurements`, `client_weight_entries`, `challenges`, `exercises`, `membership_types`, `nutrition_products`, `homework_presets`, `pnk_funnel_events`, `sale_clips`.
 
+`club_loyalty_settings` и `loyalty_ledger` **не** в allowlist (только `admin-data?action=loyalty-*`). Архив и смена `club_id` пишут `burn_archive` / `club_move` **на сервере** после успешного push `clients` — не из IndexedDB. Store `loyalty_glance` — кэш GET, не очередь. После ручного Sync тренера: flush → `trainer-pull` → GET `loyalty-glance` пачками ≤80 (не в теле pull).
+
 Создание клипа менеджером — через **`admin-data?action=sale-clips`**; тренер закрывает клип (`done` + `memberships.clip_id`) через очередь push.
 
 ---

@@ -10,6 +10,7 @@ import { assertClubCardAvailableForCreate } from '../../lib/admin/salesClientMat
 import { listClientsByClubId } from '../../lib/localDbClubQuery.js'
 import { AdminDeskMembershipLedger } from './AdminDeskMembershipLedger.jsx'
 import { AdminDeskMemDateField } from './AdminDeskMemDateField.jsx'
+import { ClientLoyaltySection } from '../loyalty/ClientLoyaltySection.jsx'
 import { parseFlexibleDateToIso, birthDateYearBounds } from '../../lib/dateRu.js'
 import '../../styles/admin-desk.css'
 
@@ -251,6 +252,8 @@ export function AdminLitePzClientCardSection({
         hall="pz"
         onChanged={onSaved}
       />
+
+      <ClientLoyaltySection client={client} compact />
     </section>
   )
 }

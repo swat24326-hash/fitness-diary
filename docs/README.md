@@ -47,6 +47,7 @@
 |------|--------------|
 | [PRODUCT_VISION.md](./PRODUCT_VISION.md) | **Крупная цель:** ОС + CRM клуба; замена 1С в операционке; call-центры (§2.4); проекция цели на фичи; слои L0–L4 |
 | [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) | **Путь к цели:** разрывы воронки, сейчас→дальше, очередь ставок, ритуал ведения процесса агентом |
+| [DDX_PARITY_MAP.md](./DDX_PARITY_MAP.md) | **Чеклист vs DDX:** что есть / частично / позже (турникет, B2C, касса, сайт…) |
 | [BRAND_SYSTEM.md](./BRAND_SYSTEM.md) | **Фирменный стиль:** Whoop-опора, ролевые цвета, токены, driving prompt |
 | [STRATEGY_SCALE_AND_RU_HOSTING.md](./STRATEGY_SCALE_AND_RU_HOSTING.md) | Стратегия + РФ: курс **C2 + Yandex**; чеклист §5.4.0; security §5.7; продукт P1–P3 §5.8; стек/TS vs переезд **§5.9** |
 | [AUTH_C2_MAP.md](./AUTH_C2_MAP.md) | Вход сейчас (Supabase) vs свой Auth на Yandex; шов `authPort` готов; JWT — по команде R2 |
@@ -86,7 +87,9 @@
 | [PNK_FUNNEL.md](./PNK_FUNNEL.md) | ✅ в проде | Воронка ПНК: менеджер → тренер → KPI |
 | [COACH_QUALITY.md](./COACH_QUALITY.md) | ✅ MVP | Качество ведения тренера: care / depth / хвосты базы |
 | [TRAINING_HR.md](./TRAINING_HR.md) | ✅ MVP | Пульс BLE в шапке (зоны/reconnect) + сводка на Итоге |
+| [LOYALTY.md](./LOYALTY.md) | фазы A–G ✅ | Лояльность ПЗ: цикл, вкладка, списание, журнал, архив/переезд, тумблер клуба |
 | [PRODUCT_MODULES.md](./PRODUCT_MODULES.md) | карта | Питание, ДЗ, outreach, ИСКРА — куда код и docs |
+| [DDX_PARITY_MAP.md](./DDX_PARITY_MAP.md) | 📋 ориентир | Чеклист vs DDX: есть / частично / позже (в т.ч. турникет) |
 | [SALES_MANAGER.md](./SALES_MANAGER.md) | ✅ роль/отчёт в проде; Excel = мост | Менеджер продаж + финансы |
 | [PZ_CLIENTS_ONBOARD.md](./PZ_CLIENTS_ONBOARD.md) | ✅ шпаргалка | Как завести клиентов ПЗ (вечерний Excel — переход; MVP оплат) |
 | [AZ_CLIENTS_ONBOARD.md](./AZ_CLIENTS_ONBOARD.md) | ✅ шпаргалка | Desk АЗ: сид, направления, списания; связь с доменом оплат |

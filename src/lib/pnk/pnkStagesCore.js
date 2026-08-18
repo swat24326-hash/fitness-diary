@@ -551,7 +551,7 @@ export function resolvePnkVisitDayState(client, now = new Date()) {
 export function isPnkCardTabVisible(client, tabId, ctx = {}) {
   const id = String(tabId ?? '')
   if (!isOpenPnkClient(client)) return true
-  if (id === 'stats') return false
+  if (id === 'stats' || id === 'loyalty') return false
   const step = resolvePnkWizardStep(client, ctx)
   if (!step) return false
   // Оформление: нужна вкладка абонементов, чтобы выдать ДК до «Оформлен»

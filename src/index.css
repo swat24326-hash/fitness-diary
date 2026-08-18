@@ -22,6 +22,7 @@
 @import './styles/admin-desk.css';
 @import './styles/desk-package-duration.css';
 @import './styles/admin-club-plan.css';
+@import './styles/loyalty.css';
 
 *,
 *::before,

@@ -1,0 +1,292 @@
+/* Баллы лояльности ПЗ: вкладка карточки и чип списка. */
+
+.loyalty-account {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 12px;
+  padding: 16px 16px 14px;
+  border-radius: var(--radius-md, 16px);
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--bg-elevated, #0c281e) 88%, transparent),
+      color-mix(in srgb, var(--bg-card, #082018) 92%, transparent)
+    );
+  border: 1px solid color-mix(in srgb, var(--border, rgba(46, 255, 184, 0.14)) 90%, transparent);
+  box-shadow: var(--shadow-soft, 0 12px 36px rgba(0, 0, 0, 0.48));
+}
+
+.loyalty-account--compact {
+  margin-top: 16px;
+}
+
+.loyalty-account__eyebrow {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.loyalty-account__title {
+  margin: 0.2rem 0 0;
+  font-size: 1.2rem;
+  font-weight: 680;
+  letter-spacing: -0.03em;
+  color: var(--text);
+}
+
+.loyalty-account__points {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.loyalty-account__points-value {
+  font-size: clamp(2rem, 5vw, 2.6rem);
+  font-weight: 720;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--text);
+}
+
+.loyalty-account__points-label {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+
+.loyalty-account__hint,
+.loyalty-account__status,
+.loyalty-account__offline {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.loyalty-account__hint {
+  color: var(--text);
+}
+
+.loyalty-account__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 14px;
+  margin: 0;
+}
+
+.loyalty-account__facts div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.loyalty-account__facts dt {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.loyalty-account__facts dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.loyalty-glance-chip .td-client-fact__value {
+  font-variant-numeric: tabular-nums;
+}
+
+.loyalty-glance-chip--missed .td-client-fact__value {
+  color: color-mix(in srgb, var(--warn, #e8b86d) 80%, var(--text));
+}
+
+.loyalty-redeem {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.loyalty-redeem__comment {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.loyalty-redeem__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.loyalty-redeem__confirm p,
+.loyalty-redeem__reason,
+.loyalty-redeem__error,
+.loyalty-redeem__ok {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.loyalty-redeem__error {
+  color: color-mix(in srgb, var(--danger, #ff6b6b) 85%, var(--text));
+}
+
+.loyalty-redeem__ok {
+  color: var(--text);
+}
+
+.loyalty-account__journal-link {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.loyalty-journal {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.loyalty-journal__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.loyalty-journal__search {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+
+.loyalty-journal__error {
+  margin: 0;
+  color: color-mix(in srgb, var(--danger, #ff6b6b) 85%, var(--text));
+}
+
+.loyalty-journal__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.loyalty-journal__row {
+  padding: 12px 14px;
+  border-radius: var(--radius-md, 16px);
+  border: 1px solid color-mix(in srgb, var(--border, rgba(46, 255, 184, 0.14)) 90%, transparent);
+  background: color-mix(in srgb, var(--bg-card, #082018) 92%, transparent);
+}
+
+.loyalty-journal__who {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.loyalty-journal__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+
+.loyalty-journal__points {
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  color: var(--text);
+}
+
+.loyalty-journal__comment {
+  margin: 8px 0 0;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.loyalty-archive-warn {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 0.92rem;
+  line-height: 1.4;
+  color: var(--text);
+  background: color-mix(in srgb, var(--warn, #e8b86d) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn, #e8b86d) 35%, transparent);
+}
+
+.loyalty-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.loyalty-settings__note {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.loyalty-settings__card {
+  padding: 16px 18px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--card);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent, #2effb8) 45%, transparent);
+}
+
+.loyalty-settings__card-title {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.loyalty-settings__card-lead {
+  margin: 0 0 14px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.loyalty-settings__toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.loyalty-settings__toggle input {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.loyalty-settings__intervals {
+  margin: 10px 0 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.loyalty-settings__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.loyalty-settings__fields .field {
+  margin: 0;
+}
+
+@media (max-width: 520px) {
+  .loyalty-account__facts {
+    grid-template-columns: 1fr;
+  }
+}

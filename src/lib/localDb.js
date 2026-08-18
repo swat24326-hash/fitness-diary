@@ -3,7 +3,7 @@ import { cloudPutAllowedOnPull } from './syncPullGuardCore.js'
 
 const DB_NAME = 'fitness-diary'
 /** Повышать при схемных правках; клиенты уже на max version не получают upgrade без нового номера. */
-const DB_VERSION = 16
+const DB_VERSION = 17
 
 /**
  * Локальное хранилище: кэш сущностей + очередь синхронизации (поля как в sync_queue на сервере + local_id).
@@ -162,6 +162,12 @@ export async function getDb() {
           clips.createIndex('by_status', 'status', { unique: false })
         }
       }
+
+      if (oldVersion < 17) {
+        if (!db.objectStoreNames.contains('loyalty_glance')) {
+          db.createObjectStore('loyalty_glance', { keyPath: 'client_id' })
+        }
+      }
     },
   })
 }
@@ -230,6 +236,9 @@ function syncQueueItemKey(tableName, item) {
 function recordKeyForStore(storeName, record) {
   if (storeName === 'health_cards') {
     return String(record?.client_id ?? record?.id ?? '').trim()
+  }
+  if (storeName === 'loyalty_glance') {
+    return String(record?.client_id ?? '').trim()
   }
   return String(record?.id ?? '').trim()
 }

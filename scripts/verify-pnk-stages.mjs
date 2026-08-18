@@ -222,6 +222,7 @@ ok(resolvePnkVisitDayState(visitBase, new Date('2026-07-17T12:00:00')) === 'toda
 ok(resolvePnkVisitDayState(visitBase, new Date('2026-07-16T12:00:00')) === 'before', 'visit before')
 ok(resolvePnkVisitDayState(visitBase, new Date('2026-07-18T12:00:00')) === 'past', 'visit past')
 ok(!isPnkCardTabVisible(visitBase, 'stats'), 'stats hidden while pnk open')
+ok(!isPnkCardTabVisible(visitBase, 'loyalty'), 'loyalty hidden while pnk open')
 ok(!isPnkCardTabVisible(visitBase, 'health'), 'health hidden until Клиент пришёл')
 const onHealthStep = {
   ...visitBase,

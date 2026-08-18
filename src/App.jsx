@@ -24,6 +24,7 @@ import { SalesClubTasks } from './pages/admin/SalesClubTasks'
 import { SalesPnk } from './pages/admin/SalesPnk'
 import { AdminDeletionLogPage } from './pages/admin/AdminDeletionLogPage.jsx'
 import { AdminClubCallLogPage } from './pages/admin/AdminClubCallLogPage.jsx'
+import { AdminLoyaltyJournal } from './pages/admin/AdminLoyaltyJournal.jsx'
 import { ClubSupervisorSettings } from './pages/admin/ClubSupervisorSettings'
 import { ClubSupervisorClubTasks } from './pages/admin/ClubSupervisorClubTasks'
 import { ClubSupervisorClients } from './pages/admin/ClubSupervisorClients'
@@ -229,6 +230,7 @@ export default function App() {
               </Route>
               <Route path="/sales/deletion-log" element={<AdminDeletionLogPage accessMode="sales_manager" />} />
               <Route path="/sales/call-log" element={<AdminClubCallLogPage accessMode="sales_manager" />} />
+              <Route path="/sales/loyalty" element={<AdminLoyaltyJournal accessMode="sales_manager" />} />
             </Route>
             <Route element={<RoleOutlet roles={['supervisor']} />}>
               <Route path="/club/workouts/:id" element={<TrainingPage />} />
@@ -264,6 +266,7 @@ export default function App() {
                 </Route>
                 <Route path="deletion-log" element={<AdminDeletionLogPage />} />
                 <Route path="call-log" element={<AdminClubCallLogPage />} />
+                <Route path="loyalty" element={<AdminLoyaltyJournal />} />
                 <Route path="excel-lists" element={<AdminExcelLists />} />
                 <Route path="diaries" element={<AdminDiariesRedirect />} />
                 <Route path="exercises" element={<AdminLegacyExercisesRedirect />} />

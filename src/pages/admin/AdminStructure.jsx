@@ -12,6 +12,7 @@ import { AdminCoachQualitySettings } from './AdminCoachQualitySettings'
 import { AdminClubPlanSettings } from './AdminClubPlanSettings'
 import { AdminDiagnostics } from './AdminDiagnostics'
 import { AdminIskraSettings } from './AdminIskraSettings'
+import { AdminLoyaltySettings } from './AdminLoyaltySettings.jsx'
 
 const TAB_IDS = [
   'clubs',
@@ -20,6 +21,7 @@ const TAB_IDS = [
   'supervisors',
   'membership-types',
   'club-plan',
+  'loyalty',
   'nutrition-products',
   'homework-presets',
   'exercises',
@@ -36,6 +38,7 @@ const TABS = [
   { id: 'supervisors', label: 'Управляющие' },
   { id: 'membership-types', label: 'Типы абон.' },
   { id: 'club-plan', label: 'План ЗП' },
+  { id: 'loyalty', label: 'Лояльность' },
   { id: 'nutrition-products', label: 'Питание' },
   { id: 'homework-presets', label: 'ДЗ' },
   { id: 'exercises', label: 'Упражнения' },
@@ -144,6 +147,15 @@ export function AdminStructure() {
           className="admin-structure__panel"
         >
           {tab === 'club-plan' ? <AdminClubPlanSettings /> : null}
+        </div>
+        <div
+          id="admin-structure-panel-loyalty"
+          role="tabpanel"
+          aria-labelledby="admin-structure-tab-loyalty"
+          hidden={tab !== 'loyalty'}
+          className="admin-structure__panel"
+        >
+          {tab === 'loyalty' ? <AdminLoyaltySettings /> : null}
         </div>
         <div
           id="admin-structure-panel-nutrition-products"

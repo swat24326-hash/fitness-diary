@@ -18,6 +18,7 @@ import { clientNeedsArchiveReason } from '../../lib/clientArchiveReasonCore.js'
 import { ClientRowMoreMenu } from '../ClientRowMoreMenu'
 import { ClientArchiveReasonFact } from '../ClientArchiveReasonFact.jsx'
 import { ClientArchiveReasonEditButton } from '../ClientArchiveReasonEditButton.jsx'
+import { LoyaltyGlanceChip } from '../loyalty/LoyaltyGlanceChip.jsx'
 import '../../styles/pnk-funnel.css'
 
 export function TrainerClientListItem({
@@ -27,6 +28,7 @@ export function TrainerClientListItem({
   memList,
   clientTrainings,
   lastTrainingIso,
+  loyaltySnapshot = null,
   showBirthdayLabel,
   outreachScenario = null,
   outreachHint = null,
@@ -131,6 +133,7 @@ export function TrainerClientListItem({
               <span className="td-client-fact__label">Последняя</span>
               <span className="td-client-fact__value">{last}</span>
             </div>
+            <LoyaltyGlanceChip snapshot={loyaltySnapshot} />
             {birthdayLabel ? (
               <div className="td-client-fact">
                 <span className="td-client-fact__label">День рождения</span>

@@ -64,6 +64,14 @@ import { handleClubSmsGet, handleClubSmsPost } from './_lib/moiZvonkiHandler.js'
 import { handleClubCallGet, handleClubCallPost } from './_lib/moiZvonkiCallHandler.js'
 import { handleMoiZvonkiWebhookPost } from './_lib/moiZvonkiWebhookHandler.js'
 import { handleSaleClipsGet, handleSaleClipsPost } from './_lib/adminData/saleClipsHandlers.js'
+import {
+  handleLoyaltyAccountGet,
+  handleLoyaltyGlanceGet,
+  handleLoyaltyJournalGet,
+  handleLoyaltyRedeemPost,
+  handleLoyaltySettingsGet,
+  handleLoyaltySettingsPost,
+} from './_lib/adminData/loyaltyHandlers.js'
 
 async function handler(req, res) {
   setCors(res, 'GET, POST, OPTIONS')
@@ -105,6 +113,8 @@ async function handler(req, res) {
       'price-list',
       'tz-price-list',
       'az-price-list',
+      'loyalty-settings',
+      'loyalty-redeem',
     ])
     if (!postActions.has(action)) {
       sendJson(res, 405, { error: 'Method not allowed' })
@@ -251,6 +261,16 @@ async function handler(req, res) {
       const ctx = await requireAdminOrSalesManager(req, res, clubId)
       if (!ctx) return
       return handleAzPriceListPost(ctx, req, res, body)
+    }
+    if (action === 'loyalty-settings') {
+      const ctx = await requireAuthUser(req, res)
+      if (!ctx) return
+      return handleLoyaltySettingsPost(ctx, req, res, body)
+    }
+    if (action === 'loyalty-redeem') {
+      const ctx = await requireAuthUser(req, res)
+      if (!ctx) return
+      return handleLoyaltyRedeemPost(ctx, req, res, body)
     }
     const clubId = String(body?.club_id ?? '').trim()
     const ctx = await requireAdminOrSalesManager(req, res, clubId)
@@ -409,6 +429,20 @@ async function handler(req, res) {
     return handleAzPriceListGet(ctx, req, res)
   }
 
+  if (
+    action === 'loyalty-settings' ||
+    action === 'loyalty-account' ||
+    action === 'loyalty-glance' ||
+    action === 'loyalty-journal'
+  ) {
+    const ctx = await requireAuthUser(req, res)
+    if (!ctx) return
+    if (action === 'loyalty-settings') return handleLoyaltySettingsGet(ctx, req, res)
+    if (action === 'loyalty-account') return handleLoyaltyAccountGet(ctx, req, res)
+    if (action === 'loyalty-glance') return handleLoyaltyGlanceGet(ctx, req, res)
+    return handleLoyaltyJournalGet(ctx, req, res)
+  }
+
   if (action === 'pnk') {
     const clubId = String(req.query?.club_id ?? '').trim()
     const ctx = await requireAdminOrSalesManager(req, res, clubId)
@@ -526,7 +560,7 @@ async function handler(req, res) {
     default:
       sendJson(res, 400, {
         error:
-          'Укажите action: search, journal, clients-last-trainings, deletion-audit-log, club-stats, club-monthly, coach-quality, health-cards, sales, price-list, tz-price-list, az-price-list, gemini-analytics-prefetch, iskra-settings, challenges, challenge-trainings, exercises, membership-types, clubs, create-supervisor',
+          'Укажите action: search, journal, clients-last-trainings, deletion-audit-log, club-stats, club-monthly, coach-quality, health-cards, sales, price-list, tz-price-list, az-price-list, loyalty-settings, loyalty-account, loyalty-glance, loyalty-journal, gemini-analytics-prefetch, iskra-settings, challenges, challenge-trainings, exercises, membership-types, clubs, create-supervisor',
       })
   }
 }

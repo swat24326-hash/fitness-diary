@@ -1,6 +1,6 @@
 # API — каталог endpoints
 
-**Актуально:** 2026-08-13. Vercel Hobby **≤12** serverless functions в `api/*.js`. Новое действие — сначала `admin-data?action=`, не новый файл.
+**Актуально:** 2026-08-19. Vercel Hobby **≤12** serverless functions в `api/*.js`. Новое действие — сначала `admin-data?action=`, не новый файл.
 
 Политика: `.cursor/rules/fitness-diary-supabase.mdc`, `fitness-diary-architecture.mdc`.  
 Ядро: **`api/_lib/`** (не `api/lib/`). Точный роутинг ролей — `api/admin-data.js` (таблица ниже — ориентир; при сомнении смотреть handler).
@@ -13,7 +13,7 @@
 |----------|------------|
 | `/api/admin-data` | Объединённый GET/POST админки, продаж, ИСКРЫ, справочников (`?action=`) |
 | `/api/trainer-pull` | Pull данных на планшет тренера |
-| `/api/push-record` | Одна запись из sync-очереди (admin / trainer / sales_manager / **supervisor**; права по таблице — `authorizePush`) |
+| `/api/push-record` | Одна запись из sync-очереди (admin / trainer / sales_manager / **supervisor**; права по таблице — `authorizePush`). После успешного insert/update `clients` сервер пишет `burn_archive` / `club_move` в `loyalty_ledger` (не очередь) |
 | `/api/push-records` | Пакетный flush очереди (те же роли) |
 | `/api/auth-sign-in` | Вход (логин/пароль → сессия), когда нужен server path |
 | `/api/me-profile` | Профиль текущего пользователя |
@@ -49,6 +49,10 @@
 | `price-list` | GET: admin / sales_manager (свой клуб); POST: admin / sales_manager (свой клуб) | Прайс ПЗ клуба (`club_price_lists`) |
 | `tz-price-list` | GET/POST: admin / sales_manager (свой клуб) | Прайс ТЗ клуба (`club_tz_price_lists`) |
 | `az-price-list` | GET/POST: admin / sales_manager (свой клуб) | Прайс АЗ клуба (`club_az_price_lists`) |
+| `loyalty-settings` | GET: роли своего клуба; POST: **admin** | Ставки и интервалы лояльности ПЗ. UI: Структура `?tab=loyalty` |
+| `loyalty-account` | trainer **свои** клиенты; sales / supervisor / admin клуба | Полный снимок баллов + лента ledger |
+| `loyalty-glance` | те же; `ids` ≤ 200 | Снимки списка (`by_id`) |
+| `loyalty-journal` | sales_manager / admin | Журнал списаний (`kind=redeem`) |
 | `pnk` | admin / sales_manager | Доска / данные ПНК; в ответе `bz_completed_by_client` (id → 0…2) для «Итога визита» |
 | `sale-clips` | admin / sales_manager | Клип-карты дня (список) |
 | `gemini-analytics-prefetch` | admin | Prefetch ИСКРЫ |
@@ -72,6 +76,8 @@
 | `price-list` | admin / sales_manager (свой клуб) | Upsert прайса ПЗ клуба |
 | `tz-price-list` | admin / sales_manager (свой клуб) | Upsert прайса ТЗ клуба |
 | `az-price-list` | admin / sales_manager (свой клуб) | Upsert прайса АЗ клуба |
+| `loyalty-settings` | **admin** | Вкл/ставки клуба (интервалы `applyProgramToggle`) |
+| `loyalty-redeem` | sales_manager / admin | Списать все баллы `{ client_id, expected_points, comment }`; 403/409 |
 | `gemini-analytics` | admin | Запрос к ИСКРЕ |
 | `iskra-settings`, `iskra-learning`, `iskra-dispatch`, `iskra-tts` | по op / роли; **`iskra-tts` только POST** | CRUD настроек, фидбек, задания, neural озвучка |
 | `push-subscription` | auth user | Регистрация push |

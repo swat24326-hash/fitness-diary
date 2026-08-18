@@ -2,13 +2,8 @@
  * Побочные эффекты смены тренера ПЗ на карточке (confirm + club_id).
  */
 
-import {
-  clubMoveConfirmMessage,
-  needsCardUniquenessCheckOnClubMove,
-  resolveCardNumberForClubMoveCheck,
-  resolveClientClubIdForTrainer,
-  tabletModeChangeConfirmMessage,
-} from './clientTrainerReassignCore.js'
+import { clubMoveConfirmMessage, needsCardUniquenessCheckOnClubMove, resolveCardNumberForClubMoveCheck, resolveClientClubIdForTrainer, tabletModeChangeConfirmMessage } from './clientTrainerReassignCore.js'
+import { loyaltyClubMoveWarnText } from '../loyalty/loyaltyClientMutationCore.js'
 import { assertClubCardAvailableForCreate } from './salesClientMatchCore.js'
 import { listClientsByClubId as listClientsByClubIdDefault } from '../localDbClubQuery.js'
 
@@ -19,6 +14,7 @@ import { listClientsByClubId as listClientsByClubIdDefault } from '../localDbClu
  *   proposedCardNumber?: string|null,
  *   trainersCatalog?: object[],
  *   confirmFn?: (msg: string) => boolean,
+ *   loyaltyWarnFn?: (client: object) => Promise<string>,
  *   listClientsByClubIdFn?: (clubId: string) => Promise<object[]>,
  * }} opts
  * @returns {Promise<{ ok: true, trainer_id: string|null, club_id: string|null } | { ok: false, cancelled?: boolean, error?: string }>}
@@ -29,6 +25,7 @@ export async function prepareClientTrainerReassign({
   proposedCardNumber,
   trainersCatalog = [],
   confirmFn = typeof window !== 'undefined' ? window.confirm.bind(window) : () => true,
+  loyaltyWarnFn = null,
   listClientsByClubIdFn = listClientsByClubIdDefault,
 }) {
   const prevTid = String(client?.trainer_id ?? '').trim()
@@ -63,10 +60,32 @@ export async function prepareClientTrainerReassign({
     clientClubId: client?.club_id,
     trainerRow: toTrainer,
   })
+  let loyaltyNote = ''
+  const willMove = Boolean(
+    clubMoveConfirmMessage({
+      oldClubId: client?.club_id,
+      newClubId: nextClubId,
+      trainerName: toTrainer?.name || toTrainer?.login,
+    }),
+  )
+  if (willMove) {
+    try {
+      if (typeof loyaltyWarnFn === 'function') {
+        loyaltyNote = String((await loyaltyWarnFn(client)) ?? '').trim()
+      } else if (typeof window !== 'undefined') {
+        const { loadLoyaltyWarnSnapshot } = await import('../loyalty/loyaltyWarnService.js')
+        const snap = await loadLoyaltyWarnSnapshot(client)
+        if (snap.show) loyaltyNote = loyaltyClubMoveWarnText(snap)
+      }
+    } catch {
+      loyaltyNote = loyaltyClubMoveWarnText({ known: false })
+    }
+  }
   const clubMsg = clubMoveConfirmMessage({
     oldClubId: client?.club_id,
     newClubId: nextClubId,
     trainerName: toTrainer?.name || toTrainer?.login,
+    loyaltyNote,
   })
   if (clubMsg && !confirmFn(clubMsg)) {
     return { ok: false, cancelled: true }

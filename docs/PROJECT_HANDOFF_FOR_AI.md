@@ -147,6 +147,8 @@ scripts/                  — agent-qa.mjs, verify-*.mjs
 
 **Allowlist push:** `PUSH_ALLOWED_TABLES` в `api/_lib/pushRecordCore.js`.
 
+**Лояльность ПЗ:** `admin-data?action=loyalty-settings|loyalty-account|loyalty-glance|loyalty-redeem|loyalty-journal`. Маршруты `/admin/loyalty`, `/sales/loyalty`. Структура `?tab=loyalty` (тумблер и ставки клуба, POST только admin). Таблицы не в очереди sync. IDB store `loyalty_glance` (v17). Карточка: вкладка «Баллы» + кнопка списать (sales/admin, только в сети). Архив/переезд клуба: ledger пишет сервер после успешного push `clients` (не очередь). Канон: [LOYALTY.md](./LOYALTY.md).
+
 Продажи / ПНК / ИСКРА на сервере часто идут через **`admin-data?action=`**, не только через очередь планшета.
 
 **⏸ Backlog:** админ online-first (запись сразу в API, Sync не обязателен) — [SYNC.md](./SYNC.md) § «админ без обязательного Sync»; тренера не ломать.

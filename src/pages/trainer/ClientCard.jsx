@@ -1,11 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Dumbbell, ClipboardList, Pencil } from 'lucide-react'
-import { ClientDiaries } from '../../components/ClientDiaries'
-import { ClientOverview } from './ClientOverview'
-import { ClientNutritionPage } from './ClientNutritionPage'
-import { ClientHomeworkPage } from './ClientHomeworkPage'
-import { Statistics } from './Statistics'
+import { ClientCardMainTabs } from './ClientCardMainTabs.jsx'
 import { getHealthCard, getLocalClient, hydrateAdminClientWorkspace, listMemberships, listTrainingsForClient, listTrainerSummariesForAdmin } from '../../lib/dataAccess'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { canOfferLateMembershipStart, canStartNewTrainingForMemberships } from '../../lib/membershipRules'
@@ -33,7 +29,7 @@ import { AdminClientCallHistoryButton } from '../../components/admin/AdminClient
 import { fetchClubCallStatus } from '../../lib/admin/clubCallService.js'
 import { PnkVisitQualityReport } from '../../components/pnk/PnkVisitQualityReport.jsx'
 import { formatClientName } from '../../lib/clientNameFormat.js'
-import { isOpenPnkClient, isPnkCardTabVisible, resolvePnkTrainerUiStep } from '../../lib/pnk/pnkStagesCore.js'
+import { isOpenPnkClient, resolvePnkTrainerUiStep } from '../../lib/pnk/pnkStagesCore.js'
 import { countPnkBzCompletedFromTrainings } from '../../lib/pnk/pnkBzCompletedCore.js'
 import { buildPnkVisitQualityReport, shouldShowPnkVisitQuality } from '../../lib/pnk/pnkVisitQualityCore.js'
 import { listClientsByClubId, listMeasurementsByClientId } from '../../lib/localDbClubQuery.js'
@@ -101,7 +97,8 @@ export function ClientCard() {
       t === 'diaries' ||
       t === 'stats' ||
       t === 'nutrition' ||
-      t === 'homework'
+      t === 'homework' ||
+      t === 'loyalty'
     ) {
       return t
     }
@@ -1043,91 +1040,23 @@ export function ClientCard() {
         />
       ) : null}
 
-      <div className="tabs" role="tablist">
-        {[
-          { id: 'health', label: 'Здоровье и обмеры' },
-          { id: 'nutrition', label: 'Питание' },
-          { id: 'homework', label: 'ДЗ' },
-          { id: 'memberships', label: 'Абонементы' },
-          { id: 'diaries', label: 'Тренировки' },
-          { id: 'stats', label: 'Статистика' },
-        ]
-          .filter((t) => isPnkCardTabVisible(client, t.id, { healthCard, bzCompletedCount }))
-          .map((t) => (
-          <button key={t.id} type="button" className="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)}>
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'health' &&
-        (!isOpenPnkClient(client) || isPnkCardTabVisible(client, 'health', { healthCard, bzCompletedCount })) && (
-          <ClientOverview
-            client={client}
-            onReload={reloadLocal}
-            section="health"
-            readOnly={isArchived || isSalesManager}
-          />
-        )}
-      {tab === 'nutrition' &&
-        (!isOpenPnkClient(client) || isPnkCardTabVisible(client, 'nutrition', { healthCard, bzCompletedCount })) && (
-        <ClientNutritionPage
-          client={client}
-          readOnly={isArchived}
-          onPlanSaved={isOpenPnkClient(client) && !isArchived ? onNutritionPlanSaved : undefined}
-        />
-      )}
-      {tab === 'homework' &&
-        (!isOpenPnkClient(client) || isPnkCardTabVisible(client, 'homework', { healthCard, bzCompletedCount })) && (
-          <ClientHomeworkPage
-            client={client}
-            readOnly={isArchived}
-            onHomeworkIssued={isOpenPnkClient(client) && !isArchived ? markPnkHomeworkIssued : undefined}
-          />
-        )}
-      {tab === 'memberships' &&
-        (!isOpenPnkClient(client) || isPnkCardTabVisible(client, 'memberships', { healthCard, bzCompletedCount })) && (
-          <ClientOverview
-            client={client}
-            onReload={reloadLocal}
-            section="memberships"
-            readOnly={isArchived}
-            membershipAutoOpen={pnkCloseMemberships && !isArchived}
-            membershipPreferPaid={pnkCloseMemberships}
-            showPaidAmount={canManageClubClients}
-            membershipHall="pz"
-          />
-        )}
-      {tab === 'stats' &&
-        (!isOpenPnkClient(client) || isPnkCardTabVisible(client, 'stats', { healthCard, bzCompletedCount })) && (
-          <Statistics clientId={client.id} />
-        )}
-      {tab === 'diaries' &&
-        (!isOpenPnkClient(client) || isPnkCardTabVisible(client, 'diaries', { healthCard, bzCompletedCount })) && (
-        <>
-          {isOpenPnkClient(client) && !isArchived && !canManageClubClients ? (
-            <div className="pnk-conduct-banner" style={{ marginBottom: 12 }}>
-              <p className="muted" style={{ margin: '0 0 8px', fontSize: '0.92rem' }}>
-                Здесь список уже проведённых. Чтобы записать упражнения — нажмите кнопку.
-              </p>
-              <button
-                type="button"
-                className="btn btn-primary btn-touch"
-                onClick={() => void startPnkTraining()}
-              >
-                <Dumbbell size={18} aria-hidden style={{ marginRight: 8, verticalAlign: -3 }} />
-                Начать тренировку — записать упражнения
-              </button>
-            </div>
-          ) : null}
-          <ClientDiaries
-            client={client}
-            onDataChange={reloadLocal}
-            clubQs={isAdmin ? adminClubQs : ''}
-            readOnly={isArchived}
-          />
-        </>
-      )}
+      <ClientCardMainTabs
+        client={client}
+        tab={tab}
+        setTab={setTab}
+        healthCard={healthCard}
+        bzCompletedCount={bzCompletedCount}
+        isArchived={isArchived}
+        isSalesManager={isSalesManager}
+        canManageClubClients={canManageClubClients}
+        isAdmin={isAdmin}
+        reloadLocal={reloadLocal}
+        onNutritionPlanSaved={onNutritionPlanSaved}
+        markPnkHomeworkIssued={markPnkHomeworkIssued}
+        pnkCloseMemberships={pnkCloseMemberships}
+        startPnkTraining={startPnkTraining}
+        adminClubQs={adminClubQs}
+      />
 
       {canAssignClubTasks && clientTaskDraft ? (
         <IskraDispatchModal

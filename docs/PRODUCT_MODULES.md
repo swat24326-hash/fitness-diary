@@ -1,6 +1,6 @@
 # Модули продукта (кроме ядра тренировок)
 
-**Актуально:** 2026-08-15. Крупная цель продукта — [PRODUCT_VISION.md](./PRODUCT_VISION.md). Нарезка сейчас→дальше — [PATH_TO_GOAL.md](./PATH_TO_GOAL.md). Ядро (клиент / абонемент / тренировка / sync) — handoff и [DATA_MODEL.md](./DATA_MODEL.md). Здесь — соседние контуры, чтобы не искать по репо вслепую.
+**Актуально:** 2026-08-18. Крупная цель продукта — [PRODUCT_VISION.md](./PRODUCT_VISION.md). Нарезка сейчас→дальше — [PATH_TO_GOAL.md](./PATH_TO_GOAL.md). Чеклист vs DDX — [DDX_PARITY_MAP.md](./DDX_PARITY_MAP.md). Ядро (клиент / абонемент / тренировка / sync) — handoff и [DATA_MODEL.md](./DATA_MODEL.md). Здесь — соседние контуры, чтобы не искать по репо вслепую.
 
 | Модуль | Статус | Где код | Документ |
 |--------|--------|---------|----------|
@@ -15,9 +15,11 @@
 | **Архив клиентов** | ✅ прод | archive + sync/agg | [CLIENT_ARCHIVE.md](./CLIENT_ARCHIVE.md) |
 | **Качество ведения** | ✅ MVP | coach quality + admin/trainer UI | [COACH_QUALITY.md](./COACH_QUALITY.md) |
 | **Прайс ПЗ** | ✅ облако + админ UI | `src/lib/priceList/`, `priceListHandlers`, вкладка Продажи → Прайс | [PRICE_LIST.md](./PRICE_LIST.md) |
+| **Лояльность ПЗ** | фазы A–G ✅ (правила, штамп, API, вкладка/чип, списание, журнал, архив/переезд, тумблер) | `src/lib/loyalty/`, `api/_lib/adminData/loyaltyHandlers.js`, `src/components/loyalty/` | [LOYALTY.md](./LOYALTY.md) |
 | **Управляющий** | ✅ роль `/club` в проде; единый утренний бриф — ⏸ P2 | [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md), [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) |
 | **Сайт заявок** | ⏸ слой L2 | — | [PRODUCT_VISION.md](./PRODUCT_VISION.md) §7.3 |
 | **Касса (облако / физ.)** | ⏸ после РФ и после домена платежа | — | [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) фазы D–E; [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) §4 |
+| **Паритет с DDX (карта)** | 📋 ориентир | — | [DDX_PARITY_MAP.md](./DDX_PARITY_MAP.md) — турникет/СКУД, B2C QR, групповые и т.д. |
 
 ### Питание и ДЗ (ориентир)
 

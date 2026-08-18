@@ -395,3 +395,42 @@ CREATE INDEX IF NOT EXISTS idx_club_call_log_club_created
 
 CREATE INDEX IF NOT EXISTS idx_club_call_log_club_client_created
   ON club_call_log (club_id, client_id, created_at DESC);
+
+-- ------------------------------------------------------------
+-- Лояльность ПЗ (не в sync-очереди; API service role)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS club_loyalty_settings (
+  club_id UUID PRIMARY KEY REFERENCES clubs (id) ON DELETE CASCADE,
+  enabled BOOLEAN NOT NULL DEFAULT false,
+  enabled_at DATE,
+  enabled_intervals JSONB NOT NULL DEFAULT '[]'::jsonb,
+  cycle_months INT NOT NULL DEFAULT 3,
+  points_per_week INT NOT NULL DEFAULT 50,
+  kcal_chunk INT NOT NULL DEFAULT 100,
+  points_per_kcal_chunk INT NOT NULL DEFAULT 5,
+  max_minutes INT NOT NULL DEFAULT 60,
+  max_kcal_per_training INT NOT NULL DEFAULT 800,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS loyalty_ledger (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  club_id UUID NOT NULL REFERENCES clubs (id) ON DELETE CASCADE,
+  client_id UUID NOT NULL REFERENCES clients (id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  at TIMESTAMPTZ NOT NULL,
+  points INT,
+  comment TEXT,
+  actor_id UUID REFERENCES users (id) ON DELETE SET NULL,
+  snapshot JSONB,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_loyalty_ledger_club_client_at
+  ON loyalty_ledger (club_id, client_id, at);
+
+CREATE UNIQUE INDEX IF NOT EXISTS loyalty_ledger_cycle_open_uniq
+  ON loyalty_ledger (client_id, club_id, (payload->>'cycle_start'))
+  WHERE kind = 'cycle_open';
+

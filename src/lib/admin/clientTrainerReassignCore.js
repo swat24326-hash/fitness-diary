@@ -65,17 +65,19 @@ export function needsCardUniquenessCheckOnClubMove({ oldClubId, newClubId, cardN
 
 /**
  * Confirm при переезде в клуб нового тренера.
- * @param {{ oldClubId?: string|null, newClubId?: string|null, trainerName?: string }} opts
+ * @param {{ oldClubId?: string|null, newClubId?: string|null, trainerName?: string, loyaltyNote?: string }} opts
  * @returns {string|null}
  */
-export function clubMoveConfirmMessage({ oldClubId, newClubId, trainerName } = {}) {
+export function clubMoveConfirmMessage({ oldClubId, newClubId, trainerName, loyaltyNote } = {}) {
   const oldC = String(oldClubId ?? '').trim()
   const newC = String(newClubId ?? '').trim()
   if (!newC || newC === oldC) return null
   const who = String(trainerName ?? '').trim()
-  return who
+  const base = who
     ? `Тренер «${who}» из другого клуба. Клиент переедет в клуб этого тренера. Продолжить?`
     : 'Тренер из другого клуба. Клиент переедет в клуб этого тренера. Продолжить?'
+  const extra = String(loyaltyNote ?? '').trim()
+  return extra ? `${base}\n\n${extra}` : base
 }
 
 /**

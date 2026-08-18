@@ -35,6 +35,7 @@ export const STRUCTURE_TAB_LABELS = {
   supervisors: 'Управляющие',
   'membership-types': 'Типы абон.',
   'club-plan': 'План ЗП',
+  loyalty: 'Лояльность',
   'nutrition-products': 'Питание',
   'homework-presets': 'ДЗ',
   exercises: 'Упражнения',
@@ -127,6 +128,7 @@ export function buildBreadcrumbs(pathname, search = '') {
   if (p === '/admin/clients') return [...admin, { label: 'Клиенты', to: `/admin/clients${clubQs}` }]
   if (p === '/admin/call-log') return [...admin, { label: 'Журнал звонков', to: `/admin/call-log${clubQs}` }]
   if (p === '/admin/deletion-log') return [...admin, { label: 'Журнал удалений', to: `/admin/deletion-log${clubQs}` }]
+  if (p === '/admin/loyalty') return [...admin, { label: 'Журнал баллов', to: `/admin/loyalty${clubQs}` }]
   if (p === '/admin/excel-lists') return [...admin, { label: 'Списки из Excel', to: `/admin/excel-lists${clubQs}` }]
   if (p === '/admin/statistics') return [...admin, { label: 'Статистика', to: `/admin/statistics${clubQs}` }]
   if (p === '/admin/challenges') return [...admin, { label: 'Челленджи', to: `/admin/challenges${clubQs}` }]
@@ -188,6 +190,7 @@ export function buildBreadcrumbs(pathname, search = '') {
   if (p === '/sales/clients') return [...salesRoot, { label: 'Клиенты', to: '/sales/clients' }]
   if (p === '/sales/call-log') return [...salesRoot, { label: 'Журнал звонков', to: '/sales/call-log' }]
   if (p === '/sales/deletion-log') return [...salesRoot, { label: 'Журнал удалений', to: '/sales/deletion-log' }]
+  if (p === '/sales/loyalty') return [...salesRoot, { label: 'Журнал баллов', to: '/sales/loyalty' }]
   if (matchPathSimple('/sales/clients/:id', p)) {
     const from = normalizeClientCardFrom(new URLSearchParams(search.startsWith('?') ? search.slice(1) : search).get('from'))
     const backTo = resolveClientCardBackHref(search, { isSalesManager: true })

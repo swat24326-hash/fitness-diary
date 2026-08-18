@@ -401,6 +401,18 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
               let msg = `рабочая область (${pull.count ?? 0} кл.)`
               if ((pull.pruned_clients ?? 0) > 0) msg += `, убрано из кэша: ${pull.pruned_clients}`
               parts.push(msg)
+              bumpSyncProgress(88, 'Баллы…')
+              try {
+                const { refreshLoyaltyGlanceAfterTrainerPull } = await import('../lib/loyalty/loyaltyGlanceService')
+                const glance = await refreshLoyaltyGlanceAfterTrainerPull(user.id)
+                if (glance?.ok === false && glance?.error) {
+                  parts.push(`баллы: ${glance.error}`)
+                } else if ((glance?.count ?? 0) > 0) {
+                  parts.push(`баллы (${glance.count})`)
+                }
+              } catch (e) {
+                parts.push(`баллы: ${e?.message ?? 'ошибка'}`)
+              }
             } else if (pull?.error) {
               hadError = true
               parts.push(`тренер: ${pull.error}`)

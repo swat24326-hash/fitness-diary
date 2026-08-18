@@ -10,6 +10,7 @@ import { normalizeHomeworkPresetPushPayload } from '../../src/lib/admin/homework
 import { normalizeHealthCardPushPayload } from '../../src/lib/healthCardCore.js'
 import { normalizePnkFunnelEventPushPayload } from '../../src/lib/pnk/pnkFunnelEventsCore.js'
 import { recordClientDeletionAudit } from './deletionAuditWrite.js'
+import { applyLoyaltyClientPushSideEffects } from './loyaltyClientPushSideEffects.js'
 
 export const PUSH_ALLOWED_TABLES = new Set([
   'clients',
@@ -250,6 +251,14 @@ export async function executePushRecord(ctx, item) {
                 : error.message
         return { ok: false, status: 400, error: errMsg }
       }
+      if (table_name === 'clients') {
+        await applyLoyaltyClientPushSideEffects({
+          supabaseAdmin,
+          before: null,
+          payload,
+          actorId: ctx.profile?.id ?? ctx.user?.id ?? null,
+        })
+      }
       return { ok: true }
     }
 
@@ -290,6 +299,21 @@ export async function executePushRecord(ctx, item) {
       if (table_name === 'health_cards') {
         payload = normalizeHealthCardPushPayload(payload)
       }
+      let clientBefore = null
+      let clientBeforeReady = table_name !== 'clients'
+      if (table_name === 'clients') {
+        const prev = await supabaseAdmin
+          .from('clients')
+          .select('id, club_id, trainer_id, archived_at')
+          .eq('id', remote_id)
+          .maybeSingle()
+        if (prev.error) {
+          console.warn('[loyalty] clients before-select', prev.error.message)
+        } else if (prev.data) {
+          clientBefore = prev.data
+          clientBeforeReady = true
+        }
+      }
       const { error } = await supabaseAdmin.from(table_name).update(payload).eq('id', remote_id)
       if (error) {
         const errMsg =
@@ -301,6 +325,14 @@ export async function executePushRecord(ctx, item) {
                 ? friendlyClientsDbError(error)
                 : error.message
         return { ok: false, status: 400, error: errMsg }
+      }
+      if (table_name === 'clients' && clientBeforeReady) {
+        await applyLoyaltyClientPushSideEffects({
+          supabaseAdmin,
+          before: clientBefore,
+          payload,
+          actorId: ctx.profile?.id ?? ctx.user?.id ?? null,
+        })
       }
       return { ok: true }
     }

@@ -4,6 +4,7 @@ import {
   isArchiveReasonReady,
   normalizeArchiveReasonText,
 } from '../lib/clientArchiveReasonCore.js'
+import { useLoyaltyArchiveWarn } from '../hooks/useLoyaltyArchiveWarn.js'
 
 /**
  * Модалка: причина при уходе в архив или дозаполнение у уже архивного.
@@ -12,6 +13,7 @@ import {
  *   mode?: 'enter' | 'edit',
  *   clientName?: string,
  *   initialReason?: string | null,
+ *   client?: object | null,
  *   busy?: boolean,
  *   onCancel: () => void,
  *   onConfirm: (reason: string) => void,
@@ -21,6 +23,7 @@ export function ClientArchiveReasonModal({
   open,
   mode = 'enter',
   clientName = '',
+  client = null,
   initialReason = null,
   busy = false,
   onCancel,
@@ -53,11 +56,13 @@ export function ClientArchiveReasonModal({
     }
   }, [busy])
 
+  const isEnter = mode === 'enter'
+  const loyaltyWarn = useLoyaltyArchiveWarn(client, open && isEnter)
+
   if (!open) return null
 
   const reason = normalizeArchiveReasonText(customText)
   const ready = isArchiveReasonReady(reason)
-  const isEnter = mode === 'enter'
   const title = isEnter ? 'В архив' : 'Причина архива'
   const confirmLabel = isEnter ? 'В архив' : 'Сохранить'
   const locked = busy || submitting
@@ -101,6 +106,11 @@ export function ClientArchiveReasonModal({
           <p className="muted client-archive-reason-modal__note">
             В архиве — просмотр карточки. Действия снова после «Вернуть из архива» (причина тогда
             сбросится).
+          </p>
+        ) : null}
+        {isEnter && loyaltyWarn ? (
+          <p className="loyalty-archive-warn" role="status">
+            {loyaltyWarn}
           </p>
         ) : null}
 

@@ -1,12 +1,12 @@
 # Модель данных — IDB, сущности, Postgres
 
-**Актуально:** 2026-08-17. Эталон схемы: `supabase/schema.sql` + идемпотентные `supabase/migrations/`.  
+**Актуально:** 2026-08-19. Эталон схемы: `supabase/schema.sql` + идемпотентные `supabase/migrations/`.  
 На bare Postgres (C2 / Yandex): сначала `supabase/c2_auth_stub.sql` через `npm run db:migrate:pg` — см. [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md).  
 Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/lib/membershipRules.js`.
 
 ---
 
-## IndexedDB (`fitness-diary`, version **16**)
+## IndexedDB (`fitness-diary`, version **17**)
 
 | Store | keyPath | Заметки |
 |-------|---------|---------|
@@ -28,6 +28,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | `club_iskra_settings` | `club_id` | Локальный кэш **шаблонов** outreach (`outreach_templates` / SMS-шаблоны). Аккаунт **`moizvonki`** (в т.ч. api_key) живёт в **Postgres**; в API ключ не отдаём (`has_api_key`) — в IDB полный `moizvonki` не кэшируем |
 | `pnk_funnel_events` | `id` | Журнал ПНК |
 | `sale_clips` | `id` | Клип-карты (awaiting → done на планшете); pull тренеру |
+| `loyalty_glance` | `client_id` | Кэш снимка баллов (GET `loyalty-glance`, не sync_queue) |
 
 ### Postgres only (не stores IndexedDB)
 
@@ -41,6 +42,8 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | `club_trainer_pay_month_snapshots` | `(club_id, year, month)` | Заморозка правил ЗП прошлого календарного месяца; текущий месяц — live |
 | `club_sms_log` | — | Облачный журнал SMS клуба (`status` ok\|fail, `error_message`); API `admin-data?action=club-sms` |
 | `club_call_log` | — | Журнал звонков: исходящие (`make_call`) + **входящие** (webhook); `direction` outbound\|inbound; `client_id` nullable для неизвестного; исход / запись / пометка; API `club-call` / `moizvonki-webhook` |
+| `club_loyalty_settings` | `club_id` | Лояльность ПЗ: ставки и интервалы; RLS без политик anon — только API |
+| `loyalty_ledger` | `id` | Якоря redeem / архив / переезд / cycle_open; не в push allowlist |
 
 Миграции SMS / звонки / moizvonki: `club_sms_templates`, `club_sms_log`, `20260805230000_club_iskra_moizvonki.sql`, `20260813210000_club_sms_log_status.sql`, `20260813220000_club_call_log.sql`, `20260814153000_club_call_log_outcome.sql`, `20260814210000_club_call_log_recording.sql`, `20260815010000_club_call_log_staff_note.sql`, `20260816020000_club_call_log_inbound.sql`.
 

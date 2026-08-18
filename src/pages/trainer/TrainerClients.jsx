@@ -8,6 +8,7 @@ import {
 } from '../../components/trainer/TrainerClientsBrowseFilters.jsx'
 import { useAuth } from '../../context/AuthContext'
 import { useTrainerOutreach } from '../../hooks/useTrainerOutreach'
+import { useLoyaltyGlanceMap } from '../../hooks/useLoyaltyGlanceMap.js'
 import { deleteClientAndAllData, listClubsLocal } from '../../lib/dataAccess'
 import { ClientHardDeleteConfirmModal } from '../../components/ClientHardDeleteConfirmModal.jsx'
 import { MEMBERSHIP_EXPIRING_WITHIN_DAYS } from '../../lib/clientListSignals'
@@ -242,6 +243,7 @@ export function TrainerClients() {
     () => sortedFilteredClients.slice(0, visibleCount),
     [sortedFilteredClients, visibleCount],
   )
+  const loyaltyGlanceById = useLoyaltyGlanceMap(visibleClients)
   const hasMore = sortedFilteredClients.length > visibleCount
 
   const visibleListItems = useMemo(() => {
@@ -631,6 +633,7 @@ export function TrainerClients() {
                     memList={memByClient[c.id] ?? []}
                     clientTrainings={trainingsByClientId[c.id] ?? []}
                     lastTrainingIso={lastCompletedByClientId[c.id] ?? lastTrainingDateByClientId[c.id] ?? '—'}
+                    loyaltySnapshot={loyaltyGlanceById[c.id] ?? null}
                     showBirthdayLabel={quickFilter === 'birthdays'}
                     outreachScenario={outreachOn ? quickFilter : null}
                     outreachHint={
@@ -707,6 +710,7 @@ export function TrainerClients() {
         open={Boolean(archiveReasonModal)}
         mode={archiveReasonModal?.mode === 'edit' ? 'edit' : 'enter'}
         clientName={archiveReasonModal?.client?.name}
+        client={archiveReasonModal?.mode === 'edit' ? null : archiveReasonModal?.client}
         initialReason={archiveReasonModal?.mode === 'edit' ? archiveReasonModal?.client?.archive_reason : null}
         busy={busy}
         onCancel={() => !busy && setArchiveReasonModal(null)}

@@ -119,6 +119,15 @@ ok(
   'club move confirm',
 )
 ok(clubMoveConfirmMessage({ oldClubId: 'a', newClubId: 'a' }) == null, 'no club move')
+ok(
+  clubMoveConfirmMessage({
+    oldClubId: 'a',
+    newClubId: 'b',
+    trainerName: 'Иван',
+    loyaltyNote: 'Сгорят 50 баллов лояльности в старом клубе.',
+  })?.includes('50'),
+  'club move confirm includes loyalty burn',
+)
 
 ok(
   formatTrainerSelectLabel({ id: '1', name: 'Анна', club_id: 'c1' }, { showClub: true }) ===
@@ -250,6 +259,21 @@ const catalog = [
     confirmFn: () => false,
   })
   ok(r.ok === false && r.cancelled === true, 'user cancel club move')
+}
+
+{
+  let seen = ''
+  const r = await prepareClientTrainerReassign({
+    client,
+    nextTrainerId: 'tr-b',
+    trainersCatalog: catalog,
+    confirmFn: (msg) => {
+      seen = String(msg)
+      return false
+    },
+    loyaltyWarnFn: async () => 'Сгорят 150 баллов лояльности в старом клубе.',
+  })
+  ok(r.cancelled === true && seen.includes('150') && seen.includes('Борис'), 'reassign confirm shows points')
 }
 
 if (failed) process.exit(1)

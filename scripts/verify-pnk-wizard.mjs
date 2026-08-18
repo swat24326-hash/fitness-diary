@@ -198,7 +198,7 @@ ok(buildPnkWizardAdvancePatch({ key: 'date' }) === null, 'date no advance patch'
 ok(buildPnkWizardAdvancePatch({ key: 'wait' }) === null, 'wait no advance patch')
 
 function onlyTab(client, expectTab, label, extraVisible = []) {
-  const tabs = ['health', 'nutrition', 'homework', 'diaries', 'memberships', 'stats']
+  const tabs = ['health', 'nutrition', 'homework', 'diaries', 'memberships', 'loyalty', 'stats']
   const allowed = new Set(expectTab == null ? extraVisible : [expectTab, ...extraVisible])
   for (const t of tabs) {
     const vis = isPnkCardTabVisible(client, t, { now: beforeVisit })

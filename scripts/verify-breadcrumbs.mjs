@@ -33,6 +33,11 @@ ok(
 )
 ok(STRUCTURE_TAB_LABELS['coach-quality'] === 'Качество ведения', 'structure coach-quality label')
 ok(STRUCTURE_TAB_LABELS['club-plan'] === 'План ЗП', 'structure club-plan label')
+ok(STRUCTURE_TAB_LABELS.loyalty === 'Лояльность', 'structure loyalty label')
+ok(
+  labels('/admin/structure', '?club=c1&tab=loyalty').join(' › ') === 'Админка › Структура › Лояльность',
+  'structure loyalty + club',
+)
 
 ok(
   labels('/admin/sales', '?club=c1').join(' › ') === 'Админка › Продажи › Отчёт за день',
@@ -65,6 +70,14 @@ ok(
 ok(
   labels('/sales/clients/cid').join(' › ') === 'План продаж › Клиенты › Карточка клиента',
   'manager client card',
+)
+ok(
+  labels('/sales/loyalty').join(' › ') === 'План продаж › Журнал баллов',
+  'manager loyalty journal',
+)
+ok(
+  labels('/admin/loyalty', '?club=c1').join(' › ') === 'Админка › Журнал баллов',
+  'admin loyalty journal',
 )
 ok(
   buildBreadcrumbs('/sales/clients/cid', '?clientsTab=tz&page=2')[1].to ===

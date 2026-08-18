@@ -49,6 +49,13 @@
 | Home glance cache | `verify-home-glance-cache.mjs` (TTL / looksSame / профили) |
 | Пульс BLE (парсер + память датчика) | `verify-ble-heart-rate.mjs` |
 | Сводка пульса сессии (зоны, ккал) | `verify-hr-session-agg.mjs` |
+| Лояльность ПЗ (цикл, куш, пропуск) | `verify-loyalty.mjs` (§14 в `docs/LOYALTY.md`) |
+| Лояльность: штамп при complete | `verify-loyalty-persist.mjs` (неявка, ккал не из `kcal_est`, абон не трогаем) |
+| Лояльность API (доступ, 403/409, не в sync) | `verify-loyalty-api.mjs` |
+| Лояльность UI (чип/вкладка, ПНК, пачки 80, не в pull) | `verify-loyalty-ui.mjs` |
+| Лояльность: списание и журнал | `verify-loyalty-redeem.mjs` (офлайн disabled, роли, не sync) |
+| Лояльность: архив / переезд клуба | `verify-loyalty-archive.mjs` (`burn_archive` / `club_move`, тексты, не выдумываем 0) |
+| Лояльность: тумблер и ставки клуба | `verify-loyalty-settings.mjs` (интервалы, confirm, Структура `?tab=loyalty`) |
 | Пульс при завершении: снимок в дневник, живой буфер не остаётся | `verify-hr-session-persist.mjs` |
 | Двойной тап → пульс подхода из слота | `verify-hr-after-from-live.mjs` |
 | Шаг формы при сплите черновиков | `verify-training-form-step-memory.mjs` |

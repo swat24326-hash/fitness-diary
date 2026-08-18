@@ -13,6 +13,8 @@ import { AdminClubSmsCampaignResultModal } from '../../components/admin/AdminClu
 import { AdminClubSmsCampaignRowCheck } from '../../components/admin/AdminClubSmsCampaignRowCheck.jsx'
 import { AdminClubSmsJournalSection } from '../../components/admin/AdminClubSmsJournalSection.jsx'
 import { AdminClientMaxButton } from '../../components/admin/AdminClientMaxButton.jsx'
+import { LoyaltyGlanceChip } from '../../components/loyalty/LoyaltyGlanceChip.jsx'
+import { useLoyaltyGlanceMap } from '../../hooks/useLoyaltyGlanceMap.js'
 import { useAdminClubSmsCampaign } from './useAdminClubSmsCampaign.js'
 import { AdminClientsBrowseFilters } from '../../components/admin/AdminClientsBrowseFilters.jsx'
 import { AdminClientsAzDirectionFilters } from '../../components/admin/AdminClientsAzDirectionFilters.jsx'
@@ -806,6 +808,8 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     }
     return pagedClients.map((client) => ({ type: 'client', client }))
   }, [quickFilter, pagedClients, today, birthdaySectionCounts])
+
+  const loyaltyGlanceById = useLoyaltyGlanceMap(pagedClients)
 
   useEffect(() => {
     const ids = pagedClients.map((c) => c.id).filter(Boolean)
@@ -1613,6 +1617,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                                 <span className="td-client-fact__value">{last}</span>
                               </div>
                             ) : null}
+                            {!factIsDesk ? <LoyaltyGlanceChip snapshot={loyaltyGlanceById[c.id]} /> : null}
                             {birthdayLabel ? (
                               <div className="td-client-fact">
                                 <span className="td-client-fact__label">ДР</span>
@@ -1687,6 +1692,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                             <span className="td-client-fact__value">{last}</span>
                           </div>
                         ) : null}
+                        {!isDeskClient ? <LoyaltyGlanceChip snapshot={loyaltyGlanceById[c.id]} /> : null}
                         {birthdayLabel ? (
                           <div className="td-client-fact">
                             <span className="td-client-fact__label">ДР</span>
@@ -1958,6 +1964,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         open={Boolean(archiveReasonModal)}
         mode={archiveReasonModal?.mode === 'edit' ? 'edit' : 'enter'}
         clientName={archiveReasonModal?.client?.name}
+        client={archiveReasonModal?.mode === 'edit' ? null : archiveReasonModal?.client}
         initialReason={archiveReasonModal?.mode === 'edit' ? archiveReasonModal?.client?.archive_reason : null}
         busy={busy}
         onCancel={() => !busy && setArchiveReasonModal(null)}

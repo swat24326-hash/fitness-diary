@@ -438,3 +438,10 @@ CREATE POLICY fit_club_call_log_sales_manager
     public.fit_auth_is_sales_manager()
     AND club_id = public.fit_auth_sales_manager_club_id()
   );
+
+-- -----------------------------------------------------------------------------
+-- Лояльность ПЗ: RLS ON, политик для anon/authenticated нет (только service role / API).
+-- -----------------------------------------------------------------------------
+ALTER TABLE public.club_loyalty_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.loyalty_ledger ENABLE ROW LEVEL SECURITY;
+

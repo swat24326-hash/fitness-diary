@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom'
 import { useCallback, useMemo, useState } from 'react'
-import { BarChart3, Building2, ClipboardList, FileSpreadsheet, Phone, Settings, Shield, Trash2, TrendingUp, Trophy, UserCircle, UserPlus } from 'lucide-react'
+import { BarChart3, Building2, ClipboardList, FileSpreadsheet, Gift, Phone, Settings, Shield, Trash2, TrendingUp, Trophy, UserCircle, UserPlus } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { AdminClubDaySummaryPanel } from '../../components/admin/AdminClubDaySummaryPanel'
 import { AdminHomeAttentionRow } from '../../components/admin/AdminHomeAttentionRow'
@@ -276,6 +276,14 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
                     <Trash2 size={44} aria-hidden />
                   </div>
                   <p className="feature-tile__title">Журнал удалений</p>
+                </NavLink>
+              ) : null}
+              {!isSupervisor ? (
+                <NavLink to={tab('loyalty')} className={adminTileClass}>
+                  <div className="feature-tile__icon">
+                    <Gift size={44} aria-hidden />
+                  </div>
+                  <p className="feature-tile__title">Журнал баллов</p>
                 </NavLink>
               ) : null}
               {!isSupervisor ? (
