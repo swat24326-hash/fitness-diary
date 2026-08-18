@@ -22,7 +22,7 @@ alwaysApply: false
 
 **Форма тренировки:** оболочка + каталог упражнений + хелперы форматов сетов.
 
-**Шапка:** layout + `useHeaderSync.js` (flush, pull, прогресс).
+**Шапка:** layout + `useHeaderSync.js` (flush, прогресс) + `syncHeaderPull*.js` (pull по роли).
 
 **dataAccess:** новое — в `src/lib/admin/` / trainer-сервисы; реэкспорт в `dataAccess.js` только при необходимости.
 

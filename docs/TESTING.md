@@ -1,6 +1,6 @@
 # Тестирование и QA
 
-**Актуально:** 2026-08-13. Политика: `.cursor/rules/fitness-diary-ship.mdc`, `fitness-diary-stability.mdc`.
+**Актуально:** 2026-08-19. Политика: `.cursor/rules/fitness-diary-ship.mdc`, `fitness-diary-stability.mdc`.
 
 ---
 
@@ -37,7 +37,7 @@
 
 | Сценарий | Минимум проверки |
 |----------|------------------|
-| Новая тренировка → Завершить | дата, абонемент, очередь |
+| Новая тренировка → Завершить | дата, абонемент, очередь; двойной тап / автосейв — `verify-training-persist-status.mjs` + `verify-critical-hall.mjs` |
 | Правка завершённой | смена даты, повторное сохранение |
 | Sync на планшете | flush + pull, pending не затираются |
 | Админ: статистика / ИСКРА | agg, snapshot |
@@ -56,6 +56,9 @@
 | Лояльность: списание и журнал | `verify-loyalty-redeem.mjs` (офлайн disabled, роли, не sync) |
 | Лояльность: архив / переезд клуба | `verify-loyalty-archive.mjs` (`burn_archive` / `club_move`, тексты, не выдумываем 0) |
 | Лояльность: тумблер и ставки клуба | `verify-loyalty-settings.mjs` (интервалы, confirm, Структура `?tab=loyalty`) |
+| Лояльность: стыки с залом | `verify-loyalty-integration.mjs` (complete/Sync/архив не ждут 45 с; ТЗ/АЗ без вкладки; glance не валит Sync) |
+| Ручной Sync: flush в шапке, pull по ролям | `verify-sync-header-pull.mjs` (продажи/админ/тренер; сбой справочника и клиентов — не «готово»; менеджер без клуба) |
+| Критический контур зала (сшивка) | `verify-critical-hall.mjs` (complete/абон/Sync/ПНК/роли; баллы не в очереди и не в качестве ведения) |
 | Пульс при завершении: снимок в дневник, живой буфер не остаётся | `verify-hr-session-persist.mjs` |
 | Двойной тап → пульс подхода из слота | `verify-hr-after-from-live.mjs` |
 | Шаг формы при сплите черновиков | `verify-training-form-step-memory.mjs` |

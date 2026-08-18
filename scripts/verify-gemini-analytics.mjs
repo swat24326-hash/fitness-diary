@@ -611,7 +611,11 @@ const cfBlock = buildIskraClubFinanceBlock({
   planForm: { plan_level_3: 1300000, plan_pz: 400000, plan_tz: 300000, plan_az: 300000 },
   today: new Date(2026, 6, 10),
 })
-ok(cfBlock?.available === true && cfBlock.forecast?.directions?.length === 3, 'club finance block directions')
+ok(
+  cfBlock?.available === true &&
+    (cfBlock.forecast?.directions ?? []).filter((d) => d.key === 'pz' || d.key === 'tz' || d.key === 'az').length === 3,
+  'club finance block directions',
+)
 ok(
   (instantPlan?.match(/отстаём|отстающие|без критичного|в темпе/gi) ?? []).length <= 2,
   'instant plan no redundant lag wording',

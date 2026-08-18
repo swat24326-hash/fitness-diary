@@ -26,14 +26,20 @@ export function chunkLoyaltyGlanceIds(ids, size = LOYALTY_GLANCE_FETCH_BATCH) {
 }
 
 /**
- * Поверхность куша: ПЗ (в т.ч. lite). Скрыть открытый ПНК, ТЗ/АЗ.
+ * Клиент в программе куша: ПЗ (в т.ч. lite). Не ТЗ/АЗ и не открытый ПНК.
+ * Одна правда для вкладки, чипа и штампа в дневнике.
  * @param {object | null | undefined} client
  */
-export function shouldShowLoyaltyUi(client) {
+export function isLoyaltyProgramClient(client) {
   if (!client) return false
   if (isDeskHallClient(client)) return false
   if (isOpenPnkClient(client)) return false
   return true
+}
+
+/** Поверхность UI = тот же контур, что программа. */
+export function shouldShowLoyaltyUi(client) {
+  return isLoyaltyProgramClient(client)
 }
 
 /**

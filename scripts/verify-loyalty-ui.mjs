@@ -12,6 +12,7 @@ import {
   chunkLoyaltyGlanceIds,
   formatLoyaltyAccountCopy,
   formatLoyaltyGlanceChip,
+  isLoyaltyProgramClient,
   pickLoyaltyLastGood,
   shouldShowLoyaltyUi,
 } from '../src/lib/loyalty/loyaltyGlanceUiCore.js'
@@ -68,6 +69,9 @@ ok(shouldShowLoyaltyUi(openPnk) === false, '3 открытый ПНК — нет
 ok(shouldShowLoyaltyUi(tz) === false, '4 ТЗ — вне куша')
 ok(shouldShowLoyaltyUi(az) === false, '5 АЗ — вне куша')
 ok(shouldShowLoyaltyUi(null) === false, '5b нет клиента')
+ok(isLoyaltyProgramClient(pz) === shouldShowLoyaltyUi(pz), '5c вкладка = программа')
+ok(isLoyaltyProgramClient(tz) === false, '5d ТЗ не в программе — нет штампа сессии')
+ok(isLoyaltyProgramClient(openPnk) === false, '5e открытый ПНК не в программе')
 
 ok(!isPnkCardTabVisible(openPnk, 'loyalty'), '6 ПНК: вкладка Баллы скрыта как stats')
 ok(!isPnkCardTabVisible(openPnk, 'stats'), '6b ПНК: stats тоже скрыта')
@@ -118,8 +122,8 @@ ok(isPnkCardTabVisible(pz, 'loyalty') === true, '6c не-ПНК: вкладка 
 }
 
 {
-  const header = readFileSync(join(root, 'src/components/useHeaderSync.js'), 'utf8')
-  ok(/refreshLoyaltyGlanceAfterTrainerPull/.test(header), '13 после trainer-pull — GET glance')
+  const trainerPull = readFileSync(join(root, 'src/lib/syncHeaderPullTrainer.js'), 'utf8')
+  ok(/refreshLoyaltyGlanceAfterTrainerPull/.test(trainerPull), '13 после trainer-pull — GET glance')
   const cardTabs = readFileSync(join(root, 'src/pages/trainer/ClientCardMainTabs.jsx'), 'utf8')
   ok(/id: 'loyalty'/.test(cardTabs), '13b вкладка Баллы в карточке')
   const lite = readFileSync(join(root, 'src/components/admin/AdminLitePzClientCardSection.jsx'), 'utf8')

@@ -14,3 +14,21 @@ export function resolveTrainingPersistStatus(requested, previousStatus) {
 export function isTrainingFirstCompletion(previousStatus, nextStatus) {
   return isTrainingStatusCompleted(nextStatus) && !isTrainingStatusCompleted(previousStatus)
 }
+
+/** Второй тап «Закончить», пока первый ещё идёт. */
+export function shouldSkipDuplicateCompleteClick(inFlight) {
+  return inFlight === true
+}
+
+/**
+ * На диске уже completed, а этот persist думал, что это первое завершение.
+ * Не перезаписывать штамп баллов и не списывать абон второй раз.
+ */
+export function shouldSkipDuplicateFirstCompletionSave(diskStatus, thisPersistIsFirstCompletion) {
+  return Boolean(thisPersistIsFirstCompletion) && isTrainingStatusCompleted(diskStatus)
+}
+
+/** Автосейв черновика не затирает уже завершённую на диске. */
+export function shouldSkipSilentPersistOfCompleted(diskStatus, silent) {
+  return silent === true && isTrainingStatusCompleted(diskStatus)
+}

@@ -1,9 +1,16 @@
 /**
  * GET loyalty-account / loyalty-glance через admin-data. Не класть в trainer-pull.
+ * Таймаут короткий: complete/Sync не должны ждать 45 с как club-stats.
  */
 
 import { getAccessTokenForAdminApi } from '../admin/adminApiClient.js'
-import { fetchWithAppTimeout, CLUB_STATS_FETCH_TIMEOUT_MS } from '../networkReachability.js'
+import { fetchWithAppTimeout } from '../networkReachability.js'
+import {
+  LOYALTY_COMPLETE_SETTINGS_TIMEOUT_MS,
+  LOYALTY_FETCH_TIMEOUT_MS,
+} from './loyaltyTimeoutCore.js'
+
+export { LOYALTY_COMPLETE_SETTINGS_TIMEOUT_MS, LOYALTY_FETCH_TIMEOUT_MS }
 
 function apiOrigin() {
   if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin
@@ -20,7 +27,7 @@ async function parseJson(res) {
   }
 }
 
-async function getJson(path) {
+async function getJson(path, timeoutMs = LOYALTY_FETCH_TIMEOUT_MS) {
   const token = await getAccessTokenForAdminApi()
   if (!token) throw new Error('Нет сессии')
   const res = await fetchWithAppTimeout(
@@ -31,7 +38,7 @@ async function getJson(path) {
       credentials: 'same-origin',
       cache: 'no-store',
     },
-    CLUB_STATS_FETCH_TIMEOUT_MS,
+    timeoutMs,
   )
   const data = await parseJson(res)
   if (res.ok) return data
@@ -56,7 +63,7 @@ async function postJson(path, body) {
       cache: 'no-store',
       body: JSON.stringify(body ?? {}),
     },
-    CLUB_STATS_FETCH_TIMEOUT_MS,
+    LOYALTY_FETCH_TIMEOUT_MS,
   )
   const data = await parseJson(res)
   if (res.ok) return data
@@ -67,11 +74,11 @@ async function postJson(path, body) {
 }
 
 /** GET /api/admin-data?action=loyalty-account */
-export async function fetchLoyaltyAccount(clientId) {
+export async function fetchLoyaltyAccount(clientId, timeoutMs = LOYALTY_FETCH_TIMEOUT_MS) {
   const id = String(clientId ?? '').trim()
   if (!id) throw new Error('Укажите client_id')
   const params = new URLSearchParams({ action: 'loyalty-account', client_id: id })
-  return getJson(`/api/admin-data?${params}`)
+  return getJson(`/api/admin-data?${params}`, timeoutMs)
 }
 
 /**
@@ -112,11 +119,11 @@ export async function fetchLoyaltyJournal(clubId) {
 }
 
 /** GET /api/admin-data?action=loyalty-settings */
-export async function fetchLoyaltySettings(clubId) {
+export async function fetchLoyaltySettings(clubId, timeoutMs = LOYALTY_FETCH_TIMEOUT_MS) {
   const club = String(clubId ?? '').trim()
   if (!club) throw new Error('Укажите club_id')
   const params = new URLSearchParams({ action: 'loyalty-settings', club_id: club })
-  return getJson(`/api/admin-data?${params}`)
+  return getJson(`/api/admin-data?${params}`, timeoutMs)
 }
 
 /** POST /api/admin-data?action=loyalty-settings — не sync_queue. */

@@ -55,7 +55,7 @@ API тянет логику из `src/lib/loyalty/*` (как `membershipRules` �
 | `loyaltyRedeemDecisionCore.js` | `decideLoyaltyRedeem` (400/409) |
 | `loyaltySettingsWriteCore.js` | POST настроек + интервалы |
 
-Verify: `scripts/verify-loyalty.mjs`, `verify-loyalty-persist.mjs`, `verify-loyalty-api.mjs`, `verify-loyalty-ui.mjs`, `verify-loyalty-redeem.mjs`, `verify-loyalty-archive.mjs`, `verify-loyalty-settings.mjs`. API: `api/_lib/adminData/loyaltyHandlers.js` (импорт `src/lib/loyalty`, без копии алгоритма).
+Verify: `scripts/verify-loyalty.mjs`, `verify-loyalty-persist.mjs`, `verify-loyalty-api.mjs`, `verify-loyalty-ui.mjs`, `verify-loyalty-redeem.mjs`, `verify-loyalty-archive.mjs`, `verify-loyalty-settings.mjs`, `verify-loyalty-integration.mjs`. API: `api/_lib/adminData/loyaltyHandlers.js` (импорт `src/lib/loyalty`, без копии алгоритма).
 
 ---
 
@@ -322,7 +322,9 @@ Glance **не** класть в тело `trainer-pull` (pull уже тяжёл�
 
 ## 11. Контуры — не ломать
 
-Дневник complete и списание абона — рядом, не внутри. Неявка `is_writeoff` уже есть. Реассайн каскадит `club_id` — якорь переезда обязателен. Lite/ТЗ/АЗ/ПНК/БЗ вне. Статистика, CQ, ЗП, челленджи, ИСКРА, касса, Max — не трогать.
+Дневник complete и списание абона — рядом, не внутри. Неявка `is_writeoff` уже есть. Реассайн каскадит `club_id` — якорь переезда обязателен. Lite/ТЗ/АЗ/ПНК/БЗ вне (штамп `session_started_at` тоже только у клиента программы). Статистика, CQ, ЗП, челленджи, ИСКРА, касса, Max — не трогать.
+
+Таймауты: GET настроек на «Завершить» **4 с** (иначе дефолт 60/800), параллельно с выбором абонемента; карточка/glance/списание **8 с**; предупреждение архива/переезда — **last-good сразу**, иначе GET **2 с**, не выдумываем 0; снимок баллов при архиве в push **3 с**, затем `burn_archive` с 0. Glance после trainer-pull (`syncHeaderPullTrainer.js`) — фон, **не** держит Sync и **не** ставит ошибку Sync.
 
 ---
 

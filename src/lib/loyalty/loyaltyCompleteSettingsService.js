@@ -5,6 +5,7 @@
 
 import { isAppOnline } from '../networkReachability.js'
 import { fetchLoyaltySettings } from './loyaltyApiClient.js'
+import { LOYALTY_COMPLETE_SETTINGS_TIMEOUT_MS } from './loyaltyTimeoutCore.js'
 import { interpretLoyaltySettingsHttp } from './loyaltySettingsUiCore.js'
 
 /**
@@ -15,7 +16,7 @@ export async function loadLoyaltyCompleteSettings(clubId) {
   const club = String(clubId ?? '').trim()
   if (!club || !isAppOnline()) return null
   try {
-    const data = await fetchLoyaltySettings(club)
+    const data = await fetchLoyaltySettings(club, LOYALTY_COMPLETE_SETTINGS_TIMEOUT_MS)
     const parsed = interpretLoyaltySettingsHttp(200, data)
     if (!parsed.ok || parsed.migration_needed) return null
     return parsed.settings

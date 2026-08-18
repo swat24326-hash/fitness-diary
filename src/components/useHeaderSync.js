@@ -1,14 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { pullAdminClientsFromCloud } from '../lib/admin/adminClientsListService'
-import { pullTrainerWorkspaceFromCloud } from '../lib/trainerPullService'
 import { listSyncQueue } from '../lib/localDb'
 import { describeFlushQueueResult, flushSyncQueue, getSyncOutboundSummary, isAppOnline } from '../lib/syncService'
 import { isSupabaseConfigured } from '../lib/supabase'
-import {
-  collectTrainerClubIds,
-  dispatchLocalDataChanged,
-  LOCAL_DATA_CHANGED,
-} from '../lib/dataAccess'
+import { dispatchLocalDataChanged, LOCAL_DATA_CHANGED } from '../lib/dataAccess'
 import {
   computeNeedsUserAttention,
   getPersistentErrorCount,
@@ -30,16 +24,8 @@ import {
   pickSyncMotivationCard,
   setLastSyncReport,
 } from '../lib/syncMotivationCore'
+import { resolveHeaderSyncForceFromCloud, runHeaderSyncPull } from '../lib/syncHeaderPullService'
 import { SYNC_NOW_REQUEST } from '../lib/syncUiBridge'
-
-function recordSyncPullIssue(label, error) {
-  const msg = String(error ?? 'ошибка').trim() || 'ошибка'
-  recordAppError({
-    source: 'pull',
-    error: `${label}: ${msg}`,
-    status: /нет доступа/i.test(msg) ? 403 : undefined,
-  })
-}
 
 export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, searchParams, menuOpen, closeMenu }) {
   const [pendingSync, setPendingSync] = useState(0)
@@ -285,191 +271,16 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
 
       if (isSupabaseConfigured() && !flushDesc.offline) {
         try {
-          if (isSalesManager) {
-            // Очередь + клиенты/абоны клуба + типы абон. Цифры дня — «Обновить» на странице продаж.
-            const club = String(user?.club_id ?? '').trim()
-            if (club) {
-              bumpSyncProgress(80, 'Клиенты клуба…')
-              try {
-                const pull = await pullAdminClientsFromCloud(club)
-                if (pull?.ok) {
-                  parts.push(`клиенты (${pull.count ?? 0})`)
-                } else {
-                  hadError = true
-                  parts.push(`клиенты: ${pull?.reason ?? pull?.error ?? 'ошибка'}`)
-                  recordSyncPullIssue('клиенты клуба', pull?.reason ?? pull?.error)
-                }
-              } catch (e) {
-                hadError = true
-                parts.push(`клиенты: ${e?.message ?? 'ошибка'}`)
-                recordSyncPullIssue('клиенты клуба', e?.message)
-              }
-              bumpSyncProgress(86, 'Типы абонементов…')
-              try {
-                const { pullMembershipTypesForClubFromCloud } = await import('../lib/pullReferenceData')
-                const mtPull = await pullMembershipTypesForClubFromCloud(club, { forceFromCloud: true })
-                if (!mtPull?.ok) {
-                  hadError = true
-                  parts.push(`типы абон.: ${mtPull.error ?? mtPull.reason ?? 'ошибка'}`)
-                  recordSyncPullIssue('типы абонементов', mtPull.error ?? mtPull.reason)
-                } else {
-                  parts.push(`типы абон. (${mtPull.count ?? 0})`)
-                }
-              } catch (e) {
-                hadError = true
-                parts.push(`типы абон.: ${e?.message ?? 'ошибка'}`)
-                recordSyncPullIssue('типы абонементов', e?.message)
-              }
-            }
-            bumpSyncProgress(88, 'Готово')
-            parts.push('отчёт продаж — обновите на странице')
-          } else {
-          const {
-            pullExercisesFromCloud,
-            pullChallengesForClubFromCloud,
-            pullMembershipTypesForClubFromCloud,
-            pullNutritionProductsForClubFromCloud,
-            pullHomeworkPresetsForClubFromCloud,
-          } =
-            await import('../lib/pullReferenceData')
-          bumpSyncProgress(76, 'Справочник упражнений…')
-          // Sync нажимают вручную, и ожидают увидеть свежие правки админа сразу.
-          // `exercises-meta` основан на created_at и не ловит правки без новой записи, поэтому тут форсим pull.
-          await pullExercisesFromCloud({ force: true })
-          parts.push('справочник')
-
-          if (isAdmin) {
-            const club = searchParams.get('club')?.trim()
-            if (club) {
-              bumpSyncProgress(82, 'Клиенты клуба…')
-              const { listChallengesLocalForClub, pushChallengeToCloud } = await import('../lib/challengeService')
-              for (const ch of await listChallengesLocalForClub(club)) {
-                await pushChallengeToCloud(ch)
-              }
-              const pull = await pullAdminClientsFromCloud(club)
-              if (pull?.ok) {
-                let msg = `клиенты (${pull.count ?? 0})`
-                if ((pull.pruned_clients ?? 0) > 0 || (pull.pruned_trainings ?? 0) > 0) {
-                  msg += `, очищено кэша: ${pull.pruned_clients ?? 0} кл. / ${pull.pruned_trainings ?? 0} черн.`
-                }
-                parts.push(msg)
-              }
-              bumpSyncProgress(92, 'Челленджи…')
-              const chPull = await pullChallengesForClubFromCloud(club)
-              if (!chPull?.ok) {
-                hadError = true
-                parts.push(`челленджи: ${chPull.error ?? 'ошибка'}`)
-              } else {
-                let chMsg = `челленджи (${chPull.count ?? 0})`
-                if ((chPull.pruned ?? 0) > 0) chMsg += `, убрано ${chPull.pruned}`
-                parts.push(chMsg)
-              }
-              bumpSyncProgress(94, 'Типы абонементов…')
-              const mtPull = await pullMembershipTypesForClubFromCloud(club)
-              if (!mtPull?.ok) {
-                hadError = true
-                parts.push(`типы абон.: ${mtPull.error ?? 'ошибка'}`)
-                recordSyncPullIssue('типы абонементов', mtPull.error)
-              } else {
-                parts.push(`типы абон. (${mtPull.count ?? 0})`)
-              }
-              bumpSyncProgress(95, 'Продукты питания…')
-              const npPull = await pullNutritionProductsForClubFromCloud(club)
-              if (!npPull?.ok) {
-                hadError = true
-                parts.push(`питание: ${npPull.error ?? 'ошибка'}`)
-                recordSyncPullIssue('питание', npPull.error)
-              } else {
-                parts.push(`питание (${npPull.count ?? 0})`)
-              }
-              bumpSyncProgress(96, 'Шаблоны ДЗ…')
-              const hwPull = await pullHomeworkPresetsForClubFromCloud(club)
-              if (!hwPull?.ok) {
-                hadError = true
-                parts.push(`ДЗ: ${hwPull.error ?? 'ошибка'}`)
-                recordSyncPullIssue('шаблоны ДЗ', hwPull.error)
-              } else {
-                parts.push(`ДЗ (${hwPull.count ?? 0})`)
-              }
-            } else {
-              parts.push('клиенты: выберите клуб')
-            }
-            } else if (user?.id) {
-            bumpSyncProgress(84, 'Клиенты и тренировки…')
-            const pull = await pullTrainerWorkspaceFromCloud(user.id)
-            if (pull?.ok) {
-              let msg = `рабочая область (${pull.count ?? 0} кл.)`
-              if ((pull.pruned_clients ?? 0) > 0) msg += `, убрано из кэша: ${pull.pruned_clients}`
-              parts.push(msg)
-              bumpSyncProgress(88, 'Баллы…')
-              try {
-                const { refreshLoyaltyGlanceAfterTrainerPull } = await import('../lib/loyalty/loyaltyGlanceService')
-                const glance = await refreshLoyaltyGlanceAfterTrainerPull(user.id)
-                if (glance?.ok === false && glance?.error) {
-                  parts.push(`баллы: ${glance.error}`)
-                } else if ((glance?.count ?? 0) > 0) {
-                  parts.push(`баллы (${glance.count})`)
-                }
-              } catch (e) {
-                parts.push(`баллы: ${e?.message ?? 'ошибка'}`)
-              }
-            } else if (pull?.error) {
-              hadError = true
-              parts.push(`тренер: ${pull.error}`)
-            }
-            const clubIds = await collectTrainerClubIds(user.id, user?.club_id)
-            let chTotal = 0
-            let chPruned = 0
-            let chFailed = false
-            const clubList = [...clubIds]
-            for (let ci = 0; ci < clubList.length; ci++) {
-              const cid = clubList[ci]
-              if (clubList.length > 1) {
-                bumpSyncProgress(90 + Math.round(((ci + 1) / clubList.length) * 8), 'Челленджи…')
-              } else {
-                bumpSyncProgress(94, 'Челленджи…')
-              }
-              const chPull = await pullChallengesForClubFromCloud(cid)
-              if (!chPull?.ok) {
-                chFailed = true
-                hadError = true
-                parts.push(`челленджи: ${chPull.error ?? 'ошибка'}`)
-                break
-              }
-              chTotal += chPull.count ?? 0
-              chPruned += chPull.pruned ?? 0
-              const mtPull = await pullMembershipTypesForClubFromCloud(cid)
-              if (!mtPull?.ok) {
-                chFailed = true
-                hadError = true
-                parts.push(`типы абон.: ${mtPull.error ?? 'ошибка'}`)
-                recordSyncPullIssue('типы абонементов', mtPull.error)
-                break
-              }
-              const npPull = await pullNutritionProductsForClubFromCloud(cid)
-              if (!npPull?.ok) {
-                chFailed = true
-                hadError = true
-                parts.push(`питание: ${npPull.error ?? 'ошибка'}`)
-                recordSyncPullIssue('питание', npPull.error)
-                break
-              }
-              const hwPull = await pullHomeworkPresetsForClubFromCloud(cid)
-              if (!hwPull?.ok) {
-                chFailed = true
-                hadError = true
-                parts.push(`ДЗ: ${hwPull.error ?? 'ошибка'}`)
-                recordSyncPullIssue('шаблоны ДЗ', hwPull.error)
-                break
-              }
-            }
-            if (!chFailed) {
-              let chMsg = `челленджи (${chTotal})`
-              if (chPruned > 0) chMsg += `, убрано ${chPruned}`
-              parts.push(chMsg)
-            }
-          }
-          }
+          const pullErr = await runHeaderSyncPull({
+            isSalesManager,
+            isAdmin,
+            user,
+            clubFromUrl: searchParams?.get('club')?.trim(),
+            forceFromCloud: resolveHeaderSyncForceFromCloud(flush?.ok),
+            bump: bumpSyncProgress,
+            parts,
+          })
+          if (pullErr) hadError = true
         } catch (e) {
           hadError = true
           console.warn('[sync] pull', e)

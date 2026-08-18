@@ -1,6 +1,7 @@
 import { Dumbbell } from 'lucide-react'
 import { ClientDiaries } from '../../components/ClientDiaries'
 import { isOpenPnkClient, isPnkCardTabVisible } from '../../lib/pnk/pnkStagesCore.js'
+import { shouldShowLoyaltyUi } from '../../lib/loyalty/loyaltyGlanceUiCore.js'
 import { ClientHomeworkPage } from './ClientHomeworkPage'
 import { ClientLoyaltySection } from '../../components/loyalty/ClientLoyaltySection.jsx'
 import { ClientNutritionPage } from './ClientNutritionPage'
@@ -18,6 +19,7 @@ const CARD_TABS = [
 ]
 
 function tabOk(client, tabId, ctx) {
+  if (tabId === 'loyalty' && !shouldShowLoyaltyUi(client)) return false
   return !isOpenPnkClient(client) || isPnkCardTabVisible(client, tabId, ctx)
 }
 
@@ -45,7 +47,7 @@ export function ClientCardMainTabs({
   return (
     <>
       <div className="tabs" role="tablist">
-        {CARD_TABS.filter((t) => isPnkCardTabVisible(client, t.id, pnkCtx)).map((t) => (
+        {CARD_TABS.filter((t) => tabOk(client, t.id, pnkCtx)).map((t) => (
           <button
             key={t.id}
             type="button"

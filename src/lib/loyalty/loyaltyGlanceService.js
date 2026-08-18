@@ -86,14 +86,20 @@ export async function refreshLoyaltyGlanceAfterTrainerPull(trainerId) {
 /**
  * Карточка: GET account, кэш last-good. Не get-client.
  * @param {string} clientId
+ * @param {{ timeoutMs?: number, preferCache?: boolean }} [opts]
+ *   preferCache — архив/переезд: не ждать сеть, если last-good уже есть.
  */
-export async function loadLoyaltyAccountWithCache(clientId) {
+export async function loadLoyaltyAccountWithCache(clientId, opts = {}) {
   const id = String(clientId ?? '').trim()
   const cached = id ? await getLoyaltyGlance(id) : null
   if (!id) return { snapshot: null, source: 'none' }
+  if (opts.preferCache === true && isLoyaltySnapshot(cached)) {
+    return { snapshot: cached, source: 'cache' }
+  }
   if (!isAppOnline()) return { snapshot: pickLoyaltyLastGood(cached, null), source: 'cache' }
+  const timeoutMs = Number(opts.timeoutMs)
   try {
-    const data = await fetchLoyaltyAccount(id)
+    const data = await fetchLoyaltyAccount(id, Number.isFinite(timeoutMs) ? timeoutMs : undefined)
     const live = data?.snapshot
     if (isLoyaltySnapshot(live)) {
       await putLoyaltyGlance(id, live)

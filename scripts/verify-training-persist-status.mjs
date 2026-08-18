@@ -5,6 +5,9 @@ import {
   isTrainingFirstCompletion,
   isTrainingStatusCompleted,
   resolveTrainingPersistStatus,
+  shouldSkipDuplicateCompleteClick,
+  shouldSkipDuplicateFirstCompletionSave,
+  shouldSkipSilentPersistOfCompleted,
 } from '../src/lib/trainingPersistStatusCore.js'
 
 let failed = 0
@@ -30,6 +33,15 @@ ok(!isTrainingStatusCompleted('draft'), 'draft is not completed')
 ok(isTrainingFirstCompletion('draft', 'completed'), 'first complete')
 ok(!isTrainingFirstCompletion('completed', 'completed'), 'edit completed is not first')
 ok(!isTrainingFirstCompletion('completed', 'draft'), 'uncomplete request still not first after resolve')
+
+ok(shouldSkipDuplicateCompleteClick(true), 'second complete click while in flight')
+ok(!shouldSkipDuplicateCompleteClick(false), 'first complete click proceeds')
+ok(shouldSkipDuplicateFirstCompletionSave('completed', true), 'disk completed + firstCompletion persist skips overwrite')
+ok(!shouldSkipDuplicateFirstCompletionSave('draft', true), 'disk draft still first complete')
+ok(!shouldSkipDuplicateFirstCompletionSave('completed', false), 'edit completed is not duplicate first')
+ok(shouldSkipSilentPersistOfCompleted('completed', true), 'autosave does not uncomplete')
+ok(!shouldSkipSilentPersistOfCompleted('draft', true), 'autosave draft proceeds')
+ok(!shouldSkipSilentPersistOfCompleted('completed', false), 'explicit save of completed proceeds')
 
 if (failed) {
   console.error(`\n${failed} check(s) failed`)

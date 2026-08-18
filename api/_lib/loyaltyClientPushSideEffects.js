@@ -18,6 +18,10 @@ import {
   loadLoyaltyMembershipTypes,
   loadLoyaltySettingsRow,
 } from './adminData/loyaltyAccountQuery.js'
+import {
+  LOYALTY_PUSH_SNAPSHOT_TIMEOUT_MS,
+  raceWithTimeout,
+} from '../../src/lib/loyalty/loyaltyTimeoutCore.js'
 
 async function liveSnapshot(supabase, clientRow) {
   const clubId = String(clientRow?.club_id ?? '').trim()
@@ -60,12 +64,17 @@ export async function applyLoyaltyClientPushSideEffects(p = {}) {
       let points = 0
       let snapshot = {}
       try {
-        const live = await liveSnapshot(supabase, { ...after, archived_at: null, club_id: burn.clubId, id: burn.clientId })
+        const live = await raceWithTimeout(
+          liveSnapshot(supabase, { ...after, archived_at: null, club_id: burn.clubId, id: burn.clientId }),
+          LOYALTY_PUSH_SNAPSHOT_TIMEOUT_MS,
+          'loyalty snapshot timeout',
+        )
         points = Number(live?.snapshot?.points) || 0
         snapshot = live?.settings ? loyaltyRatesFromSettings(live.settings) : {}
       } catch (e) {
-        if (isLoyaltyTableMissing(e)) return
-        console.warn('[loyalty] archive snapshot', e?.message ?? e)
+        if (!isLoyaltyTableMissing(e)) {
+          console.warn('[loyalty] archive snapshot', e?.message ?? e)
+        }
       }
       await insertLoyaltyLedgerRow(supabase, {
         club_id: burn.clubId,

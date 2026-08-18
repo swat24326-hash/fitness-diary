@@ -25,6 +25,9 @@ import {
   isTrainingFirstCompletion,
   isTrainingStatusCompleted,
   resolveTrainingPersistStatus,
+  shouldSkipDuplicateCompleteClick,
+  shouldSkipDuplicateFirstCompletionSave,
+  shouldSkipSilentPersistOfCompleted,
 } from '../../lib/trainingPersistStatusCore'
 import {
   TRAINING_SESSION_TYPES,
@@ -50,6 +53,7 @@ import {
   ensureLoyaltySessionStartedAt,
 } from '../../lib/loyalty/loyaltyPersistCore.js'
 import { loadLoyaltyCompleteSettings } from '../../lib/loyalty/loyaltyCompleteSettingsService.js'
+import { isLoyaltyProgramClient } from '../../lib/loyalty/loyaltyGlanceUiCore.js'
 
 const TRAINING_TYPES = TRAINING_SESSION_TYPES
 
@@ -150,6 +154,7 @@ export function TrainingPage() {
   const lateShiftDismissedRef = useRef(false)
 
   const saveMutexRef = useRef(Promise.resolve())
+  const completeInFlightRef = useRef(false)
   const [hydrateVersion, bumpHydrateVersion] = useState(0)
   const autosaveTimerRef = useRef(null)
   const draftTrainingIdRef = useRef(null)
@@ -296,10 +301,11 @@ export function TrainingPage() {
     void load()
   }, [load, isNew, isAdmin])
 
-  /** Первый заход в форму: штамп старта сессии. Повтор / uuid — тот же ISO. */
+  /** Первый заход в форму: штамп старта сессии. Повтор / uuid — тот же ISO. ТЗ/АЗ/открытый ПНК — не куш. */
   useEffect(() => {
     if (loadState !== 'ok') return
     if (isTrainingStatusCompleted(meta.status)) return
+    if (!isLoyaltyProgramClient(client)) return
     const now = new Date().toISOString()
     setWorkoutState((w) => {
       const kept = ensureLoyaltySessionStartedAt(w?.loyalty?.session_started_at, now)
@@ -308,7 +314,7 @@ export function TrainingPage() {
       const prevStamp = w?.loyalty && typeof w.loyalty === 'object' ? w.loyalty : {}
       return { ...w, loyalty: { ...prevStamp, session_started_at: kept } }
     })
-  }, [hydrateVersion, loadState, meta.status])
+  }, [hydrateVersion, loadState, meta.status, client])
 
   /** Смена URL-тренировки / клиента — новый scope пульса (не путать черновики). */
   useEffect(() => {
@@ -319,6 +325,10 @@ export function TrainingPage() {
   const persist = async (status, opts = {}) => {
     const silent = opts.silent === true
     const skipNavigate = opts.skipNavigate === true
+    const completeClick = String(status ?? '') === 'completed' && !silent
+    if (completeClick && shouldSkipDuplicateCompleteClick(completeInFlightRef.current)) return
+    if (completeClick) completeInFlightRef.current = true
+    try {
     if (!silent) {
       setSaveError('')
       setSaveNotice('')
@@ -431,6 +441,11 @@ export function TrainingPage() {
       return
     }
 
+    const stampLoyalty = firstCompletion && isLoyaltyProgramClient(client)
+    const loyaltySettingsPromise = stampLoyalty
+      ? loadLoyaltyCompleteSettings(club_id).catch(() => null)
+      : Promise.resolve(null)
+
     const wm = parseInt(String(workoutState.warmup_duration_min ?? ''), 10) || 0
     const cm = parseInt(String(workoutState.cooldown_duration_min ?? ''), 10) || 0
 
@@ -481,33 +496,30 @@ export function TrainingPage() {
       dataPayload.membership_id = picked.id
     }
     let loyaltySamples = []
-    let loyaltySettings = null
-    if (firstCompletion) {
+    if (stampLoyalty) {
       try {
         loyaltySamples = hr.getSessionSamples(cid) ?? []
       } catch {
         loyaltySamples = []
       }
-      try {
-        loyaltySettings = await loadLoyaltyCompleteSettings(club_id)
-      } catch {
-        loyaltySettings = null
-      }
     }
-    const dataWithLoyalty = applyLoyaltyOnTrainingPersist({
-      data: dataPayload,
-      type: persistType,
-      firstCompletion,
-      nowIso: now,
-      samples: loyaltySamples,
-      health: {
-        birthDate: client?.birth_date,
-        sex: getHealthSex(healthCard),
-        weightKg: workoutState.pre_weight_kg || healthCard?.weight_kg || null,
-        asOfIso: effectiveDate || today,
-      },
-      settings: loyaltySettings,
-    })
+    const loyaltySettings = stampLoyalty ? await loyaltySettingsPromise : null
+    const dataWithLoyalty = stampLoyalty
+      ? applyLoyaltyOnTrainingPersist({
+          data: dataPayload,
+          type: persistType,
+          firstCompletion,
+          nowIso: now,
+          samples: loyaltySamples,
+          health: {
+            birthDate: client?.birth_date,
+            sex: getHealthSex(healthCard),
+            weightKg: workoutState.pre_weight_kg || healthCard?.weight_kg || null,
+            asOfIso: effectiveDate || today,
+          },
+          settings: loyaltySettings,
+        })
+      : dataPayload
     const trainerIdForRow = isAdmin ? prev?.trainer_id ?? client?.trainer_id ?? user.id : user.id
     const row = {
       id: prev?.id ?? trainingId,
@@ -527,6 +539,22 @@ export function TrainingPage() {
       synced: false,
     }
     await runExclusive(async () => {
+      const dbNow = await getDb()
+      const fresh = await dbNow.get('trainings', row.id)
+      const diskStatus = fresh?.status ?? previousStatus
+      if (shouldSkipSilentPersistOfCompleted(diskStatus, silent)) return
+      if (shouldSkipDuplicateFirstCompletionSave(diskStatus, firstCompletion)) {
+        setMeta({ status: 'completed', trainingId: fresh?.id ?? row.id })
+        if (!silent) {
+          setSaveNotice('Тренировка завершена и сохранена.')
+          setAutosaveStatus('idle')
+        }
+        if (!skipNavigate) nav(`${clientsBase}/${cid}${preserveClubQs}`, { replace: true })
+        return
+      }
+      const stillFirst = isTrainingFirstCompletion(diskStatus, row.status)
+      const debitNow = Boolean(membershipToDebit) && stillFirst
+      row.status = resolveTrainingPersistStatus(row.status, diskStatus)
       if (silent) {
         setAutosaveStatus('saving')
       }
@@ -542,7 +570,7 @@ export function TrainingPage() {
         return
       }
 
-      if (membershipToDebit) {
+      if (debitNow) {
         const used = Number(membershipToDebit.used_trainings ?? 0)
         const nextUsed = Number.isFinite(used) ? used + 1 : 1
         try {
@@ -565,7 +593,7 @@ export function TrainingPage() {
 
       setMeta({ status: row.status, trainingId: row.id })
       try {
-        if (firstCompletion) {
+        if (stillFirst) {
           hr.endTrainingHrSession(cid)
           hr.disconnectClient(cid)
           pendingHrScopeRef.current = null
@@ -644,6 +672,9 @@ export function TrainingPage() {
         nav(`${workoutsBase}/${row.id}${preserveClubQs}`, { replace: true })
       }
     })
+    } finally {
+      if (completeClick) completeInFlightRef.current = false
+    }
   }
 
   /** Автосохранение черновика локально при изменениях формы — чтобы не терять прогресс при уходе со страницы. */

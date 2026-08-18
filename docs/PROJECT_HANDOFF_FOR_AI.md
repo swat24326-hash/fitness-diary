@@ -57,7 +57,7 @@ src/
   App.jsx                 — маршруты, RoleOutlet (admin | trainer | sales_manager | supervisor)
   context/AuthContext.jsx — сессия, роль, isAdmin / isTrainer / isSalesManager / isSupervisor
   lib/
-    localDb.js, syncService.js, syncApiClient.js, membershipRules.js
+    localDb.js, syncService.js, syncApiClient.js, syncHeaderPullService.js, membershipRules.js
     dataAccess.js         — реэкспорты; новое админское — в admin/
     admin/                — статистика, продажи, организация, ИСКРА-клиент, multi-hall / desk
     pnk/                  — этапы ПНК, wizard, glance, visit quality (*Core.js)

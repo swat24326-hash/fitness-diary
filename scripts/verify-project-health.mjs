@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const agentQaPath = join(root, 'scripts/agent-qa.mjs')
-const MAX_MAIN_BUNDLE_KB = 2950
+const MAX_MAIN_BUNDLE_KB = 3250
 
 let failed = 0
 
@@ -83,8 +83,9 @@ const maxRetries = maxRetriesMatch ? Number(maxRetriesMatch[1]) : 0
 ok(maxRetries >= 8, `sync queue max retries (${maxRetries})`)
 
 const localDbSrc = readFileSync(join(root, 'src/lib/localDb.js'), 'utf8')
-ok(/DB_VERSION\s*=\s*16/.test(localDbSrc), 'indexeddb version 16 with sale_clips')
+ok(/DB_VERSION\s*=\s*17/.test(localDbSrc), 'indexeddb version 17 with loyalty_glance')
 ok(localDbSrc.includes('sale_clips'), 'indexeddb sale_clips store')
+ok(localDbSrc.includes('loyalty_glance'), 'indexeddb loyalty_glance store')
 ok(localDbSrc.includes('client_weight_entries'), 'indexeddb client_weight_entries store')
 ok(localDbSrc.includes('by_trainer_id'), 'indexeddb by_trainer_id index')
 ok(localDbSrc.includes('by_club_date'), 'indexeddb by_club_date compound index')

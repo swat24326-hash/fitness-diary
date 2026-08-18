@@ -1,6 +1,6 @@
 # Sync — очередь, flush, pull
 
-**Актуально:** 2026-08-13. Политика кода: `.cursor/rules/fitness-diary-sync.mdc`. Инциденты: [RUNBOOK.md](./RUNBOOK.md).
+**Актуально:** 2026-08-19. Политика кода: `.cursor/rules/fitness-diary-sync.mdc`. Инциденты: [RUNBOOK.md](./RUNBOOK.md).
 
 ---
 
@@ -19,7 +19,7 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
    → ручной Sync: 1) flush очереди  2) pull (trainer-pull / admin-data / reference)
 ```
 
-Ключевые модули: `src/lib/syncService.js`, `syncApiClient.js`, `localDb.js` (`enqueueSync`, `putStoreUnlessPendingSync`).
+Ключевые модули: `src/lib/syncService.js`, `syncApiClient.js`, `localDb.js` (`enqueueSync`, `putStoreUnlessPendingSync`). Ручной Sync в шапке: `useHeaderSync.js` (flush, прогресс) → `syncHeaderPullService.js` (pull по роли).
 
 ---
 
@@ -36,7 +36,7 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 ## Правила
 
 1. **Не обходить** `saveLocalWithSync` ради «быстрого» сохранения в облако с UI тренера.
-2. **Ручной Sync:** сначала flush, потом pull.
+2. **Ручной Sync:** сначала flush, потом pull. Сбой справочника/клиентов/челленджей — **«готово с замечаниями»**, не зелёный успех. Менеджер без `club_id` у профиля и админ без клуба в URL — тоже замечание. Pull баллов (glance) **не** держит Sync и **не** ставит ошибку. Типы абон / питание / ДЗ: **force-merge только если очередь ушла** (`resolveHeaderSyncForceFromCloud`) — иначе pending не затираем. Verify: `scripts/verify-sync-header-pull.mjs`, `scripts/verify-critical-hall.mjs`.
 3. **Pull merge:** для охраняемых stores не перезаписывать строку, если по ней есть pending в очереди.
 4. **memberships push:** `start_date` / `end_date` в БД NOT NULL. При **update** пустые/null даты **опускаются** из payload (`normalizeMembershipPushPayload`), чтобы списание `used_trainings` не затирало даты. При **insert** даты обязательны. Verify: `scripts/verify-membership-push-payload.mjs`.
 5. **Менеджер продаж + типы абон.:** Sync у менеджера — flush + pull `membership_types` (свой клуб). Колонки АЗ в дневном отчёте обновляются ещё кнопкой **«Обновить»** на `/sales`. API: `admin-data?action=membership-types` доступен менеджеру; RLS: `fit_membership_types_sales_manager_read`. Без этого «Обновить» мог показывать устаревший IDB без нового R3+. Док: [SALES_MANAGER.md](./SALES_MANAGER.md).
