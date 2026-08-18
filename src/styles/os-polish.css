@@ -162,10 +162,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
   flex: 0 0 auto;
-  border-radius: 8px;
+  align-self: stretch;
+  aspect-ratio: 1;
+  width: auto;
+  min-width: 34px;
+  border-radius: var(--radius-sm);
   background: var(--accent-bright);
   color: #022c14;
   font-size: 0.9rem;
