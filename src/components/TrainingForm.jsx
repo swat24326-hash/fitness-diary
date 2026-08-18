@@ -115,6 +115,8 @@ export function TrainingForm({
   const [catalogList, setCatalogList] = useState([])
   const [clientTrainings, setClientTrainings] = useState([])
   const [suggestOpenId, setSuggestOpenId] = useState(null)
+  const [collapsedExerciseIds, setCollapsedExerciseIds] = useState(() => new Set())
+  const lastNameTapAtRef = useRef({})
   const exercisesRef = useRef([])
   /** Пока в родителе exercises: [], нельзя каждый рендер создавать новый id — иначе input размонтируется и ввод «не печатается». */
   const emptyExercisePlaceholderRef = useRef(null)
@@ -199,6 +201,30 @@ export function TrainingForm({
   }
 
   const summaryText = useMemo(() => formatExercisesSummaryText(exercises), [exercises])
+
+  const toggleExerciseCollapsed = (exerciseId) => {
+    setCollapsedExerciseIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(exerciseId)) {
+        next.delete(exerciseId)
+      } else {
+        next.add(exerciseId)
+      }
+      return next
+    })
+    setSuggestOpenId((open) => (open === exerciseId ? null : open))
+  }
+
+  const onExerciseNameTouchEnd = (exerciseId) => {
+    const now = Date.now()
+    const prev = Number(lastNameTapAtRef.current[exerciseId] ?? 0)
+    if (now - prev <= 320) {
+      lastNameTapAtRef.current[exerciseId] = 0
+      toggleExerciseCollapsed(exerciseId)
+      return
+    }
+    lastNameTapAtRef.current[exerciseId] = now
+  }
 
   const focusEx = focusExerciseIdx != null ? exercises[focusExerciseIdx] : null
   const focusCatalogRow = useMemo(() => {
@@ -329,6 +355,22 @@ export function TrainingForm({
     rememberTrainingFormStep(currentTrainingId, step)
   }, [currentTrainingId, step])
 
+  useEffect(() => {
+    const validIds = new Set(exercises.map((ex) => ex.id))
+    setCollapsedExerciseIds((prev) => {
+      let changed = false
+      const next = new Set()
+      for (const id of prev) {
+        if (validIds.has(id)) {
+          next.add(id)
+        } else {
+          changed = true
+        }
+      }
+      return changed ? next : prev
+    })
+  }, [exercises])
+
   return (
     <div className="steps">
       <div className="step-nav tabs" role="tablist">
@@ -420,6 +462,7 @@ export function TrainingForm({
             const joinedPrev = isJoinedWithPrevious(exercises, exIdx)
             const prevChain = exIdx > 0 ? supersetChainBounds(exercises, exIdx - 1) : null
             const canJoinSuperset = exIdx > 0 && (joinedPrev || !prevChain || prevChain.size < SUPERSET_MAX_SIZE)
+            const isCollapsed = collapsedExerciseIds.has(ex.id)
 
             return (
             <div
@@ -438,13 +481,25 @@ export function TrainingForm({
                 </span>
               ) : null}
               <div className="row" style={{ alignItems: 'flex-end', flexWrap: 'wrap', gap: 8 }}>
+                <span className="training-exercise-order-badge" title={`Упражнение №${exIdx + 1}`}>
+                  Упр. {exIdx + 1}
+                </span>
                 <div className="field exercise-name-field exercise-catalog-combo" style={{ flex: '1 1 240px', marginBottom: 0 }}>
-                  <label className="label">Упражнение</label>
+                  <label
+                    className="label"
+                    onDoubleClick={() => toggleExerciseCollapsed(ex.id)}
+                    onTouchEnd={() => onExerciseNameTouchEnd(ex.id)}
+                    title="Двойной тап/клик: свернуть или развернуть подходы"
+                  >
+                    Упражнение
+                  </label>
                   <div className="exercise-name-row">
                     <input
                       className="input"
                       value={ex.name}
                       disabled={!catalogList.length}
+                      onDoubleClick={() => toggleExerciseCollapsed(ex.id)}
+                      onTouchEnd={() => onExerciseNameTouchEnd(ex.id)}
                       onChange={(e) => {
                         patchExercise(exIdx, {
                           ...ex,
@@ -488,6 +543,7 @@ export function TrainingForm({
                         if (e.key === 'Escape') setSuggestOpenId(null)
                       }}
                       placeholder={catalogList.length ? 'Печать — подсказки или кнопка списка' : 'Справочник пуст — админ добавит упражнения'}
+                      title="Двойной тап/клик: свернуть или развернуть подходы"
                       aria-label="Упражнение: поиск по справочнику"
                       aria-expanded={suggestOpenId === ex.id}
                       aria-controls={suggestOpenId === ex.id ? `exercise-suggest-${ex.id}` : undefined}
@@ -575,37 +631,41 @@ export function TrainingForm({
                   </button>
                 </div>
               </div>
-              {exerciseFormatButtons(ex, exIdx)}
-              {ex.sets.map((st, setIdx) => {
-                const exFormat = normalizeExerciseFormat(ex.format, sessionFallback)
-                return (
-                  <TrainingSetRow
-                    key={setIdx}
-                    setIndex={setIdx}
-                    set={st}
-                    isCardio={exerciseFormatIsCardio(exFormat)}
-                    withSetHr={exerciseFormatWithSetHr(exFormat)}
-                    isLr={exerciseLateralityIsLr(ex)}
-                    clientId={clientId}
-                    canRemove={ex.sets.length >= 2}
-                    onChange={(nextSet) => {
-                      const sets = ex.sets.slice()
-                      sets[setIdx] = nextSet
-                      patchExercise(exIdx, { ...ex, sets })
-                    }}
-                    onRemove={() => removeSet(exIdx, setIdx)}
-                  />
-                )
-              })}
-              <button
-                type="button"
-                className="btn btn-ghost btn-icon-square training-add-set-btn"
-                onClick={() => addSet(exIdx)}
-                title="Добавить подход"
-                aria-label="Добавить подход"
-              >
-                <Plus size={18} aria-hidden />
-              </button>
+              {!isCollapsed ? (
+                <>
+                  {exerciseFormatButtons(ex, exIdx)}
+                  {ex.sets.map((st, setIdx) => {
+                    const exFormat = normalizeExerciseFormat(ex.format, sessionFallback)
+                    return (
+                      <TrainingSetRow
+                        key={setIdx}
+                        setIndex={setIdx}
+                        set={st}
+                        isCardio={exerciseFormatIsCardio(exFormat)}
+                        withSetHr={exerciseFormatWithSetHr(exFormat)}
+                        isLr={exerciseLateralityIsLr(ex)}
+                        clientId={clientId}
+                        canRemove={ex.sets.length >= 2}
+                        onChange={(nextSet) => {
+                          const sets = ex.sets.slice()
+                          sets[setIdx] = nextSet
+                          patchExercise(exIdx, { ...ex, sets })
+                        }}
+                        onRemove={() => removeSet(exIdx, setIdx)}
+                      />
+                    )
+                  })}
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon-square training-add-set-btn"
+                    onClick={() => addSet(exIdx)}
+                    title="Добавить подход"
+                    aria-label="Добавить подход"
+                  >
+                    <Plus size={18} aria-hidden />
+                  </button>
+                </>
+              ) : null}
             </div>
             )
           })}
