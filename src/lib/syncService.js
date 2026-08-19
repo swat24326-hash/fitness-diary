@@ -23,6 +23,7 @@ import { enqueueUnsyncedLocalRecords, recordForPush, countUnsyncedLocalRecords, 
 import { reportSyncOutcome, recordSyncError } from './appErrorJournal'
 import { invalidateTrainerWorkspaceCache } from './trainerWorkspaceCache'
 import { invalidateAdminClubWorkspaceCache } from './admin/adminClubWorkspaceCache'
+import { planWeightEntryPushPayload } from './clientWeightPushCore.js'
 import { isDuplicateInsertError } from './syncFlushResult'
 import { reportQueueFlushProgress, setQueueFlushProgressReporter } from './syncProgress'
 
@@ -407,6 +408,37 @@ async function flushSyncQueueInner() {
   return flushInFlightPromise
 }
 
+async function prepareWeightEntryQueueItem(item) {
+  if (item.table_name !== 'client_weight_entries' || !item.data || typeof item.data !== 'object') {
+    return item
+  }
+  const queue = await listSyncQueue()
+  const db = await getDb()
+  const tid = String(item.data.training_id ?? '').trim()
+  let trainingExistsLocally = true
+  if (tid) {
+    const tr = await db.get('trainings', tid)
+    trainingExistsLocally = Boolean(tr)
+  }
+  const plan = planWeightEntryPushPayload(item.data, { queue, trainingExistsLocally })
+  if (plan.defer) {
+    const err = new Error(plan.reason ?? 'Тренировка ещё не отправлена — запись веса подождёт')
+    err.defer = true
+    throw err
+  }
+  if (plan.payload.training_id === item.data.training_id) return item
+
+  const entryId = String(item.data.id ?? item.remote_id ?? '').trim()
+  if (entryId) {
+    const local = await db.get('client_weight_entries', entryId)
+    if (local) {
+      await db.put('client_weight_entries', { ...local, training_id: plan.payload.training_id })
+    }
+    await db.put('sync_queue', { ...item, data: plan.payload })
+  }
+  return { ...item, data: plan.payload }
+}
+
 async function processOneSyncQueueItem(item) {
   const table = item.table_name
   if (!table || !PUSH_TABLES.has(table)) {
@@ -428,6 +460,10 @@ async function processOneSyncQueueItem(item) {
   ) {
     const { goal: _g, ...rest } = payload
     payload = rest
+  }
+  if (table === 'client_weight_entries') {
+    item = await prepareWeightEntryQueueItem(item)
+    payload = item.data
   }
 
   const pushedViaApi = await pushRecordViaApi({
@@ -527,6 +563,7 @@ async function flushSyncQueueInnerWork() {
       try {
         await processOneSyncQueueItem(item)
       } catch (e) {
+        if (e?.defer) return
         await bumpSyncItemRetry(item, e?.message ? String(e.message) : String(e ?? 'Ошибка отправки'))
       } finally {
         processed++

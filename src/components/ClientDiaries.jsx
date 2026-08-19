@@ -29,6 +29,7 @@ import {
 } from '../lib/membershipRules'
 import { useDebouncedStorageReload, shouldReloadTrainerClientStats } from '../lib/useDebouncedStorageReload'
 import { deleteLocalWithSync, saveLocalWithSync } from '../lib/syncService'
+import { detachWeightEntriesFromTraining } from '../lib/clientWeightService.js'
 import { formatDateRu } from '../lib/dateRu'
 import { normalizeHrSessionSnapshot } from '../lib/hr/hrSessionAgg.js'
 import { TrainingViewModal } from './trainer/TrainingViewModal'
@@ -272,6 +273,7 @@ export function ClientDiaries({ client, onDataChange, clubQs = '', readOnly = fa
     }
     if (!window.confirm('Удалить черновик тренировки?')) return
     const cid = client?.id
+    await detachWeightEntriesFromTraining(id, cid)
     await deleteLocalWithSync('trainings', id, 'trainings')
     try {
       if (cid && id) hr.discardTrainingSamples(cid, id)

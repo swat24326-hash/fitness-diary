@@ -1,5 +1,6 @@
 import { todayLocalIso } from './dateRu.js'
 import { saveLocalWithSync, deleteLocalWithSync } from './syncService.js'
+import { getDb, listSyncQueue } from './localDb.js'
 import { listWeightEntriesByClientId } from './localDbClubQuery.js'
 import {
   findBaselineWeightEntry,
@@ -25,6 +26,38 @@ import {
 } from './clientWeightCore.js'
 
 export { listWeightEntriesByClientId } from './localDbClubQuery.js'
+
+/**
+ * Снять ссылку на тренировку в записях веса (локально и в очереди) — после удаления/отмены тренировки.
+ * @param {string} trainingId
+ * @param {string} clientId
+ */
+export async function detachWeightEntriesFromTraining(trainingId, clientId) {
+  const tid = String(trainingId ?? '').trim()
+  const cid = String(clientId ?? '').trim()
+  if (!tid || !cid) return 0
+
+  const rows = (await listWeightEntriesByClientId(cid)).filter((r) => String(r?.training_id ?? '') === tid)
+  if (!rows.length) return 0
+
+  const db = await getDb()
+  const queue = await listSyncQueue()
+  let n = 0
+  for (const row of rows) {
+    const normalized = normalizeWeightEntryRow(row)
+    await db.put('client_weight_entries', { ...normalized, training_id: null })
+    const qItem = queue.find(
+      (q) =>
+        q.table_name === 'client_weight_entries' &&
+        (String(q.data?.id ?? '') === String(row.id) || String(q.remote_id ?? '') === String(row.id)),
+    )
+    if (qItem?.data?.training_id) {
+      await db.put('sync_queue', { ...qItem, data: { ...qItem.data, training_id: null } })
+    }
+    n++
+  }
+  return n
+}
 
 /**
  * @param {string} clientId

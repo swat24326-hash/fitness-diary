@@ -91,6 +91,9 @@ export function suggestErrorHint(row) {
   ) {
     return 'После обновления сайта открыта старая версия страницы. Нажмите Ctrl+F5 (или закройте и откройте приложение) — Sync тут не поможет.'
   }
+  if (/client_weight_entries_training_id_fkey|foreign key.*training_id/i.test(text)) {
+    return 'Запись веса ссылалась на тренировку, которой уже нет в облаке. Обновите приложение и нажмите Sync — вес сохранится без привязки.'
+  }
   if (status === 0 || /network|fetch|failed to fetch|offline|нет сети|недоступна/i.test(text)) {
     return 'Проблема с сетью. Проверьте Wi‑Fi/мобильный интернет и нажмите Sync.'
   }

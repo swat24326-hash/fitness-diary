@@ -77,6 +77,7 @@
 | Список клиентов: код типа абона (Dm/El) | `verify-client-list-membership-type.mjs` |
 | Ранняя / поздняя активация абона (сдвиг дат, дневник vs used, overlap, inspect) | `verify-membership-early-activate.mjs` |
 | Push абонементов (даты NOT NULL) | `verify-membership-push-payload.mjs` |
+| Push веса: FK training_id | `verify-client-weight-push.mjs` |
 | Reconcile `used_trainings` по дневнику | `verify-membership-used-reconcile.mjs` |
 | Debit абонемента при first complete | `verify-training-membership-debit.mjs` |
 | ЗП дня/периода: база + надбавка, сценарии без плана, прогноз ур. | `verify-trainer-day-payroll-forecast.mjs` |

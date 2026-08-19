@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { listMemberships, listTrainingsForClient } from '../lib/dataAccess'
 import { filterMembershipsByHall, normalizeMembershipHall } from '../lib/membershipHallCore.js'
 import { ensureClientTrainingsCached } from '../lib/clientTrainingsEnsure.js'
+import { detachWeightEntriesFromTraining } from '../lib/clientWeightService.js'
 import { getDb } from '../lib/localDb'
 import { deleteLocalWithSync, saveLocalWithSync } from '../lib/syncService'
 import { planMembershipUsedReconcile } from '../lib/membership/membershipUsedReconcile.js'
@@ -476,6 +477,7 @@ export function MembershipManager({
       if (!t?.id || !membership?.id) return
 
       // удалить тренировку
+      await detachWeightEntriesFromTraining(t.id, t.client_id ?? clientId)
       await deleteLocalWithSync('trainings', t.id, 'trainings')
 
       // откатить used_trainings (если можно)

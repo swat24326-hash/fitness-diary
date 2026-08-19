@@ -11,6 +11,10 @@ import { normalizeHealthCardPushPayload } from '../../src/lib/healthCardCore.js'
 import { normalizePnkFunnelEventPushPayload } from '../../src/lib/pnk/pnkFunnelEventsCore.js'
 import { recordClientDeletionAudit } from './deletionAuditWrite.js'
 import { applyLoyaltyClientPushSideEffects } from './loyaltyClientPushSideEffects.js'
+import {
+  isWeightEntryTrainingFkError,
+  sanitizeWeightEntryTrainingLink,
+} from '../../src/lib/clientWeightPushCore.js'
 
 export const PUSH_ALLOWED_TABLES = new Set([
   'clients',
@@ -120,6 +124,15 @@ function stripUnknownClientFields(payload) {
   return next
 }
 
+async function prepareWeightEntryPayload(supabaseAdmin, payload) {
+  const row = payload && typeof payload === 'object' ? { ...payload } : {}
+  const tid = String(row.training_id ?? '').trim()
+  if (!tid) return { ok: true, data: row }
+  const { data: tr, error } = await supabaseAdmin.from('trainings').select('id').eq('id', tid).maybeSingle()
+  if (error) return { ok: false, error: error.message }
+  return { ok: true, data: sanitizeWeightEntryTrainingLink(row, { trainingExists: Boolean(tr?.id) }) }
+}
+
 async function validateMembershipTypeLink(supabaseAdmin, payload, operation, opts = {}) {
   const typeId = String(payload?.membership_type_id ?? '').trim()
   if (!typeId) return { ok: true, data: payload }
@@ -216,7 +229,23 @@ export async function executePushRecord(ctx, item) {
         payload = normalizePnkFunnelEventPushPayload(payload)
         if (!payload) return { ok: false, status: 400, error: 'Некорректное событие воронки ПНК' }
       }
-      const { error } = await supabaseAdmin.from(table_name).insert(payload)
+      if (table_name === 'client_weight_entries') {
+        const prep = await prepareWeightEntryPayload(supabaseAdmin, payload)
+        if (!prep.ok) return { ok: false, status: 400, error: prep.error }
+        payload = prep.data
+      }
+      let { error } = await supabaseAdmin.from(table_name).insert(payload)
+      if (
+        error &&
+        table_name === 'client_weight_entries' &&
+        payload?.training_id &&
+        isWeightEntryTrainingFkError(error.message)
+      ) {
+        const retryPayload = sanitizeWeightEntryTrainingLink(payload, { trainingExists: false })
+        const retry = await supabaseAdmin.from(table_name).insert(retryPayload)
+        error = retry.error
+        if (!error) payload = retryPayload
+      }
       if (error) {
         if (error.code === '23505') {
           if (table_name === 'exercises' && payload?.name) {
@@ -299,6 +328,11 @@ export async function executePushRecord(ctx, item) {
       if (table_name === 'health_cards') {
         payload = normalizeHealthCardPushPayload(payload)
       }
+      if (table_name === 'client_weight_entries') {
+        const prep = await prepareWeightEntryPayload(supabaseAdmin, payload)
+        if (!prep.ok) return { ok: false, status: 400, error: prep.error }
+        payload = prep.data
+      }
       let clientBefore = null
       let clientBeforeReady = table_name !== 'clients'
       if (table_name === 'clients') {
@@ -314,7 +348,18 @@ export async function executePushRecord(ctx, item) {
           clientBeforeReady = true
         }
       }
-      const { error } = await supabaseAdmin.from(table_name).update(payload).eq('id', remote_id)
+      let { error } = await supabaseAdmin.from(table_name).update(payload).eq('id', remote_id)
+      if (
+        error &&
+        table_name === 'client_weight_entries' &&
+        payload?.training_id &&
+        isWeightEntryTrainingFkError(error.message)
+      ) {
+        const retryPayload = sanitizeWeightEntryTrainingLink(payload, { trainingExists: false })
+        const retry = await supabaseAdmin.from(table_name).update(retryPayload).eq('id', remote_id)
+        error = retry.error
+        if (!error) payload = retryPayload
+      }
       if (error) {
         const errMsg =
           table_name === 'exercises'
