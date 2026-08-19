@@ -38,17 +38,29 @@ function patch(st, key, value) {
 
 function RpeField({ value, onChange, gridArea = '', ariaSide = '' }) {
   const label = ariaSide ? `RPE, ${ariaSide}, 1–10` : 'RPE, 1–10'
+  const handleRpeChange = (nextRaw) => {
+    const digits = String(nextRaw ?? '').replace(/\D+/g, '')
+    if (!digits) {
+      onChange('')
+      return
+    }
+    const n = Number(digits)
+    if (!Number.isFinite(n)) {
+      onChange('')
+      return
+    }
+    const clamped = Math.max(1, Math.min(10, n))
+    onChange(String(clamped))
+  }
   return (
     <SetField
       label={label}
       placeholder="RPE"
-      type="number"
-      min={1}
-      max={10}
+      inputMode="numeric"
       fieldClass="set-row-compact__field--rpe"
       gridArea={gridArea}
       value={value}
-      onChange={onChange}
+      onChange={handleRpeChange}
     />
   )
 }
