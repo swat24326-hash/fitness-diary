@@ -458,9 +458,13 @@ async function processOneSyncQueueItem(item) {
   throw new Error(err)
 }
 
-async function bumpSyncItemRetry(item) {
+async function bumpSyncItemRetry(item, lastError) {
   const db = await getDb()
   const next = { ...item, retry_count: (item.retry_count ?? 0) + 1 }
+  if (lastError) {
+    next.last_error = String(lastError).slice(0, 240)
+    next.last_error_at = new Date().toISOString()
+  }
   await db.put('sync_queue', next)
 }
 
@@ -473,8 +477,9 @@ async function flushSyncQueueInnerWork() {
   await pruneRedundantSyncQueue()
   await pruneExhaustedSyncRetries({
     onDrop: (item) => {
+      const tail = item.last_error ? `: ${String(item.last_error).slice(0, 120)}` : ''
       recordSyncError({
-        error: `Запись снята после ${item.retry_count ?? 0} неудачных попыток`,
+        error: `Запись снята после ${item.retry_count ?? 0} неудачных попыток${tail}`,
         table_name: item.table_name,
         operation: item.operation,
         context: String(item.local_id ?? '').slice(0, 64),
@@ -521,8 +526,8 @@ async function flushSyncQueueInnerWork() {
     await mapWithConcurrency(items, PUSH_PARALLEL, async (item) => {
       try {
         await processOneSyncQueueItem(item)
-      } catch {
-        await bumpSyncItemRetry(item)
+      } catch (e) {
+        await bumpSyncItemRetry(item, e?.message ? String(e.message) : String(e ?? 'Ошибка отправки'))
       } finally {
         processed++
         reportStep()

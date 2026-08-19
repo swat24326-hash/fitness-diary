@@ -205,9 +205,16 @@ const TABLE_LABELS_RU = {
   memberships: 'Абонемент',
   health_cards: 'Медкарта',
   body_measurements: 'Замеры',
+  client_weight_entries: 'Вес',
   challenges: 'Челлендж',
   exercises: 'Упражнение',
   membership_types: 'Типы абонементов',
+}
+
+function truncateQueueError(text, max = 72) {
+  const s = String(text ?? '').trim()
+  if (!s) return ''
+  return s.length <= max ? s : `${s.slice(0, max - 1)}…`
 }
 
 const OPERATION_LABELS_RU = {
@@ -230,7 +237,10 @@ export function formatSyncQueueLineHuman(item, index, meta = {}) {
   const clientNote = clientName ? ` · ${clientName}` : ''
   const retries = item?.retry_count ?? 0
   const retryNote = retries > 0 ? ` · попыток ${retries}` : ''
-  return `${n}. ${table}: ${op}${clientNote}${retryNote}`
+  const errText = truncateQueueError(item?.last_error)
+  const errNote = errText ? ` · ${errText}` : ''
+  const dropNote = retries >= 10 ? ' · скоро снимется из очереди' : ''
+  return `${n}. ${table}: ${op}${clientNote}${retryNote}${errNote}${dropNote}`
 }
 
 /**
@@ -280,6 +290,36 @@ export function resolveQuickFixes({ errors = [], queue = [], localOnly = 0, syst
       detail:
         'После деплоя открыта старая сборка. Перезагрузите страницу (Ctrl+F5) или закройте и откройте PWA, затем при необходимости Sync.',
       action: 'reload',
+    })
+  }
+
+  const queueNetworkStuck = q.some((item) => {
+    const retries = item?.retry_count ?? 0
+    const err = `${item?.last_error ?? ''}`.toLowerCase()
+    return retries >= 3 && /сеть|network|fetch|timeout|таймаут|недоступн|offline|abort/i.test(err)
+  })
+  if (queueNetworkStuck && online) {
+    fixes.push({
+      id: 'queue-network',
+      tone: 'warn',
+      title: 'Очередь не уходит — похоже на сеть',
+      detail:
+        'Записи сохранены на устройстве, но сервер не ответил. Проверьте Wi‑Fi, подождите минуту и нажмите «Синхронизировать» снова.',
+      action: 'sync',
+    })
+  }
+
+  const queueAuthStuck = q.some((item) => {
+    const err = `${item?.last_error ?? ''}`.toLowerCase()
+    return /нет сессии|нет токена|unauthorized|jwt|401|войдите снова/i.test(err)
+  })
+  if (queueAuthStuck) {
+    fixes.push({
+      id: 'queue-relogin',
+      tone: 'warn',
+      title: 'Сессия истекла — очередь не отправляется',
+      detail: 'Выйдите из аккаунта и войдите снова, затем нажмите «Синхронизировать».',
+      action: 'relogin',
     })
   }
 

@@ -10,6 +10,7 @@ import {
   filterAppErrors,
   suggestErrorHint,
   formatSyncQueueLine,
+  formatSyncQueueLineHuman,
   resolveQuickFixes,
 } from '../src/lib/appDiagnostics.js'
 import { isViteStaleChunkError } from '../src/lib/viteChunkReload.js'
@@ -78,6 +79,27 @@ assert.ok(!isViteStaleChunkError(new Error('Failed to fetch')), 'ordinary networ
 
 const queue = [{ table_name: 'trainings', operation: 'insert', local_id: 'abc', retry_count: 1 }]
 assert.ok(formatSyncQueueLine(queue[0], 0).includes('trainings'))
+
+const queueWithErr = [
+  {
+    table_name: 'client_weight_entries',
+    operation: 'update',
+    retry_count: 10,
+    last_error: 'Сеть недоступна',
+    data: { client_id: 'c1' },
+  },
+]
+const humanLine = formatSyncQueueLineHuman(queueWithErr[0], 0, { clientNames: { c1: 'Семенов Д.А.' } })
+assert.ok(humanLine.includes('Вес'), 'weight table label')
+assert.ok(humanLine.includes('Сеть недоступна'), 'last_error in queue line')
+assert.ok(humanLine.includes('скоро снимется'), 'drop warning at 10+ retries')
+
+const networkQueueFix = resolveQuickFixes({
+  errors: [],
+  queue: [{ table_name: 'trainings', operation: 'insert', retry_count: 5, last_error: 'Failed to fetch' }],
+  system: { online: true },
+})
+assert.ok(networkQueueFix.some((f) => f.id === 'queue-network'), 'queue network quick fix')
 
 const report = buildDiagnosticReport({ system, errors, queue })
 assert.ok(report.includes('=== Фитнес-дневник'))

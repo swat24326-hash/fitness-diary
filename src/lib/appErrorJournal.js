@@ -318,12 +318,14 @@ export function initAppErrorJournal() {
 /** @deprecated используйте recordAppError({ source: 'sync', ... }) */
 export function recordSyncError(entry) {
   const e = entry && typeof entry === 'object' ? entry : { error: String(entry ?? '') }
-  const ctx = [e.table_name, e.operation].filter(Boolean).join(' · ')
+  const ctxParts = [e.table_name, e.operation].filter(Boolean)
+  const localId = String(e.local_id ?? '').trim()
+  if (localId) ctxParts.push(`id=${localId.slice(0, 36)}`)
   recordAppError({
     source: 'sync',
     error: e.error,
     status: e.status,
-    context: ctx || undefined,
+    context: ctxParts.length ? ctxParts.join(' · ') : undefined,
   })
 }
 
