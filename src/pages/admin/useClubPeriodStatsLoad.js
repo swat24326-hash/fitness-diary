@@ -125,6 +125,7 @@ export function useClubPeriodStatsLoad({
           await refreshMembershipsForStats({
             clubId: isTrainerScope ? scopeClubId : clubId,
             trainerId: isTrainerScope ? scopeTrainerId : null,
+            adminClubScope: !isTrainerScope,
             notify: false,
           })
         }

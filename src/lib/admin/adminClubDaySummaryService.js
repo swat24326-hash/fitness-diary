@@ -28,7 +28,7 @@ export async function loadAdminClubDaySummary(clubId) {
   const yesterday = yesterdayIso(today)
 
   if (isSupabaseConfigured() && isAppOnline()) {
-    await refreshMembershipsForStats({ clubId: cid, notify: false })
+    await refreshMembershipsForStats({ clubId: cid, notify: false, adminClubScope: true })
   }
 
   const [clients, memberships, trainings] = await Promise.all([

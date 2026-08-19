@@ -161,7 +161,7 @@ export function TrainerStatisticsSection() {
       setMembershipTypes([])
     }
     try {
-      const rows = await loadClubMembershipsWithApiFallback(trainerClubId)
+      const rows = await loadClubMembershipsWithApiFallback(trainerClubId, { trainerId })
       setMemberships(rows)
     } catch {
       setMemberships([])

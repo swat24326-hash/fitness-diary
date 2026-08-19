@@ -54,7 +54,7 @@ export async function loadTrainerJournalFiltered(p) {
       const clubId = String(p.clubId ?? '').trim()
       if (clubId) {
         try {
-          const mems = await loadClubMembershipsWithApiFallback(clubId)
+          const mems = await loadClubMembershipsWithApiFallback(clubId, { trainerId })
           rows = repairTrainingsMembershipLinks(filtered, mems)
         } catch (e) {
           console.warn('[trainer-journal] membership link repair', e)

@@ -452,7 +452,7 @@ export function ClientCard() {
         const local = await getLocalClient(id)
         if (!alive || !local) return
         prefetchTrainerClientWorkspace(id, {
-          trainerId: isAdmin ? '' : user?.id,
+          trainerId: isTrainer ? String(user?.id ?? '').trim() : '',
           clubId: local.club_id ?? '',
         })
         if (typeof navigator === 'undefined' || !navigator.onLine) return

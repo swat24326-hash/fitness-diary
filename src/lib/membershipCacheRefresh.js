@@ -87,6 +87,10 @@ export async function refreshMembershipsForStats(p = {}) {
         return { ok: true, count, source: 'trainer-pull' }
       }
 
+      if (!clubId || p.adminClubScope !== true) {
+        return { ok: false, reason: 'trainer_only' }
+      }
+
       const viaMem = await fetchMembershipsForClubViaAdminApi(clubId)
       if (!viaMem?.memberships) return { ok: false, reason: 'no_api' }
       const count = await mergeMembershipRows(viaMem.memberships)
