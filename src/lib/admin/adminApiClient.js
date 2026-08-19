@@ -460,6 +460,34 @@ export async function fetchCoachQualityViaApi({
   return data
 }
 
+/**
+ * GET /api/admin-data?action=client-retention
+ * @returns {Promise<{ clientRetention?: object } | null>}
+ */
+export async function fetchClientRetentionViaApi({
+  clubId,
+  dateFrom,
+  dateTo,
+  trainerId = '',
+}) {
+  const token = await getAccessTokenForAdminApi()
+  if (!token) throw new Error('Нет сессии')
+
+  const params = new URLSearchParams({
+    club_id: clubId,
+    date_from: dateFrom,
+    date_to: dateTo,
+  })
+  if (trainerId) params.set('trainer_id', String(trainerId))
+  const { data, routeMissing } = await adminApiGet(
+    `/api/admin-data?action=client-retention&${params}`,
+    token,
+    CLUB_STATS_FETCH_TIMEOUT_MS,
+  )
+  if (routeMissing) return null
+  return data
+}
+
 /** GET /api/admin-data?action=club-monthly */
 export async function fetchClubMonthlyStatsViaApi({ clubId, anchorTo, months = 12 }) {
   const token = await getAccessTokenForAdminApi()

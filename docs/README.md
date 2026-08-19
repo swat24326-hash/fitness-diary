@@ -86,6 +86,7 @@
 |------|--------|------------|
 | [PNK_FUNNEL.md](./PNK_FUNNEL.md) | ✅ в проде | Воронка ПНК: менеджер → тренер → KPI |
 | [COACH_QUALITY.md](./COACH_QUALITY.md) | ✅ MVP | Качество ведения тренера: care / depth / хвосты базы |
+| [CLIENT_RETENTION.md](./CLIENT_RETENTION.md) | 📋 фаза 0 | Удержание и жизнь клиента: cohort M+3, renewal, archive, reactivation |
 | [TRAINING_HR.md](./TRAINING_HR.md) | ✅ MVP | Пульс BLE в шапке (зоны/reconnect) + сводка на Итоге |
 | [LOYALTY.md](./LOYALTY.md) | фазы A–G ✅ | Лояльность ПЗ: цикл, вкладка, списание, журнал, архив/переезд, тумблер клуба |
 | [PRODUCT_MODULES.md](./PRODUCT_MODULES.md) | карта | Питание, ДЗ, outreach, ИСКРА — куда код и docs |

@@ -26,6 +26,7 @@ import {
   parseIncludeCqFlag,
 } from '../clubCoachQualityCore.js'
 import { fetchClubTrainerModeIds } from '../clubTrainerModeIds.js'
+import { buildClubClientRetentionPayload } from '../clubClientRetentionCore.js'
 
 export async function handleClubStats(ctx, req, res) {
   const clubId = String(req.query?.club_id ?? '').trim()
@@ -126,6 +127,47 @@ export async function handleCoachQuality(ctx, req, res) {
       dateTo,
       trainerIdFilter,
       mode,
+    })
+    sendJson(res, 200, {
+      ...payload,
+      source: 'admin_api',
+    })
+  } catch (e) {
+    sendJson(res, 400, { error: e?.message ? String(e.message) : 'Ошибка' })
+  }
+}
+
+/**
+ * GET admin-data?action=client-retention
+ * admin: клуб; trainer: свой club_id + trainer_id (tablet KPI).
+ */
+export async function handleClientRetention(ctx, req, res) {
+  const clubId = String(req.query?.club_id ?? '').trim()
+  const dateFrom = String(req.query?.date_from ?? '').trim()
+  const dateTo = String(req.query?.date_to ?? '').trim()
+  if (!clubId || !dateFrom || !dateTo || dateFrom > dateTo) {
+    sendJson(res, 400, { error: 'Укажите club_id, date_from, date_to' })
+    return
+  }
+
+  let trainerIdFilter = String(req.query?.trainer_id ?? '').trim() || null
+  if (ctx.isTrainer && !ctx.isAdmin) {
+    const selfId = String(ctx.user?.id ?? '').trim()
+    const userClub = String(ctx.profile?.club_id ?? '').trim()
+    if (!selfId || !userClub || userClub !== clubId) {
+      sendJson(res, 403, { error: 'Нет доступа к удержанию этого клуба' })
+      return
+    }
+    trainerIdFilter = selfId
+  }
+
+  try {
+    const payload = await buildClubClientRetentionPayload(ctx.supabaseAdmin, {
+      clubId,
+      dateFrom,
+      dateTo,
+      trainerIdFilter,
+      restoreEvents: [],
     })
     sendJson(res, 200, {
       ...payload,

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { BarChart3, ClipboardList, Gauge, Info, LayoutGrid, LineChart, RefreshCw, Trophy, UserPlus } from 'lucide-react'
+import { BarChart3, ClipboardList, Gauge, Info, LayoutGrid, LineChart, RefreshCw, TrendingUp, Trophy, UserPlus } from 'lucide-react'
 import { listTrainerSummariesForAdmin, listClubsLocal } from '../../lib/dataAccess'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { loadTrainerMonthlyStatsForYear } from '../../lib/trainer/trainerMonthlyStatsService'
@@ -9,6 +9,8 @@ import { AdminClubDayChart } from '../../components/AdminClubDayChart'
 import { AdminClubMonthlyChart } from '../../components/AdminClubMonthlyChart'
 import { MembershipTypeStatsTable } from '../../components/MembershipTypeStatsTable'
 import { CoachQualityPanel } from '../../components/CoachQualityPanel'
+import { ClientRetentionPanel } from '../../components/ClientRetentionPanel'
+import { formatRetentionRatePct } from '../../lib/admin/clientRetentionPresentationCore.js'
 import { TrainerRatingCard } from '../../components/admin/TrainerRatingCard'
 import { loadClubMonthlyStatsForYear, MONTHS_PER_CALENDAR_YEAR } from '../../lib/admin/adminClubMonthlyService'
 import { loadTrainerPayrollContextClient } from '../../lib/admin/trainerPayrollContextClient.js'
@@ -21,7 +23,7 @@ import {
   clubStatsHallShowsPzOnlyCards,
 } from '../../lib/admin/clubStatsHallFilterCore.js'
 
-/** @typedef {'byDay' | 'byTypes' | 'rating' | 'clubMonthly' | 'pnk' | 'coachQuality'} AdminStatsInlinePanel */
+/** @typedef {'byDay' | 'byTypes' | 'rating' | 'clubMonthly' | 'pnk' | 'coachQuality' | 'clientRetention'} AdminStatsInlinePanel */
 
 /** @typedef {'journal' | 'coachQuality'} AdminStatsDeepLinkPanel */
 
@@ -95,7 +97,7 @@ export function AdminClubStatsSection({
 
   const range = useMemo(() => getDateRange(period, customFrom, customTo), [period, customFrom, customTo])
 
-  const { busy, coachQualityBusy, stats, pnkFunnel, loadStats } = useClubPeriodStatsLoad({
+  const { busy, coachQualityBusy, clientRetentionBusy, stats, pnkFunnel, loadStats } = useClubPeriodStatsLoad({
     clubId,
     isTrainerScope,
     scopeTrainerId,
@@ -109,7 +111,7 @@ export function AdminClubStatsSection({
   useEffect(() => {
     if (showPzOnlyCards) return
     setInlinePanel((prev) =>
-      prev === 'pnk' || prev === 'byDay' || prev === 'rating' || prev === 'coachQuality' || prev === 'clubMonthly'
+      prev === 'pnk' || prev === 'byDay' || prev === 'rating' || prev === 'coachQuality' || prev === 'clientRetention' || prev === 'clubMonthly'
         ? null
         : prev,
     )
@@ -371,6 +373,12 @@ export function AdminClubStatsSection({
     : coachQualityAvg
   const hasCoachQualityRows = (stats?.coachQuality?.trainers ?? []).length > 0
 
+  const clientRetention = stats?.clientRetention ?? null
+  const clientRetentionM3 = clientRetention?.retentionM3?.averageRate ?? null
+  const hasClientRetention =
+    clientRetention != null &&
+    ((clientRetention.poolSize ?? 0) > 0 || (clientRetention.universeSize ?? 0) > 0)
+
   const clientHrefForQuality = useCallback(
     (clientId) => {
       const id = String(clientId ?? '').trim()
@@ -575,6 +583,9 @@ export function AdminClubStatsSection({
                   ) : null}
                   <li>
                     <strong>Качество ведения</strong> — {isTrainerScope ? 'ваш балл 0–100' : 'средний балл тренеров 0–100'}; нажмите для таблицы (ведение, глубина, хвосты).
+                  </li>
+                  <li>
+                    <strong>Удержание</strong> — {isTrainerScope ? 'ваш M+3' : 'M+3 по клубу'} (tablet-клиенты): доля когорт, оставшихся engaged через 3 месяца; нажмите для продлений, архива и тренеров.
                   </li>
                 </>
               ) : null}
@@ -809,6 +820,40 @@ export function AdminClubStatsSection({
             </p>
           </button>
           ) : null}
+          {showPzOnlyCards ? (
+          <button
+            type="button"
+            className={statCardClass(inlinePanel === 'clientRetention')}
+            disabled={!hasClientRetention || clientRetentionBusy}
+            aria-busy={clientRetentionBusy || undefined}
+            aria-label={
+              clientRetentionBusy
+                ? 'Удержание: считаем'
+                : hasClientRetention
+                  ? `Удержание M+3: ${formatRetentionRatePct(clientRetentionM3)}. Нажмите для подробностей`
+                  : 'Удержание: нет данных'
+            }
+            title={hasClientRetention && !clientRetentionBusy ? 'Удержание клиентов' : undefined}
+            onClick={() => toggleInlinePanel('clientRetention')}
+          >
+            <div className="stat-card__top admin-club-stat-card__head">
+              <h3 className="td-stat-title admin-club-stat-card__title">Удержание</h3>
+              <TrendingUp className="stat-card__icon" size={22} aria-hidden />
+            </div>
+            <p className="stat-card__value admin-club-stat-card__value">
+              {clientRetentionBusy ? '…' : formatRetentionRatePct(clientRetentionM3)}
+            </p>
+            <p className="admin-club-stat-card__foot">
+              {clientRetentionBusy
+                ? 'считаем…'
+                : !hasClientRetention
+                  ? 'tablet-клиенты'
+                  : inlinePanel === 'clientRetention'
+                    ? 'скрыть подробности'
+                    : 'M+3 · нажмите'}
+            </p>
+          </button>
+          ) : null}
         </div>
       </div>
 
@@ -1030,6 +1075,17 @@ export function AdminClubStatsSection({
             coachQuality={s?.coachQuality}
             trainerLabel={trainerLabel}
             clientHref={clientHrefForQuality}
+            selfTrainerId={isTrainerScope ? scopeTrainerId : null}
+            compact={isTrainerScope}
+          />
+        </div>
+      ) : null}
+
+      {inlinePanel === 'clientRetention' && showPzOnlyCards ? (
+        <div id="admin-client-retention-panel">
+          <ClientRetentionPanel
+            clientRetention={s?.clientRetention}
+            trainerLabel={trainerLabel}
             selfTrainerId={isTrainerScope ? scopeTrainerId : null}
             compact={isTrainerScope}
           />
