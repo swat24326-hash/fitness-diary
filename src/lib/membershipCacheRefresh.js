@@ -12,6 +12,21 @@ import { fetchTrainerPullViaApi } from './syncApiClient'
 import { clearTrainerWorkspaceSnapshotSync } from './trainerWorkspaceCache'
 import { invalidateAdminClubWorkspaceCache } from './admin/adminClubWorkspaceCache'
 
+const REFRESH_COOLDOWN_MS = 60_000
+
+/** @type {Map<string, number>} */
+const lastRefreshAtByKey = new Map()
+
+/** @type {Map<string, Promise<{ ok: boolean, [key: string]: unknown }>>} */
+const inFlightRefreshByKey = new Map()
+
+function refreshKey(p) {
+  const trainerId = String(p.trainerId ?? '').trim()
+  if (trainerId) return `t:${trainerId}`
+  const clubId = String(p.clubId ?? '').trim()
+  return clubId ? `c:${clubId}` : ''
+}
+
 async function mergeMembershipRows(rows) {
   const pending = await buildPendingSyncKeysByTable()
   let n = 0
@@ -48,26 +63,45 @@ export async function refreshMembershipsForStats(p = {}) {
 
   const trainerId = String(p.trainerId ?? '').trim()
   const clubId = String(p.clubId ?? '').trim()
+  const key = refreshKey({ trainerId, clubId })
+  if (!key) return { ok: false, reason: 'no_club' }
 
-  try {
-    if (trainerId) {
-      const via = await fetchTrainerPullViaApi({ skipTrainings: true })
-      if (!via?.memberships) return { ok: false, reason: 'no_api' }
-      const count = await mergeMembershipRows(via.memberships)
+  const now = Date.now()
+  const last = lastRefreshAtByKey.get(key) ?? 0
+  if (p.force !== true && now - last < REFRESH_COOLDOWN_MS) {
+    return { ok: false, reason: 'cooldown' }
+  }
+
+  const inflight = inFlightRefreshByKey.get(key)
+  if (inflight) return inflight
+
+  const run = (async () => {
+    lastRefreshAtByKey.set(key, Date.now())
+    try {
+      if (trainerId) {
+        const via = await fetchTrainerPullViaApi({ skipTrainings: true })
+        if (!via?.memberships) return { ok: false, reason: 'no_api' }
+        const count = await mergeMembershipRows(via.memberships)
+        bumpCaches()
+        if (p.notify !== false) notifyRefreshed()
+        return { ok: true, count, source: 'trainer-pull' }
+      }
+
+      const viaMem = await fetchMembershipsForClubViaAdminApi(clubId)
+      if (!viaMem?.memberships) return { ok: false, reason: 'no_api' }
+      const count = await mergeMembershipRows(viaMem.memberships)
       bumpCaches()
       if (p.notify !== false) notifyRefreshed()
-      return { ok: true, count, source: 'trainer-pull' }
+      return { ok: true, count, source: 'list-memberships' }
+    } catch (e) {
+      return { ok: false, error: String(e?.message ?? e ?? 'refresh failed') }
     }
+  })()
 
-    if (!clubId) return { ok: false, reason: 'no_club' }
-
-    const viaMem = await fetchMembershipsForClubViaAdminApi(clubId)
-    if (!viaMem?.memberships) return { ok: false, reason: 'no_api' }
-    const count = await mergeMembershipRows(viaMem.memberships)
-    bumpCaches()
-    if (p.notify !== false) notifyRefreshed()
-    return { ok: true, count, source: 'list-memberships' }
-  } catch (e) {
-    return { ok: false, error: String(e?.message ?? e ?? 'refresh failed') }
+  inFlightRefreshByKey.set(key, run)
+  try {
+    return await run
+  } finally {
+    inFlightRefreshByKey.delete(key)
   }
 }

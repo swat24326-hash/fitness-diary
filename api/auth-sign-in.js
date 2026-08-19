@@ -73,9 +73,9 @@ async function fetchProfile(supabaseAdmin, uid) {
   return null
 }
 
-async function tryAuthAndRespond(res, { url, anonKey, supabaseAdmin, email, password }) {
+async function tryAuthAndRespond(res, { url, anonKey, supabaseAdmin, email, password, fetchWithTimeout }) {
   const { session, user: authUser, error: authErr } = await withServerTimeout(
-    signInWithPassword(url, anonKey, { email, password }),
+    signInWithPassword(url, anonKey, { email, password }, { fetch: fetchWithTimeout }),
     SUPABASE_FETCH_MS,
     'auth',
   )
@@ -144,7 +144,14 @@ async function handler(req, res) {
 
   for (const email of directCandidates) {
     try {
-      const attempt = await tryAuthAndRespond(res, { url, anonKey, supabaseAdmin, email, password })
+      const attempt = await tryAuthAndRespond(res, {
+        url,
+        anonKey,
+        supabaseAdmin,
+        email,
+        password,
+        fetchWithTimeout,
+      })
       if (attempt.ok) return
       if (attempt.transport) {
         sawTransportError = true
@@ -158,6 +165,11 @@ async function handler(req, res) {
         throw e
       }
     }
+  }
+
+  if (sawTransportError && directCandidates.length > 0) {
+    sendJson(res, 503, { error: SUPABASE_CLOUD_UNAVAILABLE_RU })
+    return
   }
 
   if (directCandidates.length === 1 && directCandidates[0].includes('@') && sawInvalidCredentials && !sawTransportError) {
@@ -205,6 +217,7 @@ async function handler(req, res) {
       supabaseAdmin,
       email: emailForAuth,
       password,
+      fetchWithTimeout,
     })
     if (attempt.ok) return
     if (attempt.transport || isServerTimeoutError(attempt.error)) {

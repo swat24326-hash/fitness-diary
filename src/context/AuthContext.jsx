@@ -580,7 +580,7 @@ export function AuthProvider({ children }) {
           if (isInvalidCredentialsMessage(msg)) {
             return { error: { message: 'Неверный логин или пароль' } }
           }
-          return { error: { message: humanizeAuthError(e) } }
+          return { error: { message: humanizeNetworkError(e) } }
         }
         if (serverTransportFailed) {
           console.warn('[auth] облако недоступно, пробуем lookup логина в users', msg)

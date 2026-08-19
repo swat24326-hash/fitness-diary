@@ -321,10 +321,6 @@ export function ClientCard() {
       setHealthCard(null)
       setBzCompletedCount(0)
       setHasMeasurements(false)
-      prefetchTrainerClientWorkspace(id, {
-        trainerId: isAdmin ? '' : user?.id,
-        clubId: local.club_id ?? '',
-      })
       return
     }
     const [mems, hc, trainings, measures] = await Promise.all([
@@ -337,10 +333,6 @@ export function ClientCard() {
     setHealthCard(hc ?? null)
     setBzCompletedCount(countPnkBzCompletedFromTrainings(trainings))
     setHasMeasurements((measures ?? []).length > 0)
-    prefetchTrainerClientWorkspace(id, {
-      trainerId: isAdmin ? '' : user?.id,
-      clubId: local.club_id ?? '',
-    })
   }, [id, trainerById, trainersModeReady, canManageClubClients, isTrainer, isAdmin, user])
 
   useEffect(() => {
@@ -457,10 +449,14 @@ export function ClientCard() {
       .then(async () => {
         if (!alive) return
         setBootstrapping(false)
+        const local = await getLocalClient(id)
+        if (!alive || !local) return
+        prefetchTrainerClientWorkspace(id, {
+          trainerId: isAdmin ? '' : user?.id,
+          clubId: local.club_id ?? '',
+        })
         if (typeof navigator === 'undefined' || !navigator.onLine) return
         if (!(canCloudHydrateClient || isTrainer)) return
-        const local = await getLocalClient(id)
-        if (!alive) return
         if (isDeskHallClient(local)) {
           void hydrateFromCloudInBackground()
           return

@@ -15,6 +15,9 @@ import {
 /** @type {Map<string, number>} */
 const lastEnsureAtByClient = new Map()
 
+/** @type {Map<string, Promise<object[]>>} */
+const inFlightEnsureByClient = new Map()
+
 /**
  * @param {string} clientId
  * @param {{ force?: boolean }} [opts]
@@ -43,21 +46,35 @@ export async function ensureClientTrainingsCached(clientId, opts = {}) {
     return listTrainingsByClientId(cid)
   }
 
-  try {
-    const h = await hydrateAdminClientWorkspace(cid, {
-      allowBrowserFallback: false,
-      scope: 'full',
-    })
-    if (h?.ok) {
-      lastEnsureAtByClient.set(cid, nowMs)
+  const inflight = inFlightEnsureByClient.get(cid)
+  if (inflight) return inflight
+
+  const run = (async () => {
+    lastEnsureAtByClient.set(cid, nowMs)
+    try {
+      const h = await hydrateAdminClientWorkspace(cid, {
+        allowBrowserFallback: false,
+        scope: 'full',
+      })
+      if (!h?.ok) {
+        console.warn('[ensureClientTrainingsCached]', h?.error ?? h?.reason ?? 'hydrate failed')
+      }
+    } catch (e) {
+      console.warn('[ensureClientTrainingsCached]', e)
     }
-  } catch (e) {
-    console.warn('[ensureClientTrainingsCached]', e)
+    return listTrainingsByClientId(cid)
+  })()
+
+  inFlightEnsureByClient.set(cid, run)
+  try {
+    return await run
+  } finally {
+    inFlightEnsureByClient.delete(cid)
   }
-  return listTrainingsByClientId(cid)
 }
 
 /** Сброс TTL (тесты / после смены клиента на том же экране не нужен). */
 export function clearClientTrainingsEnsureCache() {
   lastEnsureAtByClient.clear()
+  inFlightEnsureByClient.clear()
 }

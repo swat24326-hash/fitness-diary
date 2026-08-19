@@ -30,8 +30,9 @@ export async function verifyBearerSupabase(url, anonKey, bearerToken) {
  * @param {string} anonKey
  * @param {{ email: string, password: string }} creds
  */
-export async function signInWithPasswordSupabase(url, anonKey, creds) {
-  const supabaseAuth = createClient(url, anonKey)
+export async function signInWithPasswordSupabase(url, anonKey, creds, opts = {}) {
+  const fetchFn = opts.fetch ?? fetch
+  const supabaseAuth = createClient(url, anonKey, { global: { fetch: fetchFn } })
   const { data, error } = await supabaseAuth.auth.signInWithPassword({
     email: String(creds?.email ?? '').trim(),
     password: String(creds?.password ?? ''),
