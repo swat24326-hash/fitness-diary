@@ -79,7 +79,8 @@ export function attachVisualViewportChromePin(el) {
     })
   }
 
-  const sync = () => {
+  const sync = (opts = {}) => {
+    const { revealFocus = false } = opts
     const top = chromeStickyTopForVisualOffset(vv.offsetTop)
     const pinned = Boolean(top)
     if (el.style.top !== top) el.style.top = top
@@ -87,28 +88,34 @@ export function attachVisualViewportChromePin(el) {
     el.classList.toggle('app-chrome-top--vv-pinned', pinned)
     const pad = pinned ? `${Math.ceil(el.getBoundingClientRect().height)}px` : ''
     if (root.style.scrollPaddingTop !== pad) root.style.scrollPaddingTop = pad
-    revealFocusedField(pinned)
+    if (revealFocus) revealFocusedField(pinned)
   }
 
-  const schedule = () => {
+  const schedule = (opts = {}) => {
+    const { revealFocus = false } = opts
     if (raf) return
     raf = window.requestAnimationFrame(() => {
       raf = 0
-      sync()
+      sync({ revealFocus })
     })
   }
 
-  vv.addEventListener('scroll', schedule, { passive: true })
-  vv.addEventListener('resize', schedule, { passive: true })
-  window.addEventListener('scroll', schedule, { passive: true })
-  window.addEventListener('focusin', schedule)
-  sync()
+  const onViewportScroll = () => schedule()
+  const onViewportResize = () => schedule({ revealFocus: true })
+  const onWindowScroll = () => schedule()
+  const onFocusIn = () => schedule({ revealFocus: true })
+
+  vv.addEventListener('scroll', onViewportScroll, { passive: true })
+  vv.addEventListener('resize', onViewportResize, { passive: true })
+  window.addEventListener('scroll', onWindowScroll, { passive: true })
+  window.addEventListener('focusin', onFocusIn)
+  sync({ revealFocus: true })
   return () => {
     if (raf) window.cancelAnimationFrame(raf)
-    vv.removeEventListener('scroll', schedule)
-    vv.removeEventListener('resize', schedule)
-    window.removeEventListener('scroll', schedule)
-    window.removeEventListener('focusin', schedule)
+    vv.removeEventListener('scroll', onViewportScroll)
+    vv.removeEventListener('resize', onViewportResize)
+    window.removeEventListener('scroll', onWindowScroll)
+    window.removeEventListener('focusin', onFocusIn)
     clearInline()
   }
 }
