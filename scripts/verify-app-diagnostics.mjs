@@ -40,6 +40,13 @@ assert.ok(suggestErrorHint(errors[0]).includes('Обновите'))
 assert.ok(suggestErrorHint(errors[1]).includes('сет'))
 assert.ok(
   suggestErrorHint({
+    source: 'pull',
+    error: 'справочник: AbortError: Lock broken by another request with the steal option.',
+  }).includes('Параллельный'),
+  'idb lock hint',
+)
+assert.ok(
+  suggestErrorHint({
     source: 'app',
     error:
       'Uncaught TypeError: Failed to fetch dynamically imported module: https://x/assets/PwaUpdatePrompt-CORITAdj.js',

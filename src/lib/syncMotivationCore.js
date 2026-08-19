@@ -4,6 +4,7 @@
  */
 
 const LAST_SYNC_REPORT_KEY = 'fd_last_sync_report_v1'
+export const LAST_SYNC_REPORT_CHANGED = 'fitness-diary-last-sync-report'
 
 /** @type {ReturnType<typeof normalizeLastSyncReport>} */
 let lastSyncReportMemory = null
@@ -377,10 +378,42 @@ export function setLastSyncReport(report) {
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem(LAST_SYNC_REPORT_KEY, JSON.stringify(next))
     }
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(LAST_SYNC_REPORT_CHANGED, { detail: next }))
+    }
   } catch {
     /* ignore quota */
   }
   return next
+}
+
+/**
+ * Если фоновый drain опустошил очередь после «С замечаниями» — не держать устаревший «в очереди N».
+ * @param {number} queueCount
+ * @returns {boolean} report changed
+ */
+export function reconcileLastSyncReportWithQueue(queueCount) {
+  const q = Math.max(0, Number(queueCount) || 0)
+  if (q > 0) return false
+  const report = getLastSyncReport()
+  if (!report || report.tone === 'ok') return false
+  const blob = `${report.message} ${report.parts.join(' ')}`
+  if (!/очеред/i.test(blob)) return false
+
+  const pullNotes = report.parts.filter((p) => /справочник|клиент|загрузк|failed to fetch/i.test(p))
+  const tone = pullNotes.length > 0 ? 'warn' : 'ok'
+  const message =
+    tone === 'ok'
+      ? 'Очередь отправлена — всё ушло в облако.'
+      : `Очередь пуста · ${pullNotes.join(' · ') || 'загрузка из облака с замечаниями'}`
+
+  setLastSyncReport({
+    at: Date.now(),
+    tone,
+    parts: tone === 'warn' ? pullNotes : [],
+    message,
+  })
+  return true
 }
 
 /**

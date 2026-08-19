@@ -94,6 +94,9 @@ export function suggestErrorHint(row) {
   if (/client_weight_entries_training_id_fkey|foreign key.*training_id/i.test(text)) {
     return 'Запись веса ссылалась на тренировку, которой уже нет в облаке. Обновите приложение и нажмите Sync — вес сохранится без привязки.'
   }
+  if (/lock broken|steal option/i.test(text)) {
+    return 'Параллельный доступ к локальной базе. Дождитесь завершения Sync (не нажимайте повторно); при повторе — Ctrl+F5 и одна синхронизация.'
+  }
   if (status === 0 || /network|fetch|failed to fetch|offline|нет сети|недоступна/i.test(text)) {
     return 'Проблема с сетью. Проверьте Wi‑Fi/мобильный интернет и нажмите Sync.'
   }

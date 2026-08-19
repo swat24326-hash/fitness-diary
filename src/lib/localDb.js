@@ -5,171 +5,200 @@ const DB_NAME = 'fitness-diary'
 /** Повышать при схемных правках; клиенты уже на max version не получают upgrade без нового номера. */
 const DB_VERSION = 17
 
-/**
- * Локальное хранилище: кэш сущностей + очередь синхронизации (поля как в sync_queue на сервере + local_id).
- */
-export async function getDb() {
+/** @type {Promise<import('idb').IDBPDatabase> | null} */
+let dbPromise = null
+
+function upgradeFitnessDb(db, oldVersion, _newVersion, transaction) {
+  if (!db.objectStoreNames.contains('meta')) {
+    db.createObjectStore('meta')
+  }
+  if (!db.objectStoreNames.contains('clients')) {
+    const clients = db.createObjectStore('clients', { keyPath: 'id' })
+    clients.createIndex('by_club_id', 'club_id', { unique: false })
+    clients.createIndex('by_trainer_id', 'trainer_id', { unique: false })
+  }
+  if (!db.objectStoreNames.contains('memberships')) {
+    const memberships = db.createObjectStore('memberships', { keyPath: 'id' })
+    memberships.createIndex('by_club_id', 'club_id', { unique: false })
+    memberships.createIndex('by_client_id', 'client_id', { unique: false })
+  }
+  if (!db.objectStoreNames.contains('trainings')) {
+    const trainings = db.createObjectStore('trainings', { keyPath: 'id' })
+    trainings.createIndex('by_club_id', 'club_id', { unique: false })
+    trainings.createIndex('by_trainer_id', 'trainer_id', { unique: false })
+    trainings.createIndex('by_client_id', 'client_id', { unique: false })
+    trainings.createIndex('by_club_date', ['club_id', 'date'], { unique: false })
+  }
+  if (!db.objectStoreNames.contains('exercises')) {
+    db.createObjectStore('exercises', { keyPath: 'id' })
+  }
+  if (!db.objectStoreNames.contains('body_measurements')) {
+    const body = db.createObjectStore('body_measurements', { keyPath: 'id' })
+    body.createIndex('by_client_id', 'client_id', { unique: false })
+  }
+  if (!db.objectStoreNames.contains('health_cards')) {
+    db.createObjectStore('health_cards', { keyPath: 'client_id' })
+  }
+  if (!db.objectStoreNames.contains('clubs')) {
+    db.createObjectStore('clubs', { keyPath: 'id' })
+  }
+
+  if (oldVersion < 2) {
+    if (db.objectStoreNames.contains('membership_events')) {
+      db.deleteObjectStore('membership_events')
+    }
+    if (db.objectStoreNames.contains('sync_queue')) {
+      db.deleteObjectStore('sync_queue')
+    }
+  }
+
+  if (!db.objectStoreNames.contains('sync_queue')) {
+    const q = db.createObjectStore('sync_queue', { keyPath: 'local_id', autoIncrement: false })
+    q.createIndex('by_created', 'created_at')
+  }
+
+  if (!db.objectStoreNames.contains('challenges')) {
+    const challenges = db.createObjectStore('challenges', { keyPath: 'id' })
+    challenges.createIndex('by_club_id', 'club_id', { unique: false })
+  }
+
+  if (!db.objectStoreNames.contains('membership_types')) {
+    db.createObjectStore('membership_types', { keyPath: 'id' })
+  }
+
+  if (!db.objectStoreNames.contains('nutrition_products')) {
+    const nutrition = db.createObjectStore('nutrition_products', { keyPath: 'id' })
+    nutrition.createIndex('by_club_id', 'club_id', { unique: false })
+  }
+
+  if (!db.objectStoreNames.contains('homework_presets')) {
+    const homework = db.createObjectStore('homework_presets', { keyPath: 'id' })
+    homework.createIndex('by_club_id', 'club_id', { unique: false })
+  }
+
+  if (!db.objectStoreNames.contains('client_weight_entries')) {
+    const weight = db.createObjectStore('client_weight_entries', { keyPath: 'id' })
+    weight.createIndex('by_client_id', 'client_id', { unique: false })
+  }
+
+  if (oldVersion < 8 && transaction) {
+    for (const storeName of ['clients', 'trainings', 'memberships']) {
+      if (!db.objectStoreNames.contains(storeName)) continue
+      const store = transaction.objectStore(storeName)
+      if (!store.indexNames.contains('by_club_id')) {
+        store.createIndex('by_club_id', 'club_id', { unique: false })
+      }
+    }
+  }
+
+  if (oldVersion < 9 && transaction) {
+    if (db.objectStoreNames.contains('clients')) {
+      const store = transaction.objectStore('clients')
+      if (!store.indexNames.contains('by_trainer_id')) {
+        store.createIndex('by_trainer_id', 'trainer_id', { unique: false })
+      }
+    }
+    if (db.objectStoreNames.contains('memberships')) {
+      const store = transaction.objectStore('memberships')
+      if (!store.indexNames.contains('by_client_id')) {
+        store.createIndex('by_client_id', 'client_id', { unique: false })
+      }
+    }
+    if (db.objectStoreNames.contains('trainings')) {
+      const store = transaction.objectStore('trainings')
+      if (!store.indexNames.contains('by_trainer_id')) {
+        store.createIndex('by_trainer_id', 'trainer_id', { unique: false })
+      }
+      if (!store.indexNames.contains('by_client_id')) {
+        store.createIndex('by_client_id', 'client_id', { unique: false })
+      }
+      if (!store.indexNames.contains('by_club_date')) {
+        store.createIndex('by_club_date', ['club_id', 'date'], { unique: false })
+      }
+    }
+    if (db.objectStoreNames.contains('body_measurements')) {
+      const store = transaction.objectStore('body_measurements')
+      if (!store.indexNames.contains('by_client_id')) {
+        store.createIndex('by_client_id', 'client_id', { unique: false })
+      }
+    }
+  }
+
+  if (oldVersion < 10 && transaction && db.objectStoreNames.contains('challenges')) {
+    const store = transaction.objectStore('challenges')
+    if (!store.indexNames.contains('by_club_id')) {
+      store.createIndex('by_club_id', 'club_id', { unique: false })
+    }
+  }
+
+  if (oldVersion < 13) {
+    if (!db.objectStoreNames.contains('outreach_log')) {
+      const outreach = db.createObjectStore('outreach_log', { keyPath: 'id' })
+      outreach.createIndex('by_client_id', 'client_id', { unique: false })
+      outreach.createIndex('by_trainer_id', 'trainer_id', { unique: false })
+    }
+    if (!db.objectStoreNames.contains('club_iskra_settings')) {
+      db.createObjectStore('club_iskra_settings', { keyPath: 'club_id' })
+    }
+  }
+
+  if (oldVersion < 15) {
+    if (!db.objectStoreNames.contains('pnk_funnel_events')) {
+      const events = db.createObjectStore('pnk_funnel_events', { keyPath: 'id' })
+      events.createIndex('by_club_id', 'club_id', { unique: false })
+      events.createIndex('by_trainer_id', 'trainer_id', { unique: false })
+    }
+  }
+
+  if (oldVersion < 16) {
+    if (!db.objectStoreNames.contains('sale_clips')) {
+      const clips = db.createObjectStore('sale_clips', { keyPath: 'id' })
+      clips.createIndex('by_club_id', 'club_id', { unique: false })
+      clips.createIndex('by_trainer_id', 'trainer_id', { unique: false })
+      clips.createIndex('by_client_id', 'client_id', { unique: false })
+      clips.createIndex('by_status', 'status', { unique: false })
+    }
+  }
+
+  if (oldVersion < 17) {
+    if (!db.objectStoreNames.contains('loyalty_glance')) {
+      db.createObjectStore('loyalty_glance', { keyPath: 'client_id' })
+    }
+  }
+}
+
+function openFitnessDb() {
   return openDB(DB_NAME, DB_VERSION, {
-    upgrade(db, oldVersion, _newVersion, transaction) {
-      if (!db.objectStoreNames.contains('meta')) {
-        db.createObjectStore('meta')
-      }
-      if (!db.objectStoreNames.contains('clients')) {
-        const clients = db.createObjectStore('clients', { keyPath: 'id' })
-        clients.createIndex('by_club_id', 'club_id', { unique: false })
-        clients.createIndex('by_trainer_id', 'trainer_id', { unique: false })
-      }
-      if (!db.objectStoreNames.contains('memberships')) {
-        const memberships = db.createObjectStore('memberships', { keyPath: 'id' })
-        memberships.createIndex('by_club_id', 'club_id', { unique: false })
-        memberships.createIndex('by_client_id', 'client_id', { unique: false })
-      }
-      if (!db.objectStoreNames.contains('trainings')) {
-        const trainings = db.createObjectStore('trainings', { keyPath: 'id' })
-        trainings.createIndex('by_club_id', 'club_id', { unique: false })
-        trainings.createIndex('by_trainer_id', 'trainer_id', { unique: false })
-        trainings.createIndex('by_client_id', 'client_id', { unique: false })
-        trainings.createIndex('by_club_date', ['club_id', 'date'], { unique: false })
-      }
-      if (!db.objectStoreNames.contains('exercises')) {
-        db.createObjectStore('exercises', { keyPath: 'id' })
-      }
-      if (!db.objectStoreNames.contains('body_measurements')) {
-        const body = db.createObjectStore('body_measurements', { keyPath: 'id' })
-        body.createIndex('by_client_id', 'client_id', { unique: false })
-      }
-      if (!db.objectStoreNames.contains('health_cards')) {
-        db.createObjectStore('health_cards', { keyPath: 'client_id' })
-      }
-      if (!db.objectStoreNames.contains('clubs')) {
-        db.createObjectStore('clubs', { keyPath: 'id' })
-      }
-
-      if (oldVersion < 2) {
-        if (db.objectStoreNames.contains('membership_events')) {
-          db.deleteObjectStore('membership_events')
-        }
-        if (db.objectStoreNames.contains('sync_queue')) {
-          db.deleteObjectStore('sync_queue')
-        }
-      }
-
-      if (!db.objectStoreNames.contains('sync_queue')) {
-        const q = db.createObjectStore('sync_queue', { keyPath: 'local_id', autoIncrement: false })
-        q.createIndex('by_created', 'created_at')
-      }
-
-      /* Челленджи: в конце upgrade — если стора нет (старые v3/v4, сбой миграции), создаём */
-      if (!db.objectStoreNames.contains('challenges')) {
-        const challenges = db.createObjectStore('challenges', { keyPath: 'id' })
-        challenges.createIndex('by_club_id', 'club_id', { unique: false })
-      }
-
-      if (!db.objectStoreNames.contains('membership_types')) {
-        db.createObjectStore('membership_types', { keyPath: 'id' })
-      }
-
-      if (!db.objectStoreNames.contains('nutrition_products')) {
-        const nutrition = db.createObjectStore('nutrition_products', { keyPath: 'id' })
-        nutrition.createIndex('by_club_id', 'club_id', { unique: false })
-      }
-
-      if (!db.objectStoreNames.contains('homework_presets')) {
-        const homework = db.createObjectStore('homework_presets', { keyPath: 'id' })
-        homework.createIndex('by_club_id', 'club_id', { unique: false })
-      }
-
-      if (!db.objectStoreNames.contains('client_weight_entries')) {
-        const weight = db.createObjectStore('client_weight_entries', { keyPath: 'id' })
-        weight.createIndex('by_client_id', 'client_id', { unique: false })
-      }
-
-      if (oldVersion < 8 && transaction) {
-        for (const storeName of ['clients', 'trainings', 'memberships']) {
-          if (!db.objectStoreNames.contains(storeName)) continue
-          const store = transaction.objectStore(storeName)
-          if (!store.indexNames.contains('by_club_id')) {
-            store.createIndex('by_club_id', 'club_id', { unique: false })
-          }
-        }
-      }
-
-      if (oldVersion < 9 && transaction) {
-        if (db.objectStoreNames.contains('clients')) {
-          const store = transaction.objectStore('clients')
-          if (!store.indexNames.contains('by_trainer_id')) {
-            store.createIndex('by_trainer_id', 'trainer_id', { unique: false })
-          }
-        }
-        if (db.objectStoreNames.contains('memberships')) {
-          const store = transaction.objectStore('memberships')
-          if (!store.indexNames.contains('by_client_id')) {
-            store.createIndex('by_client_id', 'client_id', { unique: false })
-          }
-        }
-        if (db.objectStoreNames.contains('trainings')) {
-          const store = transaction.objectStore('trainings')
-          if (!store.indexNames.contains('by_trainer_id')) {
-            store.createIndex('by_trainer_id', 'trainer_id', { unique: false })
-          }
-          if (!store.indexNames.contains('by_client_id')) {
-            store.createIndex('by_client_id', 'client_id', { unique: false })
-          }
-          if (!store.indexNames.contains('by_club_date')) {
-            store.createIndex('by_club_date', ['club_id', 'date'], { unique: false })
-          }
-        }
-        if (db.objectStoreNames.contains('body_measurements')) {
-          const store = transaction.objectStore('body_measurements')
-          if (!store.indexNames.contains('by_client_id')) {
-            store.createIndex('by_client_id', 'client_id', { unique: false })
-          }
-        }
-      }
-
-      if (oldVersion < 10 && transaction && db.objectStoreNames.contains('challenges')) {
-        const store = transaction.objectStore('challenges')
-        if (!store.indexNames.contains('by_club_id')) {
-          store.createIndex('by_club_id', 'club_id', { unique: false })
-        }
-      }
-
-      if (oldVersion < 13) {
-        if (!db.objectStoreNames.contains('outreach_log')) {
-          const outreach = db.createObjectStore('outreach_log', { keyPath: 'id' })
-          outreach.createIndex('by_client_id', 'client_id', { unique: false })
-          outreach.createIndex('by_trainer_id', 'trainer_id', { unique: false })
-        }
-        if (!db.objectStoreNames.contains('club_iskra_settings')) {
-          db.createObjectStore('club_iskra_settings', { keyPath: 'club_id' })
-        }
-      }
-
-      if (oldVersion < 15) {
-        if (!db.objectStoreNames.contains('pnk_funnel_events')) {
-          const events = db.createObjectStore('pnk_funnel_events', { keyPath: 'id' })
-          events.createIndex('by_club_id', 'club_id', { unique: false })
-          events.createIndex('by_trainer_id', 'trainer_id', { unique: false })
-        }
-      }
-
-      if (oldVersion < 16) {
-        if (!db.objectStoreNames.contains('sale_clips')) {
-          const clips = db.createObjectStore('sale_clips', { keyPath: 'id' })
-          clips.createIndex('by_club_id', 'club_id', { unique: false })
-          clips.createIndex('by_trainer_id', 'trainer_id', { unique: false })
-          clips.createIndex('by_client_id', 'client_id', { unique: false })
-          clips.createIndex('by_status', 'status', { unique: false })
-        }
-      }
-
-      if (oldVersion < 17) {
-        if (!db.objectStoreNames.contains('loyalty_glance')) {
-          db.createObjectStore('loyalty_glance', { keyPath: 'client_id' })
-        }
-      }
+    upgrade: upgradeFitnessDb,
+    blocking() {
+      void dbPromise?.then((db) => {
+        db.close()
+        dbPromise = null
+      })
+    },
+    terminated() {
+      dbPromise = null
     },
   })
+}
+
+/**
+ * Локальное хранилище: кэш сущностей + очередь синхронизации (поля как в sync_queue на сервере + local_id).
+ * Одно соединение на вкладку — иначе openDB параллельно даёт AbortError «Lock broken… steal».
+ */
+export async function getDb() {
+  if (!dbPromise) {
+    dbPromise = openFitnessDb().catch((e) => {
+      dbPromise = null
+      throw e
+    })
+  }
+  return dbPromise
+}
+
+/** @internal сброс кэша соединения (verify / terminated). */
+export function resetDbConnectionCache() {
+  dbPromise = null
 }
 
 export async function setOnlineFlag(online) {

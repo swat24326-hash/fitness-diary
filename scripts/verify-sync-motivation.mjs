@@ -12,6 +12,7 @@ import {
   pickSyncMotivationCard,
   setLastSyncReport,
   getLastSyncReport,
+  reconcileLastSyncReportWithQueue,
 } from '../src/lib/syncMotivationCore.js'
 
 let failed = 0
@@ -67,6 +68,17 @@ const stored = setLastSyncReport({
 })
 ok(stored?.parts?.length === 2, 'set last report')
 ok(getLastSyncReport()?.parts?.[0] === 'справочник', 'get last report')
+
+setLastSyncReport({
+  at: Date.now(),
+  tone: 'warn',
+  parts: ['не отправлено: 2'],
+  message: 'Не всё ушло в облако: в очереди 2 записи.',
+})
+const reconciled = reconcileLastSyncReportWithQueue(0)
+ok(reconciled, 'reconcile when queue empty')
+ok(getLastSyncReport()?.tone === 'ok', 'reconcile clears queue warn')
+ok(!reconcileLastSyncReportWithQueue(1), 'reconcile skip when queue > 0')
 
 if (failed) process.exit(1)
 console.log('verify-sync-motivation: all passed')

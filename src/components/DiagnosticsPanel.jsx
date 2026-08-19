@@ -26,7 +26,8 @@ import {
   suggestErrorHint,
 } from '../lib/appDiagnostics'
 import { clearPoisonedSyncQueue, getSyncOutboundSummary } from '../lib/syncService'
-import { formatLastSyncReportTime, getLastSyncReport } from '../lib/syncMotivationCore'
+import { formatLastSyncReportTime, getLastSyncReport, LAST_SYNC_REPORT_CHANGED } from '../lib/syncMotivationCore'
+import { LOCAL_DATA_CHANGED } from '../lib/localDataEvents'
 import { probeCloudNow } from '../lib/networkReachability'
 import { checkRemoteBundleStale } from '../lib/appBuildInfo'
 import { pruneRedundantSyncQueue } from '../lib/syncQueueOrphans'
@@ -155,12 +156,24 @@ export function DiagnosticsPanel({
     refreshAll()
     const unsubAttention = subscribeSyncAttention(refreshErrors)
     const onChanged = () => refreshAll()
+    const onLastSync = (e) => setLastSyncReportState(e.detail ?? getLastSyncReport())
+    const onStorage = (e) => {
+      const reason = e?.detail?.reason
+      if (reason === 'sync-queue' || reason === 'sync-complete') {
+        void refreshQueue()
+        refreshLastSyncReport()
+      }
+    }
     window.addEventListener(APP_ERRORS_CHANGED, onChanged)
+    window.addEventListener(LAST_SYNC_REPORT_CHANGED, onLastSync)
+    window.addEventListener(LOCAL_DATA_CHANGED, onStorage)
     return () => {
       unsubAttention()
       window.removeEventListener(APP_ERRORS_CHANGED, onChanged)
+      window.removeEventListener(LAST_SYNC_REPORT_CHANGED, onLastSync)
+      window.removeEventListener(LOCAL_DATA_CHANGED, onStorage)
     }
-  }, [refreshAll])
+  }, [refreshAll, refreshLastSyncReport, refreshQueue])
 
   useEffect(() => {
     refreshAttention(queue.length + localOnlyCount)

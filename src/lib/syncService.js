@@ -21,6 +21,7 @@ import {
 } from './syncQueueOrphans'
 import { enqueueUnsyncedLocalRecords, recordForPush, countUnsyncedLocalRecords, markRecordSynced } from './syncLocalRecords'
 import { reportSyncOutcome, recordSyncError } from './appErrorJournal'
+import { reconcileLastSyncReportWithQueue } from './syncMotivationCore.js'
 import { invalidateTrainerWorkspaceCache } from './trainerWorkspaceCache'
 import { invalidateAdminClubWorkspaceCache } from './admin/adminClubWorkspaceCache'
 import { planWeightEntryPushPayload } from './clientWeightPushCore.js'
@@ -121,12 +122,19 @@ let backgroundOnData = null
 let backgroundDrainStarted = false
 
 const BG_DRAIN_DEBOUNCE_MS = 2_500
+const BG_DRAIN_DATA_DEBOUNCE_MS = 5_000
 const BG_DRAIN_INTERVAL_MS = 45_000
 
 async function notifySyncQueueChanged() {
   try {
     const { dispatchLocalDataChanged } = await import('./dataAccess.js')
     dispatchLocalDataChanged({ reason: 'sync-queue' })
+  } catch {
+    /* ignore */
+  }
+  try {
+    const len = await getPendingSyncQueueLength()
+    reconcileLastSyncReportWithQueue(len)
   } catch {
     /* ignore */
   }
@@ -230,7 +238,7 @@ export function startBackgroundSyncDrain() {
   }
   document.addEventListener('visibilitychange', backgroundOnVis)
 
-  backgroundOnData = () => scheduleBackgroundSyncDrain()
+  backgroundOnData = () => scheduleBackgroundSyncDrain(BG_DRAIN_DATA_DEBOUNCE_MS)
   window.addEventListener('fitness-diary-storage', backgroundOnData)
 
   backgroundIntervalId = window.setInterval(() => {

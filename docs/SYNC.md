@@ -45,7 +45,8 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 8. **Управляющий (`supervisor`):** может входить в `/api/push-record(s)` (`canUseSyncPushApi`); дальше `authorizePush` / `mutationAuth` режут чужой клуб и запрещённые таблицы (`isSupervisorDeniedPushTable`).
 9. **Финиш тренировки (критический путь):** `TrainingPage.persist()` должен завершаться без падения UI даже при исключении в любой async-ветке (save/debit/hr/nav). Ошибка пишется в `appErrorJournal` с контекстом, содержащим `training-persist`, в форме показывается `saveError` (или `autosaveStatus=error` для silent). HR-снимок и штамп лояльности — best-effort (не блокируют «Закончить»). Debit абонемента — `trainingMembershipDebit.js`. После успешного локального `completed`: **`runTrainingCompleteFollowUp(clientId)`** без `await` — событие `training-completed`, reconcile `used_trainings` (`membershipUsedReconcile.js`), `scheduleBackgroundSyncDrain()` при online. На экране — чип «В очереди: N» (`useSyncOutboundPoll`).
 10. **Prefetch тренера (online, не блокирует UI):** при открытии формы тренировки / карточки клиента — фоновый `ensureClientTrainingsCached` + `refreshMembershipsForStats` (`trainingClientPrefetch.js`, TTL дневника 90 с). Pull-guard pending не ослабляем.
-11. **Новая синхронизируемая таблица:**
+11. **IndexedDB — одно соединение на вкладку:** `getDb()` в `localDb.js` — singleton через `openDB`; параллельные `openDB` давали `AbortError: Lock broken… steal` при одновременном ручном Sync, prefetch и фоновом drain. **Ручной Sync** ставит `setBackgroundSyncPaused(true)` на время flush+pull; фоновый drain по `fitness-diary-storage` debounce 5 с. Если «Последний Sync» пишет «в очереди N», а очередь уже пуста — `reconcileLastSyncReportWithQueue` после фонового drain.
+12. **Новая синхронизируемая таблица:**
    - migration + RLS;
    - добавить в `PUSH_ALLOWED_TABLES` (`api/_lib/pushRecordCore.js`);
    - путь flush в sync-сервисе;

@@ -4,7 +4,7 @@ export const APP_ERRORS_CHANGED = 'fitness-diary-app-errors'
 export const SYNC_ATTENTION_CHANGED = 'fitness-diary-sync-attention'
 
 const RECOVERABLE_TEXT =
-  /нет сети|нет связи|показаны данные с устройства|синхронизац\w* отложен|failed to fetch|fetch failed|network|offline|недоступн|timeout|timed out|aborted|в очереди осталось/i
+  /нет сети|нет связи|показаны данные с устройства|синхронизац\w* отложен|failed to fetch|fetch failed|network|offline|недоступн|timeout|timed out|aborted|lock broken|steal option|в очереди осталось/i
 
 let syncNeedsAttention = false
 
