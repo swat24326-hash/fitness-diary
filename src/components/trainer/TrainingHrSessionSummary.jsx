@@ -87,7 +87,7 @@ export function TrainingHrSessionSummary({ summary, variant = 'live' }) {
         </p>
       ) : readonly ? null : (
         <p className="training-hr-summary__hint muted">
-          Оценка ккал: нужны пол и вес в карте / поле «Вес»
+          Оценка ккал недоступна: нужны пол и вес, а также валидные HR-сэмплы этой сессии
         </p>
       )}
     </div>
