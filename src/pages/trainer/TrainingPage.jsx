@@ -55,6 +55,8 @@ import {
 import { loadLoyaltyCompleteSettings } from '../../lib/loyalty/loyaltyCompleteSettingsService.js'
 import { isLoyaltyProgramClient } from '../../lib/loyalty/loyaltyGlanceUiCore.js'
 import { recordAppError } from '../../lib/appErrorJournal.js'
+import { runTrainingCompleteFollowUp } from '../../lib/trainer/trainingCompleteFollowUp.js'
+import { useSyncOutboundPoll } from '../../hooks/useSyncOutboundPoll.js'
 
 const TRAINING_TYPES = TRAINING_SESSION_TYPES
 
@@ -165,6 +167,8 @@ export function TrainingPage() {
   const autosaveUiTimerRef = useRef(null)
   const userEditedRef = useRef(false)
   const baselineContentSnapshotRef = useRef('')
+
+  const syncOutbound = useSyncOutboundPoll({ enabled: loadState === 'ok' })
 
   const runExclusive = useCallback(async (fn) => {
     const next = saveMutexRef.current.then(fn, fn)
@@ -576,6 +580,7 @@ export function TrainingPage() {
           setSaveNotice('Тренировка завершена и сохранена.')
           setAutosaveStatus('idle')
         }
+        runTrainingCompleteFollowUp(cid)
         if (!skipNavigate) nav(`${clientsBase}/${cid}${preserveClubQs}`, { replace: true })
         return
       }
@@ -664,6 +669,7 @@ export function TrainingPage() {
       }
 
       if (row.status === 'completed') {
+        runTrainingCompleteFollowUp(cid)
         const completedCount =
           otherCompletedTrainings + (prev?.status === 'completed' ? 0 : 1)
         if (!skipNavigate && shouldOfferMarkPnkTrialDone(client, completedCount)) {
@@ -1398,6 +1404,11 @@ export function TrainingPage() {
                   : autosaveStatus === 'error'
                     ? 'Не удалось сохранить'
                     : ''}
+            </span>
+          ) : null}
+          {syncOutbound.ready && syncOutbound.hasPending ? (
+            <span className="autosave-pill autosave-pill--error" aria-live="polite" title="Данные сохранены на планшете; отправка в облако — в очереди">
+              В очереди: {syncOutbound.total}
             </span>
           ) : null}
         </div>

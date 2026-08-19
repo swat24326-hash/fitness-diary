@@ -5,6 +5,7 @@ import { filterMembershipsByHall, normalizeMembershipHall } from '../lib/members
 import { ensureClientTrainingsCached } from '../lib/clientTrainingsEnsure.js'
 import { getDb } from '../lib/localDb'
 import { deleteLocalWithSync, saveLocalWithSync } from '../lib/syncService'
+import { planMembershipUsedReconcile } from '../lib/membership/membershipUsedReconcile.js'
 import { defaultMembershipEndIso, formatDateRu, formatDateTimeRu, todayLocalIso } from '../lib/dateRu'
 import { completedTrainingsOnMembership } from '../lib/membershipRules'
 import { buildMembershipDeleteConfirmCopy } from '../lib/membershipDeleteCore'
@@ -271,16 +272,20 @@ export function MembershipManager({
     setTrainings(t0)
     const m0 = filterMembershipsByHall(mAll, hallFilter)
 
-    // reconcile used_trainings by фактическим завершённым тренировкам абонемента
+    const reconcilePlan = planMembershipUsedReconcile(m0, t0)
+    const nextUsedById = new Map(reconcilePlan.map(({ membership, nextUsed }) => [membership.id, nextUsed]))
     const next = []
     for (const m of m0) {
-      const usedComputed = computeMembershipTrainings(m, t0).length
-      const usedStored = Number(m?.used_trainings ?? 0)
-      if (Number.isFinite(usedComputed) && usedComputed >= 0 && usedComputed !== usedStored) {
-        const patched = { ...m, used_trainings: usedComputed }
+      const nextUsed = nextUsedById.get(m.id)
+      if (nextUsed != null) {
+        const patched = { ...m, used_trainings: nextUsed }
         next.push(patched)
         try {
-          await saveLocalWithSync('memberships', patched, { table_name: 'memberships', operation: 'update', remote_id: patched.id })
+          await saveLocalWithSync('memberships', patched, {
+            table_name: 'memberships',
+            operation: 'update',
+            remote_id: patched.id,
+          })
         } catch {
           // если не удалось — всё равно покажем рассчитанное в UI, чтобы значения не расходились
         }
@@ -302,6 +307,10 @@ export function MembershipManager({
       if (newOpen || editOpenId) return
       const reason = String(e?.detail?.reason ?? '')
       if (reason === 'membership-dates-shifted') {
+        void reload()
+        return
+      }
+      if (reason === 'training-completed' || reason === 'membership-used-reconciled') {
         void reload()
         return
       }

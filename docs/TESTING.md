@@ -37,7 +37,7 @@
 
 | Сценарий | Минимум проверки |
 |----------|------------------|
-| Новая тренировка → Завершить | дата, абонемент, очередь; двойной тап / автосейв — `verify-training-persist-status.mjs` + `verify-critical-hall.mjs` |
+| Новая тренировка → Завершить | дата, абонемент, очередь; двойной тап / автосейв — `verify-training-persist-status.mjs` + `verify-critical-hall.mjs`; reconcile used — `verify-membership-used-reconcile.mjs` |
 | Правка завершённой | смена даты, повторное сохранение |
 | Sync на планшете | flush + pull, pending не затираются |
 | Админ: статистика / ИСКРА | agg, snapshot |
@@ -77,6 +77,7 @@
 | Список клиентов: код типа абона (Dm/El) | `verify-client-list-membership-type.mjs` |
 | Ранняя / поздняя активация абона (сдвиг дат, дневник vs used, overlap, inspect) | `verify-membership-early-activate.mjs` |
 | Push абонементов (даты NOT NULL) | `verify-membership-push-payload.mjs` |
+| Reconcile `used_trainings` по дневнику | `verify-membership-used-reconcile.mjs` |
 | ЗП дня/периода: база + надбавка, сценарии без плана, прогноз ур. | `verify-trainer-day-payroll-forecast.mjs` |
 | Прогноз ЗП месяца для чистой (уровни к концу + adj) | `verify-trainer-month-payroll-forecast.mjs` |
 | Удаление абонемента (тексты confirm) | `verify-membership-delete.mjs` |

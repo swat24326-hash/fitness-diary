@@ -102,6 +102,21 @@ ok(/resolveHeaderSyncForceFromCloud\(flush\?\.ok\)/.test(read('src/components/us
   ok(/forceFromCloud === true \? \{ forceFromCloud: true \}/.test(read('src/lib/syncHeaderPullTrainer.js')), '6g тренер force типов после flush')
 }
 
+{
+  const page = read('src/pages/trainer/TrainingPage.jsx')
+  const followUp = read('src/lib/trainer/trainingCompleteFollowUp.js')
+  const reconcile = read('src/lib/membership/membershipUsedReconcileCore.js')
+  const mm = read('src/components/MembershipManager.jsx')
+  ok(/runTrainingCompleteFollowUp\(cid\)/.test(page), '7a complete: follow-up без await')
+  ok(!/await\s+runTrainingCompleteFollowUp/.test(page), '7b complete: follow-up не блокирует UI')
+  ok(!/await\s+flushSyncQueue/.test(page), '7c finish: нет await flush в TrainingPage')
+  ok(/scheduleBackgroundSyncDrain/.test(followUp), '7d follow-up: фоновый drain')
+  ok(/planMembershipUsedReconcile/.test(reconcile), '7e reconcile в lib')
+  ok(/planMembershipUsedReconcile/.test(mm), '7f MembershipManager использует общий reconcile')
+  ok(/training-completed/.test(mm) && /membership-used-reconciled/.test(mm), '7g абон перезагружается после complete')
+  ok(/useSyncOutboundPoll/.test(page), '7h чип очереди на экране тренировки')
+}
+
 if (failed) {
   console.error(`\n${failed} failed`)
   process.exit(1)

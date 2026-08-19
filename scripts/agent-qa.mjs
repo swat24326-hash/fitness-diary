@@ -59,6 +59,7 @@ run('sales membership types access', 'node', ['scripts/verify-sales-membership-t
 run('sales bundle profile', 'node', ['scripts/verify-sales-bundle-profile.mjs'])
 run('price list core', 'node', ['scripts/verify-price-list.mjs'])
 run('membership push payload', 'node', ['scripts/verify-membership-push-payload.mjs'])
+run('membership used reconcile', 'node', ['scripts/verify-membership-used-reconcile.mjs'])
 run('membership delete confirm', 'node', ['scripts/verify-membership-delete.mjs'])
 run('membership early/late activate', 'node', ['scripts/verify-membership-early-activate.mjs'])
 run('date ru calendar month', 'node', ['scripts/verify-date-ru.mjs'])
