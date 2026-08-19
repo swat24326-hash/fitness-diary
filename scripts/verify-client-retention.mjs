@@ -28,6 +28,7 @@ import {
   computeTrainerRetentionMN,
   isCohortMatureForMN,
   monthKeyFromIso,
+  resolveAnchorTrainerId,
 } from '../src/lib/admin/clientRetentionCohortCore.js'
 import { aggregateArchiveReasonMix } from '../src/lib/admin/clientRetentionArchiveReasonCore.js'
 import { aggregateClientRetention } from '../src/lib/admin/clientRetentionAgg.js'
@@ -72,8 +73,8 @@ function mem(clientId, typeId, start, end, used = 0, total = 8) {
   }
 }
 
-function training(clientId, date, status = 'completed') {
-  return { client_id: clientId, date, status }
+function training(clientId, date, status = 'completed', trainerId = 't-tab') {
+  return { client_id: clientId, date, status, trainer_id: trainerId }
 }
 
 setSection('POOL / tablet & lite')
@@ -184,8 +185,27 @@ const reassignMembers = buildCohortMembers(
   new Map([['c1', [mem('c1', 'paid', '2026-03-01', '2026-06-01')]]]),
   TYPES,
   {},
+  [training('c1', '2026-03-12', 'completed')],
 )
-ok(reassignMembers[0]?.anchorTrainerId === 't-other', 'anchor uses trainer at build (document reassign policy)')
+ok(reassignMembers[0]?.anchorTrainerId === 't-tab', 'anchor trainer from first completed in anchor month')
+ok(
+  resolveAnchorTrainerId(
+    { id: 'c1', trainer_id: 't-other' },
+    [{ client_id: 'c1', date: '2026-03-12', status: 'completed', trainer_id: 't-tab' }],
+    '2026-03-01',
+    '2026-03',
+  ) === 't-tab',
+  'resolveAnchorTrainerId prefers journal trainer',
+)
+ok(
+  buildCohortMembers(
+    [{ id: 'c1', trainer_id: 't-other', lifecycle: 'active' }],
+    new Map([['c1', [mem('c1', 'paid', '2026-03-01', '2026-06-01')]]]),
+    TYPES,
+    {},
+  )[0]?.anchorTrainerId === 't-other',
+  'fallback current trainer_id without trainings',
+)
 reassignMembers[0].anchorTrainerId = 't-anchor'
 ok(computeTrainerRetentionMN(reassignMembers, cohortTrainings, ['2026-03'], 't-anchor', 3).cohortSize === 1, 'attribution frozen anchorTrainerId')
 

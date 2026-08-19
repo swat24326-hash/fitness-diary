@@ -45,6 +45,7 @@
 | Качество ведения тренера | `verify-coach-quality.mjs` (TECH + COACH + MANAGER сценарии) |
 | Удержание и жизнь клиента | `verify-client-retention.mjs` (pool, cohort M+3, renewal, archive, reactivation) |
 | Журнал restore клиента | `verify-client-restore-event.mjs` |
+| Миграция restore на Supabase | `npm run db:migrate:client-restore-events -- --linked` |
 | Кабинет ЗП тренера (план / ±₽) | `verify-trainer-pay-profile.mjs`; ставки типов и галочка «В план» — `verify-trainer-pay-tiers.mjs`; база ЗП — `verify-trainer-payroll.mjs`; роли на prod — блок `trainer-pay-profiles` в `npm run qa:roles` (admin OK / trainer+sales 403) |
 | Заморозка ЗП месяца | `verify-trainer-pay-month-snapshot.mjs`; прошлый месяц → snapshot, текущий → live |
 | Имя продукта (без хардкода в UI) | `verify-product-brand.mjs`; смена имени — `productBrand.js` → `npm run sync:brand` → `gen:icons` |

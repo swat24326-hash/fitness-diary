@@ -46,6 +46,7 @@
     "db:migrate:club-call-staff-note": "node scripts/apply-club-call-staff-note-migration.mjs",
     "db:migrate:club-call-inbound": "node scripts/apply-club-call-inbound-migration.mjs",
     "db:migrate:clients-archive-reason": "node scripts/apply-clients-archive-reason-migration.mjs",
+    "db:migrate:client-restore-events": "node scripts/apply-client-restore-events-migration.mjs",
     "db:migrate:loyalty": "node scripts/apply-loyalty-migration.mjs",
     "check:volume": "node scripts/check-data-volume.mjs",
     "sync:brand": "node scripts/sync-product-brand.mjs",

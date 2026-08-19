@@ -56,13 +56,60 @@ export function calendarMonthRange(monthKey) {
  */
 
 /**
+ * @param {object|null|undefined} client
+ * @param {object[]|null|undefined} trainings
+ * @param {string} anchorDate yyyy-mm-dd
+ * @param {string} anchorMonth yyyy-mm
+ * @returns {string}
+ */
+export function resolveAnchorTrainerId(client, trainings, anchorDate, anchorMonth) {
+  const clientId = String(client?.id ?? '').trim()
+  const fallback = String(client?.trainer_id ?? '').trim()
+  if (!clientId) return fallback
+
+  const range = calendarMonthRange(anchorMonth)
+  if (range) {
+    const inMonth = (trainings ?? [])
+      .filter((t) => String(t?.client_id ?? '') === clientId)
+      .filter((t) => String(t?.status ?? '') === 'completed')
+      .filter((t) => {
+        const d = String(t?.date ?? '').slice(0, 10)
+        return d >= range.from && d <= range.to
+      })
+      .sort((a, b) => String(a?.date ?? '').localeCompare(String(b?.date ?? '')))
+    const tid = String(inMonth[0]?.trainer_id ?? '').trim()
+    if (tid) return tid
+  }
+
+  const anchor = String(anchorDate ?? '').slice(0, 10)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(anchor)) {
+    const firstAfter = (trainings ?? [])
+      .filter((t) => String(t?.client_id ?? '') === clientId)
+      .filter((t) => String(t?.status ?? '') === 'completed')
+      .filter((t) => String(t?.date ?? '').slice(0, 10) >= anchor)
+      .sort((a, b) => String(a?.date ?? '').localeCompare(String(b?.date ?? '')))
+    const tid = String(firstAfter[0]?.trainer_id ?? '').trim()
+    if (tid) return tid
+  }
+
+  return fallback
+}
+
+/**
  * @param {object[]} clients — active pool или universe (с archived для истории когорт)
  * @param {Map<string, object[]>} membershipsByClient
  * @param {object[]} membershipTypes
  * @param {{ holdingTrainerIds?: Set<string>|string[], noTabletTrainerIds?: Set<string>|string[], useUniverse?: boolean }} [poolOpts]
+ * @param {object[]} [trainings] — для исторического anchorTrainerId
  * @returns {CohortMember[]}
  */
-export function buildCohortMembers(clients, membershipsByClient, membershipTypes, poolOpts = {}) {
+export function buildCohortMembers(
+  clients,
+  membershipsByClient,
+  membershipTypes,
+  poolOpts = {},
+  trainings = [],
+) {
   /** @type {CohortMember[]} */
   const out = []
   const useUniverse = poolOpts.useUniverse === true
@@ -81,7 +128,7 @@ export function buildCohortMembers(clients, membershipsByClient, membershipTypes
       clientId: id,
       anchorDate,
       anchorMonth,
-      anchorTrainerId: String(client?.trainer_id ?? '').trim(),
+      anchorTrainerId: resolveAnchorTrainerId(client, trainings, anchorDate, anchorMonth),
     })
   }
   return out

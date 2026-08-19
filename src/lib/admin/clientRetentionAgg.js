@@ -77,7 +77,7 @@ export function aggregateClientRetention(input) {
   const cohortMembers = buildCohortMembers(universe, membershipsByClient, membershipTypes, {
     ...poolOpts,
     useUniverse: true,
-  })
+  }, trainings)
 
   const cohortMonths =
     input.cohortMonths?.length ? input.cohortMonths : resolveRetentionCohortMonths(periodTo, 6)

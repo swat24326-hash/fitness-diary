@@ -1,6 +1,6 @@
 # Удержание и жизнь клиента
 
-**Статус:** ✅ фаза 0 (core + verify) · ✅ фаза 1 (API + карточка в Статистике ПЗ) · ✅ фаза 2a (журнал restore + tenure universe) · backlog: historical trainer_id  
+**Статус:** ✅ фаза 0 · ✅ фаза 1 · ✅ фаза 2 (restore journal, tenure universe, anchor trainer из дневника) · backlog: offline-кэш retention  
 **Кому:** управляющий (клуб), тренер с планшетом (свои KPI)  
 **Не путать с:** [COACH_QUALITY.md](./COACH_QUALITY.md), воронкой чипов (`trainerClientOutreachCore.js`), period census (`clubClientPeriodAgg.js`)
 
@@ -40,7 +40,7 @@ Lite-ПЗ: в commercial / renewal, **вне** R-RET.
 | **Renewed** | следующий paid в [end, end+14] **или** overlap (start &gt; start истекающего, start ≤ end+14) |
 | **Restore** | `archived_at`: было → null |
 | **Successful reactivation** | restore + completed в 30 дн. |
-| **Trainer attribution** | `trainer_id` на cohort anchor (фиксируется в `CohortMember.anchorTrainerId`) |
+| **Trainer attribution** | `trainer_id` первой completed в месяце anchor; иначе первая completed ≥ anchor; иначе текущий `trainer_id` |
 
 История **не пересчитывается** при архиве — см. [CLIENT_ARCHIVE.md](./CLIENT_ARCHIVE.md).
 
