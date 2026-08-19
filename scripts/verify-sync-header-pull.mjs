@@ -53,6 +53,8 @@ ok(/recordSyncPullIssue\('клиенты клуба'/.test(admin), '3c сбой 
 ok(/recordSyncPullIssue\('челленджи'/.test(admin), '3e сбой челленджей — в журнал pull')
 
 ok(/pullTrainerWorkspaceFromCloud/.test(trainer), '4 тренер — рабочая область')
+ok(/fetchWithAppTimeout/.test(read('src/lib/syncApiClient.js')), '4a trainer-pull через fetchWithAppTimeout')
+ok(/SYNC_PULL_FETCH_TIMEOUT_MS/.test(read('src/lib/networkReachability.js')), '4b константа таймаута pull')
 ok(/void import\('\.\/loyalty\/loyaltyGlanceService\.js'\)/.test(trainer), '4b glance фоном')
 ok(!/await refreshLoyaltyGlanceAfterTrainerPull/.test(trainer), '4c glance не блокирует')
 {
@@ -70,6 +72,9 @@ ok(/forceFromCloud === true \? \{ forceFromCloud: true \}/.test(admin), '5d ад
 ok(/forceFromCloud === true \? \{ forceFromCloud: true \}/.test(trainer), '5e тренер: force справочников после flush')
 ok(/pullMembershipTypesForClubFromCloud\(club, refOpts\)/.test(admin), '5f админ передаёт refOpts в типы')
 ok(/pullMembershipTypesForClubFromCloud\(cid, refOpts\)/.test(trainer), '5g тренер передаёт refOpts в типы')
+
+ok(!/sessionRecovering \|\|/.test(read('src/App.jsx')), '6 splash не блокирует UI только из‑за sessionRecovering')
+ok(/MANUAL_SYNC_GUARD_MS/.test(hook), '6b потолок времени ручного Sync')
 
 if (failed) {
   console.error(`\n${failed} failed`)

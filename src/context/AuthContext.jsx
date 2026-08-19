@@ -341,7 +341,7 @@ export function AuthProvider({ children }) {
   const refreshSessionOnWake = useCallback(async () => {
     if (!isSupabaseConfigured() || signingOutRef.current) return
     try {
-      const { data, error } = await supabase.auth.refreshSession()
+      const { data, error } = await withTimeout(supabase.auth.refreshSession(), 12_000, 'refreshSession')
       if (error) {
         console.warn('[auth] wake refreshSession', error.message)
         return

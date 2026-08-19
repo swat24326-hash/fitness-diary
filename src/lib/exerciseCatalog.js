@@ -8,6 +8,7 @@ import { fetchExercisesViaApi, fetchExercisesMetaViaApi, getAccessTokenForAdminA
 import { supabase } from './supabase'
 import { withSupabaseRetry } from './supabaseRetry'
 import { ADMIN_SYNC_BATCH_SIZE } from './admin/adminConstants'
+import { SYNC_PULL_FETCH_TIMEOUT_MS } from './networkReachability'
 const STORAGE_EVENT = 'fitness-diary-storage'
 
 const META_KEY = 'exercises_sync'
@@ -141,7 +142,9 @@ export async function pullExercisesFromCloud(opts = {}) {
   }
 
   try {
-    const viaApi = await fetchExercisesViaApi()
+    const viaApi = await fetchExercisesViaApi({
+      timeoutMs: force ? SYNC_PULL_FETCH_TIMEOUT_MS : undefined,
+    })
     if (viaApi) {
       const pending = await buildPendingSyncKeysByTable()
       const db = await getDb()

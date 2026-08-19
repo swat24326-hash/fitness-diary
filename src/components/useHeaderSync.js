@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { listSyncQueue } from '../lib/localDb'
 import { describeFlushQueueResult, flushSyncQueue, getSyncOutboundSummary, isAppOnline, setBackgroundSyncPaused } from '../lib/syncService'
+import { SYNC_PULL_FETCH_TIMEOUT_MS } from '../lib/networkReachability'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { dispatchLocalDataChanged, LOCAL_DATA_CHANGED } from '../lib/dataAccess'
 import {
@@ -202,6 +203,9 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
 
   const syncNowRef = useRef(async () => {})
 
+  /** Потолок ручного Sync: flush + несколько pull подряд (cold start Vercel). */
+  const MANUAL_SYNC_GUARD_MS = SYNC_PULL_FETCH_TIMEOUT_MS * 3 + 30_000
+
   const syncNow = async () => {
     if (syncBusy) return
     closeMenu()
@@ -230,7 +234,8 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
     }
 
     setBackgroundSyncPaused(true)
-    try {
+
+    const runSyncBody = async () => {
       if (!isAppOnline()) {
         recordAppError({ source: 'network', error: 'Нет сети — синхронизация отложена' })
         showSyncFeedback('Нет Wi‑Fi — синхронизация отложена.', 'warn')
@@ -321,6 +326,19 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
       }
 
       reportSyncOutcome({ queueCount: queueLeft, hadError })
+    }
+
+    let syncGuardTimer
+    try {
+      await Promise.race([
+        runSyncBody(),
+        new Promise((_, reject) => {
+          syncGuardTimer = window.setTimeout(
+            () => reject(new Error('Синхронизация прервана по таймауту — повторите Sync при стабильной сети')),
+            MANUAL_SYNC_GUARD_MS,
+          )
+        }),
+      ])
     } catch (e) {
       console.warn('[sync]', e)
       recordAppError({ source: 'sync', error: e?.message ?? 'Ошибка синхронизации' })
@@ -334,6 +352,7 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
         reportSyncOutcome({ queueCount: pendingSyncRef.current, hadError: true })
       }
     } finally {
+      if (syncGuardTimer) window.clearTimeout(syncGuardTimer)
       setBackgroundSyncPaused(false)
       setSyncBusy(false)
       window.setTimeout(() => setSyncProgress({ percent: 0, label: '' }), 800)

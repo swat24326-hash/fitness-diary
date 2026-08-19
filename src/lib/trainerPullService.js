@@ -174,8 +174,12 @@ export async function pullTrainerWorkspaceFromCloud(trainerId, opts = {}) {
       }
     }
   } catch (e) {
+    const msg = String(e?.message ?? e ?? 'Ошибка загрузки')
+    if (/таймаут|timeout/i.test(msg)) {
+      return { ok: false, error: msg }
+    }
     if (!isRetryableNetworkError(e)) {
-      return { ok: false, error: String(e?.message ?? e ?? 'Ошибка загрузки') }
+      return { ok: false, error: msg }
     }
   }
 

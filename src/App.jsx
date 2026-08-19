@@ -79,7 +79,7 @@ function AppPwaOverlays() {
 }
 
 function LoggedInLayout() {
-  const { user, role, loading, sessionRecovering, hasStoredSession } = useAuth()
+  const { user, role, loading, sessionRecovering } = useAuth()
 
   useEffect(() => {
     if (!loading && !sessionRecovering && user && isSupabaseConfigured()) {
@@ -89,10 +89,10 @@ function LoggedInLayout() {
 
   useEffect(() => initTrainerWorkspaceCacheInvalidation(), [])
 
-  if (loading || sessionRecovering || (user && role == null)) {
+  if (loading || (user && role == null)) {
     return <AppWelcomeSplash />
   }
-  if (!user && hasStoredSession) {
+  if (sessionRecovering && !user) {
     return <AppWelcomeSplash displayName="Восстанавливаем сессию…" />
   }
   if (!user) {

@@ -11,6 +11,8 @@ let cloudCheckedAt = 0
 export const ADMIN_FETCH_TIMEOUT_MS = 5_000
 /** club-stats тянет тренировки с data — 5 с мало на холодном старте Hobby. */
 export const CLUB_STATS_FETCH_TIMEOUT_MS = 45_000
+/** Ручной Sync: trainer-pull и полный справочник упражнений — cold start Vercel. */
+export const SYNC_PULL_FETCH_TIMEOUT_MS = 45_000
 /**
  * Исходящие Мои Звонки (SMS / make_call): Vercel cold start + ответ moizvonki.ru.
  * Дефолтные 5 с обрывают звонок с «Таймаут связи с сервером».

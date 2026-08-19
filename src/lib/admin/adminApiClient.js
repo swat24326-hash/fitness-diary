@@ -627,11 +627,12 @@ export async function fetchExercisesMetaViaApi() {
 }
 
 /** GET /api/admin-data?action=exercises */
-export async function fetchExercisesViaApi() {
+export async function fetchExercisesViaApi(opts = {}) {
   const token = await getAccessTokenForAdminApi()
   if (!token) return null
 
-  const { data, routeMissing } = await adminApiGet('/api/admin-data?action=exercises', token)
+  const timeoutMs = Number.isFinite(opts.timeoutMs) ? opts.timeoutMs : undefined
+  const { data, routeMissing } = await adminApiGet('/api/admin-data?action=exercises', token, timeoutMs)
   if (routeMissing) return null
   return {
     exercises: Array.isArray(data.exercises) ? data.exercises : [],

@@ -1,5 +1,5 @@
 import { isSupabaseConfigured } from './supabase'
-import { noteAppNetworkResponse } from './networkReachability'
+import { noteAppNetworkResponse, SYNC_PULL_FETCH_TIMEOUT_MS, fetchWithAppTimeout } from './networkReachability'
 import { getAccessTokenForAdminApi } from './admin/adminApiClient'
 import { removeSyncItem } from './localDb'
 import { handlePushApiFailure, isUnrecoverablePushError } from './syncQueueOrphans'
@@ -366,14 +366,21 @@ export async function fetchTrainerPullViaApi(opts = {}) {
     if (skipTrainings) qs.set('skip_trainings', '1')
     if (!fullPull && /^\d{4}-\d{2}-\d{2}$/.test(trainingsSince)) qs.set('trainings_since', trainingsSince)
     const url = `${apiOrigin()}/api/trainer-pull${qs.toString() ? `?${qs.toString()}` : ''}`
-    res = await fetch(url, {
-      method: 'GET',
-      headers: { Authorization: `Bearer ${token}` },
-      credentials: 'same-origin',
-      cache: 'no-store',
-    })
-    noteAppNetworkResponse(res)
-  } catch {
+    res = await fetchWithAppTimeout(
+      url,
+      {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'same-origin',
+        cache: 'no-store',
+      },
+      SYNC_PULL_FETCH_TIMEOUT_MS,
+    )
+  } catch (e) {
+    const msg = String(e?.message ?? '')
+    if (/таймаут|timeout/i.test(msg)) {
+      throw e
+    }
     return null
   }
 

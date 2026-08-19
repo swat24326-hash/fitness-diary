@@ -400,7 +400,7 @@ export function reconcileLastSyncReportWithQueue(queueCount) {
   const blob = `${report.message} ${report.parts.join(' ')}`
   if (!/очеред/i.test(blob)) return false
 
-  const pullNotes = report.parts.filter((p) => /справочник|клиент|загрузк|failed to fetch/i.test(p))
+  const pullNotes = report.parts.filter((p) => /справочник|клиент|загрузк|failed to fetch|таймаут|timeout/i.test(p))
   const tone = pullNotes.length > 0 ? 'warn' : 'ok'
   const message =
     tone === 'ok'
