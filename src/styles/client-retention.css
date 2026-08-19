@@ -188,53 +188,44 @@
   line-height: 1.3;
 }
 
-/* Второй ряд: одна карточка «Причины архива» */
-.client-retention-reasons-fold {
+/* Второй ряд: виджет «Причины архива» на всю ширину */
+.client-retention-reasons {
   margin-bottom: 14px;
-  max-width: 320px;
 }
 
-.client-retention-reasons-fold > summary {
-  list-style: none;
-  cursor: pointer;
-  user-select: none;
-  transition: border-color 0.15s ease, background 0.15s ease;
+.client-retention-reasons__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 12px;
 }
 
-.client-retention-reasons-fold > summary::-webkit-details-marker {
-  display: none;
+.client-retention-reasons__head .client-retention-section__title {
+  margin: 0;
 }
 
-.client-retention-reasons-fold > summary::after {
-  content: '▾';
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.45);
-  transition: transform 0.15s ease;
+.client-retention-reasons__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 6px 12px;
+  margin-left: auto;
 }
 
-.client-retention-reasons-fold[open] > summary::after {
-  transform: rotate(180deg);
+.client-retention-reasons__total {
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
 }
 
-.client-retention-reasons-fold > summary:hover {
-  border-color: rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.client-retention-kpi--reasons {
-  position: relative;
-  padding-right: 28px;
-}
-
-.client-retention-reasons-fold[open] .client-retention-reasons__list {
-  margin-top: 2px;
-  padding: 10px 12px 12px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+.client-retention-reasons__top {
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: right;
 }
 
 .client-retention-trainers {

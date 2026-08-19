@@ -204,12 +204,14 @@ export function ClientRetentionPanel({
       </div>
 
       {showReasons ? (
-        <details className="client-retention-reasons-fold">
-          <summary className="client-retention-kpi client-retention-kpi--reasons">
-            <span className="client-retention-kpi__label">Причины архива за период</span>
-            <strong className="client-retention-kpi__value">{archiveReasons.total}</strong>
-            <span className="muted client-retention-kpi__hint">{archiveReasons.hint}</span>
-          </summary>
+        <section className="client-retention-panel__block client-retention-reasons">
+          <header className="client-retention-reasons__head">
+            <h4 className="client-retention-section__title">Причины архива за период</h4>
+            <div className="client-retention-reasons__meta">
+              <strong className="client-retention-reasons__total">{archiveReasons.total}</strong>
+              <span className="muted client-retention-reasons__top">{archiveReasons.hint}</span>
+            </div>
+          </header>
           <ul className="client-retention-reasons__list">
             {archiveReasons.rows.map((row) => (
               <li key={row.label}>
@@ -225,7 +227,7 @@ export function ClientRetentionPanel({
               </li>
             ))}
           </ul>
-        </details>
+        </section>
       ) : null}
 
       {showTrainers ? (
