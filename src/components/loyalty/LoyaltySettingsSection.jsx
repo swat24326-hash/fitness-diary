@@ -1,4 +1,4 @@
-import { Gift, Save } from 'lucide-react'
+import { Check, Gift, Pencil, X } from 'lucide-react'
 import { AdminSectionHeader } from '../admin/AdminSectionHeader.jsx'
 import {
   formatLoyaltyIntervals,
@@ -20,7 +20,11 @@ export function LoyaltySettingsSection({
   error,
   msg,
   saveState,
+  isEditing,
+  isDirty,
   patchDraft,
+  onStartEdit,
+  onCancelEdit,
   onSave,
 }) {
   if (!clubId) {
@@ -45,15 +49,41 @@ export function LoyaltySettingsSection({
         lead="Включение и ставки выбранного клуба. Цикл клиента считается на сервере; очередь Sync не трогаем."
         icon={Gift}
       >
-        <button
-          type="button"
-          className="btn btn-primary btn-touch"
-          disabled={!saveState.canSave}
-          onClick={() => void onSave?.()}
-        >
-          <Save size={16} aria-hidden />
-          Сохранить
-        </button>
+        {!isEditing ? (
+          <button
+            type="button"
+            className="btn btn-ghost btn-touch"
+            disabled={busy || !saveState.canSave}
+            onClick={() => onStartEdit?.()}
+            aria-label="Начать редактирование"
+            title="Начать редактирование"
+          >
+            <Pencil size={16} aria-hidden />
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              className="btn btn-ghost btn-touch"
+              disabled={busy}
+              onClick={() => onCancelEdit?.()}
+              aria-label="Отменить изменения"
+              title="Отменить изменения"
+            >
+              <X size={16} aria-hidden />
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-touch"
+              disabled={!saveState.canSave || !isDirty}
+              onClick={() => void onSave?.()}
+              aria-label="Сохранить изменения"
+              title="Сохранить изменения"
+            >
+              <Check size={16} aria-hidden />
+            </button>
+          </>
+        )}
       </AdminSectionHeader>
 
       {migrationNeeded ? (
@@ -75,6 +105,10 @@ export function LoyaltySettingsSection({
           {msg}
         </p>
       ) : null}
+      <p className="muted loyalty-settings__note" role="status">
+        Режим: {isEditing ? 'редактирование' : 'просмотр'}
+        {isEditing ? (isDirty ? ' · есть несохранённые изменения' : ' · изменений пока нет') : ''}
+      </p>
 
       <div className="loyalty-settings__card">
         <h2 className="loyalty-settings__card-title" id="loyalty-settings-title">
@@ -85,7 +119,7 @@ export function LoyaltySettingsSection({
           <input
             type="checkbox"
             checked={draft.enabled === true}
-            disabled={busy}
+            disabled={busy || !isEditing}
             onChange={(e) => patchDraft({ enabled: e.target.checked })}
           />
           <span>Включить набор баллов</span>
@@ -107,7 +141,7 @@ export function LoyaltySettingsSection({
               type="text"
               inputMode="numeric"
               value={draft.cycle_months}
-              disabled={busy}
+              disabled={busy || !isEditing}
               onChange={(e) => patchDraft({ cycle_months: e.target.value })}
               aria-label="Месяцев до куша"
             />
@@ -119,7 +153,7 @@ export function LoyaltySettingsSection({
               type="text"
               inputMode="numeric"
               value={draft.points_per_week}
-              disabled={busy}
+              disabled={busy || !isEditing}
               onChange={(e) => patchDraft({ points_per_week: e.target.value })}
               aria-label="Баллов за неделю"
             />
@@ -131,7 +165,7 @@ export function LoyaltySettingsSection({
               type="text"
               inputMode="numeric"
               value={draft.kcal_chunk}
-              disabled={busy}
+              disabled={busy || !isEditing}
               onChange={(e) => patchDraft({ kcal_chunk: e.target.value })}
               aria-label="Ккал на пачку"
             />
@@ -143,7 +177,7 @@ export function LoyaltySettingsSection({
               type="text"
               inputMode="numeric"
               value={draft.points_per_kcal_chunk}
-              disabled={busy}
+              disabled={busy || !isEditing}
               onChange={(e) => patchDraft({ points_per_kcal_chunk: e.target.value })}
               aria-label="Баллов за пачку ккал"
             />
@@ -155,7 +189,7 @@ export function LoyaltySettingsSection({
               type="text"
               inputMode="numeric"
               value={draft.max_minutes}
-              disabled={busy}
+              disabled={busy || !isEditing}
               onChange={(e) => patchDraft({ max_minutes: e.target.value })}
               aria-label="Максимум минут сессии"
             />
@@ -167,7 +201,7 @@ export function LoyaltySettingsSection({
               type="text"
               inputMode="numeric"
               value={draft.max_kcal_per_training}
-              disabled={busy}
+              disabled={busy || !isEditing}
               onChange={(e) => patchDraft({ max_kcal_per_training: e.target.value })}
               aria-label="Потолок килокалорий за тренировку"
             />

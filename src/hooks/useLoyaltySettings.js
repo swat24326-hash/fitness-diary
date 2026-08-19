@@ -16,6 +16,8 @@ import {
 export function useLoyaltySettings(clubId, { isAdmin = false } = {}) {
   const id = String(clubId ?? '').trim()
   const [draft, setDraft] = useState(() => loyaltySettingsToDraft({ enabled: false }))
+  const [baselineDraft, setBaselineDraft] = useState(() => loyaltySettingsToDraft({ enabled: false }))
+  const [isEditing, setIsEditing] = useState(false)
   const [loadedEnabled, setLoadedEnabled] = useState(false)
   const [intervals, setIntervals] = useState([])
   const [enabledAt, setEnabledAt] = useState(null)
@@ -36,7 +38,10 @@ export function useLoyaltySettings(clubId, { isAdmin = false } = {}) {
   }, [])
 
   const applyParsed = useCallback((parsed) => {
-    setDraft(loyaltySettingsToDraft(parsed.settings))
+    const nextDraft = loyaltySettingsToDraft(parsed.settings)
+    setDraft(nextDraft)
+    setBaselineDraft(nextDraft)
+    setIsEditing(false)
     setLoadedEnabled(parsed.settings.enabled === true)
     setIntervals(parsed.settings.enabled_intervals ?? [])
     setEnabledAt(parsed.settings.enabled_at ?? null)
@@ -79,13 +84,30 @@ export function useLoyaltySettings(clubId, { isAdmin = false } = {}) {
   )
 
   const patchDraft = useCallback((patch) => {
+    if (!isEditing) return
     setDraft((d) => ({ ...d, ...patch }))
     setMsg('')
+  }, [isEditing])
+
+  const startEdit = useCallback(() => {
+    setIsEditing(true)
+    setMsg('')
+    setError('')
   }, [])
+
+  const cancelEdit = useCallback(() => {
+    setDraft(baselineDraft)
+    setIsEditing(false)
+    setMsg('')
+    setError('')
+  }, [baselineDraft])
+
+  const isDirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(baselineDraft), [draft, baselineDraft])
 
   const save = useCallback(
     async (confirmFn = typeof window !== 'undefined' ? window.confirm.bind(window) : () => true) => {
       if (!saveState.canSave) return { ok: false }
+      if (!isEditing || !isDirty) return { ok: false }
       const body = loyaltyDraftToPostBody(draft, id)
       if (!loyaltySettingsPostOmitsIntervals(body)) return { ok: false }
       const confirmText = loyaltyToggleConfirmText(loadedEnabled, body.enabled)
@@ -107,7 +129,7 @@ export function useLoyaltySettings(clubId, { isAdmin = false } = {}) {
         setBusy(false)
       }
     },
-    [saveState.canSave, draft, id, loadedEnabled, applyParsed],
+    [saveState.canSave, isEditing, isDirty, draft, id, loadedEnabled, applyParsed],
   )
 
   return {
@@ -122,7 +144,11 @@ export function useLoyaltySettings(clubId, { isAdmin = false } = {}) {
     msg,
     online,
     saveState,
+    isEditing,
+    isDirty,
     patchDraft,
+    startEdit,
+    cancelEdit,
     save,
     reload,
   }

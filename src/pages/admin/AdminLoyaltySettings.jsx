@@ -23,7 +23,11 @@ export function AdminLoyaltySettings() {
       error={s.error}
       msg={s.msg}
       saveState={s.saveState}
+      isEditing={s.isEditing}
+      isDirty={s.isDirty}
       patchDraft={s.patchDraft}
+      onStartEdit={s.startEdit}
+      onCancelEdit={s.cancelEdit}
       onSave={s.save}
     />
   )
