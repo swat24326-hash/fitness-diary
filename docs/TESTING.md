@@ -78,6 +78,7 @@
 | Ранняя / поздняя активация абона (сдвиг дат, дневник vs used, overlap, inspect) | `verify-membership-early-activate.mjs` |
 | Push абонементов (даты NOT NULL) | `verify-membership-push-payload.mjs` |
 | Reconcile `used_trainings` по дневнику | `verify-membership-used-reconcile.mjs` |
+| Debit абонемента при first complete | `verify-training-membership-debit.mjs` |
 | ЗП дня/периода: база + надбавка, сценарии без плана, прогноз ур. | `verify-trainer-day-payroll-forecast.mjs` |
 | Прогноз ЗП месяца для чистой (уровни к концу + adj) | `verify-trainer-month-payroll-forecast.mjs` |
 | Удаление абонемента (тексты confirm) | `verify-membership-delete.mjs` |

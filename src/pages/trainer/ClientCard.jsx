@@ -35,6 +35,7 @@ import { buildPnkVisitQualityReport, shouldShowPnkVisitQuality } from '../../lib
 import { listClientsByClubId, listMeasurementsByClientId } from '../../lib/localDbClubQuery.js'
 import { assertClubCardAvailableForCreate } from '../../lib/admin/salesClientMatchCore.js'
 import { preparePnkTrialTraining, patchPnkClientLocal } from '../../lib/pnk/pnkLocalService.js'
+import { prefetchTrainerClientWorkspace } from '../../lib/trainer/trainingClientPrefetch.js'
 import { canStartPnkTrialTraining } from '../../lib/pnk/pnkWizardCore.js'
 import {
   OUTREACH_SCENARIO_LABELS,
@@ -320,6 +321,10 @@ export function ClientCard() {
       setHealthCard(null)
       setBzCompletedCount(0)
       setHasMeasurements(false)
+      prefetchTrainerClientWorkspace(id, {
+        trainerId: isAdmin ? '' : user?.id,
+        clubId: local.club_id ?? '',
+      })
       return
     }
     const [mems, hc, trainings, measures] = await Promise.all([
@@ -332,7 +337,11 @@ export function ClientCard() {
     setHealthCard(hc ?? null)
     setBzCompletedCount(countPnkBzCompletedFromTrainings(trainings))
     setHasMeasurements((measures ?? []).length > 0)
-  }, [id, trainerById, trainersModeReady, canManageClubClients, isTrainer, user])
+    prefetchTrainerClientWorkspace(id, {
+      trainerId: isAdmin ? '' : user?.id,
+      clubId: local.club_id ?? '',
+    })
+  }, [id, trainerById, trainersModeReady, canManageClubClients, isTrainer, isAdmin, user])
 
   useEffect(() => {
     if (!id || canManageClubClients) return

@@ -56,6 +56,11 @@ import { loadLoyaltyCompleteSettings } from '../../lib/loyalty/loyaltyCompleteSe
 import { isLoyaltyProgramClient } from '../../lib/loyalty/loyaltyGlanceUiCore.js'
 import { recordAppError } from '../../lib/appErrorJournal.js'
 import { runTrainingCompleteFollowUp } from '../../lib/trainer/trainingCompleteFollowUp.js'
+import { prefetchTrainerClientWorkspace } from '../../lib/trainer/trainingClientPrefetch.js'
+import {
+  applyMembershipFirstCompletionDebit,
+  resolveMembershipForFirstCompletionDebit,
+} from '../../lib/trainer/trainingMembershipDebit.js'
 import { useSyncOutboundPoll } from '../../hooks/useSyncOutboundPoll.js'
 
 const TRAINING_TYPES = TRAINING_SESSION_TYPES
@@ -243,6 +248,10 @@ export function TrainingPage() {
       setEarlyActivateProposal(null)
       setMembershipShiftMode(null)
       setLateBlockedNotice(lateInsp.status === 'blocked' ? lateInsp.message || '' : '')
+      prefetchTrainerClientWorkspace(clientIdParam, {
+        trainerId: isAdmin ? '' : user.id,
+        clubId: c?.club_id ?? '',
+      })
       setLoadState('ok')
       bumpHydrateVersion((v) => v + 1)
       return
@@ -298,6 +307,10 @@ export function TrainingPage() {
       }
     }
 
+    prefetchTrainerClientWorkspace(t.client_id, {
+      trainerId: isAdmin ? '' : user.id,
+      clubId: c?.club_id ?? t.club_id ?? '',
+    })
     setLoadState('ok')
     bumpHydrateVersion((v) => v + 1)
   }, [user?.id, isNew, clientIdParam, id, isAdmin])
@@ -493,27 +506,14 @@ export function TrainingPage() {
     // Сначала сохраняем completed-тренировку, потом debit (если save упадёт — used не растёт зря).
     let membershipToDebit = null
     if (firstCompletion) {
-      let mems = []
-      try {
-        mems = await listMemberships(cid)
-      } catch {
-        mems = []
-      }
-      const picked = pickUsableMembershipForDate(mems, effectiveDate)
-      if (!picked) {
+      const debitPlan = await resolveMembershipForFirstCompletionDebit(cid, effectiveDate)
+      if (!debitPlan.ok) {
         if (silent) setAutosaveStatus('error')
-        if (!silent) setSaveError('Нет активного абонемента на текущую дату — списание невозможно.')
+        if (!silent) setSaveError(debitPlan.message)
         return
       }
-      const total = Number(picked.total_trainings ?? 0)
-      const used = Number(picked.used_trainings ?? 0)
-      if (Number.isFinite(total) && total > 0 && Number.isFinite(used) && used >= total) {
-        if (silent) setAutosaveStatus('error')
-        if (!silent) setSaveError('Лимит тренировок по абонементу исчерпан — списание невозможно.')
-        return
-      }
-      membershipToDebit = picked
-      dataPayload.membership_id = picked.id
+      membershipToDebit = debitPlan.membership
+      dataPayload.membership_id = debitPlan.membershipId
     }
     let loyaltySamples = []
     if (stampLoyalty) {
@@ -603,14 +603,8 @@ export function TrainingPage() {
       }
 
       if (debitNow) {
-        const used = Number(membershipToDebit.used_trainings ?? 0)
-        const nextUsed = Number.isFinite(used) ? used + 1 : 1
         try {
-          await saveLocalWithSync(
-            'memberships',
-            { ...membershipToDebit, used_trainings: nextUsed },
-            { table_name: 'memberships', operation: 'update', remote_id: membershipToDebit.id },
-          )
+          await applyMembershipFirstCompletionDebit(membershipToDebit)
         } catch (e) {
           if (silent) setAutosaveStatus('error')
           if (!silent) {

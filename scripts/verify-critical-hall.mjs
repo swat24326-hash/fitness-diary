@@ -41,8 +41,9 @@ ok(shouldSkipDuplicateFirstCompletionSave('completed', true), '1e второй �
   const page = read('src/pages/trainer/TrainingPage.jsx')
   const train = page.search(/saveLocalWithSync\(\s*'trainings'/)
   const mem = page.search(/saveLocalWithSync\(\s*'memberships'/)
+  const debit = page.search(/await applyMembershipFirstCompletionDebit\(/)
   ok(membershipDebitShouldFollowTrainingSave(), '2 политика: абон после тренировки')
-  ok(train >= 0 && mem > train, '2b complete: сначала trainings, потом memberships')
+  ok(train >= 0 && (mem > train || debit > train), '2b complete: сначала trainings, потом memberships')
   ok(/shouldSkipDuplicateFirstCompletionSave/.test(page), '2c exclusive: повтор complete по диску')
   ok(/shouldSkipSilentPersistOfCompleted/.test(page), '2d exclusive: автосейв не затирает completed')
   ok(/completeInFlightRef/.test(page), '2e второй тап «Закончить» отсекается')
@@ -115,6 +116,21 @@ ok(/resolveHeaderSyncForceFromCloud\(flush\?\.ok\)/.test(read('src/components/us
   ok(/planMembershipUsedReconcile/.test(mm), '7f MembershipManager использует общий reconcile')
   ok(/training-completed/.test(mm) && /membership-used-reconciled/.test(mm), '7g абон перезагружается после complete')
   ok(/useSyncOutboundPoll/.test(page), '7h чип очереди на экране тренировки')
+}
+
+{
+  const page = read('src/pages/trainer/TrainingPage.jsx')
+  const card = read('src/pages/trainer/ClientCard.jsx')
+  const prefetch = read('src/lib/trainer/trainingClientPrefetch.js')
+  const debit = read('src/lib/trainer/trainingMembershipDebitCore.js')
+  ok(/prefetchTrainerClientWorkspace/.test(prefetch), '8a prefetch модуль')
+  ok(/ensureClientTrainingsCached/.test(prefetch), '8b prefetch: дневник TTL')
+  ok(/refreshMembershipsForStats/.test(prefetch), '8c prefetch: абоны')
+  ok(/prefetchTrainerClientWorkspace/.test(page), '8d TrainingPage prefetch при load')
+  ok(/prefetchTrainerClientWorkspace/.test(card), '8e ClientCard prefetch')
+  ok(/resolveMembershipForFirstCompletionDebit/.test(page), '8f debit через сервис')
+  ok(/await applyMembershipFirstCompletionDebit\(/.test(page), '8g apply debit через сервис')
+  ok(/planMembershipFirstCompletionDebit/.test(debit), '8h debit plan в lib')
 }
 
 if (failed) {

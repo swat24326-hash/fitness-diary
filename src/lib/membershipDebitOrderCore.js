@@ -14,10 +14,12 @@ export function membershipDebitShouldFollowTrainingSave() {
 export function analyzeCompleteSaveOrderInSource(sourceText) {
   const src = String(sourceText ?? '')
   const mem = src.search(/saveLocalWithSync\(\s*['"]memberships['"]/)
+  const applyDebit = src.search(/await applyMembershipFirstCompletionDebit\(/)
   const tr = src.search(/saveLocalWithSync\(\s*['"]trainings['"]/)
+  const debitIdx = mem >= 0 ? mem : applyDebit
   return {
-    foundDebit: mem >= 0,
+    foundDebit: mem >= 0 || applyDebit >= 0,
     foundTraining: tr >= 0,
-    debitBeforeTraining: mem >= 0 && tr >= 0 && mem < tr,
+    debitBeforeTraining: debitIdx >= 0 && tr >= 0 && debitIdx < tr,
   }
 }
