@@ -3,9 +3,15 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import {
   isAuthApiTransportError,
   resolveLoginEmailFromDb,
-  signInViaServerApi,
+  raceSignInAttempts,
+  signInWithPasswordDirect,
 } from '../lib/authSignInService'
 import { normalizeLoginInput, trainerLocalEmail } from '../lib/authLoginResolveCore'
+import {
+  SUPABASE_CLOUD_UNAVAILABLE_RU,
+  isInvalidCredentialsMessage,
+  isSupabaseTransportMessage,
+} from '../lib/authSignInCore'
 import { fetchMyProfileViaApi } from '../lib/profileApiClient'
 import { firstSuccessfulPromise, isCloudReachable } from '../lib/networkReachability'
 import { withSupabaseRetry } from '../lib/supabaseRetry'
@@ -176,21 +182,7 @@ function humanizeNetworkError(err) {
 }
 
 async function signInWithPasswordRetry(email, password, attempts = 2) {
-  let lastError = null
-  for (let i = 0; i < attempts; i++) {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-      if (!error) return { data, error: null }
-      lastError = error
-    } catch (e) {
-      lastError = e
-    }
-    const msg = String(lastError?.message ?? lastError ?? '')
-    const retryable = /failed to fetch|network|connection reset|err_connection|timeout|load failed/i.test(msg)
-    if (!retryable || i === attempts - 1) break
-    await new Promise((r) => setTimeout(r, 900 * (i + 1)))
-  }
-  return { data: null, error: lastError }
+  return signInWithPasswordDirect(email, password, attempts)
 }
 
 const SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL ?? '').trim()
@@ -575,73 +567,54 @@ export function AuthProvider({ children }) {
 
       let serverTransportFailed = false
       try {
-        const viaServer = await signInViaServerApi({ login: raw, password })
-        if (viaServer.user) {
-          finishSignIn(viaServer.user, viaServer.profile ?? null)
-          return { error: null }
-        }
-        if (viaServer.error && !viaServer.transportError && !isAuthApiTransportError(viaServer.error.message)) {
-          return { error: { message: viaServer.error.message } }
-        }
-        if (viaServer.error) {
-          serverTransportFailed = Boolean(viaServer.transportError || isAuthApiTransportError(viaServer.error.message))
-          console.warn('[auth] /api/auth-sign-in недоступен, пробуем Supabase напрямую', viaServer.error.message)
-        }
+        const won = await raceSignInAttempts({ login: raw, password })
+        finishSignIn(won.user, won.profile ?? null)
+        return { error: null }
       } catch (e) {
-        if (!isAuthApiTransportError(e?.message)) {
-          return { error: { message: humanizeNetworkError(e) } }
+        const msg = String(e?.message ?? e ?? '')
+        serverTransportFailed = isAuthApiTransportError(msg) || isSupabaseTransportMessage(msg)
+        if (raw.includes('@')) {
+          if (serverTransportFailed) {
+            return { error: { message: SUPABASE_CLOUD_UNAVAILABLE_RU } }
+          }
+          if (isInvalidCredentialsMessage(msg)) {
+            return { error: { message: 'Неверный логин или пароль' } }
+          }
+          return { error: { message: humanizeAuthError(e) } }
         }
-        serverTransportFailed = true
-        console.warn('[auth] /api/auth-sign-in недоступен, пробуем Supabase напрямую', e)
+        if (serverTransportFailed) {
+          console.warn('[auth] облако недоступно, пробуем lookup логина в users', msg)
+        }
       }
 
       let emailForAuth = raw
       if (!raw.includes('@')) {
         try {
-          const resolved = await withSupabaseRetry(() => resolveLoginEmailFromDb(raw))
+          const resolved = await withSupabaseRetry(() => resolveLoginEmailFromDb(raw), {
+            timeoutMs: 8000,
+            attempts: 2,
+          })
           if (resolved.error) throw resolved.error
           if (!resolved.isActive) {
             return { error: { message: 'Учётная запись заблокирована' } }
           }
           if (resolved.email) {
             emailForAuth = resolved.email
-          } else {
-            const synth = trainerLocalEmail(raw)
-            if (synth) {
-              const { data: synthAuth, error: synthErr } = await signInWithPasswordRetry(synth, password)
-              if (!synthErr && synthAuth?.user) {
-                finishSignIn(synthAuth.user, null)
-                return { error: null }
-              }
-            }
-          }
-          if (!resolved.email && !emailForAuth.includes('@')) {
-            if (serverTransportFailed) {
-              return {
-                error: {
-                  message:
-                    'Сервер входа недоступен на этой сети — логин не удалось проверить. Попробуйте другой Wi‑Fi, отключите VPN или войдите по email (например логин@trainer.local).',
-                },
-              }
-            }
+          } else if (!trainerLocalEmail(raw)) {
             const devHint = import.meta.env.DEV
               ? ' Локально: скопируйте .env с Vercel (как на сайте) или запустите npx vercel dev; можно войти по email.'
               : ' Проверьте раскладку или войдите по email.'
             return { error: { message: `Пользователь с таким логином не найден.${devHint}` } }
           }
         } catch (e) {
+          if (serverTransportFailed || isSupabaseTransportMessage(humanizeNetworkError(e))) {
+            return { error: { message: SUPABASE_CLOUD_UNAVAILABLE_RU } }
+          }
           const msg = humanizeNetworkError(e)
           const devHint = import.meta.env.DEV
             ? ' Локально для входа по логину нужен npx vercel dev или файл .env с ключами Supabase.'
             : ''
-          return {
-            error: {
-              message:
-                msg.includes('timeout') || /connection reset|failed to fetch/i.test(msg)
-                  ? `${msg} Попробуйте Ctrl+F5 — вход через сервер сайта (/api/auth-sign-in).${devHint}`
-                  : `${msg}${devHint}`,
-            },
-          }
+          return { error: { message: `${msg}${devHint}` } }
         }
       }
 
@@ -655,6 +628,12 @@ export function AuthProvider({ children }) {
                 'Неверный ключ Supabase на сервере. В Vercel укажите anon public (eyJ…), не sb_publishable_…, и сделайте Redeploy.',
             },
           }
+        }
+        if (isInvalidCredentialsMessage(msg)) {
+          return { error: { message: 'Неверный логин или пароль' } }
+        }
+        if (isSupabaseTransportMessage(msg) || serverTransportFailed) {
+          return { error: { message: SUPABASE_CLOUD_UNAVAILABLE_RU } }
         }
         return { error: { message: humanizeNetworkError(error) } }
       }

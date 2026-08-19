@@ -4,6 +4,8 @@
   "rewrites": [{ "source": "/((?!api/).*)", "destination": "/index.html" }],
   "functions": {
     "api/admin-data.js": { "maxDuration": 60 },
+    "api/auth-sign-in.js": { "maxDuration": 30 },
+    "api/trainer-pull.js": { "maxDuration": 60 },
     "api/push-records.js": { "maxDuration": 60 },
     "api/push-record.js": { "maxDuration": 30 }
   }

@@ -1,5 +1,8 @@
 import { supabase } from './supabase'
 import { emailFromLoginRow, normalizeLoginInput, trainerLocalEmail } from './authLoginResolveCore.js'
+import { buildDirectAuthEmailCandidates, isInvalidCredentialsMessage, SUPABASE_CLOUD_UNAVAILABLE_RU } from './authSignInCore.js'
+import { firstSuccessfulPromise } from './networkReachability.js'
+import { withFastTimeout } from './supabaseRetry.js'
 
 export { isAuthApiTransportError } from './authSignInTransport.js'
 
@@ -99,6 +102,14 @@ export async function signInViaServerApi({ login, password }) {
   }
 
   if (!res.ok) {
+    if (res.status === 503) {
+      return {
+        user: null,
+        profile: null,
+        transportError: true,
+        error: new Error(data?.error ? String(data.error) : SUPABASE_CLOUD_UNAVAILABLE_RU),
+      }
+    }
     return {
       user: null,
       profile: null,
@@ -124,4 +135,59 @@ export async function signInViaServerApi({ login, password }) {
     profile: data.profile ?? null,
     error: null,
   }
+}
+
+const DIRECT_AUTH_TIMEOUT_MS = 10_000
+
+/** Прямой Auth из браузера (с таймаутом на зависший Supabase). */
+export async function signInWithPasswordDirect(email, password, attempts = 2) {
+  let lastError = null
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const { data, error } = await withFastTimeout(
+        supabase.auth.signInWithPassword({ email, password }),
+        DIRECT_AUTH_TIMEOUT_MS,
+      )
+      if (!error) return { data, error: null }
+      lastError = error
+      if (!isInvalidCredentialsMessage(error.message)) break
+    } catch (e) {
+      lastError = e
+    }
+    const msg = String(lastError?.message ?? lastError ?? '')
+    const retryable = /failed to fetch|network|connection reset|err_connection|timeout|load failed/i.test(msg)
+    if (!retryable || i === attempts - 1) break
+    await new Promise((r) => setTimeout(r, 900 * (i + 1)))
+  }
+  return { data: null, error: lastError }
+}
+
+/**
+ * Параллельно: /api/auth-sign-in и прямой Auth (email / login@trainer.local).
+ * Первый успешный путь побеждает — не ждём 12 с API, если Auth отвечает быстрее.
+ */
+export async function raceSignInAttempts({ login, password }) {
+  const raw = normalizeLoginInput(login)
+  const tasks = [
+    async () => {
+      const viaServer = await signInViaServerApi({ login: raw, password })
+      if (viaServer.user) {
+        return { source: 'server', user: viaServer.user, profile: viaServer.profile ?? null }
+      }
+      if (viaServer.error && !viaServer.transportError) {
+        throw viaServer.error
+      }
+      throw viaServer.error ?? new Error('server transport failed')
+    },
+  ]
+
+  for (const email of buildDirectAuthEmailCandidates(raw)) {
+    tasks.push(async () => {
+      const { data, error } = await signInWithPasswordDirect(email, password)
+      if (error || !data?.user) throw error ?? new Error('direct auth failed')
+      return { source: 'direct', user: data.user, profile: null }
+    })
+  }
+
+  return firstSuccessfulPromise(tasks)
 }
