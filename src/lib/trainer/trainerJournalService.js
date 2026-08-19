@@ -7,6 +7,8 @@ import { fetchTrainerSelfJournalViaApi } from './trainerSelfJournalApi.js'
 import { fetchTrainerTrainingsRemoteInRange } from './trainerPeriodStatsService.js'
 import { mergeLocalAndRemoteTrainings } from './trainerRemoteMerge.js'
 import { cacheCloudTrainingsLocally } from '../cacheCloudTrainingsLocally.js'
+import { loadClubMembershipsWithApiFallback } from '../membershipClubLoad.js'
+import { repairTrainingsMembershipLinks } from '../trainingMembershipLinkCore.js'
 import { isSupabaseConfigured } from '../supabase'
 import { isAppOnline } from '../syncService'
 
@@ -48,15 +50,25 @@ export async function loadTrainerJournalFiltered(p) {
         clubId: p.clubId ?? null,
       })
       const filtered = filterCompletedTrainingsInDateRange(viaApi.trainings, dateFrom, dateTo)
+      let rows = filtered
+      const clubId = String(p.clubId ?? '').trim()
+      if (clubId) {
+        try {
+          const mems = await loadClubMembershipsWithApiFallback(clubId)
+          rows = repairTrainingsMembershipLinks(filtered, mems)
+        } catch (e) {
+          console.warn('[trainer-journal] membership link repair', e)
+        }
+      }
       try {
-        await cacheCloudTrainingsLocally(filtered)
+        await cacheCloudTrainingsLocally(rows)
       } catch (e) {
         console.warn('[trainer-journal] cache local', e)
       }
       let clientsById = { ...(viaApi.clientsById ?? {}) }
       const missingIds = [
         ...new Set(
-          filtered
+          rows
             .map((t) => String(t?.client_id ?? '').trim())
             .filter((id) => id && !clientsById[id]),
         ),
@@ -66,9 +78,9 @@ export async function loadTrainerJournalFiltered(p) {
         clientsById = { ...clientsById, ...extra }
       }
       return {
-        trainings: filtered,
+        trainings: rows,
         clientsById,
-        totalCount: filtered.length,
+        totalCount: rows.length,
         source: 'api',
         fallbackReason: viaApi.truncated ? 'список обрезан по лимиту сервера' : null,
       }

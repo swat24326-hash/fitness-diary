@@ -1,5 +1,7 @@
 /** Статистика тренировок по типу абонемента (текущий membership_type_id на абонементе). */
 
+import { resolveMembershipForDiaryTraining } from '../../src/lib/membershipRules.js'
+
 export const MEMBERSHIP_TYPE_UNLABELED = '__none__'
 
 /** Завершённые и списания (не черновики). */
@@ -8,13 +10,41 @@ export function trainingCountsForMembershipTypeStats(training) {
 }
 
 /**
+ * @param {object[]} memberships
+ * @returns {{ membershipById: Map<string, object>, membershipsByClientId: Map<string, object[]> }}
+ */
+export function buildMembershipStatsIndex(memberships) {
+  const membershipById = new Map()
+  const membershipsByClientId = new Map()
+  for (const m of memberships ?? []) {
+    const id = String(m?.id ?? '').trim()
+    if (id) membershipById.set(id, m)
+    const cid = String(m?.client_id ?? '').trim()
+    if (!cid) continue
+    if (!membershipsByClientId.has(cid)) membershipsByClientId.set(cid, [])
+    membershipsByClientId.get(cid).push(m)
+  }
+  return { membershipById, membershipsByClientId }
+}
+
+/**
  * @param {object} training
  * @param {Map<string, object>} membershipById
+ * @param {Map<string, object[]>|null} [membershipsByClientId] — фоллбэк как в дневнике (по дате)
  */
-export function resolveTrainingMembershipTypeKey(training, membershipById) {
+export function resolveTrainingMembershipTypeKey(training, membershipById, membershipsByClientId = null) {
   const mid = String(training?.data?.membership_id ?? '').trim()
-  if (!mid) return MEMBERSHIP_TYPE_UNLABELED
-  const m = membershipById.get(mid)
+  let m = mid ? membershipById.get(mid) : null
+
+  if (!m && membershipsByClientId) {
+    const cid = String(training?.client_id ?? '').trim()
+    const dateStr = String(training?.date ?? '').slice(0, 10)
+    const clientMems = membershipsByClientId.get(cid) ?? []
+    if (dateStr && clientMems.length) {
+      m = resolveMembershipForDiaryTraining(training, dateStr, clientMems)
+    }
+  }
+
   if (!m) return MEMBERSHIP_TYPE_UNLABELED
   const tid = String(m.membership_type_id ?? '').trim()
   return tid || MEMBERSHIP_TYPE_UNLABELED
@@ -44,11 +74,7 @@ function sortTypeRows(rows) {
 export function aggregateMembershipTypeStats(input) {
   const { trainings, memberships, membershipTypes = [], trainerIdFilter = null } = input
 
-  const membershipById = new Map()
-  for (const m of memberships ?? []) {
-    const id = String(m?.id ?? '').trim()
-    if (id) membershipById.set(id, m)
-  }
+  const { membershipById, membershipsByClientId } = buildMembershipStatsIndex(memberships)
 
   const typeCodeById = new Map()
   for (const t of membershipTypes ?? []) {
@@ -66,7 +92,7 @@ export function aggregateMembershipTypeStats(input) {
     const trainerId = String(tr.trainer_id ?? '').trim()
     if (trainerIdFilter && trainerId !== trainerIdFilter) continue
 
-    const typeKey = resolveTrainingMembershipTypeKey(tr, membershipById)
+    const typeKey = resolveTrainingMembershipTypeKey(tr, membershipById, membershipsByClientId)
 
     clubTypeMap.set(typeKey, (clubTypeMap.get(typeKey) || 0) + 1)
 

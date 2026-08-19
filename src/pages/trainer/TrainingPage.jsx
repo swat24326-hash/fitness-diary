@@ -57,6 +57,7 @@ import { isLoyaltyProgramClient } from '../../lib/loyalty/loyaltyGlanceUiCore.js
 import { recordAppError } from '../../lib/appErrorJournal.js'
 import { runTrainingCompleteFollowUp } from '../../lib/trainer/trainingCompleteFollowUp.js'
 import { prefetchTrainerClientWorkspace } from '../../lib/trainer/trainingClientPrefetch.js'
+import { ensureTrainingDataMembershipId } from '../../lib/trainingMembershipLinkCore.js'
 import {
   applyMembershipFirstCompletionDebit,
   resolveMembershipForFirstCompletionDebit,
@@ -514,6 +515,19 @@ export function TrainingPage() {
       }
       membershipToDebit = debitPlan.membership
       dataPayload.membership_id = debitPlan.membershipId
+    }
+    if (nextStatus === 'completed' && !String(dataPayload.membership_id ?? '').trim()) {
+      try {
+        const mems = await listMemberships(cid)
+        const linked = ensureTrainingDataMembershipId(
+          { client_id: cid, date: effectiveDate, data: dataPayload },
+          mems,
+        )
+        const mid = String(linked?.data?.membership_id ?? '').trim()
+        if (mid) dataPayload.membership_id = mid
+      } catch {
+        /* статистика подставит тип по дате */
+      }
     }
     let loyaltySamples = []
     if (stampLoyalty) {

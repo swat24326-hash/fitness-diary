@@ -8,6 +8,7 @@ import { aggregateClubClientPeriod } from './clubClientPeriodAgg.js'
 import {
   MEMBERSHIP_TYPE_UNLABELED,
   resolveTrainingMembershipTypeKey,
+  buildMembershipStatsIndex,
 } from './membershipTypeStatsAgg.js'
 import { computeTrainerSelfPayroll } from '../trainer/trainerSelfPayroll.js'
 import { USERS_TRAINER_ROLES } from '../userRoleConstants.js'
@@ -29,22 +30,13 @@ function trainingsInRange(trainings, dateFrom, dateTo, trainerId = null) {
   })
 }
 
-function countNoTypeCompleted(trainings, membershipById, trainerId, dateFrom, dateTo) {
+function countNoTypeCompleted(trainings, membershipById, membershipsByClientId, trainerId, dateFrom, dateTo) {
   let n = 0
   for (const t of trainingsInRange(trainings, dateFrom, dateTo, trainerId)) {
-    const key = resolveTrainingMembershipTypeKey(t, membershipById)
+    const key = resolveTrainingMembershipTypeKey(t, membershipById, membershipsByClientId)
     if (key === MEMBERSHIP_TYPE_UNLABELED) n += 1
   }
   return n
-}
-
-function buildMembershipById(memberships) {
-  const map = new Map()
-  for (const m of memberships ?? []) {
-    const id = String(m?.id ?? '').trim()
-    if (id) map.set(id, m)
-  }
-  return map
 }
 
 /** @param {Array<{ id: string, name?: string, role?: string }>} users @param {object[]} clients */
@@ -103,7 +95,7 @@ export function buildGeminiTrainerContour(opts) {
   const dateFrom = String(opts.dateFrom ?? '').slice(0, 10)
   const dateTo = String(opts.dateTo ?? '').slice(0, 10)
   const year = Number(opts.year)
-  const membershipById = buildMembershipById(opts.memberships)
+  const { membershipById, membershipsByClientId } = buildMembershipStatsIndex(opts.memberships)
   const operationalClients = filterHallOperationalClients(
     opts.clients ?? [],
     opts.holdingTrainerIds,
@@ -124,7 +116,14 @@ export function buildGeminiTrainerContour(opts) {
     noTabletTrainerIds: opts.noTabletTrainerIds,
   })
     const completed = trainingsInRange(opts.trainings, dateFrom, dateTo, trainerId).length
-    const noType = countNoTypeCompleted(opts.trainings, membershipById, trainerId, dateFrom, dateTo)
+    const noType = countNoTypeCompleted(
+      opts.trainings,
+      membershipById,
+      membershipsByClientId,
+      trainerId,
+      dateFrom,
+      dateTo,
+    )
     const personalSalary = computeTrainerSelfPayroll({
       trainings: opts.trainings ?? [],
       memberships: opts.memberships ?? [],

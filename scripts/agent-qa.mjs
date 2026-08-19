@@ -54,6 +54,7 @@ run('client trainings prune', 'node', ['scripts/verify-client-trainings-prune.mj
 run('bulk exercises parser', 'node', ['scripts/verify-bulk-exercises.mjs'])
 run('client birthdays', 'node', ['scripts/verify-client-birthdays.mjs'])
 run('membership type stats', 'node', ['scripts/verify-membership-type-stats.mjs'])
+run('training membership link', 'node', ['scripts/verify-training-membership-link.mjs'])
 run('membership types pull', 'node', ['scripts/verify-membership-types-pull.mjs'])
 run('membership types merge', 'node', ['scripts/verify-membership-types-merge.mjs'])
 run('membership type code rename', 'node', ['scripts/verify-membership-type-code.mjs'])

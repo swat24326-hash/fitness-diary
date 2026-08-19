@@ -19,9 +19,8 @@ import {
   journalClientCardNumber,
   journalClientDisplayName,
 } from '../../lib/trainer/trainerJournalClientsCore.js'
-import { fetchMembershipsForClubViaAdminApi } from '../../lib/admin/adminApiClient'
+import { loadClubMembershipsWithApiFallback } from '../../lib/membershipClubLoad'
 import { membershipCardTypeLabelForTraining } from '../../lib/admin/membershipTypeStatsAgg'
-import { listMembershipsByClubId } from '../../lib/localDbClubQuery'
 import { listMembershipTypesForClub } from '../../lib/membershipTypesService'
 import { AdminClubStatsSection } from './AdminClubStatsSection'
 import { buildAdminClientsListHref } from '../../lib/admin/adminClientsListHrefCore.js'
@@ -188,6 +187,17 @@ export function AdminStatistics() {
     return m
   }, [membershipTypes])
 
+  const membershipsByClientId = useMemo(() => {
+    const m = new Map()
+    for (const row of memberships) {
+      const cid = String(row?.client_id ?? '').trim()
+      if (!cid) continue
+      if (!m.has(cid)) m.set(cid, [])
+      m.get(cid).push(row)
+    }
+    return m
+  }, [memberships])
+
   const loadMembershipContext = useCallback(async () => {
     if (!club) {
       setMemberships([])
@@ -201,16 +211,7 @@ export function AdminStatistics() {
       setMembershipTypes([])
     }
     try {
-      const via = await fetchMembershipsForClubViaAdminApi(club)
-      if (via?.memberships?.length) {
-        setMemberships(via.memberships)
-        return
-      }
-    } catch {
-      /* локальный кэш */
-    }
-    try {
-      setMemberships(await listMembershipsByClubId(club))
+      setMemberships(await loadClubMembershipsWithApiFallback(club))
     } catch {
       setMemberships([])
     }
@@ -417,7 +418,7 @@ export function AdminStatistics() {
                         {trainerCell(t.trainer_id)}
                       </td>
                       <td>{formatDateRu(t.date)}</td>
-                      <td>{membershipCardTypeLabelForTraining(t, membershipById, typeCodeById)}</td>
+                      <td>{membershipCardTypeLabelForTraining(t, membershipById, typeCodeById, membershipsByClientId)}</td>
                       <td>
                         <button
                           type="button"

@@ -16,7 +16,7 @@ import {
 } from '../../lib/admin/adminConstants'
 import { formatDateRu } from '../../lib/dateRu'
 import { membershipCardTypeLabelForTraining } from '../../lib/admin/membershipTypeStatsAgg'
-import { listMembershipsByClubId } from '../../lib/localDbClubQuery'
+import { loadClubMembershipsWithApiFallback } from '../../lib/membershipClubLoad'
 import { listMembershipTypesForClub } from '../../lib/membershipTypesService'
 import { TrainingExercisesReadonly } from '../../components/TrainingExercisesReadonly'
 import { AdminClubStatsSection } from '../admin/AdminClubStatsSection'
@@ -138,6 +138,17 @@ export function TrainerStatisticsSection() {
     return m
   }, [membershipTypes])
 
+  const membershipsByClientId = useMemo(() => {
+    const m = new Map()
+    for (const row of memberships) {
+      const cid = String(row?.client_id ?? '').trim()
+      if (!cid) continue
+      if (!m.has(cid)) m.set(cid, [])
+      m.get(cid).push(row)
+    }
+    return m
+  }, [memberships])
+
   const loadMembershipContext = useCallback(async () => {
     if (!trainerClubId) {
       setMemberships([])
@@ -150,7 +161,8 @@ export function TrainerStatisticsSection() {
       setMembershipTypes([])
     }
     try {
-      setMemberships(await listMembershipsByClubId(trainerClubId))
+      const rows = await loadClubMembershipsWithApiFallback(trainerClubId)
+      setMemberships(rows)
     } catch {
       setMemberships([])
     }
@@ -318,7 +330,7 @@ export function TrainerStatisticsSection() {
                     <td>{journalClientDisplayName(clients, t.client_id)}</td>
                     <td className="muted">{journalClientCardNumber(clients, t.client_id)}</td>
                     <td>{formatDateRu(t.date)}</td>
-                    <td>{membershipCardTypeLabelForTraining(t, membershipById, typeCodeById)}</td>
+                    <td>{membershipCardTypeLabelForTraining(t, membershipById, typeCodeById, membershipsByClientId)}</td>
                     <td>
                       <button
                         type="button"
