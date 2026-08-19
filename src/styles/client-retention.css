@@ -107,17 +107,32 @@
   font-weight: 600;
 }
 
-/* KPI: ровная сетка 3×2 */
+/* KPI: один ряд из 6 карточек */
 .client-retention-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
   margin-bottom: 14px;
 }
 
-@media (min-width: 640px) {
+@media (max-width: 1100px) {
   .client-retention-kpi-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .client-retention-kpi {
+    flex: 0 0 min(168px, 42vw);
+    scroll-snap-align: start;
+  }
+}
+
+@media (max-width: 640px) {
+  .client-retention-kpi {
+    flex-basis: min(152px, 78vw);
   }
 }
 
@@ -126,8 +141,9 @@
   flex-direction: column;
   justify-content: flex-start;
   gap: 4px;
-  min-height: 92px;
-  padding: 12px 14px;
+  min-height: 88px;
+  min-width: 0;
+  padding: 10px 12px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -151,43 +167,78 @@
 }
 
 .client-retention-kpi__label {
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.3;
   color: var(--text-muted, rgba(255, 255, 255, 0.62));
 }
 
 .client-retention-kpi__value {
-  font-size: 1.4rem;
+  font-size: 1.25rem;
   line-height: 1.15;
   font-variant-numeric: tabular-nums;
 }
 
 .client-retention-kpi--primary .client-retention-kpi__value {
-  font-size: 1.55rem;
+  font-size: 1.35rem;
 }
 
 .client-retention-kpi__hint {
   margin-top: auto;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+/* Второй ряд: одна карточка «Причины архива» */
+.client-retention-reasons-fold {
+  margin-bottom: 14px;
+  max-width: 320px;
+}
+
+.client-retention-reasons-fold > summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.client-retention-reasons-fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+.client-retention-reasons-fold > summary::after {
+  content: '▾';
+  position: absolute;
+  top: 12px;
+  right: 12px;
   font-size: 11px;
-  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.45);
+  transition: transform 0.15s ease;
 }
 
-/* Низ: две равные колонки */
-.client-retention-split {
-  display: grid;
-  gap: 12px;
-  align-items: stretch;
+.client-retention-reasons-fold[open] > summary::after {
+  transform: rotate(180deg);
 }
 
-@media (min-width: 820px) {
-  .client-retention-split {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.client-retention-reasons-fold > summary:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+}
 
-  .client-retention-split--single {
-    grid-template-columns: 1fr;
-    max-width: 640px;
-  }
+.client-retention-kpi--reasons {
+  position: relative;
+  padding-right: 28px;
+}
+
+.client-retention-reasons-fold[open] .client-retention-reasons__list {
+  margin-top: 2px;
+  padding: 10px 12px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.client-retention-trainers {
+  margin-top: 0;
 }
 
 .client-retention-panel__block {
@@ -255,11 +306,9 @@
 }
 
 .client-retention-trainers__scroll {
-  flex: 1;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.05);
-  max-height: 320px;
-  overflow: auto;
+  overflow-x: auto;
 }
 
 .client-retention-trainers__table {

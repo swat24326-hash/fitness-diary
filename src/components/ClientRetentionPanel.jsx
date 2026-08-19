@@ -5,7 +5,7 @@ import {
   formatTrainerM3Cell,
   isTrainerM3Immature,
   retentionRateTone,
-  topArchiveReasonRows,
+  summarizeArchiveReasonMix,
 } from '../lib/admin/clientRetentionPresentationCore.js'
 
 /**
@@ -42,10 +42,13 @@ export function ClientRetentionPanel({
     return rows.filter((row) => row.trainerId === selfTrainerId)
   }, [r?.byTrainer, selfTrainerId])
 
-  const reasonRows = useMemo(() => topArchiveReasonRows(r?.archiveReasonMix, 6), [r?.archiveReasonMix])
+  const archiveReasons = useMemo(
+    () => summarizeArchiveReasonMix(r?.archiveReasonMix, r?.archivesInPeriod),
+    [r?.archiveReasonMix, r?.archivesInPeriod],
+  )
   const reasonMax = useMemo(
-    () => reasonRows.reduce((max, row) => Math.max(max, row.count), 0),
-    [reasonRows],
+    () => archiveReasons.rows.reduce((max, row) => Math.max(max, row.count), 0),
+    [archiveReasons.rows],
   )
 
   if (!r || (r.poolSize === 0 && r.universeSize === 0)) {
@@ -59,9 +62,8 @@ export function ClientRetentionPanel({
     )
   }
 
-  const showReasons = !compact && reasonRows.length > 0
+  const showReasons = !compact && archiveReasons.rows.length > 0
   const showTrainers = !compact && !selfTrainerId && trainerRows.length > 0
-  const showSplit = showReasons || showTrainers
 
   return (
     <section className="card admin-club-stats-detail client-retention-panel">
@@ -201,90 +203,88 @@ export function ClientRetentionPanel({
         />
       </div>
 
-      {showSplit ? (
-        <div
-          className={`client-retention-split${showReasons && showTrainers ? '' : ' client-retention-split--single'}`}
-        >
-          {showReasons ? (
-            <section className="client-retention-panel__block client-retention-reasons">
-              <h4 className="client-retention-section__title">Причины архива за период</h4>
-              <ul className="client-retention-reasons__list">
-                {reasonRows.map((row) => (
-                  <li key={row.label}>
-                    <div className="client-retention-reasons__row">
-                      <span className="client-retention-reasons__label">{row.label}</span>
-                      <strong className="client-retention-reasons__count">{row.count}</strong>
-                    </div>
-                    <div
-                      className="client-retention-reasons__bar"
-                      role="presentation"
-                      style={{ '--pct': reasonMax ? `${Math.round((row.count / reasonMax) * 100)}%` : '0%' }}
-                    />
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
+      {showReasons ? (
+        <details className="client-retention-reasons-fold">
+          <summary className="client-retention-kpi client-retention-kpi--reasons">
+            <span className="client-retention-kpi__label">Причины архива за период</span>
+            <strong className="client-retention-kpi__value">{archiveReasons.total}</strong>
+            <span className="muted client-retention-kpi__hint">{archiveReasons.hint}</span>
+          </summary>
+          <ul className="client-retention-reasons__list">
+            {archiveReasons.rows.map((row) => (
+              <li key={row.label}>
+                <div className="client-retention-reasons__row">
+                  <span className="client-retention-reasons__label">{row.label}</span>
+                  <strong className="client-retention-reasons__count">{row.count}</strong>
+                </div>
+                <div
+                  className="client-retention-reasons__bar"
+                  role="presentation"
+                  style={{ '--pct': reasonMax ? `${Math.round((row.count / reasonMax) * 100)}%` : '0%' }}
+                />
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
 
-          {showTrainers ? (
-            <section className="client-retention-panel__block client-retention-trainers">
-              <h4 className="client-retention-section__title">По тренерам</h4>
-              <div className="table-scroll client-retention-trainers__scroll">
-                <table className="client-retention-trainers__table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Тренер</th>
-                      <th scope="col" className="client-retention-trainers__col-m3">
-                        M+3
-                      </th>
-                      <th scope="col" className="client-retention-trainers__col-num">
-                        В когорте
-                      </th>
-                      <th scope="col" className="client-retention-trainers__col-life">
-                        Медиана
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {trainerRows.map((row) => {
-                      const m3Cell = formatTrainerM3Cell(row)
-                      const immature = isTrainerM3Immature(row)
-                      return (
-                        <tr
-                          key={row.trainerId}
-                          className={immature ? 'client-retention-trainers__row--pending' : undefined}
+      {showTrainers ? (
+        <section className="client-retention-panel__block client-retention-trainers">
+          <h4 className="client-retention-section__title">По тренерам</h4>
+          <div className="table-scroll client-retention-trainers__scroll">
+            <table className="client-retention-trainers__table">
+              <thead>
+                <tr>
+                  <th scope="col">Тренер</th>
+                  <th scope="col" className="client-retention-trainers__col-m3">
+                    M+3
+                  </th>
+                  <th scope="col" className="client-retention-trainers__col-num">
+                    В когорте
+                  </th>
+                  <th scope="col" className="client-retention-trainers__col-life">
+                    Медиана
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {trainerRows.map((row) => {
+                  const m3Cell = formatTrainerM3Cell(row)
+                  const immature = isTrainerM3Immature(row)
+                  return (
+                    <tr
+                      key={row.trainerId}
+                      className={immature ? 'client-retention-trainers__row--pending' : undefined}
+                    >
+                      <td className="client-retention-trainers__name">{trainerLabel(row.trainerId)}</td>
+                      <td className="client-retention-trainers__col-m3">
+                        <span
+                          className={`client-retention-rate client-retention-rate--${m3Cell.tone}`}
+                          title={immature ? 'M+3 ещё не созрел (~3 мес.)' : undefined}
                         >
-                          <td className="client-retention-trainers__name">{trainerLabel(row.trainerId)}</td>
-                          <td className="client-retention-trainers__col-m3">
-                            <span
-                              className={`client-retention-rate client-retention-rate--${m3Cell.tone}`}
-                              title={immature ? 'M+3 ещё не созрел (~3 мес.)' : undefined}
-                            >
-                              {m3Cell.text}
-                            </span>
-                          </td>
-                          <td className="client-retention-trainers__col-num">
-                            {row.retentionM3?.cohortSize ?? 0}
-                          </td>
-                          <td className="client-retention-trainers__col-life">
-                            <span className="client-retention-trainers__life-main">
-                              {formatTenureDays(row.medianTenureDays)}
-                            </span>
-                            {row.tenureClientCount ? (
-                              <span className="client-retention-trainers__life-sub muted">
-                                {row.tenureClientCount} кли.
-                              </span>
-                            ) : null}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          ) : null}
-        </div>
+                          {m3Cell.text}
+                        </span>
+                      </td>
+                      <td className="client-retention-trainers__col-num">
+                        {row.retentionM3?.cohortSize ?? 0}
+                      </td>
+                      <td className="client-retention-trainers__col-life">
+                        <span className="client-retention-trainers__life-main">
+                          {formatTenureDays(row.medianTenureDays)}
+                        </span>
+                        {row.tenureClientCount ? (
+                          <span className="client-retention-trainers__life-sub muted">
+                            {row.tenureClientCount} кли.
+                          </span>
+                        ) : null}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
       ) : null}
 
       {r.truncated ? (

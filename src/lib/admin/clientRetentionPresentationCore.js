@@ -72,3 +72,24 @@ export function topArchiveReasonRows(mix, limit = 5) {
     .sort((a, b) => b.count - a.count)
     .slice(0, limit)
 }
+
+/**
+ * Сводка для компактной карточки «Причины архива».
+ * @param {object|null|undefined} mix
+ * @param {number|null|undefined} archivesInPeriod
+ * @returns {{ total: number, hint: string, rows: Array<{ label: string, count: number }> }}
+ */
+export function summarizeArchiveReasonMix(mix, archivesInPeriod) {
+  const rows = topArchiveReasonRows(mix, 6)
+  const fromMix = rows.reduce((sum, row) => sum + row.count, 0)
+  const total =
+    typeof archivesInPeriod === 'number' && Number.isFinite(archivesInPeriod)
+      ? archivesInPeriod
+      : fromMix
+  const top = rows[0]
+  let hint = 'Нет причин за период'
+  if (top) {
+    hint = rows.length > 1 ? `Топ: ${top.label} · ${top.count}` : `${top.label} · ${top.count}`
+  }
+  return { total, hint, rows }
+}
