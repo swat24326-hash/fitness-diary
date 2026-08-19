@@ -1,6 +1,6 @@
 # Модель данных — IDB, сущности, Postgres
 
-**Актуально:** 2026-08-19. Эталон схемы: `supabase/schema.sql` + идемпотентные `supabase/migrations/`.  
+**Актуально:** 2026-08-20. Эталон схемы: `supabase/schema.sql` + идемпотентные `supabase/migrations/`.  
 На bare Postgres (C2 / Yandex): сначала `supabase/c2_auth_stub.sql` через `npm run db:migrate:pg` — см. [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md).  
 Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/lib/membershipRules.js`.
 
@@ -68,7 +68,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 |----------|--------|
 | **clients** | Тренер, клуб, контакты, флаги архива, поля жизненного цикла **ПНК** |
 | **memberships** | Период, лимит тренировок, тип карты, **`hall`** (pz/tz/az); опционально `paid_amount` (**цена** пакета на desk/lite, не ledger оплаты); desk АЗ — `used_trainings` + `session_visits`; у ПЗ списание при завершении тренировки; удаление с карточки только без связанных тренировок. Канон: [CLIENT_MULTI_HALL.md](./CLIENT_MULTI_HALL.md) |
-| **trainings** | Дата, тип, статус, JSON `data` из `TrainingForm` (упражнения, вес, опционально `laterality: 'lr'` на упражнении и `reps_l`/`reps_r` в подходе, опционально снимок `hr_session`) |
+| **trainings** | Дата, тип, статус, JSON `data`: упражнения, вес, **`membership_id`** (абон при завершении; backfill при save), опционально `laterality`, `hr_session` — см. [TRAINING_HR.md](./TRAINING_HR.md) |
 | **health_cards** | Рост, вес, цель (`goal`), тексты медкарты |
 | **body_measurements** | Поля из `BODY_MEASURE_FIELDS` (+ legacy-имена в читалке) |
 | **Продажи** | Daily / plan / finance в Postgres; UI `/sales`, `/admin/sales` — через API, не IDB-очередь. `club_sales_plan.strategy_snapshot` (jsonb) — снимок playbook Стратегии |
@@ -102,4 +102,4 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 
 Клиент: `src/lib/admin/*Agg.js`.  
 Сервер: `api/_lib/*Agg.js`.  
-При изменении одного — второе + `scripts/verify-*.mjs` (см. [TESTING.md](./TESTING.md)).
+При изменении одного — второе + `scripts/verify-*.mjs` (см. [TESTING.md](./TESTING.md)). Тип карты в журнале/ЗП: `membershipTypeStatsAgg.js` + `verify-membership-type-stats.mjs`, `verify-stats-agg-parity.mjs`.

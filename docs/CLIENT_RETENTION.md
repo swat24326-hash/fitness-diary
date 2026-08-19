@@ -51,7 +51,7 @@ Lite-ПЗ: в commercial / renewal, **вне** R-RET.
 3. Archive rate (квартал / период)
 4. Archive reason mix
 5. Reactivation rate = successful / restores (90 дн. lookback; нужен список restore-событий)
-6. Trainer retention M+3 (tablet, R-RET)
+6. Trainer retention M+3 (tablet, R-RET) + **медиана жизни по тренеру** (attribution = anchorTrainerId, все клиенты universe)
 
 ## Код
 
@@ -70,7 +70,7 @@ API (фаза 1): `admin-data?action=client-retention&club_id=&date_from=&date_t
 
 | Экран | Что видно |
 |-------|-----------|
-| **Админ → Статистика → вкладка ПЗ** | Карточка «Удержание» (M+3) → drill-down: KPI, причины архива, M+3 по тренерам |
+| **Админ → Статистика → вкладка ПЗ** | Карточка «Удержание» (M+3) → drill-down: KPI, причины архива, таблица по тренерам (M+3 + медиана жизни) |
 | **Тренер → Профиль → Статистика** | Тот же блок через `AdminClubStatsSection` — только свои KPI |
 
 Reactivation: журнал `client_restore_events` (миграция `20260820120000_client_restore_events.sql`); пишется при push «Вернуть»; KPI lookback 90 дн.

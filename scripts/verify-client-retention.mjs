@@ -32,6 +32,11 @@ import {
 } from '../src/lib/admin/clientRetentionCohortCore.js'
 import { aggregateArchiveReasonMix } from '../src/lib/admin/clientRetentionArchiveReasonCore.js'
 import { aggregateClientRetention } from '../src/lib/admin/clientRetentionAgg.js'
+import {
+  formatTrainerM3Cell,
+  isTrainerM3Immature,
+  retentionRateTone,
+} from '../src/lib/admin/clientRetentionPresentationCore.js'
 import { isTrainerClientInactiveToday } from '../src/lib/trainer/trainerClientOutreachCore.js'
 
 let failed = 0
@@ -282,6 +287,9 @@ ok(agg.universeSize === 2, 'agg universe includes archived tablet client')
 ok(agg.archivesInPeriod === 1, 'c2 archived in July counted')
 ok(agg.retentionM3.cohortSize >= 1, 'agg retention computed')
 ok(agg.medianTenureDays != null, 'tenure computed')
+const byTab = agg.byTrainer?.['t-tab']
+ok(byTab?.medianTenureDays != null, 'byTrainer median tenure')
+ok(byTab?.tenureClientCount === 2, 'byTrainer tenure client count')
 
 const aggArchivedTenure = aggregateClientRetention({
   clients: [
@@ -333,6 +341,18 @@ ok(!isRetentionActiveToday({ id: 'c1', trainer_id: 't-tab', lifecycle: 'active' 
 setSection('TENURE')
 ok(tenureDays('2026-01-01', '2026-01-01') === 1, 'tenure one day')
 ok(tenureDays('2026-01-01', '2026-01-10') === 10, 'tenure ten days')
+
+setSection('PRESENTATION / UI tones')
+ok(retentionRateTone(0.8) === 'good', 'tone good')
+ok(retentionRateTone(0.5) === 'mid', 'tone mid')
+ok(retentionRateTone(0.2) === 'low', 'tone low')
+ok(retentionRateTone(null) === 'none', 'tone none')
+ok(
+  isTrainerM3Immature({ retentionM3: { averageRate: null, cohortSize: 0 }, tenureClientCount: 3 }),
+  'immature when tenure but no m3',
+)
+ok(formatTrainerM3Cell({ retentionM3: { averageRate: null, cohortSize: 0 }, tenureClientCount: 2 }).text === 'Рано', 'immature label')
+ok(formatTrainerM3Cell({ retentionM3: { averageRate: 0.67, cohortSize: 3 } }).text === '67%', 'm3 cell pct')
 
 if (failed) {
   console.error(`\n${failed} check(s) failed`)

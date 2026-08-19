@@ -37,6 +37,31 @@ export function medianOfNumbers(values) {
 }
 
 /**
+ * Медиана жизни клиентов тренера (attribution = anchorTrainerId, как M+3).
+ * @param {import('./clientRetentionCohortCore.js').CohortMember[]} cohortMembers
+ * @param {Map<string, object>} clientById
+ * @param {string} trainerId
+ * @param {string} asOf yyyy-mm-dd
+ */
+export function computeTrainerMedianTenure(cohortMembers, clientById, trainerId, asOf) {
+  const tid = String(trainerId ?? '').trim()
+  /** @type {number[]} */
+  const tenureValues = []
+  for (const m of cohortMembers ?? []) {
+    if (m.anchorTrainerId !== tid) continue
+    const client = clientById.get(m.clientId)
+    if (!client) continue
+    const end = client.archived_at ? String(client.archived_at).slice(0, 10) : asOf
+    const days = tenureDays(m.anchorDate, end)
+    if (days != null && days > 0) tenureValues.push(days)
+  }
+  return {
+    medianTenureDays: medianOfNumbers(tenureValues),
+    tenureClientCount: tenureValues.length,
+  }
+}
+
+/**
  * @typedef {{ clientId: string, restoredAt: string }} RestoreEvent
  */
 
@@ -136,6 +161,13 @@ export function aggregateClientRetention(input) {
   }
   const medianTenureDays = medianOfNumbers(tenureValues)
 
+  /** @type {Map<string, object>} */
+  const clientById = new Map()
+  for (const client of universe) {
+    const id = String(client?.id ?? '').trim()
+    if (id) clientById.set(id, client)
+  }
+
   /** @type {Map<string, CohortMember[]>} */
   const byTrainerMap = new Map()
   for (const m of cohortMembers) {
@@ -144,9 +176,10 @@ export function aggregateClientRetention(input) {
     byTrainerMap.get(m.anchorTrainerId).push(m)
   }
 
-  /** @type {Record<string, { trainerId: string, retentionM3: ReturnType<typeof computeTrainerRetentionMN> }>} */
+  /** @type {Record<string, { trainerId: string, retentionM3: ReturnType<typeof computeTrainerRetentionMN>, medianTenureDays: number|null, tenureClientCount: number }>} */
   const byTrainer = {}
   for (const [trainerId] of byTrainerMap) {
+    const tenure = computeTrainerMedianTenure(cohortMembers, clientById, trainerId, asOf)
     byTrainer[trainerId] = {
       trainerId,
       retentionM3: computeTrainerRetentionMN(
@@ -157,6 +190,8 @@ export function aggregateClientRetention(input) {
         3,
         asOf,
       ),
+      medianTenureDays: tenure.medianTenureDays,
+      tenureClientCount: tenure.tenureClientCount,
     }
   }
 

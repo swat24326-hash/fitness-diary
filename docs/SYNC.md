@@ -1,6 +1,6 @@
 # Sync — очередь, flush, pull
 
-**Актуально:** 2026-08-19. Политика кода: `.cursor/rules/fitness-diary-sync.mdc`. Инциденты: [RUNBOOK.md](./RUNBOOK.md).
+**Актуально:** 2026-08-20. Политика кода: `.cursor/rules/fitness-diary-sync.mdc`. Инциденты: [RUNBOOK.md](./RUNBOOK.md).
 
 ---
 
@@ -85,6 +85,21 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 | Админ / справочники / продажи | `/api/admin-data?action=…` |
 
 Если на планшете **неполный дневник** в карточке (пусто или только часть дат), а в облаке/статистике тренировки есть: при открытии «Тренировки»/«Абонементы» hydrate `get-client` full дописывает весь дневник в IndexedDB и пересчитывает used; журнал статистики тоже дописывает строки периода. Обрезанный pull **не** чистит локальные тренировки как «лишние».
+
+### Тип карты в статистике и офлайн (2026-08)
+
+Один контур для дневника, журнала, agg ЗП и ИСКРЫ — `membershipTypeStatsAgg.js` (клиент + `api/_lib/`):
+
+1. **`trainings.data.membership_id`** — явная привязка (первый `completed` + backfill при save, если пусто).
+2. **Fallback по дате** — `resolveMembershipForDiaryTraining`, если `membership_id` нет (legacy).
+3. **Источник абонементов для UI статистики:**
+   - **Тренер онлайн:** `trainer-pull` (`skip_trainings=1`) через `loadClubMembershipsWithApiFallback(clubId, { trainerId })`; **не** `/api/list-memberships` (403).
+   - **Админ / sales:** `/api/list-memberships` → тот же helper без `trainerId`.
+   - **Офлайн / сбой API:** `listMembershipsByClubId` (IndexedDB); тип считается локально, если абоны клиента в кэше.
+4. **Repair:** журнал тренера (online) — `repairTrainingsMembershipLinks` → `cacheCloudTrainingsLocally`.
+5. **Prefetch карточки:** `refreshMembershipsForStats({ trainerId })` → merge в IDB; cooldown 60 с.
+
+Verify: `verify-membership-type-stats.mjs`, `verify-training-membership-link.mjs`. Runbook: [RUNBOOK.md](./RUNBOOK.md) §5.
 
 Каталог: [API.md](./API.md).
 

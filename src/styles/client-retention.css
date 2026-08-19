@@ -1,28 +1,58 @@
+/* Удержание клиентов — drill-down статистики ПЗ */
+
 .client-retention-panel {
   margin-bottom: 20px;
+  padding: 14px;
 }
 
 .client-retention-panel__title {
+  font-size: 1rem;
   margin: 0 0 4px;
 }
 
 .client-retention-panel__lead {
   margin: 0;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.45;
 }
 
 .client-retention-panel__empty {
   margin: 8px 0 0;
+  font-size: 13px;
 }
 
 .client-retention-panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
   margin-bottom: 14px;
+}
+
+.client-retention-panel__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.client-retention-panel__chip {
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+  color: var(--text-muted, rgba(255, 255, 255, 0.62));
+  white-space: nowrap;
+}
+
+.client-retention-panel__chip strong {
+  color: var(--text, #e8eee9);
 }
 
 .client-retention-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
   gap: 10px;
   margin-bottom: 16px;
 }
@@ -38,6 +68,34 @@
   min-height: 88px;
 }
 
+.client-retention-kpi--featured {
+  grid-column: span 1;
+  background: color-mix(in srgb, var(--accent-bright, #10b981) 8%, rgba(255, 255, 255, 0.04));
+  border-color: color-mix(in srgb, var(--accent-bright, #10b981) 28%, rgba(255, 255, 255, 0.06));
+}
+
+@media (min-width: 720px) {
+  .client-retention-kpi--featured {
+    grid-column: span 2;
+  }
+
+  .client-retention-kpi-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.client-retention-kpi--good {
+  border-color: color-mix(in srgb, #34d399 35%, rgba(255, 255, 255, 0.06));
+}
+
+.client-retention-kpi--mid {
+  border-color: color-mix(in srgb, #fbbf24 35%, rgba(255, 255, 255, 0.06));
+}
+
+.client-retention-kpi--low {
+  border-color: color-mix(in srgb, #f87171 35%, rgba(255, 255, 255, 0.06));
+}
+
 .client-retention-kpi__label {
   font-size: 12px;
   color: var(--text-muted, rgba(255, 255, 255, 0.62));
@@ -48,20 +106,40 @@
   line-height: 1.2;
 }
 
+.client-retention-kpi--featured .client-retention-kpi__value {
+  font-size: 1.65rem;
+}
+
 .client-retention-kpi__hint {
   font-size: 11px;
   line-height: 1.35;
 }
 
-.client-retention-reasons {
-  margin-bottom: 16px;
+.client-retention-split {
+  display: grid;
+  gap: 16px;
 }
 
+@media (min-width: 900px) {
+  .client-retention-split {
+    grid-template-columns: minmax(240px, 1fr) minmax(0, 1.4fr);
+    align-items: start;
+  }
+}
+
+.client-retention-section__title,
 .client-retention-reasons__title,
 .client-retention-trainers__title {
-  margin: 0 0 8px;
+  margin: 0 0 10px;
   font-size: 13px;
   font-weight: 600;
+}
+
+.client-retention-reasons {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .client-retention-reasons__list {
@@ -70,16 +148,53 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
 }
 
-.client-retention-reasons__list li {
+.client-retention-reasons__row {
   display: flex;
   justify-content: space-between;
   gap: 12px;
   font-size: 13px;
-  padding: 6px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 4px;
+}
+
+.client-retention-reasons__label {
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.client-retention-reasons__count {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.client-retention-reasons__bar {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.client-retention-reasons__bar::after {
+  content: '';
+  display: block;
+  height: 100%;
+  width: var(--pct, 0%);
+  border-radius: inherit;
+  background: color-mix(in srgb, var(--accent-bright, #10b981) 75%, #fff);
+}
+
+.client-retention-trainers {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.client-retention-trainers__scroll {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .client-retention-trainers__table {
@@ -88,14 +203,102 @@
   font-size: 13px;
 }
 
+.client-retention-trainers__table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(15, 23, 42, 0.95);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted, rgba(255, 255, 255, 0.62));
+}
+
 .client-retention-trainers__table th,
 .client-retention-trainers__table td {
-  padding: 8px 10px;
+  padding: 10px 12px;
   text-align: left;
+  vertical-align: middle;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.client-retention-trainers__table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.client-retention-trainers__row--pending {
+  background: rgba(251, 191, 36, 0.04);
+}
+
+.client-retention-trainers__name {
+  font-weight: 600;
+  min-width: 8rem;
+}
+
+.client-retention-trainers__num {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  width: 4.5rem;
+}
+
+.client-retention-trainers__sub {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.client-retention-rate {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text, #e8eee9);
+}
+
+.client-retention-rate--good {
+  background: rgba(16, 185, 129, 0.18);
+  color: #a7f3d0;
+}
+
+.client-retention-rate--mid {
+  background: rgba(251, 191, 36, 0.16);
+  color: #fde68a;
+}
+
+.client-retention-rate--low {
+  background: rgba(248, 113, 113, 0.16);
+  color: #fecaca;
+}
+
+.client-retention-rate--pending {
+  background: rgba(148, 163, 184, 0.14);
+  color: #cbd5e1;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.client-retention-rate--none {
+  opacity: 0.75;
+}
+
+.client-retention-trainers__hint {
+  margin: 10px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 .client-retention-panel__note {
   margin: 12px 0 0;
   font-size: 12px;
+}
+
+.client-retention-panel__note--warn {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.25);
 }

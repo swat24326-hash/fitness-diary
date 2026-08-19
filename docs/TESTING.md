@@ -1,6 +1,6 @@
 # Тестирование и QA
 
-**Актуально:** 2026-08-19. Политика: `.cursor/rules/fitness-diary-ship.mdc`, `fitness-diary-stability.mdc`.
+**Актуально:** 2026-08-20. Политика: `.cursor/rules/fitness-diary-ship.mdc`, `fitness-diary-stability.mdc`.
 
 ---
 
@@ -40,6 +40,7 @@
 | Новая тренировка → Завершить | дата, абонемент, очередь; двойной тап / автосейв — `verify-training-persist-status.mjs` + `verify-critical-hall.mjs`; reconcile used — `verify-membership-used-reconcile.mjs` |
 | Правка завершённой | смена даты, повторное сохранение |
 | Sync на планшете | flush + pull, pending не затираются |
+| Тип карты в журнале / ЗП / офлайн | `verify-membership-type-stats.mjs`, `verify-training-membership-link.mjs`, `verify-stats-agg-parity.mjs`; контур — [SYNC.md](./SYNC.md) §«Тип карты» |
 | Админ: статистика / ИСКРА | agg, snapshot |
 | ПНК мастер / KPI | целевые `verify-pnk-*.mjs` |
 | Качество ведения тренера | `verify-coach-quality.mjs` (TECH + COACH + MANAGER сценарии) |
@@ -82,6 +83,9 @@
 | Push абонементов (даты NOT NULL) | `verify-membership-push-payload.mjs` |
 | Push веса: FK training_id | `verify-client-weight-push.mjs` |
 | Reconcile `used_trainings` по дневнику | `verify-membership-used-reconcile.mjs` |
+| Тип карты: agg + fallback по дате | `verify-membership-type-stats.mjs` |
+| Привязка `membership_id` к тренировке | `verify-training-membership-link.mjs` |
+| Паритет agg клиент ↔ сервер | `verify-stats-agg-parity.mjs` |
 | Debit абонемента при first complete | `verify-training-membership-debit.mjs` |
 | ЗП дня/периода: база + надбавка, сценарии без плана, прогноз ур. | `verify-trainer-day-payroll-forecast.mjs` |
 | Прогноз ЗП месяца для чистой (уровни к концу + adj) | `verify-trainer-month-payroll-forecast.mjs` |

@@ -9,13 +9,33 @@ export const ARCHIVE_REASON_OTHER_ID = 'other'
 
 /** Быстрые чипы на планшете (подпись = значение в БД, кроме «Другое»). */
 export const ARCHIVE_REASON_CHIPS = Object.freeze([
+  { id: 'never_return', label: 'Не вернётся' },
+  { id: 'return_later', label: 'Вернётся позже' },
   { id: 'no_show', label: 'Не ходит / пропал' },
-  { id: 'not_renewed', label: 'Закончил / не продлил' },
+  { id: 'expensive', label: 'Дорого / нет денег' },
+  { id: 'health', label: 'Здоровье' },
   { id: 'moved', label: 'Переехал / другой зал' },
   { id: 'other_coach', label: 'К другому тренеру' },
-  { id: 'expensive', label: 'Дорого / финансы' },
   { id: 'unhappy', label: 'Недоволен' },
   { id: ARCHIVE_REASON_OTHER_ID, label: 'Другое' },
+])
+
+/**
+ * Старые подписи — только для match и mix KPI (не показываем в модалке).
+ * @type {ReadonlyArray<{ id: string, label: string }>}
+ */
+export const ARCHIVE_REASON_LEGACY_CHIPS = Object.freeze([
+  { id: 'not_renewed', label: 'Закончил / не продлил' },
+  { id: 'expensive', label: 'Дорого / финансы' },
+])
+
+/** @type {ReadonlyArray<{ id: string, label: string }>} */
+export const ARCHIVE_REASON_MIX_GROUPS = Object.freeze([
+  ...ARCHIVE_REASON_CHIPS.filter((c) => c.id !== ARCHIVE_REASON_OTHER_ID),
+  ...ARCHIVE_REASON_LEGACY_CHIPS.filter(
+    (legacy) => !ARCHIVE_REASON_CHIPS.some((c) => c.id === legacy.id),
+  ),
+  { id: ARCHIVE_REASON_OTHER_ID, label: 'Другое / свой текст' },
 ])
 
 /**
@@ -162,7 +182,26 @@ export function buildArchiveReasonOnlyFields(reason, nowIso = new Date().toISOSt
 export function matchArchiveReasonChip(reasonText) {
   const r = normalizeArchiveReasonText(reasonText)
   if (!r) return { chipId: null, customText: '' }
-  const chip = ARCHIVE_REASON_CHIPS.find((c) => c.id !== ARCHIVE_REASON_OTHER_ID && c.label === r)
+  const pools = [
+    ...ARCHIVE_REASON_CHIPS.filter((c) => c.id !== ARCHIVE_REASON_OTHER_ID),
+    ...ARCHIVE_REASON_LEGACY_CHIPS,
+  ]
+  const chip = pools.find((c) => c.label === r)
   if (chip) return { chipId: chip.id, customText: '' }
   return { chipId: ARCHIVE_REASON_OTHER_ID, customText: r }
+}
+
+/**
+ * Начальное состояние модалки: только чипы из UI, legacy → «Другое» + текст.
+ * @param {unknown} reasonText
+ */
+export function resolveArchiveReasonModalState(reasonText) {
+  const matched = matchArchiveReasonChip(reasonText)
+  const uiChip = ARCHIVE_REASON_CHIPS.find((c) => c.id === matched.chipId)
+  if (uiChip && uiChip.id !== ARCHIVE_REASON_OTHER_ID) {
+    return { chipId: uiChip.id, customText: '' }
+  }
+  const text = matched.customText || normalizeArchiveReasonText(reasonText) || ''
+  if (text) return { chipId: ARCHIVE_REASON_OTHER_ID, customText: text }
+  return { chipId: null, customText: '' }
 }

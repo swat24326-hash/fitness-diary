@@ -1,6 +1,6 @@
 # API — каталог endpoints
 
-**Актуально:** 2026-08-19. Vercel Hobby **≤12** serverless functions в `api/*.js`. Новое действие — сначала `admin-data?action=`, не новый файл.
+**Актуально:** 2026-08-20. Vercel Hobby **≤12** serverless functions в `api/*.js`. Новое действие — сначала `admin-data?action=`, не новый файл.
 
 Политика: `.cursor/rules/fitness-diary-supabase.mdc`, `fitness-diary-architecture.mdc`.  
 Ядро: **`api/_lib/`** (не `api/lib/`). Точный роутинг ролей — `api/admin-data.js` (таблица ниже — ориентир; при сомнении смотреть handler).
@@ -12,14 +12,14 @@
 | Endpoint | Назначение |
 |----------|------------|
 | `/api/admin-data` | Объединённый GET/POST админки, продаж, ИСКРЫ, справочников (`?action=`) |
-| `/api/trainer-pull` | Pull данных на планшет тренера |
+| `/api/list-memberships` | Абонементы **всех** клиентов клуба — **только admin / sales_manager** своего клуба. **Тренер не вызывает** (403): абонементы на планшете — `/api/trainer-pull` |
+| `/api/trainer-pull` | Pull на планшет тренера: клиенты, **memberships** (своих клиентов), health_cards, trainings (опц. `skip_trainings=1`) |
 | `/api/push-record` | Одна запись из sync-очереди (admin / trainer / sales_manager / **supervisor**; права по таблице — `authorizePush`). После успешного insert/update `clients` сервер пишет `burn_archive` / `club_move` в `loyalty_ledger` (не очередь) |
 | `/api/push-records` | Пакетный flush очереди (те же роли) |
 | `/api/auth-sign-in` | Вход (логин/пароль → сессия), когда нужен server path |
 | `/api/me-profile` | Профиль текущего пользователя |
 | `/api/list-clients` | Список клиентов клуба (admin / sales_manager своего клуба) |
 | `/api/list-trainers` | Список тренеров (admin / trainer; sales_manager — только свой клуб) |
-| `/api/list-memberships` | Абонементы клуба (admin / sales_manager своего клуба) |
 | `/api/get-client` | Один клиент (admin / trainer свои / sales_manager своего клуба). Query: `client_id`, опционально `scope=full\|glance` (glance — клиент + абоны, без дневника; desk ТЗ/АЗ и lite-ПЗ без планшета) |
 | `/api/create-trainer` | Создание тренера (service role на сервере) |
 | `/api/update-trainer-club` | Смена клуба тренера |

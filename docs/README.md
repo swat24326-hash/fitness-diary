@@ -1,7 +1,7 @@
 # Документация fitness-diary (**Ядро**)
 
 Карта файлов в `docs/`. Правила для Cursor — в `.cursor/rules/` (не дублируем политику здесь).  
-Системная карта (API / SYNC / DATA_MODEL / DEPLOY / handoff) сверена с кодом **2026-08-13**.
+Системная карта (API / SYNC / DATA_MODEL / DEPLOY / handoff) сверена с кодом **2026-08-20**.
 
 **С чего начать:** [PRODUCT_VISION.md](./PRODUCT_VISION.md) — крупная цель (ОС + CRM, замена 1С в операционке) → [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) — сейчас→дальше и как вести процесс → [BRAND_SYSTEM.md](./BRAND_SYSTEM.md) — продукт Ядро vs клуб FIT-CITY → [PROJECT_HANDOFF_FOR_AI.md](./PROJECT_HANDOFF_FOR_AI.md) — что в коде сегодня.
 

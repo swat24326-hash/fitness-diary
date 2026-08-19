@@ -2,13 +2,9 @@
  * Группировка archive_reason для mix KPI.
  */
 
-import { ARCHIVE_REASON_CHIPS, matchArchiveReasonChip } from '../clientArchiveReasonCore.js'
+import { ARCHIVE_REASON_MIX_GROUPS, matchArchiveReasonChip } from '../clientArchiveReasonCore.js'
 
-/** @type {ReadonlyArray<{ id: string, label: string }>} */
-export const ARCHIVE_REASON_MIX_GROUPS = Object.freeze([
-  ...ARCHIVE_REASON_CHIPS.filter((c) => c.id !== 'other').map((c) => ({ id: c.id, label: c.label })),
-  { id: 'other', label: 'Другое / свой текст' },
-])
+export { ARCHIVE_REASON_MIX_GROUPS }
 
 /**
  * @param {string|null|undefined} reason

@@ -1,8 +1,11 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import {
+  ARCHIVE_REASON_CHIPS,
   ARCHIVE_REASON_MAX_LEN,
+  ARCHIVE_REASON_OTHER_ID,
+  composeArchiveReason,
   isArchiveReasonReady,
-  normalizeArchiveReasonText,
+  resolveArchiveReasonModalState,
 } from '../lib/clientArchiveReasonCore.js'
 import { useLoyaltyArchiveWarn } from '../hooks/useLoyaltyArchiveWarn.js'
 
@@ -30,24 +33,33 @@ export function ClientArchiveReasonModal({
   onConfirm,
 }) {
   const titleId = useId()
+  const hintId = useId()
   const inputRef = useRef(null)
   const submitGuardRef = useRef(false)
+  const [selectedChipId, setSelectedChipId] = useState(null)
   const [customText, setCustomText] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     if (!open) {
+      setSelectedChipId(null)
       setCustomText('')
       setSubmitting(false)
       submitGuardRef.current = false
       return
     }
-    setCustomText(normalizeArchiveReasonText(initialReason) || '')
+    const initial = resolveArchiveReasonModalState(initialReason)
+    setSelectedChipId(initial.chipId)
+    setCustomText(initial.customText)
     setSubmitting(false)
     submitGuardRef.current = false
+  }, [open, initialReason])
+
+  useEffect(() => {
+    if (!open || selectedChipId !== ARCHIVE_REASON_OTHER_ID) return
     const t = window.setTimeout(() => inputRef.current?.focus?.(), 50)
     return () => window.clearTimeout(t)
-  }, [open, initialReason])
+  }, [open, selectedChipId])
 
   useEffect(() => {
     if (!busy) {
@@ -61,11 +73,18 @@ export function ClientArchiveReasonModal({
 
   if (!open) return null
 
-  const reason = normalizeArchiveReasonText(customText)
-  const ready = isArchiveReasonReady(reason)
+  const reason = composeArchiveReason({ chipId: selectedChipId, customText })
+  const ready = Boolean(selectedChipId) && isArchiveReasonReady(reason)
+  const showOtherField = selectedChipId === ARCHIVE_REASON_OTHER_ID
   const title = isEnter ? 'В архив' : 'Причина архива'
   const confirmLabel = isEnter ? 'В архив' : 'Сохранить'
   const locked = busy || submitting
+
+  const pickChip = (chipId) => {
+    if (locked) return
+    setSelectedChipId(chipId)
+    if (chipId !== ARCHIVE_REASON_OTHER_ID) setCustomText('')
+  }
 
   const submit = () => {
     if (!ready || locked || submitGuardRef.current) return
@@ -93,7 +112,7 @@ export function ClientArchiveReasonModal({
           {isEnter ? (
             <>
               Убираем <strong style={{ color: 'var(--text)' }}>{clientName || 'клиента'}</strong> в
-              архив. Укажите причину — так видно, почему человек не в работе.
+              архив. Выберите причину — она попадёт в статистику клуба.
             </>
           ) : (
             <>
@@ -114,24 +133,55 @@ export function ClientArchiveReasonModal({
           </p>
         ) : null}
 
-        <label className="field client-archive-reason-modal__field">
-          <span className="label">Причина *</span>
-          <input
-            ref={inputRef}
-            className="input"
-            value={customText}
-            disabled={locked}
-            maxLength={ARCHIVE_REASON_MAX_LEN}
-            placeholder="Кратко: почему в архиве"
-            onChange={(e) => setCustomText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && ready && !locked) {
-                e.preventDefault()
-                submit()
-              }
-            }}
-          />
-        </label>
+        <div
+          className="client-archive-reason-modal__chips"
+          role="radiogroup"
+          aria-labelledby={titleId}
+          aria-describedby={hintId}
+        >
+          {ARCHIVE_REASON_CHIPS.map((chip) => {
+            const on = selectedChipId === chip.id
+            return (
+              <button
+                key={chip.id}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                disabled={locked}
+                className={`client-archive-reason-chip${on ? ' client-archive-reason-chip--on' : ''}`}
+                onClick={() => pickChip(chip.id)}
+              >
+                {chip.label}
+              </button>
+            )
+          })}
+        </div>
+        <p id={hintId} className="muted client-archive-reason-modal__hint">
+          {showOtherField
+            ? 'Напишите коротко своими словами — поле обязательно.'
+            : 'Если ни один вариант не подходит — выберите «Другое».'}
+        </p>
+
+        {showOtherField ? (
+          <label className="field client-archive-reason-modal__field">
+            <span className="label">Своя причина *</span>
+            <input
+              ref={inputRef}
+              className="input"
+              value={customText}
+              disabled={locked}
+              maxLength={ARCHIVE_REASON_MAX_LEN}
+              placeholder="Кратко: почему в архиве"
+              onChange={(e) => setCustomText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && ready && !locked) {
+                  e.preventDefault()
+                  submit()
+                }
+              }}
+            />
+          </label>
+        ) : null}
 
         <div className="row td-modal-actions client-archive-reason-modal__actions">
           <button type="button" className="btn btn-ghost btn-touch" disabled={locked} onClick={() => onCancel?.()}>

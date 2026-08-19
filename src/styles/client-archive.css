@@ -1,7 +1,45 @@
 /* Причина архива клиента — модалка, факт и карандаш в ряду действий */
 
 .client-archive-reason-modal {
-  max-width: 440px;
+  max-width: 480px;
+}
+
+.client-archive-reason-modal__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.client-archive-reason-chip {
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(15, 23, 42, 0.55);
+  color: #e2e8f0;
+  font-size: 14px;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+  flex: 1 1 calc(50% - 4px);
+  min-width: 0;
+}
+
+.client-archive-reason-chip--on {
+  border-color: var(--accent-bright);
+  background: rgba(16, 185, 129, 0.2);
+  color: #ecfdf5;
+}
+
+.client-archive-reason-chip:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.client-archive-reason-modal__hint {
+  margin: 10px 0 0;
+  font-size: 0.85rem;
 }
 
 .client-archive-reason-modal__lead {

@@ -17,6 +17,7 @@ import {
   isArchiveReasonReady,
   matchArchiveReasonChip,
   normalizeArchiveReasonText,
+  resolveArchiveReasonModalState,
   withArchiveRestore,
 } from '../src/lib/clientArchiveReasonCore.js'
 
@@ -30,14 +31,18 @@ function ok(cond, msg) {
 }
 
 ok(ARCHIVE_REASON_MAX_LEN === 200, 'max len')
-ok(ARCHIVE_REASON_CHIPS.length >= 5, 'chips present')
-ok(ARCHIVE_REASON_CHIPS.some((c) => c.id === ARCHIVE_REASON_OTHER_ID), 'other chip')
+ok(ARCHIVE_REASON_CHIPS.length === 9, 'chips count')
+ok(!ARCHIVE_REASON_CHIPS.some((c) => c.id === 'not_renewed'), 'not_renewed not in UI chips')
+ok(ARCHIVE_REASON_CHIPS.some((c) => c.id === 'never_return'), 'never_return chip')
+ok(ARCHIVE_REASON_CHIPS.some((c) => c.id === 'return_later'), 'return_later chip')
+ok(ARCHIVE_REASON_CHIPS.some((c) => c.id === 'health'), 'health chip')
 
 ok(normalizeArchiveReasonText('  hello  ') === 'hello', 'normalize trim')
 ok(normalizeArchiveReasonText('') === null, 'normalize empty')
 ok(normalizeArchiveReasonText('a'.repeat(250)).length === 200, 'normalize slice')
 
 ok(composeArchiveReason({ chipId: 'no_show' }) === 'Не ходит / пропал', 'chip label')
+ok(composeArchiveReason({ chipId: 'never_return' }) === 'Не вернётся', 'never_return label')
 ok(composeArchiveReason({ chipId: 'other', customText: '  Уехал  ' }) === 'Уехал', 'other + text')
 ok(composeArchiveReason({ chipId: 'other', customText: '' }) === null, 'other empty')
 ok(composeArchiveReason({ customText: 'Свой текст' }) === 'Свой текст', 'free text')
@@ -66,8 +71,8 @@ ok(!clientHasStaleArchiveReason({ archived_at: 'x', archive_reason: 'Перее�
 ok(!clientHasStaleArchiveReason({ archived_at: null }), 'active clean')
 ok(clientHasArchiveReason({ archive_reason: 'Недоволен' }), 'has reason helper')
 
-const only = buildArchiveReasonOnlyFields('Дорого / финансы', '2026-08-16T11:00:00.000Z')
-ok(only.ok === true && only.patch.archive_reason === 'Дорого / финансы', 'reason-only')
+const only = buildArchiveReasonOnlyFields('Дорого / нет денег', '2026-08-16T11:00:00.000Z')
+ok(only.ok === true && only.patch.archive_reason === 'Дорого / нет денег', 'reason-only')
 ok(!('archived_at' in only.patch), 'reason-only keeps archived_at untouched')
 
 ok(clientNeedsArchiveReason({ archived_at: 'x' }) === true, 'needs reason')
@@ -83,6 +88,20 @@ const matched = matchArchiveReasonChip('Не ходит / пропал')
 ok(matched.chipId === 'no_show' && matched.customText === '', 'match chip')
 const otherMatch = matchArchiveReasonChip('Своя причина')
 ok(otherMatch.chipId === ARCHIVE_REASON_OTHER_ID && otherMatch.customText === 'Своя причина', 'match other')
+
+const legacyRenewed = matchArchiveReasonChip('Закончил / не продлил')
+ok(legacyRenewed.chipId === 'not_renewed' && legacyRenewed.customText === '', 'legacy not_renewed match')
+
+const legacyExpensive = matchArchiveReasonChip('Дорого / финансы')
+ok(legacyExpensive.chipId === 'expensive' && legacyExpensive.customText === '', 'legacy expensive label')
+
+const modalLegacy = resolveArchiveReasonModalState('Закончил / не продлил')
+ok(
+  modalLegacy.chipId === ARCHIVE_REASON_OTHER_ID && modalLegacy.customText === 'Закончил / не продлил',
+  'legacy → other in modal',
+)
+const modalChip = resolveArchiveReasonModalState('Не вернётся')
+ok(modalChip.chipId === 'never_return' && modalChip.customText === '', 'active chip in modal')
 
 if (failed) process.exit(1)
 console.log('verify-client-archive-reason: all ok')
