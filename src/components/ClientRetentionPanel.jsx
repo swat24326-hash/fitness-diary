@@ -53,39 +53,109 @@ export function ClientRetentionPanel({
       <section className="card admin-club-stats-detail client-retention-panel">
         <h3 className="section-title client-retention-panel__title">Удержание клиентов</h3>
         <p className="muted client-retention-panel__empty">
-          Нет tablet-клиентов для расчёта — обновите при сети или выберите другой период.
+          Нет клиентов с планшетом для расчёта — обновите при сети или выберите другой период.
         </p>
       </section>
     )
   }
 
-  const showSplit = !compact && (reasonRows.length > 0 || (!selfTrainerId && trainerRows.length > 0))
+  const showReasons = !compact && reasonRows.length > 0
+  const showTrainers = !compact && !selfTrainerId && trainerRows.length > 0
+  const showSplit = showReasons || showTrainers
 
   return (
     <section className="card admin-club-stats-detail client-retention-panel">
-      <div className="client-retention-panel__head">
-        <div>
-          <h3 className="section-title client-retention-panel__title">
-            {selfTrainerId ? 'Ваше удержание' : 'Удержание клиентов'}
-          </h3>
-          <p className="muted client-retention-panel__lead">
-            Tablet ПЗ: тренировки и абоны. Не путать с «Качеством ведения» и чипами «Не активные».
-          </p>
-        </div>
+      <header className="client-retention-panel__head">
+        <h3 className="section-title client-retention-panel__title">
+          {selfTrainerId ? 'Ваше удержание' : 'Удержание клиентов'}
+        </h3>
         {!compact ? (
-          <div className="client-retention-panel__chips" aria-label="Сводка базы">
-            <SummaryChip label="Активных" value={r.poolSize ?? 0} />
-            <SummaryChip label="База" value={r.universeSize ?? 0} />
-            <SummaryChip label="В архиве за период" value={r.archivesInPeriod ?? 0} />
+          <div className="client-retention-panel__about" role="note">
+            {selfTrainerId ? (
+              <>
+                <p className="client-retention-panel__about-lead">
+                  <strong>Зачем вам:</strong> честная картина по вашим клиентам с планшетом — остаются ли они
+                  ходить, продлевают абон, как долго живут в зале. Это не оценка ЗП и не «Качество ведения».
+                </p>
+                <ul className="client-retention-panel__about-list">
+                  <li>
+                    <strong>Удержание M+3</strong> — прижились ли люди через 3 месяца после первого абонемента.
+                  </li>
+                  <li>
+                    <strong>Продления</strong> — кто из ваших клиентов продлил абон в ближайшие 14 дней после
+                    окончания.
+                  </li>
+                  <li>
+                    <strong>Медиана жизни</strong> — сколько в среднем клиент «живёт» у вас до архива или до
+                    сегодня.
+                  </li>
+                  <li>
+                    Если M+3 показывает «—» или «Рано» — клиенты только начали, цифру рано сравнивать с
+                    коллегами.
+                  </li>
+                </ul>
+              </>
+            ) : (
+              <>
+                <p className="client-retention-panel__about-lead">
+                  <strong>Зачем клубу:</strong> видеть, удерживаем ли клиентов ПЗ с планшетом — не только сколько
+                  пришло, но кто остался ходить, продлил абон и почему ушёл в архив. Отдельно от «Качества
+                  ведения» и чипа «Не активные».
+                </p>
+                <ul className="client-retention-panel__about-list">
+                  <li>Сводка по клубу — карточки сверху; сравнение тренеров — таблица ниже.</li>
+                  <li>
+                    «Архив за период» — кто ушёл <em>в выбранном месяце/квартале</em>, не все 25 во вкладке
+                    «Архив».
+                  </li>
+                  <li>Причины архива — из модалки «В архив», чтобы понимать отток.</li>
+                </ul>
+              </>
+            )}
           </div>
-        ) : null}
-      </div>
+        ) : (
+          <p className="muted client-retention-panel__lead">
+            ПЗ с планшетом. Не путать с «Качеством ведения» и чипами «Не активные».
+          </p>
+        )}
+      </header>
+
+      {!compact ? (
+        <details className="client-retention-panel__explain">
+          <summary className="client-retention-panel__explain-summary">Подробнее про каждую цифру</summary>
+          <ul className="client-retention-panel__explain-list">
+            <li>
+              <strong>Удержание M+3</strong> — доля клиентов с хотя бы одним ДК в 3‑м месяце после первого
+              абонемента (только «созревшие» когорты).
+            </li>
+            <li>
+              <strong>Продления</strong> — из тех, у кого абон заканчивался в последние 14 дней, сколько
+              продлили.
+            </li>
+            <li>
+              <strong>Архив за период</strong> — сколько убрали в архив в выбранном периоде; «база» — все
+              клиенты ПЗ с планшетом для расчёта, не вкладка «Архив».
+            </li>
+            <li>
+              <strong>Медиана жизни</strong> — типичный срок от первого ДК до архива или до сегодня; половина
+              клиентов живут меньше, половина — дольше.
+            </li>
+            <li>
+              <strong>Возвраты</strong> — вернули из архива и снова ходили в течение 30 дней (журнал «Вернуть»).
+            </li>
+            <li>
+              <strong>«Рано»</strong> у тренера — клиенты в базе есть, но с их старта прошло меньше ~3
+              месяцев, M+3 ещё нельзя считать.
+            </li>
+          </ul>
+        </details>
+      ) : null}
 
       <div className="client-retention-kpi-grid" role="list">
         <KpiCard
-          featured
+          primary
           tone={m3Tone}
-          label="Retention M+3"
+          label="Удержание M+3"
           value={formatRetentionRatePct(m3?.averageRate)}
           hint={
             m3?.cohortSize
@@ -121,21 +191,23 @@ export function ClientRetentionPanel({
           hint={
             (r.restoresInWindow ?? 0) > 0
               ? `${r.successfulReactivations ?? 0} успешных из ${r.restoresInWindow} · 90 дн.`
-              : 'Нет возвратов за 90 дн. · журнал с «Вернуть»'
+              : 'Нет возвратов за 90 дн.'
           }
         />
         <KpiCard
           label="Активных сейчас"
           value={String(r.poolSize ?? 0)}
-          hint="Tablet-клиенты не в архиве"
+          hint={`База для удержания · ${r.universeSize ?? 0} всего`}
         />
       </div>
 
       {showSplit ? (
-        <div className="client-retention-split">
-          {reasonRows.length ? (
-            <div className="client-retention-reasons">
-              <p className="client-retention-section__title">Причины архива за период</p>
+        <div
+          className={`client-retention-split${showReasons && showTrainers ? '' : ' client-retention-split--single'}`}
+        >
+          {showReasons ? (
+            <section className="client-retention-panel__block client-retention-reasons">
+              <h4 className="client-retention-section__title">Причины архива за период</h4>
               <ul className="client-retention-reasons__list">
                 {reasonRows.map((row) => (
                   <li key={row.label}>
@@ -151,22 +223,26 @@ export function ClientRetentionPanel({
                   </li>
                 ))}
               </ul>
-            </div>
+            </section>
           ) : null}
 
-          {!selfTrainerId && trainerRows.length ? (
-            <div className="client-retention-trainers">
-              <p className="client-retention-section__title">По тренерам (tablet)</p>
+          {showTrainers ? (
+            <section className="client-retention-panel__block client-retention-trainers">
+              <h4 className="client-retention-section__title">По тренерам</h4>
               <div className="table-scroll client-retention-trainers__scroll">
                 <table className="client-retention-trainers__table">
                   <thead>
                     <tr>
                       <th scope="col">Тренер</th>
-                      <th scope="col">M+3</th>
-                      <th scope="col" className="client-retention-trainers__num">
-                        M+3 · чел.
+                      <th scope="col" className="client-retention-trainers__col-m3">
+                        M+3
                       </th>
-                      <th scope="col">Медиана жизни</th>
+                      <th scope="col" className="client-retention-trainers__col-num">
+                        В когорте
+                      </th>
+                      <th scope="col" className="client-retention-trainers__col-life">
+                        Медиана
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
@@ -179,19 +255,25 @@ export function ClientRetentionPanel({
                           className={immature ? 'client-retention-trainers__row--pending' : undefined}
                         >
                           <td className="client-retention-trainers__name">{trainerLabel(row.trainerId)}</td>
-                          <td>
+                          <td className="client-retention-trainers__col-m3">
                             <span
                               className={`client-retention-rate client-retention-rate--${m3Cell.tone}`}
-                              title={immature ? 'Клиенты есть, но M+3 ещё не созрел (нужно ~3 мес.)' : undefined}
+                              title={immature ? 'M+3 ещё не созрел (~3 мес.)' : undefined}
                             >
                               {m3Cell.text}
                             </span>
                           </td>
-                          <td className="client-retention-trainers__num">{row.retentionM3?.cohortSize ?? 0}</td>
-                          <td title={row.tenureClientCount ? `${row.tenureClientCount} кли. в базе` : undefined}>
-                            {formatTenureDays(row.medianTenureDays)}
+                          <td className="client-retention-trainers__col-num">
+                            {row.retentionM3?.cohortSize ?? 0}
+                          </td>
+                          <td className="client-retention-trainers__col-life">
+                            <span className="client-retention-trainers__life-main">
+                              {formatTenureDays(row.medianTenureDays)}
+                            </span>
                             {row.tenureClientCount ? (
-                              <span className="client-retention-trainers__sub muted"> · {row.tenureClientCount} кли.</span>
+                              <span className="client-retention-trainers__life-sub muted">
+                                {row.tenureClientCount} кли.
+                              </span>
                             ) : null}
                           </td>
                         </tr>
@@ -200,11 +282,7 @@ export function ClientRetentionPanel({
                   </tbody>
                 </table>
               </div>
-              <p className="muted client-retention-trainers__hint">
-                M+3 — только зрелые когорты. «Рано» — клиенты есть, но прошло меньше ~3 мес. с их старта. Медиана
-                жизни — все tablet-клиенты тренера.
-              </p>
-            </div>
+            </section>
           ) : null}
         </div>
       ) : null}
@@ -219,23 +297,12 @@ export function ClientRetentionPanel({
 }
 
 /**
- * @param {{ label: string, value: string|number }} props
+ * @param {{ label: string, value: string, hint: string, tone?: string, primary?: boolean }} props
  */
-function SummaryChip({ label, value }) {
-  return (
-    <span className="client-retention-panel__chip">
-      {label}: <strong>{value}</strong>
-    </span>
-  )
-}
-
-/**
- * @param {{ label: string, value: string, hint: string, tone?: string, featured?: boolean }} props
- */
-function KpiCard({ label, value, hint, tone = 'none', featured = false }) {
+function KpiCard({ label, value, hint, tone = 'none', primary = false }) {
   return (
     <div
-      className={`client-retention-kpi${featured ? ' client-retention-kpi--featured' : ''}${tone !== 'none' ? ` client-retention-kpi--${tone}` : ''}`}
+      className={`client-retention-kpi${primary ? ' client-retention-kpi--primary' : ''}${tone !== 'none' ? ` client-retention-kpi--${tone}` : ''}`}
       role="listitem"
     >
       <span className="client-retention-kpi__label">{label}</span>

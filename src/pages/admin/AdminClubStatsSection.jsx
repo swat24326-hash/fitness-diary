@@ -585,7 +585,7 @@ export function AdminClubStatsSection({
                     <strong>Качество ведения</strong> — {isTrainerScope ? 'ваш балл 0–100' : 'средний балл тренеров 0–100'}; нажмите для таблицы (ведение, глубина, хвосты).
                   </li>
                   <li>
-                    <strong>Удержание</strong> — {isTrainerScope ? 'ваш M+3' : 'M+3 по клубу'} (tablet-клиенты): доля когорт, оставшихся engaged через 3 месяца; нажмите для продлений, архива и тренеров.
+                    <strong>Удержание</strong> — {isTrainerScope ? 'ваш M+3' : 'M+3 по клубу'} (клиенты с планшетом): доля когорт, которые ещё ходили через 3 месяца; нажмите для продлений, архива и тренеров.
                   </li>
                 </>
               ) : null}
@@ -847,7 +847,7 @@ export function AdminClubStatsSection({
               {clientRetentionBusy
                 ? 'считаем…'
                 : !hasClientRetention
-                  ? 'tablet-клиенты'
+                  ? 'клиенты с планшетом'
                   : inlinePanel === 'clientRetention'
                     ? 'скрыть подробности'
                     : 'M+3 · нажмите'}
