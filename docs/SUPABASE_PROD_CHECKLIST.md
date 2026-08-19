@@ -49,6 +49,7 @@ order by u.role, u.email;
 - [x] `club_call_log.recording_url` — ссылка на запись из webhook — `npm run db:migrate:club-call-recording -- --linked` (`20260814210000_club_call_log_recording.sql`). Применено на linked (2026-08-14).
 - [x] `club_call_log.direction` + nullable `client_id` — входящие — `npm run db:migrate:club-call-inbound -- --linked` (`20260816020000_club_call_log_inbound.sql`). Применено на linked (2026-08-16).
 - [ ] Таблица `deletion_audit_log` (журнал удалений клиентов) — миграция `20260805210000_deletion_audit_log.sql` + RLS admin / SM read.
+- [ ] Таблица `client_restore_events` (журнал «Вернуть из архива» для retention) — миграция `20260820120000_client_restore_events.sql` + RLS admin / SM read.
 
 ## 5. Схема БД
 

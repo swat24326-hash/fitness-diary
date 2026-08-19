@@ -8,6 +8,7 @@ import {
   resolveRetentionTrainingBounds,
 } from '../../src/lib/admin/clientRetentionCohortCore.js'
 import { fetchClubTrainerModeIds } from './clubTrainerModeIds.js'
+import { fetchClientRestoreEventsForRetention } from './clientRestoreEventsQuery.js'
 import { fetchPagedLimited } from './fetchPagedLimited.js'
 import {
   CLUB_STATS_MAX_CLIENTS,
@@ -90,6 +91,14 @@ export async function buildClubClientRetentionPayload(supabaseAdmin, opts) {
     membershipsRes.truncated ||
     typesRes.truncated
 
+  const restoreEvents =
+    opts.restoreEvents ??
+    (await fetchClientRestoreEventsForRetention(supabaseAdmin, {
+      clubId,
+      asOf: dateTo,
+      trainerIdFilter,
+    }))
+
   const agg = aggregateClientRetention({
     clients,
     memberships: membershipsRes.rows ?? [],
@@ -99,7 +108,7 @@ export async function buildClubClientRetentionPayload(supabaseAdmin, opts) {
     periodTo: dateTo,
     asOf: dateTo,
     cohortMonths,
-    restoreEvents: opts.restoreEvents ?? [],
+    restoreEvents,
     holdingTrainerIds: modeIds.holdingTrainerIds,
     noTabletTrainerIds: modeIds.noTabletTrainerIds,
   })
@@ -114,7 +123,7 @@ export async function buildClubClientRetentionPayload(supabaseAdmin, opts) {
       ...agg,
       byTrainer,
       truncated,
-      restoreEventsAvailable: (opts.restoreEvents ?? []).length > 0,
+      restoreEventsAvailable: restoreEvents.length > 0,
     },
   }
 }

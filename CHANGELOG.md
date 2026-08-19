@@ -9,7 +9,7 @@
 
 ## 2026-08
 
-- **Статистика / удержание:** карточка «Удержание» (M+3) на вкладке ПЗ — админ и тренер; drill-down: продления, архив, причины, M+3 по тренерам. API `admin-data?action=client-retention`. Docs: [CLIENT_RETENTION.md](./docs/CLIENT_RETENTION.md).
+- **Статистика / удержание:** карточка «Удержание» (M+3) на вкладке ПЗ — админ и тренер; drill-down: продления, архив, причины, M+3 по тренерам. API `admin-data?action=client-retention`. Журнал restore → KPI «Возвраты» (миграция `client_restore_events`). Docs: [CLIENT_RETENTION.md](./docs/CLIENT_RETENTION.md).
 - **Статистика / тип карты:** «Без типа» при живом абонементе — тип подставляется по дате (как в дневнике); абонементы тренера с сервера; при сохранении и загрузке журнала дописывается `membership_id`.
 - **Sync / стабильность:** одно соединение IndexedDB на вкладку (без `Lock broken… steal`); ручной Sync паузит фоновый drain; «Последний Sync» не врёт, если очередь уже опустела в фоне. Docs: [SYNC.md](./docs/SYNC.md).
 - **Sync / таймауты pull:** 45 с на `trainer-pull` и справочник при ручном Sync (cold start Vercel); потолок всего Sync ~2.5 мин; splash не блокирует админа при восстановлении сессии с кэшем роли.

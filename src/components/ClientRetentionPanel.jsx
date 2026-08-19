@@ -94,9 +94,9 @@ export function ClientRetentionPanel({
           label="Возвраты"
           value={formatRetentionRatePct(r.reactivationRate)}
           hint={
-            r.restoreEventsAvailable
-              ? `${r.successfulReactivations ?? 0} успешных из ${r.restoresInWindow ?? 0}`
-              : 'Журнал restore — в следующей фазе'
+            (r.restoresInWindow ?? 0) > 0
+              ? `${r.successfulReactivations ?? 0} успешных из ${r.restoresInWindow} · 90 дн.`
+              : 'Нет возвратов за 90 дн. · журнал с «Вернуть»'
           }
         />
         <KpiCard

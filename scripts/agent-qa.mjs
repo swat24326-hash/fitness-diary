@@ -201,6 +201,7 @@ run('challenges club query', 'node', ['scripts/verify-challenges-club-query.mjs'
 run('client counts local', 'node', ['scripts/verify-client-counts-local.mjs'])
 run('coach quality', 'node', ['scripts/verify-coach-quality.mjs'])
 run('client retention', 'node', ['scripts/verify-client-retention.mjs'])
+run('client restore event', 'node', ['scripts/verify-client-restore-event.mjs'])
 run('home glance cache', 'node', ['scripts/verify-home-glance-cache.mjs'])
 run('ble heart rate', 'node', ['scripts/verify-ble-heart-rate.mjs'])
 run('hr session agg', 'node', ['scripts/verify-hr-session-agg.mjs'])

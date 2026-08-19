@@ -1,6 +1,6 @@
 # Удержание и жизнь клиента
 
-**Статус:** ✅ фаза 0 (core + verify) · ✅ фаза 1 (API + карточка в Статистике ПЗ) · фаза 2 — журнал restore, tenure на universe  
+**Статус:** ✅ фаза 0 (core + verify) · ✅ фаза 1 (API + карточка в Статистике ПЗ) · ✅ фаза 2a (журнал restore + tenure universe) · backlog: historical trainer_id  
 **Кому:** управляющий (клуб), тренер с планшетом (свои KPI)  
 **Не путать с:** [COACH_QUALITY.md](./COACH_QUALITY.md), воронкой чипов (`trainerClientOutreachCore.js`), period census (`clubClientPeriodAgg.js`)
 
@@ -73,7 +73,19 @@ API (фаза 1): `admin-data?action=client-retention&club_id=&date_from=&date_t
 | **Админ → Статистика → вкладка ПЗ** | Карточка «Удержание» (M+3) → drill-down: KPI, причины архива, M+3 по тренерам |
 | **Тренер → Профиль → Статистика** | Тот же блок через `AdminClubStatsSection` — только свои KPI |
 
-Reactivation в UI показывает «—», пока нет журнала restore (фаза 2).
+Reactivation: журнал `client_restore_events` (миграция `20260820120000_client_restore_events.sql`); пишется при push «Вернуть»; KPI lookback 90 дн.
+
+## Журнал restore (фаза 2)
+
+| Компонент | Путь |
+|-----------|------|
+| Таблица | `client_restore_events` |
+| Push | `api/_lib/clientRestoreEventWrite.js` → `pushRecordCore` |
+| Read | `api/_lib/clientRestoreEventsQuery.js` → `clubClientRetentionCore` |
+| Core | `src/lib/admin/clientRestoreEventCore.js` |
+| Verify | `scripts/verify-client-restore-event.mjs` |
+
+**Tenure (медиана жизни):** считается по **universe** (включая архивных tablet-клиентов).
 
 ## Проверка
 

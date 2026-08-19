@@ -11,6 +11,7 @@ import { normalizeHealthCardPushPayload } from '../../src/lib/healthCardCore.js'
 import { normalizePnkFunnelEventPushPayload } from '../../src/lib/pnk/pnkFunnelEventsCore.js'
 import { recordClientDeletionAudit } from './deletionAuditWrite.js'
 import { applyLoyaltyClientPushSideEffects } from './loyaltyClientPushSideEffects.js'
+import { recordClientRestoreEvent } from './clientRestoreEventWrite.js'
 import {
   isWeightEntryTrainingFkError,
   sanitizeWeightEntryTrainingLink,
@@ -338,7 +339,7 @@ export async function executePushRecord(ctx, item) {
       if (table_name === 'clients') {
         const prev = await supabaseAdmin
           .from('clients')
-          .select('id, club_id, trainer_id, archived_at')
+          .select('id, club_id, trainer_id, archived_at, archive_reason')
           .eq('id', remote_id)
           .maybeSingle()
         if (prev.error) {
@@ -377,6 +378,12 @@ export async function executePushRecord(ctx, item) {
           before: clientBefore,
           payload,
           actorId: ctx.profile?.id ?? ctx.user?.id ?? null,
+        })
+        await recordClientRestoreEvent(supabaseAdmin, {
+          before: clientBefore,
+          payload,
+          actorId: ctx.profile?.id ?? ctx.user?.id ?? null,
+          source: 'push',
         })
       }
       return { ok: true }

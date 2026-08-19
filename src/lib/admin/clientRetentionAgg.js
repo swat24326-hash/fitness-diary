@@ -124,7 +124,7 @@ export function aggregateClientRetention(input) {
 
   /** @type {number[]} */
   const tenureValues = []
-  for (const client of pool) {
+  for (const client of universe) {
     const id = String(client.id ?? '')
     const anchor = resolveCohortAnchorDate(client, membershipsByClient.get(id) ?? [], membershipTypes)
     if (!anchor) continue

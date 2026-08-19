@@ -263,6 +263,43 @@ ok(agg.archivesInPeriod === 1, 'c2 archived in July counted')
 ok(agg.retentionM3.cohortSize >= 1, 'agg retention computed')
 ok(agg.medianTenureDays != null, 'tenure computed')
 
+const aggArchivedTenure = aggregateClientRetention({
+  clients: [
+    {
+      id: 'c-arch-tenure',
+      trainer_id: 't-tab',
+      lifecycle: 'active',
+      archived_at: '2026-06-15',
+    },
+  ],
+  memberships: [mem('c-arch-tenure', 'paid', '2026-01-01', '2026-05-01')],
+  trainings: [],
+  membershipTypes: TYPES,
+  trainers: TRAINERS,
+  periodFrom: '2026-07-01',
+  periodTo: '2026-07-31',
+  asOf: TODAY,
+  cohortMonths: ['2026-01'],
+  restoreEvents: [],
+})
+ok(aggArchivedTenure.medianTenureDays != null, 'tenure on archived universe client')
+
+const aggReactivation = aggregateClientRetention({
+  clients: [{ id: 'c9', trainer_id: 't-tab', lifecycle: 'active' }],
+  memberships: [mem('c9', 'paid', '2026-01-01', '2026-12-01')],
+  trainings: [training('c9', '2026-07-10')],
+  membershipTypes: TYPES,
+  trainers: TRAINERS,
+  periodFrom: '2026-07-01',
+  periodTo: '2026-07-31',
+  asOf: TODAY,
+  cohortMonths: ['2026-03'],
+  restoreEvents: [{ clientId: 'c9', restoredAt: '2026-07-02' }],
+})
+ok(aggReactivation.restoresInWindow === 1, 'reactivation restore counted')
+ok(aggReactivation.successfulReactivations === 1, 'reactivation successful with training')
+ok(aggReactivation.reactivationRate === 1, 'reactivation rate 100%')
+
 setSection('PERIOD CENSUS ≠ funnel')
 const censusMem = [mem('c1', 'paid', '2026-01-01', '2026-06-01', 8, 8)]
 ok(!hasUsableMembershipForPeriodStats(censusMem, '2026-07-01', '2026-07-31', TODAY), 'period inactive census')

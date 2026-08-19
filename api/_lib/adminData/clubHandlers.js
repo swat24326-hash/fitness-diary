@@ -167,7 +167,6 @@ export async function handleClientRetention(ctx, req, res) {
       dateFrom,
       dateTo,
       trainerIdFilter,
-      restoreEvents: [],
     })
     sendJson(res, 200, {
       ...payload,
