@@ -42,7 +42,8 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 5. **Менеджер продаж + типы абон.:** Sync у менеджера — flush + pull `membership_types` (свой клуб). Колонки АЗ в дневном отчёте обновляются ещё кнопкой **«Обновить»** на `/sales`. API: `admin-data?action=membership-types` доступен менеджеру; RLS: `fit_membership_types_sales_manager_read`. Без этого «Обновить» мог показывать устаревший IDB без нового R3+. Док: [SALES_MANAGER.md](./SALES_MANAGER.md).
 6. **Невосстановимые ошибки push:** 403 без прав (роль/клуб) и часть **400** по датам membership (`isUnrecoverablePushError` в `syncFlushResult.js`) — **снимаем** запись из очереди, не крутим 12 раз. Сообщения вроде «Менеджер может менять только клиентов и абонементы…», «Нет доступа…», «другого клуба». Менеджер **не** пишет медкарту/вес/замеры в обычном UI (read-only на вкладке здоровья), кроме **каскада удаления desk** ТЗ/АЗ: тогда разрешён delete по `trainings` / `health_cards` / `body_measurements` / `client_weight_entries` своего клуба (`SALES_MANAGER_DESK_DELETE_EXTRA_TABLES`).
 7. **Управляющий (`supervisor`):** может входить в `/api/push-record(s)` (`canUseSyncPushApi`); дальше `authorizePush` / `mutationAuth` режут чужой клуб и запрещённые таблицы (`isSupervisorDeniedPushTable`).
-8. **Новая синхронизируемая таблица:**
+8. **Финиш тренировки (критический путь):** `TrainingPage.persist()` должен завершаться без падения UI даже при исключении в любой async-ветке (save/debit/hr/nav). Ошибка пишется в `appErrorJournal` с контекстом, содержащим `training-persist`, в форме показывается `saveError` (или `autosaveStatus=error` для silent).
+9. **Новая синхронизируемая таблица:**
    - migration + RLS;
    - добавить в `PUSH_ALLOWED_TABLES` (`api/_lib/pushRecordCore.js`);
    - путь flush в sync-сервисе;

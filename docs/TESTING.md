@@ -151,6 +151,8 @@
 | Продажи: профили bundle shell/daily/month/full | `verify-sales-bundle-profile.mjs` |
 | Срок абонемента по умолчанию (+1 календарный месяц) | `verify-date-ru.mjs` |
 
+Дополнительно для расследования «вылетов» в офлайне: смотреть журнал ошибок приложения (`appErrorJournal`) по контексту, содержащему `training-persist` — это путь исключений внутри `TrainingPage.persist()`; ошибки HR/loyalty должны не блокировать сохранение тренировки, а уходить в `appErrorJournal`.
+
 Подробнее: `.cursor/rules/fitness-diary-stability.mdc`, процесс аудита — [DEEP_AUDIT.md](./DEEP_AUDIT.md).
 
 ---

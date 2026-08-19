@@ -54,6 +54,7 @@ import {
 } from '../../lib/loyalty/loyaltyPersistCore.js'
 import { loadLoyaltyCompleteSettings } from '../../lib/loyalty/loyaltyCompleteSettingsService.js'
 import { isLoyaltyProgramClient } from '../../lib/loyalty/loyaltyGlanceUiCore.js'
+import { recordAppError } from '../../lib/appErrorJournal.js'
 
 const TRAINING_TYPES = TRAINING_SESSION_TYPES
 
@@ -144,6 +145,7 @@ export function TrainingPage() {
   const [healthCard, setHealthCard] = useState(null)
   const [otherCompletedTrainings, setOtherCompletedTrainings] = useState(0)
   const [autosaveStatus, setAutosaveStatus] = useState('idle') // idle | saving | saved | error
+  const [completeBusy, setCompleteBusy] = useState(false)
   const [earlyActivateProposal, setEarlyActivateProposal] = useState(null)
   const [membershipShiftMode, setMembershipShiftMode] = useState(/** @type {'early' | 'late' | null} */ (null))
   const [earlyActivateOpen, setEarlyActivateOpen] = useState(false)
@@ -327,7 +329,10 @@ export function TrainingPage() {
     const skipNavigate = opts.skipNavigate === true
     const completeClick = String(status ?? '') === 'completed' && !silent
     if (completeClick && shouldSkipDuplicateCompleteClick(completeInFlightRef.current)) return
-    if (completeClick) completeInFlightRef.current = true
+    if (completeClick) {
+      completeInFlightRef.current = true
+      setCompleteBusy(true)
+    }
     try {
     if (!silent) {
       setSaveError('')
@@ -453,16 +458,27 @@ export function TrainingPage() {
       ...sanitizeWorkoutData(workoutState, { sessionFallback: trainingType }),
       duration_min: wm + cm > 0 ? wm + cm : workoutState.duration_min ?? '',
     }
-    const hrSnap = pickHrSessionForPersist({
-      firstCompletion,
-      liveSummary: hr.summarizeSession(cid, {
-        birthDate: client?.birth_date,
-        sex: getHealthSex(healthCard),
-        weightKg: workoutState.pre_weight_kg || healthCard?.weight_kg || null,
-        asOfIso: effectiveDate || today,
-      }),
-      storedSnapshot: dataPayload.hr_session,
-    })
+    let hrSnap = null
+    try {
+      hrSnap = pickHrSessionForPersist({
+        firstCompletion,
+        liveSummary: hr.summarizeSession(cid, {
+          birthDate: client?.birth_date,
+          sex: getHealthSex(healthCard),
+          weightKg: workoutState.pre_weight_kg || healthCard?.weight_kg || null,
+          asOfIso: effectiveDate || today,
+        }),
+        storedSnapshot: dataPayload.hr_session,
+      })
+    } catch (e) {
+      // HR — не критический блокер завершения: сохраняем тренировку без HR-снапшота.
+      recordAppError({
+        source: 'app',
+        error: 'Ошибка сохранения HR-снимка',
+        context: `Завершение тренировки (training-persist) · hrSnap`,
+        detail: e?.stack,
+      })
+    }
     if (hrSnap) dataPayload.hr_session = hrSnap
     else delete dataPayload.hr_session
 
@@ -504,8 +520,10 @@ export function TrainingPage() {
       }
     }
     const loyaltySettings = stampLoyalty ? await loyaltySettingsPromise : null
-    const dataWithLoyalty = stampLoyalty
-      ? applyLoyaltyOnTrainingPersist({
+    let dataWithLoyalty = dataPayload
+    if (stampLoyalty) {
+      try {
+        dataWithLoyalty = applyLoyaltyOnTrainingPersist({
           data: dataPayload,
           type: persistType,
           firstCompletion,
@@ -519,7 +537,16 @@ export function TrainingPage() {
           },
           settings: loyaltySettings,
         })
-      : dataPayload
+      } catch (e) {
+        // Loyalty — тоже не критический блокер: сохраняем тренировку без штампа.
+        recordAppError({
+          source: 'app',
+          error: 'Ошибка сохранения штампа лояльности',
+          context: `Завершение тренировки (training-persist) · loyalty`,
+          detail: e?.stack,
+        })
+      }
+    }
     const trainerIdForRow = isAdmin ? prev?.trainer_id ?? client?.trainer_id ?? user.id : user.id
     const row = {
       id: prev?.id ?? trainingId,
@@ -672,8 +699,19 @@ export function TrainingPage() {
         nav(`${workoutsBase}/${row.id}${preserveClubQs}`, { replace: true })
       }
     })
+    } catch (e) {
+      const message = e?.message ? String(e.message) : 'Ошибка сохранения тренировки'
+      recordAppError({
+        source: 'app',
+        error: message,
+        context: `training-persist · ${String(status ?? '') || 'unknown'}`,
+        detail: e?.stack,
+      })
+      if (silent) setAutosaveStatus('error')
+      if (!silent) setSaveError(message)
     } finally {
       if (completeClick) completeInFlightRef.current = false
+      if (completeClick) setCompleteBusy(false)
     }
   }
 
@@ -1302,12 +1340,13 @@ export function TrainingPage() {
               <button
                 type="button"
                 className="btn btn-primary btn-touch"
+                disabled={completeBusy}
                 onClick={() => {
                   setShowCompletionHints(false)
                   void persist('completed')
                 }}
               >
-                Сохранить
+                {completeBusy ? 'Сохраняем…' : 'Сохранить'}
               </button>
             </span>
           ) : canCompleteTraining ? (
@@ -1315,12 +1354,13 @@ export function TrainingPage() {
               <button
                 type="button"
                 className="btn btn-primary btn-touch"
+                disabled={completeBusy}
                 onClick={() => {
                   setShowCompletionHints(false)
                   void persist('completed')
                 }}
               >
-                Закончить тренировку
+                {completeBusy ? 'Сохраняем…' : 'Закончить тренировку'}
               </button>
             </span>
           ) : (
