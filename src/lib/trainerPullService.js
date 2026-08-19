@@ -179,5 +179,15 @@ export async function pullTrainerWorkspaceFromCloud(trainerId, opts = {}) {
     }
   }
 
+  try {
+    const { getAccessTokenForAdminApi } = await import('./syncApiClient.js')
+    const token = await getAccessTokenForAdminApi()
+    if (!token) {
+      return { ok: false, error: 'Сессия истекла — выйдите и войдите снова' }
+    }
+  } catch {
+    /* fall through to network message */
+  }
+
   return { ok: false, error: 'Нет связи с сервером — показаны данные с устройства' }
 }

@@ -4,7 +4,7 @@ export const APP_ERRORS_CHANGED = 'fitness-diary-app-errors'
 export const SYNC_ATTENTION_CHANGED = 'fitness-diary-sync-attention'
 
 const RECOVERABLE_TEXT =
-  /нет сети|синхронизац\w* отложен|failed to fetch|fetch failed|network|offline|недоступн|timeout|timed out|aborted|в очереди осталось/i
+  /нет сети|нет связи|показаны данные с устройства|синхронизац\w* отложен|failed to fetch|fetch failed|network|offline|недоступн|timeout|timed out|aborted|в очереди осталось/i
 
 let syncNeedsAttention = false
 
@@ -12,6 +12,7 @@ const STORAGE_KEY = 'fitness-diary-app-errors-v1'
 const LEGACY_SYNC_KEY = 'fitness-diary-sync-errors-v1'
 const MAX_ENTRIES = 60
 const DEDUPE_MS = 5000
+const DEDUPE_PULL_MS = 120_000
 
 /** @type {Record<string, string>} */
 export const APP_ERROR_SOURCE_LABELS = {
@@ -138,15 +139,14 @@ export function initSyncAttentionFromJournal() {
  * Итог попытки синхронизации: при успехе (очередь 0, без замечаний) убираем транзиентные записи журнала.
  * @param {{ queueCount: number, hadError?: boolean }} outcome
  */
-export function reportSyncOutcome({ queueCount, hadError = false }) {
+export function reportSyncOutcome({ queueCount, hadError: _hadError = false }) {
   const queue = Math.max(0, Number(queueCount) || 0)
-  const err = Boolean(hadError)
 
-  if (queue === 0 && !err) {
+  if (queue === 0) {
     const list = readRaw()
     const kept = list.filter((r) => !isRecoverableTransientError(r))
     if (kept.length !== list.length) writeRaw(kept)
-    syncNeedsAttention = false
+    syncNeedsAttention = getPersistentErrorCount() > 0
   } else {
     syncNeedsAttention = true
   }
@@ -226,7 +226,8 @@ function isDuplicate(prev, next) {
   const t0 = Date.parse(prev.at)
   const t1 = Date.parse(next.at)
   if (Number.isNaN(t0) || Number.isNaN(t1)) return false
-  return Math.abs(t1 - t0) < DEDUPE_MS
+  const windowMs = next.source === 'pull' ? DEDUPE_PULL_MS : DEDUPE_MS
+  return Math.abs(t1 - t0) < windowMs
 }
 
 /**

@@ -67,6 +67,15 @@ reportSyncOutcome({ queueCount: 0, hadError: false })
 assert.equal(getAppErrorCount(), 0, 'recoverable cleared after successful sync')
 assert.equal(computeNeedsUserAttention(0), false)
 
+recordAppError({
+  source: 'pull',
+  error: 'рабочая область: Нет связи с сервером — показаны данные с устройства',
+})
+assert.ok(isRecoverableTransientError(getAppErrors(1)[0]), 'pull offline fallback is recoverable')
+reportSyncOutcome({ queueCount: 0, hadError: true })
+assert.equal(getAppErrorCount(), 0, 'recoverable pull cleared when queue empty even with hadError')
+assert.equal(computeNeedsUserAttention(0), false)
+
 recordSyncError({ status: 400, error: 'HTTP fail', table_name: 'trainings', operation: 'insert' })
 reportSyncOutcome({ queueCount: 0, hadError: false })
 assert.equal(getPersistentErrorCount(), 1, 'server errors stay after sync ok')
