@@ -339,15 +339,15 @@ export function TrainerClients() {
     }
   }
 
-  const confirmArchiveReason = async (reason) => {
+  const confirmArchiveReason = async (payload) => {
     const modal = archiveReasonModal
     if (!modal?.client?.id) return
     setBusy(true)
     try {
       const { warn } =
         modal.mode === 'enter'
-          ? await archiveClientWithReason(modal.client, reason)
-          : await setClientArchiveReason(modal.client, reason)
+          ? await archiveClientWithReason(modal.client, payload)
+          : await setClientArchiveReason(modal.client, payload)
       if (warn) alert(warn)
       setArchiveReasonModal(null)
       await reload({ silent: true })
@@ -710,11 +710,11 @@ export function TrainerClients() {
         open={Boolean(archiveReasonModal)}
         mode={archiveReasonModal?.mode === 'edit' ? 'edit' : 'enter'}
         clientName={archiveReasonModal?.client?.name}
-        client={archiveReasonModal?.mode === 'edit' ? null : archiveReasonModal?.client}
+        client={archiveReasonModal?.client}
         initialReason={archiveReasonModal?.mode === 'edit' ? archiveReasonModal?.client?.archive_reason : null}
         busy={busy}
         onCancel={() => !busy && setArchiveReasonModal(null)}
-        onConfirm={(reason) => void confirmArchiveReason(reason)}
+        onConfirm={(payload) => void confirmArchiveReason(payload)}
       />
 
       {showNewClient && (

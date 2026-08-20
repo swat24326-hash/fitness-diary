@@ -1,12 +1,20 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import {
   ARCHIVE_REASON_CHIPS,
   ARCHIVE_REASON_MAX_LEN,
   ARCHIVE_REASON_OTHER_ID,
   composeArchiveReason,
-  isArchiveReasonReady,
+  isArchiveReasonModalReady,
   resolveArchiveReasonModalState,
 } from '../lib/clientArchiveReasonCore.js'
+import {
+  ARCHIVE_RETURN_HORIZONS,
+  ARCHIVE_RETURN_LATER_ID,
+  getClientExpectedReturnOn,
+  matchReturnHorizon,
+  resolveExpectedReturnOn,
+} from '../lib/clientArchiveExpectedReturnCore.js'
+import { formatDateRu, todayLocalIso } from '../lib/dateRu.js'
 import { useLoyaltyArchiveWarn } from '../hooks/useLoyaltyArchiveWarn.js'
 
 /**
@@ -19,7 +27,7 @@ import { useLoyaltyArchiveWarn } from '../hooks/useLoyaltyArchiveWarn.js'
  *   client?: object | null,
  *   busy?: boolean,
  *   onCancel: () => void,
- *   onConfirm: (reason: string) => void,
+ *   onConfirm: (payload: { reason: string, expectedReturnOn: string | null }) => void,
  * }} props
  */
 export function ClientArchiveReasonModal({
@@ -34,16 +42,22 @@ export function ClientArchiveReasonModal({
 }) {
   const titleId = useId()
   const hintId = useId()
+  const horizonHintId = useId()
   const inputRef = useRef(null)
+  const dateRef = useRef(null)
   const submitGuardRef = useRef(false)
   const [selectedChipId, setSelectedChipId] = useState(null)
   const [customText, setCustomText] = useState('')
+  const [horizonId, setHorizonId] = useState(null)
+  const [customReturnDate, setCustomReturnDate] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
     if (!open) {
       setSelectedChipId(null)
       setCustomText('')
+      setHorizonId(null)
+      setCustomReturnDate('')
       setSubmitting(false)
       submitGuardRef.current = false
       return
@@ -51,15 +65,33 @@ export function ClientArchiveReasonModal({
     const initial = resolveArchiveReasonModalState(initialReason)
     setSelectedChipId(initial.chipId)
     setCustomText(initial.customText)
+    if (initial.chipId === ARCHIVE_RETURN_LATER_ID) {
+      const existing = getClientExpectedReturnOn({
+        expected_return_on: client?.expected_return_on,
+        archive_reason: initialReason,
+      })
+      const matched = matchReturnHorizon(existing)
+      setHorizonId(matched.horizonId)
+      setCustomReturnDate(matched.customDate || '')
+    } else {
+      setHorizonId(null)
+      setCustomReturnDate('')
+    }
     setSubmitting(false)
     submitGuardRef.current = false
-  }, [open, initialReason])
+  }, [open, initialReason, client?.expected_return_on])
 
   useEffect(() => {
     if (!open || selectedChipId !== ARCHIVE_REASON_OTHER_ID) return
     const t = window.setTimeout(() => inputRef.current?.focus?.(), 50)
     return () => window.clearTimeout(t)
   }, [open, selectedChipId])
+
+  useEffect(() => {
+    if (!open || selectedChipId !== ARCHIVE_RETURN_LATER_ID || horizonId !== 'custom') return
+    const t = window.setTimeout(() => dateRef.current?.focus?.(), 50)
+    return () => window.clearTimeout(t)
+  }, [open, selectedChipId, horizonId])
 
   useEffect(() => {
     if (!busy) {
@@ -70,12 +102,27 @@ export function ClientArchiveReasonModal({
 
   const isEnter = mode === 'enter'
   const loyaltyWarn = useLoyaltyArchiveWarn(client, open && isEnter)
+  const asOf = todayLocalIso()
+
+  const expectedReturnOn = useMemo(() => {
+    if (selectedChipId !== ARCHIVE_RETURN_LATER_ID) return null
+    return resolveExpectedReturnOn(asOf, horizonId, customReturnDate)
+  }, [selectedChipId, horizonId, customReturnDate, asOf])
 
   if (!open) return null
 
-  const reason = composeArchiveReason({ chipId: selectedChipId, customText })
-  const ready = Boolean(selectedChipId) && isArchiveReasonReady(reason)
+  const reason = composeArchiveReason({
+    chipId: selectedChipId,
+    customText,
+    expectedReturnOn,
+  })
+  const ready = isArchiveReasonModalReady({
+    chipId: selectedChipId,
+    customText,
+    expectedReturnOn,
+  })
   const showOtherField = selectedChipId === ARCHIVE_REASON_OTHER_ID
+  const showReturnHorizons = selectedChipId === ARCHIVE_RETURN_LATER_ID
   const title = isEnter ? 'В архив' : 'Причина архива'
   const confirmLabel = isEnter ? 'В архив' : 'Сохранить'
   const locked = busy || submitting
@@ -84,13 +131,25 @@ export function ClientArchiveReasonModal({
     if (locked) return
     setSelectedChipId(chipId)
     if (chipId !== ARCHIVE_REASON_OTHER_ID) setCustomText('')
+    if (chipId !== ARCHIVE_RETURN_LATER_ID) {
+      setHorizonId(null)
+      setCustomReturnDate('')
+    } else if (!horizonId) {
+      setHorizonId('1m')
+    }
+  }
+
+  const pickHorizon = (id) => {
+    if (locked) return
+    setHorizonId(id)
+    if (id !== 'custom') setCustomReturnDate('')
   }
 
   const submit = () => {
-    if (!ready || locked || submitGuardRef.current) return
+    if (!ready || !reason || locked || submitGuardRef.current) return
     submitGuardRef.current = true
     setSubmitting(true)
-    onConfirm?.(reason)
+    onConfirm?.({ reason, expectedReturnOn })
   }
 
   return (
@@ -157,10 +216,60 @@ export function ClientArchiveReasonModal({
           })}
         </div>
         <p id={hintId} className="muted client-archive-reason-modal__hint">
-          {showOtherField
-            ? 'Напишите коротко своими словами — поле обязательно.'
-            : 'Если ни один вариант не подходит — выберите «Другое».'}
+          {showReturnHorizons
+            ? 'Укажите ориентир, когда ждать клиента обратно.'
+            : showOtherField
+              ? 'Напишите коротко своими словами — поле обязательно.'
+              : 'Если ни один вариант не подходит — выберите «Другое».'}
         </p>
+
+        {showReturnHorizons ? (
+          <div
+            className="client-archive-reason-modal__horizons"
+            role="radiogroup"
+            aria-labelledby={horizonHintId}
+          >
+            <p id={horizonHintId} className="client-archive-reason-modal__horizon-title">
+              Когда примерно вернётся?
+            </p>
+            <div className="client-archive-reason-modal__horizon-chips">
+              {ARCHIVE_RETURN_HORIZONS.map((h) => {
+                const on = horizonId === h.id
+                return (
+                  <button
+                    key={h.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    disabled={locked}
+                    className={`client-archive-reason-chip client-archive-reason-chip--horizon${on ? ' client-archive-reason-chip--on' : ''}`}
+                    onClick={() => pickHorizon(h.id)}
+                  >
+                    {h.label}
+                  </button>
+                )
+              })}
+            </div>
+            {horizonId === 'custom' ? (
+              <label className="field client-archive-reason-modal__field">
+                <span className="label">Дата возврата *</span>
+                <input
+                  ref={dateRef}
+                  className="input"
+                  type="date"
+                  value={customReturnDate}
+                  min={asOf}
+                  disabled={locked}
+                  onChange={(e) => setCustomReturnDate(e.target.value)}
+                />
+              </label>
+            ) : expectedReturnOn ? (
+              <p className="muted client-archive-reason-modal__horizon-preview">
+                Ориентир: до {formatDateRu(expectedReturnOn)}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
 
         {showOtherField ? (
           <label className="field client-archive-reason-modal__field">

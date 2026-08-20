@@ -53,6 +53,7 @@ CREATE TABLE clients (
   archived_at TIMESTAMPTZ,
   archive_reason TEXT,
   archive_reason_at TIMESTAMPTZ,
+  expected_return_on DATE,
   lifecycle TEXT NOT NULL DEFAULT 'active' CHECK (lifecycle IN ('active', 'pnk', 'pnk_lost')),
   pnk_stage TEXT CHECK (
     pnk_stage IS NULL

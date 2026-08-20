@@ -16,6 +16,7 @@ import {
   clientNeedsArchiveReason,
   formatArchiveReasonDisplay,
 } from '../../lib/clientArchiveReasonCore.js'
+import { formatExpectedReturnHint } from '../../lib/clientArchiveExpectedReturnCore.js'
 import { ClientArchiveReasonModal } from '../../components/ClientArchiveReasonModal.jsx'
 import { useAuth } from '../../context/AuthContext'
 import { useDebouncedStorageReload, shouldReloadTrainerClientStats } from '../../lib/useDebouncedStorageReload'
@@ -424,11 +425,11 @@ export function ClientCard() {
   }, [client, reloadLocal])
 
   const saveArchiveReasonOnCard = useCallback(
-    async (reason) => {
+    async (payload) => {
       if (!client?.id) return
       setArchiveBusy(true)
       try {
-        const { warn } = await setClientArchiveReason(client, reason)
+        const { warn } = await setClientArchiveReason(client, payload)
         if (warn) alert(warn)
         setArchiveReasonModalOpen(false)
         await reloadLocal()
@@ -780,6 +781,15 @@ export function ClientCard() {
           <span className="client-archive-banner__reason muted">
             Причина: {formatArchiveReasonDisplay(client)}
             {clientNeedsArchiveReason(client) ? ' — укажите, почему в архиве.' : ''}
+            {(() => {
+              const hint = formatExpectedReturnHint(client)
+              return hint ? (
+                <>
+                  <br />
+                  {hint}
+                </>
+              ) : null
+            })()}
           </span>
           <span className="client-archive-banner__actions">
             <button
@@ -802,10 +812,11 @@ export function ClientCard() {
         open={archiveReasonModalOpen && isArchived}
         mode="edit"
         clientName={client?.name}
+        client={client}
         initialReason={client?.archive_reason}
         busy={archiveBusy}
         onCancel={() => !archiveBusy && setArchiveReasonModalOpen(false)}
-        onConfirm={(reason) => void saveArchiveReasonOnCard(reason)}
+        onConfirm={(payload) => void saveArchiveReasonOnCard(payload)}
       />
       {editOpen && (
         <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Редактирование клиента" onClick={() => setEditOpen(false)}>

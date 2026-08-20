@@ -49,16 +49,16 @@ async function persistClientFields(clientRow, fields, actionLabel, opts = {}) {
 /**
  * Убрать в архив с обязательной причиной.
  * @param {object} clientRow
- * @param {string} reason
+ * @param {string|{ reason?: string, expectedReturnOn?: string|null }} reasonInput
  */
-export async function archiveClientWithReason(clientRow, reason) {
-  const built = buildArchiveEnterFields(reason)
+export async function archiveClientWithReason(clientRow, reasonInput) {
+  const built = buildArchiveEnterFields(reasonInput)
   if (!built.ok) throw new Error(built.error)
   return persistClientFields(clientRow, built.patch, 'Архив')
 }
 
 /**
- * Вернуть из архива — дата и причина очищаются.
+ * Вернуть из архива — дата, причина и срок ожидания очищаются.
  * @param {object} clientRow
  */
 export async function restoreClientFromArchive(clientRow) {
@@ -68,10 +68,10 @@ export async function restoreClientFromArchive(clientRow) {
 /**
  * Дописать / сменить причину у уже архивного.
  * @param {object} clientRow
- * @param {string} reason
+ * @param {string|{ reason?: string, expectedReturnOn?: string|null }} reasonInput
  */
-export async function setClientArchiveReason(clientRow, reason) {
-  const built = buildArchiveReasonOnlyFields(reason)
+export async function setClientArchiveReason(clientRow, reasonInput) {
+  const built = buildArchiveReasonOnlyFields(reasonInput)
   if (!built.ok) throw new Error(built.error)
   return persistClientFields(clientRow, built.patch, 'Причина архива', { requireArchived: true })
 }

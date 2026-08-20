@@ -42,6 +42,39 @@
   font-size: 0.85rem;
 }
 
+.client-archive-reason-modal__horizons {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.client-archive-reason-modal__horizon-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text, #e8eee9);
+}
+
+.client-archive-reason-modal__horizon-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.client-archive-reason-chip--horizon {
+  flex: 1 1 calc(33.333% - 6px);
+  min-height: 40px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.client-archive-reason-modal__horizon-preview {
+  margin: 10px 0 0;
+  font-size: 0.85rem;
+}
+
 .client-archive-reason-modal__lead {
   margin-top: 8px;
 }
@@ -62,8 +95,21 @@
 
 .td-client-fact__value--archive-reason {
   display: inline-flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
   min-width: 0;
+}
+
+.client-archive-return-hint {
+  font-size: 0.75rem;
+  line-height: 1.3;
+  color: var(--text-muted, rgba(255, 255, 255, 0.62));
+}
+
+.client-archive-return-hint--due {
+  color: var(--warning, #fbbf24);
+  font-weight: 600;
 }
 
 .client-archive-reason-badge {

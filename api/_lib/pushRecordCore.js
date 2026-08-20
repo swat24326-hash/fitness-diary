@@ -102,8 +102,8 @@ function friendlyClientsDbError(error) {
   if (/outreach_name/i.test(msg) && /schema cache|could not find|column/i.test(msg)) {
     return 'Колонка outreach_name не создана в Supabase — выполните миграцию clients_outreach_name'
   }
-  if (/archive_reason/i.test(msg) && /schema cache|could not find|column/i.test(msg)) {
-    return 'Колонки причины архива не созданы в Supabase — выполните миграцию clients_archive_reason'
+  if (/archive_reason|expected_return_on/i.test(msg) && /schema cache|could not find|column/i.test(msg)) {
+    return 'Колонки архива не созданы в Supabase — выполните миграции archive_reason / expected_return_on'
   }
   if (/max_chat_url/i.test(msg) && /schema cache|could not find|column/i.test(msg)) {
     return 'Колонка max_chat_url не создана в Supabase — выполните миграцию clients_max_chat_url'

@@ -75,5 +75,6 @@ export function buildClientCardNavSeed(client) {
     archived_at: client.archived_at ?? null,
     archive_reason: client.archive_reason ?? null,
     archive_reason_at: client.archive_reason_at ?? null,
+    expected_return_on: client.expected_return_on ?? null,
   }
 }

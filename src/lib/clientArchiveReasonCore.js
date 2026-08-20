@@ -1,21 +1,31 @@
 /**
  * Причина архива клиента — одна правда на карточке.
- * При возврате в работу причина очищается вместе с archived_at.
+ * При возврате в работу причина и expected_return_on очищаются вместе с archived_at.
  */
+
+import {
+  ARCHIVE_RETURN_LATER_ID,
+  composeReturnLaterReason,
+  isReturnLaterReasonText,
+  normalizeExpectedReturnOn,
+  parseExpectedReturnOnFromReason,
+} from './clientArchiveExpectedReturnCore.js'
 
 export const ARCHIVE_REASON_MAX_LEN = 200
 
 export const ARCHIVE_REASON_OTHER_ID = 'other'
 
-/** Быстрые чипы на планшете (подпись = значение в БД, кроме «Другое»). */
+/** Быстрые чипы на планшете (подпись = значение в БД, кроме «Другое» и «Вернётся позже» с датой). */
 export const ARCHIVE_REASON_CHIPS = Object.freeze([
   { id: 'never_return', label: 'Не вернётся' },
-  { id: 'return_later', label: 'Вернётся позже' },
+  { id: ARCHIVE_RETURN_LATER_ID, label: 'Вернётся позже' },
   { id: 'no_show', label: 'Не ходит / пропал' },
   { id: 'expensive', label: 'Дорого / нет денег' },
   { id: 'health', label: 'Здоровье' },
   { id: 'moved', label: 'Переехал / другой зал' },
   { id: 'other_coach', label: 'К другому тренеру' },
+  { id: 'to_tz', label: 'Перешёл в ТЗ' },
+  { id: 'to_az', label: 'Перешёл в АЗ' },
   { id: 'unhappy', label: 'Недоволен' },
   { id: ARCHIVE_REASON_OTHER_ID, label: 'Другое' },
 ])
@@ -51,13 +61,39 @@ export function normalizeArchiveReasonText(raw) {
 }
 
 /**
- * Собрать текст причины из чипа и/или свободного поля.
- * @param {{ chipId?: string | null, customText?: string | null }} input
+ * Нормализовать вход модалки / sync: строка или { reason, expectedReturnOn }.
+ * @param {string|{ reason?: string, expectedReturnOn?: string|null }|null|undefined} input
+ * @returns {{ reason: string | null, expectedReturnOn: string | null }}
+ */
+export function normalizeArchiveReasonInput(input) {
+  if (input == null) return { reason: null, expectedReturnOn: null }
+  if (typeof input === 'string') {
+    const reason = normalizeArchiveReasonText(input)
+    return {
+      reason,
+      expectedReturnOn: isReturnLaterReasonText(reason) ? parseExpectedReturnOnFromReason(reason) : null,
+    }
+  }
+  const reason = normalizeArchiveReasonText(input.reason)
+  const fromField = normalizeExpectedReturnOn(input.expectedReturnOn)
+  const fromText = isReturnLaterReasonText(reason) ? parseExpectedReturnOnFromReason(reason) : null
+  return {
+    reason,
+    expectedReturnOn: fromField || fromText,
+  }
+}
+
+/**
+ * Собрать текст причины из чипа и/или свободного поля (+ срок для «Вернётся позже»).
+ * @param {{ chipId?: string | null, customText?: string | null, expectedReturnOn?: string | null }} input
  * @returns {string | null}
  */
 export function composeArchiveReason(input) {
   const chipId = String(input?.chipId ?? '').trim()
   const custom = normalizeArchiveReasonText(input?.customText)
+  if (chipId === ARCHIVE_RETURN_LATER_ID) {
+    return composeReturnLaterReason(input?.expectedReturnOn)
+  }
   if (chipId && chipId !== ARCHIVE_REASON_OTHER_ID) {
     const chip = ARCHIVE_REASON_CHIPS.find((c) => c.id === chipId)
     if (chip?.label) return normalizeArchiveReasonText(chip.label)
@@ -70,6 +106,19 @@ export function composeArchiveReason(input) {
  */
 export function isArchiveReasonReady(reason) {
   return Boolean(normalizeArchiveReasonText(reason))
+}
+
+/**
+ * Готовность модалки: для «Вернётся позже» обязателен срок.
+ * @param {{ chipId?: string | null, customText?: string | null, expectedReturnOn?: string | null }} input
+ */
+export function isArchiveReasonModalReady(input) {
+  const chipId = String(input?.chipId ?? '').trim()
+  if (!chipId) return false
+  if (chipId === ARCHIVE_RETURN_LATER_ID) {
+    return Boolean(normalizeExpectedReturnOn(input?.expectedReturnOn))
+  }
+  return isArchiveReasonReady(composeArchiveReason(input))
 }
 
 /**
@@ -116,30 +165,36 @@ export function formatArchiveReasonDisplay(client) {
 }
 
 /**
- * Поля при уходе в архив (причина обязательна).
- * @param {unknown} reason
+ * Поля при уходе в архив (причина обязательна; для «Вернётся позже» — expected_return_on).
+ * @param {string|{ reason?: string, expectedReturnOn?: string|null }|null|undefined} reasonInput
  * @param {string} [nowIso]
  * @returns {{ ok: true, patch: object } | { ok: false, error: string }}
  */
-export function buildArchiveEnterFields(reason, nowIso = new Date().toISOString()) {
-  const r = normalizeArchiveReasonText(reason)
-  if (!r) return { ok: false, error: 'Укажите причину архива' }
+export function buildArchiveEnterFields(reasonInput, nowIso = new Date().toISOString()) {
+  const { reason, expectedReturnOn } = normalizeArchiveReasonInput(reasonInput)
+  if (!reason) return { ok: false, error: 'Укажите причину архива' }
+  const returnOn = isReturnLaterReasonText(reason) ? expectedReturnOn : null
+  if (isReturnLaterReasonText(reason) && !returnOn) {
+    return { ok: false, error: 'Укажите, когда ждать возврата' }
+  }
   return {
     ok: true,
     patch: {
       archived_at: nowIso,
-      archive_reason: r,
+      archive_reason: reason,
       archive_reason_at: nowIso,
+      expected_return_on: returnOn,
     },
   }
 }
 
-/** Поля при возврате в работу — дата и причина сбрасываются. */
+/** Поля при возврате в работу — дата, причина и срок ожидания сбрасываются. */
 export function buildArchiveRestoreFields() {
   return {
     archived_at: null,
     archive_reason: null,
     archive_reason_at: null,
+    expected_return_on: null,
   }
 }
 
@@ -158,18 +213,23 @@ export function withArchiveRestore(existing, extra = {}) {
 
 /**
  * Только пометка причины у уже архивного клиента.
- * @param {unknown} reason
+ * @param {string|{ reason?: string, expectedReturnOn?: string|null }|null|undefined} reasonInput
  * @param {string} [nowIso]
  * @returns {{ ok: true, patch: object } | { ok: false, error: string }}
  */
-export function buildArchiveReasonOnlyFields(reason, nowIso = new Date().toISOString()) {
-  const r = normalizeArchiveReasonText(reason)
-  if (!r) return { ok: false, error: 'Укажите причину архива' }
+export function buildArchiveReasonOnlyFields(reasonInput, nowIso = new Date().toISOString()) {
+  const { reason, expectedReturnOn } = normalizeArchiveReasonInput(reasonInput)
+  if (!reason) return { ok: false, error: 'Укажите причину архива' }
+  const returnOn = isReturnLaterReasonText(reason) ? expectedReturnOn : null
+  if (isReturnLaterReasonText(reason) && !returnOn) {
+    return { ok: false, error: 'Укажите, когда ждать возврата' }
+  }
   return {
     ok: true,
     patch: {
-      archive_reason: r,
+      archive_reason: reason,
       archive_reason_at: nowIso,
+      expected_return_on: returnOn,
     },
   }
 }
@@ -182,6 +242,9 @@ export function buildArchiveReasonOnlyFields(reason, nowIso = new Date().toISOSt
 export function matchArchiveReasonChip(reasonText) {
   const r = normalizeArchiveReasonText(reasonText)
   if (!r) return { chipId: null, customText: '' }
+  if (isReturnLaterReasonText(r)) {
+    return { chipId: ARCHIVE_RETURN_LATER_ID, customText: '' }
+  }
   const pools = [
     ...ARCHIVE_REASON_CHIPS.filter((c) => c.id !== ARCHIVE_REASON_OTHER_ID),
     ...ARCHIVE_REASON_LEGACY_CHIPS,
