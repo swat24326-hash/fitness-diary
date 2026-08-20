@@ -40,6 +40,7 @@
 | Новая тренировка → Завершить | дата, абонемент, очередь; двойной тап / автосейв — `verify-training-persist-status.mjs` + `verify-critical-hall.mjs`; reconcile used — `verify-membership-used-reconcile.mjs` |
 | Правка завершённой | смена даты, повторное сохранение |
 | Sync на планшете | flush + pull, pending не затираются |
+| Архив → Активные: список не обнуляется | `verify-trainer-archive-pull-prune.mjs`; [SYNC.md](./SYNC.md) §«Архив на планшете» |
 | Тип карты в журнале / ЗП / офлайн | `verify-membership-type-stats.mjs`, `verify-training-membership-link.mjs`, `verify-stats-agg-parity.mjs`; контур — [SYNC.md](./SYNC.md) §«Тип карты» |
 | Админ: статистика / ИСКРА | agg, snapshot |
 | ПНК мастер / KPI | целевые `verify-pnk-*.mjs` |
@@ -85,6 +86,7 @@
 | Reconcile `used_trainings` по дневнику | `verify-membership-used-reconcile.mjs` |
 | Тип карты: agg + fallback по дате | `verify-membership-type-stats.mjs` |
 | Привязка `membership_id` к тренировке | `verify-training-membership-link.mjs` |
+| Archive-pull не стирает активных | `verify-trainer-archive-pull-prune.mjs` |
 | Паритет agg клиент ↔ сервер | `verify-stats-agg-parity.mjs` |
 | Debit абонемента при first complete | `verify-training-membership-debit.mjs` |
 | ЗП дня/периода: база + надбавка, сценарии без плана, прогноз ур. | `verify-trainer-day-payroll-forecast.mjs` |

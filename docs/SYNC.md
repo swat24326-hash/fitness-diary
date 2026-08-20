@@ -101,6 +101,10 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 
 Verify: `verify-membership-type-stats.mjs`, `verify-training-membership-link.mjs`. Runbook: [RUNBOOK.md](./RUNBOOK.md) §5.
 
+### Архив на планшете: не стирать «Активных» (2026-08)
+
+Pull вкладки **Архив** (`trainer-pull?archived=1`) **дописывает** архивных в IndexedDB и чистит только «лишних» архивных. Живых клиентов и очередь sync **не** трогает (`trainerPullClientPruneCore`). Pull active/archive **по очереди** (не параллельно в IDB). Иначе при слабой сети: Архив 3 → назад на Активные → **0** до Sync. Если «Активные 0» при ненулевом Архиве — UI сам делает active-pull. Verify: `verify-trainer-archive-pull-prune.mjs`.
+
 Каталог: [API.md](./API.md).
 
 ---

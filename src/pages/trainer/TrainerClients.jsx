@@ -157,11 +157,35 @@ export function TrainerClients() {
     if (clientsTab !== 'archive') return
     if (!user?.id) return
     if (!isSupabaseConfigured() || !isAppOnline()) return
+    let cancelled = false
     void (async () => {
       await pullTrainerWorkspaceFromCloud(user.id, { mode: 'archive' })
+      if (cancelled) return
       await reload({ silent: true })
     })()
+    return () => {
+      cancelled = true
+    }
   }, [clientsTab, archivedClients.length, user?.id, reload])
+
+  /** Если архив-pull раньше стирал активных — восстановить при возврате на «Активные». */
+  useEffect(() => {
+    if (clientsTab !== 'active') return
+    if (!workspaceReady) return
+    if (!user?.id) return
+    if (clients.length > 0) return
+    if (archivedClients.length === 0) return
+    if (!isSupabaseConfigured() || !isAppOnline()) return
+    let cancelled = false
+    void (async () => {
+      await pullTrainerWorkspaceFromCloud(user.id, { mode: 'active' })
+      if (cancelled) return
+      await reload({ silent: true })
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [clientsTab, workspaceReady, clients.length, archivedClients.length, user?.id, reload])
 
   useDebouncedStorageReload(() => reload({ silent: true }), { shouldRun: shouldReloadTrainerClientList })
 

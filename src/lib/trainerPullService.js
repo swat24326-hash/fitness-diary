@@ -26,9 +26,25 @@ import { pruneLocalTrainingsForTrainer } from './idbRetention'
 import { pruneOrphanTrainingsForTrainerClients } from './clientTrainingsCache'
 import { invalidateTrainerWorkspaceCache } from './trainerWorkspaceCache'
 import { cacheClubOutreachTemplates } from './trainer/trainerOutreachLogService'
+import {
+  planTrainerOrphanClientPrune,
+  shouldPruneTrainerPullSideEffects,
+} from './trainerPullClientPruneCore'
 
 const LOCAL_DATA_CHANGED = 'fitness-diary-storage'
 const META_TRAINER_PULL_AT = 'trainer_pull_at'
+
+/** Очередь pull: active + archive не пишут в IDB параллельно (слабая сеть). */
+let trainerPullChain = Promise.resolve()
+
+function enqueueTrainerPull(task) {
+  const run = trainerPullChain.then(task, task)
+  trainerPullChain = run.then(
+    () => undefined,
+    () => undefined,
+  )
+  return run
+}
 
 function notifyLocalDataChanged() {
   if (typeof window === 'undefined') return
@@ -42,10 +58,9 @@ function notifyLocalDataChanged() {
 async function pruneOrphanTrainerClients(trainerId, remoteClients, opts = {}) {
   const tid = String(trainerId ?? '').trim()
   if (!tid) return 0
-  const preserveArchived = opts?.preserveArchived === true
+  const mode = String(opts?.mode ?? 'active')
   const remoteIds = new Set((remoteClients ?? []).map((c) => String(c.id)).filter(Boolean))
   const pending = await buildPendingSyncKeysByTable()
-  let pruned = 0
   for (const item of await listSyncQueue()) {
     if (item.table_name === 'clients' && item.operation === 'insert') {
       const id = String(item.data?.id ?? item.remote_id ?? '').trim()
@@ -55,11 +70,14 @@ async function pruneOrphanTrainerClients(trainerId, remoteClients, opts = {}) {
     }
   }
 
-  for (const c of await listClientsByTrainerId(tid)) {
-    if (preserveArchived && c?.archived_at) continue
-    const id = String(c.id)
-    if (remoteIds.has(id)) continue
-    if (pending.clients.has(id)) continue
+  const toPrune = planTrainerOrphanClientPrune(
+    await listClientsByTrainerId(tid),
+    remoteClients,
+    pending.clients,
+    { mode },
+  )
+  let pruned = 0
+  for (const id of toPrune) {
     await removeClientFromLocalCacheOnly(id)
     pruned++
   }
@@ -83,7 +101,9 @@ async function cacheTrainerPull(
   opts = {},
 ) {
   const mode = String(opts?.mode ?? 'active')
-  const preserveArchived = mode === 'active'
+  const side = shouldPruneTrainerPullSideEffects(mode, {
+    trainingsTruncated: opts?.trainingsTruncated === true,
+  })
   const pending = await buildPendingSyncKeysByTable()
   for (const row of clients ?? []) await putStoreUnlessPendingSync('clients', row, pending)
   for (const row of memberships ?? []) await putStoreUnlessPendingSync('memberships', row, pending)
@@ -97,12 +117,11 @@ async function cacheTrainerPull(
   for (const row of trainings ?? []) await putStoreUnlessPendingSync('trainings', row, pending)
   for (const row of pnk_funnel_events ?? []) await putStoreUnlessPendingSync('pnk_funnel_events', row, pending)
   for (const row of sale_clips ?? []) await putStoreUnlessPendingSync('sale_clips', row, pending)
-  const pruned_trainings =
-    mode === 'active' || opts?.trainingsTruncated === true
-      ? 0
-      : await pruneOrphanTrainingsForTrainerClients(clients, trainings, pending?.trainings ?? null)
-  const pruned = await pruneOrphanTrainerClients(trainerId, clients, { preserveArchived })
-  if (mode !== 'active') {
+  const pruned_trainings = side.pruneTrainings
+    ? await pruneOrphanTrainingsForTrainerClients(clients, trainings, pending?.trainings ?? null)
+    : 0
+  const pruned = await pruneOrphanTrainerClients(trainerId, clients, { mode })
+  if (side.purgeSyncQueue) {
     await purgeSyncQueueForMissingClients((clients ?? []).map((c) => c.id))
   }
   await pruneRedundantSyncQueue()
@@ -147,51 +166,53 @@ export async function pullTrainerWorkspaceFromCloud(trainerId, opts = {}) {
   if (!tid || !isSupabaseConfigured()) return { ok: false, reason: 'no_trainer' }
   const mode = String(opts?.mode ?? 'active') // active | archive | all
 
-  try {
-    const viaApi = await fetchTrainerPullWithIncremental(tid, mode)
-    if (viaApi) {
-      const pruned = await cacheTrainerPull(tid, viaApi, {
-        mode,
-        trainingsTruncated: viaApi.trainings_truncated === true,
-      })
-      if (mode === 'active') {
-        await setMeta(META_TRAINER_PULL_AT, Date.now())
-        const pending = await buildPendingSyncKeysByTable()
-        await pruneLocalTrainingsForTrainer(tid, { pendingTrainingIds: pending?.trainings ?? new Set() })
+  return enqueueTrainerPull(async () => {
+    try {
+      const viaApi = await fetchTrainerPullWithIncremental(tid, mode)
+      if (viaApi) {
+        const pruned = await cacheTrainerPull(tid, viaApi, {
+          mode,
+          trainingsTruncated: viaApi.trainings_truncated === true,
+        })
+        if (mode === 'active') {
+          await setMeta(META_TRAINER_PULL_AT, Date.now())
+          const pending = await buildPendingSyncKeysByTable()
+          await pruneLocalTrainingsForTrainer(tid, { pendingTrainingIds: pending?.trainings ?? new Set() })
+        }
+        return {
+          ok: true,
+          source: 'api',
+          count: viaApi.clients.length,
+          memberships: viaApi.memberships.length,
+          body_measurements: viaApi.body_measurements?.length ?? 0,
+          client_weight_entries: viaApi.client_weight_entries?.length ?? 0,
+          trainings: viaApi.trainings?.length ?? 0,
+          trainings_truncated: viaApi.trainings_truncated === true,
+          incremental: viaApi.incremental === true,
+          pruned_clients: pruned.pruned,
+          pruned_trainings: pruned.pruned_trainings,
+        }
       }
-      return {
-        ok: true,
-        source: 'api',
-        count: viaApi.clients.length,
-        memberships: viaApi.memberships.length,
-        body_measurements: viaApi.body_measurements?.length ?? 0,
-        client_weight_entries: viaApi.client_weight_entries?.length ?? 0,
-        trainings: viaApi.trainings?.length ?? 0,
-        trainings_truncated: viaApi.trainings_truncated === true,
-        incremental: viaApi.incremental === true,
-        pruned_clients: pruned.pruned,
-        pruned_trainings: pruned.pruned_trainings,
+    } catch (e) {
+      const msg = String(e?.message ?? e ?? 'Ошибка загрузки')
+      if (/таймаут|timeout/i.test(msg)) {
+        return { ok: false, error: msg }
+      }
+      if (!isRetryableNetworkError(e)) {
+        return { ok: false, error: msg }
       }
     }
-  } catch (e) {
-    const msg = String(e?.message ?? e ?? 'Ошибка загрузки')
-    if (/таймаут|timeout/i.test(msg)) {
-      return { ok: false, error: msg }
-    }
-    if (!isRetryableNetworkError(e)) {
-      return { ok: false, error: msg }
-    }
-  }
 
-  try {
-    const { getAccessTokenForAdminApi } = await import('./syncApiClient.js')
-    const token = await getAccessTokenForAdminApi()
-    if (!token) {
-      return { ok: false, error: 'Сессия истекла — выйдите и войдите снова' }
+    try {
+      const { getAccessTokenForAdminApi } = await import('./syncApiClient.js')
+      const token = await getAccessTokenForAdminApi()
+      if (!token) {
+        return { ok: false, error: 'Сессия истекла — выйдите и войдите снова' }
+      }
+    } catch {
+      /* fall through to network message */
     }
-  } catch {
-    /* fall through to network message */
-  }
 
-  return { ok: false, error: 'Нет связи с сервером — показаны данные с устройства' }
+    return { ok: false, error: 'Нет связи с сервером — показаны данные с устройства' }
+  })
 }

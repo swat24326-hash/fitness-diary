@@ -133,6 +133,18 @@ ok(/resolveHeaderSyncForceFromCloud\(flush\?\.ok\)/.test(read('src/components/us
   ok(/planMembershipFirstCompletionDebit/.test(debit), '8h debit plan в lib')
 }
 
+{
+  const pruneCore = read('src/lib/trainerPullClientPruneCore.js')
+  const pull = read('src/lib/trainerPullService.js')
+  const clientsPage = read('src/pages/trainer/TrainerClients.jsx')
+  ok(/planTrainerOrphanClientPrune/.test(pruneCore), '9a archive prune core')
+  ok(/mode === 'archive' && !archived/.test(pruneCore), '9b archive mode preserves live')
+  ok(/planTrainerOrphanClientPrune/.test(pull), '9c trainerPull uses prune core')
+  ok(/trainerPullChain|enqueueTrainerPull/.test(pull), '9d trainer pulls serialized')
+  ok(/mode:\s*'archive'/.test(clientsPage), '9e Clients: archive pull')
+  ok(/archivedClients\.length === 0/.test(clientsPage), '9f Clients: recover Active 0 + Archive N')
+}
+
 if (failed) {
   console.error(`\n${failed} failed`)
   process.exit(1)
