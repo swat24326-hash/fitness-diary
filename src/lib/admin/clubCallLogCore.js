@@ -2,8 +2,14 @@
  * Чистые правила облачного журнала клубных звонков (Мои Звонки).
  */
 
-import { calendarDayStartUtcIso, CLUB_OPS_TIMEZONE } from '../dateRu.js'
+import { calendarDayStartUtcIso, CLUB_OPS_TIMEZONE, todayLocalIso } from '../dateRu.js'
 import { normalizeCallOutcomePhone, normalizeClubCallRecordingUrl } from './clubCallOutcomeCore.js'
+import {
+  composeClubCallFunnelNote,
+  getClubCallFunnelChip,
+  normalizeClubCallCallbackOn,
+  normalizeClubCallFunnelChipId,
+} from './clubCallFunnelChipsCore.js'
 
 export const CLUB_CALL_LOG_ERROR_MAX = 200
 export const CLUB_CALL_LOG_PHONE_MAX = 20
@@ -33,11 +39,13 @@ export function normalizeClubCallStaffNote(raw) {
 }
 
 /**
- * Патч строки журнала: staff_note + кто/когда.
+ * Патч строки журнала: staff_note + chip + callback_on + кто/когда.
  * @param {{
  *   club_id: string,
  *   log_id: string,
  *   staff_note?: unknown,
+ *   staff_note_chip_id?: unknown,
+ *   callback_on?: unknown,
  *   staff_note_by?: string | null,
  *   staff_note_at?: string,
  * }} input
@@ -48,19 +56,69 @@ export function buildClubCallStaffNotePatch(input) {
   if (!club_id || !log_id) {
     return { ok: false, error: 'Нужны club_id и log_id' }
   }
-  const norm = normalizeClubCallStaffNote(input.staff_note)
-  if (!norm.ok) return { ok: false, error: norm.error }
+
+  const chipId = normalizeClubCallFunnelChipId(input.staff_note_chip_id)
+  let callbackOn = normalizeClubCallCallbackOn(input.callback_on)
+  const rawNote = String(input.staff_note ?? '').trim()
+
+  /** @type {string | null} */
+  let note = null
+  /** @type {string | null} */
+  let storedChip = null
+  /** @type {string | null} */
+  let storedCallback = null
+
+  if (chipId) {
+    const chip = getClubCallFunnelChip(chipId)
+    if (chipId === 'callback_today' && !callbackOn) {
+      callbackOn = todayLocalIso()
+    }
+    if (chip?.needsCallbackOn && !callbackOn) {
+      return { ok: false, error: 'Укажите дату перезвона' }
+    }
+    // Черновик менеджера — правда текста; чип/дата — структурированный слой.
+    // Иначе compose без customExtra срезал бы хвост («· вечером»).
+    if (rawNote) {
+      const noteNorm = normalizeClubCallStaffNote(rawNote)
+      if (!noteNorm.ok) return { ok: false, error: noteNorm.error }
+      note = noteNorm.note
+    } else {
+      note = composeClubCallFunnelNote({ chipId, callbackOn })
+      if (!note) {
+        return { ok: false, error: 'Укажите дату перезвона' }
+      }
+      const noteNorm = normalizeClubCallStaffNote(note)
+      if (!noteNorm.ok) return { ok: false, error: noteNorm.error }
+      note = noteNorm.note
+    }
+    storedChip = chipId
+    if (chip?.needsCallbackOn || chipId === 'callback_today') {
+      storedCallback = callbackOn
+    } else {
+      storedCallback = null
+    }
+  } else {
+    const norm = normalizeClubCallStaffNote(input.staff_note)
+    if (!norm.ok) return { ok: false, error: norm.error }
+    note = norm.note
+    storedChip = null
+    storedCallback = null
+  }
+
   const at =
     String(input.staff_note_at ?? '').trim() ||
-    (norm.note ? new Date().toISOString() : null)
+    (note ? new Date().toISOString() : null)
+
   return {
     ok: true,
     club_id,
     log_id,
     patch: {
-      staff_note: norm.note,
-      staff_note_at: norm.note ? at : null,
-      staff_note_by: norm.note && input.staff_note_by ? String(input.staff_note_by) : null,
+      staff_note: note,
+      staff_note_at: note ? at : null,
+      staff_note_by: note && input.staff_note_by ? String(input.staff_note_by) : null,
+      staff_note_chip_id: note ? storedChip : null,
+      callback_on: note ? storedCallback : null,
     },
   }
 }
@@ -162,6 +220,8 @@ export function shapeClubCallLogApiRow(row, extra = {}) {
     staff_note: row.staff_note != null && String(row.staff_note).trim() ? String(row.staff_note).trim() : null,
     staff_note_at: row.staff_note_at ? String(row.staff_note_at) : null,
     staff_note_by: row.staff_note_by ? String(row.staff_note_by) : null,
+    staff_note_chip_id: normalizeClubCallFunnelChipId(row.staff_note_chip_id),
+    callback_on: normalizeClubCallCallbackOn(row.callback_on),
     client_name: extra.clientName ? String(extra.clientName) : null,
     sent_by_name: extra.sentByName ? String(extra.sentByName) : null,
   }

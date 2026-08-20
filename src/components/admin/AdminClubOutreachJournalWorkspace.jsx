@@ -206,10 +206,17 @@ export function AdminClubOutreachJournalWorkspace({ clubId, layout = 'card' }) {
               <AdminClubCallJournalTable
                 rows={visibleCalls}
                 mode="club"
-                onNoteSaved={(logId, nextNote) => {
+                onNoteSaved={(logId, nextNote, meta) => {
                   setCallRows((prev) =>
                     prev.map((r) =>
-                      String(r.id) === String(logId) ? { ...r, staff_note: nextNote } : r,
+                      String(r.id) === String(logId)
+                        ? {
+                            ...r,
+                            staff_note: nextNote,
+                            staff_note_chip_id: meta?.chipId ?? null,
+                            callback_on: meta?.callbackOn ?? null,
+                          }
+                        : r,
                     ),
                   )
                 }}

@@ -49,7 +49,7 @@ function statusLabelWithoutDuration(row) {
  *   index?: number,
  *   mode?: 'club' | 'client',
  *   colSpan?: number,
- *   onNoteSaved?: (logId: string, note: string | null) => void,
+ *   onNoteSaved?: (logId: string, note: string | null, meta?: { chipId: string|null, callbackOn: string|null }) => void,
  * }} props
  */
 export function AdminClubCallJournalRow({ row, index = 0, mode = 'club', colSpan = 7, onNoteSaved }) {
@@ -152,8 +152,10 @@ export function AdminClubCallJournalRow({ row, index = 0, mode = 'club', colSpan
                       clubId={String(row.club_id)}
                       logId={String(row.id)}
                       note={row.staff_note}
+                      chipId={row.staff_note_chip_id}
+                      callbackOn={row.callback_on}
                       compact={mode === 'client'}
-                      onSaved={(next) => onNoteSaved?.(String(row.id), next)}
+                      onSaved={(next, meta) => onNoteSaved?.(String(row.id), next, meta)}
                     />
                   </div>
                 ) : null}

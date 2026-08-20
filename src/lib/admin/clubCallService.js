@@ -197,7 +197,7 @@ export async function makeClubCallViaApi(opts) {
 
 /**
  * POST admin-data?action=club-call op=note — пометка к строке журнала.
- * @param {{ clubId: string, logId: string, staffNote: string }} opts
+ * @param {{ clubId: string, logId: string, staffNote: string, staffNoteChipId?: string|null, callbackOn?: string|null }} opts
  */
 export async function saveClubCallStaffNoteViaApi(opts) {
   const token = await getAccessTokenForAdminApi()
@@ -208,6 +208,8 @@ export async function saveClubCallStaffNoteViaApi(opts) {
     club_id: String(opts.clubId ?? '').trim(),
     log_id: String(opts.logId ?? '').trim(),
     staff_note: opts.staffNote == null ? '' : String(opts.staffNote),
+    staff_note_chip_id: opts.staffNoteChipId == null ? null : String(opts.staffNoteChipId),
+    callback_on: opts.callbackOn == null ? null : String(opts.callbackOn),
   }
 
   const res = await fetchWithAppTimeout(

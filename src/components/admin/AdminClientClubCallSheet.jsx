@@ -1,5 +1,5 @@
 /**
- * Лист клубного звонка: подтверждение → набор → пометка (без инфо-простыни).
+ * Лист клубного звонка: подтверждение → набор → пометка воронки (без инфо-простыни).
  */
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -7,11 +7,15 @@ import { X } from 'lucide-react'
 import { makeClubCallViaApi, saveClubCallStaffNoteViaApi } from '../../lib/admin/clubCallService.js'
 import { CLUB_CALL_LOG_STAFF_NOTE_MAX } from '../../lib/admin/clubCallLogCore.js'
 import {
-  CLUB_CALL_SHEET_NOTE_CHIPS,
-  clubCallSheetNoteFromChip,
-} from '../../lib/admin/clubCallSheetNoteChipsCore.js'
+  composeClubCallFunnelNote,
+  getClubCallFunnelChip,
+  isClubCallFunnelNoteReady,
+  resolveClubCallCallbackOn,
+} from '../../lib/admin/clubCallFunnelChipsCore.js'
 import { notifyCallTodayHomeGlanceChanged } from '../../lib/admin/callTodayHomeGlanceSession.js'
 import { acquireClubCallOverlayScrollLock } from '../../lib/admin/clubCallOverlayScrollLock.js'
+import { todayLocalIso } from '../../lib/dateRu.js'
+import { ClubCallFunnelNoteFields } from './ClubCallFunnelNoteFields.jsx'
 import '../../styles/club-call.css'
 
 /**
@@ -38,35 +42,38 @@ export function AdminClientClubCallSheet({
 }) {
   const titleId = useId()
   const noteId = useId()
-  const noteRef = useRef(/** @type {HTMLTextAreaElement | null} */ (null))
   /** @type {['confirm' | 'calling' | 'launched', function]} */
   const [phase, setPhase] = useState('confirm')
   const [error, setError] = useState('')
   const [logId, setLogId] = useState('')
   const [noteDraft, setNoteDraft] = useState('')
+  const [chipId, setChipId] = useState(/** @type {string | null} */ (null))
+  const [callbackOn, setCallbackOn] = useState(/** @type {string | null} */ (null))
+  const [horizonId, setHorizonId] = useState(/** @type {string | null} */ (null))
+  const [customDate, setCustomDate] = useState('')
   const [noteBusy, setNoteBusy] = useState(false)
   const [noteSaved, setNoteSaved] = useState(false)
 
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
 
+  const resetNoteState = () => {
+    setNoteDraft('')
+    setChipId(null)
+    setCallbackOn(null)
+    setHorizonId(null)
+    setCustomDate('')
+    setNoteBusy(false)
+    setNoteSaved(false)
+  }
+
   useEffect(() => {
     if (!open) return
     setError('')
     setPhase('confirm')
     setLogId('')
-    setNoteDraft('')
-    setNoteBusy(false)
-    setNoteSaved(false)
+    resetNoteState()
   }, [open, client?.id])
-
-  useEffect(() => {
-    if (!open || phase !== 'launched' || !logId || noteSaved) return
-    const t = window.setTimeout(() => {
-      noteRef.current?.focus?.()
-    }, 80)
-    return () => window.clearTimeout(t)
-  }, [open, phase, logId, noteSaved])
 
   useEffect(() => {
     if (!open) return undefined
@@ -92,7 +99,11 @@ export function AdminClientClubCallSheet({
   const name = String(client.name ?? '').trim() || 'Клиент'
   const busy = phase === 'calling'
   const canNote = Boolean(logId) && !noteSaved
-  const noteTrim = String(noteDraft).trim()
+  const noteReady = isClubCallFunnelNoteReady({
+    chipId,
+    callbackOn,
+    customText: noteDraft,
+  })
 
   const onConfirm = async () => {
     if (busy || phase === 'launched' || !clubId || !client.id) return
@@ -113,19 +124,83 @@ export function AdminClientClubCallSheet({
     }
   }
 
+  const onPickChip = (id) => {
+    if (noteBusy || noteSaved) return
+    const asOf = todayLocalIso()
+    setChipId(id)
+    if (!id) {
+      setCallbackOn(null)
+      setHorizonId(null)
+      setCustomDate('')
+      return
+    }
+    if (id === 'callback_today') {
+      setCallbackOn(asOf)
+      setHorizonId(null)
+      setCustomDate('')
+      setNoteDraft(composeClubCallFunnelNote({ chipId: id, callbackOn: asOf }) || '')
+      return
+    }
+    const chip = getClubCallFunnelChip(id)
+    if (chip?.needsCallbackOn) {
+      const d = resolveClubCallCallbackOn(asOf, '1d', '')
+      setHorizonId('1d')
+      setCustomDate('')
+      setCallbackOn(d)
+      setNoteDraft(composeClubCallFunnelNote({ chipId: id, callbackOn: d }) || '')
+      return
+    }
+    setCallbackOn(null)
+    setHorizonId(null)
+    setCustomDate('')
+    setNoteDraft(composeClubCallFunnelNote({ chipId: id }) || '')
+  }
+
+  const onPickHorizon = (hid) => {
+    if (noteBusy || noteSaved) return
+    const asOf = todayLocalIso()
+    setHorizonId(hid)
+    if (hid === 'custom') {
+      setCallbackOn(customDate || null)
+      return
+    }
+    setCustomDate('')
+    const d = resolveClubCallCallbackOn(asOf, hid, '')
+    setCallbackOn(d)
+    setNoteDraft(composeClubCallFunnelNote({ chipId: 'callback_later', callbackOn: d }) || noteDraft)
+  }
+
+  const onCustomDateChange = (iso) => {
+    if (noteBusy || noteSaved) return
+    setCustomDate(iso)
+    setCallbackOn(iso || null)
+    if (iso) {
+      setNoteDraft(composeClubCallFunnelNote({ chipId: 'callback_later', callbackOn: iso }) || noteDraft)
+    }
+  }
+
   const onSaveNote = async ({ closeAfter = false } = {}) => {
     if (noteBusy || !clubId || !logId) return
-    if (!noteTrim) {
-      if (closeAfter) onClose()
+    if (!noteReady) {
+      if (closeAfter && !String(noteDraft).trim() && !chipId) onClose()
       return
     }
     setNoteBusy(true)
     setError('')
     try {
+      const asOf = todayLocalIso()
+      const cb =
+        chipId === 'callback_today'
+          ? asOf
+          : getClubCallFunnelChip(chipId)?.needsCallbackOn
+            ? callbackOn
+            : null
       await saveClubCallStaffNoteViaApi({
         clubId,
         logId,
         staffNote: noteDraft,
+        staffNoteChipId: chipId,
+        callbackOn: cb,
       })
       setNoteSaved(true)
       notifyCallTodayHomeGlanceChanged(clubId, { source: 'call_sheet_note' })
@@ -137,11 +212,6 @@ export function AdminClientClubCallSheet({
     } finally {
       setNoteBusy(false)
     }
-  }
-
-  const onPickChip = (chipNote) => {
-    if (noteBusy || noteSaved) return
-    setNoteDraft(clubCallSheetNoteFromChip(chipNote, CLUB_CALL_LOG_STAFF_NOTE_MAX))
   }
 
   return createPortal(
@@ -188,38 +258,27 @@ export function AdminClientClubCallSheet({
           <div className="club-call-sheet__launched club-call-sheet__launched--note" role="status">
             <p className="club-call-sheet__status">
               {logId
-                ? 'Набор на телефоне клуба. Пишите пометку во время разговора или сразу после — в журнал лезть не нужно.'
+                ? 'Набор на телефоне клуба. Отметьте следующий шаг воронки — в журнал лезть не нужно.'
                 : 'Команда ушла на телефон клуба. Строка журнала не пришла — пометку добавьте позже в истории звонков.'}
             </p>
             {canNote ? (
               <div className="club-call-sheet__note">
-                <label className="club-call-note__label" htmlFor={noteId}>
-                  Что важно запомнить
-                </label>
-                <div className="club-call-sheet__chips" role="group" aria-label="Быстрые пометки">
-                  {CLUB_CALL_SHEET_NOTE_CHIPS.map((chip) => (
-                    <button
-                      key={chip.id}
-                      type="button"
-                      className="club-call-sheet__chip"
-                      disabled={noteBusy}
-                      onClick={() => onPickChip(chip.note)}
-                    >
-                      {chip.label}
-                    </button>
-                  ))}
-                </div>
-                <textarea
-                  ref={noteRef}
-                  id={noteId}
-                  className="club-call-note__input club-call-sheet__note-input"
-                  rows={3}
-                  maxLength={CLUB_CALL_LOG_STAFF_NOTE_MAX}
-                  value={noteDraft}
-                  onChange={(e) => setNoteDraft(e.target.value)}
-                  placeholder="Напр.: перезвонить в пятницу · думает про УК"
+                <ClubCallFunnelNoteFields
+                  fieldId={noteId}
+                  draft={noteDraft}
+                  onDraftChange={setNoteDraft}
+                  chipId={chipId}
+                  onPickChip={onPickChip}
+                  callbackOn={callbackOn}
+                  horizonId={horizonId}
+                  customDate={customDate}
+                  onPickHorizon={onPickHorizon}
+                  onCustomDateChange={onCustomDateChange}
                   disabled={noteBusy}
                 />
+                <p className="muted club-call-sheet__note-meta">
+                  {String(noteDraft).trim().length}/{CLUB_CALL_LOG_STAFF_NOTE_MAX}
+                </p>
               </div>
             ) : null}
             {noteSaved ? (
@@ -247,7 +306,7 @@ export function AdminClientClubCallSheet({
                   type="button"
                   className="btn btn-primary btn-touch"
                   onClick={() => void onSaveNote({ closeAfter: true })}
-                  disabled={noteBusy || !noteTrim}
+                  disabled={noteBusy || !noteReady}
                 >
                   {noteBusy ? 'Сохраняем…' : 'Сохранить и закрыть'}
                 </button>

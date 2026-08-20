@@ -47,6 +47,7 @@
     "db:migrate:club-call-inbound": "node scripts/apply-club-call-inbound-migration.mjs",
     "db:migrate:clients-archive-reason": "node scripts/apply-clients-archive-reason-migration.mjs",
     "db:migrate:clients-expected-return": "node scripts/apply-clients-expected-return-migration.mjs",
+    "db:migrate:club-call-funnel-chips": "node scripts/apply-club-call-funnel-chips-migration.mjs",
     "db:migrate:client-restore-events": "node scripts/apply-client-restore-events-migration.mjs",
     "db:migrate:loyalty": "node scripts/apply-loyalty-migration.mjs",
     "check:volume": "node scripts/check-data-volume.mjs",

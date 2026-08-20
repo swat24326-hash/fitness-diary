@@ -167,6 +167,113 @@ const keepCallbackAfterAnswer = pickCallTodayEntryForClient(
 )
 ok(keepCallbackAfterAnswer?.kind === 'note_callback', 'answered+callback note stays')
 
+ok(
+  scoreCallLogForTodayQueue(
+    {
+      id: 'chip1',
+      client_id: 'c',
+      status: 'ok',
+      outcome: 'answered',
+      staff_note_chip_id: 'callback_today',
+      staff_note: 'Перезвонить сегодня',
+      created_at: '2026-08-15T09:00:00.000Z',
+    },
+    { nowMs: now },
+  )?.kind === 'note_callback',
+  'open chip → note_callback',
+)
+ok(
+  scoreCallLogForTodayQueue(
+    {
+      id: 'chip2',
+      client_id: 'c',
+      status: 'ok',
+      outcome: 'missed',
+      staff_note_chip_id: 'refused',
+      staff_note: 'Отказ',
+      created_at: '2026-08-15T09:00:00.000Z',
+    },
+    { nowMs: now },
+  ) == null,
+  'close chip out of queue',
+)
+ok(
+  pickCallTodayEntryForClient(
+    [
+      {
+        id: 'chip3',
+        client_id: 'z',
+        status: 'ok',
+        outcome: 'answered',
+        staff_note_chip_id: 'bought',
+        staff_note: 'Купил / оформил',
+        created_at: '2026-08-15T09:00:00.000Z',
+      },
+    ],
+    { nowMs: now },
+  ) == null,
+  'bought chip clears client',
+)
+
+const deferredLater = scoreCallLogForTodayQueue(
+  {
+    id: 'def1',
+    client_id: 'd',
+    status: 'ok',
+    outcome: 'answered',
+    staff_note_chip_id: 'callback_later',
+    callback_on: '2099-01-15',
+    staff_note: 'Перезвонить · до 15.01.2099',
+    created_at: '2026-08-15T09:00:00.000Z',
+  },
+  { nowMs: now },
+)
+ok(deferredLater == null, 'future callback_on not today')
+
+ok(
+  pickCallTodayEntryForClient(
+    [
+      {
+        id: 'def2',
+        client_id: 'd2',
+        status: 'ok',
+        outcome: 'missed',
+        staff_note_chip_id: 'callback_later',
+        callback_on: '2099-01-15',
+        staff_note: 'Перезвонить · до 15.01.2099',
+        created_at: '2026-08-15T12:00:00.000Z',
+      },
+      {
+        id: 'def3',
+        client_id: 'd2',
+        status: 'ok',
+        outcome: 'missed',
+        staff_note: null,
+        created_at: '2026-08-14T12:00:00.000Z',
+      },
+    ],
+    { nowMs: now },
+  ) == null,
+  'future callback blocks older missed',
+)
+
+ok(
+  scoreCallLogForTodayQueue(
+    {
+      id: 'due1',
+      client_id: 'due',
+      status: 'ok',
+      outcome: 'answered',
+      staff_note_chip_id: 'callback_later',
+      callback_on: '2020-01-01',
+      staff_note: 'Перезвонить · до 01.01.2020',
+      created_at: '2026-08-15T09:00:00.000Z',
+    },
+    { nowMs: now },
+  )?.kind === 'note_callback',
+  'overdue callback still in queue',
+)
+
 const archivedOut = buildCallTodayGlance(logs, {
   nowMs: now,
   archivedClientIds: ['a'],

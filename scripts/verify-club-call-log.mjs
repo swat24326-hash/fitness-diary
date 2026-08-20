@@ -117,5 +117,63 @@ const notePatch = buildClubCallStaffNotePatch({
 ok(notePatch.ok && notePatch.patch.staff_note === 'ок' && notePatch.patch.staff_note_by === 'u1', 'note patch')
 ok(buildClubCallStaffNotePatch({ club_id: 'c1', log_id: 'l1', staff_note: '' }).patch.staff_note === null, 'note clear')
 
+const funnelPatch = buildClubCallStaffNotePatch({
+  club_id: 'c1',
+  log_id: 'l1',
+  staff_note: 'Перезвонить · до 22.08.2026',
+  staff_note_chip_id: 'callback_later',
+  callback_on: '2026-08-22',
+  staff_note_by: 'u1',
+})
+ok(
+  funnelPatch.ok &&
+    funnelPatch.patch.staff_note_chip_id === 'callback_later' &&
+    funnelPatch.patch.callback_on === '2026-08-22',
+  'funnel chip patch',
+)
+ok(
+  buildClubCallStaffNotePatch({
+    club_id: 'c1',
+    log_id: 'l1',
+    staff_note: 'Не взял — перезвонить · вечером',
+    staff_note_chip_id: 'no_answer',
+  }).patch.staff_note === 'Не взял — перезвонить · вечером',
+  'chip keeps draft tail',
+)
+ok(
+  buildClubCallStaffNotePatch({
+    club_id: 'c1',
+    log_id: 'l1',
+    staff_note: '',
+    staff_note_chip_id: 'callback_today',
+  }).patch.callback_on != null,
+  'callback_today fills date',
+)
+ok(
+  buildClubCallStaffNotePatch({
+    club_id: 'c1',
+    log_id: 'l1',
+    staff_note: '',
+  }).patch.staff_note_chip_id === null &&
+    buildClubCallStaffNotePatch({
+      club_id: 'c1',
+      log_id: 'l1',
+      staff_note: '',
+    }).patch.callback_on === null,
+  'clear note clears chip+callback',
+)
+ok(
+  shapeClubCallLogApiRow({
+    id: '5',
+    club_id: 'c1',
+    client_id: 'cli1',
+    status: 'ok',
+    staff_note: 'Отказ',
+    staff_note_chip_id: 'refused',
+    callback_on: null,
+  }).staff_note_chip_id === 'refused',
+  'shape chip id',
+)
+
 if (failed) process.exit(1)
 console.log('verify-club-call-log: all passed')

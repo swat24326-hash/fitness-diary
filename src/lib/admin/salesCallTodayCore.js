@@ -3,7 +3,14 @@
  * Чистые правила (без React/IDB). Glance на главной менеджера / сети.
  */
 
+import { CLUB_OPS_TIMEZONE, todayInTimeZoneIso } from '../dateRu.js'
 import { clubCallJournalStatusLabel } from './clubCallOutcomeCore.js'
+import {
+  isClubCallFunnelCloseChip,
+  isClubCallFunnelOpenChip,
+  normalizeClubCallCallbackOn,
+  normalizeClubCallFunnelChipId,
+} from './clubCallFunnelChipsCore.js'
 
 export const CALL_TODAY_LOOKBACK_DAYS = 30
 export const CALL_TODAY_MAX_ITEMS = 8
@@ -81,6 +88,28 @@ export function callTodayReasonScore(kind) {
 }
 
 /**
+ * Календарный «сегодня» клуба для очереди (МСК), с учётом nowMs в тестах.
+ * @param {number} [nowMs]
+ */
+export function callTodayAsOfIso(nowMs) {
+  const ms = Number(nowMs) > 0 ? Number(nowMs) : Date.now()
+  return todayInTimeZoneIso(CLUB_OPS_TIMEZONE, new Date(ms))
+}
+
+/**
+ * Open-чип с датой перезвона в будущем — ещё не «сегодня».
+ * @param {object} row
+ * @param {number} [nowMs]
+ */
+export function isClubCallFunnelCallbackDeferred(row, nowMs) {
+  const chipId = normalizeClubCallFunnelChipId(row?.staff_note_chip_id)
+  if (!chipId || !isClubCallFunnelOpenChip(chipId)) return false
+  const cb = normalizeClubCallCallbackOn(row?.callback_on)
+  if (!cb) return false
+  return cb > callTodayAsOfIso(nowMs)
+}
+
+/**
  * Оценка одной строки без учёта «новее ответили».
  * @param {object} row
  * @param {{ nowMs?: number }} [opts]
@@ -90,6 +119,16 @@ export function scoreCallLogForTodayQueue(row, opts = {}) {
   if (!row || String(row.status ?? 'ok') === 'fail') return null
   const clientId = String(row.client_id ?? '').trim()
   if (!clientId) return null
+
+  const nowMs = Number(opts.nowMs) > 0 ? Number(opts.nowMs) : Date.now()
+  const chipId = normalizeClubCallFunnelChipId(row.staff_note_chip_id)
+  if (chipId) {
+    if (isClubCallFunnelCloseChip(chipId)) return null
+    if (isClubCallFunnelOpenChip(chipId)) {
+      if (isClubCallFunnelCallbackDeferred(row, nowMs)) return null
+      return { kind: 'note_callback', score: callTodayReasonScore('note_callback') }
+    }
+  }
 
   const note = String(row.staff_note ?? '').trim()
   if (note) {
@@ -102,7 +141,6 @@ export function scoreCallLogForTodayQueue(row, opts = {}) {
 
   const outcome = String(row.outcome ?? 'pending').trim().toLowerCase()
   const createdMs = Date.parse(String(row.created_at ?? '')) || 0
-  const nowMs = Number(opts.nowMs) > 0 ? Number(opts.nowMs) : Date.now()
   const ageDays = createdMs > 0 ? (nowMs - createdMs) / (24 * 60 * 60 * 1000) : 999
 
   if (outcome === 'missed' && ageDays <= CALL_TODAY_MISS_DAYS) {
@@ -141,17 +179,29 @@ export function pickCallTodayEntryForClient(clientLogs, opts = {}) {
     const ageMs = createdMs > 0 ? nowMs - createdMs : Number.POSITIVE_INFINITY
     const ageHours = ageMs / (60 * 60 * 1000)
     const note = String(row.staff_note ?? '').trim()
+    const chipId = normalizeClubCallFunnelChipId(row.staff_note_chip_id)
     const outcome = String(row.outcome ?? 'pending').trim().toLowerCase()
 
-    if (note && detectCallNoteDoneIntent(note)) {
+    if (chipId && isClubCallFunnelCloseChip(chipId)) {
       return null
     }
 
-    if (note) {
+    // «Перезвонить · дата» в будущем — не звонить сегодня и не откатываться к старому missed.
+    if (isClubCallFunnelCallbackDeferred(row, nowMs)) {
+      return null
+    }
+
+    if (note && detectCallNoteDoneIntent(note) && !chipId) {
+      return null
+    }
+
+    if (chipId || note) {
       const scored = scoreCallLogForTodayQueue(row, { nowMs })
       if (scored) {
         return { ...scored, row, createdMs }
       }
+      if (chipId && isClubCallFunnelCloseChip(chipId)) return null
+      if (note && detectCallNoteDoneIntent(note)) return null
     }
 
     if (outcome === 'pending' && ageHours <= CALL_TODAY_PENDING_HOURS) {
@@ -232,6 +282,8 @@ export function buildCallTodayGlance(logs, opts = {}) {
       reason_kind: entry.kind,
       reason: callTodayReasonLabel(entry.kind, row),
       staff_note: row.staff_note ? String(row.staff_note) : null,
+      staff_note_chip_id: normalizeClubCallFunnelChipId(row.staff_note_chip_id),
+      callback_on: row.callback_on ? String(row.callback_on).slice(0, 10) : null,
       outcome: String(row.outcome ?? 'pending'),
       last_call_at: String(row.created_at ?? ''),
       tone: entry.kind === 'note_callback' || entry.kind === 'missed' ? 'hot' : 'warn',

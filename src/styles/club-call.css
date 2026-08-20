@@ -280,6 +280,64 @@
   cursor: default;
 }
 
+.club-call-sheet__chip--on {
+  border-color: color-mix(in srgb, var(--accent, #34d399) 55%, var(--border));
+  background: color-mix(in srgb, var(--accent, #34d399) 18%, transparent);
+  color: var(--text);
+}
+
+.club-call-sheet__chip--close.club-call-sheet__chip--on {
+  border-color: color-mix(in srgb, rgb(248, 113, 113) 50%, var(--border));
+  background: color-mix(in srgb, rgb(248, 113, 113) 14%, transparent);
+}
+
+.club-call-funnel-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.club-call-funnel-fields__group-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.club-call-funnel-fields__chips {
+  margin-bottom: 0;
+}
+
+.club-call-funnel-fields__horizons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.club-call-funnel-fields__date {
+  margin: 0.15rem 0 0;
+}
+
+.club-call-funnel-fields__preview,
+.club-call-funnel-fields__hint {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.club-call-funnel-fields--compact .club-call-sheet__chip {
+  min-height: 2rem;
+  font-size: 0.74rem;
+  padding: 0.25rem 0.55rem;
+}
+
+.club-call-sheet__note-meta {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+  text-align: right;
+}
+
 .club-call-sheet__note-input {
   min-height: 5.5rem;
 }

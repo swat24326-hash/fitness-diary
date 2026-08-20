@@ -9,6 +9,7 @@
 
 ## 2026-08
 
+- **Звонок / воронка пометки:** после набора и в журнале — чипы следующего шага (не webhook-исход): не взял / перезвонить / думает… / отказ / купил; дата перезвона; очередь «Кому звонить» по `staff_note_chip_id` (будущая дата — не сегодня). Миграция: `npm run db:migrate:club-call-funnel-chips -- --linked`. Docs: [OUTREACH_CHANNELS_ROADMAP.md](./docs/OUTREACH_CHANNELS_ROADMAP.md).
 - **Клиенты / архив на планшете:** переход Архив → Активные больше не обнуляет живых при слабой сети (archive-pull не чистит активных из кэша). Docs: [SYNC.md](./docs/SYNC.md), [RUNBOOK.md](./docs/RUNBOOK.md) §1b.
 - **Архив / «Вернётся позже»:** обязательный ориентир (1–3 мес. / полгода / своя дата), поле `expected_return_on`, подсказка «Ждём до…» / «Срок прошёл» на карточке и в списке. Docs: [CLIENT_ARCHIVE.md](./docs/CLIENT_ARCHIVE.md).
 - **Архив / причины:** чипы «Перешёл в ТЗ» и «Перешёл в АЗ» — клиент остался в клубе, но ушёл с ПЗ. Docs: [CLIENT_ARCHIVE.md](./docs/CLIENT_ARCHIVE.md).

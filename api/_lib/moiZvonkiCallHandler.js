@@ -73,7 +73,7 @@ async function fetchClubCallLogsForClub(ctx, clubId, sinceDaysRaw, clientId = ''
     ctx.supabaseAdmin
       .from('club_call_log')
       .select(
-        'id, club_id, client_id, sent_by, phone, status, error_message, created_at, direction, outcome, answered, duration_sec, mz_db_call_id, src_number, finished_at, recording_url, staff_note, staff_note_at, staff_note_by',
+        'id, club_id, client_id, sent_by, phone, status, error_message, created_at, direction, outcome, answered, duration_sec, mz_db_call_id, src_number, finished_at, recording_url, staff_note, staff_note_at, staff_note_by, staff_note_chip_id, callback_on',
       )
       .eq('club_id', clubId)
       .order('created_at', { ascending: false })
@@ -88,7 +88,7 @@ async function fetchClubCallLogsForClub(ctx, clubId, sinceDaysRaw, clientId = ''
       ctx.supabaseAdmin
         .from('club_call_log')
         .select(
-          'id, club_id, client_id, sent_by, phone, status, error_message, created_at, outcome, answered, duration_sec, mz_db_call_id, src_number, finished_at, recording_url, staff_note, staff_note_at, staff_note_by',
+          'id, club_id, client_id, sent_by, phone, status, error_message, created_at, outcome, answered, duration_sec, mz_db_call_id, src_number, finished_at, recording_url, staff_note, staff_note_at, staff_note_by, staff_note_chip_id, callback_on',
         )
         .eq('club_id', clubId)
         .order('created_at', { ascending: false })
@@ -444,6 +444,8 @@ export async function handleClubCallStaffNotePost(ctx, res, body) {
     club_id: body?.club_id,
     log_id: body?.log_id,
     staff_note: body?.staff_note,
+    staff_note_chip_id: body?.staff_note_chip_id,
+    callback_on: body?.callback_on,
     staff_note_by: ctx?.user?.id ?? null,
   })
   if (!built.ok) {
@@ -477,16 +479,16 @@ export async function handleClubCallStaffNotePost(ctx, res, body) {
     .eq('id', built.log_id)
     .eq('club_id', built.club_id)
     .select(
-      'id, club_id, client_id, sent_by, phone, status, error_message, created_at, outcome, answered, duration_sec, mz_db_call_id, src_number, finished_at, recording_url, staff_note, staff_note_at, staff_note_by',
+      'id, club_id, client_id, sent_by, phone, status, error_message, created_at, outcome, answered, duration_sec, mz_db_call_id, src_number, finished_at, recording_url, staff_note, staff_note_at, staff_note_by, staff_note_chip_id, callback_on',
     )
     .maybeSingle()
 
   if (updErr) {
     const msg = String(updErr.message ?? '')
-    if (/staff_note|schema cache|column/i.test(msg)) {
+    if (/staff_note|callback_on|schema cache|column/i.test(msg)) {
       sendJson(res, 503, {
         ok: false,
-        error: 'Нужна миграция club_call_log staff_note на Supabase',
+        error: 'Нужна миграция club_call_log (staff_note / funnel chips) на Supabase',
         code: 'migration_required',
       })
       return
