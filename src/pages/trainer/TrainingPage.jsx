@@ -22,6 +22,12 @@ import { saveLocalWithSync, setBackgroundSyncPaused } from '../../lib/syncServic
 import { stripDirectionControls } from '../../lib/textInput'
 import { getTrainingCompletionIssues } from '../../lib/trainingCompletionValidation'
 import {
+  isTrainingDraftEpochCurrent,
+  resolveTrainingFormRemountKey,
+  resolveTrainingPersistTargetId,
+  shouldApplyTrainingPersistUi,
+} from '../../lib/trainingDraftPageEpochCore.js'
+import {
   isTrainingFirstCompletion,
   isTrainingStatusCompleted,
   resolveTrainingPersistStatus,
@@ -170,6 +176,8 @@ export function TrainingPage() {
   const [hydrateVersion, bumpHydrateVersion] = useState(0)
   const autosaveTimerRef = useRef(null)
   const draftTrainingIdRef = useRef(null)
+  /** Смена вкладки черновика: устаревший load/persist не пишет в чужой экран. */
+  const pageEpochRef = useRef(0)
   /** Временный id буфера пульса до первого сохранения /workouts/new */
   const pendingHrScopeRef = useRef(null)
   const autosaveUiTimerRef = useRef(null)
@@ -191,19 +199,36 @@ export function TrainingPage() {
 
   const load = useCallback(async () => {
     if (!user?.id) return
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current)
+      autosaveTimerRef.current = null
+    }
+    if (autosaveUiTimerRef.current) {
+      clearTimeout(autosaveUiTimerRef.current)
+      autosaveUiTimerRef.current = null
+    }
+    const epoch = pageEpochRef.current + 1
+    pageEpochRef.current = epoch
     setLoadState('loading')
     setSaveError('')
+    setAutosaveStatus('idle')
+    // Не показывать упражнения предыдущего черновика, пока грузится текущий.
+    setWorkoutState(emptyTrainingData())
     if (isNew) {
       if (!clientIdParam) {
+        if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
         setLoadState('missing')
         return
       }
       const c = await getLocalClient(clientIdParam)
+      if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
       setClient(c ?? null)
       const hc = await getHealthCard(clientIdParam)
+      if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
       setHealthCard(hc ?? null)
       setContra((hc?.contraindications ?? '').trim())
       const trainings = await listTrainingsForClient(clientIdParam)
+      if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
       const prefilled = emptyTrainingData()
       const fromPrior = suggestTrainingPreWeightInput(hc, trainings)
       if (fromPrior) prefilled.pre_weight_kg = fromPrior
@@ -215,6 +240,7 @@ export function TrainingPage() {
         trainings.filter((t) => String(t?.status ?? '') === 'completed').length,
       )
       const ms = await activeMembershipSummary(clientIdParam)
+      if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
       setMembershipSummary(ms)
       draftTrainingIdRef.current = null
       // pending scope создаёт bind-эффект; не сбрасываем тут при каждом load —
@@ -232,6 +258,7 @@ export function TrainingPage() {
       setLateDraftOffer(false)
       if (!ms) {
         const offer = await loadEarlyActivationProposal(clientIdParam, todayLocalIso())
+        if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
         if (offer.ok && offer.proposal) {
           setEarlyActivateProposal(offer.proposal)
           setMembershipShiftMode('early')
@@ -246,6 +273,7 @@ export function TrainingPage() {
         return
       }
       const lateInsp = await loadLateStartInspection(clientIdParam, todayLocalIso())
+      if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
       if (lateInsp.status === 'offer' && lateInsp.proposal) {
         setEarlyActivateProposal(lateInsp.proposal)
         setMembershipShiftMode('late')
@@ -266,7 +294,9 @@ export function TrainingPage() {
     }
 
     const db = await getDb()
+    if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
     const t = await db.get('trainings', id)
+    if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
     if (!t) {
       setClient(null)
       setMeta({ status: 'draft', trainingId: null })
@@ -279,6 +309,7 @@ export function TrainingPage() {
     }
     setMeta({ status: t.status, trainingId: t.id })
     const c = await getLocalClient(t.client_id)
+    if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
     setClient(c)
     const sessionType = t.type && TRAINING_TYPES.includes(t.type) ? t.type : 'Силовая'
     const w = typeof t.data === 'object' && t.data ? sanitizeWorkoutData(t.data, { sessionFallback: sessionType }) : {}
@@ -288,13 +319,17 @@ export function TrainingPage() {
     const loaded = t.date ?? today
     setTrainingDate(canEditTrainingDate(isAdmin, t.status) ? loaded : clampIsoDateToToday(loaded))
     const hc = await getHealthCard(t.client_id)
+    if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
     setHealthCard(hc ?? null)
     setContra((hc?.contraindications ?? '').trim())
     const trainings = await listTrainingsForClient(t.client_id)
+    if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
     setOtherCompletedTrainings(
       trainings.filter((tr) => String(tr?.status ?? '') === 'completed' && tr.id !== t.id).length,
     )
-    setMembershipSummary(await activeMembershipSummary(t.client_id))
+    const membershipSummary = await activeMembershipSummary(t.client_id)
+    if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
+    setMembershipSummary(membershipSummary)
     draftTrainingIdRef.current = t.id
     pendingHrScopeRef.current = null
 
@@ -306,6 +341,7 @@ export function TrainingPage() {
     if (!isAdmin && String(t.status ?? '') === 'draft') {
       const gateDay = String(loaded ?? today).slice(0, 10)
       const lateInsp = await loadLateStartInspection(t.client_id, gateDay)
+      if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
       if (lateInsp.status === 'offer' && lateInsp.proposal) {
         setEarlyActivateProposal(lateInsp.proposal)
         setMembershipShiftMode('late')
@@ -352,6 +388,7 @@ export function TrainingPage() {
   const persist = async (status, opts = {}) => {
     const silent = opts.silent === true
     const skipNavigate = opts.skipNavigate === true
+    const persistEpoch = pageEpochRef.current
     const completeClick = String(status ?? '') === 'completed' && !silent
     if (completeClick && shouldSkipDuplicateCompleteClick(completeInFlightRef.current)) return
     if (shouldSkipSilentPersistWhileCompleteInFlight(silent, completeInFlightRef.current)) {
@@ -385,12 +422,18 @@ export function TrainingPage() {
       setAutosaveStatus('idle')
       return
     }
-    const stableFromRoute = id && id !== 'new' ? id : null
-    let trainingId = meta.trainingId ?? draftTrainingIdRef.current ?? stableFromRoute
+    let trainingId = resolveTrainingPersistTargetId({
+      routeId: id,
+      metaTrainingId: meta.trainingId,
+      draftRefId: draftTrainingIdRef.current,
+    })
     if (!trainingId) {
       trainingId = crypto.randomUUID()
       draftTrainingIdRef.current = trainingId
-      setMeta((m) => ({ ...m, trainingId }))
+      // meta только если экран ещё этот черновик — иначе чужая вкладка получит чужой id
+      if (shouldApplyTrainingPersistUi({ currentEpoch: pageEpochRef.current, persistEpoch })) {
+        setMeta((m) => ({ ...m, trainingId }))
+      }
     }
     const cid = client?.id ?? clientIdParam
     if (!cid) {
@@ -409,10 +452,7 @@ export function TrainingPage() {
       setAutosaveStatus('idle')
       return
     }
-    let prev = id && id !== 'new' ? await db.get('trainings', id) : null
-    if (!prev && meta.trainingId) {
-      prev = await db.get('trainings', meta.trainingId)
-    }
+    let prev = trainingId ? await db.get('trainings', trainingId) : null
 
     const previousStatus = prev?.status ?? meta.status
     const nextStatus = resolveTrainingPersistStatus(status, previousStatus)
@@ -423,9 +463,11 @@ export function TrainingPage() {
       const hc = healthCard ?? (await getHealthCard(cid))
       const blockers = getTrainingCompletionIssues(workoutState, { health: hc, isFirstCompletion })
       if (blockers.length > 0) {
-        setShowCompletionHints(true)
-        setSaveError('')
-        setSaveNotice('')
+        if (shouldApplyTrainingPersistUi({ currentEpoch: pageEpochRef.current, persistEpoch })) {
+          setShowCompletionHints(true)
+          setSaveError('')
+          setSaveNotice('')
+        }
         return
       }
     }
@@ -642,10 +684,16 @@ export function TrainingPage() {
       const diskStatus = fresh?.status ?? previousStatus
       if (shouldSkipSilentPersistOfCompleted(diskStatus, silent)) return
       if (shouldSkipDuplicateFirstCompletionSave(diskStatus, firstCompletion)) {
-        setMeta({ status: 'completed', trainingId: fresh?.id ?? row.id })
-        if (!silent) {
-          setSaveNotice('Тренировка завершена и сохранена.')
-          setAutosaveStatus('idle')
+        const applyUi = shouldApplyTrainingPersistUi({
+          currentEpoch: pageEpochRef.current,
+          persistEpoch,
+        })
+        if (applyUi) {
+          setMeta({ status: 'completed', trainingId: fresh?.id ?? row.id })
+          if (!silent) {
+            setSaveNotice('Тренировка завершена и сохранена.')
+            setAutosaveStatus('idle')
+          }
         }
         runTrainingCompleteFollowUp(cid)
         if (!skipNavigate) nav(`${clientsBase}/${cid}${preserveClubQs}`, { replace: true })
@@ -654,12 +702,16 @@ export function TrainingPage() {
       const stillFirst = isTrainingFirstCompletion(diskStatus, row.status)
       const debitNow = Boolean(membershipToDebit) && stillFirst
       row.status = resolveTrainingPersistStatus(row.status, diskStatus)
+      const applyUi = shouldApplyTrainingPersistUi({
+        currentEpoch: pageEpochRef.current,
+        persistEpoch,
+      })
       if (silent) {
         if (shouldSkipSilentPersistWhileCompleteInFlight(true, completeInFlightRef.current)) {
           setAutosaveStatus('idle')
           return
         }
-        setAutosaveStatus('saving')
+        if (applyUi) setAutosaveStatus('saving')
       }
       try {
         await saveLocalWithSync('trainings', row, {
@@ -668,8 +720,10 @@ export function TrainingPage() {
           remote_id: prev ? row.id : null,
         })
       } catch (e) {
-        if (!silent) setSaveError(e?.message ?? 'Ошибка сохранения')
-        if (silent) setAutosaveStatus('error')
+        if (applyUi) {
+          if (!silent) setSaveError(e?.message ?? 'Ошибка сохранения')
+          if (silent) setAutosaveStatus('error')
+        }
         return
       }
 
@@ -677,30 +731,34 @@ export function TrainingPage() {
         try {
           await applyMembershipFirstCompletionDebit(membershipToDebit)
         } catch (e) {
-          if (silent) setAutosaveStatus('error')
-          if (!silent) {
-            setSaveError(
-              e?.message ??
-                'Тренировка сохранена, но списание с абонемента не удалось — нажмите Sync или откройте вкладку абонементов',
-            )
+          if (applyUi) {
+            if (silent) setAutosaveStatus('error')
+            if (!silent) {
+              setSaveError(
+                e?.message ??
+                  'Тренировка сохранена, но списание с абонемента не удалось — нажмите Sync или откройте вкладку абонементов',
+              )
+            }
           }
           // Тренировка уже completed; reconcile / повторное открытие абонов догонит used.
         }
       }
 
-      setMeta({ status: row.status, trainingId: row.id })
+      if (applyUi) setMeta({ status: row.status, trainingId: row.id })
       try {
         if (stillFirst) {
           hr.endTrainingHrSession(cid)
           hr.disconnectClient(cid)
-          pendingHrScopeRef.current = null
+          if (applyUi) pendingHrScopeRef.current = null
         } else if (row.status !== 'completed') {
-          const pending = pendingHrScopeRef.current
-          if (pending && row.id && pending !== row.id) {
-            hr.migrateTrainingScope(cid, pending, row.id)
-            pendingHrScopeRef.current = null
+          if (applyUi) {
+            const pending = pendingHrScopeRef.current
+            if (pending && row.id && pending !== row.id) {
+              hr.migrateTrainingScope(cid, pending, row.id)
+              pendingHrScopeRef.current = null
+            }
+            if (row.id) hr.bindTrainingScope(cid, row.id)
           }
-          if (row.id) hr.bindTrainingScope(cid, row.id)
         }
       } catch {
         /* ignore */
@@ -712,25 +770,27 @@ export function TrainingPage() {
         status: row.status,
         workoutState,
       })
-      if (!silent) {
-        setSaveNotice(row.status === 'completed' ? 'Тренировка завершена и сохранена.' : 'Черновик сохранён.')
-        userEditedRef.current = false
-        baselineContentSnapshotRef.current = fpAfter
-        setAutosaveStatus('idle')
-        if (autosaveUiTimerRef.current) clearTimeout(autosaveUiTimerRef.current)
-      } else if (userEditedRef.current) {
-        setAutosaveStatus('saved')
-        userEditedRef.current = false
-        baselineContentSnapshotRef.current = fpAfter
-        if (autosaveUiTimerRef.current) clearTimeout(autosaveUiTimerRef.current)
-        autosaveUiTimerRef.current = setTimeout(() => {
-          setAutosaveStatus((cur) => (cur === 'saved' ? 'idle' : cur))
-        }, 1400)
-      } else {
-        // Автосэйв без «редактирования» (первый тик, flush, только tid): нельзя оставлять вечное «Сохранение…»
-        baselineContentSnapshotRef.current = fpAfter
-        if (autosaveUiTimerRef.current) clearTimeout(autosaveUiTimerRef.current)
-        setAutosaveStatus((cur) => (cur === 'saved' ? 'saved' : 'idle'))
+      if (applyUi) {
+        if (!silent) {
+          setSaveNotice(row.status === 'completed' ? 'Тренировка завершена и сохранена.' : 'Черновик сохранён.')
+          userEditedRef.current = false
+          baselineContentSnapshotRef.current = fpAfter
+          setAutosaveStatus('idle')
+          if (autosaveUiTimerRef.current) clearTimeout(autosaveUiTimerRef.current)
+        } else if (userEditedRef.current) {
+          setAutosaveStatus('saved')
+          userEditedRef.current = false
+          baselineContentSnapshotRef.current = fpAfter
+          if (autosaveUiTimerRef.current) clearTimeout(autosaveUiTimerRef.current)
+          autosaveUiTimerRef.current = setTimeout(() => {
+            setAutosaveStatus((cur) => (cur === 'saved' ? 'idle' : cur))
+          }, 1400)
+        } else {
+          // Автосэйв без «редактирования» (первый тик, flush, только tid): нельзя оставлять вечное «Сохранение…»
+          baselineContentSnapshotRef.current = fpAfter
+          if (autosaveUiTimerRef.current) clearTimeout(autosaveUiTimerRef.current)
+          setAutosaveStatus((cur) => (cur === 'saved' ? 'saved' : 'idle'))
+        }
       }
 
       if (row.status === 'completed') {
@@ -747,7 +807,7 @@ export function TrainingPage() {
                 ? { stage: 'trial_done', deliverable: 'trial' }
                 : { deliverable }
             const res = await patchPnkClientLocal(client, patch)
-            if (res.ok) setClient(res.client)
+            if (res.ok && applyUi) setClient(res.client)
           } catch {
             /* карточка всё равно откроется; шаг можно закрыть Далее в воронке */
           }
@@ -758,7 +818,8 @@ export function TrainingPage() {
         return
       }
 
-      const shouldPromoteUrl = row.status !== 'completed' && isNew && id === 'new' && cid
+      const shouldPromoteUrl =
+        applyUi && row.status !== 'completed' && isNew && id === 'new' && cid
       const clubQ = search.get('club')
       const nextUrlClient = clubQ
         ? `?clientId=${encodeURIComponent(cid)}&club=${encodeURIComponent(clubQ)}`
@@ -766,7 +827,7 @@ export function TrainingPage() {
       if (shouldPromoteUrl) {
         // После первого сохранения делаем URL стабильным (/workouts/:id), даже если автосэйв включён skipNavigate.
         nav(`${workoutsBase}/${row.id}${nextUrlClient}`, { replace: true })
-      } else if (!skipNavigate && row.status !== 'completed' && isNew) {
+      } else if (applyUi && !skipNavigate && row.status !== 'completed' && isNew) {
         nav(`${workoutsBase}/${row.id}${preserveClubQs}`, { replace: true })
       }
     })
@@ -1397,6 +1458,10 @@ export function TrainingPage() {
       </div>
 
       <TrainingForm
+        key={resolveTrainingFormRemountKey({
+          routeId: id,
+          clientId: client?.id ?? clientIdParam,
+        })}
         value={workoutState}
         onChange={setWorkoutState}
         trainingType={trainingType}

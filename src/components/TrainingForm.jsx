@@ -123,6 +123,17 @@ export function TrainingForm({
   const current = steps[step]
   const workout = value
 
+  // Смена черновика/клиента — новый placeholder, иначе имя упражнения «переезжает» между вкладками.
+  useEffect(() => {
+    emptyExercisePlaceholderRef.current = null
+    setPickExerciseIdx(null)
+    setPickSearch('')
+    setSuggestOpenId(null)
+    setFocusExerciseIdx(null)
+    setCollapsedExerciseIds(new Set())
+    setStep(resolveTrainingFormStep({ trainingId: currentTrainingId, exercises: value?.exercises }))
+  }, [currentTrainingId, clientId])
+
   const setWorkout = (patch) => {
     onChange((prev) => ({ ...prev, ...patch }))
   }
