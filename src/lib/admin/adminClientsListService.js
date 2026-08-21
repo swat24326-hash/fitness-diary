@@ -13,6 +13,7 @@ import {
 } from '../localDb'
 import { invalidateAdminClubWorkspaceCache } from './adminClubWorkspaceCache'
 import { fetchClientsForClubViaAdminApi, fetchMembershipsForClubViaAdminApi } from './adminApiClient'
+import { mergeClientHallLifecycleIntoCache } from './clientHallLifecycleAdminCache.js'
 import { purgeSyncQueueForMissingClients } from '../syncQueueOrphans'
 import { listClientsByClubId, listTrainingsByClubIdInRange } from '../localDbClubQuery.js'
 import { ADMIN_CLIENTS_REMOTE_LIMIT, ADMIN_SYNC_BATCH_SIZE } from './adminConstants'
@@ -114,6 +115,17 @@ async function mergeMembershipsIntoCache(rows) {
   }
 }
 
+/** Абоны + lifecycle из одного list-memberships. */
+async function mergeMembershipsAndLifecycleFromApi(viaMem) {
+  if (!viaMem) return
+  if (viaMem.memberships?.length) {
+    await mergeMembershipsIntoCache(viaMem.memberships)
+  }
+  if (viaMem.client_hall_lifecycle?.length) {
+    await mergeClientHallLifecycleIntoCache(viaMem.client_hall_lifecycle)
+  }
+}
+
 /**
  * Активные + архивные с сервера в один снимок — иначе reconcile после active-pull
  * удаляет клиентов, которых тренер уже убрал в архив (локально archived_at ещё null).
@@ -165,9 +177,7 @@ export async function pullAdminClientsFromCloud(clubId, opts = {}) {
     if (merged) {
       try {
         const viaMem = await fetchMembershipsForClubViaAdminApi(cid)
-        if (viaMem?.memberships?.length) {
-          await mergeMembershipsIntoCache(viaMem.memberships)
-        }
+        await mergeMembershipsAndLifecycleFromApi(viaMem)
       } catch (memErr) {
         console.warn('[admin] list-memberships', memErr)
       }
@@ -190,9 +200,7 @@ export async function pullAdminClientsFromCloud(clubId, opts = {}) {
     await mergeClientsIntoCache(viaApi.clients)
     try {
       const viaMem = await fetchMembershipsForClubViaAdminApi(cid)
-      if (viaMem?.memberships?.length) {
-        await mergeMembershipsIntoCache(viaMem.memberships)
-      }
+      await mergeMembershipsAndLifecycleFromApi(viaMem)
     } catch (memErr) {
       console.warn('[admin] list-memberships', memErr)
     }
@@ -279,9 +287,7 @@ export async function listAdminClientsForClub(p) {
       if (merged) {
         try {
           const viaMem = await fetchMembershipsForClubViaAdminApi(clubId)
-          if (viaMem?.memberships?.length) {
-            await mergeMembershipsIntoCache(viaMem.memberships)
-          }
+          await mergeMembershipsAndLifecycleFromApi(viaMem)
         } catch (memErr) {
           console.warn('[admin] list-memberships', memErr)
         }

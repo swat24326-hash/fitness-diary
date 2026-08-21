@@ -14,7 +14,11 @@ import {
   CLUB_STATS_MAX_CLIENTS,
   CLUB_STATS_MAX_MEMBERSHIPS,
   CLUB_STATS_MAX_TRAININGS,
+  CLUB_STATS_MAX_CLIENT_HALL_LIFECYCLE,
 } from './apiLimits.js'
+
+const LIFECYCLE_SELECT =
+  'id, client_id, club_id, hall, closed_at, close_reason, close_reason_at, expected_return_on, updated_at'
 
 const CLIENT_RETENTION_SELECT =
   'id, name, phone, archived_at, archive_reason, trainer_id, lifecycle, pnk_stage, pnk_won_at, desk_hall'
@@ -49,7 +53,7 @@ export async function buildClubClientRetentionPayload(supabaseAdmin, opts) {
 
   const modeIds = await fetchClubTrainerModeIds(supabaseAdmin, clubId)
 
-  const [trainingsRes, clientsRes, membershipsRes, typesRes] = await Promise.all([
+  const [trainingsRes, clientsRes, membershipsRes, typesRes, lifecycleRes] = await Promise.all([
     fetchPagedLimited(supabaseAdmin, {
       table: 'trainings',
       select: 'id, trainer_id, client_id, date, status',
@@ -76,6 +80,12 @@ export async function buildClubClientRetentionPayload(supabaseAdmin, opts) {
       clubId,
       maxRows: 5000,
     }),
+    fetchPagedLimited(supabaseAdmin, {
+      table: 'client_hall_lifecycle',
+      select: LIFECYCLE_SELECT,
+      clubId,
+      maxRows: CLUB_STATS_MAX_CLIENT_HALL_LIFECYCLE,
+    }).catch(() => ({ rows: [], truncated: false })),
   ])
 
   let clients = clientsRes.rows ?? []
@@ -89,7 +99,8 @@ export async function buildClubClientRetentionPayload(supabaseAdmin, opts) {
     trainingsRes.truncated ||
     clientsRes.truncated ||
     membershipsRes.truncated ||
-    typesRes.truncated
+    typesRes.truncated ||
+    Boolean(lifecycleRes?.truncated)
 
   const restoreEvents =
     opts.restoreEvents ??
@@ -98,6 +109,12 @@ export async function buildClubClientRetentionPayload(supabaseAdmin, opts) {
       asOf: dateTo,
       trainerIdFilter,
     }))
+
+  let lifecycleRows = lifecycleRes?.rows ?? []
+  if (trainerIdFilter) {
+    const allowed = new Set(clients.map((c) => String(c?.id ?? '')))
+    lifecycleRows = lifecycleRows.filter((r) => allowed.has(String(r?.client_id ?? '')))
+  }
 
   const agg = aggregateClientRetention({
     clients,
@@ -109,6 +126,7 @@ export async function buildClubClientRetentionPayload(supabaseAdmin, opts) {
     asOf: dateTo,
     cohortMonths,
     restoreEvents,
+    lifecycleRows,
     holdingTrainerIds: modeIds.holdingTrainerIds,
     noTabletTrainerIds: modeIds.noTabletTrainerIds,
   })

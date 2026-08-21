@@ -7,6 +7,8 @@ import {
   RETENTION_REACTIVATION_SUCCESS_DAYS,
   indexMembershipsByClient,
   isHardChurnInPeriod,
+  isPzHallChurnInPeriod,
+  isPzHallTransitionReason,
   isRenewalEligible,
   isRenewed,
   isSuccessfulReactivation,
@@ -77,6 +79,7 @@ export function computeTrainerMedianTenure(cohortMembers, clientById, trainerId,
  *   asOf?: string,
  *   cohortMonths?: string[],
  *   restoreEvents?: RestoreEvent[],
+ *   lifecycleRows?: object[],
  *   holdingTrainerIds?: Set<string>|string[],
  *   noTabletTrainerIds?: Set<string>|string[],
  * }} input
@@ -92,7 +95,8 @@ export function aggregateClientRetention(input) {
     input.holdingTrainerIds ?? collectHoldingTrainerIds(trainers)
   const noTabletTrainerIds =
     input.noTabletTrainerIds ?? collectNoTabletTrainerIds(trainers)
-  const poolOpts = { holdingTrainerIds, noTabletTrainerIds }
+  const lifecycleRows = input.lifecycleRows ?? []
+  const poolOpts = { holdingTrainerIds, noTabletTrainerIds, lifecycleRows }
 
   const pool = filterRetentionPoolClients(input.clients ?? [], poolOpts)
   const universe = filterRetentionUniverseClients(input.clients ?? [], poolOpts)
@@ -125,6 +129,13 @@ export function aggregateClientRetention(input) {
   const hardChurnClients = universe.filter((c) => isHardChurnInPeriod(c, periodFrom, periodTo))
   const archiveRate = universe.length > 0 ? hardChurnClients.length / universe.length : null
   const archiveReasonMix = aggregateArchiveReasonMix(hardChurnClients)
+
+  const pzChurnRows = lifecycleRows.filter((r) => isPzHallChurnInPeriod(r, periodFrom, periodTo))
+  const pzChurnTransitions = pzChurnRows.filter((r) => isPzHallTransitionReason(r))
+  const pzChurnRate = universe.length > 0 ? pzChurnRows.length / universe.length : null
+  const pzCloseReasonMix = aggregateArchiveReasonMix(
+    pzChurnRows.map((r) => ({ archive_reason: r.close_reason })),
+  )
 
   /** @type {RestoreEvent[]} */
   const restoreEvents = input.restoreEvents ?? []
@@ -205,6 +216,10 @@ export function aggregateClientRetention(input) {
     archiveRate,
     archivesInPeriod: hardChurnClients.length,
     archiveReasonMix,
+    pzChurnRate,
+    pzChurnInPeriod: pzChurnRows.length,
+    pzChurnTransitions: pzChurnTransitions.length,
+    pzCloseReasonMix,
     reactivationRate,
     restoresInWindow,
     successfulReactivations,

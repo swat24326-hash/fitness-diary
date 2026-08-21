@@ -12,7 +12,7 @@
 | **Max / outreach / call-центр** | Max ✅; SMS/звонок MVP; цель КЦ — VISION §2.4 | `outreach_log`, фильтры тренера, `club-sms`, `club_call_log` | [OUTREACH_CHANNELS_ROADMAP.md](./OUTREACH_CHANNELS_ROADMAP.md), [MOIZVONKI_SETUP.md](./MOIZVONKI_SETUP.md), [PRODUCT_VISION.md](./PRODUCT_VISION.md) §2.4 |
 | **ИСКРА** | ✅ прод | `api/_lib/gemini*`, `iskra*`, UI админки | `ISKRA_*.md`, [iskra-kb/](./iskra-kb/README.md) |
 | **Планёрка / dispatch** | ✅ прод | iskra-dispatch + push | [ISKRA_PLANERKA.md](./ISKRA_PLANERKA.md), [PUSH_SETUP.md](./PUSH_SETUP.md) |
-| **Архив клиентов** | ✅ прод | archive + sync/agg | [CLIENT_ARCHIVE.md](./CLIENT_ARCHIVE.md) |
+| **Архив клиентов** | ✅ прод + жизнь по направлениям (фаза 1 ПЗ) | archive + `client_hall_lifecycle` | [CLIENT_ARCHIVE.md](./CLIENT_ARCHIVE.md), [CLIENT_HALL_LIFECYCLE.md](./CLIENT_HALL_LIFECYCLE.md) |
 | **Качество ведения** | ✅ MVP | coach quality + admin/trainer UI | [COACH_QUALITY.md](./COACH_QUALITY.md) |
 | **Прайс ПЗ** | ✅ облако + админ UI | `src/lib/priceList/`, `priceListHandlers`, вкладка Продажи → Прайс | [PRICE_LIST.md](./PRICE_LIST.md) |
 | **Лояльность ПЗ** | фазы A–G ✅ (правила, штамп, API, вкладка/чип, списание, журнал, архив/переезд, тумблер) | `src/lib/loyalty/`, `api/_lib/adminData/loyaltyHandlers.js`, `src/components/loyalty/` | [LOYALTY.md](./LOYALTY.md) |

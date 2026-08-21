@@ -38,6 +38,7 @@ export function TrainerClientListItem({
   outreachSent = false,
   highlighted = false,
   mode = 'active',
+  closedBadgeLabel = '',
   busy,
   onDelete,
   onArchive,
@@ -98,6 +99,11 @@ export function TrainerClientListItem({
                 {String(client.lifecycle ?? '') === 'pnk_lost' ? (
                   <span className="pnk-badge pnk-badge--lost" style={{ marginLeft: 8 }}>
                     Отказ
+                  </span>
+                ) : null}
+                {mode === 'archive' && closedBadgeLabel ? (
+                  <span className="pnk-badge" style={{ marginLeft: 8 }} title={closedBadgeLabel}>
+                    {closedBadgeLabel}
                   </span>
                 ) : null}
               </strong>
@@ -207,7 +213,7 @@ export function TrainerClientListItem({
                 mode === 'active'
                   ? {
                       id: 'archive',
-                      label: 'В архив',
+                      label: 'Закрыть ПЗ',
                       icon: Archive,
                       onSelect: () => onArchive?.(client),
                     }
@@ -220,7 +226,7 @@ export function TrainerClientListItem({
                 mode === 'archive'
                   ? {
                       id: 'restore',
-                      label: 'Вернуть из архива',
+                      label: 'Снова ко мне',
                       icon: RotateCcw,
                       onSelect: () => onRestore?.(client),
                     }

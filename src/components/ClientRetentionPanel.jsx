@@ -176,10 +176,20 @@ export function ClientRetentionPanel({
           }
         />
         <KpiCard
-          label="Архив за период"
+          label="Архив клуба"
           tone={r.archiveRate != null && r.archiveRate > 0.15 ? 'low' : 'none'}
           value={formatRetentionRatePct(r.archiveRate)}
           hint={`${r.archivesInPeriod ?? 0} ушли · база ${r.universeSize ?? 0}`}
+        />
+        <KpiCard
+          label="Закрытия ПЗ"
+          tone={r.pzChurnRate != null && r.pzChurnRate > 0.2 ? 'low' : 'none'}
+          value={formatRetentionRatePct(r.pzChurnRate)}
+          hint={
+            (r.pzChurnInPeriod ?? 0) > 0
+              ? `${r.pzChurnInPeriod} закрытий · ${r.pzChurnTransitions ?? 0} переход в ТЗ/АЗ`
+              : 'Нет закрытий ПЗ за период'
+          }
         />
         <KpiCard
           label="Медиана жизни"

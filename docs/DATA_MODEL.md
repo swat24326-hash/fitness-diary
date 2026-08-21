@@ -6,12 +6,12 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 
 ---
 
-## IndexedDB (`fitness-diary`, version **17**)
+## IndexedDB (`fitness-diary`, version **18**)
 
 | Store | keyPath | Заметки |
 |-------|---------|---------|
 | `meta` | key (string) | Флаги, служебное |
-| `clients` | `id` | индексы `club_id`, `trainer_id`; поля ПНК / архив (`archived_at`, `archive_reason`, `archive_reason_at`, `expected_return_on`); `desk_hall` (`tz`\|`az`\|null); `trainer_id` nullable только вместе с desk (`CHECK trainer OR desk_hall`). Lite-ПЗ = обычный клиент с живым тренером, у которого `users.uses_tablet = false` (не desk). |
+| `clients` | `id` | индексы `club_id`, `trainer_id`; поля ПНК / **архив клуба** (`archived_at`…); `desk_hall`; закрытие направления — `client_hall_lifecycle` ([CLIENT_HALL_LIFECYCLE.md](./CLIENT_HALL_LIFECYCLE.md)). Lite-ПЗ = тренер с `uses_tablet=false`. |
 | `memberships` | `id` | `client_id`, `club_id`; **`hall`** (`pz`\|`tz`\|`az`) — зал абона (один client — несколько залов); опционально `clip_id`; `paid_amount` (₽ **цены покупки** desk/lite — **не** сущность платежа); `session_visits` JSONB — журнал списаний desk АЗ `[{id,date,created_at}]` |
 | `trainings` | `id` | `draft` \| `completed`; `data` JSON формы (упражнения: `format` 1–3, опционально `laterality: 'lr'` — левая/правая в одном подходе; опционально `hr_session` — сводка пульса BLE, см. [TRAINING_HR.md](./TRAINING_HR.md)) |
 | `exercises` | `id` | Справочник |
@@ -28,6 +28,8 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 | `club_iskra_settings` | `club_id` | Локальный кэш **шаблонов** outreach (`outreach_templates` / SMS-шаблоны). Аккаунт **`moizvonki`** (в т.ч. api_key) живёт в **Postgres**; в API ключ не отдаём (`has_api_key`) — в IDB полный `moizvonki` не кэшируем |
 | `pnk_funnel_events` | `id` | Журнал ПНК |
 | `sale_clips` | `id` | Клип-карты (awaiting → done на планшете); pull тренеру |
+| `client_hall_lifecycle` | `id` | Закрытие ПЗ/ТЗ/АЗ (`hall`, `closed_at`, `close_reason`); индексы `client_id`, `club_id` |
+| `loyalty_glance` | `client_id` | Кэш баллов ПЗ (GET, не очередь) |
 | `loyalty_glance` | `client_id` | Кэш снимка баллов (GET `loyalty-glance`, не sync_queue) |
 
 ### Postgres only (не stores IndexedDB)

@@ -60,9 +60,9 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 
 ## Allowlist push (`PUSH_ALLOWED_TABLES`)
 
-`clients`, `memberships`, `trainings`, `health_cards`, `body_measurements`, `client_weight_entries`, `challenges`, `exercises`, `membership_types`, `nutrition_products`, `homework_presets`, `pnk_funnel_events`, `sale_clips`.
+`clients`, `memberships`, `trainings`, `health_cards`, `body_measurements`, `client_weight_entries`, `challenges`, `exercises`, `membership_types`, `nutrition_products`, `homework_presets`, `pnk_funnel_events`, `sale_clips`, `client_hall_lifecycle`.
 
-`club_loyalty_settings` и `loyalty_ledger` **не** в allowlist (только `admin-data?action=loyalty-*`). Архив и смена `club_id` пишут `burn_archive` / `club_move` **на сервере** после успешного push `clients` — не из IndexedDB. Store `loyalty_glance` — кэш GET, не очередь. После ручного Sync тренера: flush → `trainer-pull` → GET `loyalty-glance` пачками ≤80 (не в теле pull).
+`club_loyalty_settings` и `loyalty_ledger` **не** в allowlist (только `admin-data?action=loyalty-*`). Архив клуба и смена `club_id` пишут `burn_archive` / `club_move` **на сервере** после успешного push `clients`; закрытие **ПЗ** без архива клуба — `burn_archive` после push `client_hall_lifecycle` (`source: pz_hall_close`). Store `loyalty_glance` — кэш GET, не очередь. После ручного Sync тренера: flush → `trainer-pull` → GET `loyalty-glance` пачками ≤80 (не в теле pull).
 
 Создание клипа менеджером — через **`admin-data?action=sale-clips`**; тренер закрывает клип (`done` + `memberships.clip_id`) через очередь push.
 
@@ -70,7 +70,7 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 
 ## Охрана pull (`PULL_MERGE_GUARD_STORES` в `syncPullGuardCore.js` → `localDb.js`)
 
-`clients`, `memberships`, `trainings`, `health_cards`, `body_measurements`, `client_weight_entries`, `pnk_funnel_events`, `sale_clips`.
+`clients`, `memberships`, `trainings`, `health_cards`, `body_measurements`, `client_weight_entries`, `pnk_funnel_events`, `sale_clips`, `client_hall_lifecycle`.
 
 `health_cards` в IDB ключуется по **`client_id`**, не по `id` записи — учитывать в ключах очереди.
 
@@ -94,7 +94,7 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 2. **Fallback по дате** — `resolveMembershipForDiaryTraining`, если `membership_id` нет (legacy).
 3. **Источник абонементов для UI статистики:**
    - **Тренер онлайн:** `trainer-pull` (`skip_trainings=1`) через `loadClubMembershipsWithApiFallback(clubId, { trainerId })`; **не** `/api/list-memberships` (403).
-   - **Админ / sales:** `/api/list-memberships` → тот же helper без `trainerId`.
+   - **Админ / sales:** `/api/list-memberships` → абоны **и** `client_hall_lifecycle` в IndexedDB (Живые|Закрытые на втором устройстве). Helper без `trainerId`.
    - **Офлайн / сбой API:** `listMembershipsByClubId` (IndexedDB); тип считается локально, если абоны клиента в кэше.
 4. **Repair:** журнал тренера (online) — `repairTrainingsMembershipLinks` → `cacheCloudTrainingsLocally`.
 5. **Prefetch карточки:** `refreshMembershipsForStats({ trainerId })` → merge в IDB; cooldown 60 с.

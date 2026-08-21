@@ -39,6 +39,10 @@ export function ClientArchiveReasonModal({
   busy = false,
   onCancel,
   onConfirm,
+  enterTitle = 'Закрыть ПЗ',
+  enterConfirmLabel = 'Закрыть ПЗ',
+  editTitle = 'Причина закрытия',
+  enterHint = 'Закроем направление ПЗ. Если нет других живых залов — клиент попадёт в архив клуба. Причина нужна для статистики.',
 }) {
   const titleId = useId()
   const hintId = useId()
@@ -123,8 +127,8 @@ export function ClientArchiveReasonModal({
   })
   const showOtherField = selectedChipId === ARCHIVE_REASON_OTHER_ID
   const showReturnHorizons = selectedChipId === ARCHIVE_RETURN_LATER_ID
-  const title = isEnter ? 'В архив' : 'Причина архива'
-  const confirmLabel = isEnter ? 'В архив' : 'Сохранить'
+  const title = isEnter ? enterTitle : editTitle
+  const confirmLabel = isEnter ? enterConfirmLabel : 'Сохранить'
   const locked = busy || submitting
 
   const pickChip = (chipId) => {
@@ -170,21 +174,17 @@ export function ClientArchiveReasonModal({
         <p className="muted client-archive-reason-modal__lead">
           {isEnter ? (
             <>
-              Убираем <strong style={{ color: 'var(--text)' }}>{clientName || 'клиента'}</strong> в
-              архив. Выберите причину — она попадёт в статистику клуба.
+              Закрываем ПЗ у <strong style={{ color: 'var(--text)' }}>{clientName || 'клиента'}</strong>.
+              Выберите причину — она попадёт в статистику.
             </>
           ) : (
             <>
               Причина для <strong style={{ color: 'var(--text)' }}>{clientName || 'клиента'}</strong>.
-              Почему клиент в архиве?
             </>
           )}
         </p>
         {isEnter ? (
-          <p className="muted client-archive-reason-modal__note">
-            В архиве — просмотр карточки. Действия снова после «Вернуть из архива» (причина тогда
-            сбросится).
-          </p>
+          <p className="muted client-archive-reason-modal__note">{enterHint}</p>
         ) : null}
         {isEnter && loyaltyWarn ? (
           <p className="loyalty-archive-warn" role="status">

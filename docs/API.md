@@ -12,7 +12,7 @@
 | Endpoint | Назначение |
 |----------|------------|
 | `/api/admin-data` | Объединённый GET/POST админки, продаж, ИСКРЫ, справочников (`?action=`) |
-| `/api/list-memberships` | Абонементы **всех** клиентов клуба — **только admin / sales_manager** своего клуба. **Тренер не вызывает** (403): абонементы на планшете — `/api/trainer-pull` |
+| `/api/list-memberships` | Абонементы **всех** клиентов клуба + `client_hall_lifecycle` того же клуба — **только admin / sales_manager** своего клуба. **Тренер не вызывает** (403): абонементы и lifecycle на планшете — `/api/trainer-pull` |
 | `/api/trainer-pull` | Pull на планшет тренера: клиенты, **memberships** (своих клиентов), health_cards, trainings (опц. `skip_trainings=1`) |
 | `/api/push-record` | Одна запись из sync-очереди (admin / trainer / sales_manager / **supervisor**; права по таблице — `authorizePush`). После успешного insert/update `clients` сервер пишет `burn_archive` / `club_move` в `loyalty_ledger` (не очередь) |
 | `/api/push-records` | Пакетный flush очереди (те же роли) |

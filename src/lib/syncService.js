@@ -30,7 +30,15 @@ import { reportQueueFlushProgress, setQueueFlushProgressReporter } from './syncP
 
 export { isDuplicateInsertError, describeFlushQueueResult, criticalWriteCloudWarning, shouldCloudHydrateAfterCriticalSave } from './syncFlushResult'
 
-const TRAINER_CACHE_STORES = new Set(['clients', 'memberships', 'trainings', 'health_cards', 'body_measurements', 'client_weight_entries'])
+const TRAINER_CACHE_STORES = new Set([
+  'clients',
+  'memberships',
+  'trainings',
+  'health_cards',
+  'body_measurements',
+  'client_weight_entries',
+  'client_hall_lifecycle',
+])
 
 const AUTO_PUSH_TABLES = new Set([
   'clients',
@@ -46,6 +54,7 @@ const AUTO_PUSH_TABLES = new Set([
   'exercises',
   'pnk_funnel_events',
   'sale_clips',
+  'client_hall_lifecycle',
 ])
 
 /** Порядок отправки: сначала сущности, от которых зависят остальные. */
@@ -57,6 +66,7 @@ const SYNC_TABLE_PRIORITY = {
   nutrition_products: 16,
   homework_presets: 17,
   memberships: 20,
+  client_hall_lifecycle: 22,
   trainings: 30,
   health_cards: 40,
   body_measurements: 50,

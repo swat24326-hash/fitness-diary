@@ -11,6 +11,7 @@ import { normalizeHealthCardPushPayload } from '../../src/lib/healthCardCore.js'
 import { normalizePnkFunnelEventPushPayload } from '../../src/lib/pnk/pnkFunnelEventsCore.js'
 import { recordClientDeletionAudit } from './deletionAuditWrite.js'
 import { applyLoyaltyClientPushSideEffects } from './loyaltyClientPushSideEffects.js'
+import { applyLoyaltyHallLifecyclePushSideEffects } from './loyaltyHallLifecyclePushSideEffects.js'
 import { recordClientRestoreEvent } from './clientRestoreEventWrite.js'
 import {
   isWeightEntryTrainingFkError,
@@ -31,6 +32,7 @@ export const PUSH_ALLOWED_TABLES = new Set([
   'homework_presets',
   'pnk_funnel_events',
   'sale_clips',
+  'client_hall_lifecycle',
 ])
 
 function friendlyExerciseDbError(error, operation) {
@@ -235,6 +237,27 @@ export async function executePushRecord(ctx, item) {
         if (!prep.ok) return { ok: false, status: 400, error: prep.error }
         payload = prep.data
       }
+      let lifeBefore = null
+      if (table_name === 'client_hall_lifecycle') {
+        const prev = await supabaseAdmin
+          .from('client_hall_lifecycle')
+          .select('id, client_id, club_id, hall, closed_at')
+          .eq('client_id', payload.client_id)
+          .eq('hall', payload.hall)
+          .maybeSingle()
+        if (!prev.error && prev.data) lifeBefore = prev.data
+        const up = await supabaseAdmin.from(table_name).upsert(payload, { onConflict: 'client_id,hall' })
+        if (up.error) {
+          return { ok: false, status: 400, error: up.error.message }
+        }
+        await applyLoyaltyHallLifecyclePushSideEffects({
+          supabaseAdmin,
+          before: lifeBefore,
+          after: payload,
+          actorId: ctx.profile?.id ?? ctx.user?.id ?? null,
+        })
+        return { ok: true }
+      }
       let { error } = await supabaseAdmin.from(table_name).insert(payload)
       if (
         error &&
@@ -336,6 +359,7 @@ export async function executePushRecord(ctx, item) {
       }
       let clientBefore = null
       let clientBeforeReady = table_name !== 'clients'
+      let lifeBefore = null
       if (table_name === 'clients') {
         const prev = await supabaseAdmin
           .from('clients')
@@ -348,6 +372,14 @@ export async function executePushRecord(ctx, item) {
           clientBefore = prev.data
           clientBeforeReady = true
         }
+      }
+      if (table_name === 'client_hall_lifecycle') {
+        const prev = await supabaseAdmin
+          .from('client_hall_lifecycle')
+          .select('id, client_id, club_id, hall, closed_at')
+          .eq('id', remote_id)
+          .maybeSingle()
+        if (!prev.error && prev.data) lifeBefore = prev.data
       }
       let { error } = await supabaseAdmin.from(table_name).update(payload).eq('id', remote_id)
       if (
@@ -384,6 +416,14 @@ export async function executePushRecord(ctx, item) {
           payload,
           actorId: ctx.profile?.id ?? ctx.user?.id ?? null,
           source: 'push',
+        })
+      }
+      if (table_name === 'client_hall_lifecycle') {
+        await applyLoyaltyHallLifecyclePushSideEffects({
+          supabaseAdmin,
+          before: lifeBefore,
+          after: { ...lifeBefore, ...payload, id: remote_id },
+          actorId: ctx.profile?.id ?? ctx.user?.id ?? null,
         })
       }
       return { ok: true }

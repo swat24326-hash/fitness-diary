@@ -6,7 +6,11 @@
 import { normalizeDeskHall } from './deskHallClientsCore.js'
 
 /** Таблицы, которые менеджер может писать через push (коммерческий контур). */
-export const SALES_MANAGER_CLIENT_PUSH_TABLES = Object.freeze(['clients', 'memberships'])
+export const SALES_MANAGER_CLIENT_PUSH_TABLES = Object.freeze([
+  'clients',
+  'memberships',
+  'client_hall_lifecycle',
+])
 
 /**
  * Каскад удаления desk ТЗ/АЗ может затронуть эти таблицы (обычно пустые).

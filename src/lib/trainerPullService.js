@@ -95,6 +95,7 @@ async function cacheTrainerPull(
     trainings,
     pnk_funnel_events,
     sale_clips,
+    client_hall_lifecycle,
     club_id,
     outreach_templates,
   },
@@ -117,6 +118,13 @@ async function cacheTrainerPull(
   for (const row of trainings ?? []) await putStoreUnlessPendingSync('trainings', row, pending)
   for (const row of pnk_funnel_events ?? []) await putStoreUnlessPendingSync('pnk_funnel_events', row, pending)
   for (const row of sale_clips ?? []) await putStoreUnlessPendingSync('sale_clips', row, pending)
+  for (const row of client_hall_lifecycle ?? []) {
+    try {
+      await putStoreUnlessPendingSync('client_hall_lifecycle', row, pending)
+    } catch {
+      /* store ещё не создан до reload */
+    }
+  }
   const pruned_trainings = side.pruneTrainings
     ? await pruneOrphanTrainingsForTrainerClients(clients, trainings, pending?.trainings ?? null)
     : 0

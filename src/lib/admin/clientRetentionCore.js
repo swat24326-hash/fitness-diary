@@ -70,7 +70,7 @@ export function clientEngagedInRange(trainings, clientId, monthFrom, monthTo) {
 }
 
 /**
- * Hard churn: archived_at попадает в [periodFrom, periodTo].
+ * Hard churn клуба: archived_at попадает в [periodFrom, periodTo].
  * @param {object|null|undefined} client
  * @param {string} periodFrom
  * @param {string} periodTo
@@ -82,6 +82,31 @@ export function isHardChurnInPeriod(client, periodFrom, periodTo) {
   const to = String(periodTo ?? '').slice(0, 10)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(at)) return false
   return at >= from && at <= to
+}
+
+/**
+ * Hard churn ПЗ: закрытие hall=pz в периоде.
+ * @param {object|null|undefined} lifecycleRow
+ * @param {string} periodFrom
+ * @param {string} periodTo
+ */
+export function isPzHallChurnInPeriod(lifecycleRow, periodFrom, periodTo) {
+  if (!lifecycleRow?.closed_at) return false
+  if (String(lifecycleRow.hall ?? '').toLowerCase() !== 'pz') return false
+  const at = String(lifecycleRow.closed_at).slice(0, 10)
+  const from = String(periodFrom ?? '').slice(0, 10)
+  const to = String(periodTo ?? '').slice(0, 10)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(at)) return false
+  return at >= from && at <= to
+}
+
+/**
+ * Переход ПЗ→ТЗ/АЗ по причине закрытия (не отток клуба).
+ * @param {object|null|undefined} lifecycleRow
+ */
+export function isPzHallTransitionReason(lifecycleRow) {
+  const r = String(lifecycleRow?.close_reason ?? '').toLowerCase()
+  return r.includes('перешёл в тз') || r.includes('перешёл в аз')
 }
 
 /**

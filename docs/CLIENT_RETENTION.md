@@ -12,7 +12,9 @@ CRM-правда: сколько клиент живёт, почему ушёл 
 
 | Сигнал | Условие | KPI |
 |--------|---------|-----|
-| **Hard churn** | `archived_at` в периоде | Archive rate, reason mix |
+| **Hard churn ПЗ** | закрытие `hall=pz` в периоде (`client_hall_lifecycle`) | PZ churn, reason mix |
+| **Hard churn клуба** | `archived_at` в периоде | Archive rate клуба |
+| **Переход** | закрытие ПЗ при живом ТЗ/АЗ (`to_tz` / `to_az`) | Не отток клуба; см. [CLIENT_HALL_LIFECYCLE.md](./CLIENT_HALL_LIFECYCLE.md) |
 | **Soft churn** | `isTrainerClientInactiveToday` (>60 дн. или странный абон) | Leading (не в top-6 MVP) |
 | **Engagement** | ≥1 `completed` в календарном месяце | Retention M+3 |
 
@@ -23,9 +25,12 @@ Coach Quality (0–7 / 8–14 / >14) — **отдельный** leading indicato
 `filterHallOperationalClients` логика через `isClientInRetentionPool`:
 
 - не архив, не desk ТЗ/АЗ, не holding, не lite-ПЗ (`uses_tablet=false`);
-- не open `lifecycle=pnk`.
+- не open `lifecycle=pnk`;
+- **не закрытый ПЗ** (`client_hall_lifecycle.closed_at` для `hall=pz`) — иначе переход в ТЗ/АЗ раздувает M+3 пул.
 
-Lite-ПЗ: в commercial / renewal, **вне** R-RET.
+Архив клуба после закрытия ПЗ **остаётся** в universe (для archive rate).
+
+API `client-retention` подтягивает `client_hall_lifecycle` → KPI **Закрытия ПЗ** (`pzChurnRate` / переходы).
 
 **Когорты M+3** строятся по **universe** (включая уже архивных tablet-клиентов), чтобы не было survivorship bias.
 

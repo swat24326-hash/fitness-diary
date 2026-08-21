@@ -220,7 +220,8 @@ export async function fetchClientsForClubViaAdminApi(clubId, opts = {}) {
 
 /**
  * GET /api/list-memberships?club_id=… — null если маршрута нет.
- * @returns {Promise<{ memberships: object[], count: number } | null>}
+ * Вместе с абонами — client_hall_lifecycle клуба (если сервер отдаёт).
+ * @returns {Promise<{ memberships: object[], client_hall_lifecycle: object[], count: number, truncated?: boolean } | null>}
  */
 export async function fetchMembershipsForClubViaAdminApi(clubId) {
   const cid = String(clubId ?? '').trim()
@@ -249,8 +250,10 @@ export async function fetchMembershipsForClubViaAdminApi(clubId) {
   if (res.ok) {
     return {
       memberships: Array.isArray(data.memberships) ? data.memberships : [],
+      client_hall_lifecycle: Array.isArray(data.client_hall_lifecycle) ? data.client_hall_lifecycle : [],
       count: typeof data.count === 'number' ? data.count : (data.memberships?.length ?? 0),
       truncated: Boolean(data.truncated),
+      client_hall_lifecycle_truncated: Boolean(data.client_hall_lifecycle_truncated),
     }
   }
 

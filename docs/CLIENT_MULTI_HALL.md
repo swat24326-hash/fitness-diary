@@ -50,4 +50,5 @@
 
 ## Связанное
 
+[CLIENT_HALL_LIFECYCLE.md](./CLIENT_HALL_LIFECYCLE.md) — закрытие направления vs архив клуба.  
 [DATA_MODEL.md](./DATA_MODEL.md), [PNK_FUNNEL.md](./PNK_FUNNEL.md), [PZ_CLIENTS_ONBOARD.md](./PZ_CLIENTS_ONBOARD.md), [SALES_MANAGER.md](./SALES_MANAGER.md).

@@ -331,6 +331,21 @@ async function handler(req, res) {
     sale_clips = []
   }
 
+  const client_hall_lifecycle = []
+  for (let i = 0; i < clientIds.length; i += IN_CHUNK) {
+    const chunk = clientIds.slice(i, i + IN_CHUNK)
+    if (!chunk.length) continue
+    try {
+      const { data: life, error: le } = await supabaseAdmin
+        .from('client_hall_lifecycle')
+        .select('*')
+        .in('client_id', chunk)
+      if (!le) client_hall_lifecycle.push(...(life ?? []))
+    } catch {
+      /* таблица ещё не накачана */
+    }
+  }
+
   sendJson(res, 200, {
     clients,
     memberships,
@@ -340,6 +355,7 @@ async function handler(req, res) {
     trainings,
     pnk_funnel_events,
     sale_clips,
+    client_hall_lifecycle,
     club_id: trainerClubId || null,
     outreach_templates,
     trainings_truncated: trainingsTruncated,

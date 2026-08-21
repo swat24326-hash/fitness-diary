@@ -1,0 +1,206 @@
+/**
+ * Офлайн-first: закрыть / открыть направление, уйти из клуба.
+ */
+import { getDb } from './localDb.js'
+import {
+  criticalWriteCloudWarning,
+  flushCriticalWritesToCloud,
+  saveLocalWithSync,
+} from './syncService.js'
+import {
+  CLIENT_HALL_LIFECYCLE_TABLE,
+  planCloseHall,
+  planLeaveClub,
+  planReopenHall,
+} from './clientHallLifecycleCore.js'
+import { todayLocalIso } from './dateRu.js'
+
+async function loadClientBundle(clientId) {
+  const db = await getDb()
+  const client = await db.get('clients', clientId)
+  if (!client?.id) {
+    throw new Error('Клиент не найден в локальном кэше. Обновите список (Sync) и повторите.')
+  }
+  let memberships = []
+  try {
+    memberships = await db.getAllFromIndex('memberships', 'by_client_id', clientId)
+  } catch {
+    const all = await db.getAll('memberships')
+    memberships = (all ?? []).filter((m) => String(m?.client_id) === String(clientId))
+  }
+  let lifecycleRows = []
+  try {
+    if (db.objectStoreNames.contains('client_hall_lifecycle')) {
+      lifecycleRows = await db.getAllFromIndex('client_hall_lifecycle', 'by_client_id', clientId)
+    }
+  } catch {
+    try {
+      const all = await db.getAll('client_hall_lifecycle')
+      lifecycleRows = (all ?? []).filter((r) => String(r?.client_id) === String(clientId))
+    } catch {
+      lifecycleRows = []
+    }
+  }
+  return { client, memberships: memberships ?? [], lifecycleRows: lifecycleRows ?? [] }
+}
+
+/**
+ * @param {object} clientRow
+ * @param {string|{ reason?: string, expectedReturnOn?: string|null }} reasonInput
+ * @param {{ hall?: string }} [opts]
+ */
+export async function closeClientHallWithReason(clientRow, reasonInput, opts = {}) {
+  const hall = opts.hall ?? 'pz'
+  const { client, memberships, lifecycleRows } = await loadClientBundle(clientRow.id)
+  const plan = planCloseHall({
+    client,
+    hall,
+    reasonInput,
+    memberships,
+    lifecycleRows,
+    asOf: todayLocalIso(),
+  })
+  if (!plan.ok) throw new Error(plan.error)
+  return persistClosePlan(plan, client.id)
+}
+
+async function persistClosePlan(plan, clientId) {
+  for (const m of plan.membershipPatches ?? []) {
+    await saveLocalWithSync('memberships', m, {
+      table_name: 'memberships',
+      operation: 'update',
+      remote_id: m.id,
+    })
+  }
+  const lifeRows = [plan.lifecycleRow, ...(plan.autoLifecycleRows ?? [])].filter(Boolean)
+  for (const row of lifeRows) {
+    const db = await getDb()
+    let op = 'insert'
+    try {
+      const cur = await db.get('client_hall_lifecycle', row.id)
+      if (cur) op = 'update'
+    } catch {
+      op = 'insert'
+    }
+    await saveLocalWithSync('client_hall_lifecycle', row, {
+      table_name: CLIENT_HALL_LIFECYCLE_TABLE,
+      operation: op,
+      remote_id: row.id,
+    })
+  }
+  let clientOut = null
+  if (plan.clientPatch) {
+    const db = await getDb()
+    const base = await db.get('clients', clientId)
+    if (base?.id) {
+      clientOut = { ...base, ...plan.clientPatch }
+      await saveLocalWithSync('clients', clientOut, {
+        table_name: 'clients',
+        operation: 'update',
+        remote_id: base.id,
+      })
+    }
+  }
+  const flush = await flushCriticalWritesToCloud()
+  const warn = criticalWriteCloudWarning(flush, 'Закрытие направления')
+  return { row: clientOut, warn, plan }
+}
+
+/**
+ * @param {object} clientRow
+ * @param {{ hall?: string }} [opts]
+ */
+export async function reopenClientHall(clientRow, opts = {}) {
+  const hall = opts.hall ?? 'pz'
+  const { client, memberships, lifecycleRows } = await loadClientBundle(clientRow.id)
+  const plan = planReopenHall({
+    client,
+    hall,
+    memberships,
+    lifecycleRows,
+    asOf: todayLocalIso(),
+  })
+  if (!plan.ok) throw new Error(plan.error)
+  const db = await getDb()
+  let op = 'insert'
+  try {
+    const cur = await db.get('client_hall_lifecycle', plan.lifecycleRow.id)
+    if (cur) op = 'update'
+  } catch {
+    op = 'insert'
+  }
+  await saveLocalWithSync('client_hall_lifecycle', plan.lifecycleRow, {
+    table_name: CLIENT_HALL_LIFECYCLE_TABLE,
+    operation: op,
+    remote_id: plan.lifecycleRow.id,
+  })
+  let clientOut = null
+  if (plan.clientPatch) {
+    const base = await db.get('clients', client.id)
+    if (base?.id) {
+      clientOut = { ...base, ...plan.clientPatch }
+      await saveLocalWithSync('clients', clientOut, {
+        table_name: 'clients',
+        operation: 'update',
+        remote_id: base.id,
+      })
+    }
+  }
+  const flush = await flushCriticalWritesToCloud()
+  const warn = criticalWriteCloudWarning(flush, 'Открытие направления')
+  return { row: clientOut, warn, plan }
+}
+
+/**
+ * @param {object} clientRow
+ * @param {string|{ reason?: string, expectedReturnOn?: string|null }} reasonInput
+ */
+export async function leaveClubWithReason(clientRow, reasonInput) {
+  const { client, memberships, lifecycleRows } = await loadClientBundle(clientRow.id)
+  const plan = planLeaveClub({
+    client,
+    reasonInput,
+    memberships,
+    lifecycleRows,
+    asOf: todayLocalIso(),
+  })
+  if (!plan.ok) throw new Error(plan.error)
+  for (const m of plan.membershipPatches ?? []) {
+    await saveLocalWithSync('memberships', m, {
+      table_name: 'memberships',
+      operation: 'update',
+      remote_id: m.id,
+    })
+  }
+  for (const row of plan.lifecycleRows ?? []) {
+    const db = await getDb()
+    let op = 'insert'
+    try {
+      const cur = await db.get('client_hall_lifecycle', row.id)
+      if (cur) op = 'update'
+    } catch {
+      op = 'insert'
+    }
+    await saveLocalWithSync('client_hall_lifecycle', row, {
+      table_name: CLIENT_HALL_LIFECYCLE_TABLE,
+      operation: op,
+      remote_id: row.id,
+    })
+  }
+  const db = await getDb()
+  const base = await db.get('clients', client.id)
+  const clientOut = { ...base, ...plan.clientPatch }
+  await saveLocalWithSync('clients', clientOut, {
+    table_name: 'clients',
+    operation: 'update',
+    remote_id: base.id,
+  })
+  const flush = await flushCriticalWritesToCloud()
+  const warn = criticalWriteCloudWarning(flush, 'Уход из клуба')
+  return { row: clientOut, warn, plan }
+}
+
+/** @deprecated use closeClientHallWithReason — совместимость кнопки архива */
+export async function archiveClientWithReasonViaHall(clientRow, reasonInput) {
+  return closeClientHallWithReason(clientRow, reasonInput, { hall: 'pz' })
+}

@@ -7,7 +7,7 @@ import { isMembershipExpiredRecently, isClientStaleForAttention } from '../src/l
 import { evaluateBagFlag } from '../src/lib/admin/coachQualityCore.js'
 import { hasUsableMembershipForPeriodStats } from '../src/lib/membershipRules.js'
 import { isClientExcludedFromRenewals } from '../src/lib/admin/salesPlanHallRenewalsSuggestCore.js'
-import { isClientInRetentionPool, filterRetentionPoolClients } from '../src/lib/admin/clientRetentionPoolCore.js'
+import { isClientInRetentionPool, isClientInRetentionUniverse, filterRetentionPoolClients } from '../src/lib/admin/clientRetentionPoolCore.js'
 import {
   clientEngagedInRange,
   isHardChurnInPeriod,
@@ -353,6 +353,61 @@ ok(
 )
 ok(formatTrainerM3Cell({ retentionM3: { averageRate: null, cohortSize: 0 }, tenureClientCount: 2 }).text === 'Рано', 'immature label')
 ok(formatTrainerM3Cell({ retentionM3: { averageRate: 0.67, cohortSize: 3 } }).text === '67%', 'm3 cell pct')
+
+setSection('CLOSED PZ / pool vs club archive & pz churn')
+ok(
+  !isClientInRetentionPool(
+    { id: 'c-closed', trainer_id: 't-tab', lifecycle: 'active' },
+    { lifecycleRows: [{ client_id: 'c-closed', hall: 'pz', closed_at: '2026-07-10T12:00:00Z' }] },
+  ),
+  'closed pz out of live R-RET pool',
+)
+ok(
+  isClientInRetentionUniverse(
+    {
+      id: 'c-arch-after-pz',
+      trainer_id: 't-tab',
+      lifecycle: 'active',
+      archived_at: '2026-07-20T12:00:00Z',
+    },
+    {
+      lifecycleRows: [
+        { client_id: 'c-arch-after-pz', hall: 'pz', closed_at: '2026-07-10T12:00:00Z' },
+      ],
+    },
+  ),
+  'club archive stays in universe even if pz closed first',
+)
+const aggPz = aggregateClientRetention({
+  clients: [
+    { id: 'c-live', trainer_id: 't-tab', lifecycle: 'active' },
+    { id: 'c-to-tz', trainer_id: 't-tab', lifecycle: 'active' },
+  ],
+  memberships: [
+    mem('c-live', 'paid', '2026-03-01', '2026-12-01'),
+    mem('c-to-tz', 'paid', '2026-03-01', '2026-07-14'),
+  ],
+  trainings: [],
+  membershipTypes: TYPES,
+  trainers: TRAINERS,
+  periodFrom: '2026-07-01',
+  periodTo: '2026-07-31',
+  asOf: TODAY,
+  cohortMonths: ['2026-03'],
+  restoreEvents: [],
+  lifecycleRows: [
+    {
+      client_id: 'c-to-tz',
+      hall: 'pz',
+      closed_at: '2026-07-15T10:00:00Z',
+      close_reason: 'Перешёл в ТЗ',
+    },
+  ],
+})
+ok(aggPz.poolSize === 1, 'agg: closed pz not in live pool')
+ok(aggPz.pzChurnInPeriod === 1, 'agg: pz churn counted from lifecycle')
+ok(aggPz.pzChurnTransitions === 1, 'agg: transition to TZ in mix')
+ok(aggPz.pzChurnRate != null && aggPz.pzChurnRate > 0, 'agg: pzChurnRate > 0')
 
 if (failed) {
   console.error(`\n${failed} check(s) failed`)

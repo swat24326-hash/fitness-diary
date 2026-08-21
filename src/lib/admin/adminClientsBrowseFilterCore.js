@@ -106,12 +106,13 @@ export function memListForAdminClient(client, memByClient) {
  * @param {string} hallMode
  * @param {Record<string, object[]>} memByClient
  */
-export function adminClientBrowseMatchCtx(client, today, hallMode, memByClient) {
+export function adminClientBrowseMatchCtx(client, today, hallMode, memByClient, lifecycleRows) {
   return {
     client,
     memList: memListForAdminClient(client, memByClient),
     today,
     hallMode,
+    lifecycleRows: lifecycleRows ?? [],
   }
 }
 
@@ -146,7 +147,10 @@ export function filterAdminClientsByBrowseMode(p) {
   }
 
   return base.filter((c) =>
-    clientMatchesAdminFunnelFilter(mode, adminClientBrowseMatchCtx(c, today, hallMode, p.memByClient)),
+    clientMatchesAdminFunnelFilter(
+      mode,
+      adminClientBrowseMatchCtx(c, today, hallMode, p.memByClient, p.lifecycleRows),
+    ),
   )
 }
 
@@ -170,7 +174,10 @@ export function buildAdminClientsBrowseCounts(p) {
     p.today,
   )
   const hallMode = resolveAdminClientsBrowseHallMode(p.clientsTab)
-  return countAdminFunnelFilters(tabBase, p.memByClient, p.today, null, { hallMode })
+  return countAdminFunnelFilters(tabBase, p.memByClient, p.today, null, {
+    hallMode,
+    lifecycleRows: p.lifecycleRows ?? [],
+  })
 }
 
 /**
@@ -179,12 +186,13 @@ export function buildAdminClientsBrowseCounts(p) {
  * @param {Record<string, object[]>} memByClient
  * @param {string} today
  */
-export function buildAdminPzDaySummaryBrowseCounts(clients, memByClient, today) {
+export function buildAdminPzDaySummaryBrowseCounts(clients, memByClient, today, lifecycleRows) {
   return buildAdminClientsBrowseCounts({
     clients,
     memByClient,
     clientsTab: 'active',
     today,
+    lifecycleRows: lifecycleRows ?? [],
   })
 }
 

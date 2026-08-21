@@ -94,7 +94,7 @@ Verify: `scripts/verify-loyalty.mjs`, `verify-loyalty-persist.mjs`, `verify-loya
 }
 ```
 
-Если `archived_at` не null → сразу **idle** (в архиве куш не живой). Ledger `burn_archive` для истории и для жизни **после** «Вернуть» (тогда `archived_at` снова null, origin = этот burn).
+Если `archived_at` не null → сразу **idle** (в архиве куш не живой). Ledger `burn_archive` для истории и для жизни **после** «Вернуть» (тогда `archived_at` снова null, origin = этот burn). То же `burn_archive` пишется при **закрытии ПЗ** без архива клуба (`payload.source = pz_hall_close`) — см. [CLIENT_HALL_LIFECYCLE.md](./CLIENT_HALL_LIFECYCLE.md).
 
 **Якоря ledger:** `redeem | burn_archive | club_move | program_toggle | cycle_open`.  
 **Hard** (выбор origin): `redeem`, `burn_archive`, `club_move`.  

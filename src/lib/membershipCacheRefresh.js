@@ -8,6 +8,7 @@ import { buildPendingSyncKeysByTable, putStoreUnlessPendingSync } from './localD
 import { markRecordFromCloud } from './syncLocalRecords'
 import { isAppOnline } from './syncService'
 import { fetchMembershipsForClubViaAdminApi } from './admin/adminApiClient'
+import { mergeClientHallLifecycleIntoCache } from './admin/clientHallLifecycleAdminCache.js'
 import { fetchTrainerPullViaApi } from './syncApiClient'
 import { clearTrainerWorkspaceSnapshotSync } from './trainerWorkspaceCache'
 import { invalidateAdminClubWorkspaceCache } from './admin/adminClubWorkspaceCache'
@@ -94,6 +95,9 @@ export async function refreshMembershipsForStats(p = {}) {
       const viaMem = await fetchMembershipsForClubViaAdminApi(clubId)
       if (!viaMem?.memberships) return { ok: false, reason: 'no_api' }
       const count = await mergeMembershipRows(viaMem.memberships)
+      if (viaMem.client_hall_lifecycle?.length) {
+        await mergeClientHallLifecycleIntoCache(viaMem.client_hall_lifecycle)
+      }
       bumpCaches()
       if (p.notify !== false) notifyRefreshed()
       return { ok: true, count, source: 'list-memberships' }

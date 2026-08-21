@@ -133,11 +133,14 @@ import { ClientHardDeleteConfirmModal } from '../../components/ClientHardDeleteC
 import { ClientArchiveReasonModal } from '../../components/ClientArchiveReasonModal.jsx'
 import { ClientArchiveReasonFact } from '../../components/ClientArchiveReasonFact.jsx'
 import { ClientArchiveReasonEditButton } from '../../components/ClientArchiveReasonEditButton.jsx'
+import { setClientArchiveReason, restoreClientFromArchive } from '../../lib/clientArchiveSyncService.js'
 import {
-  archiveClientWithReason,
-  restoreClientFromArchive,
-  setClientArchiveReason,
-} from '../../lib/clientArchiveSyncService.js'
+  closeClientHallWithReason,
+  leaveClubWithReason,
+  reopenClientHall,
+} from '../../lib/clientHallLifecycleSyncService.js'
+import { isTrainerPzClosedView } from '../../lib/clientHallLifecycleCore.js'
+import { getDb } from '../../lib/localDb.js'
 import { clientNeedsArchiveReason } from '../../lib/clientArchiveReasonCore.js'
 import { AdminClientListAbonFact } from '../../components/admin/AdminClientListAbonFact.jsx'
 import { AdminLitePzCreateModal } from '../../components/admin/AdminLitePzCreateModal.jsx'
@@ -229,6 +232,8 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
   const [archiveHallFilter, setArchiveHallFilter] = useState(() =>
     normalizeArchiveHallFilter(searchParams.get('archiveHall')),
   )
+  const [pzLifeTab, setPzLifeTab] = useState('live')
+  const [lifecycleRows, setLifecycleRows] = useState([])
   const [archiveBusy, setArchiveBusy] = useState(false)
   const [source, setSource] = useState('local')
   const [fallback, setFallback] = useState(null)
@@ -419,6 +424,22 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
 
       const arr = Array.isArray(list) ? list : []
       setClients(arr)
+      try {
+        const db = await getDb()
+        if (db.objectStoreNames.contains('client_hall_lifecycle')) {
+          const life = await db.getAll('client_hall_lifecycle')
+          const clubId = String(club ?? '').trim()
+          setLifecycleRows(
+            clubId
+              ? (life ?? []).filter((r) => String(r?.club_id ?? '') === clubId)
+              : life ?? [],
+          )
+        } else {
+          setLifecycleRows([])
+        }
+      } catch {
+        setLifecycleRows([])
+      }
       setLastTrainingByClient({})
       setPageTrainings([])
 
@@ -674,6 +695,12 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     if (clientsTab === 'archive' && normalizeArchiveHallFilter(archiveHallFilter)) {
       base = base.filter((c) => clientMatchesArchiveHallFilter(c, archiveHallFilter))
     }
+    if (clientsTab === 'active' || clientsTab === 'pz') {
+      base = base.filter((c) => {
+        const closed = isTrainerPzClosedView(c, lifecycleRows)
+        return pzLifeTab === 'closed' ? closed : !closed
+      })
+    }
     if (q) {
       base = base.filter((c) => clientMatchesAdminSearchQuery(c, q))
     }
@@ -697,6 +724,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
           today,
           browseMode: quickFilter,
           azDirectionFilter: clientsTab === 'az' ? azDirectionFilter : '',
+          lifecycleRows,
         }).map((c) => String(c.id)),
       )
       base = base.filter((c) => allowed.has(String(c.id)))
@@ -730,6 +758,8 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     isDeskHallTab,
     showTrainerSearch,
     crossHallSearch,
+    lifecycleRows,
+    pzLifeTab,
   ])
 
   const azDirectionOptions = useMemo(() => {
@@ -860,8 +890,9 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         clientsTab,
         today,
         azDirectionFilter: clientsTab === 'az' ? azDirectionFilter : '',
+        lifecycleRows,
       }),
-    [clients, clientsTab, memByClient, today, azDirectionFilter],
+    [clients, clientsTab, memByClient, today, azDirectionFilter, lifecycleRows],
   )
 
   const allTileLabel = adminClientsAllTileLabel(clientsTab, filterCounts)
@@ -1042,13 +1073,18 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     if (!clientRow?.id) return
     setBusy(true)
     try {
-      const { warn } = await restoreClientFromArchive(clientRow)
-      if (warn) alert(warn)
+      if (clientRow.archived_at) {
+        const { warn } = await restoreClientFromArchive(clientRow)
+        if (warn) alert(warn)
+      } else {
+        const { warn } = await reopenClientHall(clientRow, { hall: 'pz' })
+        if (warn) alert(warn)
+      }
       dispatchLocalDataChanged({ reason: 'client-archive-changed', clientId: clientRow.id })
       if (club) invalidateAdminClientsListMemory(club)
       await reload({ silent: true })
     } catch (err) {
-      alert(err?.message ?? 'Не удалось обновить архив')
+      alert(err?.message ?? 'Не удалось вернуть клиента')
     } finally {
       setBusy(false)
     }
@@ -1059,10 +1095,18 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     if (!modal?.client?.id) return
     setBusy(true)
     try {
-      const { warn } =
-        modal.mode === 'enter'
-          ? await archiveClientWithReason(modal.client, payload)
-          : await setClientArchiveReason(modal.client, payload)
+      let warn = null
+      if (modal.mode === 'enter') {
+        if (modal.action === 'leave_club') {
+          ;({ warn } = await leaveClubWithReason(modal.client, payload))
+        } else {
+          ;({ warn } = await closeClientHallWithReason(modal.client, payload, {
+            hall: modal.hall || 'pz',
+          }))
+        }
+      } else {
+        ;({ warn } = await setClientArchiveReason(modal.client, payload))
+      }
       if (warn) alert(warn)
       const cid = modal.client.id
       setArchiveReasonModal(null)
@@ -1070,7 +1114,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       if (club) invalidateAdminClientsListMemory(club)
       await reload({ silent: true })
     } catch (err) {
-      alert(err?.message ?? 'Не удалось сохранить причину архива')
+      alert(err?.message ?? 'Не удалось сохранить')
     } finally {
       setBusy(false)
     }
@@ -1189,6 +1233,34 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               <span className="admin-clients-segment__count">{listTabCounts.archive}</span>
             </button>
           </div>
+          {(clientsTab === 'active' || clientsTab === 'pz') && (
+            <div className="admin-clients-segment" role="tablist" aria-label="ПЗ: живые или закрытые">
+              <button
+                type="button"
+                role="tab"
+                className="admin-clients-segment__btn"
+                aria-selected={pzLifeTab === 'live'}
+                onClick={() => {
+                  setPzLifeTab('live')
+                  setListPage(0)
+                }}
+              >
+                Живые
+              </button>
+              <button
+                type="button"
+                role="tab"
+                className="admin-clients-segment__btn"
+                aria-selected={pzLifeTab === 'closed'}
+                onClick={() => {
+                  setPzLifeTab('closed')
+                  setListPage(0)
+                }}
+              >
+                Закрытые
+              </button>
+            </div>
+          )}
           {clientsTab === 'active' ? (
             <button
               type="button"
@@ -1790,9 +1862,18 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                             clientsTab !== 'archive'
                               ? {
                                   id: 'archive',
-                                  label: 'В архив',
+                                  label:
+                                    clientsTab === 'active' || clientsTab === 'pz'
+                                      ? 'Закрыть ПЗ'
+                                      : 'Закрыть направление',
                                   icon: Archive,
-                                  onSelect: () => setArchiveReasonModal({ mode: 'enter', client: c }),
+                                  onSelect: () =>
+                                    setArchiveReasonModal({
+                                      mode: 'enter',
+                                      client: c,
+                                      action: 'close_pz',
+                                      hall: clientsTab === 'tz' ? 'tz' : clientsTab === 'az' ? 'az' : 'pz',
+                                    }),
                                 }
                               : {
                                   id: 'archive-reason',
@@ -1800,10 +1881,24 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                                   icon: Pencil,
                                   onSelect: () => setArchiveReasonModal({ mode: 'edit', client: c }),
                                 },
-                            clientsTab === 'archive'
+                            clientsTab !== 'archive'
+                              ? {
+                                  id: 'leave-club',
+                                  label: 'Ушёл из клуба',
+                                  icon: Archive,
+                                  onSelect: () =>
+                                    setArchiveReasonModal({
+                                      mode: 'enter',
+                                      client: c,
+                                      action: 'leave_club',
+                                    }),
+                                }
+                              : null,
+                            clientsTab === 'archive' ||
+                            ((clientsTab === 'active' || clientsTab === 'pz') && pzLifeTab === 'closed')
                               ? {
                                   id: 'restore',
-                                  label: 'Вернуть из архива',
+                                  label: c.archived_at ? 'Вернуть в клуб' : 'Снова ПЗ',
                                   icon: RotateCcw,
                                   onSelect: () => void restoreClientArchive(c),
                                 }
@@ -1967,6 +2062,17 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         client={archiveReasonModal?.client}
         initialReason={archiveReasonModal?.mode === 'edit' ? archiveReasonModal?.client?.archive_reason : null}
         busy={busy}
+        enterTitle={
+          archiveReasonModal?.action === 'leave_club' ? 'Ушёл из клуба' : 'Закрыть направление'
+        }
+        enterConfirmLabel={
+          archiveReasonModal?.action === 'leave_club' ? 'В архив клуба' : 'Закрыть'
+        }
+        enterHint={
+          archiveReasonModal?.action === 'leave_club'
+            ? 'Закроем все направления и отправим в архив клуба.'
+            : 'Закроем направление. Если других живых залов нет — клиент попадёт в архив клуба.'
+        }
         onCancel={() => !busy && setArchiveReasonModal(null)}
         onConfirm={(payload) => void confirmArchiveReason(payload)}
       />

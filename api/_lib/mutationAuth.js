@@ -144,6 +144,48 @@ async function authorizeSalesManagerPush(ctx, table_name, operation, data, remot
       return { ok: true }
     }
 
+    if (table_name === 'client_hall_lifecycle') {
+      if (op === 'delete') {
+        const { data: row } = await ctx.supabaseAdmin
+          .from('client_hall_lifecycle')
+          .select('client_id')
+          .eq('id', remote_id)
+          .maybeSingle()
+        if (!row?.client_id) return { ok: true }
+        return (await canAccessClient(ctx, row.client_id))
+          ? { ok: true }
+          : { ok: false, error: 'Нет доступа' }
+      }
+      if (op === 'update') {
+        const { data: row } = await ctx.supabaseAdmin
+          .from('client_hall_lifecycle')
+          .select('client_id')
+          .eq('id', remote_id)
+          .maybeSingle()
+        const existingClientId = row?.client_id
+        if (!existingClientId) return { ok: false, error: 'Запись направления не найдена' }
+        if (!(await canAccessClient(ctx, existingClientId))) {
+          return { ok: false, error: 'Нет доступа к клиенту' }
+        }
+        const reassign = assertPayloadClientMatchesExisting(payload, existingClientId)
+        if (!reassign.ok) return reassign
+        if (Object.prototype.hasOwnProperty.call(payload, 'club_id')) {
+          const clubCheck = assertSalesManagerSameClub(profileClub, payload.club_id)
+          if (!clubCheck.ok) return clubCheck
+        }
+        return { ok: true }
+      }
+      const clientId = payload.client_id
+      if (!(await canAccessClient(ctx, clientId))) {
+        return { ok: false, error: 'Нет доступа к клиенту' }
+      }
+      if (Object.prototype.hasOwnProperty.call(payload, 'club_id')) {
+        const clubCheck = assertSalesManagerSameClub(profileClub, payload.club_id)
+        if (!clubCheck.ok) return clubCheck
+      }
+      return { ok: true }
+    }
+
     if (op === 'delete' && isSalesManagerDeskDeleteExtraTable(table_name)) {
       let clientId = payload.client_id
       if (!clientId && remote_id) {
@@ -217,6 +259,45 @@ async function authorizeSupervisorPush(ctx, table_name, operation, data, remote_
           return { ok: false, error: 'Нет доступа к клиенту' }
         }
         const reassign = assertPayloadClientMatchesExisting(payload, existingClientId)
+        if (!reassign.ok) return reassign
+        if (Object.prototype.hasOwnProperty.call(payload, 'club_id')) {
+          const clubCheck = assertSalesManagerSameClub(profileClub, payload.club_id)
+          if (!clubCheck.ok) return clubCheck
+        }
+        return { ok: true }
+      }
+      const clientId = payload.client_id
+      if (!(await canAccessClient(ctx, clientId))) {
+        return { ok: false, error: 'Нет доступа к клиенту' }
+      }
+      if (Object.prototype.hasOwnProperty.call(payload, 'club_id')) {
+        const clubCheck = assertSalesManagerSameClub(profileClub, payload.club_id)
+        if (!clubCheck.ok) return clubCheck
+      }
+      return { ok: true }
+    }
+
+    if (table_name === 'client_hall_lifecycle') {
+      if (op === 'delete') {
+        const { data: row } = await supabaseAdmin
+          .from('client_hall_lifecycle')
+          .select('client_id')
+          .eq('id', remote_id)
+          .maybeSingle()
+        if (!row?.client_id) return { ok: true }
+        return (await canAccessClient(ctx, row.client_id)) ? { ok: true } : { ok: false, error: 'Нет доступа' }
+      }
+      if (op === 'update') {
+        const { data: row } = await supabaseAdmin
+          .from('client_hall_lifecycle')
+          .select('client_id')
+          .eq('id', remote_id)
+          .maybeSingle()
+        if (!row?.client_id) return { ok: false, error: 'Запись направления не найдена' }
+        if (!(await canAccessClient(ctx, row.client_id))) {
+          return { ok: false, error: 'Нет доступа к клиенту' }
+        }
+        const reassign = assertPayloadClientMatchesExisting(payload, row.client_id)
         if (!reassign.ok) return reassign
         if (Object.prototype.hasOwnProperty.call(payload, 'club_id')) {
           const clubCheck = assertSalesManagerSameClub(profileClub, payload.club_id)
@@ -331,6 +412,7 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
     'homework_presets',
     'pnk_funnel_events',
     'sale_clips',
+    'client_hall_lifecycle',
   ])
   if (!allowed.has(table_name)) {
     return { ok: false, error: 'Таблица не поддерживается для синхронизации' }
@@ -431,6 +513,46 @@ export async function authorizePush(ctx, table_name, operation, data, remote_id)
         if (mt?.trainer_assignable === false) {
           return { ok: false, error: 'Этот тип абонемента недоступен для оформления тренером' }
         }
+      }
+      return { ok: true }
+    }
+
+    if (table_name === 'client_hall_lifecycle') {
+      const hall = String(payload.hall ?? '').trim().toLowerCase()
+      if (op === 'insert' || op === 'update') {
+        if (hall && hall !== 'pz') {
+          return { ok: false, error: 'Тренер может закрывать только направление ПЗ' }
+        }
+      }
+      if (op === 'delete') {
+        const { data: row } = await supabaseAdmin
+          .from('client_hall_lifecycle')
+          .select('client_id, hall')
+          .eq('id', remote_id)
+          .maybeSingle()
+        if (!row?.client_id) return { ok: true }
+        if (String(row.hall ?? '') !== 'pz') {
+          return { ok: false, error: 'Тренер может менять только направление ПЗ' }
+        }
+        return (await canAccessClient(ctx, row.client_id)) ? { ok: true } : { ok: false, error: 'Нет доступа' }
+      }
+      if (op === 'update') {
+        const { data: row } = await supabaseAdmin
+          .from('client_hall_lifecycle')
+          .select('client_id, hall')
+          .eq('id', remote_id)
+          .maybeSingle()
+        if (!row?.client_id) return { ok: false, error: 'Запись направления не найдена' }
+        if (String(row.hall ?? '') !== 'pz') {
+          return { ok: false, error: 'Тренер может менять только направление ПЗ' }
+        }
+        if (!(await canAccessClient(ctx, row.client_id))) {
+          return { ok: false, error: 'Нет доступа к клиенту' }
+        }
+        return assertPayloadClientMatchesExisting(payload, row.client_id)
+      }
+      if (!(await canAccessClient(ctx, payload.client_id))) {
+        return { ok: false, error: 'Нет доступа к клиенту' }
       }
       return { ok: true }
     }

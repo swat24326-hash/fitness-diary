@@ -462,6 +462,7 @@ export function buildPaymentClientLinkActions(input) {
             : 'АЗ: desk-карточка',
         membershipTypeId: dir?.id ? String(dir.id) : '',
         membershipTypeLabel: dir ? String(dir.name || dir.code || '') : '',
+        promptClosePz: Boolean(base.attachClientId) && !restore,
       })
       continue
     }
@@ -476,6 +477,7 @@ export function buildPaymentClientLinkActions(input) {
           : base.attachClientId
             ? 'ТЗ: абон к карточке'
             : 'ТЗ: desk-карточка',
+        promptClosePz: Boolean(base.attachClientId) && !restore,
       })
       continue
     }

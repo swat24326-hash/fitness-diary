@@ -1,10 +1,11 @@
 /**
- * Абонементы всех клиентов клуба (админ / менеджер своего клуба, service role).
+ * Абонементы всех клиентов клуба + lifecycle направлений (админ / менеджер своего клуба).
  * GET ?club_id=<uuid>
+ * Ответ: { memberships, client_hall_lifecycle, … } — lifecycle опционален (старый клиент игнорит).
  */
 import { requireAdminOrSalesManager, sendJson, setCors } from './_lib/adminSupabase.js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
-import { LIST_MEMBERSHIPS_MAX } from './_lib/apiLimits.js'
+import { LIST_MEMBERSHIPS_MAX, LIST_CLIENT_HALL_LIFECYCLE_MAX } from './_lib/apiLimits.js'
 
 const PAGE = 500
 const IN_CHUNK = 80
@@ -81,7 +82,50 @@ async function handler(req, res) {
     if (truncated) break
   }
 
-  sendJson(res, 200, { memberships, count: memberships.length, club_id: rawClub, truncated })
+  /** Жизнь по залам — тот же pull, без новой Vercel-функции. */
+  let client_hall_lifecycle = []
+  let lifecycleTruncated = false
+  let lifecycleError = null
+  try {
+    let lifeFrom = 0
+    for (;;) {
+      if (client_hall_lifecycle.length >= LIST_CLIENT_HALL_LIFECYCLE_MAX) {
+        lifecycleTruncated = true
+        break
+      }
+      const room = LIST_CLIENT_HALL_LIFECYCLE_MAX - client_hall_lifecycle.length
+      const limit = Math.min(PAGE, room)
+      const { data, error } = await supabaseAdmin
+        .from('client_hall_lifecycle')
+        .select('*')
+        .eq('club_id', rawClub)
+        .order('id', { ascending: true })
+        .range(lifeFrom, lifeFrom + limit - 1)
+      if (error) {
+        lifecycleError = error.message
+        break
+      }
+      const chunk = data ?? []
+      client_hall_lifecycle.push(...chunk)
+      if (chunk.length < limit) break
+      lifeFrom += limit
+    }
+  } catch (e) {
+    lifecycleError = e?.message ? String(e.message).slice(0, 200) : 'lifecycle_fetch_failed'
+  }
+
+  sendJson(res, 200, {
+    memberships,
+    count: memberships.length,
+    club_id: rawClub,
+    truncated,
+    client_hall_lifecycle,
+    client_hall_lifecycle_count: client_hall_lifecycle.length,
+    client_hall_lifecycle_truncated: lifecycleTruncated,
+    ...(lifecycleError
+      ? { client_hall_lifecycle_error: String(lifecycleError).slice(0, 200) }
+      : {}),
+  })
 }
 
 export default withSafeApiHandler(handler, { label: 'list-memberships' })

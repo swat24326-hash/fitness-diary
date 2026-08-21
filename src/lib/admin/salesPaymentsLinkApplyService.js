@@ -358,6 +358,18 @@ async function applyDeskFromPayment({ action, clubId, reportDate }) {
       { ...memRow, client_id: clientId },
       { table_name: 'memberships', operation: 'insert', remote_id: null },
     )
+    if (action.closePz === true) {
+      try {
+        const { closeClientHallWithReason } = await import('../clientHallLifecycleSyncService.js')
+        await closeClientHallWithReason(
+          existing,
+          hall === 'tz' ? 'Перешёл в ТЗ' : 'Перешёл в АЗ',
+          { hall: 'pz' },
+        )
+      } catch (e) {
+        console.warn('[payments] close pz after desk', e?.message ?? e)
+      }
+    }
     // legacy desk_hall: если клиент был чистый ПЗ — не затираем trainer; desk_hall можно не ставить
     const flush = await flushCriticalWritesToCloud()
     const warn = criticalWriteCloudWarning(

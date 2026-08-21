@@ -130,8 +130,20 @@ export function SalesPaymentsClientLinkSection({
     setBusyId(action.id)
     setError('')
     try {
+      let nextAction = action
+      if (
+        action.promptClosePz &&
+        (action.kind === 'tz_desk' || action.kind === 'az_desk') &&
+        action.closePz == null
+      ) {
+        const hallLabel = action.kind === 'tz_desk' ? 'ТЗ' : 'АЗ'
+        const okClose = window.confirm(
+          `У клиента есть ПЗ. Закрыть ПЗ после оформления ${hallLabel}? (клиент останется в клубе)`,
+        )
+        nextAction = { ...action, closePz: okClose === true }
+      }
       const res = await applyPaymentClientLinkAction({
-        action,
+        action: nextAction,
         clubId,
         reportDate,
         trainers,

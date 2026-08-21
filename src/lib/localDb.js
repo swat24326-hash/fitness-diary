@@ -3,7 +3,7 @@ import { cloudPutAllowedOnPull } from './syncPullGuardCore.js'
 
 const DB_NAME = 'fitness-diary'
 /** Повышать при схемных правках; клиенты уже на max version не получают upgrade без нового номера. */
-const DB_VERSION = 17
+const DB_VERSION = 18
 
 /** @type {Promise<import('idb').IDBPDatabase> | null} */
 let dbPromise = null
@@ -163,6 +163,14 @@ function upgradeFitnessDb(db, oldVersion, _newVersion, transaction) {
   if (oldVersion < 17) {
     if (!db.objectStoreNames.contains('loyalty_glance')) {
       db.createObjectStore('loyalty_glance', { keyPath: 'client_id' })
+    }
+  }
+
+  if (oldVersion < 18) {
+    if (!db.objectStoreNames.contains('client_hall_lifecycle')) {
+      const life = db.createObjectStore('client_hall_lifecycle', { keyPath: 'id' })
+      life.createIndex('by_client_id', 'client_id', { unique: false })
+      life.createIndex('by_club_id', 'club_id', { unique: false })
     }
   }
 }
