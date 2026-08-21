@@ -31,14 +31,15 @@ const initialForm = (clubId) => ({
 })
 
 /**
- * Модалка: админ создаёт lite-клиента ПЗ на тренера без планшета.
+ * Форма lite-ПЗ (без overlay) — для оболочки «Новый клиент» с выбором зала.
  */
-export function AdminLitePzCreateModal({
-  open,
+export function AdminLitePzCreateForm({
+  active = false,
   clubId = '',
   trainers = [],
   onClose,
   onCreated,
+  showLead = true,
 }) {
   const [form, setForm] = useState(() => initialForm(clubId))
   const [busy, setBusy] = useState(false)
@@ -50,16 +51,14 @@ export function AdminLitePzCreateModal({
   )
 
   useEffect(() => {
-    if (!open) return
+    if (!active) return
     const base = initialForm(clubId)
     const list = listNoTabletTrainersForClub(trainers, clubId)
     if (list.length === 1) base.trainer_id = list[0].id
     setForm(base)
     setError('')
     setBusy(false)
-  }, [open, clubId, trainers])
-
-  if (!open) return null
+  }, [active, clubId, trainers])
 
   const setField = (key, value) => {
     setForm((f) => {
@@ -130,6 +129,189 @@ export function AdminLitePzCreateModal({
   }
 
   return (
+    <>
+      {showLead ? (
+        <p className="muted" style={{ margin: '0 0 12px', fontSize: 13 }}>
+          Для тренера <strong>без планшета</strong>: ФИО, карта, абон и оплата. Когда выдадите планшет — в Организации
+          снимите галку «Без планшета»: карточка станет полным дневником, пересоздавать не нужно.
+        </p>
+      ) : null}
+      {!clubId ? (
+        <p className="muted" style={{ color: 'var(--danger, #f87171)' }}>
+          Сначала выберите клуб в шапке.
+        </p>
+      ) : noTabletTrainers.length === 0 ? (
+        <p className="muted">
+          В этом клубе нет тренеров с галкой «Без планшета». Отметьте её в{' '}
+          <a href={`/admin/organization${clubId ? `?club=${encodeURIComponent(clubId)}` : ''}`}>Организации</a>
+          , затем вернитесь сюда.
+        </p>
+      ) : (
+        <form className="grid td-modal-form" onSubmit={(e) => void submit(e)} style={{ gap: 12 }}>
+          <div className="field">
+            <label className="label" htmlFor="lite-pz-trainer">
+              Тренер
+            </label>
+            <select
+              id="lite-pz-trainer"
+              className="select"
+              value={form.trainer_id}
+              onChange={(e) => setField('trainer_id', e.target.value)}
+              disabled={busy}
+              required
+            >
+              <option value="">Выберите…</option>
+              {noTabletTrainers.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name ?? '—'}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="lite-pz-name">
+              ФИО
+            </label>
+            <input
+              id="lite-pz-name"
+              className="input"
+              value={form.name}
+              onChange={(e) => setField('name', e.target.value)}
+              disabled={busy}
+              required
+            />
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="lite-pz-phone">
+              Телефон
+            </label>
+            <input
+              id="lite-pz-phone"
+              className="input"
+              value={form.phone}
+              onChange={(e) => setField('phone', e.target.value)}
+              disabled={busy}
+              inputMode="tel"
+            />
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="lite-pz-card">
+              № карты
+            </label>
+            <input
+              id="lite-pz-card"
+              className="input"
+              value={form.card_number}
+              onChange={(e) => setField('card_number', e.target.value)}
+              disabled={busy}
+            />
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="lite-pz-pkg">
+              Пакет
+            </label>
+            <select
+              id="lite-pz-pkg"
+              className="select"
+              value={form.package_months}
+              onChange={(e) => setField('package_months', e.target.value)}
+              disabled={busy}
+            >
+              {DESK_PACKAGE_MONTH_OPTIONS.map((n) => (
+                <option key={n} value={String(n)}>
+                  {formatDeskPackageMonthsLabel(n)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="lite-pz-start">
+              Начало
+            </label>
+            <input
+              id="lite-pz-start"
+              type="date"
+              className="input"
+              value={form.start_date}
+              onChange={(e) => setField('start_date', e.target.value)}
+              disabled={busy}
+              required
+            />
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="lite-pz-end">
+              Окончание
+            </label>
+            <input
+              id="lite-pz-end"
+              type="date"
+              className="input"
+              value={form.end_date}
+              onChange={(e) => setField('end_date', e.target.value)}
+              disabled={busy}
+              required
+            />
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="lite-pz-paid">
+              Оплата, ₽
+            </label>
+            <input
+              id="lite-pz-paid"
+              className="input"
+              value={form.paid_amount}
+              onChange={(e) => setField('paid_amount', e.target.value)}
+              disabled={busy}
+              inputMode="decimal"
+              placeholder="необязательно"
+            />
+          </div>
+          {error ? (
+            <p className="muted" style={{ color: 'var(--danger, #f87171)', margin: 0 }}>
+              {error}
+            </p>
+          ) : null}
+          <div className="row td-modal-actions" style={{ marginTop: 4 }}>
+            <button type="button" className="btn btn-ghost btn-touch" onClick={onClose} disabled={busy}>
+              Отмена
+            </button>
+            <button type="submit" className="btn btn-primary btn-touch" disabled={busy}>
+              {busy ? 'Создание…' : 'Создать'}
+            </button>
+          </div>
+        </form>
+      )}
+      {clubId && noTabletTrainers.length === 0 ? (
+        <div className="row td-modal-actions" style={{ marginTop: 12 }}>
+          <button type="button" className="btn btn-ghost btn-touch" onClick={onClose}>
+            Закрыть
+          </button>
+        </div>
+      ) : null}
+      {!clubId ? (
+        <div className="row td-modal-actions" style={{ marginTop: 12 }}>
+          <button type="button" className="btn btn-ghost btn-touch" onClick={onClose}>
+            Закрыть
+          </button>
+        </div>
+      ) : null}
+    </>
+  )
+}
+
+/**
+ * Модалка: админ создаёт lite-клиента ПЗ на тренера без планшета.
+ */
+export function AdminLitePzCreateModal({
+  open,
+  clubId = '',
+  trainers = [],
+  onClose,
+  onCreated,
+}) {
+  if (!open) return null
+
+  return (
     <div
       className="modal-overlay"
       role="dialog"
@@ -142,169 +324,14 @@ export function AdminLitePzCreateModal({
           <UserPlus size={20} aria-hidden style={{ verticalAlign: -3, marginRight: 8 }} />
           Новый клиент ПЗ
         </h2>
-        <p className="muted" style={{ margin: '0 0 12px', fontSize: 13 }}>
-          Для тренера <strong>без планшета</strong>: ФИО, карта, абон и оплата. Когда выдадите планшет — в Организации
-          снимите галку «Без планшета»: карточка станет полным дневником, пересоздавать не нужно.
-        </p>
-        {!clubId ? (
-          <p className="muted" style={{ color: 'var(--danger, #f87171)' }}>
-            Сначала выберите клуб в шапке.
-          </p>
-        ) : noTabletTrainers.length === 0 ? (
-          <p className="muted">
-            В этом клубе нет тренеров с галкой «Без планшета». Отметьте её в{' '}
-            <a href={`/admin/organization${clubId ? `?club=${encodeURIComponent(clubId)}` : ''}`}>Организации</a>
-            , затем вернитесь сюда.
-          </p>
-        ) : (
-          <form className="grid td-modal-form" onSubmit={(e) => void submit(e)} style={{ gap: 12 }}>
-            <div className="field">
-              <label className="label" htmlFor="lite-pz-trainer">
-                Тренер
-              </label>
-              <select
-                id="lite-pz-trainer"
-                className="select"
-                value={form.trainer_id}
-                onChange={(e) => setField('trainer_id', e.target.value)}
-                disabled={busy}
-                required
-              >
-                <option value="">Выберите…</option>
-                {noTabletTrainers.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name ?? '—'}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label className="label" htmlFor="lite-pz-name">
-                ФИО
-              </label>
-              <input
-                id="lite-pz-name"
-                className="input"
-                value={form.name}
-                onChange={(e) => setField('name', e.target.value)}
-                disabled={busy}
-                required
-              />
-            </div>
-            <div className="field">
-              <label className="label" htmlFor="lite-pz-phone">
-                Телефон
-              </label>
-              <input
-                id="lite-pz-phone"
-                className="input"
-                value={form.phone}
-                onChange={(e) => setField('phone', e.target.value)}
-                disabled={busy}
-                inputMode="tel"
-              />
-            </div>
-            <div className="field">
-              <label className="label" htmlFor="lite-pz-card">
-                № карты
-              </label>
-              <input
-                id="lite-pz-card"
-                className="input"
-                value={form.card_number}
-                onChange={(e) => setField('card_number', e.target.value)}
-                disabled={busy}
-              />
-            </div>
-            <div className="field">
-              <label className="label" htmlFor="lite-pz-pkg">
-                Пакет
-              </label>
-              <select
-                id="lite-pz-pkg"
-                className="select"
-                value={form.package_months}
-                onChange={(e) => setField('package_months', e.target.value)}
-                disabled={busy}
-              >
-                {DESK_PACKAGE_MONTH_OPTIONS.map((n) => (
-                  <option key={n} value={String(n)}>
-                    {formatDeskPackageMonthsLabel(n)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label className="label" htmlFor="lite-pz-start">
-                Начало
-              </label>
-              <input
-                id="lite-pz-start"
-                type="date"
-                className="input"
-                value={form.start_date}
-                onChange={(e) => setField('start_date', e.target.value)}
-                disabled={busy}
-                required
-              />
-            </div>
-            <div className="field">
-              <label className="label" htmlFor="lite-pz-end">
-                Окончание
-              </label>
-              <input
-                id="lite-pz-end"
-                type="date"
-                className="input"
-                value={form.end_date}
-                onChange={(e) => setField('end_date', e.target.value)}
-                disabled={busy}
-                required
-              />
-            </div>
-            <div className="field">
-              <label className="label" htmlFor="lite-pz-paid">
-                Оплата, ₽
-              </label>
-              <input
-                id="lite-pz-paid"
-                className="input"
-                value={form.paid_amount}
-                onChange={(e) => setField('paid_amount', e.target.value)}
-                disabled={busy}
-                inputMode="decimal"
-                placeholder="необязательно"
-              />
-            </div>
-            {error ? (
-              <p className="muted" style={{ color: 'var(--danger, #f87171)', margin: 0 }}>
-                {error}
-              </p>
-            ) : null}
-            <div className="row td-modal-actions" style={{ marginTop: 4 }}>
-              <button type="button" className="btn btn-ghost btn-touch" onClick={onClose} disabled={busy}>
-                Отмена
-              </button>
-              <button type="submit" className="btn btn-primary btn-touch" disabled={busy}>
-                {busy ? 'Создание…' : 'Создать'}
-              </button>
-            </div>
-          </form>
-        )}
-        {clubId && noTabletTrainers.length === 0 ? (
-          <div className="row td-modal-actions" style={{ marginTop: 12 }}>
-            <button type="button" className="btn btn-ghost btn-touch" onClick={onClose}>
-              Закрыть
-            </button>
-          </div>
-        ) : null}
-        {!clubId ? (
-          <div className="row td-modal-actions" style={{ marginTop: 12 }}>
-            <button type="button" className="btn btn-ghost btn-touch" onClick={onClose}>
-              Закрыть
-            </button>
-          </div>
-        ) : null}
+        <AdminLitePzCreateForm
+          active={open}
+          clubId={clubId}
+          trainers={trainers}
+          onClose={onClose}
+          onCreated={onCreated}
+          showLead
+        />
       </div>
     </div>
   )

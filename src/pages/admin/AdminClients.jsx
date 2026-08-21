@@ -151,7 +151,9 @@ import {
 import { getDb } from '../../lib/localDb.js'
 import { clientNeedsArchiveReason } from '../../lib/clientArchiveReasonCore.js'
 import { AdminClientListAbonFact } from '../../components/admin/AdminClientListAbonFact.jsx'
-import { AdminLitePzCreateModal } from '../../components/admin/AdminLitePzCreateModal.jsx'
+import { AdminClientCreateModal } from '../../components/admin/AdminClientCreateModal.jsx'
+import { manualCreateHallFromClientsTab } from '../../lib/admin/deskManualClientCreateCore.js'
+import { filterAerobicSalesTypes } from '../../lib/membershipTypesCore.js'
 import { ensureMembershipTypesForClub } from '../../lib/membershipTypesService.js'
 import { resolveClientListMembershipTypeCode } from '../../lib/admin/clientListMembershipTypeCore.js'
 import '../../styles/pnk-funnel.css'
@@ -228,7 +230,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
   const [trainersForClub, setTrainersForClub] = useState([])
   const [noTabletTrainerIds, setNoTabletTrainerIds] = useState(() => new Set())
   const [holdingTrainerIds, setHoldingTrainerIds] = useState(() => new Set())
-  const [liteCreateOpen, setLiteCreateOpen] = useState(false)
+  const [clientCreateOpen, setClientCreateOpen] = useState(false)
   const [callHistoryClient, setCallHistoryClient] = useState(null)
   const [callHistTick, setCallHistTick] = useState(0)
   const [busy, setBusy] = useState(false)
@@ -592,7 +594,12 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
   }, [club])
 
   useEffect(() => {
-    if (clientsTab !== 'az' || !club?.trim()) {
+    if (!club?.trim()) {
+      setAzMembershipTypes([])
+      return undefined
+    }
+    const needAzTypes = clientsTab === 'az' || clientCreateOpen
+    if (!needAzTypes) {
       setAzMembershipTypes([])
       setAzDirectionFilter(AZ_DIRECTION_FILTER_ALL)
       return undefined
@@ -608,7 +615,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     return () => {
       cancelled = true
     }
-  }, [clientsTab, club])
+  }, [clientsTab, club, clientCreateOpen])
 
   const refreshFromCloud = useCallback(async () => {
     if (!club?.trim()) {
@@ -1210,7 +1217,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         <AdminSectionHeader
           icon={UserCircle}
           title="Клиенты"
-          lead="ПЗ · ТЗ · АЗ · архив. Персонал без планшета — кнопка «Новый клиент ПЗ». ТЗ/АЗ — из «Списки из Excel»."
+          lead="ПЗ · ТЗ · АЗ · архив. Новый клиент — кнопка «+» (ПЗ lite / ТЗ / АЗ вручную). Массово ТЗ/АЗ — «Списки из Excel»."
         />
       )}
 
@@ -1266,14 +1273,14 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
             </button>
           </div>
           <div className="admin-clients-workspace__actions">
-            {clientsTab === 'active' ? (
+            {clientsTab !== 'archive' ? (
               <button
                 type="button"
                 className="btn btn-secondary btn-icon-square btn-touch"
                 disabled={busy}
-                onClick={() => setLiteCreateOpen(true)}
-                aria-label="Новый клиент ПЗ"
-                title="Клиент персонального зала для тренера без планшета (карта, абон, оплата)"
+                onClick={() => setClientCreateOpen(true)}
+                aria-label="Новый клиент"
+                title="Новый клиент ПЗ, ТЗ или АЗ"
               >
                 <UserPlus size={20} aria-hidden />
               </button>
@@ -2108,13 +2115,19 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         onConfirm={(payload) => void confirmArchiveReason(payload)}
       />
 
-      <AdminLitePzCreateModal
-        open={liteCreateOpen}
+      <AdminClientCreateModal
+        open={clientCreateOpen}
+        defaultHall={manualCreateHallFromClientsTab(clientsTab) || 'pz'}
         clubId={club}
         trainers={trainersForClub}
-        onClose={() => setLiteCreateOpen(false)}
-        onCreated={(clientId) => {
+        azTypes={
+          azMembershipTypes.length > 0 ? azMembershipTypes : filterAerobicSalesTypes(membershipTypes)
+        }
+        onClose={() => setClientCreateOpen(false)}
+        onCreated={(clientId, hall) => {
           if (club) invalidateAdminClientsListMemory(club)
+          const nextTab = hall === 'tz' ? 'tz' : hall === 'az' ? 'az' : 'active'
+          if (clientsTab !== nextTab) switchClientsTab(nextTab)
           void reload().then(() => {
             if (!clientId) return
             navigate(buildAdminClientCardHref(clientsBasePath, clientId, listNavState))

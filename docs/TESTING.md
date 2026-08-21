@@ -159,6 +159,7 @@
 | Клиенты: поиск по всем залам + стек ПЗ/ТЗ/АЗ | `verify-admin-clients-cross-hall-search.mjs` |
 | Абоны: цена пакета paid_amount (форма) | `verify-membership-paid-amount.mjs` |
 | Вкладки ПЗ / ТЗ / АЗ (списки + `memberships.hall`) | `verify-desk-hall-clients.mjs`, `verify-membership-hall.mjs` |
+| Ручное создание desk ТЗ/АЗ с списка клиентов | `verify-desk-manual-client-create.mjs` |
 | Смена тренера ПЗ: клуб / lite / карта формы / каскад абонов | `verify-client-trainer-reassign.mjs` |
 | Desk: очистка ДР без отката при hydrate | `verify-desk-client-birth-form.mjs` |
 | Desk: телефон / № карты / ФИО / ack Save / hydrate после flush | `verify-desk-client-form-merge.mjs` |
