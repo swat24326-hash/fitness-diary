@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { Dumbbell, Lock, User } from 'lucide-react'
 import { AppWelcomeSplash } from '../components/AppWelcomeSplash'
 import { useAuth } from '../context/AuthContext'
+import { isPwaUpdateInFlight } from '../lib/appUpdateInFlightSession.js'
 import { getSupabaseSetupMessage } from '../lib/supabase'
 
 export function Login() {
@@ -36,6 +37,10 @@ export function Login() {
     setDeferredPrompt(null)
   }
 
+  if (isPwaUpdateInFlight() && (loading || !user)) {
+    return <AppWelcomeSplash displayName="Обновляем приложение…" />
+  }
+
   if (!loading && user && role) {
     const dest =
       from && from !== '/login'
@@ -48,6 +53,10 @@ export function Login() {
               ? '/club'
               : '/trainer'
     return <Navigate to={dest} replace />
+  }
+
+  if (loading) {
+    return <AppWelcomeSplash />
   }
 
   if (signingIn) {

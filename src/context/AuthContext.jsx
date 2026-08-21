@@ -21,6 +21,7 @@ import {
   clearSyncQueueForSignOut,
   setBackgroundSyncPaused,
 } from '../lib/syncService'
+import { clearPwaUpdateInFlight, isPwaUpdateInFlight } from '../lib/appUpdateInFlightSession.js'
 import { ensureDemoData, demoTrainerId, DEMO_CLUB_ID } from '../lib/seedDemo'
 import {
   clearIdentityCache,
@@ -369,10 +370,11 @@ export function AuthProvider({ children }) {
     let cancelled = false
     setBackgroundSyncPaused(true)
 
-    /** Экран входа/панели — не дольше ~2 с, даже если auth тормозит. */
+    /** Обычный вход — ~2 с; во время PWA-reload на слабом планшете даём дольше, иначе мигает /login. */
+    const updatingFlight = isPwaUpdateInFlight()
     const loadGuard = window.setTimeout(() => {
       if (!cancelled) setLoading(false)
-    }, 2_000)
+    }, updatingFlight ? 12_000 : 2_000)
 
     ;(async () => {
       try {
@@ -411,13 +413,13 @@ export function AuthProvider({ children }) {
 
         let session = null
         try {
-          const { data } = await withSupabaseRetry(() => withTimeout(supabase.auth.getSession(), 6_000, 'getSession'))
+          const { data } = await withSupabaseRetry(() => withTimeout(supabase.auth.getSession(), updatingFlight ? 10_000 : 6_000, 'getSession'))
           session = data.session
         } catch (e) {
           console.warn('[auth] getSession failed', e)
           if (hasStored) {
             try {
-              const refreshed = await withTimeout(supabase.auth.refreshSession(), 8_000, 'refreshSession')
+              const refreshed = await withTimeout(supabase.auth.refreshSession(), updatingFlight ? 12_000 : 8_000, 'refreshSession')
               session = refreshed.data?.session ?? null
             } catch (e2) {
               console.warn('[auth] refreshSession after getSession fail', e2)
@@ -430,16 +432,29 @@ export function AuthProvider({ children }) {
           setUser(applyUserFromSession(session, null, readIdentityCache(session.user.id, session.user.email)))
           setRole(resolveRole(null, session.user))
           void applySession(session)
+          clearPwaUpdateInFlight()
         } else if (!hasStored) {
           setUser(null)
           setRole(null)
+          clearPwaUpdateInFlight()
+        } else if (updatingFlight) {
+          // Токены есть, сессия ещё не поднялась после reload — не сбрасываем в login.
+          setSessionRecovering(true)
+          void refreshSessionOnWake().finally(() => {
+            if (!cancelled) {
+              setSessionRecovering(false)
+              clearPwaUpdateInFlight()
+            }
+          })
         }
       } catch (e) {
         console.warn('[auth] init failed', e)
       } finally {
         if (!cancelled) {
           setLoading(false)
-          setSessionRecovering(false)
+          if (!(updatingFlight && hasPersistedSupabaseSession(SUPABASE_URL))) {
+            setSessionRecovering(false)
+          }
         }
         window.clearTimeout(loadGuard)
       }

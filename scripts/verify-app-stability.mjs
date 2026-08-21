@@ -4,6 +4,15 @@
  */
 import { resolveAdminClubId } from '../src/lib/clubContext.js'
 import { decideAppUpdate, isOnTrainingPage, isOnSalesReportPage, shouldAutoApplyUpdate } from '../src/lib/appUpdatePolicy.js'
+import {
+  isPwaUpdateReloadInCooldown,
+  nextPwaUpdateReloadGuard,
+  shouldAutoApplyPwaUpdate,
+  shouldBlockAutoPwaReload,
+  shouldHardRecoverPwaUpdate,
+} from '../src/lib/appUpdateReloadGuard.js'
+import { planPwaUpdateAction, pwaUpdateBannerCopy } from '../src/lib/appUpdatePlanCore.js'
+import { isPwaUpdateInFlightStamp, parsePwaUpdateInFlight } from '../src/lib/appUpdateInFlightCore.js'
 import { getAppUpdatePending, setAppUpdatePending, clearAppUpdatePending } from '../src/lib/appUpdateState.js'
 import { mergeIdentityCacheIntoUser } from '../src/lib/userIdentityCache.js'
 import { parseBundleIdFromHtml, parseBuildTimeFromHtml, formatBuildTimeRu, formatBuildLabel, formatBuildAgeRu, getRemoteBuildProbeUrl } from '../src/lib/appBuildInfo.js'
@@ -68,6 +77,31 @@ ok(
 ok(decideAppUpdate({ pathname: '/trainer' }) === 'immediate', 'trainer home → immediate')
 ok(shouldAutoApplyUpdate('immediate'), 'auto on immediate')
 ok(!shouldAutoApplyUpdate('defer'), 'no auto on defer')
+
+{
+  const t0 = 1_000_000
+  ok(!shouldBlockAutoPwaReload(null, t0), 'no guard → auto reload ok')
+  const first = nextPwaUpdateReloadGuard(null, t0)
+  ok(first.attempts === 1, 'first attempt counted')
+  ok(shouldBlockAutoPwaReload(first, t0 + 1_000), 'within cooldown → block auto')
+  ok(!shouldAutoApplyPwaUpdate({ decision: 'immediate', guard: first, now: t0 + 1_000 }), 'auto blocked in cooldown')
+  ok(!shouldAutoApplyPwaUpdate({ decision: 'immediate', authLoading: true, guard: null }), 'no auto while auth loading')
+  ok(shouldAutoApplyPwaUpdate({ decision: 'immediate', authLoading: false, guard: null }), 'auto when ready')
+  ok(shouldHardRecoverPwaUpdate(first, t0 + 1_000), 'second tap in cooldown → hard recover')
+  ok(isPwaUpdateReloadInCooldown(first, t0 + 1_000), 'cooldown active')
+  ok(!isPwaUpdateReloadInCooldown(first, t0 + 100_000), 'cooldown expired')
+  const second = nextPwaUpdateReloadGuard(first, t0 + 2_000)
+  ok(second.attempts === 2, 'attempts increment in cooldown')
+  ok(planPwaUpdateAction({ decision: 'immediate', authLoading: true }) === 'wait_auth', 'plan: wait auth')
+  ok(planPwaUpdateAction({ decision: 'immediate', guard: null }) === 'auto_apply', 'plan: auto')
+  ok(planPwaUpdateAction({ decision: 'immediate', guard: first, now: t0 + 1_000 }) === 'manual_only', 'plan: manual after loop')
+  ok(planPwaUpdateAction({ decision: 'defer' }) === 'defer', 'plan: defer training')
+  ok(planPwaUpdateAction({ decision: 'immediate', manual: true, guard: first, now: t0 + 1_000 }) === 'hard_recover', 'plan: hard recover')
+  ok(pwaUpdateBannerCopy({ action: 'manual_only' }).primary === 'Обновить ещё раз', 'copy: retry')
+  const inflight = parsePwaUpdateInFlight(JSON.stringify({ at: t0 }))
+  ok(isPwaUpdateInFlightStamp(inflight, t0 + 1_000), 'in-flight active')
+  ok(!isPwaUpdateInFlightStamp(inflight, t0 + 200_000), 'in-flight expired')
+}
 
 ok(isOnSalesReportPage('/admin/sales'), 'admin sales is report page')
 ok(isOnSalesReportPage('/sales'), 'manager sales is report page')

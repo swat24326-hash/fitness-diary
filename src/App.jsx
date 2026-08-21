@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'rea
 import { isSupabaseConfigured } from './lib/supabase'
 import { clearPoisonedSyncQueue } from './lib/syncService'
 import { initTrainerWorkspaceCacheInvalidation } from './lib/trainerWorkspaceCache'
+import { isPwaUpdateInFlight } from './lib/appUpdateInFlightSession.js'
 import { AppChromeTop } from './components/AppChromeTop'
 import { AppHeader } from './components/AppHeader'
 import { AppErrorBoundary } from './components/AppErrorBoundary'
@@ -96,6 +97,9 @@ function LoggedInLayout() {
     return <AppWelcomeSplash displayName="Восстанавливаем сессию…" />
   }
   if (!user) {
+    if (isPwaUpdateInFlight()) {
+      return <AppWelcomeSplash displayName="Обновляем приложение…" />
+    }
     return <Navigate to="/login" replace />
   }
 

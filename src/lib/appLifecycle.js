@@ -109,16 +109,17 @@ export function initAppLifecycle(opts = {}) {
  * }} steps
  */
 export async function recoverApp(steps = {}) {
-  const { refreshSession, refreshProfile, applyPwaUpdate } = steps
+  const { refreshSession, refreshProfile, applyPwaUpdate: applyStep } = steps
   try {
     if (refreshSession) await refreshSession()
     if (refreshProfile) await refreshProfile()
     await probeServiceWorkerUpdate()
-    if (applyPwaUpdate) {
-      await applyPwaUpdate()
+    if (applyStep) {
+      await applyStep()
       return
     }
-    if (typeof window !== 'undefined') window.location.reload()
+    const { applyPwaUpdate } = await import('./appUpdateApplyService.js')
+    await applyPwaUpdate({ manual: true })
   } catch (e) {
     recordAppError({ source: 'app', error: String(e?.message ?? e ?? 'recover failed') })
     throw e

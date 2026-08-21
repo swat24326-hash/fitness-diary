@@ -1,6 +1,6 @@
 # PWA — установка и обновление на планшете
 
-**Актуально:** 2026-08-14. Инциденты «белый экран / старая версия»: [RUNBOOK.md §4](./RUNBOOK.md). Конфиг: `vite.config.js` (`vite-plugin-pwa`).
+**Актуально:** 2026-08-21. Инциденты «белый экран / старая версия / цикл login»: [RUNBOOK.md §4](./RUNBOOK.md). Конфиг: `vite.config.js` (`vite-plugin-pwa`).
 
 ---
 
@@ -32,36 +32,60 @@
 
 ---
 
-## Обновление после деплоя
+## Контур обновления (карта)
 
-1. Обычно обновление подхватывается при открытии приложения (не на экране активной тренировки).
-2. Баннер **«Приложение обновлено»** / **«Обновить сейчас»** — подтвердить.
-3. На **`/sales` или `/admin/sales`** свежий локальный черновик плана/отчёта **откладывает** авто-обновление (чтобы не потерять правки). Если черновик «лишний» — в баннере PWA: **«Сбросить черновик и обновить»**, либо в жёлтой полоске отчёта: **«Отменить черновик»**.
-4. **Меню → Восстановить приложение** или **Помощь → Восстановить** — сессия + версия.
-5. **Помощь / Диагностика → Сборка** — сверить id бандла с новым деплоем на Vercel.
+Один сценарий — несколько слоёв. Не чинить только баннер.
 
-Не делать жёсткий F5 во время Sync. Не полагаться на «просто перезагрузить», если баннер предлагает «Обновить сейчас».
+```
+needRefresh / buildStale
+        ↓
+ decideAppUpdate (immediate | prompt | defer)
+        ↓
+ planPwaUpdateAction (+ authLoading, reload-guard)
+        ↓
+ applyPwaUpdate (пауза sync → SKIP_WAITING → controllerchange → reload)
+        ↓
+ mark in-flight → Auth держит splash, не /login
+        ↓
+ новая сборка → AppUpdatedBanner + сброс guard/in-flight
+```
+
+| Слой | Файл | Роль |
+|------|------|------|
+| Политика экрана | `appUpdatePolicy.js` | тренировка/черновик продаж → defer; login/home → immediate |
+| План действия | `appUpdatePlanCore.js` | wait_auth / auto / manual_only / hard_recover |
+| Анти-цикл reload | `appUpdateReloadGuard.js` | 90 с без повторного auto; 2-й тап → hard recover |
+| In-flight | `appUpdateInFlightCore.js` | после reload не мигать login 120 с |
+| Apply | `appUpdateApplyService.js` | SW + пауза sync + reload / `viteChunkReload` |
+| UI | `PwaUpdatePrompt.jsx`, `AppUpdatedBanner.jsx` | баннер / «Приложение обновлено» |
+| Auth | `AuthContext.jsx`, `Login.jsx`, `App.jsx` | splash «Обновляем…», дольше getSession |
+
+### Как ведёт себя планшет
+
+1. Есть новая версия → баннер (или auto на home/login, если политика immediate и auth готов).
+2. На **тренировке** / свежем черновике **отчёта продаж** — только отложить.
+3. **Слабый планшет:** если auto-reload сорвался (login↔главная), auto **не крутится** 90 с; кнопка **«Обновить ещё раз»** (повтор → сброс SW/кэша).
+4. Во время смены SW — splash «Обновляем приложение…», не форма входа с «…».
+5. Успех → «Приложение обновлено» + можно работать.
 
 ### Ошибка `Failed to fetch … PwaUpdatePrompt-….js` (или другой chunk)
 
-Это **не Sync и не «упала сеть»**: после деплоя старая вкладка тянет файл со старым хэшем в имени.
+Это **не Sync**: старая вкладка тянет удалённый chunk. Код: `viteChunkReload.js` (мягкий reload → hard recover). Связано с hard recover баннера обновления.
 
 | Что делать | Зачем |
 |------------|--------|
-| **Ctrl+F5** или закрыть и открыть PWA | подтянуть новую сборку |
-| Очистить данные сайта / снять SW | если Ctrl+F5 не помог (чёрный экран) |
-| Смотреть подсказку в Диагностике | должна говорить про Ctrl+F5, не про Sync |
-| Ничего не чинить в очереди | очередь пуста — нормально |
-
-В коде: `src/lib/viteChunkReload.js` — авто-reload; при повторе — сброс SW/кэша. JS в SW — NetworkFirst без кэша HTML-fallback.
+| Баннер **«Обновить ещё раз»** | сброс SW/кэша тем же контуром |
+| **Помощь → Восстановить** | сессия + версия |
+| Ctrl+F5 / закрыть PWA | если баннера нет |
+| Не чистить очередь Sync | очередь тут ни при чём |
 
 ---
 
 ## Чеклист разработчика
 
-- После prod-деплоя: открыть PWA на планшете/эмуляторе → баннер обновления → Диагностика показывает новую сборку.
+- После prod-деплоя: PWA на планшете → обновление без цикла login; Диагностика — новый id сборки.
+- Verify: `scripts/verify-app-stability.mjs` (политика + guard + plan + in-flight).
 - Не включать SW в обычном `vite` dev без нужды.
 - Иконки: `npm run gen:icons` → `public/icons/`.
-- Manifest: имя FIT-CITY, `display: standalone`, portrait.
 
-Связано: [RELEASE.md](./RELEASE.md), [SYNC.md](./SYNC.md), [TESTING.md](./TESTING.md).
+Связано: [RELEASE.md](./RELEASE.md), [SYNC.md](./SYNC.md), [TESTING.md](./TESTING.md), [RUNBOOK.md](./RUNBOOK.md).

@@ -1,29 +1,30 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useRegisterSW } from 'virtual:pwa-register/react'
+import { useAuth } from '../context/AuthContext'
 import { APP_BUILD_STALE_EVENT, APP_WAKE_EVENT, onLongAppWake } from '../lib/appLifecycle'
 import {
   decideAppUpdate,
   hasFreshSalesDraftInStorage,
   isOnSalesReportPage,
-  shouldAutoApplyUpdate,
 } from '../lib/appUpdatePolicy'
+import { planPwaUpdateAction, pwaUpdateBannerCopy } from '../lib/appUpdatePlanCore.js'
+import { applyPwaUpdate } from '../lib/appUpdateApplyService.js'
+import { shouldBlockAutoPwaReload } from '../lib/appUpdateReloadGuard.js'
+import { readPwaUpdateReloadGuardFromSession } from '../lib/appUpdateReloadGuardSession.js'
 import { clearAllSalesDraftsInStorage } from '../lib/admin/adminSalesDraftStorage.js'
-import { clearAppUpdatePending, markAppUpdateApplied, setAppUpdatePending } from '../lib/appUpdateState'
+import { setAppUpdatePending } from '../lib/appUpdateState'
 import { listSyncQueue } from '../lib/localDb'
-
-function postSkipWaiting(registration) {
-  const waiting = registration?.waiting
-  if (!waiting) return false
-  waiting.postMessage({ type: 'SKIP_WAITING' })
-  return true
-}
 
 export function PwaUpdatePrompt() {
   const location = useLocation()
+  const { loading: authLoading } = useAuth()
   const [updating, setUpdating] = useState(false)
   const [buildStale, setBuildStale] = useState(false)
   const [syncQueueCount, setSyncQueueCount] = useState(0)
+  const [autoBlocked, setAutoBlocked] = useState(() =>
+    shouldBlockAutoPwaReload(readPwaUpdateReloadGuardFromSession()),
+  )
   const autoTriedRef = useRef(false)
   const {
     needRefresh: [needRefresh, setNeedRefresh],
@@ -49,6 +50,7 @@ export function PwaUpdatePrompt() {
     const onStale = () => setBuildStale(true)
     const onWake = () => {
       void refreshQueue()
+      setAutoBlocked(shouldBlockAutoPwaReload(readPwaUpdateReloadGuardFromSession()))
     }
     window.addEventListener(APP_BUILD_STALE_EVENT, onStale)
     window.addEventListener(APP_WAKE_EVENT, onWake)
@@ -70,53 +72,43 @@ export function PwaUpdatePrompt() {
   })
 
   const showPrompt = needRefresh || buildStale
+  const guard = readPwaUpdateReloadGuardFromSession()
+  const planned = planPwaUpdateAction({
+    decision: updateDecision,
+    authLoading,
+    guard,
+    manual: false,
+  })
 
-  const applyUpdate = useCallback(async () => {
-    if (updating) return
-    setUpdating(true)
-    try {
-      const registration = await navigator.serviceWorker?.getRegistration?.()
-      postSkipWaiting(registration)
-
-      await Promise.race([
-        updateServiceWorker(true).catch((e) => {
-          console.warn('[PWA] updateServiceWorker failed', e)
-        }),
-        new Promise((resolve) => setTimeout(resolve, 2000)),
-      ])
-
-      if (registration?.waiting) {
-        postSkipWaiting(registration)
-      }
-
-      await new Promise((resolve) => {
-        const sw = navigator.serviceWorker
-        if (!sw) {
-          resolve(undefined)
+  const runApply = useCallback(
+    async ({ manual = false } = {}) => {
+      if (updating) return
+      setUpdating(true)
+      setAutoBlocked(true)
+      try {
+        const result = await applyPwaUpdate({ manual, updateServiceWorker })
+        if (result.mode === 'reload' || result.mode === 'hard_recover') {
+          setNeedRefresh(false)
+          setBuildStale(false)
           return
         }
-        const done = () => {
-          sw.removeEventListener('controllerchange', done)
-          resolve(undefined)
-        }
-        sw.addEventListener('controllerchange', done, { once: true })
-        setTimeout(done, 1500)
-      })
-    } finally {
-      markAppUpdateApplied()
-      clearAppUpdatePending()
-      setNeedRefresh(false)
-      setBuildStale(false)
-      window.location.reload()
-    }
-  }, [updateServiceWorker, setNeedRefresh, updating])
+        setUpdating(false)
+      } catch {
+        setUpdating(false)
+      }
+    },
+    [updateServiceWorker, setNeedRefresh, updating],
+  )
 
   useEffect(() => {
     if (!showPrompt || updating || autoTriedRef.current) return
-    if (!shouldAutoApplyUpdate(updateDecision)) return
+    if (planned !== 'auto_apply') {
+      if (planned === 'manual_only') setAutoBlocked(true)
+      return
+    }
     autoTriedRef.current = true
-    void applyUpdate()
-  }, [showPrompt, updateDecision, updating, applyUpdate])
+    void runApply({ manual: false })
+  }, [showPrompt, planned, updating, runApply])
 
   useEffect(() => {
     if (!showPrompt) autoTriedRef.current = false
@@ -131,41 +123,36 @@ export function PwaUpdatePrompt() {
   const deferUpdate = updateDecision === 'defer'
   const salesDraftBlocksUpdate =
     deferUpdate && isOnSalesReportPage(location.pathname) && hasFreshSalesDraftInStorage()
+  const actionForCopy =
+    salesDraftBlocksUpdate
+      ? 'prompt'
+      : autoBlocked || planned === 'manual_only'
+        ? 'manual_only'
+        : planned === 'defer'
+          ? 'defer'
+          : planned
+  const copy = pwaUpdateBannerCopy({
+    action: actionForCopy,
+    salesDraftBlocks: salesDraftBlocksUpdate,
+    offline: typeof navigator !== 'undefined' && !navigator.onLine,
+  })
+  const showPrimary = Boolean(copy.primary)
 
   return (
     <div className="pwa-update" role="status" aria-live="polite">
-      <div className="pwa-update__text">
-        {salesDraftBlocksUpdate
-          ? 'Доступна новая версия. На экране отчёта есть несохранённый черновик (часто «хвост» плана в телефоне). Сохраните план или сбросьте черновик — тогда можно обновить.'
-          : deferUpdate
-            ? 'Доступна новая версия — обновим, когда закончите тренировку или сохраните отчёт продаж.'
-            : 'Доступна новая версия. Нажмите один раз — всё обновится само.'}
-        {!navigator.onLine && (
-          <span className="muted"> Сейчас офлайн — обновление применится при появлении интернета.</span>
-        )}
-      </div>
+      <div className="pwa-update__text">{copy.text}</div>
       <div className="pwa-update__actions">
-        {!deferUpdate ? (
+        {showPrimary ? (
           <button
             type="button"
             className="btn btn-primary btn-touch"
-            disabled={updating}
-            onClick={() => void applyUpdate()}
-          >
-            {updating ? 'Обновление…' : 'Обновить сейчас'}
-          </button>
-        ) : null}
-        {salesDraftBlocksUpdate ? (
-          <button
-            type="button"
-            className="btn btn-primary btn-touch"
-            disabled={updating}
+            disabled={updating || authLoading}
             onClick={() => {
-              clearAllSalesDraftsInStorage()
-              void applyUpdate()
+              if (salesDraftBlocksUpdate) clearAllSalesDraftsInStorage()
+              void runApply({ manual: true })
             }}
           >
-            {updating ? 'Обновление…' : 'Сбросить черновик и обновить'}
+            {updating ? 'Обновление…' : copy.primary}
           </button>
         ) : null}
         <button
@@ -178,7 +165,7 @@ export function PwaUpdatePrompt() {
             setAppUpdatePending(true)
           }}
         >
-          {deferUpdate ? 'Понятно' : 'Позже'}
+          {copy.secondary}
         </button>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { CheckCircle2 } from 'lucide-react'
 import { consumeAppUpdateNotice } from '../lib/appUpdateState'
+import { acknowledgePwaUpdateSuccess } from '../lib/appUpdateApplyService.js'
 import { getClientBuildTimeLabel, getClientBuildAgeLabel } from '../lib/appBuildInfo'
 
 const AUTO_DISMISS_MS = 12_000
@@ -10,7 +11,10 @@ export function AppUpdatedBanner() {
 
   useEffect(() => {
     const n = consumeAppUpdateNotice()
-    if (n?.changed) setNotice(n)
+    if (n?.changed) {
+      acknowledgePwaUpdateSuccess()
+      setNotice(n)
+    }
   }, [])
 
   useEffect(() => {
