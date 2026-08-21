@@ -31,7 +31,9 @@ import {
   buildTrainingDraftSessionSnapshot,
   dropTrainingDraftSession,
   isTrainingDraftSessionSnapshotReady,
+  isTrainingDraftUiAligned,
   putTrainingDraftSession,
+  shouldBlockMismatchedDraftPersist,
   takeTrainingDraftSession,
 } from '../../lib/trainingDraftSessionCache.js'
 import { migrateTrainingFormPlace, resolveTrainingFormPlaceKey } from '../../lib/trainingFormStepMemory.js'
@@ -250,10 +252,12 @@ export function TrainingPage() {
     }
 
     const cached = takeTrainingDraftSession(id)
-    if (!isTrainingDraftSessionSnapshotReady(cached, id)) {
+    if (!isTrainingDraftSessionSnapshotReady(cached, { trainingId: id })) {
       sessionCacheHitRef.current = null
       setLoadState('loading')
       setWorkoutState(emptyTrainingData())
+      // Сбрасываем meta, иначе кадр «URL=B, meta=A» рисует чужие упражнения.
+      setMeta({ status: 'draft', trainingId: null })
       return
     }
 
@@ -273,10 +277,18 @@ export function TrainingPage() {
 
   // Пока на вкладке — держим свежий снимок (последний кейстрок уйдёт в LRU при уходе).
   useLayoutEffect(() => {
-    const routeTid = id && id !== 'new' ? String(id) : ''
-    const metaTid = String(meta.trainingId ?? '').trim()
-    const tid = metaTid && routeTid && metaTid === routeTid ? metaTid : ''
-    if (!tid || loadState !== 'ok') return
+    if (
+      !isTrainingDraftUiAligned({
+        loadState,
+        routeId: id,
+        metaTrainingId: meta.trainingId,
+        isNew,
+        clientId: client?.id ?? clientIdParam,
+      })
+    ) {
+      return
+    }
+    const tid = String(meta.trainingId ?? '').trim()
     const snap = buildTrainingDraftSessionSnapshot({
       loadState,
       meta,
@@ -294,6 +306,8 @@ export function TrainingPage() {
     draftSessionGateRef.current = { id: tid, snap }
   }, [
     id,
+    isNew,
+    clientIdParam,
     loadState,
     meta,
     workoutState,
@@ -479,37 +493,48 @@ export function TrainingPage() {
     ])
     if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
 
-    setMeta({ status: t.status, trainingId: t.id })
-    setClient(c)
-    setWorkoutState({ ...emptyTrainingData(), ...w })
-    setTrainingType(sessionType)
-    setTrainingDate(canEditTrainingDate(isAdmin, t.status) ? loaded : clampIsoDateToToday(loaded))
-    setHealthCard(hc ?? null)
-    setContra((hc?.contraindications ?? '').trim())
-    setOtherCompletedTrainings(
-      trainings.filter((tr) => String(tr?.status ?? '') === 'completed' && tr.id !== t.id).length,
-    )
-    setMembershipSummary(membershipSummary)
-    draftTrainingIdRef.current = t.id
-    pendingHrScopeRef.current = null
-
-    setEarlyActivateProposal(null)
-    setMembershipShiftMode(null)
-    setLateDraftOffer(false)
-    setLateBlockedNotice('')
-    lateShiftDismissedRef.current = false
+    let earlyActivateProposalNext = null
+    let membershipShiftModeNext = null
+    let lateDraftOfferNext = false
+    let lateBlockedNoticeNext = ''
     if (!isAdmin && String(t.status ?? '') === 'draft') {
       const gateDay = String(loaded ?? today).slice(0, 10)
       const lateInsp = await loadLateStartInspection(t.client_id, gateDay)
       if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
       if (lateInsp.status === 'offer' && lateInsp.proposal) {
-        setEarlyActivateProposal(lateInsp.proposal)
-        setMembershipShiftMode('late')
-        setLateDraftOffer(true)
+        earlyActivateProposalNext = lateInsp.proposal
+        membershipShiftModeNext = 'late'
+        lateDraftOfferNext = true
       } else if (lateInsp.status === 'blocked') {
-        setLateBlockedNotice(lateInsp.message || '')
+        lateBlockedNoticeNext = lateInsp.message || ''
       }
     }
+    if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
+
+    // Все setState после awaits — иначе устаревший load пишет чужой workout на новый URL.
+    const trainingDateNext = canEditTrainingDate(isAdmin, t.status) ? loaded : clampIsoDateToToday(loaded)
+    const workoutNext = { ...emptyTrainingData(), ...w }
+    const otherCompletedNext = trainings.filter(
+      (tr) => String(tr?.status ?? '') === 'completed' && tr.id !== t.id,
+    ).length
+    const contraNext = (hc?.contraindications ?? '').trim()
+
+    setMeta({ status: t.status, trainingId: t.id })
+    setClient(c)
+    setWorkoutState(workoutNext)
+    setTrainingType(sessionType)
+    setTrainingDate(trainingDateNext)
+    setHealthCard(hc ?? null)
+    setContra(contraNext)
+    setOtherCompletedTrainings(otherCompletedNext)
+    setMembershipSummary(membershipSummary)
+    draftTrainingIdRef.current = t.id
+    pendingHrScopeRef.current = null
+    setEarlyActivateProposal(earlyActivateProposalNext)
+    setMembershipShiftMode(membershipShiftModeNext)
+    setLateDraftOffer(lateDraftOfferNext)
+    setLateBlockedNotice(lateBlockedNoticeNext)
+    lateShiftDismissedRef.current = false
 
     prefetchTrainerClientWorkspace(t.client_id, {
       trainerId: isAdmin ? '' : user.id,
@@ -523,17 +548,15 @@ export function TrainingPage() {
       buildTrainingDraftSessionSnapshot({
         loadState: 'ok',
         meta: { status: t.status, trainingId: t.id },
-        workoutState: { ...emptyTrainingData(), ...w },
+        workoutState: workoutNext,
         trainingType: sessionType,
-        trainingDate: canEditTrainingDate(isAdmin, t.status) ? loaded : clampIsoDateToToday(loaded),
+        trainingDate: trainingDateNext,
         client: c,
         healthCard: hc ?? null,
-        contra: (hc?.contraindications ?? '').trim(),
+        contra: contraNext,
         membershipSummary,
-        otherCompletedTrainings: trainings.filter(
-          (tr) => String(tr?.status ?? '') === 'completed' && tr.id !== t.id,
-        ).length,
-        lateBlockedNotice: '',
+        otherCompletedTrainings: otherCompletedNext,
+        lateBlockedNotice: lateBlockedNoticeNext,
       }),
     )
   }, [user?.id, isNew, clientIdParam, id, isAdmin, applyDraftSessionSnapshot])
@@ -597,6 +620,16 @@ export function TrainingPage() {
       setSaveError('')
     }
     if (!user?.id) return
+    if (
+      shouldBlockMismatchedDraftPersist({
+        silent,
+        routeId: id,
+        metaTrainingId: meta.trainingId,
+      })
+    ) {
+      if (silent) setAutosaveStatus('idle')
+      return
+    }
     if (shouldSkipSilentPersistWhileCompleteInFlight(silent, completeInFlightRef.current)) {
       setAutosaveStatus('idle')
       return
@@ -1279,6 +1312,23 @@ export function TrainingPage() {
   }
 
   if (loadState === 'loading') {
+    return (
+      <div className="trainer-path-loading" role="status" aria-live="polite" aria-busy="true">
+        <span className="app-loading__ring app-loading__ring--sm" aria-hidden />
+        <p className="trainer-path-loading__text">Загрузка…</p>
+      </div>
+    )
+  }
+
+  const draftUiAligned = isTrainingDraftUiAligned({
+    loadState,
+    routeId: id,
+    metaTrainingId: meta.trainingId,
+    isNew,
+    clientId: client?.id ?? clientIdParam,
+  })
+  // Кадр смены вкладки: URL уже другой, meta/workout ещё старые — не рисуем чужие упражнения.
+  if (loadState === 'ok' && !draftUiAligned) {
     return (
       <div className="trainer-path-loading" role="status" aria-live="polite" aria-busy="true">
         <span className="app-loading__ring app-loading__ring--sm" aria-hidden />

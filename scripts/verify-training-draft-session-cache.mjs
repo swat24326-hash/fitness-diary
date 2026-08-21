@@ -7,8 +7,10 @@ import {
   clearTrainingDraftSessionCache,
   dropTrainingDraftSession,
   isTrainingDraftSessionSnapshotReady,
+  isTrainingDraftUiAligned,
   peekTrainingDraftSession,
   putTrainingDraftSession,
+  shouldBlockMismatchedDraftPersist,
   takeTrainingDraftSession,
   trainingDraftSessionCacheSize,
 } from '../src/lib/trainingDraftSessionCache.js'
@@ -25,16 +27,60 @@ function ok(cond, msg) {
 
 clearTrainingDraftSessionCache()
 
+ok(
+  !isTrainingDraftUiAligned({
+    loadState: 'ok',
+    routeId: 'draft-b',
+    metaTrainingId: 'draft-a',
+  }),
+  'ui not aligned across drafts (leak frame)',
+)
+ok(
+  isTrainingDraftUiAligned({
+    loadState: 'ok',
+    routeId: 'draft-a',
+    metaTrainingId: 'draft-a',
+  }),
+  'ui aligned same draft',
+)
+ok(
+  !isTrainingDraftUiAligned({
+    loadState: 'loading',
+    routeId: 'draft-a',
+    metaTrainingId: 'draft-a',
+  }),
+  'ui hidden while loading',
+)
+ok(
+  isTrainingDraftUiAligned({ loadState: 'ok', isNew: true, clientId: 'c1' }),
+  'ui new with client',
+)
+ok(
+  !isTrainingDraftUiAligned({ loadState: 'ok', isNew: true, clientId: '' }),
+  'ui new without client',
+)
+
+ok(shouldBlockMismatchedDraftPersist({ silent: true, routeId: 'b', metaTrainingId: 'a' }), 'block mismatched silent')
+ok(!shouldBlockMismatchedDraftPersist({ silent: false, routeId: 'b', metaTrainingId: 'a' }), 'allow explicit save check elsewhere')
+ok(!shouldBlockMismatchedDraftPersist({ silent: true, routeId: 'a', metaTrainingId: 'a' }), 'aligned silent ok')
+
 ok(!putTrainingDraftSession('new', { ready: true, meta: { trainingId: 'new' } }), 'reject new key')
 ok(!isTrainingDraftSessionSnapshotReady(null), 'ready null')
 ok(!isTrainingDraftSessionSnapshotReady({ loadState: 'ok' }), 'ready needs trainingId')
 ok(
-  isTrainingDraftSessionSnapshotReady({ loadState: 'ok', meta: { trainingId: 't1' } }, 't1'),
+  isTrainingDraftSessionSnapshotReady({ loadState: 'ok', meta: { trainingId: 't1' }, client: { id: 'c1' } }, 't1'),
   'ready ok expect id',
 )
 ok(
   !isTrainingDraftSessionSnapshotReady({ loadState: 'ok', meta: { trainingId: 't1' } }, 't2'),
   'ready reject foreign id',
+)
+ok(
+  !isTrainingDraftSessionSnapshotReady(
+    { loadState: 'ok', meta: { trainingId: 't1' }, client: { id: 'c1' } },
+    { trainingId: 't1', clientId: 'c2' },
+  ),
+  'ready reject foreign client',
 )
 
 const built = buildTrainingDraftSessionSnapshot({
@@ -52,14 +98,14 @@ const built = buildTrainingDraftSessionSnapshot({
 })
 ok(built?.meta?.trainingId === 't1', 'build snapshot')
 ok(built?.workoutState?.exercises?.[0]?.name === 'Жим', 'build workout')
-built.workoutState.exercises[0].name = 'MUTATED'
 ok(
   buildTrainingDraftSessionSnapshot({
     loadState: 'ok',
     meta: { trainingId: 't1' },
     workoutState: { exercises: [{ id: 'e1', name: 'Жим', sets: [] }] },
-  })?.workoutState?.exercises?.[0]?.name === 'Жим',
-  'build clones',
+    client: null,
+  }) == null,
+  'build requires client',
 )
 
 ok(putTrainingDraftSession('t1', built), 'put t1')
@@ -74,6 +120,7 @@ for (let i = 0; i < TRAINING_DRAFT_SESSION_CACHE_MAX + 3; i++) {
     ready: true,
     loadState: 'ok',
     meta: { trainingId: `x${i}` },
+    client: { id: `c${i}` },
     workoutState: {},
   })
 }
@@ -83,7 +130,7 @@ ok(peekTrainingDraftSession('x0') == null, 'oldest evicted')
 ok(dropTrainingDraftSession('x5') === true, 'drop')
 ok(peekTrainingDraftSession('x5') == null, 'dropped')
 
-ok(buildTrainingDraftSessionSnapshot({ loadState: 'loading', meta: { trainingId: 't' } }) == null, 'no build while loading')
+ok(buildTrainingDraftSessionSnapshot({ loadState: 'loading', meta: { trainingId: 't' }, client: { id: 'c' } }) == null, 'no build while loading')
 
 clearTrainingDraftSessionCache()
 ok(trainingDraftSessionCacheSize() === 0, 'cleared')

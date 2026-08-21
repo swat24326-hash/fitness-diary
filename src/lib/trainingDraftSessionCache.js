@@ -30,6 +30,47 @@ export function cloneTrainingDraftSessionValue(value) {
 }
 
 /**
+ * Форму можно показывать только когда URL и meta указывают на одну тренировку.
+ * Иначе один кадр после смены вкладки рисует упражнения чужого черновика.
+ * @param {{ routeId?: string | null, metaTrainingId?: string | null, loadState?: string, isNew?: boolean, clientId?: string | null }} opts
+ */
+export function isTrainingDraftUiAligned(opts = {}) {
+  const loadState = String(opts.loadState ?? '')
+  if (loadState !== 'ok') return false
+  if (opts.isNew) {
+    return Boolean(String(opts.clientId ?? '').trim())
+  }
+  const routeId = String(opts.routeId ?? '').trim()
+  const metaId = String(opts.metaTrainingId ?? '').trim()
+  if (!routeId || routeId === 'new' || !metaId) return false
+  return routeId === metaId
+}
+
+/**
+ * Снимок кэша совпадает с route и (если есть) с client_id.
+ * @param {unknown} snapshot
+ * @param {string | { trainingId?: string | null, clientId?: string | null } | null | undefined} [expect]
+ */
+export function isTrainingDraftSessionSnapshotReady(snapshot, expect) {
+  if (!snapshot || typeof snapshot !== 'object') return false
+  const tid = String(snapshot.meta?.trainingId ?? '').trim()
+  if (!tid) return false
+  const expectTid =
+    typeof expect === 'string' || expect == null
+      ? String(expect ?? '').trim()
+      : String(expect.trainingId ?? '').trim()
+  if (expectTid && tid !== expectTid) return false
+  if (!(snapshot.loadState === 'ok' || snapshot.ready === true)) return false
+  const expectClient =
+    typeof expect === 'object' && expect != null ? String(expect.clientId ?? '').trim() : ''
+  if (expectClient) {
+    const snapClient = String(snapshot.client?.id ?? '').trim()
+    if (snapClient && snapClient !== expectClient) return false
+  }
+  return true
+}
+
+/**
  * @param {{
  *   loadState?: string,
  *   meta?: { status?: string, trainingId?: string | null },
@@ -49,6 +90,8 @@ export function buildTrainingDraftSessionSnapshot(input = {}) {
   if (String(input.loadState ?? '') !== 'ok') return null
   const trainingId = String(input.meta?.trainingId ?? '').trim()
   if (!trainingId) return null
+  const clientId = String(input.client?.id ?? '').trim()
+  if (!clientId) return null
   return {
     ready: true,
     loadState: 'ok',
@@ -74,8 +117,7 @@ export function buildTrainingDraftSessionSnapshot(input = {}) {
  */
 export function putTrainingDraftSession(trainingId, snapshot) {
   const key = normalizeKey(trainingId)
-  if (!key || !isTrainingDraftSessionSnapshotReady(snapshot)) return false
-  if (String(snapshot.meta?.trainingId ?? '').trim() !== key) return false
+  if (!key || !isTrainingDraftSessionSnapshotReady(snapshot, { trainingId: key })) return false
   if (cache.has(key)) cache.delete(key)
   cache.set(key, { at: Date.now(), snapshot: cloneTrainingDraftSessionValue(snapshot) })
   while (cache.size > TRAINING_DRAFT_SESSION_CACHE_MAX) {
@@ -120,16 +162,13 @@ export function trainingDraftSessionCacheSize() {
 }
 
 /**
- * Можно ли показать снимок сразу (без экрана «Загрузка…»).
- * @param {unknown} snapshot
- * @param {string | null | undefined} [expectTrainingId]
+ * Silent persist при рассинхроне URL/meta — риск записать чужие упражнения в другой черновик.
+ * @param {{ silent?: boolean, routeId?: string | null, metaTrainingId?: string | null }} opts
  */
-export function isTrainingDraftSessionSnapshotReady(snapshot, expectTrainingId) {
-  if (!snapshot || typeof snapshot !== 'object') return false
-  const tid = String(snapshot.meta?.trainingId ?? '').trim()
-  if (!tid) return false
-  if (expectTrainingId != null && String(expectTrainingId).trim() && tid !== String(expectTrainingId).trim()) {
-    return false
-  }
-  return snapshot.loadState === 'ok' || snapshot.ready === true
+export function shouldBlockMismatchedDraftPersist(opts = {}) {
+  if (!opts.silent) return false
+  const routeId = String(opts.routeId ?? '').trim()
+  const metaId = String(opts.metaTrainingId ?? '').trim()
+  if (!routeId || routeId === 'new' || !metaId) return false
+  return routeId !== metaId
 }
