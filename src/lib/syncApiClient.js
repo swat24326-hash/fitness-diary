@@ -315,6 +315,15 @@ export function schedulePushRecordViaApi(item) {
 async function flushPushQueue() {
   let batch = pushQueue.splice(0, pushQueue.length)
   try {
+    const { isBackgroundSyncPaused } = await import('./syncService.js')
+    if (isBackgroundSyncPaused()) {
+      pushQueue.push(...batch)
+      return
+    }
+  } catch {
+    /* ignore */
+  }
+  try {
     const { collapseRedundantQueueItems, collapseDuplicateQueueInserts } = await import('./syncQueueOrphans.js')
     await collapseRedundantQueueItems()
     await collapseDuplicateQueueInserts()

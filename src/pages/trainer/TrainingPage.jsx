@@ -18,7 +18,7 @@ import {
 } from '../../lib/trainer/membershipStartShiftService.js'
 import { EarlyMembershipActivateSheet } from '../../components/trainer/EarlyMembershipActivateSheet.jsx'
 import { useHeartRateSessions } from '../../context/HeartRateSessionsContext.jsx'
-import { saveLocalWithSync } from '../../lib/syncService'
+import { saveLocalWithSync, setBackgroundSyncPaused } from '../../lib/syncService'
 import { stripDirectionControls } from '../../lib/textInput'
 import { getTrainingCompletionIssues } from '../../lib/trainingCompletionValidation'
 import {
@@ -54,6 +54,7 @@ import {
   ensureLoyaltySessionStartedAt,
 } from '../../lib/loyalty/loyaltyPersistCore.js'
 import { loadLoyaltyCompleteSettings } from '../../lib/loyalty/loyaltyCompleteSettingsService.js'
+import { LOYALTY_COMPLETE_SETTINGS_WAIT_MS } from '../../lib/loyalty/loyaltyTimeoutCore.js'
 import { isLoyaltyProgramClient } from '../../lib/loyalty/loyaltyGlanceUiCore.js'
 import { recordAppError } from '../../lib/appErrorJournal.js'
 import { runTrainingCompleteFollowUp } from '../../lib/trainer/trainingCompleteFollowUp.js'
@@ -360,6 +361,7 @@ export function TrainingPage() {
     if (completeClick) {
       completeInFlightRef.current = true
       setCompleteBusy(true)
+      setBackgroundSyncPaused(true)
       if (autosaveTimerRef.current) {
         clearTimeout(autosaveTimerRef.current)
         autosaveTimerRef.current = null
@@ -379,6 +381,10 @@ export function TrainingPage() {
       setSaveError('')
     }
     if (!user?.id) return
+    if (shouldSkipSilentPersistWhileCompleteInFlight(silent, completeInFlightRef.current)) {
+      setAutosaveStatus('idle')
+      return
+    }
     const stableFromRoute = id && id !== 'new' ? id : null
     let trainingId = meta.trainingId ?? draftTrainingIdRef.current ?? stableFromRoute
     if (!trainingId) {
@@ -399,6 +405,10 @@ export function TrainingPage() {
     }
 
     const db = await getDb()
+    if (shouldSkipSilentPersistWhileCompleteInFlight(silent, completeInFlightRef.current)) {
+      setAutosaveStatus('idle')
+      return
+    }
     let prev = id && id !== 'new' ? await db.get('trainings', id) : null
     if (!prev && meta.trainingId) {
       prev = await db.get('trainings', meta.trainingId)
@@ -408,11 +418,8 @@ export function TrainingPage() {
     const nextStatus = resolveTrainingPersistStatus(status, previousStatus)
     const firstCompletion = isTrainingFirstCompletion(previousStatus, nextStatus)
     if (firstCompletion && !silent) {
-      const completedElsewhere = await listTrainingsForClient(cid)
-      const otherCompleted = completedElsewhere.filter(
-        (tr) => String(tr?.status ?? '') === 'completed' && tr.id !== (prev?.id ?? trainingId),
-      ).length
-      const isFirstCompletion = otherCompleted === 0
+      // Уже посчитано при load — повторный listTrainings на слабом планшете душит «Закончить».
+      const isFirstCompletion = otherCompletedTrainings === 0
       const hc = healthCard ?? (await getHealthCard(cid))
       const blockers = getTrainingCompletionIssues(workoutState, { health: hc, isFirstCompletion })
       if (blockers.length > 0) {
@@ -440,7 +447,14 @@ export function TrainingPage() {
     }
 
     // Черновик / повторный вход: не завершать первую тренировку, пока не решён сдвиг срока.
-    if (firstCompletion && !silent && !isAdmin && !lateShiftDismissedRef.current) {
+    // Только если у клиента ещё не было completed (иначе late-offer не нужен).
+    if (
+      firstCompletion &&
+      !silent &&
+      !isAdmin &&
+      !lateShiftDismissedRef.current &&
+      otherCompletedTrainings === 0
+    ) {
       const lateCheck = await loadLateStartProposal(cid, effectiveDate)
       if (lateCheck.ok && lateCheck.proposal) {
         setEarlyActivateProposal(lateCheck.proposal)
@@ -456,6 +470,11 @@ export function TrainingPage() {
       if (lateCheck.inspection?.status === 'blocked' && lateCheck.inspection.message) {
         setLateBlockedNotice(lateCheck.inspection.message)
       }
+    }
+
+    if (shouldSkipSilentPersistWhileCompleteInFlight(silent, completeInFlightRef.current)) {
+      setAutosaveStatus('idle')
+      return
     }
 
     // club_id обязателен для записи. В dev/локальном режиме можно восстановить его
@@ -556,7 +575,18 @@ export function TrainingPage() {
         loyaltySamples = []
       }
     }
-    const loyaltySettings = stampLoyalty ? await loyaltySettingsPromise : null
+    const loyaltySettings = stampLoyalty
+      ? await Promise.race([
+          loyaltySettingsPromise,
+          new Promise((resolve) => {
+            setTimeout(() => resolve(null), LOYALTY_COMPLETE_SETTINGS_WAIT_MS)
+          }),
+        ])
+      : null
+    if (shouldSkipSilentPersistWhileCompleteInFlight(silent, completeInFlightRef.current)) {
+      setAutosaveStatus('idle')
+      return
+    }
     let dataWithLoyalty = dataPayload
     if (stampLoyalty) {
       try {
@@ -603,6 +633,10 @@ export function TrainingPage() {
       synced: false,
     }
     await runExclusive(async () => {
+      if (shouldSkipSilentPersistWhileCompleteInFlight(silent, completeInFlightRef.current)) {
+        setAutosaveStatus('idle')
+        return
+      }
       const dbNow = await getDb()
       const fresh = await dbNow.get('trainings', row.id)
       const diskStatus = fresh?.status ?? previousStatus
@@ -621,6 +655,10 @@ export function TrainingPage() {
       const debitNow = Boolean(membershipToDebit) && stillFirst
       row.status = resolveTrainingPersistStatus(row.status, diskStatus)
       if (silent) {
+        if (shouldSkipSilentPersistWhileCompleteInFlight(true, completeInFlightRef.current)) {
+          setAutosaveStatus('idle')
+          return
+        }
         setAutosaveStatus('saving')
       }
       try {
@@ -743,8 +781,11 @@ export function TrainingPage() {
       if (silent) setAutosaveStatus('error')
       if (!silent) setSaveError(message)
     } finally {
-      if (completeClick) completeInFlightRef.current = false
-      if (completeClick) setCompleteBusy(false)
+      if (completeClick) {
+        completeInFlightRef.current = false
+        setCompleteBusy(false)
+        setBackgroundSyncPaused(false)
+      }
     }
   }
 

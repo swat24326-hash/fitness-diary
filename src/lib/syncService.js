@@ -180,6 +180,10 @@ export function setBackgroundSyncPaused(paused) {
   }
 }
 
+export function isBackgroundSyncPaused() {
+  return backgroundSyncPaused === true
+}
+
 /**
  * Выход из аккаунта: сначала попытка отправить очередь (если online), затем сброс оставшегося.
  * Чтобы другой пользователь на том же устройстве не отправил чужие записи.
