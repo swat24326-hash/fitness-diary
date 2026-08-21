@@ -15,7 +15,6 @@ import {
   STALE_TRAINING_DAYS,
 } from '../trainer/trainerClientOutreachCore.js'
 import { isBirthdayBrowseMatch, isBirthdayToday } from '../clientBirthdays.js'
-import { isTrainerPzClosedView } from '../clientHallLifecycleCore.js'
 import { deskMembershipSignal } from './deskMembershipLedgerCore.js'
 import { filterMembershipsByHall } from '../membershipHallCore.js'
 
@@ -158,19 +157,6 @@ export function clientMatchesAdminFunnelFilter(filter, ctx = {}) {
   if (mode === 'pnk') return hall === 'pz' ? isAdminPnkClient(client) : false
   // Список по клику — окно ДР; цифра на плитке — только сегодня (см. countAdminFunnelFilters).
   if (mode === 'birthdays') return isBirthdayBrowseMatch(client.birth_date, today)
-
-  // Закрытый ПЗ — не «неактивный живой ПЗ» и не ступени воронки живых.
-  if (
-    hall === 'pz' &&
-    isTrainerPzClosedView(client, ctx.lifecycleRows, ctx.memList) &&
-    (mode === 'inactive' ||
-      mode === 'awaiting_start' ||
-      mode === 'expiring' ||
-      mode === 'expired_recent' ||
-      mode === 'stale')
-  ) {
-    return false
-  }
 
   // Открытый ПНК — только в чипе «ПНК», не в «Истекает / Закончился / …»
   // (пробный лимит 1–2 часто «исчерпан» — это воронка, не продление ДК).

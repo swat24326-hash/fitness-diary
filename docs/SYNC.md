@@ -94,7 +94,7 @@ UI → saveLocalWithSync(store, record, { table_name, operation, remote_id })
 2. **Fallback по дате** — `resolveMembershipForDiaryTraining`, если `membership_id` нет (legacy).
 3. **Источник абонементов для UI статистики:**
    - **Тренер онлайн:** `trainer-pull` (`skip_trainings=1`) через `loadClubMembershipsWithApiFallback(clubId, { trainerId })`; **не** `/api/list-memberships` (403).
-   - **Админ / sales:** `/api/list-memberships` → абоны **и** `client_hall_lifecycle` в IndexedDB (Живые|Закрытые на втором устройстве). Helper без `trainerId`.
+   - **Админ / sales:** `/api/list-memberships` → абоны **и** `client_hall_lifecycle` в IndexedDB (close/reopen ПЗ на втором устройстве). Helper без `trainerId`.
    - **Офлайн / сбой API:** `listMembershipsByClubId` (IndexedDB); тип считается локально, если абоны клиента в кэше.
 4. **Repair:** журнал тренера (online) — `repairTrainingsMembershipLinks` → `cacheCloudTrainingsLocally`.
 5. **Prefetch карточки:** `refreshMembershipsForStats({ trainerId })` → merge в IDB; cooldown 60 с.

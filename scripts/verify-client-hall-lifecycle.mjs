@@ -196,8 +196,8 @@ ok(
     today: '2026-08-21',
     hallMode: 'pz',
     lifecycleRows: [{ client_id: 'c1', hall: 'pz', closed_at: '2026-08-01T00:00:00Z' }],
-  }) === false,
-  'funnel inactive skips closed pz',
+  }) === true,
+  'funnel inactive as before (lifecycle closed does not hide chip)',
 )
 
 if (failed) {

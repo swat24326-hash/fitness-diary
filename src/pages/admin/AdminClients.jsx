@@ -139,7 +139,6 @@ import {
   leaveClubWithReason,
   reopenClientHall,
 } from '../../lib/clientHallLifecycleSyncService.js'
-import { isTrainerPzClosedView } from '../../lib/clientHallLifecycleCore.js'
 import { getDb } from '../../lib/localDb.js'
 import { clientNeedsArchiveReason } from '../../lib/clientArchiveReasonCore.js'
 import { AdminClientListAbonFact } from '../../components/admin/AdminClientListAbonFact.jsx'
@@ -236,7 +235,6 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
   const [archiveHallFilter, setArchiveHallFilter] = useState(() =>
     normalizeArchiveHallFilter(searchParams.get('archiveHall')),
   )
-  const [pzLifeTab, setPzLifeTab] = useState('live')
   const [lifecycleRows, setLifecycleRows] = useState([])
   const [archiveBusy, setArchiveBusy] = useState(false)
   const [source, setSource] = useState('local')
@@ -699,13 +697,6 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     if (clientsTab === 'archive' && normalizeArchiveHallFilter(archiveHallFilter)) {
       base = base.filter((c) => clientMatchesArchiveHallFilter(c, archiveHallFilter))
     }
-    if (clientsTab === 'active' || clientsTab === 'pz') {
-      base = base.filter((c) => {
-        const mems = memByClient[c.id] ?? memByClient[String(c.id)] ?? []
-        const closed = isTrainerPzClosedView(c, lifecycleRows, mems, today)
-        return pzLifeTab === 'closed' ? closed : !closed
-      })
-    }
     if (q) {
       base = base.filter((c) => clientMatchesAdminSearchQuery(c, q))
     }
@@ -764,7 +755,6 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     showTrainerSearch,
     crossHallSearch,
     lifecycleRows,
-    pzLifeTab,
   ])
 
   const azDirectionOptions = useMemo(() => {
@@ -872,7 +862,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     const known = lastTrainingRef.current
     const missing = ids.filter((id) => !Object.prototype.hasOwnProperty.call(known, id))
     const needDates = missing.length > 0
-    // Мигание при ПЗ|ТЗ|АЗ / Живые|Закрытые: не ставим busy, если даты уже в карте.
+    // Мигание при ПЗ|ТЗ|АЗ: не ставим busy, если даты уже в карте.
     if (needDates) setPageTrainingsBusy(true)
 
     void (async () => {
@@ -915,24 +905,18 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     }
   }, [club, pagedClientIdsKey])
 
-  const filterCounts = useMemo(() => {
-    let pool = clients
-    if (clientsTab === 'active' || clientsTab === 'pz') {
-      pool = (clients ?? []).filter((c) => {
-        const mems = memByClient[c.id] ?? memByClient[String(c.id)] ?? []
-        const closed = isTrainerPzClosedView(c, lifecycleRows, mems, today)
-        return pzLifeTab === 'closed' ? closed : !closed
-      })
-    }
-    return buildAdminClientsBrowseCounts({
-      clients: pool,
-      memByClient,
-      clientsTab,
-      today,
-      azDirectionFilter: clientsTab === 'az' ? azDirectionFilter : '',
-      lifecycleRows,
-    })
-  }, [clients, clientsTab, memByClient, today, azDirectionFilter, lifecycleRows, pzLifeTab])
+  const filterCounts = useMemo(
+    () =>
+      buildAdminClientsBrowseCounts({
+        clients,
+        memByClient,
+        clientsTab,
+        today,
+        azDirectionFilter: clientsTab === 'az' ? azDirectionFilter : '',
+        lifecycleRows,
+      }),
+    [clients, clientsTab, memByClient, today, azDirectionFilter, lifecycleRows],
+  )
 
   const allTileLabel = adminClientsAllTileLabel(clientsTab, filterCounts)
 
@@ -1026,7 +1010,6 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     if (next === 'archive' || next === 'tz' || next === 'az') {
       setQuickFilter('none')
     }
-    if (next !== 'active' && next !== 'pz') setPzLifeTab('live')
     patchListSearch((p) => {
       if (next === 'active') p.delete('clientsTab')
       else p.set('clientsTab', next)
@@ -1273,34 +1256,6 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               <span className="admin-clients-segment__count">{listTabCounts.archive}</span>
             </button>
           </div>
-          {(clientsTab === 'active' || clientsTab === 'pz') && (
-            <div className="admin-clients-segment" role="tablist" aria-label="ПЗ: живые или закрытые">
-              <button
-                type="button"
-                role="tab"
-                className="admin-clients-segment__btn"
-                aria-selected={pzLifeTab === 'live'}
-                onClick={() => {
-                  setPzLifeTab('live')
-                  setListPage(0)
-                }}
-              >
-                Живые
-              </button>
-              <button
-                type="button"
-                role="tab"
-                className="admin-clients-segment__btn"
-                aria-selected={pzLifeTab === 'closed'}
-                onClick={() => {
-                  setPzLifeTab('closed')
-                  setListPage(0)
-                }}
-              >
-                Закрытые
-              </button>
-            </div>
-          )}
           {clientsTab === 'active' ? (
             <button
               type="button"
@@ -1551,11 +1506,9 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               <p className="muted admin-clients-empty__text" style={{ margin: 0 }}>
                 {clients.length === 0
                   ? 'Нет клиентов по выбранным условиям.'
-                  : (clientsTab === 'active' || clientsTab === 'pz') && pzLifeTab === 'closed'
-                    ? 'Нет закрытых направлений ПЗ. Сюда попадают ушедшие с персоналки (в т.ч. с живым ТЗ/АЗ).'
-                    : quickFilter === 'birthdays'
-                      ? `Нет дней рождения сегодня и в ближайшие ${BIRTHDAY_WINDOW_DAYS} дней (проверьте дату в карточке).`
-                      : 'Никто не подходит под фильтр или поиск.'}
+                  : quickFilter === 'birthdays'
+                    ? `Нет дней рождения сегодня и в ближайшие ${BIRTHDAY_WINDOW_DAYS} дней (проверьте дату в карточке).`
+                    : 'Никто не подходит под фильтр или поиск.'}
               </p>
             </div>
           ) : null}
@@ -1936,11 +1889,10 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                                     }),
                                 }
                               : null,
-                            clientsTab === 'archive' ||
-                            ((clientsTab === 'active' || clientsTab === 'pz') && pzLifeTab === 'closed')
+                            clientsTab === 'archive'
                               ? {
                                   id: 'restore',
-                                  label: c.archived_at ? 'Вернуть в клуб' : 'Снова ПЗ',
+                                  label: 'Вернуть в клуб',
                                   icon: RotateCcw,
                                   onSelect: () => void restoreClientArchive(c),
                                 }

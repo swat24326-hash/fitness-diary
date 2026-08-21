@@ -29,10 +29,6 @@ import {
   reopenClientHall,
 } from '../../lib/clientHallLifecycleSyncService.js'
 import {
-  trainerClosedListBadge,
-  trainerClosedListBadgeLabel,
-} from '../../lib/clientHallLifecycleCore.js'
-import {
   setClientArchiveReason,
 } from '../../lib/clientArchiveSyncService.js'
 import { ClientArchiveReasonModal } from '../../components/ClientArchiveReasonModal.jsx'
@@ -87,7 +83,6 @@ export function TrainerClients() {
   const [clients, setClients] = useState([])
   const [archivedClients, setArchivedClients] = useState([])
   const [memByClient, setMemByClient] = useState({})
-  const [lifecycleRows, setLifecycleRows] = useState([])
   const [trainingsByClientId, setTrainingsByClientId] = useState({})
   const [lastTrainingDateByClientId, setLastTrainingDateByClientId] = useState({})
   const [busy, setBusy] = useState(false)
@@ -126,7 +121,6 @@ export function TrainerClients() {
       setClients(snap.clients)
       setArchivedClients(snap.archivedClients ?? [])
       setMemByClient(snap.memByClient)
-      setLifecycleRows(snap.lifecycleRows ?? [])
       setTrainingsByClientId(snap.trainingsByClientId)
       setLastTrainingDateByClientId(snap.lastTrainingDateByClientId)
       setClubs(await listClubsLocal())
@@ -535,7 +529,7 @@ export function TrainerClients() {
                 setQuickFilter('all')
               }}
             >
-              Закрытые
+              Архив
               <span className="admin-clients-segment__count">{archivedClients.length}</span>
             </button>
           </div>
@@ -579,8 +573,7 @@ export function TrainerClients() {
           <TrainerClientsBrowseFilters counts={filterCounts} quickFilter={quickFilter} onApply={applyFilter} />
         ) : (
           <p className="admin-clients-workspace__archive-hint muted">
-            Закрытые ПЗ: ушедшие с персоналки (в т.ч. с живым ТЗ/АЗ) и архив клуба. «Снова ко мне» —
-            если есть живой абон ПЗ.
+            Архив клуба: ушедшие из клуба целиком. «Снова ко мне» вернёт карточку в активные.
           </p>
         )}
 
@@ -657,16 +650,6 @@ export function TrainerClients() {
                   const outreachOn =
                     isOutreachScenario(quickFilter) &&
                     (quickFilter !== 'birthdays' || birthdayIsToday)
-                  const closedBadgeLabel =
-                    clientsTab === 'archive'
-                      ? trainerClosedListBadgeLabel(
-                          trainerClosedListBadge({
-                            client: c,
-                            memberships: memByClient[c.id] ?? [],
-                            lifecycleRows,
-                          }),
-                        )
-                      : ''
                   return (
                   <TrainerClientListItem
                     key={c.id}
@@ -685,7 +668,6 @@ export function TrainerClients() {
                         : null
                     }
                     highlighted={highlightClientId === String(c.id)}
-                    closedBadgeLabel={closedBadgeLabel}
                     onWriteToMax={
                       outreachOn
                         ? async () => {

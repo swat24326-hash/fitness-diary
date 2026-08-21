@@ -8,7 +8,6 @@ import {
 } from './localDbClubQuery'
 import { buildLastTrainingDateByClientId, buildTrainingsByClientId } from './trainerWorkspaceIndexes'
 import { getDb } from './localDb.js'
-import { isTrainerPzActiveView, isTrainerPzClosedView } from './clientHallLifecycleCore.js'
 
 const STORAGE_EVENT = 'fitness-diary-storage'
 
@@ -112,15 +111,10 @@ export async function loadTrainerWorkspaceSnapshot(trainerId, trainerClubId) {
   const lifecycleRows = await loadLifecycleForClients(clientIds)
   const memMap = await listMembershipsMapByClientIds(clientIds)
 
-  const clubArchived = sortClientsByName(clientsAll.filter((c) => Boolean(c?.archived_at)))
-  const live = clientsAll.filter((c) => !c?.archived_at)
-  const activeClients = sortClientsByName(
-    live.filter((c) => isTrainerPzActiveView(c, lifecycleRows, memMap[c.id] ?? memMap[String(c.id)] ?? [])),
-  )
-  const closedLive = live.filter((c) =>
-    isTrainerPzClosedView(c, lifecycleRows, memMap[c.id] ?? memMap[String(c.id)] ?? []),
-  )
-  const archivedClients = sortClientsByName([...closedLive, ...clubArchived])
+  // Как раньше: Активные = не в архиве клуба; Архив = clients.archived_at.
+  // Список «закрытый ПЗ при живом ТЗ» временно не выделяем в UI.
+  const activeClients = sortClientsByName(clientsAll.filter((c) => !c?.archived_at))
+  const archivedClients = sortClientsByName(clientsAll.filter((c) => Boolean(c?.archived_at)))
 
   const clientIdSet = new Set(clientIds)
 
