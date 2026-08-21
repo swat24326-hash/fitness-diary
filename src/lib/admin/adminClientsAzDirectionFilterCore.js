@@ -33,7 +33,7 @@ export function normalizeAzDirectionFilterId(raw) {
  * @returns {string} membership_type_id или ''
  */
 export function resolveAzClientDirectionTypeId(memList, todayIso, client) {
-  const active = pickHallActiveMembership(memList, todayIso, 'az')
+  const active = pickHallActiveMembership(memList, todayIso, 'az', client)
   const fromActive = String(active?.membership_type_id ?? '').trim()
   if (fromActive) return fromActive
 

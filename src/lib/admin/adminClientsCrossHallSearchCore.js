@@ -72,7 +72,7 @@ export function buildClientHallStack(client, memberships, opts = {}) {
   const stack = []
   for (const hall of CLIENT_HALL_TAB_ORDER) {
     if (!halls.has(hall)) continue
-    const sig = hallMembershipListSignal(memberships, today || undefined, hall)
+    const sig = hallMembershipListSignal(memberships, today || undefined, hall, client)
     const active = pickHallActiveMembership(memberships, today || undefined, hall)
     void active
     let summary = String(sig?.factLabel || sig?.label || '').trim() || '—'

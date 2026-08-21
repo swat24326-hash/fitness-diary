@@ -780,23 +780,15 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
 
   const azDirectionOptions = useMemo(() => {
     if (clientsTab !== 'az') return []
-    const q = query.trim().toLowerCase()
-    let pool = filterClientsByAdminListTab(clients, 'az', memByClient)
-    if (q) {
-      pool = pool.filter((c) => {
-        const name = String(c.name ?? '').toLowerCase()
-        const phone = String(c.phone ?? '').toLowerCase()
-        const card = String(c.card_number ?? '').toLowerCase()
-        return name.includes(q) || phone.includes(q) || card.includes(q)
-      })
-    }
+    // Всегда пул вкладки АЗ (не выдача поиска) — иначе muted-чипы врут и пропадают направления.
+    const pool = filterClientsByAdminListTab(clients, 'az', memByClient)
     return buildAzDirectionFilterOptions({
       clients: pool,
       memByClient,
       azTypes: azMembershipTypes,
       todayIso: today,
     })
-  }, [clientsTab, clients, query, memByClient, azMembershipTypes, today])
+  }, [clientsTab, clients, memByClient, azMembershipTypes, today])
 
   const totalPages = Math.max(1, Math.ceil(filteredClients.length / ADMIN_CLIENTS_PAGE_SIZE))
 
@@ -1593,8 +1585,8 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               const clientTrainings = pageTrainings.filter((t) => t.client_id === c.id)
               const isDeskClient = hall === 'tz' || hall === 'az'
               const isTzDesk = hall === 'tz'
-              const active = pickHallActiveMembership(mlistAll, today, hall)
-              const sig = hallMembershipListSignal(mlistAll, today, hall)
+              const active = pickHallActiveMembership(mlistAll, today, hall, c)
+              const sig = hallMembershipListSignal(mlistAll, today, hall, c)
               const expiredLeft =
                 active || isTzDesk ? null : pickExpiredMembershipWithRemaining(mlist, today)
               const deskMemForPkg =
@@ -1639,8 +1631,8 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               const factMlist = factHall
                 ? filterMembershipsByHall(mlistAll, factHall, c)
                 : mlistAll
-              const factActive = pickHallActiveMembership(mlistAll, today, factHall || null)
-              const factSig = hallMembershipListSignal(mlistAll, today, factHall || null)
+              const factActive = pickHallActiveMembership(mlistAll, today, factHall || null, c)
+              const factSig = hallMembershipListSignal(mlistAll, today, factHall || null, c)
               const factIsDesk = factHall === 'tz' || factHall === 'az'
               const factExpiredLeft =
                 factActive || factHall === 'tz'

@@ -100,9 +100,9 @@ export function pickDeskActiveMembership(memberships, todayIso = todayLocalIso()
  * @param {string} [todayIso]
  * @param {unknown} [hall]
  */
-export function pickHallActiveMembership(memberships, todayIso = todayLocalIso(), hall = null) {
+export function pickHallActiveMembership(memberships, todayIso = todayLocalIso(), hall = null, client = null) {
   const want = normalizeMembershipHall(hall) || normalizeDeskHall(hall)
-  const list = want ? filterMembershipsByHall(memberships, want) : memberships ?? []
+  const list = want ? filterMembershipsByHall(memberships, want, client) : memberships ?? []
   if (want === 'tz') return pickDeskActiveMembership(list, todayIso)
   return pickUsableMembershipForDate(list, String(todayIso ?? '').slice(0, 10))
 }
@@ -113,10 +113,11 @@ export function pickHallActiveMembership(memberships, todayIso = todayLocalIso()
  * @param {object[]|null|undefined} memberships
  * @param {string} [todayIso]
  * @param {unknown} [hall]
+ * @param {object|null|undefined} [client] — legacy без membership.hall
  */
-export function hallMembershipListSignal(memberships, todayIso = todayLocalIso(), hall = null) {
+export function hallMembershipListSignal(memberships, todayIso = todayLocalIso(), hall = null, client = null) {
   const want = normalizeMembershipHall(hall) || normalizeDeskHall(hall)
-  const list = want ? filterMembershipsByHall(memberships, want) : memberships ?? []
+  const list = want ? filterMembershipsByHall(memberships, want, client) : memberships ?? []
   if (want === 'tz') return deskMembershipSignal(list, todayIso)
   return membershipSignal(list, todayIso)
 }
