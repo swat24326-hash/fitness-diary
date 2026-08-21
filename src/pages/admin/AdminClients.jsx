@@ -690,16 +690,17 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
 
   const crossHallSearch = shouldSearchAcrossHalls(query, clientsTab)
 
-  // Cross-hall поиск: сбрасываем воронку — иначе chip≠list и hallMode врёт.
+  // Cross-hall поиск: сбрасываем воронку и направление АЗ — иначе chip≠list.
   useEffect(() => {
     if (!crossHallSearch) return
+    setAzDirectionFilter(AZ_DIRECTION_FILTER_ALL)
     if (quickFilter === 'none') return
     setQuickFilter('none')
     setListPage(0)
     patchListSearch((p) => {
       p.delete('filter')
     }, { resetPage: true })
-  }, [crossHallSearch]) // сброс воронки только при входе в cross-hall поиск
+  }, [crossHallSearch]) // сброс только при входе в cross-hall поиск
 
   const filteredClients = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -751,7 +752,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       (quickFilter === 'none' || !isAdminClientsBrowseMode(quickFilter))
     ) {
       base = base.filter((c) =>
-        clientMatchesAzDirectionFilter(memByClient[c.id] ?? [], azDirectionFilter, today),
+        clientMatchesAzDirectionFilter(memByClient[c.id] ?? [], azDirectionFilter, today, c),
       )
     }
 
@@ -945,10 +946,11 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         memByClient,
         clientsTab,
         today,
-        azDirectionFilter: clientsTab === 'az' ? azDirectionFilter : '',
+        azDirectionFilter:
+          clientsTab === 'az' && !crossHallSearch ? azDirectionFilter : '',
         lifecycleRows,
       }),
-    [clients, clientsTab, memByClient, today, azDirectionFilter, lifecycleRows],
+    [clients, clientsTab, memByClient, today, azDirectionFilter, lifecycleRows, crossHallSearch],
   )
 
   const allTileLabel = adminClientsAllTileLabel(clientsTab, filterCounts)
@@ -1070,6 +1072,26 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
 
   const applyAzDirectionFilter = (id) => {
     const next = normalizeAzDirectionFilterId(id)
+    // Клик по направлению при поиске — выходим из cross-hall (как у воронки).
+    if (crossHallSearch) {
+      setQuery('')
+      setAzDirectionFilter(next)
+      setListPage(0)
+      if (next && quickFilter === 'none') {
+        setQuickFilter('all')
+        patchListSearch((p) => {
+          p.delete('q')
+          p.set('filter', 'all')
+          p.delete('page')
+        }, { resetPage: true })
+        return
+      }
+      patchListSearch((p) => {
+        p.delete('q')
+        p.delete('page')
+      }, { resetPage: true })
+      return
+    }
     setAzDirectionFilter(next)
     setListPage(0)
     if (next && quickFilter === 'none') {
@@ -1424,8 +1446,9 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
             {clientsTab === 'az' ? (
               <AdminClientsAzDirectionFilters
                 options={azDirectionOptions}
-                value={azDirectionFilter}
+                value={crossHallSearch ? AZ_DIRECTION_FILTER_ALL : azDirectionFilter}
                 onChange={applyAzDirectionFilter}
+                mutedBySearch={crossHallSearch}
               />
             ) : null}
             {isDeskHallTab ? (
@@ -1586,8 +1609,6 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                     inferDeskPackageDuration(deskMemForPkg.start_date, deskMemForPkg.end_date),
                   )
                 : null
-              const azDeductMem =
-                hall === 'az' ? pickAzMembershipForDeduct(mlist, today) || deskMemForPkg : null
               const last = lastTrainingDateFromMap(lastTrainingByClient, c.id, pageTrainingsBusy)
               const inactiveRow = todaySnapshot.inactiveDetailById.get(c.id)
               const inactiveLabel =
@@ -1625,6 +1646,18 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                 factActive || factHall === 'tz'
                   ? null
                   : pickExpiredMembershipWithRemaining(factMlist, today)
+              const azDeductHall = crossHallSearch ? factHall : hall
+              const azDeductMem =
+                azDeductHall === 'az'
+                  ? pickAzMembershipForDeduct(
+                      filterMembershipsByHall(mlistAll, 'az', c),
+                      today,
+                    ) || null
+                  : null
+              const listSig = crossHallSearch ? factSig : sig
+              const cardHrefHall = crossHallSearch
+                ? factHall || resolveAdminClientsActionHall(clientsTab) || ''
+                : ''
               const abonTypeCode = resolveClientListMembershipTypeCode(
                 {
                   active: factActive,
@@ -1651,7 +1684,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                         />
                       ) : null}
                       <div className="td-client-card__who">
-                        <span title={sig.label} className="td-client-dot" style={{ background: sig.color }} />
+                        <span title={listSig.label} className="td-client-dot" style={{ background: listSig.color }} />
                         <div className="td-client-card__who-text">
                           <strong className="td-client-card__name">
                             {formatClientName(c.name) || c.name}
@@ -1859,7 +1892,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                           onFeedback={onSmsFeedback}
                         />
                         <Link
-                          to={cardHrefForClient(c.id)}
+                          to={cardHrefForClient(c.id, cardHrefHall)}
                           state={cardNavSeed}
                           className="btn btn-primary btn-icon-square btn-touch u-no-decoration"
                           aria-label="Карточка клиента"

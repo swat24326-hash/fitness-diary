@@ -3,6 +3,7 @@
  * Чистая логика без React / IDB.
  */
 
+import { filterMembershipsByHall } from '../membershipHallCore.js'
 import { pickHallActiveMembership, deskAzDirectionLabel } from './deskMembershipLedgerCore.js'
 
 /** Все направления */
@@ -25,16 +26,18 @@ export function normalizeAzDirectionFilterId(raw) {
 
 /**
  * Направление клиента АЗ: сначала действующий абон (срок+занятия), иначе последний по датам.
+ * Только абоны зала АЗ (client — для legacy без membership.hall).
  * @param {object[]|null|undefined} memList
  * @param {string} [todayIso]
+ * @param {object|null|undefined} [client]
  * @returns {string} membership_type_id или ''
  */
-export function resolveAzClientDirectionTypeId(memList, todayIso) {
+export function resolveAzClientDirectionTypeId(memList, todayIso, client) {
   const active = pickHallActiveMembership(memList, todayIso, 'az')
   const fromActive = String(active?.membership_type_id ?? '').trim()
   if (fromActive) return fromActive
 
-  const list = Array.isArray(memList) ? memList : []
+  const list = filterMembershipsByHall(memList, 'az', client)
   if (!list.length) return ''
 
   const sorted = [...list].sort((a, b) => {
@@ -53,11 +56,12 @@ export function resolveAzClientDirectionTypeId(memList, todayIso) {
  * @param {object[]|null|undefined} memList
  * @param {string} filterId — '' | '__none__' | type uuid
  * @param {string} [todayIso]
+ * @param {object|null|undefined} [client]
  */
-export function clientMatchesAzDirectionFilter(memList, filterId, todayIso) {
+export function clientMatchesAzDirectionFilter(memList, filterId, todayIso, client) {
   const want = normalizeAzDirectionFilterId(filterId)
   if (!want) return true
-  const got = resolveAzClientDirectionTypeId(memList, todayIso)
+  const got = resolveAzClientDirectionTypeId(memList, todayIso, client)
   if (want === AZ_DIRECTION_FILTER_NONE) return !got
   return got === want
 }
@@ -92,7 +96,7 @@ export function buildAzDirectionFilterOptions(input) {
   for (const c of clients) {
     const cid = String(c?.id ?? '').trim()
     if (!cid) continue
-    const typeId = resolveAzClientDirectionTypeId(getMem(cid), today)
+    const typeId = resolveAzClientDirectionTypeId(getMem(cid), today, c)
     if (!typeId) {
       noneCount += 1
       continue

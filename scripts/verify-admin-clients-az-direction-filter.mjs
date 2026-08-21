@@ -27,6 +27,7 @@ ok(normalizeAzDirectionFilterId('type-1') === 'type-1', 'type id')
 const today = '2026-08-04'
 const boxMem = [
   {
+    hall: 'az',
     membership_type_id: 'box',
     start_date: '2026-07-01',
     end_date: '2026-09-01',
@@ -36,6 +37,7 @@ const boxMem = [
 ]
 const noTypeMem = [
   {
+    hall: 'az',
     membership_type_id: null,
     start_date: '2026-07-01',
     end_date: '2026-09-01',
@@ -45,6 +47,7 @@ const noTypeMem = [
 ]
 const expiredThenBox = [
   {
+    hall: 'az',
     membership_type_id: 'step',
     start_date: '2026-01-01',
     end_date: '2026-02-01',
@@ -52,6 +55,7 @@ const expiredThenBox = [
     used_trainings: 8,
   },
   {
+    hall: 'az',
     membership_type_id: 'box',
     start_date: '2026-07-01',
     end_date: '2026-09-01',
@@ -64,6 +68,36 @@ ok(resolveAzClientDirectionTypeId(boxMem, today) === 'box', 'active box')
 ok(resolveAzClientDirectionTypeId(noTypeMem, today) === '', 'no type')
 ok(resolveAzClientDirectionTypeId(expiredThenBox, today) === 'box', 'usable wins over old')
 
+const multiHallMem = [
+  {
+    hall: 'pz',
+    membership_type_id: 'pz-vip',
+    start_date: '2026-07-01',
+    end_date: '2026-12-01',
+    total_trainings: 12,
+    used_trainings: 1,
+  },
+  {
+    hall: 'az',
+    membership_type_id: 'box',
+    start_date: '2026-01-01',
+    end_date: '2026-02-01',
+    total_trainings: 8,
+    used_trainings: 8,
+  },
+]
+ok(
+  resolveAzClientDirectionTypeId(multiHallMem, today) === 'box',
+  'fallback only AZ — not PZ type',
+)
+ok(
+  resolveAzClientDirectionTypeId(
+    [{ hall: 'pz', membership_type_id: 'pz-vip', start_date: '2026-07-01', end_date: '2026-12-01' }],
+    today,
+  ) === '',
+  'no AZ mems → empty',
+)
+
 ok(clientMatchesAzDirectionFilter(boxMem, '', today), 'all matches')
 ok(clientMatchesAzDirectionFilter(boxMem, 'box', today), 'box matches')
 ok(!clientMatchesAzDirectionFilter(boxMem, 'step', today), 'step rejects box')
@@ -71,14 +105,15 @@ ok(clientMatchesAzDirectionFilter(noTypeMem, AZ_DIRECTION_FILTER_NONE, today), '
 ok(!clientMatchesAzDirectionFilter(boxMem, AZ_DIRECTION_FILTER_NONE, today), 'none rejects typed')
 
 const clients = [
-  { id: 'c1' },
-  { id: 'c2' },
-  { id: 'c3' },
+  { id: 'c1', desk_hall: 'az' },
+  { id: 'c2', desk_hall: 'az' },
+  { id: 'c3', desk_hall: 'az' },
 ]
 const memByClient = {
   c1: boxMem,
   c2: [
     {
+      hall: 'az',
       membership_type_id: 'step',
       start_date: '2026-07-01',
       end_date: '2026-09-01',

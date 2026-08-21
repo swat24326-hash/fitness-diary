@@ -86,7 +86,7 @@ export function applyAzDirectionToBrowsePool(clients, memByClient, clientsTab, a
   if (!want) return clients ?? []
   const day = String(today ?? '').slice(0, 10)
   return (clients ?? []).filter((c) =>
-    clientMatchesAzDirectionFilter(memListForAdminClient(c, memByClient), want, day),
+    clientMatchesAzDirectionFilter(memListForAdminClient(c, memByClient), want, day, c),
   )
 }
 
@@ -243,7 +243,7 @@ export function formatAdminClientsResultsShown(p = {}) {
  * Подсказка к воронке при cross-hall поиске.
  */
 export function adminClientsCrossHallSearchNote() {
-  return 'Поиск по всему клубу (ПЗ, ТЗ и АЗ). Сводка на сегодня — по вкладке, не по выдаче поиска. Фильтр воронки сброшен.'
+  return 'Поиск по всему клубу (ПЗ, ТЗ и АЗ). Сводка и направления — по вкладке, не по выдаче. Фильтры воронки и направлений сброшены; клик по ним выходит из поиска.'
 }
 
 /** @param {string} [browseMode] */

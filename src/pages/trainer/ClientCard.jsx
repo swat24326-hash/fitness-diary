@@ -497,7 +497,7 @@ export function ClientCard() {
       return
     }
     setEditForm({
-      name: client.name ?? '',
+      name: formatClientName(client.name) || client.name || '',
       phone: client.phone ?? '',
       birth_date: client.birth_date ?? '',
       card_number: client.card_number ?? '',
@@ -898,7 +898,7 @@ export function ClientCard() {
       <header className="trainer-path-head">
         <div className="trainer-path-head__left">
           <div className="trainer-path-head__title-row">
-            <h1 className="trainer-path-head__title">{client.name}</h1>
+            <h1 className="trainer-path-head__title">{formatClientName(client.name) || client.name}</h1>
             {String(client.lifecycle ?? '') === 'pnk_lost' ? (
               <span className="pnk-badge pnk-badge--lost" title="Отказ в воронке ПНК — не оформленный ДК">
                 Отказ ПНК

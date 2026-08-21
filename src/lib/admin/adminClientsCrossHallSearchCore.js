@@ -92,15 +92,21 @@ export function buildClientHallStack(client, memberships, opts = {}) {
 }
 
 /**
- * Зал для фактов «Абонемент» в cross-hall поиске: первый в стеке (порядок ПЗ→ТЗ→АЗ).
- * @param {Array<{ hall?: string }>} hallStack
+ * Зал для фактов «Абонемент» / ссылки карточки в cross-hall поиске:
+ * первый в стеке (порядок ПЗ→ТЗ→АЗ), иначе fallback.
+ * @param {Array<{ hall?: string, hrefHall?: string }>} hallStack
  * @param {string|null|undefined} fallbackHall
  */
 export function resolveCrossHallSearchFactHall(hallStack, fallbackHall = null) {
   const first = Array.isArray(hallStack) ? hallStack[0] : null
-  const fromStack = String(first?.hall ?? '').trim().toLowerCase()
+  const fromStack = String(first?.hrefHall || first?.hall || '')
+    .trim()
+    .toLowerCase()
   if (fromStack === 'pz' || fromStack === 'tz' || fromStack === 'az') return fromStack
   const fb = String(fallbackHall ?? '').trim().toLowerCase()
   if (fb === 'pz' || fb === 'tz' || fb === 'az') return fb
   return ''
 }
+
+/** @deprecated alias — то же, что resolveCrossHallSearchFactHall */
+export const resolveCrossHallCardHall = resolveCrossHallSearchFactHall

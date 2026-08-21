@@ -310,6 +310,14 @@
   border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
 }
 
+.admin-clients-az-dirs--muted {
+  opacity: 0.72;
+}
+
+.admin-clients-az-dirs--muted .admin-clients-az-dirs__chip.is-active {
+  box-shadow: none;
+}
+
 .admin-clients-az-dirs__title {
   margin: 0 0 10px;
   font-size: 0.72rem;

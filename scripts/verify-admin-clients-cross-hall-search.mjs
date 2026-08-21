@@ -79,11 +79,20 @@ ok(!stack.some((s) => s.hall === 'az'), 'no empty az window')
 ok(resolveCrossHallSearchFactHall(stack, 'tz') === 'pz', 'fact hall prefers stack first (pz)')
 ok(resolveCrossHallSearchFactHall([], 'az') === 'az', 'fact hall fallback')
 ok(resolveCrossHallSearchFactHall([], null) === '', 'fact hall empty')
+ok(
+  resolveCrossHallSearchFactHall([{ hrefHall: 'tz', hall: 'tz' }], 'pz') === 'tz',
+  'card hall uses hrefHall from stack',
+)
 
 const emptyTz = buildClientHallStack({ trainer_id: 't' }, [{ hall: 'pz', start_date: '2026-01-01', end_date: '2026-12-31', total_trainings: 1 }], {
   today: '2026-08-10',
 })
 ok(emptyTz.length === 1 && emptyTz[0].hall === 'pz', 'pure pz no tz block')
+
+// TZ-only in cross-hall from ПЗ tab → card hall must be tz, not pz
+const tzStack = buildClientHallStack(tzOnly, memByClient[2], { today: '2026-08-10' })
+ok(tzStack[0]?.hall === 'tz', 'tz-only stack')
+ok(resolveCrossHallSearchFactHall(tzStack, 'pz') === 'tz', 'tz-only card hall ignores tab pz')
 
 if (failed) {
   console.error(`\n${failed} failed`)
