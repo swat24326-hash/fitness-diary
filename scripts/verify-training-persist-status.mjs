@@ -8,6 +8,7 @@ import {
   shouldSkipDuplicateCompleteClick,
   shouldSkipDuplicateFirstCompletionSave,
   shouldSkipSilentPersistOfCompleted,
+  shouldSkipSilentPersistWhileCompleteInFlight,
 } from '../src/lib/trainingPersistStatusCore.js'
 
 let failed = 0
@@ -42,6 +43,9 @@ ok(!shouldSkipDuplicateFirstCompletionSave('completed', false), 'edit completed 
 ok(shouldSkipSilentPersistOfCompleted('completed', true), 'autosave does not uncomplete')
 ok(!shouldSkipSilentPersistOfCompleted('draft', true), 'autosave draft proceeds')
 ok(!shouldSkipSilentPersistOfCompleted('completed', false), 'explicit save of completed proceeds')
+ok(shouldSkipSilentPersistWhileCompleteInFlight(true, true), 'autosave yields to complete in-flight')
+ok(!shouldSkipSilentPersistWhileCompleteInFlight(true, false), 'autosave when not completing')
+ok(!shouldSkipSilentPersistWhileCompleteInFlight(false, true), 'explicit complete not skipped by guard')
 
 if (failed) {
   console.error(`\n${failed} check(s) failed`)

@@ -29,7 +29,7 @@ ok(CLUB_CALL_SHEET_NOTE_CHIPS === CLUB_CALL_FUNNEL_CHIPS, 'sheet alias = funnel'
 ok(CLUB_CALL_FUNNEL_CHIPS.some((c) => c.id === 'no_answer'), 'no_answer')
 ok(CLUB_CALL_FUNNEL_CHIPS.some((c) => c.id === 'callback_later' && c.needsCallbackOn), 'callback_later needs date')
 ok(CLUB_CALL_FUNNEL_CHIPS.some((c) => c.id === 'bought' && c.kind === 'close'), 'bought close')
-ok(isClubCallFunnelOpenChip('thinks_uk'), 'open chip')
+ok(isClubCallFunnelOpenChip('waiting_offer'), 'open chip')
 ok(isClubCallFunnelCloseChip('refused'), 'close chip')
 ok(normalizeClubCallFunnelChipId('bought') === 'bought', 'normalize ok')
 ok(normalizeClubCallFunnelChipId('nope') === null, 'normalize bad')
@@ -63,7 +63,7 @@ ok(
   'match by id',
 )
 ok(
-  matchClubCallFunnelChip({ staff_note: 'Думает про УК' }).chipId === 'thinks_uk',
+  matchClubCallFunnelChip({ staff_note: 'Ждёт условия / цену' }).chipId === 'waiting_offer',
   'match legacy note',
 )
 ok(

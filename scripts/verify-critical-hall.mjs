@@ -17,6 +17,7 @@ import {
   resolveTrainingPersistStatus,
   shouldSkipDuplicateFirstCompletionSave,
   shouldSkipSilentPersistOfCompleted,
+  shouldSkipSilentPersistWhileCompleteInFlight,
 } from '../src/lib/trainingPersistStatusCore.js'
 
 let failed = 0
@@ -36,6 +37,12 @@ ok(!isTrainingFirstCompletion('completed', 'completed'), '1b правка зав
 ok(resolveTrainingPersistStatus('draft', 'completed') === 'completed', '1c автосейв не откатывает completed')
 ok(shouldSkipSilentPersistOfCompleted('completed', true), '1d автосейв пропускает уже completed на диске')
 ok(shouldSkipDuplicateFirstCompletionSave('completed', true), '1e второй тап complete не overwrite')
+ok(
+  shouldSkipSilentPersistWhileCompleteInFlight(true, true),
+  '1f автосейв не стартует во время «Закончить»',
+)
+ok(!shouldSkipSilentPersistWhileCompleteInFlight(false, true), '1g явный save при complete ок')
+ok(!shouldSkipSilentPersistWhileCompleteInFlight(true, false), '1h автосейв без complete ок')
 
 {
   const page = read('src/pages/trainer/TrainingPage.jsx')
@@ -47,6 +54,8 @@ ok(shouldSkipDuplicateFirstCompletionSave('completed', true), '1e второй �
   ok(/shouldSkipDuplicateFirstCompletionSave/.test(page), '2c exclusive: повтор complete по диску')
   ok(/shouldSkipSilentPersistOfCompleted/.test(page), '2d exclusive: автосейв не затирает completed')
   ok(/completeInFlightRef/.test(page), '2e второй тап «Закончить» отсекается')
+  ok(/shouldSkipSilentPersistWhileCompleteInFlight/.test(page), '2e2 автосейв пауза на complete')
+  ok(/queueOnly:\s*true/.test(page), '2e3 чип очереди без getAll stores')
   const samplesAt = page.indexOf('getSessionSamples')
   const endHrAt = page.indexOf('endTrainingHrSession')
   const exclusiveAt = page.indexOf('await runExclusive')

@@ -32,3 +32,11 @@ export function shouldSkipDuplicateFirstCompletionSave(diskStatus, thisPersistIs
 export function shouldSkipSilentPersistOfCompleted(diskStatus, silent) {
   return silent === true && isTrainingStatusCompleted(diskStatus)
 }
+
+/**
+ * Пока идёт «Закончить», silent-автосейв не занимает mutex и IndexedDB.
+ * На слабых планшетах иначе «Сохраняем…» + мигание «Сохранение…» висят минутами.
+ */
+export function shouldSkipSilentPersistWhileCompleteInFlight(silent, completeInFlight) {
+  return silent === true && completeInFlight === true
+}

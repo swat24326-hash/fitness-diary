@@ -42,8 +42,6 @@ export const CLUB_CALL_FUNNEL_CHIPS = Object.freeze([
     kind: 'open',
     needsCallbackOn: true,
   },
-  { id: 'thinks_uk', label: 'Думает про УК', note: 'Думает про УК', kind: 'open' },
-  { id: 'thinks_nk', label: 'Думает · НК', note: 'Думает · НК', kind: 'open' },
   { id: 'waiting_offer', label: 'Ждёт условия', note: 'Ждёт условия / цену', kind: 'open' },
   { id: 'refused', label: 'Отказ', note: 'Отказ', kind: 'close' },
   { id: 'bought', label: 'Купил / оформил', note: 'Купил / оформил', kind: 'close' },

@@ -5,10 +5,11 @@ import { isSupabaseConfigured } from '../lib/supabase'
 
 /**
  * Счётчик очереди sync для баннеров (главная тренера и т.д.).
- * @param {{ enabled?: boolean, debounceMs?: number }} [opts]
+ * @param {{ enabled?: boolean, debounceMs?: number, queueOnly?: boolean }} [opts]
+ * `queueOnly` — только длина sync_queue, без тяжёлого getAll (экран тренировки).
  */
 export function useSyncOutboundPoll(opts = {}) {
-  const { enabled = true, debounceMs = 900 } = opts
+  const { enabled = true, debounceMs = 900, queueOnly = false } = opts
   const [queue, setQueue] = useState(0)
   const [localOnly, setLocalOnly] = useState(0)
   const [ready, setReady] = useState(false)
@@ -21,7 +22,7 @@ export function useSyncOutboundPoll(opts = {}) {
       return
     }
     try {
-      const s = await getSyncOutboundSummary()
+      const s = await getSyncOutboundSummary(queueOnly ? { queueOnly: true } : {})
       setQueue(s.queue)
       setLocalOnly(s.localOnly)
     } catch {
@@ -30,7 +31,7 @@ export function useSyncOutboundPoll(opts = {}) {
     } finally {
       setReady(true)
     }
-  }, [enabled])
+  }, [enabled, queueOnly])
 
   useEffect(() => {
     void refresh()

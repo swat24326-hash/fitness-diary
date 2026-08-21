@@ -150,9 +150,15 @@ export async function getPendingSyncQueueLength() {
 
 export { countUnsyncedLocalRecords } from './syncLocalRecords'
 
-/** Очередь + записи только на устройстве (ещё не в sync_queue). */
-export async function getSyncOutboundSummary() {
+/**
+ * Очередь + записи только на устройстве (ещё не в sync_queue).
+ * @param {{ queueOnly?: boolean }} [opts] — `queueOnly`: без getAll по stores (форма тренировки / слабый планшет).
+ */
+export async function getSyncOutboundSummary(opts = {}) {
   const queue = await getPendingSyncQueueLength()
+  if (opts.queueOnly === true) {
+    return { queue, localOnly: 0, total: queue, byTable: {} }
+  }
   const { total: localOnly, byTable } = await countUnsyncedLocalRecords()
   return { queue, localOnly, total: queue + localOnly, byTable: byTable ?? {} }
 }

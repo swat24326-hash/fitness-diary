@@ -28,6 +28,7 @@ import {
   shouldSkipDuplicateCompleteClick,
   shouldSkipDuplicateFirstCompletionSave,
   shouldSkipSilentPersistOfCompleted,
+  shouldSkipSilentPersistWhileCompleteInFlight,
 } from '../../lib/trainingPersistStatusCore'
 import {
   TRAINING_SESSION_TYPES,
@@ -174,7 +175,12 @@ export function TrainingPage() {
   const userEditedRef = useRef(false)
   const baselineContentSnapshotRef = useRef('')
 
-  const syncOutbound = useSyncOutboundPoll({ enabled: loadState === 'ok' })
+  // Без getAll по всем stores — на слабом планшете полный scan душил «Закончить».
+  const syncOutbound = useSyncOutboundPoll({
+    enabled: loadState === 'ok' && !completeBusy,
+    queueOnly: true,
+    debounceMs: 1600,
+  })
 
   const runExclusive = useCallback(async (fn) => {
     const next = saveMutexRef.current.then(fn, fn)
@@ -347,9 +353,22 @@ export function TrainingPage() {
     const skipNavigate = opts.skipNavigate === true
     const completeClick = String(status ?? '') === 'completed' && !silent
     if (completeClick && shouldSkipDuplicateCompleteClick(completeInFlightRef.current)) return
+    if (shouldSkipSilentPersistWhileCompleteInFlight(silent, completeInFlightRef.current)) {
+      setAutosaveStatus('idle')
+      return
+    }
     if (completeClick) {
       completeInFlightRef.current = true
       setCompleteBusy(true)
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current)
+        autosaveTimerRef.current = null
+      }
+      if (autosaveUiTimerRef.current) {
+        clearTimeout(autosaveUiTimerRef.current)
+        autosaveUiTimerRef.current = null
+      }
+      setAutosaveStatus('idle')
     }
     try {
     if (!silent) {
@@ -767,16 +786,24 @@ export function TrainingPage() {
     if (loadState !== 'ok') return
     if (!user?.id) return
     if (meta.status === 'completed') return
+    if (completeBusy) {
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current)
+        autosaveTimerRef.current = null
+      }
+      return
+    }
 
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
     autosaveTimerRef.current = setTimeout(() => {
+      if (completeInFlightRef.current) return
       void persist('draft', { silent: true, skipNavigate: true })
     }, 650)
 
     return () => {
       if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current)
     }
-  }, [snapshotKey, loadState, user?.id, meta.status])
+  }, [snapshotKey, loadState, user?.id, meta.status, completeBusy])
 
   useEffect(() => {
     if (loadState !== 'ok') return
@@ -785,6 +812,7 @@ export function TrainingPage() {
     let cancelled = false
     const persistFlush = () => {
       if (!userEditedRef.current) return
+      if (completeInFlightRef.current) return
       void persist('draft', { silent: true, skipNavigate: true })
     }
     const onHide = () => {
