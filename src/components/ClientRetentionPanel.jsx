@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import {
+  formatPzChurnHint,
   formatRetentionRatePct,
+  formatTenureClientCountSub,
   formatTenureDays,
   formatTrainerM3Cell,
   isTrainerM3Immature,
@@ -77,14 +79,14 @@ export function ClientRetentionPanel({
               <>
                 <p className="client-retention-panel__about-lead">
                   <strong>Зачем вам:</strong> честная картина по вашим клиентам с планшетом — остаются ли они
-                  ходить, продлевают абон, как долго живут в зале. Это не оценка ЗП и не «Качество ведения».
+                  ходить, продлевают абонемент, как долго живут в зале. Это не оценка ЗП и не «Качество ведения».
                 </p>
                 <ul className="client-retention-panel__about-list">
                   <li>
                     <strong>Удержание M+3</strong> — прижились ли люди через 3 месяца после первого абонемента.
                   </li>
                   <li>
-                    <strong>Продления</strong> — кто из ваших клиентов продлил абон в ближайшие 14 дней после
+                    <strong>Продления</strong> — кто из ваших клиентов продлил абонемент в ближайшие 14 дней после
                     окончания.
                   </li>
                   <li>
@@ -101,13 +103,13 @@ export function ClientRetentionPanel({
               <>
                 <p className="client-retention-panel__about-lead">
                   <strong>Зачем клубу:</strong> видеть, удерживаем ли клиентов ПЗ с планшетом — не только сколько
-                  пришло, но кто остался ходить, продлил абон и почему ушёл в архив. Отдельно от «Качества
+                  пришло, но кто остался ходить, продлил абонемент и почему ушёл в архив. Отдельно от «Качества
                   ведения» и чипа «Не активные».
                 </p>
                 <ul className="client-retention-panel__about-list">
                   <li>Сводка по клубу — карточки сверху; сравнение тренеров — таблица ниже.</li>
                   <li>
-                    «Архив за период» — кто ушёл <em>в выбранном месяце/квартале</em>, не все 25 во вкладке
+                    «Архив за период» — кто ушёл <em>в выбранном месяце/квартале</em>, не весь список во вкладке
                     «Архив».
                   </li>
                   <li>Причины архива — из модалки «В архив», чтобы понимать отток.</li>
@@ -131,7 +133,7 @@ export function ClientRetentionPanel({
               абонемента (только «созревшие» когорты).
             </li>
             <li>
-              <strong>Продления</strong> — из тех, у кого абон заканчивался в последние 14 дней, сколько
+              <strong>Продления</strong> — из тех, у кого абонемент заканчивался в последние 14 дней, сколько
               продлили.
             </li>
             <li>
@@ -172,11 +174,11 @@ export function ClientRetentionPanel({
           hint={
             r.renewalEligible
               ? `${r.renewalRenewed ?? 0} из ${r.renewalEligible} · окно 14 дн.`
-              : 'Нет истекающих абонов в окне'
+              : 'Нет истекающих абонементов в окне'
           }
         />
         <KpiCard
-          label="Архив клуба"
+          label="Архив за период"
           tone={r.archiveRate != null && r.archiveRate > 0.15 ? 'low' : 'none'}
           value={formatRetentionRatePct(r.archiveRate)}
           hint={`${r.archivesInPeriod ?? 0} ушли · база ${r.universeSize ?? 0}`}
@@ -185,11 +187,7 @@ export function ClientRetentionPanel({
           label="Закрытия ПЗ"
           tone={r.pzChurnRate != null && r.pzChurnRate > 0.2 ? 'low' : 'none'}
           value={formatRetentionRatePct(r.pzChurnRate)}
-          hint={
-            (r.pzChurnInPeriod ?? 0) > 0
-              ? `${r.pzChurnInPeriod} закрытий · ${r.pzChurnTransitions ?? 0} переход в ТЗ/АЗ`
-              : 'Нет закрытий ПЗ за период'
-          }
+          hint={formatPzChurnHint(r)}
         />
         <KpiCard
           label="Медиана жизни"
@@ -207,7 +205,7 @@ export function ClientRetentionPanel({
           }
         />
         <KpiCard
-          label="Активных сейчас"
+          label="Активные сейчас"
           value={String(r.poolSize ?? 0)}
           hint={`База для удержания · ${r.universeSize ?? 0} всего`}
         />
@@ -286,7 +284,7 @@ export function ClientRetentionPanel({
                         </span>
                         {row.tenureClientCount ? (
                           <span className="client-retention-trainers__life-sub muted">
-                            {row.tenureClientCount} кли.
+                            {formatTenureClientCountSub(row.tenureClientCount)}
                           </span>
                         ) : null}
                       </td>

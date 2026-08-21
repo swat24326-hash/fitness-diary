@@ -33,6 +33,10 @@ import {
 import { aggregateArchiveReasonMix } from '../src/lib/admin/clientRetentionArchiveReasonCore.js'
 import { aggregateClientRetention } from '../src/lib/admin/clientRetentionAgg.js'
 import {
+  formatPzChurnHint,
+  formatRuCountWord,
+  formatTenureClientCountSub,
+  formatTenureDays,
   formatTrainerM3Cell,
   isTrainerM3Immature,
   retentionRateTone,
@@ -353,6 +357,17 @@ ok(
 )
 ok(formatTrainerM3Cell({ retentionM3: { averageRate: null, cohortSize: 0 }, tenureClientCount: 2 }).text === 'Рано', 'immature label')
 ok(formatTrainerM3Cell({ retentionM3: { averageRate: 0.67, cohortSize: 3 } }).text === '67%', 'm3 cell pct')
+
+setSection('presentation plurals')
+ok(formatRuCountWord(1, 'закрытие', 'закрытия', 'закрытий') === '1 закрытие', '1 закрытие')
+ok(formatRuCountWord(2, 'закрытие', 'закрытия', 'закрытий') === '2 закрытия', '2 закрытия')
+ok(formatRuCountWord(5, 'закрытие', 'закрытия', 'закрытий') === '5 закрытий', '5 закрытий')
+ok(formatPzChurnHint({ pzChurnInPeriod: 1, pzChurnTransitions: 1 }) === '1 закрытие · 1 переход в ТЗ/АЗ', 'pz hint 1/1')
+ok(formatPzChurnHint({ pzChurnInPeriod: 0, pzChurnTransitions: 0 }) === 'Нет закрытий ПЗ за период', 'pz hint empty')
+ok(formatTenureClientCountSub(1) === '1 клиент', '1 клиент')
+ok(formatTenureClientCountSub(32) === '32 клиента', '32 клиента')
+ok(formatTenureDays(1) === '1 день', '1 день')
+ok(formatTenureDays(50) === '50 дней', '50 дней')
 
 setSection('CLOSED PZ / pool vs club archive & pz churn')
 ok(

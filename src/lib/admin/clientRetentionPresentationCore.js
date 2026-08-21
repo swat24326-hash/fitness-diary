@@ -5,6 +5,23 @@
 /** @typedef {'good' | 'mid' | 'low' | 'none' | 'pending'} RetentionTone */
 
 /**
+ * Русское склонение: 1 день / 2 дня / 5 дней.
+ * @param {number} n
+ * @param {string} one
+ * @param {string} few
+ * @param {string} many
+ */
+export function formatRuCountWord(n, one, few, many) {
+  const num = Math.abs(Math.trunc(Number(n) || 0))
+  const mod10 = num % 10
+  const mod100 = num % 100
+  let word = many
+  if (mod10 === 1 && mod100 !== 11) word = one
+  else if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) word = few
+  return `${num} ${word}`
+}
+
+/**
  * @param {number|null|undefined} rate 0…1
  * @returns {string}
  */
@@ -51,13 +68,33 @@ export function formatTrainerM3Cell(row) {
  */
 export function formatTenureDays(days) {
   if (days == null || !Number.isFinite(days)) return '—'
-  const n = Math.round(days)
-  const mod10 = n % 10
-  const mod100 = n % 100
-  let word = 'дней'
-  if (mod10 === 1 && mod100 !== 11) word = 'день'
-  else if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) word = 'дня'
-  return `${n} ${word}`
+  return formatRuCountWord(Math.round(days), 'день', 'дня', 'дней')
+}
+
+/**
+ * Подсказка KPI «Закрытия ПЗ».
+ * @param {{ pzChurnInPeriod?: number, pzChurnTransitions?: number }|null|undefined} r
+ */
+export function formatPzChurnHint(r) {
+  const closed = Number(r?.pzChurnInPeriod) || 0
+  if (closed <= 0) return 'Нет закрытий ПЗ за период'
+  const transitions = Number(r?.pzChurnTransitions) || 0
+  return `${formatRuCountWord(closed, 'закрытие', 'закрытия', 'закрытий')} · ${formatRuCountWord(
+    transitions,
+    'переход',
+    'перехода',
+    'переходов',
+  )} в ТЗ/АЗ`
+}
+
+/**
+ * Число клиентов в подписи медианы жизни.
+ * @param {number|null|undefined} count
+ */
+export function formatTenureClientCountSub(count) {
+  const n = Number(count) || 0
+  if (n <= 0) return ''
+  return formatRuCountWord(n, 'клиент', 'клиента', 'клиентов')
 }
 
 /**
