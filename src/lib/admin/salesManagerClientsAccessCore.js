@@ -3,6 +3,7 @@
  * Список/карточка/абоны своего club_id; без чужих клубов и без справочников.
  */
 
+import { isHallOpen } from '../clientHallLifecycleCore.js'
 import { normalizeDeskHall } from './deskHallClientsCore.js'
 
 /** Таблицы, которые менеджер может писать через push (коммерческий контур). */
@@ -61,27 +62,55 @@ export function isDeskHallTzOrAz(deskHall) {
 }
 
 /**
- * Менеджер может жёстко удалить только desk ТЗ/АЗ своего клуба (не ПЗ / lite).
- * @param {string} [profileClubId]
- * @param {{ club_id?: unknown, desk_hall?: unknown }} [client]
+ * Desk-only: ТЗ/АЗ без тренера и без открытого ПЗ (иначе hard-delete снесёт дневник ПЗ).
+ * @param {{ desk_hall?: unknown, trainer_id?: unknown } | null | undefined} client
+ * @param {{ memberships?: object[], lifecycleRows?: object[], asOf?: string }} [ctx]
  */
-export function assertSalesManagerDeskClientDelete(profileClubId, client) {
+export function isDeskOnlyClientForManagerDelete(client, ctx = {}) {
+  if (!isDeskHallTzOrAz(client?.desk_hall)) return false
+  const tid = client?.trainer_id
+  if (tid != null && String(tid).trim() !== '') return false
+  if (
+    isHallOpen({
+      client,
+      memberships: ctx.memberships ?? [],
+      lifecycleRows: ctx.lifecycleRows ?? [],
+      hall: 'pz',
+      asOf: ctx.asOf,
+    })
+  ) {
+    return false
+  }
+  return true
+}
+
+/**
+ * Менеджер может жёстко удалить только desk ТЗ/АЗ без ПЗ своего клуба.
+ * @param {string} [profileClubId]
+ * @param {{ club_id?: unknown, desk_hall?: unknown, trainer_id?: unknown }} [client]
+ * @param {{ memberships?: object[], lifecycleRows?: object[], asOf?: string }} [ctx]
+ */
+export function assertSalesManagerDeskClientDelete(profileClubId, client, ctx = {}) {
   const clubCheck = assertSalesManagerSameClub(profileClubId, client?.club_id)
   if (!clubCheck.ok) return clubCheck
-  if (!isDeskHallTzOrAz(client?.desk_hall)) {
-    return { ok: false, error: 'Менеджер может удалять только клиентов ТЗ/АЗ (desk)' }
+  if (!isDeskOnlyClientForManagerDelete(client, ctx)) {
+    return {
+      ok: false,
+      error: 'Менеджер может удалять только desk ТЗ/АЗ без тренера и без живого ПЗ',
+    }
   }
   return { ok: true }
 }
 
 /**
- * UI: показывать «Удалить» менеджеру только на desk ТЗ/АЗ.
+ * UI: «Удалить» менеджеру — только desk-only.
  * @param {boolean} isSalesManager
- * @param {{ desk_hall?: unknown } | null | undefined} client
+ * @param {{ desk_hall?: unknown, trainer_id?: unknown } | null | undefined} client
+ * @param {{ memberships?: object[], lifecycleRows?: object[], asOf?: string }} [ctx]
  */
-export function canSalesManagerHardDeleteClient(isSalesManager, client) {
+export function canSalesManagerHardDeleteClient(isSalesManager, client, ctx = {}) {
   if (!isSalesManager) return true
-  return isDeskHallTzOrAz(client?.desk_hall)
+  return isDeskOnlyClientForManagerDelete(client, ctx)
 }
 
 /**

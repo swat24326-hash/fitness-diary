@@ -1,8 +1,9 @@
 /**
- * Подвкладки Архива: Все / ПЗ / ТЗ / АЗ — та же классификация, что у живых вкладок.
- * Чистая логика без React / IDB.
+ * Подвкладки Архива: Все / ПЗ / ТЗ / АЗ — та же классификация, что у живых вкладок
+ * (memberships + desk_hall), не только desk_hall.
  */
 
+import { clientMembershipHallSet } from '../membershipHallCore.js'
 import { clientDeskHall, filterClientsByAdminListTab } from './deskHallClientsCore.js'
 
 /** @typedef {''|'pz'|'tz'|'az'} ArchiveHallFilter */
@@ -35,48 +36,65 @@ export function normalizeArchiveHallFilter(raw) {
 }
 
 /**
- * Зал архивного клиента: desk → tz/az, иначе ПЗ.
+ * Primary-зал архивного клиента: явный desk_hall, иначе абоны (ТЗ → АЗ → ПЗ).
  * @param {object|null|undefined} client
+ * @param {object[]|null|undefined} [memberships]
  * @returns {'pz'|'tz'|'az'}
  */
-export function archiveClientHall(client) {
-  const hall = clientDeskHall(client)
-  if (hall === 'tz' || hall === 'az') return hall
+export function archiveClientHall(client, memberships) {
+  const desk = clientDeskHall(client)
+  if (desk === 'tz' || desk === 'az') return desk
+  const halls = clientMembershipHallSet(client, memberships)
+  if (halls.has('tz')) return 'tz'
+  if (halls.has('az')) return 'az'
   return ARCHIVE_HALL_FILTER_PZ
+}
+
+/** @param {Record<string, object[]>|null|undefined} byId @param {object|null|undefined} client */
+function membershipsForClient(byId, client) {
+  const id = String(client?.id ?? '').trim()
+  if (!id || !byId) return []
+  const list = byId[id]
+  return Array.isArray(list) ? list : []
 }
 
 /**
  * @param {object|null|undefined} client — уже архивный
  * @param {unknown} filterRaw
+ * @param {object[]|null|undefined} [memberships]
  */
-export function clientMatchesArchiveHallFilter(client, filterRaw) {
+export function clientMatchesArchiveHallFilter(client, filterRaw, memberships) {
   const want = normalizeArchiveHallFilter(filterRaw)
   if (!want) return true
-  return archiveClientHall(client) === want
+  return archiveClientHall(client, memberships) === want
 }
 
 /**
  * @param {object[]|null|undefined} clients — любой набор; берутся только archived
  * @param {unknown} filterRaw
+ * @param {Record<string, object[]>|null|undefined} [membershipsByClientId]
  */
-export function filterArchivedClientsByHall(clients, filterRaw) {
+export function filterArchivedClientsByHall(clients, filterRaw, membershipsByClientId) {
   const archived = filterClientsByAdminListTab(clients, 'archive')
   const want = normalizeArchiveHallFilter(filterRaw)
   if (!want) return archived
-  return archived.filter((c) => clientMatchesArchiveHallFilter(c, want))
+  return archived.filter((c) =>
+    clientMatchesArchiveHallFilter(c, want, membershipsForClient(membershipsByClientId, c)),
+  )
 }
 
 /**
  * @param {object[]|null|undefined} clients
+ * @param {Record<string, object[]>|null|undefined} [membershipsByClientId]
  * @returns {{ all: number, pz: number, tz: number, az: number }}
  */
-export function countArchivedClientsByHall(clients) {
+export function countArchivedClientsByHall(clients, membershipsByClientId) {
   const archived = filterClientsByAdminListTab(clients, 'archive')
   let pz = 0
   let tz = 0
   let az = 0
   for (const c of archived) {
-    const h = archiveClientHall(c)
+    const h = archiveClientHall(c, membershipsForClient(membershipsByClientId, c))
     if (h === 'tz') tz += 1
     else if (h === 'az') az += 1
     else pz += 1
@@ -87,10 +105,11 @@ export function countArchivedClientsByHall(clients) {
 /**
  * Чипы: Все + ПЗ/ТЗ/АЗ (всегда, даже с нулём — видно пустые залы).
  * @param {object[]|null|undefined} clients
+ * @param {Record<string, object[]>|null|undefined} [membershipsByClientId]
  * @returns {Array<{ id: ArchiveHallFilter, label: string, count: number }>}
  */
-export function buildArchiveHallFilterOptions(clients) {
-  const counts = countArchivedClientsByHall(clients)
+export function buildArchiveHallFilterOptions(clients, membershipsByClientId) {
+  const counts = countArchivedClientsByHall(clients, membershipsByClientId)
   return [
     { id: ARCHIVE_HALL_FILTER_ALL, label: ARCHIVE_HALL_FILTER_LABELS[ARCHIVE_HALL_FILTER_ALL], count: counts.all },
     { id: ARCHIVE_HALL_FILTER_PZ, label: ARCHIVE_HALL_FILTER_LABELS[ARCHIVE_HALL_FILTER_PZ], count: counts.pz },

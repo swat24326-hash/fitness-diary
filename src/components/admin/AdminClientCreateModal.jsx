@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useLayoutEffect, useState } from 'react'
 import { UserPlus } from 'lucide-react'
 import { normalizeManualCreateHall } from '../../lib/admin/deskManualClientCreateCore.js'
 import { AdminLitePzCreateForm } from './AdminLitePzCreateModal.jsx'
@@ -10,6 +10,10 @@ const HALL_OPTIONS = [
   { id: 'az', label: 'АЗ' },
 ]
 
+function resolveCreateHall(defaultHall) {
+  return normalizeManualCreateHall(defaultHall) || 'pz'
+}
+
 /**
  * Оболочка: новый клиент ПЗ (lite) / ТЗ / АЗ (desk) с выбором зала.
  */
@@ -19,14 +23,17 @@ export function AdminClientCreateModal({
   clubId = '',
   trainers = [],
   azTypes = [],
+  organizationHref = '',
   onClose,
   onCreated,
 }) {
-  const [hall, setHall] = useState(() => normalizeManualCreateHall(defaultHall) || 'pz')
+  const [hall, setHall] = useState(() => resolveCreateHall(defaultHall))
 
-  useEffect(() => {
+  // useLayoutEffect: до paint, иначе при повторном открытии на другой вкладке
+  // мелькает / залипает предыдущий зал (состояние hall переживает close).
+  useLayoutEffect(() => {
     if (!open) return
-    setHall(normalizeManualCreateHall(defaultHall) || 'pz')
+    setHall(resolveCreateHall(defaultHall))
   }, [open, defaultHall])
 
   if (!open) return null
@@ -73,6 +80,7 @@ export function AdminClientCreateModal({
             active={open && hall === 'pz'}
             clubId={clubId}
             trainers={trainers}
+            organizationHref={organizationHref}
             onClose={onClose}
             onCreated={(clientId) => onCreated?.(clientId, 'pz')}
             showLead

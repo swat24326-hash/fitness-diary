@@ -3,6 +3,24 @@
  * Допустимо: «Фамилия», «Фамилия Имя», «Фамилия Имя Отчество», «Фамилия И.О.»
  */
 
+/** Продуктовые аббревиатуры — не инициалы (ТЗ → не «Т.З.»). */
+const CLIENT_NAME_NOT_INITIALS = new Set(
+  [
+    'ТЗ',
+    'АЗ',
+    'ПЗ',
+    'VIP',
+    'QA',
+    'НК',
+    'ДК',
+    'УК',
+    'БЗ',
+    'ПНК',
+    'SMS',
+    'ИСКРА',
+  ].map((s) => s.toUpperCase()),
+)
+
 function capWord(w) {
   const s = String(w ?? '')
   if (!s) return ''
@@ -17,6 +35,7 @@ export function isClientNameInitialsPart(token) {
   if (/^[A-Za-zА-Яа-яЁё]\.([A-Za-zА-Яа-яЁё]\.)+$/u.test(raw)) return true
   const letters = raw.replace(/\./g, '')
   if (letters.length === 1 && /^[A-Za-zА-Яа-яЁё]$/u.test(letters)) return true
+  if (CLIENT_NAME_NOT_INITIALS.has(letters.toUpperCase())) return false
   if (letters.length >= 2 && letters.length <= 3 && /^[A-Za-zА-Яа-яЁё]+$/u.test(letters) && letters === letters.toUpperCase()) {
     return true
   }

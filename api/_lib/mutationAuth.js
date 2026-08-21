@@ -25,6 +25,30 @@ async function getClientRow(supabaseAdmin, clientId) {
   return data
 }
 
+/** Контекст для desk-only delete: абоны + lifecycle ПЗ. */
+async function getClientManagerDeleteCtx(supabaseAdmin, clientId) {
+  const id = String(clientId ?? '').trim()
+  if (!id) return { memberships: [], lifecycleRows: [] }
+  const [memRes, lifeRes] = await Promise.all([
+    supabaseAdmin
+      .from('memberships')
+      .select(
+        'id, client_id, hall, start_date, end_date, total_trainings, used_trainings, membership_type_id, is_pnk',
+      )
+      .eq('client_id', id),
+    supabaseAdmin
+      .from('client_hall_lifecycle')
+      .select('id, client_id, club_id, hall, closed_at')
+      .eq('client_id', id),
+  ])
+  if (memRes.error) throw memRes.error
+  if (lifeRes.error) throw lifeRes.error
+  return {
+    memberships: Array.isArray(memRes.data) ? memRes.data : [],
+    lifecycleRows: Array.isArray(lifeRes.data) ? lifeRes.data : [],
+  }
+}
+
 /** Запрет подмены client_id в payload при update чужой/своей строки. */
 function assertPayloadClientMatchesExisting(payload, existingClientId) {
   if (
@@ -102,7 +126,8 @@ async function authorizeSalesManagerPush(ctx, table_name, operation, data, remot
       const existing = await getClientRow(ctx.supabaseAdmin, id)
       if (!existing) return op === 'delete' ? { ok: true } : { ok: false, error: 'Клиент не найден' }
       if (op === 'delete') {
-        return assertSalesManagerDeskClientDelete(profileClub, existing)
+        const delCtx = await getClientManagerDeleteCtx(ctx.supabaseAdmin, id)
+        return assertSalesManagerDeskClientDelete(profileClub, existing, delCtx)
       }
       return assertSalesManagerClientUpdate(profileClub, existing.club_id, payload)
     }
@@ -199,7 +224,8 @@ async function authorizeSalesManagerPush(ctx, table_name, operation, data, remot
       }
       const existing = await getClientRow(ctx.supabaseAdmin, clientId)
       if (!existing) return { ok: true }
-      return assertSalesManagerDeskClientDelete(profileClub, existing)
+      const delCtx = await getClientManagerDeleteCtx(ctx.supabaseAdmin, clientId)
+      return assertSalesManagerDeskClientDelete(profileClub, existing, delCtx)
     }
 
     return { ok: false, error: 'Нет доступа' }

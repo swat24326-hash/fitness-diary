@@ -5,7 +5,7 @@
 
 const DEFAULT_TTL_MS = 90_000
 
-/** @type {{ clubId: string, savedAt: number, clients: object[], memByClient: Record<string, object[]>, trainerNameById: Record<string, string>, noTabletTrainerIds: string[], truncated: boolean, source: string } | null} */
+/** @type {{ clubId: string, savedAt: number, clients: object[], memByClient: Record<string, object[]>, trainerNameById: Record<string, string>, noTabletTrainerIds: string[], holdingTrainerIds: string[], truncated: boolean, source: string } | null} */
 let snapshot = null
 
 /**
@@ -33,12 +33,23 @@ export function peekAdminClientsListMemory(clubId, opts = {}) {
 }
 
 /**
+ * @param {unknown} value
+ * @returns {string[]}
+ */
+function normalizeIdList(value) {
+  if (value instanceof Set) return [...value].map(String)
+  if (Array.isArray(value)) return value.map(String)
+  return []
+}
+
+/**
  * @param {string} clubId
  * @param {{
  *   clients: object[],
  *   memByClient?: Record<string, object[]>,
  *   trainerNameById?: Record<string, string>,
- *   noTabletTrainerIds?: string[],
+ *   noTabletTrainerIds?: string[]|Set<string>,
+ *   holdingTrainerIds?: string[]|Set<string>,
  *   truncated?: boolean,
  *   source?: string,
  * }} payload
@@ -53,7 +64,8 @@ export function writeAdminClientsListMemory(clubId, payload) {
     memByClient: payload.memByClient && typeof payload.memByClient === 'object' ? payload.memByClient : {},
     trainerNameById:
       payload.trainerNameById && typeof payload.trainerNameById === 'object' ? payload.trainerNameById : {},
-    noTabletTrainerIds: Array.isArray(payload.noTabletTrainerIds) ? payload.noTabletTrainerIds.map(String) : [],
+    noTabletTrainerIds: normalizeIdList(payload.noTabletTrainerIds),
+    holdingTrainerIds: normalizeIdList(payload.holdingTrainerIds),
     truncated: Boolean(payload.truncated),
     source: String(payload.source ?? 'local'),
   }

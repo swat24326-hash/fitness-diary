@@ -122,14 +122,16 @@ export function buildAzDirectionFilterOptions(input) {
     byType.delete(id)
   }
 
-  // Типы, которых нет в справочнике (старые id), но есть у клиентов
-  for (const [id, count] of byType) {
-    if (count <= 0) continue
-    options.push({
-      id,
-      label: deskAzDirectionLabel(id, azTypes) === '—' ? `Тип ${id.slice(0, 8)}` : deskAzDirectionLabel(id, azTypes),
-      count,
-    })
+  // Orphan uuid-чипы только когда справочник уже загружен (иначе «Тип d90e…» при гонке).
+  if (azTypes.length > 0) {
+    for (const [id, count] of byType) {
+      if (count <= 0) continue
+      options.push({
+        id,
+        label: deskAzDirectionLabel(id, azTypes) === '—' ? `Тип ${id.slice(0, 8)}` : deskAzDirectionLabel(id, azTypes),
+        count,
+      })
+    }
   }
 
   if (noneCount > 0) {

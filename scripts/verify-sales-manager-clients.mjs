@@ -10,6 +10,7 @@ import {
   canSalesManagerHardDeleteClient,
   canUseSyncPushApi,
   isDeskHallTzOrAz,
+  isDeskOnlyClientForManagerDelete,
   isSalesManagerClientPushTable,
   SALES_MANAGER_CLIENT_PUSH_TABLES,
 } from '../src/lib/admin/salesManagerClientsAccessCore.js'
@@ -64,9 +65,44 @@ ok(assertSalesManagerDeskClientDelete('c1', { club_id: 'c1', desk_hall: 'tz' }).
 ok(assertSalesManagerDeskClientDelete('c1', { club_id: 'c1', desk_hall: 'az' }).ok, 'delete desk az')
 ok(!assertSalesManagerDeskClientDelete('c1', { club_id: 'c1', desk_hall: null }).ok, 'no delete pz')
 ok(!assertSalesManagerDeskClientDelete('c1', { club_id: 'c2', desk_hall: 'tz' }).ok, 'no delete other club')
+ok(
+  !assertSalesManagerDeskClientDelete('c1', { club_id: 'c1', desk_hall: 'tz', trainer_id: 't1' }).ok,
+  'no delete desk with trainer',
+)
+ok(
+  !isDeskOnlyClientForManagerDelete(
+    { id: 'x', desk_hall: 'tz' },
+    {
+      memberships: [
+        {
+          id: 'm1',
+          client_id: 'x',
+          hall: 'pz',
+          start_date: '2020-01-01',
+          end_date: '2099-01-01',
+          total_trainings: null,
+        },
+      ],
+      lifecycleRows: [],
+      asOf: '2026-08-22',
+    },
+  ),
+  'no delete multi-hall with live pz',
+)
+ok(
+  isDeskOnlyClientForManagerDelete(
+    { id: 'x', desk_hall: 'tz', trainer_id: null },
+    { memberships: [], lifecycleRows: [], asOf: '2026-08-22' },
+  ),
+  'desk-only tz ok',
+)
 ok(canSalesManagerHardDeleteClient(false, { desk_hall: null }), 'admin can delete any')
 ok(canSalesManagerHardDeleteClient(true, { desk_hall: 'tz' }), 'manager delete desk')
 ok(!canSalesManagerHardDeleteClient(true, { desk_hall: null }), 'manager no delete pz')
+ok(
+  !canSalesManagerHardDeleteClient(true, { desk_hall: 'tz', trainer_id: 't1' }),
+  'manager no delete with trainer',
+)
 
 ok(buildClientCardDeepLink('cid', { forSales: true }) === '/sales/clients/cid', 'sales deep link')
 ok(

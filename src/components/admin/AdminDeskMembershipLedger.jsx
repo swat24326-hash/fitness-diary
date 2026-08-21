@@ -113,26 +113,7 @@ export function AdminDeskMembershipLedger({
     }
   }, [showAzDirection, clubId])
 
-  // Архив + живой абон вкладки → вернуть в клуб (иначе остаётся только в «Архиве»).
-  useEffect(() => {
-    if (!client?.id || !client?.archived_at) return undefined
-    const h = hall || deskKind
-    if (h !== 'tz' && h !== 'az') return undefined
-    if (!hallMemberships.length) return undefined
-    let cancelled = false
-    void (async () => {
-      try {
-        const res = await ensureOpenHallAfterMembershipSave(client.id, h)
-        if (cancelled || res?.skipped) return
-        onChanged?.()
-      } catch {
-        /* офлайн / нет кэша — пользователь сохранит абон ещё раз */
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [client?.id, client?.archived_at, hall, deskKind, hallMemberships.length, onChanged])
+  // Restore из архива — только после явного save абона (ниже), не при открытии карточки.
 
   useEffect(() => {
     setDrafts((prev) => {

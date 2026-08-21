@@ -40,6 +40,8 @@ export function AdminLitePzCreateForm({
   onClose,
   onCreated,
   showLead = true,
+  /** Ссылка на экран тренеров; пусто — без битой ссылки (менеджер/супервизор). */
+  organizationHref = '',
 }) {
   const [form, setForm] = useState(() => initialForm(clubId))
   const [busy, setBusy] = useState(false)
@@ -142,9 +144,16 @@ export function AdminLitePzCreateForm({
         </p>
       ) : noTabletTrainers.length === 0 ? (
         <p className="muted">
-          В этом клубе нет тренеров с галкой «Без планшета». Отметьте её в{' '}
-          <a href={`/admin/organization${clubId ? `?club=${encodeURIComponent(clubId)}` : ''}`}>Организации</a>
-          , затем вернитесь сюда.
+          В этом клубе нет тренеров с галкой «Без планшета».{' '}
+          {organizationHref ? (
+            <>
+              Отметьте её в{' '}
+              <a href={organizationHref}>Структуре</a>
+              , затем вернитесь сюда.
+            </>
+          ) : (
+            <>Отметьте её у тренера в настройках клуба (админ → Структура), затем вернитесь сюда.</>
+          )}
         </p>
       ) : (
         <form className="grid td-modal-form" onSubmit={(e) => void submit(e)} style={{ gap: 12 }}>

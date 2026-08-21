@@ -37,6 +37,7 @@ import {
 import {
   ARCHIVE_HALL_FILTER_ALL,
   ARCHIVE_HALL_FILTER_LABELS,
+  archiveClientHall,
   buildArchiveHallFilterOptions,
   clientMatchesArchiveHallFilter,
   normalizeArchiveHallFilter,
@@ -353,8 +354,8 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
           setClients(mem.clients)
           setMemByClient(mem.memByClient ?? {})
           setTrainerNameById(mem.trainerNameById ?? {})
-          setNoTabletTrainerIds(mem.noTabletTrainerIds ?? [])
-          setHoldingTrainerIds(mem.holdingTrainerIds ?? [])
+          setNoTabletTrainerIds(new Set(mem.noTabletTrainerIds ?? []))
+          setHoldingTrainerIds(new Set(mem.holdingTrainerIds ?? []))
           setListTruncated(!!mem.truncated)
           setSource(mem.source || 'local')
           setFallback(null)
@@ -679,8 +680,8 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
   )
   const isDeskHallTab = clientsTab === 'tz' || clientsTab === 'az'
   const archiveHallOptions = useMemo(
-    () => (clientsTab === 'archive' ? buildArchiveHallFilterOptions(clients) : []),
-    [clientsTab, clients],
+    () => (clientsTab === 'archive' ? buildArchiveHallFilterOptions(clients, memByClient) : []),
+    [clientsTab, clients, memByClient],
   )
   const showTrainerSearch =
     !isDeskHallTab &&
@@ -711,7 +712,9 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       filterByTab: filterClientsByAdminListTab,
     })
     if (clientsTab === 'archive' && normalizeArchiveHallFilter(archiveHallFilter)) {
-      base = base.filter((c) => clientMatchesArchiveHallFilter(c, archiveHallFilter))
+      base = base.filter((c) =>
+        clientMatchesArchiveHallFilter(c, archiveHallFilter, memByClient[c.id] ?? []),
+      )
     }
     if (q) {
       base = base.filter((c) => clientMatchesAdminSearchQuery(c, q))
@@ -828,9 +831,22 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       page: listPage + 1,
       query,
       trainerQuery,
+      hall: clientsTab === 'archive' ? '' : resolveAdminClientsActionHall(clientsTab) || '',
     }),
     [clubBound, club, clientsTab, archiveHallFilter, quickFilter, listPage, query, trainerQuery],
   )
+
+  const cardHrefForClient = (clientId, hallOverride = '') => {
+    const id = String(clientId ?? '').trim()
+    let hall = String(hallOverride ?? '').trim()
+    if (!hall && clientsTab === 'archive') {
+      const row = clients.find((c) => String(c?.id) === id)
+      hall = archiveClientHall(row, memByClient[id] ?? [])
+    } else if (!hall) {
+      hall = resolveAdminClientsActionHall(clientsTab) || ''
+    }
+    return buildAdminClientCardHref(clientsBasePath, id, { ...listNavState, hall })
+  }
 
   const pagedClients = useMemo(() => {
     const start = listPage * ADMIN_CLIENTS_PAGE_SIZE
@@ -1011,6 +1027,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
 
   const clearBrowseFilter = () => {
     setQuickFilter('none')
+    setAzDirectionFilter(AZ_DIRECTION_FILTER_ALL)
     setListPage(0)
     patchListSearch((p) => {
       p.delete('filter')
@@ -1573,7 +1590,12 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               const last = lastTrainingDateFromMap(lastTrainingByClient, c.id, pageTrainingsBusy)
               const inactiveRow = todaySnapshot.inactiveDetailById.get(c.id)
               const inactiveLabel =
-                quickFilter === 'inactive' && inactiveRow ? formatInactiveClientListLabel(inactiveRow) : ''
+                quickFilter === 'inactive' &&
+                inactiveRow &&
+                clientsTab !== 'tz' &&
+                clientsTab !== 'az'
+                  ? formatInactiveClientListLabel(inactiveRow)
+                  : ''
               const isLiteRow = isLitePzClient(c, noTabletTrainerIds)
               const birthdayLabel =
                 quickFilter === 'birthdays' ? formatUpcomingBirthdayLabel(c.birth_date, today) : null
@@ -1725,7 +1747,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                             <span className="td-client-fact__value">{trainerLabel(c.trainer_id)}</span>
                           </div>
                         )}
-                        {clientDeskHall(c) === 'az' ? (
+                        {clientsTab === 'az' || hall === 'az' ? (
                           <div className="td-client-fact">
                             <span className="td-client-fact__label">Направление</span>
                             <span className="td-client-fact__value">
@@ -1736,7 +1758,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                             </span>
                           </div>
                         ) : null}
-                        {clientDeskHall(c) === 'az' && (deskMemForPkg || active) ? (
+                        {(clientsTab === 'az' || hall === 'az') && (deskMemForPkg || active) ? (
                           <div className="td-client-fact">
                             <span className="td-client-fact__label">Занятия</span>
                             <span className="td-client-fact__value">
@@ -1836,7 +1858,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                           onFeedback={onSmsFeedback}
                         />
                         <Link
-                          to={buildAdminClientCardHref(clientsBasePath, c.id, listNavState)}
+                          to={cardHrefForClient(c.id)}
                           state={cardNavSeed}
                           className="btn btn-primary btn-icon-square btn-touch u-no-decoration"
                           aria-label="Карточка клиента"
@@ -1948,7 +1970,11 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                                   onSelect: () => void restoreClientArchive(c),
                                 }
                               : null,
-                            canSalesManagerHardDeleteClient(isSalesManager, c)
+                            canSalesManagerHardDeleteClient(isSalesManager, c, {
+                              memberships: memByClient[c.id] ?? [],
+                              lifecycleRows,
+                              asOf: today,
+                            })
                               ? {
                                   id: 'delete',
                                   label: 'Удалить',
@@ -2115,25 +2141,42 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         onConfirm={(payload) => void confirmArchiveReason(payload)}
       />
 
-      <AdminClientCreateModal
-        open={clientCreateOpen}
-        defaultHall={manualCreateHallFromClientsTab(clientsTab) || 'pz'}
-        clubId={club}
-        trainers={trainersForClub}
-        azTypes={
-          azMembershipTypes.length > 0 ? azMembershipTypes : filterAerobicSalesTypes(membershipTypes)
-        }
-        onClose={() => setClientCreateOpen(false)}
+      {clientCreateOpen ? (
+        <AdminClientCreateModal
+          key={`create-${manualCreateHallFromClientsTab(clientsTab) || 'pz'}`}
+          open
+          defaultHall={manualCreateHallFromClientsTab(clientsTab) || 'pz'}
+          clubId={club}
+          trainers={trainersForClub}
+          azTypes={
+            azMembershipTypes.length > 0 ? azMembershipTypes : filterAerobicSalesTypes(membershipTypes)
+          }
+          organizationHref={
+            isSalesManager || isSupervisor
+              ? ''
+              : `/admin/structure?tab=trainers${club ? `&club=${encodeURIComponent(club)}` : ''}`
+          }
+          onClose={() => setClientCreateOpen(false)}
         onCreated={(clientId, hall) => {
           if (club) invalidateAdminClientsListMemory(club)
           const nextTab = hall === 'tz' ? 'tz' : hall === 'az' ? 'az' : 'active'
+          const nextHall = hall === 'tz' || hall === 'az' || hall === 'pz' ? hall : 'pz'
           if (clientsTab !== nextTab) switchClientsTab(nextTab)
           void reload().then(() => {
             if (!clientId) return
-            navigate(buildAdminClientCardHref(clientsBasePath, clientId, listNavState))
+            navigate(
+              buildAdminClientCardHref(clientsBasePath, clientId, {
+                clubId: clubBound ? '' : club,
+                clientsTab: nextTab,
+                filter: 'none',
+                page: 1,
+                hall: nextHall,
+              }),
+            )
           })
         }}
-      />
+        />
+      ) : null}
     </div>
     </section>
   )
