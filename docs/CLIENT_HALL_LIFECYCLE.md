@@ -1,7 +1,7 @@
 # Жизнь клиента по направлениям (ПЗ / ТЗ / АЗ)
 
-**Статус:** ✅ фаза 1 в коде (ПЗ + автоархив клуба); ТЗ/АЗ UI — фаза 2  
-**Зачем:** смешанный клиент уходит с персоналки, но остаётся в зале — без ложного «оттока клуба».
+**Статус:** ✅ фаза 1–2 в коде (ПЗ/ТЗ/АЗ close/reopen + автоархив клуба)  
+**Зачем:** смешанный клиент уходит с одного зала, но остаётся в другом — без ложного «оттока клуба».
 
 Связано: [CLIENT_MULTI_HALL.md](./CLIENT_MULTI_HALL.md), [CLIENT_ARCHIVE.md](./CLIENT_ARCHIVE.md), [CLIENT_RETENTION.md](./CLIENT_RETENTION.md), [LOYALTY.md](./LOYALTY.md).
 
@@ -29,7 +29,7 @@
 | Кто | UI |
 |-----|-----|
 | Тренер | **Активные \| Архив** (архив клуба); «Закрыть ПЗ»; «Снова ко мне» в архиве |
-| Админ / менеджер | **ПЗ \| ТЗ \| АЗ \| Архив**; «Закрыть ПЗ» / «Ушёл из клуба»; «Вернуть в клуб» |
+| Админ / менеджер | **ПЗ \| ТЗ \| АЗ \| Архив**; «Закрыть ПЗ/ТЗ/АЗ» / «Снова ПЗ/ТЗ/АЗ» на вкладке и в карточке; «Ушёл из клуба»; «Вернуть в клуб» |
 | Продажи | При ТЗ/АЗ с живым ПЗ — «Закрыть ПЗ?» |
 
 **Отложено (когда понадобится):** списки «Живые \| Закрытые» / «закрытый ПЗ при живом ТЗ». Данные `client_hall_lifecycle` и close/reopen уже работают; отдельный список закрытых направлений в UI пока не показываем. Воронка на «Клиенты» — как раньше (по абонементу, без отсечения по `closed_at`).
@@ -40,6 +40,8 @@
 |------|------|
 | `src/lib/clientHallLifecycleCore.js` | open/closed, reconcile archive, close/reopen patches, end memberships |
 | `src/lib/clientHallLifecycleSyncService.js` | офлайн-first close/reopen + ensure после абона |
+| `src/lib/admin/adminClientsHallLifecycleMenuCore.js` | подписи и когда показывать «Закрыть/Снова» на вкладке |
+| `src/components/admin/AdminClientHallLifecycleActions.jsx` | кнопки на CRM-карточке |
 | `src/lib/admin/clientHallLifecycleAdminCache.js` | merge lifecycle после admin `list-memberships` |
 | `scripts/verify-client-hall-lifecycle.mjs` | verify |
 | Миграция | `supabase/migrations/20260821120000_client_hall_lifecycle.sql` |
@@ -47,6 +49,60 @@
 ```bash
 npm run db:migrate:client-hall-lifecycle -- --linked
 node scripts/verify-client-hall-lifecycle.mjs
+```
+
+## Критическая матрица (verify)
+
+В `scripts/verify-client-hall-lifecycle.mjs` (секция `critical matrix phase2 + errors`):
+
+| Блок | Что ловим |
+|------|-----------|
+| **A** | Close только ТЗ/АЗ → архив; close при другом живом зале → без архива; лояльность не жжётся на ТЗ/АЗ; reopen из архива / без архива |
+| **B** | Неизвестный зал; клиент без id/клуба; «Вернётся позже» без даты; reopen без живого абона; меню при архиве клуба / вкладке Архив |
+| **C** | Close АЗ не трогает живой ПЗ-абон |
+| **D** | Pull не затирает pending `client_hall_lifecycle` |
+| **E** | Форма причины: заполнить → `buildArchiveReasonConfirmPayload` (ready) → `planCloseHall` / leave |
+| **F** | Нестандартные / краевые (ПНК, depleted, upcoming, auto-close, чужой lifecycle, кириллица зала, повторное close) |
+| **G** | Два устройства / Sync: pending защищает close; **без pending** устаревший pull может вернуть «открыто» |
+
+### Sync: два устройства (G)
+
+| ID | Ситуация | Ожидание |
+|----|----------|----------|
+| G1 | Close на устройстве A, строка в `sync_queue` | Pull не затирает local closed |
+| G2 | Close уже в IDB, **pending нет** (не flush / очередь очистили) | Облако со старым `closed_at: null` **может** перезаписать — риск |
+| G3 | Pending на другом `id` | Эту строку не защищает |
+| G4 | Устройство B закрывает от устаревшего open | Close ok; свой pending защищает |
+| G5 | Вместе pending `clients` + lifecycle | Оба store под guard |
+| G6 | Пустой key / чужой store | Не ложный блок |
+
+**Операционно:** после «Закрыть ТЗ/АЗ/ПЗ» — Sync (flush), пока не ушёл pending.
+
+Модалка: [`ClientArchiveReasonModal.jsx`](../src/components/ClientArchiveReasonModal.jsx) вызывает тот же `buildArchiveReasonConfirmPayload`.
+
+## Нестандартные сценарии (F)
+
+| ID | Ситуация | Ожидание |
+|----|----------|----------|
+| F1 | Клиент **ПНК**, закрыли единственный ТЗ | **Не** в архив клуба (ПНК = открытое направление) |
+| F2 | Close ПЗ, остался только **исчерпанный** АЗ | Архив клуба (depleted ≠ присутствие) |
+| F3 | Close ТЗ при **ожидающем** АЗ (старт впереди) | Без архива |
+| F4 | Close ПЗ + был просроченный ТЗ (когда‑то был) | `autoLifecycleRows` закрывает ТЗ («Закончился абонемент») |
+| F5 | В lifecycle чужой `client_id` | Не влияет на close/isHallOpen |
+| F6 | Close с «Вернётся позже» → reopen | `expected_return_on` / причина сброшены |
+| F7 | Повторный close уже закрытого ТЗ при живом АЗ | ok, без архива |
+| F8 | `hall: 'ТЗ'` / `'тз'` | Нормализация → tz, close работает |
+| F9 | Уже в архиве клуба, close последнего живого | Без второго `archived_at` (patch null) |
+| F10 | Menu reopen при closed + **upcoming** абон | Offer reopen = true |
+
+### Prompt для агента (повторный прогон)
+
+```
+Контекст: fitness-diary, docs/CLIENT_HALL_LIFECYCLE.md блок F.
+Задача: нестандартные сценарии client hall lifecycle — только чистые функции в verify-client-hall-lifecycle.mjs (секции F и G), без React/IDB.
+Не ломать A–E. Сначала ошибки/краевые (PNK, depleted, upcoming, auto-close, чужой client_id), затем dual-device pull-guard (G1–G6).
+После правок: node scripts/verify-client-hall-lifecycle.mjs && npm run lint.
+Если нашёл расхождение с каноном — fix в clientHallLifecycleCore.js / syncPullGuardCore.js + кейс в F/G.
 ```
 
 ## Баллы ПЗ

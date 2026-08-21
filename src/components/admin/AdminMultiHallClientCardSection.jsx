@@ -18,6 +18,7 @@ import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
 import { normalizeDeskHall } from '../../lib/admin/deskHallClientsCore.js'
 import { formatClientName } from '../../lib/clientNameFormat.js'
 import { AdminClientHallTabs } from './AdminClientHallTabs.jsx'
+import { AdminClientHallLifecycleActions } from './AdminClientHallLifecycleActions.jsx'
 import { AdminDeskMembershipLedger } from './AdminDeskMembershipLedger.jsx'
 import { AdminMultiHallTrainerField } from './AdminMultiHallTrainerField.jsx'
 import { MembershipManager } from '../MembershipManager.jsx'
@@ -347,6 +348,13 @@ export function AdminMultiHallClientCardSection({
         memberships={memberships}
         value={hallTab}
         onChange={setHallTab}
+      />
+
+      <AdminClientHallLifecycleActions
+        client={client}
+        memberships={memberships}
+        hall={hallTab}
+        onChanged={onSaved}
       />
 
       {hallTab === 'pz' ? (

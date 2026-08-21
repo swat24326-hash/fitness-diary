@@ -46,7 +46,10 @@
 | ПНК мастер / KPI | целевые `verify-pnk-*.mjs` |
 | Качество ведения тренера | `verify-coach-quality.mjs` (TECH + COACH + MANAGER сценарии) |
 | Удержание и жизнь клиента | `verify-client-retention.mjs` (pool, cohort M+3, renewal, archive, reactivation, **closed PZ вне R-RET**, `pzChurn*`); закрытие ПЗ — `verify-client-hall-lifecycle.mjs` |
-| Жизнь по направлениям | `verify-client-hall-lifecycle.mjs`; migrate `npm run db:migrate:client-hall-lifecycle -- --linked`; [CLIENT_HALL_LIFECYCLE.md](./CLIENT_HALL_LIFECYCLE.md) |
+| Жизнь по направлениям | `verify-client-hall-lifecycle.mjs` (A–G; **G** = dual-device / pending); migrate `npm run db:migrate:client-hall-lifecycle -- --linked`; [CLIENT_HALL_LIFECYCLE.md](./CLIENT_HALL_LIFECYCLE.md) |
+| Причина закрытия (форма) | `verify-client-archive-reason.mjs` (`buildArchiveReasonConfirmPayload`); срок — `verify-client-archive-expected-return.mjs` |
+
+
 | Журнал restore клиента | `verify-client-restore-event.mjs` |
 | Миграция restore на Supabase | `npm run db:migrate:client-restore-events -- --linked` |
 | Кабинет ЗП тренера (план / ±₽) | `verify-trainer-pay-profile.mjs`; ставки типов и галочка «В план» — `verify-trainer-pay-tiers.mjs`; база ЗП — `verify-trainer-payroll.mjs`; роли на prod — блок `trainer-pay-profiles` в `npm run qa:roles` (admin OK / trainer+sales 403) |

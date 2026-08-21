@@ -96,7 +96,7 @@
 | [PZ_CLIENTS_ONBOARD.md](./PZ_CLIENTS_ONBOARD.md) | ✅ шпаргалка | Как завести клиентов ПЗ (вечерний Excel — переход; MVP оплат) |
 | [AZ_CLIENTS_ONBOARD.md](./AZ_CLIENTS_ONBOARD.md) | ✅ шпаргалка | Desk АЗ: сид, направления, списания; связь с доменом оплат |
 | [CLIENT_MULTI_HALL.md](./CLIENT_MULTI_HALL.md) | ✅ фаза 1 в коде; migrate linked | Один client — абоны ПЗ/ТЗ/АЗ; списки, оплаты attach, ПНК |
-| [CLIENT_HALL_LIFECYCLE.md](./CLIENT_HALL_LIFECYCLE.md) | ✅ фаза 1 (ПЗ + автоархив) | Закрытие зала ≠ архив клуба; см. канон |
+| [CLIENT_HALL_LIFECYCLE.md](./CLIENT_HALL_LIFECYCLE.md) | ✅ фаза 1–2 (ПЗ/ТЗ/АЗ + автоархив) | Закрытие зала ≠ архив клуба; см. канон |
 | [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) | 📋 ТЗ; **⏸ код после РФ (R3+)** | Домен платежа; MVP = ПЗ + АЗ; потом касса на клуб |
 | [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md) | ✅ в проде | Управляющий ≠ тренер ≠ менеджер продаж; `/club` |
 | [CLUB_OPERATIONS_PLAN.md](./CLUB_OPERATIONS_PLAN.md) | план | Операции клуба в продукте |

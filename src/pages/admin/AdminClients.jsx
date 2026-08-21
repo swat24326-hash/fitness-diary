@@ -140,6 +140,14 @@ import {
   reopenClientHall,
   restoreClientFromClubArchive,
 } from '../../lib/clientHallLifecycleSyncService.js'
+import {
+  adminClientsCloseHallLabel,
+  adminClientsCloseHallModalCopy,
+  adminClientsReopenHallLabel,
+  resolveAdminClientsActionHall,
+  shouldOfferAdminCloseHall,
+  shouldOfferAdminReopenHall,
+} from '../../lib/admin/adminClientsHallLifecycleMenuCore.js'
 import { getDb } from '../../lib/localDb.js'
 import { clientNeedsArchiveReason } from '../../lib/clientArchiveReasonCore.js'
 import { AdminClientListAbonFact } from '../../components/admin/AdminClientListAbonFact.jsx'
@@ -1093,7 +1101,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     }, { resetPage: true })
   }
 
-  const restoreClientArchive = async (clientRow) => {
+  const restoreClientArchive = async (clientRow, hall = 'pz') => {
     if (!clientRow?.id) return
     setBusy(true)
     try {
@@ -1101,7 +1109,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         const { warn } = await restoreClientFromClubArchive(clientRow)
         if (warn) alert(warn)
       } else {
-        const { warn } = await reopenClientHall(clientRow, { hall: 'pz' })
+        const { warn } = await reopenClientHall(clientRow, { hall: hall || 'pz' })
         if (warn) alert(warn)
       }
       dispatchLocalDataChanged({ reason: 'client-archive-changed', clientId: clientRow.id })
@@ -1257,36 +1265,38 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               <span className="admin-clients-segment__count">{listTabCounts.archive}</span>
             </button>
           </div>
-          {clientsTab === 'active' ? (
+          <div className="admin-clients-workspace__actions">
+            {clientsTab === 'active' ? (
+              <button
+                type="button"
+                className="btn btn-secondary btn-icon-square btn-touch"
+                disabled={busy}
+                onClick={() => setLiteCreateOpen(true)}
+                aria-label="Новый клиент ПЗ"
+                title="Клиент персонального зала для тренера без планшета (карта, абон, оплата)"
+              >
+                <UserPlus size={20} aria-hidden />
+              </button>
+            ) : null}
+            <Link
+              to={callLogHref}
+              className="btn btn-ghost btn-icon-square btn-touch"
+              title="Журнал звонков клуба"
+              aria-label="Журнал звонков клуба"
+            >
+              <Phone size={20} aria-hidden />
+            </Link>
             <button
               type="button"
-              className="btn btn-secondary btn-icon-square btn-touch"
+              className="btn btn-primary btn-icon-square btn-touch"
               disabled={busy}
-              onClick={() => setLiteCreateOpen(true)}
-              aria-label="Новый клиент ПЗ"
-              title="Клиент персонального зала для тренера без планшета (карта, абон, оплата)"
+              onClick={() => void refreshFromCloud()}
+              aria-label="Обновить список из облака"
+              title="Обновить из Supabase"
             >
-              <UserPlus size={20} aria-hidden />
+              <RefreshCw size={20} className={busy ? 'icon-spin' : undefined} aria-hidden />
             </button>
-          ) : null}
-          <Link
-            to={callLogHref}
-            className="btn btn-ghost btn-icon-square btn-touch"
-            title="Журнал звонков клуба"
-            aria-label="Журнал звонков клуба"
-          >
-            <Phone size={20} aria-hidden />
-          </Link>
-          <button
-            type="button"
-            className="btn btn-primary btn-icon-square btn-touch"
-            disabled={busy}
-            onClick={() => void refreshFromCloud()}
-            aria-label="Обновить список из облака"
-            title="Обновить из Supabase"
-          >
-            <RefreshCw size={20} className={busy ? 'icon-spin' : undefined} aria-hidden />
-          </button>
+          </div>
         </div>
 
         {refreshMsg ? (
@@ -1855,28 +1865,61 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                                   onSelect: () => setCallHistoryClient(c),
                                 }
                               : null,
-                            clientsTab !== 'archive'
+                            clientsTab !== 'archive' &&
+                            shouldOfferAdminCloseHall({
+                              clientsTab,
+                              client: c,
+                              memberships: mlistAll,
+                              lifecycleRows,
+                              asOf: today,
+                            })
                               ? {
-                                  id: 'archive',
-                                  label:
-                                    clientsTab === 'active' || clientsTab === 'pz'
-                                      ? 'Закрыть ПЗ'
-                                      : 'Закрыть направление',
+                                  id: 'close-hall',
+                                  label: adminClientsCloseHallLabel(
+                                    resolveAdminClientsActionHall(clientsTab),
+                                  ),
                                   icon: Archive,
                                   onSelect: () =>
                                     setArchiveReasonModal({
                                       mode: 'enter',
                                       client: c,
-                                      action: 'close_pz',
-                                      hall: clientsTab === 'tz' ? 'tz' : clientsTab === 'az' ? 'az' : 'pz',
+                                      action: 'close_hall',
+                                      hall: resolveAdminClientsActionHall(clientsTab),
                                     }),
                                 }
-                              : {
+                              : null,
+                            clientsTab !== 'archive' &&
+                            shouldOfferAdminReopenHall({
+                              clientsTab,
+                              client: c,
+                              memberships: mlistAll,
+                              lifecycleRows,
+                              asOf: today,
+                            })
+                              ? {
+                                  id: 'reopen-hall',
+                                  label: adminClientsReopenHallLabel(
+                                    resolveAdminClientsActionHall(clientsTab),
+                                  ),
+                                  icon: RotateCcw,
+                                  onSelect: () =>
+                                    void restoreClientArchive(
+                                      c,
+                                      resolveAdminClientsActionHall(clientsTab),
+                                    ),
+                                }
+                              : null,
+                            clientsTab === 'archive'
+                              ? {
                                   id: 'archive-reason',
-                                  label: clientNeedsArchiveReason(c) ? 'Указать причину' : 'Изменить причину',
+                                  label: clientNeedsArchiveReason(c)
+                                    ? 'Указать причину'
+                                    : 'Изменить причину',
                                   icon: Pencil,
-                                  onSelect: () => setArchiveReasonModal({ mode: 'edit', client: c }),
-                                },
+                                  onSelect: () =>
+                                    setArchiveReasonModal({ mode: 'edit', client: c }),
+                                }
+                              : null,
                             clientsTab !== 'archive'
                               ? {
                                   id: 'leave-club',
@@ -1904,7 +1947,8 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                                   label: 'Удалить',
                                   icon: Trash2,
                                   danger: true,
-                                  onSelect: () => setConfirmDelete({ id: c.id, name: c.name ?? 'Клиент' }),
+                                  onSelect: () =>
+                                    setConfirmDelete({ id: c.id, name: c.name ?? 'Клиент' }),
                                 }
                               : null,
                           ].filter(Boolean)}
@@ -2057,17 +2101,9 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         client={archiveReasonModal?.client}
         initialReason={archiveReasonModal?.mode === 'edit' ? archiveReasonModal?.client?.archive_reason : null}
         busy={busy}
-        enterTitle={
-          archiveReasonModal?.action === 'leave_club' ? 'Ушёл из клуба' : 'Закрыть направление'
-        }
-        enterConfirmLabel={
-          archiveReasonModal?.action === 'leave_club' ? 'В архив клуба' : 'Закрыть'
-        }
-        enterHint={
-          archiveReasonModal?.action === 'leave_club'
-            ? 'Закроем все направления и отправим в архив клуба.'
-            : 'Закроем направление. Если других живых залов нет — клиент попадёт в архив клуба.'
-        }
+        {...adminClientsCloseHallModalCopy(archiveReasonModal?.hall || 'pz', {
+          leaveClub: archiveReasonModal?.action === 'leave_club',
+        })}
         onCancel={() => !busy && setArchiveReasonModal(null)}
         onConfirm={(payload) => void confirmArchiveReason(payload)}
       />

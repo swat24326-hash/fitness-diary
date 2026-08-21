@@ -3,8 +3,7 @@ import {
   ARCHIVE_REASON_CHIPS,
   ARCHIVE_REASON_MAX_LEN,
   ARCHIVE_REASON_OTHER_ID,
-  composeArchiveReason,
-  isArchiveReasonModalReady,
+  buildArchiveReasonConfirmPayload,
   resolveArchiveReasonModalState,
 } from '../lib/clientArchiveReasonCore.js'
 import {
@@ -115,16 +114,12 @@ export function ClientArchiveReasonModal({
 
   if (!open) return null
 
-  const reason = composeArchiveReason({
+  const confirmPayload = buildArchiveReasonConfirmPayload({
     chipId: selectedChipId,
     customText,
     expectedReturnOn,
   })
-  const ready = isArchiveReasonModalReady({
-    chipId: selectedChipId,
-    customText,
-    expectedReturnOn,
-  })
+  const ready = confirmPayload.ok
   const showOtherField = selectedChipId === ARCHIVE_REASON_OTHER_ID
   const showReturnHorizons = selectedChipId === ARCHIVE_RETURN_LATER_ID
   const title = isEnter ? enterTitle : editTitle
@@ -150,10 +145,10 @@ export function ClientArchiveReasonModal({
   }
 
   const submit = () => {
-    if (!ready || !reason || locked || submitGuardRef.current) return
+    if (!confirmPayload.ok || locked || submitGuardRef.current) return
     submitGuardRef.current = true
     setSubmitting(true)
-    onConfirm?.({ reason, expectedReturnOn })
+    onConfirm?.(confirmPayload.payload)
   }
 
   return (

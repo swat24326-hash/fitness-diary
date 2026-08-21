@@ -19,6 +19,7 @@ import {
   normalizeArchiveReasonText,
   resolveArchiveReasonModalState,
   withArchiveRestore,
+  buildArchiveReasonConfirmPayload,
 } from '../src/lib/clientArchiveReasonCore.js'
 
 let failed = 0
@@ -141,6 +142,23 @@ const modalChip = resolveArchiveReasonModalState('Не вернётся')
 ok(modalChip.chipId === 'never_return' && modalChip.customText === '', 'active chip in modal')
 const modalLater = resolveArchiveReasonModalState('Вернётся позже · до 20.10.2026')
 ok(modalLater.chipId === 'return_later', 'return_later in modal')
+
+ok(buildArchiveReasonConfirmPayload({}).ok === false, 'form: empty not ok')
+ok(
+  buildArchiveReasonConfirmPayload({ chipId: 'to_tz' }).payload?.reason === 'Перешёл в ТЗ',
+  'form: chip to_tz payload',
+)
+ok(
+  buildArchiveReasonConfirmPayload({ chipId: 'other', customText: '' }).ok === false,
+  'form: other empty blocked',
+)
+ok(
+  buildArchiveReasonConfirmPayload({
+    chipId: 'return_later',
+    expectedReturnOn: '2026-10-20',
+  }).payload?.expectedReturnOn === '2026-10-20',
+  'form: return_later with date',
+)
 
 if (failed) process.exit(1)
 console.log('verify-client-archive-reason: all ok')

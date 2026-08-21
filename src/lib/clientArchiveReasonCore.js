@@ -122,6 +122,35 @@ export function isArchiveReasonModalReady(input) {
 }
 
 /**
+ * Заполнить модалку → проверить → payload для onConfirm / planCloseHall.
+ * Та же логика, что submit в ClientArchiveReasonModal.
+ *
+ * @param {{ chipId?: string|null, customText?: string|null, expectedReturnOn?: string|null }} input
+ * @returns {{ ok: true, ready: true, payload: { reason: string, expectedReturnOn: string|null } }
+ *   | { ok: false, ready: false, error: string }}
+ */
+export function buildArchiveReasonConfirmPayload(input = {}) {
+  const chipId = String(input?.chipId ?? '').trim()
+  const expectedReturnOn =
+    chipId === ARCHIVE_RETURN_LATER_ID
+      ? normalizeExpectedReturnOn(input?.expectedReturnOn)
+      : null
+  const form = {
+    chipId,
+    customText: input?.customText,
+    expectedReturnOn,
+  }
+  if (!isArchiveReasonModalReady(form)) {
+    return { ok: false, ready: false, error: 'Заполните причину закрытия' }
+  }
+  const reason = composeArchiveReason(form)
+  if (!reason) {
+    return { ok: false, ready: false, error: 'Заполните причину закрытия' }
+  }
+  return { ok: true, ready: true, payload: { reason, expectedReturnOn } }
+}
+
+/**
  * @param {{ archive_reason?: unknown } | null | undefined} client
  * @returns {string | null}
  */
