@@ -162,7 +162,7 @@ export function clientMatchesAdminFunnelFilter(filter, ctx = {}) {
   // Закрытый ПЗ — не «неактивный живой ПЗ» и не ступени воронки живых.
   if (
     hall === 'pz' &&
-    isTrainerPzClosedView(client, ctx.lifecycleRows) &&
+    isTrainerPzClosedView(client, ctx.lifecycleRows, ctx.memList) &&
     (mode === 'inactive' ||
       mode === 'awaiting_start' ||
       mode === 'expiring' ||

@@ -110,11 +110,16 @@ export async function loadTrainerWorkspaceSnapshot(trainerId, trainerClubId) {
 
   const clientIds = clientsAll.map((c) => c.id)
   const lifecycleRows = await loadLifecycleForClients(clientIds)
+  const memMap = await listMembershipsMapByClientIds(clientIds)
 
   const clubArchived = sortClientsByName(clientsAll.filter((c) => Boolean(c?.archived_at)))
   const live = clientsAll.filter((c) => !c?.archived_at)
-  const activeClients = sortClientsByName(live.filter((c) => isTrainerPzActiveView(c, lifecycleRows)))
-  const closedLive = live.filter((c) => isTrainerPzClosedView(c, lifecycleRows))
+  const activeClients = sortClientsByName(
+    live.filter((c) => isTrainerPzActiveView(c, lifecycleRows, memMap[c.id] ?? memMap[String(c.id)] ?? [])),
+  )
+  const closedLive = live.filter((c) =>
+    isTrainerPzClosedView(c, lifecycleRows, memMap[c.id] ?? memMap[String(c.id)] ?? []),
+  )
   const archivedClients = sortClientsByName([...closedLive, ...clubArchived])
 
   const clientIdSet = new Set(clientIds)
@@ -126,7 +131,6 @@ export async function loadTrainerWorkspaceSnapshot(trainerId, trainerClubId) {
     return clubIds.has(String(t.club_id ?? ''))
   })
 
-  const memMap = await listMembershipsMapByClientIds(clientIds)
   const memByClient = memMap
   const trainingsByClientId = buildTrainingsByClientId(trainings)
   const lastTrainingDateByClientId = buildLastTrainingDateByClientId(trainings)

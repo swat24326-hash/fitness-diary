@@ -493,15 +493,35 @@ export function trainerClosedListBadgeLabel(badge) {
   return ''
 }
 
-export function isTrainerPzClosedView(client, lifecycleRows) {
-  if (!client) return false
-  if (client.archived_at) return true
-  return isHallLifecycleClosed(findLifecycleRow(lifecycleRows, client.id, 'pz'))
+/**
+ * Активные ПЗ: направление открыто (живой абон и нет closed_at).
+ * @param {object|null|undefined} client
+ * @param {object[]|null|undefined} lifecycleRows
+ * @param {object[]|null|undefined} [memberships] — без абонов: только lifecycle (legacy)
+ * @param {string} [asOf]
+ */
+export function isTrainerPzActiveView(client, lifecycleRows, memberships, asOf) {
+  if (!client || client.archived_at) return false
+  if (memberships != null) {
+    return isHallOpen({ client, memberships, lifecycleRows, hall: 'pz', asOf })
+  }
+  return !isHallLifecycleClosed(findLifecycleRow(lifecycleRows, client.id, 'pz'))
 }
 
-export function isTrainerPzActiveView(client, lifecycleRows) {
-  if (!client || client.archived_at) return false
-  return !isHallLifecycleClosed(findLifecycleRow(lifecycleRows, client.id, 'pz'))
+/**
+ * Закрытые ПЗ: архив клуба, closed_at, или направление не открыто (истёк абон / закрыли).
+ * @param {object|null|undefined} client
+ * @param {object[]|null|undefined} lifecycleRows
+ * @param {object[]|null|undefined} [memberships]
+ * @param {string} [asOf]
+ */
+export function isTrainerPzClosedView(client, lifecycleRows, memberships, asOf) {
+  if (!client) return false
+  if (client.archived_at) return true
+  if (memberships != null) {
+    return !isHallOpen({ client, memberships, lifecycleRows, hall: 'pz', asOf })
+  }
+  return isHallLifecycleClosed(findLifecycleRow(lifecycleRows, client.id, 'pz'))
 }
 
 /**

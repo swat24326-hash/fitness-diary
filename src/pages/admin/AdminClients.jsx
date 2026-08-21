@@ -697,7 +697,8 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     }
     if (clientsTab === 'active' || clientsTab === 'pz') {
       base = base.filter((c) => {
-        const closed = isTrainerPzClosedView(c, lifecycleRows)
+        const mems = memByClient[c.id] ?? memByClient[String(c.id)] ?? []
+        const closed = isTrainerPzClosedView(c, lifecycleRows, mems, today)
         return pzLifeTab === 'closed' ? closed : !closed
       })
     }
@@ -882,18 +883,24 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     }
   }, [club, pagedClients])
 
-  const filterCounts = useMemo(
-    () =>
-      buildAdminClientsBrowseCounts({
-        clients,
-        memByClient,
-        clientsTab,
-        today,
-        azDirectionFilter: clientsTab === 'az' ? azDirectionFilter : '',
-        lifecycleRows,
-      }),
-    [clients, clientsTab, memByClient, today, azDirectionFilter, lifecycleRows],
-  )
+  const filterCounts = useMemo(() => {
+    let pool = clients
+    if (clientsTab === 'active' || clientsTab === 'pz') {
+      pool = (clients ?? []).filter((c) => {
+        const mems = memByClient[c.id] ?? memByClient[String(c.id)] ?? []
+        const closed = isTrainerPzClosedView(c, lifecycleRows, mems, today)
+        return pzLifeTab === 'closed' ? closed : !closed
+      })
+    }
+    return buildAdminClientsBrowseCounts({
+      clients: pool,
+      memByClient,
+      clientsTab,
+      today,
+      azDirectionFilter: clientsTab === 'az' ? azDirectionFilter : '',
+      lifecycleRows,
+    })
+  }, [clients, clientsTab, memByClient, today, azDirectionFilter, lifecycleRows, pzLifeTab])
 
   const allTileLabel = adminClientsAllTileLabel(clientsTab, filterCounts)
 
@@ -987,6 +994,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     if (next === 'archive' || next === 'tz' || next === 'az') {
       setQuickFilter('none')
     }
+    if (next !== 'active' && next !== 'pz') setPzLifeTab('live')
     patchListSearch((p) => {
       if (next === 'active') p.delete('clientsTab')
       else p.set('clientsTab', next)
@@ -1511,9 +1519,11 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               <p className="muted admin-clients-empty__text" style={{ margin: 0 }}>
                 {clients.length === 0
                   ? 'Нет клиентов по выбранным условиям.'
-                  : quickFilter === 'birthdays'
-                    ? `Нет дней рождения сегодня и в ближайшие ${BIRTHDAY_WINDOW_DAYS} дней (проверьте дату в карточке).`
-                    : 'Никто не подходит под фильтр или поиск.'}
+                  : (clientsTab === 'active' || clientsTab === 'pz') && pzLifeTab === 'closed'
+                    ? 'Нет закрытых направлений ПЗ. Сюда попадают ушедшие с персоналки (в т.ч. с живым ТЗ/АЗ).'
+                    : quickFilter === 'birthdays'
+                      ? `Нет дней рождения сегодня и в ближайшие ${BIRTHDAY_WINDOW_DAYS} дней (проверьте дату в карточке).`
+                      : 'Никто не подходит под фильтр или поиск.'}
               </p>
             </div>
           ) : null}

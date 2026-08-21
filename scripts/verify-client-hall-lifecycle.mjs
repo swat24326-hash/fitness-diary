@@ -119,10 +119,20 @@ const reopenOk = planReopenHall({
 ok(reopenOk.ok === true && reopenOk.lifecycleRow.closed_at == null, 'reopen clears closed')
 
 ok(
-  isTrainerPzClosedView(client, [closeMixed.lifecycleRow]) === true,
+  isTrainerPzClosedView(client, [closeMixed.lifecycleRow], afterClose, '2026-08-21') === true,
   'trainer closed view',
 )
-ok(isTrainerPzActiveView(client, []) === true, 'trainer active view')
+ok(isTrainerPzActiveView(client, [], [pzMem], '2026-08-21') === true, 'trainer active view')
+ok(
+  isTrainerPzClosedView(client, [], [{ ...pzMem, end_date: '2026-01-01', used_trainings: 10 }], '2026-08-21') ===
+    true,
+  'closed when pz dead without lifecycle row',
+)
+ok(
+  isTrainerPzActiveView(client, [], [{ ...pzMem, end_date: '2026-01-01', used_trainings: 10 }], '2026-08-21') ===
+    false,
+  'not active when pz dead without lifecycle row',
+)
 ok(
   trainerClosedListBadge({
     client,
