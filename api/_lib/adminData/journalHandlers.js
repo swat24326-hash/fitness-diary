@@ -114,37 +114,43 @@ export async function handleClientsLastTrainings(ctx, req, res) {
   }
 
   const { supabaseAdmin } = ctx
-  const pairs = await Promise.all(
-    ids.map(async (clientId) => {
-      const completed = await supabaseAdmin
-        .from('trainings')
-        .select('date')
-        .eq('club_id', clubId)
-        .eq('client_id', clientId)
-        .eq('status', 'completed')
-        .order('date', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      if (completed.error) return [clientId, null]
-      if (completed.data?.date) return [clientId, String(completed.data.date).slice(0, 10)]
 
-      const any = await supabaseAdmin
-        .from('trainings')
-        .select('date')
-        .eq('club_id', clubId)
-        .eq('client_id', clientId)
-        .order('date', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      if (any.error || !any.data?.date) return [clientId, null]
-      return [clientId, String(any.data.date).slice(0, 10)]
-    }),
-  )
-
-  /** @type {Record<string, string>} */
-  const lastByClient = {}
-  for (const [id, date] of pairs) {
-    if (date) lastByClient[id] = date
+  /** Одна выборка на страницу списка (не N запросов на клиента). */
+  async function maxDateByClient(clientIds, statusEq) {
+    const want = (clientIds ?? []).map((id) => String(id).trim()).filter(Boolean)
+    if (!want.length) return {}
+    let q = supabaseAdmin
+      .from('trainings')
+      .select('client_id, date')
+      .eq('club_id', clubId)
+      .in('client_id', want)
+      .order('date', { ascending: false })
+      .limit(8000)
+    if (statusEq) q = q.eq('status', statusEq)
+    const { data, error } = await q
+    if (error) throw error
+    /** @type {Record<string, string>} */
+    const out = {}
+    for (const row of data ?? []) {
+      const id = String(row?.client_id ?? '').trim()
+      const d = String(row?.date ?? '').slice(0, 10)
+      if (!id || !/^\d{4}-\d{2}-\d{2}$/.test(d)) continue
+      if (!out[id] || d > out[id]) out[id] = d
+    }
+    return out
   }
-  sendJson(res, 200, { lastByClient })
+
+  try {
+    const lastByClient = await maxDateByClient(ids, 'completed')
+    const missing = ids.filter((id) => !lastByClient[id])
+    if (missing.length) {
+      const anyMap = await maxDateByClient(missing, null)
+      for (const id of missing) {
+        if (anyMap[id]) lastByClient[id] = anyMap[id]
+      }
+    }
+    sendJson(res, 200, { lastByClient })
+  } catch (e) {
+    sendJson(res, 500, { error: e?.message ? String(e.message).slice(0, 200) : 'Ошибка' })
+  }
 }

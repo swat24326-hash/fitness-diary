@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom'
 import { Archive, ArrowLeft, History, Phone, Pencil, RefreshCw, RotateCcw, Search, Trash2, UserCircle, UserPlus, UserSearch } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext.jsx'
@@ -149,9 +149,13 @@ import { resolveClientListMembershipTypeCode } from '../../lib/admin/clientListM
 import '../../styles/pnk-funnel.css'
 import '../../styles/sales-clients.css'
 
-function lastTrainingDateFromMap(map, clientId) {
-  const d = map?.[String(clientId ?? '')]
-  return d ? formatDateRu(d) : '—'
+function lastTrainingDateFromMap(map, clientId, loading) {
+  const id = String(clientId ?? '')
+  if (map && Object.prototype.hasOwnProperty.call(map, id)) {
+    const d = map[id]
+    return d ? formatDateRu(d) : '—'
+  }
+  return loading ? '…' : '—'
 }
 
 function buildLastTrainingMap(trainings) {
@@ -440,7 +444,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       } catch {
         setLifecycleRows([])
       }
-      setLastTrainingByClient({})
+      // Не сбрасываем lastTrainingByClient — иначе колонка «Последняя» мигает «—» на каждой перезагрузке.
       setPageTrainings([])
 
       const map = club ? await loadAdminClubMembershipsMap(club) : {}
@@ -842,38 +846,66 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
 
   const loyaltyGlanceById = useLoyaltyGlanceMap(pagedClients)
 
+  /** Стабильный ключ id страницы (порядок не важен) — смена сегмента с тем же набором не дёргает даты. */
+  const pagedClientIdsKey = useMemo(() => {
+    const ids = pagedClients.map((c) => String(c.id ?? '').trim()).filter(Boolean)
+    ids.sort()
+    return ids.join(',')
+  }, [pagedClients])
+
+  const lastTrainingRef = useRef(lastTrainingByClient)
+  lastTrainingRef.current = lastTrainingByClient
+
   useEffect(() => {
-    const ids = pagedClients.map((c) => c.id).filter(Boolean)
+    setLastTrainingByClient({})
+    setPageTrainings([])
+  }, [club])
+
+  useEffect(() => {
+    const ids = pagedClientIdsKey ? pagedClientIdsKey.split(',').filter(Boolean) : []
     if (!club?.trim() || !ids.length) {
-      setLastTrainingByClient({})
       setPageTrainings([])
+      setPageTrainingsBusy(false)
       return
     }
     let cancelled = false
-    setPageTrainingsBusy(true)
+    const known = lastTrainingRef.current
+    const missing = ids.filter((id) => !Object.prototype.hasOwnProperty.call(known, id))
+    const needDates = missing.length > 0
+    // Мигание при ПЗ|ТЗ|АЗ / Живые|Закрытые: не ставим busy, если даты уже в карте.
+    if (needDates) setPageTrainingsBusy(true)
+
     void (async () => {
       try {
-        const rows = await loadAdminClubTrainingsForClientIds(club, ids)
-        let map = buildLastTrainingMap(rows)
-        const missing = ids.map(String).filter((id) => !map[id] || map[id] === '—')
-        if (missing.length && isSupabaseConfigured() && navigator.onLine) {
+        const trainingsPromise = loadAdminClubTrainingsForClientIds(club, ids)
+        /** @type {Record<string, string>} */
+        let map = {}
+        if (needDates && isSupabaseConfigured() && navigator.onLine) {
           try {
             const remote = await fetchClientsLastTrainingsViaApi({ clubId: club, clientIds: missing })
             const remoteMap = remote?.lastByClient ?? {}
-            map = { ...map, ...remoteMap }
+            for (const id of missing) {
+              map[id] = remoteMap[id] ? String(remoteMap[id]).slice(0, 10) : ''
+            }
           } catch {
-            /* облако недоступно — оставляем локальный кэш */
+            /* fallback IDB */
+          }
+        }
+        const rows = await trainingsPromise
+        if (needDates && !Object.keys(map).length) {
+          const fromIdb = buildLastTrainingMap(rows)
+          for (const id of missing) {
+            map[id] = fromIdb[id] ? String(fromIdb[id]).slice(0, 10) : ''
           }
         }
         if (!cancelled) {
           setPageTrainings(rows)
-          setLastTrainingByClient(map)
+          if (Object.keys(map).length) {
+            setLastTrainingByClient((prev) => ({ ...prev, ...map }))
+          }
         }
       } catch {
-        if (!cancelled) {
-          setLastTrainingByClient({})
-          setPageTrainings([])
-        }
+        if (!cancelled) setPageTrainings([])
       } finally {
         if (!cancelled) setPageTrainingsBusy(false)
       }
@@ -881,7 +913,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     return () => {
       cancelled = true
     }
-  }, [club, pagedClients])
+  }, [club, pagedClientIdsKey])
 
   const filterCounts = useMemo(() => {
     let pool = clients
@@ -1567,7 +1599,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                 : null
               const azDeductMem =
                 hall === 'az' ? pickAzMembershipForDeduct(mlist, today) || deskMemForPkg : null
-              const last = lastTrainingDateFromMap(lastTrainingByClient, c.id)
+              const last = lastTrainingDateFromMap(lastTrainingByClient, c.id, pageTrainingsBusy)
               const inactiveRow = todaySnapshot.inactiveDetailById.get(c.id)
               const inactiveLabel =
                 quickFilter === 'inactive' && inactiveRow ? formatInactiveClientListLabel(inactiveRow) : ''
