@@ -1,5 +1,5 @@
 /**
- * Применение плана desk-сида (create + проставление desk_hall).
+ * Применение плана desk-сида (create + проставление desk_hall + restore из архива).
  * Desk-клиент: trainer_id = null, зал в desk_hall.
  */
 
@@ -28,6 +28,7 @@ export async function applyDeskClosingCreates(input) {
   if (!clubId) return { ok: false, error: 'Нет клуба' }
 
   let created = 0
+  let restored = 0
   let tagged = 0
   const errors = []
   /** @type {Set<string>} */
@@ -69,6 +70,58 @@ export async function applyDeskClosingCreates(input) {
         tagged += 1
       } catch (e) {
         errors.push(`${a.cardNumber}: ${e?.message || 'ошибка метки зала'}`)
+      }
+      continue
+    }
+
+    if (a.action === 'restore_attach') {
+      const cid = String(a.clientId ?? '').trim()
+      const hall = a.hall === 'tz' || a.hall === 'az' ? a.hall : defaultHall
+      const dates = resolveDeskMembershipDates(a.endDate, a.startDate, a.packageMonths)
+      if (!cid || !hall || !dates) {
+        errors.push(`${a.cardNumber}: нет клиента / зала / даты для возврата из архива`)
+        continue
+      }
+      try {
+        const prev = await getLocalClient(cid)
+        if (!prev) {
+          errors.push(`${a.cardNumber}: клиент не найден локально`)
+          continue
+        }
+        const now = new Date().toISOString()
+        const paid =
+          a.paidAmount != null && Number.isFinite(Number(a.paidAmount)) && Number(a.paidAmount) >= 0
+            ? Math.round(Number(a.paidAmount) * 100) / 100
+            : null
+        await saveLocalWithSync(
+          'memberships',
+          {
+            id: crypto.randomUUID(),
+            client_id: cid,
+            club_id: clubId,
+            start_date: dates.start_date,
+            end_date: dates.end_date,
+            total_trainings: 0,
+            used_trainings: 0,
+            membership_type_id: input.membershipTypeId || null,
+            paid_amount: paid,
+            hall,
+            created_at: now,
+          },
+          { table_name: 'memberships', operation: 'insert', remote_id: null },
+        )
+        await saveLocalWithSync(
+          'clients',
+          { ...prev, desk_hall: hall, trainer_id: null },
+          { table_name: 'clients', operation: 'update', remote_id: cid },
+        )
+        const { ensureOpenHallAfterMembershipSave } = await import(
+          '../clientHallLifecycleSyncService.js'
+        )
+        await ensureOpenHallAfterMembershipSave(cid, hall)
+        restored += 1
+      } catch (e) {
+        errors.push(`${a.cardNumber}: ${e?.message || 'ошибка возврата из архива'}`)
       }
       continue
     }
@@ -134,6 +187,14 @@ export async function applyDeskClosingCreates(input) {
         operation: 'insert',
         remote_id: null,
       })
+      try {
+        const { ensureOpenHallAfterMembershipSave } = await import(
+          '../clientHallLifecycleSyncService.js'
+        )
+        await ensureOpenHallAfterMembershipSave(clientId, hall)
+      } catch {
+        /* новый клиент — ensure обычно no-op */
+      }
       created += 1
       if (cardNorm) createdCards.add(cardNorm)
       clubClients = [...clubClients, client]
@@ -142,5 +203,5 @@ export async function applyDeskClosingCreates(input) {
     }
   }
 
-  return { ok: errors.length === 0, created, tagged, errors }
+  return { ok: errors.length === 0, created, restored, tagged, errors }
 }

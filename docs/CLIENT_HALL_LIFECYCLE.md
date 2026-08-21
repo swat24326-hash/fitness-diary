@@ -11,8 +11,12 @@
 |--------|--------|
 | Одна карточка | Не три клиента на ПЗ/ТЗ/АЗ |
 | Закрываем **направление** | Не человека |
-| Открыто | Живой абон зала **и** нет `closed_at` в `client_hall_lifecycle` |
+| Открыто | Живой / календарный абон зала **или купленный со стартом впереди**, и нет `closed_at` |
 | Архив клуба | Нет открытых направлений → `clients.archived_at` (авто или «Ушёл из клуба») |
+| Живой абон в архиве | Сохранение / открытие ТЗ·АЗ·ПЗ с присутствием на направлении → снять `closed_at` и **вернуть из архива** |
+| «Вернуть в клуб» | Снимает `archived_at` **и** открывает залы с живым/ожидающим абоном (не оставляет `closed_at`) |
+| Pull | Pending `client_hall_lifecycle` в очереди не затирается облаком |
+| Excel закрытий | Архивная карта → `restore_attach`, не вторая карточка |
 | Переход ПЗ→ТЗ/АЗ | Закрытие ПЗ при живом ТЗ/АЗ — **не** отток клуба |
 
 ## Данные
@@ -35,7 +39,7 @@
 | Файл | Роль |
 |------|------|
 | `src/lib/clientHallLifecycleCore.js` | open/closed, reconcile archive, close/reopen patches, end memberships |
-| `src/lib/clientHallLifecycleSyncService.js` | офлайн-first close/reopen ПЗ |
+| `src/lib/clientHallLifecycleSyncService.js` | офлайн-first close/reopen + ensure после абона |
 | `src/lib/admin/clientHallLifecycleAdminCache.js` | merge lifecycle после admin `list-memberships` |
 | `scripts/verify-client-hall-lifecycle.mjs` | verify |
 | Миграция | `supabase/migrations/20260821120000_client_hall_lifecycle.sql` |

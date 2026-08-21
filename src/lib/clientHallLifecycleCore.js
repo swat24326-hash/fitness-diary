@@ -22,7 +22,9 @@ import {
 } from './membershipHallCore.js'
 import {
   hasCalendarUnlimitedCovering,
+  isCalendarUnlimitedMembership,
   membershipCoversDate,
+  membershipHasRemaining,
   membershipIsUsableOn,
 } from './membershipRules.js'
 import { addDaysToIso, todayLocalIso } from './dateRu.js'
@@ -76,8 +78,20 @@ export function hasLiveMembershipForHall(memberships, hall, asOf = todayLocalIso
   if (!list.length) return false
   if (list.some((m) => membershipIsUsableOn(m, d))) return true
   if (hasCalendarUnlimitedCovering(list, d)) return true
-  // ТЗ без лимита занятий: срок кроет дату → живой
-  if (want === 'tz') return list.some((m) => membershipCoversDate(m, d))
+  // ТЗ: срок кроет дату (пакет без лимита занятий)
+  if (want === 'tz' && list.some((m) => membershipCoversDate(m, d))) return true
+  // Куплен, старт ещё впереди — направление уже есть (не уводить / вернуть из архива клуба)
+  if (
+    list.some((m) => {
+      const s = String(m?.start_date ?? '').slice(0, 10)
+      const e = String(m?.end_date ?? '').slice(0, 10)
+      if (!s || !e || s <= d) return false
+      if (want === 'tz' || isCalendarUnlimitedMembership(m)) return true
+      return membershipHasRemaining(m)
+    })
+  ) {
+    return true
+  }
   return false
 }
 
@@ -380,6 +394,59 @@ export function planReopenHall(p = {}) {
     hall,
     lifecycleRow,
     clientPatch: reconcile.clientPatch,
+  }
+}
+
+/**
+ * После сохранения живого абона зала: снять closed_at этого зала и вернуть из архива клуба.
+ * Ситуация: в архиве оформили ТЗ/АЗ — карточка должна появиться на вкладке зала.
+ *
+ * @param {{
+ *   client: object,
+ *   hall: string,
+ *   memberships?: object[],
+ *   lifecycleRows?: object[],
+ *   asOf?: string,
+ *   nowIso?: string,
+ * }} p
+ */
+export function planEnsureOpenHallAfterMembership(p = {}) {
+  const hall = normalizeLifecycleHall(p.hall)
+  if (!hall) return { ok: false, error: 'Неизвестный зал' }
+  const client = p.client
+  const asOf = p.asOf ?? todayLocalIso()
+  if (!hasLiveMembershipForHall(p.memberships, hall, asOf, client)) {
+    return { ok: true, skipped: true, reason: 'no_live_membership' }
+  }
+  const clientId = String(client?.id ?? '').trim()
+  const row = findLifecycleRow(p.lifecycleRows, clientId, hall)
+  if (isHallLifecycleClosed(row)) {
+    return planReopenHall({
+      client,
+      hall,
+      memberships: p.memberships,
+      lifecycleRows: p.lifecycleRows,
+      asOf,
+      nowIso: p.nowIso,
+    })
+  }
+  const reconcile = buildReconcileClubArchiveClientPatch({
+    client,
+    memberships: p.memberships,
+    lifecycleRows: p.lifecycleRows,
+    asOf,
+    nowIso: p.nowIso,
+  })
+  if (!reconcile.ok) return reconcile
+  if (!reconcile.clientPatch) {
+    return { ok: true, skipped: true, reason: 'already_present' }
+  }
+  return {
+    ok: true,
+    hall,
+    lifecycleRow: null,
+    clientPatch: reconcile.clientPatch,
+    restoredFromClubArchive: true,
   }
 }
 

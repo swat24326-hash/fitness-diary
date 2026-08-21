@@ -152,6 +152,12 @@ async function applyRestoreArchivedFromPayment({ action, clubId }) {
   const existing = (clubClients ?? []).find((c) => String(c.id) === clientId)
   if (!existing) return { ok: false, error: 'Клиент не найден в клубе' }
   if (!isClientArchived(existing) && !clientHasStaleArchiveReason(existing)) {
+    try {
+      const { restoreClientFromClubArchive } = await import('../clientHallLifecycleSyncService.js')
+      await restoreClientFromClubArchive(existing)
+    } catch {
+      /* уже активен */
+    }
     return { ok: true, result: 'restored', clientId, alreadyActive: true }
   }
   const patch = clientUpdatePatch(existing, { ...action, needsRestore: true })
@@ -160,6 +166,12 @@ async function applyRestoreArchivedFromPayment({ action, clubId }) {
     operation: 'update',
     remote_id: clientId,
   })
+  try {
+    const { restoreClientFromClubArchive } = await import('../clientHallLifecycleSyncService.js')
+    await restoreClientFromClubArchive({ ...existing, ...patch })
+  } catch (e) {
+    console.warn('[payments] restore club archive halls', e?.message ?? e)
+  }
   const flush = await flushCriticalWritesToCloud()
   const warn = criticalWriteCloudWarning(flush, 'Возврат из архива')
   dispatchLocalDataChanged({ reason: 'payments-link-restore', clientId })
@@ -206,6 +218,12 @@ async function applyLiteFromPayment({ action, clubId, reportDate, trainers }) {
       },
       { table_name: 'memberships', operation: 'insert', remote_id: null },
     )
+    try {
+      const { ensureOpenHallAfterMembershipSave } = await import('../clientHallLifecycleSyncService.js')
+      await ensureOpenHallAfterMembershipSave(clientId, 'pz')
+    } catch (e) {
+      console.warn('[payments] ensure open hall after lite', e?.message ?? e)
+    }
     const flush = await flushCriticalWritesToCloud()
     const warn = criticalWriteCloudWarning(
       flush,
@@ -295,6 +313,12 @@ async function applyClipFromPayment({ action, clubId, reportDate, trainer }) {
       },
       { table_name: 'memberships', operation: 'insert', remote_id: null },
     )
+    try {
+      const { ensureOpenHallAfterMembershipSave } = await import('../clientHallLifecycleSyncService.js')
+      await ensureOpenHallAfterMembershipSave(clientId, 'pz')
+    } catch (e) {
+      console.warn('[payments] ensure open hall after pz clip', e?.message ?? e)
+    }
     const flush = await flushCriticalWritesToCloud()
     const warn = criticalWriteCloudWarning(
       flush,
@@ -358,6 +382,12 @@ async function applyDeskFromPayment({ action, clubId, reportDate }) {
       { ...memRow, client_id: clientId },
       { table_name: 'memberships', operation: 'insert', remote_id: null },
     )
+    try {
+      const { ensureOpenHallAfterMembershipSave } = await import('../clientHallLifecycleSyncService.js')
+      await ensureOpenHallAfterMembershipSave(clientId, hall)
+    } catch (e) {
+      console.warn('[payments] ensure open hall after desk', e?.message ?? e)
+    }
     if (action.closePz === true) {
       try {
         const { closeClientHallWithReason } = await import('../clientHallLifecycleSyncService.js')

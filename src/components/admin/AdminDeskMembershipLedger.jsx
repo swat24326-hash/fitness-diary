@@ -7,9 +7,10 @@ import {
 } from '../../lib/syncService.js'
 import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
 import { todayLocalIso } from '../../lib/dateRu.js'
+import { ensureOpenHallAfterMembershipSave } from '../../lib/clientHallLifecycleSyncService.js'
 import { normalizeDeskHall } from '../../lib/admin/deskHallClientsCore.js'
 import { filterMembershipsByHall, normalizeMembershipHall } from '../../lib/membershipHallCore.js'
-import { ensureMembershipTypesForClub } from '../../lib/membershipTypesService.js'
+import { ensureMembershipTypesForClub, membershipTypeCode } from '../../lib/membershipTypesService.js'
 import {
   applyDeskMembershipDraftDuration,
   applyDeskMembershipDraftField,
@@ -33,6 +34,12 @@ import {
   deskAzSessionUsage,
   formatDeskAzSessionUsageRu,
 } from '../../lib/admin/deskAzSessionDeductCore.js'
+import {
+  normalizeMembershipTotalTrainings,
+  shouldConfirmSuspiciousLowTotal,
+  suspiciousLowTotalConfirmMessageRu,
+  validateMembershipTotalAgainstUsed,
+} from '../../lib/membership/membershipTotalGuardCore.js'
 
 function emptyDeskMembershipDraft(today) {
   return {
@@ -105,6 +112,27 @@ export function AdminDeskMembershipLedger({
       alive = false
     }
   }, [showAzDirection, clubId])
+
+  // Архив + живой абон вкладки → вернуть в клуб (иначе остаётся только в «Архиве»).
+  useEffect(() => {
+    if (!client?.id || !client?.archived_at) return undefined
+    const h = hall || deskKind
+    if (h !== 'tz' && h !== 'az') return undefined
+    if (!hallMemberships.length) return undefined
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await ensureOpenHallAfterMembershipSave(client.id, h)
+        if (cancelled || res?.skipped) return
+        onChanged?.()
+      } catch {
+        /* офлайн / нет кэша — пользователь сохранит абон ещё раз */
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [client?.id, client?.archived_at, hall, deskKind, hallMemberships.length, onChanged])
 
   useEffect(() => {
     setDrafts((prev) => {
@@ -184,6 +212,31 @@ export function AdminDeskMembershipLedger({
         setError('Кол-во занятий — целое число ≥ 0')
         return
       }
+      const totalTrainings = normalizeMembershipTotalTrainings(sessions ?? 0)
+      const totalGate = validateMembershipTotalAgainstUsed({
+        totalTrainings,
+        usedStored: m.used_trainings,
+        usedDiary: 0,
+      })
+      if (!totalGate.ok) {
+        setError(totalGate.error)
+        return
+      }
+      const typeId = resolveTypeId(d.membership_type_id)
+      const prevTotal = normalizeMembershipTotalTrainings(m.total_trainings)
+      if (
+        shouldConfirmSuspiciousLowTotal({ totalTrainings, isPnkTrialType: false }) &&
+        totalTrainings !== prevTotal
+      ) {
+        const ok = window.confirm(
+          suspiciousLowTotalConfirmMessageRu({
+            typeCode: membershipTypeCode(azTypes, typeId),
+            totalTrainings,
+          }),
+        )
+        if (!ok) return
+      }
+      sessions = totalTrainings
     }
     setBusyId(id)
     setError('')
@@ -206,6 +259,15 @@ export function AdminDeskMembershipLedger({
         operation: 'update',
         remote_id: id,
       })
+      try {
+        const ensured = await ensureOpenHallAfterMembershipSave(
+          client.id,
+          normalizeMembershipHall(row.hall) || hall || deskKind || 'az',
+        )
+        if (ensured?.warn) setError(ensured.warn)
+      } catch (e) {
+        setError(e?.message || 'Абон сохранён, но не удалось вернуть из архива')
+      }
       const flush = await flushCriticalWritesToCloud()
       const warn = criticalWriteCloudWarning(flush, 'Абонемент')
       if (warn) setError(warn)
@@ -244,7 +306,18 @@ export function AdminDeskMembershipLedger({
         setError('Кол-во занятий — целое число ≥ 0')
         return
       }
-      sessions = parsed ?? 0
+      sessions = normalizeMembershipTotalTrainings(parsed ?? 0)
+      if (
+        shouldConfirmSuspiciousLowTotal({ totalTrainings: sessions, isPnkTrialType: false })
+      ) {
+        const ok = window.confirm(
+          suspiciousLowTotalConfirmMessageRu({
+            typeCode: membershipTypeCode(azTypes, resolveTypeId(newRow.membership_type_id)),
+            totalTrainings: sessions,
+          }),
+        )
+        if (!ok) return
+      }
     }
     setBusyId('new')
     setError('')
@@ -269,6 +342,15 @@ export function AdminDeskMembershipLedger({
         operation: 'insert',
         remote_id: null,
       })
+      try {
+        const ensured = await ensureOpenHallAfterMembershipSave(
+          client.id,
+          normalizeMembershipHall(row.hall) || hall || deskKind || 'az',
+        )
+        if (ensured?.warn) setError(ensured.warn)
+      } catch (e) {
+        setError(e?.message || 'Абон сохранён, но не удалось вернуть из архива')
+      }
       const flush = await flushCriticalWritesToCloud()
       const warn = criticalWriteCloudWarning(flush, 'Абонемент')
       if (warn) setError(warn)

@@ -133,11 +133,12 @@ import { ClientHardDeleteConfirmModal } from '../../components/ClientHardDeleteC
 import { ClientArchiveReasonModal } from '../../components/ClientArchiveReasonModal.jsx'
 import { ClientArchiveReasonFact } from '../../components/ClientArchiveReasonFact.jsx'
 import { ClientArchiveReasonEditButton } from '../../components/ClientArchiveReasonEditButton.jsx'
-import { setClientArchiveReason, restoreClientFromArchive } from '../../lib/clientArchiveSyncService.js'
+import { setClientArchiveReason } from '../../lib/clientArchiveSyncService.js'
 import {
   closeClientHallWithReason,
   leaveClubWithReason,
   reopenClientHall,
+  restoreClientFromClubArchive,
 } from '../../lib/clientHallLifecycleSyncService.js'
 import { getDb } from '../../lib/localDb.js'
 import { clientNeedsArchiveReason } from '../../lib/clientArchiveReasonCore.js'
@@ -1097,7 +1098,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     setBusy(true)
     try {
       if (clientRow.archived_at) {
-        const { warn } = await restoreClientFromArchive(clientRow)
+        const { warn } = await restoreClientFromClubArchive(clientRow)
         if (warn) alert(warn)
       } else {
         const { warn } = await reopenClientHall(clientRow, { hall: 'pz' })

@@ -8,6 +8,13 @@ import { todayLocalIso, formatDateRu, addDaysToIso, clampIsoDateToToday } from '
 import { formatClientName } from '../../lib/clientNameFormat.js'
 import { SalesVisualAlert } from './SalesVisualAlert.jsx'
 import { normalizeSalesCardNumber } from '../../lib/admin/salesClientMatchCore.js'
+import { isPnkTrialTypeRow } from '../../lib/pnk/pnkTrialTrainingCore.js'
+import {
+  normalizeMembershipTotalTrainings,
+  shouldConfirmSuspiciousLowTotal,
+  suspiciousLowTotalConfirmMessageRu,
+} from '../../lib/membership/membershipTotalGuardCore.js'
+import { membershipTypeCode } from '../../lib/membershipTypesService.js'
 
 /**
  * Форма клип-карты + список дня + мягкий чеклист.
@@ -121,6 +128,24 @@ export function SalesClipCreateSection({
       setOkMsg('')
       return
     }
+    const totalTrainings = normalizeMembershipTotalTrainings(form.total_trainings)
+    const typeRow = membershipTypes.find((t) => String(t.id) === String(form.membership_type_id || ''))
+    if (
+      shouldConfirmSuspiciousLowTotal({
+        totalTrainings,
+        isPnkTrialType: isPnkTrialTypeRow(typeRow),
+      })
+    ) {
+      const ok = window.confirm(
+        suspiciousLowTotalConfirmMessageRu({
+          typeCode:
+            membershipTypeCode(membershipTypes, form.membership_type_id) ||
+            String(form.membership_type_label || '').trim(),
+          totalTrainings,
+        }),
+      )
+      if (!ok) return
+    }
     setBusy(true)
     setError('')
     setOkMsg('')
@@ -135,7 +160,7 @@ export function SalesClipCreateSection({
         trainer_id: form.trainer_id,
         membership_type_id: form.membership_type_id || null,
         membership_type_label: form.membership_type_label || null,
-        total_trainings: form.total_trainings,
+        total_trainings: totalTrainings,
         start_date: form.start_date || null,
         end_date: form.end_date || null,
         note: form.note || null,

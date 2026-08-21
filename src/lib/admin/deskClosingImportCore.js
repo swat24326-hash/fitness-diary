@@ -277,6 +277,7 @@ export function planDeskClosingImport(input) {
   /** @type {Array<object>} */
   const actions = []
   let create = 0
+  let restoreAttach = 0
   let skip = 0
   let conflict = 0
   let tagHall = 0
@@ -338,6 +339,30 @@ export function planDeskClosingImport(input) {
       }
       continue
     }
+    if (match.status === 'archived') {
+      const createHall = row.hall === 'tz' || row.hall === 'az' ? row.hall : null
+      if (!row.endDate || !createHall) {
+        skip += 1
+        actions.push({
+          ...row,
+          action: 'skip',
+          reason: !createHall
+            ? 'Клиент в архиве, но нет зала ТЗ/АЗ в строке — верните вручную'
+            : 'Клиент в архиве, нет end_date — верните вручную',
+          clientId: String(match.client.id),
+        })
+        continue
+      }
+      restoreAttach += 1
+      actions.push({
+        ...row,
+        hall: createHall,
+        action: 'restore_attach',
+        reason: `Вернуть из архива + абон ${createHall.toUpperCase()}`,
+        clientId: String(match.client.id),
+      })
+      continue
+    }
     if (!row.endDate) {
       skip += 1
       actions.push({
@@ -383,6 +408,7 @@ export function planDeskClosingImport(input) {
     actions,
     counts: {
       create,
+      restoreAttach,
       skip,
       conflict,
       tagHall,

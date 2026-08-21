@@ -5,6 +5,7 @@ import {
   listAwaitingSaleClipsForTrainer,
 } from '../lib/admin/saleClipLocalService.js'
 import { useDebouncedStorageReload } from '../lib/useDebouncedStorageReload'
+import { suspiciousLowTotalConfirmMessageRu } from '../lib/membership/membershipTotalGuardCore.js'
 
 /**
  * Очередь клип-заявок для планшета (главная или карточка клиента).
@@ -58,11 +59,29 @@ export function useAwaitingSaleClips(opts = {}) {
       setError('')
       setInfo('')
       try {
-        const res = await createMembershipFromSaleClip({
+        let res = await createMembershipFromSaleClip({
           clip,
           clientId: clientId || clip.client_id,
           clubId: clubId || clip.club_id,
         })
+        if (!res.ok && res.code === 'confirm_low_total') {
+          const ok = window.confirm(
+            suspiciousLowTotalConfirmMessageRu({
+              typeCode: String(clip.membership_type_label || '').trim(),
+              totalTrainings: res.totalTrainings,
+            }),
+          )
+          if (!ok) {
+            setError('Создание отменено — исправьте число занятий в заявке у менеджера')
+            return
+          }
+          res = await createMembershipFromSaleClip({
+            clip,
+            clientId: clientId || clip.client_id,
+            clubId: clubId || clip.club_id,
+            confirmedLowTotal: true,
+          })
+        }
         if (!res.ok) {
           setError(res.reason || 'Не удалось создать абон по клипу')
           return

@@ -6,6 +6,7 @@
 import { matchClientByCardThenPhone, normalizeSalesCardNumber } from './salesClientMatchCore.js'
 import { formatClientName } from '../clientNameFormat.js'
 import { todayLocalIso } from '../dateRu.js'
+import { normalizeMembershipTotalTrainings } from '../membership/membershipTotalGuardCore.js'
 
 export const SALE_CLIP_STATUSES = /** @type {const} */ (['awaiting', 'done', 'cancelled'])
 
@@ -163,7 +164,10 @@ export function membershipFieldsFromSaleClip(clip, asOf = todayLocalIso()) {
   return {
     start_date: start,
     end_date: end,
-    total_trainings: Number(clip?.total_trainings) >= 0 ? Number(clip.total_trainings) : 12,
+    total_trainings:
+      Number(clip?.total_trainings) >= 0
+        ? normalizeMembershipTotalTrainings(clip.total_trainings)
+        : 12,
     membership_type_id: clip?.membership_type_id ? String(clip.membership_type_id) : '',
     clip_id: clip?.id ? String(clip.id) : null,
   }

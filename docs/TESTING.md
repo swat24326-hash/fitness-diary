@@ -87,6 +87,7 @@
 | Push абонементов (даты NOT NULL) | `verify-membership-push-payload.mjs` |
 | Push веса: FK training_id | `verify-client-weight-push.mjs` |
 | Reconcile `used_trainings` по дневнику | `verify-membership-used-reconcile.mjs` |
+| Лимит абона: total ≥ used, confirm на «1» у платных, метка `used > total` | `verify-membership-total-guard.mjs` |
 | Тип карты: agg + fallback по дате | `verify-membership-type-stats.mjs` |
 | Привязка `membership_id` к тренировке | `verify-training-membership-link.mjs` |
 | Archive-pull не стирает активных | `verify-trainer-archive-pull-prune.mjs` |

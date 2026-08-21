@@ -297,6 +297,7 @@ export async function buildPendingSyncKeysByTable() {
     client_weight_entries: new Set(),
     pnk_funnel_events: new Set(),
     sale_clips: new Set(),
+    client_hall_lifecycle: new Set(),
   }
   for (const item of queue) {
     const op = item.operation

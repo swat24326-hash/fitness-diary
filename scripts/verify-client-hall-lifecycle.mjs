@@ -11,6 +11,7 @@ import {
   isTrainerPzClosedView,
   listOpenHalls,
   planCloseHall,
+  planEnsureOpenHallAfterMembership,
   planLeaveClub,
   planReopenHall,
   reconcileClubArchiveDecision,
@@ -19,6 +20,10 @@ import {
   detectLoyaltyPzHallCloseBurn,
 } from '../src/lib/clientHallLifecycleCore.js'
 import { clientMatchesAdminFunnelFilter } from '../src/lib/admin/adminClientsFunnelCore.js'
+import {
+  cloudPutAllowedOnPull,
+  isPullMergeGuardedStore,
+} from '../src/lib/syncPullGuardCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -198,6 +203,206 @@ ok(
     lifecycleRows: [{ client_id: 'c1', hall: 'pz', closed_at: '2026-08-01T00:00:00Z' }],
   }) === true,
   'funnel inactive as before (lifecycle closed does not hide chip)',
+)
+
+const azMem = {
+  id: 'm-az',
+  client_id: 'c1',
+  hall: 'az',
+  start_date: '2026-08-10',
+  end_date: '2026-09-10',
+  total_trainings: 0,
+  used_trainings: 0,
+}
+const archivedClient = {
+  ...client,
+  archived_at: '2026-08-01T00:00:00Z',
+  archive_reason: 'Перешёл в АЗ',
+}
+const leaveThenAz = planEnsureOpenHallAfterMembership({
+  client: archivedClient,
+  hall: 'az',
+  memberships: [azMem],
+  lifecycleRows: [
+    { id: 'l-pz', client_id: 'c1', club_id: 'club1', hall: 'pz', closed_at: '2026-08-01T00:00:00Z' },
+    { id: 'l-az', client_id: 'c1', club_id: 'club1', hall: 'az', closed_at: '2026-08-01T00:00:00Z' },
+  ],
+  asOf: '2026-08-21',
+  nowIso: '2026-08-21T12:00:00.000Z',
+})
+ok(leaveThenAz.ok === true && !leaveThenAz.skipped, 'ensure after AZ: not skipped')
+ok(leaveThenAz.lifecycleRow?.closed_at == null, 'ensure after AZ: clears az closed_at')
+ok(leaveThenAz.clientPatch?.archived_at == null, 'ensure after AZ: restores from club archive')
+
+const onlyRestore = planEnsureOpenHallAfterMembership({
+  client: archivedClient,
+  hall: 'az',
+  memberships: [azMem],
+  lifecycleRows: [],
+  asOf: '2026-08-21',
+  nowIso: '2026-08-21T12:00:00.000Z',
+})
+ok(onlyRestore.ok && onlyRestore.clientPatch?.archived_at == null, 'ensure: restore when AZ live without lifecycle row')
+ok(
+  planEnsureOpenHallAfterMembership({
+    client,
+    hall: 'az',
+    memberships: [azMem],
+    lifecycleRows: [],
+    asOf: '2026-08-21',
+  }).skipped === true,
+  'ensure: skip when already live in club',
+)
+
+// --- Критическая матрица (архив ↔ абоны ↔ close) ---
+const upcomingAz = {
+  id: 'm-az-up',
+  client_id: 'c1',
+  hall: 'az',
+  start_date: '2026-09-01',
+  end_date: '2026-10-01',
+  total_trainings: 0,
+  used_trainings: 0,
+}
+ok(hasLiveMembershipForHall([upcomingAz], 'az', '2026-08-21', client), 'upcoming AZ = presence')
+ok(
+  planCloseHall({
+    client,
+    hall: 'pz',
+    reasonInput: 'Перешёл в АЗ',
+    memberships: [pzMem, upcomingAz],
+    lifecycleRows: [],
+    asOf: '2026-08-21',
+    nowIso: '2026-08-21T12:00:00.000Z',
+  }).clubArchiveEntered === false,
+  'close PZ with upcoming AZ: no club archive',
+)
+const ensureUpcoming = planEnsureOpenHallAfterMembership({
+  client: archivedClient,
+  hall: 'az',
+  memberships: [upcomingAz],
+  lifecycleRows: [
+    { id: 'l-az2', client_id: 'c1', club_id: 'club1', hall: 'az', closed_at: '2026-08-01T00:00:00Z' },
+  ],
+  asOf: '2026-08-21',
+  nowIso: '2026-08-21T12:00:00.000Z',
+})
+ok(ensureUpcoming.ok && ensureUpcoming.clientPatch?.archived_at == null, 'ensure: upcoming AZ restores archive')
+ok(ensureUpcoming.lifecycleRow?.closed_at == null, 'ensure: upcoming AZ clears closed_at')
+
+const depletedAz = {
+  id: 'm-az-dep',
+  client_id: 'c1',
+  hall: 'az',
+  start_date: '2026-08-01',
+  end_date: '2026-09-01',
+  total_trainings: 8,
+  used_trainings: 8,
+}
+ok(!hasLiveMembershipForHall([depletedAz], 'az', '2026-08-21', client), 'depleted AZ not presence')
+ok(
+  planEnsureOpenHallAfterMembership({
+    client: archivedClient,
+    hall: 'az',
+    memberships: [depletedAz],
+    lifecycleRows: [],
+    asOf: '2026-08-21',
+  }).skipped === true,
+  'ensure: depleted AZ does not restore',
+)
+
+const expiredAz = {
+  id: 'm-az-ex',
+  client_id: 'c1',
+  hall: 'az',
+  start_date: '2026-01-01',
+  end_date: '2026-02-01',
+  total_trainings: 0,
+  used_trainings: 0,
+}
+ok(!hasLiveMembershipForHall([expiredAz], 'az', '2026-08-21', client), 'expired AZ not presence')
+ok(
+  planEnsureOpenHallAfterMembership({
+    client: archivedClient,
+    hall: 'az',
+    memberships: [expiredAz],
+    lifecycleRows: [],
+    asOf: '2026-08-21',
+  }).skipped === true,
+  'ensure: expired AZ does not restore',
+)
+
+const closeThenLeave = planLeaveClub({
+  client: { ...client, archived_at: null },
+  reasonInput: 'Ушёл из клуба',
+  memberships: [pzMem, tzMem],
+  lifecycleRows: [],
+  asOf: '2026-08-21',
+  nowIso: '2026-08-21T12:00:00.000Z',
+})
+ok(closeThenLeave.ok && closeThenLeave.clientPatch?.archived_at, 'leave: archives')
+ok(
+  (closeThenLeave.lifecycleRows ?? []).every((r) => r.closed_at),
+  'leave: all halls closed_at',
+)
+
+const afterLeaveAz = planEnsureOpenHallAfterMembership({
+  client: { ...client, archived_at: closeThenLeave.clientPatch.archived_at },
+  hall: 'az',
+  memberships: [azMem],
+  lifecycleRows: [
+    ...(closeThenLeave.lifecycleRows ?? []),
+    {
+      id: 'l-az-left',
+      client_id: 'c1',
+      club_id: 'club1',
+      hall: 'az',
+      closed_at: '2026-08-21T12:00:00.000Z',
+    },
+  ],
+  asOf: '2026-08-21',
+  nowIso: '2026-08-21T13:00:00.000Z',
+})
+ok(afterLeaveAz.ok && !afterLeaveAz.skipped, 'after leave+AZ ensure runs')
+ok(afterLeaveAz.clientPatch?.archived_at == null, 'after leave+AZ: out of club archive')
+ok(
+  afterLeaveAz.lifecycleRow?.hall === 'az' && afterLeaveAz.lifecycleRow?.closed_at == null,
+  'after leave+AZ: az reopened',
+)
+
+const afterLeaveNewAzOnly = planEnsureOpenHallAfterMembership({
+  client: { ...client, archived_at: '2026-08-21T12:00:00.000Z' },
+  hall: 'az',
+  memberships: [azMem],
+  lifecycleRows: closeThenLeave.lifecycleRows,
+  asOf: '2026-08-21',
+  nowIso: '2026-08-21T13:00:00.000Z',
+})
+ok(
+  afterLeaveNewAzOnly.ok && afterLeaveNewAzOnly.clientPatch?.archived_at == null,
+  'after leave + first AZ ever: restore without prior az lifecycle',
+)
+
+ok(
+  planEnsureOpenHallAfterMembership({
+    client: archivedClient,
+    hall: 'pz',
+    memberships: [pzMem],
+    lifecycleRows: [
+      { id: 'l-pz3', client_id: 'c1', club_id: 'club1', hall: 'pz', closed_at: '2026-08-01T00:00:00Z' },
+    ],
+    asOf: '2026-08-21',
+    nowIso: '2026-08-21T12:00:00.000Z',
+  }).clientPatch?.archived_at == null,
+  'ensure: live PZ package restores archive',
+)
+
+ok(isPullMergeGuardedStore('client_hall_lifecycle'), 'pull-guard: client_hall_lifecycle')
+ok(
+  cloudPutAllowedOnPull('client_hall_lifecycle', 'life-1', {
+    client_hall_lifecycle: new Set(['life-1']),
+  }) === false,
+  'pull-guard: pending lifecycle not overwritten',
 )
 
 if (failed) {

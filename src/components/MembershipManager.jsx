@@ -6,8 +6,18 @@ import { ensureClientTrainingsCached } from '../lib/clientTrainingsEnsure.js'
 import { detachWeightEntriesFromTraining } from '../lib/clientWeightService.js'
 import { getDb } from '../lib/localDb'
 import { deleteLocalWithSync, saveLocalWithSync } from '../lib/syncService'
+import { ensureOpenHallAfterMembershipSave } from '../lib/clientHallLifecycleSyncService.js'
 import { planMembershipUsedReconcile } from '../lib/membership/membershipUsedReconcile.js'
-import { defaultMembershipEndIso, formatDateRu, formatDateTimeRu, todayLocalIso } from '../lib/dateRu'
+import {
+  isMembershipTotalBroken,
+  membershipBrokenTotalHintRu,
+  normalizeMembershipTotalTrainings,
+  resolveEffectiveMembershipUsed,
+  shouldConfirmSuspiciousLowTotal,
+  suspiciousLowTotalConfirmMessageRu,
+  validateMembershipTotalAgainstUsed,
+} from '../lib/membership/membershipTotalGuardCore.js'
+import { defaultMembershipEndIso, formatDateRu, todayLocalIso } from '../lib/dateRu'
 import { completedTrainingsOnMembership } from '../lib/membershipRules'
 import { buildMembershipDeleteConfirmCopy } from '../lib/membershipDeleteCore'
 import { ensureMembershipTypesForClub, isTrainerAssignableMembershipType, membershipTypeCode } from '../lib/membershipTypesService'
@@ -16,91 +26,15 @@ import {
   classifySaleClientSegment,
   saleClientSegmentHintRu,
 } from '../lib/admin/salesClientSegmentCore'
-import { CheckCircle2, Eye, Pencil, Plus, Trash2 } from 'lucide-react'
+import { CheckCircle2, Trash2 } from 'lucide-react'
 import { ModalHeader } from './ModalHeader'
-import { ClientRowMoreMenu } from './ClientRowMoreMenu'
 import { useAuth } from '../context/AuthContext'
 import { AdminMembershipPaidAmountField } from './admin/AdminMembershipPaidAmountField.jsx'
-import {
-  formatMembershipPaidAmountCell,
-  paidAmountFromMembershipForm,
-} from '../lib/admin/membershipPaidAmountCore.js'
+import { paidAmountFromMembershipForm } from '../lib/admin/membershipPaidAmountCore.js'
+import { MembershipHistoryCard } from './membership/MembershipHistoryCard.jsx'
 
 function newId() {
   return crypto.randomUUID()
-}
-
-function membershipDateWindowOk(m, todayIso) {
-  const s = m?.start_date
-  const e = m?.end_date
-  if (!s || !e) return false
-  return String(s) <= String(todayIso) && String(e) >= String(todayIso)
-}
-
-function membershipRemainingOk(m) {
-  const total = Number(m?.total_trainings ?? 0)
-  const used = Number(m?.used_trainings ?? 0)
-  return Number.isFinite(total) && total > 0 && Number.isFinite(used) && used < total
-}
-
-function membershipVisualKind(m, todayIso) {
-  const windowOk = membershipDateWindowOk(m, todayIso)
-  const remainingOk = membershipRemainingOk(m)
-  if (windowOk && remainingOk) return 'active'
-  // Срок кроет, но total=0 — не «тренировки закончились», а пустой/календарный пакет.
-  const total = Number(m?.total_trainings ?? 0)
-  if (windowOk && !(Number.isFinite(total) && total > 0)) return 'empty_package'
-  if (windowOk && !remainingOk) return 'depleted'
-  return 'no_window'
-}
-
-function membershipVisualMeta(kind) {
-  if (kind === 'active') {
-    return {
-      label: 'Действует',
-      title: 'Действует: срок активен и есть остаток тренировок',
-    }
-  }
-  if (kind === 'empty_package') {
-    return {
-      label: 'Нет занятий в пакете',
-      title: 'Срок ещё действует, но число тренировок не задано (0) — часто авто-заглушка',
-    }
-  }
-  if (kind === 'depleted') {
-    return {
-      label: 'Тренировки закончились',
-      title: 'Тренировки закончились: по сроку ещё можно, но лимит исчерпан',
-    }
-  }
-  return {
-    label: 'Нет действующего срока',
-    title: 'Нет действующего срока: даты не заданы, ещё не начался или уже истёк',
-  }
-}
-
-function MembershipStatusIcon({ kind }) {
-  const meta = membershipVisualMeta(kind)
-  const common = { role: 'img', 'aria-label': meta.label, title: meta.title }
-  if (kind === 'active') {
-    return (
-      <svg {...common} width="18" height="18" viewBox="0 0 18 18">
-        <circle cx="9" cy="9" r="6" fill="#22c55e" />
-      </svg>
-    )
-  }
-  if (kind === 'depleted' || kind === 'empty_package') {
-    return (
-      <svg {...common} width="18" height="18" viewBox="0 0 18 18">
-        <rect x="4" y="4" width="10" height="10" rx="2" fill="#ef4444" />
-      </svg>
-    )
-  }
-  return (
-    <svg {...common} width="18" height="18" viewBox="0 0 18 18">
-      <path d="M9 3.5 L15.5 14.5 H2.5 Z" fill="#ef4444" />
-    </svg>
-  )
 }
 
 export function MembershipManager({
@@ -353,20 +287,42 @@ export function MembershipManager({
       }
       paid_amount = paidAmountFromMembershipForm(form.paid_amount)
     }
+    const totalTrainings = normalizeMembershipTotalTrainings(form.total_trainings)
+    const typeId = form.membership_type_id?.trim() || ''
+    const typeRow = typeId ? membershipTypes.find((t) => String(t.id) === typeId) : null
+    if (
+      shouldConfirmSuspiciousLowTotal({
+        totalTrainings,
+        isPnkTrialType: isPnkTrialTypeRow(typeRow),
+      })
+    ) {
+      const ok = window.confirm(
+        suspiciousLowTotalConfirmMessageRu({
+          typeCode: membershipTypeCode(typesById, typeId),
+          totalTrainings,
+        }),
+      )
+      if (!ok) return
+    }
     const row = {
       id,
       client_id: clientId,
       club_id: clubId,
       start_date: start,
       end_date: end,
-      total_trainings: Number(form.total_trainings) || 0,
+      total_trainings: totalTrainings,
       used_trainings: 0,
-      membership_type_id: form.membership_type_id?.trim() || null,
+      membership_type_id: typeId || null,
       hall: hallFilter,
       created_at: now,
     }
     if (showPaidAmount) row.paid_amount = paid_amount
     await saveLocalWithSync('memberships', row, { table_name: 'memberships', operation: 'insert', remote_id: null })
+    try {
+      await ensureOpenHallAfterMembershipSave(clientId, hallFilter || 'pz')
+    } catch (e) {
+      console.warn('[membership] ensure open hall', e?.message ?? e)
+    }
     setSelectedId(id)
     setForm({ start_date: '', end_date: '', total_trainings: 12, membership_type_id: '', paid_amount: '' })
     await notify()
@@ -379,6 +335,18 @@ export function MembershipManager({
     if (!prev) return
     const next = { ...prev, ...patch }
     await saveLocalWithSync('memberships', next, { table_name: 'memberships', operation: 'update', remote_id: membershipId })
+    if (
+      patch.start_date != null ||
+      patch.end_date != null ||
+      patch.total_trainings != null ||
+      patch.hall != null
+    ) {
+      try {
+        await ensureOpenHallAfterMembershipSave(clientId, normalizeMembershipHall(next.hall) || hallFilter || 'pz')
+      } catch (e) {
+        console.warn('[membership] ensure open hall', e?.message ?? e)
+      }
+    }
     await notify()
   }
 
@@ -415,11 +383,40 @@ export function MembershipManager({
       alert('Дата окончания не может быть раньше начала')
       return
     }
+    const totalTrainings = normalizeMembershipTotalTrainings(edit.total_trainings)
+    const usedDiary = completedTrainingsOnMembership(selected, trainings).length
+    const totalGate = validateMembershipTotalAgainstUsed({
+      totalTrainings,
+      usedStored: selected.used_trainings,
+      usedDiary,
+    })
+    if (!totalGate.ok) {
+      alert(totalGate.error)
+      return
+    }
+    const nextTypeId = edit.membership_type_id?.trim() || ''
+    const nextTypeRow = nextTypeId ? membershipTypes.find((t) => String(t.id) === nextTypeId) : null
+    const prevTotal = normalizeMembershipTotalTrainings(selected.total_trainings)
+    if (
+      shouldConfirmSuspiciousLowTotal({
+        totalTrainings,
+        isPnkTrialType: isPnkTrialTypeRow(nextTypeRow),
+      }) &&
+      totalTrainings !== prevTotal
+    ) {
+      const ok = window.confirm(
+        suspiciousLowTotalConfirmMessageRu({
+          typeCode: membershipTypeCode(typesById, nextTypeId),
+          totalTrainings,
+        }),
+      )
+      if (!ok) return
+    }
     const patch = {
       start_date: start,
       end_date: end,
-      total_trainings: Number(edit.total_trainings) || 0,
-      membership_type_id: edit.membership_type_id?.trim() || null,
+      total_trainings: totalTrainings,
+      membership_type_id: nextTypeId || null,
     }
     if (showPaidAmount) {
       if (String(edit.paid_amount ?? '').trim() !== '' && paidAmountFromMembershipForm(edit.paid_amount) == null) {
@@ -735,7 +732,24 @@ export function MembershipManager({
                 ) : null}
 
                 <div className="muted" style={{ fontSize: 13 }}>
-                  Использовано: <strong>{selected.used_trainings ?? 0}</strong>
+                  Использовано:{' '}
+                  <strong>
+                    {resolveEffectiveMembershipUsed(
+                      selected.used_trainings,
+                      completedTrainingsOnMembership(selected, trainings).length,
+                    )}
+                  </strong>
+                  {isMembershipTotalBroken({
+                    totalTrainings: edit.total_trainings,
+                    usedEffective: resolveEffectiveMembershipUsed(
+                      selected.used_trainings,
+                      completedTrainingsOnMembership(selected, trainings).length,
+                    ),
+                  }) ? (
+                    <span style={{ color: 'var(--warning, #f59e0b)', marginLeft: 8 }}>
+                      — {membershipBrokenTotalHintRu()}
+                    </span>
+                  ) : null}
                 </div>
 
                 <div className="row" style={{ gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
@@ -774,7 +788,11 @@ export function MembershipManager({
                 const m = items.find((x) => x.id === viewOpenId)
                 const list = m ? trainingsForMembership(m) : []
                 const total = Number(m?.total_trainings ?? 0)
-                const used = Number(m?.used_trainings ?? 0)
+                const used = resolveEffectiveMembershipUsed(
+                  m?.used_trainings,
+                  list.length,
+                )
+                const broken = isMembershipTotalBroken({ totalTrainings: total, usedEffective: used })
                 const canWriteOff =
                   m && Number.isFinite(total) && total > 0 && Number.isFinite(used) && used < total
                 return (
@@ -789,7 +807,16 @@ export function MembershipManager({
                         {Number.isFinite(total) && total > 0 ? (
                           <>
                             {' '}
-                            · использовано <strong style={{ color: 'var(--text)' }}>{used}/{total}</strong>
+                            · использовано{' '}
+                            <strong style={{ color: broken ? 'var(--warning, #f59e0b)' : 'var(--text)' }}>
+                              {used}/{total}
+                            </strong>
+                            {broken ? (
+                              <span style={{ color: 'var(--warning, #f59e0b)' }}>
+                                {' '}
+                                · {membershipBrokenTotalHintRu()}
+                              </span>
+                            ) : null}
                           </>
                         ) : null}
                       </div>
@@ -944,104 +971,25 @@ export function MembershipManager({
           document.body,
         )}
 
-      <div className="card">
-        <div className="row" style={{ alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-          <h3 style={{ margin: 0 }}>Абонементы</h3>
-          <button
-            type="button"
-            className={preferPaidType ? 'btn btn-primary btn-touch' : 'btn btn-primary btn-icon-square'}
-            aria-label={preferPaidType ? 'Оформить платный абонемент' : 'Новый абонемент'}
-            title={preferPaidType ? 'Оформить платный абонемент' : 'Новый абонемент'}
-            onClick={openNewMembership}
-          >
-            <Plus size={16} aria-hidden style={preferPaidType ? { marginRight: 6, verticalAlign: -2 } : undefined} />
-            {preferPaidType ? 'Оформить платный' : null}
-          </button>
-        </div>
-        <div className="muted" style={{ fontSize: 12, marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
-          <span className="row" style={{ gap: 8, alignItems: 'center' }}>
-            <MembershipStatusIcon kind="active" /> действует
-          </span>
-          <span className="row" style={{ gap: 8, alignItems: 'center' }}>
-            <MembershipStatusIcon kind="depleted" /> лимит
-          </span>
-          <span className="row" style={{ gap: 8, alignItems: 'center' }}>
-            <MembershipStatusIcon kind="no_window" /> срок
-          </span>
-        </div>
-        {historySorted.length === 0 && <p className="muted">Пока нет записей.</p>}
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Период</th>
-                <th className="mem-col-type">Тип</th>
-                <th>Статус</th>
-                <th>Использовано</th>
-                {showPaidAmount ? <th>Оплата</th> : null}
-                <th>Создан</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {historySorted.map((m) => (
-                <tr key={m.id}>
-                  <td>
-                    {formatDateRu(m.start_date)} — {formatDateRu(m.end_date)}
-                  </td>
-                  <td className="mem-col-type" title={membershipTypeCode(typesById, m.membership_type_id) || undefined}>
-                    {formatTypeCell(m.membership_type_id)}
-                  </td>
-                  <td style={{ width: 56 }}>
-                    <MembershipStatusIcon kind={membershipVisualKind(m, todayIso)} />
-                  </td>
-                  <td>
-                    {m.used_trainings ?? 0}/{m.total_trainings ?? '—'}
-                  </td>
-                  {showPaidAmount ? (
-                    <td title="Цена пакета на абонементе">{formatMembershipPaidAmountCell(m.paid_amount)}</td>
-                  ) : null}
-                  <td className="muted">{formatDateTimeRu(m.created_at)}</td>
-                  <td style={{ width: 56 }}>
-                    <div className="mem-actions">
-                      <ClientRowMoreMenu
-                        ariaLabel="Действия с абонементом"
-                        items={[
-                          {
-                            id: 'view',
-                            label: 'Тренировки',
-                            icon: Eye,
-                            onSelect: () => {
-                              setSelectedId(m.id)
-                              setViewOpenId(m.id)
-                            },
-                          },
-                          {
-                            id: 'edit',
-                            label: 'Редактировать',
-                            icon: Pencil,
-                            onSelect: () => {
-                              setSelectedId(m.id)
-                              setEditOpenId(m.id)
-                            },
-                          },
-                          {
-                            id: 'delete',
-                            label: 'Удалить',
-                            icon: Trash2,
-                            danger: true,
-                            onSelect: () => requestDeleteMembership(m),
-                          },
-                        ]}
-                      />
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <MembershipHistoryCard
+        preferPaidType={preferPaidType}
+        showPaidAmount={showPaidAmount}
+        historySorted={historySorted}
+        trainings={trainings}
+        typesById={typesById}
+        todayIso={todayIso}
+        formatTypeCell={formatTypeCell}
+        onOpenNew={openNewMembership}
+        onView={(m) => {
+          setSelectedId(m.id)
+          setViewOpenId(m.id)
+        }}
+        onEdit={(m) => {
+          setSelectedId(m.id)
+          setEditOpenId(m.id)
+        }}
+        onDelete={requestDeleteMembership}
+      />
     </div>
   )
 }

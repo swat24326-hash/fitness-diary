@@ -9,10 +9,14 @@ import {
 } from './syncService.js'
 import {
   CLIENT_HALL_LIFECYCLE_TABLE,
+  hasLiveMembershipForHall,
   planCloseHall,
+  planEnsureOpenHallAfterMembership,
   planLeaveClub,
   planReopenHall,
 } from './clientHallLifecycleCore.js'
+import { MEMBERSHIP_HALLS } from './membershipHallCore.js'
+import { buildArchiveRestoreFields } from './clientArchiveReasonCore.js'
 import { todayLocalIso } from './dateRu.js'
 
 async function loadClientBundle(clientId) {
@@ -198,6 +202,101 @@ export async function leaveClubWithReason(clientRow, reasonInput) {
   const flush = await flushCriticalWritesToCloud()
   const warn = criticalWriteCloudWarning(flush, 'Уход из клуба')
   return { row: clientOut, warn, plan }
+}
+
+/**
+ * После insert/update живого абона: открыть зал в lifecycle и вытащить из архива клуба.
+ * @param {string} clientId
+ * @param {string} hall
+ */
+export async function ensureOpenHallAfterMembershipSave(clientId, hall) {
+  const id = String(clientId ?? '').trim()
+  if (!id) return { ok: true, skipped: true, reason: 'no_client' }
+  const { client, memberships, lifecycleRows } = await loadClientBundle(id)
+  const plan = planEnsureOpenHallAfterMembership({
+    client,
+    hall,
+    memberships,
+    lifecycleRows,
+    asOf: todayLocalIso(),
+  })
+  if (!plan.ok) throw new Error(plan.error || 'Не удалось открыть направление')
+  if (plan.skipped) return { ok: true, skipped: true, reason: plan.reason, plan }
+
+  if (plan.lifecycleRow) {
+    const db = await getDb()
+    let op = 'insert'
+    try {
+      const cur = await db.get('client_hall_lifecycle', plan.lifecycleRow.id)
+      if (cur) op = 'update'
+    } catch {
+      op = 'insert'
+    }
+    await saveLocalWithSync('client_hall_lifecycle', plan.lifecycleRow, {
+      table_name: CLIENT_HALL_LIFECYCLE_TABLE,
+      operation: op,
+      remote_id: plan.lifecycleRow.id,
+    })
+  }
+
+  let clientOut = null
+  if (plan.clientPatch) {
+    const db = await getDb()
+    const base = await db.get('clients', id)
+    if (base?.id) {
+      clientOut = { ...base, ...plan.clientPatch }
+      await saveLocalWithSync('clients', clientOut, {
+        table_name: 'clients',
+        operation: 'update',
+        remote_id: base.id,
+      })
+    }
+  }
+
+  const flush = await flushCriticalWritesToCloud()
+  const warn = criticalWriteCloudWarning(flush, 'Возврат из архива после абона')
+  return { ok: true, skipped: false, row: clientOut, warn, plan }
+}
+
+/**
+ * «Вернуть в клуб»: снять archived_at и открыть залы, где есть живой/ожидающий абон.
+ * Иначе closed_at остаётся — карточка «в клубе», а направление всё ещё закрыто.
+ * @param {object} clientRow
+ */
+export async function restoreClientFromClubArchive(clientRow) {
+  const id = String(clientRow?.id ?? '').trim()
+  if (!id) throw new Error('Клиент не найден')
+  const { client, memberships } = await loadClientBundle(id)
+  let clientOut = client
+  let warn = null
+
+  if (client.archived_at) {
+    const patch = buildArchiveRestoreFields()
+    clientOut = { ...client, ...patch }
+    await saveLocalWithSync('clients', clientOut, {
+      table_name: 'clients',
+      operation: 'update',
+      remote_id: id,
+    })
+  }
+
+  const asOf = todayLocalIso()
+  const halls = MEMBERSHIP_HALLS.filter((h) =>
+    hasLiveMembershipForHall(memberships, h, asOf, clientOut),
+  )
+  for (const hall of halls) {
+    try {
+      const res = await ensureOpenHallAfterMembershipSave(id, hall)
+      if (res?.warn) warn = res.warn
+      if (res?.row) clientOut = res.row
+    } catch (e) {
+      console.warn('[lifecycle] restore ensure', hall, e?.message ?? e)
+    }
+  }
+
+  const flush = await flushCriticalWritesToCloud()
+  const flushWarn = criticalWriteCloudWarning(flush, 'Возврат из архива')
+  return { row: clientOut, warn: warn || flushWarn, hallsOpened: halls }
 }
 
 /** @deprecated use closeClientHallWithReason — совместимость кнопки архива */

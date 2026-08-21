@@ -9,6 +9,10 @@ import {
   normalizeSaleClipStatus,
 } from './saleClipCore.js'
 import { todayLocalIso } from '../dateRu.js'
+import {
+  normalizeMembershipTotalTrainings,
+  shouldConfirmSuspiciousLowTotal,
+} from '../membership/membershipTotalGuardCore.js'
 
 /**
  * @param {string} trainerId
@@ -70,6 +74,18 @@ export async function createMembershipFromSaleClip(input) {
   }
 
   const fields = membershipFieldsFromSaleClip(clip)
+  const totalTrainings = normalizeMembershipTotalTrainings(fields.total_trainings)
+  if (
+    shouldConfirmSuspiciousLowTotal({ totalTrainings, isPnkTrialType: false }) &&
+    !input.confirmedLowTotal
+  ) {
+    return {
+      ok: false,
+      code: 'confirm_low_total',
+      reason: `В заявке всего ${totalTrainings} заняти${totalTrainings === 1 ? 'е' : 'я'}. Подтвердите создание или попросите менеджера исправить клип.`,
+      totalTrainings,
+    }
+  }
   const membershipId = crypto.randomUUID()
   const now = new Date().toISOString()
   const row = {
@@ -78,7 +94,7 @@ export async function createMembershipFromSaleClip(input) {
     club_id: clubId,
     start_date: fields.start_date,
     end_date: fields.end_date,
-    total_trainings: fields.total_trainings,
+    total_trainings: totalTrainings,
     used_trainings: 0,
     membership_type_id: fields.membership_type_id || null,
     clip_id: String(clip.id),
@@ -92,6 +108,13 @@ export async function createMembershipFromSaleClip(input) {
     operation: 'insert',
     remote_id: null,
   })
+
+  try {
+    const { ensureOpenHallAfterMembershipSave } = await import('../clientHallLifecycleSyncService.js')
+    await ensureOpenHallAfterMembershipSave(clientId, 'pz')
+  } catch (e) {
+    console.warn('[saleClip] ensure open hall', e?.message ?? e)
+  }
 
   const doneGate = canMarkSaleClipDone(clip, membershipId)
   if (!doneGate.ok && !doneGate.already) {

@@ -18,7 +18,7 @@ export function narrowClientMatchCandidates(matches, opts = {}) {
   if (opts.preferOperational || opts.deskImportResolve) {
     const ops = list.filter((c) => !isClientArchived(c))
     if (ops.length > 0) list = ops
-    else if (opts.deskImportResolve) return []
+    // desk: только архивные — оставляем (вернуть + абон), не create-дубль
   }
 
   if (opts.deskImportResolve && list.length > 1) {

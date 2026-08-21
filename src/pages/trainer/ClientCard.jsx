@@ -9,7 +9,9 @@ import {
   saveLocalWithSync,
 } from '../../lib/syncService'
 import {
-  restoreClientFromArchive,
+  restoreClientFromClubArchive,
+} from '../../lib/clientHallLifecycleSyncService.js'
+import {
   setClientArchiveReason,
 } from '../../lib/clientArchiveSyncService.js'
 import {
@@ -414,7 +416,7 @@ export function ClientCard() {
     if (!client?.id) return
     setArchiveBusy(true)
     try {
-      const { warn } = await restoreClientFromArchive(client)
+      const { warn } = await restoreClientFromClubArchive(client)
       if (warn) alert(warn)
       await reloadLocal()
     } catch (err) {

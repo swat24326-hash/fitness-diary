@@ -642,7 +642,13 @@ export function membershipUsageLabel(membership, clientTrainings) {
   const usedStored = Number(membership.used_trainings ?? 0)
   const used = Math.max(usedDiary, Number.isFinite(usedStored) ? usedStored : 0)
   const total = membership.total_trainings
-  return `${used}/${total ?? '—'}`
+  const totalN = Number(total ?? 0)
+  const base = `${used}/${total ?? '—'}`
+  // Лимит меньше факта дневника (опечатка total) — сразу видно в списке.
+  if (Number.isFinite(totalN) && totalN > 0 && used > totalN) {
+    return `${base} · лимит!`
+  }
+  return base
 }
 
 /**
