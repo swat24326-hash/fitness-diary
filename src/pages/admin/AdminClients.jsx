@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom'
 import { Archive, ArrowLeft, History, Phone, Pencil, RefreshCw, RotateCcw, Search, Trash2, UserCircle, UserPlus, UserSearch } from 'lucide-react'
+import { formatClientName } from '../../lib/clientNameFormat.js'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { AdminClientClubSmsButton } from '../../components/admin/AdminClientClubSmsButton.jsx'
@@ -1312,7 +1313,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
             </Link>
             <button
               type="button"
-              className="btn btn-primary btn-icon-square btn-touch"
+              className="btn btn-secondary btn-icon-square btn-touch"
               disabled={busy}
               onClick={() => void refreshFromCloud()}
               aria-label="Обновить список из облака"
@@ -1642,7 +1643,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                       {smsCampaign.active ? (
                         <AdminClubSmsCampaignRowCheck
                           clientId={c.id}
-                          clientName={c.name}
+                          clientName={formatClientName(c.name) || c.name}
                           checked={smsCampaign.isSelected(c.id)}
                           disabled={smsCampaign.running}
                           noPhone={campaignNoPhone}
@@ -1653,7 +1654,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                         <span title={sig.label} className="td-client-dot" style={{ background: sig.color }} />
                         <div className="td-client-card__who-text">
                           <strong className="td-client-card__name">
-                            {c.name}
+                            {formatClientName(c.name) || c.name}
                             {isLiteRow ? (
                               <span
                                 className="pnk-badge"
@@ -1876,7 +1877,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                         {clientsTab === 'az' && azDeductMem ? (
                           <AdminDeskAzDeductButton
                             membership={azDeductMem}
-                            clientName={String(c.name ?? '')}
+                            clientName={formatClientName(c.name) || String(c.name ?? '')}
                             compact
                             onDone={() => void reload({ silent: true })}
                             onToast={(msg) => setRefreshMsg(msg)}
@@ -1884,7 +1885,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                         ) : null}
                         <ClientRowMoreMenu
                           disabled={busy}
-                          ariaLabel={`Ещё действия: ${c.name ?? c.id}`}
+                          ariaLabel={`Ещё действия: ${formatClientName(c.name) || c.name || c.id}`}
                           items={[
                             club
                               ? {

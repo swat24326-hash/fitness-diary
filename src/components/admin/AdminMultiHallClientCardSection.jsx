@@ -112,7 +112,7 @@ export function AdminMultiHallClientCardSection({
       savedTrainerRef.current = undefined
     }
     const fromClientBirth = parseFlexibleDateToIso(client?.birth_date, birthDateYearBounds()) || ''
-    const fromClientName = String(client?.name ?? '').trim()
+    const fromClientName = formatClientName(client?.name) || String(client?.name ?? '').trim()
     const fromClientPhone = String(client?.phone ?? '').trim()
     const fromClientCard = String(client?.card_number ?? '').trim()
     const fromClientTrainer = String(client?.trainer_id ?? '').trim()

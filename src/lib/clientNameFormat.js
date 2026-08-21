@@ -3,7 +3,7 @@
  * Допустимо: «Фамилия», «Фамилия Имя», «Фамилия Имя Отчество», «Фамилия И.О.»
  */
 
-/** Продуктовые аббревиатуры — не инициалы (ТЗ → не «Т.З.»). */
+/** Продуктовые аббревиатуры — не инициалы и не title-case (ТЗ → не «Т.З.» / «Тз»). */
 const CLIENT_NAME_NOT_INITIALS = new Set(
   [
     'ТЗ',
@@ -21,21 +21,41 @@ const CLIENT_NAME_NOT_INITIALS = new Set(
   ].map((s) => s.toUpperCase()),
 )
 
+function lettersOnly(token) {
+  return String(token ?? '')
+    .trim()
+    .replace(/\./g, '')
+}
+
+/** @param {string} token */
+function formatProductAbbrev(token) {
+  const up = lettersOnly(token).toUpperCase()
+  if (!CLIENT_NAME_NOT_INITIALS.has(up)) return null
+  return up
+}
+
 function capWord(w) {
   const s = String(w ?? '')
   if (!s) return ''
   return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
 }
 
+/** Обычное слово или продуктовая аббревиатура (в т.ч. «А.З.» → «АЗ»). */
+function formatNameToken(token) {
+  const abbrev = formatProductAbbrev(token)
+  if (abbrev) return abbrev
+  return capWord(token)
+}
+
 /** Одна буква / «Р.» / «РА» (все заглавные) → токен инициала. */
 export function isClientNameInitialsPart(token) {
   const raw = String(token ?? '').trim()
   if (!raw) return false
+  const letters = lettersOnly(raw)
+  if (CLIENT_NAME_NOT_INITIALS.has(letters.toUpperCase())) return false
   if (/^[A-Za-zА-Яа-яЁё]\.$/u.test(raw)) return true
   if (/^[A-Za-zА-Яа-яЁё]\.([A-Za-zА-Яа-яЁё]\.)+$/u.test(raw)) return true
-  const letters = raw.replace(/\./g, '')
   if (letters.length === 1 && /^[A-Za-zА-Яа-яЁё]$/u.test(letters)) return true
-  if (CLIENT_NAME_NOT_INITIALS.has(letters.toUpperCase())) return false
   if (letters.length >= 2 && letters.length <= 3 && /^[A-Za-zА-Яа-яЁё]+$/u.test(letters) && letters === letters.toUpperCase()) {
     return true
   }
@@ -52,7 +72,7 @@ function formatInitialsPart(token) {
       .map((ch) => `${ch.toUpperCase()}.`)
       .join('')
   }
-  const letters = raw.replace(/\./g, '')
+  const letters = lettersOnly(raw)
   if (letters.length === 1) return `${letters.toUpperCase()}.`
   return letters
     .slice(0, 3)
@@ -69,7 +89,7 @@ export function formatClientName(raw) {
   const s = String(raw ?? '').trim().replace(/\s+/g, ' ')
   if (!s) return ''
   const parts = s.split(' ').filter(Boolean)
-  const surname = capWord(parts[0])
+  const surname = formatNameToken(parts[0])
   const rest = parts.slice(1)
   if (!rest.length) return surname
 
@@ -90,7 +110,7 @@ export function formatClientName(raw) {
       continue
     }
     flushInitials()
-    out.push(capWord(token))
+    out.push(formatNameToken(token))
   }
   flushInitials()
 
