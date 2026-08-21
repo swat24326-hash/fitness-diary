@@ -27,6 +27,7 @@ import {
   resolveTrainingPersistTargetId,
   shouldApplyTrainingPersistUi,
 } from '../../lib/trainingDraftPageEpochCore.js'
+import { migrateTrainingFormPlace, resolveTrainingFormPlaceKey } from '../../lib/trainingFormStepMemory.js'
 import {
   isTrainingFirstCompletion,
   isTrainingStatusCompleted,
@@ -727,6 +728,14 @@ export function TrainingPage() {
         return
       }
 
+      // /new → uuid: место формы (шаг/упражнение) не сбрасывать.
+      if (cid && row.id && (isNew || id === 'new')) {
+        migrateTrainingFormPlace(
+          resolveTrainingFormPlaceKey({ routeId: 'new', clientId: cid }),
+          row.id,
+        )
+      }
+
       if (debitNow) {
         try {
           await applyMembershipFirstCompletionDebit(membershipToDebit)
@@ -749,16 +758,15 @@ export function TrainingPage() {
         if (stillFirst) {
           hr.endTrainingHrSession(cid)
           hr.disconnectClient(cid)
-          if (applyUi) pendingHrScopeRef.current = null
+          pendingHrScopeRef.current = null
         } else if (row.status !== 'completed') {
-          if (applyUi) {
-            const pending = pendingHrScopeRef.current
-            if (pending && row.id && pending !== row.id) {
-              hr.migrateTrainingScope(cid, pending, row.id)
-              pendingHrScopeRef.current = null
-            }
-            if (row.id) hr.bindTrainingScope(cid, row.id)
+          // Перенос буфера пульса — всегда (даже если уже другая вкладка); bind UI — только свой экран.
+          const pending = pendingHrScopeRef.current
+          if (pending && row.id && pending !== row.id) {
+            hr.migrateTrainingScope(cid, pending, row.id)
+            pendingHrScopeRef.current = null
           }
+          if (applyUi && row.id) hr.bindTrainingScope(cid, row.id)
         }
       } catch {
         /* ignore */
@@ -1466,7 +1474,11 @@ export function TrainingPage() {
         onChange={setWorkoutState}
         trainingType={trainingType}
         clientId={client?.id ?? clientIdParam ?? ''}
-        currentTrainingId={meta.trainingId}
+        currentTrainingId={resolveTrainingFormPlaceKey({
+          trainingId: meta.trainingId,
+          routeId: id,
+          clientId: client?.id ?? clientIdParam,
+        })}
         hrSessionSummary={displayHrSummary}
       />
 

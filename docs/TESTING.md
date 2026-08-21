@@ -66,7 +66,7 @@
 | Критический контур зала (сшивка) | `verify-critical-hall.mjs` (complete/абон/Sync/ПНК/роли; баллы не в очереди и не в качестве ведения) |
 | Пульс при завершении: снимок в дневник, живой буфер не остаётся | `verify-hr-session-persist.mjs` |
 | Двойной тап → пульс подхода из слота | `verify-hr-after-from-live.mjs` |
-| Шаг формы при сплите черновиков | `verify-training-form-step-memory.mjs` |
+| Шаг/место формы при сплите черновиков | `verify-training-form-step-memory.mjs` |
 | Изоляция load/persist при смене вкладки черновика | `verify-training-draft-page-epoch.mjs` |
 | Подход Л/П (стороны, сводка, челлендж, завершение) | `verify-training-set-laterality.mjs` |
 | Статус тренировки: completed не откатывается в draft | `verify-training-persist-status.mjs` |

@@ -32,7 +32,12 @@ import {
 } from '../lib/trainingSuperset'
 import { TrainingHrSessionSummary } from './trainer/TrainingHrSessionSummary.jsx'
 import {
-  rememberTrainingFormStep,
+  filterCollapsedIdsForExercises,
+  escapeTrainingExerciseSelectorId,
+  migrateTrainingFormPlace,
+  pickScrollRestoreTarget,
+  recallTrainingFormPlace,
+  rememberTrainingFormPlace,
   resolveTrainingFormStep,
 } from '../lib/trainingFormStepMemory'
 
@@ -104,8 +109,10 @@ export function TrainingForm({
   currentTrainingId = null,
   hrSessionSummary = null,
 }) {
+  const placeKey = String(currentTrainingId ?? '').trim()
+  const initialPlace = placeKey ? recallTrainingFormPlace(placeKey) : null
   const [step, setStep] = useState(() =>
-    resolveTrainingFormStep({ trainingId: currentTrainingId, exercises: value?.exercises }),
+    resolveTrainingFormStep({ trainingId: placeKey || null, exercises: value?.exercises }),
   )
   const [focusExerciseIdx, setFocusExerciseIdx] = useState(null)
   const [pickExerciseIdx, setPickExerciseIdx] = useState(null)
@@ -115,23 +122,46 @@ export function TrainingForm({
   const [catalogList, setCatalogList] = useState([])
   const [clientTrainings, setClientTrainings] = useState([])
   const [suggestOpenId, setSuggestOpenId] = useState(null)
-  const [collapsedExerciseIds, setCollapsedExerciseIds] = useState(() => new Set())
+  const [collapsedExerciseIds, setCollapsedExerciseIds] = useState(
+    () => new Set(initialPlace?.collapsedIds ?? []),
+  )
   const lastNameTapAtRef = useRef({})
   const exercisesRef = useRef([])
   /** Пока в родителе exercises: [], нельзя каждый рендер создавать новый id — иначе input размонтируется и ввод «не печатается». */
   const emptyExercisePlaceholderRef = useRef(null)
+  /** Последнее упражнение, с которым работали (не путать с панелью «фокус»). */
+  const activeExerciseIdRef = useRef(initialPlace?.focusExerciseId ?? null)
+  const placeKeyRef = useRef(placeKey)
+  const placeSnapshotRef = useRef({
+    step,
+    focusExerciseId: initialPlace?.focusExerciseId ?? null,
+    scrollY: typeof window !== 'undefined' ? window.scrollY : 0,
+    collapsedIds: [...(initialPlace?.collapsedIds ?? [])],
+  })
+  const scrollRestoredRef = useRef(false)
   const current = steps[step]
   const workout = value
 
-  // Смена черновика/клиента — новый placeholder, иначе имя упражнения «переезжает» между вкладками.
+  // Смена черновика: placeholder с нуля; место UI — из памяти этого id (не чужого).
   useEffect(() => {
+    const prevKey = placeKeyRef.current
+    const nextKey = String(currentTrainingId ?? '').trim()
+    if (prevKey && nextKey && prevKey !== nextKey && prevKey.startsWith('new:')) {
+      migrateTrainingFormPlace(prevKey, nextKey)
+    }
+    placeKeyRef.current = nextKey
+
     emptyExercisePlaceholderRef.current = null
     setPickExerciseIdx(null)
     setPickSearch('')
     setSuggestOpenId(null)
     setFocusExerciseIdx(null)
-    setCollapsedExerciseIds(new Set())
-    setStep(resolveTrainingFormStep({ trainingId: currentTrainingId, exercises: value?.exercises }))
+
+    const place = nextKey ? recallTrainingFormPlace(nextKey) : null
+    activeExerciseIdRef.current = place?.focusExerciseId ?? null
+    scrollRestoredRef.current = false
+    setStep(resolveTrainingFormStep({ trainingId: nextKey || null, exercises: value?.exercises }))
+    setCollapsedExerciseIds(new Set(place?.collapsedIds ?? []))
   }, [currentTrainingId, clientId])
 
   const setWorkout = (patch) => {
@@ -171,6 +201,12 @@ export function TrainingForm({
   }
 
   const patchExercise = (idx, ex) => {
+    const eid = String(ex?.id ?? '').trim()
+    if (eid) {
+      activeExerciseIdRef.current = eid
+      placeSnapshotRef.current = { ...placeSnapshotRef.current, focusExerciseId: eid }
+      if (placeKey) rememberTrainingFormPlace(placeKey, { focusExerciseId: eid })
+    }
     const next = exercises.slice()
     next[idx] = ex
     syncExercises(next)
@@ -362,9 +398,78 @@ export function TrainingForm({
     setSuggestOpenId(null)
   }, [step])
 
+  // Держим снимок места для flush при unmount / смене вкладки.
   useEffect(() => {
-    rememberTrainingFormStep(currentTrainingId, step)
-  }, [currentTrainingId, step])
+    const collapsed = filterCollapsedIdsForExercises([...collapsedExerciseIds], exercisesRef.current)
+    placeSnapshotRef.current = {
+      step,
+      focusExerciseId: activeExerciseIdRef.current,
+      scrollY: typeof window !== 'undefined' ? window.scrollY : 0,
+      collapsedIds: collapsed,
+    }
+    if (!placeKey) return undefined
+    rememberTrainingFormPlace(placeKey, placeSnapshotRef.current)
+    return undefined
+  }, [placeKey, step, collapsedExerciseIds])
+
+  useEffect(() => {
+    if (!placeKey) return undefined
+    let timer = null
+    const onScroll = () => {
+      if (timer) return
+      timer = window.setTimeout(() => {
+        timer = null
+        const y = window.scrollY
+        placeSnapshotRef.current = { ...placeSnapshotRef.current, scrollY: y }
+        rememberTrainingFormPlace(placeKey, { scrollY: y })
+      }, 180)
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      if (timer) window.clearTimeout(timer)
+      window.removeEventListener('scroll', onScroll)
+      rememberTrainingFormPlace(placeKey, {
+        ...placeSnapshotRef.current,
+        scrollY: window.scrollY,
+        focusExerciseId: activeExerciseIdRef.current,
+      })
+    }
+  }, [placeKey])
+
+  // После hydrate — вернуть прокрутку к месту правки (упражнение или scrollY).
+  useEffect(() => {
+    if (!placeKey || scrollRestoredRef.current) return undefined
+    const place = recallTrainingFormPlace(placeKey)
+    const target = pickScrollRestoreTarget(place)
+    if (!target) {
+      scrollRestoredRef.current = true
+      return undefined
+    }
+    const t = window.setTimeout(() => {
+      if (target.type === 'exercise' && current.id === 'main') {
+        const el = document.querySelector(
+          `[data-training-exercise-id="${escapeTrainingExerciseSelectorId(target.id)}"]`,
+        )
+        if (el) {
+          el.scrollIntoView({ block: 'center', behavior: 'auto' })
+          scrollRestoredRef.current = true
+          return
+        }
+        // Блок ещё не в DOM — попробуем на следующем тике / после списка.
+        return
+      }
+      if (target.type === 'y') {
+        window.scrollTo(0, target.y)
+        scrollRestoredRef.current = true
+        return
+      }
+      if (typeof place?.scrollY === 'number' && place.scrollY > 0) {
+        window.scrollTo(0, place.scrollY)
+      }
+      scrollRestoredRef.current = true
+    }, 50)
+    return () => window.clearTimeout(t)
+  }, [placeKey, step, current.id, workout.exercises])
 
   useEffect(() => {
     const validIds = new Set(exercises.map((ex) => ex.id))
@@ -381,6 +486,14 @@ export function TrainingForm({
       return changed ? next : prev
     })
   }, [exercises])
+
+  const markActiveExercise = (exerciseId) => {
+    const id = String(exerciseId ?? '').trim()
+    if (!id) return
+    activeExerciseIdRef.current = id
+    placeSnapshotRef.current = { ...placeSnapshotRef.current, focusExerciseId: id }
+    if (placeKey) rememberTrainingFormPlace(placeKey, { focusExerciseId: id })
+  }
 
   return (
     <div className="steps">
@@ -478,6 +591,7 @@ export function TrainingForm({
             return (
             <div
               key={ex.id}
+              data-training-exercise-id={ex.id}
               className={`training-exercise-block${inSuperset ? ` training-exercise-block--superset training-exercise-block--superset-${railRole}` : ''}`}
               style={{ marginTop: 14, paddingTop: 14, borderTop: exIdx ? '1px solid var(--border)' : 'none' }}
             >
@@ -512,6 +626,7 @@ export function TrainingForm({
                       onDoubleClick={() => toggleExerciseCollapsed(ex.id)}
                       onTouchEnd={() => onExerciseNameTouchEnd(ex.id)}
                       onChange={(e) => {
+                        markActiveExercise(ex.id)
                         patchExercise(exIdx, {
                           ...ex,
                           name: stripDirectionControls(e.target.value),
@@ -520,6 +635,7 @@ export function TrainingForm({
                         setSuggestOpenId(ex.id)
                       }}
                       onFocus={() => {
+                        markActiveExercise(ex.id)
                         if (catalogList.length) setSuggestOpenId(ex.id)
                       }}
                       onBlur={() => {
