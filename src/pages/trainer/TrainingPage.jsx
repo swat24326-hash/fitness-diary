@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Calendar, Activity, Bluetooth, Info, Save, UserCircle } from 'lucide-react'
 import { CloseButton } from '../../components/CloseButton'
@@ -27,6 +27,13 @@ import {
   resolveTrainingPersistTargetId,
   shouldApplyTrainingPersistUi,
 } from '../../lib/trainingDraftPageEpochCore.js'
+import {
+  buildTrainingDraftSessionSnapshot,
+  dropTrainingDraftSession,
+  isTrainingDraftSessionSnapshotReady,
+  putTrainingDraftSession,
+  takeTrainingDraftSession,
+} from '../../lib/trainingDraftSessionCache.js'
 import { migrateTrainingFormPlace, resolveTrainingFormPlaceKey } from '../../lib/trainingFormStepMemory.js'
 import {
   isTrainingFirstCompletion,
@@ -172,6 +179,10 @@ export function TrainingPage() {
   const [lateDraftOffer, setLateDraftOffer] = useState(false)
   const lateShiftDismissedRef = useRef(false)
 
+  /** Снимок текущего экрана для LRU-кэша вкладок (оставляем до смены id). */
+  const draftSessionGateRef = useRef({ id: '', snap: null })
+  /** Layout уже применил сессионный кэш для этого route id — load только soft-refresh. */
+  const sessionCacheHitRef = useRef(null)
   const saveMutexRef = useRef(Promise.resolve())
   const completeInFlightRef = useRef(false)
   const [hydrateVersion, bumpHydrateVersion] = useState(0)
@@ -198,6 +209,104 @@ export function TrainingPage() {
     return next
   }, [])
 
+  const applyDraftSessionSnapshot = useCallback((snap) => {
+    setMeta({
+      status: snap.meta?.status ?? 'draft',
+      trainingId: snap.meta?.trainingId ?? null,
+    })
+    setWorkoutState(snap.workoutState && typeof snap.workoutState === 'object' ? snap.workoutState : emptyTrainingData())
+    setTrainingType(snap.trainingType || 'Силовая')
+    setTrainingDate(snap.trainingDate || todayLocalIso())
+    setClient(snap.client ?? null)
+    setHealthCard(snap.healthCard ?? null)
+    setContra(String(snap.contra ?? ''))
+    setMembershipSummary(snap.membershipSummary ?? null)
+    setOtherCompletedTrainings(Number(snap.otherCompletedTrainings) || 0)
+    setEarlyActivateProposal(null)
+    setMembershipShiftMode(null)
+    setLateDraftOffer(false)
+    setLateBlockedNotice(String(snap.lateBlockedNotice ?? ''))
+    lateShiftDismissedRef.current = false
+    draftTrainingIdRef.current = snap.meta?.trainingId ?? null
+    pendingHrScopeRef.current = null
+    setSaveError('')
+    setAutosaveStatus('idle')
+    setLoadState('ok')
+  }, [])
+
+  /** До paint: уходящий черновик в LRU; при hit — сразу свой UI (без кадра чужих упражнений). */
+  useLayoutEffect(() => {
+    if (!user?.id) return
+    if (isNew && isAdmin) return
+
+    const outgoing = draftSessionGateRef.current
+    if (outgoing?.id && outgoing.id !== id && isTrainingDraftSessionSnapshotReady(outgoing.snap, outgoing.id)) {
+      putTrainingDraftSession(outgoing.id, outgoing.snap)
+    }
+
+    if (isNew || !id || id === 'new') {
+      sessionCacheHitRef.current = null
+      return
+    }
+
+    const cached = takeTrainingDraftSession(id)
+    if (!isTrainingDraftSessionSnapshotReady(cached, id)) {
+      sessionCacheHitRef.current = null
+      setLoadState('loading')
+      setWorkoutState(emptyTrainingData())
+      return
+    }
+
+    const epoch = pageEpochRef.current + 1
+    pageEpochRef.current = epoch
+    sessionCacheHitRef.current = {
+      id: String(id),
+      epoch,
+      clientId: String(cached.client?.id ?? ''),
+      clubId: String(cached.client?.club_id ?? ''),
+      status: String(cached.meta?.status ?? 'draft'),
+      trainingDate: String(cached.trainingDate ?? ''),
+    }
+    applyDraftSessionSnapshot(cached)
+    bumpHydrateVersion((v) => v + 1)
+  }, [id, clientIdParam, isNew, isAdmin, user?.id, applyDraftSessionSnapshot])
+
+  // Пока на вкладке — держим свежий снимок (последний кейстрок уйдёт в LRU при уходе).
+  useLayoutEffect(() => {
+    const routeTid = id && id !== 'new' ? String(id) : ''
+    const metaTid = String(meta.trainingId ?? '').trim()
+    const tid = metaTid && routeTid && metaTid === routeTid ? metaTid : ''
+    if (!tid || loadState !== 'ok') return
+    const snap = buildTrainingDraftSessionSnapshot({
+      loadState,
+      meta,
+      workoutState,
+      trainingType,
+      trainingDate,
+      client,
+      healthCard,
+      contra,
+      membershipSummary,
+      otherCompletedTrainings,
+      lateBlockedNotice,
+    })
+    if (!snap) return
+    draftSessionGateRef.current = { id: tid, snap }
+  }, [
+    id,
+    loadState,
+    meta,
+    workoutState,
+    trainingType,
+    trainingDate,
+    client,
+    healthCard,
+    contra,
+    membershipSummary,
+    otherCompletedTrainings,
+    lateBlockedNotice,
+  ])
+
   const load = useCallback(async () => {
     if (!user?.id) return
     if (autosaveTimerRef.current) {
@@ -208,11 +317,58 @@ export function TrainingPage() {
       clearTimeout(autosaveUiTimerRef.current)
       autosaveUiTimerRef.current = null
     }
+
+    // Layout уже восстановил вкладку из LRU — не затираем IDB-load'ом.
+    const cacheHit = sessionCacheHitRef.current
+    if (cacheHit && cacheHit.id === String(id ?? '') && !isNew) {
+      const epoch = cacheHit.epoch
+      const cid = String(cacheHit.clientId ?? '').trim()
+      if (!cid) return
+      try {
+        const ms = await activeMembershipSummary(cid)
+        if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
+        setMembershipSummary(ms)
+        if (!isAdmin && String(cacheHit.status ?? '') === 'draft') {
+          const gateDay = String(cacheHit.trainingDate || todayLocalIso()).slice(0, 10)
+          const lateInsp = await loadLateStartInspection(cid, gateDay)
+          if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
+          if (lateInsp.status === 'offer' && lateInsp.proposal) {
+            setEarlyActivateProposal(lateInsp.proposal)
+            setMembershipShiftMode('late')
+            setLateDraftOffer(true)
+            setLateBlockedNotice('')
+          } else if (lateInsp.status === 'blocked') {
+            setEarlyActivateProposal(null)
+            setMembershipShiftMode(null)
+            setLateDraftOffer(false)
+            setLateBlockedNotice(lateInsp.message || '')
+          } else {
+            setEarlyActivateProposal(null)
+            setMembershipShiftMode(null)
+            setLateDraftOffer(false)
+            setLateBlockedNotice('')
+          }
+        }
+        prefetchTrainerClientWorkspace(cid, {
+          trainerId: isAdmin ? '' : user.id,
+          clubId: cacheHit.clubId || '',
+        })
+      } catch {
+        /* экран уже из кэша */
+      }
+      return
+    }
+
+    const outgoing = draftSessionGateRef.current
+    if (outgoing?.id && outgoing.id !== id && isTrainingDraftSessionSnapshotReady(outgoing.snap, outgoing.id)) {
+      putTrainingDraftSession(outgoing.id, outgoing.snap)
+    }
+
     const epoch = pageEpochRef.current + 1
     pageEpochRef.current = epoch
-    setLoadState('loading')
     setSaveError('')
     setAutosaveStatus('idle')
+    setLoadState('loading')
     // Не показывать упражнения предыдущего черновика, пока грузится текущий.
     setWorkoutState(emptyTrainingData())
     if (isNew) {
@@ -308,28 +464,31 @@ export function TrainingPage() {
       setLoadState('missing')
       return
     }
-    setMeta({ status: t.status, trainingId: t.id })
-    const c = await getLocalClient(t.client_id)
-    if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
-    setClient(c)
+
     const sessionType = t.type && TRAINING_TYPES.includes(t.type) ? t.type : 'Силовая'
     const w = typeof t.data === 'object' && t.data ? sanitizeWorkoutData(t.data, { sessionFallback: sessionType }) : {}
-    setWorkoutState({ ...emptyTrainingData(), ...w })
-    setTrainingType(sessionType)
     const today = todayLocalIso()
     const loaded = t.date ?? today
-    setTrainingDate(canEditTrainingDate(isAdmin, t.status) ? loaded : clampIsoDateToToday(loaded))
-    const hc = await getHealthCard(t.client_id)
+
+    // Параллельно: клиент / медкарта / дневник / абон — меньше «Загрузка…» на первом заходе.
+    const [c, hc, trainings, membershipSummary] = await Promise.all([
+      getLocalClient(t.client_id),
+      getHealthCard(t.client_id),
+      listTrainingsForClient(t.client_id),
+      activeMembershipSummary(t.client_id),
+    ])
     if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
+
+    setMeta({ status: t.status, trainingId: t.id })
+    setClient(c)
+    setWorkoutState({ ...emptyTrainingData(), ...w })
+    setTrainingType(sessionType)
+    setTrainingDate(canEditTrainingDate(isAdmin, t.status) ? loaded : clampIsoDateToToday(loaded))
     setHealthCard(hc ?? null)
     setContra((hc?.contraindications ?? '').trim())
-    const trainings = await listTrainingsForClient(t.client_id)
-    if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
     setOtherCompletedTrainings(
       trainings.filter((tr) => String(tr?.status ?? '') === 'completed' && tr.id !== t.id).length,
     )
-    const membershipSummary = await activeMembershipSummary(t.client_id)
-    if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
     setMembershipSummary(membershipSummary)
     draftTrainingIdRef.current = t.id
     pendingHrScopeRef.current = null
@@ -358,7 +517,26 @@ export function TrainingPage() {
     })
     setLoadState('ok')
     bumpHydrateVersion((v) => v + 1)
-  }, [user?.id, isNew, clientIdParam, id, isAdmin])
+
+    putTrainingDraftSession(
+      t.id,
+      buildTrainingDraftSessionSnapshot({
+        loadState: 'ok',
+        meta: { status: t.status, trainingId: t.id },
+        workoutState: { ...emptyTrainingData(), ...w },
+        trainingType: sessionType,
+        trainingDate: canEditTrainingDate(isAdmin, t.status) ? loaded : clampIsoDateToToday(loaded),
+        client: c,
+        healthCard: hc ?? null,
+        contra: (hc?.contraindications ?? '').trim(),
+        membershipSummary,
+        otherCompletedTrainings: trainings.filter(
+          (tr) => String(tr?.status ?? '') === 'completed' && tr.id !== t.id,
+        ).length,
+        lateBlockedNotice: '',
+      }),
+    )
+  }, [user?.id, isNew, clientIdParam, id, isAdmin, applyDraftSessionSnapshot])
 
   useEffect(() => {
     if (isNew && isAdmin) return
@@ -802,6 +980,7 @@ export function TrainingPage() {
       }
 
       if (row.status === 'completed') {
+        dropTrainingDraftSession(row.id)
         runTrainingCompleteFollowUp(cid)
         const completedCount =
           otherCompletedTrainings + (prev?.status === 'completed' ? 0 : 1)

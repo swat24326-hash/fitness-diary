@@ -187,6 +187,7 @@ run('membership stats refresh', 'node', ['scripts/verify-membership-stats-refres
 run('training superset', 'node', ['scripts/verify-training-superset.mjs'])
 run('training form step memory', 'node', ['scripts/verify-training-form-step-memory.mjs'])
 run('training draft page epoch', 'node', ['scripts/verify-training-draft-page-epoch.mjs'])
+run('training draft session cache', 'node', ['scripts/verify-training-draft-session-cache.mjs'])
 run('last exercise result', 'node', ['scripts/verify-last-exercise-result.mjs'])
 run('app diagnostics', 'node', ['scripts/verify-app-diagnostics.mjs'])
 run('client weight push', 'node', ['scripts/verify-client-weight-push.mjs'])

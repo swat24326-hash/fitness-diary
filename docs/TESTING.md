@@ -68,6 +68,7 @@
 | Двойной тап → пульс подхода из слота | `verify-hr-after-from-live.mjs` |
 | Шаг/место формы при сплите черновиков | `verify-training-form-step-memory.mjs` |
 | Изоляция load/persist при смене вкладки черновика | `verify-training-draft-page-epoch.mjs` |
+| Сессионный кэш вкладок черновика (без «Загрузка…») | `verify-training-draft-session-cache.mjs` |
 | Подход Л/П (стороны, сводка, челлендж, завершение) | `verify-training-set-laterality.mjs` |
 | Статус тренировки: completed не откатывается в draft | `verify-training-persist-status.mjs` |
 | Статистика тренера: облако за период (не только IDB) | `verify-trainer-period-stats-remote.mjs` |
