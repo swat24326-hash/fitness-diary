@@ -52,11 +52,12 @@ export function resolveAdminClientsBrowseHallMode(clientsTab) {
  * @param {object[]} clients
  * @param {string} clientsTab
  * @param {Record<string, object[]>} memByClient
+ * @param {{ lifecycleRows?: object[], asOf?: string }|null|undefined} [lifecycleCtx]
  */
-export function filterAdminClientsBrowseTabBase(clients, clientsTab, memByClient) {
+export function filterAdminClientsBrowseTabBase(clients, clientsTab, memByClient, lifecycleCtx) {
   const tab = normalizeAdminClientsListTab(clientsTab)
   const countTab = tab === 'archive' ? 'active' : tab
-  return filterClientsByAdminListTab(clients, countTab, memByClient)
+  return filterClientsByAdminListTab(clients, countTab, memByClient, lifecycleCtx)
 }
 
 /**
@@ -129,7 +130,11 @@ export function adminClientBrowseMatchCtx(client, today, hallMode, memByClient, 
  */
 export function filterAdminClientsByBrowseMode(p) {
   const mode = String(p?.browseMode ?? '').trim()
-  let base = filterAdminClientsBrowseTabBase(p.clients, p.clientsTab, p.memByClient)
+  const lifecycleCtx = {
+    lifecycleRows: p.lifecycleRows ?? [],
+    asOf: p.today,
+  }
+  let base = filterAdminClientsBrowseTabBase(p.clients, p.clientsTab, p.memByClient, lifecycleCtx)
   base = applyAzDirectionToBrowsePool(
     base,
     p.memByClient,
@@ -165,7 +170,11 @@ export function filterAdminClientsByBrowseMode(p) {
  * }} p
  */
 export function buildAdminClientsBrowseCounts(p) {
-  let tabBase = filterAdminClientsBrowseTabBase(p.clients, p.clientsTab, p.memByClient)
+  const lifecycleCtx = {
+    lifecycleRows: p.lifecycleRows ?? [],
+    asOf: p.today,
+  }
+  let tabBase = filterAdminClientsBrowseTabBase(p.clients, p.clientsTab, p.memByClient, lifecycleCtx)
   tabBase = applyAzDirectionToBrowsePool(
     tabBase,
     p.memByClient,

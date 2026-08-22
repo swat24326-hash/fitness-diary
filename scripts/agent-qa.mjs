@@ -135,6 +135,7 @@ run('client hard delete confirm', 'node', ['scripts/verify-client-hard-delete-co
 run('client archive reason', 'node', ['scripts/verify-client-archive-reason.mjs'])
 run('client archive expected return', 'node', ['scripts/verify-client-archive-expected-return.mjs'])
 run('client hall lifecycle', 'node', ['scripts/verify-client-hall-lifecycle.mjs'])
+run('admin clients list lifecycle', 'node', ['scripts/verify-admin-clients-list-lifecycle.mjs'])
 run('club sms campaign', 'node', ['scripts/verify-club-sms-campaign.mjs'])
 run('club sms campaign result', 'node', ['scripts/verify-club-sms-campaign-result.mjs'])
 run('sale clips match holding', 'node', ['scripts/verify-sale-clips.mjs'])

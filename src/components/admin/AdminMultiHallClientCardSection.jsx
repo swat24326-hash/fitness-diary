@@ -23,7 +23,8 @@ import { AdminDeskMembershipLedger } from './AdminDeskMembershipLedger.jsx'
 import { AdminMultiHallTrainerField } from './AdminMultiHallTrainerField.jsx'
 import { MembershipManager } from '../MembershipManager.jsx'
 import { AdminDeskMemDateField } from './AdminDeskMemDateField.jsx'
-import { birthDateYearBounds, parseFlexibleDateToIso } from '../../lib/dateRu.js'
+import { birthDateYearBounds, parseFlexibleDateToIso, todayLocalIso } from '../../lib/dateRu.js'
+import { getDb } from '../../lib/localDb.js'
 import '../../styles/admin-desk.css'
 
 /**
@@ -89,11 +90,45 @@ export function AdminMultiHallClientCardSection({
   const savedCardRef = useRef(/** @type {string | undefined} */ (undefined))
   const savedTrainerRef = useRef(/** @type {string | undefined} */ (undefined))
   const trainersCatalogRef = useRef(/** @type {object[]} */ ([]))
+  const [lifecycleRows, setLifecycleRows] = useState([])
+
+  const lifecycleCtx = useMemo(
+    () => ({ lifecycleRows, asOf: todayLocalIso() }),
+    [lifecycleRows],
+  )
 
   useEffect(() => {
-    const next = resolveInitialClientHallTab(client, memberships, preferredHall)
+    const cid = String(client?.id ?? '').trim()
+    if (!cid) {
+      setLifecycleRows([])
+      return undefined
+    }
+    let cancelled = false
+    void (async () => {
+      try {
+        const db = await getDb()
+        if (!db.objectStoreNames.contains('client_hall_lifecycle')) return
+        let rows = []
+        try {
+          rows = await db.getAllFromIndex('client_hall_lifecycle', 'by_client_id', cid)
+        } catch {
+          const all = await db.getAll('client_hall_lifecycle')
+          rows = (all ?? []).filter((r) => String(r?.client_id) === cid)
+        }
+        if (!cancelled) setLifecycleRows(rows ?? [])
+      } catch {
+        if (!cancelled) setLifecycleRows([])
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [client?.id])
+
+  useEffect(() => {
+    const next = resolveInitialClientHallTab(client, memberships, preferredHall, lifecycleCtx)
     if (!hallControlled) setHallTabState(next)
-  }, [client?.id, preferredHall, hallControlled, memberships])
+  }, [client?.id, preferredHall, hallControlled, memberships, lifecycleCtx])
 
   useEffect(() => {
     const id = String(client?.id ?? '')
@@ -353,6 +388,7 @@ export function AdminMultiHallClientCardSection({
       <AdminClientHallLifecycleActions
         client={client}
         memberships={memberships}
+        lifecycleRows={lifecycleRows}
         hall={hallTab}
         onChanged={onSaved}
       />

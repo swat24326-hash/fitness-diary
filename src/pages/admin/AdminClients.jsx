@@ -675,9 +675,19 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     [query, trainerQuery, quickFilter, clientsTab, azDirectionFilter],
   )
 
+  const listLifecycleCtx = useMemo(
+    () => ({ lifecycleRows, asOf: today }),
+    [lifecycleRows, today],
+  )
+
+  const filterClientsByTabWithLifecycle = useCallback(
+    (list, tab, memBy) => filterClientsByAdminListTab(list, tab, memBy, listLifecycleCtx),
+    [listLifecycleCtx],
+  )
+
   const listTabCounts = useMemo(
-    () => countClientsByAdminListTab(clients, memByClient),
-    [clients, memByClient],
+    () => countClientsByAdminListTab(clients, memByClient, listLifecycleCtx),
+    [clients, memByClient, listLifecycleCtx],
   )
   const isDeskHallTab = clientsTab === 'tz' || clientsTab === 'az'
   const archiveHallOptions = useMemo(
@@ -711,7 +721,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       clientsTab,
       query,
       memByClient,
-      filterByTab: filterClientsByAdminListTab,
+      filterByTab: filterClientsByTabWithLifecycle,
     })
     if (clientsTab === 'archive' && normalizeArchiveHallFilter(archiveHallFilter)) {
       base = base.filter((c) =>
@@ -776,19 +786,20 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     showTrainerSearch,
     crossHallSearch,
     lifecycleRows,
+    filterClientsByTabWithLifecycle,
   ])
 
   const azDirectionOptions = useMemo(() => {
     if (clientsTab !== 'az') return []
     // Всегда пул вкладки АЗ (не выдача поиска) — иначе muted-чипы врут и пропадают направления.
-    const pool = filterClientsByAdminListTab(clients, 'az', memByClient)
+    const pool = filterClientsByAdminListTab(clients, 'az', memByClient, listLifecycleCtx)
     return buildAzDirectionFilterOptions({
       clients: pool,
       memByClient,
       azTypes: azMembershipTypes,
       todayIso: today,
     })
-  }, [clientsTab, clients, memByClient, azMembershipTypes, today])
+  }, [clientsTab, clients, memByClient, azMembershipTypes, today, listLifecycleCtx])
 
   const totalPages = Math.max(1, Math.ceil(filteredClients.length / ADMIN_CLIENTS_PAGE_SIZE))
 
@@ -1622,6 +1633,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
                 ? buildClientHallStack(c, mlistAll, {
                     today,
                     trainerName: trainerNameById[String(c.trainer_id ?? '')] || '',
+                    lifecycleRows,
                   })
                 : []
               /** В cross-hall поиске факты абона — по первому залу стека (обычно ПЗ), иначе как у вкладки. */

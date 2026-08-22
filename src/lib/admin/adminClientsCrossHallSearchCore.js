@@ -9,6 +9,7 @@ import {
   pickHallActiveMembership,
 } from './deskMembershipLedgerCore.js'
 import { clientMembershipHallSet } from '../membershipHallCore.js'
+import { clientAdminVisibleHallSet } from './adminClientsListLifecycleCore.js'
 
 /**
  * При непустом поиске по живому списку — ищем без фильтра вкладки зала.
@@ -61,13 +62,26 @@ export function clientMatchesAdminSearchQuery(client, queryLower) {
  * Стек залов для выдачи поиска: только залы, где клиент реально есть.
  * @param {object|null|undefined} client
  * @param {object[]|null|undefined} memberships
- * @param {{ today?: string, trainerName?: string }} [opts]
+ * @param {{ today?: string, trainerName?: string, lifecycleRows?: object[] }} [opts]
  * @returns {Array<{ hall: string, label: string, summary: string, hrefHall: string, signalKey: string, signalColor: string }>}
  */
 export function buildClientHallStack(client, memberships, opts = {}) {
   const today = String(opts.today ?? '').slice(0, 10)
   const trainerName = String(opts.trainerName ?? '').trim()
-  const halls = clientMembershipHallSet(client, memberships)
+  const clientId = String(client?.id ?? '').trim()
+  const lifecycleRows =
+    opts.lifecycleRows != null
+      ? (opts.lifecycleRows ?? []).filter((r) => String(r?.client_id ?? '') === clientId)
+      : null
+  const halls =
+    lifecycleRows != null
+      ? clientAdminVisibleHallSet({
+          client,
+          memberships,
+          lifecycleRows,
+          asOf: today || undefined,
+        })
+      : clientMembershipHallSet(client, memberships)
   /** @type {ReturnType<typeof buildClientHallStack>} */
   const stack = []
   for (const hall of CLIENT_HALL_TAB_ORDER) {

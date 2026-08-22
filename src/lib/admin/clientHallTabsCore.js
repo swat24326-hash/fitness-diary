@@ -3,6 +3,7 @@
  */
 
 import { clientMembershipHallSet, normalizeMembershipHall } from '../membershipHallCore.js'
+import { resolveAdminClientHallTabWithLifecycle } from './adminClientsListLifecycleCore.js'
 
 /** @typedef {'pz'|'tz'|'az'} ClientHallTab */
 
@@ -55,13 +56,17 @@ export function trainerOwnsClientForTablet(client, trainerUserId) {
 }
 
 /**
- * Стартовая вкладка: приоритет зал из списка / desk / ПЗ.
+ * Стартовая вкладка: приоритет зал из списка / desk / открытые залы.
  * @param {object|null|undefined} client
  * @param {object[]|null|undefined} memberships
  * @param {unknown} [preferred]
+ * @param {{ lifecycleRows?: object[], asOf?: string }|null|undefined} [lifecycleCtx]
  * @returns {ClientHallTab}
  */
-export function resolveInitialClientHallTab(client, memberships, preferred) {
+export function resolveInitialClientHallTab(client, memberships, preferred, lifecycleCtx) {
+  if (lifecycleCtx) {
+    return resolveAdminClientHallTabWithLifecycle(client, memberships, preferred, lifecycleCtx)
+  }
   const want = normalizeMembershipHall(preferred)
   const halls = clientMembershipHallSet(client, memberships)
   if (want && halls.has(want)) return want

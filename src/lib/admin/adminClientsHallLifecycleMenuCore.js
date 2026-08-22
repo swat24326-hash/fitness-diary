@@ -9,6 +9,7 @@ import {
   normalizeLifecycleHall,
 } from '../clientHallLifecycleCore.js'
 import { normalizeAdminClientsListTab } from './deskHallClientsCore.js'
+import { shouldOfferAdminCloseDepletedHall } from './adminClientsListLifecycleCore.js'
 
 /**
  * @param {unknown} clientsTab
@@ -75,12 +76,24 @@ export function shouldOfferAdminCloseHall(p = {}) {
   if (tab === 'archive') return false
   if (p.client?.archived_at) return false
   const hall = resolveAdminClientsActionHall(tab)
-  return isHallOpen({
+  if (
+    isHallOpen({
+      client: p.client,
+      memberships: p.memberships,
+      lifecycleRows: p.lifecycleRows,
+      hall,
+      asOf: p.asOf,
+    })
+  ) {
+    return true
+  }
+  return shouldOfferAdminCloseDepletedHall({
+    clientsTab: tab,
     client: p.client,
     memberships: p.memberships,
     lifecycleRows: p.lifecycleRows,
-    hall,
     asOf: p.asOf,
+    hall,
   })
 }
 

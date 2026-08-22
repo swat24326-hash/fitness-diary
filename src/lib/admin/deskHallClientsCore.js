@@ -5,8 +5,11 @@
  */
 
 import { clientMembershipHallSet } from '../membershipHallCore.js'
+import { clientAdminVisibleHallSet } from './adminClientsListLifecycleCore.js'
 
 /** @typedef {'active'|'tz'|'az'|'archive'} AdminClientsListTab */
+
+/** @typedef {{ lifecycleRows?: object[], asOf?: string }} AdminClientsListLifecycleCtx */
 
 export const ADMIN_CLIENTS_LIST_TABS = ['active', 'tz', 'az', 'archive']
 
@@ -65,17 +68,25 @@ export function normalizeAdminClientsListTab(tab) {
  * @param {object|null|undefined} client
  * @param {AdminClientsListTab} tab
  * @param {object[]|null|undefined} [memberships]
+ * @param {AdminClientsListLifecycleCtx|null|undefined} [lifecycleCtx]
  */
-export function clientMatchesAdminListTab(client, tab, memberships) {
+export function clientMatchesAdminListTab(client, tab, memberships, lifecycleCtx) {
   const t = normalizeAdminClientsListTab(tab)
   const archived = Boolean(client?.archived_at)
   if (t === 'archive') return archived
   if (archived) return false
 
-  const halls = clientMembershipHallSet(client, memberships)
+  const halls = lifecycleCtx
+    ? clientAdminVisibleHallSet({
+        client,
+        memberships,
+        lifecycleRows: lifecycleCtx.lifecycleRows ?? [],
+        asOf: lifecycleCtx.asOf,
+      })
+    : clientMembershipHallSet(client, memberships)
+
   if (t === 'tz') return halls.has('tz')
   if (t === 'az') return halls.has('az')
-  // active = ПЗ
   return halls.has('pz')
 }
 
@@ -83,26 +94,28 @@ export function clientMatchesAdminListTab(client, tab, memberships) {
  * @param {object[]|null|undefined} clients
  * @param {AdminClientsListTab} tab
  * @param {Record<string, object[]>|null|undefined} [membershipsByClientId]
+ * @param {AdminClientsListLifecycleCtx|null|undefined} [lifecycleCtx]
  */
-export function filterClientsByAdminListTab(clients, tab, membershipsByClientId) {
+export function filterClientsByAdminListTab(clients, tab, membershipsByClientId, lifecycleCtx) {
   const byId = membershipsByClientId && typeof membershipsByClientId === 'object' ? membershipsByClientId : null
   return (clients ?? []).filter((c) => {
     const id = c?.id != null ? String(c.id) : ''
     const mems = byId && id ? byId[id] ?? byId[c.id] : undefined
-    return clientMatchesAdminListTab(c, tab, mems)
+    return clientMatchesAdminListTab(c, tab, mems, lifecycleCtx)
   })
 }
 
 /**
  * @param {object[]|null|undefined} clients
  * @param {Record<string, object[]>|null|undefined} [membershipsByClientId]
+ * @param {AdminClientsListLifecycleCtx|null|undefined} [lifecycleCtx]
  */
-export function countClientsByAdminListTab(clients, membershipsByClientId) {
+export function countClientsByAdminListTab(clients, membershipsByClientId, lifecycleCtx) {
   const list = clients ?? []
   return {
-    active: filterClientsByAdminListTab(list, 'active', membershipsByClientId).length,
-    tz: filterClientsByAdminListTab(list, 'tz', membershipsByClientId).length,
-    az: filterClientsByAdminListTab(list, 'az', membershipsByClientId).length,
-    archive: filterClientsByAdminListTab(list, 'archive', membershipsByClientId).length,
+    active: filterClientsByAdminListTab(list, 'active', membershipsByClientId, lifecycleCtx).length,
+    tz: filterClientsByAdminListTab(list, 'tz', membershipsByClientId, lifecycleCtx).length,
+    az: filterClientsByAdminListTab(list, 'az', membershipsByClientId, lifecycleCtx).length,
+    archive: filterClientsByAdminListTab(list, 'archive', membershipsByClientId, lifecycleCtx).length,
   }
 }
