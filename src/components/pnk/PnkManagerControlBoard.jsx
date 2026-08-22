@@ -46,6 +46,7 @@ export function PnkManagerControlBoard({
     attentionIds,
     trainerId,
     query,
+    bzCompletedByClient,
   })
   const cardIdsKey = cards.map((c) => c.id).join(',')
 

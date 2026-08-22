@@ -3,13 +3,15 @@
  */
 import { buildPnkGlanceCard } from './pnkTrainerGlanceCore.js'
 import { matchesPnkBoardFilter } from './pnkStagesCore.js'
+import { peekPnkBzCompletedCount } from './pnkBzCompletedCore.js'
 
 /**
  * @param {object} client — из API (trainer_name, trainer_phone)
  * @param {Date} [now]
+ * @param {{ bzCompletedCount?: number }} [ctx]
  */
-export function buildPnkManagerControlCard(client, now = new Date()) {
-  const base = buildPnkGlanceCard(client, now)
+export function buildPnkManagerControlCard(client, now = new Date(), ctx = {}) {
+  const base = buildPnkGlanceCard(client, now, ctx)
   if (!base) return null
   return {
     ...base,
@@ -29,6 +31,7 @@ export function buildPnkManagerControlCard(client, now = new Date()) {
  *   trainerId?: string,
  *   query?: string,
  *   now?: Date,
+ *   bzCompletedByClient?: Record<string, number> | null,
  * }} [opts]
  */
 export function buildPnkManagerControlCards(clients, opts = {}) {
@@ -39,6 +42,7 @@ export function buildPnkManagerControlCards(clients, opts = {}) {
   const query = String(opts.query ?? '')
     .trim()
     .toLowerCase()
+  const bzByClient = opts.bzCompletedByClient ?? null
 
   const list = []
   for (const c of Array.isArray(clients) ? clients : []) {
@@ -48,7 +52,8 @@ export function buildPnkManagerControlCards(clients, opts = {}) {
       const hay = `${c.name ?? ''} ${c.phone ?? ''} ${c.trainer_name ?? ''}`.toLowerCase()
       if (!hay.includes(query)) continue
     }
-    const card = buildPnkManagerControlCard(c, now)
+    const bzCompletedCount = peekPnkBzCompletedCount(bzByClient, c?.id)
+    const card = buildPnkManagerControlCard(c, now, { bzCompletedCount })
     if (card) list.push(card)
   }
 

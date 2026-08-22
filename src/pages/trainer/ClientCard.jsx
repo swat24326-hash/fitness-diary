@@ -133,6 +133,11 @@ export function ClientCard() {
   const [trainersModeReady, setTrainersModeReady] = useState(!canManageClubClients)
   const [bootstrapping, setBootstrapping] = useState(true)
   const hydrateGenRef = useRef(0)
+  const pnkStepKeyRef = useRef(null)
+
+  useEffect(() => {
+    pnkStepKeyRef.current = null
+  }, [id])
 
   useEffect(() => {
     if (!canManageClubClients || !client?.club_id) {
@@ -264,6 +269,8 @@ export function ClientCard() {
       if (!c || !isOpenPnkClient(c)) return
       const step = resolvePnkTrainerUiStep(c, ctx)
       if (!step) return
+      if (pnkStepKeyRef.current === step.key) return
+      pnkStepKeyRef.current = step.key
       if (step.key === 'close') {
         setTab('memberships')
         return

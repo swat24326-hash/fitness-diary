@@ -67,6 +67,20 @@ ok(byQuery.length === 1 && byQuery[0].name === 'Бета', 'search name')
 const followup = buildPnkManagerControlCards(clients, { boardFilter: 'trial' })
 ok(followup.some((c) => c.id === '3'), 'filter after trial')
 
+const midVisit = {
+  id: '4',
+  name: 'Дельта',
+  trainer_id: 't1',
+  lifecycle: 'pnk',
+  pnk_stage: 'agreed',
+  pnk_trial_date: '2026-07-20',
+  pnk_deliverables: { contact: 'x', visit_started: 'x', health: 'x', nutrition: 'x' },
+}
+const withBz = buildPnkManagerControlCards([midVisit], {
+  bzCompletedByClient: { 4: 1 },
+})
+ok(withBz[0]?.stepTitle === 'Домашнее задание', 'board card bz=1 → hw1 step')
+
 if (failed) {
   console.error(`\n${failed} failed`)
   process.exit(1)

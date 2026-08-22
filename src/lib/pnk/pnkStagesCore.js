@@ -395,13 +395,15 @@ export function pnkPackageProgress(client) {
 /**
  * @param {object} client
  * @param {Date} [now]
+ * @param {{ bzCompletedCount?: number, healthCard?: object | null }} [ctx]
  * @returns {{ code: string, label: string, tone: 'ok'|'warn'|'hot' }[]}
  */
-export function buildPnkAttentionFlags(client, now = new Date()) {
+export function buildPnkAttentionFlags(client, now = new Date(), ctx = {}) {
   if (!isOpenPnkClient(client)) return []
   const flags = []
   const stage = client.pnk_stage
   const d = parsePnkDeliverables(client.pnk_deliverables)
+  const bzDone = Math.max(0, Number(ctx.bzCompletedCount) || 0)
   const created = Date.parse(String(client.pnk_created_at ?? client.created_at ?? ''))
   const t = now.getTime()
 
@@ -421,9 +423,16 @@ export function buildPnkAttentionFlags(client, now = new Date()) {
   const trialDate = String(client.pnk_trial_date ?? '').slice(0, 10)
   // Неявка только до старта визита: если клиент уже «пришёл» / в пакете — не висим
   const visitUnderway = Boolean(
-    d.visit_started || d.health || d.nutrition || d.trial || d.homework || d.trial2 || d.homework2,
+    d.visit_started ||
+      d.health ||
+      d.nutrition ||
+      d.trial ||
+      d.homework ||
+      d.trial2 ||
+      d.homework2 ||
+      bzDone >= 1,
   )
-  if (trialDate && /^\d{4}-\d{2}-\d{2}$/.test(trialDate) && !d.trial && !visitUnderway) {
+  if (trialDate && /^\d{4}-\d{2}-\d{2}$/.test(trialDate) && !d.trial && !visitUnderway && bzDone < 1) {
     const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     if (trialDate < today) {
       flags.push({
@@ -436,8 +445,8 @@ export function buildPnkAttentionFlags(client, now = new Date()) {
     }
   }
 
-  if ((stage === 'trial_done' || d.trial) && !d.followup) {
-    const wiz = resolvePnkWizardStep(client)
+  if ((stage === 'trial_done' || d.trial || bzDone >= 1) && !d.followup) {
+    const wiz = resolvePnkWizardStep(client, ctx)
     if (wiz?.key === 'followup' || wiz?.key === 'close') {
       const pkg = pnkPackageProgress(client)
       if (!pkg.done) {

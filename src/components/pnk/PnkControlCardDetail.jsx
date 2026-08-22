@@ -33,7 +33,9 @@ export function PnkControlCardDetail({
     )
   }
 
-  const flags = buildPnkAttentionFlags(card.client)
+  const flags = buildPnkAttentionFlags(card.client, new Date(), {
+    bzCompletedCount: normalizePnkBzCompletedCount(bzCompletedCount),
+  })
   const href = typeof clientHref === 'function' ? clientHref(card.client) : null
   const showDelete = typeof onRequestDelete === 'function' && canDeletePnkClient(card.client)
   const metaBits = [card.trainerName, card.caption].filter(Boolean)

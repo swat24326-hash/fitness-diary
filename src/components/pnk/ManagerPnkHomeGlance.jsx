@@ -100,7 +100,10 @@ export function ManagerPnkHomeGlance({
 
       try {
         const data = await fetchPnkBundle({ clubId: cid })
-        const next = buildPnkManagerHomeGlanceCards(data?.clients ?? [], { boardHref: href })
+        const next = buildPnkManagerHomeGlanceCards(data?.clients ?? [], {
+          boardHref: href,
+          bzCompletedByClient: data?.bz_completed_by_client ?? null,
+        })
         writePnkHomeGlanceSession(cid, next)
         applySessionCards(next)
       } catch {

@@ -39,6 +39,13 @@ const withDate = {
 const visit = buildPnkGlanceCard(withDate, new Date('2026-07-16T12:00:00'))
 ok(visit?.stepN === 4 && visit.caption.includes('20'), 'visit caption has date')
 
+const afterNutritionNoTrial = {
+  ...withDate,
+  pnk_deliverables: { contact: '2026-07-15', visit_started: 'x', health: 'x', nutrition: 'x' },
+}
+const glanceHw = buildPnkGlanceCard(afterNutritionNoTrial, new Date(), { bzCompletedCount: 1 })
+ok(glanceHw?.stepTitle === 'Домашнее задание', 'glance bz=1 без trial → hw1')
+
 const list = buildPnkGlanceCards([
   withDate,
   { ...open, id: 'c2', name: 'Петров', pnk_created_at: '2026-07-16T10:00:00.000Z' },

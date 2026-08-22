@@ -7,10 +7,12 @@ import {
   resolvePnkTrainerUiStep,
 } from './pnkStagesCore.js'
 import { formatDateRu } from '../dateRu.js'
+import { peekPnkBzCompletedCount } from './pnkBzCompletedCore.js'
 
 /**
  * @param {object} client
  * @param {Date} [now]
+ * @param {{ bzCompletedCount?: number, healthCard?: object | null }} [ctx]
  * @returns {{
  *   id: string,
  *   name: string,
@@ -26,15 +28,15 @@ import { formatDateRu } from '../dateRu.js'
  *   sortKey: number,
  * } | null}
  */
-export function buildPnkGlanceCard(client, now = new Date()) {
+export function buildPnkGlanceCard(client, now = new Date(), ctx = {}) {
   if (!isOpenPnkClient(client)) return null
   const id = String(client?.id ?? '').trim()
   if (!id) return null
 
-  const step = resolvePnkTrainerUiStep(client)
+  const step = resolvePnkTrainerUiStep(client, ctx)
   if (!step) return null
 
-  const flags = buildPnkAttentionFlags(client, now)
+  const flags = buildPnkAttentionFlags(client, now, ctx)
   const hotFlag =
     flags.find((f) => f.tone === 'hot') ||
     flags.find((f) => f.code === 'need_contact' || f.code === 'noshow' || f.code === 'need_followup') ||
@@ -78,12 +80,14 @@ export function buildPnkGlanceCard(client, now = new Date()) {
 /**
  * @param {object[]} clients
  * @param {Date} [now]
+ * @param {Record<string, number> | null} [bzByClient]
  */
-export function buildPnkGlanceCards(clients, now = new Date()) {
+export function buildPnkGlanceCards(clients, now = new Date(), bzByClient = null) {
   const list = []
   for (const c of Array.isArray(clients) ? clients : []) {
     if (c?.archived_at) continue
-    const card = buildPnkGlanceCard(c, now)
+    const bzCompletedCount = peekPnkBzCompletedCount(bzByClient, c?.id)
+    const card = buildPnkGlanceCard(c, now, { bzCompletedCount })
     if (card) list.push(card)
   }
   list.sort((a, b) => {

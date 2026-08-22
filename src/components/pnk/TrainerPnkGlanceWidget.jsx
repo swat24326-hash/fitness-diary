@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { listLocalClients } from '../../lib/dataAccess'
+import { listLocalClients, listTrainingsForTrainer } from '../../lib/dataAccess'
+import { buildPnkBzCompletedByClientId } from '../../lib/pnk/pnkBzCompletedCore.js'
 import { buildPnkGlanceCards } from '../../lib/pnk/pnkTrainerGlanceCore.js'
 import {
   useDebouncedStorageReload,
@@ -37,7 +38,9 @@ export function TrainerPnkGlanceWidget({ clubId = '' }) {
     if (!silent) setLoading(true)
     try {
       const clients = await listLocalClients(tid, cid)
-      const next = buildPnkGlanceCards(clients)
+      const trainings = await listTrainingsForTrainer(tid, cid)
+      const bzByClient = buildPnkBzCompletedByClientId(trainings)
+      const next = buildPnkGlanceCards(clients, new Date(), bzByClient)
       setCards(next)
       setIndex((prev) => (prev >= next.length ? 0 : prev))
     } catch {

@@ -43,7 +43,6 @@ export function ClientPnkPanel({
   const [hasDkMembership, setHasDkMembership] = useState(false)
   const [advanceLocked, setAdvanceLocked] = useState(false)
   const [confirmRefuse, setConfirmRefuse] = useState(false)
-  const autoStartTrainRef = useRef('')
   const advanceLockRef = useRef(false)
 
   useEffect(() => {
@@ -86,21 +85,10 @@ export function ClientPnkPanel({
     }
   }, [step?.key, client?.id, client?.club_id])
 
-  useEffect(() => {
-    if (!step || (step.key !== 'train1' && step.key !== 'train2')) return
-    if (typeof onStartTraining !== 'function') return
-    const need = step.key === 'train2' ? 2 : 1
-    if ((Number(bzCompletedCount) || 0) >= need) return
-    const stamp = `${client?.id}:${step.key}`
-    if (autoStartTrainRef.current === stamp) return
-    autoStartTrainRef.current = stamp
-    void onStartTraining()
-  }, [step?.key, client?.id, bzCompletedCount, onStartTraining])
-
   if (!openPnk || !step || !hatNav) return null
 
   const advance = canAdvancePnkWizardStep(client, step, ctx)
-  const flags = buildPnkAttentionFlags(client)
+  const flags = buildPnkAttentionFlags(client, new Date(), ctx)
   const d = parsePnkDeliverables(client.pnk_deliverables)
   const trainerName = user?.name || ''
   const primaryInBody = hatNav.primarySlot === 'body'

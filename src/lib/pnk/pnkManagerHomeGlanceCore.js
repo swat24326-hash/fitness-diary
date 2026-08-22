@@ -30,14 +30,18 @@ export function buildPnkManagerHomeGlance(clients, now = new Date()) {
 /**
  * Карточки для карусели на главной (стрелки как у планёрки / тренера).
  * @param {object[]} clients
- * @param {{ boardHref?: string, now?: Date }} [opts]
+ * @param {{ boardHref?: string, now?: Date, bzCompletedByClient?: Record<string, number> | null }} [opts]
  */
 export function buildPnkManagerHomeGlanceCards(clients, opts = {}) {
   const boardHref = String(opts.boardHref ?? '/sales/pnk').trim() || '/sales/pnk'
   const now = opts.now || new Date()
   const sep = boardHref.includes('?') ? '&' : '?'
 
-  return buildPnkManagerControlCards(clients, { boardFilter: 'all', now }).map((card) => {
+  return buildPnkManagerControlCards(clients, {
+    boardFilter: 'all',
+    now,
+    bzCompletedByClient: opts.bzCompletedByClient ?? null,
+  }).map((card) => {
     const id = String(card.id ?? '').trim()
     const trainerLine = card.trainerName && card.trainerName !== '—' ? `Тренер: ${card.trainerName}` : ''
     return {
