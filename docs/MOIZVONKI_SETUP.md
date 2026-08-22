@@ -169,7 +169,7 @@ npm run lint
 
 - [ ] A1–A10 пройдены на **проде** с живым Android клуба  
 - [ ] B1 понятен залу (не считать это ошибкой Оси)  
-- [ ] Webhook `call.finish` подписан (`MOIZVONKI_WEBHOOK_SECRET` + subscribe-скрипт)
+- [x] Webhook `call.finish` подписан (`MOIZVONKI_WEBHOOK_SECRET` + subscribe-скрипт) — секрет на Vercel Production; при смене URL/секрета повторно: `node scripts/subscribe-moizvonki-call-webhook.mjs`
 
 ### Не в этой проверке / не в MVP
 Массовый автообзвон; кнопка SMS/звонка у тренера; hangup из Оси (нет в API Мои Звонки).

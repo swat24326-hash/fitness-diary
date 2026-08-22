@@ -366,7 +366,7 @@ CREATE INDEX IF NOT EXISTS idx_club_sms_log_club_client_created
 CREATE TABLE IF NOT EXISTS club_call_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   club_id UUID NOT NULL REFERENCES clubs (id) ON DELETE CASCADE,
-  client_id UUID NOT NULL REFERENCES clients (id) ON DELETE CASCADE,
+  client_id UUID REFERENCES clients (id) ON DELETE CASCADE,
   sent_by UUID REFERENCES users (id) ON DELETE SET NULL,
   phone TEXT,
   status TEXT NOT NULL DEFAULT 'ok',
@@ -379,16 +379,26 @@ CREATE TABLE IF NOT EXISTS club_call_log (
   src_number TEXT,
   finished_at TIMESTAMPTZ,
   recording_url TEXT,
+  direction TEXT NOT NULL DEFAULT 'outbound',
+  staff_note TEXT,
+  staff_note_at TIMESTAMPTZ,
+  staff_note_by UUID REFERENCES users (id) ON DELETE SET NULL,
+  staff_note_chip_id TEXT,
+  callback_on DATE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT club_call_log_status_check CHECK (status IN ('ok', 'fail')),
   CONSTRAINT club_call_log_outcome_check CHECK (
     outcome IN ('pending', 'answered', 'missed', 'short', 'unknown')
   ),
+  CONSTRAINT club_call_log_direction_check CHECK (direction IN ('outbound', 'inbound')),
   CONSTRAINT club_call_log_phone_len CHECK (
     phone IS NULL OR char_length(phone) <= 20
   ),
   CONSTRAINT club_call_log_error_len CHECK (
     error_message IS NULL OR char_length(error_message) <= 200
+  ),
+  CONSTRAINT club_call_log_staff_note_len CHECK (
+    staff_note IS NULL OR char_length(staff_note) <= 400
   )
 );
 
@@ -397,6 +407,14 @@ CREATE INDEX IF NOT EXISTS idx_club_call_log_club_created
 
 CREATE INDEX IF NOT EXISTS idx_club_call_log_club_client_created
   ON club_call_log (club_id, client_id, created_at DESC);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_club_call_log_club_mz_db_call_id
+  ON club_call_log (club_id, mz_db_call_id)
+  WHERE mz_db_call_id IS NOT NULL AND length(trim(mz_db_call_id)) > 0;
+
+CREATE INDEX IF NOT EXISTS idx_club_call_log_club_callback_on
+  ON club_call_log (club_id, callback_on)
+  WHERE callback_on IS NOT NULL AND staff_note_chip_id IS NOT NULL;
 
 -- ------------------------------------------------------------
 -- Лояльность ПЗ (не в sync-очереди; API service role)
