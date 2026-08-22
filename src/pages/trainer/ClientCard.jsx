@@ -360,9 +360,11 @@ export function ClientCard() {
       t === 'nutrition' ||
       t === 'homework'
     ) {
+      // Открытый ПНК: вкладку ведёт мастер (syncPnkTab), не ?tab= из URL.
+      if (client && isOpenPnkClient(client)) return
       setTab(t)
     }
-  }, [searchParams])
+  }, [searchParams, client])
 
   const hydrateFromCloudInBackground = useCallback(async () => {
     if (!isSupabaseConfigured() || !navigator.onLine) return
@@ -1044,6 +1046,7 @@ export function ClientCard() {
         bzCompletedCount={bzCompletedCount}
         onUpdated={(next) => {
           setClient(next)
+          pnkStepKeyRef.current = null
           syncPnkTab(next, pnkUiCtx)
           void reloadLocal()
         }}
