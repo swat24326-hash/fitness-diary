@@ -53,7 +53,8 @@ export function createSupabaseAdmin() {
 }
 
 export async function upsertQaUser(admin, { login, role, name, club_id = null }) {
-  const email = `${login}@qa.local`
+  // Важно: auth-sign-in для логина без @ сначала пробует login@trainer.local.
+  const email = `${login}@trainer.local`
   const rowBase = {
     name,
     phone: null,
@@ -67,9 +68,38 @@ export async function upsertQaUser(admin, { login, role, name, club_id = null })
 
   const { data: existing } = await admin.from('users').select('id, login, role').eq('login', login).maybeSingle()
   if (existing?.id) {
-    await admin.auth.admin.updateUserById(existing.id, { password: QA_PASSWORD, email_confirm: true })
+    const upd = await admin.auth.admin.updateUserById(existing.id, {
+      password: QA_PASSWORD,
+      email_confirm: true,
+      email,
+    })
+    if (!upd.error) {
+      await admin.from('users').update(rowBase).eq('id', existing.id)
+      return { id: existing.id, login, email, role, action: 'reset' }
+    }
+    // orphan public.users без Auth — создаём Auth с тем же id
+    const { data: recreated, error: recreateErr } = await admin.auth.admin.createUser({
+      id: existing.id,
+      email,
+      password: QA_PASSWORD,
+      email_confirm: true,
+    })
+    if (recreateErr || !recreated?.user) {
+      // email может быть занят старым @qa.local Auth — удалим сироту
+      const orphan = await findAuthUserByEmail(admin, `${login}@qa.local`)
+      if (orphan) await admin.auth.admin.deleteUser(orphan.id)
+      const { data: recreated2, error: recreateErr2 } = await admin.auth.admin.createUser({
+        id: existing.id,
+        email,
+        password: QA_PASSWORD,
+        email_confirm: true,
+      })
+      if (recreateErr2 || !recreated2?.user) {
+        throw new Error(recreateErr2?.message ?? recreateErr?.message ?? `Auth recreate failed for ${login}`)
+      }
+    }
     await admin.from('users').update(rowBase).eq('id', existing.id)
-    return { id: existing.id, login, email, role, action: 'reset' }
+    return { id: existing.id, login, email, role, action: 'recreated-auth' }
   }
 
   let uid = null
@@ -89,7 +119,7 @@ export async function upsertQaUser(admin, { login, role, name, club_id = null })
     const authUser = await findAuthUserByEmail(admin, email)
     if (!authUser) throw new Error(msg)
     uid = authUser.id
-    await admin.auth.admin.updateUserById(uid, { password: QA_PASSWORD, email_confirm: true })
+    await admin.auth.admin.updateUserById(uid, { password: QA_PASSWORD, email_confirm: true, email })
   }
 
   const { error: insErr } = await admin.from('users').upsert({ id: uid, ...rowBase })
@@ -115,9 +145,12 @@ export async function deleteQaUsers(admin) {
   const { data: rows } = await admin
     .from('users')
     .select('id, login, role, email')
-    .or(`login.like.${QA_PREFIX}%,email.like.%@qa.local`)
+    .or(`login.like.${QA_PREFIX}%,email.like.%@qa.local,email.like.%@trainer.local`)
   const deleted = []
   for (const row of rows ?? []) {
+    if (!String(row.login ?? '').startsWith(QA_PREFIX) && !String(row.email ?? '').includes(QA_PREFIX)) {
+      continue
+    }
     await admin.from('users').delete().eq('id', row.id)
     await admin.auth.admin.deleteUser(row.id)
     deleted.push({ login: row.login, role: row.role, id: row.id })
@@ -130,7 +163,7 @@ export async function deleteQaUsers(admin) {
     const users = authPage?.users ?? []
     for (const u of users) {
       const email = String(u.email ?? '')
-      if (!email.endsWith('@qa.local') && !email.includes(`${QA_PREFIX}`)) continue
+      if (!email.includes(`${QA_PREFIX}`)) continue
       if (deleted.some((d) => d.id === u.id)) continue
       await admin.auth.admin.deleteUser(u.id)
       deleted.push({ login: email.split('@')[0], role: '?', id: u.id })

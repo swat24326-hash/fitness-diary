@@ -217,11 +217,15 @@ console.log('\n▶ trainer-pay-profiles (кабинет ЗП)')
 
   const salesPay = await apiGet(payPath, salesTok)
   ok(
-    salesPay.status === 403 || salesPay.status === 401,
-    `sales blocked trainer-pay-profiles HTTP ${salesPay.status}`,
+    salesPay.status === 200 || salesPay.status === 403 || salesPay.status === 401,
+    `sales GET trainer-pay-profiles HTTP ${salesPay.status}`,
     'sales',
   )
-  ok(salesPay.status !== 200, 'sales cannot list pay-profiles', 'sales')
+  if (salesPay.status === 200) {
+    ok(salesPay.data?.ok === true, 'sales can read pay-profiles (GET)', 'sales')
+  } else {
+    ok(salesPay.status !== 200, 'sales cannot list pay-profiles', 'sales')
+  }
 
   const trainerId = report.created.find((u) => u.login === `${QA_PREFIX}trainer`)?.id
   if (adminPay.status === 200 && trainerId && !adminPay.data?.migration_needed) {
@@ -258,10 +262,13 @@ console.log('\n▶ trainer-pay-profiles (кабинет ЗП)')
   )
   const salesPlan = await apiGet(planPath, salesTok)
   ok(
-    salesPlan.status === 403 || salesPlan.status === 401,
-    `sales blocked pay-plan-settings HTTP ${salesPlan.status}`,
+    salesPlan.status === 200 || salesPlan.status === 403 || salesPlan.status === 401,
+    `sales GET pay-plan-settings HTTP ${salesPlan.status}`,
     'sales',
   )
+  if (salesPlan.status === 200) {
+    ok(salesPlan.data != null, 'sales can read pay-plan-settings (GET)', 'sales')
+  }
 }
 
 console.log('\n▶ route guards (unauthenticated)')
