@@ -23,7 +23,7 @@ const TABS = [
   { id: 'sms', label: 'SMS' },
 ]
 
-const STATUS_FILTERS = [
+const CALL_STATUS_FILTERS = [
   { id: 'all', label: 'Все' },
   { id: 'inbound', label: 'Входящие' },
   { id: 'outbound', label: 'Исходящие' },
@@ -33,19 +33,45 @@ const STATUS_FILTERS = [
   { id: 'fail', label: CLUB_CALL_UI_LABEL.fail },
 ]
 
+const SMS_STATUS_FILTERS = [
+  { id: 'all', label: 'Все' },
+  { id: 'ok', label: 'Отправлено' },
+  { id: 'fail', label: 'Сбой' },
+]
+
 /**
  * Журнал связи клуба: список звонков + сводка + учёт SMS.
- * @param {{ clubId: string, layout?: 'page' | 'card' }} props
+ * @param {{ clubId: string, layout?: 'page' | 'card', initialTab?: string }} props
  */
-export function AdminClubOutreachJournalWorkspace({ clubId, layout = 'card' }) {
+export function AdminClubOutreachJournalWorkspace({ clubId, layout = 'card', initialTab = 'list' }) {
   const isPage = layout === 'page'
   const [day, setDay] = useState(() => todayInTimeZoneIso())
-  const [tab, setTab] = useState('list')
+  const [tab, setTab] = useState(() => {
+    const raw = String(initialTab ?? '').trim()
+    return TABS.some((t) => t.id === raw) ? raw : 'list'
+  })
   const [statusFilter, setStatusFilter] = useState('all')
   const [callRows, setCallRows] = useState([])
   const [smsRows, setSmsRows] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
+
+  useEffect(() => {
+    const raw = String(initialTab ?? '').trim()
+    if (TABS.some((t) => t.id === raw)) setTab(raw)
+  }, [initialTab])
+
+  useEffect(() => {
+    if (tab === 'sms') {
+      setStatusFilter((prev) => (SMS_STATUS_FILTERS.some((p) => p.id === prev) ? prev : 'all'))
+      return
+    }
+    if (tab === 'list') {
+      setStatusFilter((prev) => (CALL_STATUS_FILTERS.some((p) => p.id === prev) ? prev : 'all'))
+    }
+  }, [tab])
+
+  const statusFilters = tab === 'sms' ? SMS_STATUS_FILTERS : CALL_STATUS_FILTERS
 
   const reload = useCallback(async () => {
     if (!clubId) {
@@ -57,12 +83,25 @@ export function AdminClubOutreachJournalWorkspace({ clubId, layout = 'card' }) {
     setLoading(true)
     setErr('')
     try {
-      const [calls, sms] = await Promise.all([
+      const settled = await Promise.allSettled([
         fetchClubCallLogs(clubId, { day }),
         fetchClubSmsLogs(clubId, { day }),
       ])
-      setCallRows(calls)
-      setSmsRows(sms)
+      const callOk = settled[0].status === 'fulfilled'
+      const smsOk = settled[1].status === 'fulfilled'
+      setCallRows(callOk ? settled[0].value : [])
+      setSmsRows(smsOk ? settled[1].value : [])
+      if (!callOk && !smsOk) {
+        const msg =
+          (settled[0].status === 'rejected' && settled[0].reason?.message) ||
+          (settled[1].status === 'rejected' && settled[1].reason?.message) ||
+          'Не удалось загрузить журнал'
+        setErr(String(msg))
+      } else if (!callOk) {
+        setErr('Звонки недоступны — показаны только SMS')
+      } else if (!smsOk) {
+        setErr('SMS недоступны — показаны только звонки')
+      }
     } catch (e) {
       setCallRows([])
       setSmsRows([])
@@ -138,7 +177,10 @@ export function AdminClubOutreachJournalWorkspace({ clubId, layout = 'card' }) {
                 role="tab"
                 aria-selected={tab === t.id}
                 className="tab"
-                onClick={() => setTab(t.id)}
+                onClick={() => {
+                  setTab(t.id)
+                  setStatusFilter('all')
+                }}
               >
                 {t.label}
               </button>
@@ -160,7 +202,7 @@ export function AdminClubOutreachJournalWorkspace({ clubId, layout = 'card' }) {
               disabled={loading}
               aria-label={tab === 'sms' ? 'Статус SMS' : 'Статус звонка'}
             >
-              {STATUS_FILTERS.map((p) => (
+              {statusFilters.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.label}
                 </option>

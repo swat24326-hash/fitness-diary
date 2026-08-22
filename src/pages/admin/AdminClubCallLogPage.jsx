@@ -36,6 +36,7 @@ export function AdminClubCallLogPage({ accessMode = 'admin' } = {}) {
       }),
     [clientsBase, clubId, isSales, isSup],
   )
+  const initialTab = String(searchParams.get('tab') ?? '').trim() || 'list'
 
   return (
     <div className="admin-page club-call-log-page">
@@ -51,7 +52,7 @@ export function AdminClubCallLogPage({ accessMode = 'admin' } = {}) {
             : 'Выберите клуб в шапке, чтобы открыть журнал звонков.'}
         </p>
       ) : (
-        <AdminClubOutreachJournalWorkspace clubId={clubId} layout="page" />
+        <AdminClubOutreachJournalWorkspace clubId={clubId} layout="page" initialTab={initialTab} />
       )}
     </div>
   )

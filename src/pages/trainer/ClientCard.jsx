@@ -341,7 +341,11 @@ export function ClientCard() {
     ])
     setMemberships(mems)
     setHealthCard(hc ?? null)
-    setBzCompletedCount(countPnkBzCompletedFromTrainings(trainings))
+    setBzCompletedCount(
+      countPnkBzCompletedFromTrainings(trainings, {
+        sinceIso: local?.pnk_created_at ?? local?.created_at ?? null,
+      }),
+    )
     setHasMeasurements((measures ?? []).length > 0)
   }, [id, trainerById, trainersModeReady, canManageClubClients, isTrainer, isAdmin, user])
 

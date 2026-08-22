@@ -34,6 +34,22 @@ export function todayInTimeZoneIso(timeZone = CLUB_OPS_TIMEZONE, now = new Date(
 }
 
 /**
+ * Календарный день YYYY-MM-DD для момента (ISO) в зоне клуба (по умолчанию МСК).
+ * Не путать с UTC-префиксом строки `created_at`.
+ * @param {string | null | undefined} instantIso
+ * @param {string} [timeZone]
+ * @returns {string}
+ */
+export function calendarDayInTimeZoneIso(instantIso, timeZone = CLUB_OPS_TIMEZONE) {
+  const raw = String(instantIso ?? '').trim()
+  if (!raw) return ''
+  const ms = Date.parse(raw)
+  if (Number.isFinite(ms)) return todayInTimeZoneIso(timeZone, new Date(ms))
+  const dayOnly = raw.slice(0, 10)
+  return /^\d{4}-\d{2}-\d{2}$/.test(dayOnly) ? dayOnly : ''
+}
+
+/**
  * Начало календарного дня dayIso в timeZone → UTC ISO (для сравнения с created_at).
  * @param {string} dayIso YYYY-MM-DD
  * @param {string} [timeZone]

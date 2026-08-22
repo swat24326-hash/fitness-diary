@@ -39,7 +39,15 @@ export function TrainerPnkGlanceWidget({ clubId = '' }) {
     try {
       const clients = await listLocalClients(tid, cid)
       const trainings = await listTrainingsForTrainer(tid, cid)
-      const bzByClient = buildPnkBzCompletedByClientId(trainings)
+      /** @type {Record<string, string>} */
+      const sinceByClientId = {}
+      for (const c of clients ?? []) {
+        const id = String(c?.id ?? '').trim()
+        if (!id) continue
+        const since = String(c?.pnk_created_at ?? c?.created_at ?? '').slice(0, 10)
+        if (/^\d{4}-\d{2}-\d{2}$/.test(since)) sinceByClientId[id] = since
+      }
+      const bzByClient = buildPnkBzCompletedByClientId(trainings, { sinceByClientId })
       const next = buildPnkGlanceCards(clients, new Date(), bzByClient)
       setCards(next)
       setIndex((prev) => (prev >= next.length ? 0 : prev))

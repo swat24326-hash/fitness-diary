@@ -49,14 +49,21 @@ export function rowRevisionMs(row) {
 
 /**
  * Локальная строка важнее облака при pull (офлайн-first).
+ * synced draft: не затираем пустым/черновым облаком, но completed из облака
+ * (другой девайс завершил) — пропускаем дальше в shouldApplyCloudRowOnPull.
  * @param {object | null | undefined} localRow
  * @param {string} [storeName]
+ * @param {object | null | undefined} [cloudRow]
  * @returns {boolean}
  */
-export function shouldPreserveLocalRowFromCloudPull(localRow, storeName = '') {
+export function shouldPreserveLocalRowFromCloudPull(localRow, storeName = '', cloudRow = null) {
   if (!localRow || typeof localRow !== 'object') return false
   if (localRow.synced === false) return true
-  if (String(storeName ?? '') === 'trainings' && String(localRow.status ?? '') === 'draft') return true
+  if (String(storeName ?? '') === 'trainings' && String(localRow.status ?? '') === 'draft') {
+    const cloudStatus = String(cloudRow?.status ?? '')
+    if (cloudStatus === 'completed') return false
+    return true
+  }
   return false
 }
 
@@ -81,7 +88,7 @@ export function shouldApplyCloudRowOnPull(ctx = {}) {
   if (!cloudRow || typeof cloudRow !== 'object') return false
   if (!cloudPutAllowedOnPull(storeName, recordKey, pendingByStore)) return false
   if (!localRow) return true
-  if (shouldPreserveLocalRowFromCloudPull(localRow, storeName)) return false
+  if (shouldPreserveLocalRowFromCloudPull(localRow, storeName, cloudRow)) return false
 
   if (storeName === 'trainings') {
     const localStatus = String(localRow.status ?? '')
@@ -90,6 +97,13 @@ export function shouldApplyCloudRowOnPull(ctx = {}) {
     if (localStatus === 'completed' && cloudStatus !== 'completed') return false
     if (localStatus === 'completed' && cloudStatus === 'completed') {
       return rowRevisionMs(cloudRow) >= rowRevisionMs(localRow)
+    }
+    // synced draft ← cloud completed: берём completed, если не старше локального.
+    if (localStatus === 'draft' && cloudStatus === 'completed') {
+      const localMs = rowRevisionMs(localRow)
+      const cloudMs = rowRevisionMs(cloudRow)
+      if (localMs > 0 && cloudMs > 0 && cloudMs < localMs) return false
+      return true
     }
   }
 

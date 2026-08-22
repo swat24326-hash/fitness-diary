@@ -12,6 +12,7 @@
  */
 
 import { membershipSignal, MEMBERSHIP_EXPIRING_WITHIN_DAYS } from '../clientListSignals.js'
+import { calendarDayInTimeZoneIso } from '../dateRu.js'
 import {
   isBirthdayToday,
   isClientStaleForAttention,
@@ -104,7 +105,7 @@ export function calendarDaysBetween(fromIso, toIso) {
 export function clubSmsLogStillActive(entry, today, scenarioForTtl) {
   if (!entry) return false
   const day = String(today ?? '').slice(0, 10)
-  const atDay = String(entry.created_at ?? '').slice(0, 10)
+  const atDay = calendarDayInTimeZoneIso(entry.created_at)
   if (!day || !atDay) return false
   const age = calendarDaysBetween(atDay, day)
   if (age < 0) return false
@@ -139,7 +140,7 @@ export function clubSmsLogMarksInFilter(entry, ctx) {
   // Широкий вид (Все, неактивные, ждёт старт, поиск…):
   // 1) любая SMS сегодня
   // 2) или горит отметка текущей корзины клиента
-  const atDay = String(entry.created_at ?? '').slice(0, 10)
+  const atDay = calendarDayInTimeZoneIso(entry.created_at)
   if (atDay === today) return true
   if (clientScenario && scenario === clientScenario && isExtendedClubSmsMarkFilter(clientScenario)) {
     return true

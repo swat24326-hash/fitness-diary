@@ -4,8 +4,10 @@ import { BarChart3, Building2, ClipboardList, FileSpreadsheet, Gift, Phone, Sett
 import { useAuth } from '../../context/AuthContext'
 import { AdminClubDaySummaryPanel } from '../../components/admin/AdminClubDaySummaryPanel'
 import { AdminHomeAttentionRow } from '../../components/admin/AdminHomeAttentionRow'
+import { ClubCallShiftSummaryPanel } from '../../components/admin/ClubCallShiftSummaryPanel'
 import { dispatchLocalDataChanged } from '../../lib/dataAccess'
 import { loadAdminClubDaySummary } from '../../lib/admin/adminClubDaySummaryService'
+import { loadClubCallShiftSummary } from '../../lib/admin/clubCallShiftSummaryService'
 import { fetchCoachQualityViaApi } from '../../lib/admin/adminApiClient'
 import { buildAdminHomeSoftSignals } from '../../lib/admin/adminHomeSoftSignalsCore.js'
 import { getDateRange } from '../../lib/period'
@@ -25,11 +27,19 @@ import {
   readDaySummaryGlanceSession,
   writeDaySummaryGlanceSession,
 } from '../../lib/admin/daySummaryGlanceSession.js'
+import {
+  clubCallShiftGlanceLooksSame,
+  isClubCallShiftGlanceFresh,
+  peekClubCallShiftGlanceSession,
+  readClubCallShiftGlanceSession,
+  writeClubCallShiftGlanceSession,
+} from '../../lib/admin/clubCallShiftGlanceSession.js'
 import { useStaleWhileRevalidate } from '../../hooks/useStaleWhileRevalidate.js'
-import { todayLocalIso } from '../../lib/dateRu.js'
+import { todayInTimeZoneIso } from '../../lib/dateRu.js'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { isAppOnline } from '../../lib/syncService'
 import '../../styles/pnk-funnel.css'
+import '../../styles/club-call.css'
 
 function glanceFromCoachQualityApi(api) {
   if (api?.glance) return api.glance
@@ -77,8 +87,9 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
     hasPlanerka: false,
     sideCount: 0,
   })
+  const [callShiftNotice, setCallShiftNotice] = useState('')
 
-  const todayIso = todayLocalIso()
+  const clubDayIso = todayInTimeZoneIso()
 
   const peekCq = useCallback(() => {
     if (!clubId) return null
@@ -128,18 +139,18 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
   })
 
   const peekDay = useCallback(
-    () => (clubId ? peekDaySummaryGlanceSession(clubId, todayIso) : null),
-    [clubId, todayIso],
+    () => (clubId ? peekDaySummaryGlanceSession(clubId, clubDayIso) : null),
+    [clubId, clubDayIso],
   )
   const readDay = useCallback(
-    () => (clubId ? readDaySummaryGlanceSession(clubId, todayIso) : null),
-    [clubId, todayIso],
+    () => (clubId ? readDaySummaryGlanceSession(clubId, clubDayIso) : null),
+    [clubId, clubDayIso],
   )
   const writeDay = useCallback(
     (summary) => {
-      if (clubId) writeDaySummaryGlanceSession(clubId, todayIso, summary)
+      if (clubId) writeDaySummaryGlanceSession(clubId, clubDayIso, summary)
     },
-    [clubId, todayIso],
+    [clubId, clubDayIso],
   )
   const fetchDaySummary = useCallback(async () => {
     if (!clubId) return null
@@ -153,13 +164,63 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
     reload: reloadDaySummary,
   } = useStaleWhileRevalidate({
     enabled: isAdminHome && Boolean(clubId),
-    deps: [clubId, todayIso],
+    deps: [clubId, clubDayIso],
     peek: peekDay,
     read: readDay,
     write: writeDay,
     isFresh: isDaySummaryGlanceFresh,
     looksSame: daySummaryGlanceLooksSame,
     fetcher: fetchDaySummary,
+  })
+
+  const peekShift = useCallback(
+    () => (clubId ? peekClubCallShiftGlanceSession(clubId, clubDayIso) : null),
+    [clubId, clubDayIso],
+  )
+  const readShift = useCallback(
+    () => (clubId ? readClubCallShiftGlanceSession(clubId, clubDayIso) : null),
+    [clubId, clubDayIso],
+  )
+  const writeShift = useCallback(
+    (summary) => {
+      if (clubId) writeClubCallShiftGlanceSession(clubId, clubDayIso, summary)
+    },
+    [clubId, clubDayIso],
+  )
+  const fetchShiftSummary = useCallback(async () => {
+    if (!clubId) {
+      setCallShiftNotice('')
+      return null
+    }
+    const res = await loadClubCallShiftSummary(clubId, { day: clubDayIso })
+    if (!res.ok) {
+      const cached = peekClubCallShiftGlanceSession(clubId, clubDayIso)
+      if (res.reason === 'offline') {
+        setCallShiftNotice(
+          cached ? 'Нет сети — на экране сохранённые цифры' : 'Нет сети — сводку загрузить нельзя',
+        )
+      } else {
+        setCallShiftNotice(String(res.reason || 'Не удалось загрузить сводку смены'))
+      }
+      return null
+    }
+    setCallShiftNotice(res.partial ? String(res.reason || '') : '')
+    return res.summary
+  }, [clubId, clubDayIso])
+
+  const {
+    data: callShiftSummary,
+    loading: callShiftLoading,
+    reload: reloadCallShift,
+  } = useStaleWhileRevalidate({
+    enabled: isAdminHome && Boolean(clubId),
+    deps: [clubId, clubDayIso],
+    peek: peekShift,
+    read: readShift,
+    write: writeShift,
+    isFresh: isClubCallShiftGlanceFresh,
+    looksSame: clubCallShiftGlanceLooksSame,
+    fetcher: fetchShiftSummary,
   })
 
   const softSignals = useMemo(
@@ -186,6 +247,7 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
     () => {
       void reloadDaySummary({ force: true })
       void reloadCoachQualityHome({ force: true })
+      void reloadCallShift({ force: true })
     },
     { shouldRun: shouldReloadAdminDaySummary },
   )
@@ -224,6 +286,14 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
             coachQuality={coachQualityHome}
             coachQualityLoading={coachQualityHomeLoading}
             coachQualityHeroInAttention={Boolean(coachQualityHome) || coachQualityHomeLoading}
+          />
+
+          <ClubCallShiftSummaryPanel
+            summary={callShiftSummary}
+            journalHref={tab('call-log')}
+            loading={callShiftLoading}
+            noClub={!clubId}
+            error={callShiftNotice}
           />
 
           <h2 className="admin-home__tiles-heading" id="admin-home-sections">

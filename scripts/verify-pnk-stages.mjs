@@ -159,6 +159,29 @@ const clients = [
 const stats = aggregatePnkFunnelStats(clients, { dateFrom: '2026-07-01', dateTo: '2026-07-31' })
 ok(stats.entered === 2 && stats.won === 1, `entered/won ${stats.entered}/${stats.won}`)
 ok(stats.conversionPct === 50, `conversion ${stats.conversionPct}`)
+
+const lateWin = aggregatePnkFunnelStats(
+  [
+    {
+      id: 'old',
+      trainer_id: 't1',
+      lifecycle: 'active',
+      pnk_stage: 'won',
+      pnk_created_at: '2026-01-01',
+      pnk_won_at: '2026-07-15',
+    },
+    {
+      id: 'new',
+      trainer_id: 't1',
+      lifecycle: 'pnk',
+      pnk_stage: 'assigned',
+      pnk_created_at: '2026-07-10',
+    },
+  ],
+  { dateFrom: '2026-07-01', dateTo: '2026-07-31' },
+)
+ok(lateWin.entered === 1 && lateWin.won === 1, 'period: open only if entered in window')
+ok(lateWin.conversionPct === 0, 'conversion uses cohort won, not wins outside cohort')
 ok(stats.trainers[0]?.trainerId === 't1', 'by trainer')
 
 const attn = listPnkAttentionClients(

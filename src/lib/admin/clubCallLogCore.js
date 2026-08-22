@@ -2,7 +2,7 @@
  * Чистые правила облачного журнала клубных звонков (Мои Звонки).
  */
 
-import { calendarDayStartUtcIso, CLUB_OPS_TIMEZONE, todayLocalIso } from '../dateRu.js'
+import { calendarDayStartUtcIso, CLUB_OPS_TIMEZONE, todayInTimeZoneIso } from '../dateRu.js'
 import { normalizeCallOutcomePhone, normalizeClubCallRecordingUrl } from './clubCallOutcomeCore.js'
 import {
   composeClubCallFunnelNote,
@@ -71,7 +71,7 @@ export function buildClubCallStaffNotePatch(input) {
   if (chipId) {
     const chip = getClubCallFunnelChip(chipId)
     if (chipId === 'callback_today' && !callbackOn) {
-      callbackOn = todayLocalIso()
+      callbackOn = todayInTimeZoneIso()
     }
     if (chip?.needsCallbackOn && !callbackOn) {
       return { ok: false, error: 'Укажите дату перезвона' }

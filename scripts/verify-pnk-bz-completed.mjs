@@ -36,6 +36,26 @@ ok(
   'three completed → cap 2',
 )
 
+ok(
+  countPnkBzCompletedFromTrainings(
+    [
+      { status: 'completed', date: '2026-06-01' },
+      { status: 'completed', date: '2026-07-10' },
+      { status: 'completed', date: '2026-07-20' },
+    ],
+    { sinceIso: '2026-07-01' },
+  ) === 2,
+  'sinceIso ignores pre-PNK completed',
+)
+
+ok(
+  countPnkBzCompletedFromTrainings(
+    [{ status: 'completed', date: '2026-06-15' }],
+    { sinceIso: '2026-07-01' },
+  ) === 0,
+  'sinceIso all before → 0',
+)
+
 const map = buildPnkBzCompletedByClientId([
   { client_id: 'a', status: 'completed' },
   { client_id: 'a', status: 'completed' },
@@ -45,6 +65,16 @@ const map = buildPnkBzCompletedByClientId([
   { client_id: '', status: 'completed' },
 ])
 ok(map.a === 2 && map.b === 1, 'by client map')
+
+const mapSince = buildPnkBzCompletedByClientId(
+  [
+    { client_id: 'a', status: 'completed', date: '2026-01-01' },
+    { client_id: 'a', status: 'completed', date: '2026-08-01' },
+    { client_id: 'b', status: 'completed', date: '2026-08-01' },
+  ],
+  { sinceByClientId: { a: '2026-07-01' }, sinceIso: '2026-07-01' },
+)
+ok(mapSince.a === 1 && mapSince.b === 1, 'by client since map')
 ok(peekPnkBzCompletedCount(map, 'a') === 2, 'peek a')
 ok(peekPnkBzCompletedCount(map, 'missing') === 0, 'peek missing')
 

@@ -1,6 +1,7 @@
 /**
  * Число завершённых бесплатных (БЗ) для итога визита ПНК.
  * Совпадает с карточкой тренера: count completed trainings, cap 2.
+ * Опционально — только с даты входа в ПНК (не копить старый дневник).
  * Без React / IDB.
  */
 
@@ -16,29 +17,54 @@ export function normalizePnkBzCompletedCount(raw) {
 }
 
 /**
- * Как на карточке тренера: все completed у клиента (окно ПНК ≤ 2).
- * @param {object[] | null | undefined} trainings
+ * Дата тренировки для окна ПНК.
+ * @param {object | null | undefined} t
  */
-export function countPnkBzCompletedFromTrainings(trainings) {
+export function pnkTrainingDayIso(t) {
+  const raw = String(t?.date ?? t?.training_date ?? t?.completed_at ?? t?.updated_at ?? t?.created_at ?? '')
+  const day = raw.slice(0, 10)
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : ''
+}
+
+/**
+ * Как на карточке тренера: completed у клиента (окно ПНК ≤ 2).
+ * @param {object[] | null | undefined} trainings
+ * @param {{ sinceIso?: string | null }} [opts] — не считать тренировки раньше входа в ПНК
+ */
+export function countPnkBzCompletedFromTrainings(trainings, opts = {}) {
+  const since = String(opts.sinceIso ?? '').slice(0, 10)
+  const sinceOk = /^\d{4}-\d{2}-\d{2}$/.test(since)
   let n = 0
   for (const t of Array.isArray(trainings) ? trainings : []) {
-    if (String(t?.status ?? '') === 'completed') n += 1
+    if (String(t?.status ?? '') !== 'completed') continue
+    if (sinceOk) {
+      const day = pnkTrainingDayIso(t)
+      if (day && day < since) continue
+    }
+    n += 1
   }
   return normalizePnkBzCompletedCount(n)
 }
 
 /**
- * Карта client_id → 0…2 из строк тренировок (достаточно полей client_id, status).
+ * Карта client_id → 0…2 из строк тренировок.
  * @param {object[] | null | undefined} trainingRows
+ * @param {{ sinceByClientId?: Record<string, string | null | undefined> | null }} [opts]
  * @returns {Record<string, number>}
  */
-export function buildPnkBzCompletedByClientId(trainingRows) {
+export function buildPnkBzCompletedByClientId(trainingRows, opts = {}) {
+  const sinceByClient = opts.sinceByClientId ?? null
   /** @type {Record<string, number>} */
   const raw = {}
   for (const t of Array.isArray(trainingRows) ? trainingRows : []) {
     if (String(t?.status ?? '') !== 'completed') continue
     const id = String(t?.client_id ?? '').trim()
     if (!id) continue
+    const since = String(sinceByClient?.[id] ?? '').slice(0, 10)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(since)) {
+      const day = pnkTrainingDayIso(t)
+      if (day && day < since) continue
+    }
     raw[id] = (raw[id] || 0) + 1
   }
   /** @type {Record<string, number>} */

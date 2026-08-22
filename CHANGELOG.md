@@ -9,6 +9,8 @@
 
 ## 2026-08
 
+- **Стабильность / даты и sync:** одно «сегодня» клуба (МСК) на сводке дня и смене call-центра; SMS/звонки по календарному дню МСК; synced draft не блокирует pull completed с другого планшета; БЗ ПНК только с даты входа; конверсия ПНК по когорте; журнал outreach не падает целиком при ошибке одной вкладки.
+- **Call-центр / сводка смены:** на главной `/club` и `/admin` — звонки, SMS, «перезвонить», закрытия за день; клик ведёт в журнал. Docs: [OUTREACH_CHANNELS_ROADMAP.md](./docs/OUTREACH_CHANNELS_ROADMAP.md), [CLUB_SUPERVISOR.md](./docs/CLUB_SUPERVISOR.md).
 - **ПНК / внимание:** список «Внимание» и hot на главной считают завершённую БЗ (`bz_completed_by_client`) так же, как доска — без ложной «Неявки», если stamp `trial` ещё не доехал. Docs: [PNK_FUNNEL.md](./docs/PNK_FUNNEL.md).
 - **R1 / портативность:** сообщение «облако недоступно» без привязки к status.supabase.com; проверка `verify-r1-portability` (нет prod URL в `src/`/`api/`). Docs: [STRATEGY_SCALE_AND_RU_HOSTING.md](./docs/STRATEGY_SCALE_AND_RU_HOSTING.md) §5.4.
 - **Тренировки / Sync:** у завершённых появилась метка «когда правили» (`updated_at`) — при Sync новее версия не затирается старой. Docs: [SYNC.md](./docs/SYNC.md).

@@ -383,14 +383,34 @@ ok(
   'F8 нет локальной строки — cloud inserts',
 )
 ok(
-  !shouldApplyCloudRowOnPull({
+  shouldApplyCloudRowOnPull({
     localRow: { id: 't-f9', synced: true, status: 'draft', updated_at: '2026-08-22T10:00:00.000Z' },
     cloudRow: { id: 't-f9', synced: true, status: 'completed', updated_at: '2026-08-22T12:00:00.000Z' },
     storeName: 'trainings',
     pendingByStore: { trainings: new Set() },
     recordKey: 't-f9',
   }),
-  'F9 synced draft локально — cloud completed не затирает (draft guard)',
+  'F9 synced draft ← cloud completed (другой девайс завершил)',
+)
+ok(
+  !shouldApplyCloudRowOnPull({
+    localRow: { id: 't-f9b', synced: true, status: 'draft', updated_at: '2026-08-22T14:00:00.000Z' },
+    cloudRow: { id: 't-f9b', synced: true, status: 'completed', updated_at: '2026-08-22T12:00:00.000Z' },
+    storeName: 'trainings',
+    pendingByStore: { trainings: new Set() },
+    recordKey: 't-f9b',
+  }),
+  'F9b synced draft новее completed — не откатываем',
+)
+ok(
+  !shouldApplyCloudRowOnPull({
+    localRow: { id: 't-f9c', synced: true, status: 'draft', updated_at: '2026-08-22T10:00:00.000Z' },
+    cloudRow: { id: 't-f9c', synced: true, status: 'draft', data: { exercises: [] } },
+    storeName: 'trainings',
+    pendingByStore: { trainings: new Set() },
+    recordKey: 't-f9c',
+  }),
+  'F9c synced draft ← cloud draft empty — preserve local',
 )
 ok(rowRevisionMs({ updated_at: 'not-a-date', created_at: '2026-08-22T10:00:00.000Z' }) > 0, 'F10 bad updated_at → fallback created_at')
 ok(rowRevisionMs({ updated_at: '', created_at: '' }) === 0, 'F11 empty dates → 0')

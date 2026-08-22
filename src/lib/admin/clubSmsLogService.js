@@ -2,7 +2,7 @@
  * Журнал клубных SMS: облако (источник истины) + локальный кэш outreach_log.
  */
 import { getDb, putStore } from '../localDb.js'
-import { todayLocalIso } from '../dateRu.js'
+import { calendarDayInTimeZoneIso, todayInTimeZoneIso } from '../dateRu.js'
 import {
   CLUB_SMS_LOG_DEFAULT_LOOKBACK_DAYS,
   clampClubSmsLogSinceDays,
@@ -73,7 +73,7 @@ async function cacheCloudRowLocally(cloudRow) {
  */
 export async function listLocalClubSmsLogs(clubId, opts = {}) {
   const cid = String(clubId ?? '').trim()
-  const day = String(opts.todayIso ?? todayLocalIso()).slice(0, 10)
+  const day = String(opts.todayIso ?? todayInTimeZoneIso()).slice(0, 10)
   const lookback = clampClubSmsLogSinceDays(opts.lookbackDays ?? CLUB_SMS_LOG_DEFAULT_LOOKBACK_DAYS)
   /** @type {object[]} */
   const out = []
@@ -84,7 +84,7 @@ export async function listLocalClubSmsLogs(clubId, opts = {}) {
   for (const r of rows ?? []) {
     if (String(r?.channel ?? '') !== 'club_sms') continue
     if (String(r?.club_id ?? '') !== cid) continue
-    const atDay = String(r?.created_at ?? '').slice(0, 10)
+    const atDay = calendarDayInTimeZoneIso(r?.created_at)
     if (!atDay) continue
     const age = calendarDaysBetween(atDay, day)
     if (age < 0 || age >= lookback) continue
@@ -127,7 +127,7 @@ export async function listRecentClubSmsLogs(clubId, opts = {}) {
  * }} [opts]
  */
 export async function mapClubSmsMarksForFilter(clubId, opts = {}) {
-  const today = String(opts.todayIso ?? todayLocalIso()).slice(0, 10)
+  const today = String(opts.todayIso ?? todayInTimeZoneIso()).slice(0, 10)
   const viewingFilter = String(opts.viewingFilter ?? 'all')
   const logs = await listRecentClubSmsLogs(clubId, { todayIso: today })
   return mapClubSmsMarksByClient(logs, {
@@ -141,12 +141,12 @@ export async function mapClubSmsMarksForFilter(clubId, opts = {}) {
  * @param {string} clubId
  * @param {string} [todayIso]
  */
-export async function mapClubSmsSentTodayByClient(clubId, todayIso = todayLocalIso()) {
+export async function mapClubSmsSentTodayByClient(clubId, todayIso = todayInTimeZoneIso()) {
   return mapClubSmsMarksForFilter(clubId, { todayIso, viewingFilter: 'all' })
 }
 
 /** @param {string} clientId @param {string} clubId @param {string} [todayIso] */
-export async function hasClubSmsSentToday(clientId, clubId, todayIso = todayLocalIso()) {
+export async function hasClubSmsSentToday(clientId, clubId, todayIso = todayInTimeZoneIso()) {
   const map = await mapClubSmsSentTodayByClient(clubId, todayIso)
   return map.has(String(clientId ?? '').trim())
 }

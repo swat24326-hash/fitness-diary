@@ -1,22 +1,22 @@
 import { filterCommercialClients } from './holdingClientsCore.js'
 import { membershipSignal } from '../clientListSignals.js'
-import { todayLocalIso } from '../dateRu.js'
+import { todayInTimeZoneIso } from '../dateRu.js'
 import { aggregateClubClientPeriod } from './clubClientPeriodAgg.js'
 import { buildAdminPzDaySummaryBrowseCounts } from './adminClientsBrowseFilterCore.js'
 
 /** @param {string} todayIso yyyy-mm-dd */
-export function yesterdayIso(todayIso = todayLocalIso()) {
+export function yesterdayIso(todayIso = todayInTimeZoneIso()) {
   const s = String(todayIso ?? '').slice(0, 10)
   const m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/)
   if (!m) return s
   const y = Number(m[1])
   const mo = Number(m[2])
   const d = Number(m[3])
-  const dt = new Date(y, mo - 1, d)
-  dt.setDate(dt.getDate() - 1)
-  const yy = dt.getFullYear()
-  const mm = String(dt.getMonth() + 1).padStart(2, '0')
-  const dd = String(dt.getDate()).padStart(2, '0')
+  const dt = new Date(Date.UTC(y, mo - 1, d))
+  dt.setUTCDate(dt.getUTCDate() - 1)
+  const yy = dt.getUTCFullYear()
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, '0')
+  const dd = String(dt.getUTCDate()).padStart(2, '0')
   return `${yy}-${mm}-${dd}`
 }
 
@@ -44,7 +44,7 @@ export function buildMembershipsByClientId(membershipRows) {
 export function countClubExpiringMemberships(
   clientRows,
   membershipRows,
-  today = todayLocalIso(),
+  today = todayInTimeZoneIso(),
   holdingTrainerIds,
   _noTabletTrainerIds,
 ) {
@@ -87,7 +87,7 @@ export function countTrainingsOnDate(trainings, iso) {
  * }} input
  */
 export function buildAdminClubDaySummary(input = {}) {
-  const today = String(input.today ?? todayLocalIso()).slice(0, 10)
+  const today = String(input.today ?? todayInTimeZoneIso()).slice(0, 10)
   const yesterday = String(input.yesterday ?? yesterdayIso(today)).slice(0, 10)
   const clients = input.clients ?? []
   const memberships = input.memberships ?? []

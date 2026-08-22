@@ -400,9 +400,17 @@ async function authorizeSupervisorPush(ctx, table_name, operation, data, remote_
           ? { ok: true }
           : { ok: false, error: 'Нет доступа' }
       }
-      return String(rowClub ?? '') === profileClub || (payload.client_id && (await canAccessClient(ctx, payload.client_id)))
-        ? { ok: true }
-        : { ok: false, error: 'Нет доступа' }
+      // Свой club_id обязателен: нельзя «приклеить» событие к чужому клубу через client_id.
+      if (String(rowClub ?? '') === profileClub) {
+        if (payload.client_id && !(await canAccessClient(ctx, payload.client_id))) {
+          return { ok: false, error: 'Нет доступа к клиенту' }
+        }
+        return { ok: true }
+      }
+      if (!rowClub && payload.client_id && (await canAccessClient(ctx, payload.client_id))) {
+        return { ok: true }
+      }
+      return { ok: false, error: 'Нет доступа' }
     }
 
     return { ok: false, error: 'Нет доступа' }

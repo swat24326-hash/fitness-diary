@@ -53,18 +53,28 @@ export function aggregatePnkFunnelStats(clients, opts = {}, events = []) {
   let won = 0
   let lost = 0
   let open = 0
+  let cohortWon = 0
   let withNutrition = 0
   let withHomework = 0
   let packageDone = 0
   let trialDone = 0
-  /** @type {Map<string, { trainerId: string, entered: number, won: number, lost: number, open: number, nutrition: number, homework: number }>} */
+  /** @type {Map<string, { trainerId: string, entered: number, won: number, lost: number, open: number, nutrition: number, homework: number, cohortWon: number }>} */
   const byTrainer = new Map()
 
   function bumpTrainer(tid, field) {
     if (!tid) return
     let row = byTrainer.get(tid)
     if (!row) {
-      row = { trainerId: tid, entered: 0, won: 0, lost: 0, open: 0, nutrition: 0, homework: 0 }
+      row = {
+        trainerId: tid,
+        entered: 0,
+        won: 0,
+        lost: 0,
+        open: 0,
+        nutrition: 0,
+        homework: 0,
+        cohortWon: 0,
+      }
       byTrainer.set(tid, row)
     }
     row[field]++
@@ -98,6 +108,11 @@ export function aggregatePnkFunnelStats(clients, opts = {}, events = []) {
         bumpTrainer(tid, 'homework')
       }
       if (pkg.done) packageDone++
+      // Конверсия когорты вошедших: оформление до конца периода (не «чужие» won).
+      if (wonAt && (!periodActive || !to || wonAt <= to)) {
+        cohortWon++
+        bumpTrainer(tid, 'cohortWon')
+      }
     }
 
     if (wonInPeriod) {
@@ -110,7 +125,8 @@ export function aggregatePnkFunnelStats(clients, opts = {}, events = []) {
       bumpTrainer(tid, 'lost')
     }
 
-    if (isOpenPnkClient(c)) {
+    // «В работе» в периоде — только открытые из когорты входа; без периода — все открытые.
+    if (isOpenPnkClient(c) && (!periodActive || enteredInPeriod)) {
       open++
       bumpTrainer(tid, 'open')
     }
@@ -147,14 +163,20 @@ export function aggregatePnkFunnelStats(clients, opts = {}, events = []) {
     }
   }
 
-  const conversionPct = entered > 0 ? Math.round((won / entered) * 1000) / 10 : 0
+  const conversionPct = entered > 0 ? Math.round((cohortWon / entered) * 1000) / 10 : 0
   const nutritionPct = entered > 0 ? Math.round((withNutrition / entered) * 1000) / 10 : 0
   const homeworkPct = entered > 0 ? Math.round((withHomework / entered) * 1000) / 10 : 0
 
   const trainers = [...byTrainer.values()]
     .map((row) => ({
-      ...row,
-      conversionPct: row.entered > 0 ? Math.round((row.won / row.entered) * 1000) / 10 : 0,
+      trainerId: row.trainerId,
+      entered: row.entered,
+      won: row.won,
+      lost: row.lost,
+      open: row.open,
+      nutrition: row.nutrition,
+      homework: row.homework,
+      conversionPct: row.entered > 0 ? Math.round((row.cohortWon / row.entered) * 1000) / 10 : 0,
     }))
     .sort((a, b) => b.entered - a.entered || b.won - a.won)
 

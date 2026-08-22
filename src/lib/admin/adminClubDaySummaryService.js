@@ -4,7 +4,7 @@ import {
   listTrainingsByClubIdInRange,
 } from '../localDbClubQuery.js'
 import { isSupabaseConfigured, supabase } from '../supabase.js'
-import { todayLocalIso } from '../dateRu.js'
+import { todayInTimeZoneIso } from '../dateRu.js'
 import { buildAdminClubDaySummary, yesterdayIso } from './adminClubDaySummaryCore.js'
 import { querySalesDailyRow } from './adminSalesQueryResilience.js'
 import { loadClubTrainingStats } from './adminClubStatsService.js'
@@ -24,7 +24,7 @@ export async function loadAdminClubDaySummary(clubId) {
     return { ok: false, reason: 'no_club', summary: null }
   }
 
-  const today = todayLocalIso()
+  const today = todayInTimeZoneIso()
   const yesterday = yesterdayIso(today)
 
   if (isSupabaseConfigured() && isAppOnline()) {

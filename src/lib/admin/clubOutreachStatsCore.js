@@ -6,13 +6,14 @@
 import { normalizeClubCallLogStatus } from './clubCallLogCore.js'
 import { normalizeClubCallOutcome } from './clubCallOutcomeCore.js'
 import { normalizeClubSmsLogStatus } from './clubSmsLogCore.js'
+import { calendarDayInTimeZoneIso } from '../dateRu.js'
 
 /**
+ * День строки журнала в календаре клуба (МСК), не UTC-префикс ISO.
  * @param {string | null | undefined} iso
  */
 export function outreachLogDayKey(iso) {
-  const s = String(iso ?? '').slice(0, 10)
-  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : ''
+  return calendarDayInTimeZoneIso(iso)
 }
 
 /**

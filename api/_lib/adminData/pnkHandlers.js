@@ -34,24 +34,33 @@ function canAccessClub(ctx, clubId) {
  * @param {object[]} openClients
  */
 async function fetchPnkBzCompletedByClient(supabaseAdmin, clubId, openClients) {
-  const ids = (Array.isArray(openClients) ? openClients : [])
-    .map((c) => String(c?.id ?? '').trim())
-    .filter(Boolean)
+  const list = Array.isArray(openClients) ? openClients : []
+  const ids = list.map((c) => String(c?.id ?? '').trim()).filter(Boolean)
   if (!ids.length) return {}
+
+  /** @type {Record<string, string>} */
+  const sinceByClientId = {}
+  for (const c of list) {
+    const id = String(c?.id ?? '').trim()
+    if (!id) continue
+    const since = String(c?.pnk_created_at ?? c?.created_at ?? '').slice(0, 10)
+    if (/^\d{4}-\d{2}-\d{2}$/.test(since)) sinceByClientId[id] = since
+  }
 
   const { data, error } = await supabaseAdmin
     .from('trainings')
-    .select('client_id, status')
+    .select('client_id, status, date, created_at, updated_at')
     .eq('club_id', clubId)
     .eq('status', 'completed')
     .in('client_id', ids)
-    .limit(Math.min(2000, ids.length * 8))
+    .order('created_at', { ascending: false })
+    .limit(Math.min(5000, Math.max(200, ids.length * 20)))
 
   if (error) {
     console.warn('[pnk] bz_completed trainings:', error.message)
     return {}
   }
-  return buildPnkBzCompletedByClientId(data ?? [])
+  return buildPnkBzCompletedByClientId(data ?? [], { sinceByClientId })
 }
 
 /**

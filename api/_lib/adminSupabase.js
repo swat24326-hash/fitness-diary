@@ -82,15 +82,13 @@ export async function requireAuthUser(req, res) {
   const isAdmin = isAdminByRole(roleNorm)
   const isSalesManager = isSalesManagerRoleNorm(roleNorm)
   const isSupervisor = isSupervisorRoleNorm(roleNorm)
-  /** Пустая role у не-админа — типичный тренер (в Table Editor не заполнили). */
-  const isTrainer =
-    isTrainerRole(roleNorm) ||
-    (!isAdmin && !isSalesManager && !isSupervisor && !!profile && !roleNorm)
+  // Пустая role не даёт прав тренера — только явная роль trainer / «тренер».
+  const isTrainer = isTrainerRole(roleNorm)
 
   return { supabaseAdmin, user, profile, roleNorm, isAdmin, isTrainer, isSalesManager, isSupervisor }
 }
 
-/** Доступ к list-trainers и trainer-pull: админ или тренер (в т.ч. без role в users). */
+/** Доступ к list-trainers и trainer-pull: админ или явная роль тренера. */
 export function canAccessTrainerOrAdminApis(ctx) {
   if (!ctx) return false
   if (ctx.isAdmin || ctx.isTrainer) return true

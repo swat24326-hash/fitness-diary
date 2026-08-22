@@ -13,7 +13,8 @@ function ok(cond, msg) {
   }
 }
 
-ok(outreachLogDayKey('2026-08-13T10:00:00.000Z') === '2026-08-13', 'day key')
+ok(outreachLogDayKey('2026-08-13T10:00:00.000Z') === '2026-08-13', 'day key afternoon UTC')
+ok(outreachLogDayKey('2026-08-21T22:30:00.000Z') === '2026-08-22', 'day key early MSK → next calendar day')
 ok(outreachLogDayKey('bad') === '', 'bad day empty')
 
 const logs = [
