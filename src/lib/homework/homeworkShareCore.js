@@ -6,6 +6,7 @@ import {
   formatTrainerPngShareStatus,
   sendTrainerPngShare,
 } from '../trainer/trainerPngShareCore.js'
+import { resolveClientGreetingName } from '../trainer/trainerClientOutreachCore.js'
 import { renderHomeworkPlanPng } from './homeworkPlanExportCanvas.js'
 import { isHomeworkDraftReady } from './homeworkPlanCore.js'
 
@@ -14,15 +15,17 @@ import { isHomeworkDraftReady } from './homeworkPlanCore.js'
 /**
  * @param {{
  *   draft: import('./homeworkPlanCore.js').HomeworkDraft,
+ *   client?: { name?: string, outreach_name?: string | null },
  *   clientName?: string,
  *   trainerName?: string,
  *   clubName?: string,
  * }} ctx
- * @returns {{ shareTitle: string, shareText: string }}
+ * @returns {{ shareTitle: string, shareText: string, clientLabel: string }}
  */
 export function buildHomeworkShareMessages(ctx = {}) {
   const draft = ctx.draft ?? {}
-  const clientName = String(ctx.clientName ?? '').trim()
+  const greeting = resolveClientGreetingName(ctx.client ?? ctx.clientName, ctx.client?.outreach_name)
+  const clientLabel = greeting || String(ctx.clientName ?? ctx.client?.name ?? '').trim()
   const trainerName = String(ctx.trainerName ?? '').trim()
   const clubName = String(ctx.clubName ?? '').trim()
   const dzTitle = String(draft.title ?? '').trim() || 'Домашнее задание'
@@ -31,7 +34,7 @@ export function buildHomeworkShareMessages(ctx = {}) {
   const shareText = [
     clubName ? `Домашнее задание · ${clubName}` : 'Домашнее задание',
     dzTitle !== 'Домашнее задание' ? dzTitle : '',
-    clientName ? `для ${clientName}` : '',
+    greeting ? `для ${greeting}` : clientLabel ? `для ${clientLabel}` : '',
     trainerName ? `тренер ${trainerName}` : '',
   ]
     .filter(Boolean)
@@ -39,7 +42,8 @@ export function buildHomeworkShareMessages(ctx = {}) {
 
   return {
     shareTitle,
-    shareText: `${shareText}.\n\nУпражнения и подходы — на картинке во вложении.`,
+    shareText: `${shareText}.\n\nУпражнения и подходы — на картинке.`,
+    clientLabel,
   }
 }
 
@@ -62,11 +66,21 @@ export async function sendHomeworkDraft(draft, ctx = {}, opts = {}) {
   const clientName = String(ctx.clientName ?? ctx.client?.name ?? '').trim()
   const trainerName = String(ctx.trainerName ?? '').trim()
   const clubName = String(ctx.clubName ?? '').trim()
-  const { shareTitle, shareText } = buildHomeworkShareMessages({ draft, clientName, trainerName, clubName })
+  const { shareTitle, shareText, clientLabel } = buildHomeworkShareMessages({
+    draft,
+    client: ctx.client,
+    clientName,
+    trainerName,
+    clubName,
+  })
 
   let blob
   try {
-    blob = await renderHomeworkPlanPng(draft, { clientName, trainerName, clubName })
+    blob = await renderHomeworkPlanPng(draft, {
+      clientName: clientLabel || clientName,
+      trainerName,
+      clubName,
+    })
   } catch (e) {
     return { ok: false, error: 'png_failed', detail: String(e?.message ?? e) }
   }
