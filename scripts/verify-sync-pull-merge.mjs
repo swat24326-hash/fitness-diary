@@ -226,5 +226,235 @@ setOpenTrainingDraft('draft-99', 'c1')
 ok(hasOpenTrainingDraft(), 'E2 draft registered for pull skip')
 resetOpenTrainingDraftForTests()
 
+console.log('\n--- Сценарий F: нестандартные и критические ---')
+ok(
+  !shouldApplyCloudRowOnPull({
+    localRow: {
+      id: 't-f1',
+      synced: true,
+      status: 'completed',
+      updated_at: '2026-08-22T12:00:00.000Z',
+      data: { note: 'done' },
+    },
+    cloudRow: {
+      id: 't-f1',
+      synced: true,
+      status: 'draft',
+      updated_at: '2026-08-22T13:00:00.000Z',
+      data: { note: 'stale-draft' },
+    },
+    storeName: 'trainings',
+    pendingByStore: { trainings: new Set() },
+    recordKey: 't-f1',
+  }),
+  'F1 CRITICAL: cloud draft never un-completes local completed',
+)
+ok(
+  !shouldApplyCloudRowOnPull({
+    localRow: {
+      id: 't-f2',
+      synced: false,
+      status: 'completed',
+      updated_at: '2026-08-22T14:00:00.000Z',
+    },
+    cloudRow: {
+      id: 't-f2',
+      synced: true,
+      status: 'completed',
+      updated_at: '2026-08-22T15:00:00.000Z',
+    },
+    storeName: 'trainings',
+    pendingByStore: { trainings: new Set() },
+    recordKey: 't-f2',
+  }),
+  'F2 completed ещё в очереди (synced:false) — cloud не затирает',
+)
+ok(
+  !shouldApplyCloudRowOnPull({
+    localRow: {
+      id: 't-f3',
+      synced: true,
+      status: 'completed',
+      updated_at: '2026-08-22T16:00:00.000Z',
+    },
+    cloudRow: {
+      id: 't-f3',
+      synced: true,
+      status: 'completed',
+      updated_at: '2026-08-22T15:00:00.000Z',
+    },
+    storeName: 'trainings',
+    pendingByStore: { trainings: new Set() },
+    recordKey: 't-f3',
+  }),
+  'F3 локаль новее completed — stale cloud skipped',
+)
+ok(
+  shouldApplyCloudRowOnPull({
+    localRow: {
+      id: 't-f4',
+      synced: true,
+      status: 'completed',
+      updated_at: '2026-08-22T10:00:00.000Z',
+    },
+    cloudRow: {
+      id: 't-f4',
+      synced: true,
+      status: 'completed',
+      updated_at: '2026-08-22T10:00:00.000Z',
+      data: { note: 'same-ts' },
+    },
+    storeName: 'trainings',
+    pendingByStore: { trainings: new Set() },
+    recordKey: 't-f4',
+  }),
+  'F4 equal updated_at — cloud applies (tie → cloud)',
+)
+ok(
+  shouldApplyCloudRowOnPull({
+    localRow: {
+      id: 't-f5',
+      synced: true,
+      status: 'completed',
+      created_at: '2026-08-01T10:00:00.000Z',
+    },
+    cloudRow: {
+      id: 't-f5',
+      synced: true,
+      status: 'completed',
+      updated_at: '2026-08-22T12:00:00.000Z',
+      created_at: '2026-08-01T10:00:00.000Z',
+    },
+    storeName: 'trainings',
+    pendingByStore: { trainings: new Set() },
+    recordKey: 't-f5',
+  }),
+  'F5 локаль только created_at, облако с updated_at — cloud applies',
+)
+ok(
+  !shouldApplyCloudRowOnPull({
+    localRow: {
+      id: 't-f6',
+      synced: true,
+      status: 'completed',
+      updated_at: '2026-08-22T18:00:00.000Z',
+      created_at: '2026-08-01T10:00:00.000Z',
+    },
+    cloudRow: {
+      id: 't-f6',
+      synced: true,
+      status: 'completed',
+      created_at: '2026-08-01T10:00:00.000Z',
+    },
+    storeName: 'trainings',
+    pendingByStore: { trainings: new Set() },
+    recordKey: 't-f6',
+  }),
+  'F6 облако без updated_at (старый снимок) — не затирает локаль с меткой',
+)
+ok(
+  !shouldApplyCloudRowOnPull({
+    localRow: {
+      id: 't-f7',
+      synced: true,
+      status: 'completed',
+      updated_at: '2026-08-22T11:00:00.000Z',
+    },
+    cloudRow: {
+      id: 't-f7',
+      synced: true,
+      status: 'completed',
+      updated_at: '2026-08-22T12:00:00.000Z',
+    },
+    storeName: 'trainings',
+    pendingByStore: { trainings: new Set(['t-f7']) },
+    recordKey: 't-f7',
+  }),
+  'F7 pending в очереди блокирует даже более новый cloud',
+)
+ok(
+  shouldApplyCloudRowOnPull({
+    localRow: null,
+    cloudRow: { id: 't-f8', status: 'completed', updated_at: '2026-08-22T12:00:00.000Z' },
+    storeName: 'trainings',
+    pendingByStore: { trainings: new Set() },
+    recordKey: 't-f8',
+  }),
+  'F8 нет локальной строки — cloud inserts',
+)
+ok(
+  !shouldApplyCloudRowOnPull({
+    localRow: { id: 't-f9', synced: true, status: 'draft', updated_at: '2026-08-22T10:00:00.000Z' },
+    cloudRow: { id: 't-f9', synced: true, status: 'completed', updated_at: '2026-08-22T12:00:00.000Z' },
+    storeName: 'trainings',
+    pendingByStore: { trainings: new Set() },
+    recordKey: 't-f9',
+  }),
+  'F9 synced draft локально — cloud completed не затирает (draft guard)',
+)
+ok(rowRevisionMs({ updated_at: 'not-a-date', created_at: '2026-08-22T10:00:00.000Z' }) > 0, 'F10 bad updated_at → fallback created_at')
+ok(rowRevisionMs({ updated_at: '', created_at: '' }) === 0, 'F11 empty dates → 0')
+ok(rowRevisionMs(null) === 0, 'F12 null row → 0')
+
+const srcF13 = { id: 't-f13', status: 'completed' }
+const stampedF13 = stampTrainingUpdatedAt(srcF13, '2026-08-22T20:00:00.000Z')
+ok(srcF13.updated_at === undefined, 'F13 stamp does not mutate source')
+ok(stampedF13.updated_at === '2026-08-22T20:00:00.000Z', 'F13b stamp sets field')
+
+const prepIns = prepareTrainingPushPayload(
+  {
+    id: 't-f14',
+    client_id: 'c',
+    trainer_id: 'tr',
+    club_id: 'cl',
+    date: '2026-08-22',
+    type: 'Силовая',
+    status: 'completed',
+    data: {},
+    created_at: '2026-08-20T10:00:00.000Z',
+  },
+  { operation: 'insert', nowIso: '2026-08-22T21:00:00.000Z' },
+)
+ok(prepIns?.created_at === '2026-08-20T10:00:00.000Z', 'F14 insert keeps created_at')
+ok(prepIns?.updated_at === '2026-08-22T21:00:00.000Z', 'F14b insert stamps updated_at')
+
+const prepSpisanie = prepareTrainingPushPayload(
+  { type: 'Списание', status: 'completed', data: {}, date: '2026-08-22', client_id: 'c', trainer_id: 't', club_id: 'cl', id: 'x' },
+  { operation: 'update', nowIso: '2026-08-22T22:00:00.000Z' },
+)
+ok(prepSpisanie?.type === 'Силовая' && prepSpisanie?.data?.is_writeoff === true, 'F15 списание → type Силовая + is_writeoff')
+
+ok(
+  isMissingTrainingsUpdatedAtError("Could not find the 'updated_at' column of 'trainings' in the schema cache"),
+  'F16 missing column detect',
+)
+ok(stripTrainingUpdatedAt({ id: '1', updated_at: 'x' })?.updated_at === undefined, 'F17 strip updated_at')
+
+ok(
+  !shouldApplyCloudRowOnPull({
+    localRow: { id: 't-f18', synced: true, status: 'completed', updated_at: '2026-08-22T12:00:00.000Z' },
+    cloudRow: null,
+    storeName: 'trainings',
+    recordKey: 't-f18',
+  }),
+  'F18 null cloud → no apply',
+)
+
+const pruneMixed = trainingIdsToPruneForClient(
+  'c9',
+  [
+    { id: 'keep-remote', client_id: 'c9', status: 'completed' },
+    { id: 'ghost-done', client_id: 'c9', status: 'completed' },
+    { id: 'open-draft', client_id: 'c9', status: 'draft' },
+    { id: 'unsynced-done', client_id: 'c9', status: 'completed', synced: false },
+  ],
+  [{ id: 'keep-remote', client_id: 'c9' }],
+  new Set(['unsynced-done']),
+)
+ok(pruneMixed.includes('ghost-done'), 'F19 prune ghost completed')
+ok(!pruneMixed.includes('open-draft'), 'F19b never prune draft')
+ok(!pruneMixed.includes('unsynced-done'), 'F19c never prune pending completed')
+ok(!pruneMixed.includes('keep-remote'), 'F19d keep remote row')
+
 if (failed) process.exit(1)
 console.log('\nverify-sync-pull-merge: all ok')

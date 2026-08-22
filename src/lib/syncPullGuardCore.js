@@ -86,6 +86,8 @@ export function shouldApplyCloudRowOnPull(ctx = {}) {
   if (storeName === 'trainings') {
     const localStatus = String(localRow.status ?? '')
     const cloudStatus = String(cloudRow.status ?? '')
+    // Completed на планшете не откатываем в draft из pull (битый/старый снимок).
+    if (localStatus === 'completed' && cloudStatus !== 'completed') return false
     if (localStatus === 'completed' && cloudStatus === 'completed') {
       return rowRevisionMs(cloudRow) >= rowRevisionMs(localRow)
     }
