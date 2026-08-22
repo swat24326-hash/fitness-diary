@@ -56,13 +56,17 @@ export function ClubCallShiftSummaryPanel({
             Сводка смены
           </h2>
         </div>
-        <h3 className="club-call-shift__section-title">Связь за день</h3>
-        <ul className="club-call-shift__grid" aria-label="Загрузка сводки смены">
-          <li className="admin-home-skel club-call-shift__skel" />
-          <li className="admin-home-skel club-call-shift__skel" />
-          <li className="admin-home-skel club-call-shift__skel" />
-          <li className="admin-home-skel club-call-shift__skel" />
-        </ul>
+        <div className="club-call-shift__section">
+          <div className="club-call-shift__section-head">
+            <h3 className="club-call-shift__section-title">Связь за день</h3>
+          </div>
+          <ul className="club-call-shift__grid" aria-label="Загрузка сводки смены">
+            <li className="admin-home-skel club-call-shift__skel" />
+            <li className="admin-home-skel club-call-shift__skel" />
+            <li className="admin-home-skel club-call-shift__skel" />
+            <li className="admin-home-skel club-call-shift__skel" />
+          </ul>
+        </div>
       </section>
     )
   }
@@ -75,13 +79,18 @@ export function ClubCallShiftSummaryPanel({
           <h2 id="club-call-shift-title" className="club-call-shift__title">
             Сводка смены
           </h2>
-          <Link to={journalHref} className="club-call-shift__link">
-            Журнал звонков
-          </Link>
+          <p className="club-call-shift__meta club-call-shift__meta--err" role="alert">
+            {errText}
+          </p>
         </div>
-        <p className="club-call-shift__meta club-call-shift__meta--err" role="alert">
-          {errText}
-        </p>
+        <div className="club-call-shift__section">
+          <div className="club-call-shift__section-head">
+            <h3 className="club-call-shift__section-title">Связь за день</h3>
+            <Link to={journalHref} className="club-call-shift__link">
+              Журнал звонков
+            </Link>
+          </div>
+        </div>
       </section>
     )
   }
@@ -101,38 +110,39 @@ export function ClubCallShiftSummaryPanel({
         <h2 id="club-call-shift-title" className="club-call-shift__title">
           Сводка смены
         </h2>
-        <Link to={journalHref} className="club-call-shift__link">
-          Журнал звонков
-        </Link>
-      </div>
-      <p className="club-call-shift__meta muted">{meta}</p>
-      {errText ? (
-        <p className="club-call-shift__meta club-call-shift__meta--warn" role="status">
-          {errText}
+        <p className={`club-call-shift__meta muted${errText ? ' club-call-shift__meta--warn' : ''}`} role={errText ? 'status' : undefined}>
+          {errText || meta}
         </p>
-      ) : null}
-      <h3 className="club-call-shift__section-title">Связь за день</h3>
-      <ul className="club-call-shift__grid" aria-label="Показатели смены">
-        {cards.map((card) => {
-          const Icon = ICONS[card.key] || Phone
-          return (
-            <li key={card.key}>
-              <Link
-                to={card.to}
-                className={`club-call-shift__card u-no-decoration${card.hot ? ' club-call-shift__card--hot' : ''}${card.warn ? ' club-call-shift__card--warn' : ''}`}
-                aria-label={`${card.label}: ${card.count}. ${card.hint}`}
-              >
-                <span className="club-call-shift__card-icon" aria-hidden>
-                  <Icon size={16} />
-                </span>
-                <span className="club-call-shift__card-count">{card.count}</span>
-                <span className="club-call-shift__card-label">{card.label}</span>
-                <span className="club-call-shift__card-hint muted">{card.hint}</span>
-              </Link>
-            </li>
-          )
-        })}
-      </ul>
+      </div>
+      <div className="club-call-shift__section">
+        <div className="club-call-shift__section-head">
+          <h3 className="club-call-shift__section-title">Связь за день</h3>
+          <Link to={journalHref} className="club-call-shift__link">
+            Журнал звонков
+          </Link>
+        </div>
+        <ul className="club-call-shift__grid" aria-label="Показатели смены">
+          {cards.map((card) => {
+            const Icon = ICONS[card.key] || Phone
+            return (
+              <li key={card.key}>
+                <Link
+                  to={card.to}
+                  className={`club-call-shift__card u-no-decoration${card.hot ? ' club-call-shift__card--hot' : ''}${card.warn ? ' club-call-shift__card--warn' : ''}`}
+                  aria-label={`${card.label}: ${card.count}. ${card.hint}`}
+                >
+                  <span className="club-call-shift__card-icon" aria-hidden>
+                    <Icon size={16} />
+                  </span>
+                  <span className="club-call-shift__card-count">{card.count}</span>
+                  <span className="club-call-shift__card-label">{card.label}</span>
+                  <span className="club-call-shift__card-hint muted">{card.hint}</span>
+                </Link>
+              </li>
+            )
+          })}
+        </ul>
+      </div>
     </section>
   )
 }

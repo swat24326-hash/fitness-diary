@@ -105,10 +105,12 @@ export function AdminClubDaySummaryPanel({
   if (noClub) {
     return (
       <section className="admin-day-summary" aria-labelledby="admin-day-summary-title">
-        <h2 id="admin-day-summary-title" className="admin-day-summary__title">
-          Сводка дня клуба
-        </h2>
-        <p className="admin-day-summary__hint muted">Выберите клуб в шапке, чтобы увидеть сводку.</p>
+        <div className="admin-day-summary__head">
+          <h2 id="admin-day-summary-title" className="admin-day-summary__title">
+            Сводка дня клуба
+          </h2>
+          <p className="admin-day-summary__hint muted">Выберите клуб в шапке</p>
+        </div>
       </section>
     )
   }
@@ -120,13 +122,19 @@ export function AdminClubDaySummaryPanel({
         aria-labelledby="admin-day-summary-title"
         aria-busy="true"
       >
-        <h2 id="admin-day-summary-title" className="admin-day-summary__title">
-          Сводка дня клуба
-        </h2>
-        <ul className="admin-day-summary__skel-grid" aria-label="Загрузка сводки">
-          <li className="admin-home-skel admin-day-summary__skel-card" />
-          <li className="admin-home-skel admin-day-summary__skel-card" />
-        </ul>
+        <div className="admin-day-summary__head">
+          <h2 id="admin-day-summary-title" className="admin-day-summary__title">
+            Сводка дня клуба
+          </h2>
+        </div>
+        <div className="admin-day-summary__section admin-day-summary__section--base">
+          <h3 className="admin-day-summary__section-title">База и поводы</h3>
+          <ul className="admin-day-summary__skel-grid" aria-label="Загрузка сводки">
+            <li className="admin-home-skel admin-day-summary__skel-card" />
+            <li className="admin-home-skel admin-day-summary__skel-card" />
+            <li className="admin-home-skel admin-day-summary__skel-card" />
+          </ul>
+        </div>
       </section>
     )
   }
@@ -154,7 +162,7 @@ export function AdminClubDaySummaryPanel({
       </div>
 
       {groups.map((g) => (
-        <div key={g.id} className="admin-day-summary__section">
+        <div key={g.id} className={`admin-day-summary__section admin-day-summary__section--${g.id}`}>
           <h3 className="admin-day-summary__section-title">{g.title}</h3>
           <ul
             className={`admin-day-summary__grid admin-day-summary__grid--${g.id}`}
