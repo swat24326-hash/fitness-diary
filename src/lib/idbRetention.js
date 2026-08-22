@@ -8,7 +8,6 @@ import {
   LOCAL_TRAININGS_RETENTION_DAYS,
   retentionCutoffIso,
   shouldPruneTrainingRow,
-  trainingDateForRetention,
 } from './idbRetentionCore.js'
 
 export {

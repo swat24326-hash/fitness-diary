@@ -814,7 +814,7 @@ setSection('MANAGER / фильтр одного тренера и медиана
       { id: 'b3', trainer_id: 't2', name: 'B3', archived_at: null },
     ],
     trainings: [
-      ...['a1', 'a2', 'a3'].flatMap((cid, i) =>
+      ...['a1', 'a2', 'a3'].flatMap((cid) =>
         [0, 1, 2].map((j) =>
           completed(`t1-${cid}-${j}`, 't1', cid, `2026-07-${String(8 + j).padStart(2, '0')}`, deepData()),
         ),
@@ -889,7 +889,7 @@ setSection('MANAGER / одинаковый объём, разное ведени
 {
   // Стресс-тест №1 из промпта: одинаковое число completed, разный care
   const makeTrainings = (tid, cids) =>
-    cids.flatMap((cid, idx) =>
+    cids.flatMap((cid) =>
       [0, 1, 2, 3].map((j) =>
         completed(`${tid}-${cid}-${j}`, tid, cid, `2026-07-${String(4 + j).padStart(2, '0')}`, deepData()),
       ),

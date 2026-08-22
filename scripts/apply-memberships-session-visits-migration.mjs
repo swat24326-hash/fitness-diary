@@ -2,7 +2,7 @@
  * npm run db:migrate:memberships-session-visits -- --linked
  */
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 const MIGRATION = 'supabase/migrations/20260804223000_memberships_session_visits.sql'

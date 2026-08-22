@@ -1,7 +1,6 @@
 /**
  * node scripts/verify-iskra-business-playbooks.mjs
  */
-import { buildGeminiSnapshot } from '../src/lib/admin/geminiAnalyticsSnapshot.js'
 import { buildPlanDirectionInsights } from '../src/lib/admin/geminiPlanDirections.js'
 import {
   ISKRA_SEED_PLAYBOOKS,

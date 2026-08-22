@@ -24,7 +24,7 @@ import {
 import { buildSalesAdviceContext } from './iskraSalesAdviceContextCore.js'
 import { augmentPromptDataBlockForAdmin } from './iskraAdminPromptContext.js'
 import { buildPlaybooksPromptBlock } from './iskraLearningCore.js'
-import { mergePlaybooksForPrompt, buildSeedPlaybooksPromptRule } from './iskraBusinessPlaybooksCore.js'
+import { mergePlaybooksForPrompt } from './iskraBusinessPlaybooksCore.js'
 import { matchIskraAppGuideIntent } from './iskraAppGuide.js'
 import { buildKbPromptBlock } from './iskraKnowledgeBaseCore.js'
 import {

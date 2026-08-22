@@ -12,7 +12,6 @@ import {
 } from '../src/lib/clientHallLifecycleCore.js'
 import {
   QA_CLUB_ID,
-  QA_PASSWORD,
   QA_PREFIX,
   PROD_ORIGIN,
   createSupabaseAdmin,

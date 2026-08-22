@@ -2,7 +2,6 @@ import { getHealthCurrentWeightKg, getHealthInitialWeightKg } from '../clientWei
 import { getHealthSex } from '../healthCardCore.js'
 import { saveLocalWithSync } from '../syncService.js'
 import { buildNutritionPlan, normalizeNutritionSurvey } from './nutritionPlanBuilder.js'
-import { defaultNutritionSurvey, nutritionSurveyFromStorage } from './nutritionSurveyCore.js'
 import { buildNutritionCatalogMap } from './nutritionCatalogResolve.js'
 import { appendNutritionPlanHistory, parseNutritionPlanHistory, serializeNutritionPlanHistoryForStorage, removeNutritionPlanHistoryEntry } from './nutritionPlanHistoryCore.js'
 import { listNutritionProductsForClub } from './nutritionProductsService.js'
