@@ -266,6 +266,8 @@ run('nutrition meal pairing', 'node', ['scripts/verify-nutrition-meal-pairing.mj
 run('nutrition referents', 'node', ['scripts/verify-nutrition-referents.mjs'])
 run('nutrition plan history', 'node', ['scripts/verify-nutrition-plan-history.mjs'])
 run('nutrition plan session', 'node', ['scripts/verify-nutrition-plan-session.mjs'])
+run('nutrition plan share', 'node', ['scripts/verify-nutrition-plan-share.mjs'])
+run('trainer png share', 'node', ['scripts/verify-trainer-png-share.mjs'])
 run('nutrition prod flow', 'node', ['scripts/verify-nutrition-prod-flow.mjs'])
 run('nutrition survey storage', 'node', ['scripts/verify-nutrition-survey-storage.mjs'])
 run('client weight', 'node', ['scripts/verify-client-weight.mjs'])

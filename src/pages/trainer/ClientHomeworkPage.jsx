@@ -145,21 +145,11 @@ export function ClientHomeworkPage({ client, readOnly = false, onHomeworkIssued 
       )
       if (!res.ok) {
         if (res.error === 'empty_draft') setStatusMsg('Добавьте упражнения')
-        else setStatusMsg(res.detail || 'Не удалось сформировать PNG')
+        else if (res.error === 'png_failed') setStatusMsg(res.detail || 'Не удалось сформировать PNG')
+        else setStatusMsg(res.statusText || 'Не удалось отправить')
         return
       }
-      const parts = []
-      if (channel === 'other') {
-        if (res.shared) parts.push('выберите мессенджер в меню «Поделиться»')
-        else if (res.downloaded) parts.push('PNG скачан — прикрепите в мессенджер')
-      } else {
-        if (res.shared) parts.push('карточка готова к отправке')
-        else if (res.downloaded) parts.push('PNG скачан — прикрепите в Max')
-        if (res.opened) {
-          parts.push(res.openMode === 'direct_chat' ? 'открыт чат Max' : 'открыто окно Max')
-        }
-      }
-      setStatusMsg(parts.join(' · ') || 'Готово')
+      setStatusMsg(res.statusText || 'Готово')
       try {
         await onHomeworkIssued?.()
       } catch {

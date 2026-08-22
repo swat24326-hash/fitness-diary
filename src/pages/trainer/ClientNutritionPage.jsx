@@ -102,6 +102,7 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [exportBusy, setExportBusy] = useState(false)
+  const [exportStatus, setExportStatus] = useState('')
   const [catalogMap, setCatalogMap] = useState(() => buildNutritionCatalogMap([]))
   const [catalogLabel, setCatalogLabel] = useState('Базовый справочник')
   const [confirmDialog, setConfirmDialog] = useState(null)
@@ -513,6 +514,7 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
     const plan = displayPlan ?? savedPlan
     if (!plan) return
     setExportBusy(true)
+    setExportStatus('')
     try {
       const res = await sendNutritionPlanPng(
         plan,
@@ -526,8 +528,12 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
         { channel },
       )
       if (!res.ok) {
-        alert(res.detail || 'Не удалось создать изображение')
+        if (res.error === 'empty_plan') setExportStatus('Сначала сохраните рацион')
+        else if (res.error === 'png_failed') setExportStatus(res.detail || 'Не удалось создать изображение')
+        else setExportStatus(res.statusText || 'Не удалось отправить')
+        return
       }
+      setExportStatus(res.statusText || 'Готово')
     } catch (e) {
       alert(e?.message ?? 'Не удалось создать изображение')
     } finally {
@@ -735,6 +741,7 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
             daySummary={daySummary}
             readOnly={readOnly}
             exportBusy={exportBusy}
+            exportStatus={exportStatus}
             onExportMax={() => exportPng('max')}
             onExportOther={() => exportPng('other')}
             clubName={clubName}
@@ -1021,6 +1028,7 @@ export function ClientNutritionPage({ client, readOnly = false, onPlanSaved }) {
                 daySummary={daySummary}
                 readOnly={readOnly}
                 exportBusy={exportBusy}
+                exportStatus={exportStatus}
                 onExportMax={() => exportPng('max')}
                 onExportOther={() => exportPng('other')}
                 clubName={clubName}

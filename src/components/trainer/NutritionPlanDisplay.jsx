@@ -41,6 +41,7 @@ export function NutritionPlanDisplay({
   daySummary,
   readOnly,
   exportBusy,
+  exportStatus = '',
   onExportMax,
   onExportOther,
   onItemGramsChange,
@@ -190,6 +191,10 @@ export function NutritionPlanDisplay({
           </div>
           {planUnsaved ? (
             <p className="muted nutrition-share-actions__hint">Сначала сохраните рацион — затем отправка.</p>
+          ) : exportStatus ? (
+            <p className="muted nutrition-share-actions__hint" role="status">
+              {exportStatus}
+            </p>
           ) : null}
         </div>
       ) : null}

@@ -3,21 +3,36 @@
  */
 
 import {
-  buildMaxShareUrl,
-  normalizeMaxChatUrl,
-  normalizePhoneDigits,
-  openMaxExternalUrl,
-  resolveMaxOpenTarget,
-} from '../trainer/trainerClientOutreachCore.js'
-import {
-  downloadNutritionPlanBlob,
-  renderNutritionPlanPng,
-  shareNutritionPlanBlob,
-} from './nutritionPlanExportCanvas.js'
+  downloadPngBlob,
+  formatTrainerPngShareStatus,
+  sendTrainerPngShare,
+} from '../trainer/trainerPngShareCore.js'
+import { renderNutritionPlanPng } from './nutritionPlanExportCanvas.js'
+
+/** @typedef {'max' | 'other'} NutritionShareChannel */
 
 /**
- * @typedef {'max' | 'other'} NutritionShareChannel
+ * @param {{
+ *   client?: { name?: string },
+ *   clientName?: string,
+ *   clubName?: string,
+ * }} ctx
+ * @returns {{ shareTitle: string, shareText: string }}
  */
+export function buildNutritionPlanShareMessages(ctx = {}) {
+  const clientName = String(ctx.clientName ?? ctx.client?.name ?? '').trim()
+  const clubName = String(ctx.clubName ?? '').trim()
+  const head = clubName ? `${clubName} · мерный рацион` : 'Мерный рацион'
+  const who = clientName ? ` для ${clientName}` : ''
+  const shareTitle = `${head}${who}`
+  const shareText = `${shareTitle}.\n\nОриентировочный рацион на день — см. картинку во вложении.`
+  return { shareTitle, shareText }
+}
+
+/** @deprecated используйте buildNutritionPlanShareMessages */
+export function buildNutritionPlanShareText(ctx = {}) {
+  return buildNutritionPlanShareMessages(ctx).shareTitle
+}
 
 /**
  * @param {object} plan
@@ -36,7 +51,7 @@ export async function sendNutritionPlanPng(plan, ctx = {}, opts = {}) {
   const channel = opts.channel === 'other' ? 'other' : 'max'
   const clientName = String(ctx.clientName ?? ctx.client?.name ?? '').trim()
   const clubName = String(ctx.clubName ?? '').trim()
-  const title = clubName ? `${clubName} · мерный рацион` : 'Мерный рацион'
+  const { shareTitle, shareText } = buildNutritionPlanShareMessages({ clientName, clubName })
 
   let blob
   try {
@@ -49,47 +64,16 @@ export async function sendNutritionPlanPng(plan, ctx = {}, opts = {}) {
     return { ok: false, error: 'png_failed', detail: String(e?.message ?? e) }
   }
 
-  let shared = false
-  try {
-    shared = await shareNutritionPlanBlob(blob, title)
-  } catch {
-    shared = false
-  }
-
-  if (channel === 'other') {
-    if (!shared) {
-      downloadNutritionPlanBlob(blob, `racion-${ctx.client?.id ?? 'client'}.png`)
-    }
-    return { ok: true, channel, shared, downloaded: !shared, opened: false, openMode: null }
-  }
-
-  if (!shared) {
-    downloadNutritionPlanBlob(blob, `racion-${ctx.client?.id ?? 'client'}.png`)
-  }
-
-  const phone = normalizePhoneDigits(ctx.client?.phone)
-  const maxChatUrl = normalizeMaxChatUrl(ctx.client?.max_chat_url)
-  const shareText = [title, clientName ? `для ${clientName}` : ''].filter(Boolean).join(' · ')
-
-  let opened = false
-  let openMode = null
-  if (maxChatUrl || phone) {
-    const target = resolveMaxOpenTarget({ message: shareText, phone, maxChatUrl })
-    opened = openMaxExternalUrl(target.url)
-    openMode = target.mode
-  } else {
-    opened = openMaxExternalUrl(buildMaxShareUrl(shareText))
-    openMode = 'share'
-  }
-
-  return {
-    ok: true,
+  const result = await sendTrainerPngShare({
+    blob,
+    filename: `racion-${ctx.client?.id ?? 'client'}.png`,
+    title: shareTitle,
+    text: shareText,
     channel,
-    shared,
-    downloaded: !shared,
-    opened,
-    openMode,
-    phone: phone || null,
-    maxChatUrl: maxChatUrl || null,
-  }
+    client: ctx.client,
+  })
+
+  return { ...result, statusText: formatTrainerPngShareStatus(result) }
 }
+
+export { downloadPngBlob as downloadNutritionPlanBlob, formatTrainerPngShareStatus }

@@ -3,18 +3,45 @@
  */
 
 import {
-  buildMaxShareUrl,
-  normalizeMaxChatUrl,
-  normalizePhoneDigits,
-  openMaxExternalUrl,
-  resolveMaxOpenTarget,
-} from '../trainer/trainerClientOutreachCore.js'
-import { downloadHomeworkPlanBlob, renderHomeworkPlanPng, shareHomeworkPlanBlob } from './homeworkPlanExportCanvas.js'
+  formatTrainerPngShareStatus,
+  sendTrainerPngShare,
+} from '../trainer/trainerPngShareCore.js'
+import { renderHomeworkPlanPng } from './homeworkPlanExportCanvas.js'
 import { isHomeworkDraftReady } from './homeworkPlanCore.js'
 
+/** @typedef {'max' | 'other'} HomeworkShareChannel */
+
 /**
- * @typedef {'max' | 'other'} HomeworkShareChannel
+ * @param {{
+ *   draft: import('./homeworkPlanCore.js').HomeworkDraft,
+ *   clientName?: string,
+ *   trainerName?: string,
+ *   clubName?: string,
+ * }} ctx
+ * @returns {{ shareTitle: string, shareText: string }}
  */
+export function buildHomeworkShareMessages(ctx = {}) {
+  const draft = ctx.draft ?? {}
+  const clientName = String(ctx.clientName ?? '').trim()
+  const trainerName = String(ctx.trainerName ?? '').trim()
+  const clubName = String(ctx.clubName ?? '').trim()
+  const dzTitle = String(draft.title ?? '').trim() || 'Домашнее задание'
+
+  const shareTitle = clubName ? `${clubName} · ${dzTitle}` : dzTitle
+  const shareText = [
+    clubName ? `Домашнее задание · ${clubName}` : 'Домашнее задание',
+    dzTitle !== 'Домашнее задание' ? dzTitle : '',
+    clientName ? `для ${clientName}` : '',
+    trainerName ? `тренер ${trainerName}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
+  return {
+    shareTitle,
+    shareText: `${shareText}.\n\nУпражнения и подходы — на картинке во вложении.`,
+  }
+}
 
 /**
  * @param {import('./homeworkPlanCore.js').HomeworkDraft} draft
@@ -35,6 +62,7 @@ export async function sendHomeworkDraft(draft, ctx = {}, opts = {}) {
   const clientName = String(ctx.clientName ?? ctx.client?.name ?? '').trim()
   const trainerName = String(ctx.trainerName ?? '').trim()
   const clubName = String(ctx.clubName ?? '').trim()
+  const { shareTitle, shareText } = buildHomeworkShareMessages({ draft, clientName, trainerName, clubName })
 
   let blob
   try {
@@ -43,63 +71,16 @@ export async function sendHomeworkDraft(draft, ctx = {}, opts = {}) {
     return { ok: false, error: 'png_failed', detail: String(e?.message ?? e) }
   }
 
-  const title = clubName ? `${clubName} · ${draft.title || 'Домашнее задание'}` : draft.title || 'Домашнее задание'
-  const shareText = [
-    clubName ? `Домашнее задание · ${clubName}` : 'Домашнее задание',
-    draft.title || 'ДЗ',
-    clientName ? `для ${clientName}` : '',
-    trainerName ? `тренер ${trainerName}` : '',
-  ]
-    .filter(Boolean)
-    .join(' · ')
-
-  let shared = false
-  try {
-    shared = await shareHomeworkPlanBlob(blob, title)
-  } catch {
-    shared = false
-  }
-
-  if (channel === 'other') {
-    if (!shared) {
-      downloadHomeworkPlanBlob(blob, 'homework.png')
-    }
-    return {
-      ok: true,
-      channel,
-      shared,
-      downloaded: !shared,
-      opened: false,
-      openMode: null,
-    }
-  }
-
-  // Max: файл в «Поделиться» (если есть) + открыть Max
-  if (!shared) {
-    downloadHomeworkPlanBlob(blob, 'homework.png')
-  }
-
-  const phone = normalizePhoneDigits(ctx.client?.phone)
-  const maxChatUrl = normalizeMaxChatUrl(ctx.client?.max_chat_url)
-  let opened = false
-  let openMode = null
-  if (maxChatUrl || phone) {
-    const target = resolveMaxOpenTarget({ message: shareText, phone, maxChatUrl })
-    opened = openMaxExternalUrl(target.url)
-    openMode = target.mode
-  } else {
-    opened = openMaxExternalUrl(buildMaxShareUrl(shareText))
-    openMode = 'share'
-  }
-
-  return {
-    ok: true,
+  const result = await sendTrainerPngShare({
+    blob,
+    filename: 'homework.png',
+    title: shareTitle,
+    text: shareText,
     channel,
-    shared,
-    downloaded: !shared,
-    opened,
-    openMode,
-    phone: phone || null,
-    maxChatUrl: maxChatUrl || null,
-  }
+    client: ctx.client,
+  })
+
+  return { ...result, statusText: formatTrainerPngShareStatus(result) }
 }
+
+export { formatTrainerPngShareStatus }
