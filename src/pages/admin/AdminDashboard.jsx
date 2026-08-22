@@ -276,26 +276,27 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
             />
           ) : null}
 
-          <AdminClubDaySummaryPanel
-            summary={daySummary}
-            clubId={clubId}
-            clientsPath={`${basePath}/clients`}
-            statsPath={`${basePath}/statistics`}
-            loading={daySummaryLoading}
-            noClub={!clubId}
-            coachQuality={coachQualityHome}
-            coachQualityLoading={coachQualityHomeLoading}
-            coachQualityHeroInAttention={Boolean(coachQualityHome) || coachQualityHomeLoading}
-          />
+          <div className="admin-home-summaries">
+            <AdminClubDaySummaryPanel
+              summary={daySummary}
+              clubId={clubId}
+              clientsPath={`${basePath}/clients`}
+              statsPath={`${basePath}/statistics`}
+              loading={daySummaryLoading}
+              noClub={!clubId}
+              coachQuality={coachQualityHome}
+              coachQualityLoading={coachQualityHomeLoading}
+              coachQualityHeroInAttention={Boolean(coachQualityHome) || coachQualityHomeLoading}
+            />
 
-          <ClubCallShiftSummaryPanel
-            summary={callShiftSummary}
-            journalHref={tab('call-log')}
-            loading={callShiftLoading}
-            noClub={!clubId}
-            error={callShiftNotice}
-          />
-
+            <ClubCallShiftSummaryPanel
+              summary={callShiftSummary}
+              journalHref={tab('call-log')}
+              loading={callShiftLoading}
+              noClub={!clubId}
+              error={callShiftNotice}
+            />
+          </div>
           <h2 className="admin-home__tiles-heading" id="admin-home-sections">
             Разделы
           </h2>

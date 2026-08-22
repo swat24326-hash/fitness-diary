@@ -1,0 +1,189 @@
+/**
+ * Главная админа / управляющего: сводка дня и сводка смены.
+ * Симметрия: равные колонки, общий ритм шапки и компактных плиток (канон day-summary).
+ */
+
+.admin-home-summaries {
+  display: grid;
+  width: 100%;
+  max-width: none;
+  gap: clamp(14px, 2vw, 20px);
+  align-items: stretch;
+}
+
+.admin-home-summaries > * {
+  min-width: 0;
+}
+
+.admin-home-summaries .admin-day-summary,
+.admin-home-summaries .club-call-shift {
+  margin: 0;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+}
+
+/* Общий ритм шапки — как у сводки дня */
+.admin-home-summaries .admin-day-summary__head,
+.admin-home-summaries .club-call-shift__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 12px;
+  margin-bottom: 8px;
+}
+
+.admin-home-summaries .admin-day-summary__title,
+.admin-home-summaries .club-call-shift__title {
+  margin: 0;
+  font-size: clamp(1rem, 2vw, 1.1rem);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+
+.admin-home-summaries .admin-day-summary__hint,
+.admin-home-summaries .admin-day-summary__ok,
+.admin-home-summaries .club-call-shift__link {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.admin-home-summaries .club-call-shift__meta {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+/* Секция смены — тот же uppercase-лейбл, что «База и поводы» */
+.admin-home-summaries .club-call-shift__section-title {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.admin-home-summaries .admin-day-summary__section-title {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+}
+
+.admin-home-summaries .admin-day-summary__section + .admin-day-summary__section {
+  margin-top: 12px;
+  padding-top: 10px;
+}
+
+/* Компактные равные плитки */
+.admin-home-summaries .admin-day-summary__card,
+.admin-home-summaries .club-call-shift__card {
+  min-height: 88px;
+  height: 100%;
+  padding: 8px 10px;
+  gap: 2px;
+  grid-template-rows: 1.25rem minmax(1.4rem, 1fr) auto auto;
+  border-radius: var(--radius);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+}
+
+.admin-home-summaries .admin-day-summary__card-count,
+.admin-home-summaries .club-call-shift__card-count {
+  font-size: clamp(1.05rem, 1.6vw, 1.22rem);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.admin-home-summaries .admin-day-summary__card-label,
+.admin-home-summaries .club-call-shift__card-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.admin-home-summaries .admin-day-summary__card-hint,
+.admin-home-summaries .club-call-shift__card-hint {
+  font-size: 0.68rem;
+  line-height: 1.2;
+  min-height: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.admin-home-summaries .admin-day-summary__card-icon,
+.admin-home-summaries .club-call-shift__card-icon {
+  display: inline-flex;
+  opacity: 0.85;
+}
+
+.admin-home-summaries .admin-day-summary__card-icon svg,
+.admin-home-summaries .club-call-shift__card-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.admin-home-summaries .club-call-shift__skel {
+  min-height: 88px;
+}
+
+.admin-home-summaries .admin-day-summary__grid,
+.admin-home-summaries .club-call-shift__grid {
+  gap: 8px;
+}
+
+/* ≥1100: день | смена — равные колонки */
+@media (min-width: 1100px) {
+  .admin-home-summaries {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(14px, 1.8vw, 20px);
+  }
+
+  /* Специфичность выше media из index.css (≤1200 → 3 col path) */
+  .admin-home-summaries .admin-day-summary.admin-day-summary--dense .admin-day-summary__grid--base {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .admin-home-summaries .admin-day-summary.admin-day-summary--dense .admin-day-summary__grid--path {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .admin-home-summaries .club-call-shift__grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .admin-home-summaries .admin-day-summary__card,
+  .admin-home-summaries .club-call-shift__card {
+    min-height: 80px;
+    padding: 7px 8px;
+  }
+}
+
+@media (min-width: 1100px) and (max-width: 1280px) {
+  .admin-home-summaries .admin-day-summary__card-hint,
+  .admin-home-summaries .club-call-shift__card-hint {
+    -webkit-line-clamp: 1;
+  }
+}
+
+@media (max-width: 1099px) {
+  .admin-home-summaries {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .admin-home-summaries .club-call-shift__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-home-summaries .admin-day-summary.admin-day-summary--dense .admin-day-summary__grid--base,
+  .admin-home-summaries .admin-day-summary.admin-day-summary--dense .admin-day-summary__grid--path {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

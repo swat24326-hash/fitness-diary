@@ -56,6 +56,7 @@ export function ClubCallShiftSummaryPanel({
             Сводка смены
           </h2>
         </div>
+        <h3 className="club-call-shift__section-title">Связь за день</h3>
         <ul className="club-call-shift__grid" aria-label="Загрузка сводки смены">
           <li className="admin-home-skel club-call-shift__skel" />
           <li className="admin-home-skel club-call-shift__skel" />
@@ -110,6 +111,7 @@ export function ClubCallShiftSummaryPanel({
           {errText}
         </p>
       ) : null}
+      <h3 className="club-call-shift__section-title">Связь за день</h3>
       <ul className="club-call-shift__grid" aria-label="Показатели смены">
         {cards.map((card) => {
           const Icon = ICONS[card.key] || Phone
