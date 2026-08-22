@@ -2,7 +2,11 @@
  * Одна запись очереди → Supabase (используется push-record и push-records).
  */
 import { authorizePush } from './mutationAuth.js'
-import { normalizeTrainingPayload } from './normalizeTrainingPayload.js'
+import {
+  isMissingTrainingsUpdatedAtError,
+  prepareTrainingPushPayload,
+  stripTrainingUpdatedAt,
+} from './normalizeTrainingPayload.js'
 import { normalizeMembershipPushPayload } from '../../src/lib/membershipPushPayload.js'
 import { normalizeMembershipTypePushPayload } from '../../src/lib/admin/membershipTypePushPayload.js'
 import { normalizeNutritionProductPushPayload } from '../../src/lib/admin/nutritionProductPushPayload.js'
@@ -165,6 +169,48 @@ async function validateMembershipTypeLink(supabaseAdmin, payload, operation, opt
 }
 
 /**
+ * Insert/update trainings + вернуть строку (updated_at для merge на планшете).
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabaseAdmin
+ * @param {'insert' | 'update'} operation
+ * @param {object} payload
+ * @param {string | null} remote_id
+ */
+async function writeTrainingRow(supabaseAdmin, operation, payload, remote_id) {
+  let result
+  if (operation === 'insert') {
+    result = await supabaseAdmin.from('trainings').insert(payload).select('*').maybeSingle()
+  } else {
+    result = await supabaseAdmin.from('trainings').update(payload).eq('id', remote_id).select('*').maybeSingle()
+  }
+
+  if (result.error && isMissingTrainingsUpdatedAtError(result.error.message)) {
+    const stripped = stripTrainingUpdatedAt(payload)
+    if (operation === 'insert') {
+      result = await supabaseAdmin.from('trainings').insert(stripped).select('*').maybeSingle()
+    } else {
+      result = await supabaseAdmin.from('trainings').update(stripped).eq('id', remote_id).select('*').maybeSingle()
+    }
+  }
+
+  if (result.error) {
+    if (result.error.code === '23505') {
+      if (payload?.id) {
+        const { data: existingById } = await supabaseAdmin
+          .from('trainings')
+          .select('*')
+          .eq('id', payload.id)
+          .maybeSingle()
+        if (existingById) return { ok: true, duplicate: true, record: existingById }
+      }
+      return { ok: true, duplicate: true }
+    }
+    return { ok: false, status: 400, error: result.error.message }
+  }
+
+  return { ok: true, record: result.data && typeof result.data === 'object' ? result.data : undefined }
+}
+
+/**
  * @param {object} ctx — requireAuthUser result
  * @param {{ table_name: string, operation: string, data: object, remote_id?: string | null }} item
  * @returns {Promise<{ ok: boolean, status?: number, error?: string, duplicate?: boolean, record?: object }>}
@@ -201,7 +247,9 @@ export async function executePushRecord(ctx, item) {
         payload = prep.data
       }
       if (table_name === 'trainings') {
-        payload = normalizeTrainingPayload(payload)
+        const prepared = prepareTrainingPushPayload(data, { operation: 'insert' })
+        if (!prepared) return { ok: false, status: 400, error: 'Некорректная тренировка' }
+        return writeTrainingRow(supabaseAdmin, 'insert', prepared, null)
       }
       if (table_name === 'memberships') {
         const prep = normalizeMembershipPushPayload(payload, { insert: true })
@@ -316,7 +364,12 @@ export async function executePushRecord(ctx, item) {
     }
 
     if (operation === 'update' && remote_id) {
-      let payload = table_name === 'trainings' ? normalizeTrainingPayload(data) : data
+      let payload = table_name === 'trainings' ? null : data
+      if (table_name === 'trainings') {
+        const prepared = prepareTrainingPushPayload(data, { operation: 'update' })
+        if (!prepared) return { ok: false, status: 400, error: 'Некорректная тренировка' }
+        return writeTrainingRow(supabaseAdmin, 'update', prepared, remote_id)
+      }
       if (table_name === 'clients') {
         payload = stripUnknownClientFields(payload)
       }

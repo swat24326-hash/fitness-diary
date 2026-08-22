@@ -237,6 +237,7 @@ CREATE TABLE trainings (
   status TEXT DEFAULT 'completed' CHECK (status IN ('draft', 'completed')),
   data JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   synced BOOLEAN DEFAULT TRUE
 );
 

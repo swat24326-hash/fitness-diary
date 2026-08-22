@@ -9,6 +9,7 @@ import {
   pickUnsyncedRecordsForEnqueue,
   recordForPush,
 } from './syncUnsyncedCore'
+import { rowRevisionMs } from './syncPullGuardCore.js'
 
 export {
   defaultSyncOperation,
@@ -56,7 +57,8 @@ function recordStoreKey(table_name, payload) {
 }
 
 /**
- * После успешного push: synced в IDB; если сервер вернул строку — подмешать, не затирая черновик.
+ * После успешного push: подмешать ответ сервера, если локаль не новее (правка в полёте).
+ * Не использовать pull-guard synced:false — иначе ответ push никогда не попадёт в IDB.
  * @param {string} table_name
  * @param {object} pushedData
  * @param {object | null | undefined} [serverRecord]
@@ -76,18 +78,7 @@ export async function applyPushRecordToLocal(table_name, pushedData, serverRecor
     const db = await getDb()
     const localRow = await db.get('health_cards', cid)
     const cloudRow = markRecordFromCloud(serverRecord)
-    const { shouldApplyCloudRowOnPull } = await import('./syncPullGuardCore.js')
-    if (
-      localRow &&
-      !shouldApplyCloudRowOnPull({
-        localRow,
-        cloudRow,
-        storeName: 'health_cards',
-        pendingByStore: null,
-        recordKey: cid,
-      })
-    ) {
-      await markRecordSynced(table_name, pushedData)
+    if (localRow && rowRevisionMs(localRow) > rowRevisionMs(cloudRow)) {
       return
     }
     await putStore('health_cards', { ...cloudRow, synced: true })
@@ -104,18 +95,7 @@ export async function applyPushRecordToLocal(table_name, pushedData, serverRecor
   const db = await getDb()
   const localRow = await db.get(store, key)
   const cloudRow = markRecordFromCloud(serverRecord)
-  const { shouldApplyCloudRowOnPull } = await import('./syncPullGuardCore.js')
-  if (
-    localRow &&
-    !shouldApplyCloudRowOnPull({
-      localRow,
-      cloudRow,
-      storeName: store,
-      pendingByStore: null,
-      recordKey: key,
-    })
-  ) {
-    await markRecordSynced(table_name, pushedData)
+  if (localRow && rowRevisionMs(localRow) > rowRevisionMs(cloudRow)) {
     return
   }
   await putStore(store, { ...cloudRow, synced: true })

@@ -10,6 +10,12 @@ import {
   shouldPreserveLocalRowFromCloudPull,
 } from '../src/lib/syncPullGuardCore.js'
 import { hasOpenTrainingDraft, resetOpenTrainingDraftForTests, setOpenTrainingDraft } from '../src/lib/openTrainingDraftGuard.js'
+import {
+  isMissingTrainingsUpdatedAtError,
+  prepareTrainingPushPayload,
+  stripTrainingUpdatedAt,
+} from '../api/_lib/normalizeTrainingPayload.js'
+import { stampTrainingUpdatedAt } from '../src/lib/trainingUpdatedAtCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -72,6 +78,69 @@ ok(
   'B2 completed: stale cloud skipped',
 )
 ok(rowRevisionMs(cloudNewer) > rowRevisionMs(localCompleted), 'B3 revision ms ordering')
+
+console.log('\n--- Сценарий B3: completed без updated_at (старый прод) — ничья по created_at ---')
+ok(
+  shouldApplyCloudRowOnPull({
+    localRow: {
+      id: 't-old',
+      synced: true,
+      status: 'completed',
+      created_at: '2026-08-01T10:00:00.000Z',
+      data: { exercises: [] },
+    },
+    cloudRow: {
+      id: 't-old',
+      synced: true,
+      status: 'completed',
+      created_at: '2026-08-01T10:00:00.000Z',
+      data: { exercises: [{ id: 'e1' }] },
+    },
+    storeName: 'trainings',
+    pendingByStore: { trainings: new Set() },
+    recordKey: 't-old',
+  }),
+  'B3a equal created_at: cloud applies (tie)',
+)
+
+console.log('\n--- Сценарий B4: prepareTrainingPushPayload + stamp ---')
+const prepared = prepareTrainingPushPayload(
+  {
+    id: 't3',
+    client_id: 'c1',
+    trainer_id: 'tr1',
+    club_id: 'cl1',
+    date: '2026-08-22',
+    type: 'Силовая',
+    status: 'completed',
+    data: { exercises: [] },
+    created_at: '2026-08-20T10:00:00.000Z',
+    synced: false,
+    junk: 'drop-me',
+  },
+  { operation: 'update', nowIso: '2026-08-22T15:00:00.000Z' },
+)
+ok(prepared?.updated_at === '2026-08-22T15:00:00.000Z', 'B4a push payload stamps updated_at')
+ok(prepared?.created_at === undefined, 'B4b update omits created_at')
+ok(prepared?.junk === undefined, 'B4c allowlist drops junk')
+ok(prepared?.synced === undefined, 'B4d local synced not pushed')
+ok(
+  stripTrainingUpdatedAt(prepared)?.updated_at === undefined,
+  'B4e strip for pre-migration retry',
+)
+ok(
+  isMissingTrainingsUpdatedAtError('Could not find the \'updated_at\' column of \'trainings\' in the schema cache'),
+  'B4f detect missing column error',
+)
+const stamped = stampTrainingUpdatedAt({ id: 't4', status: 'completed' }, '2026-08-22T16:00:00.000Z')
+ok(stamped.updated_at === '2026-08-22T16:00:00.000Z', 'B4g local stamp')
+
+console.log('\n--- Сценарий B5: post-push — локаль новее ответа сервера (правка в полёте) ---')
+ok(
+  rowRevisionMs({ updated_at: '2026-08-22T16:01:00.000Z' }) >
+    rowRevisionMs({ updated_at: '2026-08-22T16:00:00.000Z' }),
+  'B5 local revision wins over stale push response',
+)
 
 console.log('\n--- Сценарий B2: клиент ПНК — stale hydrate после «Клиент пришёл» ---')
 const localVisitStarted = {

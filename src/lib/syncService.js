@@ -27,6 +27,7 @@ import { invalidateAdminClubWorkspaceCache } from './admin/adminClubWorkspaceCac
 import { planWeightEntryPushPayload } from './clientWeightPushCore.js'
 import { isDuplicateInsertError } from './syncFlushResult'
 import { reportQueueFlushProgress, setQueueFlushProgressReporter } from './syncProgress'
+import { stampTrainingUpdatedAt } from './trainingUpdatedAtCore.js'
 
 export { isDuplicateInsertError, describeFlushQueueResult, criticalWriteCloudWarning, shouldCloudHydrateAfterCriticalSave } from './syncFlushResult'
 
@@ -646,8 +647,10 @@ async function flushSyncQueueInnerWork() {
 export async function saveLocalWithSync(storeName, record, { table_name, operation, remote_id }) {
   const db = await getDb()
   const remoteId = remote_id === undefined ? record.id : remote_id
+  const stamped =
+    storeName === 'trainings' ? stampTrainingUpdatedAt(record) : record
   const row = {
-    ...record,
+    ...stamped,
     synced: false,
     __sync: { operation, remote_id: remoteId },
   }

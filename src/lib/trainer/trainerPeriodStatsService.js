@@ -144,7 +144,7 @@ export async function ensureTrainerPeriodCoachQuality(period, { trainerId, clubI
   }
 }
 
-/** Колонки trainings на проде (без membership_id/updated_at — их нет в таблице). */
+/** Колонки trainings на проде (без membership_id; updated_at — с миграции 20260822190000). */
 export const TRAINER_TRAININGS_REMOTE_SELECT =
   'id, trainer_id, client_id, club_id, date, status, data'
 

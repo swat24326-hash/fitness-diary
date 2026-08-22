@@ -70,7 +70,7 @@ Sync-allowlist: [SYNC.md](./SYNC.md). Логика абонементов: `src/
 |----------|--------|
 | **clients** | Тренер, клуб, контакты, флаги архива, поля жизненного цикла **ПНК** |
 | **memberships** | Период, лимит тренировок, тип карты, **`hall`** (pz/tz/az); опционально `paid_amount` (**цена** пакета на desk/lite, не ledger оплаты); desk АЗ — `used_trainings` + `session_visits`; у ПЗ списание при завершении тренировки; удаление с карточки только без связанных тренировок. **Новая запись / правка лимита:** `total > 0` не меньше уже списанных; платные с `total` 1…3 — confirm (не БЗ). Пути: карточка, desk АЗ, sale clip. Старые битые не авто-чинятся. Канон: [CLIENT_MULTI_HALL.md](./CLIENT_MULTI_HALL.md) |
-| **trainings** | Дата, тип, статус, JSON `data`: упражнения, вес, **`membership_id`** (абон при завершении; backfill при save), опционально `laterality`, `hr_session` — см. [TRAINING_HR.md](./TRAINING_HR.md) |
+| **trainings** | Дата, тип, статус, JSON `data`: упражнения, вес, **`membership_id`** (абон при завершении; backfill при save), опционально `laterality`, `hr_session` — см. [TRAINING_HR.md](./TRAINING_HR.md). Колонка **`updated_at`** — ревизия для merge completed при Sync (см. [SYNC.md](./SYNC.md)). |
 | **health_cards** | Рост, вес, цель (`goal`), тексты медкарты |
 | **body_measurements** | Поля из `BODY_MEASURE_FIELDS` (+ legacy-имена в читалке) |
 | **Продажи** | Daily / plan / finance в Postgres; UI `/sales`, `/admin/sales` — через API, не IDB-очередь. `club_sales_plan.strategy_snapshot` (jsonb) — снимок playbook Стратегии |

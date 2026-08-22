@@ -51,6 +51,7 @@
     "db:migrate:client-restore-events": "node scripts/apply-client-restore-events-migration.mjs",
     "db:migrate:client-hall-lifecycle": "node scripts/apply-client-hall-lifecycle-migration.mjs",
     "db:migrate:loyalty": "node scripts/apply-loyalty-migration.mjs",
+    "db:migrate:trainings-updated-at": "node scripts/apply-trainings-updated-at-migration.mjs",
     "check:volume": "node scripts/check-data-volume.mjs",
     "sync:brand": "node scripts/sync-product-brand.mjs",
     "gen:icons": "node scripts/sync-product-brand.mjs && node scripts/generate-icons.mjs",
