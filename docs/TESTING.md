@@ -9,6 +9,7 @@
 | Команда | Что делает | Когда |
 |---------|------------|--------|
 | `npm run lint` | ESLint | **Всегда** перед «готово» |
+| `npm run qa:critical` | Критический контур зала+админки (без полного каталога) | После sync/абон/главная/клиенты; план — [CRITICAL_SCENARIOS_QA.md](./CRITICAL_SCENARIOS_QA.md) |
 | `npm run qa:local` | build + **список** verify из `scripts/agent-qa.mjs` + lint, без prod smoke | Sync, статистика, абонементы, API agg, форматы упражнений, офлайн |
 | `node scripts/verify-security-l1-audit.mjs` | L1: admin-email, push IDOR, pull-guard pnk/clips, порядок debit | После правок auth/push/sync; в `agent-qa` |
 | `npm run qa` | как local + prod smoke | Перед релизом / по CI weekly |
@@ -34,6 +35,8 @@
 ---
 
 ## Критические сценарии (не ломать)
+
+Полный план + ручной чеклист планшета: **[CRITICAL_SCENARIOS_QA.md](./CRITICAL_SCENARIOS_QA.md)** (`npm run qa:critical`).
 
 | Сценарий | Минимум проверки |
 |----------|------------------|

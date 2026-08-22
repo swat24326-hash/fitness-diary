@@ -36,7 +36,8 @@
 | [API.md](./API.md) | Каталог `api/*.js` и `admin-data?action=` |
 | [SYNC.md](./SYNC.md) | Очередь, flush → pull, allowlist таблиц |
 | [DATA_MODEL.md](./DATA_MODEL.md) | IDB stores ↔ сущности ↔ Postgres |
-| [TESTING.md](./TESTING.md) | `lint` / `qa:local` / verify / когда писать тест |
+| [TESTING.md](./TESTING.md) | `lint` / `qa:critical` / `qa:local` / verify / когда писать тест |
+| [CRITICAL_SCENARIOS_QA.md](./CRITICAL_SCENARIOS_QA.md) | План проверки критического контура + ручной чеклист |
 | [ENGINEERING_MATURITY.md](./ENGINEERING_MATURITY.md) | Уровень разработки (слои, роли, что до FitBase-класса) |
 
 ---
