@@ -39,6 +39,7 @@ run('training set laterality', 'node', ['scripts/verify-training-set-laterality.
 run('training persist status', 'node', ['scripts/verify-training-persist-status.mjs'])
 run('training membership debit', 'node', ['scripts/verify-training-membership-debit.mjs'])
 run('sync offline-first', 'node', ['scripts/verify-sync-offline.mjs'])
+run('sync pull merge', 'node', ['scripts/verify-sync-pull-merge.mjs'])
 run('security L1 audit', 'node', ['scripts/verify-security-l1-audit.mjs'])
 run('critical hall', 'node', ['scripts/verify-critical-hall.mjs'])
 run('network reachability', 'node', ['scripts/verify-network-reachability.mjs'])

@@ -19,6 +19,7 @@ import {
 import { EarlyMembershipActivateSheet } from '../../components/trainer/EarlyMembershipActivateSheet.jsx'
 import { useHeartRateSessions } from '../../context/HeartRateSessionsContext.jsx'
 import { saveLocalWithSync, setBackgroundSyncPaused } from '../../lib/syncService'
+import { clearOpenTrainingDraft, setOpenTrainingDraft } from '../../lib/openTrainingDraftGuard.js'
 import { stripDirectionControls } from '../../lib/textInput'
 import { getTrainingCompletionIssues } from '../../lib/trainingCompletionValidation'
 import {
@@ -1128,13 +1129,27 @@ export function TrainingPage() {
   }, [snapshotKey, loadState, user?.id, meta.status, completeBusy])
 
   useEffect(() => {
+    if (loadState !== 'ok' || isTrainingStatusCompleted(meta.status)) {
+      clearOpenTrainingDraft(meta.trainingId)
+      return undefined
+    }
+    const tid = String(meta.trainingId ?? '').trim()
+    if (!tid) return undefined
+    setOpenTrainingDraft(tid, client?.id ?? clientIdParam)
+    return () => clearOpenTrainingDraft(tid)
+  }, [loadState, meta.status, meta.trainingId, client?.id, clientIdParam])
+
+  useEffect(() => {
     if (loadState !== 'ok') return
     if (!user?.id) return
 
     let cancelled = false
     const persistFlush = () => {
-      if (!userEditedRef.current) return
       if (completeInFlightRef.current) return
+      const baseline = baselineContentSnapshotRef.current
+      const dirty =
+        userEditedRef.current || Boolean(baseline && contentFingerprint !== baseline)
+      if (!dirty) return
       void persist('draft', { silent: true, skipNavigate: true })
     }
     const onHide = () => {
@@ -1150,7 +1165,7 @@ export function TrainingPage() {
       window.removeEventListener('pagehide', onHide)
       persistFlush()
     }
-  }, [flushSnapshotKey, loadState, user?.id, meta.status])
+  }, [flushSnapshotKey, loadState, user?.id, meta.status, contentFingerprint])
 
   const title = useMemo(() => {
     if (!client) return ''

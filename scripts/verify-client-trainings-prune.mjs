@@ -43,6 +43,15 @@ assert(
   trainingIdsToPruneForClient('c2', local, [{ id: 'x', client_id: 'c2' }], new Set()).join(',') === 'other',
   'prune only for requested client',
 )
+assert(
+  trainingIdsToPruneForClient(
+    clientId,
+    [...local, { id: 'draft1', client_id: clientId, status: 'draft' }],
+    remote,
+    new Set(),
+  ).join(',') === 'ghost',
+  'never prune local draft even if missing on server',
+)
 
 if (failed > 0) {
   console.error(`\n${failed} check(s) failed.`)

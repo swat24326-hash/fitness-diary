@@ -102,6 +102,7 @@ async function cacheTrainerPull(
   opts = {},
 ) {
   const mode = String(opts?.mode ?? 'active')
+  const skipTrainings = opts?.skipTrainings === true
   const side = shouldPruneTrainerPullSideEffects(mode, {
     trainingsTruncated: opts?.trainingsTruncated === true,
   })
@@ -115,7 +116,9 @@ async function cacheTrainerPull(
   for (const row of client_weight_entries ?? []) {
     await putStoreUnlessPendingSync('client_weight_entries', normalizeWeightEntryRow(row), pending)
   }
-  for (const row of trainings ?? []) await putStoreUnlessPendingSync('trainings', row, pending)
+  if (!skipTrainings) {
+    for (const row of trainings ?? []) await putStoreUnlessPendingSync('trainings', row, pending)
+  }
   for (const row of pnk_funnel_events ?? []) await putStoreUnlessPendingSync('pnk_funnel_events', row, pending)
   for (const row of sale_clips ?? []) await putStoreUnlessPendingSync('sale_clips', row, pending)
   for (const row of client_hall_lifecycle ?? []) {
@@ -125,9 +128,10 @@ async function cacheTrainerPull(
       /* store ещё не создан до reload */
     }
   }
-  const pruned_trainings = side.pruneTrainings
-    ? await pruneOrphanTrainingsForTrainerClients(clients, trainings, pending?.trainings ?? null)
-    : 0
+  const pruned_trainings =
+    !skipTrainings && side.pruneTrainings
+      ? await pruneOrphanTrainingsForTrainerClients(clients, trainings, pending?.trainings ?? null)
+      : 0
   const pruned = await pruneOrphanTrainerClients(trainerId, clients, { mode })
   if (side.purgeSyncQueue) {
     await purgeSyncQueueForMissingClients((clients ?? []).map((c) => c.id))
@@ -141,8 +145,9 @@ async function cacheTrainerPull(
   return { pruned, pruned_trainings }
 }
 
-async function fetchTrainerPullWithIncremental(tid, mode) {
+async function fetchTrainerPullWithIncremental(tid, mode, pullOpts = {}) {
   const useIncremental = mode === 'active'
+  const skipTrainings = pullOpts?.skipTrainings === true
   let fullPull = !useIncremental
   let trainingsSince = useIncremental
     ? resolveTrainerPullTrainingsSince({ lastPullAt: await getMeta(META_TRAINER_PULL_AT) })
@@ -153,6 +158,7 @@ async function fetchTrainerPullWithIncremental(tid, mode) {
     archivedOnly: mode === 'archive',
     trainingsSince: trainingsSince ?? undefined,
     fullPull,
+    skipTrainings,
   })
 
   if (viaApi && shouldForceFullTrainerPull(viaApi) && useIncremental && trainingsSince) {
@@ -162,6 +168,7 @@ async function fetchTrainerPullWithIncremental(tid, mode) {
       includeArchived: mode === 'all',
       archivedOnly: mode === 'archive',
       fullPull: true,
+      skipTrainings,
     })
   }
 
@@ -176,16 +183,20 @@ export async function pullTrainerWorkspaceFromCloud(trainerId, opts = {}) {
 
   return enqueueTrainerPull(async () => {
     try {
-      const viaApi = await fetchTrainerPullWithIncremental(tid, mode)
+      const skipTrainings = opts?.skipTrainings === true
+      const viaApi = await fetchTrainerPullWithIncremental(tid, mode, { skipTrainings })
       if (viaApi) {
         const pruned = await cacheTrainerPull(tid, viaApi, {
           mode,
           trainingsTruncated: viaApi.trainings_truncated === true,
+          skipTrainings,
         })
         if (mode === 'active') {
           await setMeta(META_TRAINER_PULL_AT, Date.now())
-          const pending = await buildPendingSyncKeysByTable()
-          await pruneLocalTrainingsForTrainer(tid, { pendingTrainingIds: pending?.trainings ?? new Set() })
+          if (!skipTrainings) {
+            const pending = await buildPendingSyncKeysByTable()
+            await pruneLocalTrainingsForTrainer(tid, { pendingTrainingIds: pending?.trainings ?? new Set() })
+          }
         }
         return {
           ok: true,
@@ -194,7 +205,8 @@ export async function pullTrainerWorkspaceFromCloud(trainerId, opts = {}) {
           memberships: viaApi.memberships.length,
           body_measurements: viaApi.body_measurements?.length ?? 0,
           client_weight_entries: viaApi.client_weight_entries?.length ?? 0,
-          trainings: viaApi.trainings?.length ?? 0,
+          trainings: skipTrainings ? 0 : viaApi.trainings?.length ?? 0,
+          trainings_skipped: skipTrainings,
           trainings_truncated: viaApi.trainings_truncated === true,
           incremental: viaApi.incremental === true,
           pruned_clients: pruned.pruned,

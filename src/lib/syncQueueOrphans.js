@@ -231,8 +231,13 @@ export async function handlePushApiFailure({ status, error, local_id, item }) {
       /* ignore */
     }
     // Локальный insert, который сервер отклонил — убрать «призрак», update/delete только помечаем synced.
+    // Черновик тренировки не удаляем: тренер может повторить Sync или править офлайн.
     if (item.operation === 'insert') {
-      await dropLocalOrphanForSyncItem(item)
+      const isDraftTraining =
+        item.table_name === 'trainings' && String(item.data?.status ?? '') === 'draft'
+      if (!isDraftTraining) {
+        await dropLocalOrphanForSyncItem(item)
+      }
     }
   }
   return { ok: false, dropped: true, status, error: err }

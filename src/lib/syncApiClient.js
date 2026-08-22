@@ -3,7 +3,7 @@ import { noteAppNetworkResponse, SYNC_PULL_FETCH_TIMEOUT_MS, fetchWithAppTimeout
 import { getAccessTokenForAdminApi } from './admin/adminApiClient'
 import { removeSyncItem } from './localDb'
 import { handlePushApiFailure, isUnrecoverablePushError } from './syncQueueOrphans'
-import { markRecordSynced } from './syncLocalRecords'
+import { applyPushRecordToLocal } from './syncLocalRecords'
 import { mapWithConcurrency } from './syncConcurrency'
 import { collapseMemoryPushBatch } from './syncFlushResult'
 
@@ -124,7 +124,7 @@ export async function pushRecordViaApi({ table_name, operation, data, remote_id,
       await pruneRedundantSyncQueue()
     }
     try {
-      await markRecordSynced(table_name, data)
+      await applyPushRecordToLocal(table_name, data, body.record)
     } catch {
       /* ignore */
     }
@@ -144,7 +144,7 @@ export async function pushRecordViaApi({ table_name, operation, data, remote_id,
       }
     }
     try {
-      await markRecordSynced(table_name, data)
+      await applyPushRecordToLocal(table_name, data, body.record)
     } catch {
       /* ignore */
     }
@@ -255,7 +255,7 @@ export async function pushRecordsBatchViaApi(items) {
         }
       }
       try {
-        await markRecordSynced(item.table_name, item.data)
+        await applyPushRecordToLocal(item.table_name, item.data, row.record)
       } catch {
         /* ignore */
       }
@@ -272,7 +272,7 @@ export async function pushRecordsBatchViaApi(items) {
         }
       }
       try {
-        await markRecordSynced(item.table_name, item.data)
+        await applyPushRecordToLocal(item.table_name, item.data, row.record)
       } catch {
         /* ignore */
       }

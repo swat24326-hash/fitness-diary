@@ -28,6 +28,7 @@ export function trainingIdsToPruneForClient(clientId, localTrainings, remoteTrai
     if (String(t?.client_id ?? '') !== cid) continue
     const id = String(t?.id ?? '').trim()
     if (!id) continue
+    if (String(t?.status ?? '') === 'draft') continue
     if (remoteIds.has(id)) continue
     if (pending.has(id)) continue
     out.push(id)

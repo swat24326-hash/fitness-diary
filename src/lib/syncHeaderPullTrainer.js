@@ -3,6 +3,7 @@
  */
 
 import { collectTrainerClubIds } from './challengeService.js'
+import { hasOpenTrainingDraft } from './openTrainingDraftGuard.js'
 import { pullTrainerWorkspaceFromCloud } from './trainerPullService.js'
 import { recordSyncPullIssue } from './syncHeaderPullIssue.js'
 
@@ -30,9 +31,11 @@ export async function pullHeaderSyncForTrainer(p) {
   let hadError = false
 
   bump(84, 'Клиенты и тренировки…')
-  const pull = await pullTrainerWorkspaceFromCloud(user.id)
+  const skipTrainings = hasOpenTrainingDraft()
+  const pull = await pullTrainerWorkspaceFromCloud(user.id, { skipTrainings })
   if (pull?.ok) {
     let msg = `рабочая область (${pull.count ?? 0} кл.)`
+    if (pull.trainings_skipped) msg += ', тренировки: открыт черновик'
     if ((pull.pruned_clients ?? 0) > 0) msg += `, убрано из кэша: ${pull.pruned_clients}`
     parts.push(msg)
     void import('./loyalty/loyaltyGlanceService.js')

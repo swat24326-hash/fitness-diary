@@ -5,6 +5,7 @@
 import { buildPendingSyncKeysByTable, enqueueSync, getDb, putStore } from './localDb'
 import {
   defaultSyncOperation,
+  markRecordFromCloud,
   pickUnsyncedRecordsForEnqueue,
   recordForPush,
 } from './syncUnsyncedCore'
@@ -32,6 +33,94 @@ const UNSYNCED_SCAN = [
   { store: 'client_hall_lifecycle', table: 'client_hall_lifecycle', table_name: 'client_hall_lifecycle' },
 ]
 
+const STORE_BY_TABLE = {
+  clients: 'clients',
+  memberships: 'memberships',
+  trainings: 'trainings',
+  body_measurements: 'body_measurements',
+  client_weight_entries: 'client_weight_entries',
+  challenges: 'challenges',
+  membership_types: 'membership_types',
+  exercises: 'exercises',
+  nutrition_products: 'nutrition_products',
+  homework_presets: 'homework_presets',
+  pnk_funnel_events: 'pnk_funnel_events',
+  client_hall_lifecycle: 'client_hall_lifecycle',
+}
+
+function recordStoreKey(table_name, payload) {
+  if (table_name === 'health_cards') {
+    return String(payload?.client_id ?? '').trim()
+  }
+  return String(payload?.id ?? '').trim()
+}
+
+/**
+ * После успешного push: synced в IDB; если сервер вернул строку — подмешать, не затирая черновик.
+ * @param {string} table_name
+ * @param {object} pushedData
+ * @param {object | null | undefined} [serverRecord]
+ */
+export async function applyPushRecordToLocal(table_name, pushedData, serverRecord) {
+  if (!serverRecord || typeof serverRecord !== 'object') {
+    await markRecordSynced(table_name, pushedData)
+    return
+  }
+
+  if (table_name === 'health_cards') {
+    const cid = String(serverRecord.client_id ?? pushedData?.client_id ?? '').trim()
+    if (!cid) {
+      await markRecordSynced(table_name, pushedData)
+      return
+    }
+    const db = await getDb()
+    const localRow = await db.get('health_cards', cid)
+    const cloudRow = markRecordFromCloud(serverRecord)
+    const { shouldApplyCloudRowOnPull } = await import('./syncPullGuardCore.js')
+    if (
+      localRow &&
+      !shouldApplyCloudRowOnPull({
+        localRow,
+        cloudRow,
+        storeName: 'health_cards',
+        pendingByStore: null,
+        recordKey: cid,
+      })
+    ) {
+      await markRecordSynced(table_name, pushedData)
+      return
+    }
+    await putStore('health_cards', { ...cloudRow, synced: true })
+    return
+  }
+
+  const store = STORE_BY_TABLE[table_name]
+  const key = recordStoreKey(table_name, serverRecord.id ? serverRecord : pushedData)
+  if (!store || !key) {
+    await markRecordSynced(table_name, pushedData)
+    return
+  }
+
+  const db = await getDb()
+  const localRow = await db.get(store, key)
+  const cloudRow = markRecordFromCloud(serverRecord)
+  const { shouldApplyCloudRowOnPull } = await import('./syncPullGuardCore.js')
+  if (
+    localRow &&
+    !shouldApplyCloudRowOnPull({
+      localRow,
+      cloudRow,
+      storeName: store,
+      pendingByStore: null,
+      recordKey: key,
+    })
+  ) {
+    await markRecordSynced(table_name, pushedData)
+    return
+  }
+  await putStore(store, { ...cloudRow, synced: true })
+}
+
 /** После успешного push — не ставить в очередь снова. */
 export async function markRecordSynced(table_name, data) {
   const db = await getDb()
@@ -50,21 +139,7 @@ export async function markRecordSynced(table_name, data) {
   const id = String(payload.id ?? '').trim()
   if (!id) return
 
-  const storeByTable = {
-    clients: 'clients',
-    memberships: 'memberships',
-    trainings: 'trainings',
-    body_measurements: 'body_measurements',
-    client_weight_entries: 'client_weight_entries',
-    challenges: 'challenges',
-    membership_types: 'membership_types',
-    exercises: 'exercises',
-    nutrition_products: 'nutrition_products',
-    homework_presets: 'homework_presets',
-    pnk_funnel_events: 'pnk_funnel_events',
-    client_hall_lifecycle: 'client_hall_lifecycle',
-  }
-  const store = storeByTable[table_name]
+  const store = STORE_BY_TABLE[table_name]
   if (!store) return
 
   const cur = await db.get(store, id)

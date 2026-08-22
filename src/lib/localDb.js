@@ -1,5 +1,5 @@
 import { openDB } from 'idb'
-import { cloudPutAllowedOnPull } from './syncPullGuardCore.js'
+import { cloudPutAllowedOnPull, isPullMergeGuardedStore, shouldApplyCloudRowOnPull } from './syncPullGuardCore.js'
 
 const DB_NAME = 'fitness-diary'
 /** Повышать при схемных правках; клиенты уже на max version не получают upgrade без нового номера. */
@@ -325,7 +325,23 @@ function cloudCachedRecord(record) {
 export async function putStoreUnlessPendingSync(storeName, record, pending) {
   const fromCloud = cloudCachedRecord(record)
   const key = recordKeyForStore(storeName, record)
-  if (!cloudPutAllowedOnPull(storeName, key, pending)) return false
+  if (isPullMergeGuardedStore(storeName) && key) {
+    const db = await getDb()
+    const localRow = await db.get(storeName, key)
+    if (
+      !shouldApplyCloudRowOnPull({
+        localRow,
+        cloudRow: fromCloud,
+        storeName,
+        pendingByStore: pending,
+        recordKey: key,
+      })
+    ) {
+      return false
+    }
+  } else if (!cloudPutAllowedOnPull(storeName, key, pending)) {
+    return false
+  }
   await putStore(storeName, fromCloud)
   return true
 }
