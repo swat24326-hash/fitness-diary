@@ -1,10 +1,8 @@
 /**
- * Отправка PNG-карточки клиенту: Max или «Другой мессенджер».
+ * Отправка PNG-карточки клиенту: Max или «Другой мессенджer».
  *
- * Max: PNG в загрузки + подпись в буфер + открыть Max (без «Поделиться» — кнопка уже «В Max»).
- * Короткая подпись в share URL; полный текст — только для «Другой мессенджer».
- *
- * Другой: «Поделиться» только с файлом + полный текст в буфер; иначе загрузки + буфер.
+ * Планшет: «Поделиться» с PNG (выбрать Max) или картинка в буфер — download там часто не работает.
+ * Компьютер: PNG в загрузки + подпись в буфер + открыть Max.
  */
 
 import {
@@ -17,7 +15,6 @@ import {
 /** @typedef {'max' | 'other'} TrainerPngShareChannel */
 
 /**
- * Куда открыть Max для PNG: прямой чат или короткий share (без длинного текста).
  * @param {{ maxChatUrl?: string | null, caption?: string }} input
  */
 export function resolveMaxPngOpenTarget(input = {}) {
@@ -36,21 +33,24 @@ export function shouldDownloadPngAfterOtherShare(nativeResult) {
 }
 
 /**
- * @param {{ copied?: boolean, opened?: boolean, shared?: boolean }} result
+ * @param {{ copied?: boolean, copiedImage?: boolean, opened?: boolean, shared?: boolean }} result
  */
 export function isTrainerPngMaxDeliveryOk(result) {
-  return result.shared === true || result.copied === true || result.opened === true
+  return (
+    result.shared === true ||
+    result.copied === true ||
+    result.copiedImage === true ||
+    result.opened === true
+  )
 }
 
 /**
- * @param {{ ok?: boolean, channel?: TrainerPngShareChannel, shared?: boolean, copied?: boolean, downloaded?: boolean, cancelled?: boolean }} res
+ * @param {{ ok?: boolean, channel?: TrainerPngShareChannel, shared?: boolean, copied?: boolean, copiedImage?: boolean, downloaded?: boolean, cancelled?: boolean }} res
  */
 export function isTrainerPngShareUsable(res) {
   if (!res?.ok) return false
   if (res.cancelled) return true
-  if (res.channel === 'max') {
-    return res.downloaded === true && isTrainerPngMaxDeliveryOk(res)
-  }
+  if (res.channel === 'max') return isTrainerPngMaxDeliveryOk(res)
   if (res.channel === 'other') {
     return res.shared === true || res.downloaded === true || res.copied === true
   }
@@ -58,19 +58,32 @@ export function isTrainerPngShareUsable(res) {
 }
 
 /**
- * @param {{ error?: string, copied?: boolean, downloaded?: boolean }} res
+ * @param {{ error?: string, copied?: boolean, copiedImage?: boolean, downloaded?: boolean }} res
  */
 export function formatTrainerPngShareError(res) {
   if (res.error === 'empty_text') return 'Нет текста для отправки'
   if (res.error === 'max_failed') {
     const parts = []
     if (res.downloaded) parts.push('PNG в загрузках')
+    if (res.copiedImage) parts.push('картинка в буфере')
     if (res.copied) parts.push('подпись в буфере')
-    parts.push('откройте Max · 📎 картинку · вставьте текст')
+    parts.push('откройте Max и вставьте')
     return parts.join(' · ')
   }
   if (res.error === 'share_failed') return 'Не удалось поделиться · PNG в загрузках · текст в буфере'
   return 'Не удалось отправить'
+}
+
+/** Есть ли на устройстве «Поделиться» с файлом (планшет / телефон). */
+export function canSharePngFiles() {
+  if (typeof navigator === 'undefined' || typeof navigator.share !== 'function') return false
+  if (typeof navigator.canShare !== 'function') return true
+  try {
+    const probe = new File([new Blob([0], { type: 'image/png' })], 'probe.png', { type: 'image/png' })
+    return navigator.canShare({ files: [probe] })
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -79,13 +92,34 @@ export function formatTrainerPngShareError(res) {
  */
 export function downloadPngBlob(blob, filename) {
   if (typeof document === 'undefined') return false
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
-  return true
+  try {
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.style.display = 'none'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 2000)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Картинка в буфер (на планшете можно вставить в Max долгим нажатием). */
+export async function copyPngToClipboard(blob) {
+  if (typeof navigator === 'undefined' || !navigator.clipboard?.write || typeof ClipboardItem === 'undefined') {
+    return false
+  }
+  try {
+    const pngBlob = blob instanceof Blob ? blob : new Blob([blob], { type: 'image/png' })
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })])
+    return true
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -111,6 +145,33 @@ export async function tryNativeSharePng(blob, payload) {
     if (e?.name === 'AbortError') return { ok: false, mode: null, cancelled: true }
     return { ok: false, mode: null }
   }
+}
+
+/**
+ * «Поделиться» → Max: файл + короткая подпись (только для кнопки «В Max» на планшете).
+ * @param {Blob} blob
+ * @param {{ filename: string, caption?: string }} payload
+ */
+export async function tryNativeSharePngToMax(blob, payload) {
+  if (typeof navigator === 'undefined' || typeof navigator.share !== 'function') {
+    return { ok: false, mode: null }
+  }
+
+  const file = new File([blob], payload.filename, { type: 'image/png' })
+  const caption = String(payload.caption ?? '').trim()
+  const candidates = caption ? [{ files: [file], text: caption }, { files: [file] }] : [{ files: [file] }]
+
+  for (const sharePayload of candidates) {
+    if (navigator.canShare && !navigator.canShare(sharePayload)) continue
+    try {
+      await navigator.share(sharePayload)
+      return { ok: true, mode: 'file' }
+    } catch (e) {
+      if (e?.name === 'AbortError') return { ok: false, mode: null, cancelled: true }
+    }
+  }
+
+  return { ok: false, mode: null }
 }
 
 /**
@@ -154,6 +215,7 @@ export async function sendTrainerPngShare(input) {
         shareMode: null,
         cancelled: true,
         copied,
+        copiedImage: false,
         downloaded,
         opened: false,
         openMode: null,
@@ -169,6 +231,7 @@ export async function sendTrainerPngShare(input) {
         shareMode: null,
         cancelled: false,
         copied: false,
+        copiedImage: false,
         downloaded: false,
         opened: false,
         openMode: null,
@@ -182,13 +245,12 @@ export async function sendTrainerPngShare(input) {
       shareMode: native.mode,
       cancelled: false,
       copied,
+      copiedImage: false,
       downloaded,
       opened: false,
       openMode: null,
     }
   }
-
-  const downloaded = downloadPngBlob(input.blob, filename)
 
   let copied = false
   try {
@@ -196,6 +258,41 @@ export async function sendTrainerPngShare(input) {
     copied = true
   } catch {
     copied = false
+  }
+
+  const copiedImage = await copyPngToClipboard(input.blob)
+  const downloaded = downloadPngBlob(input.blob, filename)
+
+  if (canSharePngFiles()) {
+    const native = await tryNativeSharePngToMax(input.blob, { filename, caption })
+    if (native.ok) {
+      return {
+        ok: true,
+        channel,
+        shared: true,
+        shareMode: 'file',
+        cancelled: false,
+        copied,
+        copiedImage,
+        downloaded,
+        opened: false,
+        openMode: 'native_share',
+      }
+    }
+    if (native.cancelled) {
+      return {
+        ok: true,
+        channel,
+        shared: false,
+        shareMode: null,
+        cancelled: true,
+        copied,
+        copiedImage,
+        downloaded,
+        opened: false,
+        openMode: null,
+      }
+    }
   }
 
   let opened = false
@@ -209,7 +306,7 @@ export async function sendTrainerPngShare(input) {
     openMode = target.mode
   }
 
-  const deliveryOk = isTrainerPngMaxDeliveryOk({ copied, opened, shared: false })
+  const deliveryOk = isTrainerPngMaxDeliveryOk({ copied, copiedImage, opened, shared: false })
   if (!deliveryOk) {
     return {
       ok: false,
@@ -219,6 +316,7 @@ export async function sendTrainerPngShare(input) {
       shareMode: null,
       cancelled: false,
       copied,
+      copiedImage,
       downloaded,
       opened,
       openMode,
@@ -232,6 +330,7 @@ export async function sendTrainerPngShare(input) {
     shareMode: null,
     cancelled: false,
     copied,
+    copiedImage,
     downloaded,
     opened,
     openMode,
@@ -246,20 +345,27 @@ export async function sendTrainerPngShare(input) {
  *   shareMode?: 'file' | null,
  *   cancelled?: boolean,
  *   copied?: boolean,
+ *   copiedImage?: boolean,
  *   downloaded?: boolean,
  *   opened?: boolean,
- *   openMode?: 'direct_chat' | 'app' | 'native_share' | null,
+ *   openMode?: 'direct_chat' | 'app' | 'share' | 'native_share' | null,
  *   error?: string,
  * }} res
  */
 export function formatTrainerPngShareStatus(res) {
   if (!res?.ok) return formatTrainerPngShareError(res)
-  if (res.cancelled) return 'Отменено'
+  if (res.cancelled) {
+    const parts = ['Отменено']
+    if (res.copied) parts.push('подпись в буфере')
+    if (res.copiedImage) parts.push('картинка в буфере — вставьте в Max')
+    if (res.downloaded) parts.push('PNG в загрузках')
+    return parts.join(' · ')
+  }
 
   const parts = []
   if (res.channel === 'other') {
     if (res.shared && res.shareMode === 'file') {
-      parts.push('Выберите мессенджер — отправится картинка')
+      parts.push('Выберите мессенджer — отправится картинка')
       if (res.copied) parts.push('текст в буфере — вставьте подпись')
       if (res.downloaded) parts.push('PNG также в загрузках')
     } else {
@@ -270,15 +376,23 @@ export function formatTrainerPngShareStatus(res) {
     return parts.join(' · ')
   }
 
-  if (res.downloaded) parts.push('PNG в загрузках')
-  parts.push('в Max: 📎 прикрепите картинку')
-  if (res.copied) parts.push('подпись в буфере — вставьте или допишите')
+  if (res.shared && res.openMode === 'native_share') {
+    parts.push('Выберите Max — уйдёт картинка')
+    if (res.copied) parts.push('подпись в буфере')
+    return parts.join(' · ')
+  }
+
+  if (res.copiedImage) parts.push('картинка в буфере — вставьте в Max')
+  else if (res.downloaded) parts.push('PNG в загрузках — 📎 прикрепите')
+  else parts.push('в Max: 📎 прикрепите картинку')
+
+  if (res.copied) parts.push('подпись в буфере')
   if (res.opened) {
     parts.push(
       res.openMode === 'direct_chat'
         ? 'открыт чат клиента'
         : res.openMode === 'share'
-          ? 'открыто окно Max с подписью'
+          ? 'открыто окно Max'
           : 'открыт Max',
     )
   }
