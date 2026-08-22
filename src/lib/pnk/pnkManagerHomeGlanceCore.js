@@ -8,15 +8,17 @@ import { listPnkAttentionClients } from './pnkStatsAgg.js'
 /**
  * @param {object[]} clients
  * @param {Date} [now]
- * @returns {{ openCount: number, attentionCount: number, hotCount: number, hasWork: boolean, isHot: boolean }}
+ * @param {{ bzCompletedByClient?: Record<string, number> | null }} [opts]
  */
-export function buildPnkManagerHomeGlance(clients, now = new Date()) {
+export function buildPnkManagerHomeGlance(clients, now = new Date(), opts = {}) {
   const list = Array.isArray(clients) ? clients : []
   let openCount = 0
   for (const c of list) {
     if (isOpenPnkClient(c)) openCount += 1
   }
-  const attention = listPnkAttentionClients(list, now)
+  const attention = listPnkAttentionClients(list, now, {
+    bzCompletedByClient: opts.bzCompletedByClient ?? null,
+  })
   const hotCount = attention.filter((row) => row.tone === 'hot').length
   return {
     openCount,

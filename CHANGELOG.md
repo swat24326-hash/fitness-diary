@@ -9,6 +9,8 @@
 
 ## 2026-08
 
+- **ПНК / внимание:** список «Внимание» и hot на главной считают завершённую БЗ (`bz_completed_by_client`) так же, как доска — без ложной «Неявки», если stamp `trial` ещё не доехал. Docs: [PNK_FUNNEL.md](./docs/PNK_FUNNEL.md).
+- **R1 / портативность:** сообщение «облако недоступно» без привязки к status.supabase.com; проверка `verify-r1-portability` (нет prod URL в `src/`/`api/`). Docs: [STRATEGY_SCALE_AND_RU_HOSTING.md](./docs/STRATEGY_SCALE_AND_RU_HOSTING.md) §5.4.
 - **Тренировки / Sync:** у завершённых появилась метка «когда правили» (`updated_at`) — при Sync новее версия не затирается старой. Docs: [SYNC.md](./docs/SYNC.md).
 - **ПНК / тренер:** после «Клиент пришёл» шаг больше не откатывается из‑за старого hydrate; на оформлении ДК сегмент не показывает «ДК», если есть только бесплатный БЗ. Verify: `verify-sync-pull-merge.mjs`, `verify-sales-client-segment.mjs`.
 - **Клиенты / ПЗ→АЗ (списки):** закрытый ПЗ + живой АЗ — клиент только на вкладке **АЗ**, не в ПЗ (даже с `trainer_id` и старым абоном). Исчерпанный ПЗ без close — снова «Закрыть ПЗ» в меню. Карточка и поиск учитывают lifecycle. Verify: `verify-admin-clients-list-lifecycle.mjs`. Docs: [CLIENT_HALL_LIFECYCLE.md](./docs/CLIENT_HALL_LIFECYCLE.md).

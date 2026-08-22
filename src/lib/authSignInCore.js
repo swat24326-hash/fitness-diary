@@ -4,8 +4,8 @@
 import { normalizeLoginInput, trainerLocalEmail } from './authLoginResolveCore.js'
 
 export const SUPABASE_CLOUD_UNAVAILABLE_RU =
-  'Облако Supabase не отвечает (таймаут). Сайт открывается, но база недоступна — вход и Sync не пройдут. ' +
-  'Проверьте status.supabase.com или перезапустите проект в Supabase Dashboard. Данные на устройстве сохранены.'
+  'Облако базы не отвечает (таймаут). Сайт открывается, но база недоступна — вход и Sync не пройдут. ' +
+  'Проверьте связь или статус облака у администратора. Данные на устройстве сохранены.'
 
 export function isInvalidCredentialsMessage(msg) {
   return /invalid login|invalid credentials|invalid password|неверный логин|неверный пароль/i.test(

@@ -8,6 +8,7 @@ import {
   parsePnkDeliverables,
   pnkPackageProgress,
 } from './pnkStagesCore.js'
+import { peekPnkBzCompletedCount } from './pnkBzCompletedCore.js'
 
 /**
  * @param {string} iso
@@ -176,12 +177,15 @@ export function aggregatePnkFunnelStats(clients, opts = {}, events = []) {
 /**
  * @param {object[]} clients
  * @param {Date} [now]
+ * @param {{ bzCompletedByClient?: Record<string, number> | null }} [opts]
  */
-export function listPnkAttentionClients(clients, now = new Date()) {
+export function listPnkAttentionClients(clients, now = new Date(), opts = {}) {
+  const bzByClient = opts.bzCompletedByClient ?? null
   const rows = []
   for (const c of clients ?? []) {
     if (!isOpenPnkClient(c)) continue
-    const flags = buildPnkAttentionFlags(c, now)
+    const bzCompletedCount = peekPnkBzCompletedCount(bzByClient, c?.id)
+    const flags = buildPnkAttentionFlags(c, now, { bzCompletedCount })
     if (!flags.length) continue
     rows.push({
       id: c.id,

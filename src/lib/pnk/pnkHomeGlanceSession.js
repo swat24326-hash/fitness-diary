@@ -52,7 +52,7 @@ export function clearPnkHomeGlanceSession(clubId) {
  * Подтянуть last-good главной из свежего бандла доски (после Обновить / Sync правды).
  * @param {string} clubId
  * @param {object[]} clients — открытые ПНК из API
- * @param {{ boardHref?: string, now?: Date, notify?: boolean }} [opts]
+ * @param {{ boardHref?: string, now?: Date, notify?: boolean, bzCompletedByClient?: Record<string, number> | null }} [opts]
  */
 export function syncPnkHomeGlanceFromBoard(clubId, clients, opts = {}) {
   const cid = String(clubId ?? '').trim()
@@ -61,6 +61,7 @@ export function syncPnkHomeGlanceFromBoard(clubId, clients, opts = {}) {
   const cards = buildPnkManagerHomeGlanceCards(clients, {
     boardHref,
     now: opts.now,
+    bzCompletedByClient: opts.bzCompletedByClient ?? null,
   })
   writePnkHomeGlanceSession(cid, cards)
   if (opts.notify !== false) notifyPnkHomeGlanceChanged(cid, { source: 'board' })

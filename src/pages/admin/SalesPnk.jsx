@@ -90,7 +90,10 @@ export function SalesPnk() {
         dateTo: period.dateTo,
       })
       setBundle(data)
-      syncPnkHomeGlanceFromBoard(clubId, data?.clients ?? [], { boardHref })
+      syncPnkHomeGlanceFromBoard(clubId, data?.clients ?? [], {
+        boardHref,
+        bzCompletedByClient: data?.bz_completed_by_client ?? null,
+      })
       setForm((f) => (f.trainer_id || !data.trainers?.[0]?.id ? f : { ...f, trainer_id: data.trainers[0].id }))
       if (focusId) {
         const openIds = new Set((data?.clients ?? []).map((c) => String(c.id)))

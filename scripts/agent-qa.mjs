@@ -49,6 +49,7 @@ run('auth sign-in fast path', 'node', ['scripts/verify-auth-sign-in-fast-path.mj
 run('auth login resolve', 'node', ['scripts/verify-auth-login-resolve.mjs'])
 run('pg migrate order', 'node', ['scripts/verify-pg-migrate-order.mjs'])
 run('portable host health', 'node', ['scripts/verify-portable-host.mjs'])
+run('r1 portability hygiene', 'node', ['scripts/verify-r1-portability.mjs'])
 run('user identity cache', 'node', ['scripts/verify-user-identity-cache.mjs'])
 run('sync unsynced re-queue', 'node', ['scripts/verify-sync-unsynced.mjs'])
 run('client trainings prune', 'node', ['scripts/verify-client-trainings-prune.mjs'])

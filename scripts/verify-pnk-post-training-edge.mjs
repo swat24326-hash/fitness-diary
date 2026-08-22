@@ -9,7 +9,9 @@ import {
   isPnkCardTabVisible,
 } from '../src/lib/pnk/pnkStagesCore.js'
 import { resolvePnkFunnelHatNav } from '../src/lib/pnk/pnkWizardNavCore.js'
-import { resolvePnkWizardStep } from '../src/lib/pnk/pnkWizardCore.js'
+import { isPnkVisitPackageOpen, resolvePnkWizardStep } from '../src/lib/pnk/pnkWizardCore.js'
+import { listPnkAttentionClients } from '../src/lib/pnk/pnkStatsAgg.js'
+import { buildPnkManagerHomeGlance } from '../src/lib/pnk/pnkManagerHomeGlanceCore.js'
 
 let failed = 0
 function ok(cond, msg) {
@@ -103,6 +105,45 @@ ok(
 const pullRollback = { ...base, pnk_deliverables: { ...base.pnk_deliverables } }
 ok(resolvePnkWizardStep(pullRollback, bzCtx)?.key === 'hw1', 'pull без trial но bz=1 → hw1')
 ok(resolvePnkWizardStep(pullRollback, { bzCompletedCount: 0 })?.key === 'train1', 'pull bz=0 → train1')
+
+/** attention / glance: bz закрывает noshow при отстающем trial stamp */
+const overdueNoTrial = {
+  id: 'attn1',
+  name: 'Шов',
+  lifecycle: 'pnk',
+  pnk_stage: 'agreed',
+  pnk_trial_date: '2026-07-10',
+  pnk_created_at: '2026-07-01T10:00:00.000Z',
+  pnk_deliverables: { contact: 'x' },
+}
+const nowAttn = new Date('2026-07-16T12:00:00')
+const attnNoBz = listPnkAttentionClients([overdueNoTrial], nowAttn)
+ok(attnNoBz.some((r) => r.flags.some((f) => f.code === 'noshow')), 'без bz: noshow при просроченной дате')
+const attnWithBz = listPnkAttentionClients([overdueNoTrial], nowAttn, {
+  bzCompletedByClient: { attn1: 1 },
+})
+ok(!attnWithBz.some((r) => r.flags.some((f) => f.code === 'noshow')), 'с bz=1: noshow не горит')
+
+const emptyPack = {
+  visit_started: null,
+  health: null,
+  nutrition: null,
+  trial: null,
+  homework: null,
+  trial2: null,
+  homework2: null,
+  contact: 'x',
+  followup: null,
+}
+ok(!isPnkVisitPackageOpen(overdueNoTrial, emptyPack, nowAttn, 0), 'bz=0: пакет закрыт без stamp')
+ok(isPnkVisitPackageOpen(overdueNoTrial, emptyPack, nowAttn, 1), 'bz=1: пакет открыт без stamp')
+
+const glanceHot = buildPnkManagerHomeGlance([overdueNoTrial], nowAttn)
+ok(glanceHot.isHot, 'glance без bz: hot от noshow')
+const glanceCool = buildPnkManagerHomeGlance([overdueNoTrial], nowAttn, {
+  bzCompletedByClient: { attn1: 1 },
+})
+ok(glanceCool.hotCount === 0 && !glanceCool.isHot, 'glance с bz: не hot из-за noshow')
 
 if (failed) {
   console.error(`\n${failed} failed`)

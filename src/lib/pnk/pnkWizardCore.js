@@ -45,8 +45,10 @@ function parseDeliverables(raw) {
  * @param {object} _client
  * @param {ReturnType<typeof parseDeliverables>} d
  * @param {Date} [_now]
+ * @param {number} [bzCompletedCount] — завершённые БЗ; ≥1 = пакет визита уже открыт (даже без visit_started stamp)
  */
-export function isPnkVisitPackageOpen(_client, d, _now = new Date()) {
+export function isPnkVisitPackageOpen(_client, d, _now = new Date(), bzCompletedCount = 0) {
+  if (Math.max(0, Number(bzCompletedCount) || 0) >= 1) return true
   return Boolean(
     d.visit_started || d.health || d.nutrition || d.trial || d.homework || d.trial2 || d.homework2,
   )
@@ -150,7 +152,7 @@ export function resolvePnkWizardStep(client, ctx = {}) {
     key = 'contact'
   } else if (!hasDate) {
     key = 'date'
-  } else if (!isPnkVisitPackageOpen(client, d, now)) {
+  } else if (!isPnkVisitPackageOpen(client, d, now, bzDone)) {
     key = 'wait'
   } else if (!trial1Done && !d.health) {
     key = 'health'

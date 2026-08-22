@@ -95,6 +95,25 @@ ok(
   ),
   'date alone does not open package',
 )
+ok(
+  isPnkVisitPackageOpen(
+    afterInvite,
+    {
+      visit_started: null,
+      health: null,
+      nutrition: null,
+      trial: null,
+      homework: null,
+      trial2: null,
+      homework2: null,
+      contact: 'x',
+      followup: null,
+    },
+    new Date('2026-07-20T09:00:00'),
+    1,
+  ),
+  'bz completed opens package without stamps',
+)
 
 const healthCard = {
   height_cm: 170,

@@ -116,9 +116,8 @@ async function handlePnkGet(ctx, req, res) {
     },
     events,
   )
-  const attention = listPnkAttentionClients(open)
-
   const bzCompletedByClient = await fetchPnkBzCompletedByClient(supabaseAdmin, clubId, open)
+  const attention = listPnkAttentionClients(open, new Date(), { bzCompletedByClient })
 
   sendJson(res, 200, {
     club_id: clubId,

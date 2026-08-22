@@ -295,7 +295,7 @@ FIT-CITY ближе не к «сайту клуба», а к связке:
 
 Цель: приложение **не привязано к бренду Vercel** в логике, только в деплое.
 
-- [x] Все секреты и URL — только через env (`VITE_*`, server keys); в **критическом пути UI** нет хардкода `*.vercel.app` (2026-07-18: сообщение в `adminApiClient` → `location.origin`).
+- [x] Все секреты и URL — только через env (`VITE_*`, server keys); в **критическом пути UI** нет хардкода `*.vercel.app` (2026-07-18: сообщение в `adminApiClient` → `location.origin`). Страховка: `scripts/verify-r1-portability.mjs` (2026-08-22).
 - [x] Документировать список **всех** внешних зависимостей — см. §5.4.1 ниже.
 - [x] Сборка статики: `npm run build` → `dist` на любом HTTPS (относительные `/api`, env для Supabase).
 - [x] API: handlers в `api/_lib/`; entrypoints тонкие (направление strangler).
@@ -304,7 +304,10 @@ FIT-CITY ближе не к «сайту клуба», а к связке:
 - [x] Удаление тренера без Edge: `admin-data?action=delete-trainer` (лимит Hobby 12/12 — новый `api/*.js` не добавляли).
 - [x] Карта Auth сейчас vs C2: [AUTH_C2_MAP.md](./AUTH_C2_MAP.md); шов `api/_lib/authPort.js` (2026-08-09).
 - [x] Portable host + Docker + `db:migrate:pg` (+ `c2_auth_stub`, SSL, `/api/health`, verify): [R2_C2_STAGING_RUNBOOK.md](./R2_C2_STAGING_RUNBOOK.md) (2026-08-09). День 1 R2 = **hybrid** (хост на РФ, данные пока Supabase) → затем True C2 (Managed PG + свой Auth). Прод Vercel не переключали.
+- [x] Сообщение «облако недоступно» без привязки к `status.supabase.com` (2026-08-22) — ок при смене BaaS.
 - [ ] Runtime data-port (`pg` вместо PostgREST в API) — после живой схемы на стенде; не блокер hybrid day-1.
+
+**Итог R1 (2026-08-22):** код готов к команде «стартуем R2…». Открытые пункты выше — только после staging / cutover, не блокеры текущего прода.
 
 *Dev-proxy:* `VITE_DEV_API_PROXY` (дефолт пока текущий prod) — только локальная разработка, не runtime клуба.
 

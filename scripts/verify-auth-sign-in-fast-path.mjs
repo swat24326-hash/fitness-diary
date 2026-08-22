@@ -25,7 +25,10 @@ ok(buildDirectAuthEmailCandidates('a@b.ru').join() === 'a@b.ru', 'email candidat
 ok(isInvalidCredentialsMessage('Invalid login credentials'), 'invalid creds en')
 ok(!isInvalidCredentialsMessage('timeout'), 'timeout not invalid creds')
 ok(isSupabaseTransportMessage('timeout'), 'timeout is transport')
-ok(SUPABASE_CLOUD_UNAVAILABLE_RU.includes('Supabase'), 'cloud unavailable mentions Supabase')
+ok(
+  /баз|облак/i.test(SUPABASE_CLOUD_UNAVAILABLE_RU) && !/status\.supabase\.com/i.test(SUPABASE_CLOUD_UNAVAILABLE_RU),
+  'cloud unavailable portable (no status.supabase.com)',
+)
 
 if (failed) process.exit(1)
 console.log('verify-auth-sign-in-fast-path: all passed')
