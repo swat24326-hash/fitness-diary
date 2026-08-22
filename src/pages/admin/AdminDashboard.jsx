@@ -35,6 +35,7 @@ import {
   writeClubCallShiftGlanceSession,
 } from '../../lib/admin/clubCallShiftGlanceSession.js'
 import { useStaleWhileRevalidate } from '../../hooks/useStaleWhileRevalidate.js'
+import { HOME_GLANCE_CLOUD_MS, withHomeGlanceTimeout } from '../../lib/admin/adminHomeGlanceTimeout.js'
 import { todayInTimeZoneIso } from '../../lib/dateRu.js'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { isAppOnline } from '../../lib/syncService'
@@ -113,14 +114,21 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
   )
   const fetchCqGlance = useCallback(async () => {
     if (!clubId || !isSupabaseConfigured() || !isAppOnline()) return null
-    const range = getDateRange('month')
-    const api = await fetchCoachQualityViaApi({
-      clubId,
-      dateFrom: range.start,
-      dateTo: range.end,
-      mode: 'glance',
-    })
-    return glanceFromCoachQualityApi(api)
+    try {
+      const range = getDateRange('month')
+      const api = await withHomeGlanceTimeout(
+        fetchCoachQualityViaApi({
+          clubId,
+          dateFrom: range.start,
+          dateTo: range.end,
+          mode: 'glance',
+        }),
+        HOME_GLANCE_CLOUD_MS,
+      )
+      return glanceFromCoachQualityApi(api)
+    } catch {
+      return null
+    }
   }, [clubId])
 
   const {
@@ -200,8 +208,11 @@ export function AdminDashboard({ accessMode = 'admin' } = {}) {
           cached ? 'Нет сети — на экране сохранённые цифры' : 'Нет сети — сводку загрузить нельзя',
         )
       } else {
-        setCallShiftNotice(String(res.reason || 'Не удалось загрузить сводку смены'))
+        setCallShiftNotice(
+          String(res.reason || 'Облако недоступно — цифры за день не загрузились'),
+        )
       }
+      // null → SWR сохраняет last-good; без кэша панель покажет нули + текст ошибки
       return null
     }
     setCallShiftNotice(res.partial ? String(res.reason || '') : '')

@@ -13,8 +13,12 @@ import { isAppOnline } from '../syncService.js'
 import { collectHoldingTrainerIds } from './holdingClientsCore.js'
 import { collectNoTabletTrainerIds } from './trainerTabletModeCore.js'
 import { fetchTrainersViaAdminApi } from './adminApiClient.js'
+import { HOME_GLANCE_CLOUD_MS, withHomeGlanceTimeout } from './adminHomeGlanceTimeout.js'
 
 /**
+ * Сводка дня: сначала локальный census (IndexedDB), облако — параллельно с таймаутом.
+ * ERR_CONNECTION_RESET / зависание fetch не оставляют скелетон навсегда.
+ *
  * @param {string} clubId
  * @returns {Promise<{ ok: boolean, reason?: string, summary: ReturnType<typeof buildAdminClubDaySummary> | null, source?: string }>}
  */
@@ -26,20 +30,36 @@ export async function loadAdminClubDaySummary(clubId) {
 
   const today = todayInTimeZoneIso()
   const yesterday = yesterdayIso(today)
+  const online = isSupabaseConfigured() && isAppOnline()
 
-  if (isSupabaseConfigured() && isAppOnline()) {
-    await refreshMembershipsForStats({ clubId: cid, notify: false, adminClubScope: true })
-  }
+  const refreshP = online
+    ? withHomeGlanceTimeout(
+        refreshMembershipsForStats({ clubId: cid, notify: false, adminClubScope: true }),
+        HOME_GLANCE_CLOUD_MS,
+      ).catch(() => ({ ok: false, reason: 'refresh_timeout' }))
+    : Promise.resolve({ ok: false, reason: 'offline' })
 
-  const [clients, memberships, trainings] = await Promise.all([
+  const idbP = Promise.all([
     listClientsByClubId(cid),
     listMembershipsByClubId(cid),
     listTrainingsByClubIdInRange(cid, yesterday, today),
   ])
+
+  const [refreshRes, idbRows] = await Promise.all([refreshP, idbP])
+  let [clients, memberships, trainings] = idbRows
+  // После успешного merge абонов в IDB — перечитать, иначе сводка со старым кэшем.
+  if (refreshRes?.ok) {
+    try {
+      memberships = await listMembershipsByClubId(cid)
+    } catch {
+      /* оставим первый снимок */
+    }
+  }
+
   let holdingTrainerIds = new Set()
   let noTabletTrainerIds = new Set()
   try {
-    const viaApi = await fetchTrainersViaAdminApi()
+    const viaApi = await withHomeGlanceTimeout(fetchTrainersViaAdminApi(), HOME_GLANCE_CLOUD_MS)
     const trainers = (viaApi?.trainers ?? []).filter(
       (t) => String(t.club_id ?? '') === cid || !t.club_id,
     )
@@ -53,17 +73,17 @@ export async function loadAdminClubDaySummary(clubId) {
   let trainingsTodayOverride = null
   let trainingsYesterdayOverride = null
 
-  if (isSupabaseConfigured() && isAppOnline()) {
+  if (online) {
     try {
-      // Light-запрос только для счётчиков тренировок (byDay).
-      // «Не активные» на сводке дня = финал воронки из локального census+funnel,
-      // не широкий inactiveInPeriod из club-stats (тот дублировал статистику и расходился с «Клиентами»).
-      const rangeStats = await loadClubTrainingStats({
-        clubId: cid,
-        dateFrom: yesterday,
-        dateTo: today,
-        includeCoachQuality: false,
-      })
+      const rangeStats = await withHomeGlanceTimeout(
+        loadClubTrainingStats({
+          clubId: cid,
+          dateFrom: yesterday,
+          dateTo: today,
+          includeCoachQuality: false,
+        }),
+        HOME_GLANCE_CLOUD_MS,
+      )
       if (!rangeStats?.error) {
         const byDay = rangeStats.byDay ?? []
         const tRow = byDay.find((d) => String(d?.date ?? '').slice(0, 10) === today)
@@ -75,14 +95,17 @@ export async function loadAdminClubDaySummary(clubId) {
         if (Number.isFinite(yRow?.completed)) trainingsYesterdayOverride = yRow.completed
       }
     } catch {
-      /* локальный кэш ниже */
+      /* локальный кэш trainings */
     }
   }
 
   let salesReportFilled = null
   if (isSupabaseConfigured()) {
     try {
-      const { data, error } = await querySalesDailyRow(supabase, cid, today)
+      const { data, error } = await withHomeGlanceTimeout(
+        querySalesDailyRow(supabase, cid, today),
+        HOME_GLANCE_CLOUD_MS,
+      )
       if (error) {
         salesReportFilled = false
       } else {

@@ -23,6 +23,10 @@ import {
   writeSalesPlanGlanceSession,
 } from '../../lib/admin/salesPlanGlanceSession.js'
 import { useStaleWhileRevalidate } from '../../hooks/useStaleWhileRevalidate.js'
+import {
+  HOME_SALES_GLANCE_MS,
+  withHomeGlanceTimeout,
+} from '../../lib/admin/adminHomeGlanceTimeout.js'
 import '../../styles/sales-report.css'
 
 const MONTH_NAMES = [
@@ -41,43 +45,52 @@ const MONTH_NAMES = [
 ]
 
 async function fetchSalesPlanGlancePayload(clubId) {
-  const reportDate = todayLocalIso()
-  const bundle = await fetchClubSalesBundle({ clubId, reportDate })
-  const parts = monthPartsFromIso(reportDate)
-  const name = parts ? MONTH_NAMES[(parts.month || 1) - 1] ?? '' : ''
-  const form = planRowToForm(bundle.plan)
-  const levels = {
-    level1: Number(form.plan_level_1) || 0,
-    level2: Number(form.plan_level_2) || 0,
-    level3: Number(form.plan_level_3) || 0,
-  }
-  const expenseForm = expenseRowToForm(bundle.expense)
-  const expenseRaw = parseSalesMoney(expenseForm.expense_month)
-  const payrollCtx = await loadTrainerPayrollContextClient(clubId, {
-    year: Number(bundle.year) || parts?.year,
-    month: Number(bundle.month) || parts?.month,
-  })
-  const payTypes =
-    payrollCtx.frozen && Array.isArray(payrollCtx.membershipTypes) && payrollCtx.membershipTypes.length
-      ? payrollCtx.membershipTypes
-      : Array.isArray(bundle.membershipTypes)
-        ? bundle.membershipTypes
-        : []
-  return {
-    monthLabel: parts ? `${name} ${parts.year}` : '',
-    fact: resolvePlanFactFromMonthSummary(bundle.monthSummary),
-    planLevels: levels,
-    forecastBundle: {
-      year: Number(bundle.year) || parts?.year || 0,
-      month: Number(bundle.month) || parts?.month || 0,
-      monthRows: Array.isArray(bundle.monthDays) ? bundle.monthDays : [],
-      membershipTypes: payTypes,
-      planForm: form,
-      expense: Number.isFinite(expenseRaw) ? expenseRaw : 0,
-      planConfig: payrollCtx.planConfig,
-      profilesByTrainerId: payrollCtx.profilesByTrainerId,
-      clubId,
-    },
+  try {
+    return await withHomeGlanceTimeout(
+      (async () => {
+        const reportDate = todayLocalIso()
+        const bundle = await fetchClubSalesBundle({ clubId, reportDate })
+        const parts = monthPartsFromIso(reportDate)
+        const name = parts ? MONTH_NAMES[(parts.month || 1) - 1] ?? '' : ''
+        const form = planRowToForm(bundle.plan)
+        const levels = {
+          level1: Number(form.plan_level_1) || 0,
+          level2: Number(form.plan_level_2) || 0,
+          level3: Number(form.plan_level_3) || 0,
+        }
+        const expenseForm = expenseRowToForm(bundle.expense)
+        const expenseRaw = parseSalesMoney(expenseForm.expense_month)
+        const payrollCtx = await loadTrainerPayrollContextClient(clubId, {
+          year: Number(bundle.year) || parts?.year,
+          month: Number(bundle.month) || parts?.month,
+        })
+        const payTypes =
+          payrollCtx.frozen && Array.isArray(payrollCtx.membershipTypes) && payrollCtx.membershipTypes.length
+            ? payrollCtx.membershipTypes
+            : Array.isArray(bundle.membershipTypes)
+              ? bundle.membershipTypes
+              : []
+        return {
+          monthLabel: parts ? `${name} ${parts.year}` : '',
+          fact: resolvePlanFactFromMonthSummary(bundle.monthSummary),
+          planLevels: levels,
+          forecastBundle: {
+            year: Number(bundle.year) || parts?.year || 0,
+            month: Number(bundle.month) || parts?.month || 0,
+            monthRows: Array.isArray(bundle.monthDays) ? bundle.monthDays : [],
+            membershipTypes: payTypes,
+            planForm: form,
+            expense: Number.isFinite(expenseRaw) ? expenseRaw : 0,
+            planConfig: payrollCtx.planConfig,
+            profilesByTrainerId: payrollCtx.profilesByTrainerId,
+            clubId,
+          },
+        }
+      })(),
+      HOME_SALES_GLANCE_MS,
+    )
+  } catch {
+    return null
   }
 }
 
@@ -129,7 +142,7 @@ export function AdminHomeSalesPlanGlance({ clubId = '', compact = false }) {
   const monthLabel = data?.monthLabel ?? ''
   const forecastBundle = data?.forecastBundle ?? null
 const showSkel = loading && !data
-  const error = !loading && !data ? 'Не удалось загрузить план продаж' : ''
+  const error = !loading && !data ? 'Облако недоступно — откройте «Продажи» или обновите страницу' : ''
 
   const glanceForecast = useMemo(() => {
     if (!forecastBundle?.year || !forecastBundle?.month) return null

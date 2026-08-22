@@ -205,6 +205,7 @@
     grid-column: 4 / 8;
     grid-row: 2;
     min-width: 0;
+    overflow: visible;
   }
 
   .admin-home-summaries:has(> .admin-day-summary):has(> .club-call-shift) .admin-day-summary__section--path {

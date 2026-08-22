@@ -258,6 +258,7 @@ run('attention side placement', 'node', ['scripts/verify-attention-side-placemen
 run('attention presence session', 'node', ['scripts/verify-attention-presence-session.mjs'])
 run('club outreach stats', 'node', ['scripts/verify-club-outreach-stats.mjs'])
 run('club call shift summary', 'node', ['scripts/verify-club-call-shift-summary.mjs'])
+run('admin home glance timeout', 'node', ['scripts/verify-admin-home-glance-timeout.mjs'])
 run('client name format', 'node', ['scripts/verify-client-name-format.mjs'])
 run('admin club day summary', 'node', ['scripts/verify-admin-club-day-summary.mjs'])
 run('admin home attention', 'node', ['scripts/verify-admin-home-attention.mjs'])

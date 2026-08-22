@@ -7,6 +7,11 @@ import { fetchClubSmsLogs } from './clubSmsService.js'
 import { buildClubCallShiftSummary } from './clubCallShiftSummaryCore.js'
 import { isSupabaseConfigured } from '../supabase.js'
 import { isAppOnline } from '../syncService.js'
+import {
+  HOME_GLANCE_CLOUD_MS,
+  homeGlanceCloudFailMessage,
+  withHomeGlanceTimeout,
+} from './adminHomeGlanceTimeout.js'
 
 /**
  * @param {string} clubId
@@ -25,25 +30,25 @@ export async function loadClubCallShiftSummary(clubId, opts = {}) {
     return { ok: false, reason: 'no_club', summary: null }
   }
   if (!isSupabaseConfigured() || !isAppOnline()) {
-    // Не подставлять нули: SWR оставит last-good, если summary = null.
+    // Не подставлять нули в кэш: SWR оставит last-good, если summary = null.
     return { ok: false, reason: 'offline', summary: null }
   }
 
   const [callRes, smsRes] = await Promise.allSettled([
-    fetchClubCallLogs(cid, { day }),
-    fetchClubSmsLogs(cid, { day }),
+    withHomeGlanceTimeout(fetchClubCallLogs(cid, { day }), HOME_GLANCE_CLOUD_MS),
+    withHomeGlanceTimeout(fetchClubSmsLogs(cid, { day }), HOME_GLANCE_CLOUD_MS),
   ])
 
   const callOk = callRes.status === 'fulfilled'
   const smsOk = smsRes.status === 'fulfilled'
   if (!callOk && !smsOk) {
-    const msg =
-      (callRes.status === 'rejected' && callRes.reason?.message) ||
-      (smsRes.status === 'rejected' && smsRes.reason?.message) ||
+    const raw =
+      (callRes.status === 'rejected' && callRes.reason) ||
+      (smsRes.status === 'rejected' && smsRes.reason) ||
       'load_failed'
     return {
       ok: false,
-      reason: String(msg).slice(0, 160),
+      reason: homeGlanceCloudFailMessage(raw),
       summary: null,
     }
   }
