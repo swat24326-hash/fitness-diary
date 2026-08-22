@@ -37,7 +37,7 @@ ok(shouldDownloadPngAfterOtherShare({ ok: false }), 'download when share failed'
 ok(!shouldDownloadPngAfterOtherShare({ ok: false, cancelled: true }), 'no download when cancelled')
 
 ok(isTrainerPngMaxDeliveryOk({ copied: true, opened: false, shared: false }), 'max ok with copy')
-ok(isTrainerPngMaxDeliveryOk({ copied: false, opened: false, shared: true }), 'max ok with native share')
+ok(isTrainerPngMaxDeliveryOk({ copied: false, opened: true, shared: false }), 'max ok with open')
 ok(!isTrainerPngMaxDeliveryOk({ copied: false, opened: false, shared: false }), 'max fail without delivery')
 
 ok(
@@ -47,7 +47,8 @@ ok(
 
 const direct = resolveMaxPngOpenTarget({ maxChatUrl: 'https://max.ru/@club' })
 ok(direct.url === 'https://max.ru/@club', 'direct max chat url preserved')
-ok(!direct.url.includes('text='), 'no text in max png url')
+const shareFallback = resolveMaxPngOpenTarget({ caption: 'FIT-CITY · ДЗ' })
+ok(shareFallback.url.includes('text='), 'share fallback includes caption')
 
 ok(
   formatTrainerPngShareStatus({
@@ -65,12 +66,12 @@ ok(
   formatTrainerPngShareStatus({
     ok: true,
     channel: 'max',
-    shared: true,
-    openMode: 'native_share',
     downloaded: true,
     copied: true,
-  }).includes('Поделиться'),
-  'max native share status',
+    opened: true,
+    openMode: 'share',
+  }).includes('подписью'),
+  'max share mode status',
 )
 
 ok(formatTrainerPngShareStatus({ ok: true, cancelled: true, channel: 'max' }) === 'Отменено', 'cancelled status')

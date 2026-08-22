@@ -1,13 +1,14 @@
 /**
  * Отправка PNG-карточки клиенту: Max или «Другой мессенджер».
  *
- * Max: «Поделиться» с PNG (Max в списке) или PNG в загрузки + короткая подпись в буфер + чат без текста.
- * Не используем max.ru/:share?text= — подставляет текст без картинки.
+ * Max: PNG в загрузки + подпись в буфер + открыть Max (без «Поделиться» — кнопка уже «В Max»).
+ * Короткая подпись в share URL; полный текст — только для «Другой мессенджer».
  *
  * Другой: «Поделиться» только с файлом + полный текст в буфер; иначе загрузки + буфер.
  */
 
 import {
+  buildMaxShareUrl,
   copyTextToClipboard,
   normalizeMaxChatUrl,
   openMaxExternalUrl,
@@ -16,12 +17,14 @@ import {
 /** @typedef {'max' | 'other'} TrainerPngShareChannel */
 
 /**
- * Куда открыть Max для PNG: прямой чат или приложение без предзаполненного текста.
- * @param {{ maxChatUrl?: string | null }} input
+ * Куда открыть Max для PNG: прямой чат или короткий share (без длинного текста).
+ * @param {{ maxChatUrl?: string | null, caption?: string }} input
  */
 export function resolveMaxPngOpenTarget(input = {}) {
   const direct = normalizeMaxChatUrl(input.maxChatUrl)
   if (direct) return { url: direct, mode: 'direct_chat' }
+  const caption = String(input.caption ?? '').trim()
+  if (caption) return { url: buildMaxShareUrl(caption), mode: 'share' }
   return { url: 'https://max.ru', mode: 'app' }
 }
 
@@ -187,43 +190,6 @@ export async function sendTrainerPngShare(input) {
 
   const downloaded = downloadPngBlob(input.blob, filename)
 
-  const native = await tryNativeSharePng(input.blob, { filename })
-
-  if (native.cancelled) {
-    return {
-      ok: true,
-      channel,
-      shared: false,
-      shareMode: null,
-      cancelled: true,
-      copied: false,
-      downloaded,
-      opened: false,
-      openMode: null,
-    }
-  }
-
-  if (native.ok) {
-    let copied = false
-    try {
-      await copyTextToClipboard(caption)
-      copied = true
-    } catch {
-      copied = false
-    }
-    return {
-      ok: true,
-      channel,
-      shared: true,
-      shareMode: 'file',
-      cancelled: false,
-      copied,
-      downloaded,
-      opened: false,
-      openMode: 'native_share',
-    }
-  }
-
   let copied = false
   try {
     await copyTextToClipboard(caption)
@@ -235,7 +201,10 @@ export async function sendTrainerPngShare(input) {
   let opened = false
   let openMode = null
   if (typeof window !== 'undefined') {
-    const target = resolveMaxPngOpenTarget({ maxChatUrl: input.client?.max_chat_url })
+    const target = resolveMaxPngOpenTarget({
+      maxChatUrl: input.client?.max_chat_url,
+      caption,
+    })
     opened = openMaxExternalUrl(target.url)
     openMode = target.mode
   }
@@ -301,18 +270,17 @@ export function formatTrainerPngShareStatus(res) {
     return parts.join(' · ')
   }
 
-  if (res.shared && res.openMode === 'native_share') {
-    parts.push('В «Поделиться» выберите Max — уйдёт картинка')
-    if (res.copied) parts.push('подпись в буфере')
-    if (res.downloaded) parts.push('PNG также в загрузках')
-    return parts.join(' · ')
-  }
-
   if (res.downloaded) parts.push('PNG в загрузках')
   parts.push('в Max: 📎 прикрепите картинку')
-  if (res.copied) parts.push('вставьте подпись из буфера')
+  if (res.copied) parts.push('подпись в буфере — вставьте или допишите')
   if (res.opened) {
-    parts.push(res.openMode === 'direct_chat' ? 'открыт чат клиента' : 'открыт Max')
+    parts.push(
+      res.openMode === 'direct_chat'
+        ? 'открыт чат клиента'
+        : res.openMode === 'share'
+          ? 'открыто окно Max с подписью'
+          : 'открыт Max',
+    )
   }
   return parts.join(' · ') || 'Готово'
 }
