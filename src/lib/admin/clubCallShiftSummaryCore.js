@@ -184,7 +184,7 @@ export function buildClubCallShiftSummaryCards(summary, opts = {}) {
       hint:
         s.calls > 0
           ? `дозвон ${s.answered} · не взял ${s.missed}${s.pending ? ` · набор ${s.pending}` : ''}`
-          : 'за сегодня пока нет',
+          : 'пока нет',
       to: journalHrefWithTab(href, 'list'),
       hot: s.missed > 0,
       warn: s.pending > 0 && s.missed === 0,
@@ -193,7 +193,7 @@ export function buildClubCallShiftSummaryCards(summary, opts = {}) {
       key: 'sms',
       label: 'SMS',
       count: s.sms,
-      hint: s.sms > 0 ? `ок ${s.sms_ok} · сбой ${s.sms_fail}` : 'за сегодня пока нет',
+      hint: s.sms > 0 ? `ок ${s.sms_ok} · сбой ${s.sms_fail}` : 'пока нет',
       to: journalHrefWithTab(href, 'sms'),
       warn: s.sms_fail > 0,
     },
@@ -203,8 +203,8 @@ export function buildClubCallShiftSummaryCards(summary, opts = {}) {
       count: followupCount,
       hint:
         followupCount > 0
-          ? `последняя пометка · в работе ${s.open_notes}`
-          : 'открытых «перезвонить» нет',
+          ? `в работе ${s.open_notes}`
+          : 'открытых нет',
       to: journalHrefWithTab(href, 'list'),
       hot: followupCount > 0,
     },
@@ -215,7 +215,7 @@ export function buildClubCallShiftSummaryCards(summary, opts = {}) {
       hint:
         closedCount > 0
           ? `отказ ${s.refused} · купил ${s.bought}${s.other_close ? ` · ещё ${s.other_close}` : ''}`
-          : 'закрытий пометкой нет',
+          : 'пометок нет',
       to: journalHrefWithTab(href, 'call-stats'),
     },
   ]

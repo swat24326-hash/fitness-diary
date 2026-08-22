@@ -38,10 +38,12 @@ export function ClubCallShiftSummaryPanel({
   if (noClub) {
     return (
       <section className="club-call-shift" aria-labelledby="club-call-shift-title">
-        <h2 id="club-call-shift-title" className="club-call-shift__title">
-          Сводка смены
-        </h2>
-        <p className="club-call-shift__hint muted">Выберите клуб, чтобы увидеть связь за день.</p>
+        <div className="club-call-shift__head">
+          <h2 id="club-call-shift-title" className="club-call-shift__title">
+            Сводка смены
+          </h2>
+        </div>
+        <p className="club-call-shift__meta muted">Выберите клуб, чтобы увидеть связь за день.</p>
       </section>
     )
   }
@@ -49,9 +51,11 @@ export function ClubCallShiftSummaryPanel({
   if (loading && !summary) {
     return (
       <section className="club-call-shift club-call-shift--skel" aria-labelledby="club-call-shift-title" aria-busy="true">
-        <h2 id="club-call-shift-title" className="club-call-shift__title">
-          Сводка смены
-        </h2>
+        <div className="club-call-shift__head">
+          <h2 id="club-call-shift-title" className="club-call-shift__title">
+            Сводка смены
+          </h2>
+        </div>
         <ul className="club-call-shift__grid" aria-label="Загрузка сводки смены">
           <li className="admin-home-skel club-call-shift__skel" />
           <li className="admin-home-skel club-call-shift__skel" />
@@ -66,22 +70,25 @@ export function ClubCallShiftSummaryPanel({
     if (!errText) return null
     return (
       <section className="club-call-shift" aria-labelledby="club-call-shift-title">
-        <h2 id="club-call-shift-title" className="club-call-shift__title">
-          Сводка смены
-        </h2>
-        <p className="club-call-shift__hint club-call-shift__hint--err" role="alert">
-          {errText}
-        </p>
-        <p className="club-call-shift__foot">
+        <div className="club-call-shift__head">
+          <h2 id="club-call-shift-title" className="club-call-shift__title">
+            Сводка смены
+          </h2>
           <Link to={journalHref} className="club-call-shift__link">
-            Открыть журнал звонков
+            Журнал звонков
           </Link>
+        </div>
+        <p className="club-call-shift__meta club-call-shift__meta--err" role="alert">
+          {errText}
         </p>
       </section>
     )
   }
 
   const dayLabel = summary.day ? formatIsoRu(summary.day) : 'сегодня'
+  const meta = summary.has_activity
+    ? `Связь за ${dayLabel}${summary.connect_rate_pct != null ? ` · дозвон ${summary.connect_rate_pct}%` : ''}`
+    : `За ${dayLabel} звонков и SMS пока нет`
 
   return (
     <section
@@ -93,14 +100,13 @@ export function ClubCallShiftSummaryPanel({
         <h2 id="club-call-shift-title" className="club-call-shift__title">
           Сводка смены
         </h2>
-        <p className="club-call-shift__hint muted">
-          {summary.has_activity
-            ? `Связь за ${dayLabel}${summary.connect_rate_pct != null ? ` · дозвон ${summary.connect_rate_pct}%` : ''}`
-            : `За ${dayLabel} звонков и SMS пока нет`}
-        </p>
+        <Link to={journalHref} className="club-call-shift__link">
+          Журнал звонков
+        </Link>
       </div>
+      <p className="club-call-shift__meta muted">{meta}</p>
       {errText ? (
-        <p className="club-call-shift__hint club-call-shift__hint--warn" role="status">
+        <p className="club-call-shift__meta club-call-shift__meta--warn" role="status">
           {errText}
         </p>
       ) : null}
@@ -119,17 +125,12 @@ export function ClubCallShiftSummaryPanel({
                 </span>
                 <span className="club-call-shift__card-count">{card.count}</span>
                 <span className="club-call-shift__card-label">{card.label}</span>
-                <span className="club-call-shift__card-hint">{card.hint}</span>
+                <span className="club-call-shift__card-hint muted">{card.hint}</span>
               </Link>
             </li>
           )
         })}
       </ul>
-      <p className="club-call-shift__foot">
-        <Link to={journalHref} className="club-call-shift__link">
-          Открыть журнал звонков
-        </Link>
-      </p>
     </section>
   )
 }

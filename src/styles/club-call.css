@@ -1,5 +1,5 @@
 /**
- * ÐÐ»ÑÐ±Ð½ÑÐ¹ Ð·Ð²Ð¾Ð½Ð¾Ðº (ÐÐ¾Ð¸ ÐÐ²Ð¾Ð½ÐºÐ¸): ÐºÐ½Ð¾Ð¿ÐºÐ°, Ð»Ð¸ÑÑ Ð¿Ð¾Ð´ÑÐ²ÐµÑÐ¶Ð´ÐµÐ½Ð¸Ñ, Ð¶ÑÑÐ½Ð°Ð».
+ * ÃÂÃÂ»ÃÂÃÂ±ÃÂ½ÃÂÃÂ¹ ÃÂ·ÃÂ²ÃÂ¾ÃÂ½ÃÂ¾ÃÂº (ÃÂÃÂ¾ÃÂ¸ ÃÂÃÂ²ÃÂ¾ÃÂ½ÃÂºÃÂ¸): ÃÂºÃÂ½ÃÂ¾ÃÂ¿ÃÂºÃÂ°, ÃÂ»ÃÂ¸ÃÂÃÂ ÃÂ¿ÃÂ¾ÃÂ´ÃÂÃÂ²ÃÂµÃÂÃÂ¶ÃÂ´ÃÂµÃÂ½ÃÂ¸ÃÂ, ÃÂ¶ÃÂÃÂÃÂ½ÃÂ°ÃÂ».
  */
 
 .club-call-sheet-backdrop {
@@ -14,7 +14,7 @@
   backdrop-filter: blur(6px);
 }
 
-/* ÐÑÑÐ¾ÑÐ¸Ñ Ð·Ð²Ð¾Ð½ÐºÐ¾Ð² Ð½Ð° ÐºÐ°ÑÑÐ¾ÑÐºÐµ â Ð¾ÐºÐ½Ð¾ ÑÐ²ÐµÑÑÑ */
+/* ÃÂÃÂÃÂÃÂ¾ÃÂÃÂ¸ÃÂ ÃÂ·ÃÂ²ÃÂ¾ÃÂ½ÃÂºÃÂ¾ÃÂ² ÃÂ½ÃÂ° ÃÂºÃÂ°ÃÂÃÂÃÂ¾ÃÂÃÂºÃÂµ Ã¢ÂÂ ÃÂ¾ÃÂºÃÂ½ÃÂ¾ ÃÂÃÂ²ÃÂµÃÂÃÂÃÂ */
 .club-call-history-sheet-backdrop {
   position: fixed;
   inset: 0;
@@ -462,7 +462,7 @@
   border: 0;
   opacity: 0;
   cursor: pointer;
-  font-size: 1rem; /* iOS: Ð½Ðµ Ð¼ÐµÐ½ÑÑÐµ 16px, Ð¸Ð½Ð°ÑÐµ Ð·ÑÐ¼ */
+  font-size: 1rem; /* iOS: ÃÂ½ÃÂµ ÃÂ¼ÃÂµÃÂ½ÃÂÃÂÃÂµ 16px, ÃÂ¸ÃÂ½ÃÂ°ÃÂÃÂµ ÃÂ·ÃÂÃÂ¼ */
 }
 
 .club-call-period-stepper__date-input:disabled {
@@ -718,7 +718,7 @@
   margin: 0;
 }
 
-/* --- ÐÐ¾Ð»Ð½Ð¾ÑÐºÑÐ°Ð½Ð½ÑÐ¹ ÑÐºÑÐ°Ð½ /admin|sales|club/call-log --- */
+/* --- ÃÂÃÂ¾ÃÂ»ÃÂ½ÃÂ¾ÃÂÃÂºÃÂÃÂ°ÃÂ½ÃÂ½ÃÂÃÂ¹ ÃÂÃÂºÃÂÃÂ°ÃÂ½ /admin|sales|club/call-log --- */
 
 .app-main:has(.club-call-log-page) {
   display: flex;
@@ -844,7 +844,7 @@
   background: color-mix(in srgb, var(--bg-subtle, #061210) 88%, #000);
 }
 
-/* ÐÐ´Ð½Ð° Ð³Ð¾ÑÐ¸Ð·Ð¾Ð½ÑÐ°Ð»ÑÐ½Ð°Ñ Â«ÑÐµÐ¹ÐºÐ°Â»: Ð²ÑÐµÐ¼Ñ Â· ÐºÐ»Ð¸ÐµÐ½Ñ Â· ÑÐ¾Ð»Ñ/ÑÐµÐ»ÐµÑÐ¾Ð½Ñ Â· Ð¸ÑÑÐ¾Ð´ */
+/* ÃÂÃÂ´ÃÂ½ÃÂ° ÃÂ³ÃÂ¾ÃÂÃÂ¸ÃÂ·ÃÂ¾ÃÂ½ÃÂÃÂ°ÃÂ»ÃÂÃÂ½ÃÂ°ÃÂ ÃÂ«ÃÂÃÂµÃÂ¹ÃÂºÃÂ°ÃÂ»: ÃÂ²ÃÂÃÂµÃÂ¼ÃÂ ÃÂ· ÃÂºÃÂ»ÃÂ¸ÃÂµÃÂ½ÃÂ ÃÂ· ÃÂÃÂ¾ÃÂ»ÃÂ/ÃÂÃÂµÃÂ»ÃÂµÃÂÃÂ¾ÃÂ½ÃÂ ÃÂ· ÃÂ¸ÃÂÃÂÃÂ¾ÃÂ´ */
 .club-call-journal__rail {
   display: grid;
   grid-template-columns:
@@ -1018,7 +1018,7 @@
   grid-template-columns: 1fr;
 }
 
-/* ÐÑÐ¸ ÑÐµÐ´Ð°ÐºÑÐ¸ÑÐ¾Ð²Ð°Ð½Ð¸Ð¸ Ð¿Ð¾Ð¼ÐµÑÐºÐ¸ â Ð½Ð° Ð²ÑÑ ÑÐ¸ÑÐ¸Ð½Ñ, ÑÑÐ¾Ð±Ñ Ð½Ðµ Ð¶Ð°ÑÑ textarea */
+/* ÃÂÃÂÃÂ¸ ÃÂÃÂµÃÂ´ÃÂ°ÃÂºÃÂÃÂ¸ÃÂÃÂ¾ÃÂ²ÃÂ°ÃÂ½ÃÂ¸ÃÂ¸ ÃÂ¿ÃÂ¾ÃÂ¼ÃÂµÃÂÃÂºÃÂ¸ Ã¢ÂÂ ÃÂ½ÃÂ° ÃÂ²ÃÂÃÂ ÃÂÃÂ¸ÃÂÃÂ¸ÃÂ½ÃÂ, ÃÂÃÂÃÂ¾ÃÂ±ÃÂ ÃÂ½ÃÂµ ÃÂ¶ÃÂ°ÃÂÃÂ textarea */
 .club-call-journal__tools:has(.club-call-note--edit) {
   grid-template-columns: 1fr;
 }
@@ -1631,7 +1631,7 @@
   font-size: 0.86rem;
 }
 
-/* ââ Glance Â«ÐºÐ¾Ð¼Ñ Ð·Ð²Ð¾Ð½Ð¸ÑÑÂ» Ð½Ð° Ð³Ð»Ð°Ð²Ð½Ð¾Ð¹ ââ */
+/* Ã¢ÂÂÃ¢ÂÂ Glance ÃÂ«ÃÂºÃÂ¾ÃÂ¼ÃÂ ÃÂ·ÃÂ²ÃÂ¾ÃÂ½ÃÂ¸ÃÂÃÂÃÂ» ÃÂ½ÃÂ° ÃÂ³ÃÂ»ÃÂ°ÃÂ²ÃÂ½ÃÂ¾ÃÂ¹ Ã¢ÂÂÃ¢ÂÂ */
 .sales-call-today-glance {
   display: flex;
   flex-direction: column;
@@ -1778,12 +1778,13 @@
 }
 
 
-/* Club call shift summary on /club|/admin home (match day-summary tokens) */
+/* Club call shift summary — same rhythm as admin-day-summary (4 equal tiles, one row) */
 .club-call-shift {
   margin: 0 0 1.25rem;
   padding: 0;
   border: 0;
   background: transparent;
+  max-width: none;
 }
 
 .club-call-shift--hot .club-call-shift__title {
@@ -1794,8 +1795,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0.35rem 0.85rem;
-  margin-bottom: 0.55rem;
+  justify-content: space-between;
+  gap: 0.35rem 1rem;
+  margin-bottom: 0.35rem;
 }
 
 .club-call-shift__title {
@@ -1806,19 +1808,32 @@
   color: var(--text);
 }
 
-.club-call-shift__hint {
-  margin: 0 0 0.45rem;
+.club-call-shift__meta {
+  margin: 0 0 0.55rem;
   font-size: 0.85rem;
   line-height: 1.4;
   color: var(--text-muted);
 }
 
-.club-call-shift__hint--err {
+.club-call-shift__meta--err {
   color: var(--danger, #ef4444);
 }
 
-.club-call-shift__hint--warn {
+.club-call-shift__meta--warn {
   color: var(--warning, #f59e0b);
+}
+
+.club-call-shift__link {
+  flex-shrink: 0;
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.club-call-shift__link:hover {
+  text-decoration: underline;
 }
 
 .club-call-shift__grid {
@@ -1826,20 +1841,20 @@
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-  gap: 0.55rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(10px, 2vw, 16px);
 }
 
 .club-call-shift__card {
   display: grid;
-  grid-template-columns: auto 1fr;
-  grid-template-rows: auto auto auto;
-  column-gap: 0.45rem;
-  row-gap: 0.12rem;
-  align-content: start;
-  min-height: 96px;
+  grid-template-rows: 1.75rem minmax(2.25rem, 1fr) auto auto;
+  gap: 4px;
+  align-content: stretch;
+  align-items: start;
+  min-height: 132px;
   height: 100%;
-  padding: clamp(12px, 2.5vw, 14px);
+  min-width: 0;
+  padding: clamp(12px, 2.5vw, 16px);
   border-radius: var(--radius);
   background: var(--bg-elevated);
   border: 1px solid var(--border);
@@ -1855,76 +1870,69 @@
   transform: translateY(-1px);
 }
 
+.club-call-shift__card:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: 2px;
+}
+
 .club-call-shift__card--hot {
-  border-color: color-mix(in srgb, var(--danger, #ef4444) 45%, var(--border));
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--danger, #ef4444) 12%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .club-call-shift__card--warn {
-  border-color: color-mix(in srgb, var(--warning, #f59e0b) 45%, var(--border));
+  border-color: color-mix(in srgb, #f59e0b 50%, var(--border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, #f59e0b 15%, transparent);
 }
 
 .club-call-shift__card-icon {
-  grid-column: 1;
-  grid-row: 1 / span 2;
-  align-self: start;
-  margin-top: 0.2rem;
+  display: inline-flex;
+  opacity: 0.85;
   color: var(--accent);
 }
 
 .club-call-shift__card--hot .club-call-shift__card-icon {
-  color: var(--danger, #ef4444);
+  color: var(--accent);
+}
+
+.club-call-shift__card--warn .club-call-shift__card-icon {
+  color: var(--warning, #f59e0b);
 }
 
 .club-call-shift__card-count {
-  grid-column: 2;
-  grid-row: 1;
-  font-size: 1.35rem;
-  font-weight: 800;
+  display: flex;
+  align-items: flex-end;
+  align-self: stretch;
+  min-height: 0;
+  font-size: clamp(1.35rem, 3.2vw, 1.65rem);
+  font-weight: 700;
   line-height: 1.1;
   letter-spacing: -0.02em;
   color: var(--text);
 }
 
 .club-call-shift__card-label {
-  grid-column: 2;
-  grid-row: 2;
-  font-size: 0.9rem;
-  font-weight: 650;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
   color: var(--text);
 }
 
 .club-call-shift__card-hint {
-  grid-column: 1 / -1;
-  grid-row: 3;
-  margin-top: 0.2rem;
-  font-size: 0.78rem;
-  line-height: 1.3;
+  font-size: 12px;
+  line-height: 1.25;
+  min-height: 2.4em;
   color: var(--text-muted);
 }
 
-.club-call-shift__foot {
-  margin: 0.65rem 0 0;
-  font-size: 0.85rem;
-}
-
-.club-call-shift__link {
-  color: var(--accent);
-  text-decoration: none;
-  font-weight: 600;
-}
-
-.club-call-shift__link:hover {
-  text-decoration: underline;
-}
-
 .club-call-shift__skel {
-  min-height: 96px;
+  min-height: 132px;
   border-radius: var(--radius);
   border: 1px solid var(--border);
 }
 
-@media (max-width: 520px) {
+/* Узкий планшет / телефон: 2×2, симметрия сохраняется */
+@media (max-width: 720px) {
   .club-call-shift__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
