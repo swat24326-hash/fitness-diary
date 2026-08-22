@@ -7,7 +7,7 @@ import {
   resolveClubCallCallbackOn,
 } from '../../lib/admin/clubCallFunnelChipsCore.js'
 import { CLUB_CALL_LOG_STAFF_NOTE_MAX } from '../../lib/admin/clubCallLogCore.js'
-import { formatDateRu, todayLocalIso } from '../../lib/dateRu.js'
+import { formatDateRu, todayInTimeZoneIso } from '../../lib/dateRu.js'
 
 /**
  * Поля пометки: чипы воронки + опц. дата + textarea (controlled).
@@ -43,7 +43,7 @@ export function ClubCallFunnelNoteFields({
   const autoId = useId()
   const fieldId = fieldIdProp || autoId
   const horizonHintId = useId()
-  const asOf = todayLocalIso()
+  const asOf = todayInTimeZoneIso()
   const chip = getClubCallFunnelChip(chipId)
   const needsDate = Boolean(chip?.needsCallbackOn)
   const openChips = CLUB_CALL_FUNNEL_CHIPS.filter((c) => c.kind === 'open')

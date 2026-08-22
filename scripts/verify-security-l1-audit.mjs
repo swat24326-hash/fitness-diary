@@ -275,6 +275,20 @@ check(
 }
 check(PULL_MERGE_GUARD_STORE_LIST.length >= 8, 'E8', 'ideal list ≥ 8 stores')
 
+{
+  const mutationAuthSrc = readFileSync(join(root, 'api/_lib/mutationAuth.js'), 'utf8')
+  check(
+    !mutationAuthSrc.includes('!rowClub && payload.client_id'),
+    'E9',
+    'supervisor: pnk/sale_clips без обхода club_id через client_id',
+  )
+  check(
+    mutationAuthSrc.includes("Нет доступа к клубу"),
+    'E10',
+    'supervisor: явный deny без своего club_id',
+  )
+}
+
 console.log('\n=== F. Debit order (complete) ===')
 check(membershipDebitShouldFollowTrainingSave() === true, 'F1', 'политика: debit после training save')
 {

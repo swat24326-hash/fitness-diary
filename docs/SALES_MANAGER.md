@@ -430,7 +430,7 @@
 | 1 | SQL + страница: зона A (отчёт + сосуд) | ✅ в проде |
 | 2 | Зона B: план, расход, KPI (admin) | ✅ в проде |
 | 3 | Роль `sales_manager` (зона A) | ✅ в проде |
-| 4 | Supervisor | 📋 CLUB_SUPERVISOR |
+| 4 | Supervisor | ✅ [CLUB_SUPERVISOR.md](./CLUB_SUPERVISOR.md) |
 | 5 | Домен платежей → меньше ежедневного Excel | 📋 [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) |
 
 ---

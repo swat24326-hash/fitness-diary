@@ -3,7 +3,7 @@
  * Без React / IDB.
  */
 
-import { addCalendarDaysIso, formatDateRu, todayLocalIso } from '../dateRu.js'
+import { addCalendarDaysIso, formatDateRu, todayInTimeZoneIso } from '../dateRu.js'
 
 /** @typedef {'open' | 'close'} ClubCallFunnelChipKind */
 
@@ -101,7 +101,7 @@ export function resolveClubCallCallbackOn(asOf, horizonId, customDate) {
   if (id === 'custom') return normalizeClubCallCallbackOn(customDate)
   const h = CLUB_CALL_CALLBACK_HORIZONS.find((x) => x.id === id)
   if (!h || h.days == null) return null
-  const base = normalizeClubCallCallbackOn(asOf) || todayLocalIso()
+  const base = normalizeClubCallCallbackOn(asOf) || todayInTimeZoneIso()
   return addCalendarDaysIso(base, h.days)
 }
 
@@ -203,10 +203,10 @@ export function matchClubCallFunnelChip(row) {
  * @param {string|null|undefined} callbackOn
  * @param {string} [asOf]
  */
-export function matchClubCallCallbackHorizon(callbackOn, asOf = todayLocalIso()) {
+export function matchClubCallCallbackHorizon(callbackOn, asOf = todayInTimeZoneIso()) {
   const d = normalizeClubCallCallbackOn(callbackOn)
   if (!d) return { horizonId: null, customDate: '' }
-  const base = normalizeClubCallCallbackOn(asOf) || todayLocalIso()
+  const base = normalizeClubCallCallbackOn(asOf) || todayInTimeZoneIso()
   for (const h of CLUB_CALL_CALLBACK_HORIZONS) {
     if (h.days == null) continue
     if (addCalendarDaysIso(base, h.days) === d) {

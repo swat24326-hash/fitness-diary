@@ -14,7 +14,7 @@ import {
 } from '../../lib/admin/clubCallFunnelChipsCore.js'
 import { notifyCallTodayHomeGlanceChanged } from '../../lib/admin/callTodayHomeGlanceSession.js'
 import { acquireClubCallOverlayScrollLock } from '../../lib/admin/clubCallOverlayScrollLock.js'
-import { todayLocalIso } from '../../lib/dateRu.js'
+import { todayInTimeZoneIso } from '../../lib/dateRu.js'
 import { ClubCallFunnelNoteFields } from './ClubCallFunnelNoteFields.jsx'
 import '../../styles/club-call.css'
 
@@ -126,7 +126,7 @@ export function AdminClientClubCallSheet({
 
   const onPickChip = (id) => {
     if (noteBusy || noteSaved) return
-    const asOf = todayLocalIso()
+    const asOf = todayInTimeZoneIso()
     setChipId(id)
     if (!id) {
       setCallbackOn(null)
@@ -158,7 +158,7 @@ export function AdminClientClubCallSheet({
 
   const onPickHorizon = (hid) => {
     if (noteBusy || noteSaved) return
-    const asOf = todayLocalIso()
+    const asOf = todayInTimeZoneIso()
     setHorizonId(hid)
     if (hid === 'custom') {
       setCallbackOn(customDate || null)
@@ -188,7 +188,7 @@ export function AdminClientClubCallSheet({
     setNoteBusy(true)
     setError('')
     try {
-      const asOf = todayLocalIso()
+      const asOf = todayInTimeZoneIso()
       const cb =
         chipId === 'callback_today'
           ? asOf

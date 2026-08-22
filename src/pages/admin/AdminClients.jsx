@@ -92,7 +92,7 @@ import {
   criticalWriteCloudWarning,
   flushCriticalWritesToCloud,
 } from '../../lib/syncService'
-import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
+import { formatDateRu, todayInTimeZoneIso } from '../../lib/dateRu'
 import {
   countedUsedTrainingsOnMembership,
   formatInactiveClientListLabel,
@@ -295,7 +295,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
           setClubSmsClubName('')
         }
       })
-    void listRecentClubSmsLogs(club, { todayIso: todayLocalIso() }).then((rows) => {
+    void listRecentClubSmsLogs(club, { todayIso: todayInTimeZoneIso() }).then((rows) => {
       if (!cancelled) setClubSmsLogs(rows)
     })
     return () => {
@@ -336,7 +336,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       /* оставим локальный кэш */
     }
     try {
-      const local = await listRecentClubSmsLogs(club, { todayIso: todayLocalIso() })
+      const local = await listRecentClubSmsLogs(club, { todayIso: todayInTimeZoneIso() })
       setClubSmsLogs(local)
     } catch {
       /* ignore */
@@ -650,7 +650,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     }
   }, [club, reload])
 
-  const today = todayLocalIso()
+  const today = todayInTimeZoneIso()
 
   const allMemberships = useMemo(() => {
     const out = []

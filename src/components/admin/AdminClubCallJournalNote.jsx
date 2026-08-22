@@ -11,7 +11,7 @@ import {
 } from '../../lib/admin/clubCallFunnelChipsCore.js'
 import { saveClubCallStaffNoteViaApi } from '../../lib/admin/clubCallService.js'
 import { notifyCallTodayHomeGlanceChanged } from '../../lib/admin/callTodayHomeGlanceSession.js'
-import { todayLocalIso } from '../../lib/dateRu.js'
+import { todayInTimeZoneIso } from '../../lib/dateRu.js'
 import { ClubCallFunnelNoteFields } from './ClubCallFunnelNoteFields.jsx'
 
 /**
@@ -55,7 +55,7 @@ export function AdminClubCallJournalNote({
     })
     setChipId(matched.chipId)
     setCallbackOn(matched.callbackOn)
-    const asOf = todayLocalIso()
+    const asOf = todayInTimeZoneIso()
     if (matched.chipId === 'callback_later') {
       const h = matchClubCallCallbackHorizon(matched.callbackOn, asOf)
       setHorizonId(h.horizonId || '1d')
@@ -77,7 +77,7 @@ export function AdminClubCallJournalNote({
   const displayHasNote = Boolean(String(shownNote ?? '').trim())
 
   const onPickChip = (id) => {
-    const asOf = todayLocalIso()
+    const asOf = todayInTimeZoneIso()
     setChipId(id)
     if (!id) {
       setCallbackOn(null)
@@ -108,7 +108,7 @@ export function AdminClubCallJournalNote({
   }
 
   const onPickHorizon = (hid) => {
-    const asOf = todayLocalIso()
+    const asOf = todayInTimeZoneIso()
     setHorizonId(hid)
     if (hid === 'custom') {
       setCallbackOn(customDate || null)
@@ -142,7 +142,7 @@ export function AdminClubCallJournalNote({
     setBusy(true)
     setErr('')
     try {
-      const asOf = todayLocalIso()
+      const asOf = todayInTimeZoneIso()
       const cb =
         chipId === 'callback_today'
           ? asOf
