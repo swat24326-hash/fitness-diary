@@ -135,7 +135,7 @@ export function resolveAdminClientHallTabWithLifecycle(client, memberships, pref
     asOf,
   })
 
-  if (want && (visible.has(want) || want === 'pz' || want === 'tz' || want === 'az')) {
+  if (want && visible.has(want)) {
     return want
   }
 

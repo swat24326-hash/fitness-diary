@@ -34,7 +34,19 @@
 
 **Отложено (когда понадобится):** списки «Живые \| Закрытые» / «закрытый ПЗ при живом ТЗ». Данные `client_hall_lifecycle` и close/reopen уже работают; отдельный список закрытых направлений в UI пока не показываем. Воронка на «Клиенты» — как раньше (по абонементу, без отсечения по `closed_at`).
 
-**Списки вкладок ПЗ/ТЗ/АЗ (с lifecycle):** если ПЗ закрыт (`closed_at`), а АЗ или ТЗ жив — клиент **не** на вкладке ПЗ (даже с `trainer_id` и старым абоном). Карточка открывается на живом зале; поиск — только видимые залы. Исчерпанный ПЗ без formal close — в меню «Закрыть ПЗ».
+**Списки вкладок ПЗ/ТЗ/АЗ (с lifecycle):** если ПЗ закрыт (`closed_at`), а АЗ или ТЗ жив — клиент **не** на вкладке ПЗ (даже с `trainer_id` и старым абоном). Карточка открывается на живом зале; поиск — только видимые залы. Исчерпанный ПЗ без formal close — в меню «Закрыть ПЗ». Verify списков: `verify-admin-clients-list-lifecycle.mjs` (L-A…L-F ниже).
+
+## Матрица списков (L) — verify-admin-clients-list-lifecycle.mjs
+
+| Блок | Что ловим |
+|------|-----------|
+| **L-A** | Критические переходы: ПЗ→АЗ/ТЗ, закрытый зал без другого живого (остаётся на вкладке для reopen), multi-hall, счётчики |
+| **L-B** | Без lifecycle ctx — legacy; архив клуба; вкладка Архив — без close/reopen |
+| **L-C** | Меню: live/depleted close, closed — без close, reopen при живом абоне, hall по вкладке |
+| **L-D** | Поиск (stack), карточка: default на живом зале; `preferred=pz` при скрытом ПЗ → fallback |
+| **L-F** | ПНК на ПЗ после close ТЗ (reopen на ТЗ); upcoming АЗ; чужой lifecycle; depleted AZ без open; mixed filter |
+
+Связь с **A–G** (`verify-client-hall-lifecycle.mjs`): A–G — close/reopen/sync; L — отображение в списках и карточке после тех же данных.
 
 ## Код
 
@@ -42,10 +54,12 @@
 |------|------|
 | `src/lib/clientHallLifecycleCore.js` | open/closed, reconcile archive, close/reopen patches, end memberships |
 | `src/lib/clientHallLifecycleSyncService.js` | офлайн-first close/reopen + ensure после абона |
+| `src/lib/admin/adminClientsListLifecycleCore.js` | видимые залы, hide с вкладки, depleted close, стартовая вкладка карточки |
 | `src/lib/admin/adminClientsHallLifecycleMenuCore.js` | подписи и когда показывать «Закрыть/Снова» на вкладке |
 | `src/components/admin/AdminClientHallLifecycleActions.jsx` | кнопки на CRM-карточке |
 | `src/lib/admin/clientHallLifecycleAdminCache.js` | merge lifecycle после admin `list-memberships` |
-| `scripts/verify-client-hall-lifecycle.mjs` | verify |
+| `scripts/verify-client-hall-lifecycle.mjs` | verify close/reopen/sync (A–G) |
+| `scripts/verify-admin-clients-list-lifecycle.mjs` | verify списков (L-A…L-F) |
 | Миграция | `supabase/migrations/20260821120000_client_hall_lifecycle.sql` |
 
 ```bash
