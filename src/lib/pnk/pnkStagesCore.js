@@ -338,6 +338,7 @@ export function applyPnkStagePatch(input = {}) {
     client.lifecycle = 'pnk'
   }
 
+  client.updated_at = new Date().toISOString()
   return { ok: true, client }
 }
 

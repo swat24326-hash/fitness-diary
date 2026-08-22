@@ -1045,6 +1045,8 @@ export function ClientCard() {
         healthCard={healthCard}
         bzCompletedCount={bzCompletedCount}
         onUpdated={(next) => {
+          // Сброс hydrate: иначе старый GET из облака может откатить шаг воронки.
+          hydrateGenRef.current += 1
           setClient(next)
           pnkStepKeyRef.current = null
           syncPnkTab(next, pnkUiCtx)

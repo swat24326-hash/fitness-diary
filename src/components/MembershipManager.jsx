@@ -85,14 +85,24 @@ export function MembershipManager({
   const saleSegmentHint = useMemo(() => {
     if (!newOpen) return ''
     const saleDate = String(form.start_date || todayIso).slice(0, 10)
+    // Оформление ДК в ПНК: БЗ (пробный) не считаем «уже ДК».
+    let memList = items
+    if (preferPaidType) {
+      const trialTypeIds = new Set(
+        (membershipTypes ?? []).filter((t) => isPnkTrialTypeRow(t)).map((t) => String(t.id)),
+      )
+      memList = (items ?? []).filter((m) => !trialTypeIds.has(String(m?.membership_type_id ?? '')))
+    }
     const result = classifySaleClientSegment({
       saleDate,
       clientId,
-      memList: items,
+      memList,
       trainings,
+      ignoreMembershipsStartingOnSaleDate: preferPaidType === true,
+      firstPaidSale: preferPaidType === true,
     })
     return saleClientSegmentHintRu(result)
-  }, [newOpen, form.start_date, todayIso, clientId, items, trainings])
+  }, [newOpen, form.start_date, todayIso, clientId, items, trainings, preferPaidType, membershipTypes])
 
   const reloadTypes = useCallback(
     async (opts = {}) => {

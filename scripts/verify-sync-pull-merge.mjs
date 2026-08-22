@@ -73,6 +73,56 @@ ok(
 )
 ok(rowRevisionMs(cloudNewer) > rowRevisionMs(localCompleted), 'B3 revision ms ordering')
 
+console.log('\n--- Сценарий B2: клиент ПНК — stale hydrate после «Клиент пришёл» ---')
+const localVisitStarted = {
+  id: 'c-pnk',
+  synced: true,
+  pnk_stage: 'health',
+  updated_at: '2026-08-22T12:01:00.000Z',
+  pnk_deliverables: { visit_started: true },
+}
+const cloudStaleWait = {
+  id: 'c-pnk',
+  synced: true,
+  pnk_stage: 'contact',
+  updated_at: '2026-08-22T12:00:00.000Z',
+  pnk_deliverables: {},
+}
+ok(
+  !shouldApplyCloudRowOnPull({
+    localRow: localVisitStarted,
+    cloudRow: cloudStaleWait,
+    storeName: 'clients',
+    pendingByStore: { clients: new Set() },
+    recordKey: 'c-pnk',
+  }),
+  'B4 clients: older cloud does not roll back visit_started',
+)
+ok(
+  !shouldApplyCloudRowOnPull({
+    localRow: localVisitStarted,
+    cloudRow: { id: 'c-pnk', pnk_stage: 'contact', created_at: '2026-08-01T10:00:00.000Z' },
+    storeName: 'clients',
+    pendingByStore: { clients: new Set() },
+    recordKey: 'c-pnk',
+  }),
+  'B5 clients: cloud without newer updated_at skipped',
+)
+ok(
+  shouldApplyCloudRowOnPull({
+    localRow: localVisitStarted,
+    cloudRow: {
+      ...localVisitStarted,
+      updated_at: '2026-08-22T12:02:00.000Z',
+      pnk_stage: 'nutrition',
+    },
+    storeName: 'clients',
+    pendingByStore: { clients: new Set() },
+    recordKey: 'c-pnk',
+  }),
+  'B6 clients: newer cloud applies',
+)
+
 console.log('\n--- Сценарий C: hydrate prune дневника клиента ---')
 const localTrainings = [
   { id: 'on-server', client_id: 'c1', status: 'completed' },

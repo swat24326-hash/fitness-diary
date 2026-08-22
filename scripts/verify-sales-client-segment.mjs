@@ -100,5 +100,36 @@ const sameDayCard = classifySaleClientSegment({
 })
 ok(sameDayCard.segment === 'nk', 'card created on sale day is NK for that sale')
 
+// ПНК close: только бесплатный БЗ — как после фильтра trial types в MembershipManager
+const bzOnlyAsDk = classifySaleClientSegment({
+  saleDate: '2026-08-22',
+  clientId: 'c-pnk',
+  memList: [
+    {
+      start_date: '2026-08-20',
+      end_date: '2026-09-20',
+      total_trainings: 1,
+      used_trainings: 0,
+      membership_type_id: 'bz-trial',
+    },
+  ],
+  trainings: [{ status: 'completed', date: '2026-08-21', client_id: 'c-pnk' }],
+})
+ok(bzOnlyAsDk.segment === 'dk', 'raw BZ membership would look like DK')
+
+const pnkPaidSaleHint = classifySaleClientSegment({
+  saleDate: '2026-08-22',
+  clientId: 'c-pnk',
+  ignoreMembershipsStartingOnSaleDate: true,
+  firstPaidSale: true,
+  // MembershipManager: exclude isPnkTrialTypeRow before classify
+  memList: [],
+  trainings: [{ status: 'completed', date: '2026-08-21', client_id: 'c-pnk' }],
+})
+ok(
+  pnkPaidSaleHint.segment === 'nk' && pnkPaidSaleHint.reason === 'first_paid_sale',
+  'PNK paid form: only BZ → NK not soft DK',
+)
+
 if (failed) process.exit(1)
 console.log('verify-sales-client-segment: all passed')

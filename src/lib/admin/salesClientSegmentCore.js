@@ -85,7 +85,9 @@ export function membershipsStartedBeforeSale(memList, saleDate) {
  *   clientId?: string,
  *   returningGapDays?: number,
  *   ignoreMembershipsStartingOnSaleDate?: boolean,
+ *   firstPaidSale?: boolean,
  * }} input
+ * firstPaidSale — первый платный после БЗ: без платного абона → НК (пробные тренировки не делают «мягкий ДК»).
  * @returns {{
  *   segment: SaleClientSegment,
  *   reason: string,
@@ -105,6 +107,7 @@ export function classifySaleClientSegment(input = {}) {
     : input.memList ?? []
   const trainings = input.trainings ?? []
   const completedTrainingsBefore = countCompletedTrainingsBefore(trainings, saleDate, input.clientId)
+  const firstPaidSale = input.firstPaidSale === true
 
   const usable = pickUsableMembershipForDate(memList, saleDate)
   const hasUsableMembership = Boolean(usable)
@@ -179,6 +182,19 @@ export function classifySaleClientSegment(input = {}) {
     }
   }
 
+  // ПНК → платный: только БЗ/пробные в истории, платного абона нет → всё ещё НК
+  if (firstPaidSale && !hasUsableMembership) {
+    return {
+      segment: 'nk',
+      reason: 'first_paid_sale',
+      label: SALE_CLIENT_SEGMENT_LABELS.nk,
+      completedTrainingsBefore,
+      daysSinceEnd,
+      hasUsableMembership,
+      profitBucket: 'nk',
+    }
+  }
+
   // Нет дат абонемента, но тренировки были — мягкий ДК
   return {
     segment: 'dk',
@@ -210,6 +226,9 @@ export function saleClientSegmentHintRu(result) {
       : 'УК1 — недавно закончился абонемент'
   }
   if (result.segment === 'nk') {
+    if (result.reason === 'first_paid_sale') {
+      return 'НК — первый платный (после БЗ / без ДК)'
+    }
     return 'НК — до продажи не было тренировок'
   }
   if (result.reason === 'usable_membership') {

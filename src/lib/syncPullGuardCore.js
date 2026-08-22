@@ -91,5 +91,14 @@ export function shouldApplyCloudRowOnPull(ctx = {}) {
     }
   }
 
+  // Клиенты и прочие guarded stores: не накатывать устаревший hydrate
+  // (гонка: локальный патч уже ушёл в облако, а ответ старого GET ещё в полёте).
+  if (isPullMergeGuardedStore(storeName)) {
+    const localMs = rowRevisionMs(localRow)
+    const cloudMs = rowRevisionMs(cloudRow)
+    // Локальная ревизия новее (или у облака нет даты) — оставляем локальную.
+    if (localMs > 0 && cloudMs < localMs) return false
+  }
+
   return true
 }
