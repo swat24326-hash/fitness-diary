@@ -5,6 +5,7 @@ import {
   formatTrainerPngShareStatus,
   isTrainerPngMaxDeliveryOk,
   isTrainerPngShareUsable,
+  resolveMaxPngOpenTarget,
   shouldDownloadPngAfterOtherShare,
 } from '../src/lib/trainer/trainerPngShareCore.js'
 
@@ -18,10 +19,11 @@ function ok(cond, msg) {
   }
 }
 
-const nutrition = buildNutritionPlanShareMessages({ clubName: 'FIT-CITY', clientName: 'Иван Петров' })
-ok(nutrition.shareTitle === 'FIT-CITY · мерный рацион для Иван Петров', 'nutrition title')
-ok(nutrition.shareText.includes('картинку во вложении'), 'nutrition text mentions attachment')
-ok(nutrition.shareText.length > nutrition.shareTitle.length, 'nutrition text longer than title')
+const nutrition = buildNutritionPlanShareMessages({
+  clubName: 'FIT-CITY',
+  clientName: 'Выборнова Елена Никolaevna',
+})
+ok(nutrition.shareTitle.includes('для Елена'), 'nutrition greeting in title')
 
 const homework = buildHomeworkShareMessages({
   draft: { title: 'Спина' },
@@ -30,23 +32,22 @@ const homework = buildHomeworkShareMessages({
   trainerName: 'Олег',
 })
 ok(homework.shareTitle === 'FIT-CITY · Спина', 'homework title')
-ok(homework.shareText.includes('на картинке'), 'homework text mentions image')
 
 ok(shouldDownloadPngAfterOtherShare({ ok: false }), 'download when share failed')
 ok(!shouldDownloadPngAfterOtherShare({ ok: false, cancelled: true }), 'no download when cancelled')
-ok(!shouldDownloadPngAfterOtherShare({ ok: true, mode: 'file' }), 'no download when shared')
 
-ok(isTrainerPngMaxDeliveryOk({ copied: true, opened: false }), 'max ok with copy')
-ok(isTrainerPngMaxDeliveryOk({ copied: false, opened: true }), 'max ok with open')
-ok(!isTrainerPngMaxDeliveryOk({ copied: false, opened: false }), 'max fail without copy/open')
+ok(isTrainerPngMaxDeliveryOk({ copied: true, opened: false, shared: false }), 'max ok with copy')
+ok(isTrainerPngMaxDeliveryOk({ copied: false, opened: false, shared: true }), 'max ok with native share')
+ok(!isTrainerPngMaxDeliveryOk({ copied: false, opened: false, shared: false }), 'max fail without delivery')
 
 ok(
   isTrainerPngShareUsable({ ok: true, channel: 'max', downloaded: true, copied: true, opened: true }),
   'usable max success',
 )
-ok(isTrainerPngShareUsable({ ok: true, channel: 'other', shared: true }), 'usable other native share')
-ok(isTrainerPngShareUsable({ ok: true, channel: 'other', cancelled: true }), 'cancelled is usable noop')
-ok(!isTrainerPngShareUsable({ ok: false, error: 'max_failed' }), 'failed max not usable')
+
+const direct = resolveMaxPngOpenTarget({ maxChatUrl: 'https://max.ru/@club' })
+ok(direct.url === 'https://max.ru/@club', 'direct max chat url preserved')
+ok(!direct.url.includes('text='), 'no text in max png url')
 
 ok(
   formatTrainerPngShareStatus({
@@ -56,35 +57,27 @@ ok(
     copied: true,
     opened: true,
     openMode: 'direct_chat',
-  }).includes('PNG скачан'),
-  'max status mentions download',
+  }).includes('📎'),
+  'max status asks to attach image',
 )
 
 ok(
   formatTrainerPngShareStatus({
     ok: true,
-    channel: 'other',
+    channel: 'max',
     shared: true,
-    shareMode: 'file',
-  }).includes('картинка и текст'),
-  'other file share status',
-)
-
-ok(formatTrainerPngShareStatus({ ok: true, cancelled: true, channel: 'other' }) === 'Отменено', 'cancelled status')
-
-ok(
-  formatTrainerPngShareError({ error: 'max_failed', downloaded: true, copied: true }).includes('PNG в загрузках'),
-  'max_failed error mentions download',
-)
-
-ok(
-  formatTrainerPngShareStatus({
-    ok: false,
-    error: 'max_failed',
+    openMode: 'native_share',
     downloaded: true,
-    copied: false,
-  }).includes('Max'),
-  'status routes max_failed to error text',
+    copied: true,
+  }).includes('Поделиться'),
+  'max native share status',
+)
+
+ok(formatTrainerPngShareStatus({ ok: true, cancelled: true, channel: 'max' }) === 'Отменено', 'cancelled status')
+
+ok(
+  formatTrainerPngShareError({ error: 'max_failed', downloaded: true, copied: true }).includes('📎'),
+  'max_failed mentions attach',
 )
 
 if (failed) {

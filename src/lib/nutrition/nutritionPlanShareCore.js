@@ -7,6 +7,7 @@ import {
   formatTrainerPngShareStatus,
   sendTrainerPngShare,
 } from '../trainer/trainerPngShareCore.js'
+import { resolveClientGreetingName } from '../trainer/trainerClientOutreachCore.js'
 import { renderNutritionPlanPng } from './nutritionPlanExportCanvas.js'
 
 /** @typedef {'max' | 'other'} NutritionShareChannel */
@@ -20,13 +21,13 @@ import { renderNutritionPlanPng } from './nutritionPlanExportCanvas.js'
  * @returns {{ shareTitle: string, shareText: string }}
  */
 export function buildNutritionPlanShareMessages(ctx = {}) {
-  const clientName = String(ctx.clientName ?? ctx.client?.name ?? '').trim()
+  const greeting = resolveClientGreetingName(ctx.client ?? ctx.clientName, ctx.outreachName)
   const clubName = String(ctx.clubName ?? '').trim()
   const head = clubName ? `${clubName} · мерный рацион` : 'Мерный рацион'
-  const who = clientName ? ` для ${clientName}` : ''
+  const who = greeting ? ` для ${greeting}` : ''
   const shareTitle = `${head}${who}`
-  const shareText = `${shareTitle}.\n\nОриентировочный рацион на день — см. картинку во вложении.`
-  return { shareTitle, shareText }
+  const shareText = `${shareTitle}.\n\nОриентировочный рацион на день — на картинке.`
+  return { shareTitle, shareText, clientLabel: greeting || String(ctx.clientName ?? ctx.client?.name ?? '').trim() }
 }
 
 /** @deprecated используйте buildNutritionPlanShareMessages */
@@ -51,12 +52,17 @@ export async function sendNutritionPlanPng(plan, ctx = {}, opts = {}) {
   const channel = opts.channel === 'other' ? 'other' : 'max'
   const clientName = String(ctx.clientName ?? ctx.client?.name ?? '').trim()
   const clubName = String(ctx.clubName ?? '').trim()
-  const { shareTitle, shareText } = buildNutritionPlanShareMessages({ clientName, clubName })
+  const { shareTitle, shareText, clientLabel } = buildNutritionPlanShareMessages({
+    client: ctx.client,
+    clientName,
+    clubName,
+    outreachName: ctx.client?.outreach_name,
+  })
 
   let blob
   try {
     blob = await renderNutritionPlanPng(plan, {
-      clientName,
+      clientName: clientLabel || clientName,
       goalKindLabel: ctx.goalKindLabel,
       weightKg: ctx.weightKg,
     })
