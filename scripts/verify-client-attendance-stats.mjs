@@ -24,6 +24,8 @@ import {
 import {
   clientStatsModeNeedsTrainingsEnsure,
   normalizeClientStatsMode,
+  resolveClientStatsMode,
+  DEFAULT_CLIENT_STATS_MODE,
   resolveClientStatsAllTimeRange,
   shouldForceClientTrainingsEnsureOnReload,
   shouldReloadClientStatsTrainingsLocalOnly,
@@ -157,6 +159,8 @@ ok(
 )
 
 ok(normalizeClientStatsMode('attendance') === 'attendance', 'stats mode normalize')
+ok(resolveClientStatsMode('c1', null) === 'attendance', 'default stats mode is attendance')
+ok(DEFAULT_CLIENT_STATS_MODE === 'attendance', 'default constant')
 ok(clientStatsModeNeedsTrainingsEnsure('measurements') === false, 'measurements skip ensure')
 ok(clientStatsModeNeedsTrainingsEnsure('weight') === true, 'weight needs ensure')
 ok(

@@ -4,6 +4,22 @@ import { isTrainingStatusCompleted } from './trainingPersistStatusCore.js'
 
 export const CLIENT_STATS_MODES = ['measurements', 'weight', 'exercise', 'attendance']
 
+/** Режим при первом заходе на «Статистику» (без URL и sessionStorage). */
+export const DEFAULT_CLIENT_STATS_MODE = 'attendance'
+
+/**
+ * @param {string} clientId
+ * @param {unknown} [initialMode]
+ * @returns {'measurements' | 'weight' | 'exercise' | 'attendance'}
+ */
+export function resolveClientStatsMode(clientId, initialMode = null) {
+  const fromUrl = normalizeClientStatsMode(initialMode)
+  if (fromUrl) return fromUrl
+  const persisted = readPersistedClientStatsMode(clientId)
+  if (persisted) return persisted
+  return DEFAULT_CLIENT_STATS_MODE
+}
+
 /**
  * @param {unknown} raw
  * @returns {'measurements' | 'weight' | 'exercise' | 'attendance' | null}

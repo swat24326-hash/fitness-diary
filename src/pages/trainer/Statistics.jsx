@@ -15,9 +15,10 @@ import { listTrainingsByClientId } from '../../lib/localDbClubQuery'
 import { ensureClientTrainingsCachedWithStatus } from '../../lib/clientTrainingsEnsure'
 import {
   clientStatsModeNeedsTrainingsEnsure,
+  DEFAULT_CLIENT_STATS_MODE,
   normalizeClientStatsMode,
   persistClientStatsMode,
-  readPersistedClientStatsMode,
+  resolveClientStatsMode,
   resolveClientStatsAllTimeRange,
   shouldForceClientTrainingsEnsureOnReload,
   shouldReloadClientStatsTrainingsLocalOnly,
@@ -82,13 +83,7 @@ function exerciseMatchesSelection(ex, catalogId, nameSearch) {
 }
 
 export function Statistics({ clientId, initialMode = null }) {
-  const [mode, setModeState] = useState(() => {
-    const fromUrl = normalizeClientStatsMode(initialMode)
-    if (fromUrl) return fromUrl
-    const persisted = readPersistedClientStatsMode(clientId)
-    if (persisted) return persisted
-    return 'measurements'
-  })
+  const [mode, setModeState] = useState(() => resolveClientStatsMode(clientId, initialMode))
   const appliedAllTimeKeyRef = useRef(null)
   const userEditedRangeRef = useRef(false)
 
@@ -98,7 +93,7 @@ export function Statistics({ clientId, initialMode = null }) {
 
   const setMode = useCallback(
     (next) => {
-      const m = normalizeClientStatsMode(next) ?? 'measurements'
+      const m = normalizeClientStatsMode(next) ?? DEFAULT_CLIENT_STATS_MODE
       setModeState(m)
       persistClientStatsMode(clientId, m)
     },
@@ -180,7 +175,7 @@ export function Statistics({ clientId, initialMode = null }) {
 
   useEffect(() => {
     const fromUrl = normalizeClientStatsMode(initialMode)
-    const next = fromUrl ?? readPersistedClientStatsMode(clientId) ?? 'measurements'
+    const next = resolveClientStatsMode(clientId, initialMode)
     setModeState(next)
     if (fromUrl) persistClientStatsMode(clientId, fromUrl)
     appliedAllTimeKeyRef.current = null
@@ -428,10 +423,10 @@ export function Statistics({ clientId, initialMode = null }) {
           <div className="field" style={{ marginBottom: 0 }}>
             <label className="sr-only">Режим</label>
             <select className="select" aria-label="Режим" value={mode} onChange={(e) => setMode(e.target.value)}>
+              <option value="attendance">Посещаемость</option>
               <option value="measurements">Обмеры тела</option>
               <option value="weight">Вес</option>
               <option value="exercise">Упражнение</option>
-              <option value="attendance">Посещаемость</option>
             </select>
           </div>
           {mode === 'measurements' && (
