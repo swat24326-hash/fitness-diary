@@ -7,7 +7,7 @@ import { listMemberships, listTrainingsForClient } from '../dataAccess.js'
 import { getDb } from '../localDb.js'
 import { todayLocalIso } from '../dateRu.js'
 import { saveLocalWithSync } from '../syncService.js'
-import { notifyAdminClientsBrowseStorageChanged } from './admin/adminClientsListReloadCore.js'
+import { notifyAdminClientsBrowseStorageChanged } from '../admin/adminClientsListReloadCore.js'
 import {
   inspectLateMembershipStart,
   pickEarliestUpcomingMembership,

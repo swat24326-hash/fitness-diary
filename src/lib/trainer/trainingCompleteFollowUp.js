@@ -3,8 +3,8 @@
  * Не блокирует UI — вызывать через void runTrainingCompleteFollowUp(clientId).
  */
 
-import { notifyAdminClientsBrowseStorageChanged } from './admin/adminClientsListReloadCore.js'
-import { getDb } from './localDb.js'
+import { notifyAdminClientsBrowseStorageChanged } from '../admin/adminClientsListReloadCore.js'
+import { getDb } from '../localDb.js'
 import { reconcileMembershipUsedForClient } from '../membership/membershipUsedReconcile.js'
 import { scheduleBackgroundSyncDrain } from '../syncService.js'
 
