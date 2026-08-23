@@ -13,7 +13,7 @@ import {
 import {
   countedUsedTrainingsOnMembership,
   isCalendarUnlimitedMembership,
-  pickUsableMembershipForDate,
+  pickUsableTypedMembershipForDate,
   resolveMembershipForDiaryTraining,
 } from './membershipRules.js'
 import { isPnkTrialTypeRow } from './pnk/pnkTrialTrainingCore.js'
@@ -327,7 +327,7 @@ export function isClientAttendanceSlip(params = {}) {
 
   const today = String(params.today ?? '').slice(0, 10)
   const memList = params.memList ?? []
-  if (!pickUsableMembershipForDate(memList, today)) return false
+  if (!pickUsableTypedMembershipForDate(memList, today)) return false
 
   const trainingsProvided = Array.isArray(params.trainings)
   const lastIsoProvided = Object.prototype.hasOwnProperty.call(params, 'lastTrainingIso')
@@ -379,7 +379,7 @@ export function buildClientAttendanceGlance(params = {}) {
   const trainings = params.trainings ?? []
   const memList = params.memList ?? []
   const client = params.client ?? null
-  const active = pickUsableMembershipForDate(memList, today)
+  const active = pickUsableTypedMembershipForDate(memList, today)
   if (!active) return null
 
   const dateFrom = addDaysToIso(today, -(ATTENDANCE_GLANCE_WINDOW_DAYS - 1))

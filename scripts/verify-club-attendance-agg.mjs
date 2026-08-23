@@ -13,7 +13,7 @@ import {
 } from '../src/lib/admin/clubAttendanceAggCore.js'
 import { isClientAttendanceSlip } from '../src/lib/clientAttendanceGlanceCore.js'
 import { daysInIsoRangeInclusive } from '../src/lib/clientAttendanceStatsCore.js'
-import { pickUsableMembershipForDate } from '../src/lib/membershipRules.js'
+import { pickUsableTypedMembershipForDate } from '../src/lib/membershipRules.js'
 
 let failed = 0
 
@@ -33,6 +33,7 @@ const memActive = {
   end_date: '2026-09-30',
   total_trainings: 24,
   used_trainings: 2,
+  membership_type_id: 'type-pz',
 }
 
 const clients = [
@@ -40,6 +41,7 @@ const clients = [
   { id: 'c2', name: 'Петров', trainer_id: 't1', lifecycle: null },
   { id: 'c3', name: 'ПНК', trainer_id: 't1', lifecycle: 'pnk' },
   { id: 'c4', name: 'Без абона', trainer_id: 't1', lifecycle: null },
+  { id: 'c5', name: 'Личный профиль', trainer_id: 't2', lifecycle: null },
 ]
 
 const memberships = [
@@ -51,6 +53,16 @@ const memberships = [
     end_date: '2026-09-30',
     total_trainings: 24,
     used_trainings: 1,
+    membership_type_id: 'type-pz',
+  },
+  // usable по датам, но без типа карты — персональные записи, не в пул посещаемости
+  {
+    id: 'm5',
+    client_id: 'c5',
+    start_date: '2026-07-01',
+    end_date: '2026-09-30',
+    total_trainings: 99,
+    used_trainings: 5,
   },
 ]
 
@@ -59,6 +71,7 @@ const trainings = [
   { id: 'tr2', client_id: 'c1', status: 'completed', date: '2026-08-22' },
   // c2 last visit long ago → slip (outside 30d window → 0 visits/week in window)
   { id: 'tr3', client_id: 'c2', status: 'completed', date: '2026-07-01' },
+  { id: 'tr5', client_id: 'c5', status: 'completed', date: '2026-08-21' },
 ]
 
 ok(Math.abs(clubAttendanceExactWeekDivisor(30) - 30 / 7) < 1e-12, 'exact week divisor 30/7')
@@ -75,9 +88,13 @@ const agg = aggregateClubAttendance({
   clampAsOf: false,
 })
 
-ok(agg.poolSize === 2, 'pool = usable abon, not pnk, not without mem')
+ok(agg.poolSize === 2, 'pool = usable typed abon, not pnk, not without mem, not no-type')
 ok(agg.slippedCount === 1, 'one slipped')
 ok(agg.inRhythmCount === 1, 'one in rhythm')
+ok(
+  !agg.byTrainer?.some((r) => r.trainerId === 't2'),
+  'trainer with only no-type personal client not in byTrainer',
+)
 ok(agg.inRhythmPct === 50, 'pct = 50')
 ok(formatClubAttendancePct(agg.inRhythmPct) === '50%', 'format pct')
 ok(agg.slippedPreview.some((r) => r.clientId === 'c2'), 'preview has slipped client')
@@ -197,11 +214,21 @@ let slipN = 0
 for (const c of clients) {
   if (String(c.lifecycle) === 'pnk') continue
   const memList = memberships.filter((m) => m.client_id === c.id)
-  if (!pickUsableMembershipForDate(memList, today)) continue
+  if (!pickUsableTypedMembershipForDate(memList, today)) continue
   const tr = trainings.filter((t) => t.client_id === c.id)
   if (isClientAttendanceSlip({ client: c, memList, today, trainings: tr, hallMode: 'pz' })) slipN++
 }
 ok(slipN === agg.slippedCount, 'parity slipped count with filter rule')
+ok(
+  isClientAttendanceSlip({
+    client: { id: 'c5', lifecycle: null },
+    memList: memberships.filter((m) => m.client_id === 'c5'),
+    today,
+    trainings: trainings.filter((t) => t.client_id === 'c5'),
+    hallMode: 'pz',
+  }) === false,
+  'no-type membership never slip',
+)
 
 const scoped = aggregateClubAttendance({
   clients,

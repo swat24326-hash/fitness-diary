@@ -235,6 +235,18 @@ ok(
   'all-zero weeks → no volume trend',
 )
 
+ok(
+  isClientAttendanceSlip({
+    client: { id: 'c1' },
+    memList: [{ ...mem, membership_type_id: '' }],
+    today: '2026-08-23',
+    trainings: [],
+    lastTrainingIso: '2026-01-01',
+    hallMode: 'pz',
+  }) === false,
+  'no membership_type_id → not in slip / attendance pool',
+)
+
 ok(ATTENDANCE_SLIP_DAYS_THRESHOLD === 14, 'slip threshold')
 ok(ATTENDANCE_TARGET_VISITS_PER_WEEK === 2, 'default target')
 ok(pickUsableMembershipForDate([mem], '2026-08-15')?.id === 'm1', 'usable mem fixture')

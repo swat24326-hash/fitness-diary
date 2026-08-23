@@ -20,7 +20,7 @@ import {
   resolveAttendanceTrendFromBuckets,
   tornRhythmLabelRu,
 } from './clientAttendanceGlanceCore.js'
-import { pickUsableMembershipForDate } from './membershipRules.js'
+import { pickUsableTypedMembershipForDate } from './membershipRules.js'
 
 /** @typedef {import('./clientAttendanceStatsCore.js').AttendanceRegularity} AttendanceRegularity */
 /** @typedef {'good' | 'warn' | 'bad'} AttendanceFactorTone */
@@ -137,7 +137,7 @@ export function buildClientAttendanceAssessment(stats, opts = {}) {
   const maxGap = summary.maxGapDays
   const tailInPeriod = summary.daysSinceLastVisit
 
-  const activeMembership = pickUsableMembershipForDate(memberships, todayIso)
+  const activeMembership = pickUsableTypedMembershipForDate(memberships, todayIso)
   const target = resolveAttendanceTargetVisitsPerWeek(activeMembership)
   const periodLabelRu = formatAttendancePeriodLabelRu(dateFrom, dateTo)
   const disclaimerRu = buildDisclaimerRu(dataReliable, opts.coverageHint)
@@ -151,7 +151,7 @@ export function buildClientAttendanceAssessment(stats, opts = {}) {
     } else {
       todayLineRu = `Сейчас (на ${formatDateRu(todayIso)}): ${daysRu(daysSinceToday)} с последнего визита — период выше заканчивается ${formatDateRu(dateTo)}.`
     }
-  } else if (pickUsableMembershipForDate(memberships, todayIso)) {
+  } else if (pickUsableTypedMembershipForDate(memberships, todayIso)) {
     todayLineRu = 'Сейчас: завершённых тренировок в дневнике нет.'
   }
 

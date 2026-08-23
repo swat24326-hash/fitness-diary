@@ -9,7 +9,7 @@
 
 ## 2026-08
 
-- **Карточка клиента / статистика:** режим **«Посещаемость»** — KPI, **«Оценка регулярности»** (Регулярно ≥1.5/нед без пауз ≥14 дн. · **Норма ≥1/нед** · Редко). Разорванный ритм за 8 нед. (2+ пустые / пауза ≥14) — warn, не «ровный ритм». Чип выпадения: «Пауза · N дн.». На **Статистике клуба (ПЗ)** — exact weeks, пул по абону ПЗ, prefer при truncated/visitsDataMissing. Verify: `verify-client-attendance-stats.mjs`, `verify-client-attendance-glance.mjs`, `verify-club-attendance-agg.mjs`.
+- **Карточка клиента / статистика:** режим **«Посещаемость»** — KPI, **«Оценка регулярности»** (Регулярно ≥1.5/нед без пауз ≥14 дн. · **Норма ≥1/нед** · Редко). Разорванный ритм за 8 нед. (2+ пустые / пауза ≥14) — warn, не «ровный ритм». Чип выпадения: «Пауза · N дн.». Пул клуба — только абон ПЗ **с типом карты** (личные без `membership_type_id` не входят). Exact weeks, prefer API/local. Verify: `verify-client-attendance-stats.mjs`, `verify-client-attendance-glance.mjs`, `verify-club-attendance-agg.mjs`.
 - **Клиенты / сводка:** цифры на плитках и на главной («Закончился», вкладки ПЗ/ТЗ/АЗ) учитывают lifecycle; единый сброс memory+glance после Sync, абонов, импорта Excel, связки оплат, завершения тренировки; плитка = список. Verify: `verify-admin-clients-browse-lifecycle-cache.mjs`.
 - **QA:** `npm run qa:critical` — быстрый контур критических сценариев (зал, Sync, главная, клиенты); план — [CRITICAL_SCENARIOS_QA.md](./docs/CRITICAL_SCENARIOS_QA.md).
 - **Главная админа:** при обрыве облака (ERR_CONNECTION_RESET) сводки не зависают в скелетоне — таймаут 8–12 с, локальные цифры дня, у смены 4 плитки + понятный текст; продажи показывают ошибку вместо вечной загрузки.

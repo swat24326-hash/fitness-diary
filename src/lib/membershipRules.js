@@ -87,6 +87,19 @@ export function pickUsableMembershipForDate(memberships, dateIso) {
     .sort((a, b) => String(b.start_date ?? '').localeCompare(String(a.start_date ?? '')))[0]
 }
 
+/** Абон с типом карты (не «личные» тренировки без membership_type_id). */
+export function membershipHasTypeId(m) {
+  return Boolean(String(m?.membership_type_id ?? '').trim())
+}
+
+/**
+ * Учётный абон для посещаемости / slip: usable + есть тип карты.
+ * Без типа — персональные записи тренера, в статистику ритма не входят.
+ */
+export function pickUsableTypedMembershipForDate(memberships, dateIso) {
+  return pickUsableMembershipForDate((memberships ?? []).filter(membershipHasTypeId), dateIso)
+}
+
 /** Есть ли абонемент, по которому можно провести тренировку в указанную дату (поле status в Row не используется). */
 export function hasUsableMembershipOnDate(memberships, dateIso) {
   return pickUsableMembershipForDate(memberships, dateIso) != null

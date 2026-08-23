@@ -12,7 +12,7 @@ import {
   isClientAttendanceSlip,
 } from '../clientAttendanceGlanceCore.js'
 import { buildClientAttendanceStats, daysInIsoRangeInclusive, resolveAttendanceRegularity } from '../clientAttendanceStatsCore.js'
-import { pickUsableMembershipForDate } from '../membershipRules.js'
+import { pickUsableTypedMembershipForDate } from '../membershipRules.js'
 import { filterMembershipsByHall } from '../membershipHallCore.js'
 import { filterRetentionPoolClients } from './clientRetentionPoolCore.js'
 
@@ -149,7 +149,7 @@ export function aggregateClubAttendance(input = {}) {
     if (!id) continue
     const memListAll = memByClient[id] ?? memByClient[c.id] ?? []
     const memList = filterMembershipsByHall(memListAll, 'pz', c)
-    if (!pickUsableMembershipForDate(memList, dateTo)) continue
+    if (!pickUsableTypedMembershipForDate(memList, dateTo)) continue
     pzMemByClient[id] = memList
     pool.push(c)
   }
