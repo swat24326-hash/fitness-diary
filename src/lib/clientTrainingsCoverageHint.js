@@ -29,6 +29,12 @@ export function resolveTrainingsCoverageHint(opts = {}) {
     return 'Не удалось подгрузить полный дневник — цифры могут быть неполными.'
   }
 
+  // Полный hydrate прошёл — доверяем дневник в IDB. Абонемент раньше первой тренировки
+  // ≠ пропуск в кэше (клиент мог просто не ходить). ~90-дневная эвристика тоже не нужна.
+  if (opts.ensureOk === true) {
+    return null
+  }
+
   const earliest = String(opts.earliestLocalCompletedDate ?? '').slice(0, 10)
   const starts = (opts.membershipStartDates ?? [])
     .map((d) => String(d ?? '').slice(0, 10))

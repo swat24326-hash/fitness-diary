@@ -151,11 +151,32 @@ ok(
   resolveTrainingsCoverageHint({
     online: true,
     ensureOk: true,
+    earliestLocalCompletedDate: '2026-05-26',
+    membershipStartDates: ['2026-05-01'],
+    localCompletedCount: 16,
+    todayIso: '2026-08-23',
+  }) == null,
+  'no hint after full ensure (membership before first visit is ok)',
+)
+ok(
+  resolveTrainingsCoverageHint({
+    online: true,
+    ensureOk: undefined,
+    earliestLocalCompletedDate: '2026-05-26',
+    membershipStartDates: ['2026-05-01'],
+    localCompletedCount: 16,
+  })?.includes('ранних визитов'),
+  'partial cache: membership before earliest → hint',
+)
+ok(
+  resolveTrainingsCoverageHint({
+    online: true,
+    ensureOk: undefined,
     earliestLocalCompletedDate: '2026-05-25',
     localCompletedCount: 5,
     todayIso: '2026-08-23',
   })?.includes('90 дней'),
-  'journal window edge hint',
+  'journal window edge hint without ensure',
 )
 
 ok(normalizeClientStatsMode('attendance') === 'attendance', 'stats mode normalize')
