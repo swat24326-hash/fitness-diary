@@ -1,6 +1,7 @@
 /**
  * Клубная агрегация посещаемости ПЗ (карточка Статистики).
- * Средняя посещаемость = (визиты в окне / пул) × (7 / дни_окна); окно 30 дн.
+ * Средняя посещаемость = (визиты в окне / пул) × (7 / дни_окна).
+ * Окно = dateFrom…dateTo (период сводки); без dateFrom — последние 30 дн. до dateTo.
  * % без выпадения = (pool − slipped) / pool; slip = isClientAttendanceSlip.
  * Чистая логика без React/IDB.
  */
@@ -132,6 +133,7 @@ export function medianOfNumbers(values) {
  *   truncated?: boolean,
  *   previewLimit?: number,
  *   membershipTypes?: object[],
+ *   dateFrom?: string,
  * }} input
  */
 export function aggregateClubAttendance(input = {}) {
@@ -142,7 +144,11 @@ export function aggregateClubAttendance(input = {}) {
   // asOf не в будущем: иначе «месяц» с dateTo=31-го при сегодня 27-м режет живые абоны.
   const dateTo = input.clampAsOf === false ? dateToRaw : clampIsoDateToToday(dateToRaw)
 
-  const dateFrom = addDaysToIso(dateTo, -(ATTENDANCE_GLANCE_WINDOW_DAYS - 1))
+  const dateFromRaw = String(input.dateFrom ?? '').slice(0, 10)
+  const dateFrom =
+    /^\d{4}-\d{2}-\d{2}$/.test(dateFromRaw) && dateFromRaw <= dateTo
+      ? dateFromRaw
+      : addDaysToIso(dateTo, -(ATTENDANCE_GLANCE_WINDOW_DAYS - 1))
   const daysInRange = daysInIsoRangeInclusive(dateFrom, dateTo)
   const weekDivisor = clubAttendanceExactWeekDivisor(daysInRange)
   const trainerIdFilter = input.trainerIdFilter ? String(input.trainerIdFilter).trim() : ''
@@ -334,6 +340,7 @@ export function aggregateClubAttendance(input = {}) {
     byTrainer,
     slippedPreview: slippedRows.slice(0, limit),
     asOf: dateTo,
+    windowFrom: dateFrom,
     windowDays: daysInRange || ATTENDANCE_GLANCE_WINDOW_DAYS,
     weekDivisor,
     truncated: Boolean(input.truncated),
@@ -357,6 +364,7 @@ function emptyClubAttendance(truncated = false) {
     byTrainer: [],
     slippedPreview: [],
     asOf: null,
+    windowFrom: null,
     windowDays: ATTENDANCE_GLANCE_WINDOW_DAYS,
     weekDivisor: clubAttendanceExactWeekDivisor(ATTENDANCE_GLANCE_WINDOW_DAYS),
     truncated: truncated,

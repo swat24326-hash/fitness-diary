@@ -186,6 +186,49 @@ ok(
 )
 ok(splitAssessment.trendLabelRu == null, 'torn → no meta «Ровный объём»')
 
+// Month-график («За всё время»): buckets month, torn/trend — по недельным корзинам.
+const monthTornTrainings = [
+  { id: 'mt1', status: 'completed', date: '2026-01-07' },
+  { id: 'mt2', status: 'completed', date: '2026-01-14' },
+  { id: 'mt3', status: 'completed', date: '2026-02-04' },
+  { id: 'mt4', status: 'completed', date: '2026-02-11' },
+  { id: 'mt5', status: 'completed', date: '2026-03-04' },
+  { id: 'mt6', status: 'completed', date: '2026-03-11' },
+  { id: 'mt7', status: 'completed', date: '2026-04-01' },
+  { id: 'mt8', status: 'completed', date: '2026-04-08' },
+  { id: 'mt9', status: 'completed', date: '2026-05-06' },
+  { id: 'mt10', status: 'completed', date: '2026-05-13' },
+  { id: 'mt11', status: 'completed', date: '2026-06-03' },
+  { id: 'mt12', status: 'completed', date: '2026-06-10' },
+  // Июль–август: плотные визиты с двумя пустыми неделями в хвосте → torn
+  { id: 'mt13', status: 'completed', date: '2026-07-01' },
+  { id: 'mt14', status: 'completed', date: '2026-07-03' },
+  { id: 'mt15', status: 'completed', date: '2026-07-15' },
+  { id: 'mt16', status: 'completed', date: '2026-07-17' },
+  { id: 'mt17', status: 'completed', date: '2026-08-05' },
+  { id: 'mt18', status: 'completed', date: '2026-08-07' },
+  { id: 'mt19', status: 'completed', date: '2026-08-19' },
+  { id: 'mt20', status: 'completed', date: '2026-08-21' },
+]
+const monthStats = buildClientAttendanceStats(monthTornTrainings, {
+  dateFrom: '2026-01-01',
+  dateTo: '2026-08-24',
+})
+ok(monthStats.bucketKind === 'month', 'long range → month chart buckets')
+const monthAssessment = buildClientAttendanceAssessment(monthStats, {
+  dateFrom: '2026-01-01',
+  dateTo: '2026-08-24',
+  todayIso: '2026-08-24',
+  dataReliable: true,
+  allTrainings: monthTornTrainings,
+})
+const monthTrend = monthAssessment.factors.find((f) => f.key === 'trend')
+ok(
+  monthTrend?.tone === 'warn' && /разорван/i.test(monthTrend.labelRu ?? ''),
+  'month chart still reports week-torn warn',
+)
+ok(monthAssessment.trendLabelRu == null, 'month torn → no meta «Ровный объём»')
+
 const pace = buildMembershipAttendancePace(mem, trainings, '2026-08-23', 2)
 ok(pace && pace.used === 2, 'membership pace used count')
 

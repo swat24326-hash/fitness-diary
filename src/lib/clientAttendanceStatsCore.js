@@ -109,6 +109,21 @@ export function resolveAttendanceBucketKind(startIso, endIso) {
 }
 
 /**
+ * Окно недель для torn/trend: не длиннее ATTENDANCE_MAX_WEEK_BUCKETS, конец = dateTo.
+ * @param {string} dateFrom
+ * @param {string} dateTo
+ */
+export function resolveAttendanceRhythmWeekFrom(dateFrom, dateTo) {
+  const from = String(dateFrom ?? '').slice(0, 10)
+  const to = String(dateTo ?? '').slice(0, 10)
+  if (!ISO_DATE.test(to)) return from
+  const maxFrom = addDaysIso(to, -(ATTENDANCE_MAX_WEEK_BUCKETS * 7 - 1))
+  if (!maxFrom) return from
+  if (ISO_DATE.test(from) && from > maxFrom) return from
+  return maxFrom
+}
+
+/**
  * @param {string} startIso
  * @param {string} endIso
  * @returns {string}
@@ -392,7 +407,7 @@ export function attendanceRegularityLabelRu(kind) {
 
 /**
  * @param {object[]} trainings
- * @param {{ dateFrom: string, dateTo: string, gapFrom?: string }} opts
+ * @param {{ dateFrom: string, dateTo: string, gapFrom?: string, forceBucketKind?: AttendanceBucketKind }} opts
  */
 export function buildClientAttendanceStats(trainings, opts) {
   const dateFrom = String(opts?.dateFrom ?? '').slice(0, 10)
@@ -419,7 +434,7 @@ export function buildClientAttendanceStats(trainings, opts) {
   const visits = allVisits.filter((v) => v.date >= dateFrom && v.date <= dateTo)
   const dates = visits.map((v) => v.date)
   const total = visits.length
-  // Темп и регулярность — с gapFrom (старт абона), иначе новичок в 30д окне выглядит «Редко».
+  // Темп и регулярность — с gapFrom (старт абона), иначе новичок в длинном окне выглядит «Редко».
   let engagementFrom = dateFrom
   const gapFromRaw = String(opts?.gapFrom ?? '').slice(0, 10)
   if (ISO_DATE.test(gapFromRaw) && gapFromRaw > dateFrom && gapFromRaw <= dateTo) {
@@ -437,7 +452,9 @@ export function buildClientAttendanceStats(trainings, opts) {
     total,
     daysInRange: engagementDays,
   })
-  const bucketKind = resolveAttendanceBucketKind(dateFrom, dateTo)
+  const forced = opts?.forceBucketKind
+  const bucketKind =
+    forced === 'week' || forced === 'month' ? forced : resolveAttendanceBucketKind(dateFrom, dateTo)
   const ranges = buildAttendanceBucketRanges(dateFrom, dateTo, bucketKind)
 
   const buckets = ranges.map((r, i) => {

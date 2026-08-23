@@ -42,9 +42,17 @@ export async function buildClubClientAttendancePayload(supabaseAdmin, opts) {
   }
 
   const dateTo = clampIsoDateToToday(dateToRaw)
-  const windowFrom = addDaysToIso(dateTo, -(ATTENDANCE_GLANCE_WINDOW_DAYS - 1))
-  // Чуть шире окно для last visit до порога slip (14+ дн. до dateTo).
-  const trainFrom = addDaysToIso(dateTo, -90)
+  const periodFromRaw = String(opts.dateFrom ?? '').slice(0, 10)
+  const windowFrom =
+    /^\d{4}-\d{2}-\d{2}$/.test(periodFromRaw) && periodFromRaw <= dateTo
+      ? periodFromRaw
+      : addDaysToIso(dateTo, -(ATTENDANCE_GLANCE_WINDOW_DAYS - 1))
+  // Lookback для last visit / slip: не короче 90 дн. и не короче окна периода + 14.
+  const windowDays = Math.max(
+    1,
+    Math.round((new Date(`${dateTo}T12:00:00`) - new Date(`${windowFrom}T12:00:00`)) / 86400000) + 1,
+  )
+  const trainFrom = addDaysToIso(dateTo, -Math.max(90, windowDays + 14))
 
   const modeIds = await fetchClubTrainerModeIds(supabaseAdmin, clubId)
 
@@ -110,6 +118,7 @@ export async function buildClubClientAttendancePayload(supabaseAdmin, opts) {
     clients,
     memberships: membershipsRes.rows ?? [],
     trainings,
+    dateFrom: windowFrom,
     dateTo,
     trainerIdFilter,
     holdingTrainerIds: modeIds.holdingTrainerIds,
@@ -127,7 +136,7 @@ export async function buildClubClientAttendancePayload(supabaseAdmin, opts) {
   return {
     clientAttendance: {
       ...clientAttendance,
-      periodFrom: String(opts.dateFrom ?? windowFrom).slice(0, 10),
+      periodFrom: windowFrom,
       periodTo: dateToRaw,
       windowFrom,
       visitsDataMissing,

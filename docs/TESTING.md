@@ -163,7 +163,7 @@
 | Desk ledger абонов (действующий / цена) | `verify-desk-membership-ledger.mjs` |
 | Карточка: scope glance/full + lite + nav seed + memory list | `verify-client-workspace-scope.mjs` |
 | Статистика клиента: посещаемость, оценка, glance, разорванный ритм, фильтр «выпали», hydrate | `verify-client-attendance-stats.mjs`, `verify-client-attendance-glance.mjs` |
-| Статистика клуба: посещаемость ПЗ (exact weeks, prefer/truncated, % без выпадения, byTrainer) | `verify-club-attendance-agg.mjs` |
+| Статистика клуба: посещаемость ПЗ (окно = период сводки, exact weeks, prefer/truncated, % без выпадения, byTrainer) | `verify-club-attendance-agg.mjs` |
 | Клиенты: keep-alive путь список/карточка | `verify-admin-clients-keepalive.mjs` |
 | Клиенты: поиск по всем залам + стек ПЗ/ТЗ/АЗ | `verify-admin-clients-cross-hall-search.mjs` |
 | Абоны: цена пакета paid_amount (форма) | `verify-membership-paid-amount.mjs` |

@@ -4,7 +4,11 @@
  */
 
 import { formatDateRu } from './dateRu.js'
-import { attendanceRegularityLabelRu } from './clientAttendanceStatsCore.js'
+import {
+  attendanceRegularityLabelRu,
+  buildClientAttendanceStats,
+  resolveAttendanceRhythmWeekFrom,
+} from './clientAttendanceStatsCore.js'
 import {
   ATTENDANCE_TARGET_VISITS_PER_WEEK_DEFAULT,
   attendanceTrendLabelRu,
@@ -155,9 +159,28 @@ export function buildClientAttendanceAssessment(stats, opts = {}) {
     todayLineRu = 'Сейчас: завершённых тренировок в дневнике нет.'
   }
 
-  const trendRaw = resolveAttendanceTrendFromBuckets(buckets, bucketKind)
-  const lastForTorn = bucketKind === 'week' ? buckets.slice(-8) : []
-  const tornEarly = hasTornRhythmInLastWeekBuckets(lastForTorn, bucketKind, 8)
+  // Month-график («За всё время») — torn/trend считаем по недельным корзинам (до 26 нед.).
+  let rhythmBuckets = bucketKind === 'week' ? buckets : []
+  if (bucketKind === 'month' && dateFrom && dateTo) {
+    const rhythmFrom = resolveAttendanceRhythmWeekFrom(dateFrom, dateTo)
+    const memStart = String(activeMembership?.start_date ?? '').slice(0, 10)
+    const gapFrom = memStart && memStart > rhythmFrom ? memStart : rhythmFrom
+    const sourceTrainings =
+      allTrainings.length > 0
+        ? allTrainings
+        : (stats?.visits ?? []).map((v) => ({ status: 'completed', date: v.date }))
+    const weekStats = buildClientAttendanceStats(sourceTrainings, {
+      dateFrom: rhythmFrom,
+      dateTo,
+      gapFrom,
+      forceBucketKind: 'week',
+    })
+    rhythmBuckets = weekStats.buckets ?? []
+  }
+
+  const trendRaw = resolveAttendanceTrendFromBuckets(rhythmBuckets, 'week')
+  const lastForTorn = rhythmBuckets.slice(-8)
+  const tornEarly = hasTornRhythmInLastWeekBuckets(lastForTorn, 'week', 8)
   const trend =
     regularity === 'none' || regularity === 'insufficient' || tornEarly ? null : trendRaw
   const trendLabelRu = attendanceTrendLabelRu(trend)
@@ -262,16 +285,25 @@ export function buildClientAttendanceAssessment(stats, opts = {}) {
     else factors.push(factor('bad', 'tail', `Давно не был: ${daysRu(tailInPeriod)} с последнего визита`))
   }
 
-  const trailingMissed = trailingMissedBucketCount(buckets)
+  const trailingMissed = trailingMissedBucketCount(
+    bucketKind === 'month' && rhythmBuckets.length ? rhythmBuckets : buckets,
+  )
   if (trailingMissed >= 2) {
     factors.push(
-      factor('bad', 'trailing_miss', `Подряд без визита: ${formatAttendanceBucketUnitsRu(trailingMissed, bucketKind)}`),
+      factor(
+        'bad',
+        'trailing_miss',
+        `Подряд без визита: ${formatAttendanceBucketUnitsRu(
+          trailingMissed,
+          bucketKind === 'month' && rhythmBuckets.length ? 'week' : bucketKind,
+        )}`,
+      ),
     )
   }
 
-  const last8 = bucketKind === 'week' ? buckets.slice(-8) : []
-  const torn = tornEarly || hasTornRhythmInLastWeekBuckets(last8, bucketKind, 8)
-  const tornLabel = torn ? tornRhythmLabelRu(last8, bucketKind, 8) : null
+  const last8 = rhythmBuckets.slice(-8)
+  const torn = tornEarly || hasTornRhythmInLastWeekBuckets(last8, 'week', 8)
+  const tornLabel = torn ? tornRhythmLabelRu(last8, 'week', 8) : null
 
   if (torn && tornLabel) {
     factors.push(factor('warn', 'trend', tornLabel))

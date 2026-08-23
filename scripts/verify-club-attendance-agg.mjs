@@ -99,7 +99,8 @@ ok(
 ok(agg.inRhythmPct === 50, 'pct = 50')
 ok(formatClubAttendancePct(agg.inRhythmPct) === '50%', 'format pct')
 ok(agg.slippedPreview.some((r) => r.clientId === 'c2'), 'preview has slipped client')
-ok(agg.windowDays === 30, 'window is 30 inclusive days')
+ok(agg.windowDays === 30, 'default window is 30 inclusive days when dateFrom omitted')
+ok(agg.windowFrom != null, 'default windowFrom set')
 ok(agg.totalVisitsInWindow === 2, 'only completed in window (c1×2)')
 
 const expectedAvg = (2 / 2) * (7 / 30) // total/pool * 7/days
@@ -111,6 +112,30 @@ ok(formatClubAvgVisitsPerWeek(agg.avgVisitsPerWeek) === Number(agg.avgVisitsPerW
 ok(formatClubAvgVisitsPerWeek(1.234) === '1.23', 'format avg two decimals')
 ok(meanOfNumbers([1, 2, 3]) === 2, 'meanOfNumbers')
 ok(medianOfNumbers([1, 2, 3, 4]) === 2.5, 'medianOfNumbers even')
+
+// Период сводки длиннее 30 дн. — окно = dateFrom…dateTo, не фикс. 30.
+const periodFrom = '2026-07-01'
+const periodAgg = aggregateClubAttendance({
+  clients,
+  memberships,
+  trainings,
+  dateFrom: periodFrom,
+  dateTo: today,
+  clampAsOf: false,
+})
+ok(periodAgg.windowFrom === periodFrom, 'period windowFrom = dateFrom')
+ok(periodAgg.windowDays === 54, 'period windowDays = 54 (2026-07-01…08-23)')
+ok(periodAgg.totalVisitsInWindow === 3, 'period includes July visit inside selected window')
+const periodExpectedAvg = (3 / 2) * (7 / 54)
+ok(
+  Math.abs(periodAgg.avgVisitsPerWeek - periodExpectedAvg) < 1e-12,
+  'period avg uses selected window days, not 30',
+)
+ok(
+  periodAgg.windowDays === daysInIsoRangeInclusive(periodFrom, today),
+  'windowDays matches daysInIsoRangeInclusive',
+)
+
 ok(!isClubAttendancePayloadIncomplete(agg), 'fresh agg complete')
 ok(isClubAttendancePayloadIncomplete(null), 'null incomplete')
 ok(

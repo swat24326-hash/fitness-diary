@@ -41,7 +41,19 @@ export async function loadClubAttendanceFromLocal(opts) {
   }
 
   const dateTo = clampIsoDateToToday(dateToRaw)
-  const trainFrom = addDaysToIso(dateTo, -90)
+  const periodFromRaw = String(opts.dateFrom ?? '').slice(0, 10)
+  const windowFromGuess =
+    /^\d{4}-\d{2}-\d{2}$/.test(periodFromRaw) && periodFromRaw <= dateTo
+      ? periodFromRaw
+      : addDaysToIso(dateTo, -(ATTENDANCE_GLANCE_WINDOW_DAYS - 1))
+  const windowDaysGuess = Math.max(
+    1,
+    Math.round(
+      (new Date(`${dateTo}T12:00:00`) - new Date(`${windowFromGuess}T12:00:00`)) / 86400000,
+    ) + 1,
+  )
+  // Lookback для last visit / slip: не короче 90 дн. и не короче окна периода + 14.
+  const trainFrom = addDaysToIso(dateTo, -Math.max(90, windowDaysGuess + 14))
   const hintCompleted = Number(opts.hintCompletedInPeriod) || 0
   const canRemote = isSupabaseConfigured() && isAppOnline()
 
@@ -117,6 +129,7 @@ export async function loadClubAttendanceFromLocal(opts) {
     clients,
     memberships,
     trainings,
+    dateFrom: String(opts.dateFrom ?? '').slice(0, 10) || undefined,
     dateTo,
     trainerIdFilter: opts.trainerIdFilter ?? null,
     holdingTrainerIds,
@@ -126,7 +139,9 @@ export async function loadClubAttendanceFromLocal(opts) {
     membershipTypes,
   })
 
-  const windowFrom = addDaysToIso(dateTo, -(ATTENDANCE_GLANCE_WINDOW_DAYS - 1))
+  const windowFrom =
+    clientAttendance.windowFrom ||
+    addDaysToIso(dateTo, -(ATTENDANCE_GLANCE_WINDOW_DAYS - 1))
   // Визиты «не загрузились», только если строк тренировок так и нет (не «все по нулям»).
   const visitsMissing =
     clientAttendance.poolSize > 0 &&
@@ -135,7 +150,7 @@ export async function loadClubAttendanceFromLocal(opts) {
 
   return {
     ...clientAttendance,
-    periodFrom: String(opts.dateFrom ?? windowFrom).slice(0, 10),
+    periodFrom: windowFrom,
     periodTo: dateToRaw,
     asOf: dateTo,
     windowFrom,

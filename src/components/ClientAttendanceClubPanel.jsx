@@ -11,7 +11,7 @@ const REGULARITY_ROWS = [
   { key: 'regular', label: 'Регулярно', hint: '≥1.5 / нед, перерывы <14 дн.' },
   { key: 'moderate', label: 'Норма', hint: '≥1 / нед в среднем' },
   { key: 'rare', label: 'Редко', hint: 'ниже 1 / нед' },
-  { key: 'none', label: 'Нет визитов', hint: 'в окне 30 дн. не ходили' },
+  { key: 'none', label: 'Нет визитов', hint: 'в выбранном окне не ходили' },
   { key: 'insufficient', label: 'Мало данных', hint: 'меньше 2 визитов в окне' },
 ]
 
@@ -89,9 +89,13 @@ export function ClientAttendanceClubPanel({
           </p>
           <ul className="client-retention-panel__about-list">
             <li>
-              <strong>Средняя посещаемость</strong> — (сумма завершённых тренировок в окне ÷ число
-              клиентов в пуле) × (7 ÷ {clientAttendance.windowDays ?? 30} дн.). На{' '}
-              {clientAttendance.asOf ?? 'сегодня'}.
+              <strong>Средняя посещаемость</strong> — (сумма завершённых тренировок за выбранный период
+              сводки ÷ число клиентов в пуле) × (7 ÷ {clientAttendance.windowDays ?? 30} дн. окна). На{' '}
+              {clientAttendance.asOf ?? 'сегодня'}
+              {clientAttendance.windowFrom
+                ? ` · окно ${clientAttendance.windowFrom}…${clientAttendance.asOf ?? '…'}`
+                : ''}
+              .
             </li>
             <li>
               <strong>Без выпадения</strong> — доля пула без паузы ≥14 дн. с последнего визита.
