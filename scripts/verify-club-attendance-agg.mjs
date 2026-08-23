@@ -10,6 +10,7 @@ import {
   medianOfNumbers,
   isClubAttendancePayloadIncomplete,
   preferClubAttendancePayload,
+  pickUsableAttendanceMembershipForDate,
 } from '../src/lib/admin/clubAttendanceAggCore.js'
 import { isClientAttendanceSlip } from '../src/lib/clientAttendanceGlanceCore.js'
 import { daysInIsoRangeInclusive } from '../src/lib/clientAttendanceStatsCore.js'
@@ -229,6 +230,50 @@ ok(
   }) === false,
   'no-type membership never slip',
 )
+
+const bzTypes = [{ id: 'bz1', code: 'БЗ', is_pnk_trial: true, is_active: true }]
+const personalTypes = [{ id: 'pers1', code: 'личн', is_active: true, counts_toward_pay_plan: false }]
+ok(
+  pickUsableAttendanceMembershipForDate(
+    [{ id: 'mbz', start_date: '2026-07-01', end_date: '2026-09-30', total_trainings: 2, used_trainings: 0, membership_type_id: 'bz1' }],
+    today,
+    bzTypes,
+  ) == null,
+  'BZ/trial typed membership excluded from attendance pool',
+)
+ok(
+  pickUsableAttendanceMembershipForDate(
+    [{ id: 'mp', start_date: '2026-07-01', end_date: '2026-09-30', total_trainings: 99, used_trainings: 1, membership_type_id: 'pers1' }],
+    today,
+    personalTypes,
+  ) == null,
+  'counts_toward_pay_plan=false excluded',
+)
+
+const midStart = aggregateClubAttendance({
+  clients: [{ id: 'c9', name: 'Новый', trainer_id: 't1', lifecycle: null }],
+  memberships: [
+    {
+      id: 'm9',
+      client_id: 'c9',
+      start_date: '2026-08-10',
+      end_date: '2026-10-10',
+      total_trainings: 12,
+      used_trainings: 3,
+      membership_type_id: 'type-pz',
+    },
+  ],
+  trainings: [
+    { id: 'n1', client_id: 'c9', status: 'completed', date: '2026-08-12' },
+    { id: 'n2', client_id: 'c9', status: 'completed', date: '2026-08-15' },
+    { id: 'n3', client_id: 'c9', status: 'completed', date: '2026-08-19' },
+    { id: 'n4', client_id: 'c9', status: 'completed', date: '2026-08-22' },
+  ],
+  dateTo: today,
+  clampAsOf: false,
+  membershipTypes: [{ id: 'type-pz', code: 'ПЗ', is_active: true, counts_toward_pay_plan: true }],
+})
+ok(midStart.poolSize === 1 && midStart.byRegularity?.rare !== 1, 'mid-window abon start not crushed by lead gap into rare')
 
 const scoped = aggregateClubAttendance({
   clients,

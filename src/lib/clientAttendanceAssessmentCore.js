@@ -156,8 +156,10 @@ export function buildClientAttendanceAssessment(stats, opts = {}) {
   }
 
   const trendRaw = resolveAttendanceTrendFromBuckets(buckets, bucketKind)
+  const lastForTorn = bucketKind === 'week' ? buckets.slice(-8) : []
+  const tornEarly = hasTornRhythmInLastWeekBuckets(lastForTorn, bucketKind, 8)
   const trend =
-    regularity === 'none' || regularity === 'insufficient' ? null : trendRaw
+    regularity === 'none' || regularity === 'insufficient' || tornEarly ? null : trendRaw
   const trendLabelRu = attendanceTrendLabelRu(trend)
 
   const pace = activeMembership
@@ -268,7 +270,7 @@ export function buildClientAttendanceAssessment(stats, opts = {}) {
   }
 
   const last8 = bucketKind === 'week' ? buckets.slice(-8) : []
-  const torn = hasTornRhythmInLastWeekBuckets(last8, bucketKind, 8)
+  const torn = tornEarly || hasTornRhythmInLastWeekBuckets(last8, bucketKind, 8)
   const tornLabel = torn ? tornRhythmLabelRu(last8, bucketKind, 8) : null
 
   if (torn && tornLabel) {
@@ -278,7 +280,7 @@ export function buildClientAttendanceAssessment(stats, opts = {}) {
   } else if (trend === 'slipping') {
     factors.push(factor('bad', 'trend', 'За последние 4 недели — меньше визитов, чем в предыдущие 4'))
   } else if (trend === 'stable') {
-    factors.push(factor('good', 'trend', 'Последние 8 недель — ровный объём без длинных пауз'))
+    factors.push(factor('good', 'trend', 'Последние недели — ровный объём без длинных пауз'))
   }
 
   const bzShare = countBzVisitsShareInPeriod(allTrainings, memberships, membershipTypes, dateFrom, dateTo)

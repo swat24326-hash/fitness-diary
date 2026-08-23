@@ -136,8 +136,10 @@ export function maxConsecutiveMissedBuckets(buckets) {
  * @returns {number | null}
  */
 export function maxGapDaysInLastWeekBuckets(buckets, weekCount = 8) {
-  const last = (buckets ?? []).slice(-weekCount)
-  if (last.length < weekCount) return null
+  const list = buckets ?? []
+  const n = Math.min(weekCount, list.length)
+  if (n < 4) return null
+  const last = list.slice(-n)
   const start = String(last[0]?.start ?? '').slice(0, 10)
   const end = String(last[last.length - 1]?.end ?? '').slice(0, 10)
   if (!start || !end) return null
@@ -181,8 +183,11 @@ function countableMissedWeekBuckets(buckets) {
  */
 export function hasTornRhythmInLastWeekBuckets(buckets, bucketKind = 'week', weekCount = 8) {
   if (bucketKind !== 'week') return false
-  const last = (buckets ?? []).slice(-weekCount)
-  if (last.length < weekCount) return false
+  const list = buckets ?? []
+  // На окне ~30 дн. (~5 недель) тоже ловим разрыв; порог — не меньше 4 недель.
+  const n = Math.min(weekCount, list.length)
+  if (n < 4) return false
+  const last = list.slice(-n)
 
   const countable = last.filter(isCountableWeekBucketForRhythm)
   const missRun = maxConsecutiveMissedBuckets(countable)
@@ -190,7 +195,7 @@ export function hasTornRhythmInLastWeekBuckets(buckets, bucketKind = 'week', wee
 
   if (countableMissedWeekBuckets(last).length >= 2) return true
 
-  const gap = maxGapDaysInLastWeekBuckets(last, weekCount)
+  const gap = maxGapDaysInLastWeekBuckets(last, n)
   if (gap != null && gap >= ATTENDANCE_SLIP_DAYS_THRESHOLD) return true
 
   return false
@@ -203,8 +208,10 @@ export function hasTornRhythmInLastWeekBuckets(buckets, bucketKind = 'week', wee
  */
 export function tornRhythmLabelRu(buckets, bucketKind = 'week', weekCount = 8) {
   if (bucketKind !== 'week') return null
-  const last = (buckets ?? []).slice(-weekCount)
-  if (last.length < weekCount) return null
+  const list = buckets ?? []
+  const n = Math.min(weekCount, list.length)
+  if (n < 4) return null
+  const last = list.slice(-n)
 
   const countable = last.filter(isCountableWeekBucketForRhythm)
   const missRun = maxConsecutiveMissedBuckets(countable)
@@ -214,12 +221,12 @@ export function tornRhythmLabelRu(buckets, bucketKind = 'week', weekCount = 8) {
 
   const missedWeeks = countableMissedWeekBuckets(last).length
   if (missedWeeks >= 2) {
-    return `Разорванный ритм: ${missedWeeks} из ${weekCount} недель без визита`
+    return `Разорванный ритм: ${missedWeeks} из ${n} недель без визита`
   }
 
-  const gap = maxGapDaysInLastWeekBuckets(last, weekCount)
+  const gap = maxGapDaysInLastWeekBuckets(last, n)
   if (gap != null && gap >= ATTENDANCE_SLIP_DAYS_THRESHOLD) {
-    return `Разорванный ритм: перерыв ${formatDaysSinceRu(gap)} за последние ${weekCount} недель`
+    return `Разорванный ритм: перерыв ${formatDaysSinceRu(gap)} за последние ${n} недель`
   }
 
   return null
@@ -233,9 +240,12 @@ export function tornRhythmLabelRu(buckets, bucketKind = 'week', weekCount = 8) {
 export function resolveAttendanceTrendFromBuckets(buckets, bucketKind) {
   if (bucketKind !== 'week') return null
   const list = buckets ?? []
-  if (list.length < 8) return null
-  const tail = list.slice(-4)
-  const prev = list.slice(-8, -4)
+  if (list.length < 4) return null
+  const window = list.length >= 8 ? list.slice(-8) : list.slice(-(Math.floor(list.length / 2) * 2))
+  if (window.length < 4) return null
+  const half = Math.floor(window.length / 2)
+  const tail = window.slice(-half)
+  const prev = window.slice(0, half)
   const recent = tail.reduce((s, b) => s + (Number(b?.count) || 0), 0)
   const before = prev.reduce((s, b) => s + (Number(b?.count) || 0), 0)
   // Нет визитов в обеих половинах — это не «ровный объём».
@@ -383,7 +393,9 @@ export function buildClientAttendanceGlance(params = {}) {
   if (!active) return null
 
   const dateFrom = addDaysToIso(today, -(ATTENDANCE_GLANCE_WINDOW_DAYS - 1))
-  const stats = buildClientAttendanceStats(trainings, { dateFrom, dateTo: today })
+  const memStart = String(active.start_date ?? '').slice(0, 10)
+  const gapFrom = memStart && memStart > dateFrom ? memStart : dateFrom
+  const stats = buildClientAttendanceStats(trainings, { dateFrom, dateTo: today, gapFrom })
   const daysSince = daysSinceLastCompletedVisit(trainings, today)
   const regularity = stats.summary.regularity
   const tone = resolveAttendanceGlanceTone(regularity, daysSince)

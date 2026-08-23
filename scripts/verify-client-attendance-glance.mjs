@@ -184,6 +184,7 @@ ok(
   splitTrendFactor?.tone === 'warn' && /разорван/i.test(splitTrendFactor.labelRu ?? ''),
   'two missed weeks in last 8 is not green flat rhythm',
 )
+ok(splitAssessment.trendLabelRu == null, 'torn → no meta «Ровный объём»')
 
 const pace = buildMembershipAttendancePace(mem, trainings, '2026-08-23', 2)
 ok(pace && pace.used === 2, 'membership pace used count')

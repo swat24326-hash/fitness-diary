@@ -844,10 +844,15 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
           }
         }
         const rows = await trainingsPromise
-        if (needDates && !Object.keys(map).length) {
+        if (needDates) {
           const fromIdb = buildLastTrainingMap(rows)
           for (const id of missing) {
-            map[id] = fromIdb[id] ? String(fromIdb[id]).slice(0, 10) : ''
+            const remoteIso = map[id]
+            const idbIso = fromIdb[id] ? String(fromIdb[id]).slice(0, 10) : ''
+            // Склеиваем remote и IDB: не оставляем '' если в дневнике есть дата.
+            if (remoteIso && idbIso) map[id] = remoteIso >= idbIso ? remoteIso : idbIso
+            else if (idbIso) map[id] = idbIso
+            else if (!Object.prototype.hasOwnProperty.call(map, id)) map[id] = ''
           }
         }
         if (!cancelled) {

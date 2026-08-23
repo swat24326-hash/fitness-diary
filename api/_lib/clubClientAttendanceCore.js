@@ -20,6 +20,9 @@ const LIFECYCLE_SELECT =
 
 const CLIENT_SELECT = 'id, name, phone, archived_at, trainer_id, lifecycle, desk_hall'
 
+const MEMBERSHIP_TYPES_SELECT =
+  'id, code, sort_order, is_active, is_pnk_trial, trainer_assignable, counts_toward_pay_plan'
+
 /**
  * @param {import('@supabase/supabase-js').SupabaseClient} supabaseAdmin
  * @param {{
@@ -45,7 +48,7 @@ export async function buildClubClientAttendancePayload(supabaseAdmin, opts) {
 
   const modeIds = await fetchClubTrainerModeIds(supabaseAdmin, clubId)
 
-  const [trainingsRes, clientsRes, membershipsRes, lifecycleRes] = await Promise.all([
+  const [trainingsRes, clientsRes, membershipsRes, typesRes, lifecycleRes] = await Promise.all([
     fetchPagedLimited(supabaseAdmin, {
       table: 'trainings',
       select: 'id, trainer_id, client_id, date, status',
@@ -66,6 +69,12 @@ export async function buildClubClientAttendancePayload(supabaseAdmin, opts) {
       clubId,
       maxRows: CLUB_STATS_MAX_MEMBERSHIPS,
     }),
+    fetchPagedLimited(supabaseAdmin, {
+      table: 'membership_types',
+      select: MEMBERSHIP_TYPES_SELECT,
+      clubId,
+      maxRows: 5000,
+    }).catch(() => ({ rows: [], truncated: false })),
     fetchPagedLimited(supabaseAdmin, {
       table: 'client_hall_lifecycle',
       select: LIFECYCLE_SELECT,
@@ -88,6 +97,7 @@ export async function buildClubClientAttendancePayload(supabaseAdmin, opts) {
     trainingsRes.truncated ||
     clientsRes.truncated ||
     membershipsRes.truncated ||
+    Boolean(typesRes?.truncated) ||
     Boolean(lifecycleRes?.truncated)
 
   let lifecycleRows = lifecycleRes?.rows ?? []
@@ -106,6 +116,7 @@ export async function buildClubClientAttendancePayload(supabaseAdmin, opts) {
     noTabletTrainerIds: modeIds.noTabletTrainerIds,
     lifecycleRows,
     truncated,
+    membershipTypes: typesRes?.rows ?? [],
   })
 
   const visitsDataMissing =

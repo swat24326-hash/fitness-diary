@@ -12,7 +12,7 @@ const REGULARITY_ROWS = [
   { key: 'moderate', label: 'Норма', hint: '≥1 / нед в среднем' },
   { key: 'rare', label: 'Редко', hint: 'ниже 1 / нед' },
   { key: 'none', label: 'Нет визитов', hint: 'в окне 30 дн. не ходили' },
-  { key: 'insufficient', label: 'Мало данных', hint: 'короткий след визитов' },
+  { key: 'insufficient', label: 'Мало данных', hint: 'меньше 2 визитов в окне' },
 ]
 
 /**

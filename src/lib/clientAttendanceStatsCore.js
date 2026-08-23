@@ -224,16 +224,24 @@ export function maxGapDaysBetween(sortedDates) {
 }
 
 /**
- * Макс. перерыв внутри периода: от dateFrom до первого визита, между визитами, от последнего до dateTo.
+ * Макс. перерыв внутри периода: от gapFrom (или dateFrom) до первого визита,
+ * между визитами, от последнего до dateTo.
+ * gapFrom — старт учёта пауз (обычно max(dateFrom, membership.start_date)),
+ * чтобы тишина до начала абона не считалась «длинным перерывом».
  * @param {string} dateFrom
  * @param {string} dateTo
  * @param {string[]} sortedDates
+ * @param {{ gapFrom?: string }} [opts]
  * @returns {number | null}
  */
-export function maxGapDaysInPeriod(dateFrom, dateTo, sortedDates) {
+export function maxGapDaysInPeriod(dateFrom, dateTo, sortedDates, opts = {}) {
   const from = String(dateFrom ?? '').slice(0, 10)
   const to = String(dateTo ?? '').slice(0, 10)
   if (!ISO_DATE.test(from) || !ISO_DATE.test(to) || from > to) return null
+
+  let gapFrom = String(opts.gapFrom ?? from).slice(0, 10)
+  if (!ISO_DATE.test(gapFrom) || gapFrom < from) gapFrom = from
+  if (gapFrom > to) gapFrom = from
 
   const dates = (sortedDates ?? [])
     .map((d) => String(d).slice(0, 10))
@@ -243,7 +251,8 @@ export function maxGapDaysInPeriod(dateFrom, dateTo, sortedDates) {
   if (!dates.length) return null
 
   let max = 0
-  const lead = daysSinceIsoDate(from, dates[0])
+  const firstInGap = dates.find((d) => d >= gapFrom) ?? dates[0]
+  const lead = daysSinceIsoDate(gapFrom, firstInGap)
   if (lead != null && lead > max) max = lead
 
   for (let i = 1; i < dates.length; i++) {
@@ -383,7 +392,7 @@ export function attendanceRegularityLabelRu(kind) {
 
 /**
  * @param {object[]} trainings
- * @param {{ dateFrom: string, dateTo: string }} opts
+ * @param {{ dateFrom: string, dateTo: string, gapFrom?: string }} opts
  */
 export function buildClientAttendanceStats(trainings, opts) {
   const dateFrom = String(opts?.dateFrom ?? '').slice(0, 10)
@@ -410,16 +419,23 @@ export function buildClientAttendanceStats(trainings, opts) {
   const visits = allVisits.filter((v) => v.date >= dateFrom && v.date <= dateTo)
   const dates = visits.map((v) => v.date)
   const total = visits.length
-  const weekDivisor = Math.max(1, Math.ceil(daysInRange / 7))
+  // Темп и регулярность — с gapFrom (старт абона), иначе новичок в 30д окне выглядит «Редко».
+  let engagementFrom = dateFrom
+  const gapFromRaw = String(opts?.gapFrom ?? '').slice(0, 10)
+  if (ISO_DATE.test(gapFromRaw) && gapFromRaw > dateFrom && gapFromRaw <= dateTo) {
+    engagementFrom = gapFromRaw
+  }
+  const engagementDays = daysInIsoRangeInclusive(engagementFrom, dateTo)
+  const weekDivisor = Math.max(1, engagementDays / 7)
   const visitsPerWeek = Math.round((total / weekDivisor) * 10) / 10
-  const maxGapDays = maxGapDaysInPeriod(dateFrom, dateTo, dates)
+  const maxGapDays = maxGapDaysInPeriod(dateFrom, dateTo, dates, { gapFrom: engagementFrom })
   const daysSinceLastVisit = daysSinceLastVisitInPeriod(dates, dateTo)
   const regularity = resolveAttendanceRegularity({
     visitsPerWeek,
     maxGapDays,
     daysSinceLastVisit,
     total,
-    daysInRange,
+    daysInRange: engagementDays,
   })
   const bucketKind = resolveAttendanceBucketKind(dateFrom, dateTo)
   const ranges = buildAttendanceBucketRanges(dateFrom, dateTo, bucketKind)

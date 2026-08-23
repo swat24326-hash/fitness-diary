@@ -22,6 +22,7 @@ import {
 import { collectHoldingTrainerIds } from './holdingClientsCore.js'
 import { collectNoTabletTrainerIds } from './trainerTabletModeCore.js'
 import { aggregateClubAttendance } from './clubAttendanceAggCore.js'
+import { listMembershipTypesForClub } from '../membershipTypesService.js'
 
 /**
  * @param {{
@@ -95,6 +96,7 @@ export async function loadClubAttendanceFromLocal(opts) {
 
   let holdingTrainerIds = new Set()
   let noTabletTrainerIds = new Set()
+  let membershipTypes = []
   try {
     const viaApi = await fetchTrainersViaAdminApi()
     const trainers = (viaApi?.trainers ?? []).filter(
@@ -104,6 +106,11 @@ export async function loadClubAttendanceFromLocal(opts) {
     noTabletTrainerIds = collectNoTabletTrainerIds(trainers)
   } catch {
     /* без режимов тренеров — пул шире, лучше чем пусто */
+  }
+  try {
+    membershipTypes = (await listMembershipTypesForClub(clubId)) ?? []
+  } catch {
+    membershipTypes = []
   }
 
   const clientAttendance = aggregateClubAttendance({
@@ -116,6 +123,7 @@ export async function loadClubAttendanceFromLocal(opts) {
     noTabletTrainerIds,
     lifecycleRows: lifecycleRows ?? [],
     truncated: false,
+    membershipTypes,
   })
 
   const windowFrom = addDaysToIso(dateTo, -(ATTENDANCE_GLANCE_WINDOW_DAYS - 1))

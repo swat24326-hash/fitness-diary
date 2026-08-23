@@ -11,10 +11,38 @@ import {
   daysSinceLastCompletedVisit,
   isClientAttendanceSlip,
 } from '../clientAttendanceGlanceCore.js'
-import { buildClientAttendanceStats, daysInIsoRangeInclusive, resolveAttendanceRegularity } from '../clientAttendanceStatsCore.js'
-import { pickUsableTypedMembershipForDate } from '../membershipRules.js'
+import { buildClientAttendanceStats, daysInIsoRangeInclusive } from '../clientAttendanceStatsCore.js'
+import { membershipHasTypeId, pickUsableTypedMembershipForDate } from '../membershipRules.js'
+import { isPnkTrialTypeRow } from '../pnk/pnkTrialTrainingCore.js'
 import { filterMembershipsByHall } from '../membershipHallCore.js'
 import { filterRetentionPoolClients } from './clientRetentionPoolCore.js'
+
+/**
+ * Абон для клубной посещаемости: typed usable, не БЗ/пробная,
+ * не counts_toward_pay_plan === false (личные пакеты вне плана ЗП).
+ * @param {object[]} memberships
+ * @param {string} dateIso
+ * @param {object[] | null | undefined} [membershipTypes]
+ */
+export function pickUsableAttendanceMembershipForDate(memberships, dateIso, membershipTypes) {
+  const types = membershipTypes ?? []
+  const typeById = new Map(types.map((t) => [String(t?.id ?? ''), t]))
+  const eligible = (memberships ?? []).filter((m) => {
+    if (!membershipHasTypeId(m)) return false
+    if (!types.length) return true
+    const type = typeById.get(String(m.membership_type_id ?? '').trim())
+    if (!type) return true
+    if (isPnkTrialTypeRow(type)) return false
+    if (
+      Object.prototype.hasOwnProperty.call(type, 'counts_toward_pay_plan') &&
+      type.counts_toward_pay_plan === false
+    ) {
+      return false
+    }
+    return true
+  })
+  return pickUsableTypedMembershipForDate(eligible, dateIso)
+}
 
 const PREVIEW_LIMIT = 30
 
@@ -103,6 +131,7 @@ export function medianOfNumbers(values) {
  *   trainerIdFilter?: string | null,
  *   truncated?: boolean,
  *   previewLimit?: number,
+ *   membershipTypes?: object[],
  * }} input
  */
 export function aggregateClubAttendance(input = {}) {
@@ -117,6 +146,7 @@ export function aggregateClubAttendance(input = {}) {
   const daysInRange = daysInIsoRangeInclusive(dateFrom, dateTo)
   const weekDivisor = clubAttendanceExactWeekDivisor(daysInRange)
   const trainerIdFilter = input.trainerIdFilter ? String(input.trainerIdFilter).trim() : ''
+  const membershipTypes = input.membershipTypes ?? []
 
   let clients = Array.isArray(input.clients) ? [...input.clients] : []
   if (trainerIdFilter) {
@@ -144,13 +174,18 @@ export function aggregateClubAttendance(input = {}) {
   const pool = []
   /** @type {Record<string, object[]>} */
   const pzMemByClient = {}
+  /** @type {Record<string, string>} */
+  const gapFromByClient = {}
   for (const c of retentionPool) {
     const id = String(c?.id ?? '').trim()
     if (!id) continue
     const memListAll = memByClient[id] ?? memByClient[c.id] ?? []
     const memList = filterMembershipsByHall(memListAll, 'pz', c)
-    if (!pickUsableTypedMembershipForDate(memList, dateTo)) continue
+    const usable = pickUsableAttendanceMembershipForDate(memList, dateTo, membershipTypes)
+    if (!usable) continue
     pzMemByClient[id] = memList
+    const memStart = String(usable.start_date ?? '').slice(0, 10)
+    gapFromByClient[id] = memStart && memStart > dateFrom ? memStart : dateFrom
     pool.push(c)
   }
 
@@ -184,17 +219,12 @@ export function aggregateClubAttendance(input = {}) {
     const id = String(c.id)
     const memList = pzMemByClient[id] ?? filterMembershipsByHall(memByClient[id] ?? memByClient[c.id] ?? [], 'pz', c)
     const trainings = trainingsByClient[id] ?? trainingsByClient[c.id] ?? []
-    const stats = buildClientAttendanceStats(trainings, { dateFrom, dateTo })
+    const gapFrom = gapFromByClient[id] ?? dateFrom
+    const stats = buildClientAttendanceStats(trainings, { dateFrom, dateTo, gapFrom })
     const visitsN = Number(stats.summary.total) || 0
     const vpw = visitsN / weekDivisor
-    // Классификация по exact weeks — как клубная средняя, не ceil из карточки клиента.
-    const regularity = resolveAttendanceRegularity({
-      visitsPerWeek: vpw,
-      maxGapDays: stats.summary.maxGapDays,
-      daysSinceLastVisit: stats.summary.daysSinceLastVisit,
-      total: visitsN,
-      daysInRange,
-    })
+    // Регулярность — из stats (с gapFrom / engagement weeks); средняя клуба — по полному окну.
+    const regularity = stats.summary.regularity
 
     visitsPerWeekList.push(vpw)
     totalVisitsInWindow += visitsN

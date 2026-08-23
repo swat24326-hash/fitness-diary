@@ -104,6 +104,10 @@ ok(tailStats.summary.maxGapDays === 49, 'max gap includes tail of period')
 ok(tailStats.summary.regularity === 'rare', 'long tail silence → rare')
 
 ok(maxGapDaysInPeriod('2026-01-01', '2026-01-31', ['2026-01-20']) === 19, 'max gap includes lead before first visit')
+ok(
+  maxGapDaysInPeriod('2026-01-01', '2026-01-31', ['2026-01-20'], { gapFrom: '2026-01-15' }) === 11,
+  'gapFrom clamps lead to membership start',
+)
 
 const longRange = buildClientAttendanceStats(T, { dateFrom: '2026-01-01', dateTo: '2026-08-31' })
 ok(longRange.bucketKind === 'month', 'long range → month buckets')

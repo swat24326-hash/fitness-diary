@@ -14,6 +14,8 @@ import {
 } from '../../lib/clientTrainingsCoverageHint'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 
+import { pickUsableTypedMembershipForDate } from '../../lib/membershipRules'
+
 /**
  * @param {{
  *   trainings: object[],
@@ -42,10 +44,12 @@ export function ClientAttendanceSection({
   audience = 'trainer',
   loading = false,
 }) {
-  const stats = useMemo(
-    () => buildClientAttendanceStats(trainings, { dateFrom, dateTo }),
-    [trainings, dateFrom, dateTo],
-  )
+  const stats = useMemo(() => {
+    const usable = pickUsableTypedMembershipForDate(memberships, dateTo)
+    const memStart = String(usable?.start_date ?? '').slice(0, 10)
+    const gapFrom = memStart && memStart > dateFrom ? memStart : dateFrom
+    return buildClientAttendanceStats(trainings, { dateFrom, dateTo, gapFrom })
+  }, [trainings, dateFrom, dateTo, memberships])
 
   const localCompletedCount = useMemo(() => listCompletedVisitDates(trainings).length, [trainings])
 
