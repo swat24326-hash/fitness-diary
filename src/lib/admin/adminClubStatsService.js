@@ -99,7 +99,8 @@ export function aggregateTrainings(rows) {
   }
 }
 
-async function fetchTrainingsForClubRangeRemote(clubId, dateFrom, dateTo) {
+/** @param {string} clubId @param {string} dateFrom @param {string} dateTo */
+export async function fetchTrainingsForClubRangeRemote(clubId, dateFrom, dateTo) {
   const rows = []
   let from = 0
   for (;;) {
@@ -146,7 +147,7 @@ async function fetchMembershipsForClubLocal(clubId) {
   return listMembershipsByClubId(clubId)
 }
 
-async function fetchClientsForClubRemote(clubId) {
+export async function fetchClientsForClubRemote(clubId) {
   const rows = []
   let from = 0
   for (;;) {
@@ -168,7 +169,7 @@ async function fetchClientsForClubRemote(clubId) {
   return rows
 }
 
-async function fetchMembershipsForClubRemote(clubId) {
+export async function fetchMembershipsForClubRemote(clubId) {
   const rows = []
   let from = 0
   for (;;) {

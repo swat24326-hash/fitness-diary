@@ -540,9 +540,22 @@
 .admin-club-stat-card__head.stat-card__top {
   min-height: 0;
   height: 100%;
+  min-width: 0;
+  max-width: 100%;
   align-items: flex-start;
   margin: 0;
   gap: 8px;
+  overflow: hidden;
+}
+
+.admin-club-stat-card__head .stat-card__icon {
+  flex: 0 0 20px;
+  width: 20px;
+  height: 20px;
+  max-width: 20px;
+  max-height: 20px;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .admin-club-stat-card__title {

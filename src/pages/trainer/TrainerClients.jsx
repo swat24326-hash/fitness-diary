@@ -225,10 +225,18 @@ export function TrainerClients() {
     onFeedback: showToast,
   })
 
+  const browseExtra = useMemo(
+    () => ({
+      lastTrainingByClient: lastCompletedByClientId,
+      trainingsByClientId,
+    }),
+    [lastCompletedByClientId, trainingsByClientId],
+  )
+
   const filteredClients = useMemo(() => {
     const q = query.trim().toLowerCase()
     const source = clientsTab === 'archive' ? archivedClients : clients
-    const byFilter = filterTrainerClientsByBrowseMode(source, memByClient, today, quickFilter)
+    const byFilter = filterTrainerClientsByBrowseMode(source, memByClient, today, quickFilter, browseExtra)
     if (!q) return byFilter
     return byFilter.filter((c) => {
       const name = String(c.name ?? '').toLowerCase()
@@ -236,7 +244,7 @@ export function TrainerClients() {
       const card = String(c.card_number ?? '').toLowerCase()
       return name.includes(q) || phone.includes(q) || card.includes(q)
     })
-  }, [clients, archivedClients, clientsTab, query, quickFilter, memByClient, today])
+  }, [clients, archivedClients, clientsTab, query, quickFilter, memByClient, today, browseExtra])
 
   const sortedFilteredClients = useMemo(() => {
     if (quickFilter === 'birthdays') {
@@ -281,8 +289,8 @@ export function TrainerClients() {
 
   const filterCounts = useMemo(() => {
     const base = clientsTab === 'archive' ? archivedClients : clients
-    return buildTrainerClientsBrowseCounts(base, memByClient, today)
-  }, [clients, archivedClients, clientsTab, memByClient, today])
+    return buildTrainerClientsBrowseCounts(base, memByClient, today, browseExtra)
+  }, [clients, archivedClients, clientsTab, memByClient, today, browseExtra])
 
   useEffect(() => {
     if (!user?.id || !isOutreachScenario(quickFilter)) {
@@ -483,6 +491,9 @@ export function TrainerClients() {
     }
     if (quickFilter === 'stale') {
       return `Нет клиентов, у которых абонемент закончился ${STALE_TRAINING_DAYS}–${STALE_MAX_DAYS} дней назад.`
+    }
+    if (quickFilter === 'attendance_slip') {
+      return 'Нет клиентов с активным абонементом, которые выпали из ритма (≥14 дней без визита).'
     }
     if (quickFilter === 'inactive') {
       return `Нет клиентов в финале воронки (>${STALE_MAX_DAYS} дн. после конца или странный/пустой абон).`

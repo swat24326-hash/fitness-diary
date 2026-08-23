@@ -30,6 +30,7 @@ export const ADMIN_CLIENTS_FILTER_HELP = {
  *     expiring: number,
  *     expired_recent: number,
  *     stale: number,
+ *     attendance_slip: number,
  *   },
  *   quickFilter: string,
  *   onApply: (id: string) => void,

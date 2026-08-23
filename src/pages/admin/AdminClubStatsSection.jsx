@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { BarChart3, ClipboardList, Gauge, Info, LayoutGrid, LineChart, RefreshCw, TrendingUp, Trophy, UserPlus } from 'lucide-react'
+import { BarChart3, ClipboardList, Gauge, Info, LayoutGrid, LineChart, RefreshCw, TrendingDown, TrendingUp, Trophy, UserPlus } from 'lucide-react'
 import { listTrainerSummariesForAdmin, listClubsLocal } from '../../lib/dataAccess'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { loadTrainerMonthlyStatsForYear } from '../../lib/trainer/trainerMonthlyStatsService'
@@ -10,7 +10,12 @@ import { AdminClubMonthlyChart } from '../../components/AdminClubMonthlyChart'
 import { MembershipTypeStatsTable } from '../../components/MembershipTypeStatsTable'
 import { CoachQualityPanel } from '../../components/CoachQualityPanel'
 import { ClientRetentionPanel } from '../../components/ClientRetentionPanel'
+import { ClientAttendanceClubPanel } from '../../components/ClientAttendanceClubPanel'
 import { formatRetentionRatePct } from '../../lib/admin/clientRetentionPresentationCore.js'
+import {
+  formatClubAttendancePct,
+  formatClubAvgVisitsPerWeek,
+} from '../../lib/admin/clubAttendanceAggCore.js'
 import { TrainerRatingCard } from '../../components/admin/TrainerRatingCard'
 import { loadClubMonthlyStatsForYear, MONTHS_PER_CALENDAR_YEAR } from '../../lib/admin/adminClubMonthlyService'
 import { loadTrainerPayrollContextClient } from '../../lib/admin/trainerPayrollContextClient.js'
@@ -23,7 +28,7 @@ import {
   clubStatsHallShowsPzOnlyCards,
 } from '../../lib/admin/clubStatsHallFilterCore.js'
 
-/** @typedef {'byDay' | 'byTypes' | 'rating' | 'clubMonthly' | 'pnk' | 'coachQuality' | 'clientRetention'} AdminStatsInlinePanel */
+/** @typedef {'byDay' | 'byTypes' | 'rating' | 'clubMonthly' | 'pnk' | 'coachQuality' | 'clientRetention' | 'clientAttendance'} AdminStatsInlinePanel */
 
 /** @typedef {'journal' | 'coachQuality'} AdminStatsDeepLinkPanel */
 
@@ -97,7 +102,7 @@ export function AdminClubStatsSection({
 
   const range = useMemo(() => getDateRange(period, customFrom, customTo), [period, customFrom, customTo])
 
-  const { busy, coachQualityBusy, clientRetentionBusy, stats, pnkFunnel, loadStats } = useClubPeriodStatsLoad({
+  const { busy, coachQualityBusy, clientRetentionBusy, clientAttendanceBusy, stats, pnkFunnel, loadStats } = useClubPeriodStatsLoad({
     clubId,
     isTrainerScope,
     scopeTrainerId,
@@ -111,7 +116,7 @@ export function AdminClubStatsSection({
   useEffect(() => {
     if (showPzOnlyCards) return
     setInlinePanel((prev) =>
-      prev === 'pnk' || prev === 'byDay' || prev === 'rating' || prev === 'coachQuality' || prev === 'clientRetention' || prev === 'clubMonthly'
+      prev === 'pnk' || prev === 'byDay' || prev === 'rating' || prev === 'coachQuality' || prev === 'clientRetention' || prev === 'clientAttendance' || prev === 'clubMonthly'
         ? null
         : prev,
     )
@@ -379,6 +384,16 @@ export function AdminClubStatsSection({
     clientRetention != null &&
     ((clientRetention.poolSize ?? 0) > 0 || (clientRetention.universeSize ?? 0) > 0)
 
+  const clientAttendance = stats?.clientAttendance ?? null
+  const hasClientAttendance = clientAttendance != null && (clientAttendance.poolSize ?? 0) > 0
+  const clientsListPath = pathname.startsWith('/club')
+    ? '/club/clients'
+    : pathname.startsWith('/sales')
+      ? '/sales/clients'
+      : isTrainerScope
+        ? '/trainer/clients'
+        : '/admin/clients'
+
   const clientHrefForQuality = useCallback(
     (clientId) => {
       const id = String(clientId ?? '').trim()
@@ -586,6 +601,9 @@ export function AdminClubStatsSection({
                   </li>
                   <li>
                     <strong>Удержание</strong> — {isTrainerScope ? 'ваш M+3' : 'M+3 по клубу'} (клиенты с планшетом): доля когорт, которые ещё ходили через 3 месяца; нажмите для продлений, архива и тренеров.
+                  </li>
+                  <li>
+                    <strong>Посещаемость</strong> — <em>средняя</em> (трен./нед. на клиента с активным абоном, окно 30 дн.). Не путать с «Проведено тренировок». Нажмите — структура ритма и сравнение тренеров.
                   </li>
                 </>
               ) : null}
@@ -854,6 +872,47 @@ export function AdminClubStatsSection({
             </p>
           </button>
           ) : null}
+          {showPzOnlyCards ? (
+          <button
+            type="button"
+            id="admin-client-attendance-card"
+            className={statCardClass(inlinePanel === 'clientAttendance')}
+            disabled={clientAttendanceBusy}
+            aria-busy={clientAttendanceBusy || undefined}
+            aria-expanded={inlinePanel === 'clientAttendance'}
+            aria-controls="admin-client-attendance-panel"
+            aria-label={
+              clientAttendanceBusy
+                ? 'Посещаемость: считаем'
+                : hasClientAttendance
+                  ? `Посещаемость: средняя ${formatClubAvgVisitsPerWeek(clientAttendance.avgVisitsPerWeek)} тренировок в неделю, без выпадения ${formatClubAttendancePct(clientAttendance.inRhythmPct)}. Нажмите`
+                  : 'Посещаемость: нет активных абонов'
+            }
+            title={
+              hasClientAttendance && !clientAttendanceBusy
+                ? 'Средняя посещаемость ПЗ (трен./нед) — нажмите для аналитики'
+                : undefined
+            }
+            onClick={() => toggleInlinePanel('clientAttendance')}
+          >
+            <div className="stat-card__top admin-club-stat-card__head">
+              <h3 className="td-stat-title admin-club-stat-card__title">Посещаемость</h3>
+              <TrendingDown className="stat-card__icon" size={20} aria-hidden />
+            </div>
+            <p className="stat-card__value admin-club-stat-card__value">
+              {clientAttendanceBusy ? '…' : formatClubAvgVisitsPerWeek(clientAttendance?.avgVisitsPerWeek)}
+            </p>
+            <p className="admin-club-stat-card__foot">
+              {clientAttendanceBusy
+                ? 'считаем…'
+                : !hasClientAttendance
+                  ? 'нет активных абонов'
+                  : inlinePanel === 'clientAttendance'
+                    ? 'скрыть подробности'
+                    : `трен./нед · без выпад. ${formatClubAttendancePct(clientAttendance.inRhythmPct)} · нажмите`}
+            </p>
+          </button>
+          ) : null}
         </div>
       </div>
 
@@ -1088,6 +1147,19 @@ export function AdminClubStatsSection({
             trainerLabel={trainerLabel}
             selfTrainerId={isTrainerScope ? scopeTrainerId : null}
             compact={isTrainerScope}
+          />
+        </div>
+      ) : null}
+
+      {inlinePanel === 'clientAttendance' && showPzOnlyCards ? (
+        <div id="admin-client-attendance-panel">
+          <ClientAttendanceClubPanel
+            clientAttendance={clientAttendance}
+            busy={clientAttendanceBusy}
+            clubId={isTrainerScope ? scopeClubId || clubId : clubId}
+            clientsPath={clientsListPath}
+            trainerLabel={trainerLabel}
+            selfTrainerId={isTrainerScope ? scopeTrainerId : null}
           />
         </div>
       ) : null}

@@ -17,6 +17,7 @@ import {
 import { isBirthdayBrowseMatch, isBirthdayToday } from '../clientBirthdays.js'
 import { deskMembershipSignal } from './deskMembershipLedgerCore.js'
 import { filterMembershipsByHall } from '../membershipHallCore.js'
+import { isClientAttendanceSlip } from '../clientAttendanceGlanceCore.js'
 
 export const ADMIN_CLIENT_FUNNEL_FILTERS = [
   'all',
@@ -27,6 +28,7 @@ export const ADMIN_CLIENT_FUNNEL_FILTERS = [
   'expiring',
   'expired_recent',
   'stale',
+  'attendance_slip',
 ]
 
 /** @typedef {'pz' | 'tz' | 'az'} AdminFunnelHallMode */
@@ -144,6 +146,8 @@ export const isDeskClientStaleForAttention = isTzClientStaleForAttention
  *   hallMode?: AdminFunnelHallMode | string,
  *   deskMode?: boolean,
  *   lifecycleRows?: object[],
+ *   lastTrainingIso?: string | null,
+ *   trainings?: object[],
  * }} ctx
  */
 export function clientMatchesAdminFunnelFilter(filter, ctx = {}) {
@@ -188,6 +192,18 @@ export function clientMatchesAdminFunnelFilter(filter, ctx = {}) {
   if (mode === 'expiring') return membershipSignal(memList, today).key === 'expiring'
   if (mode === 'expired_recent') return isMembershipExpiredRecently(memList, today)
   if (mode === 'stale') return isClientStaleForAttention({ memList, today })
+  if (mode === 'attendance_slip') {
+    return isClientAttendanceSlip({
+      client,
+      memList,
+      today,
+      hallMode: hall,
+      ...(Object.prototype.hasOwnProperty.call(ctx, 'lastTrainingIso')
+        ? { lastTrainingIso: ctx.lastTrainingIso }
+        : {}),
+      ...(Array.isArray(ctx.trainings) ? { trainings: ctx.trainings } : {}),
+    })
+  }
   return false
 }
 
@@ -196,7 +212,7 @@ export function clientMatchesAdminFunnelFilter(filter, ctx = {}) {
  * @param {Record<string, object[]>} memByClient
  * @param {string} today
  * @param {Set<string>} [inactiveIds]
- * @param {{ hallMode?: AdminFunnelHallMode | string, deskMode?: boolean, lifecycleRows?: object[] }} [opts]
+ * @param {{ hallMode?: AdminFunnelHallMode | string, deskMode?: boolean, lifecycleRows?: object[], lastTrainingByClient?: Record<string, string>, trainingsByClientId?: Record<string, object[]> }} [opts]
  */
 export function countAdminFunnelFilters(clients, memByClient, today, inactiveIds, opts = {}) {
   const hall = normalizeAdminFunnelHallMode(opts.hallMode, { deskMode: opts.deskMode })
@@ -207,13 +223,26 @@ export function countAdminFunnelFilters(clients, memByClient, today, inactiveIds
   let expiring = 0
   let expired_recent = 0
   let stale = 0
+  let attendance_slip = 0
   let pnk = 0
   let inactive = 0
   let all = 0
   for (const c of clients ?? []) {
     const memAll = memByClient[c.id] ?? memByClient[String(c.id)] ?? []
     const memList = filterMembershipsByHall(memAll, hall, c)
-    const ctx = { client: c, memList, today, inactiveIds, hallMode: hall, lifecycleRows }
+    const id = String(c.id)
+    const hasLast = Object.prototype.hasOwnProperty.call(opts.lastTrainingByClient ?? {}, id)
+    const hasTrainings = Object.prototype.hasOwnProperty.call(opts.trainingsByClientId ?? {}, id)
+    const ctx = {
+      client: c,
+      memList,
+      today,
+      inactiveIds,
+      hallMode: hall,
+      lifecycleRows,
+      ...(hasLast ? { lastTrainingIso: opts.lastTrainingByClient[id] } : {}),
+      ...(hasTrainings ? { trainings: opts.trainingsByClientId[id] } : {}),
+    }
     if (!isAdminPnkClient(c)) all++
     if (clientMatchesAdminFunnelFilter('pnk', ctx)) pnk++
     if (clientMatchesAdminFunnelFilter('inactive', ctx)) inactive++
@@ -223,6 +252,7 @@ export function countAdminFunnelFilters(clients, memByClient, today, inactiveIds
     if (clientMatchesAdminFunnelFilter('expiring', ctx)) expiring++
     if (clientMatchesAdminFunnelFilter('expired_recent', ctx)) expired_recent++
     if (clientMatchesAdminFunnelFilter('stale', ctx)) stale++
+    if (clientMatchesAdminFunnelFilter('attendance_slip', ctx)) attendance_slip++
   }
   return {
     all,
@@ -233,5 +263,6 @@ export function countAdminFunnelFilters(clients, memByClient, today, inactiveIds
     expiring,
     expired_recent,
     stale,
+    attendance_slip: hall === 'pz' ? attendance_slip : 0,
   }
 }

@@ -657,6 +657,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         browseMode: quickFilter,
         azDirectionFilter: clientsTab === 'az' ? azDirectionFilter : '',
         lifecycleRows,
+        lastTrainingByClient,
       })
     }
 
@@ -674,6 +675,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
           browseMode: quickFilter,
           azDirectionFilter: clientsTab === 'az' ? azDirectionFilter : '',
           lifecycleRows,
+          lastTrainingByClient,
         }).map((c) => String(c.id)),
       )
       base = base.filter((c) => allowed.has(String(c.id)))
@@ -865,6 +867,48 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     }
   }, [club, pagedClientIdsKey])
 
+  // Фоновая догрузка last-training по всему клубу (ПЗ): иначе filter/count
+  // «Выпали из ритма» ложно пустые или ложные до визита каждой страницы.
+  const allClientIdsKey = useMemo(() => {
+    const ids = clients.map((c) => String(c?.id ?? '').trim()).filter(Boolean)
+    ids.sort()
+    return ids.join(',')
+  }, [clients])
+
+  useEffect(() => {
+    if (clientsTab !== 'pz' || !lifecycleReady) return
+    if (!club?.trim() || !allClientIdsKey) return
+    if (!isSupabaseConfigured() || !navigator.onLine) return
+    const ids = allClientIdsKey.split(',').filter(Boolean)
+    const known = lastTrainingRef.current
+    const missing = ids.filter((id) => !Object.prototype.hasOwnProperty.call(known, id))
+    if (!missing.length) return
+    let cancelled = false
+    void (async () => {
+      for (let i = 0; i < missing.length; i += 50) {
+        if (cancelled) return
+        const chunk = missing.slice(i, i + 50)
+        try {
+          const remote = await fetchClientsLastTrainingsViaApi({ clubId: club, clientIds: chunk })
+          const remoteMap = remote?.lastByClient ?? {}
+          /** @type {Record<string, string>} */
+          const map = {}
+          for (const id of chunk) {
+            map[id] = remoteMap[id] ? String(remoteMap[id]).slice(0, 10) : ''
+          }
+          if (!cancelled && Object.keys(map).length) {
+            setLastTrainingByClient((prev) => ({ ...prev, ...map }))
+          }
+        } catch {
+          break
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [club, clientsTab, lifecycleReady, allClientIdsKey])
+
   const filterCounts = useMemo(() => {
     if (!lifecycleReady) {
       return {
@@ -876,6 +920,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         expiring: 0,
         expired_recent: 0,
         stale: 0,
+        attendance_slip: 0,
       }
     }
     return buildAdminClientsBrowseCounts({
@@ -886,6 +931,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       azDirectionFilter:
         clientsTab === 'az' && !crossHallSearch ? azDirectionFilter : '',
       lifecycleRows,
+      lastTrainingByClient,
     })
   }, [
     lifecycleReady,
@@ -896,6 +942,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     azDirectionFilter,
     lifecycleRows,
     crossHallSearch,
+    lastTrainingByClient,
   ])
 
   const allTileLabel = adminClientsAllTileLabel(clientsTab, filterCounts)
@@ -909,6 +956,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     expiring: 'Истекает абонемент',
     expired_recent: 'Абонемент закончился',
     stale: 'Давно не был',
+    attendance_slip: 'Выпали из ритма',
   }
 
   const azDirectionShownLabel = useMemo(() => {

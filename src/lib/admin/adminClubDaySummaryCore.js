@@ -3,6 +3,7 @@ import { membershipSignal } from '../clientListSignals.js'
 import { todayInTimeZoneIso } from '../dateRu.js'
 import { aggregateClubClientPeriod } from './clubClientPeriodAgg.js'
 import { buildAdminPzDaySummaryBrowseCounts } from './adminClientsBrowseFilterCore.js'
+import { buildLastCompletedTrainingDateByClientId } from '../trainer/trainerAttentionSummary.js'
 import { shouldReloadAdminDaySummaryFromStorage } from './adminClientsListReloadCore.js'
 
 /** @param {string} todayIso yyyy-mm-dd */
@@ -106,11 +107,14 @@ export function buildAdminClubDaySummary(input = {}) {
   const byClientMap = buildMembershipsByClientId(memberships)
   /** @type {Record<string, object[]>} */
   const memByClient = Object.fromEntries(byClientMap)
+  const lastTrainingByClient =
+    input.lastTrainingByClient ?? buildLastCompletedTrainingDateByClientId(trainings)
   const funnel = buildAdminPzDaySummaryBrowseCounts(
     clients,
     memByClient,
     today,
     input.lifecycleRows ?? [],
+    lastTrainingByClient,
   )
 
   // Чип/карточка «Не активные» на дашборде = финал воронки (не широкий census периода).
@@ -139,6 +143,7 @@ export function buildAdminClubDaySummary(input = {}) {
     expiring,
     expired_recent: funnel.expired_recent,
     stale: funnel.stale,
+    attendance_slip: funnel.attendance_slip,
     awaiting_start: funnel.awaiting_start,
     birthdays: funnel.birthdays,
     trainingsToday,

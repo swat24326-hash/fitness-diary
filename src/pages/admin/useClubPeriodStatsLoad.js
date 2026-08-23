@@ -8,7 +8,9 @@ import { isAppOnline } from '../../lib/syncService'
 import { refreshMembershipsForStats } from '../../lib/membershipCacheRefresh'
 import { loadClubTrainingStats } from '../../lib/dataAccess'
 import { ensureClubPeriodCoachQuality } from '../../lib/admin/adminClubStatsService'
-import { fetchCoachQualityViaApi, fetchClientRetentionViaApi } from '../../lib/admin/adminApiClient'
+import { fetchCoachQualityViaApi, fetchClientRetentionViaApi, fetchClientAttendanceViaApi } from '../../lib/admin/adminApiClient'
+import { loadClubAttendanceFromLocal } from '../../lib/admin/clubAttendanceLocalService.js'
+import { preferClubAttendancePayload, isClubAttendancePayloadIncomplete } from '../../lib/admin/clubAttendanceAggCore.js'
 import {
   ensureTrainerPeriodCoachQuality,
   loadTrainerPeriodStats,
@@ -31,6 +33,7 @@ export function useClubPeriodStatsLoad({
   const [busy, setBusy] = useState(false)
   const [coachQualityBusy, setCoachQualityBusy] = useState(false)
   const [clientRetentionBusy, setClientRetentionBusy] = useState(false)
+  const [clientAttendanceBusy, setClientAttendanceBusy] = useState(false)
   const [stats, setStats] = useState(null)
   const [pnkFunnel, setPnkFunnel] = useState(null)
   const statsLoadGenRef = useRef(0)
@@ -118,11 +121,13 @@ export function useClubPeriodStatsLoad({
         setPnkFunnel(null)
         setCoachQualityBusy(false)
         setClientRetentionBusy(false)
+        setClientAttendanceBusy(false)
         return
       }
       if (!silent) setBusy(true)
       setCoachQualityBusy(true)
       setClientRetentionBusy(true)
+      setClientAttendanceBusy(true)
       try {
         if (isSupabaseConfigured() && isAppOnline()) {
           await refreshMembershipsForStats({
@@ -175,6 +180,16 @@ export function useClubPeriodStatsLoad({
               }).catch(() => null)
             : Promise.resolve(null)
 
+        const attendanceApiPromise =
+          wantCq && isSupabaseConfigured() && isAppOnline() && clubForCq
+            ? fetchClientAttendanceViaApi({
+                clubId: clubForCq,
+                dateFrom: range.start,
+                dateTo: range.end,
+                trainerId: isTrainerScope ? scopeTrainerId : '',
+              }).catch(() => null)
+            : Promise.resolve(null)
+
         const s = await lightPromise
         if (gen !== statsLoadGenRef.current) return
         setStats(s)
@@ -188,6 +203,7 @@ export function useClubPeriodStatsLoad({
           if (gen === statsLoadGenRef.current) {
             setCoachQualityBusy(false)
             setClientRetentionBusy(false)
+            setClientAttendanceBusy(false)
           }
           return
         }
@@ -203,10 +219,32 @@ export function useClubPeriodStatsLoad({
               withCq = await fetchCoachQualityFresh(s)
             }
           }
-          const retentionApi = await retentionApiPromise
+          const [retentionApi, attendanceApi] = await Promise.all([
+            retentionApiPromise,
+            attendanceApiPromise,
+          ])
           if (gen !== statsLoadGenRef.current) return
           if (retentionApi?.clientRetention) {
             withCq = { ...withCq, clientRetention: retentionApi.clientRetention }
+          }
+          let attendance = attendanceApi?.clientAttendance ?? null
+          const hintCompleted = Number(s?.totalCompleted) || 0
+          if (clubForCq && (!attendance || isClubAttendancePayloadIncomplete(attendance))) {
+            try {
+              const local = await loadClubAttendanceFromLocal({
+                clubId: clubForCq,
+                dateFrom: range.start,
+                dateTo: range.end,
+                trainerIdFilter: isTrainerScope ? scopeTrainerId : null,
+                hintCompletedInPeriod: hintCompleted,
+              })
+              attendance = preferClubAttendancePayload(attendance, local)
+            } catch {
+              attendance = preferClubAttendancePayload(attendance, null)
+            }
+          }
+          if (attendance) {
+            withCq = { ...withCq, clientAttendance: attendance }
           }
           if (gen !== statsLoadGenRef.current) return
           setStats((prev) => {
@@ -215,6 +253,7 @@ export function useClubPeriodStatsLoad({
               ...prev,
               coachQuality: withCq?.coachQuality ?? prev.coachQuality ?? null,
               clientRetention: withCq?.clientRetention ?? prev.clientRetention ?? null,
+              clientAttendance: withCq?.clientAttendance ?? prev.clientAttendance ?? null,
             }
           })
         } catch {
@@ -225,6 +264,7 @@ export function useClubPeriodStatsLoad({
                     ...prev,
                     coachQuality: prev.coachQuality ?? null,
                     clientRetention: prev.clientRetention ?? null,
+                    clientAttendance: prev.clientAttendance ?? null,
                   }
                 : prev,
             )
@@ -233,6 +273,7 @@ export function useClubPeriodStatsLoad({
           if (gen === statsLoadGenRef.current) {
             setCoachQualityBusy(false)
             setClientRetentionBusy(false)
+            setClientAttendanceBusy(false)
           }
         }
       } catch {
@@ -241,6 +282,7 @@ export function useClubPeriodStatsLoad({
         setPnkFunnel(null)
         setCoachQualityBusy(false)
         setClientRetentionBusy(false)
+        setClientAttendanceBusy(false)
       } finally {
         if (gen === statsLoadGenRef.current && !silent) setBusy(false)
       }
@@ -272,7 +314,15 @@ export function useClubPeriodStatsLoad({
     },
   )
 
-  return { busy, coachQualityBusy, clientRetentionBusy, stats, pnkFunnel, loadStats }
+  return {
+    busy,
+    coachQualityBusy,
+    clientRetentionBusy,
+    clientAttendanceBusy,
+    stats,
+    pnkFunnel,
+    loadStats,
+  }
 }
 
 /** Для главной: месяц. */

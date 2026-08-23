@@ -2,6 +2,10 @@
  * node scripts/verify-client-attendance-stats.mjs
  */
 import {
+  ATTENDANCE_TARGET_VISITS_PER_WEEK,
+  buildClientAttendanceAssessment,
+} from '../src/lib/clientAttendanceAssessmentCore.js'
+import {
   buildClientAttendanceStats,
   buildAttendanceBucketRanges,
   buildAttendanceChartAxisLabels,
@@ -122,6 +126,16 @@ const inverted = buildClientAttendanceStats(T, { dateFrom: '2026-08-01', dateTo:
 ok(inverted.summary.total === 0 && inverted.buckets.length === 0, 'inverted range empty')
 
 ok(
+  resolveAttendanceRegularity({
+    visitsPerWeek: 2,
+    maxGapDays: 14,
+    daysSinceLastVisit: 14,
+    total: 8,
+    daysInRange: 30,
+  }) === 'moderate',
+  'gap/tail = 14 дн. → not Регулярно (align with slip)',
+)
+ok(
   resolveAttendanceRegularity({ visitsPerWeek: 2, maxGapDays: 7, daysSinceLastVisit: 3, total: 8, daysInRange: 30 }) ===
     'regular',
   'regular thresholds',
@@ -129,8 +143,14 @@ ok(
 ok(
   resolveAttendanceRegularity({ visitsPerWeek: 1, maxGapDays: 5, daysSinceLastVisit: 20, total: 4, daysInRange: 30 }) ===
     'moderate',
-  'tail gap affects moderate via daysSinceLastVisit',
+  '≥1/нед = Норма even with long tail',
 )
+ok(
+  resolveAttendanceRegularity({ visitsPerWeek: 0.9, maxGapDays: 5, daysSinceLastVisit: 3, total: 4, daysInRange: 30 }) ===
+    'rare',
+  'below 1/нед = Редко',
+)
+ok(attendanceRegularityLabelRu('moderate') === 'Норма', 'label norma')
 ok(attendanceRegularityLabelRu('regular') === 'Регулярно', 'label ru')
 
 ok(buildAttendanceBucketRanges('2026-07-10', '2026-07-10', 'week').length >= 1, 'single-day range has bucket')
@@ -219,6 +239,44 @@ ok(
   buildClientAttendanceStatsPath('abc', { forAdmin: true }).includes('/admin/clients/abc'),
   'attendance stats path admin',
 )
+
+ok(ATTENDANCE_TARGET_VISITS_PER_WEEK === 2, 'target visits per week')
+
+const noneAssessment = buildClientAttendanceAssessment(empty, {
+  dateFrom: '2026-08-01',
+  dateTo: '2026-08-31',
+  todayIso: '2026-08-31',
+})
+ok(noneAssessment.regularity === 'none' && noneAssessment.factors.length >= 0, 'assessment none')
+ok(noneAssessment.recommendationRu.includes('тренировку'), 'none recommendation')
+ok(noneAssessment.periodLabelRu.includes('за период'), 'none period label')
+
+const insAssessment = buildClientAttendanceAssessment(short, {
+  dateFrom: '2026-07-14',
+  dateTo: '2026-07-20',
+  todayIso: '2026-07-20',
+})
+ok(insAssessment.regularity === 'insufficient', 'assessment insufficient')
+ok(insAssessment.recommendationRu.includes('За всё время'), 'insufficient recommendation')
+
+const weekAssessment = buildClientAttendanceAssessment(weekStats, {
+  dateFrom: '2026-07-01',
+  dateTo: '2026-07-31',
+  todayIso: '2026-07-31',
+  dataReliable: true,
+})
+ok(weekAssessment.regularity === weekStats.summary.regularity, 'assessment regularity matches summary')
+ok(weekAssessment.headlineRu.includes(String(weekStats.summary.visitsPerWeek)), 'assessment headline has pace')
+ok(weekAssessment.factors.some((f) => f.key === 'coverage'), 'assessment has coverage factor')
+ok(weekAssessment.recommendationRu.length > 10, 'assessment recommendation')
+
+const rareAssessment = buildClientAttendanceAssessment(rareStats, {
+  dateFrom: '2026-01-01',
+  dateTo: '2026-02-28',
+  todayIso: '2026-02-28',
+})
+ok(rareAssessment.regularity === 'rare', 'assessment rare')
+ok(rareAssessment.factors.some((f) => f.tone === 'bad'), 'rare has bad factor')
 
 if (failed) process.exit(1)
 console.log('verify-client-attendance-stats: all ok')

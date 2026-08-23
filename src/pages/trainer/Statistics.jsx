@@ -12,7 +12,9 @@ import {
 import { Line } from 'react-chartjs-2'
 import { listMeasurements, listMemberships } from '../../lib/dataAccess'
 import { listTrainingsByClientId } from '../../lib/localDbClubQuery'
+import { listMembershipTypesForClub } from '../../lib/membershipTypesService'
 import { ensureClientTrainingsCachedWithStatus } from '../../lib/clientTrainingsEnsure'
+import { useAuth } from '../../context/AuthContext'
 import {
   clientStatsModeNeedsTrainingsEnsure,
   DEFAULT_CLIENT_STATS_MODE,
@@ -83,6 +85,9 @@ function exerciseMatchesSelection(ex, catalogId, nameSearch) {
 }
 
 export function Statistics({ clientId, initialMode = null }) {
+  const { isSalesManager, isSupervisor } = useAuth()
+  const statsAudience = isSalesManager ? 'sales' : isSupervisor ? 'staff' : 'trainer'
+  const todayIso = todayLocalIso()
   const [mode, setModeState] = useState(() => resolveClientStatsMode(clientId, initialMode))
   const appliedAllTimeKeyRef = useRef(null)
   const userEditedRangeRef = useRef(false)
@@ -118,6 +123,8 @@ export function Statistics({ clientId, initialMode = null }) {
   const [dateTo, setDateTo] = useState(() => todayLocalIso())
   const [measurements, setMeasurements] = useState([])
   const [trainings, setTrainings] = useState([])
+  const [memberships, setMemberships] = useState([])
+  const [membershipTypes, setMembershipTypes] = useState([])
   const [membershipStartDates, setMembershipStartDates] = useState([])
   const [trainingsOnline, setTrainingsOnline] = useState(true)
   const [trainingsEnsureOk, setTrainingsEnsureOk] = useState(true)
@@ -158,9 +165,21 @@ export function Statistics({ clientId, initialMode = null }) {
             })),
       ])
       setMeasurements(measures)
+      setMemberships(mems ?? [])
       setMembershipStartDates(
         (mems ?? []).map((m) => String(m?.start_date ?? '').slice(0, 10)).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)),
       )
+      const clubId = String((mems ?? []).find((m) => m?.club_id)?.club_id ?? '').trim()
+      if (clubId) {
+        try {
+          const types = await listMembershipTypesForClub(clubId)
+          setMembershipTypes(types ?? [])
+        } catch {
+          setMembershipTypes([])
+        }
+      } else {
+        setMembershipTypes([])
+      }
       setTrainings(cached.trainings)
       setTrainingsOnline(cached.online)
       setTrainingsEnsureOk(cached.ensureOk)
@@ -571,6 +590,10 @@ export function Statistics({ clientId, initialMode = null }) {
             online={trainingsOnline}
             ensureOk={trainingsEnsureOk}
             membershipStartDates={membershipStartDates}
+            memberships={memberships}
+            membershipTypes={membershipTypes}
+            todayIso={todayIso}
+            audience={statsAudience}
             loading={trainingsLoading}
           />
         ) : (

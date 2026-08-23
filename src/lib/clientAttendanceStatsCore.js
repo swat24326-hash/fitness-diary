@@ -340,6 +340,10 @@ export function formatGroupedVisitDatesRu(dates, formatDateRu) {
     .join(', ')
 }
 
+export const ATTENDANCE_NORMA_MIN_VISITS_PER_WEEK = 1
+export const ATTENDANCE_REGULAR_MIN_VISITS_PER_WEEK = 1.5
+export const ATTENDANCE_REGULAR_MAX_GAP_DAYS = 14
+
 /**
  * @param {{
  *   visitsPerWeek: number,
@@ -354,21 +358,24 @@ export function resolveAttendanceRegularity(p) {
   const total = Number(p.total) || 0
   const days = Number(p.daysInRange) || 0
   if (total <= 0) return 'none'
-  if (days < 14 || total < 2) return 'insufficient'
+  if (days < ATTENDANCE_REGULAR_MAX_GAP_DAYS || total < 2) return 'insufficient'
 
   const avg = Number(p.visitsPerWeek) || 0
   const maxGap = p.maxGapDays
   const tail = p.daysSinceLastVisit
-
-  if (avg >= 1.5 && (maxGap == null || maxGap <= 10) && (tail == null || tail <= 10)) return 'regular'
-  if (avg >= 0.8 || (maxGap != null && maxGap <= 14) || (tail != null && tail <= 14)) return 'moderate'
+  // Норма = ≥1/нед; Регулярно = ≥1.5/нед без пауз ≥14 дн. (пауза 14 = уже slip).
+  const gapOk =
+    (maxGap == null || maxGap < ATTENDANCE_REGULAR_MAX_GAP_DAYS) &&
+    (tail == null || tail < ATTENDANCE_REGULAR_MAX_GAP_DAYS)
+  if (avg >= ATTENDANCE_REGULAR_MIN_VISITS_PER_WEEK && gapOk) return 'regular'
+  if (avg >= ATTENDANCE_NORMA_MIN_VISITS_PER_WEEK) return 'moderate'
   return 'rare'
 }
 
 /** @param {AttendanceRegularity} kind */
 export function attendanceRegularityLabelRu(kind) {
   if (kind === 'regular') return 'Регулярно'
-  if (kind === 'moderate') return 'Умеренно'
+  if (kind === 'moderate') return 'Норма'
   if (kind === 'rare') return 'Редко'
   if (kind === 'insufficient') return 'Мало данных за период'
   return 'Нет визитов'

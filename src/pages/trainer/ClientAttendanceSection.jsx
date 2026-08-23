@@ -1,5 +1,7 @@
 import { useMemo } from 'react'
+import { ClientAttendanceAssessmentPanel } from '../../components/ClientAttendanceAssessmentPanel'
 import { ClientAttendanceChart } from '../../components/ClientAttendanceChart'
+import { buildClientAttendanceAssessment } from '../../lib/clientAttendanceAssessmentCore'
 import {
   ATTENDANCE_MISSED_LABEL_RU,
   buildClientAttendanceStats,
@@ -10,7 +12,7 @@ import {
   earliestCompletedTrainingDate,
   resolveTrainingsCoverageHint,
 } from '../../lib/clientTrainingsCoverageHint'
-import { formatDateRu } from '../../lib/dateRu'
+import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 
 /**
  * @param {{
@@ -20,6 +22,10 @@ import { formatDateRu } from '../../lib/dateRu'
  *   online: boolean,
  *   ensureOk: boolean,
  *   membershipStartDates?: string[],
+ *   memberships?: object[],
+ *   membershipTypes?: object[],
+ *   todayIso?: string,
+ *   audience?: 'trainer' | 'sales' | 'staff',
  *   loading?: boolean,
  * }} props
  */
@@ -30,6 +36,10 @@ export function ClientAttendanceSection({
   online,
   ensureOk,
   membershipStartDates = [],
+  memberships = [],
+  membershipTypes = [],
+  todayIso,
+  audience = 'trainer',
   loading = false,
 }) {
   const stats = useMemo(
@@ -49,6 +59,34 @@ export function ClientAttendanceSection({
         localCompletedCount,
       }),
     [online, ensureOk, trainings, membershipStartDates, localCompletedCount],
+  )
+
+  const assessment = useMemo(
+    () =>
+      buildClientAttendanceAssessment(stats, {
+        dateFrom,
+        dateTo,
+        todayIso: todayIso ?? todayLocalIso(),
+        dataReliable: online !== false && ensureOk === true,
+        coverageHint,
+        audience,
+        memberships,
+        membershipTypes,
+        allTrainings: trainings,
+      }),
+    [
+      stats,
+      dateFrom,
+      dateTo,
+      todayIso,
+      online,
+      ensureOk,
+      coverageHint,
+      audience,
+      memberships,
+      membershipTypes,
+      trainings,
+    ],
   )
 
   const periodRows = useMemo(() => [...stats.buckets].reverse(), [stats.buckets])
@@ -90,18 +128,14 @@ export function ClientAttendanceSection({
           </strong>
         </div>
         <div className="stats-attendance-kpi__tile">
-          <span className="stats-attendance-kpi__label">С последнего</span>
+          <span className="stats-attendance-kpi__label">В периоде</span>
           <strong className="stats-attendance-kpi__value">
             {stats.summary.daysSinceLastVisit != null ? `${stats.summary.daysSinceLastVisit} дн.` : '—'}
           </strong>
         </div>
-        <div className="stats-attendance-kpi__tile stats-attendance-kpi__tile--rhythm">
-          <span className="stats-attendance-kpi__label">Ритм</span>
-          <span className={`stats-attendance-reg stats-attendance-reg--${stats.summary.regularity}`}>
-            {stats.summary.regularityLabelRu}
-          </span>
-        </div>
       </div>
+
+      <ClientAttendanceAssessmentPanel assessment={assessment} />
 
       <p className="muted stats-attendance-note">
         Завершённые тренировки из дневника (все типы, включая БЗ). На графике и в таблице —{' '}

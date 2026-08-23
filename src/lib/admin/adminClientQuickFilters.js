@@ -9,6 +9,7 @@ export const ADMIN_CLIENT_QUICK_FILTERS = [
   'expiring',
   'expired_recent',
   'stale',
+  'attendance_slip',
 ]
 
 /** @param {string} filter */

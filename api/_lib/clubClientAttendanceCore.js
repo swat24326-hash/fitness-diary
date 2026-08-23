@@ -1,0 +1,125 @@
+/**
+ * Сборка clientAttendance для admin-data?action=client-attendance.
+ */
+
+import { addDaysToIso } from '../../src/lib/dateRu.js'
+import { clampIsoDateToToday } from '../../src/lib/dateRu.js'
+import { ATTENDANCE_GLANCE_WINDOW_DAYS } from '../../src/lib/clientAttendanceGlanceCore.js'
+import { aggregateClubAttendance } from '../../src/lib/admin/clubAttendanceAggCore.js'
+import { fetchClubTrainerModeIds } from './clubTrainerModeIds.js'
+import { fetchPagedLimited } from './fetchPagedLimited.js'
+import {
+  CLUB_STATS_MAX_CLIENTS,
+  CLUB_STATS_MAX_MEMBERSHIPS,
+  CLUB_STATS_MAX_TRAININGS,
+  CLUB_STATS_MAX_CLIENT_HALL_LIFECYCLE,
+} from './apiLimits.js'
+
+const LIFECYCLE_SELECT =
+  'id, client_id, club_id, hall, closed_at, close_reason, close_reason_at, expected_return_on, updated_at'
+
+const CLIENT_SELECT = 'id, name, phone, archived_at, trainer_id, lifecycle, desk_hall'
+
+/**
+ * @param {import('@supabase/supabase-js').SupabaseClient} supabaseAdmin
+ * @param {{
+ *   clubId: string,
+ *   dateFrom: string,
+ *   dateTo: string,
+ *   trainerIdFilter?: string | null,
+ * }} opts
+ */
+export async function buildClubClientAttendancePayload(supabaseAdmin, opts) {
+  const clubId = String(opts.clubId ?? '').trim()
+  const dateToRaw = String(opts.dateTo ?? '').slice(0, 10)
+  const trainerIdFilter = opts.trainerIdFilter ? String(opts.trainerIdFilter).trim() : null
+
+  if (!clubId || !/^\d{4}-\d{2}-\d{2}$/.test(dateToRaw)) {
+    return { clientAttendance: null, truncated: false }
+  }
+
+  const dateTo = clampIsoDateToToday(dateToRaw)
+  const windowFrom = addDaysToIso(dateTo, -(ATTENDANCE_GLANCE_WINDOW_DAYS - 1))
+  // Чуть шире окно для last visit до порога slip (14+ дн. до dateTo).
+  const trainFrom = addDaysToIso(dateTo, -90)
+
+  const modeIds = await fetchClubTrainerModeIds(supabaseAdmin, clubId)
+
+  const [trainingsRes, clientsRes, membershipsRes, lifecycleRes] = await Promise.all([
+    fetchPagedLimited(supabaseAdmin, {
+      table: 'trainings',
+      select: 'id, trainer_id, client_id, date, status',
+      clubId,
+      dateFrom: trainFrom,
+      dateTo,
+      maxRows: CLUB_STATS_MAX_TRAININGS,
+    }),
+    fetchPagedLimited(supabaseAdmin, {
+      table: 'clients',
+      select: CLIENT_SELECT,
+      clubId,
+      maxRows: CLUB_STATS_MAX_CLIENTS,
+    }),
+    fetchPagedLimited(supabaseAdmin, {
+      table: 'memberships',
+      select: 'id, client_id, start_date, end_date, total_trainings, used_trainings, membership_type_id, hall',
+      clubId,
+      maxRows: CLUB_STATS_MAX_MEMBERSHIPS,
+    }),
+    fetchPagedLimited(supabaseAdmin, {
+      table: 'client_hall_lifecycle',
+      select: LIFECYCLE_SELECT,
+      clubId,
+      maxRows: CLUB_STATS_MAX_CLIENT_HALL_LIFECYCLE,
+    }).catch(() => ({ rows: [], truncated: false })),
+  ])
+
+  let clients = clientsRes.rows ?? []
+  let trainings = trainingsRes.rows ?? []
+  if (trainerIdFilter) {
+    clients = clients.filter((c) => String(c?.trainer_id ?? '') === trainerIdFilter)
+    // Визиты считаем по client_id пула, не по trainer_id тренировки
+    // (клиент мог ходить к другому тренеру — ритм всё равно его).
+    const allowed = new Set(clients.map((c) => String(c?.id ?? '')).filter(Boolean))
+    trainings = trainings.filter((t) => allowed.has(String(t?.client_id ?? '')))
+  }
+
+  const truncated =
+    trainingsRes.truncated ||
+    clientsRes.truncated ||
+    membershipsRes.truncated ||
+    Boolean(lifecycleRes?.truncated)
+
+  let lifecycleRows = lifecycleRes?.rows ?? []
+  if (trainerIdFilter) {
+    const allowed = new Set(clients.map((c) => String(c?.id ?? '')))
+    lifecycleRows = lifecycleRows.filter((r) => allowed.has(String(r?.client_id ?? '')))
+  }
+
+  const clientAttendance = aggregateClubAttendance({
+    clients,
+    memberships: membershipsRes.rows ?? [],
+    trainings,
+    dateTo,
+    trainerIdFilter,
+    holdingTrainerIds: modeIds.holdingTrainerIds,
+    noTabletTrainerIds: modeIds.noTabletTrainerIds,
+    lifecycleRows,
+    truncated,
+  })
+
+  const visitsDataMissing =
+    clientAttendance.poolSize > 0 &&
+    (clientAttendance.totalVisitsInWindow ?? 0) === 0 &&
+    !trainings.length
+
+  return {
+    clientAttendance: {
+      ...clientAttendance,
+      periodFrom: String(opts.dateFrom ?? windowFrom).slice(0, 10),
+      periodTo: dateToRaw,
+      windowFrom,
+      visitsDataMissing,
+    },
+  }
+}

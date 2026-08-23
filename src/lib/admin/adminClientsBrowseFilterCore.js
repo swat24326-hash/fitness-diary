@@ -34,6 +34,7 @@ export const ADMIN_CLIENTS_BROWSE_FUNNEL_KEYS = [
   'expiring',
   'expired_recent',
   'stale',
+  'attendance_slip',
 ]
 
 /**
@@ -107,13 +108,18 @@ export function memListForAdminClient(client, memByClient) {
  * @param {string} hallMode
  * @param {Record<string, object[]>} memByClient
  */
-export function adminClientBrowseMatchCtx(client, today, hallMode, memByClient, lifecycleRows) {
+export function adminClientBrowseMatchCtx(client, today, hallMode, memByClient, lifecycleRows, extra = {}) {
+  const id = client?.id != null ? String(client.id) : ''
+  const hasLast = Object.prototype.hasOwnProperty.call(extra.lastTrainingByClient ?? {}, id)
+  const hasTrainings = Object.prototype.hasOwnProperty.call(extra.trainingsByClientId ?? {}, id)
   return {
     client,
     memList: memListForAdminClient(client, memByClient),
     today,
     hallMode,
     lifecycleRows: lifecycleRows ?? [],
+    ...(hasLast ? { lastTrainingIso: extra.lastTrainingByClient[id] } : {}),
+    ...(hasTrainings ? { trainings: extra.trainingsByClientId[id] } : {}),
   }
 }
 
@@ -154,7 +160,10 @@ export function filterAdminClientsByBrowseMode(p) {
   return base.filter((c) =>
     clientMatchesAdminFunnelFilter(
       mode,
-      adminClientBrowseMatchCtx(c, today, hallMode, p.memByClient, p.lifecycleRows),
+      adminClientBrowseMatchCtx(c, today, hallMode, p.memByClient, p.lifecycleRows, {
+        lastTrainingByClient: p.lastTrainingByClient,
+        trainingsByClientId: p.trainingsByClientId,
+      }),
     ),
   )
 }
@@ -167,6 +176,9 @@ export function filterAdminClientsByBrowseMode(p) {
  *   clientsTab: string,
  *   today: string,
  *   azDirectionFilter?: string,
+ *   lifecycleRows?: object[],
+ *   lastTrainingByClient?: Record<string, string>,
+ *   trainingsByClientId?: Record<string, object[]>,
  * }} p
  */
 export function buildAdminClientsBrowseCounts(p) {
@@ -186,6 +198,8 @@ export function buildAdminClientsBrowseCounts(p) {
   return countAdminFunnelFilters(tabBase, p.memByClient, p.today, null, {
     hallMode,
     lifecycleRows: p.lifecycleRows ?? [],
+    lastTrainingByClient: p.lastTrainingByClient ?? {},
+    trainingsByClientId: p.trainingsByClientId ?? {},
   })
 }
 
@@ -195,13 +209,14 @@ export function buildAdminClientsBrowseCounts(p) {
  * @param {Record<string, object[]>} memByClient
  * @param {string} today
  */
-export function buildAdminPzDaySummaryBrowseCounts(clients, memByClient, today, lifecycleRows) {
+export function buildAdminPzDaySummaryBrowseCounts(clients, memByClient, today, lifecycleRows, lastTrainingByClient = {}) {
   return buildAdminClientsBrowseCounts({
     clients,
     memByClient,
     clientsTab: 'active',
     today,
     lifecycleRows: lifecycleRows ?? [],
+    lastTrainingByClient,
   })
 }
 
