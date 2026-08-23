@@ -117,6 +117,13 @@
   font-size: 0.92rem;
 }
 
+.stats-attendance-empty--inline {
+  padding: 12px 14px;
+  margin-top: 8px;
+  text-align: left;
+  font-size: 0.88rem;
+}
+
 .stats-attendance-table-title {
   margin: 4px 0 0;
   font-size: 1rem;
@@ -126,15 +133,40 @@
   margin-top: 2px;
 }
 
+.stats-attendance-table__idx {
+  width: 2.5rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.stats-attendance-table__row--missed td {
+  color: var(--text-muted);
+}
+
+.stats-attendance-table__row--missed td:nth-child(2) {
+  opacity: 0.88;
+}
+
 .stats-attendance-table td:last-child {
   font-size: 0.88rem;
   color: var(--text-muted);
 }
 
-.stats-attendance-table td:nth-child(2) {
+.stats-attendance-table__row--missed td:last-child {
+  font-style: italic;
+  color: rgba(248, 113, 113, 0.82);
+}
+
+.stats-attendance-table td:nth-child(3) {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: rgb(96, 165, 250);
+}
+
+.stats-attendance-table__row--missed td:nth-child(3) {
+  color: var(--text-muted);
+  font-weight: 600;
 }
 
 @media (max-width: 900px) {

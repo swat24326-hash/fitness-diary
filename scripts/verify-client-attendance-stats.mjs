@@ -4,8 +4,11 @@
 import {
   buildClientAttendanceStats,
   buildAttendanceBucketRanges,
+  buildAttendanceChartAxisLabels,
+  formatAttendanceBucketDatesCellRu,
   formatBucketLabelRu,
   formatGroupedVisitDatesRu,
+  ATTENDANCE_MISSED_LABEL_RU,
   listCompletedVisitDates,
   maxGapDaysBetween,
   maxGapDaysInPeriod,
@@ -22,6 +25,7 @@ import {
   normalizeClientStatsMode,
   resolveClientStatsAllTimeRange,
   shouldForceClientTrainingsEnsureOnReload,
+  shouldReloadClientStatsTrainingsLocalOnly,
   shouldReloadTrainerClientStatsForClient,
 } from '../src/lib/clientStatsModeCore.js'
 import {
@@ -60,6 +64,14 @@ const weekStats = buildClientAttendanceStats(T, { dateFrom: '2026-07-01', dateTo
 ok(weekStats.summary.total === 3, 'three visits in july range')
 ok(weekStats.bucketKind === 'week', 'july range uses week buckets')
 ok(weekStats.buckets.some((b) => b.count === 2), 'week bucket with 2 visits')
+ok(weekStats.buckets.some((b) => b.count === 0 && b.visited === false), 'empty week bucket in range')
+ok(weekStats.buckets.every((b, i) => b.index === i + 1), 'bucket index sequential')
+ok(
+  formatAttendanceBucketDatesCellRu([], (d) => d) === ATTENDANCE_MISSED_LABEL_RU,
+  'missed cell label',
+)
+const julyAxis = buildAttendanceChartAxisLabels(weekStats.buckets, 'week')
+ok(julyAxis.length === weekStats.buckets.length && julyAxis[0]?.includes('.'), 'chart axis shows week ranges')
 
 const short = buildClientAttendanceStats(T, { dateFrom: '2026-07-14', dateTo: '2026-07-20' })
 ok(short.summary.regularity === 'insufficient', 'short period → insufficient label')
@@ -142,6 +154,14 @@ ok(
   'reload scoped to client',
 )
 ok(shouldForceClientTrainingsEnsureOnReload({ reason: 'sync-complete' }) === true, 'sync forces ensure')
+ok(
+  shouldForceClientTrainingsEnsureOnReload({ reason: 'client-hydrated' }) === false,
+  'hydrate does not force ensure loop',
+)
+ok(
+  shouldReloadClientStatsTrainingsLocalOnly({ reason: 'client-hydrated' }) === true,
+  'hydrate reloads local trainings only',
+)
 ok(
   resolveClientStatsAllTimeRange('attendance', { trainings: [{ status: 'completed', date: '2026-07-01' }] }, '2026-08-01')
     ?.min === '2026-07-01',

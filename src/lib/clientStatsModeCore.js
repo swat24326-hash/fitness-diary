@@ -22,7 +22,17 @@ export function clientStatsModeNeedsTrainingsEnsure(mode) {
 /** @param {object} detail */
 export function shouldForceClientTrainingsEnsureOnReload(detail = {}) {
   const reason = String(detail?.reason ?? '')
-  return reason === 'sync-complete' || reason === 'client-hydrated'
+  // client-hydrated — данные уже в IDB после hydrate; force → бесконечный цикл ensure.
+  return reason === 'sync-complete'
+}
+
+/**
+ * После hydrate / обновления абонов — только перечитать IDB, без ensure и без спиннера.
+ * @param {object} detail
+ */
+export function shouldReloadClientStatsTrainingsLocalOnly(detail = {}) {
+  const reason = String(detail?.reason ?? '')
+  return reason === 'client-hydrated' || reason === 'memberships-refreshed'
 }
 
 /**

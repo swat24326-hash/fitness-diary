@@ -1,8 +1,9 @@
 import { useMemo } from 'react'
 import { ClientAttendanceChart } from '../../components/ClientAttendanceChart'
 import {
+  ATTENDANCE_MISSED_LABEL_RU,
   buildClientAttendanceStats,
-  formatGroupedVisitDatesRu,
+  formatAttendanceBucketDatesCellRu,
   listCompletedVisitDates,
 } from '../../lib/clientAttendanceStatsCore'
 import {
@@ -50,17 +51,12 @@ export function ClientAttendanceSection({
     [online, ensureOk, trainings, membershipStartDates, localCompletedCount],
   )
 
-  const tableBuckets = useMemo(
-    () => stats.buckets.filter((b) => b.count > 0),
-    [stats.buckets],
-  )
-
-  const chartBuckets = useMemo(() => {
-    const nonzero = stats.buckets.filter((b) => b.count > 0)
-    return nonzero.length ? nonzero : stats.buckets
-  }, [stats.buckets])
+  const periodRows = useMemo(() => [...stats.buckets].reverse(), [stats.buckets])
 
   const bucketKindLabel = stats.bucketKind === 'month' ? 'по месяцам' : 'по неделям'
+  const periodColLabel = stats.bucketKind === 'month' ? 'Месяц' : 'Неделя'
+  const missedPeriods = stats.buckets.filter((b) => !b.visited).length
+  const periodUnit = stats.bucketKind === 'month' ? 'месяцев' : 'недель'
 
   if (loading) {
     return (
@@ -108,46 +104,57 @@ export function ClientAttendanceSection({
       </div>
 
       <p className="muted stats-attendance-note">
-        Завершённые тренировки из дневника (все типы, включая БЗ). Одна дата — несколько тренировок
-        возможны. Группировка {bucketKindLabel}.
+        Завершённые тренировки из дневника (все типы, включая БЗ). На графике и в таблице —{' '}
+        <strong>все</strong> {stats.bucketKind === 'month' ? 'месяцы' : 'недели'} выбранного периода;
+        {missedPeriods > 0 ? ` без визитов: ${missedPeriods} ${periodUnit}.` : ' '}
+        Пустой период — «{ATTENDANCE_MISSED_LABEL_RU}». Группировка {bucketKindLabel}.
       </p>
 
-      {stats.summary.total === 0 ? (
-        <p className="muted stats-attendance-empty">За выбранный период завершённых тренировок нет.</p>
-      ) : (
+      {stats.buckets.length > 0 ? (
         <div className="stats-chart-shell">
-          <ClientAttendanceChart buckets={chartBuckets} bucketKind={stats.bucketKind} />
+          <ClientAttendanceChart buckets={stats.buckets} bucketKind={stats.bucketKind} />
         </div>
+      ) : (
+        <p className="muted stats-attendance-empty">За выбранный период нет календарных интервалов.</p>
       )}
+
+      {stats.summary.total === 0 && stats.buckets.length > 0 ? (
+        <p className="muted stats-attendance-empty stats-attendance-empty--inline">
+          За выбранный период завершённых тренировок нет — ниже все {stats.bucketKind === 'month' ? 'месяцы' : 'недели'}{' '}
+          с пропусками.
+        </p>
+      ) : null}
 
       <h3 className="section-title stats-attendance-table-title">По периодам</h3>
       <div className="table-wrap stats-attendance-table">
         <table>
           <thead>
             <tr>
-              <th>{stats.bucketKind === 'month' ? 'Месяц' : 'Неделя'}</th>
+              <th className="stats-attendance-table__idx">№</th>
+              <th>{periodColLabel}</th>
               <th>Тренировок</th>
               <th>Даты</th>
             </tr>
           </thead>
           <tbody>
-            {tableBuckets.length === 0 ? (
+            {periodRows.length === 0 ? (
               <tr>
-                <td colSpan={3} className="muted">
+                <td colSpan={4} className="muted">
                   —
                 </td>
               </tr>
             ) : (
-              tableBuckets
-                .slice()
-                .reverse()
-                .map((b) => (
-                  <tr key={`${b.start}:${b.end}`}>
-                    <td>{b.labelRu}</td>
-                    <td>{b.count}</td>
-                    <td>{formatGroupedVisitDatesRu(b.dates, formatDateRu)}</td>
-                  </tr>
-                ))
+              periodRows.map((b) => (
+                <tr
+                  key={`${b.start}:${b.end}`}
+                  className={b.visited ? undefined : 'stats-attendance-table__row--missed'}
+                >
+                  <td className="stats-attendance-table__idx">{b.index}</td>
+                  <td>{b.labelRu}</td>
+                  <td>{b.count}</td>
+                  <td>{formatAttendanceBucketDatesCellRu(b.dates, formatDateRu)}</td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>

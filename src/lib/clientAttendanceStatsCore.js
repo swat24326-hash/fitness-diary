@@ -269,6 +269,46 @@ export function daysSinceLastVisitInPeriod(sortedDates, dateTo) {
   return gap != null && gap >= 0 ? gap : null
 }
 
+/** Подпись ячейки «Даты» для пустого периода. */
+export const ATTENDANCE_MISSED_LABEL_RU = 'Не посещал'
+
+/**
+ * @param {string[]} dates
+ * @param {(iso: string) => string} formatDateRu
+ * @returns {string}
+ */
+export function formatAttendanceBucketDatesCellRu(dates, formatDateRu) {
+  if (!dates?.length) return ATTENDANCE_MISSED_LABEL_RU
+  return formatGroupedVisitDatesRu(dates, formatDateRu)
+}
+
+/**
+ * Подпись оси X: диапазон недели/месяца; при >14 периодов — номер, диапазон в tooltip.
+ * @param {Array<{ index: number, labelRu: string }>} buckets
+ * @param {AttendanceBucketKind} kind
+ * @returns {string[]}
+ */
+export function buildAttendanceChartAxisLabels(buckets, kind) {
+  const list = buckets ?? []
+  const compact = list.length > 14
+  if (!compact) return list.map((b) => String(b.labelRu ?? '—'))
+  const prefix = kind === 'month' ? 'М' : 'Н'
+  return list.map((b) => `${prefix}${b.index ?? '?'}`)
+}
+
+/**
+ * @param {{ index: number, labelRu: string }} bucket
+ * @param {AttendanceBucketKind} kind
+ * @returns {string}
+ */
+export function formatAttendanceBucketTablePeriodRu(bucket, kind) {
+  const idx = Number(bucket?.index) || 0
+  const range = String(bucket?.labelRu ?? '—')
+  if (idx <= 0) return range
+  const prefix = kind === 'month' ? 'Мес.' : 'Нед.'
+  return `${prefix} ${idx} · ${range}`
+}
+
 /**
  * Группировка дат визитов для таблицы: «15.07.2026 (×2)» при двух тренировках в день.
  * @param {string[]} dates ISO YYYY-MM-DD
@@ -371,14 +411,17 @@ export function buildClientAttendanceStats(trainings, opts) {
   const bucketKind = resolveAttendanceBucketKind(dateFrom, dateTo)
   const ranges = buildAttendanceBucketRanges(dateFrom, dateTo, bucketKind)
 
-  const buckets = ranges.map((r) => {
+  const buckets = ranges.map((r, i) => {
     const inBucket = visits.filter((v) => v.date >= r.start && v.date <= r.end)
+    const count = inBucket.length
     return {
+      index: i + 1,
       start: r.start,
       end: r.end,
       labelRu: r.labelRu,
-      count: inBucket.length,
+      count,
       dates: inBucket.map((v) => v.date),
+      visited: count > 0,
     }
   })
 

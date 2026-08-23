@@ -20,6 +20,7 @@ import {
   readPersistedClientStatsMode,
   resolveClientStatsAllTimeRange,
   shouldForceClientTrainingsEnsureOnReload,
+  shouldReloadClientStatsTrainingsLocalOnly,
   shouldReloadTrainerClientStatsForClient,
 } from '../../lib/clientStatsModeCore'
 import { writeClientCardTabToSearchParams } from '../../lib/clientCardTabsCore'
@@ -145,12 +146,15 @@ export function Statistics({ clientId, initialMode = null }) {
   const load = useCallback(async (opts = {}) => {
     const needEnsure = clientStatsModeNeedsTrainingsEnsure(mode)
     const forceEnsure = opts.forceEnsure === true
-    if (needEnsure) setTrainingsLoading(true)
+    const localTrainingsOnly = opts.localTrainingsOnly === true
+    const useEnsure = needEnsure && !localTrainingsOnly
+    const showTrainingsLoading = useEnsure
+    if (showTrainingsLoading) setTrainingsLoading(true)
     try {
       const [measures, mems, cached] = await Promise.all([
         listMeasurements(clientId),
         listMemberships(clientId),
-        needEnsure
+        useEnsure
           ? ensureClientTrainingsCachedWithStatus(clientId, { force: forceEnsure })
           : listTrainingsByClientId(clientId).then((trainings) => ({
               trainings,
@@ -166,7 +170,7 @@ export function Statistics({ clientId, initialMode = null }) {
       setTrainingsOnline(cached.online)
       setTrainingsEnsureOk(cached.ensureOk)
     } finally {
-      if (needEnsure) setTrainingsLoading(false)
+      if (showTrainingsLoading) setTrainingsLoading(false)
     }
   }, [clientId, mode])
 
@@ -208,7 +212,10 @@ export function Statistics({ clientId, initialMode = null }) {
 
   useDebouncedStorageReload(
     (detail) =>
-      void load({ forceEnsure: shouldForceClientTrainingsEnsureOnReload(detail) }),
+      void load({
+        forceEnsure: shouldForceClientTrainingsEnsureOnReload(detail),
+        localTrainingsOnly: shouldReloadClientStatsTrainingsLocalOnly(detail),
+      }),
     { shouldRun: (detail) => shouldReloadTrainerClientStatsForClient(clientId, detail) },
   )
 
