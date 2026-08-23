@@ -89,10 +89,14 @@ ok(
 )
 ok(shouldReloadAdminDaySummary({ reason: 'sync-complete' }), 'day summary: sync-complete')
 ok(shouldReloadAdminDaySummary({ reason: 'admin-clients-cache' }), 'day summary: admin-clients-cache')
+ok(shouldReloadAdminDaySummary({ reason: 'client-hall-lifecycle' }), 'day summary: client-hall-lifecycle')
+ok(shouldReloadAdminDaySummary({ reason: 'client-trainer-reassigned' }), 'day summary: trainer reassigned')
 ok(!shouldReloadAdminDaySummary({}), 'day summary: ignore empty reason')
 ok(!shouldReloadAdminDaySummary({ reason: 'exercises' }), 'day summary: ignore exercises')
 ok(!shouldReloadAdminDaySummary({ reason: 'membership-types' }), 'day summary: ignore membership-types')
 ok(!shouldReloadAdminDaySummary({ reason: 'sync-queue' }), 'day summary: ignore sync-queue')
+ok(shouldReloadAdminDaySummary({ reason: 'lite-pz-client-created' }), 'day summary: lite-pz create')
+ok(shouldReloadAdminDaySummary({ reason: 'desk-manual-client-created' }), 'day summary: desk create')
 
 const withOverrides = buildAdminClubDaySummary({
   today: '2026-07-11',
@@ -105,6 +109,49 @@ const withOverrides = buildAdminClubDaySummary({
   trainingsYesterdayOverride: 4,
 })
 ok(withOverrides.inactive === 11 && withOverrides.trainingsToday === 10 && withOverrides.trainingsYesterday === 4, 'summary overrides')
+
+const lifeClosedPz = {
+  id: 'life1',
+  client_id: 'c-mix',
+  club_id: 'club1',
+  hall: 'pz',
+  closed_at: '2026-08-01T12:00:00Z',
+}
+const mixedClient = { id: 'c-mix', trainer_id: 't1', club_id: 'club1' }
+const mixedMems = [
+  {
+    client_id: 'c-mix',
+    hall: 'pz',
+    start_date: '2026-01-01',
+    end_date: '2026-08-10',
+    total_trainings: 8,
+    used_trainings: 8,
+  },
+  {
+    client_id: 'c-mix',
+    hall: 'az',
+    start_date: '2026-06-01',
+    end_date: '2026-12-01',
+    total_trainings: 8,
+    used_trainings: 2,
+  },
+  { client_id: 'c-exp', start_date: '2026-01-01', end_date: '2026-08-10', total_trainings: 8, used_trainings: 8 },
+]
+const withoutLifeSummary = buildAdminClubDaySummary({
+  today: '2026-08-23',
+  clients: [mixedClient, { id: 'c-exp', trainer_id: 't2' }],
+  memberships: mixedMems,
+  trainings: [],
+})
+const withLifeSummary = buildAdminClubDaySummary({
+  today: '2026-08-23',
+  clients: [mixedClient, { id: 'c-exp', trainer_id: 't2' }],
+  memberships: mixedMems,
+  trainings: [],
+  lifecycleRows: [lifeClosedPz],
+})
+ok(withoutLifeSummary.expired_recent === 2, 'home summary without lifecycle: inflated expired_recent')
+ok(withLifeSummary.expired_recent === 1, 'home summary with lifecycle: closed PZ excluded')
 
 if (failed) process.exit(1)
 console.log('verify-admin-club-day-summary: all passed')

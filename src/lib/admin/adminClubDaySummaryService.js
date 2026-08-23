@@ -14,6 +14,7 @@ import { collectHoldingTrainerIds } from './holdingClientsCore.js'
 import { collectNoTabletTrainerIds } from './trainerTabletModeCore.js'
 import { fetchTrainersViaAdminApi } from './adminApiClient.js'
 import { HOME_GLANCE_CLOUD_MS, withHomeGlanceTimeout } from './adminHomeGlanceTimeout.js'
+import { loadAdminClubLifecycleRowsFromLocal } from './adminClientsListLifecycleCore.js'
 
 /**
  * Сводка дня: сначала локальный census (IndexedDB), облако — параллельно с таймаутом.
@@ -43,10 +44,11 @@ export async function loadAdminClubDaySummary(clubId) {
     listClientsByClubId(cid),
     listMembershipsByClubId(cid),
     listTrainingsByClubIdInRange(cid, yesterday, today),
+    loadAdminClubLifecycleRowsFromLocal(cid),
   ])
 
   const [refreshRes, idbRows] = await Promise.all([refreshP, idbP])
-  let [clients, memberships, trainings] = idbRows
+  let [clients, memberships, trainings, lifecycleRows] = idbRows
   // После успешного merge абонов в IDB — перечитать, иначе сводка со старым кэшем.
   if (refreshRes?.ok) {
     try {
@@ -129,6 +131,7 @@ export async function loadAdminClubDaySummary(clubId) {
       trainingsYesterdayOverride,
       holdingTrainerIds,
       noTabletTrainerIds,
+      lifecycleRows,
     }),
     source: 'local',
   }

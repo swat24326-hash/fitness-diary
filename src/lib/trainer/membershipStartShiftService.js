@@ -3,10 +3,11 @@
  * early — upcoming раньше планового старта;
  * late — первая тренировка после start_date (окно ≤14 дней, used=0 по полю и дневнику).
  */
-import { listMemberships, listTrainingsForClient, dispatchLocalDataChanged } from '../dataAccess.js'
+import { listMemberships, listTrainingsForClient } from '../dataAccess.js'
 import { getDb } from '../localDb.js'
 import { todayLocalIso } from '../dateRu.js'
 import { saveLocalWithSync } from '../syncService.js'
+import { notifyAdminClientsBrowseStorageChanged } from './admin/adminClientsListReloadCore.js'
 import {
   inspectLateMembershipStart,
   pickEarliestUpcomingMembership,
@@ -82,7 +83,7 @@ export async function loadLateStartProposal(clientId, activateOnIso = todayLocal
  * @param {{ start: string, end: string }} to
  * @param {'early' | 'late'} mode
  */
-async function persistMembershipDates(membership, to, mode) {
+async function persistMembershipDates(membership, to, _mode) {
   const next = {
     ...membership,
     start_date: to.start,
@@ -93,11 +94,10 @@ async function persistMembershipDates(membership, to, mode) {
     operation: 'update',
     remote_id: membership.id,
   })
-  dispatchLocalDataChanged({
+  notifyAdminClientsBrowseStorageChanged({
     reason: 'membership-dates-shifted',
-    membershipId: next.id,
     clientId: next.client_id,
-    mode,
+    clubId: next.club_id,
   })
   return next
 }

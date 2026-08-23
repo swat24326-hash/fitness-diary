@@ -3,7 +3,8 @@ import { listSyncQueue } from '../lib/localDb'
 import { describeFlushQueueResult, flushSyncQueue, getSyncOutboundSummary, isAppOnline, setBackgroundSyncPaused } from '../lib/syncService'
 import { SYNC_PULL_FETCH_TIMEOUT_MS } from '../lib/networkReachability'
 import { isSupabaseConfigured } from '../lib/supabase'
-import { dispatchLocalDataChanged, LOCAL_DATA_CHANGED } from '../lib/dataAccess'
+import { LOCAL_DATA_CHANGED } from '../lib/dataAccess'
+import { notifyAdminClientsBrowseStorageChanged } from '../lib/admin/adminClientsListReloadCore.js'
 import {
   computeNeedsUserAttention,
   getPersistentErrorCount,
@@ -299,7 +300,11 @@ export function useHeaderSync({ user, isAdmin, isSalesManager, supabaseReady, se
       await pruneRedundantSyncQueue()
       await refreshSyncOutbound()
       const queueLeft = (await listSyncQueue()).length
-      dispatchLocalDataChanged({ reason: 'sync-complete' })
+      const clubId =
+        isAdmin || isSalesManager
+          ? String(searchParams?.get('club')?.trim() || user?.club_id || '')
+          : ''
+      notifyAdminClientsBrowseStorageChanged({ reason: 'sync-complete', clubId })
 
       if (queueLeft > 0) {
         hadError = true

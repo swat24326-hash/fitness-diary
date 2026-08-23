@@ -5,7 +5,7 @@ import {
   flushCriticalWritesToCloud,
   saveLocalWithSync,
 } from '../../lib/syncService.js'
-import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
+import { notifyAdminClientsBrowseStorageChanged } from '../../lib/admin/adminClientsListReloadCore.js'
 import { todayLocalIso } from '../../lib/dateRu.js'
 import { ensureOpenHallAfterMembershipSave } from '../../lib/clientHallLifecycleSyncService.js'
 import { normalizeDeskHall } from '../../lib/admin/deskHallClientsCore.js'
@@ -256,7 +256,11 @@ export function AdminDeskMembershipLedger({
       const savedDraft = deskMembershipRowDraft(row)
       dirtyIdsRef.current.add(id)
       setDrafts((prev) => ({ ...prev, [id]: savedDraft }))
-      dispatchLocalDataChanged({ reason: 'desk-membership-ledger' })
+      notifyAdminClientsBrowseStorageChanged({
+        reason: 'desk-membership-ledger',
+        clientId: client?.id,
+        clubId: clubId || client?.club_id,
+      })
       onChanged?.()
     } catch (e) {
       setError(e?.message || 'Не удалось сохранить абон')
@@ -337,7 +341,11 @@ export function AdminDeskMembershipLedger({
       if (warn) setError(warn)
       setAdding(false)
       setNewRow(emptyDeskMembershipDraft(today))
-      dispatchLocalDataChanged({ reason: 'desk-membership-ledger' })
+      notifyAdminClientsBrowseStorageChanged({
+        reason: 'desk-membership-ledger',
+        clientId: client?.id,
+        clubId: String(clubId || client?.club_id || row.club_id || ''),
+      })
       onChanged?.()
     } catch (e) {
       setError(e?.message || 'Не удалось добавить абон')

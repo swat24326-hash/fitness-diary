@@ -21,11 +21,11 @@ const inFlightEnsureByClient = new Map()
 /**
  * @param {string} clientId
  * @param {{ force?: boolean }} [opts]
- * @returns {Promise<object[]>}
+ * @returns {Promise<{ trainings: object[], online: boolean, ensureOk: boolean }>}
  */
-export async function ensureClientTrainingsCached(clientId, opts = {}) {
+export async function ensureClientTrainingsCachedWithStatus(clientId, opts = {}) {
   const cid = String(clientId ?? '').trim()
-  if (!cid) return []
+  if (!cid) return { trainings: [], online: false, ensureOk: true }
 
   const online = Boolean(isSupabaseConfigured() && isAppOnline())
   const force = opts.force === true
@@ -39,11 +39,11 @@ export async function ensureClientTrainingsCached(clientId, opts = {}) {
   })
 
   if (!refresh) {
-    return listTrainingsByClientId(cid)
+    return { trainings: await listTrainingsByClientId(cid), online, ensureOk: true }
   }
 
   if (!online) {
-    return listTrainingsByClientId(cid)
+    return { trainings: await listTrainingsByClientId(cid), online: false, ensureOk: true }
   }
 
   const inflight = inFlightEnsureByClient.get(cid)
@@ -51,18 +51,25 @@ export async function ensureClientTrainingsCached(clientId, opts = {}) {
 
   const run = (async () => {
     lastEnsureAtByClient.set(cid, nowMs)
+    let ensureOk = true
     try {
       const h = await hydrateAdminClientWorkspace(cid, {
         allowBrowserFallback: false,
         scope: 'full',
       })
       if (!h?.ok) {
+        ensureOk = false
         console.warn('[ensureClientTrainingsCached]', h?.error ?? h?.reason ?? 'hydrate failed')
       }
     } catch (e) {
+      ensureOk = false
       console.warn('[ensureClientTrainingsCached]', e)
     }
-    return listTrainingsByClientId(cid)
+    return {
+      trainings: await listTrainingsByClientId(cid),
+      online: true,
+      ensureOk,
+    }
   })()
 
   inFlightEnsureByClient.set(cid, run)
@@ -71,6 +78,16 @@ export async function ensureClientTrainingsCached(clientId, opts = {}) {
   } finally {
     inFlightEnsureByClient.delete(cid)
   }
+}
+
+/**
+ * @param {string} clientId
+ * @param {{ force?: boolean }} [opts]
+ * @returns {Promise<object[]>}
+ */
+export async function ensureClientTrainingsCached(clientId, opts = {}) {
+  const { trainings } = await ensureClientTrainingsCachedWithStatus(clientId, opts)
+  return trainings
 }
 
 /** Сброс TTL (тесты / после смены клиента на том же экране не нужен). */

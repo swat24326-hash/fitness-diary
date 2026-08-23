@@ -4,7 +4,7 @@ import {
   flushCriticalWritesToCloud,
   saveLocalWithSync,
 } from '../../lib/syncService.js'
-import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
+import { notifyAdminClientsBrowseStorageChanged } from '../../lib/admin/adminClientsListReloadCore.js'
 import { listClientsByClubId } from '../../lib/localDbClubQuery.js'
 import {
   DESK_PACKAGE_MONTH_OPTIONS,
@@ -102,7 +102,11 @@ export function AdminDeskHallCreateForm({
         deskHall === 'az' ? 'Новый клиент АЗ' : 'Новый клиент ТЗ',
       )
       if (warn) setError(warn)
-      dispatchLocalDataChanged({ reason: 'desk-manual-client-created', clientId, hall: deskHall })
+      notifyAdminClientsBrowseStorageChanged({
+        reason: 'desk-manual-client-created',
+        clientId,
+        clubId: checked.client.club_id ?? clubId,
+      })
       onCreated?.(clientId, deskHall)
       onClose?.()
     } catch (err) {

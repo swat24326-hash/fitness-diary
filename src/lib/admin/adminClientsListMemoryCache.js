@@ -5,7 +5,7 @@
 
 const DEFAULT_TTL_MS = 90_000
 
-/** @type {{ clubId: string, savedAt: number, clients: object[], memByClient: Record<string, object[]>, trainerNameById: Record<string, string>, noTabletTrainerIds: string[], holdingTrainerIds: string[], truncated: boolean, source: string } | null} */
+/** @type {{ clubId: string, savedAt: number, clients: object[], memByClient: Record<string, object[]>, lifecycleRows: object[], trainerNameById: Record<string, string>, noTabletTrainerIds: string[], holdingTrainerIds: string[], truncated: boolean, source: string } | null} */
 let snapshot = null
 
 /**
@@ -50,6 +50,7 @@ function normalizeIdList(value) {
  *   trainerNameById?: Record<string, string>,
  *   noTabletTrainerIds?: string[]|Set<string>,
  *   holdingTrainerIds?: string[]|Set<string>,
+ *   lifecycleRows?: object[],
  *   truncated?: boolean,
  *   source?: string,
  * }} payload
@@ -62,6 +63,7 @@ export function writeAdminClientsListMemory(clubId, payload) {
     savedAt: Date.now(),
     clients: payload.clients,
     memByClient: payload.memByClient && typeof payload.memByClient === 'object' ? payload.memByClient : {},
+    lifecycleRows: Array.isArray(payload.lifecycleRows) ? payload.lifecycleRows : [],
     trainerNameById:
       payload.trainerNameById && typeof payload.trainerNameById === 'object' ? payload.trainerNameById : {},
     noTabletTrainerIds: normalizeIdList(payload.noTabletTrainerIds),

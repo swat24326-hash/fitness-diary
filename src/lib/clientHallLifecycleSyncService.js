@@ -18,6 +18,7 @@ import {
 import { MEMBERSHIP_HALLS } from './membershipHallCore.js'
 import { buildArchiveRestoreFields } from './clientArchiveReasonCore.js'
 import { todayLocalIso } from './dateRu.js'
+import { notifyClientHallLifecycleChanged, notifyAdminClientsBrowseStorageChanged } from './admin/adminClientsListReloadCore.js'
 
 async function loadClientBundle(clientId) {
   const db = await getDb()
@@ -107,6 +108,7 @@ async function persistClosePlan(plan, clientId) {
   }
   const flush = await flushCriticalWritesToCloud()
   const warn = criticalWriteCloudWarning(flush, 'Закрытие направления')
+  notifyClientHallLifecycleChanged(clientId, { clubId: clientOut?.club_id ?? plan.clientPatch?.club_id })
   return { row: clientOut, warn, plan }
 }
 
@@ -152,6 +154,7 @@ export async function reopenClientHall(clientRow, opts = {}) {
   }
   const flush = await flushCriticalWritesToCloud()
   const warn = criticalWriteCloudWarning(flush, 'Открытие направления')
+  notifyClientHallLifecycleChanged(client.id, { clubId: clientOut?.club_id ?? client.club_id })
   return { row: clientOut, warn, plan }
 }
 
@@ -201,6 +204,7 @@ export async function leaveClubWithReason(clientRow, reasonInput) {
   })
   const flush = await flushCriticalWritesToCloud()
   const warn = criticalWriteCloudWarning(flush, 'Уход из клуба')
+  notifyClientHallLifecycleChanged(client.id, { clubId: clientOut?.club_id ?? client.club_id })
   return { row: clientOut, warn, plan }
 }
 
@@ -255,6 +259,7 @@ export async function ensureOpenHallAfterMembershipSave(clientId, hall) {
 
   const flush = await flushCriticalWritesToCloud()
   const warn = criticalWriteCloudWarning(flush, 'Возврат из архива после абона')
+  notifyClientHallLifecycleChanged(id, { clubId: clientOut?.club_id ?? client.club_id })
   return { ok: true, skipped: false, row: clientOut, warn, plan }
 }
 
@@ -296,6 +301,10 @@ export async function restoreClientFromClubArchive(clientRow) {
 
   const flush = await flushCriticalWritesToCloud()
   const flushWarn = criticalWriteCloudWarning(flush, 'Возврат из архива')
+  const clubId = clientOut?.club_id ?? client.club_id
+  if (client.archived_at) {
+    notifyAdminClientsBrowseStorageChanged({ reason: 'client-archive-changed', clientId: id, clubId })
+  }
   return { row: clientOut, warn: warn || flushWarn, hallsOpened: halls }
 }
 

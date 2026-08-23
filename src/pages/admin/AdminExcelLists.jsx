@@ -2,7 +2,6 @@ import { useOutletContext, useSearchParams } from 'react-router-dom'
 import { FileSpreadsheet } from 'lucide-react'
 import { AdminSectionHeader } from '../../components/admin/AdminSectionHeader.jsx'
 import { AdminExcelListsMaps } from '../../components/admin/AdminExcelListsMaps.jsx'
-import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
 
 /**
  * Админ: Excel закрытий (ТЗ+АЗ из одного файла).
@@ -19,10 +18,7 @@ export function AdminExcelLists() {
         title="Списки из Excel"
         lead="Периодические закрытия ТЗ/АЗ из 1С. Дневные оплаты (31.xlsx) и часы ПЗ (otchet_pz.xlsx) — в «Отчёт продаж»."
       />
-      <AdminExcelListsMaps
-        clubId={clubId}
-        onClosingDone={() => dispatchLocalDataChanged({ reason: 'desk-closing-import' })}
-      />
+      <AdminExcelListsMaps clubId={clubId} />
     </section>
   )
 }

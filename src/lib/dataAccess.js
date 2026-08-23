@@ -23,6 +23,7 @@ import {
 import { ADMIN_CLIENT_COUNT_BATCH } from './admin/adminConstants'
 import { fetchTrainersViaAdminApi } from './admin/adminApiClient'
 import { dispatchLocalDataChanged } from './localDataEvents'
+import { notifyAdminClientsBrowseStorageChanged } from './admin/adminClientsListReloadCore.js'
 
 export { loadAdminJournalPage } from './admin/adminJournalService'
 export { loadClubTrainingStats } from './admin/adminClubStatsService'
@@ -360,5 +361,10 @@ export async function deleteClientAndAllData(clientId) {
     healthCardRemoteId,
   })
 
-  dispatchLocalDataChanged({ reason: 'client-deleted', clientId })
+  const clubId = clientSnap?.club_id
+  notifyAdminClientsBrowseStorageChanged({
+    reason: 'client-deleted',
+    clientId,
+    clubId,
+  })
 }

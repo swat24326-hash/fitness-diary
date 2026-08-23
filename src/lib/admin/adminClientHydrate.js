@@ -13,21 +13,17 @@ import { ADMIN_SYNC_BATCH_SIZE } from './adminConstants'
 import { fetchClientWorkspaceViaAdminApi } from './adminApiClient'
 import { invalidateAdminClubWorkspaceCache } from './adminClubWorkspaceCache'
 import { invalidateTrainerWorkspaceCache } from '../trainerWorkspaceCache'
+import { notifyAdminClientsBrowseStorageChanged } from './adminClientsListReloadCore.js'
 import { normalizeClientWorkspaceScope } from './clientWorkspaceScopeCore.js'
 
-function notifyHydrated(clientId, pruned_trainings = 0) {
+function notifyHydrated(clientId, _pruned_trainings = 0, clubId = '') {
   invalidateTrainerWorkspaceCache()
   invalidateAdminClubWorkspaceCache()
-  if (typeof window === 'undefined') return
-  try {
-    window.dispatchEvent(
-      new CustomEvent('fitness-diary-storage', {
-        detail: { reason: 'client-hydrated', client_id: clientId, pruned_trainings },
-      }),
-    )
-  } catch {
-    /* ignore */
-  }
+  notifyAdminClientsBrowseStorageChanged({
+    reason: 'client-hydrated',
+    clientId,
+    ...(clubId ? { clubId: String(clubId) } : {}),
+  })
 }
 
 async function cacheWorkspace({ client, memberships, health_card, body_measurements, client_weight_entries, trainings }, opts = {}) {
@@ -41,7 +37,7 @@ async function cacheWorkspace({ client, memberships, health_card, body_measureme
 
   // glance: не трогаем дневник в IDB и не prune-им тренировки (пустой список = «всё удалить»).
   if (glance) {
-    notifyHydrated(client?.id, 0)
+    notifyHydrated(client?.id, 0, client?.club_id)
     return { pruned_trainings: 0 }
   }
 
@@ -56,7 +52,7 @@ async function cacheWorkspace({ client, memberships, health_card, body_measureme
     pruned_trainings = await pruneOrphanTrainingsForClient(cid, trainings ?? [], pending?.trainings ?? null)
   }
 
-  notifyHydrated(client?.id, pruned_trainings)
+  notifyHydrated(client?.id, pruned_trainings, client?.club_id)
   return { pruned_trainings }
 }
 

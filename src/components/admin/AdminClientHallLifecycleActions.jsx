@@ -13,7 +13,6 @@ import {
   reopenClientHall,
 } from '../../lib/clientHallLifecycleSyncService.js'
 import { todayLocalIso } from '../../lib/dateRu.js'
-import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
 import { getDb } from '../../lib/localDb.js'
 
 /**
@@ -82,7 +81,6 @@ export function AdminClientHallLifecycleActions({
       const { warn } = await closeClientHallWithReason(client, payload, { hall })
       if (warn) alert(warn)
       setCloseModal(false)
-      dispatchLocalDataChanged({ reason: 'client-hall-lifecycle', clientId: client.id })
       onChanged?.()
     } catch (e) {
       alert(e?.message ?? 'Не удалось закрыть направление')
@@ -97,7 +95,6 @@ export function AdminClientHallLifecycleActions({
     try {
       const { warn } = await reopenClientHall(client, { hall })
       if (warn) alert(warn)
-      dispatchLocalDataChanged({ reason: 'client-hall-lifecycle', clientId: client.id })
       onChanged?.()
     } catch (e) {
       alert(e?.message ?? 'Не удалось открыть направление')

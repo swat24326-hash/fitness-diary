@@ -42,6 +42,7 @@ export function ClientCardMainTabs({
   pnkCloseMemberships,
   startPnkTraining,
   adminClubQs,
+  statsInitialMode = null,
 }) {
   const pnkCtx = { healthCard, bzCompletedCount }
   return (
@@ -95,7 +96,9 @@ export function ClientCardMainTabs({
         />
       )}
       {tab === 'loyalty' && tabOk(client, 'loyalty', pnkCtx) && <ClientLoyaltySection client={client} />}
-      {tab === 'stats' && tabOk(client, 'stats', pnkCtx) && <Statistics clientId={client.id} />}
+      {tab === 'stats' && tabOk(client, 'stats', pnkCtx) && (
+        <Statistics clientId={client.id} initialMode={statsInitialMode} />
+      )}
       {tab === 'diaries' && tabOk(client, 'diaries', pnkCtx) && (
         <>
           {isOpenPnkClient(client) && !isArchived && !canManageClubClients ? (

@@ -11,6 +11,7 @@ import { CircleHelp } from 'lucide-react'
  *   active?: boolean,
  *   hot?: boolean,
  *   warn?: boolean,
+ *   pending?: boolean,
  *   onSelect: () => void,
  * }} props
  */
@@ -22,12 +23,14 @@ export function AdminClientsFilterTile({
   active = false,
   hot = false,
   warn = false,
+  pending = false,
   onSelect,
 }) {
   const [helpOpen, setHelpOpen] = useState(false)
   const rootRef = useRef(null)
   const helpId = useId()
-  const digits = String(count ?? 0).length
+  const displayCount = pending ? '…' : count
+  const digits = String(displayCount ?? 0).length
 
   useEffect(() => {
     if (!helpOpen) return undefined
@@ -75,12 +78,12 @@ export function AdminClientsFilterTile({
           className="admin-clients-filter-tile__main"
           onClick={onSelect}
           aria-pressed={active}
-          aria-label={`${label}: ${count}`}
+          aria-label={`${label}: ${displayCount}`}
         >
           <span className="admin-clients-filter-tile__icon" aria-hidden>
             {icon}
           </span>
-          <span className="admin-clients-filter-tile__count">{count}</span>
+          <span className="admin-clients-filter-tile__count">{displayCount}</span>
           <span className="admin-clients-filter-tile__label">{label}</span>
         </button>
 

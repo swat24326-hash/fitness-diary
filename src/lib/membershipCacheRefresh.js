@@ -12,6 +12,7 @@ import { mergeClientHallLifecycleIntoCache } from './admin/clientHallLifecycleAd
 import { fetchTrainerPullViaApi } from './syncApiClient'
 import { clearTrainerWorkspaceSnapshotSync } from './trainerWorkspaceCache'
 import { invalidateAdminClubWorkspaceCache } from './admin/adminClubWorkspaceCache'
+import { invalidateAdminClientsBrowseGlanceCaches } from './admin/adminClientsListReloadCore.js'
 
 const REFRESH_COOLDOWN_MS = 60_000
 
@@ -45,10 +46,16 @@ function bumpCaches() {
   invalidateAdminClubWorkspaceCache()
 }
 
-function notifyRefreshed() {
+function notifyRefreshed(clubId) {
   if (typeof window === 'undefined') return
+  const id = String(clubId ?? '').trim()
+  if (id) invalidateAdminClientsBrowseGlanceCaches(id)
   try {
-    window.dispatchEvent(new CustomEvent('fitness-diary-storage', { detail: { reason: 'memberships-refreshed' } }))
+    window.dispatchEvent(
+      new CustomEvent('fitness-diary-storage', {
+        detail: { reason: 'memberships-refreshed', ...(id ? { clubId: id } : {}) },
+      }),
+    )
   } catch {
     /* ignore */
   }
@@ -84,7 +91,7 @@ export async function refreshMembershipsForStats(p = {}) {
         if (!via?.memberships) return { ok: false, reason: 'no_api' }
         const count = await mergeMembershipRows(via.memberships)
         bumpCaches()
-        if (p.notify !== false) notifyRefreshed()
+        if (p.notify !== false) notifyRefreshed(trainerId ? '' : clubId)
         return { ok: true, count, source: 'trainer-pull' }
       }
 
@@ -99,7 +106,7 @@ export async function refreshMembershipsForStats(p = {}) {
         await mergeClientHallLifecycleIntoCache(viaMem.client_hall_lifecycle)
       }
       bumpCaches()
-      if (p.notify !== false) notifyRefreshed()
+      if (p.notify !== false) notifyRefreshed(clubId)
       return { ok: true, count, source: 'list-memberships' }
     } catch (e) {
       return { ok: false, error: String(e?.message ?? e ?? 'refresh failed') }

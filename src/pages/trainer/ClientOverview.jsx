@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Plus, Pencil, RefreshCw, LineChart } from 'lucide-react'
 import { hydrateAdminClientWorkspace } from '../../lib/admin/adminClientHydrate'
-import { getHealthCard, listMeasurements, listMemberships, listTrainingsForClient } from '../../lib/dataAccess'
+import { getHealthCard, listMeasurements, listMemberships } from '../../lib/dataAccess'
+import { ensureClientTrainingsCached } from '../../lib/clientTrainingsEnsure'
 import { useDebouncedStorageReload } from '../../lib/useDebouncedStorageReload'
 import { isSupabaseConfigured } from '../../lib/supabase'
 import { stripDirectionControls } from '../../lib/textInput'
@@ -91,7 +92,7 @@ export function ClientOverview({
   const reloadLocal = useCallback(async () => {
     const m = await listMemberships(client.id)
     setMemberships(m)
-    setClientTrainings(await listTrainingsForClient(client.id))
+    setClientTrainings(await ensureClientTrainingsCached(client.id))
     const hcRaw = await getHealthCard(client.id)
     const hc = normalizeHealthCardWeights(hcRaw)
     setHealth(hc)

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { FileSpreadsheet } from 'lucide-react'
 import { listClientsByClubId, listMembershipsByClubId } from '../../lib/localDbClubQuery.js'
-import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
+import { notifyAdminClientsBrowseStorageChanged } from '../../lib/admin/adminClientsListReloadCore.js'
 import { planDeskClosingImport, scopeClosingRowsToHall } from '../../lib/admin/deskClosingImportCore.js'
 import { parseDeskClosingXlsxFile } from '../../lib/admin/deskClosingImportWorkbook.js'
 import { applyDeskClosingCreates } from '../../lib/admin/deskClosingApplyService.js'
@@ -112,7 +112,7 @@ export function AdminDeskClosingImportSection({
           parts.join(', ') +
             (res.errors?.length ? `. Ошибки: ${res.errors.slice(0, 3).join('; ')}` : ''),
         )
-        dispatchLocalDataChanged?.()
+        notifyAdminClientsBrowseStorageChanged({ reason: 'desk-closing-import', clubId })
         onDone?.()
       }
     } catch (e) {

@@ -31,7 +31,14 @@ export function clearDaySummaryGlanceSession(clubId) {
 }
 
 export function invalidateAdminDaySummaryGlance(clubId) {
-  clearDaySummaryGlanceSession(clubId)
+  const id = String(clubId ?? '').trim()
+  if (id) clearDaySummaryGlanceSession(id)
+  else invalidateAllAdminDaySummaryGlance()
+}
+
+/** Сброс glance сводки дня для всех клубов (lifecycle без club_id в событии). */
+export function invalidateAllAdminDaySummaryGlance() {
+  cache.invalidate()
 }
 
 export function isDaySummaryGlanceFresh(savedAt, ttlMs = DAY_SUMMARY_GLANCE_TTL_MS) {

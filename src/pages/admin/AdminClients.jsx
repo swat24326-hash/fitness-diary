@@ -18,7 +18,6 @@ import { AdminClientsArchiveHallFilters } from '../../components/admin/AdminClie
 import { AdminClientsListRow } from '../../components/admin/AdminClientsListRow.jsx'
 import {
   deleteClientAndAllData,
-  dispatchLocalDataChanged,
   listAdminClientsForClub,
   listTrainerSummariesForAdmin,
 } from '../../lib/dataAccess'
@@ -60,10 +59,10 @@ import { fetchClientsLastTrainingsViaApi } from '../../lib/admin/adminApiClient'
 import { resolveClubSmsMode } from '../../lib/admin/clubSmsModeCore.js'
 import { peekAdminClientsListLocal, pullAdminClientsFromCloud } from '../../lib/admin/adminClientsListService'
 import {
-  invalidateAdminClientsListMemory,
   peekAdminClientsListMemory,
   writeAdminClientsListMemory,
 } from '../../lib/admin/adminClientsListMemoryCache.js'
+import { invalidateAdminClientsBrowseGlanceCaches } from '../../lib/admin/adminClientsListReloadCore.js'
 import { useDebouncedStorageReload, shouldReloadAdminClientsPage } from '../../lib/useDebouncedStorageReload'
 import { ADMIN_CLIENTS_PAGE_SIZE, ADMIN_CLIENTS_REMOTE_LIMIT } from '../../lib/admin/adminConstants'
 import { isSupabaseConfigured } from '../../lib/supabase'
@@ -102,7 +101,9 @@ import {
   adminClientsCloseHallModalCopy,
   resolveAdminClientsActionHall,
 } from '../../lib/admin/adminClientsHallLifecycleMenuCore.js'
-import { getDb } from '../../lib/localDb.js'
+import {
+  loadAdminClubLifecycleRowsFromLocal,
+} from '../../lib/admin/adminClientsListLifecycleCore.js'
 import { AdminClientCreateModal } from '../../components/admin/AdminClientCreateModal.jsx'
 import { manualCreateHallFromClientsTab } from '../../lib/admin/deskManualClientCreateCore.js'
 import { filterAerobicSalesTypes } from '../../lib/membershipTypesCore.js'
@@ -167,6 +168,8 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     normalizeArchiveHallFilter(searchParams.get('archiveHall')),
   )
   const [lifecycleRows, setLifecycleRows] = useState([])
+  /** Вкладки/воронка без lifecycle врут (клиент «закрыт на ПЗ» остаётся в ПЗ). */
+  const [lifecycleReady, setLifecycleReady] = useState(false)
   const [archiveBusy, setArchiveBusy] = useState(false)
   const [source, setSource] = useState('local')
   const [fallback, setFallback] = useState(null)
@@ -199,19 +202,37 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
   } = useAdminClientsClubSms({ club, clients, memByClient, quickFilter })
 
   const reload = useCallback(async ({ silent = false } = {}) => {
-    if (!silent) setBusy(true)
+    if (!silent) {
+      setBusy(true)
+      setLifecycleReady(false)
+    }
     try {
-      // Фаза 0: память (синхронно по смыслу — мгновенный «назад»).
-      if (club) {
+      const lifeFromLocal = club ? await loadAdminClubLifecycleRowsFromLocal(club) : []
+
+      // Фаза 0: paint из IDB (клиенты + абоны + lifecycle); цифры — после фазы 1.
+      if (club && !silent) {
         const mem = peekAdminClientsListMemory(club)
-        if (mem?.clients?.length) {
-          setClients(mem.clients)
-          setMemByClient(mem.memByClient ?? {})
-          setTrainerNameById(mem.trainerNameById ?? {})
-          setNoTabletTrainerIds(new Set(mem.noTabletTrainerIds ?? []))
-          setHoldingTrainerIds(new Set(mem.holdingTrainerIds ?? []))
-          setListTruncated(!!mem.truncated)
-          setSource(mem.source || 'local')
+        let peekLocal = null
+        let mapPeek = mem?.memByClient ?? {}
+        try {
+          ;[peekLocal, mapPeek] = await Promise.all([
+            peekAdminClientsListLocal(club),
+            loadAdminClubMembershipsMap(club),
+          ])
+        } catch {
+          /* memory fallback ниже */
+        }
+        const clientsPaint =
+          peekLocal?.clients?.length ? peekLocal.clients : mem?.clients?.length ? mem.clients : []
+        if (clientsPaint.length) {
+          setClients(clientsPaint)
+          setMemByClient(mapPeek ?? {})
+          setLifecycleRows(lifeFromLocal)
+          setTrainerNameById(mem?.trainerNameById ?? {})
+          setNoTabletTrainerIds(new Set(mem?.noTabletTrainerIds ?? []))
+          setHoldingTrainerIds(new Set(mem?.holdingTrainerIds ?? []))
+          setListTruncated(!!(peekLocal?.truncated ?? mem?.truncated))
+          setSource(peekLocal?.clients?.length ? 'local' : mem?.source || 'local')
           setFallback(null)
           setCloudNeedsClub(false)
           setListReady(true)
@@ -222,9 +243,11 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       // Фаза 1: IndexedDB.
       if (club) {
         try {
-          const [peek, trainersPeek] = await Promise.all([
+          const [peek, trainersPeek, lifePeek, mapPeek] = await Promise.all([
             peekAdminClientsListLocal(club),
             listTrainerSummariesForAdmin(),
+            loadAdminClubLifecycleRowsFromLocal(club),
+            loadAdminClubMembershipsMap(club),
           ])
           const nmPeek = {}
           for (const u of trainersPeek) {
@@ -246,11 +269,13 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
             setSource('local')
             setFallback(null)
             setCloudNeedsClub(false)
-            const mapPeek = await loadAdminClubMembershipsMap(club)
             setMemByClient(mapPeek)
+            setLifecycleRows(lifePeek)
+            setLifecycleReady(true)
             writeAdminClientsListMemory(club, {
               clients: peek.clients,
               memByClient: mapPeek,
+              lifecycleRows: lifePeek,
               trainerNameById: nmPeek,
               noTabletTrainerIds: noTabletPeek,
               holdingTrainerIds: holdingPeek,
@@ -265,10 +290,11 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         }
       }
 
-      const [{ clients: list, source: src, fallbackReason, cloudNeedsClub: need, truncated: trunc }, trainers] =
+      const [{ clients: list, source: src, fallbackReason, cloudNeedsClub: need, truncated: trunc }, trainers, lifeCloud] =
         await Promise.all([
           listAdminClientsForClub({ clubId: club || '' }),
           listTrainerSummariesForAdmin(),
+          club ? loadAdminClubLifecycleRowsFromLocal(club) : Promise.resolve([]),
         ])
       setListTruncated(!!trunc)
       setCloudNeedsClub(!!need)
@@ -291,32 +317,19 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       setHoldingTrainerIds(holding)
 
       const arr = Array.isArray(list) ? list : []
+      const map = club ? await loadAdminClubMembershipsMap(club) : {}
       setClients(arr)
-      try {
-        const db = await getDb()
-        if (db.objectStoreNames.contains('client_hall_lifecycle')) {
-          const life = await db.getAll('client_hall_lifecycle')
-          const clubId = String(club ?? '').trim()
-          setLifecycleRows(
-            clubId
-              ? (life ?? []).filter((r) => String(r?.club_id ?? '') === clubId)
-              : life ?? [],
-          )
-        } else {
-          setLifecycleRows([])
-        }
-      } catch {
-        setLifecycleRows([])
-      }
+      setMemByClient(map)
+      setLifecycleRows(lifeCloud)
+      setLifecycleReady(true)
       // Не сбрасываем lastTrainingByClient — иначе колонка «Последняя» мигает «—» на каждой перезагрузке.
       setPageTrainings([])
 
-      const map = club ? await loadAdminClubMembershipsMap(club) : {}
-      setMemByClient(map)
       if (club && arr.length) {
         writeAdminClientsListMemory(club, {
           clients: arr,
           memByClient: map,
+          lifecycleRows: lifeCloud,
           trainerNameById: nm,
           noTabletTrainerIds: noTablet,
           holdingTrainerIds: holding,
@@ -327,6 +340,8 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     } catch {
       setClients([])
       setMemByClient({})
+      setLifecycleRows([])
+      setLifecycleReady(false)
       setLastTrainingByClient({})
       setPageTrainings([])
       setTrainerNameById({})
@@ -334,7 +349,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       setFallback(null)
       setCloudNeedsClub(false)
       setListTruncated(false)
-      if (club) invalidateAdminClientsListMemory(club)
+      if (club) invalidateAdminClientsBrowseGlanceCaches(club)
     } finally {
       setListReady(true)
       if (!silent) setBusy(false)
@@ -342,10 +357,40 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
   }, [club, clubBound])
 
   useEffect(() => {
+    setLifecycleReady(false)
+    setLifecycleRows([])
+  }, [club])
+
+  useEffect(() => {
     void reload()
   }, [reload])
 
   useDebouncedStorageReload(() => reload({ silent: true }), { shouldRun: shouldReloadAdminClientsPage })
+
+  /** Keep-alive: «назад» с карточки — clients + lifecycle + абоны из IDB. */
+  useEffect(() => {
+    if (!listUiActive || !club) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const [peek, life, map] = await Promise.all([
+          peekAdminClientsListLocal(club),
+          loadAdminClubLifecycleRowsFromLocal(club),
+          loadAdminClubMembershipsMap(club),
+        ])
+        if (cancelled) return
+        if (peek?.clients?.length) setClients(peek.clients)
+        setLifecycleRows(life)
+        setMemByClient(map)
+        setLifecycleReady(true)
+      } catch {
+        if (!cancelled) setLifecycleReady(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [listUiActive, club])
 
   /** Восстановление списка после «назад» с карточки (вкладка / фильтр / страница / поиск). */
   useEffect(() => {
@@ -569,6 +614,17 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     const q = query.trim().toLowerCase()
     const tq = trainerQuery.trim().toLowerCase()
 
+    const browseOnly =
+      !crossHallSearch &&
+      shouldApplyAdminClientsBrowseFilterToList(clientsTab, quickFilter) &&
+      !q &&
+      !tq &&
+      !(clientsTab === 'archive' && normalizeArchiveHallFilter(archiveHallFilter))
+
+    if (!lifecycleReady && browseOnly) {
+      return []
+    }
+
     let base = resolveAdminClientsSearchPool({
       clients,
       clientsTab,
@@ -591,7 +647,20 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       })
     }
 
-    // Воронка только без cross-hall и не на Архиве (иначе archive∩active = пусто).
+    // Воронка без поиска — тот же контур, что и цифры на плитках (chip = list).
+    if (browseOnly) {
+      return filterAdminClientsByBrowseMode({
+        clients,
+        memByClient,
+        clientsTab,
+        today,
+        browseMode: quickFilter,
+        azDirectionFilter: clientsTab === 'az' ? azDirectionFilter : '',
+        lifecycleRows,
+      })
+    }
+
+    // Воронка + поиск / тренер / архивный зал — пересечение с базой вкладки.
     if (
       !crossHallSearch &&
       shouldApplyAdminClientsBrowseFilterToList(clientsTab, quickFilter)
@@ -639,6 +708,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     showTrainerSearch,
     crossHallSearch,
     lifecycleRows,
+    lifecycleReady,
     filterClientsByTabWithLifecycle,
   ])
 
@@ -795,19 +865,38 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
     }
   }, [club, pagedClientIdsKey])
 
-  const filterCounts = useMemo(
-    () =>
-      buildAdminClientsBrowseCounts({
-        clients,
-        memByClient,
-        clientsTab,
-        today,
-        azDirectionFilter:
-          clientsTab === 'az' && !crossHallSearch ? azDirectionFilter : '',
-        lifecycleRows,
-      }),
-    [clients, clientsTab, memByClient, today, azDirectionFilter, lifecycleRows, crossHallSearch],
-  )
+  const filterCounts = useMemo(() => {
+    if (!lifecycleReady) {
+      return {
+        all: 0,
+        pnk: 0,
+        inactive: 0,
+        awaiting_start: 0,
+        birthdays: 0,
+        expiring: 0,
+        expired_recent: 0,
+        stale: 0,
+      }
+    }
+    return buildAdminClientsBrowseCounts({
+      clients,
+      memByClient,
+      clientsTab,
+      today,
+      azDirectionFilter:
+        clientsTab === 'az' && !crossHallSearch ? azDirectionFilter : '',
+      lifecycleRows,
+    })
+  }, [
+    lifecycleReady,
+    clients,
+    clientsTab,
+    memByClient,
+    today,
+    azDirectionFilter,
+    lifecycleRows,
+    crossHallSearch,
+  ])
 
   const allTileLabel = adminClientsAllTileLabel(clientsTab, filterCounts)
 
@@ -991,8 +1080,6 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         const { warn } = await reopenClientHall(clientRow, { hall: hall || 'pz' })
         if (warn) alert(warn)
       }
-      dispatchLocalDataChanged({ reason: 'client-archive-changed', clientId: clientRow.id })
-      if (club) invalidateAdminClientsListMemory(club)
       await reload({ silent: true })
     } catch (err) {
       alert(err?.message ?? 'Не удалось вернуть клиента')
@@ -1019,10 +1106,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
         ;({ warn } = await setClientArchiveReason(modal.client, payload))
       }
       if (warn) alert(warn)
-      const cid = modal.client.id
       setArchiveReasonModal(null)
-      dispatchLocalDataChanged({ reason: 'client-archive-changed', clientId: cid })
-      if (club) invalidateAdminClientsListMemory(club)
       await reload({ silent: true })
     } catch (err) {
       alert(err?.message ?? 'Не удалось сохранить')
@@ -1045,7 +1129,6 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
       const warn = criticalWriteCloudWarning(flush, 'Удаление')
       if (warn) alert(warn)
       setConfirmDelete(null)
-      if (club) invalidateAdminClientsListMemory(club)
       await reload()
     } catch (e) {
       alert(e?.message ?? 'Не удалось удалить клиента')
@@ -1111,7 +1194,9 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               onClick={() => switchClientsTab('active')}
             >
               {ADMIN_CLIENTS_LIST_TAB_LABELS.active}
-              <span className="admin-clients-segment__count">{listTabCounts.active}</span>
+              <span className="admin-clients-segment__count">
+                {lifecycleReady ? listTabCounts.active : '…'}
+              </span>
             </button>
             <button
               type="button"
@@ -1121,7 +1206,9 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               onClick={() => switchClientsTab('tz')}
             >
               {ADMIN_CLIENTS_LIST_TAB_LABELS.tz}
-              <span className="admin-clients-segment__count">{listTabCounts.tz}</span>
+              <span className="admin-clients-segment__count">
+                {lifecycleReady ? listTabCounts.tz : '…'}
+              </span>
             </button>
             <button
               type="button"
@@ -1131,7 +1218,9 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               onClick={() => switchClientsTab('az')}
             >
               {ADMIN_CLIENTS_LIST_TAB_LABELS.az}
-              <span className="admin-clients-segment__count">{listTabCounts.az}</span>
+              <span className="admin-clients-segment__count">
+                {lifecycleReady ? listTabCounts.az : '…'}
+              </span>
             </button>
             <button
               type="button"
@@ -1141,7 +1230,9 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               onClick={() => switchClientsTab('archive')}
             >
               {ADMIN_CLIENTS_LIST_TAB_LABELS.archive}
-              <span className="admin-clients-segment__count">{listTabCounts.archive}</span>
+              <span className="admin-clients-segment__count">
+                {lifecycleReady ? listTabCounts.archive : '…'}
+              </span>
             </button>
           </div>
           <div className="admin-clients-workspace__actions">
@@ -1274,6 +1365,7 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
               hidePnk={isDeskHallTab}
               allLabel={allTileLabel}
               mutedBySearch={crossHallSearch}
+              countsPending={!lifecycleReady}
             />
             {clientsTab === 'az' ? (
               <AdminClientsAzDirectionFilters
@@ -1610,7 +1702,6 @@ export function AdminClients({ accessMode = 'admin', listUiActive = true } = {})
           }
           onClose={() => setClientCreateOpen(false)}
         onCreated={(clientId, hall) => {
-          if (club) invalidateAdminClientsListMemory(club)
           const nextTab = hall === 'tz' ? 'tz' : hall === 'az' ? 'az' : 'active'
           const nextHall = hall === 'tz' || hall === 'az' || hall === 'pz' ? hall : 'pz'
           if (clientsTab !== nextTab) switchClientsTab(nextTab)

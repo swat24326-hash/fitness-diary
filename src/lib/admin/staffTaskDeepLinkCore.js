@@ -4,6 +4,8 @@
 
 import { resolveDeepLinkForTaskKind } from './iskraTaskKindsCore.js'
 import { normalizeClientCardFrom } from './clientCardReturnCore.js'
+import { writeClientCardTabToSearchParams } from '../clientCardTabsCore.js'
+import { normalizeClientStatsMode } from '../clientStatsModeCore.js'
 
 /**
  * @param {{
@@ -49,7 +51,15 @@ export function resolveDispatchDeepLink(row) {
 
 /**
  * @param {string} clientId
- * @param {{ clubId?: string, forAdmin?: boolean, forSales?: boolean, forSupervisor?: boolean, from?: string }} [opts]
+ * @param {{
+ *   clubId?: string,
+ *   forAdmin?: boolean,
+ *   forSales?: boolean,
+ *   forSupervisor?: boolean,
+ *   from?: string,
+ *   tab?: string,
+ *   mode?: string,
+ * }} [opts]
  */
 export function buildClientCardDeepLink(clientId, opts = {}) {
   const id = String(clientId ?? '').trim()
@@ -59,6 +69,18 @@ export function buildClientCardDeepLink(clientId, opts = {}) {
   if (clubId && !opts.forSupervisor && !opts.forSales) qs.set('club', clubId)
   const from = normalizeClientCardFrom(opts.from)
   if (from) qs.set('from', from)
+  const tab = String(opts.tab ?? '').trim()
+  if (tab) {
+    writeClientCardTabToSearchParams(qs, tab, {
+      statsMode: normalizeClientStatsMode(opts.mode),
+      clearStatsMode: false,
+    })
+  } else {
+    const mode = normalizeClientStatsMode(opts.mode)
+    if (mode && mode !== 'measurements') {
+      writeClientCardTabToSearchParams(qs, 'stats', { statsMode: mode, clearStatsMode: false })
+    }
+  }
   const tail = qs.toString()
   let path
   if (opts.forSupervisor) path = `/club/clients/${id}`

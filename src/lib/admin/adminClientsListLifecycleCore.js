@@ -13,6 +13,25 @@ import {
 } from '../clientHallLifecycleCore.js'
 import { MEMBERSHIP_HALLS, clientMembershipHallSet } from '../membershipHallCore.js'
 import { todayLocalIso } from '../dateRu.js'
+import { getDb } from '../localDb.js'
+
+/**
+ * Строки client_hall_lifecycle клуба из IndexedDB (офлайн, без облака).
+ * @param {string} [clubId]
+ * @returns {Promise<object[]>}
+ */
+export async function loadAdminClubLifecycleRowsFromLocal(clubId) {
+  const club = String(clubId ?? '').trim()
+  try {
+    const db = await getDb()
+    if (!db.objectStoreNames.contains('client_hall_lifecycle')) return []
+    const life = await db.getAll('client_hall_lifecycle')
+    if (!club) return life ?? []
+    return (life ?? []).filter((r) => String(r?.club_id ?? '') === club)
+  } catch {
+    return []
+  }
+}
 
 /**
  * @param {{

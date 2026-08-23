@@ -12,6 +12,7 @@ import {
   buildArchiveReasonOnlyFields,
   buildArchiveRestoreFields,
 } from './clientArchiveReasonCore.js'
+import { notifyAdminClientsBrowseStorageChanged } from './admin/adminClientsListReloadCore.js'
 
 /**
  * @param {object} clientRow
@@ -73,5 +74,11 @@ export async function restoreClientFromArchive(clientRow) {
 export async function setClientArchiveReason(clientRow, reasonInput) {
   const built = buildArchiveReasonOnlyFields(reasonInput)
   if (!built.ok) throw new Error(built.error)
-  return persistClientFields(clientRow, built.patch, 'Причина архива', { requireArchived: true })
+  const res = await persistClientFields(clientRow, built.patch, 'Причина архива', { requireArchived: true })
+  notifyAdminClientsBrowseStorageChanged({
+    reason: 'client-archive-changed',
+    clientId: res.row?.id ?? clientRow.id,
+    clubId: res.row?.club_id ?? clientRow.club_id,
+  })
+  return res
 }

@@ -36,6 +36,7 @@ export const ADMIN_CLIENTS_FILTER_HELP = {
  *   hidePnk?: boolean,
  *   allLabel?: string,
  *   mutedBySearch?: boolean,
+ *   countsPending?: boolean,
  * }} props
  */
 export function AdminClientsBrowseFilters({
@@ -45,11 +46,13 @@ export function AdminClientsBrowseFilters({
   hidePnk = false,
   allLabel = 'Все клиенты',
   mutedBySearch = false,
+  countsPending = false,
 }) {
   const tile = (id, extra = {}) => ({
     active: !mutedBySearch && quickFilter === id,
-    hot: Boolean(extra.hot),
+    hot: Boolean(extra.hot) && !countsPending,
     warn: Boolean(extra.warn),
+    pending: countsPending,
     onSelect: () => onApply(id),
     helpText: ADMIN_CLIENTS_FILTER_HELP[id],
   })

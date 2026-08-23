@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -10,11 +10,27 @@ import {
   Legend,
 } from 'chart.js'
 import { Line } from 'react-chartjs-2'
-import { listMeasurements, listTrainingsForClient } from '../../lib/dataAccess'
-import { useDebouncedStorageReload, shouldReloadTrainerClientStats } from '../../lib/useDebouncedStorageReload'
+import { listMeasurements, listMemberships } from '../../lib/dataAccess'
+import { listTrainingsByClientId } from '../../lib/localDbClubQuery'
+import { ensureClientTrainingsCachedWithStatus } from '../../lib/clientTrainingsEnsure'
+import {
+  clientStatsModeNeedsTrainingsEnsure,
+  normalizeClientStatsMode,
+  persistClientStatsMode,
+  readPersistedClientStatsMode,
+  resolveClientStatsAllTimeRange,
+  shouldForceClientTrainingsEnsureOnReload,
+  shouldReloadTrainerClientStatsForClient,
+} from '../../lib/clientStatsModeCore'
+import { writeClientCardTabToSearchParams } from '../../lib/clientCardTabsCore'
+import { isTrainingStatusCompleted } from '../../lib/trainingPersistStatusCore'
+import { isSupabaseConfigured } from '../../lib/supabase'
+import { isAppOnline } from '../../lib/syncService'
+import { useDebouncedStorageReload } from '../../lib/useDebouncedStorageReload'
 import { BODY_MEASURE_FIELDS, getMeasureValue } from '../../lib/bodyMeasures'
 import { formatDateRu, todayLocalIso } from '../../lib/dateRu'
 import { collectSetLoadNums, collectSetHrAfterNums, collectSetRpeNums } from '../../lib/trainingSetLateralityCore'
+import { ClientAttendanceSection } from './ClientAttendanceSection'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend)
 
@@ -64,8 +80,29 @@ function exerciseMatchesSelection(ex, catalogId, nameSearch) {
   return n.length > 0 && n.toLowerCase().includes(q)
 }
 
-export function Statistics({ clientId }) {
-  const [mode, setMode] = useState('measurements')
+export function Statistics({ clientId, initialMode = null }) {
+  const [mode, setModeState] = useState(() => {
+    const fromUrl = normalizeClientStatsMode(initialMode)
+    if (fromUrl) return fromUrl
+    const persisted = readPersistedClientStatsMode(clientId)
+    if (persisted) return persisted
+    return 'measurements'
+  })
+  const appliedAllTimeKeyRef = useRef(null)
+  const userEditedRangeRef = useRef(false)
+
+  const markRangeEdited = useCallback(() => {
+    userEditedRangeRef.current = true
+  }, [])
+
+  const setMode = useCallback(
+    (next) => {
+      const m = normalizeClientStatsMode(next) ?? 'measurements'
+      setModeState(m)
+      persistClientStatsMode(clientId, m)
+    },
+    [clientId],
+  )
   const [exerciseName, setExerciseName] = useState('')
   /** UUID из справочника exercises; null — режим поиска по тексту имени */
   const [exerciseCatalogId, setExerciseCatalogId] = useState(null)
@@ -85,37 +122,95 @@ export function Statistics({ clientId }) {
   const [dateTo, setDateTo] = useState(() => todayLocalIso())
   const [measurements, setMeasurements] = useState([])
   const [trainings, setTrainings] = useState([])
+  const [membershipStartDates, setMembershipStartDates] = useState([])
+  const [trainingsOnline, setTrainingsOnline] = useState(true)
+  const [trainingsEnsureOk, setTrainingsEnsureOk] = useState(true)
+  const [trainingsLoading, setTrainingsLoading] = useState(false)
 
   const inD = useCallback((dateStr, from, to) => dateStr && dateStr >= from && dateStr <= to, [])
 
-  const allTimeRange = useMemo(() => {
-    const dates = (() => {
-      if (mode === 'measurements') return measurements.map((m) => m?.date).filter(Boolean)
-      // Для режимов по тренировкам — берём только завершённые (иначе в статистику попадают черновики).
-      return trainings.filter((t) => t?.status === 'completed').map((t) => t?.date).filter(Boolean)
-    })()
-    if (!dates.length) return null
-    const min = dates.reduce((a, b) => (String(a) < String(b) ? a : b))
-    const max = dates.reduce((a, b) => (String(a) > String(b) ? a : b))
-    return { min: String(min), max: String(max) }
-  }, [mode, measurements, trainings])
+  const allTimeRange = useMemo(
+    () => resolveClientStatsAllTimeRange(mode, { measurements, trainings }, todayLocalIso()),
+    [mode, measurements, trainings],
+  )
 
   const applyAllTime = useCallback(() => {
     if (!allTimeRange) return
+    userEditedRangeRef.current = false
     setDateFrom(allTimeRange.min)
     setDateTo(allTimeRange.max)
+    appliedAllTimeKeyRef.current = `${allTimeRange.min}:${allTimeRange.max}`
   }, [allTimeRange])
 
-  const load = useCallback(async () => {
-    setMeasurements(await listMeasurements(clientId))
-    setTrainings(await listTrainingsForClient(clientId))
-  }, [clientId])
+  const load = useCallback(async (opts = {}) => {
+    const needEnsure = clientStatsModeNeedsTrainingsEnsure(mode)
+    const forceEnsure = opts.forceEnsure === true
+    if (needEnsure) setTrainingsLoading(true)
+    try {
+      const [measures, mems, cached] = await Promise.all([
+        listMeasurements(clientId),
+        listMemberships(clientId),
+        needEnsure
+          ? ensureClientTrainingsCachedWithStatus(clientId, { force: forceEnsure })
+          : listTrainingsByClientId(clientId).then((trainings) => ({
+              trainings,
+              online: Boolean(isSupabaseConfigured() && isAppOnline()),
+              ensureOk: true,
+            })),
+      ])
+      setMeasurements(measures)
+      setMembershipStartDates(
+        (mems ?? []).map((m) => String(m?.start_date ?? '').slice(0, 10)).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)),
+      )
+      setTrainings(cached.trainings)
+      setTrainingsOnline(cached.online)
+      setTrainingsEnsureOk(cached.ensureOk)
+    } finally {
+      if (needEnsure) setTrainingsLoading(false)
+    }
+  }, [clientId, mode])
 
   useEffect(() => {
     void load()
   }, [load])
 
-  useDebouncedStorageReload(() => void load(), { shouldRun: shouldReloadTrainerClientStats })
+  useEffect(() => {
+    const fromUrl = normalizeClientStatsMode(initialMode)
+    const next = fromUrl ?? readPersistedClientStatsMode(clientId) ?? 'measurements'
+    setModeState(next)
+    if (fromUrl) persistClientStatsMode(clientId, fromUrl)
+    appliedAllTimeKeyRef.current = null
+    userEditedRangeRef.current = false
+  }, [clientId, initialMode])
+
+  useEffect(() => {
+    if (mode !== 'attendance') return
+    if (trainingsLoading || !allTimeRange) return
+    if (userEditedRangeRef.current) return
+    const key = `${allTimeRange.min}:${allTimeRange.max}`
+    if (appliedAllTimeKeyRef.current === key) return
+    setDateFrom(allTimeRange.min)
+    setDateTo(allTimeRange.max)
+    appliedAllTimeKeyRef.current = key
+  }, [mode, trainingsLoading, allTimeRange, clientId])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    writeClientCardTabToSearchParams(url.searchParams, 'stats', {
+      statsMode: mode,
+      clearStatsMode: false,
+    })
+    const next = `${url.pathname}${url.search}${url.hash}`
+    const cur = `${window.location.pathname}${window.location.search}${window.location.hash}`
+    if (cur !== next) window.history.replaceState(window.history.state, '', next)
+  }, [mode])
+
+  useDebouncedStorageReload(
+    (detail) =>
+      void load({ forceEnsure: shouldForceClientTrainingsEnsureOnReload(detail) }),
+    { shouldRun: (detail) => shouldReloadTrainerClientStatsForClient(clientId, detail) },
+  )
 
   useEffect(() => {
     // страхуемся от пустого выбора
@@ -144,7 +239,7 @@ export function Statistics({ clientId }) {
     const byCatalog = new Map()
     const legacy = new Set()
     for (const t of trainings) {
-      if (t?.status !== 'completed') continue
+      if (!isTrainingStatusCompleted(t?.status)) continue
       const exs = t?.data?.exercises ?? []
       for (const ex of exs) {
         const cid = ex?.catalog_exercise_id
@@ -190,7 +285,7 @@ export function Statistics({ clientId }) {
     }
     if (mode === 'weight') {
       const rows = [...trainings]
-        .filter((t) => inD(t.date, dateFrom, dateTo) && t.status === 'completed')
+        .filter((t) => inD(t.date, dateFrom, dateTo) && isTrainingStatusCompleted(t?.status))
         .sort((a, b) => String(a.date).localeCompare(String(b.date)))
       const labels = rows.map((r) => formatDateRu(r.date))
       const data = rows.map((r) => {
@@ -220,7 +315,7 @@ export function Statistics({ clientId }) {
     }
     const byMetric = new Map(selectedExMetrics.map((m) => [m, new Map()]))
     for (const t of trainings) {
-      if (!inD(t.date, dateFrom, dateTo) || t.status !== 'completed') continue
+      if (!inD(t.date, dateFrom, dateTo) || !isTrainingStatusCompleted(t?.status)) continue
       const exs = t.data?.exercises ?? []
       for (const ex of exs) {
         if (!exerciseMatchesSelection(ex, exerciseCatalogId, exerciseName)) continue
@@ -274,7 +369,7 @@ export function Statistics({ clientId }) {
     }
     if (mode === 'weight') {
       return [...trainings]
-        .filter((t) => inD(t.date, dateFrom, dateTo) && t.status === 'completed')
+        .filter((t) => inD(t.date, dateFrom, dateTo) && isTrainingStatusCompleted(t?.status))
         .sort((a, b) => String(b.date).localeCompare(String(a.date)))
         .map((t) => ({ date: t.date, val: t.data?.pre_weight_kg ?? '—' }))
     }
@@ -282,7 +377,7 @@ export function Statistics({ clientId }) {
       const name = exerciseName.trim().toLowerCase()
       if (!exerciseCatalogId && !name) return []
       const inRange = [...trainings]
-        .filter((t) => inD(t.date, dateFrom, dateTo) && t.status === 'completed')
+        .filter((t) => inD(t.date, dateFrom, dateTo) && isTrainingStatusCompleted(t?.status))
         .sort((a, b) => String(b.date).localeCompare(String(a.date)))
       return inRange.map((t) => {
         const exs = t.data?.exercises ?? []
@@ -329,6 +424,7 @@ export function Statistics({ clientId }) {
               <option value="measurements">Обмеры тела</option>
               <option value="weight">Вес</option>
               <option value="exercise">Упражнение</option>
+              <option value="attendance">Посещаемость</option>
             </select>
           </div>
           {mode === 'measurements' && (
@@ -445,11 +541,11 @@ export function Statistics({ clientId }) {
           <div className="stats-range-row">
             <div className="field stats-range-field" style={{ marginBottom: 0 }}>
               <label className="sr-only">С даты</label>
-              <input className="input" aria-label="С даты" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+              <input className="input" aria-label="С даты" type="date" value={dateFrom} onChange={(e) => { markRangeEdited(); setDateFrom(e.target.value) }} />
             </div>
             <div className="field stats-range-field" style={{ marginBottom: 0 }}>
               <label className="sr-only">По дату</label>
-              <input className="input" aria-label="По дату" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+              <input className="input" aria-label="По дату" type="date" value={dateTo} onChange={(e) => { markRangeEdited(); setDateTo(e.target.value) }} />
             </div>
             <div className="field stats-range-action" style={{ marginBottom: 0 }}>
               <button
@@ -465,6 +561,23 @@ export function Statistics({ clientId }) {
             </div>
           </div>
         </div>
+        {mode === 'attendance' ? (
+          <ClientAttendanceSection
+            trainings={trainings}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            online={trainingsOnline}
+            ensureOk={trainingsEnsureOk}
+            membershipStartDates={membershipStartDates}
+            loading={trainingsLoading}
+          />
+        ) : (
+        <>
+        {trainingsLoading && clientStatsModeNeedsTrainingsEnsure(mode) ? (
+          <p className="muted" style={{ margin: '0 0 8px' }} aria-busy="true">
+            Загрузка дневника…
+          </p>
+        ) : null}
         <div className="stats-chart-shell">
           <Line
             data={chartBody}
@@ -513,8 +626,11 @@ export function Statistics({ clientId }) {
             }}
           />
         </div>
+        </>
+        )}
       </div>
 
+      {mode !== 'attendance' && (
       <div className="card">
         <h3 className="section-title" style={{ fontSize: '1rem' }}>
           Таблица
@@ -559,6 +675,7 @@ export function Statistics({ clientId }) {
           </table>
         </div>
       </div>
+      )}
     </div>
   )
 }

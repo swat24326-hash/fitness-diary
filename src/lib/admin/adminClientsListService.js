@@ -12,22 +12,12 @@ import {
   removeClientFromLocalCacheOnly,
 } from '../localDb'
 import { invalidateAdminClubWorkspaceCache } from './adminClubWorkspaceCache'
+import { notifyAdminClientsBrowseStorageChanged } from './adminClientsListReloadCore.js'
 import { fetchClientsForClubViaAdminApi, fetchMembershipsForClubViaAdminApi } from './adminApiClient'
 import { mergeClientHallLifecycleIntoCache } from './clientHallLifecycleAdminCache.js'
 import { purgeSyncQueueForMissingClients } from '../syncQueueOrphans'
 import { listClientsByClubId, listTrainingsByClubIdInRange } from '../localDbClubQuery.js'
 import { ADMIN_CLIENTS_REMOTE_LIMIT, ADMIN_SYNC_BATCH_SIZE } from './adminConstants'
-
-const LOCAL_DATA_CHANGED = 'fitness-diary-storage'
-
-function notifyLocalDataChanged(detail = {}) {
-  if (typeof window === 'undefined') return
-  try {
-    window.dispatchEvent(new CustomEvent(LOCAL_DATA_CHANGED, { detail }))
-  } catch {
-    /* ignore */
-  }
-}
 
 async function pullClientsForClubIntoCache(clubId) {
   const cid = String(clubId ?? '').trim()
@@ -162,8 +152,12 @@ async function mergeActiveAndArchiveClientsFromApi(clubId) {
 }
 
 /** Один раз после пакета merge — иначе админка перезагружается 3–4 раза подряд. */
-function notifyAdminClientsCacheUpdated() {
-  notifyLocalDataChanged({ reason: 'admin-clients-cache' })
+function notifyAdminClientsCacheUpdated(clubId) {
+  const cid = String(clubId ?? '').trim()
+  notifyAdminClientsBrowseStorageChanged({
+    reason: 'admin-clients-cache',
+    ...(cid ? { clubId: cid } : {}),
+  })
 }
 
 /** Подтянуть клиентов клуба из облака в IndexedDB (сначала API на Vercel). */
@@ -181,7 +175,7 @@ export async function pullAdminClientsFromCloud(clubId, opts = {}) {
       } catch (memErr) {
         console.warn('[admin] list-memberships', memErr)
       }
-      notifyAdminClientsCacheUpdated()
+      notifyAdminClientsCacheUpdated(cid)
       const { clients } = await listAdminClientsFromLocalCache(cid)
       return {
         ok: true,
@@ -206,7 +200,7 @@ export async function pullAdminClientsFromCloud(clubId, opts = {}) {
     }
     /* health_cards и body_measurements — по запросу карточки клиента (hydrate), не bulk pull клуба */
     const pruned = mode === 'active' ? await reconcileAdminClubCache(cid, viaApi.clients, { preserveArchived: true }) : { pruned_clients: 0, pruned_trainings: 0 }
-    notifyAdminClientsCacheUpdated()
+    notifyAdminClientsCacheUpdated(cid)
     const { clients } = await listAdminClientsFromLocalCache(cid)
     return {
       ok: true,
@@ -222,7 +216,7 @@ export async function pullAdminClientsFromCloud(clubId, opts = {}) {
   if (pulled.ok) {
     const { clients } = await listAdminClientsFromLocalCache(cid)
     const pruned = await reconcileAdminClubCache(cid, clients)
-    notifyAdminClientsCacheUpdated()
+    notifyAdminClientsCacheUpdated(cid)
     return { ...pulled, pruned_clients: pruned.pruned_clients, pruned_trainings: pruned.pruned_trainings }
   }
   return pulled

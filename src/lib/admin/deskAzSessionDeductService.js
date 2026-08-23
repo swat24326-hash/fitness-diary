@@ -8,12 +8,12 @@ import {
   flushCriticalWritesToCloud,
   saveLocalWithSync,
 } from '../syncService.js'
-import { dispatchLocalDataChanged } from '../dataAccess.js'
 import {
   applyDeskAzSessionDeduct,
   applyDeskAzSessionVisitDateChange,
   applyDeskAzSessionVisitRemove,
 } from './deskAzSessionDeductCore.js'
+import { notifyAdminClientsBrowseStorageChanged } from './adminClientsListReloadCore.js'
 
 async function persistMembership(next, reason) {
   await saveLocalWithSync('memberships', next, {
@@ -23,7 +23,11 @@ async function persistMembership(next, reason) {
   })
   const flush = await flushCriticalWritesToCloud()
   const warning = criticalWriteCloudWarning(flush, 'Списание АЗ')
-  dispatchLocalDataChanged({ reason, membershipId: next.id, clientId: next.client_id })
+  notifyAdminClientsBrowseStorageChanged({
+    reason,
+    clientId: next.client_id,
+    clubId: next.club_id,
+  })
   return { ok: true, membership: next, warning: warning || null }
 }
 

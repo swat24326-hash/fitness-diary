@@ -64,6 +64,7 @@ import {
   clientCardUsesGlanceLocal,
   clientWorkspaceScopeForClient,
 } from '../../lib/admin/clientWorkspaceScopeCore.js'
+import { normalizeClientCardTab, writeClientCardTabToSearchParams } from '../../lib/clientCardTabsCore.js'
 
 export function ClientCard() {
   const { id } = useParams()
@@ -95,19 +96,24 @@ export function ClientCard() {
   }, [searchParams])
   const [tab, setTab] = useState(() => {
     const t = searchParams.get('tab')
-    if (
-      t === 'health' ||
-      t === 'memberships' ||
-      t === 'diaries' ||
-      t === 'stats' ||
-      t === 'nutrition' ||
-      t === 'homework' ||
-      t === 'loyalty'
-    ) {
-      return t
-    }
-    return 'health'
+    return normalizeClientCardTab(t) ?? 'health'
   })
+
+  const setTabWithUrl = useCallback(
+    (nextTab) => {
+      const t = normalizeClientCardTab(nextTab) ?? 'health'
+      setTab(t)
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          writeClientCardTabToSearchParams(next, t, { clearStatsMode: t !== 'stats' })
+          return next
+        },
+        { replace: true },
+      )
+    },
+    [setSearchParams],
+  )
   const seedClient = useMemo(() => {
     const seed = location.state?.clientSeed
     if (!seed || String(seed.id) !== String(id)) return null
@@ -355,19 +361,11 @@ export function ClientCard() {
   }, [id, canManageClubClients])
 
   useEffect(() => {
-    const t = searchParams.get('tab')
-    if (
-      t === 'health' ||
-      t === 'memberships' ||
-      t === 'diaries' ||
-      t === 'stats' ||
-      t === 'nutrition' ||
-      t === 'homework'
-    ) {
-      // Открытый ПНК: вкладку ведёт мастер (syncPnkTab), не ?tab= из URL.
-      if (client && isOpenPnkClient(client)) return
-      setTab(t)
-    }
+    const normalized = normalizeClientCardTab(searchParams.get('tab'))
+    if (!normalized) return
+    // Открытый ПНК: вкладку ведёт мастер (syncPnkTab), не ?tab= из URL.
+    if (client && isOpenPnkClient(client)) return
+    setTab(normalized)
   }, [searchParams, client])
 
   const hydrateFromCloudInBackground = useCallback(async () => {
@@ -1059,7 +1057,7 @@ export function ClientCard() {
         onRefused={() => {
           navigate(canManageClubClients ? clientsListHref : '/trainer', { replace: true })
         }}
-        onOpenDiaries={() => setTab('diaries')}
+        onOpenDiaries={() => setTabWithUrl('diaries')}
         onOpenTab={onOpenPnkTab}
         onStartTraining={isArchived ? undefined : () => startPnkTraining()}
       />
@@ -1077,7 +1075,7 @@ export function ClientCard() {
       <ClientCardMainTabs
         client={client}
         tab={tab}
-        setTab={setTab}
+        setTab={setTabWithUrl}
         healthCard={healthCard}
         bzCompletedCount={bzCompletedCount}
         isArchived={isArchived}
@@ -1090,6 +1088,7 @@ export function ClientCard() {
         pnkCloseMemberships={pnkCloseMemberships}
         startPnkTraining={startPnkTraining}
         adminClubQs={adminClubQs}
+        statsInitialMode={searchParams.get('mode')}
       />
 
       {canAssignClubTasks && clientTaskDraft ? (

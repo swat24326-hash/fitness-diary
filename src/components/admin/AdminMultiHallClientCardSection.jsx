@@ -14,7 +14,7 @@ import {
   saveLocalWithSync,
   shouldCloudHydrateAfterCriticalSave,
 } from '../../lib/syncService.js'
-import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
+import { notifyAdminClientsBrowseStorageChanged } from '../../lib/admin/adminClientsListReloadCore.js'
 import { normalizeDeskHall } from '../../lib/admin/deskHallClientsCore.js'
 import { formatClientName } from '../../lib/clientNameFormat.js'
 import { AdminClientHallTabs } from './AdminClientHallTabs.jsx'
@@ -300,7 +300,11 @@ export function AdminMultiHallClientCardSection({
         birth_date: savedBirth,
         trainer_id: trainer_id || '',
       }))
-      dispatchLocalDataChanged({ reason: 'client-trainer-reassigned', clientId: client.id })
+      notifyAdminClientsBrowseStorageChanged({
+        reason: 'client-trainer-reassigned',
+        clientId: client.id,
+        clubId: client.club_id,
+      })
       onSaved?.({ cloudFlushed: shouldCloudHydrateAfterCriticalSave(flush, warn) })
     } catch (err) {
       setError(err?.message || 'Не удалось сохранить')

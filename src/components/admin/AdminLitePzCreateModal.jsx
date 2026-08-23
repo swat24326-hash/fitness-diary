@@ -5,7 +5,7 @@ import {
   flushCriticalWritesToCloud,
   saveLocalWithSync,
 } from '../../lib/syncService.js'
-import { dispatchLocalDataChanged } from '../../lib/dataAccess.js'
+import { notifyAdminClientsBrowseStorageChanged } from '../../lib/admin/adminClientsListReloadCore.js'
 import { listClientsByClubId } from '../../lib/localDbClubQuery.js'
 import { todayLocalIso } from '../../lib/dateRu.js'
 import {
@@ -120,7 +120,11 @@ export function AdminLitePzCreateForm({
       const flush = await flushCriticalWritesToCloud()
       const warn = criticalWriteCloudWarning(flush, 'Новый клиент ПЗ')
       if (warn) setError(warn)
-      dispatchLocalDataChanged({ reason: 'lite-pz-client-created', clientId })
+      notifyAdminClientsBrowseStorageChanged({
+        reason: 'lite-pz-client-created',
+        clientId,
+        clubId: checked.client.club_id ?? clubId,
+      })
       onCreated?.(clientId)
       onClose?.()
     } catch (err) {

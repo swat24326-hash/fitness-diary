@@ -3,6 +3,7 @@ import { membershipSignal } from '../clientListSignals.js'
 import { todayInTimeZoneIso } from '../dateRu.js'
 import { aggregateClubClientPeriod } from './clubClientPeriodAgg.js'
 import { buildAdminPzDaySummaryBrowseCounts } from './adminClientsBrowseFilterCore.js'
+import { shouldReloadAdminDaySummaryFromStorage } from './adminClientsListReloadCore.js'
 
 /** @param {string} todayIso yyyy-mm-dd */
 export function yesterdayIso(todayIso = todayInTimeZoneIso()) {
@@ -84,6 +85,7 @@ export function countTrainingsOnDate(trainings, iso) {
  *   trainingsYesterdayOverride?: number | null,
  *   holdingTrainerIds?: Set<string>|string[],
  *   noTabletTrainerIds?: Set<string>|string[],
+ *   lifecycleRows?: object[],
  * }} input
  */
 export function buildAdminClubDaySummary(input = {}) {
@@ -104,7 +106,12 @@ export function buildAdminClubDaySummary(input = {}) {
   const byClientMap = buildMembershipsByClientId(memberships)
   /** @type {Record<string, object[]>} */
   const memByClient = Object.fromEntries(byClientMap)
-  const funnel = buildAdminPzDaySummaryBrowseCounts(clients, memByClient, today)
+  const funnel = buildAdminPzDaySummaryBrowseCounts(
+    clients,
+    memByClient,
+    today,
+    input.lifecycleRows ?? [],
+  )
 
   // Чип/карточка «Не активные» на дашборде = финал воронки (не широкий census периода).
   const inactive =
@@ -145,11 +152,5 @@ export function buildAdminClubDaySummary(input = {}) {
 
 /** События IDB, после которых нужно обновить сводку дня (без справочников и очереди sync). */
 export function shouldReloadAdminDaySummary(detail = {}) {
-  const reason = String(detail?.reason ?? '')
-  if (!reason) return false
-  if (reason === 'sync-complete' || reason === 'admin-clients-cache') return true
-  if (reason === 'client-deleted' || reason === 'trainer-club-cascade') return true
-  if (reason === 'client-hydrated' || reason === 'memberships-refreshed') return true
-  if (reason === 'client-archive-changed' || reason === 'client-trainer-reassigned') return true
-  return false
+  return shouldReloadAdminDaySummaryFromStorage(detail)
 }

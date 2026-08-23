@@ -61,6 +61,7 @@ ok(peekAdminClientsListMemory('club-a') == null, 'memory empty')
 writeAdminClientsListMemory('club-a', {
   clients: [{ id: '1', name: 'A' }],
   memByClient: { 1: [] },
+  lifecycleRows: [{ id: 'l1', client_id: '1', club_id: 'club-a', hall: 'pz' }],
   trainerNameById: { t1: 'Тренер' },
   noTabletTrainerIds: ['t2'],
   truncated: false,
@@ -68,6 +69,7 @@ writeAdminClientsListMemory('club-a', {
 })
 const mem = peekAdminClientsListMemory('club-a')
 ok(mem?.clients?.[0]?.id === '1' && mem.trainerNameById.t1 === 'Тренер', 'memory peek same club')
+ok(mem?.lifecycleRows?.[0]?.hall === 'pz', 'memory lifecycle roundtrip')
 ok(peekAdminClientsListMemory('club-b') == null, 'memory other club miss')
 ok(isAdminClientsListMemoryFresh(Date.now() - 1000), 'memory fresh')
 ok(!isAdminClientsListMemoryFresh(Date.now() - adminClientsListMemoryTtlMs() - 1), 'memory stale')

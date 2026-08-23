@@ -32,6 +32,7 @@ import { useAuth } from '../context/AuthContext'
 import { AdminMembershipPaidAmountField } from './admin/AdminMembershipPaidAmountField.jsx'
 import { paidAmountFromMembershipForm } from '../lib/admin/membershipPaidAmountCore.js'
 import { MembershipHistoryCard } from './membership/MembershipHistoryCard.jsx'
+import { notifyAdminClientsBrowseStorageChanged } from '../lib/admin/adminClientsListReloadCore.js'
 
 function newId() {
   return crypto.randomUUID()
@@ -272,6 +273,14 @@ export function MembershipManager({
   const notify = async () => {
     await reload()
     onChanged?.()
+    const cid = String(clubId ?? '').trim()
+    if (cid) {
+      notifyAdminClientsBrowseStorageChanged({
+        reason: 'desk-membership-ledger',
+        clientId,
+        clubId: cid,
+      })
+    }
   }
 
   const addMembership = async (e) => {

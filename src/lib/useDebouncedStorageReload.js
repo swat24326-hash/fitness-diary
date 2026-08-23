@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { LOCAL_DATA_CHANGED } from './dataAccess'
+import { shouldReloadAdminClientsList } from './admin/adminClientsListReloadCore.js'
 
 /** Не перегружать список клиентов из‑за чужих справочников */
 export function shouldReloadTrainerClientList(detail = {}) {
@@ -8,6 +9,7 @@ export function shouldReloadTrainerClientList(detail = {}) {
   if (reason === 'sync-complete') return true
   if (reason === 'client-deleted' || reason === 'trainer-club-cascade') return true
   if (reason === 'client-hydrated' || reason === 'memberships-refreshed') return true
+  if (reason === 'lite-pz-client-created' || reason === 'desk-manual-client-created') return false
   return !['exercises', 'challenge-trainings', 'challenge-created', 'challenge-deleted', 'challenge-completed'].includes(
     reason,
   )
@@ -28,14 +30,7 @@ export function shouldReloadTrainerChallenges(detail = {}) {
 
 /** Админ: список клиентов — не дергать API из‑за чужих справочников */
 export function shouldReloadAdminClientsPage(detail = {}) {
-  const reason = String(detail?.reason ?? '')
-  if (!reason) return true
-  if (reason === 'sync-complete' || reason === 'admin-clients-cache') return true
-  if (reason === 'client-deleted' || reason === 'trainer-club-cascade') return true
-  if (reason === 'client-hydrated' || reason === 'memberships-refreshed') return true
-  return !['exercises', 'challenge-trainings', 'challenge-created', 'challenge-deleted', 'challenge-completed'].includes(
-    reason,
-  )
+  return shouldReloadAdminClientsList(detail)
 }
 
 export function shouldReloadAdminChallengesPage(detail = {}) {
@@ -85,7 +80,7 @@ export function useDebouncedStorageReload(callback, opts = {}) {
       if (timer) clearTimeout(timer)
       timer = setTimeout(() => {
         timer = null
-        void cbRef.current()
+        void cbRef.current(e?.detail ?? {})
       }, debounceMs)
     }
     window.addEventListener(LOCAL_DATA_CHANGED, onEvent)

@@ -9,7 +9,7 @@ import {
   flushCriticalWritesToCloud,
   saveLocalWithSync,
 } from '../syncService.js'
-import { dispatchLocalDataChanged } from '../dataAccess.js'
+import { notifyAdminClientsBrowseStorageChanged } from './adminClientsListReloadCore.js'
 import { validateLitePzCreateForm, listNoTabletTrainersForClub } from './litePzClientCreateCore.js'
 import { createSaleClip } from './saleClipService.js'
 import { paymentLinkMembershipDates, paymentLinkMembershipsIncludeHall, resolvePzLinkMode, validatePaymentLinkAction } from './salesPaymentsLinkCore.js'
@@ -174,7 +174,7 @@ async function applyRestoreArchivedFromPayment({ action, clubId }) {
   }
   const flush = await flushCriticalWritesToCloud()
   const warn = criticalWriteCloudWarning(flush, 'Возврат из архива')
-  dispatchLocalDataChanged({ reason: 'payments-link-restore', clientId })
+  notifyAdminClientsBrowseStorageChanged({ reason: 'payments-link-restore', clientId, clubId: existing?.club_id ?? '' })
   return { ok: true, result: 'restored', clientId, warning: warn || null }
 }
 
@@ -229,7 +229,7 @@ async function applyLiteFromPayment({ action, clubId, reportDate, trainers }) {
       flush,
       action.needsRestore ? 'Lite ПЗ: возврат из архива' : 'Lite ПЗ к существующей карточке',
     )
-    dispatchLocalDataChanged({ reason: 'payments-link-lite-attach', clientId })
+    notifyAdminClientsBrowseStorageChanged({ reason: 'payments-link-lite-attach', clientId, clubId })
     return { ok: true, result: 'lite', clientId, attached: true, restored: Boolean(action.needsRestore), warning: warn || null }
   }
 
@@ -269,7 +269,7 @@ async function applyLiteFromPayment({ action, clubId, reportDate, trainers }) {
   )
   const flush = await flushCriticalWritesToCloud()
   const warn = criticalWriteCloudWarning(flush, 'Lite ПЗ из оплат')
-  dispatchLocalDataChanged({ reason: 'payments-link-lite', clientId })
+  notifyAdminClientsBrowseStorageChanged({ reason: 'payments-link-lite', clientId, clubId })
   return { ok: true, result: 'lite', clientId, warning: warn || null }
 }
 
@@ -324,7 +324,7 @@ async function applyClipFromPayment({ action, clubId, reportDate, trainer }) {
       flush,
       action.needsRestore ? 'ПЗ: возврат из архива' : 'ПЗ-абон к существующей карточке',
     )
-    dispatchLocalDataChanged({ reason: 'payments-link-pz-attach', clientId })
+    notifyAdminClientsBrowseStorageChanged({ reason: 'payments-link-pz-attach', clientId, clubId })
     return { ok: true, result: 'clip', clientId, attached: true, restored: Boolean(action.needsRestore), warning: warn || null }
   }
   const data = await createSaleClip({
@@ -406,7 +406,7 @@ async function applyDeskFromPayment({ action, clubId, reportDate }) {
       flush,
       action.needsRestore ? 'Desk: возврат из архива' : 'Desk-абон к карточке',
     )
-    dispatchLocalDataChanged({ reason: 'payments-link-desk-attach', clientId })
+    notifyAdminClientsBrowseStorageChanged({ reason: 'payments-link-desk-attach', clientId, clubId })
     return { ok: true, result: hall, clientId, attached: true, restored: Boolean(action.needsRestore), warning: warn || null }
   }
 
@@ -436,6 +436,6 @@ async function applyDeskFromPayment({ action, clubId, reportDate }) {
   )
   const flush = await flushCriticalWritesToCloud()
   const warn = criticalWriteCloudWarning(flush, 'Desk из оплат')
-  dispatchLocalDataChanged({ reason: 'payments-link-desk', clientId })
+  notifyAdminClientsBrowseStorageChanged({ reason: 'payments-link-desk', clientId, clubId })
   return { ok: true, result: hall, clientId, warning: warn || null }
 }
