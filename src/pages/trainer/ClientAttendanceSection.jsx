@@ -107,7 +107,8 @@ export function ClientAttendanceSection({
         Завершённые тренировки из дневника (все типы, включая БЗ). На графике и в таблице —{' '}
         <strong>все</strong> {stats.bucketKind === 'month' ? 'месяцы' : 'недели'} выбранного периода;
         {missedPeriods > 0 ? ` без визитов: ${missedPeriods} ${periodUnit}.` : ' '}
-        Пустой период — «{ATTENDANCE_MISSED_LABEL_RU}». Группировка {bucketKindLabel}.
+        Пустой период — «{ATTENDANCE_MISSED_LABEL_RU}». Группировка {bucketKindLabel}
+        {stats.bucketKind === 'month' ? ' (длинный диапазон — больше полугода)' : ''}.
       </p>
 
       {stats.buckets.length > 0 ? (

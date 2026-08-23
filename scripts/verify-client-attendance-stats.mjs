@@ -13,6 +13,7 @@ import {
   maxGapDaysBetween,
   maxGapDaysInPeriod,
   resolveAttendanceBucketKind,
+  ATTENDANCE_MAX_WEEK_BUCKETS,
   resolveAttendanceRegularity,
   attendanceRegularityLabelRu,
 } from '../src/lib/clientAttendanceStatsCore.js'
@@ -101,7 +102,16 @@ ok(maxGapDaysInPeriod('2026-01-01', '2026-01-31', ['2026-01-20']) === 19, 'max g
 const longRange = buildClientAttendanceStats(T, { dateFrom: '2026-01-01', dateTo: '2026-08-31' })
 ok(longRange.bucketKind === 'month', 'long range → month buckets')
 
-ok(resolveAttendanceBucketKind('2026-01-01', '2026-03-01') === 'month', '61 days → month kind')
+ok(resolveAttendanceBucketKind('2026-01-01', '2026-03-01') === 'week', '~9 weeks → week buckets')
+ok(
+  resolveAttendanceBucketKind('2026-05-26', '2026-07-31') === 'week',
+  'may–july abon → week buckets not month',
+)
+ok(
+  resolveAttendanceBucketKind('2026-01-01', '2026-12-31') === 'month',
+  'full year → month buckets',
+)
+ok(ATTENDANCE_MAX_WEEK_BUCKETS === 26, 'week bucket cap')
 
 const crossYear = formatBucketLabelRu('2025-12-28', '2026-01-03')
 ok(crossYear.includes('25') && crossYear.includes('26'), 'cross-year label has both years')

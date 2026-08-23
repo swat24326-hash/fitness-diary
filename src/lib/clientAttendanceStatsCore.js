@@ -92,14 +92,20 @@ export function daysInIsoRangeInclusive(startIso, endIso) {
   return d != null && d >= 0 ? d + 1 : 0
 }
 
+/** До этого числа недель — группировка по неделям (видны пропуски); длиннее — по месяцам. */
+export const ATTENDANCE_MAX_WEEK_BUCKETS = 26
+
 /**
  * @param {string} startIso
  * @param {string} endIso
  * @returns {AttendanceBucketKind}
  */
 export function resolveAttendanceBucketKind(startIso, endIso) {
-  const days = daysInIsoRangeInclusive(startIso, endIso)
-  return days <= 56 ? 'week' : 'month'
+  const from = String(startIso ?? '').slice(0, 10)
+  const to = String(endIso ?? '').slice(0, 10)
+  if (!ISO_DATE.test(from) || !ISO_DATE.test(to) || from > to) return 'week'
+  const weekBuckets = buildAttendanceBucketRanges(from, to, 'week')
+  return weekBuckets.length <= ATTENDANCE_MAX_WEEK_BUCKETS ? 'week' : 'month'
 }
 
 /**
