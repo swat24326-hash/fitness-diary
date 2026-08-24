@@ -180,6 +180,97 @@ ok(forecast === 180000, 'linear forecast to month end')
 const forecastCount = forecastPlanMatrixCount(9, { month_relation: 'current', expected_plan_progress_pct: 90 })
 ok(forecastCount === 10, 'linear forecast count to month end')
 
+const mixCmp = buildPlanMatrixComparison({
+  monthRows: [
+    {
+      report_date: '2026-07-01',
+      pz_nk: 2,
+      matrix_amounts: { pz_nk: 20000 },
+    },
+    {
+      report_date: '2026-07-02',
+      pz_nk: 2,
+      matrix_amounts: { pz_nk: 20000 },
+    },
+    {
+      report_date: '2026-07-03',
+      pz_nk: 2,
+      matrix_amounts: { pz_nk: 20000 },
+    },
+  ],
+  planMatrix: {
+    pz_nk: { count: 31, avg_check: 10000 },
+  },
+  calendarContext: { month_relation: 'current', expected_plan_progress_pct: 10 },
+  year: 2026,
+  month: 7,
+})
+const mixRow = mixCmp.rows.find((r) => r.cellKey === 'pz_nk')
+ok(mixCmp.forecast_method === 'mix_pace_plan', 'with year/month uses mix forecast method')
+ok(mixRow?.forecast?.amount > 60000, 'mix forecast amount above fact when month incomplete')
+ok(
+  mixRow?.status?.forecast_amount === mixRow?.forecast?.amount,
+  'status uses same forecast amount as table column',
+)
+
+const riskOnly = buildPlanMatrixComparison({
+  monthRows: [{ pz_dk: 20, matrix_amounts: { pz_dk: 200000 } }],
+  planMatrix: {
+    pz_dk: { count: 100, avg_check: 1000 },
+  },
+  calendarContext: { month_relation: 'current', expected_plan_progress_pct: 50 },
+})
+const riskRow = riskOnly.rows[0]
+ok(riskRow?.status?.status === 'ok', 'money ok with volume risk stays ok')
+ok(riskOnly.status_summary?.risk === 1, 'risk chip counts on-pace with risks')
+ok(riskOnly.status_summary?.ok === 0, 'ok chip excludes rows with risks (no double count)')
+ok(
+  riskOnly.status_summary.ok +
+    riskOnly.status_summary.risk +
+    riskOnly.status_summary.lag +
+    (riskOnly.status_summary.muted || 0) ===
+    riskOnly.status_summary.total,
+  'status chips partition rows',
+)
+
+const scaled = buildPlanMatrixComparison({
+  monthRows: [
+    { report_date: '2026-07-01', pz_nk: 1, pz_dk: 1, matrix_amounts: { pz_nk: 10000, pz_dk: 10000 } },
+    { report_date: '2026-07-02', pz_nk: 1, pz_dk: 1, matrix_amounts: { pz_nk: 10000, pz_dk: 10000 } },
+    { report_date: '2026-07-03', pz_nk: 1, pz_dk: 1, matrix_amounts: { pz_nk: 10000, pz_dk: 10000 } },
+  ],
+  planMatrix: {
+    pz_nk: { count: 10, avg_check: 10000 },
+    pz_dk: { count: 10, avg_check: 10000 },
+  },
+  calendarContext: { month_relation: 'current', expected_plan_progress_pct: 10 },
+  year: 2026,
+  month: 7,
+  hallForecastTargets: { pz: 250000 },
+})
+const sumPz = scaled.rows
+  .filter((r) => r.hall === 'pz')
+  .reduce((s, r) => s + (Number(r.forecast?.amount) || 0), 0)
+ok(Math.abs(sumPz - 250000) < 0.02, 'scaled cell forecasts sum to hall target')
+ok(scaled.forecast_method === 'mix_pace_plan_scaled_to_hall', 'scaled forecast method flag')
+
+const noDownscale = buildPlanMatrixComparison({
+  monthRows: [
+    { report_date: '2026-07-01', pz_nk: 20, matrix_amounts: { pz_nk: 200000 } },
+    { report_date: '2026-07-02', pz_nk: 20, matrix_amounts: { pz_nk: 200000 } },
+    { report_date: '2026-07-03', pz_nk: 20, matrix_amounts: { pz_nk: 200000 } },
+  ],
+  planMatrix: { pz_nk: { count: 10, avg_check: 10000 } },
+  calendarContext: { month_relation: 'current', expected_plan_progress_pct: 10 },
+  year: 2026,
+  month: 7,
+  hallForecastTargets: { pz: 100000 },
+})
+const factAlreadyAbove = noDownscale.rows.find((r) => r.cellKey === 'pz_nk')
+ok(Number(factAlreadyAbove?.fact?.amount) === 600000, 'fact above hall target')
+ok(Number(factAlreadyAbove?.forecast?.amount) >= 600000, 'do not scale forecast below fact')
+ok(factAlreadyAbove?.forecast?.scaled_to_hall !== true, 'skip hall scale when fact already above target')
+
 const dailyPzNk = buildPlanMatrixCellDailySeries(
   [
     { report_date: '2026-07-01', pz_nk: 2, matrix_amounts: { pz_nk: 10000 } },

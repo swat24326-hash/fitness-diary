@@ -14,6 +14,18 @@ import {
   PLAN_MATRIX_HALL_CELL_KEYS,
   roundPlanRub,
 } from './salesPlanMatrixCore.js'
+import {
+  forecastPlanMatrixAmountLinear,
+  forecastPlanMatrixCellAmount,
+  forecastPlanMatrixCellCount,
+  forecastPlanMatrixCountLinear,
+  scaleMatrixForecastAmountsToHallTargets,
+} from './salesPlanMatrixForecastCore.js'
+
+/** @deprecated используйте forecastPlanMatrixAmountLinear — в UI прогноз идёт через микс. */
+export const forecastPlanMatrixAmount = forecastPlanMatrixAmountLinear
+/** @deprecated используйте forecastPlanMatrixCountLinear */
+export const forecastPlanMatrixCount = forecastPlanMatrixCountLinear
 
 /** Допуск от календарного темпа, % (как в ИСКРЕ по направлениям). */
 export const PLAN_MATRIX_PACE_SLACK_PCT = 8
@@ -46,36 +58,6 @@ function sumMatrix3x3CountsFromDailyRows(rows) {
 function factAvgCheck(amount, count) {
   if (count <= 0 || amount <= 0) return null
   return roundPlanRub(amount / count)
-}
-
-/**
- * Прогноз суммы к концу месяца (линейно от факта и календаря).
- * @param {number} factAmount
- * @param {{ month_relation?: string, expected_plan_progress_pct?: number } | null | undefined} calendar
- */
-export function forecastPlanMatrixAmount(factAmount, calendar) {
-  const relation = calendar?.month_relation ?? 'current'
-  const fact = roundPlanRub(factAmount)
-  if (relation === 'past') return fact
-  if (relation !== 'current') return fact
-  const elapsed = Number(calendar?.expected_plan_progress_pct) || 0
-  if (elapsed <= 0) return fact
-  return roundPlanRub((fact / elapsed) * 100)
-}
-
-/**
- * Прогноз количества к концу месяца (линейно от факта и календаря).
- * @param {number} factCount
- * @param {{ month_relation?: string, expected_plan_progress_pct?: number } | null | undefined} calendar
- */
-export function forecastPlanMatrixCount(factCount, calendar) {
-  const relation = calendar?.month_relation ?? 'current'
-  const fact = Math.trunc(Number(factCount) || 0)
-  if (relation === 'past') return fact
-  if (relation !== 'current') return fact
-  const elapsed = Number(calendar?.expected_plan_progress_pct) || 0
-  if (elapsed <= 0) return fact
-  return Math.max(0, Math.round((fact / elapsed) * 100))
 }
 
 /**
@@ -259,10 +241,17 @@ export function resolvePlanMatrixCellStatus(row, calendar) {
     }
   }
 
-  const forecastAmount = forecastPlanMatrixAmount(factAmount, calendar)
-  const forecastCount = forecastPlanMatrixCount(factCount, calendar)
+  // Статус обязан использовать тот же прогноз, что в колонках таблицы (микс), не пересчитывать линейно.
+  const forecastAmount =
+    row.forecast?.amount != null
+      ? roundPlanRub(row.forecast.amount)
+      : forecastPlanMatrixAmountLinear(factAmount, calendar)
+  const forecastCount =
+    row.forecast?.count != null
+      ? Math.trunc(Number(row.forecast.count) || 0)
+      : forecastPlanMatrixCountLinear(factCount, calendar)
   const forecastPct = planProgressPercent(forecastAmount, planAmount)
-  const forecastOk = forecastPct >= 99.5
+  const forecastOk = forecastPct >= 100
 
   const paceThreshold = relation === 'past' ? 95 : Math.max(5, elapsedPct - PLAN_MATRIX_PACE_SLACK_PCT)
   const countOk =
@@ -361,12 +350,18 @@ export function resolvePlanMatrixCellStatus(row, calendar) {
  *   monthRows?: Array<Record<string, unknown>>,
  *   planMatrix?: unknown,
  *   calendarContext?: { month_relation?: string, expected_plan_progress_pct?: number } | null,
+ *   year?: number,
+ *   month?: number,
+ *   hallForecastTargets?: Record<string, number> | null,
  * }} opts
  */
 export function buildPlanMatrixComparison(opts) {
   const monthRows = opts.monthRows ?? []
   const planMatrix = normalizePlanMatrixFromDb(opts.planMatrix)
   const calendar = opts.calendarContext ?? null
+  const year = Number(opts.year)
+  const month = Number(opts.month)
+  const hasYm = Number.isFinite(year) && Number.isFinite(month) && month >= 1 && month <= 12
 
   if (!hasPlanMatrixData(planMatrix)) {
     return {
@@ -392,6 +387,8 @@ export function buildPlanMatrixComparison(opts) {
   const volumeLag = []
   /** @type {Array<Record<string, unknown>>} */
   const avgLag = []
+  /** @type {string} */
+  let forecastMethod = hasYm ? 'mix_pace_plan' : 'linear_calendar'
 
   for (const cellKey of PLAN_MATRIX_HALL_CELL_KEYS) {
     const planCell = planMatrix[cellKey]
@@ -417,8 +414,37 @@ export function buildPlanMatrixComparison(opts) {
         : planCount
     const onPace = !isCurrentMonth || factCount + paceSlack >= expectedCount
 
-    const forecastCount = forecastPlanMatrixCount(factCount, calendar)
-    const forecastAmount = forecastPlanMatrixAmount(factAmount, calendar)
+    const amountFc = hasYm
+      ? forecastPlanMatrixCellAmount({
+          monthRows,
+          year,
+          month,
+          cellKey,
+          factAmount,
+          planAmount,
+          category: col,
+          calendar,
+        })
+      : {
+          amount: forecastPlanMatrixAmountLinear(factAmount, calendar),
+          method: 'linear_calendar',
+        }
+    const countFc = hasYm
+      ? forecastPlanMatrixCellCount({
+          monthRows,
+          year,
+          month,
+          cellKey,
+          factCount,
+          calendar,
+        })
+      : {
+          count: forecastPlanMatrixCountLinear(factCount, calendar),
+          method: 'linear_calendar',
+        }
+
+    const forecastCount = countFc.count
+    const forecastAmount = amountFc.amount
 
     const row = {
       cellKey,
@@ -432,6 +458,7 @@ export function buildPlanMatrixComparison(opts) {
         amount: forecastAmount,
         count_progress_pct: planProgressPercent(forecastCount, planCount),
         amount_progress_pct: planProgressPercent(forecastAmount, planAmount),
+        method: amountFc.method,
       },
       count_gap: countGap,
       count_progress_pct: countProgressPct,
@@ -439,8 +466,23 @@ export function buildPlanMatrixComparison(opts) {
       amount_progress_pct: amountProgressPct,
       pace: { expected_count: expectedCount, on_pace: onPace },
     }
-    row.status = resolvePlanMatrixCellStatus(row, calendar)
     rows.push(row)
+  }
+
+  const scaledRows = scaleMatrixForecastAmountsToHallTargets(rows, opts.hallForecastTargets)
+  if (scaledRows.some((r) => r.forecast?.scaled_to_hall)) {
+    forecastMethod = 'mix_pace_plan_scaled_to_hall'
+  }
+
+  for (const row of scaledRows) {
+    row.forecast.amount_progress_pct = planProgressPercent(row.forecast.amount, row.plan.amount)
+    row.status = resolvePlanMatrixCellStatus(row, calendar)
+
+    const planCount = Math.trunc(Number(row.plan?.count) || 0)
+    const planAvg = Number(row.plan?.avg_check) || 0
+    const factAvg = row.fact?.avg_check
+    const countProgressPct = Number(row.count_progress_pct) || 0
+    const onPace = Boolean(row.pace?.on_pace)
 
     if (planCount > 0) {
       if (isCurrentMonth && !onPace) {
@@ -464,23 +506,34 @@ export function buildPlanMatrixComparison(opts) {
   } else if (avgLag.length) {
     const worst = avgLag[0]
     summaryRu = `Средний чек ниже плана: ${worst.label} — план ${worst.plan.avg_check} ₽, факт ${worst.fact.avg_check} ₽.`
-  } else if (rows.length) {
+  } else if (scaledRows.length) {
     summaryRu = 'По ячейкам плана — без критичного отставания по объёму и чеку.'
   }
 
-  const statusOk = rows.filter((r) => r.status?.status === 'ok').length
-  const statusLag = rows.filter((r) => r.status?.status === 'lag').length
-  const statusRisk = rows.filter(
+  // Чипы взаимоисключающие: ok + risk + lag = total (без двойного счёта «в темпе» ∩ «с риском»).
+  const statusRisk = scaledRows.filter(
     (r) => r.status?.status === 'ok' && Array.isArray(r.status?.risks) && r.status.risks.length > 0,
   ).length
+  const statusOk = scaledRows.filter(
+    (r) => r.status?.status === 'ok' && !(Array.isArray(r.status?.risks) && r.status.risks.length > 0),
+  ).length
+  const statusLag = scaledRows.filter((r) => r.status?.status === 'lag').length
+  const statusMuted = scaledRows.filter((r) => r.status?.status === 'muted').length
 
   return {
     has_plan_matrix: true,
-    rows,
+    rows: scaledRows,
     volume_lag: volumeLag,
     avg_lag: avgLag,
     summary_ru: summaryRu,
-    status_summary: { ok: statusOk, lag: statusLag, risk: statusRisk, total: rows.length },
+    status_summary: {
+      ok: statusOk,
+      lag: statusLag,
+      risk: statusRisk,
+      muted: statusMuted,
+      total: scaledRows.length,
+    },
     calendar_elapsed_pct: elapsedPct,
+    forecast_method: forecastMethod,
   }
 }

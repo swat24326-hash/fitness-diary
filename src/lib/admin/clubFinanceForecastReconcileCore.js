@@ -312,6 +312,14 @@ export function buildDirectionTotals(opts) {
   const directionsBelow = unallocatedRub >= PLAN_MONEY_EPS
   const directionsAbove = planVsLevel3 > PLAN_MONEY_EPS
 
+  /** % и дыра в строке «Итого» — к сумме планов в этой же колонке (не смешивать с финалом клуба). */
+  const progressVsPlanSum =
+    planSum > 0 ? planProgressPercent(closedMonth ? factSum : forecastSum, planSum) : 0
+  const vsPlanAmount = closedMonth ? factSum : forecastSum
+  const directionGapRub = planSum > 0 ? roundRub(Math.max(0, planSum - vsPlanAmount)) : 0
+  const signedDirectionGapRub = planSum > 0 ? roundRub(vsPlanAmount - planSum) : 0
+  const clubProgressPercent = level3 > 0 ? planProgressPercent(clubAmount, level3) : 0
+
   let planNoteRu = ''
   if (directionsBelow) {
     planNoteRu = `В плане не разнесено ${formatRubPlain(unallocatedRub)} до финала.`
@@ -329,6 +337,10 @@ export function buildDirectionTotals(opts) {
     directionsBelow,
     directionsAbove,
     planNoteRu,
+    progressVsPlanSum,
+    directionGapRub,
+    signedDirectionGapRub,
+    clubProgressPercent,
     factMatchesClub: Math.abs(factSum - factGross) < PLAN_MONEY_EPS,
     forecastMatchesClub: Math.abs(forecastSum - forecastGross) < PLAN_MONEY_EPS,
     planMatchesLevel3:

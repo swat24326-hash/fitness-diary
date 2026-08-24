@@ -402,9 +402,10 @@ export function SalesFinanceForecast({
                       : noRevenue
                         ? 'нет выручки по залу'
                         : '—'
+                  const signedGap = Number(dir.reach?.signedGapRub)
                   const gapText =
-                    isMoney && dir.planTarget > 0 && dir.reach?.willReach !== true && dir.reach?.gapRub > 0
-                      ? `−${formatRub(dir.reach.gapRub)}`
+                    isMoney && dir.planTarget > 0 && Number.isFinite(signedGap) && Math.abs(signedGap) >= 0.5
+                      ? `${signedGap > 0 ? '+' : '−'}${formatRub(Math.abs(signedGap))}`
                       : '—'
                   const trainingsHint = (() => {
                     if (!noRevenue) return null
@@ -469,12 +470,19 @@ export function SalesFinanceForecast({
                       </td>
                     )}
                     <td className="sales-finance-forecast__col-num">
-                      {plan.level3 > 0
-                        ? `${closedMonth ? plan.factProgressPercent : plan.forecastProgressPercent}%`
-                        : '—'}
+                      {plan.totals.planSum > 0
+                        ? `${plan.totals.progressVsPlanSum ?? 0}%`
+                        : plan.level3 > 0
+                          ? `${closedMonth ? plan.factProgressPercent : plan.forecastProgressPercent}%`
+                          : '—'}
                     </td>
                     <td className="sales-finance-forecast__col-num sales-finance-forecast__col-gap">
-                      {plan.totals.clubGapRub > 0 ? `−${formatRub(plan.totals.clubGapRub)}` : '—'}
+                      {Number.isFinite(Number(plan.totals.signedDirectionGapRub)) &&
+                      Math.abs(Number(plan.totals.signedDirectionGapRub)) >= 0.5
+                        ? `${Number(plan.totals.signedDirectionGapRub) > 0 ? '+' : '−'}${formatRub(
+                            Math.abs(Number(plan.totals.signedDirectionGapRub)),
+                          )}`
+                        : '—'}
                     </td>
                   </tr>
                 </tfoot>
@@ -482,8 +490,12 @@ export function SalesFinanceForecast({
             </table>
           </div>
           <p className="sales-finance-forecast__table-footnote">
-            Итого факт и прогноз = карточки клуба. В строках «До плана напр.» — до плана направления, не сумма в
-            карточку «Прогноз».
+            Итого факт и прогноз = карточки клуба. «До плана напр.» — прогноз минус план той же строки (плюс = запас).
+            В «Итого» % и эта колонка — к сумме планов направлений, сумма строк сходится с итогом
+            {plan.totals?.directionsAbove && plan.totals?.clubProgressPercent != null
+              ? ` · к финалу клуба сейчас ${plan.totals.clubProgressPercent}%`
+              : ''}
+            .
           </p>
         </div>
       ) : null}

@@ -28,6 +28,8 @@ import {
 } from './salesReportCore.js'
 import { buildGeminiMonthCalendarContext } from './geminiMonthCalendarContext.js'
 import { buildPlanMatrixComparison } from './salesPlanMatrixCompare.js'
+import { buildClubFinanceForecast } from './clubFinanceForecastCore.js'
+import { planMatrixToFormFields } from './salesPlanMatrixCore.js'
 
 /** @param {Array<Record<string, unknown>>} rows */
 export function sumMatrix3x3FromDailyRows(rows) {
@@ -168,6 +170,10 @@ export function buildSalesDayTableRows(rows) {
  *   membershipTypes?: Array<{ id: string, code?: string }>,
  *   year: number,
  *   month: number,
+ *   planConfig?: object | null,
+ *   profilesByTrainerId?: Map|object|null,
+ *   clubId?: string,
+ *   today?: Date,
  * }} opts
  */
 export function buildSalesManagerMonthStats(opts) {
@@ -240,11 +246,50 @@ export function buildSalesManagerMonthStats(opts) {
   )
   const aerobicStats = aggregateAerobicSalesFromDailyRows(monthRows, aerobicTypes)
 
-  const calendarContext = buildGeminiMonthCalendarContext(year, month)
+  const calendarContext = buildGeminiMonthCalendarContext(year, month, opts.today ?? new Date())
+
+  /** Те же цели залов, что в «Прогноз по направлениям» — сегменты не расходятся с карточкой клуба. */
+  /** @type {Record<string, number> | null} */
+  let hallForecastTargets = null
+  const planFormForForecast = {
+    ...planMatrixToFormFields(opts.planMatrix),
+    plan_level_1: opts.planLevels?.level1 != null ? String(opts.planLevels.level1) : '',
+    plan_level_2: opts.planLevels?.level2 != null ? String(opts.planLevels.level2) : '',
+    plan_level_3: opts.planLevels?.level3 != null ? String(opts.planLevels.level3) : '',
+    plan_pz: opts.planDirections?.plan_pz != null ? String(opts.planDirections.plan_pz) : '',
+    plan_tz: opts.planDirections?.plan_tz != null ? String(opts.planDirections.plan_tz) : '',
+    plan_az: opts.planDirections?.plan_az != null ? String(opts.planDirections.plan_az) : '',
+    plan_extra: opts.planDirections?.plan_extra != null ? String(opts.planDirections.plan_extra) : '',
+  }
+  const clubFc = buildClubFinanceForecast({
+    monthRows,
+    year,
+    month,
+    expense: 0,
+    membershipTypes: opts.membershipTypes ?? [],
+    planForm: planFormForForecast,
+    planConfig: opts.planConfig,
+    profilesByTrainerId: opts.profilesByTrainerId,
+    clubId: opts.clubId,
+    today: opts.today,
+  })
+  if (clubFc.ok) {
+    hallForecastTargets = {}
+    for (const dir of clubFc.plan?.directions ?? []) {
+      if ((dir.key === 'pz' || dir.key === 'tz' || dir.key === 'az') && Number(dir.forecast) > 0) {
+        hallForecastTargets[dir.key] = Number(dir.forecast) || 0
+      }
+    }
+    if (!Object.values(hallForecastTargets).some((n) => n > 0)) hallForecastTargets = null
+  }
+
   const planMatrixComparison = buildPlanMatrixComparison({
     monthRows,
     planMatrix: opts.planMatrix,
     calendarContext,
+    year,
+    month,
+    hallForecastTargets,
   })
 
   const { start, end } = monthDateRange(year, month)

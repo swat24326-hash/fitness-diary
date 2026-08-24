@@ -101,14 +101,27 @@ export function SalesPlanMatrixCompareTable({ comparison, monthRows = [], year, 
           </span>
           {elapsedPct > 0 ? (
             <span className="sales-report__plan-compare-chip sales-report__plan-compare-chip--muted">
-              Календарь: {Math.round(elapsedPct)}%
+              Календарь:{' '}
+              {Number.isInteger(elapsedPct)
+                ? Math.round(elapsedPct)
+                : String(Math.round(elapsedPct * 10) / 10).replace('.', ',')}
+              %
             </span>
           ) : null}
         </div>
-        {elapsedPct > 0 && elapsedPct < 100 ? (
+          {elapsedPct > 0 && elapsedPct < 100 ? (
           <p className="sales-report__plan-compare-forecast-hint">
             Статус — по сумме и прогнозу к концу месяца. Рядом красным — где отстаём: количество абонементов,
-            средний чек, прогноз (с цифрами). Прогноз: факт ÷ {Math.round(elapsedPct)}% календаря × 100%.
+            средний чек, прогноз (с цифрами). Прогноз ₽: темп будни/выходные + тяга к плану сегмента (ДК сильнее),
+            сумма по залу = таблице направлений
+            {elapsedPct > 0
+              ? ` · календарь для темпа объёма: ${
+                  Number.isInteger(elapsedPct)
+                    ? Math.round(elapsedPct)
+                    : String(Math.round(elapsedPct * 10) / 10).replace('.', ',')
+                }%`
+              : ''}
+            .
           </p>
         ) : null}
       </div>

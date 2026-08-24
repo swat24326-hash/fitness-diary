@@ -246,6 +246,15 @@ ok(fcPlan.plan.totals?.factMatchesClub && fcPlan.plan.totals?.forecastMatchesClu
 ok(fcPlan.plan.directions.some((d) => d.key === 'unallocated'), 'unallocated row when directions below level3')
 ok(fcPlan.plan.totals?.planMatchesLevel3, 'plan sum with unallocated matches level3')
 ok(fcPlan.plan.totals?.clubGapRub === fcPlan.plan.reach.gapRub, 'totals club gap = reach gap')
+{
+  const signedSum = (fcPlan.plan.directions ?? [])
+    .filter((d) => d.mode === 'revenue')
+    .reduce((s, d) => s + (Number(d.reach?.signedGapRub) || 0), 0)
+  ok(
+    Math.abs(signedSum - Number(fcPlan.plan.totals.signedDirectionGapRub)) < 0.05,
+    'direction signed gaps sum to totals',
+  )
+}
 ok(
   Math.abs(
     fcPlan.plan.directions[0].forecast - Math.round(240000 * (daysInMonth / 3) * 100) / 100,
@@ -365,6 +374,9 @@ const totalsUnit = buildDirectionTotals({
 })
 ok(totalsUnit.clubGapRub === 900, 'totals club gap to level3')
 ok(totalsUnit.directionsBelow && totalsUnit.unallocatedRub === 200, 'totals marks directions below')
+ok(totalsUnit.progressVsPlanSum === 10, 'totals % vs planSum (100/1000)')
+ok(totalsUnit.directionGapRub === 900, 'totals direction gap vs planSum')
+ok(totalsUnit.clubProgressPercent === 10, 'totals club progress vs level3')
 
 const fcSurplus = buildClubFinanceForecast({
   monthRows: planRows,
@@ -382,6 +394,19 @@ const fcSurplus = buildClubFinanceForecast({
 ok(fcSurplus.ok && !fcSurplus.plan.directions.some((d) => d.key === 'unallocated'), 'no unallocated when above level3')
 ok(fcSurplus.plan.totals?.directionsAbove, 'totals marks directions above')
 ok(fcSurplus.plan.totals?.planNoteRu.includes('выше финала'), 'surplus note ru')
+ok(
+  fcSurplus.plan.totals.progressVsPlanSum < fcSurplus.plan.totals.clubProgressPercent,
+  'table % vs direction plans is below club % vs final when plans exceed final',
+)
+{
+  const signedSum = (fcSurplus.plan.directions ?? [])
+    .filter((d) => d.mode === 'revenue')
+    .reduce((s, d) => s + (Number(d.reach?.signedGapRub) || 0), 0)
+  ok(
+    Math.abs(signedSum - Number(fcSurplus.plan.totals.signedDirectionGapRub)) < 0.05,
+    'surplus signed gaps sum to totals',
+  )
+}
 
 const iskraClub = buildIskraClubFinanceBlock({
   monthRows: planRows,

@@ -270,14 +270,21 @@ export function readPlanTargetsFromForm(planForm) {
  */
 export function describePlanForecastReach(forecastProgress, target, forecastAmount) {
   if (target <= 0) {
-    return { tone: 'muted', willReach: false, forecastProgressPercent: forecastProgress, gapRub: 0 }
+    return {
+      tone: 'muted',
+      willReach: false,
+      forecastProgressPercent: forecastProgress,
+      gapRub: 0,
+      signedGapRub: 0,
+    }
   }
+  const signedGapRub = roundRub((Number(forecastAmount) || 0) - target)
   const willReach = forecastProgress >= 100
-  const gapRub = willReach ? 0 : roundRub(target - forecastAmount)
+  const gapRub = signedGapRub >= -0.009 ? 0 : roundRub(-signedGapRub)
   let tone = 'weak'
   if (willReach) tone = 'strong'
   else if (forecastProgress >= 90) tone = 'ok'
-  return { tone, willReach, forecastProgressPercent: forecastProgress, gapRub }
+  return { tone, willReach, forecastProgressPercent: forecastProgress, gapRub, signedGapRub }
 }
 
 /**
@@ -1064,6 +1071,10 @@ export function buildIskraClubFinanceBlock(opts) {
             directions_below: fc.plan.totals.directionsBelow,
             directions_above: fc.plan.totals.directionsAbove,
             plan_note_ru: fc.plan.totals.planNoteRu,
+            progress_vs_plan_sum_pct: fc.plan.totals.progressVsPlanSum,
+            direction_gap_rub: fc.plan.totals.directionGapRub,
+            signed_direction_gap_rub: fc.plan.totals.signedDirectionGapRub,
+            club_progress_pct: fc.plan.totals.clubProgressPercent,
           }
         : null,
     },
