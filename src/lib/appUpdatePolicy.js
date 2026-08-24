@@ -1,8 +1,10 @@
 import { SALES_DRAFT_PREFIX } from './admin/adminSalesDraftStorage.js'
+import { hasOpenTrainingDraft } from './openTrainingDraftGuard.js'
+import { hasFreshTrainingDraftDurableInStorage } from './trainingDraftDurableStorage.js'
 
 /** @typedef {'immediate' | 'prompt' | 'defer'} UpdateDecision */
 
-const TRAINING_PATH_RE = /\/(?:trainer|admin)\/workouts\//
+const TRAINING_PATH_RE = /\/(?:trainer|admin|club)\/workouts\//
 
 /** Черновик старше этого не блокирует обновление вне экрана отчёта. */
 export const SALES_DRAFT_UPDATE_DEFER_MAX_AGE_MS = 4 * 60 * 60 * 1000
@@ -64,6 +66,7 @@ export function hasAnySalesDraftInStorage() {
  *   pathname?: string,
  *   syncQueueCount?: number,
  *   hasSalesDraft?: boolean,
+ *   hasTrainingDraft?: boolean,
  *   isLoginScreen?: boolean,
  * }} ctx
  * @returns {UpdateDecision}
@@ -72,6 +75,14 @@ export function decideAppUpdate(ctx = {}) {
   const pathname = String(ctx.pathname ?? '')
   if (ctx.isLoginScreen || pathname === '/login') return 'immediate'
   if (isOnTrainingPage(pathname)) return 'defer'
+  // Явный флаг из тестов / UI; иначе — открытый экран или свежий durable.
+  if (ctx.hasTrainingDraft === true) return 'defer'
+  if (
+    ctx.hasTrainingDraft !== false &&
+    (hasOpenTrainingDraft() || hasFreshTrainingDraftDurableInStorage())
+  ) {
+    return 'defer'
+  }
   // Черновик продаж блокирует reload только на экране отчёта — не на главной админа/телефона.
   if (isOnSalesReportPage(pathname)) {
     const hasDraft = ctx.hasSalesDraft ?? hasFreshSalesDraftInStorage()

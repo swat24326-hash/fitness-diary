@@ -52,18 +52,19 @@ needRefresh / buildStale
 
 | Слой | Файл | Роль |
 |------|------|------|
-| Политика экрана | `appUpdatePolicy.js` | тренировка/черновик продаж → defer; login/home → immediate |
+| Политика экрана | `appUpdatePolicy.js` | экран тренировки (`/trainer|admin|club/workouts/`), открытый черновик или свежий durable → defer; отчёт продаж → defer; login/home без черновика → immediate |
 | План действия | `appUpdatePlanCore.js` | wait_auth / auto / manual_only / hard_recover |
 | Анти-цикл reload | `appUpdateReloadGuard.js` | 90 с без повторного auto; 2-й тап → hard recover |
 | In-flight | `appUpdateInFlightCore.js` | после reload не мигать login 120 с |
-| Apply | `appUpdateApplyService.js` | SW + пауза sync + reload / `viteChunkReload` |
+| Apply | `appUpdateApplyService.js` | flush черновиков тренировок → SW + пауза sync + reload / `viteChunkReload` |
+| Черновик тренировки | `trainingDraftDurableStorage.js`, `trainingDraftUpdateFlush.js`, `trainingDraftDurableHydrate.js` | localStorage + flush перед reload; после обновления — восстановление в IDB / вкладки черновиков |
 | UI | `PwaUpdatePrompt.jsx`, `AppUpdatedBanner.jsx` | баннер / «Приложение обновлено» |
 | Auth | `AuthContext.jsx`, `Login.jsx`, `App.jsx` | splash «Обновляем…», дольше getSession |
 
 ### Как ведёт себя планшет
 
 1. Есть новая версия → баннер (или auto на home/login, если политика immediate и auth готов).
-2. На **тренировке** / свежем черновике **отчёта продаж** — только отложить.
+2. На **тренировке**, при **свежем черновике тренировки** (в т.ч. ушли с формы, но durable ещё есть) или свежем черновике **отчёта продаж** — только отложить. Перед «Обновить» — flush черновика на диск.
 3. **Слабый планшет:** если auto-reload сорвался (login↔главная), auto **не крутится** 90 с; кнопка **«Обновить ещё раз»** (повтор → сброс SW/кэша).
 4. Во время смены SW — splash «Обновляем приложение…», не форма входа с «…».
 5. Успех → «Приложение обновлено» + можно работать.

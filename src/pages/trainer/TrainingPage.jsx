@@ -8,7 +8,6 @@ import { useAuth } from '../../context/AuthContext'
 import { getHealthCard, getLocalClient, listClubsLocal, listMemberships, listTrainingsForClient } from '../../lib/dataAccess'
 import { clampIsoDateToToday, formatDateRu, isIsoDateAfterToday, todayLocalIso } from '../../lib/dateRu'
 import { getDb } from '../../lib/localDb'
-import { pickUsableMembershipForDate } from '../../lib/membershipRules'
 import {
   applyEarlyMembershipActivation,
   applyLateMembershipStart,
@@ -48,6 +47,7 @@ import {
   readTrainingDraftDurable,
 } from '../../lib/trainingDraftDurableStorage.js'
 import { useTrainingDraftHideFlush } from '../../hooks/useTrainingDraftHideFlush.js'
+import { registerTrainingDraftUpdateFlush } from '../../lib/trainingDraftUpdateFlush.js'
 import { migrateTrainingFormPlace, resolveTrainingFormPlaceKey } from '../../lib/trainingFormStepMemory.js'
 import {
   isTrainingFirstCompletion,
@@ -92,6 +92,8 @@ import {
   applyMembershipFirstCompletionDebit,
   resolveMembershipForFirstCompletionDebit,
 } from '../../lib/trainer/trainingMembershipDebit.js'
+import { buildTrainingMembershipTileSummary } from '../../lib/trainer/trainingMembershipTileCore.js'
+import { loadTrainingMembershipTileSummary } from '../../lib/trainer/trainingMembershipTileService.js'
 import { useSyncOutboundPoll } from '../../hooks/useSyncOutboundPoll.js'
 
 const TRAINING_TYPES = TRAINING_SESSION_TYPES
@@ -106,25 +108,6 @@ function sanitizeWorkoutData(w, opts = {}) {
   if (hr_session) next.hr_session = hr_session
   else delete next.hr_session
   return next
-}
-
-/** Активный абонемент: номер тренировки, всего, дней до end_date */
-async function activeMembershipSummary(clientId) {
-  if (!clientId) return null
-  const mems = await listMemberships(clientId)
-  const today = todayLocalIso()
-  const active = pickUsableMembershipForDate(mems, today)
-  if (!active) return null
-  const total = Number(active.total_trainings)
-  const used = Number(active.used_trainings)
-  if (!Number.isFinite(total) || total <= 0 || !Number.isFinite(used)) return null
-  if (used >= total) return null
-
-  return {
-    current: Math.min(used + 1, total),
-    total,
-    endDate: active.end_date ? String(active.end_date) : null,
-  }
 }
 
 /** Сколько календарных дней от refIso до endIso (конец − опорная дата). */
@@ -262,10 +245,12 @@ export function TrainingPage() {
         trainingType: live?.trainingType,
         trainingDate: live?.trainingDate,
         workoutState: live?.workoutState,
+        trainerId: live?.client?.trainer_id ?? user?.id ?? null,
+        clubId: live?.client?.club_id ?? user?.club_id ?? null,
         revisedAt: revisedAt || new Date().toISOString(),
       },
     )
-  }, [])
+  }, [user?.id, user?.club_id])
 
   const onHideFlush = useCallback((live) => {
     writeDurableFromLive(live)
@@ -281,6 +266,20 @@ export function TrainingPage() {
     liveRef: liveDraftRef,
     onHideFlush,
   })
+
+  useEffect(() => {
+    if (loadState !== 'ok') return undefined
+    if (isTrainingStatusCompleted(meta.status)) return undefined
+    return registerTrainingDraftUpdateFlush(async () => {
+      const live = liveDraftRef.current
+      writeDurableFromLive(live)
+      userEditedRef.current = true
+      const persistFn = persistRef.current
+      if (typeof persistFn === 'function') {
+        await persistFn('draft', { silent: true, skipNavigate: true, fromHide: true })
+      }
+    })
+  }, [loadState, meta.status, writeDurableFromLive])
 
   const applyDraftSessionSnapshot = useCallback((snap) => {
     setMeta({
@@ -410,7 +409,13 @@ export function TrainingPage() {
       const cid = String(cacheHit.clientId ?? '').trim()
       if (!cid) return
       try {
-        const ms = await activeMembershipSummary(cid)
+        const ms = await loadTrainingMembershipTileSummary({
+          clientId: cid,
+          trainingId: String(id ?? ''),
+          trainingDate: cacheHit.trainingDate,
+          status: cacheHit.status,
+          fallbackDate: todayLocalIso(),
+        })
         if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
         setMembershipSummary(ms)
         if (!isAdmin && String(cacheHit.status ?? '') === 'draft') {
@@ -526,7 +531,13 @@ export function TrainingPage() {
       setOtherCompletedTrainings(
         trainings.filter((t) => String(t?.status ?? '') === 'completed').length,
       )
-      const ms = await activeMembershipSummary(clientIdParam)
+      const ms = await loadTrainingMembershipTileSummary({
+        clientId: clientIdParam,
+        allTrainings: trainings,
+        trainingDate: dateNew,
+        status: 'draft',
+        fallbackDate: todayLocalIso(),
+      })
       if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
       setMembershipSummary(ms)
       draftTrainingIdRef.current = null
@@ -600,14 +611,22 @@ export function TrainingPage() {
     const today = todayLocalIso()
     const loaded = t.date ?? today
 
-    // Параллельно: клиент / медкарта / дневник / абон — меньше «Загрузка…» на первом заходе.
-    const [c, hc, trainings, membershipSummary] = await Promise.all([
+    // Параллельно: клиент / медкарта / дневник / абоны — меньше «Загрузка…» на первом заходе.
+    const [c, hc, trainings, memberships] = await Promise.all([
       getLocalClient(t.client_id),
       getHealthCard(t.client_id),
       listTrainingsForClient(t.client_id),
-      activeMembershipSummary(t.client_id),
+      listMemberships(t.client_id),
     ])
     if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
+    const membershipSummary = buildTrainingMembershipTileSummary({
+      memberships,
+      allTrainings: trainings,
+      training: t,
+      trainingDate: loaded,
+      status: t.status,
+      fallbackDate: today,
+    })
 
     let earlyActivateProposalNext = null
     let membershipShiftModeNext = null
@@ -2060,7 +2079,14 @@ export function TrainingPage() {
             setEarlyActivateProposal(null)
             setMembershipShiftMode(null)
             setSaveError('')
-            setMembershipSummary(await activeMembershipSummary(cid))
+            setMembershipSummary(
+              await loadTrainingMembershipTileSummary({
+                clientId: cid,
+                trainingDate: day,
+                status: 'draft',
+                fallbackDate: day,
+              }),
+            )
             setSaveNotice('Срок абонемента сдвинут от первой тренировки')
           } catch (e) {
             setEarlyActivateError(e?.message || 'Не удалось сдвинуть срок')

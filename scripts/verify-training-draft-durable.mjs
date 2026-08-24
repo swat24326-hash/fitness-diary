@@ -10,6 +10,31 @@ import {
   shouldFlushDraftOnPageHide,
   shouldPreferDurableDraftOverIdb,
 } from '../src/lib/trainingDraftDurableCore.js'
+import {
+  hasFreshTrainingDraftDurableInStorage,
+  listTrainingDraftDurables,
+  putTrainingDraftDurable,
+  clearTrainingDraftDurable,
+} from '../src/lib/trainingDraftDurableStorage.js'
+
+const store = new Map()
+globalThis.localStorage = {
+  getItem(k) {
+    return store.has(k) ? store.get(k) : null
+  },
+  setItem(k, v) {
+    store.set(String(k), String(v))
+  },
+  removeItem(k) {
+    store.delete(k)
+  },
+  get length() {
+    return store.size
+  },
+  key(i) {
+    return [...store.keys()][i] ?? null
+  },
+}
 
 let failed = 0
 
@@ -162,6 +187,20 @@ ok(
 
 ok(draftRevisionMs('2026-08-24T12:00:00.000Z') > 0, 'F1 parse iso')
 ok(idbTrainingRevisionMs({ updated_at: 'bad', created_at: '2026-08-24T12:00:00.000Z' }) > 0, 'F2 fallback created_at')
+
+clearTrainingDraftDurable({ trainingId: 't-fresh', clientId: 'c1' })
+putTrainingDraftDurable(
+  { trainingId: 't-fresh', clientId: 'c1' },
+  {
+    trainingId: 't-fresh',
+    clientId: 'c1',
+    workoutState: { exercises: [{ name: 'A' }] },
+    revisedAt: new Date().toISOString(),
+  },
+)
+ok(listTrainingDraftDurables().some((s) => s.trainingId === 't-fresh'), 'G1 list durable')
+ok(hasFreshTrainingDraftDurableInStorage(), 'G2 fresh durable blocks PWA')
+clearTrainingDraftDurable({ trainingId: 't-fresh', clientId: 'c1' })
 
 if (failed) {
   console.error(`\n${failed} failed`)

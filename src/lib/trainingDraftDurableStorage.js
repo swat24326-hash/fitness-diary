@@ -1,18 +1,22 @@
 /**
  * Durable-снимок черновика тренировки в localStorage (синхронно переживает kill вкладки).
- * Не sync_queue / не облако — только мост «экран → диск» при блокировке.
+ * Не sync_queue / не облако — только мост «экран → диск» при блокировке / PWA reload.
  */
 
 import {
   buildTrainingDraftDurableSnap,
+  draftRevisionMs,
   resolveTrainingDraftDurableKey,
 } from './trainingDraftDurableCore.js'
 
-const STORAGE_PREFIX = 'fitness-diary-training-draft-v1:'
+export const TRAINING_DRAFT_DURABLE_PREFIX = 'fitness-diary-training-draft-v1:'
+
+/** Черновик старше этого не блокирует PWA-обновление (как у продаж). */
+export const TRAINING_DRAFT_UPDATE_DEFER_MAX_AGE_MS = 12 * 60 * 60 * 1000
 
 /** @param {string} key */
 function storageKey(key) {
-  return `${STORAGE_PREFIX}${key}`
+  return `${TRAINING_DRAFT_DURABLE_PREFIX}${key}`
 }
 
 /**
@@ -92,4 +96,46 @@ export function migrateTrainingDraftDurableNewToId(clientId, trainingId) {
   } catch {
     return false
   }
+}
+
+/**
+ * Все durable-снимки (для hydrate / политики PWA).
+ * @returns {object[]}
+ */
+export function listTrainingDraftDurables() {
+  if (typeof localStorage === 'undefined') return []
+  const out = []
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (!k?.startsWith(TRAINING_DRAFT_DURABLE_PREFIX)) continue
+      const raw = localStorage.getItem(k)
+      if (!raw) continue
+      try {
+        const parsed = JSON.parse(raw)
+        if (parsed && typeof parsed === 'object') out.push(parsed)
+      } catch {
+        /* skip */
+      }
+    }
+  } catch {
+    return out
+  }
+  return out
+}
+
+/**
+ * Есть ли свежий durable черновик — блокируем auto-update PWA везде (не только на /workouts/).
+ * @param {number} [maxAgeMs]
+ */
+export function hasFreshTrainingDraftDurableInStorage(maxAgeMs = TRAINING_DRAFT_UPDATE_DEFER_MAX_AGE_MS) {
+  const maxAge = Math.max(0, Number(maxAgeMs) || 0)
+  const now = Date.now()
+  for (const snap of listTrainingDraftDurables()) {
+    if (String(snap?.status ?? 'draft') === 'completed') continue
+    const ms = draftRevisionMs(snap?.revisedAt)
+    if (!Number.isFinite(ms) || ms <= 0) return true
+    if (now - ms <= maxAge) return true
+  }
+  return false
 }

@@ -13,6 +13,7 @@ import {
 } from './appUpdateReloadGuardSession.js'
 import { clearPwaUpdateInFlight, markPwaUpdateInFlight } from './appUpdateInFlightSession.js'
 import { recoverFromStaleViteDeploy } from './viteChunkReload.js'
+import { flushTrainingDraftsBeforePwaUpdate } from './trainingDraftUpdateFlush.js'
 
 const SKIP_WAITING_RACE_MS = 2_500
 const CONTROLLER_CHANGE_WAIT_MS = 5_000
@@ -47,6 +48,13 @@ async function waitForControllerChange(timeoutMs = CONTROLLER_CHANGE_WAIT_MS) {
 export async function applyPwaUpdate(opts = {}) {
   const manual = opts.manual === true
   const updateServiceWorker = opts.updateServiceWorker
+
+  // Сначала дописать черновики тренировок (durable + IDB), иначе reload съест ввод.
+  try {
+    await flushTrainingDraftsBeforePwaUpdate()
+  } catch {
+    /* best-effort */
+  }
 
   markPwaUpdateInFlight()
   setBackgroundSyncPaused(true)

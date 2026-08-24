@@ -76,7 +76,7 @@
 | Шаг/место формы при сплите черновиков | `verify-training-form-step-memory.mjs` |
 | Изоляция load/persist при смене вкладки черновика | `verify-training-draft-page-epoch.mjs` |
 | Сессионный кэш вкладок черновика (без «Загрузка…») | `verify-training-draft-session-cache.mjs` |
-| Durable черновик после блокировки экрана / kill вкладки | `verify-training-draft-durable.mjs` |
+| Durable черновик после блокировки экрана / kill вкладки / PWA-обновления | `verify-training-draft-durable.mjs`, `verify-app-stability.mjs` |
 | Подход Л/П (стороны, сводка, челлендж, завершение) | `verify-training-set-laterality.mjs` |
 | Статус тренировки: completed не откатывается в draft | `verify-training-persist-status.mjs` |
 | Pull/push merge: draft, completed `updated_at`, prune | `verify-sync-pull-merge.mjs` |
@@ -101,6 +101,7 @@
 | Archive-pull не стирает активных | `verify-trainer-archive-pull-prune.mjs` |
 | Паритет agg клиент ↔ сервер | `verify-stats-agg-parity.mjs` |
 | Debit абонемента при first complete | `verify-training-membership-debit.mjs` |
+| Плитка «Трен. n/m» при редактировании завершённой | `verify-training-membership-tile.mjs` |
 | ЗП дня/периода: база + надбавка, сценарии без плана, прогноз ур. | `verify-trainer-day-payroll-forecast.mjs` |
 | Прогноз ЗП месяца для чистой (уровни к концу + adj) | `verify-trainer-month-payroll-forecast.mjs` |
 | Удаление абонемента (тексты confirm) | `verify-membership-delete.mjs` |

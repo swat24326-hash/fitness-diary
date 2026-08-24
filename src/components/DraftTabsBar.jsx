@@ -4,6 +4,7 @@ import { FileText } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { LOCAL_DATA_CHANGED } from '../lib/dataAccess'
 import { loadDraftTrainingsForBar } from '../lib/draftTrainingsQuery'
+import { hydrateTrainingDraftsFromDurable } from '../lib/trainingDraftDurableHydrate.js'
 import { formatDateRu } from '../lib/dateRu'
 
 function surnameOnly(name) {
@@ -32,6 +33,7 @@ export function DraftTabsBar() {
     const run = async () => {
       if (!user?.id) return
       try {
+        await hydrateTrainingDraftsFromDurable()
         const { drafts: draftRows, clientById: cmap } = await loadDraftTrainingsForBar({
           userId: user.id,
           isAdmin,

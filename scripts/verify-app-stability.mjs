@@ -57,24 +57,33 @@ ok(
 )
 
 ok(isOnTrainingPage('/trainer/workouts/abc'), 'training path detected')
+ok(isOnTrainingPage('/club/workouts/xyz'), 'club training path detected')
 ok(!isOnTrainingPage('/sales'), 'sales path is not training')
 
 ok(decideAppUpdate({ pathname: '/login' }) === 'immediate', 'login → immediate update')
 ok(decideAppUpdate({ pathname: '/trainer/workouts/x' }) === 'defer', 'training → defer')
-ok(decideAppUpdate({ pathname: '/sales', syncQueueCount: 2 }) === 'prompt', 'queue on sales without draft → prompt')
 ok(
-  decideAppUpdate({ pathname: '/sales', hasSalesDraft: true }) === 'defer',
+  decideAppUpdate({ pathname: '/trainer', hasTrainingDraft: true }) === 'defer',
+  'trainer home + training draft durable → defer',
+)
+ok(
+  decideAppUpdate({ pathname: '/trainer', hasTrainingDraft: false }) === 'immediate',
+  'trainer home without draft → immediate',
+)
+ok(decideAppUpdate({ pathname: '/sales', syncQueueCount: 2, hasTrainingDraft: false }) === 'prompt', 'queue on sales without draft → prompt')
+ok(
+  decideAppUpdate({ pathname: '/sales', hasSalesDraft: true, hasTrainingDraft: false }) === 'defer',
   'sales report + draft → defer',
 )
 ok(
-  decideAppUpdate({ pathname: '/admin', hasSalesDraft: true }) === 'immediate',
+  decideAppUpdate({ pathname: '/admin', hasSalesDraft: true, hasTrainingDraft: false }) === 'immediate',
   'admin home + leftover draft → immediate (not defer)',
 )
 ok(
-  decideAppUpdate({ pathname: '/admin', hasSalesDraft: true, syncQueueCount: 1 }) === 'prompt',
+  decideAppUpdate({ pathname: '/admin', hasSalesDraft: true, hasTrainingDraft: false, syncQueueCount: 1 }) === 'prompt',
   'admin home + draft + queue → prompt',
 )
-ok(decideAppUpdate({ pathname: '/trainer' }) === 'immediate', 'trainer home → immediate')
+ok(decideAppUpdate({ pathname: '/trainer', hasTrainingDraft: false }) === 'immediate', 'trainer home → immediate')
 ok(shouldAutoApplyUpdate('immediate'), 'auto on immediate')
 ok(!shouldAutoApplyUpdate('defer'), 'no auto on defer')
 

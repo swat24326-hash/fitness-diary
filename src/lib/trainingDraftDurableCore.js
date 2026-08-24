@@ -84,6 +84,8 @@ export function buildTrainingDraftDurableSnap(input = {}) {
     trainingType: input.trainingType || 'Силовая',
     trainingDate: String(input.trainingDate ?? ''),
     workoutState: input.workoutState && typeof input.workoutState === 'object' ? input.workoutState : {},
+    trainerId: String(input.trainerId ?? '').trim() || null,
+    clubId: String(input.clubId ?? '').trim() || null,
     revisedAt,
   }
 }
