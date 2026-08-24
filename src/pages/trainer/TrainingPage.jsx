@@ -37,6 +37,17 @@ import {
   shouldBlockMismatchedDraftPersist,
   takeTrainingDraftSession,
 } from '../../lib/trainingDraftSessionCache.js'
+import {
+  shouldClearDurableAfterIdbSave,
+  shouldPreferDurableDraftOverIdb,
+} from '../../lib/trainingDraftDurableCore.js'
+import {
+  clearTrainingDraftDurable,
+  migrateTrainingDraftDurableNewToId,
+  putTrainingDraftDurable,
+  readTrainingDraftDurable,
+} from '../../lib/trainingDraftDurableStorage.js'
+import { useTrainingDraftHideFlush } from '../../hooks/useTrainingDraftHideFlush.js'
 import { migrateTrainingFormPlace, resolveTrainingFormPlaceKey } from '../../lib/trainingFormStepMemory.js'
 import {
   isTrainingFirstCompletion,
@@ -198,6 +209,20 @@ export function TrainingPage() {
   const autosaveUiTimerRef = useRef(null)
   const userEditedRef = useRef(false)
   const baselineContentSnapshotRef = useRef('')
+  /** Актуальный снимок формы для hide-flush / silent persist (без stale closure). */
+  const liveDraftRef = useRef({
+    loadState: 'loading',
+    isNew: false,
+    clientIdParam: '',
+    meta: { status: 'draft', trainingId: null },
+    workoutState: emptyTrainingData(),
+    trainingType: 'Силовая',
+    trainingDate: todayLocalIso(),
+    client: null,
+    completeInFlight: false,
+  })
+  const persistRef = useRef(/** @type {null | Function} */ (null))
+  const durableWriteTimerRef = useRef(null)
 
   // Без getAll по всем stores — на слабом планшете полный scan душил «Закончить».
   const syncOutbound = useSyncOutboundPoll({
@@ -211,6 +236,51 @@ export function TrainingPage() {
     saveMutexRef.current = next.catch(() => {})
     return next
   }, [])
+
+  liveDraftRef.current = {
+    loadState,
+    isNew,
+    clientIdParam,
+    meta,
+    workoutState,
+    trainingType,
+    trainingDate,
+    client,
+    completeInFlight: completeInFlightRef.current,
+  }
+
+  const writeDurableFromLive = useCallback((live, revisedAt) => {
+    const cid = live?.client?.id ?? live?.clientIdParam
+    if (!cid) return false
+    const tid = live?.meta?.trainingId
+    return putTrainingDraftDurable(
+      { trainingId: tid, clientId: cid, isNew: live?.isNew || !tid },
+      {
+        trainingId: tid,
+        clientId: cid,
+        status: live?.meta?.status,
+        trainingType: live?.trainingType,
+        trainingDate: live?.trainingDate,
+        workoutState: live?.workoutState,
+        revisedAt: revisedAt || new Date().toISOString(),
+      },
+    )
+  }, [])
+
+  const onHideFlush = useCallback((live) => {
+    writeDurableFromLive(live)
+    userEditedRef.current = true
+    const persistFn = persistRef.current
+    if (typeof persistFn === 'function') {
+      void persistFn('draft', { silent: true, skipNavigate: true, fromHide: true })
+    }
+  }, [writeDurableFromLive])
+
+  useTrainingDraftHideFlush({
+    enabled: loadState === 'ok' && Boolean(user?.id) && !isTrainingStatusCompleted(meta.status),
+    liveRef: liveDraftRef,
+    onHideFlush,
+  })
 
   const applyDraftSessionSnapshot = useCallback((snap) => {
     setMeta({
@@ -404,9 +474,54 @@ export function TrainingPage() {
       const prefilled = emptyTrainingData()
       const fromPrior = suggestTrainingPreWeightInput(hc, trainings)
       if (fromPrior) prefilled.pre_weight_kg = fromPrior
-      setWorkoutState(prefilled)
-      setTrainingType('Силовая')
-      setTrainingDate(todayLocalIso())
+      let workoutNew = prefilled
+      let typeNew = 'Силовая'
+      let dateNew = todayLocalIso()
+      const durableNew = readTrainingDraftDurable({ clientId: clientIdParam, isNew: true })
+      // Уже был первый save (/new→uuid), но URL не успел смениться до kill вкладки.
+      const durableTid = String(durableNew?.trainingId ?? '').trim()
+      if (durableTid) {
+        const dbNew = await getDb()
+        if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
+        const existing = await dbNew.get('trainings', durableTid)
+        if (
+          existing &&
+          String(existing.client_id ?? '') === String(clientIdParam) &&
+          String(existing.status ?? '') !== 'completed'
+        ) {
+          if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
+          const clubQ = search.get('club')
+          const qs = clubQ
+            ? `?clientId=${encodeURIComponent(clientIdParam)}&club=${encodeURIComponent(clubQ)}`
+            : `?clientId=${encodeURIComponent(clientIdParam)}`
+          nav(`${workoutsBase}/${durableTid}${qs}`, { replace: true })
+          return
+        }
+        migrateTrainingDraftDurableNewToId(clientIdParam, durableTid)
+      }
+      if (
+        shouldPreferDurableDraftOverIdb({
+          idbRow: null,
+          durable: durableNew,
+          expectClientId: clientIdParam,
+        })
+      ) {
+        const dw =
+          durableNew.workoutState && typeof durableNew.workoutState === 'object'
+            ? durableNew.workoutState
+            : {}
+        workoutNew = {
+          ...emptyTrainingData(),
+          ...sanitizeWorkoutData(dw, {
+            sessionFallback: durableNew.trainingType || 'Силовая',
+          }),
+        }
+        if (durableNew.trainingType) typeNew = durableNew.trainingType
+        if (durableNew.trainingDate) dateNew = String(durableNew.trainingDate).slice(0, 10)
+      }
+      setWorkoutState(workoutNew)
+      setTrainingType(typeNew)
+      setTrainingDate(dateNew)
       setMeta({ status: 'draft', trainingId: null })
       setOtherCompletedTrainings(
         trainings.filter((t) => String(t?.status ?? '') === 'completed').length,
@@ -513,17 +628,49 @@ export function TrainingPage() {
     if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
 
     // Все setState после awaits — иначе устаревший load пишет чужой workout на новый URL.
-    const trainingDateNext = canEditTrainingDate(isAdmin, t.status) ? loaded : clampIsoDateToToday(loaded)
-    const workoutNext = { ...emptyTrainingData(), ...w }
+    let trainingDateNext = canEditTrainingDate(isAdmin, t.status) ? loaded : clampIsoDateToToday(loaded)
+    let sessionTypeNext = sessionType
+    let workoutNext = { ...emptyTrainingData(), ...w }
+    let statusNext = t.status
+    let restoredFromDurable = false
+    // После kill вкладки / блокировки экрана: durable (localStorage) новее IDB — восстановить.
+    if (String(t.status ?? '') === 'draft') {
+      const durable = readTrainingDraftDurable({ trainingId: t.id, clientId: t.client_id })
+      if (
+        shouldPreferDurableDraftOverIdb({
+          idbRow: t,
+          durable,
+          expectClientId: t.client_id,
+          expectTrainingId: t.id,
+        })
+      ) {
+        restoredFromDurable = true
+        const dw =
+          durable.workoutState && typeof durable.workoutState === 'object' ? durable.workoutState : {}
+        workoutNext = {
+          ...emptyTrainingData(),
+          ...sanitizeWorkoutData(dw, {
+            sessionFallback: durable.trainingType || sessionType,
+          }),
+        }
+        if (durable.trainingType) sessionTypeNext = durable.trainingType
+        if (durable.trainingDate) {
+          trainingDateNext = canEditTrainingDate(isAdmin, 'draft')
+            ? String(durable.trainingDate)
+            : clampIsoDateToToday(String(durable.trainingDate))
+        }
+        statusNext = 'draft'
+      }
+    }
     const otherCompletedNext = trainings.filter(
       (tr) => String(tr?.status ?? '') === 'completed' && tr.id !== t.id,
     ).length
     const contraNext = (hc?.contraindications ?? '').trim()
 
-    setMeta({ status: t.status, trainingId: t.id })
+    setMeta({ status: statusNext, trainingId: t.id })
     setClient(c)
     setWorkoutState(workoutNext)
-    setTrainingType(sessionType)
+    setTrainingType(sessionTypeNext)
     setTrainingDate(trainingDateNext)
     setHealthCard(hc ?? null)
     setContra(contraNext)
@@ -548,9 +695,9 @@ export function TrainingPage() {
       t.id,
       buildTrainingDraftSessionSnapshot({
         loadState: 'ok',
-        meta: { status: t.status, trainingId: t.id },
+        meta: { status: statusNext, trainingId: t.id },
         workoutState: workoutNext,
-        trainingType: sessionType,
+        trainingType: sessionTypeNext,
         trainingDate: trainingDateNext,
         client: c,
         healthCard: hc ?? null,
@@ -560,7 +707,15 @@ export function TrainingPage() {
         lateBlockedNotice: lateBlockedNoticeNext,
       }),
     )
-  }, [user?.id, isNew, clientIdParam, id, isAdmin, applyDraftSessionSnapshot])
+
+    if (restoredFromDurable) {
+      window.setTimeout(() => {
+        if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
+        userEditedRef.current = true
+        void persistRef.current?.('draft', { silent: true, skipNavigate: true })
+      }, 80)
+    }
+  }, [user?.id, isNew, clientIdParam, id, isAdmin, applyDraftSessionSnapshot, nav, search, workoutsBase])
 
   useEffect(() => {
     if (isNew && isAdmin) return
@@ -591,7 +746,17 @@ export function TrainingPage() {
   const persist = async (status, opts = {}) => {
     const silent = opts.silent === true
     const skipNavigate = opts.skipNavigate === true
+    const fromHide = opts.fromHide === true
     const persistEpoch = pageEpochRef.current
+    // Silent / hide: всегда актуальный снимок из ref (не stale closure от debounce/effect).
+    const live = liveDraftRef.current
+    const workoutState = live.workoutState
+    const trainingType = live.trainingType
+    const trainingDate = live.trainingDate
+    const metaLive = live.meta
+    const clientLive = live.client
+    const clientIdParamLive = live.clientIdParam
+    const isNewLive = live.isNew
     const completeClick = String(status ?? '') === 'completed' && !silent
     if (completeClick && shouldSkipDuplicateCompleteClick(completeInFlightRef.current)) return
     if (shouldSkipSilentPersistWhileCompleteInFlight(silent, completeInFlightRef.current)) {
@@ -625,7 +790,7 @@ export function TrainingPage() {
       shouldBlockMismatchedDraftPersist({
         silent,
         routeId: id,
-        metaTrainingId: meta.trainingId,
+        metaTrainingId: metaLive.trainingId,
       })
     ) {
       if (silent) setAutosaveStatus('idle')
@@ -637,7 +802,7 @@ export function TrainingPage() {
     }
     let trainingId = resolveTrainingPersistTargetId({
       routeId: id,
-      metaTrainingId: meta.trainingId,
+      metaTrainingId: metaLive.trainingId,
       draftRefId: draftTrainingIdRef.current,
     })
     if (!trainingId) {
@@ -648,7 +813,7 @@ export function TrainingPage() {
         setMeta((m) => ({ ...m, trainingId }))
       }
     }
-    const cid = client?.id ?? clientIdParam
+    const cid = clientLive?.id ?? clientIdParamLive
     if (!cid) {
       if (silent) setAutosaveStatus('idle')
       if (!silent) setSaveError('Не выбран клиент')
@@ -660,6 +825,23 @@ export function TrainingPage() {
       return
     }
 
+    // Hide: синхронный durable до любого await — переживает freeze вкладки.
+    if (fromHide || silent) {
+      writeDurableFromLive(
+        {
+          ...live,
+          meta: { ...metaLive, trainingId },
+          workoutState,
+          trainingType,
+          trainingDate,
+          client: clientLive ?? { id: cid },
+          clientIdParam: clientIdParamLive,
+          isNew: isNewLive,
+        },
+        new Date().toISOString(),
+      )
+    }
+
     const db = await getDb()
     if (shouldSkipSilentPersistWhileCompleteInFlight(silent, completeInFlightRef.current)) {
       setAutosaveStatus('idle')
@@ -667,7 +849,7 @@ export function TrainingPage() {
     }
     let prev = trainingId ? await db.get('trainings', trainingId) : null
 
-    const previousStatus = prev?.status ?? meta.status
+    const previousStatus = prev?.status ?? metaLive.status
     const nextStatus = resolveTrainingPersistStatus(status, previousStatus)
     const firstCompletion = isTrainingFirstCompletion(previousStatus, nextStatus)
     if (firstCompletion && !silent) {
@@ -691,7 +873,7 @@ export function TrainingPage() {
     // Для тренера: при первом завершении — «сегодня»; у уже завершённой — выбранная дата.
     const saveWithChosenDate = canEditTrainingDate(
       isAdmin,
-      isTrainingStatusCompleted(prev?.status) || isTrainingStatusCompleted(meta.status)
+      isTrainingStatusCompleted(prev?.status) || isTrainingStatusCompleted(metaLive.status)
         ? 'completed'
         : 'draft',
     )
@@ -734,7 +916,7 @@ export function TrainingPage() {
 
     // club_id обязателен для записи. В dev/локальном режиме можно восстановить его
     // из предыдущей тренировки/абонемента/первого клуба, если в карточке клиента он не заполнен.
-    let club_id = client?.club_id ?? prev?.club_id ?? null
+    let club_id = clientLive?.club_id ?? prev?.club_id ?? null
     if (!club_id) {
       try {
         const mems = await listMemberships(cid)
@@ -757,7 +939,7 @@ export function TrainingPage() {
       return
     }
 
-    const stampLoyalty = firstCompletion && isLoyaltyProgramClient(client)
+    const stampLoyalty = firstCompletion && isLoyaltyProgramClient(clientLive)
     const loyaltySettingsPromise = stampLoyalty
       ? loadLoyaltyCompleteSettings(club_id).catch(() => null)
       : Promise.resolve(null)
@@ -774,7 +956,7 @@ export function TrainingPage() {
       hrSnap = pickHrSessionForPersist({
         firstCompletion,
         liveSummary: hr.summarizeSession(cid, {
-          birthDate: client?.birth_date,
+          birthDate: clientLive?.birth_date,
           sex: getHealthSex(healthCard),
           weightKg: workoutState.pre_weight_kg || healthCard?.weight_kg || null,
           asOfIso: effectiveDate || today,
@@ -852,7 +1034,7 @@ export function TrainingPage() {
           nowIso: now,
           samples: loyaltySamples,
           health: {
-            birthDate: client?.birth_date,
+            birthDate: clientLive?.birth_date,
             sex: getHealthSex(healthCard),
             weightKg: workoutState.pre_weight_kg || healthCard?.weight_kg || null,
             asOfIso: effectiveDate || today,
@@ -869,7 +1051,7 @@ export function TrainingPage() {
         })
       }
     }
-    const trainerIdForRow = isAdmin ? prev?.trainer_id ?? client?.trainer_id ?? user.id : user.id
+    const trainerIdForRow = isAdmin ? prev?.trainer_id ?? clientLive?.trainer_id ?? user.id : user.id
     const row = {
       id: prev?.id ?? trainingId,
       client_id: cid,
@@ -941,11 +1123,12 @@ export function TrainingPage() {
       }
 
       // /new → uuid: место формы (шаг/упражнение) не сбрасывать.
-      if (cid && row.id && (isNew || id === 'new')) {
+      if (cid && row.id && (isNewLive || id === 'new')) {
         migrateTrainingFormPlace(
           resolveTrainingFormPlaceKey({ routeId: 'new', clientId: cid }),
           row.id,
         )
+        migrateTrainingDraftDurableNewToId(cid, row.id)
       }
 
       if (debitNow) {
@@ -990,21 +1173,33 @@ export function TrainingPage() {
         status: row.status,
         workoutState,
       })
+      // Пока шёл async save, тренер мог ввести ещё — не сбрасывать dirty по устаревшему fp.
+      const liveNow = liveDraftRef.current
+      const fpLiveNow = trainingContentFingerprint({
+        clientId: liveNow.client?.id ?? liveNow.clientIdParam ?? cid,
+        trainingType: liveNow.trainingType,
+        trainingDate: liveNow.trainingDate,
+        status: row.status,
+        workoutState: liveNow.workoutState,
+      })
+      const stillDirtyAfterSave = fpLiveNow !== fpAfter
       if (applyUi) {
         if (!silent) {
           setSaveNotice(row.status === 'completed' ? 'Тренировка завершена и сохранена.' : 'Черновик сохранён.')
-          userEditedRef.current = false
+          userEditedRef.current = stillDirtyAfterSave
           baselineContentSnapshotRef.current = fpAfter
           setAutosaveStatus('idle')
           if (autosaveUiTimerRef.current) clearTimeout(autosaveUiTimerRef.current)
-        } else if (userEditedRef.current) {
-          setAutosaveStatus('saved')
-          userEditedRef.current = false
+        } else if (stillDirtyAfterSave || userEditedRef.current) {
+          setAutosaveStatus(stillDirtyAfterSave ? 'idle' : 'saved')
+          userEditedRef.current = stillDirtyAfterSave
           baselineContentSnapshotRef.current = fpAfter
           if (autosaveUiTimerRef.current) clearTimeout(autosaveUiTimerRef.current)
-          autosaveUiTimerRef.current = setTimeout(() => {
-            setAutosaveStatus((cur) => (cur === 'saved' ? 'idle' : cur))
-          }, 1400)
+          if (!stillDirtyAfterSave) {
+            autosaveUiTimerRef.current = setTimeout(() => {
+              setAutosaveStatus((cur) => (cur === 'saved' ? 'idle' : cur))
+            }, 1400)
+          }
         } else {
           // Автосэйв без «редактирования» (первый тик, flush, только tid): нельзя оставлять вечное «Сохранение…»
           baselineContentSnapshotRef.current = fpAfter
@@ -1015,19 +1210,21 @@ export function TrainingPage() {
 
       if (row.status === 'completed') {
         dropTrainingDraftSession(row.id)
+        clearTrainingDraftDurable({ trainingId: row.id, clientId: cid })
+        clearTrainingDraftDurable({ clientId: cid, isNew: true })
         runTrainingCompleteFollowUp(cid)
         const completedCount =
           otherCompletedTrainings + (prev?.status === 'completed' ? 0 : 1)
-        if (!skipNavigate && shouldOfferMarkPnkTrialDone(client, completedCount)) {
+        if (!skipNavigate && shouldOfferMarkPnkTrialDone(clientLive, completedCount)) {
           // Сразу отмечаем шаг воронки — без лишнего вопроса «Позже»
           try {
             const deliverable =
-              resolvePnkTrialDeliverableAfterWorkout(client, Math.max(1, completedCount)) || 'trial'
+              resolvePnkTrialDeliverableAfterWorkout(clientLive, Math.max(1, completedCount)) || 'trial'
             const patch =
               deliverable === 'trial'
                 ? { stage: 'trial_done', deliverable: 'trial' }
                 : { deliverable }
-            const res = await patchPnkClientLocal(client, patch)
+            const res = await patchPnkClientLocal(clientLive, patch)
             if (res.ok && applyUi) setClient(res.client)
           } catch {
             /* карточка всё равно откроется; шаг можно закрыть Далее в воронке */
@@ -1039,8 +1236,23 @@ export function TrainingPage() {
         return
       }
 
+      // IDB догнал durable — можно сбросить мост; иначе оставить (ввод после старта save).
+      if (!stillDirtyAfterSave) {
+        const durableLeft = readTrainingDraftDurable({ trainingId: row.id, clientId: cid })
+        if (
+          shouldClearDurableAfterIdbSave({
+            durable: durableLeft,
+            idbUpdatedAt: row.updated_at,
+            savedAt: now,
+          })
+        ) {
+          clearTrainingDraftDurable({ trainingId: row.id, clientId: cid })
+          clearTrainingDraftDurable({ clientId: cid, isNew: true })
+        }
+      }
+
       const shouldPromoteUrl =
-        applyUi && row.status !== 'completed' && isNew && id === 'new' && cid
+        applyUi && row.status !== 'completed' && isNewLive && id === 'new' && cid
       const clubQ = search.get('club')
       const nextUrlClient = clubQ
         ? `?clientId=${encodeURIComponent(cid)}&club=${encodeURIComponent(clubQ)}`
@@ -1048,7 +1260,7 @@ export function TrainingPage() {
       if (shouldPromoteUrl) {
         // После первого сохранения делаем URL стабильным (/workouts/:id), даже если автосэйв включён skipNavigate.
         nav(`${workoutsBase}/${row.id}${nextUrlClient}`, { replace: true })
-      } else if (applyUi && !skipNavigate && row.status !== 'completed' && isNew) {
+      } else if (applyUi && !skipNavigate && row.status !== 'completed' && isNewLive) {
         nav(`${workoutsBase}/${row.id}${preserveClubQs}`, { replace: true })
       }
     })
@@ -1071,6 +1283,8 @@ export function TrainingPage() {
     }
   }
 
+  persistRef.current = persist
+
   /** Автосохранение черновика локально при изменениях формы — чтобы не терять прогресс при уходе со страницы. */
   const contentFingerprint = useMemo(() => {
     return trainingContentFingerprint({
@@ -1085,10 +1299,6 @@ export function TrainingPage() {
   const snapshotKey = useMemo(() => {
     return JSON.stringify({ hydrate: hydrateVersion, content: contentFingerprint })
   }, [hydrateVersion, contentFingerprint])
-
-  const flushSnapshotKey = useMemo(() => {
-    return JSON.stringify({ hydrate: hydrateVersion, content: contentFingerprint, tid: meta.trainingId })
-  }, [hydrateVersion, contentFingerprint, meta.trainingId])
 
   useEffect(() => {
     if (loadState !== 'ok') return
@@ -1139,33 +1349,19 @@ export function TrainingPage() {
     return () => clearOpenTrainingDraft(tid)
   }, [loadState, meta.status, meta.trainingId, client?.id, clientIdParam])
 
+  // Throttle durable localStorage: даже без visibility (OEM) последние правки на диске.
   useEffect(() => {
     if (loadState !== 'ok') return
-    if (!user?.id) return
-
-    let cancelled = false
-    const persistFlush = () => {
-      if (completeInFlightRef.current) return
-      const baseline = baselineContentSnapshotRef.current
-      const dirty =
-        userEditedRef.current || Boolean(baseline && contentFingerprint !== baseline)
-      if (!dirty) return
-      void persist('draft', { silent: true, skipNavigate: true })
-    }
-    const onHide = () => {
-      if (cancelled) return
-      persistFlush()
-    }
-
-    document.addEventListener('visibilitychange', onHide)
-    window.addEventListener('pagehide', onHide)
+    if (isTrainingStatusCompleted(meta.status)) return
+    if (!userEditedRef.current && contentFingerprint === baselineContentSnapshotRef.current) return
+    if (durableWriteTimerRef.current) clearTimeout(durableWriteTimerRef.current)
+    durableWriteTimerRef.current = setTimeout(() => {
+      writeDurableFromLive(liveDraftRef.current)
+    }, 280)
     return () => {
-      cancelled = true
-      document.removeEventListener('visibilitychange', onHide)
-      window.removeEventListener('pagehide', onHide)
-      persistFlush()
+      if (durableWriteTimerRef.current) clearTimeout(durableWriteTimerRef.current)
     }
-  }, [flushSnapshotKey, loadState, user?.id, meta.status, contentFingerprint])
+  }, [contentFingerprint, loadState, meta.status, writeDurableFromLive])
 
   const title = useMemo(() => {
     if (!client) return ''
