@@ -40,6 +40,31 @@ ok(
   'нет абона на дату',
 )
 
+// Клинцы: El 0/4 + БЗ 1/1 (старт позже) — открытие видит El, списание не должно брать БЗ.
+const elPaid = {
+  id: 'el-paid',
+  start_date: '2026-07-24',
+  end_date: '2026-08-31',
+  total_trainings: 4,
+  used_trainings: 0,
+}
+const bzDepleted = {
+  id: 'bz-1',
+  start_date: '2026-08-22',
+  end_date: '2026-09-05',
+  total_trainings: 1,
+  used_trainings: 1,
+}
+const overlap = planMembershipFirstCompletionDebit([elPaid, bzDepleted], '2026-08-24')
+ok(overlap.ok === true, 'CRITICAL: El с остатком + БЗ 1/1 — debit ok')
+ok(overlap.membershipId === 'el-paid', 'CRITICAL: списываем El, не исчерпанный БЗ')
+
+const onlyBz = planMembershipFirstCompletionDebit([bzDepleted], '2026-08-24')
+ok(onlyBz.ok === false && onlyBz.code === MEMBERSHIP_DEBIT_BLOCK.LIMIT, 'только БЗ 1/1 — LIMIT')
+
+const outside = planMembershipFirstCompletionDebit([elPaid], '2026-09-10')
+ok(outside.code === MEMBERSHIP_DEBIT_BLOCK.NO_ACTIVE, 'вне срока — NO_ACTIVE')
+
 if (failed) {
   console.error(`\n${failed} failed`)
   process.exit(1)
