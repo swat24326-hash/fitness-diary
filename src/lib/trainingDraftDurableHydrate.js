@@ -3,8 +3,12 @@
  * Нет строки в IDB — создать draft (иначе вкладки пустые после auto-update).
  */
 
-import { getDb } from './localDb.js'
+import { getDb, listSyncQueue } from './localDb.js'
 import { saveLocalWithSync } from './syncService.js'
+import {
+  collectPendingTrainingDeleteIds,
+  shouldSkipDurableHydrateForTraining,
+} from './trainingDraftCleanupCore.js'
 import { shouldPreferDurableDraftOverIdb } from './trainingDraftDurableCore.js'
 import { listTrainingDraftDurables } from './trainingDraftDurableStorage.js'
 
@@ -19,11 +23,13 @@ export async function hydrateTrainingDraftsFromDurable() {
     let restored = 0
     const snaps = listTrainingDraftDurables()
     if (!snaps.length) return { restored: 0 }
+    const pendingDeleteIds = collectPendingTrainingDeleteIds(await listSyncQueue())
     const db = await getDb()
     for (const durable of snaps) {
       const tid = String(durable?.trainingId ?? '').trim()
       const cid = String(durable?.clientId ?? '').trim()
       if (!tid || !cid) continue
+      if (shouldSkipDurableHydrateForTraining(pendingDeleteIds, tid)) continue
       if (String(durable.status ?? 'draft') === 'completed') continue
       try {
         const idbRow = await db.get('trainings', tid)

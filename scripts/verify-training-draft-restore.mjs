@@ -71,6 +71,7 @@ const sessionWin = pickTrainingDraftRestore({
     data: {},
   },
   session: {
+    trainingId: 't1',
     workoutState: { cooldown: 'суставная' },
     revisionMs: Date.parse('2026-08-26T10:01:00.000Z'),
   },

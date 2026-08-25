@@ -4,6 +4,7 @@
  */
 
 import { draftRevisionMs, idbTrainingRevisionMs } from './trainingDraftDurableCore.js'
+import { shouldRestoreTrainingDraftCandidate } from './trainingDraftCleanupCore.js'
 
 /**
  * «Богатство» содержимого — tie-breaker, если метки времени близки или отсутствуют.
@@ -82,7 +83,8 @@ export function compareTrainingDraftCandidates(a, b) {
  * @param {{
  *   idbRow?: object | null,
  *   durable?: object | null,
- *   session?: { workoutState?: object, revisionMs?: number } | null,
+ *   session?: { workoutState?: object, revisionMs?: number, trainingId?: string } | null,
+ *   blockedTrainingId?: string | null,
  * }} ctx
  * @returns {{
  *   workoutState: object,
@@ -94,9 +96,15 @@ export function compareTrainingDraftCandidates(a, b) {
 export function pickTrainingDraftRestore(ctx = {}) {
   const empty = {}
   const candidates = []
+  const blockedId = String(ctx.blockedTrainingId ?? '').trim()
 
   const idbRow = ctx.idbRow
-  if (idbRow && typeof idbRow === 'object' && String(idbRow.status ?? '') !== 'completed') {
+  if (
+    idbRow &&
+    typeof idbRow === 'object' &&
+    String(idbRow.status ?? '') !== 'completed' &&
+    shouldRestoreTrainingDraftCandidate(blockedId, idbRow.id)
+  ) {
     const ws = idbRow.data && typeof idbRow.data === 'object' ? idbRow.data : {}
     candidates.push({
       source: 'idb',
@@ -108,7 +116,12 @@ export function pickTrainingDraftRestore(ctx = {}) {
   }
 
   const durable = ctx.durable
-  if (durable && typeof durable === 'object' && String(durable.status ?? 'draft') !== 'completed') {
+  if (
+    durable &&
+    typeof durable === 'object' &&
+    String(durable.status ?? 'draft') !== 'completed' &&
+    shouldRestoreTrainingDraftCandidate(blockedId, durable.trainingId)
+  ) {
     const ws = durable.workoutState && typeof durable.workoutState === 'object' ? durable.workoutState : {}
     candidates.push({
       source: 'durable',
@@ -121,13 +134,16 @@ export function pickTrainingDraftRestore(ctx = {}) {
 
   const session = ctx.session
   if (session?.workoutState && typeof session.workoutState === 'object') {
-    candidates.push({
-      source: 'session',
-      workoutState: session.workoutState,
-      trainingType: session.trainingType,
-      trainingDate: session.trainingDate,
-      revisionMs: Number(session.revisionMs) || 0,
-    })
+    const sessionTid = String(session.trainingId ?? '').trim()
+    if (!blockedId || (sessionTid && shouldRestoreTrainingDraftCandidate(blockedId, sessionTid))) {
+      candidates.push({
+        source: 'session',
+        workoutState: session.workoutState,
+        trainingType: session.trainingType,
+        trainingDate: session.trainingDate,
+        revisionMs: Number(session.revisionMs) || 0,
+      })
+    }
   }
 
   if (!candidates.length) {

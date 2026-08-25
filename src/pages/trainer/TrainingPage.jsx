@@ -29,7 +29,6 @@ import {
 } from '../../lib/trainingDraftPageEpochCore.js'
 import {
   buildTrainingDraftSessionSnapshot,
-  dropTrainingDraftSession,
   isTrainingDraftSessionSnapshotReady,
   isTrainingDraftUiAligned,
   putTrainingDraftSession,
@@ -41,6 +40,7 @@ import {
   shouldClearDurableAfterIdbSave,
 } from '../../lib/trainingDraftDurableCore.js'
 import { pickTrainingDraftRestore, workoutDraftContentScore } from '../../lib/trainingDraftRestoreCore.js'
+import { clearTrainingDraftArtifacts, canPersistTrainingDraft, isTrainingDraftLocallyDeleted } from '../../lib/trainingDraftCleanup.js'
 import {
   clearTrainingDraftDurable,
   migrateTrainingDraftDurableNewToId,
@@ -237,6 +237,7 @@ export function TrainingPage() {
     const cid = live?.client?.id ?? live?.clientIdParam
     if (!cid) return false
     const tid = live?.meta?.trainingId
+    if (tid && isTrainingDraftLocallyDeleted(tid)) return false
     return putTrainingDraftDurable(
       { trainingId: tid, clientId: cid, isNew: live?.isNew || !tid },
       {
@@ -261,13 +262,23 @@ export function TrainingPage() {
     setWorkoutState(next)
   }, [])
 
-  const flushDraftSnapshotOnLeave = useCallback(() => {
+  const writeDurableFromLiveGuarded = useCallback(async (live, revisedAt) => {
+    const tid = String(live?.meta?.trainingId ?? '').trim()
+    if (tid && !(await canPersistTrainingDraft(tid))) return false
+    return writeDurableFromLive(live, revisedAt)
+  }, [writeDurableFromLive])
+
+  const flushDraftSnapshotOnLeave = useCallback(async () => {
+    const tid = String(liveDraftRef.current?.meta?.trainingId ?? '').trim()
+    if (tid && !(await canPersistTrainingDraft(tid))) return
     const outgoing = draftSessionGateRef.current
     if (outgoing?.id && isTrainingDraftSessionSnapshotReady(outgoing.snap, outgoing.id)) {
-      putTrainingDraftSession(outgoing.id, outgoing.snap)
+      if (await canPersistTrainingDraft(outgoing.id)) {
+        putTrainingDraftSession(outgoing.id, outgoing.snap)
+      }
     }
-    writeDurableFromLive(liveDraftRef.current)
-  }, [writeDurableFromLive])
+    await writeDurableFromLiveGuarded(liveDraftRef.current)
+  }, [writeDurableFromLiveGuarded])
 
   const onHideFlush = useCallback((_live) => {
     flushDraftSnapshotOnLeave()
@@ -289,6 +300,8 @@ export function TrainingPage() {
     if (isTrainingStatusCompleted(meta.status)) return undefined
     return registerTrainingDraftUpdateFlush(async () => {
       const live = liveDraftRef.current
+      const tid = String(live?.meta?.trainingId ?? '').trim()
+      if (tid && !(await canPersistTrainingDraft(tid))) return
       writeDurableFromLive(live)
       userEditedRef.current = true
       const persistFn = persistRef.current
@@ -413,7 +426,7 @@ export function TrainingPage() {
 
   useEffect(() => {
     return () => {
-      flushDraftSnapshotOnLeave()
+      void flushDraftSnapshotOnLeave()
     }
   }, [flushDraftSnapshotOnLeave])
 
@@ -472,18 +485,22 @@ export function TrainingPage() {
         const dbCached = await getDb()
         if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
         const idbRowCached = await dbCached.get('trainings', String(id ?? ''))
-        const durableCached = readTrainingDraftDurable({ trainingId: id, clientId: cid })
-        const sessionEntry = peekTrainingDraftSessionEntry(id)
+        const blockedId =
+          (await canPersistTrainingDraft(String(id ?? ''))) === false ? String(id ?? '') : ''
+        const durableCached = blockedId ? null : readTrainingDraftDurable({ trainingId: id, clientId: cid })
+        const sessionEntry = blockedId ? null : peekTrainingDraftSessionEntry(id)
         const sessionSnap = sessionEntry?.snapshot
         const pickedCached = pickTrainingDraftRestore({
           idbRow: idbRowCached,
           durable: durableCached,
+          blockedTrainingId: blockedId || null,
           session: sessionSnap
             ? {
                 workoutState: sessionSnap.workoutState,
                 trainingType: sessionSnap.trainingType,
                 trainingDate: sessionSnap.trainingDate,
                 revisionMs: sessionEntry?.at ?? cacheHit.sessionAt ?? 0,
+                trainingId: String(id ?? ''),
               }
             : null,
         })
@@ -551,12 +568,13 @@ export function TrainingPage() {
       let typeNew = 'Силовая'
       let dateNew = todayLocalIso()
       const durableNew = readTrainingDraftDurable({ clientId: clientIdParam, isNew: true })
-      // Уже был первый save (/new→uuid), но URL не успел смениться до kill вкладки.
       const durableTid = String(durableNew?.trainingId ?? '').trim()
+      let deletedOrPending = false
       if (durableTid) {
+        deletedOrPending = !(await canPersistTrainingDraft(durableTid))
         const dbNew = await getDb()
         if (!isTrainingDraftEpochCurrent(pageEpochRef.current, epoch)) return
-        const existing = await dbNew.get('trainings', durableTid)
+        const existing = deletedOrPending ? null : await dbNew.get('trainings', durableTid)
         if (
           existing &&
           String(existing.client_id ?? '') === String(clientIdParam) &&
@@ -570,9 +588,18 @@ export function TrainingPage() {
           nav(`${workoutsBase}/${durableTid}${qs}`, { replace: true })
           return
         }
-        migrateTrainingDraftDurableNewToId(clientIdParam, durableTid)
+        if (deletedOrPending) {
+          clearTrainingDraftDurable({ trainingId: durableTid, clientId: clientIdParam })
+          clearTrainingDraftDurable({ clientId: clientIdParam, isNew: true })
+        } else {
+          migrateTrainingDraftDurableNewToId(clientIdParam, durableTid)
+        }
       }
-      const pickedNew = pickTrainingDraftRestore({ durable: durableNew })
+      const blockedNewId = deletedOrPending ? durableTid : ''
+      const pickedNew = pickTrainingDraftRestore({
+        durable: blockedNewId ? null : durableNew,
+        blockedTrainingId: blockedNewId || null,
+      })
       if (pickedNew.source === 'durable') {
         workoutNew = {
           ...emptyTrainingData(),
@@ -716,18 +743,21 @@ export function TrainingPage() {
     let statusNext = t.status
     let restoredFromBestDraft = false
     if (String(t.status ?? '') === 'draft') {
-      const durable = readTrainingDraftDurable({ trainingId: t.id, clientId: t.client_id })
-      const sessionEntry = peekTrainingDraftSessionEntry(t.id)
+      const blockedId = (await canPersistTrainingDraft(t.id)) === false ? String(t.id) : ''
+      const durable = blockedId ? null : readTrainingDraftDurable({ trainingId: t.id, clientId: t.client_id })
+      const sessionEntry = blockedId ? null : peekTrainingDraftSessionEntry(t.id)
       const sessionSnap = sessionEntry?.snapshot
       const picked = pickTrainingDraftRestore({
         idbRow: t,
         durable,
+        blockedTrainingId: blockedId || null,
         session: sessionSnap
           ? {
               workoutState: sessionSnap.workoutState,
               trainingType: sessionSnap.trainingType,
               trainingDate: sessionSnap.trainingDate,
               revisionMs: sessionEntry?.at ?? 0,
+              trainingId: String(t.id),
             }
           : null,
       })
@@ -905,6 +935,10 @@ export function TrainingPage() {
       if (shouldApplyTrainingPersistUi({ currentEpoch: pageEpochRef.current, persistEpoch })) {
         setMeta((m) => ({ ...m, trainingId }))
       }
+    }
+    if (!(await canPersistTrainingDraft(trainingId))) {
+      if (silent) setAutosaveStatus('idle')
+      return
     }
     const cid = clientLive?.id ?? clientIdParamLive
     if (!cid) {
@@ -1302,9 +1336,7 @@ export function TrainingPage() {
       }
 
       if (row.status === 'completed') {
-        dropTrainingDraftSession(row.id)
-        clearTrainingDraftDurable({ trainingId: row.id, clientId: cid })
-        clearTrainingDraftDurable({ clientId: cid, isNew: true })
+        clearTrainingDraftArtifacts({ trainingId: row.id, clientId: cid })
         runTrainingCompleteFollowUp(cid)
         const completedCount =
           otherCompletedTrainings + (prev?.status === 'completed' ? 0 : 1)
@@ -1449,7 +1481,7 @@ export function TrainingPage() {
     if (!userEditedRef.current && contentFingerprint === baselineContentSnapshotRef.current) return
     if (durableWriteTimerRef.current) clearTimeout(durableWriteTimerRef.current)
     durableWriteTimerRef.current = setTimeout(() => {
-      writeDurableFromLive(liveDraftRef.current)
+      void writeDurableFromLiveGuarded(liveDraftRef.current)
     }, 280)
     return () => {
       if (durableWriteTimerRef.current) {
@@ -1457,10 +1489,10 @@ export function TrainingPage() {
         durableWriteTimerRef.current = null
       }
       if (loadState === 'ok' && !isTrainingStatusCompleted(meta.status)) {
-        writeDurableFromLive(liveDraftRef.current)
+        void writeDurableFromLiveGuarded(liveDraftRef.current)
       }
     }
-  }, [contentFingerprint, loadState, meta.status, writeDurableFromLive])
+  }, [contentFingerprint, loadState, meta.status, writeDurableFromLiveGuarded])
 
   const title = useMemo(() => {
     if (!client) return ''

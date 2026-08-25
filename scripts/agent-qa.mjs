@@ -201,6 +201,7 @@ run('training draft page epoch', 'node', ['scripts/verify-training-draft-page-ep
 run('training draft session cache', 'node', ['scripts/verify-training-draft-session-cache.mjs'])
 run('training draft durable', 'node', ['scripts/verify-training-draft-durable.mjs'])
 run('training draft restore', 'node', ['scripts/verify-training-draft-restore.mjs'])
+run('training draft delete', 'node', ['scripts/verify-training-draft-delete.mjs'])
 run('last exercise result', 'node', ['scripts/verify-last-exercise-result.mjs'])
 run('app diagnostics', 'node', ['scripts/verify-app-diagnostics.mjs'])
 run('client weight push', 'node', ['scripts/verify-client-weight-push.mjs'])

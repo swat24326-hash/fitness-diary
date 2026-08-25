@@ -6,6 +6,7 @@ import { ensureClientTrainingsCached } from '../lib/clientTrainingsEnsure.js'
 import { detachWeightEntriesFromTraining } from '../lib/clientWeightService.js'
 import { getDb } from '../lib/localDb'
 import { deleteLocalWithSync, saveLocalWithSync } from '../lib/syncService'
+import { notifyTrainingDraftDeleted } from '../lib/trainingDraftCleanup.js'
 import { ensureOpenHallAfterMembershipSave } from '../lib/clientHallLifecycleSyncService.js'
 import { planMembershipUsedReconcile } from '../lib/membership/membershipUsedReconcile.js'
 import {
@@ -493,6 +494,7 @@ export function MembershipManager({
       if (!t?.id || !membership?.id) return
 
       // удалить тренировку
+      notifyTrainingDraftDeleted({ trainingId: t.id, clientId: t.client_id ?? clientId })
       await detachWeightEntriesFromTraining(t.id, t.client_id ?? clientId)
       await deleteLocalWithSync('trainings', t.id, 'trainings')
 

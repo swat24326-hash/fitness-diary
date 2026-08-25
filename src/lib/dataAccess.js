@@ -23,6 +23,7 @@ import {
 import { ADMIN_CLIENT_COUNT_BATCH } from './admin/adminConstants'
 import { fetchTrainersViaAdminApi } from './admin/adminApiClient'
 import { dispatchLocalDataChanged } from './localDataEvents'
+import { clearTrainingDraftArtifacts } from './trainingDraftCleanup.js'
 import { notifyAdminClientsBrowseStorageChanged } from './admin/adminClientsListReloadCore.js'
 
 export { loadAdminJournalPage } from './admin/adminJournalService'
@@ -313,6 +314,7 @@ export async function deleteClientAndAllData(clientId) {
   const trainings = await listTrainingsByClientId(clientId)
   const trainingIds = trainings.map((t) => t.id)
   for (const t of trainings) {
+    clearTrainingDraftArtifacts({ trainingId: t.id, clientId })
     await deleteLocalWithSync('trainings', t.id, 'trainings')
   }
 
