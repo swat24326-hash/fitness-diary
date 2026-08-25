@@ -1,6 +1,7 @@
 /** Правила смены пароля, ФИО и блокировки тренера (клиент + сервер). */
 
 import { formatClientName } from '../clientNameFormat.js'
+import { normalizePasswordInput } from '../authLoginResolveCore.js'
 
 export const TRAINER_PASSWORD_MIN_LEN = 6
 export const TRAINER_NAME_MAX_LEN = 120
@@ -20,13 +21,14 @@ export function parseTrainerIdForAdmin(trainerId) {
 
 /**
  * @param {string} password
+ * @returns {{ ok: true, password: string, error: null } | { ok: false, password: string, error: string }}
  */
 export function validateTrainerPasswordForAdmin(password) {
-  const p = String(password ?? '')
+  const p = normalizePasswordInput(password)
   if (p.length < TRAINER_PASSWORD_MIN_LEN) {
-    return { ok: false, error: `Пароль не короче ${TRAINER_PASSWORD_MIN_LEN} символов` }
+    return { ok: false, password: p, error: `Пароль не короче ${TRAINER_PASSWORD_MIN_LEN} символов` }
   }
-  return { ok: true, error: null }
+  return { ok: true, password: p, error: null }
 }
 
 /**
@@ -36,10 +38,10 @@ export function validateTrainerPasswordForAdmin(password) {
 export function validateTrainerPasswordConfirm(password, confirm) {
   const base = validateTrainerPasswordForAdmin(password)
   if (!base.ok) return base
-  if (String(password) !== String(confirm)) {
-    return { ok: false, error: 'Пароли не совпадают' }
+  if (base.password !== normalizePasswordInput(confirm)) {
+    return { ok: false, password: base.password, error: 'Пароли не совпадают' }
   }
-  return { ok: true, error: null }
+  return { ok: true, password: base.password, error: null }
 }
 
 /**

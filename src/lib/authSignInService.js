@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import { emailFromLoginRow, normalizeLoginInput, trainerLocalEmail } from './authLoginResolveCore.js'
+import { emailFromLoginRow, normalizeLoginInput, normalizePasswordInput, trainerLocalEmail } from './authLoginResolveCore.js'
 import { buildDirectAuthEmailCandidates, isInvalidCredentialsMessage, SUPABASE_CLOUD_UNAVAILABLE_RU } from './authSignInCore.js'
 import { firstSuccessfulPromise } from './networkReachability.js'
 import { withFastTimeout } from './supabaseRetry.js'
@@ -70,6 +70,7 @@ export async function signInViaServerApi({ login, password }) {
       controller.abort()
     }, AUTH_API_TIMEOUT_MS)
 
+  const pwd = normalizePasswordInput(password)
   let res
   try {
     res = await fetch(apiUrl(), {
@@ -78,7 +79,7 @@ export async function signInViaServerApi({ login, password }) {
       credentials: 'same-origin',
       cache: 'no-store',
       signal: controller?.signal,
-      body: JSON.stringify({ login: normalizeLoginInput(login), password }),
+      body: JSON.stringify({ login: normalizeLoginInput(login), password: pwd }),
     })
   } catch (e) {
     const msg =
@@ -141,11 +142,12 @@ const DIRECT_AUTH_TIMEOUT_MS = 10_000
 
 /** Прямой Auth из браузера (с таймаутом на зависший Supabase). */
 export async function signInWithPasswordDirect(email, password, attempts = 2) {
+  const pwd = normalizePasswordInput(password)
   let lastError = null
   for (let i = 0; i < attempts; i++) {
     try {
       const { data, error } = await withFastTimeout(
-        supabase.auth.signInWithPassword({ email, password }),
+        supabase.auth.signInWithPassword({ email, password: pwd }),
         DIRECT_AUTH_TIMEOUT_MS,
       )
       if (!error) return { data, error: null }
@@ -168,9 +170,10 @@ export async function signInWithPasswordDirect(email, password, attempts = 2) {
  */
 export async function raceSignInAttempts({ login, password }) {
   const raw = normalizeLoginInput(login)
+  const pwd = normalizePasswordInput(password)
   const tasks = [
     async () => {
-      const viaServer = await signInViaServerApi({ login: raw, password })
+      const viaServer = await signInViaServerApi({ login: raw, password: pwd })
       if (viaServer.user) {
         return { source: 'server', user: viaServer.user, profile: viaServer.profile ?? null }
       }
@@ -183,7 +186,7 @@ export async function raceSignInAttempts({ login, password }) {
 
   for (const email of buildDirectAuthEmailCandidates(raw)) {
     tasks.push(async () => {
-      const { data, error } = await signInWithPasswordDirect(email, password)
+      const { data, error } = await signInWithPasswordDirect(email, pwd)
       if (error || !data?.user) throw error ?? new Error('direct auth failed')
       return { source: 'direct', user: data.user, profile: null }
     })

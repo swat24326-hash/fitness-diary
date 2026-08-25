@@ -54,7 +54,7 @@ export async function handleResetTrainerPasswordPost(ctx, res, body) {
     return
   }
 
-  const { error: authErr } = await adminUpdatePassword(ctx.supabaseAdmin, parsed.id, String(body.password))
+  const { error: authErr } = await adminUpdatePassword(ctx.supabaseAdmin, parsed.id, passCheck.password)
   if (authErr) {
     sendJson(res, 400, { error: authErr })
     return

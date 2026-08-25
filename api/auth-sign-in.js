@@ -9,7 +9,7 @@ import { createClient } from '@supabase/supabase-js'
 import { readEnv, sendJson, setCors } from './_lib/adminSupabase.js'
 import { AUTH_ENV_MISSING_RU, signInWithPassword } from './_lib/authPort.js'
 import { withSafeApiHandler } from './_lib/safeApiHandler.js'
-import { emailFromLoginRow, normalizeLoginInput, trainerLocalEmail } from './_lib/authLoginResolveCore.js'
+import { emailFromLoginRow, normalizeLoginInput, normalizePasswordInput, trainerLocalEmail } from './_lib/authLoginResolveCore.js'
 import { createFetchWithTimeout, isServerTimeoutError, withServerTimeout } from './_lib/serverFetchTimeout.js'
 import {
   SUPABASE_CLOUD_UNAVAILABLE_RU,
@@ -128,8 +128,8 @@ async function handler(req, res) {
     }
   }
 
-  const login = String(body?.login ?? '').trim()
-  const password = String(body?.password ?? '')
+  const login = normalizeLoginInput(body?.login)
+  const password = normalizePasswordInput(body?.password)
   if (!login || !password) {
     sendJson(res, 400, { error: 'Введите логин и пароль' })
     return
@@ -172,7 +172,9 @@ async function handler(req, res) {
     return
   }
 
-  if (directCandidates.length === 1 && directCandidates[0].includes('@') && sawInvalidCredentials && !sawTransportError) {
+  // Email введён целиком и Auth уже сказал «неверные данные» — lookup в users не нужен.
+  // Короткий логин: synth @trainer.local ≠ @sales.local / @club.local — идём в resolveEmail.
+  if (login.includes('@') && sawInvalidCredentials && !sawTransportError) {
     sendJson(res, 401, { error: 'Неверный логин или пароль' })
     return
   }

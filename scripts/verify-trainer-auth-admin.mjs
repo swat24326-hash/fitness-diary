@@ -16,8 +16,10 @@ function ok(cond, msg) {
 
 ok(validateTrainerPasswordForAdmin('12345').ok === false, 'short password rejected')
 ok(validateTrainerPasswordForAdmin('123456').ok === true, 'min password ok')
+ok(validateTrainerPasswordForAdmin('  123456  ').password === '123456', 'password edges trimmed')
 ok(validateTrainerPasswordConfirm('secret1', 'secret2').ok === false, 'mismatch rejected')
 ok(validateTrainerPasswordConfirm('secret1', 'secret1').ok === true, 'match ok')
+ok(validateTrainerPasswordConfirm('  secret1  ', 'secret1').ok === true, 'confirm after trim')
 
 const uuid = 'a1b2c3d4-e5f6-4789-a012-3456789abcde'
 const parsed = parseTrainerIdForAdmin(uuid)

@@ -3,6 +3,7 @@
  * На C2 заменим реализацию в authPort.js — контракт тот же.
  */
 import { createClient } from '@supabase/supabase-js'
+import { normalizePasswordInput } from './authLoginResolveCore.js'
 
 /**
  * @param {string} url
@@ -35,7 +36,7 @@ export async function signInWithPasswordSupabase(url, anonKey, creds, opts = {})
   const supabaseAuth = createClient(url, anonKey, { global: { fetch: fetchFn } })
   const { data, error } = await supabaseAuth.auth.signInWithPassword({
     email: String(creds?.email ?? '').trim(),
-    password: String(creds?.password ?? ''),
+    password: normalizePasswordInput(creds?.password),
   })
   if (error || !data?.session) {
     return { session: null, user: null, error: error?.message || 'Неверный логин или пароль' }
@@ -50,7 +51,7 @@ export async function signInWithPasswordSupabase(url, anonKey, creds, opts = {})
 export async function adminCreateUserSupabase(supabaseAdmin, attrs) {
   const { data, error } = await supabaseAdmin.auth.admin.createUser({
     email: attrs.email,
-    password: attrs.password,
+    password: normalizePasswordInput(attrs.password),
     email_confirm: attrs.email_confirm !== false,
     user_metadata: attrs.user_metadata,
   })
@@ -63,7 +64,9 @@ export async function adminCreateUserSupabase(supabaseAdmin, attrs) {
  * @param {string} password
  */
 export async function adminUpdatePasswordSupabase(supabaseAdmin, userId, password) {
-  const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, { password })
+  const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+    password: normalizePasswordInput(password),
+  })
   return { error: error?.message ?? null }
 }
 

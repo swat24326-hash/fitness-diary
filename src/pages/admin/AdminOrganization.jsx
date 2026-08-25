@@ -537,7 +537,7 @@ export function AdminOrganization({ mode = 'both' } = {}) {
     try {
       await resetTrainerPasswordForAdmin({
         trainer_id: passwordModalTrainer.id,
-        password: passwordForm.password,
+        password: check.password,
       })
       const name = passwordModalTrainer.name ?? 'тренер'
       setTrainerMsg(`Пароль для «${name}» обновлён. Сообщите тренеру новый пароль — вход по логину «${passwordModalTrainer.login ?? '—'}».`)

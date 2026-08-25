@@ -9,6 +9,17 @@ export function normalizeLoginInput(raw) {
     .trim()
 }
 
+/**
+ * Пароль: убрать невидимые символы и пробелы по краям (копипаст из заметок/чата).
+ * Внутри пароля пробелы не трогаем.
+ */
+export function normalizePasswordInput(raw) {
+  return String(raw ?? '')
+    .replace(/[\u200b-\u200d\ufeff]/g, '')
+    .replace(/\u00a0/g, ' ')
+    .trim()
+}
+
 export function trainerLocalEmail(login) {
   const n = normalizeLoginInput(login).toLowerCase()
   if (!n || n.includes('@')) return ''

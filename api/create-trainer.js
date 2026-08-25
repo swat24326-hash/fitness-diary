@@ -8,6 +8,7 @@ import { withSafeApiHandler } from './_lib/safeApiHandler.js'
 import { AUTH_ENV_MISSING_RU, adminCreateUser, adminDeleteUser, verifyBearer } from './_lib/authPort.js'
 import { formatClientName } from '../src/lib/clientNameFormat.js'
 import { isAdminByRole } from '../src/lib/admin/adminRoleCore.js'
+import { normalizeLoginInput, normalizePasswordInput } from './_lib/authLoginResolveCore.js'
 
 function readEnv() {
   const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').replace(/\/$/, '')
@@ -93,11 +94,9 @@ async function handler(req, res) {
   }
 
   const name = formatClientName(body.name)
-  const login = String(body.login ?? '')
-    .trim()
-    .toLowerCase()
+  const login = normalizeLoginInput(body.login).toLowerCase()
   const phone = String(body.phone ?? '').trim() || null
-  const password = String(body.password ?? '')
+  const password = normalizePasswordInput(body.password)
   let email = String(body.email ?? '').trim()
   const rawClub = body.club_id != null ? String(body.club_id).trim() : ''
   const club_id =

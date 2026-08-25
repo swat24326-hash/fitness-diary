@@ -6,7 +6,7 @@ import {
   raceSignInAttempts,
   signInWithPasswordDirect,
 } from '../lib/authSignInService'
-import { normalizeLoginInput, trainerLocalEmail } from '../lib/authLoginResolveCore'
+import { normalizeLoginInput, normalizePasswordInput, trainerLocalEmail } from '../lib/authLoginResolveCore'
 import {
   SUPABASE_CLOUD_UNAVAILABLE_RU,
   isInvalidCredentialsMessage,
@@ -524,8 +524,9 @@ export function AuthProvider({ children }) {
 
   const signIn = useCallback(async ({ login, password }) => {
     const raw = normalizeLoginInput(login ?? '')
+    const pwd = normalizePasswordInput(password)
     if (!raw) return { error: { message: 'Введите логин' } }
-    if (password == null || password === '') return { error: { message: 'Введите пароль' } }
+    if (!pwd) return { error: { message: 'Введите пароль' } }
 
     setSigningIn(true)
     signingOutRef.current = false
@@ -582,7 +583,7 @@ export function AuthProvider({ children }) {
 
       let serverTransportFailed = false
       try {
-        const won = await raceSignInAttempts({ login: raw, password })
+        const won = await raceSignInAttempts({ login: raw, password: pwd })
         finishSignIn(won.user, won.profile ?? null)
         return { error: null }
       } catch (e) {
@@ -633,7 +634,7 @@ export function AuthProvider({ children }) {
         }
       }
 
-      const { data, error } = await signInWithPasswordRetry(emailForAuth, password)
+      const { data, error } = await signInWithPasswordRetry(emailForAuth, pwd)
       if (error) {
         const msg = String(error.message ?? '')
         if (/invalid api key/i.test(msg)) {

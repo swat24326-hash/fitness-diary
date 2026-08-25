@@ -20,7 +20,12 @@ function ok(cond, msg) {
   }
 }
 
-ok(buildDirectAuthEmailCandidates('Ivanov').join() === 'ivanov@trainer.local', 'synth candidate')
+ok(
+  buildDirectAuthEmailCandidates('Ivanov').join() ===
+    'ivanov@trainer.local,ivanov@sales.local,ivanov@club.local',
+  'synth candidates trainer+sales+club',
+)
+ok(buildDirectAuthEmailCandidates('Sales').includes('sales@sales.local'), 'sales login candidate')
 ok(buildDirectAuthEmailCandidates('a@b.ru').join() === 'a@b.ru', 'email candidate')
 ok(isInvalidCredentialsMessage('Invalid login credentials'), 'invalid creds en')
 ok(!isInvalidCredentialsMessage('timeout'), 'timeout not invalid creds')

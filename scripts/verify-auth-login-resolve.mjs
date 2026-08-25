@@ -5,6 +5,7 @@ import {
   emailFromLoginRow,
   loginLookupEmails,
   normalizeLoginInput,
+  normalizePasswordInput,
   trainerLocalEmail,
 } from '../src/lib/authLoginResolveCore.js'
 
@@ -22,6 +23,11 @@ function ok(cond, msg) {
 ok(normalizeLoginInput('  ivan  ') === 'ivan', 'trim spaces')
 ok(normalizeLoginInput('ivan\u00a0petrov') === 'ivan petrov', 'nbsp')
 ok(normalizeLoginInput('login\u200bname') === 'loginname', 'zero-width')
+
+ok(normalizePasswordInput('  alotofmoney$$$  ') === 'alotofmoney$$$', 'password trim edges')
+ok(normalizePasswordInput('\u00a0alotofmoney$$$\u00a0') === 'alotofmoney$$$', 'password nbsp edges')
+ok(normalizePasswordInput('a\u200bb') === 'ab', 'password zero-width')
+ok(normalizePasswordInput('pass word') === 'pass word', 'password keeps inner spaces')
 
 ok(trainerLocalEmail('Ivanov') === 'ivanov@trainer.local', 'trainer local email')
 ok(trainerLocalEmail('a@b.ru') === '', 'email-like skips synth')

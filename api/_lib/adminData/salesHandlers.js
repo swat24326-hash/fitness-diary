@@ -1,4 +1,5 @@
 import { sendJson } from '../adminSupabase.js'
+import { normalizeLoginInput, normalizePasswordInput } from '../authLoginResolveCore.js'
 import { stripSalesBundleForManager } from '../../../src/lib/admin/salesAccessCore.js'
 import { aggregateMembershipTypeStats } from '../membershipTypeStatsAgg.js'
 import {
@@ -552,9 +553,9 @@ export async function handleCreateSalesManagerPost(ctx, res, body) {
   const { supabaseAdmin } = ctx
 
   const name = String(body.name ?? '').trim()
-  const login = String(body.login ?? '').trim().toLowerCase()
+  const login = normalizeLoginInput(body.login).toLowerCase()
   const phone = String(body.phone ?? '').trim() || null
-  const password = String(body.password ?? '')
+  const password = normalizePasswordInput(body.password)
   let email = String(body.email ?? '').trim()
   const rawClub = body.club_id != null ? String(body.club_id).trim() : ''
   const club_id =

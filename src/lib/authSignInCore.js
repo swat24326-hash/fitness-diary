@@ -1,7 +1,7 @@
 /**
  * Общие правила входа (браузер + verify; сервер дублирует сообщения при необходимости).
  */
-import { normalizeLoginInput, trainerLocalEmail } from './authLoginResolveCore.js'
+import { normalizeLoginInput } from './authLoginResolveCore.js'
 
 export const SUPABASE_CLOUD_UNAVAILABLE_RU =
   'Облако базы не отвечает (таймаут). Сайт открывается, но база недоступна — вход и Sync не пройдут. ' +
@@ -24,6 +24,7 @@ export function buildDirectAuthEmailCandidates(raw) {
   const trimmed = normalizeLoginInput(raw)
   if (!trimmed) return []
   if (trimmed.includes('@')) return [trimmed]
-  const synth = trainerLocalEmail(trimmed)
-  return synth ? [synth] : []
+  const n = trimmed.toLowerCase()
+  // Тренер / менеджер / управляющий — разные synth-домены при создании учётки.
+  return [`${n}@trainer.local`, `${n}@sales.local`, `${n}@club.local`]
 }

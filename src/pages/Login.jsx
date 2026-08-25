@@ -4,6 +4,7 @@ import { Dumbbell, Lock, User } from 'lucide-react'
 import { AppWelcomeSplash } from '../components/AppWelcomeSplash'
 import { useAuth } from '../context/AuthContext'
 import { isPwaUpdateInFlight } from '../lib/appUpdateInFlightSession.js'
+import { normalizeLoginInput, normalizePasswordInput } from '../lib/authLoginResolveCore'
 import { getSupabaseSetupMessage } from '../lib/supabase'
 
 export function Login() {
@@ -67,7 +68,10 @@ export function Login() {
   const onSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    const { error: err } = await signIn({ login: login.trim(), password })
+    const { error: err } = await signIn({
+      login: normalizeLoginInput(login),
+      password: normalizePasswordInput(password),
+    })
     if (err) setError(err.message ?? 'Ошибка входа')
   }
 
