@@ -171,6 +171,22 @@ export async function signInWithPasswordDirect(email, password, attempts = 2) {
 export async function raceSignInAttempts({ login, password }) {
   const raw = normalizeLoginInput(login)
   const pwd = normalizePasswordInput(password)
+  const directEmails = [...buildDirectAuthEmailCandidates(raw)]
+
+  if (!raw.includes('@')) {
+    try {
+      const resolved = await resolveLoginEmailFromDb(raw)
+      if (resolved.email && resolved.isActive !== false) {
+        const canonical = String(resolved.email).trim()
+        if (canonical && !directEmails.includes(canonical)) {
+          directEmails.unshift(canonical)
+        }
+      }
+    } catch {
+      /* серверный /api/auth-sign-in всё равно попробует lookup */
+    }
+  }
+
   const tasks = [
     async () => {
       const viaServer = await signInViaServerApi({ login: raw, password: pwd })
@@ -184,7 +200,7 @@ export async function raceSignInAttempts({ login, password }) {
     },
   ]
 
-  for (const email of buildDirectAuthEmailCandidates(raw)) {
+  for (const email of directEmails) {
     tasks.push(async () => {
       const { data, error } = await signInWithPasswordDirect(email, pwd)
       if (error || !data?.user) throw error ?? new Error('direct auth failed')

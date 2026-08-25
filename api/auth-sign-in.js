@@ -138,9 +138,56 @@ async function handler(req, res) {
   const fetchWithTimeout = createFetchWithTimeout(SUPABASE_FETCH_MS)
   const supabaseAdmin = createClient(url, serviceKey, { global: { fetch: fetchWithTimeout } })
 
-  const directCandidates = buildDirectAuthEmailCandidates(login)
   let sawTransportError = false
   let sawInvalidCredentials = false
+
+  // Короткий логин: сначала email из users (admin@fit-city.ru, sales@sales.local…), не synth-домены.
+  if (!login.includes('@')) {
+    let resolvedEarly = null
+    try {
+      resolvedEarly = await withServerTimeout(resolveEmail(supabaseAdmin, login), SUPABASE_FETCH_MS, 'resolveEmail')
+    } catch (e) {
+      if (isServerTimeoutError(e)) {
+        sendJson(res, 503, { error: SUPABASE_CLOUD_UNAVAILABLE_RU })
+        return
+      }
+      throw e
+    }
+    if (resolvedEarly?.email) {
+      if (resolvedEarly.isActive === false) {
+        sendJson(res, 403, { error: 'Учётная запись заблокирована' })
+        return
+      }
+      try {
+        const attempt = await tryAuthAndRespond(res, {
+          url,
+          anonKey,
+          supabaseAdmin,
+          email: String(resolvedEarly.email).trim(),
+          password,
+          fetchWithTimeout,
+        })
+        if (attempt.ok) return
+        if (attempt.transport) {
+          sawTransportError = true
+        } else if (isInvalidCredentialsMessage(attempt.error)) {
+          sendJson(res, 401, { error: 'Неверный логин или пароль' })
+          return
+        } else {
+          sendJson(res, 400, { error: String(attempt.error ?? 'Ошибка входа') })
+          return
+        }
+      } catch (e) {
+        if (isServerTimeoutError(e)) {
+          sendJson(res, 503, { error: SUPABASE_CLOUD_UNAVAILABLE_RU })
+          return
+        }
+        throw e
+      }
+    }
+  }
+
+  const directCandidates = buildDirectAuthEmailCandidates(login)
 
   for (const email of directCandidates) {
     try {
@@ -172,9 +219,47 @@ async function handler(req, res) {
     return
   }
 
-  // Email введён целиком и Auth уже сказал «неверные данные» — lookup в users не нужен.
-  // Короткий логин: synth @trainer.local ≠ @sales.local / @club.local — идём в resolveEmail.
+  // Email введён целиком — если пароль неверный, пробуем канонический email из users (регистр).
   if (login.includes('@') && sawInvalidCredentials && !sawTransportError) {
+    let resolvedEmail = null
+    try {
+      resolvedEmail = await withServerTimeout(resolveEmail(supabaseAdmin, login), SUPABASE_FETCH_MS, 'resolveEmail')
+    } catch (e) {
+      if (isServerTimeoutError(e)) {
+        sendJson(res, 503, { error: SUPABASE_CLOUD_UNAVAILABLE_RU })
+        return
+      }
+      throw e
+    }
+    const canonical = String(resolvedEmail?.email ?? '').trim()
+    if (
+      canonical &&
+      resolvedEmail?.isActive !== false &&
+      canonical.toLowerCase() !== login.toLowerCase() &&
+      !directCandidates.includes(canonical)
+    ) {
+      try {
+        const attempt = await tryAuthAndRespond(res, {
+          url,
+          anonKey,
+          supabaseAdmin,
+          email: canonical,
+          password,
+          fetchWithTimeout,
+        })
+        if (attempt.ok) return
+        if (attempt.transport || isServerTimeoutError(attempt.error)) {
+          sendJson(res, 503, { error: SUPABASE_CLOUD_UNAVAILABLE_RU })
+          return
+        }
+      } catch (e) {
+        if (isServerTimeoutError(e)) {
+          sendJson(res, 503, { error: SUPABASE_CLOUD_UNAVAILABLE_RU })
+          return
+        }
+        throw e
+      }
+    }
     sendJson(res, 401, { error: 'Неверный логин или пароль' })
     return
   }
