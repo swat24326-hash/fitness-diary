@@ -1,6 +1,6 @@
 # Тестирование и QA
 
-**Актуально:** 2026-08-20. Политика: `.cursor/rules/fitness-diary-ship.mdc`, `fitness-diary-stability.mdc`.
+**Актуально:** 2026-08-26. Политика: `.cursor/rules/fitness-diary-ship.mdc`, `fitness-diary-stability.mdc`.
 
 ---
 
@@ -41,6 +41,7 @@
 | Сценарий | Минимум проверки |
 |----------|------------------|
 | Новая тренировка → Завершить | дата, абонемент, очередь; двойной тап / автосейв — `verify-training-persist-status.mjs` + `verify-critical-hall.mjs`; reconcile used — `verify-membership-used-reconcile.mjs` |
+| Черновик: уход на главную / удаление с карточки | restore — `verify-training-draft-restore.mjs`; delete не воскрешает — `verify-training-draft-delete.mjs`; ручной: Удалить→Да → карточка и вкладки пустые после reload |
 | Правка завершённой | смена даты, повторное сохранение |
 | Sync на планшете | flush + pull, pending не затираются |
 | Архив → Активные: список не обнуляется | `verify-trainer-archive-pull-prune.mjs`; [SYNC.md](./SYNC.md) §«Архив на планшете» |
@@ -78,7 +79,7 @@
 | Сессионный кэш вкладок черновика (без «Загрузка…») | `verify-training-draft-session-cache.mjs` |
 | Durable черновик после блокировки экрана / kill вкладки / PWA-обновления | `verify-training-draft-durable.mjs`, `verify-app-stability.mjs` |
 | Восстановление черновика (IDB / durable / session, уход на главную) | `verify-training-draft-restore.mjs` |
-| Удаление черновика (durable не воскрешает после delete) | `verify-training-draft-delete.mjs` |
+| Удаление черновика (очередь delete + tombstone; hydrate/persist/restore не воскрешают) | `verify-training-draft-delete.mjs`; cleanup: `trainingDraftCleanup.js` / `*Core.js` |
 | Подход Л/П (стороны, сводка, челлендж, завершение) | `verify-training-set-laterality.mjs` |
 | Статус тренировки: completed не откатывается в draft | `verify-training-persist-status.mjs` |
 | Pull/push merge: draft, completed `updated_at`, prune | `verify-sync-pull-merge.mjs` |

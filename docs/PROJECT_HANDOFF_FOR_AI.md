@@ -1,6 +1,6 @@
 # Описание проекта для передачи другой нейросети / разработчику
 
-**Актуально:** 2026-08-20. Документ самодостаточен: по нему можно продолжить работу без истории чата. Язык UI — **русский**. Репозиторий: **fitness-diary**. Продукт: **Ядро** (код `CORE`). Клуб-эталон: **FIT-CITY** (тенант, не имя системы). Канон: [BRAND_SYSTEM.md](./BRAND_SYSTEM.md).
+**Актуально:** 2026-08-26. Документ самодостаточен: по нему можно продолжить работу без истории чата. Язык UI — **русский**. Репозиторий: **fitness-diary**. Продукт: **Ядро** (код `CORE`). Клуб-эталон: **FIT-CITY** (тенант, не имя системы). Канон: [BRAND_SYSTEM.md](./BRAND_SYSTEM.md).
 
 **Сначала:** крупная цель [PRODUCT_VISION.md](./PRODUCT_VISION.md) → нарезка и ведение [PATH_TO_GOAL.md](./PATH_TO_GOAL.md) → этот файл (что в коде сегодня) → карта [README.md](./README.md) → при углублении [API.md](./API.md), [SYNC.md](./SYNC.md), [DATA_MODEL.md](./DATA_MODEL.md), [TESTING.md](./TESTING.md), [PWA.md](./PWA.md). Уровень инженерии: [ENGINEERING_MATURITY.md](./ENGINEERING_MATURITY.md). Оплаты: [PAYMENTS_DOMAIN.md](./PAYMENTS_DOMAIN.md) — ТЗ готово; **код L3/кассы — после стабильного переезда РФ (R3+)**. Модули: [PRODUCT_MODULES.md](./PRODUCT_MODULES.md).
 
@@ -59,6 +59,8 @@ src/
   lib/
     localDb.js, syncService.js, syncApiClient.js, syncHeaderPullService.js, membershipRules.js
     membershipClubLoad.js, trainingMembershipLinkCore.js, membershipCacheRefresh.js
+    trainingDraftDurable*.js, trainingDraftSessionCache.js, trainingDraftRestoreCore.js,
+    trainingDraftCleanup.js (+ *Core) — durable/session/restore; удаление draft не воскрешает (SYNC §3c–3d)
     dataAccess.js         — реэкспорты; новое админское — в admin/
     admin/                — статистика, продажи, membershipTypeStatsAgg.js, …
     pnk/                  — этапы ПНК, wizard, glance, visit quality (*Core.js)

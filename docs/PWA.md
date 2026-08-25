@@ -1,6 +1,6 @@
 # PWA — установка и обновление на планшете
 
-**Актуально:** 2026-08-21. Инциденты «белый экран / старая версия / цикл login»: [RUNBOOK.md §4](./RUNBOOK.md). Конфиг: `vite.config.js` (`vite-plugin-pwa`).
+**Актуально:** 2026-08-26. Инциденты «белый экран / старая версия / цикл login»: [RUNBOOK.md §4](./RUNBOOK.md). Конфиг: `vite.config.js` (`vite-plugin-pwa`).
 
 ---
 
@@ -57,14 +57,14 @@ needRefresh / buildStale
 | Анти-цикл reload | `appUpdateReloadGuard.js` | 90 с без повторного auto; 2-й тап → hard recover |
 | In-flight | `appUpdateInFlightCore.js` | после reload не мигать login 120 с |
 | Apply | `appUpdateApplyService.js` | flush черновиков тренировок → SW + пауза sync + reload / `viteChunkReload` |
-| Черновик тренировки | `trainingDraftDurableStorage.js`, `trainingDraftUpdateFlush.js`, `trainingDraftDurableHydrate.js` | localStorage + flush перед reload; после обновления — восстановление в IDB / вкладки черновиков |
+| Черновик тренировки | `trainingDraftDurableStorage.js`, `trainingDraftUpdateFlush.js`, `trainingDraftDurableHydrate.js`, `trainingDraftCleanup.js` | localStorage + flush перед reload; после обновления — восстановление в IDB / вкладки; **удаление draft** снимает durable (иначе hydrate воскрешает). См. [SYNC.md](./SYNC.md) §3c |
 | UI | `PwaUpdatePrompt.jsx`, `AppUpdatedBanner.jsx` | баннер / «Приложение обновлено» |
 | Auth | `AuthContext.jsx`, `Login.jsx`, `App.jsx` | splash «Обновляем…», дольше getSession |
 
 ### Как ведёт себя планшет
 
 1. Есть новая версия → баннер (или auto на home/login, если политика immediate и auth готов).
-2. На **тренировке**, при **свежем черновике тренировки** (в т.ч. ушли с формы, но durable ещё есть) или свежем черновике **отчёта продаж** — только отложить. Перед «Обновить» — flush черновика на диск.
+2. На **тренировке**, при **свежем черновике тренировки** (в т.ч. ушли с формы, но durable ещё есть) или свежем черновике **отчёта продаж** — только отложить. Перед «Обновить» — flush черновика на диск. После **Удалить** черновик durable очищается — PWA-hydrate не должен снова создать строку (pending delete / tombstone).
 3. **Слабый планшет:** если auto-reload сорвался (login↔главная), auto **не крутится** 90 с; кнопка **«Обновить ещё раз»** (повтор → сброс SW/кэша).
 4. Во время смены SW — splash «Обновляем приложение…», не форма входа с «…».
 5. Успех → «Приложение обновлено» + можно работать.

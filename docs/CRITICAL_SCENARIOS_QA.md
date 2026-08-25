@@ -1,6 +1,6 @@
 # Критические сценарии — план проверки
 
-**Актуально:** 2026-08-23  
+**Актуально:** 2026-08-26  
 **Статус:** рабочий чеклист + автопрогон `npm run qa:critical`  
 **Политика:** `.cursor/rules/fitness-diary-stability.mdc`, [TESTING.md](./TESTING.md)
 
@@ -27,6 +27,7 @@
 |---|----------|--------------|----------------------------|
 | A1 | Новая → Завершить + абон | `verify-training-persist-status`, `verify-training-membership-debit`, `verify-critical-hall` | Черновик, двойной тап, списание |
 | A2 | Sync: очередь → pull | `verify-sync-offline`, `verify-sync-pull-merge` | Pending затираются, draft↔completed |
+| A2b | Черновик: уход / удаление с карточки | `verify-training-draft-restore`, `verify-training-draft-delete` | Не откат текста; delete не воскрешает из durable |
 | A3 | Доступ / push | `verify-security-l1-audit` | IDOR, supervisor без `club_id` |
 | A4 | Даты МСК (клуб) | `verify-date-ru` | «Сегодня» съезжает по TZ браузера |
 | A5 | Главная: день + смена + таймауты | `verify-admin-club-day-summary`, `verify-club-call-shift-summary`, `verify-admin-home-glance-timeout` | Вечный скелетон, пустые сводки |
@@ -49,6 +50,8 @@
 2. Online: **Sync** → очередь ушла, тренировка на другом устройстве/в админке видна.
 3. Открыть завершённую → сменить дату → сохранить → Sync → дата не откатилась.
 4. Два быстрых тапа «Закончить» — одна запись completed, без зависания «Сохраняем…».
+4a. Черновик: набрать текст → главная → снова открыть — текст/упражнения на месте (не «су»).
+4b. Карточка клиента → Тренировки → **Удалить** черновик → **Да** — карточка и вкладки черновиков пустые; после reload не возвращается.
 
 ### Админка / клуб
 
